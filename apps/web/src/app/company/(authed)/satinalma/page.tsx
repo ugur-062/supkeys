@@ -2,7 +2,7 @@
 
 import { hasAnySeatPermission } from "@/lib/company/permissions";
 import type { HeroWidget } from "@/components/dashboard/panel-hero-search";
-import { Lock, ShieldCheck, Sparkles, Truck } from "lucide-react";
+import { BadgeCheck, Building2, Lock, ShieldCheck, Sparkles } from "lucide-react";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { intentToProductQuery, stashAiIntent } from "@/lib/company/ai-search";
 import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
@@ -52,10 +52,9 @@ import { useEffect, useMemo, useState } from "react";
  */
 /* Hero köşe kartları (2026-09-17): dekoratif, sayı/istatistik yok. */
 const BUYER_WIDGETS: HeroWidget[] = [
-  { icon: ShieldCheck, title: "Doğrulanmış tedarikçiler", hint: "Belgeleri incelenmiş firmalar", at: "tl" },
+  { icon: ShieldCheck, icons: [ShieldCheck, Building2, BadgeCheck], title: "Doğrulanmış tedarikçiler", hint: "Belgeleri incelenmiş firmalar", at: "tl" },
   { icon: Lock, title: "Kapalı zarf teklifler", hint: "Tedarikçiler birbirini görmez", at: "tr" },
-  { icon: Sparkles, title: "AI ile tedarikçi bul", hint: "Kalemlerinizden öneri alın", at: "bl" },
-  { icon: Truck, title: "Teslim ve ödeme şartları", hint: "Talep şartlarınız profilinizden", at: "br" },
+  { icon: Sparkles, title: "AI ile tedarikçi bul", hint: "Kalemlerinizden öneri alın", at: "br" },
 ];
 
 export default function SatinalmaDashboardPage() {

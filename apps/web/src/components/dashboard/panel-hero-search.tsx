@@ -60,6 +60,8 @@ export interface PanelHeroAi {
 
 export type HeroWidget = {
   icon: LucideIcon;
+  /** Üst üste binen küçük ikon çipleri (referanstaki avatar yığını; fotoğraf yok). */
+  icons?: LucideIcon[];
   title: string;
   hint: string;
   /** Köşe: tl · tr · bl · br. */
@@ -71,10 +73,10 @@ const WIDGET_POS: Record<HeroWidget["at"], string> = {
      her yanda 192 px pay; kart 176 px o paya sığar, arama kutusuyla ÇAKIŞMAZ
      (staging'de ölçüldü: geniş kart satış bandında arama kutusunun sağ
      ucuna biniyordu). Daha dar ekranda hiç çizilmez. */
-  tl: "left-3 top-6 -rotate-3",
-  tr: "right-3 top-6 rotate-2",
-  bl: "left-3 bottom-6 rotate-2",
-  br: "right-3 bottom-6 -rotate-2",
+  tl: "left-2 top-10 -rotate-6",
+  tr: "right-2 top-8 rotate-3",
+  bl: "left-4 bottom-8 rotate-2",
+  br: "right-4 bottom-10 -rotate-3",
 };
 
 export function PanelHeroSearch({
@@ -284,7 +286,12 @@ export function PanelHeroSearch({
              İÇERİĞE bağlıydı — satınalmada kapsam pilleri ve "talep aç"
              satırı olduğu için bant daha uzundu, satışta kısa kalıyordu.
              Sabit taban yükseklik ikisini eşitler; kısa içerik ortalanır. */
-          ? "relative isolate -mt-6 flex min-h-[30rem] w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-hidden bg-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10"
+          ? cn(
+              "relative isolate -mt-6 flex w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-hidden bg-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10",
+              /* Köşe kartları varken bant biraz daha yüksek — kartlar arama
+                 kutusunun satırına inmez (2xl'de ölçüldü). */
+              widgets?.length ? "min-h-[30rem] 2xl:min-h-[34rem]" : "min-h-[30rem]",
+            )
           : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6"
       }
     >
@@ -298,18 +305,36 @@ export function PanelHeroSearch({
               key={w.title}
               aria-hidden
               className={cn(
-                "pointer-events-none absolute -z-10 hidden w-44 select-none items-center gap-2.5 rounded-2xl bg-white/90 p-3 shadow-lg ring-1 ring-zinc-950/5 backdrop-blur 2xl:flex",
+                /* Referans kart (2026-09-17): dikey düzen — üstte ikon ya da
+                   çip yığını, altında kalın başlık, en altta gri ipucu + ok;
+                   hafif eğik, yumuşak geniş gölge. */
+                "pointer-events-none absolute -z-10 hidden w-56 select-none flex-col rounded-3xl bg-white p-5 shadow-[0_24px_48px_-16px_rgba(24,24,27,0.22)] ring-1 ring-zinc-950/5 2xl:flex",
                 WIDGET_POS[w.at],
               )}
             >
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700">
-                <w.icon className="size-4.5" />
+              {w.icons?.length ? (
+                <span className="flex -space-x-2">
+                  {w.icons.slice(0, 3).map((Ic, i) => (
+                    <span
+                      key={i}
+                      className="flex size-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-700 ring-2 ring-white"
+                    >
+                      <Ic className="size-4" />
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span className="flex size-11 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-800">
+                  <w.icon className="size-6" />
+                </span>
+              )}
+              <span className="mt-3 flex items-end justify-between gap-2">
+                <span className="min-w-0">
+                  <span className="block text-[15px] font-bold leading-tight tracking-tight text-zinc-950">{w.title}</span>
+                  <span className="mt-1 block text-xs leading-snug text-zinc-500">{w.hint}</span>
+                </span>
+                <ChevronRight className="mb-0.5 size-4 shrink-0 text-zinc-500" />
               </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-xs font-semibold leading-tight text-zinc-900">{w.title}</span>
-                <span className="mt-0.5 block text-[11px] leading-snug text-zinc-500">{w.hint}</span>
-              </span>
-              <ChevronRight className="size-4 shrink-0 text-zinc-400" />
             </div>
           ))
         : null}
