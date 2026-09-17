@@ -67,10 +67,14 @@ export type HeroWidget = {
 };
 
 const WIDGET_POS: Record<HeroWidget["at"], string> = {
-  tl: "left-6 top-8 -rotate-3",
-  tr: "right-6 top-6 rotate-2",
-  bl: "left-10 bottom-8 rotate-2",
-  br: "right-10 bottom-10 -rotate-2",
+  /* Kenara yakın ve DAR (w-44): 2xl'de içerik 1280 px, arama kutusu 896 px →
+     her yanda 192 px pay; kart 176 px o paya sığar, arama kutusuyla ÇAKIŞMAZ
+     (staging'de ölçüldü: geniş kart satış bandında arama kutusunun sağ
+     ucuna biniyordu). Daha dar ekranda hiç çizilmez. */
+  tl: "left-3 top-6 -rotate-3",
+  tr: "right-3 top-6 rotate-2",
+  bl: "left-3 bottom-6 rotate-2",
+  br: "right-3 bottom-6 -rotate-2",
 };
 
 export function PanelHeroSearch({
@@ -133,7 +137,7 @@ export function PanelHeroSearch({
   /**
    * DEKORATİF WİDGET KARTLARI (2026-09-17, kullanıcı: referans görseldeki
    * "arkadaki küçük kutu tarzı görseller"). Bandın köşelerinde, içeriğin
-   * arkasında, `aria-hidden` + `pointer-events-none`; yalnız `xl` ve üstü.
+   * arkasında, `aria-hidden` + `pointer-events-none`; yalnız `2xl` ve üstü.
    * İçerik UYDURMA SİNYAL taşımaz (sayı/istatistik yok) — ürün vaatleri.
    */
   widgets?: HeroWidget[];
@@ -294,15 +298,15 @@ export function PanelHeroSearch({
               key={w.title}
               aria-hidden
               className={cn(
-                "pointer-events-none absolute -z-10 hidden w-56 select-none items-center gap-3 rounded-2xl bg-white/90 p-3.5 shadow-lg ring-1 ring-zinc-950/5 backdrop-blur xl:flex",
+                "pointer-events-none absolute -z-10 hidden w-44 select-none items-center gap-2.5 rounded-2xl bg-white/90 p-3 shadow-lg ring-1 ring-zinc-950/5 backdrop-blur 2xl:flex",
                 WIDGET_POS[w.at],
               )}
             >
-              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700">
-                <w.icon className="size-5" />
+              <span className="flex size-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700">
+                <w.icon className="size-4.5" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold leading-tight text-zinc-900">{w.title}</span>
+                <span className="block text-xs font-semibold leading-tight text-zinc-900">{w.title}</span>
                 <span className="mt-0.5 block text-[11px] leading-snug text-zinc-500">{w.hint}</span>
               </span>
               <ChevronRight className="size-4 shrink-0 text-zinc-400" />
