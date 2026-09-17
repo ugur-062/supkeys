@@ -10,13 +10,13 @@ describe("görünürlük katmanı v2", () => {
     expect(canSee("anon", "company", "ratingAvg")).toBe(true);
     expect(canSee("anon", "directory", "list")).toBe(true);
   });
-  it("üyeye kalanlar: bilgi iste, iletişim, Rothern ID, puan dağılımı, alıcı adı, kalem adları", () => {
+  it("üyeye kalanlar: bilgi iste, iletişim, Rothern ID, puan dağılımı, alıcı adı (kalem adları 2026-09-18'den beri herkese açık)", () => {
     expect(canSee("anon", "product", "inquiry")).toBe(false);
     expect(canSee("anon", "company", "contact")).toBe(false);
     expect(canSee("anon", "company", "rothernId")).toBe(false);
     expect(canSee("anon", "company", "ratingDistribution")).toBe(false);
     expect(canSee("anon", "listing", "buyerName")).toBe(false);
-    expect(canSee("anon", "listing", "itemNames")).toBe(false);
+    expect(canSee("anon", "listing", "itemNames")).toBe(true);
     expect(canSee("member", "listing", "itemNames")).toBe(true);
   });
   it("talepte ölçek açık, hedef fiyat hiçbir katmanda", () => {

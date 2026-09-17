@@ -68,7 +68,8 @@ export const VISIBILITY = {
     closesAt: "anon",
     format: "anon", // kapalı zarf
     buyerName: "member",
-    itemNames: "member",
+    /* 2026-09-18, kullanıcı kararı: kalem adları herkese açık (alıcı kimliği değil). */
+    itemNames: "anon",
     specification: "member",
     files: "member",
     targetPrice: "never",

@@ -672,6 +672,10 @@ hiç dönmez) ve JSON-LD'de `Organization` düğümü YOKTUR. Gerekçe: "kim al�
 rekabet istihbaratıdır. Gösterilen: şehir, ülke, sektör, faaliyet tipi —
 kimlik değil nitelik.
 
+**Kalem ADLARI herkese açık (2026-09-18, kullanıcı kararı: "kalemlerin neler
+olduğu gözüksün, firma bilgisi zaten gizli"):** `items[].name` projeksiyonda;
+marka/açıklama/şartname/ekli belge ve alıcı kimliği yine dışarıda. Herkese
+açık talep sayfasının üstündeki kategori görsel bandı da kaldırıldı.
 DIŞARIDA ayrıca: teklifler **ve teklif SAYISI** · `targetPrice` · pazarlık
 tabanı · `terms`/`paymentNote` (serbest metin, IBAN taşıyabilir) · logistics/
 adresler · `internalNotes` · cuid id'ler. `description` DAHİL.

@@ -84,8 +84,8 @@ export interface PublicListingDetail extends Omit<PublicListingCard, "excerpt"> 
   lcConfirmed: boolean;
   updatedAt: string;
   indexable: boolean;
-  /** Satırlar: sıra + miktar + birim — AD ÜYEYE (görünürlük v2). */
-  items: { lineNo: number; quantity: string; unit: string }[];
+  /** Satırlar: sıra + AD + miktar + birim (ad 2026-09-18'den beri herkese açık). */
+  items: { lineNo: number; name: string; quantity: string; unit: string }[];
 }
 
 export interface PublicListPage {

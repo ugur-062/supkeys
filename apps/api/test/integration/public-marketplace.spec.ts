@@ -177,11 +177,12 @@ describe("pazar yeri — kapalı zarf yapısal güvence", () => {
     const res = await service().getByNumber(listing.number as string);
     expectNoForbidden(res);
     expect(res.title).toBe("Çelik Boru Alımı");
-    // v2: kalem MİKTARI gider (ölçek), ADI ve gövdesi GİTMEZ.
-    expect(res.items[0]).not.toHaveProperty("name");
+    // 2026-09-18 (kullanıcı kararı): kalem ADI ve MİKTARI herkese açık;
+    // marka/açıklama/şartname ve alıcı kimliği GİTMEZ.
+    expect(res.items[0].name).toBe("Dikişsiz boru");
+    expect(res.items[0]).not.toHaveProperty("description");
     expect(res.items[0].quantity).toBeDefined();
     expect(res.itemSummary.count).toBe(res.items.length);
-    expect(JSON.stringify(res)).not.toContain("Dikişsiz boru");
     expect(JSON.stringify(res)).not.toContain("99000");
     expect(JSON.stringify(res)).not.toContain("120");
   });

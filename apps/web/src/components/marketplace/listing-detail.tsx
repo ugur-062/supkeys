@@ -1,6 +1,5 @@
 import { PublicLayout } from "./public-layout";
 import { Badge } from "@/components/catalyst/badge";
-import { CategoryImage } from "./category-image";
 import { GatedField } from "./gated-field";
 import { Heading } from "@/components/catalyst/heading";
 import { formatDate } from "@/lib/format-date";
@@ -128,20 +127,8 @@ export function ListingDetail({
           </ol>
         </nav>
 
-        {/* Gerçek kapak varsa daha geniş oran (görsel içeriktir); yoksa
-            kategori görseli dar bir bant olarak durur ve metni bastırmaz. */}
-        <CategoryImage
-          src={listing.coverImageUrl}
-          alt={listing.title}
-          categoryIds={listing.categoryIds}
-          ratio={
-            listing.coverImageUrl
-              ? "aspect-[16/6] sm:aspect-[16/5]"
-              : "aspect-[6/1] sm:aspect-[8/1]"
-          }
-          className="mt-6 rounded-2xl ring-1 ring-zinc-950/5"
-        />
-
+        {/* Kategori bandı KALDIRILDI (2026-09-18, kullanıcı: "en yukarıdaki
+            dikdörtgen ikonu kaldır"). */}
         <header className="mt-6">
           <div className="flex flex-wrap items-center gap-3">
             <Badge color={STATE_COLOR[state]}>{STATE_LABEL[state]}</Badge>
@@ -196,9 +183,9 @@ export function ListingDetail({
               </section>
             ) : null}
 
-            {/* KALEMLER — MİKTAR AÇIK, AD GİZLİ (görünürlük v2): ziyaretçi
-                ölçeği görür ("Kalem 1 · 500 adet"), ne istendiğini üye görür.
-                Bulanıklaştırma yok; ad HTML'e hiç yazılmaz. */}
+            {/* KALEMLER — AD ve MİKTAR AÇIK (2026-09-18, kullanıcı kararı:
+                "kalemlerin neler olduğu gözüksün, firma bilgisi zaten
+                gizli"). Marka/açıklama/şartname ve alıcı kimliği üyeye. */}
             {listing.itemCount > 0 ? (
               <section className="mt-12">
                 <h2 className="text-lg font-semibold text-zinc-950">
@@ -213,8 +200,8 @@ export function ListingDetail({
                 <ul className="mt-4 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl ring-1 ring-zinc-950/5">
                   {listing.items.map((row) => (
                     <li key={row.lineNo} className="flex items-center gap-3 bg-white px-5 py-3 text-sm">
-                      <span className="w-16 shrink-0 font-medium text-zinc-900">Kalem {row.lineNo}</span>
-                      <span className="inline-block h-3 w-40 max-w-[40%] rounded bg-zinc-100" aria-hidden />
+                      <span className="w-8 shrink-0 tabular-nums text-zinc-400">{row.lineNo}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium text-zinc-900">{row.name || `Kalem ${row.lineNo}`}</span>
                       <span className="ml-auto shrink-0 tabular-nums text-zinc-700">
                         {Number(row.quantity).toLocaleString("tr-TR")} {row.unit}
                       </span>
@@ -224,8 +211,8 @@ export function ListingDetail({
                 <GatedField
                   className="mt-4"
                   size="box"
-                  label="Kalem adları, alıcı firma ve şartname"
-                  hint="Alıcı adını, kalem adlarını, teknik şartnameyi ve ekli belgeleri görmek ve teklif vermek için ücretsiz hesap — 2 dakika, kredi kartı yok."
+                  label="Alıcı firma, şartname ve ekli belgeler"
+                  hint="Alıcı adını, teknik şartnameyi ve ekli belgeleri görmek ve teklif vermek için ücretsiz hesap — 2 dakika, kredi kartı yok."
                   redirect={PANEL_TARGET.listing(listing.number)}
                 />
               </section>
@@ -334,7 +321,7 @@ export function ListingDetail({
                     <p className="mt-2 text-center text-xs text-zinc-500">2 dakika · kredi kartı yok</p>
                     <ul className="mt-4 space-y-1.5 text-xs/5 text-zinc-600">
                       {[
-                        "Alıcı adı, kalem adları ve şartname",
+                        "Alıcı adı, şartname ve ekli belgeler",
                         "Kapalı zarf teklif — rakipler görmez",
                         "Kategorinle eşleşen yeni talepler e-postana",
                       ].map((t) => (

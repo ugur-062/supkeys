@@ -76,7 +76,7 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
           </p>
         ) : null}
         <p className={`text-xs text-zinc-500 tnum ${qty ? "mt-0.5" : "mt-3"}`}>
-          {l.itemSummary.count} kalem · kalem adları ve şartname üyelere
+          {l.itemSummary.count} kalem · şartname ve belgeler üyelere
         </p>
 
         <dl className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600">

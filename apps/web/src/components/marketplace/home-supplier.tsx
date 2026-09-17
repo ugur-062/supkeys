@@ -47,7 +47,7 @@ export function HomeSupplier({
               Alıcılar şu an bunları arıyor
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-zinc-500">
-              Miktar, kapsam ve kalan süre herkese açık. Alıcı adı, kalem adları ve şartname yalnız
+              Kalemler, miktar, kapsam ve kalan süre herkese açık. Alıcı adı, şartname ve belgeler yalnız
               üyelere — kapalı zarf kuralı.
             </p>
           </div>

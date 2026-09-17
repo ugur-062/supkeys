@@ -94,10 +94,13 @@ export const PUBLIC_LISTING_SELECT = {
   publicIndexable: true,
   coverImageUrl: true,
   items: {
-    // Yalnız kapak türetimi + kapsam önizlemesi için: ad ve görsel. Miktar,
-    // marka, şartname, hemen-al fiyatı SELECT'TE YOK — sızamaz.
+    // Kapsam önizlemesi: sıra, AD (2026-09-18, kullanıcı kararı: "kalemlerin
+    // neler olduğu gözüksün, firma bilgisi zaten gizli"), miktar, birim,
+    // görsel. Marka, açıklama, şartname, hedef/hemen-al fiyatı SELECT'TE
+    // YOK — sızamaz.
     select: {
       lineNo: true,
+      name: true,
       images: true,
       quantity: true,
       unit: true,
@@ -149,6 +152,8 @@ export interface PublicListingCompany {
  */
 export interface PublicListingItemRow {
   lineNo: number;
+  /** 2026-09-18: kalem adı herkese açık (marka/açıklama/şartname değil). */
+  name: string;
   quantity: string;
   unit: string;
 }
@@ -227,12 +232,13 @@ export type PublicListingCard = Pick<
 };
 
 
-type ItemQty = { lineNo: number; quantity: Prisma.Decimal; unit: string };
+type ItemQty = { lineNo: number; name?: string | null; quantity: Prisma.Decimal; unit: string };
 
 export function itemRowsOf(items: ItemQty[]): PublicListingItemRow[] {
   return [...items]
     .sort((a, b) => a.lineNo - b.lineNo)
-    .map((i) => ({ lineNo: i.lineNo, quantity: i.quantity.toString(), unit: i.unit }));
+    // 2026-09-18: kalem ADI herkese açık (kullanıcı kararı); firma kimliği gizli kalır.
+    .map((i) => ({ lineNo: i.lineNo, name: i.name ?? "", quantity: i.quantity.toString(), unit: i.unit }));
 }
 
 export function itemSummaryOf(items: ItemQty[]): PublicListingItemSummary {
