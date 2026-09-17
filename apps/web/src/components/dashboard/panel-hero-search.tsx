@@ -73,10 +73,13 @@ const WIDGET_POS: Record<HeroWidget["at"], string> = {
      her yanda 192 px pay; kart 176 px o paya sığar, arama kutusuyla ÇAKIŞMAZ
      (staging'de ölçüldü: geniş kart satış bandında arama kutusunun sağ
      ucuna biniyordu). Daha dar ekranda hiç çizilmez. */
-  tl: "left-2 top-10 -rotate-6",
-  tr: "right-2 top-8 rotate-3",
-  bl: "left-4 bottom-8 rotate-2",
-  br: "right-4 bottom-10 -rotate-3",
+  /* Alt kartlar DAR ve kenarda (w-48, 4 px): satış bandında arama kutusu
+     daha aşağıda; geniş kart kutunun ucuna girip ikonu örtüyordu
+     (2xl'de ölçüldü). Üst kartlar başlık hizasında, geniş kalabilir. */
+  tl: "left-2 top-10 w-56 -rotate-6",
+  tr: "right-2 top-8 w-56 rotate-3",
+  bl: "left-1 bottom-8 w-48 rotate-2",
+  br: "right-1 bottom-10 w-48 -rotate-3",
 };
 
 export function PanelHeroSearch({
@@ -308,7 +311,7 @@ export function PanelHeroSearch({
                 /* Referans kart (2026-09-17): dikey düzen — üstte ikon ya da
                    çip yığını, altında kalın başlık, en altta gri ipucu + ok;
                    hafif eğik, yumuşak geniş gölge. */
-                "pointer-events-none absolute -z-10 hidden w-56 select-none flex-col rounded-3xl bg-white p-5 shadow-2xl shadow-zinc-950/15 ring-1 ring-zinc-950/5 2xl:flex",
+                "pointer-events-none absolute -z-10 hidden select-none flex-col rounded-3xl bg-white p-5 shadow-2xl shadow-zinc-950/15 ring-1 ring-zinc-950/5 2xl:flex",
                 WIDGET_POS[w.at],
               )}
             >
