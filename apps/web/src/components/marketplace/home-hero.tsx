@@ -78,9 +78,8 @@ export function HomeHero() {
       {supplier ? (
         <PanelHeroSearch
           key="supplier"
-          title="Hangi talebe"
-          titleAccent="teklif vereceksiniz?"
-          splitTitle
+          title="Hangi talebe teklif vereceksiniz?"
+          plainTitle
           lead="Doğrulanmış alıcıların açık talepleri — kapalı zarf, birbirini görmeyen teklifler. Teklif vermek ücretsiz hesapla."
           placeholder="Talep, sektör veya ürün arayın"
           action={MARKETPLACE_ROUTES.demands}
@@ -95,9 +94,8 @@ export function HomeHero() {
       ) : (
         <PanelHeroSearch
           key="buyer"
-          title="Hangi ürün için"
-          titleAccent="tedarikçi arıyorsunuz?"
-          splitTitle
+          title="Hangi ürünü arıyorsunuz?"
+          plainTitle
           lead="Doğrulanmış tedarikçilerin vitrinlerini fiyat ve minimum sipariş bilgisiyle inceleyin."
           placeholder="Ürün, firma veya sektör arayın..."
           action={MARKETPLACE_ROUTES.products}
@@ -146,11 +144,10 @@ const BAND =
  */
 function HeroShell() {
   return (
-    <section aria-label="Hangi ürün için tedarikçi arıyorsunuz?" className={BAND}>
+    <section aria-label="Hangi ürünü arıyorsunuz?" className={BAND}>
       <div className="mx-auto w-full max-w-4xl text-center">
         <h1 className="text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-          Hangi <span className="text-blue-600">ürün için</span>
-          <span className="block text-blue-600">tedarikçi arıyorsunuz?</span>
+          Hangi ürünü arıyorsunuz?
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">
           Doğrulanmış tedarikçilerin vitrinlerini fiyat ve minimum sipariş bilgisiyle inceleyin.

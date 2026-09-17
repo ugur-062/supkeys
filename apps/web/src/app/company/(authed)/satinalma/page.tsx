@@ -141,9 +141,10 @@ export default function SatinalmaDashboardPage() {
            kalıbının alım tarafındaki karşılığı. Kutu hem ürün hem tedarikçi
            arıyor (kapsam anahtarı) — soru ikisini de kapsayacak biçimde
            kuruldu: aranan ÜRÜN, bulunacak olan TEDARİKÇİ. */
-        title="Hangi ürün için"
-        titleAccent="tedarikçi arıyorsunuz?"
-        splitTitle
+        /* 2026-09-17, kullanıcı kararı: "Hangi ürünü arıyorsunuz?" — tek
+           renk (siyah), vurgu yok. */
+        title="Hangi ürünü arıyorsunuz?"
+        plainTitle
         lead="Doğrulanmış tedarikçilerle tanışın, ihtiyaçlarınızı paylaşın, işinizi büyütün."
         placeholder="Ürün, firma veya sektör arayın..."
         action={PANEL_MARKET.products}

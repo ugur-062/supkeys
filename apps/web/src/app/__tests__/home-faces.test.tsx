@@ -48,7 +48,7 @@ beforeEach(() => window.localStorage.clear());
 describe("Anasayfa — panel ekranlarının anonim hâli", () => {
   it("sunucu varsayılanı ALICI yüzü: soru, mavi 'Ara', Ürün|Firma kapsamı", () => {
     hero();
-    expect(screen.getByRole("heading", { level: 1, name: /Hangi ürün için/ })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { level: 1, name: "Hangi ürünü arıyorsunuz?" })).toBeInTheDocument();
     const ara = screen
       .getAllByRole("button", { name: /^Ara/ })
       .find((b) => b.getAttribute("type") === "submit") as HTMLElement;

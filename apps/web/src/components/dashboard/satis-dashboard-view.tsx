@@ -130,9 +130,9 @@ export function SatisDashboardView() {
         /* Üst etiket "AÇIK" olmadan (kullanıcı kararı 2026-09-08): panelde
            listelenen zaten açık talepler, sıfat gürültü. */
         eyebrow="Satın alma talepleri"
-        title="Hangi talebe"
-        titleAccent="teklif vereceksiniz?"
-        splitTitle
+        /* 2026-09-17, kullanıcı kararı: başlık tek renk (siyah), vurgu yok. */
+        title="Hangi talebe teklif vereceksiniz?"
+        plainTitle
         lead="Kategorinize uygun açık talepler — kapalı zarf, birbirini görmeyen teklifler; kazandırma tek tabloda."
         placeholder="Talep, talep numarası veya firma arayın"
         action="/company/satis"

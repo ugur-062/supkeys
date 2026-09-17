@@ -61,6 +61,7 @@ export function PanelHeroSearch({
   title,
   titleAccent,
   splitTitle = false,
+  plainTitle = false,
   lead,
   placeholder,
   action,
@@ -91,6 +92,8 @@ export function PanelHeroSearch({
    * sessizce ikiye bölünmesin.
    */
   splitTitle?: boolean;
+  /** Başlık TEK RENK (zinc-950), vurgu sözcüğü yok (2026-09-17, kullanıcı kararı). */
+  plainTitle?: boolean;
   lead: string;
   placeholder: string;
   /** Sonuç sayfası — `?q=` okuyan liste. */
@@ -281,7 +284,9 @@ export function PanelHeroSearch({
         {/* İKİ TONLU BAŞLIK: ilk sözcük koyu, kalanı portal renginde. Tek
             `<h1>` — ekran okuyucu için metin bölünmemiş olur. */}
         <h1 className="mt-3 text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-          {titleAccent ? (
+          {plainTitle ? (
+            title
+          ) : titleAccent ? (
             <>
               {splitTitle
                 ? (() => {
