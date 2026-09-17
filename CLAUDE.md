@@ -853,6 +853,14 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
 - Sektör sayaçları ile liste TEK KAYNAK (`sellerVisibleWhere`) — ayrışsalardı
   "12 ilan" yazıp 5 ilan çıkardı. `limit` SIRALAMADAN SONRA kırpar.
 
+**HERO ARKA PLANI DÜZ BEYAZ (2026-09-17, kullanıcı kararı: "arama kısmının
+arkasındaki fotoğrafı tamamen kaldır, beyaz olsun; anasayfadakini de"):**
+`PanelHeroSearch` fotoğraf sahnesi (`/hero/hero-scene*.webp` SİLİNDİ), renk
+yayılımı ve nokta deseni çizmez; `backdrop` yalnız tam genişlik + `min-h-[30rem]`
+bant düzenini seçer, bant `bg-white`. Herkese açık anasayfanın hidrasyon
+öncesi kabuğu (`home-hero.tsx` `HeroShell`/`BAND`) aynı sınıfları taşır.
+Sözleşme: `panel-hero-search.test` "arka plan".
+
 ### Herkese açık anasayfa = panel anasayfalarının anonim hâli
 Ziyaretçi `AudienceSwitch` ile tarafını seçer; sayfa o portalın panel
 anasayfasını o portalın rengiyle gösterir (alıcı mavi, tedarikçi yeşil).

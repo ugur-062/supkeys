@@ -151,7 +151,6 @@ export function SatisDashboardView() {
         accent="emerald"
         /* Satış sahnesi (kullanıcı varlığı `satıs_foto.png` → webp). */
         backdrop
-        backdropSrc="/hero/hero-scene-satis.webp"
         suggestions={suggestions}
         onQueryChange={setTerm}
         ai={{ portal: "satis", enabled: aiEnabled, onResult: onAiResult }}

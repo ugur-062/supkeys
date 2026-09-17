@@ -68,7 +68,6 @@ export function PanelHeroSearch({
   chipsLabel = "Popüler",
   ctaNote,
   backdrop = false,
-  backdropSrc = "/hero/hero-scene.webp",
   accent = "blue",
   suggestions = [],
   onQueryChange,
@@ -111,7 +110,6 @@ export function PanelHeroSearch({
    */
   backdrop?: boolean;
   /** Arka plan sahnesi — verilmezse satınalma sahnesi. */
-  backdropSrc?: string;
   accent?: "blue" | "emerald";
   /**
    * İKİNCİ ARAMA KAPSAMI — "Ürün | Tedarikçi" anahtarı (2026-09-08,
@@ -254,97 +252,14 @@ export function PanelHeroSearch({
              İÇERİĞE bağlıydı — satınalmada kapsam pilleri ve "talep aç"
              satırı olduğu için bant daha uzundu, satışta kısa kalıyordu.
              Sabit taban yükseklik ikisini eşitler; kısa içerik ortalanır. */
-          ? "relative isolate -mt-6 flex min-h-[30rem] w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-hidden bg-gradient-to-b from-transparent via-transparent to-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10"
+          ? "relative isolate -mt-6 flex min-h-[30rem] w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-hidden bg-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10"
           : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6"
       }
     >
-      {/* ARKA PLAN — yumuşak renk yayılımı + ince nokta deseni. STOK
-          FOTOĞRAF YOK: kaynak tasarımdaki depo/harita görseli lisanslı bir
-          varlık gerektirir; desen CSS ile üretiliyor, repoya yeni bir dosya
-          ve lisans borcu girmiyor. */}
-      <div
-        aria-hidden
-        className="pointer-events-none absolute -top-24 left-1/2 -z-10 h-[26rem] w-[56rem] -translate-x-1/2 rounded-full opacity-40"
-        style={{ background: `radial-gradient(closest-side, ${tone.glow}, transparent)` }}
-      />
-      {backdrop ? (
-        /* TEK SAHNE (2026-09-08, kullanıcı: "fotoğrafı hiç güzel
-           yerleştirememişsin; altta beyaza gitsin, daha net olsun").
-
-           Dört ayrı kesit (depo/gemi/uçak/harita) köşelere yapıştırılmış
-           gibi duruyordu. Kaynak setteki `hero-background-clean` ZATEN tek
-           doğal kompozisyon — onu tam genişlikte tek katman olarak
-           kullanıyoruz; kaynağın üst/alt kenarındaki gürültü şeridi
-           kırpıldı (`hero-scene.webp`).
-
-           ALTA DOĞRU BEYAZA ERİR: maske alt %35'te saydama iner, bant zemini
-           beyaz olduğu için fotoğraf kesilmiş gibi bitmez. Üstte de ince bir
-           erime var — kabuk çubuğuyla arasında sert çizgi kalmasın.
-
-           `pointer-events-none` + `-z-10` + `aria-hidden`: dekoratif. */
-        <>
-          <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 select-none">
-            {/* DÜZ `<img>` — `next/image` DEĞİL (2026-09-08, canlıda ölçüldü):
-                optimizasyon ucu bu dosya için `Content-Disposition:
-                attachment` ile dönüyor ve tarayıcı isteği `ERR_ABORTED` ile
-                düşürüyordu; görsel hiç boyanmıyordu. Dekoratif bir zemin
-                için optimizasyona ihtiyaç da yok: dosya zaten webp ve 360 KB,
-                tek boyutta kullanılıyor. */}
-            {/* eslint-disable-next-line @next/next/no-img-element */}
-            <img
-              src={backdropSrc}
-              alt=""
-              loading="eager"
-              decoding="async"
-              draggable={false}
-              className="absolute inset-0 size-full object-cover object-bottom"
-              /* DÖRT KENARDAN ERİME (2026-09-08, kullanıcı: "çizgi çekilmiş
-                 gibi duruyor"). Tek yönlü maske yalnız altı yumuşatıyordu;
-                 sol/sağ/üst kenarlar bandın sınırında sert kesiliyordu.
-                 İki gradyan KESİŞTİRİLİYOR (`mask-composite: intersect`,
-                 WebKit'te `source-in`): dikeyde üst %10 ve alt %30, yatayda
-                 iki uçta %12 saydama iner. */
-              style={{
-                maskImage:
-                  "linear-gradient(to bottom, black 0%, black 70%, transparent 100%), linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",
-                WebkitMaskImage:
-                  "linear-gradient(to bottom, black 0%, black 70%, transparent 100%), linear-gradient(to right, transparent 0%, black 10%, black 90%, transparent 100%)",
-                /* NETLİK (kullanıcı: "çok silik ve blurlu"): kaynak görsel
-                   yumuşak bir kompozisyon; hafif kontrast/doygunluk artışı
-                   onu keskinleştirir — filtre görselin KENDİSİNE uygulanır,
-                   metne dokunmaz. */
-                filter: "contrast(1.12) saturate(1.12) brightness(1.01)",
-                maskComposite: "intersect",
-                WebkitMaskComposite: "source-in",
-              }}
-            />
-          </div>
-          {/* Metin sütununun arkasında HAFİF beyaz peçe — sahne zaten açık,
-              peçe yalnız kontrastı garantiler. */}
-          <div
-            aria-hidden
-            className="pointer-events-none absolute inset-x-0 top-0 -z-[5] mx-auto h-[22rem] w-[min(60rem,94%)]"
-            style={{
-              background:
-                "radial-gradient(52% 54% at 50% 38%, rgb(255 255 255 / 0.5) 35%, rgb(255 255 255 / 0.22) 70%, transparent 100%)",
-            }}
-          />
-        </>
-      ) : (
-        /* Görsel verilmediğinde (satış portalı) eski sade doku. */
-        <div
-          aria-hidden
-          className="pointer-events-none absolute inset-x-0 top-0 -z-10 h-72 opacity-[0.18]"
-          style={{
-            backgroundImage: "radial-gradient(currentColor 1px, transparent 1px)",
-            backgroundSize: "18px 18px",
-            color: "var(--color-blue-400)",
-            maskImage: "radial-gradient(60% 80% at 50% 20%, black, transparent)",
-            WebkitMaskImage: "radial-gradient(60% 80% at 50% 20%, black, transparent)",
-          }}
-        />
-      )}
-
+      {/* ARKA PLAN YOK (2026-09-17, kullanıcı kararı: "arama kısmının
+          arkasındaki fotoğrafı tamamen kaldır, beyaz olsun"): fotoğraf sahnesi,
+          renk yayılımı ve nokta deseni kalktı; bant düz beyaz. `backdrop`
+          yalnız bandın tam genişlik/sabit yükseklik DÜZENİNİ seçer. */}
       {/* `w-full` ŞART (2026-09-08, ölçümle bulundu): bant dikey ortalama
           için `flex flex-col` oldu; flex item'a `mx-auto` verilince çapraz
           eksende STRETCH iptal olur ve sütun içerik genişliğine düşer —

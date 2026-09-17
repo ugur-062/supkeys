@@ -214,33 +214,24 @@ describe("PanelHeroSearch — kapsam seçici (Ürün / Firma)", () => {
   });
 });
 
-describe("PanelHeroSearch — dekoratif arka plan", () => {
-  it("`backdrop` katmanları DEKORATİFTİR: ekran okuyucuya görünmez, tıklama almaz, içeriğin arkasında", () => {
-    // 2026-09-08 (kullanıcı varlıkları): dünya haritası · depo · gemi ·
-    // uçak. Sözleşme görselin KENDİSİ değil DAVRANIŞI: alt metin yok,
-    // `pointer-events-none`, negatif z-index. Okunabilirlik pazarlık
-    // konusu değil — üstlerinde beyaz peçe var.
+describe("PanelHeroSearch — arka plan (2026-09-17: fotoğraf YOK, bant beyaz)", () => {
+  it("`backdrop` ile de görsel yüklenmez; bant düz beyaz, tam genişlik düzeni korunur", () => {
+    // Kullanıcı kararı: "arama kısmının arkasındaki fotoğrafı tamamen
+    // kaldır, beyaz olsun" — sahne, renk yayılımı ve nokta deseni kalktı.
     const { container } = render(
       <PanelHeroSearch title="Ne arıyorsunuz?" lead="x" placeholder="p" action="/x" accent="blue" backdrop />,
     );
-    const imgs = Array.from(container.querySelectorAll("img"));
-    // TEK SAHNE (2026-09-08): dört ayrı kesit yerine kaynak setteki hazır
-    // kompozisyon; alta doğru beyaza eriyor.
-    expect(imgs).toHaveLength(1);
-    const img = imgs[0] as HTMLImageElement;
-    expect(img.getAttribute("alt")).toBe("");
-    expect(img.getAttribute("src")).toContain("hero-scene");
-    const layer = img.closest("[aria-hidden]") as HTMLElement | null;
-    expect(layer?.className).toContain("pointer-events-none");
-    expect(layer?.className).toMatch(/-z-10/);
-    // Alt erime: maske olmadan fotoğraf beyaz zeminde kesilmiş gibi biter.
-    expect(img.style.maskImage || img.style.webkitMaskImage).toContain("linear-gradient");
+    expect(container.querySelectorAll("img")).toHaveLength(0);
+    const band = container.querySelector("section") as HTMLElement;
+    expect(band.className).toContain("bg-white");
+    expect(band.className).not.toMatch(/from-transparent|gradient/);
+    expect(band.className).toContain("min-h-[30rem]");
     // Arama kutusu ve başlık yerinde (yapı değişmedi).
     expect(screen.getByRole("searchbox")).toBeInTheDocument();
     expect(screen.getByRole("heading", { level: 1 })).toBeInTheDocument();
   });
 
-  it("`backdrop` verilmezse görsel HİÇ yüklenmez (satış portalı sade kalır)", () => {
+  it("`backdrop` verilmezse de görsel yok (kompakt hero)", () => {
     const { container } = render(
       <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="emerald" />,
     );
