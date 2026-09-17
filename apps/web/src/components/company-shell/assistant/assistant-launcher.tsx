@@ -73,8 +73,6 @@ export function AssistantLauncher() {
     };
   }, [eligible]);
 
-  if (!eligible) return null;
-
   // Escape ile kapat — modal olmadığı için Headless'ın kapatma davranışı yok.
   useEffect(() => {
     if (!open) return;
@@ -84,6 +82,8 @@ export function AssistantLauncher() {
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);
   }, [open]);
+
+  if (!eligible) return null;
 
   const openPanel = () => {
     setGreet(false);
