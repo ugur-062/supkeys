@@ -31,7 +31,7 @@ export function TwoCards() {
           </p>
           <Link
             href={MARKETPLACE_ROUTES.demands}
-            className="mt-6 inline-flex rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            className="mt-6 inline-flex rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
             Alım taleplerini gör
           </Link>

@@ -218,7 +218,7 @@ export function ProductCard({
   const ctaCls =
     accent === "blue"
       ? "bg-blue-600 text-white hover:bg-blue-700 group-hover:bg-blue-700 focus-visible:ring-blue-600"
-      : "bg-zinc-950 text-white hover:bg-zinc-800 group-hover:bg-zinc-800 focus-visible:ring-zinc-950";
+      : "bg-blue-600 text-white hover:bg-blue-700 group-hover:bg-blue-700 focus-visible:ring-blue-600";
   const bullets = compact ? [] : (features ?? []).filter(Boolean).slice(0, 3);
   const fresh = showNew && isNew(product.publishedAt);
 

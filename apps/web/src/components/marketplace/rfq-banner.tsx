@@ -72,7 +72,7 @@ export function RfqBanner({
           <Link
             href={href}
             className={`mt-6 inline-flex items-center gap-1 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition ${
-              blue ? "bg-blue-600 hover:bg-blue-700" : "bg-zinc-950 hover:bg-zinc-800"
+              blue ? "bg-blue-600 hover:bg-blue-700" : "bg-blue-600 hover:bg-blue-700"
             }`}
           >
             Talep aç

@@ -814,9 +814,15 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
   portalın rengini sağlar (satınalma `blue`, satış `emerald`; portal-nötr
   sayfalar son portalı izler); Catalyst `Button` `color` verilmemişse bağlamı
   okur → `ui/button` primary ve doğrudan Catalyst çağrılarının HEPSİ boyanır.
-  Kabuk dışı (herkese açık pazar yeri, giriş/kayıt, admin) `dark/zinc` kalır —
-  public monokrom kararı değişmedi. "Tek eylem rengi" kuralı korunur: dolgu
-  yalnız birincil eylemde, rengi portal seçer. Sözleşme: `button-accent.test`.
+  Kabuk dışı (herkese açık pazar yeri, giriş/kayıt) **varsayılan MAVİ** (aynı
+  gün ikinci kullanıcı kararı: "herkese açık yerlerde de mavi olsun") —
+  bağlam varsayılanı `blue`, elle `bg-zinc-950` boyanmış 27 CTA (pazar yeri,
+  pazarlama başlığı, firma/ürün/talep sayfaları, 404/hata, talep-onayla)
+  `bg-blue-600 hover:bg-blue-700` oldu. Public yüzeyin GERİ KALANI monokrom
+  (koyu bantlar, chip'ler, metin). Siyah düğme yalnız açıkça
+  `color="dark/zinc"` ile. Admin uygulaması ayrı, dokunulmadı. "Tek eylem
+  rengi" kuralı korunur: dolgu yalnız birincil eylemde. Sözleşme:
+  `button-accent.test`.
 - **Sol menü panel kimliğidir, DEĞİŞMEZ.** Pazar sayfaları `secondaryNav`da:
   o liste sol menüyü değil ROTA KAYDINI besler (breadcrumb + başlık + tier kapısı).
 - **SONUÇ TÜRÜ SEKMESİ** (Ürünler ve hizmetler | Tedarikçiler) üç sayfada AYNI;

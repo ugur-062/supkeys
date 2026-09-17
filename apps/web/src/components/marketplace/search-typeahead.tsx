@@ -275,7 +275,7 @@ export function SearchTypeahead({
           {big ? (
             <button
               type="submit"
-              className="h-14 shrink-0 rounded-full bg-zinc-950 px-7 text-sm font-semibold text-white transition hover:bg-zinc-800 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
+              className="h-14 shrink-0 rounded-full bg-blue-600 px-7 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
             >
               Ara
             </button>

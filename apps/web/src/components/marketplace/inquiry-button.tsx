@@ -24,7 +24,7 @@ export function InquiryButton({
       <button
         type="button"
         onClick={() => setOpen(true)}
-        className="block w-full rounded-full bg-zinc-950 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-zinc-800"
+        className="block w-full rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
       >
         Teklif iste
       </button>

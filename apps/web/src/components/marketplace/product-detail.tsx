@@ -106,7 +106,7 @@ export function ProductDetail({
           stickyCta={
             <Link
               href={loginHref(PANEL_TARGET.product(companySlug, product.slug))}
-              className="inline-flex items-center rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white"
+              className="inline-flex items-center rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white"
             >
               Bilgi iste
             </Link>
@@ -127,7 +127,7 @@ export function ProductDetail({
               ) : null}
               <Link
                 href={loginHref(PANEL_TARGET.product(companySlug, product.slug))}
-                className="block w-full rounded-full bg-zinc-950 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-zinc-800"
+                className="block w-full rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
               >
                 Bilgi iste
               </Link>

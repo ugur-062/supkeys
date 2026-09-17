@@ -200,7 +200,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         {/* Yüzen "Talep aç" — listeyi gezen alıcı için; hero'lu sayfa değil. */}
         <Link
           href={talepHref}
-          className="fixed right-5 bottom-5 z-30 inline-flex items-center gap-1 rounded-full bg-zinc-950 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-zinc-800"
+          className="fixed right-5 bottom-5 z-30 inline-flex items-center gap-1 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-700"
         >
           Talep aç
         </Link>

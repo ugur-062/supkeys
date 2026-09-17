@@ -701,7 +701,7 @@ export default function HomePage() {
             <div className="mt-10 flex items-center justify-center gap-x-4">
               <Link
                 href="/company/kayit"
-                className="rounded-lg bg-zinc-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800"
+                className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
               >
                 Ücretsiz Kaydol
               </Link>
@@ -1224,7 +1224,7 @@ export default function HomePage() {
                 className={
                   tier.price === null
                     ? "mt-8 block rounded-lg px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 ring-1 ring-inset ring-zinc-300 transition hover:bg-zinc-50 hover:ring-zinc-400"
-                    : "mt-8 block rounded-lg bg-zinc-950 px-3.5 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-zinc-800"
+                    : "mt-8 block rounded-lg bg-blue-600 px-3.5 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
                 }
               >
                 {tier.cta}

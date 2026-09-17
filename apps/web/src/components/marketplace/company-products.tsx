@@ -59,7 +59,7 @@ export async function CompanyProducts({
           <button
             type="submit"
             aria-label="Ürünlerde ara"
-            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-zinc-950 text-white transition hover:bg-zinc-800"
+            className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition hover:bg-blue-700"
           >
             <MagnifyingGlassIcon aria-hidden className="size-5" />
           </button>

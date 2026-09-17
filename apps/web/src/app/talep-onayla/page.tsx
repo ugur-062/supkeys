@@ -103,7 +103,7 @@ export default async function Page({
               <div className="mt-5 flex flex-wrap gap-3">
                 <Link
                   href={`/company/kayit?email=${encodeURIComponent(result.email)}`}
-                  className="rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                  className="rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
                 >
                   Ücretsiz kaydol
                 </Link>
@@ -130,7 +130,7 @@ export default async function Page({
             <p className="mt-4 text-base/7 text-zinc-600">{result.error}</p>
             <Link
               href="/"
-              className="mt-8 inline-flex rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              className="mt-8 inline-flex rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
               Pazar yerine dön
             </Link>

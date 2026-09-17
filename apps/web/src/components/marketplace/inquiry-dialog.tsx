@@ -119,7 +119,7 @@ export function InquiryDialog({
               <button
                 type="button"
                 onClick={onClose}
-                className="mt-6 w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white hover:bg-zinc-800"
+                className="mt-6 w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
               >
                 Tamam
               </button>
@@ -185,7 +185,7 @@ export function InquiryDialog({
               <button
                 type="submit"
                 disabled={busy}
-                className="w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+                className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
               >
                 {busy ? "Gönderiliyor…" : "Talebi gönder"}
               </button>

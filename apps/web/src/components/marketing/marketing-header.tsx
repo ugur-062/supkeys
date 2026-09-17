@@ -139,7 +139,7 @@ export function MarketingHeader() {
             </Link>
             <Link
               href="/company/kayit"
-              className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition hover:bg-zinc-800"
+              className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition hover:bg-blue-700"
             >
               Ücretsiz Kaydol
             </Link>
@@ -167,7 +167,7 @@ export function MarketingHeader() {
             <Link
               href="/company/kayit"
               onClick={() => setMenuOpen(false)}
-              className="rounded-full bg-zinc-950 px-4 py-2.5 text-center text-sm font-semibold text-white"
+              className="rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white"
             >
               Ücretsiz Kaydol
             </Link>
