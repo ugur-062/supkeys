@@ -10,7 +10,8 @@ import { AiIntentBand } from "@/components/dashboard/ai-intent-band";
 import { intentToRequestQuery } from "@/lib/company/ai-search";
 import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
 import { useRouter } from "next/navigation";
-import { PackagePlus } from "lucide-react";
+import { BadgeCheck, FileSearch, PackagePlus, Store } from "lucide-react";
+import type { HeroWidget } from "@/components/dashboard/panel-hero-search";
 import { matchedItemName, rowSegments, searchHaystack } from "@/lib/company/request-facets";
 
 import { useCompanyAuth } from "@/hooks/use-company-auth";
@@ -31,6 +32,13 @@ import { useEffect, useMemo, useState } from "react";
  * kullanıcı kararıyla kaldırıldı: ikisi de Şirketim › Genel Bakış'ta tam
  * hâliyle yaşıyor, anasayfa açık taleplere ayrıldı.
  */
+/* Hero köşe kartları (2026-09-17): dekoratif, sayı/istatistik yok. */
+const SELLER_WIDGETS: HeroWidget[] = [
+  { icon: FileSearch, title: "Açık talepler", hint: "Kategorinize uyan alım talepleri", at: "tl" },
+  { icon: Store, title: "Ücretsiz vitrin", hint: "Ürünleriniz alıcıların önünde", at: "tr" },
+  { icon: BadgeCheck, title: "Doğrulanmış rozeti", hint: "Doğrulama ücretsiz", at: "br" },
+];
+
 export function SatisDashboardView() {
   const { company, user } = useCompanyAuth();
   const router = useRouter();
@@ -149,8 +157,8 @@ export function SatisDashboardView() {
         scope={scope}
         onScopeChange={setScope}
         accent="emerald"
-        /* Satış sahnesi (kullanıcı varlığı `satıs_foto.png` → webp). */
         backdrop
+        widgets={SELLER_WIDGETS}
         suggestions={suggestions}
         onQueryChange={setTerm}
         ai={{ portal: "satis", enabled: aiEnabled, onResult: onAiResult }}

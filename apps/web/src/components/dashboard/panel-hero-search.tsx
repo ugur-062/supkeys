@@ -12,6 +12,8 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { rememberSearch } from "@/lib/company/recent-searches";
+import { cn } from "@/lib/utils";
+import { ChevronRight, type LucideIcon } from "lucide-react";
 
 /**
  * PANEL ARAMA BLOĞU — Europages "Ne arıyorsunuz?" kalıbı (2026-09-05,
@@ -56,6 +58,21 @@ export interface PanelHeroAi {
   placeholder?: string;
 }
 
+export type HeroWidget = {
+  icon: LucideIcon;
+  title: string;
+  hint: string;
+  /** Köşe: tl · tr · bl · br. */
+  at: "tl" | "tr" | "bl" | "br";
+};
+
+const WIDGET_POS: Record<HeroWidget["at"], string> = {
+  tl: "left-6 top-8 -rotate-3",
+  tr: "right-6 top-6 rotate-2",
+  bl: "left-10 bottom-8 rotate-2",
+  br: "right-10 bottom-10 -rotate-2",
+};
+
 export function PanelHeroSearch({
   eyebrow,
   title,
@@ -69,6 +86,7 @@ export function PanelHeroSearch({
   chipsLabel = "Popüler",
   ctaNote,
   backdrop = false,
+  widgets,
   accent = "blue",
   suggestions = [],
   onQueryChange,
@@ -112,6 +130,13 @@ export function PanelHeroSearch({
    * değişmez. Verilmezse hero eski sade zemininde kalır (satış portalı).
    */
   backdrop?: boolean;
+  /**
+   * DEKORATİF WİDGET KARTLARI (2026-09-17, kullanıcı: referans görseldeki
+   * "arkadaki küçük kutu tarzı görseller"). Bandın köşelerinde, içeriğin
+   * arkasında, `aria-hidden` + `pointer-events-none`; yalnız `xl` ve üstü.
+   * İçerik UYDURMA SİNYAL taşımaz (sayı/istatistik yok) — ürün vaatleri.
+   */
+  widgets?: HeroWidget[];
   /** Arka plan sahnesi — verilmezse satınalma sahnesi. */
   accent?: "blue" | "emerald";
   /**
@@ -263,6 +288,27 @@ export function PanelHeroSearch({
           arkasındaki fotoğrafı tamamen kaldır, beyaz olsun"): fotoğraf sahnesi,
           renk yayılımı ve nokta deseni kalktı; bant düz beyaz. `backdrop`
           yalnız bandın tam genişlik/sabit yükseklik DÜZENİNİ seçer. */}
+      {backdrop && widgets?.length
+        ? widgets.map((w) => (
+            <div
+              key={w.title}
+              aria-hidden
+              className={cn(
+                "pointer-events-none absolute -z-10 hidden w-56 select-none items-center gap-3 rounded-2xl bg-white/90 p-3.5 shadow-lg ring-1 ring-zinc-950/5 backdrop-blur xl:flex",
+                WIDGET_POS[w.at],
+              )}
+            >
+              <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700">
+                <w.icon className="size-5" />
+              </span>
+              <span className="min-w-0 flex-1">
+                <span className="block text-sm font-semibold leading-tight text-zinc-900">{w.title}</span>
+                <span className="mt-0.5 block text-[11px] leading-snug text-zinc-500">{w.hint}</span>
+              </span>
+              <ChevronRight className="size-4 shrink-0 text-zinc-400" />
+            </div>
+          ))
+        : null}
       {/* `w-full` ŞART (2026-09-08, ölçümle bulundu): bant dikey ortalama
           için `flex flex-col` oldu; flex item'a `mx-auto` verilince çapraz
           eksende STRETCH iptal olur ve sütun içerik genişliğine düşer —

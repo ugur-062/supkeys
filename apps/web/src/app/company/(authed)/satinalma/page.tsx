@@ -1,6 +1,8 @@
 "use client";
 
 import { hasAnySeatPermission } from "@/lib/company/permissions";
+import type { HeroWidget } from "@/components/dashboard/panel-hero-search";
+import { Lock, ShieldCheck, Sparkles, Truck } from "lucide-react";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { intentToProductQuery, stashAiIntent } from "@/lib/company/ai-search";
 import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
@@ -48,6 +50,14 @@ import { useEffect, useMemo, useState } from "react";
  * Sayfada TEK primary CTA (sol menü). Herkese açık uçlar panelde
  * KULLANILMAZ.
  */
+/* Hero köşe kartları (2026-09-17): dekoratif, sayı/istatistik yok. */
+const BUYER_WIDGETS: HeroWidget[] = [
+  { icon: ShieldCheck, title: "Doğrulanmış tedarikçiler", hint: "Belgeleri incelenmiş firmalar", at: "tl" },
+  { icon: Lock, title: "Kapalı zarf teklifler", hint: "Tedarikçiler birbirini görmez", at: "tr" },
+  { icon: Sparkles, title: "AI ile tedarikçi bul", hint: "Kalemlerinizden öneri alın", at: "bl" },
+  { icon: Truck, title: "Teslim ve ödeme şartları", hint: "Talep şartlarınız profilinizden", at: "br" },
+];
+
 export default function SatinalmaDashboardPage() {
   // Hero kapsam pili — "Firma" seçiliyken alttaki bölüm firma listesi.
   // Oturum belleğinden geri yüklenir (firma sayfasından GERİ dönüş).
@@ -167,9 +177,8 @@ export default function SatinalmaDashboardPage() {
           label: "Talep aç",
           href: "/company/satinalma/taleplerim/yeni",
         }}
-        /* Dekoratif arka plan katmanları (dünya haritası · depo · gemi ·
-           uçak). Yalnız satınalma hero'sunda; satış portalı sade kalır. */
         backdrop
+        widgets={BUYER_WIDGETS}
         suggestions={suggestions}
         onQueryChange={setTerm}
         ai={{ portal: "satinalma", enabled: aiEnabled, onResult: onAiResult }}
