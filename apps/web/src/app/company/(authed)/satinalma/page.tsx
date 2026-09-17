@@ -2,7 +2,7 @@
 
 import { hasAnySeatPermission } from "@/lib/company/permissions";
 import type { HeroWidget } from "@/components/dashboard/panel-hero-search";
-import { BadgeCheck, Building2, Lock, ShieldCheck, Sparkles } from "lucide-react";
+import { Lock, ShieldCheck, Sparkles } from "lucide-react";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { intentToProductQuery, stashAiIntent } from "@/lib/company/ai-search";
 import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
@@ -52,7 +52,7 @@ import { useEffect, useMemo, useState } from "react";
  */
 /* Hero köşe kartları (2026-09-17): dekoratif, sayı/istatistik yok. */
 const BUYER_WIDGETS: HeroWidget[] = [
-  { icon: ShieldCheck, icons: [ShieldCheck, Building2, BadgeCheck], title: "Doğrulanmış tedarikçiler", hint: "Belgeleri incelenmiş firmalar", at: "tl" },
+  { icon: ShieldCheck, avatars: ["/categories/39000000.webp", "/categories/23000000.webp", "/categories/24000000.webp"], title: "Doğrulanmış tedarikçiler", hint: "Belgeleri incelenmiş firmalar", at: "tl" },
   { icon: Lock, title: "Kapalı zarf teklifler", hint: "Tedarikçiler birbirini görmez", at: "tr" },
   { icon: Sparkles, title: "AI ile tedarikçi bul", hint: "Kalemlerinizden öneri alın", at: "br" },
 ];

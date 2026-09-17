@@ -34,7 +34,7 @@ import { useEffect, useMemo, useState } from "react";
  */
 /* Hero köşe kartları (2026-09-17): dekoratif, sayı/istatistik yok. */
 const SELLER_WIDGETS: HeroWidget[] = [
-  { icon: FileSearch, title: "Açık talepler", hint: "Kategorinize uyan alım talepleri", at: "tl" },
+  { icon: FileSearch, avatars: ["/categories/24000000.webp", "/categories/31000000.webp", "/categories/39000000.webp"], title: "Açık talepler", hint: "Kategorinize uyan alım talepleri", at: "tl" },
   { icon: Store, title: "Ücretsiz vitrin", hint: "Ürünleriniz alıcıların önünde", at: "tr" },
   { icon: BadgeCheck, title: "Doğrulanmış rozeti", hint: "Doğrulama ücretsiz", at: "br" },
 ];

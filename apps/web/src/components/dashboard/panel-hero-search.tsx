@@ -60,8 +60,9 @@ export interface PanelHeroAi {
 
 export type HeroWidget = {
   icon: LucideIcon;
-  /** Üst üste binen küçük ikon çipleri (referanstaki avatar yığını; fotoğraf yok). */
-  icons?: LucideIcon[];
+  /** Üst üste binen yuvarlak fotoğraflar (referanstaki avatar yığını) — yalnız
+      repodaki CC0 kategori fotoğrafları (`/categories/<kod>.webp`), kişi yok. */
+  avatars?: string[];
   title: string;
   hint: string;
   /** Köşe: tl · tr · bl · br. */
@@ -76,10 +77,10 @@ const WIDGET_POS: Record<HeroWidget["at"], string> = {
   /* Alt kartlar DAR ve kenarda (w-48, 4 px): satış bandında arama kutusu
      daha aşağıda; geniş kart kutunun ucuna girip ikonu örtüyordu
      (2xl'de ölçüldü). Üst kartlar başlık hizasında, geniş kalabilir. */
-  tl: "left-2 top-10 w-56 -rotate-6",
-  tr: "right-2 top-8 w-56 rotate-3",
-  bl: "left-1 bottom-8 w-48 rotate-2",
-  br: "right-1 bottom-10 w-48 -rotate-3",
+  tl: "left-2 top-8 w-60 -rotate-6",
+  tr: "right-2 top-6 w-60 rotate-3",
+  bl: "left-1 bottom-8 w-52 rotate-2",
+  br: "right-1 bottom-8 w-52 -rotate-3",
 };
 
 export function PanelHeroSearch({
@@ -302,45 +303,49 @@ export function PanelHeroSearch({
           arkasındaki fotoğrafı tamamen kaldır, beyaz olsun"): fotoğraf sahnesi,
           renk yayılımı ve nokta deseni kalktı; bant düz beyaz. `backdrop`
           yalnız bandın tam genişlik/sabit yükseklik DÜZENİNİ seçer. */}
-      {backdrop && widgets?.length
-        ? widgets.map((w) => (
+      {backdrop && widgets?.length ? (
+        <>
+          {/* Referanstaki soluk geometrik zemin düzlemleri — çok açık gri,
+              eğik, arkada; bant beyaz kalır. */}
+          <div aria-hidden className="pointer-events-none absolute -left-24 top-1/3 -z-20 hidden h-72 w-[26rem] -rotate-12 rounded-[3rem] bg-zinc-100/70 2xl:block" />
+          <div aria-hidden className="pointer-events-none absolute -right-28 bottom-4 -z-20 hidden h-64 w-[24rem] rotate-6 rounded-[3rem] bg-zinc-100/70 2xl:block" />
+          {widgets.map((w) => (
             <div
               key={w.title}
               aria-hidden
               className={cn(
-                /* Referans kart (2026-09-17): dikey düzen — üstte ikon ya da
-                   çip yığını, altında kalın başlık, en altta gri ipucu + ok;
-                   hafif eğik, yumuşak geniş gölge. */
-                "pointer-events-none absolute -z-10 hidden select-none flex-col rounded-3xl bg-white p-5 shadow-2xl shadow-zinc-950/15 ring-1 ring-zinc-950/5 2xl:flex",
+                /* Referans kart (2026-09-17, ikinci tur): ferah iç boşluk,
+                   kenarlıksız, çok yumuşak geniş gölge; üstte düz ikon ya da
+                   fotoğraf yığını, kalın iki satırlık başlık, altta gri ipucu
+                   ve sağda ok. */
+                "pointer-events-none absolute -z-10 hidden select-none flex-col rounded-[1.6rem] bg-white p-6 shadow-2xl shadow-zinc-900/10 2xl:flex",
                 WIDGET_POS[w.at],
               )}
             >
-              {w.icons?.length ? (
-                <span className="flex -space-x-2">
-                  {w.icons.slice(0, 3).map((Ic, i) => (
-                    <span
-                      key={i}
-                      className="flex size-9 items-center justify-center rounded-full bg-zinc-100 text-zinc-700 ring-2 ring-white"
-                    >
-                      <Ic className="size-4" />
-                    </span>
+              {w.avatars?.length ? (
+                <span className="flex -space-x-2.5">
+                  {w.avatars.slice(0, 3).map((src) => (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      key={src}
+                      src={src}
+                      alt=""
+                      className="size-9 rounded-full object-cover ring-2 ring-white"
+                    />
                   ))}
                 </span>
               ) : (
-                <span className="flex size-11 items-center justify-center rounded-2xl bg-zinc-100 text-zinc-800">
-                  <w.icon className="size-6" />
-                </span>
+                <w.icon className="size-8 text-zinc-900" strokeWidth={1.75} />
               )}
-              <span className="mt-3 flex items-end justify-between gap-2">
-                <span className="min-w-0">
-                  <span className="block text-[15px] font-bold leading-tight tracking-tight text-zinc-950">{w.title}</span>
-                  <span className="mt-1 block text-xs leading-snug text-zinc-500">{w.hint}</span>
-                </span>
-                <ChevronRight className="mb-0.5 size-4 shrink-0 text-zinc-500" />
+              <span className="mt-4 block text-lg font-bold leading-tight tracking-tight text-zinc-950">{w.title}</span>
+              <span className="mt-2 flex items-center justify-between gap-2">
+                <span className="text-[13px] leading-snug text-zinc-500">{w.hint}</span>
+                <ChevronRight className="size-4 shrink-0 text-zinc-500" />
               </span>
             </div>
-          ))
-        : null}
+          ))}
+        </>
+      ) : null}
       {/* `w-full` ŞART (2026-09-08, ölçümle bulundu): bant dikey ortalama
           için `flex flex-col` oldu; flex item'a `mx-auto` verilince çapraz
           eksende STRETCH iptal olur ve sütun içerik genişliğine düşer —
