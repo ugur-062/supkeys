@@ -15,12 +15,13 @@ import {
 import { Text } from "@/components/catalyst/text";
 import { CompanyProfileView } from "@/components/company/company-profile-view";
 import { ProductCard } from "@/components/marketplace/product-card";
+import { ListingCard, type ListingCardData } from "@/components/marketplace/listing-card";
+import { STATE_LABEL, publicState } from "@/lib/public/marketplace";
+import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
+import { useActivePortal } from "@/hooks/use-active-portal";
+import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
-import {
-  TenderStatusBadge,
-  TenderTypeBadge,
-} from "@/components/tenders/status-badge";
 import {
   useBlockCompany,
   useDisconnect,
@@ -44,6 +45,7 @@ export default function CompanyProfilePage() {
   const complaint = useFileComplaint();
   const disconnect = useDisconnect();
   const confirmDialog = useConfirm();
+  const activePortal = useActivePortal();
   const [blockOpen, setBlockOpen] = useState(false);
   const [complaintOpen, setComplaintOpen] = useState(false);
   const lastPortal = usePortalStore((st) => st.lastPortal);
@@ -238,33 +240,104 @@ export default function CompanyProfilePage() {
         </div>
       ) : (
         <div className="mt-4 space-y-2">
-          {listings.map((l) => (
-            <Link
-              key={l.id}
-              href={`/company/ilan/${l.id}?from=${encodeURIComponent(
-                `/company/firma/${rothernId}`,
-              )}&fromLabel=${encodeURIComponent(p.name)}`}
-              className="block rounded-xl border border-zinc-950/10 p-3 transition hover:bg-zinc-50"
-            >
-              <div className="flex items-start justify-between gap-3">
-                <div className="min-w-0">
-                  <div className="tabular-nums text-xs text-zinc-400">
-                    {l.number ?? "—"}
-                  </div>
-                  <div className="mt-0.5 truncate font-medium text-zinc-950">
-                    {l.title}
-                  </div>
-                </div>
-                <TenderTypeBadge format={l.format} />
-              </div>
-              <div className="mt-2 flex items-center justify-between text-xs text-zinc-500">
-                <span>
-                  {formatDate(l.createdAt, "short")}
-                </span>
-                <TenderStatusBadge status={l.status as "OPEN"} />
-              </div>
-            </Link>
-          ))}
+          {/* SATIR KARTI (2026-09-17, kullanıcı: "satınalma talebi boxları çok
+              düz"): Açık Talepler / herkese açık dizinle AYNI `ListingCard row`
+              — kategori tonlu ikon, sol renk şeridi, sütunlar (Format · Kalem ·
+              Kapsam · Kapanış + kalan süre) ve satış portalında "Teklif ver". */}
+          {listings.map((l) => {
+            const state = publicState(l.status);
+            const urgency = closingUrgency(l.status, l.closesAt);
+            const days = daysUntil(l.closesAt) ?? 99;
+            const href = `/company/ilan/${l.id}?from=${encodeURIComponent(
+              `/company/firma/${rothernId}`,
+            )}&fromLabel=${encodeURIComponent(p.name)}`;
+            const data: ListingCardData = {
+              id: l.id,
+              href,
+              number: l.number,
+              title: l.title,
+              kind: "talep",
+              categoryIds: l.categoryIds ?? [],
+              status: {
+                label: STATE_LABEL[state],
+                className:
+                  state === "open"
+                    ? "border-emerald-200 bg-emerald-50 text-emerald-700"
+                    : state === "evaluating"
+                      ? "border-amber-200 bg-amber-50 text-amber-700"
+                      : "border-slate-200 bg-slate-50 text-slate-600",
+              },
+              strip: state === "open" ? "border-l-emerald-500" : "border-l-slate-400",
+              facts: [
+                {
+                  label: "Format",
+                  value: (
+                    <span className="font-medium text-slate-800">
+                      {l.format === "ENGLISH_AUCTION" ? "Pazarlık (Eksiltme)" : "Teklif Toplama"}
+                    </span>
+                  ),
+                },
+                {
+                  label: "Kalem",
+                  value:
+                    typeof l.itemCount === "number" ? (
+                      <span className="flex items-baseline gap-1">
+                        <span className="font-semibold tabular-nums text-slate-900">{l.itemCount}</span>
+                        <span className="text-[11px] text-slate-500">kalem</span>
+                      </span>
+                    ) : (
+                      <span className="text-slate-500">—</span>
+                    ),
+                },
+                {
+                  label: "Kapsam",
+                  value: (
+                    <span
+                      className={cn(
+                        "inline-flex rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1",
+                        l.isInternational
+                          ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
+                          : "bg-slate-50 text-slate-600 ring-slate-200",
+                      )}
+                    >
+                      {l.isInternational ? "Uluslararası" : "Yurtiçi"}
+                    </span>
+                  ),
+                },
+                {
+                  label: "Kapanış",
+                  value: (
+                    <span title={l.closesAt ? formatDate(l.closesAt, "datetime") : undefined}>
+                      <span className={cn("font-semibold", urgency && days <= 3 ? urgency.className : "text-slate-900")}>
+                        {l.closesAt ? formatDate(l.closesAt, "short") : "—"}
+                      </span>
+                      {urgency ? (
+                        <span className="mt-1 block">
+                          <span
+                            className={cn(
+                              "inline-flex rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1",
+                              days <= 1
+                                ? "bg-rose-50 text-rose-700 ring-rose-200"
+                                : days <= 3
+                                  ? "bg-amber-50 text-amber-700 ring-amber-200"
+                                  : "bg-slate-50 text-slate-600 ring-slate-200",
+                            )}
+                          >
+                            {urgency.text}
+                          </span>
+                        </span>
+                      ) : null}
+                    </span>
+                  ),
+                },
+              ],
+              action:
+                activePortal === "satis" && state === "open"
+                  ? { label: "Teklif ver", href }
+                  : null,
+            };
+            return <ListingCard key={l.id} variant="row" data={data} />;
+          })}
         </div>
       )}
     </section>

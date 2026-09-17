@@ -109,6 +109,11 @@ export interface ProfileListing {
   status: string;
   createdAt: string;
   closesAt: string | null;
+  /** 2026-09-17: profil satırı `ListingCard row` ile çizilir — kategori tonu,
+      kalem sayısı ve kapsam sütunları için (eski API'de yok → isteğe bağlı). */
+  categoryIds?: string[];
+  isInternational?: boolean;
+  itemCount?: number;
 }
 
 export interface CompanyProfile {
