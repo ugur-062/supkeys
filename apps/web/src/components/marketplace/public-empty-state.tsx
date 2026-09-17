@@ -29,7 +29,7 @@ export function PublicEmptyState({
         {extra ? (
           <Link
             href={extra.href}
-            className="rounded-full bg-zinc-950 px-4 py-2 font-semibold text-white transition hover:bg-zinc-800"
+            className="rounded-full bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700"
           >
             {extra.label}
           </Link>

@@ -12,9 +12,11 @@ import { Button } from "@/components/ui/button";
 import { ButtonAccentProvider, accentForPortal } from "../button-accent";
 
 describe("Button accent (portal rengi)", () => {
-  it("bağlam yokken Catalyst varsayılanı siyah (dark/zinc)", () => {
+  it("bağlam yokken (kabuk dışı: giriş, pazar yeri) varsayılan MAVİ; siyah yalnız açık color ile", () => {
     render(<CatalystButton>Kaydet</CatalystButton>);
-    expect(screen.getByRole("button", { name: "Kaydet" }).className).toContain("--btn-bg:var(--color-zinc-900)");
+    expect(screen.getByRole("button", { name: "Kaydet" }).className).toContain("--btn-bg:var(--color-blue-600)");
+    render(<CatalystButton color="dark/zinc">Siyah</CatalystButton>);
+    expect(screen.getByRole("button", { name: "Siyah" }).className).toContain("--btn-bg:var(--color-zinc-900)");
   });
 
   it("satınalma kabuğunda birincil düğme MAVİ, satışta EMERALD", () => {

@@ -62,7 +62,7 @@ export function OnboardingChecklist({
       {next ? (
         <Link
           href={next.href}
-          className="mt-3 inline-flex items-center rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800"
+          className="mt-3 inline-flex items-center rounded-lg bg-blue-600 px-3 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
         >
           Sıradaki adım: {next.label}
         </Link>

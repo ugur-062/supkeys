@@ -42,7 +42,7 @@ export function GatedField({
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
           <Link
             href={href}
-            className="rounded-full bg-zinc-950 px-4 py-1.5 font-semibold text-white transition hover:bg-zinc-800"
+            className="rounded-full bg-blue-600 px-4 py-1.5 font-semibold text-white transition hover:bg-blue-700"
           >
             Giriş yapın
           </Link>

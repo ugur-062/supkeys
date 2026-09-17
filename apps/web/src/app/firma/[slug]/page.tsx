@@ -117,7 +117,7 @@ export default async function PublicCompanyProfile({
         <StickyCta title={p.name}>
           <Link
             href={loginHref(panelHref)}
-            className="inline-flex items-center rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white"
+            className="inline-flex items-center rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white"
           >
             Bilgi iste
           </Link>
@@ -148,7 +148,7 @@ export default async function PublicCompanyProfile({
           actions={
             <a
               href={loginHref(panelHref)}
-              className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
               Bağlantı isteği gönder
             </a>

@@ -9,15 +9,18 @@ import type { PortalKey } from "@/lib/company/portals";
  * satışta yeşil"). Catalyst düğmesinin varsayılan rengi `dark/zinc`
  * (siyah); firma kabuğu aktif portala göre bu bağlamı sağlar, `color`
  * verilmemiş her dolgulu düğme onu okur. Kabuk dışı (herkese açık pazar
- * yeri, giriş/kayıt) varsayılan siyahta kalır — public yüzey monokrom
- * kararı değişmedi.
+ * yeri, giriş/kayıt) varsayılan MAVİ (aynı gün ikinci karar; monokrom
+ * public yüzeyde yalnız düğmeler mavi).
  *
  * Renk çağırandan gelir, bileşen portal bilmez: bu dosya yalnız bağlamı
  * taşır; hangi portalın hangi renk olduğu tek yerde (`accentForPortal`).
  */
 export type ButtonAccent = "dark/zinc" | "blue" | "emerald";
 
-const ButtonAccentContext = createContext<ButtonAccent>("dark/zinc");
+/* VARSAYILAN MAVİ (2026-09-17, kullanıcı: "herkese açık yerlerde de mavi
+   olsun"): kabuk dışında — giriş/kayıt, pazar yeri, pazarlama — dolgulu düğme
+   mavi. Siyah (`dark/zinc`) yalnız açıkça `color` verilirse. */
+const ButtonAccentContext = createContext<ButtonAccent>("blue");
 
 export function accentForPortal(portal: PortalKey): ButtonAccent {
   return portal === "satinalma" ? "blue" : "emerald";

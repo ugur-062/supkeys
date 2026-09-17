@@ -327,7 +327,7 @@ export function ListingDetail({
                     {/* Kayıt sonrası AYNI talebe döner (intent=teklif + redirect). */}
                     <Link
                       href={signupHref("teklif", listingPath(listing.number, listing.title))}
-                      className="block rounded-full bg-zinc-950 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-zinc-800"
+                      className="block rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
                     >
                       Bu talebe teklif vermek için ücretsiz kaydol
                     </Link>

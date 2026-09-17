@@ -701,7 +701,7 @@ export default function HomePage() {
             <div className="mt-10 flex items-center justify-center gap-x-4">
               <Link
                 href="/company/kayit"
-                className="rounded-lg bg-zinc-950 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-zinc-800"
+                className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
               >
                 Ücretsiz Kaydol
               </Link>
