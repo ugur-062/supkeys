@@ -219,7 +219,7 @@ export function SupplierDiscoveryModal({
           {/* Header */}
           <div className="flex items-start justify-between gap-4 border-b border-zinc-950/5 px-6 py-5">
             <div className="flex items-start gap-3">
-              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+              <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
                 <Sparkles className="h-5 w-5" />
               </div>
               <div>

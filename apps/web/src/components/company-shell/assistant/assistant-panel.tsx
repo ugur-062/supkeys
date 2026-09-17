@@ -79,7 +79,7 @@ function ThinkingBubble() {
   }, []);
   return (
     <div className="rt-fade-in flex items-end gap-2">
-      <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm ring-1 ring-zinc-950/10">
+      <div className={cn("flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-white shadow-sm ring-1 ring-zinc-950/10", t.solid)}>
         <Sparkles className="h-3.5 w-3.5" />
       </div>
       <div className="flex items-center gap-2 rounded-2xl rounded-bl-sm bg-surface-subtle px-4 py-2.5 ring-1 ring-zinc-950/5">
@@ -379,7 +379,7 @@ export function AssistantPanel({
       <div className="flex items-center justify-between gap-2 border-b border-zinc-950/10 px-4 py-3">
         <div className="flex min-w-0 items-center gap-3">
           <div className="relative shrink-0">
-            <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm">
+            <div className={cn("flex h-9 w-9 items-center justify-center rounded-xl text-white shadow-sm", t.solid)}>
               <Sparkles className="h-4 w-4" />
             </div>
             {/* Çevrimiçi durum noktası */}
@@ -543,7 +543,7 @@ export function AssistantPanel({
                 aria-hidden
                 className="rt-breathe absolute -inset-5 rounded-full bg-gradient-to-br from-zinc-300/50 via-zinc-100/40 to-transparent blur-xl"
               />
-              <div className="relative flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-lg ring-1 ring-zinc-950/10">
+              <div className={cn("relative flex h-14 w-14 items-center justify-center rounded-2xl text-white shadow-lg ring-1 ring-zinc-950/10", t.solid)}>
                 <Sparkles className="h-6 w-6" />
               </div>
             </div>
@@ -659,7 +659,7 @@ export function AssistantPanel({
               {m.draft ? (
                 <div className="rt-fade-in ml-9 rounded-xl border border-zinc-950/10 bg-white p-3.5 shadow-sm">
                   <p className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
-                    <span className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+                    <span className={cn("flex h-6 w-6 items-center justify-center rounded-md text-white", t.solid)}>
                       <FileText className="h-3.5 w-3.5" />
                     </span>
                     Satın Alma Talebi Taslağı

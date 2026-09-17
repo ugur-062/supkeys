@@ -423,7 +423,7 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
               ) : null}
               {/* AI-1 — belgeden doldurma girişi (sihirbaz sayfasındaki kartın aynısı) */}
               <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-500 to-brand-700 text-white">
+                <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
