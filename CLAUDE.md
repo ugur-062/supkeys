@@ -432,9 +432,16 @@ alt satırında kalem açma düğmesi EN SOLDA — **yazısız, yalnız aşağı
 (`size-5`, slate-600, hover zemin; erişilebilir adı "Kalemleri göster/gizle"),
 "Teklif ver" EN SAĞDA ve `text-sm` (eskiden "Kalemler ⌄" ve eylem sağda yan
 yana, 11 px); Teklifim metriği ortada.
-**Sahibin önizlemesi ÖNBELLEKSİZ (2026-09-17, kullanıcı: "kapak ekleyince
-önizlemede gözükmüyor"):** Profilim'deki "Herkese açık görünümü önizle"
-`/firma/<slug>?onizleme=1` açar; sayfa o parametreyle profil + ürünleri
+**ÖNİZLEME PANEL İÇİNDE (2026-09-17, aynı gün ikinci karar, kullanıcı:
+"önizleme yapınca sistemden çıkıp anasayfaya dönüyor"):** Profilim'deki
+"Profilimi önizle" artık `/company/firma/<RothernID>` (üyenin gördüğü sayfa,
+aynı `CompanyProfileView`, panel kabuğu içinde, AYNI sekme). Herkese açık
+`/firma/<slug>` yeni sekmede pazarlama üst çubuğuyla (Giriş Yap / Kaydol)
+açılıyor ve oturum kapanmış hissi veriyordu. Profil kaydı
+`["company-directory","profile"]` sorgusunu da düşürür (dizin kopyası 5 dk
+bayat kalırdı). `?onizleme=1` yolu DURUYOR (herkese açık sayfayı taze
+görmek isteyen için), Profilim ona bağlanmaz.
+**Herkese açık sayfa önbelleksiz görünüm:** `/firma/<slug>?onizleme=1` sayfa o parametreyle profil + ürünleri
 `cache: "no-store"` çeker (ISR 5 dk + etiket tazeleme; tazeleme kanalı Render
 `SEO_REVALIDATE_SECRET` girilmemişse HİÇ çalışmaz → sahibi az önce yüklediğini
 göremezdi). Şablon aynı, yalnız veri tazedir. **Asıl kök neden ikinciydi:**

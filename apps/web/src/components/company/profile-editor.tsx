@@ -530,25 +530,20 @@ function EditorHeader({
         >
           Firma bilgileri (unvan, adres, VKN)
         </Link>
-        {/* Önizleme MEVCUT herkese açık rotaya gider (yeni rota yok); o rota
-            yalnız yayındaki profili sunar — yayında değilken bağlantı yerine
-            neden olmadığı söylenir. */}
-        {profile.publicEnabled && profile.slug ? (
-          <a
-            /* ?onizleme=1 → sayfa veriyi önbelleksiz çeker; az önce
-               yüklenen kapak/logo beklemeden görünür. */
-            href={`/firma/${profile.slug}?onizleme=1`}
-            target="_blank"
-            rel="noreferrer"
+        {/* ÖNİZLEME PANEL İÇİNDE (2026-09-17, kullanıcı: "önizleme yapınca
+            sistemden çıkıp anasayfaya dönüyor"): eskiden herkese açık
+            /firma/<slug> yeni sekmede açılıyordu — pazarlama üst çubuğu
+            (Giriş Yap / Kaydol) oturum kapanmış hissi veriyordu. Artık üyenin
+            gördüğü profil sayfası (/company/firma/<RothernID>, aynı
+            CompanyProfileView, panel kabuğu içinde) aynı sekmede açılır. */}
+        {profile.rothernId ? (
+          <Link
+            href={`/company/firma/${profile.rothernId}`}
             className="text-sm font-medium text-zinc-600 underline hover:text-zinc-900"
           >
-            Herkese açık görünümü önizle
-          </a>
-        ) : (
-          <span className="text-xs text-zinc-400" title="Herkese açık sayfa yalnız yayındayken sunulur">
-            Önizleme yayına alınca
-          </span>
-        )}
+            Profilimi önizle
+          </Link>
+        ) : null}
         <label className="flex items-center gap-2 rounded-lg border border-zinc-950/10 bg-white px-3 py-1.5 text-sm">
           <span className={publicEnabled ? "text-emerald-700" : "text-zinc-600"}>
             {publicEnabled ? "Yayında" : "Yayında değil"}
