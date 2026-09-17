@@ -237,17 +237,22 @@ describe("PanelHeroSearch — arka plan (2026-09-17: fotoğraf YOK, bant beyaz)"
     // görseller" — sayı/istatistik taşımaz, ekran okuyucuya görünmez.
     const widgets = [{ icon: Sparkles, title: "AI ile tedarikçi bul", hint: "Kalemlerinizden öneri", at: "tl" as const }];
     const { container, unmount } = render(
-      <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="blue" backdrop widgets={widgets} />,
+      <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="blue" backdrop widgets={widgets} objects={[{ src: "/hero/kutu.webp", at: "br" }]} />,
     );
     const decorative = Array.from(container.querySelectorAll('[aria-hidden="true"].pointer-events-none'));
+    // Nesne görseli (koli): alt="" + aria-hidden, yalnız backdrop bandında.
+    const obj = container.querySelector('img[src="/hero/kutu.webp"]');
+    expect(obj?.getAttribute("alt")).toBe("");
+    expect(obj?.getAttribute("aria-hidden")).toBe("true");
     const card = decorative.find((el) => el.textContent?.includes("AI ile tedarikçi bul"));
     expect(card).toBeDefined();
     expect(screen.queryByText("AI ile tedarikçi bul")).not.toBeNull();
     unmount();
     const { container: c2 } = render(
-      <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="blue" widgets={widgets} />,
+      <PanelHeroSearch title="T" lead="x" placeholder="p" action="/x" accent="blue" widgets={widgets} objects={[{ src: "/hero/kutu.webp", at: "br" }]} />,
     );
     expect(c2.textContent).not.toContain("AI ile tedarikçi bul");
+    expect(c2.querySelector('img[src="/hero/kutu.webp"]')).toBeNull();
   });
 
   it("`backdrop` verilmezse de görsel yok (kompakt hero)", () => {
