@@ -6,6 +6,8 @@ import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace
 import { Bars3Icon } from "@heroicons/react/24/outline";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useAudienceValue } from "@/components/marketplace/audience-switch";
+import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
 
 /**
@@ -68,6 +70,10 @@ export function MarketingHeader() {
   const [scrolled, setScrolled] = useState(false);
   const [here, setHere] = useState<string | null>(null);
   const pathname = usePathname();
+  // Anasayfada "Tedarikçiyim" seçiliyken Ücretsiz Kaydol YEŞİL (satış rengi),
+  // diğer her yerde mavi (2026-09-17, kullanıcı kararı).
+  const audience = useAudienceValue();
+  const signupGreen = pathname === "/" && audience === "supplier";
 
   /* Aktif satır: `pathname` yalnız EFEKT BAĞIMLILIĞI — render dalı değil.
      Rota değişince yeniden değerlendirilir, ilk boyada boş kalır. */
@@ -139,7 +145,10 @@ export function MarketingHeader() {
             </Link>
             <Link
               href="/company/kayit"
-              className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition hover:bg-blue-700"
+              className={cn(
+                "rounded-full px-4 py-2 text-sm font-semibold whitespace-nowrap text-white shadow-sm transition",
+                signupGreen ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700",
+              )}
             >
               Ücretsiz Kaydol
             </Link>
@@ -167,7 +176,10 @@ export function MarketingHeader() {
             <Link
               href="/company/kayit"
               onClick={() => setMenuOpen(false)}
-              className="rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white"
+              className={cn(
+                "rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white",
+                signupGreen ? "bg-emerald-600" : "bg-blue-600",
+              )}
             >
               Ücretsiz Kaydol
             </Link>

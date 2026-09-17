@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { BuildingStorefrontIcon, ShoppingCartIcon } from "@heroicons/react/20/solid";
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
 import { readHeroScope, writeHeroScope } from "@/lib/company/hero-scope";
 
 /**
@@ -26,6 +26,41 @@ export type Audience = "buyer" | "supplier";
 export type HeroScope = "products" | "suppliers";
 
 const KEY = "rothern.audience";
+
+/* PAYLAŞILAN TARAF DEPOSU (2026-09-17, kullanıcı: "www.rothern.com'da Ücretsiz
+   Kaydol tuşu satış ekranına geçince yeşil olsun"): üst çubuk sağlayıcının
+   DIŞINDA (kök düzen) mount olur; bağlam ona ulaşmaz. Tek modül-düzeyi depo:
+   sağlayıcı yazar, üst çubuk `useAudienceValue` ile okur. Sunucu anlık
+   görüntüsü hep "buyer" → hidrasyon uyuşmazlığı yok. */
+let audienceNow: Audience = "buyer";
+const audienceListeners = new Set<() => void>();
+function readSavedAudience(): Audience {
+  try {
+    const saved = window.localStorage.getItem(KEY);
+    return saved === "supplier" || saved === "buyer" ? saved : "buyer";
+  } catch {
+    return "buyer";
+  }
+}
+function publishAudience(a: Audience) {
+  audienceNow = a;
+  audienceListeners.forEach((l) => l());
+}
+function subscribeAudience(cb: () => void) {
+  audienceListeners.add(cb);
+  return () => {
+    audienceListeners.delete(cb);
+  };
+}
+/** Sağlayıcı dışından (üst çubuk) seçili taraf; mount'ta kayıtlı tercihi okur. */
+export function useAudienceValue(): Audience {
+  const a = useSyncExternalStore(subscribeAudience, () => audienceNow, () => "buyer" as Audience);
+  useEffect(() => {
+    const saved = readSavedAudience();
+    if (saved !== audienceNow) publishAudience(saved);
+  }, []);
+  return a;
+}
 
 const Ctx = createContext<{
   audience: Audience;
@@ -55,16 +90,14 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
   };
 
   useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem(KEY);
-      if (saved === "supplier" || saved === "buyer") set(saved);
-    } catch {
-      /* depolama kapalı — varsayılan taraf */
-    }
+    const saved = readSavedAudience();
+    set(saved);
+    publishAudience(saved);
   }, []);
 
   const setAudience = (a: Audience) => {
     set(a);
+    publishAudience(a);
     try {
       window.localStorage.setItem(KEY, a);
     } catch {
