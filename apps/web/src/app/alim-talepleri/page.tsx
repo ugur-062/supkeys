@@ -1,5 +1,6 @@
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { ListingIndex } from "@/components/marketplace/listing-index";
+import { ButtonAccentProvider } from "@/components/ui/button-accent";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
 import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { dizinBos } from "@/lib/seo/empty-index-guard";
@@ -41,12 +42,15 @@ export default async function Page({
   const sp = await searchParams;
   return (
     <PublicLayout className={MARKET_GROUND}>
+        {/* Tedarikçi yüzü: "Teklif ver" ve dolgulu düğmeler YEŞİL (2026-09-18, kullanıcı). */}
+        <ButtonAccentProvider accent="emerald">
         <ListingIndex
           type="ALIM"
           title={MARKETPLACE_LABELS.demands}
           lead="Firmaların herkese açık alım talepleri. Kalemleri ve alıcıyı görmek, teklif vermek için ücretsiz hesap."
           searchParams={sp}
         />
+        </ButtonAccentProvider>
     </PublicLayout>
   );
 }
