@@ -58,6 +58,16 @@ export interface PanelHeroAi {
   placeholder?: string;
 }
 
+export type HeroObject = {
+  src: string;
+  at: "bl" | "br";
+};
+
+const OBJECT_POS: Record<HeroObject["at"], string> = {
+  bl: "left-2 -bottom-3 w-48",
+  br: "right-2 -bottom-3 w-48",
+};
+
 export type HeroWidget = {
   icon: LucideIcon;
   /** Üst üste binen yuvarlak fotoğraflar (referanstaki avatar yığını) — yalnız
@@ -97,6 +107,7 @@ export function PanelHeroSearch({
   ctaNote,
   backdrop = false,
   widgets,
+  objects,
   accent = "blue",
   suggestions = [],
   onQueryChange,
@@ -147,6 +158,12 @@ export function PanelHeroSearch({
    * İçerik UYDURMA SİNYAL taşımaz (sayı/istatistik yok) — ürün vaatleri.
    */
   widgets?: HeroWidget[];
+  /**
+   * DEKORATİF NESNE GÖRSELLERİ (2026-09-17, kullanıcı varlığı `public/hero/
+   * kutu.webp` — şeffaf zeminli koli renderı, 640 px, ~33 KB). Referanstaki
+   * laptop/koli gibi bandın köşesinde durur; kartlar üstüne biner.
+   */
+  objects?: HeroObject[];
   /** Arka plan sahnesi — verilmezse satınalma sahnesi. */
   accent?: "blue" | "emerald";
   /**
@@ -309,6 +326,22 @@ export function PanelHeroSearch({
               eğik, arkada; bant beyaz kalır. */}
           <div aria-hidden className="pointer-events-none absolute -left-24 top-1/3 -z-20 hidden h-72 w-[26rem] -rotate-12 rounded-[3rem] bg-zinc-100/70 2xl:block" />
           <div aria-hidden className="pointer-events-none absolute -right-28 bottom-4 -z-20 hidden h-64 w-[24rem] rotate-6 rounded-[3rem] bg-zinc-100/70 2xl:block" />
+          {objects?.map((o) => (
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              key={o.src + o.at}
+              src={o.src}
+              alt=""
+              aria-hidden
+              draggable={false}
+              loading="lazy"
+              decoding="async"
+              className={cn(
+                "pointer-events-none absolute -z-10 hidden select-none drop-shadow-2xl 2xl:block",
+                OBJECT_POS[o.at],
+              )}
+            />
+          ))}
           {widgets.map((w) => (
             <div
               key={w.title}

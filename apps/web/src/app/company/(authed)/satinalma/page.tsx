@@ -1,7 +1,7 @@
 "use client";
 
 import { hasAnySeatPermission } from "@/lib/company/permissions";
-import type { HeroWidget } from "@/components/dashboard/panel-hero-search";
+import type { HeroObject, HeroWidget } from "@/components/dashboard/panel-hero-search";
 import { Lock, ShieldCheck, Sparkles } from "lucide-react";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { intentToProductQuery, stashAiIntent } from "@/lib/company/ai-search";
@@ -50,7 +50,8 @@ import { useEffect, useMemo, useState } from "react";
  * Sayfada TEK primary CTA (sol menü). Herkese açık uçlar panelde
  * KULLANILMAZ.
  */
-/* Hero köşe kartları (2026-09-17): dekoratif, sayı/istatistik yok. */
+/* Hero köşe kartları + koli görseli (2026-09-17): dekoratif, sayı/istatistik yok. */
+const HERO_OBJECTS: HeroObject[] = [{ src: "/hero/kutu.webp", at: "br" }];
 const BUYER_WIDGETS: HeroWidget[] = [
   { icon: ShieldCheck, avatars: ["/categories/39000000.webp", "/categories/23000000.webp", "/categories/24000000.webp"], title: "Doğrulanmış tedarikçiler", hint: "Belgeleri incelenmiş firmalar", at: "tl" },
   { icon: Lock, title: "Kapalı zarf teklifler", hint: "Tedarikçiler birbirini görmez", at: "tr" },
@@ -178,6 +179,7 @@ export default function SatinalmaDashboardPage() {
         }}
         backdrop
         widgets={BUYER_WIDGETS}
+        objects={HERO_OBJECTS}
         suggestions={suggestions}
         onQueryChange={setTerm}
         ai={{ portal: "satinalma", enabled: aiEnabled, onResult: onAiResult }}
