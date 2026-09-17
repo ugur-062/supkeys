@@ -176,7 +176,10 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(rows.querySelector("svg")).toBeNull();
     expect(within(list).getAllByRole("listitem")).toHaveLength(3);
     expect(within(list).getAllByText("Alıcı")).toHaveLength(3);
-    expect(within(list).getAllByRole("link", { name: "Teklif ver" })).toHaveLength(3);
+    const teklif = within(list).getAllByRole("link", { name: "Teklif ver" });
+    expect(teklif).toHaveLength(3);
+    // Tedarikçi yüzünde YEŞİL dolgulu düğme (2026-09-18, kullanıcı).
+    expect(teklif[0]!.className).toContain("bg-emerald-600");
   });
 
   it("TEDARİKÇİ gövdesi: üye verisi (KPI, sağlık kartları, uygunluk) YOK", () => {

@@ -876,7 +876,11 @@ bant düzenini seçer, bant `bg-white`. Herkese açık anasayfanın hidrasyon
 (dekoratif kartlar; fotoğraf yığını yalnız CC0 kategori fotoğraflarından, kişi
 yok, sayı/istatistik yok) ve `objects` (`public/hero/kutu.webp` — kullanıcı
 varlığı, şeffaf koli renderı; PNG → 640 px WebP Chromium canvas ile, ~33 KB).
-Yalnız `2xl`, `aria-hidden`, `-z-10`; herkese açık anasayfaya VERİLMEZ.
+Yalnız `2xl`, `aria-hidden`, `-z-10`. **Herkese açık anasayfa da AYNI dekoru
+alır (2026-09-18, kullanıcı):** tek kaynak `lib/company/hero-decor.tsx`
+(`BUYER_*`/`SELLER_*`), kabuk `HeroShell` de `HeroDecor` çizer (hidrasyonda
+belirmesin). Anasayfanın tedarikçi yüzü `ButtonAccentProvider emerald` içinde
+("Teklif ver" yeşil).
 Sözleşme: `panel-hero-search.test` "arka plan".
 
 ### Herkese açık anasayfa = panel anasayfalarının anonim hâli
