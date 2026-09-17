@@ -872,6 +872,11 @@ arkasındaki fotoğrafı tamamen kaldır, beyaz olsun; anasayfadakini de"):**
 yayılımı ve nokta deseni çizmez; `backdrop` yalnız tam genişlik + `min-h-[30rem]`
 bant düzenini seçer, bant `bg-white`. Herkese açık anasayfanın hidrasyon
 öncesi kabuğu (`home-hero.tsx` `HeroShell`/`BAND`) aynı sınıfları taşır.
+**KÖŞE KARTLARI + KOLİ (2026-09-17, kullanıcı referans görseli):** `widgets`
+(dekoratif kartlar; fotoğraf yığını yalnız CC0 kategori fotoğraflarından, kişi
+yok, sayı/istatistik yok) ve `objects` (`public/hero/kutu.webp` — kullanıcı
+varlığı, şeffaf koli renderı; PNG → 640 px WebP Chromium canvas ile, ~33 KB).
+Yalnız `2xl`, `aria-hidden`, `-z-10`; herkese açık anasayfaya VERİLMEZ.
 Sözleşme: `panel-hero-search.test` "arka plan".
 
 ### Herkese açık anasayfa = panel anasayfalarının anonim hâli

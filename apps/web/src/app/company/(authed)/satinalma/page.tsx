@@ -1,8 +1,8 @@
 "use client";
 
 import { hasAnySeatPermission } from "@/lib/company/permissions";
-import type { HeroWidget } from "@/components/dashboard/panel-hero-search";
-import { BadgeCheck, Building2, Lock, ShieldCheck, Sparkles } from "lucide-react";
+import type { HeroObject, HeroWidget } from "@/components/dashboard/panel-hero-search";
+import { ShieldCheck, Sparkles } from "lucide-react";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { intentToProductQuery, stashAiIntent } from "@/lib/company/ai-search";
 import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
@@ -50,11 +50,16 @@ import { useEffect, useMemo, useState } from "react";
  * Sayfada TEK primary CTA (sol menü). Herkese açık uçlar panelde
  * KULLANILMAZ.
  */
-/* Hero köşe kartları (2026-09-17): dekoratif, sayı/istatistik yok. */
+/* Hero köşe kartları + koli görseli (2026-09-17): dekoratif, sayı/istatistik yok. */
+/* Sağ üst: kullanıcının hazır kart görseli ("Daha büyük fırsatlar",
+   2026-09-18) — "Kapalı zarf teklifler" kartının yerine. */
+const HERO_OBJECTS: HeroObject[] = [
+  { src: "/hero/firsatlar.webp", at: "tr" },
+  { src: "/hero/kutu.webp", at: "br" },
+];
 const BUYER_WIDGETS: HeroWidget[] = [
-  { icon: ShieldCheck, icons: [ShieldCheck, Building2, BadgeCheck], title: "Doğrulanmış tedarikçiler", hint: "Belgeleri incelenmiş firmalar", at: "tl" },
-  { icon: Lock, title: "Kapalı zarf teklifler", hint: "Tedarikçiler birbirini görmez", at: "tr" },
-  { icon: Sparkles, title: "AI ile tedarikçi bul", hint: "Kalemlerinizden öneri alın", at: "br" },
+  { icon: ShieldCheck, avatars: ["/categories/39000000.webp", "/categories/23000000.webp", "/categories/24000000.webp"], title: "Doğrulanmış tedarikçiler", hint: "Belgeleri incelenmiş firmalar", at: "tl" },
+  { icon: Sparkles, title: "AI ile tedarikçi bul", hint: "Kalemlerinizden öneri alın", at: "bl" },
 ];
 
 export default function SatinalmaDashboardPage() {
@@ -178,6 +183,7 @@ export default function SatinalmaDashboardPage() {
         }}
         backdrop
         widgets={BUYER_WIDGETS}
+        objects={HERO_OBJECTS}
         suggestions={suggestions}
         onQueryChange={setTerm}
         ai={{ portal: "satinalma", enabled: aiEnabled, onResult: onAiResult }}
