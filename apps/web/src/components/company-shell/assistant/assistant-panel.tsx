@@ -593,7 +593,7 @@ export function AssistantPanel({
                     "flex h-7 w-7 shrink-0 items-center justify-center rounded-full text-xs font-semibold ring-1 ring-zinc-950/10",
                     m.role === "USER"
                       ? "bg-zinc-100 text-zinc-600"
-                      : "bg-gradient-to-br from-brand-500 to-brand-700 text-white shadow-sm",
+                      : cn("text-white shadow-sm", t.solid),
                   )}
                 >
                   {m.role === "USER" ? (
@@ -740,7 +740,7 @@ export function AssistantPanel({
                         "flex h-6 w-6 items-center justify-center rounded-md text-white",
                         m.pending.severity === "critical"
                           ? "bg-warning-500"
-                          : "bg-gradient-to-br from-brand-500 to-brand-700",
+                          : t.solid,
                       )}
                     >
                       {m.pending.severity === "critical" ? (
