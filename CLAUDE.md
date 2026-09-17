@@ -675,7 +675,10 @@ kimlik değil nitelik.
 **Kalem ADLARI herkese açık (2026-09-18, kullanıcı kararı: "kalemlerin neler
 olduğu gözüksün, firma bilgisi zaten gizli"):** `items[].name` projeksiyonda;
 marka/açıklama/şartname/ekli belge ve alıcı kimliği yine dışarıda. Herkese
-açık talep sayfasının üstündeki kategori görsel bandı da kaldırıldı.
+açık talep sayfasının üstündeki kategori görsel bandı da kaldırıldı. **Talep
+kartlarında HİÇBİR YERDE kategori görseli/tonlu ikon yok** (aynı gün, kullanıcı:
+"her yerden tamamen kaldır") — `ListingCard` tile/row ve herkese açık kart
+yalnız numara + başlık + sütunlar; `imageMode` prop'u geriye dönük duruyor.
 DIŞARIDA ayrıca: teklifler **ve teklif SAYISI** · `targetPrice` · pazarlık
 tabanı · `terms`/`paymentNote` (serbest metin, IBAN taşıyabilir) · logistics/
 adresler · `internalNotes` · cuid id'ler. `description` DAHİL.
