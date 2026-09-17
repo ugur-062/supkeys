@@ -935,6 +935,21 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   taşındı, TEK KAYNAK); yeni backend akışı YOK. Yayın sonrası panel:
   tedarikçi önerisi (AI) + talep bağlantısı. Taslak `sessionStorage`
   (`quick-draft.ts`); "Detaylı ayarlar" sihirbaza `QUICK_TO_WIZARD_KEY` ile taşır.
+- **HIZLI TALEP 1. BÖLÜM DÜZENİ (2026-09-17, kullanıcı kararı):** kalemler →
+  **Talep başlığı** → altında **"AI ile başlık ve kategori bul"** düğmesi →
+  **Kategori** (tek sütun; eski iki sütunlu başlık|kategori ızgarası kalktı).
+  Düğme iki ucu PARALEL çağırır: `tender-extract/title-suggest` (YENİ —
+  kalemlerden 4-10 sözcüklük Türkçe başlık, `title-suggest.ts`
+  `sanitizeSuggestedTitle`; uydurma ölçü/sayı yok, hata → `{title:null}`) +
+  `tender-extract/category-suggest` (mevcut, ≤3 L3). Başlık ve kategori ÜZERİNE
+  yazılır (düğmeye bilinçli basıldı), anahtar kelimeler yalnız boşsa. Hook
+  `useAiRequestDraftSuggest`. Sözleşme: `test/unit/ai-title-suggest.spec.ts`.
+- **AI TEDARİKÇİ KEŞFİ 3. BÖLÜMDE (2026-09-17):** "Kimler görsün?" bölümünün
+  başında "AI ile daha fazla tedarikçiye eriş" kartı; modal kategori + KALEM
+  ADLARIYLA açılır (web araması kalemleri bağlam alır). Sihirbaz 3. adımı da
+  kalem adlarını geçer. Modal web sekmesi: **e-postası olmayan firma
+  listelenmez**, "Davet E-postası Gönder" liste kaydırılsa da görünen SABİT
+  alt şeritte.
 - **Detaylı sihirbaz `taleplerim/yeni/detayli`** (kopya `?from=`, AI belge
   `?ai=1`, şablon `?template=` buraya yönlenir): **4 adım** (Kapsam anahtarı
   Kalemler adımının üstünde; `WIZARD_STEP_FIELDS` adım→alan eşlemesi),

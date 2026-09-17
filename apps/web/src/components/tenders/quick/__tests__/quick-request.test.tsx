@@ -143,6 +143,21 @@ describe("QuickRequest", () => {
     expect(screen.getByRole("link", { name: "Talebi gör" })).toHaveAttribute("href", "/company/ilan/l1");
   }, 30_000); // sihirbaz satırları (birim seçici × 2) tam suite yükünde 15 sn'yi aşabiliyor
 
+  it("1. bölüm: başlık → 'AI ile başlık ve kategori bul' → kategori (tek sütun); düğme kalemsiz pasif", async () => {
+    // 2026-09-17, kullanıcı kararı: kategori seçimi başlığın ALTINDA; AI
+    // düğmesi ikisinin arasında ve kalemleri okur.
+    wrap(<QuickRequest />);
+    const title = await screen.findByLabelText(/Talep başlığı/);
+    const ai = screen.getByRole("button", { name: "AI ile başlık ve kategori bul" });
+    const category = screen.getByRole("button", { name: "Kategori seç" });
+    expect(title.compareDocumentPosition(ai) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(ai.compareDocumentPosition(category) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(ai).toBeDisabled();
+    // Kalem girilince düğme açılır.
+    fireEvent.change(screen.getAllByPlaceholderText("Örn. A4 fotokopi kağıdı")[0], { target: { value: "Perçin M6" } });
+    await waitFor(() => expect(ai).toBeEnabled());
+  });
+
   it("boş kartta 'son taleplerden başla' çipi görünür", async () => {
     wrap(<QuickRequest />);
     expect(await screen.findByRole("button", { name: "Geçen ayki kablo alımı" })).toBeInTheDocument();

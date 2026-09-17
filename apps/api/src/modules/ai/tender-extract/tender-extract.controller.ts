@@ -13,6 +13,7 @@ import {
   IsString,
   MaxLength,
   ValidateNested,
+  IsNumber,
 } from "class-validator";
 import {
   CurrentCompanyUser,
@@ -52,6 +53,21 @@ class CategorySuggestItemDto {
   @IsOptional() @IsString() @MaxLength(500) description?: string;
 }
 
+class TitleSuggestItemDto {
+  @IsString() @MaxLength(300) name!: string;
+  @IsOptional() @IsNumber() quantity?: number;
+  @IsOptional() @IsString() @MaxLength(30) unit?: string;
+}
+
+class TitleSuggestDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(50)
+  @ValidateNested({ each: true })
+  @Type(() => TitleSuggestItemDto)
+  items!: TitleSuggestItemDto[];
+}
+
 class CategorySuggestDto {
   @IsArray()
   @ArrayMinSize(1)
@@ -88,6 +104,16 @@ export class TenderExtractController {
     @Body() dto: CategorySuggestDto,
   ) {
     return this.categorySuggest.suggestForItems(user, dto.items);
+  }
+
+  /** Kalemlerden talep başlığı (2026-09-17) — bağlayıcı değil, form alanına yazılır. */
+  @Post("tender-extract/title-suggest")
+  @RequireCompanyPermission("buy:listing:manage")
+  titleSuggestForItems(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: TitleSuggestDto,
+  ) {
+    return this.service.suggestTitle(user, dto.items);
   }
 
   @Post("uploads/url")
