@@ -308,7 +308,7 @@ export function PanelHeroSearch({
                 /* Referans kart (2026-09-17): dikey düzen — üstte ikon ya da
                    çip yığını, altında kalın başlık, en altta gri ipucu + ok;
                    hafif eğik, yumuşak geniş gölge. */
-                "pointer-events-none absolute -z-10 hidden w-56 select-none flex-col rounded-3xl bg-white p-5 shadow-[0_24px_48px_-16px_rgba(24,24,27,0.22)] ring-1 ring-zinc-950/5 2xl:flex",
+                "pointer-events-none absolute -z-10 hidden w-56 select-none flex-col rounded-3xl bg-white p-5 shadow-2xl shadow-zinc-950/15 ring-1 ring-zinc-950/5 2xl:flex",
                 WIDGET_POS[w.at],
               )}
             >
