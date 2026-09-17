@@ -60,13 +60,17 @@ export interface PanelHeroAi {
 
 export type HeroObject = {
   src: string;
-  at: "bl" | "br";
+  at: "tl" | "tr" | "bl" | "br";
 };
 
 const OBJECT_POS: Record<HeroObject["at"], string> = {
   /* Koli sağ altta, referanstaki gibi büyük; arama kutusunun sağ ucunun
      arkasından hafifçe görünür (kutu üstte). Sağ alt kart bu köşeye KONMAZ —
      koliyi tamamen örtüyordu (staging'de görüldü). */
+  /* Üst köşeler: kullanıcının HAZIR kart görselleri (gölge ve eğim görselin
+     kendisinde; CSS eğimi yok). */
+  tl: "-left-2 top-2 w-72",
+  tr: "-right-2 top-2 w-72",
   bl: "left-1 -bottom-6 w-56",
   br: "right-1 -bottom-6 w-56",
 };
