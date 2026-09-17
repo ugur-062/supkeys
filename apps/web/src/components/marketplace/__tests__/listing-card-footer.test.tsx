@@ -2,7 +2,7 @@
 /**
  * TALEP SATIRI ALT ÇİZGİSİ (2026-09-17, kullanıcı kararı): kalem oku EN SOLDA
  * (yazısız — yalnız aşağı ok, erişilebilir adı "Kalemleri göster"), "Teklif
- * ver" EN SAĞDA ve daha büyük (text-sm). DOM sırası = görsel sıra (flex,
+ * ver" EN SAĞDA, DÜĞME gibi dolgulu (portal rengi) ve daha büyük (text-sm). DOM sırası = görsel sıra (flex,
  * justify-between); Teklifim metriği ortada.
  */
 import { render, screen } from "@testing-library/react";
@@ -14,6 +14,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 import { ListingCard, type ListingCardData } from "../listing-card";
+import { ButtonAccentProvider } from "@/components/ui/button-accent";
 
 const data: ListingCardData = {
   id: "l1",
@@ -41,9 +42,20 @@ describe("ListingCard row — alt satır düzeni", () => {
     // DOM sırası: Kalemler → Teklifim → Teklif ver
     expect(kalemler.compareDocumentPosition(metrik) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(metrik.compareDocumentPosition(teklif) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    // Eylem satırın 11 px'inden büyük yazılır.
+    // Eylem DÜĞME gibi: dolgulu, portal renginde (bağlam yokken mavi; satış
+    // kabuğunda emerald), satır 11 px'inden büyük.
     expect(teklif.className).toMatch(/\btext-sm\b/);
-    expect(teklif.className).toMatch(/font-semibold/);
+    expect(teklif.className).toMatch(/rounded-lg/);
+    expect(teklif.className).toMatch(/bg-blue-600/);
+  });
+
+  it("satış kabuğunda düğme EMERALD", () => {
+    render(
+      <ButtonAccentProvider accent="emerald">
+        <ListingCard variant="row" data={data} />
+      </ButtonAccentProvider>,
+    );
+    expect(screen.getByRole("link", { name: "Teklif ver" }).className).toMatch(/bg-emerald-600/);
   });
 
   it("eylem yoksa kalem oku yine durur", () => {
