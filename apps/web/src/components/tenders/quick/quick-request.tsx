@@ -10,7 +10,7 @@ import { uploadListingDocument } from "@/hooks/use-listing-documents";
 import { useConnections } from "@/hooks/use-company-connections";
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import { useAiSeoEnrich } from "@/hooks/use-ai-seo-enrich";
-import { tierAtLeast } from "@rothern/shared";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import Link from "next/link";
 import { CategorySuggest } from "./category-suggest";
 import { AddressPicker } from "./address-picker";
@@ -20,6 +20,7 @@ import { Button } from "@/components/ui/button";
 import { PublishedPanel } from "./published-panel";
 import { SetupCard } from "./setup-card";
 import { SupplierPicker } from "./supplier-picker";
+import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
 import { TermsPanel } from "./terms-panel";
 import { RequestDefaultsForm, VISIBILITY_LABELS } from "@/components/tenders/request-defaults-form";
 import { PAYMENT_CATEGORY_LABELS, formatPaymentPlan } from "@/lib/tenders/labels";
@@ -80,6 +81,9 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
   const [setupDone, setSetupDone] = useState(false);
   const [addingAddress, setAddingAddress] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
+  // "AI ile daha fazla tedarikçiye eriş" — 3. bölümde (Kimler görsün?),
+  // 2026-09-17 kullanıcı kararı; kalem adları + kategori bağlamıyla arar.
+  const [discoveryOpen, setDiscoveryOpen] = useState(false);
   const [published, setPublished] = useState<{ id: string; title: string; categoryIds: string[]; itemNames: string[] } | null>(null);
   const [stagedDocs, setStagedDocs] = useState<StagedListingDoc[]>([]);
   const [restoredDraft, setRestoredDraft] = useState(false);
@@ -260,6 +264,9 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
   };
 
   const aiAvailable = !!company && tierAtLeast(company.tier, "SILVER");
+  // Tedarikçi keşfi API kapısı GOLD (`company/ai/supplier-discovery`).
+  const discoveryAvailable = !!company && tierAtLeast(company.tier, BUYING_TIER);
+  const discoveryItemNames = (watched.items ?? []).map((i) => (i?.name ?? "").trim()).filter(Boolean);
   const writeDescription = async () => {
     const v = getValues();
     try {
@@ -578,6 +585,30 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
             lead="Kapalı zarf her durumda geçerli — tedarikçiler birbirinin teklifini görmez."
             status={<Done>{summary.who}</Done>}
           >
+            {/* AI KEŞİF (2026-09-17, kullanıcı kararı: "daha fazla tedarikçiye
+                eriş tuşu 3. kısımda olmalı, kalemleri analiz ederek tedarikçi
+                bulmalı"): kategori + kalem adları modala gider; platform
+                önerisi kategoriden, web araması kalemlerden bağlam alır. */}
+            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
+                <Sparkles className="h-5 w-5" aria-hidden />
+              </div>
+              <div className="min-w-0 flex-1">
+                <p className="text-sm font-semibold text-zinc-900">AI ile daha fazla tedarikçiye eriş</p>
+                <p className="text-xs text-zinc-500">
+                  Kalemlerinizi ve kategoriyi analiz eder; platformdaki uygun firmaları ve web&apos;deki adayları bulur, tek tıkla davet edersiniz.
+                </p>
+              </div>
+              <Button
+                type="button"
+                onClick={() => setDiscoveryOpen(true)}
+                disabled={!discoveryAvailable}
+                title={discoveryAvailable ? undefined : "AI ile tedarikçi bulma Gold pakette"}
+                iconLeft={<Sparkles />}
+              >
+                Keşfet
+              </Button>
+            </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {(
                 [
@@ -604,6 +635,12 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
                 <Controller control={form.control} name="invitedSupplierIds" render={({ field }) => <SupplierPicker value={field.value ?? []} onChange={field.onChange} />} />
               </div>
             ) : null}
+            <SupplierDiscoveryModal
+              isOpen={discoveryOpen}
+              onClose={() => setDiscoveryOpen(false)}
+              categoryIds={watched.categoryIds ?? []}
+              itemNames={discoveryItemNames}
+            />
           </NumberedSection>
 
           {/* 4 ── BELGELER */}

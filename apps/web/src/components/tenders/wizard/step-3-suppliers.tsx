@@ -210,6 +210,9 @@ export function Step3Suppliers() {
   const [inviteOpen, setInviteOpen] = useState(false);
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
   const wizCategoryIds = useWatch({ control, name: "categoryIds" }) ?? [];
+  // Kalem adları web aramasına bağlam (2026-09-17): "kalemleri analiz ederek".
+  const wizItems = useWatch({ control, name: "items" }) ?? [];
+  const wizItemNames = wizItems.map((i) => (i?.name ?? "").trim()).filter(Boolean);
   const [saveOpen, setSaveOpen] = useState(false);
   const [tplOpen, setTplOpen] = useState(false);
   const [applyingId, setApplyingId] = useState<string | null>(null);
@@ -703,6 +706,7 @@ export function Step3Suppliers() {
               isOpen={discoveryOpen}
               onClose={() => setDiscoveryOpen(false)}
               categoryIds={wizCategoryIds}
+              itemNames={wizItemNames}
             />
             <InviteByEmailModal
               open={inviteOpen}
