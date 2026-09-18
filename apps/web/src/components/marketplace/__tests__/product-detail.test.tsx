@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { ProductBreadcrumb, ProductDetailBody, RelatedRows } from "../product-detail";
+import { ProductBreadcrumb, ProductDetailBody, RelatedRows, brandIsSeller } from "../product-detail";
 import type { PublicProduct, PublicProductCompany } from "@/lib/public/marketplace-api";
 
 /**
@@ -216,5 +216,13 @@ describe("ProductDetailBody", () => {
     const seller = screen.getByText("Karadeniz Enerji A.Ş.").closest("div");
     expect(seller?.textContent).toContain("Samsun");
     expect(screen.getByText("Hizmet sağlayıcı")).toBeInTheDocument();
+  });
+});
+
+describe("brandIsSeller", () => {
+  it("marka firma adının parçasıysa çip basılmaz; gerçek marka 'Marka:' ile kalır", () => {
+    expect(brandIsSeller("Demo Gold", "Demo Gold Makina")).toBe(true);
+    expect(brandIsSeller("Siemens", "Demo Gold Makina")).toBe(false);
+    expect(brandIsSeller("", "Demo Gold Makina")).toBe(false);
   });
 });

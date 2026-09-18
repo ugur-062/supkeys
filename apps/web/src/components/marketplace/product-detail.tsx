@@ -274,9 +274,15 @@ export function ProductDetailBody({
 
           {/* "Yeni" rozeti kapağa taşındı; burada ürünün KENDİ kimlik
               etiketleri kalır. "Gold Üye" satıcı kartında (firmaya ait). */}
-          {product.brand || product.mpn ? (
+          {/* MARKA çipi yalnız firma adından FARKLIYSA (2026-09-19, kullanıcı:
+              "altına tekrar hangi şirket olduğunu yazmana gerek yok" — marka
+              firma adının kendisiyken satıcı kartıyla çift görünüyordu).
+              Gerçek marka (ör. Siemens) "Marka:" etiketiyle kalır. */}
+          {(product.brand && !brandIsSeller(product.brand, company.name)) || product.mpn ? (
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              {product.brand ? <Badge color="zinc">{product.brand}</Badge> : null}
+              {product.brand && !brandIsSeller(product.brand, company.name) ? (
+                <Badge color="zinc">Marka: {product.brand}</Badge>
+              ) : null}
               {product.mpn ? <Badge color="zinc">MPN: {product.mpn}</Badge> : null}
             </div>
           ) : null}
@@ -665,4 +671,11 @@ function RelatedRow({
       </CardCarousel>
     </div>
   );
+}
+
+/** Marka, satıcı firmanın adının parçası mı (ör. "Demo Gold" ⊂ "Demo Gold Makina")? */
+export function brandIsSeller(brand: string, companyName: string): boolean {
+  const b = brand.trim().toLocaleLowerCase("tr");
+  const c = companyName.trim().toLocaleLowerCase("tr");
+  return b.length > 0 && (c.includes(b) || b.includes(c));
 }
