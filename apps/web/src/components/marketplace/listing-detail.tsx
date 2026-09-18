@@ -1,5 +1,4 @@
 import { PublicLayout } from "./public-layout";
-import { Badge } from "@/components/catalyst/badge";
 import { GatedField } from "./gated-field";
 import { Heading } from "@/components/catalyst/heading";
 import { formatDate } from "@/lib/format-date";
@@ -35,12 +34,6 @@ import {
 import Link from "next/link";
 import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
-
-const STATE_COLOR: Record<string, "emerald" | "amber" | "zinc"> = {
-  open: "emerald",
-  evaluating: "amber",
-  closed: "zinc",
-};
 
 /**
  * Tekil alım talebi sayfası — SUNUCU bileşeni. (Satış ilanı 2026-09-04'te
