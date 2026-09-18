@@ -26,6 +26,12 @@ export interface CatalogItem {
   rejectReason: string | null;
   thumbnailUrl: string | null;
   priceMode: "FIXED" | "TIERED" | "ON_REQUEST";
+  /** Ürünlerim tablosu (2026-09-18): fiyat · min. sipariş · görüntülenme · eklenme. */
+  priceAmount?: string | null;
+  priceCurrency?: string | null;
+  moq?: string | null;
+  viewCount?: number | null;
+  createdAt?: string | null;
   updatedAt: string;
 }
 

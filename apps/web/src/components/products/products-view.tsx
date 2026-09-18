@@ -19,11 +19,12 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { toast } from "sonner";
 import { Badge } from "@/components/catalyst/badge";
 import { EmptyState } from "@/components/list";
-import { ProductCard } from "@/components/marketplace/product-card";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { formatDate } from "@/lib/format-date";
 import { PRODUCT_STATUS, productStatusKey } from "@/lib/company/product-status";
-import { ArrowLeftIcon, MagnifyingGlassIcon } from "@heroicons/react/20/solid";
+import { ArrowLeftIcon, EllipsisVerticalIcon, EyeIcon, MagnifyingGlassIcon } from "@heroicons/react/20/solid";
+import { Thumb } from "@/components/ui/thumb";
+import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
@@ -35,13 +36,13 @@ const PRICE_MODE_LABEL: Record<CatalogItem["priceMode"], string> = {
   ON_REQUEST: "Teklif isteyin",
 };
 
-/** Durum kutusundaki renk noktası — rozet renkleriyle aynı sözlük. */
-const DOT: Record<"zinc" | "amber" | "emerald" | "red" | "blue", string> = {
-  zinc: "bg-zinc-400",
-  amber: "bg-amber-500",
-  emerald: "bg-emerald-500",
-  red: "bg-red-500",
-  blue: "bg-blue-500",
+/** Seçili durum hapı — rozet renkleriyle aynı sözlük (dolgulu). */
+const PILL_ON: Record<"zinc" | "amber" | "emerald" | "red" | "blue", string> = {
+  zinc: "bg-zinc-700 text-white",
+  amber: "bg-amber-500 text-white",
+  emerald: "bg-emerald-600 text-white",
+  red: "bg-red-600 text-white",
+  blue: "bg-blue-600 text-white",
 };
 
 type ProductTab = "all" | "published" | "pending" | "rejected" | "draft";
@@ -279,7 +280,7 @@ export function ProductsView() {
             <button
               type="button"
               onClick={() => setCreating(true)}
-              className="rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+              className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
             >
               Yeni ürün
             </button>
@@ -288,50 +289,51 @@ export function ProductsView() {
       />
 
 
-      <div className="relative mt-6 max-w-md">
-        <MagnifyingGlassIcon
-          aria-hidden
-          className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400"
-        />
-        <input
-          value={q}
-          onChange={(e) => setQ(e.target.value)}
-          placeholder="Ürün ara"
-          className="w-full rounded-lg border border-zinc-300 py-2 pr-3 pl-9 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
-        />
-      </div>
-
-      {/* DURUM KUTULARI (2026-09-10, kullanıcı: "aşağı doğru box olsa daha
-          iyi, ayrı ayrı gözüküyor"): yatay sekme şeridi yerine 5 kutu —
-          etiket + büyük sayı, seçili olan koyu çerçeveli; tıklayınca listeyi
-          süzer. Sayaç firma geneli ve birbirini dışlar (toplam = Tümü).
-          Mobilde 2, tablette 3, masaüstünde 5 sütun. */}
-      <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-5" role="tablist" aria-label="Ürün durumu">
-        {tabs.map((t) => {
-          const active = tab === t.key;
-          const color = t.key === "all" ? null : PRODUCT_STATUS[t.key].color;
-          return (
-            <button
-              key={t.key}
-              type="button"
-              role="tab"
-              aria-selected={active}
-              onClick={() => setTab(t.key)}
-              className={cn(
-                "flex flex-col items-start gap-1 rounded-xl bg-white px-4 py-3 text-left transition",
-                active ? "ring-2 ring-zinc-950" : "ring-1 ring-zinc-950/10 hover:ring-zinc-950/30",
-              )}
-            >
-              <span className="flex items-center gap-1.5 text-xs font-medium text-zinc-500">
-                {color ? <span aria-hidden className={cn("size-2 rounded-full", DOT[color])} /> : null}
+      {/* DURUM HAPLARI + ARAMA tek satırda (2026-09-18, kullanıcı: "üstteki
+          büyük kutuları kaldır"). Hap = süzgeç; seçili olan durum renginde
+          (Tümü mavi), sayaç rozeti içinde. Sayaçlar firma geneli, MECE. */}
+      <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Ürün durumu">
+          {tabs.map((t) => {
+            const active = tab === t.key;
+            const color = t.key === "all" ? "blue" : PRODUCT_STATUS[t.key].color;
+            return (
+              <button
+                key={t.key}
+                type="button"
+                role="tab"
+                aria-selected={active}
+                onClick={() => setTab(t.key)}
+                className={cn(
+                  "inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition",
+                  active ? PILL_ON[color] : "bg-white text-zinc-600 ring-1 ring-zinc-950/10 hover:ring-zinc-950/30",
+                )}
+              >
                 {t.label}
-              </span>
-              <span className={cn("text-xl font-semibold tabular-nums leading-none", t.count === 0 ? "text-zinc-300" : "text-zinc-950")}>
-                {t.count == null ? "—" : t.key === "published" && productLimit != null ? `${t.count}/${productLimit}` : t.count}
-              </span>
-            </button>
-          );
-        })}
+                <span
+                  className={cn(
+                    "tabular-nums rounded-full px-1.5 py-0.5 text-xs",
+                    active ? "bg-white/25 text-white" : t.count === 0 ? "bg-zinc-100 text-zinc-400" : "bg-zinc-100 text-zinc-700",
+                  )}
+                >
+                  {t.count == null ? "—" : t.key === "published" && productLimit != null ? `${t.count}/${productLimit}` : t.count}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        <div className="relative w-full sm:w-72">
+          <MagnifyingGlassIcon
+            aria-hidden
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400"
+          />
+          <input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Ürünlerde ara…"
+            className="w-full rounded-lg border border-zinc-300 py-2 pr-3 pl-9 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15"
+          />
+        </div>
       </div>
 
       {profileHidden ? (
@@ -397,7 +399,7 @@ export function ProductsView() {
               <button
                 type="button"
                 onClick={() => setCreating(true)}
-                className="rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
+                className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
               >
                 Yeni ürün ekle
               </button>
@@ -418,9 +420,10 @@ export function ProductsView() {
 }
 
 /**
- * Satırlar: küçük görsel · ad · kategori · durum rozeti · fiyat modu · son
- * güncelleme. Eskiden yalnız "ad · birim · Düzenle" vardı — taslak mı
- * yayında mı, fiyatı var mı listeden okunamıyordu.
+ * TABLO (2026-09-18, kullanıcı mockup'ı): Ürün (görsel + ad + kategori) ·
+ * Durum · Kategori · Fiyat · Stok/Min. sipariş · Görüntülenme · Eklenme ·
+ * İşlemler. Satır tıklanır (düzenleyici/önizleme). Düzeltme gerekçesi ad
+ * altında. Mobilde yatay kaydırma (tablo kendi kapsayıcısında).
  */
 function ProductRows({
   items,
@@ -436,36 +439,93 @@ function ProductRows({
   const cats = useCategoriesByIds(ids);
   const catName = (id: string | null) =>
     id ? (cats.data?.find((c) => c.id === id)?.nameTr ?? null) : null;
-
+  const price = (it: CatalogItem) =>
+    it.priceMode === "ON_REQUEST" || it.priceAmount == null
+      ? PRICE_MODE_LABEL[it.priceMode] ?? it.priceMode
+      : `${Number(it.priceAmount).toLocaleString("tr-TR")} ${(CURRENCY_SYMBOL as Record<string, string>)[it.priceCurrency ?? "TRY"] ?? it.priceCurrency ?? ""} / ${it.unit}${it.priceMode === "TIERED" ? " (kademeli)" : ""}`;
+  const th = "px-3 py-3 text-left text-xs font-semibold tracking-wide text-zinc-500";
   return (
-    <ul className="mt-6 divide-y divide-zinc-950/5 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
-      {items.map((item) => (
-        <li key={item.id}>
-          {/* Tek kart ailesi: pazar yeri/Ürün Ara'daki ProductCard'ın `row`
-              varyantı — küçük resim Thumb'dan (beyaz boş kutu yok). */}
-          <ProductCard
-            variant="row"
-            product={{
-              slug: item.id,
-              name: item.name,
-              images: item.thumbnailUrl ? [item.thumbnailUrl] : [],
-              categoryId: item.categoryId,
-              unit: item.unit,
-              priceMode: item.priceMode,
-            }}
-            onClick={() => onOpen(item)}
-            badge={
-              <Badge color={PRODUCT_STATUS[productStatusKey(item)].color}>
-                {PRODUCT_STATUS[productStatusKey(item)].label}
-              </Badge>
-            }
-            meta={`${catName(item.categoryId) ?? "Kategori seçilmedi"} · ${
-              PRICE_MODE_LABEL[item.priceMode] ?? item.priceMode
-            } · ${item.unit}${item.reviewStatus === "REJECTED" && item.rejectReason ? ` · Düzeltme: ${item.rejectReason}` : ""}`}
-            trailing={formatDate(item.updatedAt, "short")}
-          />
-        </li>
-      ))}
-    </ul>
+    <div className="mt-6 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
+      <table className="w-full min-w-[52rem] text-sm">
+        <thead className="border-b border-zinc-950/5">
+          <tr>
+            <th scope="col" className={th}>Ürün</th>
+            <th scope="col" className={th}>Durum</th>
+            <th scope="col" className={cn(th, "hidden 2xl:table-cell")}>Kategori</th>
+            <th scope="col" className={th}>Fiyat</th>
+            <th scope="col" className={th}>Min. sipariş</th>
+            <th scope="col" className={th}>Görüntülenme</th>
+            <th scope="col" className={th}>Eklenme</th>
+            <th scope="col" className={cn(th, "text-right")}>
+              <span className="sr-only">İşlemler</span>
+            </th>
+          </tr>
+        </thead>
+        <tbody role="list" className="divide-y divide-zinc-950/5">
+          {items.map((item) => {
+            const st = PRODUCT_STATUS[productStatusKey(item)];
+            return (
+              <tr
+                key={item.id}
+                role="listitem"
+                onClick={() => onOpen(item)}
+                className="cursor-pointer transition hover:bg-zinc-50"
+              >
+                <td className="px-3 py-3">
+                  <div className="flex items-center gap-3">
+                    <Thumb src={item.thumbnailUrl} size="md" className="shrink-0" />
+                    <div className="min-w-0">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onOpen(item);
+                        }}
+                        className="block max-w-[16rem] truncate text-left font-semibold text-zinc-950 hover:underline"
+                      >
+                        {item.name}
+                      </button>
+                      <div className="max-w-[16rem] truncate text-xs text-zinc-500">
+                        {catName(item.categoryId) ?? "Kategori seçilmedi"} · {PRICE_MODE_LABEL[item.priceMode] ?? item.priceMode} · {item.unit}
+                        {item.reviewStatus === "REJECTED" && item.rejectReason ? ` · Düzeltme: ${item.rejectReason}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap">
+                  <Badge color={st.color}>{st.label}</Badge>
+                </td>
+                <td className="hidden max-w-[12rem] truncate px-3 py-3 text-zinc-700 2xl:table-cell">{catName(item.categoryId) ?? "—"}</td>
+                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700">{price(item)}</td>
+                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700">
+                  {item.moq != null ? `Min. ${Number(item.moq).toLocaleString("tr-TR")} ${item.unit}` : "—"}
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700">
+                  {item.viewCount != null ? (
+                    <span className="inline-flex items-center gap-1.5"><EyeIcon className="size-4 text-zinc-400" />{item.viewCount.toLocaleString("tr-TR")}</span>
+                  ) : "—"}
+                </td>
+                <td className="px-3 py-3 whitespace-nowrap text-zinc-700">
+                  {formatDate(item.createdAt ?? item.updatedAt, "short")}
+                </td>
+                <td className="px-3 py-3 text-right">
+                  <button
+                    type="button"
+                    aria-label={`${item.name} — aç`}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      onOpen(item);
+                    }}
+                    className="rounded-md p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                  >
+                    <EllipsisVerticalIcon className="size-5" />
+                  </button>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
   );
 }

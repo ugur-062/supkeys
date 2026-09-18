@@ -252,6 +252,9 @@ export class CompanyItemsService {
         ],
         take,
         skip,
+        // Ürünlerim tablosu (2026-09-18): görüntülenme sütunu — kayıtlı
+        // ziyaret sayısı (company_views, ürün bazlı).
+        include: { _count: { select: { views: true } } },
       }),
       this.prisma.companyItem.count({ where }),
       // Vitrin sayaçları SÜZGEÇTEN BAĞIMSIZ (firma geneli): pano "N yayında ·
@@ -1391,7 +1394,12 @@ export class CompanyItemsService {
     rejectReason: string | null;
     images: string[];
     priceMode: string;
+    priceAmount?: Prisma.Decimal | null;
+    priceCurrency?: string;
+    moq?: Prisma.Decimal | null;
+    createdAt?: Date;
     updatedAt: Date;
+    _count?: { views: number };
   }) {
     return {
       id: r.id,
@@ -1414,6 +1422,13 @@ export class CompanyItemsService {
       rejectReason: r.rejectReason,
       thumbnailUrl: r.images[0] ?? null,
       priceMode: r.priceMode,
+      // Ürünlerim tablosu sütunları (2026-09-18): fiyat · min. sipariş ·
+      // görüntülenme · eklenme tarihi.
+      priceAmount: r.priceAmount == null ? null : r.priceAmount.toString(),
+      priceCurrency: r.priceCurrency ?? null,
+      moq: r.moq == null ? null : r.moq.toString(),
+      viewCount: r._count?.views ?? null,
+      createdAt: r.createdAt ?? null,
       updatedAt: r.updatedAt,
     };
   }
