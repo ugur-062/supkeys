@@ -87,7 +87,7 @@ export function PriceModeField({
       {mode === "FIXED" ? (
         <Field>
           <Label htmlFor="fiyat-birim">Birim fiyat</Label>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
             <input
               id="fiyat-birim"
               type="number"
@@ -97,7 +97,7 @@ export function PriceModeField({
               value={amount}
               onChange={(e) => onChange({ amount: e.target.value })}
               placeholder="0,00"
-              className="flex-1 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
+              className="min-w-0 flex-1 basis-40 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
             />
             <CurrencySelect value={currency} onChange={(c) => onChange({ currency: c })} />
             <span className="flex items-center px-2 text-sm text-zinc-500">

@@ -460,18 +460,66 @@ export function ProductShowcaseForm({
         </p>
       ) : null}
 
+      <button
+        type="button"
+        aria-expanded={previewOpen}
+        aria-controls="vitrin-paneli"
+        onClick={() => setPreviewOpen((v) => !v)}
+        className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-800 lg:hidden"
+      >
+        <EyeIcon aria-hidden className="size-4" />
+        {previewOpen ? "Önizlemeyi gizle" : "Önizlemeyi göster"}
+      </button>
+      {/* DOM sırası: panel ÖNCE (dar ekranda formun üstünde), lg'de `order` ile sağa. */}
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,58fr)_minmax(0,42fr)] xl:gap-10">
+        <aside
+          id="vitrin-paneli"
+          className={cn("min-w-0 lg:order-2 lg:sticky lg:top-[7.5rem] lg:self-start", previewOpen ? "block" : "hidden lg:block")}
+        >
+          <ShowcasePanel
+            product={draftShowcase}
+            item={previewItem ?? EMPTY_ITEM}
+            completion={live.completion}
+            blockers={live.blockers}
+            onJump={jump}
+            recommendations={
+              <SearchVisibilityCard
+                  className="rounded-none shadow-none ring-0"
+                  readiness={seo.readiness}
+                  snippet={seo.snippet}
+                  enrich={
+                    canManage
+                      ? {
+                          available: aiAvailable && patch.name.trim().length >= 2,
+                          unavailableReason: aiAvailable ? "Önce ürün adını yazın." : "AI ile güçlendirme Silver ve üzeri paketlerde.",
+                          run: () =>
+                            seoEnrich.mutateAsync({
+                              kind: "product",
+                              name: patch.name,
+                              description: patch.description,
+                              categoryName,
+                              facts: seo.facts,
+                              keywords,
+                              city: profileQ.data?.city ?? null,
+                              industry: profileQ.data?.industry ?? null,
+                            }),
+                          apply: (r) => {
+                            setDescription(r.description);
+                            setKeywords(r.keywords.slice(0, MAX_KEYWORDS));
+                            if (r.titleSuggestion && !patch.name.trim()) setName(r.titleSuggestion);
+                            toast.success("Taslak uygulandı — kontrol edip kaydedin");
+                          },
+                        }
+                      : undefined
+                  }
+                />
+            }
+          />
+          <p className="mt-4 text-xs/5 text-zinc-500">
+            Varyasyonları ayrı ürün olarak açmayın — renk/ölçü gibi farkları kategoriye özel özelliklere yazın. Katalog böyle temiz kalır.
+          </p>
+        </aside>
         <div className="min-w-0 lg:order-1">
-          <button
-            type="button"
-            aria-expanded={previewOpen}
-            aria-controls="vitrin-paneli"
-            onClick={() => setPreviewOpen((v) => !v)}
-            className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-800 lg:hidden"
-          >
-            <EyeIcon aria-hidden className="size-4" />
-            {previewOpen ? "Önizlemeyi gizle" : "Önizlemeyi göster"}
-          </button>
           <div className="space-y-10">
             {/* 1 ── TEMEL BİLGİLER */}
             <Section id="urun-temel" n={1} title="Temel bilgiler" lead="Ad, kategori ve açıklama — arama motoru ve alıcı ilk bunları okur.">
@@ -735,53 +783,6 @@ export function ProductShowcaseForm({
           </div>
         </div>
 
-        <aside
-          id="vitrin-paneli"
-          className={cn("min-w-0 lg:order-2 lg:sticky lg:top-[7.5rem] lg:self-start", previewOpen ? "block" : "hidden lg:block")}
-        >
-          <ShowcasePanel
-            product={draftShowcase}
-            item={previewItem ?? EMPTY_ITEM}
-            completion={live.completion}
-            blockers={live.blockers}
-            onJump={jump}
-            recommendations={
-              <SearchVisibilityCard
-                  className="rounded-none shadow-none ring-0"
-                  readiness={seo.readiness}
-                  snippet={seo.snippet}
-                  enrich={
-                    canManage
-                      ? {
-                          available: aiAvailable && patch.name.trim().length >= 2,
-                          unavailableReason: aiAvailable ? "Önce ürün adını yazın." : "AI ile güçlendirme Silver ve üzeri paketlerde.",
-                          run: () =>
-                            seoEnrich.mutateAsync({
-                              kind: "product",
-                              name: patch.name,
-                              description: patch.description,
-                              categoryName,
-                              facts: seo.facts,
-                              keywords,
-                              city: profileQ.data?.city ?? null,
-                              industry: profileQ.data?.industry ?? null,
-                            }),
-                          apply: (r) => {
-                            setDescription(r.description);
-                            setKeywords(r.keywords.slice(0, MAX_KEYWORDS));
-                            if (r.titleSuggestion && !patch.name.trim()) setName(r.titleSuggestion);
-                            toast.success("Taslak uygulandı — kontrol edip kaydedin");
-                          },
-                        }
-                      : undefined
-                  }
-                />
-            }
-          />
-          <p className="mt-4 text-xs/5 text-zinc-500">
-            Varyasyonları ayrı ürün olarak açmayın — renk/ölçü gibi farkları kategoriye özel özelliklere yazın. Katalog böyle temiz kalır.
-          </p>
-        </aside>
       </div>
     </div>
   );

@@ -449,7 +449,7 @@ function ProductRows({
         <thead className="border-b border-zinc-950/5">
           <tr>
             <th scope="col" className={th}>Ürün</th>
-            <th scope="col" className={th}>Durum</th>
+            <th scope="col" className={cn(th, "hidden sm:table-cell")}>Durum</th>
             <th scope="col" className={cn(th, "hidden 2xl:table-cell")}>Kategori</th>
             <th scope="col" className={cn(th, "hidden sm:table-cell")}>Fiyat</th>
             <th scope="col" className={cn(th, "hidden xl:table-cell")}>Min. sipariş</th>
@@ -480,18 +480,22 @@ function ProductRows({
                           e.stopPropagation();
                           onOpen(item);
                         }}
-                        className="block max-w-[14rem] truncate text-left font-semibold text-zinc-950 hover:underline xl:max-w-[18rem]"
+                        className="block max-w-[11rem] truncate text-left font-semibold text-zinc-950 hover:underline sm:max-w-[14rem] xl:max-w-[18rem]"
                       >
                         {item.name}
                       </button>
-                      <div className="max-w-[14rem] truncate text-xs text-zinc-500 xl:max-w-[18rem]">
+                      <div className="max-w-[11rem] truncate text-xs text-zinc-500 sm:max-w-[14rem] xl:max-w-[18rem]">
                         {catName(item.categoryId) ?? "Kategori seçilmedi"} · {PRICE_MODE_LABEL[item.priceMode] ?? item.priceMode} · {item.unit}
                         {item.reviewStatus === "REJECTED" && item.rejectReason ? ` · Düzeltme: ${item.rejectReason}` : ""}
+                      </div>
+                      {/* Dar ekranda Durum sütunu gizli → rozet adın altında. */}
+                      <div className="mt-1 sm:hidden">
+                        <Badge color={st.color}>{st.label}</Badge>
                       </div>
                     </div>
                   </div>
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap">
+                <td className="hidden px-3 py-3 whitespace-nowrap sm:table-cell">
                   <Badge color={st.color}>{st.label}</Badge>
                 </td>
                 <td className="hidden max-w-[10rem] truncate px-3 py-3 text-zinc-700 2xl:table-cell">{catName(item.categoryId) ?? "—"}</td>

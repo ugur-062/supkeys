@@ -85,7 +85,7 @@ export function ShowcasePanel({
             <p className="mt-3 text-center text-[11px] text-zinc-500">Ürünler dizininde ve firma profilinizde böyle görünür.</p>
           </div>
         ) : (
-          <div id={tabId} role="tabpanel" className="max-h-[min(70vh,44rem)] overflow-y-auto px-4 pb-4 [zoom:.62]">
+          <div id={tabId} role="tabpanel" className="max-h-[min(70vh,44rem)] overflow-y-auto px-4 pb-4 [zoom:.55]">
             <ProductDetailBody
               product={view}
               company={company}
