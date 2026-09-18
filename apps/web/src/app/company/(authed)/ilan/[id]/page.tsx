@@ -1593,10 +1593,10 @@ export default function ListingDetailPage() {
       ) : (l.myBid?.status === "SUBMITTED" &&
           biddingOpen &&
           !l.english?.isEnglishAuction) ||
-        !l.english?.isEnglishAuction ||
         bidDocsSection != null ? (
-        // İçeriksiz beyaz kutu render etme (pazarlıkta çoğu not yok —
-        // CTA sekmenin en üstünde).
+        // İçeriksiz beyaz kutu render etme: kapalı zarf notu sayfa
+        // bandına taşındı (2026-09-19), kutu yalnız gönderilmiş teklif notu
+        // ya da teklif belgesi varken çizilir.
         <div className="space-y-4 rounded-xl border border-zinc-950/10 bg-white p-5">
           {/* CTA butonu sekmenin EN ÜSTÜNE taşındı (aşağıdaki panel) —
               burada yalnız RFQ notları / belgeler kalır. */}
