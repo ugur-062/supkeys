@@ -443,15 +443,15 @@ function ProductRows({
     it.priceMode === "ON_REQUEST" || it.priceAmount == null
       ? PRICE_MODE_LABEL[it.priceMode] ?? it.priceMode
       : `${Number(it.priceAmount).toLocaleString("tr-TR")} ${(CURRENCY_SYMBOL as Record<string, string>)[it.priceCurrency ?? "TRY"] ?? it.priceCurrency ?? ""} / ${it.unit}${it.priceMode === "TIERED" ? " (kademeli)" : ""}`;
-  const th = "px-4 py-3 text-left text-xs font-semibold tracking-wide text-zinc-500";
+  const th = "px-3 py-3 text-left text-xs font-semibold tracking-wide text-zinc-500";
   return (
     <div className="mt-6 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
-      <table className="w-full min-w-[56rem] text-sm">
+      <table className="w-full min-w-[52rem] text-sm">
         <thead className="border-b border-zinc-950/5">
           <tr>
             <th scope="col" className={th}>Ürün</th>
             <th scope="col" className={th}>Durum</th>
-            <th scope="col" className={th}>Kategori</th>
+            <th scope="col" className={cn(th, "hidden 2xl:table-cell")}>Kategori</th>
             <th scope="col" className={th}>Fiyat</th>
             <th scope="col" className={th}>Min. sipariş</th>
             <th scope="col" className={th}>Görüntülenme</th>
@@ -471,7 +471,7 @@ function ProductRows({
                 onClick={() => onOpen(item)}
                 className="cursor-pointer transition hover:bg-zinc-50"
               >
-                <td className="px-4 py-3">
+                <td className="px-3 py-3">
                   <div className="flex items-center gap-3">
                     <Thumb src={item.thumbnailUrl} size="md" className="shrink-0" />
                     <div className="min-w-0">
@@ -481,34 +481,34 @@ function ProductRows({
                           e.stopPropagation();
                           onOpen(item);
                         }}
-                        className="block max-w-[22rem] truncate text-left font-semibold text-zinc-950 hover:underline"
+                        className="block max-w-[16rem] truncate text-left font-semibold text-zinc-950 hover:underline"
                       >
                         {item.name}
                       </button>
-                      <div className="truncate text-xs text-zinc-500">
+                      <div className="max-w-[16rem] truncate text-xs text-zinc-500">
                         {catName(item.categoryId) ?? "Kategori seçilmedi"} · {PRICE_MODE_LABEL[item.priceMode] ?? item.priceMode} · {item.unit}
                         {item.reviewStatus === "REJECTED" && item.rejectReason ? ` · Düzeltme: ${item.rejectReason}` : ""}
                       </div>
                     </div>
                   </div>
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap">
+                <td className="px-3 py-3 whitespace-nowrap">
                   <Badge color={st.color}>{st.label}</Badge>
                 </td>
-                <td className="max-w-[12rem] truncate px-4 py-3 text-zinc-700">{catName(item.categoryId) ?? "—"}</td>
-                <td className="px-4 py-3 whitespace-nowrap tabular-nums text-zinc-700">{price(item)}</td>
-                <td className="px-4 py-3 whitespace-nowrap tabular-nums text-zinc-700">
+                <td className="hidden max-w-[12rem] truncate px-3 py-3 text-zinc-700 2xl:table-cell">{catName(item.categoryId) ?? "—"}</td>
+                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700">{price(item)}</td>
+                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700">
                   {item.moq != null ? `Min. ${Number(item.moq).toLocaleString("tr-TR")} ${item.unit}` : "—"}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap tabular-nums text-zinc-700">
+                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700">
                   {item.viewCount != null ? (
                     <span className="inline-flex items-center gap-1.5"><EyeIcon className="size-4 text-zinc-400" />{item.viewCount.toLocaleString("tr-TR")}</span>
                   ) : "—"}
                 </td>
-                <td className="px-4 py-3 whitespace-nowrap text-zinc-700">
+                <td className="px-3 py-3 whitespace-nowrap text-zinc-700">
                   {formatDate(item.createdAt ?? item.updatedAt, "short")}
                 </td>
-                <td className="px-4 py-3 text-right">
+                <td className="px-3 py-3 text-right">
                   <button
                     type="button"
                     aria-label={`${item.name} — aç`}
