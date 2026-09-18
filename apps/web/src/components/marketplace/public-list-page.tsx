@@ -2,7 +2,6 @@ import { FilterChip } from "./facets";
 import { SearchForm } from "./search-form";
 import { Heading } from "@/components/catalyst/heading";
 import Link from "next/link";
-import Image from "next/image";
 import type { ReactNode } from "react";
 
 /**
@@ -63,27 +62,25 @@ export function PublicListPage({
       <header className="border-b border-zinc-950/5 bg-white pt-28 pb-10">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           {breadcrumb}
-          <div className={image ? "grid items-start gap-8 lg:grid-cols-[1fr_20rem]" : ""}>
+          {/* Mockup (2026-09-18): büyük kalın başlık, geniş arama, sağdaki
+              görsel sütunu YOK (`image` prop'u geriye dönük duruyor, çizilmez). */}
+          <div>
             <div>
               <Heading
                 level={1}
-                className="text-3xl font-semibold tracking-tight !text-zinc-950 sm:text-4xl"
+                className="text-4xl font-bold tracking-tight !text-zinc-950 sm:text-5xl"
               >
                 {title}
               </Heading>
-              <p className="mt-3 max-w-2xl text-base/7 text-zinc-500">{lead}</p>
-              <div className="mt-7 max-w-3xl">
-                <SearchForm {...search} />
+              <p className="mt-4 max-w-2xl text-lg/8 text-zinc-500">{lead}</p>
+              <div className="mt-8 max-w-4xl">
+                <SearchForm {...search} size="lg" />
               </div>
               {/* Sekmeler aramanın HEMEN ALTINDA: "aynı sorgu, öteki yüzey"
                   ilişkisi görsel olarak da arama kutusuna bağlı olsun. */}
               {tabs}
             </div>
-            {image ? (
-              <div className="relative hidden aspect-[3/2] overflow-hidden rounded-2xl ring-1 ring-zinc-950/5 lg:block">
-                <Image src={image} alt="" fill sizes="20rem" priority className="object-cover" />
-              </div>
-            ) : null}
+            {void image}
           </div>
         </div>
       </header>

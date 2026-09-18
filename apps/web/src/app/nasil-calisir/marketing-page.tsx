@@ -499,9 +499,11 @@ function PublicProfilePreview() {
           Güvenilir iş ortaklıkları daha güçlü yarınlar
         </p>
       </div>
-      <div className="px-6 pb-6">
+      {/* Logo kutusu kapağın ÜSTÜNE biner (relative + z-10); eskiden -mt ile
+          kapağın altında kalıyordu (2026-09-18, kullanıcı). */}
+      <div className="relative z-10 px-6 pb-6">
         <div className="-mt-8">
-          <div className="flex size-16 items-center justify-center rounded-2xl bg-emerald-600 text-xl font-bold text-white ring-4 ring-white">DC</div>
+          <div className="flex size-16 items-center justify-center rounded-2xl bg-emerald-600 text-xl font-bold text-white shadow-md ring-4 ring-white">DÇ</div>
           <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-lg font-bold text-zinc-900">Demo Çelik A.Ş.</span>
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
@@ -666,6 +668,42 @@ function FormatCard({
       <span className={`mt-5 inline-flex w-fit rounded-lg px-2.5 py-1 text-xs font-semibold ${TONE_BADGE[tagTone]}`}>{tag}</span>
       <h3 className="mt-3 text-xl font-bold text-zinc-950">{title}</h3>
       <p className="mt-1.5 text-sm/6 text-zinc-600">{body}</p>
+    </div>
+  );
+}
+
+/**
+ * "El yazısı" not + kıvrık ok (2026-09-18 mockup). Font kuralı: yalnız Inter —
+ * el yazısı fontu EKLENMEZ; italik + hafif eğim + yeşil kıvrık ok aynı hissi
+ * verir. Dekoratif (aria-hidden), yalnız lg+; kartın dışına taşar.
+ */
+function HandNote({ side, children }: { side: "left" | "right"; children: React.ReactNode }) {
+  const right = side === "right";
+  return (
+    <div
+      aria-hidden
+      className={`pointer-events-none absolute hidden select-none lg:block ${
+        right ? "-top-10 -right-24 w-44 rotate-[8deg]" : "bottom-4 -left-40 w-32 -rotate-[8deg]"
+      }`}
+    >
+      <p className={`text-sm/5 font-semibold italic tracking-tight text-blue-600 ${right ? "text-left" : "text-right"}`}>{children}</p>
+      <svg
+        viewBox="0 0 80 48"
+        className={`mt-1 h-10 w-16 text-emerald-500 ${right ? "-ml-6 -scale-x-100" : "ml-auto"}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M4 6c14 2 36 10 56 30" />
+        <path d="M50 38l12 2-2-12" />
+      </svg>
+      {right ? (
+        <svg viewBox="0 0 24 24" className="absolute -top-6 right-2 size-5 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <path d="M12 3v6M5 7l4 3M19 7l-4 3" />
+        </svg>
+      ) : null}
     </div>
   );
 }
@@ -851,7 +889,10 @@ export default function HomePage() {
                 body="Yönetici, satın alma, satış, onaylayıcı rolleri — sınırsız kullanıcı, kolayca ekiplerini yönetin, iş süreçlerinizi tek tıkla kurun."
                 bullets={["Rol bazlı yetki ve görünürlük", "Sınırsız kullanıcı ile katıl", "Güvenli hesap seçenekleri (2FA)"]}
               />
-              <div className="relative"><SignupPreview /></div>
+              <div className="relative">
+                <SignupPreview />
+                <HandNote side="right">Daha güçlü ekipler, daha büyük fırsatlar</HandNote>
+              </div>
             </Reveal>
 
             <Reveal className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
@@ -873,7 +914,8 @@ export default function HomePage() {
         <SoftBlobs flip />
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-            <div>
+            <div className="relative">
+              <HandNote side="left">Dünyaya işinizi anlatın</HandNote>
               <Eyebrow>Vitrin</Eyebrow>
               <p className="mt-2 text-4xl font-bold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
                 Herkese açık profiliniz, dijital vitrininiz

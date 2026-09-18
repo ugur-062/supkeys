@@ -48,7 +48,7 @@ export function SearchForm({
       )}
       <div className="flex items-stretch gap-2">
         <div
-          className={`relative flex flex-1 items-center rounded-full bg-white ring-1 ring-zinc-950/10 ring-inset transition focus-within:ring-2 focus-within:ring-zinc-950 ${
+          className={`relative flex flex-1 items-center rounded-full bg-white ring-1 ring-zinc-950/10 ring-inset transition focus-within:ring-2 focus-within:ring-blue-500 ${
             lg ? "shadow-lg shadow-zinc-950/5" : "shadow-sm"
           }`}
         >
