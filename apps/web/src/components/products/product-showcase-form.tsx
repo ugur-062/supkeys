@@ -9,11 +9,10 @@ import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { productSeo } from "@/lib/seo/entities";
 import { snippetFromMetadata } from "@/lib/seo/snippet";
 import { PRODUCT_STATUS, productStatusKey } from "@/lib/company/product-status";
-import { cn } from "@/lib/utils";
 import { ImageUploader } from "./image-uploader";
 import { PriceModeField } from "./price-mode-field";
 import { ProductActionBar } from "./product-action-bar";
-import { ShowcasePanel } from "./showcase-panel";
+import { EditorRail } from "./editor-rail";
 import { productPath } from "@rothern/shared";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { Field } from "@/components/ui/field";
@@ -24,11 +23,10 @@ import {
   usePublishProduct,
   useUpdateShowcase,
   useUploadProductDocument,
-  type CatalogItem,
   type PriceTier,
   type ProductShowcase,
 } from "@/hooks/use-company-items";
-import { EyeIcon, XMarkIcon } from "@heroicons/react/20/solid";
+import { XMarkIcon } from "@heroicons/react/20/solid";
 import {
   COMMON_UNIT_CODES,
   MIN_DESCRIPTION,
@@ -48,8 +46,6 @@ import { toast } from "sonner";
 import { extractErrorMessage } from "@/lib/tenders/error";
 
 const MAX_KEYWORDS = 15;
-/** Yeni üründe kalem kaydı yok — önizleme marka/parça no/şartname olmadan çizilir. */
-const EMPTY_ITEM = { brand: null, mpn: null, specification: null } as const;
 /** Katalog/teknik föy — Europages ürün kartındaki gibi az sayıda, seçilmiş. */
 const MAX_DOCUMENTS = 3;
 
@@ -82,7 +78,6 @@ export function ProductShowcaseForm({
   onCreated,
   onSaved,
   publishLimitReached,
-  previewItem,
 }: {
   product: ProductShowcase;
   /** Kalemin ölçü birimi — fiyat ve MOQ satırlarında gösterilir. */
@@ -110,13 +105,6 @@ export function ProductShowcaseForm({
    * API aynası): "Onaya gönder" kilitlenir, taslak kaydetme serbest kalır.
    */
   publishLimitReached?: boolean;
-  /**
-   * Verilirse formun ÜSTÜNDE canlı önizleme kartı çizilir (2026-09-18,
-   * kullanıcı: "yayınlanmış ürüne girince önizleme şeklinde biraz görünsün").
-   * Kalemin marka/parça no/şartnamesi herkese açık gövdede okunur, o yüzden
-   * kayıt buradan gelir. Yeni üründe verilmez (henüz kayıt yok).
-   */
-  previewItem?: Pick<CatalogItem, "brand" | "mpn" | "specification">;
 }) {
   const isNew = mode === "new";
   // Belge (PDF) ve video PAKETLİ (Silver+): ücretsiz firmada alanlar hiç
@@ -146,8 +134,6 @@ export function ProductShowcaseForm({
   const [documents, setDocuments] = useState<{ url: string; title: string }[]>(
     product.documents ?? [],
   );
-  // Dar ekranda Vitrin paneli formun üstünde, kapalı doğar.
-  const [previewOpen, setPreviewOpen] = useState(false);
   const docInput = useRef<HTMLInputElement>(null);
 
   const { data: attributeDefs = [] } = useCategoryAttributes(categoryId);
@@ -238,35 +224,6 @@ export function ProductShowcaseForm({
       blockers: productPublishBlockers(like),
     };
   }, [patch, images, keywords, priceMode, attributes, attributeDefs]);
-
-  /**
-   * CANLI ÖNİZLEME VERİSİ: formun anlık hâli, sunucu kaydının biçiminde.
-   * Sayısal alanlar kayıtta dize (Prisma Decimal) — aynı biçime çevrilir ki
-   * önizleme kaydedilmiş üründen farklı görünmesin.
-   */
-  const draftShowcase = useMemo<ProductShowcase>(
-    () => ({
-      ...product,
-      name: patch.name || product.name,
-      description: patch.description,
-      categoryId: patch.categoryId,
-      images,
-      keywords,
-      attributes,
-      priceMode,
-      priceAmount: patch.priceAmount != null ? String(patch.priceAmount) : null,
-      priceTiers: patch.priceTiers,
-      priceCurrency,
-      moq: patch.moq != null ? String(patch.moq) : null,
-      externalUrl: patch.externalUrl,
-      videoUrl: patch.videoUrl,
-      documents,
-      unitCode,
-      unit: unitLabel,
-      attributeDefs,
-    }),
-    [product, patch, images, keywords, attributes, priceMode, priceCurrency, documents, unitCode, unitLabel, attributeDefs],
-  );
 
   /* ARAMA GÖRÜNÜRLÜĞÜ (SEO Parça 8): puan + Google parçacığı + AI taslağı.
      Parçacık sayfanın GERÇEK şablonundan (`productSeo`) — ayrı metin yok. */
@@ -433,10 +390,10 @@ export function ProductShowcaseForm({
     toast.success("Ürün vitrinden çekildi");
   };
 
-  /* YAN YANA ÇALIŞMA ALANI (2026-09-18, kullanıcı kararı): üstte yapışkan
-     eylem çubuğu; solda form (5 bölüm), sağda yapışkan Vitrin paneli
-     (Kart | Sayfa canlı önizleme + tamamlanma + öneriler). Dar ekranda panel
-     formun ÜSTÜNDE "Önizleme" anahtarıyla açılır. */
+  /* DÜZEN (2026-09-19, kullanıcı kararı): üstte yapışkan eylem çubuğu; solda
+     form (5 bölüm), sağda yapışkan ray (tamamlanma + eksik çipleri + öneriler).
+     Canlı önizleme paneli KALDIRILDI — yayındaki ürün önce salt-okunur
+     önizlemeyle açılır, "Düzenle" bu forma getirir. */
   return (
     <div>
       <ProductActionBar
@@ -448,7 +405,9 @@ export function ProductShowcaseForm({
         canManage={canManage}
         primaryLabel={primaryLabel}
         onPrimary={primaryAction}
-        primaryDisabled={(status === "draft" || status === "rejected") && publishLocked}
+        // Yayındaki üründe değişiklik yokken Kaydet KAPALI (2026-09-19, kullanıcı
+        // bulgusu: değişmeden kaydedince yeniden incelemeye giriyordu).
+        primaryDisabled={((status === "draft" || status === "rejected") && publishLocked) || (status === "published" && !dirty)}
         draftSave={status === "draft" || status === "rejected" ? () => void handleSave(false) : undefined}
         unpublish={product.isPublic && !isNew ? () => void unpublish() : undefined}
         publicHref={publicHref}
@@ -460,66 +419,8 @@ export function ProductShowcaseForm({
         </p>
       ) : null}
 
-      <button
-        type="button"
-        aria-expanded={previewOpen}
-        aria-controls="vitrin-paneli"
-        onClick={() => setPreviewOpen((v) => !v)}
-        className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-800 lg:hidden"
-      >
-        <EyeIcon aria-hidden className="size-4" />
-        {previewOpen ? "Önizlemeyi gizle" : "Önizlemeyi göster"}
-      </button>
-      {/* DOM sırası: panel ÖNCE (dar ekranda formun üstünde), lg'de `order` ile sağa. */}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,58fr)_minmax(0,42fr)] xl:gap-10">
-        <aside
-          id="vitrin-paneli"
-          className={cn("min-w-0 lg:order-2 lg:sticky lg:top-[7.5rem] lg:self-start", previewOpen ? "block" : "hidden lg:block")}
-        >
-          <ShowcasePanel
-            product={draftShowcase}
-            item={previewItem ?? EMPTY_ITEM}
-            completion={live.completion}
-            blockers={live.blockers}
-            onJump={jump}
-            recommendations={
-              <SearchVisibilityCard
-                  className="rounded-none shadow-none ring-0"
-                  readiness={seo.readiness}
-                  snippet={seo.snippet}
-                  enrich={
-                    canManage
-                      ? {
-                          available: aiAvailable && patch.name.trim().length >= 2,
-                          unavailableReason: aiAvailable ? "Önce ürün adını yazın." : "AI ile güçlendirme Silver ve üzeri paketlerde.",
-                          run: () =>
-                            seoEnrich.mutateAsync({
-                              kind: "product",
-                              name: patch.name,
-                              description: patch.description,
-                              categoryName,
-                              facts: seo.facts,
-                              keywords,
-                              city: profileQ.data?.city ?? null,
-                              industry: profileQ.data?.industry ?? null,
-                            }),
-                          apply: (r) => {
-                            setDescription(r.description);
-                            setKeywords(r.keywords.slice(0, MAX_KEYWORDS));
-                            if (r.titleSuggestion && !patch.name.trim()) setName(r.titleSuggestion);
-                            toast.success("Taslak uygulandı — kontrol edip kaydedin");
-                          },
-                        }
-                      : undefined
-                  }
-                />
-            }
-          />
-          <p className="mt-4 text-xs/5 text-zinc-500">
-            Varyasyonları ayrı ürün olarak açmayın — renk/ölçü gibi farkları kategoriye özel özelliklere yazın. Katalog böyle temiz kalır.
-          </p>
-        </aside>
-        <div className="min-w-0 lg:order-1">
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0">
           <div className="space-y-10">
             {/* 1 ── TEMEL BİLGİLER */}
             <Section id="urun-temel" n={1} title="Temel bilgiler" lead="Ad, kategori ve açıklama — arama motoru ve alıcı ilk bunları okur.">
@@ -783,6 +684,48 @@ export function ProductShowcaseForm({
           </div>
         </div>
 
+        <aside className="min-w-0 lg:sticky lg:top-[7.5rem] lg:self-start">
+          <EditorRail
+            completion={live.completion}
+            blockers={live.blockers}
+            onJump={jump}
+            recommendations={
+              <SearchVisibilityCard
+                  className="rounded-none shadow-none ring-0"
+                  readiness={seo.readiness}
+                  snippet={seo.snippet}
+                  enrich={
+                    canManage
+                      ? {
+                          available: aiAvailable && patch.name.trim().length >= 2,
+                          unavailableReason: aiAvailable ? "Önce ürün adını yazın." : "AI ile güçlendirme Silver ve üzeri paketlerde.",
+                          run: () =>
+                            seoEnrich.mutateAsync({
+                              kind: "product",
+                              name: patch.name,
+                              description: patch.description,
+                              categoryName,
+                              facts: seo.facts,
+                              keywords,
+                              city: profileQ.data?.city ?? null,
+                              industry: profileQ.data?.industry ?? null,
+                            }),
+                          apply: (r) => {
+                            setDescription(r.description);
+                            setKeywords(r.keywords.slice(0, MAX_KEYWORDS));
+                            if (r.titleSuggestion && !patch.name.trim()) setName(r.titleSuggestion);
+                            toast.success("Taslak uygulandı — kontrol edip kaydedin");
+                          },
+                        }
+                      : undefined
+                  }
+                />
+            }
+          />
+          <p className="mt-4 text-xs/5 text-zinc-500">
+            Varyasyonları ayrı ürün olarak açmayın — renk/ölçü gibi farkları kategoriye özel özelliklere yazın. Katalog böyle temiz kalır.
+          </p>
+        </aside>
       </div>
     </div>
   );

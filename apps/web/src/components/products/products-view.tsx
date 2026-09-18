@@ -129,9 +129,12 @@ export function ProductsView() {
    * İNCELEMEDEKİ (PENDING) ürün FORMLA AÇILMAZ — salt-okunur önizleme
    * (`ProductPreview`); tek çıkış admin kararı.
    */
+  // Yayındaki ürün ÖNCE önizlemeyle açılır, "Düzenle" forma geçirir (2026-09-19).
+  const [editorOpen, setEditorOpen] = useState(false);
   const openEditor = async (item: CatalogItem) => {
     try {
       const showcase = await fetchProductShowcase(item.id);
+      setEditorOpen(false);
       setEditing({ item, showcase });
     } catch (err) {
       toast.error(extractErrorMessage(err, "Ürün açılamadı"));
@@ -193,6 +196,7 @@ export function ProductsView() {
 
   if (editing) {
     const inReview = editing.showcase.reviewStatus === "PENDING";
+    const publishedPreview = !inReview && editing.showcase.isPublic && !editorOpen;
     return (
       <PageContainer>
         <button
@@ -209,11 +213,18 @@ export function ProductsView() {
         <div className={inReview ? "mt-8" : "mt-2"}>
           {inReview ? (
             <ProductPreview product={editing.showcase} item={editing.item} onClose={() => setEditing(null)} />
+          ) : publishedPreview ? (
+            <ProductPreview
+              variant="published"
+              product={editing.showcase}
+              item={editing.item}
+              onClose={() => setEditing(null)}
+              onEdit={() => setEditorOpen(true)}
+            />
           ) : (
             <ProductShowcaseForm
               product={editing.showcase}
               unit={editing.item.unit}
-              previewItem={editing.item}
               publishLimitReached={publishLimitReached}
               onClose={() => setEditing(null)}
               // Kaydın sunucu hâli ekrana işlenir: incelemeye düştüyse

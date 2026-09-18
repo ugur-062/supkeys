@@ -27,8 +27,8 @@ vi.mock("@/lib/api", () => ({
 vi.mock("../product-showcase-form", () => ({
   // Kaydetmeyi taklit eden düğme: sayfanın `onSaved` ile gelen SUNUCU kaydını
   // ekrana işleyip işlemediği sınanır.
-  ProductShowcaseForm: (props: { product: { id: string }; previewItem?: { brand: string | null }; onSaved?: (saved: unknown) => void }) => (
-    <div data-testid="form" data-preview={props.previewItem ? "1" : "0"}>
+  ProductShowcaseForm: (props: { product: { id: string }; onSaved?: (saved: unknown) => void }) => (
+    <div data-testid="form">
       <button
         type="button"
         onClick={() => props.onSaved?.({ ...props.product, reviewStatus: "PENDING", isPublic: true })}
@@ -39,7 +39,15 @@ vi.mock("../product-showcase-form", () => ({
   ),
 }));
 vi.mock("../product-preview", () => ({
-  ProductPreview: () => <div data-testid="preview" />,
+  ProductPreview: (props: { variant?: string; onEdit?: () => void }) => (
+    <div data-testid="preview" data-variant={props.variant ?? "review"}>
+      {props.onEdit ? (
+        <button type="button" onClick={props.onEdit}>
+          Düzenle
+        </button>
+      ) : null}
+    </div>
+  ),
 }));
 
 import { ProductsView } from "../products-view";
@@ -200,9 +208,11 @@ describe("ProductsView", () => {
     expect(h.patch).not.toHaveBeenCalled(); // eski boş PATCH görsel/etiket/fiyatı siliyordu
 
     await user.click(screen.getByRole("button", { name: /Ürünlere dön/ }));
-    await user.click(await screen.findByText("Dağıtım panosu")); // APPROVED → form
-    // Düzenleyici canlı önizleme kartı için kalem kaydını alır (2026-09-18).
-    expect(await screen.findByTestId("form")).toHaveAttribute("data-preview", "1");
+    await user.click(await screen.findByText("Dağıtım panosu")); // APPROVED + yayında → ÖNCE önizleme
+    expect(await screen.findByTestId("preview")).toHaveAttribute("data-variant", "published");
+    expect(screen.queryByTestId("form")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Düzenle" }));
+    expect(await screen.findByTestId("form")).toBeInTheDocument();
     expect(screen.queryByTestId("preview")).toBeNull();
   });
 
@@ -221,11 +231,12 @@ describe("ProductsView", () => {
   it("yayındaki ürün kaydedilince sunucu incelemeye aldıysa ekran HEMEN önizlemeye geçer (yenileme gerekmez)", async () => {
     const user = userEvent.setup();
     wrap(<ProductsView />);
-    await user.click(await screen.findByText("Dağıtım panosu")); // APPROVED → form
+    await user.click(await screen.findByText("Dağıtım panosu")); // APPROVED → önizleme → Düzenle → form
+    await user.click(await screen.findByRole("button", { name: "Düzenle" }));
     expect(await screen.findByTestId("form")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "sahte-kaydet" }));
-    expect(await screen.findByTestId("preview")).toBeInTheDocument();
+    expect(await screen.findByTestId("preview")).toHaveAttribute("data-variant", "review");
     expect(screen.queryByTestId("form")).toBeNull();
     expect(screen.getByText("Ürün incelemede — ekibimiz karar verene kadar yalnız önizlenir.")).toBeInTheDocument();
   });

@@ -9,7 +9,10 @@ import { usePublishProduct, type CatalogItem, type ProductShowcase } from "@/hoo
 import { PRODUCT_STATUS, productStatusKey } from "@/lib/company/product-status";
 import { formatDate } from "@/lib/format-date";
 import type { PublicProduct, PublicProductCompany } from "@/lib/public/marketplace-api";
-import { LockClosedIcon } from "@heroicons/react/20/solid";
+import { ArrowTopRightOnSquareIcon, LockClosedIcon, PencilSquareIcon } from "@heroicons/react/20/solid";
+import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
+import { productPath } from "@rothern/shared";
+import { cn } from "@/lib/utils";
 import { useMemo } from "react";
 import { toast } from "sonner";
 
@@ -95,16 +98,104 @@ export function ProductPreview({
   product,
   item,
   onClose,
+  variant = "review",
+  onEdit,
 }: {
   product: ProductShowcase;
   item: Pick<CatalogItem, "brand" | "mpn" | "specification">;
   onClose: () => void;
+  /**
+   * `review` = inceleme kilidi (amber bant, düzenleme yok).
+   * `published` (2026-09-19, kullanıcı kararı "yayındaysa önizlemeli hâlini
+   * göster, Düzenle tuşu olsun") = yayındaki ürünün alıcıya göründüğü hâl;
+   * "Düzenle" forma geçirir, herkese açık sayfa bağlantısı ve "Vitrinden çek" var.
+   */
+  variant?: "review" | "published";
+  onEdit?: () => void;
 }) {
   const publish = usePublishProduct();
   const canManage = useHasCompanyPermission("sell:product:manage");
+  const accent = useButtonAccent();
   const status = PRODUCT_STATUS[productStatusKey(product)];
 
-  const { view, company } = useShowcaseView(product, item);
+  const { view, company, companySlug } = useShowcaseView(product, item);
+  const publicHref = product.isPublic && companySlug && product.slug ? productPath(companySlug, product.slug) : null;
+
+  const unpublish = async () => {
+    if (!window.confirm("Ürün vitrinden çekilecek ve taslağa dönecek; yeniden çıkmak için tekrar onay gerekir. Devam edilsin mi?")) return;
+    try {
+      await publish.mutateAsync({ id: product.id, publish: false });
+      toast.success("Ürün vitrinden çekildi");
+      onClose();
+    } catch {
+      toast.error("Vitrinden çekilemedi");
+    }
+  };
+
+  if (variant === "published") {
+    return (
+      <div>
+        <div
+          role="status"
+          className="flex flex-wrap items-center gap-3 rounded-2xl bg-white px-4 py-3 text-sm shadow-sm ring-1 ring-zinc-950/5"
+        >
+          <div className="min-w-0 flex-1">
+            <p className="flex flex-wrap items-center gap-2 font-semibold text-zinc-950">
+              Alıcının gördüğü hâl
+              <Badge color={status.color}>{status.label}</Badge>
+            </p>
+            <p className="mt-0.5 text-xs/5 text-zinc-500">
+              Ürün vitrinde. Düzenlemek için “Düzenle”ye basın; içerik değişikliği kaydedilince yeniden incelenir, ürün bu sırada yayında kalır.
+            </p>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-2">
+            {publicHref ? (
+              <a
+                href={publicHref}
+                target="_blank"
+                rel="noopener"
+                className="inline-flex items-center gap-1 rounded-full border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
+              >
+                Herkese açık sayfayı aç
+                <ArrowTopRightOnSquareIcon aria-hidden className="size-4" />
+              </a>
+            ) : null}
+            {canManage ? (
+              <>
+                <button
+                  type="button"
+                  disabled={publish.isPending}
+                  onClick={() => void unpublish()}
+                  className="rounded-full px-3.5 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 disabled:opacity-50"
+                >
+                  Vitrinden çek
+                </button>
+                <button
+                  type="button"
+                  onClick={onEdit}
+                  className={cn("inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold text-white shadow-sm transition", accentFillClass(accent))}
+                >
+                  <PencilSquareIcon aria-hidden className="size-4" />
+                  Düzenle
+                </button>
+              </>
+            ) : null}
+          </div>
+        </div>
+
+        <ProductDetailBody
+          product={view}
+          company={company}
+          companyHref="/company/sirketim/profil"
+          cta={
+            <p className="rounded-xl bg-zinc-100 px-4 py-2.5 text-center text-sm text-zinc-500" aria-disabled>
+              Alıcı burada “Bilgi iste” düğmesini görür
+            </p>
+          }
+        />
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -130,16 +221,7 @@ export function ProductPreview({
           <button
             type="button"
             disabled={publish.isPending}
-            onClick={async () => {
-              if (!window.confirm("Ürün vitrinden çekilecek ve taslağa dönecek; bekleyen inceleme düşer, yeniden çıkmak için tekrar onay gerekir. Devam edilsin mi?")) return;
-              try {
-                await publish.mutateAsync({ id: product.id, publish: false });
-                toast.success("Ürün vitrinden çekildi");
-                onClose();
-              } catch {
-                toast.error("Vitrinden çekilemedi");
-              }
-            }}
+            onClick={() => void unpublish()}
             className="rounded-full border border-amber-700/30 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
           >
             Vitrinden çek

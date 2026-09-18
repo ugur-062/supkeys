@@ -24,7 +24,7 @@ vi.mock("@/hooks/use-company-items", () => ({
 }));
 
 import { ProductPreview } from "../product-preview";
-import { ShowcasePanel } from "../showcase-panel";
+import { EditorRail } from "../editor-rail";
 
 const base = {
   id: "p3",
@@ -86,32 +86,53 @@ describe("ProductPreview", () => {
 });
 
 /**
- * VİTRİN PANELİ (2026-09-18): düzenleyicinin sağında; Kart | Sayfa anahtarı,
- * onay için gerekli eksikler tıklanınca ilgili bölüme atlar, form kontrolü yok.
+ * YAYINDAKİ ÜRÜN ÖNİZLEMESİ (2026-09-19): açılışta alıcının gördüğü hâl +
+ * "Düzenle" (forma geçirir) + herkese açık sayfa bağlantısı + Vitrinden çek;
+ * amber inceleme bandı YOK.
  */
-describe("ShowcasePanel", () => {
-  it("Kart varsayılan, Sayfa'ya geçince herkese açık gövde çizilir; eksik çipi bölüme atlar", async () => {
+describe("ProductPreview published", () => {
+  it("Düzenle onEdit'i çağırır; herkese açık bağlantı firma/ürün slug'ından; inceleme bandı yok", async () => {
+    const user = userEvent.setup();
+    const onEdit = vi.fn();
+    wrap(
+      <ProductPreview
+        variant="published"
+        product={{ ...base, reviewStatus: "APPROVED", isPublic: true, publishedAt: "2026-09-01T00:00:00.000Z" }}
+        item={item}
+        onClose={() => {}}
+        onEdit={onEdit}
+      />,
+    );
+    expect(screen.getByRole("status")).toHaveTextContent("Alıcının gördüğü hâl");
+    expect(screen.queryByText(/İncelemede — önizleme/)).toBeNull();
+    expect(screen.getByRole("link", { name: /Herkese açık sayfayı aç/ })).toHaveAttribute("href", "/firma/acme/urun/sigorta-kutusu");
+    expect(screen.getByRole("button", { name: "Vitrinden çek" })).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /Düzenle/ }));
+    expect(onEdit).toHaveBeenCalled();
+    expect(screen.queryByRole("textbox")).toBeNull();
+  });
+});
+
+/**
+ * DÜZENLEYİCİ RAYI (2026-09-19): tamamlanma + onay için eksik çipleri
+ * (tıklayınca bölüme atlar) + katlanabilir öneriler; önizleme yok.
+ */
+describe("EditorRail", () => {
+  it("eksik çipi bölüme atlar, yüzde ve öneriler çizilir", async () => {
     const user = userEvent.setup();
     const onJump = vi.fn();
     wrap(
-      <ShowcasePanel
-        product={{ ...base, reviewStatus: "DRAFT", images: [] }}
-        item={item}
+      <EditorRail
         completion={{ score: 60, missing: [{ key: "images", label: "Görsel", points: 20 }] }}
         blockers={["En az 1 görsel eklenmeli"]}
         onJump={onJump}
+        recommendations={<p>öneri-kartı</p>}
       />,
     );
-    const panel = screen.getByRole("region", { name: "Vitrin önizlemesi" });
-    expect(screen.getByRole("tab", { name: "Kart" })).toHaveAttribute("aria-selected", "true");
-    expect(panel).toHaveTextContent("Sigorta kutusu");
-    expect(panel).toHaveTextContent("Ürünler dizininde ve firma profilinizde böyle görünür.");
-    await user.click(screen.getByRole("tab", { name: "Sayfa" }));
-    expect(panel).toHaveTextContent("Koruma sınıfı"); // nitelik etiketi herkese açık gövdeden
-    expect(panel).toHaveTextContent("Alıcı burada “Bilgi iste” düğmesini görür");
+    expect(screen.getByText("%60")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "En az 1 görsel eklenmeli" }));
     expect(onJump).toHaveBeenCalledWith("urun-gorsel");
-    expect(screen.getByText("%60")).toBeInTheDocument();
-    expect(screen.queryByRole("textbox")).toBeNull();
+    expect(screen.getByText("öneri-kartı")).toBeInTheDocument();
+    expect(screen.queryByText("Alıcının gördüğü hâl")).toBeNull();
   });
 });

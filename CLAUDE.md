@@ -1046,22 +1046,26 @@ Panel `/company/satis/urunlerim`, public `/firma/<slug>/urun/<slug>`.
   `overflow-x-auto`/`min-w` yok, sütunlar kesme noktasıyla gizlenir (Eklenme +
   Kategori yalnız 2xl, Min. sipariş + Görüntülenme xl, Fiyat sm); kategori ad
   altındaki satırda zaten okunur. Sözleşme: `products-view.test` "yatay kaydırmaz".
-- **ÜRÜN DÜZENLEYİCİ = YAN YANA ÇALIŞMA ALANI (2026-09-18, kullanıcı kararı;
-  ilk deneme "önizleme üstte, form altta" beğenilmedi: "ikisi bir arada olsun").**
-  Üstte yapışkan **eylem çubuğu** (`product-action-bar.tsx`: ad + durum +
-  kaydedilmemiş işareti; portal renginde Kaydet/Onaya gönder; ⋮ = Taslak
-  kaydet · Herkese açık sayfayı aç · Vitrinden çek). Solda form (5 bölüm
-  aynen, `lg:58fr`), sağda yapışkan **Vitrin paneli** (`showcase-panel.tsx`,
-  `lg:42fr`): "Kart | Sayfa" anahtarı — Kart = dizindeki GERÇEK `ProductCard`,
-  Sayfa = herkese açık `ProductDetailBody` `[zoom:.62]` ile kendi kaydırma
-  alanında; altında tamamlanma yüzdesi + onay için eksik çipleri (tıklayınca
-  `sectionFor` ile bölüme kayar) + katlanabilir Öneriler (`SearchVisibilityCard`).
-  Formun anlık hâli `draftShowcase` ile panele akar (kaydetmeden yansır);
-  kilit önizlemesi ve panel AYNI dönüşümü okur (`useShowcaseView`). Dar
-  ekranda panel formun ÜSTÜNDE "Önizlemeyi göster" anahtarıyla. Sayfa başlığı
-  (`PageHeader`) düzenleme/yeni modunda YOK (ad eylem çubuğunda); PENDING
-  yine salt-okunur `ProductPreview`. Sözleşme: `product-preview.test`
-  "ShowcasePanel".
+- **ÜRÜN AÇILIŞI: YAYINDAYSA ÖNCE ÖNİZLEME, "DÜZENLE" FORMA (2026-09-19,
+  kullanıcı kararı; 18'indeki "önizleme üstte" ve "yan yana Kart|Sayfa paneli"
+  denemeleri beğenilmedi, ikisi de KALDIRILDI).** Ürünlerim'de yayındaki
+  (APPROVED ∧ isPublic) ürüne tıklayınca `ProductPreview variant="published"`
+  (alıcının gördüğü hâl + Düzenle · Herkese açık sayfayı aç · Vitrinden çek);
+  Düzenle `editorOpen` ile forma geçirir. Taslak/düzeltme istenen doğrudan
+  form; PENDING yine kilitli `review` önizlemesi. Form: üstte yapışkan
+  **eylem çubuğu** (`product-action-bar.tsx`: ad + durum + kaydedilmemiş
+  işareti, portal renginde Kaydet/Onaya gönder, ⋮ menü), solda 5 bölüm, sağda
+  yapışkan **ray** (`editor-rail.tsx`: tamamlanma + onay için eksik çipleri →
+  `sectionFor` ile bölüme kayar + katlanabilir Öneriler). **Yayındaki üründe
+  değişiklik yokken Kaydet KAPALI** (`dirty` yoksa) — kullanıcı bulgusu:
+  değişmeden kaydedince ürün yeniden incelemeye düşüyordu. API tarafı da
+  düzeltildi: `updateShowcase` içerik farkını artık `JSON.stringify` ile değil
+  kanonik `showcaseContentChanged` (`common/company/product-content-diff.ts`)
+  ile ölçer — eski yol `Prisma.DbNull` ("{}") ile `null`ı ve boş açıklamayı
+  farklı sayıyordu. Sayfa başlığı (`PageHeader`) düzenleme/yeni modunda YOK.
+  Sözleşme: `products-view.test` (önizleme → Düzenle → form),
+  `product-preview.test` "published"/"EditorRail", API
+  `test/unit/product-content-diff.spec.ts`.
 - **Ürün ekleme İLAN AÇMAYA BENZEMEZ:** ilan sihirbaz, ürün TEK SAYFA
   (2026-09-09 düzeni: 5 numaralı bölüm + yapışkan bölüm çipleri, sürükle-
   bırak/sıralanır görsel, virgülle çoklu anahtar kelime + öneri çipleri, sağda

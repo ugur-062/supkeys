@@ -19,6 +19,7 @@ import {
   tierAtLeast,
   tokenizeQuery, categoryPrefix, type TierName } from "@rothern/shared";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
+import { showcaseContentChanged } from "../../common/company/product-content-diff";
 import { effectiveTier } from "../../common/company/effective-tier";
 import {
   hasPublicProfile,
@@ -132,8 +133,6 @@ export interface ShowcaseInput {
   moq?: number | null;
 }
 
-/** Yayındaki üründe değişince YENİDEN İNCELEME isteyen alanlar (moderasyon). */
-const CONTENT_FIELDS = ["name", "description", "categoryId", "images", "keywords", "attributes"] as const;
 
 export interface CatalogItemInput {
   code?: string | null;
@@ -953,9 +952,11 @@ export class CompanyItemsService {
     // yeniden inceleme kuyruğuna girer ama vitrinde KALIR (yazım hatası
     // düzeltmek satıcıyı vitrinden düşürmesin); admin reddederse çekilir.
     // Fiyat/MOQ/doküman/video/bağlantı içerik sayılmaz.
+    // Karşılaştırma kanonik (2026-09-19): eski JSON.stringify eşitliği DbNull
+    // ve boş açıklamada yanlış pozitif veriyordu → değişmeyen kayıt bile
+    // yeniden incelemeye düşüyordu. Tek kaynak `product-content-diff.ts`.
     const contentChanged =
-      before.reviewStatus === "APPROVED" &&
-      CONTENT_FIELDS.some((k) => k in patch && JSON.stringify(patch[k]) !== JSON.stringify(before[k]));
+      before.reviewStatus === "APPROVED" && showcaseContentChanged(before, patch);
     const row = await this.prisma.companyItem
       .update({
         where: { id },
