@@ -21,6 +21,8 @@ export interface ConnectionCompany {
   logoUrl?: string | null;
   verified?: boolean;
   activities?: string[];
+  /** Satış kategori beyanı (ana + alt) — davet seçicisinin uygunluk sırası için. */
+  categoryIds?: string[];
   /** Yayındaki ürünlerden ilk 3 küçük resim + toplam. */
   productPreview?: { thumbnails: string[]; total: number } | null;
 }

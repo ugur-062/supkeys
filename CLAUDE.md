@@ -992,6 +992,18 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   `tender-extract/category-suggest` (mevcut, ≤3 L3). Başlık ve kategori ÜZERİNE
   yazılır (düğmeye bilinçli basıldı), anahtar kelimeler yalnız boşsa. Hook
   `useAiRequestDraftSuggest`. Sözleşme: `test/unit/ai-title-suggest.spec.ts`.
+- **DAVET SEÇİCİSİ İKİ PANEL + KALEM SIRALAMASI (2026-09-19, kullanıcı
+  mockup'ı):** `quick/supplier-picker.tsx` — SOL "Davet edilecek firmalar"
+  (arama, Sektör/Şehir süzgeci, Tümünü seç, tablo Firma·Şehir·Sektör·Firma
+  türü, 7'şer "Daha fazla yükle"), SAĞ "Seçilen firmalar N" (kaldır, "N
+  firmayı davet et" → yayın düğmesine kaydırır `#talep-yayinla`, Seçimi
+  temizle). Sıra **uygunluk puanına** göre (`relevance`): talep kategorisiyle
+  satış beyanı aynı aile 4 / segment 2 + kalem adı kökleri firmanın
+  sektör/ad/faaliyet metninde (≤5); puanlılar "Kalemlere uygun" çipiyle önde.
+  Bunun için bağlantı kartı `categoryIds` (satış ana+alt beyanı) taşır
+  (`company-connections.service` `COMPANY_CARD_SELECT`). Özet + Yayınla kartı
+  sağ rayın EN ALTINDA (kullanıcı: "bu kısım en aşağıda olmalı").
+  Sözleşme: `quick/__tests__/supplier-picker.test.tsx`.
 - **AI TEDARİKÇİ KEŞFİ 3. BÖLÜMDE (2026-09-17):** "Kimler görsün?" bölümünün
   başında "AI ile daha fazla tedarikçiye eriş" kartı; modal kategori + KALEM
   ADLARIYLA açılır (web araması kalemleri bağlam alır). Sihirbaz 3. adımı da

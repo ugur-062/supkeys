@@ -682,7 +682,20 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
             {visibility === "PRIVATE" || visibility === "CONNECTIONS" ? (
               <div className="mt-4">
                 <p className="mb-2 text-sm font-medium text-zinc-950">{visibility === "PRIVATE" ? "Davet edilecek firmalar" : "Ayrıca davet et (isteğe bağlı)"}</p>
-                <Controller control={form.control} name="invitedSupplierIds" render={({ field }) => <SupplierPicker value={field.value ?? []} onChange={field.onChange} />} />
+                <Controller
+                  control={form.control}
+                  name="invitedSupplierIds"
+                  render={({ field }) => (
+                    <SupplierPicker
+                      value={field.value ?? []}
+                      onChange={field.onChange}
+                      itemNames={discoveryItemNames}
+                      categoryIds={watched.categoryIds ?? []}
+                      // "N firmayı davet et" → davet yayınla anında gider; düğme yayın adımına götürür.
+                      onInvite={() => document.getElementById("talep-yayinla")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+                    />
+                  )}
+                />
               </div>
             ) : null}
             <SupplierDiscoveryModal
@@ -708,6 +721,30 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
 
         {/* SAĞ RAY */}
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
+          <TermsPanel value={terms} onChange={updateTerms} onSaveDefaults={() => void persistDefaults(terms)} saving={saveDefaults.isPending} canSave={canManage} source={defaultsQ.data?.source ?? "none"} />
+
+          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
+            <div className="flex items-baseline justify-between">
+              <p className="text-sm font-semibold text-zinc-950">Teklif kalitesi</p>
+              <span className="text-sm font-semibold tabular-nums text-zinc-950">%{quality.score}</span>
+            </div>
+            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100" aria-hidden>
+              <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${quality.score}%` }} />
+            </div>
+            {quality.missing.length ? (
+              <ul className="mt-2 space-y-1 text-xs/5 text-zinc-600">
+                {quality.missing.slice(0, 3).map((m) => (
+                  <li key={m.key}>· {m.hint}</li>
+                ))}
+              </ul>
+            ) : (
+              <p className="mt-2 text-xs text-emerald-700">İsabetli teklif için yeterli.</p>
+            )}
+            <p className="mt-2 text-[11px] text-zinc-500">Engel değil, ipucu.</p>
+          </div>
+          {/* ÖZET + YAYINLA rayın EN ALTINDA (2026-09-19, kullanıcı: "bu kısım
+              en aşağıda olmalı") — şartlar ve teklif kalitesi önce okunur,
+              yayın kararı en son. */}
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
             <p className="text-sm font-semibold text-zinc-950">Özet</p>
             <dl className="mt-3 space-y-2 text-sm">
@@ -732,7 +769,7 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
             ) : null}
             {canManage ? (
               <div className="mt-4 space-y-2">
-                <button type="button" onClick={() => void publish()} disabled={create.isPending || !hasItems || !verified} className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50">
+                <button type="button" id="talep-yayinla" onClick={() => void publish()} disabled={create.isPending || !hasItems || !verified} className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50">
                   {create.isPending ? "Yayımlanıyor…" : "Talebi yayınla"}
                 </button>
                 {!ready && hasItems ? <p className="text-center text-[11px] text-zinc-500">Yayın için başlık ve kategori gerekli.</p> : null}
@@ -746,28 +783,6 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
             ) : (
               <p className="mt-4 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-500">Talep açmak için talep yönetimi yetkisi gerekir.</p>
             )}
-          </div>
-
-          <TermsPanel value={terms} onChange={updateTerms} onSaveDefaults={() => void persistDefaults(terms)} saving={saveDefaults.isPending} canSave={canManage} source={defaultsQ.data?.source ?? "none"} />
-
-          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
-            <div className="flex items-baseline justify-between">
-              <p className="text-sm font-semibold text-zinc-950">Teklif kalitesi</p>
-              <span className="text-sm font-semibold tabular-nums text-zinc-950">%{quality.score}</span>
-            </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100" aria-hidden>
-              <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${quality.score}%` }} />
-            </div>
-            {quality.missing.length ? (
-              <ul className="mt-2 space-y-1 text-xs/5 text-zinc-600">
-                {quality.missing.slice(0, 3).map((m) => (
-                  <li key={m.key}>· {m.hint}</li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-2 text-xs text-emerald-700">İsabetli teklif için yeterli.</p>
-            )}
-            <p className="mt-2 text-[11px] text-zinc-500">Engel değil, ipucu.</p>
           </div>
         </aside>
       </div>
