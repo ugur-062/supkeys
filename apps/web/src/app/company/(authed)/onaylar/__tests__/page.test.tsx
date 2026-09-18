@@ -75,7 +75,7 @@ describe("OnaylarPage", () => {
     const tabs = within(screen.getByRole("tablist"));
     expect(tabs.getAllByRole("tab")).toHaveLength(2);
     expect(tabs.getByRole("tab", { name: /Sıra sizde\s*1/ })).toHaveAttribute("aria-selected", "true");
-    expect(tabs.getByRole("tab", { name: "Tüm istekler" })).toBeInTheDocument();
+    expect(tabs.getByRole("tab", { name: /Tüm istekler/ })).toBeInTheDocument();
     expect(tabs.queryByRole("tab", { name: /Onay Akışları/ })).toBeNull();
     expect(screen.getByRole("button", { name: /Onay akışlarını düzenle/ })).toBeInTheDocument();
 
@@ -94,7 +94,7 @@ describe("OnaylarPage", () => {
 
   it("Tüm istekler: tek liste (history ucu çağrılmaz), çipler süzer, adımlar katlı, bekleyende iptal", async () => {
     render(<OnaylarPage />);
-    fireEvent.click(screen.getByRole("tab", { name: "Tüm istekler" }));
+    fireEvent.click(screen.getByRole("tab", { name: /Tüm istekler/ }));
     expect(h.history).not.toHaveBeenCalled();
     expect(screen.getByText("Çelik boru alımı")).toBeInTheDocument();
     expect(screen.getByText("Kablo alımı")).toBeInTheDocument();
@@ -122,7 +122,7 @@ describe("OnaylarPage", () => {
   it("?tab=history eski bağlantısı Tüm istekler'e düşer; ?tab=flows akış görünümünü açar, 'Onaylara dön' geri getirir", () => {
     h.tab = "history";
     const { unmount } = render(<OnaylarPage />);
-    expect(screen.getByRole("tab", { name: "Tüm istekler" })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /Tüm istekler/ })).toHaveAttribute("aria-selected", "true");
     unmount();
 
     h.tab = "flows";
