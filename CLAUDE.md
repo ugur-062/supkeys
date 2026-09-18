@@ -1039,6 +1039,21 @@ Panel `/company/satis/urunlerim`, public `/firma/<slug>/urun/<slug>`.
   sunucuda görsel/etiket/fiyatı SİLİYORDU** (normalizer `?? []`), o yol kapandı.
   Sözleşme: `product-catalog.spec` "İNCELEME KİLİDİ" + web
   `products-view.test`/`product-preview.test`.
+- **ÜRÜNLERİM TABLO + CANLI ÖNİZLEME (2026-09-18, kullanıcı kararı):** liste
+  TABLO (Ürün · Durum · Kategori · Fiyat · Min. sipariş · Görüntülenme ·
+  Eklenme · ⋮), üstteki durum kutuları KALKTI → arama yanında sayılı hap
+  süzgeçleri. **Yatay kaydırma YOK** ("scroll bar olmasın, tabloyu oturt"):
+  `overflow-x-auto`/`min-w` yok, sütunlar kesme noktasıyla gizlenir (Eklenme +
+  Kategori yalnız 2xl, Min. sipariş + Görüntülenme xl, Fiyat sm); kategori ad
+  altındaki satırda zaten okunur. Yayındaki/taslak/düzeltme istenen ürüne
+  girince formun ÜSTÜNDE **`ProductPreviewCard`** (alıcının göreceği hâl,
+  herkese açık sayfayla AYNI `ProductDetailBody`, formdaki değişiklikler
+  KAYDETMEDEN yansır; kapalı doğar + "Tamamını gör"; yayındaysa "Herkese açık
+  sayfayı aç"). Kilit önizlemesi ve kart AYNI dönüşümü okur
+  (`useShowcaseView`). Form, durum kartı ve arama görünürlüğü tavsiyeleri
+  aynen; PENDING yine salt-okunur `ProductPreview`. Formun birincil düğmesi
+  portal renginde (`accentFillClass`). Sözleşme: `products-view.test` "yatay
+  kaydırmaz" + `product-preview.test` "ProductPreviewCard".
 - **Ürün ekleme İLAN AÇMAYA BENZEMEZ:** ilan sihirbaz, ürün TEK SAYFA
   (2026-09-09 düzeni: 5 numaralı bölüm + yapışkan bölüm çipleri, sürükle-
   bırak/sıralanır görsel, virgülle çoklu anahtar kelime + öneri çipleri, sağda

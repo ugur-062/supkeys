@@ -9,6 +9,8 @@ import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { productSeo } from "@/lib/seo/entities";
 import { snippetFromMetadata } from "@/lib/seo/snippet";
 import { PRODUCT_STATUS, productStatusKey } from "@/lib/company/product-status";
+import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
+import { cn } from "@/lib/utils";
 import { ImageUploader } from "./image-uploader";
 import { PriceModeField } from "./price-mode-field";
 import { ProductPreviewCard } from "./product-preview";
@@ -116,6 +118,8 @@ export function ProductShowcaseForm({
   previewItem?: Pick<CatalogItem, "brand" | "mpn" | "specification">;
 }) {
   const isNew = mode === "new";
+  // Birincil düğme portal renginde (2026-09-17 kuralı: siyah düğme yok).
+  const accent = useButtonAccent();
   // Belge (PDF) ve video PAKETLİ (Silver+): ücretsiz firmada alanlar hiç
   // çizilmez, kısa bir kilit notu çizilir; API de bu alanları dokunmadan bırakır.
   const { company } = useCompanyAuth();
@@ -750,7 +754,7 @@ export function ProductShowcaseForm({
                   type="button"
                   disabled={busy || ((status === "draft" || status === "rejected") && publishLocked)}
                   onClick={primaryAction}
-                  className="w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
+                  className={cn("w-full rounded-full px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50", accentFillClass(accent))}
                 >
                   {busy ? "Kaydediliyor…" : primaryLabel}
                 </button>
