@@ -202,8 +202,11 @@ export function BrowseTenderRow({
       <>
         {t.invited ? <InfoChip tone="amber">Size özel davet</InfoChip> : null}
         {!t.invited && t.connected ? <InfoChip tone="violet">Bağlantılı</InfoChip> : null}
+        {/* Sarmalayıcı inline-flex: satır içi span çipe fazladan satır
+            yüksekliği veriyordu → yan yana çiplerin boyu eşit değildi
+            (2026-09-19, kullanıcı). */}
         {t.productMatch ? (
-          <span title={t.matchedProduct ? `Kataloğunuzdaki ürün: ${t.matchedProduct}` : undefined}>
+          <span className="inline-flex" title={t.matchedProduct ? `Kataloğunuzdaki ürün: ${t.matchedProduct}` : undefined}>
             <InfoChip tone="emerald">Ürününüzle eşleşti</InfoChip>
           </span>
         ) : null}
@@ -212,6 +215,7 @@ export function BrowseTenderRow({
             listede kalır (eleme yok) — o yüzden rozet yalnız UYAN'a basılır. */}
         {t.activityMatch ? (
           <span
+            className="inline-flex"
             title={(t.preferredActivities ?? []).map(companyActivityLabel).join(" · ")}
           >
             <InfoChip tone="slate">Aranan tedarikçi tipi</InfoChip>

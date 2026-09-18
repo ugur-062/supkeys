@@ -2,7 +2,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Thumb } from "@/components/ui/thumb";
 import type { PublicDirectoryCard } from "@/lib/public/marketplace-api";
-import { ChatBubbleLeftRightIcon, MapPinIcon } from "@heroicons/react/20/solid";
+import { ArrowRightIcon, CalendarDaysIcon, ChatBubbleLeftRightIcon, ChevronRightIcon, CubeIcon, MapPinIcon, ShieldCheckIcon, UsersIcon } from "@heroicons/react/20/solid";
 import { ActivityIcon } from "./activity-icons";
 import { currencySymbol } from "@/lib/tenders/labels";
 import { companyActivityLabel, countryName } from "@rothern/shared";
@@ -84,15 +84,21 @@ export function CompanyCard({
     const preview = c.productPreview.slice(0, 4);
     const rest = c.productCount - preview.length;
     return (
-      <article className="group relative rounded-lg bg-white p-5 ring-1 ring-zinc-200 transition hover:shadow-md hover:ring-zinc-300 focus-within:ring-2 focus-within:ring-blue-500">
+      /* v3 (2026-09-19, kullanıcı mockup'ı "örnek bir firma görüntülenmesi"):
+         büyük tonlu avatar, kalın ad + Doğrulanmış pili, ikonlu konum/tip
+         satırı; sağda "Portföyü görüntüle (N)" çerçeveli + "Bilgi iste →"
+         dolgulu; solda gri "ANA KATEGORİLER" paneli (satır · sayı · ok);
+         sağda açıklama + kartlı ürün şeridi (görsel · ad · MOQ · fiyat);
+         altta ayraçlı olgu satırı (sertifika rozeti · N ürün · Kuruluş · çalışan). */
+      <article className="group relative rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 transition hover:shadow-md hover:ring-zinc-950/10 focus-within:ring-2 focus-within:ring-blue-500 sm:p-6">
         {/* ÜST SATIR — kimlik solda, eylemler SAĞDA (2026-09-08, kaynak
             kalıp): "portföy" ve "iletişim" satırın en görünür yerinde;
             eskiden kartın en altındaydı ve göz onları en son buluyordu. */}
         <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <Avatar name={c.name} src={c.logoUrl} size={64} />
+          <div className="flex min-w-0 items-start gap-4">
+            <Avatar name={c.name} src={c.logoUrl} size={96} />
             <div className="min-w-0">
-              <h3 className="flex flex-wrap items-center gap-2 text-base font-semibold text-zinc-950">
+              <h3 className="flex flex-wrap items-center gap-2.5 text-2xl font-bold tracking-tight text-zinc-950">
                 <Link
                   href={href ?? `/firma/${c.slug}`}
                   className="after:absolute after:inset-0 after:content-[''] hover:text-blue-700 focus:outline-none"
@@ -101,16 +107,16 @@ export function CompanyCard({
                 </Link>
                 {identity}
               </h3>
-              <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-500">
+              <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-600">
                 {c.city || c.country ? (
-                  <span className="inline-flex items-center gap-1">
-                    <MapPinIcon aria-hidden className="size-3.5 text-zinc-400" />
+                  <span className="inline-flex items-center gap-1.5">
+                    <MapPinIcon aria-hidden className="size-4 text-zinc-500" />
                     {[c.country ? countryName(c.country) : null, c.city].filter(Boolean).join(", ")}
                   </span>
                 ) : null}
                 {activities.map((a) => (
-                  <span key={a} className="inline-flex items-center gap-1">
-                    <ActivityIcon code={a} className="size-3.5 text-zinc-400" />
+                  <span key={a} className="inline-flex items-center gap-1.5">
+                    <ActivityIcon code={a} className="size-4 text-zinc-500" />
                     {companyActivityLabel(a)}
                   </span>
                 ))}
@@ -133,7 +139,7 @@ export function CompanyCard({
             {c.productCount > 0 ? (
               <Link
                 href={`${href ?? `/firma/${c.slug}`}#urunler`}
-                className="inline-flex items-center rounded-lg border border-blue-600 px-3.5 py-2 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
+                className="inline-flex items-center rounded-xl border border-blue-600 bg-white px-4 py-2.5 text-sm font-semibold text-blue-700 transition hover:bg-blue-50"
               >
                 Portföyü görüntüle ({c.productCount.toLocaleString("tr-TR")})
               </Link>
@@ -141,71 +147,65 @@ export function CompanyCard({
             {cta ? (
               <Link
                 href={cta.href}
-                className="inline-flex items-center rounded-lg bg-blue-600 px-3.5 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
+                className="inline-flex items-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
               >
                 {cta.label}
+                <ArrowRightIcon aria-hidden className="size-4" />
               </Link>
             ) : null}
           </div>
         </div>
 
-        <div className="mt-4 grid gap-5 lg:grid-cols-[16rem_minmax(0,1fr)]">
-          {/* SOL — ne yaptığı: ana kategoriler (gerçek kırılım) + sertifika. */}
+        <div className="mt-5 grid gap-5 lg:grid-cols-[15rem_minmax(0,1fr)]">
+          {/* SOL — ne yaptığı: ana kategoriler (gerçek kırılım). */}
           <div className="min-w-0">
             {(c.topCategories ?? []).length > 0 ? (
-              <div className="rounded-lg bg-zinc-50 px-3 py-2.5">
-                <p className="text-[11px] font-semibold tracking-[0.06em] text-zinc-500 uppercase">
+              <div className="rounded-xl bg-zinc-100/70 px-4 py-3">
+                <p className="text-[11px] font-semibold tracking-[0.08em] text-zinc-500 uppercase">
                   Ana kategoriler
                 </p>
-                <ul className="mt-1.5 space-y-1">
+                <ul className="mt-1 divide-y divide-zinc-950/5">
                   {(c.topCategories ?? []).map((t) => (
-                    <li key={t.id} className="flex items-baseline justify-between gap-2 text-sm text-zinc-800">
+                    <li key={t.id} className="flex items-center justify-between gap-2 py-2 text-sm text-zinc-800">
                       <span className="line-clamp-1">{t.name}</span>
-                      <span className="tnum shrink-0 text-xs text-zinc-500">({t.count})</span>
+                      <span className="flex shrink-0 items-center gap-1 text-zinc-500">
+                        <span className="tnum text-xs">({t.count})</span>
+                        <ChevronRightIcon aria-hidden className="size-4 text-zinc-400" />
+                      </span>
                     </li>
                   ))}
                 </ul>
               </div>
             ) : null}
-            {certs.length > 0 ? (
-              <div className="mt-2 flex flex-wrap gap-1.5">
-                {certs.map((x) => (
-                  <Badge key={x} tone="neutral" size="sm" className="bg-white ring-1 ring-inset ring-zinc-950/10">
-                    {x}
-                  </Badge>
-                ))}
-              </div>
-            ) : null}
-            {facts.length > 0 ? <p className="tnum mt-2 text-xs text-zinc-500">{facts.join(" · ")}</p> : null}
           </div>
 
-          {/* SAĞ — ne sattığı: açıklama + fiyat/MOQ'lu ürün şeridi. */}
+          {/* SAĞ — ne sattığı: açıklama + kartlı ürün şeridi. */}
           <div className="min-w-0">
-            {c.about ? <p className="line-clamp-2 text-sm/6 text-zinc-600">{c.about}</p> : null}
+            {c.about ? <p className="line-clamp-2 text-base/7 text-zinc-600">{c.about}</p> : null}
             {preview.length > 0 ? (
-              <ul className="mt-3 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+              <ul className="mt-3 grid grid-cols-2 gap-3 lg:grid-cols-4">
                 {preview.map((pv) => (
-                  <li key={pv.slug} className="min-w-0">
-                    <Thumb src={pv.image ?? undefined} alt="" size="lg" className="w-full" />
-                    <p className="mt-1.5 line-clamp-2 text-xs/5 text-zinc-700">{pv.name}</p>
+                  <li key={pv.slug} className="min-w-0 rounded-xl bg-white p-3 ring-1 ring-zinc-200">
+                    <Thumb src={pv.image ?? undefined} alt="" size="lg" className="aspect-[16/10] w-full rounded-lg" />
+                    <p className="mt-2 line-clamp-2 text-sm/5 font-medium text-zinc-900">{pv.name}</p>
                     {pv.moq ? (
-                      <p className="tnum text-[11px] text-zinc-500">
+                      <p className="tnum mt-1 text-xs text-zinc-500">
                         MOQ: {Number(pv.moq).toLocaleString("tr-TR")} {pv.unit ?? ""}
                       </p>
                     ) : null}
                     {pv.priceAmount ? (
-                      <p className="tnum text-[11px] font-medium text-zinc-800">
+                      <p className="tnum text-sm font-bold text-zinc-900">
                         {Number(pv.priceAmount).toLocaleString("tr-TR")}{" "}
                         {currencySymbol(pv.priceCurrency ?? "TRY")}
                       </p>
                     ) : null}
                   </li>
                 ))}
-                {rest > 0 ? (
+                {rest > 0 && preview.length < 4 ? (
                   <li>
                     <Link
                       href={`${href ?? `/firma/${c.slug}`}#urunler`}
-                      className="tnum relative z-10 flex aspect-square w-full items-center justify-center rounded-lg bg-blue-50 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
+                      className="tnum relative z-10 flex h-full min-h-32 w-full items-center justify-center rounded-xl bg-blue-50 text-sm font-semibold text-blue-700 transition hover:bg-blue-100"
                     >
                       +{rest.toLocaleString("tr-TR")} ürün
                     </Link>
@@ -216,6 +216,36 @@ export function CompanyCard({
             {footer ? <div className="relative z-10 mt-4 border-t border-zinc-200 pt-3">{footer}</div> : null}
           </div>
         </div>
+
+        {/* OLGU SATIRI — sertifika rozeti · N ürün · Kuruluş · çalışan (ayraçlı). */}
+        {certs.length > 0 || facts.length > 0 ? (
+          <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 border-t border-zinc-950/5 pt-4 text-sm text-zinc-600">
+            {certs.map((x) => (
+              <span key={x} className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-sm font-semibold text-zinc-800">
+                <ShieldCheckIcon aria-hidden className="size-4 text-zinc-700" />
+                {x}
+              </span>
+            ))}
+            {c.productCount > 0 ? (
+              <span className="inline-flex items-center gap-1.5 tnum border-l border-zinc-950/10 pl-5 first:border-0 first:pl-0">
+                <CubeIcon aria-hidden className="size-4 text-zinc-500" />
+                {c.productCount.toLocaleString("tr-TR")} ürün
+              </span>
+            ) : null}
+            {c.foundedYear ? (
+              <span className="inline-flex items-center gap-1.5 tnum border-l border-zinc-950/10 pl-5 first:border-0 first:pl-0">
+                <CalendarDaysIcon aria-hidden className="size-4 text-zinc-500" />
+                Kuruluş {c.foundedYear}
+              </span>
+            ) : null}
+            {c.employeeCount ? (
+              <span className="inline-flex items-center gap-1.5 tnum border-l border-zinc-950/10 pl-5 first:border-0 first:pl-0">
+                <UsersIcon aria-hidden className="size-4 text-zinc-500" />
+                {c.employeeCount} çalışan
+              </span>
+            ) : null}
+          </div>
+        ) : null}
       </article>
     );
   }
