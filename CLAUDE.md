@@ -890,7 +890,9 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
   Satış portalı siyah/emerald; herkese açık pazar yeri MONOKROM. **Renk
   çağırandan gelir, bileşen portal bilmez.**
 - **TEK EYLEM RENGİ:** dolgulu renk YALNIZ birincil eylemde. Sıralama çipleri ve
-  sayfalama nötr seçili durum.
+  sayfalama nötr seçili durum. **İstisna (2026-09-19, kullanıcı):** Açık
+  Talepler "Sırala" çipleri (`RequestSortControl`) seçiliyken portal
+  renginde (satış emerald, satınalma mavi) — siyah seçili çip istenmedi.
 - Kartta `Doğrulanmış` gövdede okunur etiket, `Gold Üye` kapakta sessiz şerit.
   Özellik satırı ürünün KENDİ nitelik tablosundan — açıklamadan cümle AYIKLANMAZ.
 - SÜZGEÇ değişimi `replace`, **SAYFA değişimi `push`**. "Tümünü temizle"

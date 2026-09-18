@@ -1,5 +1,6 @@
 "use client";
 
+import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { useFilters } from "@/components/marketplace/filter-shell";
 import {
   Check,
@@ -225,6 +226,9 @@ export function RequestActiveChips({ facets }: { facets: RequestFacets }) {
 /** Sıralama — masaüstü çipler, mobilde <select>. */
 export function RequestSortControl() {
   const { state, update } = useFilters<RequestFilterState>();
+  // Seçili sıralama çipi PORTAL renginde (2026-09-19, kullanıcı: "tedarikçi
+  // kısmında seçili olanı yeşil yap") — satış emerald, satınalma mavi.
+  const accent = useButtonAccent();
   return (
     <>
       <div className="hidden items-center gap-1 text-xs sm:flex">
@@ -237,7 +241,7 @@ export function RequestSortControl() {
               type="button"
               aria-pressed={active}
               onClick={() => update({ sort: o.key })}
-              className={`rounded-full px-2.5 py-1 font-medium transition ${active ? "bg-zinc-950 text-white" : "text-zinc-600 hover:bg-zinc-100"}`}
+              className={`rounded-full px-2.5 py-1 font-medium transition ${active ? `${accentFillClass(accent)} text-white` : "text-zinc-600 hover:bg-zinc-100"}`}
             >
               {o.label}
             </button>

@@ -27,10 +27,7 @@ import type { ReactNode } from "react";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
-  CheckBadgeIcon,
-  CurrencyDollarIcon,
   DocumentTextIcon,
-  LockClosedIcon,
   MapPinIcon,
 } from "@heroicons/react/20/solid";
 import Link from "next/link";
@@ -362,21 +359,8 @@ export function ProductDetailBody({
               kaydırınca ad + fiyat + Bilgi iste kutusu yukarıda geliyor, bu
               olmasın"). Eylem yalnız fiyat kartında. */}
 
-          {/* Güven şeridi — üç kural, tek satır. */}
-          <ul className="mt-4 space-y-2 px-1 text-xs text-zinc-600">
-            <li className="flex items-center gap-2">
-              <CheckBadgeIcon aria-hidden className="size-4 shrink-0 text-emerald-600" />
-              Firmalar vergi levhası ve sicil belgesiyle doğrulanır
-            </li>
-            <li className="flex items-center gap-2">
-              <LockClosedIcon aria-hidden className="size-4 shrink-0 text-zinc-400" />
-              Teklifler kapalı zarf — rakipler göremez
-            </li>
-            <li className="flex items-center gap-2">
-              <CurrencyDollarIcon aria-hidden className="size-4 shrink-0 text-zinc-400" />
-              Alım-satım bedelinden komisyon alınmaz
-            </li>
-          </ul>
+          {/* Güven şeridi KALDIRILDI (2026-09-19, kullanıcı mockup'ı: fiyat
+              kartının altında güven ikonları/kuralları yok). */}
         </aside>
       </div>
 
