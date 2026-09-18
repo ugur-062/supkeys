@@ -308,31 +308,34 @@ function PanelRow({
       onClick={go}
       data-liste-satiri="1"
       className={cn(
-        "group/row cursor-pointer rounded-2xl border-l-4 bg-white shadow-sm ring-1 ring-zinc-950/5 transition-all hover:shadow-md hover:ring-zinc-950/10",
+        "group/row cursor-pointer rounded-xl border-l-[3px] bg-white ring-1 ring-slate-200 transition-all hover:shadow-sm hover:ring-slate-300",
         d.strip ?? tone.strip,
         className,
       )}
     >
-      <div className="px-5 pt-5 pb-4 sm:px-6">
+      {/* BOYUT ESKİ SATIRLA AYNI (2026-09-19, kullanıcı: "çok büyük yapmışsın,
+          en eski boyutuyla aynı olsun"): px-3 py-2.5, başlık 13 px, etiket
+          10 px, değer 13 px; ikon karoları küçük. */}
+      <div className="px-3 py-2.5">
         {/* BAŞLIK */}
-        <div className="flex items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-4">
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex min-w-0 items-start gap-2.5">
             {d.leading}
-            <span aria-hidden className={cn("mt-0.5 flex size-12 shrink-0 items-center justify-center rounded-xl", tone.tile)}>
-              <DocumentTextIcon className="size-6" />
+            <span aria-hidden className={cn("mt-0.5 flex size-8 shrink-0 items-center justify-center rounded-lg", tone.tile)}>
+              <DocumentTextIcon className="size-4" />
             </span>
             <Link href={d.href} onClick={stop} className={cn("min-w-0 rounded", ROW_FOCUS)}>
-              <span className="inline-flex rounded-md bg-zinc-100 px-2 py-0.5 text-xs tabular-nums text-zinc-600">{d.number ?? "—"}</span>
-              <span className="mt-1.5 line-clamp-2 text-lg font-semibold leading-snug text-zinc-950 transition-colors group-hover/row:text-zinc-700" title={d.title}>
+              <span className="inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] tabular-nums leading-tight text-zinc-600">{d.number ?? "—"}</span>
+              <span className="mt-1 line-clamp-2 text-[13px] font-semibold leading-tight text-slate-900 transition-colors group-hover/row:text-slate-600" title={d.title}>
                 {d.title}
               </span>
-              {d.chips ? <span className="mt-2 flex flex-wrap gap-1.5">{d.chips}</span> : null}
+              {d.chips ? <span className="mt-1 flex flex-wrap gap-1">{d.chips}</span> : null}
             </Link>
           </div>
           <div className="flex shrink-0 items-start gap-1">
-            <div className="flex flex-col items-end gap-1">
-              <span className={cn("whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold", d.status.className)}>{d.status.label}</span>
-              {d.timeNote && !noteUnderClosing ? <span className="whitespace-nowrap text-[11px] text-slate-600">{d.timeNote}</span> : null}
+            <div className="flex flex-col items-end gap-1 pt-0.5">
+              <span className={cn("whitespace-nowrap rounded-full border px-2 py-0.5 text-[10px] font-semibold leading-none", d.status.className)}>{d.status.label}</span>
+              {d.timeNote && !noteUnderClosing ? <span className="whitespace-nowrap text-[10px] text-slate-600">{d.timeNote}</span> : null}
             </div>
             {d.menu ? <span onClick={stop}>{d.menu}</span> : null}
           </div>
@@ -340,20 +343,20 @@ function PanelRow({
 
         {/* METRİK ŞERİDİ */}
         {d.facts.length > 0 ? (
-          <dl className="mt-4 grid grid-cols-2 gap-y-4 border-t border-zinc-950/5 pt-4 sm:grid-cols-3 lg:grid-cols-5 lg:gap-y-0 lg:divide-x lg:divide-zinc-950/5">
+          <dl className="mt-2.5 grid grid-cols-2 gap-x-3 gap-y-2 border-t border-slate-100 pt-2.5 sm:grid-cols-3 lg:grid-cols-5 lg:gap-y-0 lg:divide-x lg:divide-slate-100">
             {d.facts.map((f, i) => {
               const { Icon, tone: iconTone, value } = factIcon(f.label);
               return (
-                <div key={f.label} className={cn("flex min-w-0 items-start gap-3", i > 0 && "lg:pl-5")}>
-                  <span aria-hidden className={cn("flex size-10 shrink-0 items-center justify-center rounded-full", iconTone)}>
-                    <Icon className="size-5" />
+                <div key={f.label} className={cn("flex min-w-0 items-start gap-2", i > 0 && "lg:pl-3")}>
+                  <span aria-hidden className={cn("flex size-7 shrink-0 items-center justify-center rounded-full", iconTone)}>
+                    <Icon className="size-3.5" />
                   </span>
                   <span className="min-w-0">
-                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{f.label}</dt>
-                    <dd className={cn("mt-0.5 min-w-0 text-[15px] font-semibold leading-tight text-zinc-900", value)}>{f.value}</dd>
+                    <dt className="text-[10px] font-semibold uppercase tracking-wide leading-tight text-slate-600">{f.label}</dt>
+                    <dd className={cn("mt-0.5 min-w-0 text-[13px] font-semibold leading-tight text-slate-800", value)}>{f.value}</dd>
                     {noteUnderClosing && i === closingIdx ? (
-                      <dd className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700">
-                        <ClockIcon aria-hidden className="size-3.5" />
+                      <dd className="mt-1 inline-flex items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">
+                        <ClockIcon aria-hidden className="size-3" />
                         {d.timeNote}
                       </dd>
                     ) : null}
@@ -366,7 +369,7 @@ function PanelRow({
 
         {/* ALT SATIR: detay oku solda, metrik ortada, eylem sağda */}
         {d.metric || d.action || d.expandable ? (
-          <div className="mt-4 flex items-center justify-between gap-3 text-sm text-slate-600">
+          <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-slate-500">
             <span className="flex min-w-0 items-center gap-4">
               {d.expandable ? (
                 <button
@@ -378,7 +381,7 @@ function PanelRow({
                   aria-expanded={expanded}
                   aria-controls={d.expandable.id}
                   aria-label={expanded ? "Kalemleri gizle" : "Kalemleri göster"}
-                  className={cn("inline-flex items-center gap-2 rounded-md px-1 py-1 text-sm text-slate-600 hover:text-slate-900", ROW_FOCUS)}
+                  className={cn("inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[12px] text-slate-600 hover:bg-slate-100 hover:text-slate-900", ROW_FOCUS)}
                 >
                   <ChevronDownIcon aria-hidden strokeWidth={2.25} className={cn("size-5 transition-transform", expanded && "rotate-180")} />
                   {expanded ? "Detayları gizle" : "Detayları göster"}
@@ -395,7 +398,7 @@ function PanelRow({
                 href={d.action.href}
                 onClick={stop}
                 className={cn(
-                  "inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition",
+                  "inline-flex shrink-0 items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm transition",
                   accentFillClass(accent),
                   ROW_FOCUS,
                 )}
@@ -409,7 +412,7 @@ function PanelRow({
       </div>
 
       {expanded && d.expandable ? (
-        <div id={d.expandable.id} onClick={stop} className="border-t border-zinc-950/5 px-5 py-4 sm:px-6">
+        <div id={d.expandable.id} onClick={stop} className="border-t border-slate-100 px-4 py-3">
           {d.expandable.render()}
         </div>
       ) : null}

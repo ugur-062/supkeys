@@ -458,8 +458,11 @@ durum pili (+ `menu` ⋮ isteğe bağlı); metrik şeridi ikon karolu sütunlar
 (`factIcon`: firma/alıcı · kalem · kapsam · kapanış kırmızı + kalan süre pil
 altında · kategori mavi) dikey ayraçlarla; altta "Detayları göster" oku
 (erişilebilir adı yine "Kalemleri göster") ve büyük dolgulu "Teklif ver"
-(uçak ikonu). `dense` pano widget'ı eski tek satır. Kategori FOTOĞRAFI yine
-yok. Sözleşme: `listing-card-footer.test`, `home-faces.test`.
+(uçak ikonu). **Boyut ESKİ satırla aynı** (aynı gün, kullanıcı: "çok büyük
+yapmışsın"): px-3 py-2.5, başlık 13 px, etiket 10 px, değer 13 px, ikon
+karoları küçük (size-8 / size-7). `dense` pano widget'ı eski tek satır.
+Kategori FOTOĞRAFI yine yok. Sözleşme: `listing-card-footer.test`,
+`home-faces.test`.
 **Talep satırı alt çizgisi (2026-09-17, kullanıcı kararı):** `ListingCard row`
 alt satırında kalem açma düğmesi EN SOLDA — **yazısız, yalnız aşağı ok**
 (`size-5`, slate-600, hover zemin; erişilebilir adı "Kalemleri göster/gizle"),
