@@ -153,8 +153,9 @@ describe("ProductsView", () => {
     expect(await screen.findByText("Dağıtım panosu")).toBeInTheDocument();
     // Rozetler LİSTEDE (sekme adlarıyla aynı sözcük — kapsamı daralt).
     const list = screen.getByRole("list");
-    expect(within(list).getByText("Yayında")).toBeInTheDocument();
-    expect(within(list).getByText("Taslak")).toBeInTheDocument();
+    // Durum rozeti satırda İKİ kez basılır (sm+ sütunda, dar ekranda ad altında).
+    expect(within(list).getAllByText("Yayında").length).toBeGreaterThan(0);
+    expect(within(list).getAllByText("Taslak").length).toBeGreaterThan(0);
     expect(await screen.findByText(/Dağıtım panoları · Kademeli · adet/)).toBeInTheDocument();
     expect(screen.getByText(/Kategori seçilmedi · Teklif isteyin · m/)).toBeInTheDocument();
   });
@@ -179,8 +180,8 @@ describe("ProductsView", () => {
     wrap(<ProductsView />);
     await screen.findByText("Sigorta kutusu");
     const list = screen.getByRole("list");
-    expect(within(list).getByText("Onay bekliyor")).toBeInTheDocument();
-    expect(within(list).getByText("Düzeltme istendi")).toBeInTheDocument();
+    expect(within(list).getAllByText("Onay bekliyor").length).toBeGreaterThan(0);
+    expect(within(list).getAllByText("Düzeltme istendi").length).toBeGreaterThan(0);
     expect(within(list).getByText(/Düzeltme: Görseller ürüne ait değil/)).toBeInTheDocument();
     const tabs = screen.getByRole("tablist");
     await user.click(within(tabs).getByRole("tab", { name: /Düzeltme istendi/ }));
@@ -244,7 +245,7 @@ describe("ProductsView", () => {
     expect(within(tabs).getByRole("tab", { name: /Yayında\s*1$/ })).toBeInTheDocument();
     expect(within(tabs).getByRole("tab", { name: /Onay bekliyor\s*0$/ })).toBeInTheDocument();
     expect(within(tabs).getByRole("tab", { name: /Taslak\s*0$/ })).toBeInTheDocument();
-    expect(within(screen.getByRole("list")).getByText("Yayında · incelemede")).toBeInTheDocument();
+    expect(within(screen.getByRole("list")).getAllByText("Yayında · incelemede").length).toBeGreaterThan(0);
     await user.click(within(tabs).getByRole("tab", { name: /Onay bekliyor\s*0$/ }));
     expect(screen.queryByText("Dağıtım panosu")).toBeNull();
     expect(screen.getByText("Onay bekleyen ürün yok.")).toBeInTheDocument();
