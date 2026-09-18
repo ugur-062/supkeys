@@ -683,7 +683,7 @@ function HandNote({ side, children }: { side: "left" | "right"; children: React.
     <div
       aria-hidden
       className={`pointer-events-none absolute hidden w-44 select-none lg:block ${
-        right ? "-top-10 -right-24 rotate-[8deg]" : "-bottom-10 -left-28 -rotate-[6deg]"
+        right ? "-top-10 -right-24 rotate-[8deg]" : "bottom-6 -left-40 -rotate-[8deg]"
       }`}
     >
       <p className={`text-sm/5 font-semibold italic tracking-tight text-blue-600 ${right ? "text-left" : "text-right"}`}>{children}</p>
@@ -914,7 +914,8 @@ export default function HomePage() {
         <SoftBlobs flip />
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
-            <div>
+            <div className="relative">
+              <HandNote side="left">Dünyaya işinizi anlatın</HandNote>
               <Eyebrow>Vitrin</Eyebrow>
               <p className="mt-2 text-4xl font-bold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
                 Herkese açık profiliniz, dijital vitrininiz
@@ -933,10 +934,7 @@ export default function HomePage() {
                 ))}
               </ul>
             </div>
-            <Reveal className="relative">
-              <PublicProfilePreview />
-              <HandNote side="left">Dünyaya işinizi anlatın</HandNote>
-            </Reveal>
+            <Reveal className="relative"><PublicProfilePreview /></Reveal>
           </div>
         </div>
       </section>
