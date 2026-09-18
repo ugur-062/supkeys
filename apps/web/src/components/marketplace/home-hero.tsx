@@ -134,7 +134,7 @@ export function HomeHero() {
    hero'nun bandı elden geçerse burası da elden geçmeli. */
 const BAND =
   "relative isolate -mt-6 flex min-h-[30rem] 2xl:min-h-[34rem] w-[100cqw] max-w-none flex-col justify-center " +
-  "ml-[calc(50%-50cqw)] overflow-hidden bg-white " +
+  "ml-[calc(50%-50cqw)] overflow-hidden bg-white bg-gradient-to-b from-blue-50/80 via-white to-white " +
   "px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10";
 
 /**
@@ -151,7 +151,7 @@ function HeroShell() {
   return (
     <section aria-label="Hangi ürünü arıyorsunuz?" className={BAND}>
       {/* Dekor kabukta da var — hidrasyonda kartlar belirmesin (2026-09-18). */}
-      <HeroDecor widgets={BUYER_WIDGETS} objects={BUYER_OBJECTS} />
+      <HeroDecor widgets={BUYER_WIDGETS} objects={BUYER_OBJECTS} accent="blue" />
       <div className="mx-auto w-full max-w-4xl text-center">
         <h1 className="text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
           Hangi ürünü arıyorsunuz?

@@ -225,6 +225,8 @@ describe("PanelHeroSearch — arka plan (2026-09-17: fotoğraf YOK, bant beyaz)"
     expect(container.querySelectorAll("img")).toHaveLength(0);
     const band = container.querySelector("section") as HTMLElement;
     expect(band.className).toContain("bg-white");
+    // Fotoğraf yok; widget'sız bantta gradyan da yok (widget'lı bant portal
+    // tonunda hafif gradyan taşır — 2026-09-18 mockup).
     expect(band.className).not.toMatch(/from-transparent|gradient/);
     expect(band.className).toContain("min-h-[30rem]");
     // Arama kutusu ve başlık yerinde (yapı değişmedi).
