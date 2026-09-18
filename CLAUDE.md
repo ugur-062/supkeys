@@ -1045,6 +1045,17 @@ pasif + ipucu. Eskiden yalnız ⋮ menüsünde ve menü yalnız ilanı OLUŞTURA
 `published-panel` kapısı SILVER→GOLD hizalandı. Staging'de doğrulandı
 (2026-09-17): platform önerisi 1,4 sn, web araması (Gemini) ~35 sn, ikisi 201.
 
+**TALEP DETAYI — TEKLİFÇİ BAŞLIK KARTI v2 (2026-09-19, kullanıcı mockup'ı;
+"Takip et" tuşu bilinçli YOK):** üst satırda geri bağlantısı + sağda
+"Paylaş" (adresi panoya kopyalar); başlık kartı iki sütun — solda numara ·
+durum pili, `text-3xl` başlık, tonlu ikonlu çipler (Alış mavi · Yurtiçi/
+Uluslararası gri · format mor), anahtar kelimeler, "Alıcı Firma" ikon
+karosu, açıklama; sağda geri sayım kartı (saat ikonu, KAPANMASINA, süre,
+tarih) + tam genişlik "Teklif Ver ›". Meta şeridi büyük ikon karolu. Kapalı
+zarf notu `sellerBidSection`ın küçük Callout'undan çıkıp sayfa düzeyinde
+BANT oldu (kilit ikonu, iki satır, "Nasıl çalışır?" → `/nasil-calisir#nasil`)
+— RFQ ∧ teklif alımı açıkken. Sekmeler yine iki (Kalemler N · Dosyalar).
+
 ## Ürün Kataloğu (firma vitrini)
 
 `CompanyItem` hem ilana eklenen kalem hem herkese açık vitrin kaydıdır — ayrı

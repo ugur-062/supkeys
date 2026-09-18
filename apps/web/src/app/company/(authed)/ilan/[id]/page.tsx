@@ -50,7 +50,6 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
 import { subscribeRealtime } from "@/lib/realtime";
 import { CURRENCY_SYMBOL, KDV_HARIC_NOTE } from "@/lib/tenders/labels";
-import { Callout } from "@/components/ui/callout";
 import { formatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/20/solid";
@@ -70,7 +69,7 @@ import {
   Paperclip,
   Users,
   Sparkles,
-  Wallet, PackagePlus } from "lucide-react";
+  Wallet, PackagePlus, ShoppingCart, FileText, Clock, ChevronRight, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -127,8 +126,8 @@ function MetaItem({
     <div
       className={cn("flex min-w-0 items-center gap-3 bg-white p-4", className)}
     >
-      <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-zinc-50">
-        <Icon className="h-4 w-4 text-zinc-600" />
+      <div className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-zinc-100">
+        <Icon className="size-5 text-zinc-700" />
       </div>
       <div className="min-w-0">
         <p className="text-xs font-semibold uppercase tracking-wide text-slate-500">
@@ -1622,11 +1621,7 @@ export default function ListingDetailPage() {
           {/* Pazarlıkta alttaki kural kutusu KALDIRILDI (bayat 'güncel en
               düşük' iddiası — kural kendi öncekinden düşük); kapalı zarf
               notu RFQ'da kalır. */}
-          {!l.english?.isEnglishAuction ? (
-            <Callout variant="neutral" icon={Lock}>
-              Kapalı zarf: diğer tekliflerin tutarını göremezsin.
-            </Callout>
-          ) : null}
+          {/* Kapalı zarf notu sayfa düzeyindeki banda taşındı (2026-09-19). */}
           {bidDocsSection}
         </div>
       ) : null}
@@ -1688,58 +1683,56 @@ export default function ListingDetailPage() {
   const header = (
     <div className="space-y-3">
       {/* Üst satır: numara (eyebrow) + durum */}
-      <div className="flex flex-wrap items-center gap-2">
-        {l.number ? (
-          <span className="tabular-nums text-xs font-medium tracking-wide text-zinc-400">
-            {l.number}
-          </span>
-        ) : null}
+      {/* BAŞLIK KARTI v2 (2026-09-19, kullanıcı mockup'ı): numara · durum
+          pili, büyük başlık, tonlu tip çipleri (ikonlu), anahtar kelimeler,
+          alıcı firma ikon karosuyla, açıklama. */}
+      <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-500">
+        {l.number ? <span className="tabular-nums font-medium">{l.number}</span> : null}
+        {l.number ? <span aria-hidden className="text-zinc-300">|</span> : null}
         <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
       </div>
 
-      <Heading>{l.title}</Heading>
+      <Heading className="text-3xl/9 font-bold">{l.title}</Heading>
 
-      {/* Tanım rozetleri — emojisiz, anlamsal renkler */}
       <div className="flex flex-wrap items-center gap-2">
-        <Badge color="blue">Alış</Badge>
-        <Badge color="zinc">
-          {l.isInternational ? (
-            <Globe className="size-3.5" />
-          ) : (
-            <MapPin className="size-3.5" />
-          )}
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-sm font-medium text-blue-700">
+          <ShoppingCart aria-hidden className="size-4" />
+          Alış
+        </span>
+        <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-sm font-medium text-zinc-700">
+          {l.isInternational ? <Globe aria-hidden className="size-4" /> : <MapPin aria-hidden className="size-4" />}
           {l.isInternational ? "Uluslararası" : "Yurtiçi"}
-        </Badge>
+        </span>
         {l.format ? (
-          <Badge color="purple">
+          <span className="inline-flex items-center gap-1.5 rounded-lg bg-purple-50 px-2.5 py-1 text-sm font-medium text-purple-700">
+            <FileText aria-hidden className="size-4" />
             {l.format === "RFQ" ? "Teklif Toplama" : "Pazarlık (Eksiltme)"}
-          </Badge>
+          </span>
         ) : null}
       </div>
 
       {/* Anahtar kelimeler */}
       {l.keywords && l.keywords.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs text-zinc-400">Anahtar Kelimeler:</span>
+          <span className="text-sm text-zinc-500">Anahtar Kelimeler:</span>
           {l.keywords.map((kw) => (
-            <Badge key={kw} color="zinc">
+            <span key={kw} className="rounded-lg bg-zinc-100 px-2.5 py-1 text-sm text-zinc-600">
               {kw}
-            </Badge>
+            </span>
           ))}
         </div>
       ) : null}
 
-      {/* Sahip + yön ipucu */}
-      <Text className="text-sm">
-        <span className="inline-flex items-center gap-2 font-medium text-zinc-700">
-          {l.owner ? (
-            <Building2 className="size-4 text-zinc-400" />
-          ) : (
-            <Lock className="size-4 text-zinc-400" />
-          )}
-          {l.owner ? l.owner.name : "Gizli firma"}
+      {/* Alıcı firma */}
+      <div className="flex items-center gap-3">
+        <span aria-hidden className="flex size-12 shrink-0 items-center justify-center rounded-xl bg-zinc-100 text-zinc-700">
+          {l.owner ? <Building2 className="size-5" /> : <Lock className="size-5" />}
         </span>
-      </Text>
+        <span className="min-w-0">
+          <span className="block text-xs text-zinc-500">Alıcı Firma</span>
+          <span className="block truncate text-base font-semibold text-zinc-950">{l.owner ? l.owner.name : "Gizli firma"}</span>
+        </span>
+      </div>
 
       {l.description ? (
         <Text className="whitespace-pre-wrap text-sm text-zinc-600">
@@ -2011,7 +2004,22 @@ export default function ListingDetailPage() {
   {
     return (
       <div className="space-y-5">
-        {breadcrumb}
+        <div className="flex items-center justify-between gap-3">
+          {breadcrumb}
+          <button
+            type="button"
+            onClick={() => {
+              void navigator.clipboard?.writeText(window.location.href).then(
+                () => toast.success("Bağlantı kopyalandı"),
+                () => toast.error("Bağlantı kopyalanamadı"),
+              );
+            }}
+            className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
+          >
+            <Share2 aria-hidden className="size-4" />
+            Paylaş
+          </button>
+        </div>
 
         {/* P2 (denetim §5): sticky ActionBar — teklif CTA'sı artık sekmeden
             bağımsız, kaydırınca da ilk ekranda ("aynı birincil aksiyon bir
@@ -2050,19 +2058,22 @@ export default function ListingDetailPage() {
 
         {orderStrip}
 
-        <div className="card p-5">
-          <div className="flex flex-wrap items-start justify-between gap-4">
-            <div className="min-w-0 flex-1" ref={setHeaderEl}>{header}</div>
+        <div className="card p-5 sm:p-6">
+          {/* İKİ SÜTUN (2026-09-19 mockup): solda başlık, sağda geri sayım
+              kartı + büyük "Teklif Ver"; "Takip et" YOK (kullanıcı kararı). */}
+          <div className="grid grid-cols-1 gap-6 lg:grid-cols-[minmax(0,1fr)_20rem]">
+            <div className="min-w-0" ref={setHeaderEl}>{header}</div>
             {biddingOpen && l.closesAt ? (
-              <div className="flex shrink-0 flex-col items-end gap-3">
-                <div className="rounded-xl border border-zinc-100 bg-zinc-50/60 px-4 py-3 text-right">
-                  <p className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
-                    Kapanmasına
-                  </p>
-                  <CountdownFull deadline={l.closesAt} />
-                  <p className="mt-0.5 text-xs text-zinc-500">
-                    {formatDateTime(l.closesAt)}
-                  </p>
+              <div className="flex flex-col gap-3 lg:border-l lg:border-zinc-950/5 lg:pl-6">
+                <div className="flex items-center gap-3 rounded-xl bg-zinc-50 p-4 ring-1 ring-zinc-950/5">
+                  <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full bg-white text-zinc-700 ring-1 ring-zinc-950/10">
+                    <Clock className="size-5" />
+                  </span>
+                  <div className="min-w-0">
+                    <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Kapanmasına</p>
+                    <CountdownFull deadline={l.closesAt} />
+                    <p className="mt-0.5 text-xs text-zinc-500">{formatDateTime(l.closesAt)}</p>
+                  </div>
                 </div>
                 {/* BUG (2026-09-10, kullanıcı: "talebi görüyorum ama teklif
                     veremiyorum"): CTA yalnız yapışkan çubuktaydı ve çubuk
@@ -2073,12 +2084,17 @@ export default function ListingDetailPage() {
                   bidCtaDisabled ? (
                     <Button
                       disabled
+                      className="w-full py-3 text-base"
                       title="Bu turdaki teklifiniz verildi — ilan sahibi yeni tur açarsa güncelleyebilirsiniz"
                     >
                       {bidCta.label}
                     </Button>
                   ) : (
-                    <Button href={bidCta.href}>{bidCta.label}</Button>
+                    <Button href={bidCta.href} className="w-full py-3 text-base">
+                      <CalendarClock data-slot="icon" />
+                      {bidCta.label}
+                      <ChevronRight data-slot="icon" />
+                    </Button>
                   )
                 ) : null}
               </div>
@@ -2125,6 +2141,28 @@ export default function ListingDetailPage() {
             />
           </dl>
         </section>
+
+        {/* KAPALI ZARF BANDI (2026-09-19 mockup) — RFQ'da, teklif alımı açıkken. */}
+        {!l.english?.isEnglishAuction && biddingOpen ? (
+          <div className="flex flex-wrap items-center gap-4 rounded-xl bg-white px-4 py-3 shadow-sm ring-1 ring-zinc-950/5">
+            <span aria-hidden className="flex size-11 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
+              <Lock className="size-5" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <p className="text-sm font-semibold text-zinc-950">Kapalı zarf: diğer tekliflerin tutarını göremezsin.</p>
+              <p className="text-xs text-zinc-500">Teklifler, kapanış tarihinden sonra alıcı firma tarafından açılır.</p>
+            </div>
+            <a
+              href="/nasil-calisir#nasil"
+              target="_blank"
+              rel="noopener"
+              className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800"
+            >
+              <Info aria-hidden className="size-4" />
+              Nasıl çalışır?
+            </a>
+          </div>
+        ) : null}
 
         {/* DÜZEN (2026-09-17, kullanıcı kararı): "Teklifim" sekmesi yok —
             teklif durumu sayfanın üstünde AYRI KUTU (MyBidStatusPanel kendi
