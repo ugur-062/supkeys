@@ -682,8 +682,8 @@ function HandNote({ side, children }: { side: "left" | "right"; children: React.
   return (
     <div
       aria-hidden
-      className={`pointer-events-none absolute hidden w-44 select-none lg:block ${
-        right ? "-top-10 -right-24 rotate-[8deg]" : "bottom-6 -left-40 -rotate-[8deg]"
+      className={`pointer-events-none absolute hidden select-none lg:block ${
+        right ? "-top-10 -right-24 w-44 rotate-[8deg]" : "bottom-4 -left-40 w-32 -rotate-[8deg]"
       }`}
     >
       <p className={`text-sm/5 font-semibold italic tracking-tight text-blue-600 ${right ? "text-left" : "text-right"}`}>{children}</p>
