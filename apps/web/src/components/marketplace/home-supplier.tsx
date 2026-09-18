@@ -82,6 +82,7 @@ export function HomeSupplier({
                 <CompanyCard
                   company={c}
                   variant="wide"
+                  accent="emerald"
                   cta={{ label: "Bağlantı kur", href: signupHref("teklif", `/firma/${c.slug}`) }}
                 />
               </li>

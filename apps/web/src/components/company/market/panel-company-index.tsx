@@ -208,6 +208,8 @@ export function PanelCompanyCard({
     <CompanyCard
       variant="wide"
       company={company}
+      /* Satış portalında eylemler YEŞİL (2026-09-19, kullanıcı). */
+      accent={portal === "satis" ? "emerald" : "blue"}
       href={panelCompanyPath(company.rothernId ?? company.slug)}
       /* Birincil eylem firmanın PANEL sayfası: bağlantı isteği ve mesaj
          orada yaşıyor — kartta ayrı bir "iletişim" akışı yok. */
