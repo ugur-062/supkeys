@@ -19,6 +19,7 @@ import {
   PaperAirplaneIcon,
   ShareIcon,
   ShieldCheckIcon,
+  SparklesIcon,
   Square3Stack3DIcon,
   UserIcon,
   UserPlusIcon,
@@ -958,16 +959,29 @@ export default function HomePage() {
               </div>
             </FormatCard>
 
-            {/* Ürün vitrini */}
-            <FormatCard tag="Satış" tagTone="emerald" title="Ürün vitrini" body="Ürünlerini yayımla; alıcılar bulsun, bilgi talebi göndersin.">
-              <div className="grid grid-cols-2 gap-3">
-                <div className="flex items-center gap-3 rounded-xl bg-white p-4 ring-1 ring-zinc-200">
-                  <span className="flex size-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600"><TagIcon className="size-6" /></span>
-                  <div><div className="text-xs text-zinc-500">Fiyat</div><div className="text-lg font-bold tabular-nums text-zinc-900">860 ₺ / kg</div></div>
+            {/* AI — belgeden talep taslağı (2026-09-18, kullanıcı: "fiyat/min.
+                sipariş kartını beğenmedim, AI olabilir"). Ürün Silver+/Gold. */}
+            <FormatCard tag="Yapay zekâ" tagTone="violet" title="Belgeden talep taslağı" body="Şartnameyi ya da teklif talebini yükle; kalemleri, miktarları ve kategoriyi AI çıkarsın, sen onayla.">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5 rounded-lg bg-white px-3 py-2.5 ring-1 ring-zinc-200">
+                  <span className="flex size-7 items-center justify-center rounded-md bg-violet-50 text-violet-600"><DocumentTextIcon className="size-4" /></span>
+                  <span className="flex-1 truncate text-sm text-zinc-700">sartname-2026.pdf</span>
+                  <span className="inline-flex items-center gap-1 rounded-md bg-violet-600 px-2 py-1 text-[11px] font-semibold text-white"><SparklesIcon className="size-3" /> Okundu</span>
                 </div>
-                <div className="flex items-center gap-3 rounded-xl bg-white p-4 ring-1 ring-zinc-200">
-                  <span className="flex size-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700"><CubeIcon className="size-6" /></span>
-                  <div><div className="text-xs text-zinc-500">Min. sipariş</div><div className="text-lg font-bold tabular-nums text-zinc-900">250 kg</div></div>
+                {[
+                  { n: "Çelik boru Ø60 · 3 mm", q: "1.200 m" },
+                  { n: "Dirsek 90° · Ø60", q: "80 adet" },
+                  { n: "Flanş DN50 PN16", q: "40 adet" },
+                ].map((it) => (
+                  <div key={it.n} className="flex items-center gap-2.5 rounded-lg bg-white px-3 py-2 ring-1 ring-zinc-200">
+                    <span className="size-1.5 rounded-full bg-violet-400" />
+                    <span className="flex-1 truncate text-xs text-zinc-700">{it.n}</span>
+                    <span className="text-xs font-semibold tabular-nums text-zinc-900">{it.q}</span>
+                  </div>
+                ))}
+                <div className="flex items-center justify-between rounded-lg bg-violet-50 px-3 py-2 ring-1 ring-violet-200">
+                  <span className="text-xs text-violet-800">Kategori önerisi</span>
+                  <span className="text-xs font-semibold text-violet-800">Boru ve bağlantı parçaları</span>
                 </div>
               </div>
             </FormatCard>
