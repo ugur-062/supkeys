@@ -499,9 +499,11 @@ function PublicProfilePreview() {
           Güvenilir iş ortaklıkları daha güçlü yarınlar
         </p>
       </div>
-      <div className="px-6 pb-6">
+      {/* Logo kutusu kapağın ÜSTÜNE biner (relative + z-10); eskiden -mt ile
+          kapağın altında kalıyordu (2026-09-18, kullanıcı). */}
+      <div className="relative z-10 px-6 pb-6">
         <div className="-mt-8">
-          <div className="flex size-16 items-center justify-center rounded-2xl bg-emerald-600 text-xl font-bold text-white ring-4 ring-white">DC</div>
+          <div className="flex size-16 items-center justify-center rounded-2xl bg-emerald-600 text-xl font-bold text-white shadow-md ring-4 ring-white">DÇ</div>
           <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
             <span className="text-lg font-bold text-zinc-900">Demo Çelik A.Ş.</span>
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
