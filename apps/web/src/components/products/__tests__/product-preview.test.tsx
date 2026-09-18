@@ -23,7 +23,7 @@ vi.mock("@/hooks/use-company-items", () => ({
   usePublishProduct: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
-import { ProductPreview } from "../product-preview";
+import { ProductPreview, ProductPreviewCard } from "../product-preview";
 
 const base = {
   id: "p3",
@@ -81,5 +81,34 @@ describe("ProductPreview", () => {
     wrap(<ProductPreview product={{ ...base, isPublic: true, publishedAt: "2026-09-01T00:00:00.000Z" }} item={item} onClose={() => {}} />);
     expect(screen.getByRole("status")).toHaveTextContent("Yayında · incelemede");
     expect(screen.getByRole("button", { name: "Vitrinden çek" })).toBeInTheDocument();
+  });
+});
+
+/**
+ * CANLI ÖNİZLEME KARTI (2026-09-18): düzenleyicinin üstünde, herkese açık
+ * gövdeyle aynı; kapalı doğar ve "Tamamını gör" ile açılır; herkese açık
+ * sayfa bağlantısı YALNIZ yayındaki üründe; form kontrolü yok.
+ */
+describe("ProductPreviewCard", () => {
+  it("taslakta 'Önizleme' başlığı, herkese açık bağlantı yok, katlanır", async () => {
+    const user = userEvent.setup();
+    wrap(<ProductPreviewCard product={{ ...base, reviewStatus: "DRAFT" }} item={item} />);
+    const card = screen.getByRole("region", { name: "Ürün önizlemesi" });
+    expect(card).toHaveTextContent("Önizleme");
+    expect(card).toHaveTextContent("Henüz yayında değil");
+    expect(card).toHaveTextContent("Koruma sınıfı");
+    expect(screen.queryByRole("link", { name: /Herkese açık sayfayı aç/ })).toBeNull();
+    expect(screen.queryByRole("button", { name: /Vitrinden çek/ })).toBeNull();
+    const toggle = screen.getByRole("button", { name: /Tamamını gör/ });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    await user.click(toggle);
+    expect(screen.getByRole("button", { name: /Daralt/ })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("yayındaki üründe 'Alıcının gördüğü hâl' + herkese açık sayfa bağlantısı (firma/ürün slug'ından)", () => {
+    wrap(<ProductPreviewCard product={{ ...base, reviewStatus: "APPROVED", isPublic: true, publishedAt: "2026-09-01T00:00:00.000Z" }} item={item} />);
+    const card = screen.getByRole("region", { name: "Ürün önizlemesi" });
+    expect(card).toHaveTextContent("Alıcının gördüğü hâl");
+    expect(screen.getByRole("link", { name: /Herkese açık sayfayı aç/ })).toHaveAttribute("href", "/firma/acme/urun/sigorta-kutusu");
   });
 });

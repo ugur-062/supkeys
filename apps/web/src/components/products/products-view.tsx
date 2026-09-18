@@ -220,7 +220,7 @@ export function ProductsView() {
           description={
             inReview
               ? "Ürün incelemede — ekibimiz karar verene kadar yalnız önizlenir."
-              : "Vitrin bilgilerini doldurun; durum, tamamlanma ve arama görünürlüğü sağda canlı güncellenir."
+              : "Üstte alıcının göreceği hâl, altta vitrin bilgileri; durum, tamamlanma ve arama görünürlüğü sağda canlı güncellenir."
           }
         />
         <div className="mt-8">
@@ -230,6 +230,7 @@ export function ProductsView() {
             <ProductShowcaseForm
               product={editing.showcase}
               unit={editing.item.unit}
+              previewItem={editing.item}
               publishLimitReached={publishLimitReached}
               onClose={() => setEditing(null)}
               // Kaydın sunucu hâli ekrana işlenir: incelemeye düştüyse
@@ -421,9 +422,15 @@ export function ProductsView() {
 
 /**
  * TABLO (2026-09-18, kullanıcı mockup'ı): Ürün (görsel + ad + kategori) ·
- * Durum · Kategori · Fiyat · Stok/Min. sipariş · Görüntülenme · Eklenme ·
+ * Durum · Kategori · Fiyat · Min. sipariş · Görüntülenme · Eklenme ·
  * İşlemler. Satır tıklanır (düzenleyici/önizleme). Düzeltme gerekçesi ad
- * altında. Mobilde yatay kaydırma (tablo kendi kapsayıcısında).
+ * altında.
+ *
+ * YATAY KAYDIRMA YOK (2026-09-18, kullanıcı: "scroll bar olmasın, tabloyu
+ * oturt"): tablo kapsayıcıya sığar; ekran daraldıkça sütunlar SIRAYLA
+ * gizlenir — Eklenme ve Kategori yalnız 2xl, Min. sipariş ve Görüntülenme
+ * xl, Fiyat sm. Kategori zaten ad altındaki ikinci satırda okunur, bilgi
+ * kaybolmaz. Ad ve kategori tek satırda kısaltılır.
  */
 function ProductRows({
   items,
@@ -445,17 +452,17 @@ function ProductRows({
       : `${Number(it.priceAmount).toLocaleString("tr-TR")} ${(CURRENCY_SYMBOL as Record<string, string>)[it.priceCurrency ?? "TRY"] ?? it.priceCurrency ?? ""} / ${it.unit}${it.priceMode === "TIERED" ? " (kademeli)" : ""}`;
   const th = "px-3 py-3 text-left text-xs font-semibold tracking-wide text-zinc-500";
   return (
-    <div className="mt-6 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
-      <table className="w-full min-w-[52rem] text-sm">
+    <div className="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
+      <table className="w-full text-sm">
         <thead className="border-b border-zinc-950/5">
           <tr>
             <th scope="col" className={th}>Ürün</th>
             <th scope="col" className={th}>Durum</th>
             <th scope="col" className={cn(th, "hidden 2xl:table-cell")}>Kategori</th>
-            <th scope="col" className={th}>Fiyat</th>
-            <th scope="col" className={th}>Min. sipariş</th>
-            <th scope="col" className={th}>Görüntülenme</th>
-            <th scope="col" className={th}>Eklenme</th>
+            <th scope="col" className={cn(th, "hidden sm:table-cell")}>Fiyat</th>
+            <th scope="col" className={cn(th, "hidden xl:table-cell")}>Min. sipariş</th>
+            <th scope="col" className={cn(th, "hidden xl:table-cell")}>Görüntülenme</th>
+            <th scope="col" className={cn(th, "hidden 2xl:table-cell")}>Eklenme</th>
             <th scope="col" className={cn(th, "text-right")}>
               <span className="sr-only">İşlemler</span>
             </th>
@@ -481,11 +488,11 @@ function ProductRows({
                           e.stopPropagation();
                           onOpen(item);
                         }}
-                        className="block max-w-[16rem] truncate text-left font-semibold text-zinc-950 hover:underline"
+                        className="block max-w-[14rem] truncate text-left font-semibold text-zinc-950 hover:underline xl:max-w-[18rem]"
                       >
                         {item.name}
                       </button>
-                      <div className="max-w-[16rem] truncate text-xs text-zinc-500">
+                      <div className="max-w-[14rem] truncate text-xs text-zinc-500 xl:max-w-[18rem]">
                         {catName(item.categoryId) ?? "Kategori seçilmedi"} · {PRICE_MODE_LABEL[item.priceMode] ?? item.priceMode} · {item.unit}
                         {item.reviewStatus === "REJECTED" && item.rejectReason ? ` · Düzeltme: ${item.rejectReason}` : ""}
                       </div>
@@ -496,16 +503,16 @@ function ProductRows({
                   <Badge color={st.color}>{st.label}</Badge>
                 </td>
                 <td className="hidden max-w-[12rem] truncate px-3 py-3 text-zinc-700 2xl:table-cell">{catName(item.categoryId) ?? "—"}</td>
-                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700">{price(item)}</td>
-                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700">
+                <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 sm:table-cell">{price(item)}</td>
+                <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 xl:table-cell">
                   {item.moq != null ? `Min. ${Number(item.moq).toLocaleString("tr-TR")} ${item.unit}` : "—"}
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700">
+                <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 xl:table-cell">
                   {item.viewCount != null ? (
                     <span className="inline-flex items-center gap-1.5"><EyeIcon className="size-4 text-zinc-400" />{item.viewCount.toLocaleString("tr-TR")}</span>
                   ) : "—"}
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-zinc-700">
+                <td className="hidden px-3 py-3 whitespace-nowrap text-zinc-700 2xl:table-cell">
                   {formatDate(item.createdAt ?? item.updatedAt, "short")}
                 </td>
                 <td className="px-3 py-3 text-right">

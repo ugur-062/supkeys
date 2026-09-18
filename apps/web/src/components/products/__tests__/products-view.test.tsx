@@ -27,8 +27,8 @@ vi.mock("@/lib/api", () => ({
 vi.mock("../product-showcase-form", () => ({
   // Kaydetmeyi taklit eden düğme: sayfanın `onSaved` ile gelen SUNUCU kaydını
   // ekrana işleyip işlemediği sınanır.
-  ProductShowcaseForm: (props: { product: { id: string }; onSaved?: (saved: unknown) => void }) => (
-    <div data-testid="form">
+  ProductShowcaseForm: (props: { product: { id: string }; previewItem?: { brand: string | null }; onSaved?: (saved: unknown) => void }) => (
+    <div data-testid="form" data-preview={props.previewItem ? "1" : "0"}>
       <button
         type="button"
         onClick={() => props.onSaved?.({ ...props.product, reviewStatus: "PENDING", isPublic: true })}
@@ -200,8 +200,21 @@ describe("ProductsView", () => {
 
     await user.click(screen.getByRole("button", { name: /Ürünlere dön/ }));
     await user.click(await screen.findByText("Dağıtım panosu")); // APPROVED → form
-    expect(await screen.findByTestId("form")).toBeInTheDocument();
+    // Düzenleyici canlı önizleme kartı için kalem kaydını alır (2026-09-18).
+    expect(await screen.findByTestId("form")).toHaveAttribute("data-preview", "1");
     expect(screen.queryByTestId("preview")).toBeNull();
+  });
+
+  it("tablo yatay kaydırmaz: kapsayıcıda overflow-x-auto / min-w yok, dar sütunlar kesme noktasıyla gizli", async () => {
+    wrap(<ProductsView />);
+    await screen.findByText("Dağıtım panosu");
+    const table = screen.getByRole("table");
+    expect(table.className).not.toMatch(/min-w-/);
+    expect(table.parentElement?.className).not.toMatch(/overflow-x-auto/);
+    const heads = screen.getAllByRole("columnheader").map((h) => [h.textContent, h.className] as const);
+    expect(heads.find(([t]) => t === "Eklenme")?.[1]).toMatch(/hidden 2xl:table-cell/);
+    expect(heads.find(([t]) => t === "Görüntülenme")?.[1]).toMatch(/hidden xl:table-cell/);
+    expect(heads.find(([t]) => t === "Ürün")?.[1]).not.toMatch(/hidden/);
   });
 
   it("yayındaki ürün kaydedilince sunucu incelemeye aldıysa ekran HEMEN önizlemeye geçer (yenileme gerekmez)", async () => {

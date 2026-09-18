@@ -9,35 +9,25 @@ import { usePublishProduct, type CatalogItem, type ProductShowcase } from "@/hoo
 import { PRODUCT_STATUS, productStatusKey } from "@/lib/company/product-status";
 import { formatDate } from "@/lib/format-date";
 import type { PublicProduct, PublicProductCompany } from "@/lib/public/marketplace-api";
-import { LockClosedIcon } from "@heroicons/react/20/solid";
-import { useMemo } from "react";
+import { productPath } from "@rothern/shared";
+import { ArrowTopRightOnSquareIcon, ChevronDownIcon, LockClosedIcon } from "@heroicons/react/20/solid";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
+import { cn } from "@/lib/utils";
 
 /**
- * ÜRÜN ÖNİZLEME — İNCELEME KİLİDİ (2026-09-10, kullanıcı kararı).
- *
- * Onaya gönderilen ürün (PENDING) admin karar verene dek DEĞİŞTİRİLEMEZ;
- * firma burada ürünü alıcının göreceği hâliyle görür. Gövde herkese açık ürün
- * sayfasıyla AYNI bileşen (`ProductDetailBody`) — ayrı bir "önizleme şablonu"
- * yazılmadı, iki görünüm sessizce ayrışmasın. Form kontrolü YOK; tek eylem
- * yayındaki ürünü vitrinden çekmek (içerik değişikliği değil).
+ * Vitrin kaydı → herkese açık sayfanın veri şekli. Kilit önizlemesi
+ * (`ProductPreview`) ve düzenleyicinin üstündeki canlı kart
+ * (`ProductPreviewCard`) AYNI dönüşümü kullanır; ayrışsalardı firma
+ * kaydederken gördüğünü inceleme sırasında başka görürdü.
  */
-export function ProductPreview({
-  product,
-  item,
-  onClose,
-}: {
-  product: ProductShowcase;
-  item: Pick<CatalogItem, "brand" | "mpn" | "specification">;
-  onClose: () => void;
-}) {
+export function useShowcaseView(
+  product: ProductShowcase,
+  item: Pick<CatalogItem, "brand" | "mpn" | "specification">,
+): { view: PublicProduct; company: PublicProductCompany; companySlug: string | null } {
   const { company: auth } = useCompanyAuth();
   const profile = useCompanyProfile();
   const cats = useCategoriesByIds(product.categoryId ? [product.categoryId] : []);
-  const publish = usePublishProduct();
-  const canManage = useHasCompanyPermission("sell:product:manage");
-  const status = PRODUCT_STATUS[productStatusKey(product)];
-
   const view = useMemo<PublicProduct>(() => {
     const defs = new Map(product.attributeDefs.map((d) => [d.key, d]));
     const attributeList = Object.entries(product.attributes ?? {})
@@ -90,6 +80,33 @@ export function ProductPreview({
     employeeCount: profile.data?.employeeCount ?? null,
     certifications: profile.data?.certifications ?? [],
   };
+
+  return { view, company, companySlug: auth?.slug ?? null };
+}
+
+/**
+ * ÜRÜN ÖNİZLEME — İNCELEME KİLİDİ (2026-09-10, kullanıcı kararı).
+ *
+ * Onaya gönderilen ürün (PENDING) admin karar verene dek DEĞİŞTİRİLEMEZ;
+ * firma burada ürünü alıcının göreceği hâliyle görür. Gövde herkese açık ürün
+ * sayfasıyla AYNI bileşen (`ProductDetailBody`) — ayrı bir "önizleme şablonu"
+ * yazılmadı, iki görünüm sessizce ayrışmasın. Form kontrolü YOK; tek eylem
+ * yayındaki ürünü vitrinden çekmek (içerik değişikliği değil).
+ */
+export function ProductPreview({
+  product,
+  item,
+  onClose,
+}: {
+  product: ProductShowcase;
+  item: Pick<CatalogItem, "brand" | "mpn" | "specification">;
+  onClose: () => void;
+}) {
+  const publish = usePublishProduct();
+  const canManage = useHasCompanyPermission("sell:product:manage");
+  const status = PRODUCT_STATUS[productStatusKey(product)];
+
+  const { view, company } = useShowcaseView(product, item);
 
   return (
     <div>
@@ -144,5 +161,86 @@ export function ProductPreview({
         }
       />
     </div>
+  );
+}
+
+/**
+ * CANLI ÖNİZLEME KARTI (2026-09-18, kullanıcı: "yayınlanmış bir ürüne girince
+ * önizleme şeklinde biraz görünsün, gene tüm değişiklikler ve tavsiyeler
+ * olsun"). Düzenleyicinin ÜSTÜNDE durur, formun anlık hâlini alıcının
+ * göreceği biçimde çizer — kaydetmeden yansır. Gövde herkese açık sayfayla
+ * AYNI `ProductDetailBody`; kapalıyken alt kısmı kırpılıp solar, "Tamamını
+ * gör" açar. Yayındaki üründe herkese açık sayfaya bağlantı da var.
+ * Form kontrolü YOK; düzenleme ve tavsiyeler aşağıdaki formda kalır.
+ */
+export function ProductPreviewCard({
+  product,
+  item,
+  className,
+}: {
+  product: ProductShowcase;
+  item: Pick<CatalogItem, "brand" | "mpn" | "specification">;
+  className?: string;
+}) {
+  const { view, company, companySlug } = useShowcaseView(product, item);
+  const [expanded, setExpanded] = useState(false);
+  const status = PRODUCT_STATUS[productStatusKey(product)];
+  const publicHref =
+    product.isPublic && companySlug && product.slug ? productPath(companySlug, product.slug) : null;
+  const bodyId = `urun-onizleme-${product.id || "yeni"}`;
+
+  return (
+    <section aria-label="Ürün önizlemesi" className={cn("rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5", className)}>
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-zinc-950/5 px-5 py-3">
+        <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-zinc-950">
+          {product.isPublic ? "Alıcının gördüğü hâl" : "Önizleme"}
+          <Badge color={status.color}>{status.label}</Badge>
+        </p>
+        <p className="text-xs text-zinc-500">
+          {product.isPublic
+            ? "Aşağıdaki formda yaptığınız değişiklikler burada anında görünür; kaydedince inceleme sonrası vitrine yansır."
+            : "Henüz yayında değil — formdaki değişiklikler burada anında görünür."}
+        </p>
+        <div className="ml-auto flex items-center gap-2">
+          {publicHref ? (
+            <a
+              href={publicHref}
+              target="_blank"
+              rel="noopener"
+              className="inline-flex items-center gap-1 rounded-full border border-zinc-300 px-3 py-1 text-xs font-semibold text-zinc-800 hover:bg-zinc-50"
+            >
+              Herkese açık sayfayı aç
+              <ArrowTopRightOnSquareIcon aria-hidden className="size-3.5" />
+            </a>
+          ) : null}
+          <button
+            type="button"
+            aria-expanded={expanded}
+            aria-controls={bodyId}
+            onClick={() => setExpanded((v) => !v)}
+            className="inline-flex items-center gap-1 rounded-full px-3 py-1 text-xs font-semibold text-zinc-700 hover:bg-zinc-100"
+          >
+            {expanded ? "Daralt" : "Tamamını gör"}
+            <ChevronDownIcon aria-hidden className={cn("size-4 transition-transform", expanded && "rotate-180")} />
+          </button>
+        </div>
+      </div>
+      <div id={bodyId} className={cn("relative px-5", expanded ? "pb-5" : "max-h-[22rem] overflow-hidden")}>
+        <ProductDetailBody
+          product={view}
+          company={company}
+          companyHref="/company/sirketim/profil"
+          stickyTopClass="lg:top-14"
+          cta={
+            <p className="rounded-xl bg-zinc-100 px-4 py-2.5 text-center text-sm text-zinc-500" aria-disabled>
+              Alıcı burada “Bilgi iste” düğmesini görür
+            </p>
+          }
+        />
+        {!expanded ? (
+          <div aria-hidden className="pointer-events-none absolute inset-x-0 bottom-0 h-24 bg-gradient-to-t from-white to-transparent" />
+        ) : null}
+      </div>
+    </section>
   );
 }
