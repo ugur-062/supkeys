@@ -291,7 +291,8 @@ export async function buildDirectory(
       : [];
     const catName = new Map(catRows.map((c) => [c.id, c.nameTr]));
     for (const g of grouped) {
-      if (!g.categoryId || !catName.has(g.categoryId)) continue;
+      // Gizli segment (katalog sadeleştirme) "Ana kategoriler"e girmez.
+      if (!g.categoryId || !catName.has(g.categoryId) || isHiddenCategory(g.categoryId)) continue;
       const list = topCategories.get(g.companyId) ?? [];
       list.push({ id: g.categoryId, name: catName.get(g.categoryId) as string, count: g._count._all });
       topCategories.set(g.companyId, list);

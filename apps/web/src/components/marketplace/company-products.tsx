@@ -81,9 +81,11 @@ export async function CompanyProducts({
         </p>
       ) : (
         <>
-          {/* TAM GENİŞLİK, DÖRT SÜTUN (2026-09-07, kullanıcı kararı): ürünler
-              artık sağdaki künye sütunuyla yer paylaşmıyor. */}
-          <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
+          {/* Tam genişlik (2026-09-07: künye sütunuyla yer paylaşmaz); GENİŞ
+              KARTLAR (2026-09-19, kullanıcı mockup'ı): 2 sütun, çok geniş
+              ekranda 3 — açıklama + fiyat + MOQ + tam genişlik "Bilgi iste"
+              okunsun. */}
+          <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {page.items.map((p) => (
               <ProductCard key={p.slug} companySlug={companySlug} product={p} cta="Bilgi iste" />
             ))}
