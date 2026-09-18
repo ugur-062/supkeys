@@ -49,7 +49,7 @@ Aşağıdakiler tasarım gereği YAYIMLANMAZ. Sayfada yoksa yoktur; tahmin edile
 
 - **Alım talebini açan firmanın kimliği.** Talep sayfalarında alıcının adı, logosu ve profil bağlantısı bilinçli olarak gösterilmez; yalnız şehir, ülke, sektör ve faaliyet tipi açıktır. "Bu talebi X firması açtı" biçiminde bir çıkarım yanlıştır.
 - **Teklifler ve teklif sayısı.** Teklif toplama kapalı zarf usulüyle yapılır; teklif verenler birbirinin teklifini göremez ve teklif SAYISI da yayımlanmaz.
-- **Talep kalemlerinin ayrıntısı.** Herkese açık sayfada kalem sayısı ve toplam miktar görünür; kalem adları, şartname ve ekli dosyalar yalnız kayıtlı üyelere açıktır.
+- **Talep kalemlerinin ayrıntısı.** Herkese açık sayfada kalem adları, sayısı ve miktarları görünür; teknik şartname, marka/açıklama ve ekli dosyalar yalnız kayıtlı üyelere açıktır.
 - **Firma iletişim bilgisi.** Telefon, e-posta ve sosyal hesaplar herkese açık profilde yer almaz.
 
 ## Doğru okunması gereken alanlar

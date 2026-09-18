@@ -1,4 +1,5 @@
 import { loginHref } from "@/lib/public/visibility";
+import { AccentLink } from "@/components/ui/accent-fill";
 import { LockClosedIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 
@@ -40,12 +41,12 @@ export function GatedField({
         </p>
         {hint ? <p className="mt-1 text-sm/6 text-zinc-600">{hint}</p> : null}
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
-          <Link
+          <AccentLink
             href={href}
-            className="rounded-full bg-blue-600 px-4 py-1.5 font-semibold text-white transition hover:bg-blue-700"
+            className="rounded-full px-4 py-1.5 font-semibold text-white transition"
           >
             Giriş yapın
-          </Link>
+          </AccentLink>
           <Link href="/company/kayit" className="font-medium text-zinc-700 hover:underline">
             Ücretsiz kaydolun
           </Link>

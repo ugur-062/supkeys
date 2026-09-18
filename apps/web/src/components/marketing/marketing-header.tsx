@@ -73,7 +73,9 @@ export function MarketingHeader() {
   // Anasayfada "Tedarikçiyim" seçiliyken Ücretsiz Kaydol YEŞİL (satış rengi),
   // diğer her yerde mavi (2026-09-17, kullanıcı kararı).
   const audience = useAudienceValue();
-  const signupGreen = pathname === "/" && audience === "supplier";
+  // Tedarikçi yüzü sayfaları (alım talepleri, talep detayı) da yeşil (2026-09-18).
+  const supplierPage = pathname.startsWith("/alim-talepleri") || pathname.startsWith("/talep/");
+  const signupGreen = supplierPage || (pathname === "/" && audience === "supplier");
 
   /* Aktif satır: `pathname` yalnız EFEKT BAĞIMLILIĞI — render dalı değil.
      Rota değişince yeniden değerlendirilir, ilk boyada boş kalır. */

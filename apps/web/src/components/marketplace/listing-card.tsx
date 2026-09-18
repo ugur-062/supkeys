@@ -1,7 +1,6 @@
 "use client";
 
 import { Badge } from "@/components/catalyst/badge";
-import { CategoryImage } from "./category-image";
 import { formatDate } from "@/lib/format-date";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import {
@@ -10,7 +9,6 @@ import {
   publicState,
   type PublicListingState,
 } from "@/lib/public/marketplace";
-import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
 import { cn } from "@/lib/utils";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import {
@@ -137,11 +135,10 @@ function PanelTile({
   imageMode: "cover-only" | "category";
   className?: string;
 }) {
-  const showImage =
-    imageMode === "category" ? true : d.kind === "ilan" && !!d.coverImageUrl;
-  const v = categoryVisual(d.categoryIds);
-  const tone = TONE_CLASS[v.tone];
-  const Icon = v.icon;
+  /* KATEGORİ GÖRSELİ/İKONU YOK (2026-09-18, kullanıcı kararı: "taleplerde
+     hiçbir yerde kategori bandı olmasın"). Kart yalnız numara + başlık +
+     sütunlarla başlar; `imageMode` geriye dönük uyumluluk için duruyor. */
+  void imageMode;
   return (
     <Link
       href={d.href}
@@ -150,26 +147,8 @@ function PanelTile({
         className,
       )}
     >
-      {showImage ? (
-        <CategoryImage
-          src={d.coverImageUrl}
-          categoryIds={d.categoryIds}
-          alt={d.title}
-          ratio="aspect-[4/3]"
-          className="border-b border-zinc-950/5"
-        />
-      ) : null}
       <div className="flex flex-1 flex-col p-4">
         <div className="flex items-start gap-2.5">
-          {!showImage ? (
-            // Görselsiz kompakt kart: kategori ikonu — boş kutu değil, ne
-            // olduğunu söyleyen küçük bir işaret.
-            <span
-              className={`flex size-9 shrink-0 items-center justify-center rounded-lg ${tone.surface}`}
-            >
-              <Icon aria-hidden className={`size-4 ${tone.icon}`} />
-            </span>
-          ) : null}
           <div className="min-w-0 flex-1">
             <span className="inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] tabular-nums leading-tight text-zinc-600">
               {d.number ?? "—"}
@@ -384,14 +363,7 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
       href={href}
       className="group flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition duration-200 hover:-translate-y-0.5 hover:shadow-lg hover:ring-zinc-950/10 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
     >
-      {/* Görsel: kayıtta fotoğraf yoksa kategori görseli. Gri kutu YOK —
-          envanterin çoğu ALIM ve alıcı fotoğraf yüklemiyor. */}
-      <CategoryImage
-        src={listing.coverImageUrl}
-        alt={listing.title}
-        categoryIds={listing.categories.map((c) => c.id)}
-        className="border-b border-zinc-950/5"
-      />
+      {/* Kategori görseli KALDIRILDI (2026-09-18, kullanıcı kararı). */}
 
       <div className="flex flex-1 flex-col p-5">
         <div className="flex items-center justify-between gap-3">

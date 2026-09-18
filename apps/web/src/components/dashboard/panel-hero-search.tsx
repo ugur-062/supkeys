@@ -100,6 +100,85 @@ const WIDGET_POS: Record<HeroWidget["at"], string> = {
   br: "right-1 bottom-8 w-52 -rotate-3",
 };
 
+
+/**
+ * Dekoratif katman (kartlar + nesneler + soluk düzlemler). Dışa açık: herkese
+ * açık anasayfanın hidrasyon-öncesi kabuğu da aynı katmanı çizer, yoksa
+ * kartlar hidrasyonda "belirirdi".
+ */
+export function HeroDecor({
+  widgets,
+  objects,
+  accent = "blue",
+}: {
+  widgets: HeroWidget[];
+  objects?: HeroObject[];
+  /* CANLILIK (2026-09-18, kullanıcı mockup'ı): düzlemler ve kart ikonları
+     portal tonunda — satınalma mavi, satış yeşil. */
+  accent?: "blue" | "emerald";
+}) {
+  const g = accent === "emerald";
+  return (
+    <>
+        {/* Referanstaki soluk geometrik zemin düzlemleri — çok açık gri,
+            eğik, arkada; bant beyaz kalır. */}
+        <div aria-hidden className={cn("pointer-events-none absolute -left-24 top-1/3 -z-20 hidden h-72 w-[26rem] -rotate-12 rounded-[3rem] 2xl:block", g ? "bg-emerald-100/60" : "bg-blue-100/60")} />
+        <div aria-hidden className={cn("pointer-events-none absolute -right-28 bottom-4 -z-20 hidden h-64 w-[24rem] rotate-6 rounded-[3rem] 2xl:block", g ? "bg-emerald-100/60" : "bg-blue-100/60")} />
+        {objects?.map((o) => (
+          // eslint-disable-next-line @next/next/no-img-element
+          <img
+            key={o.src + o.at}
+            src={o.src}
+            alt=""
+            aria-hidden
+            draggable={false}
+            loading="lazy"
+            decoding="async"
+            className={cn(
+              "pointer-events-none absolute -z-10 hidden select-none drop-shadow-2xl 2xl:block",
+              OBJECT_POS[o.at],
+            )}
+          />
+        ))}
+        {widgets.map((w) => (
+          <div
+            key={w.title}
+            aria-hidden
+            className={cn(
+              /* Referans kart (2026-09-17, ikinci tur): ferah iç boşluk,
+                 kenarlıksız, çok yumuşak geniş gölge; üstte düz ikon ya da
+                 fotoğraf yığını, kalın iki satırlık başlık, altta gri ipucu
+                 ve sağda ok. */
+              "pointer-events-none absolute -z-10 hidden select-none flex-col rounded-[1.6rem] bg-white p-6 shadow-2xl shadow-zinc-900/10 2xl:flex",
+              WIDGET_POS[w.at],
+            )}
+          >
+            {w.avatars?.length ? (
+              <span className="flex -space-x-2.5">
+                {w.avatars.slice(0, 3).map((src) => (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img
+                    key={src}
+                    src={src}
+                    alt=""
+                    className="size-9 rounded-full object-cover ring-2 ring-white"
+                  />
+                ))}
+              </span>
+            ) : (
+              <w.icon className={cn("size-8", g ? "text-emerald-600" : "text-blue-600")} strokeWidth={1.75} />
+            )}
+            <span className="mt-4 block text-lg font-bold leading-tight tracking-tight text-zinc-950">{w.title}</span>
+            <span className="mt-2 flex items-center justify-between gap-2">
+              <span className="text-[13px] leading-snug text-zinc-500">{w.hint}</span>
+              <ChevronRight className="size-4 shrink-0 text-zinc-500" />
+            </span>
+          </div>
+        ))}
+    </>
+  );
+}
+
 export function PanelHeroSearch({
   eyebrow,
   title,
@@ -318,7 +397,15 @@ export function PanelHeroSearch({
               "relative isolate -mt-6 flex w-[100cqw] max-w-none flex-col justify-center ml-[calc(50%-50cqw)] overflow-hidden bg-white px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10",
               /* Köşe kartları varken bant biraz daha yüksek — kartlar arama
                  kutusunun satırına inmez (2xl'de ölçüldü). */
-              widgets?.length ? "min-h-[30rem] 2xl:min-h-[34rem]" : "min-h-[30rem]",
+              widgets?.length
+                ? cn(
+                    "min-h-[30rem] 2xl:min-h-[34rem]",
+                    /* Zemin portal tonunda çok hafif gradyan (mockup) — beyaza iner. */
+                    accent === "emerald"
+                      ? "bg-gradient-to-b from-emerald-50/80 via-white to-white"
+                      : "bg-gradient-to-b from-blue-50/80 via-white to-white",
+                  )
+                : "min-h-[30rem]",
             )
           : "relative isolate -mx-1 px-1 pt-2 pb-4 sm:pt-6"
       }
@@ -327,65 +414,7 @@ export function PanelHeroSearch({
           arkasındaki fotoğrafı tamamen kaldır, beyaz olsun"): fotoğraf sahnesi,
           renk yayılımı ve nokta deseni kalktı; bant düz beyaz. `backdrop`
           yalnız bandın tam genişlik/sabit yükseklik DÜZENİNİ seçer. */}
-      {backdrop && widgets?.length ? (
-        <>
-          {/* Referanstaki soluk geometrik zemin düzlemleri — çok açık gri,
-              eğik, arkada; bant beyaz kalır. */}
-          <div aria-hidden className="pointer-events-none absolute -left-24 top-1/3 -z-20 hidden h-72 w-[26rem] -rotate-12 rounded-[3rem] bg-zinc-100/70 2xl:block" />
-          <div aria-hidden className="pointer-events-none absolute -right-28 bottom-4 -z-20 hidden h-64 w-[24rem] rotate-6 rounded-[3rem] bg-zinc-100/70 2xl:block" />
-          {objects?.map((o) => (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img
-              key={o.src + o.at}
-              src={o.src}
-              alt=""
-              aria-hidden
-              draggable={false}
-              loading="lazy"
-              decoding="async"
-              className={cn(
-                "pointer-events-none absolute -z-10 hidden select-none drop-shadow-2xl 2xl:block",
-                OBJECT_POS[o.at],
-              )}
-            />
-          ))}
-          {widgets.map((w) => (
-            <div
-              key={w.title}
-              aria-hidden
-              className={cn(
-                /* Referans kart (2026-09-17, ikinci tur): ferah iç boşluk,
-                   kenarlıksız, çok yumuşak geniş gölge; üstte düz ikon ya da
-                   fotoğraf yığını, kalın iki satırlık başlık, altta gri ipucu
-                   ve sağda ok. */
-                "pointer-events-none absolute -z-10 hidden select-none flex-col rounded-[1.6rem] bg-white p-6 shadow-2xl shadow-zinc-900/10 2xl:flex",
-                WIDGET_POS[w.at],
-              )}
-            >
-              {w.avatars?.length ? (
-                <span className="flex -space-x-2.5">
-                  {w.avatars.slice(0, 3).map((src) => (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      key={src}
-                      src={src}
-                      alt=""
-                      className="size-9 rounded-full object-cover ring-2 ring-white"
-                    />
-                  ))}
-                </span>
-              ) : (
-                <w.icon className="size-8 text-zinc-900" strokeWidth={1.75} />
-              )}
-              <span className="mt-4 block text-lg font-bold leading-tight tracking-tight text-zinc-950">{w.title}</span>
-              <span className="mt-2 flex items-center justify-between gap-2">
-                <span className="text-[13px] leading-snug text-zinc-500">{w.hint}</span>
-                <ChevronRight className="size-4 shrink-0 text-zinc-500" />
-              </span>
-            </div>
-          ))}
-        </>
-      ) : null}
+      {backdrop && widgets?.length ? <HeroDecor widgets={widgets} objects={objects} accent={accent} /> : null}
       {/* `w-full` ŞART (2026-09-08, ölçümle bulundu): bant dikey ortalama
           için `flex flex-col` oldu; flex item'a `mx-auto` verilince çapraz
           eksende STRETCH iptal olur ve sütun içerik genişliğine düşer —

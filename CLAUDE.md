@@ -672,6 +672,13 @@ hiç dönmez) ve JSON-LD'de `Organization` düğümü YOKTUR. Gerekçe: "kim al�
 rekabet istihbaratıdır. Gösterilen: şehir, ülke, sektör, faaliyet tipi —
 kimlik değil nitelik.
 
+**Kalem ADLARI herkese açık (2026-09-18, kullanıcı kararı: "kalemlerin neler
+olduğu gözüksün, firma bilgisi zaten gizli"):** `items[].name` projeksiyonda;
+marka/açıklama/şartname/ekli belge ve alıcı kimliği yine dışarıda. Herkese
+açık talep sayfasının üstündeki kategori görsel bandı da kaldırıldı. **Talep
+kartlarında HİÇBİR YERDE kategori görseli/tonlu ikon yok** (aynı gün, kullanıcı:
+"her yerden tamamen kaldır") — `ListingCard` tile/row ve herkese açık kart
+yalnız numara + başlık + sütunlar; `imageMode` prop'u geriye dönük duruyor.
 DIŞARIDA ayrıca: teklifler **ve teklif SAYISI** · `targetPrice` · pazarlık
 tabanı · `terms`/`paymentNote` (serbest metin, IBAN taşıyabilir) · logistics/
 adresler · `internalNotes` · cuid id'ler. `description` DAHİL.
@@ -876,7 +883,15 @@ bant düzenini seçer, bant `bg-white`. Herkese açık anasayfanın hidrasyon
 (dekoratif kartlar; fotoğraf yığını yalnız CC0 kategori fotoğraflarından, kişi
 yok, sayı/istatistik yok) ve `objects` (`public/hero/kutu.webp` — kullanıcı
 varlığı, şeffaf koli renderı; PNG → 640 px WebP Chromium canvas ile, ~33 KB).
-Yalnız `2xl`, `aria-hidden`, `-z-10`; herkese açık anasayfaya VERİLMEZ.
+Yalnız `2xl`, `aria-hidden`, `-z-10`. **Canlılık (2026-09-18, kullanıcı
+mockup'ı):** widget'lı bant zemini portal tonunda hafif gradyan
+(`from-blue-50/80` · `from-emerald-50/80` → beyaz), düzlemler `*-100/60`, kart
+ikonları `text-blue-600`/`text-emerald-600`; widget'sız bant düz beyaz kalır.
+**Herkese açık anasayfa da AYNI dekoru
+alır (2026-09-18, kullanıcı):** tek kaynak `lib/company/hero-decor.tsx`
+(`BUYER_*`/`SELLER_*`), kabuk `HeroShell` de `HeroDecor` çizer (hidrasyonda
+belirmesin). Anasayfanın tedarikçi yüzü `ButtonAccentProvider emerald` içinde
+("Teklif ver" yeşil).
 Sözleşme: `panel-hero-search.test` "arka plan".
 
 ### Herkese açık anasayfa = panel anasayfalarının anonim hâli

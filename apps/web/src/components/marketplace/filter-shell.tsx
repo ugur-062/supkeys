@@ -1,5 +1,6 @@
 "use client";
 
+import { useAccentFill } from "@/components/ui/accent-fill";
 import { Sheet } from "@/components/ui/sheet";
 import { AdjustmentsHorizontalIcon } from "@heroicons/react/20/solid";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
@@ -288,6 +289,8 @@ function MobileDrawer({
   hideAt: "lg" | "xl";
   children: ReactNode;
 }) {
+  // Mavi olmayan yüzeyde portal bağlamı (public tedarikçi yüzü yeşil; 2026-09-18).
+  const ctxFill = useAccentFill();
   const { total, clear, isPending, accent } = useFilters();
   // Sözlük primitive'i (PROMPT 3): alt çekmece, başlıkta "Temizle", altlıkta canlı sayaç.
   return (
@@ -310,7 +313,7 @@ function MobileDrawer({
           type="button"
           onClick={onClose}
           className={`w-full rounded-full px-4 py-2.5 text-sm font-semibold text-white ${
-            accent === "blue" ? "bg-blue-600 hover:bg-blue-700" : "bg-zinc-950 hover:bg-zinc-800"
+            accent === "blue" ? "bg-blue-600 hover:bg-blue-700" : ctxFill
           }`}
         >
           {isPending ? "Güncelleniyor…" : `Sonuçları göster (${total.toLocaleString("tr-TR")})`}

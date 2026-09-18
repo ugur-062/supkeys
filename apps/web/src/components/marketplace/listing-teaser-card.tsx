@@ -1,4 +1,3 @@
-import { CategoryVisualBox } from "./category-visual-box";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
@@ -42,10 +41,10 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-lg hover:ring-zinc-950/10 focus-within:ring-2 focus-within:ring-zinc-950">
-      {/* Üst şerit: kategori görseli tonu + kalan süre */}
-      <div className="relative">
-        <CategoryVisualBox categoryIds={l.categories.map((c) => c.id)} ratio="aspect-[5/1]" />
-        <div className="absolute inset-x-0 bottom-0 flex items-end justify-between gap-2 px-4 pb-2">
+      {/* Üst satır: kategori + kalan süre — kategori GÖRSELİ YOK (2026-09-18,
+          kullanıcı kararı: taleplerde hiçbir yerde kategori görseli olmasın). */}
+      <div>
+        <div className="flex items-center justify-between gap-2 px-4 pt-4">
           {primaryCategory ? (
             <Badge tone="neutral" size="sm" className="min-w-0 shrink bg-white/90 font-medium text-zinc-700 ring-1 ring-inset ring-zinc-950/5">
               <span className="truncate">{primaryCategory.name}</span>
@@ -76,7 +75,7 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
           </p>
         ) : null}
         <p className={`text-xs text-zinc-500 tnum ${qty ? "mt-0.5" : "mt-3"}`}>
-          {l.itemSummary.count} kalem · kalem adları ve şartname üyelere
+          {l.itemSummary.count} kalem · şartname ve belgeler üyelere
         </p>
 
         <dl className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600">

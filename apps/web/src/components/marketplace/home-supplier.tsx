@@ -4,6 +4,7 @@ import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
 import { ArrowRightIcon, PlusIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
+import { ButtonAccentProvider } from "@/components/ui/button-accent";
 
 const MIN_DEMANDS = 3;
 
@@ -35,6 +36,9 @@ export function HomeSupplier({
   total: number;
 }) {
   return (
+    /* Tedarikçi yüzünde dolgulu düğmeler YEŞİL — "Teklif ver" kabuk dışı
+       varsayılanla mavi çıkıyordu (2026-09-18, kullanıcı). */
+    <ButtonAccentProvider accent="emerald">
     <div className="mx-auto max-w-7xl space-y-10 px-4 pb-14 sm:px-6 lg:px-8">
       <section aria-labelledby="acik-talepler">
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
@@ -43,7 +47,7 @@ export function HomeSupplier({
               Alıcılar şu an bunları arıyor
             </h2>
             <p className="mt-1 max-w-2xl text-sm text-zinc-500">
-              Miktar, kapsam ve kalan süre herkese açık. Alıcı adı, kalem adları ve şartname yalnız
+              Kalemler, miktar, kapsam ve kalan süre herkese açık. Alıcı adı, şartname ve belgeler yalnız
               üyelere — kapalı zarf kuralı.
             </p>
           </div>
@@ -100,5 +104,6 @@ export function HomeSupplier({
         </Link>
       </section>
     </div>
+    </ButtonAccentProvider>
   );
 }

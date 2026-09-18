@@ -1,7 +1,9 @@
 "use client";
 
-import { AudienceSwitch, useAudience } from "./audience-switch";
-import { PanelHeroSearch } from "@/components/dashboard/panel-hero-search";
+import { AudienceSwitch, useAudience, type HeroScope } from "./audience-switch";
+import { useState } from "react";
+import { HeroDecor, PanelHeroSearch } from "@/components/dashboard/panel-hero-search";
+import { BUYER_OBJECTS, BUYER_WIDGETS, SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
 import { Suspense } from "react";
@@ -33,6 +35,10 @@ import { Suspense } from "react";
  */
 export function HomeHero() {
   const { audience, scope, setScope } = useAudience();
+  // Tedarikçi yüzünün "Talep | Firma" pili (2026-09-18, kullanıcı: satış
+  // panelindeki karşılığı). Yalnız arama hedefini değiştirir; gövde aynı
+  // kalır — alıcı yüzünün pili gibi localStorage'a yazılmaz.
+  const [supplierScope, setSupplierScope] = useState<HeroScope>("products");
   const supplier = audience === "supplier";
 
   return (
@@ -83,8 +89,22 @@ export function HomeHero() {
           lead="Doğrulanmış alıcıların açık talepleri — kapalı zarf, birbirini görmeyen teklifler. Teklif vermek ücretsiz hesapla."
           placeholder="Talep, sektör veya ürün arayın"
           action={MARKETPLACE_ROUTES.demands}
+          /* İKİ YÜZ BİREBİR HİZALI (2026-09-18, kullanıcı: "geçişte yazılar
+             yer değiştirmesin, sadece panel değişsin"): alıcı yüzüyle aynı
+             yapı — başlık · iki satır alt cümle · kapsam pili · arama · not. */
+          supplierScope={{
+            action: MARKETPLACE_ROUTES.companies,
+            placeholder: "Firma adı, şehir ya da aldığı kategori arayın",
+            label: "Firma",
+            primaryLabel: "Talep",
+            primaryIcon: "clipboard",
+          }}
+          scope={supplierScope}
+          onScopeChange={setSupplierScope}
           accent="emerald"
           backdrop
+          widgets={SELLER_WIDGETS}
+          objects={SELLER_OBJECTS}
           ctaNote={{
             text: "Teklif vermek ve alıcıyı görmek için",
             label: "Ücretsiz kaydolun",
@@ -110,6 +130,8 @@ export function HomeHero() {
           onScopeChange={setScope}
           accent="blue"
           backdrop
+          widgets={BUYER_WIDGETS}
+          objects={BUYER_OBJECTS}
           ctaNote={{
             text: "Aradığınız ürünü bulamadınız mı?",
             label: "Talep aç",
@@ -128,8 +150,8 @@ export function HomeHero() {
    sınırı) ve sınıflar prop olarak dışa verilmediği için burada tekrarlanıyor;
    hero'nun bandı elden geçerse burası da elden geçmeli. */
 const BAND =
-  "relative isolate -mt-6 flex min-h-[30rem] w-[100cqw] max-w-none flex-col justify-center " +
-  "ml-[calc(50%-50cqw)] overflow-hidden bg-white " +
+  "relative isolate -mt-6 flex min-h-[30rem] 2xl:min-h-[34rem] w-[100cqw] max-w-none flex-col justify-center " +
+  "ml-[calc(50%-50cqw)] overflow-hidden bg-white bg-gradient-to-b from-blue-50/80 via-white to-white " +
   "px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10";
 
 /**
@@ -145,6 +167,8 @@ const BAND =
 function HeroShell() {
   return (
     <section aria-label="Hangi ürünü arıyorsunuz?" className={BAND}>
+      {/* Dekor kabukta da var — hidrasyonda kartlar belirmesin (2026-09-18). */}
+      <HeroDecor widgets={BUYER_WIDGETS} objects={BUYER_OBJECTS} accent="blue" />
       <div className="mx-auto w-full max-w-4xl text-center">
         <h1 className="text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
           Hangi ürünü arıyorsunuz?

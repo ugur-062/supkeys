@@ -1,4 +1,5 @@
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
+import { AccentButton } from "@/components/ui/accent-fill";
 
 /**
  * Arama — DÜZ HTML FORM, client JS yok.
@@ -66,14 +67,14 @@ export function SearchForm({
             }`}
           />
         </div>
-        <button
+        <AccentButton
           type="submit"
-          className={`shrink-0 rounded-full bg-blue-600 font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 ${
+          className={`shrink-0 rounded-full font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950 ${
             lg ? "h-14 px-7 text-sm" : "h-12 px-6 text-sm"
           }`}
         >
           Ara
-        </button>
+        </AccentButton>
       </div>
     </form>
   );

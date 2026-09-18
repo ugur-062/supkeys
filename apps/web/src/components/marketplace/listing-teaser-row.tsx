@@ -74,7 +74,7 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
                 </span>
               ) : null}
             </span>
-            <span className="text-[11px] leading-tight text-slate-500">kalem adları ve şartname üyelere</span>
+            <span className="text-[11px] leading-tight text-slate-500">şartname ve belgeler üyelere</span>
           </span>
         ),
       },

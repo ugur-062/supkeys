@@ -50,7 +50,12 @@ describe("MarketingHeader — Ücretsiz Kaydol rengi", () => {
     expect(signup().className).toContain("bg-emerald-600");
     unmount();
     nav.pathname = "/urunler";
-    render(<MarketingHeader />);
+    const r2 = render(<MarketingHeader />);
     expect(signup().className).toContain("bg-blue-600");
+    r2.unmount();
+    // Tedarikçi yüzü sayfaları her zaman yeşil.
+    nav.pathname = "/alim-talepleri";
+    render(<MarketingHeader />);
+    expect(signup().className).toContain("bg-emerald-600");
   });
 });

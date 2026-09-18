@@ -91,7 +91,7 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(firmalar).toHaveAttribute("hidden");
   });
 
-  it("anahtar TEDARİKÇİ yüzüne geçirir: talep sorusu, yeşil 'Ara', kapsam anahtarı yok", async () => {
+  it("anahtar TEDARİKÇİ yüzüne geçirir: talep sorusu, yeşil 'Ara', Talep|Firma kapsam pili", async () => {
     const user = userEvent.setup();
     hero();
     await user.click(screen.getByRole("radio", { name: "Tedarikçiyim" }));
@@ -100,8 +100,11 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       .getAllByRole("button", { name: /^Ara/ })
       .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
     expect(ara.className).toContain("bg-emerald-700");
-    // Ürün|Firma kapsamı yalnız alıcı yüzünde — talep aramasında karşılığı yok.
-    expect(screen.queryByRole("group", { name: "Arama kapsamı" })).toBeNull();
+    // 2026-09-18 (kullanıcı): tedarikçi yüzü de kapsam pili taşır (Talep | Firma) —
+    // iki yüz birebir aynı yapıda, geçişte hiçbir şey yer değiştirmez.
+    const scope = screen.getByRole("group", { name: "Arama kapsamı" });
+    expect(within(scope).getByRole("button", { name: "Talep" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(scope).getByRole("button", { name: "Firma" })).toBeInTheDocument();
   });
 
   it("AI ile ara ANONİMDE ÇİZİLMEZ (Silver+ ∧ koltuk izni ister)", async () => {
@@ -169,14 +172,17 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(within(list).getByRole("link", { name: /Tüm talepler \(16\)/ })).toBeInTheDocument();
     // Kapalı zarf: kart yalnız ölçek ve kapsam taşır.
     expect(within(list).queryByText(/Firma /)).toBeNull();
-    expect(within(list).getAllByText(/kalem adları ve şartname üyelere/).length).toBe(3);
+    expect(within(list).getAllByText(/şartname ve belgeler üyelere/).length).toBe(3);
     // SATIR düzeni (2026-09-10): görsel/ikon YOK, her talep tek satır, sütunlar panelle aynı.
     const rows = list.querySelector("ul")!;
     expect(within(rows).queryAllByRole("img")).toHaveLength(0);
     expect(rows.querySelector("svg")).toBeNull();
     expect(within(list).getAllByRole("listitem")).toHaveLength(3);
     expect(within(list).getAllByText("Alıcı")).toHaveLength(3);
-    expect(within(list).getAllByRole("link", { name: "Teklif ver" })).toHaveLength(3);
+    const teklif = within(list).getAllByRole("link", { name: "Teklif ver" });
+    expect(teklif).toHaveLength(3);
+    // Tedarikçi yüzünde YEŞİL dolgulu düğme (2026-09-18, kullanıcı).
+    expect(teklif[0]!.className).toContain("bg-emerald-600");
   });
 
   it("TEDARİKÇİ gövdesi: üye verisi (KPI, sağlık kartları, uygunluk) YOK", () => {
