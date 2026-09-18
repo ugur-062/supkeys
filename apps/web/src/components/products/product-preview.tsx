@@ -153,7 +153,6 @@ export function ProductPreview({
         product={view}
         company={company}
         companyHref="/company/sirketim/profil"
-        stickyTopClass="lg:top-14"
         cta={
           <p className="rounded-xl bg-zinc-100 px-4 py-2.5 text-center text-sm text-zinc-500" aria-disabled>
             Alıcı burada “Bilgi iste” düğmesini görür
@@ -230,7 +229,6 @@ export function ProductPreviewCard({
           product={view}
           company={company}
           companyHref="/company/sirketim/profil"
-          stickyTopClass="lg:top-14"
           cta={
             <p className="rounded-xl bg-zinc-100 px-4 py-2.5 text-center text-sm text-zinc-500" aria-disabled>
               Alıcı burada “Bilgi iste” düğmesini görür

@@ -22,7 +22,6 @@ import { RfqBanner } from "./rfq-banner";
 import { ProductCard } from "./product-card";
 import { ActivityIcon } from "./activity-icons";
 import { CardCarousel } from "./card-carousel";
-import { StickyCta } from "./sticky-cta";
 import { companyActivityLabel } from "@rothern/shared";
 import type { ReactNode } from "react";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
@@ -101,16 +100,6 @@ export function ProductDetail({
           companyHref={`/firma/${companySlug}`}
           related={related}
           hrefFor={(c) => `/firma/${c.company.slug}/urun/${c.slug}`}
-          /* Public kabuk iki katmanlı sabit header taşıyor (~100 px). */
-          stickyTopClass="lg:top-[100px]"
-          stickyCta={
-            <Link
-              href={loginHref(PANEL_TARGET.product(companySlug, product.slug))}
-              className="inline-flex items-center rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white"
-            >
-              Bilgi iste
-            </Link>
-          }
           sellerSite={
             <GatedField label="Firmanın web sitesi" redirect={PANEL_TARGET.product(companySlug, product.slug)} />
           }
@@ -203,8 +192,6 @@ export function ProductDetailBody({
   sellerSite,
   related,
   hrefFor,
-  stickyCta,
-  stickyTopClass,
   accent = "default",
 }: {
   /** Panel fiyatlı (üye katmanı), public fiyatsız — ikisi de aynı gövde. */
@@ -224,19 +211,8 @@ export function ProductDetailBody({
   related?: RelatedProducts;
   /** İlişkili ürün kartının hedefi — public `/firma/…`, panel `/company/…`. */
   hrefFor?: (c: ProductIndexCard) => string;
-  /**
-   * `lg`+ ekranda yapışkan şeridin ÜST ofseti (kabuğun sabit çubuğunun
-   * altına oturması için). Public kabuk `lg:top-[100px]`, panel `lg:top-14`.
-   */
-  stickyTopClass?: string;
   /** Sekme vurgusu — panel satınalmada `blue`, public monokrom. */
   accent?: "default" | "blue";
-  /**
-   * Yapışkan alt şeridin eylemi (fiyatın yanında). Verilmezse şerit
-   * çizilmez. Şerit YALNIZ asıl eylem ekrandan çıkınca görünür — aynı
-   * düğme iki kez ekranda durmaz (bkz. `StickyCta`).
-   */
-  stickyCta?: React.ReactNode;
 }) {
   const price = productPrice({
     priceMode: product.priceMode,
@@ -376,22 +352,9 @@ export function ProductDetailBody({
             </ul>
           ) : null}
 
-          {/* YAPIŞKAN ŞERİT — nöbetçi asıl eylemin hemen altında: eylem
-              ekrandayken şerit çizilmez. */}
-          {stickyCta ? (
-            <StickyCta
-              desktopTopClass={stickyTopClass}
-              title={product.name}
-              price={{ headline: price.headline, hasPrice: price.hasPrice }}
-              meta={
-                product.moq
-                  ? `Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}`
-                  : undefined
-              }
-            >
-              {stickyCta}
-            </StickyCta>
-          ) : null}
+          {/* YAPIŞKAN ŞERİT KALDIRILDI (2026-09-18, kullanıcı: "aşağı
+              kaydırınca ad + fiyat + Bilgi iste kutusu yukarıda geliyor, bu
+              olmasın"). Eylem yalnız fiyat kartında. */}
 
           {/* Güven şeridi — üç kural, tek satır. */}
           <ul className="mt-4 space-y-2 px-1 text-xs text-zinc-600">

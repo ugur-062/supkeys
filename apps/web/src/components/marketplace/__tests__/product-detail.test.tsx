@@ -206,17 +206,6 @@ describe("ProductDetailBody", () => {
     expect(screen.getByText("yeni-1")).toBeInTheDocument();
   });
 
-  it("yapışkan şerit YALNIZ eylem verildiğinde çizilir ve BAŞLANGIÇTA gizlidir", () => {
-    const { container, rerender } = render(Body());
-    expect(container.querySelector(".fixed.inset-x-0.bottom-0")).toBeNull();
-    rerender(Body({ stickyCta: <button type="button">Bilgi iste</button> }));
-    const bar = container.querySelector(".fixed.inset-x-0.bottom-0");
-    expect(bar).toBeTruthy();
-    // Asıl eylem ekrandayken şerit KAPALI — aynı düğme iki kez durmaz
-    // (nöbetçi yukarı çıkınca IntersectionObserver açar).
-    expect(bar).toHaveAttribute("hidden");
-  });
-
   it("başlığın üstünde kategori HAPI, altında satıcı kimliği (faaliyet ikonlu, şehir)", () => {
     // 2026-09-07 (kullanıcı referansı): kategori · faaliyet · şehir üçlüsü
     // başlığın üstünde tek satırdı ve faaliyet+şehir hemen altındaki satıcı

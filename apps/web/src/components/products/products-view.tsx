@@ -332,7 +332,7 @@ export function ProductsView() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Ürünlerde ara…"
-            className="w-full rounded-lg border border-zinc-300 py-2 pr-3 pl-9 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15"
+            className="w-full rounded-xl border border-zinc-300 bg-white py-2.5 pr-3 pl-9 text-sm shadow-sm outline-none placeholder:text-zinc-500 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15"
           />
         </div>
       </div>
