@@ -13,7 +13,7 @@ import {
 } from "@/lib/public/marketplace";
 import type { PublicListingCard, PublicListingDetail } from "@/lib/public/marketplace-api";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
-import { ListingTeaserCard } from "./listing-teaser-card";
+import { ListingTeaserRow } from "./listing-teaser-row";
 import { companyActivityLabel } from "@rothern/shared";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
@@ -465,11 +465,16 @@ export function ListingDetail({
         {similar.length > 0 ? (
           <section className="mt-16">
             <h2 className="text-xl font-semibold tracking-tight text-zinc-950">Benzer açık talepler</h2>
-            <div className="mt-5 grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3">
+            {/* SATIR düzeni (2026-09-18, kullanıcı: "kategori fotoğrafı olmasın,
+                farklı göster"): anasayfa/dizinle aynı `ListingTeaserRow` —
+                görselsiz, sütunlu, alt alta. */}
+            <ul className="mt-5 space-y-2">
               {similar.slice(0, 3).map((l) => (
-                <ListingTeaserCard key={l.number} listing={l} />
+                <li key={l.number}>
+                  <ListingTeaserRow listing={l} />
+                </li>
               ))}
-            </div>
+            </ul>
           </section>
         ) : null}
       </div>
