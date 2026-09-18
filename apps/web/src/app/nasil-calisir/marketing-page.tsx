@@ -275,9 +275,9 @@ function ShowcasePreview() {
       </div>
       <div className="p-6">
         <div className="flex gap-4">
-          {/* Ürün görseli: CC0 kategori fotoğrafı (metal/hammadde). */}
+          {/* Ürün görseli: CC0 kategori fotoğrafı (metal blok — 11000000). */}
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src="/categories/31000000.webp" alt="" className="size-28 shrink-0 rounded-xl object-cover ring-1 ring-zinc-950/5" />
+          <img src="/categories/11000000.webp" alt="" className="size-28 shrink-0 rounded-xl object-cover ring-1 ring-zinc-950/5" />
           <div className="min-w-0 flex-1">
             <div className="flex items-start justify-between gap-2">
               <div>
@@ -427,11 +427,13 @@ function DiscoverPreview() {
               </span>
               <div className="min-w-0">
                 <div className="truncate text-sm font-semibold text-zinc-900">{f.n}</div>
-                <div className="text-xs text-zinc-500">{f.s}</div>
+                <div className="flex flex-wrap items-center gap-x-2 gap-y-0.5 text-xs text-zinc-500">
+                  <span>{f.s}</span>
+                  <span className="rounded bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700">{f.m} eşleşme</span>
+                </div>
               </div>
             </div>
-            <div className="flex shrink-0 items-center gap-2">
-              <span className="rounded-md bg-emerald-50 px-2 py-1 text-xs font-semibold text-emerald-700">{f.m} eşleşme</span>
+            <div className="flex shrink-0 items-center gap-1.5">
               <span className="rounded-lg bg-emerald-700 px-3 py-1.5 text-xs font-semibold text-white">Bağlan</span>
               <ChevronRightIcon className="size-4 text-zinc-400" />
             </div>
