@@ -695,7 +695,10 @@ export default function HomePage() {
           </div>
           <div className="text-center">
             <h1 className="text-5xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-7xl">
-              Hem al, hem sat —{" "}
+              {/* 2026-09-18, kullanıcı kararı: "Hem al" mavi (satınalma),
+                  "hem sat" yeşil (satış) — portal renkleri. */}
+              <span className="text-blue-600">Hem al</span>,{" "}
+              <span className="text-emerald-600">hem sat</span> —{" "}
               <span className="text-zinc-500">tek platformda.</span>
             </h1>
             <div className="mt-10 flex items-center justify-center gap-x-4">
