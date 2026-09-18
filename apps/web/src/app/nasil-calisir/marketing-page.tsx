@@ -2,8 +2,7 @@
 
 import { OPERATOR } from "@/lib/company-info";
 import { PublicLayout } from "@/components/marketplace/public-layout";
-import { MAPPED_SEGMENTS } from "@/lib/public/category-visual";
-import { PRODUCT_LIMITS, registrationCountries } from "@rothern/shared";
+import { PRODUCT_LIMITS } from "@rothern/shared";
 import { PRICING_NOTE, PRICING_PLANS } from "@/lib/pricing/plans";
 import type { CompanyTier } from "@/lib/company-auth/types";
 import {
@@ -23,19 +22,6 @@ import { ArrowTrendingDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { signupHref } from "@/lib/public/visibility";
 import { useEffect, useRef, useState } from "react";
-
-/**
- * Sayılar TEK KAYNAKTAN (2026-09-04): "13.305 kategori" bayattı (katalog
- * 158.018), "98 ülke" ise adres defteri listesiydi — kayıt yalnız
- * `registrationCountries()` kadar ülkeden alınıyor; iki farklı sayı aynı
- * sayfada çelişiyordu. Sektör sayısı görsel eşlemesinden (58 segment).
- */
-const stats = [
-  { prefix: "", value: MAPPED_SEGMENTS.length, suffix: "", l: "Sektör başlığı — dört seviyeli kategori ağacı" },
-  { prefix: "", value: registrationCountries().length, suffix: " ülke", l: "Kayıt açık ülke" },
-  { prefix: "%", value: 0, suffix: "", l: "Komisyon — maliyetsiz ulaş" },
-  { text: "1", l: "Hesap — alıcı ve satıcı tek panelde" },
-];
 
 /**
  * Paket kartları — ad/fiyat/özellikler TEK KAYNAKTAN (`lib/pricing/plans.ts`,
@@ -98,54 +84,6 @@ const faqs = [
 
 
 
-function CountUp({
-  value,
-  prefix = "",
-  suffix = "",
-  duration = 1500,
-}: {
-  value: number;
-  prefix?: string;
-  suffix?: string;
-  duration?: number;
-}) {
-  // SON değerle başlar: JS/IntersectionObserver yoksa ya da hareket azaltma
-  // açıksa "0 ülke" diye kalıyordu (2026-09-04 denetimi). Animasyon yalnız
-  // görünüme girince ve hareket serbestse 0'dan sayar.
-  const [n, setN] = useState(value);
-  const ref = useRef<HTMLSpanElement>(null);
-  const started = useRef(false);
-  useEffect(() => {
-    const el = ref.current;
-    if (!el || typeof IntersectionObserver === "undefined") return;
-    if (window.matchMedia?.("(prefers-reduced-motion: reduce)").matches) return;
-    const io = new IntersectionObserver(
-      (entries) => {
-        if (entries[0].isIntersecting && !started.current) {
-          started.current = true;
-          const start = performance.now();
-          const tick = (now: number) => {
-            const p = Math.min((now - start) / duration, 1);
-            const eased = 1 - Math.pow(1 - p, 3);
-            setN(Math.round(eased * value));
-            if (p < 1) requestAnimationFrame(tick);
-          };
-          requestAnimationFrame(tick);
-        }
-      },
-      { threshold: 0.4 },
-    );
-    io.observe(el);
-    return () => io.disconnect();
-  }, [value, duration]);
-  return (
-    <span ref={ref}>
-      {prefix}
-      {n.toLocaleString("tr-TR")}
-      {suffix}
-    </span>
-  );
-}
 
 function Reveal({
   children,
@@ -689,68 +627,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Pazar & erişim */}
-      <section className="relative isolate overflow-hidden bg-blue-950 py-24 sm:py-32">
-        {/* grid deseni */}
-        <svg
-          aria-hidden="true"
-          className="absolute inset-0 -z-10 size-full stroke-white/5 [mask-image:radial-gradient(48rem_32rem_at_50%_30%,white,transparent)]"
-        >
-          <defs>
-            <pattern
-              id="reach-grid"
-              width={56}
-              height={56}
-              x="50%"
-              patternUnits="userSpaceOnUse"
-            >
-              <path d="M.5 56V.5H56" fill="none" />
-            </pattern>
-          </defs>
-          <rect width="100%" height="100%" strokeWidth={0} fill="url(#reach-grid)" />
-        </svg>
-        {/* yumuşak yüzen glow */}
-        <div
-          aria-hidden="true"
-          className="rt-float-slow absolute top-1/2 left-1/2 -z-10 size-[44rem] -translate-x-1/2 -translate-y-1/2 rounded-full bg-gradient-to-tr from-emerald-500/10 via-white/5 to-transparent blur-3xl"
-        />
-        <div className="relative mx-auto max-w-7xl px-6 lg:px-8">
-          <div className="mx-auto max-w-2xl lg:mx-0 lg:max-w-xl">
-            <h2 className="text-base/8 font-semibold text-emerald-400">
-              Pazar & erişim
-            </h2>
-            <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-white sm:text-5xl">
-              Daha geniş pazara, daha fazla müşteriye
-            </p>
-            <p className="mt-6 text-lg/8 text-zinc-300">
-              İlanınız kategori eşleşmesiyle doğru alıcı ya da satıcıya ulaşır.
-              Ağınızı büyütün, yeni müşterilerle tek panelde buluşun; komisyon yok,
-              sınır yok.
-            </p>
-          </div>
-          <Reveal className="mx-auto mt-16 grid max-w-2xl grid-cols-1 gap-x-8 gap-y-10 sm:mt-20 sm:grid-cols-2 sm:gap-y-14 lg:mx-0 lg:max-w-none lg:grid-cols-4">
-            {stats.map((s) => (
-              <div
-                key={s.l}
-                className="flex flex-col gap-y-3 border-l border-white/15 pl-6"
-              >
-                <div className="text-sm/6 text-zinc-500">{s.l}</div>
-                <div className="order-first text-3xl font-bold tracking-tight text-white tabular-nums sm:text-4xl">
-                  {"text" in s ? (
-                    s.text
-                  ) : (
-                    <CountUp
-                      value={s.value}
-                      prefix={s.prefix}
-                      suffix={s.suffix}
-                    />
-                  )}
-                </div>
-              </div>
-            ))}
-          </Reveal>
-        </div>
-      </section>
+      {/* "Pazar & erişim" istatistik bandı KALDIRILDI (2026-09-18, kullanıcı kararı). */}
 
       {/* Özellikler — 2 sıra bento (2.sırada 3 sütun) */}
       <section id="ozellikler" className="scroll-mt-24 py-24 sm:py-32">
