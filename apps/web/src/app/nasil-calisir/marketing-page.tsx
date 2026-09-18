@@ -169,7 +169,7 @@ function AppPreview() {
                   <span
                     className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
                       i === active
-                        ? "bg-zinc-900 text-white"
+                        ? "bg-blue-600 text-white"
                         : "bg-zinc-100 text-zinc-600"
                     }`}
                   >
@@ -310,7 +310,7 @@ function ListingWizardPreview() {
           </div>
         </div>
       </div>
-      <div className="mt-5 w-full rounded-lg bg-zinc-950 py-2 text-center text-sm font-semibold text-white">
+      <div className="mt-5 w-full rounded-lg bg-blue-600 py-2 text-center text-sm font-semibold text-white">
         Devam
       </div>
     </div>
@@ -451,7 +451,7 @@ function OrderTimelinePreview() {
                 s.state === "done"
                   ? "bg-emerald-700 text-white"
                   : s.state === "active"
-                    ? "bg-zinc-900 text-white"
+                    ? "bg-blue-600 text-white"
                     : "bg-zinc-100 text-zinc-500"
               }`}
             >
@@ -509,7 +509,7 @@ function DiscoverPreview() {
               <span className="rounded bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-700">
                 {f.m} eşleşme
               </span>
-              <span className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white">
+              <span className="rounded-md bg-emerald-600 px-2 py-1 text-xs font-medium text-white">
                 Bağlan
               </span>
             </div>
@@ -533,7 +533,7 @@ function ConnectionsPreview() {
           <span className="text-xs font-medium text-zinc-800">
             Mavi Lojistik A.Ş.
           </span>
-          <span className="rounded-md bg-zinc-900 px-2 py-1 text-xs font-medium text-white">
+          <span className="rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white">
             Kabul Et
           </span>
         </div>
@@ -572,10 +572,10 @@ function PublicProfilePreview() {
         <span className="size-3 rounded-full bg-emerald-400" />
         <div className="ml-3 hidden h-5 max-w-xs flex-1 rounded bg-zinc-200/70 sm:block" />
       </div>
-      <div className="h-20 bg-gradient-to-r from-zinc-900 via-zinc-800 to-zinc-700" />
+      <div className="h-20 bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-500" />
       <div className="px-6 pb-6">
         <div className="-mt-8">
-          <div className="flex size-16 items-center justify-center rounded-2xl bg-zinc-950 text-xl font-bold text-white ring-4 ring-white">
+          <div className="flex size-16 items-center justify-center rounded-2xl bg-emerald-600 text-xl font-bold text-white ring-4 ring-white">
             DÇ
           </div>
           <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
@@ -674,7 +674,7 @@ function SignupPreview() {
           </div>
         </div>
       </div>
-      <div className="mt-5 w-full rounded-lg bg-zinc-950 py-2 text-center text-sm font-semibold text-white">
+      <div className="mt-5 w-full rounded-lg bg-blue-600 py-2 text-center text-sm font-semibold text-white">
         Kaydol
       </div>
     </div>
@@ -724,7 +724,7 @@ export default function HomePage() {
       <TrustBand />
 
       {/* Pazar & erişim */}
-      <section className="relative isolate overflow-hidden bg-zinc-950 py-24 sm:py-32">
+      <section className="relative isolate overflow-hidden bg-blue-950 py-24 sm:py-32">
         {/* grid deseni */}
         <svg
           aria-hidden="true"
@@ -1289,7 +1289,7 @@ export default function HomePage() {
       {/* CTA — koyu panel */}
       <section className="px-6 py-24 sm:py-32 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="relative isolate overflow-hidden rounded-3xl bg-zinc-950 px-6 py-20 text-center shadow-2xl sm:px-16">
+          <div className="relative isolate overflow-hidden rounded-3xl bg-blue-950 px-6 py-20 text-center shadow-2xl sm:px-16">
             <h2 className="text-4xl font-semibold tracking-tight text-balance text-white sm:text-5xl">
               Firmanı bugün Rothern&apos;e taşı
             </h2>
