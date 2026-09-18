@@ -672,6 +672,42 @@ function FormatCard({
   );
 }
 
+/**
+ * "El yazısı" not + kıvrık ok (2026-09-18 mockup). Font kuralı: yalnız Inter —
+ * el yazısı fontu EKLENMEZ; italik + hafif eğim + yeşil kıvrık ok aynı hissi
+ * verir. Dekoratif (aria-hidden), yalnız lg+; kartın dışına taşar.
+ */
+function HandNote({ side, children }: { side: "left" | "right"; children: React.ReactNode }) {
+  const right = side === "right";
+  return (
+    <div
+      aria-hidden
+      className={`pointer-events-none absolute hidden w-44 select-none lg:block ${
+        right ? "-top-10 -right-24 rotate-[8deg]" : "-bottom-10 -left-28 -rotate-[6deg]"
+      }`}
+    >
+      <p className={`text-sm/5 font-semibold italic tracking-tight text-blue-600 ${right ? "text-left" : "text-right"}`}>{children}</p>
+      <svg
+        viewBox="0 0 80 48"
+        className={`mt-1 h-10 w-16 text-emerald-500 ${right ? "-ml-6 -scale-x-100" : "ml-auto"}`}
+        fill="none"
+        stroke="currentColor"
+        strokeWidth="2.5"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        <path d="M4 6c14 2 36 10 56 30" />
+        <path d="M50 38l12 2-2-12" />
+      </svg>
+      {right ? (
+        <svg viewBox="0 0 24 24" className="absolute -top-6 right-2 size-5 text-emerald-500" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+          <path d="M12 3v6M5 7l4 3M19 7l-4 3" />
+        </svg>
+      ) : null}
+    </div>
+  );
+}
+
 const HERO_STEPS = [
   { n: "01", title: "Keşfet", body: "Doğrulanmış firmaları ve ürünleri incele", tone: "bg-blue-50 text-blue-700" },
   { n: "02", title: "Bağlantı kur", body: "Doğrudan firmalarla iletişime geç", tone: "bg-emerald-50 text-emerald-700" },
@@ -853,7 +889,10 @@ export default function HomePage() {
                 body="Yönetici, satın alma, satış, onaylayıcı rolleri — sınırsız kullanıcı, kolayca ekiplerini yönetin, iş süreçlerinizi tek tıkla kurun."
                 bullets={["Rol bazlı yetki ve görünürlük", "Sınırsız kullanıcı ile katıl", "Güvenli hesap seçenekleri (2FA)"]}
               />
-              <div className="relative"><SignupPreview /></div>
+              <div className="relative">
+                <SignupPreview />
+                <HandNote side="right">Daha güçlü ekipler, daha büyük fırsatlar</HandNote>
+              </div>
             </Reveal>
 
             <Reveal className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
@@ -894,7 +933,10 @@ export default function HomePage() {
                 ))}
               </ul>
             </div>
-            <Reveal className="relative"><PublicProfilePreview /></Reveal>
+            <Reveal className="relative">
+              <PublicProfilePreview />
+              <HandNote side="left">Dünyaya işinizi anlatın</HandNote>
+            </Reveal>
           </div>
         </div>
       </section>
