@@ -29,6 +29,12 @@ export function PublicSearchTabs({
   counts?: Partial<Record<SearchSurface, number>>;
 }) {
   const href = (path: string) => (q ? `${path}?q=${encodeURIComponent(q)}` : path);
+  // PORTAL RENGİ (2026-09-18, kullanıcı: "sekmeler siyah olmasın, renge göre"):
+  // alım talepleri = tedarikçi yüzü → yeşil; ürünler/firmalar → mavi. Sunucu
+  // bileşeni bağlam okuyamaz, yüzeyden türetilir.
+  const green = active === "listings";
+  const onCls = green ? "border-emerald-600 text-emerald-700" : "border-blue-600 text-blue-700";
+  const onBadge = green ? "bg-emerald-100 text-emerald-800" : "bg-blue-100 text-blue-800";
   const tabs: { key: SearchSurface; label: string; href: string }[] = [
     { key: "products", label: MARKETPLACE_LABELS.products, href: href(MARKETPLACE_ROUTES.products) },
     { key: "companies", label: MARKETPLACE_LABELS.companies, href: href(MARKETPLACE_ROUTES.companies) },
@@ -47,15 +53,15 @@ export function PublicSearchTabs({
                 aria-current={on ? "page" : undefined}
                 className={`inline-flex items-center gap-2 border-b-2 pb-3 text-sm font-medium transition ${
                   on
-                    ? "border-zinc-950 text-zinc-950"
+                    ? onCls
                     : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-900"
                 }`}
               >
                 {t.label}
                 {n != null ? (
                   <span
-                    className={`tnum rounded-md px-1.5 py-0.5 text-xs ${
-                      on ? "bg-zinc-950 text-white" : "bg-zinc-200 text-zinc-700"
+                    className={`tnum rounded-full px-2 py-0.5 text-xs font-semibold ${
+                      on ? onBadge : "bg-zinc-200 text-zinc-700"
                     }`}
                   >
                     {n.toLocaleString("tr-TR")}
