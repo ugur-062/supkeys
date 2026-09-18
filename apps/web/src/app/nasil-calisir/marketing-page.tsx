@@ -4,15 +4,25 @@ import { OPERATOR } from "@/lib/company-info";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { PRODUCT_LIMITS } from "@rothern/shared";
 import { PRICING_NOTE, PRICING_PLANS } from "@/lib/pricing/plans";
-import type { CompanyTier } from "@/lib/company-auth/types";
 import {
   Disclosure,
   DisclosureButton,
   DisclosurePanel,
 } from "@headlessui/react";
 import {
+  ArrowDownTrayIcon,
+  ArrowRightIcon,
+  ArrowTopRightOnSquareIcon,
   BuildingOfficeIcon,
   BuildingStorefrontIcon,
+  EnvelopeIcon,
+  PaperAirplaneIcon,
+  ShareIcon,
+  ShieldCheckIcon,
+  SparklesIcon,
+  Square3Stack3DIcon,
+  UserIcon,
+  UserPlusIcon,
   ChartBarIcon,
   ChatBubbleLeftIcon,
   ChevronRightIcon,
@@ -34,7 +44,7 @@ import {
   TruckIcon,
   UsersIcon,
 } from "@heroicons/react/24/outline";
-import { ArrowTrendingDownIcon, CheckIcon } from "@heroicons/react/20/solid";
+import { CheckIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import { signupHref } from "@/lib/public/visibility";
 import { useEffect, useRef, useState } from "react";
@@ -44,34 +54,22 @@ import { useEffect, useRef, useState } from "react";
  * panel içi paket sayfası da oradan okur). accent: pakete hafif renk kimliği,
  * yalnız bu sayfanın sunumu — kart gövdesi monokrom kalır.
  */
-const PLAN_ACCENT: Record<
-  CompanyTier,
-  { top: string; pill: string; check: string }
-> = {
-  STANDART: {
-    top: "border-t-zinc-200",
-    pill: "bg-zinc-100 text-zinc-600 ring-zinc-200",
-    check: "text-zinc-500",
-  },
-  SILVER: {
-    top: "border-t-slate-400",
-    pill: "bg-slate-100 text-slate-700 ring-slate-300",
-    check: "text-slate-500",
-  },
-  GOLD: {
-    top: "border-t-yellow-500/80",
-    pill: "bg-yellow-50 text-yellow-800 ring-yellow-300",
-    check: "text-yellow-600",
-  },
-};
 
+/* Mockup (2026-09-18): üç kart, ortadaki Silver "En popüler" (mavi çerçeve
+   + taç rozeti), Gold sarı çerçeve. Ad/fiyat/özellik tek kaynak `plans.ts`. */
+const PLAN_UI = {
+  standart: { subtitle: "Ücretsiz Plan", icon: UserIcon, tone: "zinc" },
+  silver: { subtitle: "Büyüyen işletmeler için", icon: Square3Stack3DIcon, tone: "blue" },
+  gold: { subtitle: "En kapsamlı çözüm", icon: TrophyIcon, tone: "amber" },
+} as const;
 const pricingTiers = PRICING_PLANS.map((p) => ({
+  slug: p.slug,
   name: p.name,
   price: p.monthlyUsd,
   tagline: p.tagline,
   features: p.features,
   cta: p.cta,
-  accent: PLAN_ACCENT[p.tier],
+  ...PLAN_UI[p.slug],
 }));
 
 const faqs = [
@@ -445,48 +443,49 @@ function DiscoverPreview() {
 }
 
 function ConnectionsPreview() {
+  const kinds = [
+    { n: "Davetli Firmalar", icon: UsersIcon },
+    { n: "Sektör Firmaları", icon: BuildingOfficeIcon },
+    { n: "Potansiyel Müşteriler", icon: UserPlusIcon },
+  ];
   return (
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
-      <div className="text-sm font-semibold text-zinc-900">Bağlantılar</div>
-      <div className="mt-4">
-        <div className="flex items-center gap-2 text-xs font-medium text-zinc-500">
-          <span className="size-1.5 animate-pulse rounded-full bg-blue-500" />
-          Gelen davet
-        </div>
-        <div className="mt-1.5 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5">
-          <span className="text-xs font-medium text-zinc-800">
-            Mavi Lojistik A.Ş.
-          </span>
-          <span className="rounded-md bg-blue-600 px-2 py-1 text-xs font-medium text-white">
-            Kabul Et
-          </span>
+      <div className="flex items-center gap-3">
+        <span className="flex size-11 items-center justify-center rounded-xl bg-emerald-50 text-emerald-700">
+          <UsersIcon className="size-6" />
+        </span>
+        <div>
+          <div className="text-base font-semibold text-zinc-950">Bağlantılar</div>
+          <div className="text-xs text-zinc-500">Güvenli iş ağınızı yönetin.</div>
         </div>
       </div>
-      <div className="mt-3">
-        <div className="text-xs font-medium text-zinc-500">
-          Bağlı firmalar
-        </div>
-        <div className="mt-1.5 space-y-1.5">
-          {["Üçüncü Firma", "Anadolu Metal"].map((n) => (
-            <div
-              key={n}
-              className="flex items-center gap-2 rounded-lg border border-zinc-200 px-3 py-2"
-            >
-              <span className="size-2 rounded-full bg-emerald-500" />
-              <span className="text-xs font-medium text-zinc-700">{n}</span>
-            </div>
-          ))}
-        </div>
+      <div className="mt-5 flex items-center gap-2 rounded-lg bg-white px-3 py-2 ring-1 ring-zinc-200">
+        <MagnifyingGlassIcon className="size-4 text-zinc-400" />
+        <span className="flex-1 text-xs text-zinc-400">Firma adı, kişi veya e-posta ara…</span>
+        <span className="rounded-md bg-blue-600 px-3 py-1 text-xs font-semibold text-white">Ara</span>
+      </div>
+      <div className="mt-4 text-xs font-medium text-zinc-600">Bağlantı Türü</div>
+      <div className="mt-1.5 space-y-2">
+        {kinds.map((k) => (
+          <div key={k.n} className="flex items-center gap-2.5 rounded-lg border border-zinc-200 px-3 py-2">
+            <k.icon className="size-4 text-emerald-700" />
+            <span className="flex-1 text-xs font-medium text-zinc-800">{k.n}</span>
+            <ChevronRightIcon className="size-4 text-zinc-400" />
+          </div>
+        ))}
       </div>
     </div>
   );
 }
 
 function PublicProfilePreview() {
-  const tenders = [
-    { t: "Uluslararası çelik alımı", b: "Teklif Toplama", c: "bg-blue-50 text-blue-700" },
-    { t: "Fazla bakır satışı", b: "Satış", c: "bg-emerald-50 text-emerald-700" },
-    { t: "Hurda eksiltmesi", b: "Pazarlık", c: "bg-amber-50 text-amber-700" },
+  // Mockup (2026-09-18): tarayıcı çerçevesi, yeşil kapak + sağ üstte slogan,
+  // logo kutusu, ad + Doğrulanmış rozeti, sektör çipleri, tanıtım, üç
+  // eylem satırı (web sitesi, katalog, teklif talep).
+  const rows = [
+    { icon: GlobeAltIcon, t: "www.democelik.com", a: "Web Sitemizi Ziyaret Et", ai: ArrowTopRightOnSquareIcon },
+    { icon: DocumentTextIcon, t: "Şirket Kataloğu", a: "Dosyayı İndir", ai: ArrowDownTrayIcon },
+    { icon: EnvelopeIcon, t: "Satın alma talepleriniz için", a: "Teklif Talep Et", ai: ArrowRightIcon },
   ];
   return (
     <div className="overflow-hidden rounded-2xl bg-white shadow-2xl ring-1 ring-zinc-950/10">
@@ -494,57 +493,38 @@ function PublicProfilePreview() {
         <span className="size-3 rounded-full bg-red-400" />
         <span className="size-3 rounded-full bg-amber-400" />
         <span className="size-3 rounded-full bg-emerald-400" />
-        <div className="ml-3 hidden h-5 max-w-xs flex-1 rounded bg-zinc-200/70 sm:block" />
       </div>
-      <div className="h-20 bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-500" />
+      <div className="relative h-24 bg-gradient-to-r from-emerald-700 via-emerald-600 to-emerald-500">
+        <p className="absolute top-4 right-5 max-w-[11rem] text-right text-xs/5 font-medium text-white/90">
+          Güvenilir iş ortaklıkları daha güçlü yarınlar
+        </p>
+      </div>
       <div className="px-6 pb-6">
         <div className="-mt-8">
-          <div className="flex size-16 items-center justify-center rounded-2xl bg-emerald-600 text-xl font-bold text-white ring-4 ring-white">
-            DÇ
-          </div>
+          <div className="flex size-16 items-center justify-center rounded-2xl bg-emerald-600 text-xl font-bold text-white ring-4 ring-white">DC</div>
           <div className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1">
-            <span className="text-lg font-bold text-zinc-900">
-              Demo Çelik A.Ş.
-            </span>
+            <span className="text-lg font-bold text-zinc-900">Demo Çelik A.Ş.</span>
             <span className="inline-flex items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-semibold text-emerald-700">
-              <CheckIcon className="size-3" />
-              Doğrulanmış
+              <CheckIcon className="size-3" /> Doğrulanmış
             </span>
           </div>
-          <div className="mt-0.5 text-sm text-zinc-500">
-            Metal & Çelik · İstanbul, Türkiye
-          </div>
+          <div className="mt-0.5 text-sm text-zinc-500">Metal & Çelik · İstanbul, Türkiye</div>
         </div>
-        <div className="mt-4 flex flex-wrap gap-2">
-          {["Çelik", "Bakır", "Alüminyum", "İthalat"].map((t) => (
-            <span
-              key={t}
-              className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600"
-            >
-              {t}
-            </span>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {["Çelik", "Metal", "Endüstriyel", "İmalat"].map((t) => (
+            <span key={t} className="rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">{t}</span>
           ))}
         </div>
-        <p className="mt-4 text-sm/6 text-zinc-600">
-          20 yıllık tedarik tecrübesiyle yurtiçi ve uluslararası metal
-          ticareti. Açık satın alma taleplerimize teklif verin.
+        <p className="mt-3 text-xs/5 text-zinc-600">
+          20+ yıllık tecrübe ile endüstriyel çelik ürünlerinde kaliteli üretim, güçlü tedarik zinciri, sürdürülebilir büyüme.
         </p>
-        <div className="mt-5 text-xs font-medium text-zinc-500">
-          Açık satın alma talepleri
-        </div>
-        <div className="mt-1.5 space-y-1.5">
-          {tenders.map((x) => (
-            <div
-              key={x.t}
-              className="flex items-center justify-between rounded-lg border border-zinc-200 px-3 py-2"
-            >
-              <span className="truncate text-xs font-medium text-zinc-800">
-                {x.t}
-              </span>
-              <span
-                className={`shrink-0 rounded px-1.5 py-0.5 text-xs font-semibold ${x.c}`}
-              >
-                {x.b}
+        <div className="mt-4 space-y-2">
+          {rows.map((r) => (
+            <div key={r.t} className="flex items-center gap-2.5 rounded-lg border border-zinc-200 px-3 py-2">
+              <r.icon className="size-4 text-zinc-500" />
+              <span className="flex-1 truncate text-xs text-zinc-700">{r.t}</span>
+              <span className="inline-flex items-center gap-1 rounded-md bg-blue-50 px-2 py-1 text-[11px] font-semibold text-blue-700">
+                {r.a} <r.ai className="size-3" />
               </span>
             </div>
           ))}
@@ -555,52 +535,137 @@ function PublicProfilePreview() {
 }
 
 function SignupPreview() {
-  const roles = [
-    { n: "Yönetici", on: true },
-    { n: "Satın alma", on: true },
-    { n: "Satış", on: true },
-    { n: "Onaylayıcı", on: false },
-  ];
+  // Mockup (2026-09-18): "Ekip Arkadaşı Davet Et" formu — ad, e-posta, rol
+  // çipleri (Yönetici seçili, mavi), mavi "Davet Gönder".
+  const roles = ["Yönetici", "Satın Alma", "Satış", "Onaylayıcı"];
   return (
     <div className="rounded-2xl bg-white p-6 shadow-xl ring-1 ring-zinc-950/10">
-      <div className="text-sm font-semibold text-zinc-900">Firma Hesabı</div>
-      <div className="mt-0.5 text-xs text-zinc-500">
-        Hem al, hem sat — tek hesap
+      <div className="flex items-center gap-3">
+        <span className="flex size-11 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+          <UserPlusIcon className="size-6" />
+        </span>
+        <div>
+          <div className="text-base font-semibold text-zinc-950">Ekip Arkadaşı Davet Et</div>
+          <div className="text-xs text-zinc-500">Ekibinizi büyütün, birlikte daha fazlasını başarın.</div>
+        </div>
       </div>
-      <div className="mt-4 space-y-3">
+      <div className="mt-5 space-y-3">
         <div>
-          <div className="text-xs font-medium text-zinc-500">Firma adı</div>
-          <div className="mt-1 flex h-9 items-center rounded-lg bg-zinc-100 px-3 text-sm text-zinc-700">
-            Demo Çelik A.Ş.
-          </div>
+          <div className="text-xs font-medium text-zinc-600">Ad ve Soyad</div>
+          <div className="mt-1 flex h-10 items-center rounded-lg bg-zinc-100 px-3 text-sm text-zinc-700">Demo Çelik A.Ş.</div>
         </div>
         <div>
-          <div className="text-xs font-medium text-zinc-500">E-posta</div>
-          <div className="mt-1 flex h-9 items-center rounded-lg bg-zinc-100 px-3 text-sm text-zinc-700">
-            info@democelik.com
-          </div>
+          <div className="text-xs font-medium text-zinc-600">E-posta</div>
+          <div className="mt-1 flex h-10 items-center rounded-lg bg-zinc-100 px-3 text-sm text-zinc-700">ornek@sirketiniz.com</div>
         </div>
         <div>
-          <div className="text-xs font-medium text-zinc-500">Roller</div>
+          <div className="text-xs font-medium text-zinc-600">Rol Seçin</div>
           <div className="mt-1.5 flex flex-wrap gap-2">
-            {roles.map((r) => (
+            {roles.map((r, i) => (
               <span
-                key={r.n}
-                className={`rounded-md border px-2 py-0.5 text-xs ${
-                  r.on
-                    ? "border-blue-500 bg-blue-50 text-blue-700"
-                    : "border-zinc-200 text-zinc-500"
+                key={r}
+                className={`rounded-lg px-3 py-1.5 text-xs font-medium ring-1 ${
+                  i === 0 ? "bg-blue-600 text-white ring-blue-600" : "bg-white text-zinc-700 ring-zinc-200"
                 }`}
               >
-                {r.n}
+                {r}
               </span>
             ))}
           </div>
         </div>
       </div>
-      <div className="mt-5 w-full rounded-lg bg-blue-600 py-2 text-center text-sm font-semibold text-white">
-        Kaydol
+      <div className="mt-5 flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 py-2.5 text-sm font-semibold text-white">
+        <PaperAirplaneIcon className="size-4" /> Davet Gönder
       </div>
+    </div>
+  );
+}
+
+const TONE_BADGE = {
+  blue: "bg-blue-50 text-blue-700",
+  emerald: "bg-emerald-50 text-emerald-700",
+  amber: "bg-amber-50 text-amber-700",
+  violet: "bg-violet-50 text-violet-700",
+} as const;
+
+/** Göz başlığı: mavi kısa çizgi + metin (mockup). */
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <h2 className="flex items-center gap-2.5 text-base/7 font-semibold text-blue-600">
+      <span aria-hidden className="h-1 w-6 rounded-full bg-blue-600" />
+      {children}
+    </h2>
+  );
+}
+
+/** Soluk mavi/yeşil lekeler + nokta desenleri — dekoratif, lg+ */
+function SoftBlobs({ flip = false }: { flip?: boolean }) {
+  const dots = "radial-gradient(currentColor 1.5px, transparent 1.5px)";
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 hidden lg:block">
+      <div className={`absolute top-10 size-[28rem] rounded-full blur-3xl ${flip ? "-right-40 bg-emerald-100/50" : "-left-40 bg-blue-100/50"}`} />
+      <div className={`absolute bottom-0 size-[24rem] rounded-full blur-3xl ${flip ? "-left-40 bg-blue-100/50" : "-right-40 bg-emerald-100/50"}`} />
+      <div className="absolute top-1/3 left-[6%] h-14 w-24 text-zinc-300" style={{ backgroundImage: dots, backgroundSize: "14px 14px" }} />
+      <div className="absolute top-1/2 right-[5%] h-14 w-24 text-zinc-300" style={{ backgroundImage: dots, backgroundSize: "14px 14px" }} />
+    </div>
+  );
+}
+
+function FeatureText({
+  icon: Icon,
+  tone,
+  title,
+  body,
+  bullets,
+}: {
+  icon: React.ComponentType<{ className?: string }>;
+  tone: "blue" | "emerald";
+  title: string;
+  body: string;
+  bullets: string[];
+}) {
+  return (
+    <div className="flex gap-5">
+      <span className={`flex size-14 shrink-0 items-center justify-center rounded-2xl ${tone === "blue" ? "bg-blue-50 text-blue-600" : "bg-emerald-50 text-emerald-700"}`}>
+        <Icon className="size-7" />
+      </span>
+      <div>
+        <h3 className="text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">{title}</h3>
+        <p className="mt-3 text-base/7 text-zinc-600">{body}</p>
+        <ul className="mt-5 space-y-2.5">
+          {bullets.map((b) => (
+            <li key={b} className="flex gap-x-3 text-zinc-700">
+              <span className="mt-0.5 flex size-5 flex-none items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                <CheckIcon aria-hidden="true" className="size-3.5" />
+              </span>
+              <span className="text-base">{b}</span>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </div>
+  );
+}
+
+function FormatCard({
+  tag,
+  tagTone,
+  title,
+  body,
+  children,
+}: {
+  tag: string;
+  tagTone: keyof typeof TONE_BADGE;
+  title: string;
+  body: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <div className="flex flex-col rounded-3xl bg-white p-6 shadow-sm ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
+      <div className="rounded-2xl bg-zinc-50 p-4 ring-1 ring-zinc-100">{children}</div>
+      <span className={`mt-5 inline-flex w-fit rounded-lg px-2.5 py-1 text-xs font-semibold ${TONE_BADGE[tagTone]}`}>{tag}</span>
+      <h3 className="mt-3 text-xl font-bold text-zinc-950">{title}</h3>
+      <p className="mt-1.5 text-sm/6 text-zinc-600">{body}</p>
     </div>
   );
 }
@@ -764,368 +829,269 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Tek panelde her şey — ekip & ağ */}
-      <section
-        id="nasil"
-        className="scroll-mt-24 border-y border-zinc-200 bg-zinc-50 py-24 sm:py-32"
-      >
+      {/* Tek panelde her şey — ekip & ağ (2026-09-18 mockup: beyaz zemin,
+          mavi kısa çizgili göz başlığı, ikon rozetli alt başlıklar, yeşil
+          onay işaretleri, soluk mavi/yeşil lekeler + nokta desenleri) */}
+      <section id="nasil" className="relative isolate scroll-mt-24 overflow-hidden bg-white py-24 sm:py-32">
+        <SoftBlobs />
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl lg:mx-0">
-            <h2 className="text-base/7 font-semibold text-zinc-500">
-              Tek panelde her şey
-            </h2>
-            <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
+            <Eyebrow>Tek panelde her şey</Eyebrow>
+            <p className="mt-2 text-4xl font-bold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
               Ticaretin ötesinde, tam kontrol
             </p>
           </div>
 
           <div className="mt-16 space-y-20 sm:mt-20 sm:space-y-28">
-            {/* Ekip & roller */}
             <Reveal className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-              <div>
-                <h3 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-                  Ekibini davet et, rolleri ata
-                </h3>
-                <p className="mt-4 text-lg/8 text-zinc-600">
-                  Yönetici, satın alma, satış, onaylayıcı rolleri — sınırsız
-                  kullanıcı, kullanıcı-başı ücret yok. İş çıkışında erişim tek tıkla
-                  kapanır.
-                </p>
-                <ul className="mt-6 space-y-3">
-                  {[
-                    "Rol bazlı yetki ve görünürlük",
-                    "Sınırsız kullanıcı & rol",
-                    "Güvenli hesap kapatma (iş çıkışı)",
-                  ].map((b) => (
-                    <li key={b} className="flex gap-x-3 text-zinc-700">
-                      <CheckIcon
-                        aria-hidden="true"
-                        className="h-6 w-5 flex-none text-zinc-900"
-                      />
-                      <span className="text-base">{b}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="relative">
-                <div
-                  aria-hidden="true"
-                  className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-tr from-zinc-100 to-white"
-                />
-                <SignupPreview />
-              </div>
+              <FeatureText
+                icon={UserPlusIcon}
+                tone="blue"
+                title="Ekibini davet et, rolleri ata"
+                body="Yönetici, satın alma, satış, onaylayıcı rolleri — sınırsız kullanıcı, kolayca ekiplerini yönetin, iş süreçlerinizi tek tıkla kurun."
+                bullets={["Rol bazlı yetki ve görünürlük", "Sınırsız kullanıcı ile katıl", "Güvenli hesap seçenekleri (2FA)"]}
+              />
+              <div className="relative"><SignupPreview /></div>
             </Reveal>
 
-            {/* Bağlantı ağı */}
             <Reveal className="grid items-center gap-10 lg:grid-cols-2 lg:gap-16">
-              <div className="lg:order-last">
-                <h3 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-                  Ağını yönet, güvenle bağlan
-                </h3>
-                <p className="mt-4 text-lg/8 text-zinc-600">
-                  Davet gönderin ya da kabul edin, bağlantı ağınızı büyütün. Bağlandığınız
-                  firmalarla çevre-içi ticaret yapın; istemediğiniz firmayı
-                  engelleyin.
-                </p>
-                <ul className="mt-6 space-y-3">
-                  {[
-                    "Davet → kabul ile bağlantı",
-                    "Çevre-içi kapalı ilan paylaşımı",
-                    "Şikayet & engelleme ile güven",
-                  ].map((b) => (
-                    <li key={b} className="flex gap-x-3 text-zinc-700">
-                      <CheckIcon
-                        aria-hidden="true"
-                        className="h-6 w-5 flex-none text-zinc-900"
-                      />
-                      <span className="text-base">{b}</span>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-              <div className="relative">
-                <div
-                  aria-hidden="true"
-                  className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-tr from-zinc-100 to-white"
-                />
-                <ConnectionsPreview />
-              </div>
+              <div className="relative"><ConnectionsPreview /></div>
+              <FeatureText
+                icon={ShareIcon}
+                tone="emerald"
+                title="Ağını yönet, güvenle bağlan"
+                body="Davet gönderin ya da kabul edin, bağlantı ağınızı büyütün. Tedarikçiden müşteriye tüm iş ilişkilerinizi tek yerden yönetin."
+                bullets={["Davet – kabul ile bağlanın", "Firma ve kişi profillerini görüntüleyin", "Güvenli erişim ile ağınızı büyütün"]}
+              />
             </Reveal>
           </div>
         </div>
       </section>
 
-      {/* Herkese açık profil */}
-      <section className="py-24 sm:py-32">
+      {/* Herkese açık profil (Vitrin) */}
+      <section className="relative isolate overflow-hidden bg-white py-24 sm:py-32">
+        <SoftBlobs flip />
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="grid items-center gap-12 lg:grid-cols-2 lg:gap-16">
             <div>
-              <h2 className="text-base/7 font-semibold text-zinc-500">Vitrin</h2>
-              <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
+              <Eyebrow>Vitrin</Eyebrow>
+              <p className="mt-2 text-4xl font-bold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
                 Herkese açık profiliniz, dijital vitrininiz
               </p>
               <p className="mt-6 text-lg/8 text-zinc-600">
-                Premium üyelikte firmanız herkese açık bir profile kavuşur:
-                doğrulanmış rozet, sektörleriniz, hakkında metniniz ve açık
-                satın alma talepleriniz. Alıcılar sizi bulur, taleplerinize teklif verir.
+                Firmanızı layıkıyla tanıtın, herkese açık bir profil ile kurumsal duruşunuzu sergileyin. Ürün ve hizmetlerinizi ve güçlü yönlerinizi alıcılarla paylaşın. Sizi doğru fırsatlarla buluşturalım.
               </p>
               <ul className="mt-6 space-y-3">
-                {[
-                  "Doğrulanmış firma rozeti",
-                  "Sektör & konum etiketleri",
-                  "Açık satın alma talepleriniz tek sayfada",
-                ].map((b) => (
+                {["Profilinizi yayınlayın, firmanızı tanıtın", "Şirket ve hizmet detaylarınızı paylaşın", "Açık profil ile alıcı taleplerinizi tek sayfada toplayın"].map((b) => (
                   <li key={b} className="flex gap-x-3 text-zinc-700">
-                    <CheckIcon
-                      aria-hidden="true"
-                      className="h-6 w-5 flex-none text-zinc-900"
-                    />
+                    <span className="mt-0.5 flex size-5 flex-none items-center justify-center rounded-full bg-emerald-100 text-emerald-700">
+                      <CheckIcon aria-hidden="true" className="size-3.5" />
+                    </span>
                     <span className="text-base">{b}</span>
                   </li>
                 ))}
               </ul>
             </div>
-            <Reveal className="relative">
-              <div
-                aria-hidden="true"
-                className="absolute -inset-6 -z-10 rounded-[2.5rem] bg-gradient-to-tr from-zinc-100 to-white"
-              />
-              <PublicProfilePreview />
-            </Reveal>
+            <Reveal className="relative"><PublicProfilePreview /></Reveal>
           </div>
         </div>
       </section>
 
-      {/* İhale türleri — ayrı section */}
-      <section className="border-y border-zinc-200 bg-zinc-50 py-24 sm:py-32">
+      {/* Satın Alma Talebi türleri (2026-09-18 mockup) */}
+      <section className="relative isolate overflow-hidden bg-white py-24 sm:py-32">
+        <SoftBlobs />
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-base/7 font-semibold text-zinc-500">
+            <div className="flex items-center justify-center gap-3 text-sm font-semibold text-blue-600">
+              <span aria-hidden className="h-px w-8 bg-blue-600" />
               Satın Alma Talebi türleri
-            </h2>
-            <p className="mt-2 text-4xl font-semibold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
+              <span aria-hidden className="h-px w-8 bg-blue-600" />
+            </div>
+            <p className="mt-3 text-4xl font-bold tracking-tight text-pretty text-zinc-950 sm:text-5xl">
               Her ihtiyaca uygun format
             </p>
-            <p className="mt-6 text-lg/8 text-zinc-600">
-              Teklif toplama ya da pazarlık (açık eksiltme); doğru formatı seç,
-              kazandırma öncesi onay zincirini panel yönetsin.
+            <p className="mt-5 text-lg/8 text-zinc-600">
+              Teklif toplama ya da pazarlık (açık eksiltme); doğru formatı seç, kazandırma öncesi onay zincirini panel yönetsin.
             </p>
           </div>
           <div className="mx-auto mt-16 grid max-w-5xl grid-cols-1 gap-6 sm:mt-20 sm:grid-cols-2">
             {/* RFQ — kapalı zarf */}
-            <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
-              <div className="space-y-1.5 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
-                <div className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
-                  <span className="text-xs text-zinc-500">Firma A</span>
-                  {/* Noktalar GÖRÜNÜR metin: axe `aria-hidden` olsa da kontrast arar ve
-                      haklı — gören kullanıcı da okuyor. zinc-500 hâlâ "maskeli"
-                      duruyor ama 4,83:1. */}
-                  <span className="text-xs text-zinc-500" aria-hidden>••• ₺</span>
-                  <span className="sr-only">Fiyat gizli (kapalı zarf)</span>
-                </div>
-                <div className="flex items-center justify-between rounded-md bg-emerald-50 px-2.5 py-1.5 ring-1 ring-emerald-200">
-                  <span className="text-xs font-medium text-emerald-800">
-                    Firma B
-                  </span>
-                  <span className="text-xs font-semibold text-emerald-900">
-                    11.900 ₺
-                  </span>
-                </div>
-                <div className="flex items-center justify-between rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
-                  <span className="text-xs text-zinc-500">Firma C</span>
-                  {/* Noktalar GÖRÜNÜR metin: axe `aria-hidden` olsa da kontrast arar ve
-                      haklı — gören kullanıcı da okuyor. zinc-500 hâlâ "maskeli"
-                      duruyor ama 4,83:1. */}
-                  <span className="text-xs text-zinc-500" aria-hidden>••• ₺</span>
-                  <span className="sr-only">Fiyat gizli (kapalı zarf)</span>
-                </div>
+            <FormatCard tag="Alış • Teklif Toplama" tagTone="blue" title="Kapalı zarf" body="Tedarikçiler birbirini görmeden teklif verir; en iyisini kazandırırsınız.">
+              <div className="space-y-2">
+                {[
+                  { n: "Firma A", a: "9.800 ₺", best: false },
+                  { n: "Firma B", a: "11.900 ₺", best: true },
+                  { n: "Firma C", a: "13.400 ₺", best: false },
+                ].map((b) => (
+                  <div key={b.n} className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 ring-1 ${b.best ? "bg-emerald-50 ring-emerald-300" : "bg-white ring-zinc-200"}`}>
+                    <span className={`flex size-7 items-center justify-center rounded-md ${b.best ? "bg-emerald-100 text-emerald-700" : "bg-blue-50 text-blue-600"}`}>
+                      <BuildingOfficeIcon className="size-4" />
+                    </span>
+                    <span className={`flex-1 text-sm ${b.best ? "font-semibold text-emerald-800" : "text-zinc-700"}`}>{b.n}</span>
+                    <span className={`text-sm tabular-nums ${b.best ? "font-bold text-emerald-800" : "text-zinc-700"}`}>{b.a}</span>
+                    <span className="text-zinc-400" aria-hidden>···</span>
+                  </div>
+                ))}
               </div>
-              <span className="mt-5 inline-flex w-fit rounded-lg bg-blue-50 px-2.5 py-1 text-xs font-semibold text-blue-700">
-                Alış · Teklif Toplama
-              </span>
-              <h3 className="mt-3 text-lg font-semibold text-zinc-950">
-                Kapalı zarf
-              </h3>
-              <p className="mt-1.5 text-sm/6 text-zinc-600">
-                Tedarikçiler birbirini görmeden teklif verir; en iyisini
-                kazandırırsınız.
-              </p>
-            </div>
+            </FormatCard>
 
             {/* Pazarlık — eksiltme */}
-            <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
-              <div className="rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
-                <div className="flex h-16 items-end gap-2">
-                  <div className="flex-1 rounded-t bg-amber-400/80" style={{ height: "100%" }} />
-                  <div className="flex-1 rounded-t bg-amber-400/70" style={{ height: "74%" }} />
-                  <div className="flex-1 rounded-t bg-amber-400/60" style={{ height: "54%" }} />
-                  <div className="flex-1 rounded-t bg-amber-500" style={{ height: "38%" }} />
-                </div>
-                <div className="mt-2 flex items-center justify-between">
-                  <span className="text-xs text-zinc-500">Güncel teklif</span>
-                  <span className="inline-flex items-center gap-1 text-xs font-bold text-amber-700">
-                    12.000 ₺
-                    <ArrowTrendingDownIcon className="size-3.5" />
-                  </span>
-                </div>
+            <FormatCard tag="Alış • Eksiltme" tagTone="amber" title="Pazarlık" body="Fiyat canlı düşer; en uygun teklif öne çıkar.">
+              <div className="grid grid-cols-4 items-end gap-3 pt-8">
+                {[
+                  { v: "16.500 ₺", h: "100%", c: "bg-amber-200" },
+                  { v: "14.200 ₺", h: "76%", c: "bg-amber-200" },
+                  { v: "13.100 ₺", h: "56%", c: "bg-amber-200" },
+                  { v: "12.000 ₺", h: "30%", c: "bg-orange-500", now: true },
+                ].map((b) => (
+                  <div key={b.v} className="flex flex-col items-center gap-2">
+                    <div className="relative flex h-24 w-full items-end">
+                      {b.now ? (
+                        <span className="absolute -top-8 left-1/2 -translate-x-1/2 rounded-md bg-orange-100 px-2 py-1 text-[11px] font-semibold whitespace-nowrap text-orange-700">
+                          ● Güncel teklif
+                        </span>
+                      ) : null}
+                      <div className={`w-full rounded-md ${b.c}`} style={{ height: b.h }} />
+                    </div>
+                    <span className={`text-xs tabular-nums ${b.now ? "font-bold text-orange-600" : "text-zinc-500"}`}>{b.v}</span>
+                  </div>
+                ))}
               </div>
-              <span className="mt-5 inline-flex w-fit rounded-lg bg-amber-50 px-2.5 py-1 text-xs font-semibold text-amber-700">
-                Alış · Eksiltme
-              </span>
-              <h3 className="mt-3 text-lg font-semibold text-zinc-950">
-                Pazarlık
-              </h3>
-              <p className="mt-1.5 text-sm/6 text-zinc-600">
-                Fiyat canlı düşer; en uygun teklif öne çıkar.
-              </p>
-            </div>
+            </FormatCard>
 
-            {/* Ürün vitrini */}
-            <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
-              <div className="flex gap-2 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
-                <div className="flex-1 rounded-lg bg-white px-3 py-2 ring-1 ring-zinc-100">
-                  <div className="text-xs text-zinc-500">Fiyat</div>
-                  <div className="text-sm font-semibold tabular-nums text-zinc-900">
-                    860 ₺ / kg
-                  </div>
+            {/* AI — belgeden talep taslağı (2026-09-18, kullanıcı: "fiyat/min.
+                sipariş kartını beğenmedim, AI olabilir"). Ürün Silver+/Gold. */}
+            <FormatCard tag="Yapay zekâ" tagTone="violet" title="Belgeden talep taslağı" body="Şartnameyi ya da teklif talebini yükle; kalemleri, miktarları ve kategoriyi AI çıkarsın, sen onayla.">
+              <div className="space-y-2">
+                <div className="flex items-center gap-2.5 rounded-lg bg-white px-3 py-2.5 ring-1 ring-zinc-200">
+                  <span className="flex size-7 items-center justify-center rounded-md bg-violet-50 text-violet-600"><DocumentTextIcon className="size-4" /></span>
+                  <span className="flex-1 truncate text-sm text-zinc-700">sartname-2026.pdf</span>
+                  <span className="inline-flex items-center gap-1 rounded-md bg-violet-600 px-2 py-1 text-[11px] font-semibold text-white"><SparklesIcon className="size-3" /> Okundu</span>
                 </div>
-                <div className="flex-1 rounded-lg bg-white px-3 py-2 ring-1 ring-zinc-100">
-                  <div className="text-xs text-zinc-500">Min. sipariş</div>
-                  <div className="text-sm font-semibold tabular-nums text-zinc-900">
-                    250 kg
+                {[
+                  { n: "Çelik boru Ø60 · 3 mm", q: "1.200 m" },
+                  { n: "Dirsek 90° · Ø60", q: "80 adet" },
+                  { n: "Flanş DN50 PN16", q: "40 adet" },
+                ].map((it) => (
+                  <div key={it.n} className="flex items-center gap-2.5 rounded-lg bg-white px-3 py-2 ring-1 ring-zinc-200">
+                    <span className="size-1.5 rounded-full bg-violet-400" />
+                    <span className="flex-1 truncate text-xs text-zinc-700">{it.n}</span>
+                    <span className="text-xs font-semibold tabular-nums text-zinc-900">{it.q}</span>
                   </div>
+                ))}
+                <div className="flex items-center justify-between rounded-lg bg-violet-50 px-3 py-2 ring-1 ring-violet-200">
+                  <span className="text-xs text-violet-800">Kategori önerisi</span>
+                  <span className="text-xs font-semibold text-violet-800">Boru ve bağlantı parçaları</span>
                 </div>
               </div>
-              <span className="mt-5 inline-flex w-fit rounded-lg bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700">
-                Satış
-              </span>
-              <h3 className="mt-3 text-lg font-semibold text-zinc-950">
-                Ürün vitrini
-              </h3>
-              <p className="mt-1.5 text-sm/6 text-zinc-600">
-                Ürünlerini yayımla; alıcılar bulsun, bilgi talebi göndersin.
-              </p>
-            </div>
+            </FormatCard>
 
             {/* Onay akışları */}
-            <div className="flex flex-col rounded-3xl bg-white p-6 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-lg">
-              <div className="space-y-1.5 rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-100">
-                <div className="flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
-                  <span className="flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white">
-                    <CheckIcon className="size-3" />
-                  </span>
-                  <span className="text-xs font-medium text-zinc-700">
-                    Satın Almacı
-                  </span>
-                  <span className="ml-auto text-xs text-zinc-500">
-                    Talep açtı
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 rounded-md bg-white px-2.5 py-1.5 ring-1 ring-zinc-100">
-                  <span className="flex size-4 items-center justify-center rounded-full bg-emerald-500 text-white">
-                    <CheckIcon className="size-3" />
-                  </span>
-                  <span className="text-xs font-medium text-zinc-700">
-                    Onaylayıcı
-                  </span>
-                  <span className="ml-auto text-xs text-zinc-500">
-                    Onayladı
-                  </span>
-                </div>
-                <div className="flex items-center gap-2 rounded-md bg-violet-50 px-2.5 py-1.5 ring-1 ring-violet-200">
-                  <span className="flex size-4 items-center justify-center">
-                    <span className="size-2 animate-pulse rounded-full bg-violet-500" />
-                  </span>
-                  <span className="text-xs font-medium text-violet-800">
-                    Yönetici
-                  </span>
-                  <span className="ml-auto text-xs font-semibold text-violet-700">
-                    Bekliyor
-                  </span>
-                </div>
+            <FormatCard tag="Onay akışı" tagTone="violet" title="Onay zinciri" body="Tutara ve türe göre kural kur; kazandırma öncesi doğru kişilerden sırayla onay al.">
+              <div className="space-y-2">
+                {[
+                  { n: "Satın Almacı", r: "Talep açtı", done: true },
+                  { n: "Onaylayıcı", r: "Onayladı", done: true },
+                  { n: "Yönetici", r: "Bekliyor", done: false },
+                ].map((st) => (
+                  <div key={st.n} className={`flex items-center gap-2.5 rounded-lg px-3 py-2.5 ring-1 ${st.done ? "bg-white ring-zinc-200" : "bg-violet-50 ring-violet-200"}`}>
+                    <span className={`flex size-6 items-center justify-center rounded-full ${st.done ? "bg-emerald-500 text-white" : "bg-violet-500 text-white"}`}>
+                      {st.done ? <CheckIcon className="size-3.5" /> : <span className="size-2 rounded-full bg-white" />}
+                    </span>
+                    <span className={`flex-1 text-sm font-medium ${st.done ? "text-zinc-800" : "text-violet-800"}`}>{st.n}</span>
+                    <span className={`text-xs ${st.done ? "text-zinc-500" : "font-semibold text-violet-700"}`}>{st.r}</span>
+                  </div>
+                ))}
               </div>
-              <span className="mt-5 inline-flex w-fit rounded-lg bg-violet-50 px-2.5 py-1 text-xs font-semibold text-violet-700">
-                Onay akışı
-              </span>
-              <h3 className="mt-3 text-lg font-semibold text-zinc-950">
-                Onay zinciri
-              </h3>
-              <p className="mt-1.5 text-sm/6 text-zinc-600">
-                Tutara ve türe göre kural kur; kazandırma öncesi doğru kişilerden
-                sırayla onay al.
-              </p>
-            </div>
+            </FormatCard>
           </div>
         </div>
       </section>
 
       {/* Üyelik */}
-      <section id="fiyatlar" className="scroll-mt-24 py-24 sm:py-32">
+      <section id="fiyatlar" className="relative isolate scroll-mt-24 overflow-hidden bg-white py-24 sm:py-32">
+        <SoftBlobs flip />
         <div className="mx-auto max-w-4xl px-6 text-center lg:px-8">
-          <h2 className="text-base/7 font-semibold text-zinc-500">Fiyatlar</h2>
-          <p className="mt-2 text-4xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-            Her ölçeğe uygun paket
+          <div className="flex items-center justify-center gap-3 text-xs font-semibold tracking-[0.2em] text-blue-600 uppercase">
+            <span aria-hidden className="h-px w-8 bg-blue-600" />
+            İşiniz için daha fazla fırsat
+            <span aria-hidden className="h-px w-8 bg-blue-600" />
+          </div>
+          <p className="mt-3 text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
+            Planlar ve Fiyatlandırma
           </p>
+          <p className="mt-4 text-lg/8 text-zinc-600">Ticaret hedeflerinize en uygun planı seçin, hemen başlayın.</p>
         </div>
-        <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-stretch gap-6 px-6 sm:mt-20 lg:max-w-7xl lg:grid-cols-4 lg:px-8">
-          {pricingTiers.map((tier) => (
-            <div
-              key={tier.name}
-              className={`flex flex-col rounded-3xl border-t-4 bg-white p-8 ring-1 ring-zinc-200 transition hover:-translate-y-1 hover:shadow-xl ${tier.accent.top}`}
-            >
-              <span
-                className={`w-fit rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset ${tier.accent.pill}`}
+        <div className="mx-auto mt-16 grid max-w-lg grid-cols-1 items-stretch gap-6 px-6 sm:mt-20 lg:max-w-7xl lg:grid-cols-3 lg:px-8">
+          {pricingTiers.map((tier) => {
+            const popular = tier.slug === "silver";
+            const ring =
+              tier.tone === "blue" ? "ring-2 ring-blue-500" : tier.tone === "amber" ? "ring-2 ring-amber-300" : "ring-1 ring-zinc-200";
+            const iconBox =
+              tier.tone === "blue" ? "bg-blue-50 text-blue-600" : tier.tone === "amber" ? "bg-amber-50 text-amber-600" : "bg-zinc-100 text-zinc-700";
+            const check =
+              tier.tone === "blue" ? "bg-blue-100 text-blue-700" : tier.tone === "amber" ? "bg-amber-100 text-amber-700" : "bg-zinc-100 text-zinc-600";
+            return (
+              <div
+                key={tier.slug}
+                className={`relative flex flex-col rounded-3xl bg-white p-8 transition hover:-translate-y-1 hover:shadow-xl ${ring}`}
               >
-                {tier.name}
-              </span>
-              <p className="mt-5 flex items-baseline gap-x-2">
-                {tier.price === null ? (
-                  <span className="text-4xl font-semibold tracking-tight text-zinc-950">
-                    Ücretsiz
+                {popular ? (
+                  <span className="absolute -top-4 left-1/2 inline-flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-blue-600 px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap text-white shadow-md">
+                    <TrophyIcon className="size-3.5 text-amber-300" /> En popüler
                   </span>
-                ) : (
-                  <>
-                    <span className="text-4xl font-semibold tracking-tight text-zinc-950">
-                      ${tier.price}
-                    </span>
-                    <span className="text-sm text-zinc-500">/ay</span>
-                  </>
-                )}
-              </p>
-              <p className="mt-1 text-xs text-zinc-500">
-                {tier.price === null ? "sonsuza dek" : "yıllık ödemede"}
-              </p>
-              <p className="mt-4 text-sm/6 text-zinc-600">{tier.tagline}</p>
-              <ul
-                role="list"
-                className="mt-6 flex-1 space-y-3 text-sm/6 text-zinc-600"
-              >
-                {tier.features.map((f) => (
-                  <li key={f} className="flex gap-x-3">
-                    <CheckIcon
-                      aria-hidden="true"
-                      className={`h-6 w-5 flex-none ${tier.accent.check}`}
-                    />
-                    <span>{f}</span>
-                  </li>
-                ))}
-              </ul>
-              <Link
-                href="/company/kayit"
-                className={
-                  tier.price === null
-                    ? "mt-8 block rounded-lg px-3.5 py-2.5 text-center text-sm font-semibold text-zinc-950 ring-1 ring-inset ring-zinc-300 transition hover:bg-zinc-50 hover:ring-zinc-400"
-                    : "mt-8 block rounded-lg bg-blue-600 px-3.5 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
-                }
-              >
-                {tier.cta}
-              </Link>
-            </div>
-          ))}
+                ) : null}
+                <div className="flex items-center gap-3">
+                  <span className={`flex size-14 items-center justify-center rounded-full ${iconBox}`}>
+                    <tier.icon className="size-7" />
+                  </span>
+                  <div>
+                    <div className="text-lg font-semibold text-zinc-950">{tier.name}</div>
+                    <div className="text-sm text-zinc-500">{tier.subtitle}</div>
+                  </div>
+                </div>
+                <p className="mt-6 flex items-baseline gap-x-2">
+                  {tier.price === null ? (
+                    <span className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">Ücretsiz</span>
+                  ) : (
+                    <>
+                      <span className="text-4xl font-bold tracking-tight text-zinc-950 sm:text-5xl">${tier.price}</span>
+                      <span className="text-base text-zinc-500">/ay</span>
+                    </>
+                  )}
+                </p>
+                <p className="mt-1 text-sm text-zinc-500">{tier.price === null ? "Sonsuza dek" : "yıllık ödemede"}</p>
+                <p className="mt-5 border-b border-zinc-200 pb-5 text-sm/6 text-zinc-600">{tier.tagline}</p>
+                <ul role="list" className="mt-5 flex-1 space-y-3 text-sm/6 text-zinc-700">
+                  {tier.features.map((f) => (
+                    <li key={f} className="flex gap-x-3">
+                      <span className={`mt-0.5 flex size-5 flex-none items-center justify-center rounded-full ${check}`}>
+                        <CheckIcon aria-hidden="true" className="size-3.5" />
+                      </span>
+                      <span>{f}</span>
+                    </li>
+                  ))}
+                </ul>
+                <Link
+                  href="/company/kayit"
+                  className={
+                    tier.price === null
+                      ? "mt-8 flex items-center justify-center gap-2 rounded-lg px-3.5 py-3 text-center text-sm font-semibold text-zinc-950 ring-1 ring-inset ring-zinc-300 transition hover:bg-zinc-50 hover:ring-zinc-400"
+                      : "mt-8 flex items-center justify-center gap-2 rounded-lg bg-blue-600 px-3.5 py-3 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
+                  }
+                >
+                  {tier.cta} <ArrowRightIcon className="size-4" />
+                </Link>
+              </div>
+            );
+          })}
         </div>
-        <p className="mx-auto mt-8 max-w-2xl px-6 text-center text-xs text-zinc-500">
-          {PRICING_NOTE}
-        </p>
+        <p className="mx-auto mt-8 max-w-2xl px-6 text-center text-xs text-zinc-500">{PRICING_NOTE}</p>
+        <div className="mx-auto mt-10 flex max-w-4xl flex-wrap items-center justify-center gap-x-10 gap-y-3 px-6 text-sm text-zinc-600">
+          <span className="inline-flex items-center gap-2"><ShieldCheckIcon className="size-5 text-zinc-500" /> Güvenli ve şeffaf platform</span>
+          <span className="inline-flex items-center gap-2"><UsersIcon className="size-5 text-zinc-500" /> Alıcı ve tedarikçi tek hesapta</span>
+          <span className="inline-flex items-center gap-2"><ChartBarIcon className="size-5 text-zinc-500" /> Daha fazla iş fırsatı</span>
+        </div>
       </section>
 
       {/* SSS — ortalı başlık + çok kolonlu Q&A kartları */}
