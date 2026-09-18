@@ -36,15 +36,6 @@ const PRICE_MODE_LABEL: Record<CatalogItem["priceMode"], string> = {
   ON_REQUEST: "Teklif isteyin",
 };
 
-/** Seçili durum hapı — rozet renkleriyle aynı sözlük (dolgulu). */
-const PILL_ON: Record<"zinc" | "amber" | "emerald" | "red" | "blue", string> = {
-  zinc: "bg-zinc-700 text-white",
-  amber: "bg-amber-500 text-white",
-  emerald: "bg-emerald-600 text-white",
-  red: "bg-red-600 text-white",
-  blue: "bg-blue-600 text-white",
-};
-
 type ProductTab = "all" | "published" | "pending" | "rejected" | "draft";
 const TAB_KEYS: ProductTab[] = ["all", "published", "pending", "rejected", "draft"];
 
@@ -283,13 +274,12 @@ export function ProductsView() {
 
 
       {/* DURUM HAPLARI + ARAMA tek satırda (2026-09-18, kullanıcı: "üstteki
-          büyük kutuları kaldır"). Hap = süzgeç; seçili olan durum renginde
-          (Tümü mavi), sayaç rozeti içinde. Sayaçlar firma geneli, MECE. */}
+          büyük kutuları kaldır"). Hap = süzgeç; seçili olan portal renginde
+          (emerald), sayaç rozeti içinde. Sayaçlar firma geneli, MECE. */}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Ürün durumu">
           {tabs.map((t) => {
             const active = tab === t.key;
-            const color = t.key === "all" ? "blue" : PRODUCT_STATUS[t.key].color;
             return (
               <button
                 key={t.key}
@@ -299,7 +289,11 @@ export function ProductsView() {
                 onClick={() => setTab(t.key)}
                 className={cn(
                   "inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition",
-                  active ? PILL_ON[color] : "bg-white text-zinc-600 ring-1 ring-zinc-950/10 hover:ring-zinc-950/30",
+                  // Satış portalı: seçili ve hover YEŞİL (2026-09-19, kullanıcı:
+                  // "üstüne gelince mavi ama yeşil olmalı"); durum rengi rozette kalır.
+                  active
+                    ? "bg-emerald-600 text-white"
+                    : "bg-white text-zinc-600 ring-1 ring-zinc-950/10 hover:bg-emerald-50 hover:text-emerald-800 hover:ring-emerald-600/30",
                 )}
               >
                 {t.label}
