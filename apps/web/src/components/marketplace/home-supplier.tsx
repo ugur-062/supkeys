@@ -1,3 +1,5 @@
+"use client";
+
 import { ListingTeaserRow } from "./listing-teaser-row";
 import { CompanyCard } from "./company-card";
 import { useAudience } from "./audience-switch";
