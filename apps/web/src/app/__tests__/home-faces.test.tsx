@@ -166,6 +166,39 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     );
   });
 
+  it("TEDARİKÇİ yüzünde 'Firma' pili talep listesini FİRMA listesine çevirir (2026-09-19 bulgu: değişmiyordu)", async () => {
+    const user = userEvent.setup();
+    render(
+      <AudienceProvider>
+        <HomeHero />
+        <HomeSupplier
+          demands={[demand(1), demand(2), demand(3)] as any}
+          total={16}
+          companies={[
+            {
+              name: "Alıcı Firma", slug: "alici-firma", city: "İzmir", country: "TR", industry: null,
+              activities: [], logoUrl: null, verified: true, mainCategory: null, productCount: 0,
+              productPreview: [], topCategories: [], fastReply: false,
+            } as any,
+          ]}
+          companiesTotal={3}
+        />
+      </AudienceProvider>,
+    );
+    await user.click(screen.getByRole("radio", { name: "Tedarikçiyim" }));
+    const firmalar = document.getElementById("firmalar")!;
+    const talepler = screen.getByRole("heading", { name: /Alıcılar şu an/ }).closest("section")!;
+    expect(firmalar).toHaveAttribute("hidden");
+    expect(talepler).not.toHaveAttribute("hidden");
+    await user.click(screen.getByRole("button", { name: "Firma" }));
+    expect(firmalar).not.toHaveAttribute("hidden");
+    expect(talepler).toHaveAttribute("hidden");
+    expect(within(firmalar).getByText("Alıcı Firma")).toBeInTheDocument();
+    expect(within(firmalar).getByRole("link", { name: /Tümünü gör/ })).toHaveAttribute("href", "/firmalar");
+    await user.click(screen.getByRole("button", { name: "Talep" }));
+    expect(firmalar).toHaveAttribute("hidden");
+  });
+
   it("TEDARİKÇİ gövdesi: talep kartı alıcı adını ve kalem adlarını TAŞIMAZ", () => {
     render(<HomeSupplier demands={[demand(1), demand(2), demand(3)] as any} total={16} />);
     const list = screen.getByRole("heading", { name: /Alıcılar şu an/ }).closest("section")!;

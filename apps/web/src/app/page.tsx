@@ -128,7 +128,12 @@ export default async function HomePage() {
         </AudienceOnly>
 
         <AudienceOnly side="supplier">
-          <HomeSupplier demands={demandCards} total={demands.total} />
+          <HomeSupplier
+            demands={demandCards}
+            total={demands.total}
+            companies={directory.items}
+            companiesTotal={directory.total}
+          />
         </AudienceOnly>
 
         {/* SEO paragrafı — iki cümle, sayfanın ne olduğunu düz metinle söyler. */}
