@@ -90,7 +90,7 @@ export function SupplierPicker({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]" aria-busy>
+      <div className="grid grid-cols-1 gap-4 @4xl:grid-cols-[minmax(0,1fr)_18rem]" aria-busy>
         <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
         <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
       </div>
@@ -106,7 +106,10 @@ export function SupplierPicker({
 
   const TH = "px-3 py-2.5 text-left text-xs font-medium text-zinc-500";
   return (
-    <div className="grid grid-cols-1 gap-4 lg:grid-cols-[minmax(0,1fr)_20rem]">
+    /* KAPSAYICI SORGUSU: form sütunu dar (≈800 px) → sağ panel ancak
+       kapsayıcı 56 rem'i geçince yana çıkar; sütunlar da kapsayıcıya göre
+       gizlenir (viewport'a değil). */
+    <div className="@container grid grid-cols-1 gap-4 @4xl:grid-cols-[minmax(0,1fr)_18rem]">
       {/* SOL — aday listesi */}
       <section aria-label="Davet edilecek firmalar" className="min-w-0 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5 sm:p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
@@ -145,9 +148,9 @@ export function SupplierPicker({
                   <span className="sr-only">Seç</span>
                 </th>
                 <th scope="col" className={TH}>Firma</th>
-                <th scope="col" className={cn(TH, "hidden md:table-cell")}>Şehir</th>
-                <th scope="col" className={cn(TH, "hidden lg:table-cell")}>Sektör</th>
-                <th scope="col" className={cn(TH, "hidden xl:table-cell")}>Firma türü</th>
+                <th scope="col" className={cn(TH, "hidden @md:table-cell")}>Şehir</th>
+                <th scope="col" className={cn(TH, "hidden @2xl:table-cell")}>Sektör</th>
+                <th scope="col" className={cn(TH, "hidden @3xl:table-cell")}>Firma türü</th>
                 <th scope="col" className="w-8" />
               </tr>
             </thead>
@@ -182,13 +185,13 @@ export function SupplierPicker({
                               </span>
                             ) : null}
                           </span>
-                          <span className="block truncate text-xs text-zinc-500 md:hidden">{[c.company.city, c.company.industry].filter(Boolean).join(" · ")}</span>
+                          <span className="block truncate text-xs text-zinc-500 @md:hidden">{[c.company.city, c.company.industry].filter(Boolean).join(" · ")}</span>
                         </span>
                       </span>
                     </td>
-                    <td className="hidden px-3 py-2.5 text-zinc-600 md:table-cell">{c.company.city ?? "—"}</td>
-                    <td className="hidden max-w-[12rem] truncate px-3 py-2.5 text-zinc-600 lg:table-cell">{c.company.industry ?? "—"}</td>
-                    <td className="hidden px-3 py-2.5 xl:table-cell">
+                    <td className="hidden px-3 py-2.5 text-zinc-600 @md:table-cell">{c.company.city ?? "—"}</td>
+                    <td className="hidden max-w-[12rem] truncate px-3 py-2.5 text-zinc-600 @2xl:table-cell">{c.company.industry ?? "—"}</td>
+                    <td className="hidden px-3 py-2.5 @3xl:table-cell">
                       {act ? <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">{companyActivityLabel(act)}</span> : <span className="text-zinc-400">—</span>}
                     </td>
                     <td className="px-2 py-2.5 text-zinc-400">
@@ -223,7 +226,7 @@ export function SupplierPicker({
       </section>
 
       {/* SAĞ — seçilenler */}
-      <aside aria-label="Seçilen firmalar" className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5 sm:p-5 lg:sticky lg:top-24 lg:self-start">
+      <aside aria-label="Seçilen firmalar" className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5 sm:p-5 @4xl:sticky @4xl:top-24 @4xl:self-start">
         <h4 className="flex items-center gap-2 text-base font-semibold text-zinc-950">
           Seçilen firmalar
           <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-blue-700">{selected.length}</span>
@@ -322,7 +325,7 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
       value={value}
       onChange={(e) => onChange(e.target.value)}
       aria-label={label}
-      className="rounded-xl border border-zinc-300 bg-white py-2 pr-8 pl-3 text-sm text-zinc-700 shadow-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
+      className="min-w-[8.5rem] rounded-xl border border-zinc-300 bg-white py-2 pr-8 pl-3 text-sm text-zinc-700 shadow-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
     >
       <option value="">{label}</option>
       {options.map((o) => (

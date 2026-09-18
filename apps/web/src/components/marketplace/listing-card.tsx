@@ -10,6 +10,14 @@ import {
   type PublicListingState,
 } from "@/lib/public/marketplace";
 import { cn } from "@/lib/utils";
+import {
+  CalendarDaysIcon,
+  DocumentTextIcon,
+  InformationCircleIcon,
+  PaperAirplaneIcon,
+  TagIcon,
+  UsersIcon,
+} from "@heroicons/react/20/solid";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import {
   BuildingOffice2Icon,
@@ -86,6 +94,8 @@ export interface ListingCardData {
   leading?: ReactNode;
   /** Row: "Kalemler" açılır paneli. */
   expandable?: { id: string; render: () => ReactNode } | null;
+  /** Row: sağ üst ⋮ menüsü (isteğe bağlı). */
+  menu?: ReactNode;
 }
 
 export const ROW_FOCUS =
@@ -182,6 +192,27 @@ function PanelTile({
 /* PANEL — row                                                          */
 /* ------------------------------------------------------------------ */
 
+/** Sütun etiketi → ikon + ton (mockup 2026-09-19: her metrik ikon karosuyla). */
+function factIcon(label: string): { Icon: typeof DocumentTextIcon; tone: string; value: string } {
+  const l = label.toLocaleLowerCase("tr");
+  if (l.includes("kapan")) return { Icon: CalendarDaysIcon, tone: "bg-rose-50 text-rose-600", value: "text-rose-600" };
+  if (l.includes("firma") || l.includes("alıcı") || l.includes("sahib")) return { Icon: BuildingOffice2Icon, tone: "bg-slate-100 text-slate-600", value: "" };
+  if (l.includes("kalem")) return { Icon: DocumentTextIcon, tone: "bg-slate-100 text-slate-600", value: "" };
+  if (l.includes("kapsam")) return { Icon: MapPinIcon, tone: "bg-slate-100 text-slate-600", value: "" };
+  if (l.includes("kategori")) return { Icon: TagIcon, tone: "bg-slate-100 text-slate-600", value: "text-blue-700" };
+  if (l.includes("davet") || l.includes("teklif")) return { Icon: UsersIcon, tone: "bg-slate-100 text-slate-600", value: "" };
+  return { Icon: InformationCircleIcon, tone: "bg-slate-100 text-slate-600", value: "" };
+}
+
+/**
+ * TALEP SATIRI v3 (2026-09-19, kullanıcı mockup'ı "alım talep boxlarını bu
+ * şekilde yap"): sol kenar portal renginde kalın şerit; başlıkta belge
+ * ikonu karosu (portal tonu) + numara pili + büyük başlık + eşleşme çipleri;
+ * sağ üstte durum pili (+ menü varsa ⋮). Metrik şeridi ikon karolu sütunlar
+ * (Firma · Kalem · Kapsam · Kapanış · Kategori) dikey ayraçlarla; kapanış
+ * kırmızı, kalan süre pil olarak altında. Altta "Detayları göster" oku ve
+ * sağda büyük dolgulu "Teklif ver". `dense` (pano widget'ı) eski tek satır.
+ */
 function PanelRow({
   data: d,
   dense,
@@ -199,6 +230,72 @@ function PanelRow({
   // değiştirmesin.
   const go = () => router.push(d.href);
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
+  const tone =
+    accent === "emerald"
+      ? { strip: "border-l-emerald-500", tile: "bg-emerald-50 text-emerald-600" }
+      : { strip: "border-l-blue-500", tile: "bg-blue-50 text-blue-600" };
+  // Kalan süre notu Kapanış sütununun ALTINA pil olarak iner (mockup); o
+  // sütun yoksa durumun yanında kalır.
+  const closingIdx = d.facts.findIndex((f) => f.label.toLocaleLowerCase("tr").includes("kapan"));
+  const noteUnderClosing = !dense && closingIdx >= 0 && !!d.timeNote;
+
+  if (dense) {
+    return (
+      <div
+        onClick={go}
+        data-liste-satiri="1"
+        className={cn(
+          "group/row cursor-pointer rounded-lg border-l-[3px] bg-white ring-1 ring-slate-200 transition-all hover:shadow-sm hover:ring-slate-300",
+          d.strip ?? "border-l-slate-300",
+          className,
+        )}
+      >
+        <div className="px-3 py-2">
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex min-w-0 items-start gap-2">
+              {d.leading}
+              <Link href={d.href} onClick={stop} className={cn("min-w-0 rounded", ROW_FOCUS)}>
+                <span className="inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] tabular-nums leading-tight text-zinc-600">
+                  {d.number ?? "—"}
+                </span>
+                <span className="mt-1 line-clamp-1 text-[13px] font-semibold leading-tight text-slate-900 transition-colors group-hover/row:text-slate-600" title={d.title}>
+                  {d.title}
+                </span>
+              </Link>
+            </div>
+            <div className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
+              <span className={cn("whitespace-nowrap rounded border px-1.5 py-0.5 text-[10px] font-semibold leading-none", d.status.className)}>
+                {d.status.label}
+              </span>
+              {d.timeNote ? <span className="whitespace-nowrap text-[10px] text-slate-600">{d.timeNote}</span> : null}
+            </div>
+          </div>
+          <p className="mt-1 truncate text-[12px] text-slate-500">
+            {d.facts.slice(0, 2).map((f, i) => (
+              <span key={f.label}>
+                {i > 0 ? " · " : ""}
+                {f.value}
+              </span>
+            ))}
+          </p>
+          {d.metric || d.action ? (
+            <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-slate-500">
+              {d.metric ? (
+                <span className="truncate">
+                  {d.metric.label}: <span className="font-semibold text-slate-800">{d.metric.value}</span>
+                </span>
+              ) : <span />}
+              {d.action ? (
+                <Link href={d.action.href} onClick={stop} className={cn("inline-flex shrink-0 items-center rounded-lg px-3 py-1 text-xs font-semibold text-white shadow-sm", accentFillClass(accent), ROW_FOCUS)}>
+                  {d.action.label}
+                </Link>
+              ) : null}
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div
@@ -209,85 +306,69 @@ function PanelRow({
        * gerçek başlık bağlantısı.
        */
       onClick={go}
-      /* Testlerin ve otomasyonun kart kökünü bulması için kararlı kanca
-         (eskiden `role="row"` bu işi görüyordu ama geçersiz ARIA'ydı). */
       data-liste-satiri="1"
       className={cn(
-        "group/row cursor-pointer rounded-lg border-l-[3px] bg-white ring-1 ring-slate-200 transition-all hover:shadow-sm hover:ring-slate-300",
-        d.strip ?? "border-l-slate-300",
+        "group/row cursor-pointer rounded-2xl border-l-4 bg-white shadow-sm ring-1 ring-zinc-950/5 transition-all hover:shadow-md hover:ring-zinc-950/10",
+        d.strip ?? tone.strip,
         className,
       )}
     >
-      <div className={cn("px-3", dense ? "py-2" : "py-2.5")}>
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex min-w-0 items-start gap-2">
+      <div className="px-5 pt-5 pb-4 sm:px-6">
+        {/* BAŞLIK */}
+        <div className="flex items-start justify-between gap-4">
+          <div className="flex min-w-0 items-start gap-4">
             {d.leading}
+            <span aria-hidden className={cn("mt-0.5 flex size-12 shrink-0 items-center justify-center rounded-xl", tone.tile)}>
+              <DocumentTextIcon className="size-6" />
+            </span>
             <Link href={d.href} onClick={stop} className={cn("min-w-0 rounded", ROW_FOCUS)}>
-              <span className="inline-flex rounded bg-zinc-100 px-1.5 py-0.5 text-[10px] tabular-nums leading-tight text-zinc-600">
-                {d.number ?? "—"}
-              </span>
-              <span
-                className={cn(
-                  "mt-1 text-[13px] font-semibold leading-tight text-slate-900 transition-colors group-hover/row:text-slate-600",
-                  dense ? "line-clamp-1" : "line-clamp-2",
-                )}
-                title={d.title}
-              >
+              <span className="inline-flex rounded-md bg-zinc-100 px-2 py-0.5 text-xs tabular-nums text-zinc-600">{d.number ?? "—"}</span>
+              <span className="mt-1.5 line-clamp-2 text-lg font-semibold leading-snug text-zinc-950 transition-colors group-hover/row:text-zinc-700" title={d.title}>
                 {d.title}
               </span>
-              {d.chips && !dense ? (
-                <span className="mt-1 flex flex-wrap gap-1">{d.chips}</span>
-              ) : null}
+              {d.chips ? <span className="mt-2 flex flex-wrap gap-1.5">{d.chips}</span> : null}
             </Link>
           </div>
-          <div className="flex shrink-0 flex-col items-end gap-1 pt-0.5">
-            <span
-              className={cn(
-                "whitespace-nowrap rounded border px-1.5 py-0.5 text-[10px] font-semibold leading-none",
-                d.status.className,
-              )}
-            >
-              {d.status.label}
-            </span>
-            {d.timeNote ? (
-              <span className="whitespace-nowrap text-[10px] text-slate-600">{d.timeNote}</span>
-            ) : null}
+          <div className="flex shrink-0 items-start gap-1">
+            <div className="flex flex-col items-end gap-1">
+              <span className={cn("whitespace-nowrap rounded-full border px-3 py-1 text-xs font-semibold", d.status.className)}>{d.status.label}</span>
+              {d.timeNote && !noteUnderClosing ? <span className="whitespace-nowrap text-[11px] text-slate-600">{d.timeNote}</span> : null}
+            </div>
+            {d.menu ? <span onClick={stop}>{d.menu}</span> : null}
           </div>
         </div>
 
-        {dense ? (
-          // Tek satır özet: ilk iki sütun inline.
-          <p className="mt-1 truncate text-[12px] text-slate-500">
-            {d.facts.slice(0, 2).map((f, i) => (
-              <span key={f.label}>
-                {i > 0 ? " · " : ""}
-                {f.value}
-              </span>
-            ))}
-          </p>
-        ) : d.facts.length > 0 ? (
-          <dl className="mt-3 grid grid-cols-2 gap-x-4 gap-y-2 sm:grid-cols-3 lg:grid-cols-6">
-            {d.facts.map((f) => (
-              <div key={f.label} className="min-w-0">
-                {/* 10px etiket: beyazda slate-400 = 2,56:1 (a11y 2026-09-12) → slate-600. */}
-                <dt className="block text-[10px] font-semibold uppercase tracking-wide leading-tight text-slate-600">
-                  {f.label}
-                </dt>
-                <dd className="mt-0.5 min-w-0 text-[13px] leading-tight text-slate-800">
-                  {f.value}
-                </dd>
-              </div>
-            ))}
+        {/* METRİK ŞERİDİ */}
+        {d.facts.length > 0 ? (
+          <dl className="mt-4 grid grid-cols-2 gap-y-4 border-t border-zinc-950/5 pt-4 sm:grid-cols-3 lg:grid-cols-5 lg:gap-y-0 lg:divide-x lg:divide-zinc-950/5">
+            {d.facts.map((f, i) => {
+              const { Icon, tone: iconTone, value } = factIcon(f.label);
+              return (
+                <div key={f.label} className={cn("flex min-w-0 items-start gap-3", i > 0 && "lg:pl-5")}>
+                  <span aria-hidden className={cn("flex size-10 shrink-0 items-center justify-center rounded-full", iconTone)}>
+                    <Icon className="size-5" />
+                  </span>
+                  <span className="min-w-0">
+                    <dt className="text-[11px] font-semibold uppercase tracking-wide text-slate-500">{f.label}</dt>
+                    <dd className={cn("mt-0.5 min-w-0 text-[15px] font-semibold leading-tight text-zinc-900", value)}>{f.value}</dd>
+                    {noteUnderClosing && i === closingIdx ? (
+                      <dd className="mt-1.5 inline-flex items-center gap-1 rounded-full bg-rose-50 px-2 py-0.5 text-[11px] font-medium text-rose-700">
+                        <ClockIcon aria-hidden className="size-3.5" />
+                        {d.timeNote}
+                      </dd>
+                    ) : null}
+                  </span>
+                </div>
+              );
+            })}
           </dl>
         ) : null}
 
-        {d.metric || d.action || (d.expandable && !dense) ? (
-          /* ALT SATIR DÜZENİ (2026-09-17, kullanıcı kararı): kalem oku EN SOLDA,
-             "Teklif ver" EN SAĞDA ve daha büyük. Eskiden ikisi sağda yan yanaydı
-             ve eylem 11 px'ti — gözden kaçıyordu. Teklifim metriği ortada kalır. */
-          <div className="mt-2 flex items-center justify-between gap-3 text-[11px] text-slate-500">
+        {/* ALT SATIR: detay oku solda, metrik ortada, eylem sağda */}
+        {d.metric || d.action || d.expandable ? (
+          <div className="mt-4 flex items-center justify-between gap-3 text-sm text-slate-600">
             <span className="flex min-w-0 items-center gap-4">
-              {d.expandable && !dense ? (
+              {d.expandable ? (
                 <button
                   type="button"
                   onClick={(e) => {
@@ -297,20 +378,10 @@ function PanelRow({
                   aria-expanded={expanded}
                   aria-controls={d.expandable.id}
                   aria-label={expanded ? "Kalemleri gizle" : "Kalemleri göster"}
-                  title={expanded ? "Kalemleri gizle" : "Kalemleri göster"}
-                  className={cn(
-                    /* Yalnız ok (2026-09-17, kullanıcı kararı): "Kalemler" yazısı
-                       yok; ok bir tık büyük ve belirgin (size-5, koyu gri,
-                       hover'da açık zemin), abartısız. */
-                    "inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100 hover:text-slate-900",
-                    ROW_FOCUS,
-                  )}
+                  className={cn("inline-flex items-center gap-2 rounded-md px-1 py-1 text-sm text-slate-600 hover:text-slate-900", ROW_FOCUS)}
                 >
-                  <ChevronDownIcon
-                    aria-hidden
-                    strokeWidth={2.25}
-                    className={cn("size-5 transition-transform", expanded && "rotate-180")}
-                  />
+                  <ChevronDownIcon aria-hidden strokeWidth={2.25} className={cn("size-5 transition-transform", expanded && "rotate-180")} />
+                  {expanded ? "Detayları gizle" : "Detayları göster"}
                 </button>
               ) : null}
               {d.metric ? (
@@ -323,15 +394,13 @@ function PanelRow({
               <Link
                 href={d.action.href}
                 onClick={stop}
-                /* DÜĞME GİBİ (2026-09-17, kullanıcı kararı): dolgulu, portal
-                   renginde (satışta emerald; kabuk dışında mavi). Satır
-                   tıklaması yayılmaz (`stop`). */
                 className={cn(
-                  "inline-flex shrink-0 items-center rounded-lg px-3.5 py-1.5 text-sm font-semibold text-white shadow-sm transition",
+                  "inline-flex shrink-0 items-center gap-2 rounded-xl px-5 py-2.5 text-sm font-semibold text-white shadow-sm transition",
                   accentFillClass(accent),
                   ROW_FOCUS,
                 )}
               >
+                <PaperAirplaneIcon aria-hidden className="size-4 -rotate-45" />
                 {d.action.label}
               </Link>
             ) : null}
@@ -340,7 +409,7 @@ function PanelRow({
       </div>
 
       {expanded && d.expandable ? (
-        <div id={d.expandable.id} onClick={stop} className="border-t border-slate-100 px-4 py-3">
+        <div id={d.expandable.id} onClick={stop} className="border-t border-zinc-950/5 px-5 py-4 sm:px-6">
           {d.expandable.render()}
         </div>
       ) : null}

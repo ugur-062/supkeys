@@ -681,7 +681,8 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
             {audience ? <p className="mt-3 text-xs text-zinc-600">{audience}</p> : null}
             {visibility === "PRIVATE" || visibility === "CONNECTIONS" ? (
               <div className="mt-4">
-                <p className="mb-2 text-sm font-medium text-zinc-950">{visibility === "PRIVATE" ? "Davet edilecek firmalar" : "Ayrıca davet et (isteğe bağlı)"}</p>
+                {/* PRIVATE'ta başlık seçicinin kendi panelinde — tekrar edilmez. */}
+                {visibility === "CONNECTIONS" ? <p className="mb-2 text-sm font-medium text-zinc-950">Ayrıca davet et (isteğe bağlı)</p> : null}
                 <Controller
                   control={form.control}
                   name="invitedSupplierIds"

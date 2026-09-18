@@ -449,6 +449,17 @@ Profilim ve herkese açık profil "Sertifikalar" bölümünü çizmez, düzenlem
 yok; `Company.certifications`/`certificateImages` kolonları duruyor (migration
 yok), kayıt gövdesi göndermez. Pazar yeri kartlarındaki sertifika çipleri
 DOKUNULMADI (ayrı yüzey).
+**TALEP SATIRI v3 (2026-09-19, kullanıcı mockup'ı "alım talep boxlarını bu
+şekilde yap"):** `ListingCard row` (panel satış/satınalma listeleri, firma
+sayfası açık talepleri, herkese açık `ListingTeaserRow`) — sol kenar portal
+renginde kalın şerit (`strip` verilmezse), başlıkta belge ikonu karosu
+(portal tonu) + numara pili + `text-lg` başlık + eşleşme çipleri; sağ üstte
+durum pili (+ `menu` ⋮ isteğe bağlı); metrik şeridi ikon karolu sütunlar
+(`factIcon`: firma/alıcı · kalem · kapsam · kapanış kırmızı + kalan süre pil
+altında · kategori mavi) dikey ayraçlarla; altta "Detayları göster" oku
+(erişilebilir adı yine "Kalemleri göster") ve büyük dolgulu "Teklif ver"
+(uçak ikonu). `dense` pano widget'ı eski tek satır. Kategori FOTOĞRAFI yine
+yok. Sözleşme: `listing-card-footer.test`, `home-faces.test`.
 **Talep satırı alt çizgisi (2026-09-17, kullanıcı kararı):** `ListingCard row`
 alt satırında kalem açma düğmesi EN SOLDA — **yazısız, yalnız aşağı ok**
 (`size-5`, slate-600, hover zemin; erişilebilir adı "Kalemleri göster/gizle"),

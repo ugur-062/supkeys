@@ -208,10 +208,10 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     // Kapalı zarf: kart yalnız ölçek ve kapsam taşır.
     expect(within(list).queryByText(/Firma /)).toBeNull();
     expect(within(list).getAllByText(/şartname ve belgeler üyelere/).length).toBe(3);
-    // SATIR düzeni (2026-09-10): görsel/ikon YOK, her talep tek satır, sütunlar panelle aynı.
+    // SATIR düzeni (2026-09-10): kategori GÖRSELİ yok (v3 2026-09-19: sütun
+    // ikon karoları var, fotoğraf yine yok), sütunlar panelle aynı.
     const rows = list.querySelector("ul")!;
     expect(within(rows).queryAllByRole("img")).toHaveLength(0);
-    expect(rows.querySelector("svg")).toBeNull();
     expect(within(list).getAllByRole("listitem")).toHaveLength(3);
     expect(within(list).getAllByText("Alıcı")).toHaveLength(3);
     const teklif = within(list).getAllByRole("link", { name: "Teklif ver" });
