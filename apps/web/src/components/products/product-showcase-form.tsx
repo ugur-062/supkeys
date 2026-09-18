@@ -9,14 +9,13 @@ import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { productSeo } from "@/lib/seo/entities";
 import { snippetFromMetadata } from "@/lib/seo/snippet";
 import { PRODUCT_STATUS, productStatusKey } from "@/lib/company/product-status";
-import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { cn } from "@/lib/utils";
 import { ImageUploader } from "./image-uploader";
 import { PriceModeField } from "./price-mode-field";
-import { ProductPreviewCard } from "./product-preview";
+import { ProductActionBar } from "./product-action-bar";
+import { ShowcasePanel } from "./showcase-panel";
+import { productPath } from "@rothern/shared";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
-import { Badge } from "@/components/catalyst/badge";
-import { MissingFields } from "@/components/ui/missing-fields";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import {
@@ -29,7 +28,7 @@ import {
   type PriceTier,
   type ProductShowcase,
 } from "@/hooks/use-company-items";
-import { CheckCircleIcon, ExclamationTriangleIcon, XMarkIcon } from "@heroicons/react/20/solid";
+import { EyeIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import {
   COMMON_UNIT_CODES,
   MIN_DESCRIPTION,
@@ -49,6 +48,8 @@ import { toast } from "sonner";
 import { extractErrorMessage } from "@/lib/tenders/error";
 
 const MAX_KEYWORDS = 15;
+/** Yeni üründe kalem kaydı yok — önizleme marka/parça no/şartname olmadan çizilir. */
+const EMPTY_ITEM = { brand: null, mpn: null, specification: null } as const;
 /** Katalog/teknik föy — Europages ürün kartındaki gibi az sayıda, seçilmiş. */
 const MAX_DOCUMENTS = 3;
 
@@ -118,8 +119,6 @@ export function ProductShowcaseForm({
   previewItem?: Pick<CatalogItem, "brand" | "mpn" | "specification">;
 }) {
   const isNew = mode === "new";
-  // Birincil düğme portal renginde (2026-09-17 kuralı: siyah düğme yok).
-  const accent = useButtonAccent();
   // Belge (PDF) ve video PAKETLİ (Silver+): ücretsiz firmada alanlar hiç
   // çizilmez, kısa bir kilit notu çizilir; API de bu alanları dokunmadan bırakır.
   const { company } = useCompanyAuth();
@@ -147,6 +146,8 @@ export function ProductShowcaseForm({
   const [documents, setDocuments] = useState<{ url: string; title: string }[]>(
     product.documents ?? [],
   );
+  // Dar ekranda Vitrin paneli formun üstünde, kapalı doğar.
+  const [previewOpen, setPreviewOpen] = useState(false);
   const docInput = useRef<HTMLInputElement>(null);
 
   const { data: attributeDefs = [] } = useCategoryAttributes(categoryId);
@@ -421,14 +422,56 @@ export function ProductShowcaseForm({
         : "Kaydet";
   const primaryAction = () => void handleSave(status === "draft" || status === "rejected");
 
+  const publicHref =
+    !isNew && product.isPublic && company?.slug && product.slug ? productPath(company.slug, product.slug) : null;
+  const jump = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const unpublish = async () => {
+    if (!window.confirm("Ürün vitrinden çekilecek ve taslağa dönecek; yeniden çıkmak için tekrar onay gerekir. Devam edilsin mi?")) return;
+    await publish.mutateAsync({ id: product.id, publish: false });
+    toast.success("Ürün vitrinden çekildi");
+  };
+
+  /* YAN YANA ÇALIŞMA ALANI (2026-09-18, kullanıcı kararı): üstte yapışkan
+     eylem çubuğu; solda form (5 bölüm), sağda yapışkan Vitrin paneli
+     (Kart | Sayfa canlı önizleme + tamamlanma + öneriler). Dar ekranda panel
+     formun ÜSTÜNDE "Önizleme" anahtarıyla açılır. */
   return (
     <div>
-      {previewItem && !isNew ? (
-        <ProductPreviewCard product={draftShowcase} item={previewItem} className="mb-8" />
+      <ProductActionBar
+        name={name}
+        status={statusMeta}
+        isNew={isNew}
+        dirty={dirty}
+        busy={busy}
+        canManage={canManage}
+        primaryLabel={primaryLabel}
+        onPrimary={primaryAction}
+        primaryDisabled={(status === "draft" || status === "rejected") && publishLocked}
+        draftSave={status === "draft" || status === "rejected" ? () => void handleSave(false) : undefined}
+        unpublish={product.isPublic && !isNew ? () => void unpublish() : undefined}
+        publicHref={publicHref}
+        publishLocked={publishLocked}
+      />
+      {status === "rejected" && product.rejectReason ? (
+        <p className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-600/20">
+          <span className="font-semibold">Düzeltme gerekçesi:</span> {product.rejectReason}
+        </p>
       ) : null}
-      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
-        <div className="min-w-0">
 
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,58fr)_minmax(0,42fr)] xl:gap-10">
+        <div className="min-w-0 lg:order-1">
+          <button
+            type="button"
+            aria-expanded={previewOpen}
+            aria-controls="vitrin-paneli"
+            onClick={() => setPreviewOpen((v) => !v)}
+            className="mb-4 inline-flex items-center gap-1.5 rounded-full border border-zinc-300 bg-white px-3.5 py-1.5 text-sm font-medium text-zinc-800 lg:hidden"
+          >
+            <EyeIcon aria-hidden className="size-4" />
+            {previewOpen ? "Önizlemeyi gizle" : "Önizlemeyi göster"}
+          </button>
           <div className="space-y-10">
             {/* 1 ── TEMEL BİLGİLER */}
             <Section id="urun-temel" n={1} title="Temel bilgiler" lead="Ad, kategori ve açıklama — arama motoru ve alıcı ilk bunları okur.">
@@ -692,136 +735,49 @@ export function ProductShowcaseForm({
           </div>
         </div>
 
-        {/* SAĞ PANEL — TEK KART: durum → tamamlanma → onay için eksikler → düğmeler.
-            Mobilde formun altına iner (grid tek sütun). */}
-        <aside className="lg:sticky lg:top-24 lg:self-start">
-          <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
-            <div className="flex items-center justify-between gap-3">
-              <p className="text-sm font-semibold text-zinc-950">Durum</p>
-              <Badge color={statusMeta.color}>{isNew ? "Yeni" : statusMeta.label}</Badge>
-            </div>
-            <p className="mt-2 text-xs/5 text-zinc-600">
-              {isNew ? "Kaydedince taslak olur; onaya gönderdiğinizde ekibimiz inceler ve vitrine alır." : statusMeta.description}
-            </p>
-            {status === "rejected" && product.rejectReason ? (
-              <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-600/20">
-                <span className="font-semibold">Düzeltme gerekçesi:</span> {product.rejectReason}
-              </p>
-            ) : null}
-
-            <div className="mt-5 border-t border-zinc-950/5 pt-4">
-              <div className="flex items-center justify-between">
-                <p className="text-sm font-medium text-zinc-900">Tamamlanma</p>
-                <p className="text-sm font-semibold tabular-nums text-zinc-950">%{live.completion.score}</p>
-              </div>
-              <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100" aria-hidden>
-                <div
-                  className={`h-full rounded-full transition-[width] duration-500 ${live.completion.score === 100 ? "bg-emerald-500" : "bg-zinc-900"}`}
-                  style={{ width: `${live.completion.score}%` }}
-                />
-              </div>
-              {live.completion.missing.length > 0 ? (
-                <MissingFields className="mt-2" label="Puanını artırmak için" items={live.completion.missing.map((m) => `${m.label} (+${m.points})`)} max={4} />
-              ) : (
-                <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700">
-                  <CheckCircleIcon aria-hidden className="size-4" /> Tüm alanlar dolu
-                </p>
-              )}
-            </div>
-
-            {live.blockers.length > 0 ? (
-              <div className="mt-4 rounded-xl bg-amber-50 p-3 ring-1 ring-amber-600/20">
-                <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
-                  <ExclamationTriangleIcon aria-hidden className="size-4" />
-                  Onaya göndermek için gerekli
-                </p>
-                <ul className="mt-1.5 space-y-0.5 text-sm text-amber-800">
-                  {live.blockers.map((b) => (
-                    <li key={b}>· {b}</li>
-                  ))}
-                </ul>
-              </div>
-            ) : null}
-
-            {canManage ? (
-              <div className="mt-4 space-y-2">
-                {publishLocked ? (
-                  <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
-                    Ücretsiz pakette yayında/onayda ürün tavanı doldu. Taslak olarak kaydedebilirsiniz; daha fazlası için Silver paketine geçin.
-                  </p>
-                ) : null}
-                <button
-                  type="button"
-                  disabled={busy || ((status === "draft" || status === "rejected") && publishLocked)}
-                  onClick={primaryAction}
-                  className={cn("w-full rounded-full px-4 py-2.5 text-sm font-semibold text-white transition disabled:opacity-50", accentFillClass(accent))}
-                >
-                  {busy ? "Kaydediliyor…" : primaryLabel}
-                </button>
-                {status === "draft" || status === "rejected" ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={() => void handleSave(false)}
-                    className="w-full rounded-full border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50"
-                  >
-                    Taslak olarak kaydet
-                  </button>
-                ) : null}
-                {product.isPublic ? (
-                  <button
-                    type="button"
-                    disabled={busy}
-                    onClick={async () => {
-                      if (!window.confirm("Ürün vitrinden çekilecek ve taslağa dönecek; yeniden çıkmak için tekrar onay gerekir. Devam edilsin mi?")) return;
-                      await publish.mutateAsync({ id: product.id, publish: false });
-                      toast.success("Ürün vitrinden çekildi");
-                    }}
-                    className="w-full rounded-full px-4 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-900"
-                  >
-                    Vitrinden çek
-                  </button>
-                ) : null}
-                {dirty ? <p className="text-center text-[11px] text-amber-700">Kaydedilmemiş değişiklik var</p> : null}
-              </div>
-            ) : (
-              <p className="mt-4 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-500">
-                Ürünü kaydetmek ve onaya göndermek için “Ürün ve vitrin yönetimi” yetkisi gerekir.
-              </p>
-            )}
-          </div>
-
-          <SearchVisibilityCard
-            className="mt-4"
-            readiness={seo.readiness}
-            snippet={seo.snippet}
-            enrich={
-              canManage
-                ? {
-                    available: aiAvailable && patch.name.trim().length >= 2,
-                    unavailableReason: aiAvailable ? "Önce ürün adını yazın." : "AI ile güçlendirme Silver ve üzeri paketlerde.",
-                    run: () =>
-                      seoEnrich.mutateAsync({
-                        kind: "product",
-                        name: patch.name,
-                        description: patch.description,
-                        categoryName,
-                        facts: seo.facts,
-                        keywords,
-                        city: profileQ.data?.city ?? null,
-                        industry: profileQ.data?.industry ?? null,
-                      }),
-                    apply: (r) => {
-                      setDescription(r.description);
-                      setKeywords(r.keywords.slice(0, MAX_KEYWORDS));
-                      if (r.titleSuggestion && !patch.name.trim()) setName(r.titleSuggestion);
-                      toast.success("Taslak uygulandı — kontrol edip kaydedin");
-                    },
+        <aside
+          id="vitrin-paneli"
+          className={cn("min-w-0 lg:order-2 lg:sticky lg:top-[7.5rem] lg:self-start", previewOpen ? "block" : "hidden lg:block")}
+        >
+          <ShowcasePanel
+            product={draftShowcase}
+            item={previewItem ?? EMPTY_ITEM}
+            completion={live.completion}
+            blockers={live.blockers}
+            onJump={jump}
+            recommendations={
+              <SearchVisibilityCard
+                  className="rounded-none shadow-none ring-0"
+                  readiness={seo.readiness}
+                  snippet={seo.snippet}
+                  enrich={
+                    canManage
+                      ? {
+                          available: aiAvailable && patch.name.trim().length >= 2,
+                          unavailableReason: aiAvailable ? "Önce ürün adını yazın." : "AI ile güçlendirme Silver ve üzeri paketlerde.",
+                          run: () =>
+                            seoEnrich.mutateAsync({
+                              kind: "product",
+                              name: patch.name,
+                              description: patch.description,
+                              categoryName,
+                              facts: seo.facts,
+                              keywords,
+                              city: profileQ.data?.city ?? null,
+                              industry: profileQ.data?.industry ?? null,
+                            }),
+                          apply: (r) => {
+                            setDescription(r.description);
+                            setKeywords(r.keywords.slice(0, MAX_KEYWORDS));
+                            if (r.titleSuggestion && !patch.name.trim()) setName(r.titleSuggestion);
+                            toast.success("Taslak uygulandı — kontrol edip kaydedin");
+                          },
+                        }
+                      : undefined
                   }
-                : undefined
+                />
             }
           />
-
           <p className="mt-4 text-xs/5 text-zinc-500">
             Varyasyonları ayrı ürün olarak açmayın — renk/ölçü gibi farkları kategoriye özel özelliklere yazın. Katalog böyle temiz kalır.
           </p>

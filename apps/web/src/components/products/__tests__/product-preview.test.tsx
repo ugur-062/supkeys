@@ -23,7 +23,8 @@ vi.mock("@/hooks/use-company-items", () => ({
   usePublishProduct: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
-import { ProductPreview, ProductPreviewCard } from "../product-preview";
+import { ProductPreview } from "../product-preview";
+import { ShowcasePanel } from "../showcase-panel";
 
 const base = {
   id: "p3",
@@ -85,30 +86,32 @@ describe("ProductPreview", () => {
 });
 
 /**
- * CANLI ÖNİZLEME KARTI (2026-09-18): düzenleyicinin üstünde, herkese açık
- * gövdeyle aynı; kapalı doğar ve "Tamamını gör" ile açılır; herkese açık
- * sayfa bağlantısı YALNIZ yayındaki üründe; form kontrolü yok.
+ * VİTRİN PANELİ (2026-09-18): düzenleyicinin sağında; Kart | Sayfa anahtarı,
+ * onay için gerekli eksikler tıklanınca ilgili bölüme atlar, form kontrolü yok.
  */
-describe("ProductPreviewCard", () => {
-  it("taslakta 'Önizleme' başlığı, herkese açık bağlantı yok, katlanır", async () => {
+describe("ShowcasePanel", () => {
+  it("Kart varsayılan, Sayfa'ya geçince herkese açık gövde çizilir; eksik çipi bölüme atlar", async () => {
     const user = userEvent.setup();
-    wrap(<ProductPreviewCard product={{ ...base, reviewStatus: "DRAFT" }} item={item} />);
-    const card = screen.getByRole("region", { name: "Ürün önizlemesi" });
-    expect(card).toHaveTextContent("Önizleme");
-    expect(card).toHaveTextContent("Henüz yayında değil");
-    expect(card).toHaveTextContent("Koruma sınıfı");
-    expect(screen.queryByRole("link", { name: /Herkese açık sayfayı aç/ })).toBeNull();
-    expect(screen.queryByRole("button", { name: /Vitrinden çek/ })).toBeNull();
-    const toggle = screen.getByRole("button", { name: /Tamamını gör/ });
-    expect(toggle).toHaveAttribute("aria-expanded", "false");
-    await user.click(toggle);
-    expect(screen.getByRole("button", { name: /Daralt/ })).toHaveAttribute("aria-expanded", "true");
-  });
-
-  it("yayındaki üründe 'Alıcının gördüğü hâl' + herkese açık sayfa bağlantısı (firma/ürün slug'ından)", () => {
-    wrap(<ProductPreviewCard product={{ ...base, reviewStatus: "APPROVED", isPublic: true, publishedAt: "2026-09-01T00:00:00.000Z" }} item={item} />);
-    const card = screen.getByRole("region", { name: "Ürün önizlemesi" });
-    expect(card).toHaveTextContent("Alıcının gördüğü hâl");
-    expect(screen.getByRole("link", { name: /Herkese açık sayfayı aç/ })).toHaveAttribute("href", "/firma/acme/urun/sigorta-kutusu");
+    const onJump = vi.fn();
+    wrap(
+      <ShowcasePanel
+        product={{ ...base, reviewStatus: "DRAFT", images: [] }}
+        item={item}
+        completion={{ score: 60, missing: [{ key: "images", label: "Görsel", points: 20 }] }}
+        blockers={["En az 1 görsel eklenmeli"]}
+        onJump={onJump}
+      />,
+    );
+    const panel = screen.getByRole("region", { name: "Vitrin önizlemesi" });
+    expect(screen.getByRole("tab", { name: "Kart" })).toHaveAttribute("aria-selected", "true");
+    expect(panel).toHaveTextContent("Sigorta kutusu");
+    expect(panel).toHaveTextContent("Ürünler dizininde ve firma profilinizde böyle görünür.");
+    await user.click(screen.getByRole("tab", { name: "Sayfa" }));
+    expect(panel).toHaveTextContent("Koruma sınıfı"); // nitelik etiketi herkese açık gövdeden
+    expect(panel).toHaveTextContent("Alıcı burada “Bilgi iste” düğmesini görür");
+    await user.click(screen.getByRole("button", { name: "En az 1 görsel eklenmeli" }));
+    expect(onJump).toHaveBeenCalledWith("urun-gorsel");
+    expect(screen.getByText("%60")).toBeInTheDocument();
+    expect(screen.queryByRole("textbox")).toBeNull();
   });
 });

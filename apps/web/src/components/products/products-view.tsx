@@ -173,11 +173,8 @@ export function ProductsView() {
           <ArrowLeftIcon aria-hidden className="size-4" />
           Ürünlere dön
         </button>
-        <PageHeader
-          title="Yeni ürün"
-          description="Tek sayfa: adı, kategorisi, açıklaması, görselleri ve fiyatı. Kaydedince taslak olarak durur; onaya gönderdiğinizde ekibimiz inceler ve vitrine alır."
-        />
-        <div className="mt-8">
+        {/* Başlık eylem çubuğunda (ad + durum + Kaydet) — ayrı sayfa başlığı yok. */}
+        <div className="mt-2">
           <ProductShowcaseForm
             mode="new"
             product={EMPTY_PRODUCT}
@@ -215,15 +212,10 @@ export function ProductsView() {
           <ArrowLeftIcon aria-hidden className="size-4" />
           Ürünlere dön
         </button>
-        <PageHeader
-          title={editing.item.name}
-          description={
-            inReview
-              ? "Ürün incelemede — ekibimiz karar verene kadar yalnız önizlenir."
-              : "Üstte alıcının göreceği hâl, altta vitrin bilgileri; durum, tamamlanma ve arama görünürlüğü sağda canlı güncellenir."
-          }
-        />
-        <div className="mt-8">
+        {inReview ? (
+          <PageHeader title={editing.item.name} description="Ürün incelemede — ekibimiz karar verene kadar yalnız önizlenir." />
+        ) : null}
+        <div className={inReview ? "mt-8" : "mt-2"}>
           {inReview ? (
             <ProductPreview product={editing.showcase} item={editing.item} onClose={() => setEditing(null)} />
           ) : (
