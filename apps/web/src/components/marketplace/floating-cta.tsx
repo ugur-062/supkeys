@@ -1,6 +1,7 @@
 "use client";
 
 import { useHeroGone } from "@/hooks/use-hero-gone";
+import { AccentLink } from "@/components/ui/accent-fill";
 import Link from "next/link";
 
 /**
@@ -17,13 +18,13 @@ export function FloatingCta({ href, label = "Talep aç" }: { href: string; label
         show ? "translate-y-0 opacity-100" : "pointer-events-none translate-y-3 opacity-0"
       }`}
     >
-      <Link
+      <AccentLink
         href={href}
         tabIndex={show ? 0 : -1}
-        className="inline-flex items-center gap-1.5 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-zinc-950/20 transition hover:bg-blue-700"
+        className="inline-flex items-center gap-1.5 rounded-full px-5 py-3 text-sm font-semibold text-white shadow-lg shadow-zinc-950/20 transition"
       >
         {label}
-      </Link>
+      </AccentLink>
     </div>
   );
 }

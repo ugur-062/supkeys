@@ -1,4 +1,5 @@
 import Link from "next/link";
+import { AccentLink } from "@/components/ui/accent-fill";
 
 /**
  * TEK BOŞ DURUM — bütün herkese açık listeler (2026-09-04).
@@ -27,12 +28,12 @@ export function PublicEmptyState({
       <p className="text-base font-semibold text-zinc-900">{noun} bulunamadı.</p>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm">
         {extra ? (
-          <Link
+          <AccentLink
             href={extra.href}
-            className="rounded-full bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700"
+            className="rounded-full px-4 py-2 font-semibold text-white transition"
           >
             {extra.label}
-          </Link>
+          </AccentLink>
         ) : null}
         {clearHref ? (
           <Link

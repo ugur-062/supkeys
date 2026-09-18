@@ -1,4 +1,5 @@
 import { ListingDetail } from "@/components/marketplace/listing-detail";
+import { ButtonAccentProvider } from "@/components/ui/button-accent";
 import { resolveListingPage } from "@/components/marketplace/listing-page";
 import { parseListingNumber } from "@/lib/public/marketplace";
 import { fetchListing, fetchListings } from "@/lib/public/marketplace-api";
@@ -43,5 +44,10 @@ export default async function Page({
         (l) => l.number !== res.listing.number,
       )
     : [];
-  return <ListingDetail listing={res.listing} similar={similar} />;
+  return (
+    /* Tedarikçi yüzü: dolgulu düğmeler YEŞİL (2026-09-18, kullanıcı). */
+    <ButtonAccentProvider accent="emerald">
+      <ListingDetail listing={res.listing} similar={similar} />
+    </ButtonAccentProvider>
+  );
 }

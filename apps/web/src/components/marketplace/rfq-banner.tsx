@@ -1,4 +1,5 @@
 import { signupHref } from "@/lib/public/visibility";
+import { AccentLink } from "@/components/ui/accent-fill";
 import { ArrowRightIcon, CheckIcon } from "@heroicons/react/20/solid";
 import { ClipboardList, Lock, Table2 } from "lucide-react";
 import Link from "next/link";
@@ -69,15 +70,13 @@ export function RfqBanner({
               </li>
             ))}
           </ul>
-          <Link
+          <AccentLink
             href={href}
-            className={`mt-6 inline-flex items-center gap-1 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition ${
-              blue ? "bg-blue-600 hover:bg-blue-700" : "bg-blue-600 hover:bg-blue-700"
-            }`}
+            className="mt-6 inline-flex items-center gap-1 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition"
           >
             Talep aç
             <ArrowRightIcon aria-hidden className="size-4" />
-          </Link>
+          </AccentLink>
         </div>
       </div>
     </section>

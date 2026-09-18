@@ -32,6 +32,7 @@ import {
   MapPinIcon,
 } from "@heroicons/react/20/solid";
 import Link from "next/link";
+import { AccentLink } from "@/components/ui/accent-fill";
 import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
 
@@ -375,12 +376,12 @@ export function ListingDetail({
                 {state === "open" ? (
                   <>
                     {/* Kayıt sonrası AYNI talebe döner (intent=teklif + redirect). */}
-                    <Link
+                    <AccentLink
                       href={signupHref("teklif", listingPath(listing.number, listing.title))}
-                      className="block rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
+                      className="block rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white transition"
                     >
                       Bu talebe teklif vermek için ücretsiz kaydol
-                    </Link>
+                    </AccentLink>
                     <p className="mt-2 text-center text-xs text-zinc-500">2 dakika · kredi kartı yok</p>
                     <ul className="mt-4 space-y-1.5 text-xs/5 text-zinc-600">
                       {[
