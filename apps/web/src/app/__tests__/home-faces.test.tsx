@@ -91,7 +91,7 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(firmalar).toHaveAttribute("hidden");
   });
 
-  it("anahtar TEDARİKÇİ yüzüne geçirir: talep sorusu, yeşil 'Ara', kapsam anahtarı yok", async () => {
+  it("anahtar TEDARİKÇİ yüzüne geçirir: talep sorusu, yeşil 'Ara', Talep|Firma kapsam pili", async () => {
     const user = userEvent.setup();
     hero();
     await user.click(screen.getByRole("radio", { name: "Tedarikçiyim" }));
@@ -100,8 +100,11 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       .getAllByRole("button", { name: /^Ara/ })
       .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
     expect(ara.className).toContain("bg-emerald-700");
-    // Ürün|Firma kapsamı yalnız alıcı yüzünde — talep aramasında karşılığı yok.
-    expect(screen.queryByRole("group", { name: "Arama kapsamı" })).toBeNull();
+    // 2026-09-18 (kullanıcı): tedarikçi yüzü de kapsam pili taşır (Talep | Firma) —
+    // iki yüz birebir aynı yapıda, geçişte hiçbir şey yer değiştirmez.
+    const scope = screen.getByRole("group", { name: "Arama kapsamı" });
+    expect(within(scope).getByRole("button", { name: "Talep" })).toHaveAttribute("aria-pressed", "true");
+    expect(within(scope).getByRole("button", { name: "Firma" })).toBeInTheDocument();
   });
 
   it("AI ile ara ANONİMDE ÇİZİLMEZ (Silver+ ∧ koltuk izni ister)", async () => {
