@@ -42,6 +42,9 @@ export async function generateStaticParams() {
 
 /** Koddan kategori adını çözer (facet listesi = ürünü olan kategoriler). */
 async function resolveCategory(code: string) {
+  // Gizli segment (katalog sadeleştirme 2026-09-19): meta ve gövde AYNI
+  // kararı versin — facet'ten gelse bile "bulunamadı".
+  if (isHiddenCategory(code)) return null;
   const facets = await fetchProductFacets();
   return facets.categories.find((c) => c.id === code) ?? null;
 }
