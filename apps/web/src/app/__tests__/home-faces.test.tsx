@@ -188,6 +188,8 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     await user.click(screen.getByRole("radio", { name: "Tedarikçiyim" }));
     const firmalar = document.getElementById("firmalar")!;
     const talepler = screen.getByRole("heading", { name: /Alıcılar şu an/ }).closest("section")!;
+    // Kapsam önceki testten kalmış olabilir (oturum deposu) — bilinen hâle getir.
+    await user.click(screen.getByRole("button", { name: "Talep" }));
     expect(firmalar).toHaveAttribute("hidden");
     expect(talepler).not.toHaveAttribute("hidden");
     await user.click(screen.getByRole("button", { name: "Firma" }));

@@ -413,6 +413,28 @@ Sözlük önceliği: üretilen dosya ÖNCE, elle yazılan SONRA → insan karar�
 
 **Kürasyon:** sonuçsuz aramalar `category_search_misses`'e → admin paneli.
 
+**KATALOG SADELEŞTİRME — 29 SEGMENT GİZLİ (2026-09-19, kullanıcı kararı:
+"endüstriyel, inşaat, sanayi tarzı şeyler hariç gereksiz kategorileri
+kaldır").** Satır SİLİNMEDİ (birebir garantisi ve `seed-categories` akışı
+aynen); tek kaynak `@rothern/shared` `category-catalog.ts`
+`HIDDEN_SEGMENTS` (ilk iki hane) + `isHiddenCategory` + `hiddenCategoryWhere`
+(Prisma `NOT startsWith`). `categoryCatalogWhere` artık bu parçayı da
+döndürür → `childrenOf`/`searchHierarchical` otomatik süzer; ayrıca
+`getAllActive`, `getSegments`, `validateIds`, firma beyanı
+(`category-selection.helper`), talep kapısı (`company-listings`), herkese açık
+arama önerisi/facet/sayaç (`public-marketplace`), sitemap segmentleri, dizin
+facet'i (`company-directory`), AI kategori ipucu/önerisi ve web'de
+`category-showcase.ts` (satınalma + herkese açık anasayfa vitrini,
+`SHOWCASE_ORDER` sanayi odaklı), `/urunler/kategori/<kod>` ve panel kategori
+sayfası (gizliyse 404) hepsi buradan okur. Gizlenenler: 10 42 43 44 45 48
+49 50 51 52 53 54 55 56 57 60 64 70 80 82 83 84 85 86 90 91 92 93 94
+(≈137 bin yaprak, kataloğun %86'sı). Kalan 29: malzeme 11 12 13 14 15 30 31
+32 · makine/ekipman 20 21 22 23 24 25 26 27 39 40 41 46 47 · hizmet 71 72 73
+76 77 78 81 · 95. Canlıda o tarihte sıfır firma/ürün/talep vardı → veri
+taşıma gerekmedi. Geri almak = listeden çıkarmak. Eşleştirme/bildirim eski
+beyanlara dokunmaz; admin kategori ekranı süzmez (tam katalogu görür).
+Sözleşme: API `test/unit/hidden-segments.spec.ts`, web `category-showcase.test`.
+
 **Kategori fotoğrafları:** 58/58 segment, `apps/web/public/categories/<kod>.webp`
 (CC0/PDM, künye `docs/category-photo-credits.md`). Gerçek fotoğraf YALNIZ iki
 yerde: **ürün** (firma yükler) ve **kategori**. **Satın alma talebi fotoğraf

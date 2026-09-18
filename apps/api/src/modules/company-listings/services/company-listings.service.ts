@@ -7,6 +7,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
+import { hiddenCategoryWhere } from "@rothern/shared";
 import {
   CompanyRole,
   ListingType,
@@ -1094,6 +1095,7 @@ export class CompanyListingsService {
           level: { gte: 3 },
           isActive: true,
           inDiscovery: true,
+          ...hiddenCategoryWhere(),
         },
       });
       if (found !== new Set(dto.categoryIds).size) {

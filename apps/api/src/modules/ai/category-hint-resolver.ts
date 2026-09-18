@@ -1,4 +1,5 @@
 import { foldSearchText, stemPrefix, tokenizeQuery } from "@rothern/shared";
+import { hiddenCategoryWhere } from "@rothern/shared";
 import type { PrismaService } from "../../common/prisma/prisma.service";
 
 /**
@@ -75,7 +76,7 @@ export async function resolveCategoryHints(
     .filter((ts) => ts.length > 0)
     .map(clauseFor);
   if (clauses.length === 0) return out;
-  const gate = opts.discoveryOnly ? { inDiscovery: true } : {};
+  const gate = { ...(opts.discoveryOnly ? { inDiscovery: true } : {}), ...hiddenCategoryWhere() };
   const select = { id: true, nameTr: true, level: true, searchText: true } as const;
 
   const pool: Candidate[] = await prisma.category.findMany({

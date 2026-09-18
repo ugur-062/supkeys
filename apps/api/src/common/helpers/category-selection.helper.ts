@@ -1,4 +1,5 @@
 import { BadRequestException } from "@nestjs/common";
+import { hiddenCategoryWhere } from "@rothern/shared";
 import {
   MAX_COMPANY_MAIN_CATEGORIES,
   MAX_COMPANY_SUB_CATEGORIES,
@@ -46,7 +47,7 @@ export async function validateCategorySelection(
   }
 
   const mains = await prisma.category.findMany({
-    where: { id: { in: mainIds }, level: 1, isActive: true },
+    where: { id: { in: mainIds }, level: 1, isActive: true, ...hiddenCategoryWhere() },
     select: { id: true, nameTr: true },
   });
   if (mains.length !== mainIds.length) {
@@ -57,7 +58,7 @@ export async function validateCategorySelection(
 
   if (subIds.length > 0) {
     const subCount = await prisma.category.count({
-      where: { id: { in: subIds }, level: { gt: 1 }, isActive: true },
+      where: { id: { in: subIds }, level: { gt: 1 }, isActive: true, ...hiddenCategoryWhere() },
     });
     if (subCount !== subIds.length) {
       throw new BadRequestException("Geçersiz alt kategori seçimi");

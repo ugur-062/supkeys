@@ -1,4 +1,5 @@
 import { PublicListFacetQueryDto } from "./dto/public-list-query.dto";
+import { hiddenCategoryWhere } from "@rothern/shared";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
 import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText } from "@rothern/shared";
@@ -471,6 +472,7 @@ export class PublicMarketplaceService {
         where: {
           inDiscovery: true,
           level: { gte: 2 },
+          ...hiddenCategoryWhere(),
           AND: tokens.map((t) => ({ searchText: { contains: foldSearchText(t) } })),
         },
         select: { id: true, nameTr: true, level: true },
@@ -538,7 +540,7 @@ export class PublicMarketplaceService {
         take: FACET_SCAN_CAP,
       }),
       this.prisma.category.findMany({
-        where: { inDiscovery: true, level: { lte: 2 } },
+        where: { inDiscovery: true, level: { lte: 2 }, ...hiddenCategoryWhere() },
         select: { id: true, nameTr: true, level: true },
       }),
     ]);
@@ -576,7 +578,7 @@ export class PublicMarketplaceService {
     const [products, companies, categories, openDemands, catRows, productsThisWeek, bidsLast24h, verifiedCompanies] = await Promise.all([
       this.prisma.companyItem.count({ where: publicProductWhere() }),
       this.prisma.company.count({ where: PUBLIC_PROFILE_WHERE }),
-      this.prisma.category.count({ where: { inDiscovery: true, level: 1 } }),
+      this.prisma.category.count({ where: { inDiscovery: true, level: 1, ...hiddenCategoryWhere() } }),
       this.prisma.listing.count({ where: { ...marketplaceListingWhere(now), status: "OPEN", type: "ALIM" } }),
       this.prisma.companyItem.findMany({
         where: publicProductWhere(),

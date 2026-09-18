@@ -6,6 +6,7 @@ import {
 } from "@nestjs/common";
 import {
   categoryCatalogWhere,
+  hiddenCategoryWhere,
   foldSearchText,
   tokenizeQuery,
   type CategoryCatalog,
@@ -53,7 +54,8 @@ export class CategoryService {
    */
   async getAllActive() {
     const cats = await this.prisma.category.findMany({
-      where: { isActive: true, level: { lte: 2 } },
+      // Gizli segmentler (katalog sadeleştirme, 2026-09-19) hiçbir listede yok.
+      where: { isActive: true, level: { lte: 2 }, ...hiddenCategoryWhere() },
       orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
       select: {
         id: true,
@@ -79,7 +81,7 @@ export class CategoryService {
    */
   async getSegments() {
     const cats = await this.prisma.category.findMany({
-      where: { isActive: true, level: 1 },
+      where: { isActive: true, level: 1, ...hiddenCategoryWhere() },
       orderBy: [{ sortOrder: "asc" }],
       select: {
         id: true,
@@ -263,6 +265,7 @@ export class CategoryService {
         isActive: true,
         level: 2,
         ...nameFilter,
+        ...hiddenCategoryWhere(),
       },
       include: {
         parent: true,
@@ -608,7 +611,8 @@ export class CategoryService {
       typeof options === "number" ? { minLevel: options } : options;
 
     const found = await this.prisma.category.findMany({
-      where: { id: { in: ids }, isActive: true },
+      // Gizli segmentin kodu "geçersiz" sayılır — seçicide zaten görünmez.
+      where: { id: { in: ids }, isActive: true, ...hiddenCategoryWhere() },
       select: { id: true, level: true },
     });
 

@@ -1,4 +1,5 @@
 import { Injectable } from "@nestjs/common";
+import { isHiddenCategory } from "@rothern/shared";
 import { knownCityName, segmentCodeOf } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { marketplaceIndexableWhere } from "../../common/company/listing-visibility";
@@ -88,6 +89,8 @@ export class PublicSitemapService {
       if (city) bump(cCities, city, r.updatedAt);
     }
 
+    // Gizli segmentler sitemap'e girmez (herkese açık kategori sayfası da 404).
+    for (const id of [...segments.keys()]) if (isHiddenCategory(id)) segments.delete(id);
     const cats = segments.size
       ? await this.prisma.category.findMany({
           where: { id: { in: [...segments.keys()] } },
