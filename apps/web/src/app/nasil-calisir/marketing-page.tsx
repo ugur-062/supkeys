@@ -727,8 +727,10 @@ export default function HomePage() {
               üç kart; her kartın altında ikon rozetli başlık + açıklama. */}
           <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-2">
             {FEATURE_TOP.map((f) => (
-              <div key={f.title}>
-                <div className="rounded-3xl bg-zinc-50/80 p-3 ring-1 ring-zinc-200/80">{f.preview}</div>
+              <div key={f.title} className="flex flex-col">
+                {/* Yan yana kartlar eşit boy (2026-09-18, kullanıcı): önizleme
+                    kutusu satırdaki en uzuna uzar; mock kart içi dikey esner. */}
+                <div className="flex flex-1 flex-col rounded-3xl bg-zinc-50/80 p-3 ring-1 ring-zinc-200/80 [&>*]:flex-1">{f.preview}</div>
                 <div className="mt-6 flex items-start gap-4 px-2">
                   <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                     <f.icon className="size-6" />
@@ -743,8 +745,10 @@ export default function HomePage() {
           </div>
           <div className="mt-12 grid grid-cols-1 gap-8 lg:grid-cols-3">
             {FEATURE_BOTTOM.map((f) => (
-              <div key={f.title}>
-                <div className="rounded-3xl bg-zinc-50/80 p-3 ring-1 ring-zinc-200/80">{f.preview}</div>
+              <div key={f.title} className="flex flex-col">
+                {/* Yan yana kartlar eşit boy (2026-09-18, kullanıcı): önizleme
+                    kutusu satırdaki en uzuna uzar; mock kart içi dikey esner. */}
+                <div className="flex flex-1 flex-col rounded-3xl bg-zinc-50/80 p-3 ring-1 ring-zinc-200/80 [&>*]:flex-1">{f.preview}</div>
                 <div className="mt-6 flex items-start gap-4 px-2">
                   <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-blue-50 text-blue-600">
                     <f.icon className="size-6" />
