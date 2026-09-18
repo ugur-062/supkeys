@@ -54,7 +54,8 @@ export function HomeSupplier({
        varsayılanla mavi çıkıyordu (2026-09-18, kullanıcı). */
     <ButtonAccentProvider accent="emerald">
     <div className="mx-auto max-w-7xl space-y-10 px-4 pb-14 sm:px-6 lg:px-8">
-      <section id="firmalar" hidden={!firmaMode} aria-labelledby="home-supplier-firmalar" className="space-y-4">
+      {/* id alıcı yüzündeki `#firmalar`dan FARKLI — iki yüz aynı HTML'de durur, id tekil kalmalı. */}
+      <section id="firmalar-tedarikci" hidden={!firmaMode} aria-labelledby="home-supplier-firmalar" className="space-y-4">
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
           <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
             <h2 id="home-supplier-firmalar" className="text-xl font-semibold tracking-tight text-zinc-950">
