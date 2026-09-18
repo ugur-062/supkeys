@@ -7,6 +7,7 @@ import { ActivityIcon } from "./activity-icons";
 import { currencySymbol } from "@/lib/tenders/labels";
 import { companyActivityLabel, countryName } from "@rothern/shared";
 import Link from "next/link";
+import { cn } from "@/lib/utils";
 
 /**
  * FİRMA DİZİNİ KARTI — herkese açık (görünürlük v2; kart sistemi PROMPT 5).
@@ -165,8 +166,10 @@ export function CompanyCard({
           </div>
         </div>
 
-        <div className="mt-4 grid gap-4 lg:grid-cols-[14rem_minmax(0,1fr)]">
-          {/* SOL — ne yaptığı: ana kategoriler (gerçek kırılım). */}
+        <div className={cn("mt-4 grid gap-4", (c.topCategories ?? []).length > 0 && "lg:grid-cols-[14rem_minmax(0,1fr)]")}>
+          {/* SOL — ne yaptığı: ana kategoriler (gerçek kırılım); yoksa sütun
+              hiç açılmaz (boş gri alan kalmasın). */}
+          {(c.topCategories ?? []).length > 0 ? (
           <div className="min-w-0">
             {(c.topCategories ?? []).length > 0 ? (
               <div className="rounded-lg bg-zinc-100/70 px-3 py-2.5">
@@ -187,6 +190,7 @@ export function CompanyCard({
               </div>
             ) : null}
           </div>
+          ) : null}
 
           {/* SAĞ — ne sattığı: açıklama + kartlı ürün şeridi. */}
           <div className="min-w-0">
