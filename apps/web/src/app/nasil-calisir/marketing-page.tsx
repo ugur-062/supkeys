@@ -1,9 +1,7 @@
 "use client";
 
-import { RothernLogo } from "@/components/brand/logo";
 import { OPERATOR } from "@/lib/company-info";
 import { PublicLayout } from "@/components/marketplace/public-layout";
-import { TrustBand } from "@/components/marketplace/trust-band";
 import { MAPPED_SEGMENTS } from "@/lib/public/category-visual";
 import { PRODUCT_LIMITS, registrationCountries } from "@rothern/shared";
 import { PRICING_NOTE, PRICING_PLANS } from "@/lib/pricing/plans";
@@ -14,11 +12,16 @@ import {
   DisclosurePanel,
 } from "@headlessui/react";
 import {
+  ChartBarIcon,
+  MagnifyingGlassIcon,
   MinusSmallIcon,
   PlusSmallIcon,
+  ShoppingCartIcon,
+  UsersIcon,
 } from "@heroicons/react/24/outline";
 import { ArrowTrendingDownIcon, CheckIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
+import { signupHref } from "@/lib/public/visibility";
 import { useEffect, useRef, useState } from "react";
 
 /**
@@ -92,98 +95,8 @@ const faqs = [
   },
 ];
 
-const previewRows = [
-  { dot: "bg-blue-500", t: "“Uluslararası çelik alımı” ilanına 3 teklif geldi", a: "İncele" },
-  { dot: "bg-emerald-500", t: "“Fazla bakır satışı” siparişini kargola", a: "Gönder" },
-  { dot: "bg-emerald-500", t: "Üçüncü Firma bağlantı daveti gönderdi", a: "Görüntüle" },
-  { dot: "bg-blue-500", t: "“Ofis mobilyası” ödemesini tamamla", a: "Tamamla" },
-];
 
-const previewNav = ["İşlerim", "İlanlar", "Teklifler", "Siparişler", "Bağlantılar", "Keşfet"];
 
-function AppPreview() {
-  const [active, setActive] = useState(0);
-  useEffect(() => {
-    const id = setInterval(
-      () => setActive((a) => (a + 1) % previewRows.length),
-      1900,
-    );
-    return () => clearInterval(id);
-  }, []);
-
-  return (
-    <div className="rounded-2xl bg-zinc-950 p-2 shadow-2xl ring-1 ring-zinc-950/10">
-      <div className="overflow-hidden rounded-xl bg-white ring-1 ring-zinc-200">
-        {/* pencere çubuğu */}
-        <div className="flex items-center gap-2 border-b border-zinc-100 bg-zinc-50 px-4 py-3">
-          <span className="size-3 rounded-full bg-red-400" />
-          <span className="size-3 rounded-full bg-amber-400" />
-          <span className="size-3 rounded-full bg-emerald-400" />
-          <div className="ml-3 hidden h-5 max-w-xs flex-1 rounded bg-zinc-200/70 sm:block" />
-        </div>
-        <div className="flex">
-          {/* sidebar */}
-          <div className="hidden w-48 shrink-0 bg-zinc-950 p-4 sm:block">
-            <RothernLogo variant="full" size="sm" />
-            <div className="mt-6 space-y-1">
-              {previewNav.map((n, i) => (
-                <div
-                  key={n}
-                  className={`rounded-lg px-3 py-2 text-sm font-medium ${
-                    i === 0 ? "bg-white/10 text-white" : "text-zinc-400"
-                  }`}
-                >
-                  {n}
-                </div>
-              ))}
-            </div>
-          </div>
-          {/* ana içerik */}
-          <div className="flex-1 bg-zinc-50/60 p-5 sm:p-6">
-            <div className="flex items-center gap-2">
-              <div className="text-base font-semibold text-zinc-900">
-                İşlerim
-              </div>
-              <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-xs font-medium text-emerald-700">
-                <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-                canlı
-              </span>
-            </div>
-            <p className="mt-0.5 text-xs text-zinc-500">
-              Dikkat bekleyen işler — alış ve satış, tek akışta
-            </p>
-            <div className="mt-4 space-y-2">
-              {previewRows.map((r, i) => (
-                <div
-                  key={r.t}
-                  className={`flex items-center justify-between gap-3 rounded-lg border bg-white px-3 py-2.5 transition-all duration-500 ${
-                    i === active
-                      ? "-translate-y-0.5 border-zinc-300 shadow-md ring-1 ring-zinc-900/10"
-                      : "border-zinc-950/5 shadow-sm"
-                  }`}
-                >
-                  <div className="flex min-w-0 items-center gap-3">
-                    <span className={`size-2 shrink-0 rounded-full ${r.dot}`} />
-                    <span className="truncate text-sm text-zinc-800">{r.t}</span>
-                  </div>
-                  <span
-                    className={`shrink-0 rounded-md px-2.5 py-1 text-xs font-medium transition-colors ${
-                      i === active
-                        ? "bg-blue-600 text-white"
-                        : "bg-zinc-100 text-zinc-600"
-                    }`}
-                  >
-                    {r.a}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function CountUp({
   value,
@@ -681,50 +594,100 @@ function SignupPreview() {
   );
 }
 
+const HERO_STEPS = [
+  { n: "01", title: "Keşfet", body: "Doğrulanmış firmaları ve ürünleri incele", tone: "bg-blue-50 text-blue-700" },
+  { n: "02", title: "Bağlantı kur", body: "Doğrudan firmalarla iletişime geç", tone: "bg-emerald-50 text-emerald-700" },
+  { n: "03", title: "Ticaret yap", body: "Güvenle alım yap, ürünlerini sat", tone: "bg-violet-50 text-violet-700" },
+] as const;
+
+/** Hero kenar dekoru — yumuşak daireler, ikon rozetleri, nokta desenleri (aria-hidden). */
+function HeroDecorations() {
+  const dots = "radial-gradient(currentColor 1.5px, transparent 1.5px)";
+  return (
+    <div aria-hidden className="pointer-events-none absolute inset-0 -z-10 hidden select-none lg:block">
+      <div className="absolute top-8 -left-40 size-[34rem] rounded-full bg-blue-100/60 blur-2xl" />
+      <div className="absolute -right-40 top-16 size-[32rem] rounded-full bg-emerald-100/60 blur-2xl" />
+      <div className="absolute top-36 left-[10%] size-[22rem] rounded-full border border-blue-200/60" />
+      <div className="absolute -right-6 top-24 size-[24rem] rounded-full border border-emerald-200/60" />
+      <span className="absolute top-[30%] left-[9%] flex size-20 items-center justify-center rounded-full bg-white text-blue-600 shadow-lg shadow-blue-900/10 ring-1 ring-blue-100">
+        <MagnifyingGlassIcon className="size-8" />
+      </span>
+      <span className="absolute top-[68%] left-[7%] flex size-20 items-center justify-center rounded-full bg-white text-blue-600 shadow-lg shadow-blue-900/10 ring-1 ring-blue-100">
+        <UsersIcon className="size-8" />
+      </span>
+      <span className="absolute top-[28%] right-[9%] flex size-20 items-center justify-center rounded-full bg-white text-emerald-600 shadow-lg shadow-emerald-900/10 ring-1 ring-emerald-100">
+        <ChartBarIcon className="size-8" />
+      </span>
+      <span className="absolute top-[66%] right-[7%] flex size-20 items-center justify-center rounded-full bg-white text-emerald-600 shadow-lg shadow-emerald-900/10 ring-1 ring-emerald-100">
+        <ShoppingCartIcon className="size-8" />
+      </span>
+      <div className="absolute top-[78%] left-[12%] h-16 w-16 text-zinc-300" style={{ backgroundImage: dots, backgroundSize: "14px 14px" }} />
+      <div className="absolute top-[48%] right-[5%] h-16 w-16 text-zinc-300" style={{ backgroundImage: dots, backgroundSize: "14px 14px" }} />
+    </div>
+  );
+}
+
 export default function HomePage() {
   return (
     <PublicLayout>
-      {/* Hero — sade beyaz zemin (grid deseni + gradient + uçuşan kartlar kaldırıldı) */}
-      <section className="relative isolate overflow-hidden bg-white px-6 pb-20 lg:px-8">
-        <div className="mx-auto max-w-3xl pt-24 pb-16 sm:pt-32 lg:pt-36">
+      {/* HERO (2026-09-18, kullanıcı mockup'ı "nasıl çalışır kısmını direkt
+          böyle yap"): rozet · iki renkli iki satırlık başlık (Hem al MAVİ,
+          hem sat YEŞİL) · alt cümle · iki CTA (alıcı dolgulu mavi, tedarikçi
+          çerçeveli) · 01/02/03 adım şeridi. Kenarlarda yumuşak mavi/yeşil
+          daireler, ikon rozetleri ve nokta desenleri — dekoratif, aria-hidden,
+          yalnız geniş ekranda. Ürün önizlemesi (AppPreview) ve TrustBand bu
+          hero'nun içinden ÇIKTI; üç adım şeridi TrustBand'in yerine geçer. */}
+      <section className="relative isolate overflow-hidden bg-white px-6 pt-24 pb-20 sm:pt-28 lg:px-8">
+        <HeroDecorations />
+        <div className="mx-auto max-w-3xl text-center">
           <div className="mb-8 flex justify-center">
-            <div className="inline-flex items-center gap-2 rounded-full bg-white/80 px-3 py-1 text-sm/6 font-medium text-zinc-700 ring-1 ring-zinc-950/10 backdrop-blur">
-              <span className="size-1.5 animate-pulse rounded-full bg-emerald-500" />
-              Al · Sat · Keşfet
-            </div>
+            <span className="inline-flex items-center gap-2 rounded-full bg-white px-3.5 py-1.5 text-sm/6 font-medium text-zinc-700 ring-1 ring-zinc-950/10">
+              <span className="size-1.5 rounded-full bg-emerald-500" />
+              B2B ticaretin tek platformu
+            </span>
           </div>
-          <div className="text-center">
-            <h1 className="text-5xl font-semibold tracking-tight text-balance text-zinc-950 sm:text-7xl">
-              {/* 2026-09-18, kullanıcı kararı: "Hem al" mavi (satınalma),
-                  "hem sat" yeşil (satış) — portal renkleri. */}
-              <span className="text-blue-600">Hem al</span>,{" "}
-              <span className="text-emerald-600">hem sat</span> —{" "}
-              <span className="text-zinc-500">tek platformda.</span>
-            </h1>
-            <div className="mt-10 flex items-center justify-center gap-x-4">
-              <Link
-                href="/company/kayit"
-                className="rounded-lg bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
-              >
-                Ücretsiz Kaydol
-              </Link>
-              <Link
-                href="/company/login"
-                className="text-sm/6 font-semibold text-zinc-950"
-              >
-                Giriş Yap <span aria-hidden="true">→</span>
-              </Link>
-            </div>
+          <h1 className="text-5xl font-bold tracking-tight text-balance sm:text-7xl">
+            <span className="block">
+              <span className="text-blue-600">Hem al</span>
+              <span className="text-zinc-950">, </span>
+              <span className="text-emerald-600">hem sat.</span>
+            </span>
+            <span className="block text-zinc-950">Tek platformda.</span>
+          </h1>
+          <p className="mx-auto mt-6 max-w-2xl text-lg/8 text-pretty text-zinc-600 sm:text-xl/8">
+            Doğrulanmış firmaları keşfedin, alım talebi oluşturun ve ürünlerinizi yeni müşterilere ulaştırın.
+          </p>
+          <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+            <Link
+              href="/urunler"
+              className="rounded-lg bg-blue-600 px-6 py-3.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
+            >
+              Alıcı olarak keşfet
+            </Link>
+            <Link
+              href={signupHref("vitrin")}
+              className="rounded-lg bg-white px-6 py-3.5 text-sm font-semibold text-zinc-950 ring-1 ring-inset ring-zinc-950/60 transition hover:bg-zinc-50"
+            >
+              Tedarikçi olarak başla <span aria-hidden="true">→</span>
+            </Link>
           </div>
-        </div>
-        {/* Ürün önizleme (canlı) */}
-        <div className="relative mx-auto max-w-5xl">
-          <AppPreview />
+
+          <ol className="mx-auto mt-16 grid max-w-3xl grid-cols-1 gap-8 sm:grid-cols-3 sm:gap-0">
+            {HERO_STEPS.map((st, i) => (
+              <li key={st.n} className="relative flex flex-col items-center text-center">
+                {i < HERO_STEPS.length - 1 ? (
+                  <span aria-hidden className="absolute top-7 left-[calc(50%+2.5rem)] hidden h-px w-[calc(100%-5rem)] bg-zinc-200 sm:block" />
+                ) : null}
+                <span className={`flex size-14 items-center justify-center rounded-full text-base font-semibold ${st.tone}`}>
+                  {st.n}
+                </span>
+                <span className="mt-4 text-base font-semibold text-zinc-950">{st.title}</span>
+                <span className="mt-1.5 max-w-[11rem] text-sm/6 text-zinc-500">{st.body}</span>
+              </li>
+            ))}
+          </ol>
         </div>
       </section>
-
-      {/* Nasıl çalışır — anasayfadakiyle AYNI üç adım (tek bileşen). */}
-      <TrustBand />
 
       {/* Pazar & erişim */}
       <section className="relative isolate overflow-hidden bg-blue-950 py-24 sm:py-32">
