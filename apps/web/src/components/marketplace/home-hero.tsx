@@ -1,6 +1,7 @@
 "use client";
 
-import { AudienceSwitch, useAudience } from "./audience-switch";
+import { AudienceSwitch, useAudience, type HeroScope } from "./audience-switch";
+import { useState } from "react";
 import { HeroDecor, PanelHeroSearch } from "@/components/dashboard/panel-hero-search";
 import { BUYER_OBJECTS, BUYER_WIDGETS, SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
@@ -34,6 +35,10 @@ import { Suspense } from "react";
  */
 export function HomeHero() {
   const { audience, scope, setScope } = useAudience();
+  // Tedarikçi yüzünün "Talep | Firma" pili (2026-09-18, kullanıcı: satış
+  // panelindeki karşılığı). Yalnız arama hedefini değiştirir; gövde aynı
+  // kalır — alıcı yüzünün pili gibi localStorage'a yazılmaz.
+  const [supplierScope, setSupplierScope] = useState<HeroScope>("products");
   const supplier = audience === "supplier";
 
   return (
@@ -84,6 +89,18 @@ export function HomeHero() {
           lead="Doğrulanmış alıcıların açık talepleri — kapalı zarf, birbirini görmeyen teklifler. Teklif vermek ücretsiz hesapla."
           placeholder="Talep, sektör veya ürün arayın"
           action={MARKETPLACE_ROUTES.demands}
+          /* İKİ YÜZ BİREBİR HİZALI (2026-09-18, kullanıcı: "geçişte yazılar
+             yer değiştirmesin, sadece panel değişsin"): alıcı yüzüyle aynı
+             yapı — başlık · iki satır alt cümle · kapsam pili · arama · not. */
+          supplierScope={{
+            action: MARKETPLACE_ROUTES.companies,
+            placeholder: "Firma adı, şehir ya da aldığı kategori arayın",
+            label: "Firma",
+            primaryLabel: "Talep",
+            primaryIcon: "clipboard",
+          }}
+          scope={supplierScope}
+          onScopeChange={setSupplierScope}
           accent="emerald"
           backdrop
           widgets={SELLER_WIDGETS}
