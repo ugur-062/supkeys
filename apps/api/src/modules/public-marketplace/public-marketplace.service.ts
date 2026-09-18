@@ -1,5 +1,5 @@
 import { PublicListFacetQueryDto } from "./dto/public-list-query.dto";
-import { hiddenCategoryWhere } from "@rothern/shared";
+import { hiddenCategoryWhere, isHiddenCategory } from "@rothern/shared";
 import { Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
 import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText } from "@rothern/shared";
@@ -330,7 +330,7 @@ export class PublicMarketplaceService {
     const catCount = new Map<string, number>();
     for (const r of forCat) {
       // 8 haneli kodun ilk iki hanesi segmenttir (hiyerarşi koddan türer).
-      for (const seg of new Set(r.categoryIds.filter((c) => c.length === 8).map((c) => `${c.slice(0, 2)}000000`))) {
+      for (const seg of new Set(r.categoryIds.filter((c) => c.length === 8 && !isHiddenCategory(c)).map((c) => `${c.slice(0, 2)}000000`))) {
         catCount.set(seg, (catCount.get(seg) ?? 0) + 1);
       }
     }

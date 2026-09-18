@@ -7,7 +7,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
-import { hiddenCategoryWhere } from "@rothern/shared";
+import { hiddenCategoryWhere, isHiddenCategory } from "@rothern/shared";
 import {
   CompanyRole,
   ListingType,
@@ -2518,7 +2518,8 @@ export class CompanyListingsService {
     for (const r of rows) {
       for (const seg of new Set(
         r.categoryIds
-          .filter((c) => c.length === 8)
+          // Gizli segment sektör süzgecine girmez (katalog sadeleştirme).
+          .filter((c) => c.length === 8 && !isHiddenCategory(c))
           .map((c) => `${c.slice(0, 2)}000000`),
       )) {
         counts.set(seg, (counts.get(seg) ?? 0) + 1);
