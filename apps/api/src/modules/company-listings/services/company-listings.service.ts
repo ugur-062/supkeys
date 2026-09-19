@@ -4436,12 +4436,19 @@ export class CompanyListingsService {
         currency: true,
         exchangeRateSnapshot: true,
         status: true,
+        submittedAt: true,
+        validityDays: true,
         items: { select: { itemId: true, unitPrice: true } },
       },
     });
     if (!bid || bid.listingId !== listingId || bid.status !== "SUBMITTED") {
       throw new BadRequestException("Geçersiz teklif");
     }
+    // Geçerliliği dolmuş teklif kazandırılamaz (2026-09-19 inceleme): ekran
+    // "Geçerlilik doldu" rozeti basıyor ama sunucu kabul ediyordu → tedarikçinin
+    // artık bağlı olmadığı fiyata sipariş doğuyordu. Pazarlıkta geçerlilik
+    // SÜRESİZ (validityDays null → null döner), oradan etkilenmez.
+    this.assertBidValidityAlive(bid);
 
     if (listing.requireBidDocument) {
       const docCount = await this.prisma.listingBidDocument.count({
@@ -4500,6 +4507,16 @@ export class CompanyListingsService {
   }
 
   /** Tam kazandırmayı uygula — sipariş oluştur, WON/LOST, AWARDED. */
+  /** Teklifin geçerlilik süresi dolmuşsa kazandırmayı reddeder (süresiz = null geçer). */
+  private assertBidValidityAlive(bid: { submittedAt: Date | null; validityDays: number | null }): void {
+    const until = bidValidUntilMs(bid.submittedAt, bid.validityDays);
+    if (until != null && until <= Date.now()) {
+      throw new BadRequestException(
+        "Teklifin geçerlilik süresi dolmuş; tedarikçiden süre uzatması isteyin ya da yeni tur açın",
+      );
+    }
+  }
+
   private async runFullAward(
     listingId: string,
     bidId: string,
@@ -4922,6 +4939,15 @@ export class CompanyListingsService {
     // INV-KYC-1: kalem-bazlı kazandırma da sipariş doğurur → VERIFIED ister.
     this.assertVerified(user, "kazandıramazsınız");
 
+    // Geçerliliği dolmuş teklif kalem bazında da kazandırılamaz (award ile simetri).
+    {
+      const ids = [...new Set(itemAwards.map((a) => a.bidId))];
+      const rows = await this.prisma.listingBid.findMany({
+        where: { id: { in: ids }, listingId },
+        select: { submittedAt: true, validityDays: true },
+      });
+      for (const r of rows) this.assertBidValidityAlive(r);
+    }
     // Belge zorunluysa her kazanan teklifin en az 1 belgesi olmalı (tam-kazandırma
     // ile aynı kural — item-award baypasını kapatır).
     if (listing.requireBidDocument) {
