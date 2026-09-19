@@ -31,6 +31,7 @@ import {
 import { Check, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { useConfirm } from "@/components/providers/confirm-dialog";
+import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { toast } from "sonner";
 
 const PAYMENT_STATUS: Record<
@@ -63,6 +64,8 @@ function fmt(n: string | number) {
  * kanalından, satıcı "Ödeme Bankadan Alındı" adımıyla işaretler.
  */
 export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
+  // Birincil düğme rengi portaldan (satınalmada siyah yok — 2026-09-17 kuralı).
+  const accent = useButtonAccent();
   const curSym =
     CURRENCY_SYMBOL[(order.currency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
     "₺";
@@ -196,7 +199,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                 ? "Tamamı bildirildi — onay bekleyenler dahil kalan tutar yok"
                 : undefined
             }
-            className="inline-flex items-center gap-1 rounded-lg bg-zinc-900 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-800 disabled:cursor-not-allowed disabled:bg-zinc-300"
+            className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300 ${accentFillClass(accent)}`}
           >
             <Plus className="h-3.5 w-3.5" />
             Ödemeyi Yaptım
