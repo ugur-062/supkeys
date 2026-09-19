@@ -1532,6 +1532,12 @@ dönüş tek değişken: `RLS_ENABLED=false`.
   MERSİS eklerken izlenen yolun aynısı.
 
 **Ürün**
+- **Talep kapsamı "Uluslararası" (2026-09-19 inceleme İ-4, kullanıcı: "şu
+  anlık böyle kalsın, sonra bakacağız"):** bugün `isInternational=true` yalnız
+  YABANCI ülkedeki tedarikçilere görünür (`sellerVisibleWhere`,
+  `targetCountries` kendi ülkeyi süzer). Öneri: "Uluslararası" = herkes
+  (yurtiçi dahil), hedef ülkeler opsiyonel daraltma; "Yurtiçi" aynen. Karar
+  ertelendi — değiştirilmedi.
 - STANDART → paketli upgrade akışı + ödeme (**PayTR**; iyzico reddetti, Stripe
   TR şirketi kabul etmiyor) + escrow
 - Kazandırma geri alma (un-award) — riskli, sonraya
