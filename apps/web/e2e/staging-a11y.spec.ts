@@ -81,8 +81,9 @@ test("talep sihirbazı erişilebilirlik", async ({ page }) => {
   test.setTimeout(300_000);
   await uiLogin(page, QA.aliciKurucu);
 
-  // Detaylı sihirbaz: dört adımın İLK adımı en yoğun form (40 etiket).
-  await gotoRetry(page, "/company/satinalma/taleplerim/yeni/detayli");
+  // Hızlı talep kartı (2026-09-19: detaylı sihirbaz kaldırıldı) — tek sayfa,
+  // en yoğun form (kalemler + adres + şartlar).
+  await gotoRetry(page, "/company/satinalma/taleplerim/yeni");
   await expect(page.getByRole("button", { name: /İleri|Devam/ }).first()).toBeVisible({ timeout: 45_000 });
   await scan(page, "talep sihirbazı adım 1");
 });
