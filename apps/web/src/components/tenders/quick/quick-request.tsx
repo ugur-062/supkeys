@@ -38,6 +38,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { DEFAULT_FORM_VALUES, tenderFormSchema, type TenderFormData } from "@/lib/tenders/form-schema";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { mapToInput } from "@/lib/tenders/map-to-input";
+import { applyConnectionsScope } from "@/lib/tenders/connections-scope";
 import { QUICK_DRAFT_KEY, clearSession, readSession, writeSession, type QuickDraft } from "@/lib/tenders/quick-draft";
 import { titleFromItems } from "@/lib/tenders/quick-parse";
 import { applyRequestDefaults, closesAtFromDays, defaultsFromForm } from "@/lib/tenders/request-defaults";
@@ -117,6 +118,26 @@ export function QuickRequest({
     mode: "onTouched",
   });
   const { watch, setValue, getValues, reset } = form;
+  const connectionIds = useMemo(
+    () => (connections.data ?? []).map((c) => c.company.rothernId).filter((id): id is string => !!id),
+    [connections.data],
+  );
+  // BAĞLANTILARIM = GÖRÜNÜRLÜK LİSTESİ (2026-09-19, kullanıcı kararı): kip
+  // seçilince ya da bağlantılar yüklenince liste boşsa TÜM bağlantılar
+  // işaretli başlar; alıcı çıkardığını görmez (`applyConnectionsScope`).
+  // Yalnız bir kez doldurulur — "Tümünü kaldır" sonrası yeniden dolmaz.
+  const autoFilled = useRef(false);
+  const watchedVisibility = watch("visibility");
+  const watchedInvited = watch("invitedSupplierIds");
+  useEffect(() => {
+    if (watchedVisibility !== "CONNECTIONS") {
+      autoFilled.current = false;
+      return;
+    }
+    if (autoFilled.current || connectionIds.length === 0) return;
+    autoFilled.current = true;
+    if ((watchedInvited ?? []).length === 0) setValue("invitedSupplierIds", connectionIds, { shouldDirty: false });
+  }, [watchedVisibility, watchedInvited, connectionIds, setValue]);
 
   /* Profil yüklenince şartları forma uygula (bir kez); taslak varsa geri getir. */
   const appliedRef = useRef(false);
@@ -237,14 +258,14 @@ export function QuickRequest({
       const values = getValues();
       if (isEdit && listingId) {
         // Düzenleme: önce içerik güncellenir, sonra taslak yayına alınır.
-        await update.mutateAsync(mapToInput(values));
+        await update.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
         await uploadStaged(listingId);
         await publishExisting.mutateAsync({});
         toast.success("Talep yayımlandı");
         router.push(`/company/ilan/${listingId}`);
         return;
       }
-      const listing = await create.mutateAsync(mapToInput(values));
+      const listing = await create.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
       await uploadStaged(listing.id);
       clearSession(QUICK_DRAFT_KEY);
       setPublished({ id: listing.id, title: values.title, categoryIds: values.categoryIds, itemNames: values.items.map((i) => i.name) });
@@ -272,13 +293,13 @@ export function QuickRequest({
     }
     try {
       if (isEdit && listingId) {
-        await update.mutateAsync(mapToInput(values));
+        await update.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
         await uploadStaged(listingId);
         toast.success("Taslak güncellendi");
         router.push(`/company/ilan/${listingId}`);
         return;
       }
-      const listing = await create.mutateAsync({ ...mapToInput(values), asDraft: true });
+      const listing = await create.mutateAsync({ ...mapToInput(applyConnectionsScope(values, connectionIds)), asDraft: true });
       await uploadStaged(listing.id);
       clearSession(QUICK_DRAFT_KEY);
       toast.success("Taslak kaydedildi");
@@ -401,7 +422,14 @@ export function QuickRequest({
         ? `Pazar yerinde listelenir; ${catRows[0] ? `bu kategoride ${publicCount.data.total} firma` : `${publicCount.data.total} firma`} dizinde, kayıtlı her tedarikçi teklif verebilir.`
         : null
       : visibility === "CONNECTIONS"
-        ? `${connections.data?.length ?? 0} bağlantınız görecek${invited.length ? ` + ${invited.length} davet` : ""}.`
+        ? (() => {
+            const total = connectionIds.length;
+            const on = invited.filter((id) => connectionIds.includes(id)).length;
+            if (total === 0) return "Bağlantınız olmadığı için bu talebi kimse görmez — “Herkese açık” seçin ya da önce bağlantı kurun.";
+            return on === total
+              ? `${total} bağlantınızın tamamı görecek ve davet alacak.`
+              : `${total} bağlantınızdan ${on} firma görecek; çıkardığınız ${total - on} firma talebi görmez, bildirim almaz.`;
+          })()
         : invited.length
           ? `Yalnız davet ettiğiniz ${invited.length} firma görecek.`
           : "Henüz kimse davet edilmedi — en az bir firma seçin ya da görünürlüğü genişletin.";
@@ -710,7 +738,15 @@ export function QuickRequest({
                   { v: "PRIVATE", Icon: UserPlusIcon },
                 ] as const
               ).map(({ v, Icon }) => (
-                <button key={v} type="button" onClick={() => setValue("visibility", v, { shouldDirty: true })} aria-pressed={visibility === v} className={cn("flex items-start gap-3 rounded-xl border p-3 text-left transition", visibility === v ? "border-blue-600 bg-blue-50/50 ring-1 ring-blue-600" : "border-zinc-300 hover:bg-zinc-50")}>
+                <button
+                  key={v}
+                  type="button"
+                  onClick={() => {
+                    setValue("visibility", v, { shouldDirty: true });
+                    // Bağlantılarım'a geçişte liste her seferinde TAM açılır.
+                    if (v === "CONNECTIONS") setValue("invitedSupplierIds", connectionIds, { shouldDirty: true });
+                  }}
+                  aria-pressed={visibility === v} className={cn("flex items-start gap-3 rounded-xl border p-3 text-left transition", visibility === v ? "border-blue-600 bg-blue-50/50 ring-1 ring-blue-600" : "border-zinc-300 hover:bg-zinc-50")}>
                   <span className={cn("flex size-9 shrink-0 items-center justify-center rounded-lg", visibility === v ? "bg-blue-600 text-white" : "bg-zinc-100 text-zinc-600")}>
                     <Icon aria-hidden className="size-5" />
                   </span>
@@ -724,13 +760,13 @@ export function QuickRequest({
             {audience ? <p className="mt-3 text-xs text-zinc-600">{audience}</p> : null}
             {visibility === "PRIVATE" || visibility === "CONNECTIONS" ? (
               <div className="mt-4">
-                {/* PRIVATE'ta başlık seçicinin kendi panelinde — tekrar edilmez. */}
-                {visibility === "CONNECTIONS" ? <p className="mb-2 text-sm font-medium text-zinc-950">Ayrıca davet et (isteğe bağlı)</p> : null}
+                {/* Başlık seçicinin kendi panelinde — tekrar edilmez. */}
                 <Controller
                   control={form.control}
                   name="invitedSupplierIds"
                   render={({ field }) => (
                     <SupplierPicker
+                      mode={visibility === "CONNECTIONS" ? "connections" : "private"}
                       value={field.value ?? []}
                       onChange={field.onChange}
                       itemNames={discoveryItemNames}

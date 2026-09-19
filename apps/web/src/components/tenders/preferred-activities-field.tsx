@@ -41,11 +41,11 @@ export function PreferredActivitiesField({ value, onChange, disabled }: Props) {
           onClick={() => onChange([])}
           className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:opacity-50 ${
             value.length === 0
-              ? "border-zinc-900 bg-zinc-900 text-white"
+              ? "border-blue-600 bg-blue-600 text-white"
               : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
           }`}
         >
-          Fark etmez
+          Hepsi dahil
         </button>
         {COMPANY_ACTIVITIES.map((a) => {
           const secili = value.includes(a.code);
@@ -65,7 +65,7 @@ export function PreferredActivitiesField({ value, onChange, disabled }: Props) {
               }
               className={`rounded-full border px-3 py-1 text-xs font-medium transition-colors disabled:cursor-not-allowed disabled:opacity-40 ${
                 secili
-                  ? "border-zinc-900 bg-zinc-900 text-white"
+                  ? "border-blue-600 bg-blue-600 text-white"
                   : "border-zinc-300 bg-white text-zinc-700 hover:border-zinc-400"
               }`}
             >
