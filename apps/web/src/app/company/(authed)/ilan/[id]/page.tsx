@@ -873,17 +873,20 @@ export default function ListingDetailPage() {
   const bidItemCount = l.items?.length ?? 0;
   const allBids = l.bids ?? [];
   const invitedCount = l.invitations?.length ?? 0;
-  // "Teklif Veren" = değerlendirmede olan (SUBMITTED) teklifler; elenen/kazanan
-  // aktif sayaçları şişirmesin.
-  const activeBids = allBids.filter((b) => b.status === "SUBMITTED");
-  const submittedCount = activeBids.length;
-  const completeCount = activeBids.filter(
+  // "Teklif Veren" = gönderilmiş her teklif (taslak/geri çekilmiş hariç).
+  // Eskiden yalnız SUBMITTED sayılıyordu → kazandırma sonrası dört sayaç da
+  // "0" okunuyordu (2026-09-19, kullanıcı ekran görüntüsü). Kararı bekleyen
+  // sayı (SUBMITTED) ayrı: `submittedCount` yalnız durum bandında.
+  const consideredBids = allBids.filter((b) => b.status !== "DRAFT" && b.status !== "WITHDRAWN");
+  const submittedCount = allBids.filter((b) => b.status === "SUBMITTED").length;
+  const bidderCount = consideredBids.length;
+  const completeCount = consideredBids.filter(
     (b) =>
       bidItemCount > 0 &&
       (b.items?.filter((x) => Number(x.unitPrice) > 0).length ?? 0) >=
         bidItemCount,
   ).length;
-  const incompleteCount = Math.max(0, submittedCount - completeCount);
+  const incompleteCount = Math.max(0, bidderCount - completeCount);
   // Kalem karşılaştırma için fiyat haritaları (bidId → itemId → fiyat). Hücre
   // başına .find yerine tek seferde kurup O(1) erişim (matris perf).
   //  - priceMap: teklifin KENDİ birimindeki birim fiyat (gösterim).
@@ -981,7 +984,7 @@ export default function ListingDetailPage() {
         </div>
       ) : l.status === "AWARDED" ? (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">
-          İhale kazandırıldı — siparişler oluşturuldu (Siparişler'de görünür).
+          Talep kazandırıldı — sipariş oluşturuldu (Siparişler'de görünür).
         </div>
       ) : l.status === "CLOSED_NO_AWARD" ? (
         <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-700">
@@ -994,18 +997,18 @@ export default function ListingDetailPage() {
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
           { label: "Davet Edilen", value: invitedCount },
-          { label: "Teklif Veren", value: submittedCount },
+          { label: "Teklif Veren", value: bidderCount },
           { label: "Tamamına", value: completeCount },
           { label: "Eksik Veren", value: incompleteCount },
         ].map((k) => (
           <div
             key={k.label}
-            className="rounded-xl border border-zinc-950/5 bg-white p-3"
+            className="rounded-xl border border-zinc-950/5 bg-white px-4 py-3"
           >
-            <dt className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
+            <dt className="text-[11px] font-semibold uppercase tracking-wide text-zinc-500">
               {k.label}
             </dt>
-            <dd className="mt-0.5 text-lg font-bold text-zinc-900">
+            <dd className="mt-1 text-2xl font-bold tabular-nums text-zinc-900">
               {k.value}
             </dd>
           </div>
@@ -1368,7 +1371,7 @@ export default function ListingDetailPage() {
           <div className="flex items-center gap-1 text-xs">
             {(
               [
-                ["all", `Tümü (${submittedCount})`],
+                ["all", `Tümü (${bidderCount})`],
                 ["complete", `Tamamına (${completeCount})`],
                 ["incomplete", `Eksik (${incompleteCount})`],
               ] as const
@@ -1378,9 +1381,9 @@ export default function ListingDetailPage() {
                 type="button"
                 aria-pressed={bidView === key}
                 onClick={() => setBidView(key)}
-                className={`rounded-full px-3 py-1 font-medium ${
+                className={`rounded-full px-3 py-1.5 text-sm font-medium ${
                   bidView === key
-                    ? "bg-zinc-900 text-white"
+                    ? "bg-blue-600 text-white"
                     : "bg-zinc-100 text-zinc-600 hover:bg-zinc-200"
                 }`}
               >
@@ -1407,28 +1410,32 @@ export default function ListingDetailPage() {
               !!b.validityDays &&
               new Date(b.submittedAt).getTime() + b.validityDays * 86_400_000 < Date.now();
             return (
+            // SATIR DÜZENİ (2026-09-19, kullanıcı: "daha nizami"): solda
+            // her satırda AYNI yerde durum pili → firma adı → küçük meta
+            // rozetler; sağda tutar (kalın) | ayraç | Mesaj · Ele · Kazandır.
             <div
               key={b.id}
-              className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"
+              className="grid grid-cols-1 gap-x-4 gap-y-2 rounded-xl border border-zinc-950/10 bg-white px-4 py-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
             >
               <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                {b.id === bestBidId && canDecide ? (
-                  <Badge color="green">En iyi</Badge>
-                ) : null}
+                {b.status === "SUBMITTED" ? <Badge color="violet">Değerlendirmede</Badge> : null}
                 {b.status === "WON" ? <Badge color="green">Kazandı</Badge> : null}
                 {b.status === "AWARDED_PARTIAL" ? (
                   <Badge color="green">Kısmen Kazandı</Badge>
                 ) : null}
                 {b.status === "LOST" ? <Badge color="zinc">Elendi</Badge> : null}
-                {/* Geçerlilik dolmuş canlı teklif — alıcı kazandırmadan önce
-                    görsün (son gün = submittedAt + validityDays). */}
-                {bidExpired ? <Badge color="amber">Geçerlilik doldu</Badge> : null}
                 <Link
                   href={`/company/ilan/${l.id}/teklif/${b.id}`}
-                  className="text-sm font-medium text-zinc-900 hover:text-blue-600 hover:underline"
+                  className="text-[15px] font-semibold text-zinc-950 hover:text-blue-700 hover:underline"
                 >
                   {b.bidderName}
                 </Link>
+                {b.id === bestBidId && canDecide ? (
+                  <Badge color="green">En iyi</Badge>
+                ) : null}
+                {/* Geçerlilik dolmuş canlı teklif — alıcı kazandırmadan önce
+                    görsün (son gün = submittedAt + validityDays). */}
+                {bidExpired ? <Badge color="amber">Geçerlilik doldu</Badge> : null}
                 {l.english?.isEnglishAuction && b.round ? (
                   <Badge color="zinc">Tur {b.round}</Badge>
                 ) : null}
@@ -1444,11 +1451,11 @@ export default function ListingDetailPage() {
                   </Badge>
                 ) : null}
               </div>
-              <div className="flex shrink-0 items-center gap-3">
-                <span className="tabular-nums text-sm font-semibold text-zinc-900">
+              <div className="flex shrink-0 flex-wrap items-center gap-3">
+                <span className="text-base font-bold tabular-nums text-zinc-950">
                   {formatMoney(b.amount, b.currency ?? "TRY")}
                   {b.currency && b.currency !== "TRY" && b.amountTry ? (
-                    <span className="ml-1 text-xs font-normal text-zinc-400">
+                    <span className="ml-1 text-xs font-normal text-zinc-500">
                       ≈ {formatMoney(b.amountTry, "TRY")}
                       {b.exchangeRateSnapshot
                         ? ` (kur: ${b.exchangeRateSnapshot})`
@@ -1456,10 +1463,11 @@ export default function ListingDetailPage() {
                     </span>
                   ) : null}
                 </span>
+                <span aria-hidden className="hidden h-6 w-px bg-zinc-200 sm:block" />
                 {b.bidderCompanyId ? (
                   <Link
                     href={`/company/mesajlar?with=${b.bidderCompanyId}&portal=satinalma`}
-                    className="text-xs font-semibold text-blue-600 hover:underline"
+                    className="text-sm font-semibold text-blue-600 hover:underline"
                   >
                     Mesaj
                   </Link>
@@ -1496,8 +1504,8 @@ export default function ListingDetailPage() {
                   satırında (isim/rozet kümesinin içinde dosya çipi kafa
                   karıştırıyordu). Tam liste teklif detayında. */}
               {(bidDocs.data ?? []).some((d) => d.bidId === b.id) ? (
-                <div className="flex w-full flex-wrap items-center gap-2 border-t border-zinc-100 pt-2">
-                  <span className="text-xs font-medium uppercase tracking-wide text-zinc-400">
+                <div className="flex w-full flex-wrap items-center gap-2 border-t border-zinc-100 pt-2 sm:col-span-2">
+                  <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
                     Teklif ekleri:
                   </span>
                   {(bidDocs.data ?? [])
