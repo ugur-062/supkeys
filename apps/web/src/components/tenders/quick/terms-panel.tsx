@@ -104,7 +104,9 @@ export function TermsPanel({
           <RequestDefaultsForm value={value} onChange={onChange} compact />
         </div>
       ) : (
-        <dl className="divide-y divide-zinc-950/5 px-5">
+        // Etiket/değer çifti görsel olarak dl gibi ama ikon + düğme aynı satırda:
+        // dl'in doğrudan çocuğu yalnız dt/dd/div olabilir (axe definition-list) → düz div.
+        <div className="divide-y divide-zinc-950/5 px-5">
           {rows.map((r) => (
             <div key={r.key} className="py-2.5">
               <div className="flex items-start gap-3">
@@ -112,8 +114,8 @@ export function TermsPanel({
                   <r.icon aria-hidden className="size-4" />
                 </span>
                 <div className="min-w-0 flex-1">
-                  <dt className="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">{r.label}</dt>
-                  <dd className={cn("text-sm font-medium", r.missing ? "text-red-700" : "text-zinc-950")}>{r.text ?? "Seçilmedi — gerekli"}</dd>
+                  <div className="text-[11px] font-medium tracking-wide text-zinc-500 uppercase">{r.label}</div>
+                  <div className={cn("text-sm font-medium", r.missing ? "text-red-700" : "text-zinc-950")}>{r.text ?? "Seçilmedi — gerekli"}</div>
                 </div>
                 <button
                   type="button"
@@ -130,7 +132,7 @@ export function TermsPanel({
               ) : null}
             </div>
           ))}
-        </dl>
+        </div>
       )}
 
       <div className="flex items-center justify-between gap-2 border-t border-zinc-950/5 bg-zinc-50 px-5 py-3">

@@ -121,6 +121,7 @@ export function RequestDefaultsForm({
       {show("payment") ? (
         <Block title="Ödeme koşulu" hint="Tedarikçi teklifini bu koşula göre verir; sipariş adımları buradan türer.">
           <select
+            aria-label="Ödeme koşulu"
             value={value.paymentCategory}
             onChange={(e) => {
               const c = e.target.value;
@@ -172,6 +173,7 @@ export function RequestDefaultsForm({
             <Field>
               <Label htmlFor="tsart-para">Ana para birimi</Label>
               <select
+                id="tsart-para"
                 value={value.primaryCurrency}
                 onChange={(e) => {
                   const c = e.target.value;
@@ -263,7 +265,7 @@ export function RequestDefaultsForm({
 
       {show("address") ? (
         <Block title="Teslimat adresi" hint="Varsayılan adres; her talepte değiştirilebilir.">
-          <select value={value.deliveryAddressId ?? ""} onChange={(e) => set({ deliveryAddressId: e.target.value || null })} className={INPUT}>
+          <select aria-label="Teslimat adresi" value={value.deliveryAddressId ?? ""} onChange={(e) => set({ deliveryAddressId: e.target.value || null })} className={INPUT}>
             <option value="">— Talepte seçilir —</option>
             {(addresses.data ?? []).map((a) => (
               <option key={a.id} value={a.id}>
