@@ -2156,9 +2156,8 @@ export default function ListingDetailPage() {
               href="/nasil-calisir#nasil"
               target="_blank"
               rel="noopener"
-              className="inline-flex shrink-0 items-center gap-1.5 text-sm font-medium text-blue-700 hover:text-blue-800"
+              className="inline-flex shrink-0 items-center text-sm font-medium text-blue-700 hover:text-blue-800"
             >
-              <Info aria-hidden className="size-4" />
               Nasıl çalışır?
             </a>
           </div>

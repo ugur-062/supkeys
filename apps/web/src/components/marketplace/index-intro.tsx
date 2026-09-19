@@ -30,7 +30,6 @@ export function IndexIntro({
   const activities = facets.activities.filter((a) => a.count > 0).slice(0, 3);
   const cats = facets.categories.filter((c) => c.count > 0).slice(0, 4);
   const priced = facets.price?.has ?? 0;
-  const verified = facets.verified ?? 0;
 
   const sentences: string[] = [];
   if (total > 0) {
@@ -68,13 +67,8 @@ export function IndexIntro({
         : `${priced} üründe fiyat açık yazılı; kalanı için satıcıdan teklif isteyebilirsiniz.`,
     );
   }
-  if (verified > 0) {
-    sentences.push(
-      verified >= total
-        ? "Ürünlerin tamamı doğrulanmış firmalara ait."
-        : `${verified} ürün doğrulanmış firmalara ait.`,
-    );
-  }
+  // "…doğrulanmış firmalara ait" cümlesi KALDIRILDI (2026-09-19, kullanıcı:
+  // kategori sayfasında "yarısı var yarısı yok" okunuyordu, kafa karıştırıcı).
 
   if (sentences.length === 0) return null;
 
