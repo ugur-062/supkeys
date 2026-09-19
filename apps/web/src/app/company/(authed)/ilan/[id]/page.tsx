@@ -69,7 +69,7 @@ import {
   Paperclip,
   Users,
   Sparkles,
-  Wallet, PackagePlus, ShoppingCart, FileText, Clock, ChevronRight, Share2 } from "lucide-react";
+  Wallet, PackagePlus, FileText, Clock, ChevronRight, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -1702,10 +1702,6 @@ export default function ListingDetailPage() {
       <Heading className="text-3xl/9 font-bold">{l.title}</Heading>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-sm font-medium text-blue-700">
-          <ShoppingCart aria-hidden className="size-4" />
-          Alış
-        </span>
         <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-sm font-medium text-zinc-700">
           {l.isInternational ? <Globe aria-hidden className="size-4" /> : <MapPin aria-hidden className="size-4" />}
           {l.isInternational ? "Uluslararası" : "Yurtiçi"}
