@@ -192,18 +192,23 @@ export function IhaleListRow({
           </span>
         ),
       },
+      // Teklifler sütunda, Davetli alt metrikte (2026-09-19, kullanıcı:
+      // "teklifler ve davetli yerlerini değiştir") — sahibin ilk baktığı
+      // sayı gelen teklif sayısıdır.
       {
-        label: "Davetli",
-        value: (
-          <span
-            className={cn(
-              "font-semibold tabular-nums",
-              t.invitationCount > 0 ? "text-slate-900" : "text-slate-300",
-            )}
-          >
-            {t.invitationCount}
-          </span>
-        ),
+        label: "Teklifler",
+        value:
+          t.bidCount > 0 ? (
+            <Link
+              href={detailHref}
+              onClick={(e) => e.stopPropagation()}
+              className={cn("font-semibold tabular-nums text-blue-600 hover:underline", ROW_FOCUS)}
+            >
+              {t.bidCount}
+            </Link>
+          ) : (
+            <span className="font-semibold tabular-nums text-slate-300">0</span>
+          ),
       },
       {
         label: "Kapsam",
@@ -263,19 +268,12 @@ export function IhaleListRow({
       },
     ],
     metric: {
-      label: "Teklifler",
-      value:
-        t.bidCount > 0 ? (
-          <Link
-            href={detailHref}
-            onClick={(e) => e.stopPropagation()}
-            className={cn("text-blue-600 hover:underline", ROW_FOCUS)}
-          >
-            {t.bidCount}
-          </Link>
-        ) : (
-          <span className="text-slate-400">0</span>
-        ),
+      label: "Davetli",
+      value: (
+        <span className={cn("tabular-nums", t.invitationCount > 0 ? "text-slate-900" : "text-slate-400")}>
+          {t.invitationCount}
+        </span>
+      ),
     },
     // Accordion — liste verisinin özeti + tembel kalem tablosu (yalnız
     // açıkken fetch; ilk 5 kalem, tamamı detay sayfasında).

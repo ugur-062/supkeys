@@ -486,6 +486,10 @@ Kategori FOTOĞRAFI yine yok. Sözleşme: `listing-card-footer.test`,
 amber · Elendi gri), numara pili | "Açık Talep" mavi çip, `text-xl` başlık,
 ikon karolu "Alıcı" · dikey ayraç · mavi tutar pili · taahhüt; alt satır
 ayraçlı: takvim "Verildi", sağda gri geri sayım pili (saat ikonu).
+**Taleplerim satırı sütunları (2026-09-19 akşam, kullanıcı: "teklifler ve
+davetli yerlerini değiştir"):** `IhaleListRow` metrik şeridi Sorumlu ·
+**Teklifler** (bağlantı) · Kapsam · Yayın · Kapanış · Kategori; **Davetli**
+sağ alt metrikte. Sözleşme: `ihale-list-row.test`.
 **Talep satırı alt çizgisi (2026-09-17, kullanıcı kararı):** `ListingCard row`
 alt satırında kalem açma düğmesi EN SOLDA — **yazısız, yalnız aşağı ok**
 (`size-5`, slate-600, hover zemin; erişilebilir adı "Kalemleri göster/gizle"),
