@@ -135,6 +135,32 @@ export function Step2Items() {
         <p className="text-sm text-danger-600">{itemsArrayError}</p>
       ) : null}
 
+      {/* Toplu ekleme (katalog / Excel) SAĞ ÜSTTE — listeye girmeden önce
+          görünür (2026-09-19, kullanıcı: "sağ alta değil sağ üste koy");
+          tek satır eklemek listenin altında kalır. */}
+      <div className="flex flex-wrap items-center justify-end gap-2">
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => setCatalogOpen(true)}
+          disabled={fields.length >= MAX_LISTING_ITEMS}
+        >
+          <PackageSearch className="w-4 h-4" />
+          Katalogdan Ekle
+        </Button>
+        <Button
+          type="button"
+          variant="secondary"
+          size="sm"
+          onClick={() => setExcelOpen(true)}
+          disabled={fields.length >= MAX_LISTING_ITEMS}
+        >
+          <FileSpreadsheet className="w-4 h-4" />
+          Excel ile İçe Aktar
+        </Button>
+      </div>
+
       <div className="space-y-3">
         {fields.map((field, idx) => (
           <ItemRow
@@ -152,26 +178,6 @@ export function Step2Items() {
           {MAX_LISTING_ITEMS}
         </p>
         <div className="flex items-center gap-2">
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setCatalogOpen(true)}
-            disabled={fields.length >= MAX_LISTING_ITEMS}
-          >
-            <PackageSearch className="w-4 h-4" />
-            Katalogdan Ekle
-          </Button>
-          <Button
-            type="button"
-            variant="secondary"
-            size="sm"
-            onClick={() => setExcelOpen(true)}
-            disabled={fields.length >= MAX_LISTING_ITEMS}
-          >
-            <FileSpreadsheet className="w-4 h-4" />
-            Excel ile İçe Aktar
-          </Button>
           <Button
             type="button"
             variant="secondary"
