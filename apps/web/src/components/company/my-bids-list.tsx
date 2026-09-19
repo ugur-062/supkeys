@@ -3,7 +3,6 @@
 import { MODULE_LABELS } from "@/lib/company/portals";
 import { selectActiveOffers, selectWonOffers } from "@/lib/company/kpi-selectors";
 import { formatDate } from "@/lib/format-date";
-import { Badge } from "@/components/catalyst/badge";
 import {
   ActiveFilterChips,
   FilterMultiSelect,
@@ -20,7 +19,6 @@ import { useMyBids, type MyBid } from "@/hooks/use-company-listings";
 import { closingUrgency } from "@/lib/tenders/seller-state";
 import { formatMoney } from "@/components/ui/money";
 import { bidDeliveryTimeLabel } from "@rothern/shared";
-import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import {
   ArrowUpDown,
@@ -28,6 +26,7 @@ import {
   Calendar,
   CalendarRange,
   CircleSlash,
+  Clock,
   Gavel,
   ListFilter,
 } from "lucide-react";
@@ -109,76 +108,81 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
   // P2 (denetim §10.2): kart <a> DEĞİL — başlıktaki stretched-link kartı
   // tıklanabilir kılar; iç aksiyonlar relative z-10 gerçek link olur
   // (button+router.push workaround'u biter).
+  // TEKLİF KARTI v2 (2026-09-19, kullanıcı mockup'ı): kalın statü şeridi,
+  // numara pili | "Açık Talep" mavi çip, büyük başlık, ikon karolu "Alıcı"
+  // satırı · dikey ayraç · mavi tutar pili · taahhüt; alt satır ayraçlı —
+  // solda takvim "Verildi", sağda gri geri sayım pili (saat ikonu).
   return (
     <div
       className={cn(
-        "group relative flex h-full flex-col overflow-hidden card p-5 pl-6 transition-all duration-200 hover:-translate-y-[1px] hover:shadow-card-hover", "hover:border-blue-300",
+        "group relative flex h-full flex-col overflow-hidden rounded-2xl bg-white p-5 pl-7 shadow-sm ring-1 ring-zinc-950/5 transition-all duration-200 hover:-translate-y-[1px] hover:shadow-card-hover hover:ring-blue-300",
       )}
     >
         {/* C52: sol şerit STATÜ rengi (tek harita) — önceden ihale TİPİ
-            rengiydi ve "Kazandı" ile "Değerlendirmede" aynı renkte görünüyordu.
-            Tip bilgisi kartta Badge olarak zaten var. */}
+            rengiydi ve "Kazandı" ile "Değerlendirmede" aynı renkte görünüyordu. */}
         <span
           aria-hidden
           className={cn(
-            "absolute left-0 top-0 bottom-0 w-1",
+            "absolute left-0 top-0 bottom-0 w-1.5 rounded-l-2xl",
             STATUS_STRIP[b.status] ?? "bg-gradient-to-b from-zinc-400 to-zinc-300",
           )}
         />
-        <div className="mb-3 flex items-start justify-between gap-3">
-          <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-2">
-              <span className="rounded-md bg-zinc-100 px-1.5 py-0.5 tabular-nums text-xs font-medium text-zinc-600">
-                {b.listing.number ?? "—"}
-              </span>
-              {/* Alış/Satış tip etiketi — ilan sayfası renkleriyle. */}
-              <Badge color="blue">Açık Talep
-              </Badge>
-            </div>
-            <h3
-              className={cn(
-                "mt-1.5 line-clamp-2 text-[15px] leading-snug font-semibold text-zinc-950 transition-colors",
-                "group-hover:text-blue-700",
-              )}
-            >
-              <Link
-                href={`/company/ilan/${b.listing.id}?from=${encodeURIComponent(fromHref)}&fromLabel=Tekliflerim`}
-                className="after:absolute after:inset-0 after:content-['']"
-              >
-                {b.listing.title}
-              </Link>
-            </h3>
-          </div>
-          <Badge color={st.color} className="shrink-0">
-            {st.label}
-          </Badge>
-        </div>
-
-        <div className="mb-3 flex flex-wrap items-center gap-2 text-xs text-zinc-500">
-          <span className="inline-flex items-center gap-2 text-sm text-zinc-600">
-            <span className="flex size-6 shrink-0 items-center justify-center rounded-md bg-zinc-100">
-              <Building2 className="h-3.5 w-3.5 text-zinc-500" aria-hidden="true" />
+        <div className="flex items-start justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="rounded-lg bg-zinc-100 px-2.5 py-1 text-sm font-medium tabular-nums text-zinc-600">
+              {b.listing.number ?? "—"}
             </span>
-            <span className="truncate font-medium">
+            <span aria-hidden className="h-5 w-px bg-zinc-200" />
+            <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-sm font-medium text-blue-600">Açık Talep</span>
+          </div>
+          <span
+            className={cn(
+              "shrink-0 rounded-full px-3.5 py-1.5 text-sm font-medium",
+              st.color === "violet" && "bg-violet-100 text-violet-700",
+              st.color === "green" && "bg-emerald-100 text-emerald-700",
+              st.color === "amber" && "bg-amber-100 text-amber-800",
+              st.color === "red" && "bg-red-100 text-red-700",
+              st.color === "zinc" && "bg-zinc-100 text-zinc-600",
+            )}
+          >
+            {st.label}
+          </span>
+        </div>
+        <h3
+          className={cn(
+            "mt-2.5 line-clamp-2 text-xl leading-snug font-bold text-zinc-950 transition-colors",
+            "group-hover:text-blue-700",
+          )}
+        >
+          <Link
+            href={`/company/ilan/${b.listing.id}?from=${encodeURIComponent(fromHref)}&fromLabel=Tekliflerim`}
+            className="after:absolute after:inset-0 after:content-['']"
+          >
+            {b.listing.title}
+          </Link>
+        </h3>
+
+        <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+          <span className="inline-flex min-w-0 items-center gap-2.5 text-zinc-600">
+            <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-zinc-100">
+              <Building2 className="size-4 text-zinc-600" aria-hidden="true" />
+            </span>
+            <span className="truncate">
               {"Alıcı: "}
               {b.listing.ownerName}
             </span>
           </span>
-          <span
-            className={cn(
-              "inline-flex items-center rounded-lg px-2.5 py-1 text-sm font-bold tabular-nums ring-1",
-              "bg-blue-50 text-blue-700 ring-blue-100",
-            )}
-          >
+          <span aria-hidden className="hidden h-7 w-px bg-zinc-200 sm:block" />
+          <span className="inline-flex items-center rounded-xl bg-blue-50 px-3.5 py-1.5 text-base font-bold tabular-nums text-blue-700">
             {formatMoney(b.amount, b.currency)}
           </span>
           {b.currency !== "TRY" && b.amountTry ? (
-            <span className=" text-xs text-zinc-400 tabular-nums">
+            <span className="text-xs tabular-nums text-zinc-500">
               ≈ {formatMoney(b.amountTry, "TRY")}
             </span>
           ) : null}
           {b.deliveryTime || b.deliveryDate ? (
-            <span className="text-xs text-zinc-400">
+            <span className="text-zinc-600">
               Taahhüt teslim:{" "}
               {bidDeliveryTimeLabel(b.deliveryTime) ??
                 (b.deliveryDate
@@ -188,11 +192,11 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
           ) : null}
           {/* §8.4: Tur/revizyon renkli rozet değil, renksiz meta. */}
           {b.round > 1 ? (
-            <span className="text-xs text-zinc-400">Tur {b.round}</span>
+            <span className="text-xs text-zinc-500">Tur {b.round}</span>
           ) : null}
           {b.version > 1 ? (
             <span
-              className="text-xs text-zinc-400"
+              className="text-xs text-zinc-500"
               title={`Bu teklifin ${b.version}. revizyonu`}
             >
               Revizyon {b.version}
@@ -201,14 +205,14 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
         </div>
 
         {canRebid ? (
-          <p className="mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
+          <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
             Talep hâlâ açık — güncellenmiş teklifle yeniden katılabilirsiniz.
           </p>
         ) : null}
 
-        <div className="mt-auto flex items-center justify-between border-t border-zinc-100 pt-3 text-xs">
-          <div className="flex items-center gap-2 text-zinc-500">
-            <Calendar className="h-3 w-3" aria-hidden="true" />
+        <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3 text-sm">
+          <div className="flex items-center gap-2 text-zinc-600">
+            <Calendar className="size-4" aria-hidden="true" />
             <span>
               Verildi{" "}
               {formatDate(b.createdAt, "short")}
@@ -218,10 +222,11 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
             {b.listing.status === "OPEN" && b.listing.closesAt ? (
               <span
                 className={cn(
-                  "inline-flex items-center gap-1 rounded-full bg-current/10 px-2.5 py-1 font-semibold whitespace-nowrap",
-                  urgency?.className ?? "text-zinc-500",
+                  "inline-flex items-center gap-2 rounded-full bg-zinc-100 px-3.5 py-1.5 font-medium whitespace-nowrap text-zinc-700",
+                  urgency?.className,
                 )}
               >
+                <Clock className="size-4" aria-hidden="true" />
                 Kapanışa{" "}
                 <CountdownFull
                   deadline={b.listing.closesAt}
@@ -229,7 +234,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
                 />
               </span>
             ) : !won ? (
-              <span className="text-zinc-400">
+              <span className="text-zinc-500">
                 {/* C51: Değerlendirmede rozetiyle "kapandı" çelişkili okunuyordu —
                     gönderilmiş teklifte süreç dili. */}
                 {b.status === "SUBMITTED" ? "Sonuç bekleniyor" : "Talep kapandı"}
@@ -239,18 +244,18 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
             {won && b.orderId ? (
               <Link
                 href={`/company/siparis/${b.orderId}`}
-                className="relative z-10 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
+                className="relative z-10 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
               >
                 Siparişe Git
-                <ArrowRightIcon className="h-3.5 w-3.5" aria-hidden />
+                <ArrowRightIcon className="size-4" aria-hidden />
               </Link>
             ) : canRebid ? (
               <Link
                 href={`/company/ilan/${b.listing.id}/teklif-ver`}
-                className="relative z-10 inline-flex items-center gap-1 rounded-lg px-2.5 py-1.5 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
+                className="relative z-10 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
               >
                 Yeniden Teklif Ver
-                <ArrowRightIcon className="h-3.5 w-3.5" aria-hidden />
+                <ArrowRightIcon className="size-4" aria-hidden />
               </Link>
             ) : null}
           </div>

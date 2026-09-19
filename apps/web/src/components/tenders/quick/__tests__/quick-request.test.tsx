@@ -14,6 +14,7 @@ const h = vi.hoisted(() => ({
   create: vi.fn(),
   saveDefaults: vi.fn(),
   push: vi.fn(),
+  connections: [] as unknown[],
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
@@ -29,7 +30,7 @@ vi.mock("@/hooks/use-company-addresses", () => ({
   useAddresses: () => ({ data: [{ id: "addr1", type: "TESLIMAT", title: "Depo", city: "İzmir", isDefault: true }], isLoading: false }),
   useSaveAddress: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
-vi.mock("@/hooks/use-company-connections", () => ({ useConnections: () => ({ data: [], isLoading: false }) }));
+vi.mock("@/hooks/use-company-connections", () => ({ useConnections: () => ({ data: h.connections, isLoading: false }) }));
 vi.mock("@/hooks/use-company-listings", () => ({
   useCreateListing: () => ({ mutateAsync: h.create, isPending: false }),
   // Düzenleme modu (2026-09-19, sihirbaz kaldırıldı) — burada yeni kart sınanır.
@@ -115,7 +116,7 @@ describe("QuickRequest", () => {
     expect(screen.getByRole("button", { name: /^Bağlantılarım/ })).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText("2 kalem · Dağıtım panoları")).toBeInTheDocument();
     // Kime: bağlantı sayısı gerçek veriden; herkese açıkta dizin sayısı
-    expect(screen.getByText(/0 bağlantınız görecek/)).toBeInTheDocument();
+    expect(screen.getByText(/Bağlantınız olmadığı için bu talebi kimse görmez/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^Herkese açık/ }));
     expect(screen.getByText(/12 firma/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: /^Bağlantılarım/ }));
@@ -148,6 +149,33 @@ describe("QuickRequest", () => {
     expect(await screen.findByText("Talebiniz yayında")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: "Talebi gör" })).toHaveAttribute("href", "/company/ilan/l1");
   }, 30_000); // sihirbaz satırları (birim seçici × 2) tam suite yükünde 15 sn'yi aşabiliyor
+
+  it("Bağlantılarım = görünürlük listesi: hepsi işaretli başlar; biri çıkarılınca yayın PRIVATE + yalnız kalanlar gider", async () => {
+    h.create.mockResolvedValue({ id: "l2", number: "ROT-000043" });
+    h.connections = [
+      { connectionId: "c1", origin: "SENT", decidedAt: null, company: { id: "1", name: "Beta Kimya", rothernId: "BETA-0001", city: "Kocaeli", industry: "Kimya" } },
+      { connectionId: "c2", origin: "SENT", decidedAt: null, company: { id: "2", name: "Ege Makina", rothernId: "EGEM-0001", city: "Manisa", industry: "Makine" } },
+    ];
+    try {
+      wrap(<QuickRequest />);
+      const name1 = await screen.findByLabelText(/^Kalem Adı/);
+      fireEvent.change(name1, { target: { value: "çelik boru" } });
+      // Bağlantılarım seçili → iki bağlantı da işaretli, açıklama "tamamı görecek"
+      await waitFor(() => expect(screen.getByText(/2 bağlantınızın tamamı görecek/)).toBeInTheDocument());
+      const region = screen.getByRole("region", { name: "Bağlantılarım" });
+      expect(within(region).getByRole("checkbox", { name: "Beta Kimya seç" })).toBeChecked();
+      fireEvent.click(within(region).getByRole("checkbox", { name: "Beta Kimya seç" }));
+      expect(screen.getByText(/2 bağlantınızdan 1 firma görecek; çıkardığınız 1 firma talebi görmez/)).toBeInTheDocument();
+      fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
+      fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+      await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
+      const body = h.create.mock.calls[0][0];
+      expect(body.visibility).toBe("PRIVATE");
+      expect(body.invitations).toEqual(["EGEM-0001"]);
+    } finally {
+      h.connections = [];
+    }
+  }, 30_000);
 
   it("1. bölüm: başlık → 'AI ile başlık ve kategori bul' → kategori (tek sütun); düğme kalemsiz pasif", async () => {
     // 2026-09-17, kullanıcı kararı: kategori seçimi başlığın ALTINDA; AI

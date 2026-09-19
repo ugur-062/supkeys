@@ -17,13 +17,21 @@ import {
 import { useMemo, useState } from "react";
 
 /**
- * "SEÇTİKLERİM" — DAVET SEÇİCİSİ, İKİ PANEL (2026-09-19, kullanıcı mockup'ı;
- * v2 kart ızgarası "çok düz" bulunup değiştirildi).
+ * DAVET / GÖRÜNÜRLÜK SEÇİCİSİ (2026-09-19, kullanıcı mockup'ı + aynı gün
+ * ikinci karar: "Seçilen firmalar" paneli tablonun SAĞINA değil ALTINA,
+ * tablo tam genişlik).
  *
- * SOL: "Davet edilecek firmalar" — arama, Sektör/Şehir süzgeci, "Tümünü seç",
- * tablo (Firma · Şehir · Sektör · Firma türü), 7'şer "Daha fazla yükle".
- * SAĞ: "Seçilen firmalar N" — kaldırılabilir liste, "N firmayı davet et"
- * (yayın düğmesine götürür), "Seçimi temizle".
+ * ÜST: firma listesi — arama, Sektör/Şehir süzgeci, "Tümünü seç", tablo
+ * (Firma · Şehir · Sektör · Firma türü), 7'şer "Daha fazla yükle".
+ * ALT: "Seçilen firmalar N" — kaldırılabilir kompakt ızgara, "N firmayı
+ * davet et" (yayın düğmesine götürür), "Seçimi temizle".
+ *
+ * İKİ KİP:
+ *  - `private` (Özel): boş başlar, seçilenler davet alır ve yalnız onlar görür.
+ *  - `connections` (Bağlantılarım): çağıran TÜM bağlantıları işaretli
+ *    verir; işareti kaldırılan firma talebi HİÇ görmez (bildirim/e-posta da
+ *    yok — `applyConnectionsScope` yayında PRIVATE'e çevirir). Sıra:
+ *    işaretliler üstte, kaldırılanlar altta; her grupta kalem uygunluğu.
  *
  * SIRALAMA KALEMLERE GÖRE (kullanıcı: "koyulan kalemlere göre de bir
  * sıralama yap"): her bağlantı için uygunluk puanı — talebin kategorisiyle
@@ -40,6 +48,7 @@ export function SupplierPicker({
   itemNames = [],
   categoryIds = [],
   onInvite,
+  mode = "private",
 }: {
   value: string[];
   onChange: (ids: string[]) => void;
@@ -49,22 +58,30 @@ export function SupplierPicker({
   categoryIds?: string[];
   /** "N firmayı davet et" — çağıran yayın adımına götürür; verilmezse düğme çizilmez. */
   onInvite?: (count: number) => void;
+  /** `connections`: görünürlük listesi (işaretsiz = görmez); `private`: davet listesi. */
+  mode?: "private" | "connections";
 }) {
   const { data: connections = [], isLoading } = useConnections();
   const [q, setQ] = useState("");
   const [sector, setSector] = useState("");
   const [city, setCity] = useState("");
   const [shown, setShown] = useState(PAGE);
+  const scoped = mode === "connections";
 
   const term = q.trim().toLocaleLowerCase("tr");
   const scored = useMemo(() => {
     const tokens = itemTokens(itemNames);
     const prefixes = categoryPrefixes(categoryIds);
-    return connections
+    const base = connections
       .filter((c) => !!c.company.rothernId)
-      .map((c) => ({ c, score: relevance(c, tokens, prefixes) }))
-      .sort((a, b) => b.score - a.score || a.c.company.name.localeCompare(b.c.company.name, "tr"));
-  }, [connections, itemNames, categoryIds]);
+      .map((c) => ({ c, score: relevance(c, tokens, prefixes) }));
+    const byRelevance = (a: { c: Connection; score: number }, b: { c: Connection; score: number }) =>
+      b.score - a.score || a.c.company.name.localeCompare(b.c.company.name, "tr");
+    if (!scoped) return base.sort(byRelevance);
+    // Bağlantılarım: işaretliler üstte, çıkarılanlar altta; grup içinde uygunluk.
+    const on = (x: { c: Connection }) => (value.includes(x.c.company.rothernId as string) ? 0 : 1);
+    return base.sort((a, b) => on(a) - on(b) || byRelevance(a, b));
+  }, [connections, itemNames, categoryIds, scoped, value]);
 
   const sectors = useMemo(() => uniqSorted(scored.map((s) => s.c.company.industry)), [scored]);
   const cities = useMemo(() => uniqSorted(scored.map((s) => s.c.company.city)), [scored]);
@@ -81,6 +98,7 @@ export function SupplierPicker({
     [scored, sector, city, term],
   );
   const visible = rows.slice(0, shown);
+  const allIds = scored.map(({ c }) => c.company.rothernId as string);
   const selected = scored.filter(({ c }) => value.includes(c.company.rothernId as string)).map((s) => s.c);
   const toggle = (id: string) => onChange(value.includes(id) ? value.filter((x) => x !== id) : [...value, id]);
   const visibleIds = visible.map(({ c }) => c.company.rothernId as string);
@@ -90,9 +108,9 @@ export function SupplierPicker({
 
   if (isLoading) {
     return (
-      <div className="grid grid-cols-1 gap-4 @4xl:grid-cols-[minmax(0,1fr)_18rem]" aria-busy>
+      <div className="space-y-4" aria-busy>
         <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
-        <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" />
+        <div className="h-24 animate-pulse rounded-2xl bg-zinc-100" />
       </div>
     );
   }
@@ -105,19 +123,26 @@ export function SupplierPicker({
   }
 
   const TH = "px-3 py-2.5 text-left text-xs font-medium text-zinc-500";
+  const listTitle = scoped ? "Bağlantılarım" : "Davet edilecek firmalar";
   return (
-    /* KAPSAYICI SORGUSU: form sütunu dar (≈800 px) → sağ panel ancak
-       kapsayıcı 56 rem'i geçince yana çıkar; sütunlar da kapsayıcıya göre
-       gizlenir (viewport'a değil). */
-    <div className="@container grid grid-cols-1 gap-4 @4xl:grid-cols-[minmax(0,1fr)_18rem]">
-      {/* SOL — aday listesi */}
-      <section aria-label="Davet edilecek firmalar" className="min-w-0 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5 sm:p-5">
+    /* KAPSAYICI SORGUSU: sütunlar kapsayıcı genişliğine göre gizlenir
+       (viewport'a değil) — form sütunu ≈800 px. */
+    <div className="@container space-y-4">
+      {/* ÜST — aday listesi, tam genişlik */}
+      <section aria-label={listTitle} className="min-w-0 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5 sm:p-5">
         <div className="flex flex-wrap items-baseline justify-between gap-2">
-          <h4 className="text-base font-semibold text-zinc-950">Davet edilecek firmalar</h4>
+          <h4 className="text-base font-semibold text-zinc-950">{listTitle}</h4>
           <p className="text-xs tabular-nums text-zinc-500">
-            {rows.length === 0 ? "0" : `1–${Math.min(shown, rows.length)}`} / {rows.length} firma
+            {scoped
+              ? `${selected.length} / ${allIds.length} seçili`
+              : `${rows.length === 0 ? "0" : `1–${Math.min(shown, rows.length)}`} / ${rows.length} firma`}
           </p>
         </div>
+        {scoped ? (
+          <p className="mt-1 text-xs text-zinc-500">
+            İşaretli firmalar talebi görür ve davet alır. İşareti kaldırdığınız firma talebi hiç görmez, bildirim ve e-posta almaz.
+          </p>
+        ) : null}
         <div className="mt-3 flex flex-wrap items-center gap-2">
           <div className="relative min-w-[12rem] flex-1">
             <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-zinc-400" />
@@ -134,10 +159,22 @@ export function SupplierPicker({
           </div>
           <FilterSelect label="Sektör" value={sector} onChange={(v) => { setSector(v); setShown(PAGE); }} options={sectors} />
           <FilterSelect label="Şehir" value={city} onChange={(v) => { setCity(v); setShown(PAGE); }} options={cities} />
-          <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-700">
-            <input type="checkbox" checked={allVisibleOn} onChange={toggleAll} aria-label="Görünenlerin tümünü seç" className="size-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-600/30" />
-            Tümünü seç
-          </label>
+          {scoped ? (
+            <span className="inline-flex items-center gap-1 text-sm">
+              <button type="button" onClick={() => onChange([...new Set([...value, ...allIds])])} className="rounded-lg px-2 py-1 font-medium text-blue-700 hover:bg-blue-50">
+                Tümünü seç
+              </button>
+              <span aria-hidden className="text-zinc-300">·</span>
+              <button type="button" onClick={() => onChange(value.filter((id) => !allIds.includes(id)))} className="rounded-lg px-2 py-1 font-medium text-zinc-700 hover:bg-zinc-100">
+                Tümünü kaldır
+              </button>
+            </span>
+          ) : (
+            <label className="inline-flex cursor-pointer items-center gap-2 text-sm text-zinc-700">
+              <input type="checkbox" checked={allVisibleOn} onChange={toggleAll} aria-label="Görünenlerin tümünü seç" className="size-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-600/30" />
+              Tümünü seç
+            </label>
+          )}
         </div>
 
         <div className="mt-3 overflow-hidden rounded-xl ring-1 ring-zinc-950/5">
@@ -151,6 +188,7 @@ export function SupplierPicker({
                 <th scope="col" className={cn(TH, "hidden @md:table-cell")}>Şehir</th>
                 <th scope="col" className={cn(TH, "hidden @2xl:table-cell")}>Sektör</th>
                 <th scope="col" className={cn(TH, "hidden @3xl:table-cell")}>Firma türü</th>
+                {scoped ? <th scope="col" className={cn(TH, "hidden text-right @xl:table-cell")}>Görünürlük</th> : null}
                 <th scope="col" className="w-8" />
               </tr>
             </thead>
@@ -160,7 +198,7 @@ export function SupplierPicker({
                 const on = value.includes(id);
                 const act = (c.company.activities ?? [])[0];
                 return (
-                  <tr key={c.connectionId} onClick={() => toggle(id)} className={cn("cursor-pointer transition", on ? "bg-blue-50/40" : "hover:bg-zinc-50")}>
+                  <tr key={c.connectionId} onClick={() => toggle(id)} className={cn("cursor-pointer transition", on ? "bg-blue-50/40" : scoped ? "opacity-70 hover:opacity-100" : "hover:bg-zinc-50")}>
                     <td className="px-3 py-2.5">
                       <input
                         type="checkbox"
@@ -194,6 +232,15 @@ export function SupplierPicker({
                     <td className="hidden px-3 py-2.5 @3xl:table-cell">
                       {act ? <span className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-700">{companyActivityLabel(act)}</span> : <span className="text-zinc-400">—</span>}
                     </td>
+                    {scoped ? (
+                      <td className="hidden px-3 py-2.5 text-right @xl:table-cell">
+                        {on ? (
+                          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">Görür</span>
+                        ) : (
+                          <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600">Görmez</span>
+                        )}
+                      </td>
+                    ) : null}
                     <td className="px-2 py-2.5 text-zinc-400">
                       <ChevronRightIcon aria-hidden className="size-4" />
                     </td>
@@ -202,7 +249,7 @@ export function SupplierPicker({
               })}
               {visible.length === 0 ? (
                 <tr>
-                  <td colSpan={6} className="px-3 py-6 text-center text-sm text-zinc-500">
+                  <td colSpan={scoped ? 7 : 6} className="px-3 py-6 text-center text-sm text-zinc-500">
                     Eşleşen bağlantı yok.
                   </td>
                 </tr>
@@ -225,19 +272,49 @@ export function SupplierPicker({
         ) : null}
       </section>
 
-      {/* SAĞ — seçilenler */}
-      <aside aria-label="Seçilen firmalar" className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5 sm:p-5 @4xl:sticky @4xl:top-24 @4xl:self-start">
-        <h4 className="flex items-center gap-2 text-base font-semibold text-zinc-950">
-          Seçilen firmalar
-          <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-blue-700">{selected.length}</span>
-        </h4>
-        <p className="mt-1 text-xs text-zinc-500">Yalnız davet ettiğiniz firmalar görür.</p>
+      {/* ALT — seçilenler, tam genişlik (tablonun sağına değil altına) */}
+      <section aria-label="Seçilen firmalar" className="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5 sm:p-5">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h4 className="flex items-center gap-2 text-base font-semibold text-zinc-950">
+              Seçilen firmalar
+              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-xs font-semibold tabular-nums text-blue-700">{selected.length}</span>
+            </h4>
+            <p className="mt-1 text-xs text-zinc-500">
+              {scoped ? "Bu firmalar talebi görür ve davet alır." : "Yalnız davet ettiğiniz firmalar görür."}
+            </p>
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {onInvite ? (
+              <button
+                type="button"
+                disabled={selected.length === 0}
+                onClick={() => onInvite(selected.length)}
+                className="inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
+              >
+                <PaperAirplaneIcon aria-hidden className="size-4" />
+                {selected.length} firmayı davet et
+              </button>
+            ) : null}
+            <button
+              type="button"
+              disabled={selected.length === 0}
+              onClick={() => onChange(value.filter((id) => !allIds.includes(id)))}
+              className="inline-flex items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
+            >
+              <TrashIcon aria-hidden className="size-4" />
+              Seçimi temizle
+            </button>
+          </div>
+        </div>
         {selected.length === 0 ? (
-          <p className="mt-4 rounded-xl bg-zinc-100 px-3 py-3 text-center text-xs text-zinc-600">Soldaki listeden firma seçin.</p>
+          <p className="mt-4 rounded-xl bg-zinc-100 px-3 py-3 text-center text-xs text-zinc-600">
+            {scoped ? "Hiçbir bağlantı seçili değil — talebi kimse görmez. Yukarıdan firma işaretleyin." : "Yukarıdaki listeden firma seçin."}
+          </p>
         ) : (
-          <ul className="mt-4 divide-y divide-zinc-950/5 overflow-hidden rounded-xl ring-1 ring-zinc-950/5">
+          <ul className="mt-4 grid grid-cols-1 gap-2 @xl:grid-cols-2 @4xl:grid-cols-3">
             {selected.map((c) => (
-              <li key={c.connectionId} className="flex items-center gap-3 px-3 py-2.5">
+              <li key={c.connectionId} className="flex items-center gap-3 rounded-xl px-3 py-2 ring-1 ring-zinc-950/5">
                 <Avatar c={c} />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center gap-1.5">
@@ -258,27 +335,7 @@ export function SupplierPicker({
             ))}
           </ul>
         )}
-        {onInvite ? (
-          <button
-            type="button"
-            disabled={selected.length === 0}
-            onClick={() => onInvite(selected.length)}
-            className="mt-4 inline-flex w-full items-center justify-center gap-2 rounded-xl bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700 disabled:opacity-50"
-          >
-            <PaperAirplaneIcon aria-hidden className="size-4" />
-            {selected.length} firmayı davet et
-          </button>
-        ) : null}
-        <button
-          type="button"
-          disabled={selected.length === 0}
-          onClick={() => onChange([])}
-          className="mt-2 inline-flex w-full items-center justify-center gap-2 rounded-xl border border-zinc-300 bg-white px-4 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 disabled:opacity-50"
-        >
-          <TrashIcon aria-hidden className="size-4" />
-          Seçimi temizle
-        </button>
-      </aside>
+      </section>
     </div>
   );
 }
