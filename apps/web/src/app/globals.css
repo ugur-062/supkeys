@@ -22,6 +22,23 @@
   --color-brand-900: #18181B; /* zinc-900 — başlık / metin (near-black) */
   --color-brand-950: #09090B; /* zinc-950 */
 
+  /* MAVİ SKALASI — satınalma/herkese açık aksan rengi (2026-09-19, kullanıcı:
+     "sistemdeki tüm maviler bu mavi olsun"). Tailwind'in varsayılan blue'su
+     (oklch 0.546 0.245 263, indigo'ya yakın) yerine kullanıcının referans
+     verdiği açık gök mavisi; ton merdiveni aynı anahtarlarla ezilir, sınıf
+     adları (bg-blue-600 vb.) değişmez. Emerald (satış) dokunulmadı. */
+  --color-blue-50:  #EEF7FE;
+  --color-blue-100: #DBEEFD;
+  --color-blue-200: #BDE0FB;
+  --color-blue-300: #8FCAF8;
+  --color-blue-400: #5CB1F5;
+  --color-blue-500: #3EA3F3;
+  --color-blue-600: #2F9BF2; /* birincil düğme / seçili */
+  --color-blue-700: #1F86DA; /* hover */
+  --color-blue-800: #1B6DB3;
+  --color-blue-900: #1A5990;
+  --color-blue-950: #12395C;
+
   /* Semantic — durum renkleri (yeşil/sarı/kırmızı). Marka monokrom olsa da
      başarı/uyarı/hata okunabilirlik için renkli kalır. */
   --color-success-50:  #ECFDF5;
