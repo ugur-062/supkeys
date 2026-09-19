@@ -480,6 +480,12 @@ yapmışsın"): px-3 py-2.5, başlık 13 px, etiket 10 px, değer 13 px, ikon
 karoları küçük (size-8 / size-7). `dense` pano widget'ı eski tek satır.
 Kategori FOTOĞRAFI yine yok. Sözleşme: `listing-card-footer.test`,
 `home-faces.test`.
+**TEKLİFLERİM KARTI v2 (2026-09-19, kullanıcı mockup'ı; "hepsinde mor yapma,
+şu anki renklere sadık kal"):** `my-bids-list.tsx` `MyBidCard` — kalın sol
+şerit ve durum pili STATÜYE göre (Değerlendirmede mor · Kazandı yeşil · Taslak
+amber · Elendi gri), numara pili | "Açık Talep" mavi çip, `text-xl` başlık,
+ikon karolu "Alıcı" · dikey ayraç · mavi tutar pili · taahhüt; alt satır
+ayraçlı: takvim "Verildi", sağda gri geri sayım pili (saat ikonu).
 **Talep satırı alt çizgisi (2026-09-17, kullanıcı kararı):** `ListingCard row`
 alt satırında kalem açma düğmesi EN SOLDA — **yazısız, yalnız aşağı ok**
 (`size-5`, slate-600, hover zemin; erişilebilir adı "Kalemleri göster/gizle"),
@@ -1040,6 +1046,23 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   (`company-connections.service` `COMPANY_CARD_SELECT`). Özet + Yayınla kartı
   sağ rayın EN ALTINDA (kullanıcı: "bu kısım en aşağıda olmalı").
   Sözleşme: `quick/__tests__/supplier-picker.test.tsx`.
+- **BAĞLANTILARIM = GÖRÜNÜRLÜK LİSTESİ (2026-09-19 akşam, kullanıcı kararı:
+  "o kişiyi çıkarırsa bildirim ve e-posta gitmediği gibi alım talebini de
+  görmeyecek"):** "Bağlantılarım" seçilince seçici TÜM bağlantıları işaretli
+  açar (`SupplierPicker mode="connections"`, işaretliler üstte, çıkarılanlar
+  altta "Görmez" etiketli, "Tümünü seç / Tümünü kaldır", sayaç N/M). Sunucuda
+  dışlama kavramı YOK → tek kaynak `lib/tenders/connections-scope.ts`
+  `applyConnectionsScope`: kimse çıkarılmadıysa CONNECTIONS + herkese davet
+  (yeni bağlantılar da görür), biri çıkarıldıysa PRIVATE + yalnız işaretliler
+  (çıkarılan görmez, bildirim almaz). Yayın ve taslak yolu bu fonksiyondan
+  geçer; düzenlemede talep sunucudaki hâliyle (Özel) açılır. Herkese açık ve
+  Özel boş başlar. **Seçilenler paneli tablonun ALTINDA, tablo tam genişlik**
+  (aynı gün, kullanıcı: "sağına değil altına"). Sözleşme:
+  `supplier-picker.test` "Bağlantılarım kipi", `quick-request.test`
+  "görünürlük listesi", `connections-scope.test`.
+- **Kalem araç çubuğu (2026-09-19):** "Katalogdan Ekle" ve "Excel ile İçe
+  Aktar" listenin SAĞ ÜSTÜNDE, "Yeni Kalem Ekle" altta kalır. Aranan tedarikçi
+  tipi çipleri: "Fark etmez" → **"Hepsi dahil"**, seçili çip mavi (siyah değil).
 - **AI TEDARİKÇİ KEŞFİ 3. BÖLÜMDE (2026-09-17):** "Kimler görsün?" bölümünün
   başında "AI ile daha fazla tedarikçiye eriş" kartı; modal kategori + KALEM
   ADLARIYLA açılır (web araması kalemleri bağlam alır). Sihirbaz 3. adımı da
