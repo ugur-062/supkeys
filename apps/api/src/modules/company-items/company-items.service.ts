@@ -6,6 +6,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
+import { mergeShowcaseInput } from "../../common/company/showcase-merge";
 import { Prisma, type CompanyItemPriceMode, type Currency, type ProductReviewStatus } from "@rothern/db";
 import {
   foldSearchText,
@@ -938,12 +939,16 @@ export class CompanyItemsService {
     // sırasında sessizce silinmez — fail-closed ama yıkıcı değil. Web formu
     // alanları hiç çizmez.
     const mediaAllowed = tierAtLeast(user.tier, PRODUCT_MEDIA_TIER);
+    // KISMİ PATCH (2026-09-19): gönderilmeyen alan mevcut değeriyle kalır —
+    // eskiden yalnız açıklama gönderen istek görsel/anahtar/nitelik/fiyatı
+    // siliyordu. Tek kaynak `showcase-merge.ts`.
+    const merged = mergeShowcaseInput(before, input);
     const patch = await this.normalizeShowcase(
       before,
       mediaAllowed
-        ? input
+        ? merged
         : {
-            ...input,
+            ...merged,
             videoUrl: before.videoUrl,
             documents: (before.documents as unknown as { url: string; title: string }[] | null) ?? null,
           },
