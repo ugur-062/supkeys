@@ -82,7 +82,9 @@ function Section({
             <Icon className="h-4.5 w-4.5 text-zinc-700" aria-hidden="true" />
           </div>
           <div>
-            <h3 className="font-semibold text-zinc-900">{title}</h3>
+            {/* Her görünümde TEK bölüm var → bölüm başlığı sayfanın h1'i
+                (2026-09-19: bu üç sayfa h1'siz kalan tek panel sayfalarıydı). */}
+            <h1 className="font-semibold text-zinc-900">{title}</h1>
             <p className="text-xs text-zinc-500">{description}</p>
           </div>
         </div>
