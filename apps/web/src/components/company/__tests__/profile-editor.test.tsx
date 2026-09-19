@@ -125,7 +125,8 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(within(rail).getByRole("region", { name: "Profil durumu" })).toHaveTextContent(/%\d+ tamam/);
     expect(within(rail).getByRole("region", { name: "Arama görünürlüğü" })).toBeInTheDocument();
     expect(within(rail).getByRole("region", { name: "Ürünlerim" })).toBeInTheDocument();
-    expect(within(rail).getByRole("checkbox", { name: /Ziyaretlerim karşı tarafa görünsün/ })).toBeInTheDocument();
+    // Gizlilik anahtarı Ziyaret Edenler sayfasına taşındı (2026-09-19).
+    expect(within(rail).queryByRole("checkbox", { name: /Ziyaretlerim karşı tarafa görünsün/ })).toBeNull();
     expect(within(rail).queryByLabelText("Hakkında")).toBeNull();
     // Kontroller
     // Logo/kapak üstünde TEK "Düzenle" menüsü (v2 7g) — değiştir/kaldır içeride.

@@ -1,5 +1,6 @@
 "use client";
 
+import { VisitsVisibilityCard } from "@/components/company/visits-visibility-card";
 import { Badge } from "@/components/ui/badge";
 import { CompanyLogo } from "@/components/company/company-logo";
 import { PeriodSelect } from "@/components/company/period-select";
@@ -48,6 +49,10 @@ export function VisitorsView() {
         </div>
         <PeriodSelect value={days} onChange={(v) => { setDays(v); setPage(1); }} />
       </div>
+
+      {/* Gizlilik anahtarı burada (2026-09-19): "sizin ziyaretiniz onlara nasıl
+          görünür" ayarı, başkalarının ziyaretini gördüğünüz sayfada. */}
+      <VisitsVisibilityCard />
 
       {q.isLoading ? (
         <div className="grid grid-cols-2 gap-4 lg:grid-cols-4" aria-hidden>

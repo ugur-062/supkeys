@@ -497,7 +497,10 @@ döner, e2e `x-vercel-protection-bypass` ile geçer.
 **Profilim düzeni (2026-09-10):** SOLDA profil (başkalarının gördüğü hâl,
 `CompanyProfileView layout="stacked"` — tek sütun, yerinde düzenleme), SAĞDA
 yapışkan ray (`Profil durumu` %tamam + eksikler + "alıcıların sizi bulması
-için" → `SearchVisibilityCard` → Ürünlerim → gizlilik). Ürün formuyla aynı
+için" → `SearchVisibilityCard` → Ürünlerim). **"Ziyaretlerim karşı tarafa
+görünsün" anahtarı raydan ÇIKTI (2026-09-19, kullanıcı: "profil kısmında
+saçma duruyor")** → Şirketim › Ziyaret Edenler sayfasının başında
+`VisitsVisibilityCard`, anında kaydeder (`visitsVisible`). Ürün formuyla aynı
 kalıp; xl altında ray profilin altına iner. Herkese açık sayfa `columns`
 düzeninde, değişmedi.
 
