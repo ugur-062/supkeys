@@ -187,8 +187,14 @@ async function bootstrap() {
           for (const err of errs) {
             const path = prefix ? `${prefix}.${err.property}` : err.property;
             if (err.constraints) {
-              const values = Object.values(err.constraints);
-              const firstMsg = values[0] ?? "Geçersiz değer";
+              // Alan HİÇ yoksa uzunluk/aralık mesajı yanıltır ("Başlık en fazla
+              // 200 karakter" — inceleme bulgusu Y-1, 2026-09-19): önce
+              // zorunluluk, sonra tip/küme kısıtları, en son biçim kısıtları.
+              const missing = err.value === undefined || err.value === null || err.value === "";
+              const PRIORITY = ["isDefined", "isNotEmpty", "isString", "isNumber", "isInt", "isBoolean", "isEnum", "isIn", "isArray", "isEmail", "isIso8601", "isUrl"];
+              const keys = Object.keys(err.constraints);
+              const pick = PRIORITY.find((k) => keys.includes(k)) ?? keys[0];
+              const firstMsg = missing ? "Bu alan zorunlu" : (pick ? err.constraints[pick] : undefined) ?? "Geçersiz değer";
               fieldErrors[path] = translateValidatorMessage(firstMsg);
             }
             if (err.children && err.children.length > 0) {
