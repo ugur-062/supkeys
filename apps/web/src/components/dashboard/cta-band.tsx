@@ -1,3 +1,7 @@
+"use client";
+
+import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
+import { cn } from "@/lib/utils";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Link from "next/link";
 import type { ReactNode } from "react";
@@ -7,6 +11,12 @@ import type { ReactNode } from "react";
  * `secondary` = sayfada başka bir primary CTA varken (satınalmada sol menüdeki
  * "Satın Alma Talebi Aç" — sayfa başına TEK primary kuralı); `primary` =
  * sayfanın tek primary'si (satış portalında sol menüde CTA yok).
+ *
+ * PORTAL RENGİ (2026-09-18, kullanıcı: "yeşil yap ve daha iyi hale getir"):
+ * gri zemin + siyah düğme yerine portal tonunda yumuşak zemin (satış
+ * emerald, satınalma mavi), ikon beyaz yuvarlakta portal renginde, düğme
+ * `ButtonAccent` dolgusu. Herkese açık tedarikçi anasayfasındaki aynı
+ * şeritle (`home-supplier.tsx`) aynı dil.
  */
 export function CtaBand({
   icon,
@@ -21,14 +31,24 @@ export function CtaBand({
   cta: { label: string; href: string };
   tone?: "primary" | "secondary";
 }) {
+  const accent = useButtonAccent();
+  const soft =
+    accent === "emerald"
+      ? { band: "bg-emerald-50 ring-emerald-600/10", icon: "text-emerald-700 ring-emerald-600/15", link: "border-emerald-700/30 text-emerald-800 hover:bg-emerald-100" }
+      : accent === "blue"
+        ? { band: "bg-blue-50 ring-blue-600/10", icon: "text-blue-700 ring-blue-600/15", link: "border-blue-700/30 text-blue-800 hover:bg-blue-100" }
+        : { band: "bg-zinc-50 ring-zinc-950/5", icon: "text-zinc-800 ring-zinc-950/10", link: "border-zinc-300 text-zinc-900 hover:bg-zinc-100" };
   return (
     <section
       aria-label={title}
-      className="flex flex-col gap-4 rounded-2xl bg-zinc-50 p-5 ring-1 ring-zinc-950/5 sm:flex-row sm:items-center sm:justify-between sm:p-6"
+      className={cn(
+        "flex flex-col gap-4 rounded-2xl p-5 ring-1 sm:flex-row sm:items-center sm:justify-between sm:p-6",
+        soft.band,
+      )}
     >
-      <div className="flex min-w-0 items-start gap-3">
+      <div className="flex min-w-0 items-start gap-4">
         {icon ? (
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-white text-zinc-800 ring-1 ring-zinc-950/10">
+          <span className={cn("flex size-11 shrink-0 items-center justify-center rounded-full bg-white shadow-sm ring-1", soft.icon)}>
             {icon}
           </span>
         ) : null}
@@ -39,11 +59,10 @@ export function CtaBand({
       </div>
       <Link
         href={cta.href}
-        className={
-          tone === "primary"
-            ? "inline-flex shrink-0 items-center gap-1 rounded-full bg-zinc-950 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800"
-            : "inline-flex shrink-0 items-center gap-1 rounded-full border border-zinc-300 bg-white px-5 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-zinc-950 hover:text-white"
-        }
+        className={cn(
+          "inline-flex shrink-0 items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-semibold transition",
+          tone === "primary" ? cn("text-white shadow-sm", accentFillClass(accent)) : cn("border bg-white", soft.link),
+        )}
       >
         {cta.label}
         <ArrowRightIcon aria-hidden className="size-4" />

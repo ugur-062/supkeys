@@ -36,15 +36,6 @@ const PRICE_MODE_LABEL: Record<CatalogItem["priceMode"], string> = {
   ON_REQUEST: "Teklif isteyin",
 };
 
-/** Seçili durum hapı — rozet renkleriyle aynı sözlük (dolgulu). */
-const PILL_ON: Record<"zinc" | "amber" | "emerald" | "red" | "blue", string> = {
-  zinc: "bg-zinc-700 text-white",
-  amber: "bg-amber-500 text-white",
-  emerald: "bg-emerald-600 text-white",
-  red: "bg-red-600 text-white",
-  blue: "bg-blue-600 text-white",
-};
-
 type ProductTab = "all" | "published" | "pending" | "rejected" | "draft";
 const TAB_KEYS: ProductTab[] = ["all", "published", "pending", "rejected", "draft"];
 
@@ -138,9 +129,12 @@ export function ProductsView() {
    * İNCELEMEDEKİ (PENDING) ürün FORMLA AÇILMAZ — salt-okunur önizleme
    * (`ProductPreview`); tek çıkış admin kararı.
    */
+  // Yayındaki ürün ÖNCE önizlemeyle açılır, "Düzenle" forma geçirir (2026-09-19).
+  const [editorOpen, setEditorOpen] = useState(false);
   const openEditor = async (item: CatalogItem) => {
     try {
       const showcase = await fetchProductShowcase(item.id);
+      setEditorOpen(false);
       setEditing({ item, showcase });
     } catch (err) {
       toast.error(extractErrorMessage(err, "Ürün açılamadı"));
@@ -173,11 +167,8 @@ export function ProductsView() {
           <ArrowLeftIcon aria-hidden className="size-4" />
           Ürünlere dön
         </button>
-        <PageHeader
-          title="Yeni ürün"
-          description="Tek sayfa: adı, kategorisi, açıklaması, görselleri ve fiyatı. Kaydedince taslak olarak durur; onaya gönderdiğinizde ekibimiz inceler ve vitrine alır."
-        />
-        <div className="mt-8">
+        {/* Başlık eylem çubuğunda (ad + durum + Kaydet) — ayrı sayfa başlığı yok. */}
+        <div className="mt-2">
           <ProductShowcaseForm
             mode="new"
             product={EMPTY_PRODUCT}
@@ -205,6 +196,7 @@ export function ProductsView() {
 
   if (editing) {
     const inReview = editing.showcase.reviewStatus === "PENDING";
+    const publishedPreview = !inReview && editing.showcase.isPublic && !editorOpen;
     return (
       <PageContainer>
         <button
@@ -215,17 +207,20 @@ export function ProductsView() {
           <ArrowLeftIcon aria-hidden className="size-4" />
           Ürünlere dön
         </button>
-        <PageHeader
-          title={editing.item.name}
-          description={
-            inReview
-              ? "Ürün incelemede — ekibimiz karar verene kadar yalnız önizlenir."
-              : "Vitrin bilgilerini doldurun; durum, tamamlanma ve arama görünürlüğü sağda canlı güncellenir."
-          }
-        />
-        <div className="mt-8">
+        {inReview ? (
+          <PageHeader title={editing.item.name} description="Ürün incelemede — ekibimiz karar verene kadar yalnız önizlenir." />
+        ) : null}
+        <div className={inReview ? "mt-8" : "mt-2"}>
           {inReview ? (
             <ProductPreview product={editing.showcase} item={editing.item} onClose={() => setEditing(null)} />
+          ) : publishedPreview ? (
+            <ProductPreview
+              variant="published"
+              product={editing.showcase}
+              item={editing.item}
+              onClose={() => setEditing(null)}
+              onEdit={() => setEditorOpen(true)}
+            />
           ) : (
             <ProductShowcaseForm
               product={editing.showcase}
@@ -290,13 +285,12 @@ export function ProductsView() {
 
 
       {/* DURUM HAPLARI + ARAMA tek satırda (2026-09-18, kullanıcı: "üstteki
-          büyük kutuları kaldır"). Hap = süzgeç; seçili olan durum renginde
-          (Tümü mavi), sayaç rozeti içinde. Sayaçlar firma geneli, MECE. */}
+          büyük kutuları kaldır"). Hap = süzgeç; seçili olan portal renginde
+          (emerald), sayaç rozeti içinde. Sayaçlar firma geneli, MECE. */}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Ürün durumu">
           {tabs.map((t) => {
             const active = tab === t.key;
-            const color = t.key === "all" ? "blue" : PRODUCT_STATUS[t.key].color;
             return (
               <button
                 key={t.key}
@@ -306,7 +300,11 @@ export function ProductsView() {
                 onClick={() => setTab(t.key)}
                 className={cn(
                   "inline-flex items-center gap-2 rounded-full px-3.5 py-1.5 text-sm font-medium transition",
-                  active ? PILL_ON[color] : "bg-white text-zinc-600 ring-1 ring-zinc-950/10 hover:ring-zinc-950/30",
+                  // Satış portalı: seçili ve hover YEŞİL (2026-09-19, kullanıcı:
+                  // "üstüne gelince mavi ama yeşil olmalı"); durum rengi rozette kalır.
+                  active
+                    ? "bg-emerald-600 text-white"
+                    : "bg-white text-zinc-600 ring-1 ring-zinc-950/10 hover:bg-emerald-50 hover:text-emerald-800 hover:ring-emerald-600/30",
                 )}
               >
                 {t.label}
@@ -331,7 +329,7 @@ export function ProductsView() {
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Ürünlerde ara…"
-            className="w-full rounded-lg border border-zinc-300 py-2 pr-3 pl-9 text-sm outline-none focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15"
+            className="w-full rounded-xl border border-zinc-300 bg-white py-2.5 pr-3 pl-9 text-sm shadow-sm outline-none placeholder:text-zinc-500 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15"
           />
         </div>
       </div>
@@ -421,9 +419,15 @@ export function ProductsView() {
 
 /**
  * TABLO (2026-09-18, kullanıcı mockup'ı): Ürün (görsel + ad + kategori) ·
- * Durum · Kategori · Fiyat · Stok/Min. sipariş · Görüntülenme · Eklenme ·
+ * Durum · Kategori · Fiyat · Min. sipariş · Görüntülenme · Eklenme ·
  * İşlemler. Satır tıklanır (düzenleyici/önizleme). Düzeltme gerekçesi ad
- * altında. Mobilde yatay kaydırma (tablo kendi kapsayıcısında).
+ * altında.
+ *
+ * YATAY KAYDIRMA YOK (2026-09-18, kullanıcı: "scroll bar olmasın, tabloyu
+ * oturt"): tablo kapsayıcıya sığar; ekran daraldıkça sütunlar SIRAYLA
+ * gizlenir — Eklenme ve Kategori yalnız 2xl, Min. sipariş ve Görüntülenme
+ * xl, Fiyat sm. Kategori zaten ad altındaki ikinci satırda okunur, bilgi
+ * kaybolmaz. Ad ve kategori tek satırda kısaltılır.
  */
 function ProductRows({
   items,
@@ -445,17 +449,17 @@ function ProductRows({
       : `${Number(it.priceAmount).toLocaleString("tr-TR")} ${(CURRENCY_SYMBOL as Record<string, string>)[it.priceCurrency ?? "TRY"] ?? it.priceCurrency ?? ""} / ${it.unit}${it.priceMode === "TIERED" ? " (kademeli)" : ""}`;
   const th = "px-3 py-3 text-left text-xs font-semibold tracking-wide text-zinc-500";
   return (
-    <div className="mt-6 overflow-x-auto rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
-      <table className="w-full min-w-[52rem] text-sm">
+    <div className="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
+      <table className="w-full text-sm">
         <thead className="border-b border-zinc-950/5">
           <tr>
             <th scope="col" className={th}>Ürün</th>
-            <th scope="col" className={th}>Durum</th>
+            <th scope="col" className={cn(th, "hidden sm:table-cell")}>Durum</th>
             <th scope="col" className={cn(th, "hidden 2xl:table-cell")}>Kategori</th>
-            <th scope="col" className={th}>Fiyat</th>
-            <th scope="col" className={th}>Min. sipariş</th>
-            <th scope="col" className={th}>Görüntülenme</th>
-            <th scope="col" className={th}>Eklenme</th>
+            <th scope="col" className={cn(th, "hidden sm:table-cell")}>Fiyat</th>
+            <th scope="col" className={cn(th, "hidden xl:table-cell")}>Min. sipariş</th>
+            <th scope="col" className={cn(th, "hidden xl:table-cell")}>Görüntülenme</th>
+            <th scope="col" className={cn(th, "hidden 2xl:table-cell")}>Eklenme</th>
             <th scope="col" className={cn(th, "text-right")}>
               <span className="sr-only">İşlemler</span>
             </th>
@@ -481,31 +485,35 @@ function ProductRows({
                           e.stopPropagation();
                           onOpen(item);
                         }}
-                        className="block max-w-[16rem] truncate text-left font-semibold text-zinc-950 hover:underline"
+                        className="block max-w-[11rem] truncate text-left font-semibold text-zinc-950 hover:underline sm:max-w-[14rem] xl:max-w-[18rem]"
                       >
                         {item.name}
                       </button>
-                      <div className="max-w-[16rem] truncate text-xs text-zinc-500">
+                      <div className="max-w-[11rem] truncate text-xs text-zinc-500 sm:max-w-[14rem] xl:max-w-[18rem]">
                         {catName(item.categoryId) ?? "Kategori seçilmedi"} · {PRICE_MODE_LABEL[item.priceMode] ?? item.priceMode} · {item.unit}
                         {item.reviewStatus === "REJECTED" && item.rejectReason ? ` · Düzeltme: ${item.rejectReason}` : ""}
+                      </div>
+                      {/* Dar ekranda Durum sütunu gizli → rozet adın altında. */}
+                      <div className="mt-1 sm:hidden">
+                        <Badge color={st.color}>{st.label}</Badge>
                       </div>
                     </div>
                   </div>
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap">
+                <td className="hidden px-3 py-3 whitespace-nowrap sm:table-cell">
                   <Badge color={st.color}>{st.label}</Badge>
                 </td>
-                <td className="hidden max-w-[12rem] truncate px-3 py-3 text-zinc-700 2xl:table-cell">{catName(item.categoryId) ?? "—"}</td>
-                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700">{price(item)}</td>
-                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700">
+                <td className="hidden max-w-[10rem] truncate px-3 py-3 text-zinc-700 2xl:table-cell">{catName(item.categoryId) ?? "—"}</td>
+                <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 sm:table-cell">{price(item)}</td>
+                <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 xl:table-cell">
                   {item.moq != null ? `Min. ${Number(item.moq).toLocaleString("tr-TR")} ${item.unit}` : "—"}
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700">
+                <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 xl:table-cell">
                   {item.viewCount != null ? (
                     <span className="inline-flex items-center gap-1.5"><EyeIcon className="size-4 text-zinc-400" />{item.viewCount.toLocaleString("tr-TR")}</span>
                   ) : "—"}
                 </td>
-                <td className="px-3 py-3 whitespace-nowrap text-zinc-700">
+                <td className="hidden px-3 py-3 whitespace-nowrap text-zinc-700 2xl:table-cell">
                   {formatDate(item.createdAt ?? item.updatedAt, "short")}
                 </td>
                 <td className="px-3 py-3 text-right">

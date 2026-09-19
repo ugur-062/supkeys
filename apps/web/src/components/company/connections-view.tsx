@@ -48,19 +48,24 @@ import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
+import { accentForPortal } from "@/components/ui/button-accent";
 import { marketCompaniesPath } from "@/lib/company/panel-market";
 import type { PortalKey } from "@/lib/company/portals";
 import {
+  BadgeCheck,
   Ban,
   Building2,
   Check,
+  Clock,
   Copy,
   Flag,
+  Inbox,
   MailPlus,
   MessageSquare,
   MoreVertical,
   Search,
   Unlink,
+  Users,
 } from "lucide-react";
 import Link from "next/link";
 import { useMemo, useState } from "react";
@@ -166,17 +171,29 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
   const loading =
     view === "incoming" ? incoming.isLoading : view === "pending" ? outgoing.isLoading : connections.isLoading;
 
-  const VIEWS: { key: View; label: string; count: number; attention?: boolean }[] = [
-    { key: "mine", label: "Bağlantılarım", count: connCount },
-    { key: "incoming", label: "Gelen istekler", count: incomingRows.length, attention: true },
-    { key: "pending", label: "Bekleyenler", count: pendingCount },
+  const VIEWS: { key: View; label: string; count: number; attention?: boolean; icon: typeof Users }[] = [
+    { key: "mine", label: "Bağlantılarım", count: connCount, icon: Users },
+    { key: "incoming", label: "Gelen istekler", count: incomingRows.length, attention: true, icon: Inbox },
+    { key: "pending", label: "Bekleyenler", count: pendingCount, icon: Clock },
   ];
+  /* PORTAL RENGİ (2026-09-18, kullanıcı: "hangi paneldeyse o renge uyumlu"):
+     başlık ikonu, seçili görünüm çipi ve "Bağlı" pili portal tonunda —
+     satınalma mavi, satış emerald. Düğmeler ButtonAccent'tan zaten boyanır. */
+  const accent = accentForPortal(portal);
+  const tone =
+    accent === "emerald"
+      ? { icon: "bg-emerald-50 text-emerald-700", chipOn: "border-emerald-200 bg-emerald-50 text-emerald-800", countOn: "bg-emerald-600 text-white" }
+      : { icon: "bg-blue-50 text-blue-700", chipOn: "border-blue-200 bg-blue-50 text-blue-800", countOn: "bg-blue-600 text-white" };
 
   return (
     <div className="space-y-6">
       {/* BAŞLIK + EYLEMLER */}
       <div className="flex flex-wrap items-start justify-between gap-4">
-        <div className="min-w-0">
+        <div className="flex min-w-0 items-start gap-4">
+          <span aria-hidden className={cn("mt-0.5 flex size-12 shrink-0 items-center justify-center rounded-xl", tone.icon)}>
+            <Users className="size-6" strokeWidth={1.75} />
+          </span>
+          <div className="min-w-0">
           <Heading>Bağlantılar</Heading>
           <Text className="mt-1 max-w-2xl text-sm text-zinc-500">
             Birlikte çalıştığınız firmalar. Bağlantılı firmalar özel taleplerinizi görür, size
@@ -185,7 +202,7 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
           {/* Rothern ID — tek sessiz satır; başka firmalar sizi bununla bulur. */}
           <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
             <span>Rothern ID:</span>
-            <span className="tabular-nums font-semibold text-zinc-900">{rothernId ?? "—"}</span>
+            <span className="rounded-md bg-zinc-100 px-2 py-0.5 tabular-nums font-semibold text-zinc-900">{rothernId ?? "—"}</span>
             {rothernId ? (
               <button
                 type="button"
@@ -204,6 +221,7 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
                 )}
               </button>
             ) : null}
+          </div>
           </div>
         </div>
         <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -250,18 +268,17 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
                   setShown(PAGE);
                 }}
                 className={cn(
-                  "inline-flex items-center gap-2 rounded-full border px-3 py-1.5 text-sm font-medium transition",
-                  on
-                    ? "border-zinc-950 bg-zinc-950 text-white"
-                    : "border-zinc-950/10 bg-white text-zinc-700 hover:border-zinc-950/30",
+                  "inline-flex items-center gap-2 rounded-full border px-3.5 py-2 text-sm font-medium transition",
+                  on ? tone.chipOn : "border-zinc-950/10 bg-white text-zinc-700 hover:border-zinc-950/30",
                 )}
               >
+                <v.icon aria-hidden className="size-4" strokeWidth={1.75} />
                 {v.label}
                 <span
                   className={cn(
-                    "rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
+                    "min-w-6 rounded-full px-1.5 py-0.5 text-center text-xs font-semibold tabular-nums",
                     on
-                      ? "bg-white/15 text-white"
+                      ? tone.countOn
                       : v.attention && v.count > 0
                         ? "bg-amber-100 text-amber-800"
                         : "bg-zinc-100 text-zinc-600",
@@ -302,10 +319,10 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
               <Table dense>
                 <TableHead>
                   <TableRow>
-                    <TableHeader>Firma</TableHeader>
-                    <TableHeader className="hidden md:table-cell">Sektör · Şehir</TableHeader>
-                    <TableHeader className="hidden sm:table-cell">Durum</TableHeader>
-                    <TableHeader className="text-right" />
+                    <TableHeader className={TH}>Firma</TableHeader>
+                    <TableHeader className={cn(TH, "hidden md:table-cell")}>Sektör · Şehir</TableHeader>
+                    <TableHeader className={cn(TH, "hidden sm:table-cell")}>Durum</TableHeader>
+                    <TableHeader className={cn(TH, "text-right")}>İşlemler</TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -342,6 +359,8 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
 }
 
 type View = "mine" | "incoming" | "pending";
+/** Tablo başlığı — küçük büyük harf, sessiz (mockup 2026-09-18). */
+const TH = "text-xs font-semibold uppercase tracking-wide text-zinc-500";
 type TableRowData =
   | { kind: "mine"; id: string; company: ConnectionCompany }
   | { kind: "incoming"; id: string; company: ConnectionCompany }
@@ -376,6 +395,7 @@ function CompanyLine({
               className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-600/20 ring-inset"
               title="Kimliği doğrulanmış firma"
             >
+              <BadgeCheck aria-hidden className="mr-0.5 size-3" />
               Doğrulanmış
             </span>
           ) : null}
@@ -513,7 +533,10 @@ function ConnectionTableRow({
       <TableCell className="hidden text-sm text-zinc-600 md:table-cell">{meta || "—"}</TableCell>
       <TableCell className="hidden sm:table-cell">
         {row.kind === "mine" ? (
-          <Badge color="lime">Bağlı</Badge>
+          <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-600/15 ring-inset">
+            <span aria-hidden className="size-1.5 rounded-full bg-emerald-600" />
+            Bağlı
+          </span>
         ) : row.kind === "incoming" ? (
           <Badge color="amber">İstek geldi</Badge>
         ) : (
@@ -552,7 +575,7 @@ function ConnectionTableRow({
             ) : null
           ) : (
             <>
-              <Button plain href={`/company/mesajlar?with=${c.id}&portal=${portal}`}>
+              <Button outline href={`/company/mesajlar?with=${c.id}&portal=${portal}`}>
                 <MessageSquare data-slot="icon" />
                 Mesaj
               </Button>

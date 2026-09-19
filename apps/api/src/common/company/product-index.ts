@@ -12,6 +12,7 @@ import {
   resolveProvince,
   stemPrefix,
   tokenizeQuery,
+  isHiddenCategory,
 } from "@rothern/shared";
 import { resolveCategoryAttributes } from "./category-attributes";
 import { FAST_REPLY_HOURS } from "./reply-time";
@@ -375,7 +376,9 @@ export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndex
   const forEmp = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r));
   const forAll = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && base(r));
   return {
-    categories: [...count(forAll, (r) => (r.categoryId && r.categoryId.length === 8 ? [`${r.categoryId.slice(0, 2)}000000`] : [])).entries()],
+    // Gizli segment (katalog sadeleştirme 2026-09-19) facet'e girmez — adı
+    // çözülemediği için süzgeçte çıplak kod ("10000000") görünüyordu.
+    categories: [...count(forAll, (r) => (r.categoryId && r.categoryId.length === 8 && !isHiddenCategory(r.categoryId) ? [`${r.categoryId.slice(0, 2)}000000`] : [])).entries()],
     cities: [...count(forCity, (r) => (r.company.city?.trim() ? [r.company.city.trim()] : [])).entries()]
       .map(([city, count]) => ({ city, count }))
       .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),

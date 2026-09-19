@@ -47,3 +47,6 @@ export const PRODUCT_STATUS: Record<
     description: "Ekibimiz düzeltme istedi. Gerekçedeki değişikliği yapıp yeniden onaya gönderin.",
   },
 };
+
+/** Tek durumun etiket/renk/açıklaması (eylem çubuğu vb.). */
+export type ProductStatusMeta = (typeof PRODUCT_STATUS)[ProductStatusKey];

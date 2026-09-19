@@ -1,4 +1,5 @@
 import { categoryPhotoSrc } from "./category-photos";
+import { isHiddenCategory } from "@rothern/shared";
 
 /**
  * ANASAYFA KATEGORİ SEÇKİSİ — hangi 11 üst kategori, hangi görselle.
@@ -9,8 +10,8 @@ import { categoryPhotoSrc } from "./category-photos";
  * yalnız > 0 ise gösterilir; "0 ürün" yazmak envanterin azlığını duyurur.
  *
  * Küratörlü sıra Türkiye B2B'sinin ana damarları: makine, bileşen, elektrik,
- * inşaat, metal, kimya, tesisat, el aletleri, lojistik ekipmanı, yazılım,
- * taşımacılık, gıda. Elle sıra, veri gelince veriye yerini bırakır.
+ * inşaat, metal, kimya, tesisat, el aletleri, lojistik ekipmanı, enerji,
+ * araç, elektronik, taşımacılık. Elle sıra, veri gelince veriye yerini bırakır.
  */
 export const SHOWCASE_ORDER = [
   "23000000", // Endüstriyel üretim makineleri
@@ -22,13 +23,13 @@ export const SHOWCASE_ORDER = [
   "40000000", // Dağıtım ve koşullama sistemleri
   "27000000", // Aletler ve genel makineler
   "24000000", // Malzeme elleçleme ve depolama
-  "43000000", // Bilgisayar, yazılım, telekom
-  "78000000", // Taşıma, depolama, posta
-  "50000000", // Gıda ve içecek
-  "25000000", // Araçlar ve bileşenleri
   "26000000", // Güç üretim ve dağıtımı
+  "25000000", // Araçlar ve bileşenleri
   "32000000", // Elektronik bileşenler
-  "53000000", // Giyim, çanta, kişisel bakım
+  "78000000", // Taşıma, depolama, posta
+  "22000000", // Ağır iş ekipmanı
+  "46000000", // İş güvenliği ve emniyet
+  "72000000", // İnşaat ve tesis bakım hizmetleri
 ] as const;
 
 export interface ShowcaseCategory {
@@ -49,7 +50,9 @@ export function buildShowcase(input: {
 }): ShowcaseCategory[] {
   // 1 büyük (2×2) + 5×2 küçük = 7 sütunlu iki satır tam dolar (v2 kalıbı).
   const limit = input.limit ?? 11;
-  const nameById = new Map(input.segments.map((s) => [s.id, s.name]));
+  // Gizli segmentler (katalog sadeleştirme 2026-09-19) vitrine HİÇ girmez —
+  // API zaten süzüyor, burası ikinci savunma.
+  const nameById = new Map(input.segments.filter((s) => !isHiddenCategory(s.id)).map((s) => [s.id, s.name]));
   const countById = new Map(input.counts.map((c) => [c.id, c.count]));
   const coverBySeg = new Map<string, string>();
   for (const p of input.productCovers) {

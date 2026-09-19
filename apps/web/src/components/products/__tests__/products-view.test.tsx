@@ -39,7 +39,15 @@ vi.mock("../product-showcase-form", () => ({
   ),
 }));
 vi.mock("../product-preview", () => ({
-  ProductPreview: () => <div data-testid="preview" />,
+  ProductPreview: (props: { variant?: string; onEdit?: () => void }) => (
+    <div data-testid="preview" data-variant={props.variant ?? "review"}>
+      {props.onEdit ? (
+        <button type="button" onClick={props.onEdit}>
+          Düzenle
+        </button>
+      ) : null}
+    </div>
+  ),
 }));
 
 import { ProductsView } from "../products-view";
@@ -153,8 +161,9 @@ describe("ProductsView", () => {
     expect(await screen.findByText("Dağıtım panosu")).toBeInTheDocument();
     // Rozetler LİSTEDE (sekme adlarıyla aynı sözcük — kapsamı daralt).
     const list = screen.getByRole("list");
-    expect(within(list).getByText("Yayında")).toBeInTheDocument();
-    expect(within(list).getByText("Taslak")).toBeInTheDocument();
+    // Durum rozeti satırda İKİ kez basılır (sm+ sütunda, dar ekranda ad altında).
+    expect(within(list).getAllByText("Yayında").length).toBeGreaterThan(0);
+    expect(within(list).getAllByText("Taslak").length).toBeGreaterThan(0);
     expect(await screen.findByText(/Dağıtım panoları · Kademeli · adet/)).toBeInTheDocument();
     expect(screen.getByText(/Kategori seçilmedi · Teklif isteyin · m/)).toBeInTheDocument();
   });
@@ -179,8 +188,8 @@ describe("ProductsView", () => {
     wrap(<ProductsView />);
     await screen.findByText("Sigorta kutusu");
     const list = screen.getByRole("list");
-    expect(within(list).getByText("Onay bekliyor")).toBeInTheDocument();
-    expect(within(list).getByText("Düzeltme istendi")).toBeInTheDocument();
+    expect(within(list).getAllByText("Onay bekliyor").length).toBeGreaterThan(0);
+    expect(within(list).getAllByText("Düzeltme istendi").length).toBeGreaterThan(0);
     expect(within(list).getByText(/Düzeltme: Görseller ürüne ait değil/)).toBeInTheDocument();
     const tabs = screen.getByRole("tablist");
     await user.click(within(tabs).getByRole("tab", { name: /Düzeltme istendi/ }));
@@ -199,19 +208,35 @@ describe("ProductsView", () => {
     expect(h.patch).not.toHaveBeenCalled(); // eski boş PATCH görsel/etiket/fiyatı siliyordu
 
     await user.click(screen.getByRole("button", { name: /Ürünlere dön/ }));
-    await user.click(await screen.findByText("Dağıtım panosu")); // APPROVED → form
+    await user.click(await screen.findByText("Dağıtım panosu")); // APPROVED + yayında → ÖNCE önizleme
+    expect(await screen.findByTestId("preview")).toHaveAttribute("data-variant", "published");
+    expect(screen.queryByTestId("form")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Düzenle" }));
     expect(await screen.findByTestId("form")).toBeInTheDocument();
     expect(screen.queryByTestId("preview")).toBeNull();
+  });
+
+  it("tablo yatay kaydırmaz: kapsayıcıda overflow-x-auto / min-w yok, dar sütunlar kesme noktasıyla gizli", async () => {
+    wrap(<ProductsView />);
+    await screen.findByText("Dağıtım panosu");
+    const table = screen.getByRole("table");
+    expect(table.className).not.toMatch(/min-w-/);
+    expect(table.parentElement?.className).not.toMatch(/overflow-x-auto/);
+    const heads = screen.getAllByRole("columnheader").map((h) => [h.textContent, h.className] as const);
+    expect(heads.find(([t]) => t === "Eklenme")?.[1]).toMatch(/hidden 2xl:table-cell/);
+    expect(heads.find(([t]) => t === "Görüntülenme")?.[1]).toMatch(/hidden xl:table-cell/);
+    expect(heads.find(([t]) => t === "Ürün")?.[1]).not.toMatch(/hidden/);
   });
 
   it("yayındaki ürün kaydedilince sunucu incelemeye aldıysa ekran HEMEN önizlemeye geçer (yenileme gerekmez)", async () => {
     const user = userEvent.setup();
     wrap(<ProductsView />);
-    await user.click(await screen.findByText("Dağıtım panosu")); // APPROVED → form
+    await user.click(await screen.findByText("Dağıtım panosu")); // APPROVED → önizleme → Düzenle → form
+    await user.click(await screen.findByRole("button", { name: "Düzenle" }));
     expect(await screen.findByTestId("form")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "sahte-kaydet" }));
-    expect(await screen.findByTestId("preview")).toBeInTheDocument();
+    expect(await screen.findByTestId("preview")).toHaveAttribute("data-variant", "review");
     expect(screen.queryByTestId("form")).toBeNull();
     expect(screen.getByText("Ürün incelemede — ekibimiz karar verene kadar yalnız önizlenir.")).toBeInTheDocument();
   });
@@ -231,7 +256,7 @@ describe("ProductsView", () => {
     expect(within(tabs).getByRole("tab", { name: /Yayında\s*1$/ })).toBeInTheDocument();
     expect(within(tabs).getByRole("tab", { name: /Onay bekliyor\s*0$/ })).toBeInTheDocument();
     expect(within(tabs).getByRole("tab", { name: /Taslak\s*0$/ })).toBeInTheDocument();
-    expect(within(screen.getByRole("list")).getByText("Yayında · incelemede")).toBeInTheDocument();
+    expect(within(screen.getByRole("list")).getAllByText("Yayında · incelemede").length).toBeGreaterThan(0);
     await user.click(within(tabs).getByRole("tab", { name: /Onay bekliyor\s*0$/ }));
     expect(screen.queryByText("Dağıtım panosu")).toBeNull();
     expect(screen.getByText("Onay bekleyen ürün yok.")).toBeInTheDocument();

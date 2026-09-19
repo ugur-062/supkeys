@@ -38,10 +38,74 @@ export function parseCategoryCatalog(value: unknown): CategoryCatalog {
  * Prisma `where` parçası: discovery kataloğunda süz, tam katalogda süzme.
  * Tek yerde tutuluyor ki "hangi uçta filtre var" sorusu tek kaynağa baksın.
  */
-export function categoryCatalogWhere(
-  catalog: CategoryCatalog,
-): { inDiscovery: true } | Record<string, never> {
-  return catalog === "discovery" ? { inDiscovery: true } : {};
+export function categoryCatalogWhere(catalog: CategoryCatalog): CategoryCatalogWhere {
+  return {
+    ...(catalog === "discovery" ? { inDiscovery: true as const } : {}),
+    ...hiddenCategoryWhere(),
+  };
+}
+
+export type CategoryCatalogWhere = { inDiscovery?: true } & HiddenCategoryWhere;
+
+/**
+ * GİZLİ SEGMENTLER — KATALOG SADELEŞTİRME (2026-09-19, kullanıcı kararı:
+ * "endüstriyel, inşaat, sanayi tarzı şeyler hariç gereksiz kategorileri
+ * kaldır"). Ariba kataloğu BİREBİR kalır (satır silinmez, `seed-categories`
+ * ve çeviri katmanı dokunulmaz); bu liste yalnız hangi SEGMENTLERİN
+ * (L1, ilk iki hane) ürün arayüzünde GÖRÜNMEYECEĞİNİ söyler. Tek kaynak:
+ * seçiciler, arama, facet, herkese açık kategori sayfaları, sitemap, AI
+ * önerisi ve doğrulama kapıları hepsi buradan okur. Geri almak = listeden
+ * çıkarmak.
+ *
+ * Kalan 29 segment: malzeme (11 12 13 14 15 30 31 32), makine/ekipman
+ * (20 21 22 23 24 25 26 27 39 40 41 46 47), endüstriyel hizmet (71 72 73 76
+ * 77 78 81) + 95 (yapılar ve altyapı).
+ */
+export const HIDDEN_SEGMENTS: readonly string[] = [
+  "10", // Canlı bitkiler, hayvanlar
+  "42", // Tıp
+  "43", // Bilgisayar, yazılım, telekom
+  "44", // Ofis ekipmanı
+  "45", // Baskı, fotoğraf, ses-video
+  "48", // Hizmet sektörü ekipmanı
+  "49", // Spor
+  "50", // Gıda ve içecek
+  "51", // İlaç
+  "52", // Tüketici elektroniği
+  "53", // Giyim, kişisel bakım
+  "54", // Takılar
+  "55", // Yayınlanmış ürünler
+  "56", // Mobilya
+  "57", // İnsani yardım
+  "60", // Eğitim gereçleri, oyuncak
+  "64", // Finansal araçlar
+  "70", // Tarım ve balıkçılık hizmetleri
+  "80", // Profesyonel ve idari hizmetler
+  "82", // Kreatif hizmetler
+  "83", // Kamu sektörü hizmetleri
+  "84", // Finans ve sigorta hizmetleri
+  "85", // Sağlık bakım hizmetleri
+  "86", // Eğitim ve öğretim hizmetleri
+  "90", // Konaklama
+  "91", // Kişisel ve ev içi hizmetler
+  "92", // Kamu düzeni hizmetleri
+  "93", // Siyasi hizmetler
+  "94", // Organizasyonlar ve kulüpler
+];
+
+const HIDDEN_SET: ReadonlySet<string> = new Set(HIDDEN_SEGMENTS);
+
+/** Kod (herhangi seviye, 8 hane) gizli bir segmentin altında mı? */
+export function isHiddenCategory(code: string | null | undefined): boolean {
+  if (!code || code.length < 2) return false;
+  return HIDDEN_SET.has(code.slice(0, 2));
+}
+
+export type HiddenCategoryWhere = { NOT: { id: { startsWith: string } }[] };
+
+/** Prisma `where` parçası — gizli segmentlerin altındaki kodları dışarıda bırakır. */
+export function hiddenCategoryWhere(): HiddenCategoryWhere {
+  return { NOT: HIDDEN_SEGMENTS.map((p) => ({ id: { startsWith: p } })) };
 }
 
 /**

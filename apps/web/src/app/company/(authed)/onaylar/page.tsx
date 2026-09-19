@@ -20,7 +20,7 @@ import {
   type ApprovalHistoryItem,
   type PendingApproval,
 } from "@/hooks/use-company-approvals";
-import { EmptyState as SharedEmptyState, ListSkeleton, SearchInput } from "@/components/list";
+import { ListSkeleton, SearchInput } from "@/components/list";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { currencySymbol } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
@@ -30,12 +30,13 @@ import {
   CheckCircle2,
   ChevronDown,
   Circle,
-  ClipboardCheck,
+  FileSearch,
   MinusCircle,
   Workflow,
   XCircle,
 } from "lucide-react";
 import Link from "next/link";
+import { useButtonAccent } from "@/components/ui/button-accent";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
@@ -117,10 +118,20 @@ function StepsTimeline({ steps }: { steps: ApprovalHistoryItem["steps"] }) {
   );
 }
 
-function Empty({ text }: { text: string }) {
+/**
+ * BOŞ DURUM (2026-09-19, kullanıcı mockup'ı): kutu YOK, ortada portal
+ * tonunda yumuşak yuvarlak ikon, kalın başlık, iki satır açıklama.
+ */
+function Empty({ title, description }: { title: string; description?: string }) {
+  const accent = useButtonAccent();
+  const tone = accent === "emerald" ? "bg-emerald-50 text-emerald-500" : "bg-blue-50 text-blue-500";
   return (
-    <div className="card">
-      <SharedEmptyState icon={ClipboardCheck} title={text} variant="no-results" />
+    <div className="flex flex-col items-center px-6 py-16 text-center">
+      <span aria-hidden className={cn("mb-6 flex size-20 items-center justify-center rounded-full", tone)}>
+        <FileSearch className="size-9" strokeWidth={1.5} />
+      </span>
+      <h3 className="text-lg font-semibold text-zinc-950">{title}</h3>
+      {description ? <p className="mt-2 max-w-md text-sm/6 text-zinc-500">{description}</p> : null}
     </div>
   );
 }
@@ -355,6 +366,8 @@ export default function OnaylarPage() {
   const [chip, setChip] = useState<Chip>("all");
   // Arama debounce'u SearchInput'un içinde.
   const [search, setSearch] = useState("");
+  // Portal rengi — erken dönüşlerin ÜSTÜNDE (rules-of-hooks).
+  const accent = useButtonAccent();
   const { data: all, isLoading: allLoading, isError: allError, refetch: refetchAll } = useAllApprovals({
     search: search.trim() || undefined,
   });
@@ -454,8 +467,13 @@ export default function OnaylarPage() {
 
   const tabs: { key: "pending" | "all"; label: string; count?: number }[] = [
     { key: "pending", label: "Sıra sizde", count: pending?.length ?? 0 },
-    { key: "all", label: "Tüm istekler" },
+    { key: "all", label: "Tüm istekler", count: all?.length ?? 0 },
   ];
+  // Sekme vurgusu portal renginde (2026-09-19 mockup): satınalma mavi, satış emerald.
+  const tabTone =
+    accent === "emerald"
+      ? { on: "border-emerald-600 text-emerald-700", badge: "bg-emerald-50 text-emerald-700" }
+      : { on: "border-blue-600 text-blue-700", badge: "bg-blue-50 text-blue-700" };
 
   return (
     <div className="space-y-6">
@@ -485,16 +503,16 @@ export default function OnaylarPage() {
             aria-controls={`onaylar-panel-${t.key}`}
             onClick={() => setView(t.key)}
             className={cn(
-              "-mb-px inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-3 py-2 text-sm font-medium transition-colors",
-              view === t.key ? "border-zinc-900 text-zinc-900" : "border-transparent text-zinc-500 hover:text-zinc-800",
+              "-mb-px inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors",
+              view === t.key ? tabTone.on : "border-transparent text-zinc-500 hover:text-zinc-800",
             )}
           >
             {t.label}
             {t.count != null ? (
               <span
                 className={cn(
-                  "rounded-full px-1.5 py-0.5 text-xs font-semibold tabular-nums",
-                  t.count > 0 ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-500",
+                  "rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
+                  view === t.key ? tabTone.badge : t.count > 0 && t.key === "pending" ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-500",
                 )}
               >
                 {t.count}
@@ -513,7 +531,10 @@ export default function OnaylarPage() {
           ) : pendingError ? (
             <ErrorState onRetry={() => refetchPending()} />
           ) : !pending || pending.length === 0 ? (
-            <Empty text="Sırada bekleyen onay yok — size yönlendirilen istekler burada görünür." />
+            <Empty
+              title="Sıra sizde bekleyen onay yok"
+              description="Size yönlendirilen kazandırma istekleri burada listelenir. Yeni bir istek geldiğinde burada görünecektir."
+            />
           ) : (
             <div className="space-y-3">
               {pending.map((p) => (
@@ -569,7 +590,7 @@ export default function OnaylarPage() {
             <ErrorState onRetry={() => refetchAll()} />
           ) : filtered.length === 0 ? (
             <Empty
-              text={
+              title={
                 chip === "pending"
                   ? "Bekleyen istek yok."
                   : chip === "mine"

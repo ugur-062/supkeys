@@ -6,9 +6,7 @@ import { GatedField } from "@/components/marketplace/gated-field";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { JsonLd } from "@/components/seo/json-ld";
 import { companySeo } from "@/lib/seo/entities";
-import { StickyCta } from "@/components/marketplace/sticky-cta";
 import { PANEL_TARGET, loginHref } from "@/lib/public/visibility";
-import Link from "next/link";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -111,17 +109,6 @@ export default async function PublicCompanyProfile({
             öğrenmeli. Sayfadaki TEK büyük kayıt kutusu sağ sütunun sonunda
             (`gate.aside`); diğer kapılar satır içi bağlantı. */}
         <ViewBeacon type="profile" companySlug={slug} />
-        {/* Uzun profilde eylem kaybolmasın (spec §7): kimlik kartı ekrandan
-            çıkınca altta ad + "Bilgi iste" şeridi belirir. Ürün sayfasıyla
-            AYNI bileşen — iki yerde iki farklı şerit davranışı olmasın. */}
-        <StickyCta title={p.name}>
-          <Link
-            href={loginHref(panelHref)}
-            className="inline-flex items-center rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white"
-          >
-            Bilgi iste
-          </Link>
-        </StickyCta>
         <CompanyProfileView
           profile={{
             name: p.name,

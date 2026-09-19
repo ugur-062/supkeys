@@ -46,8 +46,10 @@ const styles = {
     'data-disabled:before:shadow-none data-disabled:after:shadow-none',
   ],
   outline: [
-    // Base
-    'border-zinc-950/10 text-zinc-950 data-active:bg-zinc-950/2.5 data-hover:bg-zinc-950/2.5',
+    // Base — BEYAZ ZEMİN (2026-09-19, kullanıcı: "Firma bul tuşu arka planla
+    // aynı renk"): panel sayfa zemini gri (brand-50), saydam çerçeveli düğme
+    // orada kayboluyordu. Hover ince gri.
+    'border-zinc-950/10 bg-white text-zinc-950 shadow-sm data-active:bg-zinc-50 data-hover:bg-zinc-50',
     // Dark mode
     'dark:border-white/15 dark:text-white dark:[--btn-bg:transparent] dark:data-active:bg-white/5 dark:data-hover:bg-white/5',
     // Icon

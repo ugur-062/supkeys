@@ -1,7 +1,7 @@
 // @vitest-environment jsdom
 /**
- * TALEP SATIRI ALT ÇİZGİSİ (2026-09-17, kullanıcı kararı): kalem oku EN SOLDA
- * (yazısız — yalnız aşağı ok, erişilebilir adı "Kalemleri göster"), "Teklif
+ * TALEP SATIRI ALT ÇİZGİSİ (2026-09-17, 2026-09-19 v3): detay oku EN SOLDA
+ * ("Detayları göster", erişilebilir adı "Kalemleri göster"), "Teklif
  * ver" EN SAĞDA, DÜĞME gibi dolgulu (portal rengi) ve daha büyük (text-sm). DOM sırası = görsel sıra (flex,
  * justify-between); Teklifim metriği ortada.
  */
@@ -34,8 +34,8 @@ describe("ListingCard row — alt satır düzeni", () => {
   it("kalem oku solda, Teklifim ortada, Teklif ver en sağda ve büyük", () => {
     render(<ListingCard variant="row" data={data} />);
     const kalemler = screen.getByRole("button", { name: "Kalemleri göster" });
-    // Yazı yok, yalnız ok: düğmenin görünür metni boş.
-    expect(kalemler.textContent).toBe("");
+    // v3 (2026-09-19 mockup): ok + "Detayları göster" yazısı.
+    expect(kalemler.textContent).toBe("Detayları göster");
     expect(kalemler.querySelector("svg")?.getAttribute("class")).toMatch(/\bsize-5\b/);
     const teklif = screen.getByRole("link", { name: "Teklif ver" });
     const metrik = screen.getByText(/Teklifim:/);
@@ -45,7 +45,7 @@ describe("ListingCard row — alt satır düzeni", () => {
     // Eylem DÜĞME gibi: dolgulu, portal renginde (bağlam yokken mavi; satış
     // kabuğunda emerald), satır 11 px'inden büyük.
     expect(teklif.className).toMatch(/\btext-sm\b/);
-    expect(teklif.className).toMatch(/rounded-lg/);
+    expect(teklif.className).toMatch(/rounded-(lg|xl)/);
     expect(teklif.className).toMatch(/bg-blue-600/);
   });
 

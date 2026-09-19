@@ -1,5 +1,6 @@
 "use client";
 
+import { isHiddenCategory } from "@rothern/shared";
 import { PanelProductIndex } from "@/components/company/market/panel-product-index";
 import { MarketHeader, MarketTabs } from "@/components/company/market/market-band";
 import { categoryPhotoSrc, segmentPhotoSrc } from "@/lib/public/category-photos";
@@ -23,7 +24,7 @@ import { notFound, useParams } from "next/navigation";
 export default function PanelCategoryPage() {
   const params = useParams<{ slug: string }>();
   const code = parsePanelCategoryCode(params?.slug ?? "");
-  if (!code) notFound();
+  if (!code || isHiddenCategory(code)) notFound();
   return <CategoryView code={code} />;
 }
 

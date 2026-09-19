@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { hiddenCategoryWhere } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { AiService } from "../ai.service";
@@ -167,6 +168,7 @@ export class CategorySuggestService {
           level: 3,
           isActive: true,
           parentId: { in: familyCodes },
+          ...hiddenCategoryWhere(),
         },
         orderBy: { sortOrder: "asc" },
         select: { id: true, code: true, nameTr: true },
@@ -254,7 +256,7 @@ export class CategorySuggestService {
       return this.familyCache.rows;
     }
     const rows = await this.prisma.category.findMany({
-      where: { level: 2, isActive: true },
+      where: { level: 2, isActive: true, ...hiddenCategoryWhere() },
       orderBy: { sortOrder: "asc" },
       select: { id: true, code: true, nameTr: true },
     });

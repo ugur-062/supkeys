@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@rothern/db";
+import { isHiddenCategory } from "@rothern/shared";
 import { categorySegment, isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
 import { effectiveTier } from "./effective-tier";
 import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "./public-profile-gate";
@@ -290,7 +291,8 @@ export async function buildDirectory(
       : [];
     const catName = new Map(catRows.map((c) => [c.id, c.nameTr]));
     for (const g of grouped) {
-      if (!g.categoryId || !catName.has(g.categoryId)) continue;
+      // Gizli segment (katalog sadeleştirme) "Ana kategoriler"e girmez.
+      if (!g.categoryId || !catName.has(g.categoryId) || isHiddenCategory(g.categoryId)) continue;
       const list = topCategories.get(g.companyId) ?? [];
       list.push({ id: g.categoryId, name: catName.get(g.categoryId) as string, count: g._count._all });
       topCategories.set(g.companyId, list);
@@ -365,7 +367,9 @@ export async function directoryFacets(
   const facetCats = (r: Row) =>
     cats(r)
       .map((c) => categorySegment(c) ?? c)
-      .filter(isCategoryCode);
+      .filter(isCategoryCode)
+      // Gizli segment facet'te de yok (eski beyanlar süzgeç listesini kirletmesin).
+      .filter((c) => !isHiddenCategory(c));
   const inCity = (r: Row) => cities.length === 0 || (!!r.city && cities.includes(r.city.trim()));
   const inAct = (r: Row) => activities.length === 0 || r.activities.some((a) => activities.includes(a));
   const inCat = (r: Row) => categories.length === 0 || cats(r).some((c) => categories.includes(c));

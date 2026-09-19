@@ -8,7 +8,7 @@ import type { TenderListItem } from "@/hooks/use-company-tenders";
 import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
 import { differenceInCalendarDays } from "date-fns";
-import { FileText, Star } from "lucide-react";
+import { Star } from "lucide-react";
 import Link from "next/link";
 import { ListingCard, ROW_FOCUS, type ListingCardData } from "@/components/marketplace/listing-card";
 import { expiredNote } from "@/lib/tenders/seller-state";
@@ -158,11 +158,8 @@ export function IhaleListRow({
     strip: st.strip,
     timeNote: expiredNote(t.status, t.bidsCloseAt),
     leading: (
-      <div className="flex shrink-0 flex-col items-center gap-1 pt-0.5">
-        <FileText
-          className="h-4 w-4 text-blue-500"
-          aria-hidden
-        />
+      // Belge ikonu KALKTI (2026-09-19 v3 kart başlıkta kendi karosunu taşır); favori kalır.
+      <div className="flex shrink-0 flex-col items-center gap-1 pt-1">
         <button
           type="button"
           onClick={(e) => {

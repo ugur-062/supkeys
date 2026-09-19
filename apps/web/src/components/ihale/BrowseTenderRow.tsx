@@ -10,7 +10,7 @@ import {
 } from "@/lib/tenders/seller-state";
 import { companyActivityLabel } from "@rothern/shared";
 import { cn } from "@/lib/utils";
-import { Building2, FileText, Lock } from "lucide-react";
+import { Building2, Lock } from "lucide-react";
 import Link from "next/link";
 import { ListingCard, ROW_FOCUS, type ListingCardData } from "@/components/marketplace/listing-card";
 import { expiredNote } from "@/lib/tenders/seller-state";
@@ -195,17 +195,18 @@ export function BrowseTenderRow({
     status: { label: state.label, className: state.className },
     strip,
     timeNote: expiredNote(t.status, t.closesAt),
-    leading: (
-      <FileText className="mt-0.5 h-4 w-4 shrink-0 text-emerald-500" aria-hidden />
-    ),
+    // Küçük belge ikonu KALKTI (2026-09-19 v3 kartı başlıkta kendi ikon karosunu taşır).
     // Eşleşme rozeti BAŞLIKTA (her genişlikte): kartın "neden buradayım"
     // cevabı — yalnız kategori kolonunda kalınca mobilde hiç görünmüyordu.
     chips: (
       <>
         {t.invited ? <InfoChip tone="amber">Size özel davet</InfoChip> : null}
         {!t.invited && t.connected ? <InfoChip tone="violet">Bağlantılı</InfoChip> : null}
+        {/* Sarmalayıcı inline-flex: satır içi span çipe fazladan satır
+            yüksekliği veriyordu → yan yana çiplerin boyu eşit değildi
+            (2026-09-19, kullanıcı). */}
         {t.productMatch ? (
-          <span title={t.matchedProduct ? `Kataloğunuzdaki ürün: ${t.matchedProduct}` : undefined}>
+          <span className="inline-flex" title={t.matchedProduct ? `Kataloğunuzdaki ürün: ${t.matchedProduct}` : undefined}>
             <InfoChip tone="emerald">Ürününüzle eşleşti</InfoChip>
           </span>
         ) : null}
@@ -214,6 +215,7 @@ export function BrowseTenderRow({
             listede kalır (eleme yok) — o yüzden rozet yalnız UYAN'a basılır. */}
         {t.activityMatch ? (
           <span
+            className="inline-flex"
             title={(t.preferredActivities ?? []).map(companyActivityLabel).join(" · ")}
           >
             <InfoChip tone="slate">Aranan tedarikçi tipi</InfoChip>

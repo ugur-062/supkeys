@@ -22,16 +22,12 @@ import { RfqBanner } from "./rfq-banner";
 import { ProductCard } from "./product-card";
 import { ActivityIcon } from "./activity-icons";
 import { CardCarousel } from "./card-carousel";
-import { StickyCta } from "./sticky-cta";
 import { companyActivityLabel } from "@rothern/shared";
 import type { ReactNode } from "react";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
 import {
-  CheckBadgeIcon,
-  CurrencyDollarIcon,
   DocumentTextIcon,
-  LockClosedIcon,
   MapPinIcon,
 } from "@heroicons/react/20/solid";
 import Link from "next/link";
@@ -101,16 +97,6 @@ export function ProductDetail({
           companyHref={`/firma/${companySlug}`}
           related={related}
           hrefFor={(c) => `/firma/${c.company.slug}/urun/${c.slug}`}
-          /* Public kabuk iki katmanlı sabit header taşıyor (~100 px). */
-          stickyTopClass="lg:top-[100px]"
-          stickyCta={
-            <Link
-              href={loginHref(PANEL_TARGET.product(companySlug, product.slug))}
-              className="inline-flex items-center rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white"
-            >
-              Bilgi iste
-            </Link>
-          }
           sellerSite={
             <GatedField label="Firmanın web sitesi" redirect={PANEL_TARGET.product(companySlug, product.slug)} />
           }
@@ -203,8 +189,6 @@ export function ProductDetailBody({
   sellerSite,
   related,
   hrefFor,
-  stickyCta,
-  stickyTopClass,
   accent = "default",
 }: {
   /** Panel fiyatlı (üye katmanı), public fiyatsız — ikisi de aynı gövde. */
@@ -224,19 +208,8 @@ export function ProductDetailBody({
   related?: RelatedProducts;
   /** İlişkili ürün kartının hedefi — public `/firma/…`, panel `/company/…`. */
   hrefFor?: (c: ProductIndexCard) => string;
-  /**
-   * `lg`+ ekranda yapışkan şeridin ÜST ofseti (kabuğun sabit çubuğunun
-   * altına oturması için). Public kabuk `lg:top-[100px]`, panel `lg:top-14`.
-   */
-  stickyTopClass?: string;
   /** Sekme vurgusu — panel satınalmada `blue`, public monokrom. */
   accent?: "default" | "blue";
-  /**
-   * Yapışkan alt şeridin eylemi (fiyatın yanında). Verilmezse şerit
-   * çizilmez. Şerit YALNIZ asıl eylem ekrandan çıkınca görünür — aynı
-   * düğme iki kez ekranda durmaz (bkz. `StickyCta`).
-   */
-  stickyCta?: React.ReactNode;
 }) {
   const price = productPrice({
     priceMode: product.priceMode,
@@ -298,9 +271,15 @@ export function ProductDetailBody({
 
           {/* "Yeni" rozeti kapağa taşındı; burada ürünün KENDİ kimlik
               etiketleri kalır. "Gold Üye" satıcı kartında (firmaya ait). */}
-          {product.brand || product.mpn ? (
+          {/* MARKA çipi yalnız firma adından FARKLIYSA (2026-09-19, kullanıcı:
+              "altına tekrar hangi şirket olduğunu yazmana gerek yok" — marka
+              firma adının kendisiyken satıcı kartıyla çift görünüyordu).
+              Gerçek marka (ör. Siemens) "Marka:" etiketiyle kalır. */}
+          {(product.brand && !brandIsSeller(product.brand, company.name)) || product.mpn ? (
             <div className="mt-4 flex flex-wrap items-center gap-2">
-              {product.brand ? <Badge color="zinc">{product.brand}</Badge> : null}
+              {product.brand && !brandIsSeller(product.brand, company.name) ? (
+                <Badge color="zinc">Marka: {product.brand}</Badge>
+              ) : null}
               {product.mpn ? <Badge color="zinc">MPN: {product.mpn}</Badge> : null}
             </div>
           ) : null}
@@ -376,38 +355,12 @@ export function ProductDetailBody({
             </ul>
           ) : null}
 
-          {/* YAPIŞKAN ŞERİT — nöbetçi asıl eylemin hemen altında: eylem
-              ekrandayken şerit çizilmez. */}
-          {stickyCta ? (
-            <StickyCta
-              desktopTopClass={stickyTopClass}
-              title={product.name}
-              price={{ headline: price.headline, hasPrice: price.hasPrice }}
-              meta={
-                product.moq
-                  ? `Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}`
-                  : undefined
-              }
-            >
-              {stickyCta}
-            </StickyCta>
-          ) : null}
+          {/* YAPIŞKAN ŞERİT KALDIRILDI (2026-09-18, kullanıcı: "aşağı
+              kaydırınca ad + fiyat + Bilgi iste kutusu yukarıda geliyor, bu
+              olmasın"). Eylem yalnız fiyat kartında. */}
 
-          {/* Güven şeridi — üç kural, tek satır. */}
-          <ul className="mt-4 space-y-2 px-1 text-xs text-zinc-600">
-            <li className="flex items-center gap-2">
-              <CheckBadgeIcon aria-hidden className="size-4 shrink-0 text-emerald-600" />
-              Firmalar vergi levhası ve sicil belgesiyle doğrulanır
-            </li>
-            <li className="flex items-center gap-2">
-              <LockClosedIcon aria-hidden className="size-4 shrink-0 text-zinc-400" />
-              Teklifler kapalı zarf — rakipler göremez
-            </li>
-            <li className="flex items-center gap-2">
-              <CurrencyDollarIcon aria-hidden className="size-4 shrink-0 text-zinc-400" />
-              Alım-satım bedelinden komisyon alınmaz
-            </li>
-          </ul>
+          {/* Güven şeridi KALDIRILDI (2026-09-19, kullanıcı mockup'ı: fiyat
+              kartının altında güven ikonları/kuralları yok). */}
         </aside>
       </div>
 
@@ -702,4 +655,11 @@ function RelatedRow({
       </CardCarousel>
     </div>
   );
+}
+
+/** Marka, satıcı firmanın adının parçası mı (ör. "Demo Gold" ⊂ "Demo Gold Makina")? */
+export function brandIsSeller(brand: string, companyName: string): boolean {
+  const b = brand.trim().toLocaleLowerCase("tr");
+  const c = companyName.trim().toLocaleLowerCase("tr");
+  return b.length > 0 && (c.includes(b) || b.includes(c));
 }

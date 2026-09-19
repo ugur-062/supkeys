@@ -11,9 +11,10 @@ import { snippetFromMetadata } from "@/lib/seo/snippet";
 import { PRODUCT_STATUS, productStatusKey } from "@/lib/company/product-status";
 import { ImageUploader } from "./image-uploader";
 import { PriceModeField } from "./price-mode-field";
+import { ProductActionBar } from "./product-action-bar";
+import { EditorRail } from "./editor-rail";
+import { productPath } from "@rothern/shared";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
-import { Badge } from "@/components/catalyst/badge";
-import { MissingFields } from "@/components/ui/missing-fields";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import {
@@ -25,7 +26,7 @@ import {
   type PriceTier,
   type ProductShowcase,
 } from "@/hooks/use-company-items";
-import { CheckCircleIcon, ExclamationTriangleIcon, XMarkIcon } from "@heroicons/react/20/solid";
+import { XMarkIcon } from "@heroicons/react/20/solid";
 import {
   COMMON_UNIT_CODES,
   MIN_DESCRIPTION,
@@ -378,407 +379,354 @@ export function ProductShowcaseForm({
         : "Kaydet";
   const primaryAction = () => void handleSave(status === "draft" || status === "rejected");
 
+  const publicHref =
+    !isNew && product.isPublic && company?.slug && product.slug ? productPath(company.slug, product.slug) : null;
+  const jump = (id: string) => {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  };
+  const unpublish = async () => {
+    if (!window.confirm("Ürün vitrinden çekilecek ve taslağa dönecek; yeniden çıkmak için tekrar onay gerekir. Devam edilsin mi?")) return;
+    await publish.mutateAsync({ id: product.id, publish: false });
+    toast.success("Ürün vitrinden çekildi");
+  };
+
+  /* DÜZEN (2026-09-19, kullanıcı kararı): üstte yapışkan eylem çubuğu; solda
+     form (5 bölüm), sağda yapışkan ray (tamamlanma + eksik çipleri + öneriler).
+     Canlı önizleme paneli KALDIRILDI — yayındaki ürün önce salt-okunur
+     önizlemeyle açılır, "Düzenle" bu forma getirir. */
   return (
-    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
-      <div className="min-w-0">
-
-        <div className="space-y-10">
-          {/* 1 ── TEMEL BİLGİLER */}
-          <Section id="urun-temel" n={1} title="Temel bilgiler" lead="Ad, kategori ve açıklama — arama motoru ve alıcı ilk bunları okur.">
-            <Field hint="Ürün tipi + temel özellik + ölçü/model. En fazla 128 karakter önerilir.">
-              <Label htmlFor="urun-adi" required>Ürün adı</Label>
-              <input
-                id="urun-adi"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={200}
-                placeholder="Dağıtım panosu 400A IP54"
-                className={INPUT}
-              />
-              <p className={`mt-1 text-xs ${name.trim().length > 128 ? "text-amber-700" : "text-zinc-500"}`}>
-                {name.trim().length} / 128 karakter
-              </p>
-            </Field>
-
-            <Field hint="Nitelik alanları seçtiğiniz kategoriden gelir — üst kategoride tanımlı nitelikler otomatik devralınır.">
-              {/* Kontrol bir modal düğmesi ve kendi adını taşıyor ("Ürün kategorisini
-                 seçin") — burası ALAN ETİKETİ değil BAŞLIK. Boş <label> bırakmak
-                 erişilebilirlik ihlali olurdu. */}
-              <Label as="p" required>Kategori</Label>
-              <CategorySelectorButton
-                value={categoryId ? [categoryId] : []}
-                onChange={(ids) => setCategoryId(ids[0] ?? "")}
-                mode="single"
-                modalTitle="Ürün kategorisi"
-                placeholder="Ürün kategorisini seçin"
-              />
-            </Field>
-
-            <Field hint={`Onaya göndermek için en az ${MIN_DESCRIPTION} karakter. Ne olduğunu, nerede kullanıldığını, malzeme/standart ve teslim biçimini tam cümlelerle yazın.`}>
-              <Label htmlFor="urun-aciklama" required>Açıklama</Label>
-              <textarea
-                id="urun-aciklama"
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                maxLength={5000}
-                rows={7}
-                placeholder="IP54 korumalı, 400A dağıtım panosu. Endüstriyel tesislerde ana dağıtım hattında kullanılır…"
-                className={INPUT}
-              />
-              <p className={`mt-1 text-xs ${description.trim().length >= MIN_DESCRIPTION ? "text-emerald-600" : "text-zinc-500"}`}>
-                {description.trim().length} / {MIN_DESCRIPTION}–5000 karakter
-              </p>
-            </Field>
-          </Section>
-
-          {/* 2 ── GÖRSELLER */}
-          <Section id="urun-gorsel" n={2} title="Görseller" lead="İlk görsel kapak. Farklı açılar ve kullanım hâli; görsel arama ayrı bir trafik kanalıdır.">
-            <ImageUploader images={images} onChange={setImages} />
-          </Section>
-
-          {/* 3 ── ÖZELLİKLER */}
-          <Section id="urun-ozellik" n={3} title="Anahtar kelimeler ve özellikler" lead="Alıcının yazacağı sözcükler ve kategoriye özel teknik nitelikler.">
-            <div>
-              <Label htmlFor="urun-anahtar-kelime">Anahtar kelimeler</Label>
-              <p className="mt-1 text-xs text-zinc-500">
-                En fazla {MAX_KEYWORDS}. Virgülle birden çok girebilirsiniz; ürün sayfasında görünür ve aramada kullanılır.
-              </p>
-              {keywords.length ? (
-                <div className="mt-3 flex flex-wrap gap-2">
-                  {keywords.map((k) => (
-                    <span key={k} className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-sm text-zinc-700">
-                      {k}
-                      <button
-                        type="button"
-                        onClick={() => setKeywords(keywords.filter((x) => x !== k))}
-                        aria-label={`${k} etiketini kaldır`}
-                        className="text-zinc-400 hover:text-zinc-900"
-                      >
-                        <XMarkIcon aria-hidden className="size-3.5" />
-                      </button>
-                    </span>
-                  ))}
-                </div>
-              ) : null}
-              {keywords.length < MAX_KEYWORDS ? (
-                <div className="mt-3 flex gap-2">
-                  <input
-                    id="urun-anahtar-kelime"
-                    value={keywordDraft}
-                    onChange={(e) => setKeywordDraft(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addKeyword();
-                      }
-                    }}
-                    maxLength={200}
-                    placeholder="çelik boru, dikişsiz, st37…"
-                    className={`${INPUT} flex-1`}
-                  />
-                  <button
-                    type="button"
-                    onClick={() => addKeyword()}
-                    className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
-                  >
-                    Ekle
-                  </button>
-                </div>
-              ) : null}
-              {keywordSuggestions.length && keywords.length < MAX_KEYWORDS ? (
-                <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
-                  Öneri:
-                  {keywordSuggestions.map((s) => (
-                    <button
-                      key={s}
-                      type="button"
-                      onClick={() => addKeyword(s)}
-                      className="rounded-md border border-dashed border-zinc-300 px-1.5 py-0.5 text-[11px] font-medium text-zinc-700 hover:border-zinc-900 hover:text-zinc-900"
-                    >
-                      + {s}
-                    </button>
-                  ))}
-                </p>
-              ) : null}
-            </div>
-
-            <div>
-              <h4 className="text-sm font-medium text-zinc-950">Kategoriye özel özellikler</h4>
-              {!categoryId ? (
-                <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
-                  Önce 1. bölümde kategori seçin — teknik nitelik alanları kategoriden gelir.
-                </p>
-              ) : attributeDefs.length === 0 ? (
-                <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
-                  Bu kategoride tanımlı nitelik yok; ölçü, malzeme ve standardı açıklamaya yazın.
-                </p>
-              ) : (
-                <>
-                  <p className="mt-1 mb-4 text-xs text-zinc-500">
-                    Bu alanlar “{attributeDefs[0]?.definedAt.slice(0, 2)}” segmentinden ve alt kategorilerinden gelir.
-                    Zorunlu değil; nitelik tablosu süzgeçte ve yapılandırılmış veride görünür.
-                  </p>
-                  <AttributeFields defs={attributeDefs} values={attributes} onChange={setAttributes} />
-                </>
-              )}
-            </div>
-          </Section>
-
-          {/* 4 ── FİYAT VE SİPARİŞ */}
-          <Section id="urun-fiyat" n={4} title="Fiyat ve sipariş" lead='"Teklif isteyin" de geçerli bir seçenektir — boş bırakmak yerine seçin.'>
-            <PriceModeField
-              mode={priceMode}
-              amount={priceAmount}
-              tiers={priceTiers}
-              currency={priceCurrency}
-              unit={unitLabel}
-              onChange={(n) => {
-                if (n.mode) setPriceMode(n.mode);
-                if (n.amount !== undefined) setPriceAmount(n.amount);
-                if (n.tiers) setPriceTiers(n.tiers);
-                if (n.currency) setPriceCurrency(n.currency);
-              }}
-            />
-
-            {/* BİRİM ve MİKTAR yan yana: MOQ birimsiz okunmaz ("500 ne?"). */}
-            <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
-              <Field hint="Fiyat ve minimum sipariş bu birimle okunur.">
-                <Label htmlFor="urun-birim">Satış birimi</Label>
-                <select id="urun-birim" value={unitCode} onChange={(e) => setUnitCode(e.target.value)} className={INPUT}>
-                  {UNITS.filter(
-                    (u) => (COMMON_UNIT_CODES as readonly string[]).includes(u.code) || u.code === unitCode,
-                  ).map((u) => (
-                    <option key={u.code} value={u.code}>
-                      {u.nameTr} ({u.symbol})
-                    </option>
-                  ))}
-                </select>
-              </Field>
-              <Field>
-                <Label htmlFor="urun-moq">Minimum sipariş miktarı</Label>
-                <div className="flex items-center gap-2">
-                  <input
-                    id="urun-moq"
-                    type="number"
-                    min={0}
-                    step="0.001"
-                    value={moq}
-                    onChange={(e) => setMoq(e.target.value)}
-                    className="w-40 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                  />
-                  <span className="text-sm text-zinc-500">{unitLabel}</span>
-                </div>
-              </Field>
-            </div>
-          </Section>
-
-          {/* 5 ── EKLER */}
-          <Section id="urun-ekler" n={5} title="Ekler" lead="Katalog PDF'i, video ve kendi sitenizdeki ürün sayfası — isteğe bağlı.">
-            {mediaAllowed ? (
-              <>
-                <div>
-                  {/* Dosya girişi aşağıda KENDİ <label>'ının içinde sarılı (implicit
-                     bağlama) — burası bölüm başlığı. */}
-                  <Label as="p">Dokümanlar</Label>
-                  <p className="mt-1 text-xs text-zinc-500">
-                    PDF katalog veya teknik föy — en fazla {MAX_DOCUMENTS}, her biri 10 MB.
-                  </p>
-                  {documents.length > 0 ? (
-                    <ul className="mt-3 space-y-2">
-                      {documents.map((d, i) => (
-                        <li key={d.url} className="flex items-center gap-2">
-                          <input
-                            value={d.title}
-                            onChange={(e) =>
-                              setDocuments((docs) => docs.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))
-                            }
-                            maxLength={200}
-                            aria-label={`Belge ${i + 1} başlığı`}
-                            className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
-                          />
-                          <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-zinc-600 underline hover:text-zinc-900">
-                            Aç
-                          </a>
-                          <button
-                            type="button"
-                            onClick={() => setDocuments((docs) => docs.filter((_, j) => j !== i))}
-                            aria-label={`${d.title} belgesini kaldır`}
-                            className="text-zinc-400 hover:text-zinc-900"
-                          >
-                            <XMarkIcon aria-hidden className="size-4" />
-                          </button>
-                        </li>
-                      ))}
-                    </ul>
-                  ) : null}
-                  {documents.length < MAX_DOCUMENTS ? (
-                    <label className="mt-3 inline-flex cursor-pointer items-center rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
-                      {uploadDoc.isPending ? "Yükleniyor…" : "PDF ekle"}
-                      <input
-                        ref={docInput}
-                        type="file"
-                        accept="application/pdf"
-                        className="sr-only"
-                        disabled={uploadDoc.isPending}
-                        onChange={(e) => void addDocument(e.target.files?.[0])}
-                      />
-                    </label>
-                  ) : null}
-                </div>
-
-                <Field hint="YouTube veya Vimeo bağlantısı — ürün sayfasında gömülü oynatılır.">
-                  <Label htmlFor="urun-video">Video bağlantısı</Label>
-                  <input id="urun-video" type="url" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" className={INPUT} />
-                </Field>
-              </>
-            ) : (
-              <p className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
-                Ürün belgesi (PDF katalog, teknik föy) ve video bağlantısı Silver paketiyle açılır.
-              </p>
-            )}
-
-            <Field hint="Kendi web sitenizdeki ürün sayfası — ziyaretçi oraya da gidebilsin.">
-              <Label htmlFor="urun-dis-baglanti">Ürün sayfası bağlantısı</Label>
-              <input id="urun-dis-baglanti" type="url" value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://…" className={INPUT} />
-            </Field>
-          </Section>
-        </div>
-      </div>
-
-      {/* SAĞ PANEL — TEK KART: durum → tamamlanma → onay için eksikler → düğmeler.
-          Mobilde formun altına iner (grid tek sütun). */}
-      <aside className="lg:sticky lg:top-24 lg:self-start">
-        <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
-          <div className="flex items-center justify-between gap-3">
-            <p className="text-sm font-semibold text-zinc-950">Durum</p>
-            <Badge color={statusMeta.color}>{isNew ? "Yeni" : statusMeta.label}</Badge>
-          </div>
-          <p className="mt-2 text-xs/5 text-zinc-600">
-            {isNew ? "Kaydedince taslak olur; onaya gönderdiğinizde ekibimiz inceler ve vitrine alır." : statusMeta.description}
-          </p>
-          {status === "rejected" && product.rejectReason ? (
-            <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-sm text-red-800 ring-1 ring-red-600/20">
-              <span className="font-semibold">Düzeltme gerekçesi:</span> {product.rejectReason}
-            </p>
-          ) : null}
-
-          <div className="mt-5 border-t border-zinc-950/5 pt-4">
-            <div className="flex items-center justify-between">
-              <p className="text-sm font-medium text-zinc-900">Tamamlanma</p>
-              <p className="text-sm font-semibold tabular-nums text-zinc-950">%{live.completion.score}</p>
-            </div>
-            <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100" aria-hidden>
-              <div
-                className={`h-full rounded-full transition-[width] duration-500 ${live.completion.score === 100 ? "bg-emerald-500" : "bg-zinc-900"}`}
-                style={{ width: `${live.completion.score}%` }}
-              />
-            </div>
-            {live.completion.missing.length > 0 ? (
-              <MissingFields className="mt-2" label="Puanını artırmak için" items={live.completion.missing.map((m) => `${m.label} (+${m.points})`)} max={4} />
-            ) : (
-              <p className="mt-2 flex items-center gap-1.5 text-xs text-emerald-700">
-                <CheckCircleIcon aria-hidden className="size-4" /> Tüm alanlar dolu
-              </p>
-            )}
-          </div>
-
-          {live.blockers.length > 0 ? (
-            <div className="mt-4 rounded-xl bg-amber-50 p-3 ring-1 ring-amber-600/20">
-              <p className="flex items-center gap-2 text-sm font-semibold text-amber-900">
-                <ExclamationTriangleIcon aria-hidden className="size-4" />
-                Onaya göndermek için gerekli
-              </p>
-              <ul className="mt-1.5 space-y-0.5 text-sm text-amber-800">
-                {live.blockers.map((b) => (
-                  <li key={b}>· {b}</li>
-                ))}
-              </ul>
-            </div>
-          ) : null}
-
-          {canManage ? (
-            <div className="mt-4 space-y-2">
-              {publishLocked ? (
-                <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
-                  Ücretsiz pakette yayında/onayda ürün tavanı doldu. Taslak olarak kaydedebilirsiniz; daha fazlası için Silver paketine geçin.
-                </p>
-              ) : null}
-              <button
-                type="button"
-                disabled={busy || ((status === "draft" || status === "rejected") && publishLocked)}
-                onClick={primaryAction}
-                className="w-full rounded-full bg-zinc-950 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-50"
-              >
-                {busy ? "Kaydediliyor…" : primaryLabel}
-              </button>
-              {status === "draft" || status === "rejected" ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => void handleSave(false)}
-                  className="w-full rounded-full border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50"
-                >
-                  Taslak olarak kaydet
-                </button>
-              ) : null}
-              {product.isPublic ? (
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={async () => {
-                    if (!window.confirm("Ürün vitrinden çekilecek ve taslağa dönecek; yeniden çıkmak için tekrar onay gerekir. Devam edilsin mi?")) return;
-                    await publish.mutateAsync({ id: product.id, publish: false });
-                    toast.success("Ürün vitrinden çekildi");
-                  }}
-                  className="w-full rounded-full px-4 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-900"
-                >
-                  Vitrinden çek
-                </button>
-              ) : null}
-              {dirty ? <p className="text-center text-[11px] text-amber-700">Kaydedilmemiş değişiklik var</p> : null}
-            </div>
-          ) : (
-            <p className="mt-4 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-500">
-              Ürünü kaydetmek ve onaya göndermek için “Ürün ve vitrin yönetimi” yetkisi gerekir.
-            </p>
-          )}
-        </div>
-
-        <SearchVisibilityCard
-          className="mt-4"
-          readiness={seo.readiness}
-          snippet={seo.snippet}
-          enrich={
-            canManage
-              ? {
-                  available: aiAvailable && patch.name.trim().length >= 2,
-                  unavailableReason: aiAvailable ? "Önce ürün adını yazın." : "AI ile güçlendirme Silver ve üzeri paketlerde.",
-                  run: () =>
-                    seoEnrich.mutateAsync({
-                      kind: "product",
-                      name: patch.name,
-                      description: patch.description,
-                      categoryName,
-                      facts: seo.facts,
-                      keywords,
-                      city: profileQ.data?.city ?? null,
-                      industry: profileQ.data?.industry ?? null,
-                    }),
-                  apply: (r) => {
-                    setDescription(r.description);
-                    setKeywords(r.keywords.slice(0, MAX_KEYWORDS));
-                    if (r.titleSuggestion && !patch.name.trim()) setName(r.titleSuggestion);
-                    toast.success("Taslak uygulandı — kontrol edip kaydedin");
-                  },
-                }
-              : undefined
-          }
-        />
-
-        <p className="mt-4 text-xs/5 text-zinc-500">
-          Varyasyonları ayrı ürün olarak açmayın — renk/ölçü gibi farkları kategoriye özel özelliklere yazın. Katalog böyle temiz kalır.
+    <div>
+      <ProductActionBar
+        name={name}
+        status={statusMeta}
+        isNew={isNew}
+        dirty={dirty}
+        busy={busy}
+        canManage={canManage}
+        primaryLabel={primaryLabel}
+        onPrimary={primaryAction}
+        // Yayındaki üründe değişiklik yokken Kaydet KAPALI (2026-09-19, kullanıcı
+        // bulgusu: değişmeden kaydedince yeniden incelemeye giriyordu).
+        primaryDisabled={((status === "draft" || status === "rejected") && publishLocked) || (status === "published" && !dirty)}
+        draftSave={status === "draft" || status === "rejected" ? () => void handleSave(false) : undefined}
+        unpublish={product.isPublic && !isNew ? () => void unpublish() : undefined}
+        publicHref={publicHref}
+        publishLocked={publishLocked}
+      />
+      {status === "rejected" && product.rejectReason ? (
+        <p className="mb-6 rounded-xl bg-red-50 px-4 py-3 text-sm text-red-800 ring-1 ring-red-600/20">
+          <span className="font-semibold">Düzeltme gerekçesi:</span> {product.rejectReason}
         </p>
-      </aside>
+      ) : null}
+
+      <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_20rem]">
+        <div className="min-w-0">
+          <div className="space-y-10">
+            {/* 1 ── TEMEL BİLGİLER */}
+            <Section id="urun-temel" n={1} title="Temel bilgiler" lead="Ad, kategori ve açıklama — arama motoru ve alıcı ilk bunları okur.">
+              <Field hint="Ürün tipi + temel özellik + ölçü/model. En fazla 128 karakter önerilir.">
+                <Label htmlFor="urun-adi" required>Ürün adı</Label>
+                <input
+                  id="urun-adi"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  maxLength={200}
+                  placeholder="Dağıtım panosu 400A IP54"
+                  className={INPUT}
+                />
+                <p className={`mt-1 text-xs ${name.trim().length > 128 ? "text-amber-700" : "text-zinc-500"}`}>
+                  {name.trim().length} / 128 karakter
+                </p>
+              </Field>
+
+              <Field hint="Nitelik alanları seçtiğiniz kategoriden gelir — üst kategoride tanımlı nitelikler otomatik devralınır.">
+                {/* Kontrol bir modal düğmesi ve kendi adını taşıyor ("Ürün kategorisini
+                   seçin") — burası ALAN ETİKETİ değil BAŞLIK. Boş <label> bırakmak
+                   erişilebilirlik ihlali olurdu. */}
+                <Label as="p" required>Kategori</Label>
+                <CategorySelectorButton
+                  value={categoryId ? [categoryId] : []}
+                  onChange={(ids) => setCategoryId(ids[0] ?? "")}
+                  mode="single"
+                  modalTitle="Ürün kategorisi"
+                  placeholder="Ürün kategorisini seçin"
+                />
+              </Field>
+
+              <Field hint={`Onaya göndermek için en az ${MIN_DESCRIPTION} karakter. Ne olduğunu, nerede kullanıldığını, malzeme/standart ve teslim biçimini tam cümlelerle yazın.`}>
+                <Label htmlFor="urun-aciklama" required>Açıklama</Label>
+                <textarea
+                  id="urun-aciklama"
+                  value={description}
+                  onChange={(e) => setDescription(e.target.value)}
+                  maxLength={5000}
+                  rows={7}
+                  placeholder="IP54 korumalı, 400A dağıtım panosu. Endüstriyel tesislerde ana dağıtım hattında kullanılır…"
+                  className={INPUT}
+                />
+                <p className={`mt-1 text-xs ${description.trim().length >= MIN_DESCRIPTION ? "text-emerald-600" : "text-zinc-500"}`}>
+                  {description.trim().length} / {MIN_DESCRIPTION}–5000 karakter
+                </p>
+              </Field>
+            </Section>
+
+            {/* 2 ── GÖRSELLER */}
+            <Section id="urun-gorsel" n={2} title="Görseller" lead="İlk görsel kapak. Farklı açılar ve kullanım hâli; görsel arama ayrı bir trafik kanalıdır.">
+              <ImageUploader images={images} onChange={setImages} />
+            </Section>
+
+            {/* 3 ── ÖZELLİKLER */}
+            <Section id="urun-ozellik" n={3} title="Anahtar kelimeler ve özellikler" lead="Alıcının yazacağı sözcükler ve kategoriye özel teknik nitelikler.">
+              <div>
+                <Label htmlFor="urun-anahtar-kelime">Anahtar kelimeler</Label>
+                <p className="mt-1 text-xs text-zinc-500">
+                  En fazla {MAX_KEYWORDS}. Virgülle birden çok girebilirsiniz; ürün sayfasında görünür ve aramada kullanılır.
+                </p>
+                {keywords.length ? (
+                  <div className="mt-3 flex flex-wrap gap-2">
+                    {keywords.map((k) => (
+                      <span key={k} className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-sm text-zinc-700">
+                        {k}
+                        <button
+                          type="button"
+                          onClick={() => setKeywords(keywords.filter((x) => x !== k))}
+                          aria-label={`${k} etiketini kaldır`}
+                          className="text-zinc-400 hover:text-zinc-900"
+                        >
+                          <XMarkIcon aria-hidden className="size-3.5" />
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                ) : null}
+                {keywords.length < MAX_KEYWORDS ? (
+                  <div className="mt-3 flex gap-2">
+                    <input
+                      id="urun-anahtar-kelime"
+                      value={keywordDraft}
+                      onChange={(e) => setKeywordDraft(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter") {
+                          e.preventDefault();
+                          addKeyword();
+                        }
+                      }}
+                      maxLength={200}
+                      placeholder="çelik boru, dikişsiz, st37…"
+                      className={`${INPUT} flex-1`}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => addKeyword()}
+                      className="rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
+                    >
+                      Ekle
+                    </button>
+                  </div>
+                ) : null}
+                {keywordSuggestions.length && keywords.length < MAX_KEYWORDS ? (
+                  <p className="mt-2 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
+                    Öneri:
+                    {keywordSuggestions.map((s) => (
+                      <button
+                        key={s}
+                        type="button"
+                        onClick={() => addKeyword(s)}
+                        className="rounded-md border border-dashed border-zinc-300 px-1.5 py-0.5 text-[11px] font-medium text-zinc-700 hover:border-zinc-900 hover:text-zinc-900"
+                      >
+                        + {s}
+                      </button>
+                    ))}
+                  </p>
+                ) : null}
+              </div>
+
+              <div>
+                <h4 className="text-sm font-medium text-zinc-950">Kategoriye özel özellikler</h4>
+                {!categoryId ? (
+                  <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+                    Önce 1. bölümde kategori seçin — teknik nitelik alanları kategoriden gelir.
+                  </p>
+                ) : attributeDefs.length === 0 ? (
+                  <p className="mt-2 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+                    Bu kategoride tanımlı nitelik yok; ölçü, malzeme ve standardı açıklamaya yazın.
+                  </p>
+                ) : (
+                  <>
+                    <p className="mt-1 mb-4 text-xs text-zinc-500">
+                      Bu alanlar “{attributeDefs[0]?.definedAt.slice(0, 2)}” segmentinden ve alt kategorilerinden gelir.
+                      Zorunlu değil; nitelik tablosu süzgeçte ve yapılandırılmış veride görünür.
+                    </p>
+                    <AttributeFields defs={attributeDefs} values={attributes} onChange={setAttributes} />
+                  </>
+                )}
+              </div>
+            </Section>
+
+            {/* 4 ── FİYAT VE SİPARİŞ */}
+            <Section id="urun-fiyat" n={4} title="Fiyat ve sipariş" lead='"Teklif isteyin" de geçerli bir seçenektir — boş bırakmak yerine seçin.'>
+              <PriceModeField
+                mode={priceMode}
+                amount={priceAmount}
+                tiers={priceTiers}
+                currency={priceCurrency}
+                unit={unitLabel}
+                onChange={(n) => {
+                  if (n.mode) setPriceMode(n.mode);
+                  if (n.amount !== undefined) setPriceAmount(n.amount);
+                  if (n.tiers) setPriceTiers(n.tiers);
+                  if (n.currency) setPriceCurrency(n.currency);
+                }}
+              />
+
+              {/* BİRİM ve MİKTAR yan yana: MOQ birimsiz okunmaz ("500 ne?"). */}
+              <div className="grid grid-cols-1 gap-6 sm:grid-cols-2">
+                <Field hint="Fiyat ve minimum sipariş bu birimle okunur.">
+                  <Label htmlFor="urun-birim">Satış birimi</Label>
+                  <select id="urun-birim" value={unitCode} onChange={(e) => setUnitCode(e.target.value)} className={INPUT}>
+                    {UNITS.filter(
+                      (u) => (COMMON_UNIT_CODES as readonly string[]).includes(u.code) || u.code === unitCode,
+                    ).map((u) => (
+                      <option key={u.code} value={u.code}>
+                        {u.nameTr} ({u.symbol})
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field>
+                  <Label htmlFor="urun-moq">Minimum sipariş miktarı</Label>
+                  <div className="flex items-center gap-2">
+                    <input
+                      id="urun-moq"
+                      type="number"
+                      min={0}
+                      step="0.001"
+                      value={moq}
+                      onChange={(e) => setMoq(e.target.value)}
+                      className="w-40 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                    />
+                    <span className="text-sm text-zinc-500">{unitLabel}</span>
+                  </div>
+                </Field>
+              </div>
+            </Section>
+
+            {/* 5 ── EKLER */}
+            <Section id="urun-ekler" n={5} title="Ekler" lead="Katalog PDF'i, video ve kendi sitenizdeki ürün sayfası — isteğe bağlı.">
+              {mediaAllowed ? (
+                <>
+                  <div>
+                    {/* Dosya girişi aşağıda KENDİ <label>'ının içinde sarılı (implicit
+                       bağlama) — burası bölüm başlığı. */}
+                    <Label as="p">Dokümanlar</Label>
+                    <p className="mt-1 text-xs text-zinc-500">
+                      PDF katalog veya teknik föy — en fazla {MAX_DOCUMENTS}, her biri 10 MB.
+                    </p>
+                    {documents.length > 0 ? (
+                      <ul className="mt-3 space-y-2">
+                        {documents.map((d, i) => (
+                          <li key={d.url} className="flex items-center gap-2">
+                            <input
+                              value={d.title}
+                              onChange={(e) =>
+                                setDocuments((docs) => docs.map((x, j) => (j === i ? { ...x, title: e.target.value } : x)))
+                              }
+                              maxLength={200}
+                              aria-label={`Belge ${i + 1} başlığı`}
+                              className="flex-1 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
+                            />
+                            <a href={d.url} target="_blank" rel="noopener noreferrer" className="text-xs font-medium text-zinc-600 underline hover:text-zinc-900">
+                              Aç
+                            </a>
+                            <button
+                              type="button"
+                              onClick={() => setDocuments((docs) => docs.filter((_, j) => j !== i))}
+                              aria-label={`${d.title} belgesini kaldır`}
+                              className="text-zinc-400 hover:text-zinc-900"
+                            >
+                              <XMarkIcon aria-hidden className="size-4" />
+                            </button>
+                          </li>
+                        ))}
+                      </ul>
+                    ) : null}
+                    {documents.length < MAX_DOCUMENTS ? (
+                      <label className="mt-3 inline-flex cursor-pointer items-center rounded-lg border border-zinc-300 px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50">
+                        {uploadDoc.isPending ? "Yükleniyor…" : "PDF ekle"}
+                        <input
+                          ref={docInput}
+                          type="file"
+                          accept="application/pdf"
+                          className="sr-only"
+                          disabled={uploadDoc.isPending}
+                          onChange={(e) => void addDocument(e.target.files?.[0])}
+                        />
+                      </label>
+                    ) : null}
+                  </div>
+
+                  <Field hint="YouTube veya Vimeo bağlantısı — ürün sayfasında gömülü oynatılır.">
+                    <Label htmlFor="urun-video">Video bağlantısı</Label>
+                    <input id="urun-video" type="url" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="https://www.youtube.com/watch?v=…" className={INPUT} />
+                  </Field>
+                </>
+              ) : (
+                <p className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-600">
+                  Ürün belgesi (PDF katalog, teknik föy) ve video bağlantısı Silver paketiyle açılır.
+                </p>
+              )}
+
+              <Field hint="Kendi web sitenizdeki ürün sayfası — ziyaretçi oraya da gidebilsin.">
+                <Label htmlFor="urun-dis-baglanti">Ürün sayfası bağlantısı</Label>
+                <input id="urun-dis-baglanti" type="url" value={externalUrl} onChange={(e) => setExternalUrl(e.target.value)} placeholder="https://…" className={INPUT} />
+              </Field>
+            </Section>
+          </div>
+        </div>
+
+        <aside className="min-w-0 lg:sticky lg:top-[7.5rem] lg:self-start">
+          <EditorRail
+            completion={live.completion}
+            blockers={live.blockers}
+            onJump={jump}
+            recommendations={
+              <SearchVisibilityCard
+                  className="rounded-none shadow-none ring-0"
+                  readiness={seo.readiness}
+                  snippet={seo.snippet}
+                  enrich={
+                    canManage
+                      ? {
+                          available: aiAvailable && patch.name.trim().length >= 2,
+                          unavailableReason: aiAvailable ? "Önce ürün adını yazın." : "AI ile güçlendirme Silver ve üzeri paketlerde.",
+                          run: () =>
+                            seoEnrich.mutateAsync({
+                              kind: "product",
+                              name: patch.name,
+                              description: patch.description,
+                              categoryName,
+                              facts: seo.facts,
+                              keywords,
+                              city: profileQ.data?.city ?? null,
+                              industry: profileQ.data?.industry ?? null,
+                            }),
+                          apply: (r) => {
+                            setDescription(r.description);
+                            setKeywords(r.keywords.slice(0, MAX_KEYWORDS));
+                            if (r.titleSuggestion && !patch.name.trim()) setName(r.titleSuggestion);
+                            toast.success("Taslak uygulandı — kontrol edip kaydedin");
+                          },
+                        }
+                      : undefined
+                  }
+                />
+            }
+          />
+          <p className="mt-4 text-xs/5 text-zinc-500">
+            Varyasyonları ayrı ürün olarak açmayın — renk/ölçü gibi farkları kategoriye özel özelliklere yazın. Katalog böyle temiz kalır.
+          </p>
+        </aside>
+      </div>
     </div>
   );
 }

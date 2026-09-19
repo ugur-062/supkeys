@@ -166,6 +166,41 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     );
   });
 
+  it("TEDARİKÇİ yüzünde 'Firma' pili talep listesini FİRMA listesine çevirir (2026-09-19 bulgu: değişmiyordu)", async () => {
+    const user = userEvent.setup();
+    render(
+      <AudienceProvider>
+        <HomeHero />
+        <HomeSupplier
+          demands={[demand(1), demand(2), demand(3)] as any}
+          total={16}
+          companies={[
+            {
+              name: "Alıcı Firma", slug: "alici-firma", city: "İzmir", country: "TR", industry: null,
+              activities: [], logoUrl: null, verified: true, mainCategory: null, productCount: 0,
+              productPreview: [], topCategories: [], fastReply: false,
+            } as any,
+          ]}
+          companiesTotal={3}
+        />
+      </AudienceProvider>,
+    );
+    await user.click(screen.getByRole("radio", { name: "Tedarikçiyim" }));
+    const firmalar = document.getElementById("firmalar-tedarikci")!;
+    const talepler = screen.getByRole("heading", { name: /Alıcılar şu an/ }).closest("section")!;
+    // Kapsam önceki testten kalmış olabilir (oturum deposu) — bilinen hâle getir.
+    await user.click(screen.getByRole("button", { name: "Talep" }));
+    expect(firmalar).toHaveAttribute("hidden");
+    expect(talepler).not.toHaveAttribute("hidden");
+    await user.click(screen.getByRole("button", { name: "Firma" }));
+    expect(firmalar).not.toHaveAttribute("hidden");
+    expect(talepler).toHaveAttribute("hidden");
+    expect(within(firmalar).getByText("Alıcı Firma")).toBeInTheDocument();
+    expect(within(firmalar).getByRole("link", { name: /Tümünü gör/ })).toHaveAttribute("href", "/firmalar");
+    await user.click(screen.getByRole("button", { name: "Talep" }));
+    expect(firmalar).toHaveAttribute("hidden");
+  });
+
   it("TEDARİKÇİ gövdesi: talep kartı alıcı adını ve kalem adlarını TAŞIMAZ", () => {
     render(<HomeSupplier demands={[demand(1), demand(2), demand(3)] as any} total={16} />);
     const list = screen.getByRole("heading", { name: /Alıcılar şu an/ }).closest("section")!;
@@ -173,10 +208,10 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     // Kapalı zarf: kart yalnız ölçek ve kapsam taşır.
     expect(within(list).queryByText(/Firma /)).toBeNull();
     expect(within(list).getAllByText(/şartname ve belgeler üyelere/).length).toBe(3);
-    // SATIR düzeni (2026-09-10): görsel/ikon YOK, her talep tek satır, sütunlar panelle aynı.
+    // SATIR düzeni (2026-09-10): kategori GÖRSELİ yok (v3 2026-09-19: sütun
+    // ikon karoları var, fotoğraf yine yok), sütunlar panelle aynı.
     const rows = list.querySelector("ul")!;
     expect(within(rows).queryAllByRole("img")).toHaveLength(0);
-    expect(rows.querySelector("svg")).toBeNull();
     expect(within(list).getAllByRole("listitem")).toHaveLength(3);
     expect(within(list).getAllByText("Alıcı")).toHaveLength(3);
     const teklif = within(list).getAllByRole("link", { name: "Teklif ver" });

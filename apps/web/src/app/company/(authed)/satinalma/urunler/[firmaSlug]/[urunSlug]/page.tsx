@@ -93,18 +93,7 @@ export default function PanelProductPage() {
         companyHref={companyHref}
         related={related.data}
         hrefFor={(c) => `/company/satinalma/urunler/${c.company.slug}/${c.slug}`}
-        /* Panel kabuğunun sabit üst çubuğu h-14 (56 px). */
-        stickyTopClass="lg:top-14"
         accent="blue"
-        stickyCta={
-          <button
-            type="button"
-            onClick={() => setInquiryOpen(true)}
-            className="rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            Bilgi iste
-          </button>
-        }
         sellerSite={
           company.website ? (
             <a
@@ -131,7 +120,7 @@ export default function PanelProductPage() {
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
             <DocumentTextIcon aria-hidden className="size-5" />
-            Bilgi / Teklif İste
+            Bilgi iste
           </button>
         }
       />

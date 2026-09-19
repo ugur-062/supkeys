@@ -590,7 +590,7 @@ function StatusCard({
       </div>
       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100" aria-hidden>
         <div
-          className={cn("h-full rounded-full transition-[width] duration-500", pct === 100 ? "bg-emerald-500" : "bg-zinc-900")}
+          className={cn("h-full rounded-full transition-[width] duration-500", pct === 100 ? "bg-emerald-500" : "bg-blue-600")}
           style={{ width: `${pct}%` }}
         />
       </div>
@@ -797,7 +797,7 @@ function LogoControls({ value, onSave }: { value: string; onSave: (url: string) 
           disabled={busy}
           title="Logo yükle"
           aria-label="Logo yükle"
-          className="absolute -bottom-1 -right-1 inline-flex size-8 items-center justify-center rounded-full bg-zinc-900 text-white shadow ring-2 ring-white hover:bg-zinc-700"
+          className="absolute -bottom-1 -right-1 inline-flex size-8 items-center justify-center rounded-full bg-blue-600 text-white shadow ring-2 ring-white hover:bg-blue-700"
         >
           {busy ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
         </button>
@@ -982,7 +982,7 @@ function ChipEditor({
         <ul className="space-y-1.5">
           {values.map((v) => (
             <li key={v} className="flex items-center gap-2 text-sm text-zinc-700">
-              <span className="flex size-5 items-center justify-center rounded-full bg-zinc-950 text-xs text-white">✓</span>
+              <span className="flex size-5 items-center justify-center rounded-full bg-blue-600 text-xs text-white">✓</span>
               <span className="flex-1">{v}</span>
               <button type="button" aria-label={`${v} kaldır`} onClick={() => onChange(values.filter((x) => x !== v))} className="text-zinc-400 hover:text-zinc-700">
                 <X className="size-3.5" />

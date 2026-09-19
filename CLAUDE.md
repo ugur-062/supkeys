@@ -413,6 +413,28 @@ Sözlük önceliği: üretilen dosya ÖNCE, elle yazılan SONRA → insan karar�
 
 **Kürasyon:** sonuçsuz aramalar `category_search_misses`'e → admin paneli.
 
+**KATALOG SADELEŞTİRME — 29 SEGMENT GİZLİ (2026-09-19, kullanıcı kararı:
+"endüstriyel, inşaat, sanayi tarzı şeyler hariç gereksiz kategorileri
+kaldır").** Satır SİLİNMEDİ (birebir garantisi ve `seed-categories` akışı
+aynen); tek kaynak `@rothern/shared` `category-catalog.ts`
+`HIDDEN_SEGMENTS` (ilk iki hane) + `isHiddenCategory` + `hiddenCategoryWhere`
+(Prisma `NOT startsWith`). `categoryCatalogWhere` artık bu parçayı da
+döndürür → `childrenOf`/`searchHierarchical` otomatik süzer; ayrıca
+`getAllActive`, `getSegments`, `validateIds`, firma beyanı
+(`category-selection.helper`), talep kapısı (`company-listings`), herkese açık
+arama önerisi/facet/sayaç (`public-marketplace`), sitemap segmentleri, dizin
+facet'i (`company-directory`), AI kategori ipucu/önerisi ve web'de
+`category-showcase.ts` (satınalma + herkese açık anasayfa vitrini,
+`SHOWCASE_ORDER` sanayi odaklı), `/urunler/kategori/<kod>` ve panel kategori
+sayfası (gizliyse 404) hepsi buradan okur. Gizlenenler: 10 42 43 44 45 48
+49 50 51 52 53 54 55 56 57 60 64 70 80 82 83 84 85 86 90 91 92 93 94
+(≈137 bin yaprak, kataloğun %86'sı). Kalan 29: malzeme 11 12 13 14 15 30 31
+32 · makine/ekipman 20 21 22 23 24 25 26 27 39 40 41 46 47 · hizmet 71 72 73
+76 77 78 81 · 95. Canlıda o tarihte sıfır firma/ürün/talep vardı → veri
+taşıma gerekmedi. Geri almak = listeden çıkarmak. Eşleştirme/bildirim eski
+beyanlara dokunmaz; admin kategori ekranı süzmez (tam katalogu görür).
+Sözleşme: API `test/unit/hidden-segments.spec.ts`, web `category-showcase.test`.
+
 **Kategori fotoğrafları:** 58/58 segment, `apps/web/public/categories/<kod>.webp`
 (CC0/PDM, künye `docs/category-photo-credits.md`). Gerçek fotoğraf YALNIZ iki
 yerde: **ürün** (firma yükler) ve **kategori**. **Satın alma talebi fotoğraf
@@ -427,6 +449,20 @@ Profilim ve herkese açık profil "Sertifikalar" bölümünü çizmez, düzenlem
 yok; `Company.certifications`/`certificateImages` kolonları duruyor (migration
 yok), kayıt gövdesi göndermez. Pazar yeri kartlarındaki sertifika çipleri
 DOKUNULMADI (ayrı yüzey).
+**TALEP SATIRI v3 (2026-09-19, kullanıcı mockup'ı "alım talep boxlarını bu
+şekilde yap"):** `ListingCard row` (panel satış/satınalma listeleri, firma
+sayfası açık talepleri, herkese açık `ListingTeaserRow`) — sol kenar portal
+renginde kalın şerit (`strip` verilmezse), başlıkta belge ikonu karosu
+(portal tonu) + numara pili + `text-lg` başlık + eşleşme çipleri; sağ üstte
+durum pili (+ `menu` ⋮ isteğe bağlı); metrik şeridi ikon karolu sütunlar
+(`factIcon`: firma/alıcı · kalem · kapsam · kapanış kırmızı + kalan süre pil
+altında · kategori mavi) dikey ayraçlarla; altta "Detayları göster" oku
+(erişilebilir adı yine "Kalemleri göster") ve büyük dolgulu "Teklif ver"
+(uçak ikonu). **Boyut ESKİ satırla aynı** (aynı gün, kullanıcı: "çok büyük
+yapmışsın"): px-3 py-2.5, başlık 13 px, etiket 10 px, değer 13 px, ikon
+karoları küçük (size-8 / size-7). `dense` pano widget'ı eski tek satır.
+Kategori FOTOĞRAFI yine yok. Sözleşme: `listing-card-footer.test`,
+`home-faces.test`.
 **Talep satırı alt çizgisi (2026-09-17, kullanıcı kararı):** `ListingCard row`
 alt satırında kalem açma düğmesi EN SOLDA — **yazısız, yalnız aşağı ok**
 (`size-5`, slate-600, hover zemin; erişilebilir adı "Kalemleri göster/gizle"),
@@ -854,7 +890,9 @@ Adres tek kaynağı `lib/company/panel-market.ts`.
   Satış portalı siyah/emerald; herkese açık pazar yeri MONOKROM. **Renk
   çağırandan gelir, bileşen portal bilmez.**
 - **TEK EYLEM RENGİ:** dolgulu renk YALNIZ birincil eylemde. Sıralama çipleri ve
-  sayfalama nötr seçili durum.
+  sayfalama nötr seçili durum. **İstisna (2026-09-19, kullanıcı):** Açık
+  Talepler "Sırala" çipleri (`RequestSortControl`) seçiliyken portal
+  renginde (satış emerald, satınalma mavi) — siyah seçili çip istenmedi.
 - Kartta `Doğrulanmış` gövdede okunur etiket, `Gold Üye` kapakta sessiz şerit.
   Özellik satırı ürünün KENDİ nitelik tablosundan — açıklamadan cümle AYIKLANMAZ.
 - SÜZGEÇ değişimi `replace`, **SAYFA değişimi `push`**. "Tümünü temizle"
@@ -970,6 +1008,18 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   `tender-extract/category-suggest` (mevcut, ≤3 L3). Başlık ve kategori ÜZERİNE
   yazılır (düğmeye bilinçli basıldı), anahtar kelimeler yalnız boşsa. Hook
   `useAiRequestDraftSuggest`. Sözleşme: `test/unit/ai-title-suggest.spec.ts`.
+- **DAVET SEÇİCİSİ İKİ PANEL + KALEM SIRALAMASI (2026-09-19, kullanıcı
+  mockup'ı):** `quick/supplier-picker.tsx` — SOL "Davet edilecek firmalar"
+  (arama, Sektör/Şehir süzgeci, Tümünü seç, tablo Firma·Şehir·Sektör·Firma
+  türü, 7'şer "Daha fazla yükle"), SAĞ "Seçilen firmalar N" (kaldır, "N
+  firmayı davet et" → yayın düğmesine kaydırır `#talep-yayinla`, Seçimi
+  temizle). Sıra **uygunluk puanına** göre (`relevance`): talep kategorisiyle
+  satış beyanı aynı aile 4 / segment 2 + kalem adı kökleri firmanın
+  sektör/ad/faaliyet metninde (≤5); puanlılar "Kalemlere uygun" çipiyle önde.
+  Bunun için bağlantı kartı `categoryIds` (satış ana+alt beyanı) taşır
+  (`company-connections.service` `COMPANY_CARD_SELECT`). Özet + Yayınla kartı
+  sağ rayın EN ALTINDA (kullanıcı: "bu kısım en aşağıda olmalı").
+  Sözleşme: `quick/__tests__/supplier-picker.test.tsx`.
 - **AI TEDARİKÇİ KEŞFİ 3. BÖLÜMDE (2026-09-17):** "Kimler görsün?" bölümünün
   başında "AI ile daha fazla tedarikçiye eriş" kartı; modal kategori + KALEM
   ADLARIYLA açılır (web araması kalemleri bağlam alır). Sihirbaz 3. adımı da
@@ -996,6 +1046,17 @@ pasif + ipucu. Eskiden yalnız ⋮ menüsünde ve menü yalnız ilanı OLUŞTURA
 `company/ai/supplier-discovery` (+`/external`) `@RequireTier("GOLD")`;
 `published-panel` kapısı SILVER→GOLD hizalandı. Staging'de doğrulandı
 (2026-09-17): platform önerisi 1,4 sn, web araması (Gemini) ~35 sn, ikisi 201.
+
+**TALEP DETAYI — TEKLİFÇİ BAŞLIK KARTI v2 (2026-09-19, kullanıcı mockup'ı;
+"Takip et" tuşu bilinçli YOK):** üst satırda geri bağlantısı + sağda
+"Paylaş" (adresi panoya kopyalar); başlık kartı iki sütun — solda numara ·
+durum pili, `text-3xl` başlık, tonlu ikonlu çipler (Alış mavi · Yurtiçi/
+Uluslararası gri · format mor), anahtar kelimeler, "Alıcı Firma" ikon
+karosu, açıklama; sağda geri sayım kartı (saat ikonu, KAPANMASINA, süre,
+tarih) + tam genişlik "Teklif Ver ›". Meta şeridi büyük ikon karolu. Kapalı
+zarf notu `sellerBidSection`ın küçük Callout'undan çıkıp sayfa düzeyinde
+BANT oldu (kilit ikonu, iki satır, "Nasıl çalışır?" → `/nasil-calisir#nasil`)
+— RFQ ∧ teklif alımı açıkken. Sekmeler yine iki (Kalemler N · Dosyalar).
 
 ## Ürün Kataloğu (firma vitrini)
 
@@ -1039,6 +1100,33 @@ Panel `/company/satis/urunlerim`, public `/firma/<slug>/urun/<slug>`.
   sunucuda görsel/etiket/fiyatı SİLİYORDU** (normalizer `?? []`), o yol kapandı.
   Sözleşme: `product-catalog.spec` "İNCELEME KİLİDİ" + web
   `products-view.test`/`product-preview.test`.
+- **ÜRÜNLERİM TABLO (2026-09-18, kullanıcı kararı):** liste TABLO (Ürün ·
+  Durum · Kategori · Fiyat · Min. sipariş · Görüntülenme · Eklenme · ⋮),
+  üstteki durum kutuları KALKTI → arama yanında sayılı hap süzgeçleri.
+  **Yatay kaydırma YOK** ("scroll bar olmasın, tabloyu oturt"):
+  `overflow-x-auto`/`min-w` yok, sütunlar kesme noktasıyla gizlenir (Eklenme +
+  Kategori yalnız 2xl, Min. sipariş + Görüntülenme xl, Fiyat sm); kategori ad
+  altındaki satırda zaten okunur. Sözleşme: `products-view.test` "yatay kaydırmaz".
+- **ÜRÜN AÇILIŞI: YAYINDAYSA ÖNCE ÖNİZLEME, "DÜZENLE" FORMA (2026-09-19,
+  kullanıcı kararı; 18'indeki "önizleme üstte" ve "yan yana Kart|Sayfa paneli"
+  denemeleri beğenilmedi, ikisi de KALDIRILDI).** Ürünlerim'de yayındaki
+  (APPROVED ∧ isPublic) ürüne tıklayınca `ProductPreview variant="published"`
+  (alıcının gördüğü hâl + Düzenle · Herkese açık sayfayı aç · Vitrinden çek);
+  Düzenle `editorOpen` ile forma geçirir. Taslak/düzeltme istenen doğrudan
+  form; PENDING yine kilitli `review` önizlemesi. Form: üstte yapışkan
+  **eylem çubuğu** (`product-action-bar.tsx`: ad + durum + kaydedilmemiş
+  işareti, portal renginde Kaydet/Onaya gönder, ⋮ menü), solda 5 bölüm, sağda
+  yapışkan **ray** (`editor-rail.tsx`: tamamlanma + onay için eksik çipleri →
+  `sectionFor` ile bölüme kayar + katlanabilir Öneriler). **Yayındaki üründe
+  değişiklik yokken Kaydet KAPALI** (`dirty` yoksa) — kullanıcı bulgusu:
+  değişmeden kaydedince ürün yeniden incelemeye düşüyordu. API tarafı da
+  düzeltildi: `updateShowcase` içerik farkını artık `JSON.stringify` ile değil
+  kanonik `showcaseContentChanged` (`common/company/product-content-diff.ts`)
+  ile ölçer — eski yol `Prisma.DbNull` ("{}") ile `null`ı ve boş açıklamayı
+  farklı sayıyordu. Sayfa başlığı (`PageHeader`) düzenleme/yeni modunda YOK.
+  Sözleşme: `products-view.test` (önizleme → Düzenle → form),
+  `product-preview.test` "published"/"EditorRail", API
+  `test/unit/product-content-diff.spec.ts`.
 - **Ürün ekleme İLAN AÇMAYA BENZEMEZ:** ilan sihirbaz, ürün TEK SAYFA
   (2026-09-09 düzeni: 5 numaralı bölüm + yapışkan bölüm çipleri, sürükle-
   bırak/sıralanır görsel, virgülle çoklu anahtar kelime + öneri çipleri, sağda

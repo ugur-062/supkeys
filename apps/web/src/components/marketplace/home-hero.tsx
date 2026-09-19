@@ -1,7 +1,6 @@
 "use client";
 
-import { AudienceSwitch, useAudience, type HeroScope } from "./audience-switch";
-import { useState } from "react";
+import { AudienceSwitch, useAudience } from "./audience-switch";
 import { HeroDecor, PanelHeroSearch } from "@/components/dashboard/panel-hero-search";
 import { BUYER_OBJECTS, BUYER_WIDGETS, SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
@@ -35,10 +34,10 @@ import { Suspense } from "react";
  */
 export function HomeHero() {
   const { audience, scope, setScope } = useAudience();
-  // Tedarikçi yüzünün "Talep | Firma" pili (2026-09-18, kullanıcı: satış
-  // panelindeki karşılığı). Yalnız arama hedefini değiştirir; gövde aynı
-  // kalır — alıcı yüzünün pili gibi localStorage'a yazılmaz.
-  const [supplierScope, setSupplierScope] = useState<HeroScope>("products");
+  // Tedarikçi yüzünün "Talep | Firma" pili (2026-09-18) — 2026-09-19'a kadar
+  // YEREL state'e yazıyordu, gövde ise bağlamı okuyordu → "Firma"ya basınca
+  // hiçbir şey değişmiyordu (kullanıcı bulgusu). İki yüz de AYNI bağlam
+  // kapsamını kullanır; gövde (`HomeSupplier`) ona göre talep/firma listesi basar.
   const supplier = audience === "supplier";
 
   return (
@@ -99,8 +98,8 @@ export function HomeHero() {
             primaryLabel: "Talep",
             primaryIcon: "clipboard",
           }}
-          scope={supplierScope}
-          onScopeChange={setSupplierScope}
+          scope={scope}
+          onScopeChange={setScope}
           accent="emerald"
           backdrop
           widgets={SELLER_WIDGETS}

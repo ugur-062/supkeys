@@ -53,6 +53,9 @@ const COMPANY_CARD_SELECT = {
   country: true,
   industry: true,
   activities: true,
+  // Davet seçicisi kalem/kategori uygunluğuna göre sıralar (2026-09-19).
+  sellerCategoryIds: true,
+  sellerSubCategoryIds: true,
   logoUrl: true,
   companyVerificationStatus: true,
   users: {
@@ -746,6 +749,7 @@ export class CompanyConnectionsService {
             logoUrl: other.logoUrl,
             verified: other.companyVerificationStatus === "VERIFIED",
             activities: other.activities,
+            categoryIds: [...other.sellerCategoryIds, ...other.sellerSubCategoryIds],
             productPreview: preview.get(other.id) ?? null,
           },
           decidedAt: r.decidedAt,

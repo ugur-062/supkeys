@@ -1,5 +1,9 @@
+"use client";
+
 import { ListingTeaserRow } from "./listing-teaser-row";
-import type { PublicListingCard } from "@/lib/public/marketplace-api";
+import { CompanyCard } from "./company-card";
+import { useAudience } from "./audience-switch";
+import type { PublicDirectoryCard, PublicListingCard } from "@/lib/public/marketplace-api";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
 import { ArrowRightIcon, PlusIcon } from "@heroicons/react/20/solid";
@@ -31,16 +35,63 @@ const MIN_DEMANDS = 3;
 export function HomeSupplier({
   demands,
   total,
+  companies = [],
+  companiesTotal = 0,
 }: {
   demands: PublicListingCard[];
   total: number;
+  /** Hero "Talep | Firma" pili "Firma" iken listelenen firmalar (dizinle aynı kart). */
+  companies?: PublicDirectoryCard[];
+  companiesTotal?: number;
 }) {
+  // Hero kapsam pili (2026-09-19, kullanıcı: "Firma'ya tıklayınca değişiklik
+  // yapmıyor"): alıcı yüzüyle AYNI kural — "Firma" seçiliyken talep listesi
+  // yerine FİRMA listesi; iki blok da HTML'de durur, görünmeyen `hidden`.
+  const { scope } = useAudience();
+  const firmaMode = scope === "suppliers";
   return (
     /* Tedarikçi yüzünde dolgulu düğmeler YEŞİL — "Teklif ver" kabuk dışı
        varsayılanla mavi çıkıyordu (2026-09-18, kullanıcı). */
     <ButtonAccentProvider accent="emerald">
     <div className="mx-auto max-w-7xl space-y-10 px-4 pb-14 sm:px-6 lg:px-8">
-      <section aria-labelledby="acik-talepler">
+      {/* id alıcı yüzündeki `#firmalar`dan FARKLI — iki yüz aynı HTML'de durur, id tekil kalmalı. */}
+      <section id="firmalar-tedarikci" hidden={!firmaMode} aria-labelledby="home-supplier-firmalar" className="space-y-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
+          <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
+            <h2 id="home-supplier-firmalar" className="text-xl font-semibold tracking-tight text-zinc-950">
+              Firmalar
+            </h2>
+            {companiesTotal > 0 ? (
+              <span className="tnum text-sm text-zinc-500">{companiesTotal.toLocaleString("tr-TR")} firma</span>
+            ) : null}
+          </span>
+          <Link
+            href={MARKETPLACE_ROUTES.companies}
+            className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:text-emerald-800"
+          >
+            Tümünü gör
+            <ArrowRightIcon aria-hidden className="size-4" />
+          </Link>
+        </div>
+        {companies.length === 0 ? (
+          <p className="text-sm text-zinc-500">Henüz listelenen firma yok.</p>
+        ) : (
+          <ul className="flex flex-col gap-3">
+            {companies.slice(0, 12).map((c) => (
+              <li key={c.slug}>
+                <CompanyCard
+                  company={c}
+                  variant="wide"
+                  accent="emerald"
+                  cta={{ label: "Bağlantı kur", href: signupHref("teklif", `/firma/${c.slug}`) }}
+                />
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      <section aria-labelledby="acik-talepler" hidden={firmaMode}>
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="acik-talepler" className="text-lg font-semibold tracking-tight text-zinc-950">

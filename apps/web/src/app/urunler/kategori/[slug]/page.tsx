@@ -1,4 +1,5 @@
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
+import { isHiddenCategory } from "@rothern/shared";
 import {
   ProductIndex,
   type ProductSearchParams,
@@ -41,6 +42,9 @@ export async function generateStaticParams() {
 
 /** Koddan kategori adını çözer (facet listesi = ürünü olan kategoriler). */
 async function resolveCategory(code: string) {
+  // Gizli segment (katalog sadeleştirme 2026-09-19): meta ve gövde AYNI
+  // kararı versin — facet'ten gelse bile "bulunamadı".
+  if (isHiddenCategory(code)) return null;
   const facets = await fetchProductFacets();
   return facets.categories.find((c) => c.id === code) ?? null;
 }
@@ -83,7 +87,7 @@ export default async function Page({
   if (!MARKETPLACE_LIVE) notFound();
   const { slug } = await params;
   const code = parseCategoryCode(slug);
-  if (!code) notFound();
+  if (!code || isHiddenCategory(code)) notFound();
 
   const cat = await resolveCategory(code);
   // Ürünü olmayan/bilinmeyen kod: sayfa üretmek yerine dizine dönmek doğru —

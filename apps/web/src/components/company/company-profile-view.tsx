@@ -208,7 +208,9 @@ export function CompanyProfileView({
             bilinçli olarak kısaldı — üst blok ürünleri ekrandan itmesin. */}
         <div
           className={cn(
-            "relative w-full bg-gradient-to-br from-zinc-900 to-zinc-700",
+            // Kapak yoksa MAVİ bant (2026-09-19, kullanıcı: "profil kapaklarında
+            // siyah istemiyorum, mavi olsun").
+            "relative w-full bg-gradient-to-br from-blue-700 to-blue-500",
             p.coverImageUrl ? "h-28 sm:h-36" : edit?.cover ? "h-24 sm:h-28" : "h-12",
           )}
         >
@@ -241,7 +243,7 @@ export function CompanyProfileView({
                   alt={`${p.name} logosu`}
                   className="h-20 w-20 rounded-xl object-cover sm:h-24 sm:w-24"
                   fallback={
-                    <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-zinc-950 text-3xl font-bold text-white sm:h-24 sm:w-24">
+                    <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-blue-600 text-3xl font-bold text-white sm:h-24 sm:w-24">
                       {p.name.charAt(0).toLocaleUpperCase("tr-TR")}
                     </div>
                   }

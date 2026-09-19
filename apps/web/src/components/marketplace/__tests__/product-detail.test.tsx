@@ -3,7 +3,7 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it } from "vitest";
 
-import { ProductBreadcrumb, ProductDetailBody, RelatedRows } from "../product-detail";
+import { ProductBreadcrumb, ProductDetailBody, RelatedRows, brandIsSeller } from "../product-detail";
 import type { PublicProduct, PublicProductCompany } from "@/lib/public/marketplace-api";
 
 /**
@@ -206,17 +206,6 @@ describe("ProductDetailBody", () => {
     expect(screen.getByText("yeni-1")).toBeInTheDocument();
   });
 
-  it("yapışkan şerit YALNIZ eylem verildiğinde çizilir ve BAŞLANGIÇTA gizlidir", () => {
-    const { container, rerender } = render(Body());
-    expect(container.querySelector(".fixed.inset-x-0.bottom-0")).toBeNull();
-    rerender(Body({ stickyCta: <button type="button">Bilgi iste</button> }));
-    const bar = container.querySelector(".fixed.inset-x-0.bottom-0");
-    expect(bar).toBeTruthy();
-    // Asıl eylem ekrandayken şerit KAPALI — aynı düğme iki kez durmaz
-    // (nöbetçi yukarı çıkınca IntersectionObserver açar).
-    expect(bar).toHaveAttribute("hidden");
-  });
-
   it("başlığın üstünde kategori HAPI, altında satıcı kimliği (faaliyet ikonlu, şehir)", () => {
     // 2026-09-07 (kullanıcı referansı): kategori · faaliyet · şehir üçlüsü
     // başlığın üstünde tek satırdı ve faaliyet+şehir hemen altındaki satıcı
@@ -227,5 +216,13 @@ describe("ProductDetailBody", () => {
     const seller = screen.getByText("Karadeniz Enerji A.Ş.").closest("div");
     expect(seller?.textContent).toContain("Samsun");
     expect(screen.getByText("Hizmet sağlayıcı")).toBeInTheDocument();
+  });
+});
+
+describe("brandIsSeller", () => {
+  it("marka firma adının parçasıysa çip basılmaz; gerçek marka 'Marka:' ile kalır", () => {
+    expect(brandIsSeller("Demo Gold", "Demo Gold Makina")).toBe(true);
+    expect(brandIsSeller("Siemens", "Demo Gold Makina")).toBe(false);
+    expect(brandIsSeller("", "Demo Gold Makina")).toBe(false);
   });
 });
