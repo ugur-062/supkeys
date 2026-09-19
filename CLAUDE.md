@@ -95,6 +95,9 @@ E-postalar Resend test domain'inden GERÇEKTEN gönderilir → kayıtlı gerçek
    her zaman görür. Non-owner dalı `invitations`/`bids`/`bidStats` içermez.
 6. **SUBMITTED bid editlenmez VE geri çekilemez.** Tek yol: alıcı eleme yapar
    (LOST) → tedarikçi yeniden teklif verir (version++). WITHDRAWN legacy.
+   **Geçerliliği dolmuş teklif KAZANDIRILAMAZ (2026-09-19):** `award`/
+   `awardByItem` `bidValidUntilMs` ile 400 döner, ekranda Kazandır pasif +
+   ipucu (uzatma iste / yeni tur). Pazarlıkta geçerlilik süresiz → etkilenmez.
 7. **Kazandırma kalıcı:** toplu veya kalem bazlı → Tender AWARDED + Order
    (`ORD-YYYY-NNNN`). Geri alma (un-award) YOK.
 8. **Ana akış RFQ.** İngiliz usulü açık eksiltme ("Pazarlık") ikincil akış.
@@ -1144,6 +1147,14 @@ Panel `/company/satis/urunlerim`, public `/firma/<slug>/urun/<slug>`.
   Sözleşme: `products-view.test` (önizleme → Düzenle → form),
   `product-preview.test` "published"/"EditorRail", API
   `test/unit/product-content-diff.spec.ts`.
+- **VİTRİN PATCH'İ KISMİ (2026-09-19 incelemesi, K-3):** `PATCH company/items/
+  :id/showcase` gönderilmeyen alanı DEĞİŞTİRMEZ — `undefined` = dokunma,
+  `null`/`[]` = bilinçli silme; tek kaynak `common/company/showcase-merge.ts`
+  (+ `showcase-merge.spec`). Eskiden normalizer gövdeyi TAM vitrin sayıyordu:
+  yalnız açıklama gönderen istek görsel/anahtar kelime/nitelik/belge/fiyatı
+  sıfırlıyor, ürün "≥1 görsel" kapısına takılıp yeniden yayınlanamıyordu (web
+  formu her alanı gönderdiği için ekranda görünmedi; staging'de iki demo ürün
+  boşaldı). Kısmi gövde gönderen yeni yol (asistan/AI/mobil) bu kurala güvenir.
 - **Ürün ekleme İLAN AÇMAYA BENZEMEZ:** ilan sihirbaz, ürün TEK SAYFA
   (2026-09-09 düzeni: 5 numaralı bölüm + yapışkan bölüm çipleri, sürükle-
   bırak/sıralanır görsel, virgülle çoklu anahtar kelime + öneri çipleri, sağda
@@ -1331,6 +1342,9 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   KULLANILIYOR, koşum başına ~1 bildirim). `staging-email-content.spec`
   kota hatasını ortam sınırı sayar ve ayrı raporlar; diğer teslimat hataları
   kırmızı kalır.
+  **429 metni Türkçe (2026-09-19):** `ThrottlerModule` `errorMessage` →
+  `common/http/throttle-message.ts` (giriş formu API mesajını olduğu gibi
+  basıyor; kütüphane varsayılanı "ThrottlerException: Too Many Requests" idi).
   **Giriş ucu IP başına 10/dk** (`@Throttle({ auth: … })`): paket büyüdükçe
   tek tek girişler 429 alıp ÜRÜN HATASI gibi görünüyordu → `apiSession`
   e-posta bazında ÖNBELLEKLİ, `uiLogin` 429'da 20 sn bekleyip yineler; eski
