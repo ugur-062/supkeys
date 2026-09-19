@@ -721,14 +721,14 @@ export function ListingTemplatesView({ basePath }: { basePath: string }) {
                       </p>
                     </div>
                   </div>
-                  {/* C36: satırın birincil aksiyonu — şablon sihirbazda açılır
-                      (önceden yalnız silme vardı, satır işlevsizdi). */}
+                  {/* C36: satırın birincil aksiyonu — şablon hızlı talepte açılır
+                      (2026-09-19: sihirbaz kaldırıldı). */}
                   <div className="flex shrink-0 items-center gap-1">
                     <Link
                       href={`/company/satinalma/taleplerim/yeni?template=${t.id}`}
                       className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
                     >
-                      Sihirbazda Kullan
+                      Talepte kullan
                     </Link>
                     {canManageTpl ? (
                       <Button

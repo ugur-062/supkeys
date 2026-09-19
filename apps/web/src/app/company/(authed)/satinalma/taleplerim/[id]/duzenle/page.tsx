@@ -2,7 +2,7 @@
 
 import { Button } from "@/components/catalyst/button";
 import { Text } from "@/components/catalyst/text";
-import { TenderWizard } from "@/components/tenders/wizard/tender-wizard";
+import { QuickRequest } from "@/components/tenders/quick/quick-request";
 import { useListingDetail } from "@/hooks/use-company-listings";
 import { mapDetailToForm } from "@/lib/tenders/map-detail-to-form";
 import { useParams } from "next/navigation";
@@ -43,13 +43,8 @@ export default function EditTenderPage() {
     );
   }
 
-  return (
-    <TenderWizard
-      mode="edit"
-      listingId={id}
-      initialValues={mapDetailToForm(l)}
-    />
-  );
+  // Düzenleme de HIZLI KARTLA (2026-09-19: detaylı sihirbaz kaldırıldı).
+  return <QuickRequest key={id} mode="edit" listingId={id} initialValues={mapDetailToForm(l)} />;
 }
 
 function Notice({

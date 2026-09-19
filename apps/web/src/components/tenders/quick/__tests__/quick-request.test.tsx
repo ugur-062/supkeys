@@ -30,7 +30,13 @@ vi.mock("@/hooks/use-company-addresses", () => ({
   useSaveAddress: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock("@/hooks/use-company-connections", () => ({ useConnections: () => ({ data: [], isLoading: false }) }));
-vi.mock("@/hooks/use-company-listings", () => ({ useCreateListing: () => ({ mutateAsync: h.create, isPending: false }) }));
+vi.mock("@/hooks/use-company-listings", () => ({
+  useCreateListing: () => ({ mutateAsync: h.create, isPending: false }),
+  // Düzenleme modu (2026-09-19, sihirbaz kaldırıldı) — burada yeni kart sınanır.
+  useUpdateListing: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  usePublishListing: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
+vi.mock("@/hooks/use-listing-templates", () => ({ useSaveTemplate: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock("@/hooks/use-ai-search-intent", () => ({ useAiSearchIntent: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock("@/components/tenders/supplier-discovery-modal", () => ({ SupplierDiscoveryModal: () => null }));
 vi.mock("@/components/tenders/wizard/catalog-picker-dialog", () => ({ CatalogPickerDialog: () => null }));

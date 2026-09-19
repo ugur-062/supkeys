@@ -1003,11 +1003,11 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   çipleri 3·7·14, ödeme şekli (2. bölümde, Şartlar paneliyle aynı değer),
   kime (PUBLIC/CONNECTIONS/PRIVATE + kompakt bağlantı seçici); sağda Şartlar
   paneli (satır satır "değiştir", "varsayılan yap"), teklif kalitesi
-  (`listingSeoReadiness`), yayın/taslak. Profil yoksa 3 soruluk kurulum kartı. **Aynı form modeli ve doğrulama** (`tenderFormSchema`)
+  (`listingSeoReadiness`), yayın/taslak/şablon. Profil yoksa 3 soruluk kurulum kartı. **Aynı form modeli ve doğrulama** (`tenderFormSchema`)
   ve **aynı gövde** (`lib/tenders/map-to-input.ts` — sihirbazdan buraya
   taşındı, TEK KAYNAK); yeni backend akışı YOK. Yayın sonrası panel:
   tedarikçi önerisi (AI) + talep bağlantısı. Taslak `sessionStorage`
-  (`quick-draft.ts`); "Detaylı ayarlar" sihirbaza `QUICK_TO_WIZARD_KEY` ile taşır.
+  (`quick-draft.ts`).
 - **HIZLI TALEP 1. BÖLÜM DÜZENİ (2026-09-17, kullanıcı kararı):** kalemler →
   **Talep başlığı** → altında **"AI ile başlık ve kategori bul"** düğmesi →
   **Kategori** (tek sütun; eski iki sütunlu başlık|kategori ızgarası kalktı).
@@ -1035,12 +1035,20 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   kalem adlarını geçer. Modal web sekmesi: **e-postası olmayan firma
   listelenmez**, "Davet E-postası Gönder" liste kaydırılsa da görünen SABİT
   alt şeritte.
-- **Detaylı sihirbaz `taleplerim/yeni/detayli`** (kopya `?from=`, AI belge
-  `?ai=1`, şablon `?template=` buraya yönlenir): **4 adım** (Kapsam anahtarı
-  Kalemler adımının üstünde; `WIZARD_STEP_FIELDS` adım→alan eşlemesi),
-  isteğe bağlı bölümler `OptionalSection` (`<details>`, hata varsa açık):
-  kurallar, hüküm+dokümanlar, açılış tarihi; kapanışta 3·7·14 çipleri.
-  `Step4Review.onEditStep` indeksleri 0|1|2.
+- **⛔ DETAYLI SİHİRBAZ KALDIRILDI (2026-09-19, kullanıcı kararı "gerek yok,
+  sistemde de gözükmesin").** `taleplerim/yeni/detayli` rotası, `TenderWizard`,
+  adım 0/1/3/4 ve yayın onay diyaloğu SİLİNDİ; eski adres `next.config` ile
+  hızlı karta 308 (sorgu korunur). Üç giriş artık hızlı kartı DOLU açar
+  (`yeni/page.tsx`): kopya `?from=` (`mapDetailToForm forCopy`), AI belge
+  `?ai=1` (`AI_TENDER_DRAFT_KEY` → `mapAiDraftToForm`), şablon `?template=`
+  (tarih/davetli/tip düşülür). **Düzenleme de hızlı kartla:**
+  `taleplerim/[id]/duzenle` → `QuickRequest mode="edit" listingId` (güncelle
+  → gerekirse yayınla). Rayda "Detaylı sihirbaza geç" yerine **"Şablon olarak
+  kaydet"** (`SaveTemplateDialog`, wizard klasöründe kalan paylaşılan parça).
+  `wizard/` klasöründe yalnız paylaşılanlar duruyor: `step-2-items`,
+  `catalog-picker-dialog`, `item-detail-modal`, `item-question-modal`,
+  `staged-documents`, `save-template-dialog`. Şablonlar sayfası düğmesi
+  "Talepte kullan".
 
 **TALEP DETAYI DÜZENİ (2026-09-17, kullanıcı kararı):** `/company/ilan/[id]`
 iki görünümde de sekme sayısı İKİ — `Kalemler` (kalemler + Genel Bilgi
