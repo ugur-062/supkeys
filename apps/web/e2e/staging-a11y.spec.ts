@@ -84,6 +84,6 @@ test("talep sihirbazı erişilebilirlik", async ({ page }) => {
   // Hızlı talep kartı (2026-09-19: detaylı sihirbaz kaldırıldı) — tek sayfa,
   // en yoğun form (kalemler + adres + şartlar).
   await gotoRetry(page, "/company/satinalma/taleplerim/yeni");
-  await expect(page.getByRole("button", { name: /İleri|Devam/ }).first()).toBeVisible({ timeout: 45_000 });
-  await scan(page, "talep sihirbazı adım 1");
+  await expect(page.getByRole("button", { name: /Talebi yayınla/ }).first()).toBeVisible({ timeout: 45_000 });
+  await scan(page, "hızlı talep kartı");
 });
