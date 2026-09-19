@@ -347,20 +347,23 @@ function PanelRow({
             {d.facts.map((f, i) => {
               const { Icon, tone: iconTone, value } = factIcon(f.label);
               return (
-                <div key={f.label} className={cn("flex min-w-0 items-start gap-2", i > 0 && "lg:pl-3")}>
-                  <span aria-hidden className={cn("flex size-7 shrink-0 items-center justify-center rounded-full", iconTone)}>
-                    <Icon className="size-3.5" />
-                  </span>
-                  <span className="min-w-0">
-                    <dt className="text-[10px] font-semibold uppercase tracking-wide leading-tight text-slate-600">{f.label}</dt>
-                    <dd className={cn("mt-0.5 min-w-0 text-[13px] font-semibold leading-tight text-slate-800", value)}>{f.value}</dd>
-                    {noteUnderClosing && i === closingIdx ? (
-                      <dd className="mt-1 inline-flex items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">
-                        <ClockIcon aria-hidden className="size-3" />
-                        {d.timeNote}
-                      </dd>
-                    ) : null}
-                  </span>
+                // dl > div altında yalnız dt/dd olabilir (axe definition-list;
+                // 2026-09-19 incelemesinde 240 düğüm): ikon dt'nin içinde,
+                // değer satırları ikon genişliği kadar içeriden başlar.
+                <div key={f.label} className={cn("min-w-0", i > 0 && "lg:pl-3")}>
+                  <dt className="flex min-w-0 items-center gap-2 text-[10px] font-semibold uppercase tracking-wide leading-tight text-slate-600">
+                    <span aria-hidden className={cn("flex size-7 shrink-0 items-center justify-center rounded-full", iconTone)}>
+                      <Icon className="size-3.5" />
+                    </span>
+                    <span className="min-w-0">{f.label}</span>
+                  </dt>
+                  <dd className={cn("-mt-2 min-w-0 pl-9 text-[13px] font-semibold leading-tight text-slate-800", value)}>{f.value}</dd>
+                  {noteUnderClosing && i === closingIdx ? (
+                    <dd className="mt-1 ml-9 inline-flex items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">
+                      <ClockIcon aria-hidden className="size-3" />
+                      {d.timeNote}
+                    </dd>
+                  ) : null}
                 </div>
               );
             })}
