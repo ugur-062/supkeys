@@ -239,7 +239,7 @@ export function SupplierDiscoveryModal({
           </div>
 
           {/* Sekmeler */}
-          <div className="flex gap-1 border-b border-zinc-950/5 px-6 pt-3">
+          <div role="tablist" aria-label="Tedarikçi kaynağı" className="flex gap-1 border-b border-zinc-950/5 px-6 pt-3">
             {(
               [
                 { key: "platform", label: "Platformda", icon: Building2 },
@@ -249,11 +249,13 @@ export function SupplierDiscoveryModal({
               <button
                 key={t.key}
                 type="button"
+                role="tab"
+                aria-selected={tab === t.key}
                 onClick={() => setTab(t.key)}
                 className={cn(
                   "flex items-center gap-2 rounded-t-lg px-3 py-2 text-sm font-medium transition-colors",
                   tab === t.key
-                    ? "border-b-2 border-zinc-900 text-zinc-900"
+                    ? "border-b-2 border-blue-600 text-blue-700"
                     : "text-zinc-500 hover:text-zinc-800",
                 )}
               >
