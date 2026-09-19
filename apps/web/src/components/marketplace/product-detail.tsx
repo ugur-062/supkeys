@@ -189,7 +189,10 @@ export function ProductDetailBody({
   sellerSite,
   related,
   hrefFor,
-  accent = "default",
+  // Sekme vurgusu HER YERDE MAVİ (2026-09-19, kullanıcı: "Ürün Özellikleri /
+  // Sertifikalar seçilince mavi olsun, siyah değil") — herkese açık sayfada
+  // da monokrom seçili sekme istenmedi.
+  accent = "blue",
 }: {
   /** Panel fiyatlı (üye katmanı), public fiyatsız — ikisi de aynı gövde. */
   product: PublicProduct & Partial<ProductPriceFields>;
