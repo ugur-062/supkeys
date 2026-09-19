@@ -11,7 +11,7 @@ import { QA, apiGet, apiPost, apiSession, daysFromNow } from "./staging-helpers"
  */
 test.describe.configure({ mode: "serial" });
 
-const CATEGORY = "10101500";
+const CATEGORY = "31161500"; // Vidalar — discovery L3, görünür segment (10xxxxxx 2026-09-19 gizlendi)
 const isDenied = (status: number) => status === 403 || status === 404;
 
 test("başka firmanın talebi, siparişi, ürünü, adresi ve kullanıcısı id ile açılamaz", async () => {

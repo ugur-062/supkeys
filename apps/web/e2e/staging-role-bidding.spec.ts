@@ -14,7 +14,7 @@ import { QA, apiGet, apiPost, apiSession, daysFromNow, openAs } from "./staging-
  */
 test.describe.configure({ mode: "serial" });
 
-const CATEGORY = "10101500";
+const CATEGORY = "31161500"; // Vidalar — discovery L3, görünür segment (10xxxxxx 2026-09-19 gizlendi)
 const FORBIDDEN_FOR_BIDDER = ["bids", "bidStats", "invitations"];
 
 test("iki ayrı tedarikçi teklif verir; kapalı zarf, paket ve rol kapıları", async ({ browser }) => {

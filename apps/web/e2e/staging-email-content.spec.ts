@@ -28,7 +28,7 @@ test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", asyn
   const listing = await apiPost(buyer, "/company/listings", {
     type: "ALIM", format: "RFQ", title: `QA Posta Talebi ${stamp}`,
     description: "E-posta içeriği doğrulaması için açılan QA talebi.",
-    visibility: "PUBLIC", categoryIds: ["10101500"], deliveryAddressId: addr.body.id,
+    visibility: "PUBLIC", categoryIds: ["31161500"], deliveryAddressId: addr.body.id,
     closesAt: daysFromNow(4), primaryCurrency: "TRY", allowedCurrencies: ["TRY"],
     items: [{ name: "Posta Kalemi", quantity: 5, unit: "adet" }],
   });

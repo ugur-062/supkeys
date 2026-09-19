@@ -7,6 +7,7 @@ import { SentryModule } from "@sentry/nestjs/setup";
 import { ServerErrorSentryFilter } from "./common/logging/server-error-sentry.filter";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
+import { THROTTLE_MESSAGE } from "./common/http/throttle-message";
 import { ClientIpThrottlerGuard } from "./common/http/client-ip-throttler.guard";
 import { maskSensitiveUrl } from "./common/logging/mask-sensitive-url";
 import { LoggerModule } from "nestjs-pino";
@@ -147,18 +148,24 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     // @Throttle({ auth: { limit: 5, ttl } }) OVERRIDE'ından gelir (override her
     // zaman kazanır) → login/register/reset aynen sıkı kalır. THROTTLE_AUTH_LIMIT
     // yalnız bu global tavanı ayarlar; auth route override'larını etkilemez.
-    ThrottlerModule.forRoot([
-      {
-        name: "default",
-        ttl: 60_000,
-        limit: Number(process.env.THROTTLE_DEFAULT_LIMIT ?? 100),
-      },
-      {
-        name: "auth",
-        ttl: 60_000,
-        limit: Number(process.env.THROTTLE_AUTH_LIMIT ?? 1000),
-      },
-    ]),
+    // 429 metni kullanıcıya gösterilir (giriş formu API mesajını basar) —
+    // kütüphane varsayılanı "ThrottlerException: Too Many Requests" idi
+    // (2026-09-19 incelemesinde staging giriş ekranında görüldü).
+    ThrottlerModule.forRoot({
+      errorMessage: THROTTLE_MESSAGE,
+      throttlers: [
+        {
+          name: "default",
+          ttl: 60_000,
+          limit: Number(process.env.THROTTLE_DEFAULT_LIMIT ?? 100),
+        },
+        {
+          name: "auth",
+          ttl: 60_000,
+          limit: Number(process.env.THROTTLE_AUTH_LIMIT ?? 1000),
+        },
+      ],
+    }),
     PrismaModule,
     // Altyapı (paylaşılan)
     SupabaseAuthModule,

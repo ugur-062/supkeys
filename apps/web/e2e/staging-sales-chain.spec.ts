@@ -23,7 +23,7 @@ import {
  * yeniden onaylar (API, temizlik).
  */
 
-const CATEGORY = "10101500";
+const CATEGORY = "31161500"; // Vidalar — discovery L3, görünür segment (10xxxxxx 2026-09-19 gizlendi)
 const LONG_DESC =
   "QA otomasyon ürünü: dikişsiz çelik boru, 2 inç, ST37 kalite, 6 metre boy. Endüstriyel tesisat ve yapı işlerinde kullanılır; " +
   "paletli teslim edilir, sertifikalı üretimdir. Staging ortamı test kaydı.";

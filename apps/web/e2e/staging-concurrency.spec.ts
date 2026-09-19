@@ -11,7 +11,7 @@ import { QA, adminApiSession, apiGet, apiPatch, apiPost, apiSession, daysFromNow
  */
 test.describe.configure({ mode: "serial" });
 
-const CATEGORY = "10101500";
+const CATEGORY = "31161500"; // Vidalar — discovery L3, görünür segment (10xxxxxx 2026-09-19 gizlendi)
 const okCount = (rows: Array<{ status: number }>) => rows.filter((r) => r.status < 300).length;
 
 test("aynı anda iki kazandırma → tek sipariş", async () => {
