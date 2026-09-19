@@ -17,7 +17,9 @@ yüzeyde); lacivert/altın önerileri REDDEDİLDİ. Font yalnız Inter.
 **MAVİ TONU (2026-09-19, kullanıcı):** Tailwind'in varsayılan `blue` skalası
 `globals.css` `@theme`de açık gök mavisiyle EZİLDİ (`--color-blue-600
 #2F9BF2`, hover 700 `#1F86DA`); sınıf adları aynı, yalnız değer değişti.
-Mavi değiştirilecekse yine o blok — bileşenlere hex yazma.
+Aynı gün yeşil de EZİLDİ (`--color-emerald-600 #1FB864`, hover `#179E54`;
+eski teal'e kayan emerald "kapalı/ağır" bulundu). Renk değiştirilecekse
+yine o blok — bileşenlere hex yazma.
 
 ## Tech Stack
 - Monorepo: pnpm 10.33 + Turborepo · Node 22
