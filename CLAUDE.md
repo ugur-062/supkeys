@@ -99,7 +99,15 @@ E-postalar Resend test domain'inden GERÇEKTEN gönderilir → kayıtlı gerçek
    `awardByItem` `bidValidUntilMs` ile 400 döner, ekranda Kazandır pasif +
    ipucu (uzatma iste / yeni tur). Pazarlıkta geçerlilik süresiz → etkilenmez.
 7. **Kazandırma kalıcı:** toplu veya kalem bazlı → Tender AWARDED + Order
-   (`ORD-YYYY-NNNN`). Geri alma (un-award) YOK.
+   (`ORD-YYYY-NNNN`). Geri alma (un-award) YOK. **TEK İSTİSNA (2026-09-19
+   inceleme İ-1, kullanıcı kararı):** satıcı siparişi REDDEDİNCE
+   `revertAwardAfterRejection` (orders service, bypass client — çapraz-firma
+   yazma) reddeden teklifi LOST'a çeker (eliminatedAt + gerekçe); talebin
+   başka canlı siparişi yoksa talep AWARDED→IN_AWARD (awardedAt null) ve
+   kazandırmayla kaybetmiş teklifler (LOST ∧ eliminatedAt yok ∧ aynı tur)
+   SUBMITTED'a döner — alıcının kendi elediği ve eski tur teklifleri ellenmez.
+   Kalem bazlı kazandırmada öteki sipariş sürüyorsa talep AWARDED kalır.
+   Sözleşme: `order-workflow.spec` "İ-1".
 8. **Ana akış RFQ.** İngiliz usulü açık eksiltme ("Pazarlık") ikincil akış.
 9. **Body parser 5MB**; belgeler R2 presigned URL ile.
 10. **Audit log append-only.** AI agent event-bus ileride.
@@ -1540,7 +1548,7 @@ dönüş tek değişken: `RLS_ENABLED=false`.
   ertelendi — değiştirilmedi.
 - STANDART → paketli upgrade akışı + ödeme (**PayTR**; iyzico reddetti, Stripe
   TR şirketi kabul etmiyor) + escrow
-- Kazandırma geri alma (un-award) — riskli, sonraya
+- Kazandırma geri alma (un-award) — riskli, sonraya (satıcı reddi istisnası 2026-09-19'da geldi, bkz. Mimari Kararlar 7)
 - WebSocket real-time bildirim
 - Admin: impersonate (güvenlik değerlendirilecek), iade/refund, CSV export,
   dahili not, global arama

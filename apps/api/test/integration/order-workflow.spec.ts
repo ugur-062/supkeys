@@ -10,7 +10,7 @@ import { AuditService } from "../../src/modules/audit/audit.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { MAX_MONEY } from "../../src/common/constants/money";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser, makeListing } from "./factories";
+import { makeBid, makeCompanyWithUser, makeListing } from "./factories";
 
 const future = (days: number) => new Date(Date.now() + days * 86_400_000);
 
@@ -813,6 +813,61 @@ describe("taraf ve durum guard'ları", () => {
     expect(db.status).toBe("REJECTED");
     expect(db.rejectedReason).toBe("stok kalmadı");
     expect(db.rejectedAt).not.toBeNull();
+  });
+
+  it("İ-1: ret sonrası talep IN_AWARD'a döner, reddeden teklif LOST, kazandırmayla kaybedenler SUBMITTED, alıcının elediği elenmiş kalır", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const other = await makeCompanyWithUser(prisma, { country: "TR" });
+    const eliminated = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "AWARDED",
+    });
+    await prisma.listing.update({ where: { id: listing.id }, data: { awardedAt: new Date() } });
+    const won = await makeBid(prisma, { listingId: listing.id, bidderCompanyId: seller.company.id, createdById: seller.user.id, amount: 1000, status: "WON" });
+    const lostByAward = await makeBid(prisma, { listingId: listing.id, bidderCompanyId: other.company.id, createdById: other.user.id, amount: 1200, status: "LOST" });
+    const lostByBuyer = await makeBid(prisma, { listingId: listing.id, bidderCompanyId: eliminated.company.id, createdById: eliminated.user.id, amount: 900, status: "LOST" });
+    await prisma.listingBid.update({ where: { id: lostByBuyer.id }, data: { eliminatedAt: new Date(), eliminationReason: "belge eksik" } });
+    const order = await makeOrder(seller.company.id, buyer.company.id, { listingId: listing.id });
+
+    await orders.reject(seller.auth, order.id, "stok kalmadı, üzgünüz");
+
+    const l = await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } });
+    expect(l.status).toBe("IN_AWARD");
+    expect(l.awardedAt).toBeNull();
+    const byId = async (id: string) => prisma.listingBid.findUniqueOrThrow({ where: { id } });
+    const w = await byId(won.id);
+    expect(w.status).toBe("LOST");
+    expect(w.eliminatedAt).not.toBeNull();
+    expect(w.eliminationReason).toContain("reddedildi");
+    expect((await byId(lostByAward.id)).status).toBe("SUBMITTED");
+    const e = await byId(lostByBuyer.id);
+    expect(e.status).toBe("LOST");
+    expect(e.eliminationReason).toBe("belge eksik");
+  });
+
+  it("İ-1: kalem bazlı kazandırmada başka canlı sipariş varsa talep AWARDED kalır, yalnız reddeden teklif düşer", async () => {
+    const orders = makeOrdersService();
+    const { seller, buyer } = await twoParties();
+    const other = await makeCompanyWithUser(prisma, { country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "AWARDED",
+    });
+    await prisma.listing.update({ where: { id: listing.id }, data: { awardedAt: new Date() } });
+    const a = await makeBid(prisma, { listingId: listing.id, bidderCompanyId: seller.company.id, createdById: seller.user.id, amount: 500, status: "AWARDED_PARTIAL" });
+    const b = await makeBid(prisma, { listingId: listing.id, bidderCompanyId: other.company.id, createdById: other.user.id, amount: 600, status: "AWARDED_PARTIAL" });
+    const o1 = await makeOrder(seller.company.id, buyer.company.id, { listingId: listing.id });
+    await makeOrder(other.company.id, buyer.company.id, { listingId: listing.id, status: "ACCEPTED" });
+
+    await orders.reject(seller.auth, o1.id, "kapasite yetersiz");
+
+    expect((await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } })).status).toBe("AWARDED");
+    expect((await prisma.listingBid.findUniqueOrThrow({ where: { id: a.id } })).status).toBe("LOST");
+    expect((await prisma.listingBid.findUniqueOrThrow({ where: { id: b.id } })).status).toBe("AWARDED_PARTIAL");
   });
 });
 
