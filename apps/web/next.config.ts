@@ -134,6 +134,8 @@ const nextConfig: NextConfig = {
       // Talep detayı kanonik adresi `/talep/rot-000042-başlık` (numara önde,
       // sitemap ile aynı). `/alim-talepleri/<numara>` kısa yolu oraya döner.
       { source: "/alim-talepleri/:number(rot-\\d+)", destination: "/talep/:number", permanent: true },
+      // Detaylı sihirbaz KALDIRILDI (2026-09-19): eski adres hızlı karta (sorgu korunur).
+      { source: "/company/satinalma/taleplerim/yeni/detayli", destination: "/company/satinalma/taleplerim/yeni", permanent: true },
       { source: "/giris", destination: "/company/login", permanent: true },
       { source: "/kayit", destination: "/company/kayit", permanent: true },
       {

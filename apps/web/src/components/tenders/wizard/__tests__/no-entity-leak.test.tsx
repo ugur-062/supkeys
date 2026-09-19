@@ -29,12 +29,12 @@ vi.mock("@/hooks/use-company-auth", () => ({ useCompanyAuth: () => ({ company: n
 vi.mock("@/hooks/use-ai-seo-enrich", () => ({ useAiSeoEnrich: () => ({ mutateAsync: vi.fn() }) }));
 
 
-import { Step0TypeScope } from "../step-0-type-scope";
-import { Step4Review } from "../step-4-review";
-import { PublishConfirmDialog } from "../publish-confirm-dialog";
 import { StagedDocuments } from "../staged-documents";
 
+/* 2026-09-19: detaylı sihirbaz kaldırıldı — kaynak taraması kalan paylaşılan
+   parçaları VE hızlı talep dosyalarını kapsar. */
 const WIZARD_DIR = path.join(process.cwd(), "src/components/tenders/wizard");
+const QUICK_DIR = path.join(process.cwd(), "src/components/tenders/quick");
 /** Tanımlayıcılar (MODULE_LABELS.satinalma.ihalelerim) metin değil — nokta
  *  sonrası "ihale" sayılmaz; metinde sözcük boşluk/tırnak sonrası gelir. */
 const FORBIDDEN = /satın alma talebi|satın alma talebin|(?<![.\w])ihale/i;
@@ -68,10 +68,12 @@ describe("varlık adı sızıntısı", () => {
   });
 
   it("sihirbaz kaynak dosyalarında sabit varlık adı dizesi yok (yalnız sözlük)", () => {
-    const files = fs
-      .readdirSync(WIZARD_DIR)
-      .filter((f) => f.endsWith(".tsx"))
-      .map((f) => path.join(WIZARD_DIR, f));
+    const files = [WIZARD_DIR, QUICK_DIR].flatMap((dir) =>
+      fs
+        .readdirSync(dir)
+        .filter((f) => f.endsWith(".tsx"))
+        .map((f) => path.join(dir, f)),
+    );
     files.push(path.join(process.cwd(), "src/components/tenders/files-tab.tsx"));
     const offenders: string[] = [];
     for (const file of files) {
@@ -84,25 +86,15 @@ describe("varlık adı sızıntısı", () => {
     expect(offenders).toEqual([]);
   });
 
-  it("render: Kapsam + Özet + yayın onayı + dokümanlar 'ihale'/'ilan' demez, sözlük adını kullanır", () => {
+  it("render: dokümanlar bölümü 'ihale'/'ilan' demez, sözlük adını kullanır", () => {
     const { container } = render(
       <Harness values={{ title: "Çelik boru alımı" }}>
-        <Step0TypeScope />
-        <Step4Review onEditStep={vi.fn()} stagedDocsCount={2} />
         <StagedDocuments docs={[]} onChange={vi.fn()} />
-        <PublishConfirmDialog
-          open
-          onClose={vi.fn()}
-          onConfirm={vi.fn()}
-          invitedCount={0}
-          isSubmitting={false}
-        />
       </Harness>,
     );
     const text = `${container.textContent ?? ""} ${document.body.textContent ?? ""}`;
     expect(text).not.toMatch(/(?<![.\w])ihale/i);
     expect(text).not.toMatch(/\bilan/i);
-    expect(text).toContain("Satın Alma Talebi");
     expect(text).toContain("Talep Dokümanları");
   });
 });

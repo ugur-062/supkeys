@@ -14,7 +14,7 @@ import { QA, apiGet, apiPost, apiSession, daysFromNow, openAs } from "./staging-
  */
 test.describe.configure({ mode: "serial" });
 
-const CATEGORY = "10101500";
+const CATEGORY = "31161500"; // Vidalar — discovery L3, görünür segment (10xxxxxx 2026-09-19 gizlendi)
 const items = (ids: string[], price: number) =>
   ids.map((itemId, i) => ({ itemId, unitPrice: price + i * 5 }));
 

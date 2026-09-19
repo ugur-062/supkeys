@@ -95,8 +95,19 @@ E-postalar Resend test domain'inden GERÇEKTEN gönderilir → kayıtlı gerçek
    her zaman görür. Non-owner dalı `invitations`/`bids`/`bidStats` içermez.
 6. **SUBMITTED bid editlenmez VE geri çekilemez.** Tek yol: alıcı eleme yapar
    (LOST) → tedarikçi yeniden teklif verir (version++). WITHDRAWN legacy.
+   **Geçerliliği dolmuş teklif KAZANDIRILAMAZ (2026-09-19):** `award`/
+   `awardByItem` `bidValidUntilMs` ile 400 döner, ekranda Kazandır pasif +
+   ipucu (uzatma iste / yeni tur). Pazarlıkta geçerlilik süresiz → etkilenmez.
 7. **Kazandırma kalıcı:** toplu veya kalem bazlı → Tender AWARDED + Order
-   (`ORD-YYYY-NNNN`). Geri alma (un-award) YOK.
+   (`ORD-YYYY-NNNN`). Geri alma (un-award) YOK. **TEK İSTİSNA (2026-09-19
+   inceleme İ-1, kullanıcı kararı):** satıcı siparişi REDDEDİNCE
+   `revertAwardAfterRejection` (orders service, bypass client — çapraz-firma
+   yazma) reddeden teklifi LOST'a çeker (eliminatedAt + gerekçe); talebin
+   başka canlı siparişi yoksa talep AWARDED→IN_AWARD (awardedAt null) ve
+   kazandırmayla kaybetmiş teklifler (LOST ∧ eliminatedAt yok ∧ aynı tur)
+   SUBMITTED'a döner — alıcının kendi elediği ve eski tur teklifleri ellenmez.
+   Kalem bazlı kazandırmada öteki sipariş sürüyorsa talep AWARDED kalır.
+   Sözleşme: `order-workflow.spec` "İ-1".
 8. **Ana akış RFQ.** İngiliz usulü açık eksiltme ("Pazarlık") ikincil akış.
 9. **Body parser 5MB**; belgeler R2 presigned URL ile.
 10. **Audit log append-only.** AI agent event-bus ileride.
@@ -497,7 +508,10 @@ döner, e2e `x-vercel-protection-bypass` ile geçer.
 **Profilim düzeni (2026-09-10):** SOLDA profil (başkalarının gördüğü hâl,
 `CompanyProfileView layout="stacked"` — tek sütun, yerinde düzenleme), SAĞDA
 yapışkan ray (`Profil durumu` %tamam + eksikler + "alıcıların sizi bulması
-için" → `SearchVisibilityCard` → Ürünlerim → gizlilik). Ürün formuyla aynı
+için" → `SearchVisibilityCard` → Ürünlerim). **"Ziyaretlerim karşı tarafa
+görünsün" anahtarı raydan ÇIKTI (2026-09-19, kullanıcı: "profil kısmında
+saçma duruyor")** → Şirketim › Ziyaret Edenler sayfasının başında
+`VisitsVisibilityCard`, anında kaydeder (`visitsVisible`). Ürün formuyla aynı
 kalıp; xl altında ray profilin altına iner. Herkese açık sayfa `columns`
 düzeninde, değişmedi.
 
@@ -1000,11 +1014,11 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   çipleri 3·7·14, ödeme şekli (2. bölümde, Şartlar paneliyle aynı değer),
   kime (PUBLIC/CONNECTIONS/PRIVATE + kompakt bağlantı seçici); sağda Şartlar
   paneli (satır satır "değiştir", "varsayılan yap"), teklif kalitesi
-  (`listingSeoReadiness`), yayın/taslak. Profil yoksa 3 soruluk kurulum kartı. **Aynı form modeli ve doğrulama** (`tenderFormSchema`)
+  (`listingSeoReadiness`), yayın/taslak/şablon. Profil yoksa 3 soruluk kurulum kartı. **Aynı form modeli ve doğrulama** (`tenderFormSchema`)
   ve **aynı gövde** (`lib/tenders/map-to-input.ts` — sihirbazdan buraya
   taşındı, TEK KAYNAK); yeni backend akışı YOK. Yayın sonrası panel:
   tedarikçi önerisi (AI) + talep bağlantısı. Taslak `sessionStorage`
-  (`quick-draft.ts`); "Detaylı ayarlar" sihirbaza `QUICK_TO_WIZARD_KEY` ile taşır.
+  (`quick-draft.ts`).
 - **HIZLI TALEP 1. BÖLÜM DÜZENİ (2026-09-17, kullanıcı kararı):** kalemler →
   **Talep başlığı** → altında **"AI ile başlık ve kategori bul"** düğmesi →
   **Kategori** (tek sütun; eski iki sütunlu başlık|kategori ızgarası kalktı).
@@ -1032,12 +1046,20 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   kalem adlarını geçer. Modal web sekmesi: **e-postası olmayan firma
   listelenmez**, "Davet E-postası Gönder" liste kaydırılsa da görünen SABİT
   alt şeritte.
-- **Detaylı sihirbaz `taleplerim/yeni/detayli`** (kopya `?from=`, AI belge
-  `?ai=1`, şablon `?template=` buraya yönlenir): **4 adım** (Kapsam anahtarı
-  Kalemler adımının üstünde; `WIZARD_STEP_FIELDS` adım→alan eşlemesi),
-  isteğe bağlı bölümler `OptionalSection` (`<details>`, hata varsa açık):
-  kurallar, hüküm+dokümanlar, açılış tarihi; kapanışta 3·7·14 çipleri.
-  `Step4Review.onEditStep` indeksleri 0|1|2.
+- **⛔ DETAYLI SİHİRBAZ KALDIRILDI (2026-09-19, kullanıcı kararı "gerek yok,
+  sistemde de gözükmesin").** `taleplerim/yeni/detayli` rotası, `TenderWizard`,
+  adım 0/1/3/4 ve yayın onay diyaloğu SİLİNDİ; eski adres `next.config` ile
+  hızlı karta 308 (sorgu korunur). Üç giriş artık hızlı kartı DOLU açar
+  (`yeni/page.tsx`): kopya `?from=` (`mapDetailToForm forCopy`), AI belge
+  `?ai=1` (`AI_TENDER_DRAFT_KEY` → `mapAiDraftToForm`), şablon `?template=`
+  (tarih/davetli/tip düşülür). **Düzenleme de hızlı kartla:**
+  `taleplerim/[id]/duzenle` → `QuickRequest mode="edit" listingId` (güncelle
+  → gerekirse yayınla). Rayda "Detaylı sihirbaza geç" yerine **"Şablon olarak
+  kaydet"** (`SaveTemplateDialog`, wizard klasöründe kalan paylaşılan parça).
+  `wizard/` klasöründe yalnız paylaşılanlar duruyor: `step-2-items`,
+  `catalog-picker-dialog`, `item-detail-modal`, `item-question-modal`,
+  `staged-documents`, `save-template-dialog`. Şablonlar sayfası düğmesi
+  "Talepte kullan".
 
 **TALEP DETAYI DÜZENİ (2026-09-17, kullanıcı kararı):** `/company/ilan/[id]`
 iki görünümde de sekme sayısı İKİ — `Kalemler` (kalemler + Genel Bilgi
@@ -1133,6 +1155,14 @@ Panel `/company/satis/urunlerim`, public `/firma/<slug>/urun/<slug>`.
   Sözleşme: `products-view.test` (önizleme → Düzenle → form),
   `product-preview.test` "published"/"EditorRail", API
   `test/unit/product-content-diff.spec.ts`.
+- **VİTRİN PATCH'İ KISMİ (2026-09-19 incelemesi, K-3):** `PATCH company/items/
+  :id/showcase` gönderilmeyen alanı DEĞİŞTİRMEZ — `undefined` = dokunma,
+  `null`/`[]` = bilinçli silme; tek kaynak `common/company/showcase-merge.ts`
+  (+ `showcase-merge.spec`). Eskiden normalizer gövdeyi TAM vitrin sayıyordu:
+  yalnız açıklama gönderen istek görsel/anahtar kelime/nitelik/belge/fiyatı
+  sıfırlıyor, ürün "≥1 görsel" kapısına takılıp yeniden yayınlanamıyordu (web
+  formu her alanı gönderdiği için ekranda görünmedi; staging'de iki demo ürün
+  boşaldı). Kısmi gövde gönderen yeni yol (asistan/AI/mobil) bu kurala güvenir.
 - **Ürün ekleme İLAN AÇMAYA BENZEMEZ:** ilan sihirbaz, ürün TEK SAYFA
   (2026-09-09 düzeni: 5 numaralı bölüm + yapışkan bölüm çipleri, sürükle-
   bırak/sıralanır görsel, virgülle çoklu anahtar kelime + öneri çipleri, sağda
@@ -1320,6 +1350,9 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   KULLANILIYOR, koşum başına ~1 bildirim). `staging-email-content.spec`
   kota hatasını ortam sınırı sayar ve ayrı raporlar; diğer teslimat hataları
   kırmızı kalır.
+  **429 metni Türkçe (2026-09-19):** `ThrottlerModule` `errorMessage` →
+  `common/http/throttle-message.ts` (giriş formu API mesajını olduğu gibi
+  basıyor; kütüphane varsayılanı "ThrottlerException: Too Many Requests" idi).
   **Giriş ucu IP başına 10/dk** (`@Throttle({ auth: … })`): paket büyüdükçe
   tek tek girişler 429 alıp ÜRÜN HATASI gibi görünüyordu → `apiSession`
   e-posta bazında ÖNBELLEKLİ, `uiLogin` 429'da 20 sn bekleyip yineler; eski
@@ -1507,9 +1540,15 @@ dönüş tek değişken: `RLS_ENABLED=false`.
   MERSİS eklerken izlenen yolun aynısı.
 
 **Ürün**
+- **Talep kapsamı "Uluslararası" (2026-09-19 inceleme İ-4, kullanıcı: "şu
+  anlık böyle kalsın, sonra bakacağız"):** bugün `isInternational=true` yalnız
+  YABANCI ülkedeki tedarikçilere görünür (`sellerVisibleWhere`,
+  `targetCountries` kendi ülkeyi süzer). Öneri: "Uluslararası" = herkes
+  (yurtiçi dahil), hedef ülkeler opsiyonel daraltma; "Yurtiçi" aynen. Karar
+  ertelendi — değiştirilmedi.
 - STANDART → paketli upgrade akışı + ödeme (**PayTR**; iyzico reddetti, Stripe
   TR şirketi kabul etmiyor) + escrow
-- Kazandırma geri alma (un-award) — riskli, sonraya
+- Kazandırma geri alma (un-award) — riskli, sonraya (satıcı reddi istisnası 2026-09-19'da geldi, bkz. Mimari Kararlar 7)
 - WebSocket real-time bildirim
 - Admin: impersonate (güvenlik değerlendirilecek), iade/refund, CSV export,
   dahili not, global arama

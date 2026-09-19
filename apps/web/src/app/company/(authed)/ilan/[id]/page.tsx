@@ -69,7 +69,7 @@ import {
   Paperclip,
   Users,
   Sparkles,
-  Wallet, PackagePlus, ShoppingCart, FileText, Clock, ChevronRight, Share2 } from "lucide-react";
+  Wallet, PackagePlus, FileText, Clock, ChevronRight, Share2 } from "lucide-react";
 import Link from "next/link";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
@@ -1398,7 +1398,15 @@ export default function ListingDetailPage() {
               if (bidView === "incomplete") return !covered;
               return true;
             })
-            .map((b) => (
+            .map((b) => {
+            // Geçerliliği dolmuş teklif kazandırılamaz (sunucu da reddeder);
+            // rozetle aynı hesap. Pazarlıkta validityDays null → süresiz.
+            const bidExpired =
+              b.status === "SUBMITTED" &&
+              !!b.submittedAt &&
+              !!b.validityDays &&
+              new Date(b.submittedAt).getTime() + b.validityDays * 86_400_000 < Date.now();
+            return (
             <div
               key={b.id}
               className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border border-zinc-950/10 bg-white px-4 py-3"
@@ -1414,14 +1422,7 @@ export default function ListingDetailPage() {
                 {b.status === "LOST" ? <Badge color="zinc">Elendi</Badge> : null}
                 {/* Geçerlilik dolmuş canlı teklif — alıcı kazandırmadan önce
                     görsün (son gün = submittedAt + validityDays). */}
-                {b.status === "SUBMITTED" &&
-                b.submittedAt &&
-                b.validityDays &&
-                new Date(b.submittedAt).getTime() +
-                  b.validityDays * 86_400_000 <
-                  Date.now() ? (
-                  <Badge color="amber">Geçerlilik doldu</Badge>
-                ) : null}
+                {bidExpired ? <Badge color="amber">Geçerlilik doldu</Badge> : null}
                 <Link
                   href={`/company/ilan/${l.id}/teklif/${b.id}`}
                   className="text-sm font-medium text-zinc-900 hover:text-blue-600 hover:underline"
@@ -1479,7 +1480,12 @@ export default function ListingDetailPage() {
                     </Button>
                     <Button
                       onClick={() => handleAward(b.id, b.bidderName)}
-                      disabled={award.isPending}
+                      disabled={award.isPending || bidExpired}
+                      title={
+                        bidExpired
+                          ? "Teklifin geçerlilik süresi dolmuş — tedarikçiden süre uzatması isteyin ya da yeni tur açın"
+                          : undefined
+                      }
                     >
                       Kazandır
                     </Button>
@@ -1515,7 +1521,8 @@ export default function ListingDetailPage() {
                 </div>
               ) : null}
             </div>
-          ))}
+          );
+          })}
         </div>
       )}
     </section>
@@ -1695,10 +1702,6 @@ export default function ListingDetailPage() {
       <Heading className="text-3xl/9 font-bold">{l.title}</Heading>
 
       <div className="flex flex-wrap items-center gap-2">
-        <span className="inline-flex items-center gap-1.5 rounded-lg bg-blue-50 px-2.5 py-1 text-sm font-medium text-blue-700">
-          <ShoppingCart aria-hidden className="size-4" />
-          Alış
-        </span>
         <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-sm font-medium text-zinc-700">
           {l.isInternational ? <Globe aria-hidden className="size-4" /> : <MapPin aria-hidden className="size-4" />}
           {l.isInternational ? "Uluslararası" : "Yurtiçi"}

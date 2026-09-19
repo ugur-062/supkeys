@@ -82,7 +82,9 @@ function Section({
             <Icon className="h-4.5 w-4.5 text-zinc-700" aria-hidden="true" />
           </div>
           <div>
-            <h3 className="font-semibold text-zinc-900">{title}</h3>
+            {/* Her görünümde TEK bölüm var → bölüm başlığı sayfanın h1'i
+                (2026-09-19: bu üç sayfa h1'siz kalan tek panel sayfalarıydı). */}
+            <h1 className="font-semibold text-zinc-900">{title}</h1>
             <p className="text-xs text-zinc-500">{description}</p>
           </div>
         </div>
@@ -721,14 +723,14 @@ export function ListingTemplatesView({ basePath }: { basePath: string }) {
                       </p>
                     </div>
                   </div>
-                  {/* C36: satırın birincil aksiyonu — şablon sihirbazda açılır
-                      (önceden yalnız silme vardı, satır işlevsizdi). */}
+                  {/* C36: satırın birincil aksiyonu — şablon hızlı talepte açılır
+                      (2026-09-19: sihirbaz kaldırıldı). */}
                   <div className="flex shrink-0 items-center gap-1">
                     <Link
                       href={`/company/satinalma/taleplerim/yeni?template=${t.id}`}
                       className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
                     >
-                      Sihirbazda Kullan
+                      Talepte kullan
                     </Link>
                     {canManageTpl ? (
                       <Button

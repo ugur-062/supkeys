@@ -1139,31 +1139,34 @@ export default function HomePage() {
       {/* SSS — ortalı başlık + çok kolonlu Q&A kartları */}
       <section id="sss" className="scroll-mt-24 border-t border-zinc-200 bg-white py-24 sm:py-32">
         <div className="mx-auto max-w-7xl px-6 lg:px-8">
+          {/* SSS (2026-09-19, kullanıcı mockup'ı): üstte kısa mavi çizgi,
+              daha sakin başlık, mavi e-posta bağlantısı, "+" gri yuvarlakta. */}
           <div className="mx-auto max-w-2xl text-center">
-            <h2 className="text-4xl font-semibold tracking-tight text-zinc-950 sm:text-5xl">
+            <span aria-hidden className="mx-auto mb-6 block h-1 w-14 rounded-full bg-blue-600" />
+            <h2 className="text-3xl font-semibold tracking-tight text-zinc-950 sm:text-4xl">
               Sıkça sorulan sorular
             </h2>
-            <p className="mt-6 text-base/7 text-zinc-600">
+            <p className="mt-4 text-base/7 text-zinc-500">
               Aradığınız yanıtı bulamadınız mı?{" "}
               <a
                 href={`mailto:${OPERATOR.supportEmail}`}
-                className="font-semibold text-zinc-950 underline decoration-zinc-300 underline-offset-2 hover:decoration-zinc-950"
+                className="font-semibold text-blue-700 underline decoration-blue-300 underline-offset-2 hover:text-blue-800"
               >
                 bize e-posta gönder
               </a>
               , en kısa sürede dönelim.
             </p>
           </div>
-          <Reveal className="mx-auto mt-12 max-w-3xl overflow-hidden rounded-3xl bg-white ring-1 ring-zinc-200 sm:mt-16">
+          <Reveal className="mx-auto mt-10 max-w-3xl overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-200 sm:mt-12">
             <dl className="divide-y divide-zinc-100">
               {faqs.map((faq) => (
-                <Disclosure key={faq.q} as="div" className="p-6 sm:px-8">
+                <Disclosure key={faq.q} as="div" className="px-6 py-5 sm:px-8">
                   <dt>
-                    <DisclosureButton className="group flex w-full items-start justify-between text-left text-zinc-950">
-                      <span className="text-base font-semibold transition group-hover:text-zinc-600">
+                    <DisclosureButton className="group flex w-full items-center justify-between text-left text-zinc-950">
+                      <span className="text-[15px] font-semibold">
                         {faq.q}
                       </span>
-                      <span className="ml-6 flex h-7 items-center text-zinc-500 transition group-hover:text-zinc-950">
+                      <span className="ml-6 flex size-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-700 transition group-hover:bg-zinc-200">
                         <PlusSmallIcon
                           aria-hidden="true"
                           className="size-6 group-data-open:hidden"
@@ -1188,32 +1191,35 @@ export default function HomePage() {
       {/* CTA — koyu panel */}
       <section className="px-6 py-24 sm:py-32 lg:px-8">
         <div className="mx-auto max-w-7xl">
-          <div className="relative isolate overflow-hidden rounded-3xl bg-blue-950 px-6 py-20 text-center shadow-2xl sm:px-16">
-            <h2 className="text-4xl font-semibold tracking-tight text-balance text-white sm:text-5xl">
+          {/* LACİVERT BANT (2026-09-19, kullanıcı mockup'ı): derin lacivert
+              gradyan + köşelerde ince halka çizgileri. */}
+          <div className="relative isolate overflow-hidden rounded-3xl bg-gradient-to-br from-indigo-950 via-blue-950 to-indigo-900 px-6 py-20 text-center shadow-2xl sm:px-16">
+            <h2 className="text-4xl font-bold tracking-tight text-balance text-white sm:text-5xl">
               Firmanı bugün Rothern&apos;e taşı
             </h2>
-            <p className="mx-auto mt-6 max-w-xl text-lg/8 text-pretty text-zinc-300">
+            <p className="mx-auto mt-6 max-w-xl text-lg/8 text-pretty text-blue-100/80">
               Birkaç dakikada kaydol, ekibini davet et, ilk ilanını aç. Şeffaf
               ve denetlenebilir B2B ticaret.
             </p>
-            <div className="mt-10 flex items-center justify-center gap-x-4">
+            <div className="mt-10 flex items-center justify-center gap-x-6">
               <Link
                 href="/company/kayit"
-                className="rounded-lg bg-white px-5 py-3 text-sm font-semibold text-zinc-950 shadow-sm transition hover:bg-zinc-200"
+                className="rounded-xl bg-white px-6 py-3.5 text-base font-semibold text-zinc-950 shadow-sm transition hover:bg-zinc-100"
               >
                 Ücretsiz Kaydol
               </Link>
               <Link
                 href="/company/login"
-                className="text-sm/6 font-semibold text-white"
+                className="inline-flex items-center gap-2 text-base font-semibold text-white hover:text-blue-100"
               >
                 Giriş Yap <span aria-hidden="true">→</span>
               </Link>
             </div>
-            <div
-              aria-hidden="true"
-              className="absolute -top-24 left-1/2 -z-10 size-[40rem] -translate-x-1/2 rounded-full bg-gradient-to-tr from-white/10 to-transparent blur-3xl"
-            />
+            {/* Dekor: sol altta ve sağ üstte ince halkalar. */}
+            <div aria-hidden="true" className="pointer-events-none absolute -bottom-40 -left-24 -z-10 size-[28rem] rounded-full border border-white/10" />
+            <div aria-hidden="true" className="pointer-events-none absolute -bottom-52 -left-36 -z-10 size-[34rem] rounded-full border border-white/5" />
+            <div aria-hidden="true" className="pointer-events-none absolute -top-48 -right-24 -z-10 size-[30rem] rounded-full border border-white/10" />
+            <div aria-hidden="true" className="pointer-events-none absolute -top-60 -right-36 -z-10 size-[36rem] rounded-full border border-white/5" />
           </div>
         </div>
       </section>

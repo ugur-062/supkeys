@@ -3,11 +3,9 @@ import type { TenderFormData } from "./form-schema";
 /**
  * HIZLI TALEP TASLAĞI — sessionStorage (2026-09-09).
  *  · `QUICK_DRAFT_KEY`: kart yazdıkça saklar; sayfa yenilense de kaybolmaz.
- *  · `QUICK_TO_WIZARD_KEY`: "Detaylı ayarlar" ile sihirbaza taşıma — sihirbaz
  *    okur, siler (AI taslağı / ürün tohumuyla AYNI teknik, AYRI anahtar).
  */
 export const QUICK_DRAFT_KEY = "quick-request-draft";
-export const QUICK_TO_WIZARD_KEY = "quick-request-to-wizard";
 
 export function readSession<T>(key: string, consume = false): T | null {
   if (typeof window === "undefined") return null;

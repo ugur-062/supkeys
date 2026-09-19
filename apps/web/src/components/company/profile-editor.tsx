@@ -454,22 +454,8 @@ export function ProfileEditor({
 
           <MyProductsCard />
 
-          {/* Gizlilik: Ziyaret Edenler'de karşı tarafa görünürlük (2026-09-05).
-              Kapalıysa görüntülemelerim yine sayılır ama adım yazılmaz. */}
-          <label className="flex items-start gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5">
-            <input
-              type="checkbox"
-              checked={draft.visitsVisible}
-              onChange={(e) => set({ visitsVisible: e.target.checked })}
-              className="mt-0.5 size-4 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950"
-            />
-            <span className="text-sm">
-              <span className="font-medium text-zinc-950">Ziyaretlerim karşı tarafa görünsün</span>
-              <span className="mt-0.5 block text-xs text-zinc-500">
-                İncelediğiniz firmalar, Ziyaret Edenler listesinde firmanızı adıyla görür. Kapatırsanız ziyaretiniz yalnız sayı olarak kalır.
-              </span>
-            </span>
-          </label>
+          {/* Gizlilik anahtarı Ziyaret Edenler sayfasına TAŞINDI (2026-09-19,
+              kullanıcı: "profil kısmında saçma duruyor") — `VisitsVisibilityCard`. */}
         </aside>
       </div>
 

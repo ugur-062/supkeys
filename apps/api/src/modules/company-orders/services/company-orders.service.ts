@@ -336,6 +336,13 @@ export class CompanyOrdersService {
         reason: reason!.trim(),
       },
     });
+    // İ-1 (2026-09-19 inceleme, kullanıcı kararı): ret alıcıyı çıkmazda
+    // bırakmasın — talep değerlendirmeye döner, diğer teklifler yeniden açılır.
+    const revert = await this.revertAwardAfterRejection(
+      user,
+      res.order,
+      reason!.trim(),
+    );
     await this.notifyOrderParty(
       id,
       res.order.buyerCompanyId,
@@ -343,10 +350,98 @@ export class CompanyOrdersService {
       "Sipariş reddedildi",
       `${this.orderLabel(res.order.number)} siparişiniz satıcı tarafından reddedildi.${
         reason ? ` Gerekçe: ${reason}` : ""
+      }${
+        revert?.reopened
+          ? " Satın alma talebiniz yeniden değerlendirmeye alındı; diğer teklifler tekrar açık, başka bir tedarikçiye kazandırabilir ya da yeni tur açabilirsiniz."
+          : ""
       }`,
       "satinalma",
     );
     return { ok: res.ok, status: res.status };
+  }
+
+  /**
+   * SİPARİŞ REDDİ → KAZANDIRMAYI GERİ AL (2026-09-19 inceleme İ-1, kullanıcı
+   * kararı "yap"). "Kazandırma kalıcı, un-award yok" kuralının TEK istisnası:
+   * satıcı siparişi reddettiyse kazandırma zaten fiilen düşmüştür; alıcıyı
+   * aynı talepte ikinci tedarikçiye dönemez bırakmak yeni talep açtırıyordu.
+   *
+   *  - Reddeden satıcının teklifi → LOST (eliminatedAt + gerekçe damgalı;
+   *    alıcı elemesiyle aynı görünür).
+   *  - Talebin başka CANLI siparişi yoksa (kalem bazlı kazandırmada birden
+   *    çok sipariş olabilir) talep AWARDED → IN_AWARD, awardedAt sıfırlanır;
+   *    kazandırmayla kaybetmiş teklifler (LOST ∧ eliminatedAt yok ∧ bu tur)
+   *    → SUBMITTED. Alıcının kendi elediği teklifler (eliminatedAt dolu) ve
+   *    önceki turların teklifleri ELLENMEZ.
+   *  - Başka canlı sipariş varsa yalnız reddeden teklif düşer; talep AWARDED
+   *    kalır (öteki tedarikçilerin siparişleri sürüyor).
+   *
+   * Satıcı bağlamında alıcının talep/teklif satırlarına yazar → RLS'li client
+   * boş dönerdi; bypass client bilinçli (çapraz-firma yazma, koşullar açık).
+   * Geri alınan teklifin geçerliliği dolmuş olabilir — kazandırma kapısı
+   * (`assertBidValidityAlive`) o anda uyarır.
+   */
+  private async revertAwardAfterRejection(
+    user: AuthenticatedCompanyUser,
+    order: { id: string; number: string | null; listingId: string | null; sellerCompanyId: string; buyerCompanyId: string },
+    reason: string,
+  ): Promise<{ reopened: boolean; lost: number; restored: number } | null> {
+    const listingId = order.listingId;
+    if (!listingId) return null;
+    const result = await this.bypass.$transaction(async (tx) => {
+      const lost = await tx.listingBid.updateMany({
+        where: {
+          listingId,
+          bidderCompanyId: order.sellerCompanyId,
+          status: { in: ["WON", "AWARDED_PARTIAL"] },
+        },
+        data: {
+          status: "LOST",
+          eliminatedAt: new Date(),
+          eliminationReason: `Sipariş satıcı tarafından reddedildi: ${reason}`.slice(0, 500),
+        },
+      });
+      const otherLive = await tx.companyOrder.count({
+        where: {
+          listingId,
+          id: { not: order.id },
+          status: { notIn: ["REJECTED", "CANCELLED"] },
+        },
+      });
+      if (otherLive > 0) return { reopened: false, lost: lost.count, restored: 0 };
+      const listing = await tx.listing.findUnique({
+        where: { id: listingId },
+        select: { currentRound: true },
+      });
+      const reopened = await tx.listing.updateMany({
+        where: { id: listingId, status: "AWARDED" },
+        data: { status: "IN_AWARD", awardedAt: null },
+      });
+      if (reopened.count !== 1) return { reopened: false, lost: lost.count, restored: 0 };
+      const restored = await tx.listingBid.updateMany({
+        where: {
+          listingId,
+          status: "LOST",
+          eliminatedAt: null,
+          round: listing?.currentRound ?? 1,
+          bidderCompanyId: { not: order.sellerCompanyId },
+        },
+        data: { status: "SUBMITTED" },
+      });
+      return { reopened: true, lost: lost.count, restored: restored.count };
+    });
+    await this.audit.log({
+      action: "company.listing.award_reverted_on_rejection",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: order.buyerCompanyId,
+      entityType: "listing",
+      entityId: listingId,
+      critical: true,
+      metadata: { orderId: order.id, orderNumber: order.number, sellerCompanyId: order.sellerCompanyId, ...result },
+    });
+    return result;
   }
 
   /** Satıcı siparişi gönderir: ACCEPTED → IN_DELIVERY (+ fatura no zorunlu).

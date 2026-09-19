@@ -11,7 +11,7 @@ import { QA, apiGet, apiPost, apiSession, daysFromNow, gotoRetry, openAs } from 
  */
 test.describe.configure({ mode: "serial" });
 
-const CATEGORY = "10101500"; // discovery L3 (staging kataloğu)
+const CATEGORY = "31161500"; // Vidalar — discovery L3, görünür segment (10xxxxxx 2026-09-19 gizlendi)
 
 test("talep → teklif → kazandırma → sipariş → tamamlandı", async ({ browser }) => {
   test.setTimeout(300_000);

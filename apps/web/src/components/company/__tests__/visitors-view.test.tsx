@@ -4,6 +4,11 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { VisitorsResponse } from "@/hooks/use-company-views";
 
 const h = vi.hoisted(() => ({ data: undefined as VisitorsResponse | undefined, isLoading: false, isError: false }));
+// Gizlilik anahtarı (VisitsVisibilityCard) profil sorgusunu okur — QueryClient'sız test.
+vi.mock("@/hooks/use-company-profile", () => ({
+  useCompanyProfile: () => ({ data: { visitsVisible: true }, isLoading: false }),
+  useUpdateCompanyProfile: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
 vi.mock("@/hooks/use-company-views", () => ({
   useVisitors: () => ({ data: h.data, isLoading: h.isLoading, isError: h.isError }),
 }));

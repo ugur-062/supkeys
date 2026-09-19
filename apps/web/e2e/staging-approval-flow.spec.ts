@@ -11,7 +11,7 @@ import { QA, apiGet, apiPost, apiSession, daysFromNow, openAs } from "./staging-
  */
 test.describe.configure({ mode: "serial" });
 
-const CATEGORY = "10101500";
+const CATEGORY = "31161500"; // Vidalar — discovery L3, görünür segment (10xxxxxx 2026-09-19 gizlendi)
 const LEAK_KEYS = ["email", "phone", "iban", "addressLine", "contactEmail", "contactPhone"];
 
 test("kazandırma onaya düşer; onaylayıcı dar bağlamı görür ve onaylayınca sipariş oluşur", async ({ browser }) => {

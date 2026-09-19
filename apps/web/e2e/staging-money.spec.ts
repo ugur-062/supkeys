@@ -12,7 +12,7 @@ import { QA, apiGet, apiPost, apiSession, daysFromNow } from "./staging-helpers"
  */
 test.describe.configure({ mode: "serial" });
 
-const CATEGORY = "10101500";
+const CATEGORY = "31161500"; // Vidalar — discovery L3, görünür segment (10xxxxxx 2026-09-19 gizlendi)
 
 test("çok para birimli teklif → kalem bazlı kazandırma → iki sipariş → ödeme aritmetiği", async () => {
   test.setTimeout(600_000);

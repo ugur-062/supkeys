@@ -29,14 +29,16 @@ import type { PaymentCategory } from "@/lib/tenders/types";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useAddresses } from "@/hooks/use-company-addresses";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
-import { useCreateListing } from "@/hooks/use-company-listings";
+import { useCreateListing, usePublishListing, useUpdateListing } from "@/hooks/use-company-listings";
+import { useSaveTemplate } from "@/hooks/use-listing-templates";
+import { SaveTemplateDialog } from "@/components/tenders/wizard/save-template-dialog";
 import { useRequestDefaults, useSaveRequestDefaults } from "@/hooks/use-request-defaults";
 import { formatDate } from "@/lib/format-date";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { DEFAULT_FORM_VALUES, tenderFormSchema, type TenderFormData } from "@/lib/tenders/form-schema";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { mapToInput } from "@/lib/tenders/map-to-input";
-import { QUICK_DRAFT_KEY, QUICK_TO_WIZARD_KEY, clearSession, readSession, writeSession, type QuickDraft } from "@/lib/tenders/quick-draft";
+import { QUICK_DRAFT_KEY, clearSession, readSession, writeSession, type QuickDraft } from "@/lib/tenders/quick-draft";
 import { titleFromItems } from "@/lib/tenders/quick-parse";
 import { applyRequestDefaults, closesAtFromDays, defaultsFromForm } from "@/lib/tenders/request-defaults";
 import { cn } from "@/lib/utils";
@@ -69,7 +71,17 @@ import { toast } from "sonner";
  * Form modeli ve doğrulama SİHİRBAZLA AYNI (`tenderFormSchema`), gövde AYNI
  * (`mapToInput`); yeni backend akışı yok. Renk satınalma: mavi.
  */
-export function QuickRequest({ initialValues }: { initialValues?: Partial<TenderFormData> }) {
+export function QuickRequest({
+  initialValues,
+  mode = "new",
+  listingId,
+}: {
+  initialValues?: Partial<TenderFormData>;
+  /** `edit`: mevcut TASLAĞI günceller (2026-09-19: detaylı sihirbaz kaldırıldı, düzenleme de bu kart). */
+  mode?: "new" | "edit";
+  listingId?: string;
+}) {
+  const isEdit = mode === "edit" && !!listingId;
   const router = useRouter();
   const { company } = useCompanyAuth();
   const canManage = useHasCompanyPermission("buy:listing:manage");
@@ -77,6 +89,11 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
   const saveDefaults = useSaveRequestDefaults();
   const addresses = useAddresses();
   const create = useCreateListing();
+  const update = useUpdateListing(listingId ?? "");
+  const publishExisting = usePublishListing(listingId ?? "");
+  const saveTemplate = useSaveTemplate();
+  const [templateOpen, setTemplateOpen] = useState(false);
+  const busy = create.isPending || update.isPending || publishExisting.isPending;
 
   const [terms, setTerms] = useState<RequestDefaults | null>(null);
   const [setupDone, setSetupDone] = useState(false);
@@ -218,6 +235,15 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
         return;
       }
       const values = getValues();
+      if (isEdit && listingId) {
+        // Düzenleme: önce içerik güncellenir, sonra taslak yayına alınır.
+        await update.mutateAsync(mapToInput(values));
+        await uploadStaged(listingId);
+        await publishExisting.mutateAsync({});
+        toast.success("Talep yayımlandı");
+        router.push(`/company/ilan/${listingId}`);
+        return;
+      }
       const listing = await create.mutateAsync(mapToInput(values));
       await uploadStaged(listing.id);
       clearSession(QUICK_DRAFT_KEY);
@@ -245,6 +271,13 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
       return;
     }
     try {
+      if (isEdit && listingId) {
+        await update.mutateAsync(mapToInput(values));
+        await uploadStaged(listingId);
+        toast.success("Taslak güncellendi");
+        router.push(`/company/ilan/${listingId}`);
+        return;
+      }
       const listing = await create.mutateAsync({ ...mapToInput(values), asDraft: true });
       await uploadStaged(listing.id);
       clearSession(QUICK_DRAFT_KEY);
@@ -314,9 +347,19 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
     }
   };
 
-  const goDetailed = () => {
-    writeSession(QUICK_TO_WIZARD_KEY, getValues());
-    router.push("/company/satinalma/taleplerim/yeni/detayli?kaynak=hizli");
+  /** Şablon: kapanış/açılış tarihi ve davetliler her talepte yeniden seçilir — şablona YAZILMAZ. */
+  const handleSaveTemplate = async (name: string) => {
+    try {
+      const payload: Partial<TenderFormData> = { ...getValues() };
+      delete payload.bidsCloseAt;
+      delete payload.bidsOpenAt;
+      delete payload.invitedSupplierIds;
+      await saveTemplate.mutateAsync({ name, payload });
+      toast.success(`"${name}" şablonu kaydedildi`);
+      setTemplateOpen(false);
+    } catch (err) {
+      toast.error(extractErrorMessage(err, "Şablon kaydedilemedi"));
+    }
   };
   const persistDefaults = async (next: RequestDefaults) => {
     try {
@@ -770,15 +813,15 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
             ) : null}
             {canManage ? (
               <div className="mt-4 space-y-2">
-                <button type="button" id="talep-yayinla" onClick={() => void publish()} disabled={create.isPending || !hasItems || !verified} className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50">
-                  {create.isPending ? "Yayımlanıyor…" : "Talebi yayınla"}
+                <button type="button" id="talep-yayinla" onClick={() => void publish()} disabled={busy || !hasItems || !verified} className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50">
+                  {busy ? "Kaydediliyor…" : "Talebi yayınla"}
                 </button>
                 {!ready && hasItems ? <p className="text-center text-[11px] text-zinc-500">Yayın için başlık ve kategori gerekli.</p> : null}
-                <button type="button" onClick={() => void saveDraft()} disabled={create.isPending} className="w-full rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50">
-                  Taslak kaydet
+                <button type="button" onClick={() => void saveDraft()} disabled={busy} className="w-full rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50">
+                  {isEdit ? "Taslağı kaydet" : "Taslak kaydet"}
                 </button>
-                <button type="button" onClick={goDetailed} className="w-full rounded-full px-4 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900">
-                  Detaylı sihirbaza geç →
+                <button type="button" onClick={() => setTemplateOpen(true)} className="w-full rounded-full px-4 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900">
+                  Şablon olarak kaydet
                 </button>
               </div>
             ) : (
@@ -793,12 +836,19 @@ export function QuickRequest({ initialValues }: { initialValues?: Partial<Tender
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
           <div className="flex items-center gap-3">
             <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{[summary.what, summary.when].filter(Boolean).join(" · ") || "Kalem ekleyin"}</p>
-            <button type="button" onClick={() => void publish()} disabled={create.isPending || !hasItems || !verified} aria-label="Talebi yayınla (mobil)" className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+            <button type="button" onClick={() => void publish()} disabled={busy || !hasItems || !verified} aria-label="Talebi yayınla (mobil)" className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
               Yayınla
             </button>
           </div>
         </div>
       ) : null}
+      <SaveTemplateDialog
+        open={templateOpen}
+        onClose={() => setTemplateOpen(false)}
+        onSave={(name) => void handleSaveTemplate(name)}
+        isSaving={saveTemplate.isPending}
+        defaultName={watched.title || undefined}
+      />
     </FormProvider>
   );
 }
