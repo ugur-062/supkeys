@@ -1164,14 +1164,9 @@ export class CompanyConnectionsService {
                   },
                   {
                     OR: [
-                      ...(c.country === user.country ? [{ isInternational: false }] : []),
-                      {
-                        isInternational: true,
-                        OR: [
-                          { targetCountries: { isEmpty: true } },
-                          { targetCountries: { has: user.country } },
-                        ],
-                      },
+                      // Görünürlük ülkesi (2026-09-21): boş = herkes; dolu = izleyen listede.
+                      { targetCountries: { isEmpty: true } },
+                      { targetCountries: { has: user.country } },
                       { invitations: { some: { invitedCompanyId: user.companyId } } },
                     ],
                   },
@@ -1191,6 +1186,7 @@ export class CompanyConnectionsService {
           // kapsam ve kalem sayısı (kimlik/fiyat taşımaz).
           categoryIds: true,
           isInternational: true,
+          targetCountries: true,
           _count: { select: { items: true } },
         },
         orderBy: { createdAt: "desc" },

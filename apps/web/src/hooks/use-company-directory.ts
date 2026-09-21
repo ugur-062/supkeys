@@ -113,6 +113,7 @@ export interface ProfileListing {
       kalem sayısı ve kapsam sütunları için (eski API'de yok → isteğe bağlı). */
   categoryIds?: string[];
   isInternational?: boolean;
+  targetCountries?: string[];
   itemCount?: number;
 }
 

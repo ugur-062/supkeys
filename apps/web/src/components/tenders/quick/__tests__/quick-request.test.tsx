@@ -61,7 +61,7 @@ vi.mock("@/components/categories/category-selector-button", () => ({
 import { QuickRequest } from "../quick-request";
 
 const SAVED = {
-  isInternational: false,
+  targetCountries: [] as string[],
   visibility: "CONNECTIONS",
   deliveryTerm: "DOMESTIC_DELIVERED",
   paymentCategory: "DEFERRED",
@@ -204,12 +204,13 @@ describe("QuickRequest", () => {
     const card = (await screen.findByText("İlk talebiniz — üç kısa soru")).closest("div") as HTMLElement;
     expect(card).toBeInTheDocument();
     const btn = screen.getByRole("button", { name: "Kaydet ve devam et" });
-    expect(btn).toBeDisabled(); // teslim şekli seçilmeden devam yok
+    // 2026-09-21: platform varsayılanı "adrese teslim" → düğme açık; kullanıcı yine değiştirebilir.
+    expect(btn).toBeEnabled();
     const select = within(card.parentElement as HTMLElement).getAllByRole("combobox")[0];
     fireEvent.change(select, { target: { value: "DOMESTIC_PICKUP" } });
     fireEvent.click(screen.getByRole("button", { name: "Kaydet ve devam et" }));
     await waitFor(() => expect(h.saveDefaults).toHaveBeenCalledTimes(1));
-    expect(h.saveDefaults.mock.calls[0][0]).toMatchObject({ deliveryTerm: "DOMESTIC_PICKUP", isInternational: false });
+    expect(h.saveDefaults.mock.calls[0][0]).toMatchObject({ deliveryTerm: "DOMESTIC_PICKUP", targetCountries: [] });
     expect(screen.queryByText("İlk talebiniz — üç kısa soru")).toBeNull();
   });
 });

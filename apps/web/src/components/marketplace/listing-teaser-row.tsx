@@ -8,6 +8,7 @@ import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
+import { ScopeChip } from "@/components/tenders/scope-chip";
 import { companyActivityLabel } from "@rothern/shared";
 
 const STATE_CLASS: Record<ReturnType<typeof publicState>, string> = {
@@ -79,17 +80,10 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
         ),
       },
       {
-        label: "Kapsam",
+        label: "Görünürlük",
         value: (
           <span className="flex flex-col items-start gap-1">
-            <span
-              className={cn(
-                "inline-flex rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1",
-                l.isInternational ? "bg-emerald-50 text-emerald-700 ring-emerald-200" : "bg-slate-50 text-slate-600 ring-slate-200",
-              )}
-            >
-              {l.isInternational ? "Uluslararası" : "Yurtiçi"}
-            </span>
+            <ScopeChip targetCountries={l.targetCountries} />
             <span className="text-[11px] leading-tight text-slate-500">Kapalı zarf</span>
           </span>
         ),

@@ -1,12 +1,12 @@
 "use client";
 
+import { countryName } from "@rothern/shared";
 import { Check, FilterChipBar, Group, ShowMore, ShowMoreRadio, type FilterChip } from "./filter-primitives";
 import { useFilters } from "./filter-shell";
 import { SortBar } from "./sort-bar";
 import { activeListingFilterCount, type ListingFilterState } from "@/lib/public/listing-filter-params";
 import type { PublicFacets } from "@/lib/public/marketplace-api";
 
-const SCOPE_LABEL = { yurtici: "Yurtiçi", uluslararasi: "Uluslararası" } as const;
 const WITHIN: { key: "3" | "7" | "30"; label: string }[] = [
   { key: "3", label: "3 gün içinde" },
   { key: "7", label: "7 gün içinde" },
@@ -67,26 +67,27 @@ export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idP
           />
         ))}
       </Group>
-      <Group
-        title="Kapsam"
-        count={state.scope ? 1 : 0}
-        onClear={() => update({ scope: undefined })}
-        storageKey="lst-scope"
-      >
-        {(facets.scopes ?? []).map((s) => {
-          const key = s.scope === "domestic" ? "yurtici" : "uluslararasi";
-          return (
+      {/* Görünürlük ülkesi (2026-09-21): "bu ülkedeki tedarikçi görebilir" —
+          tüm ülkelere açık talepler her seçimde kalır. */}
+      {(facets.countries ?? []).length > 0 ? (
+        <Group
+          title="Ülke"
+          count={state.country ? 1 : 0}
+          onClear={() => update({ country: undefined })}
+          storageKey="lst-country"
+        >
+          {(facets.countries ?? []).map((c) => (
             <Check
-              key={key}
-              id={`${idPrefix}-scope-${key}`}
-              label={SCOPE_LABEL[key]}
-              count={s.count}
-              checked={state.scope === key}
-              onChange={() => update({ scope: state.scope === key ? undefined : key })}
+              key={c.code}
+              id={`${idPrefix}-country-${c.code}`}
+              label={countryName(c.code)}
+              count={c.count + (facets.openToAll ?? 0)}
+              checked={state.country === c.code}
+              onChange={() => update({ country: state.country === c.code ? undefined : c.code })}
             />
-          );
-        })}
-      </Group>
+          ))}
+        </Group>
+      ) : null}
     </div>
   );
 }
@@ -97,7 +98,7 @@ export function ListingActiveChips({ facets }: { facets: PublicFacets }) {
   if (state.category) chips.push({ key: "cat", label: facets.categories.find((c) => c.id === state.category)?.name ?? state.category, onRemove: () => update({ category: undefined }) });
   for (const c of state.cities) chips.push({ key: `c:${c}`, label: c, onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
   if (state.within) chips.push({ key: "w", label: `${state.within} gün içinde`, onRemove: () => update({ within: undefined }) });
-  if (state.scope) chips.push({ key: "s", label: SCOPE_LABEL[state.scope], onRemove: () => update({ scope: undefined }) });
+  if (state.country) chips.push({ key: "s", label: countryName(state.country), onRemove: () => update({ country: undefined }) });
   return <FilterChipBar chips={chips} activeCount={activeListingFilterCount(state)} onClearAll={clear} />;
 }
 

@@ -92,6 +92,7 @@ export class PublicMarketplaceService {
       publishedAt: row.publishedAt?.toISOString() ?? null,
       primaryCurrency: row.primaryCurrency,
       isInternational: row.isInternational,
+      targetCountries: row.targetCountries,
       itemCount: row.items.length,
       coverImageUrl: deriveCover(row),
       excerpt: excerptOf(row.description),
@@ -182,7 +183,9 @@ export class PublicMarketplaceService {
       // ziyaretçiye ölü ilan göstermek en kötü ilk izlenim.
       ...(q.state === "all" ? {} : { status: "OPEN" }),
       ...(await this.listingCategoryWhere(q.category)),
-      ...(q.scope ? { isInternational: q.scope === "international" } : {}),
+      ...(q.country
+        ? { OR: [{ targetCountries: { isEmpty: true } }, { targetCountries: { has: q.country.toUpperCase() } }] }
+        : {}),
       ...(q.closesWithin
         ? { closesAt: { gte: now, lte: new Date(now.getTime() + Number(q.closesWithin) * 86_400_000) } }
         : {}),
@@ -291,7 +294,9 @@ export class PublicMarketplaceService {
     categories: { id: string; name: string; level: number; count: number }[];
     cities: { city: string; count: number }[];
     types: { type: string; count: number }[];
-    scopes: { scope: "domestic" | "international"; count: number }[];
+    /** Görünürlük ülkesi (2026-09-21): `openToAll` = hedef listesi boş; `countries` = hedef listelerde geçen ülkeler. */
+    openToAll: number;
+    countries: { code: string; count: number }[];
     /** Kalan süre kovaları (3/7/30 gün) — diğer seçimlerle. */
     within: { "3": number; "7": number; "30": number };
     truncated: boolean;
@@ -302,7 +307,7 @@ export class PublicMarketplaceService {
       select: {
         type: true,
         categoryIds: true,
-        isInternational: true,
+        targetCountries: true,
         closesAt: true,
         company: { select: { city: true } },
       },
@@ -317,7 +322,8 @@ export class PublicMarketplaceService {
     const dayMs = 86_400_000;
     const inCat = (r: Row) => !prefix || r.categoryIds.some((c) => c.startsWith(prefix));
     const inCity = (r: Row) => cities.length === 0 || (!!r.company.city && cities.includes(r.company.city.trim()));
-    const inScope = (r: Row) => !q.scope || r.isInternational === (q.scope === "international");
+    const country = q.country?.toUpperCase();
+    const inScope = (r: Row) => !country || r.targetCountries.length === 0 || r.targetCountries.includes(country);
     const withinDays = (r: Row, d: number) =>
       !!r.closesAt && r.closesAt.getTime() >= now.getTime() && r.closesAt.getTime() <= now.getTime() + d * dayMs;
     const inWithin = (r: Row) => !q.closesWithin || withinDays(r, Number(q.closesWithin));
@@ -341,7 +347,10 @@ export class PublicMarketplaceService {
     }
     const typeCount = new Map<string, number>();
     for (const r of scanned) typeCount.set(r.type, (typeCount.get(r.type) ?? 0) + 1);
-    const international = forScope.filter((r) => r.isInternational).length;
+    // Ülke facet'i: "tüm ülkelere açık" sayısı + hedef listelerde geçen ülkeler.
+    const openToAll = forScope.filter((r) => r.targetCountries.length === 0).length;
+    const countryCount = new Map<string, number>();
+    for (const r of forScope) for (const c of r.targetCountries) countryCount.set(c, (countryCount.get(c) ?? 0) + 1);
 
     const cats = await this.resolveCategories([...catCount.keys()]);
     return {
@@ -358,10 +367,10 @@ export class PublicMarketplaceService {
       types: [...typeCount.entries()].map(([type, count]) => ({ type, count })),
       // Kapsam süzgeci (yurtiçi / uluslararası) — sayfa açıklaması bunu vaat
       // ediyordu, süzgeç yoktu.
-      scopes: [
-        { scope: "domestic" as const, count: forScope.length - international },
-        { scope: "international" as const, count: international },
-      ].filter((s) => s.count > 0),
+      openToAll,
+      countries: [...countryCount.entries()]
+        .map(([code, count]) => ({ code, count }))
+        .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code)),
       within: {
         "3": forWithin.filter((r) => withinDays(r, 3)).length,
         "7": forWithin.filter((r) => withinDays(r, 7)).length,

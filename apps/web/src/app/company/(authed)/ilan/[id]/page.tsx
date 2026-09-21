@@ -1,5 +1,6 @@
 "use client";
 
+import { countryName, scopeLabel } from "@rothern/shared";
 import { AuctionLiveCard } from "./_components/auction-live-card";
 import { MyBidStatusPanel } from "./_components/my-bid-status-panel";
 import { PRICING_HREF, SilverLockCard } from "@/components/company/silver-lock-card";
@@ -1433,6 +1434,11 @@ export default function ListingDetailPage() {
                 {b.id === bestBidId && canDecide ? (
                   <Badge color="green">En iyi</Badge>
                 ) : null}
+                {/* Farklı ülkeden tedarikçi (2026-09-21): navlun/gümrük farkı
+                    olabilir — alıcı kıyaslarken görsün. */}
+                {b.bidderCountry && company?.country && b.bidderCountry !== company.country ? (
+                  <Badge color="zinc">{countryName(b.bidderCountry)}</Badge>
+                ) : null}
                 {/* Geçerlilik dolmuş canlı teklif — alıcı kazandırmadan önce
                     görsün (son gün = submittedAt + validityDays). */}
                 {bidExpired ? <Badge color="amber">Geçerlilik doldu</Badge> : null}
@@ -1711,8 +1717,8 @@ export default function ListingDetailPage() {
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-sm font-medium text-zinc-700">
-          {l.isInternational ? <Globe aria-hidden className="size-4" /> : <MapPin aria-hidden className="size-4" />}
-          {l.isInternational ? "Uluslararası" : "Yurtiçi"}
+          {(l.targetCountries ?? []).length === 0 ? <Globe aria-hidden className="size-4" /> : <MapPin aria-hidden className="size-4" />}
+          {scopeLabel(l.targetCountries ?? [], company?.country)}
         </span>
         {l.format ? (
           <span className="inline-flex items-center gap-1.5 rounded-lg bg-purple-50 px-2.5 py-1 text-sm font-medium text-purple-700">

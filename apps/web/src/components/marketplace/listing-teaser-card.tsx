@@ -1,4 +1,5 @@
 import { Badge } from "@/components/ui/badge";
+import { scopeLabel } from "@rothern/shared";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { listingPath, publicState } from "@/lib/public/marketplace";
@@ -94,8 +95,8 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
             </div>
           ) : null}
           <div className="flex items-center gap-1">
-            <dt className="sr-only">Kapsam</dt>
-            <dd className="flex items-center gap-1"><GlobeAltIcon aria-hidden className="size-3.5 text-zinc-300" />{l.isInternational ? "Uluslararası" : "Yurtiçi"}</dd>
+            <dt className="sr-only">Görünürlük</dt>
+            <dd className="flex items-center gap-1"><GlobeAltIcon aria-hidden className="size-3.5 text-zinc-300" />{scopeLabel(l.targetCountries ?? [])}</dd>
           </div>
           <div className="flex items-center gap-1">
             {/* Kapalı zarf bir KURAL — ipucu neyin gizli kaldığını söyler.

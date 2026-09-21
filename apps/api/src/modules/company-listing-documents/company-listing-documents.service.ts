@@ -1,4 +1,5 @@
 import { hasValidConnection } from "../../common/company/valid-connection";
+import { countryCanSee } from "@rothern/shared";
 import { isListingVisibleToViewer, listingBidEligibility } from "../../common/company/listing-visibility";
 import {
   BadRequestException,
@@ -123,15 +124,8 @@ export class CompanyListingDocumentsService {
         viewerTier: user.tier,
       }).hidden;
 
-    // Ülke kapsamı (uluslararası → hedef ülke; yurtiçi → aynı ülke).
-    if (allowed) {
-      const myCountry = user.country;
-      allowed = listing.isInternational
-        ? myCountry !== listing.company.country &&
-          (listing.targetCountries.length === 0 ||
-            listing.targetCountries.includes(myCountry))
-        : myCountry === listing.company.country;
-    }
+    // Görünürlük ülkesi (2026-09-21): boş = herkes; dolu = izleyen listede.
+    if (allowed) allowed = countryCanSee(listing.targetCountries, user.country);
 
     if (!allowed) throw new NotFoundException("İlan bulunamadı");
   }

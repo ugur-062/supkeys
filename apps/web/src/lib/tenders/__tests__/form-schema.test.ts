@@ -109,108 +109,24 @@ describe("tenderFormSchema", () => {
     }
   });
 
-  it("mal mukabili: yalnız uluslararası; vade OPSİYONEL (boş da, günlü de)", () => {
-    // Yurtiçi ihalede dış-ticaret kategorisi reddedilir (2026-08-02 kuralı).
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({ paymentCategory: "MAL_MUKABILI" }),
-      ).success,
-    ).toBe(false);
-    // Vadesiz (teslimde muaccel) — geçerli; DEFERRED/CHEQUE'in aksine gün istemez.
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({
-          paymentCategory: "MAL_MUKABILI",
-          paymentDays: undefined,
-          isInternational: true,
-        }),
-      ).success,
-    ).toBe(true);
-    // Vade girilirse de geçerli (teslim + gün takibi).
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({
-          paymentCategory: "MAL_MUKABILI",
-          paymentDays: 60,
-          isInternational: true,
-        }),
-      ).success,
-    ).toBe(true);
+  it("mal mukabili her talepte seçilebilir (2026-09-21: kapsam kısıtı kalktı); vade OPSİYONEL", () => {
+    expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "MAL_MUKABILI" })).success).toBe(true);
+    expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "MAL_MUKABILI", paymentDays: undefined })).success).toBe(true);
+    expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "MAL_MUKABILI", paymentDays: 60 })).success).toBe(true);
   });
 
-  it("kısmi peşin yalnız yurtiçi satın alma talebinde", () => {
-    // Yurtiçi: %50 peşin OK (kalan vade opsiyonel).
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({ paymentCategory: "ADVANCE", advancePercent: 50 }),
-      ).success,
-    ).toBe(true);
-    // Uluslararası: %<100 reddedilir, %100 kabul.
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({
-          paymentCategory: "ADVANCE",
-          advancePercent: 50,
-          isInternational: true,
-        }),
-      ).success,
-    ).toBe(false);
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({
-          paymentCategory: "ADVANCE",
-          advancePercent: 100,
-          isInternational: true,
-        }),
-      ).success,
-    ).toBe(true);
+  it("kısmi peşin görünürlük ülkesinden bağımsız", () => {
+    expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "ADVANCE", advancePercent: 50 })).success).toBe(true);
+    expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "ADVANCE", advancePercent: 50, targetCountries: [] })).success).toBe(true);
+    expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "ADVANCE", advancePercent: 100, targetCountries: ["DE", "TR"] })).success).toBe(true);
   });
 
-  it("akreditif yalnız uluslararası; alt tip zorunlu; Usance vade ister", () => {
-    // Yurtiçi ihalede akreditif reddedilir (2026-08-02 kuralı).
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({ paymentCategory: "LETTER_OF_CREDIT", lcType: "SIGHT" }),
-      ).success,
-    ).toBe(false);
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({
-          paymentCategory: "LETTER_OF_CREDIT",
-          lcType: undefined,
-          isInternational: true,
-        }),
-      ).success,
-    ).toBe(false);
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({
-          paymentCategory: "LETTER_OF_CREDIT",
-          lcType: "SIGHT",
-          isInternational: true,
-        }),
-      ).success,
-    ).toBe(true);
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({
-          paymentCategory: "LETTER_OF_CREDIT",
-          lcType: "USANCE",
-          paymentDays: undefined,
-          isInternational: true,
-        }),
-      ).success,
-    ).toBe(false);
-    expect(
-      tenderFormSchema.safeParse(
-        validForm({
-          paymentCategory: "LETTER_OF_CREDIT",
-          lcType: "USANCE",
-          paymentDays: 90,
-          isInternational: true,
-        }),
-      ).success,
-    ).toBe(true);
+  it("akreditif: alt tip zorunlu; Usance vade ister; açık hesap da her talepte", () => {
+    expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "LETTER_OF_CREDIT", lcType: "SIGHT" })).success).toBe(true);
+    expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "LETTER_OF_CREDIT", lcType: undefined })).success).toBe(false);
+    expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "LETTER_OF_CREDIT", lcType: "USANCE", paymentDays: undefined })).success).toBe(false);
+    expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "LETTER_OF_CREDIT", lcType: "USANCE", paymentDays: 90 })).success).toBe(true);
+    expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "OPEN_ACCOUNT", targetCountries: [] })).success).toBe(true);
   });
 
   it("özel ödeme şeklinde koşul notu zorunlu", () => {

@@ -48,7 +48,7 @@ beforeEach(() => {
 });
 
 describe("IhaleListRow", () => {
-  it("kart sırası: kod+ad, rozet, sonra Teklifler / Kapsam / Yayın / Kapanış; '›' oku yok", () => {
+  it("kart sırası: kod+ad, rozet, sonra Teklifler / Görünürlük / Yayın / Kapanış; '›' oku yok", () => {
     render(
       <IhaleListRow t={ROW} favorite={false} onToggleFavorite={vi.fn()} />,
     );
@@ -59,13 +59,13 @@ describe("IhaleListRow", () => {
     expect(screen.getByText(/Süresi doldu/)).toBeInTheDocument();
 
     // Sabit sütunlar bu SIRAYLA (2026-09-19: Teklifler sütunda, Davetli
-    // alt metrikte — kullanıcı kararı): Sorumlu · Teklifler · Kapsam · Yayın ·
+    // alt metrikte — kullanıcı kararı): Sorumlu · Teklifler · Görünürlük · Yayın ·
     // Kapanış · Kategori; Davetli sağ altta metrik.
     const card = document.querySelector("dl")!;
     const labels = within(card)
       .getAllByRole("term")
       .map((dt) => dt.textContent?.trim());
-    expect(labels).toEqual(["Sorumlu", "Teklifler", "Kapsam", "Yayın", "Kapanış", "Kategori"]);
+    expect(labels).toEqual(["Sorumlu", "Teklifler", "Görünürlük", "Yayın", "Kapanış", "Kategori"]);
     expect(screen.getByText("Davetli:")).toBeInTheDocument();
 
     expect(screen.queryByRole("button", { name: "Detayı genişlet" })).toBeNull();

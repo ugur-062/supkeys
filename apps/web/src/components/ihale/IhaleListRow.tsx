@@ -7,6 +7,8 @@ import { IhaleItemsPanel } from "./IhaleItemsPanel";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
 import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
+import { ScopeChip } from "@/components/tenders/scope-chip";
+import { scopeLabel } from "@rothern/shared";
 import { differenceInCalendarDays } from "date-fns";
 import { Star } from "lucide-react";
 import Link from "next/link";
@@ -211,14 +213,10 @@ export function IhaleListRow({
           ),
       },
       {
-        label: "Kapsam",
+        label: "Görünürlük",
         value: (
           <span className="flex flex-col items-start gap-1">
-            {t.isInternational ? (
-              <InfoChip tone="emerald">Uluslararası</InfoChip>
-            ) : (
-              <InfoChip tone="slate">Yurtiçi</InfoChip>
-            )}
+            <ScopeChip targetCountries={t.targetCountries} />
             {t.format === "ENGLISH_AUCTION" ? (
               <InfoChip tone="violet">Pazarlık</InfoChip>
             ) : (
@@ -289,7 +287,7 @@ export function IhaleListRow({
                 ["Davetli", String(t.invitationCount)],
                 ["Teklif", String(t.bidCount)],
                 ["Usul", t.format === "ENGLISH_AUCTION" ? "Pazarlık" : "Teklif Toplama"],
-                ["Kapsam", t.isInternational ? "Uluslararası" : "Yurtiçi"],
+                ["Görünürlük", scopeLabel(t.targetCountries ?? [])],
                 [
                   "Kategori",
                   t.categories.length

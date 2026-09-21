@@ -41,7 +41,7 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
 
   const [page, facets, otherCounts] = await Promise.all([
     fetchListings(params),
-    fetchFacets({ q: params.q, category: params.category, city: params.city, scope: params.scope, closesWithin: params.closesWithin }),
+    fetchFacets({ q: params.q, category: params.category, city: params.city, country: params.country, closesWithin: params.closesWithin }),
     // Sekme rozetleri: aynı sorgunun ÖTEKİ yüzeylerdeki toplamı
     // (yalnız arama varken istek atılır).
     crossCounts(state.q, "listings"),
@@ -76,7 +76,7 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
           hidden: {
             kategori: state.category,
             sehir: state.cities.join(",") || undefined,
-            kapsam: state.scope,
+            ulke: state.country,
             sure: state.within,
             sirala: state.sort,
           },

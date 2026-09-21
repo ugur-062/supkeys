@@ -10,6 +10,7 @@ import {
   type PublicListingState,
 } from "@/lib/public/marketplace";
 import { cn } from "@/lib/utils";
+import { scopeLabel } from "@rothern/shared";
 import {
   CalendarDaysIcon,
   DocumentTextIcon,
@@ -500,11 +501,11 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
                 <dd>{listing.company.city}</dd>
               </div>
             ) : null}
-            {listing.isInternational ? (
+            {(listing.targetCountries ?? []).length > 0 ? (
               <div className="flex items-center gap-1">
-                <dt className="sr-only">Kapsam</dt>
+                <dt className="sr-only">Görünürlük</dt>
                 <GlobeAltIcon aria-hidden className="size-3.5 text-zinc-300" />
-                <dd>Uluslararası</dd>
+                <dd>{scopeLabel(listing.targetCountries ?? [])}</dd>
               </div>
             ) : null}
             {listing.closesAt && state === "open" ? (

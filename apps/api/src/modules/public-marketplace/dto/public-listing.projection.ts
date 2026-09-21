@@ -221,6 +221,7 @@ export type PublicListingCard = Pick<
   | "publishedAt"
   | "primaryCurrency"
   | "isInternational"
+  | "targetCountries"
   | "itemCount"
   | "itemSummary"
   | "company"

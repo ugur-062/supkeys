@@ -160,14 +160,14 @@ describe("getOne — kapalı zarf (closed envelope)", () => {
   });
 });
 
-describe("getOne — ülke görünürlüğü", () => {
-  it("yurtiçi ilan: farklı ülke firması göremez (404)", async () => {
-    const { service, listing } = await setupAlim(); // owner TR
+describe("getOne — görünürlük ülkesi (2026-09-21: boş = herkes, dolu = yalnız o ülkeler)", () => {
+  it("yalnız sahibin ülkesi ([TR]): farklı ülke firması göremez (404)", async () => {
+    const { service, listing } = await setupAlim({ targetCountries: ["TR"] }); // owner TR
     const foreign = await makeCompanyWithUser(prisma, { country: "DE" });
     await expect(service.getOne(foreign.auth, listing.id)).rejects.toThrow();
   });
 
-  it("uluslararası ilan: sahibin ülkesindeki firma göremez (404)", async () => {
+  it("boş hedef = tüm ülkeler: sahibin ülkesindeki firma da, yabancı da görür", async () => {
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const { service } = makeService();
     const listing = await makeListing(prisma, {
@@ -181,9 +181,9 @@ describe("getOne — ülke görünürlüğü", () => {
       closesAt: FUTURE,
     });
     const sameCountry = await makeCompanyWithUser(prisma, { country: "TR" });
-    await expect(
-      service.getOne(sameCountry.auth, listing.id),
-    ).rejects.toThrow();
+    const foreign = await makeCompanyWithUser(prisma, { country: "DE" });
+    await expect(service.getOne(sameCountry.auth, listing.id)).resolves.toBeDefined();
+    await expect(service.getOne(foreign.auth, listing.id)).resolves.toBeDefined();
   });
 
   it("uluslararası + hedef ülke listesi: yalnız hedef ülke görür", async () => {
@@ -344,8 +344,8 @@ describe("placeBid — kapılar", () => {
     ).rejects.toThrow();
   });
 
-  it("yanlış ülkeden teklif veremez (F2)", async () => {
-    const { service, listing, item } = await setupAlim(); // owner TR, yurtiçi
+  it("hedef ülke listesinde olmayan ülkeden teklif veremez (F2)", async () => {
+    const { service, listing, item } = await setupAlim({ targetCountries: ["TR"] }); // owner TR, yalnız TR
     const foreign = await makeCompanyWithUser(prisma, { country: "DE" });
     await expect(
       service.placeBid(foreign.auth, listing.id, {
@@ -517,47 +517,28 @@ describe("award — kazandırma & sipariş doğruluğu", () => {
     expect(a.paymentDays).toBe(30);
     expect(a.requireGuaranteeLetter).toBe(true);
 
-    // Kısmi peşin ULUSLARARASI ilanda reddedilir.
-    await expect(
-      service.create(
+    // 2026-09-21: ödeme şekli görünürlük ülkesinden BAĞIMSIZ — kısmi peşin
+    // yabancı hedefli talepte de, dış-ticaret kategorileri (LC/vesaik/mal
+    // mukabili) yalnız-TR talepte de, açık hesap/çek/senet yabancı hedefli
+    // talepte de kabul edilir (alıcı tek şart koyar, tedarikçi ona göre fiyatlar).
+    const partialAbroad = await service.create(
+      owner.auth,
+      dto({ targetCountries: ["DE"], paymentCategory: "ADVANCE", advancePercent: 40 }) as never,
+    );
+    expect((await prisma.listing.findUniqueOrThrow({ where: { id: partialAbroad.id } })).advancePercent).toBe(40);
+    for (const cat of ["LETTER_OF_CREDIT", "CASH_AGAINST_DOCS", "MAL_MUKABILI"]) {
+      const r = await service.create(
         owner.auth,
-        dto({
-          isInternational: true,
-          targetCountries: ["DE"],
-          paymentCategory: "ADVANCE",
-          advancePercent: 40,
-        }) as never,
-      ),
-    ).rejects.toThrow(/yurtiçi/);
-
-    // Dış-ticaret kategorileri (LC/vesaik/mal mukabili) YURTİÇİ ilanda
-    // reddedilir (2026-08-02 kuralı) — teslim-şekli kapısıyla simetrik.
-    for (const cat of [
-      "LETTER_OF_CREDIT",
-      "CASH_AGAINST_DOCS",
-      "MAL_MUKABILI",
-    ]) {
-      await expect(
-        service.create(
-          owner.auth,
-          dto({ paymentCategory: cat, lcType: "SIGHT" }) as never,
-        ),
-      ).rejects.toThrow(/uluslararası/);
+        dto({ targetCountries: ["TR"], paymentCategory: cat, lcType: "SIGHT" }) as never,
+      );
+      expect((await prisma.listing.findUniqueOrThrow({ where: { id: r.id } })).paymentCategory).toBe(cat);
     }
-
-    // Simetrik (madde 20): açık hesap/çek/senet ULUSLARARASI ilanda reddedilir.
     for (const cat of ["OPEN_ACCOUNT", "CHEQUE", "SENET"]) {
-      await expect(
-        service.create(
-          owner.auth,
-          dto({
-            isInternational: true,
-            targetCountries: ["DE"],
-            paymentCategory: cat,
-            paymentDays: 30,
-          }) as never,
-        ),
-      ).rejects.toThrow(/yurtiçi ilanlarda seçilebilir/);
+      const r = await service.create(
+        owner.auth,
+        dto({ targetCountries: ["DE"], paymentCategory: cat, paymentDays: 30 }) as never,
+      );
+      expect((await prisma.listing.findUniqueOrThrow({ where: { id: r.id } })).paymentCategory).toBe(cat);
     }
 
     // LC-Usance (uluslararası) → BEFORE_DELIVERY; teminat bayrağı LC'de

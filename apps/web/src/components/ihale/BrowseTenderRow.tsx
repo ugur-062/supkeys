@@ -10,6 +10,7 @@ import {
 } from "@/lib/tenders/seller-state";
 import { companyActivityLabel } from "@rothern/shared";
 import { cn } from "@/lib/utils";
+import { ScopeChip } from "@/components/tenders/scope-chip";
 import { Building2, Lock } from "lucide-react";
 import Link from "next/link";
 import { ListingCard, ROW_FOCUS, type ListingCardData } from "@/components/marketplace/listing-card";
@@ -135,14 +136,10 @@ export function BrowseTenderRow({
     ),
   };
   const kapsam = {
-    label: "Kapsam",
+    label: "Görünürlük",
     value: (
       <span className="flex flex-col items-start gap-1">
-        {t.isInternational ? (
-          <InfoChip tone="emerald">Uluslararası</InfoChip>
-        ) : (
-          <InfoChip tone="slate">Yurtiçi</InfoChip>
-        )}
+        <ScopeChip targetCountries={t.targetCountries} />
         {t.format === "ENGLISH_AUCTION" ? (
           <InfoChip tone="violet">Pazarlık</InfoChip>
         ) : (

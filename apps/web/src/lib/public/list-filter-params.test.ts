@@ -13,15 +13,15 @@ import {
 } from "./listing-filter-params";
 
 describe("alım talebi süzgeç URL şeması", () => {
-  it("Türkçe sorguyu ayrıştırır; eski `il` okunur; sıralama/kapsam/süre çevrilir", () => {
-    const f = parseListingFilters(new URLSearchParams("q=boru&kategori=39000000&il=İzmir&kapsam=uluslararasi&sure=7&sirala=kapanis&sayfa=3"));
-    expect(f).toMatchObject({ q: "boru", category: "39000000", cities: ["İzmir"], scope: "uluslararasi", within: "7", sort: "kapanis", page: 3 });
-    expect(toListingListParams(f)).toMatchObject({ type: "ALIM", city: "İzmir", scope: "international", closesWithin: "7", sort: "closing", page: 3 });
+  it("Türkçe sorguyu ayrıştırır; eski `il` okunur; sıralama/ülke/süre çevrilir", () => {
+    const f = parseListingFilters(new URLSearchParams("q=boru&kategori=39000000&il=İzmir&ulke=de&sure=7&sirala=kapanis&sayfa=3"));
+    expect(f).toMatchObject({ q: "boru", category: "39000000", cities: ["İzmir"], country: "DE", within: "7", sort: "kapanis", page: 3 });
+    expect(toListingListParams(f)).toMatchObject({ type: "ALIM", city: "İzmir", country: "DE", closesWithin: "7", sort: "closing", page: 3 });
     expect(activeListingFilterCount(f)).toBe(4);
   });
   it("gidiş-dönüş kararlı; geçersiz değerler düşer", () => {
-    const f = parseListingFilters({ sehir: "İstanbul,Bursa", sure: "9", kapsam: "x", sirala: "z", sayfa: "0" });
-    expect(f).toEqual({ q: undefined, category: undefined, cities: ["İstanbul", "Bursa"], scope: undefined, within: undefined, sort: undefined, state: undefined, page: 1 });
+    const f = parseListingFilters({ sehir: "İstanbul,Bursa", sure: "9", ulke: "xyz", sirala: "z", sayfa: "0" });
+    expect(f).toEqual({ q: undefined, category: undefined, cities: ["İstanbul", "Bursa"], country: undefined, within: undefined, sort: undefined, state: undefined, page: 1 });
     const q = buildListingFilterQuery(f);
     expect(q).toBe("?sehir=%C4%B0stanbul%2CBursa");
     expect(parseListingFilters(new URLSearchParams(q))).toEqual(f);

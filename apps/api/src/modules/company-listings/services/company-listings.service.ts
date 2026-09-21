@@ -26,7 +26,7 @@ import {
 } from "@rothern/db";
 import { OnEvent } from "@nestjs/event-emitter";
 import { buildProductMatcher, productMatchReason } from "../../../common/company/product-request-match";
-import { derivePaymentTiming, DOMESTIC_ONLY_PAYMENT_CATEGORIES, INTERNATIONAL_ONLY_PAYMENT_CATEGORIES, isValidCountryCode, normalizeShortCode, tierAtLeast, BUYING_TIER, PAID_TIER, validateShortCode ,
+import { derivePaymentTiming, countryCanSee, deriveIsInternational, normalizeTargetCountries, isValidCountryCode, normalizeShortCode, tierAtLeast, BUYING_TIER, PAID_TIER, validateShortCode ,
   normalizeUnit,} from "@rothern/shared";
 import { PrismaService, PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { bidderPermission } from "../bidder-op-role";
@@ -421,12 +421,9 @@ export class CompanyListingsService {
     if (!owner) return [];
     // Ülke kapsamı: yurtiçi ilan → yalnızca sahip ülkesi; uluslararası →
     // YALNIZCA yabancı hedef ülkeler (sahip ülkesi HARİÇ — yurtiçi görmez).
-    const ownerCountry = owner.country;
-    const countryWhere = !listing.isInternational
-      ? { country: ownerCountry }
-      : listing.targetCountries.length === 0
-        ? { country: { not: ownerCountry } }
-        : { country: { in: listing.targetCountries } };
+    // Görünürlük ülkesi: boş = herkes; dolu = yalnız listelenen ülkeler.
+    const countryWhere =
+      listing.targetCountries.length === 0 ? {} : { country: { in: listing.targetCountries } };
     const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(
       listing.categoryIds,
     );
@@ -912,30 +909,10 @@ export class CompanyListingsService {
     const category =
       (dto.paymentCategory as ListingPaymentCategory) ?? "OPEN_ACCOUNT";
     const note = dto.paymentNote?.trim() || null;
-    const isInternational = dto.isInternational ?? false;
-
-    // Dış-ticaret ödeme şekilleri (akreditif/vesaik/mal mukabili) yurtiçi
-    // ilanda seçilemez — teslim-şekli kapısıyla simetrik (frontend filtreler,
-    // backend otorite; kapsamı değişen update'te bayat kategori de yakalanır).
-    if (
-      !isInternational &&
-      INTERNATIONAL_ONLY_PAYMENT_CATEGORIES.includes(category)
-    ) {
-      throw new BadRequestException(
-        "Bu ödeme şekli yalnız uluslararası ilanlarda seçilebilir — yurtiçi ilanda peşin, vadeli, açık hesap, çek, senet veya özel kullanın",
-      );
-    }
-    // Simetrik kapı (madde 20): açık hesap/çek/senet yalnız YURTİÇİ —
-    // uluslararası ilanda peşin, vadeli, mal mukabili, akreditif, vesaik
-    // mukabili veya özel kullanılır.
-    if (
-      isInternational &&
-      DOMESTIC_ONLY_PAYMENT_CATEGORIES.includes(category)
-    ) {
-      throw new BadRequestException(
-        "Bu ödeme şekli yalnız yurtiçi ilanlarda seçilebilir — uluslararası ilanda peşin, vadeli, mal mukabili, akreditif, vesaik mukabili veya özel kullanın",
-      );
-    }
+    // 2026-09-21: ödeme şekli kapsama göre KISITLANMAZ (yurtiçi/uluslararası
+    // ayrımı kalktı — alıcı tek şart koyar, tedarikçi ona göre fiyatlar ya da
+    // teklif vermez). Eski "yalnız uluslararası / yalnız yurtiçi" kapıları
+    // kaldırıldı; `helpers/listing-scope.ts`.
 
     let advancePercent: number | null = null;
     let paymentDays: number | null = null;
@@ -953,11 +930,6 @@ export class CompanyListingsService {
           );
         }
         advancePercent = dto.advancePercent;
-        if (advancePercent < 100 && isInternational) {
-          throw new BadRequestException(
-            "Kısmi peşin ödeme yalnız yurtiçi ilanlarda seçilebilir",
-          );
-        }
         // Kısmi peşinde kalan tutarın vadesi OPSİYONEL (boş = teslimde/açık).
         paymentDays = advancePercent < 100 ? (dto.paymentDays ?? null) : null;
         break;
@@ -1056,22 +1028,8 @@ export class CompanyListingsService {
         "İzin verilen para birimleri ilanın ana birimini içermeli",
       );
     }
-    // Teslim şekli kapsamla uyumlu olmalı (yurtiçi ↔ DOMESTIC_*, uluslararası
-    // ↔ Incoterms) — frontend filtreliyor ama backend otorite; kapsam
-    // değişen update'te bayat terim de burada yakalanır.
-    if (dto.deliveryTerm) {
-      const isDomesticTerm = String(dto.deliveryTerm).startsWith("DOMESTIC_");
-      if ((dto.isInternational ?? false) && isDomesticTerm) {
-        throw new BadRequestException(
-          "Uluslararası ilanda yurtiçi teslim şekli seçilemez — Incoterm seçin",
-        );
-      }
-      if (!(dto.isInternational ?? false) && !isDomesticTerm) {
-        throw new BadRequestException(
-          "Yurtiçi ilanda Incoterm seçilemez — yurtiçi teslim şekli seçin",
-        );
-      }
-    }
+    // Teslim şekli ülkeye göre süzülmez (2026-09-21): yerli tedarikçi de
+    // FCA teklif verebilir, yabancı tedarikçi de adrese teslim fiyatlar.
     // Hedef ülkeler gerçek ülke kodu olmalı ("XX" değil).
     for (const c of dto.targetCountries ?? []) {
       if (!isValidCountryCode(c)) {
@@ -1227,12 +1185,11 @@ export class CompanyListingsService {
           number,
           companyId: user.companyId,
           type,
-          isInternational: dto.isInternational ?? false,
-          // Hedef ülkeler yalnızca uluslararası ilanda anlamlı; aksi halde boş.
-          // Firmanın kendi ülkesi hedefe eklenmez (yurtiçi kapsam zaten görür).
-          targetCountries: dto.isInternational
-            ? (dto.targetCountries ?? []).filter((c) => c !== user.country)
-            : [],
+          // GÖRÜNÜRLÜK ÜLKESİ (2026-09-21): boş = tüm ülkeler; dolu = yalnız o
+          // ülkeler (sahibin ülkesi dahil olabilir). `isInternational` yalnız
+          // türetilir — kural taşımaz.
+          targetCountries: normalizeTargetCountries(dto.targetCountries),
+          isInternational: deriveIsInternational(normalizeTargetCountries(dto.targetCountries), user.country),
           deliveryAddressId: dto.deliveryAddressId ?? null,
           billingAddressId: dto.billingAddressId ?? null,
           format,
@@ -1498,12 +1455,11 @@ export class CompanyListingsService {
           ...(format === "ENGLISH_AUCTION"
             ? { auctionRateSnapshot: updatedRateSnapshot ?? undefined }
             : {}),
-          isInternational: dto.isInternational ?? false,
-          // Hedef ülkeler yalnızca uluslararası ilanda anlamlı; aksi halde boş.
-          // Firmanın kendi ülkesi hedefe eklenmez (yurtiçi kapsam zaten görür).
-          targetCountries: dto.isInternational
-            ? (dto.targetCountries ?? []).filter((c) => c !== user.country)
-            : [],
+          // GÖRÜNÜRLÜK ÜLKESİ (2026-09-21): boş = tüm ülkeler; dolu = yalnız o
+          // ülkeler (sahibin ülkesi dahil olabilir). `isInternational` yalnız
+          // türetilir — kural taşımaz.
+          targetCountries: normalizeTargetCountries(dto.targetCountries),
+          isInternational: deriveIsInternational(normalizeTargetCountries(dto.targetCountries), user.country),
           deliveryAddressId: dto.deliveryAddressId ?? null,
           billingAddressId: dto.billingAddressId ?? null,
           format,
@@ -1996,6 +1952,7 @@ export class CompanyListingsService {
         format: true,
         status: true,
         isInternational: true,
+        targetCountries: true,
         categoryIds: true,
         createdById: true,
         createdAt: true,
@@ -2049,6 +2006,7 @@ export class CompanyListingsService {
         format: r.format,
         status: r.status,
         isInternational: r.isInternational,
+        targetCountries: r.targetCountries,
         categoryIds: r.categoryIds,
         createdById: r.createdById,
         createdBy: {
@@ -2130,16 +2088,11 @@ export class CompanyListingsService {
             {
               AND: [
                 {
+                  // Görünürlük ülkesi (2026-09-21): boş = herkes; dolu = izleyen
+                  // listede olmalı. Ülkesi bilinmeyen izleyen yalnız "herkes"i görür.
                   OR: [
-                    ...(country
-                      ? [
-                          { isInternational: false, company: { country } },
-                          {
-                            isInternational: true,
-                            company: { country: { not: country } },
-                          },
-                        ]
-                      : [{ isInternational: true }]),
+                    { targetCountries: { isEmpty: true } },
+                    ...(country ? [{ targetCountries: { has: country } }] : []),
                   ],
                 },
                 {
@@ -2241,7 +2194,8 @@ export class CompanyListingsService {
       closesAt: true,
       createdAt: true,
       companyId: true,
-      company: { select: { name: true, city: true } },
+      targetCountries: true,
+      company: { select: { name: true, city: true, country: true } },
       _count: { select: { items: true } },
       // Kapak: sahibin seçtiği görsel, yoksa ilk kalemin ilk görseli
       // (pazar yerindeki `deriveCover` ile AYNI kural — iki yerde farklı
@@ -2398,6 +2352,11 @@ export class CompanyListingsService {
         myBidVersion: bid?.version ?? null,
         categoryMatch: matchesMyCategories(l.categoryIds),
         activityMatch: matchesMyActivity(l.preferredActivities ?? []),
+        // Aynı ülke: görünürlük kuralı değil SIRA sinyali (2026-09-21) — talep
+        // herkese açıkken yerli tedarikçinin listesini yabancı talepler boğmasın.
+        sameCountry: !!user.country && l.company.country === user.country,
+        ownerCountry: l.company.country,
+        targetCountries: l.targetCountries,
         // Katalog ürünüyle eşleşme (kategori ata zinciri ya da ad/anahtar
         // kelime ↔ başlık/kalem adı) — "ilgili ürünlerine göre".
         productMatch: pm.matched,
@@ -2469,6 +2428,7 @@ export class CompanyListingsService {
         Number(b.connected) - Number(a.connected) ||
         Number(b.productMatch) - Number(a.productMatch) ||
         Number(b.categoryMatch) - Number(a.categoryMatch) ||
+        Number(b.sameCountry) - Number(a.sameCountry) ||
         Number(b.activityMatch) - Number(a.activityMatch) ||
         (affinityByListing.get(b.id)?.score ?? 0) -
           (affinityByListing.get(a.id)?.score ?? 0) ||
@@ -2875,7 +2835,7 @@ export class CompanyListingsService {
           },
           include: {
             bidderCompany: {
-              select: { name: true, companyVerificationStatus: true },
+              select: { name: true, companyVerificationStatus: true, country: true },
             },
             items: true,
             answers: true,
@@ -2951,6 +2911,9 @@ export class CompanyListingsService {
           // ve karşı tarafın doğrulanmamış olduğunu sonradan öğrenir.
           bidderVerified:
             b.bidderCompany.companyVerificationStatus === "VERIFIED",
+          // Tedarikçi ülkesi (2026-09-21): talep birden fazla ülkeye açıkken
+          // alıcı farklı ülke tekliflerini ayırt edebilsin (navlun/gümrük farkı).
+          bidderCountry: b.bidderCompany.country,
           bidderCompanyId: b.bidderCompanyId,
           amount: b.amount.toString(),
           currency: b.currency,
@@ -7169,15 +7132,13 @@ export class CompanyListingsService {
    */
   private isCountryEligible(
     viewerCountry: string,
-    ownerCountry: string,
-    isInternational: boolean,
+    _ownerCountry: string,
+    _isInternational: boolean,
     targetCountries: string[],
   ): boolean {
-    return isInternational
-      ? viewerCountry !== ownerCountry &&
-          (targetCountries.length === 0 ||
-            targetCountries.includes(viewerCountry))
-      : viewerCountry === ownerCountry;
+    // 2026-09-21: tek kural `countryCanSee` — boş liste herkes, dolu liste
+    // yalnız o ülkeler (sahibin ülkesi de listede olabilir).
+    return countryCanSee(targetCountries, viewerCountry);
   }
 
   private async connectedCompanyIds(companyId: string): Promise<string[]> {

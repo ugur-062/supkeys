@@ -27,7 +27,6 @@ export type RequestDim =
   | "status"
   | "fit"
   | "categories"
-  | "scope"
   | "closing"
   | "buyers"
   | "cities"
@@ -129,8 +128,6 @@ export function passes(
     const segs = rowSegments(row);
     if (!f.categories.some((c) => segs.includes(c))) return false;
   }
-  if (except !== "scope" && f.scope && (f.scope === "uluslararasi") !== row.isInternational)
-    return false;
   if (except !== "closing" && f.closing && !closesWithin(row, f.closing, now)) return false;
   if (except !== "buyers" && f.buyers.length && !(row.owner && f.buyers.includes(row.owner.id)))
     return false;
@@ -189,7 +186,6 @@ export interface RequestFacets {
   status: Record<"aktif" | "gecmis" | "tumu", number>;
   fit: Record<RequestFit, number>;
   categories: FacetItem[];
-  scope: Record<"yurtici" | "uluslararasi", number>;
   closing: Record<ClosingWindow, number>;
   buyers: FacetItem[];
   cities: FacetItem[];
@@ -231,7 +227,6 @@ export function requestFacets(
 
   const st = rowsFor("status");
   const fit = rowsFor("fit");
-  const sc = rowsFor("scope");
   const cl = rowsFor("closing");
   const fm = rowsFor("format");
   const pd = rowsFor("period");
@@ -256,10 +251,6 @@ export function requestFacets(
       f.categories,
       (k) => segmentNames.get(k) ?? k,
     ),
-    scope: {
-      yurtici: count(sc, (r) => !r.isInternational),
-      uluslararasi: count(sc, (r) => r.isInternational),
-    },
     closing: Object.fromEntries(
       CLOSING_WINDOWS.map((d) => [d, count(cl, (r) => closesWithin(r, d, now))]),
     ) as Record<ClosingWindow, number>,

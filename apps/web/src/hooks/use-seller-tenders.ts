@@ -13,6 +13,9 @@ export interface SellerTenderRow {
   format: string | null;
   currency: string;
   isInternational: boolean;
+  /** Görünürlük ülkeleri (boş = tüm ülkeler). */
+  targetCountries?: string[];
+  ownerCountry?: string | null;
   closesAt: string | null;
   createdAt: string;
   itemCount: number;

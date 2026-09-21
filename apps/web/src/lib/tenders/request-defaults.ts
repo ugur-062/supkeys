@@ -1,10 +1,4 @@
-import {
-  DOMESTIC_ONLY_PAYMENT_CATEGORIES,
-  INTERNATIONAL_ONLY_PAYMENT_CATEGORIES,
-  PAYMENT_CATEGORIES,
-  REQUEST_DEFAULTS_FALLBACK,
-  type RequestDefaults,
-} from "@rothern/shared";
+import { PAYMENT_CATEGORIES, REQUEST_DEFAULTS_FALLBACK, type RequestDefaults } from "@rothern/shared";
 import { toLocalInput } from "./map-detail-to-form";
 import type { TenderFormData } from "./form-schema";
 
@@ -15,17 +9,18 @@ import type { TenderFormData } from "./form-schema";
  * `defaultsFromForm`: form → profil ("bu şartları varsayılan yap").
  * İkisi de AYNI alan listesini gezer; biri eklenip diğeri unutulursa profil
  * sessizce eksik kalır — testte gidiş-dönüş eşitliği kilitli.
+ *
+ * 2026-09-21: yurtiçi/uluslararası kapsamı kalktı — teslim şekli ve ödeme
+ * şekli ülkeye göre SÜZÜLMEZ; görünürlük `targetCountries` (boş = herkes).
  */
 
-/** Yurtiçi teslim şekilleri `DOMESTIC_` önekli; kalanı Incoterms (uluslararası). */
-export function deliveryTermsFor(isInternational: boolean, all: readonly string[]): string[] {
-  return all.filter((t) => (isInternational ? !t.startsWith("DOMESTIC_") : t.startsWith("DOMESTIC_")));
+/** Tüm teslim şekilleri tek listede (yurtiçi merdiveni + Incoterm'ler). */
+export function deliveryTermsFor(all: readonly string[]): string[] {
+  return [...all];
 }
 
-export function paymentCategoriesFor(isInternational: boolean): string[] {
-  return PAYMENT_CATEGORIES.filter((c) =>
-    isInternational ? !DOMESTIC_ONLY_PAYMENT_CATEGORIES.includes(c) : !INTERNATIONAL_ONLY_PAYMENT_CATEGORIES.includes(c),
-  );
+export function paymentCategoriesFor(): string[] {
+  return [...PAYMENT_CATEGORIES];
 }
 
 /** Kapanış = şimdi + N gün, yerel `datetime-local` biçiminde (form alanı). */
@@ -39,7 +34,7 @@ export function applyRequestDefaults(base: TenderFormData, d: RequestDefaults | 
   const r = d ?? REQUEST_DEFAULTS_FALLBACK;
   return {
     ...base,
-    isInternational: r.isInternational,
+    targetCountries: r.targetCountries ?? [],
     visibility: r.visibility as TenderFormData["visibility"],
     deliveryTerm: (r.deliveryTerm ?? undefined) as TenderFormData["deliveryTerm"],
     paymentCategory: r.paymentCategory as TenderFormData["paymentCategory"],
@@ -60,7 +55,7 @@ export function applyRequestDefaults(base: TenderFormData, d: RequestDefaults | 
 
 export function defaultsFromForm(f: TenderFormData, closeDays: number): RequestDefaults {
   return {
-    isInternational: f.isInternational,
+    targetCountries: f.targetCountries ?? [],
     visibility: f.visibility,
     deliveryTerm: f.deliveryTerm ?? null,
     paymentCategory: f.paymentCategory,

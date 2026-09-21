@@ -53,6 +53,8 @@ export interface PublicListingCard {
   publishedAt: string | null;
   primaryCurrency: string;
   isInternational: boolean;
+  /** Görünürlük ülkeleri (boş = tüm ülkeler). */
+  targetCountries?: string[];
   itemCount: number;
   /** Kapsam özeti — sayı + (aynı birimde) toplam miktar. Ad yok. */
   itemSummary: { count: number; totalQuantity: string | null; unit: string | null };
@@ -99,7 +101,9 @@ export interface PublicFacets {
   categories: (PublicCategoryRef & { count: number })[];
   cities: { city: string; count: number }[];
   types: { type: string; count: number }[];
-  scopes: { scope: "domestic" | "international"; count: number }[];
+  /** Görünürlük ülkesi: tüm ülkelere açık sayısı + hedef listelerde geçen ülkeler. */
+  openToAll: number;
+  countries: { code: string; count: number }[];
   /** Kalan süre kovaları (bağlamsal; eski yanıtta yok → `?? 0` ile okunur). */
   within?: { "3": number; "7": number; "30": number };
   truncated: boolean;
@@ -161,8 +165,8 @@ export interface ListParams {
   category?: string;
   city?: string;
   state?: "open" | "all";
-  /** Yurtiçi / uluslararası — `isInternational`. */
-  scope?: "domestic" | "international";
+  /** Görünürlük ülkesi (ISO alpha-2): bu ülkedeki tedarikçinin görebildiği talepler. */
+  country?: string;
   /** 3, 7 ya da 30 gün içinde kapanacaklar. */
   closesWithin?: "3" | "7" | "30";
   /** Yayın tarihi (varsayılan) ya da süresi yaklaşan önce. */
@@ -178,7 +182,7 @@ function toQuery(params: ListParams): string {
   if (params.city) sp.set("city", params.city);
   if (params.state) sp.set("state", params.state);
   if (params.page && params.page > 1) sp.set("page", String(params.page));
-  if (params.scope) sp.set("scope", params.scope);
+  if (params.country) sp.set("country", params.country);
   if (params.closesWithin) sp.set("closesWithin", params.closesWithin);
   if (params.sort) sp.set("sort", params.sort);
   const s = sp.toString();
@@ -219,19 +223,20 @@ const EMPTY_FACETS: PublicFacets = {
   categories: [],
   cities: [],
   types: [],
-  scopes: [],
+  openToAll: 0,
+  countries: [],
   truncated: false,
 };
 
 /** Facet sayaçları BAĞLAMSAL (PROMPT 4): seçili süzgeçler de gönderilir. */
 export function fetchFacets(
-  params: Pick<ListParams, "q" | "category" | "city" | "scope" | "closesWithin"> = {},
+  params: Pick<ListParams, "q" | "category" | "city" | "country" | "closesWithin"> = {},
 ): Promise<PublicFacets> {
   const sp = new URLSearchParams();
   if (params.q) sp.set("q", params.q);
   if (params.category) sp.set("category", params.category);
   if (params.city) sp.set("city", params.city);
-  if (params.scope) sp.set("scope", params.scope);
+  if (params.country) sp.set("country", params.country);
   if (params.closesWithin) sp.set("closesWithin", params.closesWithin);
   const qs = sp.toString();
   return getJson(`/public/listings/facets${qs ? `?${qs}` : ""}`, EMPTY_FACETS, 300);

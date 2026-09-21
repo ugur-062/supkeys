@@ -245,11 +245,12 @@ describe("list — görünürlük bazlı indirme yetkisi", () => {
     await expect(service.list(guest.auth, listing.id)).resolves.toHaveLength(1);
   });
 
-  it("yurtiçi ilan: yabancı firma belgeleri göremez (404)", async () => {
+  it("yalnız sahibin ülkesine açık talep ([TR]): yabancı firma belgeleri göremez (404)", async () => {
     const { service } = makeDocsService();
     const { owner, listing } = await ownerListing({
       status: "OPEN",
       visibility: "PUBLIC",
+      targetCountries: ["TR"],
     });
     await seedDoc(listing.id, owner.company.id);
     const foreign = await makeCompanyWithUser(prisma, { country: "DE" });

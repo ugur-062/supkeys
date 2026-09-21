@@ -142,7 +142,7 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     render(<SellerTendersView />);
     expect(screen.queryByRole("searchbox", { name: /adı, numarası/ })).toBeNull();
     expect(screen.getByText("1 açık talep bulundu")).toBeInTheDocument();
-    expect(sidebar().getAllByRole("button", { name: /^(Uygunluk|Durum|Kategori|Kapsam|Kapanış|Alıcı|Alıcı şehri|Para birimi|Usul|Yayın tarihi)( ?\(\d+\))?$/ })).toHaveLength(10);
+    expect(sidebar().getAllByRole("button", { name: /^(Uygunluk|Durum|Kategori|Kapanış|Alıcı|Alıcı şehri|Para birimi|Usul|Yayın tarihi)( ?\(\d+\))?$/ })).toHaveLength(9);
   });
 
   it("ücretsiz üye: kilit kartı GERÇEK sayıları ve bulanık örnekleri gösterir, CTA paket sayfası (2026-09-06)", () => {
@@ -234,7 +234,7 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(h.replace).toHaveBeenLastCalledWith("/company/satis", { scroll: false });
   });
 
-  it("kategori süzgeci SEGMENT adıyla ve sayaçlı; kapsam/kapanış/para/usul sayaçları", () => {
+  it("kategori süzgeci SEGMENT adıyla ve sayaçlı; kapanış/para/usul sayaçları", () => {
     h.rows = [
       row({ categories: [{ code: "39121501", name: "Kablo" }], isInternational: true, currency: "USD", format: "ENGLISH_AUCTION", closesAt: new Date(Date.now() + 2 * 86_400_000).toISOString() }),
       row(),
@@ -242,7 +242,6 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     render(<SellerTendersView />);
     expect(group("Kategori").getByLabelText(/^Elektrik/).closest("label")).toHaveTextContent("Elektrik1");
     expect(group("Kategori").getByLabelText(/^Canlı Hayvanlar/).closest("label")).toHaveTextContent("Canlı Hayvanlar1");
-    expect(group("Kapsam").getByLabelText(/^Uluslararası/).closest("label")).toHaveTextContent("Uluslararası1");
     expect(group("Kapanış").getByLabelText(/^3 gün içinde/).closest("label")).toHaveTextContent("3 gün içinde1");
     expect(group("Para birimi").getByLabelText(/^USD/).closest("label")).toHaveTextContent("USD1");
     expect(group("Usul").getByLabelText(/^Pazarlık/).closest("label")).toHaveTextContent("Pazarlık1");

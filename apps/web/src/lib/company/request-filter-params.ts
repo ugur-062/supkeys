@@ -16,7 +16,6 @@
  */
 export type RequestStatusFilter = "aktif" | "gecmis" | "tumu";
 export type RequestFit = "davet" | "baglanti" | "urun" | "kategori" | "teklif";
-export type RequestScope = "yurtici" | "uluslararasi";
 export type RequestFormat = "teklif" | "pazarlik";
 export type RequestSort = "yakin" | "uzak" | "yeni";
 export type ClosingWindow = 3 | 7 | 30;
@@ -51,7 +50,6 @@ export interface RequestFilterState {
   fit: RequestFit[];
   /** Segment kodları (`XX000000`). */
   categories: string[];
-  scope?: RequestScope;
   /** N gün içinde kapanan (yalnız açık talepler). */
   closing?: ClosingWindow;
   /** Alıcı firma id'leri (maskeli satırlar sahipsiz — listede yok). */
@@ -97,7 +95,6 @@ export function parseRequestFilters(sp: SearchParamsLike): RequestFilterState {
     categories: [
       ...new Set(list(get(sp, "kategori")).filter((c) => /^\d{8}$/.test(c)).map(segmentOf)),
     ],
-    scope: oneOf(get(sp, "kapsam"), ["yurtici", "uluslararasi"] as const),
     closing: oneOfNum(get(sp, "kapanis"), CLOSING_WINDOWS),
     buyers: list(get(sp, "alici")),
     cities: list(get(sp, "sehir")),
@@ -116,7 +113,6 @@ export function buildRequestFilterQuery(f: RequestFilterState): string {
   if (f.status !== "aktif") sp.set("durum", f.status);
   if (f.fit.length) sp.set("uygunluk", f.fit.join(","));
   if (f.categories.length) sp.set("kategori", f.categories.join(","));
-  if (f.scope) sp.set("kapsam", f.scope);
   if (f.closing) sp.set("kapanis", String(f.closing));
   if (f.buyers.length) sp.set("alici", f.buyers.join(","));
   if (f.cities.length) sp.set("sehir", f.cities.join(","));
@@ -135,7 +131,6 @@ export function activeRequestFilterCount(f: RequestFilterState): number {
     (f.status !== "aktif" ? 1 : 0) +
     f.fit.length +
     f.categories.length +
-    (f.scope ? 1 : 0) +
     (f.closing ? 1 : 0) +
     f.buyers.length +
     f.cities.length +

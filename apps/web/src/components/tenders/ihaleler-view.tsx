@@ -98,7 +98,8 @@ export function IhalelerView() {
   // sayısı tutmalı (varsayılan "Son 3 Ay" filtresi kartla çelişiyordu).
   const [range, setRange] = useState<RangeKey>(urlStatus ? "all" : DEFAULT_RANGE);
   const [createdById, setCreatedById] = useState("");
-  const [scope, setScope] = useState<"all" | "dom" | "intl">("all");
+  // Görünürlük süzgeci (2026-09-21): kapsam yerine "tüm ülkelere açık / belirli ülkeler".
+  const [scope, setScope] = useState<"all" | "open" | "limited">("all");
   const [page, setPage] = useState(1);
 
   // Durum sayaçları — durum DIŞINDAKİ aktif filtrelerle tutarlı (facet):
@@ -109,7 +110,7 @@ export function IhalelerView() {
     const q = search.trim().toLocaleLowerCase("tr");
     return all.filter((t) => {
       if (createdById && t.createdById !== createdById) return false;
-      if (scope !== "all" && t.isInternational !== (scope === "intl"))
+      if (scope !== "all" && ((t.targetCountries ?? []).length === 0) !== (scope === "open"))
         return false;
       if (minDate && new Date(t.createdAt).getTime() < minDate) return false;
       if (
@@ -153,7 +154,7 @@ export function IhalelerView() {
     const rows = all.filter((t) => {
       if (statuses.length > 0 && !statuses.includes(t.status)) return false;
       if (createdById && t.createdById !== createdById) return false;
-      if (scope !== "all" && t.isInternational !== (scope === "intl"))
+      if (scope !== "all" && ((t.targetCountries ?? []).length === 0) !== (scope === "open"))
         return false;
       if (minDate && new Date(t.createdAt).getTime() < minDate) return false;
       if (
@@ -285,13 +286,13 @@ export function IhalelerView() {
           <FilterSelect
             icon={Globe}
             value={scope}
-            onChange={(v) => reset(setScope)(v as "all" | "dom" | "intl")}
+            onChange={(v) => reset(setScope)(v as "all" | "open" | "limited")}
             options={[
-              { value: "all", label: "Tüm Kapsamlar" },
-              { value: "dom", label: "Yurtiçi" },
-              { value: "intl", label: "Yurtdışı" },
+              { value: "all", label: "Tüm Görünürlükler" },
+              { value: "open", label: "Tüm ülkelere açık" },
+              { value: "limited", label: "Belirli ülkeler" },
             ]}
-            ariaLabel="Kapsam filtresi"
+            ariaLabel="Görünürlük filtresi"
             active={scope !== "all"}
           />
           <FilterSelect

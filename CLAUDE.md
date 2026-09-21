@@ -180,6 +180,36 @@ zorunlu. Sözleşme: `foreign-verification.spec.ts`.
 Kapı YALNIZ YENİ KAYDA uygulanır: `COUNTRIES` (98) kısaltılmadı; mevcut
 firmaların ülkesi gösterilebilmeli, adres defterinde her ülke seçilebilmeli.
 
+**TALEP GÖRÜNÜRLÜK ÜLKESİ — YURTİÇİ/ULUSLARARASI KAPSAMI KALKTI (2026-09-21,
+kullanıcı kararı: "tüm alım talepleri görülsün herkese; sadece belirli
+ülkelerde de açabilsin").** Tek kaynak `@rothern/shared`
+`helpers/listing-scope.ts`: `Listing.targetCountries` BOŞ = tüm ülkeler
+(varsayılan), dolu = yalnız o ülkeler (sahibin ülkesi listede olabilir).
+`countryCanSee` görünürlük (`sellerVisibleWhere`, `isCountryEligible`,
+belge servisi, bağlantı firma talepleri, kategori eşleşme bildirimi) ve
+herkese açık dizin `?ulke=` süzgeci/facet'i bundan okur. `isInternational`
+kolonu KURAL TAŞIMAZ, yalnız türetilir (`deriveIsInternational`: "yalnız
+kendi ülkesi" değilse true) — eski projeksiyonlar/DTO bozulmasın diye durur,
+DTO'da gelen değer yok sayılır. **Şartlar ülkeye göre süzülmez:** ödeme
+şekli (akreditif/vesaik/açık hesap/çek/senet) ve kısmi peşin her talepte
+serbest; teslim şekli tek listede (yurtiçi merdiveni + Incoterm). Adalet
+teslim NOKTASINDAN gelir: platform varsayılanı "adrese teslim"
+(`REQUEST_DEFAULTS_FALLBACK.deliveryTerm = DOMESTIC_DELIVERED`, kapıya
+inmiş fiyat); teslim noktası tedarikçi kapısıysa (EXW/FCA/FAS/FOB/yurtiçi
+fabrika-ambar) ve talep birden fazla ülkeye açıksa `sellerDoorPriceWarning`
+formda ve Ticari şartlar panelinde uyarır; Gelen Teklifler'de yabancı
+tedarikçinin ülkesi rozetle görünür (`bidderCountry`). Açık Talepler
+merdiveninde **aynı ülke** kategori eşleşmesinden sonra sıra sinyali
+(`sameCountry`), eleme değil. `RequestDefaults.isInternational` →
+`targetCountries` (eski JSON `normalize` ile dönüşür: yurtiçi → [firma
+ülkesi]). Talep Şartları formu "Görünürlük ülkesi: Tüm ülkeler / Seçili
+ülkeler" (+ ülke çipleri); kartlarda `ScopeChip` ("Tüm ülkeler" · "Yalnız
+Türkiye" · "Türkiye, Almanya" · "Türkiye +3 ülke"). Veri dönüşümü
+`pnpm --filter @rothern/db backfill-listing-scope` (yurtiçi+boş hedef →
+[sahip ülkesi]; uluslararası+boş → tüm ülkeler kalır). Sözleşmeler:
+`auction-hardening.spec` teslim şekli testi, web `form-schema.test`,
+`request-defaults.test`, `list-filter-params.test`.
+
 **KYC kapısının yeri — prensip: doğrulama, PLATFORMUN KEFİL OLDUĞU yerde istenir.**
 
 | Aksiyon | VERIFIED şart mı |
@@ -1567,12 +1597,6 @@ dönüş tek değişken: `RLS_ENABLED=false`.
   MERSİS eklerken izlenen yolun aynısı.
 
 **Ürün**
-- **Talep kapsamı "Uluslararası" (2026-09-19 inceleme İ-4, kullanıcı: "şu
-  anlık böyle kalsın, sonra bakacağız"):** bugün `isInternational=true` yalnız
-  YABANCI ülkedeki tedarikçilere görünür (`sellerVisibleWhere`,
-  `targetCountries` kendi ülkeyi süzer). Öneri: "Uluslararası" = herkes
-  (yurtiçi dahil), hedef ülkeler opsiyonel daraltma; "Yurtiçi" aynen. Karar
-  ertelendi — değiştirilmedi.
 - STANDART → paketli upgrade akışı + ödeme (**PayTR**; iyzico reddetti, Stripe
   TR şirketi kabul etmiyor) + escrow
 - Kazandırma geri alma (un-award) — riskli, sonraya (satıcı reddi istisnası 2026-09-19'da geldi, bkz. Mimari Kararlar 7)

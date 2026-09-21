@@ -19,8 +19,7 @@ export function mapToInput(d: TenderFormData): CreateListingInput {
     type: "ALIM",
     // Format: RFQ / açık eksiltme.
     format: d.type,
-    isInternational: d.isInternational,
-    targetCountries: d.isInternational ? d.targetCountries : [],
+    targetCountries: d.targetCountries,
     deliveryAddressId: d.deliveryAddressId || undefined,
     // "Fatura adresim teslimatla aynı" tiki: fatura adresi teslimat adresinden
     // kopyalanır; tik kaldırıldıysa kullanıcının seçtiği adres gider.

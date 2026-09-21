@@ -223,8 +223,10 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
   // `watch()` tüm formu dinler, `useWatch` yalnız bu iki alanı).
   const unitValue = useWatch({ control, name: `items.${index}.unit` });
   const unitCodeValue = useWatch({ control, name: `items.${index}.unitCode` });
-  // GTİP alanı yalnız uluslararası ilanda görünür (Faz 3 kararı).
-  const isInternational = useWatch({ control, name: "isInternational" });
+  // GTİP alanı yalnız talep birden fazla ülkeye açıkken görünür (2026-09-21:
+  // kapsam kalktı; tek ülkeye kısıtlı talepte gümrük kodu anlamsız).
+  const targetCountries = useWatch({ control, name: "targetCountries" });
+  const isInternational = (targetCountries ?? []).length !== 1;
   const [detailOpen, setDetailOpen] = useState(false);
   const [questionOpen, setQuestionOpen] = useState(false);
 
