@@ -5,9 +5,10 @@ export default function NotFound() {
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-6">
       <div className="flex max-w-md flex-col items-center gap-3 text-center">
-        <p className="text-5xl font-semibold tracking-tight text-zinc-900">
+        <p className="text-5xl font-semibold tracking-tight text-zinc-900" aria-hidden>
           404
         </p>
+        <h1 className="text-lg font-semibold text-zinc-900">Sayfa bulunamadı</h1>
         <p className="text-sm text-zinc-500">
           Aradığınız sayfa bulunamadı ya da taşınmış olabilir.
         </p>

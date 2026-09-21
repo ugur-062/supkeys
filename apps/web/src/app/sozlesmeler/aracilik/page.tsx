@@ -16,7 +16,7 @@ export default function Page() {
     <LegalDoc
       path="/sozlesmeler/aracilik"
       title="Platform Aracılık ve Kullanım Sözleşmesi"
-      updatedAt="2 Eylül 2026"
+      updatedAt="22 Eylül 2026"
       sections={[
         {
           heading: "1. Konu ve Platformun Rolü",
@@ -30,7 +30,7 @@ export default function Page() {
           paragraphs: [
             "Satın Alma Talebini açan firma; satın alma talebi şartlarını, kalemleri, teslimat ve ödeme koşullarını doğru ve eksiksiz belirlemekle yükümlüdür. Yayımlanan satın alma talebi, belirlenen kapanış tarihine kadar tekliflere açıktır; satın alma talebi sahibi mevzuata uygun olmak kaydıyla satın alma talebini kalıcı olarak kapatabilir veya iptal edebilir.",
             "Görünürlük üç kademelidir: davetli (kapalı) satın alma taleplerini yalnızca davet edilen firmalar; bağlantılara açık olanları yalnızca ilan sahibiyle bağlantısı bulunan firmalar görür.",
-            "Herkese açık olarak yayımlanan satın alma talepleri ve satış ilanları, Platform'un giriş gerektirmeyen sayfalarında (pazar yeri) yayımlanabilir ve arama motorlarınca dizinlenebilir. Bu sayfalarda ilanın numarası, başlığı, açıklaması, kategorisi, kalemleri, miktar ve birimleri, teslimat/ödeme koşulları, son teklif tarihi ile ilanı açan firmanın adı ve konumu görüntülenebilir.",
+            "Herkese açık olarak yayımlanan satın alma talepleri ve satış ilanları, Platform'un giriş gerektirmeyen sayfalarında (pazar yeri) yayımlanabilir ve arama motorlarınca dizinlenebilir. Bu sayfalarda ilanın numarası, başlığı, açıklaması, kategorisi, kalemleri, miktar ve birimleri, teslimat/ödeme koşulları, son teklif tarihi ile ilanı açan firmanın şehri, ülkesi, sektörü ve faaliyet tipi görüntülenebilir.",
             "Teklifler bu kapsamın DIŞINDADIR: teklif içerikleri, teklif veren firmaların kimlikleri ve teklif sayısı herkese açık sayfalarda hiçbir koşulda yayımlanmaz (madde 3).",
             "Firma, herkese açık yayımı üç noktadan geri alabilir: ilanın görünürlüğünü \"bağlantılar\" veya \"davetli\" olarak değiştirerek, ilan bazında arama motoru dizinlemesini kapatarak ya da firma ayarlarından tüm ilanlarının pazar yerinde görünmesini durdurarak. Yayımdan kaldırılan bir sayfanın arama motoru sonuçlarından ne zaman düşeceği ilgili arama motorunun tarama sıklığına bağlıdır ve Platform'un denetiminde değildir.",
           ],

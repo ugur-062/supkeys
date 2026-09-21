@@ -57,7 +57,7 @@ export function ResetPasswordForm() {
           <div>
             <p className="font-semibold text-red-900">Geçersiz bağlantı</p>
             <p className="mt-1 text-sm text-red-800">
-              Token bulunamadı. Bağlantıyı doğrudan e-postadaki halinden açın
+              Bağlantı geçersiz. Bağlantıyı doğrudan e-postadaki halinden açın
               veya yeni sıfırlama bağlantısı isteyin.
             </p>
             <Link

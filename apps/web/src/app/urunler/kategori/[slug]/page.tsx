@@ -98,6 +98,9 @@ export default async function Page({
   // Google ikisini de güvensiz sayar. Yönlendirme sitemap'in ürettiği dizeyle
   // AYNI fonksiyondan gelir — ayrışamazlar.
   const canonical = categoryPath(cat.id, cat.name);
+  // Bu segmentte `loading.tsx` YOK (2026-09-22 yayın taraması): iskelet
+  // akışı başladıktan sonra çağrılan permanentRedirect 308 yerine 200 +
+  // boş gövde üretiyordu (kanonik-olmayan slug arama motoruna kopya sayfa).
   if (canonical.split("/").pop() !== slug) permanentRedirect(canonical);
 
   const sp = await searchParams;

@@ -16,7 +16,7 @@ export default function Page() {
     <LegalDoc
       path="/sozlesmeler/gizlilik"
       title="Gizlilik Politikası"
-      updatedAt="2 Eylül 2026"
+      updatedAt="22 Eylül 2026"
       sections={[
         {
           paragraphs: [
@@ -38,7 +38,7 @@ export default function Page() {
         {
           heading: "3. Herkese Açık Görünen Bilgiler",
           paragraphs: [
-            "Bir ilanın görünürlüğünü \"herkese açık\" seçtiğinizde o ilan, giriş gerektirmeyen pazar yeri sayfalarında yayımlanabilir ve arama motorlarınca dizinlenebilir: ilan numarası, başlık, açıklama, kategori, kalemler, miktar/birim, teslimat ve ödeme koşulları, son teklif tarihi ile firmanızın adı ve konumu.",
+            "Bir ilanın görünürlüğünü \"herkese açık\" seçtiğinizde o ilan, giriş gerektirmeyen pazar yeri sayfalarında yayımlanabilir ve arama motorlarınca dizinlenebilir: ilan numarası, başlık, açıklama, kategori, kalemler, miktar/birim, teslimat ve ödeme koşulları, son teklif tarihi ile firmanızın şehri, ülkesi, sektörü ve faaliyet tipi. Firma adınız ve profiliniz yalnız giriş yapmış üyelere görünür.",
             "Teklifler bu kapsamın dışındadır ve kapalı zarf esası aynen geçerlidir (madde 2). Yayımı ilan bazında (görünürlük değiştirme veya arama motoru dizinlemesini kapatma) ya da firma ayarlarından toptan durdurabilirsiniz.",
           ],
         },

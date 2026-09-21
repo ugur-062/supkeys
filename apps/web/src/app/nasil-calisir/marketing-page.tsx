@@ -344,9 +344,9 @@ function ShowcasePreview() {
 }
 function OrderTimelinePreview() {
   const tl = [
-    { t: "Sipariş oluştu", d: "12 Mar 2024, 09:22", state: "done" },
-    { t: "Sipariş gönderildi", d: "13 Mar 2024, 14:10", state: "done" },
-    { t: "Teslim alındı", d: "15 Mar 2024, 10:45", state: "active" },
+    { t: "Sipariş oluştu", d: "12 Mar 2026, 09:22", state: "done" },
+    { t: "Sipariş gönderildi", d: "13 Mar 2026, 14:10", state: "done" },
+    { t: "Teslim alındı", d: "15 Mar 2026, 10:45", state: "active" },
     { t: "Tamamlandı", d: "—", state: "todo" },
   ];
   return (
