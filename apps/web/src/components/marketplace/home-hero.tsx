@@ -28,16 +28,17 @@ import { Suspense } from "react";
  *    sihirbaza gider; burada kayıt niyetiyle (`?intent=`) kayda gider,
  *    kullanıcı onboarding'den sonra aynı sihirbaza düşer.
  *
- * Sunucu HER ZAMAN alıcı yüzünü basar (hidrasyon kuralı, 2026-09-05 #418
- * dersi: yola/depolamaya göre RENDER DALLANMASI yapılmaz; tercih istemci
- * efektinde okunur).
+ * Sunucu HER ZAMAN TEDARİKÇİ yüzünü basar (2026-09-21 varsayılan; hidrasyon
+ * kuralı, 2026-09-05 #418 dersi: yola/depolamaya göre RENDER DALLANMASI
+ * yapılmaz; tercih istemci efektinde okunur).
+ *
+ * FİRMA ARAMA YOK (2026-09-21, kullanıcı kararı: "herkese açık kısımda firma
+ * arama özelliğini kaldıralım, firmaları görüntüleyemesin"): "Ürün | Firma" /
+ * "Talep | Firma" kapsam pili ve hero'nun firma listesi anasayfadan kalktı;
+ * ziyaretçi yalnız ürün ya da talep arar.
  */
 export function HomeHero() {
-  const { audience, scope, setScope } = useAudience();
-  // Tedarikçi yüzünün "Talep | Firma" pili (2026-09-18) — 2026-09-19'a kadar
-  // YEREL state'e yazıyordu, gövde ise bağlamı okuyordu → "Firma"ya basınca
-  // hiçbir şey değişmiyordu (kullanıcı bulgusu). İki yüz de AYNI bağlam
-  // kapsamını kullanır; gövde (`HomeSupplier`) ona göre talep/firma listesi basar.
+  const { audience } = useAudience();
   const supplier = audience === "supplier";
 
   return (
@@ -90,16 +91,7 @@ export function HomeHero() {
           action={MARKETPLACE_ROUTES.demands}
           /* İKİ YÜZ BİREBİR HİZALI (2026-09-18, kullanıcı: "geçişte yazılar
              yer değiştirmesin, sadece panel değişsin"): alıcı yüzüyle aynı
-             yapı — başlık · iki satır alt cümle · kapsam pili · arama · not. */
-          supplierScope={{
-            action: MARKETPLACE_ROUTES.companies,
-            placeholder: "Firma adı, şehir ya da aldığı kategori arayın",
-            label: "Firma",
-            primaryLabel: "Talep",
-            primaryIcon: "clipboard",
-          }}
-          scope={scope}
-          onScopeChange={setScope}
+             yapı — başlık · iki satır alt cümle · arama · not. */
           accent="emerald"
           backdrop
           widgets={SELLER_WIDGETS}
@@ -116,17 +108,8 @@ export function HomeHero() {
           title="Hangi ürünü arıyorsunuz?"
           plainTitle
           lead="Doğrulanmış tedarikçilerin vitrinlerini fiyat ve minimum sipariş bilgisiyle inceleyin."
-          placeholder="Ürün, firma veya sektör arayın..."
+          placeholder="Ürün veya sektör arayın..."
           action={MARKETPLACE_ROUTES.products}
-          /* "Tedarikçi" → "Firma" (2026-09-10, kullanıcı kararı; panelle
-             aynı). Pil ayrıca alıcı gövdesini firma listesine çevirir. */
-          supplierScope={{
-            action: MARKETPLACE_ROUTES.companies,
-            placeholder: "Firma adı, sektör ya da sattığı ürün arayın",
-            label: "Firma",
-          }}
-          scope={scope}
-          onScopeChange={setScope}
           accent="blue"
           backdrop
           widgets={BUYER_WIDGETS}
@@ -150,7 +133,7 @@ export function HomeHero() {
    hero'nun bandı elden geçerse burası da elden geçmeli. */
 const BAND =
   "relative isolate -mt-6 flex min-h-[30rem] 2xl:min-h-[34rem] w-[100cqw] max-w-none flex-col justify-center " +
-  "ml-[calc(50%-50cqw)] overflow-hidden bg-white bg-gradient-to-b from-blue-50/80 via-white to-white " +
+  "ml-[calc(50%-50cqw)] overflow-hidden bg-white bg-gradient-to-b from-emerald-50/80 via-white to-white " +
   "px-4 py-10 sm:px-6 lg:-mt-8 lg:px-8 xl:px-10";
 
 /**
@@ -160,20 +143,21 @@ const BAND =
  * YOK: hero'nun kendisi de basmıyor (yuva anahtarın), ikisi ayrışırsa
  * hidrasyonda başlık zıplar.
  *
- * Sunucu her zaman ALICI yüzünü basar, dolayısıyla kabuk da alıcı metnini
- * taşır (tedarikçi yüzü ancak istemci tercihi okunduktan sonra çizilir).
+ * Sunucu her zaman TEDARİKÇİ yüzünü basar (2026-09-21), dolayısıyla kabuk da
+ * tedarikçi metnini taşır (alıcı yüzü ancak istemci tercihi okunduktan sonra
+ * çizilir). Metinler yukarıdaki `PanelHeroSearch key="supplier"` ile AYNI olmalı.
  */
 function HeroShell() {
   return (
-    <section aria-label="Hangi ürünü arıyorsunuz?" className={BAND}>
+    <section aria-label="Hangi talebe teklif vereceksiniz?" className={BAND}>
       {/* Dekor kabukta da var — hidrasyonda kartlar belirmesin (2026-09-18). */}
-      <HeroDecor widgets={BUYER_WIDGETS} objects={BUYER_OBJECTS} accent="blue" />
+      <HeroDecor widgets={SELLER_WIDGETS} objects={SELLER_OBJECTS} accent="emerald" />
       <div className="mx-auto w-full max-w-4xl text-center">
         <h1 className="text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-          Hangi ürünü arıyorsunuz?
+          Hangi talebe teklif vereceksiniz?
         </h1>
         <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">
-          Doğrulanmış tedarikçilerin vitrinlerini fiyat ve minimum sipariş bilgisiyle inceleyin.
+          Doğrulanmış alıcıların açık talepleri — kapalı zarf, birbirini görmeyen teklifler. Teklif vermek ücretsiz hesapla.
         </p>
       </div>
     </section>

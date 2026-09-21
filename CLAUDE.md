@@ -995,6 +995,21 @@ Sözleşme: `panel-hero-search.test` "arka plan".
 ### Herkese açık anasayfa = panel anasayfalarının anonim hâli
 Ziyaretçi `AudienceSwitch` ile tarafını seçer; sayfa o portalın panel
 anasayfasını o portalın rengiyle gösterir (alıcı mavi, tedarikçi yeşil).
+**VARSAYILAN YÜZ TEDARİKÇİ, tuşta Tedarikçiyim SOLDA · Alıcıyım SAĞDA
+(2026-09-21, kullanıcı kararı):** sunucu ve `HeroShell` tedarikçi yüzünü
+basar (`DEFAULT_AUDIENCE`), kayıtlı tercih efektte okunur; üst çubuğun
+"Ücretsiz Kaydol"u ilk açılışta yeşil. **FİRMA ARAMA ANASAYFADA YOK (aynı
+gün, kullanıcı: "firma arama özelliğini kaldıralım, firmaları
+görüntüleyemesin"):** hero "Ürün | Firma" / "Talep | Firma" kapsam pili,
+`#firmalar` bölümleri ve dizin çekimi kalktı; `AudienceProvider` yalnız yüzü
+taşır. `/firmalar` dizini, üst çubuk sekmesi ve altbilgi bağlantısı
+DOKUNULMADI (ayrı yüzey — kapatılacaksa ayrı karar). **Alıcı yüzü kategori
+vitrini FOTOĞRAFSIZ:** `CategoryShowcaseRows visual="icon"` → `CategoryTile
+visual="icon"` çizgisel lucide segment ikonu (`category-visual.ts`
+`TONE_CLASS.iconStrong`, tam opaklık), promo kartta mavi zeminde beyaz ikon;
+panel vitrini (`/company/satinalma`) fotoğraflı KALIR (`visual` varsayılanı
+"photo"). Sözleşme: `home-faces.test`, `audience-switch.test`,
+`marketing-header-audience.test`.
 **PANEL DOSYALARINA DOKUNULMADI** — `PanelHeroSearch` ve `CategoryShowcaseRows`
 prop'la sürülüyor. Monokrom kuralı **yalnız `/` için** delindi; diğer public
 sayfalar siyah kalır.

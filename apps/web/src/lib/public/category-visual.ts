@@ -192,15 +192,18 @@ export function categoryVisual(codes: string[] | undefined): SegmentVisual {
  */
 export const TONE_CLASS: Record<
   CategoryTone,
-  { surface: string; icon: string }
+  { surface: string; icon: string; iconStrong: string }
 > = {
-  amber: { surface: "bg-amber-50", icon: "text-amber-600/40" },
-  zinc: { surface: "bg-zinc-100", icon: "text-zinc-500/40" },
-  sky: { surface: "bg-sky-50", icon: "text-sky-600/40" },
-  emerald: { surface: "bg-emerald-50", icon: "text-emerald-600/40" },
-  violet: { surface: "bg-violet-50", icon: "text-violet-600/40" },
-  rose: { surface: "bg-rose-50", icon: "text-rose-600/40" },
-  teal: { surface: "bg-teal-50", icon: "text-teal-600/40" },
+  /* `icon` yedek görselde (silik, fotoğraf yerine); `iconStrong` ikonun
+     GÖRSELİN KENDİSİ olduğu yerde (herkese açık anasayfa kategori vitrini,
+     2026-09-21 — çizgisel ikon, tam opaklık). */
+  amber: { surface: "bg-amber-50", icon: "text-amber-600/40", iconStrong: "text-amber-700" },
+  zinc: { surface: "bg-zinc-100", icon: "text-zinc-500/40", iconStrong: "text-zinc-700" },
+  sky: { surface: "bg-sky-50", icon: "text-sky-600/40", iconStrong: "text-sky-700" },
+  emerald: { surface: "bg-emerald-50", icon: "text-emerald-600/40", iconStrong: "text-emerald-700" },
+  violet: { surface: "bg-violet-50", icon: "text-violet-600/40", iconStrong: "text-violet-700" },
+  rose: { surface: "bg-rose-50", icon: "text-rose-600/40", iconStrong: "text-rose-700" },
+  teal: { surface: "bg-teal-50", icon: "text-teal-600/40", iconStrong: "text-teal-700" },
 };
 
 /** Tüm segment kodları — kapsam testi bunu kullanır. */

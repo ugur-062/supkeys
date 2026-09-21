@@ -46,86 +46,79 @@ const hero = () => render(<AudienceProvider><HomeHero /></AudienceProvider>);
 beforeEach(() => window.localStorage.clear());
 
 describe("Anasayfa — panel ekranlarının anonim hâli", () => {
-  it("sunucu varsayılanı ALICI yüzü: soru, mavi 'Ara', Ürün|Firma kapsamı", () => {
+  it("sunucu varsayılanı TEDARİKÇİ yüzü (2026-09-21): talep sorusu, yeşil 'Ara', kapsam pili YOK", () => {
     hero();
-    expect(screen.getByRole("heading", { level: 1, name: "Hangi ürünü arıyorsunuz?" })).toBeInTheDocument();
-    const ara = screen
-      .getAllByRole("button", { name: /^Ara/ })
-      .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
-    expect(ara.className).toContain("bg-blue-600");
-    // Kapsam pilleri `aria-pressed` düğmesi (radyo değil): ikisi de tek
-    // formun hedefini değiştirir, seçim bir grup içi durum.
-    const kapsam = screen.getByRole("group", { name: "Arama kapsamı" });
-    expect(within(kapsam).getByRole("button", { name: "Ürün" })).toHaveAttribute("aria-pressed", "true");
-    expect(within(kapsam).getByRole("button", { name: "Firma" })).toBeInTheDocument();
-  });
-
-  it("'Firma' pili alıcı gövdesini FİRMA listesine çevirir; ürün bölümleri gizlenir (panelle aynı)", async () => {
-    const user = userEvent.setup();
-    render(
-      <AudienceProvider>
-        <HomeHero />
-        <HomeBuyer
-          featured={[product(1)] as any}
-          newest={[] as any}
-          showcase={[{ id: "39000000", name: "Elektrik", count: 5, imageSrc: null } as any]}
-          companies={[
-            {
-              name: "Firma A", slug: "firma-a", city: "Bursa", country: "TR", industry: null,
-              activities: [], logoUrl: null, verified: true, mainCategory: null, productCount: 0,
-              productPreview: [], topCategories: [], fastReply: false,
-            } as any,
-          ]}
-          companiesTotal={7}
-        />
-      </AudienceProvider>,
-    );
-    const firmalar = document.getElementById("firmalar")!;
-    expect(firmalar).toHaveAttribute("hidden");
-    await user.click(screen.getByRole("button", { name: "Firma" }));
-    expect(firmalar).not.toHaveAttribute("hidden");
-    expect(within(firmalar).getByText("Firma A")).toBeInTheDocument();
-    expect(within(firmalar).getByRole("link", { name: /Tümünü gör/ })).toHaveAttribute("href", "/firmalar");
-    expect(document.getElementById("one-cikan-urunler")!.closest("[hidden]")).not.toBeNull();
-    await user.click(screen.getByRole("button", { name: "Ürün" }));
-    expect(firmalar).toHaveAttribute("hidden");
-  });
-
-  it("anahtar TEDARİKÇİ yüzüne geçirir: talep sorusu, yeşil 'Ara', Talep|Firma kapsam pili", async () => {
-    const user = userEvent.setup();
-    hero();
-    await user.click(screen.getByRole("radio", { name: "Tedarikçiyim" }));
     expect(screen.getByRole("heading", { level: 1, name: /Hangi talebe/ })).toBeInTheDocument();
     const ara = screen
       .getAllByRole("button", { name: /^Ara/ })
       .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
     expect(ara.className).toContain("bg-emerald-700");
-    // 2026-09-18 (kullanıcı): tedarikçi yüzü de kapsam pili taşır (Talep | Firma) —
-    // iki yüz birebir aynı yapıda, geçişte hiçbir şey yer değiştirmez.
-    const scope = screen.getByRole("group", { name: "Arama kapsamı" });
-    expect(within(scope).getByRole("button", { name: "Talep" })).toHaveAttribute("aria-pressed", "true");
-    expect(within(scope).getByRole("button", { name: "Firma" })).toBeInTheDocument();
+    // Firma arama anasayfadan KALKTI (2026-09-21, kullanıcı kararı): "Talep |
+    // Firma" pili yok, arama yalnız talep dizinine gider.
+    expect(screen.queryByRole("group", { name: "Arama kapsamı" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Firma" })).toBeNull();
+    expect(screen.getByRole("radio", { name: "Tedarikçiyim" })).toHaveAttribute("aria-checked", "true");
+  });
+
+  it("anahtarda Tedarikçiyim SOLDA, Alıcıyım SAĞDA (2026-09-21, kullanıcı kararı)", () => {
+    hero();
+    const radios = within(screen.getByRole("radiogroup", { name: "Hangi taraftasınız?" })).getAllByRole("radio");
+    expect(radios.map((r) => r.textContent)).toEqual(["Tedarikçiyim", "Alıcıyım"]);
+  });
+
+  it("anahtar ALICI yüzüne geçirir: ürün sorusu, mavi 'Ara', firma pili yine YOK", async () => {
+    const user = userEvent.setup();
+    hero();
+    await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
+    expect(screen.getByRole("heading", { level: 1, name: "Hangi ürünü arıyorsunuz?" })).toBeInTheDocument();
+    const ara = screen
+      .getAllByRole("button", { name: /^Ara/ })
+      .find((b) => b.getAttribute("type") === "submit") as HTMLElement;
+    expect(ara.className).toContain("bg-blue-600");
+    expect(screen.queryByRole("group", { name: "Arama kapsamı" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Firma" })).toBeNull();
+    // Yer tutucu da firmadan söz etmez.
+    expect(screen.getByPlaceholderText("Ürün veya sektör arayın...")).toBeInTheDocument();
+  });
+
+  it("gövdelerde FİRMA LİSTESİ yok (alıcı ve tedarikçi yüzü)", () => {
+    render(
+      <AudienceProvider>
+        <HomeBuyer
+          featured={[product(1)] as any}
+          newest={[] as any}
+          showcase={[{ id: "39000000", name: "Elektrik", count: 5, imageSrc: null } as any]}
+        />
+        <HomeSupplier demands={[demand(1), demand(2), demand(3)] as any} total={16} />
+      </AudienceProvider>,
+    );
+    expect(document.getElementById("firmalar")).toBeNull();
+    expect(document.getElementById("firmalar-tedarikci")).toBeNull();
+    expect(screen.queryByRole("heading", { name: "Firmalar" })).toBeNull();
+    expect(screen.queryByText(/\d+ firma$/)).toBeNull();
+    // Ürün bölümleri her zaman görünür — kapsam pili yok, gizlenecek bir hâl yok.
+    expect(document.getElementById("one-cikan-urunler")!.closest("[hidden]")).toBeNull();
   });
 
   it("AI ile ara ANONİMDE ÇİZİLMEZ (Silver+ ∧ koltuk izni ister)", async () => {
     const user = userEvent.setup();
     hero();
     expect(screen.queryByRole("button", { name: /AI ile ara/ })).toBeNull();
-    await user.click(screen.getByRole("radio", { name: "Tedarikçiyim" }));
+    await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
     expect(screen.queryByRole("button", { name: /AI ile ara/ })).toBeNull();
   });
 
   it("birincil eylemler PANELE değil KAYDA gider (niyetiyle)", async () => {
     const user = userEvent.setup();
     hero();
-    expect(screen.getByRole("link", { name: /Talep aç/ })).toHaveAttribute(
-      "href",
-      "/company/kayit?intent=talep",
-    );
-    await user.click(screen.getByRole("radio", { name: "Tedarikçiyim" }));
     expect(screen.getByRole("link", { name: /Ücretsiz kaydolun/ })).toHaveAttribute(
       "href",
       "/company/kayit?intent=teklif",
+    );
+    await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
+    expect(screen.getByRole("link", { name: /Talep aç/ })).toHaveAttribute(
+      "href",
+      "/company/kayit?intent=talep",
     );
   });
 
@@ -166,39 +159,26 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     );
   });
 
-  it("TEDARİKÇİ yüzünde 'Firma' pili talep listesini FİRMA listesine çevirir (2026-09-19 bulgu: değişmiyordu)", async () => {
-    const user = userEvent.setup();
+  it("kategori vitrini FOTOĞRAFSIZ — çizgisel segment ikonu (2026-09-21, kullanıcı kararı)", () => {
     render(
-      <AudienceProvider>
-        <HomeHero />
-        <HomeSupplier
-          demands={[demand(1), demand(2), demand(3)] as any}
-          total={16}
-          companies={[
-            {
-              name: "Alıcı Firma", slug: "alici-firma", city: "İzmir", country: "TR", industry: null,
-              activities: [], logoUrl: null, verified: true, mainCategory: null, productCount: 0,
-              productPreview: [], topCategories: [], fastReply: false,
-            } as any,
-          ]}
-          companiesTotal={3}
-        />
-      </AudienceProvider>,
+      <HomeBuyer
+        featured={[] as any}
+        newest={[] as any}
+        showcase={[
+          { id: "39000000", name: "Elektrik", count: 5, imageSrc: "/categories/39000000.webp" },
+          { id: "31000000", name: "Üretim Bileşenleri", count: 3, imageSrc: "/categories/31000000.webp" },
+          { id: "23000000", name: "Endüstriyel Üretim", count: 2, imageSrc: "/categories/23000000.webp" },
+        ] as any}
+      />,
     );
-    await user.click(screen.getByRole("radio", { name: "Tedarikçiyim" }));
-    const firmalar = document.getElementById("firmalar-tedarikci")!;
-    const talepler = screen.getByRole("heading", { name: /Alıcılar şu an/ }).closest("section")!;
-    // Kapsam önceki testten kalmış olabilir (oturum deposu) — bilinen hâle getir.
-    await user.click(screen.getByRole("button", { name: "Talep" }));
-    expect(firmalar).toHaveAttribute("hidden");
-    expect(talepler).not.toHaveAttribute("hidden");
-    await user.click(screen.getByRole("button", { name: "Firma" }));
-    expect(firmalar).not.toHaveAttribute("hidden");
-    expect(talepler).toHaveAttribute("hidden");
-    expect(within(firmalar).getByText("Alıcı Firma")).toBeInTheDocument();
-    expect(within(firmalar).getByRole("link", { name: /Tümünü gör/ })).toHaveAttribute("href", "/firmalar");
-    await user.click(screen.getByRole("button", { name: "Talep" }));
-    expect(firmalar).toHaveAttribute("hidden");
+    const vitrin = document.getElementById("kategoriler")!;
+    // Fotoğraf verisi gelse de basılmaz: ne promo kartta ne ızgarada <img> var.
+    expect(within(vitrin).queryAllByRole("img")).toHaveLength(0);
+    expect(vitrin.querySelectorAll("img")).toHaveLength(0);
+    // Her kartta bir lucide çizgi ikonu (SVG) var.
+    const links = within(vitrin).getAllByRole("link");
+    expect(links).toHaveLength(3);
+    for (const l of links) expect(l.querySelector("svg")).not.toBeNull();
   });
 
   it("TEDARİKÇİ gövdesi: talep kartı alıcı adını ve kalem adlarını TAŞIMAZ", () => {

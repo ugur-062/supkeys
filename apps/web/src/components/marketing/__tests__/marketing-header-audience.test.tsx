@@ -3,7 +3,8 @@
  * ÜST ÇUBUK "ÜCRETSİZ KAYDOL" RENGİ (2026-09-17, kullanıcı kararı): anasayfada
  * "Tedarikçiyim" seçiliyken YEŞİL (satış rengi), alıcı yüzünde ve diğer
  * sayfalarda MAVİ. Üst çubuk sağlayıcının dışında mount olur; taraf
- * bilgisini paylaşılan depodan okur.
+ * bilgisini paylaşılan depodan okur. Varsayılan yüz 2026-09-21'den beri
+ * TEDARİKÇİ → anasayfa ilk açılışta yeşil.
  */
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -26,7 +27,7 @@ beforeEach(() => {
 const signup = () => screen.getAllByRole("link", { name: "Ücretsiz Kaydol" })[0];
 
 describe("MarketingHeader — Ücretsiz Kaydol rengi", () => {
-  it("alıcı yüzünde mavi; Tedarikçiyim'e geçince yeşil", async () => {
+  it("varsayılan (tedarikçi) yeşil; Alıcıyım'a geçince mavi, geri dönünce yeşil", async () => {
     const user = userEvent.setup();
     render(
       <>
@@ -36,18 +37,18 @@ describe("MarketingHeader — Ücretsiz Kaydol rengi", () => {
         </AudienceProvider>
       </>,
     );
-    expect(signup().className).toContain("bg-blue-600");
-    await user.click(screen.getByRole("radio", { name: "Tedarikçiyim" }));
     expect(signup().className).toContain("bg-emerald-600");
     await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
     expect(signup().className).toContain("bg-blue-600");
+    await user.click(screen.getByRole("radio", { name: "Tedarikçiyim" }));
+    expect(signup().className).toContain("bg-emerald-600");
   });
 
-  it("kayıtlı tercih tedarikçiyse anasayfada yeşil açılır; başka sayfada mavi kalır", async () => {
-    window.localStorage.setItem("rothern.audience", "supplier");
+  it("kayıtlı tercih alıcıysa anasayfada mavi açılır; başka sayfada da mavi", async () => {
+    window.localStorage.setItem("rothern.audience", "buyer");
     const { unmount } = render(<MarketingHeader />);
     await screen.findAllByRole("link", { name: "Ücretsiz Kaydol" });
-    expect(signup().className).toContain("bg-emerald-600");
+    expect(signup().className).toContain("bg-blue-600");
     unmount();
     nav.pathname = "/urunler";
     const r2 = render(<MarketingHeader />);

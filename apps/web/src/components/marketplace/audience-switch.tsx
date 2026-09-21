@@ -3,7 +3,6 @@
 import { cn } from "@/lib/utils";
 import { BuildingStorefrontIcon, ShoppingCartIcon } from "@heroicons/react/20/solid";
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
-import { readHeroScope, writeHeroScope } from "@/lib/company/hero-scope";
 
 /**
  * ALICIYIM / TEDARİKÇİYİM — anasayfanın yüzünü seçen anahtar (kullanıcı
@@ -13,8 +12,10 @@ import { readHeroScope, writeHeroScope } from "@/lib/company/hero-scope";
  * o an TEK bir amaçla gelir. Anahtar hangi tarafın içeriğinin görüneceğini
  * söyler: **alıcı → ürünler**, **tedarikçi → açık alım talepleri**.
  *
- * Hidrasyon kuralı (2026-09-05 #418 dersi): sunucu HER ZAMAN "alıcı" basar;
- * tercih istemcide efektle okunur. İki tarafın içeriği de HTML'de durur,
+ * VARSAYILAN YÜZ TEDARİKÇİ (2026-09-21, kullanıcı kararı: "ilk başta
+ * tedarikçiyim sayfası açılsın; tuşta tedarikçiyim solda, alıcıyım sağda").
+ * Hidrasyon kuralı (2026-09-05 #418 dersi): sunucu HER ZAMAN "tedarikçi"
+ * basar; tercih istemcide efektle okunur. İki tarafın içeriği de HTML'de durur,
  * görünmeyen taraf `hidden` ile gizlenir — arama motoru ikisini de görür,
  * geçiş anında olur, `display:none` ile ölçüm/etkileşim dışı kalır.
  *
@@ -22,24 +23,24 @@ import { readHeroScope, writeHeroScope } from "@/lib/company/hero-scope";
  * görür. Erişilemezse (özel pencere) sessizce varsayılana düşer.
  */
 export type Audience = "buyer" | "supplier";
-/** Alıcı yüzünde hero kapsam pili: Ürün | Firma (panelle aynı sözleşme). */
-export type HeroScope = "products" | "suppliers";
 
 const KEY = "rothern.audience";
+/** Sunucunun bastığı ve kayıtlı tercih yokken açılan yüz. */
+export const DEFAULT_AUDIENCE: Audience = "supplier";
 
 /* PAYLAŞILAN TARAF DEPOSU (2026-09-17, kullanıcı: "www.rothern.com'da Ücretsiz
    Kaydol tuşu satış ekranına geçince yeşil olsun"): üst çubuk sağlayıcının
    DIŞINDA (kök düzen) mount olur; bağlam ona ulaşmaz. Tek modül-düzeyi depo:
    sağlayıcı yazar, üst çubuk `useAudienceValue` ile okur. Sunucu anlık
-   görüntüsü hep "buyer" → hidrasyon uyuşmazlığı yok. */
-let audienceNow: Audience = "buyer";
+   görüntüsü hep varsayılan yüz → hidrasyon uyuşmazlığı yok. */
+let audienceNow: Audience = DEFAULT_AUDIENCE;
 const audienceListeners = new Set<() => void>();
 function readSavedAudience(): Audience {
   try {
     const saved = window.localStorage.getItem(KEY);
-    return saved === "supplier" || saved === "buyer" ? saved : "buyer";
+    return saved === "supplier" || saved === "buyer" ? saved : DEFAULT_AUDIENCE;
   } catch {
-    return "buyer";
+    return DEFAULT_AUDIENCE;
   }
 }
 function publishAudience(a: Audience) {
@@ -54,7 +55,7 @@ function subscribeAudience(cb: () => void) {
 }
 /** Sağlayıcı dışından (üst çubuk) seçili taraf; mount'ta kayıtlı tercihi okur. */
 export function useAudienceValue(): Audience {
-  const a = useSyncExternalStore(subscribeAudience, () => audienceNow, () => "buyer" as Audience);
+  const a = useSyncExternalStore(subscribeAudience, () => audienceNow, () => DEFAULT_AUDIENCE);
   useEffect(() => {
     const saved = readSavedAudience();
     if (saved !== audienceNow) publishAudience(saved);
@@ -62,32 +63,19 @@ export function useAudienceValue(): Audience {
   return a;
 }
 
+/* Hero "Ürün | Firma" kapsam pili ve firma listesi anasayfadan KALKTI
+   (2026-09-21, kullanıcı kararı: "herkese açık kısımda firma arama
+   özelliğini kaldıralım, firmaları görüntüleyemesin"). Bağlam yalnız yüzü taşır. */
 const Ctx = createContext<{
   audience: Audience;
   setAudience: (a: Audience) => void;
-  scope: HeroScope;
-  setScope: (s: HeroScope) => void;
 }>({
-  audience: "buyer",
+  audience: DEFAULT_AUDIENCE,
   setAudience: () => {},
-  scope: "products",
-  setScope: () => {},
 });
 
 export function AudienceProvider({ children }: { children: ReactNode }) {
-  const [audience, set] = useState<Audience>("buyer");
-  // Kapsam pili (2026-09-10, kullanıcı kararı — panelle aynı): "Firma"
-  // seçiliyken alıcı gövdesi ürün değil FİRMA listesi basar. Sunucu her
-  // zaman "products" basar; localStorage'a YAZILMAZ (anlık seçim).
-  const [scope, setScopeState] = useState<HeroScope>("products");
-  useEffect(() => {
-    const saved = readHeroScope("public");
-    if (saved) setScopeState(saved);
-  }, []);
-  const setScope = (s: HeroScope) => {
-    setScopeState(s);
-    writeHeroScope("public", s);
-  };
+  const [audience, set] = useState<Audience>(DEFAULT_AUDIENCE);
 
   useEffect(() => {
     const saved = readSavedAudience();
@@ -105,7 +93,7 @@ export function AudienceProvider({ children }: { children: ReactNode }) {
     }
   };
 
-  return <Ctx.Provider value={{ audience, setAudience, scope, setScope }}>{children}</Ctx.Provider>;
+  return <Ctx.Provider value={{ audience, setAudience }}>{children}</Ctx.Provider>;
 }
 
 export function useAudience() {
@@ -119,19 +107,20 @@ const OPTIONS: {
   Icon: typeof ShoppingCartIcon;
   on: string;
 }[] = [
-  {
-    key: "buyer",
-    label: "Alıcıyım",
-    hint: "Ürün ve tedarikçi arıyorum",
-    Icon: ShoppingCartIcon,
-    on: "bg-white text-blue-700 shadow-sm",
-  },
+  // SIRA: Tedarikçiyim SOLDA, Alıcıyım SAĞDA (2026-09-21, kullanıcı kararı).
   {
     key: "supplier",
     label: "Tedarikçiyim",
     hint: "Talep arıyorum, teklif vereceğim",
     Icon: BuildingStorefrontIcon,
     on: "bg-white text-emerald-700 shadow-sm",
+  },
+  {
+    key: "buyer",
+    label: "Alıcıyım",
+    hint: "Ürün arıyorum",
+    Icon: ShoppingCartIcon,
+    on: "bg-white text-blue-700 shadow-sm",
   },
 ];
 
