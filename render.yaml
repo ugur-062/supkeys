@@ -30,7 +30,10 @@ services:
       - key: EMAIL_FROM_NAME
         value: Rothern
       - key: JWT_EXPIRES_IN
-        value: 1h
+        # 7d: oturum çerezi 7 gün (kayan yenileme AuthCookieInterceptor'da);
+        # 1h kalsaydı Blueprint senkronu canlıyı saatte bir çıkışa düşürürdü
+        # (2026-09-22 yayın taraması; staging çerezi 7d ölçüldü).
+        value: 7d
       - key: LOG_LEVEL
         value: info
       # Render trafiği Cloudflare'den geçer → gerçek istemci IP'si cf-connecting-ip

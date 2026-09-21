@@ -124,9 +124,12 @@ const nextConfig: NextConfig = {
     return [
       // Firma dizini URL'i menü adıyla hizalandı (2026-09-04): "Firmalar" →
       // `/firmalar`. Eski adres e-posta/dış bağlantılarda olabilir.
+      // Kök ve alt yol AYRI (2026-09-22): tek `:path*` kuralı kökte
+      // `/firmalar/` üretip ikinci bir 308 zinciri kuruyordu.
+      { source: "/tedarikciler", destination: "/firmalar", permanent: true },
       {
-        source: "/tedarikciler/:path*",
-        destination: "/firmalar/:path*",
+        source: "/tedarikciler/:path+",
+        destination: "/firmalar/:path+",
         permanent: true,
       },
       // Kısa yollar — public header `/company/login` ve `/company/kayit`e
