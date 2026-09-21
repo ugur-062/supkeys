@@ -192,18 +192,19 @@ export function categoryVisual(codes: string[] | undefined): SegmentVisual {
  */
 export const TONE_CLASS: Record<
   CategoryTone,
-  { surface: string; icon: string; iconStrong: string }
+  { surface: string; icon: string; iconStrong: string; tile: string; badge: string }
 > = {
   /* `icon` yedek görselde (silik, fotoğraf yerine); `iconStrong` ikonun
      GÖRSELİN KENDİSİ olduğu yerde (herkese açık anasayfa kategori vitrini,
-     2026-09-21 — çizgisel ikon, tam opaklık). */
-  amber: { surface: "bg-amber-50", icon: "text-amber-600/40", iconStrong: "text-amber-700" },
-  zinc: { surface: "bg-zinc-100", icon: "text-zinc-500/40", iconStrong: "text-zinc-700" },
-  sky: { surface: "bg-sky-50", icon: "text-sky-600/40", iconStrong: "text-sky-700" },
-  emerald: { surface: "bg-emerald-50", icon: "text-emerald-600/40", iconStrong: "text-emerald-700" },
-  violet: { surface: "bg-violet-50", icon: "text-violet-600/40", iconStrong: "text-violet-700" },
-  rose: { surface: "bg-rose-50", icon: "text-rose-600/40", iconStrong: "text-rose-700" },
-  teal: { surface: "bg-teal-50", icon: "text-teal-600/40", iconStrong: "text-teal-700" },
+     2026-09-21 — çizgisel ikon, tam opaklık). `tile` + `badge` ikonlu kartın
+     tonlu zemini ve yuvarlak ikon rozeti (kullanıcı mockup'ı, aynı gün). */
+  amber: { surface: "bg-amber-50", icon: "text-amber-600/40", iconStrong: "text-amber-700", tile: "bg-amber-50/70 ring-amber-200/60", badge: "bg-amber-100" },
+  zinc: { surface: "bg-zinc-100", icon: "text-zinc-500/40", iconStrong: "text-zinc-700", tile: "bg-zinc-100/70 ring-zinc-200/70", badge: "bg-zinc-200/80" },
+  sky: { surface: "bg-sky-50", icon: "text-sky-600/40", iconStrong: "text-sky-700", tile: "bg-sky-50/70 ring-sky-200/60", badge: "bg-sky-100" },
+  emerald: { surface: "bg-emerald-50", icon: "text-emerald-600/40", iconStrong: "text-emerald-700", tile: "bg-emerald-50/70 ring-emerald-200/60", badge: "bg-emerald-100" },
+  violet: { surface: "bg-violet-50", icon: "text-violet-600/40", iconStrong: "text-violet-700", tile: "bg-violet-50/70 ring-violet-200/60", badge: "bg-violet-100" },
+  rose: { surface: "bg-rose-50", icon: "text-rose-600/40", iconStrong: "text-rose-700", tile: "bg-rose-50/70 ring-rose-200/60", badge: "bg-rose-100" },
+  teal: { surface: "bg-teal-50", icon: "text-teal-600/40", iconStrong: "text-teal-700", tile: "bg-teal-50/70 ring-teal-200/60", badge: "bg-teal-100" },
 };
 
 /** Tüm segment kodları — kapsam testi bunu kullanır. */

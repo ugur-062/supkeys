@@ -3,6 +3,8 @@
 import { CategoryTile } from "@/components/marketplace/category-tile";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { categoryVisual } from "@/lib/public/category-visual";
+import { segmentTagline } from "@/lib/public/segment-taglines";
+import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -127,20 +129,47 @@ function PromoCard({
   visual: "photo" | "icon";
 }) {
   const { icon: Icon } = categoryVisual([c.id]);
+  if (visual === "icon") {
+    /* İKONLU TANITIM KARTI (2026-09-21, kullanıcı mockup'ı): mavi gradyan,
+       sol üstte büyük çizgisel ikon, arkada dalga + silik dev ikon dekoru,
+       altta sayı · başlık · slogan · tam genişlik beyaz düğme. */
+    return (
+      <Link
+        href={href}
+        className="group relative flex h-full min-h-72 flex-col overflow-hidden rounded-2xl bg-gradient-to-br from-blue-600 via-blue-700 to-blue-900 p-6 text-white ring-1 ring-blue-950/10 transition hover:shadow-md"
+      >
+        <span aria-hidden className="pointer-events-none absolute inset-0">
+          <svg className="absolute inset-x-0 bottom-0 h-44 w-full text-white/10" viewBox="0 0 320 176" preserveAspectRatio="none" fill="currentColor">
+            <path d="M0 96C64 40 128 152 200 104S288 40 320 72V176H0Z" />
+          </svg>
+          <Icon
+            strokeWidth={0.75}
+            className="absolute -right-8 top-16 size-48 text-white/10 transition duration-500 group-hover:scale-105 motion-reduce:transition-none"
+          />
+        </span>
+        <Icon aria-hidden strokeWidth={1} className="relative size-16 shrink-0" />
+        <span className="relative mt-auto block pt-10">
+          {c.count > 0 ? (
+            <span className="tnum block text-sm text-blue-100">
+              {c.count.toLocaleString("tr-TR")} {countNoun}
+            </span>
+          ) : null}
+          <span className="mt-1 block text-2xl/8 font-bold text-balance">{c.name}</span>
+          <span className="mt-2 block text-sm/6 text-blue-100">{segmentTagline(c.id)}</span>
+          <span className="mt-5 flex items-center justify-between rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-blue-800 transition group-hover:bg-blue-50">
+            {ctaLabel}
+            <ArrowRight aria-hidden className="size-4" />
+          </span>
+        </span>
+      </Link>
+    );
+  }
   return (
     <Link
       href={href}
       className="group flex h-full min-h-64 flex-col overflow-hidden rounded-2xl bg-gradient-to-b from-blue-700 to-blue-900 ring-1 ring-blue-950/10 transition hover:shadow-md"
     >
-      {visual === "icon" ? (
-        <span className="flex flex-1 items-center justify-center bg-blue-800/60">
-          <Icon
-            aria-hidden
-            strokeWidth={1}
-            className="size-24 text-white/90 transition duration-300 group-hover:scale-110 motion-reduce:transition-none"
-          />
-        </span>
-      ) : c.imageSrc ? (
+      {c.imageSrc ? (
         <span className="relative block flex-1 overflow-hidden">
           <Image
             src={c.imageSrc}
