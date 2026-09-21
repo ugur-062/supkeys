@@ -1,4 +1,5 @@
 import { formatDate as canonical } from "@/lib/format-date";
+import { wallClock } from "@/lib/time-zone";
 
 type DateInput = Date | string | number | null | undefined;
 
@@ -24,7 +25,9 @@ export function formatTime(value: DateInput): string {
   if (!d) return "—";
   const dd = d instanceof Date ? d : new Date(d);
   if (Number.isNaN(dd.getTime())) return "—";
-  return `${String(dd.getHours()).padStart(2, "0")}:${String(dd.getMinutes()).padStart(2, "0")}`;
+  // Ürün saat dilimi (2026-09-22) — `getHours` sunucuda UTC basıyordu.
+  const w = wallClock(dd);
+  return `${String(w.hour).padStart(2, "0")}:${String(w.minute).padStart(2, "0")}`;
 }
 
 function normalize(value: DateInput): Date | string | null {

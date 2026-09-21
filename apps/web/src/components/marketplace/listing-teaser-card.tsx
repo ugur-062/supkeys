@@ -1,3 +1,4 @@
+import { daysUntil } from "@/lib/tenders/seller-state";
 import { Badge } from "@/components/ui/badge";
 import { scopeLabel } from "@rothern/shared";
 import { Button } from "@/components/ui/button";
@@ -18,10 +19,11 @@ import Link from "next/link";
  * kırmızı, ≤7 amber. Tüm kart tıklanır (başlık bağlantısı karta yayılır);
  * "Teklif ver" ayrı hedef, üstte. Alıcı adı, kalem adları, hedef fiyat YOK.
  */
+/* Saat bazlı `Math.ceil` yerine TAKVİM günü (2026-09-22): sunucu ile istemci
+   arasındaki saniyeler sınırda farklı sayı üretip hidrasyonu bozuyordu;
+   takvim günü ürün saat diliminde sayılır (`daysUntil`). */
 function daysLeft(iso: string | null): number | null {
-  if (!iso) return null;
-  const d = Math.ceil((new Date(iso).getTime() - Date.now()) / 86_400_000);
-  return Number.isFinite(d) ? d : null;
+  return daysUntil(iso);
 }
 
 /** Aciliyet = ton: ≤3 gün kırmızı, ≤7 gün amber, ötesi nötr (kart sistemi). */

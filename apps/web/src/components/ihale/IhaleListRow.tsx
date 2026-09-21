@@ -9,7 +9,6 @@ import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
 import { scopeLabel } from "@rothern/shared";
-import { differenceInCalendarDays } from "date-fns";
 import { Star } from "lucide-react";
 import Link from "next/link";
 import { ListingCard, ROW_FOCUS, type ListingCardData } from "@/components/marketplace/listing-card";
@@ -147,7 +146,7 @@ export function IhaleListRow({
   const closeSoon =
     t.status === "OPEN" &&
     !!t.bidsCloseAt &&
-    differenceInCalendarDays(new Date(t.bidsCloseAt), new Date()) < 3;
+    (daysUntil(t.bidsCloseAt) ?? 99) < 3;
 
   const data: ListingCardData = {
     id: t.id,

@@ -19,7 +19,7 @@
  *   CANCELLED                     → "İptal Edildi"
  */
 
-import { differenceInCalendarDays } from "date-fns";
+import { calendarDaysBetween } from "@/lib/time-zone";
 export interface SellerTenderState {
   label: string;
   className: string;
@@ -130,7 +130,10 @@ export function daysUntil(iso: string | null): number | null {
   if (!iso) return null;
   // C11: TAKVİM günü farkı — Math.ceil saat-bazlı fark yüzünden hep +1
   // gösteriyordu (16 Ağu → 20 Ağu "5 gün" değil 4 gün).
-  return differenceInCalendarDays(new Date(iso), new Date());
+  // Gün ÜRÜN SAAT DİLİMİNDE sayılır (2026-09-22): yerel saatle sunucu (UTC)
+  // ve Türkiye'deki tarayıcı gece 00:00–03:00 arasında farklı gün görüyor,
+  // "3 gün kaldı"/"2 gün kaldı" hidrasyon #418 üretiyordu.
+  return calendarDaysBetween(new Date(), new Date(iso));
 }
 
 /** Aciliyet metni + rengi — eski kart footer davranışı. */
