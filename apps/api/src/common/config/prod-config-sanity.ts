@@ -54,8 +54,36 @@ export function checkProdCookieConfig(env: {
   return null;
 }
 
+/**
+ * RLS açıkken bypass bağlantısı ŞART (2026-09-22 yayın öncesi taraması):
+ * `PrismaBypassService` env yoksa sessizce ana `DATABASE_URL`e düşer; o adres
+ * kısıtlı `rothern_app` rolü olduğunda sağlık, giriş, cron ve admin okumaları
+ * boş/hatalı döner ve boot'ta hiçbir uyarı çıkmaz. Saf, test edilebilir.
+ */
+export function checkRlsBypassConfig(env: {
+  rlsEnabled: string | undefined;
+  bypassUrl: string | undefined;
+}): "rls_without_bypass" | null {
+  if ((env.rlsEnabled ?? "").trim() !== "true") return null;
+  if ((env.bypassUrl ?? "").trim() === "") return "rls_without_bypass";
+  return null;
+}
+
 /** Boot guard (fail-closed): reddedilirse THROW → deploy fail. */
 export function assertProdConfigSanity(config: ConfigService): void {
+  if (
+    checkRlsBypassConfig({
+      rlsEnabled: config.get<string>("RLS_ENABLED"),
+      bypassUrl: config.get<string>("DATABASE_URL_BYPASS"),
+    }) === "rls_without_bypass"
+  ) {
+    throw new Error(
+      "RLS_ENABLED=true iken DATABASE_URL_BYPASS boş olamaz — bypass istemcisi kısıtlı role " +
+        "düşer, çapraz-firma okumalar (sağlık, giriş, cron, admin) sessizce bozulur. " +
+        "Çözüm: DATABASE_URL_BYPASS'ı sahip rolün bağlantı adresine ayarla.",
+    );
+  }
+
   const rejection = checkProdCookieConfig({
     nodeEnv: config.get<string>("NODE_ENV"),
     cookieSameSite: config.get<string>("COOKIE_SAMESITE"),

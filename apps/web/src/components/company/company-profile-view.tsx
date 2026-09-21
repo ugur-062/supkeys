@@ -251,8 +251,11 @@ export function CompanyProfileView({
                 {edit?.logo ?? null}
               </div>
               <div className="min-w-0 pt-3">
-                <h1 className="flex flex-wrap items-center gap-2 text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">
-                  {p.name}
+                {/* Rozetler h1'in KARDEŞİ (2026-09-22 yayın taraması): h1 metni
+                    "Ege Tekstil…DoğrulanmışGold Üye" diye okunuyordu (arama motoru
+                    ve ekran okuyucu için kirli başlık). */}
+                <div className="flex flex-wrap items-center gap-2">
+                <h1 className="text-2xl font-bold tracking-tight text-zinc-950 sm:text-3xl">{p.name}</h1>
                   {p.verified ? (
                     <span
                       className="inline-flex items-center rounded-full bg-emerald-50 px-2.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-600/20 ring-inset"
@@ -277,7 +280,7 @@ export function CompanyProfileView({
                       Gold Üye
                     </span>
                   ) : null}
-                </h1>
+                </div>
                 {edit?.headline ? (
                   <div className="mt-1">{edit.headline}</div>
                 ) : (

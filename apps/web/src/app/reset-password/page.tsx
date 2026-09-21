@@ -10,7 +10,9 @@ import { ResetPasswordForm } from "./reset-password-form";
 export const dynamic = "force-dynamic";
 
 export const metadata = {
-  title: "Şifre Sıfırla — Rothern",
+  title: "Şifre Sıfırla",
+  // Jeton taşıyan işlem sayfası — aramaya girmez (2026-09-22).
+  robots: { index: false, follow: false },
 };
 
 /** Şifre sıfırlama — diğer auth ekranlarıyla aynı kabuk (AuthShell). */

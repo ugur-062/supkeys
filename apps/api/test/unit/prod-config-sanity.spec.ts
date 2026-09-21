@@ -9,9 +9,22 @@
  * .rothern.com) THROW ETMEMELİ — aşağıda açık test.
  */
 import {
+  checkRlsBypassConfig,
   checkProdCookieConfig,
   assertProdConfigSanity,
 } from "../../src/common/config/prod-config-sanity";
+
+describe("checkRlsBypassConfig — RLS açıkken bypass şart (2026-09-22)", () => {
+  it("RLS açık + bypass boş → reddet", () => {
+    expect(checkRlsBypassConfig({ rlsEnabled: "true", bypassUrl: undefined })).toBe("rls_without_bypass");
+    expect(checkRlsBypassConfig({ rlsEnabled: "true", bypassUrl: "  " })).toBe("rls_without_bypass");
+  });
+  it("RLS açık + bypass dolu → geçer; RLS kapalı → her hâlde inert", () => {
+    expect(checkRlsBypassConfig({ rlsEnabled: "true", bypassUrl: "postgresql://owner@h/db" })).toBeNull();
+    expect(checkRlsBypassConfig({ rlsEnabled: undefined, bypassUrl: undefined })).toBeNull();
+    expect(checkRlsBypassConfig({ rlsEnabled: "false", bypassUrl: "" })).toBeNull();
+  });
+});
 
 describe("checkProdCookieConfig — saf matris", () => {
   const P = "production";

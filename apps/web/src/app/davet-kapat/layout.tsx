@@ -1,14 +1,16 @@
-/**
- * Public bir sayfa DEĞİL (SEO'ya kapalı, nonce'lı CSP alır) ve `page.tsx` bir
- * client component olduğu için rota yapılandırmasını taşıyamaz → dinamik render
- * bu sunucu layout'undan zorlanır. Bkz. `@/lib/public-routes`.
- */
+import type { Metadata } from "next";
+import type { ReactNode } from "react";
+
+/* Sayfa istemci bileşeni (`useSearchParams`) → metası düzende (2026-09-22):
+   jetonlu tek tık işlem sayfası, aramaya girmez. */
+/* Public rota DEĞİL → nonce'lı CSP için dinamik render (bkz. `@/lib/public-routes`). */
 export const dynamic = "force-dynamic";
 
-export default function DavetKapatLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+export const metadata: Metadata = {
+  title: "Davetler kapatılıyor",
+  robots: { index: false, follow: false },
+};
+
+export default function DavetKapatLayout({ children }: { children: ReactNode }) {
   return children;
 }
