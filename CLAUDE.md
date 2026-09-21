@@ -1595,11 +1595,12 @@ Tuzak: canlı pooler `aws-1-eu-central-1`, staging `aws-0-…` — adres örneğ
 kopyalanınca ilk dağıtım düştü. Kill-switch: `RLS_ENABLED=false` + `DATABASE_URL`
 sahip role (İKİSİ BİRLİKTE). **Kural: çapraz-firma okuyan yeni kod bypass client
 kullanır; bayrağı kapatırken DATABASE_URL de sahip role dönmeli.**
-Önceki durum notu: RLS 23 tabloda kurulu; **STAGING VE CANLIDA AÇIK** — uygulama
-`rothern_app` (NOBYPASSRLS) rolüyle bağlanır, `RLS_ENABLED=true`, firma bağlamı
-her istekte `SET LOCAL app.current_company_id` ile yazılır. **CANLIDA HÂLÂ
-KAPALI**; adımlar ve doğrulama `docs/pre-launch-hardening.md` Faz 1'de. Geri
-dönüş tek değişken: `RLS_ENABLED=false`.
+Mekanizma: RLS 23 tabloda kurulu; uygulama `rothern_app` (NOBYPASSRLS)
+rolüyle bağlanır, `RLS_ENABLED=true`, firma bağlamı her istekte `SET LOCAL
+app.current_company_id` ile yazılır; adımlar `docs/pre-launch-hardening.md`
+Faz 1'de. **Boot kapısı (2026-09-22):** `RLS_ENABLED=true` iken
+`DATABASE_URL_BYPASS` boşsa API açılmaz (`checkRlsBypassConfig`) — bypass
+istemcisi sessizce kısıtlı role düşüp sağlık/giriş/cron'u bozamaz.
 
 ---
 
