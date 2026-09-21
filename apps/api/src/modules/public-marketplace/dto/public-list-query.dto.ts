@@ -4,6 +4,7 @@ import {
   IsInt,
   IsOptional,
   IsString,
+  Length,
   Matches,
   Max,
   MaxLength,
@@ -56,10 +57,11 @@ export class PublicListQueryDto {
   @IsIn(["3", "7", "30"])
   closesWithin?: "3" | "7" | "30";
 
-  /** Kapsam: yurtiçi / uluslararası (`isInternational`). */
+  /** Görünürlük ülkesi (ISO alpha-2): bu ülkedeki tedarikçinin görebildiği talepler (boş hedef = herkes). */
   @IsOptional()
-  @IsIn(["domestic", "international"])
-  scope?: "domestic" | "international";
+  @IsString()
+  @Length(2, 2)
+  country?: string;
 
   /** Sıralama: `newest` (varsayılan, yayın tarihi) | `closing` (süresi yaklaşan). */
   @IsOptional()
@@ -86,6 +88,12 @@ export class PublicListQueryDto {
  * gibi sayımı etkilemeyen alanlar kenar önbelleği anahtarını çoğaltmasın.
  */
 export class PublicListFacetQueryDto {
+  /** Görünürlük ülkesi (liste ile aynı anlam). */
+  @IsOptional()
+  @IsString()
+  @Length(2, 2)
+  country?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(120)

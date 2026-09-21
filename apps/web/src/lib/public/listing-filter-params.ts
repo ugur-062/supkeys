@@ -4,7 +4,7 @@ import type { ListParams } from "./marketplace-api";
 /**
  * ALIM TALEBİ DİZİNİ URL ŞEMASI — TEK KAYNAK (PROMPT 4, 2026-09-06).
  *
- * `?q=&kategori=39000000&sehir=İstanbul,İzmir&kapsam=yurtici|uluslararasi
+ * `?q=&kategori=39000000&sehir=İstanbul,İzmir&ulke=DE
  *  &sure=3|7|30&sirala=yeni|kapanis&durum=hepsi&sayfa=2`
  *
  * Eski `il=` parametresi okunmaya devam eder (paylaşılmış bağlantılar).
@@ -14,7 +14,8 @@ export interface ListingFilterState {
   q?: string;
   category?: string;
   cities: string[];
-  scope?: "yurtici" | "uluslararasi";
+  /** Görünürlük ülkesi (ISO alpha-2) — `?ulke=DE`. */
+  country?: string;
   within?: "3" | "7" | "30";
   sort?: "yeni" | "kapanis";
   /** `hepsi` = kapanmışlar da (arşiv); varsayılan yalnız açık. */
@@ -26,14 +27,14 @@ export const EMPTY_LISTING_FILTERS: ListingFilterState = { cities: [], page: 1 }
 
 export function parseListingFilters(sp: SearchParamsLike): ListingFilterState {
   const cat = get(sp, "kategori");
-  const scope = get(sp, "kapsam");
+  const country = get(sp, "ulke")?.toUpperCase();
   const within = get(sp, "sure");
   const sort = get(sp, "sirala");
   return {
     q: get(sp, "q")?.trim() || undefined,
     category: cat && /^\d{8}$/.test(cat) ? cat : undefined,
     cities: list(get(sp, "sehir") ?? get(sp, "il")),
-    scope: scope === "yurtici" || scope === "uluslararasi" ? scope : undefined,
+    country: country && /^[A-Z]{2}$/.test(country) ? country : undefined,
     within: within === "3" || within === "7" || within === "30" ? within : undefined,
     sort: sort === "yeni" || sort === "kapanis" ? sort : undefined,
     state: get(sp, "durum") === "hepsi" ? "hepsi" : undefined,
@@ -47,7 +48,7 @@ export function toListingListParams(f: ListingFilterState): ListParams {
     q: f.q,
     category: f.category,
     city: f.cities.length ? f.cities.join(",") : undefined,
-    scope: f.scope === "yurtici" ? "domestic" : f.scope === "uluslararasi" ? "international" : undefined,
+    country: f.country,
     closesWithin: f.within,
     sort: f.sort === "kapanis" ? "closing" : f.sort === "yeni" ? "newest" : undefined,
     state: f.state === "hepsi" ? "all" : undefined,
@@ -61,7 +62,7 @@ export function buildListingFilterQuery(f: ListingFilterState): string {
   if (f.q) sp.set("q", f.q);
   if (f.category) sp.set("kategori", f.category);
   if (f.cities.length) sp.set("sehir", f.cities.join(","));
-  if (f.scope) sp.set("kapsam", f.scope);
+  if (f.country) sp.set("ulke", f.country);
   if (f.within) sp.set("sure", f.within);
   if (f.sort) sp.set("sirala", f.sort);
   if (f.state) sp.set("durum", f.state);
@@ -72,7 +73,7 @@ export function buildListingFilterQuery(f: ListingFilterState): string {
 
 /** Aktif süzgeç sayısı (arama, sıralama, durum ve sayfa hariç). */
 export function activeListingFilterCount(f: ListingFilterState): number {
-  return (f.category ? 1 : 0) + f.cities.length + (f.scope ? 1 : 0) + (f.within ? 1 : 0);
+  return (f.category ? 1 : 0) + f.cities.length + (f.country ? 1 : 0) + (f.within ? 1 : 0);
 }
 
 export function clearListingFilters(f: ListingFilterState): ListingFilterState {

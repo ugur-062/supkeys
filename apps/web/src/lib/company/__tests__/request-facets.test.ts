@@ -53,8 +53,6 @@ describe("passes — her boyut", () => {
     expect(passes(r, F({ fit: ["baglanti"] }), NOW)).toBe(false);
     expect(passes(r, F({ categories: ["39000000"] }), NOW)).toBe(true);
     expect(passes(r, F({ categories: ["23000000"] }), NOW)).toBe(false);
-    expect(passes(r, F({ scope: "uluslararasi" }), NOW)).toBe(true);
-    expect(passes(r, F({ scope: "yurtici" }), NOW)).toBe(false);
     expect(passes(r, F({ format: "pazarlik" }), NOW)).toBe(true);
     expect(passes(r, F({ format: "teklif" }), NOW)).toBe(false);
     expect(passes(r, F({ currencies: ["USD", "EUR"] }), NOW)).toBe(true);
@@ -136,7 +134,6 @@ describe("requestFacets — bağlamsal sayaçlar", () => {
     expect(fx.closing).toEqual({ 3: 1, 7: 1, 30: 2 });
     expect(fx.period).toEqual({ 7: 1, 30: 1, 90: 2 });
     expect(fx.fit).toEqual({ davet: 0, baglanti: 0, urun: 0, kategori: 0, teklif: 0 });
-    expect(fx.scope).toEqual({ yurtici: 2, uluslararasi: 0 });
     expect(fx.format).toEqual({ teklif: 2, pazarlik: 0 });
   });
 });

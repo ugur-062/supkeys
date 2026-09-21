@@ -15,6 +15,8 @@ export interface TenderListItem {
   format: ListingFormat | null;
   status: ListingStatus;
   isInternational: boolean;
+  /** Görünürlük ülkeleri (boş = tüm ülkeler). */
+  targetCountries?: string[];
   categoryIds: string[];
   /** İlk 2 kategori adı (Kategori kolonu) + kalan sayaç. */
   categories: { code: string; name: string }[];

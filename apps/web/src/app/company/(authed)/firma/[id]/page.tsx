@@ -1,5 +1,6 @@
 "use client";
 
+import { ScopeChip } from "@/components/tenders/scope-chip";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { usePortalStore } from "@/lib/company/portal-store";
 import { useRouter } from "next/navigation";
@@ -290,19 +291,8 @@ export default function CompanyProfilePage() {
                     ),
                 },
                 {
-                  label: "Kapsam",
-                  value: (
-                    <span
-                      className={cn(
-                        "inline-flex rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1",
-                        l.isInternational
-                          ? "bg-emerald-50 text-emerald-700 ring-emerald-200"
-                          : "bg-slate-50 text-slate-600 ring-slate-200",
-                      )}
-                    >
-                      {l.isInternational ? "Uluslararası" : "Yurtiçi"}
-                    </span>
-                  ),
+                  label: "Görünürlük",
+                  value: <ScopeChip targetCountries={l.targetCountries} />,
                 },
                 {
                   label: "Kapanış",

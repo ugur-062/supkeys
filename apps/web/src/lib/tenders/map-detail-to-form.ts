@@ -61,7 +61,6 @@ export function mapDetailToForm(
     // Kopya daima RFQ açılır — İngiliz usulü doğrudan açılamaz (tek yol
     // "Yeni Tur" aktarması); eksiltme ilanının kopyası formatı miras almaz.
     type: forCopy ? "RFQ" : ((l.format as TenderFormData["type"]) ?? "RFQ"),
-    isInternational: l.isInternational,
     targetCountries: l.targetCountries ?? [],
     deliveryAddressId: l.deliveryAddressId ?? "",
     // Fatura adresi teslimattan farklıysa tik kapalı + seçim yüklenir;

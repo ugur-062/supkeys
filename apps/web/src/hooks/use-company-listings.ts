@@ -107,8 +107,9 @@ export interface ListingItemInput {
 export interface CreateListingInput {
   type: ListingType;
   asDraft?: boolean; // true → taslak kaydet, yayınlama
-  isInternational: boolean;
-  targetCountries?: string[]; // sınır ötesi hedef ülkeler (boş = tümü)
+  /** Eski alan — sunucu yok sayar, türetir (2026-09-21). */
+  isInternational?: boolean;
+  targetCountries?: string[]; // görünürlük ülkeleri (boş = tüm ülkeler)
   deliveryAddressId?: string;
   billingAddressId?: string;
   format?: ListingFormat;
@@ -265,6 +266,8 @@ export interface ListingBidRow {
    * görmeli. Eski yanıtlarda alan yok → `undefined` (rozet çizilmez).
    */
   bidderVerified?: boolean;
+  /** Tedarikçi ülkesi (ISO) — çok ülkeli talepte farklı ülke teklifini ayırt etmek için. */
+  bidderCountry?: string | null;
   bidderCompanyId?: string;
   amount: string;
   currency?: string;

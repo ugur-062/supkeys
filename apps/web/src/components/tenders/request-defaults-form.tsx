@@ -3,7 +3,7 @@
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { useAddresses } from "@/hooks/use-company-addresses";
-import { deliveryTermsFor, paymentCategoriesFor } from "@/lib/tenders/request-defaults";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
   CURRENCIES,
   CURRENCY_NAMES,
@@ -13,7 +13,7 @@ import {
 } from "@/lib/tenders/labels";
 import type { Currency, DeliveryTerm, LcSubType, PaymentCategory } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, type RequestDefaults } from "@rothern/shared";
+import { COUNTRIES, PAYMENT_CATEGORIES, REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, countryName, sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
 import { Globe, MapPin } from "lucide-react";
 import { createContext, useContext } from "react";
 
@@ -38,9 +38,12 @@ export const VISIBILITY_LABELS: Record<string, { label: string; hint: string }> 
  * TALEP ŞARTLARI FORMU — ticari profil (2026-09-09).
  *
  * İki yerde aynı bileşen: Şablonlar › Talep Şartları sayfası ve hızlı talep
- * kartındaki "değiştir" paneli (`compact`). Kapsam değişince teslim şekli ve
- * ödeme listeleri süzülür ve tutarsız kalan seçim temizlenir — sihirbazdaki
- * kurallarla (form-schema refine'ları) aynı.
+ * kartındaki "değiştir" paneli (`compact`).
+ *
+ * 2026-09-21: yurtiçi/uluslararası kapsamı KALKTI. "Görünürlük ülkesi"
+ * (`targetCountries`, boş = tüm ülkeler) talebi kimlerin göreceğini söyler;
+ * teslim şekli ve ödeme ülkeye göre süzülmez — alıcı tek şart koyar. Teslim
+ * noktası tedarikçinin kapısıysa ve talep birden fazla ülkeye açıksa uyarı.
  */
 export function RequestDefaultsForm({
   value,
@@ -58,20 +61,16 @@ export function RequestDefaultsForm({
   only?: ("scope" | "delivery" | "payment" | "currency" | "visibility" | "close" | "bids" | "address" | "rules")[];
 }) {
   const addresses = useAddresses();
+  const { company } = useCompanyAuth();
+  const ownerCountry = company?.country ?? "TR";
   const show = (k: NonNullable<typeof only>[number]) => !only || only.includes(k);
   const set = (patch: Partial<RequestDefaults>) => onChange({ ...value, ...patch });
-
-  const setScope = (isInternational: boolean) => {
-    const terms = deliveryTermsFor(isInternational, Object.keys(DELIVERY_TERM_LABELS));
-    const cats = paymentCategoriesFor(isInternational);
-    set({
-      isInternational,
-      deliveryTerm: value.deliveryTerm && terms.includes(value.deliveryTerm) ? value.deliveryTerm : null,
-      paymentCategory: cats.includes(value.paymentCategory) ? value.paymentCategory : isInternational ? "ADVANCE" : "OPEN_ACCOUNT",
-      advancePercent: isInternational ? null : value.advancePercent,
-      lcType: isInternational ? value.lcType : null,
-    });
-  };
+  const countries = value.targetCountries ?? [];
+  const limited = countries.length > 0;
+  const priceWarning = sellerDoorPriceWarning(countries, ownerCountry, value.deliveryTerm);
+  const allTerms = Object.keys(DELIVERY_TERM_LABELS);
+  const domesticTerms = allTerms.filter((t) => t.startsWith("DOMESTIC_"));
+  const incoterms = allTerms.filter((t) => !t.startsWith("DOMESTIC_"));
 
   const needsDays = ["DEFERRED", "CHEQUE", "SENET"].includes(value.paymentCategory) || (value.paymentCategory === "LETTER_OF_CREDIT" && value.lcType === "USANCE");
   const gap = compact ? "space-y-5" : "space-y-8";
@@ -80,20 +79,20 @@ export function RequestDefaultsForm({
     <BareContext.Provider value={bare}>
     <div className={gap}>
       {show("scope") ? (
-        <Block title="Kapsam" hint="Teslim şekli ve ödeme seçenekleri kapsama göre süzülür.">
+        <Block title="Görünürlük ülkesi" hint="Talebi hangi ülkelerdeki tedarikçiler görsün? Çıkardığınız ülkedeki firmalar talebi görmez.">
           <div className="grid grid-cols-2 gap-3">
             {[
-              { v: false, icon: MapPin, label: "Yurtiçi" },
-              { v: true, icon: Globe, label: "Uluslararası" },
+              { v: false, icon: Globe, label: "Tüm ülkeler" },
+              { v: true, icon: MapPin, label: "Seçili ülkeler" },
             ].map((o) => (
               <button
                 key={String(o.v)}
                 type="button"
-                onClick={() => setScope(o.v)}
-                aria-pressed={value.isInternational === o.v}
+                onClick={() => set({ targetCountries: o.v ? (limited ? countries : [ownerCountry]) : [] })}
+                aria-pressed={limited === o.v}
                 className={cn(
                   "flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-medium transition",
-                  value.isInternational === o.v ? "border-zinc-900 bg-zinc-900 text-white" : "border-zinc-300 text-zinc-800 hover:bg-zinc-50",
+                  limited === o.v ? "border-blue-600 bg-blue-600 text-white" : "border-zinc-300 text-zinc-800 hover:bg-zinc-50",
                 )}
               >
                 <o.icon aria-hidden className="size-4" />
@@ -101,6 +100,42 @@ export function RequestDefaultsForm({
               </button>
             ))}
           </div>
+          {limited ? (
+            <div className="mt-3 space-y-2">
+              <ul className="flex flex-wrap gap-1.5" aria-label="Seçili ülkeler">
+                {countries.map((c) => (
+                  <li key={c} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-600/20">
+                    {countryName(c)}
+                    <button
+                      type="button"
+                      aria-label={`${countryName(c)} ülkesini çıkar`}
+                      onClick={() => set({ targetCountries: countries.filter((x) => x !== c) })}
+                      className="text-blue-400 hover:text-blue-700"
+                    >
+                      ×
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <select
+                aria-label="Ülke ekle"
+                value=""
+                onChange={(e) => {
+                  const code = e.target.value;
+                  if (code && !countries.includes(code)) set({ targetCountries: [...countries, code] });
+                }}
+                className={INPUT}
+              >
+                <option value="">+ Ülke ekle</option>
+                {COUNTRIES.filter((c) => !countries.includes(c.code)).map((c) => (
+                  <option key={c.code} value={c.code}>
+                    {c.name}
+                  </option>
+                ))}
+              </select>
+              {countries.length === 0 ? <p className="text-xs text-red-700">En az bir ülke seçin; yoksa talebi kimse görmez.</p> : null}
+            </div>
+          ) : null}
         </Block>
       ) : null}
 
@@ -109,12 +144,26 @@ export function RequestDefaultsForm({
           <Label htmlFor="tsart-teslim">Teslim şekli</Label>
           <select id="tsart-teslim" value={value.deliveryTerm ?? ""} onChange={(e) => set({ deliveryTerm: e.target.value || null })} className={INPUT}>
             <option value="">— Seçin —</option>
-            {deliveryTermsFor(value.isInternational, Object.keys(DELIVERY_TERM_LABELS)).map((t) => (
-              <option key={t} value={t}>
-                {DELIVERY_TERM_LABELS[t as DeliveryTerm]}
-              </option>
-            ))}
+            <optgroup label="Adrese / yurtiçi teslim">
+              {domesticTerms.map((t) => (
+                <option key={t} value={t}>
+                  {DELIVERY_TERM_LABELS[t as DeliveryTerm]}
+                </option>
+              ))}
+            </optgroup>
+            <optgroup label="Incoterm (sınır ötesi)">
+              {incoterms.map((t) => (
+                <option key={t} value={t}>
+                  {DELIVERY_TERM_LABELS[t as DeliveryTerm]}
+                </option>
+              ))}
+            </optgroup>
           </select>
+          {priceWarning ? (
+            <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800" role="note">
+              Bu teslim şeklinde fiyat tedarikçinin kapısında oluşur; farklı ülkelerden gelen teklifler navlun ve gümrük içermez, karşılaştırma tedarikçi kapısı fiyatıyla yapılır. Kapıya inmiş fiyat için “Adrese teslim” ya da DAP/DDP seçin.
+            </p>
+          ) : null}
         </Field>
       ) : null}
 
@@ -134,14 +183,14 @@ export function RequestDefaultsForm({
             }}
             className={INPUT}
           >
-            {paymentCategoriesFor(value.isInternational).map((c) => (
+            {PAYMENT_CATEGORIES.map((c) => (
               <option key={c} value={c}>
                 {PAYMENT_CATEGORY_LABELS[c as PaymentCategory]}
               </option>
             ))}
           </select>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
-            {value.paymentCategory === "ADVANCE" && !value.isInternational ? (
+            {value.paymentCategory === "ADVANCE" ? (
               <Field hint="100 = tam peşin; altı kısmi peşin (kalan teslimde).">
                 <Label htmlFor="tsart-pesin">Peşin yüzdesi</Label>
                 <input id="tsart-pesin" type="number" min={1} max={100} value={value.advancePercent ?? 100} onChange={(e) => set({ advancePercent: Number(e.target.value) || null })} className={INPUT} />

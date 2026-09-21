@@ -4,7 +4,8 @@ import { RequestDefaultsForm, VISIBILITY_LABELS } from "@/components/tenders/req
 import { DELIVERY_TERM_LABELS, PAYMENT_CATEGORY_LABELS, formatPaymentPlan } from "@/lib/tenders/labels";
 import type { DeliveryTerm, PaymentCategory } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import type { RequestDefaults } from "@rothern/shared";
+import { scopeLabel, sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
   BanknotesIcon,
   ClipboardDocumentCheckIcon,
@@ -43,6 +44,10 @@ export function TermsPanel({
   source: "saved" | "last_listing" | "none";
 }) {
   const [open, setOpen] = useState<Section | "all" | null>(null);
+  const { company } = useCompanyAuth();
+  const ownerCountry = company?.country ?? "TR";
+  // Teslim noktası tedarikçi kapısı + birden fazla ülkeye açık → teklifler aynı ölçekte olmaz.
+  const priceWarning = sellerDoorPriceWarning(value.targetCountries ?? [], ownerCountry, value.deliveryTerm);
   const delivery = value.deliveryTerm ? (DELIVERY_TERM_LABELS[value.deliveryTerm as DeliveryTerm] ?? value.deliveryTerm).split(" — ")[0] : null;
   const payment =
     formatPaymentPlan({
@@ -59,7 +64,7 @@ export function TermsPanel({
   const expectations = [value.requireAllItems ? "tüm kalemlere teklif" : null, value.requireBidDocument ? "belge zorunlu" : null].filter(Boolean).join(" · ");
 
   const rows: { key: Section; icon: typeof TruckIcon; label: string; text: string | null; missing?: boolean }[] = [
-    { key: "scope", icon: GlobeAltIcon, label: "Kapsam", text: value.isInternational ? "Uluslararası" : "Yurtiçi" },
+    { key: "scope", icon: GlobeAltIcon, label: "Görünürlük ülkesi", text: scopeLabel(value.targetCountries ?? [], ownerCountry) },
     { key: "delivery", icon: TruckIcon, label: "Teslim şekli", text: delivery, missing: !delivery },
     { key: "payment", icon: CreditCardIcon, label: "Ödeme koşulu", text: payment },
     { key: "currency", icon: BanknotesIcon, label: "Para birimi", text: currency },
@@ -67,7 +72,7 @@ export function TermsPanel({
     { key: "rules", icon: ClipboardDocumentCheckIcon, label: "Tekliften beklenti", text: expectations || "Ek şart yok" },
   ];
   const missing = rows.filter((r) => r.missing).length;
-  const summaryLine = [value.isInternational ? "Uluslararası" : "Yurtiçi", delivery ?? "teslim şekli seçilmedi", payment, value.primaryCurrency, value.isSealedBid ? "kapalı zarf" : "açık"].join(" · ");
+  const summaryLine = [scopeLabel(value.targetCountries ?? [], ownerCountry), delivery ?? "teslim şekli seçilmedi", payment, value.primaryCurrency, value.isSealedBid ? "kapalı zarf" : "açık"].join(" · ");
 
   return (
     <section aria-labelledby="sartlar-baslik" className={cn("overflow-hidden rounded-2xl bg-white shadow-sm ring-1", missing ? "ring-red-500/40" : "ring-zinc-950/5")}>
@@ -135,6 +140,11 @@ export function TermsPanel({
         </div>
       )}
 
+      {priceWarning ? (
+        <p className="mx-5 mb-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800" role="note">
+          Teslim noktası tedarikçinin kapısı: farklı ülkelerden gelen teklifler navlun ve gümrük içermez. Kapıya inmiş fiyat için “Adrese teslim” ya da DAP/DDP seçin.
+        </p>
+      ) : null}
       <div className="flex items-center justify-between gap-2 border-t border-zinc-950/5 bg-zinc-50 px-5 py-3">
         <span className="text-[11px] text-zinc-500">
           {source === "saved" ? "Kaynak: talep şartlarınız" : source === "last_listing" ? "Kaynak: son talebiniz" : "Kaynak: platform varsayılanı"}

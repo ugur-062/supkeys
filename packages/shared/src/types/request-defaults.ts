@@ -8,10 +8,14 @@
  * enum'larıyla); burada yalnız sözleşme tipi.
  */
 export interface RequestDefaults {
-  isInternational: boolean;
+  /**
+   * Görünürlük ülkeleri (ISO alpha-2). BOŞ = tüm ülkeler (2026-09-21;
+   * eski `isInternational` kaldırıldı — yurtiçi = `[sahip ülkesi]`).
+   */
+  targetCountries: string[];
   /** PRIVATE | CONNECTIONS | PUBLIC */
   visibility: string;
-  /** ListingDeliveryTerm ya da null (kapsama göre listeden seçilir). */
+  /** ListingDeliveryTerm ya da null. Ülkeye göre süzülmez; tek listeden seçilir. */
   deliveryTerm: string | null;
   /** ListingPaymentCategory */
   paymentCategory: string;
@@ -43,11 +47,15 @@ export interface RequestDefaultsResponse {
   source: RequestDefaultsSource;
 }
 
-/** Platform varsayılanı — profil de son talep de yoksa (yurtiçi, kapalı zarf, TRY). */
+/**
+ * Platform varsayılanı — profil de son talep de yoksa: tüm ülkeler, adrese
+ * teslim (kapıya inmiş fiyat → farklı ülke teklifleri aynı ölçekte), kapalı
+ * zarf, TRY.
+ */
 export const REQUEST_DEFAULTS_FALLBACK: RequestDefaults = {
-  isInternational: false,
+  targetCountries: [],
   visibility: "CONNECTIONS",
-  deliveryTerm: null,
+  deliveryTerm: "DOMESTIC_DELIVERED",
   paymentCategory: "OPEN_ACCOUNT",
   paymentDays: null,
   advancePercent: null,

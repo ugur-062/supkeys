@@ -202,7 +202,7 @@ describe("Auction — auto-extend default'ları", () => {
 });
 
 describe("Teslim şekli × kapsam doğrulaması", () => {
-  it("yurtiçi ilanda Incoterm reddedilir; uluslararasıda DOMESTIC_* reddedilir", async () => {
+  it("teslim şekli görünürlük ülkesinden bağımsız (2026-09-21): Incoterm de yurtiçi teslim de her talepte", async () => {
     const { service, seller } = await sellerAndBuyers();
     const rfq = (over: Record<string, unknown>) =>
       auctionDto({
@@ -210,23 +210,17 @@ describe("Teslim şekli × kapsam doğrulaması", () => {
         ...over,
       });
 
-    await expect(
-      service.create(
-        seller.auth,
-        rfq({ isInternational: false, deliveryTerm: "CIF" }) as never,
-      ),
-    ).rejects.toThrow(/Yurtiçi ilanda Incoterm seçilemez/);
+    const intl = await service.create(
+      seller.auth,
+      rfq({ targetCountries: [], deliveryTerm: "CIF" }) as never,
+    );
+    expect(intl.id).toBeDefined();
 
-    await expect(
-      service.create(
-        seller.auth,
-        rfq({
-          isInternational: true,
-          targetCountries: ["DE"],
-          deliveryTerm: "DOMESTIC_DELIVERED",
-        }) as never,
-      ),
-    ).rejects.toThrow(/yurtiçi teslim şekli seçilemez/);
+    const limitedDomesticTerm = await service.create(
+      seller.auth,
+      rfq({ targetCountries: ["DE"], deliveryTerm: "DOMESTIC_DELIVERED" }) as never,
+    );
+    expect(limitedDomesticTerm.id).toBeDefined();
 
     // Uyumlu kombinasyonlar geçer.
     const domestic = await service.create(

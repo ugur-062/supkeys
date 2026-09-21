@@ -1,4 +1,5 @@
 import { PublicLayout } from "./public-layout";
+import { scopeLabel } from "@rothern/shared";
 import { GatedField } from "./gated-field";
 import { Heading } from "@/components/catalyst/heading";
 import { formatDate } from "@/lib/format-date";
@@ -77,8 +78,8 @@ export function ListingDetail({
       ? [{ label: "Yayın", value: formatDate(listing.publishedAt, "long") }]
       : []),
     {
-      label: "Kapsam",
-      value: listing.isInternational ? "Uluslararası" : "Yurtiçi",
+      label: "Görünürlük",
+      value: scopeLabel(listing.targetCountries ?? []),
     },
     { label: "Para birimi", value: listing.primaryCurrency },
     ...(listing.deliveryTerm
@@ -222,7 +223,7 @@ export function ListingDetail({
                   </>
                 ),
               },
-              { label: "Kapsam", value: listing.isInternational ? "Uluslararası" : "Yurtiçi" },
+              { label: "Görünürlük", value: scopeLabel(listing.targetCountries ?? []) },
               {
                 label: "Format",
                 value: listing.format === "ENGLISH_AUCTION" ? "Pazarlık (Eksiltme)" : "Teklif Toplama",
@@ -360,12 +361,10 @@ export function ListingDetail({
                       {listing.company.city}
                     </p>
                   ) : null}
-                  {listing.isInternational ? (
-                    <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
-                      <GlobeAltIcon aria-hidden className="size-3.5" />
-                      Uluslararası ilan
-                    </p>
-                  ) : null}
+                  <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
+                    <GlobeAltIcon aria-hidden className="size-3.5" />
+                    {scopeLabel(listing.targetCountries ?? [])}
+                  </p>
                 </div>
               </div>
               <p className="mt-4 text-xs/5 text-zinc-500">

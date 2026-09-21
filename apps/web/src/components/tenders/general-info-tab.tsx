@@ -1,5 +1,6 @@
 "use client";
 
+import { scopeLabel } from "@rothern/shared";
 import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import type { ListingDetail } from "@/hooks/use-company-listings";
@@ -169,21 +170,17 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
               {VISIBILITY_LABELS[l.visibility] ?? l.visibility}
             </span>
           </Fact>
-          <Fact label="Kapsam">
-            {l.isInternational ? "Uluslararası" : "Yurtiçi"}
+          <Fact label="Görünürlük">
+            {scopeLabel(l.targetCountries ?? [])}
           </Fact>
           <Fact label="Format">
             {l.format === "ENGLISH_AUCTION"
               ? "Pazarlık (Açık Eksiltme)"
               : "Teklif Toplama (Kapalı Zarf)"}
           </Fact>
-          {l.isInternational ? (
-            <Fact label="Hedef Ülkeler" full>
-              {(l.targetCountries ?? []).length === 0
-                ? "Tüm ülkeler"
-                : (l.targetCountries ?? [])
-                    .map((c) => countryName(c))
-                    .join(", ")}
+          {(l.targetCountries ?? []).length > 2 ? (
+            <Fact label="Görünürlük ülkeleri" full>
+              {(l.targetCountries ?? []).map((c) => countryName(c)).join(", ")}
             </Fact>
           ) : null}
         </dl>

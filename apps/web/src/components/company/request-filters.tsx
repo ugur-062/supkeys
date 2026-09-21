@@ -76,11 +76,6 @@ export function RequestFilters({ facets, idPrefix = "t" }: { facets: RequestFace
 
       <CategoryGroup facets={facets} state={state} update={update} idPrefix={idPrefix} />
 
-      <Group title="Kapsam" count={state.scope ? 1 : 0} onClear={() => update({ scope: undefined })} storageKey="talep-kapsam">
-        <Check id={`${idPrefix}-scope-all`} label="Hepsi" checked={!state.scope} onChange={() => update({ scope: undefined })} type="radio" name={radioName("scope")} />
-        <Check id={`${idPrefix}-scope-yurtici`} label="Yurtiçi" count={facets.scope.yurtici} checked={state.scope === "yurtici"} onChange={() => update({ scope: "yurtici" })} type="radio" name={radioName("scope")} />
-        <Check id={`${idPrefix}-scope-uluslararasi`} label="Uluslararası" count={facets.scope.uluslararasi} checked={state.scope === "uluslararasi"} onChange={() => update({ scope: "uluslararasi" })} type="radio" name={radioName("scope")} />
-      </Group>
 
       <Group title="Kapanış" count={state.closing ? 1 : 0} onClear={() => update({ closing: undefined })} storageKey="talep-kapanis">
         <Check id={`${idPrefix}-closing-all`} label="Hepsi" checked={!state.closing} onChange={() => update({ closing: undefined })} type="radio" name={radioName("closing")} />
@@ -210,7 +205,6 @@ export function RequestActiveChips({ facets }: { facets: RequestFacets }) {
     chips.push({ key: `fit:${f}`, label: FIT_OPTIONS.find((o) => o.key === f)?.label ?? f, onRemove: () => update((s) => ({ ...s, fit: s.fit.filter((x) => x !== f) })) });
   for (const c of state.categories)
     chips.push({ key: `cat:${c}`, label: name(facets.categories, c), onRemove: () => update((s) => ({ ...s, categories: s.categories.filter((x) => x !== c) })) });
-  if (state.scope) chips.push({ key: "scope", label: state.scope === "yurtici" ? "Yurtiçi" : "Uluslararası", onRemove: () => update({ scope: undefined }) });
   if (state.closing) chips.push({ key: "closing", label: `${state.closing} gün içinde kapanan`, onRemove: () => update({ closing: undefined }) });
   for (const b of state.buyers)
     chips.push({ key: `buyer:${b}`, label: name(facets.buyers, b), onRemove: () => update((s) => ({ ...s, buyers: s.buyers.filter((x) => x !== b) })) });

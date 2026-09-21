@@ -17,13 +17,12 @@ describe("request-filter-params (açık talep süzgeç URL şeması)", () => {
 
   it("gidiş-dönüş: her anahtar okunur ve aynen yazılır", () => {
     const q =
-      "?q=%C3%A7elik&durum=gecmis&uygunluk=davet%2Ckategori&kategori=39000000%2C23000000&kapsam=uluslararasi&kapanis=7&alici=c1%2Cc2&sehir=Bursa&para=USD%2CEUR&usul=pazarlik&donem=30&sirala=yeni&sayfa=3";
+      "?q=%C3%A7elik&durum=gecmis&uygunluk=davet%2Ckategori&kategori=39000000%2C23000000&kapanis=7&alici=c1%2Cc2&sehir=Bursa&para=USD%2CEUR&usul=pazarlik&donem=30&sirala=yeni&sayfa=3";
     const s = parseRequestFilters(new URLSearchParams(q));
     expect(s.q).toBe("çelik");
     expect(s.status).toBe("gecmis");
     expect(s.fit).toEqual(["davet", "kategori"]);
     expect(s.categories).toEqual(["39000000", "23000000"]);
-    expect(s.scope).toBe("uluslararasi");
     expect(s.closing).toBe(7);
     expect(s.buyers).toEqual(["c1", "c2"]);
     expect(s.cities).toEqual(["Bursa"]);
@@ -33,8 +32,8 @@ describe("request-filter-params (açık talep süzgeç URL şeması)", () => {
     expect(s.sort).toBe("yeni");
     expect(s.page).toBe(3);
     expect(buildRequestFilterQuery(s)).toBe(q);
-    // durum + 2 uygunluk + 2 kategori + kapsam + kapanış + 2 alıcı + şehir + 2 para + usul + dönem
-    expect(activeRequestFilterCount(s)).toBe(14);
+    // durum + 2 uygunluk + 2 kategori + kapanış + 2 alıcı + şehir + 2 para + usul + dönem (kapsam 2026-09-21'de kalktı)
+    expect(activeRequestFilterCount(s)).toBe(13);
   });
 
   it("geçersiz değerler düşer: bilinmeyen durum/uygunluk/kapanış, 8 haneli olmayan kod, sayfa 0", () => {

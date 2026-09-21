@@ -59,7 +59,6 @@ export function mapAiDraftToForm(
     // gelir, kullanıcı 2. adımda değiştirebilir. (?? []: eski oturum taslakları
     // bu alanı taşımayabilir.)
     categoryIds: (draft.suggestedCategoryIds ?? []).slice(0, 3),
-    isInternational: draft.isInternational ?? false,
     primaryCurrency:
       (currency as TenderFormData["primaryCurrency"] | null) ??
       base.primaryCurrency,

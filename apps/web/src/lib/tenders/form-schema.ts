@@ -1,7 +1,5 @@
 import { z } from "zod";
 import {
-  DOMESTIC_ONLY_PAYMENT_CATEGORIES,
-  INTERNATIONAL_ONLY_PAYMENT_CATEGORIES,
   MAX_COMPANY_ACTIVITIES,
   MAX_MONEY,
   MAX_QUANTITY,
@@ -186,8 +184,8 @@ const baseTenderSchema = z.object({
     .array(z.string().min(1).max(50, "Maksimum 50 karakter"))
     .max(10, "En fazla 10 anahtar kelime"),
   type: z.enum(TYPE_VALUES),
-  isInternational: z.boolean(),
-  // Sınır ötesi hedef ülkeler (ISO kodları). Boş = tüm yabancı ülkeler.
+  // Görünürlük ülkeleri (ISO kodları). BOŞ = tüm ülkeler (2026-09-21;
+  // yurtiçi/uluslararası kapsamı kalktı — yurtiçi = [firma ülkesi]).
   targetCountries: z.array(z.string()),
   // Teslimat / fatura adresi (CompanyAddress id) — opsiyonel.
   // Teslimat adresi OPSİYONEL (W2): hizmet/lojistik ihalede fiziksel adres
@@ -300,38 +298,8 @@ export const tenderFormSchema = baseTenderSchema
         : typeof d.paymentDays === "number" && d.paymentDays > 0,
     { message: "Vade gün sayısı zorunlu", path: ["paymentDays"] },
   )
-  // Dış-ticaret ödeme şekilleri (akreditif/vesaik/mal mukabili) YALNIZ
-  // uluslararası ihalede — backend buildPaymentPlan aynası.
-  .refine(
-    (d) =>
-      d.isInternational ||
-      !INTERNATIONAL_ONLY_PAYMENT_CATEGORIES.includes(d.paymentCategory),
-    {
-      message: "Bu ödeme şekli yalnız uluslararası satın alma talebinde seçilebilir",
-      path: ["paymentCategory"],
-    },
-  )
-  // Simetrik (madde 20): açık hesap/çek/senet YALNIZ yurtiçi ihalede.
-  .refine(
-    (d) =>
-      !d.isInternational ||
-      !DOMESTIC_ONLY_PAYMENT_CATEGORIES.includes(d.paymentCategory),
-    {
-      message: "Bu ödeme şekli yalnız yurtiçi satın alma talebinde seçilebilir",
-      path: ["paymentCategory"],
-    },
-  )
-  // Kısmi peşin (%<100) YALNIZ yurtiçi ihalede — uluslararasında tam peşin.
-  .refine(
-    (d) =>
-      d.paymentCategory !== "ADVANCE" ||
-      !d.isInternational ||
-      (d.advancePercent ?? 100) === 100,
-    {
-      message: "Kısmi peşin ödeme yalnız yurtiçi satın alma taleplerinde seçilebilir",
-      path: ["advancePercent"],
-    },
-  )
+  // 2026-09-21: ödeme şekli ve kısmi peşin ülkeye göre KISITLANMAZ (backend
+  // buildPaymentPlan aynası — kapılar oradan da kalktı).
   .refine(
     (d) => d.paymentCategory !== "LETTER_OF_CREDIT" || !!d.lcType,
     { message: "Akreditif alt tipini seçin", path: ["lcType"] },
@@ -397,7 +365,7 @@ export type TenderFormData = z.infer<typeof tenderFormSchema>;
 
 export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
   // Faz 1 — yalnızca tür + kapsam
-  1: ["type", "isInternational"],
+  1: ["type", "targetCountries"],
   // Faz 2 — kalemler
   2: ["items"],
   // Faz 3 — genel bilgi: kategori ("AI ile bul" girdisi = 2. adımın kalemleri),
@@ -456,7 +424,6 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   description: "",
   keywords: [],
   type: "RFQ",
-  isInternational: false,
   targetCountries: [],
   deliveryAddressId: "",
   billingAddressId: undefined,
