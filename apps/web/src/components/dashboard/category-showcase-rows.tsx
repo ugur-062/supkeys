@@ -2,6 +2,7 @@
 
 import { CategoryTile } from "@/components/marketplace/category-tile";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
+import { categoryVisual } from "@/lib/public/category-visual";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -65,12 +66,19 @@ export function CategoryShowcaseRows({
   hrefFor,
   countNoun = "ürün",
   ctaLabel,
+  visual = "photo",
 }: {
   rows: ShowcaseRow[];
   hrefFor: (c: ShowcaseCategory) => string;
   countNoun?: string;
   /** Promo kartın düğmesi — "Şimdi tedarikçi bulun". */
   ctaLabel: string;
+  /**
+   * `"photo"` (varsayılan, panel) segment fotoğrafı; `"icon"` (herkese açık
+   * anasayfa, 2026-09-21 kullanıcı kararı) fotoğraf YOK, çizgisel segment
+   * ikonu — kartta tonlu zeminde, promo kartta mavi zeminde beyaz.
+   */
+  visual?: "photo" | "icon";
 }) {
   if (rows.length === 0) return null;
   return (
@@ -83,7 +91,7 @@ export function CategoryShowcaseRows({
              kalanı kategorilere gider (kaynaktaki `clamp(280px,22vw,340px)`). */
           className="grid gap-6 lg:grid-cols-[clamp(17rem,22vw,21rem)_1fr]"
         >
-          <PromoCard category={row.promo} href={hrefFor(row.promo)} countNoun={countNoun} ctaLabel={ctaLabel} />
+          <PromoCard category={row.promo} href={hrefFor(row.promo)} countNoun={countNoun} ctaLabel={ctaLabel} visual={visual} />
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {row.items.map((c) => (
               <li key={c.id}>
@@ -92,6 +100,7 @@ export function CategoryShowcaseRows({
                   href={hrefFor(c)}
                   countNoun={countNoun}
                   variant="square"
+                  visual={visual}
                   sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 14vw"
                 />
               </li>
@@ -103,24 +112,35 @@ export function CategoryShowcaseRows({
   );
 }
 
-/** Sol tanıtım kartı: büyük fotoğraf üstte, altta koyu blokta sayı + ad + eylem. */
+/** Sol tanıtım kartı: büyük fotoğraf (ya da çizgisel ikon) üstte, altta koyu blokta sayı + ad + eylem. */
 function PromoCard({
   category: c,
   href,
   countNoun,
   ctaLabel,
+  visual,
 }: {
   category: ShowcaseCategory;
   href: string;
   countNoun: string;
   ctaLabel: string;
+  visual: "photo" | "icon";
 }) {
+  const { icon: Icon } = categoryVisual([c.id]);
   return (
     <Link
       href={href}
       className="group flex h-full min-h-64 flex-col overflow-hidden rounded-2xl bg-gradient-to-b from-blue-700 to-blue-900 ring-1 ring-blue-950/10 transition hover:shadow-md"
     >
-      {c.imageSrc ? (
+      {visual === "icon" ? (
+        <span className="flex flex-1 items-center justify-center bg-blue-800/60">
+          <Icon
+            aria-hidden
+            strokeWidth={1}
+            className="size-24 text-white/90 transition duration-300 group-hover:scale-110 motion-reduce:transition-none"
+          />
+        </span>
+      ) : c.imageSrc ? (
         <span className="relative block flex-1 overflow-hidden">
           <Image
             src={c.imageSrc}

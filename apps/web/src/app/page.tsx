@@ -10,7 +10,6 @@ import {
   fetchProductFacets,
   fetchProducts,
   fetchSegments,
-  fetchPublicDirectory,
 } from "@/lib/public/marketplace-api";
 import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
@@ -25,8 +24,12 @@ import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
  * Ziyaretçi üstteki anahtarla tarafını seçer; sayfa o portalın panel
  * anasayfasını, o portalın rengiyle gösterir:
  *
- *   ALICI (mavi)      hero → öne çıkan ürünler → kategori vitrini → yeni eklenenler
- *   TEDARİKÇİ (yeşil) hero → açık alım talepleri → "ürününüz vitrinde mi?"
+ *   TEDARİKÇİ (yeşil) hero → açık alım talepleri → "ürününüz vitrinde mi?"  ← VARSAYILAN (2026-09-21)
+ *   ALICI (mavi)      hero → öne çıkan ürünler → kategori vitrini (çizgisel ikon) → yeni eklenenler
+ *
+ * FİRMA ARAMA YOK (2026-09-21, kullanıcı kararı): hero kapsam pili ve firma
+ * listesi anasayfadan kalktı. `/firmalar` dizini, üst çubuk sekmesi ve altbilgi
+ * bağlantısı bu karardan ETKİLENMEDİ (ayrı yüzey).
  *
  * PANEL SAYFALARINA DOKUNULMADI (kullanıcı sınırı): `PanelHeroSearch` ve
  * `CategoryShowcaseRows` değiştirilmeden kullanılıyor — ikisi de tümüyle
@@ -73,14 +76,14 @@ export default async function HomePage() {
   if (!MARKETPLACE_LIVE) return <ComingSoon />;
 
   // Paralel; biri düşerse diğerleri sayfayı taşır (veri katmanı hata yutar).
-  const [featured, newest, productFacets, segments, demands, directory] = await Promise.all([
+  // Firma dizini ÇEKİLMEZ (2026-09-21, kullanıcı kararı): anasayfada firma
+  // arama ve firma listesi yok.
+  const [featured, newest, productFacets, segments, demands] = await Promise.all([
     fetchFeaturedProducts(),
     fetchProducts({ sort: "newest", page: 1 }),
     fetchProductFacets(),
     fetchSegments(),
     fetchListings({ type: "ALIM", page: 1 }),
-    // Hero pili "Firma"yken listelenecek ilk sayfa (2026-09-10).
-    fetchPublicDirectory(),
   ]);
 
   const showcase = buildShowcase({
@@ -118,22 +121,11 @@ export default async function HomePage() {
             görünmeyen taraf `hidden` ile ölçüm ve etkileşim dışı kalır. Yalnız
             hero tek basılır — iki arka plan fotoğrafı birden inmesin diye. */}
         <AudienceOnly side="buyer">
-          <HomeBuyer
-            featured={featured}
-            newest={newestOnly}
-            showcase={showcase}
-            companies={directory.items}
-            companiesTotal={directory.total}
-          />
+          <HomeBuyer featured={featured} newest={newestOnly} showcase={showcase} />
         </AudienceOnly>
 
         <AudienceOnly side="supplier">
-          <HomeSupplier
-            demands={demandCards}
-            total={demands.total}
-            companies={directory.items}
-            companiesTotal={directory.total}
-          />
+          <HomeSupplier demands={demandCards} total={demands.total} />
         </AudienceOnly>
 
         {/* SEO paragrafı — iki cümle, sayfanın ne olduğunu düz metinle söyler. */}

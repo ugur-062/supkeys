@@ -7,8 +7,8 @@ import { AudienceOnly, AudienceProvider, AudienceSwitch } from "../audience-swit
 
 /**
  * ALICIYIM / TEDARİKÇİYİM (2026-09-07) — anasayfanın yüzünü seçen anahtar.
- * Sunucu HER ZAMAN alıcı yüzünü basar (hidrasyon kuralı); tercih istemcide
- * okunur ve `localStorage`ta saklanır.
+ * Sunucu HER ZAMAN TEDARİKÇİ yüzünü basar (2026-09-21 varsayılan; hidrasyon
+ * kuralı); tercih istemcide okunur ve `localStorage`ta saklanır.
  */
 function Page() {
   return (
@@ -29,34 +29,35 @@ beforeEach(() => {
 });
 
 describe("AudienceSwitch", () => {
-  it("varsayılan ALICI: ürünler görünür, talepler gizli", () => {
+  it("varsayılan TEDARİKÇİ (2026-09-21): talepler görünür, ürünler gizli; sıra Tedarikçiyim · Alıcıyım", () => {
     render(<Page />);
-    expect(screen.getByRole("radio", { name: "Alıcıyım" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByRole("radio", { name: "Tedarikçiyim" }).getAttribute("aria-checked")).toBe("true");
+    expect(screen.getByText("Açık alım talepleri")).toBeVisible();
+    expect(screen.getByText("Ürünler bölümü")).not.toBeVisible();
+    expect(screen.getAllByRole("radio").map((r) => r.textContent)).toEqual(["Tedarikçiyim", "Alıcıyım"]);
+  });
+
+  it("alıcı seçilince ürünler görünür, talepler gizlenir", async () => {
+    const u = userEvent.setup();
+    render(<Page />);
+    await u.click(screen.getByRole("radio", { name: "Alıcıyım" }));
     expect(screen.getByText("Ürünler bölümü")).toBeVisible();
     expect(screen.getByText("Açık alım talepleri")).not.toBeVisible();
   });
 
-  it("tedarikçi seçilince talepler görünür, ürünler gizlenir", async () => {
-    const u = userEvent.setup();
-    render(<Page />);
-    await u.click(screen.getByRole("radio", { name: "Tedarikçiyim" }));
-    expect(screen.getByText("Açık alım talepleri")).toBeVisible();
-    expect(screen.getByText("Ürünler bölümü")).not.toBeVisible();
-  });
-
-  it("tercih saklanır: ikinci gelişte tedarikçi yüzü açılır", async () => {
+  it("tercih saklanır: ikinci gelişte alıcı yüzü açılır", async () => {
     const u = userEvent.setup();
     const { unmount } = render(<Page />);
-    await u.click(screen.getByRole("radio", { name: "Tedarikçiyim" }));
+    await u.click(screen.getByRole("radio", { name: "Alıcıyım" }));
     unmount();
 
     render(<Page />);
-    expect(await screen.findByText("Açık alım talepleri")).toBeVisible();
+    expect(await screen.findByText("Ürünler bölümü")).toBeVisible();
   });
 
   it("iki tarafın içeriği de HTML'de durur (arama motoru ikisini de görür)", () => {
     render(<Page />);
     // Gizli taraf DOM'da var, yalnız `hidden`.
-    expect(screen.getByText("Açık alım talepleri")).toBeTruthy();
+    expect(screen.getByText("Ürünler bölümü")).toBeTruthy();
   });
 });

@@ -23,12 +23,18 @@ import Link from "next/link";
  *    sayı. Satınalma anasayfasının vitrin ızgarası için (2026-09-07,
  *    kullanıcı ekran görüntüsü): 5 sütunlu sıkı ızgarada geniş kart adı tek
  *    satıra kırpıyor, kare kart iki satır veriyor ve göz sütunları tarayabiliyor.
+ *
+ * `visual` (2026-09-21, kullanıcı kararı "herkese açık anasayfada
+ * kategorilerde fotoğraf olmasın, çizgisel ikonlar"): `"photo"` (varsayılan)
+ * fotoğraf varsa onu basar; `"icon"` fotoğrafı HİÇ basmaz, segmentin çizgisel
+ * ikonunu (`category-visual.ts`, lucide, ince çizgi) tam opaklıkla çizer.
  */
 export function CategoryTile({
   category: c,
   href,
   countNoun = "ürün",
   variant = "wide",
+  visual = "photo",
   sizes = "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
 }: {
   category: ShowcaseCategory;
@@ -36,10 +42,13 @@ export function CategoryTile({
   /** "ürün" / "açık talep" — sayının birimi. */
   countNoun?: string;
   variant?: "wide" | "square";
+  /** Fotoğraf mı, çizgisel ikon mu? */
+  visual?: "photo" | "icon";
   sizes?: string;
 }) {
   const { icon: Icon, tone } = categoryVisual([c.id]);
   const t = TONE_CLASS[tone];
+  const photo = visual === "photo" ? c.imageSrc : null;
 
   if (variant === "square") {
     return (
@@ -47,10 +56,18 @@ export function CategoryTile({
         href={href}
         className="group flex h-full flex-col overflow-hidden rounded-xl bg-white p-2 shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/20 motion-reduce:transform-none"
       >
-        {c.imageSrc ? (
+        {visual === "icon" ? (
+          <span className={`flex aspect-square items-center justify-center rounded-lg ${t.surface}`}>
+            <Icon
+              aria-hidden
+              strokeWidth={1.25}
+              className={`size-10 ${t.iconStrong} transition group-hover:scale-110 motion-reduce:transform-none`}
+            />
+          </span>
+        ) : photo ? (
           <span className="relative block aspect-square overflow-hidden rounded-lg bg-zinc-100">
             <Image
-              src={c.imageSrc}
+              src={photo}
               alt=""
               fill
               sizes={sizes}
@@ -83,10 +100,10 @@ export function CategoryTile({
     >
       {/* Fotoğraf ÜSTTE, 16:10 — 48 px'lik yan küçük resim fotoğrafı okunmaz
           kılıyordu (kullanıcı: "yüksekliği çok düşük"). */}
-      {c.imageSrc ? (
+      {photo ? (
         <span className="relative block aspect-[16/10] overflow-hidden bg-zinc-100">
           <Image
-            src={c.imageSrc}
+            src={photo}
             alt=""
             fill
             sizes={sizes}
@@ -95,7 +112,7 @@ export function CategoryTile({
         </span>
       ) : (
         <span className={`flex aspect-[16/10] items-center justify-center ${t.surface}`}>
-          <Icon aria-hidden strokeWidth={1.25} className={`size-10 ${t.icon}`} />
+          <Icon aria-hidden strokeWidth={1.25} className={`size-10 ${visual === "icon" ? t.iconStrong : t.icon}`} />
         </span>
       )}
       <span className="flex items-center gap-3 px-4 py-3">
