@@ -179,6 +179,9 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     const links = within(vitrin).getAllByRole("link");
     expect(links).toHaveLength(3);
     for (const l of links) expect(l.querySelector("svg")).not.toBeNull();
+    // Tanıtım kartı (mockup 2026-09-21): slogan + tam genişlik düğme.
+    expect(within(vitrin).getByText("Daha aydınlık, daha verimli işletmeler için çözümler.")).toBeInTheDocument();
+    expect(within(vitrin).getByText("Şimdi tedarikçi bulun")).toBeInTheDocument();
   });
 
   it("TEDARİKÇİ gövdesi: talep kartı alıcı adını ve kalem adlarını TAŞIMAZ", () => {

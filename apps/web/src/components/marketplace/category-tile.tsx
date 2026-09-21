@@ -50,21 +50,37 @@ export function CategoryTile({
   const t = TONE_CLASS[tone];
   const photo = visual === "photo" ? c.imageSrc : null;
 
+  if (variant === "square" && visual === "icon") {
+    /* İKONLU KART (2026-09-21, kullanıcı mockup'ı): kartın TAMAMI tonlu
+       zemin, ortada yuvarlak rozet içinde çizgisel ikon, altında ortalı ad
+       (2 satır) ve parantezli sayı. Fotoğraf kutusu YOK. */
+    return (
+      <Link
+        href={href}
+        className={`group flex h-full flex-col items-center rounded-xl px-3 pt-5 pb-4 text-center ring-1 transition hover:-translate-y-0.5 hover:shadow-md motion-reduce:transform-none ${t.tile}`}
+      >
+        <span className={`flex size-16 items-center justify-center rounded-full ${t.badge}`}>
+          <Icon
+            aria-hidden
+            strokeWidth={1.5}
+            className={`size-7 ${t.iconStrong} transition group-hover:scale-110 motion-reduce:transform-none`}
+          />
+        </span>
+        <span className="mt-4 line-clamp-2 text-[13px]/5 font-semibold text-zinc-900">{c.name}</span>
+        {c.count > 0 ? (
+          <span className="tnum mt-1 text-xs text-zinc-500">({c.count.toLocaleString("tr-TR")})</span>
+        ) : null}
+      </Link>
+    );
+  }
+
   if (variant === "square") {
     return (
       <Link
         href={href}
         className="group flex h-full flex-col overflow-hidden rounded-xl bg-white p-2 shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-md hover:ring-zinc-950/20 motion-reduce:transform-none"
       >
-        {visual === "icon" ? (
-          <span className={`flex aspect-square items-center justify-center rounded-lg ${t.surface}`}>
-            <Icon
-              aria-hidden
-              strokeWidth={1.25}
-              className={`size-10 ${t.iconStrong} transition group-hover:scale-110 motion-reduce:transform-none`}
-            />
-          </span>
-        ) : photo ? (
+        {photo ? (
           <span className="relative block aspect-square overflow-hidden rounded-lg bg-zinc-100">
             <Image
               src={photo}
