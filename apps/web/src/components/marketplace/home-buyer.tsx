@@ -15,15 +15,13 @@ import { MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
  * ANASAYFANIN ALICI YÜZÜ — satınalma panosunun herkese açık hâli
  * (2026-09-08, kullanıcı kararı).
  *
- * Panelle AYNI sıra ve aynı bileşenler:
- *   1 hero (sayfa düzeyinde)  2 ürün şeridi  3 kategori vitrini
- *   4 ikinci ürün şeridi
+ * Sıra (2026-09-22, kullanıcı kararı "öne çıkan ürünler kalksın,
+ * kategoriler gelsin direkt"):
+ *   1 hero (sayfa düzeyinde)  2 kategori vitrini  3 yeni eklenen ürünler
  *
- * TEK SAPMA — birinci şeridin BAŞLIĞI. Panelde "Size uygun ürünler / alım
- * kategorilerinizle örtüşen" yazıyor; bu, giriş yapmış firmanın beyan ettiği
- * kategorilere dayanıyor. Ziyaretçinin profili YOK, dolayısıyla "size uygun"
- * anonimde ölçülmemiş bir iddia olurdu. Yerine ölçülebilir kesit:
- * "Öne çıkan ürünler" (doğrulanmış firma önce, firma başına en çok 2).
+ * Panelin "Size uygun ürünler" şeridi burada YOK: giriş yapmış firmanın beyan
+ * ettiği kategorilere dayanır, ziyaretçinin profili yok. Anonim karşılığı
+ * olan "Öne çıkan ürünler" şeridi de 2026-09-22'de kaldırıldı.
  *
  * Panelin son arama geçmişine dayanan varyantı da BURADA YOK: geçmiş
  * `localStorage`ta, sayfa ise ISR ile statik — koşulu render'a taşımak
@@ -36,11 +34,9 @@ import { MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
  * (`category-visual.ts`), panel vitrini fotoğraflı kalır.
  */
 export function HomeBuyer({
-  featured,
   newest,
   showcase,
 }: {
-  featured: ProductIndexCard[];
   newest: ProductIndexCard[];
   showcase: ShowcaseCategory[];
 }) {
@@ -49,16 +45,10 @@ export function HomeBuyer({
 
   return (
     <div className="mx-auto max-w-7xl space-y-10 px-4 pb-14 sm:px-6 lg:px-8">
+      {/* "ÖNE ÇIKAN ÜRÜNLER" ŞERİDİ KALKTI (2026-09-22, kullanıcı: "ilk kısımdaki
+          öne çıkan ürünler kısmını kaldır, kategoriler gelsin direkt") — hero'nun
+          hemen altı kategori vitrini; "Yeni eklenen ürünler" onun altında. */}
       <div className="space-y-10">
-      <ProductStrip
-        id="one-cikan-urunler"
-        title="Öne çıkan ürünler"
-        lead="Doğrulanmış tedarikçilerin vitrinlerinden — fiyat ve minimum sipariş bilgisiyle."
-        href={MARKETPLACE_ROUTES.products}
-        items={featured}
-        accent="blue"
-      />
-
       {/* ÇAPA: footer'daki "Kategoriler" bağlantısı `/#kategoriler`e gidiyor
           ama sayfada o id HİÇ YOKTU — tıklayan kullanıcı anasayfanın başına
           düşüyordu (canlı bulgu 2026-09-09). Sarmalayıcı `CategoryShowcaseRows`

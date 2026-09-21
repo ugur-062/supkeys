@@ -85,7 +85,6 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     render(
       <AudienceProvider>
         <HomeBuyer
-          featured={[product(1)] as any}
           newest={[] as any}
           showcase={[{ id: "39000000", name: "Elektrik", count: 5, imageSrc: null } as any]}
         />
@@ -97,7 +96,7 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     expect(screen.queryByRole("heading", { name: "Firmalar" })).toBeNull();
     expect(screen.queryByText(/\d+ firma$/)).toBeNull();
     // Ürün bölümleri her zaman görünür — kapsam pili yok, gizlenecek bir hâl yok.
-    expect(document.getElementById("one-cikan-urunler")!.closest("[hidden]")).toBeNull();
+    expect(document.getElementById("kategoriler")!.closest("[hidden]")).toBeNull();
   });
 
   it("AI ile ara ANONİMDE ÇİZİLMEZ (Silver+ ∧ koltuk izni ister)", async () => {
@@ -122,26 +121,29 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
     );
   });
 
-  it("ALICI gövdesi: 'size uygun' YOK — ziyaretçinin kategorisi yok, ölçülebilir kesit var", () => {
+  it("ALICI gövdesi: 'size uygun' ve 'öne çıkan' YOK — hero'dan sonra DOĞRUDAN kategoriler (2026-09-22)", () => {
     render(
       <HomeBuyer
-        featured={[product(1)] as any}
         newest={[product(2)] as any}
         showcase={[{ id: "39000000", name: "Elektrik", count: 5, imageSrc: null } as any]}
       />,
     );
-    expect(screen.getByRole("heading", { name: "Öne çıkan ürünler" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Öne çıkan ürünler" })).toBeNull();
+    expect(document.getElementById("one-cikan-urunler")).toBeNull();
     expect(screen.queryByText(/Size uygun/)).toBeNull();
     expect(screen.queryByText(/Alım kategorilerinizle/)).toBeNull();
+    // İlk bölüm kategori vitrini, ardından yeni eklenenler.
+    const main = screen.getByRole("heading", { name: "Yeni eklenen ürünler" }).closest("section")!;
+    const kategoriler = document.getElementById("kategoriler")!;
+    expect(kategoriler.compareDocumentPosition(main) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Ürün bağlantısı HERKESE AÇIK rota — panel rotası sızmamalı.
-    const link = screen.getAllByRole("link", { name: /Ürün 1/ })[0];
-    expect(link).toHaveAttribute("href", "/firma/firma-1/urun/urun-1");
+    const link = screen.getAllByRole("link", { name: /Ürün 2/ })[0];
+    expect(link).toHaveAttribute("href", "/firma/firma-2/urun/urun-2");
   });
 
   it("kategori kartı: ürünü OLMAYAN dal 404 veren sayfaya değil süzülmüş dizine gider", () => {
     render(
       <HomeBuyer
-        featured={[] as any}
         newest={[] as any}
         showcase={[
           { id: "39000000", name: "Elektrik", count: 5, imageSrc: null },
@@ -162,7 +164,6 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
   it("kategori vitrini FOTOĞRAFSIZ — çizgisel segment ikonu (2026-09-21, kullanıcı kararı)", () => {
     render(
       <HomeBuyer
-        featured={[] as any}
         newest={[] as any}
         showcase={[
           { id: "39000000", name: "Elektrik", count: 5, imageSrc: "/categories/39000000.webp" },

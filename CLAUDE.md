@@ -1003,8 +1003,10 @@ gün, kullanıcı: "firma arama özelliğini kaldıralım, firmaları
 görüntüleyemesin"):** hero "Ürün | Firma" / "Talep | Firma" kapsam pili,
 `#firmalar` bölümleri ve dizin çekimi kalktı; `AudienceProvider` yalnız yüzü
 taşır. `/firmalar` dizini, üst çubuk sekmesi ve altbilgi bağlantısı
-DOKUNULMADI (ayrı yüzey — kapatılacaksa ayrı karar). **Alıcı yüzü kategori
-vitrini FOTOĞRAFSIZ:** `CategoryShowcaseRows visual="icon"` → `CategoryTile
+DOKUNULMADI (ayrı yüzey — kapatılacaksa ayrı karar). **Alıcı yüzünde "Öne
+çıkan ürünler" şeridi YOK (2026-09-22, kullanıcı: "kategoriler gelsin
+direkt"):** hero → kategori vitrini → yeni eklenen ürünler; `fetchFeaturedProducts`
+anasayfada çağrılmaz. **Alıcı yüzü kategori vitrini FOTOĞRAFSIZ:** `CategoryShowcaseRows visual="icon"` → `CategoryTile
 visual="icon"` çizgisel lucide segment ikonu (`category-visual.ts`
 `TONE_CLASS.iconStrong`, tam opaklık), promo kartta mavi zeminde beyaz ikon;
 panel vitrini (`/company/satinalma`) fotoğraflı KALIR (`visual` varsayılanı
