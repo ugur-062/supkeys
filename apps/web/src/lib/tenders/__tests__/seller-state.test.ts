@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { wallClock } from "@/lib/time-zone";
 import {
   closingUrgency,
   deriveSellerTenderState,
@@ -87,10 +88,11 @@ describe("closingUrgency", () => {
     // TAKVİM günü farkı (C11) — "bugün" vakası saat-bağımsız kurulmalı:
     // `iso(-0.5)` (şimdi − 12 saat) sabah koşularında DÜNE düşüp testi
     // kırıyordu. Bugünün herhangi bir saati her koşuda 0 gün farkı verir.
+    // Gün ÜRÜN saat diliminde (Europe/Istanbul, sabit +03) sayılır (2026-09-22)
+    // → "bugün" de Türkiye günüdür; test makinesinin TZ'si ne olursa olsun.
     const todayAt = (hour: number) => {
-      const d = new Date();
-      d.setHours(hour, 0, 0, 0);
-      return d.toISOString();
+      const w = wallClock(new Date());
+      return new Date(Date.UTC(w.year, w.month - 1, w.day, hour - 3, 0, 0)).toISOString();
     };
     expect(closingUrgency("OPEN", todayAt(1))!.text).toBe("Bugün biter");
     expect(closingUrgency("OPEN", todayAt(23))!.text).toBe("Bugün biter");

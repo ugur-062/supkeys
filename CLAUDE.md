@@ -1003,8 +1003,10 @@ gün, kullanıcı: "firma arama özelliğini kaldıralım, firmaları
 görüntüleyemesin"):** hero "Ürün | Firma" / "Talep | Firma" kapsam pili,
 `#firmalar` bölümleri ve dizin çekimi kalktı; `AudienceProvider` yalnız yüzü
 taşır. `/firmalar` dizini, üst çubuk sekmesi ve altbilgi bağlantısı
-DOKUNULMADI (ayrı yüzey — kapatılacaksa ayrı karar). **Alıcı yüzü kategori
-vitrini FOTOĞRAFSIZ:** `CategoryShowcaseRows visual="icon"` → `CategoryTile
+DOKUNULMADI (ayrı yüzey — kapatılacaksa ayrı karar). **Alıcı yüzünde "Öne
+çıkan ürünler" şeridi YOK (2026-09-22, kullanıcı: "kategoriler gelsin
+direkt"):** hero → kategori vitrini → yeni eklenen ürünler; `fetchFeaturedProducts`
+anasayfada çağrılmaz. **Alıcı yüzü kategori vitrini FOTOĞRAFSIZ:** `CategoryShowcaseRows visual="icon"` → `CategoryTile
 visual="icon"` çizgisel lucide segment ikonu (`category-visual.ts`
 `TONE_CLASS.iconStrong`, tam opaklık), promo kartta mavi zeminde beyaz ikon;
 panel vitrini (`/company/satinalma`) fotoğraflı KALIR (`visual` varsayılanı
@@ -1339,6 +1341,15 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   (a) eksik stub → `x is not a function`, (b) **constructor SIRASI kayması** →
   yanlış nesne enjekte olur, hata yalnız o bağımlılığa ULAŞAN testte çıkar.
   Böyle bir değişiklikten sonra **TAM api suite'i** koşulmalı.
+- **SAAT DİLİMİ TEK KAYNAK `lib/time-zone.ts` (2026-09-22):** takvim günü
+  (`daysUntil` → `calendarDaysBetween`) ve tarih/saat metni (`formatDate`,
+  `formatTime` → `toAppWallClock`/`wallClock`) HER ZAMAN `Europe/Istanbul`
+  duvar saatiyle. Kök neden: sunucu (Vercel fra1, UTC) ile Türkiye'deki
+  tarayıcı 21:00–24:00 UTC arasında farklı takvim günündeydi → herkese açık
+  anasayfada "3 gün kaldı"/"2 gün kaldı" hidrasyon #418 (staging'de her
+  gece 00:00–03:00 ölçüldü). Kural: gösterim tarihi için `new Date()` +
+  yerel `getHours/getDate`/`differenceInCalendarDays` KULLANMA; testte
+  tarihi `+03:00` ofsetli ISO ile kur (`date.test`, `seller-state.test`).
 - **`useHeroGone`:** panel kabuğu sayfadan ÖNCE mount olur → sentinel'i
   4 sn `MutationObserver` ile bekler; `usePathname` YALNIZ efekt bağımlılığı.
 - **`Badge` tabanı `shrink-0` taşır** — daralması gereken rozete `shrink` ver.

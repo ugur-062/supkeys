@@ -1,7 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { formatDate, formatDateTime, formatTime } from "../date";
 
-const D = new Date(2026, 6, 5, 14, 30, 0); // 5 Tem 2026 14:30 (yerel)
+// 5 Tem 2026 14:30 TÜRKİYE saati — metin ürün saat dilimiyle yazılır
+// (2026-09-22), test makinesinin TZ'sinden bağımsız.
+const D = new Date("2026-07-05T14:30:00+03:00");
 
 describe("date yardımcıları", () => {
   it("formatDate gün biçimi verir", () => {

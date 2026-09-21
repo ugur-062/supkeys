@@ -5,7 +5,6 @@ import { HomeBuyer } from "@/components/marketplace/home-buyer";
 import { HomeSupplier } from "@/components/marketplace/home-supplier";
 import { buildShowcase } from "@/lib/public/category-showcase";
 import {
-  fetchFeaturedProducts,
   fetchListings,
   fetchProductFacets,
   fetchProducts,
@@ -25,7 +24,7 @@ import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
  * anasayfasını, o portalın rengiyle gösterir:
  *
  *   TEDARİKÇİ (yeşil) hero → açık alım talepleri → "ürününüz vitrinde mi?"  ← VARSAYILAN (2026-09-21)
- *   ALICI (mavi)      hero → öne çıkan ürünler → kategori vitrini (çizgisel ikon) → yeni eklenenler
+ *   ALICI (mavi)      hero → kategori vitrini (çizgisel ikon) → yeni eklenenler (öne çıkanlar 2026-09-22'de kalktı)
  *
  * FİRMA ARAMA YOK (2026-09-21, kullanıcı kararı): hero kapsam pili ve firma
  * listesi anasayfadan kalktı. `/firmalar` dizini, üst çubuk sekmesi ve altbilgi
@@ -78,8 +77,8 @@ export default async function HomePage() {
   // Paralel; biri düşerse diğerleri sayfayı taşır (veri katmanı hata yutar).
   // Firma dizini ÇEKİLMEZ (2026-09-21, kullanıcı kararı): anasayfada firma
   // arama ve firma listesi yok.
-  const [featured, newest, productFacets, segments, demands] = await Promise.all([
-    fetchFeaturedProducts(),
+  // "Öne çıkan ürünler" şeridi 2026-09-22'de kalktı → o sorgu da atılmaz.
+  const [newest, productFacets, segments, demands] = await Promise.all([
     fetchProducts({ sort: "newest", page: 1 }),
     fetchProductFacets(),
     fetchSegments(),
@@ -89,18 +88,13 @@ export default async function HomePage() {
   const showcase = buildShowcase({
     segments: segments.map((s) => ({ id: s.id, name: s.nameTr })),
     counts: productFacets.categories.map((c) => ({ id: c.id, count: c.count })),
-    productCovers: [...featured, ...newest.items].map((p) => ({
+    productCovers: newest.items.map((p) => ({
       categoryId: p.categoryId,
       image: p.images[0],
     })),
     // TÜM ana kategoriler (58 segment) — panel vitriniyle aynı kural.
     limit: 100,
   });
-
-  // "Yeni eklenen" şeridi öne çıkanları tekrar etmesin: skorlar eşitken iki
-  // liste birebir çakışıyordu.
-  const featuredKeys = new Set(featured.map((p) => `${p.company.slug}/${p.slug}`));
-  const newestOnly = newest.items.filter((p) => !featuredKeys.has(`${p.company.slug}/${p.slug}`));
 
   // Yakında kapanacaklar önce — aciliyet cezbeder.
   const demandCards = [...demands.items]
@@ -121,7 +115,7 @@ export default async function HomePage() {
             görünmeyen taraf `hidden` ile ölçüm ve etkileşim dışı kalır. Yalnız
             hero tek basılır — iki arka plan fotoğrafı birden inmesin diye. */}
         <AudienceOnly side="buyer">
-          <HomeBuyer featured={featured} newest={newestOnly} showcase={showcase} />
+          <HomeBuyer newest={newest.items} showcase={showcase} />
         </AudienceOnly>
 
         <AudienceOnly side="supplier">
