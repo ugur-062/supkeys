@@ -1,3 +1,5 @@
+import { isLocale } from "@rothern/i18n";
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ConflictException,
@@ -1278,11 +1280,14 @@ export class CompanyAuthService {
   // HESAP AYARLARI (eski ayarlar — kişisel)
   // ============================================================
 
-  /** Kendi profilini güncelle (ad/soyad/telefon). */
+  /** Kendi profilini güncelle (ad/soyad/telefon/dil). */
   async updateMe(
     userId: string,
-    dto: { firstName?: string; lastName?: string; phone?: string },
+    dto: { firstName?: string; lastName?: string; phone?: string; locale?: string },
   ) {
+    if (dto.locale !== undefined && !isLocale(dto.locale)) {
+      throw new BadRequestException(i18nMessage("api.validation.localeUnsupported"));
+    }
     await this.prisma.companyUser.update({
       where: { id: userId },
       data: {
@@ -1293,6 +1298,7 @@ export class CompanyAuthService {
           ? { lastName: dto.lastName.trim() }
           : {}),
         ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
+        ...(dto.locale !== undefined ? { locale: dto.locale } : {}),
       },
     });
     return this.getMe(userId);
@@ -1470,6 +1476,7 @@ export class CompanyAuthService {
       notificationPrefs:
         (user.notificationPrefs as Record<string, boolean> | null) ?? null,
       lastLoginAt: user.lastLoginAt,
+      locale: user.locale,
     };
   }
 

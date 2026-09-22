@@ -1,4 +1,6 @@
+import { LOCALES } from "@rothern/i18n";
 import {
+  IsIn,
   IsObject,
   IsOptional,
   IsString,
@@ -24,6 +26,11 @@ export class UpdateMeDto {
   @IsString()
   @MaxLength(30)
   phone?: string;
+
+  /** Arayüz dili — desteklenen kodlar @rothern/i18n LOCALES (tr/en/ru). */
+  @IsOptional()
+  @IsIn(LOCALES)
+  locale?: string;
 }
 
 export class ChangePasswordDto {

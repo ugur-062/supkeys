@@ -1,6 +1,7 @@
 import path from "node:path";
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
+import createNextIntlPlugin from "next-intl/plugin";
 
 // V2-7+ güvenlik (OWASP A05) — tamamlayıcı header'lar.
 // CSP burada DEĞİL: nonce tabanlı script-src per-request üretilir → src/
@@ -35,7 +36,7 @@ const nextConfig: NextConfig = {
   // Monorepo workspace paketini DERLEMEYE göm (harici require etme). Aksi halde
   // standalone çıktı @rothern/shared'i kopyalamıyor, symlink ile repo köküne
   // çözüyor → Docker imajında (monorepo yok) runtime'da modül bulunamıyordu.
-  transpilePackages: ["@rothern/shared"],
+  transpilePackages: ["@rothern/shared", "@rothern/i18n"],
 
   /**
    * GÖRSEL OPTİMİZASYONU (Faz 3c).
@@ -222,8 +223,14 @@ const nextConfig: NextConfig = {
  * mevcut Vercel derlemeleri etkilenmez. Hata yakalama sarmalayıcıdan BAĞIMSIZ
  * çalışır (`instrumentation-client.ts`).
  */
+// Çok dillilik (i18n Faz 0): `src/i18n/request.ts` istek dilini ve katalogları
+// verir. Faz 0'da YÖNLENDİRME YOK (middleware/[locale] segmenti Faz 1) — bkz.
+// docs/plan-i18n.md. Sentry sarmalayıcısı EN DIŞTA kalır.
+const withNextIntl = createNextIntlPlugin("./src/i18n/request.ts");
+const configWithIntl = withNextIntl(nextConfig);
+
 export default process.env.SENTRY_AUTH_TOKEN
-  ? withSentryConfig(nextConfig, {
+  ? withSentryConfig(configWithIntl, {
       org: process.env.SENTRY_ORG,
       project: process.env.SENTRY_PROJECT,
       // SESSİZ DEĞİL (2026-09-16): `silent: true` yükleme HATASINI da yutuyordu.
@@ -237,4 +244,4 @@ export default process.env.SENTRY_AUTH_TOKEN
       // Kaynak haritaları YÜKLENİR ama sunucuya SERVİS EDİLMEZ (gizli kalır).
       sourcemaps: { deleteSourcemapsAfterUpload: true },
     })
-  : nextConfig;
+  : configWithIntl;

@@ -1,0 +1,37 @@
+{
+  "validation": {
+    "failed": "Doğrulama hatası",
+    "required": "Bu alan zorunlu",
+    "invalid": "Geçersiz değer",
+    "notAccepted": "Bu alan kabul edilmiyor",
+    "emailInvalid": "Geçerli bir e-posta giriniz",
+    "phoneInvalid": "Geçerli bir telefon numarası giriniz",
+    "taxNumberInvalid": "Vergi numarası 10 veya 11 haneli olmalı",
+    "urlInvalid": "Geçerli bir bağlantı (URL) giriniz",
+    "uuidInvalid": "Geçerli bir kimlik (ID) giriniz",
+    "dateInvalid": "Geçerli bir tarih giriniz",
+    "dateFuture": "Tarih gelecekte olmalı",
+    "mustBeString": "Geçerli bir metin olmalı",
+    "mustBeNumber": "Geçerli bir sayı olmalı",
+    "mustBeBoolean": "Geçerli bir değer olmalı",
+    "mustBeArray": "Geçerli bir liste olmalı",
+    "stringMin": "En az {n} karakter olmalı",
+    "stringMax": "En fazla {n} karakter olabilir",
+    "numberMin": "{n} veya daha büyük olmalı",
+    "numberMax": "{n} veya daha küçük olmalı",
+    "arrayMin": "En az {n} öğe seçilmeli",
+    "arrayMax": "En fazla {n} öğe seçilebilir",
+    "inValues": "Geçersiz seçim",
+    "passwordMin": "Şifre en az 8 karakter olmalı",
+    "localeUnsupported": "Desteklenmeyen dil"
+  },
+  "business": {
+    "notFound": "Kayıt bulunamadı",
+    "forbidden": "Bu işlem için yetkiniz yok",
+    "conflict": "Bu kayıt zaten mevcut",
+    "invalidStatus": "Mevcut durumda bu işlem yapılamaz",
+    "expired": "Süresi dolmuş",
+    "alreadyUsed": "Bu kayıt daha önce kullanılmış",
+    "rateLimit": "Çok hızlı işlem yaptınız, lütfen biraz bekleyin"
+  }
+}

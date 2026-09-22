@@ -4,6 +4,30 @@ Bu dosya tamamlanmış aşamaların detaylı kaydıdır. Aktif çalışma için 
 
 ---
 
+## 2026-09-23 — Çok dillilik Faz 0 (altyapı) KURULDU
+
+**Karar (kullanıcı):** TR kaynak + EN + RU; "talep" → Request/запрос, "tender"/"тендер"
+yasaklı. Plan `docs/plan-i18n.md`.
+
+- **`@rothern/i18n` paketi:** ICU JSON kataloglar (`tr/en/ru × common/web/api/email`),
+  `messagesFor` düşüş zinciri (ru → en → tr), `createApiTranslator`/`createWebTranslator`
+  (use-intl çekirdeği esbuild ile CJS'e gömülü — use-intl yalnız ESM, jest CJS),
+  sözlük + yasaklı terim, `check` (orphan · yer tutucu · yasaklı · EN %100 · cırcır)
+  ve `sync` (Gemini REST + sözlük, `machine`/`reviewed` durum dosyası) betikleri.
+  İlk 40 anahtar; RU çevirisi betikle üretildi, EN elle ve `reviewed`.
+- **Cırcır tabanı:** 508 dosya / 6.984 sabit Türkçe literal (web+api+shared+email);
+  yeni dosya sıfır olmalı, artış `--force` ister.
+- **API:** `LocaleMiddleware` (Accept-Language → ALS) · `I18nService`/`tApi`/
+  `i18nMessage` · `translateValidatorMessage` + ValidationPipe metinleri istek dilinde
+  · JWT stratejisi kayıtlı dili uygular · `CompanyUser.locale` (migration
+  `20260923120000`, staging'e uygulandı) · `/me` döner, `PATCH me { locale }` yazar.
+- **Web:** next-intl v4 yönlendirmesiz, sağlayıcı yalnız `app/company` (cookies()
+  dinamik tuzağı) · `src/i18n/{request,runtime,runtime-bridge,locale-cookie}` ·
+  `LocaleCookieSync` · axios toast'ları `tRuntime` + `Accept-Language` · vitest
+  next-intl sahtesi (142 dosya / 791 test yeşil, üretim derlemesi yeşil).
+- **Dağıtım:** Dockerfile + vercel.json + jest mapper yeni paketi kurar; CI'da
+  `i18n test + check` adımı.
+
 ## 2026-07-19 → 07-21 — RLS multi-tenant backstop LOKAL ROLLOUT TAMAM (INV-MT-5)
 
 **Sonuç:** Postgres RLS güvenlik ağı **27 tabloda gerçek policy'li, lokal-kanıtlı** (kısıtlı

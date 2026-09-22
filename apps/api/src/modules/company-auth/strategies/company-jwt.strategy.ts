@@ -1,3 +1,4 @@
+import { applyUserLocale } from "../../../common/i18n/locale-context";
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
@@ -46,6 +47,8 @@ export interface AuthenticatedCompanyUser {
    * eski anahtarlar eşlenmiş). Kapılar ve servisler yalnız bunu okur.
    */
   permissions: string[];
+  /** Kullanıcının seçtiği arayüz dili (`CompanyUser.locale`, varsayılan tr). */
+  locale: string;
 }
 
 @Injectable()
@@ -104,6 +107,9 @@ export class CompanyJwtStrategy extends PassportStrategy(
     // veride firma sahibi SAHIP etiketini taşımayabiliyordu (rol dizisi ayrı
     // yazılmış) — bu, portal erişimi/rol düzenleme/etiketleri sessizce
     // kırıyordu. Sahipse SAHIP etiketi HER ZAMAN efektif rollerde bulunur.
+    // İstek dili: Accept-Language yoksa kullanıcının kayıtlı dili (i18n Faz 0).
+    applyUserLocale(user.locale);
+
     const isOwner = user.company.ownerUserId === user.id;
     const effectiveRoles =
       isOwner && !user.roles.includes("SAHIP")
@@ -125,6 +131,7 @@ export class CompanyJwtStrategy extends PassportStrategy(
         permissions: user.permissions,
         roles: user.roles,
       }),
+      locale: user.locale,
     };
   }
 }

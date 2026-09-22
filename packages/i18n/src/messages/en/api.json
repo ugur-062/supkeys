@@ -1,0 +1,37 @@
+{
+  "validation": {
+    "failed": "Validation error",
+    "required": "This field is required",
+    "invalid": "Invalid value",
+    "notAccepted": "This field is not accepted",
+    "emailInvalid": "Enter a valid email address",
+    "phoneInvalid": "Enter a valid phone number",
+    "taxNumberInvalid": "Tax number must be 10 or 11 digits",
+    "urlInvalid": "Enter a valid link (URL)",
+    "uuidInvalid": "Enter a valid identifier (ID)",
+    "dateInvalid": "Enter a valid date",
+    "dateFuture": "Date must be in the future",
+    "mustBeString": "Must be valid text",
+    "mustBeNumber": "Must be a valid number",
+    "mustBeBoolean": "Must be a valid value",
+    "mustBeArray": "Must be a valid list",
+    "stringMin": "Must be at least {n} characters",
+    "stringMax": "Can be at most {n} characters",
+    "numberMin": "Must be {n} or greater",
+    "numberMax": "Must be {n} or less",
+    "arrayMin": "Select at least {n} items",
+    "arrayMax": "Select at most {n} items",
+    "inValues": "Invalid selection",
+    "passwordMin": "Password must be at least 8 characters",
+    "localeUnsupported": "Unsupported language"
+  },
+  "business": {
+    "notFound": "Record not found",
+    "forbidden": "You do not have permission for this action",
+    "conflict": "This record already exists",
+    "invalidStatus": "This action is not possible in the current state",
+    "expired": "Expired",
+    "alreadyUsed": "This record has already been used",
+    "rateLimit": "Too many requests, please wait a moment"
+  }
+}

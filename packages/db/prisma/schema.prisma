@@ -2143,6 +2143,9 @@ model CompanyUser {
   // (strategy her istekte DB'den doğrular).
   tokenVersion           Int             @default(0)
   notificationPrefs      Json?
+  // Arayüz dili (i18n Faz 0, 2026-09-23): tr | en | ru — tek kaynak
+  // @rothern/i18n LOCALES. Bildirim/e-posta ALICININ bu diliyle üretilir.
+  locale                 String          @default("tr")
   invitedById            String?
   invitedAt              DateTime?
   lastLoginAt            DateTime?

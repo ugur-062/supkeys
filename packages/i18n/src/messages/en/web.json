@@ -1,0 +1,8 @@
+{
+  "settings": {
+    "language": {
+      "label": "Language",
+      "hint": "The panel, notifications and emails are shown in this language."
+    }
+  }
+}

@@ -42,6 +42,7 @@ apps/admin    Next.js   :3001  admin.rothern.com
 packages/db       @rothern/db      Prisma schema + migrations + seed + scripts
 packages/shared   @rothern/shared  Zod + types + helpers
 packages/email    @rothern/email   React Email + Resend
+packages/i18n     @rothern/i18n    Dil katalogları (ICU JSON) + çevirmen + i18n kapısı
 ```
 
 `pnpm dev` (turbo, hepsi) veya `pnpm --filter @rothern/{api,web,admin} dev`.
@@ -230,6 +231,59 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 
 ---
 
+## Çok Dillilik (i18n) — Faz 0 kuruldu (2026-09-23)
+
+Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
+Çince/Arapça sonra. Terim: "talep" → EN **Request** (asla "tender"), RU
+**запрос** (asla "тендер") — sözlük `packages/i18n/src/glossary.json`.
+
+- **Geliştirici YALNIZ `tr` yazar.** Anahtar + Türkçe metin
+  `packages/i18n/src/messages/tr/<ad-alanı>.json` (web `common`+`web`, API
+  `common`+`api`+`email`). Diğer diller `pnpm i18n:sync` (Gemini + sözlük,
+  `machine` işaretli; `--mark-reviewed <önek>` insan onayı). Anahtarlar kararlı
+  ve alan bazlı (`web.settings.language.label`); Türkçe metin anahtar DEĞİL.
+- **Eksik çeviri ekranı bozmaz:** çalışma zamanı `ru → en → tr` düşer
+  (`messagesFor`). Anahtar `tr`de de yoksa anahtar yolu görünür (geliştirici hatası).
+- **CI kapısı `pnpm i18n:check`:** orphan anahtar · ICU yer tutucu paritesi ·
+  yasaklı terim · **EN %100 (eksik + bayat = 0)** · RU rapor · **cırcır**:
+  dosya başına sabit Türkçe literal sayısı tabanı AŞAMAZ, yeni dosya SIFIR
+  olmalı (`ratchet:update` yalnız düşürür; artış `--force` ister ve incelemede
+  görünür). Sezgisel Türkçe ÖZEL harfe bakar (ç ğ ı ö ş ü); "Kaydet" gibi
+  ASCII sözcükleri görmez — bilinçli sınır.
+- **Dil kullanıcıda:** `CompanyUser.locale` (`/me` döner, `PATCH company-auth/me
+  { locale }` yazar). Web `NEXT_LOCALE` çerezine yansıtır (`LocaleCookieSync`)
+  ve her API isteğine `Accept-Language` koyar; API `LocaleMiddleware` → ALS
+  (`currentLocale()`), başlık desteklenen dil vermediyse JWT stratejisi kullanıcının
+  kayıtlı dilini uygular. Bildirim/e-posta ALICININ dilini kullanır (Faz 3).
+- **API'de metin:** `tApi("api.validation.required")` ya da DI `I18nService`;
+  istisna için `throw new BadRequestException(i18nMessage("api.business.expired",
+  undefined, "BID_EXPIRED"))` (istek dilinde mesaj + `code` + `i18nKey`).
+  class-validator VARSAYILAN mesajları `translateValidatorMessage` ile istek
+  dilinde; DTO'daki elle `message:` dizeleri Faz 3'e kadar Türkçe kalır (sınıf
+  tanımında değerlenir, dil bilmez → fonksiyon biçimine geçecek).
+- **next-intl YALNIZ panel altında (`app/company/layout.tsx`).** Tuzak:
+  `src/i18n/request.ts` `cookies()` okur = DİNAMİK API; herkese açık statik/
+  ISR sayfalara sağlayıcı ya da `getTranslations` takma — o sayfa dinamikleşir,
+  CSP/CDN önbellek tasarımı bozulur. Faz 1'de `[locale]` segmenti +
+  `setRequestLocale` ile statik kalarak gelir. Kök `<html lang>` o güne kadar
+  `tr`; panelde köprü istemcide günceller.
+- **React dışı yerde** (axios interceptor, zod hata haritası) `tRuntime(
+  "common.errors.*")` — köprü (`I18nRuntimeBridge`) yoksa Türkçe `common`
+  yedeği. Katalogun tamamını istemciye gömme (üç dilin metni paket boyutunu
+  şişirir): kök `@rothern/i18n` hafiftir, kataloglar `@rothern/i18n/messages`,
+  çevirmen `@rothern/i18n/translator` alt yollarından gelir.
+- **Testler:** web `vitest.setup.ts` next-intl'i TR katalogla SAHTELER —
+  bileşen testleri sağlayıcısız koşar, Türkçe beklentiler değişmez. API jest
+  `@rothern/i18n`'i **dist**'ten okur (use-intl yalnız ESM; paket build'i
+  çevirmeni esbuild ile CJS'e gömer) → testten önce
+  `pnpm --filter @rothern/i18n build` ŞART.
+- **Yeni workspace paketi ÜÇ yere eklenir** (2026-09-23'te yakalandı):
+  `apps/api/Dockerfile` (`COPY packages/<ad>/package.json` + build satırı),
+  `apps/web/vercel.json` `buildCommand`, jest `moduleNameMapper`. Biri
+  unutulursa yerel yeşil, dağıtım kırmızı.
+
+---
+
 ## Konvansiyonlar
 - Validation: react-hook-form + zod (web), class-validator (API DTO). Hata
   mesajları Türkçe. `<Field error hint>` sarmalama.
@@ -328,6 +382,10 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 | Sitemap parçaları · XML | `lib/seo/sitemap-parts.ts` · `lib/seo/sitemap-xml.ts` (API `public-sitemap.service.ts`) |
 | Önbellek etiketleri (web ⇔ API) | `lib/seo/tags.ts` ⇔ `modules/seo-index/seo-index.service.ts` `SEO_TAGS` |
 | Arama görünürlüğü puanı (ürün/firma/talep) | `@rothern/shared` `helpers/seo-readiness.ts` |
+| Dil listesi · varsayılan · çerez adı · düşüş zinciri · `Accept-Language` müzakeresi | `@rothern/i18n` `locales.ts` (`LOCALES`, `DEFAULT_LOCALE`, `LOCALE_COOKIE`, `negotiateLocale`) |
+| Çeviri katalogları (tr kaynak) · terim sözlüğü + yasaklı sözcükler · cırcır tabanı | `packages/i18n/src/messages/<dil>/*.json` · `src/glossary.json` · `baseline/hardcoded.json` |
+| İstek dili (API) · çevirmen · anahtarlı istisna | `common/i18n/{locale-context,i18n.service,http-i18n}.ts` (`currentLocale`, `tApi`, `i18nMessage`) |
+| React dışı çeviri köprüsü (web) · dil çerezi | `src/i18n/{runtime,locale-cookie}.ts` (`tRuntime`, `effectiveClientLocale`) |
 
 ---
 
@@ -1311,9 +1369,9 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Son migration `20260914120000_listing_preferred_activities` (aranan tedarikçi
-  tipi; tümüyle additive: `CompanyActivity[]` kolonu + boş dizi varsayılanı,
-  backfill/index/tip değişimi YOK). Staging'e 2026-09-14'te uygulandı.
+- Son migration `20260923120000_company_user_locale` (`CompanyUser.locale`
+  TEXT NOT NULL DEFAULT 'tr'; tümüyle additive). Staging'e 2026-09-23'te
+  uygulandı. Öncesi `20260914120000_listing_preferred_activities`.
 - Şema değişikliği: `migrate` (dev) → `migrate:deploy` (prod). Manuel SQL için
   `prisma/migrations/<timestamp>_<ad>/migration.sql`. **Her yeni migration'dan
   ÖNCE `docs/migration-safety.md` kontrol listesini oku.**
@@ -1405,8 +1463,8 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 
 ## Test & Kalite
 
-- API **176 dosya** (parçalı koşum, 2026-09-12 yeşil) · web **124 / 704** ·
-  admin **17 / 84** — yeşil (2026-09-12).
+- API **177 dosya** (parçalı koşum, 2026-09-12 yeşil; i18n birimi 2026-09-23)
+  · web **142 / 791** (2026-09-23) · admin **17 / 84** · i18n **6 / 22**.
 - **Bağımlılık kapısı (2026-09-12):** CI'da `pnpm audit --prod --audit-level high`.
   Tarama yokken üretim bağımlılıklarında 2 kritik + 20 yüksek birikmişti
   (Next 15.5.18 RCE uyarısı dahil) → Next 15.5.25 + hedefli `pnpm.overrides`
@@ -1635,7 +1693,9 @@ istemcisi sessizce kısıtlı role düşüp sağlık/giriş/cron'u bozamaz.
 - WebSocket real-time bildirim
 - Admin: impersonate (güvenlik değerlendirilecek), iade/refund, CSV export,
   dahili not, global arama
-- i18n (UI hâlâ Türkçe; next-intl greenfield, ayrı büyük iş)
+- i18n Faz 1–4 (`docs/plan-i18n.md`): `[locale]` yönlendirme + hreflang +
+  dil seçici (1) · panel metinleri (2) · API istisna/DTO/bildirim/e-posta (3) ·
+  kategori adları (4). Faz 0 altyapısı 2026-09-23'te kuruldu.
 
 **Teknik borç**
 - **Tablo okuma tek kaynağı yarım:** `listing-item-import.service.ts` hâlâ

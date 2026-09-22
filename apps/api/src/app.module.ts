@@ -13,6 +13,8 @@ import { maskSensitiveUrl } from "./common/logging/mask-sensitive-url";
 import { LoggerModule } from "nestjs-pino";
 import { AuthCookieInterceptor } from "./common/auth/auth-cookie.interceptor";
 import { CsrfGuard } from "./common/auth/csrf.guard";
+import { I18nModule } from "./common/i18n/i18n.service";
+import { LocaleMiddleware } from "./common/i18n/locale.middleware";
 import { RequestContextMiddleware } from "./common/logging/request-context.middleware";
 import { TenantContextMiddleware } from "./common/tenant/tenant-context.middleware";
 import { TenantContextInterceptor } from "./common/tenant/tenant-context.interceptor";
@@ -167,6 +169,8 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
       ],
     }),
     PrismaModule,
+    // Çok dillilik: istek dili ALS + çevirmen (global). bkz. docs/plan-i18n.md
+    I18nModule,
     // Altyapı (paylaşılan)
     SupabaseAuthModule,
     EmailModule,
@@ -248,8 +252,10 @@ export class AppModule implements NestModule {
     // satırı üretmez → health gürültüsü artmaz).
     // TenantContextMiddleware ÖNCE: als.run tüm isteği (RequestContext dahil
     // guard/interceptor/handler) sarar → tenant bağlamı her yerde erişilebilir.
+    // LocaleMiddleware EN ÖNCE: Accept-Language → dil ALS'i; hata mesajları ve
+    // doğrulama metinleri istek boyunca bu dilde üretilir (docs/plan-i18n.md).
     consumer
-      .apply(TenantContextMiddleware, RequestContextMiddleware)
+      .apply(LocaleMiddleware, TenantContextMiddleware, RequestContextMiddleware)
       .forRoutes("*");
   }
 }

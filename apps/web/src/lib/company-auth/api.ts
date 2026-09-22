@@ -1,5 +1,7 @@
 "use client";
 
+import { effectiveClientLocale } from "@/i18n/locale-cookie";
+import { tRuntime } from "@/i18n/runtime";
 import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
 import { readCsrfToken } from "../csrf";
@@ -24,6 +26,8 @@ const MUTATING = new Set(["post", "put", "patch", "delete"]);
 
 companyApi.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
+    // İstek dili (i18n Faz 0): API hata/doğrulama metinlerini bu dilde döner.
+    config.headers["Accept-Language"] = effectiveClientLocale();
     const method = (config.method ?? "get").toLowerCase();
     if (MUTATING.has(method)) {
       const csrf = readCsrfToken();
@@ -84,7 +88,7 @@ companyApi.interceptors.response.use(
       // Paket kilidi (TIER_REQUIRED): sayfa zaten kilit kartı basıyor — toast
       // aynı mesajı ikinci kez (ve her odak yenilemesinde) gösterirdi.
       if ((data as { code?: string } | undefined)?.code !== "TIER_REQUIRED") {
-        toast.error(pickMessage(data, "Bu işlem için yetkiniz yok"));
+        toast.error(pickMessage(data, tRuntime("common.errors.forbidden")));
       }
       return Promise.reject(error);
     }
@@ -95,7 +99,7 @@ companyApi.interceptors.response.use(
       // 404'ünde sayfada karşılık olmayabilir → toast kalır.
       const method = (error.config?.method ?? "get").toLowerCase();
       if (method !== "get") {
-        toast.error(pickMessage(data, "Kayıt bulunamadı"));
+        toast.error(pickMessage(data, tRuntime("common.errors.notFound")));
       }
       return Promise.reject(error);
     }
@@ -104,27 +108,27 @@ companyApi.interceptors.response.use(
       if (data?.errors && Object.keys(data.errors).length > 0) {
         return Promise.reject(error);
       }
-      toast.error(pickMessage(data, "Geçersiz istek"));
+      toast.error(pickMessage(data, tRuntime("common.errors.badRequest")));
       return Promise.reject(error);
     }
 
     if (status === 409) {
-      toast.error(pickMessage(data, "Bu işlem mevcut durumda yapılamaz"));
+      toast.error(pickMessage(data, tRuntime("common.errors.conflict")));
       return Promise.reject(error);
     }
 
     if (status === 422) {
-      toast.error(pickMessage(data, "Geçersiz veri"));
+      toast.error(pickMessage(data, tRuntime("common.errors.unprocessable")));
       return Promise.reject(error);
     }
 
     if (status && status >= 500) {
-      toast.error("Sunucu hatası, lütfen tekrar deneyin");
+      toast.error(tRuntime("common.errors.server"));
       return Promise.reject(error);
     }
 
     if (!error.response) {
-      toast.error("Bağlantı hatası, internet bağlantınızı kontrol edin");
+      toast.error(tRuntime("common.errors.network"));
       return Promise.reject(error);
     }
 

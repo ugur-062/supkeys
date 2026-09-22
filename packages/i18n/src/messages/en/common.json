@@ -1,0 +1,11 @@
+{
+  "errors": {
+    "forbidden": "You do not have permission for this action",
+    "notFound": "Record not found",
+    "badRequest": "Invalid request",
+    "conflict": "This action is not possible in the current state",
+    "unprocessable": "Invalid data",
+    "server": "Server error, please try again",
+    "network": "Connection error, please check your internet connection"
+  }
+}

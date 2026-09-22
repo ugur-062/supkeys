@@ -122,6 +122,14 @@ jobs:
             --shadow-database-url "postgresql://rothern:rothern_test_password@localhost:5432/rothern_shadow" \
             --exit-code
 
+      # i18n kapısı (2026-09-23, docs/plan-i18n.md): orphan anahtar, ICU yer
+      # tutucu paritesi, yasaklı terim (ihale/tender/тендер), EN kapsamı %100,
+      # sabit Türkçe literal cırcırı (dosya başına taban aşılamaz).
+      - name: i18n kapısı (katalog + cırcır)
+        run: |
+          pnpm --filter @rothern/i18n test
+          pnpm --filter @rothern/i18n check
+
       - name: Ön yüz testleri (web + admin)
         run: |
           pnpm --filter @rothern/web test

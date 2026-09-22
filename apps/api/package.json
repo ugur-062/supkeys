@@ -34,6 +34,7 @@
     "@nestjs/websockets": "^10.4.22",
     "@rothern/db": "workspace:*",
     "@rothern/email": "workspace:*",
+    "@rothern/i18n": "workspace:*",
     "@rothern/shared": "workspace:*",
     "@sentry/nestjs": "^8.55.2",
     "@supabase/supabase-js": "^2.106.0",

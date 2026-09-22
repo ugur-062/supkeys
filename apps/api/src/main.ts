@@ -23,6 +23,7 @@ import { assertProdEmailSender } from "./common/config/email-sender";
 import { checkAiKey } from "./common/config/ai-config";
 import { reportToSentry } from "./instrument";
 import { translateValidatorMessage } from "./common/error-messages";
+import { tApi } from "./common/i18n/i18n.service";
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
@@ -176,9 +177,10 @@ async function bootstrap() {
       transform: true,
       forbidNonWhitelisted: true,
       /**
-       * Polish-3 — class-validator sonuçlarını TR mesajlarla
-       * `{ message, errors: { field: msg } }` shape'ine çevir.
-       * Frontend `extractFieldErrors` ile inline gösterir.
+       * Polish-3 — class-validator sonuçlarını `{ message, errors: { field:
+       * msg } }` shape'ine çevir; metinler İSTEK DİLİNDE (i18n Faz 0, ALS
+       * bağlamı LocaleMiddleware'den). Frontend `extractFieldErrors` ile
+       * inline gösterir.
        */
       exceptionFactory: (errors: ValidationError[]) => {
         const fieldErrors: Record<string, string> = {};
@@ -194,7 +196,9 @@ async function bootstrap() {
               const PRIORITY = ["isDefined", "isNotEmpty", "isString", "isNumber", "isInt", "isBoolean", "isEnum", "isIn", "isArray", "isEmail", "isIso8601", "isUrl"];
               const keys = Object.keys(err.constraints);
               const pick = PRIORITY.find((k) => keys.includes(k)) ?? keys[0];
-              const firstMsg = missing ? "Bu alan zorunlu" : (pick ? err.constraints[pick] : undefined) ?? "Geçersiz değer";
+              const firstMsg = missing
+                ? tApi("api.validation.required")
+                : ((pick ? err.constraints[pick] : undefined) ?? tApi("api.validation.invalid"));
               fieldErrors[path] = translateValidatorMessage(firstMsg);
             }
             if (err.children && err.children.length > 0) {
@@ -207,7 +211,7 @@ async function bootstrap() {
         return new BadRequestException({
           statusCode: 400,
           error: "Bad Request",
-          message: "Doğrulama hatası",
+          message: tApi("api.validation.failed"),
           errors: fieldErrors,
         });
       },
