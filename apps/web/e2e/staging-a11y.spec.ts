@@ -8,15 +8,27 @@ import { QA, gotoRetry, uiLogin } from "./staging-helpers";
  * Onaylar kapısındaki eksik `role="status"` şans eseri bulunmuştu; sistematik
  * bir tarama yoktu. Kapı **critical + serious** ihlallerde kırmızı; moderate/
  * minor raporlanır ama kırmızı yapmaz (uzun kuyruk tek turda kapanmaz).
+ *
+ * `color-contrast` UYARIDIR, KIRMIZI YAPMAZ (2026-09-22, kullanıcı kararı):
+ * marka mavisi/yeşili bilinçli olarak AA küçük-metin eşiğinin (4,5:1) altında,
+ * 3:1 arayüz eşiğinin üstünde tutuluyor (AA tonu "çok koyu" bulundu). İhlal
+ * yine sayılıp yazdırılır; başka bir kontrast gerilemesi gözden kaçmasın.
  */
 const SEVERITY = ["critical", "serious"] as const;
+const WARN_ONLY = new Set(["color-contrast"]);
 
 async function scan(page: Page, label: string) {
   await page.waitForLoadState("networkidle").catch(() => {});
   const results = await new AxeBuilder({ page })
     .withTags(["wcag2a", "wcag2aa", "wcag21a", "wcag21aa"])
     .analyze();
-  const blocking = results.violations.filter((v) => SEVERITY.includes(v.impact as (typeof SEVERITY)[number]));
+  const blocking = results.violations.filter(
+    (v) => SEVERITY.includes(v.impact as (typeof SEVERITY)[number]) && !WARN_ONLY.has(v.id),
+  );
+  const warned = results.violations.filter((v) => WARN_ONLY.has(v.id));
+  if (warned.length > 0) {
+    console.log(`   ⚠ ${label}: kontrast uyarısı — ${warned.map((v) => `${v.id} ${v.nodes.length} düğüm`).join(", ")}`);
+  }
   const summary = blocking
     .map((v) => {
       const örnekler = v.nodes.slice(0, 3).map((n) => `${n.target.join(" ")} :: ${(n.failureSummary ?? "").split("\n")[1] ?? ""}`);
@@ -24,7 +36,9 @@ async function scan(page: Page, label: string) {
     })
     .join("\n");
   if (blocking.length > 0) console.log(`   ✗ ${label}\n${summary}`);
-  const others = results.violations.filter((v) => !SEVERITY.includes(v.impact as (typeof SEVERITY)[number]));
+  const others = results.violations.filter(
+    (v) => !SEVERITY.includes(v.impact as (typeof SEVERITY)[number]) && !WARN_ONLY.has(v.id),
+  );
   if (others.length > 0) console.log(`   ⓘ ${label}: ${others.length} düşük seviye ihlal (${others.map((v) => v.id).join(", ")})`);
   expect.soft(blocking, `${label}\n${summary}`).toEqual([]);
 }

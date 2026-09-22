@@ -17,12 +17,13 @@ yüzeyde); lacivert/altın önerileri REDDEDİLDİ. Font yalnız Inter.
 **MAVİ TONU (2026-09-19, kullanıcı):** Tailwind'in varsayılan `blue` skalası
 `globals.css` `@theme`de EZİLDİ; sınıf adları aynı, yalnız değer değişti.
 Aynı gün yeşil de EZİLDİ (eski teal'e kayan emerald "kapalı/ağır" bulundu).
-**K-2 (2026-09-22, kullanıcı kararı):** 600/700 WCAG AA'ya çekildi —
-`blue-600 #0D77CC` (beyaz metin 4,64:1; eski `#2F9BF2` 2,96:1), hover
-`#0B67B1`; `emerald-600 #168146` (4,93:1; eski `#1FB864` 2,59:1), hover
-`#136E3C`; 800–950 koyulaşarak sürer. Gecelik axe kapısı bundan kırmızıydı.
-Renk değiştirilecekse yine o blok — bileşenlere hex yazma; beyaz metin
-taşıyan dolgu için 600'ün 4,5:1'i koru.
+**K-2 (2026-09-22, iki tur):** AA tonu (`#0D77CC` 4,64:1) kullanıcıya "çok
+koyu" geldi → ORTA TON: `blue-600 #1E89DF` (beyaz metin 3,68:1), hover
+`#0D77CC`; `emerald-600 #1A9C55` (3,54:1), hover `#168146`; 800–950
+koyulaşarak sürer. Bilinçli: küçük metin AA (4,5:1) sağlanmaz, 3:1 arayüz
+eşiği sağlanır; `staging-a11y.spec` `color-contrast`ı UYARI sayar, kırmızı
+yapmaz (başka a11y ihlalleri yine kırmızı). Renk değiştirilecekse yine o blok
+— bileşenlere hex yazma; 600'ü 3:1'in altına indirme.
 
 ## Tech Stack
 - Monorepo: pnpm 10.33 + Turborepo · Node 22
