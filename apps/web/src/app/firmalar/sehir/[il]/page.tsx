@@ -1,79 +1,39 @@
-import { CityLinks } from "@/components/marketplace/city-links";
-import { CompanyIndex } from "@/components/marketplace/company-index";
-import { allCitySlugs, cityCompanyPath, cityFromSlug, citySlug } from "@/lib/public/city";
-import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
-import { fetchPublicDirectoryFacets } from "@/lib/public/marketplace-api";
+import { cityFromSlug } from "@/lib/public/city";
+import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { notFound, permanentRedirect } from "next/navigation";
 
 /**
- * ŞEHİR AÇILIŞ SAYFASI — FİRMALAR (2026-09-09, Parça 3).
- *
- * Ürün tarafının ikizi; gerekçeler orada yazılı (`app/urunler/sehir/[il]`).
- * Liste gövdesi `CompanyIndex` bileşeninden gelir — `/firmalar` ile AYNI
- * bileşen, yoksa iki liste zamanla ayrışırdı.
+ * ŞEHİR FİRMA SAYFASI KAPANDI (2026-09-22, kullanıcı kararı: "hepsini
+ * sıralamayalım, tamamını görmek için üye olmaya yönlendirelim, sayı
+ * görünmesin"). Herkese açık firma dizini artık liste değil, üyeliğe
+ * yönlendiren vitrin (`CompanyIndex`); şehir bazlı liste de o karara girer.
+ * Eski adresler (sitemap'te ve dış bağlantılarda olabilir) `/firmalar`a
+ * 308; bilinmeyen il 404. Ürün şehir sayfaları (`/urunler/sehir/<il>`)
+ * ETKİLENMEDİ.
  */
 export const revalidate = 600;
 export const dynamicParams = true;
 
 type Params = Promise<{ il: string }>;
 
+/* Yönlendirme sayfası; şablon sözleşmesi (`page-meta-contract`) için meta yine tek kaynaktan. */
+export const metadata: Metadata = buildMetadata({
+  title: "Firmalar",
+  description: "Firma dizini.",
+  path: MARKETPLACE_ROUTES.companies,
+  noindex: true,
+});
+
 export async function generateStaticParams() {
-  if (!MARKETPLACE_LIVE) return [];
-  const facets = await fetchPublicDirectoryFacets({});
-  const known = new Map(allCitySlugs().map((c) => [c.name, c.slug]));
-  return facets.cities
-    .filter((c) => c.count > 0 && known.has(c.city))
-    .map((c) => ({ il: known.get(c.city)! }));
+  return [];
 }
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
-  const { il } = await params;
-  const name = cityFromSlug(il);
-  if (!name) return { title: "Şehir bulunamadı", robots: { index: false } };
-  const facets = await fetchPublicDirectoryFacets({});
-  const count = facets.cities.find((c) => c.city === name)?.count ?? 0;
-
-  return buildMetadata({
-    title: `${name} firmaları — tedarikçi ve alıcı dizini`,
-    description:
-      count > 0
-        ? `${name}'da Rothern'e kayıtlı ${count} firma: faaliyet tipi, sektör ve ürünleriyle. Profilleri inceleyin, doğrudan bilgi isteyin.`
-        : `${name} için Rothern'de henüz listelenmiş firma yok. Yakın illerdeki firmaları inceleyebilir ya da ücretsiz profil açabilirsiniz.`,
-    path: cityCompanyPath(name),
-    noindex: count === 0,
-  });
-}
-
-export default async function Page({
-  params,
-  searchParams,
-}: {
-  params: Params;
-  searchParams: Promise<SearchParamsLike>;
-}) {
+export default async function Page({ params }: { params: Params }) {
   if (!MARKETPLACE_LIVE) notFound();
   const { il } = await params;
-  const name = cityFromSlug(il);
-  if (!name) notFound();
-  if (citySlug(name) !== il) permanentRedirect(cityCompanyPath(name));
-
-  const [sp, facets] = await Promise.all([searchParams, fetchPublicDirectoryFacets({})]);
-  const count = facets.cities.find((c) => c.city === name)?.count ?? 0;
-
-  return (
-    <CompanyIndex
-      searchParams={sp}
-      fixedCity={name}
-      title={`${name} firmaları`}
-      lead={
-        count > 0
-          ? `${name}'da Rothern'e kayıtlı alıcı ve tedarikçi firmalar. Faaliyet tipi, sektör ve ürünleriyle inceleyin.`
-          : `${name} için henüz listelenmiş firma yok. Aşağıdaki illerden devam edebilirsiniz.`
-      }
-      footer={<CityLinks cities={facets.cities} kind="companies" activeCity={name} />}
-    />
-  );
+  if (!cityFromSlug(il)) notFound();
+  permanentRedirect(MARKETPLACE_ROUTES.companies);
 }

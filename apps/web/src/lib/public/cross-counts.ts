@@ -1,4 +1,4 @@
-import { fetchListings, fetchProducts, fetchPublicDirectory } from "./marketplace-api";
+import { fetchListings, fetchProducts } from "./marketplace-api";
 import type { SearchSurface } from "@/components/marketplace/public-search-tabs";
 
 /**
@@ -24,14 +24,15 @@ export async function crossCounts(
   self: SearchSurface,
 ): Promise<Partial<Record<SearchSurface, number>>> {
   if (!q) return {};
-  const [products, companies, listings] = await Promise.all([
+  // FİRMA SAYISI BASILMAZ (2026-09-22, kullanıcı kararı: "sayı falan
+  // görünmesin, başta az firma olacağı için kötü intiba bırakır") — dizin
+  // artık üyeliğe yönlendiren vitrin; sekmede firma rozeti yok.
+  const [products, listings] = await Promise.all([
     self === "products" ? null : fetchProducts({ q }),
-    self === "companies" ? null : fetchPublicDirectory({ q }),
     self === "listings" ? null : fetchListings({ q }),
   ]);
   return {
     ...(products ? { products: products.total } : {}),
-    ...(companies ? { companies: companies.total } : {}),
     ...(listings ? { listings: listings.total } : {}),
   };
 }

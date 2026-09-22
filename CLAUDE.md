@@ -15,11 +15,14 @@ kazandırma → sipariş; tedarikçi için davet kabul + teklif verme + ürün v
 kutu + lacivert/mavi dual-tone. Palet **monokrom siyah** kalır (herkese açık
 yüzeyde); lacivert/altın önerileri REDDEDİLDİ. Font yalnız Inter.
 **MAVİ TONU (2026-09-19, kullanıcı):** Tailwind'in varsayılan `blue` skalası
-`globals.css` `@theme`de açık gök mavisiyle EZİLDİ (`--color-blue-600
-#2F9BF2`, hover 700 `#1F86DA`); sınıf adları aynı, yalnız değer değişti.
-Aynı gün yeşil de EZİLDİ (`--color-emerald-600 #1FB864`, hover `#179E54`;
-eski teal'e kayan emerald "kapalı/ağır" bulundu). Renk değiştirilecekse
-yine o blok — bileşenlere hex yazma.
+`globals.css` `@theme`de EZİLDİ; sınıf adları aynı, yalnız değer değişti.
+Aynı gün yeşil de EZİLDİ (eski teal'e kayan emerald "kapalı/ağır" bulundu).
+**K-2 (2026-09-22, kullanıcı kararı):** 600/700 WCAG AA'ya çekildi —
+`blue-600 #0D77CC` (beyaz metin 4,64:1; eski `#2F9BF2` 2,96:1), hover
+`#0B67B1`; `emerald-600 #168146` (4,93:1; eski `#1FB864` 2,59:1), hover
+`#136E3C`; 800–950 koyulaşarak sürer. Gecelik axe kapısı bundan kırmızıydı.
+Renk değiştirilecekse yine o blok — bileşenlere hex yazma; beyaz metin
+taşıyan dolgu için 600'ün 4,5:1'i koru.
 
 ## Tech Stack
 - Monorepo: pnpm 10.33 + Turborepo · Node 22
@@ -867,6 +870,7 @@ sayfasının başındaki bant, üst çubuk DEĞİL.
 |------|-----|
 | `/company/satinalma` | pazar GİRİŞİ (hero arama → öneri şeridi → kategori vitrini → yeni eklenenler) |
 | `/company/satinalma/urunler` · `/firmalar` · `/kategori/<kod>-<ad>` | dizinler + kategori sayfası |
+| herkese açık `/firmalar` | **ÜYELİĞE YÖNLENDİREN VİTRİN (2026-09-22, kullanıcı: "hepsini sıralamayalım, tamamını görmek için üye olmaya yönlendirelim, sayı görünmesin")** — `CompanyIndex` en fazla 6 kart + üyelik kartı; süzgeç/arama/sayfalama/sayaç YOK; JSON-LD `totalItems` yok; `crossCounts` firma sayısı basmaz; typeahead varsayılan kapsamı ürün+talep; `/firmalar/sehir/<il>` → `/firmalar` 308 ve sitemap/llms'ten çıktı; llms-full firma sayısı yazmaz. Panel dizini ve `/firma/<slug>` profilleri (sitemap `companies.xml`) DOKUNULMADI. Footer'da Mesafeli Satış + İptal-İade bağlantıları (aynı gün) |
 | `/company/satinalma/urunler/<firma>/<ürün>` | ürün detayı |
 | `/company/satinalma/tedarikcilerim` · `/company/satis/musterilerim` | YALNIZ ilişki yönetimi (`ConnectionsView portal=…`, 2026-09-10 dördüncü tur = TABLO): Keşfet/sekme/ray YOK; başlıkta "Firma bul" → portalın dizini + "Davet et" tek diyalog (tek/toplu) + Rothern ID satırı; arama ÜSTTE, altında görünüm çipleri (Bağlantılarım · Gelen istekler · Bekleyenler, sayılı, gelen amber), altında dense tablo (Firma · Sektör/Şehir · Durum · Eylem); 50'şer çizim — **uzun vade kuralı: liste büyüyünce sayfa uzamaz** |
 | `/company/satis` | açık talepler TAM listesi (kenar süzgeçli, `SellerTendersView embedded`); hero anahtarı "Talep \| Firma" |

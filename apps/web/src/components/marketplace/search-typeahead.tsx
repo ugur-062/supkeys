@@ -102,7 +102,9 @@ function rowsFrom(s: SuggestResult): Row[] {
 
 export function SearchTypeahead({
   size = "sm",
-  scopes = ["products", "companies", "listings"],
+  // "companies" varsayılandan çıktı (2026-09-22): herkese açık firma dizini
+  // artık liste değil, üyeliğe yönlendiren vitrin; firma adı önerisi de listeleme sayılır.
+  scopes = ["products", "listings"],
   defaultScope = "products",
   className,
   autoFocus = false,

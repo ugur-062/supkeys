@@ -6,7 +6,7 @@ import {
   fetchSitemapSummary,
   type SitemapSummary,
 } from "@/lib/public/marketplace-api";
-import { allCitySlugs, cityCompanyPath, cityProductPath } from "@/lib/public/city";
+import { allCitySlugs, cityProductPath } from "@/lib/public/city";
 import { absoluteUrl } from "@/lib/seo/meta";
 import type { SitemapIndexItem, SitemapUrl } from "@/lib/seo/sitemap-xml";
 
@@ -125,9 +125,8 @@ export async function buildPart(part: PartName): Promise<SitemapUrl[]> {
         ...s.productCities
           .filter((c) => c.count > 0 && known.has(c.city))
           .map((c) => ({ loc: absoluteUrl(cityProductPath(c.city)), lastmod: c.lastmod, changefreq: "daily" as const, priority: 0.7 })),
-        ...s.companyCities
-          .filter((c) => c.count > 0 && known.has(c.city))
-          .map((c) => ({ loc: absoluteUrl(cityCompanyPath(c.city)), lastmod: c.lastmod, changefreq: "weekly" as const, priority: 0.6 })),
+        // Firma şehir sayfaları YOK (2026-09-22): dizin liste değil, üyeliğe
+        // yönlendiren vitrin; `/firmalar/sehir/<il>` → `/firmalar` 308.
       ];
     }
     case "products": {

@@ -1,162 +1,120 @@
 import { CompanyCard } from "@/components/marketplace/company-card";
-import { CompanyActiveChips, CompanyFilters, CompanySortBar } from "@/components/marketplace/company-filters";
-import { FilterResults, MobileFilterButton, ResultCount } from "@/components/marketplace/filter-shell";
-import { CompanyFilterShell } from "@/components/marketplace/list-filter-shells";
-import { PublicEmptyState } from "@/components/marketplace/public-empty-state";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
-import { PublicListPage } from "@/components/marketplace/public-list-page";
 import { PublicSearchTabs } from "@/components/marketplace/public-search-tabs";
-import { crossCounts } from "@/lib/public/cross-counts";
-import { Pagination } from "@/components/ui/pagination";
-import {
-  activeCompanyFilterCount,
-  buildCompanyFilterQuery,
-  parseCompanyFilters,
-  toDirectoryParams,
-} from "@/lib/public/company-filter-params";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
-import type { ReactNode } from "react";
 import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
-import { fetchPublicDirectory, fetchPublicDirectoryFacets } from "@/lib/public/marketplace-api";
-import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
-import { signupHref } from "@/lib/public/visibility";
-import { resolveSiteUrl } from "@/lib/site-url";
-import { CityLinks } from "@/components/marketplace/city-links";
+import { fetchPublicDirectory } from "@/lib/public/marketplace-api";
+import { loginHref, signupHref } from "@/lib/public/visibility";
 import { JsonLd } from "@/components/seo/json-ld";
 import { graph, itemListNode } from "@/lib/seo/jsonld";
+import { ArrowRightIcon, LockClosedIcon } from "@heroicons/react/20/solid";
+import Link from "next/link";
 
 /**
- * FİRMA DİZİNİ GÖVDESİ — sayfa değil BİLEŞEN (2026-09-09, Parça 3).
+ * FİRMA DİZİNİ — ÜYELİĞE YÖNLENDİREN VİTRİN (2026-09-22, kullanıcı kararı:
+ * "hepsini sıralamayalım, tamamını görmek için üye olmaya yönlendirelim,
+ * sayı falan görünmesin çünkü başta az firma olacağı için kötü bir intiba
+ * bırakır").
  *
- * `/firmalar` ve `/firmalar/sehir/<il>` AYNI listeyi gösterir; gövde sayfada
- * kalsaydı şehir sayfası kopyasını taşırdı ve iki liste zamanla ayrışırdı
- * (denetimde en sık tekrar eden hata). Şehir sayfası yalnız başlık, giriş
- * cümlesi ve sabit süzgeci veriyor.
+ * Eski hâli tam liste + kenar süzgeci + sayfalama + "N firma" sayacı +
+ * şehir bağlantılarıydı (2026-09-09, Parça 3). Artık:
+ *  · en fazla `TEASER_COUNT` kart (dizinin kendi sırası: doğrulanmış ve
+ *    paketli önce), süzgeç/arama/sayfalama YOK;
+ *  · hiçbir yerde SAYI yok — başlıkta, sekmede, JSON-LD'de (`totalItems`
+ *    verilmez), llms dosyalarında;
+ *  · altında "tamamını görmek için üye olun" kartı → kayıt (niyet `firma`)
+ *    ya da giriş → panel dizini (`/company/satinalma/firmalar`).
+ * Panel dizini (`PanelCompanyIndex`) ve firma profil sayfaları
+ * (`/firma/<slug>`, sitemap `companies.xml`) ETKİLENMEDİ — SEO profil
+ * sayfalarından gelir, bu sayfa yalnız kapı.
+ *
+ * `searchParams` imzada kaldı (sayfa ve eski çağrılar geçiyor) ama okunmaz:
+ * `?q=` ya da süzgeç bu sayfada sonuç DEĞİŞTİRMEZ.
  */
+export const TEASER_COUNT = 6;
+
 export async function CompanyIndex({
-  searchParams,
   title = MARKETPLACE_LABELS.companies,
-  lead = "Rothern'deki alıcı ve tedarikçi firmalar. Faaliyet tipi, şehir ve kategoriye göre süzün; profil ve ürünleri inceleyin. İletişim için ücretsiz hesap.",
-  /** Şehir açılış sayfası: süzgeç URL'den değil YOLDAN gelir. */
-  fixedCity,
-  intro,
-  footer,
+  lead = "Rothern'deki alıcı ve tedarikçi firmalardan bir kesit. Dizinin tamamı, süzgeçler ve firmalarla iletişim ücretsiz üyelikle açılır.",
 }: {
-  searchParams: SearchParamsLike;
+  searchParams?: SearchParamsLike;
   title?: string;
   lead?: string;
-  fixedCity?: string;
-  intro?: ReactNode;
-  footer?: ReactNode;
 }) {
-  const state = parseCompanyFilters(
-    fixedCity ? { ...searchParams, sehir: fixedCity } : searchParams,
-  );
-  const params = toDirectoryParams(state);
-  // Karşı yüzey sayaçları YALNIZ arama varken: aramasız gezinen kullanıcı
-  // için "Ürünler 57" gürültü, ayrıca her sayfa yükünde iki ek istek olurdu.
-  const [result, facets, otherCounts] = await Promise.all([
-    fetchPublicDirectory(params),
-    fetchPublicDirectoryFacets({
-      q: params.q, city: params.city, category: params.category, activity: params.activity,
-      verified: params.verified, hasProducts: params.hasProducts, gold: params.gold,
-    }),
-    crossCounts(state.q, "companies"),
-  ]);
+  const result = await fetchPublicDirectory({ page: 1 });
+  const items = result.items.filter((c) => !!c.slug).slice(0, TEASER_COUNT);
   const base = MARKETPLACE_ROUTES.companies;
-  const hasFilter = activeCompanyFilterCount(state) > 0 || !!state.q;
 
-  /* ITEMLIST — dizinin ne listelediğini söyler; firma adları herkese açık
-     (ilan sahibinin tersine, profil opt-in bir vitrindir). */
+  /* ITEMLIST — yalnız gösterilen kartlar; `totalItems` bilinçli YOK. */
   const listLd = graph([
     itemListNode({
       name: MARKETPLACE_LABELS.companies,
       path: base,
-      totalItems: result.total,
-      startPosition: (result.page - 1) * result.pageSize + 1,
-      items: result.items
-        .filter((c) => !!c.slug)
-        .map((c) => ({ name: c.name, path: `/firma/${c.slug}` })),
+      startPosition: 1,
+      items: items.map((c) => ({ name: c.name, path: `/firma/${c.slug}` })),
     }),
   ]);
 
   return (
     <PublicLayout className={MARKET_GROUND}>
       <JsonLd data={listLd} />
-      {intro}
-      <CompanyFilterShell total={result.total} drawer={<CompanyFilters facets={facets} idPrefix="m" />}>
-        <PublicListPage
-          tabs={
-            <PublicSearchTabs
-              active="companies"
-              q={state.q}
-              counts={{ ...otherCounts, companies: result.total }}
-            />
-          }
-          title={title}
-          lead={lead}
-          search={{
-            action: base,
-            defaultValue: state.q,
-            placeholder: "Firma adı, sektör veya hizmet",
-            hidden: {
-              sehir: state.cities.join(",") || undefined,
-              faaliyet: state.activities.join(",") || undefined,
-              kategori: state.categories.join(",") || undefined,
-              dogrulanmis: state.verified ? "1" : undefined,
-              urunlu: state.hasProducts ? "1" : undefined,
-              gold: state.gold ? "1" : undefined,
-              sirala: state.sort,
-            },
-          }}
-          chips={[]}
-          clearHref={base}
-          chipsNode={<CompanyActiveChips facets={facets} />}
-          sidebar={<CompanyFilters facets={facets} idPrefix="d" />}
-          summary={
-            <span className="flex flex-wrap items-center justify-between gap-3">
-              <span className="flex items-center gap-3">
-                <MobileFilterButton />
-                <ResultCount noun="firma" />
-              </span>
-              <CompanySortBar />
-            </span>
-          }
-        >
-          <FilterResults>
-            {result.items.length === 0 ? (
-              <PublicEmptyState
-                noun={hasFilter ? "Bu kriterlerle firma" : "Firma"}
-                clearHref={hasFilter ? base : undefined}
-                extra={{ label: "Firmanı listele", href: signupHref("vitrin") }}
+      <div className="mx-auto max-w-7xl px-6 pt-28 pb-20 lg:px-8">
+        <PublicSearchTabs active="companies" />
+        <header className="mt-6 max-w-3xl">
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 sm:text-4xl">{title}</h1>
+          <p className="mt-3 text-base/7 text-zinc-600">{lead}</p>
+        </header>
+
+        {items.length > 0 ? (
+          <div className="mt-10 flex flex-col gap-3">
+            {items.map((c) => (
+              <CompanyCard
+                key={c.slug}
+                company={c}
+                variant="wide"
+                cta={{ label: "Bilgi iste", href: signupHref("teklif", `/firma/${c.slug}`) }}
               />
-            ) : (
-              /* DİZİN = değerlendirme ekranı → GENİŞ satır (spec §8.3).
-                 Üç sütunlu ızgarada Hakkında ve ürün şeridi sıkışıyordu;
-                 "bu firma ne satıyor" sorusu kartın en zayıf yeriydi.
-                 Izgara kartı (`tile`) anasayfa şeridinde ve panelde sürüyor. */
-              <div className="flex flex-col gap-3">
-                {result.items.map((c) => (
-                  <CompanyCard
-                    key={c.slug}
-                    company={c}
-                    variant="wide"
-                    cta={{ label: "Bilgi iste", href: signupHref("teklif", `/firma/${c.slug}`) }}
-                  />
-                ))}
-              </div>
-            )}
-          </FilterResults>
-          <Pagination
-            page={result.page}
-            total={result.total}
-            pageSize={result.pageSize}
-            className="mt-10 border-t border-zinc-950/5 pt-6"
-            hrefBuilder={(p) => `${base}${buildCompanyFilterQuery({ ...state, page: p })}`}
-          />
-        </PublicListPage>
-      </CompanyFilterShell>
-      {footer ?? <CityLinks cities={facets.cities} kind="companies" activeCity={fixedCity} />}
+            ))}
+          </div>
+        ) : null}
+
+        {/* ÜYELİK KAPISI — liste kaç kart olursa olsun aynı; "daha N firma"
+            gibi bir sayı YAZILMAZ. */}
+        <section
+          aria-labelledby="firmalar-uyelik"
+          className="mt-8 flex flex-col items-start gap-5 rounded-2xl bg-white p-6 ring-1 ring-zinc-950/5 sm:flex-row sm:items-center sm:justify-between sm:p-8"
+        >
+          <div className="flex items-start gap-4">
+            <span className="flex size-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-700">
+              <LockClosedIcon aria-hidden className="size-5" />
+            </span>
+            <div>
+              <h2 id="firmalar-uyelik" className="text-lg font-semibold text-zinc-950">
+                Dizinin tamamı üyelere açık
+              </h2>
+              <p className="mt-1 max-w-xl text-sm/6 text-zinc-600">
+                Tüm firmaları görün, faaliyet tipi, şehir ve kategoriye göre süzün, doğrudan bilgi isteyin.
+                Üyelik ücretsizdir; alıcı ve tedarikçi tek hesapta.
+              </p>
+            </div>
+          </div>
+          <div className="flex shrink-0 flex-wrap items-center gap-3">
+            <Link
+              href={signupHref("ikisi", "/company/satinalma/firmalar")}
+              className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
+            >
+              Ücretsiz üye ol
+              <ArrowRightIcon aria-hidden className="size-4" />
+            </Link>
+            <Link
+              href={loginHref("/company/satinalma/firmalar")}
+              className="text-sm font-semibold text-zinc-700 hover:text-zinc-950"
+            >
+              Giriş yap
+            </Link>
+          </div>
+        </section>
+      </div>
     </PublicLayout>
   );
 }
