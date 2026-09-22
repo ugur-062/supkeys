@@ -127,6 +127,9 @@ const nextConfig: NextConfig = {
       // Kök ve alt yol AYRI (2026-09-22): tek `:path*` kuralı kökte
       // `/firmalar/` üretip ikinci bir 308 zinciri kuruyordu.
       { source: "/tedarikciler", destination: "/firmalar", permanent: true },
+      // Şehir firma sayfaları KAPANDI (2026-09-22, üyelik vitrini): kural burada,
+      // sayfa içi permanentRedirect üst segmentin `loading.tsx` akışında 200 dönüyordu.
+      { source: "/firmalar/sehir/:il", destination: "/firmalar", permanent: true },
       {
         source: "/tedarikciler/:path+",
         destination: "/firmalar/:path+",

@@ -54,7 +54,7 @@ export function PublicSearchTabs({
                 className={`inline-flex items-center gap-2 border-b-2 pb-3 text-sm font-medium transition ${
                   on
                     ? onCls
-                    : "border-transparent text-zinc-500 hover:border-zinc-300 hover:text-zinc-900"
+                    : "border-transparent text-zinc-600 hover:border-zinc-300 hover:text-zinc-900"
                 }`}
               >
                 {t.label}
