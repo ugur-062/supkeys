@@ -88,13 +88,13 @@ export function TermsPanel({
           <button
             type="button"
             onClick={() => setOpen(open === "all" ? null : "all")}
-            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-white/15 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-white/25"
+            className="inline-flex shrink-0 items-center gap-1 rounded-full bg-blue-950/35 px-2.5 py-1 text-[11px] font-semibold text-white hover:bg-blue-950/50"
           >
             <PencilSquareIcon aria-hidden className="size-3.5" />
             {open === "all" ? "Kapat" : "Tümünü düzenle"}
           </button>
         </div>
-        <p className="mt-2 rounded-lg bg-white/10 px-2.5 py-1.5 text-xs text-blue-50">{summaryLine}</p>
+        <p className="mt-2 rounded-lg bg-blue-950/30 px-2.5 py-1.5 text-xs text-white">{summaryLine}</p>
       </div>
 
       {missing ? (

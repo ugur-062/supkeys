@@ -37,7 +37,7 @@ Rothern'i işleten şirket: ${OPERATOR.legalName} (${OPERATOR.address}).
 ## Ana yüzeyler
 
 - [Ürünler](${u(MARKETPLACE_ROUTES.products)}): firmaların herkese açık ürün vitrini; teknik nitelik, minimum sipariş miktarı (MOQ) ve fiyat bilgisiyle. Kategori ve şehre göre süzülür.
-- [Firmalar](${u(MARKETPLACE_ROUTES.companies)}): doğrulanmış alıcı ve tedarikçi firma dizini; faaliyet tipi (üretici, distribütör, hizmet sağlayıcı, ithalatçı-ihracatçı, fason), şehir ve kategori kırılımıyla.
+- [Firmalar](${u(MARKETPLACE_ROUTES.companies)}): doğrulanmış alıcı ve tedarikçi firmalardan bir kesit; dizinin tamamı, faaliyet tipi/şehir/kategori süzgeçleri ve iletişim ücretsiz üyelikle açılır. Firma profilleri (/firma/<firma-slug>) herkese açıktır.
 - [Alım Talepleri](${u(MARKETPLACE_ROUTES.demands)}): firmaların yayımladığı açık satın alma talepleri; miktar, kategori, alıcının şehri ve kalan süre görünür.
 - [Nasıl çalışır](${u("/nasil-calisir")}): süreç, paketler ve fiyatlandırma.
 - [Hakkımızda](${u("/hakkimizda")}) · [İletişim ve Künye](${u("/iletisim")})

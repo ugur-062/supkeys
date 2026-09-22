@@ -23,8 +23,9 @@ export async function generateMetadata(): Promise<Metadata> {
   const bos = await dizinBos("firmalar");
   return buildMetadata({
   title: `${MARKETPLACE_LABELS.companies} — doğrulanmış alıcı ve tedarikçi firmalar`,
+  // Vitrin + üyelik kapısı (2026-09-22): sayı ve "süzün" vaadi yok.
   description:
-    "Rothern'deki alıcı ve tedarikçi firmalar: faaliyet tipi, şehir ve kategoriye göre süzün; ürünlerini ve profillerini inceleyin.",
+    "Rothern'deki doğrulanmış alıcı ve tedarikçi firmalardan bir kesit. Dizinin tamamı, süzgeçler ve firmalarla iletişim ücretsiz üyelikle açılır.",
   path: MARKETPLACE_ROUTES.companies,
     noindex: bos,
   });

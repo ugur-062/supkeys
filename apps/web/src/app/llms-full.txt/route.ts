@@ -1,7 +1,7 @@
 import { MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { fetchProductFacets, fetchPublicDirectoryFacets, fetchStats } from "@/lib/public/marketplace-api";
-import { cityCompanyPath, cityProductPath, allCitySlugs } from "@/lib/public/city";
+import { cityProductPath, allCitySlugs } from "@/lib/public/city";
 import { FAQ_FLAT } from "@/app/sss/faq-data";
 import { absoluteUrl } from "@/lib/seo/meta";
 
@@ -44,8 +44,7 @@ export async function GET(): Promise<Response> {
   /* --- Envanter (yalnız gerçek sayılar) --- */
   const inv: string[] = [];
   if (stats.products > 0) inv.push(`- Yayımlanmış ürün: ${stats.products}`);
-  if (stats.companies > 0) inv.push(`- Listelenen firma: ${stats.companies}`);
-  if (stats.verifiedCompanies > 0) inv.push(`- Doğrulanmış firma: ${stats.verifiedCompanies}`);
+  // Firma sayıları YAZILMAZ (2026-09-22, kullanıcı kararı: az firmayla kötü intiba).
   if (stats.openDemands > 0) inv.push(`- Açık alım talebi: ${stats.openDemands}`);
   if (stats.categories > 0) inv.push(`- Ürünü olan kategori: ${stats.categories}`);
   if (inv.length) {
@@ -75,15 +74,6 @@ export async function GET(): Promise<Response> {
     parts.push("");
     for (const c of cities) {
       parts.push(line(`- [${c.city}](${absoluteUrl(cityProductPath(c.city))}) — ${c.count} ürün`));
-    }
-    parts.push("");
-  }
-  const dirCities = dir.cities.filter((c) => c.count > 0 && known.has(c.city)).slice(0, 30);
-  if (dirCities.length) {
-    parts.push("## Şehirlere göre firmalar");
-    parts.push("");
-    for (const c of dirCities) {
-      parts.push(line(`- [${c.city}](${absoluteUrl(cityCompanyPath(c.city))}) — ${c.count} firma`));
     }
     parts.push("");
   }

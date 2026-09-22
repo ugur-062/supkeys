@@ -43,6 +43,10 @@ const COLUMNS = [
       { label: "Aracılık Sözleşmesi", href: "/sozlesmeler/aracilik" },
       { label: "Gizlilik", href: "/sozlesmeler/gizlilik" },
       { label: "KVKK Aydınlatma", href: "/sozlesmeler/kvkk" },
+      // Ön bilgilendirme yükümlülüğü (2026-09-22, kullanıcı kararı): iki sayfa
+      // öksüzdü, yalnız sitemap'ten ulaşılıyordu.
+      { label: "Mesafeli Satış", href: "/sozlesmeler/mesafeli-satis" },
+      { label: "İptal ve İade", href: "/sozlesmeler/iade" },
     ],
   },
 ] as const;
