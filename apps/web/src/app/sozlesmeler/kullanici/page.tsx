@@ -16,7 +16,7 @@ export default function Page() {
     <LegalDoc
       path="/sozlesmeler/kullanici"
       title="Kullanıcı Sözleşmesi"
-      updatedAt="26 Temmuz 2026"
+      updatedAt="22 Eylül 2026"
       sections={[
         {
           heading: "1. Taraflar ve Konu",
@@ -48,7 +48,7 @@ export default function Page() {
           heading: "5. Kullanım Kuralları",
           paragraphs: ["Kullanıcı, Platform'u kullanırken aşağıdaki davranışlardan kaçınmayı kabul eder:"],
           list: [
-            "Gerçeğe aykırı, yanıltıcı veya üçüncü kişilerin haklarını ihlal eden içerik, ilan, teklif veya belge yüklemek,",
+            "Gerçeğe aykırı, yanıltıcı veya üçüncü kişilerin haklarını ihlal eden içerik, satın alma talebi, teklif veya belge yüklemek,",
             "Satın Alma Talebi ve teklif süreçlerini manipüle etmek (danışıklı teklif, fiyat anlaşması, sahte hesapla teklif dâhil),",
             "Platform'un altyapısına zarar verecek, işleyişini bozacak veya güvenlik önlemlerini aşmaya yönelik girişimlerde bulunmak,",
             "Diğer kullanıcıların verilerini hukuka aykırı şekilde toplamak, kopyalamak veya üçüncü kişilerle paylaşmak,",
@@ -59,7 +59,7 @@ export default function Page() {
           heading: "6. İçerik ve Fikri Mülkiyet",
           paragraphs: [
             "Platform'un yazılımı, tasarımı, markası ve tüm bileşenleri üzerindeki fikri ve sınai mülkiyet hakları Rothern'e aittir; Kullanıcı'ya yalnızca hizmetten yararlanma amacıyla sınırlı, devredilemez bir kullanım hakkı tanınır.",
-            "Kullanıcı'nın Platform'a yüklediği içeriklerin (ilan, belge, görsel, mesaj) hukuka uygunluğundan Kullanıcı sorumludur. Kullanıcı, bu içeriklerin hizmetin sunulması amacıyla Platform tarafından barındırılmasına ve işlenmesine izin verir.",
+            "Kullanıcı'nın Platform'a yüklediği içeriklerin (satın alma talebi, belge, görsel, mesaj) hukuka uygunluğundan Kullanıcı sorumludur. Kullanıcı, bu içeriklerin hizmetin sunulması amacıyla Platform tarafından barındırılmasına ve işlenmesine izin verir.",
           ],
         },
         {
