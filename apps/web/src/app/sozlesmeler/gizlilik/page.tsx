@@ -38,8 +38,8 @@ export default function Page() {
         {
           heading: "3. Herkese Açık Görünen Bilgiler",
           paragraphs: [
-            "Bir ilanın görünürlüğünü \"herkese açık\" seçtiğinizde o ilan, giriş gerektirmeyen pazar yeri sayfalarında yayımlanabilir ve arama motorlarınca dizinlenebilir: ilan numarası, başlık, açıklama, kategori, kalemler, miktar/birim, teslimat ve ödeme koşulları, son teklif tarihi ile firmanızın şehri, ülkesi, sektörü ve faaliyet tipi. Firma adınız ve profiliniz yalnız giriş yapmış üyelere görünür.",
-            "Teklifler bu kapsamın dışındadır ve kapalı zarf esası aynen geçerlidir (madde 2). Yayımı ilan bazında (görünürlük değiştirme veya arama motoru dizinlemesini kapatma) ya da firma ayarlarından toptan durdurabilirsiniz.",
+            "Bir satın alma talebinin görünürlüğünü \"herkese açık\" seçtiğinizde o talep, giriş gerektirmeyen pazar yeri sayfalarında yayımlanabilir ve arama motorlarınca dizinlenebilir: talep numarası, başlık, açıklama, kategori, kalemler, miktar/birim, teslimat ve ödeme koşulları, son teklif tarihi ile firmanızın şehri, ülkesi, sektörü ve faaliyet tipi. Firma adınız ve profiliniz yalnız giriş yapmış üyelere görünür.",
+            "Teklifler bu kapsamın dışındadır ve kapalı zarf esası aynen geçerlidir (madde 2). Yayımı talep bazında (görünürlük değiştirme veya arama motoru dizinlemesini kapatma) ya da firma ayarlarından toptan durdurabilirsiniz.",
           ],
         },
         {
