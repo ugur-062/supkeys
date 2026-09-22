@@ -33,13 +33,15 @@
   --color-blue-300: #8FCAF8;
   --color-blue-400: #5CB1F5;
   --color-blue-500: #3EA3F3;
-  /* K-2 (2026-09-22, kullanıcı kararı): 600/700 WCAG AA — beyaz metin
-     #0D77CC üstünde 4,64:1 (eski #2F9BF2 2,96:1); 700+ skala koyulaşarak sürer. */
-  --color-blue-600: #0D77CC; /* birincil düğme / seçili */
-  --color-blue-700: #0B67B1; /* hover */
-  --color-blue-800: #09568F;
-  --color-blue-900: #084A7A;
-  --color-blue-950: #063A60;
+  /* K-2 (2026-09-22, kullanıcı: AA tonu "çok koyu"): eski gök mavisi #2F9BF2
+     (2,96:1) ile AA tonu #0D77CC (4,64:1) arasının ORTASI — beyaz metin 3,68:1,
+     WCAG'ın büyük metin / arayüz bileşeni eşiği (3:1) sağlanır, küçük metin AA
+     sağlanmaz (bilinçli; axe kapısı kontrastı uyarı sayar). 700+ koyulaşarak sürer. */
+  --color-blue-600: #1E89DF; /* birincil düğme / seçili */
+  --color-blue-700: #0D77CC; /* hover */
+  --color-blue-800: #0B67B1;
+  --color-blue-900: #09568F;
+  --color-blue-950: #084A7A;
 
   /* YEŞİL SKALASI — satış aksanı (2026-09-19, kullanıcı: "yeşil kalsın ama
      bu maviye uygun olsun, şimdiki kapalı/ağır"). Tailwind emerald (teal'e
@@ -51,13 +53,14 @@
   --color-emerald-300: #74E4A6;
   --color-emerald-400: #40D585;
   --color-emerald-500: #26C871;
-  /* K-2 (2026-09-22): #168146 beyaz üstünde 4,93:1 (eski #1FB864 2,59:1);
-     700 emerald-50 üstünde metin olarak 5,99:1. */
-  --color-emerald-600: #168146; /* birincil düğme / seçili */
-  --color-emerald-700: #136E3C; /* hover */
-  --color-emerald-800: #105B32;
-  --color-emerald-900: #0D4A29;
-  --color-emerald-950: #093B21;
+  /* K-2 (2026-09-22): eski #1FB864 (2,59:1) ile AA tonu #168146 (4,93:1)
+     arasının ortası — beyaz metin 3,54:1 (3:1 eşiği); 700 emerald-50 üstünde
+     metin olarak 4,67:1. */
+  --color-emerald-600: #1A9C55; /* birincil düğme / seçili */
+  --color-emerald-700: #168146; /* hover */
+  --color-emerald-800: #136E3C;
+  --color-emerald-900: #105B32;
+  --color-emerald-950: #0D4A29;
 
   /* Semantic — durum renkleri (yeşil/sarı/kırmızı). Marka monokrom olsa da
      başarı/uyarı/hata okunabilirlik için renkli kalır. */
