@@ -41,6 +41,21 @@ const MAX_ATTEMPTS = 3;
 const TIMEOUT_MS = 120_000;
 const MAX_OUTPUT_TOKENS = 8192;
 
+/**
+ * MODEL ADAYLARI — sırayla denenir, "model bulunamadı" (404) alan aday
+ * atlanır ve çalışan ad süreç ömrünce hatırlanır. Neden: Vertex AI
+ * `gemini-pro-latest` alias'ını TANIMAZ (2026-09-23 staging: 504 satır 404
+ * ile düştü); Generative Language API tanır. `CONTENT_TRANSLATION_MODEL`
+ * env'i listenin başına geçer; sonra `AI_MODEL_PREMIUM`, sonra bilinen Pro
+ * sürümleri (fiyat tablosunda olanlar).
+ */
+const PRO_FALLBACKS = ["gemini-3.1-pro", "gemini-3.1-pro-preview", "gemini-2.5-pro"];
+
+function isModelNotFound(err: unknown): boolean {
+  const m = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return /"code"\s*:\s*404/.test(m) || m.includes("not_found") || m.includes("was not found");
+}
+
 type Localized<T> = T & { translatedFrom?: string | null };
 
 interface StoredRow {
@@ -54,6 +69,21 @@ export class ContentTranslationService {
   private readonly logger = new Logger(ContentTranslationService.name);
   private readonly inFlight = new Set<string>();
   private sweeping = false;
+  /** 404 ile elenen adaylar ve çalıştığı görülen model (süreç ömrünce). */
+  private readonly deadModels = new Set<string>();
+  private resolvedModel: string | null = null;
+
+  /** Deneme sırası: env → premium → bilinen Pro sürümleri (elenenler hariç). */
+  modelCandidates(): string[] {
+    const env = process.env.CONTENT_TRANSLATION_MODEL?.trim();
+    const list = [
+      ...(this.resolvedModel ? [this.resolvedModel] : []),
+      ...(env ? [env] : []),
+      ...(this.cfg ? [this.cfg.models.premium] : []),
+      ...PRO_FALLBACKS,
+    ];
+    return [...new Set(list)].filter((m) => !this.deadModels.has(m));
+  }
 
   constructor(
     private readonly prisma: PrismaBypassService,
@@ -212,28 +242,46 @@ export class ContentTranslationService {
         await this.markFailed(type, id, "AI sağlayıcı yapılandırılmamış");
         return "failed";
       }
-      const model = this.cfg.models.premium;
-      const pricing = this.cfg.pricing[model];
       const usage: AiTokenUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
       let cost = 0;
       let parsed: ParsedTranslation | null = null;
       let feedback: string | undefined;
+      let model = this.modelCandidates()[0] ?? this.cfg.models.premium;
       for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
-        let result: Awaited<ReturnType<BaseAiProvider["complete"]>>;
-        try {
-          result = await this.provider.complete({
-            model,
-            system: TRANSLATION_SYSTEM_PROMPT,
-            prompt: buildPrompt(type, source, feedback),
-            maxOutputTokens: MAX_OUTPUT_TOKENS,
-            timeoutMs: TIMEOUT_MS,
-          });
-        } catch (err) {
-          // Sağlayıcı hatası (model adı, kota, ağ): deneme sayılır, satıra yazılır, süpürücü sürer.
-          const message = err instanceof Error ? err.message : String(err);
-          await this.markFailed(type, id, `sağlayıcı: ${message}`, { model, usage, cost });
+        let result: Awaited<ReturnType<BaseAiProvider["complete"]>> | null = null;
+        // Model adayları: 404 "bulunamadı" alan aday elenir, sıradaki denenir.
+        for (const candidate of this.modelCandidates()) {
+          model = candidate;
+          try {
+            result = await this.provider.complete({
+              model,
+              system: TRANSLATION_SYSTEM_PROMPT,
+              prompt: buildPrompt(type, source, feedback),
+              maxOutputTokens: MAX_OUTPUT_TOKENS,
+              timeoutMs: TIMEOUT_MS,
+            });
+            if (this.resolvedModel !== model) {
+              this.resolvedModel = model;
+              this.logger.log(`İçerik çevirisi modeli: ${model}`);
+            }
+            break;
+          } catch (err) {
+            if (isModelNotFound(err)) {
+              this.deadModels.add(candidate);
+              this.logger.warn(`Çeviri modeli bu sağlayıcıda yok, sıradaki deneniyor: ${candidate}`);
+              continue;
+            }
+            // Sağlayıcı hatası (kota, ağ): deneme sayılır, satıra yazılır, süpürücü sürer.
+            const message = err instanceof Error ? err.message : String(err);
+            await this.markFailed(type, id, `sağlayıcı: ${message}`, { model, usage, cost });
+            return "failed";
+          }
+        }
+        if (!result) {
+          await this.markFailed(type, id, "çeviri modeli bulunamadı (CONTENT_TRANSLATION_MODEL / AI_MODEL_PREMIUM sağlayıcıda tanımsız)", { model, usage, cost });
           return "failed";
         }
+        const pricing = this.cfg.pricing[model];
         usage.inputTokens += result.usage.inputTokens;
         usage.outputTokens += result.usage.outputTokens;
         usage.cacheReadTokens += result.usage.cacheReadTokens;
@@ -445,7 +493,7 @@ export class ContentTranslationService {
     for (const g of groups) byStatus[g.status] = g._count._all;
     return {
       enabled: this.enabled,
-      model: this.cfg?.models.premium ?? null,
+      model: this.resolvedModel ?? this.modelCandidates()[0] ?? null,
       byStatus,
       costUsd: Number(cost._sum.costUsd ?? 0),
       lastErrors,

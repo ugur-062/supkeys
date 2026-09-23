@@ -398,6 +398,14 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   yazılmaz; maliyet satırda (`costUsd`). Kategori adları ayrı (Faz 4).
   Sözleşme: `test/unit/content-translation.spec.ts` (yerel PG yoksa
   `--globalSetup=<noop>` ile koşulur).
+  **MODEL ADI TUZAĞI (2026-09-23, staging'de ölçüldü):** Vertex AI
+  `gemini-pro-latest` alias'ını TANIMAZ (404 NOT_FOUND) — Generative Language
+  API tanır. Render'daki `AI_MODEL_PREMIUM=gemini-pro-latest` bu yüzden
+  Vertex'te ÇALIŞMAZ (premium yükseltme yolu da). Çeviri servisi aday
+  listesiyle kendini kurtarır (`CONTENT_TRANSLATION_MODEL` → premium →
+  `gemini-3.1-pro` → `-preview` → `gemini-2.5-pro`; 404 alan elenir, çalışan
+  hatırlanır; `status` ucu çalışan modeli gösterir). Kalıcı çözüm Render
+  env'inde Vertex'in tanıdığı Pro adı.
 
 ---
 

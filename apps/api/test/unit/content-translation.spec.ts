@@ -249,6 +249,22 @@ describe("ContentTranslationService", () => {
     expect(rows.get("ru")).toMatchObject({ status: "FAILED", error: expect.stringContaining("db down") });
   });
 
+  it("model 404 verirse sıradaki aday denenir ve çalışan model hatırlanır (Vertex `-latest` alias'ı)", async () => {
+    const { svc, rows, provider } = rig();
+    (svc as unknown as { kick: () => void }).kick = () => {};
+    await svc.enqueue("PRODUCT", "p1");
+    provider!.complete.mockRejectedValueOnce(
+      new Error('Gemini hatası: {"error":{"code":404,"message":"Publisher model gemini-pro-latest was not found","status":"NOT_FOUND"}}'),
+    );
+    expect(await svc.translateEntity("PRODUCT", "p1")).toBe("done");
+    expect(provider!.complete).toHaveBeenCalledTimes(2);
+    expect((provider!.complete.mock.calls[0] as unknown as [{ model: string }])[0].model).toBe("gemini-pro-latest");
+    expect((provider!.complete.mock.calls[1] as unknown as [{ model: string }])[0].model).toBe("gemini-3.1-pro");
+    expect(rows.get("en")).toMatchObject({ status: "DONE", model: "gemini-3.1-pro" });
+    expect(svc.modelCandidates()[0]).toBe("gemini-3.1-pro");
+    expect(svc.modelCandidates()).not.toContain("gemini-pro-latest");
+  });
+
   it("sağlayıcı yoksa kuyruk açılır ama kick etmez; okuma yolu özgün metni döndürür", async () => {
     const { svc } = rig({ providerFails: true });
     expect(svc.enabled).toBe(false);
