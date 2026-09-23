@@ -197,7 +197,7 @@ export function CompanyProfileView({
   const activityLabel = useActivityLabel();
   const locale = useLocale();
   const services = p.services ?? [];
-  const location = [p.city, p.country].filter(Boolean).join(", ");
+  const location = [cityDisplayName(p.city, locale), p.country ? countryDisplayName(p.country, locale) : null].filter(Boolean).join(", ");
 
   return (
     <div className="space-y-6">
