@@ -48,6 +48,7 @@ export const MARKETPLACE_ROUTES = {
   demand: PUBLIC_PATHS.demand,
 } as const;
 
+/** @deprecated i18n Faz 1: dil bilen yüzeyler `web.marketplace.labels.*` katalog anahtarlarını kullanır; burası Türkçe kalan panel/meta yolları için. */
 export const MARKETPLACE_LABELS = {
   demands: "Alım Talepleri",
   /**
@@ -112,6 +113,7 @@ export function publicState(status: string): PublicListingState {
   return STATE_BY_STATUS[status] ?? "closed";
 }
 
+/** @deprecated i18n Faz 1: `web.marketplace.state.*` (useTranslations). Panel yolu için Türkçe kalır. */
 export const STATE_LABEL: Record<PublicListingState, string> = {
   open: "Teklife açık",
   evaluating: "Değerlendirmede",

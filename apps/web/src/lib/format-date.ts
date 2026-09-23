@@ -1,5 +1,6 @@
 import { format, formatDistanceToNowStrict } from "date-fns";
-import { tr } from "date-fns/locale";
+import { enUS, ru, tr } from "date-fns/locale";
+import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { toAppWallClock } from "@/lib/time-zone";
 
 /**
@@ -18,22 +19,28 @@ import { toAppWallClock } from "@/lib/time-zone";
  */
 export type DateVariant = "long" | "short" | "datetime" | "relative";
 
+/** date-fns yerelleri — anahtar @rothern/i18n `Locale`. */
+const DATE_LOCALES = { tr, en: enUS, ru } as const;
+
 export function formatDate(
   value: string | Date | null | undefined,
   variant: DateVariant = "short",
+  /** Görüntüleme dili (i18n Faz 1) — verilmezse Türkçe (panel bugün böyle). */
+  locale: Locale = DEFAULT_LOCALE,
 ): string {
+  const loc = DATE_LOCALES[locale] ?? tr;
   if (!value) return "—";
   const raw = typeof value === "string" ? new Date(value) : value;
   if (!Number.isFinite(raw.getTime())) return "—";
   const d = variant === "relative" ? raw : toAppWallClock(raw);
   switch (variant) {
     case "long":
-      return format(d, "d MMMM yyyy", { locale: tr });
+      return format(d, "d MMMM yyyy", { locale: loc });
     case "datetime":
-      return format(d, "d MMM yyyy HH:mm", { locale: tr });
+      return format(d, "d MMM yyyy HH:mm", { locale: loc });
     case "relative":
-      return formatDistanceToNowStrict(d, { addSuffix: true, locale: tr });
+      return formatDistanceToNowStrict(d, { addSuffix: true, locale: loc });
     default:
-      return format(d, "d MMM yyyy", { locale: tr });
+      return format(d, "d MMM yyyy", { locale: loc });
   }
 }

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { ProductCard } from "./product-card";
 import type { ProductIndexCard } from "@/lib/public/marketplace-api";
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/20/solid";
@@ -32,7 +34,7 @@ export function ProductStrip({
   title,
   lead,
   href,
-  hrefLabel = "Tümünü gör",
+  hrefLabel,
   items,
   accent = "blue",
   showNew = true,
@@ -48,6 +50,7 @@ export function ProductStrip({
   /** "Yeni" rozeti; hepsi yeniyse ayırt etmediği için kapatılır. */
   showNew?: boolean;
 }) {
+  const t = useTranslations("web.marketplace.strip");
   // Boş şerit çizilmez — boş kutu basmayız (anasayfa eşik kuralı).
   if (items.length === 0) return null;
   const link =
@@ -65,7 +68,7 @@ export function ProductStrip({
           <p className="mt-1 text-sm text-zinc-500">{lead}</p>
         </div>
         <Link href={href} className={`inline-flex items-center gap-1 text-sm font-semibold ${link}`}>
-          {hrefLabel}
+          {hrefLabel ?? t("seeAll")}
           <ArrowRightIcon aria-hidden className="size-4" />
         </Link>
       </div>
@@ -104,6 +107,7 @@ export function ProductStrip({
  * kaydırmanın bittiğini anlatmaz. Klavye için şerit odaklanabilir.
  */
 function CardRail({ children }: { children: ReactNode }) {
+  const t = useTranslations("web.marketplace.strip");
   const ref = useRef<HTMLUListElement>(null);
   const [edge, setEdge] = useState<{ start: boolean; end: boolean }>({ start: true, end: false });
 
@@ -135,7 +139,7 @@ function CardRail({ children }: { children: ReactNode }) {
         ref={ref}
         onScroll={measure}
         tabIndex={0}
-        aria-label="Ürün şeridi"
+        aria-label={t("railLabel")}
         /* `scroll-pl-*` ŞART: ilk kartın snap noktası scrollLeft=0'da olmazsa
            Chrome yüklenişte kaydırır ve o scroll olayı LCP raporunu keser
            (2026-09-04'te ölçüldü). */
@@ -158,13 +162,14 @@ function RailButton({
   disabled: boolean;
   onClick: () => void;
 }) {
+  const t = useTranslations("web.marketplace.strip");
   const Icon = side === "left" ? ChevronLeftIcon : ChevronRightIcon;
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label={side === "left" ? "Geri kaydır" : "İleri kaydır"}
+      aria-label={side === "left" ? t("scrollBack") : t("scrollForward")}
       className={`absolute top-[5.5rem] z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-zinc-700 shadow-md ring-1 ring-zinc-950/10 transition hover:bg-zinc-50 disabled:pointer-events-none disabled:opacity-0 sm:flex ${
         side === "left" ? "left-3" : "right-3"
       }`}

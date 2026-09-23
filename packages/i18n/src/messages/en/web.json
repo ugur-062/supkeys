@@ -69,6 +69,71 @@
       "metaAbsoluteTitle": "Rothern — B2B marketplace: products, suppliers and buying requests",
       "comingSoonTitle": "Coming Soon",
       "comingSoonDescription": "Rothern is currently in development. We'll be with you very soon."
+    },
+    "comingSoon": {
+      "badge": "In development",
+      "title": "We'll be with you very soon",
+      "body": "Rothern is the B2B trading platform that brings buyers and suppliers together in one account. We're finishing the final preparations and will be here shortly.",
+      "questions": "For questions,"
+    },
+    "rfq": {
+      "point1": "Only suppliers matching your category",
+      "point2": "Quotes never see each other: sealed bids",
+      "point3": "Comparison table, award on one screen",
+      "title": "Post one request, receive several sealed-bid quotes",
+      "cta": "Post a request"
+    },
+    "trustBand": {
+      "eyebrow": "How it works",
+      "title": "From request to quote, from quote to order",
+      "lead": "Browsing is free. Quoting and company details need a free account; no commission is charged.",
+      "step1Title": "Sign up and introduce your company",
+      "step1Body": "One account makes you both a buyer and a seller. Pick your activity and categories; matching requests come to you.",
+      "step2Title": "Submit sealed-bid quotes",
+      "step2Body": "Only the request owner sees your quote. Competing suppliers see neither your price, nor your identity, nor how many quotes came in.",
+      "step3Title": "Turn it into an order",
+      "step3Body": "The award decision creates the order automatically; you follow delivery and payment steps from the same panel."
+    },
+    "trustStrip": {
+      "label": "Trust signals",
+      "verifiedTitle": "Verified companies",
+      "verifiedBody": "Identity verified with tax registration and trade registry documents.",
+      "sealedTitle": "Sealed-bid quotes",
+      "sealedBody": "Only the request owner sees your quote; competitors never do.",
+      "noFeeTitle": "No commission",
+      "noFeeBody": "The platform takes no share of the transaction value.",
+      "kvkkTitle": "KVKK compliant",
+      "kvkkBody": "Your data is processed in line with Turkish data protection law."
+    },
+    "twoCards": {
+      "sellTitle": "List your company, put your products in the showcase",
+      "sellPoint1": "Free profile",
+      "sellPoint2": "AI-assisted profile and catalog setup",
+      "sellPoint3": "Request alerts matching your category",
+      "createProfile": "Create a free profile",
+      "seePremium": "See Premium",
+      "buyTitle": "Follow buying requests",
+      "buyBody": "Get open requests matching your category by email; submit your sealed-bid quote from the panel and let the buyer compare.",
+      "seeDemands": "See buying requests"
+    },
+    "flow": {
+      "label": "Three steps for buyers",
+      "step1Title": "Search",
+      "step1Body": "Find the product, company or category. Price and minimum order are shown on the card.",
+      "step1Link": "Browse products",
+      "step2Title": "Ask for a quote",
+      "step2Body": "Found it? Send the company an inquiry. Didn't? Post a request and let suppliers matching your category quote.",
+      "step2Link": "Post a request",
+      "step3Title": "Compare sealed bids",
+      "step3Body": "Bidders never see each other. Compare in one table and award; the order is created automatically.",
+      "step3Link": "How it works"
+    },
+    "stats": {
+      "label": "Marketplace activity",
+      "productsThisWeek": "Products added this week",
+      "bidsLast24h": "Quotes submitted in the last 24 hours",
+      "openDemands": "Open buying requests",
+      "verifiedCompanies": "Verified companies"
     }
   },
   "marketplace": {
@@ -82,6 +147,58 @@
       "open": "Open for quotes",
       "evaluating": "Under evaluation",
       "closed": "Closed"
+    },
+    "card": {
+      "buyer": "Buyer",
+      "verifiedBuyer": "Verified buyer",
+      "items": "Items",
+      "itemNoun": "items",
+      "specsMembers": "specifications and documents for members",
+      "visibility": "Visibility",
+      "sealedBid": "Sealed bid",
+      "closing": "Closes",
+      "category": "Category",
+      "moreCategories": "+{n} more",
+      "quote": "Submit quote",
+      "itemsCount": "{count, plural, one {# item} other {# items}}",
+      "itemsCountMembers": "{count, plural, one {# item} other {# items}} · specifications and documents for members",
+      "closesToday": "Closes today",
+      "daysLeft": "{n, plural, one {# day left} other {# days left}}",
+      "sector": "Industry",
+      "location": "Location",
+      "lastBid": "Closing date",
+      "buyerVerification": "Buyer verification",
+      "bidPrivacy": "Quote privacy",
+      "sealedTooltip": "Quotes are sealed: bidders never see each other's prices.",
+      "showDetails": "Show details",
+      "hideDetails": "Hide details",
+      "showItems": "Show items",
+      "hideItems": "Hide items"
+    },
+    "strip": {
+      "seeAll": "See all",
+      "railLabel": "Product strip",
+      "scrollBack": "Scroll back",
+      "scrollForward": "Scroll forward"
+    }
+  },
+  "domain": {
+    "activity": {
+      "MANUFACTURER": "Manufacturer",
+      "DISTRIBUTOR": "Distributor / Dealer",
+      "SERVICE_PROVIDER": "Service provider",
+      "IMPORTER_EXPORTER": "Importer / Exporter",
+      "CONTRACT_MANUFACTURER": "Contract manufacturer"
+    },
+    "scope": {
+      "allCountries": "All countries",
+      "onlyCountry": "{country} only",
+      "plusMore": "{country} +{n} more"
+    },
+    "closing": {
+      "daysLeft": "{days, plural, one {# day left} other {# days left}}",
+      "endsToday": "Ends today",
+      "expired": "Expired"
     }
   }
 }

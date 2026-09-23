@@ -1,13 +1,13 @@
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { Badge } from "@/components/ui/badge";
-import { scopeLabel } from "@rothern/shared";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
 import { listingPath, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import { ClockIcon, GlobeAltIcon, LockClosedIcon, MapPinIcon } from "@heroicons/react/20/solid";
-import { companyActivityLabel } from "@rothern/shared";
+import { useActivityLabel, useScopeLabel } from "@/i18n/domain";
+import { useFormatter, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 
 /**
@@ -34,11 +34,15 @@ function leftTone(left: number): "danger" | "gold" | "neutral" {
 }
 
 export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }) {
+  const t = useTranslations("web.marketplace.card");
+  const fmt = useFormatter();
+  const activityLabel = useActivityLabel();
+  const scopeLabel = useScopeLabel();
   const href = listingPath(l.number, l.title);
   const open = publicState(l.status) === "open";
   const left = open ? daysLeft(l.closesAt) : null;
   const activity = l.company.activities[0];
-  const who = [activity ? companyActivityLabel(activity) : null, l.company.city].filter(Boolean).join(" · ");
+  const who = [activity ? activityLabel(activity) : null, l.company.city].filter(Boolean).join(" · ");
   const primaryCategory = l.categories.find((c) => c.level >= 3) ?? l.categories[0];
   const qty = l.itemSummary.totalQuantity && l.itemSummary.unit ? Number(l.itemSummary.totalQuantity) : null;
 
@@ -56,7 +60,7 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
           {left != null ? (
             <Badge tone={leftTone(left)} size="sm" icon={false} className="tnum bg-white/90">
               <ClockIcon aria-hidden className="size-3" />
-              {left <= 0 ? "Bugün kapanıyor" : `${left} gün kaldı`}
+              {left <= 0 ? t("closesToday") : t("daysLeft", { n: left })}
             </Badge>
           ) : null}
         </div>
@@ -73,31 +77,31 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
         {/* Ölçek — kartın en büyük yazısı; yalnız birimli miktar */}
         {qty ? (
           <p className="mt-3 tnum text-2xl font-semibold tracking-tight text-zinc-950">
-            {qty.toLocaleString("tr-TR")}
+            {fmt.number(qty)}
             <span className="ml-1 text-base font-medium text-zinc-500">{l.itemSummary.unit}</span>
           </p>
         ) : null}
         <p className={`text-xs text-zinc-500 tnum ${qty ? "mt-0.5" : "mt-3"}`}>
-          {l.itemSummary.count} kalem · şartname ve belgeler üyelere
+          {t("itemsCountMembers", { count: l.itemSummary.count })}
         </p>
 
         <dl className="mt-4 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-zinc-600">
           {l.company.verified ? (
             <div className="flex items-center">
-              <dt className="sr-only">Alıcı doğrulaması</dt>
+              <dt className="sr-only">{t("buyerVerification")}</dt>
               <dd>
-                <Badge tone="verified" size="sm">Doğrulanmış alıcı</Badge>
+                <Badge tone="verified" size="sm">{t("verifiedBuyer")}</Badge>
               </dd>
             </div>
           ) : null}
           {who ? (
             <div className="flex items-center gap-1">
-              <dt className="sr-only">Alıcı</dt>
+              <dt className="sr-only">{t("buyer")}</dt>
               <dd className="flex items-center gap-1"><MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />{who}</dd>
             </div>
           ) : null}
           <div className="flex items-center gap-1">
-            <dt className="sr-only">Görünürlük</dt>
+            <dt className="sr-only">{t("visibility")}</dt>
             <dd className="flex items-center gap-1"><GlobeAltIcon aria-hidden className="size-3.5 text-zinc-300" />{scopeLabel(l.targetCountries ?? [])}</dd>
           </div>
           <div className="flex items-center gap-1">
@@ -105,12 +109,12 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
                 İpucu sarmalayıcısı <dd>'nin İÇİNDE: dışarıda olunca <dl>'nin
                 doğrudan çocuğu <span> oluyordu (a11y: definition-list + dlitem,
                 2026-09-12 taraması). */}
-            <dt className="sr-only">Teklif gizliliği</dt>
+            <dt className="sr-only">{t("bidPrivacy")}</dt>
             <dd>
-              <Tooltip label="Teklifler kapalı zarf: teklifçiler birbirinin fiyatını görmez.">
+              <Tooltip label={t("sealedTooltip")}>
                 <span className="flex items-center gap-1">
                   <LockClosedIcon aria-hidden className="size-3.5 text-zinc-300" />
-                  Kapalı zarf
+                  {t("sealedBid")}
                 </span>
               </Tooltip>
             </dd>
@@ -120,7 +124,7 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
         <div className="mt-auto flex items-center justify-between gap-3 pt-5">
           <span className="tnum text-xs font-medium text-zinc-500">{l.number}</span>
           <Button href={signupHref("teklif", href)} className="relative z-10">
-            Teklif ver
+            {t("quote")}
           </Button>
         </div>
       </div>

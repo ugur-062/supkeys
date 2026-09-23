@@ -3,13 +3,14 @@
 import { ListingCard, type ListingCardData } from "@/components/marketplace/listing-card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format-date";
-import { STATE_LABEL, listingPath, publicState } from "@/lib/public/marketplace";
+import { listingPath, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
-import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
+import { daysUntil } from "@/lib/tenders/seller-state";
+import { useActivityLabel, useClosingUrgency } from "@/i18n/domain";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
-import { companyActivityLabel } from "@rothern/shared";
 
 const STATE_CLASS: Record<ReturnType<typeof publicState>, string> = {
   open: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -31,12 +32,18 @@ const STATE_CLASS: Record<ReturnType<typeof publicState>, string> = {
  * ilan detayında yaşamaya devam eder.
  */
 export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard }) {
+  const t = useTranslations("web.marketplace.card");
+  const ts = useTranslations("web.marketplace.state");
+  const locale = useLocale();
+  const fmt = useFormatter();
+  const activityLabel = useActivityLabel();
+  const closingUrgency = useClosingUrgency();
   const href = listingPath(l.number, l.title);
   const state = publicState(l.status);
   const urgency = closingUrgency(l.status, l.closesAt);
   const days = daysUntil(l.closesAt) ?? 99;
   const activity = l.company.activities[0];
-  const who = [activity ? companyActivityLabel(activity) : null, l.company.city].filter(Boolean).join(" · ");
+  const who = [activity ? activityLabel(activity) : null, l.company.city].filter(Boolean).join(" · ");
   const primary = l.categories.find((c) => c.level >= 3) ?? l.categories[0];
 
   const data: ListingCardData = {
@@ -46,54 +53,58 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
     title: l.title,
     kind: "talep",
     categoryIds: l.categories.map((c) => c.id),
-    status: { label: STATE_LABEL[state], className: STATE_CLASS[state] },
+    status: { label: ts(state), className: STATE_CLASS[state] },
     strip: state === "open" ? "border-l-emerald-500" : "border-l-slate-400",
     facts: [
       {
-        label: "Alıcı",
+        label: t("buyer"),
+        icon: "company",
         value: (
           <span className="flex min-w-0 flex-col items-start gap-1">
             <span className="truncate text-slate-800">{who || "—"}</span>
             {l.company.verified ? (
               <Badge tone="verified" size="sm" icon={false}>
-                Doğrulanmış alıcı
+                {t("verifiedBuyer")}
               </Badge>
             ) : null}
           </span>
         ),
       },
       {
-        label: "Kalem",
+        label: t("items"),
+        icon: "items",
         value: (
           <span className="flex flex-col items-start">
             <span className="flex items-baseline gap-1">
               <span className="font-semibold tabular-nums text-slate-900">{l.itemSummary.count}</span>
-              <span className="text-[11px] text-slate-500">kalem</span>
+              <span className="text-[11px] text-slate-500">{t("itemNoun")}</span>
               {l.itemSummary.totalQuantity && l.itemSummary.unit ? (
                 <span className="ml-1 tabular-nums text-slate-600">
-                  {Number(l.itemSummary.totalQuantity).toLocaleString("tr-TR")} {l.itemSummary.unit}
+                  {fmt.number(Number(l.itemSummary.totalQuantity))} {l.itemSummary.unit}
                 </span>
               ) : null}
             </span>
-            <span className="text-[11px] leading-tight text-slate-500">şartname ve belgeler üyelere</span>
+            <span className="text-[11px] leading-tight text-slate-500">{t("specsMembers")}</span>
           </span>
         ),
       },
       {
-        label: "Görünürlük",
+        label: t("visibility"),
+        icon: "scope",
         value: (
           <span className="flex flex-col items-start gap-1">
             <ScopeChip targetCountries={l.targetCountries} />
-            <span className="text-[11px] leading-tight text-slate-500">Kapalı zarf</span>
+            <span className="text-[11px] leading-tight text-slate-500">{t("sealedBid")}</span>
           </span>
         ),
       },
       {
-        label: "Kapanış",
+        label: t("closing"),
+        icon: "closing",
         value: (
-          <span title={formatDate(l.closesAt, "datetime")}>
+          <span title={formatDate(l.closesAt, "datetime", locale)}>
             <span className={cn("font-semibold", urgency && days <= 3 ? urgency.className : "text-slate-900")}>
-              {formatDate(l.closesAt, "short") || "—"}
+              {formatDate(l.closesAt, "short", locale) || "—"}
             </span>
             {/* Kalan süre ALT SATIRDA (2026-09-13, kullanıcı kararı): rozet
                 `inline-flex` olduğu için tarihin yanına yapışıyor ve
@@ -115,12 +126,13 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
         ),
       },
       {
-        label: "Kategori",
+        label: t("category"),
+        icon: "category",
         value: primary ? (
           <span title={l.categories.map((c) => c.name).join(", ")}>
             <span className="block truncate font-medium text-slate-700">{primary.name}</span>
             {l.categories.length > 1 ? (
-              <span className="block text-[11px] leading-tight text-slate-500">+{l.categories.length - 1} kategori</span>
+              <span className="block text-[11px] leading-tight text-slate-500">{t("moreCategories", { n: l.categories.length - 1 })}</span>
             ) : null}
           </span>
         ) : (
@@ -128,7 +140,7 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
         ),
       },
     ],
-    action: state === "open" ? { label: "Teklif ver", href: signupHref("teklif", href) } : null,
+    action: state === "open" ? { label: t("quote"), href: signupHref("teklif", href) } : null,
   };
 
   return <ListingCard variant="row" data={data} />;

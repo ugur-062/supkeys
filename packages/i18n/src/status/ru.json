@@ -189,6 +189,61 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.domain.activity.CONTRACT_MANUFACTURER": {
+    "hash": "83f2840baa",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.activity.DISTRIBUTOR": {
+    "hash": "d1916f99ed",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.activity.IMPORTER_EXPORTER": {
+    "hash": "fd825eda28",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.activity.MANUFACTURER": {
+    "hash": "eb0099e733",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.activity.SERVICE_PROVIDER": {
+    "hash": "eaaa88d314",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.closing.daysLeft": {
+    "hash": "06dab9dd31",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.closing.endsToday": {
+    "hash": "2045c94097",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.closing.expired": {
+    "hash": "d4537cb9f4",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.scope.allCountries": {
+    "hash": "5e25452046",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.scope.onlyCountry": {
+    "hash": "02ae3c5251",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.scope.plusMore": {
+    "hash": "80e26e44e7",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
   "web.marketing.audience.buyer": {
     "hash": "44f8b40563",
     "status": "reviewed",
@@ -211,6 +266,76 @@
   },
   "web.marketing.audience.supplierHint": {
     "hash": "f2f17f5751",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.comingSoon.badge": {
+    "hash": "23642fcf0e",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.comingSoon.body": {
+    "hash": "8dc7ddd1b8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.comingSoon.questions": {
+    "hash": "a0e03a61d6",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.comingSoon.title": {
+    "hash": "7d38c47c81",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.flow.label": {
+    "hash": "31839d5109",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.flow.step1Body": {
+    "hash": "42534a476b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.flow.step1Link": {
+    "hash": "f71ac962fc",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.flow.step1Title": {
+    "hash": "b07bcee1b9",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.flow.step2Body": {
+    "hash": "3fb24a481b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.flow.step2Link": {
+    "hash": "197481b915",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.flow.step2Title": {
+    "hash": "16e8e178f8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.flow.step3Body": {
+    "hash": "4774fd1ae6",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.flow.step3Link": {
+    "hash": "41e515cf58",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.flow.step3Title": {
+    "hash": "bec38dd193",
     "status": "reviewed",
     "at": "2026-09-23"
   },
@@ -469,6 +594,316 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketing.rfq.cta": {
+    "hash": "197481b915",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.rfq.point1": {
+    "hash": "a826843acc",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.rfq.point2": {
+    "hash": "dcced5cd0e",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.rfq.point3": {
+    "hash": "a77fc2b2a3",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.rfq.title": {
+    "hash": "7096b8691f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.stats.bidsLast24h": {
+    "hash": "7278f3a764",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.stats.label": {
+    "hash": "221b27215b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.stats.openDemands": {
+    "hash": "e4b89a8fef",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.stats.productsThisWeek": {
+    "hash": "ef87ced054",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.stats.verifiedCompanies": {
+    "hash": "9718175c8d",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustBand.eyebrow": {
+    "hash": "41e515cf58",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustBand.lead": {
+    "hash": "b5ae14c634",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustBand.step1Body": {
+    "hash": "4f8ddce23f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustBand.step1Title": {
+    "hash": "4b0b487204",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustBand.step2Body": {
+    "hash": "285cfcbea8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustBand.step2Title": {
+    "hash": "cf63e160ce",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustBand.step3Body": {
+    "hash": "7b432b44fa",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustBand.step3Title": {
+    "hash": "e0cc3f1936",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustBand.title": {
+    "hash": "a9f06120f6",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustStrip.kvkkBody": {
+    "hash": "81d8cb4ec2",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustStrip.kvkkTitle": {
+    "hash": "38a9d989d3",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustStrip.label": {
+    "hash": "bc66054fdd",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustStrip.noFeeBody": {
+    "hash": "0d2ff4fec5",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustStrip.noFeeTitle": {
+    "hash": "7c251c9ebe",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustStrip.sealedBody": {
+    "hash": "ae1b3681ff",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustStrip.sealedTitle": {
+    "hash": "6294ce84a8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustStrip.verifiedBody": {
+    "hash": "ed0a262b25",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.trustStrip.verifiedTitle": {
+    "hash": "cc543f66fb",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.twoCards.buyBody": {
+    "hash": "a870b82a28",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.twoCards.buyTitle": {
+    "hash": "d7bb87b5f0",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.twoCards.createProfile": {
+    "hash": "77ffcc9ca1",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.twoCards.seeDemands": {
+    "hash": "4e7ae641e8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.twoCards.seePremium": {
+    "hash": "b60755ec5b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.twoCards.sellPoint1": {
+    "hash": "e3e1440d29",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.twoCards.sellPoint2": {
+    "hash": "82385d265f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.twoCards.sellPoint3": {
+    "hash": "810b2ff593",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.twoCards.sellTitle": {
+    "hash": "1f5a69bd28",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.bidPrivacy": {
+    "hash": "3e553d3fe2",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.buyer": {
+    "hash": "850f092d67",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.buyerVerification": {
+    "hash": "732c43c6b9",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.category": {
+    "hash": "b7964404a7",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.closesToday": {
+    "hash": "7a23496b8b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.closing": {
+    "hash": "03c8b154de",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.daysLeft": {
+    "hash": "2b614ac4c2",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.hideDetails": {
+    "hash": "4634d1c704",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.hideItems": {
+    "hash": "48208c5e99",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.itemNoun": {
+    "hash": "dc569c4fa8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.items": {
+    "hash": "ccc7774628",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.itemsCount": {
+    "hash": "fb14931827",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.itemsCountMembers": {
+    "hash": "9ce250feaa",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.lastBid": {
+    "hash": "025ad453d8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.location": {
+    "hash": "141e6696a6",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.moreCategories": {
+    "hash": "00727ca41d",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.quote": {
+    "hash": "d57149c5f0",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.sealedBid": {
+    "hash": "55887b47b3",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.sealedTooltip": {
+    "hash": "86ddf023a5",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.sector": {
+    "hash": "19da5231f8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.showDetails": {
+    "hash": "ed54db9ae6",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.showItems": {
+    "hash": "2408969b2e",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.specsMembers": {
+    "hash": "a43bce73b5",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.verifiedBuyer": {
+    "hash": "757c0e99fb",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.card.visibility": {
+    "hash": "4cf8eb0086",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
   "web.marketplace.labels.companies": {
     "hash": "04011c28e7",
     "status": "reviewed",
@@ -501,6 +936,26 @@
   },
   "web.marketplace.state.open": {
     "hash": "cdfbf5cc55",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.strip.railLabel": {
+    "hash": "4b44f6e9e2",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.strip.scrollBack": {
+    "hash": "1ad42148fd",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.strip.scrollForward": {
+    "hash": "15f873ac2a",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.strip.seeAll": {
+    "hash": "50b9542fa6",
     "status": "reviewed",
     "at": "2026-09-23"
   },

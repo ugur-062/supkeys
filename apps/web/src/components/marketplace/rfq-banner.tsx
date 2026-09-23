@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { signupHref } from "@/lib/public/visibility";
 import { AccentLink } from "@/components/ui/accent-fill";
 import { ArrowRightIcon, CheckIcon } from "@heroicons/react/20/solid";
@@ -9,11 +10,7 @@ import { Link } from "@/i18n/navigation";
  * sayfasında ürün adı ön-doldurulur (`prefill`). İllüstrasyon ikon setinden,
  * stok fotoğraf yok.
  */
-const POINTS = [
-  { icon: ClipboardList, t: "Yalnız kategorinle eşleşen tedarikçiler" },
-  { icon: Lock, t: "Teklifler birbirini görmez — kapalı zarf" },
-  { icon: Table2, t: "Karşılaştırma tablosu, tek ekranda kazandırma" },
-] as const;
+const POINT_ICONS = [ClipboardList, Lock, Table2] as const;
 
 /**
  * İKİ YÜZ (2026-09-08): herkese açık sayfada KAYIT hunisi (monokrom),
@@ -28,6 +25,12 @@ export function RfqBanner({
   prefill?: string;
   variant?: "public" | "panel";
 }) {
+  const t = useTranslations("web.marketing.rfq");
+  const POINTS = [
+    { icon: POINT_ICONS[0], t: t("point1") },
+    { icon: POINT_ICONS[1], t: t("point2") },
+    { icon: POINT_ICONS[2], t: t("point3") },
+  ];
   const panelHref = `/company/satinalma/taleplerim/yeni${prefill ? `?q=${encodeURIComponent(prefill)}` : ""}`;
   const href =
     variant === "panel"
@@ -60,7 +63,7 @@ export function RfqBanner({
         </div>
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-            Bir talep aç, birden fazla kapalı zarf teklif al
+            {t("title")}
           </h2>
           <ul className="mt-5 grid gap-3 sm:grid-cols-3">
             {POINTS.map((p) => (
@@ -74,7 +77,7 @@ export function RfqBanner({
             href={href}
             className="mt-6 inline-flex items-center gap-1 rounded-full px-5 py-2.5 text-sm font-semibold text-white transition"
           >
-            Talep aç
+            {t("cta")}
             <ArrowRightIcon aria-hidden className="size-4" />
           </AccentLink>
         </div>

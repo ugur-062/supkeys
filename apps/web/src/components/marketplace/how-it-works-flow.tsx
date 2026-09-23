@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
@@ -12,32 +13,19 @@ import { Link } from "@/i18n/navigation";
  * Tedarikçi akışı (Kaydol → Kapalı zarf teklif ver → Siparişe dönüştür)
  * aşağıdaki `TrustBand`da — iki bölüm iki tarafı anlatır, kopya değil.
  */
-const STEPS = [
-  {
-    icon: Search,
-    title: "Ara",
-    body: "Ürünü, firmayı veya kategoriyi bul. Fiyat ve minimum sipariş kartta yazar.",
-    link: { label: "Ürünlere göz at", href: MARKETPLACE_ROUTES.products },
-  },
-  {
-    icon: Send,
-    title: "Teklif iste",
-    body: "Bulduysan firmaya bilgi talebi gönder; bulamadıysan talep aç, kategorinle eşleşen tedarikçiler teklif versin.",
-    link: { label: "Talep aç", href: signupHref("talep") },
-  },
-  {
-    icon: LockKeyhole,
-    title: "Kapalı zarfta karşılaştır",
-    body: "Teklifçiler birbirini görmez. Tek tabloda karşılaştır, kazandır; sipariş kendiliğinden oluşur.",
-    link: { label: "Nasıl çalışır", href: "/nasil-calisir" },
-  },
-] as const;
+const STEP_ICONS = [Search, Send, LockKeyhole] as const;
 
 export function HowItWorksFlow() {
+  const t = useTranslations("web.marketing.flow");
+  const STEPS = [
+    { icon: STEP_ICONS[0], title: t("step1Title"), body: t("step1Body"), link: { label: t("step1Link"), href: MARKETPLACE_ROUTES.products } },
+    { icon: STEP_ICONS[1], title: t("step2Title"), body: t("step2Body"), link: { label: t("step2Link"), href: signupHref("talep") } },
+    { icon: STEP_ICONS[2], title: t("step3Title"), body: t("step3Body"), link: { label: t("step3Link"), href: "/nasil-calisir" } },
+  ];
   return (
     <section aria-labelledby="alici-akisi" className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
       <h2 id="alici-akisi" className="sr-only">
-        Alıcı için üç adım
+        {t("label")}
       </h2>
       <ol className="grid gap-4 rounded-3xl bg-zinc-50 p-6 ring-1 ring-zinc-950/5 sm:grid-cols-3 sm:gap-0 sm:p-0">
         {STEPS.map((s, i) => (

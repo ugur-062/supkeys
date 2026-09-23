@@ -69,6 +69,71 @@
       "metaAbsoluteTitle": "Rothern — B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
       "comingSoonTitle": "Çok Yakında",
       "comingSoonDescription": "Rothern şu anda geliştirme aşamasında. En yakın zamanda sizlerleyiz."
+    },
+    "comingSoon": {
+      "badge": "Geliştirme aşamasında",
+      "title": "Çok yakında sizlerleyiz",
+      "body": "Rothern, alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu. Şu anda son hazırlıkları yapıyoruz; en yakın zamanda buradayız.",
+      "questions": "Sorularınız için"
+    },
+    "rfq": {
+      "point1": "Yalnız kategorinle eşleşen tedarikçiler",
+      "point2": "Teklifler birbirini görmez — kapalı zarf",
+      "point3": "Karşılaştırma tablosu, tek ekranda kazandırma",
+      "title": "Bir talep aç, birden fazla kapalı zarf teklif al",
+      "cta": "Talep aç"
+    },
+    "trustBand": {
+      "eyebrow": "Nasıl çalışır",
+      "title": "Talepten teklife, tekliften siparişe",
+      "lead": "İncelemek ücretsiz. Teklif vermek ve firma detayları için ücretsiz hesap; komisyon alınmaz.",
+      "step1Title": "Kaydol ve firmanı tanıt",
+      "step1Body": "Tek hesapla hem alıcı hem satıcı olursun. Faaliyet alanını ve kategorilerini seç; eşleşen talepler sana gelsin.",
+      "step2Title": "Kapalı zarf teklif ver",
+      "step2Body": "Teklifini yalnız talep sahibi görür. Rakip tedarikçiler ne teklifini, ne kimliğini, ne de kaç teklif geldiğini görebilir.",
+      "step3Title": "Siparişe dönüştür",
+      "step3Body": "Kazandırma kararıyla sipariş otomatik oluşur; teslim ve ödeme adımlarını aynı panelden takip edersin."
+    },
+    "trustStrip": {
+      "label": "Güven unsurları",
+      "verifiedTitle": "Doğrulanmış firmalar",
+      "verifiedBody": "Vergi levhası ve ticaret sicili belgesiyle kimlik doğrulaması.",
+      "sealedTitle": "Kapalı zarf teklif",
+      "sealedBody": "Teklifinizi yalnız ilan sahibi görür; rakipler göremez.",
+      "noFeeTitle": "Komisyon yok",
+      "noFeeBody": "Alım-satım bedelinden platform pay almaz.",
+      "kvkkTitle": "KVKK uyumlu",
+      "kvkkBody": "Verileriniz Türkiye mevzuatına uygun işlenir."
+    },
+    "twoCards": {
+      "sellTitle": "Firmanı listele, ürünlerini vitrine çıkar",
+      "sellPoint1": "Ücretsiz profil",
+      "sellPoint2": "Yapay zekâ ile profil ve katalog doldurma",
+      "sellPoint3": "Kategorinle eşleşen talep bildirimi",
+      "createProfile": "Ücretsiz profil oluştur",
+      "seePremium": "Premium'u gör",
+      "buyTitle": "Alım taleplerini takip et",
+      "buyBody": "Kategorinle eşleşen açık talepler e-postana gelsin; kapalı zarf teklifini panelden ver, karşılaştırmayı alıcı yapsın.",
+      "seeDemands": "Alım taleplerini gör"
+    },
+    "flow": {
+      "label": "Alıcı için üç adım",
+      "step1Title": "Ara",
+      "step1Body": "Ürünü, firmayı veya kategoriyi bul. Fiyat ve minimum sipariş kartta yazar.",
+      "step1Link": "Ürünlere göz at",
+      "step2Title": "Teklif iste",
+      "step2Body": "Bulduysan firmaya bilgi talebi gönder; bulamadıysan talep aç, kategorinle eşleşen tedarikçiler teklif versin.",
+      "step2Link": "Talep aç",
+      "step3Title": "Kapalı zarfta karşılaştır",
+      "step3Body": "Teklifçiler birbirini görmez. Tek tabloda karşılaştır, kazandır; sipariş kendiliğinden oluşur.",
+      "step3Link": "Nasıl çalışır"
+    },
+    "stats": {
+      "label": "Pazar yeri hareketi",
+      "productsThisWeek": "Bu hafta eklenen ürün",
+      "bidsLast24h": "Son 24 saatte verilen teklif",
+      "openDemands": "Açık alım talebi",
+      "verifiedCompanies": "Doğrulanmış firma"
     }
   },
   "marketplace": {
@@ -82,6 +147,58 @@
       "open": "Teklife açık",
       "evaluating": "Değerlendirmede",
       "closed": "Kapandı"
+    },
+    "card": {
+      "buyer": "Alıcı",
+      "verifiedBuyer": "Doğrulanmış alıcı",
+      "items": "Kalem",
+      "itemNoun": "kalem",
+      "specsMembers": "şartname ve belgeler üyelere",
+      "visibility": "Görünürlük",
+      "sealedBid": "Kapalı zarf",
+      "closing": "Kapanış",
+      "category": "Kategori",
+      "moreCategories": "+{n} kategori",
+      "quote": "Teklif ver",
+      "itemsCount": "{count} kalem",
+      "itemsCountMembers": "{count} kalem · şartname ve belgeler üyelere",
+      "closesToday": "Bugün kapanıyor",
+      "daysLeft": "{n, plural, one {# gün kaldı} other {# gün kaldı}}",
+      "sector": "Sektör",
+      "location": "Konum",
+      "lastBid": "Son teklif",
+      "buyerVerification": "Alıcı doğrulaması",
+      "bidPrivacy": "Teklif gizliliği",
+      "sealedTooltip": "Teklifler kapalı zarf: teklifçiler birbirinin fiyatını görmez.",
+      "showDetails": "Detayları göster",
+      "hideDetails": "Detayları gizle",
+      "showItems": "Kalemleri göster",
+      "hideItems": "Kalemleri gizle"
+    },
+    "strip": {
+      "seeAll": "Tümünü gör",
+      "railLabel": "Ürün şeridi",
+      "scrollBack": "Geri kaydır",
+      "scrollForward": "İleri kaydır"
+    }
+  },
+  "domain": {
+    "activity": {
+      "MANUFACTURER": "Üretici",
+      "DISTRIBUTOR": "Distribütör / Bayi",
+      "SERVICE_PROVIDER": "Hizmet sağlayıcı",
+      "IMPORTER_EXPORTER": "İthalatçı / İhracatçı",
+      "CONTRACT_MANUFACTURER": "Fason imalatçı"
+    },
+    "scope": {
+      "allCountries": "Tüm ülkeler",
+      "onlyCountry": "Yalnız {country}",
+      "plusMore": "{country} +{n} ülke"
+    },
+    "closing": {
+      "daysLeft": "{days, plural, one {# gün kaldı} other {# gün kaldı}}",
+      "endsToday": "Bugün biter",
+      "expired": "Süre doldu"
     }
   }
 }
