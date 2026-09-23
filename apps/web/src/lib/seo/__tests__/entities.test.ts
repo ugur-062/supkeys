@@ -69,7 +69,7 @@ describe("productSeo", () => {
   it("özet cümlesi olguları taşır (GEO alıntısı)", () => {
     expect(seo.summary).toContain("Isı eşanjörleri");
     expect(seo.summary).toContain("İzmir");
-    expect(seo.summary).toMatch(/min\. 1 adet/);
+    expect(seo.summary).toMatch(/min\. 1 adet/i);
   });
 
   it("görseller MUTLAK adres olur", () => {

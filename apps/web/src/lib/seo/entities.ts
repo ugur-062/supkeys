@@ -114,7 +114,7 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
       joinParts([pr.name, pr.category?.name], " — "),
       where ? `${where} vitrininde` : null,
       priceSentence(pr, locale, ts),
-      pr.moq ? `min. ${pr.moq} ${pr.unit}` : null,
+      pr.moq ? ts("web.seo.og.minOrder", { n: pr.moq, unit: pr.unit }) : null,
     ],
     " · ",
   );
@@ -124,7 +124,7 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
      eklenir; 160'ta kelime sınırında kesilir. */
   const lead = pr.description ? clampDescription(pr.description, 96) : null;
   const description = clampDescription(
-    joinParts([lead, priceSentence(pr, locale, ts), pr.moq ? `min. ${pr.moq} ${pr.unit}` : null, where], " · "),
+    joinParts([lead, priceSentence(pr, locale, ts), pr.moq ? ts("web.seo.og.minOrder", { n: pr.moq, unit: pr.unit }) : null, where], " · "),
   );
 
   // Başlık tavanı 75 (canlı denetim 2026-09-11: 83 karakterlik ürün adı taşıyordu):
