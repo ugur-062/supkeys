@@ -103,8 +103,14 @@ panel içi kısa etiketler Claude çevirisiyle yayınlanır.
   Faz 1 sonunda katalog 1.150 anahtar; EN ve RU %100 `reviewed`.
 - **Kırıntı adresleri dil ön ekli:** `breadcrumbNode(items, locale)` — eskiden
   `/en/…` sayfasının JSON-LD kırıntısı Türkçe adres ve ad taşıyordu.
-- **İstemci yükü:** sunucuya özel ad alanları (`SERVER_ONLY_NAMESPACES`) kök
-  sağlayıcıya girmez; dosya sistemi testi "use client" dosyalarını tarar.
+- **İstemci yükü:** sunucuya özel ad alanları (`SERVER_ONLY_NAMESPACES`: about/
+  contact/faq/legal/inquiryVerify) kök sağlayıcıya girmez; dosya sistemi testi
+  "use client" dosyalarını tarar. `web.seo` istemcide kalır (parçacık önizlemesi).
+- **`server-only` zinciri:** `entities.ts` `@/i18n/server`ı import edince
+  `product-detail` → panel sayfası zinciriyle `next build` kırıldı (staging 3
+  dağıtım kırmızı; tsc/vitest/lint görmedi). Üreticiler çevirmeni parametre
+  alır (`seoT(locale)` sunucu · `useSeoT()` istemci); herkese açık yüzeye
+  dokunan her partide yerel üretim derlemesi.
 - **Sözleşmeler Türkçe kalır**, EN/RU'da "Türkçe metin esastır" notu; meta
   başlık/açıklama çevrilir, gövde `lang="tr"`.
 - **Paket metinleri** katalogda (`web.pricing`), panel Faz 2'ye kadar
@@ -113,7 +119,11 @@ panel içi kısa etiketler Claude çevirisiyle yayınlanır.
   zod mesajları `useMemo` şema fabrikasıyla dil bilen; kayıt ülkesi adları
   `Intl.DisplayNames` (XN/KKTC Türkçe ada düşer).
 - **Dil seçici:** üst çubuk küre menüsü (masaüstü), mobil menü ve altbilgide
-  yan yana bağlantılar; aynı sayfa + sorgu, hedef dilin ön ekiyle. Ayarlar ›
+  yan yana bağlantılar; aynı sayfa + sorgu, hedef dilin ön ekiyle. next-intl
+  `Link locale="tr"` (varsayılan dil) EN/RU sayfadan BİLİNÇLİ olarak `/tr/…`
+  basar; middleware 307 ile ön eksiz adrese yollar ve `NEXT_LOCALE` çerezini
+  yazar (kütüphane davranışı, ölçüldü: `/tr/hakkimizda` → 307 `/hakkimizda`).
+  Tek atlama; kanonik yine ön eksiz. Ayarlar ›
   Hesap Bilgileri › Dil anında kaydeder ve `router.replace(…, { locale })`.
 - **Bayat vaat düzeltmeleri** (çeviri sırasında görüldü): "teslim belgesi",
   "sınırsız kullanıcı", "ilan" → "talep".

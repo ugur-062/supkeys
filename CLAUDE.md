@@ -300,7 +300,7 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 - **SEO:** `buildMetadata({ …, locale })` kanonik = o dilin adresi,
   `alternates.languages` tr/en/ru + `x-default` (tr), `og:locale`; her herkese
   açık `page.tsx` `generateMetadata({ params })` + `localeFromParams`. Varlık
-  üreticileri `productSeo/companySeo/listingSeo(input, { locale })`. Sitemap
+  üreticileri `productSeo/companySeo/listingSeo(input, { locale, t })`. Sitemap
   her URL'de `<xhtml:link hreflang>` (üç dil + x-default; `located()` tek
   yardımcı), robots `/en/`·`/ru/` izin + `/en/company/` vb. yasak,
   `next.config` yönlendirmeleri `withLocales` ile üç dilde.
@@ -332,11 +332,23 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   değişince bağlantı yerini kaybetmesin. Kırıntı: `breadcrumbNode(items,
   locale)` (adres o dilin ön ekiyle, ad `web.marketing.breadcrumbHome`).
 - **İstemciye GİTMEYEN ad alanları** (`src/i18n/client-messages.ts`
-  `SERVER_ONLY_NAMESPACES`: `web.seo`, `web.marketing.{about,contact,faq,legal,
+  `SERVER_ONLY_NAMESPACES`: `web.marketing.{about,contact,faq,legal,
   inquiryVerify}`): kök düzen `NextIntlClientProvider messages={clientMessages(…)}`
   ile ayıklar; `client-messages.test` "use client" dosyalarını tarar — bir
   istemci bileşeni bu ad alanından okursa kırmızı (çalışma zamanında ham anahtar
-  basardı). Listeye ekleme = o testi koşmak.
+  basardı). Listeye ekleme = o testi koşmak. (`web.seo` listede DEĞİL: ürün/
+  talep detayı ve panel formlarının parçacık önizlemesi istemcide okur.)
+- **`server-only` ZİNCİR TUZAĞI (2026-09-23, staging 3 dağıtım kırmızı):**
+  `src/i18n/server.ts` `server-only` işaretli (katalog yükleyici istemciye
+  girmesin). İstemcide de çizilen paylaşılan bir modül (`lib/seo/entities.ts`
+  → `product-detail`, `listing-detail`, ürün formu, Profilim) onu import
+  edince `next build` kırılır; vitest/tsc/lint GÖRMEZ. Kural: paylaşılan
+  üreticiler çevirmeni PARAMETRE alır — `productSeo/companySeo/listingSeo(
+  input, { locale, t })`; sunucuda `t: seoT(locale)` (i18n/server.ts),
+  istemcide `t: useSeoT()` (i18n/domain.ts). Sayı biçimi `i18n/format.ts`
+  (saf). `@/i18n/server`ı yalnız sayfalar, rota işleyicileri, `faq-data`,
+  `og/content` import eder. Kökten herkese açık yüzeye dokunan değişiklikte
+  yerel `pnpm build` ŞART.
 - **Sözleşme metinleri YALNIZ TÜRKÇE** (hukuki metin çevrilmez): `LegalDoc`
   EN/RU'da üstte "Türkçe metin esastır" notu basar, gövde `lang="tr"`, JSON-LD
   `inLanguage` tr-TR; yalnız kabuk ve meta çevrilir; `updatedAt` ISO tarih.
@@ -1539,7 +1551,7 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 ## Test & Kalite
 
 - API **177 dosya** (parçalı koşum, 2026-09-12 yeşil; i18n birimi 2026-09-23)
-  · web **142 / 791** (2026-09-23) · admin **17 / 84** · i18n **6 / 22**.
+  · web **143 / 814** (2026-09-23, Faz 1 sonu) · admin **17 / 84** · i18n **6 / 22**.
 - **Bağımlılık kapısı (2026-09-12):** CI'da `pnpm audit --prod --audit-level high`.
   Tarama yokken üretim bağımlılıklarında 2 kritik + 20 yüksek birikmişti
   (Next 15.5.18 RCE uyarısı dahil) → Next 15.5.25 + hedefli `pnpm.overrides`
@@ -1768,9 +1780,10 @@ istemcisi sessizce kısıtlı role düşüp sağlık/giriş/cron'u bozamaz.
 - WebSocket real-time bildirim
 - Admin: impersonate (güvenlik değerlendirilecek), iade/refund, CSV export,
   dahili not, global arama
-- i18n Faz 1–4 (`docs/plan-i18n.md`): `[locale]` yönlendirme + hreflang +
-  dil seçici (1) · panel metinleri (2) · API istisna/DTO/bildirim/e-posta (3) ·
-  kategori adları (4). Faz 0 altyapısı 2026-09-23'te kuruldu.
+- i18n Faz 2–4 (`docs/plan-i18n.md`): panel metinleri (2, cırcır 433 dosya /
+  6.194 literal) · API istisna/DTO/bildirim/e-posta (3) · kategori adları (4).
+  Faz 0 + Faz 1 (herkese açık yüzey, kimlik akışı, dil seçici) 2026-09-23'te
+  BİTTİ. Canlı: `20260923120000` locale migration + PR #57 kullanıcıda.
 
 **Teknik borç**
 - **Tablo okuma tek kaynağı yarım:** `listing-item-import.service.ts` hâlâ
