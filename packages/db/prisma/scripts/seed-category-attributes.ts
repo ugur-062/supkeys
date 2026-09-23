@@ -11,9 +11,9 @@
  *
  *   npx tsx prisma/scripts/seed-category-attributes.ts
  */
+import { PrismaClient, type CategoryAttributeType } from "@prisma/client";
 import { readAttributeI18n } from "./lib/category-keywords";
 import * as path from "path";
-{ PrismaClient, type CategoryAttributeType } from "@prisma/client";
 import { CATEGORY_ATTRIBUTES } from "../../src/seeds/category-attributes";
 
 const prisma = new PrismaClient();

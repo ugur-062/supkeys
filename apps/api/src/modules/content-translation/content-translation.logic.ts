@@ -31,6 +31,8 @@ export interface ProductSource {
   keywords: string[];
   /** Etiketlenmiş nitelikler (`labelAttributes` çıktısı, birim hariç). */
   attributes: { label: string; value: string }[];
+  /** SERBEST metin ölçü birimi (koddan gelmeyen, örn. "kullanıcı"); koda bağlı birimler katalogdan çevrilir, buraya girmez. */
+  unit?: string;
 }
 export interface ListingSource {
   title: string;
@@ -52,6 +54,7 @@ export interface ProductTranslation {
   description: string | null;
   keywords: Pair[];
   attributes: AttributePair[];
+  unit?: string | null;
 }
 export interface ListingTranslation {
   title: string;
@@ -231,6 +234,7 @@ function parseOne(type: TranslatableEntityType, source: SourceFields, dst: unkno
       description: checkText("description", s.description, d.description, errors),
       keywords: checkList("keywords", s.keywords, d.keywords, errors),
       attributes: checkAttributes(s.attributes, d.attributes, errors),
+      ...(s.unit ? { unit: checkText("unit", s.unit, d.unit, errors) } : {}),
     };
   }
   if (type === "LISTING") {
@@ -320,6 +324,7 @@ export function localizeProduct<T extends { name: string }>(item: T, t: ProductT
   const out: Loose = { ...src, name: t.name || item.name };
   if ("description" in src) out.description = t.description ?? src.description;
   if ("excerpt" in src && t.description) out.excerpt = productExcerpt(t.description);
+  if ("unit" in src && t.unit) out.unit = t.unit;
   if (Array.isArray(src.keywords)) out.keywords = localizeList(src.keywords as string[], t.keywords);
   if (Array.isArray(src.attributeList)) {
     out.attributeList = localizeAttributes(src.attributeList as { label: string; value: string }[], t.attributes);

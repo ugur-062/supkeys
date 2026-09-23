@@ -103,13 +103,15 @@ export class ContentTranslationService {
     if (type === "PRODUCT") {
       const row = await this.prisma.companyItem.findUnique({
         where: { id },
-        select: { name: true, description: true, keywords: true, attributes: true, categoryId: true },
+        select: { name: true, description: true, keywords: true, attributes: true, categoryId: true, unit: true, unitCode: true },
       });
       if (!row) return null;
       const defs = await resolveCategoryAttributes(this.prisma, row.categoryId);
       const labeled = labelAttributes(row.attributes, defs) as { label: string; value: unknown }[];
       return {
         name: row.name,
+        // Serbest birim (kod yok) çevrilir; kodlu birim katalogdan → hash'e girmez.
+        ...(!row.unitCode && row.unit?.trim() ? { unit: row.unit.trim() } : {}),
         description: row.description,
         keywords: row.keywords,
         attributes: labeled
@@ -169,6 +171,12 @@ export class ContentTranslationService {
         });
       }
       this.kick(type, id);
+      // Talep sahibinin firması: sektörü herkese açık talep sayfasında görünür → o firma
+      // herkese açık profilli olmasa da çevrilir (2026-09-23 tarama: "Makine İmalatı").
+      if (type === "LISTING") {
+        const owner = await this.prisma.listing.findUnique({ where: { id }, select: { companyId: true } });
+        if (owner?.companyId) void this.enqueue("COMPANY", owner.companyId).catch(() => undefined);
+      }
       return true;
     } catch (err) {
       this.logger.warn(`Translation enqueue failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`);
@@ -499,7 +507,7 @@ export class ContentTranslationService {
   }): Promise<{ products: number; listings: number; companies: number }> {
     const [products, listings, companies] = await Promise.all([
       this.prisma.companyItem.findMany({ where: where.products, select: { id: true } }),
-      this.prisma.listing.findMany({ where: where.listings, select: { id: true } }),
+      this.prisma.listing.findMany({ where: where.listings, select: { id: true, companyId: true } }),
       this.prisma.company.findMany({ where: where.companies, select: { id: true } }),
     ]);
     const counts = { products: 0, listings: 0, companies: 0 };
@@ -508,6 +516,9 @@ export class ContentTranslationService {
     for (const p of products) if (await this.enqueueQuiet("PRODUCT", p.id)) counts.products += 1;
     for (const l of listings) if (await this.enqueueQuiet("LISTING", l.id)) counts.listings += 1;
     for (const c of companies) if (await this.enqueueQuiet("COMPANY", c.id)) counts.companies += 1;
+    // Talep sahipleri (herkese açık profili olmayanlar dahil): sektör talep sayfasında görünür.
+    const ownerIds = [...new Set(listings.map((l) => l.companyId))].filter((cid) => !companies.some((c) => c.id === cid));
+    for (const cid of ownerIds) if (await this.enqueueQuiet("COMPANY", cid)) counts.companies += 1;
     return counts;
   }
 

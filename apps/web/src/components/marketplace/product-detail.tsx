@@ -1,4 +1,4 @@
-import { usePriceLabels, useSeoT, useUnitLabel } from "@/i18n/domain";
+import { useActivityLabel, usePriceLabels, useSeoT, useUnitLabel } from "@/i18n/domain";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { PublicLayout } from "./public-layout";
 import { ProductGallery } from "./product-gallery";
@@ -25,7 +25,6 @@ import { RfqBanner } from "./rfq-banner";
 import { ProductCard } from "./product-card";
 import { ActivityIcon } from "./activity-icons";
 import { CardCarousel } from "./card-carousel";
-import { companyActivityLabel } from "@rothern/shared";
 import type { ReactNode } from "react";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { resolveSiteUrl } from "@/lib/site-url";
@@ -534,6 +533,7 @@ function SellerSummary({
   sellerSite?: React.ReactNode;
   compact?: boolean;
 }) {
+  const activityLabel = useActivityLabel();
   const t = useTranslations("web.marketplace.product");
   const certs = (company.certifications ?? []).slice(0, compact ? 2 : 4);
   const facts = [
@@ -587,7 +587,7 @@ function SellerSummary({
               className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700"
             >
               <ActivityIcon code={a} className="size-4 text-zinc-400" />
-              {companyActivityLabel(a)}
+              {activityLabel(a)}
             </span>
           ))}
           {certs.map((c) => (
