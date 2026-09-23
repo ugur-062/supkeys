@@ -29,16 +29,22 @@ export default async function Page({ params }: { params: LocaleParams }) {
   setRequestLocale(locale);
   const t = await getTranslations("web.marketing.contact");
   const tm = await getTranslations("web.marketing");
-  const mail = (email: string) => (chunks: ReactNode) => (
-    <a href={`mailto:${email}`} className={LINK}>
-      {chunks}
-    </a>
-  );
-  const link = (href: string) => (chunks: ReactNode) => (
-    <Link href={href} className={LINK}>
-      {chunks}
-    </Link>
-  );
+  const mail = (email: string) =>
+    function MailChunk(chunks: ReactNode) {
+      return (
+        <a href={`mailto:${email}`} className={LINK}>
+          {chunks}
+        </a>
+      );
+    };
+  const link = (href: string) =>
+    function LinkChunk(chunks: ReactNode) {
+      return (
+        <Link href={href} className={LINK}>
+          {chunks}
+        </Link>
+      );
+    };
   /* Künye satırları — etiketler çevrilir, DEĞERLER künyenin kendisidir (tek kaynak `lib/company-info.ts`). */
   const rows: Array<{ label: string; value: string }> = [
     { label: t("legalName"), value: OPERATOR.legalName },

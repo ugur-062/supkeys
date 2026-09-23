@@ -189,6 +189,721 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.auth.common.alreadyVerifiedLogin": {
+    "hash": "2693b029e3",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.code": {
+    "hash": "55c3d6fb9b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.codePlaceholder": {
+    "hash": "c984aed014",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.codeSendFailed": {
+    "hash": "526eb983f4",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.codeSentTo": {
+    "hash": "d27f602274",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.codeVerifyFailed": {
+    "hash": "c1fd3347de",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.email": {
+    "hash": "0ff610ba03",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.firstName": {
+    "hash": "94b6931d19",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.haveAccount": {
+    "hash": "117e7c6e9b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.lastName": {
+    "hash": "d697b0218f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.login": {
+    "hash": "a7fbdadbc8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.loginCta": {
+    "hash": "159a112fc5",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.newCodeSent": {
+    "hash": "785db1e1b2",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.password": {
+    "hash": "6f26a444c2",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.phone": {
+    "hash": "40314f8828",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.resend": {
+    "hash": "15d0ab719b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.resendIn": {
+    "hash": "84800a8d76",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.sending": {
+    "hash": "562056b57e",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.verifyAndLogin": {
+    "hash": "c49c2f3402",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.common.verifying": {
+    "hash": "fa94bc4550",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.consents.kvkk": {
+    "hash": "6465c48491",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.consents.kvkkAria": {
+    "hash": "dfcffa0a7a",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.consents.kvkkProviders": {
+    "hash": "97d09772b9",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.consents.marketing": {
+    "hash": "4eb38daf6b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.consents.mediation": {
+    "hash": "52e9fa542d",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.consents.mediationAria": {
+    "hash": "b355c5ccf3",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.consents.profile": {
+    "hash": "2f07307b63",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.consents.terms": {
+    "hash": "f654597fe9",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.consents.termsAria": {
+    "hash": "f32abfbe04",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.forgot.metaTitle": {
+    "hash": "0634f43bbc",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.forgot.remembered": {
+    "hash": "a2eccd1208",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.forgot.sending": {
+    "hash": "562056b57e",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.forgot.sent": {
+    "hash": "ce6dbbe0b4",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.forgot.submit": {
+    "hash": "92e993a680",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.forgot.subtitle": {
+    "hash": "66025d9aa3",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.forgot.title": {
+    "hash": "35c0e4e9ed",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.backToLogin": {
+    "hash": "d544fa4b0c",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.failed": {
+    "hash": "f8a682e2cc",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.invalidSubtitle": {
+    "hash": "3e8dc13970",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.invalidTitle": {
+    "hash": "f5a2b9e1fb",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.joining": {
+    "hash": "7147c4cd99",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.loading": {
+    "hash": "3a5e96d474",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.loginLink": {
+    "hash": "19ecb911dc",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.metaTitle": {
+    "hash": "e580e7f6f3",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.notFound": {
+    "hash": "c815e0c720",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.phoneOptional": {
+    "hash": "487c82cda1",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.roles.ONAYLAYICI": {
+    "hash": "0f48e55792",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.roles.SATIN_ALMACI": {
+    "hash": "c57863a550",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.roles.SATISCI": {
+    "hash": "1e5d030c46",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.roles.YONETICI": {
+    "hash": "8459a48382",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.submit": {
+    "hash": "5f9605fa02",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.subtitle": {
+    "hash": "6e1105f626",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.title": {
+    "hash": "e580e7f6f3",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.invite.verifying": {
+    "hash": "c1693abed4",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.codePlaceholder2fa": {
+    "hash": "462d955f2c",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.codeRequired": {
+    "hash": "f280f609e0",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.emailInvalid": {
+    "hash": "cb207a350d",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.failed": {
+    "hash": "b4f5cd8a93",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.forgot": {
+    "hash": "e9ca52ee1a",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.hintAuthenticator": {
+    "hash": "fa9dbe7689",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.hintEmail": {
+    "hash": "46827aa8bf",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.metaTitle": {
+    "hash": "e40600704c",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.noAccount": {
+    "hash": "002e6118fb",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.passwordRequired": {
+    "hash": "bd870f1212",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.remember": {
+    "hash": "dd2d9e3409",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.signupLink": {
+    "hash": "0e0d522b34",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.ssl": {
+    "hash": "34509044ff",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.submit": {
+    "hash": "159a112fc5",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.submitting": {
+    "hash": "c2bbbe954c",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.subtitle": {
+    "hash": "8d8c9fb667",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.title": {
+    "hash": "e40600704c",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.login.twoFa": {
+    "hash": "c9e61831f4",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.addressLine": {
+    "hash": "e7300ba57b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.back": {
+    "hash": "4928cfc92f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.city": {
+    "hash": "5037b01d08",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.companyType.JOINT_STOCK": {
+    "hash": "2bb1d557c3",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.companyType.LIMITED": {
+    "hash": "88c9bf2c22",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.companyType.SOLE_PROPRIETOR": {
+    "hash": "94c226b025",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.companyTypeLabel": {
+    "hash": "613d74447d",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.completed": {
+    "hash": "dae01fbba2",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.country": {
+    "hash": "46dbb3c3d0",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.declaration": {
+    "hash": "22d8f45e48",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.declarationAria": {
+    "hash": "1f0baa5d09",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.deliveryAddress": {
+    "hash": "968745e672",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.deliveryCity": {
+    "hash": "5037b01d08",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.deliveryDistrict": {
+    "hash": "c3812bd186",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.deliveryProvince": {
+    "hash": "17a7c517f3",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.district": {
+    "hash": "889e571539",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.finish": {
+    "hash": "1133f332a9",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.foreignIdLabel": {
+    "hash": "aca0a1ac1b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.founderBox": {
+    "hash": "3b0fd629cd",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.lead": {
+    "hash": "e4423b0d9c",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.legalName": {
+    "hash": "694644ef96",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.loading": {
+    "hash": "3a5e96d474",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.metaTitle": {
+    "hash": "384104b5f9",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.neighborhood": {
+    "hash": "7f75c8f1b0",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.next": {
+    "hash": "1b63a288b8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.nextBody": {
+    "hash": "a07b3bad4c",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.nextTitle": {
+    "hash": "4770c40006",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.pickerHint": {
+    "hash": "63d59a39e0",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.pickerLabel": {
+    "hash": "2842fcc1a7",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.postalCode": {
+    "hash": "459cb5f779",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.province": {
+    "hash": "17a7c517f3",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.retry": {
+    "hash": "555367ed61",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sameAsBilling": {
+    "hash": "47ffa0ec6f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.saveFailed": {
+    "hash": "9b108c4df0",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.saving": {
+    "hash": "4422d3482b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sectorHint": {
+    "hash": "70d3c53b27",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sectorQuestion": {
+    "hash": "598c8d0bcf",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sectorsFailed": {
+    "hash": "2aa2a56544",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.select": {
+    "hash": "6e204ab7ab",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.stateRegion": {
+    "hash": "2abb85c575",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.step1": {
+    "hash": "cbdf988ae2",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.step2": {
+    "hash": "e535e8f6bf",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.step3": {
+    "hash": "29751cb1c2",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sumAddress": {
+    "hash": "37bc4ee45b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sumAuthorized": {
+    "hash": "c1eef45a36",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sumCompanyType": {
+    "hash": "d8dd1130d8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sumCountry": {
+    "hash": "bbc688c971",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sumLegalName": {
+    "hash": "3170851259",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sumRole": {
+    "hash": "a73f1345df",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sumRoleValue": {
+    "hash": "e323a3cc41",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sumSectors": {
+    "hash": "6e18a30cef",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sumTax": {
+    "hash": "d30fe8d46f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.sumTaxOffice": {
+    "hash": "3d7824d26b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.taxForeign": {
+    "hash": "8fd1883ac6",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.taxForeignInvalid": {
+    "hash": "1eb86f59ba",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.taxOffice": {
+    "hash": "ba277b5f95",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.taxTr": {
+    "hash": "f5752c818f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.tcknInvalid": {
+    "hash": "5dfbac1a19",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.tcknInvalidPerson": {
+    "hash": "7ae7ea6be8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.tcknLabel": {
+    "hash": "96f05bbe5a",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.title": {
+    "hash": "384104b5f9",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.viesCheck": {
+    "hash": "0d7adf7f31",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.viesChecking": {
+    "hash": "fa94bc4550",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.viesFailed": {
+    "hash": "4b11dbf7cf",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.viesInvalid": {
+    "hash": "e0aef293f8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.viesUnavailable": {
+    "hash": "0cfb59829f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.viesValid": {
+    "hash": "f23c68c89b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.vknInvalid": {
+    "hash": "f31e5cc25d",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.website": {
+    "hash": "c0429ffe12",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.websiteHint": {
+    "hash": "88b9039d4b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.onboarding.websitePlaceholder": {
+    "hash": "83d1f99d8a",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
   "web.auth.password.digit": {
     "hash": "1e9cb561f1",
     "status": "reviewed",
@@ -214,8 +929,38 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.auth.password.repeatShort": {
+    "hash": "ee4a2482a2",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
   "web.auth.password.upper": {
     "hash": "9f42259526",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.pwRules.digit": {
+    "hash": "0fa7f8a7a7",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.pwRules.len": {
+    "hash": "63390715fe",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.pwRules.lower": {
+    "hash": "7bd4f1da6b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.pwRules.special": {
+    "hash": "f25adffaff",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.pwRules.upper": {
+    "hash": "8fdc29eab4",
     "status": "reviewed",
     "at": "2026-09-23"
   },
@@ -306,6 +1051,116 @@
   },
   "web.auth.reset.toastChanged": {
     "hash": "07d5e0e05c",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.alreadyVerified": {
+    "hash": "7af0b7161f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.changeEmail": {
+    "hash": "7d4b6ae4af",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.codeNotReceived": {
+    "hash": "8901d5e768",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.codeNotSent": {
+    "hash": "ef98b628cb",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.codeSent": {
+    "hash": "e4557b749f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.corporateEmail": {
+    "hash": "96d3f1ebc0",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.creating": {
+    "hash": "8d7aee2932",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.failed": {
+    "hash": "6d0eb400dd",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.founderNote": {
+    "hash": "e58ec3f172",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.metaTitle": {
+    "hash": "7820f19547",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.passwordRepeat": {
+    "hash": "055dc9db96",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.submit": {
+    "hash": "c46a72d30f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.subtitle": {
+    "hash": "602982930e",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.title": {
+    "hash": "c5b9063d0c",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.verifySubtitle": {
+    "hash": "14ac0c4d25",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.signup.verifyTitle": {
+    "hash": "27ff0e9e37",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.strength.s0": {
+    "hash": "59e0b22064",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.strength.s1": {
+    "hash": "6df90ca9d2",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.strength.s2": {
+    "hash": "e979e2e7c7",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.strength.s3": {
+    "hash": "eaf4d67ff0",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.strength.s4": {
+    "hash": "9dd2b4d65e",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.auth.strength.s5": {
+    "hash": "42d5fd96c9",
     "status": "reviewed",
     "at": "2026-09-23"
   },

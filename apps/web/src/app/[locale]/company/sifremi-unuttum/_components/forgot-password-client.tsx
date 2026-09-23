@@ -6,9 +6,12 @@ import { Input } from "@/components/catalyst/input";
 import { AuthShell } from "@/components/marketing/auth-shell";
 import { companyApi } from "@/lib/company-auth/api";
 import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 
 export function CompanyForgotPasswordClient() {
+  const t = useTranslations("web.auth.forgot");
+  const tc = useTranslations("web.auth.common");
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [pending, setPending] = useState(false);
@@ -32,16 +35,16 @@ export function CompanyForgotPasswordClient() {
 
   return (
     <AuthShell
-      title="Şifremi unuttum"
-      subtitle="E-posta adresine sıfırlama bağlantısı gönderelim"
+      title={t("title")}
+      subtitle={t("subtitle")}
       footer={
         <>
-          Hatırladın mı?{" "}
+          {t("remembered")}{" "}
           <Link
             href="/company/login"
             className="font-semibold text-zinc-900 hover:underline"
           >
-            Giriş yap
+            {tc("login")}
           </Link>
         </>
       }
@@ -51,13 +54,12 @@ export function CompanyForgotPasswordClient() {
           role="status"
           className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 text-center text-sm text-emerald-800"
         >
-          Eğer bu e-posta kayıtlıysa, şifre sıfırlama bağlantısı gönderildi.
-          Gelen kutunu (ve spam klasörünü) kontrol et. Bağlantı 1 saat geçerli.
+          {t("sent")}
         </div>
       ) : (
         <form onSubmit={onSubmit} className="space-y-4">
           <Field>
-            <Label>E-posta</Label>
+            <Label>{tc("email")}</Label>
             <Input
               type="email"
               autoComplete="email"
@@ -70,7 +72,7 @@ export function CompanyForgotPasswordClient() {
             className="w-full"
             disabled={pending || !email.includes("@")}
           >
-            {pending ? "Gönderiliyor…" : "Sıfırlama bağlantısı gönder"}
+            {pending ? t("sending") : t("submit")}
           </Button>
         </form>
       )}

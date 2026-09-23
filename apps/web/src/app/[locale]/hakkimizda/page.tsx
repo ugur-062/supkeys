@@ -34,11 +34,14 @@ export default async function Page({ params }: { params: LocaleParams }) {
   const t = await getTranslations("web.marketing.about");
   const tm = await getTranslations("web.marketing");
   const b = (chunks: ReactNode) => <strong>{chunks}</strong>;
-  const link = (href: string) => (chunks: ReactNode) => (
-    <Link href={href} className={LINK}>
-      {chunks}
-    </Link>
-  );
+  const link = (href: string) =>
+    function LinkChunk(chunks: ReactNode) {
+      return (
+        <Link href={href} className={LINK}>
+          {chunks}
+        </Link>
+      );
+    };
   return (
     <PublicLayout>
       <JsonLd

@@ -3,6 +3,7 @@
 import { AuthShell } from "@/components/marketing/auth-shell";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useEffect } from "react";
@@ -19,6 +20,7 @@ function safeNextPath(value: string | null): string {
 }
 
 export function CompanyLoginClient() {
+  const t = useTranslations("web.auth.login");
   const user = useCompanyAuthStore((s) => s.user);
   const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
   const router = useRouter();
@@ -33,16 +35,16 @@ export function CompanyLoginClient() {
 
   return (
     <AuthShell
-      title="Giriş"
-      subtitle="Firma hesabınızla giriş yapın"
+      title={t("title")}
+      subtitle={t("subtitle")}
       footer={
         <>
-          Hesabınız yok mu?{" "}
+          {t("noAccount")}{" "}
           <Link
             href="/company/kayit"
             className="font-semibold text-zinc-900 hover:underline"
           >
-            Firma olarak kayıt ol
+            {t("signupLink")}
           </Link>
         </>
       }

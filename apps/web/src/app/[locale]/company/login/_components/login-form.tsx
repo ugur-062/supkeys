@@ -17,19 +17,28 @@ import axios from "axios";
 import { Lock, ShieldCheck } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
-import { useEffect, useState } from "react";
+import { useTranslations } from "next-intl";
+import { useEffect, useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
-const schema = z.object({
-  email: z.string().email("Geçerli bir e-posta giriniz"),
-  password: z.string().min(1, "Şifre gerekli"),
-});
+function makeSchema(msg: { emailInvalid: string; passwordRequired: string }) {
+  return z.object({
+    email: z.string().email(msg.emailInvalid),
+    password: z.string().min(1, msg.passwordRequired),
+  });
+}
 
-type FormData = z.infer<typeof schema>;
+type FormData = z.infer<ReturnType<typeof makeSchema>>;
 
 export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
+  const t = useTranslations("web.auth.login");
+  const tc = useTranslations("web.auth.common");
+  const schema = useMemo(
+    () => makeSchema({ emailInvalid: t("emailInvalid"), passwordRequired: t("passwordRequired") }),
+    [t],
+  );
   const router = useRouter();
   const login = useCompanyLogin();
   const verify = useVerifyEmail();
@@ -52,8 +61,8 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
 
   useEffect(() => {
     if (cooldown <= 0) return;
-    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
   }, [cooldown]);
 
   const {
@@ -66,7 +75,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
     setFormError(null);
     // 2FA açıkken kod zorunlu: 6 haneli TOTP veya kurtarma kodu (XXXX-XXXX).
     if (twoFactor && code.trim().length < 6) {
-      setFormError("Doğrulama kodunu ya da kurtarma kodunuzu girin");
+      setFormError(t("codeRequired"));
       return;
     }
     try {
@@ -110,7 +119,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         }
         return;
       }
-      setFormError(extractErrorMessage(err, "Giriş başarısız"));
+      setFormError(extractErrorMessage(err, t("failed")));
     }
   });
 
@@ -120,7 +129,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
       const res = await verify.mutateAsync({ email: verifyEmail, code: verifyCode });
       // Güvenlik: zaten doğrulanmışsa token dönmez → giriş formuna geri dön.
       if ("alreadyVerified" in res) {
-        toast.info("E-postanız zaten doğrulanmış. Lütfen tekrar giriş yapın.");
+        toast.info(tc("alreadyVerifiedLogin"));
         setNeedsVerify(false);
         setVerifyCode("");
         return;
@@ -129,7 +138,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
       setAuth({ user: res.user, company: res.company });
       router.replace(nextPath);
     } catch (err) {
-      setFormError(extractErrorMessage(err, "Kod doğrulanamadı"));
+      setFormError(extractErrorMessage(err, tc("codeVerifyFailed")));
     }
   };
 
@@ -139,9 +148,9 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
     try {
       await resend.mutateAsync(verifyEmail);
       setCooldown(60);
-      toast.success("Yeni kod gönderildi");
+      toast.success(tc("newCodeSent"));
     } catch (err) {
-      setFormError(extractErrorMessage(err, "Kod gönderilemedi"));
+      setFormError(extractErrorMessage(err, tc("codeSendFailed")));
     }
   };
 
@@ -149,15 +158,15 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
     return (
       <div className="space-y-4">
         <p className="text-sm text-zinc-600">
-          <strong>{verifyEmail}</strong> adresine gönderilen 6 haneli kodu girin.
+          {tc.rich("codeSentTo", { email: verifyEmail, b: (chunks) => <strong>{chunks}</strong> })}
         </p>
         <Field>
-          <Label>Doğrulama kodu</Label>
+          <Label>{tc("code")}</Label>
           <Input
             inputMode="numeric"
             autoComplete="one-time-code"
             maxLength={6}
-            placeholder="000000"
+            placeholder={tc("codePlaceholder")}
             value={verifyCode}
             onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ""))}
           />
@@ -172,7 +181,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
           disabled={verifyCode.length !== 6 || verify.isPending}
           onClick={submitVerify}
         >
-          {verify.isPending ? "Doğrulanıyor…" : "Doğrula ve Giriş Yap"}
+          {verify.isPending ? tc("verifying") : tc("verifyAndLogin")}
         </Button>
         <button
           type="button"
@@ -181,10 +190,10 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
           className="w-full text-center text-sm text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
         >
           {cooldown > 0
-            ? `Yeniden gönder (${cooldown}sn)`
+            ? tc("resendIn", { s: cooldown })
             : resend.isPending
-              ? "Gönderiliyor…"
-              : "Kodu yeniden gönder"}
+              ? tc("sending")
+              : tc("resend")}
         </button>
       </div>
     );
@@ -193,7 +202,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   return (
     <form onSubmit={onSubmit} className="space-y-5">
       <Field>
-        <Label>E-posta</Label>
+        <Label>{tc("email")}</Label>
         <Input type="email" autoComplete="email" autoFocus invalid={!!errors.email} {...register("email")} />
         {errors.email ? (
           <ErrorMessage className="mt-1">{errors.email.message}</ErrorMessage>
@@ -201,7 +210,7 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
       </Field>
 
       <Field>
-        <Label>Şifre</Label>
+        <Label>{tc("password")}</Label>
         <PasswordInput autoComplete="current-password" invalid={!!errors.password} {...register("password")} />
         {errors.password ? (
           <ErrorMessage className="mt-1">{errors.password.message}</ErrorMessage>
@@ -210,19 +219,17 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
 
       {twoFactor ? (
         <Field>
-          <Label>Doğrulama kodu</Label>
+          <Label>{tc("code")}</Label>
           <Input
             autoComplete="one-time-code"
             autoFocus
             maxLength={12}
-            placeholder="6 haneli kod ya da XXXX-XXXX"
+            placeholder={t("codePlaceholder2fa")}
             value={code}
             onChange={(e) => setCode(e.target.value)}
           />
           <p className="mt-1 text-xs text-zinc-500">
-            {twoFactorMethod === "email"
-              ? "E-posta adresinize gönderilen 6 haneli kodu girin. Erişemiyorsanız kurtarma kodlarınızdan birini kullanabilirsiniz."
-              : "Hesabınızda iki adımlı doğrulama açık — authenticator uygulamanızdaki kodu girin. Cihazınıza erişemiyorsanız kurtarma kodlarınızdan birini kullanabilirsiniz."}
+            {twoFactorMethod === "email" ? t("hintEmail") : t("hintAuthenticator")}
           </p>
         </Field>
       ) : null}
@@ -235,10 +242,10 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
             onChange={(e) => setRemember(e.target.checked)}
             className="h-4 w-4 rounded border-zinc-300 text-blue-600 focus:ring-blue-500"
           />
-          Oturumumu açık bırak
+          {t("remember")}
         </label>
         <Link href="/company/sifremi-unuttum" className="text-xs font-medium text-zinc-500 hover:text-zinc-900">
-          Şifremi unuttum?
+          {t("forgot")}
         </Link>
       </div>
 
@@ -249,16 +256,16 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
       ) : null}
 
       <Button type="submit" className="w-full" disabled={login.isPending}>
-        {login.isPending ? "Giriş yapılıyor…" : "Giriş Yap"}
+        {login.isPending ? t("submitting") : t("submit")}
       </Button>
 
       <div className="flex items-center justify-center gap-3 pt-1 text-xs text-zinc-500">
         <span className="inline-flex items-center gap-1">
-          <Lock className="h-3 w-3" aria-hidden="true" /> SSL korumalı
+          <Lock className="h-3 w-3" aria-hidden="true" /> {t("ssl")}
         </span>
         <span aria-hidden="true">·</span>
         <span className="inline-flex items-center gap-1">
-          <ShieldCheck className="h-3 w-3" aria-hidden="true" /> 2FA destekli
+          <ShieldCheck className="h-3 w-3" aria-hidden="true" /> {t("twoFa")}
         </span>
       </div>
     </form>

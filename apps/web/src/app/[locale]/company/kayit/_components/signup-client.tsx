@@ -6,10 +6,11 @@ import {
   type SignupIntent,
 } from "@/lib/company/signup-intent";
 
+import { ConsentRows, type Consents } from "@/components/auth/consent-rows";
+import { PasswordStrength } from "@/components/auth/password-strength";
 import { AuthShell } from "@/components/marketing/auth-shell";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/catalyst/button";
-import { Checkbox } from "@/components/catalyst/checkbox";
 import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -19,10 +20,12 @@ import {
   useSetCompanyAuth,
   useVerifyEmail,
 } from "@/hooks/use-company-auth";
+import { usePasswordRules } from "@/lib/company-auth/password-rules";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { Check, Crown, X } from "lucide-react";
+import { Crown } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -42,16 +45,11 @@ export function formatPhone(raw: string): string {
   return d ? `+90 ${p.join(" ")}`.trim() : s;
 }
 
-const PW_RULES = [
-  { key: "len", label: "En az 10 karakter", test: (p: string) => p.length >= 10 },
-  { key: "lower", label: "Küçük harf", test: (p: string) => /[a-z]/.test(p) },
-  { key: "upper", label: "Büyük harf", test: (p: string) => /[A-Z]/.test(p) },
-  { key: "digit", label: "Rakam", test: (p: string) => /[0-9]/.test(p) },
-  { key: "special", label: "Özel karakter", test: (p: string) => /[^a-zA-Z0-9]/.test(p) },
-];
-const STRENGTH = ["Çok Zayıf", "Zayıf", "Orta", "İyi", "Güçlü", "Çok Güçlü"];
-
 export function CompanySignupClient() {
+  const t = useTranslations("web.auth.signup");
+  const tc = useTranslations("web.auth.common");
+  const tp = useTranslations("web.auth.password");
+  const { rules: PW_RULES, strength } = usePasswordRules();
   const user = useCompanyAuthStore((s) => s.user);
   const isHydrated = useCompanyAuthStore((s) => s.isHydrated);
   const router = useRouter();
@@ -70,7 +68,7 @@ export function CompanySignupClient() {
    * Mekanizma duruyor: `?intent=vitrin` ürün formuna, `?redirect=` geldiği
    * kayda döndürür. Paket satışı devreye girince soru geri gelebilir.
    */
-  const intent = parseSignupIntent(searchParams.get("intent")) ?? "ikisi";
+  const intent: SignupIntent = parseSignupIntent(searchParams.get("intent")) ?? "ikisi";
   // "Teklif ver" / "Bilgi iste"den gelen geri dönüş yolu — kayıt + onboarding
   // sonrası aynı kayda döner (yalnız site içi; sessionStorage'a yazılır).
   const redirect = searchParams.get("redirect");
@@ -87,7 +85,7 @@ export function CompanySignupClient() {
     password: "",
     passwordConfirm: "",
   });
-  const [consents, setConsents] = useState({
+  const [consents, setConsents] = useState<Consents>({
     terms: false,
     mediation: false,
     kvkk: false,
@@ -105,8 +103,8 @@ export function CompanySignupClient() {
 
   useEffect(() => {
     if (cooldown <= 0) return;
-    const t = setTimeout(() => setCooldown((c) => c - 1), 1000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setCooldown((c) => c - 1), 1000);
+    return () => clearTimeout(timer);
   }, [cooldown]);
 
   const set = (k: keyof typeof form) => (v: string) =>
@@ -114,7 +112,7 @@ export function CompanySignupClient() {
 
   const pwScore = useMemo(
     () => PW_RULES.filter((r) => r.test(form.password)).length,
-    [form.password],
+    [PW_RULES, form.password],
   );
   const pwOk = pwScore === PW_RULES.length;
   const confirmOk =
@@ -151,15 +149,13 @@ export function CompanySignupClient() {
       // hata göster ve cooldown'ı atla → kullanıcı hemen "Tekrar Gönder"sin.
       if (res.emailSent === false) {
         setCooldown(0);
-        setError(
-          "Doğrulama kodu şu anda gönderilemedi. Aşağıdan 'Tekrar Gönder' ile yeniden deneyin; sorun sürerse birkaç dakika sonra tekrar deneyin.",
-        );
+        setError(t("codeNotSent"));
       } else {
         setCooldown(60);
-        toast.success("Doğrulama kodu e-postanıza gönderildi");
+        toast.success(t("codeSent"));
       }
     } catch (err) {
-      setError(extractErrorMessage(err, "Kayıt başarısız"));
+      setError(extractErrorMessage(err, t("failed")));
     }
   };
 
@@ -169,7 +165,7 @@ export function CompanySignupClient() {
       const res = await verify.mutateAsync({ email: form.email.trim(), code });
       // Güvenlik: e-posta zaten doğrulanmışsa token DÖNMEZ → normal girişe yönlendir.
       if ("alreadyVerified" in res) {
-        toast.info("E-postanız zaten doğrulanmış. Lütfen giriş yapın.");
+        toast.info(t("alreadyVerified"));
         router.replace("/company/login");
         return;
       }
@@ -177,7 +173,7 @@ export function CompanySignupClient() {
       rememberSignupIntent(intent, redirect);
       router.replace("/company");
     } catch (err) {
-      setError(extractErrorMessage(err, "Kod doğrulanamadı"));
+      setError(extractErrorMessage(err, tc("codeVerifyFailed")));
     }
   };
 
@@ -187,27 +183,27 @@ export function CompanySignupClient() {
     try {
       await resend.mutateAsync(form.email.trim());
       setCooldown(60);
-      toast.success("Yeni kod gönderildi");
+      toast.success(tc("newCodeSent"));
     } catch (err) {
-      setError(extractErrorMessage(err, "Kod gönderilemedi"));
+      setError(extractErrorMessage(err, tc("codeSendFailed")));
     }
   };
 
   if (step === "verify") {
     return (
       <AuthShell
-        title="E-postanı doğrula"
-        subtitle={`${form.email} adresine gönderilen 6 haneli kodu girin`}
+        title={t("verifyTitle")}
+        subtitle={t("verifySubtitle", { email: form.email })}
         footer={null}
       >
         <div className="space-y-4">
           <Field>
-            <Label>Doğrulama kodu</Label>
+            <Label>{tc("code")}</Label>
             <Input
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
-              placeholder="000000"
+              placeholder={tc("codePlaceholder")}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, ""))}
             />
@@ -222,7 +218,7 @@ export function CompanySignupClient() {
             disabled={code.length !== 6 || verify.isPending}
             onClick={submitCode}
           >
-            {verify.isPending ? "Doğrulanıyor…" : "Doğrula ve Giriş Yap"}
+            {verify.isPending ? tc("verifying") : tc("verifyAndLogin")}
           </Button>
           <button
             type="button"
@@ -231,10 +227,10 @@ export function CompanySignupClient() {
             className="w-full text-center text-sm text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
           >
             {cooldown > 0
-              ? `Yeniden gönder (${cooldown}sn)`
+              ? tc("resendIn", { s: cooldown })
               : resend.isPending
-                ? "Gönderiliyor…"
-                : "Kod gelmedi mi? Yeniden gönder"}
+                ? tc("sending")
+                : t("codeNotReceived")}
           </button>
           <button
             type="button"
@@ -245,7 +241,7 @@ export function CompanySignupClient() {
             }}
             className="w-full text-center text-xs text-zinc-400 hover:text-zinc-600"
           >
-            ← E-posta adresini değiştir
+            {t("changeEmail")}
           </button>
         </div>
       </AuthShell>
@@ -254,13 +250,13 @@ export function CompanySignupClient() {
 
   return (
     <AuthShell
-      title="Hesabını aç"
-      subtitle="İlk satın alma talebinizi 10 dakikada başlatın. Kredi kartı gerekmez."
+      title={t("title")}
+      subtitle={t("subtitle")}
       footer={
         <>
-          Zaten hesabınız var mı?{" "}
+          {tc("haveAccount")}{" "}
           <Link href="/company/login" className="font-semibold text-zinc-900 hover:underline">
-            Giriş yap
+            {tc("login")}
           </Link>
         </>
       }
@@ -275,66 +271,39 @@ export function CompanySignupClient() {
         {/* Kurucu bilgilendirmesi — ilk kullanıcı firmanın Kurucusu olur. */}
         <div className="flex items-start gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2.5 text-xs text-violet-800">
           <Crown className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span>
-            Firmayı ilk siz açtığınız için hesabınız <strong>Kurucu</strong>su
-            olarak size atanır — tüm yetkilere sahip olursunuz. Dilerseniz
-            sonradan başka bir kullanıcıya devredebilirsiniz.
-          </span>
+          <span>{t.rich("founderNote", { b: (chunks) => <strong>{chunks}</strong> })}</span>
         </div>
         <div className="grid grid-cols-2 gap-3">
           <Field>
-            <Label>Ad</Label>
+            <Label>{tc("firstName")}</Label>
             <Input value={form.firstName} maxLength={80} onChange={(e) => set("firstName")(e.target.value)} />
           </Field>
           <Field>
-            <Label>Soyad</Label>
+            <Label>{tc("lastName")}</Label>
             <Input value={form.lastName} maxLength={80} onChange={(e) => set("lastName")(e.target.value)} />
           </Field>
         </div>
 
         <Field>
-          <Label>Kurumsal e-posta</Label>
+          <Label>{t("corporateEmail")}</Label>
           <Input type="email" autoComplete="email" value={form.email} onChange={(e) => set("email")(e.target.value)} />
         </Field>
 
         <Field>
-          <Label>Telefon</Label>
+          <Label>{tc("phone")}</Label>
           <PhoneInput value={form.phone} onChange={set("phone")} />
         </Field>
 
         <Field>
-          <Label>Şifre</Label>
+          <Label>{tc("password")}</Label>
           <PasswordInput autoComplete="new-password" maxLength={72} value={form.password} onChange={(e) => set("password")(e.target.value)} />
         </Field>
         {form.password ? (
-          <div className="space-y-1.5" role="status" aria-live="polite">
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100">
-                <div
-                  className={`h-full transition-all ${
-                    pwScore <= 2 ? "bg-red-500" : pwScore <= 4 ? "bg-amber-500" : "bg-emerald-500"
-                  }`}
-                  style={{ width: `${(pwScore / PW_RULES.length) * 100}%` }}
-                />
-              </div>
-              <span className="text-xs font-medium text-zinc-600">{STRENGTH[pwScore]}</span>
-            </div>
-            <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
-              {PW_RULES.map((r) => {
-                const ok = r.test(form.password);
-                return (
-                  <li key={r.key} className={`flex items-center gap-1 text-xs ${ok ? "text-emerald-600" : "text-zinc-400"}`}>
-                    {ok ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                    {r.label}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+          <PasswordStrength password={form.password} rules={PW_RULES} score={pwScore} label={strength(pwScore)} live />
         ) : null}
 
         <Field>
-          <Label>Şifre (tekrar)</Label>
+          <Label>{t("passwordRepeat")}</Label>
           <PasswordInput
             autoComplete="new-password"
             invalid={!!(form.passwordConfirm && !confirmOk)}
@@ -342,29 +311,11 @@ export function CompanySignupClient() {
             onChange={(e) => set("passwordConfirm")(e.target.value)}
           />
           {form.passwordConfirm && !confirmOk ? (
-            <ErrorMessage className="mt-1">Şifreler eşleşmiyor</ErrorMessage>
+            <ErrorMessage className="mt-1">{tp("mismatch")}</ErrorMessage>
           ) : null}
         </Field>
 
-        <div className="space-y-2 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
-          <CheckRow checked={consents.terms} ariaLabel="Kullanıcı sözleşmesini kabul ediyorum" onChange={(v) => setConsents((c) => ({ ...c, terms: v }))}>
-            <Link href="/sozlesmeler/kullanici" target="_blank" className="underline">Kullanıcı sözleşmesini</Link> okudum ve kabul ediyorum
-          </CheckRow>
-          <CheckRow checked={consents.mediation} ariaLabel="Platform aracılık ve kullanım sözleşmesini kabul ediyorum" onChange={(v) => setConsents((c) => ({ ...c, mediation: v }))}>
-            <Link href="/sozlesmeler/aracilik" target="_blank" className="underline">Platform aracılık ve kullanım sözleşmesini</Link> kabul ediyorum
-          </CheckRow>
-          <CheckRow checked={consents.kvkk} ariaLabel="KVKK Aydınlatma Metni bilgilendirmesini okudum" onChange={(v) => setConsents((c) => ({ ...c, kvkk: v }))}>
-            <Link href="/sozlesmeler/kvkk" target="_blank" className="underline">KVKK Aydınlatma Metni</Link> bilgilendirmesini okudum (yurt dışı sağlayıcılar: Supabase/Vercel/Resend)
-          </CheckRow>
-          <div className="border-t border-zinc-200/70 pt-2">
-            <CheckRow checked={consents.profile} ariaLabel="Profil ve hizmet iyileştirme (opsiyonel)" onChange={(v) => setConsents((c) => ({ ...c, profile: v }))}>
-              <span className="text-zinc-500">Profil ve hizmet iyileştirme (opsiyonel)</span>
-            </CheckRow>
-            <CheckRow checked={consents.marketing} ariaLabel="Pazarlama ve analitik / ticari ileti (opsiyonel)" onChange={(v) => setConsents((c) => ({ ...c, marketing: v }))}>
-              <span className="text-zinc-500">Pazarlama ve analitik / ticari ileti (opsiyonel)</span>
-            </CheckRow>
-          </div>
-        </div>
+        <ConsentRows consents={consents} onChange={setConsents} showProviders />
 
         {error ? (
           <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -373,35 +324,9 @@ export function CompanySignupClient() {
         ) : null}
 
         <Button type="submit" className="w-full" disabled={!formValid || signup.isPending}>
-          {signup.isPending ? "Oluşturuluyor…" : "Hesap Oluştur"}
+          {signup.isPending ? t("creating") : t("submit")}
         </Button>
       </form>
     </AuthShell>
-  );
-}
-
-function CheckRow({
-  checked,
-  onChange,
-  ariaLabel,
-  children,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  ariaLabel: string;
-  children: React.ReactNode;
-}) {
-  // Headless UI Checkbox <input> render etmez → native <label> ilişkisi kurmaz.
-  // Ekran okuyucular için açık aria-label şart.
-  return (
-    <label className="flex cursor-pointer items-start gap-2 text-xs text-zinc-700">
-      <Checkbox
-        checked={checked}
-        onChange={onChange}
-        aria-label={ariaLabel}
-        className="mt-0.5"
-      />
-      <span>{children}</span>
-    </label>
   );
 }

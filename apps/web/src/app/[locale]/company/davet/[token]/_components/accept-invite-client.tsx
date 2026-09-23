@@ -1,9 +1,10 @@
 "use client";
 
 import { Badge } from "@/components/catalyst/badge";
+import { ConsentRows, type Consents } from "@/components/auth/consent-rows";
+import { PasswordStrength } from "@/components/auth/password-strength";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Button } from "@/components/catalyst/button";
-import { Checkbox } from "@/components/catalyst/checkbox";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { PhoneInput } from "@/components/ui/phone-input";
@@ -13,33 +14,22 @@ import {
   useInvitationPreview,
   useSetCompanyAuth,
 } from "@/hooks/use-company-auth";
+import { usePasswordRules } from "@/lib/company-auth/password-rules";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { Check, X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
-
-const PW_RULES = [
-  { key: "len", label: "En az 10 karakter", test: (p: string) => p.length >= 10 },
-  { key: "lower", label: "Küçük harf", test: (p: string) => /[a-z]/.test(p) },
-  { key: "upper", label: "Büyük harf", test: (p: string) => /[A-Z]/.test(p) },
-  { key: "digit", label: "Rakam", test: (p: string) => /[0-9]/.test(p) },
-  { key: "special", label: "Özel karakter", test: (p: string) => /[^a-zA-Z0-9]/.test(p) },
-];
-const STRENGTH = ["Çok Zayıf", "Zayıf", "Orta", "İyi", "Güçlü", "Çok Güçlü"];
-
-const ROLE_LABEL: Record<string, string> = {
-  YONETICI: "Yönetici",
-  SATIN_ALMACI: "Satın Almacı",
-  SATISCI: "Satışçı",
-  ONAYLAYICI: "Onaylayıcı",
-};
 
 /**
  * Token'lı ekip daveti kabulü — davetli adını/parolasını KENDİSİ belirler,
  * sözleşmeleri kendisi onaylar (KVKK/consent). Başarıda oturum açılır.
  */
 export function AcceptInviteClient({ token }: { token: string }) {
+  const t = useTranslations("web.auth.invite");
+  const tc = useTranslations("web.auth.common");
+  const tp = useTranslations("web.auth.password");
+  const { rules: PW_RULES, strength } = usePasswordRules();
   const router = useRouter();
   const { data: preview, isLoading, error: previewError } =
     useInvitationPreview(token);
@@ -53,7 +43,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
     password: "",
     passwordConfirm: "",
   });
-  const [consents, setConsents] = useState({
+  const [consents, setConsents] = useState<Consents>({
     terms: false,
     mediation: false,
     kvkk: false,
@@ -67,7 +57,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
 
   const pwScore = useMemo(
     () => PW_RULES.filter((r) => r.test(form.password)).length,
-    [form.password],
+    [PW_RULES, form.password],
   );
   const pwOk = pwScore === PW_RULES.length;
   const confirmOk =
@@ -100,14 +90,17 @@ export function AcceptInviteClient({ token }: { token: string }) {
       setAuth({ user: res.user, company: res.company });
       router.replace("/company");
     } catch (err) {
-      setError(extractErrorMessage(err, "Davet kabul edilemedi"));
+      setError(extractErrorMessage(err, t("failed")));
     }
   };
 
+  /* Rol adları ürün sözlüğüdür (CLAUDE.md); bilinmeyen rol kodu olduğu gibi çizilir. */
+  const roleLabel = (r: string) => (t.has(`roles.${r}` as never) ? t(`roles.${r}` as never) : r);
+
   if (isLoading) {
     return (
-      <AuthShell title="Ekip Daveti" subtitle="Davet doğrulanıyor…" footer={null}>
-        <p className="py-8 text-center text-sm text-zinc-500">Yükleniyor…</p>
+      <AuthShell title={t("title")} subtitle={t("verifying")} footer={null}>
+        <p className="py-8 text-center text-sm text-zinc-500">{t("loading")}</p>
       </AuthShell>
     );
   }
@@ -115,22 +108,19 @@ export function AcceptInviteClient({ token }: { token: string }) {
   if (previewError || !preview) {
     return (
       <AuthShell
-        title="Davet Geçersiz"
-        subtitle="Bu davet linki kullanılamıyor."
+        title={t("invalidTitle")}
+        subtitle={t("invalidSubtitle")}
         footer={null}
       >
         <div className="space-y-4 py-4">
           <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-            {extractErrorMessage(
-              previewError,
-              "Davet bulunamadı ya da süresi dolmuş — firmanızdan yeni davet isteyin.",
-            )}
+            {extractErrorMessage(previewError, t("notFound"))}
           </div>
           <Link
             href="/company/login"
             className="block text-center text-sm font-medium text-zinc-600 underline hover:text-zinc-900"
           >
-            Giriş sayfasına dön
+            {t("backToLogin")}
           </Link>
         </div>
       </AuthShell>
@@ -139,13 +129,13 @@ export function AcceptInviteClient({ token }: { token: string }) {
 
   return (
     <AuthShell
-      title="Ekip Daveti"
-      subtitle={`${preview.companyName} sizi ekibine davet ediyor.`}
+      title={t("title")}
+      subtitle={t("subtitle", { company: preview.companyName })}
       footer={
         <>
-          Zaten hesabınız var mı?{" "}
+          {tc("haveAccount")}{" "}
           <Link href="/company/login" className="font-semibold text-zinc-900 underline">
-            Giriş yapın
+            {t("loginLink")}
           </Link>
         </>
       }
@@ -159,7 +149,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
             <span className="flex gap-1">
               {preview.roles.map((r) => (
                 <Badge key={r} color="zinc">
-                  {ROLE_LABEL[r] ?? r}
+                  {roleLabel(r)}
                 </Badge>
               ))}
             </span>
@@ -169,7 +159,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
 
         <div className="grid grid-cols-2 gap-3">
           <Field>
-            <Label>Ad</Label>
+            <Label>{tc("firstName")}</Label>
             <Input
               autoFocus
               value={form.firstName}
@@ -178,7 +168,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
             />
           </Field>
           <Field>
-            <Label>Soyad</Label>
+            <Label>{tc("lastName")}</Label>
             <Input
               value={form.lastName}
               maxLength={80}
@@ -188,12 +178,12 @@ export function AcceptInviteClient({ token }: { token: string }) {
         </div>
 
         <Field>
-          <Label>Telefon (opsiyonel)</Label>
+          <Label>{t("phoneOptional")}</Label>
           <PhoneInput value={form.phone} onChange={set("phone")} />
         </Field>
 
         <Field>
-          <Label>Şifre</Label>
+          <Label>{tc("password")}</Label>
           <PasswordInput
             autoComplete="new-password"
             maxLength={72}
@@ -202,83 +192,22 @@ export function AcceptInviteClient({ token }: { token: string }) {
           />
         </Field>
         {form.password ? (
-          <div className="space-y-1.5">
-            <div className="flex items-center gap-2">
-              <div className="h-1.5 flex-1 overflow-hidden rounded-full bg-zinc-100">
-                <div
-                  className={`h-full transition-all ${
-                    pwScore <= 2 ? "bg-red-500" : pwScore <= 4 ? "bg-amber-500" : "bg-emerald-500"
-                  }`}
-                  style={{ width: `${(pwScore / PW_RULES.length) * 100}%` }}
-                />
-              </div>
-              <span className="text-xs font-medium text-zinc-600">{STRENGTH[pwScore]}</span>
-            </div>
-            <ul className="grid grid-cols-2 gap-x-3 gap-y-1">
-              {PW_RULES.map((r) => {
-                const ok = r.test(form.password);
-                return (
-                  <li key={r.key} className={`flex items-center gap-1 text-xs ${ok ? "text-emerald-600" : "text-zinc-400"}`}>
-                    {ok ? <Check className="h-3 w-3" /> : <X className="h-3 w-3" />}
-                    {r.label}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+          <PasswordStrength password={form.password} rules={PW_RULES} score={pwScore} label={strength(pwScore)} />
         ) : null}
 
         <Field>
-          <Label>Şifre (tekrar)</Label>
+          <Label>{tc("password")} ({tp("repeatShort")})</Label>
           <PasswordInput
             autoComplete="new-password"
             value={form.passwordConfirm}
             onChange={(e) => set("passwordConfirm")(e.target.value)}
           />
           {form.passwordConfirm && !confirmOk ? (
-            <p className="mt-1 text-xs text-red-600">Şifreler eşleşmiyor</p>
+            <p className="mt-1 text-xs text-red-600">{tp("mismatch")}</p>
           ) : null}
         </Field>
 
-        <div className="space-y-2 rounded-lg border border-zinc-100 bg-zinc-50/60 p-3">
-          <CheckRow
-            checked={consents.terms}
-            ariaLabel="Kullanıcı sözleşmesini kabul ediyorum"
-            onChange={(v) => setConsents((c) => ({ ...c, terms: v }))}
-          >
-            <Link href="/sozlesmeler/kullanici" target="_blank" className="underline">Kullanıcı sözleşmesini</Link> okudum ve kabul ediyorum
-          </CheckRow>
-          <CheckRow
-            checked={consents.mediation}
-            ariaLabel="Platform aracılık ve kullanım sözleşmesini kabul ediyorum"
-            onChange={(v) => setConsents((c) => ({ ...c, mediation: v }))}
-          >
-            <Link href="/sozlesmeler/aracilik" target="_blank" className="underline">Platform aracılık ve kullanım sözleşmesini</Link> kabul ediyorum
-          </CheckRow>
-          <CheckRow
-            checked={consents.kvkk}
-            ariaLabel="KVKK Aydınlatma Metni bilgilendirmesini okudum"
-            onChange={(v) => setConsents((c) => ({ ...c, kvkk: v }))}
-          >
-            <Link href="/sozlesmeler/kvkk" target="_blank" className="underline">KVKK Aydınlatma Metni</Link> bilgilendirmesini okudum
-          </CheckRow>
-          <div className="border-t border-zinc-200/70 pt-2">
-            <CheckRow
-              checked={consents.profile}
-              ariaLabel="Profil ve hizmet iyileştirme (opsiyonel)"
-              onChange={(v) => setConsents((c) => ({ ...c, profile: v }))}
-            >
-              <span className="text-zinc-500">Profil ve hizmet iyileştirme (opsiyonel)</span>
-            </CheckRow>
-            <CheckRow
-              checked={consents.marketing}
-              ariaLabel="Pazarlama ve analitik / ticari ileti (opsiyonel)"
-              onChange={(v) => setConsents((c) => ({ ...c, marketing: v }))}
-            >
-              <span className="text-zinc-500">Pazarlama ve analitik / ticari ileti (opsiyonel)</span>
-            </CheckRow>
-          </div>
-        </div>
+        <ConsentRows consents={consents} onChange={setConsents} />
 
         {error ? (
           <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -287,33 +216,9 @@ export function AcceptInviteClient({ token }: { token: string }) {
         ) : null}
 
         <Button type="submit" className="w-full" disabled={!formValid || accept.isPending}>
-          {accept.isPending ? "Katılıyor…" : "Daveti Kabul Et ve Katıl"}
+          {accept.isPending ? t("joining") : t("submit")}
         </Button>
       </form>
     </AuthShell>
-  );
-}
-
-function CheckRow({
-  checked,
-  onChange,
-  ariaLabel,
-  children,
-}: {
-  checked: boolean;
-  onChange: (v: boolean) => void;
-  ariaLabel: string;
-  children: React.ReactNode;
-}) {
-  return (
-    <label className="flex cursor-pointer items-start gap-2 text-xs text-zinc-700">
-      <Checkbox
-        checked={checked}
-        onChange={onChange}
-        aria-label={ariaLabel}
-        className="mt-0.5"
-      />
-      <span>{children}</span>
-    </label>
   );
 }
