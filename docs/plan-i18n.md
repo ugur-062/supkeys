@@ -131,3 +131,28 @@ panel içi kısa etiketler Claude çevirisiyle yayınlanır.
   alanı `web.panel.*`, sağlayıcı daraltma o zaman), Faz 3 API istisna/DTO
   fonksiyon mesajı/bildirim/e-posta, Faz 4 kategori adları.
 
+## Faz 1e — kullanıcı içeriği otomatik çevirisi (2026-09-23)
+
+- **Karar (kullanıcı):** ürün / alım talebi / firma profili metinleri her
+  eklendiğinde otomatik çevrilsin; motor Gemini Pro (`models.premium`).
+  Pilot: 4 ürün + 2 talep + 2 profil gerçek staging içeriğiyle; terimler
+  doğru (kulirnaya glad, power troweled, 5-lead ECG), sayılar/kodlar korunmuş,
+  sözlük tutmuş; 36 sn / 8 kayıt, ürün başına < 1 sent.
+- **Model:** `content_translations` varlık×dil; `sourceHash` bayatlama;
+  kaynak dil satırı `fields=NULL`; PENDING → `kick` (aynı süreç) → DONE;
+  FAILED ≤3 deneme; 5 dk süpürücü. Listeler kaynak→hedef ÇİFT saklar,
+  okuma metinle eşler (kalem sırası değişse de).
+- **Uydurma kapısı:** sayı koruma + liste uzunluğu + aşırı uzunluk; ihlalde
+  geri bildirimli tek düzeltme turu.
+- **Okuma:** `Accept-Language` → `currentLocale()`; herkese açık ürün/talep/
+  firma uçları çevrilmiş alan + `translatedFrom`; web notu `AutoTranslatedNote`.
+  SEO: meta/JSON-LD/OG aynı DTO'dan türediği için kendiliğinden dile göre.
+- **Geriye dönük:** `POST admin/content-translations/backfill` (SUPER_ADMIN)
+  herkese açık kayıtları kuyruğa alır, arka planda sırayla çevirir;
+  `GET …/status` sayaç + maliyet + son hatalar.
+- **Bilinçli dışarıda:** arama (özgün metin), kategori adları (Faz 4 — EN
+  Ariba kaynağından bedava, RU aynı motorla), mesaj/teklif/adres, panel
+  yüzeyi (Faz 2).
+- **Google politikası notu:** salt makine çevirisi "ölçekli içerik" riski
+  taşır; kalite kapısı + terim sözlüğü + örneklem incelemesi bu yüzden.
+

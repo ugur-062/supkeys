@@ -2510,3 +2510,45 @@ model CompanyView {
   @@map("company_views")
 }
 
+
+/// İÇERİK ÇEVİRİSİ (i18n Faz 1e, 2026-09-23 — kullanıcı kararı "her eklenen
+/// otomatik çevrilsin"): ürün / alım talebi / firma profili METİNLERİNİN
+/// Gemini Pro ile üç dile çevirisi. Kaynak kolonlara DOKUNULMAZ; her hedef dil
+/// için bir satır. `sourceHash` kaynak alanların özeti — değişince yeniden
+/// çevrilir; `fields` NULL = kaynak dilin kendisi (çeviri yok). Okuma yolu
+/// (herkese açık uçlar) istek diline göre alanları üzerine yazar; çeviri yoksa
+/// özgün metin döner (fail-open).
+enum TranslatableEntity {
+  PRODUCT
+  LISTING
+  COMPANY
+}
+
+enum ContentTranslationStatus {
+  PENDING // sırada / yeniden çevrilecek (eski `fields` okunmaya devam eder)
+  DONE
+  FAILED // attempts < 3 ise süpürücü yeniden dener
+}
+
+model ContentTranslation {
+  id           String                   @id @default(cuid())
+  entityType   TranslatableEntity
+  entityId     String
+  locale       String
+  sourceLocale String?
+  sourceHash   String
+  fields       Json?
+  status       ContentTranslationStatus @default(PENDING)
+  attempts     Int                      @default(0)
+  error        String?
+  model        String?
+  inputTokens  Int                      @default(0)
+  outputTokens Int                      @default(0)
+  costUsd      Decimal?                 @db.Decimal(12, 6)
+  createdAt    DateTime                 @default(now())
+  updatedAt    DateTime                 @updatedAt
+
+  @@unique([entityType, entityId, locale])
+  @@index([status, updatedAt])
+  @@map("content_translations")
+}

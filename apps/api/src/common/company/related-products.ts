@@ -68,9 +68,17 @@ export async function relatedProducts(prisma: Db, companySlug: string, productSl
     : [];
   const verifiedFirst = (rows: typeof fromCompany) =>
     rows.map(toProductIndexCard).sort((a, b) => Number(b.company.verified) - Number(a.company.verified));
+  const similarCards = verifiedFirst(similar);
+  const similarIds = similarCards.map((c) => similar.find((r) => r.slug === c.slug && r.company.slug === c.company.slug)?.id ?? "");
   return {
     fromCompany: { items: fromCompany.map(toProductIndexCard), total: fromTotal },
-    similar: verifiedFirst(similar),
+    similar: similarCards,
     popular: popular.map(toProductIndexCard),
+    /** İç kimlikler — YALNIZ çeviri eşlemesi için; herkese açık uç yanıta koymadan soyar (i18n Faz 1e). */
+    ids: {
+      fromCompany: fromCompany.map((r) => r.id),
+      similar: similarIds,
+      popular: popular.map((r) => r.id),
+    },
   };
 }

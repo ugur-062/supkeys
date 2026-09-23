@@ -996,7 +996,9 @@
       "sending": "Gönderiliyor…",
       "submit": "Talebi gönder",
       "replyNote": "Yanıtı okumak için ücretsiz hesap gerekir."
-    }
+    },
+    "autoTranslated": "Otomatik çeviri (kaynak: {lang})",
+    "autoTranslatedGeneric": "Otomatik çeviri"
   },
   "domain": {
     "activity": {

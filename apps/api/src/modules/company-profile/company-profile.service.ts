@@ -26,6 +26,7 @@ import {
 } from "../../common/helpers/upload-validation";
 import { AuditService } from "../audit/audit.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { CategoryService } from "../categories/services/category.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { StorageService } from "../storage/storage.service";
@@ -91,6 +92,8 @@ export class CompanyProfileService {
     private readonly audit: AuditService,
     /** Yayın anı SEO bildirimi — SONDA ve isteğe bağlı (test rig'leri kırılmasın). */
     @Optional() private readonly seo?: SeoIndexService,
+    /** İçerik çevirisi (i18n Faz 1e): tanıtım/hizmet/sektör değişince çevrilir — SONDA ve isteğe bağlı. */
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
   /**
@@ -447,6 +450,9 @@ export class CompanyProfileService {
       // Profil herkese açıksa (ya da az önce açıldı/kapandıysa) firma
       // sayfası + dizin + ürün sayfalarındaki satıcı bloğu tazelenir.
       if (current?.publicEnabled || c.publicEnabled) this.seo?.companyChanged(companyId);
+      if (c.publicEnabled && (dto.aboutText !== undefined || dto.services !== undefined || dto.industry !== undefined)) {
+        void this.translations?.enqueue("COMPANY", companyId);
+      }
     }
     return c;
   }

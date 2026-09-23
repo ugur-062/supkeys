@@ -60,6 +60,8 @@ import { Prisma } from "@rothern/db";
  * `auctionRateSnapshot` / `bidVisibility` / `autoExtend*` — teklif mekaniği.
  */
 export const PUBLIC_LISTING_SELECT = {
+  // İç kimlik yalnız ÇEVİRİ eşlemesi için (i18n Faz 1e); mapper yanıta YAZMAZ.
+  id: true,
   number: true,
   type: true,
   title: true,

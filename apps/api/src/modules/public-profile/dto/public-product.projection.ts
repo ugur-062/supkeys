@@ -30,6 +30,8 @@ import { Prisma } from "@rothern/db";
  * geri açıldı; üyeye kapalı kalan tek şey "Bilgi iste" formu ve iletişim.
  */
 export const PUBLIC_PRODUCT_SELECT = {
+  // İç kimlik yalnız ÇEVİRİ eşlemesi için (i18n Faz 1e); mapper yanıta YAZMAZ.
+  id: true,
   slug: true,
   name: true,
   description: true,

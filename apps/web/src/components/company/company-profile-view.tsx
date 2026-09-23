@@ -1,4 +1,5 @@
 import { cn } from "@/lib/utils";
+import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-note";
 import type { ReactNode } from "react";
 import { MapPinIcon, StarIcon } from "@heroicons/react/20/solid";
 import { companyActivityLabel, countryFlag, countryName, type ReviewSummary } from "@rothern/shared";
@@ -55,6 +56,8 @@ export interface ProfileViewData {
   logoUrl: string | null;
   coverImageUrl: string | null;
   aboutText: string | null;
+  /** Metin sayfa diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e). */
+  translatedFrom?: string | null;
   /**
    * Aşağıdakiler OPSİYONEL: herkese açık sayfa (anonim katman) bu alanları
    * HİÇ vermez — `null` bile yazılsa RSC yüküne anahtar adı düşer ve "gizli
@@ -370,6 +373,7 @@ export function CompanyProfileView({
               <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-zinc-600">
                 {p.aboutText}
               </p>
+              <AutoTranslatedNote from={p.translatedFrom} className="mt-2" />
               {gate?.about ? <div className="mt-3">{gate.about}</div> : null}
             </section>
           ) : null}

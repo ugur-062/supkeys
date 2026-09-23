@@ -5,6 +5,7 @@ import { GatedField } from "./gated-field";
 import { Heading } from "@/components/catalyst/heading";
 import { formatDate } from "@/lib/format-date";
 import { JsonLd } from "@/components/seo/json-ld";
+import { AutoTranslatedNote } from "./auto-translated-note";
 import { listingSeo, listingSeoInput } from "@/lib/seo/entities";
 import { MARKETPLACE_ROUTES, listingPath, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard, PublicListingDetail } from "@/lib/public/marketplace-api";
@@ -158,6 +159,7 @@ export function ListingDetail({
             >
               {listing.title}
             </Heading>
+            <AutoTranslatedNote from={listing.translatedFrom} className="mt-2" />
             {listing.categories.length > 0 ? (
               <ul className="mt-4 flex flex-wrap gap-2">
                 {listing.categories.map((c) => (

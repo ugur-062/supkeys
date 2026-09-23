@@ -62,6 +62,7 @@ import {
 } from "../../../common/company/listing-timing";
 import { AuditService } from "../../audit/audit.service";
 import { SeoIndexService } from "../../seo-index/seo-index.service";
+import { ContentTranslationService } from "../../content-translation/content-translation.service";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -168,6 +169,8 @@ export class CompanyListingsService {
     // kapanış, iptal, kazandırma, başlık/açıklama güncellemesi). Teklif
     // hareketleri çağırmaz: sayfa teklif sayısı bile göstermiyor.
     @Optional() private readonly seo?: SeoIndexService,
+    /** İçerik çevirisi (i18n Faz 1e): yayın/güncelleme/yeni turda talep metni çevrilir — SONDA ve isteğe bağlı. */
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
 
@@ -1757,6 +1760,7 @@ export class CompanyListingsService {
     );
     this.realtime?.pingListing(listingId);
     this.seo?.listingChanged(listingId);
+    void this.translations?.enqueue("LISTING", listingId);
     return this.serialize(updated);
   }
 
@@ -1776,6 +1780,7 @@ export class CompanyListingsService {
       where: { id: payload.listingId },
       data: { status: "OPEN", publishedAt: new Date() },
     });
+    void this.translations?.enqueue("LISTING", payload.listingId);
     void this.announceListingOpen(payload.listingId, "invitation").catch((err) =>
       this.logger.warn(
         `Yayın duyurusu başarısız (${payload.listingId}): ${
@@ -4847,6 +4852,7 @@ export class CompanyListingsService {
       }
       this.realtime?.pingListing(listingId, awardParties);
       this.seo?.listingChanged(listingId);
+      void this.translations?.enqueue("LISTING", listingId);
       for (const o of orders) this.realtime?.pingOrder(o.id, awardParties);
     } catch (err) {
       this.logger.warn(
@@ -5614,6 +5620,7 @@ export class CompanyListingsService {
         ...losingBidderIds,
       ]);
       this.seo?.listingChanged(listingId);
+      void this.translations?.enqueue("LISTING", listingId);
       for (const o of created) {
         this.realtime?.pingOrder(o.id, [listing.companyId]);
       }
@@ -6181,6 +6188,7 @@ export class CompanyListingsService {
     });
     this.realtime?.pingListing(listingId);
     this.seo?.listingChanged(listingId);
+    void this.translations?.enqueue("LISTING", listingId);
     return {
       ok: true,
       validityDays: newValidityDays,
@@ -6510,6 +6518,7 @@ export class CompanyListingsService {
       },
     });
     this.seo?.listingChanged(listingId);
+    void this.translations?.enqueue("LISTING", listingId);
     // Katılımcılara haber ver (UI "gerekçe iletilir" vaadi artık gerçek).
     void this.notifyListingParticipants(listingId, {
       subject: "Satın Alma Talebi iptal edildi",
@@ -6673,6 +6682,7 @@ export class CompanyListingsService {
     );
     this.realtime?.pingListing(listingId);
     this.seo?.listingChanged(listingId);
+    void this.translations?.enqueue("LISTING", listingId);
     return { ok: true, status: "IN_AWARD" };
   }
 
@@ -6894,6 +6904,7 @@ export class CompanyListingsService {
       },
     });
     this.seo?.listingChanged(listingId);
+    void this.translations?.enqueue("LISTING", listingId);
     void this.notifyListingParticipants(listingId, {
       subject: "Satın Alma Talebi kazanan olmadan kapatıldı",
       heading: "Satın Alma Talebi sonuçlanmadan kapatıldı",

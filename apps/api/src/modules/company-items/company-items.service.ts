@@ -53,6 +53,7 @@ import {
 } from "../../common/company/public-image-upload";
 import { StorageService } from "../storage/storage.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
 import {
   productCompletion,
   productPublishBlockers,
@@ -200,6 +201,8 @@ export class CompanyItemsService {
      * bağlı: elle kurulan test rig'leri kırılmasın; yoksa ana client'a düşer.
      */
     @Optional() private readonly bypass?: PrismaBypassService,
+    /** İçerik çevirisi (i18n Faz 1e): yayındaki ürünün metni değişince yeniden çevrilir — SONDA ve isteğe bağlı. */
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
   /** Çapraz firma okumaları için client — RLS altında bypass, rig'de ana client. */
@@ -982,7 +985,10 @@ export class CompanyItemsService {
     });
     // Yayındaki ürünün sayfası değişti → motorlar ve web önbelleği. Taslakta
     // herkese açık adres yok; bildirim gereksiz.
-    if (row.isPublic) this.seo?.productChanged(id);
+    if (row.isPublic) {
+      this.seo?.productChanged(id);
+      void this.translations?.enqueue("PRODUCT", id);
+    }
     return this.serializeShowcase(row);
   }
 

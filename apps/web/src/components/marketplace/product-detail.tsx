@@ -9,6 +9,7 @@ import { Breadcrumb } from "@/components/ui/breadcrumb";
 import { Heading } from "@/components/catalyst/heading";
 import { Tabs } from "@/components/ui/tabs";
 import { JsonLd } from "@/components/seo/json-ld";
+import { AutoTranslatedNote } from "./auto-translated-note";
 import { productSeo } from "@/lib/seo/entities";
 import { productPrice } from "@/lib/public/product-price";
 import type {
@@ -279,6 +280,7 @@ export function ProductDetailBody({
           >
             {product.name}
           </Heading>
+          <AutoTranslatedNote from={product.translatedFrom} className="mt-2" />
 
           {/* "Yeni" rozeti kapağa taşındı; burada ürünün KENDİ kimlik
               etiketleri kalır. "Gold Üye" satıcı kartında (firmaya ait). */}

@@ -368,6 +368,36 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 - **Faz 1'de düzeltilen bayat vaatler:** Nasıl Çalışır "teslim belgesi"
   (sipariş belgesi 2026-08-22'de kalktı) ve "sınırsız kullanıcı" (koltuk 2/4/6)
   metinden çıktı; "ilan" → "talep" (alıcı yüzü).
+- **KULLANICI İÇERİĞİ OTOMATİK ÇEVRİLİR (Faz 1e, 2026-09-23, kullanıcı kararı
+  "her eklenen otomatik çevrilsin", motor Gemini PRO — pilot gerçek staging
+  içeriğiyle ölçüldü, Flash DEĞİL):** ürün (ad, açıklama, anahtar kelime,
+  nitelik etiket/değer), alım talebi (başlık, açıklama, kalem adları, anahtar
+  kelime), firma profili (tanıtım, hizmetler, sektör). Tablo
+  `content_translations` (migration `20260923180000`; varlık × dil satırı,
+  `sourceHash`, `fields` JSON; kaynak dilin satırı `fields=NULL`). Modül
+  `modules/content-translation/` — `logic.ts` SAF (istem, doğrulama, üzerine
+  yazma), `service.ts` (kuyruk + Gemini + okuma), 5 dk süpürücü cron,
+  `admin/content-translations/{status,backfill}` (SUPER_ADMIN).
+  Tetikler fail-open `void this.translations?.enqueue(...)`: ürün onayı
+  (tekli/toplu), yayındaki ürünün vitrin güncellemesi, talep yayını / eski
+  onay akışı / güncelleme / yeni tur (`listingChanged` yanına), profil kaydı
+  (tanıtım/hizmet/sektör). Kaynak değişince hash değişir → yeniden; aynı
+  kaynak ikinci kez ÇEVRİLMEZ.
+  **Uydurma kapısı:** kaynaktaki her SAYI hedefte de olmalı (binlik ayraç
+  normalize), liste alanları aynı uzunlukta; ihlalde bir düzeltme turu, yine
+  bozuksa FAILED (≤3 deneme). Sözlük: talep → request/запрос, tender YASAK.
+  **Okuma:** herkese açık uçlar `currentLocale()` (Accept-Language) ile
+  `localize{Products,Listings,Companies}` — DONE satır yoksa özgün metin;
+  `translatedFrom` alanı gelir, web `AutoTranslatedNote` "Otomatik çeviri
+  (kaynak: Türkçe)" basar. Bunun için `PUBLIC_*_SELECT`lere `id` girdi —
+  mapper'lar yanıta YAZMAZ (anonimlik sözleşmesi korunur); `relatedProducts`
+  `ids` döner, herkese açık uç soyar. Web `marketplace-api.ts` her isteğe
+  `accept-language` (next-intl `getLocale`, rota işleyicisinde tr) koyar —
+  Next veri önbelleği başlığı anahtara katar. Arama v1'de ÖZGÜN metinde
+  (İngilizce sorgu Türkçe adı bulmaz — sonraki adım). Firma bütçesine
+  yazılmaz; maliyet satırda (`costUsd`). Kategori adları ayrı (Faz 4).
+  Sözleşme: `test/unit/content-translation.spec.ts` (yerel PG yoksa
+  `--globalSetup=<noop>` ile koşulur).
 
 ---
 

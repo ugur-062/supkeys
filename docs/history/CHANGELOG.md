@@ -4,6 +4,24 @@ Bu dosya tamamlanmış aşamaların detaylı kaydıdır. Aktif çalışma için 
 
 ---
 
+## 2026-09-23 — Kullanıcı içeriği OTOMATİK ÇEVİRİ (i18n Faz 1e)
+
+**Karar (kullanıcı):** ürün, alım talebi ve firma profili metinleri her
+eklendiğinde/değiştiğinde üç dile otomatik çevrilsin; motor Gemini Pro
+(pilot gerçek staging içeriğiyle ölçüldü, Flash reddedildi).
+
+- **API:** `content_translations` tablosu (migration `20260923180000`, staging'e
+  uygulandı), `ContentTranslationModule` (saf mantık + servis + 5 dk süpürücü +
+  yönetici backfill/status ucu); tetikler ürün onayı/vitrin güncellemesi, talep
+  yayını/güncelleme/yeni tur, profil kaydı (fail-open); sayı koruma + liste
+  uzunluğu doğrulaması, geri bildirimli düzeltme turu; herkese açık uçlar
+  istek diline göre çevrilmiş alan + `translatedFrom` döner (select'lere `id`
+  girdi, yanıta çıkmaz).
+- **Web:** `accept-language` her herkese açık API isteğinde; `AutoTranslatedNote`
+  ürün/talep/firma sayfasında; DTO tipleri `translatedFrom`.
+- **Test:** `content-translation.spec.ts` 19 test (sayı koruma, çıktı doğrulama,
+  üzerine yazma, kuyruk akışı, fail-open).
+
 ## 2026-09-23 — Çok dillilik Faz 1 (herkese açık yüzey + kimlik akışı) TAMAM
 
 **Karar (kullanıcı):** makine çevirisi yok — EN/RU metinleri Claude ekran

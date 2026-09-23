@@ -92,6 +92,7 @@ import { CompanyConnectionsModule } from "../company-connections/company-connect
     SearchIntentService,
     SeoEnrichService,
   ],
-  exports: [AiService, AiBudgetService],
+  // İçerik çevirisi (ContentTranslationModule) sağlayıcıyı doğrudan kullanır — firma bütçesi dışı platform çağrısı.
+  exports: [AiService, AiBudgetService, AI_CONFIG, AI_PROVIDER_TOKEN],
 })
 export class AiModule {}

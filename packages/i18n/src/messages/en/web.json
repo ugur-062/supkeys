@@ -996,7 +996,9 @@
       "sending": "Sending…",
       "submit": "Send inquiry",
       "replyNote": "A free account is needed to read the reply."
-    }
+    },
+    "autoTranslated": "Automatic translation (original: {lang})",
+    "autoTranslatedGeneric": "Automatic translation"
   },
   "domain": {
     "activity": {

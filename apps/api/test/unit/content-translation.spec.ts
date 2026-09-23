@@ -1,0 +1,248 @@
+import {
+  buildPrompt,
+  hasTranslatableText,
+  localizeCompany,
+  localizeListing,
+  localizeProduct,
+  numbersOf,
+  numbersPreserved,
+  parseModelOutput,
+  sourceHash,
+  type ProductSource,
+} from "../../src/modules/content-translation/content-translation.logic";
+import { ContentTranslationService } from "../../src/modules/content-translation/content-translation.service";
+
+/**
+ * İÇERİK ÇEVİRİSİ SÖZLEŞMESİ (i18n Faz 1e).
+ *
+ * En tehlikeli hata UYDURMA: model kaynakta olmayan sayı/ölçü yazarsa alıcı
+ * yanlış ürünü sipariş eder. Doğrulama kapısı burada kilitlenir; okuma yolu
+ * çeviri yokken özgün metni aynen döndürmeli (fail-open).
+ */
+const product: ProductSource = {
+  name: "Bakır levha 2 mm · 1000×2000",
+  description: "Elektrolitik bakır, 2.400 kg stok. Top ağırlığı 25–30 kg.",
+  keywords: ["bakır levha", "cu levha"],
+  attributes: [{ label: "Kalınlık", value: "2 mm" }, { label: "Form", value: "Rulo" }],
+};
+
+function goodOutput(withAttributes = true) {
+  const en = {
+    name: "Copper sheet 2 mm · 1000×2000",
+    description: "Electrolytic copper, 2,400 kg in stock. Roll weight 25–30 kg.",
+    keywords: ["copper sheet", "cu sheet"],
+    attributes: [{ label: "Thickness", value: "2 mm" }, { label: "Form", value: "Roll" }],
+  };
+  const ru = {
+    name: "Медный лист 2 мм · 1000×2000",
+    description: "Электролитическая медь, 2 400 кг на складе. Вес рулона 25–30 кг.",
+    keywords: ["медный лист", "лист cu"],
+    attributes: [{ label: "Толщина", value: "2 мм" }, { label: "Форма", value: "Рулон" }],
+  };
+  if (!withAttributes) {
+    // Servis rig'inde ürün nitelik tanımı yok (`labelAttributes` boş döner) → kaynak da çıktı da nitelik taşımaz.
+    return { sourceLocale: "tr", translations: { tr: { ...product, attributes: [] }, en: { ...en, attributes: [] }, ru: { ...ru, attributes: [] } } };
+  }
+  return { sourceLocale: "tr", translations: { tr: product, en, ru } };
+}
+
+describe("sayı koruma", () => {
+  it("binlik/ondalık ayraç ve boşluk farkını normalize eder", () => {
+    expect(numbersOf("2.400 kg, 25–30 kg, 2 400 adet, %100")).toEqual(["2400", "25", "30", "2400", "100"]);
+    expect(numbersPreserved("2.400 kg", "2,400 kg")).toBe(true);
+    expect(numbersPreserved("Ne 30/1", "Ne 30/1 combed")).toBe(true);
+  });
+  it("boşlukla ayrılmış iki sayıyı birleştirmez", () => {
+    expect(numbersOf("25 30 adet")).toEqual(["25", "30"]);
+  });
+  it("kaynaktaki sayı hedefte yoksa reddeder; hedefteki fazla sayı serbest", () => {
+    expect(numbersPreserved("180 g/m²", "170 g/m²")).toBe(false);
+    expect(numbersPreserved("180 g/m²", "180 g/m² (approx. 5 oz)")).toBe(true);
+    expect(numbersPreserved("İki adet", "Two pieces")).toBe(true);
+  });
+});
+
+describe("parseModelOutput", () => {
+  it("geçerli çıktıyı kaynak→hedef çiftleriyle saklar", () => {
+    const r = parseModelOutput("PRODUCT", product, JSON.stringify(goodOutput()));
+    expect("error" in r).toBe(false);
+    if ("error" in r) return;
+    expect(r.sourceLocale).toBe("tr");
+    const en = r.perLocale.en as { name: string; keywords: { src: string; dst: string }[]; attributes: unknown[] };
+    expect(en.name).toBe("Copper sheet 2 mm · 1000×2000");
+    expect(en.keywords[0]).toEqual({ src: "bakır levha", dst: "copper sheet" });
+    expect(en.attributes).toHaveLength(2);
+  });
+  it("```json çitini soyar", () => {
+    const r = parseModelOutput("PRODUCT", product, "```json\n" + JSON.stringify(goodOutput()) + "\n```");
+    expect("error" in r).toBe(false);
+  });
+  it("uydurulmuş/eksik sayı → hata (yeniden deneme geri bildirimi)", () => {
+    const bad = goodOutput();
+    bad.translations.en.description = "Electrolytic copper, 3,400 kg in stock. Roll weight 25–30 kg.";
+    const r = parseModelOutput("PRODUCT", product, JSON.stringify(bad));
+    expect(r).toMatchObject({ error: expect.stringContaining("en.description") });
+  });
+  it("liste uzunluğu kaynakla uyuşmazsa hata", () => {
+    const bad = goodOutput();
+    bad.translations.ru.keywords = ["медный лист"];
+    const r = parseModelOutput("PRODUCT", product, JSON.stringify(bad));
+    expect(r).toMatchObject({ error: expect.stringContaining("ru.keywords") });
+  });
+  it("JSON değilse hata", () => {
+    expect(parseModelOutput("PRODUCT", product, "Sure! Here is the translation")).toMatchObject({ error: expect.any(String) });
+  });
+  it("bilinmeyen kaynak dil 'other' olur, üç dil de saklanır", () => {
+    const out = goodOutput();
+    out.sourceLocale = "zh";
+    const r = parseModelOutput("PRODUCT", product, JSON.stringify(out));
+    expect(r).toMatchObject({ sourceLocale: "other" });
+  });
+});
+
+describe("sourceHash / hasTranslatableText", () => {
+  it("anahtar sırasından bağımsız, içerik değişince değişir", () => {
+    const a = sourceHash("PRODUCT", product);
+    const b = sourceHash("PRODUCT", { ...product, attributes: [...product.attributes] });
+    expect(a).toBe(b);
+    expect(sourceHash("PRODUCT", { ...product, name: "x" })).not.toBe(a);
+    expect(sourceHash("LISTING", { title: "a", description: null, keywords: [], items: [] })).not.toBe(
+      sourceHash("COMPANY", { aboutText: "a", services: [], industry: null }),
+    );
+  });
+  it("boş profil çevrilmez", () => {
+    expect(hasTranslatableText({ aboutText: null, services: [], industry: null })).toBe(false);
+    expect(hasTranslatableText({ aboutText: "Metal", services: [], industry: null })).toBe(true);
+  });
+  it("istem sözlüğü ve geri bildirimi taşır", () => {
+    expect(buildPrompt("LISTING", { title: "t", description: null, keywords: [], items: [] }, "numbers missing")).toContain("REJECTED");
+  });
+});
+
+describe("okuma yolu üzerine yazma", () => {
+  const parsed = parseModelOutput("PRODUCT", product, JSON.stringify(goodOutput()));
+  const en = "error" in parsed ? null : (parsed.perLocale.en as Parameters<typeof localizeProduct>[1]);
+
+  it("ürün kartında ad + özet, detayda açıklama/anahtar/nitelik değişir; diğer alanlar aynen", () => {
+    expect(en).not.toBeNull();
+    const card = localizeProduct({ name: product.name, excerpt: "Elektrolitik…", slug: "bakir", priceMode: "FIXED" }, en!);
+    expect(card.name).toBe("Copper sheet 2 mm · 1000×2000");
+    expect(card.excerpt).toContain("Electrolytic copper");
+    expect(card.slug).toBe("bakir");
+    const detail = localizeProduct(
+      {
+        name: product.name,
+        description: product.description,
+        keywords: ["bakır levha", "yeni eklenen"],
+        attributeList: [{ label: "Kalınlık", value: "2 mm", unit: null }, { label: "Renk", value: "Kızıl", unit: null }],
+      },
+      en!,
+    );
+    expect(detail.keywords).toEqual(["copper sheet", "yeni eklenen"]);
+    expect(detail.attributeList).toEqual([
+      { label: "Thickness", value: "2 mm", unit: null },
+      { label: "Renk", value: "Kızıl", unit: null },
+    ]);
+  });
+  it("talep kalemleri ADLA eşlenir (sıra değişse de)", () => {
+    const t = { title: "Steel pipes", description: null, keywords: [], items: [{ src: "Boru", dst: "Pipe" }] };
+    const out = localizeListing({ title: "Çelik borular", items: [{ name: "Yeni kalem" }, { name: "Boru" }] }, t);
+    expect(out.title).toBe("Steel pipes");
+    expect(out.items.map((i) => i.name)).toEqual(["Yeni kalem", "Pipe"]);
+  });
+  it("firma: about/aboutText/industry/services", () => {
+    const t = { aboutText: "About", services: [{ src: "Boyama", dst: "Dyeing" }], industry: "Textile" };
+    expect(localizeCompany({ aboutText: "Hakkında", industry: "Tekstil", services: ["Boyama"] }, t)).toEqual({
+      aboutText: "About",
+      industry: "Textile",
+      services: ["Dyeing"],
+    });
+    expect(localizeCompany({ about: "Hakkında", industry: null }, t)).toEqual({ about: "About", industry: null });
+  });
+});
+
+describe("ContentTranslationService", () => {
+  function rig(opts: { providerText?: string; providerFails?: boolean; existing?: unknown[] } = {}) {
+    const rows = new Map<string, Record<string, unknown>>();
+    const prisma = {
+      companyItem: { findUnique: jest.fn(async () => ({ ...product, attributes: null, categoryId: null })) },
+      listing: { findUnique: jest.fn() },
+      company: { findUnique: jest.fn() },
+      category: { findMany: jest.fn(async () => []) },
+      categoryAttribute: { findMany: jest.fn(async () => []) },
+      contentTranslation: {
+        findMany: jest.fn(async (args: { where?: { locale?: string; fields?: unknown } }) => {
+          const all = [...rows.values()];
+          if (args.where?.locale) return all.filter((r) => r.locale === args.where!.locale && r.fields != null);
+          return all;
+        }),
+        upsert: jest.fn(async (args: { where: { entityType_entityId_locale: { locale: string } }; create: Record<string, unknown>; update: Record<string, unknown> }) => {
+          const key = args.where.entityType_entityId_locale.locale;
+          rows.set(key, { ...(rows.get(key) ?? args.create), ...args.update, locale: key });
+          return rows.get(key);
+        }),
+        updateMany: jest.fn(async (args: { data: Record<string, unknown> }) => {
+          for (const r of rows.values()) Object.assign(r, { status: args.data.status, error: args.data.error });
+          return { count: rows.size };
+        }),
+        deleteMany: jest.fn(async () => ({ count: 0 })),
+      },
+    };
+    const provider = opts.providerFails
+      ? null
+      : {
+          complete: jest.fn(async () => ({
+            text: opts.providerText ?? JSON.stringify(goodOutput(false)),
+            usage: { inputTokens: 100, outputTokens: 300, cacheReadTokens: 0, cacheWriteTokens: 0 },
+          })),
+        };
+    const cfg = {
+      enabled: true,
+      models: { premium: "gemini-pro-latest", default: "x", vision: "x" },
+      pricing: { "gemini-pro-latest": { inputPerMTok: 1.25, outputPerMTok: 10, cacheReadPerMTok: 0.1 } },
+    };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const svc = new ContentTranslationService(prisma as any, cfg as any, provider as any);
+    return { svc, prisma, provider, rows };
+  }
+
+  it("enqueue üç dil için PENDING açar; translateEntity DONE yazar, kaynak dile fields=null", async () => {
+    const { svc, prisma, rows } = rig();
+    (svc as unknown as { kick: () => void }).kick = () => {};
+    expect(await svc.enqueue("PRODUCT", "p1")).toBe(true);
+    expect(prisma.contentTranslation.upsert).toHaveBeenCalledTimes(3);
+    expect(await svc.translateEntity("PRODUCT", "p1")).toBe("done");
+    expect(rows.get("en")).toMatchObject({ status: "DONE", sourceLocale: "tr" });
+    expect((rows.get("en") as { fields: { name: string } }).fields.name).toBe("Copper sheet 2 mm · 1000×2000");
+    // Kaynak dilin satırı çeviri taşımaz (DbNull) — okuma yolu özgün metni kullanır.
+    expect((rows.get("tr") as { fields: unknown }).fields).not.toEqual(expect.objectContaining({ name: expect.any(String) }));
+    // Aynı kaynakla ikinci enqueue işlem yapmaz.
+    expect(await svc.enqueue("PRODUCT", "p1")).toBe(false);
+  });
+
+  it("doğrulanamayan çıktı bir düzeltme turu alır, yine bozuksa FAILED", async () => {
+    const { svc, provider, rows } = rig({ providerText: "not json" });
+    (svc as unknown as { kick: () => void }).kick = () => {};
+    await svc.enqueue("PRODUCT", "p1");
+    expect(await svc.translateEntity("PRODUCT", "p1")).toBe("failed");
+    expect(provider!.complete).toHaveBeenCalledTimes(2);
+    expect(rows.get("en")).toMatchObject({ status: "FAILED", error: expect.stringContaining("JSON") });
+  });
+
+  it("sağlayıcı yoksa kuyruk açılır ama kick etmez; okuma yolu özgün metni döndürür", async () => {
+    const { svc } = rig({ providerFails: true });
+    expect(svc.enabled).toBe(false);
+    const cards = await svc.localizeProducts([{ name: "Bakır" }], ["p1"], "en");
+    expect(cards).toEqual([{ name: "Bakır" }]);
+  });
+
+  it("localizeProducts çevirisi olan karta translatedFrom ekler, olmayanı aynen bırakır", async () => {
+    const { svc } = rig();
+    (svc as unknown as { kick: () => void }).kick = () => {};
+    await svc.enqueue("PRODUCT", "p1");
+    await svc.translateEntity("PRODUCT", "p1");
+    const out = await svc.localizeProducts([{ name: product.name }, { name: "Başka" }], ["p1", "p2"], "en");
+    expect(out[0]).toMatchObject({ name: "Copper sheet 2 mm · 1000×2000", translatedFrom: "tr" });
+    expect(out[1]).toEqual({ name: "Başka" });
+  });
+});

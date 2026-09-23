@@ -5,6 +5,7 @@ import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { AuditService } from "../audit/audit.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { AdminCompaniesService } from "./admin-companies.service";
 
 /**
@@ -138,6 +139,8 @@ export class AdminProductsService {
     private readonly audit: AuditService,
     private readonly companies: AdminCompaniesService,
     @Optional() private readonly seo?: SeoIndexService,
+    /** İçerik çevirisi (i18n Faz 1e) — SONDA ve isteğe bağlı (test rig'leri). */
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
   async list(q: AdminProductListQuery): Promise<{ items: AdminProductRow[]; total: number; page: number; pageSize: number }> {
@@ -268,6 +271,7 @@ export class AdminProductsService {
       metadata: { name: r.name, wasPublic: r.isPublic },
     });
     this.seo?.productChanged(id);
+    void this.translations?.enqueue("PRODUCT", id);
     const path = r.company.slug ? productPath(r.company.slug, r.slug) : "/company/satis/urunlerim";
     void this.companies.notifyCompany(
       r.company.id,
@@ -353,6 +357,7 @@ export class AdminProductsService {
         metadata: { name: r.name, wasPublic: r.isPublic, bulk: true },
       });
       this.seo?.productChanged(id);
+      void this.translations?.enqueue("PRODUCT", id);
       onaylanan.push({ id, companyId: r.company.id, name: r.name });
     }
 

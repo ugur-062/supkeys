@@ -1,4 +1,5 @@
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
+import { getLocale } from "next-intl/server";
 import { SEO_TAGS } from "@/lib/seo/tags";
 import type { PublicListingType } from "./marketplace";
 
@@ -40,6 +41,8 @@ export interface PublicCategoryRef {
 }
 
 export interface PublicListingCard {
+  /** Metin istek diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e); çeviri yoksa yok. */
+  translatedFrom?: string | null;
   number: string;
   type: PublicListingType;
   title: string;
@@ -119,6 +122,22 @@ export interface PublicSitemapRow {
 /** Liste/facet için kısa; ilan detayında biraz daha uzun (aşağıda geçilir). */
 const DEFAULT_REVALIDATE = 60;
 
+/**
+ * İSTEK DİLİ (i18n Faz 1e): herkese açık API ürün/talep/firma metnini
+ * `Accept-Language`a göre çevrilmiş döner (çeviri yoksa özgün). Sayfa dili
+ * next-intl'den; istek bağlamı yoksa (sitemap/OG rota işleyicileri) Türkçe.
+ * Next veri önbelleği başlığı anahtara katar → diller birbirine karışmaz.
+ */
+async function publicHeaders(): Promise<Record<string, string>> {
+  let locale = "tr";
+  try {
+    locale = await getLocale();
+  } catch {
+    /* rota işleyicisi / istek dışı */
+  }
+  return { accept: "application/json", "accept-language": locale };
+}
+
 async function getJson<T>(
   path: string,
   fallback: T,
@@ -137,7 +156,7 @@ async function getJson<T>(
   try {
     const res = await fetch(`${base}${path}`, {
       ...(fresh ? { cache: "no-store" as const } : { next: { revalidate, tags } }),
-      headers: { accept: "application/json" },
+      headers: await publicHeaders(),
     });
     if (!res.ok) {
       if (res.status !== 404) {
@@ -208,7 +227,7 @@ export async function fetchListing(
       `${base}/public/listings/${encodeURIComponent(number)}`,
       {
         next: { revalidate: 120, tags: [SEO_TAGS.listing(number), SEO_TAGS.listings] },
-        headers: { accept: "application/json" },
+        headers: await publicHeaders(),
       },
     );
     if (!res.ok) return null;
@@ -270,6 +289,8 @@ export interface ProductPriceFields {
 
 /** Herkese açık ürün kartı — FİYATLI (görünürlük v2, Europages kalıbı). */
 export interface PublicProductCard extends ProductPriceFields {
+  /** Metin istek diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e); çeviri yoksa yok. */
+  translatedFrom?: string | null;
   slug: string;
   name: string;
   images: string[];
@@ -328,6 +349,8 @@ export interface PublicProductCompany {
  * puan dağılımı, sipariş sayıları, talep/ilan listesi ÜYEYE (API döndürmez).
  */
 export interface PublicProfile {
+  /** Metin istek diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e); çeviri yoksa yok. */
+  translatedFrom?: string | null;
   name: string;
   /**
    * Arama motoruna girsin mi — VİTRİNDEN AYRI kapı. Sayfa herkese açık ama
@@ -374,9 +397,12 @@ export async function fetchCompanyProfile(
       // etiketle tazeleme; tazeleme kanalı (API → /api/seo/revalidate) sır
       // tanımlı değilse hiç çalışmaz ve sahibi az önce yüklediği kapağı
       // göremez. `?onizleme=1` ile gelen istek veriyi doğrudan API'den çeker.
-      opts.fresh
-        ? { cache: "no-store" }
-        : { next: { revalidate: 300, tags: [SEO_TAGS.company(slug), SEO_TAGS.companies] } },
+      {
+        ...(opts.fresh
+          ? { cache: "no-store" as const }
+          : { next: { revalidate: 300, tags: [SEO_TAGS.company(slug), SEO_TAGS.companies] } }),
+        headers: await publicHeaders(),
+      },
     );
     if (!res.ok) return null;
     return (await res.json()) as PublicProfile;
@@ -497,6 +523,8 @@ export interface CategoryMenuNode {
 
 /** Herkese açık dizin kartı (v2) — kimlik yok (Rothern ID/iletişim üyeye). */
 export interface PublicDirectoryCard {
+  /** Metin istek diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e); çeviri yoksa yok. */
+  translatedFrom?: string | null;
   name: string;
   slug: string;
   city: string | null;
@@ -842,7 +870,7 @@ export async function fetchProduct(
           revalidate: 300,
           tags: [SEO_TAGS.product(companySlug, productSlug), SEO_TAGS.company(companySlug), SEO_TAGS.products],
         },
-        headers: { accept: "application/json" },
+        headers: await publicHeaders(),
       },
     );
     if (!res.ok) return null;

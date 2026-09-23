@@ -23,8 +23,10 @@ import {
   REVIEW_SUMMARY_TAKE,
   buildReviewSummary,
 } from "../company-reviews/review-summary";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Optional, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
+import { currentLocale } from "../../common/i18n/locale-context";
 import { effectiveTier } from "../../common/company/effective-tier";
 
 /**
@@ -33,7 +35,11 @@ import { effectiveTier } from "../../common/company/effective-tier";
  */
 @Injectable()
 export class PublicProfileService {
-  constructor(private readonly prisma: PrismaBypassService) {}
+  constructor(
+    private readonly prisma: PrismaBypassService,
+    /** İçerik çevirisi (i18n Faz 1e) — isteğe bağlı; yoksa özgün metin. */
+    @Optional() private readonly translations?: ContentTranslationService,
+  ) {}
 
   /**
    * HERKESE AÇIK FİRMA PROFİLİ — v2 (2026-09-04, Europages kalıbı, kullanıcı
@@ -102,7 +108,7 @@ export class PublicProfileService {
       }),
     ]);
     const summary = buildReviewSummary(reviewRows, { revealNames: false });
-    return {
+    const profile = {
       name: c.name,
       slug: c.slug,
       industry: c.industry,
@@ -144,13 +150,19 @@ export class PublicProfileService {
         publicProductCount: productCount,
       }),
     };
+    if (!this.translations) return profile;
+    const [localized] = await this.translations.localizeCompanies([profile], [c.id], currentLocale());
+    return localized ?? profile;
   }
 
   /** Herkese açık firma dizini — TEK KAYNAK `common/company/company-directory.ts` (panel de okur). */
   async publicDirectory(q: DirectoryParams) {
     const res = await buildDirectory(this.prisma, q);
     // Kimlik alanları public karttan DÜŞER (Rothern ID üyeye).
-    return { ...res, items: res.items.map(({ id, rothernId, ...card }) => { void id; void rothernId; return card; }) };
+    const items = this.translations
+      ? await this.translations.localizeCompanies(res.items, res.items.map((i) => i.id), currentLocale())
+      : res.items;
+    return { ...res, items: items.map(({ id, rothernId, ...card }) => { void id; void rothernId; return card; }) };
   }
 
   publicDirectoryFacets(q: DirectoryParams = {}) {
@@ -158,8 +170,16 @@ export class PublicProfileService {
   }
 
   /** Ürün sayfası ilişkili bloklar — panel ve public aynı fonksiyon. */
-  related(companySlug: string, productSlug: string) {
-    return relatedProducts(this.prisma, companySlug, productSlug);
+  async related(companySlug: string, productSlug: string) {
+    const { ids, ...rest } = await relatedProducts(this.prisma, companySlug, productSlug);
+    if (!this.translations) return rest;
+    const locale = currentLocale();
+    const t = this.translations;
+    return {
+      fromCompany: { items: await t.localizeProducts(rest.fromCompany.items, ids.fromCompany, locale), total: rest.fromCompany.total },
+      similar: await t.localizeProducts(rest.similar, ids.similar, locale),
+      popular: await t.localizeProducts(rest.popular, ids.popular, locale),
+    };
   }
 
   /**
@@ -281,8 +301,9 @@ export class PublicProfileService {
       }),
     ]);
 
+    const cards = rows.map(toPublicProductCard);
     return {
-      items: rows.map(toPublicProductCard),
+      items: this.translations ? await this.translations.localizeProducts(cards, rows.map((r) => r.id), currentLocale()) : cards,
       total,
       page,
       pageSize,
@@ -313,13 +334,17 @@ export class PublicProfileService {
           })
         : null,
     ]);
+    const product = {
+      ...toPublicProduct(row),
+      attributeList: labelAttributes(row.attributes, attributeDefs),
+      // Kırıntı için kategori adı (Ana sayfa › Kategori › Firma › Ürün).
+      category: category ? { id: category.id, name: category.nameTr } : null,
+    };
+    const [localizedProduct] = this.translations
+      ? await this.translations.localizeProducts([product], [row.id], currentLocale())
+      : [product];
     return {
-      product: {
-        ...toPublicProduct(row),
-        attributeList: labelAttributes(row.attributes, attributeDefs),
-        // Kırıntı için kategori adı (Ana sayfa › Kategori › Firma › Ürün).
-        category: category ? { id: category.id, name: category.nameTr } : null,
-      },
+      product: localizedProduct ?? product,
       company: {
         name: company.name,
         slug: company.slug,
