@@ -321,7 +321,7 @@ export interface PublicProduct extends Omit<PublicProductCard, "excerpt"> {
    */
   attributeList: { key: string; label: string; value: string; unit: string | null }[];
   /** Kırıntı için kategori adı. */
-  category?: { id: string; name: string } | null;
+  category?: { id: string; name: string; slug?: string } | null;
   publishedAt: string | null;
   updatedAt: string;
 }
@@ -366,7 +366,7 @@ export interface PublicProfile {
   slug: string | null;
   industry: string | null;
   activities?: string[];
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; slug?: string }[];
   city: string | null;
   country: string | null;
   logoUrl: string | null;
@@ -510,7 +510,7 @@ export interface SuggestResult {
     companyName?: string;
     image?: string | null;
   }[];
-  categories: { id: string; name: string; level: number }[];
+  categories: { id: string; name: string; level: number; slug?: string }[];
   companies: { name: string; slug: string; city: string | null; logoUrl?: string | null }[];
   /** Açık alım talepleri (kapsam: talepler). Sahip ADI YOK — anonimlik. */
   listings?: { number: string; slug?: string; title: string; closesAt: string | null }[];
@@ -519,6 +519,8 @@ export interface SuggestResult {
 /** Mega menü kategori ağacı — L1 segment + L2 aile, ürün sayısıyla. */
 export interface CategoryMenuNode {
   id: string;
+  /** Dilden bağımsız adres parçası (Türkçe ad) — `categoryHref`. */
+  slug?: string;
   name: string;
   count: number;
   children: { id: string; name: string; count: number }[];
@@ -656,7 +658,7 @@ export interface ProductAttributeFacet {
 }
 
 export interface ProductFacets {
-  categories: { id: string; name: string; level: number; count: number }[];
+  categories: { id: string; name: string; level: number; count: number; slug?: string }[];
   /** Seçili kategorinin BİR ALT seviyesi — kategori sayfasının çipleri. */
   subCategories?: { id: string; name: string; level: number; count: number }[];
   /**
@@ -831,6 +833,8 @@ export function fetchCompanyProducts(
 /** L1 segmentler (58) — `categories/segments`, anahtara tabi değil. */
 export interface CategorySegment {
   id: string;
+  /** Dilden bağımsız adres parçası (Türkçe ad) — `categoryHref`. */
+  slug?: string;
   nameTr: string;
   childCount?: number;
 }
@@ -906,7 +910,7 @@ export interface SitemapSummary {
   products: SitemapBucket;
   companies: SitemapBucket;
   listings: SitemapBucket;
-  categories: { id: string; name: string; count: number; lastmod: string }[];
+  categories: { id: string; name: string; count: number; lastmod: string; slug?: string }[];
   productCities: { city: string; count: number; lastmod: string }[];
   companyCities: { city: string; count: number; lastmod: string }[];
 }

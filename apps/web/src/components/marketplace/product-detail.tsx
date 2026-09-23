@@ -19,7 +19,7 @@ import type {
   PublicProductCompany,
   RelatedProducts,
 } from "@/lib/public/marketplace-api";
-import { categoryPath } from "@/lib/public/marketplace";
+import { categoryHref } from "@/lib/public/marketplace";
 import { GatedField } from "./gated-field";
 import { RfqBanner } from "./rfq-banner";
 import { ProductCard } from "./product-card";
@@ -91,7 +91,7 @@ export function ProductDetail({
           home={{ href: "/", label: t("home") }}
           trail={[
             ...(product.category
-              ? [{ label: product.category.name, href: categoryPath(product.category.id, product.category.name) }]
+              ? [{ label: product.category.name, href: categoryHref(product.category) }]
               : []),
             { label: company.name, href: `/firma/${companySlug}` },
           ]}

@@ -8,7 +8,7 @@ import {
 } from "@/components/marketplace/product-index";
 import {
   MARKETPLACE_ROUTES,
-  categoryPath,
+  categoryHref,
   parseCategoryCode,
 } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
@@ -39,7 +39,7 @@ export async function generateStaticParams() {
   if (!MARKETPLACE_LIVE) return [];
   const facets = await fetchProductFacets();
   return facets.categories.map((c) => ({
-    slug: categoryPath(c.id, c.name).split("/").pop() as string,
+    slug: categoryHref(c).split("/").pop() as string,
   }));
 }
 
@@ -79,7 +79,7 @@ export async function generateMetadata({
     // taşıyordu) — kuyruk düşer, ad kelime sınırında kısalır.
     title: clampTitle(cat.name, t("categoryTitleTail", { count })),
     description: t("categoryMetaDesc", { name: cat.name, count }),
-    path: categoryPath(cat.id, cat.name),
+    path: categoryHref(cat),
     images: segmentPhotoSrc([cat.id]) ? [segmentPhotoSrc([cat.id]) as string] : undefined,
     locale,
   });
@@ -107,7 +107,7 @@ export default async function Page({
   // Kanonik yola 308: aynı içerik iki adreste yaşarsa (çıplak kod, eski ad)
   // Google ikisini de güvensiz sayar. Yönlendirme sitemap'in ürettiği dizeyle
   // AYNI fonksiyondan gelir — ayrışamazlar.
-  const canonical = categoryPath(cat.id, cat.name);
+  const canonical = categoryHref(cat);
   // Bu segmentte `loading.tsx` YOK (2026-09-22 yayın taraması): iskelet
   // akışı başladıktan sonra çağrılan permanentRedirect 308 yerine 200 +
   // boş gövde üretiyordu (kanonik-olmayan slug arama motoruna kopya sayfa).

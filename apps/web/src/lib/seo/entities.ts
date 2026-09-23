@@ -2,10 +2,10 @@ import { INTL_LOCALE, formatNumber } from "@/i18n/format";
 import { localizePath } from "@/i18n/href";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { SITE_NAME } from "./meta";
-import { MARKETPLACE_ROUTES, categoryPath, listingHref } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES, categoryHref, listingHref } from "@/lib/public/marketplace";
 import { productPrice, type PriceLabels } from "@/lib/public/product-price";
 import { breadcrumbNode, compact, graph, type JsonLdNode } from "@/lib/seo/jsonld";
-import { absoluteUrl, buildMetadata, clampDescription, joinParts } from "@/lib/seo/meta";
+import { absoluteUrl, buildMetadata, clampDescription, joinParts, LANG_TAG } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 
 /**
@@ -182,7 +182,7 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
     name: pr.name,
     url,
     description: pr.description ?? summary,
-    inLanguage: "tr-TR",
+    inLanguage: LANG_TAG[locale],
     image: images,
     ...(pr.category?.name ? { category: pr.category.name } : {}),
     ...(pr.brand ? { brand: { "@type": "Brand", name: pr.brand } } : {}),
@@ -214,7 +214,7 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
       breadcrumbNode([
         { name: ts("web.marketing.breadcrumbHome"), path: "/" },
         { name: ts("web.marketplace.labels.products"), path: MARKETPLACE_ROUTES.products },
-        ...(pr.category ? [{ name: pr.category.name, path: categoryPath(pr.category.id, pr.category.name) }] : []),
+        ...(pr.category ? [{ name: pr.category.name, path: categoryHref(pr.category) }] : []),
         { name: co.name, path: `/firma/${companySlug}` },
         { name: pr.name, path },
       ], locale),
@@ -300,7 +300,7 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
     name: c.name,
     url,
     description: c.aboutText ?? summary,
-    inLanguage: "tr-TR",
+    inLanguage: LANG_TAG[locale],
     ...(c.logoUrl ? { logo: c.logoUrl } : {}),
     ...(image ? { image } : {}),
     ...(c.foundedYear ? { foundingDate: String(c.foundedYear) } : {}),
@@ -466,7 +466,7 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
     name: l.title,
     url,
     identifier: l.number,
-    inLanguage: "tr-TR",
+    inLanguage: LANG_TAG[locale],
     description: l.description ?? summary,
     ...(l.closesAt ? { validThrough: l.closesAt } : {}),
     availability: l.open ? "https://schema.org/InStock" : "https://schema.org/Discontinued",

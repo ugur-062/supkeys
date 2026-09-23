@@ -407,6 +407,9 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   sent), ~5 kayıt/dk. Kategori adları ayrı (Faz 4).
   Sözleşme: `test/unit/content-translation.spec.ts` (yerel PG yoksa
   `--globalSetup=<noop>` ile koşulur).
+  **Kategori adları da üç dilde (Faz 4, aynı gün) — bkz. Kategori Kataloğu.**
+  **JSON-LD `inLanguage` sayfa dilinden** (`LANG_TAG`); sözleşmeler tr-TR kalır;
+  `WebSite` düğümü üç dili listeler.
   **MODEL ADI TUZAĞI (2026-09-23, staging'de ölçüldü):** Vertex AI
   `gemini-pro-latest` alias'ını TANIMAZ (404 NOT_FOUND) — Generative Language
   API tanır. Render'daki `AI_MODEL_PREMIUM=gemini-pro-latest` bu yüzden
@@ -672,6 +675,28 @@ Sözlük önceliği: üretilen dosya ÖNCE, elle yazılan SONRA → insan karar�
 > değiştirir → birebir garantisini bozar). `gen-category-leaves` **SİLİNDİ**.
 
 **Kürasyon:** sonuçsuz aramalar `category_search_misses`'e → admin paneli.
+
+**KATEGORİ ADI ÜÇ DİLDE (i18n Faz 4, 2026-09-23):** `Category.nameEn` /
+`nameRu` (migration `20260923230000`, NULL = çeviri yok → Türkçeye düşer).
+Tek kaynak `src/seeds/category-names.i18n.tsv` (`kod ⇥ EN ⇥ RU`): staging'de
+Gemini Pro TOPLU işi üretir (`POST admin/content-translations/categories/
+backfill`, 120'lik partiler, kod kümesi + Kiril/Türkçe-harf kapıları, hatalı
+parti ikiye bölünür; `GET …/categories/status`), sonra
+`pnpm --filter @rothern/db export-category-names-i18n` dosyayı depoya yazar;
+`seed-categories` ve `apply-category-names-i18n` oradan okur — CANLIDA MODEL
+ÇAĞRISI YOK. Kapsam: görünür 29 segmentin tüm satırları (19.132), gizli
+segmentler çevrilmez. **Okuma kuralı:** kategori satırı seçilirken
+`...CATEGORY_NAME_SELECT`, yanıta dönüşürken `categoryName(row)` ya da toplu
+`localizeCategoryRows(rows)` (`common/company/category-name.ts`; dil
+`currentLocale()`). Herkese açık uçlar, `categories/*` (panel seçicileri
+`nameTr` alanında YEREL adı alır — alan adı geriye dönük), Açık Talepler,
+ürün keşfi, dizin/profil bağlı. **ADRES SLUG'I HER ZAMAN TÜRKÇE ADDAN**
+(`categorySlug`): API kategori nesnelerine `slug` verir, web `categoryHref(c)`
+kullanır — `/en/urunler/kategori/<kod>-<tr-slug>`. Arama (`searchText`) ve
+`nameTr ILIKE` yine Türkçe; nitelik ETİKETLERİ (`CategoryAttribute.nameTr`) ve
+süzgeç değerleri henüz çevrilmedi (küçük, sonraki adım). Sözleşme:
+`test/unit/category-name.spec.ts`, `category-translation.spec.ts`, web
+`marketplace.test` "categoryHref".
 
 **KATALOG SADELEŞTİRME — 29 SEGMENT GİZLİ (2026-09-19, kullanıcı kararı:
 "endüstriyel, inşaat, sanayi tarzı şeyler hariç gereksiz kategorileri
@@ -1520,12 +1545,11 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Son migration `20260923180000_content_translations` (tablo
-  `content_translations` + iki enum; tümüyle additive). Öncesi
-  `20260923120000_company_user_locale` (`CompanyUser.locale` TEXT NOT NULL
-  DEFAULT 'tr'). İkisi de staging'e 2026-09-23'te uygulandı, **CANLIDA
-  BEKLİYOR** (PR #57 birleştirilmeden önce, sırayla). Öncesi
-  `20260914120000_listing_preferred_activities`.
+- Son migration `20260923230000_category_names_i18n` (`categories.nameEn/nameRu`
+  TEXT NULL). Öncesi `20260923180000_content_translations` (tablo + iki enum) ve
+  `20260923120000_company_user_locale` (`CompanyUser.locale`). Üçü de eklemeli,
+  staging'e 2026-09-23'te uygulandı, **CANLIDA BEKLİYOR** (PR #57 birleştirilmeden
+  önce, sırayla). Öncesi `20260914120000_listing_preferred_activities`.
 - Şema değişikliği: `migrate` (dev) → `migrate:deploy` (prod). Manuel SQL için
   `prisma/migrations/<timestamp>_<ad>/migration.sql`. **Her yeni migration'dan
   ÖNCE `docs/migration-safety.md` kontrol listesini oku.**
@@ -1847,12 +1871,15 @@ istemcisi sessizce kısıtlı role düşüp sağlık/giriş/cron'u bozamaz.
 - WebSocket real-time bildirim
 - Admin: impersonate (güvenlik değerlendirilecek), iade/refund, CSV export,
   dahili not, global arama
-- i18n Faz 2–4 (`docs/plan-i18n.md`): panel metinleri (2, cırcır 433 dosya /
-  6.194 literal) · API istisna/DTO/bildirim/e-posta (3) · kategori adları (4).
+- i18n Faz 2–3 (`docs/plan-i18n.md`): panel metinleri (2, cırcır 426 dosya /
+  6.023 literal) · API istisna/DTO/bildirim/e-posta (3). Faz 4 kategori adları
+  2026-09-23'te BİTTİ; nitelik etiketleri/süzgeç değerleri küçük artık.
   Faz 0 + Faz 1 (herkese açık yüzey, kimlik akışı, dil seçici) + Faz 1e
-  (içerik otomatik çevirisi) 2026-09-23'te BİTTİ. Canlı sırası: iki migration
-  (`20260923120000` locale, `20260923180000` content_translations) → PR #57
-  → Render `AI_MODEL_PREMIUM` Vertex'in tanıdığı Pro adı → admin backfill.
+  (içerik otomatik çevirisi) + Faz 4 (kategori adları) 2026-09-23'te BİTTİ.
+  Canlı sırası: üç migration (`20260923120000` locale, `20260923180000`
+  content_translations, `20260923230000` category_names_i18n) → PR #57 →
+  `apply-category-names-i18n` (TSV'den, model yok) → Render `AI_MODEL_PREMIUM`
+  Vertex'in tanıdığı Pro adı (yapıldı) → admin backfill (canlı boş, gerekmez).
 
 **Teknik borç**
 - **Tablo okuma tek kaynağı yarım:** `listing-item-import.service.ts` hâlâ

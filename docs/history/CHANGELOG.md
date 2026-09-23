@@ -4,6 +4,21 @@ Bu dosya tamamlanmış aşamaların detaylı kaydıdır. Aktif çalışma için 
 
 ---
 
+## 2026-09-23 (gece) — i18n Faz 4: kategori adları EN/RU + JSON-LD dil etiketi
+
+Kullanıcı: "kategoriler yapıldı mı, her şeyi baştan aşağı kontrol et, SEO/GEO her
+dilde". Üç dilli SEO taraması (12 sayfa × 3 dil): dil/kanonik/hreflang/og:locale
+doğru; JSON-LD `inLanguage` her sayfada tr-TR (düzeltildi: sayfa dili,
+sözleşmeler tr-TR, WebSite üç dil); kategori adları EN/RU'da Türkçeydi.
+
+- `Category.nameEn/nameRu` (migration `20260923230000`), `category-name.ts`
+  yardımcısı, herkese açık + panel + `categories/*` uçları bağlandı; API kategori
+  nesnelerine Türkçe addan `slug`, web `categoryHref()`.
+- `CategoryTranslationService`: Gemini Pro toplu iş (staging), TSV dışa aktarımı
+  (`export-category-names-i18n`), seed/apply TSV'den — canlıda model yok.
+- Birim testler: `category-name.spec`, `category-translation.spec`; web
+  `categoryHref`.
+
 ## 2026-09-23 (akşam) — Faz 1e kapanış turu: panel çevirisi, ön yükleme 404'ü, dilden bağımsız talep adresi
 
 Kullanıcı bulgusu: "kalemler çevrilmemiş, bazı alım taleplerine girince 404".

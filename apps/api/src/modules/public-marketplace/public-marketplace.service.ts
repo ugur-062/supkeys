@@ -6,6 +6,7 @@ import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText } from
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
+import { CATEGORY_NAME_SELECT, categoryName, categorySlug, localizeCategoryRows } from "../../common/company/category-name";
 import {
   marketplaceIndexableWhere,
   marketplaceListingWhere,
@@ -73,15 +74,16 @@ export class PublicMarketplaceService {
 
   private async resolveCategories(
     codes: string[],
-  ): Promise<Map<string, { id: string; name: string; level: number }>> {
+  ): Promise<Map<string, { id: string; name: string; level: number; slug: string }>> {
     const unique = [...new Set(codes)].filter(Boolean);
     if (unique.length === 0) return new Map();
     const rows = await this.prisma.category.findMany({
       where: { id: { in: unique } },
-      select: { id: true, nameTr: true, level: true },
+      select: { id: true, ...CATEGORY_NAME_SELECT, level: true },
     });
+    // i18n Faz 4: ad okuyucunun dilinde, `slug` HER ZAMAN Türkçe addan (adres dilden bağımsız).
     return new Map(
-      rows.map((r) => [r.id, { id: r.id, name: r.nameTr, level: r.level }]),
+      rows.map((r) => [r.id, { id: r.id, name: categoryName(r), level: r.level, slug: categorySlug(r.nameTr) }]),
     );
   }
 
@@ -514,7 +516,7 @@ export class PublicMarketplaceService {
           ...hiddenCategoryWhere(),
           AND: tokens.map((t) => ({ searchText: { contains: foldSearchText(t) } })),
         },
-        select: { id: true, nameTr: true, level: true },
+        select: { id: true, ...CATEGORY_NAME_SELECT, level: true },
         orderBy: [{ level: "asc" }],
         take: 5,
       }),
@@ -556,7 +558,7 @@ export class PublicMarketplaceService {
       products: this.translations
         ? await this.translations.localizeProducts(productHits, products.map((p) => p.id), currentLocale())
         : productHits,
-      categories: categories.map((c) => ({ id: c.id, name: c.nameTr, level: c.level })),
+      categories: categories.map((c) => ({ id: c.id, name: categoryName(c), level: c.level, slug: categorySlug(c.nameTr) })),
       companies: companies.map((c) => ({
         name: c.name,
         slug: c.slug as string,
@@ -587,7 +589,7 @@ export class PublicMarketplaceService {
       }),
       this.prisma.category.findMany({
         where: { inDiscovery: true, level: { lte: 2 }, ...hiddenCategoryWhere() },
-        select: { id: true, nameTr: true, level: true },
+        select: { id: true, ...CATEGORY_NAME_SELECT, level: true },
       }),
     ]);
     const segCount = new Map<string, number>();
@@ -605,11 +607,12 @@ export class PublicMarketplaceService {
       .filter((c) => c.level === 1)
       .map((seg) => ({
         id: seg.id,
-        name: seg.nameTr,
+        name: categoryName(seg),
+        slug: categorySlug(seg.nameTr),
         count: segCount.get(seg.id) ?? 0,
         children: families
           .filter((f) => f.id.slice(0, 2) === seg.id.slice(0, 2))
-          .map((f) => ({ id: f.id, name: f.nameTr, count: famCount.get(f.id) ?? 0 }))
+          .map((f) => ({ id: f.id, name: categoryName(f), slug: categorySlug(f.nameTr), count: famCount.get(f.id) ?? 0 }))
           .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"))
           .slice(0, 12),
       }))

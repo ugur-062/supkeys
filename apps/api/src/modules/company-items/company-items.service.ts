@@ -55,6 +55,7 @@ import { StorageService } from "../storage/storage.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
 import {
   productCompletion,
   productPublishBlockers,
@@ -632,12 +633,12 @@ export class CompanyItemsService {
       ]),
     ];
     const cats = ids.length
-      ? await this.prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, nameTr: true, level: true } })
+      ? await this.prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, ...CATEGORY_NAME_SELECT, level: true } })
       : [];
     const byId = new Map(cats.map((c) => [c.id, c]));
     const named = (pairs: [string, number][]) =>
       pairs
-        .map(([id, count]) => (byId.has(id) ? { id, name: byId.get(id)!.nameTr, level: byId.get(id)!.level, count } : null))
+        .map(([id, count]) => (byId.has(id) ? { id, name: categoryName(byId.get(id)!), level: byId.get(id)!.level, count } : null))
         .filter((c): c is NonNullable<typeof c> => !!c)
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"));
     const selected = q.category ? byId.get(q.category) : undefined;
@@ -647,7 +648,7 @@ export class CompanyItemsService {
       subCategories: named(subCounts),
       /** Seçili kategorinin kendisi (ürünü olmasa da) — çip ve sayfa başlığı. */
       selectedCategory: selected
-        ? { id: selected.id, name: selected.nameTr, level: selected.level }
+        ? { id: selected.id, name: categoryName(selected), level: selected.level }
         : null,
       cities: ctx.cities,
       activities: ctx.activities,
@@ -730,7 +731,7 @@ export class CompanyItemsService {
       row.categoryId
         ? this.prisma.category.findUnique({
             where: { id: row.categoryId },
-            select: { id: true, nameTr: true },
+            select: { id: true, ...CATEGORY_NAME_SELECT },
           })
         : null,
     ]);
@@ -739,7 +740,7 @@ export class CompanyItemsService {
     const product = {
       ...toPublicProduct(row),
       attributeList: labelAttributes(row.attributes, attributeDefs),
-        category: category ? { id: category.id, name: category.nameTr } : null,
+        category: category ? { id: category.id, name: categoryName(category) } : null,
         priceAmount: row.priceAmount?.toString() ?? null,
         priceTiers: row.priceTiers as unknown,
         priceCurrency: row.priceCurrency,

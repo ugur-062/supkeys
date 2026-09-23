@@ -186,3 +186,24 @@ panel içi kısa etiketler Claude çevirisiyle yayınlanır.
   koyar; web `listingHref()` onu kullanır (`/en/talep/<slug>` = `/talep/<slug>`),
   başlıktan üretim yalnız yedek. Ürün/firma slug'ı zaten sütunda (donuk).
 
+## Faz 4 — kategori adları EN/RU (2026-09-23 akşam)
+- **Neden şimdi:** üç dilli SEO taraması kategori sayfalarında (`/en/urunler/kategori/…`)
+  başlık, h1 ve açıklamada Türkçe kategori adı gösterdi; talep meta
+  açıklamasında da ("· Vidalar ·"). Kategori adı en yaygın kalıntıydı.
+- **Veri:** `Category.nameEn` / `nameRu` kolonları; tek kaynak
+  `packages/db/src/seeds/category-names.i18n.tsv`. Kaynak TSV'nin adları zaten
+  Türkçe (Ariba dışa aktarımı TR), küratörlü 18.627 satırın İngilizce özgün adı
+  ipucu olarak var. Görünür 29 segment = 19.132 satır (L1 29 · L2 222 · L3 1.473 ·
+  L4 17.408); gizli segmentler çevrilmez.
+- **Üretim:** Gemini Pro TOPLU (120'lik parti, JSON dizi; kod kümesi tam olmalı,
+  EN'de Türkçe harf / RU'da Kiril kapısı; hatalı parti ikiye bölünüp yinelenir),
+  staging'de admin ucuyla arka planda; bitince `export-category-names-i18n`
+  dosyayı depoya yazar → canlı `apply-category-names-i18n` (model yok),
+  `seed-categories` de aynı dosyayı uygular (reseed çeviriyi silmez).
+- **Okuma:** `categoryName(row)` / `localizeCategoryRows(rows)` +
+  `CATEGORY_NAME_SELECT`; panel seçicileri `nameTr` alanında yerel adı alır.
+  **Adres slug'ı Türkçe addan** (`categorySlug`, web `categoryHref`) — talep
+  slug'ıyla aynı karar.
+- **Dışarıda:** nitelik etiketleri (`CategoryAttribute.nameTr`, 237 satır) ve
+  süzgeç değerleri; arama Türkçe. JSON-LD `inLanguage` sayfa dilinden.
+

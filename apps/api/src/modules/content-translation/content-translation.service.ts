@@ -186,6 +186,45 @@ export class ContentTranslationService {
     });
   }
 
+  /**
+   * Ortak sağlayıcı çağrısı — model aday zinciri ve 404 düşüşü ile (kategori
+   * toplu çevirisi gibi ürün/talep dışı işler için). Başarısızlıkta `error`.
+   */
+  async completeWithFallback(
+    system: string,
+    prompt: string,
+    opts: { maxOutputTokens?: number; timeoutMs?: number } = {},
+  ): Promise<{ text: string; model: string; cost: number } | { error: string }> {
+    if (!this.provider || !this.cfg) return { error: "translation provider not configured" };
+    for (const candidate of this.modelCandidates()) {
+      try {
+        const result = await this.provider.complete({
+          model: candidate,
+          system,
+          prompt,
+          maxOutputTokens: opts.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
+          timeoutMs: opts.timeoutMs ?? TIMEOUT_MS,
+          thinkingLevel: "low",
+        });
+        if (this.resolvedModel !== candidate) {
+          this.resolvedModel = candidate;
+          this.logger.log(`Content translation model: ${candidate}`);
+        }
+        const pricing = this.cfg.pricing[candidate];
+        const cost = pricing ? Number(costFromUsage(result.usage, pricing)) : 0;
+        return { text: result.text, model: candidate, cost };
+      } catch (err) {
+        if (isModelNotFound(err)) {
+          this.deadModels.add(candidate);
+          this.logger.warn(`Translation model not available on this provider, trying next: ${candidate}`);
+          continue;
+        }
+        return { error: `provider: ${err instanceof Error ? err.message : String(err)}` };
+      }
+    }
+    return { error: "translation model not found (CONTENT_TRANSLATION_MODEL / AI_MODEL_PREMIUM unknown to the provider)" };
+  }
+
   /** Süpürücü: bekleyen/başarısız (≤3 deneme) kayıtları sırayla çevirir. */
   async processPending(limit = 25): Promise<{ processed: number; done: number; failed: number }> {
     const out = { processed: 0, done: 0, failed: 0 };

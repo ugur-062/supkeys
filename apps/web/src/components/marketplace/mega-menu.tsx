@@ -2,7 +2,7 @@
 
 import { useTranslations } from "next-intl";
 
-import { categoryPath } from "@/lib/public/marketplace";
+import { categoryHref } from "@/lib/public/marketplace";
 import type { CategoryMenuNode } from "@/lib/public/marketplace-api";
 import { categoryVisual } from "@/lib/public/category-visual";
 import { fetchCategoryMenu } from "@/lib/public/suggest-client";
@@ -163,7 +163,7 @@ export function MegaMenu({ label }: { label?: string } = {}) {
                 {cells.map((c) => (
                   <li key={c.id}>
                     <Link
-                      href={categoryPath(c.id, c.name)}
+                      href={categoryHref(c)}
                       onClick={() => {
                         pinned.current = false;
                         setOpen(false);
@@ -178,7 +178,7 @@ export function MegaMenu({ label }: { label?: string } = {}) {
               </ul>
               {active ? (
                 <Link
-                  href={categoryPath(active.id, active.name)}
+                  href={categoryHref(active)}
                   onClick={() => {
                     pinned.current = false;
                     setOpen(false);
@@ -203,7 +203,7 @@ export function MegaMenu({ label }: { label?: string } = {}) {
                       .map((f) => (
                         <Link
                           key={f.id}
-                          href={categoryPath(f.id, f.name)}
+                          href={categoryHref(f)}
                           onClick={() => {
                             pinned.current = false;
                             setOpen(false);

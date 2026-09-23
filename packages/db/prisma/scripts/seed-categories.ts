@@ -34,7 +34,7 @@ import { PrismaClient } from "@prisma/client";
 import { foldSearchText } from "@rothern/shared";
 import * as fs from "fs";
 import * as path from "path";
-import { buildKeywordsByCode, readTranslations } from "./lib/category-keywords";
+import { buildKeywordsByCode, readI18nNames, readTranslations } from "./lib/category-keywords";
 
 /**
  * UZUN İŞLEM → DIRECT_URL (session mode, 5432).
@@ -109,6 +109,8 @@ async function main() {
    * İngilizce asıl kaybolmuyor: `buildKeywordsByCode` onu keywords'e katıyor.
    */
   const translations = readTranslations(seedsDir);
+  // i18n Faz 4: EN/RU adlar (yoksa NULL → okuma yolu Türkçeye düşer).
+  const i18nNames = readI18nNames(seedsDir);
 
   const cats: Cat[] = [];
   const seen = new Set<string>();
@@ -204,6 +206,8 @@ async function main() {
                 id: c.code,
                 code: c.code,
                 nameTr: c.nameTr,
+                nameEn: i18nNames.get(c.code)?.en ?? null,
+                nameRu: i18nNames.get(c.code)?.ru ?? null,
                 keywords: kw,
                 searchText: foldSearchText(`${c.nameTr} ${kw}`),
                 level: c.level,

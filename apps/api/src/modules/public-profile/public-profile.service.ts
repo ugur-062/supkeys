@@ -1,4 +1,5 @@
 import { Prisma } from "@rothern/db";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
 import { categoryPrefix, isCategoryCode, PAID_TIER, tierAtLeast, tokenizeQuery } from "@rothern/shared";
 import {
   PUBLIC_PRODUCT_SELECT,
@@ -194,9 +195,9 @@ export class PublicProfileService {
     if (uniq.length === 0) return [] as { id: string; name: string }[];
     const rows = await this.prisma.category.findMany({
       where: { id: { in: uniq } },
-      select: { id: true, nameTr: true },
+      select: { id: true, ...CATEGORY_NAME_SELECT },
     });
-    const byId = new Map(rows.map((r) => [r.id, r.nameTr]));
+    const byId = new Map(rows.map((r) => [r.id, categoryName(r)]));
     return uniq
       .filter((id) => byId.has(id))
       .map((id) => ({ id, name: byId.get(id) as string }));
@@ -330,7 +331,7 @@ export class PublicProfileService {
       row.categoryId
         ? this.prisma.category.findUnique({
             where: { id: row.categoryId },
-            select: { id: true, nameTr: true },
+            select: { id: true, ...CATEGORY_NAME_SELECT },
           })
         : null,
     ]);
@@ -338,7 +339,7 @@ export class PublicProfileService {
       ...toPublicProduct(row),
       attributeList: labelAttributes(row.attributes, attributeDefs),
       // Kırıntı için kategori adı (Ana sayfa › Kategori › Firma › Ürün).
-      category: category ? { id: category.id, name: category.nameTr } : null,
+      category: category ? { id: category.id, name: categoryName(category) } : null,
     };
     const [localizedProduct] = this.translations
       ? await this.translations.localizeProducts([product], [row.id], currentLocale())

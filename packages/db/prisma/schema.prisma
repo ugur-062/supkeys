@@ -236,6 +236,15 @@ model Category {
   code       String @unique
   nameTr     String
   /**
+   * i18n Faz 4 (2026-09-23): kategori adının İngilizce / Rusça karşılığı.
+   * Kaynak `src/seeds/category-names.i18n.tsv` (Gemini Pro toplu çevirisi,
+   * staging'de üretilip depoya yazıldı); `seed-categories` ve
+   * `apply-category-names-i18n` yazar. NULL = çeviri yok → okuma yolu
+   * `categoryName()` ile Türkçeye düşer. Adres slug'ı HER ZAMAN `nameTr`den.
+   */
+  nameEn     String?
+  nameRu     String?
+  /**
    * TR-katlanmış arama metni (foldSearchText(nameTr)) — 'İ'/aksan sorunsuz
    * substring arama için. Seed yazar; sorgu tarafı da aynı fold'dan geçer.
    */

@@ -1,5 +1,5 @@
 import { OPERATOR } from "@/lib/company-info";
-import { absoluteUrl, SITE_NAME } from "@/lib/seo/meta";
+import { absoluteUrl, LANG_TAG, SITE_NAME } from "@/lib/seo/meta";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { localizePath } from "@/i18n/href";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
@@ -94,7 +94,8 @@ export function webSiteNode(): JsonLdNode {
     "@id": SITE_ID(),
     name: SITE_NAME,
     url: absoluteUrl("/"),
-    inLanguage: "tr-TR",
+    // Site üç dilde yayında (i18n Faz 1): tek dil yazmak EN/RU sayfalarda yanlış sinyal olurdu.
+    inLanguage: Object.values(LANG_TAG),
     publisher: { "@id": ORG_ID() },
     potentialAction: {
       "@type": "SearchAction",

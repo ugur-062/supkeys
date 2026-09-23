@@ -5,6 +5,7 @@ import { AdminRolesGuard } from "../admin-auth/guards/admin-roles.guard";
 import { publicProductWhere } from "../../common/company/public-profile-gate";
 import { marketplaceListingWhere } from "../../common/company/listing-visibility";
 import { ContentTranslationService } from "./content-translation.service";
+import { CategoryTranslationService } from "./category-translation.service";
 
 /**
  * Yönetici ucu — geriye dönük doldurma ve durum. Yayın anında çeviri
@@ -14,7 +15,10 @@ import { ContentTranslationService } from "./content-translation.service";
 @Controller("admin/content-translations")
 @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
 export class ContentTranslationController {
-  constructor(private readonly translations: ContentTranslationService) {}
+  constructor(
+    private readonly translations: ContentTranslationService,
+    private readonly categories: CategoryTranslationService,
+  ) {}
 
   @Get("status")
   @RequireAdminRole("SUPER_ADMIN", "SUPPORT")
@@ -33,5 +37,19 @@ export class ContentTranslationController {
     });
     this.translations.sweepAll();
     return { enqueued, enabled: this.translations.enabled };
+  }
+
+  /** i18n Faz 4 — kategori adı EN/RU: sayaç + koşan işin ilerlemesi. */
+  @Get("categories/status")
+  @RequireAdminRole("SUPER_ADMIN", "SUPPORT")
+  categoryStatus() {
+    return this.categories.status();
+  }
+
+  /** Görünür segmentlerdeki çevirisiz kategori adlarını arka planda toplu çevirir (tek seferlik, staging). */
+  @Post("categories/backfill")
+  @RequireAdminRole("SUPER_ADMIN")
+  categoryBackfill() {
+    return this.categories.start(["en", "ru"]);
   }
 }

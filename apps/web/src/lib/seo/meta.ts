@@ -65,6 +65,8 @@ export interface PageMetaInput {
 }
 
 export const OG_LOCALE: Record<Locale, string> = { tr: "tr_TR", en: "en_US", ru: "ru_RU" };
+/** JSON-LD `inLanguage` (BCP 47) — sayfanın dili; sözleşme metinleri istisna (her dilde tr-TR, `LegalDoc`). */
+export const LANG_TAG: Record<Locale, string> = { tr: "tr-TR", en: "en-US", ru: "ru-RU" };
 
 /**
  * Tek giriş noktası: sayfa metası. `alternates.canonical` her zaman yazılır —

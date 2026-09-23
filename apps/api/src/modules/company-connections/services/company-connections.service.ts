@@ -25,6 +25,7 @@ import {
 import { CompanyViewsService } from "../../company-views/company-views.service";
 import { ContentTranslationService } from "../../content-translation/content-translation.service";
 import { currentLocale } from "../../../common/i18n/locale-context";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../../common/company/category-name";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { AuditService } from "../../audit/audit.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
@@ -1219,11 +1220,11 @@ export class CompanyConnectionsService {
       this.prisma.companyItem.count({ where: { ...publicProductWhere(), companyId: c.id } }),
       this.prisma.category.findMany({
         where: { id: { in: [...c.sellerCategoryIds, ...c.buyerCategoryIds].filter(isCategoryCode).slice(0, 12) } },
-        select: { id: true, nameTr: true },
+        select: { id: true, ...CATEGORY_NAME_SELECT },
       }),
     ]);
     const reviewSummary = buildReviewSummary(reviewRows, { revealNames: true });
-    const catName = new Map(catRows.map((r) => [r.id, r.nameTr]));
+    const catName = new Map(catRows.map((r) => [r.id, categoryName(r)]));
     const categories = [...new Set([...c.sellerCategoryIds, ...c.buyerCategoryIds])]
       .filter((id) => catName.has(id))
       .map((id) => ({ id, name: catName.get(id) as string }));

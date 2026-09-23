@@ -3,6 +3,7 @@ import { AiModule } from "../ai/ai.module";
 import { ContentTranslationController } from "./content-translation.controller";
 import { ContentTranslationScheduler } from "./content-translation.scheduler";
 import { ContentTranslationService } from "./content-translation.service";
+import { CategoryTranslationService } from "./category-translation.service";
 
 /**
  * GLOBAL: yazma yolları (ürün onayı, talep yayını, profil kaydı) servisi
@@ -13,7 +14,7 @@ import { ContentTranslationService } from "./content-translation.service";
 @Module({
   imports: [AiModule],
   controllers: [ContentTranslationController],
-  providers: [ContentTranslationService, ContentTranslationScheduler],
+  providers: [ContentTranslationService, ContentTranslationScheduler, CategoryTranslationService],
   exports: [ContentTranslationService],
 })
 export class ContentTranslationModule {}

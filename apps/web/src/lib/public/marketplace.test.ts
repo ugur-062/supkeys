@@ -7,6 +7,7 @@ import {
   categoryPath,
   parseCategoryCode,
   isIndexableState,
+  categoryHref,
   listingHref,
   listingPath,
   listingSlug,
@@ -169,5 +170,17 @@ describe("listingHref — dilden bağımsız talep adresi (i18n Faz 1e)", () => 
   it("slug yoksa başlıktan üretir (eski yanıt / test kurgusu)", () => {
     expect(listingHref({ number: "ROT-1", title: "Çelik Boru" })).toBe(listingPath("ROT-1", "Çelik Boru"));
     expect(listingHref({ number: "ROT-1", title: "Boru", slug: null })).toBe("/talep/rot-1-boru");
+  });
+});
+
+describe("categoryHref — dilden bağımsız kategori adresi (i18n Faz 4)", () => {
+  it("API slug'ı (Türkçe ad) varsa onu kullanır: çevrilmiş ad adresi değiştirmez", () => {
+    expect(categoryHref({ id: "39000000", name: "Electrical systems", slug: "elektrik-sistemleri-ve-aydinlatma" })).toBe(
+      "/urunler/kategori/39000000-elektrik-sistemleri-ve-aydinlatma",
+    );
+  });
+  it("slug yoksa addan üretir (eski yanıt / test kurgusu)", () => {
+    expect(categoryHref({ id: "39000000", name: "Elektrik Sistemleri" })).toBe("/urunler/kategori/39000000-elektrik-sistemleri");
+    expect(categoryHref({ id: "39000000" })).toBe("/urunler/kategori/39000000");
   });
 });

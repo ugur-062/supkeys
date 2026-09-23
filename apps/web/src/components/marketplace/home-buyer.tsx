@@ -11,7 +11,7 @@ import { CategoryShowcaseRows, toShowcaseRows } from "@/components/dashboard/cat
 import { ProductStrip } from "./product-strip";
 import type { ProductIndexCard } from "@/lib/public/marketplace-api";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
-import { MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES, categoryHref } from "@/lib/public/marketplace";
 
 /**
  * ANASAYFANIN ALICI YÜZÜ — satınalma panosunun herkese açık hâli
@@ -64,7 +64,7 @@ export function HomeBuyer({
            kategoriyi bilerek üretmiyor). O dalın kartı süzülmüş dizine gider:
            dürüst boş liste, kırık bağlantı değil. */
         hrefFor={(c) =>
-          c.count > 0 ? categoryPath(c.id, c.name) : `${MARKETPLACE_ROUTES.products}?kategori=${c.id}`
+          c.count > 0 ? categoryHref(c) : `${MARKETPLACE_ROUTES.products}?kategori=${c.id}`
         }
         countNoun={t("productNoun")}
         ctaLabel={t("categoriesCta")}

@@ -13,7 +13,7 @@ import { CityLinks } from "./city-links";
 import { IndexIntro } from "./index-intro";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbNode, graph, itemListNode } from "@/lib/seo/jsonld";
-import { categoryPath } from "@/lib/public/marketplace";
+import { categoryHref } from "@/lib/public/marketplace";
 import {
   buildProductFilterQuery,
   parseProductFilters,
@@ -80,7 +80,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
      "1..12" der ve aynı sıralı liste tekrarlanmış görünür.
      Kanonik yol kategori sayfasında kategoriye, dizinde köke işaret eder —
      süzgeçli varyantlar kendi kanoniğini zaten `/urunler` olarak bildiriyor. */
-  const listPath = category ? categoryPath(category.id, category.name) : basePath;
+  const listPath = category ? categoryHref(category) : basePath;
   const listLd = graph([
     itemListNode({
       name: title,

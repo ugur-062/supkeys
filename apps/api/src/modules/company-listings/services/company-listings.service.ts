@@ -64,6 +64,7 @@ import { AuditService } from "../../audit/audit.service";
 import { SeoIndexService } from "../../seo-index/seo-index.service";
 import { ContentTranslationService } from "../../content-translation/content-translation.service";
 import { currentLocale } from "../../../common/i18n/locale-context";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../../common/company/category-name";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -1992,10 +1993,10 @@ export class CompanyListingsService {
     const cats = catIds.length
       ? await this.prisma.category.findMany({
           where: { id: { in: catIds } },
-          select: { id: true, nameTr: true },
+          select: { id: true, ...CATEGORY_NAME_SELECT },
         })
       : [];
-    const cmap = new Map(cats.map((c) => [c.id, c.nameTr]));
+    const cmap = new Map(cats.map((c) => [c.id, categoryName(c)]));
 
     return rows.map((r) => {
       const u = umap.get(r.createdById);
@@ -2274,12 +2275,12 @@ export class CompanyListingsService {
         where: {
           code: { in: [...new Set(all.flatMap((l) => l.categoryIds.slice(0, 2)))] },
         },
-        select: { code: true, nameTr: true },
+        select: { code: true, ...CATEGORY_NAME_SELECT },
       }),
     ]);
     const bidByListing = new Map(myBids.map((b) => [b.listingId, b] as const));
     const invitedSet = new Set(myInvites.map((iv) => iv.listingId));
-    const catName = new Map(categories.map((c) => [c.code, c.nameTr] as const));
+    const catName = new Map(categories.map((c) => [c.code, categoryName(c)] as const));
 
     // Kategori eşleşmesi: ilan kodları → segment/alt adayları, benim İLGİLİ
     // yön kategorilerimle kesişiyor mu (bildirim eşleştiricisiyle aynı mantık):
@@ -2500,9 +2501,9 @@ export class CompanyListingsService {
 
     const cats = await this.prisma.category.findMany({
       where: { id: { in: [...counts.keys()] } },
-      select: { id: true, nameTr: true },
+      select: { id: true, ...CATEGORY_NAME_SELECT },
     });
-    const nameById = new Map(cats.map((c) => [c.id, c.nameTr] as const));
+    const nameById = new Map(cats.map((c) => [c.id, categoryName(c)] as const));
     return {
       segments: [...counts.entries()]
         .map(([id, count]) => ({ id, name: nameById.get(id) ?? id, count }))
@@ -2632,9 +2633,9 @@ export class CompanyListingsService {
     const samples = rows.slice(0, 3);
     const catIds = [...new Set(samples.map((r) => r.categoryIds[0]).filter((c): c is string => !!c))];
     const cats = catIds.length
-      ? await this.prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, nameTr: true } })
+      ? await this.prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, ...CATEGORY_NAME_SELECT } })
       : [];
-    const catName = new Map(cats.map((c) => [c.id, c.nameTr] as const));
+    const catName = new Map(cats.map((c) => [c.id, categoryName(c)] as const));
     return {
       locked: true as const,
       total: rows.length,

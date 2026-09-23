@@ -93,6 +93,15 @@ export const listingPath = sharedListingPath;
  * Çevrilmiş başlıktan slug ÜRETME: her dilde ayrı adres, sitemap'te 308 zinciri
  * ve Kiril'i düşen çıplak RU slug'ları demekti (staging'de ölçüldü, 2026-09-23).
  */
+/**
+ * Kategori bağlantısı — API'nin verdiği DİLDEN BAĞIMSIZ `slug` (Türkçe addan)
+ * önce; yoksa addan üretilir. Çevrilmiş addan slug üretmek dile göre değişen
+ * adres ve 308 zinciri demekti (talep adresiyle aynı karar, i18n Faz 4).
+ */
+export function categoryHref(c: { id: string; name?: string | null; slug?: string | null }): string {
+  return c.slug ? `${PUBLIC_PATHS.products}/kategori/${c.id}-${c.slug}` : categoryPath(c.id, c.name ?? undefined);
+}
+
 export function listingHref(l: { number: string; title: string; slug?: string | null }): string {
   return l.slug ? `${PUBLIC_PATHS.demand}/${l.slug}` : sharedListingPath(l.number, l.title);
 }

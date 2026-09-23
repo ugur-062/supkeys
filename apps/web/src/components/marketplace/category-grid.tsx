@@ -1,6 +1,6 @@
 import { useTranslations } from "next-intl";
 import { CategoryTile } from "./category-tile";
-import { categoryPath } from "@/lib/public/marketplace";
+import { categoryHref } from "@/lib/public/marketplace";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
@@ -45,7 +45,7 @@ export function CategoryGrid({ categories }: { categories: ShowcaseCategory[] })
           <li key={c.id}>
             <CategoryTile
               category={c}
-              href={categoryPath(c.id, c.name)}
+              href={categoryHref(c)}
               sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 25vw"
             />
           </li>

@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Thumb } from "@/components/ui/thumb";
-import { categoryPath, listingHref, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { categoryHref, listingHref, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import type { SuggestResult } from "@/lib/public/marketplace-api";
 import {
   EMPTY_SUGGEST,
@@ -70,7 +70,7 @@ type GroupLabels = { categories: string; products: string; companies: string; li
 function rowsFrom(s: SuggestResult, g: GroupLabels): Row[] {
   const rows: Row[] = [];
   for (const c of s.categories) {
-    rows.push({ key: `c-${c.id}`, href: categoryPath(c.id, c.name), label: c.name, group: g.categories });
+    rows.push({ key: `c-${c.id}`, href: categoryHref(c), label: c.name, group: g.categories });
   }
   for (const p of s.products) {
     rows.push({

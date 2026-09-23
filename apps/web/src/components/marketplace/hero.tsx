@@ -4,7 +4,7 @@ import { AudienceSwitch, useAudience } from "./audience-switch";
 import { SearchTypeahead } from "./search-typeahead";
 import { TrustStrip } from "./trust-strip";
 import { Heading } from "@/components/catalyst/heading";
-import { categoryPath } from "@/lib/public/marketplace";
+import { categoryHref } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
@@ -67,7 +67,7 @@ export function MarketplaceHero({
               {popular.slice(0, 6).map((c) => (
                 <Link
                   key={c.id}
-                  href={categoryPath(c.id, c.name)}
+                  href={categoryHref(c)}
                   className="max-w-[14rem] truncate rounded-full bg-zinc-100 px-2.5 py-1 font-medium text-zinc-700 transition hover:bg-zinc-950 hover:text-white"
                 >
                   {c.name}

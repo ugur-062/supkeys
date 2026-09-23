@@ -1,4 +1,5 @@
 import type { PrismaClient } from "@rothern/db";
+import { CATEGORY_NAME_SELECT, categoryName } from "./category-name";
 import { isHiddenCategory } from "@rothern/shared";
 import { categorySegment, isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
 import { effectiveTier } from "./effective-tier";
@@ -201,9 +202,9 @@ export async function buildDirectory(
   const slice = eligible.slice((page - 1) * pageSize, page * pageSize);
   const ids = [...new Set(slice.flatMap((r) => [...r.sellerCategoryIds, ...r.buyerCategoryIds].slice(0, 1)))].filter(isCategoryCode);
   const cats = ids.length
-    ? await prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, nameTr: true } })
+    ? await prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, ...CATEGORY_NAME_SELECT } })
     : [];
-  const nameById = new Map(cats.map((c) => [c.id, c.nameTr]));
+  const nameById = new Map(cats.map((c) => [c.id, categoryName(c)]));
   // "ARAMANIZA UYAN ÜRÜNLER" — kartın küçük resim şeridi arama varken
   // sorguya uyan ürünleri gösterir. Ayrı bir sorgu, çünkü Prisma aynı
   // ilişkiyi iki farklı `where` ile İKİ KEZ seçemez; firma ELEMESİ buna
@@ -287,9 +288,9 @@ export async function buildDirectory(
     });
     const codes = [...new Set(grouped.map((g) => g.categoryId).filter((c): c is string => isCategoryCode(c ?? "")))];
     const catRows = codes.length
-      ? await prisma.category.findMany({ where: { id: { in: codes } }, select: { id: true, nameTr: true } })
+      ? await prisma.category.findMany({ where: { id: { in: codes } }, select: { id: true, ...CATEGORY_NAME_SELECT } })
       : [];
-    const catName = new Map(catRows.map((c) => [c.id, c.nameTr]));
+    const catName = new Map(catRows.map((c) => [c.id, categoryName(c)]));
     for (const g of grouped) {
       // Gizli segment (katalog sadeleştirme) "Ana kategoriler"e girmez.
       if (!g.categoryId || !catName.has(g.categoryId) || isHiddenCategory(g.categoryId)) continue;
@@ -399,9 +400,9 @@ export async function directoryFacets(
   }
   const catIds = [...catCount.keys()];
   const catNames = catIds.length
-    ? await prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, nameTr: true } })
+    ? await prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, ...CATEGORY_NAME_SELECT } })
     : [];
-  const nameById = new Map(catNames.map((c) => [c.id, c.nameTr] as const));
+  const nameById = new Map(catNames.map((c) => [c.id, categoryName(c)] as const));
   const all = rows.filter(others("none"));
   return {
     total: all.length,

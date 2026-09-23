@@ -1,5 +1,5 @@
 import { useTranslations } from "next-intl";
-import { MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES, categoryHref } from "@/lib/public/marketplace";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 
@@ -22,7 +22,7 @@ export function PopularChips({ items }: { items: { id: string; name: string; cou
       <ul className="mt-4 flex flex-wrap gap-2">
         {items.map((c) => (
           <li key={c.id}>
-            <Link href={categoryPath(c.id, c.name)} className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1.5 text-sm text-zinc-700 transition hover:bg-zinc-200">
+            <Link href={categoryHref(c)} className="inline-flex items-center gap-1.5 rounded-full bg-zinc-100 px-3 py-1.5 text-sm text-zinc-700 transition hover:bg-zinc-200">
               {c.name}
               <span className="text-xs text-zinc-500">{c.count}</span>
             </Link>

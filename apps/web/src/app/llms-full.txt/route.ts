@@ -1,4 +1,4 @@
-import { MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES, categoryHref } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { fetchProductFacets, fetchPublicDirectoryFacets, fetchStats } from "@/lib/public/marketplace-api";
 import { cityProductPath, allCitySlugs } from "@/lib/public/city";
@@ -62,7 +62,7 @@ export async function GET(): Promise<Response> {
     parts.push("## Ürünü olan kategoriler");
     parts.push("");
     for (const c of cats) {
-      parts.push(line(`- [${c.name}](${absoluteUrl(categoryPath(c.id, c.name))}) — ${c.count} ürün`));
+      parts.push(line(`- [${c.name}](${absoluteUrl(categoryHref(c))}) — ${c.count} ürün`));
     }
     parts.push("");
   }

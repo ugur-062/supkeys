@@ -1,4 +1,4 @@
-import { MARKETPLACE_ROUTES, categoryPath, listingHref } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES, categoryHref, listingHref } from "@/lib/public/marketplace";
 import {
   fetchCompanySitemap,
   fetchListingSitemap,
@@ -121,7 +121,7 @@ export async function buildPart(part: PartName): Promise<SitemapUrl[]> {
       return s.categories
         .filter((c) => c.count > 0)
         .map((c) => ({
-          ...located(categoryPath(c.id, c.name)),
+          ...located(categoryHref(c)),
           lastmod: c.lastmod,
           changefreq: "daily",
           priority: 0.8,
