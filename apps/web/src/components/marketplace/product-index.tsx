@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { FilterResults, FilterShell, MobileFilterButton, ResultCount } from "./filter-shell";
 import { Pagination } from "@/components/ui/pagination";
 import { ProductCard } from "./product-card";
@@ -51,6 +52,9 @@ interface Props {
 }
 
 export async function ProductIndex({ title, lead, searchParams, category, image, fixedCity, intro, footer }: Props) {
+  const t = await getTranslations("web.marketplace.index");
+  const tl = await getTranslations("web.marketplace.labels");
+  const tt = await getTranslations("web.marketplace.typeahead");
   const state = parseProductFilters(
     fixedCity ? { ...searchParams, sehir: fixedCity } : searchParams,
     category?.id,
@@ -119,8 +123,8 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         image={image}
         breadcrumb={
           category ? (
-            <nav aria-label="Konum" className="mb-3 text-sm text-zinc-500">
-              <Link href={basePath} className="hover:text-zinc-900">Ürünler</Link>
+            <nav aria-label={t("breadcrumb")} className="mb-3 text-sm text-zinc-500">
+              <Link href={basePath} className="hover:text-zinc-900">{tl("products")}</Link>
               <span aria-hidden className="mx-2">/</span>
               <span className="text-zinc-900">{category.name}</span>
             </nav>
@@ -135,7 +139,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
             gorunum: state.view,
           },
           hiddenList: { nitelik: state.attrs },
-          placeholder: "Ürün, marka veya parça numarası arayın",
+          placeholder: tt("productsPlaceholder"),
         }}
         chips={[]}
         clearHref={basePath}
@@ -145,7 +149,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
           <span className="flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-3">
               <MobileFilterButton />
-              <ResultCount noun="ürün" />
+              <ResultCount noun={t("productNoun")} />
             </span>
             <span className="flex items-center gap-2">
               <SortControl />
@@ -157,14 +161,14 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         <FilterResults>
           {page.items.length === 0 ? (
             <PublicEmptyState
-              noun="Bu kriterlerle ürün"
+              noun={t("productsEmptyNoun")}
               clearHref={hasFilter || category ? basePath : undefined}
-              extra={{ label: "Talep aç — tedarikçiler teklif versin", href: talepHref }}
+              extra={{ label: t("openRequestCta"), href: talepHref }}
             />
           ) : (
             <ResultGrid
               count={page.items.length}
-              heading="Ürün sonuçları"
+              heading={t("productResults")}
               layout={state.view === "liste" ? "list" : "grid"}
             >
               {page.items.map((p, i) => (
@@ -174,7 +178,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
                   companySlug={p.company.slug}
                   company={p.company}
                   product={p}
-                  cta="Bilgi iste"
+                  cta={t("inquire")}
                   compare
                   priority={i < 3}
                 />
@@ -202,7 +206,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
           href={talepHref}
           className="fixed right-5 bottom-5 z-30 inline-flex items-center gap-1 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-700"
         >
-          Talep aç
+          {t("openRequest")}
         </Link>
       </PublicListPage>
     </FilterShell>

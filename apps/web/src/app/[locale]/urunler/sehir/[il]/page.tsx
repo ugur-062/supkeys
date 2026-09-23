@@ -1,4 +1,4 @@
-import { setRequestLocale } from "next-intl/server";
+import { setRequestLocale, getTranslations } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import type { Locale } from "@rothern/i18n";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
@@ -54,16 +54,17 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const { il } = await params;
   const locale = await localeFromParams(params);
   const name = cityFromSlug(il);
-  if (!name) return { title: "Şehir bulunamadı", robots: { index: false } };
+  const t = await getTranslations({ locale, namespace: "web.marketplace.pages" });
+  if (!name) return { title: t("cityNotFound"), robots: { index: false } };
   const facets = await fetchProductFacets({ city: name });
   const count = facets.cities.find((c) => c.city === name)?.count ?? 0;
 
   return buildMetadata({
-    title: `${name} tedarikçileri ve ürünleri`,
+    title: t("cityTitle", { name }),
     description:
       count > 0
-        ? `${name}'daki firmaların vitrinlerindeki ${count} ürün: teknik özellik, minimum sipariş ve fiyat bilgisiyle. Tedarikçiyi seçin, doğrudan bilgi isteyin.`
-        : `${name} için Rothern'de henüz yayımlanmış ürün yok. Yakın illerdeki tedarikçileri inceleyin ya da alım talebinizi ücretsiz yayımlayın.`,
+        ? t("cityMetaDescHas", { name, count })
+        : t("cityMetaDescNone", { name }),
     path: cityProductPath(name),
     // Ürünü olmayan il: sayfa DURUR ama indekse girmez (ince içerik).
     noindex: count === 0,
@@ -83,18 +84,15 @@ export default async function Page({
   const { il } = await params;
   const locale = await localeFromParams(params);
   const name = await cityOr404(il, locale);
+  const tp = await getTranslations("web.marketplace.pages");
   const [sp, facets] = await Promise.all([searchParams, fetchProductFacets({})]);
   const count = facets.cities.find((c) => c.city === name)?.count ?? 0;
 
   return (
     <PublicLayout className={MARKET_GROUND}>
       <ProductIndex
-        title={`${name} tedarikçileri ve ürünleri`}
-        lead={
-          count > 0
-            ? `${name}'daki firmaların Rothern vitrinine koyduğu ürünler. Kategori, faaliyet tipi ve fiyat bilgisine göre süzün.`
-            : `${name} için henüz yayımlanmış ürün yok. Aşağıdaki illerden devam edebilir ya da alım talebi açabilirsiniz.`
-        }
+        title={tp("cityTitle", { name })}
+        lead={count > 0 ? tp("cityLeadHas", { name }) : tp("cityLeadNone", { name })}
         searchParams={sp}
         fixedCity={name}
         footer={<CityLinks cities={facets.cities} kind="products" activeCity={name} />}

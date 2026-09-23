@@ -1,11 +1,11 @@
-import { setRequestLocale } from "next-intl/server";
+import { setRequestLocale, getTranslations } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import {
   ProductIndex,
   type ProductSearchParams,
 } from "@/components/marketplace/product-index";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { dizinBos } from "@/lib/seo/empty-index-guard";
 import { buildMetadata } from "@/lib/seo/meta";
@@ -33,12 +33,13 @@ export const revalidate = 300;
 export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
   const locale = await localeFromParams(params);
   const bos = await dizinBos("urunler");
+  const t = await getTranslations({ locale, namespace: "web.marketplace.pages" });
+  const tl = await getTranslations({ locale, namespace: "web.marketplace.labels" });
   return buildMetadata({
     locale,
-  title: `${MARKETPLACE_LABELS.products} — firmaların ürün vitrini`,
-  description:
-    "Türkiye'deki tedarikçi firmaların ürün kataloğu: teknik özellikler, minimum sipariş ve fiyat bilgisiyle. Ürünü bulun, firmasına doğrudan ulaşın.",
-  path: MARKETPLACE_ROUTES.products,
+    title: t("productsMetaTitle", { label: tl("products") }),
+    description: t("productsMetaDesc"),
+    path: MARKETPLACE_ROUTES.products,
     noindex: bos,
   });
 }
@@ -53,11 +54,13 @@ export default async function Page({
   setRequestLocale(await localeFromParams(params));
   if (!MARKETPLACE_LIVE) notFound();
   const sp = await searchParams;
+  const t = await getTranslations("web.marketplace.pages");
+  const tl = await getTranslations("web.marketplace.labels");
   return (
     <PublicLayout className={MARKET_GROUND}>
         <ProductIndex
-          title={MARKETPLACE_LABELS.products}
-          lead="Firmaların vitrinlerine koyduğu ürünler. Kategori, şehir ve faaliyet tipine göre süzün; fiyat ve bilgi talebi için ücretsiz hesap açın."
+          title={tl("products")}
+          lead={t("productsLead")}
           searchParams={sp}
         />
     </PublicLayout>

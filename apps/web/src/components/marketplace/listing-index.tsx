@@ -1,3 +1,4 @@
+import { getTranslations } from "next-intl/server";
 import { ListingFilterShell } from "./list-filter-shells";
 import { FilterResults, MobileFilterButton, ResultCount } from "./filter-shell";
 import { ListingActiveChips, ListingFilters, ListingSortBar } from "./listing-filters";
@@ -15,7 +16,7 @@ import {
 } from "@/lib/public/listing-filter-params";
 import { JsonLd } from "@/components/seo/json-ld";
 import { graph, itemListNode } from "@/lib/seo/jsonld";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES, listingPath, type PublicListingType } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES, listingPath, type PublicListingType } from "@/lib/public/marketplace";
 import { fetchFacets, fetchListings } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
@@ -34,10 +35,12 @@ interface Props {
 }
 
 export async function ListingIndex({ title, lead, searchParams }: Props) {
+  const t = await getTranslations("web.marketplace.index");
+  const tl = await getTranslations("web.marketplace.labels");
   const state = parseListingFilters(searchParams);
   const params = toListingListParams(state);
   const basePath = MARKETPLACE_ROUTES.demands;
-  const noun = MARKETPLACE_LABELS.demandOne;
+  const noun = tl("demandOne");
 
   const [page, facets, otherCounts] = await Promise.all([
     fetchListings(params),
@@ -80,7 +83,7 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
             sure: state.within,
             sirala: state.sort,
           },
-          placeholder: "Talep başlığı, kalem veya kategori arayın",
+          placeholder: t("listingPlaceholder"),
         }}
         chips={[]}
         clearHref={basePath}
@@ -104,12 +107,12 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
               `ListingCard variant="row"`, kind "talep" → asla görsel). */}
           {page.items.length === 0 ? (
             <PublicEmptyState
-              noun={hasFilter ? "Bu kriterlerle açık talep" : "Açık talep"}
+              noun={hasFilter ? t("listingEmptyFiltered") : t("listingEmpty")}
               clearHref={hasFilter ? basePath : undefined}
-              extra={{ label: "Talep aç", href: signupHref("talep") }}
+              extra={{ label: t("openRequest"), href: signupHref("talep") }}
             />
           ) : (
-            <ResultGrid count={page.items.length} heading="Talep sonuçları" layout="list">
+            <ResultGrid count={page.items.length} heading={t("listingResults")} layout="list">
               {page.items.map((l) => (
                 <ListingTeaserRow key={l.number} listing={l} />
               ))}

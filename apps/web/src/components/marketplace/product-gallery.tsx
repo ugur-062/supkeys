@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { CategoryImage } from "./category-image";
 import { cn } from "@/lib/utils";
 import { ChevronLeftIcon, ChevronRightIcon, MagnifyingGlassPlusIcon, XMarkIcon } from "@heroicons/react/20/solid";
@@ -29,6 +31,7 @@ export function ProductGallery({
   /** Kapağın sol üstüne binen rozet ("Yeni Ürün") — kaynak kalıp. */
   badge?: ReactNode;
 }) {
+  const t = useTranslations("web.marketplace.gallery");
   const [active, setActive] = useState(0);
   const [zoom, setZoom] = useState(false);
   const list = images.slice(0, 6);
@@ -80,7 +83,7 @@ export function ProductGallery({
           <button
             type="button"
             onClick={() => setZoom(true)}
-            aria-label="Görseli büyüt"
+            aria-label={t("zoom")}
             className="absolute top-3 right-3 z-10 inline-flex size-10 items-center justify-center rounded-full bg-white/95 text-zinc-700 shadow-sm ring-1 ring-zinc-950/10 transition hover:text-zinc-950"
           >
             <MagnifyingGlassPlusIcon aria-hidden className="size-5" />
@@ -96,7 +99,7 @@ export function ProductGallery({
               <button
                 type="button"
                 onClick={() => setActive(i)}
-                aria-label={`${i + 1}. görseli göster`}
+                aria-label={t("showImage", { n: i + 1 })}
                 aria-current={i === active}
                 className={cn(
                   "block w-full overflow-hidden rounded-lg ring-1 transition",
@@ -122,7 +125,7 @@ export function ProductGallery({
         >
           <button
             type="button"
-            aria-label="Kapat"
+            aria-label={t("close")}
             className="absolute top-4 right-4 inline-flex size-10 items-center justify-center rounded-full bg-white/95 text-zinc-800"
           >
             <XMarkIcon aria-hidden className="size-5" />
@@ -142,12 +145,13 @@ export function ProductGallery({
 
 /** Şerit oku — seçili görseli bir ileri/geri alır (kaynak kalıp). */
 function ArrowBtn({ dir, onClick }: { dir: 1 | -1; onClick: () => void }) {
+  const t = useTranslations("web.marketplace.gallery");
   const Icon = dir === 1 ? ChevronRightIcon : ChevronLeftIcon;
   return (
     <button
       type="button"
       onClick={onClick}
-      aria-label={dir === 1 ? "Sonraki görsel" : "Önceki görsel"}
+      aria-label={dir === 1 ? t("nextImage") : t("prevImage")}
       className="inline-flex size-8 shrink-0 items-center justify-center rounded-full border border-zinc-200 bg-white text-zinc-600 transition hover:border-zinc-400 hover:text-zinc-950"
     >
       <Icon aria-hidden className="size-4" />

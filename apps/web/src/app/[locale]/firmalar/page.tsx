@@ -1,7 +1,7 @@
-import { setRequestLocale } from "next-intl/server";
+import { setRequestLocale, getTranslations } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { CompanyIndex } from "@/components/marketplace/company-index";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
 import { dizinBos } from "@/lib/seo/empty-index-guard";
@@ -24,13 +24,14 @@ export const revalidate = 300;
 export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
   const locale = await localeFromParams(params);
   const bos = await dizinBos("firmalar");
+  const t = await getTranslations({ locale, namespace: "web.marketplace.pages" });
+  const tl = await getTranslations({ locale, namespace: "web.marketplace.labels" });
   return buildMetadata({
     locale,
-  title: `${MARKETPLACE_LABELS.companies} — doğrulanmış alıcı ve tedarikçi firmalar`,
-  // Vitrin + üyelik kapısı (2026-09-22): sayı ve "süzün" vaadi yok.
-  description:
-    "Rothern'deki doğrulanmış alıcı ve tedarikçi firmalardan bir kesit. Dizinin tamamı, süzgeçler ve firmalarla iletişim ücretsiz üyelikle açılır.",
-  path: MARKETPLACE_ROUTES.companies,
+    title: t("companiesMetaTitle", { label: tl("companies") }),
+    // Vitrin + üyelik kapısı (2026-09-22): sayı ve "süzün" vaadi yok.
+    description: t("companiesMetaDesc"),
+    path: MARKETPLACE_ROUTES.companies,
     noindex: bos,
   });
 }

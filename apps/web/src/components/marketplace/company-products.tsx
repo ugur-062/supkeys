@@ -1,3 +1,4 @@
+import { getFormatter, getTranslations } from "next-intl/server";
 import { ProductCard } from "./product-card";
 import { Pagination } from "@/components/ui/pagination";
 import { fetchCompanyProducts, type PublicProductPage } from "@/lib/public/marketplace-api";
@@ -25,6 +26,9 @@ export async function CompanyProducts({
   /** `?urun=` — firma içi arama terimi (spec §7). */
   query?: string;
 }) {
+  const t = await getTranslations("web.marketplace.companyProducts");
+  const ti = await getTranslations("web.marketplace.index");
+  const fmt = await getFormatter();
   // Görünürlük pazar yeri anahtarına BAĞLI DEĞİL (2026-09-03): ürünler
   // firmanın zaten açık olan profilinin parçası. İndekslenme ayrı kapı
   // (sayfa `noindex` + sitemap anahtara bağlı).
@@ -39,26 +43,26 @@ export async function CompanyProducts({
         {/* Başlık sayıyı PARANTEZDE taşır (kaynak kalıp): "kaç ürünü var"
             kartları saymadan okunur. */}
         <h2 className="text-2xl font-semibold tracking-tight text-zinc-950">
-          Tüm Ürünler ve Hizmetler ({page.total.toLocaleString("tr-TR")})
+          {t("title", { n: fmt.number(page.total) })}
         </h2>
         {/* FİRMA İÇİ ARAMA (spec §7): derin kataloglu firmada ziyaretçi
             aradığını 40 kartın içinde gözle bulmak zorunda kalmasın. Düz
             GET formu — JS'siz de çalışır, sonuç aynı sayfada. */}
         <form method="get" action={`/firma/${companySlug}`} className="flex items-center gap-2">
           <label htmlFor="firma-urun-ara" className="sr-only">
-            Bu firmanın ürünlerinde ara
+            {t("searchLabel")}
           </label>
           <input
             id="firma-urun-ara"
             type="search"
             name="urun"
             defaultValue={query ?? ""}
-            placeholder="Ürün arama"
+            placeholder={t("searchPlaceholder")}
             className="h-11 w-52 rounded-full border border-zinc-300 bg-white px-4 text-sm text-zinc-900 outline-none focus:border-zinc-900 sm:w-72"
           />
           <button
             type="submit"
-            aria-label="Ürünlerde ara"
+            aria-label={t("searchSubmit")}
             className="inline-flex size-11 shrink-0 items-center justify-center rounded-full bg-blue-600 text-white transition hover:bg-blue-700"
           >
             <MagnifyingGlassIcon aria-hidden className="size-5" />
@@ -68,16 +72,16 @@ export async function CompanyProducts({
 
       {query ? (
         <p className="mt-3 text-sm text-zinc-500">
-          “{query}” için {page.total.toLocaleString("tr-TR")} sonuç ·{" "}
+          {t("resultsFor", { q: query, n: fmt.number(page.total) })}{" "}
           <Link href={`/firma/${companySlug}#urunler`} className="font-medium text-zinc-900 underline underline-offset-2">
-            aramayı kaldır
+            {t("removeSearch")}
           </Link>
         </p>
       ) : null}
 
       {page.items.length === 0 ? (
         <p className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center text-sm text-zinc-600">
-          Bu firmanın ürünlerinde “{query}” bulunamadı.
+          {t("noneFor", { q: query ?? "" })}
         </p>
       ) : (
         <>
@@ -87,7 +91,7 @@ export async function CompanyProducts({
               okunsun. */}
           <div className="mt-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-3">
             {page.items.map((p) => (
-              <ProductCard key={p.slug} companySlug={companySlug} product={p} cta="Bilgi iste" />
+              <ProductCard key={p.slug} companySlug={companySlug} product={p} cta={ti("inquire")} />
             ))}
           </div>
           {/* Sayfalama `urunSayfa` ile (sayfanın kendi şeması) — arama terimi

@@ -1,11 +1,13 @@
+import { useTranslations } from "next-intl";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { Skeleton, SkeletonText } from "@/components/ui/skeleton";
 
 /** /firmalar yüklenirken iskelet (PROMPT 4) — kenar süzgeci + 3 sütun firma kartı oranı. */
 export default function FirmalarLoading() {
+  const t = useTranslations("web.marketplace.pages");
   return (
     <PublicLayout>
-      <div className="mx-auto max-w-7xl px-6 pt-28 pb-20 lg:px-8" aria-busy="true" aria-label="Firmalar yükleniyor">
+      <div className="mx-auto max-w-7xl px-6 pt-28 pb-20 lg:px-8" aria-busy="true" aria-label={t("loadingCompanies")}>
         <Skeleton className="h-8 w-40" />
         <Skeleton className="mt-3 h-4 w-96 max-w-full" />
         <div className="mt-8 grid grid-cols-1 gap-10 lg:grid-cols-[16rem_1fr]">

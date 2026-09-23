@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { ProductCard } from "./product-card";
 import type { ProductIndexCard } from "@/lib/public/marketplace-api";
 import { ArrowRightIcon, ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/20/solid";
@@ -51,6 +53,7 @@ export function ProductShowcase({
    */
   idPrefix?: string;
 }) {
+  const t = useTranslations("web.marketplace.carousel");
   const tabs = groups.filter((g, i) => g.items.length >= (i === 0 ? SHOWCASE_MIN : TAB_MIN));
   const [active, setActive] = useState(0);
   const listRef = useRef<HTMLUListElement>(null);
@@ -153,7 +156,7 @@ export function ProductShowcase({
               type="button"
               onClick={() => scrollBy(-1)}
               disabled={edge.start}
-              aria-label="Önceki ürünler"
+              aria-label={t("prev")}
               className="flex size-9 items-center justify-center rounded-full bg-white text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-950 hover:text-white disabled:pointer-events-none disabled:opacity-30"
             >
               <ChevronLeftIcon aria-hidden className="size-5" />
@@ -162,7 +165,7 @@ export function ProductShowcase({
               type="button"
               onClick={() => scrollBy(1)}
               disabled={edge.end}
-              aria-label="Sonraki ürünler"
+              aria-label={t("next")}
               className="flex size-9 items-center justify-center rounded-full bg-white text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-950 hover:text-white disabled:pointer-events-none disabled:opacity-30"
             >
               <ChevronRightIcon aria-hidden className="size-5" />

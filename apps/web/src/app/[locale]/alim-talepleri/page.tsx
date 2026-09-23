@@ -1,10 +1,10 @@
-import { setRequestLocale } from "next-intl/server";
+import { setRequestLocale, getTranslations } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { ListingIndex } from "@/components/marketplace/listing-index";
 import { ButtonAccentProvider } from "@/components/ui/button-accent";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { dizinBos } from "@/lib/seo/empty-index-guard";
 import { buildMetadata } from "@/lib/seo/meta";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
@@ -26,12 +26,13 @@ export const revalidate = 60;
 export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
   const locale = await localeFromParams(params);
   const bos = await dizinBos("talepler");
+  const t = await getTranslations({ locale, namespace: "web.marketplace.pages" });
+  const tl = await getTranslations({ locale, namespace: "web.marketplace.labels" });
   return buildMetadata({
     locale,
-  title: `${MARKETPLACE_LABELS.demands} — Türkiye ve yurtdışından açık alım ilanları`,
-  description:
-    "Firmaların yayımladığı açık alım taleplerini kategoriye ve şehre göre inceleyin. Teklif vermek için Rothern'e ücretsiz kaydolun.",
-  path: MARKETPLACE_ROUTES.demands,
+    title: t("demandsMetaTitle", { label: tl("demands") }),
+    description: t("demandsMetaDesc"),
+    path: MARKETPLACE_ROUTES.demands,
     noindex: bos,
   });
 }
@@ -47,14 +48,16 @@ export default async function Page({
   // Yayın anahtarı kapalıyken pazar yeri rotaları YOK sayılır.
   if (!MARKETPLACE_LIVE) notFound();
   const sp = await searchParams;
+  const t = await getTranslations("web.marketplace.pages");
+  const tl = await getTranslations("web.marketplace.labels");
   return (
     <PublicLayout className={MARKET_GROUND}>
         {/* Tedarikçi yüzü: "Teklif ver" ve dolgulu düğmeler YEŞİL (2026-09-18, kullanıcı). */}
         <ButtonAccentProvider accent="emerald">
         <ListingIndex
           type="ALIM"
-          title={MARKETPLACE_LABELS.demands}
-          lead="Firmaların herkese açık alım talepleri. Kalemleri ve alıcıyı görmek, teklif vermek için ücretsiz hesap."
+          title={tl("demands")}
+          lead={t("demandsLead")}
           searchParams={sp}
         />
         </ButtonAccentProvider>
