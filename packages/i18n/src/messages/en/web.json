@@ -180,6 +180,96 @@
       "railLabel": "Product strip",
       "scrollBack": "Scroll back",
       "scrollForward": "Scroll forward"
+    },
+    "productCard": {
+      "verified": "Verified",
+      "new": "New",
+      "minOrder": "Min. {n} {unit}",
+      "verifiedCompany": "Verified company",
+      "goldMember": "Gold Member",
+      "compare": "Compare",
+      "newTab": "(opens in a new tab)"
+    },
+    "carousel": {
+      "next": "Next products",
+      "prev": "Previous products"
+    },
+    "categoryTile": {
+      "productNoun": "products",
+      "explore": "Explore"
+    },
+    "categoryGrid": {
+      "title": "Explore by category",
+      "lead": "Products and buying requests are organised under 58 top-level categories. Pick the branch you need.",
+      "all": "All categories"
+    },
+    "popularChips": {
+      "title": "Popular categories",
+      "all": "All categories"
+    },
+    "cityLinks": {
+      "products": "Products by city",
+      "companies": "Companies by city"
+    },
+    "floatingCta": {
+      "label": "Post a request"
+    },
+    "megaMenu": {
+      "label": "Categories",
+      "allOf": "All {name} products →",
+      "withProducts": "Branches with products"
+    },
+    "search": {
+      "placeholder": "What are you looking for? (product, service, material)",
+      "ariaLabel": "Search the marketplace",
+      "submit": "Search"
+    },
+    "typeahead": {
+      "productsPlaceholder": "Search products, brands or part numbers",
+      "companiesPlaceholder": "Company name, industry or service",
+      "listingsLabel": "Requests",
+      "listingsPlaceholder": "Request title or category",
+      "groupCategories": "Categories",
+      "groupProducts": "Products",
+      "groupCompanies": "Companies",
+      "groupListings": "Buying requests",
+      "whereLabel": "Where to search",
+      "scopeLabel": "Search scope",
+      "searchIn": "Search in {scope}",
+      "suggestions": "Search suggestions",
+      "recent": "Recent searches",
+      "submit": "Search"
+    },
+    "searchTabs": {
+      "label": "Result type"
+    },
+    "indexIntro": {
+      "categoryTotal": "{total, plural, one {# product is} other {# products are}} listed on Rothern in the {subject} category.",
+      "cityTotal": "Companies based in {subject} list {total, plural, one {# product} other {# products}} in their Rothern showcases.",
+      "cities": "Provinces where products are listed: {list}.",
+      "cats": "Categories with the most products: {list}.",
+      "activities": "Companies listing products include {list}.",
+      "allPriced": "Every product shows a price.",
+      "somePriced": "{priced, plural, one {# product shows} other {# products show}} a price; you can request a quote from the seller for the rest."
+    },
+    "empty": {
+      "notFound": "No {noun} found.",
+      "clear": "Clear filters",
+      "browse": "Browse categories"
+    },
+    "sort": {
+      "label": "Sort:",
+      "sr": "Sort"
+    },
+    "facets": {
+      "removeFilter": "Remove the {label} filter"
+    },
+    "gated": {
+      "membersOnly": "{label} is for members",
+      "login": "Log in",
+      "signup": "Sign up free",
+      "loginFor": "<link>Log in</link> to see {label}",
+      "loginForText": "Log in to see {label}"
     }
   },
   "domain": {

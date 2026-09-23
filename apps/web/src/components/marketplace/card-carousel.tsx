@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { ChevronLeftIcon, ChevronRightIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
@@ -102,13 +104,14 @@ export function CardCarousel({
 }
 
 function ArrowButton({ dir, disabled, onClick }: { dir: 1 | -1; disabled: boolean; onClick: () => void }) {
+  const t = useTranslations("web.marketplace.carousel");
   const Icon = dir === 1 ? ChevronRightIcon : ChevronLeftIcon;
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label={dir === 1 ? "Sonraki ürünler" : "Önceki ürünler"}
+      aria-label={dir === 1 ? t("next") : t("prev")}
       className="inline-flex size-9 items-center justify-center rounded-full border border-zinc-300 bg-white text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-40"
     >
       <Icon aria-hidden className="size-5" />

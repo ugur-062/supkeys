@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 
 /**
@@ -7,14 +8,15 @@ import { Link } from "@/i18n/navigation";
  */
 
 export function FilterChip({ href, label }: { href: string; label: string }) {
+  const t = useTranslations("web.marketplace.facets");
   return (
     <Link
       href={href}
       className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-3 py-1 text-xs font-medium text-zinc-700 hover:bg-zinc-200"
     >
-      {label}
+      <span aria-hidden>{label}</span>
       <span aria-hidden>×</span>
-      <span className="sr-only">süzgecini kaldır</span>
+      <span className="sr-only">{t("removeFilter", { label })}</span>
     </Link>
   );
 }

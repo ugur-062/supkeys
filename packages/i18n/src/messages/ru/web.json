@@ -180,6 +180,96 @@
       "railLabel": "Лента товаров",
       "scrollBack": "Прокрутить назад",
       "scrollForward": "Прокрутить вперёд"
+    },
+    "productCard": {
+      "verified": "Проверено",
+      "new": "Новинка",
+      "minOrder": "Мин. {n} {unit}",
+      "verifiedCompany": "Проверенная компания",
+      "goldMember": "Gold-участник",
+      "compare": "Сравнить",
+      "newTab": "(откроется в новой вкладке)"
+    },
+    "carousel": {
+      "next": "Следующие товары",
+      "prev": "Предыдущие товары"
+    },
+    "categoryTile": {
+      "productNoun": "товаров",
+      "explore": "Смотреть"
+    },
+    "categoryGrid": {
+      "title": "Поиск по категориям",
+      "lead": "Товары и заявки на закупку сгруппированы в 58 категорий верхнего уровня. Выберите нужное направление.",
+      "all": "Все категории"
+    },
+    "popularChips": {
+      "title": "Популярные категории",
+      "all": "Все категории"
+    },
+    "cityLinks": {
+      "products": "Товары по городам",
+      "companies": "Компании по городам"
+    },
+    "floatingCta": {
+      "label": "Создать запрос"
+    },
+    "megaMenu": {
+      "label": "Категории",
+      "allOf": "Все товары: {name} →",
+      "withProducts": "Разделы с товарами"
+    },
+    "search": {
+      "placeholder": "Что вы ищете? (товар, услуга, материал)",
+      "ariaLabel": "Поиск по площадке",
+      "submit": "Найти"
+    },
+    "typeahead": {
+      "productsPlaceholder": "Поиск товаров, брендов или артикулов",
+      "companiesPlaceholder": "Название компании, отрасль или услуга",
+      "listingsLabel": "Запросы",
+      "listingsPlaceholder": "Название запроса или категория",
+      "groupCategories": "Категории",
+      "groupProducts": "Товары",
+      "groupCompanies": "Компании",
+      "groupListings": "Заявки на закупку",
+      "whereLabel": "Где искать",
+      "scopeLabel": "Область поиска",
+      "searchIn": "Искать в разделе «{scope}»",
+      "suggestions": "Подсказки поиска",
+      "recent": "Недавние запросы",
+      "submit": "Найти"
+    },
+    "searchTabs": {
+      "label": "Тип результатов"
+    },
+    "indexIntro": {
+      "categoryTotal": "В категории «{subject}» на Rothern размещено {total, plural, one {# товар} few {# товара} many {# товаров} other {# товара}}.",
+      "cityTotal": "Компании из региона {subject} разместили на витринах Rothern {total, plural, one {# товар} few {# товара} many {# товаров} other {# товара}}.",
+      "cities": "Регионы, где размещены товары: {list}.",
+      "cats": "Категории с наибольшим числом товаров: {list}.",
+      "activities": "Среди компаний, разместивших товары: {list}.",
+      "allPriced": "Цена указана у всех товаров.",
+      "somePriced": "Цена указана у {priced, plural, one {# товара} few {# товаров} many {# товаров} other {# товара}}; по остальным можно запросить предложение у продавца."
+    },
+    "empty": {
+      "notFound": "{noun}: ничего не найдено.",
+      "clear": "Сбросить фильтры",
+      "browse": "Смотреть категории"
+    },
+    "sort": {
+      "label": "Сортировка:",
+      "sr": "Сортировка"
+    },
+    "facets": {
+      "removeFilter": "Убрать фильтр «{label}»"
+    },
+    "gated": {
+      "membersOnly": "{label}: доступно участникам",
+      "login": "Войти",
+      "signup": "Зарегистрируйтесь бесплатно",
+      "loginFor": "<link>Войдите</link>, чтобы увидеть: {label}",
+      "loginForText": "Войдите, чтобы увидеть: {label}"
     }
   },
   "domain": {

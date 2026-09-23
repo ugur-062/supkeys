@@ -180,6 +180,96 @@
       "railLabel": "Ürün şeridi",
       "scrollBack": "Geri kaydır",
       "scrollForward": "İleri kaydır"
+    },
+    "productCard": {
+      "verified": "Doğrulanmış",
+      "new": "Yeni",
+      "minOrder": "Min. {n} {unit}",
+      "verifiedCompany": "Doğrulanmış firma",
+      "goldMember": "Gold Üye",
+      "compare": "Karşılaştır",
+      "newTab": "(yeni sekmede açılır)"
+    },
+    "carousel": {
+      "next": "Sonraki ürünler",
+      "prev": "Önceki ürünler"
+    },
+    "categoryTile": {
+      "productNoun": "ürün",
+      "explore": "Keşfet"
+    },
+    "categoryGrid": {
+      "title": "Kategoriye göre keşfet",
+      "lead": "Ürünler ve alım talepleri 58 üst kategori altında sınıflandırılır. Aradığınız dalı seçin.",
+      "all": "Tüm kategoriler"
+    },
+    "popularChips": {
+      "title": "Popüler kategoriler",
+      "all": "Tüm kategoriler"
+    },
+    "cityLinks": {
+      "products": "Şehre göre ürünler",
+      "companies": "Şehre göre firmalar"
+    },
+    "floatingCta": {
+      "label": "Talep aç"
+    },
+    "megaMenu": {
+      "label": "Kategoriler",
+      "allOf": "Tüm {name} ürünleri →",
+      "withProducts": "Ürünü olan dallar"
+    },
+    "search": {
+      "placeholder": "Ne arıyorsunuz? (ürün, hizmet, malzeme)",
+      "ariaLabel": "Pazar yerinde ara",
+      "submit": "Ara"
+    },
+    "typeahead": {
+      "productsPlaceholder": "Ürün, marka veya parça numarası arayın",
+      "companiesPlaceholder": "Firma adı, sektör veya hizmet",
+      "listingsLabel": "Talepler",
+      "listingsPlaceholder": "Talep başlığı veya kategori",
+      "groupCategories": "Kategoriler",
+      "groupProducts": "Ürünler",
+      "groupCompanies": "Firmalar",
+      "groupListings": "Alım talepleri",
+      "whereLabel": "Nerede aransın",
+      "scopeLabel": "Arama kapsamı",
+      "searchIn": "{scope} içinde ara",
+      "suggestions": "Arama önerileri",
+      "recent": "Son aramalar",
+      "submit": "Ara"
+    },
+    "searchTabs": {
+      "label": "Sonuç türü"
+    },
+    "indexIntro": {
+      "categoryTotal": "Rothern'de {subject} kategorisinde {total} ürün listeli.",
+      "cityTotal": "{subject} merkezli firmaların Rothern vitrinlerinde {total} ürün listeli.",
+      "cities": "Ürünlerin bulunduğu iller: {list}.",
+      "cats": "En çok ürün bulunan kategoriler: {list}.",
+      "activities": "Ürünleri listeleyen firmalar arasında {list} bulunuyor.",
+      "allPriced": "Ürünlerin tamamında fiyat açık yazılı.",
+      "somePriced": "{priced} üründe fiyat açık yazılı; kalanı için satıcıdan teklif isteyebilirsiniz."
+    },
+    "empty": {
+      "notFound": "{noun} bulunamadı.",
+      "clear": "Filtreleri temizle",
+      "browse": "Kategorilere göz at"
+    },
+    "sort": {
+      "label": "Sırala:",
+      "sr": "Sırala"
+    },
+    "facets": {
+      "removeFilter": "{label} süzgecini kaldır"
+    },
+    "gated": {
+      "membersOnly": "{label} üyelere açık",
+      "login": "Giriş yapın",
+      "signup": "Ücretsiz kaydolun",
+      "loginFor": "{label} için <link>giriş yapın</link>",
+      "loginForText": "{label} için giriş yapın"
     }
   },
   "domain": {

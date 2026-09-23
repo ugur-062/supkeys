@@ -1,5 +1,7 @@
 "use client";
 
+import { useFormatter, useTranslations } from "next-intl";
+
 import { CategoryImage } from "./category-image";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
@@ -54,7 +56,8 @@ import { useState, type ReactNode } from "react";
 const NEW_TAB = { target: "_blank", rel: "noopener noreferrer" } as const;
 
 function NewTabHint() {
-  return <span className="sr-only"> (yeni sekmede açılır)</span>;
+  const t = useTranslations("web.marketplace.productCard");
+  return <span className="sr-only"> {t("newTab")}</span>;
 }
 
 export type ProductCardProduct = Pick<
@@ -166,6 +169,8 @@ export function ProductCard({
   priority?: boolean;
   className?: string;
 }) {
+  const t = useTranslations("web.marketplace.productCard");
+  const fmt = useFormatter();
   const target = href ?? (companySlug ? `/firma/${companySlug}/urun/${product.slug}` : undefined);
   const firm: ProductCardCompany | undefined =
     company ?? (companyName ? { name: companyName, city: companyCity } : undefined);
@@ -249,12 +254,12 @@ export function ProductCard({
           <div className="flex flex-wrap items-center gap-1.5">
             {firm?.verified ? (
               <Badge tone="verified" size="sm">
-                Doğrulanmış
+                {t("verified")}
               </Badge>
             ) : null}
             {fresh ? (
               <Badge tone="new" size="sm">
-                Yeni
+                {t("new")}
               </Badge>
             ) : null}
           </div>
@@ -306,7 +311,7 @@ export function ProductCard({
               </span>
               {product.moq ? (
                 <span className="tnum block text-xs text-zinc-500">
-                  {`Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}`}
+                  {t("minOrder", { n: fmt.number(Number(product.moq)), unit: product.unit ?? "" })}
                 </span>
               ) : null}
             </span>
@@ -327,7 +332,7 @@ export function ProductCard({
             {price.headline}
           </p>
           <p className="tnum mt-0.5 text-xs text-zinc-500">
-            {product.moq ? `Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}` : "\u00A0"}
+            {product.moq ? t("minOrder", { n: fmt.number(Number(product.moq)), unit: product.unit ?? "" }) : "\u00A0"}
           </p>
           {cta ? (
             <span className={cn("mt-3 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition", ctaCls)}>
@@ -344,7 +349,7 @@ export function ProductCard({
   // "Yeni". "Doğrulanmış" kapağa ÇIKMAZ: firma özelliğidir ve firma satırında
   // ikon olarak zaten duruyor; ikisini birden basmak aynı olguyu iki kez
   // yazmak olurdu (kaldırılan "Gold Üye" rozetiyle aynı gürültü).
-  const coverBadge = badge ?? (fresh ? <Badge tone="new" size="sm">Yeni</Badge> : null);
+  const coverBadge = badge ?? (fresh ? <Badge tone="new" size="sm">{t("new")}</Badge> : null);
 
   return (
     <article
@@ -446,7 +451,7 @@ export function ProductCard({
                 <span className="truncate text-xs font-medium text-zinc-700">{firm.name}</span>
                 {firm.verified ? (
                   <Badge tone="verified" size="sm" className="shrink-0 px-1">
-                    <span className="sr-only">Doğrulanmış firma</span>
+                    <span className="sr-only">{t("verifiedCompany")}</span>
                   </Badge>
                 ) : null}
                 {/* "Gold Üye" METİN rozeti olarak KALDIRILMIŞTI (2026-09-07):
@@ -456,7 +461,7 @@ export function ProductCard({
                     kullanıcı için okunur (etiketi ekran okuyucuda). */}
                 {firm.gold ? (
                   <Badge tone="gold" size="sm" className="shrink-0 px-1">
-                    <span className="sr-only">Gold Üye</span>
+                    <span className="sr-only">{t("goldMember")}</span>
                   </Badge>
                 ) : null}
               </span>
@@ -488,7 +493,7 @@ export function ProductCard({
               MOQ yok). */}
           <p className="tnum mt-0.5 text-xs text-zinc-500">
             {product.moq
-              ? `Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}`
+              ? t("minOrder", { n: fmt.number(Number(product.moq)), unit: product.unit ?? "" })
               : "\u00A0"}
           </p>
           {cta && !compact && target ? (
@@ -543,6 +548,7 @@ function CountryFlag({ code }: { code?: string | null }) {
  * görünür.
  */
 function CompareToggle({ name, onChange }: { name: string; onChange?: (on: boolean) => void }) {
+  const t = useTranslations("web.marketplace.productCard");
   const [on, setOn] = useState(false);
   return (
     <label
@@ -561,7 +567,7 @@ function CompareToggle({ name, onChange }: { name: string; onChange?: (on: boole
         }}
         className="size-3.5 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950"
       />
-      Karşılaştır
+      {t("compare")}
       <span className="sr-only">: {name}</span>
     </label>
   );

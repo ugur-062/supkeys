@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { AccentLink } from "@/components/ui/accent-fill";
 
@@ -21,11 +22,12 @@ export function PublicEmptyState({
   /** Ek eylem — ürün dizininde "Bu ürün için talep aç" (arama terimi ön-dolu). */
   extra?: { label: string; href: string };
 }) {
+  const t = useTranslations("web.marketplace.empty");
   // BEYAZ yüzey: katalog sayfalarının zemini artık tonlu (`MARKET_GROUND`);
   // eski `bg-zinc-50/60` orada zeminden ayrışmıyor ve kutu kayboluyordu.
   return (
     <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-12 text-center">
-      <p className="text-base font-semibold text-zinc-900">{noun} bulunamadı.</p>
+      <p className="text-base font-semibold text-zinc-900">{t("notFound", { noun })}</p>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm">
         {extra ? (
           <AccentLink
@@ -40,14 +42,14 @@ export function PublicEmptyState({
             href={clearHref}
             className="rounded-full border border-zinc-300 px-4 py-2 font-semibold text-zinc-900 transition hover:bg-white"
           >
-            Filtreleri temizle
+            {t("clear")}
           </Link>
         ) : null}
         <Link
           href="/#kategoriler"
           className="rounded-full border border-zinc-300 px-4 py-2 font-semibold text-zinc-900 transition hover:bg-white"
         >
-          Kategorilere göz at
+          {t("browse")}
         </Link>
       </div>
     </div>

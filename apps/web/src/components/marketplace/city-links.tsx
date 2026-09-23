@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { allCitySlugs, cityCompanyPath, cityProductPath } from "@/lib/public/city";
 import { Link } from "@/i18n/navigation";
 
@@ -20,6 +21,7 @@ export function CityLinks({
   kind: "products" | "companies";
   activeCity?: string;
 }) {
+  const t = useTranslations("web.marketplace.cityLinks");
   const known = new Set(allCitySlugs().map((c) => c.name));
   const list = cities
     .filter((c) => c.count > 0 && known.has(c.city) && c.city !== activeCity)
@@ -28,7 +30,7 @@ export function CityLinks({
   if (list.length === 0) return null;
 
   const href = kind === "products" ? cityProductPath : cityCompanyPath;
-  const heading = kind === "products" ? "Şehre göre ürünler" : "Şehre göre firmalar";
+  const heading = kind === "products" ? t("products") : t("companies");
 
   return (
     <section className="mx-auto mt-10 max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">

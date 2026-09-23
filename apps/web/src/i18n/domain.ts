@@ -1,5 +1,3 @@
-"use client";
-
 import { closingUrgency as closingUrgencyTr, daysUntil } from "@/lib/tenders/seller-state";
 import { countryName as countryNameTr, companyActivityLabel } from "@rothern/shared";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";

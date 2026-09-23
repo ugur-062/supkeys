@@ -1,4 +1,5 @@
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { useFormatter, useTranslations } from "next-intl";
+import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { Link } from "@/i18n/navigation";
 
 /**
@@ -28,6 +29,9 @@ export function PublicSearchTabs({
   /** Yüzey başına toplam. Yalnız `q` varken doldurulur. */
   counts?: Partial<Record<SearchSurface, number>>;
 }) {
+  const t = useTranslations("web.marketplace.searchTabs");
+  const tl = useTranslations("web.marketplace.labels");
+  const fmt = useFormatter();
   const href = (path: string) => (q ? `${path}?q=${encodeURIComponent(q)}` : path);
   // PORTAL RENGİ (2026-09-18, kullanıcı: "sekmeler siyah olmasın, renge göre"):
   // alım talepleri = tedarikçi yüzü → yeşil; ürünler/firmalar → mavi. Sunucu
@@ -36,12 +40,12 @@ export function PublicSearchTabs({
   const onCls = green ? "border-emerald-600 text-emerald-700" : "border-blue-600 text-blue-700";
   const onBadge = green ? "bg-emerald-100 text-emerald-800" : "bg-blue-100 text-blue-800";
   const tabs: { key: SearchSurface; label: string; href: string }[] = [
-    { key: "products", label: MARKETPLACE_LABELS.products, href: href(MARKETPLACE_ROUTES.products) },
-    { key: "companies", label: MARKETPLACE_LABELS.companies, href: href(MARKETPLACE_ROUTES.companies) },
-    { key: "listings", label: MARKETPLACE_LABELS.demands, href: href(MARKETPLACE_ROUTES.demands) },
+    { key: "products", label: tl("products"), href: href(MARKETPLACE_ROUTES.products) },
+    { key: "companies", label: tl("companies"), href: href(MARKETPLACE_ROUTES.companies) },
+    { key: "listings", label: tl("demands"), href: href(MARKETPLACE_ROUTES.demands) },
   ];
   return (
-    <nav aria-label="Sonuç türü" className="mt-6 border-b border-zinc-200">
+    <nav aria-label={t("label")} className="mt-6 border-b border-zinc-200">
       <ul className="-mb-px flex flex-wrap gap-x-6">
         {tabs.map((t) => {
           const on = t.key === active;
@@ -64,7 +68,7 @@ export function PublicSearchTabs({
                       on ? onBadge : "bg-zinc-200 text-zinc-700"
                     }`}
                   >
-                    {n.toLocaleString("tr-TR")}
+                    {fmt.number(n)}
                   </span>
                 ) : null}
               </Link>

@@ -1,3 +1,4 @@
+import { useFormatter, useTranslations } from "next-intl";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
@@ -32,7 +33,7 @@ import { Link } from "@/i18n/navigation";
 export function CategoryTile({
   category: c,
   href,
-  countNoun = "ürün",
+  countNoun,
   variant = "wide",
   visual = "photo",
   sizes = "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
@@ -46,6 +47,9 @@ export function CategoryTile({
   visual?: "photo" | "icon";
   sizes?: string;
 }) {
+  const tt = useTranslations("web.marketplace.categoryTile");
+  const fmt = useFormatter();
+  const noun = countNoun ?? tt("productNoun");
   const { icon: Icon, tone } = categoryVisual([c.id]);
   const t = TONE_CLASS[tone];
   const photo = visual === "photo" ? c.imageSrc : null;
@@ -68,7 +72,7 @@ export function CategoryTile({
         </span>
         <span className="mt-4 line-clamp-2 text-[13px]/5 font-semibold text-zinc-900">{c.name}</span>
         {c.count > 0 ? (
-          <span className="tnum mt-1 text-xs text-zinc-500">({c.count.toLocaleString("tr-TR")})</span>
+          <span className="tnum mt-1 text-xs text-zinc-500">({fmt.number(c.count)})</span>
         ) : null}
       </Link>
     );
@@ -102,7 +106,7 @@ export function CategoryTile({
           {/* Sayı YALNIZ > 0 ise: "(0)" envanterin azlığını duyurur
               (`buildShowcase` ile aynı kural). */}
           {c.count > 0 ? (
-            <span className="tnum mt-0.5 text-xs text-zinc-500">({c.count.toLocaleString("tr-TR")})</span>
+            <span className="tnum mt-0.5 text-xs text-zinc-500">({fmt.number(c.count)})</span>
           ) : null}
         </span>
       </Link>
@@ -135,7 +139,7 @@ export function CategoryTile({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-zinc-900">{c.name}</span>
           <span className="tnum block text-xs text-zinc-500">
-            {c.count > 0 ? `${c.count.toLocaleString("tr-TR")} ${countNoun}` : "Keşfet"}
+            {c.count > 0 ? `${fmt.number(c.count)} ${noun}` : tt("explore")}
           </span>
         </span>
         <ArrowRightIcon

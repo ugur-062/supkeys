@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
@@ -7,13 +8,14 @@ import { Link } from "@/i18n/navigation";
  * 20 alt kategori (`public/stats.popularCategories`). Boşsa çizilmez.
  */
 export function PopularChips({ items }: { items: { id: string; name: string; count: number }[] }) {
+  const t = useTranslations("web.marketplace.popularChips");
   if (items.length === 0) return null;
   return (
     <section className="mx-auto max-w-7xl px-6 py-10 lg:px-8">
       <div className="flex flex-wrap items-center justify-between gap-3">
-        <h2 className="text-lg font-semibold text-zinc-950">Popüler kategoriler</h2>
+        <h2 className="text-lg font-semibold text-zinc-950">{t("title")}</h2>
         <Link href={MARKETPLACE_ROUTES.products} className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600">
-          Tüm kategoriler
+          {t("all")}
           <ArrowRightIcon aria-hidden className="size-4" />
         </Link>
       </div>

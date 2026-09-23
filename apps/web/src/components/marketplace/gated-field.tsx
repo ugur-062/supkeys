@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { loginHref } from "@/lib/public/visibility";
 import { AccentLink } from "@/components/ui/accent-fill";
 import { LockClosedIcon } from "@heroicons/react/20/solid";
@@ -29,6 +30,7 @@ export function GatedField({
   hint?: string;
   className?: string;
 }) {
+  const t = useTranslations("web.marketplace.gated");
   const href = loginHref(redirect);
   if (size === "box") {
     return (
@@ -37,7 +39,7 @@ export function GatedField({
       >
         <p className="flex items-center gap-2 text-sm font-semibold text-zinc-900">
           <LockClosedIcon aria-hidden className="size-4 text-zinc-400" />
-          {label} üyelere açık
+          {t("membersOnly", { label })}
         </p>
         {hint ? <p className="mt-1 text-sm/6 text-zinc-600">{hint}</p> : null}
         <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
@@ -45,10 +47,10 @@ export function GatedField({
             href={href}
             className="rounded-full px-4 py-1.5 font-semibold text-white transition"
           >
-            Giriş yapın
+            {t("login")}
           </AccentLink>
           <Link href="/company/kayit" className="font-medium text-zinc-700 hover:underline">
-            Ücretsiz kaydolun
+            {t("signup")}
           </Link>
         </div>
       </div>
@@ -58,10 +60,14 @@ export function GatedField({
     <span className={`inline-flex items-center gap-1.5 text-sm text-zinc-500 ${className ?? ""}`}>
       <LockClosedIcon aria-hidden className="size-3.5 text-zinc-400" />
       <span>
-        {label} için{" "}
-        <Link href={href} className="font-medium text-zinc-800 underline underline-offset-2 hover:text-zinc-950">
-          giriş yapın
-        </Link>
+        {t.rich("loginFor", {
+          label,
+          link: (chunks) => (
+            <Link href={href} className="font-medium text-zinc-800 underline underline-offset-2 hover:text-zinc-950">
+              {chunks}
+            </Link>
+          ),
+        })}
       </span>
     </span>
   );
@@ -69,10 +75,11 @@ export function GatedField({
 
 /** Kart içinde (zaten bir <a> içindeyken) bağlantısız metin. */
 export function GatedText({ label }: { label: string }) {
+  const t = useTranslations("web.marketplace.gated");
   return (
     <span className="inline-flex items-center gap-1 text-sm font-medium text-zinc-500">
       <LockClosedIcon aria-hidden className="size-3.5 text-zinc-400" />
-      {label} için giriş yapın
+      {t("loginForText", { label })}
     </span>
   );
 }

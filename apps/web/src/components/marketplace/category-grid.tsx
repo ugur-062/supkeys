@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { CategoryTile } from "./category-tile";
 import { categoryPath } from "@/lib/public/marketplace";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
@@ -18,6 +19,7 @@ import { Link } from "@/i18n/navigation";
  * parçası, gerekçe CLAUDE.md § Ürün dizini.
  */
 export function CategoryGrid({ categories }: { categories: ShowcaseCategory[] }) {
+  const t = useTranslations("web.marketplace.categoryGrid");
   if (categories.length === 0) return null;
 
   return (
@@ -25,18 +27,15 @@ export function CategoryGrid({ categories }: { categories: ShowcaseCategory[] })
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h2 className="text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-            Kategoriye göre keşfet
+            {t("title")}
           </h2>
-          <p className="mt-2 max-w-2xl text-base/7 text-zinc-500">
-            Ürünler ve alım talepleri 58 üst kategori altında sınıflandırılır.
-            Aradığınız dalı seçin.
-          </p>
+          <p className="mt-2 max-w-2xl text-base/7 text-zinc-500">{t("lead")}</p>
         </div>
         <Link
           href="/urunler"
           className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 transition hover:text-zinc-600"
         >
-          Tüm kategoriler
+          {t("all")}
           <ArrowRightIcon aria-hidden className="size-4" />
         </Link>
       </div>

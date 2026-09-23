@@ -1,4 +1,5 @@
-import { companyActivityLabel } from "@rothern/shared";
+import { useActivityLabel } from "@/i18n/domain";
+import { useLocale, useTranslations } from "next-intl";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
 
 /**
@@ -26,6 +27,9 @@ export function IndexIntro({
   facets: ProductFacets;
   kind: "category" | "city";
 }) {
+  const t = useTranslations("web.marketplace.indexIntro");
+  const locale = useLocale();
+  const activityLabel = useActivityLabel();
   const cities = facets.cities.filter((c) => c.count > 0).slice(0, 4);
   const activities = facets.activities.filter((a) => a.count > 0).slice(0, 3);
   const cats = facets.categories.filter((c) => c.count > 0).slice(0, 4);
@@ -35,18 +39,18 @@ export function IndexIntro({
   if (total > 0) {
     sentences.push(
       kind === "category"
-        ? `Rothern'de ${subject} kategorisinde ${total.toLocaleString("tr-TR")} ürün listeli.`
-        : `${subject} merkezli firmaların Rothern vitrinlerinde ${total.toLocaleString("tr-TR")} ürün listeli.`,
+        ? t("categoryTotal", { subject, total })
+        : t("cityTotal", { subject, total }),
     );
   }
   if (kind === "category" && cities.length > 0) {
     sentences.push(
-      `Ürünlerin bulunduğu iller: ${cities.map((c) => `${c.city} (${c.count})`).join(", ")}.`,
+      t("cities", { list: cities.map((c) => `${c.city} (${c.count})`).join(", ") }),
     );
   }
   if (kind === "city" && cats.length > 0) {
     sentences.push(
-      `En çok ürün bulunan kategoriler: ${cats.map((c) => `${c.name} (${c.count})`).join(", ")}.`,
+      t("cats", { list: cats.map((c) => `${c.name} (${c.count})`).join(", ") }),
     );
   }
   if (activities.length > 0) {
@@ -55,16 +59,16 @@ export function IndexIntro({
        aşar ("5 ürün" altında "4 + 2" okunurdu). Tip listesi bilgiyi verir,
        sayı yanıltırdı. */
     sentences.push(
-      `Ürünleri listeleyen firmalar arasında ${activities
-        .map((a) => companyActivityLabel(a.activity).toLocaleLowerCase("tr"))
-        .join(", ")} bulunuyor.`,
+      t("activities", {
+        list: activities.map((a) => activityLabel(a.activity).toLocaleLowerCase(locale)).join(", "),
+      }),
     );
   }
   if (priced > 0) {
     sentences.push(
       priced >= total
-        ? "Ürünlerin tamamında fiyat açık yazılı."
-        : `${priced} üründe fiyat açık yazılı; kalanı için satıcıdan teklif isteyebilirsiniz.`,
+        ? t("allPriced")
+        : t("somePriced", { priced }),
     );
   }
   // "…doğrulanmış firmalara ait" cümlesi KALDIRILDI (2026-09-19, kullanıcı:
