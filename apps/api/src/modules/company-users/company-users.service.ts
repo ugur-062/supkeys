@@ -7,6 +7,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
+import { currentLocale } from "../../common/i18n/locale-context";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "node:crypto";
 import { CompanyRole, Prisma } from "@rothern/db";
@@ -413,6 +414,8 @@ export class CompanyUsersService {
           data: {
             email: inv.email,
             authId,
+            // i18n: davet kabul sayfasının dili hesabın dili olur.
+            locale: currentLocale(),
             firstName: dto.firstName.trim(),
             lastName: dto.lastName.trim(),
             phone: dto.phone?.trim() || null,

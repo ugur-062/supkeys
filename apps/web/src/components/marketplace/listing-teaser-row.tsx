@@ -7,7 +7,7 @@ import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import { daysUntil } from "@/lib/tenders/seller-state";
-import { useActivityLabel, useClosingUrgency } from "@/i18n/domain";
+import { useActivityLabel, useClosingUrgency, useUnitLabel } from "@/i18n/domain";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
@@ -33,6 +33,7 @@ const STATE_CLASS: Record<ReturnType<typeof publicState>, string> = {
  */
 export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard }) {
   const t = useTranslations("web.marketplace.card");
+  const unitLabel = useUnitLabel();
   const ts = useTranslations("web.marketplace.state");
   const locale = useLocale();
   const fmt = useFormatter();
@@ -80,7 +81,7 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
               <span className="text-[11px] text-slate-500">{t("itemNoun")}</span>
               {l.itemSummary.totalQuantity && l.itemSummary.unit ? (
                 <span className="ml-1 tabular-nums text-slate-600">
-                  {fmt.number(Number(l.itemSummary.totalQuantity))} {l.itemSummary.unit}
+                  {fmt.number(Number(l.itemSummary.totalQuantity))} {unitLabel(l.itemSummary.unit)}
                 </span>
               ) : null}
             </span>

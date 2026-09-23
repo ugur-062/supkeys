@@ -66,7 +66,8 @@ test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", asyn
        * teslimat hatasını gürültüye boğardı; ayrı raporlanır. Diğer HER
        * başarısızlık (geçersiz adres, kimlik hatası) kırmızı kalır.
        */
-      const kotaMi = /daily_quota|rate_limit|too many requests/i.test(r.errorMessage ?? "");
+      // Aylık kota da ortam sınırıdır (2026-09-23: staging ücretsiz Resend kademesi ay sonundan önce doldu).
+      const kotaMi = /daily_quota|monthly_quota|quota_exceeded|rate_limit|too many requests/i.test(r.errorMessage ?? "");
       if (kotaMi) kotaDolu.push(etiket);
       else sorunlar.push(`BAŞARISIZ ${etiket}: ${r.errorMessage ?? ""}`);
     }

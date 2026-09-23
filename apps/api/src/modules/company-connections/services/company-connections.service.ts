@@ -968,7 +968,11 @@ export class CompanyConnectionsService {
     // RLS: dizin BAŞKA firmaların ürün sayısını sayar (`_count.items`) —
     // kısıtlı client'ta o sayılar 0 gelir ve kart "Portföyü görüntüle"yi çizmez
     // (2026-09-16 staging e2e'de yakalandı). Çapraz okuma → bypass client.
-    const res = await buildDirectory(this.bypass, { ...q, q: (qRaw ?? "").trim() || undefined }, scope);
+    const locale = currentLocale();
+    const res = await buildDirectory(this.bypass, { ...q, q: (qRaw ?? "").trim() || undefined }, {
+      ...scope,
+      localizeProducts: this.translations ? (items, ids) => this.translations!.localizeProducts(items, ids, locale) : undefined,
+    });
     const statusMap = await this.connectionStatusMap(user.companyId, res.items.map((r) => r.id));
     // i18n Faz 1e: dizin kartı (tanıtım özeti, sektör) okuyucunun dilinde.
     const items = this.translations

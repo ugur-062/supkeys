@@ -158,7 +158,10 @@ export class PublicProfileService {
 
   /** Herkese açık firma dizini — TEK KAYNAK `common/company/company-directory.ts` (panel de okur). */
   async publicDirectory(q: DirectoryParams) {
-    const res = await buildDirectory(this.prisma, q);
+    const locale = currentLocale();
+    const res = await buildDirectory(this.prisma, q, {
+      localizeProducts: this.translations ? (items, ids) => this.translations!.localizeProducts(items, ids, locale) : undefined,
+    });
     // Kimlik alanları public karttan DÜŞER (Rothern ID üyeye).
     const items = this.translations
       ? await this.translations.localizeCompanies(res.items, res.items.map((i) => i.id), currentLocale())

@@ -1,4 +1,5 @@
 import { isLocale } from "@rothern/i18n";
+import { currentLocale } from "../../../common/i18n/locale-context";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   BadRequestException,
@@ -128,6 +129,8 @@ export class CompanyAuthService {
           data: {
             email,
             authId,
+            // i18n: kayıt sayfasının dili hesabın dili olur (Accept-Language → ALS).
+            locale: currentLocale(),
             firstName: dto.firstName.trim(),
             lastName: dto.lastName.trim(),
             phone: dto.phone.trim(),

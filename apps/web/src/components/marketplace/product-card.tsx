@@ -1,15 +1,16 @@
 "use client";
 
-import { usePriceLabels } from "@/i18n/domain";
+import { usePriceLabels, useUnitLabel } from "@/i18n/domain";
 
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { countryDisplayName } from "@/i18n/domain";
 
 import { CategoryImage } from "./category-image";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Thumb } from "@/components/ui/thumb";
 import { productPrice } from "@/lib/public/product-price";
-import { countryFlag, countryName } from "@rothern/shared";
+import { countryFlag } from "@rothern/shared";
 import type { ProductPriceFields, PublicProductCard } from "@/lib/public/marketplace-api";
 import { cn } from "@/lib/utils";
 import { ChevronRightIcon, MapPinIcon } from "@heroicons/react/20/solid";
@@ -66,7 +67,7 @@ export type ProductCardProduct = Pick<
   PublicProductCard,
   "slug" | "name" | "images" | "categoryId" | "unit" | "priceMode"
 > &
-  Partial<Pick<PublicProductCard, "excerpt"> & ProductPriceFields> & {
+  Partial<Pick<PublicProductCard, "excerpt" | "unitCode"> & ProductPriceFields> & {
     /** "Yeni" rozeti (≤7 gün) — dizin kartında dolu, firma altı listede yok. */
     publishedAt?: string | null;
   };
@@ -172,6 +173,7 @@ export function ProductCard({
   className?: string;
 }) {
   const t = useTranslations("web.marketplace.productCard");
+  const unitLabel = useUnitLabel();
   const fmt = useFormatter();
   const priceLabels = usePriceLabels();
   const target = href ?? (companySlug ? `/firma/${companySlug}/urun/${product.slug}` : undefined);
@@ -220,7 +222,7 @@ export function ProductCard({
     priceAmount: product.priceAmount ?? null,
     priceTiers: product.priceTiers ?? null,
     priceCurrency: product.priceCurrency ?? "TRY",
-    unit: product.unit,
+    unit: unitLabel(product.unit, product.unitCode),
   }, priceLabels);
   const compact = variant === "compact";
   const ctaCls =
@@ -314,7 +316,7 @@ export function ProductCard({
               </span>
               {product.moq ? (
                 <span className="tnum block text-xs text-zinc-500">
-                  {t("minOrder", { n: fmt.number(Number(product.moq)), unit: product.unit ?? "" })}
+                  {t("minOrder", { n: fmt.number(Number(product.moq)), unit: unitLabel(product.unit, product.unitCode) })}
                 </span>
               ) : null}
             </span>
@@ -335,7 +337,7 @@ export function ProductCard({
             {price.headline}
           </p>
           <p className="tnum mt-0.5 text-xs text-zinc-500">
-            {product.moq ? t("minOrder", { n: fmt.number(Number(product.moq)), unit: product.unit ?? "" }) : "\u00A0"}
+            {product.moq ? t("minOrder", { n: fmt.number(Number(product.moq)), unit: unitLabel(product.unit, product.unitCode) }) : "\u00A0"}
           </p>
           {cta ? (
             <span className={cn("mt-3 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition", ctaCls)}>
@@ -496,7 +498,7 @@ export function ProductCard({
               MOQ yok). */}
           <p className="tnum mt-0.5 text-xs text-zinc-500">
             {product.moq
-              ? t("minOrder", { n: fmt.number(Number(product.moq)), unit: product.unit ?? "" })
+              ? t("minOrder", { n: fmt.number(Number(product.moq)), unit: unitLabel(product.unit, product.unitCode) })
               : "\u00A0"}
           </p>
           {cta && !compact && target ? (
@@ -529,12 +531,13 @@ export function ProductCard({
  * Emoji dekoratif; anlamı `sr-only` ülke adı taşır.
  */
 function CountryFlag({ code }: { code?: string | null }) {
+  const locale = useLocale();
   const flag = countryFlag(code);
   if (!flag) return null;
   return (
-    <span className="shrink-0 text-sm leading-none" title={countryName(code as string)}>
+    <span className="shrink-0 text-sm leading-none" title={countryDisplayName(code as string, locale)}>
       <span aria-hidden>{flag}</span>
-      <span className="sr-only">{countryName(code as string)}</span>
+      <span className="sr-only">{countryDisplayName(code as string, locale)}</span>
     </span>
   );
 }

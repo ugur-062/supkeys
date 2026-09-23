@@ -64,13 +64,13 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
-  "api.validation.inValues": {
-    "hash": "9cfcbc7269",
+  "api.validation.invalid": {
+    "hash": "35bf919765",
     "status": "reviewed",
     "at": "2026-09-23"
   },
-  "api.validation.invalid": {
-    "hash": "35bf919765",
+  "api.validation.inValues": {
+    "hash": "9cfcbc7269",
     "status": "reviewed",
     "at": "2026-09-23"
   },
@@ -1339,6 +1339,151 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.domain.unit.BAG": {
+    "hash": "1d98b40012",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.BOX": {
+    "hash": "abc9930830",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.CM": {
+    "hash": "bd0f420ee3",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.CRT": {
+    "hash": "179ebb324f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.DAY": {
+    "hash": "c3b672612c",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.DRM": {
+    "hash": "414bb6aca1",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.DZN": {
+    "hash": "221a86bea9",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.GRM": {
+    "hash": "58d67c9d43",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.HUR": {
+    "hash": "7d472b4735",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.KG": {
+    "hash": "5b09ab9469",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.KM": {
+    "hash": "cc61f8877f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.LTR": {
+    "hash": "febdcd62bf",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.M": {
+    "hash": "c38e0b974c",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.M2": {
+    "hash": "fd71ca73e8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.M3": {
+    "hash": "7b5bd6c65e",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.MDY": {
+    "hash": "4a4b58c478",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.ML": {
+    "hash": "67f3dbb3ab",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.MM": {
+    "hash": "4d41e89985",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.MON": {
+    "hash": "f9407667de",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.PAIR": {
+    "hash": "750f280164",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.PAL": {
+    "hash": "f9da868963",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.PCE": {
+    "hash": "13f39a2865",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.PKT": {
+    "hash": "0458539946",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.ROL": {
+    "hash": "e1c812876d",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.SET": {
+    "hash": "65c10dc354",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.SRV": {
+    "hash": "abf8d4ecc2",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.TON": {
+    "hash": "5e4b6ad299",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.TRP": {
+    "hash": "834113a5f3",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.domain.unit.YER": {
+    "hash": "31f009eb55",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
   "web.marketing.about.intro": {
     "hash": "263cba4ffe",
     "status": "reviewed",
@@ -1921,6 +2066,56 @@
   },
   "web.marketing.footer.userAgreement": {
     "hash": "5f876627f5",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.heroDecor.buyer.ai.hint": {
+    "hash": "9f2e04bbf4",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.heroDecor.buyer.ai.title": {
+    "hash": "6b72631f7e",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.heroDecor.buyer.verified.hint": {
+    "hash": "43ad1434c0",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.heroDecor.buyer.verified.title": {
+    "hash": "ac27f15b7d",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.heroDecor.seller.badge.hint": {
+    "hash": "9db06d7b7a",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.heroDecor.seller.badge.title": {
+    "hash": "392385f360",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.heroDecor.seller.open.hint": {
+    "hash": "bc608f34e1",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.heroDecor.seller.open.title": {
+    "hash": "6b2936b227",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.heroDecor.seller.showcase.hint": {
+    "hash": "4432b06732",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketing.heroDecor.seller.showcase.title": {
+    "hash": "d90ed8dafd",
     "status": "reviewed",
     "at": "2026-09-23"
   },
@@ -4139,13 +4334,13 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
-  "web.marketplace.filters.certSearch": {
-    "hash": "6ee2a0f5a0",
+  "web.marketplace.filters.certifications": {
+    "hash": "0659662c63",
     "status": "reviewed",
     "at": "2026-09-23"
   },
-  "web.marketplace.filters.certifications": {
-    "hash": "0659662c63",
+  "web.marketplace.filters.certSearch": {
+    "hash": "6ee2a0f5a0",
     "status": "reviewed",
     "at": "2026-09-23"
   },
@@ -4220,7 +4415,7 @@
     "at": "2026-09-23"
   },
   "web.marketplace.filters.filtersTitle": {
-    "hash": "ec24eda245",
+    "hash": "86333cd38c",
     "status": "reviewed",
     "at": "2026-09-23"
   },
@@ -4359,13 +4554,13 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
-  "web.marketplace.filters.priceDesc": {
-    "hash": "37a3250bc6",
+  "web.marketplace.filters.priced": {
+    "hash": "cb88996b77",
     "status": "reviewed",
     "at": "2026-09-23"
   },
-  "web.marketplace.filters.priced": {
-    "hash": "cb88996b77",
+  "web.marketplace.filters.priceDesc": {
+    "hash": "37a3250bc6",
     "status": "reviewed",
     "at": "2026-09-23"
   },
@@ -5384,6 +5579,141 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketplace.profile.about": {
+    "hash": "12a5d0914a",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.aboutName": {
+    "hash": "1c4ae736d9",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.companyInfo": {
+    "hash": "cbdf988ae2",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.employees": {
+    "hash": "2c5f45a322",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.founded": {
+    "hash": "9fcab372c5",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.goldMember": {
+    "hash": "2ff468f6f1",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.industry": {
+    "hash": "19da5231f8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.kepAddress": {
+    "hash": "566aaa902e",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.legalName": {
+    "hash": "b0c16640a1",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.location": {
+    "hash": "141e6696a6",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.mersisNo": {
+    "hash": "8f0fe94def",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.ordersCount": {
+    "hash": "82cce694f9",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.rating": {
+    "hash": "a5111df1d6",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.readMore": {
+    "hash": "cf5da67b9e",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.registryNo": {
+    "hash": "46c11748ba",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.reviews": {
+    "hash": "6710c7088b",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.services": {
+    "hash": "cf52cf827d",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.taxNo": {
+    "hash": "40241ce7de",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.tradeInfo": {
+    "hash": "53f03ad633",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.unverified": {
+    "hash": "460dc7e2ef",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.unverifiedTitle": {
+    "hash": "e1ea7df1e8",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.verified": {
+    "hash": "13eec1774a",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.verifiedBuyer": {
+    "hash": "757c0e99fb",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.verifiedPartner": {
+    "hash": "55b4184c84",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.verifiedSupplier": {
+    "hash": "e72f61e27d",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.verifiedTitle": {
+    "hash": "e512287a4f",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.marketplace.profile.website": {
+    "hash": "9e502f3834",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
   "web.marketplace.search.ariaLabel": {
     "hash": "f01b2d9538",
     "status": "reviewed",
@@ -5784,13 +6114,13 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
-  "web.seo.og.productWith": {
-    "hash": "d40e757eb6",
+  "web.seo.og.products": {
+    "hash": "9ef4aae1f8",
     "status": "reviewed",
     "at": "2026-09-23"
   },
-  "web.seo.og.products": {
-    "hash": "9ef4aae1f8",
+  "web.seo.og.productWith": {
+    "hash": "d40e757eb6",
     "status": "reviewed",
     "at": "2026-09-23"
   },

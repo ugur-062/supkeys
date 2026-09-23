@@ -1,5 +1,5 @@
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useActivityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useScopeLabel, useSeoT } from "@/i18n/domain";
+import { useActivityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useScopeLabel, useSeoT, useUnitLabel } from "@/i18n/domain";
 import { PublicLayout } from "./public-layout";
 import { GatedField } from "./gated-field";
 import { Heading } from "@/components/catalyst/heading";
@@ -40,6 +40,7 @@ export function ListingDetail({
   similar?: PublicListingCard[];
 }) {
   const t = useTranslations("web.marketplace.listing");
+  const unitLabel = useUnitLabel();
   const tl = useTranslations("web.marketplace.labels");
   const tstate = useTranslations("web.marketplace.state");
   const locale = useLocale();
@@ -215,7 +216,7 @@ export function ListingDetail({
                     <span className="block">{t("itemsCount", { count: listing.itemCount })}</span>
                     {listing.itemSummary.totalQuantity && listing.itemSummary.unit ? (
                       <span className="mt-0.5 block text-xs font-medium text-zinc-500">
-                        {t("totalQty", { qty: fmt.number(Number(listing.itemSummary.totalQuantity)), unit: listing.itemSummary.unit })}
+                        {t("totalQty", { qty: fmt.number(Number(listing.itemSummary.totalQuantity)), unit: unitLabel(listing.itemSummary.unit) })}
                       </span>
                     ) : null}
                   </>
@@ -255,7 +256,7 @@ export function ListingDetail({
                   {t("itemsHeading", { count: listing.itemCount })}
                   {listing.itemSummary.totalQuantity ? (
                     <span className="ml-2 text-base font-normal text-zinc-500">
-                      {t("totalQty", { qty: fmt.number(Number(listing.itemSummary.totalQuantity)), unit: listing.itemSummary.unit ?? "" })}
+                      {t("totalQty", { qty: fmt.number(Number(listing.itemSummary.totalQuantity)), unit: unitLabel(listing.itemSummary.unit) ?? "" })}
                     </span>
                   ) : null}
                 </h2>
@@ -265,7 +266,7 @@ export function ListingDetail({
                       <span className="w-8 shrink-0 tabular-nums text-zinc-400">{row.lineNo}</span>
                       <span className="min-w-0 flex-1 truncate font-medium text-zinc-900">{row.name || t("itemFallback", { n: row.lineNo })}</span>
                       <span className="ml-auto shrink-0 tabular-nums text-zinc-700">
-                        {fmt.number(Number(row.quantity))} {row.unit}
+                        {fmt.number(Number(row.quantity))} {unitLabel(row.unit)}
                       </span>
                     </li>
                   ))}

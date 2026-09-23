@@ -410,6 +410,30 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   **Kategori adları da üç dilde (Faz 4, aynı gün) — bkz. Kategori Kataloğu.**
   **JSON-LD `inLanguage` sayfa dilinden** (`LANG_TAG`); sözleşmeler tr-TR kalır;
   `WebSite` düğümü üç dili listeler.
+- **BAŞTAN AŞAĞI TARAMA (2026-09-23 gece, kullanıcı: "her şeyi kontrol et,
+  çeviri kusursuz olmalı"):** herkese açık 20 yolun SSR metni EN/RU'da Türkçe
+  harf sezgiseliyle tarandı (`tr-leftover-scan.py`, özel adlar hariç). Kapanan
+  kalıntılar: hero dekor kartları (`hero-decor.tsx` başlık/ipucu artık
+  `web.marketing.heroDecor.*` anahtarı, `HeroDecor` `t.has` ile çevirir),
+  firma faaliyet tipi (`useActivityLabel` — `companyActivityLabel` herkese açık
+  bileşende KULLANILMAZ), ülke adları (`countryDisplayName` — telefon kodu listesi,
+  firma kartı, bayrak başlığı, profil), `CompanyProfileView` metinleri
+  (`web.marketplace.profile.*`; panel de aynı bileşen), ölçü birimleri
+  (`useUnitLabel`, `web.domain.unit.<KOD>`; ürün kartı/detayı, talep kalemleri),
+  firma dizini kart önizleme ürün adları (`buildDirectory` `opts.localizeProducts`),
+  talep sayfasındaki alıcı sektörü (`localizeListingCompanies`, firma çevirisinden),
+  nitelik ETİKETLERİ + SEÇENEKLERİ (Faz 4b: `CategoryAttribute.nameEn/nameRu/
+  optionsEn/optionsRu`, migration `20260923235000`; `ResolvedAttribute.nameTr`
+  yerel etiket + `optionLabels`; facet `values[].label`; TSV
+  `category-attribute-names.i18n.tsv` + `apply/export-category-attribute-names-i18n`;
+  toplu iş `admin/content-translations/categories/attributes/backfill`).
+  **Giriş dili hesaba yazılır:** `useCompanyLogin.onSuccess` giriş sayfasının
+  dili ≠ kayıtlı dil ise `PATCH me { locale }` (yoksa `LocaleUrlSync` paneli
+  eski dile atıyordu — kullanıcı bulgusu "İngilizce seçtiğim hâlde her şey
+  Türkçe"); kayıt ve davet kabulü `locale: currentLocale()` ile doğar.
+  Bilinçli kalanlar: ürün/firma/şehir ÖZEL ADLARI, sözleşme metinleri (TR),
+  panel arayüz metinleri (Faz 2), arama Türkçe. Süzgeç kenar çubuğu etiketi
+  ürün dilinde "Süzgeçler" (Faz 1'de "Filtreler" yazılmıştı; e2e onu arar).
   **MODEL ADI TUZAĞI (2026-09-23, staging'de ölçüldü):** Vertex AI
   `gemini-pro-latest` alias'ını TANIMAZ (404 NOT_FOUND) — Generative Language
   API tanır. Render'daki `AI_MODEL_PREMIUM=gemini-pro-latest` bu yüzden
@@ -675,6 +699,8 @@ Sözlük önceliği: üretilen dosya ÖNCE, elle yazılan SONRA → insan karar�
 > değiştirir → birebir garantisini bozar). `gen-category-leaves` **SİLİNDİ**.
 
 **Kürasyon:** sonuçsuz aramalar `category_search_misses`'e → admin paneli.
+
+**Nitelik etiketleri/seçenekleri de üç dilde (Faz 4b, 2026-09-23 gece):** bkz. Çok Dillilik § Baştan aşağı tarama.
 
 **KATEGORİ ADI ÜÇ DİLDE (i18n Faz 4, 2026-09-23):** `Category.nameEn` /
 `nameRu` (migration `20260923230000`, NULL = çeviri yok → Türkçeye düşer).
@@ -1545,11 +1571,12 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Son migration `20260923230000_category_names_i18n` (`categories.nameEn/nameRu`
-  TEXT NULL). Öncesi `20260923180000_content_translations` (tablo + iki enum) ve
-  `20260923120000_company_user_locale` (`CompanyUser.locale`). Üçü de eklemeli,
-  staging'e 2026-09-23'te uygulandı, **CANLIDA BEKLİYOR** (PR #57 birleştirilmeden
-  önce, sırayla). Öncesi `20260914120000_listing_preferred_activities`.
+- Son migration `20260923235000_category_attribute_names_i18n`
+  (`category_attributes.nameEn/nameRu/optionsEn/optionsRu`). Öncesi
+  `20260923230000_category_names_i18n`, `20260923180000_content_translations`,
+  `20260923120000_company_user_locale`. Dördü de eklemeli, staging'e 2026-09-23'te
+  uygulandı, **CANLIDA BEKLİYOR** (PR #57 birleştirilmeden önce, sırayla).
+  Öncesi `20260914120000_listing_preferred_activities`.
 - Şema değişikliği: `migrate` (dev) → `migrate:deploy` (prod). Manuel SQL için
   `prisma/migrations/<timestamp>_<ad>/migration.sql`. **Her yeni migration'dan
   ÖNCE `docs/migration-safety.md` kontrol listesini oku.**

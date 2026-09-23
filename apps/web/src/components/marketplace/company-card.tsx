@@ -1,4 +1,5 @@
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { countryDisplayName, useActivityLabel } from "@/i18n/domain";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Thumb } from "@/components/ui/thumb";
@@ -6,7 +7,6 @@ import type { PublicDirectoryCard } from "@/lib/public/marketplace-api";
 import { ArrowRightIcon, CalendarDaysIcon, ChatBubbleLeftRightIcon, ChevronRightIcon, CubeIcon, MapPinIcon, ShieldCheckIcon, UsersIcon } from "@heroicons/react/20/solid";
 import { ActivityIcon } from "./activity-icons";
 import { currencySymbol } from "@/lib/tenders/labels";
-import { companyActivityLabel, countryName } from "@rothern/shared";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 
@@ -62,6 +62,8 @@ export function CompanyCard({
   footer?: React.ReactNode;
 }) {
   const t = useTranslations("web.marketplace.companyCard");
+  const activityLabel = useActivityLabel();
+  const locale = useLocale();
   const fmt = useFormatter();
   const activities = c.activities.slice(0, 3);
   const more = c.activities.length - activities.length;
@@ -124,13 +126,13 @@ export function CompanyCard({
                 {c.city || c.country ? (
                   <span className="inline-flex items-center gap-1">
                     <MapPinIcon aria-hidden className="size-3.5 text-zinc-500" />
-                    {[c.country ? countryName(c.country) : null, c.city].filter(Boolean).join(", ")}
+                    {[c.country ? countryDisplayName(c.country, locale) : null, c.city].filter(Boolean).join(", ")}
                   </span>
                 ) : null}
                 {activities.map((a) => (
                   <span key={a} className="inline-flex items-center gap-1">
                     <ActivityIcon code={a} className="size-3.5 text-zinc-500" />
-                    {companyActivityLabel(a)}
+                    {activityLabel(a)}
                   </span>
                 ))}
                 {more > 0 ? <span className="tnum">+{more}</span> : null}
@@ -316,7 +318,7 @@ export function CompanyCard({
         <div className="mt-3 flex flex-wrap gap-1.5">
           {activities.map((a) => (
             <Badge key={a} tone="neutral" size="sm">
-              {companyActivityLabel(a)}
+              {activityLabel(a)}
             </Badge>
           ))}
           {more > 0 ? (

@@ -1,6 +1,7 @@
 "use client";
 
 import { useAiSearchIntent } from "@/hooks/use-ai-search-intent";
+import { useTranslations } from "next-intl";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import type { AiSearchIntentResult, AiSearchPortal } from "@rothern/shared";
 import { ArrowRightIcon, MagnifyingGlassIcon, SparklesIcon } from "@heroicons/react/20/solid";
@@ -118,6 +119,10 @@ export function HeroDecor({
      portal tonunda — satınalma mavi, satış yeşil. */
   accent?: "blue" | "emerald";
 }) {
+  // Widget başlığı/ipucu katalog anahtarı olabilir (`web.marketing.heroDecor.*`, i18n);
+  // anahtar değilse düz metin basılır (panel/test geriye dönük).
+  const tDecor = useTranslations("web.marketing.heroDecor");
+  const tx = (v: string) => (tDecor.has(v as never) ? tDecor(v as never) : v);
   const g = accent === "emerald";
   return (
     <>
@@ -169,9 +174,9 @@ export function HeroDecor({
             ) : (
               <w.icon className={cn("size-8", g ? "text-emerald-600" : "text-blue-600")} strokeWidth={1.75} />
             )}
-            <span className="mt-4 block text-lg font-bold leading-tight tracking-tight text-zinc-950">{w.title}</span>
+            <span className="mt-4 block text-lg font-bold leading-tight tracking-tight text-zinc-950">{tx(w.title)}</span>
             <span className="mt-2 flex items-center justify-between gap-2">
-              <span className="text-[13px] leading-snug text-zinc-500">{w.hint}</span>
+              <span className="text-[13px] leading-snug text-zinc-500">{tx(w.hint)}</span>
               <ChevronRight className="size-4 shrink-0 text-zinc-500" />
             </span>
           </div>

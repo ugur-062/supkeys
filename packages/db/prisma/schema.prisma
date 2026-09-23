@@ -1915,6 +1915,16 @@ model CategoryAttribute {
   type       CategoryAttributeType
   /** SINGLE_SELECT / MULTI_SELECT için kapalı değer listesi. */
   options    String[] @default([])
+  /**
+   * i18n Faz 4b (2026-09-23): etiket ve seçenek listesinin EN/RU karşılığı.
+   * `optionsEn`/`optionsRu` `options` ile AYNI SIRADA (indeks eşlemesi); saklanan
+   * ürün değeri Türkçe kanonik kalır, yalnız GÖSTERİM çevrilir. Kaynak
+   * `src/seeds/category-attribute-names.i18n.tsv`; NULL/boş = çeviri yok.
+   */
+  nameEn     String?
+  nameRu     String?
+  optionsEn  String[] @default([])
+  optionsRu  String[] @default([])
   /** NUMBER için birim ("mm", "V", "kg"). */
   unit       String?
   /**

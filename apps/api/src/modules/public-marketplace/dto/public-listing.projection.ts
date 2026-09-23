@@ -116,6 +116,8 @@ export const PUBLIC_LISTING_SELECT = {
       // "İLAN SAHİBİ ANONİM" notu). Select'ten çıkarılmalarının sebebi
       // yalnız gizlemek değil: Prisma'dan hiç dönmedikleri için mapper,
       // JSON-LD veya ileride eklenecek bir alan onları kazara yazamaz.
+      // `id` YALNIZ iç kullanım (sektör çevirisi için firma çevirisi aranır); `toPublicCompany` yazmaz.
+      id: true,
       city: true,
       country: true,
       industry: true,

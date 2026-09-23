@@ -164,7 +164,7 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
           storageKey={`attr-${a.key}`}
         >
           <ShowMore
-            items={a.values.map((v) => ({ key: `${a.key}:${v.value}`, label: v.value, count: v.count }))}
+            items={a.values.map((v) => ({ key: `${a.key}:${v.value}`, label: v.label ?? v.value, count: v.count }))}
             selected={state.attrs}
             idPrefix={`${idPrefix}-attr-${a.key}`}
             onToggle={(k, on) => update((s) => ({ ...s, attrs: on ? [...s.attrs, k] : s.attrs.filter((x) => x !== k) }))}

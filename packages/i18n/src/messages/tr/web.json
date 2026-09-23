@@ -595,7 +595,33 @@
         "login": "Giriş Yap"
       }
     },
-    "breadcrumbHome": "Anasayfa"
+    "breadcrumbHome": "Anasayfa",
+    "heroDecor": {
+      "buyer": {
+        "verified": {
+          "title": "Doğrulanmış tedarikçiler",
+          "hint": "Belgeleri incelenmiş firmalar"
+        },
+        "ai": {
+          "title": "AI ile tedarikçi bul",
+          "hint": "Kalemlerinizden öneri alın"
+        }
+      },
+      "seller": {
+        "open": {
+          "title": "Açık talepler",
+          "hint": "Kategorinize uyan alım talepleri"
+        },
+        "showcase": {
+          "title": "Ücretsiz vitrin",
+          "hint": "Ürünleriniz alıcıların önünde"
+        },
+        "badge": {
+          "title": "Doğrulanmış rozeti",
+          "hint": "Doğrulama ücretsiz"
+        }
+      }
+    }
   },
   "marketplace": {
     "labels": {
@@ -737,7 +763,7 @@
       "found": "{total} {noun} bulundu",
       "notFound": "{noun} bulunamadı",
       "filterButton": "Filtrele",
-      "filtersTitle": "Filtreler",
+      "filtersTitle": "Süzgeçler",
       "clear": "Temizle",
       "showResults": "Sonuçları göster ({total})",
       "noOptions": "Seçenek yok",
@@ -998,7 +1024,36 @@
       "replyNote": "Yanıtı okumak için ücretsiz hesap gerekir."
     },
     "autoTranslated": "Otomatik çeviri (kaynak: {lang})",
-    "autoTranslatedGeneric": "Otomatik çeviri"
+    "autoTranslatedGeneric": "Otomatik çeviri",
+    "profile": {
+      "verifiedTitle": "Kimliği doğrulanmış firma",
+      "unverifiedTitle": "Kimlik doğrulaması yapılmamış firma — doğrulama, Silver/Gold paketine geçişin ilk adımıdır",
+      "verified": "Doğrulanmış",
+      "unverified": "Doğrulanmamış",
+      "goldMember": "Gold Üye",
+      "readMore": "Daha fazlasını oku",
+      "about": "Hakkında",
+      "aboutName": "{name} hakkında",
+      "services": "Hizmetler",
+      "tradeInfo": "Ticari Bilgiler",
+      "legalName": "Ticari Unvan",
+      "taxNo": "Vergi No",
+      "mersisNo": "MERSİS No",
+      "registryNo": "Ticaret Sicil No",
+      "kepAddress": "KEP Adresi",
+      "companyInfo": "Şirket Bilgileri",
+      "founded": "Kuruluş",
+      "employees": "Çalışan",
+      "industry": "Sektör",
+      "location": "Konum",
+      "rating": "Değerlendirme",
+      "website": "Web Sitesi",
+      "verifiedBuyer": "Doğrulanmış alıcı",
+      "verifiedSupplier": "Doğrulanmış tedarikçi",
+      "verifiedPartner": "Doğrulanmış ortak",
+      "reviews": "Değerlendirmeler",
+      "ordersCount": "{n} sipariş"
+    }
   },
   "domain": {
     "activity": {
@@ -1045,6 +1100,37 @@
       "LETTER_OF_CREDIT": "Akreditif",
       "CASH_AGAINST_DOCS": "Vesaik Mukabili",
       "CUSTOM": "Özel"
+    },
+    "unit": {
+      "PCE": "adet",
+      "PAIR": "çift",
+      "SET": "set",
+      "DZN": "düzine",
+      "KG": "kilogram",
+      "GRM": "gram",
+      "TON": "ton",
+      "M": "metre",
+      "CM": "santimetre",
+      "MM": "milimetre",
+      "KM": "kilometre",
+      "M2": "metrekare",
+      "M3": "metreküp",
+      "LTR": "litre",
+      "ML": "mililitre",
+      "PKT": "paket",
+      "BOX": "kutu",
+      "CRT": "koli",
+      "PAL": "palet",
+      "ROL": "rulo",
+      "BAG": "çuval",
+      "DRM": "varil",
+      "HUR": "saat",
+      "DAY": "gün",
+      "MON": "ay",
+      "YER": "yıl",
+      "SRV": "hizmet",
+      "MDY": "adam-gün",
+      "TRP": "sefer"
     }
   },
   "seo": {

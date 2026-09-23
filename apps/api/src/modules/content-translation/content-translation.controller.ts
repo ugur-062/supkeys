@@ -52,4 +52,17 @@ export class ContentTranslationController {
   categoryBackfill() {
     return this.categories.start(["en", "ru"]);
   }
+
+  /** i18n Faz 4b — nitelik etiketi/seçenek çevirisi sayaç + ilerleme. */
+  @Get("categories/attributes/status")
+  @RequireAdminRole("SUPER_ADMIN", "SUPPORT")
+  attributeStatus() {
+    return this.categories.attributeStatus();
+  }
+
+  @Post("categories/attributes/backfill")
+  @RequireAdminRole("SUPER_ADMIN")
+  attributeBackfill() {
+    return this.categories.startAttributes();
+  }
 }

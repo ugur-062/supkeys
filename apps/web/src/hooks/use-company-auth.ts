@@ -1,6 +1,8 @@
 "use client";
 
 import { localizePath } from "@/i18n/href";
+import { useLocale } from "next-intl";
+import { pickLocale } from "@rothern/i18n";
 import { runtimeLocale } from "@/i18n/runtime";
 
 import { companyApi } from "@/lib/company-auth/api";
@@ -49,6 +51,7 @@ export type CompanyLoginResult =
 
 export function useCompanyLogin() {
   const queryClient = useQueryClient();
+  const uiLocale = useLocale();
   return useMutation({
     mutationFn: async (input: {
       email: string;
@@ -67,7 +70,14 @@ export function useCompanyLogin() {
     // düşmesi: kullanıcı SPA'da kalıyor, BAŞKA bir hesapla giriş yapıyor ve
     // TanStack Query önceki hesabın önbelleğini servis ediyor (ihale listesi,
     // teklifler, mesajlar). Girişte de sıfırdan başla.
-    onSuccess: () => {
+    onSuccess: async (data) => {
+      // i18n (2026-09-23, kullanıcı: "İngilizce seçtiğim hâlde panel Türkçe"):
+      // giriş sayfasının dili AÇIK bir seçimdir. Hesabın kayıtlı dili farklıysa
+      // hesaba yazılır — yoksa `LocaleUrlSync` paneli kayıtlı (eski) dile geri
+      // atardı. Yönlendirmeden ÖNCE beklenir; hata girişi engellemez.
+      if ("user" in data && pickLocale(data.user?.locale) !== uiLocale) {
+        await companyApi.patch("/company-auth/me", { locale: uiLocale }).catch(() => undefined);
+      }
       queryClient.clear();
     },
   });

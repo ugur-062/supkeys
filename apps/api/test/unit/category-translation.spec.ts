@@ -1,4 +1,4 @@
-import { buildCategoryPrompt, parseCategoryBatch, type CategoryBatchRow } from "../../src/modules/content-translation/category-translation.logic";
+import { buildAttributePrompt, buildCategoryPrompt, parseAttributeBatch, parseCategoryBatch, type AttributeBatchRow, type CategoryBatchRow } from "../../src/modules/content-translation/category-translation.logic";
 
 /** i18n Faz 4 — kategori adı toplu çevirisi: istem ve çıktı denetimi. */
 const rows: CategoryBatchRow[] = [
@@ -46,5 +46,36 @@ describe("parseCategoryBatch", () => {
   it("İngilizcede Türkçe harf kalmışsa (çoğunluk) hata", () => {
     const tr = JSON.stringify(rows.map((r) => ({ code: r.code, en: "Elektrik ekipmanı", ru: "Оборудование" })));
     expect(parseCategoryBatch(rows, tr)).toEqual({ error: expect.stringContaining("Turkish") });
+  });
+});
+
+/** i18n Faz 4b — nitelik etiketi + seçenek listesi toplu çevirisi. */
+describe("parseAttributeBatch", () => {
+  const rows: AttributeBatchRow[] = [
+    { id: "a1", categoryTr: "Metaller", tr: "Form", options: ["Levha", "Rulo", "Boru"] },
+    { id: "a2", categoryTr: "Metaller", tr: "Kalınlık", unit: "mm", options: [] },
+  ];
+  it("istem etiket, bağlam ve seçenekleri taşır", () => {
+    const p = buildAttributePrompt(rows);
+    expect(p).toContain('"options":["Levha","Rulo","Boru"]');
+    expect(p).toContain('"unit":"mm"');
+  });
+  it("seçenek dizileri AYNI uzunlukta olmalı; seçeneksiz nitelikte boş dizi kabul", () => {
+    const good = JSON.stringify([
+      { id: "a1", en: "Form", ru: "Форма", optionsEn: ["Sheet", "Coil", "Pipe"], optionsRu: ["Лист", "Рулон", "Труба"] },
+      { id: "a2", en: "Thickness", ru: "Толщина", optionsEn: [], optionsRu: [] },
+    ]);
+    const r = parseAttributeBatch(rows, good);
+    expect("error" in r).toBe(false);
+    if ("error" in r) return;
+    expect(r.byId.get("a1")).toEqual({ en: "Form", ru: "Форма", optionsEn: ["Sheet", "Coil", "Pipe"], optionsRu: ["Лист", "Рулон", "Труба"] });
+    expect(r.byId.get("a2")?.optionsEn).toEqual([]);
+  });
+  it("uzunluk uyuşmazlığı → hata (yeniden deneme mesajı seçenek sayısını söyler)", () => {
+    const bad = JSON.stringify([
+      { id: "a1", en: "Form", ru: "Форма", optionsEn: ["Sheet", "Coil"], optionsRu: ["Лист", "Рулон", "Труба"] },
+      { id: "a2", en: "Thickness", ru: "Толщина", optionsEn: [], optionsRu: [] },
+    ]);
+    expect(parseAttributeBatch(rows, bad)).toEqual({ error: expect.stringContaining("options length") });
   });
 });

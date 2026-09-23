@@ -292,6 +292,8 @@ export interface ProductPriceFields {
 
 /** Herkese açık ürün kartı — FİYATLI (görünürlük v2, Europages kalıbı). */
 export interface PublicProductCard extends ProductPriceFields {
+  /** Birim kodu (`UNITS.code`) — etiket dile göre `useUnitLabel`; eski yanıtlarda yok. */
+  unitCode?: string | null;
   /** Metin istek diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e); çeviri yoksa yok. */
   translatedFrom?: string | null;
   slug: string;
@@ -654,7 +656,8 @@ export interface ProductAttributeFacet {
   key: string;
   nameTr: string;
   unit: string | null;
-  values: { value: string; count: number }[];
+  /** `value` kanonik (süzgeç parametresi); `label` okuyucunun dilinde (i18n Faz 4b). */
+  values: { value: string; label?: string; count: number }[];
 }
 
 export interface ProductFacets {

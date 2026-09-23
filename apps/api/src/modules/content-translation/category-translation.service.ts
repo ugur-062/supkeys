@@ -4,10 +4,15 @@ import { hiddenCategoryWhere } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "./content-translation.service";
 import {
+  ATTRIBUTE_BATCH_SIZE,
+  ATTRIBUTE_SYSTEM_PROMPT,
+  buildAttributePrompt,
   buildCategoryPrompt,
   CATEGORY_BATCH_SIZE,
   CATEGORY_SYSTEM_PROMPT,
+  parseAttributeBatch,
   parseCategoryBatch,
+  type AttributeBatchRow,
   type CategoryBatchRow,
 } from "./category-translation.logic";
 
@@ -112,6 +117,77 @@ export class CategoryTranslationService {
         }),
       );
       this.progress.done += batch.length;
+      return true;
+    }
+    return false;
+  }
+
+  /* ---------------- Nitelik etiketleri + seçenekleri (Faz 4b) ---------------- */
+  private attrRunning = false;
+  private attrProgress = { done: 0, failed: 0, batches: 0, costUsd: 0, startedAt: null as string | null, finishedAt: null as string | null, lastError: null as string | null };
+
+  async attributeStatus() {
+    const [total, en, ru] = await Promise.all([
+      this.prisma.categoryAttribute.count(),
+      this.prisma.categoryAttribute.count({ where: { nameEn: { not: null } } }),
+      this.prisma.categoryAttribute.count({ where: { nameRu: { not: null } } }),
+    ]);
+    return { total, translated: { en, ru }, running: this.attrRunning, progress: this.attrProgress };
+  }
+
+  startAttributes(): { started: boolean; reason?: string } {
+    if (!this.translations.enabled) return { started: false, reason: "translation provider not configured" };
+    if (this.attrRunning) return { started: false, reason: "already running" };
+    this.attrRunning = true;
+    this.attrProgress = { done: 0, failed: 0, batches: 0, costUsd: 0, startedAt: new Date().toISOString(), finishedAt: null, lastError: null };
+    setImmediate(() => {
+      void this.runAttributes()
+        .catch((err) => { this.attrProgress.lastError = err instanceof Error ? err.message : String(err); this.logger.error(`Attribute translation stopped: ${this.attrProgress.lastError}`); })
+        .finally(() => { this.attrRunning = false; this.attrProgress.finishedAt = new Date().toISOString(); });
+    });
+    return { started: true };
+  }
+
+  private async runAttributes(): Promise<void> {
+    const rows = await this.prisma.categoryAttribute.findMany({
+      where: { OR: [{ nameEn: null }, { nameRu: null }] },
+      select: { id: true, categoryId: true, nameTr: true, unit: true, options: true },
+      orderBy: [{ categoryId: "asc" }, { sortOrder: "asc" }],
+    });
+    const cats = await this.prisma.category.findMany({ where: { id: { in: [...new Set(rows.map((r) => r.categoryId))] } }, select: { id: true, nameTr: true } });
+    const catName = new Map(cats.map((c) => [c.id, c.nameTr]));
+    this.logger.log(`Attribute translation: ${rows.length} rows to translate`);
+    const batches: AttributeBatchRow[][] = [];
+    for (let i = 0; i < rows.length; i += ATTRIBUTE_BATCH_SIZE) {
+      batches.push(rows.slice(i, i + ATTRIBUTE_BATCH_SIZE).map((r) => ({ id: r.id, categoryTr: catName.get(r.categoryId) ?? r.categoryId, tr: r.nameTr, unit: r.unit, options: r.options })));
+    }
+    for (const batch of batches) {
+      const ok = await this.translateAttributeBatch(batch);
+      if (!ok) {
+        if (batch.length > 5) { const mid = Math.ceil(batch.length / 2); batches.push(batch.slice(0, mid), batch.slice(mid)); }
+        else this.attrProgress.failed += batch.length;
+      }
+    }
+    this.logger.log(`Attribute translation finished: ${this.attrProgress.done} done, ${this.attrProgress.failed} failed, ${this.attrProgress.costUsd.toFixed(2)} USD`);
+  }
+
+  private async translateAttributeBatch(batch: AttributeBatchRow[]): Promise<boolean> {
+    this.attrProgress.batches += 1;
+    let feedback: string | undefined;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      const prompt = buildAttributePrompt(batch) + (feedback ? `\n\nPrevious attempt was rejected: ${feedback}. Return the full corrected array.` : "");
+      const res = await this.translations.completeWithFallback(ATTRIBUTE_SYSTEM_PROMPT, prompt, { maxOutputTokens: 16384, timeoutMs: 180_000 });
+      if ("error" in res) { this.attrProgress.lastError = res.error; return false; }
+      this.attrProgress.costUsd += res.cost;
+      const parsed = parseAttributeBatch(batch, res.text);
+      if ("error" in parsed) { feedback = parsed.error; this.attrProgress.lastError = parsed.error; continue; }
+      await this.prisma.$transaction(
+        batch.map((r) => {
+          const t = parsed.byId.get(r.id)!;
+          return this.prisma.categoryAttribute.update({ where: { id: r.id }, data: { nameEn: t.en, nameRu: t.ru, optionsEn: t.optionsEn, optionsRu: t.optionsRu } });
+        }),
+      );
+      this.attrProgress.done += batch.length;
       return true;
     }
     return false;

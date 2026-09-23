@@ -6,7 +6,7 @@ import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import { ClockIcon, GlobeAltIcon, LockClosedIcon, MapPinIcon } from "@heroicons/react/20/solid";
-import { useActivityLabel, useScopeLabel } from "@/i18n/domain";
+import { useActivityLabel, useScopeLabel, useUnitLabel } from "@/i18n/domain";
 import { useFormatter, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 
@@ -35,6 +35,7 @@ function leftTone(left: number): "danger" | "gold" | "neutral" {
 
 export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }) {
   const t = useTranslations("web.marketplace.card");
+  const unitLabel = useUnitLabel();
   const fmt = useFormatter();
   const activityLabel = useActivityLabel();
   const scopeLabel = useScopeLabel();
@@ -78,7 +79,7 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
         {qty ? (
           <p className="mt-3 tnum text-2xl font-semibold tracking-tight text-zinc-950">
             {fmt.number(qty)}
-            <span className="ml-1 text-base font-medium text-zinc-500">{l.itemSummary.unit}</span>
+            <span className="ml-1 text-base font-medium text-zinc-500">{unitLabel(l.itemSummary.unit)}</span>
           </p>
         ) : null}
         <p className={`text-xs text-zinc-500 tnum ${qty ? "mt-0.5" : "mt-3"}`}>

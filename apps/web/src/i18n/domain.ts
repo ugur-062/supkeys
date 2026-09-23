@@ -1,5 +1,5 @@
 import { closingUrgency as closingUrgencyTr, daysUntil } from "@/lib/tenders/seller-state";
-import { countryName as countryNameTr, companyActivityLabel } from "@rothern/shared";
+import { UNITS, companyActivityLabel, countryName as countryNameTr } from "@rothern/shared";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
 import type { PriceLabels } from "@/lib/public/product-price";
@@ -99,3 +99,19 @@ export function useSeoT(): SeoT {
   const t = useTranslations();
   return (key, values) => t(key as never, values as never);
 }
+
+/**
+ * Ölçü birimi etiketi — koddan (`unitCode`) ya da Türkçe ad/simgeden çözülüp
+ * katalogdan basılır (`web.domain.unit.<KOD>`); eşleşme yoksa özgün metin.
+ * Ürün/talep verisinde birim Türkçe ad olarak saklanır ("adet", "gün"), EN/RU
+ * sayfada "piece"/"day" gerekir (2026-09-23 tarama bulgusu).
+ */
+export function useUnitLabel(): (unit: string | null | undefined, code?: string | null) => string {
+  const t = useTranslations("web.domain.unit");
+  return (unit, code) => {
+    const known = code ? UNITS.find((u) => u.code === code) : unit ? UNITS.find((u) => u.nameTr === unit || u.symbol === unit || u.code === unit) : undefined;
+    if (known && t.has(known.code as never)) return t(known.code as never);
+    return unit ?? "";
+  };
+}
+

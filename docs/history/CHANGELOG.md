@@ -4,6 +4,23 @@ Bu dosya tamamlanmış aşamaların detaylı kaydıdır. Aktif çalışma için 
 
 ---
 
+## 2026-09-23 (gece, 2. tur) — baştan aşağı tarama: herkese açık kalıntılar, nitelikler, giriş dili
+
+Kullanıcı: "her şeyi kontrol et, çeviri kusursuz olmalı" + "panele giriş yapınca
+İngilizce seçtiğim hâlde her şey Türkçe". Staging e2e paketi (90 test: 85 geçti,
+3 bayat süzgeç testi + 2 sağlayıcı kotası/zaman aşımı), üç dilde 420 sayfalık
+bağlantı taraması (0 kırık), 20 herkese açık yolun EN/RU metin taraması.
+
+- Herkese açık kalıntılar kapandı: hero dekor kartları, faaliyet tipi etiketleri,
+  ülke adları (telefon kodu listesi dahil), `CompanyProfileView` metinleri, ölçü
+  birimleri, dizin kartı ürün adları, talep sayfasındaki alıcı sektörü.
+- Faz 4b: nitelik etiketleri + seçenekleri EN/RU (kolonlar + migration
+  `20260923235000`, toplu iş, TSV, seed/apply/export); süzgeç facet'i `label`.
+- Giriş dili hesaba yazılır (`useCompanyLogin`); kayıt/davet `currentLocale()`.
+- e2e: `/firmalar` süzgeç testi üyelik vitrinine göre yeniden yazıldı; aylık
+  Resend kotası ortam sınırı sayılır; TR süzgeç etiketi "Süzgeçler"e döndü.
+- Staging Vercel `SEO_REVALIDATE_SECRET` Render ile eşitlendi.
+
 ## 2026-09-23 (gece) — i18n Faz 4: kategori adları EN/RU + JSON-LD dil etiketi
 
 Kullanıcı: "kategoriler yapıldı mı, her şeyi baştan aşağı kontrol et, SEO/GEO her

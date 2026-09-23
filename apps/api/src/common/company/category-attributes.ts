@@ -1,5 +1,6 @@
 import type { PrismaClient } from "@rothern/db";
 import { categoryAncestors, isCategoryCode } from "@rothern/shared";
+import { currentLocale } from "../i18n/locale-context";
 
 /**
  * KATEGORİ NİTELİK ÇÖZÜMLEYİCİSİ — TEK KAYNAK.
@@ -18,9 +19,13 @@ import { categoryAncestors, isCategoryCode } from "@rothern/shared";
  */
 export interface ResolvedAttribute {
   key: string;
+  /** GÖSTERİM etiketi — okuyucunun dilinde (i18n Faz 4b); alan adı geriye dönük. */
   nameTr: string;
   type: string;
+  /** Kanonik (Türkçe) seçenekler — saklanan değer ve süzgeç parametresi bunlarla. */
   options: string[];
+  /** Kanonik seçenek → okuyucunun dilindeki etiket (yalnız tr dışı dilde ve çeviri varsa). */
+  optionLabels?: Record<string, string>;
   unit: string | null;
   isRequired: boolean;
   /** Hangi düğümden geldi — formda "segmentten miras" göstermek için. */
@@ -60,17 +65,30 @@ export async function resolveCategoryAttributes(
 function toResolved(r: {
   groupKey: string;
   nameTr: string;
+  nameEn?: string | null;
+  nameRu?: string | null;
   type: string;
   options: string[];
+  optionsEn?: string[];
+  optionsRu?: string[];
   unit: string | null;
   isRequired: boolean;
   categoryId: string;
 }): ResolvedAttribute {
+  // i18n Faz 4b: etiket ve seçenek GÖSTERİMİ okuyucunun dilinde; kanonik değer Türkçe kalır.
+  const locale = currentLocale();
+  const name = locale === "en" ? r.nameEn?.trim() || r.nameTr : locale === "ru" ? r.nameRu?.trim() || r.nameTr : r.nameTr;
+  const translated = locale === "en" ? r.optionsEn : locale === "ru" ? r.optionsRu : undefined;
+  const optionLabels =
+    translated && translated.length === r.options.length && translated.some((x) => x)
+      ? Object.fromEntries(r.options.map((o, i) => [o, translated[i]?.trim() || o]))
+      : undefined;
   return {
     key: r.groupKey,
-    nameTr: r.nameTr,
+    nameTr: name,
     type: r.type,
     options: r.options,
+    ...(optionLabels ? { optionLabels } : {}),
     unit: r.unit,
     isRequired: r.isRequired,
     definedAt: r.categoryId,
@@ -95,7 +113,9 @@ export function labelAttributes(
   for (const d of defs) {
     const raw = (stored as Record<string, unknown>)[d.key];
     if (raw == null || raw === "") continue;
-    const value = Array.isArray(raw) ? raw.join(", ") : String(raw);
+    // Seçenekli niteliklerde değer(ler) okuyucunun dilindeki seçenek etiketine çevrilir (i18n Faz 4b).
+    const show = (v: unknown) => (d.optionLabels?.[String(v)] ?? String(v));
+    const value = Array.isArray(raw) ? raw.map(show).join(", ") : show(raw);
     out.push({ key: d.key, label: d.nameTr, value, unit: d.unit });
   }
   // Tanımda olmayan ama kayıtta duran anahtarlar bilinçli olarak atlanır.

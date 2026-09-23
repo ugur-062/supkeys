@@ -454,6 +454,25 @@ export class ContentTranslationService {
     });
   }
 
+  /**
+   * Talep kartı/detayındaki alıcı firma SEKTÖRÜ (`company.industry`, serbest metin)
+   * o firmanın kendi çevirisinden (COMPANY → `industry`) okunur; firma kimliği
+   * yanıta girmez, yalnız arama anahtarıdır. Çeviri yoksa özgün kalır.
+   */
+  async localizeListingCompanies<T extends { company?: { industry?: string | null } | null }>(
+    items: T[],
+    companyIds: (string | null | undefined)[],
+    locale: Locale,
+  ): Promise<T[]> {
+    const map = await this.safeMap<CompanyTranslation>("COMPANY", companyIds, locale);
+    return items.map((item, i) => {
+      const id = companyIds[i];
+      const t = id ? map.get(id) : undefined;
+      if (!t?.industry || !item.company?.industry) return item;
+      return { ...item, company: { ...item.company, industry: t.industry } };
+    });
+  }
+
   /** Okuma yolu FAIL-OPEN: çeviri tablosu okunamazsa özgün metin döner. */
   private async safeMap<T extends TranslationFields>(
     type: TranslatableEntityType,

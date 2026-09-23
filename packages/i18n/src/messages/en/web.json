@@ -595,7 +595,33 @@
         "login": "Log in"
       }
     },
-    "breadcrumbHome": "Home"
+    "breadcrumbHome": "Home",
+    "heroDecor": {
+      "buyer": {
+        "verified": {
+          "title": "Verified suppliers",
+          "hint": "Companies with reviewed documents"
+        },
+        "ai": {
+          "title": "Find suppliers with AI",
+          "hint": "Get suggestions from your line items"
+        }
+      },
+      "seller": {
+        "open": {
+          "title": "Open requests",
+          "hint": "Buying requests matching your category"
+        },
+        "showcase": {
+          "title": "Free showcase",
+          "hint": "Your products in front of buyers"
+        },
+        "badge": {
+          "title": "Verified badge",
+          "hint": "Verification is free"
+        }
+      }
+    }
   },
   "marketplace": {
     "labels": {
@@ -998,7 +1024,36 @@
       "replyNote": "A free account is needed to read the reply."
     },
     "autoTranslated": "Automatic translation (original: {lang})",
-    "autoTranslatedGeneric": "Automatic translation"
+    "autoTranslatedGeneric": "Automatic translation",
+    "profile": {
+      "verifiedTitle": "Identity-verified company",
+      "unverifiedTitle": "Identity not verified — verification is the first step to a Silver or Gold plan",
+      "verified": "Verified",
+      "unverified": "Not verified",
+      "goldMember": "Gold Member",
+      "readMore": "Read more",
+      "about": "About",
+      "aboutName": "About {name}",
+      "services": "Services",
+      "tradeInfo": "Trade details",
+      "legalName": "Legal name",
+      "taxNo": "Tax number",
+      "mersisNo": "MERSİS number",
+      "registryNo": "Trade registry number",
+      "kepAddress": "KEP address",
+      "companyInfo": "Company details",
+      "founded": "Founded",
+      "employees": "Employees",
+      "industry": "Industry",
+      "location": "Location",
+      "rating": "Rating",
+      "website": "Website",
+      "verifiedBuyer": "Verified buyer",
+      "verifiedSupplier": "Verified supplier",
+      "verifiedPartner": "Verified partner",
+      "reviews": "Reviews",
+      "ordersCount": "{n, plural, one {# order} other {# orders}}"
+    }
   },
   "domain": {
     "activity": {
@@ -1045,6 +1100,37 @@
       "LETTER_OF_CREDIT": "Letter of credit",
       "CASH_AGAINST_DOCS": "Cash against documents",
       "CUSTOM": "Custom"
+    },
+    "unit": {
+      "PCE": "piece",
+      "PAIR": "pair",
+      "SET": "set",
+      "DZN": "dozen",
+      "KG": "kg",
+      "GRM": "g",
+      "TON": "t",
+      "M": "m",
+      "CM": "cm",
+      "MM": "mm",
+      "KM": "km",
+      "M2": "m²",
+      "M3": "m³",
+      "LTR": "L",
+      "ML": "mL",
+      "PKT": "pack",
+      "BOX": "box",
+      "CRT": "carton",
+      "PAL": "pallet",
+      "ROL": "roll",
+      "BAG": "bag",
+      "DRM": "drum",
+      "HUR": "hour",
+      "DAY": "day",
+      "MON": "month",
+      "YER": "year",
+      "SRV": "service",
+      "MDY": "man-day",
+      "TRP": "trip"
     }
   },
   "seo": {

@@ -222,10 +222,16 @@ export class PublicMarketplaceService {
       rows.flatMap((r) => r.categoryIds),
     );
     const cards = rows.map((r) => this.toCard(r, cats));
+    // i18n Faz 1e: kart metni + alıcı firmanın sektörü okuyucunun dilinde.
+    const localizedCards = this.translations
+      ? await this.translations.localizeListingCompanies(
+          await this.translations.localizeListings(cards, rows.map((r) => r.id), currentLocale(), excerptOf),
+          rows.map((r) => r.company?.id),
+          currentLocale(),
+        )
+      : cards;
     return {
-      items: this.translations
-        ? await this.translations.localizeListings(cards, rows.map((r) => r.id), currentLocale(), excerptOf)
-        : cards,
+      items: localizedCards,
       total,
       page,
       pageSize: LISTING_PAGE_SIZE,
@@ -293,7 +299,8 @@ export class PublicMarketplaceService {
     const detail = this.toDetail(row, cats);
     if (!this.translations) return detail;
     const [localized] = await this.translations.localizeListings([detail], [row.id], currentLocale(), excerptOf);
-    return localized ?? detail;
+    const [withIndustry] = await this.translations.localizeListingCompanies([localized ?? detail], [row.company?.id], currentLocale());
+    return withIndustry ?? localized ?? detail;
   }
 
   /* ---------------------------------------------------------------- */

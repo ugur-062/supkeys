@@ -479,9 +479,11 @@ export const ATTR_FACET_VALUES = 12;
 
 export interface AttributeFacet {
   key: string;
+  /** Okuyucunun dilinde etiket (i18n Faz 4b); alan adı geriye dönük. */
   nameTr: string;
   unit: string | null;
-  values: { value: string; count: number }[];
+  /** `value` kanonik (Türkçe, süzgeç parametresi); `label` okuyucunun dilinde gösterim. */
+  values: { value: string; label?: string; count: number }[];
 }
 
 /**
@@ -527,7 +529,7 @@ export async function attributeFacets(
       nameTr: d.nameTr,
       unit: d.unit,
       values: [...counts.get(d.key)!.entries()]
-        .map(([value, count]) => ({ value, count }))
+        .map(([value, count]) => ({ value, ...(d.optionLabels?.[value] ? { label: d.optionLabels[value] } : {}), count }))
         .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "tr"))
         .slice(0, ATTR_FACET_VALUES),
     }))

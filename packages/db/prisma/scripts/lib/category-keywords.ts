@@ -165,3 +165,22 @@ export function readI18nNames(seedsDir: string): Map<string, { en: string | null
   return out;
 }
 
+/**
+ * i18n Faz 4b — nitelik etiketi/seçenek çevirileri: `category-attribute-names.i18n.tsv`
+ * (`<kategori> ⇥ <groupKey> ⇥ <EN> ⇥ <RU> ⇥ <EN seçenekler "|" ile> ⇥ <RU seçenekler>`).
+ * Seçenek dizileri `options` ile aynı sırada; boş sütun = çeviri yok.
+ */
+export function readAttributeI18n(seedsDir: string): Map<string, { en: string | null; ru: string | null; optionsEn: string[]; optionsRu: string[] }> {
+  const out = new Map<string, { en: string | null; ru: string | null; optionsEn: string[]; optionsRu: string[] }>();
+  const p = path.join(seedsDir, "category-attribute-names.i18n.tsv");
+  if (!fs.existsSync(p)) return out;
+  for (const line of fs.readFileSync(p, "utf-8").split("\n")) {
+    if (!line.trim() || line.startsWith("#")) continue;
+    const [cat, key, en, ru, oe, or_] = line.split("\t");
+    if (!cat?.trim() || !key?.trim()) continue;
+    const split = (v: string | undefined) => (v ?? "").split("|").map((x) => x.trim()).filter((x) => x.length > 0);
+    out.set(`${cat.trim()}:${key.trim()}`, { en: (en ?? "").trim() || null, ru: (ru ?? "").trim() || null, optionsEn: split(oe), optionsRu: split(or_) });
+  }
+  return out;
+}
+

@@ -1,4 +1,4 @@
-import { usePriceLabels, useSeoT } from "@/i18n/domain";
+import { usePriceLabels, useSeoT, useUnitLabel } from "@/i18n/domain";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { PublicLayout } from "./public-layout";
 import { ProductGallery } from "./product-gallery";
@@ -221,6 +221,7 @@ export function ProductDetailBody({
   accent?: "default" | "blue";
 }) {
   const t = useTranslations("web.marketplace.product");
+  const unitLabel = useUnitLabel();
   const fmt = useFormatter();
   const priceLabels = usePriceLabels();
   const price = productPrice({
@@ -228,7 +229,7 @@ export function ProductDetailBody({
     priceAmount: product.priceAmount ?? null,
     priceTiers: product.priceTiers ?? null,
     priceCurrency: product.priceCurrency ?? "TRY",
-    unit: product.unit,
+    unit: unitLabel(product.unit, product.unitCode),
   }, priceLabels);
   // Etiketlenmiş liste — ham anahtarlar değil (bkz. marketplace-api.ts).
   const attrs = product.attributeList ?? [];
@@ -315,7 +316,7 @@ export function ProductDetailBody({
                 {price.hasPrice ? <p className="mt-1 text-xs text-zinc-500">{t("vatExcluded")}</p> : null}
                 {product.moq ? (
                   <p className="tnum mt-2 text-sm text-zinc-500">
-                    {t("minOrder", { n: fmt.number(Number(product.moq)), unit: product.unit })}
+                    {t("minOrder", { n: fmt.number(Number(product.moq)), unit: unitLabel(product.unit, product.unitCode) })}
                   </p>
                 ) : null}
 
@@ -331,7 +332,7 @@ export function ProductDetailBody({
                       {price.tiers.map((tier) => (
                         <tr key={tier.minQty}>
                           <td className="tnum py-1.5 text-zinc-700">
-                            {fmt.number(tier.minQty)}+ {product.unit}
+                            {fmt.number(tier.minQty)}+ {unitLabel(product.unit, product.unitCode)}
                           </td>
                           <td className="tnum py-1.5 text-right font-medium text-zinc-950">
                             {fmt.number(tier.unitPrice)} {product.priceCurrency}
