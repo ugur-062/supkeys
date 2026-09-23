@@ -155,4 +155,12 @@ panel içi kısa etiketler Claude çevirisiyle yayınlanır.
   yüzeyi (Faz 2).
 - **Google politikası notu:** salt makine çevirisi "ölçekli içerik" riski
   taşır; kalite kapısı + terim sözlüğü + örneklem incelemesi bu yüzden.
+- **Staging backfill sonucu (2026-09-23):** 103 ürün + 42 talep + 23 profil →
+  504 satır DONE, 0 hata, 8,16 USD, ~27 dk; model Vertex'te
+  `gemini-3.1-pro-preview` (`gemini-pro-latest` ve `gemini-3.1-pro` 404).
+  Düşük thinking ile kayıt başına ≈ 4 sent. EN/RU örneklem Claude tarafından
+  okundu: terimler ve sayılar doğru ("пенье", "НИАД", "5-lead ECG").
+- **Canlıya çıkış:** migration `20260923180000` + PR birleştirme + Render
+  `AI_MODEL_PREMIUM`'u Vertex'in tanıdığı Pro adına çekmek (ör.
+  `gemini-3.1-pro-preview`) + `POST admin/content-translations/backfill`.
 

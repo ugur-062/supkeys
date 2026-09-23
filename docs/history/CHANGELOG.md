@@ -19,8 +19,13 @@ eklendiğinde/değiştiğinde üç dile otomatik çevrilsin; motor Gemini Pro
   girdi, yanıta çıkmaz).
 - **Web:** `accept-language` her herkese açık API isteğinde; `AutoTranslatedNote`
   ürün/talep/firma sayfasında; DTO tipleri `translatedFrom`.
-- **Test:** `content-translation.spec.ts` 19 test (sayı koruma, çıktı doğrulama,
-  üzerine yazma, kuyruk akışı, fail-open).
+- **Test:** `content-translation.spec.ts` 21 test (sayı koruma, çıktı doğrulama,
+  üzerine yazma, kuyruk akışı, fail-open, model 404 → aday).
+- **Staging'de ölçüldü:** Vertex `gemini-pro-latest`i tanımıyor (404) → aday
+  listesi (`gemini-3.1-pro-preview` çalıştı); süpürücü varlık başına hata yazar;
+  düşük thinking. Backfill: 168 kayıt / 504 satır, 0 hata, 8,16 USD, ~27 dk;
+  EN/RU ürün/talep/firma sayfaları çevrilmiş başlık + "Otomatik çeviri" notuyla
+  doğrulandı, Türkçe sayfalar değişmedi.
 
 ## 2026-09-23 — Çok dillilik Faz 1 (herkese açık yüzey + kimlik akışı) TAMAM
 

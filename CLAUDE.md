@@ -395,7 +395,10 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   `accept-language` (next-intl `getLocale`, rota işleyicisinde tr) koyar —
   Next veri önbelleği başlığı anahtara katar. Arama v1'de ÖZGÜN metinde
   (İngilizce sorgu Türkçe adı bulmaz — sonraki adım). Firma bütçesine
-  yazılmaz; maliyet satırda (`costUsd`). Kategori adları ayrı (Faz 4).
+  yazılmaz; maliyet satırda (`costUsd`). **Ölçüldü (staging backfill
+  2026-09-23, 168 kayıt, Vertex `gemini-3.1-pro-preview`):** toplam 8,16 USD;
+  düşük thinking ile kayıt başına ≈ 4 sent (varsayılan thinking ile ≈ 8,5
+  sent), ~5 kayıt/dk. Kategori adları ayrı (Faz 4).
   Sözleşme: `test/unit/content-translation.spec.ts` (yerel PG yoksa
   `--globalSetup=<noop>` ile koşulur).
   **MODEL ADI TUZAĞI (2026-09-23, staging'de ölçüldü):** Vertex AI
