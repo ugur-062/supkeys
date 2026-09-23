@@ -3,40 +3,46 @@
 import { Button } from "@/components/catalyst/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Field, Label } from "@/components/catalyst/fieldset";
-import { Input } from "@/components/catalyst/input";
 import { companyApi } from "@/lib/company-auth/api";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Check } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
 
 // Politika backend ConfirmPasswordResetDto ile BİREBİR aynı — kullanıcı
 // frontend'in kabul ettiği şifreyi backend'de reddedilmiş görmesin.
-const schema = z
-  .object({
-    newPassword: z
-      .string()
-      .min(8, "En az 8 karakter")
-      .max(72, "En fazla 72 karakter")
-      .regex(/[a-z]/, "En az bir küçük harf içermeli")
-      .regex(/[A-Z]/, "En az bir büyük harf içermeli")
-      .regex(/\d/, "En az bir rakam içermeli"),
-    confirmPassword: z.string(),
-  })
-  .refine((d) => d.newPassword === d.confirmPassword, {
-    message: "Şifreler eşleşmiyor",
-    path: ["confirmPassword"],
-  });
+// Mesajlar katalogdan (`web.auth.password.*`, kayıt formuyla ortak).
+function makeSchema(tp: (key: "min" | "max" | "lower" | "upper" | "digit" | "mismatch") => string) {
+  return z
+    .object({
+      newPassword: z
+        .string()
+        .min(8, tp("min"))
+        .max(72, tp("max"))
+        .regex(/[a-z]/, tp("lower"))
+        .regex(/[A-Z]/, tp("upper"))
+        .regex(/\d/, tp("digit")),
+      confirmPassword: z.string(),
+    })
+    .refine((d) => d.newPassword === d.confirmPassword, {
+      message: tp("mismatch"),
+      path: ["confirmPassword"],
+    });
+}
 
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.infer<ReturnType<typeof makeSchema>>;
 
 export function ResetPasswordForm() {
+  const t = useTranslations("web.auth.reset");
+  const tp = useTranslations("web.auth.password");
+  const schema = useMemo(() => makeSchema(tp), [tp]);
   const params = useSearchParams();
   const router = useRouter();
   const token = params.get("token") ?? "";
@@ -56,16 +62,13 @@ export function ResetPasswordForm() {
         <div className="flex items-start gap-2">
           <AlertCircle className="mt-0.5 h-5 w-5 flex-shrink-0 text-red-600" />
           <div>
-            <p className="font-semibold text-red-900">Geçersiz bağlantı</p>
-            <p className="mt-1 text-sm text-red-800">
-              Bağlantı geçersiz. Bağlantıyı doğrudan e-postadaki halinden açın
-              veya yeni sıfırlama bağlantısı isteyin.
-            </p>
+            <p className="font-semibold text-red-900">{t("invalidTitle")}</p>
+            <p className="mt-1 text-sm text-red-800">{t("invalidBody")}</p>
             <Link
               href="/company/sifremi-unuttum"
               className="mt-3 inline-block text-sm font-semibold text-zinc-900 underline"
             >
-              Yeni bağlantı iste
+              {t("requestNew")}
             </Link>
           </div>
         </div>
@@ -82,18 +85,13 @@ export function ResetPasswordForm() {
         <div className="flex items-start gap-2">
           <Check className="mt-0.5 h-5 w-5 flex-shrink-0 text-emerald-600" />
           <div>
-            <p className="font-semibold text-emerald-900">
-              Şifreniz değiştirildi
-            </p>
-            <p className="mt-1 text-sm text-emerald-800">
-              Güvenlik için tüm oturumlarınız kapatıldı — yeni şifrenizle
-              giriş yapabilirsiniz.
-            </p>
+            <p className="font-semibold text-emerald-900">{t("changedTitle")}</p>
+            <p className="mt-1 text-sm text-emerald-800">{t("changedBody")}</p>
             <Button
               className="mt-3"
               onClick={() => router.push("/company/login")}
             >
-              Giriş Yap
+              {t("loginCta")}
             </Button>
           </div>
         </div>
@@ -109,12 +107,10 @@ export function ResetPasswordForm() {
         token,
         newPassword: values.newPassword,
       });
-      toast.success("Şifre değiştirildi");
+      toast.success(t("toastChanged"));
       setSubmitted(true);
     } catch (err) {
-      setError(
-        extractErrorMessage(err, "Bağlantı geçersiz veya süresi dolmuş"),
-      );
+      setError(extractErrorMessage(err, t("errFallback")));
     } finally {
       setPending(false);
     }
@@ -132,11 +128,11 @@ export function ResetPasswordForm() {
       ) : null}
 
       <Field>
-        <Label>Yeni Şifre</Label>
+        <Label>{t("newPassword")}</Label>
         <PasswordInput
           autoComplete="new-password"
           invalid={!!errors.newPassword}
-          placeholder="En az 8 karakter — büyük/küçük harf + rakam"
+          placeholder={t("newPasswordPlaceholder")}
           maxLength={72}
           {...register("newPassword")}
         />
@@ -148,7 +144,7 @@ export function ResetPasswordForm() {
       </Field>
 
       <Field>
-        <Label>Şifreyi Tekrar</Label>
+        <Label>{t("confirmPassword")}</Label>
         <PasswordInput
           autoComplete="new-password"
           invalid={!!errors.confirmPassword}
@@ -162,7 +158,7 @@ export function ResetPasswordForm() {
       </Field>
 
       <Button type="submit" className="w-full" disabled={pending}>
-        {pending ? "Değiştiriliyor…" : "Şifreyi Değiştir"}
+        {pending ? t("changing") : t("change")}
       </Button>
     </form>
   );

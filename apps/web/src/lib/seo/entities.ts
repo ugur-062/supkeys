@@ -2,7 +2,7 @@ import { formatNumber, priceLabelsFor, webTranslator } from "@/i18n/server";
 import { localizePath } from "@/i18n/href";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { SITE_NAME } from "./meta";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES, categoryPath, listingPath } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES, categoryPath, listingPath } from "@/lib/public/marketplace";
 import { productPrice } from "@/lib/public/product-price";
 import { breadcrumbNode, compact, graph, type JsonLdNode } from "@/lib/seo/jsonld";
 import { absoluteUrl, buildMetadata, clampDescription, joinParts } from "@/lib/seo/meta";
@@ -193,12 +193,12 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions = {}): {
     jsonLd: graph([
       productNode,
       breadcrumbNode([
-        { name: "Anasayfa", path: "/" },
-        { name: MARKETPLACE_LABELS.products, path: MARKETPLACE_ROUTES.products },
+        { name: ts("web.marketing.breadcrumbHome"), path: "/" },
+        { name: ts("web.marketplace.labels.products"), path: MARKETPLACE_ROUTES.products },
         ...(pr.category ? [{ name: pr.category.name, path: categoryPath(pr.category.id, pr.category.name) }] : []),
         { name: co.name, path: `/firma/${companySlug}` },
         { name: pr.name, path },
-      ]),
+      ], locale),
     ]),
     summary,
   };
@@ -335,10 +335,10 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions = {}): {
     jsonLd: graph([
       orgNode,
       breadcrumbNode([
-        { name: "Anasayfa", path: "/" },
-        { name: MARKETPLACE_LABELS.companies, path: MARKETPLACE_ROUTES.companies },
+        { name: ts("web.marketing.breadcrumbHome"), path: "/" },
+        { name: ts("web.marketplace.labels.companies"), path: MARKETPLACE_ROUTES.companies },
         { name: c.name, path },
-      ]),
+      ], locale),
     ]),
     summary,
   };
@@ -490,10 +490,10 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions = {}): {
     jsonLd: graph([
       demandNode,
       breadcrumbNode([
-        { name: "Anasayfa", path: "/" },
-        { name: MARKETPLACE_LABELS.demands, path: MARKETPLACE_ROUTES.demands },
+        { name: ts("web.marketing.breadcrumbHome"), path: "/" },
+        { name: ts("web.marketplace.labels.demands"), path: MARKETPLACE_ROUTES.demands },
         { name: l.title, path },
-      ]),
+      ], locale),
     ]),
     summary,
   };

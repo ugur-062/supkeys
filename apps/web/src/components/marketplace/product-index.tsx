@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { FilterResults, FilterShell, MobileFilterButton, ResultCount } from "./filter-shell";
 import { Pagination } from "@/components/ui/pagination";
 import { ProductCard } from "./product-card";
@@ -55,6 +55,8 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
   const t = await getTranslations("web.marketplace.index");
   const tl = await getTranslations("web.marketplace.labels");
   const tt = await getTranslations("web.marketplace.typeahead");
+  const tm = await getTranslations("web.marketing");
+  const locale = await getLocale();
   const state = parseProductFilters(
     fixedCity ? { ...searchParams, sehir: fixedCity } : searchParams,
     category?.id,
@@ -92,11 +94,14 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
     }),
     ...(category
       ? [
-          breadcrumbNode([
-            { name: "Anasayfa", path: "/" },
-            { name: "Ürünler", path: basePath },
-            { name: category.name, path: listPath },
-          ]),
+          breadcrumbNode(
+            [
+              { name: tm("breadcrumbHome"), path: "/" },
+              { name: tl("products"), path: basePath },
+              { name: category.name, path: listPath },
+            ],
+            locale,
+          ),
         ]
       : []),
   ]);

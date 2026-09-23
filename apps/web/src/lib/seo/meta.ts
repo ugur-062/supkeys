@@ -64,7 +64,7 @@ export interface PageMetaInput {
   locale?: Locale;
 }
 
-const OG_LOCALE: Record<Locale, string> = { tr: "tr_TR", en: "en_US", ru: "ru_RU" };
+export const OG_LOCALE: Record<Locale, string> = { tr: "tr_TR", en: "en_US", ru: "ru_RU" };
 
 /**
  * Tek giriş noktası: sayfa metası. `alternates.canonical` her zaman yazılır —

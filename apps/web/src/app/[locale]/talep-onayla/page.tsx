@@ -1,4 +1,5 @@
-import { setRequestLocale } from "next-intl/server";
+import type { ReactNode } from "react";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
@@ -23,15 +24,20 @@ import { notFound } from "next/navigation";
  */
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  ...buildMetadata({
-    title: "Talebinizi onaylayın",
-    description: "Misafir bilgi talebinizi e-postanızdaki bağlantıyla onaylayın; talep satıcıya iletilsin.",
-    path: "/talep-onayla",
-    noindex: true,
-  }),
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
+  const locale = await localeFromParams(params);
+  const t = await getTranslations({ locale, namespace: "web.marketing.inquiryVerify" });
+  return {
+    ...buildMetadata({
+      locale,
+      title: t("metaTitle"),
+      description: t("metaDesc"),
+      path: "/talep-onayla",
+      noindex: true,
+    }),
+    robots: { index: false, follow: false },
+  };
+}
 
 interface VerifyResult {
   ok: true;
@@ -40,9 +46,15 @@ interface VerifyResult {
   email: string;
 }
 
-async function verify(token: string): Promise<VerifyResult | { error: string }> {
+interface VerifyMessages {
+  serviceDown: string;
+  invalidLink: string;
+  failed: string;
+}
+
+async function verify(token: string, msg: VerifyMessages): Promise<VerifyResult | { error: string }> {
   const base = resolveApiBaseUrl();
-  if (!base) return { error: "Doğrulama servisi şu an kullanılamıyor." };
+  if (!base) return { error: msg.serviceDown };
   try {
     const res = await fetch(
       `${base}/public/inquiries/verify?t=${encodeURIComponent(token)}`,
@@ -52,15 +64,11 @@ async function verify(token: string): Promise<VerifyResult | { error: string }> 
       const body = (await res.json().catch(() => null)) as
         | { message?: string }
         | null;
-      return {
-        error:
-          body?.message ??
-          "Bağlantı geçersiz veya süresi dolmuş. Talebi yeniden gönderin.",
-      };
+      return { error: body?.message ?? msg.invalidLink };
     }
     return (await res.json()) as VerifyResult;
   } catch {
-    return { error: "Doğrulama sırasında bir sorun oluştu." };
+    return { error: msg.failed };
   }
 }
 
@@ -73,8 +81,11 @@ export default async function Page({
 }) {
   setRequestLocale(await localeFromParams(params));
   if (!MARKETPLACE_LIVE) notFound();
-  const { t } = await searchParams;
-  const result = t ? await verify(t) : { error: "Bağlantı eksik." };
+  const t = await getTranslations("web.marketing.inquiryVerify");
+  const { t: token } = await searchParams;
+  const result = token
+    ? await verify(token, { serviceDown: t("serviceDown"), invalidLink: t("invalidLink"), failed: t("failed") })
+    : { error: t("missingLink") };
   const ok = "ok" in result;
 
   return (
@@ -86,12 +97,14 @@ export default async function Page({
               <CheckCircleIcon aria-hidden className="size-6 text-emerald-600" />
             </span>
             <h1 className="mt-6 text-3xl font-semibold tracking-tight text-zinc-950">
-              Talebiniz iletildi
+              {t("sentTitle")}
             </h1>
             <p className="mt-4 text-base/7 text-zinc-600">
-              <strong className="text-zinc-900">{result.productName}</strong>{" "}
-              hakkındaki talebiniz {result.companyName} firmasına ulaştı.
-              Yanıtladıklarında size haber vereceğiz.
+              {t.rich("sentBody", {
+                product: result.productName,
+                company: result.companyName,
+                b: (chunks: ReactNode) => <strong className="text-zinc-900">{chunks}</strong>,
+              })}
             </p>
 
             {/* Kayıt teşviki: yanıtın İÇERİĞİ hesapta okunur. Bildirim
@@ -99,24 +112,23 @@ export default async function Page({
                 sebep kalmaz, platform ücretsiz bir e-posta rölesine dönerdi. */}
             <div className="mt-8 rounded-2xl bg-zinc-50 p-6 ring-1 ring-zinc-950/5">
               <h2 className="text-base font-semibold text-zinc-950">
-                Yanıtı okumak için ücretsiz hesap açın
+                {t("signupTitle")}
               </h2>
               <p className="mt-2 text-sm/6 text-zinc-600">
-                Aynı e-posta adresiyle ({result.email}) kaydolduğunuzda bu
-                talebiniz ve gelen yanıtlar hesabınıza bağlanır.
+                {t("signupBody", { email: result.email })}
               </p>
               <div className="mt-5 flex flex-wrap gap-3">
                 <Link
                   href={`/company/kayit?email=${encodeURIComponent(result.email)}`}
                   className="rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
                 >
-                  Ücretsiz kaydol
+                  {t("signupCta")}
                 </Link>
                 <Link
                   href="/company/login"
                   className="rounded-full border border-zinc-300 px-5 py-2.5 text-sm font-semibold text-zinc-900 transition hover:bg-white"
                 >
-                  Zaten hesabım var
+                  {t("haveAccount")}
                 </Link>
               </div>
             </div>
@@ -130,14 +142,14 @@ export default async function Page({
               />
             </span>
             <h1 className="mt-6 text-3xl font-semibold tracking-tight text-zinc-950">
-              Talep onaylanamadı
+              {t("failedTitle")}
             </h1>
             <p className="mt-4 text-base/7 text-zinc-600">{result.error}</p>
             <Link
               href="/"
               className="mt-8 inline-flex rounded-full bg-blue-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
-              Pazar yerine dön
+              {t("backToMarket")}
             </Link>
           </>
         )}

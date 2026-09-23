@@ -1,4 +1,4 @@
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import type { Metadata } from "next";
 import { LegalDoc } from "@/components/marketing/legal-doc";
@@ -9,13 +9,13 @@ import { OPERATOR } from "@/lib/company-info";
    eklenince "… — Rothern · Rothern" çıkıyordu (SEO Parça 7). */
 export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
   const locale = await localeFromParams(params);
+  const t = await getTranslations({ locale, namespace: "web.marketing.legal.aracilik" });
   return buildMetadata({
     locale,
-  title: "Aracılık ve Kullanım Sözleşmesi",
-  description:
-    "Rothern'in alıcı ile tedarikçi arasındaki aracılık rolü, tarafların yükümlülükleri ve platformun sorumluluk sınırları.",
-  path: "/sozlesmeler/aracilik",
-});
+    title: t("metaTitle"),
+    description: t("metaDesc"),
+    path: "/sozlesmeler/aracilik",
+  });
 }
 
 export default async function Page({ params }: { params: LocaleParams }) {
@@ -24,7 +24,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
     <LegalDoc
       path="/sozlesmeler/aracilik"
       title="Platform Aracılık ve Kullanım Sözleşmesi"
-      updatedAt="22 Eylül 2026"
+      updatedAt="2026-09-22"
       sections={[
         {
           heading: "1. Konu ve Platformun Rolü",

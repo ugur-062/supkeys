@@ -1,4 +1,4 @@
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
@@ -14,13 +14,13 @@ export const revalidate = 3600;
 
 export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
   const locale = await localeFromParams(params);
+  const t = await getTranslations({ locale, namespace: "web.marketing.howItWorks" });
   return buildMetadata({
     locale,
-  title: "Nasıl çalışır — kapalı zarf teklif, sipariş ve paketler",
-  description:
-    "Rothern nasıl çalışır: satın alma talebi açma, kapalı zarf teklif toplama, pazarlık, kazandırma ve sipariş takibi. Paketler ve sık sorulan sorular.",
-  path: "/nasil-calisir",
-});
+    title: t("metaTitle"),
+    description: t("metaDesc"),
+    path: "/nasil-calisir",
+  });
 }
 
 export default async function Page({ params }: { params: LocaleParams }) {

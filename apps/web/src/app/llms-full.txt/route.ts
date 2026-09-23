@@ -2,7 +2,7 @@ import { MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { fetchProductFacets, fetchPublicDirectoryFacets, fetchStats } from "@/lib/public/marketplace-api";
 import { cityProductPath, allCitySlugs } from "@/lib/public/city";
-import { FAQ_FLAT } from "@/app/[locale]/sss/faq-data";
+import { faqFlat } from "@/app/[locale]/sss/faq-data";
 import { absoluteUrl } from "@/lib/seo/meta";
 
 /**
@@ -95,7 +95,7 @@ export async function GET(): Promise<Response> {
   parts.push("");
   parts.push(`Tam hâli: ${absoluteUrl("/sss")}`);
   parts.push("");
-  for (const f of FAQ_FLAT) {
+  for (const f of faqFlat("tr")) {
     parts.push(`### ${f.q}`);
     parts.push("");
     parts.push(f.a);

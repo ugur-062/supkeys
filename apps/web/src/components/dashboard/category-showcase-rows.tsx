@@ -3,7 +3,8 @@
 import { CategoryTile } from "@/components/marketplace/category-tile";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { categoryVisual } from "@/lib/public/category-visual";
-import { segmentTagline } from "@/lib/public/segment-taglines";
+import { useSegmentTagline } from "@/i18n/domain";
+import { useFormatter } from "next-intl";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { Link } from "@/i18n/navigation";
@@ -129,6 +130,8 @@ function PromoCard({
   visual: "photo" | "icon";
 }) {
   const { icon: Icon } = categoryVisual([c.id]);
+  const tagline = useSegmentTagline();
+  const format = useFormatter();
   if (visual === "icon") {
     /* İKONLU TANITIM KARTI (2026-09-21, kullanıcı mockup'ı): mavi gradyan,
        sol üstte büyük çizgisel ikon, arkada dalga + silik dev ikon dekoru,
@@ -151,11 +154,11 @@ function PromoCard({
         <span className="relative mt-auto block pt-10">
           {c.count > 0 ? (
             <span className="tnum block text-sm text-blue-100">
-              {c.count.toLocaleString("tr-TR")} {countNoun}
+              {format.number(c.count)} {countNoun}
             </span>
           ) : null}
           <span className="mt-1 block text-2xl/8 font-bold text-balance">{c.name}</span>
-          <span className="mt-2 block text-sm/6 text-blue-100">{segmentTagline(c.id)}</span>
+          <span className="mt-2 block text-sm/6 text-blue-100">{tagline(c.id)}</span>
           <span className="mt-5 flex items-center justify-between rounded-lg bg-white px-4 py-2.5 text-sm font-semibold text-blue-800 transition group-hover:bg-blue-50">
             {ctaLabel}
             <ArrowRight aria-hidden className="size-4" />
@@ -185,7 +188,7 @@ function PromoCard({
       <span className="block p-6">
         {c.count > 0 ? (
           <span className="tnum block text-sm text-blue-100">
-            {c.count.toLocaleString("tr-TR")} {countNoun}
+            {format.number(c.count)} {countNoun}
           </span>
         ) : null}
         <span className="mt-0.5 block text-lg font-semibold text-white">{c.name}</span>

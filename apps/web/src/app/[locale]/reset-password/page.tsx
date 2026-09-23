@@ -1,7 +1,8 @@
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { AuthShell } from "@/components/marketing/auth-shell";
 import { Link } from "@/i18n/navigation";
+import type { Metadata } from "next";
 import { Suspense } from "react";
 import { ResetPasswordForm } from "./reset-password-form";
 
@@ -11,27 +12,32 @@ import { ResetPasswordForm } from "./reset-password-form";
  */
 export const dynamic = "force-dynamic";
 
-export const metadata = {
-  title: "Şifre Sıfırla",
-  // Jeton taşıyan işlem sayfası — aramaya girmez (2026-09-22).
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
+  const locale = await localeFromParams(params);
+  const t = await getTranslations({ locale, namespace: "web.auth.reset" });
+  return {
+    title: t("metaTitle"),
+    // Jeton taşıyan işlem sayfası — aramaya girmez (2026-09-22).
+    robots: { index: false, follow: false },
+  };
+}
 
 /** Şifre sıfırlama — diğer auth ekranlarıyla aynı kabuk (AuthShell). */
 export default async function ResetPasswordPage({ params }: { params: LocaleParams }) {
   setRequestLocale(await localeFromParams(params));
+  const t = await getTranslations("web.auth.reset");
   return (
     <AuthShell
-      title="Şifreni sıfırla"
-      subtitle="E-postana gönderilen bağlantıyla yeni şifreni oluştur."
+      title={t("title")}
+      subtitle={t("subtitle")}
       footer={
         <>
-          Hatırladın mı?{" "}
+          {t("remembered")}{" "}
           <Link
             href="/company/login"
             className="font-semibold text-zinc-900 hover:underline"
           >
-            Giriş yap
+            {t("login")}
           </Link>
         </>
       }

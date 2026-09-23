@@ -1,4 +1,5 @@
-import { FAQ_FLAT, FAQ_GROUPS } from "@/app/[locale]/sss/faq-data";
+import { LOCALES } from "@rothern/i18n";
+import { faqFlat, faqGroups } from "@/app/[locale]/sss/faq-data";
 import { faqNode } from "@/lib/seo/jsonld";
 import { describe, expect, it } from "vitest";
 
@@ -8,10 +9,14 @@ import { describe, expect, it } from "vitest";
  * `FAQPage` şeması yalnız sayfada GÖRÜNEN cevaplar için kullanılabilir ve
  * cevabın kendisi tam cümle olmalı — tek kelimelik ya da boş cevap hem
  * yönergeye aykırı hem de üretken motorda alıntılanamaz. Sayfa ve şema aynı
- * diziden beslendiği için parite testine gerek yok; burada İÇERİK kalitesi
- * ve tekillik denetleniyor.
+ * listeden beslendiği için parite testine gerek yok; burada İÇERİK kalitesi
+ * ve tekillik denetleniyor — ÜÇ DİLDE (i18n Faz 1): İngilizce/Rusça cevap da
+ * aynı kapıdan geçer, yarım çeviri şemaya sızmaz.
  */
-describe("SSS içeriği", () => {
+describe.each(LOCALES)("SSS içeriği (%s)", (locale) => {
+  const FAQ_GROUPS = faqGroups(locale);
+  const FAQ_FLAT = faqFlat(locale);
+
   it("her soru soru işaretiyle biter", () => {
     for (const f of FAQ_FLAT) expect(f.q.trim().endsWith("?"), f.q).toBe(true);
   });
@@ -41,4 +46,18 @@ describe("SSS içeriği", () => {
   it("paket FİYATI yazmaz (fiyatlar değişince bayat kalırdı)", () => {
     for (const f of FAQ_FLAT) expect(f.a).not.toMatch(/\b\d{2,4}\s?(TL|₺|USD|\$|EUR|€)/);
   });
+
+  it("çeviri anahtarı ham hâliyle sızmaz", () => {
+    for (const f of FAQ_FLAT) {
+      expect(f.q).not.toContain("web.marketing");
+      expect(f.a).not.toContain("web.marketing");
+    }
+  });
+});
+
+it("KVKK adresi her dilde cevapta geçer", () => {
+  for (const locale of LOCALES) {
+    const last = faqFlat(locale).at(-1)!;
+    expect(last.a).toMatch(/@/);
+  }
 });

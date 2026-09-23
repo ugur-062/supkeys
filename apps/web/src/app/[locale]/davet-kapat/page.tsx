@@ -2,6 +2,7 @@
 
 import { api } from "@/lib/api";
 import { CheckCircle2, Loader2, XCircle } from "lucide-react";
+import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 
@@ -10,6 +11,7 @@ import { Suspense, useEffect, useState } from "react";
  * API'ye token'ı iletir; bu adrese bir daha davet e-postası gönderilmez.
  */
 function OptOutInner() {
+  const t = useTranslations("web.marketing.optOut");
   const params = useSearchParams();
   const token = params.get("token") ?? "";
   const [state, setState] = useState<"loading" | "ok" | "error">("loading");
@@ -31,28 +33,23 @@ function OptOutInner() {
         {state === "loading" ? (
           <>
             <Loader2 className="mx-auto h-8 w-8 animate-spin text-zinc-400" />
-            <p className="mt-4 text-sm text-zinc-600">İşleniyor…</p>
+            <p className="mt-4 text-sm text-zinc-600">{t("processing")}</p>
           </>
         ) : state === "ok" ? (
           <>
             <CheckCircle2 className="mx-auto h-10 w-10 text-emerald-500" />
             <h1 className="mt-4 text-lg font-semibold text-zinc-900">
-              Davetler kapatıldı
+              {t("doneTitle")}
             </h1>
-            <p className="mt-2 text-sm text-zinc-600">
-              Bu e-posta adresine Rothern üzerinden bir daha satın alma talebi daveti
-              gönderilmeyecek.
-            </p>
+            <p className="mt-2 text-sm text-zinc-600">{t("doneBody")}</p>
           </>
         ) : (
           <>
             <XCircle className="mx-auto h-10 w-10 text-rose-500" />
             <h1 className="mt-4 text-lg font-semibold text-zinc-900">
-              Bağlantı geçersiz
+              {t("invalidTitle")}
             </h1>
-            <p className="mt-2 text-sm text-zinc-600">
-              Bağlantı süresi dolmuş veya hatalı olabilir.
-            </p>
+            <p className="mt-2 text-sm text-zinc-600">{t("invalidBody")}</p>
           </>
         )}
       </div>

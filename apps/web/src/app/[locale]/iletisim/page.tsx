@@ -1,4 +1,5 @@
-import { setRequestLocale } from "next-intl/server";
+import type { ReactNode } from "react";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import type { Metadata } from "next";
 import { PublicLayout } from "@/components/marketplace/public-layout";
@@ -12,106 +13,91 @@ import { Link } from "@/i18n/navigation";
    canlıda "İletişim ve Künye — Rothern · Rothern" çıkıyordu (2026-09-09). */
 export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
   const locale = await localeFromParams(params);
+  const t = await getTranslations({ locale, namespace: "web.marketing.contact" });
   return buildMetadata({
     locale,
-  title: "İletişim ve Künye",
-  description:
-    "Rothern'i işleten şirketin ticari unvanı, adresi, vergi bilgileri ve iletişim adresleri; destek ve KVKK başvuruları için e-posta.",
-  path: "/iletisim",
-});
+    title: t("metaTitle"),
+    description: t("metaDesc"),
+    path: "/iletisim",
+  });
 }
 
-const rows: Array<{ label: string; value: string }> = [
-  { label: "Ticari Unvan", value: OPERATOR.legalName },
-  { label: "Marka", value: OPERATOR.brand },
-  { label: "Adres", value: OPERATOR.address },
-  { label: "MERSİS Numarası", value: OPERATOR.mersisNo },
-  { label: "Vergi Dairesi", value: OPERATOR.taxOffice },
-  { label: "Vergi Numarası", value: OPERATOR.taxNo },
-  { label: "E-posta (destek)", value: OPERATOR.supportEmail },
-  { label: "E-posta (KVKK başvuruları)", value: OPERATOR.kvkkEmail },
-  { label: "Web", value: OPERATOR.website },
-];
+const LINK = "underline hover:text-zinc-900";
 
 export default async function Page({ params }: { params: LocaleParams }) {
-  setRequestLocale(await localeFromParams(params));
+  const locale = await localeFromParams(params);
+  setRequestLocale(locale);
+  const t = await getTranslations("web.marketing.contact");
+  const tm = await getTranslations("web.marketing");
+  const mail = (email: string) => (chunks: ReactNode) => (
+    <a href={`mailto:${email}`} className={LINK}>
+      {chunks}
+    </a>
+  );
+  const link = (href: string) => (chunks: ReactNode) => (
+    <Link href={href} className={LINK}>
+      {chunks}
+    </Link>
+  );
+  /* Künye satırları — etiketler çevrilir, DEĞERLER künyenin kendisidir (tek kaynak `lib/company-info.ts`). */
+  const rows: Array<{ label: string; value: string }> = [
+    { label: t("legalName"), value: OPERATOR.legalName },
+    { label: t("brand"), value: OPERATOR.brand },
+    { label: t("address"), value: OPERATOR.address },
+    { label: t("mersis"), value: OPERATOR.mersisNo },
+    { label: t("taxOffice"), value: OPERATOR.taxOffice },
+    { label: t("taxNo"), value: OPERATOR.taxNo },
+    { label: t("supportEmail"), value: OPERATOR.supportEmail },
+    { label: t("kvkkEmail"), value: OPERATOR.kvkkEmail },
+    { label: t("web"), value: OPERATOR.website },
+  ];
   return (
     <PublicLayout>
     <JsonLd
       data={graph([
-        breadcrumbNode([
-          { name: "Anasayfa", path: "/" },
-          { name: "İletişim ve Künye", path: "/iletisim" },
-        ]),
+        breadcrumbNode(
+          [
+            { name: tm("breadcrumbHome"), path: "/" },
+            { name: t("title"), path: "/iletisim" },
+          ],
+          locale,
+        ),
       ])}
     />
     <div className="mx-auto max-w-3xl px-6 pt-28 pb-16">
-      <h1 className="text-2xl font-bold text-zinc-900">
-        İletişim ve Künye
-      </h1>
+      <h1 className="text-2xl font-bold text-zinc-900">{t("title")}</h1>
       <p className="mt-2 text-sm text-zinc-600">
-        Rothern, {OPERATOR.legalName} tarafından işletilen B2B tedarik
-        platformudur. Sorularınız için{" "}
-        <a
-          href={`mailto:${OPERATOR.supportEmail}`}
-          className="underline hover:text-zinc-900"
-        >
-          {OPERATOR.supportEmail}
-        </a>{" "}
-        adresine yazabilirsiniz; kişisel verilerinize ilişkin başvurular için{" "}
-        <a
-          href={`mailto:${OPERATOR.kvkkEmail}`}
-          className="underline hover:text-zinc-900"
-        >
-          {OPERATOR.kvkkEmail}
-        </a>{" "}
-        adresi kullanılır.
+        {t.rich("intro", {
+          legalName: OPERATOR.legalName,
+          supportEmail: OPERATOR.supportEmail,
+          kvkkEmail: OPERATOR.kvkkEmail,
+          support: mail(OPERATOR.supportEmail),
+          kvkk: mail(OPERATOR.kvkkEmail),
+        })}
       </p>
-      <h2 className="mt-10 text-base font-semibold text-zinc-950">
-        Hangi konuda nereye yazmalı
-      </h2>
+      <h2 className="mt-10 text-base font-semibold text-zinc-950">{t("whereTitle")}</h2>
       <dl className="mt-3 space-y-4 text-sm/6 text-zinc-700">
         <div>
-          <dt className="font-semibold text-zinc-950">Hesap, üyelik ve teknik destek</dt>
+          <dt className="font-semibold text-zinc-950">{t("supportTitle")}</dt>
           <dd className="mt-1">
-            <a href={`mailto:${OPERATOR.supportEmail}`} className="underline hover:text-zinc-900">
-              {OPERATOR.supportEmail}
-            </a>{" "}
-            — giriş sorunları, firma doğrulaması, paket ve koltuk soruları,
-            ürün yayımlama ve talep akışıyla ilgili her şey. Yazarken firma
-            adınızı ve varsa ilgili talep/ürün adresini eklemeniz süreci
-            kısaltır.
+            {t.rich("supportBody", { email: OPERATOR.supportEmail, mail: mail(OPERATOR.supportEmail) })}
           </dd>
         </div>
         <div>
-          <dt className="font-semibold text-zinc-950">Kişisel verilere ilişkin başvurular</dt>
+          <dt className="font-semibold text-zinc-950">{t("dataTitle")}</dt>
           <dd className="mt-1">
-            <a href={`mailto:${OPERATOR.kvkkEmail}`} className="underline hover:text-zinc-900">
-              {OPERATOR.kvkkEmail}
-            </a>{" "}
-            — KVKK kapsamındaki bilgi edinme, düzeltme ve silme talepleri. Bu
-            adres yalnız veri başvuruları içindir; destek soruları için
-            yukarıdaki adresi kullanın.
+            {t.rich("dataBody", { email: OPERATOR.kvkkEmail, mail: mail(OPERATOR.kvkkEmail) })}
           </dd>
         </div>
         <div>
-          <dt className="font-semibold text-zinc-950">
-            İçerik bildirimi ve kural ihlali
-          </dt>
+          <dt className="font-semibold text-zinc-950">{t("abuseTitle")}</dt>
           <dd className="mt-1">
-            Yanıltıcı ürün bilgisi, size ait olduğunu düşündüğünüz bir görsel
-            ya da kötüye kullanım gördüğünüzde{" "}
-            <a href={`mailto:${OPERATOR.supportEmail}`} className="underline hover:text-zinc-900">
-              {OPERATOR.supportEmail}
-            </a>{" "}
-            adresine ilgili sayfanın adresiyle birlikte yazın. Firmalar arası
-            ticari uyuşmazlıklara Rothern taraf değildir — platform mal ve
-            hizmet bedeline aracılık etmez.
+            {t.rich("abuseBody", { email: OPERATOR.supportEmail, mail: mail(OPERATOR.supportEmail) })}
           </dd>
         </div>
       </dl>
 
-      <h2 className="mt-10 text-base font-semibold text-zinc-950">Künye</h2>
+      <h2 className="mt-10 text-base font-semibold text-zinc-950">{t("imprintTitle")}</h2>
       <dl className="mt-3 divide-y divide-zinc-100 rounded-2xl border border-zinc-200">
         {rows.map((r) => (
           <div
@@ -124,19 +110,11 @@ export default async function Page({ params }: { params: LocaleParams }) {
         ))}
       </dl>
       <p className="mt-8 text-sm/6 text-zinc-600">
-        Rothern&apos;in nasıl çalıştığına dair sorular için{" "}
-        <Link href="/sss" className="underline hover:text-zinc-900">
-          sık sorulan sorular
-        </Link>{" "}
-        sayfası, sözleşme metinleri için{" "}
-        <Link href="/sozlesmeler/kullanici" className="underline hover:text-zinc-900">
-          Kullanıcı Sözleşmesi
-        </Link>{" "}
-        ve{" "}
-        <Link href="/sozlesmeler/kvkk" className="underline hover:text-zinc-900">
-          KVKK aydınlatma metni
-        </Link>
-        .
+        {t.rich("footer", {
+          faq: link("/sss"),
+          terms: link("/sozlesmeler/kullanici"),
+          kvkk: link("/sozlesmeler/kvkk"),
+        })}
       </p>
     </div>
     </PublicLayout>

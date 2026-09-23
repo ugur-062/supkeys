@@ -1,3 +1,5 @@
+import { getTranslations } from "next-intl/server";
+import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
@@ -6,10 +8,14 @@ import type { ReactNode } from "react";
 /* Public rota DEĞİL → nonce'lı CSP için dinamik render (bkz. `@/lib/public-routes`). */
 export const dynamic = "force-dynamic";
 
-export const metadata: Metadata = {
-  title: "Davetler kapatılıyor",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
+  const locale = await localeFromParams(params);
+  const t = await getTranslations({ locale, namespace: "web.marketing.optOut" });
+  return {
+    title: t("metaTitle"),
+    robots: { index: false, follow: false },
+  };
+}
 
 export default function DavetKapatLayout({ children }: { children: ReactNode }) {
   return children;

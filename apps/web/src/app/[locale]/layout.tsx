@@ -2,10 +2,11 @@ import { ErrorReporter } from "@/components/error-reporter";
 import { I18nRuntimeBridge } from "@/i18n/runtime-bridge";
 import { routing } from "@/i18n/routing";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { notFound } from "next/navigation";
 import { QueryProvider } from "@/components/providers/query-provider";
-import { SITE_NAME, absoluteUrl } from "@/lib/seo/meta";
+import { OG_LOCALE, SITE_NAME, absoluteUrl } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import { Toaster } from "sonner";
@@ -34,7 +35,13 @@ const geistMono = Geist_Mono({
 // Hangi rotanın hangi tarafta olduğunun tek kaynağı: lib/public-routes.ts
 // (bkz. src/middleware.ts, public-routes.test.ts).
 
-export const metadata: Metadata = {
+/* Dil bilen kök meta (i18n Faz 1): açıklama ve og:locale sayfanın diline
+   göre; başlık şablonu ve ikonlar ortak. Sayfalar kendi metasını yazdığında
+   (buildMetadata) o kazanır; burası yalnız yedek/miras. */
+export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
+  const locale = await localeFromParams(params);
+  const t = await getTranslations({ locale, namespace: "web.seo" });
+  return {
   /* Göreli OG/Twitter görsellerini ve `alternates.canonical`ı mutlaklaştıran
      taban. Olmadan Next uyarı basıp göreli adres yazıyor; sosyal ağlar ve AI
      tarayıcıları göreli görseli çözemiyor. */
@@ -61,8 +68,7 @@ export const metadata: Metadata = {
       "max-video-preview": -1,
     },
   },
-  description:
-    "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu. Kapalı zarf teklif topla, ilan aç, firma keşfet — al, sat, keşfet, tek panelden.",
+  description: t("siteDescription"),
   /* Arama motoru sahiplik doğrulaması — env'den (Parça 9). Boşsa etiket
      yazılmaz. Google: Search Console "HTML etiketi"; Bing: Webmaster Tools
      meta (msvalidate.01). Vercel env → redeploy. */
@@ -89,21 +95,22 @@ export const metadata: Metadata = {
   },
   openGraph: {
     title: "Rothern",
-    description: "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu.",
+    description: t("siteOgDescription"),
     /* OG görseli OPAK olmalı: sosyal platformlar saydam PNG'yi siyaha basar
        (2026-09-09 logo düzeltmesinde `-trans`a çevrilmedi, bilinçli). */
     images: ["/rothern-logo-on-light.png"],
     siteName: SITE_NAME,
-    locale: "tr_TR",
+    locale: OG_LOCALE[locale],
     type: "website",
   },
   twitter: {
     card: "summary_large_image",
     title: "Rothern",
-    description: "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu.",
+    description: t("siteOgDescription"),
     images: ["/rothern-logo-on-light.png"],
   },
-};
+  };
+}
 
 /**
  * i18n Faz 1: `[locale]` KÖK düzeni. Dil segmentten gelir (tr ön eksiz, en/ru

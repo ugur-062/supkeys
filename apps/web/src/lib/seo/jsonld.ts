@@ -1,6 +1,8 @@
 import { OPERATOR } from "@/lib/company-info";
 import { absoluteUrl, SITE_NAME } from "@/lib/seo/meta";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { localizePath } from "@/i18n/href";
+import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 
 /**
  * YAPILANDIRILMIŞ VERİ TEK KAYNAĞI (2026-09-09).
@@ -120,14 +122,15 @@ export interface Crumb {
   path: string;
 }
 
-export function breadcrumbNode(items: Crumb[]): JsonLdNode {
+/** `locale` verilirse kırıntı adresleri o dilin ön ekini alır (`/en/urunler`); adlar çağırandan çevrili gelir. */
+export function breadcrumbNode(items: Crumb[], locale: Locale = DEFAULT_LOCALE): JsonLdNode {
   return {
     "@type": "BreadcrumbList",
     itemListElement: items.map((c, i) => ({
       "@type": "ListItem",
       position: i + 1,
       name: c.name,
-      item: absoluteUrl(c.path),
+      item: absoluteUrl(localizePath(c.path, locale)),
     })),
   };
 }

@@ -1,8 +1,8 @@
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { JsonLd } from "@/components/seo/json-ld";
-import { FAQ_FLAT, FAQ_GROUPS } from "./faq-data";
+import { faqGroups } from "./faq-data";
 import { breadcrumbNode, faqNode, graph } from "@/lib/seo/jsonld";
 import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
@@ -16,50 +16,62 @@ import { Link } from "@/i18n/navigation";
  * platformun içinde dağınık duruyordu; burada tek yerde, tam cümlelerle ve
  * `FAQPage` işaretlemesiyle duruyor.
  *
- * Soru-cevaplar `faq-data.ts`ten gelir — sayfa ve şema AYNI diziden beslenir.
+ * Soru-cevaplar `faq-data.ts`ten gelir — sayfa ve şema AYNI listeden beslenir.
  */
 export const revalidate = 3600;
 
 export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
   const locale = await localeFromParams(params);
+  const t = await getTranslations({ locale, namespace: "web.marketing.faq" });
   return buildMetadata({
     locale,
-  title: "Sık sorulan sorular",
-  description:
-    "Rothern nasıl çalışır: kapalı zarf teklif, alıcı kimliğinin gizliliği, ücretsiz vitrin ve paketler, doğrulama, kategori ağacı ve kullanıcı yetkileri hakkında sık sorulan sorular.",
-  path: "/sss",
-});
+    title: t("metaTitle"),
+    description: t("metaDesc"),
+    path: "/sss",
+  });
 }
 
+const LINK = "underline hover:text-zinc-900";
+
 export default async function Page({ params }: { params: LocaleParams }) {
-  setRequestLocale(await localeFromParams(params));
+  const locale = await localeFromParams(params);
+  setRequestLocale(locale);
+  const t = await getTranslations("web.marketing.faq");
+  const tm = await getTranslations("web.marketing");
+  const groups = faqGroups(locale);
+  const flat = groups.flatMap((g) => g.items);
   return (
     <PublicLayout>
       <JsonLd
         data={graph([
-          faqNode(FAQ_FLAT.map((f) => ({ q: f.q, a: f.a }))),
-          breadcrumbNode([
-            { name: "Anasayfa", path: "/" },
-            { name: "Sık sorulan sorular", path: "/sss" },
-          ]),
+          faqNode(flat.map((f) => ({ q: f.q, a: f.a }))),
+          breadcrumbNode(
+            [
+              { name: tm("breadcrumbHome"), path: "/" },
+              { name: t("title"), path: "/sss" },
+            ],
+            locale,
+          ),
         ])}
       />
       <div className="mx-auto max-w-3xl px-6 pt-28 pb-16">
-        <h1 className="text-2xl font-bold text-zinc-900">Sık sorulan sorular</h1>
+        <h1 className="text-2xl font-bold text-zinc-900">{t("title")}</h1>
         <p className="mt-2 text-sm/6 text-zinc-600">
-          Rothern&apos;in nasıl çalıştığına dair en çok sorulanlar. Süreçlerin
-          ayrıntısı{" "}
-          <Link href="/nasil-calisir" className="underline hover:text-zinc-900">
-            Nasıl Çalışır
-          </Link>{" "}
-          sayfasında; paketler ve fiyatlar{" "}
-          <Link href="/nasil-calisir#fiyatlar" className="underline hover:text-zinc-900">
-            fiyat bölümünde
-          </Link>
-          .
+          {t.rich("intro", {
+            how: (chunks) => (
+              <Link href="/nasil-calisir" className={LINK}>
+                {chunks}
+              </Link>
+            ),
+            pricing: (chunks) => (
+              <Link href="/nasil-calisir#fiyatlar" className={LINK}>
+                {chunks}
+              </Link>
+            ),
+          })}
         </p>
 
-        {FAQ_GROUPS.map((group) => (
+        {groups.map((group) => (
           <section key={group.heading} className="mt-10">
             <h2 className="text-sm font-semibold tracking-wide text-zinc-500 uppercase">
               {group.heading}
@@ -76,11 +88,13 @@ export default async function Page({ params }: { params: LocaleParams }) {
         ))}
 
         <p className="mt-10 text-sm/6 text-zinc-600">
-          Cevabını bulamadınız mı?{" "}
-          <Link href="/iletisim" className="underline hover:text-zinc-900">
-            İletişim sayfasından
-          </Link>{" "}
-          yazabilirsiniz.
+          {t.rich("notFound", {
+            contact: (chunks) => (
+              <Link href="/iletisim" className={LINK}>
+                {chunks}
+              </Link>
+            ),
+          })}
         </p>
       </div>
     </PublicLayout>

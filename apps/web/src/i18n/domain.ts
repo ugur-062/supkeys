@@ -4,6 +4,7 @@ import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
 import type { PriceLabels } from "@/lib/public/product-price";
 import { DELIVERY_TERM_LABELS, PAYMENT_CATEGORY_LABELS } from "@/lib/tenders/labels";
+import { segmentTaglineKey } from "@/lib/public/segment-taglines";
 
 /**
  * Alan sözlükleri — dil farkında (i18n Faz 1). Paylaşılan paketteki Türkçe
@@ -81,4 +82,10 @@ export function useDeliveryTermLabel(): (code: string) => string {
 export function usePaymentCategoryLabel(): (code: string) => string {
   const t = useTranslations("web.domain.paymentCategory");
   return (code) => (t.has(code as never) ? t(code as never) : (PAYMENT_CATEGORY_LABELS[code as keyof typeof PAYMENT_CATEGORY_LABELS] ?? code));
+}
+
+/** Kategori vitrini tanıtım kartının sloganı — anahtar `segmentTaglineKey`, metin katalogdan. */
+export function useSegmentTagline(): (code: string | undefined) => string {
+  const t = useTranslations("web.marketing.taglines");
+  return (code) => t(segmentTaglineKey(code));
 }
