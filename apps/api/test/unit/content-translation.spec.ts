@@ -171,8 +171,13 @@ describe("ContentTranslationService", () => {
       category: { findMany: jest.fn(async () => []) },
       categoryAttribute: { findMany: jest.fn(async () => []) },
       contentTranslation: {
-        findMany: jest.fn(async (args: { where?: { locale?: string; fields?: unknown } }) => {
+        findMany: jest.fn(async (args: { where?: { locale?: string; fields?: unknown }; distinct?: string[] }) => {
           const all = [...rows.values()];
+          if (args.distinct) {
+            // Süpürücü sorgusu: varlık başına TEK satır (distinct), yalnız bekleyen/yeniden denenebilir.
+            const open = all.filter((r) => r.status === "PENDING" || (r.status === "FAILED" && Number(r.attempts ?? 0) < 3));
+            return open.length ? [{ entityType: "PRODUCT", entityId: "p1" }] : [];
+          }
           if (args.where?.locale) return all.filter((r) => r.locale === args.where!.locale && r.fields != null);
           return all;
         }),
@@ -227,6 +232,21 @@ describe("ContentTranslationService", () => {
     expect(await svc.translateEntity("PRODUCT", "p1")).toBe("failed");
     expect(provider!.complete).toHaveBeenCalledTimes(2);
     expect(rows.get("en")).toMatchObject({ status: "FAILED", error: expect.stringContaining("JSON") });
+  });
+
+  it("sağlayıcı fırlatırsa satır FAILED + hata mesajı, süpürücü DURMAZ", async () => {
+    const { svc, rows, prisma } = rig();
+    (svc as unknown as { kick: () => void }).kick = () => {};
+    await svc.enqueue("PRODUCT", "p1");
+    (svc as unknown as { provider: { complete: jest.Mock } }).provider.complete.mockRejectedValueOnce(new Error("404 model not found"));
+    const r = await svc.processPending(10);
+    expect(r).toEqual({ processed: 1, done: 0, failed: 1 });
+    expect(rows.get("en")).toMatchObject({ status: "FAILED", error: expect.stringContaining("404 model not found") });
+    // Kaynak okuma patlarsa da süpürme sürer ve satır FAILED olur.
+    prisma.companyItem.findUnique.mockRejectedValueOnce(new Error("db down"));
+    for (const row of rows.values()) Object.assign(row, { status: "PENDING", attempts: 0 });
+    expect(await svc.processPending(10)).toEqual({ processed: 1, done: 0, failed: 1 });
+    expect(rows.get("ru")).toMatchObject({ status: "FAILED", error: expect.stringContaining("db down") });
   });
 
   it("sağlayıcı yoksa kuyruk açılır ama kick etmez; okuma yolu özgün metni döndürür", async () => {

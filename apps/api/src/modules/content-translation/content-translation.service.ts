@@ -171,9 +171,18 @@ export class ContentTranslationService {
       });
       for (const r of rows) {
         out.processed += 1;
-        const result = await this.translateEntity(r.entityType, r.entityId);
-        if (result === "done") out.done += 1;
-        else if (result === "failed") out.failed += 1;
+        try {
+          const result = await this.translateEntity(r.entityType, r.entityId);
+          if (result === "done") out.done += 1;
+          else if (result === "failed") out.failed += 1;
+        } catch (err) {
+          // Tek varlığın hatası süpürmeyi DURDURMAZ; hata satıra yazılır ki
+          // `status` ucunda görünsün (2026-09-23: ilk backfill sessizce durmuştu).
+          out.failed += 1;
+          const message = err instanceof Error ? err.message : String(err);
+          this.logger.warn(`Çeviri hatası (${r.entityType} ${r.entityId}): ${message}`);
+          await this.markFailed(r.entityType, r.entityId, message).catch(() => undefined);
+        }
       }
     } finally {
       this.sweeping = false;
@@ -210,13 +219,21 @@ export class ContentTranslationService {
       let parsed: ParsedTranslation | null = null;
       let feedback: string | undefined;
       for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
-        const result = await this.provider.complete({
-          model,
-          system: TRANSLATION_SYSTEM_PROMPT,
-          prompt: buildPrompt(type, source, feedback),
-          maxOutputTokens: MAX_OUTPUT_TOKENS,
-          timeoutMs: TIMEOUT_MS,
-        });
+        let result: Awaited<ReturnType<BaseAiProvider["complete"]>>;
+        try {
+          result = await this.provider.complete({
+            model,
+            system: TRANSLATION_SYSTEM_PROMPT,
+            prompt: buildPrompt(type, source, feedback),
+            maxOutputTokens: MAX_OUTPUT_TOKENS,
+            timeoutMs: TIMEOUT_MS,
+          });
+        } catch (err) {
+          // Sağlayıcı hatası (model adı, kota, ağ): deneme sayılır, satıra yazılır, süpürücü sürer.
+          const message = err instanceof Error ? err.message : String(err);
+          await this.markFailed(type, id, `sağlayıcı: ${message}`, { model, usage, cost });
+          return "failed";
+        }
         usage.inputTokens += result.usage.inputTokens;
         usage.outputTokens += result.usage.outputTokens;
         usage.cacheReadTokens += result.usage.cacheReadTokens;
