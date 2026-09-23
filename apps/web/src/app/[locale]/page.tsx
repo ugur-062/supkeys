@@ -94,7 +94,7 @@ export default async function HomePage({ params }: { params: LocaleParams }) {
   ]);
 
   const showcase = buildShowcase({
-    segments: segments.map((s) => ({ id: s.id, name: s.nameTr })),
+    segments: segments.map((s) => ({ id: s.id, name: s.nameTr, slug: s.slug })),
     counts: productFacets.categories.map((c) => ({ id: c.id, count: c.count })),
     productCovers: newest.items.map((p) => ({
       categoryId: p.categoryId,

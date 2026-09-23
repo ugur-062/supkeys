@@ -85,7 +85,7 @@ export default function SatinalmaDashboardPage() {
   const showcase = useMemo(
     () =>
       buildShowcase({
-        segments: (segments.data ?? []).map((s) => ({ id: s.id, name: s.nameTr })),
+        segments: (segments.data ?? []).map((s) => ({ id: s.id, name: s.nameTr, slug: s.slug })),
         counts: (facets.data?.categories ?? []).map((c) => ({ id: c.id, count: c.count })),
         productCovers: [],
         // TÜM ana kategoriler (58 segment) — kullanıcı kararı 2026-09-08.
