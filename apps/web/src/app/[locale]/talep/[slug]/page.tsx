@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
+import { seoT } from "@/i18n/server";
 import { ListingDetail } from "@/components/marketplace/listing-detail";
 import { ButtonAccentProvider } from "@/components/ui/button-accent";
 import { resolveListingPage } from "@/components/marketplace/listing-page";
@@ -27,7 +28,7 @@ export async function generateMetadata({
   /* TEK KAYNAK (`lib/seo/entities.ts`): sayfanın JSON-LD'siyle aynı
      olgulardan türer ve SAHİBİN ADINI parametre olarak bile almaz —
      kapanmış/dizinlenmeyen ilan `noindex` alır, sayfa durur. */
-  return listingSeo(listingSeoInput(listing), { locale }).metadata;
+  return listingSeo(listingSeoInput(listing), { locale, t: seoT(locale) }).metadata;
 }
 
 export default async function Page({

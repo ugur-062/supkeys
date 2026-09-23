@@ -2,7 +2,10 @@
   "settings": {
     "language": {
       "label": "Dil",
-      "hint": "Panel, bildirimler ve e-postalar bu dilde gösterilir."
+      "hint": "Panel, bildirimler ve e-postalar bu dilde gösterilir.",
+      "title": "Dil",
+      "saved": "Dil güncellendi",
+      "failed": "Dil güncellenemedi"
     }
   },
   "marketing": {
@@ -13,7 +16,8 @@
       "signup": "Ücretsiz Kaydol",
       "openMenu": "Menüyü aç",
       "menu": "Menü",
-      "siteMenu": "Site menüsü"
+      "siteMenu": "Site menüsü",
+      "language": "Dil"
     },
     "footer": {
       "marketplace": "Pazar yeri",

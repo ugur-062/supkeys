@@ -3269,6 +3269,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketing.nav.language": {
+    "hash": "e194b23567",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
   "web.marketing.nav.login": {
     "hash": "159a112fc5",
     "status": "reviewed",
@@ -5844,12 +5849,27 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.settings.language.failed": {
+    "hash": "01b928ea33",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
   "web.settings.language.hint": {
     "hash": "e519016aae",
     "status": "reviewed",
     "at": "2026-09-23"
   },
   "web.settings.language.label": {
+    "hash": "e194b23567",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.settings.language.saved": {
+    "hash": "4e4e76b4ea",
+    "status": "reviewed",
+    "at": "2026-09-23"
+  },
+  "web.settings.language.title": {
     "hash": "e194b23567",
     "status": "reviewed",
     "at": "2026-09-23"

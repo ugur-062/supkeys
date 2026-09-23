@@ -4,6 +4,41 @@ Bu dosya tamamlanmış aşamaların detaylı kaydıdır. Aktif çalışma için 
 
 ---
 
+## 2026-09-23 — Çok dillilik Faz 1 (herkese açık yüzey + kimlik akışı) TAMAM
+
+**Karar (kullanıcı):** makine çevirisi yok — EN/RU metinleri Claude ekran
+bağlamıyla yazdı; Flash'ın ürettiği 40 RU dizesi yeniden çevrildi. 9 parti,
+katalog 40 → 1.150 anahtar, EN/RU %100 `reviewed`, cırcır 508 → 433 dosya.
+
+- **Yönlendirme (1b):** `app/[locale]`, TR ön eksiz, `as-needed`, otomatik tespit
+  kapalı; `@/i18n/navigation` tek kaynak (116 dosya codemod); hreflang +
+  `og:locale` + sitemap `xhtml:link` + robots + `withLocales` yönlendirmeleri;
+  CSP middleware next-intl ile birleşik (nonce yalnız panelde).
+- **Herkese açık yüzey (1c, 6 parti):** başlık/altbilgi/mega menü/typeahead,
+  anasayfa iki yüz, dizinler + süzgeç kabuğu + kartlar + boş durumlar,
+  ürün/firma/talep detayları, bilgi talebi diyaloğu, SEO üreticileri
+  (`webTranslator`, `formatNumber`), OG kartları, alan sözlükleri
+  (`useActivityLabel` · `useScopeLabel` · `useClosingUrgency` · `usePriceLabels`
+  · `countryDisplayName`), `formatDate(value, variant, locale)`.
+- **Statik sayfalar (1d/7):** Hakkımızda, İletişim/Künye, SSS (`faqGroups(locale)`
+  — sayfa + `FAQPage` + llms-full tek kaynak, üç dilde kalite testi), Nasıl
+  Çalışır (156 dize + önizleme kartlarının örnek verileri), sözleşme kabuğu
+  ("Türkçe metin esastır"), talep-onayla, davet-kapat, şifre sıfırlama; kök
+  meta dil bilen; kırıntılar dil ön ekli (`breadcrumbNode(items, locale)`);
+  paket kartı metinleri katalogda (`usePricingPlans` + parite testi); segment
+  sloganları katalogda (`useSegmentTagline`).
+- **Kimlik akışı (1d/8):** giriş (2FA/e-posta doğrulama), kayıt + kod adımı,
+  şifremi unuttum, ekip daveti, firma doğrulama sihirbazı; ortak
+  `usePasswordRules`/`PasswordStrength`/`ConsentRows`; meta `generateMetadata`,
+  "— Rothern" çift marka düzeltildi.
+- **Dil seçici (1d/9):** üst çubuk küre menüsü + mobil menü + altbilgi;
+  Ayarlar › Hesap Bilgileri › Dil (anında `PATCH me { locale }`, sayfa yeni
+  ön ekle); `clientMessages` sunucuya özel ad alanlarını istemci yükünden
+  ayıklar (+ "use client" tarayan bekçi testi).
+- **Bayat vaat düzeltmeleri:** "teslim belgesi", "sınırsız kullanıcı", "ilan"
+  → "talep" (Nasıl Çalışır, kayıt sihirbazı).
+- Web 143 dosya / 814 test yeşil; üretim derlemesi yeşil.
+
 ## 2026-09-23 — Çok dillilik Faz 0 (altyapı) KURULDU
 
 **Karar (kullanıcı):** TR kaynak + EN + RU; "talep" → Request/запрос, "tender"/"тендер"

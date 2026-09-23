@@ -1,0 +1,38 @@
+import type { AbstractIntlMessages } from "next-intl";
+
+/**
+ * İSTEMCİYE GİTMEYEN ad alanları (i18n Faz 1): yalnız sunucu bileşenleri ve
+ * metadata üreticileri okur — SSS cevapları, Hakkımızda/İletişim gövdeleri,
+ * sözleşme kabuğu. (`web.seo` LİSTEDE DEĞİL: ürün/talep detayı ve panel
+ * formlarının parçacık önizlemesi istemcide `useSeoT` ile okur.) `NextIntlClientProvider` bunları HTML/RSC
+ * yüküne yazmasın diye kök düzende `clientMessages()` ile ayıklanır.
+ *
+ * Bir istemci bileşeni bu ad alanlarından okursa çalışma zamanında anahtar
+ * yolu görünür → `__tests__/client-messages.test.ts` "use client" dosyalarını
+ * tarayıp bunu derlemede yakalar. Listeye ekleme yaparken o testi koş.
+ */
+export const SERVER_ONLY_NAMESPACES = [
+  "web.marketing.about",
+  "web.marketing.contact",
+  "web.marketing.faq",
+  "web.marketing.legal",
+  "web.marketing.inquiryVerify",
+] as const;
+
+export function omitPaths(messages: AbstractIntlMessages, paths: readonly string[]): AbstractIntlMessages {
+  const out = JSON.parse(JSON.stringify(messages)) as AbstractIntlMessages;
+  for (const path of paths) {
+    const parts = path.split(".");
+    let node: Record<string, unknown> | null = out;
+    for (let i = 0; i < parts.length - 1 && node; i++) {
+      const next: unknown = node[parts[i]!];
+      node = next && typeof next === "object" ? (next as Record<string, unknown>) : null;
+    }
+    if (node) delete node[parts[parts.length - 1]!];
+  }
+  return out;
+}
+
+export function clientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
+  return omitPaths(messages, SERVER_ONLY_NAMESPACES);
+}

@@ -2,7 +2,8 @@ import { ErrorReporter } from "@/components/error-reporter";
 import { I18nRuntimeBridge } from "@/i18n/runtime-bridge";
 import { routing } from "@/i18n/routing";
 import { hasLocale, NextIntlClientProvider } from "next-intl";
-import { getTranslations, setRequestLocale } from "next-intl/server";
+import { getMessages, getTranslations, setRequestLocale } from "next-intl/server";
+import { clientMessages } from "@/i18n/client-messages";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { notFound } from "next/navigation";
 import { QueryProvider } from "@/components/providers/query-provider";
@@ -132,6 +133,8 @@ export default async function RootLayout({
   const { locale } = await params;
   if (!hasLocale(routing.locales, locale)) notFound();
   setRequestLocale(locale);
+  // Sunucuya özel ad alanları (SSS gövdesi, SEO cümleleri…) istemci yüküne yazılmaz.
+  const messages = clientMessages(await getMessages());
 
   return (
     <html lang={locale} className={`${inter.variable} ${geistMono.variable}`}>
@@ -140,7 +143,7 @@ export default async function RootLayout({
         <ErrorReporter />
         {/* Sağlayıcı sunucudan render edilir: dil + mesajlar next-intl v4'te
             otomatik aktarılır. Köprü, React dışı kodun (axios) dilini kaydeder. */}
-        <NextIntlClientProvider>
+        <NextIntlClientProvider messages={messages}>
           <I18nRuntimeBridge />
           <QueryProvider>
             {children}

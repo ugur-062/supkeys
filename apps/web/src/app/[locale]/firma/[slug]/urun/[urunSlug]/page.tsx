@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
+import { seoT } from "@/i18n/server";
 import { ViewBeacon } from "@/components/marketplace/view-beacon";
 import { ProductDetail } from "@/components/marketplace/product-detail";
 import { fetchProduct, fetchRelatedProducts } from "@/lib/public/marketplace-api";
@@ -38,7 +39,7 @@ export async function generateMetadata({
     product: data.product,
     company: data.company,
     indexable: MARKETPLACE_LIVE,
-  }, { locale }).metadata;
+  }, { locale, t: seoT(locale) }).metadata;
 }
 
 /**

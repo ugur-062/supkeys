@@ -11,6 +11,8 @@ import { SearchVisibilityCard } from "@/components/seo/search-visibility-card";
 import { useAiSeoEnrich } from "@/hooks/use-ai-seo-enrich";
 import { companySeo } from "@/lib/seo/entities";
 import { snippetFromMetadata } from "@/lib/seo/snippet";
+import { useSeoT } from "@/i18n/domain";
+import { useLocale } from "next-intl";
 import { companySeoReadiness, generateSlug, tierAtLeast } from "@rothern/shared";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/catalyst/button";
@@ -97,6 +99,8 @@ export function ProfileEditor({
   canEdit: boolean;
 }) {
   const update = useUpdateCompanyProfile();
+  const locale = useLocale();
+  const seoT = useSeoT();
   const [saved, setSaved] = useState<Draft>(() => toDraft(profile));
   const [draft, setDraft] = useState<Draft>(() => toDraft(profile));
   const savedRef = useRef(saved);
@@ -426,7 +430,7 @@ export function ProfileEditor({
                 productCount: 0,
                 website: draft.website || null,
                 linkedinUrl: draft.linkedinUrl || null,
-              }).metadata,
+              }, { locale, t: seoT }).metadata,
             )}
             enrich={{
               available: tierAtLeast(profile.tier, "SILVER"),

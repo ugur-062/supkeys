@@ -1,3 +1,4 @@
+import type { Locale } from "@rothern/i18n";
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
@@ -34,6 +35,8 @@ export function useUpdateMe() {
       firstName?: string;
       lastName?: string;
       phone?: string;
+      /** Arayüz/bildirim dili (i18n Faz 1) — Ayarlar › Hesap Bilgileri › Dil. */
+      locale?: Locale;
     }) => {
       const { data } = await companyApi.patch("/company-auth/me", input);
       return data;

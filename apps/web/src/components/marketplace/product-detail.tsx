@@ -1,5 +1,5 @@
-import { usePriceLabels } from "@/i18n/domain";
-import { useFormatter, useTranslations } from "next-intl";
+import { usePriceLabels, useSeoT } from "@/i18n/domain";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { PublicLayout } from "./public-layout";
 import { ProductGallery } from "./product-gallery";
 import { Badge } from "@/components/catalyst/badge";
@@ -62,6 +62,8 @@ export function ProductDetail({
 
   const priceLabels = usePriceLabels();
   const price = productPrice(product, priceLabels);
+  const locale = useLocale();
+  const seoT = useSeoT();
 
   /* YAPILANDIRILMIŞ VERİ TEK KAYNAKTAN (2026-09-09, Parça 2):
      `lib/seo/entities.ts` `productSeo` hem `generateMetadata`yı hem buradaki
@@ -75,7 +77,7 @@ export function ProductDetail({
     // Bu bileşen yalnız herkese açık sayfada kullanılıyor; `noindex` kararı
     // sayfanın `generateMetadata`sında veriliyor, grafik ondan etkilenmez.
     indexable: true,
-  });
+  }, { locale, t: seoT });
 
   return (
     <PublicLayout>

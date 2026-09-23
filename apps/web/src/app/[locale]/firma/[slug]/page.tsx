@@ -1,5 +1,6 @@
 import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
+import { seoT } from "@/i18n/server";
 import { ViewBeacon } from "@/components/marketplace/view-beacon";
 import { CompanyProfileView } from "@/components/company/company-profile-view";
 import { CompanyProducts } from "@/components/marketplace/company-products";
@@ -26,7 +27,7 @@ export async function generateMetadata({
   /* TEK KAYNAK (`lib/seo/entities.ts`): başlık/açıklama/kanonik/OG ile
      sayfanın JSON-LD'si aynı olgulardan türer. Eskiden başlık markayı elle
      ekliyordu ("… — Rothern") ve kök şablon bir daha ekliyordu. */
-  const meta = companySeo(seoInput(slug, p), { locale }).metadata;
+  const meta = companySeo(seoInput(slug, p), { locale, t: seoT(locale) }).metadata;
   // VİTRİN ≠ İNDEKS: profil herkese açık (bağlantıyla gelen görür) ama kalite
   // eşiğini geçmiyorsa arama motoruna girmez. Eşik sunucuda, sitemap ile AYNI
   // fonksiyon — burada yalnız sonucu okuyoruz.
@@ -67,7 +68,8 @@ export default async function PublicCompanyProfile({
    *  `q` üst çubuktaki genel aramanın parametresi, ikisi karışmamalı. */
   searchParams?: Promise<{ urun?: string; urunSayfa?: string; onizleme?: string }>;
 }) {
-  setRequestLocale(await localeFromParams(params));
+  const locale = await localeFromParams(params);
+  setRequestLocale(locale);
   const t = await getTranslations("web.marketplace.pages");
   const { slug } = await params;
   // Profil ve ürünler PARALEL: ürün bileşeni kendi çekiyordu, profil bitmeden
@@ -102,6 +104,7 @@ export default async function PublicCompanyProfile({
       p,
       products.items.map((it) => ({ name: it.name, slug: it.slug })),
     ),
+    { locale, t: seoT(locale) },
   );
 
   return (

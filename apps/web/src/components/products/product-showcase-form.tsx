@@ -8,6 +8,8 @@ import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { productSeo } from "@/lib/seo/entities";
 import { snippetFromMetadata } from "@/lib/seo/snippet";
+import { useSeoT } from "@/i18n/domain";
+import { useLocale } from "next-intl";
 import { PRODUCT_STATUS, productStatusKey } from "@/lib/company/product-status";
 import { ImageUploader } from "./image-uploader";
 import { PriceModeField } from "./price-mode-field";
@@ -232,6 +234,8 @@ export function ProductShowcaseForm({
   const seoEnrich = useAiSeoEnrich();
   // Şehir/sektör oturum anlık görüntüsünde yok → profil sorgusu (önbellekli).
   const profileQ = useCompanyProfile();
+  const locale = useLocale();
+  const seoT = useSeoT();
   const seo = useMemo(() => {
     const attributeEntries = Object.entries(attributes).filter(([, v]) => (Array.isArray(v) ? v.length > 0 : !!v));
     const readiness = productSeoReadiness({
@@ -274,7 +278,7 @@ export function ProductShowcaseForm({
           industry: profileQ.data?.industry ?? null,
         },
         indexable: true,
-      }).metadata,
+      }, { locale, t: seoT }).metadata,
     );
     const facts = attributeEntries.map(([k, v]) => {
       const def = attributeDefs.find((d) => d.key === k);

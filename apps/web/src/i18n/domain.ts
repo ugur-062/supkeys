@@ -3,6 +3,8 @@ import { countryName as countryNameTr, companyActivityLabel } from "@rothern/sha
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
 import type { PriceLabels } from "@/lib/public/product-price";
+import type { SeoT } from "@/lib/seo/entities";
+import { INTL_LOCALE } from "./format";
 import { DELIVERY_TERM_LABELS, PAYMENT_CATEGORY_LABELS } from "@/lib/tenders/labels";
 import { segmentTaglineKey } from "@/lib/public/segment-taglines";
 
@@ -61,8 +63,6 @@ export function useClosingUrgency(): (
   };
 }
 
-const INTL_LOCALE: Record<Locale, string> = { tr: "tr-TR", en: "en-US", ru: "ru-RU" };
-
 /** `productPrice` etiketleri — istemci. Sunucu karşılığı `priceLabelsFor` (i18n/server.ts). */
 export function usePriceLabels(): PriceLabels {
   const t = useTranslations("web.marketplace.price");
@@ -88,4 +88,14 @@ export function usePaymentCategoryLabel(): (code: string) => string {
 export function useSegmentTagline(): (code: string | undefined) => string {
   const t = useTranslations("web.marketing.taglines");
   return (code) => t(segmentTaglineKey(code));
+}
+
+/**
+ * `entities.ts` SEO üreticileri için çevirmen — İSTEMCİ. Sunucu karşılığı
+ * `seoT(locale)` (i18n/server.ts). Üreticiler çevirmeni parametre alır ki
+ * `server-only` katalog yükleyici istemci paketine girmesin.
+ */
+export function useSeoT(): SeoT {
+  const t = useTranslations();
+  return (key, values) => t(key as never, values as never);
 }

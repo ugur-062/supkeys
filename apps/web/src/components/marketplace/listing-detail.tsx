@@ -1,5 +1,5 @@
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useActivityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useScopeLabel } from "@/i18n/domain";
+import { useActivityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useScopeLabel, useSeoT } from "@/i18n/domain";
 import { PublicLayout } from "./public-layout";
 import { GatedField } from "./gated-field";
 import { Heading } from "@/components/catalyst/heading";
@@ -42,6 +42,7 @@ export function ListingDetail({
   const tl = useTranslations("web.marketplace.labels");
   const tstate = useTranslations("web.marketplace.state");
   const locale = useLocale();
+  const seoT = useSeoT();
   const fmt = useFormatter();
   const scopeLabel = useScopeLabel();
   const activityLabel = useActivityLabel();
@@ -61,7 +62,7 @@ export function ListingDetail({
      fonksiyona PARAMETRE OLARAK BİLE geçmez (`ListingSeoInput.buyer` yalnız
      şehir/ülke taşır) — sayfada gizlediğimiz kimliği yapılandırılmış veride
      vermek onu makine-okunur biçimde geri vermek olurdu. */
-  const seo = listingSeo(listingSeoInput(listing), { locale });
+  const seo = listingSeo(listingSeoInput(listing), { locale, t: seoT });
 
   const facts: { label: string; value: string }[] = [
     { label: t("number"), value: listing.number },

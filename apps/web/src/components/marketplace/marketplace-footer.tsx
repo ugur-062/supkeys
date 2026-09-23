@@ -1,4 +1,5 @@
 import { RothernLogo } from "@/components/brand/logo";
+import { LanguageSwitcher } from "@/components/marketing/language-switcher";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { useTranslations } from "next-intl";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
@@ -85,6 +86,7 @@ export function MarketplaceFooter() {
         </div>
         <div className="mt-12 flex flex-col gap-3 border-t border-zinc-200 pt-8 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
           <p>© {new Date().getFullYear()} Rothern</p>
+          <LanguageSwitcher variant="inline" />
           <div className="flex gap-4">
             <Link href="/company/login" className="hover:text-zinc-950">
               {t("login")}

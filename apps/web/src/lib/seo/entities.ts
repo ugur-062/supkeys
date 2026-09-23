@@ -1,9 +1,9 @@
-import { formatNumber, priceLabelsFor, webTranslator } from "@/i18n/server";
+import { INTL_LOCALE, formatNumber } from "@/i18n/format";
 import { localizePath } from "@/i18n/href";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { SITE_NAME } from "./meta";
 import { MARKETPLACE_ROUTES, categoryPath, listingPath } from "@/lib/public/marketplace";
-import { productPrice } from "@/lib/public/product-price";
+import { productPrice, type PriceLabels } from "@/lib/public/product-price";
 import { breadcrumbNode, compact, graph, type JsonLdNode } from "@/lib/seo/jsonld";
 import { absoluteUrl, buildMetadata, clampDescription, joinParts } from "@/lib/seo/meta";
 import type { Metadata } from "next";
@@ -62,8 +62,25 @@ export interface ProductSeoInput {
   indexable: boolean;
 }
 
-function priceSentence(p: ProductSeoInput["product"], locale: Locale): string {
-  const labels = priceLabelsFor(locale);
+/**
+ * Gevşek anahtarlı çevirmen — üreticiler bunu PARAMETRE alır. Sunucuda
+ * `seoT(locale)` (i18n/server.ts, `server-only`), istemcide `useSeoT()`
+ * (i18n/domain.ts). Bu modül `@/i18n/server`ı İMPORT ETMEZ: ürün/talep
+ * detay bileşenleri ve panel formlarının parçacık önizlemesi istemcide de
+ * çalışıyor; `server-only` zinciri derlemeyi kırar (2026-09-23, staging).
+ */
+export type SeoT = (key: string, values?: Record<string, string | number | Date>) => string;
+
+function priceLabels(t: SeoT, locale: Locale): PriceLabels {
+  return {
+    locale: INTL_LOCALE[locale] ?? "tr-TR",
+    onRequest: t("web.marketplace.price.onRequest"),
+    fromQty: (qty, unit) => t("web.marketplace.price.fromQty", { qty, unit }),
+  };
+}
+
+function priceSentence(p: ProductSeoInput["product"], locale: Locale, t: SeoT): string {
+  const labels = priceLabels(t, locale);
   const price = productPrice(p, labels);
   if (price.hasPrice) return price.headline;
   return labels.onRequest;
@@ -72,15 +89,17 @@ function priceSentence(p: ProductSeoInput["product"], locale: Locale): string {
 export interface SeoOptions {
   /** Sayfanın dili (i18n Faz 1) — kanonik/hreflang ve JSON-LD adresi bu dilin. */
   locale?: Locale;
+  /** Çevirmen: sunucuda `seoT(locale)`, istemcide `useSeoT()`. */
+  t: SeoT;
 }
 
-export function productSeo(input: ProductSeoInput, opts: SeoOptions = {}): {
+export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
   metadata: Metadata;
   jsonLd: JsonLdNode;
   summary: string;
 } {
   const locale = opts.locale ?? DEFAULT_LOCALE;
-  const ts = webTranslator(locale);
+  const ts = opts.t;
   const { product: pr, company: co, companySlug } = input;
   const path = `/firma/${companySlug}/urun/${pr.slug}`;
   const url = absoluteUrl(localizePath(path, locale));
@@ -93,7 +112,7 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions = {}): {
     [
       joinParts([pr.name, pr.category?.name], " — "),
       where ? `${where} vitrininde` : null,
-      priceSentence(pr, locale),
+      priceSentence(pr, locale, ts),
       pr.moq ? `min. ${pr.moq} ${pr.unit}` : null,
     ],
     " · ",
@@ -104,7 +123,7 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions = {}): {
      eklenir; 160'ta kelime sınırında kesilir. */
   const lead = pr.description ? clampDescription(pr.description, 96) : null;
   const description = clampDescription(
-    joinParts([lead, priceSentence(pr, locale), pr.moq ? `min. ${pr.moq} ${pr.unit}` : null, where], " · "),
+    joinParts([lead, priceSentence(pr, locale, ts), pr.moq ? `min. ${pr.moq} ${pr.unit}` : null, where], " · "),
   );
 
   // Başlık tavanı 75 (canlı denetim 2026-09-11: 83 karakterlik ürün adı taşıyordu):
@@ -239,13 +258,13 @@ function httpUrls(values: (string | null | undefined)[]): string[] {
   return values.filter((v): v is string => !!v && /^https?:\/\//i.test(v.trim())).map((v) => v.trim());
 }
 
-export function companySeo(c: CompanySeoInput, opts: SeoOptions = {}): {
+export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
   metadata: Metadata;
   jsonLd: JsonLdNode;
   summary: string;
 } {
   const locale = opts.locale ?? DEFAULT_LOCALE;
-  const ts = webTranslator(locale);
+  const ts = opts.t;
   const path = `/firma/${c.slug}`;
   const url = absoluteUrl(localizePath(path, locale));
 
@@ -398,13 +417,13 @@ export function listingSeoInput(l: {
   };
 }
 
-export function listingSeo(l: ListingSeoInput, opts: SeoOptions = {}): {
+export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
   metadata: Metadata;
   jsonLd: JsonLdNode;
   summary: string;
 } {
   const locale = opts.locale ?? DEFAULT_LOCALE;
-  const ts = webTranslator(locale);
+  const ts = opts.t;
   const path = listingPath(l.number, l.title);
   const url = absoluteUrl(localizePath(path, locale));
   const cat = l.categories[0]?.name ?? null;

@@ -2,7 +2,10 @@
   "settings": {
     "language": {
       "label": "Language",
-      "hint": "The panel, notifications and emails are shown in this language."
+      "hint": "The panel, notifications and emails are shown in this language.",
+      "title": "Language",
+      "saved": "Language updated",
+      "failed": "The language could not be updated"
     }
   },
   "marketing": {
@@ -13,7 +16,8 @@
       "signup": "Sign Up Free",
       "openMenu": "Open menu",
       "menu": "Menu",
-      "siteMenu": "Site menu"
+      "siteMenu": "Site menu",
+      "language": "Language"
     },
     "footer": {
       "marketplace": "Marketplace",

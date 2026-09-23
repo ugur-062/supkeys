@@ -1,9 +1,24 @@
-import { companySeo, listingSeo, listingSeoInput, productSeo } from "@/lib/seo/entities";
+import {
+  companySeo as companySeo0,
+  listingSeo as listingSeo0,
+  listingSeoInput,
+  productSeo as productSeo0,
+  type CompanySeoInput,
+  type ListingSeoInput,
+  type ProductSeoInput,
+} from "@/lib/seo/entities";
+import { seoT } from "@/i18n/server";
 import { clampDescription, joinParts } from "@/lib/seo/meta";
 import { compact } from "@/lib/seo/jsonld";
 import { describe, expect, it, vi } from "vitest";
 
 vi.mock("@/lib/site-url", () => ({ resolveSiteUrl: () => "https://www.rothern.com" }));
+
+// Üreticiler çevirmeni parametre alır (server-only zinciri istemciye girmesin); testte TR.
+const T = { t: seoT("tr") };
+const productSeo = (i: ProductSeoInput) => productSeo0(i, T);
+const companySeo = (i: CompanySeoInput) => companySeo0(i, T);
+const listingSeo = (i: ListingSeoInput) => listingSeo0(i, T);
 
 /**
  * SEO/GEO SÖZLEŞMESİ.

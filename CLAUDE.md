@@ -231,7 +231,7 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 
 ---
 
-## Çok Dillilik (i18n) — Faz 0 kuruldu (2026-09-23)
+## Çok Dillilik (i18n) — Faz 0 + Faz 1 (herkese açık yüzey ve kimlik akışı) TAMAM (2026-09-23)
 
 Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 Çince/Arapça sonra. Terim: "talep" → EN **Request** (asla "tender"), RU
@@ -318,6 +318,44 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   `apps/api/Dockerfile` (`COPY packages/<ad>/package.json` + build satırı),
   `apps/web/vercel.json` `buildCommand`, jest `moduleNameMapper`. Biri
   unutulursa yerel yeşil, dağıtım kırmızı.
+- **FAZ 1 KAPSAMI (2026-09-23, 9 parti):** pazarlama başlığı/altbilgi,
+  anasayfa iki yüz, pazar yeri dizinleri/süzgeçleri/kartları/detay sayfaları,
+  Hakkımızda · İletişim · SSS · Nasıl Çalışır, talep-onayla/davet-kapat/şifre
+  sıfırlama, giriş · kayıt · şifremi unuttum · ekip daveti · firma doğrulama
+  sihirbazı, dil seçici (üst çubuk küre menüsü + mobil menü + altbilgi) ve
+  Ayarlar › Hesap Bilgileri › Dil (anında `PATCH me { locale }` + aynı sayfa
+  yeni ön ekle). **Panel metinleri Faz 2** (cırcır tabanı 433 dosya / 6.194
+  literal; hepsi panel/admin/API).
+- **Sunucu sayfası kalıbı:** `generateMetadata` → `getTranslations({ locale,
+  namespace })`; gövde `await getTranslations("web.…")`; bağlantılı cümle
+  `t.rich("key", { faq: (c) => <Link …>{c}</Link> })` — çeviride sözcük sırası
+  değişince bağlantı yerini kaybetmesin. Kırıntı: `breadcrumbNode(items,
+  locale)` (adres o dilin ön ekiyle, ad `web.marketing.breadcrumbHome`).
+- **İstemciye GİTMEYEN ad alanları** (`src/i18n/client-messages.ts`
+  `SERVER_ONLY_NAMESPACES`: `web.seo`, `web.marketing.{about,contact,faq,legal,
+  inquiryVerify}`): kök düzen `NextIntlClientProvider messages={clientMessages(…)}`
+  ile ayıklar; `client-messages.test` "use client" dosyalarını tarar — bir
+  istemci bileşeni bu ad alanından okursa kırmızı (çalışma zamanında ham anahtar
+  basardı). Listeye ekleme = o testi koşmak.
+- **Sözleşme metinleri YALNIZ TÜRKÇE** (hukuki metin çevrilmez): `LegalDoc`
+  EN/RU'da üstte "Türkçe metin esastır" notu basar, gövde `lang="tr"`, JSON-LD
+  `inLanguage` tr-TR; yalnız kabuk ve meta çevrilir; `updatedAt` ISO tarih.
+- **Paket kartı metni katalogda** (`web.pricing.plans.*`, pazarlama sayfası
+  `usePricingPlans`); panel Faz 2'ye kadar `PRICING_PLANS`i okur ve
+  `plans-i18n.test` iki kaynağı BİREBİR tutar (özellik sayısı dahil). Segment
+  sloganları `web.marketing.taglines.s<kod>` + `useSegmentTagline`.
+- **SSS tek kaynak `faqGroups(locale)`** (`sss/faq-data.ts`): sayfa, `FAQPage`
+  JSON-LD ve `llms-full.txt` (TR) aynı fonksiyondan; `faq.test` üç dilde
+  kalite kapısı (soru "?" ile biter, cevap ≥120 karakter, fiyat yazmaz).
+- **Kimlik akışı ortak parçaları:** `usePasswordRules` + `PasswordStrength`,
+  `ConsentRows` (kayıt ve davet kabul kopyaları birleşti); zod şemaları
+  `useMemo(() => makeSchema(t), [t])` ile dil bilen. Dil seçici etiketleri
+  dilin KENDİ adıyla ve çevrilmez (`LOCALE_LABELS`). Üst çubukta
+  `useSearchParams` YOK (statik sayfada Suspense ister) — sorgu `window`dan
+  efektte okunur.
+- **Faz 1'de düzeltilen bayat vaatler:** Nasıl Çalışır "teslim belgesi"
+  (sipariş belgesi 2026-08-22'de kalktı) ve "sınırsız kullanıcı" (koltuk 2/4/6)
+  metinden çıktı; "ilan" → "talep" (alıcı yüzü).
 
 ---
 

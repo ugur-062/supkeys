@@ -12,6 +12,7 @@ import { Link } from "@/i18n/navigation";
 import { usePathname } from "@/i18n/navigation";
 import { useAudienceValue } from "@/components/marketplace/audience-switch";
 import { cn } from "@/lib/utils";
+import { LanguageSwitcher } from "./language-switcher";
 import { useEffect, useState } from "react";
 
 /**
@@ -144,6 +145,7 @@ export function MarketingHeader() {
           </nav>
 
           <div className="hidden items-center gap-4 lg:flex">
+            <LanguageSwitcher />
             <Link
               href="/company/login"
               className="text-sm font-semibold whitespace-nowrap text-zinc-900 transition hover:text-zinc-600"
@@ -216,6 +218,7 @@ export function MarketingHeader() {
             </Link>
           ))}
         </nav>
+        <LanguageSwitcher variant="inline" className="mt-6 border-t border-zinc-100 pt-4" />
       </Sheet>
     </header>
   );

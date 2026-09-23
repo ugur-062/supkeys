@@ -96,3 +96,28 @@ panel içi kısa etiketler Claude çevirisiyle yayınlanır.
   Panel için ikisi de yok → dinamik. `connection()` eklenip geri alındı.
 - Herkese açık statik sayfa: tr/en/ru × 7 (anasayfa, ürünler, firmalar, alım
   talepleri, nasıl çalışır, sss, hakkımızda, iletişim); toplam 226 statik sayfa.
+
+## Faz 1d kararları (2026-09-23) — statik sayfalar, kimlik akışı, dil seçici
+
+- **Çeviri Claude'ca, ekran bağlamıyla** (kullanıcı kararı: makine çevirisi yok).
+  Faz 1 sonunda katalog 1.150 anahtar; EN ve RU %100 `reviewed`.
+- **Kırıntı adresleri dil ön ekli:** `breadcrumbNode(items, locale)` — eskiden
+  `/en/…` sayfasının JSON-LD kırıntısı Türkçe adres ve ad taşıyordu.
+- **İstemci yükü:** sunucuya özel ad alanları (`SERVER_ONLY_NAMESPACES`) kök
+  sağlayıcıya girmez; dosya sistemi testi "use client" dosyalarını tarar.
+- **Sözleşmeler Türkçe kalır**, EN/RU'da "Türkçe metin esastır" notu; meta
+  başlık/açıklama çevrilir, gövde `lang="tr"`.
+- **Paket metinleri** katalogda (`web.pricing`), panel Faz 2'ye kadar
+  `PRICING_PLANS`; parite testi. **Segment sloganları** katalogda.
+- **Kimlik akışı:** ortak `usePasswordRules`/`PasswordStrength`/`ConsentRows`;
+  zod mesajları `useMemo` şema fabrikasıyla dil bilen; kayıt ülkesi adları
+  `Intl.DisplayNames` (XN/KKTC Türkçe ada düşer).
+- **Dil seçici:** üst çubuk küre menüsü (masaüstü), mobil menü ve altbilgide
+  yan yana bağlantılar; aynı sayfa + sorgu, hedef dilin ön ekiyle. Ayarlar ›
+  Hesap Bilgileri › Dil anında kaydeder ve `router.replace(…, { locale })`.
+- **Bayat vaat düzeltmeleri** (çeviri sırasında görüldü): "teslim belgesi",
+  "sınırsız kullanıcı", "ilan" → "talep".
+- **Sonraki:** Faz 2 panel metinleri (cırcır 433 dosya / 6.194 literal; ad
+  alanı `web.panel.*`, sağlayıcı daraltma o zaman), Faz 3 API istisna/DTO
+  fonksiyon mesajı/bildirim/e-posta, Faz 4 kategori adları.
+
