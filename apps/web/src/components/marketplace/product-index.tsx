@@ -1,3 +1,4 @@
+import { provinceDisplayName } from "@rothern/shared";
 import { getLocale, getTranslations } from "next-intl/server";
 import { FilterResults, FilterShell, MobileFilterButton, ResultCount } from "./filter-shell";
 import { Pagination } from "@/components/ui/pagination";
@@ -116,7 +117,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
       (category ? (
         <IndexIntro subject={category.name} total={page.total} facets={facets} kind="category" />
       ) : fixedCity ? (
-        <IndexIntro subject={fixedCity} total={page.total} facets={facets} kind="city" />
+        <IndexIntro subject={provinceDisplayName(fixedCity, locale)} total={page.total} facets={facets} kind="city" />
       ) : null)}
     <FilterShell basePath={basePath} fixedCategory={category?.id} total={page.total} pushFilters drawer={<ProductFilters facets={facets} idPrefix="m" />}>
       <PublicListPage

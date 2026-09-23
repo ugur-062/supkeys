@@ -1,5 +1,5 @@
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useActivityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useScopeLabel, useSeoT, useUnitLabel } from "@/i18n/domain";
+import { useActivityLabel, useCityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useScopeLabel, useSeoT, useUnitLabel } from "@/i18n/domain";
 import { PublicLayout } from "./public-layout";
 import { GatedField } from "./gated-field";
 import { Heading } from "@/components/catalyst/heading";
@@ -48,6 +48,7 @@ export function ListingDetail({
   const fmt = useFormatter();
   const scopeLabel = useScopeLabel();
   const activityLabel = useActivityLabel();
+  const cityLabel = useCityLabel();
   const deliveryTermLabel = useDeliveryTermLabel();
   const paymentCategoryLabel = usePaymentCategoryLabel();
   const closingUrgency = useClosingUrgency();
@@ -352,7 +353,7 @@ export function ListingDetail({
                   {listing.company.city ? (
                     <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">
                       <MapPinIcon aria-hidden className="size-3.5" />
-                      {listing.company.city}
+                      {cityLabel(listing.company.city)}
                     </p>
                   ) : null}
                   <p className="mt-1 flex items-center gap-1 text-xs text-zinc-500">

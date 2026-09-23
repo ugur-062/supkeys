@@ -1,3 +1,4 @@
+import { provinceDisplayName } from "@rothern/shared";
 import { INTL_LOCALE, formatNumber } from "@/i18n/format";
 import { localizePath } from "@/i18n/href";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
@@ -104,7 +105,7 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
   const path = `/firma/${companySlug}/urun/${pr.slug}`;
   const url = absoluteUrl(localizePath(path, locale));
   const images = pr.images.map((i) => (i.startsWith("http") ? i : absoluteUrl(i)));
-  const where = joinParts([co.name, co.city], ", ");
+  const where = joinParts([co.name, provinceDisplayName(co.city, locale)], ", ");
 
   /* Tanım cümlesi: NE + KİM + NEREDE + FİYAT + MOQ. Arama sonucunda ve AI
      cevabında tek başına anlamlı olmalı — "ürün sayfası" demek yetmez. */
@@ -169,7 +170,7 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
         ? {
             address: {
               "@type": "PostalAddress",
-              addressLocality: co.city,
+              addressLocality: provinceDisplayName(co.city, locale),
               addressCountry: co.country ?? "TR",
             },
           }
@@ -271,7 +272,7 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
   const summary = joinParts(
     [
       joinParts([c.name, c.industry], " — "),
-      c.city ? ts("web.seo.basedIn", { city: c.city }) : null,
+      c.city ? ts("web.seo.basedIn", { city: provinceDisplayName(c.city, locale) }) : null,
       c.productCount > 0 ? ts("web.seo.productsInShowcase", { n: formatNumber(c.productCount, locale) }) : null,
       c.verified ? ts("web.seo.verifiedOnRothern") : null,
     ],
@@ -283,7 +284,7 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
   // (canlı denetim 2026-09-11) — parçacık için en az ~50: genel cümle eklenir.
   const parts = [
     lead,
-    joinParts([c.industry, c.city], ", "),
+    joinParts([c.industry, provinceDisplayName(c.city, locale)], ", "),
     c.productCount > 0 ? ts("web.seo.products", { n: formatNumber(c.productCount, locale) }) : null,
     ts("web.seo.companyProfile"),
   ];
@@ -314,7 +315,7 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
       ? {
           address: {
             "@type": "PostalAddress",
-            addressLocality: c.city,
+            addressLocality: provinceDisplayName(c.city, locale),
             addressCountry: c.country ?? "TR",
           },
         }
@@ -344,7 +345,7 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
 
   return {
     metadata: buildMetadata({
-      title: joinParts([c.name, joinParts([c.industry, c.city], ", ")], " — "),
+      title: joinParts([c.name, joinParts([c.industry, provinceDisplayName(c.city, locale)], ", ")], " — "),
       description,
       path,
       images: image ? [image] : undefined,
@@ -442,7 +443,7 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
       joinParts([l.title, cat], " — "),
       qty,
       l.itemSummary.count > 1 ? ts("web.seo.items", { n: l.itemSummary.count }) : null,
-      l.buyer.city ? ts("web.seo.buyerCity", { city: l.buyer.city }) : null,
+      l.buyer.city ? ts("web.seo.buyerCity", { city: provinceDisplayName(l.buyer.city, locale) }) : null,
       l.open ? ts("web.seo.openForQuotes") : ts("web.seo.closed"),
     ],
     " · ",
@@ -454,7 +455,7 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
         l.description ? clampDescription(l.description, 90) : null,
         qty ? ts("web.seo.qty", { qty }) : null,
         cat,
-        l.buyer.city ?? null,
+        l.buyer.city ? provinceDisplayName(l.buyer.city, locale) : null,
         ts("web.seo.sealedTail"),
       ],
       " · ",
@@ -494,7 +495,7 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
             "@type": "Place",
             address: {
               "@type": "PostalAddress",
-              addressLocality: l.buyer.city,
+              addressLocality: provinceDisplayName(l.buyer.city, locale),
               addressCountry: l.buyer.country ?? "TR",
             },
           },

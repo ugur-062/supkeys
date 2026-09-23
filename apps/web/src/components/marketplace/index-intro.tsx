@@ -1,4 +1,4 @@
-import { useActivityLabel } from "@/i18n/domain";
+import { useActivityLabel, useCityLabel } from "@/i18n/domain";
 import { useLocale, useTranslations } from "next-intl";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
 
@@ -30,6 +30,7 @@ export function IndexIntro({
   const t = useTranslations("web.marketplace.indexIntro");
   const locale = useLocale();
   const activityLabel = useActivityLabel();
+  const cityLabel = useCityLabel();
   const cities = facets.cities.filter((c) => c.count > 0).slice(0, 4);
   const activities = facets.activities.filter((a) => a.count > 0).slice(0, 3);
   const cats = facets.categories.filter((c) => c.count > 0).slice(0, 4);
@@ -45,7 +46,7 @@ export function IndexIntro({
   }
   if (kind === "category" && cities.length > 0) {
     sentences.push(
-      t("cities", { list: cities.map((c) => `${c.city} (${c.count})`).join(", ") }),
+      t("cities", { list: cities.map((c) => `${cityLabel(c.city)} (${c.count})`).join(", ") }),
     );
   }
   if (kind === "city" && cats.length > 0) {

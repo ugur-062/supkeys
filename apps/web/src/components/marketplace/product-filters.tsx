@@ -1,6 +1,6 @@
 "use client";
 
-import { useActivityLabel } from "@/i18n/domain";
+import { useActivityLabel, useCityLabel } from "@/i18n/domain";
 
 import { useFormatter, useTranslations } from "next-intl";
 
@@ -232,10 +232,11 @@ function LocationGroup({
 }) {
   const t = useTranslations("web.marketplace.filters");
   const [q, setQ] = useState("");
+  const cityLabel = useCityLabel();
   const fold = (v: string) => v.toLocaleLowerCase("tr");
   const items = facets.cities
-    .filter((c) => !q || fold(c.city).includes(fold(q)) || state.cities.includes(c.city))
-    .map((c) => ({ key: c.city, label: c.city, count: c.count }));
+    .filter((c) => !q || fold(c.city).includes(fold(q)) || fold(cityLabel(c.city)).includes(fold(q)) || state.cities.includes(c.city))
+    .map((c) => ({ key: c.city, label: cityLabel(c.city), count: c.count }));
   return (
     <Group title={t("location")} icon={<MapPin className="size-4" />} count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="sehir">
       {facets.cities.length > SHOW ? (
@@ -634,6 +635,7 @@ function presetRanges(hist: {
 /** Aktif süzgeç çipleri — sticky şerit (grid'in üstünde). */
 export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
   const t = useTranslations("web.marketplace.filters");
+  const cityLabel = useCityLabel();
   const fmt = useFormatter();
   const activityLabel = useActivityLabel();
   const { state, update, clear } = useFilters();
@@ -649,7 +651,7 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
         state.category,
       onRemove: () => update({ category: undefined, attrs: [] }),
     });
-  for (const c of state.cities) chips.push({ key: `c:${c}`, label: c, onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+  for (const c of state.cities) chips.push({ key: `c:${c}`, label: cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
   for (const a of state.activities) chips.push({ key: `a:${a}`, label: activityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
   if (state.verified) chips.push({ key: "v", label: t("verified"), onRemove: () => update({ verified: false }) });
   if (state.price) chips.push({ key: "p", label: state.price === "var" ? t("priced") : t("onRequest"), onRemove: () => update({ price: undefined }) });

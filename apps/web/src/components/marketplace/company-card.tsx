@@ -1,5 +1,5 @@
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { countryDisplayName, useActivityLabel } from "@/i18n/domain";
+import { cityDisplayName, countryDisplayName, useActivityLabel } from "@/i18n/domain";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Thumb } from "@/components/ui/thumb";
@@ -126,7 +126,7 @@ export function CompanyCard({
                 {c.city || c.country ? (
                   <span className="inline-flex items-center gap-1">
                     <MapPinIcon aria-hidden className="size-3.5 text-zinc-500" />
-                    {[c.country ? countryDisplayName(c.country, locale) : null, c.city].filter(Boolean).join(", ")}
+                    {[c.country ? countryDisplayName(c.country, locale) : null, cityDisplayName(c.city, locale)].filter(Boolean).join(", ")}
                   </span>
                 ) : null}
                 {activities.map((a) => (

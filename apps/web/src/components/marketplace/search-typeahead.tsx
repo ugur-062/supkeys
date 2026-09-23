@@ -2,6 +2,7 @@
 
 import { useTranslations } from "next-intl";
 
+import { useCityLabel } from "@/i18n/domain";
 import { Avatar } from "@/components/ui/avatar";
 import { Thumb } from "@/components/ui/thumb";
 import { categoryHref, listingHref, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
@@ -67,7 +68,7 @@ type Row = { key: string; href: string; label: string; meta?: string; node?: Rea
 
 type GroupLabels = { categories: string; products: string; companies: string; listings: string };
 
-function rowsFrom(s: SuggestResult, g: GroupLabels): Row[] {
+function rowsFrom(s: SuggestResult, g: GroupLabels, cityLabel: (city: string | null | undefined) => string): Row[] {
   const rows: Row[] = [];
   for (const c of s.categories) {
     rows.push({ key: `c-${c.id}`, href: categoryHref(c), label: c.name, group: g.categories });
@@ -87,7 +88,7 @@ function rowsFrom(s: SuggestResult, g: GroupLabels): Row[] {
       key: `f-${c.slug}`,
       href: `/firma/${c.slug}`,
       label: c.name,
-      meta: c.city ?? undefined,
+      meta: cityLabel(c.city) || undefined,
       node: <Avatar name={c.name} src={c.logoUrl} size={32} />,
       group: g.companies,
     });
@@ -130,6 +131,7 @@ export function SearchTypeahead({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const t = useTranslations("web.marketplace.typeahead");
   const tl = useTranslations("web.marketplace.labels");
+  const cityLabel = useCityLabel();
   // Kapsam etiketleri/yer tutucuları dil bilen katalogdan; SEARCH_SCOPES yalnız anahtar + hedef.
   const scopeText = (k: SuggestScope): { label: string; placeholder: string } =>
     k === "products"
@@ -169,7 +171,7 @@ export function SearchTypeahead({
     };
   }, [q, scope]);
 
-  const rows = useMemo(() => rowsFrom(sug, groups), [sug, groups]);
+  const rows = useMemo(() => rowsFrom(sug, groups, cityLabel), [sug, groups, cityLabel]);
   const showRecent = q.trim().length < 2 && recent.length > 0;
   const panel = open && (rows.length > 0 || showRecent);
 

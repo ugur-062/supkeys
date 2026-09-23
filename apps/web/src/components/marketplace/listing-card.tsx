@@ -9,7 +9,7 @@ import {
   type PublicListingState,
 } from "@/lib/public/marketplace";
 import { cn } from "@/lib/utils";
-import { useScopeLabel } from "@/i18n/domain";
+import { useCityLabel, useScopeLabel } from "@/i18n/domain";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import {
   CalendarDaysIcon,
@@ -449,6 +449,7 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
   const locale = useLocale();
   const fmt = useFormatter();
   const scopeLabel = useScopeLabel();
+  const cityLabel = useCityLabel();
   const state = publicState(listing.status);
   const href = listingHref(listing);
   const primaryCategory =
@@ -518,7 +519,7 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
               <div className="flex items-center gap-1">
                 <dt className="sr-only">{t("location")}</dt>
                 <MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />
-                <dd>{listing.company.city}</dd>
+                <dd>{cityLabel(listing.company.city)}</dd>
               </div>
             ) : null}
             {(listing.targetCountries ?? []).length > 0 ? (

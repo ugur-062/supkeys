@@ -1,4 +1,4 @@
-import { useActivityLabel, usePriceLabels, useSeoT, useUnitLabel } from "@/i18n/domain";
+import { useActivityLabel, useCityLabel, usePriceLabels, useSeoT, useUnitLabel } from "@/i18n/domain";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { PublicLayout } from "./public-layout";
 import { ProductGallery } from "./product-gallery";
@@ -534,6 +534,7 @@ function SellerSummary({
   compact?: boolean;
 }) {
   const activityLabel = useActivityLabel();
+  const cityLabel = useCityLabel();
   const t = useTranslations("web.marketplace.product");
   const certs = (company.certifications ?? []).slice(0, compact ? 2 : 4);
   const facts = [
@@ -566,7 +567,7 @@ function SellerSummary({
             {company.city ? (
               <span className="inline-flex items-center gap-1">
                 <MapPinIcon aria-hidden className="size-3.5 text-zinc-300" />
-                {company.city}
+                {cityLabel(company.city)}
               </span>
             ) : null}
           </p>

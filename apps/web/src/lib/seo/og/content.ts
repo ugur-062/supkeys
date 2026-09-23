@@ -1,3 +1,4 @@
+import { provinceDisplayName } from "@rothern/shared";
 import { productPrice } from "@/lib/public/product-price";
 import type { PublicListingDetail, PublicProduct, PublicProductCompany, PublicProfile } from "@/lib/public/marketplace-api";
 import { joinParts } from "@/lib/seo/meta";
@@ -48,7 +49,7 @@ export function productOgContent(product: PublicProduct, company: PublicProductC
   return {
     eyebrow: product.category?.name ? t("web.seo.og.productWith", { category: product.category.name.toLocaleUpperCase(locale) }) : t("web.seo.og.product"),
     title: clampTitle(product.name),
-    subtitle: joinParts([company.name, company.city], " · ") || null,
+    subtitle: joinParts([company.name, provinceDisplayName(company.city, locale)], " · ") || null,
     facts: [
       price.hasPrice ? price.headline : labels.onRequest,
       product.moq ? t("web.seo.og.minOrder", { n: product.moq, unit: product.unit }) : null,
@@ -64,7 +65,7 @@ export function companyOgContent(p: PublicProfile, locale: Locale = DEFAULT_LOCA
   return {
     eyebrow: t("web.seo.og.company"),
     title: clampTitle(p.name),
-    subtitle: joinParts([p.industry, p.city], " · ") || null,
+    subtitle: joinParts([p.industry, provinceDisplayName(p.city, locale)], " · ") || null,
     facts: [
       p.productCount > 0 ? t("web.seo.productsInShowcase", { n: formatNumber(p.productCount, locale) }) : null,
       p.foundedYear ? t("web.seo.og.since", { year: p.foundedYear }) : null,
@@ -89,7 +90,7 @@ export function listingOgContent(l: PublicListingDetail, locale: Locale = DEFAUL
   return {
     eyebrow: t("web.seo.og.demand", { number: l.number }),
     title: clampTitle(l.title),
-    subtitle: joinParts([l.categories[0]?.name, l.company.city], " · ") || null,
+    subtitle: joinParts([l.categories[0]?.name, provinceDisplayName(l.company.city, locale)], " · ") || null,
     facts: [
       qty ? t("web.seo.qty", { qty }) : null,
       l.itemSummary.count > 1 ? t("web.seo.items", { n: l.itemSummary.count }) : null,
@@ -114,9 +115,10 @@ export function categoryOgContent(name: string, count: number, locale: Locale = 
 
 export function cityOgContent(kind: "products" | "companies", city: string, count: number, locale: Locale = DEFAULT_LOCALE): OgContent {
   const t = webTranslator(locale);
+  const cityName = provinceDisplayName(city, locale);
   return {
     eyebrow: t("web.seo.og.city"),
-    title: kind === "products" ? t("web.seo.og.cityProductsTitle", { city }) : t("web.seo.og.cityCompaniesTitle", { city }),
+    title: kind === "products" ? t("web.seo.og.cityProductsTitle", { city: cityName }) : t("web.seo.og.cityCompaniesTitle", { city: cityName }),
     subtitle: kind === "products" ? t("web.seo.og.cityProductsSub") : t("web.seo.og.cityCompaniesSub"),
     facts: count > 0 ? [kind === "products" ? t("web.seo.og.products", { n: formatNumber(count, locale) }) : t("web.seo.og.companies", { n: formatNumber(count, locale) })] : [],
     image: null,

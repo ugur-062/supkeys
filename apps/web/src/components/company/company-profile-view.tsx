@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-note";
-import { countryDisplayName, useActivityLabel } from "@/i18n/domain";
+import { cityDisplayName, countryDisplayName, useActivityLabel } from "@/i18n/domain";
 import { useLocale, useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 import { MapPinIcon, StarIcon } from "@heroicons/react/20/solid";
@@ -306,7 +306,7 @@ export function CompanyProfileView({
                       {p.city ? (
                         <span className="inline-flex items-center gap-1 text-zinc-500">
                           <MapPinIcon aria-hidden className="size-4 text-zinc-400" />
-                          {p.city}
+                          {cityDisplayName(p.city, locale)}
                         </span>
                       ) : null}
                       {p.industry ? <span className="text-zinc-500">· {p.industry}</span> : null}

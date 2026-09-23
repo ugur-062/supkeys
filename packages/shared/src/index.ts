@@ -32,4 +32,5 @@ export * from "./constants/category-catalog";
 export * from "./helpers/product-completion";
 export * from "./helpers/employee-bucket";
 export * from "./data/tr-provinces";
+export * from "./data/tr-province-names";
 export * from "./constants/company-permissions";

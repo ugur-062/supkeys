@@ -1,6 +1,6 @@
 "use client";
 
-import { useActivityLabel } from "@/i18n/domain";
+import { useActivityLabel, useCityLabel } from "@/i18n/domain";
 
 import { useTranslations } from "next-intl";
 
@@ -43,6 +43,7 @@ export function CompanyFilters({
   showConnection?: boolean;
 }) {
   const t = useTranslations("web.marketplace.filters");
+  const cityLabel = useCityLabel();
   const activityLabel = useActivityLabel();
   const { state, update } = useFilters<CompanyFilterState>();
   const profileCount = (state.verified ? 1 : 0) + (state.hasProducts ? 1 : 0) + (state.gold ? 1 : 0);
@@ -104,7 +105,7 @@ export function CompanyFilters({
       </Group>
       <Group title={t("city")} count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="dir-city">
         <ShowMore
-          items={facets.cities.map((c) => ({ key: c.city, label: c.city, count: c.count }))}
+          items={facets.cities.map((c) => ({ key: c.city, label: cityLabel(c.city), count: c.count }))}
           selected={state.cities}
           idPrefix={`${idPrefix}-city`}
           onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
@@ -129,6 +130,7 @@ export function CompanyFilters({
 
 export function CompanyActiveChips({ facets }: { facets: PublicDirectoryFacets }) {
   const t = useTranslations("web.marketplace.filters");
+  const cityLabel = useCityLabel();
   const activityLabel = useActivityLabel();
   const { state, update, clear } = useFilters<CompanyFilterState>();
   const categoryName = useCategoryNames(state.categories, facets);
@@ -143,7 +145,7 @@ export function CompanyActiveChips({ facets }: { facets: PublicDirectoryFacets }
       onRemove: () => update({ connection: undefined }),
     });
   for (const a of state.activities) chips.push({ key: `a:${a}`, label: activityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
-  for (const c of state.cities) chips.push({ key: `c:${c}`, label: c, onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+  for (const c of state.cities) chips.push({ key: `c:${c}`, label: cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
   for (const k of state.categories) chips.push({ key: `k:${k}`, label: categoryName(k), onRemove: () => update((s) => ({ ...s, categories: s.categories.filter((x) => x !== k) })) });
   return <FilterChipBar chips={chips} activeCount={activeCompanyFilterCount(state)} onClearAll={clear} />;
 }

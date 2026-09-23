@@ -186,6 +186,20 @@ panel içi kısa etiketler Claude çevirisiyle yayınlanır.
   koyar; web `listingHref()` onu kullanır (`/en/talep/<slug>` = `/talep/<slug>`),
   başlıktan üretim yalnız yedek. Ürün/firma slug'ı zaten sütunda (donuk).
 
+### Faz 1e son tur (2026-09-24 gece, kullanıcı: "sayfa yolları gibi her şeyi kontrol et")
+- **Şehir adları:** EN sayfada "İstanbul" (noktalı İ), RU sayfada Latin il adı
+  kalıyordu (başlık, açıklama, JSON-LD, kartlar). `TR_PROVINCE_NAMES_I18N`
+  (81 il, EN Vikipedi yazımı / RU Kiril) + `provinceDisplayName`; web
+  `cityDisplayName`/`useCityLabel`. Süzgeç anahtarı ham TR adı (URL/API
+  değeri değişmez), yalnız etiket çevrilir. Yabancı şehir olduğu gibi.
+- **Serbest metin birim + talep sahibi profili:** `unitCode`süz `unit` metni
+  ("kullanıcı") çevrilir; LISTING tetiği sahibin COMPANY kaydını da kuyruğa
+  alır (alıcı sektörü). Staging backfill 564 DONE / 0 hata.
+- **Yumuşak 404 (SEO):** `urunler/loading.tsx` kategori/şehir sayfalarının
+  `notFound()`unu 200 + noindex'e çeviriyordu (canlıda da) → rota grubu.
+- **Kalan kalıntılar bilinçli:** firma adları, "MERSİS", vergi dairesi adı,
+  dil seçicideki "Türkçe" (dilin kendi adı), logo baş harfleri.
+
 ## Faz 4 — kategori adları EN/RU (2026-09-23 akşam)
 - **Neden şimdi:** üç dilli SEO taraması kategori sayfalarında (`/en/urunler/kategori/…`)
   başlık, h1 ve açıklamada Türkçe kategori adı gösterdi; talep meta

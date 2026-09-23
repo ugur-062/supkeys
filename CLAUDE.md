@@ -431,8 +431,22 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   dili ≠ kayıtlı dil ise `PATCH me { locale }` (yoksa `LocaleUrlSync` paneli
   eski dile atıyordu — kullanıcı bulgusu "İngilizce seçtiğim hâlde her şey
   Türkçe"); kayıt ve davet kabulü `locale: currentLocale()` ile doğar.
-  Bilinçli kalanlar: ürün/firma/şehir ÖZEL ADLARI, sözleşme metinleri (TR),
-  panel arayüz metinleri (Faz 2), arama Türkçe. Süzgeç kenar çubuğu etiketi
+  **Şehir adları üç dilde (2026-09-24):** `@rothern/shared`
+  `TR_PROVINCE_NAMES_I18N` (81 il; EN = İngilizce Vikipedi yazımı — yalnız
+  Istanbul/Izmir/Hakkari aksansız, kalanı Türkçe imla; RU Kiril, Стамбул) +
+  `provinceDisplayName(raw, locale)`; web `cityDisplayName`/`useCityLabel`
+  (`i18n/domain.ts`). Bağlı yerler: SEO üreticileri (`entities.ts` başlık/
+  açıklama/JSON-LD `addressLocality`), OG kartları, şehir açılış sayfası
+  başlığı/h1/özne, kart/detay/typeahead, süzgeç facet ETİKETLERİ ve aktif
+  çipler (anahtar ham TR adı kalır — `?sehir=` değeri değişmez). Tanınmayan
+  şehir (yabancı, ilçe) olduğu gibi; Türkçede ham metin. Sözleşme
+  `i18n/__tests__/city-display.test`. **Serbest metin ölçü birimi:**
+  `unitCode`süz üründe `unit` metni çeviri kaynağına girer ve çevrilir; kodlu
+  birim katalogdan (`useUnitLabel`). **Talep yayını sahibinin firma profilini
+  de kuyruğa alır** (`enqueue("LISTING")` → sahip COMPANY; backfill de
+  sahipleri kapsar) — talep sayfasındaki alıcı sektörü firma çevirisinden.
+  Bilinçli kalanlar: ürün/firma ÖZEL ADLARI ve yabancı şehirler, sözleşme
+  metinleri (TR), panel arayüz metinleri (Faz 2), arama Türkçe. Süzgeç kenar çubuğu etiketi
   ürün dilinde "Süzgeçler" (Faz 1'de "Filtreler" yazılmıştı; e2e onu arar).
   **MODEL ADI TUZAĞI (2026-09-23, staging'de ölçüldü):** Vertex AI
   `gemini-pro-latest` alias'ını TANIMAZ (404 NOT_FOUND) — Generative Language
@@ -1604,6 +1618,16 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   göstermez). Herkese açık statik sayfaya panel bileşeni takarken **yerelde
   üretim derlemesi al.** `<Suspense>` yedeği BOŞ KUTU OLAMAZ — sınırın içindeki
   her şey istemciye ertelenir, `<h1>` statik HTML'den düşer (SEO kaybı).
+- **YUMUŞAK 404 TUZAĞI — `loading.tsx` + `notFound()` (2026-09-24, canlıda da
+  ölçüldü):** `loading.tsx` bir Suspense sınırıdır; altındaki dinamik sayfa
+  `notFound()` atınca kabuk çoktan akmıştır → Next **200** + `<meta
+  name="robots" content="noindex">` döner (Googlebot'a da 200 = soft 404).
+  `/urunler/loading.tsx` altındaki `kategori/[slug]` ve `sehir/[il]` böyle
+  200 dönüyordu; iskelet `urunler/(dizin)/` rota grubuna taşındı (yalnız dizin
+  sayfasını sarar), alt sayfalar sınırın DIŞINDA → gerçek 404. Kural:
+  `notFound()` atabilen dinamik segmentin ÜSTÜNE `loading.tsx` koyma; iskelet
+  istiyorsan rota grubuyla yalnız o sayfayı sar. `/firma/*` ve `/talep/*`
+  zaten sınırsız (404 doğru).
 - **Rig stub gotcha (denetimde 8 kez tekrarladı):** yaygın enjekte edilen bir
   servise YENİ bağımlılık eklendiğinde elle kurulan test rig'leri kırılır —
   (a) eksik stub → `x is not a function`, (b) **constructor SIRASI kayması** →

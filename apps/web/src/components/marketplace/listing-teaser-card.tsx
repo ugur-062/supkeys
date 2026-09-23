@@ -6,7 +6,7 @@ import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import { ClockIcon, GlobeAltIcon, LockClosedIcon, MapPinIcon } from "@heroicons/react/20/solid";
-import { useActivityLabel, useScopeLabel, useUnitLabel } from "@/i18n/domain";
+import { useActivityLabel, useCityLabel, useScopeLabel, useUnitLabel } from "@/i18n/domain";
 import { useFormatter, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 
@@ -38,12 +38,13 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
   const unitLabel = useUnitLabel();
   const fmt = useFormatter();
   const activityLabel = useActivityLabel();
+  const cityLabel = useCityLabel();
   const scopeLabel = useScopeLabel();
   const href = listingHref(l);
   const open = publicState(l.status) === "open";
   const left = open ? daysLeft(l.closesAt) : null;
   const activity = l.company.activities[0];
-  const who = [activity ? activityLabel(activity) : null, l.company.city].filter(Boolean).join(" · ");
+  const who = [activity ? activityLabel(activity) : null, cityLabel(l.company.city)].filter(Boolean).join(" · ");
   const primaryCategory = l.categories.find((c) => c.level >= 3) ?? l.categories[0];
   const qty = l.itemSummary.totalQuantity && l.itemSummary.unit ? Number(l.itemSummary.totalQuantity) : null;
 

@@ -7,7 +7,7 @@ import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import { daysUntil } from "@/lib/tenders/seller-state";
-import { useActivityLabel, useClosingUrgency, useUnitLabel } from "@/i18n/domain";
+import { useActivityLabel, useCityLabel, useClosingUrgency, useUnitLabel } from "@/i18n/domain";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
@@ -38,13 +38,14 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
   const locale = useLocale();
   const fmt = useFormatter();
   const activityLabel = useActivityLabel();
+  const cityLabel = useCityLabel();
   const closingUrgency = useClosingUrgency();
   const href = listingHref(l);
   const state = publicState(l.status);
   const urgency = closingUrgency(l.status, l.closesAt);
   const days = daysUntil(l.closesAt) ?? 99;
   const activity = l.company.activities[0];
-  const who = [activity ? activityLabel(activity) : null, l.company.city].filter(Boolean).join(" · ");
+  const who = [activity ? activityLabel(activity) : null, cityLabel(l.company.city)].filter(Boolean).join(" · ");
   const primary = l.categories.find((c) => c.level >= 3) ?? l.categories[0];
 
   const data: ListingCardData = {

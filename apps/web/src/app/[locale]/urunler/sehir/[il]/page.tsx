@@ -1,6 +1,7 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import type { Locale } from "@rothern/i18n";
+import { provinceDisplayName } from "@rothern/shared";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { CityLinks } from "@/components/marketplace/city-links";
 import { ProductIndex, type ProductSearchParams } from "@/components/marketplace/product-index";
@@ -58,13 +59,14 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!name) return { title: t("cityNotFound"), robots: { index: false } };
   const facets = await fetchProductFacets({ city: name });
   const count = facets.cities.find((c) => c.city === name)?.count ?? 0;
+  const shown = provinceDisplayName(name, locale);
 
   return buildMetadata({
-    title: t("cityTitle", { name }),
+    title: t("cityTitle", { name: shown }),
     description:
       count > 0
-        ? t("cityMetaDescHas", { name, count })
-        : t("cityMetaDescNone", { name }),
+        ? t("cityMetaDescHas", { name: shown, count })
+        : t("cityMetaDescNone", { name: shown }),
     path: cityProductPath(name),
     // Ürünü olmayan il: sayfa DURUR ama indekse girmez (ince içerik).
     noindex: count === 0,
@@ -87,12 +89,13 @@ export default async function Page({
   const tp = await getTranslations("web.marketplace.pages");
   const [sp, facets] = await Promise.all([searchParams, fetchProductFacets({})]);
   const count = facets.cities.find((c) => c.city === name)?.count ?? 0;
+  const shown = provinceDisplayName(name, locale);
 
   return (
     <PublicLayout className={MARKET_GROUND}>
       <ProductIndex
-        title={tp("cityTitle", { name })}
-        lead={count > 0 ? tp("cityLeadHas", { name }) : tp("cityLeadNone", { name })}
+        title={tp("cityTitle", { name: shown })}
+        lead={count > 0 ? tp("cityLeadHas", { name: shown }) : tp("cityLeadNone", { name: shown })}
         searchParams={sp}
         fixedCity={name}
         footer={<CityLinks cities={facets.cities} kind="products" activeCity={name} />}

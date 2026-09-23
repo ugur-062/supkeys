@@ -1,4 +1,5 @@
 import { useTranslations } from "next-intl";
+import { useCityLabel } from "@/i18n/domain";
 import { allCitySlugs, cityCompanyPath, cityProductPath } from "@/lib/public/city";
 import { Link } from "@/i18n/navigation";
 
@@ -22,6 +23,7 @@ export function CityLinks({
   activeCity?: string;
 }) {
   const t = useTranslations("web.marketplace.cityLinks");
+  const cityLabel = useCityLabel();
   const known = new Set(allCitySlugs().map((c) => c.name));
   const list = cities
     .filter((c) => c.count > 0 && known.has(c.city) && c.city !== activeCity)
@@ -42,7 +44,7 @@ export function CityLinks({
               href={href(c.city)}
               className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm text-zinc-700 ring-1 ring-zinc-950/10 ring-inset transition hover:text-zinc-950 hover:ring-zinc-950/20"
             >
-              {c.city}
+              {cityLabel(c.city)}
               <span className="text-xs text-zinc-500 tabular-nums">{c.count}</span>
             </Link>
           </li>

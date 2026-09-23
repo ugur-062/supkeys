@@ -1,6 +1,6 @@
 "use client";
 
-import { countryDisplayName } from "@/i18n/domain";
+import { countryDisplayName, useCityLabel } from "@/i18n/domain";
 
 import { useLocale, useTranslations } from "next-intl";
 
@@ -19,6 +19,7 @@ const WITHIN_KEYS = ["3", "7", "30"] as const;
  */
 export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idPrefix: string }) {
   const { state, update } = useFilters<ListingFilterState>();
+  const cityLabel = useCityLabel();
   const t = useTranslations("web.marketplace.filters");
   const locale = useLocale();
   const WITHIN = WITHIN_KEYS.map((key) => ({ key, label: t("withinDays", { n: Number(key) }) }));
@@ -46,7 +47,7 @@ export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idP
         storageKey="lst-city"
       >
         <ShowMore
-          items={facets.cities.map((c) => ({ key: c.city, label: c.city, count: c.count }))}
+          items={facets.cities.map((c) => ({ key: c.city, label: cityLabel(c.city), count: c.count }))}
           selected={state.cities}
           idPrefix={`${idPrefix}-city`}
           onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
@@ -96,11 +97,12 @@ export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idP
 
 export function ListingActiveChips({ facets }: { facets: PublicFacets }) {
   const t = useTranslations("web.marketplace.filters");
+  const cityLabel = useCityLabel();
   const locale = useLocale();
   const { state, update, clear } = useFilters<ListingFilterState>();
   const chips: FilterChip[] = [];
   if (state.category) chips.push({ key: "cat", label: facets.categories.find((c) => c.id === state.category)?.name ?? state.category, onRemove: () => update({ category: undefined }) });
-  for (const c of state.cities) chips.push({ key: `c:${c}`, label: c, onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+  for (const c of state.cities) chips.push({ key: `c:${c}`, label: cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
   if (state.within) chips.push({ key: "w", label: t("withinDays", { n: Number(state.within) }), onRemove: () => update({ within: undefined }) });
   if (state.country) chips.push({ key: "s", label: countryDisplayName(state.country, locale), onRemove: () => update({ country: undefined }) });
   return <FilterChipBar chips={chips} activeCount={activeListingFilterCount(state)} onClearAll={clear} />;

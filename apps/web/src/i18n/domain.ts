@@ -1,5 +1,5 @@
 import { closingUrgency as closingUrgencyTr, daysUntil } from "@/lib/tenders/seller-state";
-import { UNITS, companyActivityLabel, countryName as countryNameTr } from "@rothern/shared";
+import { UNITS, companyActivityLabel, countryName as countryNameTr, provinceDisplayName } from "@rothern/shared";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
 import type { PriceLabels } from "@/lib/public/product-price";
@@ -26,6 +26,20 @@ export function countryDisplayName(code: string, locale: Locale): string {
     }
   }
   return countryNameTr(code);
+}
+
+/**
+ * Şehir adı (serbest metin il adı) istenen dilde: İngilizcede Istanbul/Izmir,
+ * Rusçada Kiril (Стамбул); Türkçede ve tanınmayan metinde ham değer. Kaynak
+ * `@rothern/shared` `TR_PROVINCE_NAMES_I18N` (81 il).
+ */
+export function cityDisplayName(city: string | null | undefined, locale: Locale): string {
+  return provinceDisplayName(city, locale);
+}
+
+export function useCityLabel(): (city: string | null | undefined) => string {
+  const locale = useLocale() as Locale;
+  return (city) => cityDisplayName(city, locale);
 }
 
 export function useActivityLabel(): (code: string) => string {

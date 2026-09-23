@@ -4,6 +4,27 @@ Bu dosya tamamlanmış aşamaların detaylı kaydıdır. Aktif çalışma için 
 
 ---
 
+## 2026-09-24 (gece) — Faz 1e kapanış: son kalıntılar, şehir adları üç dilde, yumuşak 404
+
+Kullanıcı: "sayfa yolları gibi her şeyi kontrol et, çeviri kusursuz olmalı".
+Staging: içerik çevirisi backfill (564 kayıt DONE, 0 hata), EN/RU kalıntı
+taraması (kalan yalnız özel adlar: firma adları, MERSİS, vergi dairesi), kategori
+doğrulaması üç dilde (29 segment, menü, facet, slug), SEO dil kontrolü (36
+sayfa-dil), CI + Vercel yeşil.
+
+- `seed-category-attributes.ts` bozuk import (CI typecheck kırmızıydı) onarıldı.
+- Serbest metin ölçü birimi ("kullanıcı") çeviri kaynağına girdi; talep yayını
+  sahibinin firma profilini de kuyruğa alıyor (talep sayfası "Makine İmalatı" →
+  "Machinery Manufacturing"); ürün detayı satıcı özeti faaliyet etiketi.
+- Şehir adları EN/RU: `TR_PROVINCE_NAMES_I18N` (81 il) + `provinceDisplayName`;
+  web `cityDisplayName`/`useCityLabel` SEO başlık/açıklama/JSON-LD, OG, şehir
+  sayfası, kartlar, typeahead, süzgeç etiketleri ve aktif çiplere bağlandı
+  (süzgeç anahtarı ham TR). "İstanbul" → "Istanbul" / "Стамбул".
+- Yumuşak 404: `/urunler/loading.tsx` Suspense sınırı kategori/şehir alt
+  sayfalarının `notFound()`unu 200'e çeviriyordu (canlıda da) → iskelet
+  `urunler/(dizin)/` rota grubuna taşındı; alt sayfalar gerçek 404.
+- Web 147 dosya / 829 test yeşil; i18n kapısı yeşil (cırcır 425 / 5991).
+
 ## 2026-09-23 (gece, 2. tur) — baştan aşağı tarama: herkese açık kalıntılar, nitelikler, giriş dili
 
 Kullanıcı: "her şeyi kontrol et, çeviri kusursuz olmalı" + "panele giriş yapınca

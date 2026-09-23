@@ -1,6 +1,6 @@
 "use client";
 
-import { usePriceLabels, useUnitLabel } from "@/i18n/domain";
+import { useCityLabel, usePriceLabels, useUnitLabel } from "@/i18n/domain";
 
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { countryDisplayName } from "@/i18n/domain";
@@ -173,6 +173,7 @@ export function ProductCard({
   className?: string;
 }) {
   const t = useTranslations("web.marketplace.productCard");
+  const cityLabel = useCityLabel();
   const unitLabel = useUnitLabel();
   const fmt = useFormatter();
   const priceLabels = usePriceLabels();
@@ -300,7 +301,7 @@ export function ProductCard({
               {firm.city ? (
                 <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap">
                   <MapPinIcon aria-hidden className="size-3.5 text-zinc-400" />
-                  {firm.city}
+                  {cityLabel(firm.city)}
                 </span>
               ) : null}
             </div>
@@ -473,7 +474,7 @@ export function ProductCard({
               {firm.city ? (
                 <span className="mt-0.5 flex items-center gap-0.5 text-[11px] text-zinc-500">
                   <MapPinIcon aria-hidden className="size-3 shrink-0 text-zinc-400" />
-                  <span className="truncate">{firm.city}</span>
+                  <span className="truncate">{cityLabel(firm.city)}</span>
                 </span>
               ) : null}
             </span>
