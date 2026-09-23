@@ -1879,5 +1879,8 @@ korunmazsa 400; fnResponse turundan sonra boş user turu EKLEME.
 - `--dangerously-skip-permissions` ile riskli komut çalıştırma.
 
 ## Git
-Repo `git@github.com:ugur-062/rothern.git` · branch `main`.
-Her özellikten sonra commit + push (commit'i bekletme).
+Repo `git@github.com:ugur-062/supkeys.git` — GitHub adı `ugur-062/supkeys`
+(marka rothern oldu, DEPO ADI DEĞİŞMEDİ; `gh api repos/ugur-062/rothern/…` 404 döner) ·
+branch `main`. Her özellikten sonra commit + push (commit'i bekletme).
+**`gh pr edit` ÇALIŞMIYOR** (2026-09-23: GitHub Projects classic GraphQL hatası) →
+`gh api -X PATCH repos/ugur-062/supkeys/pulls/<N> -f title=… -F body=@dosya`.
