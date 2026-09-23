@@ -1,3 +1,4 @@
+import { setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -30,7 +31,8 @@ export async function generateMetadata({ params }: { params: LocaleParams }): Pr
 });
 }
 
-export default function Page() {
+export default async function Page({ params }: { params: LocaleParams }) {
+  setRequestLocale(await localeFromParams(params));
   return (
     <PublicLayout>
       <JsonLd

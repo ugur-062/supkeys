@@ -1,3 +1,4 @@
+import { setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { ViewBeacon } from "@/components/marketplace/view-beacon";
 import { CompanyProfileView } from "@/components/company/company-profile-view";
@@ -61,11 +62,12 @@ export default async function PublicCompanyProfile({
   params,
   searchParams,
 }: {
-  params: Promise<{ slug: string }>;
+  params: Promise<{ locale: string;  slug: string }>;
   /** `?urun=` — FİRMA İÇİ ürün araması (spec §7). Ayrı bir ada sahip:
    *  `q` üst çubuktaki genel aramanın parametresi, ikisi karışmamalı. */
   searchParams?: Promise<{ urun?: string; urunSayfa?: string; onizleme?: string }>;
 }) {
+  setRequestLocale(await localeFromParams(params));
   const { slug } = await params;
   // Profil ve ürünler PARALEL: ürün bileşeni kendi çekiyordu, profil bitmeden
   // başlamıyordu → TTFB 1,5 sn (Lighthouse). Sonuç prop'la iner.

@@ -10,7 +10,9 @@ import {
   fetchProducts,
   fetchSegments,
 } from "@/lib/public/marketplace-api";
+import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { buildMetadata } from "@/lib/seo/meta";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import type { Metadata } from "next";
 import { ComingSoon } from "@/components/marketplace/coming-soon";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
@@ -52,27 +54,33 @@ import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 export const revalidate = 60;
 
 
-const LIVE_METADATA: Metadata = {
-  ...buildMetadata({
-    title: "B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
-    description:
-      "Doğrulanmış tedarikçilerin ürünlerini fiyat ve MOQ ile inceleyin, firmalarla konuşun, alım taleplerine kapalı zarf teklif verin. Alıcı ve satıcı tek hesapta. Kaydolmak ücretsiz.",
-    path: "/",
-  }),
-  // Anasayfada şablon ("%s · Rothern") yerine MARKA ÖNDE: "Rothern — …".
-  title: { absolute: "Rothern — B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri" },
-};
-
-export const metadata: Metadata = MARKETPLACE_LIVE
-  ? LIVE_METADATA
-  : {
-      title: "Çok Yakında",
-      description: "Rothern şu anda geliştirme aşamasında. En yakın zamanda sizlerleyiz.",
+export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
+  const locale = await localeFromParams(params);
+  const t = await getTranslations({ locale, namespace: "web.marketing.home" });
+  if (!MARKETPLACE_LIVE) {
+    return {
+      title: t("comingSoonTitle"),
+      description: t("comingSoonDescription"),
       robots: { index: false, follow: false },
     };
+  }
+  return {
+    ...buildMetadata({
+      title: t("metaTitle"),
+      description: t("metaDescription"),
+      path: "/",
+      locale,
+    }),
+    title: { absolute: t("metaAbsoluteTitle") },
+  };
+}
 
-export default async function HomePage() {
+export default async function HomePage({ params }: { params: LocaleParams }) {
+  const locale = await localeFromParams(params);
+  // Statik render: bu sayfa next-intl API'si çağırır (docs/plan-i18n.md).
+  setRequestLocale(locale);
   if (!MARKETPLACE_LIVE) return <ComingSoon />;
+  const t = await getTranslations("web.marketing.home");
 
   // Paralel; biri düşerse diğerleri sayfayı taşır (veri katmanı hata yutar).
   // Firma dizini ÇEKİLMEZ (2026-09-21, kullanıcı kararı): anasayfada firma
@@ -124,12 +132,7 @@ export default async function HomePage() {
 
         {/* SEO paragrafı — iki cümle, sayfanın ne olduğunu düz metinle söyler. */}
         <section className="mx-auto max-w-7xl px-4 pb-14 sm:px-6 lg:px-8">
-          <p className="max-w-3xl text-sm/6 text-zinc-500">
-            Rothern, Türkiye&apos;deki üretici, distribütör ve hizmet sağlayıcı firmaların ürünlerini fiyat
-            ve minimum sipariş bilgisiyle listeleyen, alım taleplerini kapalı zarf teklifle buluşturan
-            B2B pazar yeridir. Ürün ve firma profilleri herkese açıktır; teklif vermek, bilgi istemek ve
-            alıcı bilgilerini görmek için ücretsiz hesap gerekir.
-          </p>
+          <p className="max-w-3xl text-sm/6 text-zinc-500">{t("seoParagraph")}</p>
         </section>
       </AudienceProvider>
     </PublicLayout>

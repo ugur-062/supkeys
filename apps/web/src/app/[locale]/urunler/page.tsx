@@ -1,3 +1,4 @@
+import { setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import {
@@ -43,10 +44,13 @@ export async function generateMetadata({ params }: { params: LocaleParams }): Pr
 }
 
 export default async function Page({
+  params,
   searchParams,
 }: {
+  params: LocaleParams;
   searchParams: Promise<ProductSearchParams>;
 }) {
+  setRequestLocale(await localeFromParams(params));
   if (!MARKETPLACE_LIVE) notFound();
   const sp = await searchParams;
   return (

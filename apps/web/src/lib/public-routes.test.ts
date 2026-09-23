@@ -56,6 +56,19 @@ describe("isPublicRoute", () => {
     expect(isPublicRoute("/sitemap.xml")).toBe(true);
   });
 
+  it("dil ön ekli adresleri de tanır (i18n Faz 1): /en ve /ru herkese açık, /en/company değil", () => {
+    expect(isPublicRoute("/en")).toBe(true);
+    expect(isPublicRoute("/ru")).toBe(true);
+    expect(isPublicRoute("/en/urunler")).toBe(true);
+    expect(isPublicRoute("/ru/sozlesmeler/kvkk")).toBe(true);
+    expect(isPublicRoute("/en/firma/acme-metal")).toBe(true);
+    expect(isPublicRoute("/en/company")).toBe(false);
+    expect(isPublicRoute("/en/company/login")).toBe(false);
+    expect(isPublicRoute("/ru/reset-password")).toBe(false);
+    // Bilinmeyen iki harfli segment dil DEĞİLDİR.
+    expect(isPublicRoute("/xx/urunler")).toBe(false);
+  });
+
   it("panel rotalarını public SAYMAZ", () => {
     expect(isPublicRoute("/company")).toBe(false);
     expect(isPublicRoute("/company/login")).toBe(false);

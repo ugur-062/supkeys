@@ -1,3 +1,4 @@
+import { setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { CompanyIndex } from "@/components/marketplace/company-index";
 import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
@@ -34,7 +35,10 @@ export async function generateMetadata({ params }: { params: LocaleParams }): Pr
   });
 }
 
-export default async function Page({ searchParams }: { searchParams: Promise<SearchParamsLike> }) {
+export default async function Page({
+  params, searchParams }: {
+  params: LocaleParams; searchParams: Promise<SearchParamsLike> }) {
+  setRequestLocale(await localeFromParams(params));
   if (!MARKETPLACE_LIVE) notFound();
   return <CompanyIndex searchParams={await searchParams} />;
 }

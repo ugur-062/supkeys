@@ -1,3 +1,4 @@
+import { setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { isHiddenCategory } from "@rothern/shared";
@@ -89,6 +90,7 @@ export default async function Page({
   params: Promise<{ locale: string; slug: string }>;
   searchParams: Promise<ProductSearchParams>;
 }) {
+  setRequestLocale(await localeFromParams(params));
   if (!MARKETPLACE_LIVE) notFound();
   const { slug } = await params;
   const locale = await localeFromParams(params);

@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 /* `"use client"` ŞART: `toShowcaseRows` panelin client dosyasından geliyor
    (`category-showcase-rows.tsx`) ve sunucudan ÇAĞRILAMAZ. Panel dosyasına
    dokunmamak için (kullanıcı sınırı) satır hesabı istemciye alındı. Kayıp
@@ -42,6 +44,7 @@ export function HomeBuyer({
 }) {
   // 6 blok × (1 promo + 10 kategori); artan segmentler son ızgaraya eklenir.
   const rows = toShowcaseRows(showcase, 6);
+  const t = useTranslations("web.marketing.home");
 
   return (
     <div className="mx-auto max-w-7xl space-y-10 px-4 pb-14 sm:px-6 lg:px-8">
@@ -63,16 +66,16 @@ export function HomeBuyer({
         hrefFor={(c) =>
           c.count > 0 ? categoryPath(c.id, c.name) : `${MARKETPLACE_ROUTES.products}?kategori=${c.id}`
         }
-        countNoun="ürün"
-        ctaLabel="Şimdi tedarikçi bulun"
+        countNoun={t("productNoun")}
+        ctaLabel={t("categoriesCta")}
         visual="icon"
       />
       </div>
 
       <ProductStrip
         id="yeni-eklenen-urunler"
-        title="Yeni eklenen ürünler"
-        lead="Tedarikçilerin vitrinlerine en son eklediği ürünler."
+        title={t("newestTitle")}
+        lead={t("newestLead")}
         href={`${MARKETPLACE_ROUTES.products}?sirala=yeni`}
         items={newest}
         accent="blue"

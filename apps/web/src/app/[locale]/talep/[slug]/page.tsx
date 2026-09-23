@@ -1,3 +1,4 @@
+import { setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { ListingDetail } from "@/components/marketplace/listing-detail";
 import { ButtonAccentProvider } from "@/components/ui/button-accent";
@@ -34,6 +35,7 @@ export default async function Page({
 }: {
   params: Promise<{ locale: string; slug: string }>;
 }) {
+  setRequestLocale(await localeFromParams(params));
   // Yayın anahtarı kapalıyken pazar yeri rotaları YOK sayılır.
   if (!MARKETPLACE_LIVE) notFound();
   const { slug } = await params;

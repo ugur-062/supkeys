@@ -1,3 +1,4 @@
+import { setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import type { Metadata } from "next";
 import { PublicLayout } from "@/components/marketplace/public-layout";
@@ -32,7 +33,8 @@ const rows: Array<{ label: string; value: string }> = [
   { label: "Web", value: OPERATOR.website },
 ];
 
-export default function Page() {
+export default async function Page({ params }: { params: LocaleParams }) {
+  setRequestLocale(await localeFromParams(params));
   return (
     <PublicLayout>
     <JsonLd

@@ -1,3 +1,4 @@
+import { setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
@@ -22,6 +23,7 @@ export async function generateMetadata({ params }: { params: LocaleParams }): Pr
 });
 }
 
-export default function Page() {
+export default async function Page({ params }: { params: LocaleParams }) {
+  setRequestLocale(await localeFromParams(params));
   return <MarketingPage />;
 }

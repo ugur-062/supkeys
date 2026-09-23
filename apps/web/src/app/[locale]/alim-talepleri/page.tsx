@@ -1,3 +1,4 @@
+import { setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { ListingIndex } from "@/components/marketplace/listing-index";
@@ -36,10 +37,13 @@ export async function generateMetadata({ params }: { params: LocaleParams }): Pr
 }
 
 export default async function Page({
+  params,
   searchParams,
 }: {
+  params: LocaleParams;
   searchParams: Promise<SearchParamsLike>;
 }) {
+  setRequestLocale(await localeFromParams(params));
   // Yayın anahtarı kapalıyken pazar yeri rotaları YOK sayılır.
   if (!MARKETPLACE_LIVE) notFound();
   const sp = await searchParams;

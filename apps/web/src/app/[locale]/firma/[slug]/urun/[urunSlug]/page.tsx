@@ -1,3 +1,4 @@
+import { setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { ViewBeacon } from "@/components/marketplace/view-beacon";
 import { ProductDetail } from "@/components/marketplace/product-detail";
@@ -49,6 +50,7 @@ export async function generateMetadata({
  * `noindex` alır (aşağıda) ve sitemap'e girmez — indekslenme kapalı kalır.
  */
 export default async function Page({ params }: { params: Params }) {
+  setRequestLocale(await localeFromParams(params));
   const { slug, urunSlug } = await params;
   const [data, related] = await Promise.all([fetchProduct(slug, urunSlug), fetchRelatedProducts(slug, urunSlug)]);
   if (!data) notFound();

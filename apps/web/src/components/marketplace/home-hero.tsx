@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { AudienceSwitch, useAudience } from "./audience-switch";
 import { HeroDecor, PanelHeroSearch } from "@/components/dashboard/panel-hero-search";
 import { BUYER_OBJECTS, BUYER_WIDGETS, SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
@@ -39,6 +41,7 @@ import { Suspense } from "react";
  */
 export function HomeHero() {
   const { audience } = useAudience();
+  const t = useTranslations("web.marketing.home");
   const supplier = audience === "supplier";
 
   return (
@@ -84,10 +87,10 @@ export function HomeHero() {
       {supplier ? (
         <PanelHeroSearch
           key="supplier"
-          title="Hangi talebe teklif vereceksiniz?"
+          title={t("supplierTitle")}
           plainTitle
-          lead="Doğrulanmış alıcıların açık talepleri — kapalı zarf, birbirini görmeyen teklifler. Teklif vermek ücretsiz hesapla."
-          placeholder="Talep, sektör veya ürün arayın"
+          lead={t("supplierLead")}
+          placeholder={t("supplierPlaceholder")}
           action={MARKETPLACE_ROUTES.demands}
           /* İKİ YÜZ BİREBİR HİZALI (2026-09-18, kullanıcı: "geçişte yazılar
              yer değiştirmesin, sadece panel değişsin"): alıcı yüzüyle aynı
@@ -97,26 +100,26 @@ export function HomeHero() {
           widgets={SELLER_WIDGETS}
           objects={SELLER_OBJECTS}
           ctaNote={{
-            text: "Teklif vermek ve alıcıyı görmek için",
-            label: "Ücretsiz kaydolun",
+            text: t("supplierCtaText"),
+            label: t("supplierCtaLabel"),
             href: signupHref("teklif"),
           }}
         />
       ) : (
         <PanelHeroSearch
           key="buyer"
-          title="Hangi ürünü arıyorsunuz?"
+          title={t("buyerTitle")}
           plainTitle
-          lead="Doğrulanmış tedarikçilerin vitrinlerini fiyat ve minimum sipariş bilgisiyle inceleyin."
-          placeholder="Ürün veya sektör arayın..."
+          lead={t("buyerLead")}
+          placeholder={t("buyerPlaceholder")}
           action={MARKETPLACE_ROUTES.products}
           accent="blue"
           backdrop
           widgets={BUYER_WIDGETS}
           objects={BUYER_OBJECTS}
           ctaNote={{
-            text: "Aradığınız ürünü bulamadınız mı?",
-            label: "Talep aç",
+            text: t("buyerCtaText"),
+            label: t("buyerCtaLabel"),
             href: signupHref("talep"),
           }}
         />
@@ -148,17 +151,16 @@ const BAND =
  * çizilir). Metinler yukarıdaki `PanelHeroSearch key="supplier"` ile AYNI olmalı.
  */
 function HeroShell() {
+  const t = useTranslations("web.marketing.home");
   return (
-    <section aria-label="Hangi talebe teklif vereceksiniz?" className={BAND}>
+    <section aria-label={t("supplierTitle")} className={BAND}>
       {/* Dekor kabukta da var — hidrasyonda kartlar belirmesin (2026-09-18). */}
       <HeroDecor widgets={SELLER_WIDGETS} objects={SELLER_OBJECTS} accent="emerald" />
       <div className="mx-auto w-full max-w-4xl text-center">
         <h1 className="text-4xl font-bold tracking-tight text-balance text-zinc-950 sm:text-5xl">
-          Hangi talebe teklif vereceksiniz?
+          {t("supplierTitle")}
         </h1>
-        <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">
-          Doğrulanmış alıcıların açık talepleri — kapalı zarf, birbirini görmeyen teklifler. Teklif vermek ücretsiz hesapla.
-        </p>
+        <p className="mx-auto mt-3 max-w-xl text-base/7 text-pretty text-zinc-500">{t("supplierLead")}</p>
       </div>
     </section>
   );

@@ -1,3 +1,5 @@
+import { setRequestLocale } from "next-intl/server";
+import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { AuthShell } from "@/components/marketing/auth-shell";
 import { Link } from "@/i18n/navigation";
 import { Suspense } from "react";
@@ -16,7 +18,8 @@ export const metadata = {
 };
 
 /** Şifre sıfırlama — diğer auth ekranlarıyla aynı kabuk (AuthShell). */
-export default function ResetPasswordPage() {
+export default async function ResetPasswordPage({ params }: { params: LocaleParams }) {
+  setRequestLocale(await localeFromParams(params));
   return (
     <AuthShell
       title="Şifreni sıfırla"

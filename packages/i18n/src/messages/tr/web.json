@@ -4,5 +4,84 @@
       "label": "Dil",
       "hint": "Panel, bildirimler ve e-postalar bu dilde gösterilir."
     }
+  },
+  "marketing": {
+    "nav": {
+      "howItWorks": "Nasıl Çalışır",
+      "pricing": "Fiyatlar",
+      "login": "Giriş Yap",
+      "signup": "Ücretsiz Kaydol",
+      "openMenu": "Menüyü aç",
+      "menu": "Menü",
+      "siteMenu": "Site menüsü"
+    },
+    "footer": {
+      "marketplace": "Pazar yeri",
+      "categories": "Kategoriler",
+      "rothern": "Rothern",
+      "faq": "Sık Sorulan Sorular",
+      "about": "Hakkımızda",
+      "contact": "İletişim",
+      "legal": "Sözleşmeler",
+      "userAgreement": "Kullanıcı Sözleşmesi",
+      "mediation": "Aracılık Sözleşmesi",
+      "privacy": "Gizlilik",
+      "kvkk": "KVKK Aydınlatma",
+      "distanceSales": "Mesafeli Satış",
+      "refund": "İptal ve İade",
+      "tagline": "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu.",
+      "login": "Giriş yap",
+      "signup": "Ücretsiz kaydol"
+    },
+    "audience": {
+      "label": "Hangi taraftasınız?",
+      "supplier": "Tedarikçiyim",
+      "supplierHint": "Talep arıyorum, teklif vereceğim",
+      "buyer": "Alıcıyım",
+      "buyerHint": "Ürün arıyorum"
+    },
+    "home": {
+      "supplierTitle": "Hangi talebe teklif vereceksiniz?",
+      "supplierLead": "Doğrulanmış alıcıların açık talepleri — kapalı zarf, birbirini görmeyen teklifler. Teklif vermek ücretsiz hesapla.",
+      "supplierPlaceholder": "Talep, sektör veya ürün arayın",
+      "supplierCtaText": "Teklif vermek ve alıcıyı görmek için",
+      "supplierCtaLabel": "Ücretsiz kaydolun",
+      "buyerTitle": "Hangi ürünü arıyorsunuz?",
+      "buyerLead": "Doğrulanmış tedarikçilerin vitrinlerini fiyat ve minimum sipariş bilgisiyle inceleyin.",
+      "buyerPlaceholder": "Ürün veya sektör arayın...",
+      "buyerCtaText": "Aradığınız ürünü bulamadınız mı?",
+      "buyerCtaLabel": "Talep aç",
+      "categoriesCta": "Şimdi tedarikçi bulun",
+      "productNoun": "ürün",
+      "newestTitle": "Yeni eklenen ürünler",
+      "newestLead": "Tedarikçilerin vitrinlerine en son eklediği ürünler.",
+      "demandsTitle": "Alıcılar şu an bunları arıyor",
+      "demandsLead": "Kalemler, miktar, kapsam ve kalan süre herkese açık. Alıcı adı, şartname ve belgeler yalnız üyelere — kapalı zarf kuralı.",
+      "allDemands": "Tüm talepler",
+      "demandsEmpty": "Talepler, kaydolduktan sonra panelinizde kategorinize göre eşleşir.",
+      "signupFree": "Ücretsiz kaydolun",
+      "showcaseTitle": "Ürününüz vitrinde mi?",
+      "showcaseLead": "Ürünlerinizi fiyat ve minimum sipariş bilgisiyle yayımlayın; alıcılar bulsun, bilgi talebi göndersin. Vitrin ücretsiz pakette de açık.",
+      "addProduct": "Ürün ekle",
+      "seoParagraph": "Rothern, Türkiye'deki üretici, distribütör ve hizmet sağlayıcı firmaların ürünlerini fiyat ve minimum sipariş bilgisiyle listeleyen, alım taleplerini kapalı zarf teklifle buluşturan B2B pazar yeridir. Ürün ve firma profilleri herkese açıktır; teklif vermek, bilgi istemek ve alıcı bilgilerini görmek için ücretsiz hesap gerekir.",
+      "metaTitle": "B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
+      "metaDescription": "Doğrulanmış tedarikçilerin ürünlerini fiyat ve MOQ ile inceleyin, firmalarla konuşun, alım taleplerine kapalı zarf teklif verin. Alıcı ve satıcı tek hesapta. Kaydolmak ücretsiz.",
+      "metaAbsoluteTitle": "Rothern — B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
+      "comingSoonTitle": "Çok Yakında",
+      "comingSoonDescription": "Rothern şu anda geliştirme aşamasında. En yakın zamanda sizlerleyiz."
+    }
+  },
+  "marketplace": {
+    "labels": {
+      "demands": "Alım Talepleri",
+      "products": "Ürünler",
+      "companies": "Firmalar",
+      "demandOne": "Alım talebi"
+    },
+    "state": {
+      "open": "Teklife açık",
+      "evaluating": "Değerlendirmede",
+      "closed": "Kapandı"
+    }
   }
 }

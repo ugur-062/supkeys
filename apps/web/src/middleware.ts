@@ -110,6 +110,7 @@ export function middleware(request: NextRequest) {
     : intlMiddleware(request);
 
   response.headers.set("Content-Security-Policy", csp);
+  response.headers.set("x-dbg", `${pathname}|${String(publicRoute)}|${nonce ? "nonce" : "no-nonce"}`);
   // Dalga B-4: HSTS hiçbir yerde set edilmiyordu (API'de helmet var, ön yüzde
   // yoktu). Tarayıcı, alan adını bir yıl boyunca yalnız HTTPS üzerinden
   // konuşmaya zorlar → ilk isteğin http'ye düşüp çerezi sızdırdığı SSL-stripping

@@ -4,5 +4,84 @@
       "label": "Language",
       "hint": "The panel, notifications and emails are shown in this language."
     }
+  },
+  "marketing": {
+    "nav": {
+      "howItWorks": "How It Works",
+      "pricing": "Pricing",
+      "login": "Log In",
+      "signup": "Sign Up Free",
+      "openMenu": "Open menu",
+      "menu": "Menu",
+      "siteMenu": "Site menu"
+    },
+    "footer": {
+      "marketplace": "Marketplace",
+      "categories": "Categories",
+      "rothern": "Rothern",
+      "faq": "FAQ",
+      "about": "About Us",
+      "contact": "Contact",
+      "legal": "Agreements",
+      "userAgreement": "User Agreement",
+      "mediation": "Mediation Agreement",
+      "privacy": "Privacy",
+      "kvkk": "Data Protection Notice (KVKK)",
+      "distanceSales": "Distance Sales Agreement",
+      "refund": "Cancellation and Refunds",
+      "tagline": "The B2B trading platform that brings buyers and suppliers together in one account.",
+      "login": "Log in",
+      "signup": "Sign up free"
+    },
+    "audience": {
+      "label": "Which side are you on?",
+      "supplier": "I'm a supplier",
+      "supplierHint": "I'm looking for requests to quote on",
+      "buyer": "I'm a buyer",
+      "buyerHint": "I'm looking for products"
+    },
+    "home": {
+      "supplierTitle": "Which request will you quote on?",
+      "supplierLead": "Open requests from verified buyers, with sealed bids no competitor can see. Quoting is free with an account.",
+      "supplierPlaceholder": "Search requests, industries or products",
+      "supplierCtaText": "To quote and see the buyer,",
+      "supplierCtaLabel": "sign up free",
+      "buyerTitle": "What product are you looking for?",
+      "buyerLead": "Browse verified suppliers' showcases with price and minimum order details.",
+      "buyerPlaceholder": "Search products or industries...",
+      "buyerCtaText": "Can't find the product you need?",
+      "buyerCtaLabel": "Post a request",
+      "categoriesCta": "Find suppliers now",
+      "productNoun": "products",
+      "newestTitle": "Recently added products",
+      "newestLead": "The latest products suppliers added to their showcases.",
+      "demandsTitle": "What buyers are looking for right now",
+      "demandsLead": "Line items, quantities, scope and time left are public. Buyer name, specifications and documents are for members only, under the sealed-bid rule.",
+      "allDemands": "All requests",
+      "demandsEmpty": "After you sign up, requests are matched to your categories in your panel.",
+      "signupFree": "Sign up free",
+      "showcaseTitle": "Is your product in the showcase?",
+      "showcaseLead": "Publish your products with price and minimum order details so buyers can find you and send inquiries. The showcase is open on the free plan too.",
+      "addProduct": "Add product",
+      "seoParagraph": "Rothern is a B2B marketplace that lists products from manufacturers, distributors and service providers in Turkey with price and minimum order details, and matches buying requests with sealed-bid quotes. Product and company profiles are public; a free account is needed to quote, request information and see buyer details.",
+      "metaTitle": "B2B marketplace: products, suppliers and buying requests",
+      "metaDescription": "Browse verified suppliers' products with price and MOQ, talk to companies, and send sealed-bid quotes on buying requests. Buyer and seller in one account. Signing up is free.",
+      "metaAbsoluteTitle": "Rothern — B2B marketplace: products, suppliers and buying requests",
+      "comingSoonTitle": "Coming Soon",
+      "comingSoonDescription": "Rothern is currently in development. We'll be with you very soon."
+    }
+  },
+  "marketplace": {
+    "labels": {
+      "demands": "Buying Requests",
+      "products": "Products",
+      "companies": "Companies",
+      "demandOne": "Buying request"
+    },
+    "state": {
+      "open": "Open for quotes",
+      "evaluating": "Under evaluation",
+      "closed": "Closed"
+    }
   }
 }

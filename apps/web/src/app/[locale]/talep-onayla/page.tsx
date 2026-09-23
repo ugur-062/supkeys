@@ -1,3 +1,5 @@
+import { setRequestLocale } from "next-intl/server";
+import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
@@ -63,10 +65,13 @@ async function verify(token: string): Promise<VerifyResult | { error: string }> 
 }
 
 export default async function Page({
+  params,
   searchParams,
 }: {
+  params: LocaleParams;
   searchParams: Promise<{ t?: string }>;
 }) {
+  setRequestLocale(await localeFromParams(params));
   if (!MARKETPLACE_LIVE) notFound();
   const { t } = await searchParams;
   const result = t ? await verify(t) : { error: "Bağlantı eksik." };

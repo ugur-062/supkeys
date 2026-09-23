@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { cn } from "@/lib/utils";
 import { BuildingStorefrontIcon, ShoppingCartIcon } from "@heroicons/react/20/solid";
 import { createContext, useContext, useEffect, useState, useSyncExternalStore, type ReactNode } from "react";
@@ -100,46 +102,36 @@ export function useAudience() {
   return useContext(Ctx);
 }
 
-const OPTIONS: {
-  key: Audience;
-  label: string;
-  hint: string;
-  Icon: typeof ShoppingCartIcon;
-  on: string;
-}[] = [
-  // SIRA: Tedarikçiyim SOLDA, Alıcıyım SAĞDA (2026-09-21, kullanıcı kararı).
-  {
-    key: "supplier",
-    label: "Tedarikçiyim",
-    hint: "Talep arıyorum, teklif vereceğim",
-    Icon: BuildingStorefrontIcon,
-    on: "bg-white text-emerald-700 shadow-sm",
-  },
-  {
-    key: "buyer",
-    label: "Alıcıyım",
-    hint: "Ürün arıyorum",
-    Icon: ShoppingCartIcon,
-    on: "bg-white text-blue-700 shadow-sm",
-  },
-];
-
-/**
- * Anahtarın GÖRÜNÜMÜ panel portal piliyle aynı (2026-09-08, kullanıcı
- * kararı): açık gri hazne, seçili taraf BEYAZ yuva + kendi portal rengi
- * (alıcı mavi, tedarikçi yeşil) + ikon. Panelde soldaki Satınalma | Satış
- * anahtarı da böyle; anasayfa o ekranları taşıdığı için aynı jest aynı
- * görünmeli.
- *
- * ETİKET panel adları DEĞİL ("Satınalma"/"Satış" içeriden terimlerdir):
- * ziyaretçi kendini alıcı ya da tedarikçi olarak tanır.
- */
 export function AudienceSwitch({ className }: { className?: string }) {
   const { audience, setAudience } = useAudience();
+  const t = useTranslations("web.marketing.audience");
+  // SIRA: Tedarikçiyim SOLDA, Alıcıyım SAĞDA (2026-09-21, kullanıcı kararı).
+  const OPTIONS: {
+    key: Audience;
+    label: string;
+    hint: string;
+    Icon: typeof ShoppingCartIcon;
+    on: string;
+  }[] = [
+    {
+      key: "supplier",
+      label: t("supplier"),
+      hint: t("supplierHint"),
+      Icon: BuildingStorefrontIcon,
+      on: "bg-white text-emerald-700 shadow-sm",
+    },
+    {
+      key: "buyer",
+      label: t("buyer"),
+      hint: t("buyerHint"),
+      Icon: ShoppingCartIcon,
+      on: "bg-white text-blue-700 shadow-sm",
+    },
+  ];
   return (
     <div
       role="radiogroup"
-      aria-label="Hangi taraftasınız?"
+      aria-label={t("label")}
       className={cn(
         /* Yükseklik 40 px (`p-0.5` + `py-1.5`), 44 değil: anasayfada pil
          fotoğrafın üstünde, header çizgisi ile hero başlığının ARASINDA
