@@ -127,6 +127,7 @@
   "apps/api/src/modules/company-users/dto/company-user.dto.ts": 18,
   "apps/api/src/modules/company-views/company-views.scheduler.ts": 4,
   "apps/api/src/modules/company-views/company-views.service.ts": 2,
+  "apps/api/src/modules/content-translation/content-translation.logic.ts": 1,
   "apps/api/src/modules/currency/schedulers/exchange-rate.scheduler.ts": 6,
   "apps/api/src/modules/currency/services/exchange-rate.service.ts": 8,
   "apps/api/src/modules/currency/services/tcmb.service.ts": 3,

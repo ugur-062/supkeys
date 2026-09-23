@@ -171,7 +171,7 @@ export class ContentTranslationService {
       this.kick(type, id);
       return true;
     } catch (err) {
-      this.logger.warn(`Çeviri kuyruğa alınamadı (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`);
+      this.logger.warn(`Translation enqueue failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`);
       return false;
     }
   }
@@ -181,7 +181,7 @@ export class ContentTranslationService {
     if (!this.enabled) return;
     setImmediate(() => {
       void this.translateEntity(type, id).catch((err) =>
-        this.logger.warn(`Çeviri başarısız (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`),
+        this.logger.warn(`Translation failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`),
       );
     });
   }
@@ -210,7 +210,7 @@ export class ContentTranslationService {
           // `status` ucunda görünsün (2026-09-23: ilk backfill sessizce durmuştu).
           out.failed += 1;
           const message = err instanceof Error ? err.message : String(err);
-          this.logger.warn(`Çeviri hatası (${r.entityType} ${r.entityId}): ${message}`);
+          this.logger.warn(`Translation error (${r.entityType} ${r.entityId}): ${message}`);
           await this.markFailed(r.entityType, r.entityId, message).catch(() => undefined);
         }
       }
@@ -239,7 +239,7 @@ export class ContentTranslationService {
       if (rows.length === 0) return "skipped";
       if (rows.every((r) => r.status === "DONE" && r.sourceHash === hash)) return "skipped";
       if (!this.provider || !this.cfg) {
-        await this.markFailed(type, id, "AI sağlayıcı yapılandırılmamış");
+        await this.markFailed(type, id, "AI provider not configured");
         return "failed";
       }
       const usage: AiTokenUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
@@ -266,23 +266,23 @@ export class ContentTranslationService {
             });
             if (this.resolvedModel !== model) {
               this.resolvedModel = model;
-              this.logger.log(`İçerik çevirisi modeli: ${model}`);
+              this.logger.log(`Content translation model: ${model}`);
             }
             break;
           } catch (err) {
             if (isModelNotFound(err)) {
               this.deadModels.add(candidate);
-              this.logger.warn(`Çeviri modeli bu sağlayıcıda yok, sıradaki deneniyor: ${candidate}`);
+              this.logger.warn(`Translation model not available on this provider, trying next: ${candidate}`);
               continue;
             }
             // Sağlayıcı hatası (kota, ağ): deneme sayılır, satıra yazılır, süpürücü sürer.
             const message = err instanceof Error ? err.message : String(err);
-            await this.markFailed(type, id, `sağlayıcı: ${message}`, { model, usage, cost });
+            await this.markFailed(type, id, `provider: ${message}`, { model, usage, cost });
             return "failed";
           }
         }
         if (!result) {
-          await this.markFailed(type, id, "çeviri modeli bulunamadı (CONTENT_TRANSLATION_MODEL / AI_MODEL_PREMIUM sağlayıcıda tanımsız)", { model, usage, cost });
+          await this.markFailed(type, id, "translation model not found (CONTENT_TRANSLATION_MODEL / AI_MODEL_PREMIUM unknown to the provider)", { model, usage, cost });
           return "failed";
         }
         const pricing = this.cfg.pricing[model];
@@ -298,7 +298,7 @@ export class ContentTranslationService {
         parsed = p;
       }
       if (!parsed) {
-        await this.markFailed(type, id, feedback ?? "çeviri doğrulanamadı", { model, usage, cost });
+        await this.markFailed(type, id, feedback ?? "translation could not be validated", { model, usage, cost });
         return "failed";
       }
       const now = new Date();
@@ -424,7 +424,7 @@ export class ContentTranslationService {
     try {
       return await this.translationsFor<T>(type, ids.filter((x): x is string => !!x), locale);
     } catch (err) {
-      this.logger.warn(`Çeviri okunamadı (${type}): ${err instanceof Error ? err.message : String(err)}`);
+      this.logger.warn(`Translation lookup failed (${type}): ${err instanceof Error ? err.message : String(err)}`);
       return new Map();
     }
   }
@@ -472,7 +472,7 @@ export class ContentTranslationService {
           const r = await this.processPending(25);
           if (r.processed === 0) break;
         }
-      })().catch((err) => this.logger.warn(`Toplu çeviri durdu: ${err instanceof Error ? err.message : String(err)}`));
+      })().catch((err) => this.logger.warn(`Bulk translation stopped: ${err instanceof Error ? err.message : String(err)}`));
     });
   }
 

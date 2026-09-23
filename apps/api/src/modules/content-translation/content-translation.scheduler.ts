@@ -23,7 +23,7 @@ export class ContentTranslationScheduler {
     return trackCronRun(this.cronRegistry, "contentTranslation.sweep", async () => {
       const r = await this.translations.processPending(25);
       if (r.processed > 0) {
-        this.logger.log(`İçerik çevirisi süpürüldü: ${r.done} tamam, ${r.failed} hata / ${r.processed}`);
+        this.logger.log(`Content translation sweep: ${r.done} done, ${r.failed} failed / ${r.processed} processed`);
       }
     });
   }
