@@ -18,6 +18,10 @@ sözleşmeler tr-TR, WebSite üç dil); kategori adları EN/RU'da Türkçeydi.
   (`export-category-names-i18n`), seed/apply TSV'den — canlıda model yok.
 - Birim testler: `category-name.spec`, `category-translation.spec`; web
   `categoryHref`.
+- Tetik testi (staging, gerçek işlemler): yeni ürün + ürün güncellemesi + profil
+  güncellemesi otomatik çevrildi; DOĞRUDAN OPEN açılan yeni talep (`create`,
+  hızlı talep kartının yolu) ne çevriliyor ne IndexNow'a gidiyordu, `update`
+  yolu da çeviriyi tetiklemiyordu → ikisine de `listingChanged` + `enqueue`.
 
 ## 2026-09-23 (akşam) — Faz 1e kapanış turu: panel çevirisi, ön yükleme 404'ü, dilden bağımsız talep adresi
 

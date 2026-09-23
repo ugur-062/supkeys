@@ -1311,6 +1311,13 @@ export class CompanyListingsService {
           }`,
         ),
       );
+      // Doğrudan yayın da bir yayın anıdır: IndexNow + ISR tazeleme (SEO Parça 5)
+      // ve içerik çevirisi (i18n Faz 1e). Eskiden yalnız taslak→yayın (`publish`)
+      // yolu tetikliyordu; hızlı talep kartı doğrudan OPEN açtığı için yeni
+      // talepler ne indekslenmeye bildiriliyor ne çevriliyordu (2026-09-23 gece,
+      // staging tetik testinde yakalandı).
+      this.seo?.listingChanged(listing.id);
+      void this.translations?.enqueue("LISTING", listing.id);
     }
     return this.serialize(listing);
   }
@@ -1619,7 +1626,11 @@ export class CompanyListingsService {
     }
     // Yayındaki ilanın başlığı/açıklaması/kalemleri değişti → herkese açık
     // sayfa ve slug (başlıktan türer) tazelenir. Taslakta adres yok.
-    if (updated.status !== "DRAFT") this.seo?.listingChanged(listingId);
+    if (updated.status !== "DRAFT") {
+      this.seo?.listingChanged(listingId);
+      // i18n Faz 1e: metin değiştiyse yeniden çevrilir (hash aynıysa kuyruk açılmaz).
+      void this.translations?.enqueue("LISTING", listingId);
+    }
     return this.serialize(updated);
   }
 
