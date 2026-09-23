@@ -13,6 +13,8 @@ baseline/hardcoded.json              sabit Türkçe literal cırcırı
 
 - `pnpm --filter @rothern/i18n check` — CI kapısı (orphan · yer tutucu · yasaklı ·
   EN %100 · cırcır). `--update-baseline` tabanı yalnız düşürür; `--force` artışı kabul eder.
-- `pnpm --filter @rothern/i18n sync [--locale ru] [--dry-run] [--limit N]` — eksik/bayat
-  anahtarları Gemini ile çevirir (`GEMINI_API_KEY`). `--mark-reviewed <önek>` insan onayı.
+- `pnpm --filter @rothern/i18n sync [--locale ru] [--out iş.json]` — eksik/bayat anahtarları
+  Türkçe kaynakla listeler; `--apply iş.json` çevirileri uygular (`reviewed`);
+  `--mark-reviewed <önek>` onaylar. **Makine çevirisi yok** — çeviriyi Claude yazar
+  (kullanıcı kararı 2026-09-23).
 - Geliştirici YALNIZ `tr` yazar. Eksik çeviri çalışma zamanında `ru → en → tr` düşer.

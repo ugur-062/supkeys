@@ -1,6 +1,6 @@
 import { cn } from "@/lib/utils";
 import { ChevronRightIcon, HomeIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Fragment } from "react";
 
 export interface BreadcrumbItem {

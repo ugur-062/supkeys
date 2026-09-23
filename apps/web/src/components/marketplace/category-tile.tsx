@@ -2,7 +2,7 @@ import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { TONE_CLASS, categoryVisual } from "@/lib/public/category-visual";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * KATEGORİ KARTI — TEK bileşen (kart sistemi PROMPT 5, 2026-09-06).

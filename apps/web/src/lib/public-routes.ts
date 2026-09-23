@@ -1,3 +1,4 @@
+import { stripLocale } from "@/i18n/href";
 /**
  * Giriş gerektirmeyen, arama motorlarına açık rotalar — TEK KAYNAK.
  *

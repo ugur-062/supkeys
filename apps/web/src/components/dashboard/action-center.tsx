@@ -16,7 +16,7 @@ import {
   Info,
   type LucideIcon,
 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import { ErrorState } from "@/components/ui/error-state";
 

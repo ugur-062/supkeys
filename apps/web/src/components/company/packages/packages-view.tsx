@@ -11,7 +11,7 @@ import {
 import { tierAtLeast } from "@rothern/shared";
 import { CheckIcon } from "@heroicons/react/20/solid";
 import { ShieldCheckIcon } from "@heroicons/react/24/outline";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 

@@ -239,9 +239,15 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 
 - **Geliştirici YALNIZ `tr` yazar.** Anahtar + Türkçe metin
   `packages/i18n/src/messages/tr/<ad-alanı>.json` (web `common`+`web`, API
-  `common`+`api`+`email`). Diğer diller `pnpm i18n:sync` (Gemini + sözlük,
-  `machine` işaretli; `--mark-reviewed <önek>` insan onayı). Anahtarlar kararlı
-  ve alan bazlı (`web.settings.language.label`); Türkçe metin anahtar DEĞİL.
+  `common`+`api`+`email`). Anahtarlar kararlı ve alan bazlı
+  (`web.settings.language.label`); Türkçe metin anahtar DEĞİL.
+- **MAKİNE ÇEVİRİSİ YOK (kullanıcı kararı 2026-09-23, "Gemini Flash
+  bağlama"):** EN/RU metinleri **Claude** yazar — fazlar sırasında ekran
+  bağlamıyla TR ile birlikte; ICU çoğul (`{n, plural, one {…} other {…}}`)
+  EN/RU'da gerekir, TR'de gerekmez. `pnpm i18n:sync` yalnız eksik/bayat
+  anahtarları listeler (`--out`), `--apply <dosya>` uygular ve `reviewed`
+  işaretler, `--mark-reviewed <önek>` onaylar. Sonradan insan eliyle eklenen
+  dizeler için ayrı çözüm bulunacak; Flash'a geri dönülmez.
 - **Eksik çeviri ekranı bozmaz:** çalışma zamanı `ru → en → tr` düşer
   (`messagesFor`). Anahtar `tr`de de yoksa anahtar yolu görünür (geliştirici hatası).
 - **CI kapısı `pnpm i18n:check`:** orphan anahtar · ICU yer tutucu paritesi ·
@@ -261,12 +267,43 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   class-validator VARSAYILAN mesajları `translateValidatorMessage` ile istek
   dilinde; DTO'daki elle `message:` dizeleri Faz 3'e kadar Türkçe kalır (sınıf
   tanımında değerlenir, dil bilmez → fonksiyon biçimine geçecek).
-- **next-intl YALNIZ panel altında (`app/company/layout.tsx`).** Tuzak:
-  `src/i18n/request.ts` `cookies()` okur = DİNAMİK API; herkese açık statik/
-  ISR sayfalara sağlayıcı ya da `getTranslations` takma — o sayfa dinamikleşir,
-  CSP/CDN önbellek tasarımı bozulur. Faz 1'de `[locale]` segmenti +
-  `setRequestLocale` ile statik kalarak gelir. Kök `<html lang>` o güne kadar
-  `tr`; panelde köprü istemcide günceller.
+- **YÖNLENDİRME (Faz 1, 2026-09-23): tüm sayfalar `src/app/[locale]/`
+  altında.** Türkçe ÖN EKSİZ (`/urunler`, bugünkü her adres aynen), diğer
+  diller ön ekli (`/en/urunler`, `/ru/company/…`); `localePrefix: "as-needed"`,
+  **otomatik dil tespiti KAPALI** (`localeDetection: false` — Googlebot `/`den
+  `/en`e atılmaz, kök sayfa önbellekli kalır); dil seçici ve panelde
+  `LocaleUrlSync` (üyenin kayıtlı dili ≠ adresteki dil → aynı sayfayı doğru
+  ön ekle açar) tek geçiş yolu. Yol PARÇALARI çevrilmez (`/en/urunler`,
+  `/en/products` değil — `pathnames` her bağlantıyı tipli nesneye çevirmeyi
+  isterdi). Tek kaynaklar: `src/i18n/{routing,navigation,request,href,params}.ts`.
+  Kök rota işleyicileri (`api`, `sitemaps`, `sitemap.xml`, `robots.ts`,
+  `llms*.txt`, `indexnow`) ve `global-error.tsx` `[locale]` DIŞINDA kalır;
+  middleware bunları ve uzantılı dosyaları next-intl'e SOKMAZ (soksa
+  `/tr/sitemap.xml`e yazılıp 404 olur).
+- **`next/link` ve `next/navigation` YASAK yerler:** `Link`, `useRouter`,
+  `usePathname`, `redirect`, `permanentRedirect` HER ZAMAN `@/i18n/navigation`
+  dan (ön ek otomatik; `usePathname` ön eksiz döner). `useSearchParams`,
+  `useParams`, `notFound` `next/navigation`da kalır. `permanentRedirect({ href,
+  locale })` nesne alır. `window.location.href = "/company/…"` yerine
+  `localizePath(path, runtimeLocale())`; yol karşılaştırmasında `stripLocale`.
+  `<a href="/…">` iç bağlantı `no-html-link-for-pages` lint'ini kırar → `Link`.
+  Testlerde `vitest.setup.ts` `@/i18n/navigation`ı Next'in hook'larına geçirir
+  (dosya bazlı `next/navigation` sahteleri aynen çalışır).
+- **Statiklik:** `src/i18n/request.ts` YALNIZ `requestLocale` (segment) okur,
+  çerez/başlık OKUMAZ → herkese açık sayfalar dil başına prerender
+  (`.next/server/app/<dil>/urunler.html` üretilir). `[locale]/layout.tsx`
+  `generateStaticParams` + `setRequestLocale` taşır. **Etiket tuzağı
+  (ölçüldü):** derleme tablosu `[locale]` altındaki HER rotayı ● (SSG)
+  etiketler, panel dahil; `force-dynamic` yine geçerlidir — kanıt: panel için
+  `.html` üretilmez ve `prerender-manifest.json`da yer almaz. Etikete bakıp
+  `connection()`/`cookies()` ekleme.
+- **SEO:** `buildMetadata({ …, locale })` kanonik = o dilin adresi,
+  `alternates.languages` tr/en/ru + `x-default` (tr), `og:locale`; her herkese
+  açık `page.tsx` `generateMetadata({ params })` + `localeFromParams`. Varlık
+  üreticileri `productSeo/companySeo/listingSeo(input, { locale })`. Sitemap
+  her URL'de `<xhtml:link hreflang>` (üç dil + x-default; `located()` tek
+  yardımcı), robots `/en/`·`/ru/` izin + `/en/company/` vb. yasak,
+  `next.config` yönlendirmeleri `withLocales` ile üç dilde.
 - **React dışı yerde** (axios interceptor, zod hata haritası) `tRuntime(
   "common.errors.*")` — köprü (`I18nRuntimeBridge`) yoksa Türkçe `common`
   yedeği. Katalogun tamamını istemciye gömme (üç dilin metni paket boyutunu

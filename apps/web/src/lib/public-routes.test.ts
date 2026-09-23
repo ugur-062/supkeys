@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { PUBLIC_ROUTE_PREFIXES, isPublicRoute } from "./public-routes";
 
-const APP_DIR = path.resolve(__dirname, "../app");
+const APP_DIR = path.resolve(__dirname, "../app/[locale]");
 const FORCE_DYNAMIC = /export\s+const\s+dynamic\s*=\s*["']force-dynamic["']/;
 
 function readIfExists(file: string): string | null {

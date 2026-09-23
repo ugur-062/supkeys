@@ -28,8 +28,8 @@ import {
   GlobeAltIcon,
   MapPinIcon,
 } from "@heroicons/react/20/solid";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useState, type ReactNode } from "react";
 
 /**

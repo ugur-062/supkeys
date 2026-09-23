@@ -2,7 +2,7 @@ import { signupHref } from "@/lib/public/visibility";
 import { AccentLink } from "@/components/ui/accent-fill";
 import { ArrowRightIcon, CheckIcon } from "@heroicons/react/20/solid";
 import { ClipboardList, Lock, Table2 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * "TALEP AÇ" BANNERI — Europages RFQ bannerı. Her zaman görünür; ürün

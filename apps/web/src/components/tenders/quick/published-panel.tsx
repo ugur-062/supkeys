@@ -4,7 +4,7 @@ import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { CheckCircleIcon, SparklesIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 
 /**

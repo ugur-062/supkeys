@@ -8,7 +8,7 @@ import { loginHref, signupHref } from "@/lib/public/visibility";
 import { JsonLd } from "@/components/seo/json-ld";
 import { graph, itemListNode } from "@/lib/seo/jsonld";
 import { ArrowRightIcon, LockClosedIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * FİRMA DİZİNİ — ÜYELİĞE YÖNLENDİREN VİTRİN (2026-09-22, kullanıcı kararı:

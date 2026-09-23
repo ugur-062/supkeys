@@ -4,7 +4,7 @@ import { PageContainer } from "@/components/list/page-container";
 import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { ChevronRight, type LucideIcon } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 export interface HubItem {
   href: string;

@@ -2,7 +2,7 @@
 
 import { useHeroGone } from "@/hooks/use-hero-gone";
 import { AccentLink } from "@/components/ui/accent-fill";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * Yüzen "Talep aç" — hero görünümden çıkınca belirir (B8). Hero'daki şerit

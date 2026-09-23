@@ -32,7 +32,7 @@ import {
   LockClosedIcon,
   MapPinIcon,
 } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { AccentLink } from "@/components/ui/accent-fill";
 import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";

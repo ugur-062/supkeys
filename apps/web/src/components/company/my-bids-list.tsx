@@ -31,7 +31,7 @@ import {
   ListFilter,
 } from "lucide-react";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { useMemo, useState } from "react";
 

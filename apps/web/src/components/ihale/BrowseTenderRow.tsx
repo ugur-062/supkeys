@@ -12,7 +12,7 @@ import { companyActivityLabel } from "@rothern/shared";
 import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
 import { Building2, Lock } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ListingCard, ROW_FOCUS, type ListingCardData } from "@/components/marketplace/listing-card";
 import { expiredNote } from "@/lib/tenders/seller-state";
 import { IhaleItemsPanel } from "./IhaleItemsPanel";

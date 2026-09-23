@@ -20,7 +20,7 @@ import {
   type SearchParamsLike,
 } from "@/lib/public/product-filter-params";
 import { signupHref } from "@/lib/public/visibility";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
 
 /**

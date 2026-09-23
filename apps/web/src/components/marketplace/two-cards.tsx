@@ -1,7 +1,7 @@
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
 import { CheckIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /** Europages "Create profile / Request Hub" ikilisi — sayfadaki üçüncü kayıt CTA'sı. */
 export function TwoCards() {

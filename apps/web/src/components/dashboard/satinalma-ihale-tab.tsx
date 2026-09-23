@@ -32,7 +32,7 @@ import type {
 import { formatCompactMoney, formatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import { FileX2 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import { formatDate } from "@/lib/format-date";
 

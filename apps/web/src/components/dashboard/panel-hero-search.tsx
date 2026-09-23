@@ -7,8 +7,9 @@ import { ArrowRightIcon, MagnifyingGlassIcon, SparklesIcon } from "@heroicons/re
 import { BuildingOffice2Icon, ClipboardDocumentListIcon, CubeIcon } from "@heroicons/react/24/outline";
 import { categoryVisual } from "@/lib/public/category-visual";
 import Image from "next/image";
-import Link from "next/link";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { rememberSearch } from "@/lib/company/recent-searches";

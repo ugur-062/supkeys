@@ -9,7 +9,7 @@ import {
 } from "@/hooks/use-company-messages";
 import { Popover, PopoverButton, PopoverPanel } from "@headlessui/react";
 import { MessageSquare } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 function timeAgo(iso: string | null): string {
   if (!iso) return "";

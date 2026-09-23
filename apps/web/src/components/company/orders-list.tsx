@@ -45,7 +45,7 @@ import {
   Package,
   Users,
 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";

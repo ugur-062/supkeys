@@ -3,7 +3,7 @@
 import { TrendBadge } from "@/components/dashboard/analytics-primitives";
 import { cn } from "@/lib/utils";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
 
 /**

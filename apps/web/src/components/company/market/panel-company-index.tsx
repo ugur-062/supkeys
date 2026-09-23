@@ -22,7 +22,7 @@ import {
   panelProductPath,
 } from "@/lib/company/panel-market";
 import type { PortalKey } from "@/lib/company/portals";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { MarketHeader, MarketTabs } from "./market-band";
 import { MarketEmpty, MarketGridSkeleton, MarketListLayout } from "./market-list-layout";

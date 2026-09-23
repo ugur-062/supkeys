@@ -39,7 +39,7 @@ import {
 import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { closesAtError } from "@/lib/tenders/closes-at";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 

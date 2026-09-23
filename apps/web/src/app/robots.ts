@@ -1,5 +1,6 @@
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { resolveSiteUrl } from "@/lib/site-url";
+import { DEFAULT_LOCALE, LOCALES } from "@rothern/i18n";
 import type { MetadataRoute } from "next";
 
 /**
@@ -45,7 +46,10 @@ const AI_AGENTS = [
 ];
 
 /** Hiçbir ajanın girmemesi gereken yollar — tek kaynak. */
-const DISALLOW = ["/company/", "/admin/", "/api/", "/auth/", "/dev/"];
+const DISALLOW_BASE = ["/company/", "/admin/", "/api/", "/auth/", "/dev/"];
+// i18n Faz 1: ön ekli diller (`/en/company/`) de kapalı; Türkçe ön eksiz.
+const PREFIXES = LOCALES.filter((l) => l !== DEFAULT_LOCALE).map((l) => `/${l}`);
+const DISALLOW = [...DISALLOW_BASE, ...PREFIXES.flatMap((p) => DISALLOW_BASE.map((d) => `${p}${d}`))];
 
 /**
  * CANLI OLMAYAN ORTAM (staging/preview) HİÇ TARANMAMALI.
@@ -104,6 +108,7 @@ export default function robots(): MetadataRoute.Robots {
           "/sozlesmeler",
           "/sitemaps", // sitemap parçaları (indeks /sitemap.xml)
           "/indexnow", // IndexNow anahtar dosyası
+          ...PREFIXES.map((p) => `${p}/`), // /en/, /ru/ — herkese açık sayfalar dil başına
         ],
         // `/company/` panelin tamamı (login/kayıt dahil) — dizinlenecek içerik
         // yok, tarama bütçesi yer. Süzgeçli varyantlar (`?kategori=`, `?il=`)

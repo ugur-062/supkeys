@@ -8,8 +8,8 @@ import {
 } from "@/lib/tenders/map-product-to-form";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { CheckCircleIcon, XMarkIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
 
 /**

@@ -1,5 +1,5 @@
 import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * ARAMA SONUCU SEKMELERİ — "aynı sorgu, öteki yüzey" (2026-09-07).

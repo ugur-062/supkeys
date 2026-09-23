@@ -104,3 +104,18 @@ vi.mock("next-intl/server", async () => {
     getRequestConfig: (fn: unknown) => fn,
   };
 });
+
+// Dil farkında gezinme sahtesi: testler Next'in kendi hook'larını (dosya
+// bazında sıkça sahtelenir) görsün; ön ek mantığı derleme/e2e ile sınanır.
+vi.mock("@/i18n/navigation", async () => {
+  const nav = await import("next/navigation");
+  const NextLink = (await import("next/link")).default;
+  return {
+    Link: NextLink,
+    useRouter: () => nav.useRouter(),
+    usePathname: () => nav.usePathname(),
+    redirect: (args: { href: string }) => nav.redirect(args.href),
+    permanentRedirect: (args: { href: string }) => nav.permanentRedirect(args.href),
+    getPathname: (args: { href: string }) => args.href,
+  };
+});

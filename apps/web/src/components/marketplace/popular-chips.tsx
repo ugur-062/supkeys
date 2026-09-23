@@ -1,6 +1,6 @@
 import { MARKETPLACE_ROUTES, categoryPath } from "@/lib/public/marketplace";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * "POPÜLER KATEGORİLER" çip'leri — arama logu yok; ürün sayısı en yüksek

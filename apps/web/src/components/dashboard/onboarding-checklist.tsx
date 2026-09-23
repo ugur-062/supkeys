@@ -3,7 +3,7 @@
 import { DASH_CARD } from "@/components/dashboard/analytics-primitives";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Circle } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 
 /**

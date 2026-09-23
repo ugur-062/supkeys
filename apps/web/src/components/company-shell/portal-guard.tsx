@@ -7,7 +7,7 @@ import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-aut
 import { usePortalStore } from "@/lib/company/portal-store";
 import { accessiblePortals, PORTALS, type PortalKey } from "@/lib/company/portals";
 import { Lock } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useEffect } from "react";
 
 // Portala girmek için gereken operasyon rolü (Kurucu/Yönetici her ikisini de kapsar).

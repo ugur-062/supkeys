@@ -30,8 +30,8 @@ import {
   Cog6ToothIcon,
   BuildingOffice2Icon,
 } from "@heroicons/react/20/solid";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { usePathname } from "@/i18n/navigation";
 import { MessagesPopover } from "./messages-popover";
 import { NotificationBell } from "./notification-bell";
 

@@ -8,7 +8,7 @@ import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import { ClockIcon, GlobeAltIcon, LockClosedIcon, MapPinIcon } from "@heroicons/react/20/solid";
 import { companyActivityLabel } from "@rothern/shared";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * ALIM TALEBİ TEASER KARTI (görünürlük v2) — "gizli ama cezbedici".

@@ -1,7 +1,7 @@
 "use client";
 
-import { effectiveClientLocale } from "@/i18n/locale-cookie";
-import { tRuntime } from "@/i18n/runtime";
+import { localizePath, stripLocale } from "@/i18n/href";
+import { runtimeLocale, tRuntime } from "@/i18n/runtime";
 import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
 import { readCsrfToken } from "../csrf";
@@ -27,7 +27,7 @@ const MUTATING = new Set(["post", "put", "patch", "delete"]);
 companyApi.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
     // İstek dili (i18n Faz 0): API hata/doğrulama metinlerini bu dilde döner.
-    config.headers["Accept-Language"] = effectiveClientLocale();
+    config.headers["Accept-Language"] = runtimeLocale();
     const method = (config.method ?? "get").toLowerCase();
     if (MUTATING.has(method)) {
       const csrf = readCsrfToken();
@@ -65,9 +65,9 @@ companyApi.interceptors.response.use(
       const { user, clear } = useCompanyAuthStore.getState();
       if (user) {
         clear();
-        const onLogin = window.location.pathname === "/company/login";
+        const onLogin = stripLocale(window.location.pathname) === "/company/login";
         if (!onLogin) {
-          window.location.href = "/company/login";
+          window.location.href = localizePath("/company/login", runtimeLocale());
         }
       }
       return Promise.reject(error);

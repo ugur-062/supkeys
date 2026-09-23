@@ -28,8 +28,8 @@ import {
   ShoppingCartIcon,
 } from "@heroicons/react/20/solid";
 import { Pin, PinOff } from "lucide-react";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { usePathname } from "@/i18n/navigation";
 
 /** Portal aksanına göre aktif öğe stilleri (dinamik Tailwind sınıfı üretmemek için sabit). */
 const ACCENT = {

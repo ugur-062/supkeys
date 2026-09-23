@@ -2,7 +2,7 @@ import { ProductCard } from "./product-card";
 import { Pagination } from "@/components/ui/pagination";
 import { fetchCompanyProducts, type PublicProductPage } from "@/lib/public/marketplace-api";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * Firma profilindeki ÜRÜN PORTFÖYÜ — sunucu bileşeni.

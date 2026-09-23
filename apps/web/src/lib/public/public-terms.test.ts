@@ -13,16 +13,16 @@ import { describe, expect, it } from "vitest";
 
 const SRC = path.resolve(__dirname, "../..");
 const PUBLIC_DIRS = [
-  "app/page.tsx",
-  "app/alim-talepleri",
-  "app/urunler",
-  "app/firmalar",
-  "app/firma",
-  "app/talep",
-  "app/nasil-calisir",
-  "app/hakkimizda",
-  "app/iletisim",
-  "app/talep-onayla",
+  "app/[locale]/page.tsx",
+  "app/[locale]/alim-talepleri",
+  "app/[locale]/urunler",
+  "app/[locale]/firmalar",
+  "app/[locale]/firma",
+  "app/[locale]/talep",
+  "app/[locale]/nasil-calisir",
+  "app/[locale]/hakkimizda",
+  "app/[locale]/iletisim",
+  "app/[locale]/talep-onayla",
   "components/marketplace",
   "components/marketing",
 ];

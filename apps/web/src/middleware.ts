@@ -1,5 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
+import createMiddleware from "next-intl/middleware";
+import { routing } from "@/i18n/routing";
 import { isPublicRoute } from "@/lib/public-routes";
+
+/**
+ * i18n Faz 1: dil ön eki yönlendirmesi (next-intl) CSP ile AYNI middleware'de.
+ * Sıra: önce nonce/CSP istek başlıklarına yazılır (next-intl yanıtı
+ * `request.headers`ı aynen aktarır), sonra next-intl kararı (ön eksiz Türkçe
+ * yolu `/tr/...`e yeniden yazar, `/en/...`i geçirir), en son yanıt başlıkları.
+ * Kök dışı rota işleyicileri (api, sitemap, robots, llms, indexnow) ve uzantılı
+ * dosyalar next-intl'e GİRMEZ — girse `/tr/sitemap.xml`e yazılıp 404 olurdu.
+ */
+const intlMiddleware = createMiddleware(routing);
+
+const INTL_SKIP = [
+  /^\/api(\/|$)/,
+  /^\/sitemaps(\/|$)/,
+  /^\/sitemap\.xml$/,
+  /^\/robots\.txt$/,
+  /^\/llms(-full)?\.txt$/,
+  /^\/indexnow(\/|$)/,
+  /^\/_next(\/|$)/,
+  /^\/_vercel(\/|$)/,
+  /\/[^/]*\.[a-zA-Z0-9]+$/, // uzantılı dosya (public/ varlıkları)
+];
+
+function skipsIntl(pathname: string): boolean {
+  return INTL_SKIP.some((re) => re.test(pathname));
+}
 
 /**
  * CSP — İKİ profil, tek yerden. Ayrımın kaynağı `lib/public-routes.ts`.
@@ -59,23 +87,28 @@ function buildCsp(nonce: string | null, isDev: boolean): string {
  */
 export function middleware(request: NextRequest) {
   const isDev = process.env.NODE_ENV === "development";
+  const pathname = request.nextUrl.pathname;
   // Public rota → nonce ÜRETME. Üretip kullanmamak, statik HTML'i nonce'lı
-  // CSP ile servis etme hatasına açık kapı bırakırdı.
-  const publicRoute = isPublicRoute(request.nextUrl.pathname);
+  // CSP ile servis etme hatasına açık kapı bırakırdı. (`isPublicRoute` dil
+  // ön ekini kendi soyar.)
+  const publicRoute = isPublicRoute(pathname);
   const nonce = publicRoute
     ? null
     : Buffer.from(crypto.randomUUID()).toString("base64");
   const csp = buildCsp(nonce, isDev);
 
-  const requestHeaders = new Headers(request.headers);
   if (nonce) {
-    requestHeaders.set("x-nonce", nonce);
     // Next.js nonce'ı BU header'dan okur; public rotada set edilmez ki
-    // framework nonce basmaya kalkıp statik çıktıyı kirletmesin.
-    requestHeaders.set("Content-Security-Policy", csp);
+    // framework nonce basmaya kalkıp statik çıktıyı kirletmesin. İstek
+    // başlığına yazılır: next-intl yanıtı `request.headers`ı aynen taşır.
+    request.headers.set("x-nonce", nonce);
+    request.headers.set("Content-Security-Policy", csp);
   }
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  const response = skipsIntl(pathname)
+    ? NextResponse.next({ request: { headers: request.headers } })
+    : intlMiddleware(request);
+
   response.headers.set("Content-Security-Policy", csp);
   // Dalga B-4: HSTS hiçbir yerde set edilmiyordu (API'de helmet var, ön yüzde
   // yoktu). Tarayıcı, alan adını bir yıl boyunca yalnız HTTPS üzerinden

@@ -6,7 +6,7 @@ import { categoryVisual } from "@/lib/public/category-visual";
 import { fetchCategoryMenu } from "@/lib/public/suggest-client";
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**

@@ -7,6 +7,7 @@ import {
   type SitemapSummary,
 } from "@/lib/public/marketplace-api";
 import { allCitySlugs, cityProductPath } from "@/lib/public/city";
+import { localizedAlternates } from "@/i18n/href";
 import { absoluteUrl } from "@/lib/seo/meta";
 import type { SitemapIndexItem, SitemapUrl } from "@/lib/seo/sitemap-xml";
 
@@ -103,16 +104,24 @@ const STATIC_PAGES: SitemapUrl[] = [
   ].map((loc) => ({ loc, changefreq: "yearly" as const, priority: 0.3 })),
 ];
 
+/** Göreli (Türkçe, ön eksiz) yol → mutlak adres + üç dil hreflang (i18n Faz 1). */
+function located(path: string): Pick<SitemapUrl, "loc" | "alternates"> {
+  return {
+    loc: absoluteUrl(path),
+    alternates: Object.fromEntries(Object.entries(localizedAlternates(path)).map(([k, v]) => [k, absoluteUrl(v)])),
+  };
+}
+
 export async function buildPart(part: PartName): Promise<SitemapUrl[]> {
   switch (part.kind) {
     case "pages":
-      return STATIC_PAGES.map((p) => ({ ...p, loc: absoluteUrl(p.loc) }));
+      return STATIC_PAGES.map((p) => ({ ...p, ...located(p.loc) }));
     case "categories": {
       const s = await fetchSitemapSummary();
       return s.categories
         .filter((c) => c.count > 0)
         .map((c) => ({
-          loc: absoluteUrl(categoryPath(c.id, c.name)),
+          ...located(categoryPath(c.id, c.name)),
           lastmod: c.lastmod,
           changefreq: "daily",
           priority: 0.8,
@@ -124,7 +133,7 @@ export async function buildPart(part: PartName): Promise<SitemapUrl[]> {
       return [
         ...s.productCities
           .filter((c) => c.count > 0 && known.has(c.city))
-          .map((c) => ({ loc: absoluteUrl(cityProductPath(c.city)), lastmod: c.lastmod, changefreq: "daily" as const, priority: 0.7 })),
+          .map((c) => ({ ...located(cityProductPath(c.city)), lastmod: c.lastmod, changefreq: "daily" as const, priority: 0.7 })),
         // Firma şehir sayfaları YOK (2026-09-22): dizin liste değil, üyeliğe
         // yönlendiren vitrin; `/firmalar/sehir/<il>` → `/firmalar` 308.
       ];
@@ -134,7 +143,7 @@ export async function buildPart(part: PartName): Promise<SitemapUrl[]> {
       // Ürün: firmanın altında yaşayan KALICI içerik — vitrinin asıl
       // indekslenecek gövdesi. Görseller image sitemap uzantısıyla.
       return rows.map((p) => ({
-        loc: absoluteUrl(`/firma/${p.companySlug}/urun/${p.slug}`),
+        ...located(`/firma/${p.companySlug}/urun/${p.slug}`),
         lastmod: p.updatedAt,
         changefreq: "weekly",
         priority: 0.7,
@@ -144,7 +153,7 @@ export async function buildPart(part: PartName): Promise<SitemapUrl[]> {
     case "companies": {
       const rows = await fetchCompanySitemap(part.page);
       return rows.map((c) => ({
-        loc: absoluteUrl(`/firma/${c.slug}`),
+        ...located(`/firma/${c.slug}`),
         lastmod: c.updatedAt,
         changefreq: "weekly",
         priority: 0.8,
@@ -153,7 +162,7 @@ export async function buildPart(part: PartName): Promise<SitemapUrl[]> {
     case "listings": {
       const rows = await fetchListingSitemap(part.page);
       return rows.map((l) => ({
-        loc: absoluteUrl(listingPath(l.number, l.title)),
+        ...located(listingPath(l.number, l.title)),
         lastmod: l.updatedAt,
         changefreq: "daily",
         priority: 0.7,

@@ -5,7 +5,7 @@ import { useDiscoverSearch } from "@/hooks/use-portal-discovery";
 import { PANEL_MARKET, panelProductPath } from "@/lib/company/panel-market";
 import { recentSearches } from "@/lib/company/recent-searches";
 import { ArrowRight, ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 
 // Ekranda ~7 kart görünüyor; 8 çekmek şeridi kaydırılamaz kılardı (oklar

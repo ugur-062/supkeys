@@ -1,5 +1,8 @@
 "use client";
 
+import { localizePath } from "@/i18n/href";
+import { runtimeLocale } from "@/i18n/runtime";
+
 import { companyApi } from "@/lib/company-auth/api";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import type {
@@ -244,7 +247,7 @@ export function useCompanyLogout() {
     clear();
     queryClient.clear();
     if (typeof window !== "undefined") {
-      window.location.href = "/company/login";
+      window.location.href = localizePath("/company/login", runtimeLocale());
     }
   };
 }

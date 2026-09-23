@@ -6,7 +6,7 @@ import { categoryVisual } from "@/lib/public/category-visual";
 import { segmentTagline } from "@/lib/public/segment-taglines";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * KATEGORİ VİTRİNİ — promo kart + 5×2 ızgara, ÜÇ SATIR (2026-09-07).

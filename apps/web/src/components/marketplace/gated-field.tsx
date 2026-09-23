@@ -1,7 +1,7 @@
 import { loginHref } from "@/lib/public/visibility";
 import { AccentLink } from "@/components/ui/accent-fill";
 import { LockClosedIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * KAPILI ALAN — gizlenen değerin YERİNE basılır (görünürlük katmanı).

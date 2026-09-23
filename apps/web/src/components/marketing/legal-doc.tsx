@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbNode, graph } from "@/lib/seo/jsonld";
 import { absoluteUrl } from "@/lib/seo/meta";

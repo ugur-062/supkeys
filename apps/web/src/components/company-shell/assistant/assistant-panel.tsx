@@ -38,7 +38,7 @@ import {
   Trash2,
   X,
 } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { AssistantMarkdown } from "./assistant-markdown";
 

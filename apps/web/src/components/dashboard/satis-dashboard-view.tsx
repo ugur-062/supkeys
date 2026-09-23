@@ -9,7 +9,7 @@ import { SellerTendersView } from "@/components/company/seller-tenders-view";
 import { AiIntentBand } from "@/components/dashboard/ai-intent-band";
 import { intentToRequestQuery } from "@/lib/company/ai-search";
 import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { PackagePlus } from "lucide-react";
 import { SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
 import { matchedItemName, rowSegments, searchHaystack } from "@/lib/company/request-facets";

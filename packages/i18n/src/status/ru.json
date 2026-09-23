@@ -1,202 +1,202 @@
 {
   "api.business.alreadyUsed": {
     "hash": "c87b8eaaae",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.business.conflict": {
     "hash": "f9662367e7",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.business.expired": {
     "hash": "d4ca499ac8",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.business.forbidden": {
     "hash": "366363a16c",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.business.invalidStatus": {
     "hash": "693ab67197",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.business.notFound": {
     "hash": "6c4ee02f32",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.business.rateLimit": {
     "hash": "dfd237d730",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.arrayMax": {
     "hash": "46527147be",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.arrayMin": {
     "hash": "32467eff26",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.dateFuture": {
     "hash": "45f33cb104",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.dateInvalid": {
     "hash": "12ae810dc0",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.emailInvalid": {
     "hash": "cb207a350d",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.failed": {
     "hash": "26ad3faf23",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.invalid": {
     "hash": "35bf919765",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.inValues": {
     "hash": "9cfcbc7269",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.localeUnsupported": {
     "hash": "564e1cde7a",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.mustBeArray": {
     "hash": "918fc86b38",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.mustBeBoolean": {
     "hash": "a6f701fe84",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.mustBeNumber": {
     "hash": "b30cd0bfc8",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.mustBeString": {
     "hash": "d3ab4e2abe",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.notAccepted": {
     "hash": "2f4c902f6b",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.numberMax": {
     "hash": "a789692111",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.numberMin": {
     "hash": "99853c68d6",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.passwordMin": {
     "hash": "2c56f7aa02",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.phoneInvalid": {
     "hash": "faca1d99b0",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.required": {
     "hash": "f56da1e4f9",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.stringMax": {
     "hash": "1a318602c6",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.stringMin": {
     "hash": "280868543a",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.taxNumberInvalid": {
     "hash": "3aa8be5d67",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.urlInvalid": {
     "hash": "b4d4ebd071",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "api.validation.uuidInvalid": {
     "hash": "7bb67fa75f",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "common.errors.badRequest": {
     "hash": "bcde64b8ac",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "common.errors.conflict": {
     "hash": "8504657967",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "common.errors.forbidden": {
     "hash": "366363a16c",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "common.errors.network": {
     "hash": "db2002eb23",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "common.errors.notFound": {
     "hash": "6c4ee02f32",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "common.errors.server": {
     "hash": "6cba825788",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "common.errors.unprocessable": {
     "hash": "7a8d657f84",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "web.settings.language.hint": {
     "hash": "e519016aae",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   },
   "web.settings.language.label": {
     "hash": "e194b23567",
-    "status": "machine",
-    "at": "2026-09-22"
+    "status": "reviewed",
+    "at": "2026-09-23"
   }
 }

@@ -1,11 +1,13 @@
 "use client";
 
+import { stripLocale } from "@/i18n/href";
+
 import { RothernLogo } from "@/components/brand/logo";
 import { Sheet } from "@/components/ui/sheet";
 import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { Bars3Icon } from "@heroicons/react/24/outline";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { usePathname } from "@/i18n/navigation";
 import { useAudienceValue } from "@/components/marketplace/audience-switch";
 import { cn } from "@/lib/utils";
 import { useEffect, useState } from "react";
@@ -80,7 +82,7 @@ export function MarketingHeader() {
   /* Aktif satır: `pathname` yalnız EFEKT BAĞIMLILIĞI — render dalı değil.
      Rota değişince yeniden değerlendirilir, ilk boyada boş kalır. */
   useEffect(() => {
-    setHere(window.location.pathname);
+    setHere(stripLocale(window.location.pathname));
   }, [pathname]);
 
   useEffect(() => {

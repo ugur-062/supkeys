@@ -5,7 +5,7 @@ import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
 import { ArrowRightIcon, PlusIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ButtonAccentProvider } from "@/components/ui/button-accent";
 
 const MIN_DEMANDS = 3;

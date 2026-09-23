@@ -2,7 +2,7 @@ import { CategoryTile } from "./category-tile";
 import { categoryPath } from "@/lib/public/marketplace";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * "KATEGORİYE GÖRE KEŞFET" — fotoğraf kartları (2026-09-04, akşam).

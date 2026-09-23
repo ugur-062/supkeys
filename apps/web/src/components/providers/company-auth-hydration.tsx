@@ -1,5 +1,8 @@
 "use client";
 
+import { localizePath } from "@/i18n/href";
+import { runtimeLocale } from "@/i18n/runtime";
+
 import { useCompanyMe } from "@/hooks/use-company-auth";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { useEffect } from "react";
@@ -23,11 +26,11 @@ export function RequireCompanyAuth({
   useEffect(() => {
     if (!isHydrated || typeof window === "undefined") return;
     if (!user) {
-      window.location.href = "/company/login";
+      window.location.href = localizePath("/company/login", runtimeLocale());
       return;
     }
     if (needsOnboarding) {
-      window.location.href = "/company/onboarding";
+      window.location.href = localizePath("/company/onboarding", runtimeLocale());
     }
   }, [isHydrated, user, needsOnboarding]);
 

@@ -28,7 +28,7 @@ import { ChartBarIcon, EyeIcon } from "@heroicons/react/20/solid";
 import { format } from "date-fns";
 import { tr } from "date-fns/locale";
 import dynamic from "next/dynamic";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
 
 /**

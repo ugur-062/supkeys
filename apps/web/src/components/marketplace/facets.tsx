@@ -1,4 +1,4 @@
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * Bağlantı tabanlı süzgeç çipi — `PublicListPage`nin JS'siz `chips` modu

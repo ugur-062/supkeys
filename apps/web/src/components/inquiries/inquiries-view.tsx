@@ -19,7 +19,7 @@ import {
 } from "@/hooks/use-inquiries";
 import { ArrowLeftIcon, MagnifyingGlassIcon, PaperAirplaneIcon } from "@heroicons/react/20/solid";
 import { Inbox, Send } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 

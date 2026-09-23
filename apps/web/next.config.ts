@@ -122,7 +122,17 @@ const nextConfig: NextConfig = {
   },
 
   async redirects() {
-    return [
+    // i18n Faz 1: her yönlendirmenin `/en/…` ve `/ru/…` kopyası — eski adres
+    // hangi dilde açıldıysa aynı dilde yeni adrese gitsin (Türkçe ön eksiz).
+    const withLocales = (
+      rules: { source: string; destination: string; permanent: boolean }[],
+    ) => [
+      ...rules,
+      ...["en", "ru"].flatMap((l) =>
+        rules.map((r) => ({ ...r, source: `/${l}${r.source}`, destination: `/${l}${r.destination}` })),
+      ),
+    ];
+    return withLocales([
       // Firma dizini URL'i menü adıyla hizalandı (2026-09-04): "Firmalar" →
       // `/firmalar`. Eski adres e-posta/dış bağlantılarda olabilir.
       // Kök ve alt yol AYRI (2026-09-22): tek `:path*` kuralı kökte
@@ -212,7 +222,7 @@ const nextConfig: NextConfig = {
         destination: "/company/satinalma/raporlar",
         permanent: true,
       },
-    ];
+    ]);
   },
 };
 

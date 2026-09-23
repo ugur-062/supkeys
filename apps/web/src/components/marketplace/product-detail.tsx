@@ -30,7 +30,7 @@ import {
   DocumentTextIcon,
   MapPinIcon,
 } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * Ürün sayfası — SUNUCU bileşeni.

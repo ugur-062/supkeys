@@ -23,7 +23,7 @@ import {
 } from "@/hooks/use-company-reports";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { ArrowLeft, ChevronDown, FileSpreadsheet, Loader2 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { CURRENCIES } from "@/lib/tenders/labels";

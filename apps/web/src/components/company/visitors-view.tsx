@@ -19,7 +19,7 @@ import {
   LockClosedIcon,
   UserGroupIcon,
 } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 
 /**

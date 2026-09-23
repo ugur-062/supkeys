@@ -61,10 +61,14 @@ export function orderLike(flat: Flat, reference: Flat): Flat {
   return out;
 }
 
-/** ICU argüman adları (`{n}`, `{count, plural, …}`) — sıralı, tekil. */
+/**
+ * ICU argüman adları (`{n}`, `{count, plural, …}`) — sıralı, tekil. Yalnız
+ * `{ad}` ya da `{ad,` biçimi sayılır; çoğul dallarının içi (`one {# öğe}`,
+ * `other {Select # items}`) argüman DEĞİLDİR.
+ */
 export function placeholders(message: string): string[] {
   const names = new Set<string>();
-  const re = /\{\s*([A-Za-z_][\w]*)/g;
+  const re = /\{\s*([A-Za-z_][\w]*)\s*[,}]/g;
   let m: RegExpExecArray | null;
   while ((m = re.exec(message)) !== null) names.add(m[1]!);
   return [...names].sort();

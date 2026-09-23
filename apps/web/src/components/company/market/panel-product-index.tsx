@@ -19,7 +19,7 @@ import {
   type ProductFilterState,
 } from "@/lib/public/product-filter-params";
 import { PANEL_MARKET, panelCategoryPath, panelProductPath } from "@/lib/company/panel-market";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
 import type { ReactNode } from "react";

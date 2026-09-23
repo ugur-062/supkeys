@@ -7,7 +7,7 @@ import { cn } from "@/lib/utils";
 import type { ListingDetail } from "@/hooks/use-company-listings";
 import { useQuery } from "@tanstack/react-query";
 import { PackageOpen } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 
 /** Kademeli liste eşikleri: ≤5 hepsi; 6-20 "daha göster"; >20 detaya link. */

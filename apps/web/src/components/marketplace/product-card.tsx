@@ -9,7 +9,7 @@ import { countryFlag, countryName } from "@rothern/shared";
 import type { ProductPriceFields, PublicProductCard } from "@/lib/public/marketplace-api";
 import { cn } from "@/lib/utils";
 import { ChevronRightIcon, MapPinIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useState, type ReactNode } from "react";
 
 /**

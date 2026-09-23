@@ -1,5 +1,5 @@
 import { allCitySlugs, cityCompanyPath, cityProductPath } from "@/lib/public/city";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * ŞEHİR BAĞLANTI ŞERİDİ — iç bağlantı ağı (2026-09-09, Parça 3).

@@ -2,7 +2,7 @@
 // `onChange` istemci bileşeninden gelir (product-index sunucu, galeri istemci).
 import { cn } from "@/lib/utils";
 import { ChevronLeft, ChevronRight } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * 7 YUVALI sayfa aralığı: toplam ≤ 7 → hepsi; aksi hâlde her zaman 7 yuva

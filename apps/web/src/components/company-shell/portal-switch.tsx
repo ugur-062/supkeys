@@ -8,7 +8,7 @@ import {
   LockClosedIcon,
   ShoppingCartIcon,
 } from "@heroicons/react/24/outline";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { usePortalStore } from "@/lib/company/portal-store";

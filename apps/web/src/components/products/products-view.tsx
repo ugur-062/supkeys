@@ -1,5 +1,6 @@
 "use client";
 
+import { Link } from "@/i18n/navigation";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { useSearchParams } from "next/navigation";
@@ -338,9 +339,9 @@ export function ProductsView() {
         <p className="mt-3 max-w-2xl rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-600/20">
           Firma profiliniz henüz herkese açık değil: ürünleriniz profil yayınlanana kadar dizinde ve
           firma sayfanızda görünmez.{" "}
-          <a href="/company/sirketim/profil" className="font-medium underline">
+          <Link href="/company/sirketim/profil" className="font-medium underline">
             Profili yayınla
-          </a>
+          </Link>
           .
         </p>
       ) : null}
@@ -353,9 +354,9 @@ export function ProductsView() {
         >
           Ücretsiz pakette en fazla {productLimit} ürün yayında ya da onayda olabilir ({occupied}/{productLimit}
           {" "}kullanıldı). Taslak sınırsız.{" "}
-          <a href="/nasil-calisir#fiyatlar" className="font-medium text-zinc-900 underline">
+          <Link href="/nasil-calisir#fiyatlar" className="font-medium text-zinc-900 underline">
             Silver ile sınırsız ürün, belge ve video
-          </a>
+          </Link>
           .
         </p>
       ) : null}

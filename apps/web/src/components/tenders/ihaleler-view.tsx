@@ -18,7 +18,7 @@ import {
   type TenderListItem,
 } from "@/hooks/use-company-tenders";
 import { ArrowUpDown, BarChart3, Building2, CalendarRange, Globe, LayoutTemplate, User as UserIcon } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 

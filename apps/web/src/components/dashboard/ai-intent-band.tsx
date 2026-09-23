@@ -3,7 +3,8 @@
 import { AI_TENDER_DRAFT_KEY, intentChips } from "@/lib/company/ai-search";
 import type { AiSearchIntentResult, AiSearchRelaxed } from "@rothern/shared";
 import { SparklesIcon, XMarkIcon } from "@heroicons/react/20/solid";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
 
 /**
  * "AI şöyle anladı" bandı — AI aramasının yorumu + uygulanan süzgeç çipleri.

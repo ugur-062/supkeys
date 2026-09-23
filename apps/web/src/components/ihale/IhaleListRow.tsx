@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
 import { scopeLabel } from "@rothern/shared";
 import { Star } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ListingCard, ROW_FOCUS, type ListingCardData } from "@/components/marketplace/listing-card";
 import { expiredNote } from "@/lib/tenders/seller-state";
 

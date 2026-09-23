@@ -1,0 +1,45 @@
+import { AuthShell } from "@/components/marketing/auth-shell";
+import { Link } from "@/i18n/navigation";
+import { Suspense } from "react";
+import { ResetPasswordForm } from "./reset-password-form";
+
+/**
+ * Public rota DEĞİL (SEO'ya kapalı, nonce'lı CSP alır) → statik prerender
+ * edilirse nonce'suz kalır ve script'leri bloke olur. Bkz. `@/lib/public-routes`.
+ */
+export const dynamic = "force-dynamic";
+
+export const metadata = {
+  title: "Şifre Sıfırla",
+  // Jeton taşıyan işlem sayfası — aramaya girmez (2026-09-22).
+  robots: { index: false, follow: false },
+};
+
+/** Şifre sıfırlama — diğer auth ekranlarıyla aynı kabuk (AuthShell). */
+export default function ResetPasswordPage() {
+  return (
+    <AuthShell
+      title="Şifreni sıfırla"
+      subtitle="E-postana gönderilen bağlantıyla yeni şifreni oluştur."
+      footer={
+        <>
+          Hatırladın mı?{" "}
+          <Link
+            href="/company/login"
+            className="font-semibold text-zinc-900 hover:underline"
+          >
+            Giriş yap
+          </Link>
+        </>
+      }
+    >
+      <Suspense
+        fallback={
+          <div className="h-64 animate-pulse rounded-2xl bg-zinc-100" aria-hidden />
+        }
+      >
+        <ResetPasswordForm />
+      </Suspense>
+    </AuthShell>
+  );
+}

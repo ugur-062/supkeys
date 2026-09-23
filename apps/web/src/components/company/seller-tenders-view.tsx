@@ -24,7 +24,7 @@ import {
   type RequestFilterState,
 } from "@/lib/company/request-filter-params";
 import { ClipboardList } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { useMemo, type ReactNode } from "react";
 

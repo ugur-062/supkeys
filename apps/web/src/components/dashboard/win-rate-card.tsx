@@ -3,7 +3,7 @@
 import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
 import { DASH } from "@/lib/dashboard/strings";
 import { Trophy } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /** Anlamlı oran için gereken asgari karara bağlanmış teklif sayısı. */
 const MIN_DECIDED_FOR_RATE = 10;

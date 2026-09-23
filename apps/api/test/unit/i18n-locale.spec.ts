@@ -103,7 +103,7 @@ describe("tApi / I18nService / i18nMessage", () => {
     expect(svc.locale()).toBe("tr");
     expect(svc.for("en")("api.business.expired")).toBe("Expired");
     runWithLocale("ru", () => {
-      expect(svc.t("api.business.forbidden")).toBe("У вас нет прав для выполнения этого действия");
+      expect(svc.t("api.business.forbidden")).toBe("У вас нет прав для этого действия");
     });
   });
 

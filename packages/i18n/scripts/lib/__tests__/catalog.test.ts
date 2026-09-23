@@ -30,6 +30,9 @@ describe("catalog helpers", () => {
     expect(placeholdersMatch("{n} gün", "{n} days")).toBe(true);
     expect(placeholdersMatch("{n} gün", "{days} days")).toBe(false);
     expect(placeholdersMatch("Kaydet", "Save")).toBe(true);
+    // Çoğul dalının içindeki sözcükler argüman sanılmamalı.
+    expect(placeholders("{n, plural, one {Select at least # item} other {Select at least # items}}")).toEqual(["n"]);
+    expect(placeholdersMatch("En az {n} öğe seçilmeli", "{n, plural, one {Select at least # item} other {Select at least # items}}")).toBe(true);
   });
 
   it("coverage eksik/bayat/durumsuz ayırır", () => {

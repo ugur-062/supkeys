@@ -109,7 +109,7 @@ describe("durum daraltma ve indeks kapısı", () => {
  * üzerinden o unutmayı yakalar.
  */
 describe("yayın anahtarı kapsamı", () => {
-  const APP = path.resolve(__dirname, "../../app");
+  const APP = path.resolve(__dirname, "../../app/[locale]");
   const PAGES = [
     "alim-talepleri/page.tsx",
     "firmalar/page.tsx",
@@ -127,8 +127,10 @@ describe("yayın anahtarı kapsamı", () => {
   });
 
   it("robots ve sitemap de anahtarı okur", () => {
+    // Rota işleyicileri dil segmentinin DIŞINDA (kök app/), i18n Faz 1.
+    const ROOT_APP = path.resolve(__dirname, "../../app");
     for (const f of ["robots.ts", "sitemap.xml/route.ts"]) {
-      expect(readFileSync(path.join(APP, f), "utf-8")).toContain(
+      expect(readFileSync(path.join(ROOT_APP, f), "utf-8")).toContain(
         "MARKETPLACE_LIVE",
       );
     }

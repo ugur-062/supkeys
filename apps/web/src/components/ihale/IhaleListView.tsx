@@ -5,7 +5,7 @@ import type { TenderListItem } from "@/hooks/use-company-tenders";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
 import { ClipboardList, Plus } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { useEffect, useState } from "react";
 import { IHALE_VIEW_FOCUS, IhaleListRow } from "./IhaleListRow";

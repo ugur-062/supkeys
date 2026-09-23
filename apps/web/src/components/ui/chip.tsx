@@ -2,7 +2,7 @@
 
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
 
 /**

@@ -1,5 +1,4 @@
-import { effectiveClientLocale } from "@/i18n/locale-cookie";
-import { tRuntime } from "@/i18n/runtime";
+import { runtimeLocale, tRuntime } from "@/i18n/runtime";
 import axios, { type AxiosError } from "axios";
 import { toast } from "sonner";
 import { resolveApiBaseUrl } from "./resolve-api-url";
@@ -21,7 +20,7 @@ export const api = axios.create({
 // (RSC çekimleri) başlık yok → API varsayılanı tr.
 api.interceptors.request.use((config) => {
   if (typeof window !== "undefined") {
-    config.headers["Accept-Language"] = effectiveClientLocale();
+    config.headers["Accept-Language"] = runtimeLocale();
   }
   return config;
 });

@@ -7,7 +7,7 @@ import { Heading } from "@/components/catalyst/heading";
 import { categoryPath } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * Pazar yeri hero'su — v2 (2026-09-04, Europages kalıbı) + ALICIYIM /

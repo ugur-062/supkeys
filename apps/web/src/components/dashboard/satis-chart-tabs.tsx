@@ -28,7 +28,7 @@ import {
 } from "recharts";
 import { formatCompactMoney, formatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /** Gelir sekmesi — trend + kazanma yığını + TL pipeline. */
 export function SatisGelirTab({

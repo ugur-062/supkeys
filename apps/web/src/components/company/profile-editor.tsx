@@ -12,7 +12,7 @@ import { useAiSeoEnrich } from "@/hooks/use-ai-seo-enrich";
 import { companySeo } from "@/lib/seo/entities";
 import { snippetFromMetadata } from "@/lib/seo/snippet";
 import { companySeoReadiness, generateSlug, tierAtLeast } from "@rothern/shared";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/catalyst/button";
 import { Input } from "@/components/catalyst/input";
 import { Select } from "@/components/catalyst/select";

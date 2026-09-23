@@ -1,7 +1,7 @@
 "use client";
 
 import { Breadcrumb } from "@/components/ui/breadcrumb";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
 
 /**

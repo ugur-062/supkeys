@@ -7,7 +7,7 @@ import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { useInsights, type ViewDays } from "@/hooks/use-company-views";
 import { pctChange } from "@/lib/dashboard/delta";
 import { ArrowLongRightIcon, ArrowRightIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 
 /**

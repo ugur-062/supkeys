@@ -11,8 +11,9 @@ import {
   ArrowLeftIcon,
   CreditCardIcon,
 } from "@heroicons/react/24/outline";
-import Link from "next/link";
-import { useRouter, useSearchParams } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { useSearchParams } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useEffect, useRef } from "react";
 import { toast } from "sonner";
 import { VERIFICATION_HREF } from "./packages-view";

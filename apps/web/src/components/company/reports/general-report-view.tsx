@@ -26,7 +26,7 @@ import {
 import { useTenders } from "@/hooks/use-company-tenders";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { ArrowLeft, FileSpreadsheet, Loader2 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CURRENCIES } from "@/lib/tenders/labels";

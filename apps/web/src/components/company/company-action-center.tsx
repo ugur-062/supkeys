@@ -7,7 +7,7 @@ import type { PortalKey } from "@/lib/company/portals";
 import { ACTION_ROWS } from "@/lib/dashboard/strings";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Info, type LucideIcon } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * BEKLEYEN İŞLER — Şirketim › Genel Bakış (2026-09-05). Eski Aksiyon

@@ -1,7 +1,7 @@
 import { FilterChip } from "./facets";
 import { SearchForm } from "./search-form";
 import { Heading } from "@/components/catalyst/heading";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
 
 /**

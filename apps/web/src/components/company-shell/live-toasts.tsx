@@ -1,5 +1,7 @@
 "use client";
 
+import { stripLocale } from "@/i18n/href";
+
 import type { AppNotification } from "@/hooks/use-notifications";
 import type { ThreadSummary } from "@/hooks/use-company-messages";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
@@ -14,7 +16,7 @@ import {
 } from "@/lib/company/portals";
 import { useQueryClient } from "@tanstack/react-query";
 import { Bell, MessageSquare, X } from "lucide-react";
-import { useRouter } from "next/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useEffect } from "react";
 import { toast } from "sonner";
 import { NOTIFICATION_KEY } from "@/hooks/use-notifications";
@@ -65,7 +67,7 @@ function toPath(ctaUrl: string | null): string {
  *  /company/mesajlar?with=<id>&portal=<p>; portal paramı yoksa firma eşleşmesi yeter.) */
 function viewingThread(portal: PortalKey, otherPartyId: string): boolean {
   if (typeof window === "undefined") return false;
-  if (window.location.pathname !== "/company/mesajlar") return false;
+  if (stripLocale(window.location.pathname) !== "/company/mesajlar") return false;
   const q = new URLSearchParams(window.location.search);
   if (q.get("with") !== otherPartyId) return false;
   const p = q.get("portal");

@@ -2,7 +2,7 @@ import { CompanyCard } from "./company-card";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import type { PublicDirectoryCard } from "@/lib/public/marketplace-api";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 export const COMPANY_GRID_MIN = 4;
 

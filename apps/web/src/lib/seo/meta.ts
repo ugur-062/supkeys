@@ -1,4 +1,6 @@
+import { localizePath, localizedAlternates } from "@/i18n/href";
 import { resolveSiteUrl } from "@/lib/site-url";
+import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import type { Metadata } from "next";
 
 /**
@@ -58,7 +60,11 @@ export interface PageMetaInput {
   images?: string[];
   noindex?: boolean;
   type?: "website" | "article" | "profile";
+  /** Sayfanın dili (i18n Faz 1): kanonik o dilin adresi, hreflang üç dil + x-default. */
+  locale?: Locale;
 }
+
+const OG_LOCALE: Record<Locale, string> = { tr: "tr_TR", en: "en_US", ru: "ru_RU" };
 
 /**
  * Tek giriş noktası: sayfa metası. `alternates.canonical` her zaman yazılır —
@@ -72,8 +78,12 @@ export function buildMetadata({
   images,
   noindex,
   type = "website",
+  locale = DEFAULT_LOCALE,
 }: PageMetaInput): Metadata {
-  const url = absoluteUrl(path);
+  const url = absoluteUrl(localizePath(path, locale));
+  const languages = Object.fromEntries(
+    Object.entries(localizedAlternates(path)).map(([lang, p]) => [lang, absoluteUrl(p)]),
+  );
   const desc = clampDescription(description);
   // Varsayılan kart (2026-09-11 canlı denetim): Next'te kök `opengraph-image`
   // yalnız `/` için basılır, alt segmentlere MİRAS GEÇMEZ — /nasil-calisir ve
@@ -85,14 +95,14 @@ export function buildMetadata({
   return {
     title,
     description: desc,
-    alternates: { canonical: url },
+    alternates: { canonical: url, languages },
     ...(noindex ? { robots: { index: false, follow: true } } : {}),
     openGraph: {
       title,
       description: desc,
       url,
       siteName: SITE_NAME,
-      locale: "tr_TR",
+      locale: OG_LOCALE[locale],
       type,
       images: abs,
     },

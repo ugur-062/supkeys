@@ -1,7 +1,7 @@
 "use client";
 
 import { useState } from "react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ArrowLeft, Archive, ArchiveRestore, PackageSearch } from "lucide-react";
 import { toast } from "sonner";
 import { companyApi } from "@/lib/company-auth/api";

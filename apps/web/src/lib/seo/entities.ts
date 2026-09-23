@@ -1,3 +1,5 @@
+import { localizePath } from "@/i18n/href";
+import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { SITE_NAME } from "./meta";
 import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES, categoryPath, listingPath } from "@/lib/public/marketplace";
 import { productPrice } from "@/lib/public/product-price";
@@ -65,14 +67,19 @@ function priceSentence(p: ProductSeoInput["product"]): string {
   return "Fiyat için teklif isteyin";
 }
 
-export function productSeo(input: ProductSeoInput): {
+export interface SeoOptions {
+  /** Sayfanın dili (i18n Faz 1) — kanonik/hreflang ve JSON-LD adresi bu dilin. */
+  locale?: Locale;
+}
+
+export function productSeo(input: ProductSeoInput, opts: SeoOptions = {}): {
   metadata: Metadata;
   jsonLd: JsonLdNode;
   summary: string;
 } {
   const { product: pr, company: co, companySlug } = input;
   const path = `/firma/${companySlug}/urun/${pr.slug}`;
-  const url = absoluteUrl(path);
+  const url = absoluteUrl(localizePath(path, opts.locale ?? DEFAULT_LOCALE));
   const images = pr.images.map((i) => (i.startsWith("http") ? i : absoluteUrl(i)));
   const where = joinParts([co.name, co.city], ", ");
 
@@ -177,6 +184,7 @@ export function productSeo(input: ProductSeoInput): {
       path,
       images: images.slice(0, 1),
       noindex: !input.indexable,
+      locale: opts.locale,
     }),
     jsonLd: graph([
       productNode,
@@ -227,13 +235,13 @@ function httpUrls(values: (string | null | undefined)[]): string[] {
   return values.filter((v): v is string => !!v && /^https?:\/\//i.test(v.trim())).map((v) => v.trim());
 }
 
-export function companySeo(c: CompanySeoInput): {
+export function companySeo(c: CompanySeoInput, opts: SeoOptions = {}): {
   metadata: Metadata;
   jsonLd: JsonLdNode;
   summary: string;
 } {
   const path = `/firma/${c.slug}`;
-  const url = absoluteUrl(path);
+  const url = absoluteUrl(localizePath(path, opts.locale ?? DEFAULT_LOCALE));
 
   const summary = joinParts(
     [
@@ -316,6 +324,7 @@ export function companySeo(c: CompanySeoInput): {
       path,
       images: image ? [image] : undefined,
       type: "profile",
+      locale: opts.locale,
     }),
     jsonLd: graph([
       orgNode,
@@ -383,13 +392,13 @@ export function listingSeoInput(l: {
   };
 }
 
-export function listingSeo(l: ListingSeoInput): {
+export function listingSeo(l: ListingSeoInput, opts: SeoOptions = {}): {
   metadata: Metadata;
   jsonLd: JsonLdNode;
   summary: string;
 } {
   const path = listingPath(l.number, l.title);
-  const url = absoluteUrl(path);
+  const url = absoluteUrl(localizePath(path, opts.locale ?? DEFAULT_LOCALE));
   const cat = l.categories[0]?.name ?? null;
   const qty =
     l.itemSummary.totalQuantity && l.itemSummary.unit
@@ -468,6 +477,7 @@ export function listingSeo(l: ListingSeoInput): {
       path,
       images: l.coverImageUrl ? [l.coverImageUrl] : undefined,
       noindex: !l.indexable,
+      locale: opts.locale,
     }),
     jsonLd: graph([
       demandNode,

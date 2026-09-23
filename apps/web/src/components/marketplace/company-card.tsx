@@ -6,7 +6,7 @@ import { ArrowRightIcon, CalendarDaysIcon, ChatBubbleLeftRightIcon, ChevronRight
 import { ActivityIcon } from "./activity-icons";
 import { currencySymbol } from "@/lib/tenders/labels";
 import { companyActivityLabel, countryName } from "@rothern/shared";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 
 /**

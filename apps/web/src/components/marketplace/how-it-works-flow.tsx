@@ -2,7 +2,7 @@ import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import { LockKeyhole, Search, Send } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * ALICI AKIŞI — üç adım, yatay (B3, 2026-09-04). "Talep aç" bannerının

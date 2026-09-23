@@ -6,7 +6,7 @@ import { useApprovalDetail } from "@/hooks/use-company-approvals";
 import { formatDate } from "@/lib/format-date";
 import { currencySymbol } from "@/lib/tenders/labels";
 import { BadgeCheck } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 const STEP_LABEL: Record<string, { label: string; color: "amber" | "green" | "rose" | "zinc" }> = {
   WAITING: { label: "Sırada", color: "zinc" },

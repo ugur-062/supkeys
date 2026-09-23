@@ -6,7 +6,7 @@ import { useCompanySearch } from "@/hooks/use-company-directory";
 import { marketCompaniesPath } from "@/lib/company/panel-market";
 import type { PortalKey } from "@/lib/company/portals";
 import { ArrowRight } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * ANASAYFA FİRMA LİSTESİ (2026-09-10, kullanıcı kararı): hero'daki kapsam

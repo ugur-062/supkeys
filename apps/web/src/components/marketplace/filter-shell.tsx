@@ -3,7 +3,8 @@
 import { useAccentFill } from "@/components/ui/accent-fill";
 import { Sheet } from "@/components/ui/sheet";
 import { AdjustmentsHorizontalIcon } from "@heroicons/react/20/solid";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
 import { createContext, useContext, useState, useTransition, type ReactNode } from "react";
 import {
   activeFilterCount,
