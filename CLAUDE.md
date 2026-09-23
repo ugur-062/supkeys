@@ -1497,9 +1497,12 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Son migration `20260923120000_company_user_locale` (`CompanyUser.locale`
-  TEXT NOT NULL DEFAULT 'tr'; tümüyle additive). Staging'e 2026-09-23'te
-  uygulandı. Öncesi `20260914120000_listing_preferred_activities`.
+- Son migration `20260923180000_content_translations` (tablo
+  `content_translations` + iki enum; tümüyle additive). Öncesi
+  `20260923120000_company_user_locale` (`CompanyUser.locale` TEXT NOT NULL
+  DEFAULT 'tr'). İkisi de staging'e 2026-09-23'te uygulandı, **CANLIDA
+  BEKLİYOR** (PR #57 birleştirilmeden önce, sırayla). Öncesi
+  `20260914120000_listing_preferred_activities`.
 - Şema değişikliği: `migrate` (dev) → `migrate:deploy` (prod). Manuel SQL için
   `prisma/migrations/<timestamp>_<ad>/migration.sql`. **Her yeni migration'dan
   ÖNCE `docs/migration-safety.md` kontrol listesini oku.**
@@ -1823,8 +1826,10 @@ istemcisi sessizce kısıtlı role düşüp sağlık/giriş/cron'u bozamaz.
   dahili not, global arama
 - i18n Faz 2–4 (`docs/plan-i18n.md`): panel metinleri (2, cırcır 433 dosya /
   6.194 literal) · API istisna/DTO/bildirim/e-posta (3) · kategori adları (4).
-  Faz 0 + Faz 1 (herkese açık yüzey, kimlik akışı, dil seçici) 2026-09-23'te
-  BİTTİ. Canlı: `20260923120000` locale migration + PR #57 kullanıcıda.
+  Faz 0 + Faz 1 (herkese açık yüzey, kimlik akışı, dil seçici) + Faz 1e
+  (içerik otomatik çevirisi) 2026-09-23'te BİTTİ. Canlı sırası: iki migration
+  (`20260923120000` locale, `20260923180000` content_translations) → PR #57
+  → Render `AI_MODEL_PREMIUM` Vertex'in tanıdığı Pro adı → admin backfill.
 
 **Teknik borç**
 - **Tablo okuma tek kaynağı yarım:** `listing-item-import.service.ts` hâlâ
