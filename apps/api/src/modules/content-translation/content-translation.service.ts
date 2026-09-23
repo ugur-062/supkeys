@@ -259,6 +259,10 @@ export class ContentTranslationService {
               prompt: buildPrompt(type, source, feedback),
               maxOutputTokens: MAX_OUTPUT_TOKENS,
               timeoutMs: TIMEOUT_MS,
+              // Çeviri muhakeme işi değil: düşük thinking kalite kaybetmeden
+              // maliyeti/gecikmeyi kısar (ilk staging backfill'de thinking
+              // token'ları çıktının ~3 katıydı; 3.1 Pro'da kayıt başına ~8 sent).
+              thinkingLevel: "low",
             });
             if (this.resolvedModel !== model) {
               this.resolvedModel = model;
