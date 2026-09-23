@@ -169,6 +169,9 @@ export interface PublicListingItemSummary {
 
 export interface PublicListing {
   number: string;
+  /** Dilden bağımsız adres parçası — KAYNAK başlığın slug'ı (`listingSlug`). Çevrilmiş
+   *  başlıktan slug üretilmez: `/en/talep/<slug>` = `/talep/<slug>` (i18n Faz 1e). */
+  slug: string;
   type: "ALIM";
   title: string;
   description: string | null;
@@ -216,6 +219,7 @@ export interface PublicListing {
 export type PublicListingCard = Pick<
   PublicListing,
   | "number"
+  | "slug"
   | "type"
   | "title"
   | "status"

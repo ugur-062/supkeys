@@ -63,6 +63,7 @@ import {
 import { AuditService } from "../../audit/audit.service";
 import { SeoIndexService } from "../../seo-index/seo-index.service";
 import { ContentTranslationService } from "../../content-translation/content-translation.service";
+import { currentLocale } from "../../../common/i18n/locale-context";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -2446,7 +2447,12 @@ export class CompanyListingsService {
       matchScore: affinityByListing.get(r.id)?.score ?? 0,
       matchReason: _productReason ?? affinityByListing.get(r.id)?.reason ?? null,
     }));
-    return opts.limit && opts.limit > 0 ? mapped.slice(0, opts.limit) : mapped;
+    const limited = opts.limit && opts.limit > 0 ? mapped.slice(0, opts.limit) : mapped;
+    // i18n Faz 1e: BAŞKA firmanın talebi okuyucunun dilinde (başlık + kalem adları);
+    // çeviri yoksa özgün metin, `translatedFrom` alanı gelmez.
+    return this.translations
+      ? await this.translations.localizeListings(limited, limited.map((r) => r.id), currentLocale())
+      : limited;
   }
 
   /**
@@ -3142,7 +3148,7 @@ export class CompanyListingsService {
             bidCount: auctionView?.participantCount ?? 0,
           }
         : null;
-    return {
+    const bidderView = {
       ...this.detail(listing),
       isOwner: false,
       canBid,
@@ -3199,6 +3205,11 @@ export class CompanyListingsService {
         ? { id: myOrder.id, number: myOrder.number, status: myOrder.status }
         : null,
     };
+    // i18n Faz 1e: teklifçi başkasının talebini KENDİ dilinde okur (başlık, açıklama,
+    // anahtar kelime, kalem adları). Sahip dalı ham kalır — sahibi düzenler.
+    return this.translations
+      ? (await this.translations.localizeListings([bidderView], [listing.id], currentLocale()))[0]
+      : bidderView;
   }
 
   /**

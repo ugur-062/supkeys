@@ -4,6 +4,29 @@ Bu dosya tamamlanmış aşamaların detaylı kaydıdır. Aktif çalışma için 
 
 ---
 
+## 2026-09-23 (akşam) — Faz 1e kapanış turu: panel çevirisi, ön yükleme 404'ü, dilden bağımsız talep adresi
+
+Kullanıcı bulgusu: "kalemler çevrilmemiş, bazı alım taleplerine girince 404".
+Baştan aşağı tarama (sitemap 642 adres, dizin/anasayfa bağlantıları, panel
+gezintisi Playwright ile TR/EN) sonucu üç kök neden:
+
+- **Panel çevirisiz kalmıştı:** herkese açık uçlar çeviriyordu, giriş yapmış
+  tedarikçinin Açık Talepler listesi/detayı, alıcının ürün keşfi ve firma
+  dizini/profili özgün metni basıyordu. `seller-tenders` (`itemNames` dahil),
+  teklifçi `getOne` dalı, `items/discover*` (kart özellik satırları dahil),
+  `company/directory/*` çeviri servisine bağlandı; kendi verisi ham kalır.
+  Panel talep detayı ve ürün/profil sayfaları "Otomatik çeviri" notunu basar.
+- **`middleware.ts` ön yüklemeleri muaf tutuyordu** → TR (ön eksiz) adreslerin
+  `<Link>` ön yüklemeleri `/tr/…` yeniden yazımından geçmeyip 404 alıyordu;
+  tıklamada "Sayfa bulunamadı". `missing` kaldırıldı, testle kilitlendi.
+- **Talep adresi dile göre değişiyordu** (çevrilmiş başlıktan slug): sitemap
+  hreflang alternatifleri 308 zinciri, RU slug'ları çıplak numara. API artık
+  kaynak başlığın `slug`ını verir, web `listingHref()` ile her dilde aynı
+  adresi kullanır.
+
+Doğrulama: API tsc + lint, web tsc + lint + 146 dosya / 824 test, i18n kapısı,
+çeviri birim testleri 23; staging'de yeniden tarama (aşağıdaki kayıt).
+
 ## 2026-09-23 — Kullanıcı içeriği OTOMATİK ÇEVİRİ (i18n Faz 1e)
 
 **Karar (kullanıcı):** ürün, alım talebi ve firma profili metinleri her

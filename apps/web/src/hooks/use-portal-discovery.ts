@@ -29,6 +29,7 @@ export interface DiscoverProduct {
   slug: string;
   name: string;
   excerpt: string | null;
+  translatedFrom?: string | null;
   images: string[];
   unit: string;
   categoryId: string | null;

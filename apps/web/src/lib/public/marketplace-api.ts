@@ -44,6 +44,8 @@ export interface PublicListingCard {
   /** Metin istek diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e); çeviri yoksa yok. */
   translatedFrom?: string | null;
   number: string;
+  /** Dilden bağımsız adres parçası (kaynak başlığın slug'ı) — `listingHref` bunu kullanır. */
+  slug?: string;
   type: PublicListingType;
   title: string;
   status: string;
@@ -114,6 +116,7 @@ export interface PublicFacets {
 
 export interface PublicSitemapRow {
   number: string;
+  slug?: string;
   title: string;
   type: PublicListingType;
   updatedAt: string;
@@ -510,7 +513,7 @@ export interface SuggestResult {
   categories: { id: string; name: string; level: number }[];
   companies: { name: string; slug: string; city: string | null; logoUrl?: string | null }[];
   /** Açık alım talepleri (kapsam: talepler). Sahip ADI YOK — anonimlik. */
-  listings?: { number: string; title: string; closesAt: string | null }[];
+  listings?: { number: string; slug?: string; title: string; closesAt: string | null }[];
 }
 
 /** Mega menü kategori ağacı — L1 segment + L2 aile, ürün sayısıyla. */

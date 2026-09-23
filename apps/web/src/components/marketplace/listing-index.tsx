@@ -16,7 +16,7 @@ import {
 } from "@/lib/public/listing-filter-params";
 import { JsonLd } from "@/components/seo/json-ld";
 import { graph, itemListNode } from "@/lib/seo/jsonld";
-import { MARKETPLACE_ROUTES, listingPath, type PublicListingType } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES, listingHref, type PublicListingType } from "@/lib/public/marketplace";
 import { fetchFacets, fetchListings } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
@@ -59,7 +59,7 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
       path: basePath,
       totalItems: page.total,
       startPosition: (page.page - 1) * page.pageSize + 1,
-      items: page.items.map((l) => ({ name: l.title, path: listingPath(l.number, l.title) })),
+      items: page.items.map((l) => ({ name: l.title, path: listingHref(l) })),
     }),
   ]);
 

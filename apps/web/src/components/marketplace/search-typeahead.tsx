@@ -4,7 +4,7 @@ import { useTranslations } from "next-intl";
 
 import { Avatar } from "@/components/ui/avatar";
 import { Thumb } from "@/components/ui/thumb";
-import { categoryPath, listingPath, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { categoryPath, listingHref, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import type { SuggestResult } from "@/lib/public/marketplace-api";
 import {
   EMPTY_SUGGEST,
@@ -95,7 +95,7 @@ function rowsFrom(s: SuggestResult, g: GroupLabels): Row[] {
   for (const l of s.listings ?? []) {
     rows.push({
       key: `t-${l.number}`,
-      href: listingPath(l.number, l.title),
+      href: listingHref(l),
       label: l.title,
       meta: l.number,
       group: g.listings,

@@ -1,7 +1,9 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
 import type { CompanyActivity, Prisma } from "@rothern/db";
 import { tokenizeQuery } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
+import { currentLocale } from "../../common/i18n/locale-context";
 import { PUBLIC_PROFILE_WHERE } from "../../common/company/public-profile-gate";
 
 /**
@@ -14,7 +16,11 @@ import { PUBLIC_PROFILE_WHERE } from "../../common/company/public-profile-gate";
  */
 @Injectable()
 export class CompanyDirectoryService {
-  constructor(private readonly prisma: PrismaBypassService) {}
+  constructor(
+    private readonly prisma: PrismaBypassService,
+    /** i18n Faz 1e: kart metni okuyucunun dilinde — SONDA ve isteğe bağlı. */
+    @Optional() private readonly translations?: ContentTranslationService,
+  ) {}
 
   /**
    * FİRMA DİZİNİ — YALNIZ GİRİŞ YAPMIŞ firmalara.
@@ -77,6 +83,7 @@ export class CompanyDirectoryService {
       this.prisma.company.findMany({
         where,
         select: {
+          id: true,
           name: true,
           slug: true,
           city: true,
@@ -95,8 +102,11 @@ export class CompanyDirectoryService {
       }),
     ]);
 
+    const localized = this.translations
+      ? await this.translations.localizeCompanies(rows, rows.map((r) => r.id), currentLocale())
+      : rows;
     return {
-      items: rows.map((c) => ({
+      items: localized.map(({ id: _companyId, ...c }) => ({
         ...c,
         // Kart özeti — tam metin profil sayfasında.
         aboutText: c.aboutText

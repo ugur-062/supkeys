@@ -2,6 +2,7 @@ import {
   buildPrompt,
   hasTranslatableText,
   localizeCompany,
+  localizeFeatures,
   localizeListing,
   localizeProduct,
   numbersOf,
@@ -149,6 +150,25 @@ describe("okuma yolu üzerine yazma", () => {
     const out = localizeListing({ title: "Çelik borular", items: [{ name: "Yeni kalem" }, { name: "Boru" }] }, t);
     expect(out.title).toBe("Steel pipes");
     expect(out.items.map((i) => i.name)).toEqual(["Yeni kalem", "Pipe"]);
+  });
+  it("panel Açık Talepler kartı: düz `itemNames` dizisi de adla çevrilir (i18n Faz 1e panel)", () => {
+    const t = { title: "Steel pipes", description: null, keywords: [], items: [{ src: "Boru", dst: "Pipe" }] };
+    const row = localizeListing({ id: "l1", title: "Çelik borular", itemNames: ["Boru", "Yeni kalem"] }, t);
+    expect(row.itemNames).toEqual(["Pipe", "Yeni kalem"]);
+    expect(row.id).toBe("l1");
+  });
+  it("kart özellik satırı `Etiket: değer[ birim]` — etiket+değer çiftle çevrilir, birim ve eşleşmeyen satır kalır", () => {
+    const pairs = [{ label: { src: "Kalınlık", dst: "Thickness" }, value: { src: "2", dst: "2" } }];
+    expect(localizeFeatures(["Kalınlık: 2 mm", "Kalınlık: 2", "Renk: Kızıl"], pairs)).toEqual([
+      "Thickness: 2 mm",
+      "Thickness: 2",
+      "Renk: Kızıl",
+    ]);
+    expect(localizeFeatures(["Kalınlık: 2 mm"], undefined)).toEqual(["Kalınlık: 2 mm"]);
+    const card = localizeProduct({ name: "Sac", features: ["Kalınlık: 2 mm"] }, {
+      name: "Sheet", description: null, keywords: [], attributes: pairs,
+    });
+    expect(card.features).toEqual(["Thickness: 2 mm"]);
   });
   it("firma: about/aboutText/industry/services", () => {
     const t = { aboutText: "About", services: [{ src: "Boyama", dst: "Dyeing" }], industry: "Textile" };

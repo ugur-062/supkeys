@@ -23,6 +23,8 @@ import {
   PrismaBypassService,
 } from "../../../common/prisma/prisma.service";
 import { CompanyViewsService } from "../../company-views/company-views.service";
+import { ContentTranslationService } from "../../content-translation/content-translation.service";
+import { currentLocale } from "../../../common/i18n/locale-context";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { AuditService } from "../../audit/audit.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
@@ -80,6 +82,8 @@ export class CompanyConnectionsService {
     private readonly audit: AuditService,
     /** Ziyaret Edenler kaydı — SONDA ve isteğe bağlı (elle kurulan test rig'leri kırılmasın). */
     @Optional() private readonly views?: CompanyViewsService,
+    /** i18n Faz 1e: başka firmanın profili/kartı okuyucunun dilinde — SONDA ve isteğe bağlı. */
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
   /** Kendi Rothern ID. */
@@ -965,9 +969,13 @@ export class CompanyConnectionsService {
     // (2026-09-16 staging e2e'de yakalandı). Çapraz okuma → bypass client.
     const res = await buildDirectory(this.bypass, { ...q, q: (qRaw ?? "").trim() || undefined }, scope);
     const statusMap = await this.connectionStatusMap(user.companyId, res.items.map((r) => r.id));
+    // i18n Faz 1e: dizin kartı (tanıtım özeti, sektör) okuyucunun dilinde.
+    const items = this.translations
+      ? await this.translations.localizeCompanies(res.items, res.items.map((r) => r.id), currentLocale())
+      : res.items;
     return {
       ...res,
-      items: res.items.map(({ id, ...card }) => ({
+      items: items.map(({ id, ...card }) => ({
         ...card,
         connectionStatus: statusMap.get(id) ?? ("none" as const),
       })),
@@ -1220,8 +1228,7 @@ export class CompanyConnectionsService {
       .filter((id) => catName.has(id))
       .map((id) => ({ id, name: catName.get(id) as string }));
 
-    return {
-      profile: {
+    const profile = {
         rothernId: c.rothernId,
         slug: c.slug,
         name: c.name,
@@ -1258,7 +1265,15 @@ export class CompanyConnectionsService {
           tradeRegistryNo: c.tradeRegistryNo,
           kepAddress: c.kepAddress,
         },
-      },
+    };
+    // i18n Faz 1e: BAŞKASININ profili okuyucunun dilinde (tanıtım, hizmetler, sektör);
+    // kendi profili ham kalır — sahibi düzenler.
+    const [localizedProfile] =
+      this.translations && !isSelf
+        ? await this.translations.localizeCompanies([profile], [c.id], currentLocale())
+        : [profile];
+    return {
+      profile: localizedProfile,
       connectionStatus,
       connectionId,
       connected,

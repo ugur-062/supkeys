@@ -164,3 +164,25 @@ panel içi kısa etiketler Claude çevirisiyle yayınlanır.
   `AI_MODEL_PREMIUM`'u Vertex'in tanıdığı Pro adına çekmek (ör.
   `gemini-3.1-pro-preview`) + `POST admin/content-translations/backfill`.
 
+### Faz 1e kapanış turu (2026-09-23 akşam, kullanıcı: "kalemler çevrilmemiş, bazı alım taleplerine girince 404")
+- **Kalemler:** herkese açık API 12/12 talebi EN+RU başlık ve kalem adıyla
+  çevrili döndürüyordu; eksik olan PANELDİ — `company/listings/seller-tenders`
+  (`itemNames`), teklifçi `getOne` dalı, ürün keşfi (`items/discover*`),
+  firma dizini/profili (`company/directory/*`) çeviri servisinden geçmiyordu.
+  Hepsi okuyucunun dilinde (`currentLocale()` = Accept-Language ya da kayıtlı
+  dil); KENDİ verisi (sahip dalı, kendi profili) ham kalır. Kart "özellik
+  satırları" (`Etiket: değer birim`) da çevrilir (`localizeFeatures`).
+- **404:** `middleware.ts` `matcher`ı `Next-Router-Prefetch` / `Purpose:
+  prefetch` isteklerini MUAF tutuyordu (CSP nonce optimizasyonu). Faz 1'den
+  beri Türkçe adresler ön eksiz ve `/tr/…` yeniden yazımı bu middleware'de →
+  ön yükleme ham yola gidip `[locale]="urunler"` gibi yanlış eşleşiyor,
+  `/urunler?_rsc=…` 404 dönüyor, tıklanınca "Sayfa bulunamadı" açılıyordu
+  (staging'de tarayıcıyla ölçüldü; curl `Next-Router-Prefetch: 1` ile
+  yeniden üretildi). `missing` kaldırıldı; `middleware.test.ts` kilitler.
+- **Talep adresi DİLDEN BAĞIMSIZ:** sayfa kanoniği çevrilmiş başlıktan slug
+  üretiyordu → sitemap'teki EN/RU hreflang alternatifleri (Türkçe slug) 308
+  ile çevrili slug'a yönleniyor, RU slug'ı Kiril düşünce `rot-000007` gibi
+  çıplak kalıyordu. Karar: API her talep yanıtına KAYNAK başlığın `slug`ını
+  koyar; web `listingHref()` onu kullanır (`/en/talep/<slug>` = `/talep/<slug>`),
+  başlıktan üretim yalnız yedek. Ürün/firma slug'ı zaten sütunda (donuk).
+

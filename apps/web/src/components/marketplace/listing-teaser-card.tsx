@@ -2,7 +2,7 @@ import { daysUntil } from "@/lib/tenders/seller-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Tooltip } from "@/components/ui/tooltip";
-import { listingPath, publicState } from "@/lib/public/marketplace";
+import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import { ClockIcon, GlobeAltIcon, LockClosedIcon, MapPinIcon } from "@heroicons/react/20/solid";
@@ -38,7 +38,7 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
   const fmt = useFormatter();
   const activityLabel = useActivityLabel();
   const scopeLabel = useScopeLabel();
-  const href = listingPath(l.number, l.title);
+  const href = listingHref(l);
   const open = publicState(l.status) === "open";
   const left = open ? daysLeft(l.closesAt) : null;
   const activity = l.company.activities[0];

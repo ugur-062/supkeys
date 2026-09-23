@@ -3,7 +3,7 @@
 import { ListingCard, type ListingCardData } from "@/components/marketplace/listing-card";
 import { Badge } from "@/components/ui/badge";
 import { formatDate } from "@/lib/format-date";
-import { listingPath, publicState } from "@/lib/public/marketplace";
+import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import { daysUntil } from "@/lib/tenders/seller-state";
@@ -38,7 +38,7 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
   const fmt = useFormatter();
   const activityLabel = useActivityLabel();
   const closingUrgency = useClosingUrgency();
-  const href = listingPath(l.number, l.title);
+  const href = listingHref(l);
   const state = publicState(l.status);
   const urgency = closingUrgency(l.status, l.closesAt);
   const days = daysUntil(l.closesAt) ?? 99;

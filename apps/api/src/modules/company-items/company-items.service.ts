@@ -54,6 +54,7 @@ import {
 import { StorageService } from "../storage/storage.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
+import { currentLocale } from "../../common/i18n/locale-context";
 import {
   productCompletion,
   productPublishBlockers,
@@ -201,7 +202,8 @@ export class CompanyItemsService {
      * bağlı: elle kurulan test rig'leri kırılmasın; yoksa ana client'a düşer.
      */
     @Optional() private readonly bypass?: PrismaBypassService,
-    /** İçerik çevirisi (i18n Faz 1e): yayındaki ürünün metni değişince yeniden çevrilir — SONDA ve isteğe bağlı. */
+    /** İçerik çevirisi (i18n Faz 1e): yayındaki ürünün metni değişince yeniden çevrilir; başka firmanın
+     *  ürünü okuyucunun dilinde okunur — SONDA ve isteğe bağlı. */
     @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
@@ -520,7 +522,7 @@ export class CompanyItemsService {
         this.crossTenant.companyItem.findMany({ where, select: PRODUCT_INDEX_SELECT, orderBy, skip, take: size }),
       ]);
       const items = await attachProductFeatures(this.prisma, rows, rows.map(toProductIndexCard));
-      return { items, total, page, pageSize: size };
+      return { items: await this.localizeCards(items, rows), total, page, pageSize: size };
     }
     const matchClause: Prisma.CompanyItemWhereInput = {
       OR: prefixes.map((p) => ({ categoryId: { startsWith: p } })),
@@ -557,7 +559,7 @@ export class CompanyItemsService {
       ...head.map((r) => ({ ...toProductIndexCard(r), matchesProfile: true })),
       ...tail.map((r) => ({ ...toProductIndexCard(r), matchesProfile: false })),
     ];
-    return { items: await attachProductFeatures(this.prisma, rows, cards), total, page, pageSize: size };
+    return { items: await this.localizeCards(await attachProductFeatures(this.prisma, rows, cards), rows), total, page, pageSize: size };
   }
 
   /** Firmanın ALIM kategorileri (L1 ana + L2-4 alt) → kod ön ekleri. */
@@ -734,16 +736,21 @@ export class CompanyItemsService {
     ]);
     // Ziyaret Edenler: üye ürünü açtı — kimlikli görüntülenme (fire-and-forget).
     void this.views?.recordPanelView(user, { companyId: company.id, productId: row.id });
-    return {
-      product: {
-        ...toPublicProduct(row),
-        attributeList: labelAttributes(row.attributes, attributeDefs),
+    const product = {
+      ...toPublicProduct(row),
+      attributeList: labelAttributes(row.attributes, attributeDefs),
         category: category ? { id: category.id, name: category.nameTr } : null,
         priceAmount: row.priceAmount?.toString() ?? null,
         priceTiers: row.priceTiers as unknown,
         priceCurrency: row.priceCurrency,
         moq: row.moq?.toString() ?? null,
-      },
+    };
+    // i18n Faz 1e: başkasının ürünü okuyucunun dilinde (ad, açıklama, anahtar kelime, nitelikler).
+    const [localizedProduct] = this.translations
+      ? await this.translations.localizeProducts([product], [row.id], currentLocale())
+      : [product];
+    return {
+      product: localizedProduct,
       company: {
         name: company.name,
         slug: company.slug,
@@ -796,6 +803,7 @@ export class CompanyItemsService {
           : {}),
       },
       select: {
+        id: true,
         slug: true,
         name: true,
         description: true,
@@ -820,11 +828,16 @@ export class CompanyItemsService {
       orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
       take,
     });
-    return rows.map((r) => {
+    // i18n Faz 1e: keşif şeridi kartları okuyucunun dilinde (ad + özet).
+    const localized: ((typeof rows)[number] & { translatedFrom?: string | null })[] = this.translations
+      ? await this.translations.localizeProducts(rows, rows.map((r) => r.id), currentLocale())
+      : rows;
+    return localized.map((r) => {
       const flat = (r.description ?? "").replace(/\s+/g, " ").trim();
       return {
         slug: r.slug ?? "",
         name: r.name,
+        translatedFrom: r.translatedFrom ?? null,
         excerpt: flat ? (flat.length <= 140 ? flat : `${flat.slice(0, 139)}…`) : null,
         images: r.images,
         unit: r.unit,
@@ -843,6 +856,12 @@ export class CompanyItemsService {
         },
       };
     });
+  }
+
+  /** i18n Faz 1e: başka firmanın ürün kartları okuyucunun dilinde (ad, özet, özellik satırları). */
+  private async localizeCards<T extends { name: string }>(cards: T[], rows: { id: string }[]): Promise<T[]> {
+    if (!this.translations) return cards;
+    return this.translations.localizeProducts(cards, rows.map((r) => r.id), currentLocale());
   }
 
   // ── yardımcılar ─────────────────────────────────────────────────────────

@@ -86,6 +86,17 @@ export const listingSlug = sharedListingSlug;
 export const parseListingNumber = sharedParseListingNumber;
 export const listingPath = sharedListingPath;
 
+/**
+ * Talep bağlantısı — API'nin verdiği DİLDEN BAĞIMSIZ `slug` önce (kaynak
+ * başlığın slug'ı: `/en/talep/<slug>` = `/talep/<slug>`, hreflang alternatifleri
+ * yönlendirmesiz), slug gelmediyse başlıktan üretilir (eski yanıtlar / testler).
+ * Çevrilmiş başlıktan slug ÜRETME: her dilde ayrı adres, sitemap'te 308 zinciri
+ * ve Kiril'i düşen çıplak RU slug'ları demekti (staging'de ölçüldü, 2026-09-23).
+ */
+export function listingHref(l: { number: string; title: string; slug?: string | null }): string {
+  return l.slug ? `${PUBLIC_PATHS.demand}/${l.slug}` : sharedListingPath(l.number, l.title);
+}
+
 /* ------------------------------------------------------------------ */
 /* Durum — ziyaretçiye gösterilen                                      */
 /* ------------------------------------------------------------------ */

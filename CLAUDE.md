@@ -280,6 +280,12 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   `llms*.txt`, `indexnow`) ve `global-error.tsx` `[locale]` DIŞINDA kalır;
   middleware bunları ve uzantılı dosyaları next-intl'e SOKMAZ (soksa
   `/tr/sitemap.xml`e yazılıp 404 olur).
+  **ÖN YÜKLEME İSTEKLERİ DE MIDDLEWARE'DEN GEÇER (2026-09-23 akşam):** `matcher`
+  `Next-Router-Prefetch` / `Purpose: prefetch` isteklerini muaf tutuyordu (CSP
+  nonce optimizasyonu); TR adresler ön eksiz olduğu için `<Link>` ön yüklemeleri
+  `/tr/…` yeniden yazımından geçmeyip `[locale]="urunler"` gibi yanlış eşleşiyor,
+  `/urunler?_rsc=…` 404 dönüyor, tıklamada "Sayfa bulunamadı" açılıyordu.
+  `missing` bir daha EKLENMEZ; `src/middleware.test.ts` kilitler.
 - **`next/link` ve `next/navigation` YASAK yerler:** `Link`, `useRouter`,
   `usePathname`, `redirect`, `permanentRedirect` HER ZAMAN `@/i18n/navigation`
   dan (ön ek otomatik; `usePathname` ön eksiz döner). `useSearchParams`,
@@ -409,6 +415,23 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   `gemini-3.1-pro` → `-preview` → `gemini-2.5-pro`; 404 alan elenir, çalışan
   hatırlanır; `status` ucu çalışan modeli gösterir). Kalıcı çözüm Render
   env'inde Vertex'in tanıdığı Pro adı.
+- **PANEL DE OKUYUCUNUN DİLİNDE (Faz 1e kapanış, 2026-09-23 akşam, kullanıcı:
+  "kalemler çevrilmemiş"):** başka firmanın verisini okuyan panel uçları da
+  çeviri servisinden geçer — `company/listings/seller-tenders` (başlık +
+  `itemNames`), teklifçi `getOne` dalı (başlık/açıklama/anahtar/kalem adı),
+  `company/items/discover*` (kart adı/özet/özellik satırı + detay),
+  `company/directory/search` ve `companies/:rothernId` (tanıtım/hizmet/sektör).
+  Dil `currentLocale()`: Accept-Language ya da JWT'deki kayıtlı dil. KENDİ
+  verisi (sahip dalı, kendi profili/ürünü) HAM kalır — sahibi düzenler. Panel
+  talep detayı `AutoTranslatedNote` basar; ürün/profil sayfaları paylaşılan
+  gövdeyle zaten basıyor. **Yeni çapraz-firma okuma ucu = `localize*` çağrısı.**
+- **TALEP ADRESİ DİLDEN BAĞIMSIZ (aynı tur):** `/en/talep/<slug>` = `/talep/<slug>`
+  — slug KAYNAK başlıktan; API her talep yanıtında `slug` verir, web
+  `listingHref(l)` kullanır (`listingPath(number, title)` yalnız yedek/test).
+  Çevrilmiş başlıktan slug üretmek sitemap hreflang'ında 308 zinciri ve Kiril
+  düşünce çıplak RU slug'ı (`rot-000007`) üretiyordu — staging'de ölçüldü.
+  Ürün/firma slug'ı zaten donuk sütun. Sözleşme: `listing-page.test`,
+  `marketplace.test` "listingHref".
 
 ---
 
@@ -1595,7 +1618,7 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 ## Test & Kalite
 
 - API **177 dosya** (parçalı koşum, 2026-09-12 yeşil; i18n birimi 2026-09-23)
-  · web **143 / 814** (2026-09-23, Faz 1 sonu) · admin **17 / 84** · i18n **6 / 22**.
+  · web **146 / 824** (2026-09-23, Faz 1e kapanış) · admin **17 / 84** · i18n **6 / 22**.
 - **Bağımlılık kapısı (2026-09-12):** CI'da `pnpm audit --prod --audit-level high`.
   Tarama yokken üretim bağımlılıklarında 2 kritik + 20 yüksek birikmişti
   (Next 15.5.18 RCE uyarısı dahil) → Next 15.5.25 + hedefli `pnpm.overrides`

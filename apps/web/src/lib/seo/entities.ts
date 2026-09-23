@@ -2,7 +2,7 @@ import { INTL_LOCALE, formatNumber } from "@/i18n/format";
 import { localizePath } from "@/i18n/href";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { SITE_NAME } from "./meta";
-import { MARKETPLACE_ROUTES, categoryPath, listingPath } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES, categoryPath, listingHref } from "@/lib/public/marketplace";
 import { productPrice, type PriceLabels } from "@/lib/public/product-price";
 import { breadcrumbNode, compact, graph, type JsonLdNode } from "@/lib/seo/jsonld";
 import { absoluteUrl, buildMetadata, clampDescription, joinParts } from "@/lib/seo/meta";
@@ -369,6 +369,8 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
 
 export interface ListingSeoInput {
   number: string;
+  /** Dilden bağımsız slug (API) — yoksa başlıktan üretilir. */
+  slug?: string | null;
   title: string;
   description: string | null;
   closesAt: string | null;
@@ -388,6 +390,8 @@ export interface ListingSeoInput {
  */
 export function listingSeoInput(l: {
   number: string;
+  /** Dilden bağımsız slug (API) — yoksa başlıktan üretilir. */
+  slug?: string | null;
   title: string;
   description: string | null;
   closesAt: string | null;
@@ -401,6 +405,7 @@ export function listingSeoInput(l: {
 }): ListingSeoInput {
   return {
     number: l.number,
+    slug: l.slug ?? null,
     title: l.title,
     description: l.description,
     closesAt: l.closesAt,
@@ -424,7 +429,7 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
 } {
   const locale = opts.locale ?? DEFAULT_LOCALE;
   const ts = opts.t;
-  const path = listingPath(l.number, l.title);
+  const path = listingHref(l);
   const url = absoluteUrl(localizePath(path, locale));
   const cat = l.categories[0]?.name ?? null;
   const qty =

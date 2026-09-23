@@ -7,6 +7,7 @@ import {
   categoryPath,
   parseCategoryCode,
   isIndexableState,
+  listingHref,
   listingPath,
   listingSlug,
   parseListingNumber,
@@ -158,5 +159,15 @@ describe("ürün kategori yolu", () => {
     expect(parseCategoryCode("elektrik")).toBeNull();
     expect(parseCategoryCode("3900000")).toBeNull(); // 7 hane
     expect(parseCategoryCode("")).toBeNull();
+  });
+});
+
+describe("listingHref — dilden bağımsız talep adresi (i18n Faz 1e)", () => {
+  it("API slug'ı varsa onu kullanır: çevrilmiş başlık adresi değiştirmez", () => {
+    expect(listingHref({ number: "ROT-1", title: "Steel Pipe", slug: "rot-1-celik-boru" })).toBe("/talep/rot-1-celik-boru");
+  });
+  it("slug yoksa başlıktan üretir (eski yanıt / test kurgusu)", () => {
+    expect(listingHref({ number: "ROT-1", title: "Çelik Boru" })).toBe(listingPath("ROT-1", "Çelik Boru"));
+    expect(listingHref({ number: "ROT-1", title: "Boru", slug: null })).toBe("/talep/rot-1-boru");
   });
 });

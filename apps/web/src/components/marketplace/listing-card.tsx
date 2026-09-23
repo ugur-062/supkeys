@@ -4,7 +4,7 @@ import { Badge } from "@/components/catalyst/badge";
 import { formatDate } from "@/lib/format-date";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import {
-  listingPath,
+  listingHref,
   publicState,
   type PublicListingState,
 } from "@/lib/public/marketplace";
@@ -450,7 +450,7 @@ function PublicTile({ listing }: { listing: PublicListingCard }) {
   const fmt = useFormatter();
   const scopeLabel = useScopeLabel();
   const state = publicState(listing.status);
-  const href = listingPath(listing.number, listing.title);
+  const href = listingHref(listing);
   const primaryCategory =
     listing.categories.find((c) => c.level >= 3) ?? listing.categories[0];
 

@@ -1,6 +1,7 @@
 "use client";
 
 import { countryName, scopeLabel } from "@rothern/shared";
+import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-note";
 import { AuctionLiveCard } from "./_components/auction-live-card";
 import { MyBidStatusPanel } from "./_components/my-bid-status-panel";
 import { PRICING_HREF, SilverLockCard } from "@/components/company/silver-lock-card";
@@ -1714,6 +1715,7 @@ export default function ListingDetailPage() {
       </div>
 
       <Heading className="text-3xl/9 font-bold">{l.title}</Heading>
+      <AutoTranslatedNote from={l.translatedFrom} />
 
       <div className="flex flex-wrap items-center gap-2">
         <span className="inline-flex items-center gap-1.5 rounded-lg bg-zinc-100 px-2.5 py-1 text-sm font-medium text-zinc-700">

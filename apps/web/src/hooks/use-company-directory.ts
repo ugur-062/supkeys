@@ -119,6 +119,8 @@ export interface ProfileListing {
 
 export interface CompanyProfile {
   profile: {
+    /** Tanıtım/hizmet/sektör okuyucunun diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e). */
+    translatedFrom?: string | null;
     rothernId: string | null;
     slug: string | null;
     name: string;

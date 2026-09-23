@@ -46,6 +46,8 @@ export interface SellerTenderRow {
   extraCategoryCount: number;
   /** İlk 20 kalem adı — arama "kalem" ile de bulsun (2026-09-05). */
   itemNames?: string[];
+  /** Başlık/kalem adları okuyucunun diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e). */
+  translatedFrom?: string | null;
   /** Kataloğumdaki bir ürün talebin kategorisi/kalemleriyle eşleşiyor. */
   productMatch?: boolean;
   /** Eşleşen ürünün adı (kullanıcı yüzü). */

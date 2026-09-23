@@ -127,13 +127,18 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // API, statik varlıklar ve prefetch'ler hariç tüm rotalar.
-    {
-      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
-    },
+    // API ve statik varlıklar hariç tüm rotalar — PREFETCH DAHİL.
+    //
+    // Eskiden `missing: [next-router-prefetch, purpose: prefetch]` ile
+    // ön yükleme istekleri middleware'den muaf tutuluyordu (CSP nonce'u
+    // boşa üretmemek için). i18n Faz 1'den beri (2026-09-23) bütün sayfalar
+    // `[locale]` altında ve Türkçe adresler ÖN EKSİZ: `/urunler`ı `/tr/urunler`a
+    // yeniden yazan şey bu middleware'deki next-intl. Ön yükleme muaf kalınca
+    // `<Link>` ön yüklemeleri ham yola gidiyor, `[locale]="urunler"` gibi
+    // yanlış eşleşip 404 dönüyordu; tıklanınca sayfa "Sayfa bulunamadı"
+    // açılıyordu (staging'de ölçüldü: `/urunler?_rsc=…` + `Next-Router-Prefetch`
+    // → 404, `/en/urunler` → 200). Nonce'un ön yüklemede üretilmesinin zararı
+    // yok — gezinti yükleri satır içi script taşımaz.
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };

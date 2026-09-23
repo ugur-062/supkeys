@@ -7,7 +7,7 @@ import { formatDate } from "@/lib/format-date";
 import { JsonLd } from "@/components/seo/json-ld";
 import { AutoTranslatedNote } from "./auto-translated-note";
 import { listingSeo, listingSeoInput } from "@/lib/seo/entities";
-import { MARKETPLACE_ROUTES, listingPath, publicState } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES, listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard, PublicListingDetail } from "@/lib/public/marketplace-api";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { ListingTeaserRow } from "./listing-teaser-row";
@@ -54,7 +54,7 @@ export function ListingDetail({
   const urgency = closingUrgency(listing.status, listing.closesAt);
   const days = daysUntil(listing.closesAt) ?? 99;
   const site = resolveSiteUrl();
-  const canonical = `${site}${listingPath(listing.number, listing.title)}`;
+  const canonical = `${site}${listingHref(listing)}`;
   const indexBase = MARKETPLACE_ROUTES.demands;
   const indexLabel = tl("demands");
 
@@ -369,7 +369,7 @@ export function ListingDetail({
                   <>
                     {/* Kayıt sonrası AYNI talebe döner (intent=teklif + redirect). */}
                     <AccentLink
-                      href={signupHref("teklif", listingPath(listing.number, listing.title))}
+                      href={signupHref("teklif", listingHref(listing))}
                       className="block rounded-full px-4 py-2.5 text-center text-sm font-semibold text-white transition"
                     >
                       {t("signupCta")}

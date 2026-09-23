@@ -1,5 +1,5 @@
 import { PublicListFacetQueryDto } from "./dto/public-list-query.dto";
-import { hiddenCategoryWhere, isHiddenCategory } from "@rothern/shared";
+import { hiddenCategoryWhere, isHiddenCategory, listingSlug } from "@rothern/shared";
 import { Optional, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
 import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText } from "@rothern/shared";
@@ -91,6 +91,7 @@ export class PublicMarketplaceService {
   ): PublicListingCard {
     return {
       number: row.number ?? "",
+      slug: listingSlug(row.number ?? "", row.title),
       type: row.type,
       title: row.title,
       status: row.status,
@@ -116,6 +117,7 @@ export class PublicMarketplaceService {
   ): PublicListing {
     return {
       number: row.number ?? "",
+      slug: listingSlug(row.number ?? "", row.title),
       type: row.type,
       title: row.title,
       description: row.description,
@@ -531,7 +533,7 @@ export class PublicMarketplaceService {
             // Vitrin kapısı + AÇIK: kapanmış talebi öneri olarak sunmak
             // "teklif ver" beklentisi yaratır. Sahip ADI YOK (anonimlik).
             where: { ...marketplaceListingWhere(now), status: "OPEN", ...this.searchWhere(q) },
-            select: { number: true, title: true, closesAt: true },
+            select: { id: true, number: true, title: true, closesAt: true },
             orderBy: [{ publishedAt: "desc" }],
             take: 5,
           })
@@ -544,6 +546,12 @@ export class PublicMarketplaceService {
       companyName: p.company.name,
       image: p.images[0] ?? null,
     }));
+    const listingHits = listings.map((l) => ({
+      number: l.number,
+      slug: listingSlug(l.number ?? "", l.title),
+      title: l.title,
+      closesAt: l.closesAt?.toISOString() ?? null,
+    }));
     return {
       products: this.translations
         ? await this.translations.localizeProducts(productHits, products.map((p) => p.id), currentLocale())
@@ -555,11 +563,9 @@ export class PublicMarketplaceService {
         city: c.city,
         logoUrl: c.logoUrl,
       })),
-      listings: listings.map((l) => ({
-        number: l.number,
-        title: l.title,
-        closesAt: l.closesAt?.toISOString() ?? null,
-      })),
+      listings: this.translations
+        ? await this.translations.localizeListings(listingHits, listings.map((l) => l.id), currentLocale())
+        : listingHits,
     };
   }
 
@@ -783,7 +789,7 @@ export class PublicMarketplaceService {
    * adresi izler, sayfada başka bir kanonik görür ve ikisini de güvensiz sayar.
    */
   async sitemap(): Promise<
-    { number: string; title: string; type: string; updatedAt: string }[]
+    { number: string; slug: string; title: string; type: string; updatedAt: string }[]
   > {
     const now = new Date();
     const rows = await this.prisma.listing.findMany({
@@ -794,6 +800,7 @@ export class PublicMarketplaceService {
     });
     return rows.map((r) => ({
       number: r.number as string,
+      slug: listingSlug(r.number as string, r.title),
       title: r.title,
       type: r.type,
       updatedAt: r.updatedAt.toISOString(),

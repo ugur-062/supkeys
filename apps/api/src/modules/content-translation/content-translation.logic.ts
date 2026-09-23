@@ -324,7 +324,24 @@ export function localizeProduct<T extends { name: string }>(item: T, t: ProductT
   if (Array.isArray(src.attributeList)) {
     out.attributeList = localizeAttributes(src.attributeList as { label: string; value: string }[], t.attributes);
   }
+  if (Array.isArray(src.features)) out.features = localizeFeatures(src.features as string[], t.attributes);
   return out as unknown as T;
+}
+
+/**
+ * Kart "özellik satırları" (`attachProductFeatures`: `Etiket: değer[ birim]`
+ * dizesi) — etiket ve değer çiftle eşleşirse ikisi de çevrilir, birim kalır.
+ * Eşleşmeyen satır özgün kalır (sonradan eklenmiş nitelik).
+ */
+export function localizeFeatures(features: string[], pairs: AttributePair[] | undefined): string[] {
+  if (!pairs?.length) return features;
+  return features.map((f) => {
+    for (const p of pairs) {
+      const head = `${p.label.src}: ${p.value.src}`;
+      if (f === head || f.startsWith(`${head} `)) return `${p.label.dst}: ${p.value.dst}${f.slice(head.length)}`;
+    }
+    return f;
+  });
 }
 
 export function localizeListing<T extends { title: string }>(
@@ -341,6 +358,8 @@ export function localizeListing<T extends { title: string }>(
     const m = pairMap(t.items);
     out.items = (src.items as { name: string }[]).map((i) => ({ ...i, name: m.get(i.name) ?? i.name }));
   }
+  // Panel Açık Talepler kartı kalem adlarını düz dizi taşır (`itemNames`).
+  if (Array.isArray(src.itemNames)) out.itemNames = localizeList(src.itemNames as string[], t.items);
   return out as unknown as T;
 }
 
