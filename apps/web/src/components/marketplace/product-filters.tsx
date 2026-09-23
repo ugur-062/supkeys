@@ -1,5 +1,9 @@
 "use client";
 
+import { useActivityLabel } from "@/i18n/domain";
+
+import { useFormatter, useTranslations } from "next-intl";
+
 import { useFilterAccent, useFilters } from "./filter-shell";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
 import { activeFilterCount, type ProductFilterState } from "@/lib/public/product-filter-params";
@@ -32,10 +36,8 @@ import {
   COMPANY_ACTIVITIES,
   EMPLOYEE_BUCKETS,
   RADIUS_OPTIONS,
-  companyActivityLabel,
   employeeBucketLabel,
-  resolveProvince,
-} from "@rothern/shared";
+  resolveProvince } from "@rothern/shared";
 
 /**
  * "Min. sipariş" ön ayarları — API'deki `MOQ_BUCKETS` ile AYNI sayılar
@@ -58,13 +60,15 @@ import { useEffect, useMemo, useState } from "react";
  *   "Ürün Ara" AYNI bileşeni kullanır.
  */
 export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFacets; idPrefix?: string }) {
+  const t = useTranslations("web.marketplace.filters");
+  const activityLabel = useActivityLabel();
   const { state, update } = useFilters();
   return (
     <div className="space-y-3" data-filters>
       <CategoryGroup facets={facets} state={state} update={update} idPrefix={idPrefix} />
 
       <Group
-        title="Firma profili"
+        title={t("companyProfile")}
         icon={<BadgeCheck className="size-4" />}
         count={(state.verified ? 1 : 0) + (state.fastReply ? 1 : 0)}
         onClear={() => update({ verified: false, fastReply: false })}
@@ -72,7 +76,7 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
       >
         <Check
           id={`${idPrefix}-verified`}
-          label="Doğrulanmış"
+          label={t("verified")}
           icon={<BadgeCheck className="size-4 text-emerald-600" />}
           count={facets.verified}
           checked={state.verified}
@@ -83,7 +87,7 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
             devre dışı bırakır — kırık değil, "henüz veri yok" görünür. */}
         <Check
           id={`${idPrefix}-fast`}
-          label="Hızlı yanıt veren"
+          label={t("fastReply")}
           count={facets.fastReply ?? 0}
           checked={state.fastReply}
           onChange={(v) => update({ fastReply: v })}
@@ -91,7 +95,7 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
       </Group>
 
       <Group
-        title="Tedarikçi türü"
+        title={t("supplierType")}
         icon={<Building2 className="size-4" />}
         count={state.activities.length}
         onClear={() => update({ activities: [] })}
@@ -105,7 +109,7 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
         <ShowMore
           items={COMPANY_ACTIVITIES.map((a) => ({
             key: a.code,
-            label: a.nameTr,
+            label: activityLabel(a.code),
             // İkon SÜSLEME: anlam etiketin kendisinde; `ActivityIcon`
             // tanımadığı kodda null döner, satır ikonsuz çizilir.
             icon: <ActivityIcon code={a.code} />,
@@ -122,7 +126,7 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
       <CertificationGroup facets={facets} state={state} update={update} idPrefix={idPrefix} />
 
       <Group
-        title="Çalışan sayısı"
+        title={t("employees")}
         icon={<Users className="size-4" />}
         count={state.employees.length}
         onClear={() => update({ employees: [] })}
@@ -185,6 +189,7 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
  * GÖRÜNÜM tercihleri (sıralama, sayfa başına) kalır.
  */
 function ClearAllButton() {
+  const t = useTranslations("web.marketplace.filters");
   const { activeCount, clear } = useFilters();
   return (
     <button
@@ -193,7 +198,7 @@ function ClearAllButton() {
       disabled={activeCount === 0}
       className="w-full rounded-lg border border-zinc-200 bg-white px-3 py-2.5 text-sm font-semibold text-zinc-700 transition hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-950 disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-white"
     >
-      Tüm filtreleri sıfırla
+      {t("resetAll")}
       {activeCount > 0 ? <span className="tnum ml-1 text-zinc-500">({activeCount})</span> : null}
     </button>
   );
@@ -225,22 +230,23 @@ function LocationGroup({
   update: (p: Partial<ProductFilterState> | ((s: ProductFilterState) => ProductFilterState)) => void;
   idPrefix: string;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   const [q, setQ] = useState("");
   const fold = (v: string) => v.toLocaleLowerCase("tr");
   const items = facets.cities
     .filter((c) => !q || fold(c.city).includes(fold(q)) || state.cities.includes(c.city))
     .map((c) => ({ key: c.city, label: c.city, count: c.count }));
   return (
-    <Group title="Konum" icon={<MapPin className="size-4" />} count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="sehir">
+    <Group title={t("location")} icon={<MapPin className="size-4" />} count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="sehir">
       {facets.cities.length > SHOW ? (
-        <FilterSearch id={`${idPrefix}-city-q`} value={q} onChange={setQ} placeholder="İl ara" />
+        <FilterSearch id={`${idPrefix}-city-q`} value={q} onChange={setQ} placeholder={t("citySearch")} />
       ) : null}
       <ShowMore
         items={items}
         selected={state.cities}
         idPrefix={`${idPrefix}-city`}
         onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
-        emptyText="Eşleşen il yok"
+        emptyText={t("noCity")}
       />
       <NearbyControls state={state} update={update} idPrefix={idPrefix} />
     </Group>
@@ -257,6 +263,7 @@ function NearbyControls({
   update: (p: Partial<ProductFilterState> | ((s: ProductFilterState) => ProductFilterState)) => void;
   idPrefix: string;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   const [near, setNear] = useState(state.near ?? "");
   const province = resolveProvince(near);
   /**
@@ -283,7 +290,7 @@ function NearbyControls({
   };
   return (
     <div className="mt-3 border-t border-zinc-100 px-2 pt-3">
-      <p className="mb-1.5 text-xs font-semibold text-zinc-600">Yakınımda</p>
+      <p className="mb-1.5 text-xs font-semibold text-zinc-600">{t("nearMe")}</p>
       <input
         id={`${idPrefix}-near`}
         value={near}
@@ -293,15 +300,15 @@ function NearbyControls({
           if (p) update({ near: p.name, radius });
           else if (state.near) update({ near: undefined, radius: undefined });
         }}
-        placeholder="İl ya da posta kodu"
-        aria-label="Yakınımda — il ya da posta kodu"
+        placeholder={t("nearPlaceholder")}
+        aria-label={t("nearAria")}
         className="h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
       />
       {near && !province ? (
-        <p className="mt-1 text-[11px] text-amber-700">İl bulunamadı — il adı ya da 5 haneli posta kodu yazın.</p>
+        <p className="mt-1 text-[11px] text-amber-700">{t("nearNotFound")}</p>
       ) : null}
       <label className="mt-2 block text-[11px] text-zinc-500" htmlFor={`${idPrefix}-radius`}>
-        Yarıçap: <span className="tnum font-medium text-zinc-700">{radius} km</span>
+        {t("radius")} <span className="tnum font-medium text-zinc-700">{radius} km</span>
       </label>
       <input
         id={`${idPrefix}-radius`}
@@ -323,7 +330,7 @@ function NearbyControls({
       </p>
       {province ? (
         <p className="mt-1 text-[11px] text-zinc-500">
-          {province.name} ve merkezleri {radius} km içindeki iller.
+          {t("radiusHint", { name: province.name, radius })}
         </p>
       ) : null}
     </div>
@@ -349,6 +356,7 @@ function CertificationGroup({
   update: (p: Partial<ProductFilterState> | ((s: ProductFilterState) => ProductFilterState)) => void;
   idPrefix: string;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   const [q, setQ] = useState("");
   const all = facets.certifications ?? [];
   const fold = (v: string) => v.toLocaleLowerCase("tr");
@@ -359,7 +367,7 @@ function CertificationGroup({
   if (all.length === 0) return null;
   return (
     <Group
-      title="Sertifikalar"
+      title={t("certifications")}
       icon={<ScrollText className="size-4" />}
       count={state.certs.length}
       onClear={() => update({ certs: [] })}
@@ -367,14 +375,14 @@ function CertificationGroup({
       defaultOpen={false}
     >
       {all.length > SHOW ? (
-        <FilterSearch id={`${idPrefix}-cert-q`} value={q} onChange={setQ} placeholder="Sertifika ara" />
+        <FilterSearch id={`${idPrefix}-cert-q`} value={q} onChange={setQ} placeholder={t("certSearch")} />
       ) : null}
       <ShowMore
         items={items}
         selected={state.certs}
         idPrefix={`${idPrefix}-cert`}
         onToggle={(k, on) => update((s) => ({ ...s, certs: on ? [...s.certs, k] : s.certs.filter((x) => x !== k) }))}
-        emptyText="Eşleşen sertifika yok"
+        emptyText={t("noCert")}
       />
     </Group>
   );
@@ -396,9 +404,11 @@ function MoqGroup({
   update: (p: Partial<ProductFilterState>) => void;
   idPrefix: string;
 }) {
+  const t = useTranslations("web.marketplace.filters");
+  const fmt = useFormatter();
   return (
     <Group
-      title="Min. sipariş"
+      title={t("minOrder")}
       icon={<Boxes className="size-4" />}
       count={state.moqMax != null ? 1 : 0}
       onClear={() => update({ moqMax: undefined })}
@@ -407,7 +417,7 @@ function MoqGroup({
     >
       <Check
         id={`${idPrefix}-moq-any`}
-        label="Farketmez"
+        label={t("any")}
         checked={state.moqMax == null}
         onChange={() => update({ moqMax: undefined })}
         type="radio"
@@ -417,7 +427,7 @@ function MoqGroup({
         <Check
           key={n}
           id={`${idPrefix}-moq-${n}`}
-          label={`≤ ${n.toLocaleString("tr-TR")}`}
+          label={`≤ ${fmt.number(n)}`}
           count={facets.moq?.[String(n)]}
           checked={state.moqMax === n}
           onChange={() => update({ moqMax: n })}
@@ -440,6 +450,7 @@ function CategoryGroup({
   update: ReturnType<typeof useFilters<ProductFilterState>>["update"];
   idPrefix: string;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   const [q, setQ] = useState("");
   const items = useMemo(() => {
     const t = q.trim().toLocaleLowerCase("tr-TR");
@@ -450,7 +461,7 @@ function CategoryGroup({
   const selectedName =
     facets.selectedCategory?.name ?? facets.categories.find((c) => c.id === state.category)?.name;
   return (
-    <Group title="Kategori" icon={<FolderTree className="size-4" />} count={state.category ? 1 : 0} onClear={() => update({ category: undefined, attrs: [] })} storageKey="kategori">
+    <Group title={t("category")} icon={<FolderTree className="size-4" />} count={state.category ? 1 : 0} onClear={() => update({ category: undefined, attrs: [] })} storageKey="kategori">
       {facets.categories.length > SHOW ? (
         <div className="relative mb-2">
           <MagnifyingGlassIcon aria-hidden className="pointer-events-none absolute top-1/2 left-2.5 size-4 -translate-y-1/2 text-zinc-400" />
@@ -458,12 +469,12 @@ function CategoryGroup({
             type="search"
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Kategori ara"
-            aria-label="Kategori ara"
+            placeholder={t("categorySearch")}
+            aria-label={t("categorySearch")}
             className="h-9 w-full rounded-lg border border-zinc-200 pr-8 pl-8 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
           />
           {q ? (
-            <button type="button" onClick={() => setQ("")} aria-label="Aramayı temizle" className="absolute top-1/2 right-2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700">
+            <button type="button" onClick={() => setQ("")} aria-label={t("clearSearch")} className="absolute top-1/2 right-2 -translate-y-1/2 text-zinc-400 hover:text-zinc-700">
               <XMarkIcon aria-hidden className="size-4" />
             </button>
           ) : null}
@@ -477,7 +488,7 @@ function CategoryGroup({
         selected={state.category}
         idPrefix={`${idPrefix}-cat`}
         onSelect={(k) => update({ category: state.category === k ? undefined : k, attrs: [] })}
-        emptyText="Eşleşen kategori yok"
+        emptyText={t("noCategory")}
       />
     </Group>
   );
@@ -501,6 +512,8 @@ function PriceGroup({
   update: ReturnType<typeof useFilters<ProductFilterState>>["update"];
   idPrefix: string;
 }) {
+  const t = useTranslations("web.marketplace.filters");
+  const fmt = useFormatter();
   const [min, setMin] = useState(state.priceMin?.toString() ?? "");
   const [max, setMax] = useState(state.priceMax?.toString() ?? "");
   const accent = useFilterAccent();
@@ -523,7 +536,7 @@ function PriceGroup({
   const hist = facets.priceHistogram;
   return (
     <Group
-      title="Fiyat"
+      title={t("price")}
       icon={<Tag className="size-4" />}
       count={count}
       onClear={() => update({ price: undefined, priceMin: undefined, priceMax: undefined, priceUnpriced: false })}
@@ -542,7 +555,7 @@ function PriceGroup({
           "0-100 / 100-1.000" listesi envanterle ilgisiz kovalar basardı. */}
       {hist ? (
         <div className="mb-2 flex flex-wrap gap-1.5 px-2">
-          {presetRanges(hist).map((r) => {
+          {presetRanges(hist, (n) => fmt.number(n)).map((r) => {
             const on = state.priceMin === r.from && state.priceMax === r.to;
             return (
               <button
@@ -566,11 +579,11 @@ function PriceGroup({
 
       <div className="mb-2 grid grid-cols-2 gap-2 px-2">
         <label className="text-xs text-zinc-500">
-          Min ₺
+          {t("minCurrency")}
           <input inputMode="numeric" value={min} onChange={(e) => setMin(e.target.value.replace(/\D/g, ""))} placeholder="0" className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-900" />
         </label>
         <label className="text-xs text-zinc-500">
-          Max ₺
+          {t("maxCurrency")}
           <input inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value.replace(/\D/g, ""))} placeholder="∞" className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-900" />
         </label>
       </div>
@@ -580,16 +593,16 @@ function PriceGroup({
       {hasRange ? (
         <Check
           id={`${idPrefix}-price-unpriced`}
-          label="Fiyatı belirtilmemiş ürünler dahil"
+          label={t("includeUnpriced")}
           count={facets.price.request}
           checked={state.priceUnpriced}
           onChange={(v) => update({ priceUnpriced: v })}
         />
       ) : null}
 
-      <Check id={`${idPrefix}-price-any`} label="Hepsi" checked={!state.price} onChange={() => update({ price: undefined })} type="radio" name={`${idPrefix}-price`} />
-      <Check id={`${idPrefix}-price-has`} label="Fiyatı yazılı" count={facets.price.has} checked={state.price === "var"} onChange={() => update({ price: "var" })} type="radio" name={`${idPrefix}-price`} />
-      <Check id={`${idPrefix}-price-req`} label="Teklifle" count={facets.price.request} checked={state.price === "teklif"} onChange={() => update({ price: "teklif" })} type="radio" name={`${idPrefix}-price`} />
+      <Check id={`${idPrefix}-price-any`} label={t("all")} checked={!state.price} onChange={() => update({ price: undefined })} type="radio" name={`${idPrefix}-price`} />
+      <Check id={`${idPrefix}-price-has`} label={t("priced")} count={facets.price.has} checked={state.price === "var"} onChange={() => update({ price: "var" })} type="radio" name={`${idPrefix}-price`} />
+      <Check id={`${idPrefix}-price-req`} label={t("onRequest")} count={facets.price.request} checked={state.price === "teklif"} onChange={() => update({ price: "teklif" })} type="radio" name={`${idPrefix}-price`} />
     </Group>
   );
 }
@@ -608,10 +621,9 @@ function presetRanges(hist: {
   min: number;
   max: number;
   quantiles?: { p33: number; p66: number };
-}): { from: number; to: number; label: string }[] {
+}, fmt: (n: number) => string): { from: number; to: number; label: string }[] {
   const q = hist.quantiles;
   if (!q || !(q.p33 < q.p66 && q.p66 < hist.max)) return [];
-  const fmt = (n: number) => n.toLocaleString("tr-TR");
   return [
     { from: 0, to: q.p33, label: `≤ ${fmt(q.p33)} ₺` },
     { from: q.p33, to: q.p66, label: `${fmt(q.p33)} – ${fmt(q.p66)} ₺` },
@@ -621,6 +633,9 @@ function presetRanges(hist: {
 
 /** Aktif süzgeç çipleri — sticky şerit (grid'in üstünde). */
 export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
+  const t = useTranslations("web.marketplace.filters");
+  const fmt = useFormatter();
+  const activityLabel = useActivityLabel();
   const { state, update, clear } = useFilters();
   const chips: FilterChip[] = [];
   if (state.category)
@@ -635,13 +650,13 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
       onRemove: () => update({ category: undefined, attrs: [] }),
     });
   for (const c of state.cities) chips.push({ key: `c:${c}`, label: c, onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
-  for (const a of state.activities) chips.push({ key: `a:${a}`, label: companyActivityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
-  if (state.verified) chips.push({ key: "v", label: "Doğrulanmış", onRemove: () => update({ verified: false }) });
-  if (state.price) chips.push({ key: "p", label: state.price === "var" ? "Fiyatı yazılı" : "Teklifle", onRemove: () => update({ price: undefined }) });
+  for (const a of state.activities) chips.push({ key: `a:${a}`, label: activityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
+  if (state.verified) chips.push({ key: "v", label: t("verified"), onRemove: () => update({ verified: false }) });
+  if (state.price) chips.push({ key: "p", label: state.price === "var" ? t("priced") : t("onRequest"), onRemove: () => update({ price: undefined }) });
   if (state.priceMin != null || state.priceMax != null) chips.push({ key: "pr", label: `${state.priceMin ?? 0} – ${state.priceMax ?? "∞"} ₺`, onRemove: () => update({ priceMin: undefined, priceMax: undefined }) });
-  if (state.moqMax != null) chips.push({ key: "moq", label: `Min. sipariş ≤ ${state.moqMax.toLocaleString("tr-TR")}`, onRemove: () => update({ moqMax: undefined }) });
+  if (state.moqMax != null) chips.push({ key: "moq", label: t("moqChip", { n: fmt.number(state.moqMax) }), onRemove: () => update({ moqMax: undefined }) });
   for (const c of state.certs) chips.push({ key: `cert:${c}`, label: c, onRemove: () => update((s) => ({ ...s, certs: s.certs.filter((x) => x !== c) })) });
-  if (state.fastReply) chips.push({ key: "fast", label: "Hızlı yanıt veren", onRemove: () => update({ fastReply: false }) });
+  if (state.fastReply) chips.push({ key: "fast", label: t("fastReply"), onRemove: () => update({ fastReply: false }) });
   if (state.near && state.radius) {
     chips.push({
       key: "near",
@@ -649,7 +664,7 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
       onRemove: () => update({ near: undefined, radius: undefined }),
     });
   }
-  for (const e of state.employees) chips.push({ key: `emp:${e}`, label: `${employeeBucketLabel(e)} çalışan`, onRemove: () => update((s) => ({ ...s, employees: s.employees.filter((x) => x !== e) })) });
+  for (const e of state.employees) chips.push({ key: `emp:${e}`, label: t("employeesChip", { bucket: employeeBucketLabel(e) }), onRemove: () => update((s) => ({ ...s, employees: s.employees.filter((x) => x !== e) })) });
   for (const a of state.attrs) chips.push({ key: `attr:${a}`, label: a.slice(a.indexOf(":") + 1), onRemove: () => update((s) => ({ ...s, attrs: s.attrs.filter((x) => x !== a) })) });
   return <FilterChipBar chips={chips} activeCount={activeFilterCount(state)} onClearAll={clear} />;
 }
@@ -664,17 +679,18 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
  * geri yüklenir, bkz. `ViewPreferenceSync`.
  */
 export function ViewToggle() {
+  const t = useTranslations("web.marketplace.filters");
   const { state, update } = useFilters<ProductFilterState>();
   const opts = [
-    { k: undefined, l: "Izgara", icon: Squares2X2Icon },
-    { k: "liste" as const, l: "Liste", icon: ListBulletIcon },
+    { k: undefined, l: t("grid"), icon: Squares2X2Icon },
+    { k: "liste" as const, l: t("list"), icon: ListBulletIcon },
   ];
   const pick = (k: ProductFilterState["view"]) => {
     writeViewPreference(k);
     update({ view: k });
   };
   return (
-    <div className="hidden items-center gap-1 sm:flex" role="group" aria-label="Görünüm">
+    <div className="hidden items-center gap-1 sm:flex" role="group" aria-label={t("view")}>
       {opts.map((o) => {
         const active = (state.view ?? undefined) === o.k;
         const Icon = o.icon;
@@ -683,14 +699,14 @@ export function ViewToggle() {
             key={o.l}
             type="button"
             aria-pressed={active}
-            title={`${o.l} görünümü`}
+            title={t("viewOf", { view: o.l })}
             onClick={() => pick(o.k)}
             className={`inline-flex size-8 items-center justify-center rounded-lg transition ${
               active ? "bg-zinc-100 text-zinc-950 ring-1 ring-zinc-300" : "text-zinc-600 hover:bg-zinc-100"
             }`}
           >
             <Icon aria-hidden className="size-4" />
-            <span className="sr-only">{o.l} görünümü</span>
+            <span className="sr-only">{t("viewOf", { view: o.l })}</span>
           </button>
         );
       })}
@@ -724,11 +740,12 @@ export function ViewPreferenceSync() {
 }
 
 export function SortControl() {
+  const t = useTranslations("web.marketplace.filters");
   const { state, update } = useFilters();
-  const opts: { k: ProductFilterState["sort"]; l: string }[] = [
-    { k: undefined, l: "Uygunluk" },
-    { k: "yeni", l: "En yeni" },
-    { k: state.sort === "fiyat" ? "fiyat-azalan" : "fiyat", l: `Fiyat ${state.sort === "fiyat" ? "↑" : state.sort === "fiyat-azalan" ? "↓" : ""}`.trim() },
+  const opts: { k: ProductFilterState["sort"]; l: string; price?: boolean }[] = [
+    { k: undefined, l: t("sortRelevance") },
+    { k: "yeni", l: t("sortNewest") },
+    { k: state.sort === "fiyat" ? "fiyat-azalan" : "fiyat", l: `${t("sortPrice")} ${state.sort === "fiyat" ? "↑" : state.sort === "fiyat-azalan" ? "↓" : ""}`.trim(), price: true },
   ];
   const isPrice = state.sort === "fiyat" || state.sort === "fiyat-azalan";
   return (
@@ -736,10 +753,10 @@ export function SortControl() {
       <div className="hidden items-center gap-2 text-xs sm:flex">
         {/* Dizin sayfalarının zemini zinc-100 → zinc-500 metin 4,39:1 kalıyor
             (a11y taraması 2026-09-12). Gri zeminde en az zinc-600. */}
-        <span className="text-zinc-600">Sırala:</span>
+        <span className="text-zinc-600">{t("sortLabel")}</span>
         <span className="flex items-center gap-0.5 rounded-lg bg-zinc-100 p-0.5 ring-1 ring-zinc-200">
         {opts.map((o) => {
-          const active = o.k === state.sort || (o.l.startsWith("Fiyat") && isPrice);
+          const active = o.k === state.sort || (!!o.price && isPrice);
           return (
             <button
               key={o.l}
@@ -755,16 +772,16 @@ export function SortControl() {
         </span>
       </div>
       <label className="text-xs text-zinc-500 sm:hidden">
-        <span className="sr-only">Sırala</span>
+        <span className="sr-only">{t("sortSr")}</span>
         <select
           value={state.sort ?? ""}
           onChange={(e) => update({ sort: (e.target.value || undefined) as ProductFilterState["sort"] })}
           className="h-9 rounded-lg border border-zinc-200 bg-white px-2 text-sm text-zinc-900"
         >
-          <option value="">Uygunluk</option>
-          <option value="yeni">En yeni</option>
-          <option value="fiyat">Fiyat artan</option>
-          <option value="fiyat-azalan">Fiyat azalan</option>
+          <option value="">{t("sortRelevance")}</option>
+          <option value="yeni">{t("sortNewest")}</option>
+          <option value="fiyat">{t("priceAsc")}</option>
+          <option value="fiyat-azalan">{t("priceDesc")}</option>
         </select>
       </label>
     </>

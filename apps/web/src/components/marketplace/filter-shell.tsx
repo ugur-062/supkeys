@@ -1,5 +1,7 @@
 "use client";
 
+import { useFormatter, useTranslations } from "next-intl";
+
 import { useAccentFill } from "@/components/ui/accent-fill";
 import { Sheet } from "@/components/ui/sheet";
 import { AdjustmentsHorizontalIcon } from "@heroicons/react/20/solid";
@@ -245,15 +247,17 @@ export function ResultCount({
   loading?: boolean;
   quiet?: boolean;
 }) {
+  const t = useTranslations("web.marketplace.filters");
+  const fmt = useFormatter();
   const { total, isPending } = useFilters();
   const busy = loading || isPending;
   return (
     <p aria-live="polite" className={quiet && !busy ? "sr-only" : "text-sm text-zinc-600"}>
       {busy
-        ? "Güncelleniyor…"
+        ? t("updating")
         : total > 0
-          ? `${total.toLocaleString("tr-TR")} ${noun} bulundu`
-          : `${noun} bulunamadı`}
+          ? t("found", { total: fmt.number(total), noun })
+          : t("notFound", { noun })}
     </p>
   );
 }
@@ -264,6 +268,7 @@ export function ResultCount({
  * yazılır, `lg`/`xl` farklı varyant olduğu için twMerge onları birleştiremez.
  */
 export function MobileFilterButton({ hideAt = "lg" }: { hideAt?: "lg" | "xl" }) {
+  const t = useTranslations("web.marketplace.filters");
   const { activeCount, openMobile } = useFilters();
   return (
     <button
@@ -274,7 +279,7 @@ export function MobileFilterButton({ hideAt = "lg" }: { hideAt?: "lg" | "xl" }) 
       }`}
     >
       <AdjustmentsHorizontalIcon aria-hidden className="size-4" />
-      Filtrele{activeCount > 0 ? ` (${activeCount})` : ""}
+      {t("filterButton")}{activeCount > 0 ? ` (${activeCount})` : ""}
     </button>
   );
 }
@@ -290,6 +295,8 @@ function MobileDrawer({
   hideAt: "lg" | "xl";
   children: ReactNode;
 }) {
+  const t = useTranslations("web.marketplace.filters");
+  const fmt = useFormatter();
   // Mavi olmayan yüzeyde portal bağlamı (public tedarikçi yüzü yeşil; 2026-09-18).
   const ctxFill = useAccentFill();
   const { total, clear, isPending, accent } = useFilters();
@@ -299,14 +306,14 @@ function MobileDrawer({
       open={open}
       onClose={onClose}
       side="bottom"
-      title="Filtreler"
+      title={t("filtersTitle")}
       className={hideAt === "xl" ? "xl:hidden" : "lg:hidden"}
       header={
         <div className="flex flex-1 items-center justify-between gap-3">
           <button type="button" onClick={clear} className="text-sm font-medium text-zinc-600 hover:text-zinc-950">
-            Temizle
+            {t("clear")}
           </button>
-          <p className="text-sm font-semibold text-zinc-900">Filtreler</p>
+          <p className="text-sm font-semibold text-zinc-900">{t("filtersTitle")}</p>
         </div>
       }
       footer={
@@ -317,7 +324,7 @@ function MobileDrawer({
             accent === "blue" ? "bg-blue-600 hover:bg-blue-700" : ctxFill
           }`}
         >
-          {isPending ? "Güncelleniyor…" : `Sonuçları göster (${total.toLocaleString("tr-TR")})`}
+          {isPending ? t("updating") : t("showResults", { total: fmt.number(total) })}
         </button>
       }
     >
