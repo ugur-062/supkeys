@@ -1,0 +1,239 @@
+# i18n Faz 4b — nitelik etiketi/seçenek çevirileri (kategori ⇥ groupKey ⇥ EN ⇥ RU ⇥ EN seçenekler | ⇥ RU seçenekler |).
+# ÜRETİLMİŞ (staging Gemini Pro toplu işi → export). Elle düzeltme serbest; seçenekler `options` ile aynı sırada.
+10000000	saklama	Transport / Storage	Транспортировка / хранение	Room temperature|Cold chain|Live transport	Комнатная температура|Холодовая цепь|Перевозка живых животных
+10000000	sertifika	Certificate	Сертификат	Organic certificate|GlobalGAP|Phytosanitary certificate|Veterinary health certificate	Органический сертификат|GlobalGAP|Фитосанитарный сертификат|Ветеринарный сертификат здоровья
+10000000	uretim_bicimi	Production Method	Способ производства	Conventional|Organic|Greenhouse|Open field	Традиционный|Органический|Тепличный|Открытый грунт
+10000000	urun_grubu	Product Group	Группа товаров	Ornamental plant|Seedling / sapling|Seed|Cut flower|Live animal|Feed|Fertilizer	Декоративное растение|Рассада / саженец|Семя|Срезанный цветок|Животное|Корм|Удобрение
+11000000	form	Form	Форма	Sheet|Coil|Bar / Rod|Pipe|Profile|Wire|Powder|Ingot|Scrap	Лист|Рулон|Пруток / стержень|Труба|Профиль|Проволока|Порошок|Слиток|Лом
+11000000	kalinlik	Thickness	Толщина		
+11000000	malzeme	Material	Материал	Steel|Stainless steel|Aluminum|Copper|Brass|Cast iron|Zinc|Titanium	Сталь|Нержавеющая сталь|Алюминий|Медь|Латунь|Чугун|Цинк|Титан
+11000000	standart	Standard	Стандарт	EN|DIN|ASTM|TSE|ISO|JIS|GOST	EN|DIN|ASTM|TSE|ISO|JIS|GOST
+11000000	yuzey	Surface Treatment	Обработка поверхности	Raw|Galvanized|Painted|Polished|Anodized|Coated|Electrostatic powder coating	Сырой|Оцинкованный|Окрашенный|Полированный|Анодированный|Покрытый|Электростатическая порошковая окраска
+12000000	ambalaj	Packaging	Упаковка	Canister|Barrel|IBC tank|Bag|Big bag|Bulk|Cylinder	Канистра|Бочка|IBC контейнер|Мешок|Биг-бэг|Навалом|Баллон
+12000000	fiziksel_hal	Physical State	Физическое состояние	Solid|Liquid|Gas|Powder|Granule|Paste	Твердое вещество|Жидкость|Газ|Порошок|Гранулы|Паста
+12000000	saflik	Purity	Чистота		
+12000000	sertifika	Certificate	Сертификат	REACH|ISO 9001|GMP|Halal|Kosher|SDS available	REACH|ISO 9001|GMP|Halal|Kosher|Наличие ПБ (SDS)
+12000000	tehlike	Hazard Class	Класс опасности	Non-hazardous|Flammable|Corrosive|Toxic|Oxidizing|Environmentally hazardous	Неопасный|Легковоспламеняющийся|Коррозийный|Токсичный|Окисляющий|Опасный для окружающей среды
+13000000	form	Form	Форма	Granule|Powder|Sheet|Profile|Film|Liquid|Masterbatch	Гранулы|Порошок|Лист|Профиль|Пленка|Жидкость|Суперконцентрат (мастербатч)
+13000000	geri_donusum	Raw Material Source	Источник сырья	Virgin|Recycled|Mixed	Первичное|Вторичное|Смесь
+13000000	polimer	Polymer Type	Тип полимера	PE|PP|PVC|PET|PS|ABS|PA (nylon)|POM|PU|Silicone|EPDM|NBR|Natural rubber	PE|PP|PVC|PET|PS|ABS|PA (нейлон)|POM|PU|Силикон|EPDM|NBR|Натуральный каучук
+13000000	sertlik	Hardness	Твердость		
+13000000	standart	Standard	Стандарт	EN|DIN|ASTM|TSE|ISO|JIS|GOST	EN|DIN|ASTM|TSE|ISO|JIS|GOST
+14000000	form	Form	Форма	Reel|Sheet|Roll|Box	Боббина|Лист|Рулон|Коробка
+14000000	geri_donusum	Raw Material Source	Источник сырья	Virgin|Recycled|Mixed	Первичное|Вторичное|Смесь
+14000000	gramaj	Grammage	Плотность (г/м²)		
+14000000	kagit_tipi	Paper Type	Тип бумаги	Kraft|Corrugated cardboard|Coated|Wood-free|Newsprint|Tissue paper|Cardboard	Крафт|Гофрокартон|Мелованная|Без древесной массы|Газетная|Санитарно-гигиеническая|Картон
+14000000	sertifika	Certificate	Сертификат	FSC|PEFC|ISO 9001|Food grade	FSC|PEFC|ISO 9001|Пищевой допуск
+15000000	ambalaj	Packaging	Упаковка	Barrel|Canister|IBC tank|Cylinder|Bulk	Бочка|Канистра|IBC контейнер|Баллон|Навалом
+15000000	parlama_noktasi	Flash Point	Температура вспышки		
+15000000	standart	Standard	Стандарт	API|ACEA|SAE|ISO|TSE|EPDK licensed	API|ACEA|SAE|ISO|TSE|Лицензия EPDK
+15000000	urun_tipi	Product Type	Тип продукта	Fuel|Mineral oil|Grease|Additive|LPG / LNG|Solid fuel|Biofuel	Топливо|Минеральное масло|Смазка|Присадка|LPG / LNG|Твердое топливо|Биотопливо
+15000000	viskozite	Viscosity Grade	Класс вязкости		
+20000000	durum	Product Condition	Состояние товара	New|Used|Refurbished	Новый|Б/у|Восстановленный
+20000000	guc	Motor Power	Мощность двигателя		
+20000000	kapasite	Capacity	Производительность		
+20000000	makine_tipi	Machine Type	Тип машины	Driller|Crusher|Grinder|Screening|Washing|Conveyor|Drilling rig	Буровая установка|Дробилка|Измельчитель|Грохот|Моечная установка|Конвейер|Буровая вышка
+20000000	uretim_yili	Year of Manufacture	Год выпуска		
+21000000	calisma_genisligi	Working Width	Рабочая ширина		
+21000000	durum	Product Condition	Состояние товара	New|Used|Refurbished	Новый|Б/у|Восстановленный
+21000000	guc	Engine Power	Мощность двигателя		
+21000000	makine_tipi	Machine Type	Тип машины	Tractor|Tillage|Planting / seeding|Spraying|Harvesting|Irrigation|Feed preparation|Milking|Fishing equipment	Трактор|Обработка почвы|Посев / посадка|Опрыскивание|Сбор урожая|Орошение|Приготовление кормов|Доение|Рыболовное оборудование
+21000000	uretim_yili	Year of Manufacture	Год выпуска		
+22000000	calisma_saati	Operating hours	Наработка		
+22000000	durum	Product Condition	Состояние товара	New|Used|Refurbished	Новый|Б/у|Восстановленный
+22000000	ekipman_tipi	Equipment type	Тип оборудования	Excavator|Loader|Dozer|Grader|Roller|Crane|Tower crane|Concrete pump	Экскаватор|Погрузчик|Бульдозер|Грейдер|Каток|Кран|Башенный кран|Бетононасос
+22000000	operasyon_agirligi	Operating weight	Рабочий вес		
+22000000	uretim_yili	Year of manufacture	Год выпуска		
+23000000	besleme	Supply voltage	Напряжение питания	220 V single-phase|380 V three-phase|Other	220 В однофазное|380 В трехфазное|Другое
+23000000	durum	Product condition	Состояние товара	New|Used|Refurbished	Новый|Б/у|Восстановленный
+23000000	guc	Motor power	Мощность двигателя		
+23000000	kontrol	Control type	Тип управления	CNC|PLC|Semi-automatic|Manual	ЧПУ|ПЛК|Полуавтомат|Ручное
+23000000	uretim_yili	Year of manufacture	Год выпуска		
+24000000	durum	Product condition	Состояние товара	New|Used|Refurbished	Новый|Б/у|Восстановленный
+24000000	guc_kaynagi	Power source	Источник питания	Electric|Diesel|LPG|Hybrid|Manual	Электрический|Дизельный|СНГ|Гибридный|Ручной
+24000000	kapasite	Load capacity	Грузоподъемность		
+24000000	yukseklik	Working height	Рабочая высота		
+25000000	arac_tipi	Vehicle type	Тип транспортного средства	Passenger car|Light commercial|Truck / tractor|Bus / midibus|Trailer / semi-trailer|Motorcycle|Spare parts	Легковой автомобиль|Легкий коммерческий|Грузовик / тягач|Автобус / микроавтобус|Прицеп / полуприцеп|Мотоцикл|Запчасти
+25000000	durum	Product condition	Состояние товара	New|Used|Refurbished	Новый|Б/у|Восстановленный
+25000000	km	Mileage	Пробег		
+25000000	model_yili	Model year	Год выпуска		
+25000000	yakit	Fuel type	Тип топлива	Diesel|Gasoline|LPG|Electric|Hybrid	Дизель|Бензин|СНГ|Электричество|Гибрид
+26000000	durum	Product condition	Состояние товара	New|Used|Refurbished	Новый|Б/у|Восстановленный
+26000000	gerilim	Voltage range	Диапазон напряжения	Low voltage (<1 kV)|Medium voltage (1-36 kV)|High voltage (>36 kV)	Низкое напряжение (<1 кВ)|Среднее напряжение (1-36 кВ)|Высокое напряжение (>36 кВ)
+26000000	guc	Power	Мощность		
+26000000	kaynak	Energy source	Источник энергии	Diesel generator|Natural gas|Solar (PV)|Wind|Hydroelectric|Biogas|Battery / storage	Дизельный генератор|Природный газ|Солнечная (ФЭ)|Ветер|Гидроэлектрическая|Биогаз|Аккумулятор / хранение
+26000000	sertifika	Certification	Сертификация	CE|IEC|TSE|ISO 9001	CE|IEC|TSE|ISO 9001
+27000000	durum	Product condition	Состояние товара	New|Used|Refurbished	Новый|Б/у|Восстановленный
+27000000	guc	Power	Мощность		
+27000000	tahrik	Drive type	Тип привода	Hand tool|Electric|Battery-powered|Pneumatic|Hydraulic	Ручной инструмент|Электрический|Аккумуляторный|Пневматический|Гидравлический
+30000000	malzeme	Material	Материал	Concrete|Steel|Wood|Gypsum|Ceramic|Glass|Insulation|PVC|Aluminum	Бетон|Сталь|Дерево|Гипс|Керамика|Стекло|Изоляция|ПВХ|Алюминий
+30000000	standart	Standard	Стандарт	EN|DIN|ASTM|TSE|ISO|JIS|GOST	EN|DIN|ASTM|TSE|ISO|JIS|GOST
+30000000	uygulama	Application area	Область применения	Rough construction|Finishing|Facade|Roof|Floor|Installation|Landscaping	Черновое строительство|Отделка|Фасад|Кровля|Пол|Монтаж|Ландшафтный дизайн
+30000000	yangin_sinifi	Fire class	Класс пожарной безопасности	A1|A2|B|C|D|E|F	A1|A2|B|C|D|E|F
+31000000	imalat_yontemi	Manufacturing method	Метод производства	Machining|Casting|Forging|Sheet metal working|Injection|Extrusion|Welding|3D printing	Механическая обработка|Литье|Ковка|Обработка листового металла|Литье под давлением|Экструзия|Сварка|3D печать
+31000000	malzeme	Material	Материал	Steel|Stainless steel|Aluminum|Copper|Brass|Cast iron|Zinc|Titanium|Plastic|Composite	Сталь|Нержавеющая сталь|Алюминий|Медь|Латунь|Чугун|Цинк|Титан|Пластик|Композит
+31000000	tolerans	Tolerance	Допуск		
+31000000	yuzey	Surface treatment	Обработка поверхности	Raw|Galvanized|Painted|Polished|Anodized|Coated|Electrostatic powder coating	Без обработки|Оцинкованный|Окрашенный|Полированный|Анодированный|С покрытием|Электростатическая порошковая покраска
+32000000	bilesen_tipi	Component type	Тип компонента	Passive component|Semiconductor|Connector|PCB|Sensor|Display|Power module|Cable / harness	Пассивный компонент|Полупроводник|Разъем|Печатная плата|Датчик|Дисплей|Модуль питания|Кабель / жгут
+32000000	calisma_gerilimi	Operating voltage	Рабочее напряжение		
+32000000	montaj	Mounting type	Тип монтажа	SMD|THT|Module|Board	SMD|THT|Модуль|Плата
+32000000	sertifika	Certification	Сертификация	RoHS|REACH|CE|UL|IPC	RoHS|REACH|CE|UL|IPC
+39000000	gerilim	Voltage range	Диапазон напряжения	Low voltage (<1 kV)|Medium voltage (1-36 kV)|High voltage (>36 kV)	Низкое напряжение (<1 кВ)|Среднее напряжение (1-36 кВ)|Высокое напряжение (>36 кВ)
+39000000	guc	Power	Мощность		
+39000000	koruma_sinifi	Protection class (IP)	Класс защиты (IP)	IP20|IP44|IP54|IP55|IP65|IP66|IP67|IP68	IP20|IP44|IP54|IP55|IP65|IP66|IP67|IP68
+39000000	kullanim_alani	Application area	Область применения	Industry|Building technology|Power distribution|Lighting|Automation|Renewable energy	Промышленность|Строительная техника|Распределение энергии|Освещение|Автоматизация|Возобновляемая энергия
+39000000	sertifika	Certificate	Сертификат	CE|TSE|UL|IEC|RoHS|ATEX	CE|TSE|UL|IEC|RoHS|ATEX
+40000000	calisma_basinci	Operating pressure	Рабочее давление		
+40000000	calisma_sicakligi	Operating temperature	Рабочая температура		
+40000000	malzeme	Material	Материал	Steel|Stainless steel|Cast iron|Copper|PVC|PPRC|PE|Composite	Сталь|Нержавеющая сталь|Чугун|Медь|ПВХ|PPRC|ПЭ|Композит
+40000000	standart	Standard	Стандарт	EN|DIN|ASTM|TSE|ISO|JIS|GOST	EN|DIN|ASTM|TSE|ISO|JIS|GOST
+40170000	baglanti	Connection type	Тип соединения	Welded|Flanged|Threaded|Push-fit|Clamped|Fusion	Сварное|Фланцевое|Резьбовое|Вставное|Хомутовое|Сварное плавлением
+40170000	capi	Nominal diameter (DN)	Номинальный диаметр (DN)		
+40170000	et_kalinligi	Wall thickness	Толщина стенки		
+40170000	uretim_yontemi	Production method	Метод производства	Seamless|Welded (ERW)|Spiral welded|Extrusion	Бесшовный|Сварной (ERW)|Спиральношовный|Экструзия
+41000000	durum	Product condition	Состояние продукта	New|Second hand|Refurbished	Новый|Б/у|Восстановленный
+41000000	kullanim_alani	Application area	Область применения	Analytical chemistry|Microbiology|Food|Medical diagnosis|Environment|Material testing	Аналитическая химия|Микробиология|Пищевая|Медицинская диагностика|Окружающая среда|Испытание материалов
+41000000	sertifika	Certificate	Сертификат	CE|IVD|ISO 17025|GLP	CE|IVD|ISO 17025|GLP
+42000000	cihaz_sinifi	Device class	Класс устройства	Class I|Class IIa|Class IIb|Class III	Класс I|Класс IIa|Класс IIb|Класс III
+42000000	kullanim	Usage	Использование	Disposable|Reusable	Одноразовое|Многоразовое
+42000000	kullanim_alani	Application area	Область применения	Surgery|Diagnosis|Intensive care|Dentistry|Imaging|Orthopedics|Consumables	Хирургия|Диагностика|Интенсивная терапия|Стоматология|Визуализация|Ортопедия|Расходные материалы
+42000000	sertifika	Document / registration	Документ / регистрация	CE (MDR)|ISO 13485|FDA|ÜTS registered	CE (MDR)|ISO 13485|FDA|Зарегистрировано в ÜTS
+42000000	sterilizasyon	Sterilization	Стерилизация	Sterile (EO)|Sterile (gamma)|Non-sterile	Стерильно (ЭО)|Стерильно (гамма)|Нестерильно
+43000000	destek	Warranty / support	Гарантия / поддержка	None|1 year|2 years|3 years and above|Contracted support	Нет|1 год|2 года|3 года и более|Контрактная поддержка
+43000000	durum	Product condition	Состояние продукта	New|Second hand|Refurbished	Новый|Б/у|Восстановленный
+43000000	kategori	Category	Категория	Hardware|Software|Network / telecom|Cloud service|Accessory / consumable	Аппаратное обеспечение|Программное обеспечение|Сеть / телекоммуникации|Облачный сервис|Аксессуары / расходные материалы
+43000000	lisans_modeli	License model	Модель лицензии	Perpetual license|Subscription|Open source|Pay per use	Постоянная лицензия|Подписка|Открытый исходный код|Оплата за использование
+44000000	durum	Product condition	Состояние продукта	New|Second hand|Refurbished	Новый|Б/у|Восстановленный
+44000000	koli_adedi	Quantity per box	Количество в коробке		
+44000000	urun_grubu	Product group	Группа товаров	Stationery|Printer and consumables|Office machine|Archiving|Presentation|Packaging	Канцтовары|Принтер и расходные материалы|Офисная техника|Архивирование|Презентация|Упаковка
+44000000	uyumluluk	Brand / model compatibility	Совместимость бренда / модели		
+45000000	baski_teknolojisi	Printing technology	Технология печати	Offset|Digital|Silkscreen|Flexo|Pad|UV	Офсет|Цифровая|Шелкография|Флексография|Тампонная|УФ
+45000000	durum	Product condition	Состояние продукта	New|Second hand|Refurbished	Новый|Б/у|Восстановленный
+45000000	ekipman_tipi	Equipment type	Тип оборудования	Printing machine|Photographic equipment|Audio system|Image / video|Stage lighting	Печатная машина|Фотографическое оборудование|Аудиосистема|Изображение / видео|Сценическое освещение
+45000000	maksimum_ebat	Maximum size	Максимальный размер		
+46000000	koruma_seviyesi	Protection level	Уровень защиты		
+46000000	kullanim_alani	Application area	Область применения	Industrial|Construction|Healthcare|Food|Public	Промышленная|Строительство|Здравоохранение|Пищевая|Общественная
+46000000	sertifika	Certificate	Сертификат	CE|EN standard|TSE|ISO 45001	CE|Стандарт EN|TSE|ISO 45001
+46000000	urun_grubu	Product group	Группа товаров	Personal protective equipment|Fire safety|Security systems|Occupational safety|Emergency	Средства индивидуальной защиты|Пожарная безопасность|Системы безопасности|Охрана труда|Аварийная ситуация
+47000000	ambalaj	Packaging	Упаковка	Bottle|Canister|Barrel|IBC tank|Box	Бутылка|Канистра|Бочка|Еврокуб|Коробка
+47000000	konsantrasyon	Concentration	Концентрация	Concentrated|Ready to use	Концентрированный|Готов к использованию
+47000000	sertifika	Certificate / license	Сертификат / лицензия	Biocidal license|ISO 9001|Ecolabel|Food contact compliant	Биоцидная лицензия|ISO 9001|Экомаркировка|Разрешено для контакта с пищей
+47000000	urun_tipi	Product type	Тип продукта	General cleaning|Industrial chemical|Hygienic paper|Equipment / machine|Disinfectant	Общая очистка|Промышленный химикат|Гигиеническая бумага|Оборудование / машина|Дезинфицирующее средство
+48000000	durum	Product condition	Состояние продукта	New|Used|Refurbished	Новый|Б/у|Восстановленный
+48000000	guc_kaynagi	Power supply	Электропитание	Electric|Natural gas|LPG|Steam	Электрическое|Природный газ|СНГ|Пар
+48000000	kapasite	Capacity	Вместимость		
+48000000	kullanim_alani	Application area	Область применения	Industrial kitchen|Hotel / accommodation|Cafe - restaurant|Market / retail|Laundry	Промышленная кухня|Отель / проживание|Кафе - ресторан|Рынок / розничная торговля|Прачечная
+49000000	durum	Product condition	Состояние продукта	New|Used|Refurbished	Новый|Б/у|Восстановленный
+49000000	kullanim	Usage class	Класс использования	Home use|Club / professional|Commercial gym	Домашнее использование|Клубное / профессиональное|Коммерческий зал
+49000000	malzeme	Material	Материал		
+49000000	urun_grubu	Product group	Группа товаров	Fitness equipment|Team sports|Outdoor|Water sports|Playground	Оборудование для фитнеса|Командные виды спорта|Спорт на открытом воздухе|Водные виды спорта|Игровая площадка
+50000000	ambalaj	Packaging	Упаковка	Box|Pouch|Glass jar|Tin|Vacuum packed|Big bag|Bulk	Коробка|Пакет|Стеклянная банка|Жестяная банка|В вакуумной упаковке|Биг-бэг|Навалом
+50000000	raf_omru	Shelf life	Срок годности		
+50000000	saklama	Storage condition	Условия хранения	Room temperature|Cold chain (0-4 °C)|Frozen (-18 °C)|Cool and dry	Комнатная температура|Холодовая цепь (0-4 °C)|Заморозка (-18 °C)|В сухом прохладном месте
+50000000	sertifika	Certificate	Сертификат	Halal|Kosher|Organic|ISO 22000|HACCP|BRC|IFS|GlobalGAP	Халяль|Кошерный|Органический|ISO 22000|HACCP|BRC|IFS|GlobalGAP
+51000000	form	Pharmaceutical form	Фармацевтическая форма	Tablet|Capsule|Syrup|Ampoule / vial|Cream / ointment|Powder	Таблетка|Капсула|Сироп|Ампула / флакон|Крем / мазь|Порошок
+51000000	raf_omru	Shelf life	Срок годности		
+51000000	ruhsat	License / document	Лицензия / документ	TITCK licensed|GMP|EU-GMP|FDA	Лицензия TITCK|GMP|EU-GMP|FDA
+51000000	saklama	Storage condition	Условия хранения	Room temperature|Cold chain (2-8 °C)|Frozen	Комнатная температура|Холодовая цепь (2-8 °C)|Заморозка
+51000000	urun_tipi	Product type	Тип продукта	Human medicine|Veterinary medicine|Active ingredient (API)|Food supplement|Dermocosmetics	Медицинский препарат|Ветеринарный препарат|Активное вещество (API)|Пищевая добавка|Дермокосметика
+52000000	durum	Product condition	Состояние продукта	New|Used|Refurbished	Новый|Б/у|Восстановленный
+52000000	enerji_sinifi	Energy class	Класс энергопотребления	A|B|C|D|E|F|G	A|B|C|D|E|F|G
+52000000	garanti	Warranty period	Гарантийный срок		
+52000000	sertifika	Certificate	Сертификат	CE|TSE|RoHS|Energy label	CE|TSE|RoHS|Энергетическая этикетка
+52000000	urun_grubu	Product group	Группа товаров	White goods|Small home appliance|TV / display|Audio system|Mobile device|Accessory	Крупная бытовая техника|Мелкая бытовая техника|ТВ / дисплеи|Аудиосистема|Мобильное устройство|Аксессуар
+53000000	beden_araligi	Size range	Размерный ряд		
+53000000	kumas	Fabric / material	Ткань / материал	Cotton|Polyester|Wool|Linen|Viscose|Denim|Leather|Blend	Хлопок|Полиэстер|Шерсть|Лен|Вискоза|Джинсовая ткань|Кожа|Смесь
+53000000	sertifika	Certificate	Сертификат	OEKO-TEX|GOTS|BCI|GRS	OEKO-TEX|GOTS|BCI|GRS
+53000000	uretim_tipi	Production type	Тип производства	Contract manufacturing|Own brand|Private label|Overstock	Контрактное производство|Собственный бренд|Частная марка (private label)|Излишки склада
+54000000	ayar	Purity	Проба	8k|14k|18k|22k|24k|925 silver	8 карат|14 карат|18 карат|22 карата|24 карата|Серебро 925 пробы
+54000000	malzeme	Material	Материал	Gold|Silver|Platinum|Steel|Brass|Plating|Natural stone	Золото|Серебро|Платина|Сталь|Латунь|Покрытие|Натуральный камень
+54000000	sertifika	Document	Документ	Hallmark|Kimberley process|Responsible sourcing	Пробирное клеймо|Кимберлийский процесс|Ответственные поставки
+54000000	uretim_tipi	Production type	Тип производства	Contract manufacturing|Own brand|Handmade|Mass production	Контрактное производство|Собственный бренд|Ручная работа|Серийное производство
+55000000	adet_araligi	Print run	Тираж	Less than 100|100 - 1,000|1,000 - 10,000|More than 10,000	Менее 100|100 - 1 000|1 000 - 10 000|Более 10 000
+55000000	baski_teknolojisi	Printing technology	Технология печати	Offset|Digital|Screen printing	Офсет|Цифровая|Шелкография
+55000000	cilt	Binding type	Тип переплета	Paperback|Hardcover|Spiral|Saddle stitch|Perfect binding	Мягкий переплет|Твердый переплет|Спираль|Скрепка|Клеевое бесшвейное скрепление
+55000000	urun_tipi	Product type	Тип продукта	Book|Magazine|Catalog / brochure|Calendar|Map|Packaging print	Книга|Журнал|Каталог / брошюра|Календарь|Карта|Печать упаковки
+56000000	kullanim_alani	Usage area	Область применения	Home|Office|Hotel / contract|Education|Healthcare|Outdoor	Дом|Офис|Отель / контракт|Образование|Здравоохранение|Открытый воздух
+56000000	malzeme	Material	Материал	Solid wood|MDF / chipboard|Metal|Glass|Plastic|Rattan|Fabric|Leather	Массив дерева|МДФ / ДСП|Металл|Стекло|Пластик|Ротанг|Ткань|Кожа
+56000000	montaj	Delivery format	Формат поставки	Assembled|Flat-pack|Modular	В сборе|В разобранном виде|Модульный
+56000000	sertifika	Certificate	Сертификат	TSE|FSC|E1 (formaldehyde)|Fire resistance	TSE|FSC|E1 (формальдегид)|Огнестойкость
+57000000	kit_tipi	Kit type	Тип набора	Food parcel|Hygiene kit|Shelter (tent / blanket)|Water and sanitation|Health kit	Продуктовый набор|Гигиенический набор|Укрытие (палатка / одеяло)|Вода и санитария|Медицинская аптечка
+57000000	saklama	Storage condition	Условия хранения	Room temperature|Cool and dry|Cold chain	Комнатная температура|В сухом прохладном месте|Холодовая цепь
+57000000	standart	Standard	Стандарт	Sphere standard|UN / UNHCR specification|ISO 9001	Sphere standard|UN / UNHCR specification|ISO 9001
+60000000	malzeme	Material	Материал		
+60000000	sertifika	Certificate	Сертификат	CE|EN 71 (toy safety)|TSE	CE|EN 71 (безопасность игрушек)|TSE
+60000000	urun_grubu	Product group	Группа товаров	School supplies|Educational set|Musical instrument|Toy|Playground equipment	Школьные принадлежности|Обучающий набор|Музыкальный инструмент|Игрушка|Оборудование для детских площадок
+60000000	yas_araligi	Age range	Возрастной диапазон	0-3|3-6|6-12|12+|Adult	0-3|3-6|6-12|12+|Взрослый
+64000000	kurum_tipi	Institution type	Тип учреждения	Bank|Financing company|Insurance company|Brokerage firm	Банк|Финансовая компания|Страховая компания|Брокерская фирма
+64000000	urun_tipi	Product type	Тип продукта	Credit / financing|Insurance policy|Leasing|Factoring|Letter of guarantee|Investment product	Кредит / финансирование|Страховой полис|Лизинг|Факторинг|Гарантийное письмо|Инвестиционный продукт
+64000000	vade	Maturity	Срок		
+70000000	calisma_modeli	Working model	Модель работы	Project-based|Contractual (periodic)|Hourly / daily|Turnkey|Consulting	Проектная|По контракту (периодическая)|Почасовая / ежедневная|Под ключ|Консалтинг
+70000000	hizmet_tipi	Service type	Тип услуги	Tillage|Sowing - planting|Pesticide application|Harvesting|Irrigation system installation|Animal care|Aquaculture	Обработка почвы|Посев - посадка|Опрыскивание|Уборка урожая|Установка системы орошения|Уход за животными|Аквакультура
+70000000	kapasite	Capacity	Емкость		
+70000000	sertifika	Certificate	Сертификат	GlobalGAP|Organic|Good Agricultural Practices	GlobalGAP|Органический|Надлежащая сельскохозяйственная практика
+71000000	calisma_alani	Workspace	Рабочая зона	Underground|Open pit|Onshore|Offshore	Подземная|Открытый карьер|На суше|На море
+71000000	calisma_modeli	Working model	Модель работы	Project-based|Contractual (periodic)|Hourly / daily|Turnkey|Consulting	Проектная|По контракту (периодическая)|Почасовая / ежедневная|Под ключ|Консалтинг
+71000000	hizmet_tipi	Service type	Тип услуги	Drilling|Blasting|Geological survey|Well maintenance|Transportation|Ore beneficiation	Бурение|Взрывные работы|Геологическая разведка|Обслуживание скважин|Транспортировка|Обогащение руды
+71000000	yetki_belgesi	Authorization document	Разрешительный документ	Mining operation license|EPDK license|Explosives permit|ISO 45001	Лицензия на добычу полезных ископаемых|Лицензия EPDK|Разрешение на взрывчатые вещества|ISO 45001
+72000000	hizmet_tipi	Service type	Тип услуги	New construction|Renovation|Restoration|Maintenance-repair|Demolition|Ground works	Новое строительство|Ремонт|Реставрация|Техническое обслуживание и ремонт|Снос|Земляные работы
+72000000	kapsam	Scope	Объем работ	Turnkey|Including materials|Labor only|Subcontracting	Под ключ|Включая материалы|Только работа|Субподряд
+72000000	proje_olcegi	Project scale	Масштаб проекта	Residential|Commercial|Industrial|Infrastructure|Public	Жилой|Коммерческий|Промышленный|Инфраструктура|Государственный
+73000000	hizmet	Service provided	Оказываемая услуга	Machining|Welding|Sheet metal processing|Heat treatment|Surface coating|Assembly|Painting|Mold manufacturing	Механическая обработка|Сварка|Обработка листового металла|Термообработка|Покрытие поверхности|Сборка|Покраска|Изготовление пресс-форм
+73000000	malzeme	Processed material	Обрабатываемый материал	Steel|Stainless steel|Aluminum|Copper|Brass|Cast iron|Zinc|Titanium|Plastic|Composite	Сталь|Нержавеющая сталь|Алюминий|Медь|Латунь|Чугун|Цинк|Титан|Пластик|Композит
+73000000	parti_buyuklugu	Batch size	Размер партии	Sample / prototype|Small batch (<100)|Medium batch (100-1000)|Mass production (>1000)	Образец / прототип|Мелкая партия (<100)|Средняя партия (100-1000)|Серийное производство (>1000)
+73000000	tolerans	Working tolerance	Рабочий допуск		
+76000000	calisma_modeli	Working model	Модель работы	Project-based|Contractual (periodic)|Hourly / daily|Turnkey|Consulting	Проектная|По контракту (периодическая)|Почасовая / ежедневная|Под ключ|Консалтинг
+76000000	ekip_buyuklugu	Team size	Размер команды		
+76000000	hizmet_tipi	Service type	Тип услуги	Factory cleaning|Tank / silo cleaning|High pressure washing|Duct and waste line|Facade cleaning|Disinfection	Уборка фабрик|Очистка резервуаров / силосов|Мойка под высоким давлением|Трубопроводы и канализация|Очистка фасадов|Дезинфекция
+76000000	sertifika	Certificate	Сертификат	ISO 9001|ISO 45001|Biocidal authorization certificate	ISO 9001|ISO 45001|Биоцидное свидетельство
+77000000	atik_kodu	Waste code	Код отходов		
+77000000	calisma_modeli	Working model	Модель работы	Project-based|Contractual (periodic)|Hourly / daily|Turnkey|Consulting	Проектная|По контракту (периодическая)|Почасовая / ежедневная|Под ключ|Консалтинг
+77000000	hizmet_tipi	Service type	Тип услуги	Waste collection / disposal|Recycling|Treatment plant|Emission measurement|Environmental consulting|Soil remediation	Сбор / утилизация отходов|Вторичная переработка|Очистные сооружения|Измерение выбросов|Экологический консалтинг|Ремедиация почв
+77000000	yetki_belgesi	Authorization document	Разрешительный документ	Environmental permit|Licensed waste transport|Authorized laboratory|ISO 14001	Экологическое разрешение|Лицензированная перевозка отходов|Авторизованная лаборатория|ISO 14001
+78000000	hizmet_tipi	Service type	Тип услуги	Full truckload (FTL)|Less than truckload (LTL)|Container|Cold chain|Project / heavy cargo|Warehousing|Customs clearance	Полная загрузка (FTL)|Частичная загрузка (LTL)|Контейнер|Холодовая цепь|Проектные / негабаритные грузы|Складирование|Таможенное оформление
+78000000	kapsam	Scope	Охват	Domestic|Export|Import|Transit	Внутренний|Экспорт|Импорт|Транзит
+78000000	tasima_modu	Transport mode	Вид транспорта	Road|Sea|Air|Rail|Multimodal	Автомобильный|Морской|Воздушный|Железнодорожный|Мультимодальный
+78000000	yetki_belgesi	Authorization document	Разрешительный документ	K1|K2|L2|R1|C2|ADR|Customs brokerage	K1|K2|L2|R1|C2|ADR|Таможенное представительство
+80000000	calisma_bicimi	Working format	Формат работы	On-site|Remote|Hybrid	На объекте|Удаленно|Гибридный
+80000000	calisma_modeli	Working model	Модель работы	Project-based|Contractual (periodic)|Hourly / daily|Turnkey|Consulting	Проектная|По контракту (периодическая)|Почасовая / ежедневная|Под ключ|Консалтинг
+80000000	hizmet_tipi	Service type	Тип услуги	Management consulting|Accounting / financial consulting|Legal|Human resources|Marketing|Administrative support	Управленческий консалтинг|Бухгалтерский учет / финансовый консалтинг|Юридические услуги|Кадровые ресурсы|Маркетинг|Административная поддержка
+80000000	sektor_uzmanligi	Industry expertise	Отраслевая экспертиза		
+81000000	calisma_bicimi	Working mode	Режим работы	On-site|Remote|Hybrid	На месте|Удаленно|Гибрид
+81000000	calisma_modeli	Working model	Модель работы	Project-based|Contractual (periodic)|Hourly / daily|Turnkey|Consulting	Проектная|По контракту (периодическая)|Почасовая / ежедневная|Под ключ|Консалтинг
+81000000	hizmet_tipi	Service type	Тип услуги	Software development|System integration|Mechanical / process engineering|Civil engineering|Testing and analysis|R&D|Automation	Разработка программного обеспечения|Системная интеграция|Машиностроение / проектирование процессов|Гражданское строительство|Тестирование и анализ|НИОКР|Автоматизация
+81000000	yetki_belgesi	Certificate	Сертификат	ISO 9001|ISO 27001|Authorized engineering office|R&D center certificate	ISO 9001|ISO 27001|Авторизованное инженерное бюро|Сертификат центра НИОКР
+82000000	calisma_bicimi	Working mode	Режим работы	On-site|Remote|Hybrid	На месте|Удаленно|Гибрид
+82000000	calisma_modeli	Working model	Модель работы	Project based|Contractual (periodic)|Hourly / daily|Turnkey|Consulting	Проектная|По контракту (периодическая)|Почасовая / ежедневная|Под ключ|Консалтинг
+82000000	hizmet_tipi	Service type	Тип услуги	Graphic design|Brand / corporate identity|Advertising and campaign|Web / interface design|Photo - video|Content creation|Pre-press preparation	Графический дизайн|Бренд / фирменный стиль|Реклама и кампании|Веб-дизайн / дизайн интерфейсов|Фото и видео|Создание контента|Допечатная подготовка
+82000000	teslim_formati	Delivery format	Формат сдачи		
+83000000	calisma_modeli	Working model	Модель работы	Project based|Contractual (periodic)|Hourly / daily|Turnkey|Consulting	Проектная|По контракту (периодическая)|Почасовая / ежедневная|Под ключ|Консалтинг
+83000000	hizmet_tipi	Service type	Тип услуги	Infrastructure operation|Water and sewage|Energy distribution|Municipal services|Telecom infrastructure	Эксплуатация инфраструктуры|Водоснабжение и канализация|Распределение энергии|Муниципальные услуги|Телекоммуникационная инфраструктура
+83000000	yetki_belgesi	Authorization certificate	Разрешительный документ	EMRA license|Municipal license|ISO 9001	Лицензия EPDK|Муниципальная лицензия|ISO 9001
+84000000	calisma_modeli	Working model	Модель работы	Project based|Contractual (periodic)|Hourly / daily|Turnkey|Consulting	Проектная|По контракту (периодическая)|Почасовая / ежедневная|Под ключ|Консалтинг
+84000000	hizmet_tipi	Service type	Тип услуги	Accounting / auditing|Insurance brokerage|Credit consulting|Valuation / appraisal|Collection|Tax consulting	Бухгалтерский учет / аудит|Страховое посредничество|Кредитный консалтинг|Оценка / экспертиза|Взыскание|Налоговый консалтинг
+84000000	yetki_belgesi	Authorization certificate	Разрешительный документ	CPA / Sworn CPA license|CMB license|Insurance agency certificate|BRSA permission	Лицензия SMMM / YMM|Лицензия SPK|Свидетельство страхового агентства|Разрешение BDDK
+85000000	calisma_bicimi	Service location	Место оказания услуг	At the institution|On-site|Remote (telemedicine)	В учреждении|На месте|Удаленно (телемедицина)
+85000000	hizmet_tipi	Service type	Тип услуги	Polyclinic / examination|Imaging|Laboratory|Home care|Occupational medicine|Rehabilitation	Поликлиника / осмотр|Визуализация|Лаборатория|Уход на дому|Профессиональная медицина|Реабилитация
+85000000	yetki_belgesi	License / certificate	Лицензия / сертификат	Ministry of Health license|ISO 15189|JCI|OSGB authorization certificate	Лицензия Минздрава|ISO 15189|JCI|Сертификат авторизации OSGB
+86000000	egitim_tipi	Training type	Тип обучения	Corporate training|Vocational / technical|Foreign language|Certificate program|Occupational health and safety|Software / technology	Корпоративное обучение|Профессиональное / техническое|Иностранный язык|Программа сертификации|Охрана труда и техника безопасности|Программное обеспечение / технологии
+86000000	format	Format	Формат	Face to face|Online (live)|Online (recorded)|Hybrid	Очно|Онлайн (вживую)|Онлайн (в записи)|Гибрид
+86000000	sertifika	Certificate given	Выдаваемый сертификат	MEB approved|University approved|International certificate|Certificate of attendance	Одобрено MEB|Одобрено университетом|Международный сертификат|Сертификат об участии
+86000000	sure	Duration	Продолжительность		
+90000000	calisma_modeli	Working model	Модель работы	Project based|Contractual (periodic)|Hourly / daily|Turnkey|Consulting	Проектная|По контракту (периодическая)|Почасовая / ежедневная|Под ключ|Консалтинг
+90000000	hizmet_tipi	Service type	Тип услуги	Hotel / accommodation|Catering|Event and organization|Travel agency|Transfer	Отель / проживание|Кейтеринг|Мероприятия и организация|Туристическое агентство|Трансфер
+90000000	kapasite	Capacity	Вместимость		
+90000000	sertifika	Certificate	Сертификат	Tourism operation certificate|ISO 22000|HACCP|TÜRSAB membership	Сертификат туристической деятельности|ISO 22000|HACCP|Членство в TÜRSAB
+91000000	calisma_bicimi	Service location	Место оказания услуг	On-site|At the workplace	На месте|На рабочем месте
+91000000	calisma_modeli	Working model	Модель работы	Project based|Contractual (periodic)|Hourly / daily|Turnkey|Consulting	Проектная|По контракту (периодическая)|Почасовая / ежедневная|Под ключ|Консалтинг
+91000000	hizmet_tipi	Service type	Тип услуги	Cleaning|Maintenance - repair|Transportation|Beauty and personal care|Child / elderly care|Garden	Уборка|Техническое обслуживание и ремонт|Транспортировка|Красота и уход за собой|Уход за детьми / пожилыми|Сад
+92000000	calisma_modeli	Working model	Модель работы	Project based|Contractual (periodic)|Hourly / daily|Turnkey|Consulting	Проектная|По контракту (периодическая)|Почасовая / ежедневная|Под ключ|Консалтинг
+92000000	hizmet_tipi	Service type	Тип услуги	Private security|Alarm monitoring|Camera system installation|Fire safety|Risk consulting	Частная охрана|Мониторинг сигнализации|Установка систем видеонаблюдения|Пожарная безопасность|Консалтинг по рискам
+92000000	yetki_belgesi	Authorization certificate	Разрешительный документ	5188 private security permission|Alarm center license|ISO 45001	Разрешение на частную охранную деятельность 5188|Лицензия центра сигнализации|ISO 45001
+93000000	calisma_modeli	Working model	Модель работы	Project based|Contractual (periodic)|Hourly / daily|Turnkey|Consulting	Проектная|По контракту (периодическая)|Почасовая / ежедневная|Под ключ|Консалтинг
+93000000	hizmet_tipi	Service type	Тип услуги	Public relations|Civil society projects|Grant / fund consulting|Survey and research	Связи с общественностью|Проекты гражданского общества|Грантовый / фондовый консалтинг|Опросы и исследования
+94000000	hizmet_tipi	Offered service	Предлагаемая услуга	Membership|Event|Training|Certification|Representation and advocacy	Членство|Мероприятие|Обучение|Сертификация|Представительство и адвокация
+94000000	kurulus_tipi	Organization type	Тип организации	Association|Foundation|Chamber / union|Cooperative|Club|Trade union	Ассоциация|Фонд|Палата / союз|Кооператив|Клуб|Профсоюз
+95000000	alan	Area	Площадь		
+95000000	imar_durumu	Zoning status	Статус зонирования	Industrial|Commercial|Residential|Agricultural|Tourism|Unzoned	Промышленный|Коммерческий|Жилой|Сельскохозяйственный|Туристический|Без зонирования
+95000000	islem	Transaction type	Тип сделки	For sale|For rent|Transfer	На продажу|В аренду|Переуступка
+95000000	varlik_tipi	Asset type	Тип актива	Land / plot|Factory / warehouse|Office|Commercial space|Residential|Infrastructure structure	Земля / участок|Завод / склад|Офис|Коммерческая площадь|Жилая недвижимость|Инфраструктурное сооружение
