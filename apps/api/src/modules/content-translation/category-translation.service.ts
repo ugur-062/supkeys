@@ -17,6 +17,8 @@ import {
  * yeniden seed TSV'den okur, model çağrısı yapmaz. Görünür segmentlerdeki
  * (gizli 29 segment hariç) tüm satırlar; `nameEn`/`nameRu` NULL olanlar.
  */
+const CATEGORY_WORKERS = 4;
+
 @Injectable()
 export class CategoryTranslationService {
   private readonly logger = new Logger(CategoryTranslationService.name);
@@ -73,14 +75,20 @@ export class CategoryTranslationService {
     for (let i = 0; i < rows.length; i += CATEGORY_BATCH_SIZE) {
       queue.push(rows.slice(i, i + CATEGORY_BATCH_SIZE).map((r) => ({ code: r.code, level: r.level, tr: r.nameTr, parentTr: r.parentId ? parents.get(r.parentId) ?? null : null })));
     }
-    while (queue.length) {
-      const batch = queue.shift()!;
-      const ok = await this.translateBatch(batch, locales);
-      if (!ok) {
-        if (batch.length > 10) { const mid = Math.ceil(batch.length / 2); queue.unshift(batch.slice(0, mid), batch.slice(mid)); }
-        else this.progress.failed += batch.length;
+    // Sıralı koşum parti başına ~1 dk (120 ad) → 19 bin satır ~2,5 saat; dört
+    // işçi aynı kuyruktan çeker (JS tek iş parçacıklı: kuyruk yarışı yok),
+    // sağlayıcı kotası içinde kalır (~40 dk).
+    const worker = async () => {
+      while (queue.length) {
+        const batch = queue.shift()!;
+        const ok = await this.translateBatch(batch, locales);
+        if (!ok) {
+          if (batch.length > 10) { const mid = Math.ceil(batch.length / 2); queue.push(batch.slice(0, mid), batch.slice(mid)); }
+          else this.progress.failed += batch.length;
+        }
       }
-    }
+    };
+    await Promise.all(Array.from({ length: CATEGORY_WORKERS }, () => worker()));
     this.logger.log(`Category translation finished: ${this.progress.done} done, ${this.progress.failed} failed, ${this.progress.batches} batches, ${this.progress.costUsd.toFixed(2)} USD`);
   }
 
