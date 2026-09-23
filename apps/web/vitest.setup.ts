@@ -119,3 +119,7 @@ vi.mock("@/i18n/navigation", async () => {
     getPathname: (args: { href: string }) => args.href,
   };
 });
+
+// `server-only` paketi RSC dışında import edilince fırlatır; sunucu yardımcıları
+// (lib/seo/entities, og/content) testlerde de çalışsın.
+vi.mock("server-only", () => ({}));

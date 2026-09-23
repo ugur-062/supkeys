@@ -1,4 +1,4 @@
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { ListingDetail } from "@/components/marketplace/listing-detail";
 import { ButtonAccentProvider } from "@/components/ui/button-accent";
@@ -23,7 +23,7 @@ export async function generateMetadata({
   const locale = await localeFromParams(params);
   const number = parseListingNumber(slug);
   const listing = number ? await fetchListing(number) : null;
-  if (!listing) return { title: "İlan bulunamadı", robots: { index: false } };
+  if (!listing) return { title: (await getTranslations({ locale, namespace: "web.marketplace.pages" }))("listingNotFound"), robots: { index: false } };
   /* TEK KAYNAK (`lib/seo/entities.ts`): sayfanın JSON-LD'siyle aynı
      olgulardan türer ve SAHİBİN ADINI parametre olarak bile almaz —
      kapanmış/dizinlenmeyen ilan `noindex` alır, sayfa durur. */

@@ -2,6 +2,8 @@ import { closingUrgency as closingUrgencyTr, daysUntil } from "@/lib/tenders/sel
 import { countryName as countryNameTr, companyActivityLabel } from "@rothern/shared";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
+import type { PriceLabels } from "@/lib/public/product-price";
+import { DELIVERY_TERM_LABELS, PAYMENT_CATEGORY_LABELS } from "@/lib/tenders/labels";
 
 /**
  * Alan sözlükleri — dil farkında (i18n Faz 1). Paylaşılan paketteki Türkçe
@@ -56,4 +58,27 @@ export function useClosingUrgency(): (
     const text = days > 0 ? t("daysLeft", { days }) : days === 0 ? t("endsToday") : t("expired");
     return { text, className: base.className, days };
   };
+}
+
+const INTL_LOCALE: Record<Locale, string> = { tr: "tr-TR", en: "en-US", ru: "ru-RU" };
+
+/** `productPrice` etiketleri — istemci. Sunucu karşılığı `priceLabelsFor` (i18n/server.ts). */
+export function usePriceLabels(): PriceLabels {
+  const t = useTranslations("web.marketplace.price");
+  const locale = useLocale();
+  return {
+    locale: INTL_LOCALE[locale] ?? "tr-TR",
+    onRequest: t("onRequest"),
+    fromQty: (qty, unit) => t("fromQty", { qty, unit }),
+  };
+}
+
+export function useDeliveryTermLabel(): (code: string) => string {
+  const t = useTranslations("web.domain.deliveryTerm");
+  return (code) => (t.has(code as never) ? t(code as never) : (DELIVERY_TERM_LABELS[code as keyof typeof DELIVERY_TERM_LABELS] ?? code));
+}
+
+export function usePaymentCategoryLabel(): (code: string) => string {
+  const t = useTranslations("web.domain.paymentCategory");
+  return (code) => (t.has(code as never) ? t(code as never) : (PAYMENT_CATEGORY_LABELS[code as keyof typeof PAYMENT_CATEGORY_LABELS] ?? code));
 }

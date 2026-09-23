@@ -1,3 +1,4 @@
+import { formatNumber, priceLabelsFor, webTranslator } from "@/i18n/server";
 import { localizePath } from "@/i18n/href";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { SITE_NAME } from "./meta";
@@ -61,10 +62,11 @@ export interface ProductSeoInput {
   indexable: boolean;
 }
 
-function priceSentence(p: ProductSeoInput["product"]): string {
-  const price = productPrice(p);
+function priceSentence(p: ProductSeoInput["product"], locale: Locale): string {
+  const labels = priceLabelsFor(locale);
+  const price = productPrice(p, labels);
   if (price.hasPrice) return price.headline;
-  return "Fiyat için teklif isteyin";
+  return labels.onRequest;
 }
 
 export interface SeoOptions {
@@ -77,9 +79,11 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions = {}): {
   jsonLd: JsonLdNode;
   summary: string;
 } {
+  const locale = opts.locale ?? DEFAULT_LOCALE;
+  const ts = webTranslator(locale);
   const { product: pr, company: co, companySlug } = input;
   const path = `/firma/${companySlug}/urun/${pr.slug}`;
-  const url = absoluteUrl(localizePath(path, opts.locale ?? DEFAULT_LOCALE));
+  const url = absoluteUrl(localizePath(path, locale));
   const images = pr.images.map((i) => (i.startsWith("http") ? i : absoluteUrl(i)));
   const where = joinParts([co.name, co.city], ", ");
 
@@ -89,7 +93,7 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions = {}): {
     [
       joinParts([pr.name, pr.category?.name], " — "),
       where ? `${where} vitrininde` : null,
-      priceSentence(pr),
+      priceSentence(pr, locale),
       pr.moq ? `min. ${pr.moq} ${pr.unit}` : null,
     ],
     " · ",
@@ -100,7 +104,7 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions = {}): {
      eklenir; 160'ta kelime sınırında kesilir. */
   const lead = pr.description ? clampDescription(pr.description, 96) : null;
   const description = clampDescription(
-    joinParts([lead, priceSentence(pr), pr.moq ? `min. ${pr.moq} ${pr.unit}` : null, where], " · "),
+    joinParts([lead, priceSentence(pr, locale), pr.moq ? `min. ${pr.moq} ${pr.unit}` : null, where], " · "),
   );
 
   // Başlık tavanı 75 (canlı denetim 2026-09-11: 83 karakterlik ürün adı taşıyordu):
@@ -240,15 +244,17 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions = {}): {
   jsonLd: JsonLdNode;
   summary: string;
 } {
+  const locale = opts.locale ?? DEFAULT_LOCALE;
+  const ts = webTranslator(locale);
   const path = `/firma/${c.slug}`;
-  const url = absoluteUrl(localizePath(path, opts.locale ?? DEFAULT_LOCALE));
+  const url = absoluteUrl(localizePath(path, locale));
 
   const summary = joinParts(
     [
       joinParts([c.name, c.industry], " — "),
-      c.city ? `${c.city} merkezli` : null,
-      c.productCount > 0 ? `${c.productCount} ürün vitrinde` : null,
-      c.verified ? "Rothern'de doğrulanmış firma" : null,
+      c.city ? ts("web.seo.basedIn", { city: c.city }) : null,
+      c.productCount > 0 ? ts("web.seo.productsInShowcase", { n: formatNumber(c.productCount, locale) }) : null,
+      c.verified ? ts("web.seo.verifiedOnRothern") : null,
     ],
     " · ",
   );
@@ -259,12 +265,12 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions = {}): {
   const parts = [
     lead,
     joinParts([c.industry, c.city], ", "),
-    c.productCount > 0 ? `${c.productCount} ürün` : null,
-    "Rothern firma profili",
+    c.productCount > 0 ? ts("web.seo.products", { n: formatNumber(c.productCount, locale) }) : null,
+    ts("web.seo.companyProfile"),
   ];
   const base = joinParts(parts, " · ");
   const description = clampDescription(
-    base.length >= 50 ? base : `${base} · Ürünlerini inceleyin, bilgi isteyin, bağlantı kurun.`,
+    base.length >= 50 ? base : `${base} ${ts("web.seo.exploreTail")}`,
   );
 
   const image = c.coverImageUrl ?? c.logoUrl;
@@ -294,12 +300,12 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions = {}): {
           },
         }
       : {}),
-    areaServed: { "@type": "Country", name: c.country === "TR" || !c.country ? "Türkiye" : c.country },
+    areaServed: { "@type": "Country", name: c.country === "TR" || !c.country ? ts("web.seo.turkey") : c.country },
     ...(c.products?.length
       ? {
           hasOfferCatalog: {
             "@type": "OfferCatalog",
-            name: `${c.name} ürünleri`,
+            name: ts("web.seo.productsOf", { name: c.name }),
             itemListElement: c.products.slice(0, 10).map((p, i) => ({
               "@type": "ListItem",
               position: i + 1,
@@ -397,8 +403,10 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions = {}): {
   jsonLd: JsonLdNode;
   summary: string;
 } {
+  const locale = opts.locale ?? DEFAULT_LOCALE;
+  const ts = webTranslator(locale);
   const path = listingPath(l.number, l.title);
-  const url = absoluteUrl(localizePath(path, opts.locale ?? DEFAULT_LOCALE));
+  const url = absoluteUrl(localizePath(path, locale));
   const cat = l.categories[0]?.name ?? null;
   const qty =
     l.itemSummary.totalQuantity && l.itemSummary.unit
@@ -409,9 +417,9 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions = {}): {
     [
       joinParts([l.title, cat], " — "),
       qty,
-      l.itemSummary.count > 1 ? `${l.itemSummary.count} kalem` : null,
-      l.buyer.city ? `alıcı: ${l.buyer.city}` : null,
-      l.open ? "teklife açık" : "kapandı",
+      l.itemSummary.count > 1 ? ts("web.seo.items", { n: l.itemSummary.count }) : null,
+      l.buyer.city ? ts("web.seo.buyerCity", { city: l.buyer.city }) : null,
+      l.open ? ts("web.seo.openForQuotes") : ts("web.seo.closed"),
     ],
     " · ",
   );
@@ -420,10 +428,10 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions = {}): {
     joinParts(
       [
         l.description ? clampDescription(l.description, 90) : null,
-        qty ? `Miktar: ${qty}` : null,
+        qty ? ts("web.seo.qty", { qty }) : null,
         cat,
         l.buyer.city ?? null,
-        "Kapalı zarf teklif — Rothern",
+        ts("web.seo.sealedTail"),
       ],
       " · ",
     ),

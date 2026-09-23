@@ -1,4 +1,4 @@
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { ViewBeacon } from "@/components/marketplace/view-beacon";
 import { ProductDetail } from "@/components/marketplace/product-detail";
@@ -27,7 +27,7 @@ export async function generateMetadata({
   const { slug, urunSlug } = await params;
   const locale = await localeFromParams(params);
   const data = await fetchProduct(slug, urunSlug);
-  if (!data) return { title: "Ürün bulunamadı", robots: { index: false } };
+  if (!data) return { title: (await getTranslations({ locale, namespace: "web.marketplace.pages" }))("productNotFound"), robots: { index: false } };
 
   /* Başlık, açıklama, kanonik ve OG TEK KAYNAKTAN (`lib/seo/entities.ts`) —
      sayfanın JSON-LD'siyle aynı olgulardan türer. `indexable`: pazar yeri

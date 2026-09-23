@@ -1,4 +1,4 @@
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { ViewBeacon } from "@/components/marketplace/view-beacon";
 import { CompanyProfileView } from "@/components/company/company-profile-view";
@@ -22,7 +22,7 @@ export async function generateMetadata({
   const { slug } = await params;
   const locale = await localeFromParams(params);
   const p = await fetchCompanyProfile(slug);
-  if (!p) return { title: "Firma bulunamadı", robots: { index: false } };
+  if (!p) return { title: (await getTranslations({ locale, namespace: "web.marketplace.pages" }))("companyNotFound"), robots: { index: false } };
   /* TEK KAYNAK (`lib/seo/entities.ts`): başlık/açıklama/kanonik/OG ile
      sayfanın JSON-LD'si aynı olgulardan türer. Eskiden başlık markayı elle
      ekliyordu ("… — Rothern") ve kök şablon bir daha ekliyordu. */
@@ -68,6 +68,7 @@ export default async function PublicCompanyProfile({
   searchParams?: Promise<{ urun?: string; urunSayfa?: string; onizleme?: string }>;
 }) {
   setRequestLocale(await localeFromParams(params));
+  const t = await getTranslations("web.marketplace.pages");
   const { slug } = await params;
   // Profil ve ürünler PARALEL: ürün bileşeni kendi çekiyordu, profil bitmeden
   // başlamıyordu → TTFB 1,5 sn (Lighthouse). Sonuç prop'la iner.
@@ -141,16 +142,16 @@ export default async function PublicCompanyProfile({
               href={loginHref(panelHref)}
               className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
-              Bağlantı isteği gönder
+              {t("connectCta")}
             </a>
           }
           gate={{
-            stats: <GatedField label="Rothern ID ve iletişim" redirect={panelHref} />,
+            stats: <GatedField label={t("gateStats")} redirect={panelHref} />,
             aside: (
               <GatedField
                 size="box"
-                label="Puan dağılımı, sipariş geçmişi ve açık talepler"
-                hint={`${p.name} ile bağlantı kurmak, mesajlaşmak ve teklif almak için ücretsiz hesap — 2 dakika, kredi kartı yok.`}
+                label={t("gateAside")}
+                hint={t("gateAsideHint", { name: p.name })}
                 redirect={panelHref}
               />
             ),

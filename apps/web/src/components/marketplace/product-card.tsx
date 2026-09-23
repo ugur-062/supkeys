@@ -1,5 +1,7 @@
 "use client";
 
+import { usePriceLabels } from "@/i18n/domain";
+
 import { useFormatter, useTranslations } from "next-intl";
 
 import { CategoryImage } from "./category-image";
@@ -171,6 +173,7 @@ export function ProductCard({
 }) {
   const t = useTranslations("web.marketplace.productCard");
   const fmt = useFormatter();
+  const priceLabels = usePriceLabels();
   const target = href ?? (companySlug ? `/firma/${companySlug}/urun/${product.slug}` : undefined);
   const firm: ProductCardCompany | undefined =
     company ?? (companyName ? { name: companyName, city: companyCity } : undefined);
@@ -218,7 +221,7 @@ export function ProductCard({
     priceTiers: product.priceTiers ?? null,
     priceCurrency: product.priceCurrency ?? "TRY",
     unit: product.unit,
-  });
+  }, priceLabels);
   const compact = variant === "compact";
   const ctaCls =
     accent === "blue"
