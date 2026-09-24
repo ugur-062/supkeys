@@ -2,6 +2,7 @@ import { closingUrgency as closingUrgencyTr, daysUntil } from "@/lib/tenders/sel
 import { UNITS, companyActivityLabel, countryName as countryNameTr, provinceDisplayName } from "@rothern/shared";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
+import { formatDate } from "@/lib/format-date";
 import type { PriceLabels } from "@/lib/public/product-price";
 import type { SeoT } from "@/lib/seo/entities";
 import { INTL_LOCALE } from "./format";
@@ -40,6 +41,41 @@ export function cityDisplayName(city: string | null | undefined, locale: Locale)
 export function useCityLabel(): (city: string | null | undefined) => string {
   const locale = useLocale() as Locale;
   return (city) => cityDisplayName(city, locale);
+}
+
+/**
+ * Menü/rota etiketi (i18n Faz 2): `lib/company/portals.ts` etiketleri
+ * `web.panel.nav.*` anahtarıdır; kabuk `tn(item.label)` ile çizer. Anahtar
+ * dizisi tipsiz gelir (nav tanımı `label: string`) → `as never`.
+ */
+export function useNavLabel(): ((key: string) => string) & { has: (key: string) => boolean } {
+  const t = useTranslations("web.panel.nav");
+  return Object.assign((key: string) => t(key as never), { has: (key: string) => t.has(key as never) });
+}
+
+/** Rol etiketi (`web.domain.role.<KOD>`); bilinmeyen kod olduğu gibi. */
+export function useRoleLabel(): (code: string) => string {
+  const t = useTranslations("web.domain.role");
+  return (code) => (t.has(code as never) ? t(code as never) : code);
+}
+
+/**
+ * Göreli zaman ("az önce", "5 dk önce"; kısa biçim "5 dk") — bildirim ve mesaj
+ * kutuları. 7 günden eskisi kısa tarih. Anahtarlar `web.domain.relativeTime.*`.
+ */
+export function useRelativeTime(style: "ago" | "short" = "ago"): (iso: string | null | undefined) => string {
+  const t = useTranslations("web.domain.relativeTime");
+  return (iso) => {
+    if (!iso) return "";
+    const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
+    if (min < 1) return t("justNow");
+    if (min < 60) return t(style === "ago" ? "minutesAgo" : "minutes", { n: min });
+    const hr = Math.floor(min / 60);
+    if (hr < 24) return t(style === "ago" ? "hoursAgo" : "hours", { n: hr });
+    const day = Math.floor(hr / 24);
+    if (day < 7) return t(style === "ago" ? "daysAgo" : "days", { n: day });
+    return formatDate(iso, "short");
+  };
 }
 
 export function useActivityLabel(): (code: string) => string {

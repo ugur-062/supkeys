@@ -1,5 +1,6 @@
 "use client";
 
+import { useNavLabel } from "@/i18n/domain";
 import { MODULE_LABELS, PORTAL_SECONDARY_HREFS } from "@/lib/company/portals";
 import { listingTerms } from "@/lib/company/terms";
 import {
@@ -77,6 +78,7 @@ const STATUS_OPTIONS: { value: Exclude<TabKey, "all">; label: string }[] = [
 const PAGE_SIZE = 20;
 
 export function IhalelerView() {
+const tn = useNavLabel();
   // Sayaç/arama metinleri kayıt tipi sözlüğünden (tek kaynak).
   const t = listingTerms("ALIM");
   const secondary = PORTAL_SECONDARY_HREFS.satinalma;
@@ -216,7 +218,7 @@ export function IhalelerView() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={MODULE_LABELS.satinalma.ihalelerim}
+        title={tn(MODULE_LABELS.satinalma.ihalelerim)}
         description="Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın."
         action={
           <div className="flex flex-wrap items-center gap-2">

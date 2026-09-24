@@ -195,7 +195,7 @@ export function PanelHeroSearch({
   placeholder,
   action,
   chips = [],
-  chipsLabel = "Popüler",
+  chipsLabel: chipsLabelProp,
   ctaNote,
   backdrop = false,
   widgets,
@@ -288,6 +288,8 @@ export function PanelHeroSearch({
   onQueryChange?: (q: string) => void;
   ai?: PanelHeroAi;
 }) {
+  const t = useTranslations("web.marketplace.panelHome.panelHeroSearch");
+  const chipsLabel = chipsLabelProp ?? t("populer");
   const router = useRouter();
   const pathname = usePathname();
   const sp = useSearchParams();
@@ -315,7 +317,7 @@ export function PanelHeroSearch({
         { text: term, portal: ai.portal },
         {
           onSuccess: (r) => ai.onResult(r),
-          onError: (err) => toast.error(extractErrorMessage(err, "AI araması başarısız oldu — tekrar deneyin.")),
+          onError: (err) => toast.error(extractErrorMessage(err, t("aiAramasiBasarisizOlduTekrar"))),
         },
       );
       return;
@@ -345,8 +347,8 @@ export function PanelHeroSearch({
   const aiPlaceholder =
     ai?.placeholder ??
     (ai?.portal === "satis"
-      ? "Ne sattığınızı anlatın: ürün, kapasite, bölge…"
-      : "Ne aradığınızı anlatın: ürün, adet, şehir, teslim süresi, bütçe…");
+      ? t("neSattiginiziAnlatinUrunKapasite")
+      : t("neAradiginiziAnlatinUrunAdet"));
   const tone =
     accent === "blue"
       ? {
@@ -479,7 +481,7 @@ export function PanelHeroSearch({
           <div className="mt-7 flex items-center justify-center gap-2 text-sm">
             {!ai.enabled ? (
               <Link href="/company/premium" className="ml-1 text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
-                Silver ile açılır
+                {t("silverIleAcilir")}
               </Link>
             ) : null}
           </div>
@@ -505,7 +507,7 @@ export function PanelHeroSearch({
           {supplierScope && !aiActive ? (
             <div
               role="group"
-              aria-label="Arama kapsamı"
+              aria-label={t("aramaKapsami")}
               className="mx-auto mb-3 inline-flex rounded-full bg-white/70 p-1 shadow-sm ring-1 ring-zinc-950/5 backdrop-blur"
             >
               <button
@@ -521,7 +523,7 @@ export function PanelHeroSearch({
                 ) : (
                   <CubeIcon aria-hidden className="size-5" />
                 )}
-                {supplierScope.primaryLabel ?? "Ürün"}
+                {supplierScope.primaryLabel ?? t("urun")}
               </button>
               <button
                 type="button"
@@ -532,7 +534,7 @@ export function PanelHeroSearch({
                 }`}
               >
                 <BuildingOffice2Icon aria-hidden className="size-5" />
-                {supplierScope.label ?? "Firma"}
+                {supplierScope.label ?? t("firma")}
               </button>
             </div>
           ) : null}
@@ -558,7 +560,7 @@ export function PanelHeroSearch({
                 onKeyDown={onAiKey}
                 rows={2}
                 placeholder={aiPlaceholder}
-                aria-label="AI ile ara"
+                aria-label={t("aiIleAra")}
                 maxLength={500}
                 className="min-h-14 w-full flex-1 resize-none bg-transparent py-3 pr-3 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400"
               />
@@ -589,14 +591,14 @@ export function PanelHeroSearch({
                   type="button"
                   aria-pressed={aiActive}
                   disabled={!ai.enabled}
-                  title={ai.enabled ? undefined : "Silver ve üzeri paketlerde"}
+                  title={ai.enabled ? undefined : t("silverVeUzeriPaketlerde")}
                   onClick={() => ai.enabled && setAiMode(!aiMode)}
                   className={`mx-1 hidden h-12 shrink-0 items-center gap-2 rounded-full px-5 text-sm font-semibold transition disabled:cursor-not-allowed disabled:opacity-50 sm:inline-flex ${
                     aiActive ? tone.softOn : tone.soft
                   }`}
                 >
                   <SparklesIcon aria-hidden className="size-5" />
-                  {aiActive ? "Aramaya dön" : "AI ile ara"}
+                  {aiActive ? t("aramayaDon") : t("aiIleAra")}
                 </button>
               </>
             ) : null}
@@ -605,20 +607,20 @@ export function PanelHeroSearch({
               disabled={aiActive && intent.isPending}
               className={`inline-flex h-12 shrink-0 items-center gap-2 rounded-full px-7 text-sm font-semibold text-white transition focus-visible:outline-2 focus-visible:outline-offset-2 disabled:opacity-60 ${tone.btn}`}
             >
-              {aiActive ? (intent.isPending ? "Yorumlanıyor…" : "AI ile bul") : "Ara"}
+              {aiActive ? (intent.isPending ? t("yorumlaniyor") : t("aiIleBul")) : t("ara")}
               {!aiActive ? <ArrowRightIcon aria-hidden className="size-4" /> : null}
             </button>
           </div>
           {aiActive ? (
             <p className="mt-2 text-xs text-zinc-500">
-              Örnek: &ldquo;İstanbul'a teslim, 50 adet 400 kVAr kompanzasyon panosu, doğrulanmış üretici&rdquo; — AI süzgeçleri kurar, sonuçlar aşağıda listelenir.
+              {t("ornekIstanbulaTeslim")}
             </p>
           ) : null}
 
           {open && hasSug ? (
             <div
               role="listbox"
-              aria-label="Öneriler"
+              aria-label={t("oneriler")}
               className="absolute inset-x-0 top-full z-20 mt-2 overflow-hidden rounded-2xl bg-white text-left shadow-xl ring-1 ring-zinc-950/10"
             >
               {suggestions

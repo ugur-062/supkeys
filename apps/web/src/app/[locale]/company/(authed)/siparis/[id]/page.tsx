@@ -1,5 +1,6 @@
 "use client";
 
+import { useNavLabel } from "@/i18n/domain";
 import { Button } from "@/components/catalyst/button";
 import { Heading } from "@/components/catalyst/heading";
 import {
@@ -77,6 +78,7 @@ function SummaryRow({
 }
 
 export default function OrderDetailPage() {
+const tn = useNavLabel();
   const params = useParams<{ id: string }>();
   const id = params.id;
   const { user } = useCompanyAuth();
@@ -399,7 +401,7 @@ export default function OrderDetailPage() {
           className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
         >
           <ArrowLeftIcon className="h-4 w-4" />
-          {routeLabel(ordersHref) ?? "Siparişlerim"}
+          {tn(routeLabel(ordersHref) ?? "satinalma.siparisler")}
         </Link>
         <div className="flex flex-wrap items-center gap-2">
           {o.number ? (

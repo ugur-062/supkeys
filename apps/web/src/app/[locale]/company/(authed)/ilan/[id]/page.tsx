@@ -1,5 +1,6 @@
 "use client";
 
+import { useNavLabel } from "@/i18n/domain";
 import { countryName, scopeLabel } from "@rothern/shared";
 import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-note";
 import { AuctionLiveCard } from "./_components/auction-live-card";
@@ -203,6 +204,7 @@ export default function ListingDetailPage() {
       ? rawFrom
       : null;
   const fromLabel = searchParams.get("fromLabel");
+  const tn = useNavLabel();
   // Faz 2: hook koşulsuz çağrılmalı — erken dönüşlerin ARDINDA çağırmak
   // rules-of-hooks ihlali (render'lar arası hook sırası değişir).
   const saveToCatalog = useImportListingToCatalog();
@@ -1772,7 +1774,7 @@ export default function ListingDetailPage() {
       className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
     >
       <ArrowLeftIcon className="h-4 w-4" />
-      {fromHref ? (fromLabel ?? "Firma profili") : defaultBack.label}
+      {fromHref ? (fromLabel ? (tn.has(fromLabel as never) ? tn(fromLabel as never) : fromLabel) : "Firma profili") : defaultBack.label}
     </Link>
   );
 

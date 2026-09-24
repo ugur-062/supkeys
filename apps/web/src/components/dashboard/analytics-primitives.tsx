@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import {
   ArrowDownRight,
@@ -43,6 +44,7 @@ export function TrendBadge({
    */
   periodLabel?: string;
 }) {
+  const t = useTranslations("web.panel.shell.analyticsPrimitives");
   if (pct == null) return null;
   const up = pct > 0;
   const flat = pct === 0;
@@ -50,11 +52,11 @@ export function TrendBadge({
   // C23: küçük tabandan gelen ham yüzdeler ("%20623") anlamsız — tavan.
   const capped = Math.abs(pct) > 999;
   const pctLabel = capped ? ">999" : String(Math.abs(pct));
-  const basis = periodLabel ?? "Önceki döneme göre";
-  const change = flat ? "değişim yok" : up ? "artış" : "azalış";
+  const basis = periodLabel ?? t("oncekiDonemeGore");
+  const change = flat ? t("degisimYok") : up ? t("artis") : t("azalis");
   const title = [
-    `${basis} %${pctLabel} ${change}`,
-    capped ? `Gerçek değer: %${Math.abs(pct)}` : null,
+    t("degisimBasligi", { basis, pct: pctLabel, change }),
+    capped ? t("gercekDeger", { abs: Math.abs(pct) }) : null,
   ]
     .filter(Boolean)
     .join(" · ");
@@ -69,7 +71,7 @@ export function TrendBadge({
             : "bg-rose-50 text-rose-700",
         className,
       )}
-      aria-label={`${basis} yüzde ${pctLabel} ${change}`}
+      aria-label={t("yuzde", { basis: basis, pctLabel: pctLabel, change: change })}
       title={title}
     >
       <Icon className="h-3 w-3" aria-hidden />%{pctLabel}
@@ -178,6 +180,7 @@ export function ChartCard({
    *  "son 12 ay") — sessizce farklı aralık kullanan kart kalmasın. */
   rangeBadge?: string;
 }) {
+  const t = useTranslations("web.panel.shell.analyticsPrimitives");
   return (
     <section className={cn(DASH_CARD, className)} aria-label={ariaLabel}>
       <div className="flex items-start justify-between gap-2">
@@ -198,7 +201,7 @@ export function ChartCard({
         {href ? (
           <Link
             href={href}
-            aria-label={`${title} — listeye git`}
+            aria-label={t("listeyeGit", { title: title })}
             className="rounded p-1 text-slate-400 transition hover:bg-slate-50 hover:text-slate-700"
           >
             <ArrowRight className="h-4 w-4" aria-hidden />
@@ -276,10 +279,11 @@ export function FunnelChart({
   accent?: "blue" | "emerald";
   formatValue?: (n: number) => string;
 }) {
+  const t = useTranslations("web.panel.shell.analyticsPrimitives");
   const max = Math.max(1, ...stages.map((s) => s.count));
   const tones = FUNNEL_TONES[accent];
   return (
-    <ol className="space-y-2" aria-label="Süreç hunisi">
+    <ol className="space-y-2" aria-label={t("surecHunisi")}>
       {stages.map((s, i) => {
         const prev = i > 0 ? stages[i - 1]!.count : null;
         const conv =
@@ -319,7 +323,7 @@ export function FunnelChart({
             {s.href ? (
               <Link
                 href={s.href}
-                aria-label={`${s.label} — listeye git`}
+                aria-label={t("listeyeGit2", { label: s.label })}
                 className="block rounded-md px-1 py-0.5 -mx-1 transition hover:bg-slate-50"
               >
                 {inner}

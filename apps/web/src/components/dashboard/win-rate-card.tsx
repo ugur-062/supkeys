@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
 import { DASH } from "@/lib/dashboard/strings";
 import { Trophy } from "lucide-react";
@@ -14,6 +15,7 @@ const MIN_DECIDED_FOR_RATE = 10;
  * GÖSTERİLMEZ; yanıltıcı %100/%0 yerine eşik notu çıkar.
  */
 export function WinRateCard() {
+  const t = useTranslations("web.panel.shell.winRateCard");
   const analytics = useSatisAnalytics("year");
 
   if (analytics.isLoading) {
@@ -32,8 +34,8 @@ export function WinRateCard() {
       className="flex flex-wrap items-center gap-x-3 gap-y-1 rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm shadow-sm"
       aria-label={
         decided >= MIN_DECIDED_FOR_RATE
-          ? `Kazanma oranı yüzde ${Math.round((won / decided) * 100)} — son 12 ayda karara bağlanan ${decided} teklifin ${won} tanesi kazandı`
-          : "Kazanma oranı için henüz yeterli veri yok"
+          ? t("kazanmaOraniYuzdeSon12", { round: Math.round((won / decided) * 100), decided: decided, won: won })
+          : t("kazanmaOraniIcinHenuzYeterli")
       }
     >
       <Trophy className="h-4 w-4 shrink-0 text-emerald-600" aria-hidden />
@@ -43,21 +45,19 @@ export function WinRateCard() {
             {DASH.heroWinTitle(String(Math.round((won / decided) * 100)))}
           </span>
           <span className="text-slate-500">
-            {DASH.heroWinSupport(won, decided)} · son 12 ay
+            {t("son12Ay", { heroWinSupport: DASH.heroWinSupport(won, decided) })}
           </span>
         </>
       ) : (
         <span className="text-slate-500">
-          Anlamlı oran için en az {MIN_DECIDED_FOR_RATE} karara bağlanmış teklif
-          gerekir
-          {decided > 0 ? ` — şu ana kadar ${decided}` : ""}.
+          {t("anlamliOran", { min: MIN_DECIDED_FOR_RATE, decided })}
         </span>
       )}
       <Link
         href="/company/satis/tekliflerim"
         className="ml-auto shrink-0 text-xs font-semibold text-slate-500 underline hover:text-slate-900"
       >
-        Tekliflerim
+        {t("tekliflerim")}
       </Link>
     </div>
   );

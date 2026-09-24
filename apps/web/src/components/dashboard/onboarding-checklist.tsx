@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { DASH_CARD } from "@/components/dashboard/analytics-primitives";
 import { cn } from "@/lib/utils";
 import { CheckCircle2, Circle } from "lucide-react";
@@ -16,14 +17,15 @@ export function OnboardingChecklist({
 }: {
   steps: { key: string; label: string; done: boolean; href: string }[];
 }) {
+  const t = useTranslations("web.panel.shell.onboardingChecklist");
   const accent = useButtonAccent();
   const doneCount = steps.filter((st) => st.done).length;
   const pct = Math.round((doneCount / Math.max(1, steps.length)) * 100);
   const next = steps.find((st) => !st.done);
   return (
-    <section className={DASH_CARD} aria-label="Başlangıç kontrol listesi">
+    <section className={DASH_CARD} aria-label={t("baslangicKontrolListesi")}>
       <div className="flex items-baseline justify-between gap-2">
-        <h2 className="text-sm font-medium text-slate-500">Başlangıç</h2>
+        <h2 className="text-sm font-medium text-slate-500">{t("baslangic")}</h2>
         <span className="text-xs tabular-nums text-slate-400">
           {doneCount}/{steps.length}
         </span>
@@ -31,7 +33,7 @@ export function OnboardingChecklist({
       <div
         className="mt-2 h-2 overflow-hidden rounded-full bg-slate-100"
         role="progressbar"
-        aria-label="Başlangıç ilerlemesi"
+        aria-label={t("baslangicIlerlemesi")}
         aria-valuenow={pct}
         aria-valuemin={0}
         aria-valuemax={100}
@@ -69,7 +71,7 @@ export function OnboardingChecklist({
             accentFillClass(accent),
           )}
         >
-          Sıradaki adım: {next.label}
+          {t("siradakiAdim", { label: next.label })}
         </Link>
       ) : null}
     </section>

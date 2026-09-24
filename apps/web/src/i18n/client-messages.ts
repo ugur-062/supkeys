@@ -33,6 +33,24 @@ export function omitPaths(messages: AbstractIntlMessages, paths: readonly string
   return out;
 }
 
+/**
+ * PANEL AD ALANI (i18n Faz 2): `web.panel.*` yalnız giriş yapılmış panelde
+ * okunur — binlerce metin herkese açık sayfaların RSC/HTML yüküne girmesin
+ * diye kök sağlayıcı bunu da ayıklar; `company/(authed)/layout.tsx` (sunucu)
+ * paneli `panelMessages()` ile İÇ İÇE ikinci bir sağlayıcıya sarar. Herkese
+ * açık yüzeyle paylaşılan bileşen (`components/marketplace`, `components/
+ * marketing`, herkese açık sayfalar) `web.panel` OKUYAMAZ —
+ * `client-messages.test` dosya sisteminden zorunlu tutar.
+ */
+export const PANEL_NAMESPACES = ["web.panel"] as const;
+
 export function clientMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
-  return omitPaths(messages, SERVER_ONLY_NAMESPACES);
+  return omitPaths(messages, [...SERVER_ONLY_NAMESPACES, ...PANEL_NAMESPACES]);
+}
+
+/** Panel sağlayıcısının mesajları: kök istemci mesajları + `web.panel`. */
+export function panelMessages(messages: AbstractIntlMessages): AbstractIntlMessages {
+  const base = clientMessages(messages) as Record<string, unknown>;
+  const web = (messages.web ?? {}) as Record<string, unknown>;
+  return { ...base, web: { ...(base.web as Record<string, unknown>), panel: web.panel ?? {} } } as unknown as AbstractIntlMessages;
 }

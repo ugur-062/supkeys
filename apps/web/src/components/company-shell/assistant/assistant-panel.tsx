@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatDate } from "@/lib/format-date";
 import { useAiUsage } from "@/hooks/use-ai-usage";
 import {
@@ -60,14 +61,11 @@ interface LocalMsg {
 }
 
 /** Bekleme sırasında dönüşümlü durum metinleri — asistan "canlı" hissettirsin. */
-const THINKING_PHRASES = [
-  "Düşünüyorum…",
-  "Bilgilere bakıyorum…",
-  "Yanıtı hazırlıyorum…",
-];
+const THINKING_PHRASES = ["dusunuyorum", "bilgilereBakiyorum", "yanitiHazirliyorum"] as const;
 
 /** Yanıt beklerken üç zıplayan nokta + dönüşümlü durum metni. */
 function ThinkingBubble() {
+  const tp = useTranslations("web.panel.shell.assistantPanel");
   const t = tone(useButtonAccent());
   const [phrase, setPhrase] = useState(0);
   useEffect(() => {
@@ -94,7 +92,7 @@ function ThinkingBubble() {
         </span>
         {/* key remount → rt-fade-in ile yumuşak metin geçişi */}
         <span key={phrase} className="rt-fade-in text-xs text-zinc-500">
-          {THINKING_PHRASES[phrase]}
+          {tp(THINKING_PHRASES[phrase])}
         </span>
       </div>
     </div>
@@ -134,26 +132,26 @@ function TypewriterMarkdown({
 
 // Metinler aynen korunur (submit'e aynı string gider) — yalnız ikon eşleşir.
 const SUGGESTIONS = [
-  { label: "Satın Alma Taleplerimi göster", icon: Gavel },
-  { label: "Yeni satın alma talebi açmak istiyorum", icon: Plus },
-  { label: "Son siparişlerim", icon: Package },
-  { label: "Açık satın alma taleplerini ara", icon: Search },
+  { label: "oneriTaleplerimiGoster", icon: Gavel },
+  { label: "oneriYeniTalep", icon: Plus },
+  { label: "oneriSonSiparislerim", icon: Package },
+  { label: "oneriAcikTalepleriAra", icon: Search },
 ] as const;
 const TOOL_LABEL: Record<string, string> = {
-  list_my_tenders: "Satın Alma Taleplerinize baktım",
-  search_open_tenders: "Açık satın alma taleplerini aradım",
-  get_tender_detail: "Satın Alma Talebi detayına baktım",
-  list_my_orders: "Siparişlerinize baktım",
-  get_order_detail: "Sipariş detayına baktım",
-  list_my_connections: "Bağlantılarınıza baktım",
-  list_my_bids: "Tekliflerinize baktım",
-  propose_tender_draft: "Satın Alma Talebi taslağını hazırladım",
-  request_send_invites: "Davet önerisi hazırladım",
-  request_publish_tender: "Yayınlama önerisi hazırladım",
-  request_eliminate_bid: "Eleme önerisi hazırladım",
-  request_award_tender: "Kazandırma önerisi hazırladım",
-  request_place_bid: "Teklif önerisi hazırladım",
-  request_mark_order_received: "Teslim alma önerisi hazırladım",
+  list_my_tenders: "tool.list_my_tenders",
+  search_open_tenders: "tool.search_open_tenders",
+  get_tender_detail: "tool.get_tender_detail",
+  list_my_orders: "tool.list_my_orders",
+  get_order_detail: "tool.get_order_detail",
+  list_my_connections: "tool.list_my_connections",
+  list_my_bids: "tool.list_my_bids",
+  propose_tender_draft: "tool.propose_tender_draft",
+  request_send_invites: "tool.request_send_invites",
+  request_publish_tender: "tool.request_publish_tender",
+  request_eliminate_bid: "tool.request_eliminate_bid",
+  request_award_tender: "tool.request_award_tender",
+  request_place_bid: "tool.request_place_bid",
+  request_mark_order_received: "tool.request_mark_order_received",
 };
 
 function initials(first?: string, last?: string): string {
@@ -183,6 +181,7 @@ export function AssistantPanel({
   wide?: boolean;
   onToggleWide?: () => void;
 }) {
+  const tr = useTranslations("web.panel.shell.assistantPanel");
   const { user } = useCompanyAuth();
   const router = useRouter();
   const t = tone(useButtonAccent());
@@ -310,7 +309,7 @@ export function AssistantPanel({
         {
           id: `err-${m.length}`,
           role: "ASSISTANT",
-          content: extractErrorMessage(err, "Şu an yanıt veremedim — lütfen tekrar deneyin."),
+          content: extractErrorMessage(err, tr("suAnYanitVeremedimLutfen")),
           typed: true,
         },
       ]);
@@ -350,7 +349,7 @@ export function AssistantPanel({
         {
           id: `act-err-${m.length}`,
           role: "ASSISTANT" as const,
-          content: extractErrorMessage(err, "İşlem gerçekleştirilemedi."),
+          content: extractErrorMessage(err, tr("islemGerceklestirilemedi")),
           typed: true,
         },
       ]);
@@ -387,16 +386,16 @@ export function AssistantPanel({
           </div>
           <div className="min-w-0 leading-tight">
             <p className="truncate text-sm font-semibold text-zinc-900">
-              Rothern Asistanı
+              {tr("rothernAsistani")}
             </p>
             {/* Alt satır yalnız kullanım uyarısında görünür (yeşil nokta zaten
                 çevrimiçi durumunu anlatıyor). */}
             {nearLimit ? (
               <p
                 className="truncate text-xs font-medium text-warning-600"
-                title="Aylık AI kullanımınız sınıra yaklaştı"
+                title={tr("aylikAiKullaniminizSiniraYaklasti")}
               >
-                Kullanım sınıra yakın
+                {tr("kullanimSiniraYakin")}
               </p>
             ) : null}
           </div>
@@ -407,13 +406,13 @@ export function AssistantPanel({
             onClick={startNew}
             className="flex items-center gap-1 rounded-full border border-zinc-950/10 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
           >
-            <Plus className="h-3.5 w-3.5" /> Yeni sohbet
+            <Plus className="h-3.5 w-3.5" /> {tr("yeniSohbet")}
           </button>
           <button
             type="button"
             onClick={() => setShowHistory((s) => !s)}
-            aria-label="Geçmiş sohbetler"
-            title="Geçmiş sohbetler"
+            aria-label={tr("gecmisSohbetler")}
+            title={tr("gecmisSohbetler")}
             className={cn(
               "flex h-8 w-8 items-center justify-center rounded-full transition-colors hover:bg-zinc-100 hover:text-zinc-900",
               showHistory ? "bg-zinc-100 text-brand-700" : "text-zinc-500",
@@ -424,8 +423,8 @@ export function AssistantPanel({
           {onToggleWide ? (
             <button
               type="button"
-              aria-label={wide ? "Paneli daralt" : "Paneli genişlet"}
-              title={wide ? "Daralt" : "Genişlet"}
+              aria-label={wide ? tr("paneliDaralt") : tr("paneliGenislet")}
+              title={wide ? tr("daralt") : tr("genislet")}
               onClick={onToggleWide}
               className="hidden h-8 w-8 items-center justify-center rounded-full text-zinc-500 transition-colors hover:bg-zinc-100 hover:text-zinc-900 sm:flex"
             >
@@ -441,7 +440,7 @@ export function AssistantPanel({
               <span className="mx-0.5 h-5 w-px bg-zinc-950/10" />
               <button
                 type="button"
-                aria-label="Kapat"
+                aria-label={tr("kapat")}
                 onClick={onClose}
                 className="flex h-8 w-8 items-center justify-center rounded-full text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-700"
               >
@@ -456,7 +455,7 @@ export function AssistantPanel({
         <div className="rt-fade-in border-b border-zinc-950/10 bg-surface-subtle">
           <div className="flex items-center justify-between px-4 pb-1 pt-2.5">
             <p className="text-xs font-medium uppercase tracking-wider text-zinc-400">
-              Geçmiş sohbetler
+              {tr("gecmisSohbetler")}
             </p>
             {(sessions.data ?? []).length > 0 ? (
               <span className="text-xs tabular-nums text-zinc-400">
@@ -470,7 +469,7 @@ export function AssistantPanel({
                 <MessageSquareText className="h-4 w-4" />
               </span>
               <p className="text-xs text-zinc-400">
-                Henüz kayıtlı sohbet yok — ilk mesajınızla oluşur.
+                {tr("henuzKayitliSohbetYokIlk")}
               </p>
             </div>
           ) : (
@@ -506,17 +505,17 @@ export function AssistantPanel({
                           : "text-zinc-700",
                       )}
                     >
-                      {s.title ?? "Sohbet"}
+                      {s.title ?? tr("sohbet")}
                     </p>
                     <p className="truncate text-xs text-zinc-400">
                       {formatDate(s.lastMessageAt, "datetime")}
                       {" · "}
-                      {s.turnCount} yazışma
+                      {tr("yazisma", { n: s.turnCount })}
                     </p>
                   </button>
                   <button
                     type="button"
-                    aria-label="Sil"
+                    aria-label={tr("sil")}
                     onClick={() => {
                       void del.mutateAsync(s.id);
                       if (sessionId === s.id) startNew();
@@ -548,25 +547,24 @@ export function AssistantPanel({
               </div>
             </div>
             <p className="mt-3 text-xs font-medium uppercase tracking-widest text-zinc-400">
-              Rothern Asistanı
+              {tr("rothernAsistani")}
             </p>
             <p className="mt-1 text-base font-semibold tracking-tight text-zinc-900">
-              Size nasıl yardımcı olabilirim?
+              {tr("sizeNasilYardimciOlabilirim")}
             </p>
             <p className="mt-1 max-w-xs text-sm text-zinc-500">
-              Satın Alma Taleplerinizi sorun, belge yükleyin ya da konuşarak yeni satın alma talebi
-              açın.
+              {tr("satinAlmaTalepleriniziSorunBelge")}
             </p>
             <div className="mt-5 flex flex-wrap justify-center gap-2">
               {SUGGESTIONS.map((s) => (
                 <button
                   key={s.label}
                   type="button"
-                  onClick={() => void submit(s.label)}
+                  onClick={() => void submit(tr(s.label))}
                   className="group flex items-center gap-2 rounded-full border border-zinc-950/10 bg-surface-subtle px-3 py-1.5 text-xs font-medium text-zinc-600 shadow-sm transition-all duration-200 hover:-translate-y-0.5 hover:border-zinc-300 hover:bg-white hover:text-zinc-900 hover:shadow-md active:translate-y-0 active:shadow-sm"
                 >
                   <s.icon className="h-3.5 w-3.5 text-zinc-400 transition-colors group-hover:text-brand-600" />
-                  {s.label}
+                  {tr(s.label)}
                 </button>
               ))}
             </div>
@@ -649,7 +647,7 @@ export function AssistantPanel({
                       className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-xs font-medium text-zinc-500 ring-1 ring-zinc-950/5"
                     >
                       <Check className="h-3 w-3 text-success-500" />
-                      {TOOL_LABEL[t] ?? t}
+                      {TOOL_LABEL[t] ? tr(TOOL_LABEL[t] as never) : t}
                     </span>
                   ))}
                 </div>
@@ -662,14 +660,14 @@ export function AssistantPanel({
                     <span className={cn("flex h-6 w-6 items-center justify-center rounded-md text-white", t.solid)}>
                       <FileText className="h-3.5 w-3.5" />
                     </span>
-                    Satın Alma Talebi Taslağı
+                    {tr("talepTaslagi")}
                   </p>
                   <ul className="mt-2 space-y-1 text-xs">
                     {m.draft.draft.title ? (
                       <li className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
                         <span className="text-zinc-500">
-                          Başlık:{" "}
+                          {tr("baslik")}{" "}
                           <span className="font-medium text-zinc-800">
                             {m.draft.draft.title}
                           </span>
@@ -680,7 +678,7 @@ export function AssistantPanel({
                       <li className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
                         <span className="font-medium text-zinc-800">
-                          {m.draft.draft.items.filter((i) => i.name).length} kalem
+                          {tr("kalem", { n: m.draft.draft.items.filter((i) => i.name).length })}
                         </span>
                       </li>
                     ) : null}
@@ -688,7 +686,7 @@ export function AssistantPanel({
                       <li className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
                         <span className="text-zinc-500">
-                          Teslim:{" "}
+                          {tr("teslim")}{" "}
                           <span className="font-medium text-zinc-800">
                             {m.draft.draft.deliveryTerm}
                           </span>
@@ -699,7 +697,7 @@ export function AssistantPanel({
                       <li className="flex items-start gap-2">
                         <span className="mt-1.5 h-1 w-1 shrink-0 rounded-full bg-zinc-300" />
                         <span className="text-zinc-500">
-                          Kapanış:{" "}
+                          {tr("kapanis")}{" "}
                           <span className="font-medium text-zinc-800">
                             {formatDate(m.draft.draft.bidsCloseAt, "short")}
                           </span>
@@ -709,7 +707,7 @@ export function AssistantPanel({
                   </ul>
                   {m.draft.missingRequired.length > 0 ? (
                     <p className="mt-2 rounded-lg bg-warning-50 px-2 py-1.5 text-xs text-warning-600">
-                      Eksik: {m.draft.missingRequired.join(", ")}
+                      {tr("eksik", { join: m.draft.missingRequired.join(", ") })}
                     </p>
                   ) : null}
                   <button
@@ -717,7 +715,7 @@ export function AssistantPanel({
                     onClick={() => openTenderForm(m.draft!)}
                     className={cn("group mt-3 flex w-full items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-colors", t.fill)}
                   >
-                    Satın Alma Talebi formunu aç
+                    {tr("satinAlmaTalebiFormunuAc")}
                     <ArrowRight className="h-3.5 w-3.5 transition-transform group-hover:translate-x-0.5" />
                   </button>
                 </div>
@@ -749,7 +747,7 @@ export function AssistantPanel({
                         <Check className="h-3.5 w-3.5" />
                       )}
                     </span>
-                    Onayınız gerekiyor
+                    {tr("onayinizGerekiyor")}
                   </p>
                   <ul className="mt-2 space-y-1 text-xs">
                     {m.pending.summary.map((line, i) => (
@@ -762,8 +760,8 @@ export function AssistantPanel({
                   {m.pendingResolved ? (
                     <p className="mt-3 rounded-lg bg-surface-subtle px-2 py-1.5 text-xs text-zinc-500">
                       {m.pendingResolved === "executed"
-                        ? "✓ Onaylandı ve gerçekleştirildi"
-                        : "İptal edildi"}
+                        ? tr("onaylandiVeGerceklestirildi")
+                        : tr("iptalEdildi")}
                     </p>
                   ) : (
                     <div className="mt-3 flex gap-2">
@@ -778,7 +776,7 @@ export function AssistantPanel({
                             : t.fill,
                         )}
                       >
-                        {action.isPending ? "Yürütülüyor…" : "Onayla"}
+                        {action.isPending ? tr("yurutuluyor") : tr("onayla")}
                       </button>
                       <button
                         type="button"
@@ -786,7 +784,7 @@ export function AssistantPanel({
                         onClick={() => decideAction(m.id, m.pending!, "reject")}
                         className="flex-1 rounded-lg px-3 py-2 text-xs font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-300 transition-colors hover:bg-zinc-50 disabled:opacity-60"
                       >
-                        Vazgeç
+                        {tr("vazgec")}
                       </button>
                     </div>
                   )}
@@ -802,7 +800,7 @@ export function AssistantPanel({
       {suggestNew ? (
         <p className="flex items-center gap-2 border-t border-warning-500/20 bg-warning-50 px-4 py-2 text-xs text-warning-600">
           <Info className="h-3.5 w-3.5 shrink-0" />
-          Bu sohbet uzadı — daha iyi sonuç için yeni bir sohbet başlatabilirsiniz.
+          {tr("buSohbetUzadiDahaIyi")}
         </p>
       ) : null}
 
@@ -811,7 +809,7 @@ export function AssistantPanel({
         {quotaFull ? (
           <p className="flex items-center gap-2 rounded-xl border border-zinc-950/10 bg-surface-subtle px-3 py-2.5 text-sm text-zinc-600">
             <Info className="h-4 w-4 shrink-0 text-zinc-400" />
-            Aylık AI bütçeniz doldu — ay sonunda yenilenir.
+            {tr("aylikAiButcenizDolduAy")}
           </p>
         ) : (
           <>
@@ -827,7 +825,7 @@ export function AssistantPanel({
                     <button
                       type="button"
                       onClick={() => setFiles(files.filter((_, j) => j !== i))}
-                      aria-label="Kaldır"
+                      aria-label={tr("kaldir")}
                       className="text-zinc-400 transition-colors hover:text-danger-500"
                     >
                       <X className="h-3 w-3" />
@@ -852,8 +850,8 @@ export function AssistantPanel({
                 type="button"
                 onClick={() => fileRef.current?.click()}
                 disabled={send.isPending}
-                aria-label="Belge ekle"
-                title="Satın Alma Talebi belgesi ekle"
+                aria-label={tr("belgeEkle")}
+                title={tr("satinAlmaTalebiBelgesiEkle")}
                 className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-800 disabled:opacity-40"
               >
                 <Paperclip className="h-4 w-4" />
@@ -869,7 +867,7 @@ export function AssistantPanel({
                   }
                 }}
                 rows={1}
-                placeholder="Bir şey sorun veya satın alma talebi açın…"
+                placeholder={tr("birSeySorunVeyaSatin")}
                 disabled={send.isPending}
                 className="max-h-56 flex-1 resize-none bg-transparent px-2 py-1.5 text-sm placeholder:text-zinc-400 focus:outline-none"
               />
@@ -877,7 +875,7 @@ export function AssistantPanel({
                 type="button"
                 onClick={() => void submit()}
                 disabled={send.isPending || (!input.trim() && files.length === 0)}
-                aria-label="Gönder"
+                aria-label={tr("gonder")}
                 className={cn("flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-white shadow-sm transition-all duration-200 enabled:hover:shadow-md disabled:bg-zinc-200 disabled:text-zinc-400 disabled:shadow-none", t.fill)}
               >
                 <Send className="h-4 w-4" />

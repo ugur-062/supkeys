@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { PanelCompanyCard } from "@/components/company/market/panel-company-index";
 import { MarketGridSkeleton } from "@/components/company/market/market-list-layout";
 import { useCompanySearch } from "@/hooks/use-company-directory";
@@ -17,6 +18,7 @@ import { Link } from "@/i18n/navigation";
  * açık (buy:view | sell:view).
  */
 export function HomeCompanyList({ portal }: { portal: PortalKey }) {
+  const t = useTranslations("web.marketplace.panelHome.homeCompanyList");
   // Dizinin ilk sayfası (sunucu sayfa boyu); anasayfada ilk 12 satır yeter.
   const result = useCompanySearch({});
   const data = result.data;
@@ -27,7 +29,7 @@ export function HomeCompanyList({ portal }: { portal: PortalKey }) {
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-2">
         <span className="flex min-w-0 flex-wrap items-baseline gap-x-3 gap-y-1">
           <h2 id="home-company-list-title" className="text-xl font-semibold tracking-tight text-zinc-950">
-            Firmalar
+            {t("firmalar")}
           </h2>
           {data ? <span className="tnum text-sm text-zinc-500">{total.toLocaleString("tr-TR")} firma</span> : null}
         </span>
@@ -35,14 +37,14 @@ export function HomeCompanyList({ portal }: { portal: PortalKey }) {
           href={all}
           className="inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-700 hover:text-zinc-950"
         >
-          Tümünü gör
+          {t("tumunuGor")}
           <ArrowRight aria-hidden className="size-4" />
         </Link>
       </div>
       {result.isLoading ? (
         <MarketGridSkeleton count={4} variant="company" />
       ) : !data || data.items.length === 0 ? (
-        <p className="text-sm text-zinc-500">Henüz listelenen firma yok.</p>
+        <p className="text-sm text-zinc-500">{t("henuzListelenenFirmaYok")}</p>
       ) : (
         <ul className="space-y-4">
           {data.items.slice(0, 12).map((c) => (

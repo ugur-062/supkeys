@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { hasAnySeatPermission } from "@/lib/company/permissions";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
@@ -36,6 +37,7 @@ const GREET_HIDE_MS = 6_000;
  * güvenlik backend'de — bu UX katmanı). Panel açık değilken içerik mount edilmez.
  */
 export function AssistantLauncher() {
+  const t = useTranslations("web.panel.shell.assistantLauncher");
   const accent = useButtonAccent();
   const { user, company } = useCompanyAuth();
   const [open, setOpen] = useState(false);
@@ -100,7 +102,7 @@ export function AssistantLauncher() {
           <div className="relative rounded-2xl rounded-br-sm border border-brand-200 bg-white p-3.5 shadow-xl shadow-brand-900/10">
             <button
               type="button"
-              aria-label="Karşılama mesajını kapat"
+              aria-label={t("karsilamaMesajiniKapat")}
               onClick={() => setGreet(false)}
               className="absolute right-2 top-2 text-zinc-300 hover:text-zinc-500"
             >
@@ -109,16 +111,15 @@ export function AssistantLauncher() {
             <button
               type="button"
               onClick={openPanel}
-              aria-label="Asistan panelini aç"
+              aria-label={t("asistanPaneliniAc")}
               className="text-left"
             >
               <p className="flex items-center gap-2 text-sm font-semibold text-brand-700">
-                <Sparkles className="h-4 w-4" /> Rothern Asistanı
+                <Sparkles className="h-4 w-4" /> {t("rothernAsistani")}
               </p>
               <p className="mt-1 pr-3 text-sm text-zinc-600">
-                {user.firstName ? `Merhaba ${user.firstName}.` : "Merhaba."}{" "}
-                Size nasıl yardımcı olabilirim? Satın alma talebi açabilir, belge okuyabilir
-                ya da sorularınızı yanıtlayabilirim.
+                {user.firstName ? t("merhaba", { firstName: user.firstName }) : t("merhaba2")}{" "}
+                {t("yardimMetni")}
               </p>
             </button>
           </div>
@@ -127,7 +128,7 @@ export function AssistantLauncher() {
 
       <button
         type="button"
-        aria-label="AI Asistan"
+        aria-label={t("aiAsistan")}
         onClick={openPanel}
         className={cn(
           "group fixed z-40 flex items-center justify-center rounded-full",
@@ -179,7 +180,7 @@ export function AssistantLauncher() {
       {open ? (
         <aside
           role="complementary"
-          aria-label="Rothern Asistanı"
+          aria-label={t("rothernAsistani")}
           className={cn(
             "fixed inset-y-0 right-0 z-50 flex w-screen flex-col border-l border-zinc-950/10 bg-white shadow-2xl",
             wide ? "max-w-2xl" : "max-w-md",

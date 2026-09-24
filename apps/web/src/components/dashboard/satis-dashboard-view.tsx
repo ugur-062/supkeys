@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { hasAnySeatPermission } from "@/lib/company/permissions";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
 import { CtaBand } from "@/components/dashboard/cta-band";
@@ -33,6 +34,7 @@ import { useEffect, useMemo, useState } from "react";
  * hâliyle yaşıyor, anasayfa açık taleplere ayrıldı.
  */
 export function SatisDashboardView() {
+  const t = useTranslations("web.panel.shell.satisDashboardView");
   const { company, user } = useCompanyAuth();
   const router = useRouter();
 
@@ -107,15 +109,15 @@ export function SatisDashboardView() {
     const buyers = [...buyerMap.entries()]
       .sort((a, b) => b[1].n - a[1].n)
       .slice(0, 3)
-      .map(([id, e]) => ({ key: id, label: e.name, meta: `${e.n} açık talep`, href: `/company/satis?alici=${id}#acik-talepler` }));
+      .map(([id, e]) => ({ key: id, label: e.name, meta: t("acikTalep", { n: e.n }), href: `/company/satis?alici=${id}#acik-talepler` }));
     const secs = sectorCounts
       .filter((c) => hit(c.name))
       .slice(0, 3)
-      .map((c) => ({ key: c.id, label: c.name, meta: `${c.count} açık talep`, href: `/company/satis?kategori=${c.id}#acik-talepler` }));
+      .map((c) => ({ key: c.id, label: c.name, meta: t("acikTalep2", { count: c.count }), href: `/company/satis?kategori=${c.id}#acik-talepler` }));
     return [
-      { label: "Açık talepler", rows },
-      { label: "Alıcılar", rows: buyers },
-      { label: "Sektörler", rows: secs },
+      { label: t("acikTalepler"), rows },
+      { label: t("alicilar"), rows: buyers },
+      { label: t("sektorler"), rows: secs },
     ];
   }, [q, tenders.data, sectorCounts]);
 
@@ -130,20 +132,20 @@ export function SatisDashboardView() {
       <PanelHeroSearch
         /* Üst etiket "AÇIK" olmadan (kullanıcı kararı 2026-09-08): panelde
            listelenen zaten açık talepler, sıfat gürültü. */
-        eyebrow="Satın alma talepleri"
+        eyebrow={t("satinAlmaTalepleri")}
         /* 2026-09-17, kullanıcı kararı: başlık tek renk (siyah), vurgu yok. */
-        title="Hangi talebe teklif vereceksiniz?"
+        title={t("hangiTalebeTeklifVereceksiniz")}
         plainTitle
-        lead="Kategorinize uygun açık talepler — kapalı zarf, birbirini görmeyen teklifler; kazandırma tek tabloda."
-        placeholder="Talep, talep numarası veya firma arayın"
+        lead={t("kategorinizeUygunAcikTaleplerKapali")}
+        placeholder={t("talepTalepNumarasiVeyaFirma")}
         action="/company/satis"
         /* Aynı kutu iki dizine gider (2026-09-10, kullanıcı isteği —
            satınalmadaki Ürün|Tedarikçi anahtarının satış karşılığı):
            "Talep" → açık talepler listesi, "Firma" → satış firma dizini. */
         supplierScope={{
           action: SELLER_MARKET.companies,
-          placeholder: "Firma adı, şehir ya da aldığı kategori arayın",
-          label: "Firma",
+          placeholder: t("firmaAdiSehirYaDa"),
+          label: t("firma"),
           primaryLabel: "Talep",
           primaryIcon: "clipboard",
         }}
@@ -170,9 +172,9 @@ export function SatisDashboardView() {
 
       <CtaBand
         icon={<PackagePlus aria-hidden className="size-5" strokeWidth={1.75} />}
-        title="Ürününüz vitrinde mi?"
-        body="Ürünlerinizi fiyat ve minimum sipariş bilgisiyle yayımlayın; alıcılar bulsun, bilgi talebi göndersin."
-        cta={{ label: "Ürün ekle", href: "/company/satis/urunlerim?yeni=1" }}
+        title={t("urununuzVitrindeMi")}
+        body={t("urunleriniziFiyatVeMinimumSiparis")}
+        cta={{ label: t("urunEkle"), href: "/company/satis/urunlerim?yeni=1" }}
         tone="primary"
       />
 

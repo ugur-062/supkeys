@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ProductCard } from "@/components/marketplace/product-card";
 import { useDiscoverSearch } from "@/hooks/use-portal-discovery";
 import { PANEL_MARKET, panelProductPath } from "@/lib/company/panel-market";
@@ -33,6 +34,7 @@ const LIMIT = 16;
  * Şerit boşsa bölüm HİÇ çizilmez — boş kutu basmayız.
  */
 export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
+  const t = useTranslations("web.panel.shell.panelRecommendations");
   const [term, setTerm] = useState<string | undefined>(undefined);
   const [ready, setReady] = useState(mode === "fresh");
   useEffect(() => {
@@ -54,12 +56,12 @@ export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
 
   const copy =
     mode === "fresh"
-      ? { title: "Yeni eklenen ürünler", lead: "Tedarikçilerin vitrinlerine en son eklediği ürünler." }
+      ? { title: t("yeniEklenenUrunler"), lead: t("tedarikcilerinVitrinlerineEnSonEkledigi") }
       : term
-        ? { title: "Aramalarınıza göre", lead: `Son aradığınız “${term}” ile eşleşen tedarikçi ürünleri.` }
+        ? { title: t("aramalarinizaGore"), lead: t("sonAradiginizIleEslesenTedarikci", { term: term }) }
         : {
-            title: "Size uygun ürünler",
-            lead: "Alım kategorilerinizle örtüşen tedarikçi ürünleri.",
+            title: t("sizeUygunUrunler"),
+            lead: t("alimKategorilerinizleOrtusenTedarikciUrunler"),
           };
 
   return (
@@ -81,7 +83,7 @@ export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
           }
           className="inline-flex items-center gap-1 text-sm font-semibold text-blue-700 hover:text-blue-800"
         >
-          Tümünü gör
+          {t("tumunuGor")}
           <ArrowRight aria-hidden className="size-4" />
         </Link>
       </div>
@@ -125,6 +127,7 @@ export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
  * odaklanabilir (`tabIndex`) ve ok tuşlarıyla kayar.
  */
 function CardRail({ children }: { children: ReactNode }) {
+  const t = useTranslations("web.panel.shell.panelRecommendations");
   const ref = useRef<HTMLUListElement>(null);
   const [edge, setEdge] = useState<{ start: boolean; end: boolean }>({ start: true, end: false });
 
@@ -155,7 +158,7 @@ function CardRail({ children }: { children: ReactNode }) {
         ref={ref}
         onScroll={measure}
         tabIndex={0}
-        aria-label="Ürün şeridi"
+        aria-label={t("urunSeridi")}
         // `scroll-pl-*` ŞART: ilk kartın snap noktası scrollLeft=0'da
         // olmazsa Chrome yüklenişte kaydırır ve o scroll olayı LCP
         // raporunu keser (2026-09-04'te ölçüldü).
@@ -185,13 +188,14 @@ function RailButton({
   disabled: boolean;
   onClick: () => void;
 }) {
+  const t = useTranslations("web.panel.shell.panelRecommendations");
   const Icon = side === "left" ? ChevronLeft : ChevronRight;
   return (
     <button
       type="button"
       onClick={onClick}
       disabled={disabled}
-      aria-label={side === "left" ? "Geri kaydır" : "İleri kaydır"}
+      aria-label={side === "left" ? t("geriKaydir") : t("ileriKaydir")}
       className={`absolute top-[5.5rem] z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-zinc-700 shadow-md ring-1 ring-zinc-950/10 transition hover:bg-zinc-50 disabled:pointer-events-none disabled:opacity-0 sm:flex ${
         side === "left" ? "left-3" : "right-3"
       }`}

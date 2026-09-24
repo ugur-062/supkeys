@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { DashPeriod } from "@/hooks/use-dashboard-params";
 import { cn } from "@/lib/utils";
 import { useState } from "react";
@@ -12,10 +13,10 @@ import { useState } from "react";
  */
 
 const OPTIONS: { value: DashPeriod; label: string }[] = [
-  { value: "month", label: "Bu Ay" },
-  { value: "quarter", label: "Bu Çeyrek" },
-  { value: "year", label: "Bu Yıl" },
-  { value: "custom", label: "Özel" },
+  { value: "month", label: "buAy" },
+  { value: "quarter", label: "buCeyrek" },
+  { value: "year", label: "buYil" },
+  { value: "custom", label: "ozel" },
 ];
 
 export function PeriodControls({
@@ -33,6 +34,7 @@ export function PeriodControls({
     to?: string | null;
   }) => void;
 }) {
+  const t = useTranslations("web.panel.shell.periodControls");
   // Taslak tarihler — yalnız "Uygula" URL'e yazar (yarım aralık gezinmez).
   const [draftFrom, setDraftFrom] = useState(from ?? "");
   const [draftTo, setDraftTo] = useState(to ?? "");
@@ -50,7 +52,7 @@ export function PeriodControls({
       // ekran okuyucu "sekme 1/2" diyerek olmayan bir panel vaat ediyordu.
       // Doğru semantik: basılı-durumlu düğme grubu.
       role="group"
-          aria-label="Dönem"
+          aria-label={t("donem")}
           className="inline-flex rounded-lg bg-zinc-200/70 p-0.5 text-xs font-semibold ring-1 ring-zinc-950/10"
         >
           {OPTIONS.map((opt) => {
@@ -82,7 +84,7 @@ export function PeriodControls({
                     : "text-zinc-600 hover:text-zinc-900",
                 )}
               >
-                {opt.label}
+                {t(opt.label as never)}
               </button>
             );
           })}
@@ -92,7 +94,7 @@ export function PeriodControls({
       {customOpen ? (
         <div className="absolute right-0 top-full z-20 mt-2 flex flex-wrap items-center gap-2 rounded-lg border border-zinc-200 bg-white px-3 py-2 shadow-lg">
           <label className="flex items-center gap-1.5 text-xs text-zinc-600">
-            <span>Başlangıç</span>
+            <span>{t("baslangic")}</span>
             <input
               type="date"
               value={draftFrom}
@@ -102,7 +104,7 @@ export function PeriodControls({
             />
           </label>
           <label className="flex items-center gap-1.5 text-xs text-zinc-600">
-            <span>Bitiş</span>
+            <span>{t("bitis")}</span>
             <input
               type="date"
               value={draftTo}
@@ -120,7 +122,7 @@ export function PeriodControls({
             }}
             className="rounded-md bg-zinc-900 px-2.5 py-1.5 text-xs font-semibold text-white transition hover:bg-zinc-800 disabled:opacity-40"
           >
-            Uygula
+            {t("uygula")}
           </button>
         </div>
       ) : null}

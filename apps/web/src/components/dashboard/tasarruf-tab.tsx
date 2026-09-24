@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   Bar,
   BarChart,
@@ -65,20 +66,8 @@ interface Props {
   analytics?: SatinalmaAnalytics;
 }
 
-const TOOLTIP_SAVINGS =
-  "İhalelerdeki tüm kalemler için, kalem bazında En iyi ilk teklif ve En iyi son teklif arasındaki farkın, ilgili kalem miktarıyla çarpılıp toplanması ile elde edilir.";
-const TOOLTIP_VOLUME =
-  "Kazandırılan satın alma taleplerinde, kazanan kalemlerin (birim fiyat × miktar) toplamı.";
-const TOOLTIP_RATE =
-  "Toplam tasarruf / toplam işlem hacmi oranı. Genel verimlilik göstergesi.";
-const TOOLTIP_TOP5 =
-  "Seçilen dönemde, kalem-bazlı tasarruf hesabıyla bulduğumuz en yüksek tasarruflu 5 satın alma talebi.";
-const TOOLTIP_CATEGORY =
-  "Kategori bazında ortalama tasarruf oranı (en az 1 kazandırılmış satın alma talebi olan kategoriler).";
-const TOOLTIP_CURRENCY =
-  "Satın Alma Talebi ana para birimine göre tasarruf oranı (TRY karşılığı baz alınır).";
-
 export function TasarrufTab({ data, period, analytics }: Props) {
+  const t = useTranslations("web.panel.shell.tasarrufTab");
   // Maliyet kırılımında çeyrek agregatı yok — yıl gösterilir (etiketli, uydurma yok).
   const costPeriod: "month" | "year" = period === "month" ? "month" : "year";
 
@@ -102,9 +91,9 @@ export function TasarrufTab({ data, period, analytics }: Props) {
       {/* Tasarruf trendi: aylık bar + kümülatif çizgi (yalnız TRY ihaleler). */}
       <div className="grid grid-cols-1 gap-4">
         <ChartCard
-          title="Tasarruf Trendi"
-          subtitle="Aylık tasarruf (bar) + kümülatif (çizgi) — TRY satın alma talepleri; hedef verisi platformda yok"
-          ariaLabel="Aylık tasarruf trendi"
+          title={t("tasarrufTrendi")}
+          subtitle={t("aylikTasarrufBarKumulatifCizgi")}
+          ariaLabel={t("aylikTasarrufTrendi")}
         >
           {analytics && analytics.savingsTrend.some((p) => p.value > 0) ? (
             <div className="h-52">
@@ -113,7 +102,7 @@ export function TasarrufTab({ data, period, analytics }: Props) {
                   <CartesianGrid vertical={false} stroke="#e2e8f0" />
                   <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
                   <YAxis tickLine={false} axisLine={false} width={48} tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                  <Tooltip formatter={(v, n) => [formatTRY(Number(v ?? 0)), n === "value" ? "Aylık" : "Kümülatif"]} />
+                  <Tooltip formatter={(v, n) => [formatTRY(Number(v ?? 0)), n === "value" ? t("aylik") : t("kumulatif")]} />
                   <Bar dataKey="value" fill="#2563eb" radius={[3, 3, 0, 0]} />
                   <Line type="monotone" dataKey="cumulative" stroke="#1e3a8a" strokeWidth={1.5} dot={false} isAnimationActive={false} />
                 </ComposedChart>
@@ -121,9 +110,9 @@ export function TasarrufTab({ data, period, analytics }: Props) {
             </div>
           ) : (
             <DashboardEmptyState
-              title="Henüz tasarruf verisi yok"
-              body="İlk satın alma talebinizi sonuçlandırdığınızda (hedef fiyatlı kalemlerle) aylık tasarruf burada birikecek."
-              ctaLabel="Satın Alma Talebi Aç"
+              title={t("henuzTasarrufVerisiYok")}
+              body={t("ilkSatinAlmaTalebiniziSonuclandirdiginizda")}
+              ctaLabel={t("satinAlmaTalebiAc")}
               ctaHref="/company/satinalma/taleplerim/yeni"
             />
           )}
@@ -137,21 +126,21 @@ export function TasarrufTab({ data, period, analytics }: Props) {
       <section className="card p-6">
         <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
           <Metric
-            label="Toplam Tasarrufum"
+            label={t("toplamTasarrufum")}
             value={formatTRY(metrics.totalSavings)}
-            tooltip={TOOLTIP_SAVINGS}
+            tooltip={t("tooltipSavings")}
             accent="success"
           />
           <Metric
-            label="Toplam İşlem Hacmim"
+            label={t("toplamIslemHacmim")}
             value={formatTRY(metrics.totalVolume)}
-            tooltip={TOOLTIP_VOLUME}
+            tooltip={t("tooltipVolume")}
             accent="brand"
           />
           <Metric
-            label="Ortalama Tasarruf Oranım"
+            label={t("ortalamaTasarrufOranim")}
             value={formatPercent(metrics.averageSavingsRate)}
-            tooltip={TOOLTIP_RATE}
+            tooltip={t("tooltipRate")}
             accent="indigo"
           />
         </div>
@@ -162,13 +151,13 @@ export function TasarrufTab({ data, period, analytics }: Props) {
         <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-semibold text-zinc-950">
-              En Yüksek Tasarruflu 5 Satın Alma Talebim
+              {t("enYuksekTasarruflu5Satin")}
             </h2>
-            <InfoTooltip content={TOOLTIP_TOP5} />
+            <InfoTooltip content={t("tooltipTop5")} />
           </div>
           <span className="flex items-center gap-2 text-xs text-slate-500">
             <span aria-hidden className="h-2 w-2 rounded-full bg-success-500" />
-            En yüksek tasarruflu satın alma talebi
+            {t("enYuksekTasarruflu")}
           </span>
         </header>
 
@@ -208,7 +197,7 @@ export function TasarrufTab({ data, period, analytics }: Props) {
               >
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke="var(--color-slate-200, #e2e8f0)"
+                  stroke={t("varColorSlate200E2e8f0")}
                 />
                 <XAxis
                   dataKey="rank"
@@ -231,17 +220,17 @@ export function TasarrufTab({ data, period, analytics }: Props) {
                     fontSize: 12,
                   }}
                   formatter={(v) => [formatTRY(Number(v)), "Tasarruf"]}
-                  labelFormatter={(rank) => `#${String(rank)}. Satın Alma Talebi`}
+                  labelFormatter={(rank) => t("satinAlmaTalebi", { String: String(rank) })}
                 />
                 <Bar
                   dataKey="amount"
-                  fill="var(--color-success-500, #10b981)"
+                  fill={t("varColorSuccess50010b981")}
                   radius={[6, 6, 0, 0]}
                 />
               </BarChart>
             </ResponsiveContainer>
             <p className="mt-1 text-right text-xs font-medium text-slate-500">
-              Tasarruf Tutarı
+              {t("tasarrufTutari")}
             </p>
           </div>
         </div>
@@ -250,8 +239,8 @@ export function TasarrufTab({ data, period, analytics }: Props) {
       {/* 2 yatay-bar kart */}
       <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <BreakdownCard
-          title="Ana Kategori Bazlı Tasarrufum"
-          tooltip={TOOLTIP_CATEGORY}
+          title={t("anaKategoriBazliTasarrufum")}
+          tooltip={t("tooltipCategory")}
           rows={categoryRows.map((r) => {
             const amt = analytics?.categorySavings.find(
               (c) => c.label === r.label,
@@ -265,8 +254,8 @@ export function TasarrufTab({ data, period, analytics }: Props) {
           color="brand"
         />
         <BreakdownCard
-          title="Ana Para Birimi Bazlı Tasarrufum"
-          tooltip={TOOLTIP_CURRENCY}
+          title={t("anaParaBirimiBazliTasarrufum")}
+          tooltip={t("tooltipCurrency")}
           rows={currencyRows}
           color="indigo"
         />

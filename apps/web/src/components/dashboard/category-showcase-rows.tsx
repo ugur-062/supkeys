@@ -4,7 +4,7 @@ import { CategoryTile } from "@/components/marketplace/category-tile";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { categoryVisual } from "@/lib/public/category-visual";
 import { useSegmentTagline } from "@/i18n/domain";
-import { useFormatter } from "next-intl";
+import { useFormatter, useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { Link } from "@/i18n/navigation";
@@ -67,7 +67,7 @@ export function toShowcaseRows(all: ShowcaseCategory[], rows = 3, perRow = 10): 
 export function CategoryShowcaseRows({
   rows,
   hrefFor,
-  countNoun = "ürün",
+  countNoun: countNounProp,
   ctaLabel,
   visual = "photo",
 }: {
@@ -83,6 +83,8 @@ export function CategoryShowcaseRows({
    */
   visual?: "photo" | "icon";
 }) {
+  const t = useTranslations("web.marketplace.panelHome.categoryShowcaseRows");
+  const countNoun = countNounProp ?? t("urun");
   if (rows.length === 0) return null;
   return (
     <div className="space-y-6">

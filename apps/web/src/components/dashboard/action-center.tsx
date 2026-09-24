@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   useActionCenter,
   type ActionCenterApiRow,
@@ -45,33 +46,38 @@ const SEVERITY_META: Record<
     cls: "bg-rose-50 text-rose-600",
     label: "kritik",
   },
-  warning: { icon: Clock3, cls: "bg-amber-50 text-amber-600", label: "uyarı" },
+  warning: { icon: Clock3, cls: "bg-amber-50 text-amber-600", label: "uyari" },
   info: { icon: Info, cls: "bg-slate-100 text-slate-500", label: "bilgi" },
 };
 
 const DAY_MS = 86_400_000;
 
-/** Takvim günü bazlı zaman etiketi — "bugün / yarın / N gün kaldı" vb. */
-function timeLabel(r: ActionCenterApiRow): string | null {
-  if (r.overdueDays != null) {
-    return r.overdueDays === 0 ? "bugün gecikti" : `${r.overdueDays} gün gecikti`;
-  }
-  if (r.dueAt) {
-    const due = new Date(r.dueAt);
-    const startOfToday = new Date();
-    startOfToday.setHours(0, 0, 0, 0);
-    const days = Math.floor((due.getTime() - startOfToday.getTime()) / DAY_MS);
-    if (days <= 0) return "bugün";
-    if (days === 1) return "yarın";
-    return `${days} gün kaldı`;
-  }
-  if (r.waitingDays != null && r.waitingDays > 0) {
-    return `${r.waitingDays} gündür bekliyor`;
-  }
-  return null;
+/** Takvim günü bazlı zaman etiketi — "bugün / yarın / N gün kaldı" vb. (hook: dil bilir). */
+function useTimeLabel(): (r: ActionCenterApiRow) => string | null {
+  const t = useTranslations("web.panel.shell.actionCenter");
+  return (r) => {
+    if (r.overdueDays != null) {
+      return r.overdueDays === 0 ? t("bugunGecikti") : t("gunGecikti", { n: r.overdueDays });
+    }
+    if (r.dueAt) {
+      const due = new Date(r.dueAt);
+      const startOfToday = new Date();
+      startOfToday.setHours(0, 0, 0, 0);
+      const days = Math.floor((due.getTime() - startOfToday.getTime()) / DAY_MS);
+      if (days <= 0) return t("bugun");
+      if (days === 1) return t("yarin");
+      return t("gunKaldi", { n: days });
+    }
+    if (r.waitingDays != null && r.waitingDays > 0) {
+      return t("gundurBekliyor", { n: r.waitingDays });
+    }
+    return null;
+  };
 }
 
 export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
+  const t = useTranslations("web.panel.shell.actionCenter");
+  const timeLabel = useTimeLabel();
   const query = useActionCenter(portal);
   const unread = useUnreadMessages(portal);
   const [expanded, setExpanded] = useState(false);
@@ -88,8 +94,8 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
   if (query.isError) {
     return (
       <ErrorState
-        title="Aksiyon merkezi yüklenemedi"
-        message="Bekleyen işleriniz alınamadı — bu listenin boş olduğu anlamına GELMEZ."
+        title={t("aksiyonMerkeziYuklenemedi")}
+        message={t("bekleyenIslerinizAlinamadiBuListenin")}
         onRetry={() => void query.refetch()}
       />
     );
@@ -117,7 +123,7 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
   return (
     <section
       className="rounded-xl border border-slate-200 bg-white p-0 shadow-sm"
-      aria-label="Aksiyon merkezi"
+      aria-label={t("aksiyonMerkezi")}
     >
       <h2 className="border-b border-slate-100 px-5 py-3 text-sm font-medium text-slate-500">
         {DASH.actionTitle}
@@ -135,13 +141,13 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
                 zemin + sağa kayan ok. */}
             {visible.map((r) => {
               const meta = SEVERITY_META[r.severity];
-              const t = texts[r.key]!;
+              const tx = texts[r.key]!;
               const time = timeLabel(r);
               return (
                 <li key={r.key}>
                   <Link
-                    href={t.href}
-                    aria-label={`${r.count} ${t.text}${time ? ` — ${time}` : ""}`}
+                    href={tx.href}
+                    aria-label={`${r.count} ${tx.text}${time ? ` — ${time}` : ""}`}
                     className="group flex items-center gap-3 px-5 py-3 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:bg-slate-50"
                   >
                     <span
@@ -149,7 +155,7 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
                         "flex h-8 w-8 shrink-0 items-center justify-center rounded-lg transition-transform group-hover:scale-105",
                         meta.cls,
                       )}
-                      title={meta.label}
+                      title={t(meta.label as never)}
                     >
                       <meta.icon className="h-4 w-4" aria-hidden />
                     </span>
@@ -157,7 +163,7 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
                       <strong className="font-semibold tabular-nums text-slate-950">
                         {r.count}
                       </strong>{" "}
-                      <span className="group-hover:text-slate-950">{t.text}</span>
+                      <span className="group-hover:text-slate-950">{tx.text}</span>
                       {time ? (
                         <span
                           className={cn(
@@ -212,6 +218,8 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
  * göstermek, kullanıcıya geciken siparişi kaçırtır.
  */
 export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
+  const t = useTranslations("web.panel.shell.actionCenter");
+  const timeLabel = useTimeLabel();
   const query = useActionCenter(portal);
   const unread = useUnreadMessages(portal);
   const [open, setOpen] = useState(false);
@@ -220,8 +228,8 @@ export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
   if (query.isError) {
     return (
       <ErrorState
-        title="Bekleyen işler yüklenemedi"
-        message="Bu listenin boş olduğu anlamına GELMEZ."
+        title={t("bekleyenIslerYuklenemedi")}
+        message={t("buListeninBosOlduguAnlamina")}
         onRetry={() => void query.refetch()}
       />
     );
@@ -286,7 +294,7 @@ export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
           aria-expanded={open}
           className="ml-auto text-sm font-semibold text-zinc-500 hover:text-zinc-900"
         >
-          {open ? "Gizle" : `Tümü (${known.length})`}
+          {open ? t("gizle") : t("tumu", { length: known.length })}
         </button>
       </div>
       {/* Açılınca AYNI bileşen: tek veri, tek sıralama, tek metin haritası. */}

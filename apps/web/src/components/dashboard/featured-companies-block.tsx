@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { CompanyCard } from "@/components/marketplace/company-card";
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
@@ -15,18 +16,19 @@ import { Link } from "@/i18n/navigation";
 export const FEATURED_COMPANIES_LIMIT = 4;
 
 export function FeaturedCompaniesBlock() {
+  const t = useTranslations("web.panel.shell.featuredCompaniesBlock");
   const dir = useCompanySearch({ verified: true, hasProducts: true }, true);
   const items = (dir.data?.items ?? []).filter((c) => c.connectionStatus !== "self").slice(0, FEATURED_COMPANIES_LIMIT);
   if (!dir.isLoading && items.length === 0) return null;
   return (
-    <section aria-label="Doğrulanmış tedarikçiler">
+    <section aria-label={t("dogrulanmisTedarikciler")}>
       <div className="flex flex-wrap items-end justify-between gap-3">
         <div>
-          <h2 className="text-lg font-semibold tracking-tight text-zinc-950">Doğrulanmış tedarikçiler</h2>
-          <p className="mt-1 text-sm text-zinc-500">Kimliği doğrulanmış, vitrini dolu firmalar.</p>
+          <h2 className="text-lg font-semibold tracking-tight text-zinc-950">{t("dogrulanmisTedarikciler")}</h2>
+          <p className="mt-1 text-sm text-zinc-500">{t("kimligiDogrulanmisVitriniDoluFirmalar")}</p>
         </div>
         <Link href="/company/satinalma/tedarikcilerim" className="inline-flex items-center gap-1 text-sm font-semibold text-zinc-900 hover:text-zinc-600">
-          Tüm firmalar
+          {t("tumFirmalar")}
           <ArrowRightIcon aria-hidden className="size-4" />
         </Link>
       </div>

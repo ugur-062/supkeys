@@ -1,22 +1,19 @@
-"use client";
+import { NextIntlClientProvider } from "next-intl";
+import { getMessages } from "next-intl/server";
+import { panelMessages } from "@/i18n/client-messages";
+import { CompanyAuthedLayoutClient } from "./authed-layout-client";
 
-import { CompanyShell } from "@/components/company-shell/shell";
-import { RequireCompanyAuth } from "@/components/providers/company-auth-hydration";
-import { ConfirmProvider } from "@/components/providers/confirm-dialog";
-import { RealtimeProvider } from "@/components/providers/realtime-provider";
-
-export default function CompanyAuthedLayout({
-  children,
-}: {
-  children: React.ReactNode;
-}) {
+/**
+ * Panel düzeni SUNUCUDA başlar: kök sağlayıcı `web.panel` mesajlarını
+ * taşımaz (herkese açık sayfaların yükü); burada `panelMessages()` ile
+ * panel metinleri de dahil ikinci sağlayıcı kurulur. Kabuk ve kapılar
+ * `authed-layout-client.tsx` içinde (istemci).
+ */
+export default async function CompanyAuthedLayout({ children }: { children: React.ReactNode }) {
+  const messages = panelMessages(await getMessages());
   return (
-    <RequireCompanyAuth>
-      <RealtimeProvider>
-        <ConfirmProvider>
-          <CompanyShell>{children}</CompanyShell>
-        </ConfirmProvider>
-      </RealtimeProvider>
-    </RequireCompanyAuth>
+    <NextIntlClientProvider messages={messages}>
+      <CompanyAuthedLayoutClient>{children}</CompanyAuthedLayoutClient>
+    </NextIntlClientProvider>
   );
 }

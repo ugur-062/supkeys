@@ -1,5 +1,7 @@
 "use client";
 
+import { useNavLabel } from "@/i18n/domain";
+import { useTranslations } from "next-intl";
 import { tierAtLeast } from "@rothern/shared";
 import {
   useCompanyAuth,
@@ -139,6 +141,8 @@ export function CompanySidebarContent({
   showPin?: boolean;
   onNavigate?: () => void;
 }) {
+  const t = useTranslations("web.panel.shell.sidebar");
+  const tn = useNavLabel();
   const pathname = usePathname();
   const { company, user } = useCompanyAuth();
   const setLastPortal = usePortalStore((s) => s.setLastPortal);
@@ -196,12 +200,12 @@ export function CompanySidebarContent({
           <Link
             href="/company/satinalma/taleplerim/yeni"
             onClick={onNavigate}
-            title={expanded ? undefined : "Satın Alma Talebi Aç"}
+            title={expanded ? undefined : t("satinAlmaTalebiAc")}
             className="flex h-9 items-center justify-center gap-2 rounded-lg bg-blue-600 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-700"
           >
             <PlusIcon className="size-4 shrink-0" aria-hidden />
             {expanded ? (
-              <span className="truncate">Satın Alma Talebi Aç</span>
+              <span className="truncate">{t("satinAlmaTalebiAc")}</span>
             ) : null}
           </Link>
         </div>
@@ -217,7 +221,7 @@ export function CompanySidebarContent({
               "mb-2 flex items-center gap-2.5 rounded-xl bg-zinc-50 ring-1 ring-zinc-950/5",
               expanded ? "px-2.5 py-2" : "justify-center p-1.5",
             )}
-            title={expanded ? undefined : COMPANY_AREA.label}
+            title={expanded ? undefined : tn(COMPANY_AREA.label)}
           >
             <span className="flex size-8 shrink-0 items-center justify-center rounded-lg bg-zinc-900 text-[11px] font-semibold text-white">
               {(company?.name ?? "?")
@@ -228,7 +232,7 @@ export function CompanySidebarContent({
             </span>
             {expanded ? (
               <span className="min-w-0">
-                <span className="block text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">{COMPANY_AREA.label}</span>
+                <span className="block text-[10px] font-semibold tracking-wide text-zinc-500 uppercase">{tn(COMPANY_AREA.label)}</span>
                 <span className="block truncate text-sm font-semibold text-zinc-900">{company?.name ?? "—"}</span>
               </span>
             ) : null}
@@ -241,7 +245,7 @@ export function CompanySidebarContent({
               key={item.href}
               href={item.href}
               icon={item.icon}
-              label={item.label}
+              label={tn(item.label)}
               active={
                 inCompanyArea && item.href === COMPANY_AREA.basePath
                   ? pathname === COMPANY_AREA.basePath
@@ -264,7 +268,7 @@ export function CompanySidebarContent({
           <RailItem
             href="/company/onaylar"
             icon={ShieldCheckIcon}
-            label="Onaylar"
+            label={t("onaylar")}
             active={isPortalItemActive("/company/onaylar", pathname)}
             accent="zinc"
             expanded={expanded}
@@ -280,7 +284,7 @@ export function CompanySidebarContent({
         <RailItem
           href="/company/ayarlar"
           icon={Cog6ToothIcon}
-          label="Ayarlar"
+          label={t("ayarlar")}
           active={pathname?.startsWith("/company/ayarlar") ?? false}
           accent="zinc"
           expanded={expanded}
@@ -290,7 +294,7 @@ export function CompanySidebarContent({
           <button
             type="button"
             onClick={togglePinned}
-            title={pinned ? "Menüyü serbest bırak" : "Menüyü sabitle"}
+            title={pinned ? t("menuyuSerbestBirak") : t("menuyuSabitle")}
             className="flex h-9 w-full items-center gap-3 rounded-lg px-2.5 text-xs font-medium text-zinc-500 transition-colors hover:bg-zinc-950/5 hover:text-zinc-700"
           >
             <span className="ml-0.5 shrink-0">
@@ -306,7 +310,7 @@ export function CompanySidebarContent({
                 expanded ? "opacity-100" : "opacity-0",
               )}
             >
-              {pinned ? "Sabitlemeyi kaldır" : "Menüyü sabitle"}
+              {pinned ? t("sabitlemeyiKaldir") : t("menuyuSabitle")}
             </span>
           </button>
         ) : null}

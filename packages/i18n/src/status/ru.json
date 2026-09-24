@@ -1324,6 +1324,66 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.domain.relativeTime.days": {
+    "hash": "9e9a6e7a8c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.domain.relativeTime.daysAgo": {
+    "hash": "42dd1ee87c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.domain.relativeTime.hours": {
+    "hash": "437480817a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.domain.relativeTime.hoursAgo": {
+    "hash": "3f6186cb00",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.domain.relativeTime.justNow": {
+    "hash": "b04fc7f5dd",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.domain.relativeTime.minutes": {
+    "hash": "6d8e038e73",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.domain.relativeTime.minutesAgo": {
+    "hash": "b0ede4c5d3",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.domain.role.ONAYLAYICI": {
+    "hash": "0f48e55792",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.domain.role.SAHIP": {
+    "hash": "fd0da64627",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.domain.role.SATIN_ALMACI": {
+    "hash": "c57863a550",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.domain.role.SATISCI": {
+    "hash": "1e5d030c46",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.domain.role.YONETICI": {
+    "hash": "8459a48382",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "web.domain.scope.allCountries": {
     "hash": "5e25452046",
     "status": "reviewed",
@@ -5344,6 +5404,106 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketplace.panelHome.categoryShowcaseRows.urun": {
+    "hash": "0ea47b098a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.homeCompanyList.firmalar": {
+    "hash": "04011c28e7",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.homeCompanyList.henuzListelenenFirmaYok": {
+    "hash": "831bef838d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.homeCompanyList.tumunuGor": {
+    "hash": "50b9542fa6",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.aiAramasiBasarisizOlduTekrar": {
+    "hash": "014d2fa6f5",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.aiIleAra": {
+    "hash": "267cc3ad2b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.aiIleBul": {
+    "hash": "37fdda18d8",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.ara": {
+    "hash": "b07bcee1b9",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.aramaKapsami": {
+    "hash": "e2139be362",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.aramayaDon": {
+    "hash": "15cef06fcc",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.firma": {
+    "hash": "439145df69",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.neAradiginiziAnlatinUrunAdet": {
+    "hash": "3ebb380b12",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.neSattiginiziAnlatinUrunKapasite": {
+    "hash": "822fed471d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.oneriler": {
+    "hash": "3c3ff2a38f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.ornekIstanbulaTeslim": {
+    "hash": "1ef906bd3a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.populer": {
+    "hash": "8cae837dee",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.silverIleAcilir": {
+    "hash": "dfa67a189a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.silverVeUzeriPaketlerde": {
+    "hash": "202b2a6205",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.urun": {
+    "hash": "1337647cb6",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.yorumlaniyor": {
+    "hash": "fc11885a78",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "web.marketplace.popularChips.all": {
     "hash": "217f639378",
     "status": "reviewed",
@@ -5813,6 +5973,1841 @@
     "hash": "12717b8a35",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.panel.nav.common.companies": {
+    "hash": "04011c28e7",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.common.connections": {
+    "hash": "0e7d9962c9",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.common.home": {
+    "hash": "174e79e435",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.extra.ayarlar": {
+    "hash": "e3258c515a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.extra.bildirimler": {
+    "hash": "ef68bc829c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.extra.ilanDetayi": {
+    "hash": "88524dfc04",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.extra.onaylar": {
+    "hash": "905babc77a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.extra.premium": {
+    "hash": "06af7e890e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.extra.premiumSatinAl": {
+    "hash": "7ce1a6ff7d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.extra.profil": {
+    "hash": "669fe25a32",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.extra.siparisDetayi": {
+    "hash": "7b70bcc270",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.portal.satinalma": {
+    "hash": "0c38b30a09",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.portal.satinalmaHome": {
+    "hash": "876c495a7d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.portal.satis": {
+    "hash": "9b63204eb2",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.portal.satisHome": {
+    "hash": "4324c8e20f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.satinalma.bilgiTaleplerim": {
+    "hash": "50fd3bfc5d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.satinalma.sablonlar": {
+    "hash": "c3a55a3ba7",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.satinalma.siparisler": {
+    "hash": "ca352bac2b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.satinalma.taleplerim": {
+    "hash": "c8dfc1b03f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.satinalma.urunler": {
+    "hash": "066f02264c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.satis.bilgiTalepleri": {
+    "hash": "91015ec72e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.satis.satislarim": {
+    "hash": "5de1ad8cf4",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.satis.tekliflerim": {
+    "hash": "8681449c24",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.satis.urunlerim": {
+    "hash": "fc437582a5",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.sirketim.overview": {
+    "hash": "7cb01d65a7",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.sirketim.overviewCrumb": {
+    "hash": "c281b9f251",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.sirketim.profile": {
+    "hash": "669fe25a32",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.sirketim.reports": {
+    "hash": "4d9a09b8b4",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.sirketim.title": {
+    "hash": "fdb1968d9f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.nav.sirketim.visitors": {
+    "hash": "15d5eefbc7",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.aksiyonMerkezi": {
+    "hash": "30d1d37017",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.aksiyonMerkeziYuklenemedi": {
+    "hash": "2fae47ed5f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.bekleyenIslerinizAlinamadiBuListenin": {
+    "hash": "15c733dca4",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.bekleyenIslerYuklenemedi": {
+    "hash": "0a4bf5958d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.bilgi": {
+    "hash": "dc1bfd2f73",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.bugun": {
+    "hash": "ee4b8f9c60",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.bugunGecikti": {
+    "hash": "91f58b24a3",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.buListeninBosOlduguAnlamina": {
+    "hash": "310bcabd1b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.gizle": {
+    "hash": "3c92047542",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.gundurBekliyor": {
+    "hash": "07c3f1a998",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.gunGecikti": {
+    "hash": "36d122a06b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.gunKaldi": {
+    "hash": "9b8b164201",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.kritik": {
+    "hash": "e8cac9147e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.tumu": {
+    "hash": "fd767d8d7f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.uyari": {
+    "hash": "cde2bd7c85",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.actionCenter.yarin": {
+    "hash": "168b542221",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.aiAramaYorumu": {
+    "hash": "0968735df5",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.aiButcenizin80Doldu": {
+    "hash": "e19fcb1187",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.aiYorumunuKapat": {
+    "hash": "7e3cb1a962",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.buTanimlaTalepAc": {
+    "hash": "d220f1de36",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.kategoriBulunamadiKenar": {
+    "hash": "bb8b3a1ba1",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.relaxedActivity": {
+    "hash": "f04c703235",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.relaxedCategory": {
+    "hash": "94487aa0fd",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.relaxedCity": {
+    "hash": "76e927cf8f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.relaxedKategoriAd": {
+    "hash": "645d770824",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.relaxedPriceMax": {
+    "hash": "f132cd9992",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.relaxedQuantity": {
+    "hash": "13f39a2865",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.relaxedQuery": {
+    "hash": "fa8322b7e7",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.relaxedQueryKaldi": {
+    "hash": "9fbc9aa7ac",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.relaxedVerifiedOnly": {
+    "hash": "877fcc5eb8",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.sonucVermedigiIcinKaldirildi": {
+    "hash": "0f3d520ba8",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.suzgeciniKaldir": {
+    "hash": "0bc9ee5845",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.uygulananSuzgecKalmadiListeTamamini": {
+    "hash": "5b878d3eeb",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.aiIntentBand.uygulananSuzgecler": {
+    "hash": "3474c1b1b8",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.analyticsPrimitives.artis": {
+    "hash": "84d3e5eb35",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.analyticsPrimitives.azalis": {
+    "hash": "84a06fe267",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.analyticsPrimitives.degisimBasligi": {
+    "hash": "98f6c18e4d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.analyticsPrimitives.degisimYok": {
+    "hash": "43bd94a554",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.analyticsPrimitives.gercekDeger": {
+    "hash": "f65bba5988",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.analyticsPrimitives.listeyeGit": {
+    "hash": "e8db04139c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.analyticsPrimitives.listeyeGit2": {
+    "hash": "ec9949070e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.analyticsPrimitives.oncekiDonemeGore": {
+    "hash": "ee7d200ceb",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.analyticsPrimitives.surecHunisi": {
+    "hash": "696de2d4fd",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.analyticsPrimitives.yuzde": {
+    "hash": "21b0eea569",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantLauncher.aiAsistan": {
+    "hash": "025924ac9d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantLauncher.asistanPaneliniAc": {
+    "hash": "cade19be45",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantLauncher.karsilamaMesajiniKapat": {
+    "hash": "7981a0d385",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantLauncher.merhaba": {
+    "hash": "f09851dd72",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantLauncher.merhaba2": {
+    "hash": "32187dbe4e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantLauncher.rothernAsistani": {
+    "hash": "b4caaff46b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantLauncher.yardimMetni": {
+    "hash": "eaede72f02",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.aylikAiButcenizDolduAy": {
+    "hash": "95da0a5132",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.aylikAiKullaniminizSiniraYaklasti": {
+    "hash": "62c22462db",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.baslik": {
+    "hash": "7cc4712496",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.belgeEkle": {
+    "hash": "f7e60a92db",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.bilgilereBakiyorum": {
+    "hash": "d24cddaa4d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.birSeySorunVeyaSatin": {
+    "hash": "046c25b964",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.buSohbetUzadiDahaIyi": {
+    "hash": "56fc4c802d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.daralt": {
+    "hash": "805efe3947",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.dusunuyorum": {
+    "hash": "1951ae87cf",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.eksik": {
+    "hash": "1ea8252c71",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.gecmisSohbetler": {
+    "hash": "ab3a6f8664",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.genislet": {
+    "hash": "13aabc6bb7",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.gonder": {
+    "hash": "6a23eb2b9d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.henuzKayitliSohbetYokIlk": {
+    "hash": "b22bc9e617",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.iptalEdildi": {
+    "hash": "e15ad036b1",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.islemGerceklestirilemedi": {
+    "hash": "96e4c5258d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.kaldir": {
+    "hash": "d38bc7b3dd",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.kalem": {
+    "hash": "b8faffa524",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.kapanis": {
+    "hash": "0933293a7b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.kapat": {
+    "hash": "9e6ecd5955",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.kullanimSiniraYakin": {
+    "hash": "7b69c175e0",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.onayinizGerekiyor": {
+    "hash": "b84db3e46a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.onayla": {
+    "hash": "d13ec38062",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.onaylandiVeGerceklestirildi": {
+    "hash": "c5c1b6efc6",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.oneriAcikTalepleriAra": {
+    "hash": "ecfdf7f349",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.oneriSonSiparislerim": {
+    "hash": "9f7bc602a3",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.oneriTaleplerimiGoster": {
+    "hash": "06d58167c1",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.oneriYeniTalep": {
+    "hash": "9f6224d8fe",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.paneliDaralt": {
+    "hash": "4ab9358a97",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.paneliGenislet": {
+    "hash": "b4f55fb458",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.rothernAsistani": {
+    "hash": "b4caaff46b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.satinAlmaTalebiBelgesiEkle": {
+    "hash": "2423904df7",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.satinAlmaTalebiFormunuAc": {
+    "hash": "ef83a44257",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.satinAlmaTalepleriniziSorunBelge": {
+    "hash": "bcc180561c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.sil": {
+    "hash": "353ad5e393",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.sizeNasilYardimciOlabilirim": {
+    "hash": "2d678c9c08",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.sohbet": {
+    "hash": "d5ccd41f1a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.suAnYanitVeremedimLutfen": {
+    "hash": "5d80dc7ac3",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.talepTaslagi": {
+    "hash": "066ce76ed3",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.teslim": {
+    "hash": "99caba0926",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.get_order_detail": {
+    "hash": "572e1afb12",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.get_tender_detail": {
+    "hash": "cb1f78e384",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.list_my_bids": {
+    "hash": "4e04c33d0a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.list_my_connections": {
+    "hash": "d23fe57b31",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.list_my_orders": {
+    "hash": "b85692537c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.list_my_tenders": {
+    "hash": "6ef5100e82",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.propose_tender_draft": {
+    "hash": "4d58c9a6de",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.request_award_tender": {
+    "hash": "36fe7d93e4",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.request_eliminate_bid": {
+    "hash": "a0c41e31ff",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.request_mark_order_received": {
+    "hash": "304fc86b86",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.request_place_bid": {
+    "hash": "f8969a655d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.request_publish_tender": {
+    "hash": "74b0fa464d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.request_send_invites": {
+    "hash": "a356177ae7",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.tool.search_open_tenders": {
+    "hash": "e8050c703f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.vazgec": {
+    "hash": "14d2482077",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.yanitiHazirliyorum": {
+    "hash": "7abb4183d4",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.yazisma": {
+    "hash": "018e353305",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.yeniSohbet": {
+    "hash": "68e907b332",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.assistantPanel.yurutuluyor": {
+    "hash": "580fa50707",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.comingSoon.yakinda": {
+    "hash": "89b96cf864",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.featuredCompaniesBlock.dogrulanmisTedarikciler": {
+    "hash": "ac27f15b7d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.featuredCompaniesBlock.kimligiDogrulanmisVitriniDoluFirmalar": {
+    "hash": "153f772cb5",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.featuredCompaniesBlock.tumFirmalar": {
+    "hash": "f87478ae51",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.infoTooltip.bilgi": {
+    "hash": "d455ab008e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.liveToasts.kapat": {
+    "hash": "9e6ecd5955",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.liveToasts.tumunuGormekIcinTikla": {
+    "hash": "4abf12d3dd",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.liveToasts.yeniBildirimDaha": {
+    "hash": "62af65d845",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.liveToasts.yeniMesaj": {
+    "hash": "57e78e04a3",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.messagesPopover.aliciSiniz": {
+    "hash": "fb7748eb7d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.messagesPopover.henuzMesajinizYok": {
+    "hash": "854f3a25ac",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.messagesPopover.mesajlar": {
+    "hash": "1eaab9c510",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.messagesPopover.mesajlarOkunmamis": {
+    "hash": "048b7e300b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.messagesPopover.okunmamis": {
+    "hash": "af5ea61175",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.messagesPopover.saticiSiniz": {
+    "hash": "9d729ea685",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.messagesPopover.tumMesajlariGor": {
+    "hash": "2326e4fa84",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.notificationBell.bildirimler": {
+    "hash": "ef68bc829c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.notificationBell.bildirimlerOkunmamis": {
+    "hash": "635e03b181",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.notificationBell.henuzBildiriminizYok": {
+    "hash": "ded093bb6f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.notificationBell.tumBildirimleriGor": {
+    "hash": "8c443c2768",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.notificationBell.tumunuOkunduIsaretle": {
+    "hash": "4b3d450089",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.notificationBell.yukleniyor": {
+    "hash": "3a5e96d474",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.onboardingChecklist.baslangic": {
+    "hash": "587308129b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.onboardingChecklist.baslangicIlerlemesi": {
+    "hash": "0ee4ee2cdf",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.onboardingChecklist.baslangicKontrolListesi": {
+    "hash": "1b840c58bf",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.onboardingChecklist.siradakiAdim": {
+    "hash": "9ce258fcac",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.panelRecommendations.alimKategorilerinizleOrtusenTedarikciUrunler": {
+    "hash": "af59ce7adb",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.panelRecommendations.aramalarinizaGore": {
+    "hash": "3a3bd05296",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.panelRecommendations.geriKaydir": {
+    "hash": "1ad42148fd",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.panelRecommendations.ileriKaydir": {
+    "hash": "15f873ac2a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.panelRecommendations.sizeUygunUrunler": {
+    "hash": "377435b0cf",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.panelRecommendations.sonAradiginizIleEslesenTedarikci": {
+    "hash": "6f827f0956",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.panelRecommendations.tedarikcilerinVitrinlerineEnSonEkledigi": {
+    "hash": "9f06ab4ff0",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.panelRecommendations.tumunuGor": {
+    "hash": "50b9542fa6",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.panelRecommendations.urunSeridi": {
+    "hash": "4b44f6e9e2",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.panelRecommendations.yeniEklenenUrunler": {
+    "hash": "f900817a5b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.periodControls.baslangic": {
+    "hash": "587308129b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.periodControls.bitis": {
+    "hash": "2a2a44bc35",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.periodControls.buAy": {
+    "hash": "1af6309040",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.periodControls.buCeyrek": {
+    "hash": "9eed824e4c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.periodControls.buYil": {
+    "hash": "4ca0a3d70b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.periodControls.donem": {
+    "hash": "9711897ebf",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.periodControls.ozel": {
+    "hash": "4aaa9f3d32",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.periodControls.uygula": {
+    "hash": "3dcd206b18",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.periodToggle.buAy": {
+    "hash": "1af6309040",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.periodToggle.buCeyrek": {
+    "hash": "9eed824e4c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.periodToggle.buYil": {
+    "hash": "4ca0a3d70b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.periodToggle.donem": {
+    "hash": "9711897ebf",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.portalGuard.ayarlar": {
+    "hash": "e3258c515a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.portalGuard.erisimYok": {
+    "hash": "19c17e191b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.portalGuard.onaylarAGit": {
+    "hash": "cbf82fe0fb",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.portalGuard.panelineDon": {
+    "hash": "c7b4c8a27d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.portalGuard.rolGerekli": {
+    "hash": "2aa2218377",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.portalGuard.yukleniyor": {
+    "hash": "3a5e96d474",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.portalSwitch.goldPaketiyleAcilir": {
+    "hash": "060b99c880",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.portalSwitch.neYaparSatinalma": {
+    "hash": "7d0524ac34",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.portalSwitch.neYaparSatis": {
+    "hash": "eb873ee18c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.portalSwitch.paketleAcilir": {
+    "hash": "33cb825062",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.portalSwitch.panelDegistir": {
+    "hash": "274a14594a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.portalSwitch.panelDegistirSuAn": {
+    "hash": "a44c1d165d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.portalSwitch.suAnBuradasiniz": {
+    "hash": "d3c385ba1d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.acikSatinAlmaTaleplerim": {
+    "hash": "94853c774f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.acikSiparisTaahhudu": {
+    "hash": "bb72bff17a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.acilisTarihi": {
+    "hash": "b01b86d3a9",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.bugun": {
+    "hash": "ee77ad58ef",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.davetliEkle": {
+    "hash": "50d00c35e9",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.devamEdenSiparisler": {
+    "hash": "d5dab2edc2",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.donemdeAcilanSatinAlmaTaleplerin": {
+    "hash": "ebb84778ef",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.donemHarcamasi": {
+    "hash": "b1acad6abb",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.donemIciSiparislerYalnizTry": {
+    "hash": "e9c441a59c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.donguSuresi": {
+    "hash": "db6eb82d07",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.donguSuresiTrendi": {
+    "hash": "25effb0006",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.firmanin": {
+    "hash": "6306ac0ba3",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.gelenTeklif": {
+    "hash": "07032a7d3f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.gelenTeklifler": {
+    "hash": "856575adf7",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.gerceklesenTasarruf": {
+    "hash": "98249f396a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.goruntulenecekBirSatinAlmaTalebi": {
+    "hash": "2cfd193be7",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.gun": {
+    "hash": "9e9a6e7a8c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.gunKaldi": {
+    "hash": "a903785c56",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.henuzDonguVerisiYok": {
+    "hash": "0e4265d329",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.henuzHuniVerisiYok": {
+    "hash": "da5b4b28fc",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.ilkSatinAlmaTalebiniziAcip": {
+    "hash": "6b0efeae5a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.kapandi": {
+    "hash": "4f562429bc",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.kapanis": {
+    "hash": "03c8b154de",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.kazandirdiginizSatinAlmaTalebiSiparise": {
+    "hash": "25a261e02c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.kazandirilanSatinAlmaTalepleri": {
+    "hash": "b2b703365a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.n30GundeVadesiGelen": {
+    "hash": "3172cdd1c8",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.n30GunlukOdemeTakvimi": {
+    "hash": "40a5281318",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.nakitTakvimi": {
+    "hash": "274406ef20",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.odeme": {
+    "hash": "ba45116946",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.odemePlanlaVade30Gun": {
+    "hash": "715d35069d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.odenmemisSiparisBakiyesiYalnizTry": {
+    "hash": "3cc6b5391b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.olusturdugunuz": {
+    "hash": "8ae036bbfb",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.onumuzdeki30GundeVadesiGelen": {
+    "hash": "71cbc29935",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.onumuzdeki30GununOdemeYuku": {
+    "hash": "7cee406c40",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.ortalamaOncekiDonem": {
+    "hash": "44f17c2ad6",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.rekabet": {
+    "hash": "bd21f7b6e5",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.saat": {
+    "hash": "e3b6459e31",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.saglikli": {
+    "hash": "a6b2801a97",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.satinalmaSurecHunisi": {
+    "hash": "4344b982bc",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.satinAlmaTalebiAc": {
+    "hash": "b7305e77b5",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.satinAlmaTalebiAcilisindanSiparise": {
+    "hash": "44f14855cd",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.satinAlmaTalebiAdi": {
+    "hash": "3d68c7b717",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.satinAlmaTalebiKararBekliyor": {
+    "hash": "41d6695d41",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.satinAlmaTalebiNo": {
+    "hash": "d5c16d2fe0",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.surecHunisi": {
+    "hash": "4a4599740c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.teklifeAcikSatinAlmaTalepleri": {
+    "hash": "1a2f06ba59",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.teslimAlinanSiparislerinVadeleriYaklastikca": {
+    "hash": "e985626013",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.trendIcinEnAz3": {
+    "hash": "657475c373",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.tumunuIncele": {
+    "hash": "d6826b8639",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satinalmaIhaleTab.vadesiYaklasanOdemeYok": {
+    "hash": "276ecac233",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.acikSatinAlmaTaleplerineGoz": {
+    "hash": "f4749e4096",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.acikTaleplereGozAt": {
+    "hash": "0cc0829f25",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.aylik": {
+    "hash": "bd979bf4fe",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.aylikGelirAlanYilbasindanBeri": {
+    "hash": "602e4f2953",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.aylikGelirTrendi": {
+    "hash": "d4cc21706f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.aylikKararaBaglananTekliflerKazanildi": {
+    "hash": "1747a457b9",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.aylikKazanmaKaybetmeDagilimi": {
+    "hash": "4f03de84dc",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.davetAdetSonrakiAsamalarTl": {
+    "hash": "a226066e0f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.davetAlipTeklifVerdikceAsamalar": {
+    "hash": "1049849c86",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.davetlereTeklifVerdikceOrtalamaYanit": {
+    "hash": "aeec7d1fee",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.davetTeklifsizKapandi": {
+    "hash": "56bb2d49ed",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.davettenTeklifeGecenOrtalamaSure": {
+    "hash": "cb9609cc61",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.enIyi5MusterininGelir": {
+    "hash": "6383ada86c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.gelirTrendi": {
+    "hash": "bd5f764974",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.hangiKategorilerdeGucluyuzKararaBaglanan": {
+    "hash": "b918434ab0",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.henuzGelirVerisiYok": {
+    "hash": "28a5adc42f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.henuzKararVerisiYok": {
+    "hash": "cb7f00b9f1",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.henuzMusteriGeliriYok": {
+    "hash": "b65cbfee02",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.henuzYanitVerisiYok": {
+    "hash": "0aa7deba57",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.ilkSatisinSipariseDonustugundeAylik": {
+    "hash": "459c78f2d1",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.kacirilanFirsatlar": {
+    "hash": "1effd4f202",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.kacirilanFirsatlar2": {
+    "hash": "51e3393a92",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.kacirilanFirsatYok": {
+    "hash": "fa571f61ac",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.kategoriBazliKazanmaOrani": {
+    "hash": "cbb7413b19",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.kategoriBazliKazanmaOrani2": {
+    "hash": "1ee0a669ef",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.kazanildi": {
+    "hash": "07ca2ad1b0",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.kazanmaKaybetmeDagilimi": {
+    "hash": "661d762a25",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.konsantrasyonRiski": {
+    "hash": "3fdc9a362a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.kumulatif": {
+    "hash": "33d72c63a5",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.musteriKonsantrasyonu": {
+    "hash": "547f9e01e0",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.musteriKonsantrasyonuPareto": {
+    "hash": "07553ca7bb",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.satisHunisi": {
+    "hash": "7ab59c8c3c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.satisHunisi2": {
+    "hash": "99f8337ddd",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.satisHunisiBos": {
+    "hash": "b2457a212e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.satislarinTamamlandikcaMusteriDagilimiBurada": {
+    "hash": "0cb8b22264",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.son12AydaTeklifsizKapanan": {
+    "hash": "06f1ca4e77",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.teklif": {
+    "hash": "5b5c56fbd2",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.tekliflerinKararaBaglandikcaAylikKazanma": {
+    "hash": "d16e40d4ee",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.tekliflerinSonuclandikcaKategoriBazliGucun": {
+    "hash": "e50accbd25",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.teklifVerilmedenSuresiDolanDavetler": {
+    "hash": "5d2a5b80b3",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.teklifYanitSuresi": {
+    "hash": "5362304cfd",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.teklifYanitSuresiTrendi": {
+    "hash": "893430178c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.tutarHesaplanamazTeklifVerilmedenKapanan": {
+    "hash": "17428f2124",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.acikTalep": {
+    "hash": "42c188e356",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.acikTalep2": {
+    "hash": "d838aa4c6a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.acikTalepler": {
+    "hash": "6b2936b227",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.alicilar": {
+    "hash": "c62c8a8d58",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.firma": {
+    "hash": "439145df69",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.firmaAdiSehirYaDa": {
+    "hash": "0cc4f673f0",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.hangiTalebeTeklifVereceksiniz": {
+    "hash": "273687b11c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.kategorinizeUygunAcikTaleplerKapali": {
+    "hash": "c8d27f4b77",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.satinAlmaTalepleri": {
+    "hash": "776d5f1953",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.sektorler": {
+    "hash": "6e18a30cef",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.talepTalepNumarasiVeyaFirma": {
+    "hash": "1cd323eb23",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.urunEkle": {
+    "hash": "383bd51788",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.urunleriniziFiyatVeMinimumSiparis": {
+    "hash": "ded78be7fd",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.satisDashboardView.urununuzVitrindeMi": {
+    "hash": "d579d1318d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.shell.menu": {
+    "hash": "0ebbd1b8c8",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.shell.menuyuKapat": {
+    "hash": "7ad7495f40",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.sidebar.ayarlar": {
+    "hash": "e3258c515a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.sidebar.menuyuSabitle": {
+    "hash": "e95829be52",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.sidebar.menuyuSerbestBirak": {
+    "hash": "47b188c70b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.sidebar.onaylar": {
+    "hash": "905babc77a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.sidebar.sabitlemeyiKaldir": {
+    "hash": "d7722a3e30",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.sidebar.satinAlmaTalebiAc": {
+    "hash": "b7305e77b5",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.anaKategoriBazliTasarrufum": {
+    "hash": "edec7be1cd",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.anaParaBirimiBazliTasarrufum": {
+    "hash": "8a3251ff4a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.aylik": {
+    "hash": "bd979bf4fe",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.aylikTasarrufBarKumulatifCizgi": {
+    "hash": "b2d8454f1f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.aylikTasarrufTrendi": {
+    "hash": "c40ecf9144",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.enYuksekTasarruflu": {
+    "hash": "bcf66cb2d1",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.enYuksekTasarruflu5Satin": {
+    "hash": "7fa3ffb95c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.henuzTasarrufVerisiYok": {
+    "hash": "cdc85f8174",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.ilkSatinAlmaTalebiniziSonuclandirdiginizda": {
+    "hash": "bd3d2b6600",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.kumulatif": {
+    "hash": "33d72c63a5",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.ortalamaTasarrufOranim": {
+    "hash": "bad902b006",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.satinAlmaTalebi": {
+    "hash": "5abead7b8a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.satinAlmaTalebiAc": {
+    "hash": "b7305e77b5",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.tasarrufTrendi": {
+    "hash": "5dea16d3ad",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.tasarrufTutari": {
+    "hash": "8bd7ca0dfc",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.tooltipCategory": {
+    "hash": "4341c8f72c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.tooltipCurrency": {
+    "hash": "e025662c8c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.tooltipRate": {
+    "hash": "39cee17991",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.tooltipSavings": {
+    "hash": "c5ab95a54f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.tooltipTop5": {
+    "hash": "abbbb0b186",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.tooltipVolume": {
+    "hash": "c306871d6c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.toplamIslemHacmim": {
+    "hash": "240b9a9b4f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.toplamTasarrufum": {
+    "hash": "e21e3df9fe",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.varColorSlate200E2e8f0": {
+    "hash": "c8017df50d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tasarrufTab.varColorSuccess50010b981": {
+    "hash": "8c7c9d7d74",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tedarikciTab.buDonemdeTeklifVerenTedarikci": {
+    "hash": "a8864b752e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tedarikciTab.donemdeEnCokSatinAlma": {
+    "hash": "e0d42fdc4a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tedarikciTab.enRekabetciTalep": {
+    "hash": "c09e8d9bc7",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tedarikciTab.enSikTeklifVerenTedarikciler": {
+    "hash": "93bc099473",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tedarikciTab.ortalamaSira": {
+    "hash": "558c2a60cd",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tedarikciTab.sirada": {
+    "hash": "e23df5b08e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tedarikciTab.talepTeklifVerenSayisi": {
+    "hash": "e239261ad7",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tedarikciTab.tedarikciler": {
+    "hash": "b46d7d6a2d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tedarikciTab.teklifVerdigiTalep": {
+    "hash": "9d4aa32a99",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tedarikciTab.teklifVeren": {
+    "hash": "cd07397a1c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tedarikciTab.toplamTeklif": {
+    "hash": "588ffbee02",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tedarikciTab.varColorZinc200E4e4e7": {
+    "hash": "3ee5a83298",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.tedarikciTab.varColorZinc90018181b": {
+    "hash": "8cb80d44f2",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.todayBand.bugun": {
+    "hash": "ee77ad58ef",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.topbar.ayarlar": {
+    "hash": "e3258c515a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.topbar.cikisYap": {
+    "hash": "6f335d8771",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.topbar.hesapMenusu": {
+    "hash": "bb5a50b699",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.topbar.icerigeGec": {
+    "hash": "b0a9f0e13c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.topbar.kurucu": {
+    "hash": "fd0da64627",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.topbar.m2675c2633579": {
+    "hash": "649f2df5e2",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.topbar.menuyuAc": {
+    "hash": "0b1de146e2",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.winRateCard.anlamliOran": {
+    "hash": "64dcd9797d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.winRateCard.kazanmaOraniIcinHenuzYeterli": {
+    "hash": "3996396221",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.winRateCard.kazanmaOraniYuzdeSon12": {
+    "hash": "13141e413d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.winRateCard.son12Ay": {
+    "hash": "1660e38b8f",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.shell.winRateCard.tekliflerim": {
+    "hash": "8681449c24",
+    "status": "reviewed",
+    "at": "2026-09-24"
   },
   "web.pricing.note": {
     "hash": "94247f4fbf",

@@ -1,5 +1,7 @@
 "use client";
 
+import { useNavLabel } from "@/i18n/domain";
+import { useTranslations } from "next-intl";
 import { stripLocale } from "@/i18n/href";
 
 import type { AppNotification } from "@/hooks/use-notifications";
@@ -91,6 +93,7 @@ function PopupCard({
   onOpen: () => void;
   onClose: () => void;
 }) {
+  const t = useTranslations("web.panel.shell.liveToasts");
   return (
     <div className="pointer-events-auto flex w-[22rem] items-start gap-3 rounded-xl border border-zinc-950/10 bg-white p-3.5 shadow-lg ring-1 ring-zinc-950/5">
       <span
@@ -125,7 +128,7 @@ function PopupCard({
       <button
         type="button"
         onClick={onClose}
-        aria-label="Kapat"
+        aria-label={t("kapat")}
         className="shrink-0 rounded-md p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-600"
       >
         <X className="size-3.5" aria-hidden="true" />
@@ -135,6 +138,8 @@ function PopupCard({
 }
 
 export function LiveToasts() {
+  const tr = useTranslations("web.panel.shell.liveToasts");
+  const tn = useNavLabel();
   const { user } = useCompanyAuth();
   const qc = useQueryClient();
   const router = useRouter();
@@ -189,7 +194,7 @@ export function LiveToasts() {
       if (n.type === "permissions_changed") {
         qc.invalidateQueries({ queryKey: ["company-auth", "me"] });
       }
-      const chip = n.portal ? PORTALS[n.portal].label : undefined;
+      const chip = n.portal ? tn(PORTALS[n.portal].label) : undefined;
       toast.custom(
         (t) => (
           <PopupCard
@@ -222,8 +227,8 @@ export function LiveToasts() {
             icon={<MessageSquare className="size-4" aria-hidden="true" />}
             accent="emerald"
             title={t.otherPartyName}
-            body={t.lastMessagePreview ?? "Yeni mesaj"}
-            chip={PORTALS[portal].label}
+            body={t.lastMessagePreview ?? tr("yeniMesaj")}
+            chip={tn(PORTALS[portal].label)}
             onOpen={() => {
               toast.dismiss(id);
               router.push(
@@ -247,8 +252,8 @@ export function LiveToasts() {
           <PopupCard
             icon={<Bell className="size-4" aria-hidden="true" />}
             accent="blue"
-            title={`+${count} yeni bildirim daha`}
-            body="Tümünü görmek için tıkla."
+            title={tr("yeniBildirimDaha", { count: count })}
+            body={tr("tumunuGormekIcinTikla")}
             onOpen={() => {
               toast.dismiss(t);
               router.push("/company/bildirimler");

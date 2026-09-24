@@ -1,5 +1,6 @@
 "use client";
 
+import { useNavLabel } from "@/i18n/domain";
 import { formatDate } from "@/lib/format-date";
 import { MODULE_LABELS } from "@/lib/company/portals";
 import {
@@ -307,6 +308,7 @@ function CardSkeleton() {
 }
 
 export function OrdersList({ role }: { role: "buyer" | "seller" }) {
+const tn = useNavLabel();
   const accent = useButtonAccent();
   const { data, isLoading, isError, refetch } = useOrders();
   const isSeller = role === "seller";
@@ -396,7 +398,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={isSeller ? MODULE_LABELS.satis.siparisler : MODULE_LABELS.satinalma.siparisler}
+        title={tn(isSeller ? MODULE_LABELS.satis.siparisler : MODULE_LABELS.satinalma.siparisler)}
         description={
           isSeller
             ? "Satışlarınız — kazandığınız açık taleplerden ve satış ilanlarınızdan. Onaylayın, gönderin, ödemeyi takip edin."

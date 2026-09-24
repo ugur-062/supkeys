@@ -1,5 +1,6 @@
 "use client";
 
+import { useNavLabel } from "@/i18n/domain";
 import { MODULE_LABELS } from "@/lib/company/portals";
 import { selectActiveOffers, selectWonOffers } from "@/lib/company/kpi-selectors";
 import { formatDate } from "@/lib/format-date";
@@ -155,7 +156,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
           )}
         >
           <Link
-            href={`/company/ilan/${b.listing.id}?from=${encodeURIComponent(fromHref)}&fromLabel=Tekliflerim`}
+            href={`/company/ilan/${b.listing.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(MODULE_LABELS.satis.teklifler)}`}
             className="after:absolute after:inset-0 after:content-['']"
           >
             {b.listing.title}
@@ -266,6 +267,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
 
 /** Firmanın açık taleplere verdiği teklifler (satış paneli). */
 export function MyBidsList() {
+const tn = useNavLabel();
   const accent = useButtonAccent();
   const [search, setSearch] = useState("");
   const [status, setStatus] = useState<string[]>([]);
@@ -323,7 +325,7 @@ export function MyBidsList() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={MODULE_LABELS.satis.teklifler}
+        title={tn(MODULE_LABELS.satis.teklifler)}
         description={description}
       />
       {/* Sayaçlar panodaki KPI ile AYNI seçiciden (kpi-selectors) — iki sayfa
