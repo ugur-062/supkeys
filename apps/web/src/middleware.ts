@@ -85,6 +85,18 @@ function buildCsp(nonce: string | null, isDev: boolean): string {
  * çıkarıp yol parçasına taşımak (`/alim-talepleri/kategori/<kod>`) o sayfaları
  * statik/ISR yapar. Long-tail turunda yapılacak.
  */
+/**
+ * next-intl'in yönlendirmeleri 307 döner (kanonik olmayan dil biçimi
+ * `/en/urunler` → `/en/products`, `/products` → `/urunler`, `/tr/x` → `/x`).
+ * Hepsi KALICI kanonikleştirmedir; arama motoru ve tarayıcı 308 ile hedefi
+ * öğrensin (307 her seferinde yeniden taranır ve sinyal aktarmaz). Başlıklar
+ * (Location + next-intl'in dil çerezi) aynen taşınır.
+ */
+export function permanentize(response: NextResponse): NextResponse {
+  if (response.status !== 307 || !response.headers.get("location")) return response;
+  return new NextResponse(null, { status: 308, headers: response.headers });
+}
+
 export function middleware(request: NextRequest) {
   const isDev = process.env.NODE_ENV === "development";
   const pathname = request.nextUrl.pathname;
@@ -107,7 +119,7 @@ export function middleware(request: NextRequest) {
 
   const response = skipsIntl(pathname)
     ? NextResponse.next({ request: { headers: request.headers } })
-    : intlMiddleware(request);
+    : permanentize(intlMiddleware(request));
 
   response.headers.set("Content-Security-Policy", csp);
   response.headers.set("x-dbg", `${pathname}|${String(publicRoute)}|${nonce ? "nonce" : "no-nonce"}`);

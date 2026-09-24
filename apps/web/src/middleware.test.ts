@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 // `config.matcher` sınanıyor — fabrika sahte.
 vi.mock("next-intl/middleware", () => ({ default: () => () => null }));
 
-const { config } = await import("./middleware");
+const { config, permanentize } = await import("./middleware");
 
 /**
  * i18n Faz 1 (2026-09-23): Türkçe adresler ÖN EKSİZ ve `/tr/...`a yeniden yazımı
@@ -32,5 +32,20 @@ describe("middleware matcher", () => {
     expect(re.test("/en/urunler")).toBe(true);
     expect(re.test("/api/health")).toBe(false);
     expect(re.test("/_next/static/x.js")).toBe(false);
+  });
+});
+
+describe("permanentize — next-intl 307'leri 308'e çevirir", () => {
+  it("Location taşıyan 307 → 308, başlıklar (çerez dahil) korunur", () => {
+    const headers = new Headers({ location: "/en/products", "set-cookie": "NEXT_LOCALE=en; Path=/" });
+    const out = permanentize({ status: 307, headers } as never);
+    expect(out.status).toBe(308);
+    expect(out.headers.get("location")).toBe("/en/products");
+    expect(out.headers.get("set-cookie")).toContain("NEXT_LOCALE=en");
+  });
+
+  it("yönlendirme olmayan yanıt olduğu gibi döner", () => {
+    const res = { status: 200, headers: new Headers() };
+    expect(permanentize(res as never)).toBe(res);
   });
 });
