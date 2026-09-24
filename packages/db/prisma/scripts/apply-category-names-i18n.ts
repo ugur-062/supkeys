@@ -9,7 +9,7 @@
  * metni (`searchText`) EN/RU adları da içerir → ad ya da arama metni farklıysa
  * ikisi birlikte yazılır (i18n arama, 2026-09-24).
  */
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { categorySearchText } from "@rothern/shared";
 import * as path from "path";
 import { readI18nNames } from "./lib/category-keywords";
@@ -47,9 +47,15 @@ async function main() {
       );
     changed += updates.length;
     if (!dry && updates.length) {
-      await prisma.$transaction(
-        updates.map((u) => prisma.category.update({ where: { code: u.code }, data: { nameEn: u.want.en, nameRu: u.want.ru, searchText: u.st } })),
+      // Tek toplu UPDATE (satır başına update uzak DB'de 19k satırda 15 dk+ sürüyordu).
+      const values = Prisma.join(
+        updates.map((u) => Prisma.sql`(${u.code}, ${u.want.en ?? null}, ${u.want.ru ?? null}, ${u.st})`),
       );
+      await prisma.$executeRaw`
+        UPDATE categories AS c
+           SET "nameEn" = v.en, "nameRu" = v.ru, "searchText" = v.st
+          FROM (VALUES ${values}) AS v(code, en, ru, st)
+         WHERE c.code = v.code`;
     }
     process.stdout.write(`\r${Math.min(i + CHUNK, codes.length)}/${codes.length} · değişen ${changed}`);
   }
