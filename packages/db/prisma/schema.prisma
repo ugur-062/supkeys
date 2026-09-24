@@ -714,6 +714,13 @@ model Company {
   @@index([activities], type: Gin, map: "companies_activities_idx")
   /** Ziyaretlerim karşı tarafa görünsün (Ziyaret Edenler) — kapalıysa görüntüleme anonim sayılır. */
   visitsVisible          Boolean @default(true)
+  /**
+   * ÇOK DİLLİ arama metni — kaynak metin + DONE çevirilerin (en/ru) katlanmış
+   * birleşimi (foldSearchText). YALNIZ içerik çevirisi servisi yazar
+   * (`content-translation` DONE anı + açılış doldurması); arama `searchText`
+   * yanında buna da bakar → İngilizce/Rusça sorgu Türkçe kaydı bulur.
+   */
+  searchTextI18n String @default("")
   viewsReceived          CompanyView[] @relation("ViewTarget")
   viewsMade              CompanyView[] @relation("ViewViewer")
 
@@ -1670,6 +1677,14 @@ model Listing {
   roundSnapshots   ListingRoundSnapshot[]
   approvalRequests ApprovalRequest[]
 
+  /**
+   * ÇOK DİLLİ arama metni — kaynak metin + DONE çevirilerin (en/ru) katlanmış
+   * birleşimi (foldSearchText). YALNIZ içerik çevirisi servisi yazar
+   * (`content-translation` DONE anı + açılış doldurması); arama `searchText`
+   * yanında buna da bakar → İngilizce/Rusça sorgu Türkçe kaydı bulur.
+   */
+  searchTextI18n String @default("")
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
@@ -1679,6 +1694,7 @@ model Listing {
   // GENİŞLETİLDİ (prefix eski kullanımı karşılar).
   @@index([status, closesAt])
   @@index([companyId, type, status])
+  @@index([searchTextI18n(ops: raw("gin_trgm_ops"))], type: Gin, map: "listings_searchTextI18n_trgm_idx")
   @@map("listings")
 }
 
@@ -1852,6 +1868,13 @@ model CompanyItem {
    * (foldSearchText). Vitrindeki ürün araması yalnız buradan okur.
    */
   searchText    String    @default("")
+  /**
+   * ÇOK DİLLİ arama metni — kaynak metin + DONE çevirilerin (en/ru) katlanmış
+   * birleşimi (foldSearchText). YALNIZ içerik çevirisi servisi yazar
+   * (`content-translation` DONE anı + açılış doldurması); arama `searchText`
+   * yanında buna da bakar → İngilizce/Rusça sorgu Türkçe kaydı bulur.
+   */
+  searchTextI18n String @default("")
 
   createdById   String
   createdAt     DateTime  @default(now())
@@ -1868,6 +1891,8 @@ model CompanyItem {
   // Vitrin sorgusu: yayımlanmış ürünler, yeni önce.
   @@index([isPublic, publishedAt])
   @@index([reviewStatus, submittedAt])
+  @@index([searchText(ops: raw("gin_trgm_ops"))], type: Gin, map: "company_items_searchText_trgm_idx")
+  @@index([searchTextI18n(ops: raw("gin_trgm_ops"))], type: Gin, map: "company_items_searchTextI18n_trgm_idx")
   views CompanyView[]
 
   @@map("company_items")

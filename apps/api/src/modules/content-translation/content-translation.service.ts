@@ -1,6 +1,7 @@
 import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
 import { LOCALES, type Locale } from "@rothern/i18n";
+import { foldSearchText } from "@rothern/shared";
 import { labelAttributes, resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AI_CONFIG, AI_PROVIDER_TOKEN, type AiConfig } from "../ai/ai.config";
@@ -9,6 +10,7 @@ import type { AiTokenUsage, BaseAiProvider } from "../ai/providers/ai-provider.i
 import {
   TRANSLATION_SYSTEM_PROMPT,
   buildPrompt,
+  buildSearchTextI18n,
   hasTranslatableText,
   localizeCompany,
   localizeListing,
@@ -154,6 +156,9 @@ export class ContentTranslationService {
       const source = await this.loadSource(type, id);
       if (!source || !hasTranslatableText(source)) return false;
       const hash = sourceHash(type, source);
+      // Kaynak değişti: arama metni YENİ kaynakla hemen tazelenir (eski
+      // çeviriler yeni çeviri gelene dek içinde kalır — bayat çeviri boştan iyi).
+      await this.refreshSearchText(type, id, source);
       const existing = await this.prisma.contentTranslation.findMany({
         where: { entityType: type, entityId: id },
         select: { locale: true, sourceHash: true, status: true },
@@ -276,6 +281,7 @@ export class ContentTranslationService {
       const source = await this.loadSource(type, id);
       if (!source || !hasTranslatableText(source)) {
         await this.prisma.contentTranslation.deleteMany({ where: { entityType: type, entityId: id } });
+        await this.writeSearchText(type, id, "");
         return "skipped";
       }
       const hash = sourceHash(type, source);
@@ -370,9 +376,66 @@ export class ContentTranslationService {
           update: data,
         });
       }
+      await this.writeSearchText(
+        type,
+        id,
+        buildSearchTextI18n(type, source, Object.values(parsed.perLocale), foldSearchText),
+      );
       return "done";
     } finally {
       this.inFlight.delete(key);
+    }
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Çok dilli arama metni                                             */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * `searchTextI18n` = katlanmış kaynak + kayıtlı çeviriler. Çeviri yoksa
+   * yalnız kaynak (talep aramasında TR katlama yine kazanılır). Fail-open.
+   */
+  async refreshSearchText(type: TranslatableEntityType, id: string, source?: SourceFields | null): Promise<void> {
+    try {
+      const src = source === undefined ? await this.loadSource(type, id) : source;
+      if (!src) return;
+      const rows = await this.prisma.contentTranslation.findMany({
+        where: { entityType: type, entityId: id, fields: { not: Prisma.DbNull } },
+        select: { fields: true },
+      });
+      const translations = rows
+        .map((r) => r.fields)
+        .filter((f): f is Prisma.JsonObject => !!f && typeof f === "object" && !Array.isArray(f))
+        .map((f) => f as unknown as TranslationFields);
+      await this.writeSearchText(type, id, buildSearchTextI18n(type, src, translations, foldSearchText));
+    } catch (err) {
+      this.logger.warn(`Search text refresh failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /**
+   * Çeviri satırı olan tüm varlıkların arama metnini yeniden kurar — model
+   * çağrısı YOK. Açılışta bir kez (süpürücü) ve yönetici ucundan.
+   */
+  async rebuildAllSearchTexts(): Promise<{ entities: number }> {
+    const rows = await this.prisma.contentTranslation.findMany({
+      select: { entityType: true, entityId: true },
+      distinct: ["entityType", "entityId"],
+    });
+    for (const r of rows) await this.refreshSearchText(r.entityType, r.entityId);
+    return { entities: rows.length };
+  }
+
+  /** Fail-open: arama metni yazılamazsa çeviri DONE kalır (sonraki açılış kurar). */
+  private async writeSearchText(type: TranslatableEntityType, id: string, text: string): Promise<void> {
+    const data = { searchTextI18n: text };
+    try {
+      // updateMany: varlık silinmişse sessizce 0 satır (update P2025 atardı).
+      if (type === "PRODUCT") await this.prisma.companyItem.updateMany({ where: { id }, data });
+      else if (type === "LISTING") await this.prisma.listing.updateMany({ where: { id }, data });
+      else await this.prisma.company.updateMany({ where: { id }, data });
+    } catch (err) {
+      this.logger.warn(`Search text write failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 

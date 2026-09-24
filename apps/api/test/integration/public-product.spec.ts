@@ -27,6 +27,8 @@ const FORBIDDEN = [
   "companyId",
   "isPublic",
   "isActive",
+  "searchText",
+  "searchTextI18n",
 ];
 
 function allKeys(v: unknown, out = new Set<string>()): Set<string> {
@@ -212,5 +214,21 @@ describe("pazar yeri anahtarı — GÖRÜNÜRLÜK ≠ İNDEKSLENME", () => {
 
   it("ürün SİTEMAP'i anahtara TABİ", () => {
     expect(guardsOf("productSitemap")).toContain("MarketplaceLiveGuard");
+  });
+});
+
+describe("firma profili ürün araması", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("sorgu KATLANIR (büyük harf + Türkçe harf) ve çok dilli sütuna da bakar", async () => {
+    const { company, product } = await seedCompanyWithProduct({}, { searchTextI18n: "dagitim panosu distribution panel" });
+    const slugs = async (q: string) =>
+      (await service().listPublicProducts(company.slug as string, { q })).items.map((p) => p.slug);
+    // Eskiden ham token katlanmış sütunda aranıyordu → "DAĞITIM" hiçbir şey bulmuyordu.
+    expect(await slugs("DAĞITIM")).toEqual([product.slug]);
+    expect(await slugs("distribution panels")).toEqual([product.slug]);
+    expect(await slugs("switchboard")).toEqual([]);
   });
 });

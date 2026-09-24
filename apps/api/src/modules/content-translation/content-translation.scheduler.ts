@@ -18,9 +18,17 @@ export class ContentTranslationScheduler {
     @Optional() private readonly cronRegistry?: CronRegistryService,
   ) {}
 
+  /** Açılıştan sonraki ilk süpürmede arama metni mevcut çevirilerden kurulur (model çağrısı yok). */
+  private searchTextsRebuilt = false;
+
   @Cron("*/5 * * * *")
   async sweep(): Promise<void> {
     return trackCronRun(this.cronRegistry, "contentTranslation.sweep", async () => {
+      if (!this.searchTextsRebuilt) {
+        this.searchTextsRebuilt = true;
+        const r = await this.translations.rebuildAllSearchTexts();
+        if (r.entities > 0) this.logger.log(`Search text rebuilt for ${r.entities} entities`);
+      }
       const r = await this.translations.processPending(25);
       if (r.processed > 0) {
         this.logger.log(`Content translation sweep: ${r.done} done, ${r.failed} failed / ${r.processed} processed`);

@@ -1,7 +1,7 @@
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import { Prisma } from "@rothern/db";
 import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
-import { categoryPrefix, isCategoryCode, PAID_TIER, tierAtLeast, tokenizeQuery } from "@rothern/shared";
+import { categoryPrefix, foldSearchText, isCategoryCode, PAID_TIER, stemPrefix, tierAtLeast, tokenizeQuery } from "@rothern/shared";
 import {
   PUBLIC_PRODUCT_SELECT,
   toPublicProduct,
@@ -290,7 +290,14 @@ export class PublicProfileService {
           { categoryId: { startsWith: categoryPrefix(q.categoryId) as string } }
         : {}),
       ...(tokens.length
-        ? { AND: tokens.map((t) => ({ searchText: { contains: t } })) }
+        ? // Token KATLANIR (ham "Çelik" katlanmış sütunda hiç eşleşmiyordu) +
+          // çok dilli sütun (ürün dizini `productSearchClauses` ile aynı kural).
+          {
+            AND: tokens.map((t) => {
+              const needle = stemPrefix(foldSearchText(t));
+              return { OR: [{ searchText: { contains: needle } }, { searchTextI18n: { contains: needle } }] };
+            }),
+          }
         : {}),
     };
 

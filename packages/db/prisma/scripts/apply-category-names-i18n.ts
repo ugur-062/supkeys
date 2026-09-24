@@ -5,9 +5,12 @@
  *   pnpm --filter @rothern/db apply-category-names-i18n            # yaz
  *   pnpm --filter @rothern/db apply-category-names-i18n -- --dry   # yalnız say
  *
- * Yalnız FARKLI satırlar güncellenir; TSV'de olmayan kod dokunulmaz.
+ * Yalnız FARKLI satırlar güncellenir; TSV'de olmayan kod dokunulmaz. Arama
+ * metni (`searchText`) EN/RU adları da içerir → ad ya da arama metni farklıysa
+ * ikisi birlikte yazılır (i18n arama, 2026-09-24).
  */
 import { PrismaClient } from "@prisma/client";
+import { categorySearchText } from "@rothern/shared";
 import * as path from "path";
 import { readI18nNames } from "./lib/category-keywords";
 
@@ -27,16 +30,25 @@ async function main() {
   let missing = 0;
   for (let i = 0; i < codes.length; i += CHUNK) {
     const slice = codes.slice(i, i + CHUNK);
-    const rows = await prisma.category.findMany({ where: { code: { in: slice } }, select: { code: true, nameEn: true, nameRu: true } });
+    const rows = await prisma.category.findMany({ where: { code: { in: slice } }, select: { code: true, nameTr: true, keywords: true, searchText: true, nameEn: true, nameRu: true } });
     const byCode = new Map(rows.map((r) => [r.code, r]));
     missing += slice.length - rows.length;
     const updates = slice
-      .map((code) => ({ code, want: names.get(code)!, cur: byCode.get(code) }))
-      .filter((x) => x.cur && ((x.want.en ?? null) !== x.cur.nameEn || (x.want.ru ?? null) !== x.cur.nameRu));
+      .map((code) => {
+        const want = names.get(code)!;
+        const cur = byCode.get(code);
+        const st = cur ? categorySearchText({ nameTr: cur.nameTr, keywords: cur.keywords, nameEn: want.en, nameRu: want.ru }) : "";
+        return { code, want, cur, st };
+      })
+      .filter(
+        (x) =>
+          x.cur &&
+          ((x.want.en ?? null) !== x.cur.nameEn || (x.want.ru ?? null) !== x.cur.nameRu || x.st !== x.cur.searchText),
+      );
     changed += updates.length;
     if (!dry && updates.length) {
       await prisma.$transaction(
-        updates.map((u) => prisma.category.update({ where: { code: u.code }, data: { nameEn: u.want.en, nameRu: u.want.ru } })),
+        updates.map((u) => prisma.category.update({ where: { code: u.code }, data: { nameEn: u.want.en, nameRu: u.want.ru, searchText: u.st } })),
       );
     }
     process.stdout.write(`\r${Math.min(i + CHUNK, codes.length)}/${codes.length} · değişen ${changed}`);

@@ -522,6 +522,21 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   sözlüğü), yalnız etiket çevrilir. Partiler 1-5 (kabuk/panolar · talep
   ekranları · teklif/sipariş/ürün/bilgi talebi · ayarlar/şirketim/onaylar/
   raporlar/paketler · lib sözlükleri) BİTTİ.
+- **ÇOK DİLLİ ARAMA (2026-09-24):** `company_items`/`listings`/`companies`
+  `searchTextI18n` (migration `20260924200000`, trigram GIN) = katlanmış KAYNAK
+  + DONE EN/RU çeviriler (ürün ad+anahtar kelime — açıklama DEĞİL, talep
+  başlık+açıklama+anahtar+kalem, firma sektör+hizmet+tanıtım). YALNIZ içerik
+  çevirisi servisi yazar: `enqueue` (yeni kaynakla hemen) + DONE anı; açılıştan
+  sonraki ilk süpürme mevcut çevirilerden yeniden kurar (model çağrısı yok;
+  elle: `POST admin/content-translations/search-text/rebuild`). Sorgular
+  `searchText` YANINDA buna da bakar: ürün dizini (`productSearchClauses` tek
+  kaynak), talep araması (`searchWhere` — ham ILIKE dalları yedek), firma dizini
+  (iki kopya), firma profili ürün araması (token artık katlanır — eskiden ham
+  token "DAĞITIM"ı bulmuyordu). `stemPrefix` İngilizce çoğul toleransı taşır
+  (pipes→pipe, boxes→box, batteries→batter; -ss/-us/-is dokunulmaz); Rusça
+  çekim YOK. Kiril katlamada й→и (iki taraf aynı). Herkese açık projeksiyonlar
+  sütunu taşımaz (sözleşme testlerinde yasaklı anahtar). Çevirisi olmayan kayıt
+  (AI kapalı/FAILED) yalnız Türkçe yoldan bulunur.
 - **FAZ 3 — API METİNLERİ (2026-09-24):** istisnalar, DTO mesajları, 429
   metni (`throttleMessage()`), bildirim/e-posta (ALICININ dili; e-posta paketi
   `@rothern/i18n` okur), eşleşme gerekçeleri, pano etiketleri (analitik
@@ -623,7 +638,8 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 | Kategori ata zinciri / ön ek | `@rothern/shared` `category-code.ts` (`categoryPrefix`) |
 | Model kategori ipucu → kod (AI) | `modules/ai/category-hint-resolver.ts` |
 | Katalog seçimi (discovery/tam) | `@rothern/shared` `constants/category-catalog.ts` |
-| Arama katlama + tokenleme + kök | `@rothern/shared` `helpers/search-fold.ts` (`stemPrefix`) |
+| Arama katlama + tokenleme + kök (TR ek + EN çoğul) · kategori arama metni | `@rothern/shared` `helpers/search-fold.ts` (`stemPrefix`, `categorySearchText`) |
+| Çok dilli arama metni (`searchTextI18n`) | `modules/content-translation` (`buildSearchTextI18n`, `refreshSearchText`) |
 | Para/kur bazı · kalem toplamı · ödeme durumu | `common/company/{report-currency,bid-items,order-payments}.ts` |
 | Teslim SÜRESİ → tarih | `common/company/delivery-time.ts` |
 | Faz O dar-bağlam | `common/company/full-read-context.ts` |
@@ -810,9 +826,12 @@ segmentler çevrilmez. **Okuma kuralı:** kategori satırı seçilirken
 `nameTr` alanında YEREL adı alır — alan adı geriye dönük), Açık Talepler,
 ürün keşfi, dizin/profil bağlı. **ADRES SLUG'I HER ZAMAN TÜRKÇE ADDAN**
 (`categorySlug`): API kategori nesnelerine `slug` verir, web `categoryHref(c)`
-kullanır — `/en/urunler/kategori/<kod>-<tr-slug>`. Arama (`searchText`) ve
-`nameTr ILIKE` yine Türkçe; nitelik ETİKETLERİ (`CategoryAttribute.nameTr`) ve
-süzgeç değerleri henüz çevrilmedi (küçük, sonraki adım). Sözleşme:
+kullanır — `/en/urunler/kategori/<kod>-<tr-slug>`. **Kategori `searchText`
+EN/RU adları da içerir** (2026-09-24) — tek kaynak `@rothern/shared`
+`categorySearchText`; ad değiştiren her betik onu çağırır (`seed-categories`,
+`apply-category-{keywords,translations,names-i18n}`). AI toplu çevirisi
+(`category-translation.service`) searchText YAZMAZ → ardından `export` +
+`apply-category-names-i18n` koşulur. Sözleşme:
 `test/unit/category-name.spec.ts`, `category-translation.spec.ts`, web
 `marketplace.test` "categoryHref".
 
@@ -1663,7 +1682,9 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Son migration `20260923235000_category_attribute_names_i18n`
+- Son migration `20260924200000_search_text_i18n` (`searchTextI18n` × 3 +
+  trigram GIN; staging'e 2026-09-24'te uygulandı, CANLIDA BEKLİYOR). Öncesi
+  `20260923235000_category_attribute_names_i18n`
   (`category_attributes.nameEn/nameRu/optionsEn/optionsRu`). Öncesi
   `20260923230000_category_names_i18n`, `20260923180000_content_translations`,
   `20260923120000_company_user_locale`. Dördü de eklemeli, staging'e 2026-09-23'te
@@ -2000,8 +2021,8 @@ istemcisi sessizce kısıtlı role düşüp sağlık/giriş/cron'u bozamaz.
 - WebSocket real-time bildirim
 - Admin: impersonate (güvenlik değerlendirilecek), iade/refund, CSV export,
   dahili not, global arama
-- i18n: Faz 2 (panel) + Faz 3 (API/bildirim/e-posta) 2026-09-24'te BİTTİ;
-  sırada arama (İngilizce sorgu Türkçe adı bulmuyor) ve canlıya alma. Faz 4 kategori adları
+- i18n: Faz 2 (panel) + Faz 3 (API/bildirim/e-posta) + çok dilli arama
+  2026-09-24'te BİTTİ; sırada canlıya alma (5 migration + PR #57). Faz 4 kategori adları
   2026-09-23'te BİTTİ; nitelik etiketleri/süzgeç değerleri küçük artık.
   Faz 0 + Faz 1 (herkese açık yüzey, kimlik akışı, dil seçici) + Faz 1e
   (içerik otomatik çevirisi) + Faz 4 (kategori adları) 2026-09-23'te BİTTİ.

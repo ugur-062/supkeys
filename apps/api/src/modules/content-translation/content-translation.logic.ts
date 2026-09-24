@@ -378,3 +378,59 @@ export function localizeCompany<T extends object>(item: T, t: CompanyTranslation
   if (Array.isArray(src.services)) out.services = localizeList(src.services as string[], t.services);
   return out as unknown as T;
 }
+
+/* ------------------------------------------------------------------ */
+/* Çok dilli arama metni                                               */
+/* ------------------------------------------------------------------ */
+
+/** Arama metni tavanı — uzun tanıtım metinleri sütunu şişirmesin. */
+export const SEARCH_TEXT_I18N_MAX = 4000;
+
+/**
+ * `searchTextI18n` — KAYNAK metin + her dilin çevirisi, katlanmış tek dize.
+ * Alan kümesi `searchText`/herkese açık aramanın baktığı alanlarla aynı:
+ * ürün ad + anahtar kelime (açıklama değil — `searchText` de almıyor),
+ * talep başlık + açıklama + anahtar kelime + kalem adları, firma sektör +
+ * hizmetler + tanıtım. Yinelenen sözcükler bir kez yazılır (Türkçe ve
+ * İngilizce özel adlar aynı kalır). `fold` parametre: shared'e bağımlılık
+ * servis katmanında kalsın, bu dosya saf kalsın.
+ */
+export function buildSearchTextI18n(
+  type: TranslatableEntityType,
+  source: SourceFields,
+  translations: TranslationFields[],
+  fold: (s: string) => string,
+): string {
+  const parts: string[] = [];
+  const push = (...xs: (string | null | undefined)[]) => {
+    for (const x of xs) if (x) parts.push(x);
+  };
+  if (type === "PRODUCT") {
+    const s = source as ProductSource;
+    push(s.name, ...s.keywords);
+    for (const t of translations as ProductTranslation[]) push(t.name, ...t.keywords.map((k) => k.dst));
+  } else if (type === "LISTING") {
+    const s = source as ListingSource;
+    push(s.title, s.description, ...s.keywords, ...s.items);
+    for (const t of translations as ListingTranslation[]) {
+      push(t.title, t.description, ...t.keywords.map((k) => k.dst), ...t.items.map((i) => i.dst));
+    }
+  } else {
+    const s = source as CompanySource;
+    push(s.industry, ...s.services, s.aboutText);
+    for (const t of translations as CompanyTranslation[]) push(t.industry, ...t.services.map((x) => x.dst), t.aboutText);
+  }
+  const seen = new Set<string>();
+  const words: string[] = [];
+  for (const w of fold(parts.join(" ")).split(" ")) {
+    if (!w || seen.has(w)) continue;
+    seen.add(w);
+    words.push(w);
+  }
+  let out = "";
+  for (const w of words) {
+    if (out.length + w.length + 1 > SEARCH_TEXT_I18N_MAX) break;
+    out = out ? `${out} ${w}` : w;
+  }
+  return out;
+}

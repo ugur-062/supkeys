@@ -1,7 +1,7 @@
 import type { PrismaClient } from "@rothern/db";
 import { CATEGORY_NAME_SELECT, categoryName } from "./category-name";
 import { isHiddenCategory } from "@rothern/shared";
-import { categorySegment, isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
+import { categorySegment, foldSearchText, isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, stemPrefix, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
 import { effectiveTier } from "./effective-tier";
 import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "./public-profile-gate";
 import { productSearchClauses } from "./product-index";
@@ -123,6 +123,8 @@ export async function directoryRows(
                         { aboutText: { contains: t, mode: "insensitive" as const } },
                         { services: { has: t } },
                         { rothernId: { contains: t.toUpperCase() } },
+                        // Katlanmış kaynak + EN/RU çeviri (sektör/hizmet/tanıtım).
+                        { searchTextI18n: { contains: stemPrefix(foldSearchText(t)) } },
                       ],
                     })),
                   },

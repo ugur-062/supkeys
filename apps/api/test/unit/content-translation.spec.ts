@@ -1,5 +1,8 @@
+import { foldSearchText } from "@rothern/shared";
 import {
+  SEARCH_TEXT_I18N_MAX,
   buildPrompt,
+  buildSearchTextI18n,
   hasTranslatableText,
   localizeCompany,
   localizeFeatures,
@@ -46,6 +49,30 @@ function goodOutput(withAttributes = true) {
   }
   return { sourceLocale: "tr", translations: { tr: product, en, ru } };
 }
+
+describe("buildSearchTextI18n", () => {
+  it("kaynak + çeviriler katlanır, yinelenen sözcük bir kez, alan kümesi aramayla aynı", () => {
+    const text = buildSearchTextI18n(
+      "LISTING",
+      { title: "Çelik Boru", description: null, keywords: ["boru"], items: ["DN50 dikişsiz boru"] },
+      [{ title: "Steel pipe", description: null, keywords: [{ src: "boru", dst: "pipe" }], items: [{ src: "DN50 dikişsiz boru", dst: "DN50 seamless pipe" }] }],
+      foldSearchText,
+    );
+    expect(text.split(" ")).toEqual(["celik", "boru", "dn50", "dikissiz", "steel", "pipe", "seamless"]);
+  });
+
+  it("ürün açıklaması arama metnine GİRMEZ (searchText ile aynı kural); tavan uygulanır", () => {
+    const text = buildSearchTextI18n("PRODUCT", { ...product, description: "gizli açıklama" }, [], foldSearchText);
+    expect(text).not.toContain("gizli");
+    const long = buildSearchTextI18n(
+      "COMPANY",
+      { aboutText: Array.from({ length: 2000 }, (_, i) => `kelime${i}`).join(" "), services: [], industry: null },
+      [],
+      foldSearchText,
+    );
+    expect(long.length).toBeLessThanOrEqual(SEARCH_TEXT_I18N_MAX);
+  });
+});
 
 describe("sayı koruma", () => {
   it("binlik/ondalık ayraç ve boşluk farkını normalize eder", () => {
@@ -185,7 +212,10 @@ describe("ContentTranslationService", () => {
   function rig(opts: { providerText?: string; providerFails?: boolean; existing?: unknown[] } = {}) {
     const rows = new Map<string, Record<string, unknown>>();
     const prisma = {
-      companyItem: { findUnique: jest.fn(async () => ({ ...product, attributes: null, categoryId: null })) },
+      companyItem: {
+        findUnique: jest.fn(async () => ({ ...product, attributes: null, categoryId: null })),
+        updateMany: jest.fn(async () => ({ count: 1 })),
+      },
       listing: { findUnique: jest.fn() },
       company: { findUnique: jest.fn() },
       category: { findMany: jest.fn(async () => []) },
@@ -243,6 +273,12 @@ describe("ContentTranslationService", () => {
     expect((rows.get("tr") as { fields: unknown }).fields).not.toEqual(expect.objectContaining({ name: expect.any(String) }));
     // Aynı kaynakla ikinci enqueue işlem yapmaz.
     expect(await svc.enqueue("PRODUCT", "p1")).toBe(false);
+    // Çok dilli arama metni DONE anında yazılır: kaynak + EN + RU, katlanmış.
+    const writes = prisma.companyItem.updateMany.mock.calls as unknown as [{ data: { searchTextI18n: string } }][];
+    const last = writes[writes.length - 1]![0].data.searchTextI18n;
+    expect(last).toContain("bakir levha");
+    expect(last).toContain("copper sheet");
+    expect(last).toContain(foldSearchText("медный лист")); // й → и: sorgu da aynı katlanır
   });
 
   it("doğrulanamayan çıktı bir düzeltme turu alır, yine bozuksa FAILED", async () => {

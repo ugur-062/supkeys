@@ -31,7 +31,7 @@
  * Çalıştırma: `pnpm --filter @rothern/db seed-categories`
  */
 import { PrismaClient } from "@prisma/client";
-import { foldSearchText } from "@rothern/shared";
+import { categorySearchText } from "@rothern/shared";
 import * as fs from "fs";
 import * as path from "path";
 import { buildKeywordsByCode, readI18nNames, readTranslations } from "./lib/category-keywords";
@@ -209,7 +209,7 @@ async function main() {
                 nameEn: i18nNames.get(c.code)?.en ?? null,
                 nameRu: i18nNames.get(c.code)?.ru ?? null,
                 keywords: kw,
-                searchText: foldSearchText(`${c.nameTr} ${kw}`),
+                searchText: categorySearchText({ nameTr: c.nameTr, keywords: kw, nameEn: i18nNames.get(c.code)?.en, nameRu: i18nNames.get(c.code)?.ru }),
                 level: c.level,
                 parentId: c.parentCode,
                 segmentLetter: c.segmentLetter,

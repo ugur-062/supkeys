@@ -39,6 +39,13 @@ export class ContentTranslationController {
     return { enqueued, enabled: this.translations.enabled };
   }
 
+  /** Çok dilli arama metnini mevcut çevirilerden yeniden kurar (model çağrısı yok). */
+  @Post("search-text/rebuild")
+  @RequireAdminRole("SUPER_ADMIN")
+  rebuildSearchText() {
+    return this.translations.rebuildAllSearchTexts();
+  }
+
   /** i18n Faz 4 — kategori adı EN/RU: sayaç + koşan işin ilerlemesi. */
   @Get("categories/status")
   @RequireAdminRole("SUPER_ADMIN", "SUPPORT")

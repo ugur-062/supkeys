@@ -3,7 +3,7 @@ import { PublicListFacetQueryDto } from "./dto/public-list-query.dto";
 import { hiddenCategoryWhere, isHiddenCategory, listingSlug } from "@rothern/shared";
 import { Optional, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
-import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText } from "@rothern/shared";
+import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText, stemPrefix } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
@@ -266,10 +266,10 @@ export class PublicMarketplaceService {
   }
 
   /**
-   * Serbest arama — başlık/açıklama/anahtar kelime. Kategori aramasındaki
-   * `searchText` yolundan AYRI: orada katlanmış tek bir sütun var, burada
-   * yok. Sorgu tokenlenir ve her token AND'lenir (sıra önemsiz), her token
-   * üç alanda OR'lanır.
+   * Serbest arama — başlık/açıklama/anahtar kelime + `searchTextI18n`
+   * (katlanmış kaynak + EN/RU çeviriler, kalem adları dahil; içerik çevirisi
+   * servisi yazar). Ham ILIKE dalları sütun henüz dolmamış talepler için
+   * yedek. Token AND, alanlar OR.
    */
   private searchWhere(raw?: string): Prisma.ListingWhereInput {
     const tokens = raw ? tokenizeQuery(raw) : [];
@@ -280,6 +280,7 @@ export class PublicMarketplaceService {
           { title: { contains: t, mode: "insensitive" as const } },
           { description: { contains: t, mode: "insensitive" as const } },
           { keywords: { has: t } },
+          { searchTextI18n: { contains: stemPrefix(foldSearchText(t)) } },
         ],
       })),
     };

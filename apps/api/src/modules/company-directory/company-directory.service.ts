@@ -1,6 +1,6 @@
 import { Injectable, Optional } from "@nestjs/common";
 import type { CompanyActivity, Prisma } from "@rothern/db";
-import { tokenizeQuery } from "@rothern/shared";
+import { foldSearchText, stemPrefix, tokenizeQuery } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
@@ -72,6 +72,7 @@ export class CompanyDirectoryService {
                 { industry: { contains: t, mode: "insensitive" as const } },
                 { aboutText: { contains: t, mode: "insensitive" as const } },
                 { services: { has: t } },
+                { searchTextI18n: { contains: stemPrefix(foldSearchText(t)) } },
               ],
             })),
           }
