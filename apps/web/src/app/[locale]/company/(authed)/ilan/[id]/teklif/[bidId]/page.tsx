@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useUnitLabel } from "@/i18n/domain";
 import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -41,6 +43,8 @@ import { canManageListing } from "@/lib/tenders/can-manage-listing";
 import { toast } from "sonner";
 
 export default function BidDetailPage() {
+  const t = useTranslations("web.panel.requests.page");
+  const unitLabel = useUnitLabel();
   const params = useParams<{ id: string; bidId: string }>();
   const { id, bidId } = params;
   const { data: l, isLoading, isError, refetch } = useListingDetail(id);
@@ -60,18 +64,18 @@ export default function BidDetailPage() {
   });
 
   if (isLoading)
-    return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
+    return <Text className="text-sm text-zinc-500">{t("yukleniyor")}</Text>;
   if (isError)
     return (
       <div className="mx-auto max-w-3xl rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-        <Text className="text-sm text-red-700">Teklif yüklenemedi.</Text>
+        <Text className="text-sm text-red-700">{t("teklifYuklenemedi")}</Text>
         <Button outline className="mt-3" onClick={() => refetch()}>
-          Tekrar dene
+          {t("tekrarDene")}
         </Button>
       </div>
     );
   if (!l)
-    return <Text className="text-sm text-zinc-500">İlan bulunamadı.</Text>;
+    return <Text className="text-sm text-zinc-500">{t("ilanBulunamadi")}</Text>;
 
   const bid = (l.bids ?? []).find((b) => b.id === bidId);
   if (!bid)
@@ -82,9 +86,9 @@ export default function BidDetailPage() {
           className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
         >
           <ArrowLeftIcon className="h-4 w-4" />
-          Satın Alma Talebi
+          {t("satinAlmaTalebi")}
         </Link>
-        <Text className="text-sm text-zinc-500">Teklif bulunamadı.</Text>
+        <Text className="text-sm text-zinc-500">{t("teklifBulunamadi")}</Text>
       </div>
     );
 
@@ -103,9 +107,9 @@ export default function BidDetailPage() {
   const handleAward = async () => {
     if (
       !(await confirm({
-        title: "Kazandır",
-        description: `"${bid.bidderName}" kazandırılsın mı? Sipariş oluşacak.`,
-        confirmLabel: "Kazandır",
+        title: t("kazandir"),
+        description: t("kazandirilsinMiSiparisOlusacak", { bidderName: bid.bidderName }),
+        confirmLabel: t("kazandir"),
       }))
     )
       return;
@@ -113,11 +117,11 @@ export default function BidDetailPage() {
       const res = await award.mutateAsync({ bidId: bid.id });
       toast.success(
         res.pendingApproval
-          ? "Kazandırma onaya gönderildi"
-          : `Kazandırıldı — sipariş ${res.number} oluştu`,
+          ? t("kazandirmaOnayaGonderildi")
+          : t("kazandirildiSiparisOlustu", { number: res.number ?? "" }),
       );
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kazandırılamadı"));
+      toast.error(extractErrorMessage(err, t("kazandirilamadi")));
     }
   };
 
@@ -127,10 +131,10 @@ export default function BidDetailPage() {
         bidId: bid.id,
         reason: reason.trim() || undefined,
       });
-      toast.success("Teklif elendi");
+      toast.success(t("teklifElendi"));
       setEliminateOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Elenemedi"));
+      toast.error(extractErrorMessage(err, t("elenemedi")));
     }
   };
 
@@ -150,15 +154,15 @@ export default function BidDetailPage() {
           <div className="min-w-0 space-y-1">
             <div className="flex flex-wrap items-center gap-2">
               {bid.status === "WON" ? (
-                <Badge color="green">Kazandı</Badge>
+                <Badge color="green">{t("kazandi")}</Badge>
               ) : bid.status === "AWARDED_PARTIAL" ? (
-                <Badge color="green">Kısmen Kazandı</Badge>
+                <Badge color="green">{t("kismenKazandi")}</Badge>
               ) : bid.status === "LOST" ? (
-                <Badge color="zinc">Elendi</Badge>
+                <Badge color="zinc">{t("elendi")}</Badge>
               ) : (
-                <Badge color="blue">Değerlendirmede</Badge>
+                <Badge color="blue">{t("degerlendirmede")}</Badge>
               )}
-              {bid.round ? <Badge color="zinc">Tur {bid.round}</Badge> : null}
+              {bid.round ? <Badge color="zinc">{t("tur", { round: bid.round })}</Badge> : null}
             </div>
             <Heading>{bid.bidderName}</Heading>
             <Text className="text-sm text-zinc-500">
@@ -173,7 +177,7 @@ export default function BidDetailPage() {
               <div className="text-xs text-zinc-500">
                 {bid.amountTry != null
                   ? `≈ ${formatMoney(bid.amountTry, "TRY")}`
-                  : "TRY karşılığı yok (kur alınamadı)"}
+                  : t("tryKarsiligiYokKurAlinamadi")}
               </div>
             ) : null}
             {bid.bidderCompanyId ? (
@@ -181,7 +185,7 @@ export default function BidDetailPage() {
                 href={`/company/mesajlar?with=${bid.bidderCompanyId}&portal=satinalma`}
                 className="text-xs font-semibold text-blue-600 hover:underline"
               >
-                Mesaj Gönder
+                {t("mesajGonder")}
               </Link>
             ) : null}
           </div>
@@ -194,10 +198,10 @@ export default function BidDetailPage() {
               onClick={() => setEliminateOpen(true)}
               disabled={eliminate.isPending}
             >
-              Ele
+              {t("ele")}
             </Button>
             <Button onClick={handleAward} disabled={award.isPending}>
-              Kazandır
+              {t("kazandir")}
             </Button>
           </div>
         ) : null}
@@ -208,7 +212,7 @@ export default function BidDetailPage() {
         <dl className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-3">
           <div>
             <dt className="text-xs text-zinc-500">
-              Taahhüt Edilen Teslim
+              {t("taahhutEdilenTeslim")}
             </dt>
             <dd className="font-medium text-zinc-900">
               {bidDeliveryTimeLabel(bid.deliveryTime) ??
@@ -218,9 +222,9 @@ export default function BidDetailPage() {
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-500">Teklif Geçerliliği</dt>
+            <dt className="text-xs text-zinc-500">{t("teklifGecerliligi")}</dt>
             <dd className="font-medium text-zinc-900">
-              {bid.validityDays ? `${bid.validityDays} gün` : "—"}
+              {bid.validityDays ? t("gun", { validityDays: bid.validityDays }) : "—"}
             </dd>
           </div>
         </dl>
@@ -229,15 +233,15 @@ export default function BidDetailPage() {
       {/* Kalem kırılımı */}
       {items.length > 0 && bid.items && bid.items.length > 0 ? (
         <section className="space-y-2">
-          <Subheading>Kalem Teklifleri</Subheading>
+          <Subheading>{t("kalemTeklifleri")}</Subheading>
           <div className="card px-2 [--gutter:--spacing(4)]">
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <TableHeader>Kalem</TableHeader>
-                  <TableHeader className="text-right">Miktar</TableHeader>
-                  <TableHeader className="text-right">Birim Fiyat</TableHeader>
-                  <TableHeader className="text-right">Tutar</TableHeader>
+                  <TableHeader>{t("kalem")}</TableHeader>
+                  <TableHeader className="text-right">{t("miktar")}</TableHeader>
+                  <TableHeader className="text-right">{t("birimFiyat")}</TableHeader>
+                  <TableHeader className="text-right">{t("tutar")}</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -259,11 +263,13 @@ export default function BidDetailPage() {
                         {it.name}
                         {bi?.deliveryTime || bi?.deliveryDate ? (
                           <span className="block text-xs text-zinc-500">
-                            Kalem teslimi:{" "}
-                            {bidDeliveryTimeLabel(bi.deliveryTime) ??
-                              (bi.deliveryDate
-                                ? formatDate(bi.deliveryDate, "short")
-                                : "—")}
+                            {t("kalemTeslimi", {
+                              value:
+                                bidDeliveryTimeLabel(bi.deliveryTime) ??
+                                (bi.deliveryDate
+                                  ? formatDate(bi.deliveryDate, "short")
+                                  : "—"),
+                            })}
                           </span>
                         ) : null}
                         {itemAnswers.map(({ q, value }) => (
@@ -276,7 +282,7 @@ export default function BidDetailPage() {
                         ))}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-zinc-600">
-                        {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
+                        {Number(it.quantity).toLocaleString("tr-TR")} {unitLabel(it.unit, it.unitCode)}
                       </TableCell>
                       {/* Madde 9: kalem kendi para birimini taşıyabilir. */}
                       <TableCell className="text-right tabular-nums text-zinc-700">
@@ -301,7 +307,7 @@ export default function BidDetailPage() {
       {/* Not */}
       {bid.note ? (
         <section className="space-y-2">
-          <Subheading>Teklif Notu</Subheading>
+          <Subheading>{t("teklifNotu")}</Subheading>
           <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
             <Text className="whitespace-pre-wrap text-sm text-zinc-700">
               {bid.note}
@@ -312,9 +318,9 @@ export default function BidDetailPage() {
 
       {/* Belgeler */}
       <section className="space-y-2">
-        <Subheading>Teklif Belgeleri ({docs.length})</Subheading>
+        <Subheading>{t("teklifBelgeleri", { length: docs.length })}</Subheading>
         {docs.length === 0 ? (
-          <Text className="text-sm text-zinc-500">Belge eklenmemiş.</Text>
+          <Text className="text-sm text-zinc-500">{t("belgeEklenmemis")}</Text>
         ) : (
           <div className="space-y-4">
             {BID_DOC_KINDS.map((k) => {
@@ -347,9 +353,9 @@ export default function BidDetailPage() {
         open={eliminateOpen}
         onClose={() => setEliminateOpen(false)}
         onSubmit={submitEliminate}
-        title="Teklifi ele"
-        description={`"${bid.bidderName}" elensin mi? Yeniden teklif verebilir. Yazdığınız gerekçe tedarikçiye GÖSTERİLİR.`}
-        confirmLabel="Ele"
+        title={t("teklifiEle")}
+        description={t("elensinMiYenidenTeklifVerebilir", { bidderName: bid.bidderName })}
+        confirmLabel={t("ele")}
         destructive
         pending={eliminate.isPending}
       />

@@ -1,6 +1,7 @@
 "use client";
 
-import { entityLabels } from "@/lib/company/terms";
+import { useTranslations } from "next-intl";
+import { useEntityLabels, useUnitLabel } from "@/i18n/domain";
 
 import { useMemo, useState } from "react";
 import { Search, PackageSearch } from "lucide-react";
@@ -19,7 +20,6 @@ import {
   useMarkCatalogUsed,
   type CatalogItem,
 } from "@/hooks/use-company-items";
-import { unitText } from "@/components/ui/unit-select";
 
 export interface PickedCatalogItem {
   catalogId: string;
@@ -56,7 +56,9 @@ export function CatalogPickerDialog({
   onClose: () => void;
   onPick: (items: PickedCatalogItem[]) => void;
 }) {
-  const L = entityLabels();
+  const t = useTranslations("web.panel.requests.catalogPickerDialog");
+  const L = useEntityLabels();
+  const unitLabel = useUnitLabel();
   const [q, setQ] = useState("");
   const debouncedQ = useDebouncedValue(q, 300);
   // Modal kapalıyken ağ isteği atma.
@@ -104,7 +106,7 @@ export function CatalogPickerDialog({
 
   return (
     <Dialog open={open} onClose={onClose} size="2xl">
-      <DialogTitle>Katalogdan Kalem Ekle</DialogTitle>
+      <DialogTitle>{t("katalogdanKalemEkle")}</DialogTitle>
       <DialogBody className="space-y-3">
         <div className="relative">
           <Search
@@ -114,10 +116,10 @@ export function CatalogPickerDialog({
           <Input
             autoFocus
             className="pl-9"
-            placeholder="Kalem adı, stok kodu, marka…"
+            placeholder={t("kalemAdiStokKoduMarka")}
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            aria-label="Katalogda ara"
+            aria-label={t("katalogdaAra")}
           />
         </div>
 
@@ -126,8 +128,8 @@ export function CatalogPickerDialog({
             <PackageSearch className="mx-auto size-6 text-zinc-400" aria-hidden />
             <p className="mt-2 text-sm text-zinc-600">
               {q
-                ? "Aramanızla eşleşen kalem yok."
-                : `Kataloğunuz henüz boş. Bir ${L.entityLower} oluşturduktan sonra “Kalemleri kataloğa kaydet” ile doldurabilirsiniz.`}
+                ? t("aramanizlaEslesenKalemYok")
+                : t("katalogunuzHenuzBosBirOlusturduktan", { entityLower: L.entityLower })}
             </p>
           </div>
         ) : (
@@ -140,7 +142,7 @@ export function CatalogPickerDialog({
                     <Checkbox
                       checked={isOn}
                       onChange={() => toggle(it)}
-                      aria-label={`${it.name} seç`}
+                      aria-label={t("sec", { name: it.name })}
                     />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-zinc-900">
@@ -150,7 +152,7 @@ export function CatalogPickerDialog({
                         {[
                           it.code,
                           it.brand,
-                          unitText(it.unitCode, it.unit),
+                          unitLabel(it.unit, it.unitCode),
                         ]
                           .filter(Boolean)
                           .join(" · ")}
@@ -162,7 +164,7 @@ export function CatalogPickerDialog({
                         min={0.001}
                         step="any"
                         className="!w-28"
-                        aria-label={`${it.name} miktarı`}
+                        aria-label={t("miktari", { name: it.name })}
                         value={selected[it.id]}
                         onChange={(e) =>
                           setSelected((prev) => ({
@@ -181,16 +183,16 @@ export function CatalogPickerDialog({
 
         {list.data?.truncated ? (
           <p role="status" className="text-xs text-amber-700">
-            Sonuç listesi kısaltıldı — aramayı daraltın.
+            {t("sonucListesiKisaltildiAramayiDaraltin")}
           </p>
         ) : null}
       </DialogBody>
       <DialogActions>
         <Button variant="secondary" onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button onClick={apply} disabled={selectedCount === 0}>
-          {selectedCount > 0 ? `${selectedCount} kalemi ekle` : "Ekle"}
+          {selectedCount > 0 ? t("kalemiEkle", { n: selectedCount }) : t("ekle")}
         </Button>
       </DialogActions>
     </Dialog>

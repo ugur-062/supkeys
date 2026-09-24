@@ -1,8 +1,10 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
+
+// Türkçe beklentiler katalogla aynı (`web.domain.listingStatus`); sözlük sabiti silindi (i18n Faz 2).
+const LISTING_STATUS_LABELS = { DRAFT: "Taslak", OPEN: "Yayında", CLOSED: "Teklife Kapalı" } as const;
 import {
-  LISTING_STATUS_LABELS,
   TenderStatusBadge,
   TenderTypeBadge,
 } from "../status-badge";

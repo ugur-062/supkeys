@@ -21,6 +21,8 @@
 
 import { calendarDaysBetween } from "@/lib/time-zone";
 export interface SellerTenderState {
+  /** Katalog anahtarı (`web.domain.sellerState.*`) — `useSellerStateLabel()(key)`; `label` Türkçe yedek. */
+  key: string;
   label: string;
   className: string;
   tone: "neutral" | "info" | "active" | "win" | "lose" | "warn";
@@ -34,35 +36,37 @@ export function deriveSellerTenderState(
   invited: boolean,
 ): SellerTenderState {
   if (listingStatus === "CANCELLED") {
-    return { label: "İptal Edildi", className: NEUTRAL, tone: "neutral" };
+    return { key: "cancelled", label: "İptal Edildi", className: NEUTRAL, tone: "neutral" };
   }
   if (bidStatus === "WON") {
     return {
-      label: "Kazandınız",
+      key: "won", label: "Kazandınız",
       className: "bg-emerald-50 text-emerald-700 border-emerald-200",
       tone: "win",
     };
   }
   if (bidStatus === "AWARDED_PARTIAL") {
     return {
-      label: "Kısmen Kazandınız",
+      key: "wonPartial", label: "Kısmen Kazandınız",
       className: "bg-emerald-50 text-emerald-700 border-emerald-200",
       tone: "win",
     };
   }
   if (bidStatus === "LOST") {
     return {
+      key: "lost",
       label: "Kaybettiniz",
       className: "bg-rose-50 text-rose-700 border-rose-200",
       tone: "lose",
     };
   }
   if (bidStatus === "WITHDRAWN") {
-    return { label: "Geri Çekildi", className: NEUTRAL, tone: "neutral" };
+    return { key: "withdrawn", label: "Geri Çekildi", className: NEUTRAL, tone: "neutral" };
   }
   if (listingStatus === "OPEN") {
     if (bidStatus === "DRAFT") {
       return {
+        key: "draftMine",
         label: "Taslak Teklifim",
         className: "bg-amber-50 text-amber-700 border-amber-200",
         tone: "warn",
@@ -70,20 +74,21 @@ export function deriveSellerTenderState(
     }
     if (bidStatus === "SUBMITTED") {
       return {
-        label: "Teklif Gönderildi",
+        key: "submitted", label: "Teklif Gönderildi",
         className: "bg-violet-50 text-violet-700 border-violet-200",
         tone: "active",
       };
     }
     if (invited) {
       return {
+        key: "invited",
         label: "Davet Edildi",
         className: "bg-blue-50 text-blue-700 border-blue-200",
         tone: "info",
       };
     }
     return {
-      label: "Teklife Açık",
+      key: "open", label: "Teklife Açık",
       className: "bg-blue-50 text-blue-700 border-blue-200",
       tone: "info",
     };
@@ -100,26 +105,26 @@ export function deriveSellerTenderState(
     if (bidStatus === "SUBMITTED") {
       if (listingStatus !== "CLOSED") {
         return {
-          label: "Değerlendiriliyor",
+          key: "evaluating", label: "Değerlendiriliyor",
           className: "bg-indigo-50 text-indigo-700 border-indigo-200",
           tone: "active",
         };
       }
       return {
-        label: "Sonuç Bekleniyor",
+        key: "awaitingResult", label: "Sonuç Bekleniyor",
         className: "bg-zinc-100 text-zinc-600 border-zinc-200",
         tone: "info",
       };
     }
     return {
-      label: bidStatus === "DRAFT" ? "Kapandı (taslak gönderilmedi)" : "Kapandı",
+      key: bidStatus === "DRAFT" ? "closedDraftNotSent" : "closed", label: bidStatus === "DRAFT" ? "Kapandı (taslak gönderilmedi)" : "Kapandı",
       className: NEUTRAL,
       tone: "neutral",
     };
   }
   // AWARDED / CLOSED_NO_AWARD (teklifsiz veya sonuçsuz)
   return {
-    label: bidStatus ? "Kapandı" : "Kapandı (teklif vermediniz)",
+    key: bidStatus ? "closed" : "closedNoBid", label: bidStatus ? "Kapandı" : "Kapandı (teklif vermediniz)",
     className: NEUTRAL,
     tone: "neutral",
   };

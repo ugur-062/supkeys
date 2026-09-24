@@ -1,29 +1,31 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { ListingDetail } from "@/hooks/use-company-listings";
 import { convertAuctionAmount } from "@/lib/tenders/auction-currency";
 import { cn } from "@/lib/utils";
 import { Gavel } from "lucide-react";
 import { useEffect, useState } from "react";
 
-/** ms → "1g 04:05:33" / "04:05:33" biçiminde geri sayım. */
-function formatRemaining(ms: number): string {
-  if (ms <= 0) return "Kapandı";
+/** ms → geri sayım parçaları ("1g 04:05:33" / "04:05:33"); süre dolduysa null. */
+function remainingParts(ms: number): { d: number; hh: string } | null {
+  if (ms <= 0) return null;
   const total = Math.floor(ms / 1000);
   const d = Math.floor(total / 86_400);
   const h = Math.floor((total % 86_400) / 3600);
   const m = Math.floor((total % 3600) / 60);
   const s = total % 60;
   const hh = `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
-  return d > 0 ? `${d}g ${hh}` : hh;
+  return { d, hh };
 }
 
-const VISIBILITY_LABEL: Record<string, string> = {
-  OWN_ONLY: "Rakip bilgisi kapalı — yalnızca kendi teklifinizi görürsünüz",
-  BEST_PRICE: "En iyi teklif herkese görünür",
-  OWN_RANK: "Yalnızca kendi sıranızı görürsünüz",
-  BEST_AND_OWN_RANK: "En iyi teklif + kendi sıran görünür",
-  ALL: "Tüm teklifler (anonim) görünür",
+/** bidVisibility → katalog anahtarı (`web.panel.requests.auctionLiveCard`). */
+const VISIBILITY_KEY: Record<string, string> = {
+  OWN_ONLY: "rakipBilgisiKapaliYalnizcaKendi",
+  BEST_PRICE: "enIyiTeklifHerkeseGorunur",
+  OWN_RANK: "yalnizcaKendiSiraniziGorursunuz",
+  BEST_AND_OWN_RANK: "enIyiTeklifKendiSiranGorunur",
+  ALL: "tumTekliflerAnonimGorunur",
 };
 
 function Tile({
@@ -73,6 +75,7 @@ export function AuctionLiveCard({
    *  birimde gösterilsin (yoksa myBid birimi → ilan birimi sırası). */
   bidderCurrency?: string;
 }) {
+  const tr = useTranslations("web.panel.requests.auctionLiveCard");
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -83,6 +86,16 @@ export function AuctionLiveCard({
 
   const closesMs = l.closesAt ? new Date(l.closesAt).getTime() - now : null;
   const urgent = closesMs !== null && closesMs > 0 && closesMs < 5 * 60_000;
+  const remaining = closesMs !== null ? remainingParts(closesMs) : null;
+  const remainingText =
+    closesMs === null
+      ? null
+      : remaining
+        ? remaining.d > 0
+          ? tr("gunSaatGeriSayim", { d: remaining.d, time: remaining.hh })
+          : remaining.hh
+        : tr("kapandi");
+  const visibilityKey = VISIBILITY_KEY[l.bidVisibility ?? ""];
   const view = l.auctionView;
   const sym = (c: string | null | undefined) =>
     !c || c === "TRY" ? "₺" : c;
@@ -121,7 +134,7 @@ export function AuctionLiveCard({
       <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
         <span className="inline-flex items-center gap-2 rounded-full bg-amber-100 px-3 py-1 text-xs font-semibold text-amber-800">
           <Gavel className="h-3.5 w-3.5" aria-hidden="true" />
-          Pazarlık (Açık Eksiltme) · Tur {l.english.currentRound}
+          {tr("pazarlikAcikEksiltmeTur", { currentRound: l.english.currentRound })}
         </span>
         {closesMs !== null ? (
           <span
@@ -130,22 +143,22 @@ export function AuctionLiveCard({
               urgent ? "text-red-600" : "text-zinc-700",
             )}
           >
-            {formatRemaining(closesMs)}
+            {remainingText}
           </span>
         ) : null}
       </div>
 
       <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <Tile
-          label="Teklifiniz"
+          label={tr("teklifiniz")}
           // Teklifçinin KENDİ para birimiyle gösterilir (ilanınkiyle değil).
           // Versiyon alt yazısı kaldırıldı — tedarikçiye teknik gürültü.
           value={l.myBid ? money(l.myBid.amount, l.myBid.currency) : "—"}
           highlight={!!l.myBid}
         />
         <Tile
-          label="En İyi Teklif"
-          value={view?.bestTotal ? money(view.bestTotal, bestCur) : "Gizli"}
+          label={tr("enIyiTeklif")}
+          value={view?.bestTotal ? money(view.bestTotal, bestCur) : tr("gizli")}
           sub={
             bestInMyCurrency != null
               ? `≈ ${bestInMyCurrency.toLocaleString("tr-TR", {
@@ -155,28 +168,28 @@ export function AuctionLiveCard({
           }
         />
         <Tile
-          label="Sıralaman"
+          label={tr("siralaman")}
           value={
             view?.myRank != null && view.participantCount != null
               ? `${view.myRank} / ${view.participantCount}`
               : myBidPartial
                 ? "—"
-                : "Gizli"
+                : tr("gizli")
           }
           sub={
             myBidPartial
-              ? `Kısmi teklif (${myPricedCount}/${itemCount} kalem) sıralamaya girmez`
+              ? tr("kismiTeklifKalemSiralamayaGirmez", { myPricedCount: myPricedCount, itemCount: itemCount })
               : undefined
           }
         />
         <Tile
-          label="Tur Hakkın"
-          value={canBidThisRound ? "1 teklif" : "Kullanıldı"}
+          label={tr("turHakkin")}
+          value={canBidThisRound ? tr("birTeklif") : tr("kullanildi")}
           sub={
             canBidThisRound
-              ? "Öncekinden düşük olmalı"
+              ? tr("oncekindenDusukOlmali")
               : // Yeni tur garanti değil — söz vermeden anlat.
-                "Bu turdaki teklifiniz kesin — alıcı yeni tur açarsa güncelleyebilirsiniz"
+                tr("buTurdakiTeklifinizKesinAlici")
           }
           highlight={!canBidThisRound}
         />
@@ -187,11 +200,13 @@ export function AuctionLiveCard({
           className="h-1.5 w-1.5 animate-pulse rounded-full bg-emerald-500"
           aria-hidden="true"
         />
-        <span>{VISIBILITY_LABEL[l.bidVisibility ?? ""] ?? ""}</span>
+        <span>{visibilityKey ? tr(visibilityKey as never) : ""}</span>
         {l.autoExtendOnLateBid && l.autoExtendThresholdMin ? (
           <span>
-            · Son {l.autoExtendThresholdMin} dk içinde gelen teklif kapanışı{" "}
-            {l.autoExtendByMinutes ?? 0} dk uzatır
+            {tr("otoUzatmaNotu", {
+              threshold: l.autoExtendThresholdMin,
+              by: l.autoExtendByMinutes ?? 0,
+            })}
           </span>
         ) : null}
       </div>
@@ -199,7 +214,7 @@ export function AuctionLiveCard({
       {view?.allBids && view.allBids.length > 0 ? (
         <div className="mt-3 rounded-lg border border-zinc-200 bg-white">
           <div className="border-b border-zinc-100 px-4 py-2 text-xs font-medium text-zinc-500">
-            Tüm teklifler (anonim)
+            {tr("tumTekliflerAnonim")}
           </div>
           <ul className="divide-y divide-zinc-100">
             {view.allBids.map((b) => (
@@ -211,7 +226,7 @@ export function AuctionLiveCard({
                 )}
               >
                 <span className="text-zinc-500">
-                  #{b.rank} {b.isMine ? "(Sen)" : "Tedarikçi"}
+                  #{b.rank} {b.isMine ? tr("sen") : tr("tedarikci")}
                 </span>
                 <span className="text-zinc-900 tabular-nums">
                   {money(b.total, b.currency ?? l.primaryCurrency)}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
 import { SelectMenu } from "@/components/ui/select-menu";
 import {
@@ -82,6 +83,7 @@ export function TenderActionsMenu({
   allowedCurrencies = [],
   carryableBidCount = 0,
 }: Props) {
+  const t = useTranslations("web.panel.requests.tenderActionsMenu");
   const router = useRouter();
   const confirm = useConfirm();
   const changeClosing = useChangeClosing(id);
@@ -119,19 +121,19 @@ export function TenderActionsMenu({
   const handleDeleteDraft = async () => {
     if (
       !(await confirm({
-        title: "Taslağı sil",
-        description: "Taslak ilan kalıcı olarak silinsin mi?",
-        confirmLabel: "Sil",
+        title: t("taslagiSil"),
+        description: t("taslakIlanKaliciOlarakSilinsin"),
+        confirmLabel: t("sil"),
         destructive: true,
       }))
     )
       return;
     try {
       await deleteListing.mutateAsync(id);
-      toast.success("Taslak silindi");
+      toast.success(t("taslakSilindi"));
       router.push("/company/satinalma/taleplerim");
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Silinemedi"));
+      toast.error(extractErrorMessage(err, t("silinemedi")));
     }
   };
 
@@ -212,49 +214,51 @@ export function TenderActionsMenu({
           : {}),
       });
       toast.success(
-        nextRoundMode === "auction" ? "Pazarlık turu açıldı" : "Yeni tur açıldı",
+        nextRoundMode === "auction" ? t("pazarlikTuruAcildi") : t("yeniTurAcildi"),
       );
       setNextRoundOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Yeni tur açılamadı"));
+      toast.error(extractErrorMessage(err, t("yeniTurAcilamadi")));
     }
   };
 
   const handleCancel = async (reason: string) => {
     try {
       await cancelListing.mutateAsync(reason);
-      toast.success("Satın Alma Talebi iptal edildi");
+      toast.success(t("satinAlmaTalebiIptalEdildi"));
       setCancelOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İptal edilemedi"));
+      toast.error(extractErrorMessage(err, t("iptalEdilemedi")));
     }
   };
 
   const handleAddInvitations = async () => {
     const ids = [...inviteSel];
     if (ids.length === 0) {
-      toast.error("En az bir firma seç");
+      toast.error(t("enAzBirFirmaSec"));
       return;
     }
     try {
       const res = await addInvitations.mutateAsync(ids);
       toast.success(
-        `${res.added} firma davet edildi${res.skipped ? ` · ${res.skipped} zaten davetli` : ""}`,
+        res.skipped
+          ? t("firmaDavetEdildiZatenDavetli", { added: res.added, skipped: res.skipped })
+          : t("firmaDavetEdildi", { added: res.added }),
       );
       setInviteSel(new Set());
       setInviteOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Davet eklenemedi"));
+      toast.error(extractErrorMessage(err, t("davetEklenemedi")));
     }
   };
 
   const handleCloseNoAward = async (reason: string) => {
     try {
       await closeNoAward.mutateAsync(reason || undefined);
-      toast.success("Satın Alma Talebi kazanan olmadan kapatıldı");
+      toast.success(t("satinAlmaTalebiKazananOlmadan"));
       setCloseNoAwardOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kapatılamadı"));
+      toast.error(extractErrorMessage(err, t("kapatilamadi")));
     }
   };
 
@@ -262,20 +266,17 @@ export function TenderActionsMenu({
     // Tek yönlü kapı: teklif alımı kalıcı durur, geri açma yok (Yeni Tur var).
     if (
       !(await confirm({
-        title: "Değerlendirmeye Al",
-        description:
-          "Kapanış zamanı beklenmeden teklif alımı şimdi durdurulacak ve satın alma talebi " +
-          "değerlendirme aşamasına geçecek. Bu işlem geri alınamaz; yeniden " +
-          "teklif almak isterseniz Yeni Tur açabilirsiniz. Teklif verenler bilgilendirilir.",
-        confirmLabel: "Değerlendirmeye Al",
+        title: t("degerlendirmeyeAl"),
+        description: t("kapanisZamaniBeklenmedenTeklifAlimi"),
+        confirmLabel: t("degerlendirmeyeAl"),
       }))
     )
       return;
     try {
       await startEvaluation.mutateAsync();
-      toast.success("Satın Alma Talebi değerlendirmeye alındı");
+      toast.success(t("satinAlmaTalebiDegerlendirmeyeAlindi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Değerlendirmeye alınamadı"));
+      toast.error(extractErrorMessage(err, t("degerlendirmeyeAlinamadi")));
     }
   };
 
@@ -288,20 +289,20 @@ export function TenderActionsMenu({
     }
     try {
       await changeClosing.mutateAsync(new Date(newClosing).toISOString());
-      toast.success("Kapanış zamanı güncellendi");
+      toast.success(t("kapanisZamaniGuncellendi"));
       setClosingOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Güncellenemedi"));
+      toast.error(extractErrorMessage(err, t("guncellenemedi")));
     }
   };
 
   const handleSaveNotes = async () => {
     try {
       await updateNotes.mutateAsync(notes);
-      toast.success("Notlar kaydedildi");
+      toast.success(t("notlarKaydedildi"));
       setNotesOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kaydedilemedi"));
+      toast.error(extractErrorMessage(err, t("kaydedilemedi")));
     }
   };
 
@@ -311,12 +312,12 @@ export function TenderActionsMenu({
       <div className="flex flex-wrap items-center gap-2">
         {canEdit ? (
           <Button outline href={`/company/satinalma/taleplerim/${id}/duzenle`}>
-            Satın Alma Talebini Düzenle
+            {t("satinAlmaTalebiniDuzenle")}
           </Button>
         ) : null}
         {isOpen ? (
           <Button outline onClick={() => setClosingOpen(true)}>
-            Kapanış Zamanını Değiştir
+            {t("kapanisZamaniniDegistir")}
           </Button>
         ) : null}
         {canStartNegotiation ? (
@@ -328,7 +329,7 @@ export function TenderActionsMenu({
               setNextRoundOpen(true);
             }}
           >
-            Pazarlığa Geç
+            {t("pazarligaGec")}
           </Button>
         ) : null}
         {/* Pazarlıkta yeni tur ANA akış — menüde saklanmaz, görünür buton. */}
@@ -341,7 +342,7 @@ export function TenderActionsMenu({
               setNextRoundOpen(true);
             }}
           >
-            Yeni Tur Aç
+            {t("yeniTurAc")}
           </Button>
         ) : null}
         {canStartEvaluation ? (
@@ -350,42 +351,42 @@ export function TenderActionsMenu({
             onClick={handleStartEvaluation}
             disabled={startEvaluation.isPending}
           >
-            Değerlendirmeye Al
+            {t("degerlendirmeyeAl")}
           </Button>
         ) : null}
         {/* Değerlendirmenin üç meşru sonucundan biri (kazandır / yeni tur /
             kimseye verme) — bu aşamada ⋮ menüsünde saklanmaz. */}
         {isInEvaluation ? (
           <Button outline onClick={() => setCloseNoAwardOpen(true)}>
-            Kazanan Olmadan Kapat
+            {t("kazananOlmadanKapat")}
           </Button>
         ) : null}
         <Dropdown>
-          <DropdownButton outline aria-label="Diğer işlemler">
+          <DropdownButton outline aria-label={t("digerIslemler")}>
             <EllipsisVerticalIcon />
           </DropdownButton>
           <DropdownMenu anchor="bottom end">
             {canInvite ? (
               <DropdownItem onClick={() => setInviteOpen(true)}>
-                <DropdownLabel>Tedarikçi Davet Et</DropdownLabel>
+                <DropdownLabel>{t("tedarikciDavetEt")}</DropdownLabel>
               </DropdownItem>
             ) : null}
             {canInvite ? (
               <DropdownItem onClick={() => setDiscoveryOpen(true)}>
-                <DropdownLabel>AI ile Daha Fazla Eriş</DropdownLabel>
+                <DropdownLabel>{t("aiIleDahaFazlaEris")}</DropdownLabel>
               </DropdownItem>
             ) : null}
             <DropdownItem onClick={() => setNotesOpen(true)}>
-              <DropdownLabel>İç Notlar</DropdownLabel>
+              <DropdownLabel>{t("icNotlar")}</DropdownLabel>
             </DropdownItem>
             <DropdownItem
               href={`/company/satinalma/taleplerim/yeni?from=${id}`}
             >
-              <DropdownLabel>Satın Alma Talebini Kopyala</DropdownLabel>
+              <DropdownLabel>{t("satinAlmaTalebiniKopyala")}</DropdownLabel>
             </DropdownItem>
             {isAuction ? (
               <DropdownItem onClick={() => setHistoryOpen(true)}>
-                <DropdownLabel>Tur Geçmişi</DropdownLabel>
+                <DropdownLabel>{t("turGecmisi")}</DropdownLabel>
               </DropdownItem>
             ) : null}
             {/* Pazarlıkta görünür 'Yeni Tur Aç' butonu var — menüde tekrarı
@@ -397,7 +398,7 @@ export function TenderActionsMenu({
                   setNextRoundOpen(true);
                 }}
               >
-                <DropdownLabel>Yeni Tur Oluştur</DropdownLabel>
+                <DropdownLabel>{t("yeniTurOlustur")}</DropdownLabel>
               </DropdownItem>
             ) : null}
             {/* Yayında'da nadir/yıkıcı işlem → menüde; Değerlendirmede'de
@@ -407,7 +408,7 @@ export function TenderActionsMenu({
                 <DropdownDivider />
                 <DropdownItem onClick={() => setCloseNoAwardOpen(true)}>
                   <DropdownLabel className="text-red-600">
-                    Kazanan Olmadan Kapat
+                    {t("kazananOlmadanKapat")}
                   </DropdownLabel>
                 </DropdownItem>
               </>
@@ -415,7 +416,7 @@ export function TenderActionsMenu({
             {isOpen ? (
               <DropdownItem onClick={() => setCancelOpen(true)}>
                 <DropdownLabel className="text-red-600">
-                  Satın Alma Talebini İptal Et
+                  {t("satinAlmaTalebiniIptalEt")}
                 </DropdownLabel>
               </DropdownItem>
             ) : null}
@@ -424,7 +425,7 @@ export function TenderActionsMenu({
                 <DropdownDivider />
                 <DropdownItem onClick={handleDeleteDraft}>
                   <DropdownLabel className="text-red-600">
-                    Taslağı Sil
+                    {t("taslagiSil2")}
                   </DropdownLabel>
                 </DropdownItem>
               </>
@@ -441,39 +442,39 @@ export function TenderActionsMenu({
         listingId={id}
       />
       <Dialog open={closingOpen} onClose={() => setClosingOpen(false)}>
-        <DialogTitle>Kapanış Zamanını Değiştir</DialogTitle>
+        <DialogTitle>{t("kapanisZamaniniDegistir")}</DialogTitle>
         <DialogDescription>
-          Yeni kapanış tarih/saatini seçin. İleri alabilir veya öne çekebilirsiniz.
+          {t("yeniKapanisTarihSaatiniSecin")}
         </DialogDescription>
         <DialogBody>
           <Field>
-            <Label>Kapanış</Label>
+            <Label>{t("kapanis")}</Label>
             {/* Saat seçilmezse gün sonu (23:59) uygulanır. */}
             <DateTimeInput
               idPrefix="change-closing"
               value={newClosing}
               onChange={setNewClosing}
               defaultTime="23:59"
-              dateAriaLabel="Kapanış tarihi"
-              timeAriaLabel="Kapanış saati"
+              dateAriaLabel={t("kapanisTarihi")}
+              timeAriaLabel={t("kapanisSaati")}
             />
           </Field>
         </DialogBody>
         <DialogActions>
           <Button plain onClick={() => setClosingOpen(false)}>
-            Vazgeç
+            {t("vazgec")}
           </Button>
           <Button onClick={handleChangeClosing} disabled={changeClosing.isPending}>
-            Kaydet
+            {t("kaydet")}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* İç notlar */}
       <Dialog open={notesOpen} onClose={() => setNotesOpen(false)}>
-        <DialogTitle>Talep Notları (şirket içi)</DialogTitle>
+        <DialogTitle>{t("talepNotlariSirketIci")}</DialogTitle>
         <DialogDescription>
-          Bu notları sadece firmandaki kullanıcılar görür; tedarikçiler görmez.
+          {t("buNotlariSadeceFirmandakiKullanicilar")}
         </DialogDescription>
         <DialogBody>
           <Textarea
@@ -481,15 +482,15 @@ export function TenderActionsMenu({
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             maxLength={5000}
-            placeholder="Strateji, hatırlatma, iç değerlendirme…"
+            placeholder={t("stratejiHatirlatmaIcDegerlendirme")}
           />
         </DialogBody>
         <DialogActions>
           <Button plain onClick={() => setNotesOpen(false)}>
-            Vazgeç
+            {t("vazgec")}
           </Button>
           <Button onClick={handleSaveNotes} disabled={updateNotes.isPending}>
-            Kaydet
+            {t("kaydet")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -503,28 +504,30 @@ export function TenderActionsMenu({
       >
         <DialogTitle>
           {nextRoundMode === "auction"
-            ? "Pazarlık Aşamasına Geç"
-            : "Yeni Tur Oluştur"}
+            ? t("pazarlikAsamasinaGec")
+            : t("yeniTurOlustur")}
         </DialogTitle>
         <DialogDescription>
           {nextRoundMode === "auction"
-            ? `Aynı kalem ve davetlilerle pazarlık (açık eksiltme) turu başlar${isOpen ? "; mevcut teklif alımı kapanır" : ""}. Teklifler kurala göre taşınabilir.`
-            : "Aynı kalem ve davetlilerle yeni bir tur açar. Tip olarak Pazarlık seçersen satın alma talebi açık eksiltmeye dönüşür."}
+            ? isOpen
+              ? t("pazarlikTuruBaslarKapanir")
+              : t("pazarlikTuruBaslar")
+            : t("ayniKalemVeDavetlilerleYeni")}
         </DialogDescription>
         <DialogBody className="space-y-4">
           {nextRoundMode === "free" ? (
             <Field>
-              <Label>Satın Alma Talebi Tipi</Label>
+              <Label>{t("satinAlmaTalebiTipi")}</Label>
               <SelectMenu
-                ariaLabel="Satın Alma Talebi Tipi"
+                ariaLabel={t("satinAlmaTalebiTipi")}
                 value={nrType}
                 onChange={(v) => setNrType(v as "RFQ" | "ENGLISH_AUCTION")}
                 options={[
                   {
                     value: "ENGLISH_AUCTION",
-                    label: "Pazarlık (Açık Eksiltme)",
+                    label: t("pazarlikAcikEksiltme"),
                   },
-                  { value: "RFQ", label: "Teklif Toplama (Kapalı Zarf)" },
+                  { value: "RFQ", label: t("teklifToplamaKapaliZarf") },
                 ]}
               />
             </Field>
@@ -533,30 +536,24 @@ export function TenderActionsMenu({
               taban fiyat olmadan başlar — engellemiyoruz, bilgilendiriyoruz. */}
           {nrType === "ENGLISH_AUCTION" && carryableBidCount === 0 ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Bu turda taşınabilir teklif yok —{" "}
-              açık eksiltme taban fiyat olmadan başlar; katılımcılar ilk
-              tekliflerini serbestçe verir. Azaltma kuralları sonraki
-              tekliflerde işler.
+              {t("buTurdaTasinabilirTeklifYok")}
             </div>
           ) : null}
           {/* Madde 13: "Önceki Teklifler" seçimi kaldırıldı — teklifler her
               zaman otomatik taşınır ve pazarlıkta geçerlilikleri süresizdir. */}
           <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-            Mevcut teklifler yeni tura <strong>otomatik taşınır</strong> ve
-            pazarlık boyunca <strong>süresiz geçerli</strong> olur. Taşınan
-            teklif, sahibinin bu turdaki teklif hakkını yakmaz — firma dilerse
-            turda bir kez fiyatını iyileştirebilir.
+            {t.rich("mevcutTekliflerYeniTura", { strong: (c) => <strong>{c}</strong> })}
           </div>
           <Field>
-            <Label>Yeni Kapanış</Label>
+            <Label>{t("yeniKapanis")}</Label>
             {/* Saat seçilmezse gün sonu (23:59) uygulanır. */}
             <DateTimeInput
               idPrefix="next-round-closing"
               value={nrClosing}
               onChange={setNrClosing}
               defaultTime="23:59"
-              dateAriaLabel="Yeni kapanış tarihi"
-              timeAriaLabel="Yeni kapanış saati"
+              dateAriaLabel={t("yeniKapanisTarihi")}
+              timeAriaLabel={t("yeniKapanisSaati")}
             />
           </Field>
           <label className="flex items-center gap-2 text-sm text-zinc-700">
@@ -566,7 +563,7 @@ export function TenderActionsMenu({
               onChange={(e) => setNrEliminate(e.target.checked)}
               className="h-4 w-4 rounded border-zinc-300"
             />
-            Önceki turda teklif vermeyen tedarikçileri ele
+            {t("oncekiTurdaTeklifVermeyenTedarikcileri")}
           </label>
 
           {nrType === "ENGLISH_AUCTION" ? (
@@ -575,45 +572,40 @@ export function TenderActionsMenu({
               Minimum pay kaldırıldı (2026-07-13) — çıpa etkisi. */}
           <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
             <p>
-              <span className="font-semibold">Pazarlık kuralları:</span> her
-              firma tur başına <strong>bir teklif</strong> verir ve yeni
-              teklifi kendi öncekinden düşük olmak
-              zorundadır. Önceki turdan taşınan teklif, sahibinin bu turdaki
-              teklif hakkını yakmaz — firma dilerse turda bir kez fiyatını
-              iyileştirebilir.
+              {t.rich("pazarlikKurallariMetni", {
+                b: (c) => <span className="font-semibold">{c}</span>,
+                strong: (c) => <strong>{c}</strong>,
+              })}
             </p>
           </div>
           <Field>
-            <Label>Görünürlük</Label>
+            <Label>{t("gorunurluk")}</Label>
             <SelectMenu
-              ariaLabel="Teklif Görünürlüğü"
+              ariaLabel={t("teklifGorunurlugu")}
               value={vis}
               onChange={(v) => setVis(v as typeof vis)}
               options={[
-                { value: "OWN_ONLY", label: "Sadece kendi teklifi" },
-                { value: "BEST_PRICE", label: "Sadece en iyi teklif" },
-                { value: "OWN_RANK", label: "Sadece kendi sıralaması (Önerilen)" },
+                { value: "OWN_ONLY", label: t("sadeceKendiTeklifi") },
+                { value: "BEST_PRICE", label: t("sadeceEnIyiTeklif") },
+                { value: "OWN_RANK", label: t("sadeceKendiSiralamasiOnerilen") },
                 {
                   value: "BEST_AND_OWN_RANK",
-                  label: "En iyi teklif ve kendi sıralaması",
+                  label: t("enIyiTeklifVeKendi"),
                 },
-                { value: "ALL", label: "Tüm teklifler ve sıralama" },
+                { value: "ALL", label: t("tumTekliflerVeSiralama") },
               ]}
             />
             {/* Mod açıklamaları yalnız İLGİLİ mod seçiliyken gösterilir. */}
             {vis === "OWN_RANK" ? (
               <p className="mt-1.5 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-                “Sadece kendi sıralaması” rekabet baskısı yaratır,
-                fiyat bilgisi sızdırmaz — çoğu satın alma talebi için en dengeli mod.
+                {t("sadeceKendiSiralamasiRekabetBaskisi")}
               </p>
             ) : null}
             {/* ALL seçilince anonimlik güvencesi açıkça yazılır (etiketteki
                 belirsiz '(anonim)' eki yerine). */}
             {vis === "ALL" ? (
               <p className="mt-1.5 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Bu modda katılımcılar tüm teklif tutarlarını ve sıralamayı
-                görür; ancak <strong>firma adları hiçbir şekilde
-                gösterilmez</strong> — kimlikler tamamen anonim kalır.
+                {t.rich("buModdaKatilimcilarTumTeklif", { strong: (c) => <strong>{c}</strong> })}
               </p>
             ) : null}
           </Field>
@@ -623,12 +615,12 @@ export function TenderActionsMenu({
         </DialogBody>
         <DialogActions>
           <Button plain onClick={() => setNextRoundOpen(false)}>
-            Vazgeç
+            {t("vazgec")}
           </Button>
           <Button onClick={handleNextRound} disabled={nextRound.isPending}>
             {nextRoundMode === "auction"
-              ? "Pazarlığı Başlat"
-              : "Yeni Tur Oluştur"}
+              ? t("pazarligiBaslat")
+              : t("yeniTurOlustur")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -646,9 +638,9 @@ export function TenderActionsMenu({
         open={cancelOpen}
         onClose={() => setCancelOpen(false)}
         onSubmit={handleCancel}
-        title="Satın Alma Talebini İptal Et"
-        description="İptal gerekçesi davetli tedarikçilere iletilir. Bu işlem geri alınamaz."
-        confirmLabel="Satın Alma Talebini İptal Et"
+        title={t("satinAlmaTalebiniIptalEt")}
+        description={t("iptalGerekcesiDavetliTedarikcilereIletilir")}
+        confirmLabel={t("satinAlmaTalebiniIptalEt")}
         minLength={10}
         pending={cancelListing.isPending}
         destructive
@@ -657,29 +649,29 @@ export function TenderActionsMenu({
         open={closeNoAwardOpen}
         onClose={() => setCloseNoAwardOpen(false)}
         onSubmit={handleCloseNoAward}
-        title="Kazanan Olmadan Kapat"
-        description="Satın Alma Talebi kazandırılmadan kapatılır. Gerekçe opsiyonel."
-        confirmLabel="Kapat"
+        title={t("kazananOlmadanKapat")}
+        description={t("satinAlmaTalebiKazandirilmadanKapatilir")}
+        confirmLabel={t("kapat")}
         pending={closeNoAward.isPending}
         destructive
       />
 
       {/* Tedarikçi davet ekle */}
       <Dialog open={inviteOpen} onClose={() => setInviteOpen(false)} size="lg">
-        <DialogTitle>Tedarikçi Davet Et</DialogTitle>
+        <DialogTitle>{t("tedarikciDavetEt")}</DialogTitle>
         <DialogDescription>
-          Bağlı firmalarından bu satın alma talebine davet etmek istediklerini seç.
+          {t("bagliFirmalarindanBuSatinAlma")}
         </DialogDescription>
         <DialogBody className="space-y-3">
           <Input
             value={inviteSearch}
             onChange={(e) => setInviteSearch(e.target.value)}
-            placeholder="Firma ara…"
+            placeholder={t("firmaAra")}
           />
           <div className="max-h-72 overflow-y-auto rounded-lg border border-zinc-200">
             {inviteCompanies.length === 0 ? (
               <p className="p-4 text-center text-sm text-zinc-500">
-                {connections.isLoading ? "Yükleniyor…" : "Bağlı firma yok."}
+                {connections.isLoading ? t("yukleniyor") : t("bagliFirmaYok")}
               </p>
             ) : (
               inviteCompanies.map((c) => {
@@ -715,13 +707,13 @@ export function TenderActionsMenu({
         </DialogBody>
         <DialogActions>
           <Button plain onClick={() => setInviteOpen(false)}>
-            Vazgeç
+            {t("vazgec")}
           </Button>
           <Button
             onClick={handleAddInvitations}
             disabled={addInvitations.isPending || inviteSel.size === 0}
           >
-            Davet Et ({inviteSel.size})
+            {t("davetEt", { size: inviteSel.size })}
           </Button>
         </DialogActions>
       </Dialog>

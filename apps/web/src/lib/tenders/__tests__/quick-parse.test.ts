@@ -1,5 +1,14 @@
 import { describe, expect, it } from "vitest";
-import { parseLine, parseNeed, titleFromItems } from "../quick-parse";
+import { createTranslator } from "use-intl/core";
+import { WEB_NAMESPACES, messagesFor } from "@rothern/i18n/messages";
+import { parseLine, parseNeed, titleFromItems, type TitleTranslate } from "../quick-parse";
+
+/* Başlık sözcükleri katalogdan (`web.panel.requests.quickParse.*`) — test TR katalogla. */
+const tTr = createTranslator({ locale: "tr", messages: messagesFor("tr", WEB_NAMESPACES) as never }) as unknown as (
+  key: string,
+  values?: Record<string, string | number>,
+) => string;
+const titleT: TitleTranslate = (key, values) => tTr(`web.panel.requests.quickParse.${key}`, values);
 
 describe("hızlı talep satır ayrıştırıcı", () => {
   it("başta sayı+birim", () => {
@@ -23,7 +32,9 @@ describe("hızlı talep satır ayrıştırıcı", () => {
     const items = parseNeed("- 1200 m çelik boru\n2. vida M8 x 500 adet; \n\nkonta 20 kg");
     expect(items.map((i) => i.name)).toEqual(["çelik boru", "vida M8", "konta"]);
     expect(items[2]).toMatchObject({ quantity: 20, unitCode: "KG" });
-    expect(titleFromItems(items)).toBe("Çelik boru, vida M8 ve 1 kalem alımı");
-    expect(titleFromItems([])).toBe("");
+    expect(titleFromItems(items, titleT)).toBe("Çelik boru, vida M8 ve 1 kalem alımı");
+    expect(titleFromItems([], titleT)).toBe("");
+    // Dil bilir: ilk harf istenen yerelle büyütülür (İngilizce "i" → "I", "İ" değil).
+    expect(titleFromItems([{ name: "iron pipe" }], (key, v) => (key === "purchaseOf" ? `${v.head} purchase` : `and ${v.n} more`), "en")).toBe("Iron pipe purchase");
   });
 });

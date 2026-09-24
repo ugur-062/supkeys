@@ -1,21 +1,23 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { HubList } from "@/components/company/hub-list";
 import { FileStack, ListChecks, PackageSearch, SlidersHorizontal, Users } from "lucide-react";
 
 export default function SatinalmaSablonlarPage() {
+  const t = useTranslations("web.panel.requests.page");
   return (
     <HubList
-      title="Şablonlar"
-      description="Satın Alma Talebi açarken tekrar tekrar girdiğiniz verileri bir kez şablonlayın, hızla uygulayın."
+      title={t("sablonlar")}
+      description={t("satinAlmaTalebiAcarkenTekrar")}
       items={[
         {
           // Talep şartları (2026-09-09, hızlı talep): ticari profil — teslim,
           // ödeme, para birimi, görünürlük, süre. Bir kez kurulur.
           href: "/company/satinalma/sablonlar/talep-sartlari",
-          label: "Talep Şartları",
+          label: t("talepSartlari"),
           description:
-            "Teslim şekli, ödeme koşulu, para birimi, görünürlük ve süreyi bir kez belirleyin; her yeni satın alma talebi bunlarla başlasın.",
+            t("teslimSekliOdemeKosuluPara2"),
           icon: SlidersHorizontal,
         },
         {
@@ -23,30 +25,30 @@ export default function SatinalmaSablonlarPage() {
           // kalındı: yeni bir menü satırı AÇILMADI, mevcut Şablonlar hub'ının
           // dördüncü kartı olarak duruyor.
           href: "/company/satinalma/sablonlar/kalemler",
-          label: "Kalem Kataloğu",
+          label: t("kalemKatalogu"),
           description:
-            "Sık kullandığınız kalemleri bir kez kaydedin; satın alma talebi açarken “Katalogdan Ekle” ile saniyede listeleyin.",
+            t("sikKullandiginizKalemleriBirKez"),
           icon: PackageSearch,
         },
         {
           href: "/company/satinalma/sablonlar/talep",
-          label: "Satın Alma Talebi Şablonları",
+          label: t("satinAlmaTalebiSablonlari"),
           description:
-            "Tekrarlayan alışlarınızı (kalemler + ayarlar dahil) şablonlayın; yeni satın alma talebini tek tıkla şablondan başlatın.",
+            t("tekrarlayanAlislariniziKalemlerAyarlarDahil"),
           icon: FileStack,
         },
         {
           href: "/company/satinalma/sablonlar/soru-setleri",
-          label: "Soru Setleri",
+          label: t("soruSetleri"),
           description:
-            "Sık sorduğunuz kalem sorularını sete kaydedin; satın alma talebi sihirbazında tek tıkla uygulayın.",
+            t("sikSordugunuzKalemSorulariniSete"),
           icon: ListChecks,
         },
         {
           href: "/company/satinalma/sablonlar/gruplar",
-          label: "Tedarikçi Grupları",
+          label: t("tedarikciGruplari"),
           description:
-            "Birlikte davet ettiğiniz tedarikçi gruplarını şablonlayın; satın alma talebi açarken zaman kazanın.",
+            t("birlikteDavetEttiginizTedarikciGruplarini"),
           icon: Users,
         },
       ]}

@@ -216,6 +216,22 @@ panel içi kısa etiketler Claude çevirisiyle yayınlanır.
 - Kategori/şehir sayfalarındaki giriş paragrafı (`IndexIntro`) kullanıcı isteğiyle
   üç dilden kaldırıldı (aynı gün).
 
+## Faz 2 — panel metinleri (2026-09-24, sürüyor)
+- **Yöntem:** git dışı TS-AST codemod mekanik %80'i yapar (JSX metni, izinli
+  öznitelik, toast, koşullu dize, basit şablon → `t()`; `useTranslations`
+  enjeksiyonu), rapor ettiği kalemler (modül düzeyi sözlük, satır içi zengin
+  metin, karmaşık koşum, şablon) elle/ajanla. EN/RU çevirisi Claude (paralel
+  ajan partileri, `i18n:sync --out/--apply`).
+- **Partiler:** 1) kabuk + panolar (BİTTİ, ad9a8249: 399 anahtar) · 2) talep
+  ekranları `components/tenders`, `components/ihale`, `ilan/*`, `taleplerim/*`,
+  `sablonlar/*` (BİTTİ: codemod 971 + elle/ajan 338 anahtar; 3 düzenleme + 8 çeviri
+  ajanı; sayfa ad alanları `ilanIdPage` gibi dizinli) · 3) teklif/
+  sipariş · 4) ürünler/bilgi talepleri · 5) bağlantılar/mesajlar/firma ·
+  6) ayarlar/şirketim/paketler/onaylar/bildirimler · 7) kalan lib sözlükleri
+  ve `packages/shared` metinleri.
+- **Yapısal kararlar:** `web.panel` yalnız panel sağlayıcısında; menü etiketleri
+  anahtar; sözlükler hook; ölü sözlükler silindi (TENDER_STATUS_META vb.).
+
 ## Faz 4 — kategori adları EN/RU (2026-09-23 akşam)
 - **Neden şimdi:** üç dilli SEO taraması kategori sayfalarında (`/en/urunler/kategori/…`)
   başlık, h1 ve açıklamada Türkçe kategori adı gösterdi; talep meta

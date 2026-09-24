@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useUnitLabel } from "@/i18n/domain";
 import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Callout } from "@/components/ui/callout";
@@ -53,22 +55,25 @@ function StatusAlert({
   );
 }
 
-const BID_STATUS_BADGE: Record<string, { label: string; color: "zinc" | "amber" | "violet" | "emerald" | "rose" }> = {
-  DRAFT: { label: "Taslak", color: "amber" },
-  SUBMITTED: { label: "Gönderildi", color: "violet" },
-  WON: { label: "Kazandınız", color: "emerald" },
-  AWARDED_PARTIAL: { label: "Kısmen Kazandınız", color: "emerald" },
-  LOST: { label: "Kaybettiniz", color: "rose" },
-  WITHDRAWN: { label: "Geri Çekildi", color: "zinc" },
+/** Teklif durumu → katalog anahtarı (`web.panel.requests.myBidStatusPanel`) + rozet rengi. */
+const BID_STATUS_BADGE: Record<string, { key: string; color: "zinc" | "amber" | "violet" | "emerald" | "rose" }> = {
+  DRAFT: { key: "taslak", color: "amber" },
+  SUBMITTED: { key: "gonderildi", color: "violet" },
+  WON: { key: "kazandiniz", color: "emerald" },
+  AWARDED_PARTIAL: { key: "kismenKazandiniz", color: "emerald" },
+  LOST: { key: "kaybettiniz", color: "rose" },
+  WITHDRAWN: { key: "geriCekildi", color: "zinc" },
 };
 
 /** Teklif özeti kartı — statü / versiyon / toplam + geçerlilik + kalemler + not. */
 export function BidSummaryCard({ l }: { l: ListingDetail }) {
+  const t = useTranslations("web.panel.requests.myBidStatusPanel");
   const bid = l.myBid;
   const extend = useExtendBidValidity(l.id);
   const [extendOpen, setExtendOpen] = useState(false);
   const [extendDays, setExtendDays] = useState("30");
   const { user } = useCompanyAuth();
+  const unitLabel = useUnitLabel();
   if (!bid) return null;
   // Dalga B-2: elle sembol türetme kaldırıldı (USD "$" yerine "USD" gösteriyordu).
   const symbol = currencySymbol(bid.currency ?? "TRY");
@@ -126,12 +131,12 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
       const res = await extend.mutateAsync(extendDaysNum);
       toast.success(
         res.revived
-          ? "Geçerlilik uzatıldı — teklifiniz aynı fiyatla yeniden aktif"
-          : `Geçerlilik uzatıldı — ${formatDateTime(res.validUntil)} tarihine kadar`,
+          ? t("gecerlilikUzatildiTeklifinizAyniFiyatla")
+          : t("gecerlilikUzatildiTarihineKadar", { formatDateTime: formatDateTime(res.validUntil) }),
       );
       setExtendOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Geçerlilik uzatılamadı"));
+      toast.error(extractErrorMessage(err, t("gecerlilikUzatilamadi")));
     }
   };
 
@@ -142,15 +147,15 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
       <div className="grid grid-cols-2 gap-4">
         <div>
           <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-            Statü
+            {t("statu")}
           </p>
           <div className="mt-1">
-            <Badge color={badge.color}>{badge.label}</Badge>
+            <Badge color={badge.color}>{t(badge.key as never)}</Badge>
           </div>
         </div>
         <div>
           <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-            Toplam
+            {t("toplam")}
           </p>
           <p className="mt-1 text-sm font-bold text-zinc-950 tabular-nums">
             {Number(bid.amount).toLocaleString("tr-TR")} {symbol}
@@ -162,7 +167,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
         <div className="mt-4 flex flex-wrap items-center justify-between gap-3 border-t border-zinc-100 pt-3">
           <div>
             <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-              Teklif Geçerliliği
+              {t("teklifGecerliligi")}
             </p>
             <div className="mt-1 flex flex-wrap items-center gap-2">
               <p
@@ -171,7 +176,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                   validityExpired ? "text-rose-600" : "text-zinc-900",
                 )}
               >
-                {formatDate(validUntil, "short")} tarihine kadar
+                {t("tarihineKadar", { date: formatDate(validUntil, "short") })}
               </p>
               <Badge
                 color={
@@ -182,13 +187,13 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                       : "zinc"
                 }
               >
-                {validityExpired ? "Süresi doldu" : `${daysLeft} gün kaldı`}
+                {validityExpired ? t("suresiDoldu") : t("gunKaldi", { daysLeft: daysLeft ?? 0 })}
               </Badge>
             </div>
           </div>
           {canExtend ? (
             <Button outline onClick={() => setExtendOpen(true)}>
-              Geçerliliği Uzat
+              {t("gecerliligiUzat")}
             </Button>
           ) : null}
         </div>
@@ -197,17 +202,17 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
       {/* Geçerlilik uzatma — gün seçimli diyalog. Süre mevcut bitişin üzerine
           eklenir; süresi dolmuş/taslağa düşmüş teklif aynı fiyatla canlanır. */}
       <Dialog open={extendOpen} onClose={() => setExtendOpen(false)}>
-        <DialogTitle>Teklif Geçerliliğini Uzat</DialogTitle>
+        <DialogTitle>{t("teklifGecerliliginiUzat")}</DialogTitle>
         <DialogDescription>
           {validityExpired
-            ? `Teklifinizin geçerliliği ${formatDate(validUntil, "short")} tarihinde doldu.`
-            : `Teklifiniz ${formatDate(validUntil, "short")} tarihine kadar geçerli.`}{" "}
-          Seçtiğiniz süre mevcut bitiş tarihine eklenir; fiyatınız değişmez.
+            ? t("teklifinizinGecerliligiTarihindeDoldu", { formatDate: formatDate(validUntil, "short") })
+            : t("teklifinizTarihineKadarGecerli", { formatDate: formatDate(validUntil, "short") })}{" "}
+          {t("sectiginizSureMevcutBitisTarihine")}
         </DialogDescription>
         <DialogBody className="space-y-4">
           <div>
             <p className="mb-2 text-sm font-medium text-zinc-700">
-              Uzatma süresi
+              {t("uzatmaSuresi")}
             </p>
             <div className="flex flex-wrap items-center gap-2">
               {[7, 15, 30, 60, 90].map((d) => (
@@ -223,7 +228,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                       : "border-zinc-300 text-zinc-700 hover:bg-zinc-50",
                   )}
                 >
-                  {d} gün
+                  {t("gun", { d: d })}
                 </button>
               ))}
               <span className="flex items-center gap-2 text-sm text-zinc-500">
@@ -233,47 +238,46 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                   max={365}
                   value={extendDays}
                   onChange={(e) => setExtendDays(e.target.value)}
-                  aria-label="Özel uzatma süresi (gün)"
+                  aria-label={t("ozelUzatmaSuresiGun")}
                   className="w-20 rounded-md border border-zinc-300 px-2 py-1.5 text-right text-sm"
                 />
-                gün
+                {t("gun2")}
               </span>
             </div>
           </div>
           {!extendDaysValid ? (
             <p className="text-sm text-rose-600">
-              Uzatma süresi 1-365 gün arası tam sayı olmalı.
+              {t("uzatmaSuresi1365Gun")}
             </p>
           ) : extendTooShort ? (
             <p className="text-sm text-rose-600">
-              Bu süre yetmiyor — son geçerlilik günü yine geçmişte kalıyor,
-              daha uzun bir süre seçin.
+              {t("buSureYetmiyorSonGecerlilik")}
             </p>
           ) : newValidUntil ? (
             <p className="text-sm text-zinc-700">
-              Yeni bitiş:{" "}
-              <span className="font-semibold text-zinc-950">
-                {formatDate(newValidUntil, "short")}
-              </span>
+              {t.rich("yeniBitis", {
+                date: formatDate(newValidUntil, "short"),
+                strong: (c) => <span className="font-semibold text-zinc-950">{c}</span>,
+              })}
             </p>
           ) : null}
           {(validityExpired || bid.status === "DRAFT") &&
           extendDaysValid &&
           !extendTooShort ? (
             <p className="text-sm text-emerald-700">
-              Uzatınca teklifiniz aynı fiyatla yeniden aktif olur.
+              {t("uzatincaTeklifinizAyniFiyatlaYeniden")}
             </p>
           ) : null}
         </DialogBody>
         <DialogActions>
           <Button plain onClick={() => setExtendOpen(false)}>
-            Vazgeç
+            {t("vazgec")}
           </Button>
           <Button
             disabled={extend.isPending || !extendDaysValid || extendTooShort}
             onClick={handleExtend}
           >
-            Geçerliliği Uzat
+            {t("gecerliligiUzat")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -281,7 +285,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
       {bid.items && bid.items.length > 0 ? (
         <div className="mt-4 border-t border-zinc-100 pt-3">
           <p className="mb-2 text-xs font-medium text-zinc-500">
-            Fiyatlandırılan Kalemler ({bid.items.length})
+            {t("fiyatlandirilanKalemler", { length: bid.items.length })}
           </p>
           {(() => {
             // Teslim kolonu yalnız en az bir kalemde süre/tarih girildiyse.
@@ -292,16 +296,16 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
               <Table dense>
                 <TableHead>
                   <TableRow>
-                    <TableHeader>Kalem</TableHeader>
-                    <TableHeader className="text-right">Miktar</TableHeader>
+                    <TableHeader>{t("kalem")}</TableHeader>
+                    <TableHeader className="text-right">{t("miktar")}</TableHeader>
                     <TableHeader className="text-right">
-                      Birim Fiyat
+                      {t("birimFiyat")}
                     </TableHeader>
                     {hasDelivery ? (
-                      <TableHeader className="text-right">Teslim</TableHeader>
+                      <TableHeader className="text-right">{t("teslim")}</TableHeader>
                     ) : null}
                     <TableHeader className="text-right">
-                      Satır Toplamı
+                      {t("satirToplami")}
                     </TableHeader>
                   </TableRow>
                 </TableHead>
@@ -311,11 +315,11 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                     return (
                       <TableRow key={bi.itemId}>
                         <TableCell className="whitespace-normal text-zinc-900">
-                          {item?.name ?? "Kalem"}
+                          {item?.name ?? t("kalem")}
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
                           {item
-                            ? `${Number(item.quantity).toLocaleString("tr-TR")} ${item.unit}`
+                            ? `${Number(item.quantity).toLocaleString("tr-TR")} ${unitLabel(item.unit, item.unitCode)}`
                             : "—"}
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
@@ -342,7 +346,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                   })}
                   <TableRow>
                     <TableCell className="font-semibold text-zinc-900">
-                      Toplam
+                      {t("toplam")}
                     </TableCell>
                     <TableCell />
                     <TableCell />
@@ -360,7 +364,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
 
       {bid.note ? (
         <div className="mt-4 border-t border-zinc-100 pt-3">
-          <p className="mb-1 text-xs font-medium text-zinc-500">Genel Not</p>
+          <p className="mb-1 text-xs font-medium text-zinc-500">{t("genelNot")}</p>
           <p className="text-sm whitespace-pre-wrap text-zinc-700">{bid.note}</p>
         </div>
       ) : null}
@@ -374,16 +378,17 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
  * / taslak / gönderildi / geri çekildi / kapandı). Özet kart ayrıca eklenir.
  */
 export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
+  const t = useTranslations("web.panel.requests.myBidStatusPanel");
   const bid = l.myBid;
   const open = l.status === "OPEN";
   // Kazanınca oluşan sipariş, teklifçinin (satıcının) kendi portalında
   // listelenir.
   const ordersHref = "/company/satis/siparisler";
-  const ordersLabel = "Satışlarımı Görüntüle";
+  const ordersLabel = t("satislarimiGoruntule");
 
   if (!bid) {
     return open ? null : (
-      <StatusAlert tone="info" title="Bu satın alma talebine teklif vermediniz." />
+      <StatusAlert tone="info" title={t("buSatinAlmaTalebineTeklif")} />
     );
   }
 
@@ -395,9 +400,9 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
       <StatusAlert
         key="cancelled"
         tone="info"
-        title="Satın Alma Talebi ilan sahibi tarafından iptal edildi."
+        title={t("satinAlmaTalebiIlanSahibi")}
       >
-        {l.cancelReason ? <p>Gerekçe: {l.cancelReason}</p> : null}
+        {l.cancelReason ? <p>{t("gerekce", { cancelReason: l.cancelReason })}</p> : null}
       </StatusAlert>,
     );
   } else if (bid.status === "WON" || bid.status === "AWARDED_PARTIAL") {
@@ -405,9 +410,9 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
     // emoji) teke indi (Trophy amber), gradient zemin + "sırada ne var" 3 adım
     // + TEK birincil aksiyon. Kazanan SATICI (siparişi kendisi onaylar).
     const steps = [
-      "Sipariş oluşturuldu — onayın bekleniyor.",
-      "Onayla, teslim et ve fatura no ile tamamla.",
-      "Ödemeyi sipariş sayfasından izle.",
+      t("siparisOlusturulduOnayinBekleniyor"),
+      t("onaylaTeslimEtVeFatura"),
+      t("odemeyiSiparisSayfasindanIzle"),
     ];
     alerts.push(
       <div
@@ -421,8 +426,8 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
           <div className="min-w-0 flex-1">
             <p className="text-base font-semibold text-emerald-900">
               {bid.status === "WON"
-                ? "Tebrikler — teklifin kazandı!"
-                : "Tebrikler — bazı kalemleri kazandınız!"}
+                ? t("tebriklerTeklifinKazandi")
+                : t("tebriklerBaziKalemleriKazandiniz")}
             </p>
             <ol className="mt-2 list-decimal space-y-1 pl-4 text-sm text-emerald-800">
               {steps.map((st) => (
@@ -438,24 +443,24 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
     );
   } else if (bid.status === "LOST" && open) {
     alerts.push(
-      <StatusAlert key="lost-open" tone="warning" title="Teklifiniz bu turda elendi">
+      <StatusAlert key="lost-open" tone="warning" title={t("teklifinizBuTurdaElendi")}>
         {bid.eliminationReason ? (
           <p>
-            <span className="font-medium">Gerekçe:</span> {bid.eliminationReason}
+            <span className="font-medium">{t("gerekce2")}</span> {bid.eliminationReason}
           </p>
         ) : null}
         <p className="mt-1">
-          Satın Alma Talebi hâlâ açık — teklifinizi güncelleyip yeniden verebilirsiniz.
+          {t("satinAlmaTalebiHalaAcik")}
         </p>
       </StatusAlert>,
     );
   } else if (bid.status === "LOST") {
     alerts.push(
-      <StatusAlert key="lost" tone="info" title="Satın Alma Talebi sonuçlandı — teklifiniz kazanamadı." />,
+      <StatusAlert key="lost" tone="info" title={t("satinAlmaTalebiSonuclandiTeklifiniz")} />,
     );
   } else if (bid.status === "WITHDRAWN") {
     alerts.push(
-      <StatusAlert key="wd" tone="info" title="Teklifinizi geri çektiniz.">
+      <StatusAlert key="wd" tone="info" title={t("teklifiniziGeriCektiniz")}>
         {bid.updatedAt ? <p>{formatDateTime(bid.updatedAt)}</p> : null}
       </StatusAlert>,
     );
@@ -466,11 +471,10 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
       <StatusAlert
         key="draft-carried"
         tone="warning"
-        title="Önceki teklifiniz bu tura taslak olarak taşındı"
+        title={t("oncekiTeklifinizBuTuraTaslak")}
       >
         <p>
-          Devam etmek için yeni fiyat verin ya da aşağıdan önceki teklifinizin
-          geçerlilik süresini uzatın — uzatınca aynı fiyatla yeniden aktif olur.
+          {t("devamEtmekIcinYeniFiyat")}
         </p>
       </StatusAlert>,
     );
@@ -479,7 +483,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
       <StatusAlert
         key="draft"
         tone="warning"
-        title="Taslak teklifiniz var — kapanıştan önce göndermeyi unutmayın."
+        title={t("taslakTeklifinizVarKapanistanOnce")}
       />,
     );
   } else if (bid.status === "DRAFT") {
@@ -487,7 +491,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
       <StatusAlert
         key="draft-late"
         tone="info"
-        title="Satın Alma Talebi kapandı — taslak teklifiniz gönderilmedi."
+        title={t("satinAlmaTalebiKapandiTaslak")}
       />,
     );
   } else if (
@@ -499,11 +503,10 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
       <StatusAlert
         key="evaluating"
         tone="info"
-        title="Teklifiniz değerlendiriliyor"
+        title={t("teklifinizDegerlendiriliyor")}
       >
         <p>
-          Alıcı teklifleri değerlendirmeye
-          aldı — sonuç açıklandığında bilgilendirileceksiniz.
+          {t("aliciTeklifleriDegerlendirmeyeAldiSonuc")}
         </p>
       </StatusAlert>,
     );
@@ -512,14 +515,14 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
       <StatusAlert
         key="closed"
         tone="info"
-        title="Teklif kabul aşaması sona erdi — sonuç açıklandığında bilgilendirileceksiniz."
+        title={t("teklifKabulAsamasiSonaErdi")}
       />,
     );
   } else if (bid.status === "SUBMITTED") {
     alerts.push(
-      <StatusAlert key="ok" tone="success" title="Teklifiniz alındı.">
+      <StatusAlert key="ok" tone="success" title={t("teklifinizAlindi")}>
         {bid.submittedAt ? (
-          <p>Verildi {formatDateTime(bid.submittedAt)}</p>
+          <p>{t("verildi", { formatDateTime: formatDateTime(bid.submittedAt) })}</p>
         ) : null}
       </StatusAlert>,
     );

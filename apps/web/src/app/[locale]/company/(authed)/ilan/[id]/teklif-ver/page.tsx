@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useUnitLabel } from "@/i18n/domain";
 import { PRICING_HREF, SilverLockCard } from "@/components/company/silver-lock-card";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -31,7 +33,6 @@ import {
   type ListingDetail,
   type ListingItemRow,
 } from "@/hooks/use-company-listings";
-import { KDV_HARIC_NOTE } from "@/lib/tenders/labels";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { moneyInputError } from "@/lib/money-input";
 import { formatDateTime, todayLocalISO } from "@/lib/tenders/date";
@@ -104,6 +105,7 @@ function formatBytes(n: number): string {
 }
 
 function Blocked({ title, detailHref }: { title: string; detailHref: string }) {
+  const t = useTranslations("web.panel.requests.page");
   return (
     <div className="mx-auto max-w-xl px-4 py-16 text-center">
       <AlertTriangle
@@ -112,7 +114,7 @@ function Blocked({ title, detailHref }: { title: string; detailHref: string }) {
       />
       <Heading className="mt-3">{title}</Heading>
       <Button href={detailHref} className="mt-5" outline>
-        Satın Alma Talebi Detayına Dön
+        {t("satinAlmaTalebiDetayinaDon")}
       </Button>
     </div>
   );
@@ -127,6 +129,7 @@ function AnswerInput({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const t = useTranslations("web.panel.requests.page");
   const label = (
     <Label>
       {q.text}
@@ -138,9 +141,11 @@ function AnswerInput({
       <Field>
         {label}
         <Select value={value} onChange={(e) => onChange(e.target.value)}>
-          <option value="">Seçin…</option>
-          <option value="Evet">Evet</option>
-          <option value="Hayır">Hayır</option>
+          <option value="">{t("secin")}</option>
+          {/* Değerler VERİ (cevap olarak saklanır ve alıcıya gösterilir) —
+              çevrilmez; yalnız görünen etiket katalogdan. */}
+          <option value="Evet">{t("evet")}</option>
+          <option value="Hayır">{t("hayir")}</option>
         </Select>
       </Field>
     );
@@ -164,6 +169,9 @@ function AnswerInput({
 }
 
 export default function TeklifVerPage() {
+  const tr = useTranslations("web.panel.requests.page");
+  const td = useTranslations("web.domain");
+  const unitLabel = useUnitLabel();
   const params = useParams<{ id: string }>();
   const id = params.id;
   const router = useRouter();
@@ -273,7 +281,7 @@ export default function TeklifVerPage() {
     const tooBig = files.filter((f) => f.size > MAX);
     if (tooBig.length) {
       toast.error(
-        `${tooBig.map((f) => f.name).join(", ")} 50MB sınırını aşıyor`,
+        tr("n50mbSiniriniAsiyor", { join: tooBig.map((f) => f.name).join(", ") }),
       );
     }
     const ok = files
@@ -441,7 +449,7 @@ export default function TeklifVerPage() {
   if (detail.isLoading) {
     return (
       <div className="mx-auto max-w-4xl px-4 py-16 text-center text-sm text-zinc-500">
-        Yükleniyor…
+        {tr("yukleniyor")}
       </div>
     );
   }
@@ -453,33 +461,32 @@ export default function TeklifVerPage() {
       return (
         <div className="mx-auto max-w-3xl px-4 py-10">
           <SilverLockCard
-            title="Bu herkese açık talebe teklif Silver paketiyle açılır"
-            description="Herkese açık satın alma taleplerini görmek ve teklif vermek Silver ile gelir. Bağlantı davetiyle gelen taleplere ücretsiz teklif verirsiniz."
+            title={tr("buHerkeseAcikTalebeTeklif")}
+            description={tr("herkeseAcikSatinAlmaTaleplerini")}
           />
         </div>
       );
     }
     // Talep yüklenemedi — nötr hedef.
-    return <Blocked title="Satın Alma Talebi bulunamadı" detailHref="/company" />;
+    return <Blocked title={tr("satinAlmaTalebiBulunamadi")} detailHref="/company" />;
   }
 
   // ── Kapılar ──
   if (l.isOwner) {
-    return <Blocked title="Kendi ilanınıza teklif veremezsiniz" detailHref={detailHref} />;
+    return <Blocked title={tr("kendiIlaninizaTeklifVeremezsiniz")} detailHref={detailHref} />;
   }
   if (!l.canBid) {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center">
         <Lock className="mx-auto h-8 w-8 text-amber-500" aria-hidden="true" />
-        <Heading className="mt-3">Teklif için Silver paketi gerekir</Heading>
+        <Heading className="mt-3">{tr("teklifIcinSilverPaketiGerekir")}</Heading>
         <Text className="mt-2 text-sm text-zinc-500">
-          Herkese açık satın alma taleplerine teklif vermek Silver ile gelir. Bağlantı
-          davetiyle gelen taleplere ücretsiz teklif verirsiniz.
+          {tr("herkeseAcikSatinAlmaTaleplerine")}
         </Text>
         <div className="mt-5 flex items-center justify-center gap-3">
-          <Button href={PRICING_HREF}>Paketleri Gör</Button>
+          <Button href={PRICING_HREF}>{tr("paketleriGor")}</Button>
           <Button href={detailHref} outline>
-            Satın Alma Talebi Detayına Dön
+            {tr("satinAlmaTalebiDetayinaDon")}
           </Button>
         </div>
       </div>
@@ -488,7 +495,7 @@ export default function TeklifVerPage() {
   if (l.roleAllowsBid === false) {
     return (
       <Blocked
-        title="Açık talebe teklif için Satışçı rolü gerekir — firma yöneticinizden rol isteyin"
+        title={tr("acikTalebeTeklifIcinSatisci")}
         detailHref={detailHref}
       />
     );
@@ -502,18 +509,18 @@ export default function TeklifVerPage() {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-zinc-500">
         {placeBid.isSuccess
-          ? "Teklifin gönderildi — satın alma talebi detayına dönülüyor…"
-          : "Teklifin gönderiliyor…"}
+          ? tr("teklifinGonderildiSatinAlmaTalebi")
+          : tr("teklifinGonderiliyor")}
       </div>
     );
   }
   if (l.status !== "OPEN") {
-    return <Blocked title="Bu satın alma talebine artık teklif verilemez" detailHref={detailHref} />;
+    return <Blocked title={tr("buSatinAlmaTalebineArtik")} detailHref={detailHref} />;
   }
   if (l.myBid?.status === "WITHDRAWN") {
     return (
       <Blocked
-        title="Teklifinizi geri çektiniz — yeniden teklif veremezsiniz"
+        title={tr("teklifiniziGeriCektinizYenidenTeklif")}
         detailHref={detailHref}
       />
     );
@@ -521,7 +528,7 @@ export default function TeklifVerPage() {
   if (l.myBid?.status === "SUBMITTED" && !l.english?.isEnglishAuction) {
     return (
       <Blocked
-        title="Teklif zaten verildi — değişiklik için alıcıyla iletişime geçin"
+        title={tr("teklifZatenVerildiDegisiklikIcin")}
         detailHref={detailHref}
       />
     );
@@ -535,7 +542,7 @@ export default function TeklifVerPage() {
   ) {
     return (
       <Blocked
-        title="Bu turdaki teklifiniz verildi — ilan sahibi yeni tur açarsa güncelleyebilirsiniz"
+        title={tr("buTurdakiTeklifinizVerildiIlan")}
         detailHref={detailHref}
       />
     );
@@ -545,10 +552,10 @@ export default function TeklifVerPage() {
   const isAuctionRebid =
     l.myBid?.status === "SUBMITTED" && !!l.english?.isEnglishAuction;
   const pageTitle = isAuctionRebid
-    ? "Yeni Teklif Ver"
+    ? tr("yeniTeklifVer")
     : isRebidAfterLoss
-      ? "Yeniden Teklif Ver"
-      : "Teklif Ver";
+      ? tr("yenidenTeklifVer")
+      : tr("teklifVer");
 
   const days = daysUntil(l.closesAt);
   const deadlineClass =
@@ -590,7 +597,9 @@ export default function TeklifVerPage() {
     });
     const skipped = rows.filter((r) => lockedIds.has(r.itemId)).length;
     toast.success(
-      `${rows.length - skipped} kalemin fiyatı forma yazıldı${skipped ? ` (${skipped} kilitli kalem atlandı)` : ""} — göndermeden önce kontrol edin`,
+      skipped
+        ? tr("kaleminFiyatiFormaYazildiKilitliAtlandi", { n: rows.length - skipped, skipped })
+        : tr("kaleminFiyatiFormaYazildi", { n: rows.length - skipped }),
     );
   };
   const bidImportButtons =
@@ -598,16 +607,16 @@ export default function TeklifVerPage() {
       <div className="flex flex-wrap items-center gap-2">
         <Button outline onClick={() => setBidImport("excel")}>
           <FileSpreadsheet className="h-4 w-4" />
-          Excel Şablonu ile Fiyatla
+          {tr("excelSablonuIleFiyatla")}
         </Button>
         <Button
           outline
           disabled={!aiAllowed}
-          title={aiAllowed ? undefined : "Belgeden fiyatlama Silver ve üzeri paketlerde"}
+          title={aiAllowed ? undefined : tr("belgedenFiyatlamaSilverVeUzeri")}
           onClick={() => setBidImport("ai")}
         >
           <Sparkles className="h-4 w-4" />
-          Belgeden Fiyatla (AI)
+          {tr("belgedenFiyatlaAi")}
           {!aiAllowed ? <Lock className="h-3.5 w-3.5 text-zinc-400" aria-hidden /> : null}
         </Button>
       </div>
@@ -646,7 +655,7 @@ export default function TeklifVerPage() {
         (q) => q.required && !(st?.answers[q.id] ?? "").trim(),
       );
     const note = st?.deliveryTime
-      ? `Teslim: ${bidDeliveryTimeLabel(st.deliveryTime)}`
+      ? tr("teslim", { value: bidDeliveryTimeLabel(st.deliveryTime) ?? st.deliveryTime })
       : null;
     return { requiredMissing, note };
   };
@@ -657,13 +666,13 @@ export default function TeklifVerPage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {isAuctionRebid ? null : (
         <Field>
-          <Label>Kalem Teslim Süresi (opsiyonel)</Label>
+          <Label>{tr("kalemTeslimSuresiOpsiyonel")}</Label>
           <Select
-            aria-label={`${it.name} teslim süresi`}
+            aria-label={tr("teslimSuresi", { name: it.name })}
             value={st?.deliveryTime ?? ""}
             onChange={(e) => setItem(it.id, { deliveryTime: e.target.value })}
           >
-            <option value="">Genel süre geçerli</option>
+            <option value="">{tr("genelSureGecerli")}</option>
             {BID_DELIVERY_TIMES.map((t) => (
               <option key={t} value={t}>
                 {BID_DELIVERY_TIME_LABELS[t]}
@@ -674,13 +683,13 @@ export default function TeklifVerPage() {
         )}
         {canItemCurrency ? (
           <Field>
-            <Label>Kalem Para Birimi</Label>
+            <Label>{tr("kalemParaBirimi")}</Label>
             <Select
-              aria-label={`${it.name} para birimi`}
+              aria-label={tr("paraBirimiAria", { name: it.name })}
               value={st?.currency ?? ""}
               onChange={(e) => setItem(it.id, { currency: e.target.value })}
             >
-              <option value="">Ana birim ({effectiveCurrency})</option>
+              <option value="">{tr("anaBirim", { effectiveCurrency: effectiveCurrency })}</option>
               {(l.allowedCurrencies ?? [])
                 .filter((c) => c !== effectiveCurrency)
                 .map((c) => (
@@ -708,11 +717,11 @@ export default function TeklifVerPage() {
               />
               <span className="text-sm">
                 <span className="font-medium text-zinc-800">
-                  Muadil (eşdeğer) ürün teklif ediyorum
+                  {tr("muadilEsdegerUrunTeklifEdiyorum")}
                 </span>
                 {it.brand || it.mpn ? (
                   <span className="block text-xs text-zinc-500">
-                    İstenen: {[it.brand, it.mpn].filter(Boolean).join(" · ")}
+                    {tr("istenen", { join: [it.brand, it.mpn].filter(Boolean).join(" · ") })}
                   </span>
                 ) : null}
               </span>
@@ -722,9 +731,9 @@ export default function TeklifVerPage() {
         {it.alternativeAllowed !== false && st?.isAlternative ? (
           <>
             <Field>
-              <Label>Teklif Ettiğiniz Marka</Label>
+              <Label>{tr("teklifEttiginizMarka")}</Label>
               <Input
-                aria-label={`${it.name} teklif edilen marka`}
+                aria-label={tr("teklifEdilenMarkaAria", { name: it.name })}
                 value={st?.offeredBrand ?? ""}
                 onChange={(e) =>
                   setItem(it.id, { offeredBrand: e.target.value })
@@ -732,9 +741,9 @@ export default function TeklifVerPage() {
               />
             </Field>
             <Field>
-              <Label>Teklif Ettiğiniz Parça No</Label>
+              <Label>{tr("teklifEttiginizParcaNo")}</Label>
               <Input
-                aria-label={`${it.name} teklif edilen parça no`}
+                aria-label={tr("teklifEdilenParcaNo", { name: it.name })}
                 value={st?.offeredMpn ?? ""}
                 onChange={(e) => setItem(it.id, { offeredMpn: e.target.value })}
               />
@@ -765,12 +774,12 @@ export default function TeklifVerPage() {
     if (!seeded) return problems;
     if (hasItems) {
       if (pricedItems.length === 0)
-        problems.push("En az bir kaleme birim fiyat girin.");
+        problems.push(tr("enAzBirKalemeBirimFiyatGirin"));
       if (l.requireAllItems && pricedItems.length < items.length)
-        problems.push("Bu satın alma talebinde tüm kalemlere teklif vermelisiniz.");
+        problems.push(tr("buSatinAlmaTalebindeTum"));
     } else {
       // F4: min 0.01 + 2 ondalık + MAX_MONEY (backend place-bid.dto birebir).
-      if (!singleAmount) problems.push("Geçerli bir tutar girin.");
+      if (!singleAmount) problems.push(tr("gecerliBirTutarGirin"));
       else {
         const e = moneyInputError(Number(singleAmount));
         if (e) problems.push(e);
@@ -780,7 +789,7 @@ export default function TeklifVerPage() {
       for (const it of pricedItems) {
         for (const q of it.questions ?? []) {
           if (q.required && !(itemState[it.id]?.answers[q.id] ?? "").trim()) {
-            problems.push(`"${it.name}" kalemi için zorunlu soru cevaplanmadı.`);
+            problems.push(tr("kalemiIcinZorunluSoruCevaplanmadi", { name: it.name }));
             break;
           }
         }
@@ -789,7 +798,7 @@ export default function TeklifVerPage() {
       for (const it of pricedItems) {
         const e = moneyInputError(Number(itemState[it.id]?.price ?? 0));
         if (e) {
-          problems.push(`"${it.name}" kalemi birim fiyatı: ${e}.`);
+          problems.push(tr("kalemiBirimFiyati", { name: it.name, e: e }));
           break;
         }
       }
@@ -799,13 +808,13 @@ export default function TeklifVerPage() {
     // yeniden istenmez (backend de mevcut değeri korur).
     if (!isAuctionRebid && !everyBidItemHasDelivery && !deliveryTime)
       problems.push(
-        "Teslim süresi zorunlu (süre girmediğiniz kalemler için).",
+        tr("teslimSuresiZorunluSureGirmediginiz"),
       );
     // Madde 15: pazarlıkta geçerlilik sorulmaz — teklif süresizdir.
     if (!isAuction && (!validityDays || Number(validityDays) < 1))
-      problems.push("Geçerlilik süresi zorunlu.");
+      problems.push(tr("gecerlilikSuresiZorunlu"));
     if (l.requireBidDocument && myDocs.length + stagedFiles.length === 0)
-      problems.push("Bu satın alma talebinde teklif dosyası zorunlu.");
+      problems.push(tr("buSatinAlmaTalebindeTeklif"));
     // İngiliz usulü yeniden teklif: monotonluk ön-kontrolü AYNI KALEMLER
     // ara toplamıyla (düşmeli) — yeni eklenen kalem kıyasa girmez, önceden
     // fiyatlanmış kalem bırakılamaz (sunucu da aynı kuralları zorlar; burada
@@ -821,18 +830,18 @@ export default function TeklifVerPage() {
           const p = itemState[it.id]?.price;
           if (!(p != null && Number(p) > 0))
             problems.push(
-              `Pazarlıkta önceden fiyatladığınız kalem bırakılamaz — "${it.name}" için fiyat girin.`,
+              tr("pazarliktaOncedenFiyatladiginizKalemBirakila", { name: it.name }),
             );
         }
       }
       const own = Number(l.myBid.amount);
       const scopeNote = scopeExpanded
-        ? "önceden fiyatladığınız kalemlerin toplamı"
-        : "yeni teklifin";
+        ? tr("oncedenFiyatladiginizKalemlerinToplami")
+        : tr("yeniTeklifin");
       if (cmpDecimal(comparableTotalStr, "0") === 1) {
         if (cmpDecimal(comparableTotalStr, l.myBid.amount) >= 0)
           problems.push(
-            `Açık eksiltme: ${scopeNote} önceki teklifinin (${money(own, effectiveCurrency)}) altında olmalı.`,
+            tr("acikEksiltmeOncekiTeklifininAltinda", { scopeNote: scopeNote, money: money(own, effectiveCurrency) }),
           );
       }
     }
@@ -862,10 +871,10 @@ export default function TeklifVerPage() {
     setStagedFiles(failed);
     if (failed.length > 0) {
       toast.error(
-        `${failed.length} dosya yüklenemedi (${extractErrorMessage(
+        tr("dosyaYuklenemediListedeKaldiTekrar", { length: failed.length, extractErrorMessage: extractErrorMessage(
           lastError,
-          "bilinmeyen hata",
-        )}) — listede kaldı, tekrar deneyin`,
+          tr("bilinmeyenHata"),
+        ) }),
       );
       return { ok: false };
     }
@@ -914,15 +923,15 @@ export default function TeklifVerPage() {
       await placeBid.mutateAsync(buildPayload(true));
       const up = await uploadStaged();
       if (up.ok) {
-        toast.success("Taslak kaydedildi");
+        toast.success(tr("taslakKaydedildi"));
         router.push(detailHref);
       } else {
         // Yükleme başarısız: taslak kaydedildi ama dosyalar bekliyor —
         // çelişkili success yerine tek net mesaj (hata toast'ı uploadStaged attı).
-        toast.info("Taslak kaydedildi — yüklenemeyen dosyalar listede bekliyor");
+        toast.info(tr("taslakKaydedildiYuklenemeyenDosyalarListede"));
       }
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Taslak kaydedilemedi"));
+      toast.error(extractErrorMessage(err, tr("taslakKaydedilemedi")));
     }
   };
 
@@ -945,10 +954,10 @@ export default function TeklifVerPage() {
         if (!up.ok) return; // staged korunur; kullanıcı tekrar dener
       }
       await placeBid.mutateAsync(buildPayload(false));
-      toast.success("Teklifiniz gönderildi");
+      toast.success(tr("teklifinizGonderildi"));
       router.push(detailHref);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Teklif gönderilemedi"));
+      toast.error(extractErrorMessage(err, tr("teklifGonderilemedi")));
     }
   };
 
@@ -976,7 +985,7 @@ export default function TeklifVerPage() {
         className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
       >
         <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
-        {l.number ?? "Satın Alma Talebi"}
+        {l.number ?? tr("satinAlmaTalebi")}
       </Link>
 
       <div className="flex flex-wrap items-center justify-between gap-3">
@@ -988,10 +997,11 @@ export default function TeklifVerPage() {
               deadlineClass,
             )}
           >
-            Kapanış: {formatDateTime(l.closesAt)}
             {days !== null && days >= 0
-              ? ` · ${days === 0 ? "bugün" : `${days} gün`}`
-              : ""}
+              ? days === 0
+                ? tr("kapanisZamanBugun", { dateTime: formatDateTime(l.closesAt) })
+                : tr("kapanisZamanGun", { dateTime: formatDateTime(l.closesAt), days })
+              : tr("kapanisZaman", { dateTime: formatDateTime(l.closesAt) })}
           </span>
         ) : null}
       </div>
@@ -1000,7 +1010,7 @@ export default function TeklifVerPage() {
         <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <p>
-            <span className="font-semibold">Önceki teklifin eleme gerekçesi:</span>{" "}
+            <span className="font-semibold">{tr("oncekiTeklifinElemeGerekcesi")}</span>{" "}
             {l.myBid.eliminationReason}
           </p>
         </div>
@@ -1017,23 +1027,23 @@ export default function TeklifVerPage() {
           <section className="card p-5">
             <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
               <div>
-                <dt className="text-xs text-zinc-500">Alıcı</dt>
+                <dt className="text-xs text-zinc-500">{tr("alici")}</dt>
                 <dd className="truncate font-medium text-zinc-900">
-                  {l.owner?.name ?? "Gizli firma"}
+                  {l.owner?.name ?? tr("gizliFirma")}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-zinc-500">Kapanış</dt>
+                <dt className="text-xs text-zinc-500">{tr("kapanis")}</dt>
                 <dd className="font-medium text-zinc-900">
                   {l.closesAt ? formatDateTime(l.closesAt) : "—"}
                 </dd>
               </div>
               <div>
-                <dt className="text-xs text-zinc-500">Kalem</dt>
+                <dt className="text-xs text-zinc-500">{tr("kalem")}</dt>
                 <dd className="font-medium text-zinc-900">{items.length}</dd>
               </div>
               <div>
-                <dt className="text-xs text-zinc-500">Para Birimi</dt>
+                <dt className="text-xs text-zinc-500">{tr("paraBirimi")}</dt>
                 <dd className="font-medium text-zinc-900">
                   {effectiveCurrency}
                 </dd>
@@ -1041,7 +1051,7 @@ export default function TeklifVerPage() {
             </dl>
             {(l.allowedCurrencies?.length ?? 0) <= 1 ? (
               <Text className="mt-2 text-xs text-zinc-400">
-                Para birimi alıcı tarafından belirlendi.
+                {tr("paraBirimiAliciTarafindanBelirlendi")}
               </Text>
             ) : null}
           </section>
@@ -1062,12 +1072,14 @@ export default function TeklifVerPage() {
           {hasItems && auctionItemsMode ? (
             <section className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <Subheading>Kalem Fiyatları</Subheading>
+                <Subheading>{tr("kalemFiyatlari")}</Subheading>
                 {bidImportButtons}
               </div>
               {l.requireAllItems ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  Bu satın alma talebinde <strong>tüm kalemlere</strong> teklif vermek zorunlu.
+                  {tr.rich("buSatinAlmaTalebindeTumKalemlereTeklifZorunlu", {
+                    strong: (c) => <strong>{c}</strong>,
+                  })}
                 </div>
               ) : null}
               <AuctionBidWorkbench
@@ -1091,12 +1103,14 @@ export default function TeklifVerPage() {
           ) : hasItems ? (
             <section className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-2">
-                <Subheading>Kalem Fiyatları</Subheading>
+                <Subheading>{tr("kalemFiyatlari")}</Subheading>
                 {bidImportButtons}
               </div>
               {l.requireAllItems ? (
                 <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  Bu satın alma talebinde <strong>tüm kalemlere</strong> teklif vermek zorunlu.
+                  {tr.rich("buSatinAlmaTalebindeTumKalemlereTeklifZorunlu", {
+                    strong: (c) => <strong>{c}</strong>,
+                  })}
                 </div>
               ) : null}
               <div className="space-y-3">
@@ -1126,12 +1140,12 @@ export default function TeklifVerPage() {
                             <p className="font-medium text-zinc-900">{it.name}</p>
                             {optedOut ? (
                               <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-500">
-                                Hariç
+                                {tr("haric")}
                               </span>
                             ) : null}
                             {(it.questions?.length ?? 0) > 0 ? (
                               <Badge color="zinc">
-                                {it.questions!.length} soru
+                                {tr("soru", { n: it.questions!.length })}
                               </Badge>
                             ) : null}
                           </div>
@@ -1141,10 +1155,10 @@ export default function TeklifVerPage() {
                             </p>
                           ) : null}
                           <p className="mt-1 text-xs text-zinc-500">
-                            {Number(it.quantity)} {it.unit}
+                            {Number(it.quantity)} {unitLabel(it.unit, it.unitCode)}
                             {it.materialCode ? ` · ${it.materialCode}` : ""}
                             {it.targetPrice
-                              ? ` · Hedef: ${money(Number(it.targetPrice), effectiveCurrency)}`
+                              ? tr("hedef", { money: money(Number(it.targetPrice), effectiveCurrency) })
                               : ""}
                           </p>
                         </div>
@@ -1155,15 +1169,15 @@ export default function TeklifVerPage() {
                             onClick={() => setItem(it.id, { price: "" })}
                             className="text-xs font-semibold text-blue-600 hover:underline"
                           >
-                            Kalemi geri ekle
+                            {tr("kalemiGeriEkle")}
                           </button>
                         ) : (
                           <div className="flex items-start gap-2">
                             <div className="w-36">
                               <Field>
-                                <Label>Birim Fiyat</Label>
+                                <Label>{tr("birimFiyat")}</Label>
                                 <MoneyInput
-                                  aria-label={`${it.name} birim fiyat`}
+                                  aria-label={tr("birimFiyatAria", { name: it.name })}
                                   value={st?.price ?? ""}
                                   onChange={(raw) =>
                                     setItem(it.id, { price: raw })
@@ -1188,7 +1202,7 @@ export default function TeklifVerPage() {
                               >
                                 <X className="h-3.5 w-3.5" aria-hidden="true" />
                                 <span className="hidden sm:inline">
-                                  Bu kaleme teklif vermiyorum
+                                  {tr("buKalemeTeklifVermiyorum")}
                                 </span>
                               </button>
                             ) : null}
@@ -1200,15 +1214,15 @@ export default function TeklifVerPage() {
                         <div className="mt-3 grid grid-cols-1 gap-3 border-t border-zinc-50 pt-3 sm:grid-cols-2">
                           {isAuctionRebid ? null : (
                           <Field>
-                            <Label>Kalem Teslim Süresi (opsiyonel)</Label>
+                            <Label>{tr("kalemTeslimSuresiOpsiyonel")}</Label>
                             <Select
-                              aria-label={`${it.name} teslim süresi`}
+                              aria-label={tr("teslimSuresi", { name: it.name })}
                               value={st?.deliveryTime ?? ""}
                               onChange={(e) =>
                                 setItem(it.id, { deliveryTime: e.target.value })
                               }
                             >
-                              <option value="">Genel süre geçerli</option>
+                              <option value="">{tr("genelSureGecerli")}</option>
                               {BID_DELIVERY_TIMES.map((t) => (
                                 <option key={t} value={t}>
                                   {BID_DELIVERY_TIME_LABELS[t]}
@@ -1219,16 +1233,16 @@ export default function TeklifVerPage() {
                           )}
                           {canItemCurrency ? (
                             <Field>
-                              <Label>Kalem Para Birimi</Label>
+                              <Label>{tr("kalemParaBirimi")}</Label>
                               <Select
-                                aria-label={`${it.name} para birimi`}
+                                aria-label={tr("paraBirimiAria", { name: it.name })}
                                 value={st?.currency ?? ""}
                                 onChange={(e) =>
                                   setItem(it.id, { currency: e.target.value })
                                 }
                               >
                                 <option value="">
-                                  Ana birim ({effectiveCurrency})
+                                  {tr("anaBirim", { effectiveCurrency: effectiveCurrency })}
                                 </option>
                                 {(l.allowedCurrencies ?? [])
                                   .filter((c) => c !== effectiveCurrency)
@@ -1255,7 +1269,7 @@ export default function TeklifVerPage() {
                         </div>
                       ) : (
                         <p className="mt-2 text-xs text-zinc-400 italic">
-                          Bu kaleme teklif verilmeyecek.
+                          {tr("buKalemeTeklifVerilmeyecek")}
                         </p>
                       )}
                     </div>
@@ -1265,11 +1279,11 @@ export default function TeklifVerPage() {
             </section>
           ) : (
             <section className="space-y-3">
-              <Subheading>Teklif Tutarı</Subheading>
-              <p className="text-xs text-zinc-400">{KDV_HARIC_NOTE}</p>
+              <Subheading>{tr("teklifTutari")}</Subheading>
+              <p className="text-xs text-zinc-400">{td("kdvHaricNote")}</p>
               <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
                 <Field>
-                  <Label>Tutar ({effectiveCurrency})</Label>
+                  <Label>{tr("tutar", { effectiveCurrency: effectiveCurrency })}</Label>
                   <MoneyInput value={singleAmount} onChange={setSingleAmount} />
                 </Field>
                 {isAuction && effectiveTarget ? (
@@ -1281,11 +1295,11 @@ export default function TeklifVerPage() {
                         : "text-amber-700",
                     )}
                   >
-                    Önceki teklifinden düşük olmalı:{" "}
-                    <strong className="tabular-nums">
-                      ≤ {money(Number(effectiveTarget), effectiveCurrency)}
-                    </strong>
-                    {workbenchTarget.met ? " — uygun ✓" : ""}
+                    {tr.rich("oncekiTeklifindenDusukOlmali", {
+                      money: money(Number(effectiveTarget), effectiveCurrency),
+                      strong: (c) => <strong className="tabular-nums">{c}</strong>,
+                    })}
+                    {workbenchTarget.met ? tr("uygun") : ""}
                   </p>
                 ) : null}
               </div>
@@ -1294,31 +1308,29 @@ export default function TeklifVerPage() {
 
           {/* Teslim & geçerlilik */}
           <section className="space-y-3">
-            <Subheading>Teslim &amp; Geçerlilik</Subheading>
+            <Subheading>{tr("teslimGecerlilik")}</Subheading>
             <div className="grid grid-cols-1 gap-3 rounded-xl border border-zinc-950/10 bg-white p-4 sm:grid-cols-3">
               <Field>
                 <Label>
-                  Genel Teslim Süresi
+                  {tr("genelTeslimSuresiBaslik")}
                   {everyBidItemHasDelivery || isAuctionRebid ? "" : " *"}
                 </Label>
                 {isAuctionRebid ? (
                   <p className="pt-2 text-xs text-zinc-500">
-                    Teslim bilgisi mevcut teklifinizden taşındı — yeniden
-                    sorulmaz.
+                    {tr("teslimBilgisiMevcutTeklifinizdenTasindi")}
                   </p>
                 ) : everyBidItemHasDelivery ? (
                   <p className="pt-2 text-xs text-emerald-700">
-                    Her kaleme ayrı teslim süresi girdiniz — genel süreye gerek
-                    yok.
+                    {tr("herKalemeAyriTeslimSuresi")}
                   </p>
                 ) : (
                   <>
                     <Select
                       value={deliveryTime}
                       onChange={(e) => setDeliveryTime(e.target.value)}
-                      aria-label="Genel teslim süresi"
+                      aria-label={tr("genelTeslimSuresi")}
                     >
-                      <option value="">Seçin…</option>
+                      <option value="">{tr("secin")}</option>
                       {BID_DELIVERY_TIMES.map((t) => (
                         <option key={t} value={t}>
                           {BID_DELIVERY_TIME_LABELS[t]}
@@ -1327,7 +1339,7 @@ export default function TeklifVerPage() {
                     </Select>
                     {hasItems ? (
                       <p className="mt-1 text-xs text-zinc-400">
-                        Kalem süresi girmediğiniz kalemler için geçerli olur.
+                        {tr("kalemSuresiGirmediginizKalemlerIcin")}
                       </p>
                     ) : null}
                   </>
@@ -1335,12 +1347,13 @@ export default function TeklifVerPage() {
               </Field>
               <Field>
                 <Label>
-                  Teklif Geçerlilik Süresi{isAuction ? "" : " (gün) *"}
+                  {isAuction ? tr("teklifGecerlilikSuresi") : tr("teklifGecerlilikSuresiGun")}
                 </Label>
                 {isAuction ? (
                   <p className="pt-2 text-xs text-zinc-500">
-                    Pazarlıkta teklifler <strong>süresiz</strong> geçerlidir —
-                    ayrıca sorulmaz.
+                    {tr.rich("pazarliktaTekliflerSuresizGecerlidir", {
+                      strong: (c) => <strong>{c}</strong>,
+                    })}
                   </p>
                 ) : (
                   <Input
@@ -1354,7 +1367,7 @@ export default function TeklifVerPage() {
               </Field>
               {(l.allowedCurrencies?.length ?? 0) > 1 ? (
                 <Field>
-                  <Label>Para Birimi</Label>
+                  <Label>{tr("paraBirimi")}</Label>
                   <Select
                     value={currency || l.primaryCurrency}
                     onChange={(e) => setCurrency(e.target.value)}
@@ -1371,28 +1384,27 @@ export default function TeklifVerPage() {
                   </Select>
                   {isAuctionRebid ? (
                     <p className="mt-1 text-xs text-zinc-400">
-                      Açık eksiltmede para birimi ilk teklifle kilitlenir.
+                      {tr("acikEksiltmedeParaBirimiIlk")}
                     </p>
                   ) : null}
                 </Field>
               ) : null}
             </div>
             <Text className="text-xs text-zinc-400">
-              Kalem-özel teslim tarihi girilmeyen kalemler için genel teslim
-              tarihi geçerlidir.
+              {tr("kalemOzelTeslimTarihiGirilmeyen")}
             </Text>
           </section>
 
           {/* Not */}
           <section className="space-y-3">
-            <Subheading>Teklif Notu</Subheading>
+            <Subheading>{tr("teklifNotu")}</Subheading>
             <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
               <Textarea
                 rows={3}
                 maxLength={1000}
                 value={note}
                 onChange={(e) => setNote(e.target.value)}
-                placeholder="Alıcıya iletmek istediğiniz not (opsiyonel)"
+                placeholder={tr("aliciyaIletmekIstediginizNotOpsiyonel")}
               />
             </div>
           </section>
@@ -1401,12 +1413,12 @@ export default function TeklifVerPage() {
               burada YOK; kazandırma sonrası sipariş aşamasında yüklenir. */}
           <section className="space-y-3">
             <Subheading>
-              Teklif Dosyaları{l.requireBidDocument ? " (zorunlu)" : ""}
+              {l.requireBidDocument ? tr("teklifDosyalariZorunlu") : tr("teklifDosyalari")}
             </Subheading>
             <div className="space-y-3 rounded-xl border border-zinc-950/10 bg-white p-4">
               {l.requireBidDocument ? (
                 <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                  Bu satın alma talebinde teklif dosyası zorunlu — en az bir dosya ekleyin.
+                  {tr("buSatinAlmaTalebindeTeklif2")}
                 </p>
               ) : null}
 
@@ -1430,18 +1442,19 @@ export default function TeklifVerPage() {
               >
                 <UploadCloud className="h-6 w-6 text-zinc-400" aria-hidden="true" />
                 <p className="text-sm font-medium text-zinc-700">
-                  Dosyaları sürükleyin ya da{" "}
-                  <span className="text-blue-600">seçmek için tıklayın</span>
+                  {tr.rich("dosyalariSurukleyinYaDaSecmekIcinTiklayin", {
+                    em: (c) => <span className="text-blue-600">{c}</span>,
+                  })}
                 </p>
                 <p className="text-xs text-zinc-400">
-                  PDF, görsel veya Excel · dosya başına en fazla 50 MB
+                  {tr("pdfGorselVeyaExcelDosya")}
                 </p>
                 <input
                   type="file"
                   className="hidden"
                   multiple
                   accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
-                  aria-label="Teklif dosyası seç"
+                  aria-label={tr("teklifDosyasiSec")}
                   onChange={(e) => {
                     addFiles(Array.from(e.target.files ?? []));
                     e.target.value = "";
@@ -1452,7 +1465,7 @@ export default function TeklifVerPage() {
               {/* Dosya listesi — yüklü belgeler + gönderimde yüklenecek dosyalar */}
               {myDocs.length === 0 && stagedFiles.length === 0 ? (
                 <p className="text-center text-xs text-zinc-400">
-                  Henüz dosya eklenmedi.
+                  {tr("henuzDosyaEklenmedi")}
                 </p>
               ) : (
                 <ul className="space-y-2">
@@ -1474,28 +1487,28 @@ export default function TeklifVerPage() {
                         {BID_DOC_KIND_LABELS[d.kind]}
                       </span>
                       <span className="shrink-0 text-xs font-medium text-emerald-600">
-                        Yüklendi
+                        {tr("yuklendi")}
                       </span>
                       <button
                         type="button"
-                        aria-label={`${d.fileName} belgesini sil`}
+                        aria-label={tr("belgesiniSil", { fileName: d.fileName })}
                         disabled={deleteDoc.isPending}
                         onClick={async () => {
                           if (
                             !(await confirm({
-                              title: "Belge silinsin mi?",
-                              description: `"${d.fileName}" kalıcı olarak silinecek.`,
-                              confirmLabel: "Sil",
+                              title: tr("belgeSilinsinMi"),
+                              description: tr("kaliciOlarakSilinecek", { fileName: d.fileName }),
+                              confirmLabel: tr("sil"),
                               destructive: true,
                             }))
                           )
                             return;
                           try {
                             await deleteDoc.mutateAsync(d.id);
-                            toast.success("Belge silindi");
+                            toast.success(tr("belgeSilindi"));
                           } catch (err) {
                             toast.error(
-                              extractErrorMessage(err, "Belge silinemedi"),
+                              extractErrorMessage(err, tr("belgeSilinemedi")),
                             );
                           }
                         }}
@@ -1516,12 +1529,12 @@ export default function TeklifVerPage() {
                           {sf.file.name}
                         </p>
                         <p className="text-xs text-zinc-400">
-                          {formatBytes(sf.file.size)} · gönderimde yüklenecek
+                          {tr("gonderimdeYuklenecek", { formatBytes: formatBytes(sf.file.size) })}
                         </p>
                       </div>
                       <SelectMenu
                         value={sf.kind}
-                        ariaLabel={`${sf.file.name} kategorisi`}
+                        ariaLabel={tr("kategorisi", { name: sf.file.name })}
                         onChange={(v) =>
                           setStagedFiles((s) =>
                             s.map((x, j) =>
@@ -1537,7 +1550,7 @@ export default function TeklifVerPage() {
                       />
                       <button
                         type="button"
-                        aria-label={`${sf.file.name} dosyasını kaldır`}
+                        aria-label={tr("dosyasiniKaldir", { name: sf.file.name })}
                         onClick={() =>
                           setStagedFiles((s) => s.filter((_, j) => j !== i))
                         }
@@ -1558,7 +1571,7 @@ export default function TeklifVerPage() {
           <div className="space-y-3">
             <div className="rounded-2xl bg-emerald-700 p-5 text-white">
               <p className="text-xs font-semibold tracking-wide text-emerald-200 uppercase">
-                Toplam Teklif
+                {tr("toplamTeklif")}
               </p>
               <p className="mt-1 text-2xl font-bold tabular-nums">
                 {totalLabel}
@@ -1567,10 +1580,9 @@ export default function TeklifVerPage() {
               {isAuction && effectiveTarget && workbenchTarget.ownLastTotal ? (
                 <p className="mt-1 text-xs text-emerald-200">
                   {workbenchTarget.met ? (
-                    <>
-                      İndirim:{" "}
-                      <span className="tabular-nums">
-                        {money(
+                    <span className="tabular-nums">
+                      {tr("indirim", {
+                        money: money(
                           Number(
                             decSub(
                               workbenchTarget.ownLastTotal,
@@ -1578,22 +1590,20 @@ export default function TeklifVerPage() {
                             ),
                           ),
                           effectiveCurrency,
-                        )}
-                      </span>{" "}
-                      ✓
-                    </>
+                        ),
+                      })}
+                    </span>
                   ) : (
-                    <>
-                      Öncekinden ({money(Number(workbenchTarget.ownLastTotal), effectiveCurrency)}){" "}
-                      düşük olmalı
-                    </>
+                    tr("oncekindenTutarDusukOlmali", {
+                      money: money(Number(workbenchTarget.ownLastTotal), effectiveCurrency),
+                    })
                   )}
                 </p>
               ) : null}
               {hasItems ? (
                 <>
                   <p className="mt-3 text-xs text-emerald-200">
-                    Fiyatlandırılan kalem {pricedItems.length}/{items.length}
+                    {tr("fiyatlandirilanKalem", { length: pricedItems.length, length2: items.length })}
                   </p>
                   <div className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-emerald-900/60">
                     <div
@@ -1611,7 +1621,7 @@ export default function TeklifVerPage() {
               disabled={problems.length > 0 || placeBid.isPending}
               onClick={() => setConfirmOpen(true)}
             >
-              Teklif Gönder
+              {tr("teklifGonder")}
             </Button>
             {/* Auction'da GÖNDERİLMİŞ teklif taslağa çekilemez (yarıştan
                 düşürürdü) — rebid'de taslak butonu gizli; backend de reddeder. */}
@@ -1622,14 +1632,14 @@ export default function TeklifVerPage() {
                 disabled={placeBid.isPending}
                 onClick={saveDraft}
               >
-                Taslak Olarak Kaydet
+                {tr("taslakOlarakKaydet")}
               </Button>
             ) : null}
             <Link
               href={detailHref}
               className="block text-center text-sm text-zinc-500 hover:text-zinc-700"
             >
-              Vazgeç
+              {tr("vazgec")}
             </Link>
 
             {problems.length > 0 ? (
@@ -1645,7 +1655,7 @@ export default function TeklifVerPage() {
                  (alan dolu kalır, panel zıplamaz). */
               <p className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 p-3 text-xs font-medium text-emerald-700">
                 <CheckCircle2 className="h-4 w-4 shrink-0" aria-hidden />
-                Gönderime hazır — tüm zorunlu alanlar tamam.
+                {tr("gonderimeHazirTumZorunluAlanlar")}
               </p>
             )}
 
@@ -1654,7 +1664,7 @@ export default function TeklifVerPage() {
                 notu RFQ'da kalır. */}
             {!l.english?.isEnglishAuction ? (
               <p className="text-center text-xs text-zinc-400">
-                Kapalı zarf: teklifin diğer tedarikçilere gösterilmez.
+                {tr("kapaliZarfTeklifinDigerTedarikcilere")}
               </p>
             ) : null}
           </div>
@@ -1665,7 +1675,7 @@ export default function TeklifVerPage() {
       <div className="fixed inset-x-0 bottom-0 z-20 flex items-center justify-between gap-3 border-t border-zinc-200 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
         <div>
           <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-            Toplam Teklif
+            {tr("toplamTeklif")}
           </p>
           <p className="text-base font-bold text-zinc-950 tabular-nums">
             {totalLabel}
@@ -1679,7 +1689,7 @@ export default function TeklifVerPage() {
               )}
             >
               {workbenchTarget.met
-                ? `İndirim: ${money(
+                ? tr("indirim", { money: money(
                     Number(
                       decSub(
                         workbenchTarget.ownLastTotal,
@@ -1687,8 +1697,8 @@ export default function TeklifVerPage() {
                       ),
                     ),
                     effectiveCurrency,
-                  )} ✓`
-                : "Öncekinden düşük olmalı"}
+                  ) })
+                : tr("oncekindenDusukOlmali")}
             </p>
           ) : null}
         </div>
@@ -1697,7 +1707,7 @@ export default function TeklifVerPage() {
           disabled={problems.length > 0 || placeBid.isPending}
           onClick={() => setConfirmOpen(true)}
         >
-          Teklif Gönder
+          {tr("teklifGonder")}
         </Button>
       </div>
       {/* Yapışkan çubuk içeriği örtmesin */}
@@ -1707,19 +1717,18 @@ export default function TeklifVerPage() {
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>
           {isAuctionRebid || isRebidAfterLoss
-            ? "Teklifi Revize Et"
-            : "Teklif Gönder"}
+            ? tr("teklifiRevizeEt")
+            : tr("teklifGonder")}
         </DialogTitle>
         <DialogBody>
           <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 text-center">
-            <p className="text-xs font-semibold text-emerald-700">Toplam Teklif</p>
+            <p className="text-xs font-semibold text-emerald-700">{tr("toplamTeklif")}</p>
             <p className="mt-1 text-2xl font-bold text-emerald-800 tabular-nums">
               {totalLabel}
             </p>
             {mixedCurrency ? (
               <p className="mt-1 text-xs text-emerald-700">
-                Karma birimli teklif: karşılaştırma toplamı ana birime (
-                {effectiveCurrency}) güncel TCMB kuruyla sistemce çevrilir.
+                {tr("karmaBirimliTeklifKarsilastirmaToplami", { effectiveCurrency: effectiveCurrency })}
               </p>
             ) : null}
           </div>
@@ -1731,25 +1740,23 @@ export default function TeklifVerPage() {
               />
               <p>
                 <span className="font-semibold">
-                  Bu turda tek teklif hakkın var.
+                  {tr("buTurdaTekTeklifHakkin")}
                 </span>{" "}
-                Gönderdikten sonra bu turda değiştiremezsin — yeni fiyat ancak
-                alıcı yeni tur açarsa verilebilir.
+                {tr("gonderdiktenSonraBuTurdaDegistiremezsin")}
               </p>
             </div>
           ) : (
             <Text className="mt-3 text-sm text-zinc-500">
-              Gönderilen teklif düzenlenemez ve geri çekilemez; alıcı elerse
-              yeni versiyonla yeniden teklif verebilirsiniz.
+              {tr("gonderilenTeklifDuzenlenemezVeGeri")}
             </Text>
           )}
         </DialogBody>
         <DialogActions>
           <Button plain onClick={() => setConfirmOpen(false)}>
-            Vazgeç
+            {tr("vazgec")}
           </Button>
           <Button color="emerald" onClick={submit} disabled={placeBid.isPending}>
-            {placeBid.isPending ? "Gönderiliyor…" : "Teklifi Gönder"}
+            {placeBid.isPending ? tr("gonderiliyor") : tr("teklifiGonder")}
           </Button>
         </DialogActions>
       </Dialog>

@@ -1,6 +1,7 @@
 "use client";
 
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/ui/button";
 import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
@@ -36,6 +37,7 @@ import {
 import { Textarea } from "@/components/catalyst/textarea";
 
 export function Step2Items() {
+  const t = useTranslations("web.panel.requests.step2Items");
   const {
     control,
     getValues,
@@ -82,9 +84,9 @@ export function Step2Items() {
     replace(next as TenderFormData["items"]);
     const dropped = keep.length + mapped.length - next.length;
     if (dropped > 0) {
-      toast.warning(`${dropped} kalem tavan nedeniyle eklenmedi (en fazla ${MAX_LISTING_ITEMS})`);
+      toast.warning(t("kalemTavanNedeniyleEklenmediEn", { dropped: dropped, MAXLISTINGITEMS: MAX_LISTING_ITEMS }));
     } else {
-      toast.success(`${mapped.length} kalem aktarıldı`);
+      toast.success(t("kalemAktarildi", { length: mapped.length }));
     }
   };
 
@@ -147,7 +149,7 @@ export function Step2Items() {
           disabled={fields.length >= MAX_LISTING_ITEMS}
         >
           <PackageSearch className="w-4 h-4" />
-          Katalogdan Ekle
+          {t("katalogdanEkle")}
         </Button>
         <Button
           type="button"
@@ -157,7 +159,7 @@ export function Step2Items() {
           disabled={fields.length >= MAX_LISTING_ITEMS}
         >
           <FileSpreadsheet className="w-4 h-4" />
-          Excel ile İçe Aktar
+          {t("excelIleIceAktar")}
         </Button>
       </div>
 
@@ -174,8 +176,7 @@ export function Step2Items() {
 
       <div className="flex flex-wrap items-center justify-between gap-2">
         <p className="text-xs text-slate-500">
-          Toplam <strong>{fields.length}</strong> kalem · Maksimum{" "}
-          {MAX_LISTING_ITEMS}
+          {t.rich("toplamKalemMaksimum", { n: fields.length, max: MAX_LISTING_ITEMS, strong: (c) => <strong>{c}</strong> })}
         </p>
         <div className="flex items-center gap-2">
           <Button
@@ -186,7 +187,7 @@ export function Step2Items() {
             disabled={fields.length >= MAX_LISTING_ITEMS}
           >
             <Plus className="w-4 h-4" />
-            Yeni Kalem Ekle
+            {t("yeniKalemEkle")}
           </Button>
         </div>
       </div>
@@ -213,6 +214,7 @@ interface ItemRowProps {
 }
 
 function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
+  const t = useTranslations("web.panel.requests.step2Items");
   const {
     register,
     control,
@@ -280,11 +282,11 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
         <div className="flex-1 grid grid-cols-1 md:grid-cols-12 gap-3">
           <Field error={itemErrors?.name?.message} className="md:col-span-5">
             <Label htmlFor={`items.${index}.name`} required>
-              Kalem Adı
+              {t("kalemAdi")}
             </Label>
             <Input
               id={`items.${index}.name`}
-              placeholder="Örn. A4 fotokopi kağıdı"
+              placeholder={t("ornA4FotokopiKagidi")}
               hasError={!!itemErrors?.name}
               {...register(`items.${index}.name`)}
             />
@@ -295,7 +297,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
             className="md:col-span-2"
           >
             <Label htmlFor={`items.${index}.quantity`} required>
-              Miktar
+              {t("miktar")}
             </Label>
             <Input
               id={`items.${index}.quantity`}
@@ -311,7 +313,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
 
           <Field error={itemErrors?.unit?.message} className="md:col-span-2">
             <Label htmlFor={`items.${index}.unit`} required>
-              Birim
+              {t("birim")}
             </Label>
             {/* Faz 1: serbest metin yerine SEÇİM. `unit` (okunur metin) ve
                 `unitCode` (kanonik) birlikte yazılır; "listede yok" seçilirse
@@ -337,10 +339,10 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
             error={itemErrors?.materialCode?.message}
             className="md:col-span-3"
           >
-            <Label htmlFor={`items.${index}.materialCode`}>Stok Kodu</Label>
+            <Label htmlFor={`items.${index}.materialCode`}>{t("stokKodu")}</Label>
             <Input
               id={`items.${index}.materialCode`}
-              placeholder="örn. STK-00123"
+              placeholder={t("ornStk00123")}
               hasError={!!itemErrors?.materialCode}
               {...register(`items.${index}.materialCode`)}
             />
@@ -353,8 +355,8 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
           onClick={onRemove}
           disabled={!canRemove}
           className="flex-shrink-0 w-9 h-9 rounded-lg flex items-center justify-center text-slate-400 hover:text-danger-600 hover:bg-danger-50 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-          aria-label="Kalemi sil"
-          title={canRemove ? "Bu kalemi sil" : "En az 1 kalem olmalı"}
+          aria-label={t("kalemiSil")}
+          title={canRemove ? t("buKalemiSil") : t("enAz1KalemOlmali")}
         >
           <Trash2 className="w-4 h-4" />
         </button>
@@ -369,27 +371,27 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
         <summary className="cursor-pointer list-none px-3 py-2 text-sm font-medium text-zinc-700 hover:text-zinc-900">
           <span className="inline-flex items-center gap-1.5">
             <ChevronRight className="h-4 w-4 transition-transform group-open:rotate-90" />
-            Detaylar
+            {t("detaylar")}
             <span className="text-xs font-normal text-zinc-500">
-              (marka, muadil, şartname, garanti)
+              {t("markaMuadilSartnameGaranti")}
             </span>
           </span>
         </summary>
         <div className="grid grid-cols-1 gap-3 border-t border-zinc-950/5 px-3 py-3 md:grid-cols-6">
           <Field error={itemErrors?.brand?.message} className="md:col-span-3">
-            <Label htmlFor={`items.${index}.brand`}>Marka</Label>
+            <Label htmlFor={`items.${index}.brand`}>{t("marka")}</Label>
             <Input
               id={`items.${index}.brand`}
-              placeholder="örn. SKF"
+              placeholder={t("ornSkf")}
               hasError={!!itemErrors?.brand}
               {...register(`items.${index}.brand`)}
             />
           </Field>
           <Field error={itemErrors?.mpn?.message} className="md:col-span-3">
-            <Label htmlFor={`items.${index}.mpn`}>Üretici Parça No</Label>
+            <Label htmlFor={`items.${index}.mpn`}>{t("ureticiParcaNo")}</Label>
             <Input
               id={`items.${index}.mpn`}
-              placeholder="örn. 6204-2RS"
+              placeholder={t("orn62042rs")}
               hasError={!!itemErrors?.mpn}
               {...register(`items.${index}.mpn`)}
             />
@@ -404,12 +406,10 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
               />
               <span className="text-sm">
                 <span className="font-medium text-zinc-800">
-                  Muadil (eşdeğer) ürün teklif edilebilir
+                  {t("muadilEsdegerUrunTeklifEdilebilir")}
                 </span>
                 <span className="block text-xs text-zinc-500">
-                  Kapatırsanız tedarikçiler yalnız belirttiğiniz markayı
-                  teklif edebilir. Açıkken teklif verirken hangi markayı
-                  önerdiklerini belirtirler.
+                  {t("kapatirsanizTedarikcilerYalnizBelirttiginizM")}
                 </span>
               </span>
             </label>
@@ -420,12 +420,12 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
             className="md:col-span-6"
           >
             <Label htmlFor={`items.${index}.specification`}>
-              Teknik Şartname
+              {t("teknikSartname")}
             </Label>
             <Textarea
               id={`items.${index}.specification`}
               rows={3}
-              placeholder="Standart, tolerans, malzeme kalitesi…"
+              placeholder={t("standartToleransMalzemeKalitesi")}
               {...register(`items.${index}.specification`)}
             />
           </Field>
@@ -435,14 +435,14 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
             className="md:col-span-3"
           >
             <Label htmlFor={`items.${index}.warrantyMonths`}>
-              Garanti (ay)
+              {t("garantiAy")}
             </Label>
             <Input
               id={`items.${index}.warrantyMonths`}
               type="number"
               min={0}
               max={600}
-              placeholder="örn. 24"
+              placeholder={t("orn24")}
               hasError={!!itemErrors?.warrantyMonths}
               {...register(`items.${index}.warrantyMonths`, {
                 setValueAs: (v: string) =>
@@ -458,10 +458,10 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
               error={itemErrors?.hsCode?.message}
               className="md:col-span-3"
             >
-              <Label htmlFor={`items.${index}.hsCode`}>GTİP / HS Kodu</Label>
+              <Label htmlFor={`items.${index}.hsCode`}>{t("gtipHsKodu")}</Label>
               <Input
                 id={`items.${index}.hsCode`}
-                placeholder="örn. 8482.10"
+                placeholder={t("orn848210")}
                 hasError={!!itemErrors?.hsCode}
                 {...register(`items.${index}.hsCode`)}
               />
@@ -484,7 +484,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
           )}
         >
           <FileText className="w-3.5 h-3.5" />
-          {hasDetails ? "Detayı Düzenle" : "Detay Ekle"}
+          {hasDetails ? t("detayiDuzenle") : t("detayEkle")}
           {hasDetails ? (
             <CheckCircle2 className="w-3.5 h-3.5 text-success-600 ml-0.5" />
           ) : null}
@@ -502,7 +502,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
           )}
         >
           <HelpCircle className="w-3.5 h-3.5" />
-          {hasQuestion ? `Sorular (${questionCount})` : "Soru Ekle"}
+          {hasQuestion ? t("sorular", { questionCount: questionCount }) : t("soruEkle")}
           {hasQuestion ? (
             <CheckCircle2 className="w-3.5 h-3.5 text-success-600 ml-0.5" />
           ) : null}

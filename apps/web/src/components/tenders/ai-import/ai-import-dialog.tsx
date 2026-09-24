@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -29,6 +30,7 @@ export function AiImportDialog({
   onClose: () => void;
   onResult: (result: AiTenderExtractResult) => void;
 }) {
+  const t = useTranslations("web.panel.requests.aiImportDialog");
   const [files, setFiles] = useState<File[]>([]);
   const extract = useAiTenderExtract();
   const busy = extract.isPending;
@@ -45,7 +47,7 @@ export function AiImportDialog({
       setFiles([]);
       onResult(result);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Belge işlenemedi"));
+      toast.error(extractErrorMessage(err, t("belgeIslenemedi")));
     }
   };
 
@@ -60,14 +62,11 @@ export function AiImportDialog({
       <DialogTitle>
         <span className="flex items-center gap-2">
           <Sparkles className="h-5 w-5" />
-          Belgeden Doldur (AI)
+          {t("belgedenDoldurAi")}
         </span>
       </DialogTitle>
       <DialogDescription>
-        Şartname, teklif talebi, sipariş listesi ya da serbest Excel tablosu
-        yükleyin — AI formu doldurur; siz kontrol edip eksikleri
-        tamamlarsınız. İhaleyi her zaman SİZ oluşturursunuz. (Şablon Excel için
-        Kalemler adımındaki “Excel ile İçe Aktar” daha kesindir.)
+        {t("sartnameTeklifTalebiSiparisListesi")}
       </DialogDescription>
       <DialogBody className="space-y-4">
         <Dropzone
@@ -75,8 +74,8 @@ export function AiImportDialog({
           multiple
           disabled={busy}
           onFiles={addFiles}
-          label="PDF, fotoğraf veya Excel seç"
-          hint="Tek PDF, tek Excel/CSV ya da birden çok sayfa fotoğrafı (en fazla 20)"
+          label={t("pdfFotografVeyaExcelSec")}
+          hint={t("tekPdfTekExcelCsv")}
         />
         {files.length > 0 ? (
           <ul className="space-y-1">
@@ -88,13 +87,13 @@ export function AiImportDialog({
                 <FileText className="h-4 w-4 shrink-0 text-zinc-400" />
                 <span className="min-w-0 flex-1 truncate">{f.name}</span>
                 <span className="text-xs text-zinc-400">
-                  {(f.size / 1024 / 1024).toFixed(1)} MB
+                  {t("mb", { toFixed: (f.size / 1024 / 1024).toFixed(1) })}
                 </span>
                 <button
                   type="button"
                   disabled={busy}
                   onClick={() => setFiles(files.filter((_, j) => j !== i))}
-                  aria-label={`${f.name} kaldır`}
+                  aria-label={t("kaldir", { name: f.name })}
                   className="text-zinc-400 hover:text-zinc-700"
                 >
                   <X className="h-4 w-4" />
@@ -105,16 +104,16 @@ export function AiImportDialog({
         ) : null}
         {busy ? (
           <p className="text-sm text-zinc-500">
-            Belge işleniyor — AI formu dolduruyor, bu birkaç saniye sürebilir…
+            {t("belgeIsleniyorAiFormuDolduruyor")}
           </p>
         ) : null}
       </DialogBody>
       <DialogActions>
         <Button plain disabled={busy} onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button disabled={busy || files.length === 0} onClick={() => void run()}>
-          {busy ? "İşleniyor…" : "Formu Doldur"}
+          {busy ? t("isleniyor") : t("formuDoldur")}
         </Button>
       </DialogActions>
     </Dialog>

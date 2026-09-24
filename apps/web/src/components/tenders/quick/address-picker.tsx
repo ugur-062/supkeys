@@ -1,11 +1,15 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { CompanyAddress } from "@/hooks/use-company-addresses";
 import { cn } from "@/lib/utils";
+import { useCityLabel } from "@/i18n/domain";
 import { CheckCircleIcon, MapPinIcon } from "@heroicons/react/20/solid";
 
 /** Teslimat adresi — kart seçimi (select yerine): başlık, il, açık adres okunur. */
 export function AddressPicker({ addresses, value, onChange, onAdd }: { addresses: CompanyAddress[]; value: string; onChange: (id: string) => void; onAdd: () => void }) {
+  const t = useTranslations("web.panel.requests.addressPicker");
+  const cityLabel = useCityLabel();
   const list = addresses.filter((a) => a.type !== "FATURA");
   return (
     <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
@@ -23,16 +27,16 @@ export function AddressPicker({ addresses, value, onChange, onAdd }: { addresses
             <span className="min-w-0">
               <span className="block text-sm font-semibold text-zinc-950">
                 {a.title}
-                {a.isDefault ? <span className="ml-1.5 rounded bg-zinc-100 px-1 py-0.5 text-[10px] font-medium text-zinc-600">varsayılan</span> : null}
+                {a.isDefault ? <span className="ml-1.5 rounded bg-zinc-100 px-1 py-0.5 text-[10px] font-medium text-zinc-600">{t("varsayilan")}</span> : null}
               </span>
-              <span className="block truncate text-xs text-zinc-600">{[a.district, a.city].filter(Boolean).join(" / ") || "—"}</span>
+              <span className="block truncate text-xs text-zinc-600">{[a.district, a.city ? cityLabel(a.city) : null].filter(Boolean).join(" / ") || "—"}</span>
               <span className="block truncate text-xs text-zinc-500">{a.addressLine}</span>
             </span>
           </button>
         );
       })}
       <button type="button" onClick={onAdd} className="flex items-center justify-center rounded-xl border border-dashed border-zinc-300 p-3 text-sm font-medium text-zinc-700 hover:border-zinc-900 hover:text-zinc-900">
-        + Yeni adres
+        {t("yeniAdres")}
       </button>
     </div>
   );

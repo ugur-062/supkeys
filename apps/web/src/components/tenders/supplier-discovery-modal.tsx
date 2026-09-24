@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   Dialog,
   DialogBackdrop,
@@ -56,6 +57,7 @@ export function SupplierDiscoveryModal({
   /** Faz C — dış davet gönderimi bu ihale bağlamıyla yapılır (yoksa pasif). */
   listingId?: string;
 }) {
+  const tr = useTranslations("web.panel.requests.supplierDiscoveryModal");
   const [tab, setTab] = useState<"platform" | "external">("platform");
   // listingId verildiyse (ihale detayından açılış) bağlamı kendisi çeker —
   // çağıranın kategori/kalem taşıması gerekmez.
@@ -108,7 +110,7 @@ export function SupplierDiscoveryModal({
     discovery
       .mutateAsync({ type: "ALIM", categoryIds: effCategoryIds })
       .then(setCandidates)
-      .catch(() => toast.error("Öneriler yüklenemedi — tekrar deneyin"));
+      .catch(() => toast.error(tr("onerilerYuklenemediTekrarDeneyin")));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, catKey]);
 
@@ -132,12 +134,12 @@ export function SupplierDiscoveryModal({
       if (withEmail.length === 0) {
         toast.info(
           res.length === 0
-            ? "Web aramasında uygun firma bulunamadı"
-            : "Bulunan firmaların yayınlanmış e-postası yok — davet gönderilemez",
+            ? tr("webAramasindaUygunFirmaBulunamadi")
+            : tr("bulunanFirmalarinYayinlanmisEPostasi"),
         );
       }
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Web araması başarısız — tekrar deneyin"));
+      toast.error(extractErrorMessage(err, tr("webAramasiBasarisizTekrarDeneyin")));
     }
   };
 
@@ -147,7 +149,7 @@ export function SupplierDiscoveryModal({
       .map((i) => (emailDrafts[i] ?? "").trim().toLowerCase())
       .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e));
     if (emails.length === 0) {
-      toast.error("Seçili adayların e-posta adreslerini doldurun");
+      toast.error(tr("seciliAdaylarinEPostaAdreslerini"));
       return;
     }
     try {
@@ -156,14 +158,14 @@ export function SupplierDiscoveryModal({
       const skipped = results.filter((r) => r.status === "SKIPPED");
       if (sent.length > 0) {
         setSentEmails((s) => new Set([...s, ...sent.map((r) => r.email)]));
-        toast.success(`${sent.length} davet e-postası gönderildi`);
+        toast.success(tr("davetEPostasiGonderildi", { length: sent.length }));
       }
       for (const s of skipped.slice(0, 3)) {
-        toast.info(`${s.email}: ${s.reason ?? "atlandı"}`);
+        toast.info(tr("atlandiSatiri", { email: s.email, reason: s.reason ?? tr("atlandi") }));
       }
       setSelectedExt(new Set());
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Davetler gönderilemedi"));
+      toast.error(extractErrorMessage(err, tr("davetlerGonderilemedi")));
     }
   };
 
@@ -174,7 +176,7 @@ export function SupplierDiscoveryModal({
       .map((i) => (emailDrafts[i] ?? "").trim().toLowerCase())
       .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e));
     if (emails.length === 0) {
-      toast.error("Seçili adayların e-posta adreslerini doldurun");
+      toast.error(tr("seciliAdaylarinEPostaAdreslerini"));
       return;
     }
     try {
@@ -182,14 +184,14 @@ export function SupplierDiscoveryModal({
       const sent = results.filter((r) => r.status !== "skipped");
       if (sent.length > 0) {
         setSentEmails((s) => new Set([...s, ...sent.map((r) => r.email)]));
-        toast.success(`${sent.length} davet gönderildi`);
+        toast.success(tr("davetGonderildi", { length: sent.length }));
       }
       for (const s of results.filter((r) => r.status === "skipped").slice(0, 3)) {
-        toast.info(`${s.email}: ${s.reason ?? "atlandı"}`);
+        toast.info(tr("atlandiSatiri", { email: s.email, reason: s.reason ?? tr("atlandi") }));
       }
       setSelectedExt(new Set());
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Davetler gönderilemedi"));
+      toast.error(extractErrorMessage(err, tr("davetlerGonderilemedi")));
     }
   };
 
@@ -199,9 +201,9 @@ export function SupplierDiscoveryModal({
     try {
       await invite.mutateAsync(c.rothernId);
       setInvited((s) => new Set(s).add(c.companyId));
-      toast.success(`${c.name} firmasına bağlantı daveti gönderildi`);
+      toast.success(tr("firmasinaBaglantiDavetiGonderildi", { name: c.name }));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Davet gönderilemedi"));
+      toast.error(extractErrorMessage(err, tr("davetGonderilemedi")));
     } finally {
       setInviting(null);
     }
@@ -224,26 +226,24 @@ export function SupplierDiscoveryModal({
               </div>
               <div>
                 <DialogTitle className="text-lg font-semibold text-zinc-950">
-                  Daha fazla tedarikçiye eriş
+                  {tr("dahaFazlaTedarikciyeEris")}
                 </DialogTitle>
                 <p className="mt-0.5 text-xs text-zinc-500">
-                  Satın Alma Talebi kategorilerinize göre platformda eşleşen, henüz bağlantınız
-                  olmayan firmalar. Davet gönderin — kabul edince satın alma talebinize davet
-                  edebilirsiniz.
+                  {tr("satinAlmaTalebiKategorilerinizeGore")}
                 </p>
               </div>
             </div>
-            <IconButton aria-label="Kapat" onClick={onClose}>
+            <IconButton aria-label={tr("kapat")} onClick={onClose}>
               <X className="h-5 w-5" />
             </IconButton>
           </div>
 
           {/* Sekmeler */}
-          <div role="tablist" aria-label="Tedarikçi kaynağı" className="flex gap-1 border-b border-zinc-950/5 px-6 pt-3">
+          <div role="tablist" aria-label={tr("tedarikciKaynagi")} className="flex gap-1 border-b border-zinc-950/5 px-6 pt-3">
             {(
               [
-                { key: "platform", label: "Platformda", icon: Building2 },
-                { key: "external", label: "Web'de Ara (AI)", icon: Globe },
+                { key: "platform", label: tr("platformda"), icon: Building2 },
+                { key: "external", label: tr("webDeAraAi"), icon: Globe },
               ] as const
             ).map((t) => (
               <button
@@ -273,7 +273,7 @@ export function SupplierDiscoveryModal({
                 <input
                   value={region}
                   onChange={(e) => setRegion(e.target.value)}
-                  placeholder="Bölge (ops. — örn. İstanbul, Ege)"
+                  placeholder={tr("bolgeOpsOrnIstanbulEge")}
                   className="min-w-[180px] flex-1 rounded-lg border border-surface-border bg-white px-3 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
                 />
                 <Button
@@ -285,19 +285,17 @@ export function SupplierDiscoveryModal({
                   ) : (
                     <Search className="h-4 w-4" />
                   )}
-                  Web&apos;de Ara
+                  {tr("webDeAra")}
                 </Button>
               </div>
               <p className="mt-2 text-xs text-zinc-400">
-                AI, talebinizin kategorisine uygun firmaları web&apos;de arar. E-posta
-                yalnız açıkça yayınlanmışsa gelir — göndermeden önce siz
-                doğrularsınız.
+                {tr("aiTalebinizinKategorisineUygunFirmalari")}
               </p>
 
               {external.isPending ? (
                 <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500">
                   <Loader2 className="h-5 w-5 animate-spin" />
-                  Web&apos;de aranıyor (30-60 sn sürebilir)…
+                  {tr("webDeAraniyor3060")}
                 </div>
               ) : externalResults.length > 0 ? (
                 <ul className="mt-4 space-y-2">
@@ -323,7 +321,7 @@ export function SupplierDiscoveryModal({
                                 return n;
                               })
                             }
-                            aria-label={`${c.name} seç`}
+                            aria-label={tr("sec", { name: c.name })}
                           />
                           <div className="min-w-0 flex-1">
                             <p className="text-sm font-semibold text-zinc-900">
@@ -357,13 +355,13 @@ export function SupplierDiscoveryModal({
                                   setEmailDrafts((d) => ({ ...d, [i]: e.target.value }))
                                 }
                                 disabled={isSent}
-                                placeholder="E-posta adresini doğrulayın / girin"
+                                placeholder={tr("ePostaAdresiniDogrulayinGirin")}
                                 className="w-full max-w-[300px] rounded-lg border border-surface-border bg-white px-2.5 py-1.5 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10 disabled:bg-zinc-50"
                               />
                               {isSent ? (
                                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
                                   <Check className="h-3.5 w-3.5" />
-                                  Gönderildi
+                                  {tr("gonderildi")}
                                 </span>
                               ) : null}
                             </div>
@@ -384,8 +382,8 @@ export function SupplierDiscoveryModal({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs text-zinc-500">
                     {listingId
-                      ? "Günlük dış davet limiti firma başına 20; aynı adrese bir kez gönderilir, her e-postada vazgeçme bağlantısı vardır."
-                      : "Talep henüz yayınlanmadığı için bağlantı/kayıt daveti gönderilir; talebe özel davet yayın sonrası talep sayfasından."}
+                      ? tr("gunlukDisDavetLimitiFirma")
+                      : tr("talepHenuzYayinlanmadigiIcinBaglanti")}
                   </p>
                   <Button
                     onClick={listingId ? sendExternalInvites : sendGenericInvites}
@@ -400,7 +398,7 @@ export function SupplierDiscoveryModal({
                     ) : (
                       <Mail className="h-4 w-4" />
                     )}
-                    Davet E-postası Gönder ({selectedExt.size})
+                    {tr("davetEPostasiGonderN", { n: selectedExt.size })}
                   </Button>
                 </div>
               </div>
@@ -410,17 +408,16 @@ export function SupplierDiscoveryModal({
           <div className="flex-1 overflow-y-auto px-6 py-4">
             {effCategoryIds.length === 0 ? (
               <p className="py-10 text-center text-sm text-zinc-500">
-                Önce satın alma talebinin kategorisini seçin — öneriler
-                kategoriye göre bulunur.
+                {tr("onceSatinAlmaTalebininKategorisini")}
               </p>
             ) : discovery.isPending ? (
               <div className="flex items-center justify-center gap-2 py-12 text-sm text-zinc-500">
                 <Loader2 className="h-5 w-5 animate-spin" />
-                Eşleşen firmalar aranıyor…
+                {tr("eslesenFirmalarAraniyor")}
               </div>
             ) : candidates.length === 0 ? (
               <p className="py-10 text-center text-sm text-zinc-500">
-                Bu kategorilerde önerilebilecek yeni firma bulunamadı.
+                {tr("buKategorilerdeOnerilebilecekYeniFirma")}
               </p>
             ) : (
               <ul className="space-y-2">
@@ -440,7 +437,7 @@ export function SupplierDiscoveryModal({
                           <span className="truncate">{c.name}</span>
                           {c.strongMatch ? (
                             <span className="shrink-0 rounded-full bg-emerald-50 px-1.5 py-0.5 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-200">
-                              Güçlü eşleşme
+                              {tr("gucluEslesme")}
                             </span>
                           ) : null}
                         </p>
@@ -461,7 +458,7 @@ export function SupplierDiscoveryModal({
                       {done ? (
                         <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-700">
                           <Check className="h-3.5 w-3.5" />
-                          Davet gönderildi
+                          {tr("davetGonderildi2")}
                         </span>
                       ) : (
                         <Button
@@ -473,7 +470,7 @@ export function SupplierDiscoveryModal({
                           {inviting === c.companyId ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : null}
-                          Bağlantı daveti gönder
+                          {tr("baglantiDavetiGonder")}
                         </Button>
                       )}
                     </li>
@@ -485,9 +482,7 @@ export function SupplierDiscoveryModal({
           )}
 
           <div className="border-t border-zinc-950/5 bg-zinc-50/60 px-6 py-3 text-xs text-zinc-500">
-            Davet kabul edilince firma bağlantılarınıza eklenir; davetli
-            talebinize buradan davet edebilir, herkese açık talebinizi zaten
-            görebilir hâle gelir.
+            {tr("davetKabulEdilinceFirmaBaglantilariniza")}
           </div>
         </DialogPanel>
       </div>

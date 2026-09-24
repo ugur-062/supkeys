@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Input } from "@/components/catalyst/input";
@@ -104,6 +105,7 @@ export function AuctionBidWorkbench({
   /** Genişletilen satırın ek alanları (teslim tarihi + kalem soruları). */
   renderItemExtras: (it: ListingItemRow) => ReactNode;
 }) {
+  const t = useTranslations("web.panel.requests.auctionBidWorkbench");
   const [percent, setPercent] = useState(defaultPercent);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"ALL" | "CHANGED" | "LOCKED">("ALL");
@@ -179,23 +181,24 @@ export function AuctionBidWorkbench({
   // Hepsi seçiliyken "Tümüne", en az biri çıkarıldıysa "Seçililere".
   const allSelected =
     distItems.length > 0 && distItems.every((d) => !d.locked);
-  const percentScopeLabel = allSelected ? "Tümüne" : "Seçililere";
 
   const applyPercent = () => {
     const p = Number(percent);
     if (!Number.isFinite(p) || p <= 0 || p >= 100) {
-      toast.error("Geçerli bir yüzde girin (0–100 arası)");
+      toast.error(t("gecerliBirYuzdeGirin0"));
       return;
     }
     if (distItems.every((d) => d.locked)) {
-      toast.error("Seçili kalem yok — en az bir kalemi işaretleyin");
+      toast.error(t("seciliKalemYokEnAz"));
       return;
     }
     applyPrices(
       applyPercentToItems({ items: distItems, percent, decimals }),
     );
     toast.success(
-      `${allSelected ? "Tüm kalemlere" : "Seçili kalemlere"} %${percent} indirim uygulandı`,
+      allSelected
+        ? t("tumKalemlereYuzdeIndirimUygulandi", { percent })
+        : t("seciliKalemlereYuzdeIndirimUygulandi", { percent }),
     );
   };
 
@@ -206,7 +209,7 @@ export function AuctionBidWorkbench({
       if (init != null && init !== "") restore[it.id] = init;
     }
     applyPrices(restore);
-    toast.success("Fiyatlar taşınan teklife döndürüldü");
+    toast.success(t("fiyatlarTasinanTeklifeDonduruldu"));
   };
 
   const filterChip = (key: typeof filter, label: string, count?: number) => (
@@ -239,23 +242,22 @@ export function AuctionBidWorkbench({
         )}
       >
         <span>
-          Mevcut toplam:{" "}
-          <strong className="tabular-nums">
-            {money(target.exactTotalStr, currency)}
-          </strong>
+          {t.rich("mevcutToplam", {
+            amount: money(target.exactTotalStr, currency),
+            strong: (c) => <strong className="tabular-nums">{c}</strong>,
+          })}
         </span>
         {target.noReference ? (
           <span>
-            İlk teklifin — sınır yok, fiyatlarını serbestçe gir. Sonraki
-            teklifler bunun altında olmak zorunda.
+            {t("ilkTeklifinSinirYokFiyatlarini")}
           </span>
         ) : target.effectiveTarget ? (
           <>
             <span>
-              Önceki teklifin:{" "}
-              <strong className="tabular-nums">
-                {money(target.ownLastTotal ?? "0", currency)}
-              </strong>
+              {t.rich("oncekiTeklifin", {
+                amount: money(target.ownLastTotal ?? "0", currency),
+                strong: (c) => <strong className="tabular-nums">{c}</strong>,
+              })}
             </span>
             {/* Sınır/"Gönderilebilir" yerine YAPILAN indirim: tutar + %
                 (öncekine göre; kesin aritmetik, % yalnız gösterim). Kapsam
@@ -263,23 +265,21 @@ export function AuctionBidWorkbench({
             {target.met ? (
               <span className="inline-flex items-center gap-1 font-semibold">
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
-                İndirim:{" "}
-                <strong className="tabular-nums">
-                  {money(madeDiff, currency)}
-                  {madePct != null ? ` (%${madePct})` : ""}
-                </strong>
+                {t.rich("indirim", {
+                  amount: `${money(madeDiff, currency)}${madePct != null ? ` (%${madePct})` : ""}`,
+                  strong: (c) => <strong className="tabular-nums">{c}</strong>,
+                })}
               </span>
             ) : (
               <span>
                 {scopeExpanded
-                  ? "Önceden fiyatladığınız kalemlerin toplamı öncekinden"
-                  : "Öncekinden"}{" "}
-                düşük olmalı — henüz indirim yok.
+                  ? t("oncedenFiyatladiginizKalemlerinToplamiOncekindenDusukOlmali")
+                  : t("oncekindenDusukOlmaliHenuzIndirimYok")}
               </span>
             )}
             {scopeExpanded ? (
               <span className="text-xs opacity-70">
-                Yeni eklenen kalemler kıyasa girmez — fiyatları serbest.
+                {t("yeniEklenenKalemlerKiyasaGirmez")}
               </span>
             ) : null}
           </>
@@ -298,20 +298,22 @@ export function AuctionBidWorkbench({
               max={99.99}
               step="1"
               value={percent}
-              aria-label="Yüzde"
+              aria-label={t("yuzde")}
               onChange={(e) => setPercent(e.target.value)}
             />
           </div>
           <Button outline onClick={applyPercent}>
-            {percentScopeLabel} %{percent || "…"} indirim
+            {allSelected
+              ? t("tumuneYuzdeIndirim", { percent: percent || "…" })
+              : t("secililereYuzdeIndirim", { percent: percent || "…" })}
           </Button>
         </div>
         <Button outline onClick={reset} disabled={changedIds.size === 0}>
           <RotateCcw data-slot="icon" aria-hidden="true" />
-          Sıfırla
+          {t("sifirla")}
         </Button>
         <span className="text-xs text-zinc-400">
-          İşareti kaldırılan kaleme % aracı dokunmaz.
+          {t("isaretiKaldirilanKalemeAraciDokunmaz")}
         </span>
       </div>
 
@@ -327,14 +329,14 @@ export function AuctionBidWorkbench({
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Kalem ara…"
-            aria-label="Kalem ara"
+            placeholder={t("kalemAra")}
+            aria-label={t("kalemAra2")}
             className="w-56 rounded-lg border border-zinc-300 bg-white py-1.5 pr-2 pl-8 text-sm shadow-sm focus:ring-2 focus:ring-zinc-900/10 focus:outline-none"
           />
         </div>
-        {filterChip("ALL", "Tümü")}
-        {filterChip("CHANGED", "Değişen", changedIds.size)}
-        {filterChip("LOCKED", "Hariç", lockedIds.size)}
+        {filterChip("ALL", t("tumu"))}
+        {filterChip("CHANGED", t("degisen"), changedIds.size)}
+        {filterChip("LOCKED", t("haric"), lockedIds.size)}
       </div>
 
       {/* ── Kompakt kalem tablosu ── */}
@@ -343,22 +345,22 @@ export function AuctionBidWorkbench({
           <thead className="sticky top-0 z-[1] bg-zinc-50 text-left text-xs text-zinc-500">
             <tr>
               <th scope="col" className="px-3 py-2 font-medium">#</th>
-              <th scope="col" className="px-3 py-2 font-medium">Kalem</th>
-              <th scope="col" className="px-3 py-2 text-right font-medium">Miktar</th>
-              <th scope="col" className="px-3 py-2 text-right font-medium">Önceki</th>
+              <th scope="col" className="px-3 py-2 font-medium">{t("kalem")}</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">{t("miktar")}</th>
+              <th scope="col" className="px-3 py-2 text-right font-medium">{t("onceki")}</th>
               <th scope="col" className="px-3 py-2 text-right font-medium">
-                Yeni Birim Fiyat ({currency === "TRY" ? "₺" : currency})
+                {t("yeniBirimFiyat", { currency: currency === "TRY" ? "₺" : currency })}
               </th>
-              <th scope="col" className="px-3 py-2 text-right font-medium">Satır Toplamı</th>
-              <th scope="col" className="px-2 py-2" aria-label="Seçim" />
-              <th scope="col" className="px-2 py-2" aria-label="Detay" />
+              <th scope="col" className="px-3 py-2 text-right font-medium">{t("satirToplami")}</th>
+              <th scope="col" className="px-2 py-2" aria-label={t("secim")} />
+              <th scope="col" className="px-2 py-2" aria-label={t("detay")} />
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {visibleItems.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-3 py-6 text-center text-zinc-400">
-                  Eşleşen kalem yok.
+                  {t("eslesenKalemYok")}
                 </td>
               </tr>
             ) : (
@@ -390,14 +392,14 @@ export function AuctionBidWorkbench({
                         <p className="flex items-center gap-2 truncate font-medium text-zinc-900">
                           <span className="truncate">{it.name}</span>
                           {meta?.requiredMissing ? (
-                            <Badge color="amber">Zorunlu soru</Badge>
+                            <Badge color="amber">{t("zorunluSoru")}</Badge>
                           ) : null}
                         </p>
                         <p className="truncate text-xs text-zinc-400">
                           {[
                             it.materialCode,
                             it.targetPrice
-                              ? `Hedef: ${money(it.targetPrice, currency)}`
+                              ? t("hedef", { money: money(it.targetPrice, currency) })
                               : null,
                             meta?.note ?? null,
                           ]
@@ -426,7 +428,7 @@ export function AuctionBidWorkbench({
                             onClick={() => setPrice(it.id, "")}
                             className="text-xs font-semibold text-blue-600 hover:underline"
                           >
-                            Teklif ver
+                            {t("teklifVer")}
                           </button>
                         ) : (
                           <div className="ml-auto flex w-32 items-center justify-end gap-1">
@@ -435,15 +437,15 @@ export function AuctionBidWorkbench({
                               min={0}
                               step={String(Math.pow(10, -decimals))}
                               value={price ?? ""}
-                              aria-label={`${it.name} birim fiyat`}
+                              aria-label={t("birimFiyatAria", { name: it.name })}
                               onChange={(e) => setPrice(it.id, e.target.value)}
                               className={cn(changed && "font-semibold")}
                             />
                             {!requireAllItems && !mandatoryIds?.has(it.id) ? (
                               <button
                                 type="button"
-                                aria-label="Bu kaleme teklif verme"
-                                title="Bu kaleme teklif verme"
+                                aria-label={t("buKalemeTeklifVerme")}
+                                title={t("buKalemeTeklifVerme")}
                                 onClick={() => setPrice(it.id, null)}
                                 className="shrink-0 text-zinc-300 hover:text-red-600"
                               >
@@ -473,17 +475,17 @@ export function AuctionBidWorkbench({
                             disabled={!hasPrice}
                             aria-label={
                               !hasPrice
-                                ? `${it.name} fiyatsız — seçime girmez`
+                                ? t("fiyatsizSecimeGirmez", { name: it.name })
                                 : locked
-                                  ? `${it.name} kalemini seçime ekle`
-                                  : `${it.name} kalemini seçimden çıkar`
+                                  ? t("kaleminiSecimeEkle", { name: it.name })
+                                  : t("kaleminiSecimdenCikar", { name: it.name })
                             }
                             title={
                               !hasPrice
-                                ? "Fiyat girilmeden seçime girmez"
+                                ? t("fiyatGirilmedenSecimeGirmez")
                                 : locked
-                                  ? "Seçime ekle — % aracı bu kalemi de değiştirsin"
-                                  : "Seçimden çıkar — % aracı bu kaleme dokunmasın"
+                                  ? t("secimeEkleAraciBuKalemi")
+                                  : t("secimdenCikarAraciBuKaleme")
                             }
                             onClick={() => toggleLock(it.id)}
                             className={cn(
@@ -509,9 +511,9 @@ export function AuctionBidWorkbench({
                         {!optedOut ? (
                           <button
                             type="button"
-                            aria-label={`${it.name} detayları`}
+                            aria-label={t("detaylari", { name: it.name })}
                             aria-expanded={isOpen}
-                            title="Kalem detayları — teslim tarihi ve sorular"
+                            title={t("kalemDetaylariTeslimTarihiVe")}
                             onClick={() =>
                               setExpanded((s) => {
                                 const n = new Set(s);
@@ -536,7 +538,7 @@ export function AuctionBidWorkbench({
                             />
                             {(it.questions?.length ?? 0) > 0 ? (
                               <span className="sr-only">
-                                {it.questions!.length} soru
+                                {t("soru", { n: it.questions!.length })}
                               </span>
                             ) : null}
                           </button>

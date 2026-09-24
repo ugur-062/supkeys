@@ -1,7 +1,13 @@
 "use client";
 
-import { useNavLabel } from "@/i18n/domain";
-import { countryName, scopeLabel } from "@rothern/shared";
+import { useLocale, useTranslations } from "next-intl";
+import {
+  countryDisplayName,
+  useListingStatusLabel,
+  useNavLabel,
+  useScopeLabel,
+  useUnitLabel,
+} from "@/i18n/domain";
 import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-note";
 import { AuctionLiveCard } from "./_components/auction-live-card";
 import { MyBidStatusPanel } from "./_components/my-bid-status-panel";
@@ -12,7 +18,6 @@ import { CountdownFull } from "@/components/tenders/countdown-full";
 import { FilesTab } from "@/components/tenders/files-tab";
 import { GeneralInfoTab } from "@/components/tenders/general-info-tab";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
-import { LISTING_STATUS_LABELS } from "@/components/tenders/status-badge";
 import { TenderActionsMenu } from "@/components/tenders/tender-actions-menu";
 import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
 import { Heading, Subheading } from "@/components/catalyst/heading";
@@ -52,7 +57,7 @@ import { SearchInput } from "@/components/list/search-input";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
 import { subscribeRealtime } from "@/lib/realtime";
-import { CURRENCY_SYMBOL, KDV_HARIC_NOTE } from "@/lib/tenders/labels";
+import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { formatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/20/solid";
@@ -159,29 +164,25 @@ function currencyListLabel(l: {
   ].join(", ");
 }
 
-/** İlan durumu → Türkçe etiket + Catalyst rozet rengi. Ham enum kullanıcıya gösterilmez. */
-const LISTING_STATUS_META: Record<
+/** İlan durumu → Catalyst rozet rengi; etiket katalogdan (`useListingStatusLabel`,
+ *  `web.domain.listingStatus`). Ham enum kullanıcıya gösterilmez. */
+const LISTING_STATUS_COLOR: Record<
   string,
-  { label: string; color: React.ComponentProps<typeof Badge>["color"] }
+  React.ComponentProps<typeof Badge>["color"]
 > = {
-  DRAFT: { label: LISTING_STATUS_LABELS.DRAFT, color: "zinc" },
-  IN_APPROVAL: { label: LISTING_STATUS_LABELS.IN_APPROVAL, color: "amber" },
-  OPEN: { label: LISTING_STATUS_LABELS.OPEN, color: "green" },
-  CLOSED: { label: LISTING_STATUS_LABELS.CLOSED, color: "amber" },
-  IN_AWARD: { label: LISTING_STATUS_LABELS.IN_AWARD, color: "blue" },
-  IN_AWARD_APPROVAL: {
-    label: LISTING_STATUS_LABELS.IN_AWARD_APPROVAL,
-    color: "amber",
-  },
-  AWARDED: { label: LISTING_STATUS_LABELS.AWARDED, color: "blue" },
-  CLOSED_NO_AWARD: {
-    label: LISTING_STATUS_LABELS.CLOSED_NO_AWARD,
-    color: "zinc",
-  },
-  CANCELLED: { label: LISTING_STATUS_LABELS.CANCELLED, color: "red" },
+  DRAFT: "zinc",
+  IN_APPROVAL: "amber",
+  OPEN: "green",
+  CLOSED: "amber",
+  IN_AWARD: "blue",
+  IN_AWARD_APPROVAL: "amber",
+  AWARDED: "blue",
+  CLOSED_NO_AWARD: "zinc",
+  CANCELLED: "red",
 };
 
 export default function ListingDetailPage() {
+  const t = useTranslations("web.panel.requests.page");
   const params = useParams<{ id: string }>();
   const id = params.id;
   const searchParams = useSearchParams();
@@ -205,6 +206,11 @@ export default function ListingDetailPage() {
       : null;
   const fromLabel = searchParams.get("fromLabel");
   const tn = useNavLabel();
+  const td = useTranslations("web.domain");
+  const locale = useLocale();
+  const listingStatusLabel = useListingStatusLabel();
+  const scopeLabel = useScopeLabel();
+  const unitLabel = useUnitLabel();
   // Faz 2: hook koşulsuz çağrılmalı — erken dönüşlerin ARDINDA çağırmak
   // rules-of-hooks ihlali (render'lar arası hook sırası değişir).
   const saveToCatalog = useImportListingToCatalog();
@@ -298,7 +304,7 @@ export default function ListingDetailPage() {
       ({ requiresApproval } = await awardPreview.mutateAsync({ bidId }));
     } catch (err) {
       toast.error(
-        extractErrorMessage(err, "Onay durumu doğrulanamadı, tekrar deneyin"),
+        extractErrorMessage(err, t("onayDurumuDogrulanamadiTekrarDeneyin")),
       );
       return;
     }
@@ -311,9 +317,9 @@ export default function ListingDetailPage() {
       // Un-award bilinçli olarak yok (CLAUDE.md §7) — aynı işlemin asistan
       // yolu bunu açıkça yazıyor, arayüz yazmıyordu.
       !(await confirm({
-        title: "Kazandır",
-        description: `"${bidderName}" kazandırılsın mı? Bu işlem GERİ ALINAMAZ: diğer teklifler kaybeder (LOST) ve sipariş oluşur.`,
-        confirmLabel: "Evet, kazandır",
+        title: t("kazandir"),
+        description: t("kazandirilsinMiBuIslemGeri", { bidderName: bidderName }),
+        confirmLabel: t("evetKazandir"),
         destructive: true,
       }))
     )
@@ -322,11 +328,11 @@ export default function ListingDetailPage() {
       const res = await award.mutateAsync({ bidId });
       toast.success(
         res.pendingApproval
-          ? "Kazandırma onaya gönderildi"
-          : `Kazandırıldı — sipariş ${res.number} oluştu`,
+          ? t("kazandirmaOnayaGonderildi")
+          : t("kazandirildiSiparisOlustu", { number: res.number ?? "" }),
       );
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kazandırılamadı"));
+      toast.error(extractErrorMessage(err, t("kazandirilamadi")));
     }
   };
 
@@ -342,8 +348,8 @@ export default function ListingDetailPage() {
         });
         toast.success(
           res.pendingApproval
-            ? "Kazandırma onaya gönderildi"
-            : `Kazandırıldı — sipariş ${res.number} oluştu`,
+            ? t("kazandirmaOnayaGonderildi")
+            : t("kazandirildiSiparisOlustu", { number: res.number ?? "" }),
         );
       } else {
         const res = await awardByItem.mutateAsync({
@@ -352,14 +358,14 @@ export default function ListingDetailPage() {
         });
         toast.success(
           res.pendingApproval
-            ? "Kazandırma onaya gönderildi"
-            : `Kazandırıldı — ${res.count} sipariş oluştu`,
+            ? t("kazandirmaOnayaGonderildi")
+            : t("kazandirildiSiparisOlustu2", { count: res.count ?? 0 }),
         );
         setItemAwardMode(false);
       }
       setNoteAction(null);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İşlem başarısız"));
+      toast.error(extractErrorMessage(err, t("islemBasarisiz")));
     }
   };
 
@@ -370,10 +376,10 @@ export default function ListingDetailPage() {
         bidId: eliminateTarget.bidId,
         reason: reason.trim() || undefined,
       });
-      toast.success("Teklif elendi");
+      toast.success(t("teklifElendi"));
       setEliminateTarget(null);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Elenemedi"));
+      toast.error(extractErrorMessage(err, t("elenemedi")));
     }
   };
 
@@ -381,18 +387,18 @@ export default function ListingDetailPage() {
     if (!l?.pendingApprovalId) return;
     if (
       !(await confirm({
-        title: "Onay isteğini iptal et",
-        description: "Onay isteği iptal edilsin mi? İlan eski durumuna döner.",
-        confirmLabel: "İptal et",
+        title: t("onayIsteginiIptalEt"),
+        description: t("onayIstegiIptalEdilsinMi"),
+        confirmLabel: t("iptalEt"),
         destructive: true,
       }))
     )
       return;
     try {
       await cancelApproval.mutateAsync(l.pendingApprovalId);
-      toast.success("Onay isteği iptal edildi");
+      toast.success(t("onayIstegiIptalEdildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İptal edilemedi"));
+      toast.error(extractErrorMessage(err, t("iptalEdilemedi")));
     }
   };
 
@@ -400,18 +406,18 @@ export default function ListingDetailPage() {
     // Yayın onayı kaldırıldı — taslak doğrudan yayınlanır.
     if (
       !(await confirm({
-        title: "Satın Alma Talebini yayınla",
+        title: t("satinAlmaTalebiniYayinla"),
         description:
-          "Satın Alma Talebi yayınlansın mı? Yayınlandıktan sonra tedarikçiler görebilir.",
-        confirmLabel: "Yayınla",
+          t("satinAlmaTalebiYayinlansinMi"),
+        confirmLabel: t("yayinla"),
       }))
     )
       return;
     try {
       await publish.mutateAsync(undefined);
-      toast.success("Satın Alma Talebi yayınlandı");
+      toast.success(t("satinAlmaTalebiYayinlandi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Yayınlanamadı"));
+      toast.error(extractErrorMessage(err, t("yayinlanamadi")));
     }
   };
 
@@ -493,7 +499,7 @@ export default function ListingDetailPage() {
       })
       .filter((a) => a.bidId);
     if (itemAwards.length === 0) {
-      toast.error("En az bir kalem için kazanan seçin");
+      toast.error(t("enAzBirKalemIcin"));
       return;
     }
     // Tıklama-anı ön kontrol: seçili kalem dağılımı BU TUTARDA onaya takılır mı?
@@ -505,7 +511,7 @@ export default function ListingDetailPage() {
       }));
     } catch (err) {
       toast.error(
-        extractErrorMessage(err, "Onay durumu doğrulanamadı, tekrar deneyin"),
+        extractErrorMessage(err, t("onayDurumuDogrulanamadiTekrarDeneyin")),
       );
       return;
     }
@@ -517,13 +523,14 @@ export default function ListingDetailPage() {
     if (
       // #6: kalem-bazlı kazandırma da geri alınamaz.
       !(await confirm({
-        title: "Kalem-bazlı kazandır",
+        title: t("kalemBazliKazandir"),
         description:
           (skipped > 0
-            ? `${itemAwards.length} kalem kazandırılacak, ${skipped} kalem (seçilmeyen/teklifsiz) atlanacak. `
-            : "Kalem-bazlı kazandırılsın mı? ") +
-          "Bu işlem GERİ ALINAMAZ: kazanan firma başına sipariş oluşur, kazanmayan teklifler kaybeder.",
-        confirmLabel: "Evet, kazandır",
+            ? t("kalemKazandirilacakKalemSecilmeyenTeklifsiz", { length: itemAwards.length, skipped: skipped })
+            : t("kalemBazliKazandirilsinMi")) +
+          " " +
+          t("buIslemGeriAlinamazKazananFirmaBasina"),
+        confirmLabel: t("evetKazandir"),
         destructive: true,
       }))
     )
@@ -532,12 +539,12 @@ export default function ListingDetailPage() {
       const res = await awardByItem.mutateAsync({ itemAwards });
       toast.success(
         res.pendingApproval
-          ? "Kazandırma onaya gönderildi"
-          : `Kazandırıldı — ${res.count} sipariş oluştu`,
+          ? t("kazandirmaOnayaGonderildi")
+          : t("kazandirildiSiparisOlustu2", { count: res.count ?? 0 }),
       );
       setItemAwardMode(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kazandırılamadı"));
+      toast.error(extractErrorMessage(err, t("kazandirilamadi")));
     }
   };
 
@@ -555,8 +562,8 @@ export default function ListingDetailPage() {
       return (
         <div className="mx-auto max-w-3xl">
           <SilverLockCard
-            title="Bu herkese açık talep Silver paketiyle açılır"
-            description="Herkese açık satın alma taleplerini görmek ve teklif vermek Silver ile gelir. Talebin kalemleri, alıcı firma ve dosyalar paketle birlikte açılır."
+            title={t("buHerkeseAcikTalepSilver")}
+            description={t("herkeseAcikSatinAlmaTaleplerini2")}
           />
         </div>
       );
@@ -565,24 +572,22 @@ export default function ListingDetailPage() {
       return (
         <div className="mx-auto max-w-3xl rounded-xl border border-zinc-200 bg-zinc-50 p-6 text-center">
           <Text className="text-sm font-medium text-zinc-900">
-            Satın Alma Talebine ulaşılamıyor.
+            {t("satinAlmaTalebineUlasilamiyor")}
           </Text>
           <Text className="mt-1 text-sm text-zinc-500">
-            İlan kaldırılmış, adres hatalı ya da erişim koşullarınız değişmiş
-            olabilir (ör. firma bağlantısı veya üyelik durumu). Sorun olduğunu
-            düşünüyorsanız ilan sahibiyle iletişime geçin.
+            {t("ilanKaldirilmisAdresHataliYa")}
           </Text>
           <Button outline className="mt-3" href="/company">
-            Panele Dön
+            {t("paneleDon")}
           </Button>
         </div>
       );
     }
     return (
       <div className="mx-auto max-w-3xl rounded-xl border border-red-200 bg-red-50 p-6 text-center">
-        <Text className="text-sm text-red-700">İlan yüklenemedi.</Text>
+        <Text className="text-sm text-red-700">{t("ilanYuklenemedi")}</Text>
         <Button outline className="mt-3" onClick={() => refetch()}>
-          Tekrar dene
+          {t("tekrarDene")}
         </Button>
       </div>
     );
@@ -601,7 +606,7 @@ export default function ListingDetailPage() {
     }
     return (
       <div className="mx-auto max-w-3xl">
-        <Text className="text-sm text-zinc-500">İlan bulunamadı.</Text>
+        <Text className="text-sm text-zinc-500">{t("ilanBulunamadi")}</Text>
       </div>
     );
   }
@@ -714,18 +719,16 @@ export default function ListingDetailPage() {
       <section className="space-y-2">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <Subheading>
-            Kalemler (
             {itemSearch.trim()
-              ? `${visibleItems.length}/${l.items.length}`
-              : l.items.length}
-            )
+              ? t("kalemlerSuzulmus", { visible: visibleItems.length, total: l.items.length })
+              : t("kalemlerSayi", { count: l.items.length })}
           </Subheading>
           <div className="flex items-center gap-2">
             {l.items.length > ITEM_SEARCH_THRESHOLD ? (
               <SearchInput
                 value={itemSearch}
                 onChange={setItemSearch}
-                placeholder="Kalem ara…"
+                placeholder={t("kalemAra")}
                 className="w-56"
               />
             ) : null}
@@ -743,26 +746,26 @@ export default function ListingDetailPage() {
                       if (r.added === 0) {
                         toast.info(
                           r.skipped > 0
-                            ? "Bu kalemler katalogunuzda zaten var"
-                            : "Kataloğa eklenecek kalem bulunamadı",
+                            ? t("buKalemlerKatalogunuzdaZatenVar")
+                            : t("katalogaEklenecekKalemBulunamadi"),
                         );
                       } else {
                         toast.success(
-                          `${r.added} kalem kataloğa eklendi${
-                            r.skipped > 0 ? ` · ${r.skipped} zaten vardı` : ""
-                          }`,
+                          r.skipped > 0
+                            ? t("kalemKatalogaEklendiZatenVardi", { added: r.added, skipped: r.skipped })
+                            : t("kalemKatalogaEklendi", { added: r.added }),
                         );
                       }
                     },
                     onError: (err) =>
                       toast.error(
-                        extractErrorMessage(err, "Kataloğa kaydedilemedi"),
+                        extractErrorMessage(err, t("katalogaKaydedilemedi")),
                       ),
                   });
                 }}
               >
                 <PackagePlus className="h-4 w-4" />
-                Kataloğa Kaydet
+                {t("katalogaKaydet")}
               </Button>
             ) : null}
           </div>
@@ -772,14 +775,14 @@ export default function ListingDetailPage() {
             <TableHead>
               <TableRow>
                 <TableHeader>#</TableHeader>
-                <TableHeader>Kalem</TableHeader>
-                <TableHeader className="text-right">Miktar</TableHeader>
+                <TableHeader>{t("kalem")}</TableHeader>
+                <TableHeader className="text-right">{t("miktar")}</TableHeader>
                 <TableHeader className="text-right">
-                  Hedef Fiyat
+                  {t("hedefFiyat")}
                 </TableHeader>
                 {showMyPriceCol ? (
                   <TableHeader className="text-right">
-                    Benim Birim Fiyatım
+                    {t("benimBirimFiyatim")}
                   </TableHeader>
                 ) : null}
               </TableRow>
@@ -791,7 +794,7 @@ export default function ListingDetailPage() {
                     colSpan={showMyPriceCol ? 5 : 4}
                     className="py-6 text-center text-zinc-400"
                   >
-                    Aramanızla eşleşen kalem yok.
+                    {t("aramanizlaEslesenKalemYok")}
                   </TableCell>
                 </TableRow>
               ) : null}
@@ -814,13 +817,13 @@ export default function ListingDetailPage() {
                           color="zinc"
                           title={it.questions.map((q) => `• ${q.text}`).join("\n")}
                         >
-                          {it.questions.length} soru
+                          {t("soru", { n: it.questions.length })}
                         </Badge>
                       </div>
                     ) : null}
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-zinc-700">
-                    {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
+                    {Number(it.quantity).toLocaleString("tr-TR")} {unitLabel(it.unit, it.unitCode)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-zinc-700">
                     {it.targetPrice
@@ -855,7 +858,7 @@ export default function ListingDetailPage() {
     l.isOwner && l.invitations && l.invitations.length > 0 ? (
       <section className="space-y-2">
         <Subheading>
-          Davetli Tedarikçiler ({l.invitations.length})
+          {t("davetliTedarikciler", { length: l.invitations.length })}
         </Subheading>
         <div className="flex flex-wrap gap-2">
           {l.invitations.map((iv) => (
@@ -960,12 +963,12 @@ export default function ListingDetailPage() {
 
   const ownerBidsSection = (
     <section className="space-y-3">
-      <p className="text-xs text-zinc-400">{KDV_HARIC_NOTE}</p>
+      <p className="text-xs text-zinc-400">{td("kdvHaricNote")}</p>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex items-center gap-2">
-          <Subheading>Gelen Teklifler ({l.bids?.length ?? 0})</Subheading>
+          <Subheading>{t("gelenTeklifler", { count: l.bids?.length ?? 0 })}</Subheading>
           {l.english?.isEnglishAuction ? (
-            <Badge color="amber">Tur {l.english.currentRound}</Badge>
+            <Badge color="amber">{t("tur3", { currentRound: l.english.currentRound })}</Badge>
           ) : null}
         </div>
       </div>
@@ -974,36 +977,36 @@ export default function ListingDetailPage() {
       {l.status === "OPEN" ? (
         <div className="flex items-center gap-2 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">
           <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
-          Yayında — yeni teklifler geldikçe sayfa otomatik güncellenir.
+          {t("yayindaYeniTekliflerGeldikce")}
         </div>
       ) : l.status === "IN_AWARD" ? (
         <div className="rounded-lg border border-purple-200 bg-purple-50 px-4 py-2.5 text-sm text-purple-800">
-          Değerlendirme aşaması — {submittedCount} teklif kararınızı bekliyor.
+          {t("degerlendirmeAsamasiTeklifKarariniziBekliyor", { submittedCount: submittedCount })}
         </div>
       ) : l.status === "CLOSED" ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-sm text-amber-800">
-          İlan platform yöneticisi tarafından teklife kapatıldı.
-          {l.cancelReason ? ` Gerekçe: ${l.cancelReason}` : ""} Sorularınız için
-          destek ile iletişime geçin.
+          {t("ilanPlatformYoneticisiTarafindanTeklifeKapatildi")}{" "}
+          {l.cancelReason ? `${t("gerekce", { cancelReason: l.cancelReason })} ` : ""}
+          {t("sorularinizIcinDestekIle")}
         </div>
       ) : l.status === "AWARDED" ? (
         <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5 text-sm text-emerald-800">
-          Talep kazandırıldı — sipariş oluşturuldu (Siparişler'de görünür).
+          {t("talepKazandirildiSiparisOlusturulduSiparisle")}
         </div>
       ) : l.status === "CLOSED_NO_AWARD" ? (
         <div className="rounded-lg border border-zinc-200 bg-zinc-50 px-4 py-2.5 text-sm text-zinc-700">
-          Kazanan olmadan kapatıldı.
-          {l.cancelReason ? ` Sebep: ${l.cancelReason}` : ""}
+          {t("kazananOlmadanKapatildi")}{" "}
+          {l.cancelReason ? t("sebep", { cancelReason: l.cancelReason }) : ""}
         </div>
       ) : null}
 
       {/* KPI kartları */}
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
         {[
-          { label: "Davet Edilen", value: invitedCount },
-          { label: "Teklif Veren", value: bidderCount },
-          { label: "Tamamına", value: completeCount },
-          { label: "Eksik Veren", value: incompleteCount },
+          { label: t("davetEdilen"), value: invitedCount },
+          { label: t("teklifVeren"), value: bidderCount },
+          { label: t("tamamina"), value: completeCount },
+          { label: t("eksikVeren"), value: incompleteCount },
         ].map((k) => (
           <div
             key={k.label}
@@ -1025,16 +1028,15 @@ export default function ListingDetailPage() {
         <div className="space-y-2">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <Subheading>
-              Kalem Karşılaştırma
               {cmpSearch.trim()
-                ? ` (${cmpItems.length}/${l.items.length})`
-                : ""}
+                ? t("kalemKarsilastirmaSuzulmus", { visible: cmpItems.length, total: l.items.length })
+                : t("kalemKarsilastirma")}
             </Subheading>
             {l.items.length > ITEM_SEARCH_THRESHOLD ? (
               <SearchInput
                 value={cmpSearch}
                 onChange={setCmpSearch}
-                placeholder="Kalem ara…"
+                placeholder={t("kalemAra")}
                 className="w-56"
               />
             ) : null}
@@ -1053,7 +1055,7 @@ export default function ListingDetailPage() {
               <TableHead>
                 <TableRow>
                   <TableHeader className="sticky top-0 left-0 z-20 bg-white shadow-table-top">
-                    Kalem
+                    {t("kalem")}
                   </TableHeader>
                   {l.bids.map((b) => {
                     const priced = pricedCountById.get(b.id) ?? 0;
@@ -1072,17 +1074,17 @@ export default function ListingDetailPage() {
                         {b.bidderVerified === false ? (
                           <span
                             className="block text-xs font-medium text-zinc-500"
-                            title="Bu firmanın belge doğrulaması tamamlanmadı"
+                            title={t("buFirmaninBelgeDogrulamasiTamamlanmadi")}
                           >
-                            Doğrulanmamış firma
+                            {t("dogrulanmamisFirma")}
                           </span>
                         ) : null}
                         {priced < totalItems ? (
                           <span
                             className="block text-xs font-medium text-amber-600"
-                            title="Bu teklif tüm kalemleri fiyatlamadı"
+                            title={t("buTeklifTumKalemleriFiyatlamadi")}
                           >
-                            {priced}/{totalItems} kalem
+                            {t("kalemOrani", { priced, total: totalItems })}
                           </span>
                         ) : null}
                       </TableHeader>
@@ -1097,7 +1099,7 @@ export default function ListingDetailPage() {
                       colSpan={1 + (l.bids?.length ?? 0)}
                       className="py-6 text-center text-zinc-400"
                     >
-                      Aramanızla eşleşen kalem yok.
+                      {t("aramanizlaEslesenKalemYok")}
                     </TableCell>
                   </TableRow>
                 ) : null}
@@ -1125,7 +1127,7 @@ export default function ListingDetailPage() {
                       <TableCell className="sticky left-0 z-[1] bg-white whitespace-normal text-zinc-900">
                         {it.name}{" "}
                         <span className="text-xs whitespace-nowrap text-zinc-400">
-                          ({Number(it.quantity).toLocaleString("tr-TR")} {it.unit})
+                          ({Number(it.quantity).toLocaleString("tr-TR")} {unitLabel(it.unit, it.unitCode)})
                         </span>
                       </TableCell>
                       {cells.map((c) => {
@@ -1165,7 +1167,7 @@ export default function ListingDetailPage() {
                                   }))
                                 }
                                 aria-pressed={selected}
-                                aria-label={`${it.name} için ${c.bidderName} teklifini seç`}
+                                aria-label={t("icinTeklifiniSec", { name: it.name, bidderName: c.bidderName })}
                                 className={cn(
                                   "-mx-1 w-[calc(100%+0.5rem)] cursor-pointer rounded-md px-1 py-0.5 text-right transition-colors",
                                   selected
@@ -1188,7 +1190,7 @@ export default function ListingDetailPage() {
                     Sticky bottom: uzun listede kaydırırken hep görünür. */}
                 <TableRow>
                   <TableCell className="sticky bottom-0 left-0 z-20 bg-zinc-50 font-semibold text-zinc-900 shadow-table-bottom">
-                    Teklif Toplamı
+                    {t("teklifToplami")}
                   </TableCell>
                   {l.bids.map((b) => {
                     const tTry = totalTryById.get(b.id);
@@ -1212,7 +1214,7 @@ export default function ListingDetailPage() {
                         {symFor(b.currency)}
                         {isBest ? (
                           <span className="block text-xs font-semibold text-emerald-600">
-                            En iyi toplam
+                            {t("enIyiToplam")}
                           </span>
                         ) : null}
                       </TableCell>
@@ -1241,17 +1243,14 @@ export default function ListingDetailPage() {
             <div className="flex items-start gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-4 py-3 text-sm text-zinc-700">
               <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
               <p>
-                Kalem bazlı dağıtım ek tasarruf sağlamıyor — en düşük toplu
-                teklif (
-                <strong>
-                  {itemSavings.bestTotal.toLocaleString("tr-TR", {
+                {t.rich("kalemBazliDagitimEkTasarrufSaglamiyor", {
+                  amount: itemSavings.bestTotal.toLocaleString("tr-TR", {
                     maximumFractionDigits: 2,
-                  })}{" "}
-                  ₺
-                </strong>
-                ) ile <strong>toplu kazandırma</strong> en ekonomik seçenek.
+                  }),
+                  strong: (c) => <strong>{c}</strong>,
+                })}
                 <span className="ml-1 text-xs text-zinc-500">
-                  (TRY karşılığıyla)
+                  {t("tryKarsiligiyla")}
                 </span>
               </p>
             </div>
@@ -1259,46 +1258,33 @@ export default function ListingDetailPage() {
             <div className="flex items-start gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-900">
               <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
               <p>
-                Kalem bazlı dağıtım:{" "}
-                <strong>
-                  {itemSavings.itemized.toLocaleString("tr-TR", {
+                {t.rich("kalemBazliDagitimTasarruf", {
+                  itemized: itemSavings.itemized.toLocaleString("tr-TR", {
                     maximumFractionDigits: 2,
-                  })}{" "}
-                  ₺
-                </strong>
-                {" · "}En düşük toplu teklif:{" "}
-                <strong>
-                  {itemSavings.bestTotal.toLocaleString("tr-TR", {
+                  }),
+                  bestTotal: itemSavings.bestTotal.toLocaleString("tr-TR", {
                     maximumFractionDigits: 2,
-                  })}{" "}
-                  ₺
-                </strong>
-                {" → "}
-                <strong>
-                  %
-                  {itemSavings.pct.toLocaleString("tr-TR", {
+                  }),
+                  pct: itemSavings.pct.toLocaleString("tr-TR", {
                     maximumFractionDigits: 1,
-                  })}{" "}
-                  tasarruf
-                </strong>
+                  }),
+                  strong: (c) => <strong>{c}</strong>,
+                })}
                 <span className="ml-1 text-xs text-emerald-700/80">
-                  (TRY karşılığıyla)
+                  {t("tryKarsiligiyla")}
                 </span>
               </p>
             </div>
           ) : itemSavings?.kind === "missing" ? (
             <p className="text-xs text-zinc-400">
-              {itemSavings.missingItems} kalemde fiyatlı teklif yok —
-              toplu/kalem-bazlı tasarruf kıyası yapılamıyor.
+              {t("kalemdeFiyatliTeklifYokToplu", { missingItems: itemSavings.missingItems })}
             </p>
           ) : null}
           {itemAwardMode ? (
           <div className="space-y-3 rounded-xl border border-blue-200 bg-blue-50/40 p-4">
-            <Subheading>Kalem-bazlı Kazandırma</Subheading>
+            <Subheading>{t("kalemBazliKazandirma")}</Subheading>
             <Text className="text-xs text-zinc-500">
-              Her kalem için kazanan teklifi seç. Kazanan firma başına ayrı sipariş
-              oluşur. İpucu: yukarıdaki Kalem Karşılaştırma tablosunda fiyat
-              hücresine tıklayarak da seçim yapabilirsiniz.
+              {t("herKalemIcinKazananTeklifi")}
             </Text>
             <div className="space-y-2">
               {l.items.map((it) => {
@@ -1311,7 +1297,7 @@ export default function ListingDetailPage() {
                     <span className="text-sm text-zinc-900">
                       {it.name}
                       <span className="ml-1 text-xs text-zinc-400">
-                        ({Number(it.quantity).toLocaleString("tr-TR")} {it.unit})
+                        ({Number(it.quantity).toLocaleString("tr-TR")} {unitLabel(it.unit, it.unitCode)})
                       </span>
                     </span>
                     <div className="flex items-center gap-2">
@@ -1319,9 +1305,9 @@ export default function ListingDetailPage() {
                         type="number"
                         min={0}
                         step="0.001"
-                        placeholder="Miktar"
-                        aria-label={`${it.name} için kazandırılacak miktar (boş = tam)`}
-                        title="Kısmi miktar (boş = tam)"
+                        placeholder={t("miktar")}
+                        aria-label={t("icinKazandirilacakMiktarBosTam", { name: it.name })}
+                        title={t("kismiMiktarBosTam")}
                         value={itemQty[it.id] ?? ""}
                         onChange={(e) =>
                           setItemQty((q) => ({ ...q, [it.id]: e.target.value }))
@@ -1330,13 +1316,13 @@ export default function ListingDetailPage() {
                       />
                       <SelectMenu
                         value={itemWinners[it.id] ?? ""}
-                        ariaLabel={`${it.name} için kazanan teklif`}
+                        ariaLabel={t("icinKazananTeklif", { name: it.name })}
                         onChange={(v) =>
                           setItemWinners((w) => ({ ...w, [it.id]: v }))
                         }
                         className="min-w-48"
                         options={[
-                          { value: "", label: "— seç —" },
+                          { value: "", label: t("sec") },
                           ...opts.map((o) => ({
                             value: o.bidId,
                             label: `${o.bidderName} · ${formatMoney(o.price, o.currency ?? "TRY")}`,
@@ -1350,16 +1336,16 @@ export default function ListingDetailPage() {
             </div>
             <div className="flex justify-end gap-2">
               <Button plain onClick={() => setItemAwardMode(false)}>
-                Vazgeç
+                {t("vazgec")}
               </Button>
               <Button onClick={handleAwardByItem} disabled={awardByItem.isPending}>
-                Onayla & Kazandır
+                {t("onaylaKazandir")}
               </Button>
             </div>
           </div>
           ) : (
             <Button outline onClick={startItemAward}>
-              Kalem-bazlı Kazandır
+              {t("kalemBazliKazandir2")}
             </Button>
           )}
         </div>
@@ -1367,7 +1353,7 @@ export default function ListingDetailPage() {
 
       {!l.bids || l.bids.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-8 text-center">
-          <Text className="text-sm text-zinc-500">Henüz teklif yok.</Text>
+          <Text className="text-sm text-zinc-500">{t("henuzTeklifYok")}</Text>
         </div>
       ) : (
         <div className="space-y-2">
@@ -1375,9 +1361,9 @@ export default function ListingDetailPage() {
           <div className="flex items-center gap-1 text-xs">
             {(
               [
-                ["all", `Tümü (${bidderCount})`],
-                ["complete", `Tamamına (${completeCount})`],
-                ["incomplete", `Eksik (${incompleteCount})`],
+                ["all", t("tumu", { bidderCount: bidderCount })],
+                ["complete", t("tamamina2", { completeCount: completeCount })],
+                ["incomplete", t("eksik", { incompleteCount })],
               ] as const
             ).map(([key, label]) => (
               <button
@@ -1422,12 +1408,12 @@ export default function ListingDetailPage() {
               className="grid grid-cols-1 gap-x-4 gap-y-2 rounded-xl border border-zinc-950/10 bg-white px-4 py-3.5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-center"
             >
               <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
-                {b.status === "SUBMITTED" ? <Badge color="violet">Değerlendirmede</Badge> : null}
-                {b.status === "WON" ? <Badge color="green">Kazandı</Badge> : null}
+                {b.status === "SUBMITTED" ? <Badge color="violet">{t("degerlendirmede")}</Badge> : null}
+                {b.status === "WON" ? <Badge color="green">{t("kazandi")}</Badge> : null}
                 {b.status === "AWARDED_PARTIAL" ? (
-                  <Badge color="green">Kısmen Kazandı</Badge>
+                  <Badge color="green">{t("kismenKazandi")}</Badge>
                 ) : null}
-                {b.status === "LOST" ? <Badge color="zinc">Elendi</Badge> : null}
+                {b.status === "LOST" ? <Badge color="zinc">{t("elendi")}</Badge> : null}
                 <Link
                   href={`/company/ilan/${l.id}/teklif/${b.id}`}
                   className="text-[15px] font-semibold text-zinc-950 hover:text-blue-700 hover:underline"
@@ -1435,18 +1421,18 @@ export default function ListingDetailPage() {
                   {b.bidderName}
                 </Link>
                 {b.id === bestBidId && canDecide ? (
-                  <Badge color="green">En iyi</Badge>
+                  <Badge color="green">{t("enIyi")}</Badge>
                 ) : null}
                 {/* Farklı ülkeden tedarikçi (2026-09-21): navlun/gümrük farkı
                     olabilir — alıcı kıyaslarken görsün. */}
                 {b.bidderCountry && company?.country && b.bidderCountry !== company.country ? (
-                  <Badge color="zinc">{countryName(b.bidderCountry)}</Badge>
+                  <Badge color="zinc">{countryDisplayName(b.bidderCountry, locale)}</Badge>
                 ) : null}
                 {/* Geçerlilik dolmuş canlı teklif — alıcı kazandırmadan önce
                     görsün (son gün = submittedAt + validityDays). */}
-                {bidExpired ? <Badge color="amber">Geçerlilik doldu</Badge> : null}
+                {bidExpired ? <Badge color="amber">{t("gecerlilikDoldu")}</Badge> : null}
                 {l.english?.isEnglishAuction && b.round ? (
-                  <Badge color="zinc">Tur {b.round}</Badge>
+                  <Badge color="zinc">{t("tur2", { round: b.round })}</Badge>
                 ) : null}
                 {/* v{n} rozeti kaldırıldı — teknik gürültü; Tur rozeti
                     güncellenmişlik bilgisini zaten veriyor. */}
@@ -1456,7 +1442,7 @@ export default function ListingDetailPage() {
                 bidItemCount > 0 &&
                 !cmpFullCovered(b.id) ? (
                   <Badge color="amber">
-                    {pricedCountById.get(b.id) ?? 0}/{bidItemCount} kalem
+                    {t("kalemOrani", { priced: pricedCountById.get(b.id) ?? 0, total: bidItemCount })}
                   </Badge>
                 ) : null}
               </div>
@@ -1467,7 +1453,7 @@ export default function ListingDetailPage() {
                     <span className="ml-1 text-xs font-normal text-zinc-500">
                       ≈ {formatMoney(b.amountTry, "TRY")}
                       {b.exchangeRateSnapshot
-                        ? ` (kur: ${b.exchangeRateSnapshot})`
+                        ? t("kur", { exchangeRateSnapshot: b.exchangeRateSnapshot })
                         : ""}
                     </span>
                   ) : null}
@@ -1478,7 +1464,7 @@ export default function ListingDetailPage() {
                     href={`/company/mesajlar?with=${b.bidderCompanyId}&portal=satinalma`}
                     className="text-sm font-semibold text-blue-600 hover:underline"
                   >
-                    Mesaj
+                    {t("mesaj")}
                   </Link>
                 ) : null}
                 {canDecide && canManage && b.status === "SUBMITTED" ? (
@@ -1493,18 +1479,18 @@ export default function ListingDetailPage() {
                       }
                       disabled={eliminate.isPending}
                     >
-                      Ele
+                      {t("ele")}
                     </Button>
                     <Button
                       onClick={() => handleAward(b.id, b.bidderName)}
                       disabled={award.isPending || bidExpired}
                       title={
                         bidExpired
-                          ? "Teklifin geçerlilik süresi dolmuş — tedarikçiden süre uzatması isteyin ya da yeni tur açın"
+                          ? t("teklifinGecerlilikSuresiDolmusTedarikciden")
                           : undefined
                       }
                     >
-                      Kazandır
+                      {t("kazandir")}
                     </Button>
                   </>
                 ) : null}
@@ -1515,7 +1501,7 @@ export default function ListingDetailPage() {
               {(bidDocs.data ?? []).some((d) => d.bidId === b.id) ? (
                 <div className="flex w-full flex-wrap items-center gap-2 border-t border-zinc-100 pt-2 sm:col-span-2">
                   <span className="text-xs font-medium uppercase tracking-wide text-zinc-500">
-                    Teklif ekleri:
+                    {t("teklifEkleri")}
                   </span>
                   {(bidDocs.data ?? [])
                     .filter((d) => d.bidId === b.id)
@@ -1552,7 +1538,7 @@ export default function ListingDetailPage() {
     l.myBid && myDocs.length > 0 ? (
       <div className="space-y-2 border-t border-zinc-100 pt-3">
         <div className="text-sm font-medium text-zinc-900">
-          Teklif Belgeleri ({myDocs.length})
+          {t("teklifBelgeleri", { length: myDocs.length })}
         </div>
         <div className="space-y-1">
           {myDocs.map((d) => (
@@ -1578,13 +1564,13 @@ export default function ListingDetailPage() {
     if (!biddingOpen || !l.canBid || l.roleAllowsBid === false) return null;
     const st = l.myBid?.status;
     if (!l.myBid)
-      return { label: "Teklif Ver", href: bidHref };
+      return { label: t("teklifVer"), href: bidHref };
     if (st === "DRAFT")
-      return { label: "Taslağa Devam Et", href: bidHref };
+      return { label: t("taslagaDevamEt"), href: bidHref };
     if (st === "LOST")
-      return { label: "Yeniden Teklif Ver", href: bidHref };
+      return { label: t("yenidenTeklifVer"), href: bidHref };
     if (st === "SUBMITTED" && l.english?.isEnglishAuction)
-      return { label: "Yeni Teklif Ver", href: bidHref };
+      return { label: t("yeniTeklifVer"), href: bidHref };
     return null; // SUBMITTED RFQ (değişiklik yok) / WITHDRAWN
   })();
   // Pazarlıkta tur hakkı kullanıldıysa CTA pasif — yeni tur garanti değil.
@@ -1598,20 +1584,21 @@ export default function ListingDetailPage() {
       {!l.canBid ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">
-            Bu ilana teklif vermek için <strong>Silver paketi</strong>
-            gerekir (ya da ilanı açan firmadan bağlantı daveti alın).
+            {t.rich("buIlanaTeklifVermekIcinSilverPaketi", {
+              strong: (c) => <strong>{c}</strong>,
+            })}
           </Text>
           <Button href={PRICING_HREF} className="shrink-0">
-            Paketleri Gör
+            {t("paketleriGor")}
           </Button>
         </div>
       ) : l.roleAllowsBid === false ? (
         // Rol kapısı: sessiz buton yokluğu yerine açık yönlendirme.
         <div className="rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">
-            Bu açık talebe teklif vermek için hesabınızda{" "}
-            <strong>Satışçı</strong> rolü gerekir
-            — firma yöneticiniz Ayarlar → Kullanıcılar&apos;dan verebilir.
+            {t.rich("buAcikTalebeTeklifVermekIcinSatisciRolu", {
+              strong: (c) => <strong>{c}</strong>,
+            })}
           </Text>
         </div>
       ) : (l.myBid?.status === "SUBMITTED" &&
@@ -1629,15 +1616,14 @@ export default function ListingDetailPage() {
           !l.english?.isEnglishAuction ? (
             <>
               <Text className="text-xs text-zinc-500">
-                Gönderilmiş teklif geri çekilemez ve düzenlenemez — değişiklik için{" "}
-                alıcıyla iletişime geç. Alıcı teklifinizi elerse yeniden teklif verebilirsiniz.
+                {t("gonderilmisTeklifGeriCekilemez")}
               </Text>
               <div className="rounded-lg bg-zinc-50 px-3 py-2">
                 <Text className="text-sm">
-                  Mevcut teklifin:{" "}
-                  <strong>
-                    {formatMoney(l.myBid.amount, l.myBid.currency ?? "TRY")}
-                  </strong>
+                  {t.rich("mevcutTeklifin", {
+                    money: formatMoney(l.myBid.amount, l.myBid.currency ?? "TRY"),
+                    strong: (c) => <strong>{c}</strong>,
+                  })}
                 </Text>
               </div>
             </>
@@ -1652,14 +1638,15 @@ export default function ListingDetailPage() {
     </section>
   );
 
-  const statusMeta = LISTING_STATUS_META[l.status] ?? {
-    label: l.status,
-    color: "zinc" as const,
+  const statusMeta = {
+    label: listingStatusLabel(l.status),
+    color: LISTING_STATUS_COLOR[l.status] ?? ("zinc" as const),
   };
 
   // Dosyalar sekmesi: dosya varsa sayısı parantezde (2026-09-17, kullanıcı).
   const docCount = listingDocs.data?.length ?? 0;
-  const filesTabLabel = docCount > 0 ? `Dosyalar (${docCount})` : "Dosyalar";
+  const filesTabLabel =
+    docCount > 0 ? t("dosyalarSayi", { count: docCount }) : t("dosyalar");
   const filesTab = (
     <Tab className={TRIGGER_CLASSES}>
       <Paperclip className="h-4 w-4" aria-hidden="true" />
@@ -1669,7 +1656,7 @@ export default function ListingDetailPage() {
   const itemsTab = (
     <Tab className={TRIGGER_CLASSES}>
       <Layers className="h-4 w-4" aria-hidden="true" />
-      Kalemler
+      {t("kalemler")}
       <TabBadge count={l.items?.length ?? 0} />
     </Tab>
   );
@@ -1687,10 +1674,10 @@ export default function ListingDetailPage() {
   const orderStrip = l.myOrder ? (
     <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-2.5">
       <p className="text-sm text-emerald-900">
-        Sipariş{" "}
-        <span className=" font-semibold tabular-nums">
-          {l.myOrder.number ?? "—"}
-        </span>
+        {t.rich("siparisNumarasi", {
+          number: l.myOrder.number ?? "—",
+          no: (c) => <span className="font-semibold tabular-nums">{c}</span>,
+        })}
         <span className="mx-1.5 text-emerald-400">·</span>
         {orderStatusMeta(l.myOrder.status as CompanyOrderStatus).label}
       </p>
@@ -1698,7 +1685,7 @@ export default function ListingDetailPage() {
         href={`/company/siparis/${l.myOrder.id}`}
         className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-800 hover:underline"
       >
-        Siparişe git
+        {t("sipariseGit")}
         <ArrowRightIcon className="h-4 w-4" aria-hidden />
       </Link>
     </div>
@@ -1727,7 +1714,7 @@ export default function ListingDetailPage() {
         {l.format ? (
           <span className="inline-flex items-center gap-1.5 rounded-lg bg-purple-50 px-2.5 py-1 text-sm font-medium text-purple-700">
             <FileText aria-hidden className="size-4" />
-            {l.format === "RFQ" ? "Teklif Toplama" : "Pazarlık (Eksiltme)"}
+            {l.format === "RFQ" ? t("teklifToplama") : t("pazarlikEksiltme")}
           </span>
         ) : null}
       </div>
@@ -1735,7 +1722,7 @@ export default function ListingDetailPage() {
       {/* Anahtar kelimeler */}
       {l.keywords && l.keywords.length > 0 ? (
         <div className="flex flex-wrap items-center gap-2">
-          <span className="text-sm text-zinc-500">Anahtar Kelimeler:</span>
+          <span className="text-sm text-zinc-500">{t("anahtarKelimeler")}</span>
           {l.keywords.map((kw) => (
             <span key={kw} className="rounded-lg bg-zinc-100 px-2.5 py-1 text-sm text-zinc-600">
               {kw}
@@ -1750,8 +1737,8 @@ export default function ListingDetailPage() {
           {l.owner ? <Building2 className="size-5" /> : <Lock className="size-5" />}
         </span>
         <span className="min-w-0">
-          <span className="block text-xs text-zinc-500">Alıcı Firma</span>
-          <span className="block truncate text-base font-semibold text-zinc-950">{l.owner ? l.owner.name : "Gizli firma"}</span>
+          <span className="block text-xs text-zinc-500">{t("aliciFirma")}</span>
+          <span className="block truncate text-base font-semibold text-zinc-950">{l.owner ? l.owner.name : t("gizliFirma")}</span>
         </span>
       </div>
 
@@ -1766,15 +1753,15 @@ export default function ListingDetailPage() {
   // Varsayılan geri hedefi bağlama göre: sahip kendi listesine, teklifçi
   // ilanı gördüğü listeye döner (?from= her zaman öncelikli).
   const defaultBack = l.isOwner
-    ? { href: "/company/satinalma/taleplerim", label: "Taleplerim" }
-    : { href: "/company/satis#acik-talepler", label: "Açık Talepler" };
+    ? { href: "/company/satinalma/taleplerim", label: t("taleplerim") }
+    : { href: "/company/satis#acik-talepler", label: t("acikTalepler") };
   const breadcrumb = (
     <Link
       href={fromHref ?? defaultBack.href}
       className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
     >
       <ArrowLeftIcon className="h-4 w-4" />
-      {fromHref ? (fromLabel ? (tn.has(fromLabel as never) ? tn(fromLabel as never) : fromLabel) : "Firma profili") : defaultBack.label}
+      {fromHref ? (fromLabel ? (tn.has(fromLabel as never) ? tn(fromLabel as never) : fromLabel) : t("firmaProfili")) : defaultBack.label}
     </Link>
   );
 
@@ -1801,7 +1788,7 @@ export default function ListingDetailPage() {
               <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
               {biddingOpen && l.closesAt ? (
                 <span className="truncate text-xs text-zinc-500">
-                  Kapanış: {formatDateTime(l.closesAt)}
+                  {t("kapanis", { formatDateTime: formatDateTime(l.closesAt) })}
                 </span>
               ) : null}
             </div>
@@ -1812,12 +1799,12 @@ export default function ListingDetailPage() {
                   onClick={handleCancelApproval}
                   disabled={cancelApproval.isPending}
                 >
-                  Onayı İptal Et
+                  {t("onayiIptalEt")}
                 </Button>
               ) : null}
               {canManage && l.canPublish ? (
                 <Button onClick={handlePublish} disabled={publish.isPending}>
-                  Yayınla
+                  {t("yayinla")}
                 </Button>
               ) : null}
             </div>
@@ -1836,13 +1823,13 @@ export default function ListingDetailPage() {
               <Button
                 onClick={() => setDiscoveryOpen(true)}
                 disabled={!discoverTierOk}
-                title={discoverTierOk ? undefined : "AI ile tedarikçi bulma Gold pakette"}
+                title={discoverTierOk ? undefined : t("aiIleTedarikciBulmaGold")}
               >
                 <Sparkles data-slot="icon" />
-                AI ile tedarikçi bul
+                {t("aiIleTedarikciBul")}
               </Button>
               <Text className="text-xs text-zinc-500">
-                Kategoriye uyan firmaları platformdan ve webden bulur, seçtiklerinize davet gönderir.
+                {t("kategoriyeUyanFirmalariPlatformdanVe")}
               </Text>
             </div>
           ) : null}
@@ -1875,8 +1862,8 @@ export default function ListingDetailPage() {
             <Info className="mt-0.5 h-4 w-4 shrink-0" />
             <p>
               {l.status === "IN_APPROVAL"
-                ? "Onay bekliyor — yayın askıda. Onaylandığında satın alma talebi otomatik yayınlanır."
-                : "Kazandırma onayı bekliyor. Onaylandığında kazandırma tamamlanır."}
+                ? t("onayBekliyorYayinAskidaOnaylandiginda")
+                : t("kazandirmaOnayiBekliyorOnaylandigindaKazandi")}
             </p>
           </div>
         ) : null}
@@ -1886,7 +1873,7 @@ export default function ListingDetailPage() {
         l.cancelReason ? (
           <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             <span className="font-semibold">
-              {l.status === "CANCELLED" ? "İptal sebebi" : "Kapatma sebebi"}:
+              {l.status === "CANCELLED" ? t("iptalSebebi") : t("kapatmaSebebi")}:
             </span>{" "}
             {l.cancelReason}
           </div>
@@ -1897,22 +1884,22 @@ export default function ListingDetailPage() {
           <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] lg:grid-cols-5">
             <MetaItem
               icon={Layers}
-              label="Kalem"
-              value={`${l.items?.length ?? 0} kalem`}
+              label={t("kalem")}
+              value={t("kalemSayisi", { count: l.items?.length ?? 0 })}
             />
             <MetaItem
               icon={Wallet}
               label={
                 (l.allowedCurrencies?.length ?? 0) > 1
-                  ? "Para Birimleri"
-                  : "Para Birimi"
+                  ? t("paraBirimleri")
+                  : t("paraBirimi")
               }
               value={currencyListLabel(l)}
               title={currencyListLabel(l)}
             />
             <MetaItem
               icon={CalendarClock}
-              label="Kapanış"
+              label={t("kapanis2")}
               value={
                 l.closesAt ? (
                   <>
@@ -1930,12 +1917,12 @@ export default function ListingDetailPage() {
             />
             <MetaItem
               icon={Users}
-              label="Davetli"
-              value={`${l.invitations?.length ?? 0} tedarikçi`}
+              label={t("davetli")}
+              value={t("tedarikciSayisi", { count: l.invitations?.length ?? 0 })}
             />
             <MetaItem
               icon={Gavel}
-              label="Teklif"
+              label={t("teklif")}
               value={`${l.bids?.length ?? 0}`}
               className="col-span-2 lg:col-span-1"
             />
@@ -1955,7 +1942,7 @@ export default function ListingDetailPage() {
         >
           <TabList
             className="flex flex-wrap border-b border-zinc-950/10"
-            aria-label="Satın Alma Talebi detay sekmeleri"
+            aria-label={t("satinAlmaTalebiDetaySekmeleri")}
           >
             {itemsTab}
             {filesTab}
@@ -1988,13 +1975,13 @@ export default function ListingDetailPage() {
           open={!!eliminateTarget}
           onClose={() => setEliminateTarget(null)}
           onSubmit={submitEliminate}
-          title="Teklifi ele"
+          title={t("teklifiEle")}
           description={
             eliminateTarget
-              ? `"${eliminateTarget.bidderName}" elensin mi? Yeniden teklif verebilir. Yazdığınız gerekçe tedarikçiye GÖSTERİLİR.`
+              ? t("elensinMiYenidenTeklifVerebilir", { bidderName: eliminateTarget.bidderName })
               : undefined
           }
-          confirmLabel="Ele"
+          confirmLabel={t("ele")}
           destructive
           pending={eliminate.isPending}
         />
@@ -2004,13 +1991,13 @@ export default function ListingDetailPage() {
           open={!!noteAction}
           onClose={() => setNoteAction(null)}
           onSubmit={submitNoteAction}
-          title="Kazandırmayı onaya gönder"
+          title={t("kazandirmayiOnayaGonder")}
           description={
             noteAction?.kind === "award"
-              ? `"${noteAction.bidderName}" için kazandırma ONAYA gönderilecek. Sipariş şimdi oluşmaz — yalnızca onay zinciri tamamlanınca oluşur. Notunuz onaycılara iletilir.`
-              : "Kalem-bazlı kazandırma ONAYA gönderilecek. Siparişler şimdi oluşmaz — yalnızca onay zinciri tamamlanınca oluşur. Notunuz onaycılara iletilir."
+              ? t("icinKazandirmaOnayaGonderilecekSiparis", { bidderName: noteAction.bidderName })
+              : t("kalemBazliKazandirmaOnayaGonderilecek")
           }
-          confirmLabel="Onaya Gönder"
+          confirmLabel={t("onayaGonder")}
           pending={award.isPending || awardByItem.isPending}
         />
       </div>
@@ -2031,14 +2018,14 @@ export default function ListingDetailPage() {
             type="button"
             onClick={() => {
               void navigator.clipboard?.writeText(window.location.href).then(
-                () => toast.success("Bağlantı kopyalandı"),
-                () => toast.error("Bağlantı kopyalanamadı"),
+                () => toast.success(t("baglantiKopyalandi")),
+                () => toast.error(t("baglantiKopyalanamadi")),
               );
             }}
             className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-100 hover:text-zinc-950"
           >
             <Share2 aria-hidden className="size-4" />
-            Paylaş
+            {t("paylas")}
           </button>
         </div>
 
@@ -2058,7 +2045,7 @@ export default function ListingDetailPage() {
               <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
               {biddingOpen && l.closesAt ? (
                 <span className="truncate text-xs text-zinc-500">
-                  Kapanış: {formatDateTime(l.closesAt)}
+                  {t("kapanis", { formatDateTime: formatDateTime(l.closesAt) })}
                 </span>
               ) : null}
             </div>
@@ -2066,7 +2053,7 @@ export default function ListingDetailPage() {
               bidCtaDisabled ? (
                 <Button
                   disabled
-                  title="Bu turdaki teklifiniz verildi — ilan sahibi yeni tur açarsa güncelleyebilirsiniz"
+                  title={t("buTurdakiTeklifinizVerildiIlan")}
                 >
                   {bidCta.label}
                 </Button>
@@ -2091,7 +2078,7 @@ export default function ListingDetailPage() {
                     <Clock className="size-5" />
                   </span>
                   <div className="min-w-0">
-                    <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">Kapanmasına</p>
+                    <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">{t("kapanmasina")}</p>
                     <CountdownFull deadline={l.closesAt} />
                     <p className="mt-0.5 text-xs text-zinc-500">{formatDateTime(l.closesAt)}</p>
                   </div>
@@ -2106,7 +2093,7 @@ export default function ListingDetailPage() {
                     <Button
                       disabled
                       className="w-full py-3 text-base"
-                      title="Bu turdaki teklifiniz verildi — ilan sahibi yeni tur açarsa güncelleyebilirsiniz"
+                      title={t("buTurdakiTeklifinizVerildiIlan")}
                     >
                       {bidCta.label}
                     </Button>
@@ -2122,7 +2109,7 @@ export default function ListingDetailPage() {
             ) : l.status === "IN_AWARD" ||
               l.status === "IN_AWARD_APPROVAL" ? (
               <span className="inline-flex shrink-0 items-center rounded-full bg-zinc-100 px-3 py-1.5 text-xs font-medium text-zinc-600">
-                Teklif alımı kapandı — değerlendirme aşamasında
+                {t("teklifAlimiKapandiDegerlendirmeAsamasinda")}
               </span>
             ) : null}
           </div>
@@ -2137,27 +2124,27 @@ export default function ListingDetailPage() {
           <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] lg:grid-cols-4">
             <MetaItem
               icon={Building2}
-              label="Alıcı Firma"
-              value={l.owner?.name ?? "Gizli firma"}
+              label={t("aliciFirma")}
+              value={l.owner?.name ?? t("gizliFirma")}
             />
             <MetaItem
               icon={Layers}
-              label="Kalem"
-              value={`${l.itemCount ?? l.items?.length ?? 0} kalem`}
+              label={t("kalem")}
+              value={t("kalemSayisi", { count: l.itemCount ?? l.items?.length ?? 0 })}
             />
             <MetaItem
               icon={Wallet}
               label={
                 (l.allowedCurrencies?.length ?? 0) > 1
-                  ? "Para Birimleri"
-                  : "Para Birimi"
+                  ? t("paraBirimleri")
+                  : t("paraBirimi")
               }
               value={currencyListLabel(l)}
               title={currencyListLabel(l)}
             />
             <MetaItem
               icon={CalendarClock}
-              label="Kapanış"
+              label={t("kapanis2")}
               value={l.closesAt ? formatDateTime(l.closesAt) : "—"}
             />
           </dl>
@@ -2170,8 +2157,8 @@ export default function ListingDetailPage() {
               <Lock className="size-5" />
             </span>
             <div className="min-w-0 flex-1">
-              <p className="text-sm font-semibold text-zinc-950">Kapalı zarf: diğer tekliflerin tutarını göremezsin.</p>
-              <p className="text-xs text-zinc-500">Teklifler, kapanış tarihinden sonra alıcı firma tarafından açılır.</p>
+              <p className="text-sm font-semibold text-zinc-950">{t("kapaliZarfDigerTekliflerinTutarini")}</p>
+              <p className="text-xs text-zinc-500">{t("tekliflerKapanisTarihindenSonraAlici")}</p>
             </div>
             <a
               href="/nasil-calisir#nasil"
@@ -2179,7 +2166,7 @@ export default function ListingDetailPage() {
               rel="noopener"
               className="inline-flex shrink-0 items-center text-sm font-medium text-blue-700 hover:text-blue-800"
             >
-              Nasıl çalışır?
+              {t("nasilCalisir")}
             </a>
           </div>
         ) : null}
@@ -2189,11 +2176,11 @@ export default function ListingDetailPage() {
             dikdörtgenini çizer); altında sekmeler yalnız "Kalemler" (kalemler +
             genel bilgi tek akış) ve "Dosyalar (N)". Teklif CTA'sı yapışkan
             çubukta / başlık kartında, burada tekrar edilmez. */}
-        <section className="space-y-3" aria-label="Teklifim">
+        <section className="space-y-3" aria-label={t("teklifim")}>
           {/* Başlık yalnız teklif VARKEN — teklifsizken altında kutu olmayan
               yalnız bir başlık kalıyordu (staging'de görüldü); uyarı/kapalı
               zarf notları başlıksız da anlaşılır. */}
-          {l.myBid ? <Subheading>Teklifim</Subheading> : null}
+          {l.myBid ? <Subheading>{t("teklifim")}</Subheading> : null}
           <MyBidStatusPanel l={l} />
           {sellerBidSection}
         </section>
@@ -2201,7 +2188,7 @@ export default function ListingDetailPage() {
         <TabGroup defaultIndex={initialTab} onChange={rememberTab}>
           <TabList
             className="flex flex-wrap gap-1 border-b border-zinc-950/10"
-            aria-label="Satın Alma Talebi bölümleri"
+            aria-label={t("satinAlmaTalebiBolumleri")}
           >
             {itemsTab}
             {filesTab}

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { QuickRequest } from "@/components/tenders/quick/quick-request";
 import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
@@ -22,6 +23,7 @@ import { useEffect, useMemo, useState } from "react";
  * (`?urun=1`) yine kalem olarak düşer.
  */
 export default function YeniTalepPage() {
+  const tr = useTranslations("web.panel.requests.page");
   const params = useSearchParams();
   const fromId = params.get("from") ?? "";
   const fromAi = params.get("ai") === "1";
@@ -91,8 +93,8 @@ export default function YeniTalepPage() {
   return (
     <PageContainer>
       <PageHeader
-        title="Yeni satın alma talebi"
-        description="Ne lazım, nereye, ne zamana, kime — dört soru; ticari şartlar profilinizden gelir."
+        title={tr("yeniSatinAlmaTalebi")}
+        description={tr("neLazimNereyeNeZamana")}
       />
       <div className="mt-6">
         <QuickRequest key={key} initialValues={seed} />

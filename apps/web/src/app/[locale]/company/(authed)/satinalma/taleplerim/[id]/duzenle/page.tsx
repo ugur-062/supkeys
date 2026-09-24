@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
 import { Text } from "@/components/catalyst/text";
 import { QuickRequest } from "@/components/tenders/quick/quick-request";
@@ -8,18 +9,19 @@ import { mapDetailToForm } from "@/lib/tenders/map-detail-to-form";
 import { useParams } from "next/navigation";
 
 export default function EditTenderPage() {
+  const t = useTranslations("web.panel.requests.page");
   const params = useParams<{ id: string }>();
   const id = params.id;
   const { data: l, isLoading } = useListingDetail(id);
 
   if (isLoading) {
-    return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
+    return <Text className="text-sm text-zinc-500">{t("yukleniyor")}</Text>;
   }
   if (!l || !l.isOwner) {
     return (
       <Notice
-        title="Satın Alma Talebi bulunamadı"
-        desc="Bu satın alma talebini düzenleme yetkiniz yok."
+        title={t("satinAlmaTalebiBulunamadi")}
+        desc={t("buSatinAlmaTalebiniDuzenleme")}
         href="/company/satinalma/taleplerim"
       />
     );
@@ -27,8 +29,8 @@ export default function EditTenderPage() {
   if (l.type !== "ALIM") {
     return (
       <Notice
-        title="Bu ekran yalnızca satın alma taleplerini düzenler"
-        desc="Satış ilanları kendi düzenleme ekranından güncellenir."
+        title={t("buEkranYalnizcaSatinAlma")}
+        desc={t("satisIlanlariKendiDuzenlemeEkranindan")}
         href={`/company/ilan/${id}`}
       />
     );
@@ -36,8 +38,8 @@ export default function EditTenderPage() {
   if (!l.canEdit) {
     return (
       <Notice
-        title="Düzenlenemez"
-        desc="Bu satın alma talebine teklif verilmiş veya kapanmış; içerik değiştirilemez."
+        title={t("duzenlenemez")}
+        desc={t("buSatinAlmaTalebineTeklif")}
         href={`/company/ilan/${id}`}
       />
     );
@@ -56,12 +58,13 @@ function Notice({
   desc: string;
   href: string;
 }) {
+  const t = useTranslations("web.panel.requests.page");
   return (
     <div className="mx-auto max-w-2xl space-y-4 py-12 text-center">
       <h1 className="text-lg font-semibold text-zinc-900">{title}</h1>
       <Text className="text-sm text-zinc-500">{desc}</Text>
       <Button href={href} outline>
-        Geri Dön
+        {t("geriDon")}
       </Button>
     </div>
   );

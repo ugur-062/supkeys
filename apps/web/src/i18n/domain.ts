@@ -165,3 +165,96 @@ export function useUnitLabel(): (unit: string | null | undefined, code?: string 
   };
 }
 
+/* ------------------------------------------------------------------ */
+/* Faz 2 sözlük hook'ları — eski TR sözlükler (lib/company/labels.ts,     */
+/* lib/tenders/labels.ts, lib/company/terms.ts) göç bitene dek durur;     */
+/* yeni/çevrilen bileşen BUNLARI kullanır.                                */
+/* ------------------------------------------------------------------ */
+
+const dictHook = (ns: string) => (): ((code: string) => string) => {
+  const t = useTranslations(ns as never);
+  return (code) => (t.has(code as never) ? t(code as never) : code);
+};
+
+/** Paket kademesi adı (`web.domain.tier`). */
+export const useTierLabel = dictHook("web.domain.tier");
+/** AI özellik adı (`AiUsage.feature`). */
+export const useAiFeatureLabel = dictHook("web.domain.aiFeature");
+/** Talep durumu (`web.domain.listingStatus`). */
+export const useListingStatusLabel = dictHook("web.domain.listingStatus");
+/** Akreditif alt türü. */
+export const useLcTypeLabel = dictHook("web.domain.lcType");
+/** Taşıma modu. */
+export const useTransportModeLabel = dictHook("web.domain.transportMode");
+/** Tedarikçi gözünden talep durumu (`deriveSellerTenderState().key`). */
+export const useSellerStateLabel = dictHook("web.domain.sellerState");
+
+/** Denetim kaydı eylem adı; bilinmeyen anahtar "Diğer işlem". Nokta → alt çizgi (katalog anahtarı). */
+export function useAuditActionLabel(): (action: string) => string {
+  const t = useTranslations("web.domain");
+  return (action) => {
+    const key = action.replace(/\./g, "_");
+    return t.has(`auditAction.${key}` as never) ? t(`auditAction.${key}` as never) : t("auditActionOther");
+  };
+}
+
+/** Para birimi adı — Intl'den, dil bilir (Türk lirası / Turkish lira / турецкая лира). */
+export function useCurrencyName(): (code: string) => string {
+  const locale = useLocale();
+  return (code) => {
+    try {
+      return new Intl.DisplayNames([locale], { type: "currency" }).of(code) ?? code;
+    } catch {
+      return code;
+    }
+  };
+}
+
+/** Satın alma talebi varlık sözlüğü — Türkçe hâl ekleriyle birlikte (`web.domain.entity.satinalma`). */
+export type EntityLabelsI18n = Record<
+  | "entity" | "entityLower" | "entityShort" | "shortLower" | "shortAcc" | "acc" | "gen" | "genCap" | "dat" | "loc" | "pluralLoc"
+  | "yours" | "yoursLower" | "yoursAcc" | "yoursGen" | "yoursDat" | "scopeDesc" | "counterparty" | "counterpartyPlural"
+  | "counterpartyPluralLower" | "counterpartyPluralGen" | "counterpartyPluralDat" | "owner" | "docs" | "rules",
+  string
+>;
+export function useEntityLabels(): EntityLabelsI18n {
+  const t = useTranslations("web.domain.entity.satinalma");
+  const keys: (keyof EntityLabelsI18n)[] = ["entity", "entityLower", "entityShort", "shortLower", "shortAcc", "acc", "gen", "genCap", "dat", "loc", "pluralLoc", "yours", "yoursLower", "yoursAcc", "yoursGen", "yoursDat", "scopeDesc", "counterparty", "counterpartyPlural", "counterpartyPluralLower", "counterpartyPluralGen", "counterpartyPluralDat", "owner", "docs", "rules"];
+  return Object.fromEntries(keys.map((k) => [k, t(k)])) as EntityLabelsI18n;
+}
+
+/** Liste sözcükleri (ALIM = Satın Alma Talepleri, ACIK_TALEP = Açık Talepler). */
+export function useListingTerms(type: "ALIM" | "ACIK_TALEP"): { title: string; unit: string; searchNoun: string; indefinite: string; pluralAccusative: string } {
+  const t = useTranslations("web.domain.listingTerms");
+  return { title: t(`${type}.title`), unit: t(`${type}.unit`), searchNoun: t(`${type}.searchNoun`), indefinite: t(`${type}.indefinite`), pluralAccusative: t(`${type}.pluralAccusative`) };
+}
+
+/** Ödeme planı cümlesi (eski `formatPaymentPlan`), dil bilir. */
+export function useFormatPaymentPlan(): (p: { paymentCategory?: string | null; advancePercent?: number | null; paymentDays?: number | null; lcType?: string | null; lcConfirmed?: boolean | null }) => string {
+  const t = useTranslations("web.domain.paymentPlan");
+  const category = usePaymentCategoryLabel();
+  return (p) => {
+    const cat = p.paymentCategory ?? "OPEN_ACCOUNT";
+    const days = p.paymentDays ?? 0;
+    switch (cat) {
+      case "ADVANCE": {
+        const pct = p.advancePercent ?? 100;
+        if (pct >= 100) return t("advanceFull");
+        return p.paymentDays ? t("advancePartDays", { pct, days }) : t("advancePartAfter", { pct });
+      }
+      case "DEFERRED": return p.paymentDays ? t("deferredDays", { days }) : t("deferred");
+      case "OPEN_ACCOUNT": return t("openAccount");
+      case "MAL_MUKABILI": return p.paymentDays ? t("malMukabiliDays", { days }) : t("malMukabili");
+      case "CHEQUE": return p.paymentDays ? t("chequeDays", { days }) : t("cheque");
+      case "SENET": return p.paymentDays ? t("senetDays", { days }) : t("senet");
+      case "CASH_AGAINST_DOCS": return t("cashAgainstDocs");
+      case "LETTER_OF_CREDIT": {
+        const parts = [p.lcType === "USANCE" ? (p.paymentDays ? t("lcUsanceDays", { days }) : t("lcUsance")) : t("lcSight")];
+        if (p.lcConfirmed) parts.push(t("lcConfirmed"));
+        return t("letterOfCredit", { parts: parts.join(", ") });
+      }
+      case "CUSTOM": return t("custom");
+      default: return category(cat);
+    }
+  };
+}

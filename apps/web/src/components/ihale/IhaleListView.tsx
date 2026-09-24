@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/list";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
@@ -23,7 +24,7 @@ export function IhaleListView({
   isLoading,
   isError,
   onRetry,
-  emptyCtaLabel = "Satın Alma Talebi Aç",
+  emptyCtaLabel,
 }: {
   items: TenderListItem[];
   isLoading: boolean;
@@ -31,6 +32,8 @@ export function IhaleListView({
   onRetry: () => void;
   emptyCtaLabel?: string;
 }) {
+  const tr = useTranslations("web.panel.requests.ihalelistview");
+  const ctaLabel = emptyCtaLabel ?? tr("satinAlmaTalebiAc");
   const accent = useButtonAccent();
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
   const canCreate = useHasCompanyPermission("buy:listing:manage");
@@ -62,8 +65,8 @@ export function IhaleListView({
     return (
       <EmptyState
         icon={ClipboardList}
-        title="Veri alınamadı."
-        description="Bir hata oluştu — tekrar deneyin."
+        title={tr("veriAlinamadi")}
+        description={tr("birHataOlustuTekrarDeneyin")}
         variant="no-results"
         action={
           <button
@@ -74,7 +77,7 @@ export function IhaleListView({
               IHALE_VIEW_FOCUS,
             )}
           >
-            Tekrar dene
+            {tr("tekrarDene")}
           </button>
         }
       />
@@ -99,11 +102,11 @@ export function IhaleListView({
     return (
       <EmptyState
         icon={ClipboardList}
-        title="Henüz satın alma talebi yok."
+        title={tr("henuzSatinAlmaTalebiYok")}
         description={
           canCreate
-            ? "İlk satın alma talebinizi birkaç dakikada oluşturabilirsiniz — davetlileri seçin, kalemleri girin, yayınlayın."
-            : "Satın alma talebi açma işlem rolü (Satın Almacı) gerektirir."
+            ? tr("ilkSatinAlmaTalebiniziBirkac")
+            : tr("satinAlmaTalebiAcmaIslem")
         }
         variant="no-data"
         action={
@@ -117,7 +120,7 @@ export function IhaleListView({
               )}
             >
               <Plus className="size-4" aria-hidden />
-              {emptyCtaLabel}
+              {ctaLabel}
             </Link>
           ) : undefined
         }
@@ -129,7 +132,7 @@ export function IhaleListView({
     /* `role="table"` KALDIRILDI (a11y 2026-09-12): sütun başlığı ve hücre yok,
        satırlar da kart; ARIA tablosu çocuk olarak `row` şart koşuyor ve KRİTİK
        ihlal veriyordu. `<section>` + ad = erişilebilir bölge, zorunlu çocuk yok. */
-    <section aria-label="Satın Alma Talebi listesi" className="space-y-2">
+    <section aria-label={tr("satinAlmaTalebiListesi")} className="space-y-2">
       {/* "Tümünü seç" şeridi KALDIRILDI (kullanıcı isteği, 2026-08-03):
           toplu sunucu işlemi yok — seçim yalnız yer kaplıyordu. */}
       {items.map((t) => (

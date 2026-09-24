@@ -4,6 +4,30 @@ Bu dosya tamamlanmış aşamaların detaylı kaydıdır. Aktif çalışma için 
 
 ---
 
+## 2026-09-24 — i18n Faz 2 parti 2: talep ekranları üç dilde
+
+- 55 bileşen/sayfa (`components/tenders`, `components/ihale`, talep detayı, teklif
+  verme, kazandırma, hızlı talep, şablonlar): codemod 971 anahtar + 3 düzenleme
+  ajanı 338 anahtar (zod şeması `makeTenderFormSchema(t)`, kapanış tarihi
+  doğrulaması, görünürlük/durum sözlükleri hook); sözlük hook'ları `domain.ts`
+  (`useEntityLabels`, `useListingTerms`, `useFormatPaymentPlan`, `useListingStatusLabel`,
+  `useSellerStateLabel`, `useTierLabel`, `useAiFeatureLabel`, `useAuditActionLabel`,
+  `useLcTypeLabel`, `useTransportModeLabel`, `useCurrencyName`); ölü sözlükler silindi.
+- Codemod düzeltmesi: `page.tsx` ad alanı dizin adlı (`ilanIdPage`); paylaşılan
+  `page` ad alanında 3 anahtar çakışması ayrıştırıldı.
+- Katalog 3.095 anahtar, EN/RU %100 (8 paralel çevirmen ajanı). Cırcır tabanı
+  348 dosya / 4.579. Web 149 dosya / 843 test, yerel `next build` yeşil.
+
+## 2026-09-24 — i18n Faz 2 parti 1: panel kabuğu ve panolar üç dilde (ad9a8249)
+
+- Codemod + elle 80 kalem; menü etiketleri katalog anahtarı (`web.panel.nav`,
+  `useNavLabel`); rol/göreli zaman/aksiyon merkezi hook'ları; `web.panel` yalnız
+  panel sağlayıcısında (`panelMessages`, sunucu `company/(authed)/layout.tsx`);
+  paylaşılan pano bileşenleri `web.marketplace.panelHome`.
+- Katalog +399 anahtar TR, EN/RU Claude çevirisi (3 paralel ajan + delta);
+  "ihale" taşıyan iki metin ürün diline çekildi. Staging tıklama gezintisi EN/RU:
+  kabuk/menü/panolar çevrili, ham anahtar sızıntısı yok.
+
 ## 2026-09-24 — yol parçaları üç dilde (Faz 1f) + kategori/şehir giriş paragrafı kaldırıldı
 
 Kullanıcı: "yol parçaları da hangi dilse o dilde olsun; her şeyi bitir, sonra

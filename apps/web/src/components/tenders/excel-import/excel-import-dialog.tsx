@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { INTL_LOCALE } from "@/i18n/format";
+import type { Locale } from "@rothern/i18n";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -48,6 +51,8 @@ export function ExcelImportDialog({
   existingCount: number;
   onApply: (items: ItemImportItem[], mode: ExcelImportMode) => void;
 }) {
+  const t = useTranslations("web.panel.requests.excelImportDialog");
+  const locale = useLocale() as Locale;
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<ItemImportResult | null>(null);
   const [mode, setMode] = useState<ExcelImportMode>("append");
@@ -71,10 +76,10 @@ export function ExcelImportDialog({
     try {
       const r = await parse.mutateAsync({ file: f });
       setResult(r);
-      if (r.rows.length === 0) toast.info("Dosyada kalem satırı bulunamadı");
+      if (r.rows.length === 0) toast.info(t("dosyadaKalemSatiriBulunamadi"));
     } catch (err) {
       setFile(null);
-      toast.error(extractErrorMessage(err, "Dosya okunamadı"));
+      toast.error(extractErrorMessage(err, t("dosyaOkunamadi")));
     }
   };
 
@@ -93,20 +98,19 @@ export function ExcelImportDialog({
   const visibleColumns: ItemImportColumnKey[] = result
     ? ITEM_IMPORT_COLUMNS.map((c) => c.key).filter((k) => result.columns.includes(k))
     : [];
-  const headerOf = (k: ItemImportColumnKey) =>
-    ITEM_IMPORT_COLUMNS.find((c) => c.key === k)?.header.replace(/\s*\(.*\)$/, "") ?? k;
+  // Önizleme başlığı katalogdan (`sutun.<anahtar>`); şablon dosyasının kendi başlıkları API'den gelir.
+  const headerOf = (k: ItemImportColumnKey) => (t.has(`sutun.${k}` as never) ? t(`sutun.${k}` as never) : k);
 
   return (
     <Dialog open={open} onClose={close} size={result ? "5xl" : "lg"}>
       <DialogTitle>
         <span className="flex items-center gap-2">
           <FileSpreadsheet className="h-5 w-5" />
-          Excel ile İçe Aktar
+          {t("excelIleIceAktar")}
         </span>
       </DialogTitle>
       <DialogDescription>
-        Şablonu indirip doldurun, sonra yükleyin — kalemler birebir aktarılır
-        (AI kullanılmaz). Aktarmadan önce önizleme görürsünüz.
+        {t("sablonuIndiripDoldurunSonraYukleyin")}
       </DialogDescription>
 
       <DialogBody className="space-y-4">
@@ -115,7 +119,7 @@ export function ExcelImportDialog({
             <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-950/10 bg-zinc-50 px-3 py-2.5">
               <Download className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden />
               <div className="min-w-0 flex-1 text-sm text-zinc-700">
-                <strong>1.</strong> Boş şablonu indirin (Kalemler sayfası + nasıl doldurulur + örnek)
+                {t.rich("adim1BosSablonuIndirin", { strong: (c) => <strong>{c}</strong> })}
               </div>
               <Button
                 outline
@@ -123,17 +127,18 @@ export function ExcelImportDialog({
                 onClick={() =>
                   download
                     .mutateAsync()
-                    .catch((e) => toast.error(extractErrorMessage(e, "Şablon indirilemedi")))
+                    .catch((e) => toast.error(extractErrorMessage(e, t("sablonIndirilemedi"))))
                 }
               >
-                {download.isPending ? "İndiriliyor…" : "Şablonu indir"}
+                {download.isPending ? t("indiriliyor") : t("sablonuIndir")}
               </Button>
             </div>
             <div className="rounded-lg border border-zinc-950/10 px-3 py-2.5 text-sm text-zinc-700">
-              <strong>2.</strong> Doldurduğunuz dosyayı yükleyin — Excel .xlsx
-              (en fazla {Math.round(IMPORT_MAX_FILE_BYTES / 1024 / 1024)} MB)
-              veya CSV (en fazla{" "}
-              {Math.round(ITEM_IMPORT_MAX_CSV_BYTES / 1024 / 1024)} MB)
+              {t.rich("adim2DoldurdugunuzDosyayiYukleyin", {
+                strong: (c) => <strong>{c}</strong>,
+                xlsxMb: Math.round(IMPORT_MAX_FILE_BYTES / 1024 / 1024),
+                csvMb: Math.round(ITEM_IMPORT_MAX_CSV_BYTES / 1024 / 1024),
+              })}
             </div>
             <Dropzone
               accept=".xlsx,.csv"
@@ -150,20 +155,22 @@ export function ExcelImportDialog({
                   : IMPORT_MAX_FILE_BYTES;
                 if (f.size > cap) {
                   toast.error(
-                    `Dosya çok büyük (${(f.size / 1024 / 1024).toFixed(1)} MB) — ${
-                      isCsv ? "CSV" : "Excel"
-                    } için sınır ${Math.round(cap / 1024 / 1024)} MB`,
+                    t("dosyaCokBuyukIcinSinir", {
+                      mb: (f.size / 1024 / 1024).toFixed(1),
+                      kind: isCsv ? "CSV" : "Excel",
+                      cap: Math.round(cap / 1024 / 1024),
+                    }),
                   );
                   return;
                 }
                 void run(f);
               }}
-              label="Excel / CSV seç"
-              hint="Kendi listeniz de olabilir — başlıklar şablondakiyle aynı olmalı (Kalem Adı, Miktar, Birim…)"
+              label={t("excelCsvSec")}
+              hint={t("kendiListenizDeOlabilirBasliklar")}
             />
             {parse.isPending && file ? (
               <p className="text-sm text-zinc-500">
-                <span className="font-medium text-zinc-700">{file.name}</span> okunuyor…
+                {t.rich("dosyaOkunuyor", { name: file.name, strong: (c) => <span className="font-medium text-zinc-700">{c}</span> })}
               </p>
             ) : null}
           </>
@@ -172,28 +179,28 @@ export function ExcelImportDialog({
             <div className="flex flex-wrap items-center gap-2 text-sm">
               <span className="inline-flex items-center gap-1.5 rounded-md bg-emerald-50 px-2 py-1 font-medium text-emerald-800">
                 <CheckCircle2 className="h-4 w-4" aria-hidden />
-                {result.validCount} satır hazır
+                {t("satirHazir", { validCount: result.validCount })}
               </span>
               {result.invalidCount > 0 ? (
                 <span className="inline-flex items-center gap-1.5 rounded-md bg-red-50 px-2 py-1 font-medium text-red-700">
                   <AlertCircle className="h-4 w-4" aria-hidden />
-                  {result.invalidCount} hatalı satır (aktarılmaz)
+                  {t("hataliSatirAktarilmaz", { invalidCount: result.invalidCount })}
                 </span>
               ) : null}
               {result.truncated > 0 ? (
                 <span className="rounded-md bg-amber-50 px-2 py-1 text-amber-800">
-                  {result.truncated} satır tavan nedeniyle okunmadı (en fazla 500 kalem)
+                  {t("satirTavanNedeniyleOkunmadiEn", { truncated: result.truncated })}
                 </span>
               ) : null}
               <span className="ml-auto text-xs text-zinc-500">
-                {file?.name} · sayfa: {result.sheetName}
+                {t("sayfa", { name: file?.name ?? "", sheetName: result.sheetName })}
               </span>
               <button
                 type="button"
                 onClick={reset}
                 className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800"
               >
-                <X className="h-3.5 w-3.5" /> Başka dosya
+                <X className="h-3.5 w-3.5" /> {t("baskaDosya")}
               </button>
             </div>
 
@@ -201,13 +208,13 @@ export function ExcelImportDialog({
               <table className="w-full min-w-[640px] text-left text-sm">
                 <thead className="sticky top-0 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
                   <tr>
-                    <th scope="col" className="px-3 py-2 font-medium">Satır</th>
+                    <th scope="col" className="px-3 py-2 font-medium">{t("satir")}</th>
                     {visibleColumns.map((k) => (
                       <th scope="col" key={k} className="px-3 py-2 font-medium">
                         {headerOf(k)}
                       </th>
                     ))}
-                    <th scope="col" className="px-3 py-2 font-medium">Durum</th>
+                    <th scope="col" className="px-3 py-2 font-medium">{t("durum")}</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-zinc-100">
@@ -218,14 +225,14 @@ export function ExcelImportDialog({
                         <td className="px-3 py-1.5 text-xs text-zinc-500">{r.rowNumber}</td>
                         {visibleColumns.map((k) => (
                           <td key={k} className="max-w-[240px] truncate px-3 py-1.5 text-zinc-800">
-                            {formatCell(k, r.item)}
+                            {formatCell(k, r.item, INTL_LOCALE[locale] ?? "tr-TR")}
                           </td>
                         ))}
                         <td className="px-3 py-1.5">
                           {bad ? (
                             <span className="text-xs text-red-700">{r.errors.join(" · ")}</span>
                           ) : (
-                            <span className="text-xs text-emerald-700">Hazır</span>
+                            <span className="text-xs text-emerald-700">{t("hazir")}</span>
                           )}
                         </td>
                       </tr>
@@ -244,7 +251,7 @@ export function ExcelImportDialog({
                     checked={mode === "append"}
                     onChange={() => setMode("append")}
                   />
-                  Mevcut kalemlere ekle
+                  {t("mevcutKalemlereEkle")}
                 </label>
                 <label className="inline-flex items-center gap-2">
                   <input
@@ -253,12 +260,12 @@ export function ExcelImportDialog({
                     checked={mode === "replace"}
                     onChange={() => setMode("replace")}
                   />
-                  Mevcut {existingCount} kalemi değiştir
+                  {t("mevcutKalemiDegistir", { existingCount: existingCount })}
                 </label>
               </div>
             ) : (
               <p className="text-sm text-zinc-500">
-                Aktarılabilir satır yok — hataları düzeltip dosyayı yeniden yükleyin.
+                {t("aktarilabilirSatirYokHatalariDuzeltip")}
               </p>
             )}
           </>
@@ -267,11 +274,11 @@ export function ExcelImportDialog({
 
       <DialogActions>
         <Button plain disabled={busy} onClick={close}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         {result ? (
           <Button disabled={busy || validItems.length === 0} onClick={apply}>
-            {validItems.length} kalemi aktar
+            {t("kalemiAktar", { n: validItems.length })}
           </Button>
         ) : null}
       </DialogActions>
@@ -279,13 +286,13 @@ export function ExcelImportDialog({
   );
 }
 
-function formatCell(k: ItemImportColumnKey, it: ItemImportItem): string {
+function formatCell(k: ItemImportColumnKey, it: ItemImportItem, intlLocale: string): string {
   const v = it[k];
   if (v == null || v === "") return "—";
   if (k === "requiredByDate" && typeof v === "string") {
     const [y, m, d] = v.split("-");
     return y && m && d ? `${d}.${m}.${y}` : v;
   }
-  if (typeof v === "number") return v.toLocaleString("tr-TR", { maximumFractionDigits: 3 });
+  if (typeof v === "number") return v.toLocaleString(intlLocale, { maximumFractionDigits: 3 });
   return String(v);
 }

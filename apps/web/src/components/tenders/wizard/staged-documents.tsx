@@ -1,6 +1,7 @@
 "use client";
 
-import { entityLabels } from "@/lib/company/terms";
+import { useTranslations } from "next-intl";
+import { useEntityLabels } from "@/i18n/domain";
 
 import { Badge } from "@/components/catalyst/badge";
 import { SelectMenu } from "@/components/ui/select-menu";
@@ -31,7 +32,11 @@ export function StagedDocuments({
   docs: StagedListingDoc[];
   onChange: (docs: StagedListingDoc[]) => void;
 }) {
-  const L = entityLabels();
+  const t = useTranslations("web.panel.requests.stagedDocuments");
+  const L = useEntityLabels();
+  // Belge bölümü adı katalogdan (`web.domain.listingDocKind.<KOD>`); yoksa Türkçe sözlük.
+  const tk = useTranslations("web.domain.listingDocKind");
+  const kindLabel = (k: ListingDocKind) => (tk.has(k as never) ? tk(k as never) : LISTING_DOC_KIND_LABELS[k]);
   const [kind, setKind] = useState<ListingDocKind>("IDARI_SARTNAME");
 
   const addFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -41,11 +46,11 @@ export function StagedDocuments({
     for (const file of files) {
       // 50MB ön-kontrolü — R2 PUT'ta patlamadan anlaşılır mesaj (FilesTab paritesi).
       if (file.size > 50 * 1024 * 1024) {
-        toast.error(`"${file.name}" 50MB sınırını aşıyor`);
+        toast.error(t("n50mbSiniriniAsiyor", { name: file.name }));
         continue;
       }
       if (next.some((d) => d.file.name === file.name && d.kind === kind)) {
-        toast.info(`"${file.name}" zaten ekli`);
+        toast.info(t("zatenEkli", { name: file.name }));
         continue;
       }
       next.push({ file, kind });
@@ -58,7 +63,7 @@ export function StagedDocuments({
 
   const grouped = LISTING_DOC_KINDS.map((k) => ({
     kind: k,
-    label: LISTING_DOC_KIND_LABELS[k],
+    label: kindLabel(k),
     items: docs.filter((d) => d.kind === k),
   })).filter((g) => g.items.length > 0);
 
@@ -74,7 +79,7 @@ export function StagedDocuments({
         </div>
         <div className="flex flex-wrap items-center gap-2">
           <label className="sr-only" htmlFor="staged-doc-kind">
-            Dosya bölümü
+            {t("dosyaBolumu")}
           </label>
           <SelectMenu
             id="staged-doc-kind"
@@ -83,18 +88,18 @@ export function StagedDocuments({
             className="min-w-44"
             options={LISTING_DOC_KINDS.map((k) => ({
               value: k,
-              label: LISTING_DOC_KIND_LABELS[k],
+              label: kindLabel(k),
             }))}
           />
           <Button as="label" outline>
             <Paperclip data-slot="icon" />
-            Dosya Ekle
+            {t("dosyaEkle")}
             <input
               type="file"
               multiple
               className="hidden"
               accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
-              aria-label={`${LISTING_DOC_KIND_LABELS[kind]} bölümüne dosya ekle`}
+              aria-label={t("bolumuneDosyaEkle", { item: kindLabel(kind) })}
               onChange={addFiles}
             />
           </Button>
@@ -103,8 +108,7 @@ export function StagedDocuments({
 
       {docs.length === 0 ? (
         <p className="text-sm text-zinc-500">
-          Bölüm seçip şartname, teknik resim vb. ekleyin — dosyalar {L.shortLower}
-          kaydedilirken (taslak veya yayın) yüklenir.
+          {t("bolumSecipSartnameTeknikResim", { shortLower: L.shortLower })}
         </p>
       ) : (
         <div className="space-y-5">
@@ -127,16 +131,16 @@ export function StagedDocuments({
                     </span>
                     <div className="flex shrink-0 items-center gap-3">
                       <span className="text-xs text-zinc-400">
-                        {(d.file.size / 1024 / 1024).toFixed(1)} MB
+                        {t("mb", { toFixed: (d.file.size / 1024 / 1024).toFixed(1) })}
                       </span>
                       <button
                         type="button"
                         onClick={() => removeAt(d)}
-                        aria-label={`${d.file.name} dosyasını kaldır`}
+                        aria-label={t("dosyasiniKaldir", { name: d.file.name })}
                         className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-red-600"
                       >
                         <Trash2 className="h-3.5 w-3.5" />
-                        Kaldır
+                        {t("kaldir")}
                       </button>
                     </div>
                   </li>
@@ -145,7 +149,7 @@ export function StagedDocuments({
             </div>
           ))}
           <p className="text-xs text-zinc-400">
-            Dosyalar {L.shortLower} kaydedilirken (taslak veya yayın) yüklenir.
+            {t("dosyalarKaydedilirkenTaslakVeyaYayin", { shortLower: L.shortLower })}
           </p>
         </div>
       )}

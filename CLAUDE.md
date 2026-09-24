@@ -480,6 +480,41 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   `gemini-3.1-pro` → `-preview` → `gemini-2.5-pro`; 404 alan elenir, çalışan
   hatırlanır; `status` ucu çalışan modeli gösterir). Kalıcı çözüm Render
   env'inde Vertex'in tanıdığı Pro adı.
+- **FAZ 2 — PANEL METİNLERİ (2026-09-24, kullanıcı: "her şeyi bitir, sonra canlıya
+  alacağız"; parti parti):** ad alanı `web.panel.<alan>.<dosyaSlug>.<anahtar>`
+  (`web.panel.shell.*` kabuk+panolar, `web.panel.requests.*` talep ekranları …);
+  anahtar = Türkçe metnin ASCII camelCase kısaltması. Mekanik dönüşüm git dışı
+  codemod ile (`apps/web/.tmp-i18n-codemod.ts`, TS AST: JSX metni, izinli
+  öznitelik, toast, koşullu dize, basit şablon → `t()`; bileşene
+  `useTranslations` enjekte eder; modül düzeyi sözlük / satır içi zengin metin /
+  karmaşık koşum RAPORLANIR ve elle yapılır). **Kurallar:** (1) `web.panel`
+  KÖK SAĞLAYICIYA GİTMEZ — `clientMessages()` ayıklar, `company/(authed)/
+  layout.tsx` (sunucu) `panelMessages()` ile iç içe ikinci sağlayıcı kurar;
+  herkese açık yüzeyle paylaşılan bileşen (`components/marketplace|marketing|
+  home`, herkese açık sayfalar) `web.panel` OKUYAMAZ (`client-messages.test`
+  dosya sisteminden zorunlu tutar) — paylaşılan pano parçaları
+  `web.marketplace.panelHome`. (2) Menü/rota etiketleri KATALOG ANAHTARIDIR:
+  `MODULE_LABELS`/`PORTALS`/`COMPANY_AREA`/`routeLabel`/`getCompanyBreadcrumb`
+  değerleri `web.panel.nav.*` anahtarı, çizim `useNavLabel()` (`tn(item.label)`);
+  `fromLabel` sorgu parametresi anahtar taşırsa detay sayfası çevirir.
+  (3) Sözlükler hook oldu (`i18n/domain.ts`): `useEntityLabels` (hâl ekli
+  Satın Alma Talebi sözlüğü — EN/RU'da hâl yer tutucusu cümle içinde kalır),
+  `useListingTerms`, `useFormatPaymentPlan`, `useListingStatusLabel`,
+  `useSellerStateLabel` (`deriveSellerTenderState().key`), `useRoleLabel`,
+  `useTierLabel`, `useAiFeatureLabel`, `useAuditActionLabel`, `useLcTypeLabel`,
+  `useTransportModeLabel`, `useCurrencyName` (Intl), `useRelativeTime`;
+  eski TR sözlükler (`lib/company/labels.ts`, `lib/tenders/labels.ts`,
+  `lib/company/terms.ts`) göç bitene dek durur, yeni kod hook kullanır; ölü
+  sözlükler silindi. Modül düzeyi Türkçe yardımcı (`timeAgo`, `timeLabel`,
+  `relaxedNote`) → hook (`useRelativeTime`, `useTimeLabel`, `useRelaxedNote`).
+  (4) Zod şemaları `make…Schema(t)` fabrikası + `useMemo`. (5) EN/RU'yu Claude
+  yazar: `pnpm i18n:sync --out` listesi parçalara bölünüp paralel çevirmen
+  ajanlarına verilir, `--apply` ile uygulanır; `i18n:check` yasaklı terimi
+  (Türkçe kaynakta "ihale" dahil) yakalar. (6) Tuzaklar: JSX `&apos;` gibi
+  entity'ler decode edilmeli; `t` adı bileşende başka bağ olabilir (tema `t`,
+  `.map((t) =>`) → codemod çakışmada `tr`/`tPanel`; varsayılan parametre
+  değeri (`countNoun = "ürün"`) `t` görmez → gövdeye taşı; typed
+  `t(key)` dize anahtarla `as never`. Cırcır tabanı 395 dosya / 5.659.
 - **PANEL DE OKUYUCUNUN DİLİNDE (Faz 1e kapanış, 2026-09-23 akşam, kullanıcı:
   "kalemler çevrilmemiş"):** başka firmanın verisini okuyan panel uçları da
   çeviri servisinden geçer — `company/listings/seller-tenders` (başlık +

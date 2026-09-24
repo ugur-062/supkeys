@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { CategorySelectorButton } from "@/components/categories/category-selector-button";
 import { PreferredActivitiesField } from "@/components/tenders/preferred-activities-field";
 import { NumberedSection } from "@/components/ui/numbered-section";
@@ -23,9 +25,8 @@ import { SetupCard } from "./setup-card";
 import { SupplierPicker } from "./supplier-picker";
 import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
 import { TermsPanel } from "./terms-panel";
-import { RequestDefaultsForm, VISIBILITY_LABELS } from "@/components/tenders/request-defaults-form";
-import { PAYMENT_CATEGORY_LABELS, formatPaymentPlan } from "@/lib/tenders/labels";
-import type { PaymentCategory } from "@/lib/tenders/types";
+import { RequestDefaultsForm, useVisibilityLabels } from "@/components/tenders/request-defaults-form";
+import { useCityLabel, useFormatPaymentPlan, usePaymentCategoryLabel } from "@/i18n/domain";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useAddresses } from "@/hooks/use-company-addresses";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
@@ -35,12 +36,12 @@ import { SaveTemplateDialog } from "@/components/tenders/wizard/save-template-di
 import { useRequestDefaults, useSaveRequestDefaults } from "@/hooks/use-request-defaults";
 import { formatDate } from "@/lib/format-date";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { DEFAULT_FORM_VALUES, tenderFormSchema, type TenderFormData } from "@/lib/tenders/form-schema";
+import { DEFAULT_FORM_VALUES, makeTenderFormSchema, type TenderFormData } from "@/lib/tenders/form-schema";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { mapToInput } from "@/lib/tenders/map-to-input";
 import { applyConnectionsScope } from "@/lib/tenders/connections-scope";
 import { QUICK_DRAFT_KEY, clearSession, readSession, writeSession, type QuickDraft } from "@/lib/tenders/quick-draft";
-import { titleFromItems } from "@/lib/tenders/quick-parse";
+import { titleFromItems, type TitleTranslate } from "@/lib/tenders/quick-parse";
 import { applyRequestDefaults, closesAtFromDays, defaultsFromForm } from "@/lib/tenders/request-defaults";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -82,6 +83,19 @@ export function QuickRequest({
   mode?: "new" | "edit";
   listingId?: string;
 }) {
+  const tr = useTranslations("web.panel.requests.quickRequest");
+  // Şema mesajları (`formSchema.*`, `closesAt.*`) ve üretilen başlık sözcükleri
+  // (`quickParse.*`) üst ad alanından — form kullanıcının diliyle kurulur.
+  const tReq = useTranslations("web.panel.requests");
+  const locale = useLocale() as Locale;
+  const formatPaymentPlan = useFormatPaymentPlan();
+  const paymentCategoryLabel = usePaymentCategoryLabel();
+  const cityLabel = useCityLabel();
+  // Görünürlük kartı etiketleri Talep Şartları formuyla AYNI kaynaktan (`requestDefaultsForm.visibility.*`).
+  const visibilityLabels = useVisibilityLabels();
+  const schema = useMemo(() => makeTenderFormSchema((key, values) => tReq(key as never, values as never)), [tReq]);
+  const titleT: TitleTranslate = (key, values) => tReq(`quickParse.${key}` as never, values as never);
+  const makeTitle = (items: { name: string }[]) => titleFromItems(items, titleT, locale);
   const isEdit = mode === "edit" && !!listingId;
   const router = useRouter();
   const { company } = useCompanyAuth();
@@ -113,7 +127,7 @@ export function QuickRequest({
   const seoEnrich = useAiSeoEnrich();
 
   const form = useForm<TenderFormData>({
-    resolver: zodResolver(tenderFormSchema),
+    resolver: zodResolver(schema),
     defaultValues: { ...DEFAULT_FORM_VALUES, ...initialValues },
     mode: "onTouched",
   });
@@ -209,7 +223,7 @@ export function QuickRequest({
     const cur = getValues();
     const merged = [...cur.items.filter((i) => i.name.trim()), ...next];
     setValue("items", merged.length ? merged : cur.items, { shouldDirty: true, shouldValidate: true });
-    if (!cur.title.trim()) setValue("title", titleFallback || titleFromItems(merged), { shouldDirty: true });
+    if (!cur.title.trim()) setValue("title", titleFallback || makeTitle(merged), { shouldDirty: true });
   };
   const applyDocument = (r: AiTenderExtractResult) => {
     const mapped = mapAiDraftToForm(r.draft, getValues());
@@ -217,8 +231,8 @@ export function QuickRequest({
     const cur = getValues();
     if (!cur.description?.trim() && mapped.description) setValue("description", mapped.description, { shouldDirty: true });
     if (!cur.categoryIds.length && mapped.categoryIds.length) setValue("categoryIds", mapped.categoryIds, { shouldDirty: true, shouldValidate: true });
-    if (r.missingRequired?.length) toast.warning(`Belgeden okunamayan alanlar: ${r.missingRequired.join(", ")}`);
-    else toast.success("Belgeden dolduruldu — kalemleri kontrol edin");
+    if (r.missingRequired?.length) toast.warning(tr("belgedenOkunamayanAlanlar", { join: r.missingRequired.join(", ") }));
+    else toast.success(tr("belgedenDoldurulduKalemleriKontrolEdin"));
   };
 
   /* --- Süre */
@@ -245,14 +259,14 @@ export function QuickRequest({
         const errs = form.formState.errors;
         const first = Object.keys(errs)[0];
         if (first === "deliveryTerm" || first === "paymentCategory" || first === "paymentDays") {
-          toast.error("Sağdaki Ticari şartlar panelinde teslim şekli / ödeme eksik — 'seç' ile tamamlayın");
+          toast.error(tr("sagdakiTicariSartlarPanelindeTeslim"));
           document.getElementById("sartlar-baslik")?.scrollIntoView({ behavior: "smooth", block: "center" });
           return;
         }
         const section = ["items", "title", "categoryIds", "description"].includes(first) ? "talep-ne" : ["deliveryAddressId", "bidsCloseAt", "billingAddressId"].includes(first) ? "talep-nereye" : "talep-kime";
         document.getElementById(section)?.scrollIntoView({ behavior: "smooth", block: "start" });
         const msg = (errs[first as keyof typeof errs] as { message?: string } | undefined)?.message;
-        toast.error(msg ? `Eksik: ${msg}` : "Eksik alanlar var — ilgili bölüme kaydırıldı");
+        toast.error(msg ? tr("eksik", { msg }) : tr("eksikAlanlarVarIlgiliBolume"));
         return;
       }
       const values = getValues();
@@ -261,7 +275,7 @@ export function QuickRequest({
         await update.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
         await uploadStaged(listingId);
         await publishExisting.mutateAsync({});
-        toast.success("Talep yayımlandı");
+        toast.success(tr("talepYayimlandi"));
         router.push(`/company/ilan/${listingId}`);
         return;
       }
@@ -271,7 +285,7 @@ export function QuickRequest({
       setPublished({ id: listing.id, title: values.title, categoryIds: values.categoryIds, itemNames: values.items.map((i) => i.name) });
       window.scrollTo({ top: 0 });
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Talep yayımlanamadı"));
+      toast.error(extractErrorMessage(err, tr("talepYayimlanamadi")));
     } finally {
       submitLock.current = false;
     }
@@ -280,7 +294,7 @@ export function QuickRequest({
   const ensureTitle = () => {
     const v = getValues();
     if (!v.title.trim()) {
-      const t = titleFromItems(v.items.filter((i) => i.name.trim()));
+      const t = makeTitle(v.items.filter((i) => i.name.trim()));
       if (t) setValue("title", t, { shouldDirty: true });
     }
   };
@@ -288,24 +302,24 @@ export function QuickRequest({
     ensureTitle();
     const values = getValues();
     if (values.title.trim().length < 3) {
-      toast.error("Taslak için en az bir başlık gerekli");
+      toast.error(tr("taslakIcinEnAzBir"));
       return;
     }
     try {
       if (isEdit && listingId) {
         await update.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
         await uploadStaged(listingId);
-        toast.success("Taslak güncellendi");
+        toast.success(tr("taslakGuncellendi"));
         router.push(`/company/ilan/${listingId}`);
         return;
       }
       const listing = await create.mutateAsync({ ...mapToInput(applyConnectionsScope(values, connectionIds)), asDraft: true });
       await uploadStaged(listing.id);
       clearSession(QUICK_DRAFT_KEY);
-      toast.success("Taslak kaydedildi");
+      toast.success(tr("taslakKaydedildi"));
       router.push(`/company/ilan/${listing.id}`);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Taslak kaydedilemedi"));
+      toast.error(extractErrorMessage(err, tr("taslakKaydedilemedi")));
     }
   };
   /** Şartname/teknik resim: kayıt oluşunca sırayla yüklenir (sihirbazla aynı). */
@@ -318,7 +332,7 @@ export function QuickRequest({
         failed += 1;
       }
     }
-    if (failed > 0) toast.warning(`${failed} dosya yüklenemedi — talep sayfasından tekrar ekleyebilirsiniz`);
+    if (failed > 0) toast.warning(tr("dosyaYuklenemediTalepSayfasindanTekrar", { failed: failed }));
   };
 
   const aiAvailable = !!company && tierAtLeast(company.tier, "SILVER");
@@ -334,7 +348,7 @@ export function QuickRequest({
         })),
       );
       if (r.failed) {
-        toast.error("AI önerisi alınamadı — tekrar deneyin");
+        toast.error(tr("aiOnerisiAlinamadiTekrarDeneyin"));
         return;
       }
       if (r.title) setValue("title", r.title, { shouldDirty: true, shouldValidate: true });
@@ -342,9 +356,9 @@ export function QuickRequest({
       if (r.keywords.length > 0 && (getValues("keywords") ?? []).length === 0) {
         setValue("keywords", r.keywords.map((k) => k.trim().slice(0, 50)).filter(Boolean).slice(0, 10));
       }
-      if (!r.title && r.categoryIds.length === 0) toast.info("AI uygun bir öneri bulamadı");
+      if (!r.title && r.categoryIds.length === 0) toast.info(tr("aiUygunBirOneriBulamadi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "AI önerisi alınamadı"));
+      toast.error(extractErrorMessage(err, tr("aiOnerisiAlinamadi")));
     }
   };
   // Tedarikçi keşfi API kapısı GOLD (`company/ai/supplier-discovery`).
@@ -355,16 +369,16 @@ export function QuickRequest({
     try {
       const r = await seoEnrich.mutateAsync({
         kind: "listing",
-        name: v.title || titleFromItems(v.items),
+        name: v.title || makeTitle(v.items),
         description: v.description ?? null,
         categoryName: catRows[0]?.nameTr ?? null,
         facts: v.items.filter((i) => i.name.trim()).map((i) => `${i.name} — ${i.quantity} ${i.unit}${i.description ? `: ${i.description}` : ""}`),
         city: selectedAddress?.city ?? null,
       });
       setValue("description", r.description, { shouldDirty: true });
-      toast.success("Açıklama taslağı yazıldı — kontrol edin");
+      toast.success(tr("aciklamaTaslagiYazildiKontrolEdin"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "AI açıklama yazamadı"));
+      toast.error(extractErrorMessage(err, tr("aiAciklamaYazamadi")));
     }
   };
 
@@ -376,18 +390,18 @@ export function QuickRequest({
       delete payload.bidsOpenAt;
       delete payload.invitedSupplierIds;
       await saveTemplate.mutateAsync({ name, payload });
-      toast.success(`"${name}" şablonu kaydedildi`);
+      toast.success(tr("sablonuKaydedildi", { name: name }));
       setTemplateOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Şablon kaydedilemedi"));
+      toast.error(extractErrorMessage(err, tr("sablonKaydedilemedi")));
     }
   };
   const persistDefaults = async (next: RequestDefaults) => {
     try {
       await saveDefaults.mutateAsync(next);
-      toast.success("Talep şartları kaydedildi — sonraki taleplerde sorulmaz");
+      toast.success(tr("talepSartlariKaydedildiSonrakiTaleplerde"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Şartlar kaydedilemedi"));
+      toast.error(extractErrorMessage(err, tr("sartlarKaydedilemedi")));
     }
   };
 
@@ -413,41 +427,43 @@ export function QuickRequest({
   const verified = company?.companyVerificationStatus === "VERIFIED";
   const visibility = watched.visibility;
   const invited = watched.invitedSupplierIds ?? [];
-  const closeLabel = watched.bidsCloseAt ? formatDate(watched.bidsCloseAt, "datetime") : null;
+  const closeLabel = watched.bidsCloseAt ? formatDate(watched.bidsCloseAt, "datetime", locale) : null;
   const ready = hasItems && (watched.categoryIds?.length ?? 0) > 0 && (watched.title?.trim().length ?? 0) >= 3;
 
   const audience =
     visibility === "PUBLIC"
       ? publicCount.data
-        ? `Pazar yerinde listelenir; ${catRows[0] ? `bu kategoride ${publicCount.data.total} firma` : `${publicCount.data.total} firma`} dizinde, kayıtlı her tedarikçi teklif verebilir.`
+        ? catRows[0]
+          ? tr("pazarYerindeListelenirBuKategoride", { total: publicCount.data.total })
+          : tr("pazarYerindeListelenir", { total: publicCount.data.total })
         : null
       : visibility === "CONNECTIONS"
         ? (() => {
             const total = connectionIds.length;
             const on = invited.filter((id) => connectionIds.includes(id)).length;
-            if (total === 0) return "Bağlantınız olmadığı için bu talebi kimse görmez — “Herkese açık” seçin ya da önce bağlantı kurun.";
+            if (total === 0) return tr("baglantinizOlmadigiIcinBuTalebi");
             return on === total
-              ? `${total} bağlantınızın tamamı görecek ve davet alacak.`
-              : `${total} bağlantınızdan ${on} firma görecek; çıkardığınız ${total - on} firma talebi görmez, bildirim almaz.`;
+              ? tr("baglantinizinTamamiGorecekVeDavet", { total: total })
+              : tr("baglantinizdanFirmaGorecekCikardiginiz", { total, on, off: total - on });
           })()
         : invited.length
-          ? `Yalnız davet ettiğiniz ${invited.length} firma görecek.`
-          : "Henüz kimse davet edilmedi — en az bir firma seçin ya da görünürlüğü genişletin.";
+          ? tr("yalnizDavetEttiginizFirmaGorecek", { length: invited.length })
+          : tr("henuzKimseDavetEdilmediEn");
 
   const paymentLabel =
     formatPaymentPlan({
-      paymentCategory: terms.paymentCategory as PaymentCategory,
+      paymentCategory: terms.paymentCategory,
       advancePercent: terms.advancePercent,
       paymentDays: terms.paymentDays,
-      lcType: terms.lcType as "SIGHT" | "USANCE" | null,
+      lcType: terms.lcType,
       lcConfirmed: false,
-    }) || PAYMENT_CATEGORY_LABELS[terms.paymentCategory as PaymentCategory];
+    }) || paymentCategoryLabel(terms.paymentCategory);
 
   const summary = {
-    what: hasItems ? `${namedItems.length} kalem${catRows[0] ? ` · ${catRows[0].nameTr}` : ""}` : null,
-    where: selectedAddress ? `${selectedAddress.title}${selectedAddress.city ? `, ${selectedAddress.city}` : ""}` : null,
-    when: closeLabel ? `${currentCloseDays} gün · ${closeLabel}` : null,
-    who: `${VISIBILITY_LABELS[visibility]?.label ?? visibility}${visibility !== "PUBLIC" && invited.length ? ` · ${invited.length} davet` : ""}`,
+    what: hasItems ? [tr("kalemSayisi", { n: namedItems.length }), catRows[0]?.nameTr].filter(Boolean).join(" · ") : null,
+    where: selectedAddress ? [selectedAddress.title, selectedAddress.city ? cityLabel(selectedAddress.city) : null].filter(Boolean).join(", ") : null,
+    when: closeLabel ? tr("gun", { currentCloseDays: currentCloseDays, closeLabel: closeLabel }) : null,
+    who: [visibilityLabels[visibility].label, visibility !== "PUBLIC" && invited.length ? tr("davetSayisi", { n: invited.length }) : null].filter(Boolean).join(" · "),
   };
 
   return (
@@ -471,14 +487,14 @@ export function QuickRequest({
             id="talep-ne"
             n={1}
             accent="blue"
-            title="Ne lazım?"
-            lead="Kalemleri satır satır girin; kataloğunuzdan, Excel'den ya da belgeden ekleyin."
-            status={hasItems ? <Done>{namedItems.length} kalem</Done> : null}
+            title={tr("neLazim")}
+            lead={tr("kalemleriSatirSatirGirinKatalogunuzdan")}
+            status={hasItems ? <Done>{tr("kalemSayisi", { n: namedItems.length })}</Done> : null}
           >
             <div className="space-y-6">
               {restoredDraft && !initialValues ? (
                 <p className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-blue-50 px-3 py-2 text-xs text-blue-900 ring-1 ring-blue-600/20">
-                  Kaldığınız taslak geri yüklendi.
+                  {tr("kaldiginizTaslakGeriYuklendi")}
                   <button
                     type="button"
                     onClick={() => {
@@ -488,7 +504,7 @@ export function QuickRequest({
                     }}
                     className="font-semibold underline-offset-2 hover:underline"
                   >
-                    Temizle, sıfırdan başla
+                    {tr("temizleSifirdanBasla")}
                   </button>
                 </p>
               ) : null}
@@ -498,12 +514,12 @@ export function QuickRequest({
                   <Sparkles className="h-5 w-5" />
                 </div>
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm font-semibold text-zinc-900">Belgeden otomatik doldur</p>
-                  <p className="text-xs text-zinc-500">Şartname, teklif talebi veya fotoğraf yükleyin — AI kalemleri sizin için doldursun.</p>
+                  <p className="text-sm font-semibold text-zinc-900">{tr("belgedenOtomatikDoldur")}</p>
+                  <p className="text-xs text-zinc-500">{tr("sartnameTeklifTalebiVeyaFotograf")}</p>
                 </div>
                 <Button variant="primary" onClick={() => setDocOpen(true)}>
                   <Sparkles className="h-4 w-4" />
-                  Belgeden Doldur
+                  {tr("belgedenDoldur")}
                 </Button>
               </div>
               <AiImportDialog
@@ -535,15 +551,15 @@ export function QuickRequest({
               <div className="space-y-5">
                     <div>
                       <label htmlFor="talep-baslik" className="mb-1.5 block text-sm font-medium text-zinc-950">
-                        Talep başlığı <span className="text-red-600">*</span>
+                        {tr("talepBasligi")} <span className="text-red-600">*</span>
                       </label>
                       <input
                         id="talep-baslik"
                         {...form.register("title")}
-                        placeholder="Örn. 3/4 inç dikişsiz çelik boru alımı — 1.200 m"
+                        placeholder={tr("orn34IncDikissiz")}
                         className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
                       />
-                      {form.formState.errors.title ? <p className="mt-1 text-xs text-red-700">{form.formState.errors.title.message}</p> : <p className="mt-1 text-xs text-zinc-500">Boş bırakırsanız kalemlerden türetilir.</p>}
+                      {form.formState.errors.title ? <p className="mt-1 text-xs text-red-700">{form.formState.errors.title.message}</p> : <p className="mt-1 text-xs text-zinc-500">{tr("bosBirakirsanizKalemlerdenTuretilir")}</p>}
                       <div className="mt-2">
                         <button
                           type="button"
@@ -551,33 +567,33 @@ export function QuickRequest({
                           disabled={!aiAvailable || draftSuggest.isPending || namedItems.length === 0}
                           title={
                             !aiAvailable
-                              ? "AI önerisi Silver ve üzeri paketlerde"
+                              ? tr("aiOnerisiSilverVeUzeri")
                               : namedItems.length === 0
-                                ? "Önce en az bir kalem adı girin"
+                                ? tr("onceEnAzBirKalem")
                                 : undefined
                           }
                           className="inline-flex items-center gap-1.5 rounded-full border border-blue-300 bg-blue-50 px-3 py-1.5 text-xs font-semibold text-blue-800 hover:bg-blue-100 disabled:opacity-50"
                         >
                           <SparklesIcon aria-hidden className="size-3.5" />
-                          {draftSuggest.isPending ? "AI kalemleri analiz ediyor…" : "AI ile başlık ve kategori bul"}
+                          {draftSuggest.isPending ? tr("aiKalemleriAnalizEdiyor") : tr("aiIleBaslikVeKategori")}
                         </button>
                       </div>
                     </div>
                     <div>
                       <p className="mb-1.5 text-sm font-medium text-zinc-950">
-                        Kategori <span className="text-red-600">*</span>
+                        {tr("kategori")} <span className="text-red-600">*</span>
                       </p>
                       <Controller
                         control={form.control}
                         name="categoryIds"
                         render={({ field }) => (
-                          <CategorySelectorButton value={field.value} onChange={(ids) => field.onChange(ids.slice(0, 3))} mode="multi" maxSelection={3} catalog="discovery" placeholder="Kategori seçin (en fazla 3)" modalTitle="Talep kategorisi" />
+                          <CategorySelectorButton value={field.value} onChange={(ids) => field.onChange(ids.slice(0, 3))} mode="multi" maxSelection={3} catalog="discovery" placeholder={tr("kategoriSecinEnFazla3")} modalTitle={tr("talepKategorisi")} />
                         )}
                       />
                       {form.formState.errors.categoryIds ? (
                         <p className="mt-1 text-xs text-red-700">{form.formState.errors.categoryIds.message as string}</p>
                       ) : (
-                        <p className="mt-1 text-xs text-zinc-500">Eşleştirme ve tedarikçi bildirimi kategoriden çalışır.</p>
+                        <p className="mt-1 text-xs text-zinc-500">{tr("eslestirmeVeTedarikciBildirimiKategoriden")}</p>
                       )}
                       {(watched.categoryIds?.length ?? 0) < 3 ? (
                         <CategorySuggest
@@ -588,7 +604,7 @@ export function QuickRequest({
                       ) : null}
                       {/* İkinci eksen: kategori "ne", bu "kimden". */}
                       <div className="mt-3">
-                        <span className="block text-xs font-medium text-zinc-700">Aranan tedarikçi tipi (isteğe bağlı)</span>
+                        <span className="block text-xs font-medium text-zinc-700">{tr("arananTedarikciTipiIstegeBagli")}</span>
                         <div className="mt-1.5">
                           <PreferredActivitiesField
                             value={watched.preferredActivities ?? []}
@@ -601,14 +617,14 @@ export function QuickRequest({
 
                   <div>
                     <label htmlFor="talep-aciklama" className="mb-1.5 block text-sm font-medium text-zinc-950">
-                      Açıklama <span className="text-xs font-normal text-zinc-500">isteğe bağlı</span>
+                      {tr("aciklama")} <span className="text-xs font-normal text-zinc-500">{tr("istegeBagli")}</span>
                     </label>
                     <textarea
                       id="talep-aciklama"
                       {...form.register("description")}
                       rows={3}
                       maxLength={5000}
-                      placeholder="Kullanım amacı, teknik şart, teslim beklentisi — tedarikçi daha isabetli teklif verir."
+                      placeholder={tr("kullanimAmaciTeknikSartTeslim")}
                       className="w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15"
                     />
                     <div className="mt-2 flex flex-wrap items-center gap-2">
@@ -616,11 +632,11 @@ export function QuickRequest({
                         type="button"
                         onClick={() => void writeDescription()}
                         disabled={!aiAvailable || seoEnrich.isPending}
-                        title={aiAvailable ? undefined : "AI ile açıklama Silver ve üzeri paketlerde"}
+                        title={aiAvailable ? undefined : tr("aiIleAciklamaSilverVe")}
                         className="inline-flex items-center gap-1.5 rounded-full border border-zinc-300 px-3 py-1.5 text-xs font-medium text-zinc-800 hover:bg-zinc-50 disabled:opacity-50"
                       >
                         <SparklesIcon aria-hidden className="size-3.5" />
-                        {seoEnrich.isPending ? "Yazılıyor…" : "AI ile açıklamayı yaz"}
+                        {seoEnrich.isPending ? tr("yaziliyor") : tr("aiIleAciklamayiYaz")}
                       </button>
                     </div>
                   </div>
@@ -632,15 +648,15 @@ export function QuickRequest({
             id="talep-nereye"
             n={2}
             accent="blue"
-            title="Nereye, ne zamana, nasıl ödeme?"
-            lead="Teslimat adresi, teklif toplama süresi ve ödeme şekli."
-            status={selectedAddress && closeLabel ? <Done>{selectedAddress.title} · {currentCloseDays} gün · {paymentLabel}</Done> : null}
+            title={tr("nereyeNeZamanaNasilOdeme")}
+            lead={tr("teslimatAdresiTeklifToplamaSuresi")}
+            status={selectedAddress && closeLabel ? <Done>{tr("gun2", { title: selectedAddress.title, currentCloseDays: currentCloseDays, paymentLabel: paymentLabel })}</Done> : null}
           >
             <div className="space-y-6">
               <div>
-                <p className="mb-2 text-sm font-medium text-zinc-950">Teslimat adresi</p>
+                <p className="mb-2 text-sm font-medium text-zinc-950">{tr("teslimatAdresi")}</p>
                 {addresses.isLoading ? (
-                  <p className="text-sm text-zinc-500">Adresler yükleniyor…</p>
+                  <p className="text-sm text-zinc-500">{tr("adreslerYukleniyor")}</p>
                 ) : (
                   <AddressPicker addresses={addresses.data ?? []} value={watched.deliveryAddressId ?? ""} onChange={(id) => setValue("deliveryAddressId", id, { shouldDirty: true })} onAdd={() => setAddingAddress(true)} />
                 )}
@@ -653,31 +669,29 @@ export function QuickRequest({
                     onCancel={() => setAddingAddress(false)}
                   />
                 ) : null}
-                {(addresses.data ?? []).length === 0 && !addingAddress ? <p className="mt-2 text-xs text-zinc-500">Adres yoksa hizmet/lojistik talebi için boş bırakabilirsiniz.</p> : null}
+                {(addresses.data ?? []).length === 0 && !addingAddress ? <p className="mt-2 text-xs text-zinc-500">{tr("adresYoksaHizmetLojistikTalebi")}</p> : null}
               </div>
 
               <div>
                 <p className="mb-2 text-sm font-medium text-zinc-950">
-                  Teklif toplama süresi <span className="text-red-600">*</span>
+                  {tr("teklifToplamaSuresi")} <span className="text-red-600">*</span>
                 </p>
                 <div className="flex flex-wrap items-center gap-2">
                   {REQUEST_CLOSE_DAY_OPTIONS.map((d) => (
                     <button key={d} type="button" aria-pressed={currentCloseDays === d} onClick={() => setCloseDays(d)} className={cn("rounded-full px-3.5 py-1.5 text-sm font-medium ring-1 transition", currentCloseDays === d ? "bg-blue-600 text-white ring-blue-600" : "bg-white text-zinc-700 ring-zinc-300 hover:bg-zinc-50")}>
-                      {d} gün
+                      {tr("gun3", { d: d })}
                     </button>
                   ))}
                   <label className="flex items-center gap-1.5 text-sm text-zinc-600">
-                    <input type="number" min={1} max={60} value={currentCloseDays} onChange={(e) => setCloseDays(Math.min(60, Math.max(1, Number(e.target.value) || 1)))} aria-label="Özel gün" className="w-16 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" />
-                    gün
+                    <input type="number" min={1} max={60} value={currentCloseDays} onChange={(e) => setCloseDays(Math.min(60, Math.max(1, Number(e.target.value) || 1)))} aria-label={tr("ozelGun")} className="w-16 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" />
+                    {tr("gun4")}
                   </label>
                 </div>
                 <p className="mt-2 text-xs text-zinc-600">
                   {closeLabel ? (
-                    <>
-                      Kapanış: <span className="font-medium text-zinc-900">{closeLabel}</span> — tedarikçiler o ana kadar teklif verir; sonra değerlendirme başlar.
-                    </>
+                    tr.rich("kapanisTedarikcilerOAnaKadar", { date: closeLabel, strong: (c) => <span className="font-medium text-zinc-900">{c}</span> })
                   ) : (
-                    "Kapanış tarihi seçin."
+                    tr("kapanisTarihiSecin")
                   )}
                 </p>
                 {form.formState.errors.bidsCloseAt ? <p className="mt-1 text-xs text-red-700">{form.formState.errors.bidsCloseAt.message}</p> : null}
@@ -687,12 +701,12 @@ export function QuickRequest({
                   Şartlar paneliyle AYNI değer (`terms`), iki yerde de düzenlenebilir. */}
               <div>
                 <p className="mb-2 text-sm font-medium text-zinc-950">
-                  Ödeme şekli <span className="text-red-600">*</span>
+                  {tr("odemeSekli")} <span className="text-red-600">*</span>
                 </p>
                 <div className="rounded-xl bg-zinc-50 p-3 ring-1 ring-zinc-950/5">
                   <RequestDefaultsForm value={terms} onChange={updateTerms} compact bare only={["payment"]} />
                 </div>
-                <p className="mt-1.5 text-xs text-zinc-500">Tedarikçi teklifini bu koşula göre verir; sağdaki Ticari şartlar panelinde de görünür. Kalıcı yapmak için orada “Şartları kaydet”.</p>
+                <p className="mt-1.5 text-xs text-zinc-500">{tr("tedarikciTeklifiniBuKosulaGore")}</p>
               </div>
             </div>
           </NumberedSection>
@@ -702,8 +716,8 @@ export function QuickRequest({
             id="talep-kime"
             n={3}
             accent="blue"
-            title="Kimler görsün?"
-            lead="Kapalı zarf her durumda geçerli — tedarikçiler birbirinin teklifini görmez."
+            title={tr("kimlerGorsun")}
+            lead={tr("kapaliZarfHerDurumdaGecerli")}
             status={<Done>{summary.who}</Done>}
           >
             {/* AI KEŞİF (2026-09-17, kullanıcı kararı: "daha fazla tedarikçiye
@@ -715,19 +729,19 @@ export function QuickRequest({
                 <Sparkles className="h-5 w-5" aria-hidden />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-zinc-900">AI ile daha fazla tedarikçiye eriş</p>
+                <p className="text-sm font-semibold text-zinc-900">{tr("aiIleDahaFazlaTedarikciye")}</p>
                 <p className="text-xs text-zinc-500">
-                  Kalemlerinizi ve kategoriyi analiz eder; platformdaki uygun firmaları ve web&apos;deki adayları bulur, tek tıkla davet edersiniz.
+                  {tr("kalemleriniziVeKategoriyiAnalizEder")}
                 </p>
               </div>
               <Button
                 type="button"
                 onClick={() => setDiscoveryOpen(true)}
                 disabled={!discoveryAvailable}
-                title={discoveryAvailable ? undefined : "AI ile tedarikçi bulma Gold pakette"}
+                title={discoveryAvailable ? undefined : tr("aiIleTedarikciBulmaGold")}
                 iconLeft={<Sparkles />}
               >
-                Keşfet
+                {tr("kesfet")}
               </Button>
             </div>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
@@ -751,8 +765,8 @@ export function QuickRequest({
                     <Icon aria-hidden className="size-5" />
                   </span>
                   <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-zinc-950">{VISIBILITY_LABELS[v].label}</span>
-                    <span className="mt-0.5 block text-xs text-zinc-500">{VISIBILITY_LABELS[v].hint}</span>
+                    <span className="block text-sm font-semibold text-zinc-950">{visibilityLabels[v].label}</span>
+                    <span className="mt-0.5 block text-xs text-zinc-500">{visibilityLabels[v].hint}</span>
                   </span>
                 </button>
               ))}
@@ -791,9 +805,9 @@ export function QuickRequest({
             id="talep-belgeler"
             n={4}
             accent="blue"
-            title="Belgeler"
-            lead="Şartname, teknik resim, sözleşme taslağı — tedarikçi teklif verirken görür. İsteğe bağlı."
-            status={stagedDocs.length ? <Done>{stagedDocs.length} dosya</Done> : <span>isteğe bağlı</span>}
+            title={tr("belgeler")}
+            lead={tr("sartnameTeknikResimSozlesmeTaslagi")}
+            status={stagedDocs.length ? <Done>{tr("dosyaSayisi", { n: stagedDocs.length })}</Done> : <span>{tr("istegeBagli")}</span>}
           >
             <StagedDocuments docs={stagedDocs} onChange={setStagedDocs} />
           </NumberedSection>
@@ -805,8 +819,8 @@ export function QuickRequest({
 
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
             <div className="flex items-baseline justify-between">
-              <p className="text-sm font-semibold text-zinc-950">Teklif kalitesi</p>
-              <span className="text-sm font-semibold tabular-nums text-zinc-950">%{quality.score}</span>
+              <p className="text-sm font-semibold text-zinc-950">{tr("teklifKalitesi")}</p>
+              <span className="text-sm font-semibold tabular-nums text-zinc-950">{tr("yuzde", { n: quality.score })}</span>
             </div>
             <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100" aria-hidden>
               <div className="h-full rounded-full bg-blue-600 transition-[width]" style={{ width: `${quality.score}%` }} />
@@ -814,54 +828,56 @@ export function QuickRequest({
             {quality.missing.length ? (
               <ul className="mt-2 space-y-1 text-xs/5 text-zinc-600">
                 {quality.missing.slice(0, 3).map((m) => (
-                  <li key={m.key}>· {m.hint}</li>
+                  <li key={m.key}>· {tr.has(`kaliteIpucu.${m.key}` as never) ? tr(`kaliteIpucu.${m.key}` as never) : m.hint}</li>
                 ))}
               </ul>
             ) : (
-              <p className="mt-2 text-xs text-emerald-700">İsabetli teklif için yeterli.</p>
+              <p className="mt-2 text-xs text-emerald-700">{tr("isabetliTeklifIcinYeterli")}</p>
             )}
-            <p className="mt-2 text-[11px] text-zinc-500">Engel değil, ipucu.</p>
+            <p className="mt-2 text-[11px] text-zinc-500">{tr("engelDegilIpucu")}</p>
           </div>
           {/* ÖZET + YAYINLA rayın EN ALTINDA (2026-09-19, kullanıcı: "bu kısım
               en aşağıda olmalı") — şartlar ve teklif kalitesi önce okunur,
               yayın kararı en son. */}
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
-            <p className="text-sm font-semibold text-zinc-950">Özet</p>
+            <p className="text-sm font-semibold text-zinc-950">{tr("ozet")}</p>
             <dl className="mt-3 space-y-2 text-sm">
-              <Row k="Ne" v={summary.what} />
-              <Row k="Nereye" v={summary.where} />
-              <Row k="Ne zamana" v={summary.when} />
-              <Row k="Ödeme" v={paymentLabel} />
-              <Row k="Kime" v={summary.who} />
-              <Row k="Belge" v={stagedDocs.length ? `${stagedDocs.length} dosya` : null} />
+              <Row k={tr("ne")} v={summary.what} />
+              <Row k={tr("nereye")} v={summary.where} />
+              <Row k={tr("neZamana")} v={summary.when} />
+              <Row k={tr("odeme")} v={paymentLabel} />
+              <Row k={tr("kime")} v={summary.who} />
+              <Row k={tr("belge")} v={stagedDocs.length ? tr("dosyaSayisi", { n: stagedDocs.length }) : null} />
             </dl>
             {!verified ? (
               <p className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
                 <ExclamationTriangleIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  Yayın için firma doğrulaması gerekir —{" "}
-                  <Link href="/company/ayarlar/dogrulama" className="font-semibold underline">
-                    belgeleri yükleyin
-                  </Link>
-                  . Şimdilik taslak kaydedebilirsiniz.
+                  {tr.rich("yayinIcinFirmaDogrulamasiGerekir", {
+                    link: (c) => (
+                      <Link href="/company/ayarlar/dogrulama" className="font-semibold underline">
+                        {c}
+                      </Link>
+                    ),
+                  })}
                 </span>
               </p>
             ) : null}
             {canManage ? (
               <div className="mt-4 space-y-2">
                 <button type="button" id="talep-yayinla" onClick={() => void publish()} disabled={busy || !hasItems || !verified} className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50">
-                  {busy ? "Kaydediliyor…" : "Talebi yayınla"}
+                  {busy ? tr("kaydediliyor") : tr("talebiYayinla")}
                 </button>
-                {!ready && hasItems ? <p className="text-center text-[11px] text-zinc-500">Yayın için başlık ve kategori gerekli.</p> : null}
+                {!ready && hasItems ? <p className="text-center text-[11px] text-zinc-500">{tr("yayinIcinBaslikVeKategori")}</p> : null}
                 <button type="button" onClick={() => void saveDraft()} disabled={busy} className="w-full rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50">
-                  {isEdit ? "Taslağı kaydet" : "Taslak kaydet"}
+                  {isEdit ? tr("taslagiKaydet") : tr("taslakKaydet")}
                 </button>
                 <button type="button" onClick={() => setTemplateOpen(true)} className="w-full rounded-full px-4 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900">
-                  Şablon olarak kaydet
+                  {tr("sablonOlarakKaydet")}
                 </button>
               </div>
             ) : (
-              <p className="mt-4 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-500">Talep açmak için talep yönetimi yetkisi gerekir.</p>
+              <p className="mt-4 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-500">{tr("talepAcmakIcinTalepYonetimi")}</p>
             )}
           </div>
         </aside>
@@ -871,9 +887,9 @@ export function QuickRequest({
       {canManage ? (
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
           <div className="flex items-center gap-3">
-            <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{[summary.what, summary.when].filter(Boolean).join(" · ") || "Kalem ekleyin"}</p>
-            <button type="button" onClick={() => void publish()} disabled={busy || !hasItems || !verified} aria-label="Talebi yayınla (mobil)" className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-              Yayınla
+            <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{[summary.what, summary.when].filter(Boolean).join(" · ") || tr("kalemEkleyin")}</p>
+            <button type="button" onClick={() => void publish()} disabled={busy || !hasItems || !verified} aria-label={tr("talebiYayinlaMobil")} className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+              {tr("yayinla")}
             </button>
           </div>
         </div>
