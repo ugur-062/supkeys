@@ -4,6 +4,21 @@ Bu dosya tamamlanmış aşamaların detaylı kaydıdır. Aktif çalışma için 
 
 ---
 
+## 2026-09-24 — yol parçaları üç dilde (Faz 1f) + kategori/şehir giriş paragrafı kaldırıldı
+
+Kullanıcı: "yol parçaları da hangi dilse o dilde olsun; her şeyi bitir, sonra
+canlıya alacağız". Kararlar: RU Latin çeviriyazı, panel kökü dile göre, admin Türkçe.
+
+- `@rothern/i18n` `ROUTE_PATHNAMES` + `translateRoutePath`/`internalRoutePath`
+  (86 rota); next-intl `routing.pathnames`; `@/i18n/navigation` sarmalayıcısı
+  (`Link`/`useRouter`/`redirect` iç yol alır, dış yol üretir; `usePathname` iç
+  yol döner; istemci hook'ları `navigation-client.tsx`); `href.ts` şablon farkında;
+  robots panel kökünü dile göre kapatır. Testler: i18n `pathnames.test`, web
+  `href.test`, `navigation.test`, `public-routes.test`, `robots.test`.
+- Kategori ve şehir sayfalarındaki `IndexIntro` paragrafı üç dilde kaldırıldı.
+- Web 149 dosya / 838 test, yerel `next build` yeşil (ilk deneme `usePathname`
+  sunucu importuyla düştü → istemci modülü ayrıldı).
+
 ## 2026-09-24 (gece) — Faz 1e kapanış: son kalıntılar, şehir adları üç dilde, yumuşak 404
 
 Kullanıcı: "sayfa yolları gibi her şeyi kontrol et, çeviri kusursuz olmalı".

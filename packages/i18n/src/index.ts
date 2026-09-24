@@ -9,6 +9,7 @@
  *   @rothern/i18n/catalog/<dil>/<ad-alanı>.json → ham katalog (küçük yedekler için)
  */
 export * from "./locales";
+export * from "./pathnames";
 export type {
   ApiMessages,
   MessageTree,

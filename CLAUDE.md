@@ -273,9 +273,28 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   **otomatik dil tespiti KAPALI** (`localeDetection: false` — Googlebot `/`den
   `/en`e atılmaz, kök sayfa önbellekli kalır); dil seçici ve panelde
   `LocaleUrlSync` (üyenin kayıtlı dili ≠ adresteki dil → aynı sayfayı doğru
-  ön ekle açar) tek geçiş yolu. Yol PARÇALARI çevrilmez (`/en/urunler`,
-  `/en/products` değil — `pathnames` her bağlantıyı tipli nesneye çevirmeyi
-  isterdi). Tek kaynaklar: `src/i18n/{routing,navigation,request,href,params}.ts`.
+  ön ekle açar) tek geçiş yolu. **YOL PARÇALARI ÜÇ DİLDE (2026-09-24,
+  kullanıcı kararı "hangi dilse o dilde"):** `/en/products/category/<kod-ad>`,
+  `/ru/tovary/kategoriya/…`, `/en/companies/<firma>/products/<ürün>`,
+  `/en/buying-requests/<slug>`, panel `/en/company/purchasing/my-requests`,
+  `/ru/kompaniya/zakupki/moi-zayavki` (panel kökü dile göre; Türkçe `/company`
+  olduğu gibi — gönderilmiş e-postalar kırılmasın). Rusça LATİN çeviriyazı
+  (Kiril paylaşımda `%D0…` oluyordu). Varlık slug'ları hiçbir dilde değişmez.
+  TEK KAYNAK `@rothern/i18n` `ROUTE_PATHNAMES` (iç şablon → dil başına dış
+  şablon; `translateRoutePath`/`internalRoutePath` saf, edge-safe). next-intl
+  `routing.pathnames` middleware'de dış→iç yeniden yazar ve yanlış biçimi
+  (`/en/urunler`, `/products`, `/ru/company/login`) doğru biçime 308'ler.
+  **KOD İÇ (Türkçe) YOLU YAZAR:** `Link href="/urunler"`, `router.push`,
+  `redirect`, `localizePath` girdisi hep iç yol; çeviriyi `@/i18n/navigation`
+  sarmalayıcısı ve `@/i18n/href` yapar (next-intl dize adresi şablona
+  eşlemez, `usePathname` dinamik rotada ŞABLON döner → sarmalayıcı şart;
+  istemci hook'ları `navigation-client.tsx`te, sunucu importu için ayrı).
+  `usePathname`/`stripLocale` her zaman İÇ yol döner (menü aktiflik ve
+  `/company/login` karşılaştırmaları dilden bağımsız). `isPublicRoute`
+  (CSP profili) dış yolu iç yola indirger — indirgemeseydi `/en/products`
+  nonce'lu CSP alıp statik HTML'in betikleri engellenirdi. Yeni sayfa =
+  `ROUTE_PATHNAMES`e satır; `pathnames.test` üç dil + çakışma ister.
+  Tek kaynaklar: `src/i18n/{routing,navigation,navigation-client,request,href,params}.ts`.
   Kök rota işleyicileri (`api`, `sitemaps`, `sitemap.xml`, `robots.ts`,
   `llms*.txt`, `indexnow`) ve `global-error.tsx` `[locale]` DIŞINDA kalır;
   middleware bunları ve uzantılı dosyaları next-intl'e SOKMAZ (soksa
@@ -320,6 +339,11 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   `@rothern/i18n`'i **dist**'ten okur (use-intl yalnız ESM; paket build'i
   çevirmeni esbuild ile CJS'e gömer) → testten önce
   `pnpm --filter @rothern/i18n build` ŞART.
+- **`next/navigation` HOOK'U SUNUCUDAN İMPORT EDİLEN MODÜLDE OLAMAZ (2026-09-24,
+  yerel `next build` yakaladı; tsc/vitest/lint görmedi):** `usePathname` içeren
+  modül bir sunucu bileşeninden import edilince derleme "needs usePathname …
+  Client Component" ile düşer. Kural: hook'lar `"use client"` dosyada, kabuk
+  modül yeniden dışa aktarır (`navigation.tsx` ↔ `navigation-client.tsx`).
 - **Yeni workspace paketi ÜÇ yere eklenir** (2026-09-23'te yakalandı):
   `apps/api/Dockerfile` (`COPY packages/<ad>/package.json` + build satırı),
   `apps/web/vercel.json` `buildCommand`, jest `moduleNameMapper`. Biri

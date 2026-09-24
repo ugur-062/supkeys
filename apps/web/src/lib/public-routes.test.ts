@@ -69,6 +69,19 @@ describe("isPublicRoute", () => {
     expect(isPublicRoute("/xx/urunler")).toBe(false);
   });
 
+  it("çevrili yol parçalarını tanır (2026-09-24): /en/products herkese açık, /ru/kompaniya/vhod panel", () => {
+    expect(isPublicRoute("/en/products")).toBe(true);
+    expect(isPublicRoute("/en/products/category/31000000-x")).toBe(true);
+    expect(isPublicRoute("/ru/tovary/gorod/izmir")).toBe(true);
+    expect(isPublicRoute("/en/companies/acme-metal")).toBe(true);
+    expect(isPublicRoute("/ru/zayavki/rot-000042-boru")).toBe(true);
+    expect(isPublicRoute("/en/legal/privacy")).toBe(true);
+    expect(isPublicRoute("/ru/kompaniya")).toBe(false);
+    expect(isPublicRoute("/ru/kompaniya/vhod")).toBe(false);
+    expect(isPublicRoute("/en/company/purchasing/my-requests")).toBe(false);
+    expect(isPublicRoute("/ru/sbros-parolya")).toBe(false);
+  });
+
   it("panel rotalarını public SAYMAZ", () => {
     expect(isPublicRoute("/company")).toBe(false);
     expect(isPublicRoute("/company/login")).toBe(false);

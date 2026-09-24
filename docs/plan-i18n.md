@@ -200,6 +200,22 @@ panel içi kısa etiketler Claude çevirisiyle yayınlanır.
 - **Kalan kalıntılar bilinçli:** firma adları, "MERSİS", vergi dairesi adı,
   dil seçicideki "Türkçe" (dilin kendi adı), logo baş harfleri.
 
+## Faz 1f — yol parçaları üç dilde (2026-09-24, kullanıcı: "yol parçaları da hangi dilse o dilde olsun")
+- **Karar:** EN `/en/products`, `/en/companies/<slug>`, `/en/buying-requests`; RU Latin
+  çeviriyazı `/ru/tovary`, `/ru/kompanii`, `/ru/zayavki`; panel kökü dile göre
+  (`/en/company/…`, `/ru/kompaniya/…`, Türkçe `/company` sabit). Admin çevrilmez.
+- **Uygulama:** `@rothern/i18n` `ROUTE_PATHNAMES` (86 sayfa, ~75 sabit parça) +
+  saf eşleyiciler; next-intl `pathnames` (middleware yeniden yazma + 308);
+  `@/i18n/navigation` sarmalayıcısı dize adresleri çevirir (117 çağrı yeri
+  değişmedi); `localizePath`/`splitLocale`/`localizedAlternates` şablon farkında
+  → kanonik, hreflang, sitemap, robots kendiliğinden dış yolu üretir.
+- **Tuzaklar:** next-intl dize adresi birebir arar (dinamik rota çevrilmezdi);
+  `usePathname` şablon dönerdi; `isPublicRoute` dış yolu tanımasa `/en/products`
+  nonce'lu CSP alırdı; `next/navigation` hook'u sunucudan import edilen modülde
+  derlemeyi düşürür (istemci modülü ayrıldı).
+- Kategori/şehir sayfalarındaki giriş paragrafı (`IndexIntro`) kullanıcı isteğiyle
+  üç dilden kaldırıldı (aynı gün).
+
 ## Faz 4 — kategori adları EN/RU (2026-09-23 akşam)
 - **Neden şimdi:** üç dilli SEO taraması kategori sayfalarında (`/en/urunler/kategori/…`)
   başlık, h1 ve açıklamada Türkçe kategori adı gösterdi; talep meta

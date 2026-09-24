@@ -1,5 +1,6 @@
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { resolveSiteUrl } from "@/lib/site-url";
+import { localizePath } from "@/i18n/href";
 import { DEFAULT_LOCALE, LOCALES } from "@rothern/i18n";
 import type { MetadataRoute } from "next";
 
@@ -47,9 +48,15 @@ const AI_AGENTS = [
 
 /** Hiçbir ajanın girmemesi gereken yollar — tek kaynak. */
 const DISALLOW_BASE = ["/company/", "/admin/", "/api/", "/auth/", "/dev/"];
-// i18n Faz 1: ön ekli diller (`/en/company/`) de kapalı; Türkçe ön eksiz.
 const PREFIXES = LOCALES.filter((l) => l !== DEFAULT_LOCALE).map((l) => `/${l}`);
-const DISALLOW = [...DISALLOW_BASE, ...PREFIXES.flatMap((p) => DISALLOW_BASE.map((d) => `${p}${d}`))];
+// i18n: ön ekli diller de kapalı ve panel kökü DİLE GÖRE (`/en/company/`,
+// `/ru/kompaniya/`); Türkçe ön eksiz. Yol sözlüğü `localizePath` üzerinden.
+const DISALLOW = [
+  ...DISALLOW_BASE,
+  ...LOCALES.filter((l) => l !== DEFAULT_LOCALE).flatMap((l) =>
+    DISALLOW_BASE.map((d) => `${localizePath(d.replace(/\/$/, ""), l)}/`),
+  ),
+];
 
 /**
  * CANLI OLMAYAN ORTAM (staging/preview) HİÇ TARANMAMALI.
