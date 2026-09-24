@@ -73,6 +73,11 @@ describe("@/i18n/navigation — gerçek sarmalayıcı", () => {
     expect(screen.getByText("RU")).toHaveAttribute("href", "/ru/kompaniya/vhod");
   });
 
+  it("Türkçeye geçiş bağlantısı ön eksiz ve doğrudan (/tr/… 308 sekmesi yok)", () => {
+    wrap("en", <real.Link href="/urunler/sehir/izmir" locale="tr">TR</real.Link>);
+    expect(screen.getByText("TR")).toHaveAttribute("href", "/urunler/sehir/izmir");
+  });
+
   it("bilinmeyen yol yalnız ön ek alır, mutlak adres dokunulmaz", () => {
     wrap("ru", <real.Link href="/dev/ui">X</real.Link>);
     expect(screen.getByText("X")).toHaveAttribute("href", "/ru/dev/ui");
