@@ -1,8 +1,9 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { SilverLockCard } from "@/components/company/silver-lock-card";
-import { companyActivityLabel } from "@rothern/shared";
+import { useActivityLabel, useCityLabel } from "@/i18n/domain";
 import { EmptyState } from "@/components/list";
 import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
@@ -43,6 +44,7 @@ export function InquiriesView({
 }: {
   portal?: "satis" | "satinalma";
 } = {}) {
+  const tr = useTranslations("web.panel.trade.inquiriesView");
   const isSeller = portal === "satis";
   const accent = isSeller ? "zinc" : "blue";
   const received = useReceivedInquiries(isSeller);
@@ -59,7 +61,7 @@ export function InquiriesView({
       return (received.data?.items ?? []).map((i) => ({
         id: i.id,
         kind: "received" as const,
-        title: i.anonymous ? null : (i.name ?? i.companyName ?? "Alıcı"),
+        title: i.anonymous ? null : (i.name ?? i.companyName ?? tr("alici")),
         subtitle: i.anonymous ? null : (i.companyName && i.name ? i.companyName : null),
         product: i.product,
         message: i.message,
@@ -81,7 +83,7 @@ export function InquiriesView({
       replies: i.replies,
       raw: i,
     }));
-  }, [isSeller, received.data, sent.data]);
+  }, [isSeller, received.data, sent.data, tr]);
 
   const openCount = threads.filter((t) => t.replies.length === 0).length;
   const answeredCount = threads.length - openCount;
@@ -111,11 +113,11 @@ export function InquiriesView({
   return (
     <PageContainer>
       <PageHeader
-        title={isSeller ? "Bilgi Talepleri" : "Bilgi Taleplerim"}
+        title={isSeller ? tr("bilgiTalepleri") : tr("bilgiTaleplerim")}
         description={
           isSeller
-            ? "Ürünleriniz hakkında gelen sorular — yanıtladıkça alıcı panelinde görünür."
-            : "Tedarikçi ürünleri hakkında gönderdiğiniz sorular ve gelen yanıtlar."
+            ? tr("urunlerinizHakkindaGelenSorularYanitladikca")
+            : tr("tedarikciUrunleriHakkindaGonderdiginizSorula")
         }
         action={
           isSeller ? undefined : (
@@ -123,7 +125,7 @@ export function InquiriesView({
               href="/company/satinalma/urunler"
               className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
-              Ürün ara
+              {tr("urunAra")}
             </Link>
           )
         }
@@ -135,37 +137,37 @@ export function InquiriesView({
           <SilverLockCard
             title={
               threads.length > 0
-                ? `${threads.length} bilgi talebi — kim sorduğu ve yanıt Silver ile açılır`
-                : "Gelen soruları görürsünüz; kim sorduğu ve yanıt Silver ile açılır"
+                ? tr("bilgiTalebiKimSorduguVe", { count: threads.length })
+                : tr("gelenSorulariGorursunuzKimSordugu")
             }
-            description="Ücretsiz üyelikte alıcının sorusunu, adedini ve şehrini görürsünüz. Alıcının kimliği, iletişim bilgileri ve yanıt gönderme Silver paketiyle açılır — alıcı, doğrulanmış tedarikçilere yöneliyor."
+            description={tr("ucretsizUyelikteAlicininSorusunuAdedini")}
           />
         </div>
       ) : null}
 
       {loading ? (
-        <p className="mt-8 text-sm text-zinc-500">Yükleniyor…</p>
+        <p className="mt-8 text-sm text-zinc-500">{tr("yukleniyor")}</p>
       ) : threads.length === 0 ? (
         <EmptyState
           className="mt-8"
           icon={isSeller ? Inbox : Send}
-          title={isSeller ? "Henüz bilgi talebi yok." : "Gönderdiğiniz talep yok."}
+          title={isSeller ? tr("henuzBilgiTalebiYok") : tr("gonderdiginizTalepYok")}
           description={
             isSeller
-              ? "Ürünlerinizi vitrine çıkardığınızda alıcılar buradan soru sorabilir."
-              : "Bir ürüne girip 'Bilgi / teklif iste' ile soru gönderin; yanıtlar burada birikir."
+              ? tr("urunleriniziVitrineCikardiginizdaAlicilarBur")
+              : tr("birUruneGiripBilgiTeklif")
           }
         />
       ) : (
         <>
           {/* Araç çubuğu: süzgeç çipleri + arama. Renk portaldan. */}
           <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-            <div className="inline-flex gap-1 rounded-xl bg-zinc-100 p-1" role="tablist" aria-label="Süzgeç">
+            <div className="inline-flex gap-1 rounded-xl bg-zinc-100 p-1" role="tablist" aria-label={tr("suzgec")}>
               {(
                 [
-                  { key: "all", label: "Tümü", count: threads.length },
-                  { key: "open", label: isSeller ? "Yanıt bekleyen" : "Yanıt bekleniyor", count: openCount },
-                  { key: "answered", label: isSeller ? "Yanıtlanan" : "Yanıt gelen", count: answeredCount },
+                  { key: "all", label: tr("tumu"), count: threads.length },
+                  { key: "open", label: isSeller ? tr("yanitBekleyen") : tr("yanitBekleniyor"), count: openCount },
+                  { key: "answered", label: isSeller ? tr("yanitlanan") : tr("yanitGelen"), count: answeredCount },
                 ] as const
               ).map((f) => (
                 <button
@@ -189,8 +191,8 @@ export function InquiriesView({
               <input
                 value={q}
                 onChange={(e) => setQ(e.target.value)}
-                placeholder={isSeller ? "Alıcı, ürün ya da mesaj ara" : "Firma, ürün ya da mesaj ara"}
-                aria-label="Bilgi taleplerinde ara"
+                placeholder={isSeller ? tr("aliciUrunYaDaMesaj") : tr("firmaUrunYaDaMesaj")}
+                aria-label={tr("bilgiTaleplerindeAra")}
                 className="w-full rounded-lg border border-zinc-300 py-2 pr-3 pl-9 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
               />
             </div>
@@ -200,9 +202,9 @@ export function InquiriesView({
           <div className="mt-4 grid min-h-[32rem] grid-cols-1 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 lg:grid-cols-[22rem_minmax(0,1fr)]">
             <div className={cn("border-zinc-950/5 lg:border-r", mobileOpen ? "hidden lg:block" : "block")}>
               {visible.length === 0 ? (
-                <p className="p-6 text-sm text-zinc-500">Bu süzgeçte talep yok.</p>
+                <p className="p-6 text-sm text-zinc-500">{tr("buSuzgecteTalepYok")}</p>
               ) : (
-                <ul className="divide-y divide-zinc-950/5" aria-label="Bilgi talepleri">
+                <ul className="divide-y divide-zinc-950/5" aria-label={tr("bilgiTalepleri2")}>
                   {visible.map((t) => (
                     <ThreadRow
                       key={t.id}
@@ -229,7 +231,7 @@ export function InquiriesView({
                   onBack={() => setMobileOpen(false)}
                 />
               ) : (
-                <div className="flex h-full items-center justify-center p-10 text-sm text-zinc-500">Bir talep seçin.</div>
+                <div className="flex h-full items-center justify-center p-10 text-sm text-zinc-500">{tr("birTalepSecin")}</div>
               )}
             </div>
           </div>
@@ -274,13 +276,14 @@ function ThreadRow({
   isSeller: boolean;
   onSelect: () => void;
 }) {
+  const tr = useTranslations("web.panel.trade.inquiriesView");
   const open = t.replies.length === 0;
   const last = t.replies.length ? t.replies[t.replies.length - 1] : null;
   // Son hareket: yanıt varsa yanıt, yoksa soru. Satırda "Kim: …" biçimi —
   // konuşma balonundaki tam metinle aynı dize olmasın (okuma ve test için).
   const excerpt = last
-    ? `${isSeller ? "Siz" : t.title ?? "Satıcı"}: ${last.body}`
-    : `${isSeller ? (t.title ?? "Alıcı") : "Siz"}: ${t.message}`;
+    ? tr("kimMesaj", { who: isSeller ? tr("siz") : (t.title ?? tr("satici")), text: last.body })
+    : tr("kimMesaj", { who: isSeller ? (t.title ?? tr("alici")) : tr("siz"), text: t.message });
   return (
     <li>
       <button
@@ -304,7 +307,7 @@ function ThreadRow({
         <span className="min-w-0 flex-1">
           <span className="flex items-baseline justify-between gap-2">
             <span className={cn("truncate text-sm font-semibold", t.title ? "text-zinc-950" : "text-zinc-500")}>
-              {t.title ?? "Alıcı kimliği gizli"}
+              {t.title ?? tr("aliciKimligiGizli")}
             </span>
             <span className="shrink-0 text-[11px] text-zinc-500">{t.at ? formatDate(t.at, "short") : ""}</span>
           </span>
@@ -312,7 +315,7 @@ function ThreadRow({
           <span className={cn("mt-0.5 block truncate text-xs", open ? "font-medium text-zinc-800" : "text-zinc-500")}>{excerpt}</span>
         </span>
         {open ? (
-          <span aria-label={isSeller ? "Yanıt bekliyor" : "Yanıt bekleniyor"} className={cn("mt-2 size-2 shrink-0 rounded-full", accent === "blue" ? "bg-blue-600" : "bg-amber-500")} />
+          <span aria-label={isSeller ? tr("yanitBekliyor") : tr("yanitBekleniyor")} className={cn("mt-2 size-2 shrink-0 rounded-full", accent === "blue" ? "bg-blue-600" : "bg-amber-500")} />
         ) : null}
       </button>
     </li>
@@ -330,6 +333,9 @@ function ThreadPane({
   accent: "zinc" | "blue";
   onBack: () => void;
 }) {
+  const tr = useTranslations("web.panel.trade.inquiriesView");
+  const activityLabel = useActivityLabel();
+  const cityLabel = useCityLabel();
   const r = t.kind === "received" ? (t.raw as ReceivedInquiry) : null;
   const s = t.kind === "sent" ? (t.raw as SentInquiry) : null;
   const productHref =
@@ -339,34 +345,34 @@ function ThreadPane({
         ? "/company/satis/urunlerim"
         : null;
   const meta = r
-    ? [r.buyerCity, ...(r.buyerActivities ?? []).map((a) => companyActivityLabel(a))].filter(Boolean).join(" · ")
+    ? [r.buyerCity ? cityLabel(r.buyerCity) : null, ...(r.buyerActivities ?? []).map((a) => activityLabel(a))].filter(Boolean).join(" · ")
     : null;
 
   return (
     <div className="flex h-full min-h-[32rem] flex-col">
       {/* Konuşma başlığı */}
       <div className="flex items-start gap-3 border-b border-zinc-950/5 px-5 py-4">
-        <button type="button" onClick={onBack} className="mt-0.5 text-zinc-500 hover:text-zinc-900 lg:hidden" aria-label="Listeye dön">
+        <button type="button" onClick={onBack} className="mt-0.5 text-zinc-500 hover:text-zinc-900 lg:hidden" aria-label={tr("listeyeDon")}>
           <ArrowLeftIcon aria-hidden className="size-5" />
         </button>
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <p className={cn("text-sm font-semibold", t.title ? "text-zinc-950" : "text-zinc-500")}>
-              {t.title ?? "Alıcı kimliği Silver ile açılır"}
+              {t.title ?? tr("aliciKimligiSilverIleAcilir")}
             </p>
             {t.subtitle ? <span className="text-sm text-zinc-500">· {t.subtitle}</span> : null}
             {r ? (
-              r.hasAccount ? <Badge color="emerald">Kayıtlı kullanıcı</Badge> : <Badge color="zinc">Misafir</Badge>
+              r.hasAccount ? <Badge color="emerald">{tr("kayitliKullanici")}</Badge> : <Badge color="zinc">{tr("misafir")}</Badge>
             ) : null}
             {t.replies.length === 0 ? (
-              <Badge color="amber">{isSeller ? "Yanıt bekliyor" : "Yanıt bekleniyor"}</Badge>
+              <Badge color="amber">{isSeller ? tr("yanitBekliyor") : tr("yanitBekleniyor")}</Badge>
             ) : (
-              <Badge color="emerald">Yanıtlandı</Badge>
+              <Badge color="emerald">{tr("yanitlandi")}</Badge>
             )}
           </div>
           {meta ? <p className="mt-0.5 text-xs text-zinc-500">{meta}</p> : null}
           <p className="mt-1 text-xs text-zinc-600">
-            <span className="text-zinc-500">Ürün:</span>{" "}
+            <span className="text-zinc-500">{tr("urun")}</span>{" "}
             {productHref ? (
               <Link href={productHref} className="font-medium text-zinc-900 underline-offset-2 hover:underline">
                 {t.product.name}
@@ -381,16 +387,16 @@ function ThreadPane({
 
       {/* Mesajlar — soru solda, yanıtlar sağda. */}
       <div className="flex-1 space-y-4 overflow-y-auto px-5 py-5">
-        <Bubble side={isSeller ? "left" : "right"} accent={accent} at={t.at} who={isSeller ? (t.title ?? "Alıcı") : "Siz"}>
+        <Bubble side={isSeller ? "left" : "right"} accent={accent} at={t.at} who={isSeller ? (t.title ?? tr("alici")) : tr("siz")}>
           {t.message}
         </Bubble>
         {t.replies.map((rep) => (
-          <Bubble key={rep.id} side={isSeller ? "right" : "left"} accent={accent} at={rep.createdAt} who={isSeller ? "Siz" : (t.title ?? "Satıcı")}>
+          <Bubble key={rep.id} side={isSeller ? "right" : "left"} accent={accent} at={rep.createdAt} who={isSeller ? tr("siz") : (t.title ?? tr("satici"))}>
             {rep.body}
           </Bubble>
         ))}
         {!isSeller && t.replies.length === 0 ? (
-          <p className="text-center text-xs text-zinc-500">Satıcı henüz yanıtlamadı — yanıt gelince burada ve bildirimlerde görünür.</p>
+          <p className="text-center text-xs text-zinc-500">{tr("saticiHenuzYanitlamadiYanitGelince")}</p>
         ) : null}
       </div>
 
@@ -436,6 +442,7 @@ function Bubble({
 }
 
 function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc" | "blue" }) {
+  const t = useTranslations("web.panel.trade.inquiriesView");
   const [body, setBody] = useState("");
   // Yanıt = "Bilgi taleplerini yanıtlama" işlem izni (API aynası); izinsiz okur.
   const canReply = useHasCompanyPermission("sell:inquiry:reply");
@@ -444,7 +451,7 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
   if (inquiry.anonymous) {
     return (
       <p className="border-t border-zinc-950/5 bg-zinc-50 px-5 py-3 text-xs text-zinc-600">
-        Yanıtlamak ve alıcının iletişim bilgilerini görmek Silver paketiyle açılır.
+        {t("yanitlamakVeAlicininIletisimBilgilerini")}
       </p>
     );
   }
@@ -455,9 +462,9 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
     try {
       await reply.mutateAsync({ id: inquiry.id, body });
       setBody("");
-      toast.success("Yanıtınız gönderildi");
+      toast.success(t("yanitinizGonderildi"));
     } catch {
-      toast.error("Yanıt gönderilemedi");
+      toast.error(t("yanitGonderilemedi"));
     }
   };
 
@@ -471,15 +478,15 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
         }}
         rows={3}
         maxLength={5000}
-        placeholder="Yanıtınızı yazın…"
+        placeholder={t("yanitiniziYazin")}
         className="w-full rounded-xl border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
       />
       <div className="mt-2 flex items-center justify-between gap-3">
         {/* Ziyaretçi henüz kaydolmadıysa yanıtı okumak için hesap açması gerekiyor. */}
         <p className="text-xs text-zinc-500">
           {inquiry.hasAccount
-            ? "Yanıtınız alıcının panelinde görünür. Ctrl+Enter ile gönder."
-            : "Ziyaretçiye “yanıt geldi” bildirimi gider; okumak için hesap açması gerekir."}
+            ? t("yanitinizAlicininPanelindeGorunurCtrl")
+            : t("ziyaretciyeYanitGeldiBildirimiGider")}
         </p>
         <button
           type="button"
@@ -491,7 +498,7 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
           )}
         >
           <PaperAirplaneIcon aria-hidden className="size-4" />
-          Yanıtla
+          {t("yanitla")}
         </button>
       </div>
     </div>

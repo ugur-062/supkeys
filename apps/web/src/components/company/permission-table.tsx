@@ -1,10 +1,12 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Checkbox } from "@/components/catalyst/checkbox";
 import type {
   PermissionCatalog,
   PermissionCatalogItem,
 } from "@/hooks/use-company-users";
+import { useRoleLabel } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
 import {
   ClipboardCheck,
@@ -29,12 +31,13 @@ const VIEW_OF: Partial<Record<PermissionCatalogItem["group"], string>> = {
 
 export type PresetKey = keyof PermissionCatalog["presets"];
 
-const PRESETS: { key: PresetKey; label: string; icon: LucideIcon; hint: string }[] = [
-  { key: "SATIN_ALMACI", label: "Satın Almacı", icon: ShoppingCart, hint: "Talep açar, kazandırır, alım siparişini yürütür" },
-  { key: "SATISCI", label: "Satışçı", icon: Store, hint: "Teklif verir, ürün yayımlar, satış siparişini yürütür" },
-  { key: "ONAYLAYICI", label: "Onaylayıcı", icon: ClipboardCheck, hint: "Yalnız onaylar" },
-  { key: "YONETICI", label: "Yönetici", icon: Settings2, hint: "Görür, yönetir, onaylar; işlem yapmaz" },
-  { key: "GORUNTULEYICI", label: "Görüntüleyici", icon: Eye, hint: "Yalnız görür, koltuk tüketmez" },
+/** Hazır set çipleri — etiket rol sözlüğünden (`useRoleLabel`), ipucu `presetHint.<KOD>`. */
+const PRESETS: { key: PresetKey; icon: LucideIcon }[] = [
+  { key: "SATIN_ALMACI", icon: ShoppingCart },
+  { key: "SATISCI", icon: Store },
+  { key: "ONAYLAYICI", icon: ClipboardCheck },
+  { key: "YONETICI", icon: Settings2 },
+  { key: "GORUNTULEYICI", icon: Eye },
 ];
 
 function sameSet(a: readonly string[], b: readonly string[]) {
@@ -80,6 +83,19 @@ export function PermissionTable({
   canGrantBuy?: boolean;
   disabled?: boolean;
 }) {
+  const t = useTranslations("web.panel.trade.permissionTable");
+  const roleLabel = useRoleLabel();
+  // Görüntüleyici bir rol değil, yalnız hazır set → etiketi bu ad alanında.
+  const presetLabel = (k: PresetKey) => (k === "GORUNTULEYICI" ? t("goruntuleyici") : roleLabel(k));
+  // İzin/grup adları API'den Türkçe gelir (paylaşılan katalog, i18n Faz 3'e
+  // dek); istek dilinde karşılığı `perm.<kod>`/`group.<kod>` anahtarında varsa
+  // o basılır, yoksa sunucu etiketi — yeni bir izin eklenince ekran kırılmasın.
+  const permLabel = (c: PermissionCatalogItem) => {
+    const k = `perm.${c.key.replace(/:/g, "_")}`;
+    return t.has(k as never) ? t(k as never) : c.label;
+  };
+  const groupLabel = (g: PermissionCatalogItem["group"]) =>
+    t.has(`group.${g}` as never) ? t(`group.${g}` as never) : catalog.groups[g];
   const has = (k: string) => value.includes(k);
   const groupHasOp = (g: "buy" | "sell") =>
     catalog.catalog.some((c) => c.group === g && c.seat && has(c.key));
@@ -129,7 +145,7 @@ export function PermissionTable({
 
   const groups = GROUP_ORDER.map((g) => ({
     key: g,
-    label: catalog.groups[g],
+    label: groupLabel(g),
     items: catalog.catalog.filter((c) => c.group === g),
   }));
 
@@ -138,7 +154,7 @@ export function PermissionTable({
       {!targetIsOwner ? (
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-            Hazır setler
+            {t("hazirSetler")}
           </p>
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {PRESETS.map((p) => {
@@ -149,7 +165,7 @@ export function PermissionTable({
                   key={p.key}
                   type="button"
                   disabled={disabled}
-                  title={p.hint}
+                  title={t(`presetHint.${p.key}`)}
                   aria-pressed={on}
                   onClick={() => applyPreset(p.key)}
                   className={cn(
@@ -161,15 +177,15 @@ export function PermissionTable({
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" aria-hidden />
-                  {p.label}
+                  {presetLabel(p.key)}
                 </button>
               );
             })}
           </div>
           <p className="mt-1 text-xs text-zinc-500">
             {activePreset
-              ? "Hazır set uygulanıyor; aşağıdan kişiye özel değiştirebilirsiniz."
-              : "Kişiye özel yetki kümesi."}
+              ? t("hazirSetUygulaniyorAsagidanKisiye")
+              : t("kisiyeOzelYetkiKumesi")}
           </p>
         </div>
       ) : null}
@@ -187,8 +203,8 @@ export function PermissionTable({
                 {isSeatGroup ? (
                   <span className="ml-1.5 font-medium normal-case text-zinc-500">
                     {g.key === "buy" && !canGrantBuy
-                      ? "· Gold pakette açılır"
-                      : "· işlem tiki koltuk sayar"}
+                      ? t("goldPaketteAcilir")
+                      : t("islemTikiKoltukSayar")}
                   </span>
                 ) : null}
               </legend>
@@ -219,15 +235,15 @@ export function PermissionTable({
                     viewImplied;
                   const checked = implicitOwner || has(c.key);
                   const reason = implicitOwner
-                    ? "Kurucuda örtük"
+                    ? t("kurucudaOrtuk")
                     : ownerOnly
-                      ? "Yalnız Kurucu verir"
+                      ? t("yalnizKurucuVerir")
                       : tierBlock
-                        ? "Gold pakette"
+                        ? t("goldPakette")
                         : seatBlock
-                          ? "Koltuk dolu"
+                          ? t("koltukDolu")
                           : viewImplied
-                            ? "İşlem tiki ile birlikte gelir"
+                            ? t("islemTikiIleBirlikteGelir")
                             : null;
                   return (
                     <li key={c.key}>
@@ -241,15 +257,15 @@ export function PermissionTable({
                           checked={checked}
                           disabled={locked}
                           onChange={(on) => toggle(c.key, on)}
-                          aria-label={c.label}
+                          aria-label={permLabel(c)}
                         />
-                        <span className="min-w-0 flex-1 truncate">{c.label}</span>
+                        <span className="min-w-0 flex-1 truncate">{permLabel(c)}</span>
                         {c.seat ? (
                           <span
                             className="rounded bg-zinc-100 px-1 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-zinc-500"
-                            title="Koltuk tüketir"
+                            title={t("koltukTuketir")}
                           >
-                            koltuk
+                            {t("koltuk")}
                           </span>
                         ) : null}
                         {reason ? (

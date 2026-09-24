@@ -502,7 +502,9 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   `useListingTerms`, `useFormatPaymentPlan`, `useListingStatusLabel`,
   `useSellerStateLabel` (`deriveSellerTenderState().key`), `useRoleLabel`,
   `useTierLabel`, `useAiFeatureLabel`, `useAuditActionLabel`, `useLcTypeLabel`,
-  `useTransportModeLabel`, `useCurrencyName` (Intl), `useRelativeTime`;
+  `useTransportModeLabel`, `useCurrencyName` (Intl), `useRelativeTime`,
+  `useOrderStatusLabel`/`useOrderStepLabel` (sipariş listesi + detayı TEK
+  sözlük), ürün durumu `useProductStatusMeta` (`products/product-status-label.ts`);
   eski TR sözlükler (`lib/company/labels.ts`, `lib/tenders/labels.ts`,
   `lib/company/terms.ts`) göç bitene dek durur, yeni kod hook kullanır; ölü
   sözlükler silindi. Modül düzeyi Türkçe yardımcı (`timeAgo`, `timeLabel`,
@@ -514,7 +516,12 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   entity'ler decode edilmeli; `t` adı bileşende başka bağ olabilir (tema `t`,
   `.map((t) =>`) → codemod çakışmada `tr`/`tPanel`; varsayılan parametre
   değeri (`countNoun = "ürün"`) `t` görmez → gövdeye taşı; typed
-  `t(key)` dize anahtarla `as never`. Cırcır tabanı 395 dosya / 5.659.
+  `t(key)` dize anahtarla `as never`; codemod VERİ değerlerini de çevirir
+  (`<option value>`, `accept` uzantıları, DOM id'leri, sıralama değerleri) →
+  yazma turundan sonra elle geri alınır; kaydedilen `unit` Türkçe ad kalır (API
+  sözlüğü), yalnız etiket çevrilir. Partiler 1-3 (kabuk/panolar · talep
+  ekranları · teklif/sipariş/ürün/bilgi talebi) BİTTİ; cırcır tabanı 310 dosya
+  / 3.799.
 - **PANEL DE OKUYUCUNUN DİLİNDE (Faz 1e kapanış, 2026-09-23 akşam, kullanıcı:
   "kalemler çevrilmemiş"):** başka firmanın verisini okuyan panel uçları da
   çeviri servisinden geçer — `company/listings/seller-tenders` (başlık +

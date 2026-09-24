@@ -1,6 +1,10 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
+import { useUnitLabel } from "@/i18n/domain";
+import { formatNumber } from "@/i18n/format";
+import { useProductStatusMeta } from "./product-status-label";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { useSearchParams } from "next/navigation";
@@ -22,20 +26,13 @@ import { Badge } from "@/components/catalyst/badge";
 import { EmptyState } from "@/components/list";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { formatDate } from "@/lib/format-date";
-import { PRODUCT_STATUS, productStatusKey } from "@/lib/company/product-status";
+import { productStatusKey } from "@/lib/company/product-status";
 import { ArrowLeftIcon, EllipsisVerticalIcon, EyeIcon, MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import { Thumb } from "@/components/ui/thumb";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
-
-/** Fiyat modu → kısa etiket (form seçenekleriyle aynı sözcükler). */
-const PRICE_MODE_LABEL: Record<CatalogItem["priceMode"], string> = {
-  FIXED: "Sabit fiyat",
-  TIERED: "Kademeli",
-  ON_REQUEST: "Teklif isteyin",
-};
 
 type ProductTab = "all" | "published" | "pending" | "rejected" | "draft";
 const TAB_KEYS: ProductTab[] = ["all", "published", "pending", "rejected", "draft"];
@@ -82,6 +79,8 @@ const EMPTY_PRODUCT: ProductShowcase = {
 };
 
 export function ProductsView() {
+  const tr = useTranslations("web.panel.trade.productsView");
+  const statusMeta = useProductStatusMeta();
   const [q, setQ] = useState("");
   // `?sekme=rejected` — "düzeltme istendi" e-postasındaki CTA doğrudan o sekmeye açar.
   const searchParams = useSearchParams();
@@ -138,7 +137,7 @@ export function ProductsView() {
       setEditorOpen(false);
       setEditing({ item, showcase });
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Ürün açılamadı"));
+      toast.error(extractErrorMessage(err, tr("urunAcilamadi")));
     }
   };
 
@@ -166,7 +165,7 @@ export function ProductsView() {
           className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900"
         >
           <ArrowLeftIcon aria-hidden className="size-4" />
-          Ürünlere dön
+          {tr("urunlereDon")}
         </button>
         {/* Başlık eylem çubuğunda (ad + durum + Kaydet) — ayrı sayfa başlığı yok. */}
         <div className="mt-2">
@@ -206,10 +205,10 @@ export function ProductsView() {
           className="mb-6 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900"
         >
           <ArrowLeftIcon aria-hidden className="size-4" />
-          Ürünlere dön
+          {tr("urunlereDon")}
         </button>
         {inReview ? (
-          <PageHeader title={editing.item.name} description="Ürün incelemede — ekibimiz karar verene kadar yalnız önizlenir." />
+          <PageHeader title={editing.item.name} description={tr("urunIncelemedeEkibimizKararVerene")} />
         ) : null}
         <div className={inReview ? "mt-8" : "mt-2"}>
           {inReview ? (
@@ -248,25 +247,25 @@ export function ProductsView() {
   // Tümü = toplam.
   const pendingOnly = counts ? Math.max(0, counts.pending - pendingPublished) : undefined;
   const tabs: { key: ProductTab; label: string; count?: number }[] = [
-    { key: "all", label: "Tümü", count: counts && pendingOnly != null ? counts.published + counts.draft + counts.rejected + pendingOnly : undefined },
-    { key: "published", label: PRODUCT_STATUS.published.label, count: counts?.published },
-    { key: "pending", label: PRODUCT_STATUS.pending.label, count: pendingOnly },
-    { key: "rejected", label: PRODUCT_STATUS.rejected.label, count: counts?.rejected },
-    { key: "draft", label: PRODUCT_STATUS.draft.label, count: counts?.draft },
+    { key: "all", label: tr("tumu"), count: counts && pendingOnly != null ? counts.published + counts.draft + counts.rejected + pendingOnly : undefined },
+    { key: "published", label: statusMeta("published").label, count: counts?.published },
+    { key: "pending", label: statusMeta("pending").label, count: pendingOnly },
+    { key: "rejected", label: statusMeta("rejected").label, count: counts?.rejected },
+    { key: "draft", label: statusMeta("draft").label, count: counts?.draft },
   ];
 
   return (
     <PageContainer>
       <PageHeader
-        title="Ürünlerim"
+        title={tr("urunlerim")}
         // "Arama motorlarında görünür" SÖZÜ pazar yeri anahtarına bağlı:
         // ürün sayfası anahtar kapalıyken de AÇIK (görünürlük ≠ indekslenme,
         // 2026-09-03) ama `noindex` alır ve sitemap'e girmez. Anahtar kapalıyken
         // o cümle yalan olur — kullanıcı ürününü Google'da arar, bulamaz.
         description={
           MARKETPLACE_LIVE
-            ? "Firmanızın herkese açık vitrini. Onaya gönderdiğiniz ürünler ekibimizce incelenir; onaylananlar firma profilinizde ve arama motorlarında görünür."
-            : "Firmanızın herkese açık vitrini. Onaya gönderdiğiniz ürünler ekibimizce incelenir; onaylananlar firma profilinizde görünür, arama motorlarına açılma pazar yeri yayınıyla başlar."
+            ? tr("firmanizinHerkeseAcikVitriniOnaya")
+            : tr("firmanizinHerkeseAcikVitriniOnaya2")
         }
         action={
           // TOPLU EKLEME KALDIRILDI (2026-09-15, kullanıcı kararı): Excel
@@ -278,7 +277,7 @@ export function ProductsView() {
               onClick={() => setCreating(true)}
               className="rounded-full bg-emerald-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-emerald-700"
             >
-              Yeni ürün
+              {tr("yeniUrun")}
             </button>
           )
         }
@@ -289,7 +288,7 @@ export function ProductsView() {
           büyük kutuları kaldır"). Hap = süzgeç; seçili olan portal renginde
           (emerald), sayaç rozeti içinde. Sayaçlar firma geneli, MECE. */}
       <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label="Ürün durumu">
+        <div className="flex flex-wrap items-center gap-2" role="tablist" aria-label={tr("urunDurumu")}>
           {tabs.map((t) => {
             const active = tab === t.key;
             return (
@@ -329,7 +328,7 @@ export function ProductsView() {
           <input
             value={q}
             onChange={(e) => setQ(e.target.value)}
-            placeholder="Ürünlerde ara…"
+            placeholder={tr("urunlerdeAra")}
             className="w-full rounded-xl border border-zinc-300 bg-white py-2.5 pr-3 pl-9 text-sm shadow-sm outline-none placeholder:text-zinc-500 focus:border-emerald-600 focus:ring-2 focus:ring-emerald-600/15"
           />
         </div>
@@ -337,12 +336,13 @@ export function ProductsView() {
 
       {profileHidden ? (
         <p className="mt-3 max-w-2xl rounded-lg bg-amber-50 px-3 py-2 text-sm text-amber-900 ring-1 ring-amber-600/20">
-          Firma profiliniz henüz herkese açık değil: ürünleriniz profil yayınlanana kadar dizinde ve
-          firma sayfanızda görünmez.{" "}
-          <Link href="/company/sirketim/profil" className="font-medium underline">
-            Profili yayınla
-          </Link>
-          .
+          {tr.rich("firmaProfilinizHenuzHerkeseAcikDegil", {
+            link: (c) => (
+              <Link href="/company/sirketim/profil" className="font-medium underline">
+                {c}
+              </Link>
+            ),
+          })}
         </p>
       ) : null}
 
@@ -352,44 +352,47 @@ export function ProductsView() {
             publishLimitReached ? "bg-amber-50 text-amber-900 ring-1 ring-amber-600/20" : "bg-zinc-50 text-zinc-600"
           }`}
         >
-          Ücretsiz pakette en fazla {productLimit} ürün yayında ya da onayda olabilir ({occupied}/{productLimit}
-          {" "}kullanıldı). Taslak sınırsız.{" "}
-          <Link href="/nasil-calisir#fiyatlar" className="font-medium text-zinc-900 underline">
-            Silver ile sınırsız ürün, belge ve video
-          </Link>
-          .
+          {tr.rich("ucretsizPaketteEnFazlaUrun", {
+            limit: productLimit,
+            occupied,
+            link: (c) => (
+              <Link href="/nasil-calisir#fiyatlar" className="font-medium text-zinc-900 underline">
+                {c}
+              </Link>
+            ),
+          })}
         </p>
       ) : null}
 
       {isLoading ? (
-        <p className="mt-8 text-sm text-zinc-500">Yükleniyor…</p>
+        <p className="mt-8 text-sm text-zinc-500">{tr("yukleniyor")}</p>
       ) : visible.length === 0 ? (
         /* Ortak EmptyState (1d): ikon + başlık + tek satır + TEK eylem. */
         <EmptyState
           icon={Package}
           title={
             q
-              ? "Eşleşen ürün yok."
+              ? tr("eslesenUrunYok")
               : tab === "published"
-                ? "Yayında ürün yok."
+                ? tr("yayindaUrunYok")
                 : tab === "pending"
-                  ? "Onay bekleyen ürün yok."
+                  ? tr("onayBekleyenUrunYok")
                   : tab === "rejected"
-                    ? "Düzeltme istenen ürün yok."
+                    ? tr("duzeltmeIstenenUrunYok")
                     : tab === "draft"
-                      ? "Taslak ürün yok."
-                      : "Henüz ürün yok."
+                      ? tr("taslakUrunYok")
+                      : tr("henuzUrunYok")
           }
           description={
             q
-              ? "Aramayı değiştirip tekrar deneyin."
+              ? tr("aramayiDegistiripTekrarDeneyin")
               : tab === "published"
-                ? "Taslak ürünleri düzenleyip 'Onaya gönder' ile inceleme kuyruğuna alın; onaylananlar burada görünür."
+                ? tr("taslakUrunleriDuzenleyipOnayaGonder")
                 : tab === "pending"
-                  ? "Onaya gönderdiğiniz ürünler inceleme boyunca burada durur; yayındayken yeniden incelenenler Yayında sekmesinde kalır."
+                  ? tr("onayaGonderdiginizUrunlerIncelemeBoyunca")
                   : tab === "rejected"
-                    ? "Düzeltme istenen ürün gerekçesiyle burada listelenir; düzenleyip yeniden gönderebilirsiniz."
-                    : "Vitrininize eklediğiniz ürünler firma sayfanızda görünür ve açık talep eşleşmesini besler."
+                    ? tr("duzeltmeIstenenUrunGerekcesiyleBurada")
+                    : tr("vitrininizeEklediginizUrunlerFirmaSayfanizda")
           }
           variant={q || tab !== "all" ? "no-results" : "no-data"}
           className="mt-4"
@@ -400,7 +403,7 @@ export function ProductsView() {
                 onClick={() => setCreating(true)}
                 className="rounded-full bg-emerald-600 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-700"
               >
-                Yeni ürün ekle
+                {tr("yeniUrunEkle")}
               </button>
             )
           }
@@ -411,7 +414,7 @@ export function ProductsView() {
 
       {data?.truncated ? (
         <p className="mt-4 text-xs text-zinc-500">
-          Sonuçlar kırpıldı — aramayı daraltın.
+          {tr("sonuclarKirpildiAramayiDaraltin")}
         </p>
       ) : null}
     </PageContainer>
@@ -437,6 +440,10 @@ function ProductRows({
   items: CatalogItem[];
   onOpen: (item: CatalogItem) => void;
 }) {
+  const t = useTranslations("web.panel.trade.productsView");
+  const statusMeta = useProductStatusMeta();
+  const unitLabel = useUnitLabel();
+  const locale = useLocale();
   const ids = useMemo(
     () => [...new Set(items.map((i) => i.categoryId).filter((c): c is string => !!c))],
     [items],
@@ -444,31 +451,38 @@ function ProductRows({
   const cats = useCategoriesByIds(ids);
   const catName = (id: string | null) =>
     id ? (cats.data?.find((c) => c.id === id)?.nameTr ?? null) : null;
+  /** Fiyat modu → kısa etiket (form seçenekleriyle aynı sözcükler); bilinmeyen kod olduğu gibi. */
+  const priceModeLabel = (m: CatalogItem["priceMode"]) =>
+    t.has(`priceMode.${m}` as never) ? t(`priceMode.${m}` as never) : m;
   const price = (it: CatalogItem) =>
     it.priceMode === "ON_REQUEST" || it.priceAmount == null
-      ? PRICE_MODE_LABEL[it.priceMode] ?? it.priceMode
-      : `${Number(it.priceAmount).toLocaleString("tr-TR")} ${(CURRENCY_SYMBOL as Record<string, string>)[it.priceCurrency ?? "TRY"] ?? it.priceCurrency ?? ""} / ${it.unit}${it.priceMode === "TIERED" ? " (kademeli)" : ""}`;
+      ? priceModeLabel(it.priceMode)
+      : t(it.priceMode === "TIERED" ? "fiyatBirimKademeli" : "fiyatBirim", {
+          amount: formatNumber(Number(it.priceAmount), locale),
+          currency: (CURRENCY_SYMBOL as Record<string, string>)[it.priceCurrency ?? "TRY"] ?? it.priceCurrency ?? "",
+          unit: unitLabel(it.unit),
+        });
   const th = "px-3 py-3 text-left text-xs font-semibold tracking-wide text-zinc-500";
   return (
     <div className="mt-6 overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
       <table className="w-full text-sm">
         <thead className="border-b border-zinc-950/5">
           <tr>
-            <th scope="col" className={th}>Ürün</th>
-            <th scope="col" className={cn(th, "hidden sm:table-cell")}>Durum</th>
-            <th scope="col" className={cn(th, "hidden 2xl:table-cell")}>Kategori</th>
-            <th scope="col" className={cn(th, "hidden sm:table-cell")}>Fiyat</th>
-            <th scope="col" className={cn(th, "hidden xl:table-cell")}>Min. sipariş</th>
-            <th scope="col" className={cn(th, "hidden xl:table-cell")}>Görüntülenme</th>
-            <th scope="col" className={cn(th, "hidden 2xl:table-cell")}>Eklenme</th>
+            <th scope="col" className={th}>{t("urun")}</th>
+            <th scope="col" className={cn(th, "hidden sm:table-cell")}>{t("durum")}</th>
+            <th scope="col" className={cn(th, "hidden 2xl:table-cell")}>{t("kategori")}</th>
+            <th scope="col" className={cn(th, "hidden sm:table-cell")}>{t("fiyat")}</th>
+            <th scope="col" className={cn(th, "hidden xl:table-cell")}>{t("minSiparis")}</th>
+            <th scope="col" className={cn(th, "hidden xl:table-cell")}>{t("goruntulenme")}</th>
+            <th scope="col" className={cn(th, "hidden 2xl:table-cell")}>{t("eklenme")}</th>
             <th scope="col" className={cn(th, "text-right")}>
-              <span className="sr-only">İşlemler</span>
+              <span className="sr-only">{t("islemler")}</span>
             </th>
           </tr>
         </thead>
         <tbody role="list" className="divide-y divide-zinc-950/5">
           {items.map((item) => {
-            const st = PRODUCT_STATUS[productStatusKey(item)];
+            const st = statusMeta(productStatusKey(item));
             return (
               <tr
                 key={item.id}
@@ -491,8 +505,8 @@ function ProductRows({
                         {item.name}
                       </button>
                       <div className="max-w-[11rem] truncate text-xs text-zinc-500 sm:max-w-[14rem] xl:max-w-[18rem]">
-                        {catName(item.categoryId) ?? "Kategori seçilmedi"} · {PRICE_MODE_LABEL[item.priceMode] ?? item.priceMode} · {item.unit}
-                        {item.reviewStatus === "REJECTED" && item.rejectReason ? ` · Düzeltme: ${item.rejectReason}` : ""}
+                        {catName(item.categoryId) ?? t("kategoriSecilmedi")} · {priceModeLabel(item.priceMode)} · {unitLabel(item.unit)}
+                        {item.reviewStatus === "REJECTED" && item.rejectReason ? t("duzeltme", { rejectReason: item.rejectReason }) : ""}
                       </div>
                       {/* Dar ekranda Durum sütunu gizli → rozet adın altında. */}
                       <div className="mt-1 sm:hidden">
@@ -507,11 +521,11 @@ function ProductRows({
                 <td className="hidden max-w-[10rem] truncate px-3 py-3 text-zinc-700 2xl:table-cell">{catName(item.categoryId) ?? "—"}</td>
                 <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 sm:table-cell">{price(item)}</td>
                 <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 xl:table-cell">
-                  {item.moq != null ? `Min. ${Number(item.moq).toLocaleString("tr-TR")} ${item.unit}` : "—"}
+                  {item.moq != null ? t("min", { amount: formatNumber(Number(item.moq), locale), unit: unitLabel(item.unit) }) : "—"}
                 </td>
                 <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 xl:table-cell">
                   {item.viewCount != null ? (
-                    <span className="inline-flex items-center gap-1.5"><EyeIcon className="size-4 text-zinc-400" />{item.viewCount.toLocaleString("tr-TR")}</span>
+                    <span className="inline-flex items-center gap-1.5"><EyeIcon className="size-4 text-zinc-400" />{formatNumber(item.viewCount, locale)}</span>
                   ) : "—"}
                 </td>
                 <td className="hidden px-3 py-3 whitespace-nowrap text-zinc-700 2xl:table-cell">
@@ -520,7 +534,7 @@ function ProductRows({
                 <td className="px-3 py-3 text-right">
                   <button
                     type="button"
-                    aria-label={`${item.name} — aç`}
+                    aria-label={t("ac", { name: item.name })}
                     onClick={(e) => {
                       e.stopPropagation();
                       onOpen(item);

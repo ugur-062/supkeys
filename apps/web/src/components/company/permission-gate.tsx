@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Text } from "@/components/catalyst/text";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { userHasPermission } from "@/lib/company/permissions";
@@ -14,7 +15,7 @@ import { ShieldAlert } from "lucide-react";
  */
 export function PermissionGate({
   permission,
-  title = "Bu sayfa yetki gerektirir",
+  title,
   description,
   children,
 }: {
@@ -24,7 +25,9 @@ export function PermissionGate({
   description: string;
   children: React.ReactNode;
 }) {
+  const t = useTranslations("web.panel.trade.permissionGate");
   const { user } = useCompanyAuth();
+  const heading = title ?? t("buSayfaYetkiGerektirir");
   if (!userHasPermission(user, permission)) {
     return (
       <div
@@ -32,9 +35,9 @@ export function PermissionGate({
         role="status"
       >
         <ShieldAlert className="h-8 w-8 text-zinc-300" aria-hidden />
-        <h2 className="text-base font-semibold text-zinc-900">{title}</h2>
+        <h2 className="text-base font-semibold text-zinc-900">{heading}</h2>
         <Text className="text-sm text-zinc-500">
-          {description} Yetki için firma yöneticinize başvurun.
+          {t("yetkiIcinFirmaYoneticinizeBasvurun", { description: description })}
         </Text>
       </div>
     );

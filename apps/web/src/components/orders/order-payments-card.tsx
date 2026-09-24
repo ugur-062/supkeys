@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatDate } from "@/lib/format-date";
 import {
   usePaymentDecision,
@@ -23,31 +24,29 @@ import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { moneyInputError } from "@/lib/money-input";
-import {
-  CURRENCY_SYMBOL,
-  formatPaymentPlan,
-  KDV_HARIC_NOTE,
-} from "@/lib/tenders/labels";
+import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
+import { useFormatPaymentPlan } from "@/i18n/domain";
 import { Check, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { toast } from "sonner";
 
+// Etiket katalog anahtarı (`status.<KOD>`) — çizim yerinde `tr(key)`.
 const PAYMENT_STATUS: Record<
   OrderPayment["status"],
-  { label: string; cls: string }
+  { key: string; cls: string }
 > = {
   AWAITING_CONFIRMATION: {
-    label: "Onay bekliyor",
+    key: "status.AWAITING_CONFIRMATION",
     cls: "bg-warning-50 text-warning-600 border border-warning-500/30",
   },
   CONFIRMED: {
-    label: "Onaylandı",
+    key: "status.CONFIRMED",
     cls: "bg-success-50 text-success-600 border border-success-500/30",
   },
   REJECTED: {
-    label: "Reddedildi",
+    key: "status.REJECTED",
     cls: "bg-danger-50 text-danger-600 border border-danger-500/30",
   },
 };
@@ -64,6 +63,9 @@ function fmt(n: string | number) {
  * kanalından, satıcı "Ödeme Bankadan Alındı" adımıyla işaretler.
  */
 export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
+  const tr = useTranslations("web.panel.trade.orderPaymentsCard");
+  const td = useTranslations("web.domain");
+  const formatPlan = useFormatPaymentPlan();
   // Birincil düğme rengi portaldan (satınalmada siyah yok — 2026-09-17 kuralı).
   const accent = useButtonAccent();
   const curSym =
@@ -124,7 +126,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
     // bekleyenler dahil kalanın üstünde bildirim daha formda durdurulur.
     if (value > Number(t.remaining) + 0.005) {
       toast.error(
-        `Kalan borcun üstünde bildirim yapılamaz — kalan ${Number(t.remaining).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ${curSym}`,
+        tr("kalanBorcunUstundeBildirimYapilamaz", { toLocaleString: Number(t.remaining).toLocaleString("tr-TR", { minimumFractionDigits: 2 }), curSym: curSym }),
       );
       return;
     }
@@ -133,10 +135,10 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         amount: value,
         note: note.trim() || undefined,
       });
-      toast.success("Ödeme bildirildi — satıcının onayı bekleniyor");
+      toast.success(tr("odemeBildirildiSaticininOnayiBekleniyor"));
       resetForm();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Ödeme bildirilemedi"));
+      toast.error(extractErrorMessage(err, tr("odemeBildirilemedi")));
     }
   };
 
@@ -154,9 +156,9 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
    */
   const confirmReceipt = async (p: { id: string; amount: number | string }) => {
     const ok = await confirm({
-      title: "Ödemeyi aldım",
-      description: `${amountLabel(p.amount)} tutarındaki ödemeyi tahsil ettiğinizi onaylıyor musunuz? Bu işlem GERİ ALINAMAZ: borç kapanır ve alıcının ödeme yükümlülüğü düşer.`,
-      confirmLabel: "Evet, tahsil ettim",
+      title: tr("odemeyiAldim"),
+      description: tr("tutarindakiOdemeyiTahsilEttiginiziOnayliyor", { amountLabel: amountLabel(p.amount) }),
+      confirmLabel: tr("evetTahsilEttim"),
       destructive: true,
     });
     if (!ok) return;
@@ -170,10 +172,10 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   ) => {
     try {
       await decide.mutateAsync({ paymentId, decision, reason });
-      toast.success(decision === "confirm" ? "Ödeme onaylandı" : "Ödeme reddedildi");
+      toast.success(decision === "confirm" ? tr("odemeOnaylandi") : tr("odemeReddedildi"));
       setRejectId(null);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İşlem başarısız"));
+      toast.error(extractErrorMessage(err, tr("islemBasarisiz")));
     }
   };
 
@@ -181,13 +183,13 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
     <section className="rounded-xl border border-zinc-950/10 bg-white">
       <div className="flex items-center justify-between gap-3 border-b border-zinc-950/5 px-5 py-3">
         <div className="min-w-0">
-          <h2 className="text-sm font-semibold text-zinc-900">Ödeme</h2>
+          <h2 className="text-sm font-semibold text-zinc-900">{tr("odeme")}</h2>
           {/* İhale şartındaki ödeme planı — award anındaki snapshot. */}
           <p className="truncate text-xs text-zinc-500">
-            {formatPaymentPlan(order)}
+            {formatPlan(order)}
             {order.paymentNote ? ` · ${order.paymentNote}` : ""}
           </p>
-          <p className="mt-0.5 text-xs text-zinc-400">{KDV_HARIC_NOTE}</p>
+          <p className="mt-0.5 text-xs text-zinc-400">{td("kdvHaricNote")}</p>
         </div>
         {canAct && isBuyer && order.paymentOpen ? (
           <button
@@ -196,22 +198,22 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
             disabled={fullyCovered}
             title={
               fullyCovered
-                ? "Tamamı bildirildi — onay bekleyenler dahil kalan tutar yok"
+                ? tr("tamamiBildirildiOnayBekleyenlerDahil")
                 : undefined
             }
             className={`inline-flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-semibold text-white disabled:cursor-not-allowed disabled:bg-zinc-300 ${accentFillClass(accent)}`}
           >
             <Plus className="h-3.5 w-3.5" />
-            Ödemeyi Yaptım
+            {tr("odemeyiYaptim")}
           </button>
         ) : null}
       </div>
 
       {/* Toplamlar */}
       <div className="grid grid-cols-3 divide-x divide-zinc-950/5 border-b border-zinc-950/5">
-        <Totals label="Onaylanan" value={t.confirmed} tone="text-success-600" curSym={curSym} />
-        <Totals label="Bekleyen" value={t.pending} tone="text-warning-600" curSym={curSym} />
-        <Totals label="Kalan" value={t.remaining} tone="text-zinc-900" curSym={curSym} />
+        <Totals label={tr("onaylanan")} value={t.confirmed} tone="text-success-600" curSym={curSym} />
+        <Totals label={tr("bekleyen")} value={t.pending} tone="text-warning-600" curSym={curSym} />
+        <Totals label={tr("kalan")} value={t.remaining} tone="text-zinc-900" curSym={curSym} />
       </div>
 
       {/* Vade tarihi (Vadeli/Çek/kısmi-peşin kalanı) — teslim sonrası hesaplanır.
@@ -230,11 +232,11 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                   : "border-b border-zinc-950/5 px-5 py-2 text-xs text-zinc-600"
               }
             >
-              Ödeme vadesi:{" "}
-              <strong>
-                {formatDate(order.paymentDueDate, "short")}
-              </strong>
-              {overdue ? ` — ${overdueDays} gün gecikti` : ""}
+              {tr.rich("odemeVadesi", {
+                date: formatDate(order.paymentDueDate, "short"),
+                strong: (c) => <strong>{c}</strong>,
+              })}
+              {overdue ? ` ${tr("gunGecikti", { overdueDays: overdueDays })}` : ""}
             </div>
           );
         })()
@@ -243,17 +245,15 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
       {/* Akreditif — manuel ödeme akışı kapalı bilgilendirmesi. */}
       {isLc ? (
         <div className="border-b border-zinc-950/5 bg-zinc-50 px-5 py-2 text-xs text-zinc-600">
-          Ödeme akreditif kapsamında <strong>banka kanalından</strong> yapılır —
-          satıcı ödemeyi aldığında Akreditif bölümünden işaretler.
+          {tr.rich("odemeAkreditifKapsaminda", { strong: (c) => <strong>{c}</strong> })}
         </div>
       ) : null}
 
       {/* Kayıt formu — POP-UP (madde 16: inline şerit yerine diyalog). */}
       <Dialog open={open && isBuyer} onClose={resetForm} size="md">
-        <DialogTitle>Ödemeyi Bildir</DialogTitle>
+        <DialogTitle>{tr("odemeyiBildir")}</DialogTitle>
         <DialogDescription>
-          Yaptığınız ödemenin tutarını girin — satıcı onaylayınca kalan borçtan
-          düşülür.
+          {tr("yaptiginizOdemeninTutariniGirinSatici")}
         </DialogDescription>
         {/* P1 (denetim §4.2): form + Enter ile gönderim. */}
         <form
@@ -264,13 +264,13 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         >
         <DialogBody className="space-y-4">
           <Field>
-            <Label>Tutar ({curSym}) *</Label>
+            <Label>{tr("tutar", { curSym: curSym })}</Label>
             <div className="flex items-center gap-2">
               <MoneyInput
                 value={amount}
                 onChange={setAmount}
                 placeholder="0,00"
-                aria-label="Ödeme tutarı"
+                aria-label={tr("odemeTutari")}
               />
               {/* §10.3: tek tık tam kapama. */}
               <button
@@ -278,25 +278,25 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                 onClick={() => setAmount(Number(t.remaining).toFixed(2))}
                 className="shrink-0 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-600 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
               >
-                Tümünü Öde
+                {tr("tumunuOde")}
               </button>
             </div>
           </Field>
           <Field>
-            <Label>Not (opsiyonel)</Label>
+            <Label>{tr("notOpsiyonel")}</Label>
             <Input
               value={note}
               onChange={(e) => setNote(e.target.value)}
-              placeholder="Dekont no, açıklama…"
+              placeholder={tr("dekontNoAciklama")}
             />
           </Field>
         </DialogBody>
         <DialogActions>
           <Button plain onClick={resetForm}>
-            Vazgeç
+            {tr("vazgec")}
           </Button>
           <Button type="submit" disabled={record.isPending || !amount}>
-            Bildir
+            {tr("bildir")}
           </Button>
         </DialogActions>
         </form>
@@ -307,10 +307,10 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         {order.payments.length === 0 ? (
           <p className="px-5 py-6 text-center text-sm text-zinc-500">
             {order.paymentOpen
-              ? "Henüz ödeme kaydı yok."
+              ? tr("henuzOdemeKaydiYok")
               : order.paymentTiming === "AFTER_DELIVERY"
-                ? "Ödeme bölümü, sipariş teslim alındıktan sonra açılır."
-                : "Ödeme kaydı, satıcı siparişi onayladıktan sonra eklenebilir."}
+                ? tr("odemeBolumuSiparisTeslimAlindiktan")
+                : tr("odemeKaydiSaticiSiparisiOnayladiktan")}
           </p>
         ) : (
           order.payments.map((p) => {
@@ -334,10 +334,10 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                   </div>
                   {p.chequeNo ? (
                     <div className="mt-0.5 text-xs text-amber-700">
-                      Çek No: {p.chequeNo}
+                      {tr("cekNo", { chequeNo: p.chequeNo })}
                       {p.chequeBank ? ` · ${p.chequeBank}` : ""}
                       {p.chequeDueDate
-                        ? ` · Vade: ${formatDate(p.chequeDueDate, "short")}`
+                        ? ` ${tr("vade", { formatDate: formatDate(p.chequeDueDate, "short") })}`
                         : ""}
                     </div>
                   ) : null}
@@ -346,7 +346,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                   <span
                     className={`rounded-full px-2 py-0.5 text-xs font-medium ${st.cls}`}
                   >
-                    {st.label}
+                    {tr(st.key as never)}
                   </span>
                   {canAct && isSeller && p.status === "AWAITING_CONFIRMATION" ? (
                     <>
@@ -359,8 +359,8 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                         onClick={() => void confirmReceipt(p)}
                         disabled={decide.isPending}
                         className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-success-50 text-success-600 hover:bg-success-500/10 disabled:opacity-50"
-                        aria-label={`${amountLabel(p.amount)} tutarındaki ödemeyi aldım olarak işaretle`}
-                        title="Ödemeyi Aldım"
+                        aria-label={tr("tutarindakiOdemeyiAldimOlarakIsaretle", { amountLabel: amountLabel(p.amount) })}
+                        title={tr("odemeyiAldim2")}
                       >
                         <Check className="h-4 w-4" />
                       </button>
@@ -369,8 +369,8 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                         onClick={() => setRejectId(p.id)}
                         disabled={decide.isPending}
                         className="inline-flex h-11 w-11 items-center justify-center rounded-lg bg-danger-50 text-danger-600 hover:bg-danger-500/10 disabled:opacity-50"
-                        aria-label={`${amountLabel(p.amount)} tutarındaki ödemeyi reddet`}
-                        title="Reddet"
+                        aria-label={tr("tutarindakiOdemeyiReddet", { amountLabel: amountLabel(p.amount) })}
+                        title={tr("reddet")}
                       >
                         <X className="h-4 w-4" />
                       </button>
@@ -388,9 +388,9 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         open={rejectId !== null}
         onClose={() => setRejectId(null)}
         onSubmit={(reason) => rejectId && runDecision(rejectId, "reject", reason)}
-        title="Ödemeyi Reddet"
-        description="Red gerekçesi alıcıya iletilir."
-        confirmLabel="Reddet"
+        title={tr("odemeyiReddet")}
+        description={tr("redGerekcesiAliciyaIletilir")}
+        confirmLabel={tr("reddet")}
         minLength={10}
         pending={decide.isPending}
         destructive

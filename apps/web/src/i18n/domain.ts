@@ -186,6 +186,10 @@ export const useListingStatusLabel = dictHook("web.domain.listingStatus");
 export const useLcTypeLabel = dictHook("web.domain.lcType");
 /** Taşıma modu. */
 export const useTransportModeLabel = dictHook("web.domain.transportMode");
+/** Sipariş durumu (`web.domain.orderStatus.<KOD>`; `lib/orders/order-status.ts` göç edene dek TR yedek). */
+export const useOrderStatusLabel = dictHook("web.domain.orderStatus");
+/** Sipariş adımı (`web.domain.orderStep.<KOD>`). */
+export const useOrderStepLabel = dictHook("web.domain.orderStep");
 /** Tedarikçi gözünden talep durumu (`deriveSellerTenderState().key`). */
 export const useSellerStateLabel = dictHook("web.domain.sellerState");
 

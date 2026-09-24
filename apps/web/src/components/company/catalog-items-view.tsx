@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useState } from "react";
 import { Link } from "@/i18n/navigation";
 import { ArrowLeft, Archive, ArchiveRestore, PackageSearch } from "lucide-react";
@@ -12,7 +13,7 @@ import { Text } from "@/components/catalyst/text";
 import { SearchInput } from "@/components/list";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
-import { unitText } from "@/components/ui/unit-select";
+import { useUnitLabel } from "@/i18n/domain";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import {
   CATALOG_KEY,
@@ -32,6 +33,8 @@ import {
  * kullanıcı yanlışlıkla kaldırdığını geri alabilmeli.
  */
 export function CatalogItemsView({ basePath }: { basePath: string }) {
+  const t = useTranslations("web.panel.trade.catalogItemsView");
+  const unitLabel = useUnitLabel();
   const [q, setQ] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const debouncedQ = useDebouncedValue(q, 300);
@@ -61,9 +64,9 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
     },
     onSuccess: (_d, v) => {
       void qc.invalidateQueries({ queryKey: CATALOG_KEY });
-      toast.success(v.isActive ? "Kalem geri alındı" : "Kalem arşivlendi");
+      toast.success(v.isActive ? t("kalemGeriAlindi") : t("kalemArsivlendi"));
     },
-    onError: (err) => toast.error(extractErrorMessage(err, "İşlem başarısız")),
+    onError: (err) => toast.error(extractErrorMessage(err, t("islemBasarisiz"))),
   });
 
   const list = showArchived ? archived.data : active.data;
@@ -77,14 +80,15 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
           className="inline-flex items-center gap-1.5 text-sm text-zinc-500 hover:text-zinc-800"
         >
           <ArrowLeft className="h-4 w-4" />
-          Şablonlar
+          {t("sablonlar")}
         </Link>
-        <Heading className="mt-2">Kalem Kataloğu</Heading>
+        <Heading className="mt-2">{t("kalemKatalogu")}</Heading>
         <Text>
-          Sık kullandığınız kalemleri saklayın; talep veya ilan açarken{" "}
-          <strong>Katalogdan Ekle</strong> ile saniyede listeleyin. Katalog,
-          satın alma talebi detayındaki <strong>Kataloğa Kaydet</strong> ile kendiliğinden
-          dolar.
+          {t.rich("sikKullandiginizKalemleriSaklayin", {
+            strong: (c) => <strong>{c}</strong>,
+            add: t("katalogdanEkle"),
+            save: t("katalogaKaydet"),
+          })}
         </Text>
       </div>
 
@@ -92,7 +96,7 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
         <SearchInput
           value={q}
           onChange={setQ}
-          placeholder="Kalem adı, stok kodu, marka…"
+          placeholder={t("kalemAdiStokKoduMarka")}
           className="w-72"
         />
         <Button
@@ -100,7 +104,7 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
           size="sm"
           onClick={() => setShowArchived((v) => !v)}
         >
-          {showArchived ? "Aktifleri göster" : "Arşivi göster"}
+          {showArchived ? t("aktifleriGoster") : t("arsiviGoster")}
         </Button>
       </div>
 
@@ -108,12 +112,12 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
         <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-10 text-center">
           <PackageSearch className="mx-auto h-6 w-6 text-zinc-400" aria-hidden />
           <Subheading className="mt-2">
-            {showArchived ? "Arşiv boş" : "Katalog henüz boş"}
+            {showArchived ? t("arsivBos") : t("katalogHenuzBos")}
           </Subheading>
           <Text className="mt-1">
             {showArchived
-              ? "Arşivlenmiş kalem yok."
-              : "Bir satın alma talebi oluşturduktan sonra kalem listesinin üstündeki “Kataloğa Kaydet” düğmesiyle doldurabilirsiniz."}
+              ? t("arsivlenmisKalemYok")
+              : t("birSatinAlmaTalebiOlusturduktan")}
           </Text>
         </div>
       ) : (
@@ -128,8 +132,8 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
                   {[
                     it.code,
                     it.brand,
-                    unitText(it.unitCode, it.unit),
-                    it.usageCount > 0 ? `${it.usageCount} kez kullanıldı` : null,
+                    unitLabel(it.unit, it.unitCode) || "—",
+                    it.usageCount > 0 ? t("kezKullanildi", { usageCount: it.usageCount }) : null,
                   ]
                     .filter(Boolean)
                     .join(" · ")}
@@ -147,12 +151,12 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
                   {it.isActive ? (
                     <>
                       <Archive className="h-4 w-4" />
-                      Arşivle
+                      {t("arsivle")}
                     </>
                   ) : (
                     <>
                       <ArchiveRestore className="h-4 w-4" />
-                      Geri al
+                      {t("geriAl")}
                     </>
                   )}
                 </Button>
@@ -164,7 +168,7 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
 
       {active.data?.truncated && !showArchived ? (
         <p role="status" className="text-xs text-amber-700">
-          Liste kısaltıldı — aramayı daraltın.
+          {t("listeKisaltildiAramayiDaraltin")}
         </p>
       ) : null}
     </div>

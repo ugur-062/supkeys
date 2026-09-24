@@ -1,6 +1,9 @@
 "use client";
 
-import { useNavLabel } from "@/i18n/domain";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { useNavLabel, useRoleLabel, useUnitLabel } from "@/i18n/domain";
+import { formatNumber } from "@/i18n/format";
 import { Button } from "@/components/catalyst/button";
 import { Heading } from "@/components/catalyst/heading";
 import {
@@ -78,7 +81,15 @@ function SummaryRow({
 }
 
 export default function OrderDetailPage() {
-const tn = useNavLabel();
+  const t = useTranslations("web.panel.trade.siparisIdPage");
+  const tn = useNavLabel();
+  // Durum ve adım adları paylaşılan sözlükten (`web.domain.orderStatus|orderStep`);
+  // `lib/orders/order-status` ton + konum kaynağı olarak kalır (anahtar yoksa TR adı).
+  const tStatus = useTranslations("web.domain.orderStatus");
+  const tStep = useTranslations("web.domain.orderStep");
+  const roleLabel = useRoleLabel();
+  const unitLabel = useUnitLabel();
+  const locale = useLocale() as Locale;
   const params = useParams<{ id: string }>();
   const id = params.id;
   const { user } = useCompanyAuth();
@@ -121,7 +132,7 @@ const tn = useNavLabel();
       </div>
     );
   if (!o)
-    return <Text className="text-sm text-zinc-500">Sipariş bulunamadı.</Text>;
+    return <Text className="text-sm text-zinc-500">{t("siparisBulunamadi")}</Text>;
 
   const isSeller = o.role === "seller";
   // F7: aksiyon butonları tarafın işlem rolünü ister (assertOrderRole aynası) —
@@ -136,6 +147,16 @@ const tn = useNavLabel();
   const stage = orderStageIndex(o.status);
   const terminal = o.status === "REJECTED" || o.status === "CANCELLED";
   const statusMeta = orderStatusMeta(o.status, sellerShips);
+  const statusKey =
+    o.status === "IN_DELIVERY" && !sellerShips ? "IN_DELIVERY_PICKUP" : o.status;
+  const statusLabel = tStatus.has(statusKey as never)
+    ? tStatus(statusKey as never)
+    : statusMeta.label;
+  const stepLabel = (s: (typeof steps)[number]) => {
+    const key = s.key === "SHIP" && !sellerShips ? "SHIP_PICKUP" : s.key;
+    return tStep.has(key as never) ? tStep(key as never) : s.label;
+  };
+  const strong = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
   const ordersHref = isSeller
     ? "/company/satis/siparisler"
     : "/company/satinalma/siparisler";
@@ -179,15 +200,15 @@ const tn = useNavLabel();
     shipUnlocked
       ? {
           // Madde 17: satıcının adımı artık "Siparişi Tamamla" (fatura no).
-          label: "Siparişi Tamamla",
+          label: t("siparisiTamamla"),
           modal: "ship" as const,
         }
       : !isSeller && o.status === "IN_DELIVERY" && !cadGate
-        ? { label: "Teslim Aldım", modal: "receive" as const }
+        ? { label: t("teslimAldim"), modal: "receive" as const }
         : // YAŞAM DÖNGÜSÜ AYRIMI: Tamamla = malın KABULÜ (operasyonel), ödemeden
           // BAĞIMSIZ. Vadeli siparişte alıcı kabul edip tamamlar; borç ayrı izlenir.
           !isSeller && o.status === "DELIVERED"
-          ? { label: "Siparişi Tamamla", modal: "complete" as const }
+          ? { label: t("siparisiTamamla"), modal: "complete" as const }
           : null;
   // Peşin eşiği bekleniyor mu (satıcı, gönderim öncesi)? Kilit mesajı için.
   const advanceGate =
@@ -232,32 +253,32 @@ const tn = useNavLabel();
   };
 
   const doAccept = (input: Parameters<typeof accept.mutateAsync>[0]) =>
-    run(accept.mutateAsync(input), "Sipariş onaylandı", "İşlem başarısız");
+    run(accept.mutateAsync(input), t("siparisOnaylandi"), t("islemBasarisiz"));
   const doShip = (input: Parameters<typeof ship.mutateAsync>[0]) =>
     run(
       ship.mutateAsync(input),
-      sellerShips ? "Sipariş gönderildi" : "Teslime hazır işaretlendi",
-      "İşlem başarısız",
+      sellerShips ? t("siparisGonderildi") : t("teslimeHazirIsaretlendi"),
+      t("islemBasarisiz"),
     );
   const doReceive = (note?: string) =>
-    run(receive.mutateAsync({ note }), "Teslim alındı", "İşlem başarısız");
+    run(receive.mutateAsync({ note }), t("teslimAlindi"), t("islemBasarisiz"));
   const doComplete = (note?: string) =>
-    run(complete.mutateAsync({ note }), "Sipariş tamamlandı", "İşlem başarısız");
+    run(complete.mutateAsync({ note }), t("siparisTamamlandi"), t("islemBasarisiz"));
   const doReject = (reason: string) =>
-    run(reject.mutateAsync(reason), "Sipariş reddedildi", "İşlem başarısız");
+    run(reject.mutateAsync(reason), t("siparisReddedildi"), t("islemBasarisiz"));
   const doCancel = (reason: string) =>
-    run(cancel.mutateAsync(reason), "Sipariş iptal edildi", "İptal edilemedi");
+    run(cancel.mutateAsync(reason), t("siparisIptalEdildi"), t("iptalEdilemedi"));
   const doRequestCancel = (reason: string) =>
     run(
       requestCancel.mutateAsync(reason),
-      "İptal talebi gönderildi — alıcının onayına düştü",
-      "Talep gönderilemedi",
+      t("iptalTalebiGonderildiAlicininOnayina"),
+      t("talepGonderilemedi"),
     );
   const doRaiseDefect = (reason: string) =>
     run(
       raiseDefect.mutateAsync(reason),
-      "Ayıp ihbarı kaydedildi — sipariş ihtilaflı",
-      "Ayıp ihbarı gönderilemedi",
+      t("ayipIhbariKaydedildiSiparisIhtilafli"),
+      t("ayipIhbariGonderilemedi"),
     );
 
   const handlePrint = () => {
@@ -270,7 +291,7 @@ const tn = useNavLabel();
       buildOrderPrintHtml(o, {
         isSeller,
         curSym,
-        statusLabel: statusMeta.label,
+        statusLabel,
       }),
     );
     w.document.close();
@@ -286,8 +307,9 @@ const tn = useNavLabel();
   // kendisi sticky ActionBar'da (tek yerde); burası "sıradaki adım" anlatısı.
   const nextStepHint = !canAct ? (
     <Text className="text-sm text-zinc-500">
-      Bu adımlar {isSeller ? "Satışçı" : "Satın Almacı"} rolü gerektirir —
-      salt görüntüleme modundasınız.
+      {t("buAdimlarRoluGerektirir", {
+        role: roleLabel(isSeller ? "SATISCI" : "SATIN_ALMACI"),
+      })}
     </Text>
   ) : o.status === "PENDING" && isSeller ? (
     <div className="space-y-3">
@@ -295,100 +317,102 @@ const tn = useNavLabel();
           platform dışında alıcıya iletilir (sipariş belgeleri kaldırıldı). */}
       {o.requireGuaranteeLetter ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-          Bu ilanda <strong>teminat mektubu şartı</strong> var — teslimat
-          garantisi olarak teminat mektubunu alıcıya doğrudan iletin.
+          {t.rich("buIlandaTeminatMektubuSarti", { strong })}
         </div>
       ) : null}
       <Text className="text-sm text-zinc-600">
-        Bu siparişi üstteki çubuktan onayla ya da reddet.
+        {t("buSiparisiUsttekiCubuktanOnayla")}
       </Text>
     </div>
   ) : o.status === "PENDING" && !isSeller ? (
     <Text className="text-sm text-zinc-500">
-      Satıcının siparişi onaylaması bekleniyor…
+      {t("saticininSiparisiOnaylamasiBekleniyor")}
     </Text>
   ) : o.status === "COMPLETED" ? (
     <div className="space-y-1">
       <Text className="text-sm text-emerald-700">
-        ✓ Sipariş tamamlandı (mal teslim edildi ve kabul edildi).
+        {t("siparisTamamlandiMalTeslimEdildi")}
       </Text>
       {/* YAŞAM DÖNGÜSÜ AYRIMI: operasyonel bitiş ≠ ödeme; borç ayrı. */}
       {fullyPaid ? (
-        <Text className="text-sm text-emerald-700">Ödeme tamamlandı.</Text>
+        <Text className="text-sm text-emerald-700">{t("odemeTamamlandi")}</Text>
       ) : paymentAwaitingConfirmation ? (
         <Text className="text-sm text-amber-700">
-          Ödeme bildirildi — satıcının onayı bekleniyor (onaylı:{" "}
-          {formatMoney(confirmedPaid, o.currency)}).
+          {t("odemeBildirildiSaticininOnayiBekleniyor", {
+            amount: formatMoney(confirmedPaid, o.currency),
+          })}
         </Text>
       ) : isLc ? (
         <Text className="text-sm text-amber-700">
-          Ödeme akreditif kapsamında banka kanalından yapılır — satıcı ödemeyi
-          aldığında Akreditif bölümünden işaretler.
+          {t("odemeAkreditifKapsamindaBankaKanalindan")}
         </Text>
       ) : (
         <Text className="text-sm text-amber-700">
-          Ödeme bekliyor — kalan {formatMoney(remainingDue, o.currency)}
-          {o.paymentDueDate ? ` · Vade ${formatDate(o.paymentDueDate)}` : ""}.
-          Ödemeler bölümünden kaydedebilirsiniz.
+          {o.paymentDueDate
+            ? t("odemeBekliyorKalanVade", {
+                amount: formatMoney(remainingDue, o.currency),
+                date: formatDate(o.paymentDueDate),
+              })
+            : t("odemeBekliyorKalan", {
+                amount: formatMoney(remainingDue, o.currency),
+              })}
         </Text>
       )}
     </div>
   ) : advanceGate ? (
     <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-      Bu siparişte <strong>peşin ödeme şartı</strong> var — gönderim için{" "}
-      <strong>{formatMoney(advanceDue, o.currency)}</strong> peşin tahsilat
-      onaylanmalı (onaylı: {formatMoney(confirmedPaid, o.currency)}). Alıcı
-      ödemeyi bildirip siz onayladıktan sonra gönderebilirsiniz.
+      {t.rich("buSiparistePesinOdemeSarti", {
+        strong,
+        advance: formatMoney(advanceDue, o.currency),
+        confirmed: formatMoney(confirmedPaid, o.currency),
+      })}
     </div>
   ) : isSeller &&
     isLc &&
     !o.lcAcceptedAt &&
     (o.status === "ACCEPTED" || o.status === "CREATED") ? (
     <Text className="text-sm text-zinc-500">
-      Akreditif adımları solda — kabul edildikten sonra gönderebilirsiniz.
+      {t("akreditifAdimlariSoldaKabulEdildikten")}
     </Text>
   ) : isSeller && defectDisputed ? (
     <Text className="text-sm text-amber-700">
-      Ayıp ihbarı açık — sevk/tamamlama adımı kapalı. Çözüm taraflar arasında;
-      alıcı ihbarı geri çekerse adım yeniden açılır.
+      {t("ayipIhbariAcikSevkTamamlama")}
     </Text>
   ) : cadGate && o.status === "IN_DELIVERY" ? (
     <Text className="text-sm text-amber-700">
-      Vesaik mukabili — teslim almadan önce kalan{" "}
-      {formatMoney(remainingDue, o.currency)} tutarın ödenip satıcı tarafından
-      onaylanması gerekir.
+      {t("vesaikMukabiliTeslimAlmadanOnceKalan", {
+        amount: formatMoney(remainingDue, o.currency),
+      })}
     </Text>
   ) : next ? (
     <Text className="text-sm text-zinc-600">
       {next.modal === "ship"
         ? sellerShips
-          ? "Siparişi gönderdiğinde fatura no ile işaretle."
-          : "Mal teslime hazır olduğunda fatura no ile işaretle — alıcı gelip alacak."
+          ? t("siparisiGonderdigindeFaturaNoIle")
+          : t("malTeslimeHazirOldugundaFatura")
         : next.modal === "receive"
-          ? "Malı teslim aldığında işaretle."
-          : "Malı inceleyip kabul ettiğinizde tamamlayın — ödeme ayrı izlenir (borç açık olsa da tamamlayabilirsiniz)."}
+          ? t("maliTeslimAldigindaIsaretle")
+          : t("maliInceleyipKabulEttiginizdeTamamlayin")}
     </Text>
   ) : !isSeller && o.status === "DELIVERED" && paymentAwaitingConfirmation ? (
     <Text className="text-sm text-amber-700">
-      Ödeme kaydınız satıcının onayını bekliyor — satıcı onayladıktan sonra
-      sipariş tamamlanır.
+      {t("odemeKaydinizSaticininOnayiniBekliyor")}
     </Text>
   ) : !isSeller && o.status === "DELIVERED" && !fullyPaid ? (
     <Text className="text-sm text-amber-700">
       {/* O3: vadeli/mal-mukabili siparişte vade gelecekteyse "şimdi öde"
           yerine vade tarihini göster (erken-ödemeye itme). */}
       {o.paymentDueDate && new Date(o.paymentDueDate) > new Date()
-        ? `Ödeme vadesi: ${formatDate(o.paymentDueDate)} — kalan tutarı o tarihte Ödemeler bölümünden ödeyebilirsiniz. Satıcı onayladığında sipariş tamamlanır.`
-        : "Kalan ödemenizi Ödemeler bölümünden kaydedin — satıcı onayladığında sipariş otomatik tamamlanır."}
+        ? t("odemeVadesiKalanTutariO", { formatDate: formatDate(o.paymentDueDate) })
+        : t("kalanOdemeniziOdemelerBolumundenKaydedin")}
     </Text>
   ) : isSeller && !terminal && paymentAwaitingConfirmation ? (
     <Text className="text-sm text-amber-700">
-      Alıcı ödeme bildirdi — Ödemeler bölümünden onaylayın veya reddedin. Onay
-      bekleyen ödeme varken sonraki adıma geçilmez.
+      {t("aliciOdemeBildirdiOdemelerBolumunden")}
     </Text>
   ) : (
     <Text className="text-sm text-zinc-500">
-      Karşı tarafın işlemi bekleniyor…
+      {t("karsiTarafinIslemiBekleniyor")}
     </Text>
   );
 
@@ -409,9 +433,9 @@ const tn = useNavLabel();
               {o.number}
             </span>
           ) : null}
-          <MetaTag>{isSeller ? "Satış siparişi" : "Alış siparişi"}</MetaTag>
+          <MetaTag>{isSeller ? t("satisSiparisi") : t("alisSiparisi")}</MetaTag>
         </div>
-        <Heading>{o.listingTitle ?? "Sipariş"}</Heading>
+        <Heading>{o.listingTitle ?? t("siparis")}</Heading>
       </div>
 
       {/* P2 (denetim §5): sticky ActionBar — solda durum, sağda durum makinesine
@@ -419,7 +443,7 @@ const tn = useNavLabel();
           dibinde (y≈1148px) kalması biter; mobil dahil ilk ekranda durur. */}
       <div className="sticky top-16 z-20 rounded-xl border border-zinc-950/10 bg-white/90 px-3 py-2 shadow-sm backdrop-blur sm:px-4">
         <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
-          <StatusBadge tone={statusMeta.tone}>{statusMeta.label}</StatusBadge>
+          <StatusBadge tone={statusMeta.tone}>{statusLabel}</StatusBadge>
           <div className="flex flex-wrap items-center gap-2">
             {/* A2: onaylı ödeme varken iptal backend'de zaten engelli (CO cancel
                 CONFIRMED guard) → buton görünüp 400 vermesin; gizle + not göster. */}
@@ -430,7 +454,7 @@ const tn = useNavLabel();
               o.status === "CREATED") ? (
               confirmedPaid > 0 ? (
                 <span className="text-xs text-zinc-400">
-                  Onaylı ödeme bulunan sipariş iptal edilemez — iade için destek.
+                  {t("onayliOdemeBulunanSiparisIptal")}
                 </span>
               ) : (
                 <Button
@@ -439,7 +463,7 @@ const tn = useNavLabel();
                   onClick={() => setModal("cancel")}
                   disabled={cancel.isPending}
                 >
-                  Siparişi İptal Et
+                  {t("siparisiIptalEt")}
                 </Button>
               )
             ) : null}
@@ -455,14 +479,14 @@ const tn = useNavLabel();
                 onClick={() => setModal("cancelRequest")}
                 disabled={requestCancel.isPending}
               >
-                İptal Talebi
+                {t("iptalTalebi")}
               </Button>
             ) : null}
             {/* TTK 23: alıcı, teslimden 8 gün içinde ayıp ihbar edebilir. */}
             {canAct && canRaiseDefect ? (
               <div className="flex items-center gap-2">
                 <span className="text-xs text-zinc-400">
-                  Muayene süresi: {defectDaysLeft} gün
+                  {t("muayeneSuresiGun", { defectDaysLeft: defectDaysLeft })}
                 </span>
                 <Button
                   plain
@@ -470,12 +494,12 @@ const tn = useNavLabel();
                   onClick={() => setModal("defectNotice")}
                   disabled={raiseDefect.isPending}
                 >
-                  Ayıp İhbarı
+                  {t("ayipIhbari")}
                 </Button>
               </div>
             ) : null}
             <Button outline onClick={handlePrint}>
-              Yazdır / PDF
+              {t("yazdirPdf")}
             </Button>
             {canAct && o.status === "PENDING" && isSeller ? (
               <>
@@ -485,13 +509,13 @@ const tn = useNavLabel();
                   onClick={() => setModal("reject")}
                   disabled={reject.isPending}
                 >
-                  Reddet
+                  {t("reddet")}
                 </Button>
                 <Button
                   onClick={() => setModal("accept")}
                   disabled={accept.isPending}
                 >
-                  Kabul Et
+                  {t("kabulEt")}
                 </Button>
               </>
             ) : canAct && next ? (
@@ -517,7 +541,7 @@ const tn = useNavLabel();
               <StatusBadge
                 tone={o.status === "REJECTED" ? "failed" : "neutral"}
               >
-                {o.status === "REJECTED" ? "Satıcı reddetti" : "İptal edildi"}
+                {o.status === "REJECTED" ? t("saticiReddetti") : t("iptalEdildi")}
               </StatusBadge>
             ) : (
               <div className="flex items-start gap-2">
@@ -556,7 +580,7 @@ const tn = useNavLabel();
                                 : "text-zinc-400"
                           }`}
                         >
-                          {s.label}
+                          {stepLabel(s)}
                         </span>
                       </div>
                       {i < steps.length - 1 ? (
@@ -581,7 +605,7 @@ const tn = useNavLabel();
               <div className="mb-3 flex items-center gap-2">
                 <Gavel className="h-4 w-4 text-zinc-500" />
                 <h2 className="text-sm font-semibold text-zinc-900">
-                  Bağlı Satın Alma Talebi
+                  {t("bagliSatinAlmaTalebi")}
                 </h2>
               </div>
               {o.listingId ? (
@@ -595,19 +619,19 @@ const tn = useNavLabel();
                       {o.listingType ? (
                         <span className="ml-2 font-sans">
                           {o.listingType === "ALIM"
-                            ? "Satın alma talebi"
-                            : "satış ilanı"}
+                            ? t("satinAlmaTalebi")
+                            : t("satisIlani")}
                         </span>
                       ) : null}
                     </p>
                   </div>
                   <Button outline href={`/company/ilan/${o.listingId}`}>
-                    Satın Alma Talebine Git
+                    {t("satinAlmaTalebineGit")}
                   </Button>
                 </div>
               ) : (
                 <Text className="text-sm text-zinc-500">
-                  Bağlı ihale kaydı yok (silinmiş olabilir).
+                  {t("bagliTalepKaydiYokSilinmis")}
                 </Text>
               )}
             </section>
@@ -617,19 +641,19 @@ const tn = useNavLabel();
                 <div className="flex items-center gap-2">
                   <Building2 className="h-4 w-4 text-zinc-500" />
                   <h2 className="text-sm font-semibold text-zinc-900">
-                    {isSeller ? "Alıcı Firma" : "Satıcı Firma"}
+                    {isSeller ? t("aliciFirma") : t("saticiFirma")}
                   </h2>
                 </div>
                 <Button
                   outline
                   href={`/company/mesajlar?with=${o.counterpartyCompanyId}&portal=${isSeller ? "satis" : "satinalma"}`}
                 >
-                  Mesaj Gönder
+                  {t("mesajGonder")}
                 </Button>
               </div>
               <dl className="grid grid-cols-2 gap-x-4 gap-y-2 text-sm">
                 <div className="col-span-2">
-                  <dt className="text-xs text-zinc-500">Firma</dt>
+                  <dt className="text-xs text-zinc-500">{t("firma")}</dt>
                   <dd className="font-medium text-zinc-900">
                     {o.counterparty}
                     {o.counterpartyProfile.rothernId ? (
@@ -641,7 +665,7 @@ const tn = useNavLabel();
                 </div>
                 {o.counterpartyProfile.city ? (
                   <div>
-                    <dt className="text-xs text-zinc-500">Şehir</dt>
+                    <dt className="text-xs text-zinc-500">{t("sehir")}</dt>
                     <dd className="text-zinc-900">
                       {o.counterpartyProfile.city}
                     </dd>
@@ -649,7 +673,7 @@ const tn = useNavLabel();
                 ) : null}
                 {o.counterpartyProfile.industry ? (
                   <div>
-                    <dt className="text-xs text-zinc-500">Sektör</dt>
+                    <dt className="text-xs text-zinc-500">{t("sektor")}</dt>
                     <dd className="text-zinc-900">
                       {o.counterpartyProfile.industry}
                     </dd>
@@ -657,7 +681,7 @@ const tn = useNavLabel();
                 ) : null}
                 {o.counterpartyProfile.email ? (
                   <div>
-                    <dt className="text-xs text-zinc-500">E-posta</dt>
+                    <dt className="text-xs text-zinc-500">{t("ePosta")}</dt>
                     <dd className="truncate text-zinc-900">
                       {o.counterpartyProfile.email}
                     </dd>
@@ -665,7 +689,7 @@ const tn = useNavLabel();
                 ) : null}
                 {o.counterpartyProfile.phone ? (
                   <div>
-                    <dt className="text-xs text-zinc-500">Telefon</dt>
+                    <dt className="text-xs text-zinc-500">{t("telefon")}</dt>
                     <dd className="text-zinc-900">
                       {o.counterpartyProfile.phone}
                     </dd>
@@ -681,7 +705,7 @@ const tn = useNavLabel();
               <div className="mb-3 flex items-center gap-2">
                 <Truck className="h-4 w-4 text-zinc-500" />
                 <h2 className="text-sm font-semibold text-zinc-900">
-                  Teslimat Adresi
+                  {t("teslimatAdresi")}
                 </h2>
               </div>
               <p className="text-sm text-zinc-900">
@@ -711,15 +735,15 @@ const tn = useNavLabel();
               <Table dense>
                 <TableHead>
                   <TableRow>
-                    <TableHeader>Kalem</TableHeader>
-                    <TableHeader className="text-right">Miktar</TableHeader>
+                    <TableHeader>{t("kalem")}</TableHeader>
+                    <TableHeader className="text-right">{t("miktar")}</TableHeader>
                     <TableHeader className="text-right">
-                      Teslim Tarihi
+                      {t("teslimTarihi")}
                     </TableHeader>
                     <TableHeader className="text-right">
-                      Birim Fiyat
+                      {t("birimFiyat")}
                     </TableHeader>
-                    <TableHeader className="text-right">Tutar</TableHeader>
+                    <TableHeader className="text-right">{t("tutar")}</TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -734,7 +758,7 @@ const tn = useNavLabel();
                         ) : null}
                       </TableCell>
                       <TableCell className="text-right text-zinc-600">
-                        {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
+                        {formatNumber(Number(it.quantity), locale)} {unitLabel(it.unit)}
                       </TableCell>
                       <TableCell className="text-right text-zinc-600">
                         {itemDeliveryLabel(
@@ -765,13 +789,13 @@ const tn = useNavLabel();
               <div className="mb-3 flex items-center gap-2">
                 <Banknote className="h-4 w-4 text-zinc-500" />
                 <h2 className="text-sm font-semibold text-zinc-900">
-                  Ödeme &amp; Fatura
+                  {t("odemeFatura")}
                 </h2>
               </div>
               <dl className="grid grid-cols-1 gap-3 text-sm sm:grid-cols-3">
                 {o.bankAccountHolder ? (
                   <div>
-                    <dt className="text-xs text-zinc-500">Hesap Sahibi</dt>
+                    <dt className="text-xs text-zinc-500">{t("hesapSahibi")}</dt>
                     <dd className="font-medium text-zinc-900">
                       {o.bankAccountHolder}
                     </dd>
@@ -787,7 +811,7 @@ const tn = useNavLabel();
                 ) : null}
                 {o.invoiceNumber ? (
                   <div>
-                    <dt className="text-xs text-zinc-500">Fatura No</dt>
+                    <dt className="text-xs text-zinc-500">{t("faturaNo")}</dt>
                     <dd className="font-medium text-zinc-900">
                       {o.invoiceNumber}
                     </dd>
@@ -814,9 +838,7 @@ const tn = useNavLabel();
             <OrderReviewCard
               orderId={id}
               targetName={o.counterparty}
-              title={
-                isSeller ? "Müşteri Değerlendirme" : "Tedarikçi Değerlendirme"
-              }
+              ratee={isSeller ? "buyer" : "supplier"}
             />
           ) : null}
         </div>
@@ -824,24 +846,26 @@ const tn = useNavLabel();
         {/* Sağ kolon — sticky özet: taraf, tutar, ödeme durumu, vade. */}
         <aside className="min-w-0 space-y-4 lg:sticky lg:top-32">
           <section className="card p-5">
-            <h2 className="text-sm font-semibold text-zinc-900">Özet</h2>
+            <h2 className="text-sm font-semibold text-zinc-900">{t("ozet")}</h2>
             <p className="mt-2 text-2xl font-semibold tabular-nums text-zinc-900">
               {formatMoney(o.amount, o.currency)}
             </p>
             <dl className="mt-4 space-y-2.5 border-t border-zinc-950/5 pt-4">
-              <SummaryRow label={isSeller ? "Alıcı" : "Satıcı"}>
+              <SummaryRow label={isSeller ? t("alici") : t("satici")}>
                 <span className="block truncate">{o.counterparty}</span>
               </SummaryRow>
-              <SummaryRow label="Kalem">{o.items.length} kalem</SummaryRow>
-              <SummaryRow label="Sipariş tarihi">
+              <SummaryRow label={t("kalem")}>
+                {t("nKalem", { n: o.items.length })}
+              </SummaryRow>
+              <SummaryRow label={t("siparisTarihi")}>
                 {formatDate(o.createdAt)}
               </SummaryRow>
-              <SummaryRow label="Onaylı ödeme">
+              <SummaryRow label={t("onayliOdeme")}>
                 <span className=" tabular-nums">
                   {formatMoney(confirmedPaid, o.currency)}
                 </span>
               </SummaryRow>
-              <SummaryRow label="Kalan">
+              <SummaryRow label={t("kalan")}>
                 <span
                   className={` tabular-nums ${
                     remainingDue > 0 ? "text-amber-700" : "text-emerald-700"
@@ -851,7 +875,7 @@ const tn = useNavLabel();
                 </span>
               </SummaryRow>
               {o.paymentDueDate ? (
-                <SummaryRow label="Ödeme vadesi">
+                <SummaryRow label={t("odemeVadesi")}>
                   {formatDate(o.paymentDueDate)}
                 </SummaryRow>
               ) : null}
@@ -861,7 +885,7 @@ const tn = useNavLabel();
           {/* Sıradaki adım — aksiyonun kendisi ActionBar'da, anlatısı burada. */}
           <section className="card p-5">
             <h2 className="mb-2 text-sm font-semibold text-zinc-900">
-              Sıradaki Adım
+              {t("siradakiAdim")}
             </h2>
             {nextStepHint}
           </section>
@@ -889,27 +913,29 @@ const tn = useNavLabel();
         onClose={close}
         onSubmit={doReceive}
         pending={receive.isPending}
-        title="Teslim Aldım"
-        description={`${o.number ?? "Sipariş"} teslim alındı olarak işaretlenecek ve sipariş otomatik tamamlanacak. Ödeme borcu (varsa) ayrı izlenmeye devam eder.`}
-        confirmLabel="Teslim Aldım"
+        title={t("teslimAldim")}
+        description={t("teslimAlindiOlarakIsaretlenecek", {
+          number: o.number ?? t("siparis"),
+        })}
+        confirmLabel={t("teslimAldim")}
       />
       <NoteModal
         open={modal === "complete"}
         onClose={close}
         onSubmit={doComplete}
         pending={complete.isPending}
-        title="Siparişi Tamamla"
-        description={`${o.number ?? "Sipariş"} tamamlanıyor.`}
-        confirmLabel="Tamamla"
+        title={t("siparisiTamamla")}
+        description={t("tamamlaniyor", { number: o.number ?? t("siparis") })}
+        confirmLabel={t("tamamla")}
       />
       <ReasonModal
         open={modal === "reject"}
         onClose={close}
         onSubmit={doReject}
         pending={reject.isPending}
-        title="Siparişi Reddet"
-        description="Red gerekçesi alıcıya iletilir."
-        confirmLabel="Siparişi Reddet"
+        title={t("siparisiReddet")}
+        description={t("redGerekcesiAliciyaIletilir")}
+        confirmLabel={t("siparisiReddet")}
         minLength={10}
       />
       <ReasonModal
@@ -917,9 +943,9 @@ const tn = useNavLabel();
         onClose={close}
         onSubmit={doCancel}
         pending={cancel.isPending}
-        title="Siparişi İptal Et"
-        description="İptal gerekçesi satıcıya iletilir."
-        confirmLabel="Siparişi İptal Et"
+        title={t("siparisiIptalEt")}
+        description={t("iptalGerekcesiSaticiyaIletilir")}
+        confirmLabel={t("siparisiIptalEt")}
         minLength={10}
       />
       <ReasonModal
@@ -927,9 +953,9 @@ const tn = useNavLabel();
         onClose={close}
         onSubmit={doRequestCancel}
         pending={requestCancel.isPending}
-        title="İptal Talebi Aç"
-        description="Neden sevk edemiyorsunuz? Gerekçe alıcıya iletilir; alıcı onaylarsa sipariş iptal olur, reddederse ihtilaflı olarak işaretlenir."
-        confirmLabel="İptal Talebi Gönder"
+        title={t("iptalTalebiAc")}
+        description={t("nedenSevkEdemiyorsunuzGerekceAliciya")}
+        confirmLabel={t("iptalTalebiGonder")}
         minLength={10}
       />
       <ReasonModal
@@ -937,9 +963,9 @@ const tn = useNavLabel();
         onClose={close}
         onSubmit={doRaiseDefect}
         pending={raiseDefect.isPending}
-        title="Ayıp İhbarı (TTK 23)"
-        description="Teslim aldığınız maldaki ayıbı açıklayın. İhbar kaydedilir ve uyuşmazlıkta delil olur; sipariş ihtilaflı duruma geçer. Çözüm satıcıyla aranızdadır — platform hakem değildir."
-        confirmLabel="Ayıp İhbarı Gönder"
+        title={t("ayipIhbariTtk23")}
+        description={t("teslimAldiginizMaldakiAyibiAciklayin")}
+        confirmLabel={t("ayipIhbariGonder")}
         minLength={10}
       />
     </div>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatDate } from "@/lib/format-date";
 import type { CompanyOrderDetail } from "@/hooks/use-company-orders";
 import { sellerShipsGoods } from "@rothern/shared";
@@ -34,31 +35,34 @@ function fmt(v: string | null) {
 
 /** Sipariş geçmişi — eski OrderTimeline ile aynı olaylar (yalnızca damgası olanlar). */
 export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
-  const sellerLabel = o.role === "seller" ? "Siz (satıcı)" : "Satıcı";
-  const buyerLabel = o.role === "buyer" ? "Siz (alıcı)" : "Alıcı";
+  const t = useTranslations("web.panel.trade.orderTimeline");
+  const sellerLabel = o.role === "seller" ? t("sizSatici") : t("satici");
+  const buyerLabel = o.role === "buyer" ? t("sizAlici") : t("alici");
 
   const events: Event[] = [];
   events.push({
     icon: Plus,
     tone: "text-zinc-400",
-    title: "Sipariş Oluşturuldu",
+    title: t("siparisOlusturuldu"),
     at: fmt(o.createdAt),
-    actor: "Sistem",
+    actor: t("sistem"),
     lines: [],
   });
   if (o.acceptedAt) {
     const lines: string[] = [];
     if (o.expectedDeliveryDate)
-      lines.push(`Tahmini teslim: ${fmt(o.expectedDeliveryDate)}`);
+      lines.push(t("tahminiTeslim", { date: fmt(o.expectedDeliveryDate) }));
     // IBAN zaman çizelgesine YAZILMAZ (denetim §9) — hesap sahibi yeter;
     // tam IBAN "Ödeme & Fatura" kartında maskeli bileşenle gösterilir.
     if (o.bankAccountHolder || o.bankIban)
-      lines.push(`Ödeme hesabı: ${o.bankAccountHolder ?? "belirlendi"}`);
+      lines.push(
+        t("odemeHesabi", { holder: o.bankAccountHolder ?? t("belirlendi") }),
+      );
     if (o.acceptedNote) lines.push(o.acceptedNote);
     events.push({
       icon: ThumbsUp,
       tone: "text-emerald-500",
-      title: "Sipariş Onaylandı",
+      title: t("siparisOnaylandi"),
       at: fmt(o.acceptedAt),
       actor: sellerLabel,
       lines,
@@ -68,10 +72,10 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
     events.push({
       icon: XCircle,
       tone: "text-red-500",
-      title: "Sipariş Reddedildi",
+      title: t("siparisReddedildi"),
       at: fmt(o.rejectedAt),
       actor: sellerLabel,
-      lines: o.rejectedReason ? [`Sebep: ${o.rejectedReason}`] : [],
+      lines: o.rejectedReason ? [t("sebep", { reason: o.rejectedReason })] : [],
     });
   }
   // Revizyon müzakeresi kaldırıldı (2026-08-02) — timeline'da revizyon yok.
@@ -80,7 +84,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
     events.push({
       icon: Landmark,
       tone: "text-zinc-400",
-      title: "Akreditif Açıldı",
+      title: t("akreditifAcildi"),
       at: fmt(o.lcOpenedAt),
       actor: buyerLabel,
       lines: [],
@@ -90,7 +94,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
     events.push({
       icon: Landmark,
       tone: "text-emerald-500",
-      title: "Akreditif Kabul Edildi",
+      title: t("akreditifKabulEdildi"),
       at: fmt(o.lcAcceptedAt),
       actor: sellerLabel,
       lines: [],
@@ -98,14 +102,15 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
   }
   if (o.deliveryStartedAt) {
     const lines: string[] = [];
-    if (o.invoiceNumber) lines.push(`Fatura no: ${o.invoiceNumber}`);
+    if (o.invoiceNumber)
+      lines.push(t("faturaNo", { invoiceNumber: o.invoiceNumber }));
     if (o.deliveryNote) lines.push(o.deliveryNote);
     events.push({
       icon: Truck,
       tone: "text-emerald-500",
       title: sellerShipsGoods(o.deliveryTerm)
-        ? "Sipariş Gönderildi"
-        : "Teslime Hazırlandı",
+        ? t("siparisGonderildi")
+        : t("teslimeHazirlandi"),
       at: fmt(o.deliveryStartedAt),
       actor: sellerLabel,
       lines,
@@ -115,7 +120,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
     events.push({
       icon: CheckCircle2,
       tone: "text-emerald-500",
-      title: "Teslim Alındı",
+      title: t("teslimAlindi"),
       at: fmt(o.deliveredAt),
       actor: buyerLabel,
       lines: [],
@@ -125,7 +130,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
     events.push({
       icon: Landmark,
       tone: "text-emerald-500",
-      title: "Akreditif Ödemesi Alındı",
+      title: t("akreditifOdemesiAlindi"),
       at: fmt(o.lcPaidAt),
       actor: sellerLabel,
       lines: [],
@@ -135,7 +140,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
     events.push({
       icon: CheckCircle2,
       tone: "text-emerald-500",
-      title: "Sipariş Tamamlandı",
+      title: t("siparisTamamlandi"),
       at: fmt(o.completedAt),
       actor: buyerLabel,
       lines: o.completedNote ? [o.completedNote] : [],
@@ -146,10 +151,10 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
     events.push({
       icon: AlertTriangle,
       tone: "text-zinc-500",
-      title: "Satıcı İptal Talep Etti",
+      title: t("saticiIptalTalepEtti"),
       at: fmt(o.cancelRequestedAt),
       actor: sellerLabel,
-      lines: o.cancelRequestReason ? [`Gerekçe: ${o.cancelRequestReason}`] : [],
+      lines: o.cancelRequestReason ? [t("gerekce", { cancelRequestReason: o.cancelRequestReason })] : [],
     });
   }
   if (o.defectNotifiedAt) {
@@ -158,36 +163,36 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
     events.push({
       icon: AlertTriangle,
       tone: "text-amber-600",
-      title: "Ayıp İhbarı (TTK 23)",
+      title: t("ayipIhbariTtk23"),
       at: fmt(o.defectNotifiedAt),
       actor: buyerLabel,
-      lines: o.defectReason ? [`Gerekçe: ${o.defectReason}`] : [],
+      lines: o.defectReason ? [t("gerekce2", { defectReason: o.defectReason })] : [],
     });
   } else if (o.disputedAt) {
     events.push({
       icon: AlertTriangle,
       tone: "text-amber-600",
-      title: "Sipariş İhtilaflı",
+      title: t("siparisIhtilafli"),
       at: fmt(o.disputedAt),
       actor: buyerLabel,
-      lines: ["İptal talebi reddedildi — iki-yönlü çıkış açık."],
+      lines: [t("iptalTalebiReddedildiIkiYonlu")],
     });
   }
   if (o.cancelledAt) {
     events.push({
       icon: Ban,
       tone: "text-red-500",
-      title: "Sipariş İptal Edildi",
+      title: t("siparisIptalEdildi"),
       at: fmt(o.cancelledAt),
       actor: buyerLabel,
-      lines: o.cancelReason ? [`Sebep: ${o.cancelReason}`] : [],
+      lines: o.cancelReason ? [t("sebep", { reason: o.cancelReason })] : [],
     });
   }
 
   return (
     <section className="card p-5">
       <h2 className="mb-4 text-sm font-semibold text-zinc-900">
-        Sipariş Geçmişi
+        {t("siparisGecmisi")}
       </h2>
       <ol className="space-y-4">
         {events.map((e, i) => {

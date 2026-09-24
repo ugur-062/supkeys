@@ -3,6 +3,8 @@
  * Renk: tamamsa yeşil, 60+ mavi, altı amber (uyarı) — ama vurgu metinde,
  * halka sakin.
  */
+import { useTranslations } from "next-intl";
+
 export function ProgressRing({
   value,
   size = 72,
@@ -17,7 +19,9 @@ export function ProgressRing({
   label?: string;
   className?: string;
 }) {
+  const t = useTranslations("web.panel.trade.progressRing");
   const v = Math.max(0, Math.min(100, Math.round(value)));
+  const text = label ?? t("yuzde", { v });
   const r = (size - stroke) / 2;
   const c = 2 * Math.PI * r;
   const dash = (v / 100) * c;
@@ -28,7 +32,7 @@ export function ProgressRing({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={v}
-      aria-label={label ?? `%${v}`}
+      aria-label={text}
       className={className}
       style={{ width: size, height: size }}
     >
@@ -46,7 +50,7 @@ export function ProgressRing({
           transform={`rotate(-90 ${size / 2} ${size / 2})`}
         />
         <text x="50%" y="50%" dominantBaseline="central" textAnchor="middle" fontSize={size * 0.24} fontWeight={600} fill="#09090b">
-          {label ?? `%${v}`}
+          {text}
         </text>
       </svg>
     </div>

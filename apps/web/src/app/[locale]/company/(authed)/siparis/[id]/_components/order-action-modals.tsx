@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -35,6 +36,7 @@ export function AcceptOrderModal({
   /** S1: LC/vesaik mukabilinde ödeme banka kanalından gider → banka hesabı opsiyonel. */
   bankOptional?: boolean;
 }) {
+  const t = useTranslations("web.panel.trade.orderActionModals");
   const [note, setNote] = useState("");
   // Banka bilgisi elle girilmez — Ayarlar → Banka Hesapları'ndan seçilir.
   const accounts = useBankAccounts();
@@ -56,10 +58,9 @@ export function AcceptOrderModal({
 
   return (
     <Dialog open={open} onClose={onClose} size="lg">
-      <DialogTitle>Siparişi Onayla</DialogTitle>
+      <DialogTitle>{t("siparisiOnayla")}</DialogTitle>
       <DialogDescription>
-        Ödeme bilgilerinizi girin — teslim bilgisi teklifinizden alınır,
-        yeniden tarih seçmeniz gerekmez.
+        {t("odemeBilgileriniziGirinTeslimBilgisi")}
       </DialogDescription>
       {/* P1 (denetim §4.2): mantıksal form <form> içinde — Enter gönderir. */}
       <form
@@ -71,51 +72,51 @@ export function AcceptOrderModal({
       <DialogBody className="space-y-4">
         {bankOptional ? (
           <Field>
-            <Label>Ödeme Hesabı</Label>
+            <Label>{t("odemeHesabi")}</Label>
             <p className="mt-1 rounded-lg border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-              Akreditif / vesaik mukabili — ödeme banka kanalından (LC/belge
-              şartlarına göre) yapılır; banka hesabı seçmeniz gerekmez.
+              {t("akreditifVesaikMukabiliOdemeBanka")}
             </p>
           </Field>
         ) : (
           <Field>
-            <Label>Ödeme Hesabı *</Label>
+            <Label>{t("odemeHesabi2")}</Label>
             {hasAccounts ? (
               <>
                 <Select
                   value={effectiveAccountId}
                   onChange={(e) => setAccountId(e.target.value)}
-                  aria-label="Ödeme hesabı"
+                  aria-label={t("odemeHesabi3")}
                 >
                   {accounts.data!.map((a) => (
                     <option key={a.id} value={a.id}>
                       {a.title} · {a.iban.slice(0, 6)}…{a.iban.slice(-4)}
-                      {a.isDefault ? " (varsayılan)" : ""}
+                      {a.isDefault ? t("varsayilan") : ""}
                     </option>
                   ))}
                 </Select>
                 <p className="mt-1 text-xs text-zinc-500">
-                  Alıcının ödeme yapacağı hesap — siparişe işlenir (zorunlu).
+                  {t("alicininOdemeYapacagiHesapSiparise")}
                 </p>
               </>
             ) : (
               <p className="mt-1 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800">
-                Ödeme alabilmek için kayıtlı bir banka hesabı gerekli.{" "}
-                <Link
-                  href="/company/ayarlar/banka-hesaplari"
-                  className="font-semibold underline"
-                  target="_blank"
-                >
-                  Ayarlar → Banka Hesapları
-                </Link>
-                &apos;ndan ekleyin (yalnız Kurucu ekleyebilir). Hesap eklenmeden
-                sipariş onaylanamaz.
+                {t.rich("odemeAlabilmekIcinKayitliBankaHesabi", {
+                  link: (chunks) => (
+                    <Link
+                      href="/company/ayarlar/banka-hesaplari"
+                      className="font-semibold underline"
+                      target="_blank"
+                    >
+                      {chunks}
+                    </Link>
+                  ),
+                })}
               </p>
             )}
           </Field>
         )}
         <Field>
-          <Label>Onay Notu (opsiyonel)</Label>
+          <Label>{t("onayNotuOpsiyonel")}</Label>
           <Textarea
             rows={2}
             maxLength={2000}
@@ -126,10 +127,10 @@ export function AcceptOrderModal({
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button type="submit" disabled={pending || !bankReady}>
-          Onayla
+          {t("onayla")}
         </Button>
       </DialogActions>
       </form>
@@ -151,6 +152,7 @@ export function ShipOrderModal({
   pending: boolean;
   sellerShips?: boolean;
 }) {
+  const t = useTranslations("web.panel.trade.orderActionModals");
   const [invoice, setInvoice] = useState("");
   const [note, setNote] = useState("");
 
@@ -164,15 +166,15 @@ export function ShipOrderModal({
 
   // Madde 17: satıcının tek adımı "Siparişi Tamamla" (fatura no ister);
   // sonrası alıcı onayı — alıcı teslim aldı deyince sipariş otomatik biter.
-  const title = "Siparişi Tamamla";
+  const title = t("siparisiTamamla");
 
   return (
     <Dialog open={open} onClose={onClose}>
       <DialogTitle>{title}</DialogTitle>
       <DialogDescription>
         {sellerShips
-          ? "Kestiğiniz faturanın numarasını girin — sipariş sizin tarafınızdan tamamlanır; alıcı teslim aldığını işaretleyince kesin olarak kapanır."
-          : "Kestiğiniz faturanın numarasını girin ve malı teslime hazır işaretleyin — alıcı teslim aldığını işaretleyince sipariş kesin olarak kapanır."}
+          ? t("kestiginizFaturaninNumarasiniGirinSiparis")
+          : t("kestiginizFaturaninNumarasiniGirinVe")}
       </DialogDescription>
       <form
         onSubmit={(e) => {
@@ -182,7 +184,7 @@ export function ShipOrderModal({
       >
       <DialogBody className="space-y-4">
         <Field>
-          <Label>Fatura Numarası *</Label>
+          <Label>{t("faturaNumarasi")}</Label>
           <Input
             value={invoice}
             onChange={(e) => setInvoice(e.target.value)}
@@ -192,7 +194,7 @@ export function ShipOrderModal({
         </Field>
         <Field>
           <Label>
-            {sellerShips ? "Gönderim Notu (opsiyonel)" : "Teslim Notu (opsiyonel)"}
+            {sellerShips ? t("gonderimNotuOpsiyonel") : t("teslimNotuOpsiyonel")}
           </Label>
           <Input
             value={note}
@@ -200,15 +202,15 @@ export function ShipOrderModal({
             maxLength={500}
             placeholder={
               sellerShips
-                ? "Örn. Aras Kargo - 1234567890"
-                : "Örn. teslim yeri / hazır olduğu saat"
+                ? t("ornArasKargo1234567890")
+                : t("ornTeslimYeriHazirOldugu")
             }
           />
         </Field>
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button type="submit" disabled={pending || !invoice.trim()}>
           {title}
@@ -238,6 +240,7 @@ export function ReasonModal({
   confirmLabel: string;
   minLength?: number;
 }) {
+  const t = useTranslations("web.panel.trade.orderActionModals");
   const [reason, setReason] = useState("");
   const tooShort = reason.trim().length < minLength;
 
@@ -247,19 +250,19 @@ export function ReasonModal({
       <DialogDescription>{description}</DialogDescription>
       <DialogBody>
         <Field>
-          <Label>Gerekçe *</Label>
+          <Label>{t("gerekce")}</Label>
           <Textarea
             rows={3}
             maxLength={1000}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
-            placeholder={`En az ${minLength} karakter`}
+            placeholder={t("enAzKarakter", { minLength: minLength })}
           />
         </Field>
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button
           color="red"
@@ -290,6 +293,7 @@ export function NoteModal({
   description: string;
   confirmLabel: string;
 }) {
+  const t = useTranslations("web.panel.trade.orderActionModals");
   const [note, setNote] = useState("");
 
   return (
@@ -298,7 +302,7 @@ export function NoteModal({
       <DialogDescription>{description}</DialogDescription>
       <DialogBody>
         <Field>
-          <Label>Notunuz (opsiyonel)</Label>
+          <Label>{t("notunuzOpsiyonel")}</Label>
           <Textarea
             rows={2}
             maxLength={500}
@@ -309,7 +313,7 @@ export function NoteModal({
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button onClick={() => onSubmit(note.trim() || undefined)} disabled={pending}>
           {confirmLabel}

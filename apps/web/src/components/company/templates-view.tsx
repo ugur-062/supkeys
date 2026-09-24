@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -53,12 +55,8 @@ import { Link } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-const ANSWER_LABEL: Record<AnswerTypeValue, string> = {
-  TEXT: "Metin",
-  NUMBER: "Sayı",
-  YES_NO: "Evet/Hayır",
-  DATE: "Tarih",
-};
+/** Cevap türü seçenekleri — etiket `answerType.<KOD>` anahtarından. */
+const ANSWER_TYPES: readonly AnswerTypeValue[] = ["TEXT", "NUMBER", "YES_NO", "DATE"];
 
 /** Bölüm kabuğu — ikonlu başlık + sağda aksiyon, içerik kart ızgarası. */
 function Section({
@@ -114,6 +112,7 @@ function GroupTemplateDialog({
   editId: string | null; // null = yeni
   onClose: () => void;
 }) {
+  const t = useTranslations("web.panel.trade.templatesView");
   const connections = useConnections();
   const detail = useSupplierTemplateDetail(editId ?? "");
   const create = useCreateSupplierTemplate();
@@ -141,11 +140,11 @@ function GroupTemplateDialog({
   const pending = create.isPending || update.isPending;
   const submit = async () => {
     if (name.trim().length < 2) {
-      toast.error("Grup adı en az 2 karakter olmalı");
+      toast.error(t("grupAdiEnAz2"));
       return;
     }
     if (selected.size === 0) {
-      toast.error("En az 1 firma seçin");
+      toast.error(t("enAz1FirmaSecin"));
       return;
     }
     try {
@@ -155,17 +154,17 @@ function GroupTemplateDialog({
           name: name.trim(),
           memberCompanyIds: [...selected],
         });
-        toast.success("Grup güncellendi");
+        toast.success(t("grupGuncellendi"));
       } else {
         await create.mutateAsync({
           name: name.trim(),
           memberCompanyIds: [...selected],
         });
-        toast.success("Grup kaydedildi");
+        toast.success(t("grupKaydedildi"));
       }
       onClose();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kaydedilemedi"));
+      toast.error(extractErrorMessage(err, t("kaydedilemedi")));
     }
   };
 
@@ -173,30 +172,29 @@ function GroupTemplateDialog({
   return (
     <Dialog open onClose={onClose} size="2xl">
       <DialogTitle>
-        {editId ? "Grubu Düzenle" : `Yeni ${partyWord} Grubu`}
+        {editId ? t("grubuDuzenle") : t("yeniGrubu", { partyWord: partyWord })}
       </DialogTitle>
       <DialogBody className="space-y-4">
         <Field>
-          <Label>Grup adı</Label>
+          <Label>{t("grupAdi")}</Label>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Örn. İnşaat malzemesi tedarikçileri"
+            placeholder={t("ornInsaatMalzemesiTedarikcileri")}
           />
         </Field>
         <div>
           <p className="mb-2 text-sm font-medium text-zinc-950">
-            Üyeler{" "}
+            {t("uyeler")}{" "}
             <span className="font-normal text-zinc-400">
-              (bağlantılarınızdan · {selected.size} seçili)
+              {t("baglantilarinizdanSecili", { size: selected.size })}
             </span>
           </p>
           {connections.isLoading ? (
             <ListSkeleton rows={3} />
           ) : rows.length === 0 ? (
             <EmptyHint>
-              Henüz bağlantınız yok — önce Bağlantılar sayfasından firma
-              ekleyin.
+              {t("henuzBaglantinizYokOnceBaglantilar")}
             </EmptyHint>
           ) : (
             <div className="max-h-72 space-y-1 overflow-y-auto rounded-xl border border-zinc-200 p-2">
@@ -232,10 +230,10 @@ function GroupTemplateDialog({
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button onClick={submit} disabled={pending}>
-          {editId ? "Kaydet" : "Grubu Oluştur"}
+          {editId ? t("kaydet") : t("grubuOlustur")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -257,6 +255,7 @@ function QuestionTemplateDialog({
   editId: string | null;
   onClose: () => void;
 }) {
+  const t = useTranslations("web.panel.trade.templatesView");
   const save = useSaveQuestionTemplate();
   const update = useUpdateQuestionTemplate();
   const existing = useQuestionTemplate(editId);
@@ -282,12 +281,12 @@ function QuestionTemplateDialog({
 
   const submit = async () => {
     if (name.trim().length < 2) {
-      toast.error("Set adı en az 2 karakter olmalı");
+      toast.error(t("setAdiEnAz2"));
       return;
     }
     const items = rows.filter((r) => r.text.trim());
     if (items.length === 0) {
-      toast.error("En az 1 soru girin");
+      toast.error(t("enAz1SoruGirin"));
       return;
     }
     const payload = {
@@ -301,32 +300,32 @@ function QuestionTemplateDialog({
     try {
       if (editId) {
         await update.mutateAsync({ id: editId, ...payload });
-        toast.success("Soru seti güncellendi");
+        toast.success(t("soruSetiGuncellendi"));
       } else {
         await save.mutateAsync(payload);
-        toast.success("Soru seti kaydedildi");
+        toast.success(t("soruSetiKaydedildi"));
       }
       onClose();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kaydedilemedi"));
+      toast.error(extractErrorMessage(err, t("kaydedilemedi")));
     }
   };
 
   return (
     <Dialog open onClose={onClose} size="2xl">
-      <DialogTitle>{editId ? "Soru Setini Düzenle" : "Yeni Soru Seti"}</DialogTitle>
+      <DialogTitle>{editId ? t("soruSetiniDuzenle") : t("yeniSoruSeti")}</DialogTitle>
       <DialogBody className="space-y-4">
         <Field>
-          <Label>Set adı</Label>
+          <Label>{t("setAdi")}</Label>
           <Input
             value={name}
             onChange={(e) => setName(e.target.value)}
-            placeholder="Örn. Kalite belgeleri soruları"
+            placeholder={t("ornKaliteBelgeleriSorulari")}
           />
         </Field>
         <div>
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-sm font-medium text-zinc-950">Sorular</span>
+            <span className="text-sm font-medium text-zinc-950">{t("sorular")}</span>
             <Button
               plain
               onClick={() =>
@@ -337,7 +336,7 @@ function QuestionTemplateDialog({
               }
             >
               <Plus data-slot="icon" />
-              Soru Ekle
+              {t("soruEkle")}
             </Button>
           </div>
           <div className="space-y-2">
@@ -349,7 +348,7 @@ function QuestionTemplateDialog({
                 <Input
                   value={r.text}
                   onChange={(e) => setRow(i, { text: e.target.value })}
-                  placeholder={`Soru ${i + 1} — örn. Garanti süresi nedir?`}
+                  placeholder={t("soruOrnGarantiSuresiNedir", { n: i + 1 })}
                   maxLength={500}
                 />
                 <div className="flex flex-wrap items-center gap-3">
@@ -357,7 +356,7 @@ function QuestionTemplateDialog({
                     htmlFor={`question-answer-type-${i}`}
                     className="flex items-center gap-2 text-xs text-zinc-500"
                   >
-                    Cevap türü
+                    {t("cevapTuru")}
                   </label>
                   {/* Catalyst Select sarmalayıcısı w-full içerir; sabit
                       genişlik ancak !important ile uygulanır (wizard deseni). */}
@@ -371,9 +370,9 @@ function QuestionTemplateDialog({
                     }
                     className="!w-auto"
                   >
-                    {(Object.keys(ANSWER_LABEL) as AnswerTypeValue[]).map((a) => (
+                    {ANSWER_TYPES.map((a) => (
                       <option key={a} value={a}>
-                        {ANSWER_LABEL[a]}
+                        {t(`answerType.${a}`)}
                       </option>
                     ))}
                   </Select>
@@ -384,13 +383,13 @@ function QuestionTemplateDialog({
                       onChange={(e) => setRow(i, { required: e.target.checked })}
                       className="h-4 w-4 rounded border-zinc-300"
                     />
-                    Zorunlu
+                    {t("zorunlu")}
                   </label>
                   {rows.length > 1 ? (
                     <Button
                       plain
                       className="ml-auto"
-                      aria-label="Soruyu kaldır"
+                      aria-label={t("soruyuKaldir")}
                       onClick={() =>
                         setRows((s) => s.filter((_, idx) => idx !== i))
                       }
@@ -406,13 +405,13 @@ function QuestionTemplateDialog({
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button
           onClick={submit}
           disabled={save.isPending || update.isPending || existing.isLoading}
         >
-          Kaydet
+          {t("kaydet")}
         </Button>
       </DialogActions>
     </Dialog>
@@ -422,27 +421,29 @@ function QuestionTemplateDialog({
 /* ───────────────────────── Alt sayfa görünümleri ──────────────────────── */
 
 function useDeleteWithConfirm() {
+  const t = useTranslations("web.panel.trade.templatesView");
   const confirm = useConfirm();
   return async (kind: string, name: string, fn: () => Promise<unknown>) => {
     if (
       !(await confirm({
-        title: `${kind} sil`,
-        description: `"${name}" silinsin mi? Bu işlem geri alınamaz.`,
-        confirmLabel: "Sil",
+        title: t("silBaslik", { kind }),
+        description: t("silinsinMiBuIslemGeri", { name: name }),
+        confirmLabel: t("sil"),
         destructive: true,
       }))
     )
       return;
     try {
       await fn();
-      toast.success("Silindi");
+      toast.success(t("silindi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Silinemedi"));
+      toast.error(extractErrorMessage(err, t("silinemedi")));
     }
   };
 }
 
 function BackNav({ basePath }: { basePath: string }) {
+  const t = useTranslations("web.panel.trade.templatesView");
   return (
     <nav className="text-sm text-zinc-500">
       <Link
@@ -450,7 +451,7 @@ function BackNav({ basePath }: { basePath: string }) {
         className="inline-flex items-center gap-1 hover:text-zinc-800 hover:underline"
       >
         <ArrowLeft className="h-3.5 w-3.5" />
-        Şablonlar
+        {t("sablonlar")}
       </Link>
     </nav>
   );
@@ -458,7 +459,9 @@ function BackNav({ basePath }: { basePath: string }) {
 
 /** Tedarikçi Grupları — bağımsız alt sayfa. */
 export function GroupTemplatesView({ basePath }: { basePath: string }) {
-  const partyWord = "Tedarikçi";
+  const t = useTranslations("web.panel.trade.templatesView");
+  const locale = useLocale() as Locale;
+  const partyWord = t("tedarikci");
   // F7: şablon yazma templates:manage ister (Kurucu/Yönetici) — izinsiz
   // üye listeleri salt-okunur görür.
   const canManageTpl = useHasCompanyPermission("templates:manage");
@@ -472,13 +475,13 @@ export function GroupTemplatesView({ basePath }: { basePath: string }) {
       <BackNav basePath={basePath} />
       <Section
         icon={Users}
-        title={`${partyWord} Grupları`}
-        description="Birlikte davet ettiğiniz firmaları gruplayın — sihirbazın davet adımında tek tıkla ekleyin."
+        title={t("gruplari", { partyWord: partyWord })}
+        description={t("birlikteDavetEttiginizFirmalariGruplayin")}
         action={
           canManageTpl ? (
             <Button onClick={() => setDialog({ editId: null })}>
               <Plus data-slot="icon" />
-              Yeni Grup
+              {t("yeniGrup")}
             </Button>
           ) : undefined
         }
@@ -487,8 +490,7 @@ export function GroupTemplatesView({ basePath }: { basePath: string }) {
           <ListSkeleton rows={3} />
         ) : (groups.data ?? []).length === 0 ? (
           <EmptyHint>
-            Henüz grup yok. Bağlantılarınızdan bir {partyWord.toLowerCase()}{" "}
-            grubu oluşturun.
+            {t("henuzGrupYokBaglantilarinizdanBir", { partyWord: partyWord.toLowerCase() })}
           </EmptyHint>
         ) : (
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -506,8 +508,7 @@ export function GroupTemplatesView({ basePath }: { basePath: string }) {
                       {g.name}
                     </p>
                     <p className="mt-0.5 text-xs text-zinc-400">
-                      {g.memberCount} firma ·{" "}
-                      {formatDate(g.updatedAt, "short")}
+                      {t("firmaTarih", { n: g.memberCount, date: formatDate(g.updatedAt, "short", locale) })}
                     </p>
                   </div>
                 </div>
@@ -515,16 +516,16 @@ export function GroupTemplatesView({ basePath }: { basePath: string }) {
                 <div className="flex shrink-0 items-center gap-1">
                   <Button
                     plain
-                    aria-label={`${g.name} grubunu düzenle`}
+                    aria-label={t("grubunuDuzenle", { name: g.name })}
                     onClick={() => setDialog({ editId: g.id })}
                   >
                     <Pencil className="h-4 w-4 text-zinc-400" />
                   </Button>
                   <Button
                     plain
-                    aria-label={`${g.name} grubunu sil`}
+                    aria-label={t("grubunuSil", { name: g.name })}
                     onClick={() =>
-                      del("Grubu", g.name, () => deleteGroup.mutateAsync(g.id))
+                      del(t("grubu"), g.name, () => deleteGroup.mutateAsync(g.id))
                     }
                   >
                     <Trash2 className="h-4 w-4 text-red-500" />
@@ -549,6 +550,8 @@ export function GroupTemplatesView({ basePath }: { basePath: string }) {
 
 /** Soru Setleri — bağımsız alt sayfa (iki portalda ortak veri). */
 export function QuestionTemplatesView({ basePath }: { basePath: string }) {
+  const tr = useTranslations("web.panel.trade.templatesView");
+  const locale = useLocale() as Locale;
   // F7: şablon yazma templates:manage ister (Kurucu/Yönetici) — izinsiz
   // üye listeleri salt-okunur görür.
   const canManageTpl = useHasCompanyPermission("templates:manage");
@@ -562,13 +565,13 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
       <BackNav basePath={basePath} />
       <Section
         icon={ListChecks}
-        title="Soru Setleri"
-        description="Kalem sorularını set olarak kaydedin — sihirbazın kalem adımında yeniden kullanın."
+        title={tr("soruSetleri")}
+        description={tr("kalemSorulariniSetOlarakKaydedin")}
         action={
           canManageTpl ? (
             <Button onClick={() => setDialog({ editId: null })}>
               <Plus data-slot="icon" />
-              Yeni Set
+              {tr("yeniSet")}
             </Button>
           ) : undefined
         }
@@ -577,8 +580,7 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
           <ListSkeleton rows={3} />
         ) : (questionTpls.data ?? []).length === 0 ? (
           <EmptyHint>
-            Henüz soru seti yok. Menşei, garanti, sertifika gibi standart
-            sorularınızı sete dönüştürün.
+            {tr("henuzSoruSetiYokMensei")}
           </EmptyHint>
         ) : (
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -597,9 +599,9 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
                         {t.name}
                       </p>
                       <p className="mt-0.5 text-xs text-zinc-400">
-                        {t.itemCount} soru
+                        {tr("soru", { n: t.itemCount })}
                         {t.createdAt
-                          ? ` · ${formatDate(t.createdAt, "short")}`
+                          ? ` · ${formatDate(t.createdAt, "short", locale)}`
                           : ""}
                       </p>
                     </div>
@@ -608,16 +610,16 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
                     <div className="flex shrink-0 items-center gap-1">
                       <Button
                         plain
-                        aria-label={`${t.name} setini düzenle`}
+                        aria-label={tr("setiniDuzenle", { name: t.name })}
                         onClick={() => setDialog({ editId: t.id })}
                       >
                         <Pencil className="h-4 w-4 text-zinc-400" />
                       </Button>
                       <Button
                         plain
-                        aria-label={`${t.name} setini sil`}
+                        aria-label={tr("setiniSil", { name: t.name })}
                         onClick={() =>
-                          del("Soru setini", t.name, () =>
+                          del(tr("soruSetini"), t.name, () =>
                             deleteQuestion.mutateAsync(t.id),
                           )
                         }
@@ -643,7 +645,7 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
                     ))}
                     {t.itemCount > t.preview.length ? (
                       <li className="pl-3 text-xs text-zinc-400">
-                        +{t.itemCount - t.preview.length} soru daha
+                        {tr("soruDaha", { n: t.itemCount - t.preview.length })}
                       </li>
                     ) : null}
                   </ul>
@@ -665,6 +667,7 @@ export function QuestionTemplatesView({ basePath }: { basePath: string }) {
 
 /** Satın Alma Talebi Şablonları — bağımsız alt sayfa. */
 export function ListingTemplatesView({ basePath }: { basePath: string }) {
+  const tr = useTranslations("web.panel.trade.templatesView");
   // F7: şablon silme templates:manage ister.
   const canManageTpl = useHasCompanyPermission("templates:manage");
   const listingTpls = useListingTemplates();
@@ -688,15 +691,14 @@ export function ListingTemplatesView({ basePath }: { basePath: string }) {
       <BackNav basePath={basePath} />
       <Section
         icon={FileText}
-        title="Satın Alma Talebi Şablonları"
-        description='Sihirbazda "Şablon Olarak Kaydet" ile oluşur; yeni satın alma talebinde "Şablondan Yükle" menüsünden uygulanır.'
+        title={tr("satinAlmaTalebiSablonlari")}
+        description={tr("sihirbazdaSablonOlarakKaydetIle")}
       >
         {listingTpls.isLoading ? (
           <ListSkeleton rows={3} />
         ) : myListingTpls.length === 0 ? (
           <EmptyHint>
-            Henüz şablon yok. Sihirbazın üst çubuğundaki “Şablon Olarak
-            Kaydet” ile ilk şablonunuzu oluşturun.
+            {tr("henuzSablonYokSihirbazinUst")}
           </EmptyHint>
         ) : (
           <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -718,7 +720,7 @@ export function ListingTemplatesView({ basePath }: { basePath: string }) {
                         </p>
                       </div>
                       <p className="mt-0.5 truncate text-xs text-zinc-400">
-                        {p.items?.length ? `${p.items.length} kalem` : "—"}
+                        {p.items?.length ? tr("kalem", { n: p.items.length }) : "—"}
                         {p.title ? ` · ${p.title}` : ""}
                       </p>
                     </div>
@@ -730,14 +732,14 @@ export function ListingTemplatesView({ basePath }: { basePath: string }) {
                       href={`/company/satinalma/taleplerim/yeni?template=${t.id}`}
                       className="inline-flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
                     >
-                      Talepte kullan
+                      {tr("talepteKullan")}
                     </Link>
                     {canManageTpl ? (
                       <Button
                         plain
-                        aria-label={`${t.name} şablonunu sil`}
+                        aria-label={tr("sablonunuSil", { name: t.name })}
                         onClick={() =>
-                          del("Şablonu", t.name, () =>
+                          del(tr("sablonu"), t.name, () =>
                             deleteListingTpl.mutateAsync(t.id),
                           )
                         }

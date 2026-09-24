@@ -4,6 +4,29 @@ Bu dosya tamamlanmış aşamaların detaylı kaydıdır. Aktif çalışma için 
 
 ---
 
+## 2026-09-24 — i18n Faz 2 parti 3: teklif · sipariş · ürün · bilgi talebi ekranları üç dilde
+
+- 57 bileşen/sayfa (`siparis/[id]` + alt parçalar, Tekliflerim, Siparişler, ürün
+  formu/önizleme/eylem çubuğu/ray/görsel yükleyici, bilgi talepleri, şablonlar,
+  onay detayı, yetki tablosu, İş Analizi, Ziyaret Edenler, kilit kartları):
+  codemod + 4 düzenleme ajanı, +1.003 anahtar (katalog 4.098; 6 çevirmen ajanı,
+  EN/RU %100). Sözlük hook'ları: `useOrderStatusLabel`/`useOrderStepLabel`
+  (`web.domain.orderStatus|orderStep`, liste + detay tek sözlük),
+  `useProductStatusMeta` (`products/product-status-label.ts`; durum kodu/rengi
+  `lib/company/product-status.ts`ten, metin katalogdan), yetki tablosu izin/grup
+  adları `perm.<kod>`/`group.<grup>` (`t.has`, yoksa sunucu etiketi).
+- Codemod düzeltmeleri: `&ldquo;` varlıkları katalog değerinde çözüldü; veri
+  değerleri (`accept` uzantı listesi, `<option value>`) literale döndü;
+  kaydedilen `unit` Türkçe ad kalır (API sözlüğü), yalnız ekran etiketi çevrilir.
+- Yasaklı terim yakalandı: `siparisIdPage.bagliIhaleKaydiYokSilinmis` → "Bağlı
+  talep kaydı yok" (`bagliTalepKaydiYokSilinmis`).
+- Cırcır tabanı 310 dosya / 3.799 (348 / 4.579'dan). Web 149 dosya / 843 test,
+  lint 0 hata, yerel `next build` yeşil.
+- Kalan (paylaşılan kaynaklar, parti 5): `bidDeliveryTimeLabel`,
+  `productPublishBlockers` (kodsuz Türkçe), `ImageProcessingError` metni,
+  `ACTION_ROWS` (`lib/dashboard/strings.ts`), `lib/orders/order-status.ts` ve
+  `request-filter-params.ts` etiketleri, `toLocaleString("tr-TR")` biçimleri.
+
 ## 2026-09-24 — i18n Faz 2 parti 2: talep ekranları üç dilde
 
 - 55 bileşen/sayfa (`components/tenders`, `components/ihale`, talep detayı, teklif

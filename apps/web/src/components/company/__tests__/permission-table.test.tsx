@@ -16,6 +16,8 @@ import { describe, expect, it, vi } from "vitest";
 import { PermissionTable } from "../permission-table";
 import type { PermissionCatalog } from "@/hooks/use-company-users";
 
+// İzin adları i18n Faz 2'den beri `perm.<kod>` anahtarından çizilir (API etiketi
+// yalnız katalogda karşılığı olmayan izinde) → beklentiler katalog metnidir.
 const catalog: PermissionCatalog = {
   catalog: [
     { key: "buy:view", label: "Satınalmayı görüntüle", group: "buy", seat: false },
@@ -62,18 +64,18 @@ function ciz(canGrantBuy: boolean, value: string[] = []) {
 describe("PermissionTable — satınalma paket kapısı", () => {
   it("ücretsiz/Silver: satınalma işlem tiki KİLİTLİ ve sebebi yazar", () => {
     ciz(false);
-    expect(kilitli("Talep yönet")).toBe(true);
+    expect(kilitli("Talep açma ve yönetme")).toBe(true);
     expect(screen.getByText(/Gold pakette açılır/)).toBeInTheDocument();
   });
 
   it("ücretsiz/Silver: SATIŞ tiki serbest — kapı yalnız satınalmaya", () => {
     ciz(false);
-    expect(kilitli("Teklif ver")).toBe(false);
+    expect(kilitli("Teklif verme")).toBe(false);
   });
 
   it("Gold: satınalma tiki açılır", () => {
     ciz(true);
-    expect(kilitli("Talep yönet")).toBe(false);
+    expect(kilitli("Talep açma ve yönetme")).toBe(false);
     expect(screen.queryByText(/Gold pakette açılır/)).not.toBeInTheDocument();
   });
 
@@ -81,6 +83,6 @@ describe("PermissionTable — satınalma paket kapısı", () => {
     // Kademe düşen firmada eski yetki duruyor olabilir; ekran onu kaldırılamaz
     // hâle getirmemeli (kaldırmak için ayrı bir akış var: seat-selection).
     ciz(false, ["buy:listing:manage", "buy:view"]);
-    expect(kilitli("Talep yönet")).toBe(false);
+    expect(kilitli("Talep açma ve yönetme")).toBe(false);
   });
 });

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
 import { Text } from "@/components/catalyst/text";
 import {
@@ -9,7 +10,7 @@ import {
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { formatPaymentPlan } from "@/lib/tenders/labels";
+import { useFormatPaymentPlan } from "@/i18n/domain";
 import { Landmark } from "lucide-react";
 import { toast } from "sonner";
 
@@ -20,6 +21,8 @@ import { toast } from "sonner";
  * Alındı" (sistem onaylı tam-tutar kaydı üretir, sipariş tamamlanır).
  */
 export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
+  const t = useTranslations("web.panel.trade.lcStepPanel");
+  const paymentPlan = useFormatPaymentPlan();
   const id = order.id;
   const isSeller = order.role === "seller";
   // F7: LC adımları tarafın işlem rolünü ister (assertOrderRole aynası).
@@ -46,7 +49,7 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
       await p;
       toast.success(ok);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İşlem başarısız"));
+      toast.error(extractErrorMessage(err, t("islemBasarisiz")));
     }
   };
 
@@ -57,15 +60,15 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
         return isSeller
           ? {
               tone: "wait" as const,
-              text: "Alıcının akreditifi açması bekleniyor. Alıcı 'Akreditif Açıldı' adımını tamamlayacak; küşat mektubunu bankanızdan teyit edin.",
+              text: t("alicininAkreditifiAcmasiBekleniyorAlici"),
             }
           : {
               tone: "act" as const,
-              text: "Akreditifi bankanızdan açtırdıktan sonra 'Akreditif Açıldı' olarak işaretleyin; küşat mektubunu satıcıya banka kanalından iletin.",
+              text: t("akreditifiBankanizdanActirdiktanSonraAkredit"),
               button: {
-                label: "Akreditif Açıldı",
+                label: t("akreditifAcildi"),
                 onClick: () =>
-                  run(opened.mutateAsync(), "Akreditif açıldı olarak işaretlendi"),
+                  run(opened.mutateAsync(), t("akreditifAcildiOlarakIsaretlendi")),
                 pending: opened.isPending,
               },
             };
@@ -74,23 +77,23 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
         return isSeller
           ? {
               tone: "act" as const,
-              text: "Alıcı akreditifi açtı. Küşat mektubunu inceleyip kabul ederseniz gönderim adımı açılır.",
+              text: t("aliciAkreditifiActiKusatMektubunu"),
               button: {
-                label: "Akreditifi Kabul Ettim",
+                label: t("akreditifiKabulEttim"),
                 onClick: () =>
-                  run(accept.mutateAsync(), "Akreditif kabul edildi"),
+                  run(accept.mutateAsync(), t("akreditifKabulEdildi")),
                 pending: accept.isPending,
               },
             }
           : {
               tone: "wait" as const,
-              text: "Akreditifi açtınız — satıcının kabul etmesi bekleniyor.",
+              text: t("akreditifiActinizSaticininKabulEtmesi"),
             };
       }
       // Kabul edildi → gönderim kilidi açık (gönderme işlemi Aksiyon bölümünde).
       return {
         tone: "ok" as const,
-        text: "Akreditif kabul edildi — satıcı siparişi gönderebilir.",
+        text: t("akreditifKabulEdildiSaticiSiparisi"),
       };
     }
 
@@ -104,17 +107,17 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
         return isSeller
           ? {
               tone: "act" as const,
-              text: "Akreditif ödemesi banka kanalından hesabınıza geçtiğinde işaretleyin — sistem tam tutarlı onaylı ödeme kaydı oluşturur.",
+              text: t("akreditifOdemesiBankaKanalindanHesabiniza"),
               button: {
-                label: "Ödeme Bankadan Alındı",
+                label: t("odemeBankadanAlindi"),
                 onClick: () =>
-                  run(paid.mutateAsync(), "Akreditif ödemesi alındı olarak işaretlendi"),
+                  run(paid.mutateAsync(), t("akreditifOdemesiAlindiOlarakIsaretlendi")),
                 pending: paid.isPending,
               },
             }
           : {
               tone: "wait" as const,
-              text: "Ödeme akreditif kapsamında banka kanalından yapılır — satıcı ödemeyi aldığında işaretleyecek.",
+              text: t("odemeAkreditifKapsamindaBankaKanalindan"),
             };
       }
       // Ödeme alındı + sipariş tamamlandı → panel gizlenir (geçmiş Zaman
@@ -122,7 +125,7 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
       if (order.status === "COMPLETED") return null;
       return {
         tone: "ok" as const,
-        text: "Akreditif ödemesi alındı.",
+        text: t("akreditifOdemesiAlindi"),
       };
     }
     return null;
@@ -142,7 +145,7 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
       <div className="mb-2 flex items-center gap-2">
         <Landmark className="h-4 w-4 text-zinc-700" />
         <h2 className="text-sm font-semibold text-zinc-900">
-          Akreditif — {formatPaymentPlan(order)}
+          {t("akreditif", { plan: paymentPlan(order) })}
         </h2>
       </div>
       <div className="flex flex-wrap items-center justify-between gap-4">

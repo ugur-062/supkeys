@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { PriceTier } from "@/hooks/use-company-items";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
@@ -16,22 +17,10 @@ import { PlusIcon, TrashIcon } from "@heroicons/react/20/solid";
  * cezalandırmak kullanıcıyı tam da o sahte fiyata iterdi.
  */
 const MODES = [
-  {
-    value: "FIXED" as const,
-    title: "Sabit fiyat",
-    body: "Tek birim fiyat. Miktardan bağımsız.",
-  },
-  {
-    value: "TIERED" as const,
-    title: "Kademeli fiyat",
-    body: "Miktar arttıkça birim fiyat düşer — B2B'de en gerçekçi olan.",
-  },
-  {
-    value: "ON_REQUEST" as const,
-    title: "Fiyat için teklif isteyin",
-    body: "Fiyat yayımlamak istemiyorsanız bunu seçin. Puan kaybettirmez.",
-  },
-];
+  { value: "FIXED", title: "mode.FIXED.title", body: "mode.FIXED.body" },
+  { value: "TIERED", title: "mode.TIERED.title", body: "mode.TIERED.body" },
+  { value: "ON_REQUEST", title: "mode.ON_REQUEST.title", body: "mode.ON_REQUEST.body" },
+] as const;
 
 export function PriceModeField({
   mode,
@@ -53,10 +42,11 @@ export function PriceModeField({
     currency?: string;
   }) => void;
 }) {
+  const tr = useTranslations("web.panel.trade.priceModeField");
   return (
     <div className="space-y-4">
       <fieldset>
-        <legend className="text-sm font-medium text-zinc-900">Fiyat</legend>
+        <legend className="text-sm font-medium text-zinc-900">{tr("fiyat")}</legend>
         <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-3">
           {MODES.map((m) => (
             <label
@@ -76,9 +66,9 @@ export function PriceModeField({
                 className="sr-only"
               />
               <span className="block text-sm font-semibold text-zinc-950">
-                {m.title}
+                {tr(m.title)}
               </span>
-              <span className="mt-1 block text-xs/5 text-zinc-500">{m.body}</span>
+              <span className="mt-1 block text-xs/5 text-zinc-500">{tr(m.body)}</span>
             </label>
           ))}
         </div>
@@ -86,7 +76,7 @@ export function PriceModeField({
 
       {mode === "FIXED" ? (
         <Field>
-          <Label htmlFor="fiyat-birim">Birim fiyat</Label>
+          <Label htmlFor="fiyat-birim">{tr("birimFiyat")}</Label>
           <div className="flex flex-wrap gap-2">
             <input
               id="fiyat-birim"
@@ -96,7 +86,7 @@ export function PriceModeField({
               step="0.01"
               value={amount}
               onChange={(e) => onChange({ amount: e.target.value })}
-              placeholder="0,00"
+              placeholder={tr("birimFiyatYerTutucu")}
               className="min-w-0 flex-1 basis-40 rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
             />
             <CurrencySelect value={currency} onChange={(c) => onChange({ currency: c })} />
@@ -111,17 +101,17 @@ export function PriceModeField({
         <div>
           <div className="flex items-center justify-between">
             {/* Bir satır listesinin başlığı — tek kontrol yok, `<label>` bağlanamaz. */}
-            <Label as="p">Kademeler</Label>
+            <Label as="p">{tr("kademeler")}</Label>
             <CurrencySelect value={currency} onChange={(c) => onChange({ currency: c })} />
           </div>
           <p className="mt-1 text-xs text-zinc-500">
-            Her satır “şu miktardan itibaren” anlamına gelir.
+            {tr("herSatirSuMiktardanItibaren")}
           </p>
           <ul className="mt-3 space-y-2">
             {tiers.map((t, i) => (
               <li key={i} className="flex items-center gap-2">
                 <input
-                  aria-label={`${i + 1}. kademe: başlangıç miktarı`}
+                  aria-label={tr("kademeBaslangicMiktari", { n: i + 1 })}
                   type="number"
                   min={1}
                   value={t.minQty}
@@ -132,9 +122,9 @@ export function PriceModeField({
                   }}
                   className="w-28 rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900"
                 />
-                <span className="text-sm text-zinc-500">{unit} ve üzeri</span>
+                <span className="text-sm text-zinc-500">{tr("veUzeri", { unit: unit })}</span>
                 <input
-                  aria-label={`${i + 1}. kademe: birim fiyat`}
+                  aria-label={tr("kademeBirimFiyat", { n: i + 1 })}
                   type="number"
                   min={0}
                   step="0.01"
@@ -151,7 +141,7 @@ export function PriceModeField({
                   type="button"
                   onClick={() => onChange({ tiers: tiers.filter((_, x) => x !== i) })}
                   className="ml-auto rounded-lg p-2 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-                  aria-label="Kademeyi sil"
+                  aria-label={tr("kademeyiSil")}
                 >
                   <TrashIcon aria-hidden className="size-4" />
                 </button>
@@ -175,7 +165,7 @@ export function PriceModeField({
               className="mt-3 inline-flex items-center gap-1 rounded-full border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
             >
               <PlusIcon aria-hidden className="size-4" />
-              Kademe ekle
+              {tr("kademeEkle")}
             </button>
           ) : null}
         </div>
@@ -183,9 +173,7 @@ export function PriceModeField({
 
       {mode === "ON_REQUEST" ? (
         <p className="rounded-xl bg-zinc-50 p-4 text-sm/6 text-zinc-600 ring-1 ring-zinc-950/5">
-          Ürün sayfasında <strong>“Fiyat için teklif isteyin”</strong>{" "}
-          yazacak. Bu bir eksiklik değil, açık bir beyandır — alıcı fiyatın
-          görüşmeye bağlı olduğunu bilir.
+          {tr.rich("urunSayfasindaFiyatIcinTeklifIsteyinYazacak", { strong: (c) => <strong>{c}</strong> })}
         </p>
       ) : null}
     </div>
@@ -201,11 +189,12 @@ function CurrencySelect({
   value: string;
   onChange: (v: string) => void;
 }) {
+  const t = useTranslations("web.panel.trade.priceModeField");
   return (
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      aria-label="Para birimi"
+      aria-label={t("paraBirimi")}
       className="rounded-lg border border-zinc-300 bg-white px-2 py-2 text-sm text-zinc-950 outline-none focus:border-zinc-900"
     >
       {CURRENCIES.map((c) => (

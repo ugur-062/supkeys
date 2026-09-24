@@ -1,7 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { SECTOR_EDIT_HREF } from "@/lib/company/portals";
-import { listingTerms } from "@/lib/company/terms";
+import { useListingTerms } from "@/i18n/domain";
 import { EmptyState, ListSkeleton, Pagination } from "@/components/list";
 import { BrowseTenderRow } from "@/components/ihale/BrowseTenderRow";
 import {
@@ -120,8 +121,9 @@ function RequestList({
   isError: boolean;
   refetch: () => void;
 }) {
+  const tr = useTranslations("web.panel.trade.sellerTendersView");
   // Kayıt tipi sözlüğü: başkalarının AÇIK TALEPLERİ — satış tarafında tek terim.
-  const t = listingTerms("ACIK_TALEP");
+  const t = useListingTerms("ACIK_TALEP");
   const { update, clear } = useFilters<RequestFilterState>();
   const totalPages = Math.max(1, Math.ceil(rows.length / PAGE_SIZE));
   const safePage = Math.min(state.page, totalPages);
@@ -136,8 +138,8 @@ function RequestList({
         </h2>
         <p className="mt-1 text-sm text-zinc-500">
           {locked
-            ? "Bağlı olduğunuz alıcıların talepleri — herkese açık taleplerin tamamı Silver paketiyle açılır."
-            : "Bağlı olduğunuz alıcıların ve herkese açık taleplerin tamamı — süzün, sıralayın, teklif verin."}
+            ? tr("bagliOldugunuzAlicilarinTalepleriHerkese")
+            : tr("bagliOldugunuzAlicilarinVeHerkese")}
         </p>
       </div>
 
@@ -145,7 +147,7 @@ function RequestList({
 
       {atCap ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
-          En fazla 300 {t.unit} gösteriliyor — daha fazlası varsa arama ve süzgeçlerle daraltın.
+          {tr("enFazla300GosteriliyorDaha", { unit: t.unit })}
         </div>
       ) : null}
 
@@ -156,11 +158,11 @@ function RequestList({
 
       <div className="grid grid-cols-1 gap-8 lg:grid-cols-[15rem_1fr]">
         <aside
-          aria-label="Süzgeçler"
+          aria-label={tr("suzgecler")}
           className="hidden lg:sticky lg:top-24 lg:block lg:max-h-[calc(100vh-7rem)] lg:self-start lg:overflow-y-auto lg:overscroll-contain lg:pr-2 [scrollbar-width:thin]"
         >
           {isLoading ? (
-            <p className="text-sm text-zinc-500">Süzgeçler yükleniyor…</p>
+            <p className="text-sm text-zinc-500">{tr("suzgeclerYukleniyor")}</p>
           ) : (
             <RequestFilters facets={facets} idPrefix="d" />
           )}
@@ -182,8 +184,8 @@ function RequestList({
               <div className="space-y-3">
                 <EmptyState
                   icon={ClipboardList}
-                  title="Açık talepler yüklenemedi."
-                  description="Bir hata oluştu — tekrar deneyin."
+                  title={tr("acikTaleplerYuklenemedi")}
+                  description={tr("birHataOlustuTekrarDeneyin")}
                   variant="no-results"
                 />
                 <div className="text-center">
@@ -192,7 +194,7 @@ function RequestList({
                     onClick={refetch}
                     className="rounded-lg border border-zinc-300 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:bg-zinc-50"
                   >
-                    Tekrar dene
+                    {tr("tekrarDene")}
                   </button>
                 </div>
               </div>
@@ -201,17 +203,17 @@ function RequestList({
                 icon={ClipboardList}
                 title={
                   isFiltered
-                    ? "Sonuç bulunamadı."
+                    ? tr("sonucBulunamadi")
                     : state.status === "aktif"
-                      ? `Aktif ${t.unit} yok.`
-                      : `Henüz ${t.unit} yok.`
+                      ? tr("aktifYok", { unit: t.unit })
+                      : tr("henuzYok", { unit: t.unit })
                 }
                 description={
                   isFiltered
-                    ? "Süzgeçlerinizi değiştirerek tekrar deneyin."
+                    ? tr("suzgecleriniziDegistirerekTekrarDeneyin")
                     : state.status === "aktif"
-                      ? "Kapananlar için Durum → Geçmiş."
-                      : "Kategorinize uygun talep yayınlandığında burada görünür."
+                      ? tr("kapananlarIcinDurumGecmis")
+                      : tr("kategorinizeUygunTalepYayinlandigindaBurada")
                 }
                 variant={isFiltered ? "no-results" : "no-data"}
                 action={
@@ -221,7 +223,7 @@ function RequestList({
                       onClick={clear}
                       className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                     >
-                      Filtreleri temizle
+                      {tr("filtreleriTemizle")}
                     </button>
                   ) : (
                     /* Satışta TEK eylem: eşleşme kategori beyanına dayanır —
@@ -230,14 +232,14 @@ function RequestList({
                       href={SECTOR_EDIT_HREF}
                       className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                     >
-                      Satış kategorilerini düzenle
+                      {tr("satisKategorileriniDuzenle")}
                     </Link>
                   )
                 }
               />
             ) : (
               <>
-                <div className="space-y-2" role="table" aria-label={`${t.searchNoun} listesi`}>
+                <div className="space-y-2" role="table" aria-label={tr("listesi", { noun: t.searchNoun })}>
                   {pageRows.map((row) => (
                     <BrowseTenderRow key={row.id} t={row} />
                   ))}

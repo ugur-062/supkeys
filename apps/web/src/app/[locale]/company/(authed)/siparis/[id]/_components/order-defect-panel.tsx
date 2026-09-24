@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatDate } from "@/lib/format-date";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -19,6 +20,7 @@ import { toast } from "sonner";
  * onarım/değişim) taraflar arasında. Alıcı ihbarı geri çekebilir → önceki durum.
  */
 export function OrderDefectPanel({ order }: { order: CompanyOrderDetail }) {
+  const t = useTranslations("web.panel.trade.orderDefectPanel");
   const isSeller = order.role === "seller";
   // F7: geri-çekme tarafın işlem rolünü ister (assertOrderRole aynası).
   const { user } = useCompanyAuth();
@@ -35,9 +37,9 @@ export function OrderDefectPanel({ order }: { order: CompanyOrderDetail }) {
   const doWithdraw = async () => {
     try {
       await withdraw.mutateAsync();
-      toast.success("Ayıp ihbarı geri çekildi — sipariş önceki durumuna döndü");
+      toast.success(t("ayipIhbariGeriCekildiSiparis"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Geri çekilemedi"));
+      toast.error(extractErrorMessage(err, t("geriCekilemedi")));
     }
   };
 
@@ -47,11 +49,11 @@ export function OrderDefectPanel({ order }: { order: CompanyOrderDetail }) {
         <AlertTriangle className="mt-0.5 size-5 shrink-0 text-amber-600" />
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-zinc-900">
-            Ayıp ihbarı — sipariş ihtilaflı (TTK 23)
+            {t("ayipIhbariSiparisIhtilafliTtk")}
           </h2>
           {order.defectReason ? (
             <p className="mt-1 text-sm text-zinc-700">
-              <span className="font-medium">İhbar gerekçesi:</span>{" "}
+              <span className="font-medium">{t("ihbarGerekcesi")}</span>{" "}
               {order.defectReason}
               {notifiedAt ? (
                 <span className="text-zinc-500"> · {notifiedAt}</span>
@@ -60,8 +62,8 @@ export function OrderDefectPanel({ order }: { order: CompanyOrderDetail }) {
           ) : null}
           <p className="mt-1 text-xs text-zinc-500">
             {isSeller
-              ? "Alıcı teslim aldığı malda ayıp ihbar etti. Çözüm (onarım, değişim, bedel indirimi, iade/dönme) taraflar arasındadır — platform hakem değildir, ihbarı kaydeder."
-              : "İhbarınız kaydedildi (uyuşmazlıkta delil). Çözüm satıcıyla aranızdadır. Sorun çözülürse ihbarı geri çekebilirsiniz."}
+              ? t("aliciTeslimAldigiMaldaAyip")
+              : t("ihbarinizKaydedildiUyusmazliktaDelilCozum")}
           </p>
           {canAct && !isSeller ? (
             <div className="mt-3">
@@ -70,7 +72,7 @@ export function OrderDefectPanel({ order }: { order: CompanyOrderDetail }) {
                 onClick={doWithdraw}
                 disabled={withdraw.isPending}
               >
-                İhbarı Geri Çek
+                {t("ihbariGeriCek")}
               </Button>
             </div>
           ) : null}

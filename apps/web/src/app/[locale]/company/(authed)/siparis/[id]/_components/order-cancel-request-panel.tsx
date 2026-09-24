@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { formatNumber } from "@/i18n/format";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -36,6 +39,8 @@ export function OrderCancelRequestPanel({
 }: {
   order: CompanyOrderDetail;
 }) {
+  const t = useTranslations("web.panel.trade.orderCancelRequestPanel");
+  const locale = useLocale() as Locale;
   const isSeller = order.role === "seller";
   // F7: karar/geri-çekme butonları tarafın işlem rolünü ister (assertOrderRole
   // aynası) — etiket-only üye paneli salt-okunur görür.
@@ -61,26 +66,27 @@ export function OrderCancelRequestPanel({
     order.currency;
   const confirmedPaid = Number(order.paymentTotals?.confirmed ?? 0);
   const reason = order.cancelRequestReason;
+  const strong = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
 
   const run = async (p: Promise<unknown>, ok: string) => {
     try {
       await p;
       toast.success(ok);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İşlem başarısız"));
+      toast.error(extractErrorMessage(err, t("islemBasarisiz")));
     }
   };
 
   const doWithdraw = () =>
-    run(withdraw.mutateAsync(), "İptal talebi geri çekildi");
+    run(withdraw.mutateAsync(), t("iptalTalebiGeriCekildi"));
   const doApprove = async () => {
-    await run(approve.mutateAsync(undefined), "İptal onaylandı — sipariş iptal edildi");
+    await run(approve.mutateAsync(undefined), t("iptalOnaylandiSiparisIptalEdildi"));
     setApproveOpen(false);
   };
   const doReject = async () => {
     await run(
       reject.mutateAsync({ note: rejectNote.trim() || undefined }),
-      "İptal talebi reddedildi — sipariş ihtilaflı",
+      t("iptalTalebiReddedildiSiparisIhtilafli"),
     );
     setRejectOpen(false);
   };
@@ -100,25 +106,25 @@ export function OrderCancelRequestPanel({
         <div className="min-w-0 flex-1">
           <h2 className="text-sm font-semibold text-zinc-900">
             {disputed
-              ? "Sipariş ihtilaflı"
-              : "Satıcı sipariş iptali talep etti"}
+              ? t("siparisIhtilafli")
+              : t("saticiSiparisIptaliTalepEtti")}
           </h2>
           {reason ? (
             <p className="mt-1 text-sm text-zinc-600">
-              <span className="font-medium">Satıcının gerekçesi:</span> {reason}
+              <span className="font-medium">{t("saticininGerekcesi")}</span> {reason}
             </p>
           ) : null}
           <p className="mt-1 text-xs text-zinc-500">
             {disputed
-              ? "İptal talebi reddedildi; sipariş ihtilaflı. Satıcı mal bulunca sevk edebilir, ya da alıcı iptali onaylayabilir. Sözleşme tarafların sorumluluğundadır — platform hakem değildir."
-              : "Alıcının kararı bekleniyor. Otomatik onay yoktur."}
+              ? t("iptalTalebiReddedildiSiparisIhtilafli2")
+              : t("alicininKarariBekleniyorOtomatikOnay")}
           </p>
 
           <div className="mt-3 flex flex-wrap gap-2">
             {/* SATICI — açık talebi geri çek (yalnız pending). */}
             {canAct && isSeller && pending ? (
               <Button plain onClick={doWithdraw} disabled={withdraw.isPending}>
-                İptal Talebini Geri Çek
+                {t("iptalTalebiniGeriCek")}
               </Button>
             ) : null}
 
@@ -129,7 +135,7 @@ export function OrderCancelRequestPanel({
                   onClick={() => setApproveOpen(true)}
                   disabled={approve.isPending}
                 >
-                  İptali Onayla
+                  {t("iptaliOnayla")}
                 </Button>
                 {pending ? (
                   <Button
@@ -137,7 +143,7 @@ export function OrderCancelRequestPanel({
                     onClick={() => setRejectOpen(true)}
                     disabled={reject.isPending}
                   >
-                    Reddet
+                    {t("reddet")}
                   </Button>
                 ) : null}
               </>
@@ -146,8 +152,7 @@ export function OrderCancelRequestPanel({
             {/* SATICI — DISPUTED'da sevk yönlendirmesi (buton üstteki ana aksiyonda). */}
             {isSeller && disputed ? (
               <p className="text-xs text-zinc-500">
-                Mal bulunduysa yukarıdan <strong>Siparişi Gönder</strong> ile
-                ihtilafı çözebilirsiniz.
+                {t.rich("malBulunduysaYukaridanSiparisiGonder", { strong })}
               </p>
             ) : null}
           </div>
@@ -156,40 +161,40 @@ export function OrderCancelRequestPanel({
 
       {/* Alıcı onay dialogu — CONFIRMED ödeme varsa iade uyarısı (engelleme YOK). */}
       <Dialog open={approveOpen} onClose={() => setApproveOpen(false)}>
-        <DialogTitle>İptali onayla</DialogTitle>
+        <DialogTitle>{t("iptaliOnayla2")}</DialogTitle>
         <DialogDescription>
-          Sipariş iptal edilecek. Bu işlem geri alınamaz.
+          {t("siparisIptalEdilecekBuIslem")}
         </DialogDescription>
         <DialogBody className="space-y-3">
           {confirmedPaid > 0 ? (
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
-              Onaylı ödemeniz var ({confirmedPaid.toLocaleString("tr-TR")}{" "}
-              {curSym}). İade taraflar arasında halledilir —{" "}
-              <strong>platform para tutmaz</strong>. Ödemeniz iade edildikten
-              sonra onaylamanız önerilir.
+              {t.rich("onayliOdemenizVarIadeTaraflarArasinda", {
+                strong,
+                amount: formatNumber(confirmedPaid, locale),
+                currency: curSym,
+              })}
             </div>
           ) : null}
         </DialogBody>
         <DialogActions>
           <Button plain onClick={() => setApproveOpen(false)}>
-            Vazgeç
+            {t("vazgec")}
           </Button>
           <Button onClick={doApprove} disabled={approve.isPending}>
-            İptali Onayla
+            {t("iptaliOnayla")}
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Alıcı red dialogu — DISPUTED (gerekçe opsiyonel). */}
       <Dialog open={rejectOpen} onClose={() => setRejectOpen(false)}>
-        <DialogTitle>İptal talebini reddet</DialogTitle>
+        <DialogTitle>{t("iptalTalebiniReddet")}</DialogTitle>
         <DialogDescription>
-          Sipariş ihtilaflı (DISPUTED) olarak işaretlenecek — onaylanmış duruma
-          geri dönmez. Satıcı mal bulunca sevk edebilir.
+          {t("siparisIhtilafliDisputedOlarakIsaretlenecek")}
         </DialogDescription>
         <DialogBody>
           <Field>
-            <Label>Gerekçe (opsiyonel)</Label>
+            <Label>{t("gerekceOpsiyonel")}</Label>
             <Textarea
               rows={2}
               maxLength={500}
@@ -200,10 +205,10 @@ export function OrderCancelRequestPanel({
         </DialogBody>
         <DialogActions>
           <Button plain onClick={() => setRejectOpen(false)}>
-            Vazgeç
+            {t("vazgec")}
           </Button>
           <Button onClick={doReject} disabled={reject.isPending}>
-            Reddet (İhtilaflı)
+            {t("reddetIhtilafli")}
           </Button>
         </DialogActions>
       </Dialog>

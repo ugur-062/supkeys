@@ -2,12 +2,16 @@
  * Günlük mini çubuk grafiği (SVG, bağımlılık yok) — Ziyaret Edenler ve
  * Genel Bakış ziyaretçi kartı. Her çubukta erişilebilir başlık (gün · sayı).
  */
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { INTL_LOCALE } from "@/i18n/format";
+
 export function MiniBars({
   data,
   height = 48,
   accent = "blue",
   className,
-  ariaLabel = "Günlük görüntülenme",
+  ariaLabel,
 }: {
   data: { date: string; views: number }[];
   height?: number;
@@ -15,6 +19,8 @@ export function MiniBars({
   className?: string;
   ariaLabel?: string;
 }) {
+  const t = useTranslations("web.panel.trade.miniBars");
+  const locale = useLocale() as Locale;
   const max = Math.max(1, ...data.map((d) => d.views));
   const n = Math.max(1, data.length);
   const gap = 2;
@@ -23,12 +29,12 @@ export function MiniBars({
   const fill = accent === "blue" ? "#2563eb" : accent === "emerald" ? "#059669" : "#71717a";
   const fmt = (iso: string) => {
     const d = new Date(`${iso}T00:00:00Z`);
-    return d.toLocaleDateString("tr-TR", { day: "numeric", month: "short", timeZone: "UTC" });
+    return d.toLocaleDateString(INTL_LOCALE[locale] ?? "tr-TR", { day: "numeric", month: "short", timeZone: "UTC" });
   };
   return (
     <svg
       role="img"
-      aria-label={ariaLabel}
+      aria-label={ariaLabel ?? t("gunlukGoruntulenme")}
       viewBox={`0 0 ${w} ${height}`}
       preserveAspectRatio="none"
       className={className}

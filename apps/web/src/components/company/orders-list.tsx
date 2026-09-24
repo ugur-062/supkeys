@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useNavLabel } from "@/i18n/domain";
 import { formatDate } from "@/lib/format-date";
 import { MODULE_LABELS } from "@/lib/company/portals";
@@ -34,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { sellerShipsGoods } from "@rothern/shared";
 import { formatMoney } from "@/components/ui/money";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { orderStageIndex, orderStatusMeta, orderSteps } from "@/lib/orders/order-status";
+import { orderStageIndex, orderStatusMeta, orderSteps, type OrderStepKey } from "@/lib/orders/order-status";
 import {
   ArrowUpDown,
   Building2,
@@ -53,9 +54,24 @@ import { useMemo, useState } from "react";
 
 const PAGE_SIZE = 12;
 
-// 4 kilometre taşı — TEK kaynaktan (order-status.orderSteps / orderStageIndex).
-const stagesFor = (sellerShips: boolean) =>
-  orderSteps(sellerShips).map((s) => s.label);
+// 4 kilometre taşı — TEK kaynaktan (order-status.orderSteps / orderStageIndex);
+// etiket PAYLAŞILAN katalogdan (`web.domain.orderStep.<KEY>`; satıcı taşımıyorsa
+// SHIP → SHIP_PICKUP "Hazırlık").
+const stepKey = (key: OrderStepKey, sellerShips: boolean) =>
+  key === "SHIP" && !sellerShips ? "SHIP_PICKUP" : key;
+
+/**
+ * Durum rozeti metni PAYLAŞILAN katalogdan (`web.domain.orderStatus.<KOD>`,
+ * sipariş detayıyla aynı sözlük); IN_DELIVERY teslim şekline duyarlı (alıcı
+ * toplarsa "Teslime Hazır"). Bilinmeyen kod `orderStatusMeta` yedeğine düşer.
+ */
+function useOrderStatusLabel() {
+  const t = useTranslations("web.domain.orderStatus");
+  return (status: CompanyOrderStatus, sellerShips: boolean) => {
+    const key = status === "IN_DELIVERY" && !sellerShips ? "IN_DELIVERY_PICKUP" : status;
+    return t.has(key as never) ? t(key as never) : orderStatusMeta(status, sellerShips).label;
+  };
+}
 
 /**
  * Aşama göstergesi — ikonlu nokta stepper + tek satır özet. Biten adımlar
@@ -65,13 +81,15 @@ const stagesFor = (sellerShips: boolean) =>
 function StageStepper({
   done: doneCount,
   current,
-  stages,
+  sellerShips,
 }: {
   done: number;
   current: number;
-  stages: string[];
+  sellerShips: boolean;
 }) {
-  const STAGES = stages;
+  const t = useTranslations("web.panel.trade.ordersList");
+  const ts = useTranslations("web.domain.orderStep");
+  const STAGES = orderSteps(sellerShips).map((s) => ts(stepKey(s.key, sellerShips) as never));
   const isDone = doneCount >= STAGES.length;
   return (
     <div>
@@ -117,7 +135,7 @@ function StageStepper({
       {/* Tek satır özet: süren adım · ilerleme · sıradaki */}
       <p className="mt-1.5 flex items-baseline gap-2 text-xs">
         <span className={cn("font-semibold", isDone ? "text-success-700" : "text-brand-700")}>
-          {isDone ? "Tamamlandı" : `${STAGES[current]} sürüyor`}
+          {isDone ? t("tamamlandi") : t("suruyor", { item: STAGES[current] })}
         </span>
         <span className="text-zinc-500">
           · {Math.min(doneCount, STAGES.length)}/{STAGES.length}
@@ -130,32 +148,35 @@ function StageStepper({
   );
 }
 
+// `labelKey` katalog anahtarı — seçenek listeleri bileşende `t(labelKey)` ile çizilir.
 const SORT_OPTIONS = [
-  { value: "newest", label: "En Yeni" },
-  { value: "oldest", label: "En Eski" },
-  { value: "amount_desc", label: "Tutar (Yüksek → Düşük)" },
-  { value: "amount_asc", label: "Tutar (Düşük → Yüksek)" },
+  { value: "newest", labelKey: "sort.newest" },
+  { value: "oldest", labelKey: "sort.oldest" },
+  { value: "amount_desc", labelKey: "sort.amount_desc" },
+  { value: "amount_asc", labelKey: "sort.amount_asc" },
 ];
 
 // Çoklu seçim (2026-09-10): "Tümü" satırını FilterMultiSelect kendisi ekler.
-const STATUS_FILTERS: { value: string; label: string }[] = [
-  { value: "PENDING", label: "Onay Bekliyor" },
-  { value: "ACCEPTED", label: "Onaylandı" },
-  { value: "IN_DELIVERY", label: "Gönderildi / Hazır" },
-  { value: "DELIVERED", label: "Teslim Alındı" },
-  { value: "COMPLETED", label: "Tamamlandı" },
-  { value: "DISPUTED", label: "İhtilaflı" },
-  { value: "REJECTED", label: "Reddedildi" },
-  { value: "CANCELLED", label: "İptal Edildi" },
+// Etiket paylaşılan durum sözlüğünden; IN_DELIVERY iki hâli birden kapsadığı
+// için dosyaya özel `statusFilter.IN_DELIVERY` ("Gönderildi / Hazır").
+const STATUS_FILTERS: { value: CompanyOrderStatus; filterKey?: string }[] = [
+  { value: "PENDING" },
+  { value: "ACCEPTED" },
+  { value: "IN_DELIVERY", filterKey: "statusFilter.IN_DELIVERY" },
+  { value: "DELIVERED" },
+  { value: "COMPLETED" },
+  { value: "DISPUTED" },
+  { value: "REJECTED" },
+  { value: "CANCELLED" },
 ];
 
 type RangeKey = "all" | "7d" | "30d" | "3m" | "12m";
-const RANGE_OPTIONS: { value: RangeKey; label: string }[] = [
-  { value: "all", label: "Tüm Zamanlar" },
-  { value: "7d", label: "Son 7 Gün" },
-  { value: "30d", label: "Son 30 Gün" },
-  { value: "3m", label: "Son 3 Ay" },
-  { value: "12m", label: "Son 1 Yıl" },
+const RANGE_OPTIONS: { value: RangeKey; labelKey: string }[] = [
+  { value: "all", labelKey: "range.all" },
+  { value: "7d", labelKey: "range.d7" },
+  { value: "30d", labelKey: "range.d30" },
+  { value: "3m", labelKey: "range.d3m" },
+  { value: "12m", labelKey: "range.d12m" },
 ];
 const RANGE_DAYS: Record<RangeKey, number | null> = {
   all: null,
@@ -195,6 +216,8 @@ function sym(currency: string | undefined): string {
  * genişlik. İptal/red durumunda izleyici yerine tek satır not.
  */
 function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
+  const t = useTranslations("web.panel.trade.ordersList");
+  const statusLabel = useOrderStatusLabel();
   const { done, current, terminated: isTerminated } = orderStageIndex(o.status);
   // Teslim şekli: satıcı taşımıyorsa (EXW/fabrika teslim…) orta adım "Hazırlık".
   const sellerShips = sellerShipsGoods(o.deliveryTerm);
@@ -220,7 +243,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
             <span>{formatDate(o.createdAt, "short")}</span>
           </p>
           <p className="mt-1 truncate text-base font-semibold leading-snug text-zinc-950 group-hover:underline">
-            {o.listingTitle ?? "Sipariş"}
+            {o.listingTitle ?? t("siparis")}
           </p>
           {/* Referans çipleri (2026-09-10, kullanıcı: "Talep ROT-… çok düz"):
               karşı taraf ve bağlı talep, ikonlu iki çip — numara koyu, etiket
@@ -228,22 +251,22 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
           <div className="mt-2 flex flex-wrap items-center gap-1.5">
             <span className="inline-flex max-w-full items-center gap-1.5 rounded-md border border-zinc-950/10 bg-white px-2 py-1 text-xs">
               <Building2 className="size-3.5 shrink-0 text-zinc-500" aria-hidden />
-              <span className="text-zinc-500">{role === "buyer" ? "Satıcı" : "Alıcı"}</span>
+              <span className="text-zinc-500">{role === "buyer" ? t("satici") : t("alici")}</span>
               <span className="truncate font-medium text-zinc-900">{o.counterparty}</span>
             </span>
             {o.listingNumber ? (
               <span className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-xs">
                 <ClipboardList className="size-3.5 shrink-0 text-zinc-600" aria-hidden />
-                <span className="text-zinc-600">Talep</span>
+                <span className="text-zinc-600">{t("talep")}</span>
                 <span className="tabular-nums font-semibold text-zinc-900">{o.listingNumber}</span>
               </span>
             ) : !o.listingType ? (
               <span
                 className="inline-flex items-center gap-1.5 rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600"
-                title="Bu siparişin bağlı olduğu talep kaydı artık yok."
+                title={t("buSiparisinBagliOlduguTalep")}
               >
                 <ClipboardList className="size-3.5 shrink-0" aria-hidden />
-                Talep silinmiş
+                {t("talepSilinmis")}
               </span>
             ) : null}
           </div>
@@ -251,7 +274,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
 
         {/* SAĞ — durum · tutar · ödeme */}
         <div className="flex shrink-0 flex-row items-center justify-between gap-3 sm:w-52 sm:flex-col sm:items-end sm:gap-1">
-          <StatusBadge tone={meta.tone}>{meta.label}</StatusBadge>
+          <StatusBadge tone={meta.tone}>{statusLabel(o.status, sellerShips)}</StatusBadge>
           {/* P1 (denetim §8.1): tek para formatı — kuruş görünür, sembol sonda. */}
           <p className="whitespace-nowrap text-lg font-semibold tabular-nums text-zinc-950">
             {formatMoney(o.amount, o.currency)}
@@ -260,15 +283,16 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
             overdueDays != null && overdueDays > 0 ? (
               /* P0: VADESİ GEÇMİŞ ödeme normal bekleyenle aynı görünmesin. */
               <p className="whitespace-nowrap text-xs font-semibold text-red-700">
-                Ödeme gecikti · {overdueDays} gün
+                {t("odemeGeciktiGun", { overdueDays: overdueDays })}
               </p>
             ) : (
               <p className="whitespace-nowrap text-xs text-amber-700">
-                Ödeme bekliyor{o.paymentDueDate ? ` · vade ${formatDate(o.paymentDueDate)}` : ""}
+                {t("odemeBekliyor")}
+                {o.paymentDueDate ? ` ${t("vade", { formatDate: formatDate(o.paymentDueDate) })}` : ""}
               </p>
             )
           ) : o.paymentSettled === true ? (
-            <p className="whitespace-nowrap text-xs text-emerald-700">Ödeme tamam</p>
+            <p className="whitespace-nowrap text-xs text-emerald-700">{t("odemeTamam")}</p>
           ) : null}
         </div>
       </div>
@@ -276,7 +300,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
       {/* ALT — aşama izleyici / son durum notu */}
       <div className="border-t border-zinc-950/5 px-4 py-3 sm:px-5">
         {!isTerminated ? (
-          <StageStepper done={done} current={current} stages={stagesFor(sellerShips)} />
+          <StageStepper done={done} current={current} sellerShips={sellerShips} />
         ) : (
           <p
             className={cn(
@@ -285,7 +309,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
             )}
           >
             <CircleSlash className="size-4 shrink-0" aria-hidden />
-            {o.status === "REJECTED" ? "Sipariş reddedildi" : "Sipariş iptal edildi"}
+            {o.status === "REJECTED" ? t("siparisReddedildi") : t("siparisIptalEdildi")}
           </p>
         )}
       </div>
@@ -308,11 +332,17 @@ function CardSkeleton() {
 }
 
 export function OrdersList({ role }: { role: "buyer" | "seller" }) {
-const tn = useNavLabel();
+  const t = useTranslations("web.panel.trade.ordersList");
+  const tn = useNavLabel();
+  const statusLabel = useOrderStatusLabel();
+  const optionLabel = (o: { labelKey: string } | undefined, fallback: string) =>
+    o ? t(o.labelKey as never) : fallback;
+  const filterLabel = (o: (typeof STATUS_FILTERS)[number] | undefined, fallback: string) =>
+    o ? (o.filterKey ? t(o.filterKey as never) : statusLabel(o.value, true)) : fallback;
   const accent = useButtonAccent();
   const { data, isLoading, isError, refetch } = useOrders();
   const isSeller = role === "seller";
-  const partyPlural = isSeller ? "Alıcılar" : "Tedarikçiler";
+  const partyPlural = isSeller ? t("alicilar") : t("tedarikciler");
 
   const [search, setSearch] = useState("");
   // Faz 4.2 — KPI drill-down: ?status=DELIVERED gibi başlangıç filtresi.
@@ -392,8 +422,8 @@ const tn = useNavLabel();
     };
 
   const emptyHint = isSeller
-    ? "Henüz satış siparişiniz yok. Bir satış ilanınız veya açık talebe verdiğiniz teklif kazandığında burada görünür."
-    : "Henüz alış siparişiniz yok. Bir satın alma talebinizi kazandırdığınızda veya satın aldığınızda burada görünür.";
+    ? t("henuzSatisSiparisinizYokBir")
+    : t("henuzAlisSiparisinizYokBir");
 
   return (
     <div className="space-y-6">
@@ -401,8 +431,8 @@ const tn = useNavLabel();
         title={tn(isSeller ? MODULE_LABELS.satis.siparisler : MODULE_LABELS.satinalma.siparisler)}
         description={
           isSeller
-            ? "Satışlarınız — kazandığınız açık taleplerden ve satış ilanlarınızdan. Onaylayın, gönderin, ödemeyi takip edin."
-            : "Alış siparişleriniz — kazandırdığınız satın alma taleplerinden ve satın almalarınızdan. Teslim alın, ödemenizi bildirin, tamamlayın."
+            ? t("satislarinizKazandiginizAcikTaleplerdenVe")
+            : t("alisSiparislerinizKazandirdiginizSatinAlma")
         }
       />
 
@@ -415,15 +445,15 @@ const tn = useNavLabel();
           <SearchInput
             value={search}
             onChange={reset(setSearch)}
-            placeholder="Sipariş no, ilan veya karşı taraf…"
+            placeholder={t("siparisNoIlanVeyaKarsi")}
             className="flex-1"
           />
           <FilterSelect
             icon={ArrowUpDown}
             value={sort}
             onChange={reset(setSort)}
-            options={SORT_OPTIONS}
-            ariaLabel="Sıralama"
+            options={SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey as never) }))}
+            ariaLabel={t("siralama")}
             active={sort !== "newest"}
             className="sm:min-w-[200px]"
           />
@@ -435,17 +465,17 @@ const tn = useNavLabel();
             onChange={reset(setStatus)}
             options={STATUS_FILTERS.map((s) => ({
               value: s.value,
-              label: `${s.label}${counts[s.value] ? ` (${counts[s.value]})` : ""}`,
+              label: `${filterLabel(s, s.value)}${counts[s.value] ? ` (${counts[s.value]})` : ""}`,
             }))}
-            allLabel={`Tümü (${all.length})`}
-            ariaLabel="Durum filtresi"
+            allLabel={t("tumu", { length: all.length })}
+            ariaLabel={t("durumFiltresi")}
           />
           <FilterSelect
             icon={CalendarRange}
             value={range}
             onChange={(v) => reset(setRange)(v as RangeKey)}
-            options={RANGE_OPTIONS}
-            ariaLabel="Tarih aralığı"
+            options={RANGE_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey as never) }))}
+            ariaLabel={t("tarihAraligi")}
             active={range !== "all"}
           />
           <FilterSelect
@@ -453,16 +483,16 @@ const tn = useNavLabel();
             value={counterparty}
             onChange={reset(setCounterparty)}
             options={[
-              { value: "", label: `Tüm ${partyPlural}` },
+              { value: "", label: t("tum", { partyPlural: partyPlural }) },
               ...counterparties.map((c) => ({ value: c, label: c })),
             ]}
-            ariaLabel="Karşı taraf filtresi"
+            ariaLabel={t("karsiTarafFiltresi")}
             active={counterparty !== ""}
           />
           <ResultCount
             total={filtered.length}
             isFiltered={isFiltered}
-            unit="sipariş"
+            unit={t("siparis2")}
             isLoading={isLoading}
             className="ml-auto"
           />
@@ -474,23 +504,21 @@ const tn = useNavLabel();
               ? [
                   {
                     key: "search",
-                    label: `Arama: "${search}"`,
+                    label: t("arama", { search: search }),
                     onRemove: () => reset(setSearch)(""),
                   },
                 ]
               : []),
             ...status.map((s) => ({
               key: `status:${s}`,
-              label: STATUS_FILTERS.find((f) => f.value === s)?.label ?? s,
+              label: filterLabel(STATUS_FILTERS.find((f) => f.value === s), s),
               onRemove: () => reset(setStatus)(status.filter((x) => x !== s)),
             })),
             ...(range !== "all"
               ? [
                   {
                     key: "range",
-                    label:
-                      RANGE_OPTIONS.find((r) => r.value === range)?.label ??
-                      range,
+                    label: optionLabel(RANGE_OPTIONS.find((r) => r.value === range), range),
                     onRemove: () => reset(setRange)("all"),
                   },
                 ]
@@ -524,7 +552,7 @@ const tn = useNavLabel();
         </div>
       ) : isError && all.length === 0 ? (
         <ErrorState
-          message="Siparişler yüklenemedi. Lütfen tekrar deneyin."
+          message={t("siparislerYuklenemediLutfenTekrarDeneyin")}
           onRetry={() => refetch()}
         />
       ) : filtered.length === 0 ? (
@@ -532,9 +560,9 @@ const tn = useNavLabel();
           <EmptyState
             icon={isFiltered ? CircleSlash : Package}
             variant={isFiltered ? "no-results" : "no-data"}
-            title={isFiltered ? "Eşleşen sipariş yok" : "Henüz sipariş yok"}
+            title={isFiltered ? t("eslesenSiparisYok") : t("henuzSiparisYok")}
             description={
-              isFiltered ? "Filtreleri değiştirip tekrar dene." : emptyHint
+              isFiltered ? t("filtreleriDegistiripTekrarDene") : emptyHint
             }
             action={
               isFiltered ? (
@@ -550,7 +578,7 @@ const tn = useNavLabel();
                   }}
                   className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
                 >
-                  Filtreleri Temizle
+                  {t("filtreleriTemizle")}
                 </button>
               ) : (
                 <Link
@@ -564,7 +592,7 @@ const tn = useNavLabel();
                     accentFillClass(accent),
                   )}
                 >
-                  {isSeller ? "Açık Taleplere Göz At" : "Taleplerime Git"}
+                  {isSeller ? t("acikTaleplereGozAt") : t("taleplerimeGit")}
                 </Link>
               )
             }
@@ -577,12 +605,12 @@ const tn = useNavLabel();
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <TableHeader>No</TableHeader>
-                  <TableHeader>Sipariş</TableHeader>
-                  <TableHeader>{isSeller ? "Alıcı" : "Satıcı"}</TableHeader>
-                  <TableHeader>Durum</TableHeader>
-                  <TableHeader className="text-right">Tutar</TableHeader>
-                  <TableHeader className="text-right">Tarih</TableHeader>
+                  <TableHeader>{t("no")}</TableHeader>
+                  <TableHeader>{t("siparis")}</TableHeader>
+                  <TableHeader>{isSeller ? t("alici") : t("satici")}</TableHeader>
+                  <TableHeader>{t("durum")}</TableHeader>
+                  <TableHeader className="text-right">{t("tutar")}</TableHeader>
+                  <TableHeader className="text-right">{t("tarih")}</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -599,10 +627,10 @@ const tn = useNavLabel();
                       <TableCell className="max-w-64">
                         <Link
                           href={`/company/siparis/${o.id}`}
-                          title={o.listingTitle ?? "Sipariş"}
+                          title={o.listingTitle ?? t("siparis")}
                           className="block truncate font-medium text-zinc-900 hover:underline"
                         >
-                          {o.listingTitle ?? "Sipariş"}
+                          {o.listingTitle ?? t("siparis")}
                         </Link>
                       </TableCell>
                       <TableCell className="max-w-48">
@@ -611,7 +639,9 @@ const tn = useNavLabel();
                         </span>
                       </TableCell>
                       <TableCell>
-                        <StatusBadge tone={meta.tone}>{meta.label}</StatusBadge>
+                        <StatusBadge tone={meta.tone}>
+                          {statusLabel(o.status, sellerShipsGoods(o.deliveryTerm))}
+                        </StatusBadge>
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-zinc-900">
                         {formatMoney(o.amount, o.currency)}

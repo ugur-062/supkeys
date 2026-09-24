@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useNavLabel } from "@/i18n/domain";
 import { MODULE_LABELS } from "@/lib/company/portals";
 import { selectActiveOffers, selectWonOffers } from "@/lib/company/kpi-selectors";
@@ -38,17 +39,18 @@ import { useMemo, useState } from "react";
 
 const PAGE_SIZE = 10;
 
+// Etiketler katalog anahtarı (`status.<KOD>`), çizim yerinde `t(key)`.
 const STATUS: Record<
   string,
-  { label: string; color: "amber" | "green" | "zinc" | "red" | "violet" }
+  { key: string; color: "amber" | "green" | "zinc" | "red" | "violet" }
 > = {
-  DRAFT: { label: "Taslak", color: "amber" },
-  SUBMITTED: { label: "Değerlendirmede", color: "violet" },
-  WON: { label: "Kazandı", color: "green" },
-  AWARDED_PARTIAL: { label: "Kısmen Kazandı", color: "green" },
-  LOST: { label: "Elendi", color: "zinc" },
+  DRAFT: { key: "status.DRAFT", color: "amber" },
+  SUBMITTED: { key: "status.SUBMITTED", color: "violet" },
+  WON: { key: "status.WON", color: "green" },
+  AWARDED_PARTIAL: { key: "status.AWARDED_PARTIAL", color: "green" },
+  LOST: { key: "status.LOST", color: "zinc" },
   // Nötr kullanıcı eylemi — kırmızı hata/tehlike imasıydı (detay paneliyle uyum).
-  WITHDRAWN: { label: "Geri çekildi", color: "zinc" },
+  WITHDRAWN: { key: "status.WITHDRAWN", color: "zinc" },
 };
 /** C52: statü → sol şerit rengi (rozet renkleriyle aynı aile). */
 const STATUS_STRIP: Record<string, string> = {
@@ -60,30 +62,31 @@ const STATUS_STRIP: Record<string, string> = {
   WITHDRAWN: "bg-gradient-to-b from-zinc-400 to-zinc-300",
 };
 // Bilinmeyen statü listeyi ÇÖKERTMESİN (eskiden DRAFT'ta beyaz ekran).
-const STATUS_FALLBACK = { label: "Bilinmiyor", color: "zinc" as const };
+const STATUS_FALLBACK = { key: "status.UNKNOWN", color: "zinc" as const };
 
 // Çoklu seçim (2026-09-10): "Tümü" satırını FilterMultiSelect kendisi ekler.
+// `labelKey` katalog anahtarı — seçenek listeleri bileşende `t(labelKey)` ile çizilir.
 const STATUS_FILTER_OPTIONS = [
-  { value: "DRAFT", label: "Taslak" },
-  { value: "SUBMITTED", label: "Değerlendirmede" },
-  { value: "WON", label: "Kazandı" },
-  { value: "AWARDED_PARTIAL", label: "Kısmen Kazandı" },
-  { value: "LOST", label: "Elendi" },
-  { value: "WITHDRAWN", label: "Geri çekildi" },
+  { value: "DRAFT", labelKey: "status.DRAFT" },
+  { value: "SUBMITTED", labelKey: "status.SUBMITTED" },
+  { value: "WON", labelKey: "status.WON" },
+  { value: "AWARDED_PARTIAL", labelKey: "status.AWARDED_PARTIAL" },
+  { value: "LOST", labelKey: "status.LOST" },
+  { value: "WITHDRAWN", labelKey: "status.WITHDRAWN" },
 ];
 
 const SORT_OPTIONS = [
-  { value: "newest", label: "En Yeni" },
-  { value: "oldest", label: "En Eski" },
-  { value: "amount", label: "Tutar (Yüksek → Düşük)" },
+  { value: "newest", labelKey: "sort.newest" },
+  { value: "oldest", labelKey: "sort.oldest" },
+  { value: "amount", labelKey: "sort.amount" },
 ];
 
 const RANGE_OPTIONS = [
-  { value: "all", label: "Tüm Zamanlar" },
-  { value: "7", label: "Son 7 Gün" },
-  { value: "30", label: "Son 30 Gün" },
-  { value: "90", label: "Son 3 Ay" },
-  { value: "365", label: "Son 1 Yıl" },
+  { value: "all", labelKey: "range.all" },
+  { value: "7", labelKey: "range.d7" },
+  { value: "30", labelKey: "range.d30" },
+  { value: "90", labelKey: "range.d90" },
+  { value: "365", labelKey: "range.d365" },
 ];
 
 function matchesSearch(b: MyBid, q: string) {
@@ -98,6 +101,7 @@ function matchesSearch(b: MyBid, q: string) {
 
 /** Teklif kartı — Açık Talepler kart dilinin teklif sürümü. */
 function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
+  const t = useTranslations("web.panel.trade.myBidsList");
   const st = STATUS[b.status] ?? STATUS_FALLBACK;
   const won = b.status === "WON" || b.status === "AWARDED_PARTIAL";
   const canRebid = b.status === "LOST" && b.listing.status === "OPEN";
@@ -134,7 +138,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               {b.listing.number ?? "—"}
             </span>
             <span aria-hidden className="h-5 w-px bg-zinc-200" />
-            <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-sm font-medium text-blue-600">Açık Talep</span>
+            <span className="rounded-lg bg-blue-50 px-2.5 py-1 text-sm font-medium text-blue-600">{t("acikTalep")}</span>
           </div>
           <span
             className={cn(
@@ -146,7 +150,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               st.color === "zinc" && "bg-zinc-100 text-zinc-600",
             )}
           >
-            {st.label}
+            {t(st.key as never)}
           </span>
         </div>
         <h3
@@ -169,7 +173,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
               <Building2 className="size-4 text-zinc-600" aria-hidden="true" />
             </span>
             <span className="truncate">
-              {"Alıcı: "}
+              {t("alici")}
               {b.listing.ownerName}
             </span>
           </span>
@@ -184,40 +188,37 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
           ) : null}
           {b.deliveryTime || b.deliveryDate ? (
             <span className="text-zinc-600">
-              Taahhüt teslim:{" "}
-              {bidDeliveryTimeLabel(b.deliveryTime) ??
-                (b.deliveryDate
-                  ? formatDate(b.deliveryDate, "short")
-                  : "")}
+              {t("taahhutTeslim", {
+                value:
+                  bidDeliveryTimeLabel(b.deliveryTime) ??
+                  (b.deliveryDate ? formatDate(b.deliveryDate, "short") : ""),
+              })}
             </span>
           ) : null}
           {/* §8.4: Tur/revizyon renkli rozet değil, renksiz meta. */}
           {b.round > 1 ? (
-            <span className="text-xs text-zinc-500">Tur {b.round}</span>
+            <span className="text-xs text-zinc-500">{t("tur", { round: b.round })}</span>
           ) : null}
           {b.version > 1 ? (
             <span
               className="text-xs text-zinc-500"
-              title={`Bu teklifin ${b.version}. revizyonu`}
+              title={t("buTeklifinRevizyonu", { version: b.version })}
             >
-              Revizyon {b.version}
+              {t("revizyon", { version: b.version })}
             </span>
           ) : null}
         </div>
 
         {canRebid ? (
           <p className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
-            Talep hâlâ açık — güncellenmiş teklifle yeniden katılabilirsiniz.
+            {t("talepHalaAcikGuncellenmisTeklifle")}
           </p>
         ) : null}
 
         <div className="mt-4 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-100 pt-3 text-sm">
           <div className="flex items-center gap-2 text-zinc-600">
             <Calendar className="size-4" aria-hidden="true" />
-            <span>
-              Verildi{" "}
-              {formatDate(b.createdAt, "short")}
-            </span>
+            <span>{t("verildi", { date: formatDate(b.createdAt, "short") })}</span>
           </div>
           <div className="flex shrink-0 items-center gap-2">
             {b.listing.status === "OPEN" && b.listing.closesAt ? (
@@ -228,17 +229,17 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
                 )}
               >
                 <Clock className="size-4" aria-hidden="true" />
-                Kapanışa{" "}
+                {t("kapanisa")}{" "}
                 <CountdownFull
                   deadline={b.listing.closesAt}
-                  endedLabel="Kapandı"
+                  endedLabel={t("kapandi")}
                 />
               </span>
             ) : !won ? (
               <span className="text-zinc-500">
                 {/* C51: Değerlendirmede rozetiyle "kapandı" çelişkili okunuyordu —
                     gönderilmiş teklifte süreç dili. */}
-                {b.status === "SUBMITTED" ? "Sonuç bekleniyor" : "Talep kapandı"}
+                {b.status === "SUBMITTED" ? t("sonucBekleniyor") : t("talepKapandi")}
               </span>
             ) : null}
             {/* P2 (denetim §10.2): duruma göre TEK kart aksiyonu. */}
@@ -247,7 +248,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
                 href={`/company/siparis/${b.orderId}`}
                 className="relative z-10 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
               >
-                Siparişe Git
+                {t("sipariseGit")}
                 <ArrowRightIcon className="size-4" aria-hidden />
               </Link>
             ) : canRebid ? (
@@ -255,7 +256,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
                 href={`/company/ilan/${b.listing.id}/teklif-ver`}
                 className="relative z-10 inline-flex items-center gap-1 rounded-lg px-3 py-1.5 font-semibold text-zinc-700 ring-1 ring-zinc-950/10 transition hover:bg-zinc-50"
               >
-                Yeniden Teklif Ver
+                {t("yenidenTeklifVer")}
                 <ArrowRightIcon className="size-4" aria-hidden />
               </Link>
             ) : null}
@@ -267,6 +268,7 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
 
 /** Firmanın açık taleplere verdiği teklifler (satış paneli). */
 export function MyBidsList() {
+const t = useTranslations("web.panel.trade.myBidsList");
 const tn = useNavLabel();
   const accent = useButtonAccent();
   const [search, setSearch] = useState("");
@@ -277,9 +279,9 @@ const tn = useNavLabel();
 
   const { data, isLoading } = useMyBids();
 
-  const description = "Açık taleplere verdiğiniz tüm teklifler ve sonuçları.";
+  const description = t("acikTaleplereVerdiginizTumTeklifler");
   const emptyHint =
-    "Açık Talepler ekranından bir talebe teklif verdiğinizde burada görünür.";
+    t("acikTaleplerEkranindanBirTalebe");
   const fromHref = "/company/satis/tekliflerim";
 
   const all = useMemo(() => data ?? [], [data]);
@@ -315,6 +317,9 @@ const tn = useNavLabel();
     safePage * PAGE_SIZE,
   );
 
+  const optionLabel = (o: { labelKey: string } | undefined, fallback: string) =>
+    o ? t(o.labelKey as never) : fallback;
+
   function resetToFirstPage<T>(setter: (v: T) => void) {
     return (v: T) => {
       setPage(1);
@@ -331,15 +336,12 @@ const tn = useNavLabel();
       {/* Sayaçlar panodaki KPI ile AYNI seçiciden (kpi-selectors) — iki sayfa
           iki farklı sayı gösteriyordu. */}
       {all.length > 0 ? (
-        <p className="text-sm text-zinc-500" aria-label="Teklif özeti">
-          <span className="font-semibold text-zinc-900">
-            {selectActiveOffers(all).length}
-          </span>{" "}
-          karar bekleyen ·{" "}
-          <span className="font-semibold text-zinc-900">
-            {selectWonOffers(all).length}
-          </span>{" "}
-          kazanılan (kısmi dahil)
+        <p className="text-sm text-zinc-500" aria-label={t("teklifOzeti")}>
+          {t.rich("ozet", {
+            active: selectActiveOffers(all).length,
+            won: selectWonOffers(all).length,
+            b: (c) => <span className="font-semibold text-zinc-900">{c}</span>,
+          })}
         </p>
       ) : null}
 
@@ -350,15 +352,15 @@ const tn = useNavLabel();
           <SearchInput
             value={search}
             onChange={resetToFirstPage(setSearch)}
-            placeholder="Talep adı, numarası veya alıcı ara…"
+            placeholder={t("talepAdiNumarasiVeyaAlici")}
             className="flex-1"
           />
           <FilterSelect
             icon={ArrowUpDown}
             value={sort}
             onChange={resetToFirstPage(setSort)}
-            options={SORT_OPTIONS}
-            ariaLabel="Sıralama"
+            options={SORT_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey as never) }))}
+            ariaLabel={t("siralama")}
             active={sort !== "newest"}
             className="sm:min-w-[160px]"
           />
@@ -368,22 +370,22 @@ const tn = useNavLabel();
             icon={ListFilter}
             value={status}
             onChange={resetToFirstPage(setStatus)}
-            options={STATUS_FILTER_OPTIONS}
-            allLabel="Tüm Durumlar"
-            ariaLabel="Duruma göre filtrele"
+            options={STATUS_FILTER_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey as never) }))}
+            allLabel={t("tumDurumlar")}
+            ariaLabel={t("durumaGoreFiltrele")}
           />
           <FilterSelect
             icon={CalendarRange}
             value={range}
             onChange={resetToFirstPage(setRange)}
-            options={RANGE_OPTIONS}
-            ariaLabel="Tarih aralığı"
+            options={RANGE_OPTIONS.map((o) => ({ value: o.value, label: t(o.labelKey as never) }))}
+            ariaLabel={t("tarihAraligi")}
             active={range !== "all"}
           />
           <ResultCount
             total={filtered.length}
             isFiltered={isFiltered}
-            unit="teklif"
+            unit={t("teklif")}
             className="ml-auto"
           />
         </div>
@@ -393,23 +395,21 @@ const tn = useNavLabel();
               ? [
                   {
                     key: "search",
-                    label: `Arama: "${search}"`,
+                    label: t("arama", { search: search }),
                     onRemove: () => resetToFirstPage(setSearch)(""),
                   },
                 ]
               : []),
             ...status.map((s) => ({
               key: `status:${s}`,
-              label: STATUS_FILTER_OPTIONS.find((f) => f.value === s)?.label ?? s,
+              label: optionLabel(STATUS_FILTER_OPTIONS.find((f) => f.value === s), s),
               onRemove: () => resetToFirstPage(setStatus)(status.filter((x) => x !== s)),
             })),
             ...(range !== "all"
               ? [
                   {
                     key: "range",
-                    label:
-                      RANGE_OPTIONS.find((r) => r.value === range)?.label ??
-                      range,
+                    label: optionLabel(RANGE_OPTIONS.find((r) => r.value === range), range),
                     onRemove: () => resetToFirstPage(setRange)("all"),
                   },
                 ]
@@ -430,9 +430,9 @@ const tn = useNavLabel();
         <EmptyState
           icon={isFiltered ? CircleSlash : Gavel}
           variant={isFiltered ? "no-results" : "no-data"}
-          title={isFiltered ? "Eşleşen teklif yok" : "Henüz teklif vermediniz"}
+          title={isFiltered ? t("eslesenTeklifYok") : t("henuzTeklifVermediniz")}
           description={
-            isFiltered ? "Filtreleri değiştirip tekrar dene." : emptyHint
+            isFiltered ? t("filtreleriDegistiripTekrarDene") : emptyHint
           }
           action={
             isFiltered ? (
@@ -447,7 +447,7 @@ const tn = useNavLabel();
                 }}
                 className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
               >
-                Filtreleri Temizle
+                {t("filtreleriTemizle")}
               </button>
             ) : (
               <Link
@@ -457,7 +457,7 @@ const tn = useNavLabel();
                   accentFillClass(accent),
                 )}
               >
-                Açık Taleplere Göz At
+                {t("acikTaleplereGozAt")}
               </Link>
             )
           }

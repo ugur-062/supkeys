@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Lock } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
@@ -29,7 +30,7 @@ export function SilverLockCard({
   description,
   meta,
   children,
-  ctaLabel = "Silver paketine geç",
+  ctaLabel,
   className = "",
 }: {
   title: string;
@@ -41,6 +42,7 @@ export function SilverLockCard({
   ctaLabel?: string;
   className?: string;
 }) {
+  const t = useTranslations("web.panel.trade.silverLockCard");
   return (
     <section
       aria-label={title}
@@ -62,10 +64,10 @@ export function SilverLockCard({
           href={PRICING_HREF}
           className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
         >
-          {ctaLabel}
+          {ctaLabel ?? t("silverPaketineGec")}
         </Link>
         <span className="text-xs text-zinc-500">
-          Bağlantı davetiyle gelen talepleri ücretsiz görürsünüz.
+          {t("baglantiDavetiyleGelenTalepleriUcretsiz")}
         </span>
       </div>
     </section>

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -59,6 +60,7 @@ export function BidImportDialog({
   currencyLabel: string;
   onApply: (rows: BidImportApplyRow[]) => void;
 }) {
+  const t = useTranslations("web.panel.trade.bidImportDialog");
   const [files, setFiles] = useState<File[]>([]);
   const [result, setResult] = useState<BidImportResult | null>(null);
   /** Kalem → seçilen belge satırı id'si (elle eşleme) veya "" (boş bırak). */
@@ -90,7 +92,7 @@ export function BidImportDialog({
       setFiles(picked);
     } catch (err) {
       setFiles([]);
-      toast.error(extractErrorMessage(err, isAi ? "Belge işlenemedi" : "Dosya okunamadı"));
+      toast.error(extractErrorMessage(err, isAi ? t("belgeIslenemedi") : t("dosyaOkunamadi")));
     }
   };
 
@@ -137,13 +139,13 @@ export function BidImportDialog({
       <DialogTitle>
         <span className="flex items-center gap-2">
           {isAi ? <Sparkles className="h-5 w-5" /> : <FileSpreadsheet className="h-5 w-5" />}
-          {isAi ? "Belgeden Fiyatla (AI)" : "Excel Şablonu ile Fiyatla"}
+          {isAi ? t("belgedenFiyatlaAi") : t("excelSablonuIleFiyatla")}
         </span>
       </DialogTitle>
       <DialogDescription>
         {isAi
-          ? "Fiyat listenizi, proformanızı ya da teklif mektubunuzu yükleyin — AI satırları okur, sistem satın alma talebi kalemleriyle eşleştirir; siz kontrol edip uygularsınız. Teklifi her zaman SİZ gönderirsiniz."
-          : "Bu satın alma talebine özel şablonu indirin, fiyat/teslim sütunlarını doldurun ve yükleyin — kalemler birebir eşleşir (AI kullanılmaz). Teklifi her zaman SİZ gönderirsiniz."}
+          ? t("fiyatListeniziProformaniziYaDa")
+          : t("buSatinAlmaTalebineOzel")}
       </DialogDescription>
 
       <DialogBody className="space-y-4">
@@ -153,7 +155,7 @@ export function BidImportDialog({
               <div className="flex flex-wrap items-center gap-3 rounded-lg border border-zinc-950/10 bg-zinc-50 px-3 py-2.5">
                 <Download className="h-4 w-4 shrink-0 text-zinc-500" aria-hidden />
                 <div className="min-w-0 flex-1 text-sm text-zinc-700">
-                  <strong>1.</strong> Bu ihalenin teklif şablonunu indirin (kalemler hazır; siz fiyat/teslim doldurursunuz)
+                  {t.rich("sablonuIndirinAdim", { strong: (c) => <strong>{c}</strong> })}
                 </div>
                 <Button
                   outline
@@ -161,18 +163,18 @@ export function BidImportDialog({
                   onClick={() =>
                     download
                       .mutateAsync()
-                      .catch((e) => toast.error(extractErrorMessage(e, "Şablon indirilemedi")))
+                      .catch((e) => toast.error(extractErrorMessage(e, t("sablonIndirilemedi"))))
                   }
                 >
-                  {download.isPending ? "İndiriliyor…" : "Şablonu indir"}
+                  {download.isPending ? t("indiriliyor") : t("sablonuIndir")}
                 </Button>
               </div>
             ) : null}
             <div className="rounded-lg border border-zinc-950/10 px-3 py-2.5 text-sm text-zinc-700">
               <strong>{isAi ? "" : "2. "}</strong>
               {isAi
-                ? "Belgenizi yükleyin (tek PDF, tek Excel/CSV ya da birden çok fotoğraf)"
-                : "Doldurduğunuz şablonu yükleyin (.xlsx)"}
+                ? t("belgeniziYukleyinTekPdfTek")
+                : t("doldurdugunuzSablonuYukleyinXlsx")}
             </div>
             <Dropzone
               accept={isAi ? ".pdf,.jpg,.jpeg,.png,.webp,.heic,.xlsx,.csv" : ".xlsx,.csv"}
@@ -182,12 +184,12 @@ export function BidImportDialog({
                 if (fs.length === 0) return;
                 void run(isAi ? fs.slice(0, 20) : [fs[0]!]);
               }}
-              label={isAi ? "PDF, fotoğraf veya Excel seç" : "Doldurulmuş şablonu seç"}
-              hint={isAi ? "En fazla 20 dosya · fiyatlar KDV hariç okunur" : "Yalnız bu satın alma talebinin şablonu kabul edilir"}
+              label={isAi ? t("pdfFotografVeyaExcelSec") : t("doldurulmusSablonuSec")}
+              hint={isAi ? t("enFazla20DosyaFiyatlar") : t("yalnizBuSatinAlmaTalebinin")}
             />
             {busy && files.length === 0 ? (
               <p className="text-sm text-zinc-500">
-                {isAi ? "Belge işleniyor — AI satırları okuyor, bu birkaç saniye sürebilir…" : "Şablon okunuyor…"}
+                {isAi ? t("belgeIsleniyorAiSatirlariOkuyor") : t("sablonOkunuyor")}
               </p>
             ) : null}
           </>
@@ -208,11 +210,11 @@ export function BidImportDialog({
 
       <DialogActions>
         <Button plain disabled={busy} onClick={close}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         {result ? (
           <Button disabled={busy || applicable.length === 0} onClick={apply}>
-            {applicable.length} kalemin fiyatını uygula
+            {t("kaleminFiyatiniUygula", { length: applicable.length })}
           </Button>
         ) : null}
       </DialogActions>
@@ -251,6 +253,7 @@ function Preview({
   fileNames: string[];
   onReset: () => void;
 }) {
+  const t = useTranslations("web.panel.trade.bidImportDialog");
   const priced = effective.filter((e) => e.unitPrice != null && e.m.errors.length === 0).length;
   const hasDocRows = result.unmatchedDocRows.length > 0;
   const toggleExclude = (id: string) => {
@@ -263,14 +266,14 @@ function Preview({
     <>
       <div className="flex flex-wrap items-center gap-2 text-sm">
         <span className="rounded-md bg-emerald-50 px-2 py-1 font-medium text-emerald-800">
-          {priced} / {effective.length} kalem fiyatlandı
+          {t("kalemFiyatlandi", { priced: priced, length: effective.length })}
         </span>
         {result.mode === "ai" ? (
           <span className="rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600">
-            AI okudu · eşleştirmeyi sistem yaptı — rozetleri kontrol edin
+            {t("aiOkuduEslestirmeyiSistemYapti")}
           </span>
         ) : (
-          <span className="rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600">Şablon · birebir eşleşme</span>
+          <span className="rounded-md bg-zinc-100 px-2 py-1 text-xs text-zinc-600">{t("sablonBirebirEslesme")}</span>
         )}
         <span className="ml-auto truncate text-xs text-zinc-500">{fileNames.join(", ")}</span>
         <button
@@ -278,7 +281,7 @@ function Preview({
           onClick={onReset}
           className="inline-flex items-center gap-1 text-xs text-zinc-500 hover:text-zinc-800"
         >
-          <X className="h-3.5 w-3.5" /> Başka dosya
+          <X className="h-3.5 w-3.5" /> {t("baskaDosya")}
         </button>
       </div>
 
@@ -300,12 +303,12 @@ function Preview({
         <table className="w-full min-w-[720px] text-left text-sm">
           <thead className="sticky top-0 bg-zinc-50 text-xs uppercase tracking-wide text-zinc-500">
             <tr>
-              <th scope="col" className="px-3 py-2 font-medium">Uygula</th>
-              <th scope="col" className="px-3 py-2 font-medium">Satın Alma Talebi kalemi</th>
-              <th scope="col" className="px-3 py-2 font-medium">{result.mode === "ai" ? "Belgede bulunan" : "Kaynak"}</th>
-              <th scope="col" className="px-3 py-2 font-medium text-right">Birim fiyat</th>
-              <th scope="col" className="px-3 py-2 font-medium">Teslim</th>
-              <th scope="col" className="px-3 py-2 font-medium">Güven</th>
+              <th scope="col" className="px-3 py-2 font-medium">{t("uygula")}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{t("satinAlmaTalebiKalemi")}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{result.mode === "ai" ? t("belgedeBulunan") : t("kaynak")}</th>
+              <th scope="col" className="px-3 py-2 font-medium text-right">{t("birimFiyat")}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{t("teslim")}</th>
+              <th scope="col" className="px-3 py-2 font-medium">{t("guven")}</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-zinc-100">
@@ -322,7 +325,7 @@ function Preview({
                   <td className="px-3 py-1.5">
                     <input
                       type="checkbox"
-                      aria-label={`${e.m.itemName} uygula`}
+                      aria-label={t("uygulaAria", { itemName: e.m.itemName })}
                       checked={!off && !none && !bad}
                       disabled={none || bad}
                       onChange={() => toggleExclude(e.m.itemId)}
@@ -344,7 +347,7 @@ function Preview({
                     {result.mode === "ai" && (medium || none || hasDocRows) ? (
                       <select
                         className="w-full rounded-md border border-zinc-300 bg-white px-2 py-1 text-xs"
-                        aria-label={`${e.m.itemName} için belge satırı seç`}
+                        aria-label={t("icinBelgeSatiriSec", { itemName: e.m.itemName })}
                         value={overrides[e.m.itemId] ?? (e.m.source ? "__auto" : "")}
                         onChange={(ev) => {
                           const v = ev.target.value;
@@ -354,8 +357,8 @@ function Preview({
                           setOverrides(next);
                         }}
                       >
-                        {e.m.source ? <option value="__auto">{e.m.source} (otomatik)</option> : null}
-                        <option value="">— eşleştirme (boş bırak)</option>
+                        {e.m.source ? <option value="__auto">{t("otomatik", { source: e.m.source })}</option> : null}
+                        <option value="">{t("eslestirmeBosBirak")}</option>
                         {result.unmatchedDocRows.map((d) => (
                           <option key={d.id} value={d.id}>
                             {d.text}
@@ -381,7 +384,7 @@ function Preview({
         </table>
       </div>
       <p className="text-xs text-zinc-500">
-        Uygula yalnız formdaki kalem fiyatlarını doldurur; teklifi göndermeden önce tüm alanları kontrol edin.
+        {t("uygulaYalnizFormdakiKalemFiyatlarini")}
       </p>
     </>
   );
@@ -392,14 +395,15 @@ function fmt(n: number): string {
 }
 
 function ConfidenceBadge({ c, manual }: { c: BidImportConfidence; manual: boolean }) {
+  const t = useTranslations("web.panel.trade.bidImportDialog");
   if (manual && c === "exact") {
-    return <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[11px] font-medium text-white">Elle</span>;
+    return <span className="rounded bg-zinc-900 px-1.5 py-0.5 text-[11px] font-medium text-white">{t("elle")}</span>;
   }
   const map: Record<BidImportConfidence, { label: string; cls: string; dots: string }> = {
-    exact: { label: "Kesin", cls: "bg-emerald-100 text-emerald-800", dots: "●●●" },
-    high: { label: "Yüksek", cls: "bg-emerald-50 text-emerald-700", dots: "●●○" },
-    medium: { label: "Emin misiniz?", cls: "bg-amber-100 text-amber-800", dots: "●○○" },
-    none: { label: "Eşleşmedi", cls: "bg-zinc-100 text-zinc-500", dots: "—" },
+    exact: { label: t("kesin"), cls: "bg-emerald-100 text-emerald-800", dots: "●●●" },
+    high: { label: t("yuksek"), cls: "bg-emerald-50 text-emerald-700", dots: "●●○" },
+    medium: { label: t("eminMisiniz"), cls: "bg-amber-100 text-amber-800", dots: "●○○" },
+    none: { label: t("eslesmedi"), cls: "bg-zinc-100 text-zinc-500", dots: "—" },
   };
   const v = map[c];
   return (

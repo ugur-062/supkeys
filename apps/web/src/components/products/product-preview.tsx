@@ -1,12 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ProductDetailBody } from "@/components/marketplace/product-detail";
 import { Badge } from "@/components/catalyst/badge";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { usePublishProduct, type CatalogItem, type ProductShowcase } from "@/hooks/use-company-items";
-import { PRODUCT_STATUS, productStatusKey } from "@/lib/company/product-status";
+import { productStatusKey } from "@/lib/company/product-status";
+import { useProductStatusMeta } from "./product-status-label";
 import { formatDate } from "@/lib/format-date";
 import type { PublicProduct, PublicProductCompany } from "@/lib/public/marketplace-api";
 import { ArrowTopRightOnSquareIcon, LockClosedIcon, PencilSquareIcon } from "@heroicons/react/20/solid";
@@ -113,22 +115,23 @@ export function ProductPreview({
   variant?: "review" | "published";
   onEdit?: () => void;
 }) {
+  const t = useTranslations("web.panel.trade.productPreview");
   const publish = usePublishProduct();
   const canManage = useHasCompanyPermission("sell:product:manage");
   const accent = useButtonAccent();
-  const status = PRODUCT_STATUS[productStatusKey(product)];
+  const status = useProductStatusMeta()(productStatusKey(product));
 
   const { view, company, companySlug } = useShowcaseView(product, item);
   const publicHref = product.isPublic && companySlug && product.slug ? productPath(companySlug, product.slug) : null;
 
   const unpublish = async () => {
-    if (!window.confirm("Ürün vitrinden çekilecek ve taslağa dönecek; yeniden çıkmak için tekrar onay gerekir. Devam edilsin mi?")) return;
+    if (!window.confirm(t("urunVitrindenCekilecekVeTaslaga"))) return;
     try {
       await publish.mutateAsync({ id: product.id, publish: false });
-      toast.success("Ürün vitrinden çekildi");
+      toast.success(t("urunVitrindenCekildi"));
       onClose();
     } catch {
-      toast.error("Vitrinden çekilemedi");
+      toast.error(t("vitrindenCekilemedi"));
     }
   };
 
@@ -141,11 +144,11 @@ export function ProductPreview({
         >
           <div className="min-w-0 flex-1">
             <p className="flex flex-wrap items-center gap-2 font-semibold text-zinc-950">
-              Alıcının gördüğü hâl
+              {t("alicininGorduguHal")}
               <Badge color={status.color}>{status.label}</Badge>
             </p>
             <p className="mt-0.5 text-xs/5 text-zinc-500">
-              Ürün vitrinde. Düzenlemek için “Düzenle”ye basın; içerik değişikliği kaydedilince yeniden incelenir, ürün bu sırada yayında kalır.
+              {t("urunVitrindeDuzenlemekIcinDuzenle")}
             </p>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
@@ -156,7 +159,7 @@ export function ProductPreview({
                 rel="noopener"
                 className="inline-flex items-center gap-1 rounded-full border border-zinc-300 bg-white px-3.5 py-2 text-sm font-semibold text-zinc-800 shadow-sm hover:bg-zinc-50"
               >
-                Herkese açık sayfayı aç
+                {t("herkeseAcikSayfayiAc")}
                 <ArrowTopRightOnSquareIcon aria-hidden className="size-4" />
               </a>
             ) : null}
@@ -168,7 +171,7 @@ export function ProductPreview({
                   onClick={() => void unpublish()}
                   className="rounded-full px-3.5 py-2 text-sm font-medium text-zinc-500 hover:text-zinc-900 disabled:opacity-50"
                 >
-                  Vitrinden çek
+                  {t("vitrindenCek")}
                 </button>
                 <button
                   type="button"
@@ -176,7 +179,7 @@ export function ProductPreview({
                   className={cn("inline-flex items-center gap-1.5 rounded-full px-5 py-2 text-sm font-semibold text-white shadow-sm transition", accentFillClass(accent))}
                 >
                   <PencilSquareIcon aria-hidden className="size-4" />
-                  Düzenle
+                  {t("duzenle")}
                 </button>
               </>
             ) : null}
@@ -189,7 +192,7 @@ export function ProductPreview({
           companyHref="/company/sirketim/profil"
           cta={
             <p className="rounded-xl bg-zinc-100 px-4 py-2.5 text-center text-sm text-zinc-500" aria-disabled>
-              Alıcı burada “Bilgi iste” düğmesini görür
+              {t("aliciBuradaBilgiIsteDugmesini")}
             </p>
           }
         />
@@ -206,15 +209,14 @@ export function ProductPreview({
         <LockClosedIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
         <div className="min-w-0 flex-1">
           <p className="flex flex-wrap items-center gap-2 font-semibold">
-            İncelemede — önizleme
+            {t("incelemedeOnizleme")}
             <Badge color={status.color}>{status.label}</Badge>
             {product.submittedAt ? (
-              <span className="text-xs font-normal text-amber-800">gönderim {formatDate(product.submittedAt, "datetime")}</span>
+              <span className="text-xs font-normal text-amber-800">{t("gonderim", { date: formatDate(product.submittedAt, "datetime") })}</span>
             ) : null}
           </p>
           <p className="mt-0.5 text-xs/5">
-            Onaya gönderilen ürün ekibimiz karar verene kadar değiştirilemez. Onaylanırsa vitrine çıkar; düzeltme gerekirse
-            gerekçesiyle size geri gelir, düzenleyip yeniden gönderirsiniz. Aşağısı alıcının göreceği hâl.
+            {t("onayaGonderilenUrunEkibimizKarar")}
           </p>
         </div>
         {canManage && product.isPublic ? (
@@ -224,7 +226,7 @@ export function ProductPreview({
             onClick={() => void unpublish()}
             className="rounded-full border border-amber-700/30 px-3 py-1.5 text-xs font-semibold text-amber-900 hover:bg-amber-100 disabled:opacity-50"
           >
-            Vitrinden çek
+            {t("vitrindenCek")}
           </button>
         ) : null}
       </div>
@@ -235,7 +237,7 @@ export function ProductPreview({
         companyHref="/company/sirketim/profil"
         cta={
           <p className="rounded-xl bg-zinc-100 px-4 py-2.5 text-center text-sm text-zinc-500" aria-disabled>
-            Alıcı burada “Bilgi iste” düğmesini görür
+            {t("aliciBuradaBilgiIsteDugmesini")}
           </p>
         }
       />
