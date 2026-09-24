@@ -44,10 +44,10 @@ export function Link({ href, locale, ...rest }: LinkProps) {
   const current = useLocale() as Locale;
   const target = locale ?? current;
   // Dil seçicinin TÜRKÇE bağlantısı: next-intl `locale="tr"` verilince `as-needed`
-  // kipinde bile `/tr/…` üretir (sonra 308 ile `/…`). Varsayılan dile geçiş
-  // doğrudan ön eksiz adrese gider; next-intl'in yaptığı dil çerezi yazımı
-  // burada elle tekrarlanır.
-  if (typeof href === "string" && locale === DEFAULT_LOCALE && locale !== current) {
+  // kipinde bile `/tr/…` üretir (sonra 308 ile `/…`) — aktif dil Türkçeyken
+  // de (aria-current bağlantısı). Varsayılan dil doğrudan ön eksiz adrese
+  // gider; next-intl'in yaptığı dil çerezi yazımı burada elle tekrarlanır.
+  if (typeof href === "string" && locale === DEFAULT_LOCALE) {
     const { onClick, ...plain } = rest as LinkProps & { onClick?: (e: React.MouseEvent<HTMLAnchorElement>) => void };
     return (
       <NextLink

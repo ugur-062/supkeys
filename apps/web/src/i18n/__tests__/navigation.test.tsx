@@ -76,6 +76,8 @@ describe("@/i18n/navigation — gerçek sarmalayıcı", () => {
   it("Türkçeye geçiş bağlantısı ön eksiz ve doğrudan (/tr/… 308 sekmesi yok)", () => {
     wrap("en", <real.Link href="/urunler/sehir/izmir" locale="tr">TR</real.Link>);
     expect(screen.getByText("TR")).toHaveAttribute("href", "/urunler/sehir/izmir");
+    wrap("tr", <real.Link href="/urunler" locale="tr">TR2</real.Link>);
+    expect(screen.getByText("TR2")).toHaveAttribute("href", "/urunler");
   });
 
   it("bilinmeyen yol yalnız ön ek alır, mutlak adres dokunulmaz", () => {
