@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 
 /**
@@ -20,13 +21,14 @@ export function MarketDiscoveryFooter({
   cityHref: (city: string) => string;
   categoryHref: (c: { id: string; name: string }) => string;
 }) {
+  const t = useTranslations("web.panel.market.marketDiscoveryFooter");
   const topCities = cities.slice(0, 12);
   const topCategories = categories.slice(0, 12);
   if (topCities.length === 0 && topCategories.length === 0) return null;
   return (
     <section aria-labelledby="kesif-altligi" className="border-t border-zinc-200 pt-8">
       <h2 id="kesif-altligi" className="sr-only">
-        Keşfetmeye devam edin
+        {t("kesfetmeyeDevamEdin")}
       </h2>
       {/* İKİ BLOK ALT ALTA, ÇİPLER YAN YANA (2026-09-08, kullanıcı kararı):
           eskiden bloklar yan yana iki sütundaydı ve her sütun ekranın yarısı
@@ -37,14 +39,14 @@ export function MarketDiscoveryFooter({
           sonra şehir. */}
       <div className="space-y-8">
         {topCategories.length > 0 ? (
-          <Block title="Sektöre göre">
+          <Block title={t("sektoreGore")}>
             {topCategories.map((c) => (
               <Item key={c.id} href={categoryHref(c)} label={c.name} count={c.count} />
             ))}
           </Block>
         ) : null}
         {topCities.length > 0 ? (
-          <Block title="Şehre göre tedarikçiler">
+          <Block title={t("sehreGoreTedarikciler")}>
             {topCities.map((c) => (
               <Item key={c.city} href={cityHref(c.city)} label={c.city} count={c.count} />
             ))}

@@ -1,3 +1,5 @@
+import { tApi } from "../../common/i18n/i18n.service";
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -124,7 +126,7 @@ export class CompanyAddressesService {
       await this.assertNotInActiveUse(
         user.companyId,
         id,
-        "adres bilgileri değiştirilemez",
+        "edit",
       );
     }
     const type = dto.type as CompanyAddressType;
@@ -182,7 +184,7 @@ export class CompanyAddressesService {
 
   async remove(user: AuthenticatedCompanyUser, id: string) {
     const before = await this.requireOwn(user.companyId, id);
-    await this.assertNotInActiveUse(user.companyId, id, "silinemez");
+    await this.assertNotInActiveUse(user.companyId, id, "delete");
     await runTenantTx(this.prisma, async (tx) => {
       // Sonuçlanmış (AWARDED/iptal) ilanlardaki sarkan referansları temizle
       // (sipariş adresi zaten award anında snapshot'landı).
@@ -229,8 +231,15 @@ export class CompanyAddressesService {
   private async assertNotInActiveUse(
     companyId: string,
     id: string,
-    what: string,
+    what: "delete" | "edit",
   ) {
+    // Cümlenin sonundaki eylem parçası da katalogdan gelir; yoksa EN/RU
+    // cümlenin ortasına Türkçe düşerdi (çeviri incelemesi 2026-09-24).
+    const whatText = tApi(
+      what === "delete"
+        ? "api.companyAddresses.silinemez"
+        : "api.companyAddresses.adresBilgileriDegistirilemez",
+    );
     const activeUse = await this.prisma.listing.count({
       where: {
         companyId,
@@ -242,7 +251,7 @@ export class CompanyAddressesService {
     });
     if (activeUse > 0) {
       throw new BadRequestException(
-        `Bu adres ${activeUse} aktif ilanda kullanılıyor — ${what}; önce ilanlardaki adresi değiştirin`,
+        i18nMessage("api.companyAddresses.buAdresAktifIlandaKullaniliyorOnce", { activeUse: activeUse, what: whatText }),
       );
     }
     const bidUse = await this.prisma.listingBid.count({
@@ -254,7 +263,7 @@ export class CompanyAddressesService {
     });
     if (bidUse > 0) {
       throw new BadRequestException(
-        `Bu adres ${bidUse} gönderilmiş teklifte kullanılıyor — teklif sonuçlanana kadar ${what}`,
+        i18nMessage("api.companyAddresses.buAdresGonderilmisTeklifteKullaniliyorTeklif", { bidUse: bidUse, what: whatText }),
       );
     }
   }
@@ -265,7 +274,7 @@ export class CompanyAddressesService {
       where: { id },
     });
     if (!a || a.companyId !== companyId) {
-      throw new NotFoundException("Adres bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyAddresses.adresBulunamadi"));
     }
     return a;
   }

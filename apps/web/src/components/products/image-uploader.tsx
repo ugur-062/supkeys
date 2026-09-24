@@ -36,6 +36,8 @@ export function ImageUploader({
   onChange: (next: string[]) => void;
 }) {
   const t = useTranslations("web.panel.trade.imageUploader");
+  // Görsel işleme (EXIF temizliği) hatası metni — `lib/image-resize.ts` React dışı.
+  const tImg = useTranslations("web.shared.imageProcessing");
   const upload = useUploadProductImage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -86,7 +88,10 @@ export function ImageUploader({
             t("kucukGorselKarttaBulanik", { name: file.name, w: dims.w, h: dims.h, minW: MIN_EDGE, minH: MIN_EDGE * 0.75 }),
           );
         }
-        const resized = await resizeImageFile(file, { maxEdge: 1600 });
+        const resized = await resizeImageFile(file, {
+          maxEdge: 1600,
+          errorMessage: tImg("exifTemizlenemedi"),
+        });
         added.push(await upload.mutateAsync(resized));
       } catch (e) {
         next.push(

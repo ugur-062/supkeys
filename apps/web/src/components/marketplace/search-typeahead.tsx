@@ -35,33 +35,21 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
  * Erişilebilirlik: WAI combobox (aria-expanded/-controls/-activedescendant),
  * ↑↓ gezinir, Enter seçer (seçim yoksa formu gönderir), Esc kapatır.
  */
+/**
+ * Kapsamın DİLDEN BAĞIMSIZ parçası: anahtar + form hedefi. Etiket ve yer
+ * tutucu katalogdan gelir (`scopeText`) — burada Türkçe kopyası tutulsaydı
+ * iki kaynak ayrışırdı (metin sunucuda değişir, kutuda eski hâli kalırdı).
+ */
 export interface ScopeOption {
   key: SuggestScope;
-  label: string;
   /** Form hedefi — liste sayfası. */
   action: string;
-  placeholder: string;
 }
 
 export const SEARCH_SCOPES: Record<SuggestScope, ScopeOption> = {
-  products: {
-    key: "products",
-    label: "Ürünler",
-    action: MARKETPLACE_ROUTES.products,
-    placeholder: "Ürün, marka veya parça numarası arayın",
-  },
-  companies: {
-    key: "companies",
-    label: "Firmalar",
-    action: MARKETPLACE_ROUTES.companies,
-    placeholder: "Firma adı, sektör veya hizmet",
-  },
-  listings: {
-    key: "listings",
-    label: "Talepler",
-    action: MARKETPLACE_ROUTES.demands,
-    placeholder: "Talep başlığı veya kategori",
-  },
+  products: { key: "products", action: MARKETPLACE_ROUTES.products },
+  companies: { key: "companies", action: MARKETPLACE_ROUTES.companies },
+  listings: { key: "listings", action: MARKETPLACE_ROUTES.demands },
 };
 
 type Row = { key: string; href: string; label: string; meta?: string; node?: React.ReactNode; group: string };

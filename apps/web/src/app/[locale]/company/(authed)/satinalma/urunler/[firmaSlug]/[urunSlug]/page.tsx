@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { PageContainer } from "@/components/list/page-container";
 import {
   ProductBreadcrumb,
@@ -29,6 +30,7 @@ import { useState } from "react";
  * sayfa yalnız kabuğu (panel) ve eylemi (CTA) değiştirir.
  */
 export default function PanelProductPage() {
+  const t = useTranslations("web.panel.market.firmaslugUrunSlugPage");
   const params = useParams<{ firmaSlug: string; urunSlug: string }>();
   const [inquiryOpen, setInquiryOpen] = useState(false);
   const firmaSlug = params?.firmaSlug ?? "";
@@ -39,7 +41,7 @@ export default function PanelProductPage() {
   if (isLoading) {
     return (
       <PageContainer>
-        <p className="text-sm text-zinc-500">Yükleniyor…</p>
+        <p className="text-sm text-zinc-500">{t("yukleniyor")}</p>
       </PageContainer>
     );
   }
@@ -48,16 +50,16 @@ export default function PanelProductPage() {
     return (
       <PageContainer>
         <div className="rounded-2xl bg-zinc-50 px-6 py-10 text-center ring-1 ring-zinc-950/5">
-          <p className="text-sm font-semibold text-zinc-900">Ürün bulunamadı.</p>
+          <p className="text-sm font-semibold text-zinc-900">{t("urunBulunamadi")}</p>
           <p className="mt-1 text-sm text-zinc-500">
-            Ürün vitrinden çekilmiş ya da firmanın profili yayında olmayabilir.
+            {t("urunVitrindenCekilmisYaDa")}
           </p>
           <Link
             href="/company/satinalma/urunler"
             className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-zinc-900 hover:text-zinc-600"
           >
             <ArrowLeft aria-hidden className="size-4" />
-            Ürün Ara&apos;ya dön
+            {t("urunAraYaDon")}
           </Link>
         </div>
       </PageContainer>
@@ -72,10 +74,10 @@ export default function PanelProductPage() {
   return (
     <PageContainer>
       <ProductBreadcrumb
-        home={{ href: "/company/satinalma", label: "Satınalma anasayfası" }}
+        home={{ href: "/company/satinalma", label: t("satinalmaAnasayfasi") }}
         accent="blue"
         trail={[
-          { label: "Ürün Ara", href: "/company/satinalma/urunler" },
+          { label: t("urunAra"), href: "/company/satinalma/urunler" },
           /* Kategori adımı KENDİ SAYFASINA gider (`/kategori/<kod>-<ad>`),
              süzgeçli listeye değil: her kategorinin bir adresi var ve
              paylaşılabilir olan o. */
@@ -102,7 +104,7 @@ export default function PanelProductPage() {
               rel="noopener noreferrer nofollow"
               className="inline-flex items-center gap-1 text-sm font-medium text-zinc-700 hover:text-zinc-950"
             >
-              Firmanın web sitesi
+              {t("firmaninWebSitesi")}
               <ArrowTopRightOnSquareIcon aria-hidden className="size-3.5" />
             </a>
           ) : null
@@ -120,7 +122,7 @@ export default function PanelProductPage() {
             className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
             <DocumentTextIcon aria-hidden className="size-5" />
-            Bilgi iste
+            {t("bilgiIste")}
           </button>
         }
       />

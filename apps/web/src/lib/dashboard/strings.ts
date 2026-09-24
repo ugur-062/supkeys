@@ -1,106 +1,89 @@
 /**
- * Panel metinleri — TEK modül. Projede i18n altyapısı henüz yok (next-intl
- * greenfield, ayrı iş); tüm panel metinleri burada toplanır ki i18n geçişinde
- * tek noktadan taşınsın. Bileşen içine serbest metin YAZMA.
+ * AKSİYON MERKEZİ SATIR HARİTASI — backend `ActionCenterService` satır
+ * anahtarlarıyla BİREBİR. (Satırın tamamı tıklanabilir; ayrı CTA etiketi
+ * kaldırıldı, 2026-08-03.)
+ *
+ * i18n Faz 2: cümle KATALOGDA (`web.panel.shell.actionRows.<portal>.<anahtar>`),
+ * burada yalnız anahtar + hedef rota var; metni çizen bileşen `t(textKey)` ile
+ * basar (Şirketim › Bekleyen İşler ve eski Aksiyon Merkezi AYNI haritayı okur).
+ * Haritada olmayan satır anahtarı ÇİZİLMEZ (bilinmeyen backend anahtarı
+ * kullanıcıya ham görünmesin).
  */
-import { numberPossessive } from "@/lib/turkish";
-
-export const DASH = {
-  // Zaman tasarrufu şeridi/bölümü/kriter penceresi metinleri KALDIRILDI
-  // (2026-09-10, kullanıcı kararı: Şirketim'de gerek yok). API ucu duruyor.
-  heroWinTitle: (pct: string) => `%${pct} kazanma oranı`,
-  heroWinSupport: (won: number, total: number) =>
-    `karara bağlanan ${total} teklifin ${won}${numberPossessive(won)} kazandı`,
-  heroWinEmptyTitle: "Kazanma oranınız burada görünecek",
-  heroWinEmptyBody:
-    "Açık satın alma taleplerine teklif verip sonuç aldıkça kazanma oranınız ve trendiniz burada birikecek.",
-  heroWinEmptyCta: "Açık Taleplere Göz At",
-  quarterCostNote:
-    "Maliyet kırılımında çeyrek dönemi henüz yok — yıl verisi gösteriliyor.",
-  actionTitle: "Bekleyen İşler",
-  actionEmpty: "Bekleyen bir işiniz yok.",
-  actionShowAll: (n: number) => `Tümünü gör (${n})`,
-  actionShowLess: "Daha az göster",
-} as const;
-
-/** Aksiyon Merkezi satır metin haritası — anahtarlar backend
- * ActionCenterService satır key'leriyle birebir. (Satırın tamamı
- * tıklanabilir; ayrı CTA etiketi kaldırıldı, 2026-08-03.) */
 export const ACTION_ROWS: Record<
   "satinalma" | "satis",
-  Record<string, { text: string; href: string }>
+  Record<string, { textKey: string; href: string }>
 > = {
   satinalma: {
     overduePayments: {
-      text: "siparişin ödemesi gecikti",
+      textKey: "satinalma.overduePayments",
       href: "/company/satinalma/siparisler",
     },
     overdueDeliveries: {
-      text: "siparişin teslim tarihi geçti",
+      textKey: "satinalma.overdueDeliveries",
       href: "/company/satinalma/siparisler",
     },
     zeroBidClosingSoon: {
-      text: "satın alma talebiniz teklifsiz kapanmak üzere",
+      textKey: "satinalma.zeroBidClosingSoon",
       href: "/company/satinalma/taleplerim",
     },
     closingSoon: {
-      text: "satın alma talebiniz kapanmak üzere",
+      textKey: "satinalma.closingSoon",
       href: "/company/satinalma/taleplerim",
     },
     awaitingDecision: {
-      text: "satın alma talebinizde karar bekleyen teklif var",
+      textKey: "satinalma.awaitingDecision",
       href: "/company/satinalma/taleplerim",
     },
     pendingApprovals: {
-      text: "kazandırma onay bekliyor",
+      textKey: "satinalma.pendingApprovals",
       href: "/company/onaylar",
     },
     sellerApproval: {
-      text: "sipariş satıcı onayında",
+      textKey: "satinalma.sellerApproval",
       href: "/company/satinalma/siparisler",
     },
     receiveOrders: {
-      text: "sipariş teslim almanızı bekliyor",
+      textKey: "satinalma.receiveOrders",
       href: "/company/satinalma/siparisler",
     },
     paymentWindow: {
-      text: "siparişin ödemesi bekleniyor",
+      textKey: "satinalma.paymentWindow",
       href: "/company/satinalma/siparisler",
     },
     messages: {
-      text: "okunmamış mesajınız var",
+      textKey: "satinalma.messages",
       href: "/company/mesajlar",
     },
   },
   satis: {
     overdueDeliveries: {
-      text: "siparişin teslim tarihi geçti",
+      textKey: "satis.overdueDeliveries",
       href: "/company/satis/siparisler",
     },
     unansweredInvites: {
-      text: "davete henüz teklif vermediniz",
+      textKey: "satis.unansweredInvites",
       href: "/company/satis#acik-talepler",
     },
     expiringBids: {
-      text: "teklifinizin geçerliliği dolmak üzere",
+      textKey: "satis.expiringBids",
       href: "/company/satis/tekliflerim",
     },
     pendingOrders: {
-      text: "sipariş onayınızı bekliyor",
+      textKey: "satis.pendingOrders",
       href: "/company/satis/siparisler",
     },
     // Ürünlerime gelen, henüz yanıtlanmamış sorular — karşıda bir alıcı
     // bekliyor (uç: action-center `unansweredInquiries`).
     unansweredInquiries: {
-      text: "bilgi talebi yanıtınızı bekliyor",
+      textKey: "satis.unansweredInquiries",
       href: "/company/satis/bilgi-talepleri",
     },
     paymentWindow: {
-      text: "siparişin ödemesi bekleniyor",
+      textKey: "satis.paymentWindow",
       href: "/company/satis/siparisler",
     },
     messages: {
-      text: "okunmamış mesajınız var",
+      textKey: "satis.messages",
       href: "/company/mesajlar",
     },
   },

@@ -2,6 +2,7 @@
 
 import { companyApi } from "@/lib/company-auth/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 export type ListingDocKind =
   | "IDARI_SARTNAME"
@@ -11,18 +12,18 @@ export type ListingDocKind =
   | "NUMUNE"
   | "DIGER";
 
-/** İhale dosyası bölümü etiketleri (UI). */
-export const LISTING_DOC_KIND_LABELS: Record<ListingDocKind, string> = {
-  IDARI_SARTNAME: "İdari Şartname",
-  TEKNIK_SARTNAME: "Teknik Şartname",
-  SOZLESME: "Sözleşme Taslağı",
-  EK: "Ek / Çizim",
-  NUMUNE: "Numune / Görsel",
-  DIGER: "Diğer",
-};
-export const LISTING_DOC_KINDS = Object.keys(
-  LISTING_DOC_KIND_LABELS,
-) as ListingDocKind[];
+/**
+ * Dosya bölümü sırası. Etiketler katalogda —
+ * `web.domain.listingDocKind.<KOD>` (çizim yeri `useTranslations` ile okur).
+ */
+export const LISTING_DOC_KINDS: ListingDocKind[] = [
+  "IDARI_SARTNAME",
+  "TEKNIK_SARTNAME",
+  "SOZLESME",
+  "EK",
+  "NUMUNE",
+  "DIGER",
+];
 
 export interface ListingDocument {
   id: string;
@@ -56,6 +57,12 @@ export async function uploadListingDocument(
   listingId: string,
   file: File,
   kind: ListingDocKind,
+  /**
+   * R2 PUT başarısız olursa kullanıcıya gösterilecek metin — ÇAĞIRAN çevirir
+   * (bu fonksiyon React dışında da çağrılır). Verilmezse mesaj boş kalır ve
+   * `extractErrorMessage` çağıranın kendi yedek metnine düşer.
+   */
+  uploadFailedMessage = "",
 ): Promise<void> {
   const { data } = await companyApi.post<{ url: string; key: string }>(
     `/company/listings/${listingId}/documents/upload-url`,
@@ -66,7 +73,7 @@ export async function uploadListingDocument(
     body: file,
     headers: { "Content-Type": file.type },
   });
-  if (!put.ok) throw new Error("Dosya yüklenemedi (R2)");
+  if (!put.ok) throw new Error(uploadFailedMessage);
   await companyApi.post(`/company/listings/${listingId}/documents`, {
     key: data.key,
     fileName: file.name,
@@ -77,9 +84,10 @@ export async function uploadListingDocument(
 
 export function useUploadListingDoc(listingId: string) {
   const qc = useQueryClient();
+  const t = useTranslations("web.panel.requests.listingDocuments");
   return useMutation({
     mutationFn: ({ file, kind }: { file: File; kind: ListingDocKind }) =>
-      uploadListingDocument(listingId, file, kind),
+      uploadListingDocument(listingId, file, kind, t("dosyaYuklenemedi")),
     onSuccess: () =>
       qc.invalidateQueries({ queryKey: ["listing-documents", listingId] }),
   });

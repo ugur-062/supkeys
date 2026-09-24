@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   Controller,
   ForbiddenException,
@@ -79,7 +80,7 @@ export class CompanyDashboardController {
   ) {
     const side = portal === "satis" ? "sell" : "buy";
     if (!hasReadContext(user, side)) {
-      throw new ForbiddenException("Bu panoyu görüntüleme yetkiniz yok");
+      throw new ForbiddenException(i18nMessage("api.companyDashboard.buPanoyuGoruntulemeYetkinizYok"));
     }
     return side === "sell"
       ? this.actionCenter.satis(user.companyId)

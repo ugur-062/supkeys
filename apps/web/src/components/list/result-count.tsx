@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { formatNumber } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 
 interface Props {
@@ -14,10 +16,12 @@ interface Props {
 export function ResultCount({
   total,
   isFiltered,
-  unit = "sonuç",
+  unit,
   className,
   isLoading = false,
 }: Props) {
+  const t = useTranslations("web.panel.shell.resultCount");
+  const locale = useLocale();
   if (isLoading) {
     return (
       <span
@@ -32,11 +36,11 @@ export function ResultCount({
   return (
     <p className={cn("text-sm text-slate-500", className)}>
       <strong className="text-zinc-900 font-semibold">
-        {total.toLocaleString("tr-TR")}
+        {formatNumber(total, locale)}
       </strong>{" "}
-      {unit}
+      {unit ?? t("sonuc")}
       {isFiltered ? (
-        <span className="text-slate-400 ml-1">(filtrelenmiş)</span>
+        <span className="text-slate-400 ml-1">{t("filtrelenmis")}</span>
       ) : null}
     </p>
   );

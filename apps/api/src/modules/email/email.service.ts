@@ -8,6 +8,7 @@ import {
   type EmailRecipient,
   type EmailTemplateData,
 } from "@rothern/email";
+import type { Locale } from "@rothern/i18n";
 import { reportToSentry } from "../../instrument";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { isCriticalEmailContext } from "./critical-contexts";
@@ -22,6 +23,12 @@ export interface SendEmailInput {
   context?: { type: string; id: string };
   /** Render edilmiş subject — fallback olarak log'a yazılır */
   subject?: string;
+  /**
+   * ALICININ dili — şablon metni (ve kabuk/altbilgi) bu dille üretilir.
+   * Verilmezse Türkçe: bugünkü davranış aynen korunur. Bildirim/e-posta tek
+   * payload'dan N kişiye dağıldığı için dil ALICI BAŞINA geçirilmelidir.
+   */
+  locale?: Locale;
 }
 
 /**
@@ -196,7 +203,7 @@ export class EmailService implements OnModuleInit {
 
     let rendered;
     try {
-      rendered = await renderEmail(input.templateData);
+      rendered = await renderEmail(input.templateData, input.locale);
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       await this.prisma.emailLog.update({

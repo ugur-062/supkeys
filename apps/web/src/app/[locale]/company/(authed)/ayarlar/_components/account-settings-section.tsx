@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { Button } from "@/components/catalyst/button";
 import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
@@ -10,7 +11,6 @@ import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
   NOTIFICATION_PREFS,
-  TRANSACTIONAL_NOTIFICATIONS,
   useChangePassword,
   useUpdateMe,
   useUpdateNotificationPrefs,
@@ -34,6 +34,7 @@ const card = "rounded-xl border border-zinc-950/10 bg-white p-5";
 
 /** Hesap Bilgileri — profil başlık kartı + salt-okunur/düzenle. */
 export function AccountInfoSection() {
+  const t = useTranslations("web.panel.settings.accountSettingsSection");
   const { user } = useCompanyAuth();
   const updateMe = useUpdateMe();
   const [editing, setEditing] = useState(false);
@@ -64,17 +65,17 @@ export function AccountInfoSection() {
 
   const save = async () => {
     const next: typeof errors = {};
-    if (!info.firstName.trim()) next.firstName = "Ad boş olamaz";
-    if (!info.lastName.trim()) next.lastName = "Soyad boş olamaz";
-    if (!isValidPhone(info.phone)) next.phone = "Geçerli bir telefon numarası girin";
+    if (!info.firstName.trim()) next.firstName = t("adBosOlamaz");
+    if (!info.lastName.trim()) next.lastName = t("soyadBosOlamaz");
+    if (!isValidPhone(info.phone)) next.phone = t("gecerliBirTelefonNumarasiGirin");
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     try {
       await updateMe.mutateAsync(info);
-      toast.success("Bilgiler güncellendi");
+      toast.success(t("bilgilerGuncellendi"));
       setEditing(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Güncellenemedi"));
+      toast.error(extractErrorMessage(err, t("guncellenemedi")));
     }
   };
 
@@ -116,33 +117,33 @@ export function AccountInfoSection() {
         <div className="flex items-start justify-between gap-3">
           <div>
             <h3 className="text-base font-semibold text-zinc-900">
-              Kişisel Bilgiler
+              {t("kisiselBilgiler")}
             </h3>
             <Text className="mt-0.5 text-sm text-zinc-500">
               {editing
-                ? "Bilgilerinizi güncelleyip kaydedin."
-                : "Düzenlemek için sağdaki butonu kullanın."}
+                ? t("bilgileriniziGuncelleyipKaydedin")
+                : t("duzenlemekIcinSagdakiButonuKullanin")}
             </Text>
           </div>
           {!editing ? (
             <Button outline onClick={() => setEditing(true)}>
               <Pencil className="h-4 w-4" />
-              Düzenle
+              {t("duzenle")}
             </Button>
           ) : null}
         </div>
 
         {!editing ? (
           <dl className="mt-5 grid grid-cols-1 gap-x-8 gap-y-4 sm:grid-cols-2">
-            <ReadRow label="Ad" value={user?.firstName} />
-            <ReadRow label="Soyad" value={user?.lastName} />
+            <ReadRow label={t("ad")} value={user?.firstName} />
+            <ReadRow label={t("soyad")} value={user?.lastName} />
             <ReadRow
-              label="Telefon"
+              label={t("telefon")}
               value={user?.phone}
               icon={<Phone className="h-3.5 w-3.5 text-zinc-400" />}
             />
             <ReadRow
-              label="E-posta"
+              label={t("ePosta")}
               value={user?.email}
               icon={<Mail className="h-3.5 w-3.5 text-zinc-400" />}
             />
@@ -151,7 +152,7 @@ export function AccountInfoSection() {
           <div className="mt-5 space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
               <Field>
-                <Label>Ad</Label>
+                <Label>{t("ad")}</Label>
                 <Input
                   value={info.firstName}
                   invalid={!!errors.firstName}
@@ -162,7 +163,7 @@ export function AccountInfoSection() {
                 {errors.firstName ? <ErrorMessage>{errors.firstName}</ErrorMessage> : null}
               </Field>
               <Field>
-                <Label>Soyad</Label>
+                <Label>{t("soyad")}</Label>
                 <Input
                   value={info.lastName}
                   invalid={!!errors.lastName}
@@ -173,7 +174,7 @@ export function AccountInfoSection() {
                 {errors.lastName ? <ErrorMessage>{errors.lastName}</ErrorMessage> : null}
               </Field>
               <Field>
-                <Label>Telefon</Label>
+                <Label>{t("telefon")}</Label>
                 <PhoneInput
                   value={info.phone}
                   onChange={(v) => setInfo({ ...info, phone: v })}
@@ -181,19 +182,19 @@ export function AccountInfoSection() {
                 {errors.phone ? <ErrorMessage>{errors.phone}</ErrorMessage> : null}
               </Field>
               <Field>
-                <Label>E-posta</Label>
+                <Label>{t("ePosta")}</Label>
                 <Input value={user?.email ?? ""} disabled />
                 <Text className="mt-1 text-xs text-zinc-500">
-                  Giriş kimliğinizdir; değiştirmek için destek ile iletişime geçin.
+                  {t("girisKimliginizdirDegistirmekIcinDestek")}
                 </Text>
               </Field>
             </div>
             <div className="flex justify-end gap-2">
               <Button plain onClick={cancel}>
-                Vazgeç
+                {t("vazgec")}
               </Button>
               <Button onClick={save} disabled={updateMe.isPending || !dirty}>
-                {updateMe.isPending ? "Kaydediliyor…" : "Kaydet"}
+                {updateMe.isPending ? t("kaydediliyor") : t("kaydet")}
               </Button>
             </div>
           </div>
@@ -225,30 +226,34 @@ function ReadRow({
   );
 }
 
-const PW_REQUIREMENTS: { key: string; label: string; test: (p: string) => boolean }[] =
-  [
-    { key: "min", label: "En az 8 karakter", test: (p) => p.length >= 8 },
-    { key: "upper", label: "En az 1 büyük harf (A-Z)", test: (p) => /[A-Z]/.test(p) },
-    { key: "lower", label: "En az 1 küçük harf (a-z)", test: (p) => /[a-z]/.test(p) },
-    { key: "digit", label: "En az 1 rakam", test: (p) => /\d/.test(p) },
-  ];
+/** Şifre gereksinimleri — etiket `pwReq.<key>` katalog anahtarı, çizim yerinde çevrilir. */
+const PW_REQUIREMENTS: { key: "min" | "upper" | "lower" | "digit"; test: (p: string) => boolean }[] = [
+  { key: "min", test: (p) => p.length >= 8 },
+  { key: "upper", test: (p) => /[A-Z]/.test(p) },
+  { key: "lower", test: (p) => /[a-z]/.test(p) },
+  { key: "digit", test: (p) => /\d/.test(p) },
+];
 
-function pwStrength(p: string): { score: number; label: string; color: string } {
-  if (!p) return { score: 0, label: "—", color: "bg-zinc-200" };
+/** Güç etiketi `pwStrength.<label>` katalog anahtarı; boş şifrede etiket yok ("—"). */
+type PwStrengthKey = "zayif" | "orta" | "iyi" | "guclu";
+
+function pwStrength(p: string): { score: number; label: PwStrengthKey | null; color: string } {
+  if (!p) return { score: 0, label: null, color: "bg-zinc-200" };
   let s = 0;
   if (p.length >= 8) s++;
   if (p.length >= 12) s++;
   if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++;
   if (/\d/.test(p) && /[^A-Za-z0-9]/.test(p)) s++;
   s = Math.min(4, s);
-  if (s <= 1) return { score: s, label: "Zayıf", color: "bg-red-500" };
-  if (s === 2) return { score: s, label: "Orta", color: "bg-amber-500" };
-  if (s === 3) return { score: s, label: "İyi", color: "bg-blue-500" };
-  return { score: s, label: "Güçlü", color: "bg-emerald-500" };
+  if (s <= 1) return { score: s, label: "zayif", color: "bg-red-500" };
+  if (s === 2) return { score: s, label: "orta", color: "bg-amber-500" };
+  if (s === 3) return { score: s, label: "iyi", color: "bg-blue-500" };
+  return { score: s, label: "guclu", color: "bg-emerald-500" };
 }
 
 /** Şifre Değiştir — göster/gizle + güç ölçer + gereksinim listesi. */
 export function PasswordSection() {
+  const t = useTranslations("web.panel.settings.accountSettingsSection");
   const changePassword = useChangePassword();
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
   const [show, setShow] = useState({ current: false, next: false, confirm: false });
@@ -260,10 +265,10 @@ export function PasswordSection() {
 
   const save = async () => {
     const next: typeof errors = {};
-    if (!pw.current) next.current = "Mevcut şifrenizi girin";
-    if (!allMet) next.next = "Yeni şifre aşağıdaki gereksinimlerin tümünü karşılamalı";
-    else if (pw.current && pw.current === pw.next) next.next = "Yeni şifre eski şifreyle aynı olamaz";
-    if (pw.next !== pw.confirm) next.confirm = "Yeni şifreler eşleşmiyor";
+    if (!pw.current) next.current = t("mevcutSifreniziGirin");
+    if (!allMet) next.next = t("yeniSifreAsagidakiGereksinimlerinTumunuKarsilamali");
+    else if (pw.current && pw.current === pw.next) next.next = t("yeniSifreEskiSifreyleAyniOlamaz");
+    if (pw.next !== pw.confirm) next.confirm = t("yeniSifrelerEslesmiyor");
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     try {
@@ -271,17 +276,17 @@ export function PasswordSection() {
         currentPassword: pw.current,
         newPassword: pw.next,
       });
-      toast.success("Şifre değiştirildi");
+      toast.success(t("sifreDegistirildi"));
       setPw({ current: "", next: "", confirm: "" });
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Şifre değiştirilemedi"));
+      toast.error(extractErrorMessage(err, t("sifreDegistirilemedi")));
     }
   };
 
   const fields: { key: keyof typeof pw; label: string; auto: string }[] = [
-    { key: "current", label: "Mevcut Şifre", auto: "current-password" },
-    { key: "next", label: "Yeni Şifre", auto: "new-password" },
-    { key: "confirm", label: "Yeni Şifre (Tekrar)", auto: "new-password" },
+    { key: "current", label: t("mevcutSifre"), auto: "current-password" },
+    { key: "next", label: t("yeniSifre"), auto: "new-password" },
+    { key: "confirm", label: t("yeniSifreTekrar"), auto: "new-password" },
   ];
 
   return (
@@ -305,7 +310,7 @@ export function PasswordSection() {
                 tabIndex={-1}
                 onClick={() => setShow({ ...show, [fld.key]: !show[fld.key] })}
                 className="absolute right-3 top-1/2 -translate-y-1/2 rounded p-0.5 text-zinc-400 hover:text-zinc-700"
-                aria-label={show[fld.key] ? "Gizle" : "Göster"}
+                aria-label={show[fld.key] ? t("gizle") : t("goster")}
               >
                 {show[fld.key] ? (
                   <EyeOff className="h-4 w-4" />
@@ -331,7 +336,7 @@ export function PasswordSection() {
                     ))}
                   </div>
                   <span className="min-w-[3.5rem] text-right text-xs font-semibold uppercase tracking-wide text-zinc-500">
-                    {strength.label}
+                    {strength.label ? t(`pwStrength.${strength.label}` as never) : "—"}
                   </span>
                 </div>
                 <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
@@ -345,7 +350,7 @@ export function PasswordSection() {
                           <X className="h-3.5 w-3.5 text-zinc-300" />
                         )}
                         <span className={ok ? "text-zinc-700" : "text-zinc-500"}>
-                          {req.label}
+                          {t(`pwReq.${req.key}` as never)}
                         </span>
                       </li>
                     );
@@ -360,7 +365,7 @@ export function PasswordSection() {
       <div className="mt-5 flex items-center justify-between gap-3">
         <p className="flex items-center gap-2 text-xs text-zinc-500">
           <ShieldCheck className="h-3.5 w-3.5 text-emerald-600" />
-          Şifreniz şifrelenmiş olarak saklanır; ekibimiz dahil kimse göremez.
+          {t("sifrenizSifrelenmisOlarakSaklanirEkibimiz")}
         </p>
         <Button
           onClick={save}
@@ -368,15 +373,23 @@ export function PasswordSection() {
             changePassword.isPending || !pw.current || !pw.next || !pw.confirm
           }
         >
-          Şifreyi Değiştir
+          {t("sifreyiDegistir")}
         </Button>
       </div>
     </section>
   );
 }
 
+/**
+ * Transactional bildirimler — kapatılamaz, bilgi olarak listelenir. Metin
+ * `transactional.<key>` katalog anahtarında (hook'taki Türkçe
+ * `TRANSACTIONAL_NOTIFICATIONS` listesiyle aynı üç madde).
+ */
+const TRANSACTIONAL_KEYS = ["bidWon", "orderStatus", "accountMail"] as const;
+
 /** Bildirim Tercihleri — switch'ler + toplu aç/kapat. */
 export function NotificationPrefsSection() {
+  const t = useTranslations("web.panel.settings.accountSettingsSection");
   const { user } = useCompanyAuth();
   const updatePrefs = useUpdateNotificationPrefs();
   const [prefs, setPrefs] = useState<Record<string, boolean>>({});
@@ -397,9 +410,9 @@ export function NotificationPrefsSection() {
   const save = async () => {
     try {
       await updatePrefs.mutateAsync(prefs);
-      toast.success("Bildirim tercihleri kaydedildi");
+      toast.success(t("bildirimTercihleriKaydedildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kaydedilemedi"));
+      toast.error(extractErrorMessage(err, t("kaydedilemedi")));
     }
   };
 
@@ -407,7 +420,7 @@ export function NotificationPrefsSection() {
     <section className={card}>
       <div className="flex flex-wrap items-center justify-between gap-2">
         <Text className="text-sm text-zinc-500">
-          Hangi durumlarda e-posta bildirimi almak istediğinizi seçin.
+          {t("hangiDurumlardaEPostaBildirimi")}
         </Text>
         <div className="flex gap-2">
           <button
@@ -415,14 +428,14 @@ export function NotificationPrefsSection() {
             onClick={() => setAll(true)}
             className="rounded-lg border border-zinc-950/10 bg-white px-2.5 py-1 text-xs font-semibold text-zinc-700 hover:border-zinc-300"
           >
-            Hepsini Aç
+            {t("hepsiniAc")}
           </button>
           <button
             type="button"
             onClick={() => setAll(false)}
             className="rounded-lg border border-zinc-950/10 bg-white px-2.5 py-1 text-xs font-semibold text-zinc-700 hover:border-zinc-300"
           >
-            Hepsini Kapat
+            {t("hepsiniKapat")}
           </button>
         </div>
       </div>
@@ -439,7 +452,9 @@ export function NotificationPrefsSection() {
               onClick={() => setPrefs({ ...prefs, [p.key]: !on })}
               className="flex w-full items-center justify-between gap-3 px-4 py-3 text-left transition hover:bg-zinc-100"
             >
-              <span className="text-sm text-zinc-900">{p.label}</span>
+              <span className="text-sm text-zinc-900">
+                {t(`notificationPref.${p.key}` as never)}
+              </span>
               <span
                 className={`relative inline-flex h-5 w-9 shrink-0 items-center rounded-full transition ${
                   on ? "bg-zinc-900" : "bg-zinc-200"
@@ -458,16 +473,16 @@ export function NotificationPrefsSection() {
 
       <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-100/60 p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Her zaman gönderilir
+          {t("herZamanGonderilir")}
         </p>
         <p className="mt-1 text-xs text-zinc-500">
-          Aşağıdaki bildirimler işlem güvenliği/kritikliği nedeniyle kapatılamaz:
+          {t("asagidakiBildirimlerIslemGuvenligiKritikligi")}
         </p>
         <ul className="mt-2 space-y-1">
-          {TRANSACTIONAL_NOTIFICATIONS.map((t) => (
-            <li key={t} className="flex items-center gap-2 text-sm text-zinc-700">
+          {TRANSACTIONAL_KEYS.map((k) => (
+            <li key={k} className="flex items-center gap-2 text-sm text-zinc-700">
               <span className="h-1.5 w-1.5 rounded-full bg-zinc-400" />
-              {t}
+              {t(`transactional.${k}` as never)}
             </li>
           ))}
         </ul>
@@ -475,7 +490,7 @@ export function NotificationPrefsSection() {
 
       <div className="mt-4 flex justify-end">
         <Button onClick={save} disabled={updatePrefs.isPending}>
-          Tercihleri Kaydet
+          {t("tercihleriKaydet")}
         </Button>
       </div>
     </section>

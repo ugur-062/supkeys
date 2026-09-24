@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useUnitLabel } from "@/i18n/domain";
+import { useBidDocKindLabel, useMoneyInputError, useUnitLabel } from "@/i18n/domain";
 import { PRICING_HREF, SilverLockCard } from "@/components/company/silver-lock-card";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -20,7 +20,6 @@ import { Select } from "@/components/catalyst/select";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
 import {
-  BID_DOC_KIND_LABELS,
   BID_DOC_SELECTABLE_KINDS,
   useBidDocuments,
   useDeleteBidDoc,
@@ -34,7 +33,6 @@ import {
   type ListingItemRow,
 } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { moneyInputError } from "@/lib/money-input";
 import { formatDateTime, todayLocalISO } from "@/lib/tenders/date";
 import {
   BID_DELIVERY_TIMES,
@@ -170,6 +168,8 @@ function AnswerInput({
 
 export default function TeklifVerPage() {
   const tr = useTranslations("web.panel.requests.page");
+  const docKindLabel = useBidDocKindLabel();
+  const moneyError = useMoneyInputError();
   const td = useTranslations("web.domain");
   const unitLabel = useUnitLabel();
   const params = useParams<{ id: string }>();
@@ -781,7 +781,7 @@ export default function TeklifVerPage() {
       // F4: min 0.01 + 2 ondalık + MAX_MONEY (backend place-bid.dto birebir).
       if (!singleAmount) problems.push(tr("gecerliBirTutarGirin"));
       else {
-        const e = moneyInputError(Number(singleAmount));
+        const e = moneyError(Number(singleAmount));
         if (e) problems.push(e);
       }
     }
@@ -796,7 +796,7 @@ export default function TeklifVerPage() {
       }
       // F4: fiyatlanan her kalem >0 + 2 ondalık + MAX_MONEY (backend unitPrice birebir).
       for (const it of pricedItems) {
-        const e = moneyInputError(Number(itemState[it.id]?.price ?? 0));
+        const e = moneyError(Number(itemState[it.id]?.price ?? 0));
         if (e) {
           problems.push(tr("kalemiBirimFiyati", { name: it.name, e: e }));
           break;
@@ -1484,7 +1484,7 @@ export default function TeklifVerPage() {
                         {d.fileName}
                       </a>
                       <span className="hidden shrink-0 rounded-md bg-zinc-100 px-2 py-0.5 text-xs font-medium text-zinc-600 sm:inline">
-                        {BID_DOC_KIND_LABELS[d.kind]}
+                        {docKindLabel(d.kind)}
                       </span>
                       <span className="shrink-0 text-xs font-medium text-emerald-600">
                         {tr("yuklendi")}
@@ -1545,7 +1545,7 @@ export default function TeklifVerPage() {
                         className="w-40 shrink-0"
                         options={BID_DOC_SELECTABLE_KINDS.map((k) => ({
                           value: k,
-                          label: BID_DOC_KIND_LABELS[k],
+                          label: docKindLabel(k),
                         }))}
                       />
                       <button

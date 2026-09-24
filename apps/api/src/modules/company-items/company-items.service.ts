@@ -1,3 +1,5 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
+import { tApi } from "../../common/i18n/i18n.service";
 import {
   BadRequestException,
   ConflictException,
@@ -58,8 +60,9 @@ import { currentLocale } from "../../common/i18n/locale-context";
 import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
 import {
   productCompletion,
-  productPublishBlockers,
+  productPublishBlockerCodes,
   type ProductLike,
+  type PublishBlocker,
 } from "../../common/company/product-completion";
 import { PrismaBypassService, PrismaService } from "../../common/prisma/prisma.service";
 import { CompanyViewsService } from "../company-views/company-views.service";
@@ -367,7 +370,7 @@ export class CompanyItemsService {
         });
         if (occupied >= limit) {
           throw new ForbiddenException(
-            `Ücretsiz pakette en fazla ${limit} ürün yayında/onayda olabilir. Bu ürünü geri almak için önce bir ürünü vitrinden çekin ya da Silver paketine geçin.`,
+            i18nMessage("api.companyItems.ucretsizPaketteEnFazlaUrunYayinda", { limit: limit }),
           );
         }
       }
@@ -416,7 +419,7 @@ export class CompanyItemsService {
         },
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyItems.ilanBulunamadi"));
     const source = listing.items.slice(0, MAX_BULK_IMPORT);
     if (source.length === 0) {
       return { added: 0, skipped: 0, truncated: 0 };
@@ -703,7 +706,7 @@ export class CompanyItemsService {
       },
     });
     if (!company || !hasPublicProfile(company)) {
-      throw new NotFoundException("Ürün bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyItems.urunBulunamadi"));
     }
     const row = await this.crossTenant.companyItem.findFirst({
       where: {
@@ -720,7 +723,7 @@ export class CompanyItemsService {
         moq: true,
       },
     });
-    if (!row) throw new NotFoundException("Ürün bulunamadı");
+    if (!row) throw new NotFoundException(i18nMessage("api.companyItems.urunBulunamadi"));
     /* KATEGORİ ADI da çözülür (2026-09-08, kullanıcı bulgusu: "burada
        hangi kategori olduğunu göstermiyor"). Herkese açık uç bunu zaten
        döndürüyordu; panel ucu yalnız `categoryId` veriyordu, dolayısıyla
@@ -877,10 +880,7 @@ export class CompanyItemsService {
    */
   private assertNotInReview(row: { reviewStatus: ProductReviewStatus }) {
     if (row.reviewStatus === "PENDING") {
-      throw new ConflictException({
-        code: "PRODUCT_IN_REVIEW",
-        message: "Ürün incelemede — ekibimiz onaylayana ya da düzeltme isteyene kadar değiştirilemez.",
-      });
+      throw new ConflictException(i18nMessage("api.companyItems.urunIncelemedeEkibimizOnaylayanaYaDa", undefined, "PRODUCT_IN_REVIEW"));
     }
   }
 
@@ -898,7 +898,7 @@ export class CompanyItemsService {
     const row = await this.prisma.companyItem.findFirst({
       where: { id, companyId, ...(opts.anyState ? {} : { isActive: true }) },
     });
-    if (!row) throw new NotFoundException("Katalog kalemi bulunamadı");
+    if (!row) throw new NotFoundException(i18nMessage("api.companyItems.katalogKalemiBulunamadi"));
     return row;
   }
 
@@ -1024,7 +1024,7 @@ export class CompanyItemsService {
    */
   async createProduct(user: AuthenticatedCompanyUser, input: ShowcaseInput & { unit?: string; unitCode?: string }) {
     const name = input.name?.trim();
-    if (!name) throw new BadRequestException("Ürün adı zorunlu");
+    if (!name) throw new BadRequestException(i18nMessage("api.companyItems.urunAdiZorunlu"));
     const base = this.normalize({
       name,
       unit: input.unit ?? "adet",
@@ -1061,10 +1061,12 @@ export class CompanyItemsService {
   async publish(user: AuthenticatedCompanyUser, id: string) {
     const row = await this.requireOwn(user.companyId, id);
     this.assertNotInReview(row);
-    const blockers = productPublishBlockers(this.toProductLike(row));
+    const blockers = productPublishBlockerCodes(this.toProductLike(row));
     if (blockers.length > 0) {
       throw new BadRequestException(
-        `Onaya gönderilemedi — ${blockers.join(", ")}`,
+        i18nMessage("api.companyItems.onayaGonderilemedi", {
+          join: this.publishBlockerTexts(blockers).join(", "),
+        }),
       );
     }
     // Ücretsiz pakette YAYINDA + ONAY BEKLEYEN ürün tavanı (`PRODUCT_LIMITS`,
@@ -1095,7 +1097,7 @@ export class CompanyItemsService {
         });
         if (occupied >= limit) {
           throw new ForbiddenException(
-            `Ücretsiz pakette en fazla ${limit} ürün yayında/onayda olabilir. Daha fazlası için Silver paketine geçin.`,
+            i18nMessage("api.companyItems.ucretsizPaketteEnFazlaUrunYayinda2", { limit: limit }),
           );
         }
       }
@@ -1244,6 +1246,18 @@ export class CompanyItemsService {
     };
   }
 
+  /**
+   * Yayın kapısı eksiklerinin METNİ — kod paylaşılan paketten, metin
+   * katalogdan (`api.companyItems.publishBlocker.<kod>`) ve İSTEK DİLİNDE.
+   * Hem 400 gövdesi hem vitrin DTO'sundaki `publishBlockers` buradan geçer;
+   * ayrışsalardı ekran bir dilde, hata başka dilde olurdu.
+   */
+  private publishBlockerTexts(blockers: PublishBlocker[]): string[] {
+    return blockers.map((b) =>
+      tApi(`api.companyItems.publishBlocker.${b.code}` as "api.companyItems.publishBlocker.name", b.params),
+    );
+  }
+
   private toProductLike(r: {
     name: string;
     categoryId: string | null;
@@ -1321,7 +1335,7 @@ export class CompanyItemsService {
       unit: r.unit,
       unitCode: r.unitCode,
       completion,
-      publishBlockers: productPublishBlockers(like),
+      publishBlockers: this.publishBlockerTexts(productPublishBlockerCodes(like)),
       attributeDefs: defs,
     };
   }
@@ -1331,14 +1345,14 @@ export class CompanyItemsService {
     const count = await this.prisma.companyItem.count({ where: { companyId } });
     if (count + adding > MAX_CATALOG_ITEMS) {
       throw new BadRequestException(
-        `Katalog en fazla ${MAX_CATALOG_ITEMS} kalem taşıyabilir — kullanmadıklarınızı arşivleyin`,
+        i18nMessage("api.companyItems.katalogEnFazlaKalemTasiyabilirKullanmadiklariniz", { MAXCATALOGITEMS: MAX_CATALOG_ITEMS }),
       );
     }
   }
 
   private normalize(input: CatalogItemInput) {
     const name = input.name?.trim();
-    if (!name) throw new BadRequestException("Kalem adı zorunlu");
+    if (!name) throw new BadRequestException(i18nMessage("api.companyItems.kalemAdiZorunlu"));
     const unit = input.unit?.trim() || "adet";
     // İlan kalemiyle AYNI kural: kod verilmediyse metinden türet, tanınmazsa
     // NULL bırak ve serbest metni sakla. Katalogda birimi ZORUNLU tutmak
@@ -1396,7 +1410,7 @@ export class CompanyItemsService {
       e.code === "P2002"
     ) {
       return new BadRequestException(
-        `"${code}" stok kodu katalogda zaten var — kod firma içinde tekil olmalı`,
+        i18nMessage("api.companyItems.stokKoduKatalogdaZatenVarKod", { code: code ?? "" }),
       );
     }
     return e as Error;

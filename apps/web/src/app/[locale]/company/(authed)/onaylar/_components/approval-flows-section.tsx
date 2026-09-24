@@ -1,5 +1,9 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { useMoneyInputError, useRoleLabel } from "@/i18n/domain";
+import { INTL_LOCALE } from "@/i18n/format";
 import { userHasPermission } from "@/lib/company/permissions";
 import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/catalyst/badge";
@@ -30,7 +34,6 @@ import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useCompanyUsers } from "@/hooks/use-company-users";
 import type { CompanyRole } from "@/lib/company-auth/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { moneyInputError } from "@/lib/money-input";
 import { cn } from "@/lib/utils";
 import {
   ArrowDown,
@@ -50,19 +53,23 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
 
-const ROLE_LABEL: Record<CompanyRole, string> = {
-  SAHIP: "Kurucu",
-  YONETICI: "Yönetici",
-  SATIN_ALMACI: "Satın Almacı",
-  SATISCI: "Satışçı",
-  ONAYLAYICI: "Onaylayıcı",
-};
+// Rol adları `useRoleLabel` (web.domain.role); kapsam etiketi katalogda
+// `listingType.<KOD>`. Zengin metinlerin <strong> etiketi tek yerden.
+const listingTypeKey = (lt: ApprovalListingType | null) =>
+  lt === "ALIM" ? ("listingType.ALIM" as const) : ("listingType.all" as const);
+const strong = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
 
-function listingTypeLabel(t: ApprovalListingType | null) {
-  return t === "ALIM" ? "Satın alma taleplerini" : "Tüm satın alma talepleri";
+/** Eşik tutarı (₺) — okuyucunun dilinde, ondalıksız. */
+function useFmtTl() {
+  const locale = useLocale() as Locale;
+  return useMemo(
+    () =>
+      new Intl.NumberFormat(INTL_LOCALE[locale] ?? "tr-TR", {
+        maximumFractionDigits: 0,
+      }),
+    [locale],
+  );
 }
-
-const fmtTl = new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 });
 
 interface StepDraft {
   approverUserId: string;
@@ -99,6 +106,7 @@ export function ApprovalFlowsSection({
   openNew?: boolean;
   onConsumeOpenNew?: () => void;
 }) {
+  const t = useTranslations("web.panel.approvals.approvalFlowsSection");
   const { data: flows, isLoading, isError, refetch } = useApprovalFlows();
   const { data: users } = useCompanyUsers();
   const [wizard, setWizard] = useState<ApprovalFlow | "new" | null>(null);
@@ -134,8 +142,7 @@ export function ApprovalFlowsSection({
     return (
       <div className="card p-6">
         <p className="text-sm text-zinc-500">
-          Onay akışlarını yalnızca firma sahibi ya da Yönetici rolündeki
-          kullanıcılar yönetebilir.
+          {t("onayAkislariniYalnizcaFirmaSahibi")}
         </p>
       </div>
     );
@@ -180,6 +187,9 @@ function FlowList({
   onNew: () => void;
   onEdit: (f: ApprovalFlow) => void;
 }) {
+  const t = useTranslations("web.panel.approvals.approvalFlowsSection");
+  const roleLabel = useRoleLabel();
+  const fmtTl = useFmtTl();
   const confirm = useConfirm();
   const setStatus = useSetApprovalFlowStatus();
   const remove = useDeleteApprovalFlow();
@@ -190,35 +200,35 @@ function FlowList({
     try {
       await setStatus.mutateAsync({ id: f.id, status: next });
       toast.success(
-        next === "ACTIVE" ? "Akış aktifleştirildi" : "Akış pasife alındı",
+        next === "ACTIVE" ? t("akisAktiflestirildi") : t("akisPasifeAlindi"),
       );
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Durum güncellenemedi"));
+      toast.error(extractErrorMessage(err, t("durumGuncellenemedi")));
     }
   };
 
   const handleDuplicate = async (f: ApprovalFlow) => {
     try {
       await duplicate.mutateAsync(f.id);
-      toast.success("Akış kopyalandı (taslak)");
+      toast.success(t("akisKopyalandiTaslak"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kopyalanamadı"));
+      toast.error(extractErrorMessage(err, t("kopyalanamadi")));
     }
   };
 
   const handleDelete = async (f: ApprovalFlow) => {
     const ok = await confirm({
-      title: "Onay akışı silinsin mi?",
-      description: `"${f.name}" akışı kalıcı olarak silinecek.`,
-      confirmLabel: "Sil",
+      title: t("onayAkisiSilinsinMi"),
+      description: t("akisiKaliciOlarakSilinecek", { name: f.name }),
+      confirmLabel: t("sil"),
       destructive: true,
     });
     if (!ok) return;
     try {
       await remove.mutateAsync(f.id);
-      toast.success("Akış silindi");
+      toast.success(t("akisSilindi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Silinemedi"));
+      toast.error(extractErrorMessage(err, t("silinemedi")));
     }
   };
 
@@ -226,26 +236,21 @@ function FlowList({
     <div className="space-y-5">
       {/* Ne işe yarar? açıklaması */}
       <InfoNote>
-        <p>
-          <strong>Onay akışı</strong>, bir satın alma talebinde kazanan belirlendiğinde
-          (kazandırma) <strong>sipariş oluşmadan önce</strong> belirlediğiniz
-          kişilerin sırayla onayından geçmesini sağlar.
-        </p>
+        <p>{t.rich("onayAkisiAciklama", { strong })}</p>
         <p className="text-blue-800/90">
-          Örneğin: “50.000 ₺ üstü kazandırmalar önce Satınalma Müdürü sonra
-          Genel Müdür onayından geçsin.” Akış yoksa kazandırma anında uygulanır.
+          {t("ornegin50000UstuKazandirmalar")}
         </p>
       </InfoNote>
 
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-zinc-900">
-          Tanımlı Akışlar
+          {t("tanimliAkislar")}
         </h3>
         {/* Boş durumda CTA boş durumun İÇİNDE (§9) — burada yinelenmez. */}
         {flows && flows.length > 0 ? (
           <Button onClick={onNew}>
             <Plus className="size-4" />
-            Yeni Onay Akışı
+            {t("yeniOnayAkisi")}
           </Button>
         ) : null}
       </div>
@@ -258,27 +263,27 @@ function FlowList({
           className="rounded-2xl border border-rose-200 bg-rose-50/60 p-8 text-center"
         >
           <p className="text-sm font-medium text-rose-900">
-            Onay akışları yüklenemedi
+            {t("onayAkislariYuklenemedi")}
           </p>
           <p className="mt-1 text-sm text-rose-700/80">
-            Bağlantı sorunu olabilir. Lütfen yeniden deneyin.
+            {t("baglantiSorunuOlabilirLutfenYeniden")}
           </p>
           <Button className="mt-4" outline onClick={onRetry}>
-            Yeniden Dene
+            {t("yenidenDene")}
           </Button>
         </div>
       ) : !flows || flows.length === 0 ? (
         <div className="rounded-2xl border border-dashed border-zinc-200 bg-white p-10 text-center">
           <BadgeCheck className="mx-auto h-9 w-9 text-zinc-300" />
           <p className="mt-3 text-sm font-medium text-zinc-700">
-            Henüz onay akışı yok
+            {t("henuzOnayAkisiYok")}
           </p>
           <p className="mx-auto mt-1 max-w-md text-sm text-zinc-500">
-            Akış tanımlanmadığı için tüm kazandırmalar anında uygulanıyor.
+            {t("akisTanimlanmadigiIcinTumKazandirmalar")}
           </p>
           <Button className="mt-4" onClick={onNew}>
             <Plus className="size-4" />
-            İlk Akışı Oluştur
+            {t("ilkAkisiOlustur")}
           </Button>
         </div>
       ) : (
@@ -304,25 +309,26 @@ function FlowList({
                       }
                     >
                       {f.status === "ACTIVE"
-                        ? "Aktif"
+                        ? t("aktif")
                         : f.status === "PASSIVE"
-                          ? "Pasif"
-                          : "Taslak"}
+                          ? t("pasif")
+                          : t("taslak")}
                     </Badge>
                   </div>
                   <div className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-zinc-500">
                     <span className="inline-flex items-center gap-1">
                       <Trophy className="size-3.5 text-zinc-400" />
-                      Kazandırma
+                      {t("kazandirma")}
                     </span>
                     <span className="text-zinc-300">·</span>
-                    <span>{listingTypeLabel(f.listingType)}</span>
+                    <span>{t(listingTypeKey(f.listingType))}</span>
                     <span className="text-zinc-300">·</span>
                     <span>
-                      Başlatan:{" "}
-                      {f.initiatorRoles.length
-                        ? f.initiatorRoles.map((r) => ROLE_LABEL[r]).join(", ")
-                        : "herkes"}
+                      {t("baslatanListesi", {
+                        roles: f.initiatorRoles.length
+                          ? f.initiatorRoles.map((r) => roleLabel(r)).join(", ")
+                          : t("herkes2"),
+                      })}
                     </span>
                   </div>
                 </div>
@@ -332,25 +338,25 @@ function FlowList({
                     onClick={() => handleToggle(f)}
                     disabled={setStatus.isPending}
                   >
-                    {f.status === "ACTIVE" ? "Pasifleştir" : "Aktifleştir"}
+                    {f.status === "ACTIVE" ? t("pasiflestir") : t("aktiflestir")}
                   </Button>
                   <Button plain onClick={() => onEdit(f)}>
                     <Pencil className="size-4" aria-hidden />
-                    Düzenle
+                    {t("duzenle")}
                   </Button>
                   <Button
                     plain
                     onClick={() => handleDuplicate(f)}
                     disabled={duplicate.isPending}
                   >
-                    Kopyala
+                    {t("kopyala")}
                   </Button>
                   <Button
                     plain
                     onClick={() => handleDelete(f)}
                     disabled={remove.isPending}
-                    aria-label={`"${f.name}" akışını sil`}
-                    title="Sil"
+                    aria-label={t("akisiniSil", { name: f.name })}
+                    title={t("sil")}
                   >
                     <Trash2 className="size-4 text-red-500" aria-hidden />
                   </Button>
@@ -361,7 +367,7 @@ function FlowList({
               <div className="mt-3 flex flex-wrap items-center gap-2 border-t border-zinc-100 pt-3">
                 <span className="inline-flex items-center gap-1 rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-600">
                   <Users2 className="size-3" />
-                  Başlatan
+                  {t("baslatan")}
                 </span>
                 {f.steps.map((s) => (
                   <span key={s.order} className="flex items-center gap-2">
@@ -385,7 +391,7 @@ function FlowList({
                 <ArrowRightMini />
                 <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-medium text-emerald-700">
                   <Check className="size-3" />
-                  Sipariş oluşur
+                  {t("siparisOlusur")}
                 </span>
               </div>
             </div>
@@ -406,7 +412,7 @@ function ArrowRightMini() {
 
 // ═══════════════════════════════ 3 adımlı wizard ═══════════════════════════════
 
-const WIZARD_STEPS = ["Akış Bilgileri", "Onay Adımları", "Özet & Kaydet"];
+const WIZARD_STEPS = ["akisBilgileri", "onayAdimlari", "ozetKaydet"] as const;
 
 function FlowWizard({
   flow,
@@ -417,6 +423,9 @@ function FlowWizard({
   approvers: ApproverOption[];
   onClose: () => void;
 }) {
+  const t = useTranslations("web.panel.approvals.approvalFlowsSection");
+  const roleLabel = useRoleLabel();
+  const fmtTl = useFmtTl();
   const create = useCreateApprovalFlow();
   const update = useUpdateApprovalFlow(flow?.id ?? "");
   const setStatus = useSetApprovalFlowStatus();
@@ -486,15 +495,15 @@ function FlowWizard({
       }
       if (activate && id) {
         await setStatus.mutateAsync({ id, status: "ACTIVE" });
-        toast.success("Akış kaydedildi ve aktifleştirildi");
+        toast.success(t("akisKaydedildiVeAktiflestirildi"));
       } else {
         toast.success(
-          flow ? "Akış güncellendi" : "Akış taslak olarak kaydedildi",
+          flow ? t("akisGuncellendi") : t("akisTaslakOlarakKaydedildi"),
         );
       }
       onClose();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kaydedilemedi"));
+      toast.error(extractErrorMessage(err, t("kaydedilemedi")));
     }
   };
 
@@ -505,10 +514,10 @@ function FlowWizard({
         <div className="flex items-center gap-2">
           <Button plain onClick={onClose}>
             <ChevronLeft className="size-4" />
-            Vazgeç
+            {t("vazgec")}
           </Button>
           <h3 className="text-lg font-semibold text-zinc-950">
-            {flow ? "Akışı Düzenle" : "Yeni Onay Akışı"}
+            {flow ? t("akisiDuzenle") : t("yeniOnayAkisi")}
           </h3>
         </div>
         <ol className="flex items-center gap-1">
@@ -547,7 +556,7 @@ function FlowWizard({
                 >
                   {i < step ? <Check className="size-2.5" /> : i + 1}
                 </span>
-                <span className="hidden sm:inline">{label}</span>
+                <span className="hidden sm:inline">{t(label)}</span>
               </button>
             </li>
           ))}
@@ -559,16 +568,16 @@ function FlowWizard({
         <div className="grid gap-6 lg:grid-cols-[1.4fr_1fr]">
           <div className="space-y-4">
             <Field>
-              <Label>Akış adı</Label>
+              <Label>{t("akisAdi")}</Label>
               <Input
                 autoFocus
                 value={name}
                 maxLength={120}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Örn. Yüksek Tutarlı Kazandırma Onayı"
+                placeholder={t("ornYuksekTutarliKazandirmaOnayi")}
               />
               <Text className="mt-1 text-xs text-zinc-500">
-                Bu akışı listede tanıyacağınız kısa bir ad.
+                {t("buAkisiListedeTaniyacaginizKisa")}
               </Text>
             </Field>
             {/* "Hangi ihalelerde geçerli?" seçicisi KALDIRILDI (2026-09-10):
@@ -579,16 +588,11 @@ function FlowWizard({
           <InfoNote>
             <p className="flex items-center gap-2 font-semibold">
               <Trophy className="size-4 text-blue-500" />
-              Bu akış ne zaman çalışır?
+              {t("buAkisNeZamanCalisir")}
             </p>
-            <p>
-              Bir satın alma talebinde kazanan seçildiğinde (kazandırma) devreye girer.
-              Belirlediğiniz onaycılar zinciri tamamlamadan{" "}
-              <strong>sipariş oluşmaz</strong>.
-            </p>
+            <p>{t.rich("birSatinAlmaTalebindeKazananSecildiginde", { strong })}</p>
             <p className="text-blue-800/90">
-              Talep yayınlama onayı yoktur — taslaklar her zaman doğrudan
-              yayınlanır.
+              {t("talepYayinlamaOnayiYokturTaslaklar")}
             </p>
           </InfoNote>
         </div>
@@ -603,12 +607,11 @@ function FlowWizard({
               <div className="flex items-center gap-2">
                 <Users2 className="size-4 text-zinc-500" />
                 <span className="text-xs font-bold uppercase tracking-wide text-zinc-700">
-                  Süreci başlatan roller
+                  {t("sureciBaslatanRoller")}
                 </span>
               </div>
               <p className="mt-1 text-xs text-zinc-500">
-                Bu rollerdeki kişiler kazandırma yaptığında onay zinciri
-                devreye girer.
+                {t("buRollerdekiKisilerKazandirmaYaptiginda")}
               </p>
               <div className="mt-2.5 flex flex-wrap gap-2">
                 {(["SATIN_ALMACI", "SATISCI", "YONETICI"] as CompanyRole[]).map(
@@ -627,15 +630,14 @@ function FlowWizard({
                             : "border-zinc-200 bg-white text-zinc-600 hover:border-zinc-400",
                         )}
                       >
-                        {ROLE_LABEL[role]}
+                        {roleLabel(role)}
                       </button>
                     );
                   },
                 )}
               </div>
               <p className="mt-2 text-xs text-zinc-500">
-                Hiçbiri seçilmezse <strong>herkesin</strong> kazandırması onaya
-                düşer.
+                {t.rich("hicbiriSecilmezseHerkesinKazandirmasi", { strong })}
               </p>
             </div>
 
@@ -653,7 +655,7 @@ function FlowWizard({
                           {i + 1}
                         </span>
                         <span className="text-xs font-bold uppercase tracking-wide text-zinc-500">
-                          {s.displayLabel || "Onay Adımı"}
+                          {s.displayLabel || t("onayAdimi")}
                         </span>
                       </div>
                       <p className="mt-1.5 text-sm font-semibold text-zinc-900">
@@ -661,8 +663,8 @@ function FlowWizard({
                       </p>
                       <p className="mt-0.5 text-xs text-zinc-500">
                         {s.threshold
-                          ? `${fmtTl.format(Number(s.threshold))} ₺ ve üstü kazandırmalarda devreye girer`
-                          : "Her tutarda devreye girer"}
+                          ? t("veUstuKazandirmalardaDevreyeGirer", { amount: fmtTl.format(Number(s.threshold)) })
+                          : t("herTutardaDevreyeGirer")}
                       </p>
                     </div>
                     <div className="flex shrink-0 gap-1">
@@ -678,8 +680,8 @@ function FlowWizard({
                             return next;
                           })
                         }
-                        aria-label={`${i + 1}. onaycıyı yukarı taşı`}
-                        title="Yukarı taşı"
+                        aria-label={t("onayciyiYukariTasi", { stepNumber: i + 1 })}
+                        title={t("yukariTasi")}
                       >
                         <ChevronUp className="size-3.5" aria-hidden />
                       </Button>
@@ -693,16 +695,16 @@ function FlowWizard({
                             return next;
                           })
                         }
-                        aria-label={`${i + 1}. onaycıyı aşağı taşı`}
-                        title="Aşağı taşı"
+                        aria-label={t("onayciyiAsagiTasi", { stepNumber: i + 1 })}
+                        title={t("asagiTasi")}
                       >
                         <ChevronDown className="size-3.5" aria-hidden />
                       </Button>
                       <Button
                         plain
                         onClick={() => setEditingStep(i)}
-                        aria-label={`${i + 1}. onaycıyı düzenle`}
-                        title="Düzenle"
+                        aria-label={t("onayciyiDuzenle", { stepNumber: i + 1 })}
+                        title={t("duzenle")}
                       >
                         <Pencil className="size-3.5" aria-hidden />
                       </Button>
@@ -711,8 +713,8 @@ function FlowWizard({
                         onClick={() =>
                           setSteps((cur) => cur.filter((_, idx) => idx !== i))
                         }
-                        aria-label={`${i + 1}. onaycıyı kaldır`}
-                        title="Kaldır"
+                        aria-label={t("onayciyiKaldir", { stepNumber: i + 1 })}
+                        title={t("kaldir")}
                       >
                         <Trash2 className="size-3.5 text-red-500" aria-hidden />
                       </Button>
@@ -731,26 +733,24 @@ function FlowWizard({
               className="flex w-full items-center justify-center gap-2 rounded-2xl border border-dashed border-zinc-300 py-3.5 text-sm font-medium text-zinc-500 transition hover:border-zinc-500 hover:text-zinc-800 disabled:cursor-not-allowed disabled:opacity-50"
             >
               <Plus className="size-4" />
-              {steps.length >= 10 ? "En fazla 10 onay adımı" : "Onaycı Ekle"}
+              {steps.length >= 10 ? t("enFazla10OnayAdimi") : t("onayciEkle")}
             </button>
 
             {/* Bitiş */}
             <ArrowDown className="my-2 size-4 text-zinc-300" />
             <div className="inline-flex items-center gap-2 rounded-full bg-emerald-50 px-3 py-1.5 text-xs font-semibold text-emerald-700">
               <Check className="size-3.5" />
-              Onaylar tamam → sipariş oluşur
+              {t("onaylarTamamSiparisOlusur")}
             </div>
 
             {thresholdError ? (
               <p className="mt-3 text-xs text-red-600">
-                Bütçe eşikleri artan sırada olmalı — her adımın eşiği bir
-                öncekinden büyük ya da eşit olmalı.
+                {t("butceEsikleriArtanSiradaOlmali")}
               </p>
             ) : null}
             {approvers.length === 0 ? (
               <p className="mt-3 text-center text-xs text-amber-600">
-                Onaycı olabilecek aktif kullanıcı yok — Ayarlar →
-                Kullanıcılar&apos;dan bir kullanıcıya Onaylayıcı rolü verin.
+                {t("onayciOlabilecekAktifKullaniciYok")}
               </p>
             ) : null}
           </div>
@@ -760,28 +760,17 @@ function FlowWizard({
             <InfoNote>
               <p className="flex items-center gap-2 font-semibold">
                 <ShieldCheck className="size-4 text-blue-500" />
-                Onay adımı nedir?
+                {t("onayAdimiNedir")}
               </p>
-              <p>
-                Her adım <strong>bir onaycıdır</strong>. Adımlar yukarıdan
-                aşağıya SIRAYLA işler: ilk onaycı onaylamadan ikinciye geçilmez.
-              </p>
+              <p>{t.rich("herAdimBirOnaycidir", { strong })}</p>
             </InfoNote>
             <InfoNote>
-              <p className="font-semibold">Bütçe eşiği ne işe yarar?</p>
-              <p>
-                Bir adıma eşik koyarsanız, kazandırma tutarı o eşiğin{" "}
-                <strong>altındaysa o adım atlanır</strong>. Örn. yalnızca büyük
-                tutarlar üst yöneticiye gitsin istiyorsanız kullanışlıdır.
-              </p>
+              <p className="font-semibold">{t("butceEsigiNeIseYarar")}</p>
+              <p>{t.rich("birAdimaEsikKoyarsaniz", { strong })}</p>
             </InfoNote>
             <InfoNote>
-              <p className="font-semibold">Kimler onaycı olabilir?</p>
-              <p>
-                Yalnızca <strong>Kurucu, Yönetici veya Onaylayıcı</strong>{" "}
-                rolündeki aktif kullanıcılar. Başka birini onaycı yapmak için
-                Ayarlar → Kullanıcılar&apos;dan Onaylayıcı rolü verin.
-              </p>
+              <p className="font-semibold">{t("kimlerOnayciOlabilir")}</p>
+              <p>{t.rich("yalnizcaKurucuYoneticiVeyaOnaylayici", { strong })}</p>
             </InfoNote>
           </div>
         </div>
@@ -793,31 +782,31 @@ function FlowWizard({
           <dl className="grid grid-cols-2 gap-x-8 gap-y-4 rounded-2xl border border-zinc-200 bg-white p-5 text-sm shadow-sm">
             <div>
               <dt className="text-xs uppercase tracking-wide text-zinc-500">
-                Akış adı
+                {t("akisAdi")}
               </dt>
               <dd className="mt-0.5 font-semibold text-zinc-900">{name}</dd>
             </div>
             <div>
               <dt className="text-xs uppercase tracking-wide text-zinc-500">
-                Kapsam
+                {t("kapsam")}
               </dt>
               <dd className="mt-0.5 text-zinc-900">
-                Kazandırma · {listingTypeLabel(listingType || null)}
+                {t("kazandirma2", { scope: t(listingTypeKey(listingType || null)) })}
               </dd>
             </div>
             <div className="col-span-2">
               <dt className="text-xs uppercase tracking-wide text-zinc-500">
-                Başlatan roller
+                {t("baslatanRoller")}
               </dt>
               <dd className="mt-0.5 text-zinc-900">
                 {initiatorRoles.length
-                  ? initiatorRoles.map((r) => ROLE_LABEL[r]).join(", ")
-                  : "Herkes"}
+                  ? initiatorRoles.map((r) => roleLabel(r)).join(", ")
+                  : t("herkes")}
               </dd>
             </div>
             <div className="col-span-2">
               <dt className="text-xs uppercase tracking-wide text-zinc-500">
-                Onay zinciri ({steps.length} adım)
+                {t("onayZinciriAdim", { length: steps.length })}
               </dt>
               <dd className="mt-1.5 space-y-1.5">
                 {steps.map((s, i) => (
@@ -836,8 +825,8 @@ function FlowWizard({
                     ) : null}
                     <span className="text-xs text-zinc-500">
                       {s.threshold
-                        ? `≥ ${fmtTl.format(Number(s.threshold))} ₺`
-                        : "her tutar"}
+                        ? t("esikVeUstu", { amount: fmtTl.format(Number(s.threshold)) })
+                        : t("herTutar")}
                     </span>
                   </div>
                 ))}
@@ -845,8 +834,7 @@ function FlowWizard({
             </div>
           </dl>
           <p className="text-xs text-zinc-500">
-            “Kaydet ve Aktifleştir” dediğinizde akış hemen çalışmaya başlar.
-            Taslak kaydederseniz listede pasif durur, sonra aktifleştirirsiniz.
+            {t("kaydetVeAktiflestirDediginizdeAkis")}
           </p>
         </div>
       ) : null}
@@ -857,23 +845,23 @@ function FlowWizard({
           plain
           onClick={() => (step === 0 ? onClose() : setStep(step - 1))}
         >
-          {step === 0 ? "Vazgeç" : "Geri"}
+          {step === 0 ? t("vazgec") : t("geri")}
         </Button>
         {step === 0 ? (
           <Button onClick={() => setStep(1)} disabled={!step1Valid}>
-            Devam: Onay Adımları
+            {t("devamOnayAdimlari")}
           </Button>
         ) : step === 1 ? (
           <Button onClick={() => setStep(2)} disabled={!step2Valid}>
-            Devam: Özet
+            {t("devamOzet")}
           </Button>
         ) : (
           <div className="flex gap-2">
             <Button outline onClick={() => save(false)} disabled={busy}>
-              {flow ? "Kaydet" : "Taslak Kaydet"}
+              {flow ? t("kaydet") : t("taslakKaydet")}
             </Button>
             <Button onClick={() => save(true)} disabled={busy}>
-              Kaydet ve Aktifleştir
+              {t("kaydetVeAktiflestir")}
             </Button>
           </div>
         )}
@@ -927,6 +915,10 @@ function StepEditorDialog({
   onSave: (draft: StepDraft) => void;
   onClose: () => void;
 }) {
+  const t = useTranslations("web.panel.approvals.approvalFlowsSection");
+  const moneyError = useMoneyInputError();
+  const roleLabel = useRoleLabel();
+  const fmtTl = useFmtTl();
   const { user } = useCompanyAuth();
   const [approverUserId, setApproverUserId] = useState(
     initial?.approverUserId ?? approvers[0]?.id ?? "",
@@ -945,7 +937,7 @@ function StepEditorDialog({
   // Backend approval.dto conditionMinAmount: @Min(0) @Max(MAX_MONEY) + 2 ondalık.
   // min:0 çünkü eşik 0 (her tutar) geçerli.
   const thresholdMoneyErr =
-    threshold !== "" ? moneyInputError(thresholdNum, { min: 0 }) : null;
+    threshold !== "" ? moneyError(thresholdNum, { min: 0 }) : null;
   const thresholdOrderInvalid = threshold !== "" && thresholdNum < prevThreshold;
   const thresholdInvalid = !!thresholdMoneyErr || thresholdOrderInvalid;
   const valid = !!approverUserId && !thresholdInvalid;
@@ -953,25 +945,25 @@ function StepEditorDialog({
   return (
     <Dialog open onClose={onClose} size="lg">
       <DialogTitle>
-        {initial ? `${stepNumber}. Onaycıyı Düzenle` : `${stepNumber}. Onaycı`}
+        {initial ? t("onayciyiDuzenle", { stepNumber: stepNumber }) : t("onayci", { stepNumber: stepNumber })}
       </DialogTitle>
       <DialogBody className="space-y-4">
         <Field>
-          <Label>Onaycı</Label>
+          <Label>{t("onayci2")}</Label>
           {approvers.length === 0 ? (
             /* Keşfedilebilirlik: asıl kafa karışıklığı bu boş durumda oluşuyor —
                kural "sistem izin vermiyor" değil, "önce rol ver". */
             <div className="mt-1 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
               <Info className="mt-0.5 size-3.5 shrink-0 text-amber-500" aria-hidden />
               <span>
-                Onaycı olabilecek aktif kullanıcı yok.{" "}
-                <Link
-                  href="/company/ayarlar/kullanicilar"
-                  className="font-semibold underline"
-                >
-                  Ayarlar → Kullanıcılar
-                </Link>
-                &apos;dan bir kullanıcıya <strong>Onaylayıcı</strong> rolü verin.
+                {t.rich("onayciYokAyarlardanRolVerin", {
+                  strong,
+                  link: (chunks) => (
+                    <Link href="/company/ayarlar/kullanicilar" className="font-semibold underline">
+                      {chunks}
+                    </Link>
+                  ),
+                })}
               </span>
             </div>
           ) : (
@@ -979,70 +971,62 @@ function StepEditorDialog({
               value={approverUserId}
               onChange={(e) => setApproverUserId(e.target.value)}
             >
-              <option value="">— onaycı seç —</option>
+              <option value="">{t("onayciSec")}</option>
               {approvers.map((u) => (
                 <option key={u.id} value={u.id}>
-                  {u.name} ({u.roles.map((r) => ROLE_LABEL[r]).join(", ")})
+                  {u.name} ({u.roles.map((r) => roleLabel(r)).join(", ")})
                 </option>
               ))}
             </Select>
           )}
           <Text className="mt-1 text-xs text-zinc-500">
-            Bu kişi, sırası geldiğinde kazandırmayı Onaylar sayfasından onaylar
-            ya da reddeder. Yalnız <strong>Kurucu, Yönetici veya Onaylayıcı</strong>{" "}
-            rolündeki aktif kullanıcılar listelenir; başka birini eklemek için{" "}
-            <Link
-              href="/company/ayarlar/kullanicilar"
-              className="underline hover:text-zinc-600"
-            >
-              Ayarlar → Kullanıcılar
-            </Link>
-            &apos;dan Onaylayıcı rolü verin.
+            {t.rich("buKisiSirasiGeldigindeKazandirmayi", {
+              strong,
+              link: (chunks) => (
+                <Link href="/company/ayarlar/kullanicilar" className="underline hover:text-zinc-600">
+                  {chunks}
+                </Link>
+              ),
+            })}
           </Text>
           {isSelfApprover ? (
             <div className="mt-2 flex gap-2 rounded-lg border border-amber-200 bg-amber-50 p-2.5 text-xs text-amber-800">
               <Info className="mt-0.5 size-3.5 shrink-0 text-amber-500" aria-hidden />
-              <span>
-                Kendinizi onaycı seçtiniz. Görev ayrılığı gereği, bu adım{" "}
-                <strong>kazandırmayı sizin başlattığınız</strong> durumlarda
-                başka bir onaylayıcıya atanır; uygun kimse yoksa kazandırma
-                reddedilir.
-              </span>
+              <span>{t.rich("kendiniziOnayciSectiniz", { strong })}</span>
             </div>
           ) : null}
         </Field>
         <Field>
-          <Label>Bütçe eşiği ₺ (opsiyonel)</Label>
+          <Label>{t("butceEsigiOpsiyonel")}</Label>
           <Input
             type="number"
             min={0}
             value={threshold}
             onChange={(e) => setThreshold(e.target.value)}
-            placeholder="Boş = her tutarda onaylar"
+            placeholder={t("bosHerTutardaOnaylar")}
           />
           {thresholdMoneyErr ? (
             <p className="mt-1 text-xs text-red-600">{thresholdMoneyErr}</p>
           ) : thresholdOrderInvalid ? (
             <p className="mt-1 text-xs text-red-600">
-              Eşik önceki adımın eşiğinden ({fmtTl.format(prevThreshold)} ₺)
-              küçük olamaz.
+              {t("esikOncekiAdiminEsigindenKucuk", { amount: fmtTl.format(prevThreshold) })}
             </p>
           ) : (
             <Text className="mt-1 text-xs text-zinc-500">
-              Kazandırma tutarı bu eşiğin altındaysa bu onaycı atlanır.
+              {t("kazandirmaTutariBuEsiginAltindaysa")}
             </Text>
           )}
         </Field>
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button
           onClick={() => onSave({ approverUserId, displayLabel, threshold })}
           disabled={!valid}
         >
-          {initial ? "Kaydet" : "Ekle"}
+          {initial ? t("kaydet") : t("ekle")}
         </Button>
       </DialogActions>
     </Dialog>

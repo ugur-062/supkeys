@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -45,7 +46,7 @@ export class CompanyQuestionTemplatesService {
       where: { id },
     });
     if (!row || row.companyId !== companyId) {
-      throw new NotFoundException("Şablon bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyQuestionTemplates.sablonBulunamadi"));
     }
     const items = (row.items as unknown as QuestionItem[]) ?? [];
     return {
@@ -61,10 +62,10 @@ export class CompanyQuestionTemplatesService {
     input: { name: string; items: QuestionItem[] },
   ) {
     if (!input.name?.trim()) {
-      throw new BadRequestException("Şablon adı zorunlu");
+      throw new BadRequestException(i18nMessage("api.companyQuestionTemplates.sablonAdiZorunlu"));
     }
     if (!Array.isArray(input.items) || input.items.length === 0) {
-      throw new BadRequestException("En az 1 soru gerekli");
+      throw new BadRequestException(i18nMessage("api.companyQuestionTemplates.enAz1SoruGerekli"));
     }
     const row = await this.prisma.listingQuestionTemplate.create({
       data: {
@@ -86,17 +87,17 @@ export class CompanyQuestionTemplatesService {
     input: { name: string; items: QuestionItem[] },
   ) {
     if (!input.name?.trim()) {
-      throw new BadRequestException("Şablon adı zorunlu");
+      throw new BadRequestException(i18nMessage("api.companyQuestionTemplates.sablonAdiZorunlu"));
     }
     if (!Array.isArray(input.items) || input.items.length === 0) {
-      throw new BadRequestException("En az 1 soru gerekli");
+      throw new BadRequestException(i18nMessage("api.companyQuestionTemplates.enAz1SoruGerekli"));
     }
     const row = await this.prisma.listingQuestionTemplate.findUnique({
       where: { id },
       select: { id: true, companyId: true },
     });
     if (!row || row.companyId !== companyId) {
-      throw new NotFoundException("Şablon bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyQuestionTemplates.sablonBulunamadi"));
     }
     const updated = await this.prisma.listingQuestionTemplate.update({
       where: { id },
@@ -118,7 +119,7 @@ export class CompanyQuestionTemplatesService {
       select: { id: true, companyId: true },
     });
     if (!row || row.companyId !== companyId) {
-      throw new NotFoundException("Şablon bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyQuestionTemplates.sablonBulunamadi"));
     }
     await this.prisma.listingQuestionTemplate.delete({ where: { id } });
     return { ok: true };

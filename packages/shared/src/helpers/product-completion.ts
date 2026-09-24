@@ -142,6 +142,26 @@ export function productCompletion(
 }
 
 /**
+ * Yayın kapısı eksiğinin KODU. Paylaşılan paket metin değil kod döndürür
+ * (i18n Faz 3): metni tüketici çevirir — web `web.domain.publishBlocker.<kod>`,
+ * API `api.companyItems.publishBlocker.<kod>`. Türkçe karşılık aşağıdaki
+ * `publishBlockerLabelTr` ile üretilir (tek kaynak).
+ */
+export type PublishBlockerCode =
+  | "name"
+  | "category"
+  | "description"
+  | "images"
+  | "keywords"
+  | "price";
+
+export interface PublishBlocker {
+  code: PublishBlockerCode;
+  /** Katalog yer tutucuları (`{minName}`, `{minDescription}`). */
+  params?: Record<string, string | number>;
+}
+
+/**
  * YAYIN KAPISI — bunlar eksikse ürün vitrine ÇIKAMAZ.
  *
  * Skordan ayrı ve daha dar: ince içerik üretmemek için asgari eşik.
@@ -150,16 +170,38 @@ export function productCompletion(
  *
  * Fiyat ve nitelikler kapıda YOK: ikisi de meşru biçimde bilinmeyebilir.
  */
-export function productPublishBlockers(p: ProductLike): string[] {
-  const out: string[] = [];
+export function productPublishBlockerCodes(p: ProductLike): PublishBlocker[] {
+  const out: PublishBlocker[] = [];
   if (p.name.trim().length < MIN_NAME)
-    out.push(`Ürün adı en az ${MIN_NAME} karakter olmalı`);
-  if (!p.categoryId) out.push("Kategori seçilmeli");
+    out.push({ code: "name", params: { minName: MIN_NAME } });
+  if (!p.categoryId) out.push({ code: "category" });
   if ((p.description ?? "").trim().length < MIN_DESCRIPTION)
-    out.push(`Açıklama en az ${MIN_DESCRIPTION} karakter olmalı`);
-  if (p.images.length === 0) out.push("En az 1 görsel eklenmeli");
-  if (p.keywords.length === 0) out.push("En az 1 anahtar kelime eklenmeli");
-  if (!priceComplete(p))
-    out.push("Seçilen fiyat modunun alanları doldurulmalı");
+    out.push({ code: "description", params: { minDescription: MIN_DESCRIPTION } });
+  if (p.images.length === 0) out.push({ code: "images" });
+  if (p.keywords.length === 0) out.push({ code: "keywords" });
+  if (!priceComplete(p)) out.push({ code: "price" });
   return out;
+}
+
+/** Kodun Türkçe karşılığı — katalogsuz çağrı yerleri (ve `tr` yedeği) için. */
+export function publishBlockerLabelTr(b: PublishBlocker): string {
+  switch (b.code) {
+    case "name":
+      return `Ürün adı en az ${b.params?.minName ?? MIN_NAME} karakter olmalı`;
+    case "category":
+      return "Kategori seçilmeli";
+    case "description":
+      return `Açıklama en az ${b.params?.minDescription ?? MIN_DESCRIPTION} karakter olmalı`;
+    case "images":
+      return "En az 1 görsel eklenmeli";
+    case "keywords":
+      return "En az 1 anahtar kelime eklenmeli";
+    case "price":
+      return "Seçilen fiyat modunun alanları doldurulmalı";
+  }
+}
+
+/** Geriye dönük Türkçe liste — kodlardan türer, çıktı birebir aynı. */
+export function productPublishBlockers(p: ProductLike): string[] {
+  return productPublishBlockerCodes(p).map(publishBlockerLabelTr);
 }

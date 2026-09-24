@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { tierAtLeast } from "@rothern/shared";
 import {
   ForbiddenException,
@@ -58,7 +59,7 @@ export class CompanySupplierTemplatesService {
     const missing = [...new Set(ids)].filter((id) => !connected.has(id));
     if (missing.length > 0) {
       throw new NotFoundException(
-        `Bağlantınız olmayan firma: ${missing.length} kayıt`,
+        i18nMessage("api.companySupplierTemplates.baglantinizOlmayanFirmaKayit", { length: missing.length }),
       );
     }
   }
@@ -111,7 +112,7 @@ export class CompanySupplierTemplatesService {
         OR: [{ isPublic: true }, { createdById: userId }],
       },
     });
-    if (!tpl) throw new NotFoundException("Şablon bulunamadı");
+    if (!tpl) throw new NotFoundException(i18nMessage("api.companySupplierTemplates.sablonBulunamadi"));
     const members = await this.prisma.company.findMany({
       where: { id: { in: tpl.memberCompanyIds } },
       select: { id: true, name: true, rothernId: true, tier: true },
@@ -150,7 +151,7 @@ export class CompanySupplierTemplatesService {
       where: { id, companyId: user.companyId },
       select: { id: true },
     });
-    if (!tpl) throw new NotFoundException("Şablon bulunamadı");
+    if (!tpl) throw new NotFoundException(i18nMessage("api.companySupplierTemplates.sablonBulunamadi"));
     if (dto.memberCompanyIds) {
       await this.assertMembersConnected(user.companyId, dto.memberCompanyIds);
     }
@@ -172,7 +173,7 @@ export class CompanySupplierTemplatesService {
       where: { id, companyId: user.companyId },
       select: { id: true },
     });
-    if (!tpl) throw new NotFoundException("Şablon bulunamadı");
+    if (!tpl) throw new NotFoundException(i18nMessage("api.companySupplierTemplates.sablonBulunamadi"));
     await this.prisma.supplierTemplate.delete({ where: { id } });
     return { id };
   }

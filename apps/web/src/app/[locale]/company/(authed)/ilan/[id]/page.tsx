@@ -3,8 +3,10 @@
 import { useLocale, useTranslations } from "next-intl";
 import {
   countryDisplayName,
+  useBidDocKindLabel,
   useListingStatusLabel,
   useNavLabel,
+  useOrderStatusLabel,
   useScopeLabel,
   useUnitLabel,
 } from "@/i18n/domain";
@@ -42,7 +44,6 @@ import {
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { useCancelApproval } from "@/hooks/use-company-approvals";
 import {
-  BID_DOC_KIND_LABELS,
   useBidDocuments,
 } from "@/hooks/use-bid-documents";
 import { useCategoriesByIds } from "@/hooks/use-categories";
@@ -183,6 +184,7 @@ const LISTING_STATUS_COLOR: Record<
 
 export default function ListingDetailPage() {
   const t = useTranslations("web.panel.requests.page");
+  const docKindLabel = useBidDocKindLabel();
   const params = useParams<{ id: string }>();
   const id = params.id;
   const searchParams = useSearchParams();
@@ -209,6 +211,7 @@ export default function ListingDetailPage() {
   const td = useTranslations("web.domain");
   const locale = useLocale();
   const listingStatusLabel = useListingStatusLabel();
+  const orderStatusLabel = useOrderStatusLabel();
   const scopeLabel = useScopeLabel();
   const unitLabel = useUnitLabel();
   // Faz 2: hook koşulsuz çağrılmalı — erken dönüşlerin ARDINDA çağırmak
@@ -1511,11 +1514,11 @@ export default function ListingDetailPage() {
                         href={d.url}
                         target="_blank"
                         rel="noreferrer"
-                        title={`${BID_DOC_KIND_LABELS[d.kind]}: ${d.fileName}`}
+                        title={`${docKindLabel(d.kind)}: ${d.fileName}`}
                         className="rounded bg-zinc-100 px-1.5 py-0.5 text-xs text-blue-600 hover:underline"
                       >
                         <span aria-hidden="true">📎</span>{" "}
-                        {BID_DOC_KIND_LABELS[d.kind]} —{" "}
+                        {docKindLabel(d.kind)} —{" "}
                         {d.fileName.length > 16
                           ? `${d.fileName.slice(0, 14)}…`
                           : d.fileName}
@@ -1679,7 +1682,7 @@ export default function ListingDetailPage() {
           no: (c) => <span className="font-semibold tabular-nums">{c}</span>,
         })}
         <span className="mx-1.5 text-emerald-400">·</span>
-        {orderStatusMeta(l.myOrder.status as CompanyOrderStatus).label}
+        {orderStatusLabel(orderStatusMeta(l.myOrder.status as CompanyOrderStatus).labelKey)}
       </p>
       <Link
         href={`/company/siparis/${l.myOrder.id}`}

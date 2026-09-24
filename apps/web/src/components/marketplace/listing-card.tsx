@@ -1,5 +1,6 @@
 "use client";
 
+import { foldSearchText } from "@rothern/shared";
 import { Badge } from "@/components/catalyst/badge";
 import { formatDate } from "@/lib/format-date";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
@@ -198,13 +199,16 @@ function PanelTile({
 
 /** Sütun etiketi → ikon + ton (mockup 2026-09-19: her metrik ikon karosuyla). */
 function factIcon(f: { label: string; icon?: FactIcon }): { Icon: typeof DocumentTextIcon; tone: string; value: string } {
-  const l = f.label.toLocaleLowerCase("tr");
+  // Etiket ASCII'ye katlanır (`foldSearchText`): sezgisel desenler Türkçe
+  // harf TAŞIMAZ, yoksa katalogdan gelen metinle birlikte burada da Türkçe
+  // sabit kalırdı. Sezgisel yalnız YEDEK — doğru yol `icon` vermektir.
+  const l = foldSearchText(f.label);
   const kind: FactIcon =
     f.icon ??
     (l.includes("kapan") ? "closing"
-      : l.includes("firma") || l.includes("alıcı") || l.includes("sahib") ? "company"
+      : l.includes("firma") || l.includes("alici") || l.includes("sahib") ? "company"
       : l.includes("kalem") ? "items"
-      : l.includes("kapsam") || l.includes("görünürlük") ? "scope"
+      : l.includes("kapsam") || l.includes("gorunurluk") ? "scope"
       : l.includes("kategori") ? "category"
       : l.includes("davet") || l.includes("teklif") ? "people"
       : "info");
@@ -252,7 +256,7 @@ function PanelRow({
       : { strip: "border-l-blue-500", tile: "bg-blue-50 text-blue-600" };
   // Kalan süre notu Kapanış sütununun ALTINA pil olarak iner (mockup); o
   // sütun yoksa durumun yanında kalır.
-  const closingIdx = d.facts.findIndex((f) => f.icon === "closing" || (!f.icon && f.label.toLocaleLowerCase("tr").includes("kapan")));
+  const closingIdx = d.facts.findIndex((f) => f.icon === "closing" || (!f.icon && foldSearchText(f.label).includes("kapan")));
   const noteUnderClosing = !dense && closingIdx >= 0 && !!d.timeNote;
 
   if (dense) {

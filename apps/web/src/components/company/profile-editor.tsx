@@ -4,15 +4,15 @@ import { MissingFields } from "@/components/ui/missing-fields";
 import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import { Thumb } from "@/components/ui/thumb";
 import { useCatalogItems } from "@/hooks/use-company-items";
-import { EMPLOYEE_BUCKET_LABELS, companyActivityLabel } from "@rothern/shared";
+import { EMPLOYEE_BUCKET_LABELS } from "@rothern/shared";
 import { useCategoriesByIds } from "@/hooks/use-categories";
-import { profileCompleteness } from "@/lib/company/profile-completeness";
+import { profileCompleteness, type ProfileCompletenessKey } from "@/lib/company/profile-completeness";
 import { SearchVisibilityCard } from "@/components/seo/search-visibility-card";
 import { useAiSeoEnrich } from "@/hooks/use-ai-seo-enrich";
 import { companySeo } from "@/lib/seo/entities";
 import { snippetFromMetadata } from "@/lib/seo/snippet";
-import { useSeoT } from "@/i18n/domain";
-import { useLocale } from "next-intl";
+import { cityDisplayName, countryDisplayName, useActivityLabel, useSeoT } from "@/i18n/domain";
+import { useLocale, useTranslations } from "next-intl";
 import { companySeoReadiness, generateSlug, tierAtLeast } from "@rothern/shared";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/catalyst/button";
@@ -98,6 +98,7 @@ export function ProfileEditor({
   profile: CompanyProfile;
   canEdit: boolean;
 }) {
+  const t = useTranslations("web.panel.company.profileEditor");
   const update = useUpdateCompanyProfile();
   const locale = useLocale();
   const seoT = useSeoT();
@@ -133,12 +134,12 @@ export function ProfileEditor({
     const normLinkedin = draft.linkedinUrl.trim() ? safeExternalUrl(draft.linkedinUrl) : "";
     const normInstagram = draft.instagramUrl.trim() ? safeExternalUrl(draft.instagramUrl) : "";
     if (normWebsite === null || normLinkedin === null || normInstagram === null) {
-      toast.error("Geçersiz bağlantı — yalnız http/https adresleri kabul edilir");
+      toast.error(t("gecersizBaglantiYalnizHttpHttps"));
       return;
     }
     const year = draft.foundedYear.trim();
     if (year && !/^\d{4}$/.test(year)) {
-      toast.error("Kuruluş yılı 4 haneli olmalı (ör. 2015)");
+      toast.error(t("kurulusYili4HaneliOlmali"));
       return;
     }
     try {
@@ -158,9 +159,9 @@ export function ProfileEditor({
       });
       // Başarıda taslak = kayıtlı (çubuk hemen kapanır; refetch gelince de aynı kalır).
       setSaved(draft);
-      toast.success("Profil kaydedildi");
+      toast.success(t("profilKaydedildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kaydedilemedi"));
+      toast.error(extractErrorMessage(err, t("kaydedilemedi")));
     }
   };
   const discard = () => setDraft(saved);
@@ -228,7 +229,7 @@ export function ProfileEditor({
             <CompanyProfileView profile={viewData} layout="stacked" />
           </div>
           <aside className={RAIL}>
-            <StatusCard pct={completeness.pct} missing={completeness.missing} findability={findability} />
+            <StatusCard pct={completeness.pct} missingKeys={completeness.missingKeys} findability={findability} />
 
           {/* ÜCRETSİZ DOĞRULAMA ÇAĞRISI (2026-09-15, kullanıcı kararı):
               doğrulamaya paket satarak değil ROZETLE teşvik ediyoruz — rozet
@@ -237,19 +238,19 @@ export function ProfileEditor({
           {profile.companyVerificationStatus !== "VERIFIED" ? (
             <div className="rounded-xl border border-zinc-200 bg-white p-4">
               <p className="text-sm font-semibold text-zinc-950">
-                Ücretsiz doğrulanın
+                {t("ucretsizDogrulanin")}
               </p>
               <p className="mt-1 text-xs text-zinc-600">
                 {profile.companyVerificationStatus === "PENDING"
-                  ? "Belgeleriniz inceleniyor — sonuç bildirilecek."
-                  : "Profilinizde “Doğrulanmış” rozeti görünür ve herkese açık taleplere teklif verebilirsiniz. Paket gerekmez."}
+                  ? t("belgelerinizInceleniyorSonucBildirilecek")
+                  : t("profilinizdeDogrulanmisRozetiGorunurVe")}
               </p>
               {profile.companyVerificationStatus !== "PENDING" ? (
                 <Link
                   href="/company/ayarlar/dogrulama"
                   className="mt-2 inline-flex text-sm font-semibold text-zinc-900 underline underline-offset-2"
                 >
-                  Belgeleri yükle
+                  {t("belgeleriYukle")}
                 </Link>
               ) : null}
             </div>
@@ -257,7 +258,7 @@ export function ProfileEditor({
             <MyProductsCard />
           </aside>
         </div>
-        <p className="text-xs text-zinc-400">Düzenleme için firma yönetimi yetkisi gerekir.</p>
+        <p className="text-xs text-zinc-400">{t("duzenlemeIcinFirmaYonetimiYetkisi")}</p>
       </div>
     );
   }
@@ -278,13 +279,17 @@ export function ProfileEditor({
     headline: (
       <div className="flex flex-wrap items-center gap-2 text-sm text-zinc-500">
         <Input
-          aria-label="Sektör"
+          aria-label={t("sektor")}
           value={draft.industry}
-          placeholder="Sektör (ör. Elektrik malzemeleri)"
+          placeholder={t("sektorOrElektrikMalzemeleri")}
           onChange={(e) => set({ industry: e.target.value })}
           className="!w-64"
         />
-        <span>{[profile.city, profile.country].filter(Boolean).join(", ")}</span>
+        <span>
+          {[cityDisplayName(profile.city, locale), profile.country ? countryDisplayName(profile.country, locale) : null]
+            .filter(Boolean)
+            .join(", ")}
+        </span>
         {profile.rothernId ? (
           <span className="tabular-nums text-xs text-zinc-400">{profile.rothernId}</span>
         ) : null}
@@ -292,16 +297,16 @@ export function ProfileEditor({
     ),
     stats: (
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-        <MiniField label="Kuruluş yılı">
+        <MiniField label={t("kurulusYili")}>
           <Input
-            aria-label="Kuruluş yılı"
+            aria-label={t("kurulusYili")}
             inputMode="numeric"
             value={draft.foundedYear}
             placeholder="2015"
             onChange={(e) => set({ foundedYear: e.target.value })}
           />
         </MiniField>
-        <MiniField label="Çalışan sayısı">
+        <MiniField label={t("calisanSayisi")}>
           {/* KOVA SEÇİMİ (2026-09-07): eskiden serbest metindi ("50-100",
               "yaklaşık 30") ve ürün dizinindeki "Çalışan sayısı" süzgeci onu
               güvenilir kovalayamıyordu. Kolon `String` kaldı (migration yok);
@@ -310,42 +315,42 @@ export function ProfileEditor({
               ESKİ DEĞER KAYBOLMAZ: listede yoksa kendi seçeneği olarak
               eklenir — kaydetmeden profil sessizce değişmesin. */}
           <Select
-            aria-label="Çalışan sayısı"
+            aria-label={t("calisanSayisi")}
             value={draft.employeeCount}
             onChange={(e) => set({ employeeCount: e.target.value })}
           >
-            <option value="">Seçilmedi</option>
+            <option value="">{t("secilmedi")}</option>
             {EMPLOYEE_BUCKET_LABELS.map((l) => (
               <option key={l} value={l}>
                 {l}
               </option>
             ))}
             {draft.employeeCount && !EMPLOYEE_BUCKET_LABELS.includes(draft.employeeCount) ? (
-              <option value={draft.employeeCount}>{draft.employeeCount} (eski kayıt)</option>
+              <option value={draft.employeeCount}>{t("eskiKayit", { employeeCount: draft.employeeCount })}</option>
             ) : null}
           </Select>
         </MiniField>
-        <MiniField label="Web sitesi">
+        <MiniField label={t("webSitesi")}>
           <Input
-            aria-label="Web sitesi"
+            aria-label={t("webSitesi")}
             value={draft.website}
-            placeholder="ornekfirma.com"
+            placeholder={t("ornekfirmaCom")}
             onChange={(e) => set({ website: e.target.value })}
           />
         </MiniField>
-        <MiniField label="LinkedIn">
+        <MiniField label={t("linkedin")}>
           <Input
-            aria-label="LinkedIn"
+            aria-label={t("linkedin")}
             value={draft.linkedinUrl}
-            placeholder="linkedin.com/company/…"
+            placeholder={t("linkedinComCompany")}
             onChange={(e) => set({ linkedinUrl: e.target.value })}
           />
         </MiniField>
-        <MiniField label="Instagram">
+        <MiniField label={t("instagram")}>
           <Input
-            aria-label="Instagram"
+            aria-label={t("instagram")}
             value={draft.instagramUrl}
-            placeholder="instagram.com/…"
+            placeholder={t("instagramCom")}
             onChange={(e) => set({ instagramUrl: e.target.value })}
           />
         </MiniField>
@@ -362,10 +367,10 @@ export function ProfileEditor({
     ),
     services: (
       <ChipEditor
-        ariaLabel="Hizmet"
+        ariaLabel={t("hizmet")}
         values={draft.services}
-        placeholder="Hizmet ekle, Enter'a bas"
-        empty="Henüz hizmet eklenmedi — ne yaptığınızı yazın."
+        placeholder={t("hizmetEkleEnterABas")}
+        empty={t("henuzHizmetEklenmediNeYaptiginizi")}
         onChange={(services) => set({ services })}
       />
     ),
@@ -391,7 +396,7 @@ export function ProfileEditor({
         </div>
 
         <aside className={RAIL}>
-          <StatusCard pct={completeness.pct} missing={completeness.missing} findability={findability} />
+          <StatusCard pct={completeness.pct} missingKeys={completeness.missingKeys} findability={findability} />
 
           {/* ARAMA GÖRÜNÜRLÜĞÜ (SEO Parça 8) — parçacık `companySeo` şablonundan. */}
           <SearchVisibilityCard
@@ -434,24 +439,24 @@ export function ProfileEditor({
             )}
             enrich={{
               available: tierAtLeast(profile.tier, "SILVER"),
-              unavailableReason: "AI ile güçlendirme Silver ve üzeri paketlerde.",
+              unavailableReason: t("aiIleGuclendirmeSilverVeUzeri"),
               run: () =>
                 seoEnrich.mutateAsync({
                   kind: "company",
                   name: profile.name,
                   description: draft.aboutText,
                   facts: [
-                    ...draft.services.map((s) => `Hizmet: ${s}`),
-                    ...draft.certifications.map((c) => `Sertifika: ${c}`),
-                    ...(draft.foundedYear ? [`Kuruluş: ${draft.foundedYear}`] : []),
-                    ...(draft.employeeCount ? [`Çalışan: ${draft.employeeCount}`] : []),
+                    ...draft.services.map((s) => t("hizmetDeger", { value: s })),
+                    ...draft.certifications.map((c) => t("sertifikaDeger", { value: c })),
+                    ...(draft.foundedYear ? [t("kurulus", { foundedYear: draft.foundedYear })] : []),
+                    ...(draft.employeeCount ? [t("calisan", { employeeCount: draft.employeeCount })] : []),
                   ],
                   city: profile.city,
                   industry: draft.industry || null,
                 }),
               apply: (r) => {
                 set({ aboutText: r.description });
-                toast.success("Taslak uygulandı — kontrol edip Kaydet'e basın");
+                toast.success(t("taslakUygulandiKontrolEdipKaydet"));
               },
             }}
           />
@@ -470,13 +475,13 @@ export function ProfileEditor({
           className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-950/10 bg-white/95 px-4 py-3 shadow-2xl backdrop-blur sm:pl-72"
         >
           <div className="mx-auto flex max-w-6xl flex-wrap items-center justify-between gap-3 pr-16">
-            <span className="text-sm text-zinc-700">Kaydedilmemiş değişiklikler var.</span>
+            <span className="text-sm text-zinc-700">{t("kaydedilmemisDegisikliklerVar")}</span>
             <div className="flex items-center gap-2">
               <Button plain onClick={discard} disabled={update.isPending}>
-                Vazgeç
+                {t("vazgec")}
               </Button>
               <Button onClick={() => void save()} disabled={update.isPending}>
-                {update.isPending ? "Kaydediliyor…" : "Kaydet"}
+                {update.isPending ? t("kaydediliyor") : t("kaydet")}
               </Button>
             </div>
           </div>
@@ -501,12 +506,13 @@ function EditorHeader({
   publicEnabled: boolean;
   onTogglePublic?: (v: boolean) => void;
 }) {
+  const t = useTranslations("web.panel.company.profileEditor");
   return (
     <div className="flex flex-wrap items-center justify-between gap-3">
       <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">Profilim</h1>
+        <h1 className="text-2xl font-semibold tracking-tight text-zinc-950">{t("profilim")}</h1>
         <p className="mt-1 text-sm text-zinc-500">
-          Firma sayfanız — başkalarının gördüğü hâli, doğrudan üstünde düzenleyin, sonra Kaydet.
+          {t("firmaSayfanizBaskalarininGorduguHali")}
         </p>
       </div>
       <div className="flex flex-wrap items-center gap-3">
@@ -518,7 +524,7 @@ function EditorHeader({
           href="/company/ayarlar/firma"
           className="text-sm font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900"
         >
-          Firma bilgileri (unvan, adres, VKN)
+          {t("firmaBilgileriUnvanAdresVkn")}
         </Link>
         {/* ÖNİZLEME PANEL İÇİNDE (2026-09-17, kullanıcı: "önizleme yapınca
             sistemden çıkıp anasayfaya dönüyor"): eskiden herkese açık
@@ -531,15 +537,15 @@ function EditorHeader({
             href={`/company/firma/${profile.rothernId}`}
             className="text-sm font-medium text-zinc-600 underline hover:text-zinc-900"
           >
-            Profilimi önizle
+            {t("profilimiOnizle")}
           </Link>
         ) : null}
         <label className="flex items-center gap-2 rounded-lg border border-zinc-950/10 bg-white px-3 py-1.5 text-sm">
           <span className={publicEnabled ? "text-emerald-700" : "text-zinc-600"}>
-            {publicEnabled ? "Yayında" : "Yayında değil"}
+            {publicEnabled ? t("yayinda") : t("yayindaDegil")}
           </span>
           <Switch
-            aria-label="Herkese açık profil"
+            aria-label={t("herkeseAcikProfil")}
             checked={publicEnabled}
             disabled={!onTogglePublic}
             onChange={(v: boolean) => onTogglePublic?.(v)}
@@ -558,24 +564,33 @@ function EditorHeader({
  */
 function StatusCard({
   pct,
-  missing,
+  missingKeys,
   findability,
 }: {
   pct: number;
-  missing: string[];
+  /** Eksik madde KODLARI (`profileCompleteness`); metin katalogdan. */
+  missingKeys: ProfileCompletenessKey[];
   findability: { about: boolean; industry: boolean; category: boolean };
 }) {
+  const t = useTranslations("web.panel.company.profileEditor");
+  const tItem = useTranslations("web.domain.profileItem");
+  const missing = missingKeys.map((k) => tItem(k));
   const need: [string, boolean][] = [
-    ["Hakkında", findability.about],
-    ["Sektör", findability.industry],
-    ["En az 1 kategori", findability.category],
+    [t("hakkinda"), findability.about],
+    [t("sektor"), findability.industry],
+    [t("enAz1Kategori"), findability.category],
   ];
   return (
-    <section aria-label="Profil durumu" className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
+    <section aria-label={t("profilDurumu")} className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-sm font-semibold text-zinc-950">Profil durumu</h3>
-        <p className="text-sm text-zinc-600" title="Profil tamamlanma">
-          <span className={cn("text-lg font-semibold tabular-nums", pct === 100 ? "text-emerald-700" : "text-zinc-950")}>%{pct}</span> tamam
+        <h3 className="text-sm font-semibold text-zinc-950">{t("profilDurumu")}</h3>
+        <p className="text-sm text-zinc-600" title={t("profilTamamlanma")}>
+          {t.rich("yuzdeTamam", {
+            pct,
+            strong: (chunks) => (
+              <span className={cn("text-lg font-semibold tabular-nums", pct === 100 ? "text-emerald-700" : "text-zinc-950")}>{chunks}</span>
+            ),
+          })}
         </p>
       </div>
       <div className="mt-2 h-1.5 w-full overflow-hidden rounded-full bg-zinc-100" aria-hidden>
@@ -587,11 +602,11 @@ function StatusCard({
       {missing.length > 0 ? (
         <MissingFields className="mt-3" items={missing} />
       ) : (
-        <p className="mt-3 text-xs text-emerald-700">Tüm alanlar dolu</p>
+        <p className="mt-3 text-xs text-emerald-700">{t("tumAlanlarDolu")}</p>
       )}
       {need.some(([, ok]) => !ok) ? (
         <p className="mt-3 flex flex-wrap items-center gap-x-2 gap-y-1 border-t border-zinc-950/5 pt-3 text-xs text-zinc-500">
-          <span className="font-medium text-zinc-600">Alıcıların sizi bulması için:</span>
+          <span className="font-medium text-zinc-600">{t("alicilarinSiziBulmasiIcin")}</span>
           {need.map(([label, ok]) => (
             <span key={label} className={ok ? "text-emerald-700 line-through decoration-emerald-300" : ""}>
               {ok ? "✓ " : "○ "}
@@ -615,6 +630,7 @@ function MiniField({ label, children }: { label: string; children: React.ReactNo
 
 /** Tek görsel seçme + küçültme + yükleme — kapak/logo ortak. */
 function useImagePicker(kind: "logo" | "cover" | "gallery", onUrl: (url: string) => void) {
+  const t = useTranslations("web.panel.company.profileEditor");
   const upload = useUploadProfileImage();
   const inputRef = useRef<HTMLInputElement>(null);
   const pick = () => inputRef.current?.click();
@@ -623,20 +639,20 @@ function useImagePicker(kind: "logo" | "cover" | "gallery", onUrl: (url: string)
     if (inputRef.current) inputRef.current.value = "";
     for (const f of list) {
       if (!IMG_MIME.includes(f.type)) {
-        toast.error("JPEG, PNG veya WebP yükleyin");
+        toast.error(t("jpegPngVeyaWebpYukleyin"));
         continue;
       }
       const lim = PROFILE_IMAGE_LIMITS[kind];
       try {
         const small = await resizeImageFile(f, { maxEdge: lim.maxEdge });
         if (small.size > lim.maxBytes) {
-          toast.error(`Dosya çok büyük (maks. ${Math.round(lim.maxBytes / 1024 / 1024)}MB)`);
+          toast.error(t("dosyaCokBuyukMaksMb", { round: Math.round(lim.maxBytes / 1024 / 1024) }));
           continue;
         }
         const url = await upload.mutateAsync({ file: small, kind });
         onUrl(url);
       } catch (err) {
-        toast.error(extractErrorMessage(err, "Yüklenemedi"));
+        toast.error(extractErrorMessage(err, t("yuklenemedi")));
       }
     }
   };
@@ -648,18 +664,19 @@ function useImagePicker(kind: "logo" | "cover" | "gallery", onUrl: (url: string)
  * "Kaydet" yükler ve profile hemen yazar (`onSave`). Kaldırma da anında kaydedilir.
  */
 function useCroppedImage(kind: "logo" | "cover", onSave: (url: string) => Promise<void>) {
+  const t = useTranslations("web.panel.company.profileEditor");
   const upload = useUploadProfileImage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [pending, setPending] = useState<File | null>(null);
   const [removing, setRemoving] = useState(false);
-  const label = kind === "logo" ? "Logo" : "Kapak görseli";
+  const label = kind === "logo" ? t("logo") : t("kapakGorseli");
   const pick = () => inputRef.current?.click();
   const onFiles = (files: FileList | null) => {
     const f = files?.[0];
     if (inputRef.current) inputRef.current.value = "";
     if (!f) return;
     if (!IMG_MIME.includes(f.type)) {
-      toast.error("JPEG, PNG veya WebP yükleyin");
+      toast.error(t("jpegPngVeyaWebpYukleyin"));
       return;
     }
     setPending(f);
@@ -667,16 +684,16 @@ function useCroppedImage(kind: "logo" | "cover", onSave: (url: string) => Promis
   const confirm = async (cropped: File) => {
     const lim = PROFILE_IMAGE_LIMITS[kind];
     if (cropped.size > lim.maxBytes) {
-      toast.error(`Dosya çok büyük (maks. ${Math.round(lim.maxBytes / 1024 / 1024)}MB)`);
+      toast.error(t("dosyaCokBuyukMaksMb", { round: Math.round(lim.maxBytes / 1024 / 1024) }));
       throw new Error("too-large");
     }
     try {
       const url = await upload.mutateAsync({ file: cropped, kind });
       await onSave(url);
       setPending(null);
-      toast.success(`${label} kaydedildi`);
+      toast.success(t("etiketKaydedildi", { label }));
     } catch (err) {
-      toast.error(extractErrorMessage(err, `${label} kaydedilemedi`));
+      toast.error(extractErrorMessage(err, t("etiketKaydedilemedi", { label })));
       throw err;
     }
   };
@@ -684,9 +701,9 @@ function useCroppedImage(kind: "logo" | "cover", onSave: (url: string) => Promis
     setRemoving(true);
     try {
       await onSave("");
-      toast.success(`${label} kaldırıldı`);
+      toast.success(t("kaldirildi", { label: label }));
     } catch (err) {
-      toast.error(extractErrorMessage(err, `${label} kaldırılamadı`));
+      toast.error(extractErrorMessage(err, t("kaldirilamadi", { label: label })));
     } finally {
       setRemoving(false);
     }
@@ -696,10 +713,10 @@ function useCroppedImage(kind: "logo" | "cover", onSave: (url: string) => Promis
       file={pending}
       aspect={kind === "logo" ? 1 : COVER_ASPECT}
       shape={kind === "logo" ? "rounded" : "rect"}
-      title={kind === "logo" ? "Logoyu ayarla" : "Kapak görselini ayarla"}
+      title={kind === "logo" ? t("logoyuAyarla") : t("kapakGorseliniAyarla")}
       hint={
         kind === "cover"
-          ? "Kapak ekran genişliğine göre kenarlardan biraz kırpılabilir; önemli kısmı ortada tutun."
+          ? t("kapakEkranGenisligineGoreKenarlardan")
           : undefined
       }
       maxEdge={PROFILE_IMAGE_LIMITS[kind].maxEdge}
@@ -715,6 +732,7 @@ function useCroppedImage(kind: "logo" | "cover", onSave: (url: string) => Promis
 const COVER_ASPECT = 4;
 
 function CoverControls({ value, onSave }: { value: string; onSave: (url: string) => Promise<void> }) {
+  const t = useTranslations("web.panel.company.profileEditor");
   const { inputRef, pick, onFiles, remove, busy, dialog } = useCroppedImage("cover", onSave);
   return (
     <>
@@ -723,7 +741,7 @@ function CoverControls({ value, onSave }: { value: string; onSave: (url: string)
         type="file"
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
-        aria-label="Kapak görseli seç"
+        aria-label={t("kapakGorseliSec")}
         onChange={(e) => onFiles(e.target.files)}
       />
       {dialog}
@@ -732,11 +750,11 @@ function CoverControls({ value, onSave }: { value: string; onSave: (url: string)
         // düğme üst üste biniyordu.
         <div className="absolute bottom-3 right-3">
           <OverlayMenu
-            label="Kapağı düzenle"
+            label={t("kapagiDuzenle")}
             busy={busy}
             items={[
-              { label: "Kapağı değiştir", onClick: pick },
-              { label: "Kapağı kaldır", onClick: () => void remove(), danger: true },
+              { label: t("kapagiDegistir"), onClick: pick },
+              { label: t("kapagiKaldir"), onClick: () => void remove(), danger: true },
             ]}
           />
         </div>
@@ -748,7 +766,7 @@ function CoverControls({ value, onSave }: { value: string; onSave: (url: string)
           className="absolute inset-0 flex items-center justify-center gap-2 text-sm font-medium text-white/90 hover:bg-white/10"
         >
           {busy ? <Loader2 className="size-4 animate-spin" /> : <ImagePlus className="size-4" />}
-          Kapak görseli ekle <span className="text-white/60">· geniş görsel, maks. 5MB</span>
+          {t("kapakGorseliEkle")} <span className="text-white/60">{t("genisGorselMaks5mb")}</span>
         </button>
       )}
     </>
@@ -756,6 +774,7 @@ function CoverControls({ value, onSave }: { value: string; onSave: (url: string)
 }
 
 function LogoControls({ value, onSave }: { value: string; onSave: (url: string) => Promise<void> }) {
+  const t = useTranslations("web.panel.company.profileEditor");
   const { inputRef, pick, onFiles, remove, busy, dialog } = useCroppedImage("logo", onSave);
   return (
     <>
@@ -764,19 +783,19 @@ function LogoControls({ value, onSave }: { value: string; onSave: (url: string) 
         type="file"
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
-        aria-label="Logo seç"
+        aria-label={t("logoSec")}
         onChange={(e) => onFiles(e.target.files)}
       />
       {dialog}
       {value ? (
         <div className="absolute -bottom-1 -right-1">
           <OverlayMenu
-            label="Logoyu düzenle"
+            label={t("logoyuDuzenle")}
             busy={busy}
             compact
             items={[
-              { label: "Logoyu değiştir", onClick: pick },
-              { label: "Logoyu kaldır", onClick: () => void remove(), danger: true },
+              { label: t("logoyuDegistir"), onClick: pick },
+              { label: t("logoyuKaldir"), onClick: () => void remove(), danger: true },
             ]}
           />
         </div>
@@ -785,8 +804,8 @@ function LogoControls({ value, onSave }: { value: string; onSave: (url: string) 
           type="button"
           onClick={pick}
           disabled={busy}
-          title="Logo yükle"
-          aria-label="Logo yükle"
+          title={t("logoYukle")}
+          aria-label={t("logoYukle")}
           className="absolute -bottom-1 -right-1 inline-flex size-8 items-center justify-center rounded-full bg-blue-600 text-white shadow ring-2 ring-white hover:bg-blue-700"
         >
           {busy ? <Loader2 className="size-4 animate-spin" /> : <Camera className="size-4" />}
@@ -809,6 +828,7 @@ function AboutEditor({
   onChange: (v: string) => void;
   onEnriched: (patch: Partial<Draft>) => void;
 }) {
+  const t = useTranslations("web.panel.company.profileEditor");
   const [enriching, setEnriching] = useState(false);
   const [logoCandidate, setLogoCandidate] = useState<string | null>(null);
   /**
@@ -857,9 +877,9 @@ function AboutEditor({
       // Buradan girilen adres künyeye de işlenir — iki yerde ayrı kalmasın.
       if (siteOverride?.trim()) onEnriched({ website: siteOverride.trim() });
       setLogoCandidate(data.logoCandidateUrl);
-      toast.success("Taslak hazır — kontrol edip Kaydet'e basın");
+      toast.success(t("taslakHazirKontrolEdipKaydet"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "AI profil oluşturamadı — web sitenizi kontrol edin"));
+      toast.error(extractErrorMessage(err, t("aiProfilOlusturamadiWebSitenizi")));
     } finally {
       setEnriching(false);
     }
@@ -870,25 +890,24 @@ function AboutEditor({
           gereken şey "elle yazın" değil "siteden doldurayım mı". */}
       <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2">
         <p className="text-xs text-zinc-600">
-          Web sitenizi okuyup <strong>taslak</strong> hazırlayalım — kontrol edip
-          kaydedersiniz.
+          {t.rich("webSiteniziOkuyupTaslakHazirlayalim", { strong: (chunks) => <strong>{chunks}</strong> })}
         </p>
         <Button outline onClick={() => void enrich()} disabled={enriching}>
           {enriching ? <Loader2 data-slot="icon" className="animate-spin" /> : <Sparkles data-slot="icon" />}
-          {enriching ? "Siteniz okunuyor…" : "Web sitemden AI ile doldur"}
+          {enriching ? t("sitenizOkunuyor") : t("webSitemdenAiIleDoldur")}
         </Button>
       </div>
       {siteSoruluyor ? (
         <div className="space-y-2 rounded-xl border border-zinc-300 bg-white px-3 py-3">
           <label htmlFor="ai-site" className="block text-xs font-medium text-zinc-700">
-            Web sitenizin adresi
+            {t("webSitenizinAdresi")}
           </label>
           <div className="flex flex-wrap gap-2">
             <Input
               id="ai-site"
               autoFocus
               value={siteTaslak}
-              placeholder="ornekfirma.com"
+              placeholder={t("ornekfirmaCom")}
               onChange={(e) => setSiteTaslak(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
@@ -898,33 +917,32 @@ function AboutEditor({
               }}
             />
             <Button onClick={() => void enrich(siteTaslak)} disabled={!siteTaslak.trim()}>
-              Devam
+              {t("devam")}
             </Button>
             <Button plain onClick={() => setSiteSoruluyor(false)}>
-              Vazgeç
+              {t("vazgec")}
             </Button>
           </div>
           <p className="text-xs text-zinc-500">
-            Adres künyenize de kaydedilir; siteniz yoksa bu adımı atlayıp
-            aşağıdan elle yazabilirsiniz.
+            {t("adresKunyenizeDeKaydedilirSiteniz")}
           </p>
         </div>
       ) : null}
       <Textarea
-        aria-label="Hakkında"
+        aria-label={t("hakkinda")}
         rows={5}
         value={value}
-        placeholder="Firmanızı kısaca tanıtın — ne üretir/satar, kimlere, hangi bölgede…"
+        placeholder={t("firmaniziKisacaTanitinNeUretir")}
         onChange={(e) => onChange(e.target.value)}
       />
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs text-zinc-500">{value.length} karakter</span>
+        <span className="text-xs text-zinc-500">{t("karakter", { n: value.length })}</span>
       </div>
       {logoCandidate && !hasLogo ? (
         <div className="flex items-center gap-3 rounded-xl border border-zinc-200 bg-zinc-50 px-3 py-2 text-xs text-zinc-700">
           {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={logoCandidate} alt="Sitenizde bulunan görsel" className="h-9 w-9 rounded bg-white object-contain ring-1 ring-zinc-200" />
-          Sitenizde bir logo bulduk — indirip logo olarak yükleyebilirsiniz.
+          <img src={logoCandidate} alt={t("sitenizdeBulunanGorsel")} className="h-9 w-9 rounded bg-white object-contain ring-1 ring-zinc-200" />
+          {t("sitenizdeBirLogoBuldukIndirip")}
         </div>
       ) : null}
     </div>
@@ -946,6 +964,7 @@ function ChipEditor({
   onChange: (v: string[]) => void;
   variant?: "chips" | "list";
 }) {
+  const t = useTranslations("web.panel.company.profileEditor");
   const [draft, setDraft] = useState("");
   const add = () => {
     const v = draft.trim();
@@ -962,7 +981,7 @@ function ChipEditor({
           {values.map((v) => (
             <span key={v} className="inline-flex items-center gap-1 rounded-lg bg-zinc-100 px-2.5 py-1 text-sm font-medium text-zinc-700">
               {v}
-              <button type="button" aria-label={`${v} kaldır`} onClick={() => onChange(values.filter((x) => x !== v))} className="text-zinc-400 hover:text-zinc-700">
+              <button type="button" aria-label={t("kaldir", { v: v })} onClick={() => onChange(values.filter((x) => x !== v))} className="text-zinc-400 hover:text-zinc-700">
                 <X className="size-3.5" />
               </button>
             </span>
@@ -974,7 +993,7 @@ function ChipEditor({
             <li key={v} className="flex items-center gap-2 text-sm text-zinc-700">
               <span className="flex size-5 items-center justify-center rounded-full bg-blue-600 text-xs text-white">✓</span>
               <span className="flex-1">{v}</span>
-              <button type="button" aria-label={`${v} kaldır`} onClick={() => onChange(values.filter((x) => x !== v))} className="text-zinc-400 hover:text-zinc-700">
+              <button type="button" aria-label={t("kaldir", { v: v })} onClick={() => onChange(values.filter((x) => x !== v))} className="text-zinc-400 hover:text-zinc-700">
                 <X className="size-3.5" />
               </button>
             </li>
@@ -983,7 +1002,7 @@ function ChipEditor({
       )}
       <div className="flex gap-2">
         <Input
-          aria-label={`${ariaLabel} ekle`}
+          aria-label={t("etiketEkle", { label: ariaLabel })}
           value={draft}
           placeholder={placeholder}
           onChange={(e) => setDraft(e.target.value)}
@@ -996,7 +1015,7 @@ function ChipEditor({
         />
         <Button outline type="button" onClick={add} disabled={!draft.trim()}>
           <Plus data-slot="icon" />
-          Ekle
+          {t("ekle")}
         </Button>
       </div>
     </div>
@@ -1019,6 +1038,7 @@ function GalleryEditor({
   tile: "wide" | "square";
   hint?: string;
 }) {
+  const t = useTranslations("web.panel.company.profileEditor");
   const { upload, inputRef, pick, handle } = useImagePicker(kind, (url) => {
     onChange([...latest.current, url].slice(0, MAX_GALLERY));
   });
@@ -1048,7 +1068,7 @@ function GalleryEditor({
         multiple
         accept="image/jpeg,image/png,image/webp"
         className="hidden"
-        aria-label={`${label} seç`}
+        aria-label={t("sec", { label: label })}
         onChange={(e) => void handle(e.target.files)}
       />
       <div className={cn("grid gap-3", tile === "wide" ? "grid-cols-2 sm:grid-cols-3" : "grid-cols-3")}>
@@ -1076,7 +1096,7 @@ function GalleryEditor({
             </span>
             <button
               type="button"
-              aria-label={`${label} ${i + 1} kaldır`}
+              aria-label={t("kaldir", { v: `${label} ${i + 1}` })}
               onClick={() => onChange(values.filter((_, j) => j !== i))}
               className="absolute right-1.5 top-1.5 rounded-full bg-white/90 p-1 text-zinc-700 shadow hover:bg-white"
             >
@@ -1095,7 +1115,7 @@ function GalleryEditor({
             )}
           >
             {upload.isPending ? <Loader2 className="size-5 animate-spin" /> : <ImagePlus className="size-5" />}
-            {upload.isPending ? "Yükleniyor…" : "Ekle"}
+            {upload.isPending ? t("yukleniyor") : t("ekle")}
           </button>
         ) : null}
       </div>
@@ -1124,28 +1144,28 @@ function completenessOf(d: Draft, p: CompanyProfile) {
  * firma-geneli sayacı — Ürünlerim sekmesi ve pano kartıyla aynı sayı.
  */
 function MyProductsCard() {
+  const t = useTranslations("web.panel.company.profileEditor");
   const { data, isLoading } = useCatalogItems("");
   const published = (data?.items ?? []).filter((i) => i.isPublic).slice(0, 3);
   const n = data?.counts?.published ?? published.length;
   return (
-    <section className="card p-6" aria-label="Ürünlerim">
+    <section className="card p-6" aria-label={t("urunlerim")}>
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-zinc-900">
-          Ürünlerim{isLoading ? "" : ` (${n})`}
+          {isLoading ? t("urunlerim") : t("urunlerimSayili", { n })}
         </h2>
         <Link
           href="/company/satis/urunlerim"
           className="text-sm font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900"
         >
-          Ürünleri yönet
+          {t("urunleriYonet")}
         </Link>
       </div>
       {isLoading ? (
         <div className="mt-3 h-16 animate-pulse rounded-lg bg-zinc-100" aria-hidden />
       ) : published.length === 0 ? (
         <p className="mt-3 text-sm text-zinc-500">
-          Yayında ürün yok — vitrine çıkan ürünler firma sayfanızda görünür ve
-          açık talep eşleşmesini besler.
+          {t("yayindaUrunYokVitrineCikan")}
         </p>
       ) : (
         <ul className="mt-3 divide-y divide-zinc-950/5">
@@ -1167,6 +1187,8 @@ function MyProductsCard() {
  * "Eksik: Faaliyet kategorileri" de aynı veriden beslenir.
  */
 function ClassificationSummary({ profile }: { profile: CompanyProfile }) {
+  const t = useTranslations("web.panel.company.profileEditor");
+  const activityLabel = useActivityLabel();
   const ids = [...(profile.sellerCategoryIds ?? []), ...(profile.sellerSubCategoryIds ?? [])];
   const cats = useCategoriesByIds(ids);
   const names = ids
@@ -1175,7 +1197,7 @@ function ClassificationSummary({ profile }: { profile: CompanyProfile }) {
   return (
     <div className="space-y-4">
       <div>
-        <p className="text-xs font-medium text-zinc-500">Firma türü</p>
+        <p className="text-xs font-medium text-zinc-500">{t("firmaTuru")}</p>
         {profile.activities?.length ? (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
             {profile.activities.map((code) => (
@@ -1183,21 +1205,21 @@ function ClassificationSummary({ profile }: { profile: CompanyProfile }) {
                 key={code}
                 className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs font-medium text-zinc-700"
               >
-                {companyActivityLabel(code)}
+                {activityLabel(code)}
               </span>
             ))}
           </div>
         ) : (
-          <p className="mt-1 text-sm text-zinc-400">Seçilmedi</p>
+          <p className="mt-1 text-sm text-zinc-400">{t("secilmedi")}</p>
         )}
       </div>
       <div>
         <p className="text-xs font-medium text-zinc-500">
-          Faaliyet kategorileri{ids.length ? ` (${ids.length})` : ""}
+          {ids.length ? t("faaliyetKategorileriSayili", { n: ids.length }) : t("faaliyetKategorileri")}
         </p>
         {ids.length === 0 ? (
           <p className="mt-1 text-sm text-zinc-400">
-            Seçilmedi — açık talep eşleşmesi bu seçime göre yapılır.
+            {t("secilmediAcikTalepEslesmesiBu")}
           </p>
         ) : (
           <div className="mt-1.5 flex flex-wrap gap-1.5">
@@ -1217,7 +1239,7 @@ function ClassificationSummary({ profile }: { profile: CompanyProfile }) {
         href="/company/ayarlar/firma#kategoriler"
         className="inline-flex items-center text-sm font-medium text-zinc-600 underline underline-offset-4 hover:text-zinc-900"
       >
-        Düzenle → Firma Bilgileri
+        {t("duzenleFirmaBilgileri")}
       </Link>
     </div>
   );
@@ -1238,6 +1260,7 @@ function OverlayMenu({
   busy?: boolean;
   compact?: boolean;
 }) {
+  const t = useTranslations("web.panel.company.profileEditor");
   return (
     <Menu>
       <MenuButton
@@ -1249,7 +1272,7 @@ function OverlayMenu({
         )}
       >
         {busy ? <Loader2 className="size-3.5 animate-spin" /> : <Pencil className="size-3.5" />}
-        {compact ? null : "Düzenle"}
+        {compact ? null : t("duzenle")}
       </MenuButton>
       {/* modal={false}: Headless UI v2 varsayılanı sayfanın kalanını inert
           yapar (FilterSelect'teki ListboxOptions ile aynı karar). */}

@@ -33,6 +33,14 @@ describe("catalog helpers", () => {
     // Çoğul dalının içindeki sözcükler argüman sanılmamalı.
     expect(placeholders("{n, plural, one {Select at least # item} other {Select at least # items}}")).toEqual(["n"]);
     expect(placeholdersMatch("En az {n} öğe seçilmeli", "{n, plural, one {Select at least # item} other {Select at least # items}}")).toBe(true);
+    // select/plural dalında TEK sözcük de argüman değildir (ASCII ya da değil);
+    // dal içindeki gerçek argüman ({{title}}) yine sayılır.
+    expect(placeholders("{d, select, extended {uzatıldı} other {reddedildi}}")).toEqual(["d"]);
+    expect(placeholders("{d, select, extended {extended} other {updated}}")).toEqual(["d"]);
+    expect(placeholders("{has, select, yes {{title}} other {Talep}}")).toEqual(["has", "title"]);
+    expect(placeholders("{c, plural, one {order} other {orders}} {nums}")).toEqual(["c", "nums"]);
+    // ICU kaçışı: '{x}' metindir.
+    expect(placeholders("Rothern''de '{x}' {y}")).toEqual(["y"]);
   });
 
   it("coverage eksik/bayat/durumsuz ayırır", () => {

@@ -1,3 +1,4 @@
+import { tApi } from "../../common/i18n/i18n.service";
 import {
   Body,
   Controller,
@@ -95,7 +96,7 @@ class SuspendDto {
  */
 class RejectDto {
   @IsString()
-  @Length(3, 500, { message: "Red gerekçesi en az 3 karakter olmalı" })
+  @Length(3, 500, { message: () => tApi("api.dto.adminCompanies.redGerekcesiEnAz3KarakterOlmali") })
   reason!: string;
 }
 

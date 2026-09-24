@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ForbiddenException,
@@ -94,13 +95,13 @@ export class ProfileEnrichService {
       });
       if (kullanim >= FREE_TIER_ENRICH_LIMIT) {
         throw new ForbiddenException(
-          "Ücretsiz pakette profil AI ile bir kez doldurulabilir — tekrar oluşturmak için Silver veya üzeri paket gerekir.",
+          i18nMessage("api.ai.ucretsizPaketteProfilAiIleBir"),
         );
       }
     }
     if (!this.config.enabled || !this.provider) {
       throw new ServiceUnavailableException(
-        "AI özelliği şu anda kullanılamıyor.",
+        i18nMessage("api.ai.aiOzelligiSuAndaKullanilamiyor"),
       );
     }
 
@@ -111,7 +112,7 @@ export class ProfileEnrichService {
     const website = this.normalizeUrl(input.website || company?.website || "");
     if (!website) {
       throw new BadRequestException(
-        "Önce firma web sitenizi ekleyin (Profilim → Düzenle).",
+        i18nMessage("api.ai.onceFirmaWebSiteniziEkleyinProfilim"),
       );
     }
 
@@ -136,7 +137,7 @@ export class ProfileEnrichService {
       });
       if (attempts >= DAILY_LIMIT) {
         throw new BadRequestException(
-          `Günlük AI profil oluşturma limitine ulaşıldı (${DAILY_LIMIT}) — yarın tekrar deneyin.`,
+          i18nMessage("api.ai.gunlukAiProfilOlusturmaLimitineUlasildi", { DAILYLIMIT: DAILY_LIMIT }),
         );
       }
       await tx.auditLog.create({
@@ -188,7 +189,7 @@ export class ProfileEnrichService {
           `Profil zenginleştirme sağlayıcı hatası: ${err instanceof Error ? err.message : String(err)}`,
         );
         throw new ServiceUnavailableException(
-          "AI şu an yanıt veremedi — birkaç saniye sonra tekrar deneyin.",
+          i18nMessage("api.ai.aiSuAnYanitVeremediBirkac"),
         );
       });
 
@@ -237,12 +238,12 @@ export class ProfileEnrichService {
       };
     } catch {
       throw new ServiceUnavailableException(
-        "AI çıktısı işlenemedi — lütfen tekrar deneyin.",
+        i18nMessage("api.ai.aiCiktisiIslenemediLutfenTekrarDeneyin"),
       );
     }
     if (!draft.aboutText) {
       throw new BadRequestException(
-        "Siteden yeterli bilgi çıkarılamadı — profili elle doldurabilirsiniz.",
+        i18nMessage("api.ai.sitedenYeterliBilgiCikarilamadiProfiliElle"),
       );
     }
 

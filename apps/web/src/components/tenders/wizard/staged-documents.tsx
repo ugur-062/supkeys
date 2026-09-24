@@ -8,7 +8,6 @@ import { SelectMenu } from "@/components/ui/select-menu";
 import { Button } from "@/components/catalyst/button";
 import {
   LISTING_DOC_KINDS,
-  LISTING_DOC_KIND_LABELS,
   type ListingDocKind,
 } from "@/hooks/use-listing-documents";
 import { FileText, Paperclip, Trash2 } from "lucide-react";
@@ -34,9 +33,9 @@ export function StagedDocuments({
 }) {
   const t = useTranslations("web.panel.requests.stagedDocuments");
   const L = useEntityLabels();
-  // Belge bölümü adı katalogdan (`web.domain.listingDocKind.<KOD>`); yoksa Türkçe sözlük.
+  // Belge bölümü adı katalogdan (`web.domain.listingDocKind.<KOD>`); yoksa kod.
   const tk = useTranslations("web.domain.listingDocKind");
-  const kindLabel = (k: ListingDocKind) => (tk.has(k as never) ? tk(k as never) : LISTING_DOC_KIND_LABELS[k]);
+  const kindLabel = (k: ListingDocKind) => (tk.has(k as never) ? tk(k as never) : k);
   const [kind, setKind] = useState<ListingDocKind>("IDARI_SARTNAME");
 
   const addFiles = (e: React.ChangeEvent<HTMLInputElement>) => {

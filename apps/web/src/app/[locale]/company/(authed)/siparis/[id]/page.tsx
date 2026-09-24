@@ -51,7 +51,7 @@ import {
 import { OrderReviewCard } from "./_components/order-review-card";
 import { orderFullyPaid, isAdvanceMet } from "./_components/payment-status";
 import { OrderTimeline } from "./_components/order-timeline";
-import { buildOrderPrintHtml, itemDeliveryLabel } from "./_components/order-print";
+import { buildOrderPrintHtml, itemDeliveryLabel, type OrderPrintLabels } from "./_components/order-print";
 import { ArrowLeftIcon, CheckCircleIcon } from "@heroicons/react/20/solid";
 import { Banknote, Building2, Gavel, Truck } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -147,14 +147,23 @@ export default function OrderDetailPage() {
   const stage = orderStageIndex(o.status);
   const terminal = o.status === "REJECTED" || o.status === "CANCELLED";
   const statusMeta = orderStatusMeta(o.status, sellerShips);
-  const statusKey =
-    o.status === "IN_DELIVERY" && !sellerShips ? "IN_DELIVERY_PICKUP" : o.status;
-  const statusLabel = tStatus.has(statusKey as never)
-    ? tStatus(statusKey as never)
-    : statusMeta.label;
-  const stepLabel = (s: (typeof steps)[number]) => {
-    const key = s.key === "SHIP" && !sellerShips ? "SHIP_PICKUP" : s.key;
-    return tStep.has(key as never) ? tStep(key as never) : s.label;
+  const statusLabel = tStatus(statusMeta.labelKey as never);
+  const stepLabel = (s: (typeof steps)[number]) => tStep(s.labelKey as never);
+  // Yazdırma çıktısı da okuyucunun dilinde — saf builder etiketleri PARAMETRE alır.
+  const printLabels: OrderPrintLabels = {
+    order: t("print.siparis"),
+    buyer: t("print.alici"),
+    seller: t("print.satici"),
+    request: t("print.satinAlmaTalebi"),
+    status: t("print.durum"),
+    item: t("print.kalem"),
+    quantity: t("print.miktar"),
+    delivery: t("print.teslim"),
+    unit: t("print.birim"),
+    amount: t("print.tutar"),
+    noItems: t("print.kalemYok"),
+    total: t("print.toplam"),
+    general: t("print.genel"),
   };
   const strong = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
   const ordersHref = isSeller
@@ -292,6 +301,8 @@ export default function OrderDetailPage() {
         isSeller,
         curSym,
         statusLabel,
+        labels: printLabels,
+        locale,
       }),
     );
     w.document.close();
@@ -765,6 +776,7 @@ export default function OrderDetailPage() {
                           it.deliveryDate,
                           o.expectedDeliveryDate,
                           it.deliveryTime,
+                          printLabels.general,
                         )}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-zinc-600">

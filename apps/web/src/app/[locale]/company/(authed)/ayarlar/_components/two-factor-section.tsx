@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
@@ -18,6 +19,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export function TwoFactorSection() {
+  const t = useTranslations("web.panel.settings.twoFactorSection");
   const { user } = useCompanyAuth();
   const setup = useSetup2fa();
   const enable = useEnable2fa();
@@ -37,30 +39,30 @@ export function TwoFactorSection() {
     try {
       await sendEmailCode.mutateAsync();
       setEmailMode(true);
-      toast.success("E-postanıza doğrulama kodu gönderildi");
+      toast.success(t("ePostanizaDogrulamaKoduGonderildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kod gönderilemedi"));
+      toast.error(extractErrorMessage(err, t("kodGonderilemedi")));
     }
   };
 
   const sendDisableEmailCode = async () => {
     try {
       await sendEmailCode.mutateAsync();
-      toast.success("E-postanıza doğrulama kodu gönderildi");
+      toast.success(t("ePostanizaDogrulamaKoduGonderildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kod gönderilemedi"));
+      toast.error(extractErrorMessage(err, t("kodGonderilemedi")));
     }
   };
 
   const confirmEnableEmail = async () => {
     try {
       const res = await enableEmail.mutateAsync(code.trim());
-      toast.success("E-posta ile iki adımlı doğrulama açıldı");
+      toast.success(t("ePostaIleIkiAdimli"));
       setEmailMode(false);
       setCode("");
       setRecoveryCodes(res.recoveryCodes ?? null);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kod doğrulanamadı"));
+      toast.error(extractErrorMessage(err, t("kodDogrulanamadi")));
     }
   };
   // Kurtarma kodları YALNIZCA enable yanıtında görünür — kullanıcı
@@ -73,34 +75,34 @@ export function TwoFactorSection() {
       setQr(res.qrDataUrl);
       setSecret(res.secret);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kurulum başlatılamadı"));
+      toast.error(extractErrorMessage(err, t("kurulumBaslatilamadi")));
     }
   };
 
   const confirmEnable = async () => {
     try {
       const res = await enable.mutateAsync(code.trim());
-      toast.success("İki adımlı doğrulama açıldı");
+      toast.success(t("ikiAdimliDogrulamaAcildi"));
       setQr(null);
       setSecret(null);
       setCode("");
       setRecoveryCodes(res.recoveryCodes ?? null);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kod doğrulanamadı"));
+      toast.error(extractErrorMessage(err, t("kodDogrulanamadi")));
     }
   };
 
   const copyRecovery = async () => {
     if (!recoveryCodes) return;
     await navigator.clipboard.writeText(recoveryCodes.join("\n"));
-    toast.success("Kurtarma kodları panoya kopyalandı");
+    toast.success(t("kurtarmaKodlariPanoyaKopyalandi"));
   };
 
   const downloadRecovery = () => {
     if (!recoveryCodes) return;
     const blob = new Blob(
       [
-        `Rothern 2FA kurtarma kodları (${user?.email ?? ""})\nHer kod TEK kullanımlıktır — güvenli bir yerde saklayın.\n\n${recoveryCodes.join("\n")}\n`,
+        `${t("kurtarmaDosyasiBaslik", { email: user?.email ?? "" })}\n${t("kurtarmaDosyasiNot")}\n\n${recoveryCodes.join("\n")}\n`,
       ],
       { type: "text/plain;charset=utf-8" },
     );
@@ -115,11 +117,11 @@ export function TwoFactorSection() {
   const confirmDisable = async () => {
     try {
       await disable.mutateAsync(code.trim());
-      toast.success("İki adımlı doğrulama kapatıldı");
+      toast.success(t("ikiAdimliDogrulamaKapatildi"));
       setDisableMode(false);
       setCode("");
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kapatılamadı"));
+      toast.error(extractErrorMessage(err, t("kapatilamadi")));
     }
   };
 
@@ -128,10 +130,10 @@ export function TwoFactorSection() {
       {/* Başlık SettingsShell'de — burada yalnız durum (2026-09-10). */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Text className="text-sm text-zinc-600">
-          Authenticator uygulaması (Google Authenticator, Authy…) veya e-postanıza gelen kod ile ekstra güvenlik.
+          {t("authenticatorUygulamasiGoogleAuthenticatorAu")}
         </Text>
         <Badge color={enabled ? "green" : "zinc"}>
-          {enabled ? "Açık" : "Kapalı"}
+          {enabled ? t("acik") : t("kapali")}
         </Badge>
       </div>
 
@@ -139,14 +141,14 @@ export function TwoFactorSection() {
       {!enabled && !qr && !emailMode ? (
         <div className="mt-4 flex flex-wrap gap-2">
           <Button onClick={startSetup} disabled={setup.isPending}>
-            Authenticator ile Kur
+            {t("authenticatorIleKur")}
           </Button>
           <Button
             outline
             onClick={startEmailSetup}
             disabled={sendEmailCode.isPending}
           >
-            {sendEmailCode.isPending ? "Gönderiliyor…" : "E-posta ile Kur"}
+            {sendEmailCode.isPending ? t("gonderiliyor") : t("ePostaIleKur")}
           </Button>
         </div>
       ) : null}
@@ -155,31 +157,33 @@ export function TwoFactorSection() {
       {!enabled && emailMode ? (
         <div className="mt-4 space-y-3">
           <Text className="text-sm text-zinc-600">
-            <strong>{user?.email}</strong> adresine 6 haneli bir kod gönderdik.
-            Girip onaylayın — bundan sonra her girişte e-postanıza kod gelir.
+            {t.rich("adresine6HaneliKodGonderdik", {
+              strong: (c) => <strong>{c}</strong>,
+              email: user?.email ?? "",
+            })}
           </Text>
           <Field>
-            <Label>Doğrulama kodu</Label>
+            <Label>{t("dogrulamaKodu")}</Label>
             <Input
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="6 haneli kod"
+              placeholder={t("n6HaneliKod")}
               className="max-w-[200px]"
             />
           </Field>
           <div className="flex flex-wrap gap-2">
             <Button onClick={confirmEnableEmail} disabled={enableEmail.isPending || code.length !== 6}>
-              Doğrula & Aç
+              {t("dogrulaAc")}
             </Button>
             <Button
               plain
               onClick={startEmailSetup}
               disabled={sendEmailCode.isPending}
             >
-              Kodu yeniden gönder
+              {t("koduYenidenGonder")}
             </Button>
             <Button
               plain
@@ -188,7 +192,7 @@ export function TwoFactorSection() {
                 setCode("");
               }}
             >
-              Vazgeç
+              {t("vazgec")}
             </Button>
           </div>
         </div>
@@ -198,19 +202,18 @@ export function TwoFactorSection() {
       {!enabled && qr ? (
         <div className="mt-4 space-y-3">
           <Text className="text-sm text-zinc-600">
-            1) Authenticator uygulamanızla aşağıdaki QR kodu okutun. 2) Üretilen
-            6 haneli kodu girip onaylayın.
+            {t("n1AuthenticatorUygulamanizlaAsagidakiQr")}
           </Text>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={qr}
-            alt="2FA QR kodu"
+            alt={t("n2faQrKodu")}
             className="h-44 w-44 rounded-lg border border-zinc-200"
           />
           {secret ? (
             <div className="rounded-lg border border-zinc-200 bg-zinc-100 px-3 py-2">
               <p className="text-xs text-zinc-500">
-                QR okutamıyorsanız bu anahtarı uygulamaya elle girin:
+                {t("qrOkutamiyorsanizBuAnahtariUygulamaya")}
               </p>
               <div className="mt-1 flex items-center gap-2">
                 <code className="tabular-nums text-sm tracking-wider text-zinc-900">
@@ -220,30 +223,30 @@ export function TwoFactorSection() {
                   type="button"
                   onClick={async () => {
                     await navigator.clipboard.writeText(secret);
-                    toast.success("Anahtar kopyalandı");
+                    toast.success(t("anahtarKopyalandi"));
                   }}
                   className="text-xs font-semibold text-blue-600 hover:underline"
                 >
-                  Kopyala
+                  {t("kopyala")}
                 </button>
               </div>
             </div>
           ) : null}
           <Field>
-            <Label>Doğrulama kodu</Label>
+            <Label>{t("dogrulamaKodu")}</Label>
             <Input
               inputMode="numeric"
               autoComplete="one-time-code"
               maxLength={6}
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              placeholder="6 haneli kod"
+              placeholder={t("n6HaneliKod")}
               className="max-w-[200px]"
             />
           </Field>
           <div className="flex gap-2">
             <Button onClick={confirmEnable} disabled={enable.isPending || code.length !== 6}>
-              Doğrula & Aç
+              {t("dogrulaAc")}
             </Button>
             <Button
               plain
@@ -255,7 +258,7 @@ export function TwoFactorSection() {
                 setCode("");
               }}
             >
-              Vazgeç
+              {t("vazgec")}
             </Button>
           </div>
         </div>
@@ -265,11 +268,10 @@ export function TwoFactorSection() {
       {recoveryCodes ? (
         <div className="mt-4 space-y-3 rounded-xl border border-amber-200 bg-amber-50 p-4">
           <p className="text-sm font-semibold text-amber-900">
-            Kurtarma kodlarınız — şimdi kaydedin, bir daha gösterilmez!
+            {t("kurtarmaKodlarinizSimdiKaydedinBir")}
           </p>
           <p className="text-xs text-amber-800">
-            Authenticator cihazınızı kaybederseniz bu kodlardan biriyle giriş
-            yapabilirsiniz. Her kod tek kullanımlıktır.
+            {t("authenticatorCihaziniziKaybedersenizBuKodlar")}
           </p>
           <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
             {recoveryCodes.map((c) => (
@@ -283,13 +285,13 @@ export function TwoFactorSection() {
           </div>
           <div className="flex flex-wrap gap-2">
             <Button outline onClick={copyRecovery}>
-              Kopyala
+              {t("kopyala")}
             </Button>
             <Button outline onClick={downloadRecovery}>
-              .txt İndir
+              {t("txtIndir")}
             </Button>
             <Button onClick={() => setRecoveryCodes(null)}>
-              Kodları kaydettim
+              {t("kodlariKaydettim")}
             </Button>
           </div>
         </div>
@@ -300,36 +302,35 @@ export function TwoFactorSection() {
         <div className="mt-4">
           {!disableMode ? (
             <Button outline onClick={() => setDisableMode(true)}>
-              2FA'yı Kapat
+              {t("n2faYiKapat")}
             </Button>
           ) : (
             <div className="space-y-3">
               <Field>
-                <Label>Doğrulama kodu veya kurtarma kodu</Label>
+                <Label>{t("dogrulamaKoduVeyaKurtarmaKodu")}</Label>
                 <Input
                   value={code}
                   onChange={(e) => setCode(e.target.value)}
-                  placeholder="6 haneli kod ya da XXXX-XXXX"
+                  placeholder={t("n6HaneliKodYaDa")}
                   className="max-w-[240px]"
                 />
               </Field>
               <Text className="text-xs text-zinc-500">
-                Authenticator kullanıyorsanız uygulamadaki kodu; e-posta 2FA
-                kullanıyorsanız “E-postaya kod gönder” ile gelen kodu girin.
+                {t("authenticatorKullaniyorsanizUygulamadakiKodu")}
               </Text>
               <div className="flex flex-wrap gap-2">
                 <Button onClick={confirmDisable} disabled={disable.isPending || !code.trim()}>
-                  Kapat
+                  {t("kapat")}
                 </Button>
                 <Button
                   plain
                   onClick={sendDisableEmailCode}
                   disabled={sendEmailCode.isPending}
                 >
-                  E-postaya kod gönder
+                  {t("ePostayaKodGonder")}
                 </Button>
                 <Button plain onClick={() => setDisableMode(false)}>
-                  Vazgeç
+                  {t("vazgec")}
                 </Button>
               </div>
             </div>

@@ -8,6 +8,8 @@ import {
 } from "../../../common/cron/cron-registry.service";
 import { PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { EmailService } from "../../email/email.service";
+import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
+import { localeOf } from "../../notifications/notification.service";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { appRoutes } from "../../../common/company/app-routes";
 import { enforceProductLimit } from "../../../common/company/product-limit";
@@ -75,7 +77,12 @@ export class MembershipScheduler implements OnModuleInit {
         billingEmail: true,
         users: {
           where: { isActive: true, deletedAt: null },
-          select: { email: true, firstName: true, lastName: true },
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+            locale: true,
+          },
           orderBy: { createdAt: "asc" },
           take: 1,
         },
@@ -159,27 +166,37 @@ export class MembershipScheduler implements OnModuleInit {
       const name = c.users[0]
         ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
         : c.name;
+      // E-POSTA DİLİ: firmanın EN ESKİ aktif üyesinin (pratikte kurucu) dili;
+      // yalnız `billingEmail` taşıyan, üyesi çözülmemiş firmada varsayılan.
+      const locale = localeOf(c.users[0]?.locale);
+      const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+        tApi(key, values, locale);
+      const kirpilan = trimmed.get(c.id);
+      const subject = t("api.notifications.membership.sonaErdiKonu");
       void this.email
         .send({
           to: { email, name },
-          subject: "Premium üyeliğiniz sona erdi",
+          subject,
+          locale,
           templateData: {
             template: "notification",
             data: {
-              subject: "Premium üyeliğiniz sona erdi",
-              heading: "Premium üyeliğiniz sona erdi",
+              subject,
+              heading: subject,
               paragraphs: [
-                "Merhaba,",
-                "Paket üyeliğinizin süresi doldu ve hesabınız Standart üyeliğe geçirildi. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
-                ...(trimmed.get(c.id)
+                t("api.notifications.common.greeting"),
+                t("api.notifications.membership.sonaErdiAnaParagraf"),
+                ...(kirpilan
                   ? [
-                      `Tavanı aşan ${trimmed.get(c.id)} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz.`,
+                      t("api.notifications.membership.sonaErdiKirpilanUrun", {
+                        adet: kirpilan,
+                      }),
                     ]
                   : []),
-                "Tekrar pakete geçmek için hesabınızdan yükseltme yapabilirsiniz.",
+                t("api.notifications.membership.sonaErdiYukseltme"),
               ],
-              ctaLabel: "Premium'a Geç",
-              ctaUrl: appRoutes.premium(baseUrl),
+              ctaLabel: t("api.notifications.membership.premiumaGec"),
+              ctaUrl: appRoutes.premium(baseUrl, locale),
             },
           },
           context: { type: "membership_downgraded", id: c.id },

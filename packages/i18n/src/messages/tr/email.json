@@ -1,1 +1,61 @@
-{}
+{
+  "layout": {
+    "copyright": "© 2026 Rothern",
+    "footerNote": "Bu e-postayı rothern.com platformundan aldınız.",
+    "textSignature": "— Rothern"
+  },
+  "passwordReset": {
+    "subject": "🔑 Parola sıfırlama bağlantınız — Rothern",
+    "preview": "Parola sıfırlama talebiniz için bağlantı.",
+    "heading": "Parolanızı sıfırlayın 🔑",
+    "greeting": "Merhaba {firstName},",
+    "intro": "Rothern hesabınız için bir parola sıfırlama talebinde bulundunuz. Yeni parolanızı belirlemek için aşağıdaki butona tıklayın.",
+    "infoTitle": "Bağlantı bilgisi",
+    "accountLabel": "Hesap:",
+    "validityLabel": "Geçerlilik:",
+    "validityValue": "{minutes} dakika",
+    "onceOnly": "Bu bağlantı yalnızca bir kez kullanılabilir.",
+    "cta": "Parolayı Sıfırla",
+    "ignoreNote": "Bu talebi siz yapmadıysanız bu e-postayı yok sayabilirsiniz — bağlantıyı kullanmazsanız hesabınızda hiçbir şey değişmez.",
+    "textTitle": "Rothern parola sıfırlama",
+    "textIntro": "Hesabınız için bir parola sıfırlama talebinde bulundunuz.",
+    "textValidity": "Bağlantı {minutes} dakika geçerli ve sadece bir kez kullanılabilir.",
+    "textCta": "Parolayı sıfırlamak için: {url}",
+    "textIgnore": "Bu talebi siz yapmadıysanız bu e-postayı yok sayabilirsiniz."
+  },
+  "referralInvite": {
+    "subject": "🤝 {inviterName} sizi Rothern'e davet etti",
+    "preview": "{inviterName} sizinle Rothern'de bağlantı kurmak istiyor.",
+    "heading": "Rothern'e davet edildiniz 🤝",
+    "greeting": "Merhaba,",
+    "intro": "<b>{inviterName}</b>, sizinle Rothern üzerinden tedarik süreçlerini yürütmek için bağlantı kurmak istiyor. Rothern; teklif toplama, açık eksiltme, sipariş ve ödeme takibini tek yerde toplayan bir B2B tedarik platformudur.",
+    "autoConnect": "Bu e-posta ile kaydolduğunuzda <b>{inviterName}</b> ile bağlantınız otomatik kurulur — bu bağlantı kalıcıdır, üyelik türünden bağımsız çalışır.",
+    "infoTitle": "Davet bilgisi",
+    "inviterLabel": "Davet eden:",
+    "inviteeLabel": "Davet edilen:",
+    "infoNote": "Bu adresle kaydolduğunuzda bağlantı otomatik kurulur.",
+    "cta": "Rothern'e Kaydol",
+    "ignoreNote": "Bu daveti beklemiyorduysanız bu e-postayı yok sayabilirsiniz — hiçbir işlem yapılmaz.",
+    "textTitle": "Rothern daveti",
+    "textIntro": "{inviterName} sizi Rothern'e davet etti.",
+    "textAbout": "Rothern; teklif toplama, açık eksiltme, sipariş ve ödeme takibini tek\nyerde toplayan bir B2B tedarik platformudur.",
+    "textAutoConnect": "Bu adresle ({email}) kaydolduğunuzda {inviterName} ile bağlantınız otomatik kurulur.",
+    "textCta": "Kaydolmak için: {url}",
+    "textIgnore": "Bu daveti beklemiyorduysanız bu e-postayı yok sayabilirsiniz."
+  },
+  "tenderExternalInvite": {
+    "subject": "📋 {inviterName} sizi \"{tenderTitle}\" satın alma talebine davet etti",
+    "preview": "{inviterName}, \"{tenderTitle}\" satın alma talebi için sizden teklif almak istiyor.",
+    "heading": "Bir satın alma talebine davet edildiniz 📋",
+    "greeting": "Merhaba,",
+    "intro": "<b>{inviterName}</b>, Rothern B2B tedarik platformunda açtığı satın alma talebi için sizden teklif almak istiyor:",
+    "categoryLine": "Kategori: {categories}",
+    "closesAtLine": "Son teklif tarihi: {closesAt}",
+    "howTo": "Teklif verebilmek için ücretsiz firma hesabı oluşturmanız yeterli — kayıt tamamlandığında bu talebe otomatik davet edilirsiniz ve {inviterName} ile bağlantınız kurulur.",
+    "cta": "Kaydol ve Teklif Ver",
+    "footnote": "Bu e-posta, {inviterName} firmasının Rothern üzerinden gönderdiği tek seferlik bir satın alma talebi davetidir; bir pazarlama listesine eklenmediniz. Bu tür davetleri almak istemiyorsanız <optout>buradan tek tıkla kapatabilirsiniz</optout>.",
+    "textIntro": "{inviterName} sizi Rothern'de \"{tenderTitle}\" satın alma talebine davet etti.",
+    "textCta": "Kaydol ve teklif ver: {url}",
+    "textOptOut": "Bu tür davetleri kapatmak için: {url}"
+  }
+}

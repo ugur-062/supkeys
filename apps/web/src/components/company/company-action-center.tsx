@@ -31,7 +31,8 @@ const SEVERITY_META: Record<ActionSeverity, { icon: LucideIcon; cls: string; lab
 
 export interface CompanyActionItem extends ActionCenterApiRow {
   portal: PortalKey;
-  text: string;
+  /** Satır cümlesinin katalog anahtarı (`web.panel.shell.actionRows.*`). */
+  textKey: string;
   href: string;
 }
 
@@ -76,9 +77,9 @@ export function buildCompanyActions(
     const all: ActionCenterApiRow[] = [...rows];
     if (unread > 0) all.push({ key: "messages", severity: "info", count: unread, dueAt: null, overdueDays: null, waitingDays: null });
     for (const r of all) {
-      const t = texts[r.key];
-      if (!t) continue;
-      out[groupOf(r)].push({ ...r, portal, text: t.text, href: t.href });
+      const row = texts[r.key];
+      if (!row) continue;
+      out[groupOf(r)].push({ ...r, portal, textKey: row.textKey, href: row.href });
     }
   }
   for (const g of GROUP_ORDER) {
@@ -89,6 +90,8 @@ export function buildCompanyActions(
 
 export function CompanyActionCenter({ portals }: { portals: PortalKey[] }) {
   const t = useTranslations("web.panel.trade.companyActionCenter");
+  // Satır cümleleri PAYLAŞILAN haritada (eski Aksiyon Merkezi aynı anahtarları okur).
+  const tRow = useTranslations("web.panel.shell.actionRows");
   const hasSa = portals.includes("satinalma");
   const hasSt = portals.includes("satis");
   const sa = useActionCenter("satinalma", hasSa);
@@ -147,7 +150,7 @@ export function CompanyActionCenter({ portals }: { portals: PortalKey[] }) {
                   <li key={`${r.portal}:${r.key}`}>
                     <Link
                       href={r.href}
-                      aria-label={`${r.count} ${r.text}${time ? ` — ${time}` : ""}`}
+                      aria-label={`${r.count} ${tRow(r.textKey as never)}${time ? ` — ${time}` : ""}`}
                       className="group flex items-center gap-3 px-5 py-3 transition hover:bg-zinc-50 focus-visible:bg-zinc-50 focus-visible:outline-none"
                     >
                       <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", meta.cls)} title={t(meta.labelKey as never)}>
@@ -155,7 +158,7 @@ export function CompanyActionCenter({ portals }: { portals: PortalKey[] }) {
                       </span>
                       <span className="min-w-0 flex-1 text-sm text-zinc-700">
                         <strong className="font-semibold tabular-nums text-zinc-950">{r.count}</strong>{" "}
-                        <span className="group-hover:text-zinc-950">{r.text}</span>
+                        <span className="group-hover:text-zinc-950">{tRow(r.textKey as never)}</span>
                         {time ? (
                           <span
                             className={cn(

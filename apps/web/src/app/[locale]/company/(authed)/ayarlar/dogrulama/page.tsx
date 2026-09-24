@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
@@ -7,13 +8,13 @@ import { Input } from "@/components/catalyst/input";
 import { Text } from "@/components/catalyst/text";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import {
-  docLabels,
   useCompanyDocs,
+  useDocLabels,
   useSubmitDocs,
   useUploadDoc,
   type DocKind,
 } from "@/hooks/use-company-docs";
-import { isKycLocked, VERIFICATION_STATUS } from "@/lib/company/verification-status";
+import { isKycLocked, useVerificationMeta } from "@/lib/company/verification-status";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { MissingFields } from "@/components/ui/missing-fields";
 import {
@@ -30,6 +31,9 @@ import { SettingsShell } from "../_components/settings-shell";
 import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 
 export default function DogrulamaPage() {
+  const t = useTranslations("web.panel.settings.ayarlarDogrulamaPage");
+  const docLabels = useDocLabels();
+  const verificationMeta = useVerificationMeta();
   // Backend upload/submit uçları company:manage ister — diğer roller
   // yalnızca durumu görür (efektif izin: rol + sahip + override).
   const canManage = useHasCompanyPermission("company:manage");
@@ -63,7 +67,7 @@ export default function DogrulamaPage() {
   // MERSİS Türkiye'ye özgü (başka ülkede YOK, "opsiyonel" değil), banka bilgisi
   // IBAN kullanan ülkede mod-97 doğrulanır, kullanmayanda hesap numarasıdır.
   const usesIban = getCountryProfile(data?.country ?? "TR")?.usesIban ?? true;
-  const bankaEtiketi = usesIban ? "IBAN" : "Banka Hesap No";
+  const bankaEtiketi = usesIban ? "IBAN" : t("bankaHesapNo");
   // Belge bazlı kilit (backend commit() ile birebir): ONAYLANAN BELGE KALICI —
   // hiçbir durumda değiştirilemez; yeniden yükleme yalnız o belge reddedildiyse
   // (veya hiç yüklenmediyse) mümkün. İnceleme sürerken (PENDING) hepsi kilitli.
@@ -77,7 +81,7 @@ export default function DogrulamaPage() {
   const handleFile = async (kind: DocKind, file: File | undefined) => {
     if (!file) return;
     if (file.size > 50 * 1024 * 1024) {
-      toast.error(`"${file.name}" 50MB sınırını aşıyor`);
+      toast.error(t("n50mbSiniriniAsiyor", { name: file.name }));
       return;
     }
     setBusyKind(kind);
@@ -85,11 +89,11 @@ export default function DogrulamaPage() {
       await upload.mutateAsync({ kind, file });
       toast.success(
         data?.status === "VERIFIED"
-          ? "Belge incelemeye gönderildi"
-          : "Belge yüklendi",
+          ? t("belgeIncelemeyeGonderildi")
+          : t("belgeYuklendi"),
       );
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Yüklenemedi"));
+      toast.error(extractErrorMessage(err, t("yuklenemedi")));
     } finally {
       setBusyKind(null);
     }
@@ -103,9 +107,9 @@ export default function DogrulamaPage() {
         iban: normalizeIban(iban),
         ibanHolder: ibanHolder.trim(),
       });
-      toast.success("Belgeler doğrulamaya gönderildi");
+      toast.success(t("belgelerDogrulamayaGonderildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Gönderilemedi"));
+      toast.error(extractErrorMessage(err, t("gonderilemedi")));
     }
   };
 
@@ -115,7 +119,7 @@ export default function DogrulamaPage() {
   // Satır içi hatalar — backend submit() ile AYNI: MERSİS 16 hane, IBAN mod-97.
   const mersisError =
     isTR && mersisNo.trim() && !/^\d{16}$/.test(mersisNo.trim())
-      ? "MERSİS No 16 haneli olmalı"
+      ? t("mersisNo16HaneliOlmali")
       : null;
   const ibanGecerli = (v: string) => {
     const n = normalizeIban(v);
@@ -125,33 +129,33 @@ export default function DogrulamaPage() {
   };
   const ibanError =
     usesIban && normalizeIban(iban) && !ibanGecerli(iban)
-      ? "Geçerli bir IBAN girin — kontrol hanesi tutmuyor"
+      ? t("gecerliBirIbanGirinKontrol")
       : null;
   const missing: string[] = [
     ...labels.filter((d) => data && !data.docs[d.key]).map((d) => d.label),
     // MERSİS yalnız TR — başka ülkede karşılığı yok.
     ...(isTR && !/^\d{16}$/.test(mersisNo.trim())
-      ? ["MERSİS No (16 hane)"]
+      ? [t("mersisNo16Hane")]
       : []),
-    ...(tradeRegistryNo.trim() ? [] : [isTR ? "Ticari Sicil No" : "Sicil / Kayıt No"]),
-    ...(ibanGecerli(iban) ? [] : [usesIban ? "Geçerli IBAN" : "Banka hesap no"]),
-    ...(ibanHolder.trim() ? [] : ["Hesap sahibi"]),
+    ...(tradeRegistryNo.trim() ? [] : [isTR ? t("ticariSicilNo2") : t("sicilKayitNo")]),
+    ...(ibanGecerli(iban) ? [] : [usesIban ? t("gecerliIban") : t("bankaHesapNo")]),
+    ...(ibanHolder.trim() ? [] : [t("hesapSahibi2")]),
   ];
   const canSubmit = !!data && missing.length === 0 && !locked;
 
   return (
     <SettingsShell
       page={SETTINGS_PAGES.dogrulama}
-      description="Doğrulama ÜCRETSİZ ve paket gerektirmez. Doğrulanan firmanın profilinde “Doğrulanmış” rozeti görünür, herkese açık taleplere teklif verebilir ve dilediği pakete geçebilir. Doğrulanmamış firma alıcıya “Doğrulanmamış firma” olarak görünür. Belgeleriniz ekibimizce elle incelenir."
+      description={t("dogrulamaUcretsizVePaketGerektirmez")}
     >
       {isLoading || !data ? (
-        <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+        <Text className="text-sm text-zinc-500">{t("yukleniyor")}</Text>
       ) : (
         <div className="space-y-5">
           <div className="flex items-center gap-2">
-            <Text className="text-sm text-zinc-500">Durum:</Text>
-            <Badge color={VERIFICATION_STATUS[data.status].color}>
-              {VERIFICATION_STATUS[data.status].label}
+            <Text className="text-sm text-zinc-500">{t("durum")}</Text>
+            <Badge color={verificationMeta(data.status).color}>
+              {verificationMeta(data.status).label}
             </Badge>
           </div>
 
@@ -162,24 +166,22 @@ export default function DogrulamaPage() {
               role="alert"
               className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800"
             >
-              <p className="font-semibold">Bazı belgeler reddedildi</p>
+              <p className="font-semibold">{t("baziBelgelerReddedildi")}</p>
               <p className="mt-0.5">
                 {data.rejectionReason ||
-                  "Aşağıda “Reddedildi” işaretli belgeleri düzeltip yeniden yükleyin, ardından tekrar gönderin. Onaylanan belgeleri yeniden yüklemenize gerek yok."}
+                  t("asagidaReddedildiIsaretliBelgeleriDuzeltip")}
               </p>
             </div>
           ) : data.status === "PENDING" ? (
             <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
-              Belge ve bilgileriniz inceleniyor — sonuç bildirilecektir. İnceleme
-              sürerken değişiklik yapılamaz.
+              {t("belgeVeBilgilerinizInceleniyorSonuc")}
             </div>
           ) : data.status === "VERIFIED" ? (
             <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-              Firmanız doğrulandı. Herkese açık taleplere teklif, talep yayını ve paket geçişi açık.
+              {t("firmanizDogrulandiHerkeseAcik")}
               {canManage ? (
                 <span className="mt-0.5 block text-xs text-emerald-700">
-                  Onaylanan belgeler değiştirilemez; bir belge reddedilirse
-                  yalnız o belgeyi yeniden yükleyebilirsiniz.
+                  {t("onaylananBelgelerDegistirilemezBirBelge")}
                 </span>
               ) : null}
             </div>
@@ -193,14 +195,14 @@ export default function DogrulamaPage() {
             <div className="flex items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-semibold text-zinc-900">
-                  Doğrulama Bilgileri
+                  {t("dogrulamaBilgileri")}
                 </p>
                 <p className="mt-0.5 text-xs text-zinc-500">
                   {locked
                     ? data.status === "PENDING"
-                      ? "İnceleme sürerken bu bilgiler değiştirilemez."
-                      : "Bu bilgiler belgelerle doğrulandı; değişiklik için destek ile iletişime geçin."
-                    : "Belgelerdeki bilgilerle birebir aynı olmalı; gönderdikten sonra kilitlenir."}
+                      ? t("incelemeSurerkenBuBilgilerDegistirilemez")
+                      : t("buBilgilerBelgelerleDogrulandiDegisiklik")
+                    : t("belgelerdekiBilgilerleBirebirAyniOlmali")}
                 </p>
               </div>
               {locked ? (
@@ -211,7 +213,7 @@ export default function DogrulamaPage() {
               {/* MERSİS yalnızca Türkiye'de vardır — yabancıda gösterilmez. */}
               {isTR ? (
                 <Field>
-                  <Label>MERSİS No *</Label>
+                  <Label>{t("mersisNo")}</Label>
                   <Input
                     value={mersisNo}
                     invalid={Boolean(mersisError)}
@@ -226,12 +228,12 @@ export default function DogrulamaPage() {
               ) : null}
               <Field>
                 <Label>
-                  {isTR ? "Ticari Sicil No *" : "Sicil / Kayıt No *"}
+                  {isTR ? t("ticariSicilNo") : t("sicilKayitNo2")}
                 </Label>
                 <Input
                   value={tradeRegistryNo}
                   onChange={(e) => setTradeRegistryNo(e.target.value)}
-                  placeholder={isTR ? "123456" : "Registration / Company No"}
+                  placeholder={isTR ? "123456" : t("registrationCompanyNo")}
                   disabled={!canManage || locked}
                   maxLength={30}
                 />
@@ -245,7 +247,7 @@ export default function DogrulamaPage() {
                   placeholder={
                     isTR
                       ? "TR00 0000 0000 0000 0000 0000 00"
-                      : "IBAN veya banka hesap no"
+                      : t("ibanVeyaBankaHesapNo")
                   }
                   disabled={!canManage || locked}
                   maxLength={40}
@@ -255,20 +257,22 @@ export default function DogrulamaPage() {
                   <ErrorMessage>{ibanError}</ErrorMessage>
                 ) : (
                   <Text className="mt-1 text-xs text-zinc-500">
-                    Doğrulama içindir. Sipariş tahsilat hesapları{" "}
-                    <Link href="/company/ayarlar/banka-hesaplari" className="font-semibold underline">
-                      Banka Hesapları
-                    </Link>
-                    nda.
+                    {t.rich("dogrulamaIcindirSiparisTahsilat", {
+                      banka: (c) => (
+                        <Link href="/company/ayarlar/banka-hesaplari" className="font-semibold underline">
+                          {c}
+                        </Link>
+                      ),
+                    })}
                   </Text>
                 )}
               </Field>
               <Field>
-                <Label>Hesap Sahibi *</Label>
+                <Label>{t("hesapSahibi")}</Label>
                 <Input
                   value={ibanHolder}
                   onChange={(e) => setIbanHolder(e.target.value)}
-                  placeholder={isTR ? "Firma Unvanı A.Ş." : "Firma unvanı"}
+                  placeholder={isTR ? t("firmaUnvaniAS") : t("firmaUnvani")}
                   disabled={!canManage || locked}
                   maxLength={120}
                 />
@@ -300,26 +304,26 @@ export default function DogrulamaPage() {
                         <span className="text-sm text-zinc-900">{d.label}</span>
                         {showStatus && st === "APPROVED" ? (
                           <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600">
-                            <Check className="h-3.5 w-3.5" /> Onaylandı
+                            <Check className="h-3.5 w-3.5" /> {t("onaylandi")}
                           </span>
                         ) : showStatus && st === "REJECTED" ? (
                           <span className="text-xs font-medium text-red-600">
-                            Reddedildi
+                            {t("reddedildi")}
                           </span>
                         ) : showStatus && st === "PENDING" ? (
                           <span className="text-xs text-amber-600">
-                            İnceleniyor
+                            {t("inceleniyor")}
                           </span>
                         ) : url ? (
                           <span className="inline-flex items-center gap-1 text-xs text-emerald-600">
-                            <Check className="h-3.5 w-3.5" /> Yüklendi
+                            <Check className="h-3.5 w-3.5" /> {t("yuklendi")}
                           </span>
                         ) : (
-                          <span className="text-xs text-zinc-500">Eksik</span>
+                          <span className="text-xs text-zinc-500">{t("eksik")}</span>
                         )}
                         {rev?.status === "PENDING" ? (
                           <span className="text-xs font-medium text-amber-600">
-                            Yeni belge incelemede
+                            {t("yeniBelgeIncelemede")}
                           </span>
                         ) : null}
                       </div>
@@ -331,7 +335,7 @@ export default function DogrulamaPage() {
                             rel="noreferrer"
                             className="text-xs font-medium text-blue-600 hover:underline"
                           >
-                            Görüntüle
+                            {t("goruntule")}
                           </a>
                         ) : null}
                         {editable ? (
@@ -343,10 +347,10 @@ export default function DogrulamaPage() {
                             >
                               <Upload className="h-4 w-4" />
                               {isBusy
-                                ? "Yükleniyor…"
+                                ? t("yukleniyor")
                                 : url
-                                  ? "Değiştir"
-                                  : "Yükle"}
+                                  ? t("degistir")
+                                  : t("yukle")}
                             </Button>
                             <input
                               ref={(el) => {
@@ -373,9 +377,9 @@ export default function DogrulamaPage() {
                     {/* Faz Y: reddedilen güncelleme — mevcut belge geçerli kalır. */}
                     {rev?.status === "REJECTED" ? (
                       <p className="pl-6 text-xs text-red-600">
-                        Belge güncellemeniz reddedildi
-                        {rev.reason ? `: ${rev.reason}` : ""} — mevcut belgeniz
-                        geçerliliğini koruyor.
+                        {rev.reason
+                          ? t("belgeGuncellemenizReddedildiGerekce", { reason: rev.reason })
+                          : t("belgeGuncellemenizReddedildi")}
                       </p>
                     ) : null}
                   </li>
@@ -386,17 +390,16 @@ export default function DogrulamaPage() {
 
           {!canManage ? (
             <Text className="text-sm text-zinc-500">
-              Belgeleri yalnızca firma sahibi ya da Yönetici rolündeki
-              kullanıcılar yükleyebilir.
+              {t("belgeleriYalnizcaFirmaSahibiYa")}
             </Text>
           ) : !locked ? (
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div className="min-w-0 flex-1 text-xs text-zinc-500">
                 {missing.length > 0 ? (
-                  <MissingFields label="Göndermek için eksik" items={missing} />
+                  <MissingFields label={t("gondermekIcinEksik")} items={missing} />
                 ) : (
                   <Text className="text-xs text-zinc-500">
-                    Her şey tamam. Gönderdikten sonra inceleme bitene kadar değişiklik yapılamaz.
+                    {t("herSeyTamamGonderdiktenSonra")}
                   </Text>
                 )}
               </div>
@@ -404,7 +407,7 @@ export default function DogrulamaPage() {
                 onClick={handleSubmit}
                 disabled={!canSubmit || submit.isPending}
               >
-                {submit.isPending ? "Gönderiliyor…" : "Doğrulamaya Gönder"}
+                {submit.isPending ? t("gonderiliyor") : t("dogrulamayaGonder")}
               </Button>
             </div>
           ) : null}

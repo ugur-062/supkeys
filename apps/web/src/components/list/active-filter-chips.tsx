@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { X } from "lucide-react";
 
 /**
@@ -21,6 +22,7 @@ export function ActiveFilterChips({
   filters: ActiveFilter[];
   onClearAll: () => void;
 }) {
+  const t = useTranslations("web.panel.shell.activeFilterChips");
   if (filters.length === 0) return null;
   return (
     <div className="flex flex-wrap items-center gap-2">
@@ -33,7 +35,7 @@ export function ActiveFilterChips({
           <button
             type="button"
             onClick={f.onRemove}
-            aria-label={`${f.label} filtresini kaldır`}
+            aria-label={t("filtresiniKaldir", { label: f.label })}
             className="flex size-4 items-center justify-center rounded-full text-zinc-400 transition hover:bg-zinc-200 hover:text-zinc-700"
           >
             <X className="size-3" aria-hidden />
@@ -46,7 +48,7 @@ export function ActiveFilterChips({
           onClick={onClearAll}
           className="text-xs font-semibold text-zinc-500 underline transition hover:text-zinc-900"
         >
-          Tümünü temizle
+          {t("tumunuTemizle")}
         </button>
       ) : null}
     </div>

@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   ConflictException,
   Injectable,
@@ -98,16 +99,16 @@ export class SupabaseAuthService {
           extra: { status, name: error.name },
         });
         throw new ServiceUnavailableException(
-          "Giriş servisi geçici olarak kullanılamıyor — lütfen birazdan tekrar deneyin",
+          i18nMessage("api.supabaseAuth.girisServisiGeciciOlarakKullanilamiyorLutfen"),
         );
       }
       this.logger.debug(
         `signInWithPassword failed for ${email}: ${error.message}`,
       );
-      throw new UnauthorizedException("E-posta veya parola hatalı");
+      throw new UnauthorizedException(i18nMessage("api.supabaseAuth.ePostaVeyaParolaHatali"));
     }
     if (!data.user) {
-      throw new UnauthorizedException("E-posta veya parola hatalı");
+      throw new UnauthorizedException(i18nMessage("api.supabaseAuth.ePostaVeyaParolaHatali"));
     }
     return { authId: data.user.id, email: data.user.email ?? email };
   }
@@ -137,10 +138,10 @@ export class SupabaseAuthService {
       // Supabase e-posta çakışmasında "already been registered" benzeri döner —
       // kullanıcıya teknik detay değil, dostane çakışma mesajı göster.
       if (error && /registered|exists|taken|already/i.test(error.message)) {
-        throw new ConflictException("Bu e-posta ile zaten bir hesap var");
+        throw new ConflictException(i18nMessage("api.supabaseAuth.buEPostaIleZatenBir"));
       }
       throw new ServiceUnavailableException(
-        "Hesap oluşturulamadı, lütfen birazdan tekrar deneyin",
+        i18nMessage("api.supabaseAuth.hesapOlusturulamadiLutfenBirazdanTekrarDeneyin"),
       );
     }
     return { authId: data.user.id };
@@ -164,7 +165,7 @@ export class SupabaseAuthService {
     );
     if (error || !data.user) {
       this.logger.error(`inviteByEmail failed for ${email}: ${error?.message}`);
-      throw new ServiceUnavailableException("Davet e-postası gönderilemedi");
+      throw new ServiceUnavailableException(i18nMessage("api.supabaseAuth.davetEPostasiGonderilemedi"));
     }
     return { authId: data.user.id };
   }
@@ -185,7 +186,7 @@ export class SupabaseAuthService {
     });
     if (error) {
       this.logger.error(`updatePassword failed for ${authId}: ${error.message}`);
-      throw new ServiceUnavailableException("Şifre değiştirilemedi");
+      throw new ServiceUnavailableException(i18nMessage("api.supabaseAuth.sifreDegistirilemedi"));
     }
   }
 
@@ -203,9 +204,9 @@ export class SupabaseAuthService {
       this.logger.error(`updateEmail failed for ${authId}: ${error.message}`);
       // Supabase çakışmada "already been registered" benzeri döner.
       if (/registered|exists|taken/i.test(error.message)) {
-        throw new ConflictException("Bu e-posta başka bir hesapta kayıtlı");
+        throw new ConflictException(i18nMessage("api.supabaseAuth.buEPostaBaskaBirHesapta"));
       }
-      throw new ServiceUnavailableException("E-posta değiştirilemedi");
+      throw new ServiceUnavailableException(i18nMessage("api.supabaseAuth.ePostaDegistirilemedi"));
     }
   }
 

@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
@@ -35,7 +36,7 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, "admin-jwt") {
 
   async validate(payload: AdminJwtPayload) {
     if (payload.type !== "admin") {
-      throw new UnauthorizedException("Geçersiz token tipi");
+      throw new UnauthorizedException(i18nMessage("api.adminAuth.gecersizTokenTipi"));
     }
 
     const admin = await this.prisma.platformAdmin.findUnique({
@@ -43,12 +44,12 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, "admin-jwt") {
     });
 
     if (!admin || !admin.isActive) {
-      throw new UnauthorizedException("Admin bulunamadı veya pasif");
+      throw new UnauthorizedException(i18nMessage("api.adminAuth.adminBulunamadiVeyaPasif"));
     }
     // Oturum iptali (denetim 2026-08-23 #3): parola değişimi/reset/2FA
     // değişimi tokenVersion'ı artırır → eski JWT (ve kayan yenilemesi) düşer.
     if ((payload.tv ?? 0) !== admin.tokenVersion) {
-      throw new UnauthorizedException("Oturum geçersiz — yeniden giriş yapın");
+      throw new UnauthorizedException(i18nMessage("api.adminAuth.oturumGecersizYenidenGirisYapin"));
     }
 
     return {

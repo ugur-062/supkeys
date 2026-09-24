@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import { formatDate } from "@/lib/format-date";
 import {
   useMarkAllNotificationsRead,
@@ -15,22 +16,24 @@ import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useState } from "react";
 
-/** Panel rozeti — birleşik listede bildirim hangi şapkayla ilgili? */
-const PORTAL_CHIP: Record<NotificationPortal, { label: string; cls: string }> = {
-  satinalma: { label: "Satınalma", cls: "bg-blue-50 text-blue-700" },
-  satis: { label: "Satış", cls: "bg-emerald-50 text-emerald-700" },
+/** Panel rozeti — birleşik listede bildirim hangi şapkayla ilgili? Etiket katalog anahtarı (`web.panel.inbox.bildirimlerPage.*`). */
+const PORTAL_CHIP: Record<NotificationPortal, { label: "satinalma" | "satis"; cls: string }> = {
+  satinalma: { label: "satinalma", cls: "bg-blue-50 text-blue-700" },
+  satis: { label: "satis", cls: "bg-emerald-50 text-emerald-700" },
 };
 
 const FILTERS = [
-  { key: "all", label: "Tümü" },
-  { key: "satinalma", label: "Satınalma" },
-  { key: "satis", label: "Satış" },
+  { key: "all", label: "tumu" },
+  { key: "satinalma", label: "satinalma" },
+  { key: "satis", label: "satis" },
 ] as const;
 type FilterKey = (typeof FILTERS)[number]["key"];
 
 
 
 export default function BildirimlerPage() {
+  const t = useTranslations("web.panel.inbox.bildirimlerPage");
+  const locale = useLocale();
   // TEK kutu (kullanıcı isteği): iki panelin bildirimleri birlikte gelir;
   // filtre yalnız görünümü daraltır (portal'sız + null-portallı ortaklar
   // her filtrede görünür).
@@ -71,9 +74,9 @@ export default function BildirimlerPage() {
     <div className="w-full">
       <div className="mb-6 flex items-center justify-between gap-3">
         <div>
-          <h1 className="text-xl font-bold text-zinc-900">Bildirimler</h1>
+          <h1 className="text-xl font-bold text-zinc-900">{t("bildirimler")}</h1>
           <p className="text-sm text-zinc-500">
-            Satın Alma Talebi davetleri, kategori eşleşmeleri, sipariş ve onay güncellemeleri.
+            {t("satinAlmaTalebiDavetleriKategori")}
           </p>
         </div>
         {hasUnread ? (
@@ -83,7 +86,7 @@ export default function BildirimlerPage() {
             disabled={markAll.isPending}
             className="shrink-0 rounded-lg border border-zinc-200 px-3 py-1.5 text-sm font-medium text-zinc-700 hover:border-zinc-300 disabled:opacity-50"
           >
-            Tümünü okundu işaretle
+            {t("tumunuOkunduIsaretle")}
           </button>
         ) : null}
       </div>
@@ -100,7 +103,7 @@ export default function BildirimlerPage() {
                 : "text-zinc-500 hover:text-zinc-800"
             }`}
           >
-            {f.label}
+            {t(f.label)}
           </button>
         ))}
       </div>
@@ -113,14 +116,14 @@ export default function BildirimlerPage() {
         <div className="card">
           <EmptyState
             icon={Bell}
-            title="Henüz bildiriminiz yok"
-            description="Satın Alma Talebi davetleri, kategori eşleşmeleri, sipariş ve onay güncellemeleri burada birikir."
+            title={t("henuzBildiriminizYok")}
+            description={t("satinAlmaTalebiDavetleriKategori2")}
             action={
               <Link
                 href="/company/ayarlar/bildirimler"
                 className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50"
               >
-                Bildirim Tercihlerine Git
+                {t("bildirimTercihlerineGit")}
               </Link>
             }
           />
@@ -150,11 +153,11 @@ export default function BildirimlerPage() {
                     <span
                       className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${PORTAL_CHIP[n.portal].cls}`}
                     >
-                      {PORTAL_CHIP[n.portal].label}
+                      {t(PORTAL_CHIP[n.portal].label)}
                     </span>
                   ) : null}
                   <span className="ml-auto text-xs text-zinc-400">
-                    {formatDate(n.createdAt, "datetime")}
+                    {formatDate(n.createdAt, "datetime", locale)}
                   </span>
                 </div>
                 <span

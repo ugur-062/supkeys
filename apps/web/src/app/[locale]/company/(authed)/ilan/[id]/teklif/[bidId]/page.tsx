@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useUnitLabel } from "@/i18n/domain";
+import { useBidDocKindLabel, useUnitLabel } from "@/i18n/domain";
 import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -18,7 +18,6 @@ import { Text } from "@/components/catalyst/text";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import {
-  BID_DOC_KIND_LABELS,
   BID_DOC_KINDS,
   useBidDocuments,
 } from "@/hooks/use-bid-documents";
@@ -44,6 +43,7 @@ import { toast } from "sonner";
 
 export default function BidDetailPage() {
   const t = useTranslations("web.panel.requests.page");
+  const docKindLabel = useBidDocKindLabel();
   const unitLabel = useUnitLabel();
   const params = useParams<{ id: string; bidId: string }>();
   const { id, bidId } = params;
@@ -329,7 +329,7 @@ export default function BidDetailPage() {
               return (
                 <div key={k} className="space-y-1">
                   <p className="text-xs font-semibold tracking-wide text-zinc-500 uppercase">
-                    {BID_DOC_KIND_LABELS[k]}
+                    {docKindLabel(k)}
                   </p>
                   {group.map((d) => (
                     <a

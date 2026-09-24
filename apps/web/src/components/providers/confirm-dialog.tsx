@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -26,6 +27,7 @@ const ConfirmContext = createContext<ConfirmFn | null>(null);
  * `const confirm = useConfirm();  if (!(await confirm({...}))) return;`
  */
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("web.panel.shell.confirmDialog");
   const [open, setOpen] = useState(false);
   const [opts, setOpts] = useState<ConfirmOptions | null>(null);
   const resolver = useRef<((v: boolean) => void) | null>(null);
@@ -64,14 +66,14 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
             onClick={() => settle(false)}
             autoFocus={opts?.destructive === true}
           >
-            {opts?.cancelLabel ?? "Vazgeç"}
+            {opts?.cancelLabel ?? t("vazgec")}
           </Button>
           <Button
             color={opts?.destructive ? "red" : undefined}
             onClick={() => settle(true)}
             autoFocus={opts?.destructive !== true}
           >
-            {opts?.confirmLabel ?? "Onayla"}
+            {opts?.confirmLabel ?? t("onayla")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -82,6 +84,7 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
 export function useConfirm(): ConfirmFn {
   const ctx = useContext(ConfirmContext);
   if (!ctx) {
+    // Geliştirici hatası — kullanıcıya görünmez, kataloğa girmez.
     throw new Error("useConfirm, ConfirmProvider içinde kullanılmalı");
   }
   return ctx;

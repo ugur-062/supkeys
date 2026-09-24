@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
 import {
   COMMON_UNIT_CODES,
@@ -13,6 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Select } from "@/components/catalyst/select";
 import { cn } from "@/lib/utils";
+import { useUnitLabel } from "@/i18n/domain";
 
 /**
  * Ölçü birimi seçici (Faz 1).
@@ -50,6 +52,11 @@ export function UnitSelect({
   hasError?: boolean;
   disabled?: boolean;
 }) {
+  const t = useTranslations("web.shared.unitSelect");
+  // Boyut başlığı katalogdan (`web.domain.unitDimension.<KOD>`); yeni bir boyut
+  // eklenirse paylaşılan Türkçe sözlüğe düşer.
+  const td = useTranslations("web.domain.unitDimension");
+  const unitLabel = useUnitLabel();
   const resolved = unitCode ?? normalizeUnit(value);
   const [freeText, setFreeText] = useState(resolved ? "" : value);
   const isOther = !resolved;
@@ -85,30 +92,33 @@ export function UnitSelect({
           onChange({ unit: u?.nameTr ?? v, unitCode: v });
         }}
       >
-        <optgroup label="Sık kullanılan">
+        <optgroup label={t("sikKullanilan")}>
           {grouped.commons.map((u) => (
             <option key={u.code} value={u.code}>
-              {u.nameTr}
+              {unitLabel(u.nameTr, u.code)}
             </option>
           ))}
         </optgroup>
         {grouped.rest.map(([dim, list]) => (
-          <optgroup key={dim} label={UNIT_DIMENSION_LABELS[dim]}>
+          <optgroup
+            key={dim}
+            label={td.has(dim as never) ? td(dim as never) : UNIT_DIMENSION_LABELS[dim]}
+          >
             {list.map((u) => (
               <option key={u.code} value={u.code}>
-                {u.nameTr}
+                {unitLabel(u.nameTr, u.code)}
               </option>
             ))}
           </optgroup>
         ))}
-        <option value={OTHER}>Listede yok…</option>
+        <option value={OTHER}>{t("listedeYok")}</option>
       </Select>
 
       {isOther ? (
         <>
           <Input
-            aria-label="Birim (listede yok)"
-            placeholder="örn. bobin"
+            aria-label={t("birimListedeYok")}
+            placeholder={t("ornBobin")}
             value={freeText}
             disabled={disabled}
             hasError={hasError}
@@ -121,8 +131,7 @@ export function UnitSelect({
             }}
           />
           <p className={cn("text-xs", "text-amber-700")}>
-            Bu birim katalogda yok — raporlarda diğer birimlerle
-            gruplanamayacak.
+            {t("buBirimKatalogdaYok")}
           </p>
         </>
       ) : null}

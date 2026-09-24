@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -46,15 +47,15 @@ export class CompanyBlocksService {
   ) {
     const code = normalizeShortCode(rothernIdRaw);
     if (!validateShortCode(code)) {
-      throw new BadRequestException("Geçersiz firma kodu");
+      throw new BadRequestException(i18nMessage("api.companyBlocks.gecersizFirmaKodu"));
     }
     const target = await this.prisma.company.findUnique({
       where: { rothernId: code },
       select: { id: true, name: true },
     });
-    if (!target) throw new NotFoundException("Firma bulunamadı");
+    if (!target) throw new NotFoundException(i18nMessage("api.companyBlocks.firmaBulunamadi"));
     if (target.id === actor.companyId) {
-      throw new BadRequestException("Kendinizi engelleyemezsiniz");
+      throw new BadRequestException(i18nMessage("api.companyBlocks.kendiniziEngelleyemezsiniz"));
     }
 
     await runTenantTx(this.prisma, async (tx) => {

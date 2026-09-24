@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { useNavLabel } from "@/i18n/domain";
+import { formatNumber } from "@/i18n/format";
 import { FilterShell, ResultCount, useFilters } from "@/components/marketplace/filter-shell";
 import { ProductCard } from "@/components/marketplace/product-card";
 import {
@@ -102,6 +105,7 @@ export function PanelProductIndex({
 }
 
 export function PanelProductFilters({ idPrefix }: { idPrefix: string }) {
+  const t = useTranslations("web.panel.market.panelProductIndex");
   const { state } = useFilters();
   const p = toProductListParams(state);
   const facets = useDiscoverProductFacets({
@@ -112,7 +116,7 @@ export function PanelProductFilters({ idPrefix }: { idPrefix: string }) {
     verified: p.verified,
     price: p.price,
   });
-  if (!facets.data) return <p className="text-sm text-zinc-500">Süzgeçler yükleniyor…</p>;
+  if (!facets.data) return <p className="text-sm text-zinc-500">{t("suzgeclerYukleniyor")}</p>;
   return <ProductFilters facets={facets.data} idPrefix={idPrefix} />;
 }
 
@@ -129,6 +133,9 @@ function Inner({
   band?: (ctx: { total: number; loaded: boolean; facets?: ProductFacets }) => ReactNode;
   footer: boolean;
 }) {
+  const t = useTranslations("web.panel.market.panelProductIndex");
+  const tn = useNavLabel();
+  const locale = useLocale();
   const { update } = useFilters<ProductFilterState>();
   const p = toProductListParams(state);
   const facets = useDiscoverProductFacets({
@@ -156,9 +163,9 @@ function Inner({
         band({ total, loaded: !!data, facets: facets.data })
       ) : (
         <MarketHeader
-          breadcrumb={[{ label: "Satınalma", href: PANEL_MARKET.home }, { label: "Ürünler" }]}
-          title="Ürünler"
-          count={data ? `${total.toLocaleString("tr-TR")} ürün` : undefined}
+          breadcrumb={[{ label: tn("portal.satinalma"), href: PANEL_MARKET.home }, { label: tn("satinalma.urunler") }]}
+          title={tn("satinalma.urunler")}
+          count={data ? t("urun", { n: formatNumber(total, locale) }) : undefined}
           tabs={
             <MarketTabs
               active="products"
@@ -181,7 +188,7 @@ function Inner({
         toolbarStart={
           /* Sayı BAŞLIKTA yazılı (MarketHeader `count`); burada yalnız canlı
              bölge ve "Güncelleniyor…" kalır (`quiet`). */
-          <ResultCount noun="ürün" loading={result.isLoading} quiet />
+          <ResultCount noun={t("urun2")} loading={result.isLoading} quiet />
         }
         toolbarEnd={
           <span className="flex items-center gap-2">
@@ -200,13 +207,13 @@ function Inner({
           <MarketGridSkeleton />
         ) : !data || data.items.length === 0 ? (
           <MarketEmpty
-            title="Bu kriterlerle ürün yok."
+            title={t("buKriterlerleUrunYok")}
             action={
               <Link
                 href={talepHref}
                 className="rounded-lg bg-blue-600 px-4 py-2 font-semibold text-white transition hover:bg-blue-700"
               >
-                Talep aç — tedarikçiler teklif versin
+                {t("talepAcTedarikcilerTeklifVersin")}
               </Link>
             }
           />
@@ -220,14 +227,14 @@ function Inner({
                 company={item.company}
                 href={panelProductPath(item.company.slug, item.slug)}
                 features={item.features}
-                cta="Bilgi iste"
+                cta={t("bilgiIste")}
                 accent="blue"
                 compare
                 priority={i < 3}
                 badge={
                   item.matchesProfile ? (
                     <span className="inline-flex items-center rounded-md bg-white/95 px-2 py-0.5 text-[11px] font-semibold text-blue-700 shadow-sm ring-1 ring-blue-200">
-                      Alım kategorinizle eşleşiyor
+                      {t("alimKategorinizleEslesiyor")}
                     </span>
                   ) : undefined
                 }

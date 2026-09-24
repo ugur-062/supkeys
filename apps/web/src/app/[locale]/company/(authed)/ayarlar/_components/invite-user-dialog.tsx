@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
 import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import {
@@ -35,6 +36,7 @@ export function InviteUserDialog({
   open: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations("web.panel.settings.inviteUserDialog");
   const invite = useInviteUser();
   const { user: viewer } = useCompanyAuth();
   const { data: catalog } = usePermissionCatalog();
@@ -66,25 +68,24 @@ export function InviteUserDialog({
     if (!canSave) return;
     try {
       await invite.mutateAsync({ email: email.trim(), permissions: perms });
-      toast.success("Davet e-postası gönderildi — 7 gün geçerli");
+      toast.success(t("davetEPostasiGonderildi7"));
       setEmail("");
       setPerms(catalog?.presets.SATIN_ALMACI ?? []);
       onClose();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Davet gönderilemedi"));
+      toast.error(extractErrorMessage(err, t("davetGonderilemedi")));
     }
   };
 
   return (
     <Dialog open={open} onClose={() => !invite.isPending && onClose()} size="2xl">
-      <DialogTitle>Üye Davet Et</DialogTitle>
+      <DialogTitle>{t("uyeDavetEt")}</DialogTitle>
       <DialogDescription>
-        Davetli, e-postasındaki linkten adını ve şifresini kendisi belirleyerek
-        ekibe katılır. Davet 7 gün geçerlidir.
+        {t("davetliEPostasindakiLinktenAdini")}
       </DialogDescription>
       <DialogBody className="-mr-3 max-h-[70vh] space-y-4 overflow-y-auto pr-3">
         <Field>
-          <Label>E-posta</Label>
+          <Label>{t("ePosta")}</Label>
           <Input
             type="email"
             autoFocus
@@ -92,18 +93,18 @@ export function InviteUserDialog({
             invalid={emailTouched && !!email && !emailValid}
             onChange={(e) => setEmail(e.target.value)}
             onBlur={() => setEmailTouched(true)}
-            placeholder="kisi@firma.com"
+            placeholder={t("kisiFirmaCom")}
           />
           {emailTouched && email && !emailValid ? (
-            <ErrorMessage>Geçerli bir e-posta adresi girin (ör. kisi@firma.com).</ErrorMessage>
+            <ErrorMessage>{t("gecerliBirEPostaAdresi")}</ErrorMessage>
           ) : null}
         </Field>
         <div>
           <div className="flex items-baseline justify-between gap-2">
-            <p className="text-sm font-medium text-zinc-900">Yetkiler</p>
+            <p className="text-sm font-medium text-zinc-900">{t("yetkiler")}</p>
             {seatsFull ? (
               <p className="text-xs text-amber-700">
-                Kullanıcı hakkı dolu — işlem tikleri için paketi yükseltin.
+                {t("kullaniciHakkiDoluIslemTikleri")}
               </p>
             ) : null}
           </div>
@@ -118,17 +119,17 @@ export function InviteUserDialog({
                 canGrantBuy={canGrantBuy}
               />
             ) : (
-              <p className="text-sm text-zinc-500">Yetki kataloğu yükleniyor…</p>
+              <p className="text-sm text-zinc-500">{t("yetkiKataloguYukleniyor")}</p>
             )}
           </div>
         </div>
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose} disabled={invite.isPending}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button onClick={handleSave} disabled={!canSave || invite.isPending}>
-          {invite.isPending ? "Gönderiliyor…" : "Davet Gönder"}
+          {invite.isPending ? t("gonderiliyor") : t("davetGonder")}
         </Button>
       </DialogActions>
     </Dialog>

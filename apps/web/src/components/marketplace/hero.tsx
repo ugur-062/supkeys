@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { AudienceSwitch, useAudience } from "./audience-switch";
 import { SearchTypeahead } from "./search-typeahead";
 import { TrustStrip } from "./trust-strip";
@@ -26,6 +28,7 @@ export function MarketplaceHero({
   /** Arama kutusunun altındaki hızlı çipler — ürün sayısı en yüksek alt kategoriler. */
   popular?: { id: string; name: string; count: number }[];
 } = {}) {
+  const t = useTranslations("web.marketplace.hero");
   const { audience } = useAudience();
   const supplier = audience === "supplier";
   return (
@@ -39,12 +42,10 @@ export function MarketplaceHero({
             level={1}
             className="text-4xl font-semibold tracking-tight text-balance !text-zinc-950 sm:text-5xl xl:text-6xl"
           >
-            {supplier
-              ? "Alıcılar ne arıyor gör, teklifini kapalı zarfta ver."
-              : "Ürünü bul, tedarikçiyle konuş, teklifi kapalı zarfta al."}
+            {supplier ? t("supplierTitle") : t("buyerTitle")}
           </Heading>
           <p className="mx-auto mt-6 max-w-2xl text-lg/8 text-pretty text-zinc-500">
-            Türkiye&apos;nin alıcı ve tedarikçiyi tek hesapta buluşturan B2B pazar yeri.
+            {t("lead")}
           </p>
 
           {/* `data-hero-search`: header ve yüzen CTA bu kutuyu gözler — kutu
@@ -62,8 +63,8 @@ export function MarketplaceHero({
           </div>
 
           {popular.length > 0 && !supplier ? (
-            <nav aria-label="Popüler kategoriler" className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center justify-center gap-x-1.5 gap-y-1.5 text-xs">
-              <span className="text-zinc-500">Popüler:</span>
+            <nav aria-label={t("popularAria")} className="mx-auto mt-4 flex max-w-2xl flex-wrap items-center justify-center gap-x-1.5 gap-y-1.5 text-xs">
+              <span className="text-zinc-500">{t("popularLabel")}</span>
               {popular.slice(0, 6).map((c) => (
                 <Link
                   key={c.id}
@@ -78,15 +79,15 @@ export function MarketplaceHero({
 
           {/* Şerit — alıcıda RFQ ("Post your request"), tedarikçide vitrin. */}
           <p className="mx-auto mt-6 inline-flex max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full bg-zinc-50 px-4 py-2 text-sm text-zinc-600 ring-1 ring-zinc-950/5">
-            <span>{supplier ? "Sana uygun talep yok mu?" : "Aradığını bulamadın mı?"}</span>
+            <span>{supplier ? t("supplierCtaLead") : t("buyerCtaLead")}</span>
             <Link
               href={signupHref(supplier ? "vitrin" : "talep")}
               className="inline-flex items-center gap-1 font-semibold text-zinc-950 hover:text-zinc-600"
             >
-              {supplier ? "Ürünlerini listele" : "Talep aç"}
+              {supplier ? t("supplierCtaLabel") : t("buyerCtaLabel")}
               <ArrowRightIcon aria-hidden className="size-4" />
             </Link>
-            <span>{supplier ? "alıcılar seni bulsun." : "doğrulanmış tedarikçiler teklif versin."}</span>
+            <span>{supplier ? t("supplierCtaTail") : t("buyerCtaTail")}</span>
           </p>
         </div>
       </div>

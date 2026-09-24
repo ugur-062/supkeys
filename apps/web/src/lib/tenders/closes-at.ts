@@ -7,10 +7,10 @@ import { MAX_LISTING_HORIZON_MS } from "@rothern/shared";
  * formlar (yeni-tur / kapanış değiştir) bunu kullanır → iki yerde kural
  * tekrarı/drift yok.
  *
- * i18n Faz 2: kural metinden ayrıldı — `closesAtErrorKey` yalnız ANAHTAR
- * döner (`web.panel.requests.closesAt.<anahtar>`), metni çağıranın `t`si
- * basar. `closesAtError` eski imzayı korur; `t` verilmezse Türkçe yedek
- * (geçiş dönemi — çeviri bağlamı olmayan eski çağrı yerleri için).
+ * i18n Faz 2: kural metinden AYRI — `closesAtErrorKey` yalnız ANAHTAR döner
+ * (`web.panel.requests.closesAt.<anahtar>`), metni çağıranın `t`si basar;
+ * `closesAtError` aynı işi çevirmeni ZORUNLU alarak yapar (Türkçe yedek
+ * sözlük kaldırıldı — tek kaynak katalog).
  */
 export type ClosesAtErrorKey = "required" | "invalid" | "mustBeFuture" | "tooFar";
 export type ClosesAtTranslate = (key: ClosesAtErrorKey) => string;
@@ -25,17 +25,8 @@ export function closesAtErrorKey(value: string | null | undefined): ClosesAtErro
   return null;
 }
 
-/** Türkçe yedek — `t` vermeyen eski çağrı yerleri (katalogla birebir). */
-const CLOSES_AT_MESSAGES_TR: Record<ClosesAtErrorKey, string> = {
-  required: "Kapanış tarihi girin",
-  invalid: "Geçerli bir kapanış tarihi girin",
-  mustBeFuture: "Kapanış tarihi gelecekte olmalı",
-  tooFar: "Kapanış tarihi çok ileri (en fazla 2 yıl)",
-};
-export const closesAtMessageTr: ClosesAtTranslate = (key) => CLOSES_AT_MESSAGES_TR[key];
-
-/** Geçerliyse `null`, değilse kullanıcı-yüzü hata mesajı (istenen dilde). */
-export function closesAtError(value: string | null | undefined, t: ClosesAtTranslate = closesAtMessageTr): string | null {
+/** Geçerliyse `null`, değilse kullanıcı-yüzü hata mesajı (çağıranın dilinde). */
+export function closesAtError(value: string | null | undefined, t: ClosesAtTranslate): string | null {
   const key = closesAtErrorKey(value);
   return key ? t(key) : null;
 }

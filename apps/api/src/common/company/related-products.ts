@@ -1,3 +1,4 @@
+import { i18nMessage } from "../i18n/http-i18n";
 import type { PrismaClient } from "@rothern/db";
 import { NotFoundException } from "@nestjs/common";
 import { publicProductWhere } from "./public-profile-gate";
@@ -28,7 +29,7 @@ export async function relatedProducts(prisma: Db, companySlug: string, productSl
     where: { ...publicProductWhere(), slug: productSlug, company: { slug: companySlug } },
     select: { id: true, companyId: true, categoryId: true },
   });
-  if (!base) throw new NotFoundException("Ürün bulunamadı");
+  if (!base) throw new NotFoundException(i18nMessage("api.company.urunBulunamadi"));
   const [fromCompany, fromTotal] = await Promise.all([
     prisma.companyItem.findMany({
       where: { ...publicProductWhere(), companyId: base.companyId, id: { not: base.id } },

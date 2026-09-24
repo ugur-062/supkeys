@@ -23,9 +23,8 @@ import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { moneyInputError } from "@/lib/money-input";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
-import { useFormatPaymentPlan } from "@/i18n/domain";
+import { useFormatPaymentPlan, useMoneyInputError } from "@/i18n/domain";
 import { Check, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { useConfirm } from "@/components/providers/confirm-dialog";
@@ -64,6 +63,7 @@ function fmt(n: string | number) {
  */
 export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const tr = useTranslations("web.panel.trade.orderPaymentsCard");
+  const moneyError = useMoneyInputError();
   const td = useTranslations("web.domain");
   const formatPlan = useFormatPaymentPlan();
   // Birincil düğme rengi portaldan (satınalmada siyah yok — 2026-09-17 kuralı).
@@ -117,7 +117,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const submit = async () => {
     const value = Number(amount);
     // F4: min 0.01 + 2 ondalık + MAX_MONEY (backend order-payment.dto birebir).
-    const e = moneyInputError(value);
+    const e = moneyError(value);
     if (e) {
       toast.error(e);
       return;

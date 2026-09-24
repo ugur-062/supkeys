@@ -7,7 +7,7 @@ import {
   type ActionSeverity,
 } from "@/hooks/use-company-dashboard";
 import { useUnreadMessages } from "@/hooks/use-company-messages";
-import { ACTION_ROWS, DASH } from "@/lib/dashboard/strings";
+import { ACTION_ROWS } from "@/lib/dashboard/strings";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -77,6 +77,8 @@ function useTimeLabel(): (r: ActionCenterApiRow) => string | null {
 
 export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
   const t = useTranslations("web.panel.shell.actionCenter");
+  // Satır cümleleri PAYLAŞILAN haritada (Şirketim › Bekleyen İşler aynı anahtarları okur).
+  const tRow = useTranslations("web.panel.shell.actionRows");
   const timeLabel = useTimeLabel();
   const query = useActionCenter(portal);
   const unread = useUnreadMessages(portal);
@@ -126,12 +128,12 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
       aria-label={t("aksiyonMerkezi")}
     >
       <h2 className="border-b border-slate-100 px-5 py-3 text-sm font-medium text-slate-500">
-        {DASH.actionTitle}
+        {t("bekleyenIsler")}
       </h2>
       {known.length === 0 ? (
         <p className="flex items-center gap-2 px-5 py-4 text-sm text-slate-500">
           <CheckCircle2 className="h-4 w-4 text-emerald-500" aria-hidden />
-          {DASH.actionEmpty}
+          {t("bekleyenBirIsinizYok")}
         </p>
       ) : (
         <>
@@ -147,7 +149,7 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
                 <li key={r.key}>
                   <Link
                     href={tx.href}
-                    aria-label={`${r.count} ${tx.text}${time ? ` — ${time}` : ""}`}
+                    aria-label={`${r.count} ${tRow(tx.textKey as never)}${time ? ` — ${time}` : ""}`}
                     className="group flex items-center gap-3 px-5 py-3 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:bg-slate-50"
                   >
                     <span
@@ -163,7 +165,7 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
                       <strong className="font-semibold tabular-nums text-slate-950">
                         {r.count}
                       </strong>{" "}
-                      <span className="group-hover:text-slate-950">{tx.text}</span>
+                      <span className="group-hover:text-slate-950">{tRow(tx.textKey as never)}</span>
                       {time ? (
                         <span
                           className={cn(
@@ -194,7 +196,7 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
               onClick={() => setExpanded((v) => !v)}
               className="w-full border-t border-slate-100 px-5 py-2.5 text-left text-xs font-semibold text-slate-500 transition hover:bg-slate-50 hover:text-slate-800"
             >
-              {expanded ? DASH.actionShowLess : DASH.actionShowAll(known.length)}
+              {expanded ? t("dahaAzGoster") : t("tumunuGor", { n: known.length })}
             </button>
           ) : null}
         </>
@@ -219,6 +221,8 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
  */
 export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
   const t = useTranslations("web.panel.shell.actionCenter");
+  // Satır cümleleri PAYLAŞILAN haritada (Şirketim › Bekleyen İşler aynı anahtarları okur).
+  const tRow = useTranslations("web.panel.shell.actionRows");
   const timeLabel = useTimeLabel();
   const query = useActionCenter(portal);
   const unread = useUnreadMessages(portal);
@@ -252,20 +256,20 @@ export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
   if (known.length === 0) return null;
 
   return (
-    <section aria-label={DASH.actionTitle} className="space-y-3">
+    <section aria-label={t("bekleyenIsler")} className="space-y-3">
       <div className="flex flex-wrap items-center gap-2">
         <span className="text-xs font-semibold tracking-wide text-zinc-400 uppercase">
-          {DASH.actionTitle}
+          {t("bekleyenIsler")}
         </span>
         {known.slice(0, 5).map((r) => {
           const meta = SEVERITY_META[r.severity];
-          const t = texts[r.key]!;
+          const row = texts[r.key]!;
           const time = timeLabel(r);
           return (
             <Link
               key={r.key}
-              href={t.href}
-              title={time ? `${t.text} — ${time}` : t.text}
+              href={row.href}
+              title={time ? `${tRow(row.textKey as never)} — ${time}` : tRow(row.textKey as never)}
               className={cn(
                 "group inline-flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1.5 text-sm font-medium ring-1 ring-inset transition",
                 r.severity === "critical"
@@ -284,7 +288,7 @@ export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
                 <meta.icon className="h-3.5 w-3.5" aria-hidden />
               </span>
               <span className="tabular-nums font-semibold">{r.count}</span>
-              <span className="font-normal">{t.text}</span>
+              <span className="font-normal">{tRow(row.textKey as never)}</span>
             </Link>
           );
         })}

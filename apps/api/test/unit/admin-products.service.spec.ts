@@ -1,3 +1,4 @@
+import { tApi } from "../../src/common/i18n/i18n.service";
 import { BadRequestException } from "@nestjs/common";
 import { AdminProductsService } from "../../src/modules/admin-companies/admin-products.service";
 
@@ -68,8 +69,12 @@ describe("AdminProductsService", () => {
     expect(data).toMatchObject({ reviewStatus: "APPROVED", isPublic: true, reviewedByAdminId: "admin1", rejectReason: null });
     expect(data.publishedAt).toBeInstanceOf(Date);
     expect(audit.log.mock.calls[0][0]).toMatchObject({ action: "admin.product.approved", critical: true, tenantId: "c1" });
-    expect(companies.notifyCompany.mock.calls[0][1]).toBe("Ürününüz yayına alındı");
-    expect(companies.notifyCompany.mock.calls[0][4]).toEqual({ label: "Ürünü gör", path: "/firma/acme/urun/dirsek" });
+    // Metin ANAHTAR olarak geçer (alıcının diliyle üretilir); sözleşme Türkçe
+    // karşılığın DEĞİŞMEMESİ — katalogdan çözüp eski dizeyle karşılaştırıyoruz.
+    const approved = companies.notifyCompany.mock.calls[0][1];
+    expect(tApi(approved.subjectKey)).toBe("Ürününüz yayına alındı");
+    expect(tApi(approved.cta.labelKey)).toBe("Ürünü gör");
+    expect(approved.cta.path).toBe("/firma/acme/urun/dirsek");
     expect(seo.productChanged).toHaveBeenCalledWith("i1");
   });
 
@@ -78,7 +83,7 @@ describe("AdminProductsService", () => {
     const { svc, prisma, companies } = rig({ ...BASE, isPublic: true, publishedAt: pub });
     await svc.approve("i1", "admin1");
     expect(prisma.companyItem.updateMany.mock.calls[0][0].data.publishedAt).toBe(pub);
-    expect(companies.notifyCompany.mock.calls[0][1]).toBe("Ürün güncellemeniz onaylandı");
+    expect(tApi(companies.notifyCompany.mock.calls[0][1].subjectKey)).toBe("Ürün güncellemeniz onaylandı");
   });
 
   it("reject: gerekçe yazılır, yayındaysa vitrinden çekilir ve SEO tazelenir; taslakta SEO çağrılmaz", async () => {
@@ -86,13 +91,18 @@ describe("AdminProductsService", () => {
     await a.svc.reject("i1", "  Görseller ürüne ait değil  ", "admin1");
     expect(a.prisma.companyItem.updateMany.mock.calls[0][0].data).toMatchObject({ reviewStatus: "REJECTED", isPublic: false, rejectReason: "Görseller ürüne ait değil" });
     expect(a.seo.productChanged).toHaveBeenCalled();
-    expect(a.companies.notifyCompany.mock.calls[0][1]).toBe("Ürününüzde düzeltme istendi");
-    expect(a.companies.notifyCompany.mock.calls[0][2].join(" ")).toContain("vitrinden çekildi");
+    const rejected = a.companies.notifyCompany.mock.calls[0][1];
+    expect(tApi(rejected.subjectKey)).toBe("Ürününüzde düzeltme istendi");
+    expect(
+      rejected.paragraphKeys.map((k: string) => tApi(k as never, rejected.params)).join(" "),
+    ).toContain("vitrinden çekildi");
 
     const b = rig(BASE);
     await b.svc.reject("i1", "Açıklama yetersiz kalmış", "admin1");
     expect(b.seo.productChanged).not.toHaveBeenCalled();
-    expect(b.companies.notifyCompany.mock.calls[0][4]).toEqual({ label: "Düzelt ve yeniden gönder", path: "/company/satis/urunlerim?sekme=rejected" });
+    const draftRejected = b.companies.notifyCompany.mock.calls[0][1];
+    expect(tApi(draftRejected.cta.labelKey)).toBe("Düzelt ve yeniden gönder");
+    expect(draftRejected.cta.path).toBe("/company/satis/urunlerim?sekme=rejected");
   });
 
   it("yalnız PENDING karar alır; yarışta (count=0) 400", async () => {
@@ -149,7 +159,8 @@ describe("AdminProductsService", () => {
       expect(r.seo.productChanged).toHaveBeenCalledTimes(3);
       // 50 ürün onaylayıp firmaya 50 e-posta atmak spam olurdu.
       expect(r.companies.notifyCompany).toHaveBeenCalledTimes(1);
-      expect(r.companies.notifyCompany.mock.calls[0][1]).toBe("3 ürününüz yayına alındı");
+      const bulk = r.companies.notifyCompany.mock.calls[0][1];
+      expect(tApi(bulk.subjectKey, bulk.params)).toBe("3 ürününüz yayına alındı");
     });
 
     it("iki firmanın ürünü → firma başına AYRI bildirim", async () => {

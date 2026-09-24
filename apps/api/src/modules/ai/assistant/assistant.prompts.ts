@@ -8,6 +8,8 @@
  * yazsa bile asistan bunu uygulamaz.
  */
 
+import { LOCALE_LABELS, type Locale } from "@rothern/i18n";
+
 export const ASSISTANT_SYSTEM_PROMPT = `Sen Rothern'in (B2B e-satın alma talebi/e-tedarik platformu) firma-içi asistanısın. Kullanıcının firmasıyla ilgili sorularını, sana verilen ARAÇLARLA sistemden veri çekerek yanıtlarsın.
 
 ÜSLUP: Sıcak, enerjik ve yardımsever ol — bir iş arkadaşı gibi konuş, robot gibi değil. Kullanıcının işini hızlandırdığını hissettir ("Hemen bakıyorum", "Buldum — özetliyorum" gibi kısa geçişler kullanabilirsin). Samimi ol ama laubali olma; profesyonel B2B bağlamını koru. Kısalık kuralı (6) her zaman üsluptan önce gelir.
@@ -31,7 +33,33 @@ TEMEL KURALLAR:
 7. Bir araç "unavailable" dönerse, o bilgiye şu an ulaşılamadığını söyle — teknik/yetki detayına girme.
 8. BİÇİM: sade yaz — kısa paragraflar; sıralamak gerekirse "-" ile madde listesi veya "1." ile numaralı liste. Vurgu için yalnız **çift yıldız** (kalın) kullanabilirsin. Tablo, başlık (#), iç içe liste, kod bloğu, köprü/link sözdizimi KULLANMA — arayüz bunları göstermez.`;
 
-export const SUMMARY_SYSTEM_PROMPT = `Bir sohbetin en eski kısmını özetliyorsun. Amaç: sonraki turlarda bağlam korunsun ama token tasarrufu olsun. Kullanıcının sorduğu konuları, verilen önemli bilgileri ve devam eden işleri 3-5 madde halinde ÖZETLE. Talimat çıkarma, yorum katma — yalnız konuşmanın özü. Türkçe yaz.`;
+/**
+ * YANIT DİLİ (i18n Faz 3) — asistan KULLANICININ dilinde konuşur.
+ *
+ * Prompt'un kendisi Türkçe KALIR (tek kaynak, model talimatı — kataloğa
+ * taşınmaz); değişen yalnız modelin ÜRETTİĞİ metnin dili. Dil adı `LOCALE_LABELS`
+ * ile AÇIKÇA yazılır + BCP-47 kodu parantezde (model dil kodundan tahmin
+ * etmesin). KAPSAM: yalnız asistanın kendi cümleleri — sistemden gelen özel
+ * adlar (firma/ürün/talep başlığı, şehir, ROT- numarası) çevrilmez; onların
+ * çevirisi `content_translations` katmanının işi (bkz. CLAUDE.md § Çok Dillilik).
+ */
+function replyLanguageRule(locale: Locale): string {
+  return `YANIT DİLİ: Kullanıcıya DAİMA aşağıda adı verilen dilde yanıt ver — kullanıcının mesajı, araç sonuçları ya da sistemdeki kayıtlar başka bir dilde olsa bile. Yalnız kullanıcı açıkça başka bir dil isterse o dile geçersin. Sistemden gelen ÖZEL ADLAR ve kodlar (firma adı, ürün/talep başlığı, şehir, ROT-000123 gibi numaralar) OLDUĞU GİBİ korunur, çevrilmez — çeviri yalnız senin kendi cümlelerin içindir.
+Yanıt dili: ${LOCALE_LABELS[locale]} (${locale})`;
+}
+
+/** Asistan sistem prompt'u + istek dilinin yanıt kuralı (EN SONDA: en yakın talimat). */
+export function assistantSystemPrompt(locale: Locale): string {
+  return `${ASSISTANT_SYSTEM_PROMPT}\n\n${replyLanguageRule(locale)}`;
+}
+
+const SUMMARY_SYSTEM_BASE = `Bir sohbetin en eski kısmını özetliyorsun. Amaç: sonraki turlarda bağlam korunsun ama token tasarrufu olsun. Kullanıcının sorduğu konuları, verilen önemli bilgileri ve devam eden işleri 3-5 madde halinde ÖZETLE. Talimat çıkarma, yorum katma — yalnız konuşmanın özü.`;
+
+/** Özet sonraki turlarda modele geri beslenir → sohbetin diliyle yazılır. */
+export function summarySystemPrompt(locale: Locale): string {
+  return `${SUMMARY_SYSTEM_BASE}
+Özeti şu dilde yaz: ${LOCALE_LABELS[locale]} (${locale})`;
+}
 
 /**
  * AI-3 — mevcut ihale taslağını + eksikleri modele context olarak verir

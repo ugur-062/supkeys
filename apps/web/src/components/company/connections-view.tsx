@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { tierAtLeast } from "@rothern/shared";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -50,6 +51,7 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { accentForPortal } from "@/components/ui/button-accent";
 import { marketCompaniesPath } from "@/lib/company/panel-market";
+import { useCityLabel } from "@/i18n/domain";
 import type { PortalKey } from "@/lib/company/portals";
 import {
   BadgeCheck,
@@ -89,6 +91,7 @@ import { toast } from "sonner";
  * İzinsiz üye (connections:manage yok) her şeyi salt-okunur görür.
  */
 export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }) {
+  const t = useTranslations("web.panel.company.connectionsView");
   const self = useConnectionSelf();
   const connections = useConnections();
   const incoming = useIncomingInvites();
@@ -148,9 +151,9 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
   const handleRespond = async (connectionId: string, action: "accept" | "reject") => {
     try {
       await respond.mutateAsync({ connectionId, action });
-      toast.success(action === "accept" ? "Bağlantı kuruldu" : "İstek reddedildi");
+      toast.success(action === "accept" ? t("baglantiKuruldu") : t("istekReddedildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İşlem başarısız"));
+      toast.error(extractErrorMessage(err, t("islemBasarisiz")));
     }
   };
 
@@ -172,9 +175,9 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
     view === "incoming" ? incoming.isLoading : view === "pending" ? outgoing.isLoading : connections.isLoading;
 
   const VIEWS: { key: View; label: string; count: number; attention?: boolean; icon: typeof Users }[] = [
-    { key: "mine", label: "Bağlantılarım", count: connCount, icon: Users },
-    { key: "incoming", label: "Gelen istekler", count: incomingRows.length, attention: true, icon: Inbox },
-    { key: "pending", label: "Bekleyenler", count: pendingCount, icon: Clock },
+    { key: "mine", label: t("baglantilarim"), count: connCount, icon: Users },
+    { key: "incoming", label: t("gelenIstekler"), count: incomingRows.length, attention: true, icon: Inbox },
+    { key: "pending", label: t("bekleyenler"), count: pendingCount, icon: Clock },
   ];
   /* PORTAL RENGİ (2026-09-18, kullanıcı: "hangi paneldeyse o renge uyumlu"):
      başlık ikonu, seçili görünüm çipi ve "Bağlı" pili portal tonunda —
@@ -194,29 +197,28 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
             <Users className="size-6" strokeWidth={1.75} />
           </span>
           <div className="min-w-0">
-          <Heading>Bağlantılar</Heading>
+          <Heading>{t("baglantilar")}</Heading>
           <Text className="mt-1 max-w-2xl text-sm text-zinc-500">
-            Birlikte çalıştığınız firmalar. Bağlantılı firmalar özel taleplerinizi görür, size
-            mesaj atar ve doğrulama şartı olmadan teklif verir.
+            {t("birlikteCalistiginizFirmalarBaglantiliFirmal")}
           </Text>
           {/* Rothern ID — tek sessiz satır; başka firmalar sizi bununla bulur. */}
           <div className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
-            <span>Rothern ID:</span>
+            <span>{t("rothernId")}</span>
             <span className="rounded-md bg-zinc-100 px-2 py-0.5 tabular-nums font-semibold text-zinc-900">{rothernId ?? "—"}</span>
             {rothernId ? (
               <button
                 type="button"
                 onClick={copyId}
-                aria-label="Rothern ID'yi kopyala"
+                aria-label={t("rothernIdYiKopyala")}
                 className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-xs font-medium text-zinc-600 hover:bg-zinc-100 hover:text-zinc-950"
               >
                 {copied ? (
                   <>
-                    <Check className="size-3.5 text-emerald-600" /> Kopyalandı
+                    <Check className="size-3.5 text-emerald-600" /> {t("kopyalandi")}
                   </>
                 ) : (
                   <>
-                    <Copy className="size-3.5" /> Kopyala
+                    <Copy className="size-3.5" /> {t("kopyala")}
                   </>
                 )}
               </button>
@@ -227,12 +229,12 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
         <div className="flex shrink-0 flex-wrap items-center gap-2">
           <Button outline href={marketCompaniesPath(portal)}>
             <Search data-slot="icon" />
-            Firma bul
+            {t("firmaBul")}
           </Button>
           {isPaid && canManageConn ? (
             <Button onClick={() => setInviteOpen(true)}>
               <MailPlus data-slot="icon" />
-              Davet et
+              {t("davetEt")}
             </Button>
           ) : null}
         </div>
@@ -241,21 +243,21 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
       {/* ARAMA + GÖRÜNÜM ÇİPLERİ + TABLO — tek liste, panelin diğer
           listeleriyle aynı kalıp (durum süzgeci çipleri). */}
       <section aria-labelledby="baglantilar-liste" className="space-y-3">
-        <h2 id="baglantilar-liste" className="sr-only">Bağlantı listesi</h2>
+        <h2 id="baglantilar-liste" className="sr-only">{t("baglantiListesi")}</h2>
         <InputGroup>
           <MagnifyingGlassIcon />
           <Input
-            aria-label="Bağlantılarımda ara"
+            aria-label={t("baglantilarimdaAra")}
             value={connQ}
             onChange={(e) => {
               setConnQ(e.target.value);
               setShown(PAGE);
               if (view !== "mine") setView("mine");
             }}
-            placeholder="Firma adı, Rothern ID, sektör veya şehir"
+            placeholder={t("firmaAdiRothernIdSektor")}
           />
         </InputGroup>
-        <div role="group" aria-label="Görünüm" className="flex flex-wrap gap-2">
+        <div role="group" aria-label={t("gorunum")} className="flex flex-wrap gap-2">
           {VIEWS.map((v) => {
             const on = view === v.key;
             return (
@@ -298,20 +300,20 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
         ) : rows.length === 0 ? (
           view === "mine" && connCount === 0 ? (
             <EmptyBox
-              title="Henüz bağlantınız yok"
-              desc="Anasayfadan firma bulup bağlantı isteği gönderin ya da e-posta ile davet edin."
+              title={t("henuzBaglantinizYok")}
+              desc={t("anasayfadanFirmaBulupBaglantiIstegi")}
               action={
                 <Button outline href={marketCompaniesPath(portal)}>
-                  Firma bul
+                  {t("firmaBul")}
                 </Button>
               }
             />
           ) : view === "mine" ? (
-            <EmptyBox title="Eşleşen bağlantı yok" desc={`"${connQ}" ile eşleşen bağlantınız bulunamadı.`} />
+            <EmptyBox title={t("eslesenBaglantiYok")} desc={t("ileEslesenBaglantinizBulunamadi", { connQ: connQ })} />
           ) : view === "incoming" ? (
-            <EmptyBox title="Bekleyen istek yok" desc="Size gönderilen bağlantı istekleri burada görünür." />
+            <EmptyBox title={t("bekleyenIstekYok")} desc={t("sizeGonderilenBaglantiIstekleriBurada")} />
           ) : (
-            <EmptyBox title="Bekleyen isteğiniz yok" desc="Gönderdiğiniz istek ve davetler yanıtlanana dek burada durur." />
+            <EmptyBox title={t("bekleyenIsteginizYok")} desc={t("gonderdiginizIstekVeDavetlerYanitlanana")} />
           )
         ) : (
           <>
@@ -319,10 +321,10 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
               <Table dense>
                 <TableHead>
                   <TableRow>
-                    <TableHeader className={TH}>Firma</TableHeader>
-                    <TableHeader className={cn(TH, "hidden md:table-cell")}>Sektör · Şehir</TableHeader>
-                    <TableHeader className={cn(TH, "hidden sm:table-cell")}>Durum</TableHeader>
-                    <TableHeader className={cn(TH, "text-right")}>İşlemler</TableHeader>
+                    <TableHeader className={TH}>{t("firma")}</TableHeader>
+                    <TableHeader className={cn(TH, "hidden md:table-cell")}>{t("sektorSehir")}</TableHeader>
+                    <TableHeader className={cn(TH, "hidden sm:table-cell")}>{t("durum")}</TableHeader>
+                    <TableHeader className={cn(TH, "text-right")}>{t("islemler")}</TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -342,10 +344,10 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
             {rows.length > shown ? (
               <div className="flex items-center justify-between gap-3 text-sm text-zinc-500">
                 <span>
-                  {Math.min(shown, rows.length)} / {rows.length} gösteriliyor
+                  {t("gosteriliyor", { min: Math.min(shown, rows.length), length: rows.length })}
                 </span>
                 <Button outline onClick={() => setShown((n) => n + PAGE)}>
-                  Daha fazla göster
+                  {t("dahaFazlaGoster")}
                 </Button>
               </div>
             ) : null}
@@ -378,7 +380,9 @@ function CompanyLine({
   /** Ray kartlarında küçük avatar. */
   compact?: boolean;
 }) {
-  const meta = [c.industry, c.city].filter(Boolean).join(" · ");
+  const t = useTranslations("web.panel.company.connectionsView");
+  const cityLabel = useCityLabel();
+  const meta = [c.industry, cityLabel(c.city)].filter(Boolean).join(" · ");
   const size = compact ? "sm" : "md";
   const inner = (
     <>
@@ -393,10 +397,10 @@ function CompanyLine({
           {c.verified ? (
             <span
               className="inline-flex items-center rounded-full bg-emerald-50 px-1.5 py-0.5 text-[10px] font-semibold text-emerald-700 ring-1 ring-emerald-600/20 ring-inset"
-              title="Kimliği doğrulanmış firma"
+              title={t("kimligiDogrulanmisFirma")}
             >
               <BadgeCheck aria-hidden className="mr-0.5 size-3" />
-              Doğrulanmış
+              {t("dogrulanmis")}
             </span>
           ) : null}
         </div>
@@ -431,12 +435,14 @@ function ConnectionTableRow({
   onRespond: (connectionId: string, action: "accept" | "reject") => Promise<void>;
   respondBusy: boolean;
 }) {
+  const t = useTranslations("web.panel.company.connectionsView");
   const disconnect = useDisconnect();
   const block = useBlockCompany();
   const complaint = useFileComplaint();
   const cancelReferral = useCancelReferralInvite();
   const confirmDialog = useConfirm();
   const [complaintOpen, setComplaintOpen] = useState(false);
+  const cityLabel = useCityLabel();
 
   if (row.kind === "referral") {
     return (
@@ -448,13 +454,13 @@ function ConnectionTableRow({
             </span>
             <div className="min-w-0">
               <div className="truncate text-sm font-semibold text-zinc-900">{row.email}</div>
-              <div className="truncate text-xs text-zinc-500">Kaydolunca otomatik bağlanır</div>
+              <div className="truncate text-xs text-zinc-500">{t("kaydoluncaOtomatikBaglanir")}</div>
             </div>
           </div>
         </TableCell>
         <TableCell className="hidden text-sm text-zinc-500 md:table-cell">—</TableCell>
         <TableCell className="hidden sm:table-cell">
-          <Badge color="zinc">E-posta daveti</Badge>
+          <Badge color="zinc">{t("ePostaDaveti")}</Badge>
         </TableCell>
         <TableCell className="text-right">
           {canManage ? (
@@ -464,13 +470,13 @@ function ConnectionTableRow({
               onClick={async () => {
                 try {
                   await cancelReferral.mutateAsync(row.id);
-                  toast.success("Davet iptal edildi");
+                  toast.success(t("davetIptalEdildi"));
                 } catch (err) {
-                  toast.error(extractErrorMessage(err, "İptal edilemedi"));
+                  toast.error(extractErrorMessage(err, t("iptalEdilemedi")));
                 }
               }}
             >
-              İptal et
+              {t("iptalEt")}
             </Button>
           ) : null}
         </TableCell>
@@ -479,38 +485,38 @@ function ConnectionTableRow({
   }
 
   const c = row.company;
-  const meta = [c.industry, c.city].filter(Boolean).join(" · ");
+  const meta = [c.industry, cityLabel(c.city)].filter(Boolean).join(" · ");
 
   const handleDisconnect = async () => {
     const ok = await confirmDialog({
-      title: "Bağlantı kaldırılsın mı?",
-      description: `"${c.name}" ile bağlantınız kaldırılacak.`,
-      confirmLabel: "Kaldır",
+      title: t("baglantiKaldirilsinMi"),
+      description: t("ileBaglantinizKaldirilacak", { name: c.name }),
+      confirmLabel: t("kaldir"),
       destructive: true,
     });
     if (!ok) return;
     try {
       await disconnect.mutateAsync(row.id);
-      toast.success("Bağlantı kaldırıldı");
+      toast.success(t("baglantiKaldirildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Bağlantı kaldırılamadı"));
+      toast.error(extractErrorMessage(err, t("baglantiKaldirilamadi")));
     }
   };
 
   const handleBlock = async () => {
     if (!c.rothernId) return;
     const ok = await confirmDialog({
-      title: "Firma engellensin mi?",
-      description: `"${c.name}" sizi göremez ve sizinle işlem yapamaz.`,
-      confirmLabel: "Engelle",
+      title: t("firmaEngellensinMi"),
+      description: t("siziGoremezVeSizinleIslem", { name: c.name }),
+      confirmLabel: t("engelle"),
       destructive: true,
     });
     if (!ok) return;
     try {
       await block.mutateAsync({ rothernId: c.rothernId });
-      toast.success("Firma engellendi");
+      toast.success(t("firmaEngellendi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Engellenemedi"));
+      toast.error(extractErrorMessage(err, t("engellenemedi")));
     }
   };
 
@@ -518,10 +524,10 @@ function ConnectionTableRow({
     if (!c.rothernId || reason.trim().length < 3) return;
     try {
       await complaint.mutateAsync({ rothernId: c.rothernId, reason: reason.trim() });
-      toast.success("Şikayet gönderildi");
+      toast.success(t("sikayetGonderildi"));
       setComplaintOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Şikayet gönderilemedi"));
+      toast.error(extractErrorMessage(err, t("sikayetGonderilemedi")));
     }
   };
 
@@ -535,12 +541,12 @@ function ConnectionTableRow({
         {row.kind === "mine" ? (
           <span className="inline-flex items-center gap-1.5 rounded-full bg-emerald-50 px-2.5 py-1 text-xs font-semibold text-emerald-700 ring-1 ring-emerald-600/15 ring-inset">
             <span aria-hidden className="size-1.5 rounded-full bg-emerald-600" />
-            Bağlı
+            {t("bagli")}
           </span>
         ) : row.kind === "incoming" ? (
-          <Badge color="amber">İstek geldi</Badge>
+          <Badge color="amber">{t("istekGeldi")}</Badge>
         ) : (
-          <Badge color="zinc">İstek gönderildi</Badge>
+          <Badge color="zinc">{t("istekGonderildi")}</Badge>
         )}
       </TableCell>
       <TableCell className="text-right">
@@ -549,10 +555,10 @@ function ConnectionTableRow({
             canManage ? (
               <>
                 <Button onClick={() => onRespond(row.id, "accept")} disabled={respondBusy}>
-                  Kabul et
+                  {t("kabulEt")}
                 </Button>
                 <Button plain onClick={() => onRespond(row.id, "reject")} disabled={respondBusy}>
-                  Reddet
+                  {t("reddet")}
                 </Button>
               </>
             ) : null
@@ -564,38 +570,38 @@ function ConnectionTableRow({
                 onClick={async () => {
                   try {
                     await disconnect.mutateAsync(row.id);
-                    toast.success("İstek geri çekildi");
+                    toast.success(t("istekGeriCekildi"));
                   } catch (err) {
-                    toast.error(extractErrorMessage(err, "Geri çekilemedi"));
+                    toast.error(extractErrorMessage(err, t("geriCekilemedi")));
                   }
                 }}
               >
-                Geri çek
+                {t("geriCek")}
               </Button>
             ) : null
           ) : (
             <>
               <Button outline href={`/company/mesajlar?with=${c.id}&portal=${portal}`}>
                 <MessageSquare data-slot="icon" />
-                Mesaj
+                {t("mesaj")}
               </Button>
               {canManage ? (
                 <Dropdown>
-                  <DropdownButton plain aria-label="Daha fazla">
+                  <DropdownButton plain aria-label={t("dahaFazla")}>
                     <MoreVertical className="size-5" />
                   </DropdownButton>
                   <DropdownMenu anchor="bottom end">
                     <DropdownItem onClick={handleDisconnect} disabled={disconnect.isPending}>
                       <Unlink data-slot="icon" />
-                      Bağlantıyı kaldır
+                      {t("baglantiyiKaldir")}
                     </DropdownItem>
                     <DropdownItem onClick={handleBlock} disabled={block.isPending}>
                       <Ban data-slot="icon" />
-                      Engelle
+                      {t("engelle")}
                     </DropdownItem>
                     <DropdownItem onClick={() => setComplaintOpen(true)} disabled={complaint.isPending}>
                       <Flag data-slot="icon" />
-                      Şikayet et
+                      {t("sikayetEt")}
                     </DropdownItem>
                   </DropdownMenu>
                 </Dropdown>
@@ -610,9 +616,9 @@ function ConnectionTableRow({
             open
             onClose={() => setComplaintOpen(false)}
             onSubmit={submitComplaint}
-            title="Şikayet Et"
-            description={`"${c.name}" hakkındaki şikayetiniz platform yönetimine iletilir.`}
-            confirmLabel="Şikayeti Gönder"
+            title={t("sikayetEt2")}
+            description={t("hakkindakiSikayetinizPlatformYonetimineIleti", { name: c.name })}
+            confirmLabel={t("sikayetiGonder")}
             minLength={3}
             destructive
             pending={complaint.isPending}
@@ -640,6 +646,7 @@ function EmptyBox({ title, desc, action }: { title: string; desc: string; action
  * (en fazla 50, adres başına sonuç raporu).
  */
 function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const t = useTranslations("web.panel.company.connectionsView");
   const single = useInviteByEmail();
   const batch = useInviteByEmailBatch();
   const [raw, setRaw] = useState("");
@@ -673,21 +680,22 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
         const res = await single.mutateAsync(parsed.valid[0] as string);
         toast.success(
           res.kind === "request"
-            ? `"${res.targetName}" zaten kayıtlı — bağlantı isteği gönderildi`
-            : `${res.email} adresine davet e-postası gönderildi`,
+            ? t("zatenKayitliBaglantiIstegiGonderildi", { targetName: res.targetName ?? "" })
+            : t("adresineDavetEPostasiGonderildi", { email: res.email ?? parsed.valid[0] ?? "" }),
         );
         close();
         return;
       }
       const res = await batch.mutateAsync(parsed.valid);
       setResult(res);
+      const sent = res.summary.request + res.summary.invited;
       toast.success(
-        `${res.summary.request + res.summary.invited} davet gönderildi${
-          res.summary.skipped ? `, ${res.summary.skipped} atlandı` : ""
-        }`,
+        res.summary.skipped
+          ? t("davetGonderildiAtlandi", { n: sent, skipped: res.summary.skipped })
+          : t("davetGonderildi", { n: sent }),
       );
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Davet gönderilemedi"));
+      toast.error(extractErrorMessage(err, t("davetGonderilemedi")));
     }
   };
 
@@ -698,17 +706,16 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
   };
 
   const STATUS_PILL: Record<"request" | "invited" | "skipped", { label: string; cls: string }> = {
-    request: { label: "İstek gönderildi", cls: "bg-blue-50 text-blue-700 ring-blue-200" },
-    invited: { label: "Davet e-postası gitti", cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-    skipped: { label: "Atlandı", cls: "bg-zinc-100 text-zinc-600 ring-zinc-200" },
+    request: { label: t("istekGonderildi"), cls: "bg-blue-50 text-blue-700 ring-blue-200" },
+    invited: { label: t("davetEPostasiGitti"), cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+    skipped: { label: t("atlandi"), cls: "bg-zinc-100 text-zinc-600 ring-zinc-200" },
   };
 
   return (
     <Dialog open={open} onClose={() => !pending && close()} size="lg">
-      <DialogTitle>Davet et</DialogTitle>
+      <DialogTitle>{t("davetEt")}</DialogTitle>
       <DialogDescription>
-        Firmanın e-postasını yazın. Kayıtlıysa bağlantı isteği gider, değilse davet e-postası;
-        kaydolunca kalıcı bağlanırsınız. Birden çok adres için her satıra bir adres (en fazla 50).
+        {t("firmaninEPostasiniYazinKayitliysa")}
       </DialogDescription>
       <DialogBody className="space-y-3">
         {!result ? (
@@ -716,20 +723,20 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
             <Textarea
               rows={4}
               autoFocus
-              aria-label="Davet edilecek e-posta adresleri"
+              aria-label={t("davetEdilecekEPostaAdresleri")}
               value={raw}
               onChange={(e) => setRaw(e.target.value)}
-              placeholder={"ornek@firma.com"}
+              placeholder={t("ornekFirmaCom")}
             />
             <div className="flex flex-wrap items-center gap-2 text-xs">
               {parsed.valid.length > 1 ? (
                 <span className={overLimit ? "font-semibold text-red-600" : "text-zinc-500"}>
-                  {parsed.valid.length}/50 adres
+                  {t("adres", { n: parsed.valid.length, max: 50 })}
                 </span>
               ) : null}
               {parsed.invalid.length > 0 ? (
                 <span className="text-amber-700">
-                  {parsed.invalid.length} geçersiz adres yok sayılacak
+                  {t("gecersizAdresYokSayilacak", { length: parsed.invalid.length })}
                 </span>
               ) : null}
             </div>
@@ -761,15 +768,15 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
       </DialogBody>
       <DialogActions>
         <Button plain onClick={close} disabled={pending}>
-          {result ? "Kapat" : "Vazgeç"}
+          {result ? t("kapat") : t("vazgec")}
         </Button>
         {!result ? (
           <Button onClick={submit} disabled={pending || parsed.valid.length === 0 || overLimit}>
             {pending
-              ? "Gönderiliyor…"
+              ? t("gonderiliyor")
               : parsed.valid.length > 1
-                ? `${parsed.valid.length} adrese davet gönder`
-                : "Davet gönder"}
+                ? t("adreseDavetGonder", { length: parsed.valid.length })
+                : t("davetGonder")}
           </Button>
         ) : null}
       </DialogActions>

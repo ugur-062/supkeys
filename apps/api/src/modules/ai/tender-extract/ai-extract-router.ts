@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { BadRequestException, Logger } from "@nestjs/common";
 import { fromBuffer as fileTypeFromBuffer } from "file-type";
 import { PDFParse } from "pdf-parse";
@@ -82,13 +83,13 @@ export async function routeExtractInput(
   maxPages: number,
 ): Promise<RoutedInput> {
   if (files.length === 0) {
-    throw new BadRequestException("En az bir dosya gerekli");
+    throw new BadRequestException(i18nMessage("api.ai.enAzBirDosyaGerekli"));
   }
   let totalBytes = 0;
   for (const f of files) {
     if (f.buffer.length > MAX_FILE_BYTES) {
       throw new BadRequestException(
-        "Dosya çok büyük (15 MB sınırı) — belgeyi bölerek veya sıkıştırarak deneyin",
+        i18nMessage("api.ai.dosyaCokBuyuk15MbSiniri"),
       );
     }
     totalBytes += f.buffer.length;
@@ -96,7 +97,7 @@ export async function routeExtractInput(
   // Toplam tavan: 20 × 15 MB = 300 MB'lık tek istek kabul edilmemeli.
   if (totalBytes > MAX_TOTAL_INPUT_BYTES) {
     throw new BadRequestException(
-      "Seçilen dosyaların toplam boyutu çok büyük — daha az dosya seçin",
+      i18nMessage("api.ai.secilenDosyalarinToplamBoyutuCokBuyuk"),
     );
   }
 
@@ -120,13 +121,13 @@ export async function routeExtractInput(
   );
   if (unknown.length > 0) {
     throw new BadRequestException(
-      "Desteklenmeyen dosya türü — PDF, fotoğraf (JPG/PNG/WebP/HEIC) veya Excel/CSV yükleyin",
+      i18nMessage("api.ai.desteklenmeyenDosyaTuruPdfFotografJpg"),
     );
   }
   const kinds = [pdfs.length > 0, images.length > 0, sheets.length > 0].filter(Boolean).length;
   if (kinds > 1 || pdfs.length > 1 || sheets.length > 1) {
     throw new BadRequestException(
-      "Tek seferde ya BİR PDF, ya BİR Excel/CSV ya da fotoğraflar yükleyin (karışık gönderilemez)",
+      i18nMessage("api.ai.tekSeferdeYaBirPdfYa"),
     );
   }
 
@@ -140,7 +141,7 @@ export async function routeExtractInput(
   // Fotoğraf yolu — hepsi küçültülür, TEK çağrının çoklu part'ları olur.
   if (images.length > maxPages) {
     throw new BadRequestException(
-      `Belge çok uzun (en fazla ${maxPages} görüntü) — ilgili bölümü seçin`,
+      i18nMessage("api.ai.belgeCokUzunEnFazlaGoruntu", { maxPages: maxPages }),
     );
   }
   const parts: AiInlinePart[] = [];
@@ -181,7 +182,7 @@ async function routeSpreadsheet(
   // (denetim 2026-08-24 Parça 6).
   if (!isXlsx && buffer.length > MAX_CSV_BYTES) {
     throw new BadRequestException(
-      "CSV dosyası çok büyük — ilgili satırları küçük bir dosyada veya .xlsx olarak yükleyin",
+      i18nMessage("api.ai.csvDosyasiCokBuyukIlgiliSatirlari"),
     );
   }
   if (isXlsx) {
@@ -192,8 +193,8 @@ async function routeSpreadsheet(
       if (e instanceof ZipInspectError) {
         throw new BadRequestException(
           e.reason === "corrupt" || e.reason === "zip64"
-            ? "Tablo dosyası okunamadı — .xlsx olarak yeniden kaydedip deneyin"
-            : "Tablo dosyası çok büyük — ilgili sayfayı ayrı, küçük bir dosyada yükleyin",
+            ? i18nMessage("api.ai.tabloDosyasiOkunamadi")
+            : i18nMessage("api.ai.tabloDosyasiCokBuyuk"),
         );
       }
       throw e;
@@ -203,13 +204,13 @@ async function routeSpreadsheet(
     if (isXlsx) await wb.xlsx.load(buffer as unknown as ArrayBuffer);
     else await wb.csv.read(Readable.from(buffer));
   } catch {
-    throw new BadRequestException("Tablo dosyası okunamadı — .xlsx veya .csv olarak kaydedip deneyin");
+    throw new BadRequestException(i18nMessage("api.ai.tabloDosyasiOkunamadiXlsxVeyaCsv"));
   }
   const sheets = wb.worksheets.filter((w) => w.rowCount > 0);
-  if (sheets.length === 0) throw new BadRequestException("Tablo boş görünüyor");
+  if (sheets.length === 0) throw new BadRequestException(i18nMessage("api.ai.tabloBosGorunuyor"));
   if (sheets.length > maxPages) {
     throw new BadRequestException(
-      `Belge çok uzun (en fazla ${maxPages} sayfa) — ilgili sayfaları ayrı dosyada yükleyin`,
+      i18nMessage("api.ai.belgeCokUzunEnFazlaSayfa", { maxPages: maxPages }),
     );
   }
   const chunks: string[] = [];
@@ -231,7 +232,7 @@ async function routeSpreadsheet(
     totalChars += text.length;
     chunks.push(text);
   });
-  if (totalChars < 20) throw new BadRequestException("Tablo boş görünüyor");
+  if (totalChars < 20) throw new BadRequestException(i18nMessage("api.ai.tabloBosGorunuyor"));
   return {
     route: "text",
     documentText: chunks.join("\n\n"),
@@ -268,7 +269,7 @@ async function routePdf(buffer: Buffer, maxPages: number): Promise<RoutedInput> 
     const info = await parser.getInfo();
     if (info.total > maxPages) {
       throw new BadRequestException(
-        `Belge çok uzun (${info.total} sayfa, en fazla ${maxPages}) — ilgili bölümü seçin`,
+        i18nMessage("api.ai.belgeCokUzunSayfaEnFazla", { total: info.total, maxPages: maxPages }),
       );
     }
     const result = await parser.getText();
@@ -285,14 +286,14 @@ async function routePdf(buffer: Buffer, maxPages: number): Promise<RoutedInput> 
       `PDF parse hatası: ${err instanceof Error ? err.message : String(err)}`,
     );
     throw new BadRequestException(
-      "PDF okunamadı — dosya bozuk veya şifreli olabilir",
+      i18nMessage("api.ai.pdfOkunamadiDosyaBozukVeyaSifreli"),
     );
   } finally {
     await parser.destroy().catch(() => undefined);
   }
   if (pages > maxPages) {
     throw new BadRequestException(
-      `Belge çok uzun (${pages} sayfa, en fazla ${maxPages}) — ilgili bölümü seçin`,
+      i18nMessage("api.ai.belgeCokUzunSayfaEnFazla2", { pages: pages, maxPages: maxPages }),
     );
   }
 

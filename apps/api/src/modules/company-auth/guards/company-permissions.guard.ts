@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   CanActivate,
   ExecutionContext,
@@ -27,10 +28,10 @@ export class CompanyPermissionsGuard implements CanActivate {
 
     const req = context.switchToHttp().getRequest();
     const user = req.user as AuthenticatedCompanyUser | undefined;
-    if (!user) throw new ForbiddenException("Yetkisiz");
+    if (!user) throw new ForbiddenException(i18nMessage("api.companyAuth.yetkisiz"));
 
     if (!hasCompanyPermission(user, required)) {
-      throw new ForbiddenException("Bu işlem için yetkiniz yok");
+      throw new ForbiddenException(i18nMessage("api.companyAuth.buIslemIcinYetkinizYok"));
     }
     return true;
   }

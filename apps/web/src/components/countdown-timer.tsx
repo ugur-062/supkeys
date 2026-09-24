@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useNow } from "@/hooks/use-now";
 import { cn } from "@/lib/utils";
 import { useMemo } from "react";
@@ -8,7 +9,7 @@ interface CountdownTimerProps {
   /** ISO datetime string */
   deadline: string;
   className?: string;
-  /** Süre dolduğunda gösterilecek metin */
+  /** Süre dolduğunda gösterilecek metin (verilmezse katalogdan). */
   expiredLabel?: string;
 }
 
@@ -33,14 +34,6 @@ function parts(deadline: Date, now: Date = new Date()): Parts {
   return { days, hours, minutes, seconds, totalMs };
 }
 
-function formatParts(p: Parts): string {
-  if (p.totalMs <= 0) return "Süresi Doldu";
-  if (p.days > 0) return `${p.days} gün ${p.hours} saat`;
-  if (p.hours > 0) return `${p.hours} saat ${p.minutes} dk`;
-  if (p.minutes > 0) return `${p.minutes} dk ${p.seconds} sn`;
-  return `${p.seconds} sn`;
-}
-
 /**
  * Performans audit P-11 — Her instance kendi `setInterval`'ını kurmak yerine
  * paylaşılan `useNow` hook'unu kullanır. Tenders liste sayfasında 20 satır =
@@ -54,8 +47,9 @@ function formatParts(p: Parts): string {
 export function CountdownTimer({
   deadline,
   className,
-  expiredLabel = "Süresi Doldu",
+  expiredLabel,
 }: CountdownTimerProps) {
+  const t = useTranslations("web.panel.shell.countdownTimer");
   const target = useMemo(() => new Date(deadline), [deadline]);
   const initialTotalMs = useMemo(
     () => target.getTime() - Date.now(),
@@ -76,9 +70,21 @@ export function CountdownTimer({
           ? "text-warning-600"
           : "text-zinc-700";
 
+  // En büyük iki birim: "3 gün 4 saat" → "2 saat 15 dk" → "5 dk 30 sn" → "12 sn".
+  const label =
+    p.totalMs <= 0
+      ? (expiredLabel ?? t("suresiDoldu"))
+      : p.days > 0
+        ? t("gunSaat", { days: p.days, hours: p.hours })
+        : p.hours > 0
+          ? t("saatDk", { hours: p.hours, minutes: p.minutes })
+          : p.minutes > 0
+            ? t("dkSn", { minutes: p.minutes, seconds: p.seconds })
+            : t("sn", { seconds: p.seconds });
+
   return (
     <span className={cn("tabular-nums font-semibold", tone, className)}>
-      {p.totalMs <= 0 ? expiredLabel : formatParts(p)}
+      {label}
     </span>
   );
 }

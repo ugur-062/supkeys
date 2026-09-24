@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { ForbiddenException, Injectable, Logger, Optional } from "@nestjs/common";
 import { tierAtLeast } from "@rothern/shared";
 import { createHash } from "node:crypto";
@@ -245,7 +246,7 @@ export class CompanyViewsService {
   /** İş Analizi — Silver+ (Raporlar kapısıyla aynı). Dönem ve önceki dönem karşılaştırmalı. */
   async insights(user: AuthenticatedCompanyUser, opts: { days?: number } = {}) {
     if (!tierAtLeast(user.tier, "SILVER")) {
-      throw new ForbiddenException("İş Analizi Silver ve üzeri paketlerde.");
+      throw new ForbiddenException(i18nMessage("api.companyViews.isAnaliziSilverVeUzeriPaketlerde"));
     }
     const days = clampDays(opts.days);
     const now = new Date();

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { buildOrderPrintHtml } from "../order-print";
+import { buildOrderPrintHtml, type OrderPrintLabels } from "../order-print";
 
 const baseOrder = {
   number: "ORD-2026-0001",
@@ -14,7 +14,24 @@ const baseOrder = {
     { name: "Boru", unit: "adet", quantity: 5, unitPrice: 200, deliveryDate: null },
   ],
 };
-const ctx = { isSeller: false, curSym: "₺", statusLabel: "Onaylandı" };
+/* i18n Faz 2: etiketler PARAMETRE (saf fonksiyon hook çağıramaz) — katalog
+   `web.panel.trade.siparisIdPage.print.*`, burada Türkçe kaynak değerleri. */
+const labels: OrderPrintLabels = {
+  order: "Sipariş",
+  buyer: "Alıcı",
+  seller: "Satıcı",
+  request: "Satın Alma Talebi",
+  status: "Durum",
+  item: "Kalem",
+  quantity: "Miktar",
+  delivery: "Teslim",
+  unit: "Birim",
+  amount: "Tutar",
+  noItems: "Kalem yok",
+  total: "Toplam",
+  general: "(genel)",
+};
+const ctx = { isSeller: false, curSym: "₺", statusLabel: "Onaylandı", labels, locale: "tr" };
 
 describe("buildOrderPrintHtml — stored XSS escape", () => {
   it("kalem adındaki <img onerror> ÇALIŞMAZ (escape'lenir, metin olur)", () => {

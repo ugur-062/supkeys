@@ -1,9 +1,11 @@
 "use client";
 
-import { TIER_LABELS } from "@/lib/company/labels";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { countryDisplayName, useTierLabel } from "@/i18n/domain";
 import {
   isKycLocked,
-  verificationMeta,
+  useVerificationMeta,
 } from "@/lib/company/verification-status";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -27,7 +29,6 @@ import {
 } from "@/hooks/use-company-profile";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import {
-  countryName,
   getCountryProfile,
   isTurkey,
   maskNationalId,
@@ -105,16 +106,17 @@ function toForm(p: CompanyProfile): FormState {
   };
 }
 
-const COMPANY_TYPE_LABEL: Record<NonNullable<CompanyProfile["companyType"]>, string> = {
-  JOINT_STOCK: "Anonim Şirket",
-  LIMITED: "Limited Şirket",
-  SOLE_PROPRIETOR: "Şahıs Firması",
-};
+/** Hukuki yapı etiketi `companyType.<KOD>` katalog anahtarından çizilir (Anonim / Limited / Şahıs). */
+type CompanyType = NonNullable<CompanyProfile["companyType"]>;
 
 // KEP: backend regex birebir (@...kep.tr).
 const KEP_RE = /^[^@\s]+@[^@\s]+\.kep\.tr$/i;
 
 export function CompanyProfileSection() {
+  const t = useTranslations("web.panel.settings.companyProfileSection");
+  const locale = useLocale() as Locale;
+  const tierLabel = useTierLabel();
+  const verificationMeta = useVerificationMeta();
   const { data: profile, isLoading, isError, refetch } = useCompanyProfile();
   const update = useUpdateCompanyProfile();
 
@@ -156,11 +158,11 @@ export function CompanyProfileSection() {
   // Satır içi doğrulama — backend kurallarıyla aynı (Length(2,200), KEP regex).
   const nameError =
     !kycLocked && form.name.trim().length < 2
-      ? "Firma adı en az 2 karakter olmalı"
+      ? t("firmaAdiEnAz2")
       : null;
   const kepError =
     form.kepAddress.trim().length > 0 && !KEP_RE.test(form.kepAddress.trim())
-      ? "Geçerli bir KEP adresi giriniz (…@…kep.tr)"
+      ? t("gecerliBirKepAdresiGiriniz")
       : null;
   const hasError = Boolean(nameError || kepError);
 
@@ -168,9 +170,9 @@ export function CompanyProfileSection() {
     if (hasError || !dirty) return;
     try {
       await update.mutateAsync(changed as CompanyProfileUpdate);
-      toast.success("Firma bilgileri güncellendi");
+      toast.success(t("firmaBilgileriGuncellendi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Güncellenemedi"));
+      toast.error(extractErrorMessage(err, t("guncellenemedi")));
     }
   };
 
@@ -180,19 +182,19 @@ export function CompanyProfileSection() {
         role="alert"
         className="rounded-xl border border-rose-200 bg-rose-50/60 px-4 py-3 text-sm text-rose-800"
       >
-        Firma bilgileri yüklenemedi.{" "}
+        {t("firmaBilgileriYuklenemedi")}{" "}
         <button
           type="button"
           onClick={() => void refetch()}
           className="font-semibold underline underline-offset-2"
         >
-          Yeniden dene
+          {t("yenidenDene")}
         </button>
       </div>
     );
   }
   if (isLoading || !profile) {
-    return <Text className="text-sm text-zinc-500">Yükleniyor…</Text>;
+    return <Text className="text-sm text-zinc-500">{t("yukleniyor")}</Text>;
   }
 
   const verification = verificationMeta(profile.companyVerificationStatus);
@@ -203,9 +205,9 @@ export function CompanyProfileSection() {
   // kişisel veri, maskeli.
   const taxLabel = isTR
     ? isSole
-      ? "Vergi No (TCKN)"
-      : "Vergi No"
-    : (countryProfile?.taxIdLabel ?? "Vergi / Sicil No");
+      ? t("vergiNoTckn")
+      : t("vergiNo")
+    : (countryProfile?.taxIdLabel ?? t("vergiSicilNo"));
   const taxValue = profile.taxNumber
     ? isSole
       ? maskNationalId(profile.taxNumber)
@@ -218,44 +220,43 @@ export function CompanyProfileSection() {
       <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <Subheading>Kimlik</Subheading>
+            <Subheading>{t("kimlik")}</Subheading>
             <Text className="mt-1 text-sm text-zinc-500">
-              Kayıt sırasında beyan edilen bilgiler firma hesabının kimliğidir;
-              buradan değiştirilemez.
+              {t("kayitSirasindaBeyanEdilenBilgiler")}
             </Text>
           </div>
           <Lock aria-hidden className="mt-1 h-4 w-4 shrink-0 text-zinc-500" />
         </div>
         <DescriptionList className="mt-3">
-          <DescriptionTerm>Firma Kodu</DescriptionTerm>
+          <DescriptionTerm>{t("firmaKodu")}</DescriptionTerm>
           <DescriptionDetails className="tabular-nums">
             {profile.rothernId ?? "—"}
           </DescriptionDetails>
-          <DescriptionTerm>Kayıt Ülkesi</DescriptionTerm>
-          <DescriptionDetails>{countryName(profile.country)}</DescriptionDetails>
+          <DescriptionTerm>{t("kayitUlkesi")}</DescriptionTerm>
+          <DescriptionDetails>{countryDisplayName(profile.country, locale)}</DescriptionDetails>
           {/* "Firma Türü" faaliyet tipiyle (Üretici/Distribütör…) karışıyordu —
               bu alan HUKUKİ yapı. */}
-          <DescriptionTerm>Hukuki Yapı</DescriptionTerm>
+          <DescriptionTerm>{t("hukukiYapi")}</DescriptionTerm>
           <DescriptionDetails>
-            {profile.companyType ? COMPANY_TYPE_LABEL[profile.companyType] : "—"}
+            {profile.companyType ? t(`companyType.${profile.companyType as CompanyType}` as never) : "—"}
           </DescriptionDetails>
           <DescriptionTerm>{taxLabel}</DescriptionTerm>
           <DescriptionDetails className="tabular-nums">{taxValue}</DescriptionDetails>
           {isTR ? (
             <>
-              <DescriptionTerm>Vergi Dairesi</DescriptionTerm>
+              <DescriptionTerm>{t("vergiDairesi")}</DescriptionTerm>
               <DescriptionDetails>{profile.taxOffice ?? "—"}</DescriptionDetails>
             </>
           ) : null}
           <DescriptionTerm>
-            {isTR ? "Yetkili T.C. Kimlik No" : "Yetkili Kimlik No"}
+            {isTR ? t("yetkiliTCKimlikNo") : t("yetkiliKimlikNo")}
           </DescriptionTerm>
           <DescriptionDetails className="tabular-nums">
             {profile.authorizedTckn ? maskNationalId(profile.authorizedTckn) : "—"}
           </DescriptionDetails>
-          <DescriptionTerm>Yetkili Unvanı</DescriptionTerm>
+          <DescriptionTerm>{t("yetkiliUnvani")}</DescriptionTerm>
           <DescriptionDetails>{profile.authorizedTitle ?? "—"}</DescriptionDetails>
-          <DescriptionTerm>Üyelik</DescriptionTerm>
+          <DescriptionTerm>{t("uyelik")}</DescriptionTerm>
           <DescriptionDetails>
             <Badge
               color={
@@ -266,10 +267,10 @@ export function CompanyProfileSection() {
                     : "blue"
               }
             >
-              {TIER_LABELS[profile.tier] ?? profile.tier}
+              {tierLabel(profile.tier)}
             </Badge>
           </DescriptionDetails>
-          <DescriptionTerm>Doğrulama</DescriptionTerm>
+          <DescriptionTerm>{t("dogrulama")}</DescriptionTerm>
           <DescriptionDetails>
             <span className="inline-flex flex-wrap items-center gap-2">
               <Badge color={verification.color}>{verification.label}</Badge>
@@ -277,28 +278,30 @@ export function CompanyProfileSection() {
                 href="/company/ayarlar/dogrulama"
                 className="text-xs font-semibold text-zinc-700 underline hover:text-zinc-900"
               >
-                Doğrulama Belgeleri
+                {t("dogrulamaBelgeleri")}
               </Link>
             </span>
           </DescriptionDetails>
         </DescriptionList>
         <p className="mt-4 text-xs text-zinc-500">
-          Kimlik bilgilerinde hata varsa değişiklik için destek ile iletişime
-          geçin. MERSİS, ticaret sicil numarası ve IBAN{" "}
-          <Link
-            href="/company/ayarlar/dogrulama"
-            className="font-semibold text-zinc-700 underline hover:text-zinc-900"
-          >
-            Doğrulama Belgeleri
-          </Link>{" "}
-          sayfasından; sipariş tahsilat hesapları{" "}
-          <Link
-            href="/company/ayarlar/banka-hesaplari"
-            className="font-semibold text-zinc-700 underline hover:text-zinc-900"
-          >
-            Banka Hesapları
-          </Link>{" "}
-          sayfasından yönetilir.
+          {t.rich("kimlikBilgilerindeHataVarsa", {
+            dogrulama: (c) => (
+              <Link
+                href="/company/ayarlar/dogrulama"
+                className="font-semibold text-zinc-700 underline hover:text-zinc-900"
+              >
+                {c}
+              </Link>
+            ),
+            banka: (c) => (
+              <Link
+                href="/company/ayarlar/banka-hesaplari"
+                className="font-semibold text-zinc-700 underline hover:text-zinc-900"
+              >
+                {c}
+              </Link>
+            ),
+          })}
         </p>
       </section>
 
@@ -306,16 +309,16 @@ export function CompanyProfileSection() {
       <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
         <div className="flex items-start justify-between gap-4">
           <div>
-            <Subheading>Unvan</Subheading>
+            <Subheading>{t("unvan")}</Subheading>
             {kycLocked ? (
               <Text className="mt-1 text-sm text-zinc-500">
                 {profile.companyVerificationStatus === "PENDING"
-                  ? "Doğrulama inceleniyor; firma adı ve yasal unvan inceleme bitene kadar kilitli."
-                  : "Firma adı ve yasal unvan belgelerle doğrulandı; değişiklik (unvan tadili) için destek ile iletişime geçin."}
+                  ? t("dogrulamaInceleniyorFirmaAdiVe")
+                  : t("firmaAdiVeYasalUnvan")}
               </Text>
             ) : (
               <Text className="mt-1 text-sm text-zinc-500">
-                Doğrulama başladıktan sonra firma adı ve yasal unvan kilitlenir.
+                {t("dogrulamaBasladiktanSonraFirmaAdi")}
               </Text>
             )}
           </div>
@@ -325,7 +328,7 @@ export function CompanyProfileSection() {
         </div>
         <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field>
-            <Label>Firma adı</Label>
+            <Label>{t("firmaAdi")}</Label>
             <Input
               value={form.name}
               disabled={kycLocked}
@@ -336,28 +339,28 @@ export function CompanyProfileSection() {
               <p className="mt-1 text-xs text-red-600">{nameError}</p>
             ) : (
               <p className="mt-1 text-xs text-zinc-500">
-                Vitrinde ve tekliflerde görünen ad.
+                {t("vitrindeVeTekliflerdeGorunenAd")}
               </p>
             )}
           </Field>
           <Field>
-            <Label>Yasal unvan</Label>
+            <Label>{t("yasalUnvan")}</Label>
             <Input
               value={form.legalName}
               disabled={kycLocked}
               onChange={(e) => set({ legalName: e.target.value })}
             />
             <p className="mt-1 text-xs text-zinc-500">
-              Vergi levhası ve sicil kaydındaki tam unvan.
+              {t("vergiLevhasiVeSicilKaydindaki")}
             </p>
           </Field>
           {isTR ? (
             <Field>
-              <Label>KEP Adresi</Label>
+              <Label>{t("kepAdresi")}</Label>
               <Input
                 value={form.kepAddress}
                 invalid={Boolean(kepError)}
-                placeholder="ornek@hs01.kep.tr"
+                placeholder={t("ornekHs01KepTr")}
                 onChange={(e) => set({ kepAddress: e.target.value })}
               />
               {kepError ? (
@@ -370,32 +373,34 @@ export function CompanyProfileSection() {
 
       {/* 3 · ADRES */}
       <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
-        <Subheading>Adres</Subheading>
+        <Subheading>{t("adres")}</Subheading>
         <Text className="mt-1 text-sm text-zinc-500">
-          Firma merkezi. Teslimat ve fatura adresleri{" "}
-          <Link
-            href="/company/ayarlar/adresler"
-            className="font-semibold text-zinc-700 underline hover:text-zinc-900"
-          >
-            Adres Yönetimi
-          </Link>
-          nde tutulur.
+          {t.rich("firmaMerkeziTeslimatVeFaturaAdresleri", {
+            adresler: (c) => (
+              <Link
+                href="/company/ayarlar/adresler"
+                className="font-semibold text-zinc-700 underline hover:text-zinc-900"
+              >
+                {c}
+              </Link>
+            ),
+          })}
         </Text>
         <div className="mt-4 space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field>
-              <Label>İl / Şehir</Label>
+              <Label>{t("ilSehir")}</Label>
               <Input value={form.city} onChange={(e) => set({ city: e.target.value })} />
             </Field>
             <Field>
-              <Label>İlçe</Label>
+              <Label>{t("ilce")}</Label>
               <Input
                 value={form.district}
                 onChange={(e) => set({ district: e.target.value })}
               />
             </Field>
             <Field>
-              <Label>Posta kodu</Label>
+              <Label>{t("postaKodu")}</Label>
               <Input
                 value={form.postalCode}
                 onChange={(e) => set({ postalCode: e.target.value })}
@@ -403,7 +408,7 @@ export function CompanyProfileSection() {
             </Field>
           </div>
           <Field>
-            <Label>Açık adres</Label>
+            <Label>{t("acikAdres")}</Label>
             <Textarea
               rows={2}
               value={form.addressLine}
@@ -424,10 +429,9 @@ export function CompanyProfileSection() {
         id="kategoriler"
         className="scroll-mt-24 rounded-xl border border-zinc-950/10 bg-white p-5"
       >
-        <Subheading>Kategoriler</Subheading>
+        <Subheading>{t("kategoriler")}</Subheading>
         <Text className="mt-1 text-sm text-zinc-500">
-          Talep eşleşmesi, öneriler ve bildirimler bu seçime göre yapılır. Somut
-          ürün/hizmetlerinizi seçin — sektörünüz seçiminizden otomatik belirlenir.
+          {t("talepEslesmesiOnerilerVeBildirimler")}
         </Text>
         <div className="mt-4 grid grid-cols-1 gap-6 sm:grid-cols-2">
           <CompanyCategoryPicker
@@ -438,9 +442,9 @@ export function CompanyProfileSection() {
             onChange={(v) =>
               set({ buyerCategoryIds: v.mainIds, buyerSubCategoryIds: v.subIds })
             }
-            label="Ne alırım"
-            hint="Satın aldıklarınız. Tedarikçi önerileri ve ürün keşfindeki “size uygun” sıralaması bu seçimden çıkar."
-            modalTitle="Alış kategorileriniz"
+            label={t("neAlirim")}
+            hint={t("satinAldiklarinizTedarikciOnerileriVe")}
+            modalTitle={t("alisKategorileriniz")}
             accent="blue"
           />
           <CompanyCategoryPicker
@@ -451,9 +455,9 @@ export function CompanyProfileSection() {
             onChange={(v) =>
               set({ sellerCategoryIds: v.mainIds, sellerSubCategoryIds: v.subIds })
             }
-            label="Ne satarım"
-            hint="Tedarik edebildikleriniz. Yeni bir alım talebi yayınlandığında size bildirim gidip gitmeyeceğini BU seçim belirler."
-            modalTitle="Satış kategorileriniz"
+            label={t("neSatarim")}
+            hint={t("tedarikEdebildiklerinizYeniBirAlim")}
+            modalTitle={t("satisKategorileriniz")}
             accent="emerald"
           />
         </div>
@@ -463,10 +467,9 @@ export function CompanyProfileSection() {
           önce ne yaptığını söylersin, sonra nasıl yaptığını. Kayıt ekranındaki
           sıra da bu. */}
       <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
-        <Subheading>Faaliyet tipi</Subheading>
+        <Subheading>{t("faaliyetTipi")}</Subheading>
         <Text className="mt-1 mb-3 text-sm text-zinc-500">
-          Alıcı için çoğu zaman kategoriden daha belirleyici: seri üretim işi
-          üreticiye, stoktan acil ihtiyaç bayiye, çizimle parça fasona gider.
+          {t("aliciIcinCoguZamanKategoriden")}
         </Text>
         <CompanyActivityPicker
           value={form.activities}
@@ -478,7 +481,7 @@ export function CompanyProfileSection() {
       <div className="flex flex-wrap items-center justify-end gap-3">
         {dirty ? (
           <Text className="mr-auto text-xs text-amber-700">
-            Kaydedilmemiş değişiklikler var
+            {t("kaydedilmemisDegisikliklerVar")}
           </Text>
         ) : null}
         {dirty ? (
@@ -488,7 +491,7 @@ export function CompanyProfileSection() {
             disabled={update.isPending}
             onClick={() => initial && setForm(initial)}
           >
-            Vazgeç
+            {t("vazgec")}
           </Button>
         ) : null}
         <Button
@@ -496,7 +499,7 @@ export function CompanyProfileSection() {
           onClick={handleSave}
           disabled={!dirty || hasError || update.isPending}
         >
-          {update.isPending ? "Kaydediliyor…" : "Kaydet"}
+          {update.isPending ? t("kaydediliyor") : t("kaydet")}
         </Button>
       </div>
 
@@ -510,14 +513,13 @@ export function CompanyProfileSection() {
             <UserRound className="h-5 w-5 text-zinc-600" />
           </div>
           <div>
-            <Subheading>Herkese Açık Profil</Subheading>
+            <Subheading>{t("herkeseAcikProfil")}</Subheading>
             <Text className="text-sm text-zinc-500">
-              Logo, kapak, hakkında ve hizmetler — Profilim sayfasından
-              düzenlenir.
+              {t("logoKapakHakkindaVeHizmetler")}
             </Text>
           </div>
         </div>
-        <span className="shrink-0 text-sm font-medium text-zinc-700">Düzenle →</span>
+        <span className="shrink-0 text-sm font-medium text-zinc-700">{t("duzenle")}</span>
       </Link>
     </div>
   );

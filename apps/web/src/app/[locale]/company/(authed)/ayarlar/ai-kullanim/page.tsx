@@ -1,7 +1,9 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import axios from "axios";
-import { AI_FEATURE_LABELS, labelOr } from "@/lib/company/labels";
+import { formatNumber } from "@/i18n/format";
 import {
   Table,
   TableBody,
@@ -20,15 +22,17 @@ import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 
 /** Yüzde çubuğu — monokrom; uyarı eşiğinden sonra vurgulu. */
 function PercentBar({ percent, warn }: { percent: number; warn: boolean }) {
+  const t = useTranslations("web.panel.settings.ayarlarAiKullanimPage");
+  const locale = useLocale() as Locale;
   return (
     <div className="space-y-1.5">
       <div className="flex items-baseline justify-between">
         <span className="text-2xl font-semibold text-zinc-950">
-          %{percent.toLocaleString("tr-TR")}
+          {t("yuzde", { n: formatNumber(percent, locale) })}
         </span>
         {warn ? (
           <span className="rounded-full bg-zinc-950 px-2.5 py-0.5 text-xs font-medium text-white">
-            Uyarı eşiği aşıldı
+            {t("uyariEsigiAsildi")}
           </span>
         ) : null}
       </div>
@@ -46,48 +50,51 @@ function PercentBar({ percent, warn }: { percent: number; warn: boolean }) {
 }
 
 export default function AiKullanimPage() {
+  const t = useTranslations("web.panel.settings.ayarlarAiKullanimPage");
+  // AI özellik adı `web.domain.aiFeature` sözlüğünden; sözlükte yoksa "Diğer".
+  const tf = useTranslations("web.domain.aiFeature");
+  const locale = useLocale() as Locale;
   const { data, isLoading, isError, error, refetch } = useAiUsage();
   const forbidden = axios.isAxiosError(error) && error.response?.status === 403;
 
   return (
     <SettingsShell
       page={SETTINGS_PAGES.ai}
-      description="Firmanızın aylık AI bütçesinin ne kadarı kullanıldı. Bütçe dolduğunda AI özellikleri ay sonuna kadar kapanır; uyarı eşiğine gelince haber verilir."
+      description={t("firmanizinAylikAiButcesininNe")}
     >
       <PremiumOnly minTier="SILVER">
         {isError ? (
           <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
             {forbidden
-              ? "AI kullanımını yönetim yetkisi taşıyanlar (firma kırılımı) ile satınalma/satış koltuğu olanlar (kendi kullanımı), Silver ve üzeri pakette görebilir."
-              : "AI kullanımı yüklenemedi."}{" "}
+              ? t("aiKullaniminiYonetimYetkisiTasiyanlar")
+              : t("aiKullanimiYuklenemedi")}{" "}
             {!forbidden ? (
               <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">
-                Yeniden dene
+                {t("yenidenDene")}
               </button>
             ) : null}
           </p>
         ) : isLoading && !data ? (
-          <p className="text-sm text-zinc-500">Yükleniyor…</p>
+          <p className="text-sm text-zinc-500">{t("yukleniyor")}</p>
         ) : data ? (
           <div className="space-y-8">
             {!data.enabled ? (
               <p className="rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm text-zinc-700">
-                AI özellikleri şu anda kapalı (yapılandırılmamış). Kullanım
-                geçmişiniz aşağıda görünmeye devam eder.
+                {t("aiOzellikleriSuAndaKapali")}
               </p>
             ) : null}
 
             <section>
               <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-500">
                 {data.view === "company"
-                  ? "Firma havuzu (bu ay)"
-                  : "Kişisel kullanımınız (bu ay)"}
+                  ? t("firmaHavuzuBuAy")
+                  : t("kisiselKullaniminizBuAy")}
               </h2>
               <PercentBar percent={data.percentUsed} warn={data.warning} />
               <p className="mt-1.5 text-xs text-zinc-500">
                 {data.view === "company"
-                  ? `Aylık firma AI bütçenizin %${data.percentUsed.toLocaleString("tr-TR")} kadarı kullanıldı. %${data.warnAtPercent} eşiğinde uyarı verilir; %100'de AI kapanır.`
-                  : `Kişisel tavanınızın (firma havuzunun yarısı) %${data.percentUsed.toLocaleString("tr-TR")} kadarı kullanıldı.`}
+                  ? t("aylikFirmaAiButcesiKullanildi", { percent: formatNumber(data.percentUsed, locale), warnAtPercent: data.warnAtPercent })
+                  : t("kisiselTavanKullanildi", { percent: formatNumber(data.percentUsed, locale) })}
               </p>
             </section>
 
@@ -95,16 +102,14 @@ export default function AiKullanimPage() {
             typeof data.premiumPercentUsed === "number" ? (
               <section>
                 <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-500">
-                  Gelişmiş model alt-bütçesi
+                  {t("gelismisModelAltButcesi")}
                 </h2>
                 <PercentBar
                   percent={data.premiumPercentUsed}
                   warn={data.premiumPercentUsed >= data.warnAtPercent}
                 />
                 <p className="mt-1.5 text-xs text-zinc-500">
-                  Karmaşık işler için sistemin otomatik seçtiği gelişmiş model,
-                  havuzun ayrı bir bölümünden harcar. Dolduğunda istekler
-                  standart modelle sürdürülür.
+                  {t("karmasikIslerIcinSisteminOtomatik")}
                 </p>
               </section>
             ) : null}
@@ -113,21 +118,21 @@ export default function AiKullanimPage() {
               <>
                 <section>
                   <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-500">
-                    Kullanıcı kırılımı
+                    {t("kullaniciKirilimi")}
                   </h2>
                   <Table dense>
                     <TableHead>
                       <TableRow>
-                        <TableHeader>Kullanıcı</TableHeader>
-                        <TableHeader>İstek</TableHeader>
-                        <TableHeader>Havuz payı</TableHeader>
+                        <TableHeader>{t("kullanici")}</TableHeader>
+                        <TableHeader>{t("istek")}</TableHeader>
+                        <TableHeader>{t("havuzPayi")}</TableHeader>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {(data.byUser ?? []).length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={3} className="text-sm text-zinc-500">
-                            Bu ay AI kullanımı yok
+                            {t("buAyAiKullanimiYok")}
                           </TableCell>
                         </TableRow>
                       ) : (
@@ -140,7 +145,7 @@ export default function AiKullanimPage() {
                               {r.requests}
                             </TableCell>
                             <TableCell className="text-sm text-zinc-600">
-                              %{r.percentOfPool.toLocaleString("tr-TR")}
+                              {t("yuzde", { n: formatNumber(r.percentOfPool, locale) })}
                             </TableCell>
                           </TableRow>
                         ))
@@ -151,34 +156,34 @@ export default function AiKullanimPage() {
 
                 <section>
                   <h2 className="mb-2 text-xs font-bold uppercase tracking-wider text-zinc-500">
-                    Özellik kırılımı
+                    {t("ozellikKirilimi")}
                   </h2>
                   <Table dense>
                     <TableHead>
                       <TableRow>
-                        <TableHeader>Özellik</TableHeader>
-                        <TableHeader>İstek</TableHeader>
-                        <TableHeader>Havuz payı</TableHeader>
+                        <TableHeader>{t("ozellik")}</TableHeader>
+                        <TableHeader>{t("istek")}</TableHeader>
+                        <TableHeader>{t("havuzPayi")}</TableHeader>
                       </TableRow>
                     </TableHead>
                     <TableBody>
                       {(data.byFeature ?? []).length === 0 ? (
                         <TableRow>
                           <TableCell colSpan={3} className="text-sm text-zinc-500">
-                            Bu ay AI kullanımı yok
+                            {t("buAyAiKullanimiYok")}
                           </TableCell>
                         </TableRow>
                       ) : (
                         (data.byFeature ?? []).map((r) => (
                           <TableRow key={r.feature}>
                             <TableCell className="text-sm text-zinc-900">
-                              {labelOr(AI_FEATURE_LABELS, r.feature, "Diğer")}
+                              {tf.has(r.feature as never) ? tf(r.feature as never) : t("diger")}
                             </TableCell>
                             <TableCell className="text-sm text-zinc-600">
                               {r.requests}
                             </TableCell>
                             <TableCell className="text-sm text-zinc-600">
-                              %{r.percentOfPool.toLocaleString("tr-TR")}
+                              {t("yuzde", { n: formatNumber(r.percentOfPool, locale) })}
                             </TableCell>
                           </TableRow>
                         ))

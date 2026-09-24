@@ -9,6 +9,7 @@ import {
   Min,
   MinLength,
 } from "class-validator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 const trim = ({ value }: { value: unknown }) =>
   typeof value === "string" ? value.trim() : value;
@@ -18,10 +19,10 @@ const trim = ({ value }: { value: unknown }) =>
  * kaynaktan geliyor ve içeriği satıcıya gösterilecek.
  */
 export class CreateInquiryDto {
-  @Matches(/^[a-z0-9-]{1,120}$/, { message: "Geçersiz firma adresi" })
+  @Matches(/^[a-z0-9-]{1,120}$/, { message: () => tApi("api.dto.createInquiry.gecersizFirmaAdresi") })
   companySlug!: string;
 
-  @Matches(/^[a-z0-9-]{1,160}$/, { message: "Geçersiz ürün adresi" })
+  @Matches(/^[a-z0-9-]{1,160}$/, { message: () => tApi("api.dto.createInquiry.gecersizUrunAdresi") })
   productSlug!: string;
 
   @Transform(trim) @IsString() @MinLength(2) @MaxLength(100) name!: string;
@@ -29,7 +30,7 @@ export class CreateInquiryDto {
   @Transform(({ value }) =>
     typeof value === "string" ? value.trim().toLowerCase() : value,
   )
-  @IsEmail({}, { message: "Geçerli bir e-posta adresi girin" })
+  @IsEmail({}, { message: () => tApi("api.dto.createInquiry.gecerliBirEPostaAdresiGirin") })
   @MaxLength(200)
   email!: string;
 

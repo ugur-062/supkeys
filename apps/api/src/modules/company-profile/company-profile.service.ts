@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   requestPublicImageUpload,
   resolvePublicImage,
@@ -123,7 +124,7 @@ export class CompanyProfileService {
       where: { id: companyId },
       select: SELECT,
     });
-    if (!c) throw new NotFoundException("Firma bulunamadı");
+    if (!c) throw new NotFoundException(i18nMessage("api.companyProfile.firmaBulunamadi"));
     // INV-TIER-1: efektif tier — ham `tier` doğrudan dönmez (süre-dolma
     // penceresinde /me ile ıraksardı). membershipEndAt yalnız hesap içindi,
     // yanıttan çıkarılır.
@@ -251,7 +252,7 @@ export class CompanyProfileService {
     const seciminiDenetle = (ids: string[]) => {
       if (deepestCategoryPicks(ids).length > MAX_COMPANY_SUB_PICKS) {
         throw new BadRequestException(
-          `En fazla ${MAX_COMPANY_SUB_PICKS} ürün/hizmet seçebilirsiniz`,
+          i18nMessage("api.companyProfile.enFazlaUrunHizmetSecebilirsiniz", { MAXCOMPANYSUBPICKS: MAX_COMPANY_SUB_PICKS }),
         );
       }
     };
@@ -313,7 +314,7 @@ export class CompanyProfileService {
         [];
       if (alis.length === 0 && satis.length === 0) {
         throw new BadRequestException(
-          "En az bir ana kategori seçili kalmalı — kategorisi olmayan firmaya talep bildirimi gönderilemez.",
+          i18nMessage("api.companyProfile.enAzBirAnaKategoriSecili"),
         );
       }
     }
@@ -368,8 +369,8 @@ export class CompanyProfileService {
       if (changed || ibanChanged) {
         throw new BadRequestException(
           kycBefore.companyVerificationStatus === "PENDING"
-            ? "Doğrulama inceleniyor; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez"
-            : "Firmanız doğrulandı; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez — değişiklik için destek ile iletişime geçin",
+            ? i18nMessage("api.companyProfile.dogrulamaInceleniyorKilitliAlanlar")
+            : i18nMessage("api.companyProfile.firmanizDogrulandiKilitliAlanlar"),
         );
       }
     }
@@ -383,7 +384,7 @@ export class CompanyProfileService {
     if (dto.kepAddress !== undefined) {
       const kep = dto.kepAddress.trim();
       if (kep && !/^[^@\s]+@[^@\s]+\.kep\.tr$/i.test(kep)) {
-        throw new BadRequestException("Geçerli bir KEP adresi giriniz");
+        throw new BadRequestException(i18nMessage("api.companyProfile.gecerliBirKepAdresiGiriniz"));
       }
       data.kepAddress = kep || null;
     }
@@ -397,7 +398,7 @@ export class CompanyProfileService {
           ? isValidIbanTr(iban)
           : /^[A-Z]{2}[0-9A-Z]{8,32}$/.test(iban);
         if (!valid) {
-          throw new BadRequestException("Geçerli bir IBAN giriniz");
+          throw new BadRequestException(i18nMessage("api.companyProfile.gecerliBirIbanGiriniz"));
         }
         data.iban = iban;
       } else {

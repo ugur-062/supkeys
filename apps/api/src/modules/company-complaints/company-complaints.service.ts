@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ConflictException,
@@ -18,15 +19,15 @@ export class CompanyComplaintsService {
   ) {
     const code = normalizeShortCode(input.rothernId);
     if (!validateShortCode(code)) {
-      throw new BadRequestException("Geçersiz firma kodu");
+      throw new BadRequestException(i18nMessage("api.companyComplaints.gecersizFirmaKodu"));
     }
     const target = await this.prisma.company.findUnique({
       where: { rothernId: code },
       select: { id: true, name: true },
     });
-    if (!target) throw new NotFoundException("Firma bulunamadı");
+    if (!target) throw new NotFoundException(i18nMessage("api.companyComplaints.firmaBulunamadi"));
     if (target.id === actor.companyId) {
-      throw new BadRequestException("Kendinizi şikayet edemezsiniz");
+      throw new BadRequestException(i18nMessage("api.companyComplaints.kendiniziSikayetEdemezsiniz"));
     }
     const dup = await this.prisma.companyComplaint.findFirst({
       where: {
@@ -37,7 +38,7 @@ export class CompanyComplaintsService {
       select: { id: true },
     });
     if (dup) {
-      throw new ConflictException("Bu firma için zaten açık şikayetiniz var");
+      throw new ConflictException(i18nMessage("api.companyComplaints.buFirmaIcinZatenAcikSikayetiniz"));
     }
     const c = await this.prisma.companyComplaint.create({
       data: {

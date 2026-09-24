@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -111,7 +112,7 @@ export class CompanyReportsService {
     });
     if (!row) {
       throw new NotFoundException(
-        "Satın Alma Talebi bulunamadı — numara veya ID hatalı olabilir",
+        i18nMessage("api.companyReports.satinAlmaTalebiBulunamadiNumaraVeya"),
       );
     }
     return row.id;
@@ -145,18 +146,18 @@ export class CompanyReportsService {
     let listings;
     if (dto.mode === "SINGLE") {
       if (!dto.listingId?.trim()) {
-        throw new BadRequestException("Satın Alma Talebi numarası ya da ID zorunlu");
+        throw new BadRequestException(i18nMessage("api.companyReports.satinAlmaTalebiNumarasiYaDa"));
       }
       const id = await this.resolveListingId(companyId, dto.listingId);
       const one = await this.prisma.listing.findFirst({
         where: { id, companyId },
         include,
       });
-      if (!one) throw new NotFoundException("Satın Alma Talebi bulunamadı");
+      if (!one) throw new NotFoundException(i18nMessage("api.companyReports.satinAlmaTalebiBulunamadi"));
       listings = [one];
     } else {
       if (!dto.rangeStart || !dto.rangeEnd) {
-        throw new BadRequestException("Tarih aralığı zorunlu");
+        throw new BadRequestException(i18nMessage("api.companyReports.tarihAraligiZorunlu"));
       }
       listings = await this.prisma.listing.findMany({
         where: {
@@ -332,7 +333,7 @@ export class CompanyReportsService {
 
   async savings(companyId: string, dto: SavingsReportInput) {
     if (!dto.rangeStart || !dto.rangeEnd) {
-      throw new BadRequestException("Tarih aralığı zorunlu");
+      throw new BadRequestException(i18nMessage("api.companyReports.tarihAraligiZorunlu"));
     }
     let listings = await this.prisma.listing.findMany({
       where: {
@@ -619,7 +620,7 @@ export class CompanyReportsService {
           : false,
       },
     });
-    if (!l) throw new NotFoundException("Satın Alma Talebi bulunamadı");
+    if (!l) throw new NotFoundException(i18nMessage("api.companyReports.satinAlmaTalebiBulunamadi"));
 
     const includePrice = dto.criteria === "PRICE" || dto.criteria === "BOTH";
     const includeAnswers =

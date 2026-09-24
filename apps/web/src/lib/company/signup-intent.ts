@@ -8,12 +8,12 @@
  * `/company` köküne dönüldüğünde `consumeSignupIntent` okur, ilgili sihirbaza
  * yönlendirir ve siler. Query ile taşımak onboarding'de kaybolurdu.
  *
- * Tek kaynak: hedef rotalar burada, bileşenler yazmaz.
+ * Tek kaynak: hedef rotalar burada, bileşenler yazmaz. Niyetin EKRANDAKİ
+ * adı/ipucu yok — kayıt formu niyeti yalnız taşır, metin basmaz (i18n Faz 2'de
+ * ölü `label`/`hint` alanları kaldırıldı).
  */
 export const SIGNUP_INTENTS = {
   talep: {
-    label: "Alım talebi açmak",
-    hint: "Satın alma talebi yayımla, kapalı zarf teklif topla.",
     /**
      * YÖNLENDİRME YOK (2026-09-14, kullanıcı kararı).
      *
@@ -29,19 +29,13 @@ export const SIGNUP_INTENTS = {
     href: null,
   },
   vitrin: {
-    label: "Vitrin açmak",
-    hint: "Ürün kataloğunu yayımla, bilgi talebi al.",
     href: "/company/satis/urunlerim?yeni=1",
   },
   ikisi: {
-    label: "İkisi de",
-    hint: "Tek hesapla hem al hem sat — panelden başla.",
     href: null,
   },
   /** "Teklif ver" / "Bilgi iste" — geldiği kaydın PANEL karşılığına döner (`redirect`). */
   teklif: {
-    label: "Teklif vermek",
-    hint: "Açık alım taleplerine kapalı zarf teklif ver.",
     href: "/company/satis#acik-talepler",
   },
 } as const;

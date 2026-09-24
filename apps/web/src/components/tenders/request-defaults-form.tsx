@@ -13,7 +13,7 @@ import {
   useLcTypeLabel,
   usePaymentCategoryLabel,
 } from "@/i18n/domain";
-import { CURRENCIES, DELIVERY_TERM_LABELS } from "@/lib/tenders/labels";
+import { CURRENCIES, DELIVERY_TERMS } from "@/lib/tenders/labels";
 import type { LcSubType } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
 import { COUNTRIES, PAYMENT_CATEGORIES, REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
@@ -79,7 +79,7 @@ export function RequestDefaultsForm({
   const countries = value.targetCountries ?? [];
   const limited = countries.length > 0;
   const priceWarning = sellerDoorPriceWarning(countries, ownerCountry, value.deliveryTerm);
-  const allTerms = Object.keys(DELIVERY_TERM_LABELS);
+  const allTerms = DELIVERY_TERMS;
   const domesticTerms = allTerms.filter((t) => t.startsWith("DOMESTIC_"));
   const incoterms = allTerms.filter((t) => !t.startsWith("DOMESTIC_"));
 

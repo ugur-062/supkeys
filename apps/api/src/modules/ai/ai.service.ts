@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadGatewayException,
   ForbiddenException,
@@ -120,17 +121,17 @@ export class AiService {
     if (!this.config.enabled || !this.provider) {
       // Fail-closed ama SESSİZ DEĞİL: anahtar yoksa özellik kapalı, net 503.
       throw new ServiceUnavailableException(
-        "AI özelliği şu anda kullanılamıyor (yapılandırılmamış).",
+        i18nMessage("api.ai.aiOzelligiSuAndaKullanilamiyorYapilandirilmamis"),
       );
     }
     if (!tierAtLeast(user.tier, minTier)) {
       throw new ForbiddenException(
-        "AI özellikleri Silver veya üzeri paket gerektirir.",
+        i18nMessage("api.ai.aiOzellikleriSilverVeyaUzeriPaket"),
       );
     }
     if (!hasCompanyPermission(user, anyOf)) {
       throw new ForbiddenException(
-        "AI özelliklerini yalnızca bu alanda işlem yetkisi taşıyan kullanıcılar kullanabilir.",
+        i18nMessage("api.ai.aiOzellikleriniYalnizcaBuAlandaIslem"),
       );
     }
   }
@@ -244,7 +245,7 @@ export class AiService {
           keepEstimate: true,
         });
         throw new ServiceUnavailableException(
-          "AI isteği zaman aşımına uğradı — lütfen tekrar deneyin.",
+          i18nMessage("api.ai.aiIstegiZamanAsiminaUgradiLutfen"),
         );
       }
       if (err instanceof AiProviderError) {
@@ -256,7 +257,7 @@ export class AiService {
         });
         this.logger.warn(`AI sağlayıcı hatası (${err.code}): ${err.message}`);
         throw new BadGatewayException(
-          "AI sağlayıcısı hata döndürdü — lütfen tekrar deneyin.",
+          i18nMessage("api.ai.saglayiciHataDondurdu"),
         );
       }
       // Beklenmeyen iç hata: rezervasyonu serbest bırakma (fail-closed) —
@@ -280,7 +281,7 @@ export class AiService {
     const hasSeat = hasCompanyPermission(user, ALL_SEAT_PERMISSIONS);
     if (!isManagement && !hasSeat) {
       throw new ForbiddenException(
-        "AI kullanımını yalnızca yönetim ya da işlem yetkisi taşıyan kullanıcılar görüntüleyebilir.",
+        i18nMessage("api.ai.aiKullaniminiYalnizcaYonetimYaDa"),
       );
     }
 
@@ -288,7 +289,7 @@ export class AiService {
     const snapshot = await this.budget.usageSnapshot(user.companyId, user.userId);
     if (snapshot == null) {
       throw new ForbiddenException(
-        "Paketiniz AI özelliklerini içermiyor — Silver veya üzeri paket gerekir.",
+        i18nMessage("api.ai.paketinizAiOzellikleriniIcermiyorSilverVeya"),
       );
     }
     const warnAtPercent = Math.round(this.config.caps.warnShare * 100);
@@ -343,12 +344,14 @@ export class AiService {
         select: { id: true },
       });
       for (const m of managers) {
+        // Metin ANAHTAR olarak geçer; her alıcı için kendi diliyle üretilir.
         await this.notifications.pushToUser(m.id, {
           type: WARN_NOTIFICATION_TYPE,
-          title: "AI bütçe uyarısı",
-          body: `Firmanızın aylık AI kullanımı %${Math.round(percentUsed)} seviyesine ulaştı. Bütçe dolduğunda AI özellikleri ay sonuna kadar kapanır.`,
-          ctaUrl: "/company/ayarlar/ai-kullanim",
-          ctaLabel: "Kullanımı Gör",
+          titleKey: "api.notifications.ai.butceUyarisiBaslik",
+          bodyKey: "api.notifications.ai.butceUyarisiGovde",
+          params: { yuzde: Math.round(percentUsed) },
+          ctaPath: "/company/ayarlar/ai-kullanim",
+          ctaLabelKey: "api.notifications.ai.kullanimiGor",
         });
       }
     } catch (err) {

@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { HubList } from "@/components/company/hub-list";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { userHasPermission } from "@/lib/company/permissions";
@@ -13,6 +14,7 @@ import { Eye, FileText, GitCompare, TrendingUp } from "lucide-react";
  * "görmemesi gereken kartı hiç görmesin" kuralı.
  */
 export default function SatinalmaRaporlarPage() {
+  const t = useTranslations("web.panel.reports.sirketimRaporlarPage");
   const { user, company } = useCompanyAuth();
   const tier = company?.tier ?? "STANDART";
   const canInsights = userHasPermission(user, "insights:view") && tierAtLeast(tier, "SILVER");
@@ -22,37 +24,37 @@ export default function SatinalmaRaporlarPage() {
       {/* Özet grafikler ve zaman tasarrufu şeridi Şirketim › Genel Bakış'ta
           (2026-09-05) — hub yalnız rapor listesi. */}
     <HubList
-      title="Raporlar"
-      description="İş Analizi ile görünürlüğünüzü izleyin; satın alma raporlarında kriterleri doldurup sonucu web'de görün ya da Excel olarak indirin."
+      title={t("raporlar")}
+      description={t("isAnaliziIleGorunurlugunuzuIzleyin")}
       items={[
         ...(canInsights ? [{
           // İş Analizi (2026-09-05, Europages "Business Insights"): görünürlük,
           // ziyaretçi, alıcı bağlantıları, teklif/kazanma — Silver+.
           href: "/company/sirketim/raporlar/is-analizi",
-          label: "İş Analizi",
+          label: t("isAnalizi"),
           description:
-            "Profil ve ürün görüntülenmeleri, kimliği bilinen ziyaretçiler, bilgi talepleri ve yanıt süresi, davetler, teklif ve kazanma oranı.",
+            t("profilVeUrunGoruntulenmeleriKimligi"),
           icon: Eye,
         }] : []),
         ...(canPurchasing ? [{
           href: "/company/sirketim/raporlar/genel",
-          label: "Genel Satın Alma Talebi Raporu",
+          label: t("genelSatinAlmaTalebiRaporu"),
           description:
-            "Tek satın alma talebi veya tarih aralığında satın alma taleplerinizi listeleyin — katılım, kazanan ve tasarrufla.",
+            t("tekSatinAlmaTalebiVeya"),
           icon: FileText,
         },
         {
           href: "/company/sirketim/raporlar/tasarruf",
-          label: "Tasarruf Raporu",
+          label: t("tasarrufRaporu"),
           description:
-            "Rekabetin size kazandırdığını görün — hedef fiyata göre kalem bazlı detayla.",
+            t("rekabetinSizeKazandirdiginiGorunHedef"),
           icon: TrendingUp,
         },
         {
           href: "/company/sirketim/raporlar/teklif-karsilastirma",
-          label: "Teklif Karşılaştırma Raporu",
+          label: t("teklifKarsilastirmaRaporu"),
           description:
-            "Bir satın alma talebine gelen teklifleri kalem bazında yan yana karşılaştırın.",
+            t("birSatinAlmaTalebineGelen"),
           icon: GitCompare,
         }] : []),
       ]}

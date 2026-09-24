@@ -11,10 +11,13 @@ import {
 } from "@react-email/components";
 import * as React from "react";
 import { LOGO_CID } from "../../assets/logo";
+import { DEFAULT_LOCALE, emailT, type Locale } from "../../i18n";
 import { COLORS, FONTS } from "./tokens";
 
 interface LayoutProps {
   preview: string;
+  /** Alıcının dili — verilmezse Türkçe (kaynak dil). */
+  locale?: Locale;
   children: React.ReactNode;
 }
 
@@ -61,9 +64,10 @@ const footerStyle = {
 // istemcilerde ve dev'de (localhost) de görünür. Ek client.ts'te eklenir.
 const LOGO_SRC = `cid:${LOGO_CID}`;
 
-export function Layout({ preview, children }: LayoutProps) {
+export function Layout({ preview, locale = DEFAULT_LOCALE, children }: LayoutProps) {
+  const t = emailT(locale);
   return (
-    <Html lang="tr">
+    <Html lang={locale}>
       <Head>
         {/* Koyu mod: istemciler (Gmail iOS/Android, Apple Mail, Outlook)
             arka planı koyulaştırır ama GÖRSELLERİ değiştirmez ve çoğu
@@ -99,9 +103,9 @@ export function Layout({ preview, children }: LayoutProps) {
               }}
             />
             <Text style={footerStyle}>
-              © 2026 Rothern
+              {t("email.layout.copyright")}
               <br />
-              Bu e-postayı rothern.com platformundan aldınız.
+              {t("email.layout.footerNote")}
             </Text>
           </Section>
         </Container>

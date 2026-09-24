@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { PublicListFacetQueryDto } from "./dto/public-list-query.dto";
 import { hiddenCategoryWhere, isHiddenCategory, listingSlug } from "@rothern/shared";
 import { Optional, Injectable, NotFoundException } from "@nestjs/common";
@@ -294,7 +295,7 @@ export class PublicMarketplaceService {
       where: { ...marketplaceListingWhere(now), number },
       select: PUBLIC_LISTING_SELECT,
     });
-    if (!row) throw new NotFoundException("İlan bulunamadı");
+    if (!row) throw new NotFoundException(i18nMessage("api.publicMarketplace.ilanBulunamadi"));
     const cats = await this.resolveCategories(row.categoryIds);
     const detail = this.toDetail(row, cats);
     if (!this.translations) return detail;

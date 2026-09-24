@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -12,6 +13,18 @@ import { hasPublicProfile } from "../../common/company/public-profile-gate";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { PAID_TIER, tierAtLeast } from "@rothern/shared";
 import { EmailService } from "../email/email.service";
+import type { EmailTemplateData } from "@rothern/email";
+import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
+import { currentLocale } from "../../common/i18n/locale-context";
+import { localeOf } from "../notifications/notification.service";
+import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
+
+/** `notification` şablonunun veri şekli — paket `NotificationData`yı dışa
+ *  aktarmıyor, tip birleşiminden türetiyoruz. */
+type NotificationData = Extract<
+  EmailTemplateData,
+  { template: "notification" }
+>["data"];
 
 /**
  * MİSAFİR BİLGİ TALEBİ — hesabı OLMAYAN ziyaretçinin ürün sayfasından
@@ -98,21 +111,28 @@ export class PublicInquiryService {
     // ulaşmadığı için hiç doğrulanamaz, ama satır kullanıcının günlük
     // kotasını yer (3/gün → üç başarısız deneme kullanıcıyı bir gün kilitler).
     // Bu yüzden başarısızlıkta satırı SİLİP dürüst hata döndürüyoruz.
+    // DİL: ziyaretçi misafir (hesabı yok) → isteğin dili, yani formu hangi
+    // dilde doldurduysa o (`Accept-Language`).
+    const locale = currentLocale();
+    const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+      tApi(key, values, locale);
     const result = await this.email.send({
       to: { email, name: input.name.trim() },
+      locale,
       templateData: {
         template: "notification",
         data: {
-          subject: "Talebinizi onaylayın",
-          heading: "Tek adım kaldı",
+          subject: t("api.notifications.publicInquiry.verify.subject"),
+          heading: t("api.notifications.publicInquiry.verify.heading"),
           paragraphs: [
-            `${product.name} ürünü hakkındaki talebiniz henüz gönderilmedi.`,
-            "Aşağıdaki bağlantıya tıklayarak e-posta adresinizi doğrulayın; talebiniz o an satıcıya iletilecek.",
+            t("api.notifications.publicInquiry.verify.intro", {
+              product: product.name,
+            }),
+            t("api.notifications.publicInquiry.verify.action"),
           ],
-          ctaLabel: "Talebimi onayla",
+          ctaLabel: t("api.notifications.publicInquiry.verify.cta"),
           ctaUrl: `${webBase()}/talep-onayla?t=${token}`,
-          footerNote:
-            "Bu talebi siz göndermediyseniz bu e-postayı yok sayabilirsiniz — onaylanmayan talep satıcıya iletilmez.",
+          footerNote: t("api.notifications.publicInquiry.verify.footer"),
         },
       },
       context: { type: "public_inquiry_verify", id: inquiry.id },
@@ -122,7 +142,7 @@ export class PublicInquiryService {
         `Doğrulama e-postası gönderilemedi — inquiry silindi: ${String(e)}`,
       );
       throw new ServiceUnavailableException(
-        "Talebiniz şu an gönderilemedi. Lütfen birkaç dakika sonra tekrar deneyin.",
+        i18nMessage("api.publicInquiry.talebinizSuAnGonderilemediLutfenBirkac"),
       );
     });
 
@@ -132,7 +152,7 @@ export class PublicInquiryService {
     if (!result.sent) {
       await this.discard(inquiry.id);
       throw new BadRequestException(
-        "Bu e-posta adresine gönderim yapılamıyor. Farklı bir adres deneyin.",
+        i18nMessage("api.publicInquiry.buEPostaAdresineGonderimYapilamiyor"),
       );
     }
     return { ok: true };
@@ -186,7 +206,7 @@ export class PublicInquiryService {
     // talepler" kendi satırıyla kirlenir.
     if (product.companyId === input.companyId) {
       throw new BadRequestException(
-        "Kendi ürününüz için bilgi talebi gönderemezsiniz",
+        i18nMessage("api.publicInquiry.kendiUrununuzIcinBilgiTalebiGonderemezsiniz"),
       );
     }
 
@@ -250,12 +270,12 @@ export class PublicInquiryService {
     ]);
     if (sameProduct > 0) {
       throw new BadRequestException(
-        "Bu ürün için zaten bir talep gönderdiniz — yanıtı Bilgi Taleplerim sayfasından takip edebilirsiniz",
+        i18nMessage("api.publicInquiry.buUrunIcinZatenBirTalep"),
       );
     }
     if (dayTotal >= PublicInquiryService.MAX_PER_COMPANY_DAY) {
       throw new BadRequestException(
-        "Bugün için talep sınırına ulaştınız — yarın tekrar deneyebilirsiniz",
+        i18nMessage("api.publicInquiry.bugunIcinTalepSinirinaUlastinizYarin"),
       );
     }
   }
@@ -384,7 +404,7 @@ export class PublicInquiryService {
         company: { select: { name: true } },
       },
     });
-    if (!inquiry) throw new NotFoundException("Talep bulunamadı");
+    if (!inquiry) throw new NotFoundException(i18nMessage("api.publicInquiry.talepBulunamadi"));
 
     const reply = await this.prisma.publicInquiryReply.create({
       data: { inquiryId, authorId, body: body.trim() },
@@ -400,7 +420,7 @@ export class PublicInquiryService {
       inquiry.name,
       inquiry.product.name,
       inquiry.company.name,
-      inquiry.claimedCompanyId != null,
+      inquiry.claimedCompanyId,
     );
 
     return {
@@ -428,26 +448,53 @@ export class PublicInquiryService {
     name: string,
     productName: string,
     companyName: string,
-    claimed: boolean,
+    claimedCompanyId: string | null,
   ) {
     try {
+      const claimed = claimedCompanyId != null;
+      // DİL: bildirim SATICININ isteğinde doğar ama ALICIYA gider → istek dili
+      // YANLIŞ olurdu. Talep kayıtlı bir alıcıya bağlıysa o kişinin kayıtlı
+      // dilini okuruz (e-posta + firma ile tek satır); misafirde dil bilinmez
+      // (satır dil taşımıyor) → varsayılan.
+      const locale = claimed
+        ? localeOf(
+            (
+              await this.prisma.companyUser.findFirst({
+                where: { companyId: claimedCompanyId, email, deletedAt: null },
+                select: { locale: true },
+              })
+            )?.locale,
+          )
+        : DEFAULT_LOCALE;
+      const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+        tApi(key, values, locale);
       const res = await this.email.send({
         to: { email, name },
+        locale,
         templateData: {
           template: "notification",
           data: {
-            subject: "Talebinize yanıt geldi",
-            heading: "Yanıtınız hazır",
+            subject: t("api.notifications.publicInquiry.reply.subject"),
+            heading: t("api.notifications.publicInquiry.reply.heading"),
             paragraphs: [
-              `${companyName}, "${productName}" hakkındaki talebinizi yanıtladı.`,
+              t("api.notifications.publicInquiry.reply.intro", {
+                company: companyName,
+                product: productName,
+              }),
               // İÇERİK BİLİNÇLİ OLARAK YOK.
-              claimed
-                ? "Yanıtı Bilgi Taleplerim sayfanızdan okuyabilirsiniz."
-                : "Yanıtı okumak için ücretsiz hesabınızı oluşturun; bu talebiniz ve gelen yanıtlar hesabınıza bağlanacak.",
+              t(
+                claimed
+                  ? "api.notifications.publicInquiry.reply.claimedRead"
+                  : "api.notifications.publicInquiry.reply.guestRead",
+              ),
             ],
-            ctaLabel: claimed ? "Yanıtı oku" : "Hesabımı oluştur ve yanıtı oku",
+            ctaLabel: t(
+              claimed
+                ? "api.notifications.publicInquiry.reply.claimedCta"
+                : "api.notifications.publicInquiry.reply.guestCta",
+            ),
             ctaUrl: claimed
-              ? appRoutes.inquiriesSent(webBase())
+              ? appRoutes.inquiriesSent(webBase(), locale)
               : `${webBase()}/company/kayit?email=${encodeURIComponent(email)}`,
           },
         },
@@ -570,13 +617,13 @@ export class PublicInquiryService {
         product: { select: { name: true, slug: true } },
       },
     });
-    if (!row) throw new NotFoundException("Bağlantı geçersiz");
+    if (!row) throw new NotFoundException(i18nMessage("api.publicInquiry.baglantiGecersiz"));
     if (row.verifiedAt) {
       return this.verifiedPayload(row);
     }
     if (row.expiresAt.getTime() < Date.now()) {
       throw new BadRequestException(
-        "Bağlantının süresi doldu — talebi yeniden gönderin",
+        i18nMessage("api.publicInquiry.baglantininSuresiDolduTalebiYenidenGonderin"),
       );
     }
 
@@ -624,7 +671,7 @@ export class PublicInquiryService {
     const [users, seller] = await Promise.all([
       this.prisma.companyUser.findMany({
         where: { companyId, isActive: true },
-        select: { email: true, firstName: true },
+        select: { email: true, firstName: true, locale: true },
         take: 5,
       }),
       this.prisma.company.findUnique({
@@ -635,35 +682,49 @@ export class PublicInquiryService {
     const sellerPaid = seller
       ? tierAtLeast(effectiveTier(seller.tier, seller.membershipEndAt), PAID_TIER)
       : true;
-    const qty = extra.quantity ? ` (${extra.quantity})` : "";
-    const data = sellerPaid
-      ? {
-          subject: "Ürününüz için yeni bilgi talebi",
-          heading: "Yeni bilgi talebi",
+    const quantity = extra.quantity ?? null;
+    // Metin ALICI BAŞINA, o kişinin diliyle (dil başına bir kez üretilir).
+    const ns = sellerPaid
+      ? ("seller" as const)
+      : ("sellerFree" as const);
+    const byLocale = new Map<Locale, NotificationData>();
+    const dataFor = (locale: Locale): NotificationData => {
+      let data = byLocale.get(locale);
+      if (!data) {
+        const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+          tApi(key, values, locale);
+        data = {
+          subject: t(`api.notifications.publicInquiry.${ns}.subject`),
+          heading: t(`api.notifications.publicInquiry.${ns}.heading`),
           paragraphs: [
-            `${visitorName}, "${productName}" ürününüz hakkında bilgi istedi${qty}.`,
-            "Talebi panelinizden görüntüleyip yanıtlayabilirsiniz.",
+            quantity
+              ? t(`api.notifications.publicInquiry.${ns}.introWithQuantity`, {
+                  visitor: visitorName,
+                  product: productName,
+                  quantity,
+                })
+              : t(`api.notifications.publicInquiry.${ns}.intro`, {
+                  visitor: visitorName,
+                  product: productName,
+                }),
+            t(`api.notifications.publicInquiry.${ns}.action`),
           ],
-          ctaLabel: "Talebi görüntüle",
-          ctaUrl: appRoutes.inquiriesReceived(webBase()),
-        }
-      : {
-          subject: "Ürününüz için yeni bilgi talebi — yanıtlamak için Silver",
-          heading: "Bir alıcı ürününüzü sordu",
-          paragraphs: [
-            `Bir alıcı "${productName}" ürününüz hakkında bilgi istedi${qty}.`,
-            "Ücretsiz üyelikte soruyu görürsünüz; alıcının kimliği, iletişim bilgileri ve yanıt Silver paketiyle açılır.",
-          ],
-          ctaLabel: "Talebi görüntüle",
-          ctaUrl: appRoutes.inquiriesReceived(webBase()),
+          ctaLabel: t(`api.notifications.publicInquiry.${ns}.cta`),
+          ctaUrl: appRoutes.inquiriesReceived(webBase(), locale),
         };
+        byLocale.set(locale, data);
+      }
+      return data;
+    };
     for (const u of users) {
+      const locale = localeOf(u.locale);
       await this.email
         .send({
           to: { email: u.email, name: u.firstName ?? "" },
+          locale,
           templateData: {
             template: "notification",
-            data,
+            data: dataFor(locale),
           },
           context: { type: "public_inquiry_received", id: companyId },
         })
@@ -692,7 +753,7 @@ export class PublicInquiryService {
       },
     });
     if (!company || !hasPublicProfile(company)) {
-      throw new NotFoundException("Ürün bulunamadı");
+      throw new NotFoundException(i18nMessage("api.publicInquiry.urunBulunamadi"));
     }
     const product = await this.prisma.companyItem.findFirst({
       where: {
@@ -703,7 +764,7 @@ export class PublicInquiryService {
       },
       select: { id: true, name: true, companyId: true },
     });
-    if (!product) throw new NotFoundException("Ürün bulunamadı");
+    if (!product) throw new NotFoundException(i18nMessage("api.publicInquiry.urunBulunamadi"));
     return product;
   }
 
@@ -720,7 +781,7 @@ export class PublicInquiryService {
     });
     if (emailCount >= PublicInquiryService.MAX_PER_EMAIL_DAY) {
       throw new BadRequestException(
-        "Bu e-posta adresinden bugün çok fazla talep gönderildi — yarın tekrar deneyin",
+        i18nMessage("api.publicInquiry.buEPostaAdresindenBugunCok"),
       );
     }
 
@@ -738,7 +799,7 @@ export class PublicInquiryService {
       ipPending >= PublicInquiryService.MAX_PENDING_PER_IP
     ) {
       throw new BadRequestException(
-        "Çok fazla talep gönderildi — bir süre sonra tekrar deneyin",
+        i18nMessage("api.publicInquiry.cokFazlaTalepGonderildiBirSure"),
       );
     }
   }

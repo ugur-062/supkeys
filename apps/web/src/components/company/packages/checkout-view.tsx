@@ -1,9 +1,12 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { formatNumber } from "@/i18n/format";
 import { Button } from "@/components/catalyst/button";
 import { useCompanyMe, useUpgradePremium } from "@/hooks/use-company-auth";
 import { OPERATOR } from "@/lib/company-info";
-import { formatUsd, planBySlug, type PricingPlan } from "@/lib/pricing/plans";
+import type { PricingPlan } from "@/lib/pricing/plans";
+import { usePricingPlans } from "@/lib/pricing/use-plans";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { tierAtLeast } from "@rothern/shared";
 import { CheckIcon } from "@heroicons/react/20/solid";
@@ -39,11 +42,16 @@ const PACKAGES_HREF = "/company/premium";
  * Asıl güvenlik sınırı sunucuda (`upgradeToPremium`: kurucu + VERIFIED).
  */
 export function CheckoutView() {
+  const t = useTranslations("web.panel.premium.checkoutView");
   const params = useSearchParams();
   const router = useRouter();
   const me = useCompanyMe();
   const upgrade = useUpgradePremium();
-  const plan = planBySlug(params.get("paket"));
+  // Paket metni katalogdan (`web.pricing.plans.*`, `usePricingPlans`); yapı `PRICING_PLANS`ten.
+  const { plans } = usePricingPlans();
+  const slug = params.get("paket")?.toLowerCase();
+  const plan = plans.find((p) => p.slug === slug) ?? null;
+  const invalid = !plan || plan.monthlyUsd === null;
 
   const company = me.data?.company;
   const loaded = !!me.data;
@@ -52,22 +60,22 @@ export function CheckoutView() {
 
   useEffect(() => {
     if (redirected.current) return;
-    if (!plan || plan.monthlyUsd === null) {
+    if (invalid) {
       redirected.current = true;
       router.replace(PACKAGES_HREF);
       return;
     }
     if (loaded && !verified) {
       redirected.current = true;
-      toast.info("Paket satın almadan önce firmanızı doğrulayın. Doğrulama ücretsizdir.");
+      toast.info(t("paketSatinAlmadanOnceFirmanizi"));
       router.replace(VERIFICATION_HREF);
     }
-  }, [plan, loaded, verified, router]);
+  }, [invalid, loaded, verified, router, t]);
 
-  if (!plan || plan.monthlyUsd === null || !loaded || !verified) {
+  if (!plan || invalid || !loaded || !verified) {
     return (
       <div className="mx-auto max-w-5xl px-4 py-16 text-sm text-zinc-500" role="status">
-        Yükleniyor…
+        {t("yukleniyor")}
       </div>
     );
   }
@@ -80,16 +88,16 @@ export function CheckoutView() {
       <div className="mx-auto max-w-md px-4 py-16 text-center">
         <h1 className="text-lg font-semibold text-zinc-950">
           {alreadyHas
-            ? `${plan.name} paketi zaten firmanızda`
-            : "Paketi firma kurucusu satın alabilir"}
+            ? t("paketiZatenFirmanizda", { name: plan.name })
+            : t("paketiFirmaKurucusuSatinAlabilir")}
         </h1>
         <p className="mt-2 text-sm text-zinc-600">
           {alreadyHas
-            ? "Bu paketin bütün özellikleri hesabınızda açık."
-            : "Paket ve fatura işlemleri yalnız firma kurucusunun hesabından yapılır."}
+            ? t("buPaketinButunOzellikleriHesabinizda")
+            : t("paketVeFaturaIslemleriYalniz")}
         </p>
         <Button href={PACKAGES_HREF} outline className="mt-6">
-          Paketlere dön
+          {t("paketlereDon")}
         </Button>
       </div>
     );
@@ -109,25 +117,27 @@ function Checkout({
   upgrade: ReturnType<typeof useUpgradePremium>;
   selfUpgrade: boolean;
 }) {
+  const t = useTranslations("web.panel.premium.checkoutView");
+  const locale = useLocale();
   const router = useRouter();
+  /** "$1.920" — görüntüleme dilinin binlik ayracıyla, USD. */
+  const usd = (n: number) => `$${formatNumber(n, locale)}`;
   const monthly = plan.monthlyUsd ?? 0;
   const yearly = monthly * 12;
   // Eski self-servis uç yalnız GOLD'a yükseltir; Silver'da kullanılamaz.
   const canPayNow = selfUpgrade && plan.tier === "GOLD";
 
   const mailto = `mailto:${OPERATOR.supportEmail}?subject=${encodeURIComponent(
-    `${plan.name} paket satın alma — ${companyName}`,
-  )}&body=${encodeURIComponent(
-    `Merhaba,\n\n${companyName} için ${plan.name} paketini yıllık dönemle satın almak istiyoruz.\n\n`,
-  )}`;
+    t("mailKonu", { name: plan.name, company: companyName }),
+  )}&body=${encodeURIComponent(t("mailGovde", { name: plan.name, company: companyName }))}`;
 
   const payNow = async () => {
     try {
       await upgrade.mutateAsync();
-      toast.success(`${plan.name} paketi açıldı`);
+      toast.success(t("paketiAcildi", { name: plan.name }));
       router.push("/company/satinalma");
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Paket açılamadı"));
+      toast.error(extractErrorMessage(err, t("paketAcilamadi")));
     }
   };
 
@@ -138,10 +148,10 @@ function Checkout({
         className="inline-flex items-center gap-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-950"
       >
         <ArrowLeftIcon aria-hidden className="size-4" />
-        Paketler
+        {t("paketler")}
       </Link>
       <h1 className="mt-4 text-2xl font-semibold tracking-tight text-zinc-950 sm:text-3xl">
-        {plan.name} paketini satın al
+        {t("paketiniSatinAl", { name: plan.name })}
       </h1>
 
       <div className="mt-8 grid grid-cols-1 items-start gap-6 lg:grid-cols-[minmax(0,1fr)_22rem]">
@@ -158,7 +168,7 @@ function Checkout({
                 href={PACKAGES_HREF}
                 className="shrink-0 text-sm font-medium text-blue-700 hover:text-blue-800"
               >
-                Değiştir
+                {t("degistir")}
               </Link>
             </div>
             <ul role="list" className="mt-5 grid grid-cols-1 gap-x-6 gap-y-2 border-t border-zinc-950/5 pt-5 text-sm/6 text-zinc-600 sm:grid-cols-2">
@@ -173,33 +183,33 @@ function Checkout({
 
           <section aria-labelledby="co-donem" className="rounded-2xl bg-white p-6 ring-1 ring-zinc-950/10">
             <h2 id="co-donem" className="text-base font-semibold text-zinc-950">
-              Ödeme dönemi
+              {t("odemeDonemi")}
             </h2>
             <div className="mt-4 flex items-center justify-between gap-4 rounded-xl p-4 ring-2 ring-blue-600">
               <div>
-                <p className="text-sm font-semibold text-zinc-950">Yıllık, peşin</p>
-                <p className="mt-0.5 text-xs text-zinc-500">12 ay kesintisiz kullanım</p>
+                <p className="text-sm font-semibold text-zinc-950">{t("yillikPesin")}</p>
+                <p className="mt-0.5 text-xs text-zinc-500">{t("n12AyKesintisizKullanim")}</p>
               </div>
               <p className="text-right text-sm text-zinc-700 tabular-nums">
-                <span className="font-semibold text-zinc-950">{formatUsd(monthly)}</span>/ay
+                <span className="font-semibold text-zinc-950">{usd(monthly)}</span>{t("ay")}
               </p>
             </div>
           </section>
 
           <section aria-labelledby="co-fatura" className="rounded-2xl bg-white p-6 ring-1 ring-zinc-950/10">
             <h2 id="co-fatura" className="text-base font-semibold text-zinc-950">
-              Fatura bilgileri
+              {t("faturaBilgileri")}
             </h2>
             <dl className="mt-4 text-sm">
               <div className="flex justify-between gap-4">
-                <dt className="text-zinc-500">Unvan</dt>
+                <dt className="text-zinc-500">{t("unvan")}</dt>
                 <dd className="text-right font-medium text-zinc-950">{companyName}</dd>
               </div>
             </dl>
             <p className="mt-3 text-xs text-zinc-500">
-              Fatura unvanı ve vergi kimliği Firma Bilgileri’nden alınır.{" "}
+              {t("faturaUnvaniVeVergiKimligi")}{" "}
               <Link href="/company/ayarlar/firma" className="font-medium text-blue-700 hover:text-blue-800">
-                Firma Bilgileri
+                {t("firmaBilgileri")}
               </Link>
             </p>
           </section>
@@ -207,27 +217,27 @@ function Checkout({
 
         <aside aria-labelledby="co-ozet" className="rounded-2xl bg-white p-6 shadow-sm ring-1 ring-zinc-950/10 lg:sticky lg:top-20">
           <h2 id="co-ozet" className="text-base font-semibold text-zinc-950">
-            Özet
+            {t("ozet")}
           </h2>
           <dl className="mt-4 space-y-2.5 text-sm tabular-nums">
             <div className="flex justify-between gap-4">
-              <dt className="text-zinc-600">{plan.name} · yıllık</dt>
+              <dt className="text-zinc-600">{t("yillik", { name: plan.name })}</dt>
               <dd className="text-zinc-950">
-                {formatUsd(monthly)} × 12
+                {t("carpi12", { amount: usd(monthly) })}
               </dd>
             </div>
             <div className="flex justify-between gap-4">
-              <dt className="text-zinc-600">KDV</dt>
-              <dd className="text-zinc-600">Faturada eklenir</dd>
+              <dt className="text-zinc-600">{t("kdv")}</dt>
+              <dd className="text-zinc-600">{t("faturadaEklenir")}</dd>
             </div>
             <div className="flex items-baseline justify-between gap-4 border-t border-zinc-950/10 pt-3">
-              <dt className="font-semibold text-zinc-950">Toplam</dt>
+              <dt className="font-semibold text-zinc-950">{t("toplam")}</dt>
               <dd className="text-2xl font-semibold tracking-tight text-zinc-950">
-                {formatUsd(yearly)}
+                {usd(yearly)}
               </dd>
             </div>
           </dl>
-          <p className="mt-1 text-right text-xs text-zinc-500">USD, KDV hariç</p>
+          <p className="mt-1 text-right text-xs text-zinc-500">{t("usdKdvHaric")}</p>
 
           {canPayNow ? (
             <Button
@@ -237,14 +247,14 @@ function Checkout({
               onClick={payNow}
             >
               <CreditCardIcon data-slot="icon" />
-              {upgrade.isPending ? "İşleniyor…" : "Satın al"}
+              {upgrade.isPending ? t("isleniyor") : t("satinAl")}
             </Button>
           ) : (
             // Ödeme altyapısı gelene dek TEK eylem talep. "Ödeme yakında"
             // gibi bir yazı ya da pasif düğme ÇİZİLMEZ (2026-09-15, kullanıcı
             // kararı).
             <Button href={mailto} color="blue" className="mt-6 w-full">
-              Satın alma talebi gönder
+              {t("satinAlmaTalebiGonder")}
             </Button>
           )}
 

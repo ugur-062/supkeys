@@ -1,10 +1,13 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import { ScopeChip } from "@/components/tenders/scope-chip";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { usePortalStore } from "@/lib/company/portal-store";
 import { useRouter } from "@/i18n/navigation";
 import { formatDate } from "@/lib/format-date";
+import { formatNumber } from "@/i18n/format";
+import { useClosingUrgency } from "@/i18n/domain";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -17,8 +20,8 @@ import { Text } from "@/components/catalyst/text";
 import { CompanyProfileView } from "@/components/company/company-profile-view";
 import { ProductCard } from "@/components/marketplace/product-card";
 import { ListingCard, type ListingCardData } from "@/components/marketplace/listing-card";
-import { STATE_LABEL, publicState } from "@/lib/public/marketplace";
-import { closingUrgency, daysUntil } from "@/lib/tenders/seller-state";
+import { publicState } from "@/lib/public/marketplace";
+import { daysUntil } from "@/lib/tenders/seller-state";
 import { useActivePortal } from "@/hooks/use-active-portal";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/providers/confirm-dialog";
@@ -38,6 +41,10 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 export default function CompanyProfilePage() {
+  const t = useTranslations("web.panel.company.firmaIdPage");
+  const ts = useTranslations("web.marketplace.state");
+  const locale = useLocale();
+  const closingUrgency = useClosingUrgency();
   const params = useParams<{ id: string }>();
   const rothernId = params.id;
   const { data, isLoading } = useCompanyProfile(rothernId);
@@ -67,7 +74,7 @@ export default function CompanyProfilePage() {
       <div className="mx-auto max-w-3xl">
         <BackLink />
         <Text className="mt-6 text-sm text-zinc-500">
-          Firma profili bulunamadı.
+          {t("firmaProfiliBulunamadi")}
         </Text>
       </div>
     );
@@ -80,9 +87,9 @@ export default function CompanyProfilePage() {
     if (!p.rothernId) return;
     try {
       await invite.mutateAsync(p.rothernId);
-      toast.success("Bağlantı isteği gönderildi");
+      toast.success(t("baglantiIstegiGonderildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İstek gönderilemedi"));
+      toast.error(extractErrorMessage(err, t("istekGonderilemedi")));
     }
   };
 
@@ -93,27 +100,27 @@ export default function CompanyProfilePage() {
         rothernId: p.rothernId,
         reason: reason.trim() || undefined,
       });
-      toast.success("Firma engellendi");
+      toast.success(t("firmaEngellendi"));
       setBlockOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Engellenemedi"));
+      toast.error(extractErrorMessage(err, t("engellenemedi")));
     }
   };
 
   const handleDisconnect = async () => {
     if (!connectionId) return;
     const ok = await confirmDialog({
-      title: "Bağlantı kaldırılsın mı?",
-      description: `"${p.name}" ile bağlantınız kaldırılacak; davetli satın alma taleplerini artık göremezsiniz.`,
-      confirmLabel: "Kaldır",
+      title: t("baglantiKaldirilsinMi"),
+      description: t("ileBaglantinizKaldirilacakDavetliSatin", { name: p.name }),
+      confirmLabel: t("kaldir"),
       destructive: true,
     });
     if (!ok) return;
     try {
       await disconnect.mutateAsync(connectionId);
-      toast.success("Bağlantı kaldırıldı");
+      toast.success(t("baglantiKaldirildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Bağlantı kaldırılamadı"));
+      toast.error(extractErrorMessage(err, t("baglantiKaldirilamadi")));
     }
   };
 
@@ -124,34 +131,34 @@ export default function CompanyProfilePage() {
         rothernId: p.rothernId,
         reason: reason.trim(),
       });
-      toast.success("Şikayet gönderildi");
+      toast.success(t("sikayetGonderildi"));
       setComplaintOpen(false);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Şikayet gönderilemedi"));
+      toast.error(extractErrorMessage(err, t("sikayetGonderilemedi")));
     }
   };
 
   const actions = (
     <>
       {connectionStatus === "active" ? (
-        <Badge color="green">Bağlısınız</Badge>
+        <Badge color="green">{t("baglisiniz")}</Badge>
       ) : connectionStatus === "pending" ? (
-        <Badge color="amber">İstek gönderildi</Badge>
+        <Badge color="amber">{t("istekGonderildi")}</Badge>
       ) : connectionStatus === "incoming" ? (
         <Button href={connectionsPathFor(lastPortal)} outline>
-          Size istek gönderdi — Yanıtla
+          {t("sizeIstekGonderdiYanitla")}
         </Button>
       ) : connectionStatus === "none" && canManageConn ? (
         /* MAVİ: bu sayfaya satınalma pazarından geliniyor ve orada birincil
            eylem rengi mavi (kullanıcı kuralı: satınalmada siyah yok). */
         <Button color="blue" onClick={handleConnect} disabled={invite.isPending}>
-          Bağlantı İsteği Gönder
+          {t("baglantiIstegiGonder")}
         </Button>
       ) : null}
 
       {connectionStatus !== "self" && canManageConn ? (
         <Dropdown>
-          <DropdownButton plain aria-label="Daha fazla">
+          <DropdownButton plain aria-label={t("dahaFazla")}>
             <MoreVertical className="h-5 w-5" />
           </DropdownButton>
           <DropdownMenu anchor="bottom end">
@@ -161,7 +168,7 @@ export default function CompanyProfilePage() {
                 disabled={disconnect.isPending}
               >
                 <Unlink data-slot="icon" />
-                Bağlantıyı Kaldır
+                {t("baglantiyiKaldir")}
               </DropdownItem>
             ) : null}
             <DropdownItem
@@ -169,14 +176,14 @@ export default function CompanyProfilePage() {
               disabled={block.isPending}
             >
               <Ban data-slot="icon" />
-              Engelle
+              {t("engelle")}
             </DropdownItem>
             <DropdownItem
               onClick={() => setComplaintOpen(true)}
               disabled={complaint.isPending}
             >
               <Flag data-slot="icon" />
-              Şikayet Et
+              {t("sikayetEt")}
             </DropdownItem>
           </DropdownMenu>
         </Dropdown>
@@ -192,7 +199,7 @@ export default function CompanyProfilePage() {
           {/* Başlık ve ızgara herkese açık profille AYNI (kaynak kalıp):
               sayı parantezde, dört sütun, tam genişlik. */}
           <h2 className="text-2xl font-semibold tracking-tight text-zinc-950">
-            Tüm Ürünler ve Hizmetler ({productCount.toLocaleString("tr-TR")})
+            {t("tumUrunlerVeHizmetler", { count: formatNumber(productCount, locale) })}
           </h2>
         </div>
         <div className="mt-6 grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-4">
@@ -201,7 +208,7 @@ export default function CompanyProfilePage() {
               key={pr.slug}
               product={pr}
               href={`/company/satinalma/urunler/${pr.company.slug}/${pr.slug}`}
-              cta="Bilgi iste"
+              cta={t("bilgiIste")}
               accent="blue"
             />
           ))}
@@ -211,7 +218,7 @@ export default function CompanyProfilePage() {
             sahte bir "daha fazla" düğmesi de basmıyoruz (hedefi yok). */}
         {productCount > products.length ? (
           <p className="tnum mt-4 text-sm text-zinc-500">
-            {products.length.toLocaleString("tr-TR")} / {productCount.toLocaleString("tr-TR")} ürün gösteriliyor.
+            {t("urunGosteriliyor", { shown: formatNumber(products.length, locale), total: formatNumber(productCount, locale) })}
           </p>
         ) : null}
       </section>
@@ -220,24 +227,24 @@ export default function CompanyProfilePage() {
   const tenders = (
     <section className="card p-6">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold text-zinc-900">Açık Satın Alma Talepleri</h2>
+        <h2 className="text-base font-semibold text-zinc-900">{t("acikSatinAlmaTalepleri")}</h2>
         {!connected ? (
           <span className="inline-flex items-center gap-2 text-xs text-zinc-400">
             <Lock className="h-3.5 w-3.5" />
-            Sadece herkese açık
+            {t("sadeceHerkeseAcik")}
           </span>
         ) : null}
       </div>
 
       {!connected ? (
         <Text className="mt-1 text-xs text-zinc-500">
-          Bağlanırsanız bu firmanın davetli satın alma taleplerini de görürsünüz.
+          {t("baglanirsanizBuFirmaninDavetliSatin")}
         </Text>
       ) : null}
 
       {listings.length === 0 ? (
         <div className="mt-4 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-8 text-center text-sm text-zinc-500">
-          Şu an açık satın alma talebi yok.
+          {t("suAnAcikSatinAlma")}
         </div>
       ) : (
         <div className="mt-4 space-y-2">
@@ -260,7 +267,7 @@ export default function CompanyProfilePage() {
               kind: "talep",
               categoryIds: l.categoryIds ?? [],
               status: {
-                label: STATE_LABEL[state],
+                label: ts(state),
                 className:
                   state === "open"
                     ? "border-emerald-200 bg-emerald-50 text-emerald-700"
@@ -271,35 +278,35 @@ export default function CompanyProfilePage() {
               strip: state === "open" ? "border-l-emerald-500" : "border-l-slate-400",
               facts: [
                 {
-                  label: "Format",
+                  label: t("format"),
                   value: (
                     <span className="font-medium text-slate-800">
-                      {l.format === "ENGLISH_AUCTION" ? "Pazarlık (Eksiltme)" : "Teklif Toplama"}
+                      {l.format === "ENGLISH_AUCTION" ? t("pazarlikEksiltme") : t("teklifToplama")}
                     </span>
                   ),
                 },
                 {
-                  label: "Kalem",
+                  label: t("kalem"),
                   value:
                     typeof l.itemCount === "number" ? (
                       <span className="flex items-baseline gap-1">
                         <span className="font-semibold tabular-nums text-slate-900">{l.itemCount}</span>
-                        <span className="text-[11px] text-slate-500">kalem</span>
+                        <span className="text-[11px] text-slate-500">{t("kalemBirimi")}</span>
                       </span>
                     ) : (
                       <span className="text-slate-500">—</span>
                     ),
                 },
                 {
-                  label: "Görünürlük",
+                  label: t("gorunurluk"),
                   value: <ScopeChip targetCountries={l.targetCountries} />,
                 },
                 {
-                  label: "Kapanış",
+                  label: t("kapanis"),
                   value: (
-                    <span title={l.closesAt ? formatDate(l.closesAt, "datetime") : undefined}>
+                    <span title={l.closesAt ? formatDate(l.closesAt, "datetime", locale) : undefined}>
                       <span className={cn("font-semibold", urgency && days <= 3 ? urgency.className : "text-slate-900")}>
-                        {l.closesAt ? formatDate(l.closesAt, "short") : "—"}
+                        {l.closesAt ? formatDate(l.closesAt, "short", locale) : "—"}
                       </span>
                       {urgency ? (
                         <span className="mt-1 block">
@@ -323,7 +330,7 @@ export default function CompanyProfilePage() {
               ],
               action:
                 activePortal === "satis" && state === "open"
-                  ? { label: "Teklif ver", href }
+                  ? { label: t("teklifVer"), href }
                   : null,
             };
             return <ListingCard key={l.id} variant="row" data={data} />;
@@ -355,9 +362,9 @@ export default function CompanyProfilePage() {
         open={blockOpen}
         onClose={() => setBlockOpen(false)}
         onSubmit={submitBlock}
-        title="Firmayı Engelle"
-        description={`"${p.name}" sizi göremez ve sizinle işlem yapamaz; mevcut bağlantı kaldırılır. Gerekçe kayda geçer.`}
-        confirmLabel="Engelle"
+        title={t("firmayiEngelle")}
+        description={t("siziGoremezVeSizinleIslem", { name: p.name })}
+        confirmLabel={t("engelle")}
         destructive
         pending={block.isPending}
       />
@@ -365,9 +372,9 @@ export default function CompanyProfilePage() {
         open={complaintOpen}
         onClose={() => setComplaintOpen(false)}
         onSubmit={submitComplaint}
-        title="Şikayet Et"
-        description={`"${p.name}" hakkındaki şikayetiniz platform yönetimine iletilir.`}
-        confirmLabel="Şikayeti Gönder"
+        title={t("sikayetEt")}
+        description={t("hakkindakiSikayetinizPlatformYonetimineIleti", { name: p.name })}
+        confirmLabel={t("sikayetiGonder")}
         minLength={3}
         destructive
         pending={complaint.isPending}
@@ -389,6 +396,7 @@ function connectionsPathFor(portal: "satinalma" | "satis" | null): string {
  * Bağlantılar sayfasına düşer.
  */
 function BackLink() {
+  const t = useTranslations("web.panel.company.firmaIdPage");
   const router = useRouter();
   const lastPortal = usePortalStore((st) => st.lastPortal);
   const fallback = connectionsPathFor(lastPortal);
@@ -406,14 +414,14 @@ function BackLink() {
     return (
       <button type="button" onClick={() => router.back()} className={cls}>
         <ArrowLeft className="h-4 w-4" />
-        Geri
+        {t("geri")}
       </button>
     );
   }
   return (
     <Link href={fallback} className={cls}>
       <ArrowLeft className="h-4 w-4" />
-      Bağlantılar
+      {t("baglantilar")}
     </Link>
   );
 }

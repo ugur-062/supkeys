@@ -60,3 +60,4 @@ CLAUDE.md.local
 
 # Claude Code geçici yardımcı betikleri (git dışı)
 apps/web/.tmp-*
+apps/api/.tmp-*

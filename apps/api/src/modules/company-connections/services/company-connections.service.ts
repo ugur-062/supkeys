@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   REVIEW_SUMMARY_SELECT,
   REVIEW_SUMMARY_TAKE,
@@ -31,7 +32,12 @@ import { AuditService } from "../../audit/audit.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { EmailService } from "../../email/email.service";
-import { NotificationService } from "../../notifications/notification.service";
+import {
+  NotificationService,
+  localeOf,
+} from "../../notifications/notification.service";
+import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
+import { appRoutes } from "../../../common/company/app-routes";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import {
   effectiveTier,
@@ -103,19 +109,19 @@ export class CompanyConnectionsService {
   async invite(user: AuthenticatedCompanyUser, rothernIdRaw: string) {
     if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        "Bağlantı daveti göndermek için bir paket (Silver+) gerekir. Paketsiz üyeler yalnızca gelen davetleri kabul edebilir.",
+        i18nMessage("api.companyConnections.baglantiDavetiGondermekIcinBirPaket"),
       );
     }
     const code = normalizeShortCode(rothernIdRaw);
     if (!validateShortCode(code)) {
-      throw new BadRequestException("Geçersiz Rothern ID (XXXX-XXXX)");
+      throw new BadRequestException(i18nMessage("api.companyConnections.gecersizRothernIdXxxxXxxx"));
     }
     const target = await this.prisma.company.findUnique({
       where: { rothernId: code },
       select: { id: true, name: true, isActive: true, isBlocked: true },
     });
     if (!target || !target.isActive || target.isBlocked) {
-      throw new NotFoundException("Bu Rothern ID'ye sahip firma bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyConnections.buRothernIdYeSahipFirma"));
     }
     return this.createRequest(user, target, "PREMIUM");
   }
@@ -128,7 +134,7 @@ export class CompanyConnectionsService {
   async inviteByEmail(user: AuthenticatedCompanyUser, emailRaw: string) {
     if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        "Bağlantı daveti göndermek için bir paket (Silver+) gerekir. Paketsiz üyeler yalnızca gelen davetleri kabul edebilir.",
+        i18nMessage("api.companyConnections.baglantiDavetiGondermekIcinBirPaket"),
       );
     }
     const email = emailRaw.trim().toLowerCase();
@@ -148,7 +154,7 @@ export class CompanyConnectionsService {
     if (existing?.company) {
       if (!existing.company.isActive || existing.company.isBlocked) {
         throw new BadRequestException(
-          "Bu e-posta adresinin bağlı olduğu firma artık aktif değil",
+          i18nMessage("api.companyConnections.buEPostaAdresininBagliOldugu"),
         );
       }
       const res = await this.createRequest(user, existing.company, "INVITE");
@@ -163,7 +169,7 @@ export class CompanyConnectionsService {
       select: { email: true },
     });
     if (optedOut) {
-      throw new ConflictException("Bu e-posta adresi davet almak istemediğini bildirdi");
+      throw new ConflictException(i18nMessage("api.companyConnections.buEPostaAdresiDavetAlmak"));
     }
     const me = await this.prisma.company.findUnique({
       where: { id: user.companyId },
@@ -184,15 +190,17 @@ export class CompanyConnectionsService {
 
     const baseUrl =
       resolveWebUrl(this.config);
-    const registerUrl = `${baseUrl}/company/kayit?ref=${inv.token}`;
+    const registerUrl = appRoutes.signupWithRef(baseUrl, inv.token, currentLocale());
 
     this.email
       .send({
         to: { email },
+        // Alıcı kayıtlı DEĞİL (dili yok) → DAVET EDENİN dili; daveti o yazıyor.
+        locale: currentLocale(),
         templateData: {
           template: "referral_invite",
           data: {
-            inviterName: me?.name ?? "Bir firma",
+            inviterName: this.companyNameOr(me?.name),
             email,
             registerUrl,
           },
@@ -235,14 +243,14 @@ export class CompanyConnectionsService {
   ) {
     if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        "Davet göndermek için bir paket (Silver+) gerekir.",
+        i18nMessage("api.companyConnections.davetGondermekIcinBirPaketSilver"),
       );
     }
     const listing = await this.prisma.listing.findFirst({
       where: { id: listingId, companyId: user.companyId },
       select: { id: true, title: true, status: true, closesAt: true, categoryIds: true, type: true, createdById: true },
     });
-    if (!listing) throw new NotFoundException("Satın Alma Talebi bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyConnections.satinAlmaTalebiBulunamadi"));
     // INV-AZ-1 (denetim 2026-08-23 P2 #7): dış davet = ilan-yönetim eylemi —
     // iç davet (addInvitations) ile AYNI kapı (tek kaynak listingManageDenial).
     const denial = listingManageDenial(user, listing);
@@ -259,11 +267,11 @@ export class CompanyConnectionsService {
         metadata: { needed: denial.needed, listingType: listing.type, reason: denial.reason, via: "external_invite" },
       });
       throw new ForbiddenException(
-        "Bu satın alma talebi için dış davet gönderme yetkiniz yok — ilanı yöneten kullanıcı ve ilgili rol gerekir",
+        i18nMessage("api.companyConnections.buSatinAlmaTalebiIcinDis"),
       );
     }
     if (listing.status !== "DRAFT" && listing.status !== "OPEN") {
-      throw new BadRequestException("Yalnız taslak/açık satın alma talebi için dış davet gönderilebilir");
+      throw new BadRequestException(i18nMessage("api.companyConnections.yalnizTaslakAcikSatinAlmaTalebi"));
     }
 
     const DAILY_CAP = 20;
@@ -283,7 +291,7 @@ export class CompanyConnectionsService {
         .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)),
     )].slice(0, DAILY_CAP);
     if (emails.length === 0) {
-      throw new BadRequestException("Geçerli e-posta adresi verilmedi");
+      throw new BadRequestException(i18nMessage("api.companyConnections.gecerliEPostaAdresiVerilmedi"));
     }
 
     const [optOuts, existing, registered, me, cats] = await Promise.all([
@@ -305,7 +313,7 @@ export class CompanyConnectionsService {
       }),
       this.prisma.category.findMany({
         where: { id: { in: listing.categoryIds.slice(0, 3) } },
-        select: { nameTr: true },
+        select: CATEGORY_NAME_SELECT,
       }),
     ]);
     const optOutSet = new Set(optOuts.map((o) => o.email));
@@ -313,7 +321,9 @@ export class CompanyConnectionsService {
     const registeredSet = new Set(registered.map((r) => r.email.toLowerCase()));
 
     const baseUrl = resolveWebUrl(this.config);
-    const categories = cats.map((c) => c.nameTr).join(", ") || "-";
+    // Kategori adı da davet edenin dilinde (e-posta metniyle aynı dil).
+    const categories =
+      cats.map((c) => categoryName(c, currentLocale())).join(", ") || "-";
     const closesAt = listing.closesAt
       ? listing.closesAt.toISOString().slice(0, 10)
       : null;
@@ -322,19 +332,35 @@ export class CompanyConnectionsService {
     let budget = DAILY_CAP - sentToday;
     for (const email of emails) {
       if (budget <= 0) {
-        results.push({ email, status: "SKIPPED", reason: "Günlük dış davet limitine ulaşıldı (20)" });
+        results.push({
+          email,
+          status: "SKIPPED",
+          reason: tApi("api.companyConnections.gunlukDisDavetLimitineUlasildi", { cap: DAILY_CAP }),
+        });
         continue;
       }
       if (optOutSet.has(email)) {
-        results.push({ email, status: "SKIPPED", reason: "Bu adres davet almak istemiyor" });
+        results.push({
+          email,
+          status: "SKIPPED",
+          reason: tApi("api.companyConnections.buAdresDavetAlmakIstemiyor"),
+        });
         continue;
       }
       if (registeredSet.has(email)) {
-        results.push({ email, status: "SKIPPED", reason: "Bu adres zaten Rothern'de kayıtlı — dizinden bağlantı daveti gönderin" });
+        results.push({
+          email,
+          status: "SKIPPED",
+          reason: tApi("api.companyConnections.buAdresZatenRothernDeKayitliDizinden"),
+        });
         continue;
       }
       if (existingSet.has(email)) {
-        results.push({ email, status: "SKIPPED", reason: "Bu adrese daha önce davet gönderilmiş" });
+        results.push({
+          email,
+          status: "SKIPPED",
+          reason: tApi("api.companyConnections.buAdreseDahaOnceDavetGonderilmis"),
+        });
         continue;
       }
       const inv = await this.prisma.companyReferralInvite.create({
@@ -349,15 +375,17 @@ export class CompanyConnectionsService {
       this.email
         .send({
           to: { email },
+          // Alıcı kayıtlı DEĞİL → DAVET EDENİN dili (bkz. referral_invite).
+          locale: currentLocale(),
           templateData: {
             template: "tender_external_invite",
             data: {
-              inviterName: me?.name ?? "Bir firma",
+              inviterName: this.companyNameOr(me?.name),
               tenderTitle: listing.title,
               categories,
               closesAt,
-              registerUrl: `${baseUrl}/company/kayit?ref=${inv.token}`,
-              optOutUrl: `${baseUrl}/davet-kapat?token=${inv.token}`,
+              registerUrl: appRoutes.signupWithRef(baseUrl, inv.token, currentLocale()),
+              optOutUrl: appRoutes.optOut(baseUrl, inv.token, currentLocale()),
             },
           },
           context: { type: "tender_external_invite", id: inv.id },
@@ -399,7 +427,7 @@ export class CompanyConnectionsService {
       where: { token },
       select: { email: true },
     });
-    if (!inv) throw new NotFoundException("Geçersiz bağlantı");
+    if (!inv) throw new NotFoundException(i18nMessage("api.companyConnections.gecersizBaglanti"));
     await this.prisma.referralOptOut.upsert({
       where: { email: inv.email },
       create: { email: inv.email },
@@ -411,7 +439,7 @@ export class CompanyConnectionsService {
   async inviteByEmailBatch(user: AuthenticatedCompanyUser, emails: string[]) {
     if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
-        "Bağlantı daveti göndermek için bir paket (Silver+) gerekir. Paketsiz üyeler yalnızca gelen davetleri kabul edebilir.",
+        i18nMessage("api.companyConnections.baglantiDavetiGondermekIcinBirPaket"),
       );
     }
     // Normalize + sıra korumalı dedupe.
@@ -479,11 +507,11 @@ export class CompanyConnectionsService {
     origin: ConnectionOrigin,
   ) {
     if (target.id === user.companyId) {
-      throw new BadRequestException("Kendinize istek gönderemezsiniz");
+      throw new BadRequestException(i18nMessage("api.companyConnections.kendinizeIstekGonderemezsiniz"));
     }
     const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     if (blockedIds.includes(target.id)) {
-      throw new NotFoundException("Firma bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyConnections.firmaBulunamadi"));
     }
     const existing = await this.prisma.companyConnection.findFirst({
       where: {
@@ -496,14 +524,14 @@ export class CompanyConnectionsService {
     });
     if (existing) {
       if (existing.status === "ACTIVE") {
-        throw new ConflictException("Bu firmayla zaten bağlısınız");
+        throw new ConflictException(i18nMessage("api.companyConnections.buFirmaylaZatenBaglisiniz"));
       }
       if (existing.inviteeCompanyId === user.companyId) {
         throw new ConflictException(
-          "Bu firma size zaten istek göndermiş — Gelen İstekler'den kabul edin",
+          i18nMessage("api.companyConnections.buFirmaSizeZatenIstekGondermis"),
         );
       }
-      throw new ConflictException("Bu firmaya zaten istek gönderdiniz");
+      throw new ConflictException(i18nMessage("api.companyConnections.buFirmayaZatenIstekGonderdiniz"));
     }
 
     let conn;
@@ -523,7 +551,7 @@ export class CompanyConnectionsService {
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === "P2002"
       ) {
-        throw new ConflictException("Bu firmaya zaten istek gönderdiniz");
+        throw new ConflictException(i18nMessage("api.companyConnections.buFirmayaZatenIstekGonderdiniz"));
       }
       throw e;
     }
@@ -553,8 +581,9 @@ export class CompanyConnectionsService {
         type: "connection_request",
         // Yetki tablosu: bağlantı işi "Bağlantılar" tikine (onaylayıcı-only almaz).
         audience: ["connections:manage"],
-        title: "Yeni bağlantı isteği",
-        body: `${me?.name ?? "Bir firma"} sizinle bağlantı kurmak istiyor. Bağlantılar sayfasındaki Gelen İstekler'den yanıtlayabilirsiniz.`,
+        titleKey: "api.notifications.companyConnections.request.title",
+        bodyKey: "api.notifications.companyConnections.request.body",
+        params: { company: this.companyNameOr(me?.name) },
       })
       .catch((err) =>
         this.logger.warn(
@@ -566,23 +595,36 @@ export class CompanyConnectionsService {
     // E-posta kanalı (in-app'e paralel) — hedef firma uygulamada değilse kaçırmasın.
     void this.emailCompany(
       target.id,
-      "Yeni bağlantı isteği",
+      "api.notifications.companyConnections.request.title",
       [
-        "Merhaba,",
-        `${me?.name ?? "Bir firma"} sizinle bağlantı kurmak istiyor. Rothern'de Bağlantılar → Gelen İstekler'den yanıtlayabilirsiniz.`,
+        "api.notifications.companyConnections.greeting",
+        "api.notifications.companyConnections.request.emailBody",
       ],
+      { company: this.companyNameOr(me?.name) },
       "connection_request",
       conn.id,
     );
     return { id: conn.id, status: conn.status, targetName: target.name };
   }
 
+  /**
+   * Firma adı — yoksa katalogdaki "Bir firma". Ad her zaman dolu olduğu için
+   * yedek pratikte kullanılmaz; kullanılırsa İSTEK dilinde üretilir (tek
+   * `params` sözlüğü N alıcıya dağıldığı için alıcı başına ayrışamaz).
+   */
+  private companyNameOr(name?: string | null): string {
+    return (
+      name ?? tApi("api.notifications.companyConnections.someCompany", undefined, currentLocale())
+    );
+  }
+
   /** Firmanın bildirim e-postasına (billingEmail → ilk aktif kullanıcı) bildirim
-   *  şablonuyla e-posta. Best-effort. */
+   *  şablonuyla e-posta. Best-effort. Metin ALICININ dilinde üretilir. */
   private async emailCompany(
     companyId: string,
-    subject: string,
-    paragraphs: string[],
+    subjectKey: ApiMessageKey,
+    paragraphKeys: readonly ApiMessageKey[],
+    params: Record<string, string | number>,
     type: string,
     contextId: string,
   ) {
@@ -594,7 +636,12 @@ export class CompanyConnectionsService {
           billingEmail: true,
           users: {
             where: { isActive: true, deletedAt: null },
-            select: { email: true, firstName: true, lastName: true },
+            select: {
+              email: true,
+              firstName: true,
+              lastName: true,
+              locale: true,
+            },
             orderBy: { createdAt: "asc" },
             take: 1,
           },
@@ -605,19 +652,28 @@ export class CompanyConnectionsService {
       const name = c.users[0]
         ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
         : c.name;
+      // billingEmail dalında da kullanıcı satırı zaten çekiliyor → dil ondan;
+      // hiç kullanıcı yoksa varsayılan.
+      const locale = localeOf(c.users[0]?.locale);
+      const subject = tApi(subjectKey, params, locale);
       const baseUrl =
         resolveWebUrl(this.config);
       await this.email.send({
         to: { email, name },
         subject,
+        locale,
         templateData: {
           template: "notification",
           data: {
             subject,
             heading: subject,
-            paragraphs,
-            ctaLabel: "Rothern'e Git",
-            ctaUrl: `${baseUrl}/company`,
+            paragraphs: paragraphKeys.map((k) => tApi(k, params, locale)),
+            ctaLabel: tApi(
+              "api.notifications.companyConnections.emailCta",
+              undefined,
+              locale,
+            ),
+            ctaUrl: appRoutes.home(baseUrl, locale),
           },
         },
         context: { type, id: contextId },
@@ -653,7 +709,7 @@ export class CompanyConnectionsService {
     const res = await this.prisma.companyReferralInvite.deleteMany({
       where: { id, inviterCompanyId: user.companyId, status: "PENDING" },
     });
-    if (res.count === 0) throw new NotFoundException("Davet bulunamadı");
+    if (res.count === 0) throw new NotFoundException(i18nMessage("api.companyConnections.davetBulunamadi"));
     return { ok: true };
   }
 
@@ -1095,13 +1151,13 @@ export class CompanyConnectionsService {
     // Admin-bloklu firma dizin/doğrudan-id yolundan da görünmez (arama zaten
     // filtreliyor; doğrudan rothernId erişimi bu filtreyi atlıyordu).
     if (!c || !c.isActive || c.isBlocked) {
-      throw new NotFoundException("Firma profili bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyConnections.firmaProfiliBulunamadi"));
     }
     const isSelf = c.id === user.companyId;
     if (!isSelf) {
       const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
       if (blockedIds.includes(c.id)) {
-        throw new NotFoundException("Firma profili bulunamadı");
+        throw new NotFoundException(i18nMessage("api.companyConnections.firmaProfiliBulunamadi"));
       }
     }
     const conn = isSelf
@@ -1148,7 +1204,7 @@ export class CompanyConnectionsService {
     // yalnız herkese açık URL için gerekir.
     const publiclyListed = c.publicEnabled;
     if (!related && !publiclyListed) {
-      throw new NotFoundException("Firma profili bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyConnections.firmaProfiliBulunamadi"));
     }
 
     const [listings, reviewRows, products, productCount, catRows] = await Promise.all([
@@ -1316,7 +1372,7 @@ export class CompanyConnectionsService {
       return updated.count;
     });
     if (updatedCount === 0) {
-      throw new ConflictException("Davet zaten yanıtlanmış");
+      throw new ConflictException(i18nMessage("api.companyConnections.davetZatenYanitlanmis"));
     }
     // INV-AUDIT-1 (dalga 3): kabul = ilişki kuruldu, uyuşmazlıkta delil.
     await this.audit.log({
@@ -1341,8 +1397,9 @@ export class CompanyConnectionsService {
       .pushToCompany(conn.inviterCompanyId, {
         type: "connection_accepted",
         audience: ["connections:manage"],
-        title: "Bağlantı isteğiniz kabul edildi",
-        body: `${me?.name ?? "Bir firma"} bağlantı isteğinizi kabul etti — artık birbirinizin bağlantılara açık satın alma taleplerini görebilirsiniz.`,
+        titleKey: "api.notifications.companyConnections.accepted.title",
+        bodyKey: "api.notifications.companyConnections.accepted.body",
+        params: { company: this.companyNameOr(me?.name) },
       })
       .catch((err) =>
         this.logger.warn(
@@ -1353,11 +1410,12 @@ export class CompanyConnectionsService {
       );
     void this.emailCompany(
       conn.inviterCompanyId,
-      "Bağlantı isteğiniz kabul edildi",
+      "api.notifications.companyConnections.accepted.title",
       [
-        "Merhaba,",
-        `${me?.name ?? "Bir firma"} bağlantı isteğinizi kabul etti — artık birbirinizin bağlantılara açık satın alma taleplerini görebilirsiniz.`,
+        "api.notifications.companyConnections.greeting",
+        "api.notifications.companyConnections.accepted.body",
       ],
+      { company: this.companyNameOr(me?.name) },
       "connection_accepted",
       conn.id,
     );
@@ -1376,7 +1434,7 @@ export class CompanyConnectionsService {
       },
     });
     if (res.count === 0) {
-      throw new ConflictException("Davet zaten yanıtlanmış");
+      throw new ConflictException(i18nMessage("api.companyConnections.davetZatenYanitlanmis"));
     }
     // INV-AUDIT-1 (dalga 3): ret = ilişki reddi, uyuşmazlıkta delil.
     await this.audit.log({
@@ -1415,7 +1473,7 @@ export class CompanyConnectionsService {
       },
     });
     if (res.count === 0) {
-      throw new NotFoundException("Bağlantı bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyConnections.baglantiBulunamadi"));
     }
     // INV-AUDIT-1 (dalga 3): bağlantı koparma, uyuşmazlıkta delil. Karşı taraf =
     // aktörün firması hangi tarafsa diğeri (before yarışta null olabilir).
@@ -1450,10 +1508,10 @@ export class CompanyConnectionsService {
       },
     });
     if (!conn || conn.inviteeCompanyId !== companyId) {
-      throw new NotFoundException("Davet bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyConnections.davetBulunamadi"));
     }
     if (conn.status !== "PENDING") {
-      throw new ConflictException("Davet zaten yanıtlanmış");
+      throw new ConflictException(i18nMessage("api.companyConnections.davetZatenYanitlanmis"));
     }
     return conn;
   }

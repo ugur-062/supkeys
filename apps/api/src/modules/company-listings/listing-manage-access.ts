@@ -2,8 +2,12 @@ import type { ListingType } from "@rothern/db";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 
-export const LISTING_MANAGE_DENY_MESSAGE =
-  "Bu ilanı yönetme yetkiniz yok — yalnız ilanı açan operatör yönetebilir";
+/**
+ * İlan yönetim reddinin KATALOG ANAHTARI — iki çağrı yeri (ilan servisi ve
+ * ilan-belgeleri servisi) aynı mesajı basmak zorunda; metin `tr/api.json`da.
+ */
+export const LISTING_MANAGE_DENY_KEY =
+  "api.companyListings.buIlaniYonetmeYetkinizYok" as const;
 
 /** Talep (ALIM ilanı) yönetim izni — TEK anahtar (satış ilanı 2026-09-04'te kalktı). */
 export const LISTING_MANAGE_PERMISSION = "buy:listing:manage";

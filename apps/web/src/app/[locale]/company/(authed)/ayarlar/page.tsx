@@ -1,13 +1,14 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
 
 import { userHasPermission } from "@/lib/company/permissions";
 import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
-import { verificationMeta } from "@/lib/company/verification-status";
-import { SETTINGS_PAGES, type SettingsPageMeta } from "@/lib/company/settings-pages";
+import { useVerificationMeta } from "@/lib/company/verification-status";
+import { useSettingsPages, type SettingsPageMeta } from "@/lib/company/settings-pages";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { cn } from "@/lib/utils";
 import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, Sparkles, Store, UserPlus2, type LucideIcon } from "lucide-react";
@@ -23,60 +24,67 @@ interface SettingsCard extends SettingsPageMeta {
 }
 
 interface SettingsGroup {
+  id: "firma" | "kisisel";
   title: string;
   subtitle: string;
   items: SettingsCard[];
 }
 
-// Başlık/açıklama TEK KAYNAK `SETTINGS_PAGES` — sayfanın kendi kabuğu da aynı
-// kaydı okur (hub 2026-09-10 denetimi: kart metinleri sayfalardan ayrışmıştı).
-// Firma Ayarları ÜSTTE: firma hesabında günlük iş firma kartlarında.
-const GROUPS: SettingsGroup[] = [
-  {
-    title: "Firma Ayarları",
-    subtitle: "Firmanızı, ekip üyelerini ve süreçleri yönetin",
-    items: [
-      { ...SETTINGS_PAGES.profil, icon: Store },
-      { ...SETTINGS_PAGES.firma, icon: Building2, permission: "company:manage" },
-      // B5: uç `addresses:manage` ister ve bu izin Faz Y'de BİLİNÇLİ olarak
-      // SA/ST'ye de verildi ("operasyon kullanıcısı teslimat adresi
-      // ekleyebilmeli"); kart da aynı izinle açılır.
-      { ...SETTINGS_PAGES.adresler, icon: MapPin, permission: "addresses:manage" },
-      { ...SETTINGS_PAGES.banka, icon: Landmark, permission: "billing:manage" },
-      { ...SETTINGS_PAGES.kullanicilar, icon: UserPlus2, permission: "users:manage" },
-      // Faz O — firma-yüzü aktivite logu (Silver+; K+Y).
-      { ...SETTINGS_PAGES.aktivite, icon: Activity, permission: ["users:manage", "company:manage"] },
-      // Faz AI-0 — koltuklu herkes kendi kullanımını, K+Y firma kırılımını görür.
-      {
-        ...SETTINGS_PAGES.ai,
-        icon: Sparkles,
-        permission: ["users:manage", "company:manage", ...ALL_SEAT_PERMISSIONS],
-      },
-      { ...SETTINGS_PAGES.dogrulama, icon: BadgeCheck, permission: "company:manage" },
-    ],
-  },
-  {
-    title: "Kişisel Ayarlar",
-    subtitle: "Hesabınız ve bildirim tercihleriniz",
-    items: [
-      { ...SETTINGS_PAGES.hesap, icon: IdCard },
-      { ...SETTINGS_PAGES.sifre, icon: Lock },
-      { ...SETTINGS_PAGES.bildirimler, icon: Bell },
-      { ...SETTINGS_PAGES.twoFactor, icon: Shield },
-    ],
-  },
-];
-
 export default function AyarlarPage() {
+  const t = useTranslations("web.panel.settings.ayarlarPage");
+  // Başlık/açıklama TEK KAYNAK `SETTINGS_PAGES` (okuyucunun dilinde) — sayfanın
+  // kendi kabuğu da aynı kaydı okur (hub 2026-09-10 denetimi: kart metinleri
+  // sayfalardan ayrışmıştı).
+  const pages = useSettingsPages();
+  const verificationMeta = useVerificationMeta();
   const { user, company } = useCompanyAuth();
+
+  // Firma Ayarları ÜSTTE: firma hesabında günlük iş firma kartlarında.
+  const groups: SettingsGroup[] = [
+    {
+      id: "firma",
+      title: t("firmaAyarlari"),
+      subtitle: t("firmaniziEkipUyeleriniVeSurecleriYonetin"),
+      items: [
+        { ...pages.profil, icon: Store },
+        { ...pages.firma, icon: Building2, permission: "company:manage" },
+        // B5: uç `addresses:manage` ister ve bu izin Faz Y'de BİLİNÇLİ olarak
+        // SA/ST'ye de verildi ("operasyon kullanıcısı teslimat adresi
+        // ekleyebilmeli"); kart da aynı izinle açılır.
+        { ...pages.adresler, icon: MapPin, permission: "addresses:manage" },
+        { ...pages.banka, icon: Landmark, permission: "billing:manage" },
+        { ...pages.kullanicilar, icon: UserPlus2, permission: "users:manage" },
+        // Faz O — firma-yüzü aktivite logu (Silver+; K+Y).
+        { ...pages.aktivite, icon: Activity, permission: ["users:manage", "company:manage"] },
+        // Faz AI-0 — koltuklu herkes kendi kullanımını, K+Y firma kırılımını görür.
+        {
+          ...pages.ai,
+          icon: Sparkles,
+          permission: ["users:manage", "company:manage", ...ALL_SEAT_PERMISSIONS],
+        },
+        { ...pages.dogrulama, icon: BadgeCheck, permission: "company:manage" },
+      ],
+    },
+    {
+      id: "kisisel",
+      title: t("kisiselAyarlar"),
+      subtitle: t("hesabinizVeBildirimTercihleriniz"),
+      items: [
+        { ...pages.hesap, icon: IdCard },
+        { ...pages.sifre, icon: Lock },
+        { ...pages.bildirimler, icon: Bell },
+        { ...pages.twoFactor, icon: Shield },
+      ],
+    },
+  ];
 
   // P2 (denetim §10.5): karta durum rozeti — YALNIZ store'da hazır veriden
   // (ekstra istek yok). Durum bilinmiyorsa rozet basmayız.
   const badgeFor = (href: string): { label: string; tone: StatusTone } | null => {
     if (href === "/company/ayarlar/2fa" && user)
       return user.twoFactorEnabled
-        ? { label: "Açık", tone: "done" }
-        : { label: "Kapalı", tone: "neutral" };
+        ? { label: t("acik"), tone: "done" }
+        : { label: t("kapali"), tone: "neutral" };
     if (href === "/company/ayarlar/dogrulama" && company) {
       // Tek kaynak: lib/company/verification-status (Doğrulama + Firma Bilgileri aynı sözlük).
       const m = verificationMeta(company.companyVerificationStatus);
@@ -87,17 +95,17 @@ export default function AyarlarPage() {
 
   return (
     <div className="mx-auto max-w-4xl">
-      <Heading>Ayarlar</Heading>
+      <Heading>{t("ayarlar")}</Heading>
       <Text className="mt-1 text-sm text-zinc-500">
-        Hesabınızı, firmanızı ve bildirim tercihlerinizi yönetin.
+        {t("hesabiniziFirmaniziVeBildirimTercihlerinizi")}
       </Text>
 
       <div className="mt-8 space-y-8">
-        {GROUPS.map((group) => {
+        {groups.map((group) => {
           const items = group.items.filter((i) => !i.permission || userHasPermission(user, i.permission));
           if (items.length === 0) return null;
           return (
-            <section key={group.title}>
+            <section key={group.id}>
               <div className="mb-3 px-1">
                 <h2 className="text-xs font-bold uppercase tracking-wider text-zinc-500">
                   {group.title}

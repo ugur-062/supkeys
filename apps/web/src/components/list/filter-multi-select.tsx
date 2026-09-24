@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { Listbox, ListboxButton, ListboxOption, ListboxOptions } from "@headlessui/react";
 import { CheckIcon, ChevronDownIcon } from "@heroicons/react/16/solid";
@@ -37,13 +38,14 @@ export function FilterMultiSelect({
   className,
   disabled = false,
 }: Props) {
+  const t = useTranslations("web.panel.shell.filterMultiSelect");
   const active = value.length > 0;
   const label =
     value.length === 0
       ? allLabel
       : value.length === 1
         ? (options.find((o) => o.value === value[0])?.label ?? value[0])
-        : `${value.length} seçili`;
+        : t("secili", { n: value.length });
   return (
     <Listbox value={value} onChange={onChange} disabled={disabled} multiple>
       <div className={cn("relative inline-flex", className)}>

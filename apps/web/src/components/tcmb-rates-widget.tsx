@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { INTL_LOCALE } from "@/i18n/format";
 import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
 import { TrendingUp } from "lucide-react";
 // Dalga B-2: "long" varyantı üç kez elle kopyalanmıştı — tek kaynak.
@@ -59,6 +61,8 @@ function FlagGB() {
  * Tam bilgi (kaynak + kurun ait olduğu gün) hover/odak title'ında.
  */
 export function TcmbRatesChip() {
+  const t = useTranslations("web.panel.shell.tcmbRatesWidget");
+  const locale = useLocale();
   const { data, isLoading } = useCurrentExchangeRates();
 
   if (isLoading) {
@@ -69,14 +73,14 @@ export function TcmbRatesChip() {
   if (!data) return null;
 
   const fmt = (val: number) =>
-    new Intl.NumberFormat("tr-TR", {
+    new Intl.NumberFormat(INTL_LOCALE[locale], {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(val);
   const dateLabel = data.rateDate
-    ? formatDate(`${data.rateDate}T00:00:00`, "long")
+    ? formatDate(`${data.rateDate}T00:00:00`, "long", locale)
     : null;
-  const label = `TCMB günlük gösterge kuru${dateLabel ? ` · ${dateLabel}` : ""}`;
+  const label = dateLabel ? t("tcmbGunlukGostergeKuruTarih", { date: dateLabel }) : t("tcmbGunlukGostergeKuru");
 
   const rates: { flag: React.ReactNode; symbol: string; value: number }[] = [
     { flag: <FlagUS />, symbol: "$", value: data.rates.USD ?? 0 },
@@ -88,7 +92,7 @@ export function TcmbRatesChip() {
     <div
       className="inline-flex items-center gap-1 whitespace-nowrap rounded-lg border border-emerald-200/70 bg-gradient-to-r from-emerald-50/80 to-white px-2 py-1 shadow-sm"
       title={label}
-      aria-label={`Döviz kurları — ${label}`}
+      aria-label={t("dovizKurlari", { label: label })}
     >
       {rates.map((r, i) => (
         <span key={r.symbol} className="inline-flex items-center gap-1">
@@ -114,6 +118,8 @@ export function TcmbRatesChip() {
  * (`/api/exchange-rates/current`), cache 5 dk + refetchInterval 5 dk.
  */
 export function TcmbRatesWidget() {
+  const t = useTranslations("web.panel.shell.tcmbRatesWidget");
+  const locale = useLocale();
   const { data, isLoading, dataUpdatedAt } = useCurrentExchangeRates();
 
   if (isLoading) {
@@ -131,7 +137,7 @@ export function TcmbRatesWidget() {
   }
 
   const formatRate = (val: number) =>
-    new Intl.NumberFormat("tr-TR", {
+    new Intl.NumberFormat(INTL_LOCALE[locale], {
       minimumFractionDigits: 4,
       maximumFractionDigits: 4,
     }).format(val);
@@ -146,21 +152,21 @@ export function TcmbRatesWidget() {
         <div className="min-w-0">
           <h3 className="text-xs font-bold text-success-900 flex items-center gap-2">
             <TrendingUp className="h-3.5 w-3.5" />
-            TCMB Döviz Kurları
+            {t("tcmbDovizKurlari")}
           </h3>
           <p className="text-xs text-success-700 mt-0.5">
-            Günlük gösterge kuru · TCMB
+            {t("gunlukGostergeKuruTcmb")}
             {/* Kur GÜNLÜK — fetch saati değil kurun ait olduğu TARİH gösterilir
                 (hafta sonu = son iş günü kuru). */}
             {data?.rateDate ? (
               <>
                 {" · "}
-                {formatDate(`${data.rateDate}T00:00:00`, "long")}
+                {formatDate(`${data.rateDate}T00:00:00`, "long", locale)}
               </>
             ) : dataUpdatedAt > 0 ? (
               <>
                 {" · "}
-                {formatDate(new Date(dataUpdatedAt), "long")}
+                {formatDate(new Date(dataUpdatedAt), "long", locale)}
               </>
             ) : null}
           </p>

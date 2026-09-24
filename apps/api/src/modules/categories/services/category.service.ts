@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -625,7 +626,7 @@ export class CategoryService {
     const missing = ids.filter((id) => !foundIds.has(id));
     if (missing.length > 0) {
       throw new NotFoundException(
-        `Geçersiz kategori ID: ${missing.join(", ")}`,
+        i18nMessage("api.categories.gecersizKategoriId", { join: missing.join(", ") }),
       );
     }
 
@@ -634,8 +635,10 @@ export class CategoryService {
       if (wrong.length > 0) {
         throw new BadRequestException(
           opts.exactLevel === 1
-            ? "Sadece ana başlık (Segment) seviyesindeki kategoriler seçilebilir."
-            : `Sadece level ${opts.exactLevel} kategoriler seçilebilir.`,
+            ? i18nMessage("api.categories.yalnizSegmentSeviyesiSecilebilir")
+            : i18nMessage("api.categories.yalnizBelirtilenSeviyeSecilebilir", {
+                level: opts.exactLevel,
+              }),
         );
       }
       return;
@@ -649,8 +652,8 @@ export class CategoryService {
         // — sabit metin kullanıcıya yanlış kuralı söylerdi.
         throw new BadRequestException(
           opts.minLevel >= 3
-            ? "Sadece Class veya Commodity seviyesindeki kategoriler seçilebilir (Segment/Family seçilemez)."
-            : "Ana başlık (Segment) alt kategori olarak seçilemez — bir alt kırılım seçin.",
+            ? i18nMessage("api.categories.yalnizClassVeyaCommoditySecilebilir")
+            : i18nMessage("api.categories.segmentAltKategoriOlarakSecilemez"),
         );
       }
     }

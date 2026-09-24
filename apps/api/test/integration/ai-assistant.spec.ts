@@ -15,7 +15,7 @@ import { AssistantService } from "../../src/modules/ai/assistant/assistant.servi
 import type { CategorySuggestService } from "../../src/modules/ai/tender-extract/category-suggest.service";
 import { TenderExtractService } from "../../src/modules/ai/tender-extract/tender-extract.service";
 import { toolDefsForUser, allowedPortals } from "../../src/modules/ai/assistant/assistant-tools";
-import { ASSISTANT_SYSTEM_PROMPT } from "../../src/modules/ai/assistant/assistant.prompts";
+import { assistantSystemPrompt } from "../../src/modules/ai/assistant/assistant.prompts";
 import {
   BaseAiProvider,
   type AiCompletionRequest,
@@ -303,8 +303,8 @@ describe("Faz AI-2 — injection + nötr hata + oturum", () => {
     await svc.message(saAuth, { message: "ihalelerim" });
 
     const call = provider.calls[1]!;
-    // Sistem prompt sabit (enjeksiyon değiştiremez).
-    expect(call.system).toBe(ASSISTANT_SYSTEM_PROMPT);
+    // Sistem prompt sabit (enjeksiyon değiştiremez). İstek dili tr → tr varyantı.
+    expect(call.system).toBe(assistantSystemPrompt("tr"));
     // Enjekte metin YALNIZ functionResponse (VERİ) içinde — talimat konumunda değil.
     const responses = toolResponses(call);
     const asString = JSON.stringify(responses);

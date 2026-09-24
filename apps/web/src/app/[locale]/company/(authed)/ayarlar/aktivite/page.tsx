@@ -1,5 +1,7 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import axios from "axios";
 import {
   Table,
@@ -16,78 +18,77 @@ import {
   useActivityLog,
   type ActivityLogRow,
 } from "@/hooks/use-activity-log";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import { useState } from "react";
 import { SettingsShell } from "../_components/settings-shell";
 import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
-import {
-  AUDIT_ACTION_LABELS,
-  labelOr,
-  roleLabel,
-} from "@/lib/company/labels";
+import { formatDate } from "@/lib/format-date";
+import { useAuditActionLabel, useRoleLabel } from "@/i18n/domain";
 
-/** Modül filtresi — backend whitelist ile birebir. */
-const MODULES: { value: string; label: string }[] = [
-  { value: "", label: "Tümü" },
-  { value: "listing", label: "Satın Alma Talepleri" },
-  { value: "bid", label: "Teklifler" },
-  { value: "order", label: "Siparişler" },
-  { value: "user", label: "Kullanıcılar" },
-  { value: "seats", label: "Kullanıcı Hakları" },
-  { value: "bank_account", label: "Banka Hesapları" },
-  { value: "address", label: "Adresler" },
-  { value: "docs", label: "Belgeler (KYC)" },
-  { value: "approval", label: "Onaylar" },
-  { value: "connection", label: "Bağlantılar" },
-  { value: "profile", label: "Firma Profili" },
+/** Modül filtresi — backend whitelist ile birebir; etiket `module.<key>` katalog anahtarı. */
+const MODULES: { value: string; key: string }[] = [
+  { value: "", key: "all" },
+  { value: "listing", key: "listing" },
+  { value: "bid", key: "bid" },
+  { value: "order", key: "order" },
+  { value: "user", key: "user" },
+  { value: "seats", key: "seats" },
+  { value: "bank_account", key: "bank_account" },
+  { value: "address", key: "address" },
+  { value: "docs", key: "docs" },
+  { value: "approval", key: "approval" },
+  { value: "connection", key: "connection" },
+  { value: "profile", key: "profile" },
 ];
 
-
-/** Metadata'dan kısa, değersiz özet (alan adları / maskeli referanslar). */
-function summarize(row: ActivityLogRow): string {
-  const m = row.metadata ?? {};
-  const parts: string[] = [];
-  // C16: kazandırma SİPARİŞ BAŞINA iz yazar (INV-AUDIT-1) — numara olmadan
-  // aynı saniyedeki kayıtlar "çift kayıt" gibi okunuyordu.
-  if (typeof m.orderNumber === "string") parts.push(`sipariş ${m.orderNumber}`);
-  if (Array.isArray(m.changedFields) && m.changedFields.length) {
-    parts.push(`alanlar: ${(m.changedFields as string[]).join(", ")}`);
-  }
-  if (typeof m.ibanMasked === "string") parts.push(m.ibanMasked);
-  if (typeof m.kind === "string") parts.push(String(m.kind));
-  if (Array.isArray(m.after))
-    parts.push(
-      `yeni roller: ${(m.after as string[]).map(roleLabel).join(", ") || "—"}`,
-    );
-  if (typeof m.reason === "string") parts.push(m.reason);
-  return parts.join(" · ");
-}
-
-function fmtDate(iso: string): string {
-  const d = new Date(iso);
-  return Number.isNaN(d.getTime())
-    ? "—"
-    : format(d, "d MMM yyyy HH:mm", { locale: tr });
-}
-
 export default function AktivitePage() {
+  const t = useTranslations("web.panel.settings.ayarlarAktivitePage");
+  const td = useTranslations("web.domain");
+  const locale = useLocale() as Locale;
+  const auditAction = useAuditActionLabel();
+  const roleLabel = useRoleLabel();
   const [page, setPage] = useState(1);
   const [module, setModule] = useState("");
   const { data, isLoading, isError, error, refetch } = useActivityLog(page, module || undefined);
   const forbidden = axios.isAxiosError(error) && error.response?.status === 403;
   const totalPages = data?.pagination.totalPages ?? 1;
 
+  const moduleOptions = MODULES.map((m) => ({ value: m.value, label: t(`module.${m.key}` as never) }));
+  /** Eylem sözlükte var mı — yoksa ham anahtar yalnız title'da kalır (destek teşhisi). */
+  const actionKnown = (action: string) =>
+    td.has(`auditAction.${action.replace(/\./g, "_")}` as never);
+
+  /** Metadata'dan kısa, değersiz özet (alan adları / maskeli referanslar). */
+  const summarize = (row: ActivityLogRow): string => {
+    const m = row.metadata ?? {};
+    const parts: string[] = [];
+    // C16: kazandırma SİPARİŞ BAŞINA iz yazar (INV-AUDIT-1) — numara olmadan
+    // aynı saniyedeki kayıtlar "çift kayıt" gibi okunuyordu.
+    if (typeof m.orderNumber === "string") parts.push(t("siparis", { n: m.orderNumber }));
+    if (Array.isArray(m.changedFields) && m.changedFields.length) {
+      parts.push(t("alanlar", { list: (m.changedFields as string[]).join(", ") }));
+    }
+    if (typeof m.ibanMasked === "string") parts.push(m.ibanMasked);
+    if (typeof m.kind === "string") parts.push(String(m.kind));
+    if (Array.isArray(m.after))
+      parts.push(
+        t("yeniRoller", { list: (m.after as string[]).map(roleLabel).join(", ") || "—" }),
+      );
+    if (typeof m.reason === "string") parts.push(m.reason);
+    return parts.join(" · ");
+  };
+
+  const fmtDate = (iso: string): string => formatDate(iso, "datetime", locale);
+
   return (
     <SettingsShell
       page={SETTINGS_PAGES.aktivite}
-      description="Firmanızdaki eylem kayıtları — kim satın alma talebi açtı, kim rol değiştirdi, kim banka hesabı güncelledi. Değerler değil eylemler kaydedilir; hassas alanlar maskeli referansla görünür."
+      description={t("firmanizdakiEylemKayitlariKimSatin")}
     >
       <PremiumOnly minTier="SILVER">
         <div className="space-y-4">
           <div className="flex items-center gap-2">
             <label className="text-xs text-zinc-500" htmlFor="aktivite-modul">
-              Modül
+              {t("modul")}
             </label>
             <SelectMenu
               id="aktivite-modul"
@@ -97,39 +98,39 @@ export default function AktivitePage() {
                 setPage(1);
               }}
               className="min-w-44"
-              options={MODULES}
+              options={moduleOptions}
             />
           </div>
 
           {isError ? (
             <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
               {forbidden
-                ? "Aktivite logunu yalnız \u201cKullanıcı yönetimi\u201d ya da \u201cFirma yönetimi\u201d yetkisi taşıyanlar, Silver ve üzeri pakette görüntüleyebilir."
-                : "Aktivite logu yüklenemedi."}{" "}
+                ? t("aktiviteLogunuYalnizKullaniciYonetimi")
+                : t("aktiviteLoguYuklenemedi")}{" "}
               {!forbidden ? (
                 <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">
-                  Yeniden dene
+                  {t("yenidenDene")}
                 </button>
               ) : null}
             </p>
           ) : isLoading && !data ? (
-            <p className="text-sm text-zinc-500">Yükleniyor…</p>
+            <p className="text-sm text-zinc-500">{t("yukleniyor")}</p>
           ) : (
             <>
               <Table dense>
                 <TableHead>
                   <TableRow>
-                    <TableHeader>Tarih</TableHeader>
-                    <TableHeader>Eylem</TableHeader>
-                    <TableHeader>Kişi</TableHeader>
-                    <TableHeader>Detay</TableHeader>
+                    <TableHeader>{t("tarih")}</TableHeader>
+                    <TableHeader>{t("eylem")}</TableHeader>
+                    <TableHeader>{t("kisi")}</TableHeader>
+                    <TableHeader>{t("detay")}</TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {(data?.items ?? []).length === 0 ? (
                     <TableRow>
                       <TableCell colSpan={4} className="text-sm text-zinc-500">
-                        {module ? "Bu modülde henüz kayıt yok" : "Henüz kayıt yok"}
+                        {module ? t("buModuldeHenuzKayitYok") : t("henuzKayitYok")}
                       </TableCell>
                     </TableRow>
                   ) : (
@@ -140,12 +141,12 @@ export default function AktivitePage() {
                         </TableCell>
                         <TableCell
                           className="text-sm text-zinc-900"
-                          title={AUDIT_ACTION_LABELS[r.action] ? undefined : r.action}
+                          title={actionKnown(r.action) ? undefined : r.action}
                         >
-                          {labelOr(AUDIT_ACTION_LABELS, r.action)}
+                          {auditAction(r.action)}
                         </TableCell>
                         <TableCell className="text-xs text-zinc-600">
-                          {r.actorEmail ?? "sistem"}
+                          {r.actorEmail ?? t("sistem")}
                         </TableCell>
                         <TableCell
                           className="max-w-[280px] truncate text-xs text-zinc-500"
@@ -161,8 +162,11 @@ export default function AktivitePage() {
               {totalPages > 1 ? (
                 <div className="flex items-center justify-between text-xs text-zinc-500">
                   <span>
-                    Sayfa {data?.pagination.page ?? 1}/{totalPages} —{" "}
-                    {data?.pagination.total ?? 0} kayıt
+                    {t("sayfaKayit", {
+                      page: data?.pagination.page ?? 1,
+                      totalPages,
+                      total: data?.pagination.total ?? 0,
+                    })}
                   </span>
                   <div className="flex gap-2">
                     <Button
@@ -170,14 +174,14 @@ export default function AktivitePage() {
                       disabled={page <= 1}
                       onClick={() => setPage((p) => Math.max(1, p - 1))}
                     >
-                      Önceki
+                      {t("onceki")}
                     </Button>
                     <Button
                       plain
                       disabled={page >= totalPages}
                       onClick={() => setPage((p) => p + 1)}
                     >
-                      Sonraki
+                      {t("sonraki")}
                     </Button>
                   </div>
                 </div>

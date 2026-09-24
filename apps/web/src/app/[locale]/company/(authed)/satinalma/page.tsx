@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { hasAnySeatPermission } from "@/lib/company/permissions";
 import { BUYER_OBJECTS, BUYER_WIDGETS } from "@/lib/company/hero-decor";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
@@ -50,6 +51,7 @@ import { useEffect, useMemo, useState } from "react";
  * KULLANILMAZ.
  */
 export default function SatinalmaDashboardPage() {
+  const t = useTranslations("web.panel.market.satinalmaPage");
   // Hero kapsam pili — "Firma" seçiliyken alttaki bölüm firma listesi.
   // Oturum belleğinden geri yüklenir (firma sayfasından GERİ dönüş).
   const [scope, setScopeState] = useState<"products" | "suppliers">("products");
@@ -110,7 +112,7 @@ export default function SatinalmaDashboardPage() {
     const cats = (facets.data?.categories ?? [])
       .filter((c) => c.name.toLocaleLowerCase("tr-TR").includes(lower))
       .slice(0, 3)
-      .map((c) => ({ key: c.id, label: c.name, meta: `${c.count} ürün`, href: panelCategoryPath(c.id, c.name) }));
+      .map((c) => ({ key: c.id, label: c.name, meta: t("urun", { count: c.count }), href: panelCategoryPath(c.id, c.name) }));
     const prods = (sugProducts.data ?? []).slice(0, 5).map((p) => ({
       key: `${p.company.slug}/${p.slug}`,
       label: p.name,
@@ -123,20 +125,20 @@ export default function SatinalmaDashboardPage() {
       .map((c) => ({
         key: c.slug,
         label: c.name,
-        meta: [c.city, c.verified ? "Doğrulanmış" : null].filter(Boolean).join(" · ") || undefined,
+        meta: [c.city, c.verified ? t("dogrulanmis") : null].filter(Boolean).join(" · ") || undefined,
         href: panelCompanyPath(c.rothernId as string),
       }));
     return [
-      { label: "Ürünler", rows: prods },
-      { label: "Firmalar", rows: firms },
-      { label: "Kategoriler", rows: cats },
+      { label: t("urunler"), rows: prods },
+      { label: t("firmalar"), rows: firms },
+      { label: t("kategoriler"), rows: cats },
     ];
-  }, [q, facets.data, sugProducts.data, sugCompanies.data]);
+  }, [q, facets.data, sugProducts.data, sugCompanies.data, t]);
 
   return (
     <div className="space-y-10">
       <PanelHeroSearch
-        eyebrow="Küresel tedarik ağınız"
+        eyebrow={t("kureselTedarikAginiz")}
         /* Soru kipi (2026-09-08, kullanıcı: "alım içinde de bu tarz bir soru
            ifadesi bul"): satışın "Hangi talebe / teklif vereceksiniz?"
            kalıbının alım tarafındaki karşılığı. Kutu hem ürün hem tedarikçi
@@ -144,10 +146,10 @@ export default function SatinalmaDashboardPage() {
            kuruldu: aranan ÜRÜN, bulunacak olan TEDARİKÇİ. */
         /* 2026-09-17, kullanıcı kararı: "Hangi ürünü arıyorsunuz?" — tek
            renk (siyah), vurgu yok. */
-        title="Hangi ürünü arıyorsunuz?"
+        title={t("hangiUrunuAriyorsunuz")}
         plainTitle
-        lead="Doğrulanmış tedarikçilerle tanışın, ihtiyaçlarınızı paylaşın, işinizi büyütün."
-        placeholder="Ürün, firma veya sektör arayın..."
+        lead={t("dogrulanmisTedarikcilerleTanisinIhtiyaclarin")}
+        placeholder={t("urunFirmaVeyaSektorArayin")}
         action={PANEL_MARKET.products}
         /* Aynı kutu iki dizine gider (kullanıcı isteği, kaynak kalıp):
            "Ürün" → ürün dizini, "Firma" → firma dizini ("Tedarikçi" →
@@ -155,8 +157,8 @@ export default function SatinalmaDashboardPage() {
            çevirir (`scope`). */
         supplierScope={{
           action: PANEL_MARKET.companies,
-          placeholder: "Firma adı, sektör ya da sattığı ürün arayın",
-          label: "Firma",
+          placeholder: t("firmaAdiSektorYaDa"),
+          label: t("firma"),
         }}
         scope={scope}
         onScopeChange={setScope}
@@ -164,8 +166,8 @@ export default function SatinalmaDashboardPage() {
         /* Sayı bandı KALKTI (kullanıcı kararı): yerine tek satırlık çıkış —
            "bulamadıysan talep aç". */
         ctaNote={{
-          text: "Aradığınız ürünü bulamadınız mı?",
-          label: "Talep aç",
+          text: t("aradiginizUrunuBulamadinizMi"),
+          label: t("talepAc"),
           href: "/company/satinalma/taleplerim/yeni",
         }}
         backdrop
@@ -190,8 +192,8 @@ export default function SatinalmaDashboardPage() {
           <CategoryShowcaseRows
             rows={rows}
             hrefFor={(c) => panelCategoryPath(c.id, c.name)}
-            countNoun="ürün"
-            ctaLabel="Şimdi tedarikçi bulun"
+            countNoun={t("urun2")}
+            ctaLabel={t("simdiTedarikciBulun")}
           />
 
           {/* Vitrinin altında İKİNCİ şerit — üsttekiyle aynı listeyi basmasın

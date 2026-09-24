@@ -98,15 +98,13 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
       // E-posta doğrulanmamışsa doğrulama moduna geç + kod gönder.
       // Yapısal koda bakılır (mesaj metni DEĞİL) — gevşek metin eşleşmesi
       // "CSRF doğrulaması başarısız" gibi alakasız 403'lerde sahte doğrulama
-      // akışı tetiklemişti. Mesaj fallback'i yalnız eski API uyumu için.
+      // akışı tetiklemişti. (Türkçe mesaj metnine bakan eski API yedeği
+      // i18n Faz 2'de kaldırıldı: API `code` alanını her zaman gönderiyor ve
+      // mesaj artık istek dilinde — metin eşleşmesi EN/RU'da tutmazdı.)
       if (
         axios.isAxiosError(err) &&
         err.response?.status === 403 &&
-        ((err.response.data as { code?: string })?.code ===
-          "EMAIL_NOT_VERIFIED" ||
-          String(
-            (err.response.data as { message?: string })?.message,
-          ).includes("e-posta adresinizi doğrulayın"))
+        (err.response.data as { code?: string })?.code === "EMAIL_NOT_VERIFIED"
       ) {
         setVerifyEmail(data.email.trim());
         setNeedsVerify(true);

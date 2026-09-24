@@ -1,4 +1,4 @@
-import { closingUrgency as closingUrgencyTr, daysUntil } from "@/lib/tenders/seller-state";
+import { closingUrgency as closingUrgencyClass, daysUntil } from "@/lib/tenders/seller-state";
 import { UNITS, companyActivityLabel, countryName as countryNameTr, provinceDisplayName } from "@rothern/shared";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
@@ -6,8 +6,8 @@ import { formatDate } from "@/lib/format-date";
 import type { PriceLabels } from "@/lib/public/product-price";
 import type { SeoT } from "@/lib/seo/entities";
 import { INTL_LOCALE } from "./format";
-import { DELIVERY_TERM_LABELS, PAYMENT_CATEGORY_LABELS } from "@/lib/tenders/labels";
 import { segmentTaglineKey } from "@/lib/public/segment-taglines";
+import { moneyInputError } from "@/lib/money-input";
 
 /**
  * Alan sözlükleri — dil farkında (i18n Faz 1). Paylaşılan paketteki Türkçe
@@ -105,7 +105,7 @@ export function useClosingUrgency(): (
 ) => { text: string; className: string; days: number } | null {
   const t = useTranslations("web.domain.closing");
   return (listingStatus, closesAt) => {
-    const base = closingUrgencyTr(listingStatus, closesAt);
+    const base = closingUrgencyClass(listingStatus, closesAt);
     const days = daysUntil(closesAt);
     if (!base || days === null) return null;
     const text = days > 0 ? t("daysLeft", { days }) : days === 0 ? t("endsToday") : t("expired");
@@ -126,12 +126,12 @@ export function usePriceLabels(): PriceLabels {
 
 export function useDeliveryTermLabel(): (code: string) => string {
   const t = useTranslations("web.domain.deliveryTerm");
-  return (code) => (t.has(code as never) ? t(code as never) : (DELIVERY_TERM_LABELS[code as keyof typeof DELIVERY_TERM_LABELS] ?? code));
+  return (code) => (t.has(code as never) ? t(code as never) : code);
 }
 
 export function usePaymentCategoryLabel(): (code: string) => string {
   const t = useTranslations("web.domain.paymentCategory");
-  return (code) => (t.has(code as never) ? t(code as never) : (PAYMENT_CATEGORY_LABELS[code as keyof typeof PAYMENT_CATEGORY_LABELS] ?? code));
+  return (code) => (t.has(code as never) ? t(code as never) : code);
 }
 
 /** Kategori vitrini tanıtım kartının sloganı — anahtar `segmentTaglineKey`, metin katalogdan. */
@@ -166,9 +166,10 @@ export function useUnitLabel(): (unit: string | null | undefined, code?: string 
 }
 
 /* ------------------------------------------------------------------ */
-/* Faz 2 sözlük hook'ları — eski TR sözlükler (lib/company/labels.ts,     */
-/* lib/tenders/labels.ts, lib/company/terms.ts) göç bitene dek durur;     */
-/* yeni/çevrilen bileşen BUNLARI kullanır.                                */
+/* Faz 2 sözlük hook'ları — TEK KAYNAK. Eski Türkçe sözlük dosyaları      */
+/* (lib/company/labels.ts, lib/company/terms.ts varlık/liste bölümleri,   */
+/* lib/tenders/labels.ts etiketleri) KALDIRILDI; kullanıcıya görünen ad   */
+/* katalogdan gelir, kod yalnız ANAHTAR taşır.                            */
 /* ------------------------------------------------------------------ */
 
 const dictHook = (ns: string) => (): ((code: string) => string) => {
@@ -186,7 +187,7 @@ export const useListingStatusLabel = dictHook("web.domain.listingStatus");
 export const useLcTypeLabel = dictHook("web.domain.lcType");
 /** Taşıma modu. */
 export const useTransportModeLabel = dictHook("web.domain.transportMode");
-/** Sipariş durumu (`web.domain.orderStatus.<KOD>`; `lib/orders/order-status.ts` göç edene dek TR yedek). */
+/** Sipariş durumu (`web.domain.orderStatus.<KOD>`; anahtarı `orderStatusMeta` üretir). */
 export const useOrderStatusLabel = dictHook("web.domain.orderStatus");
 /** Sipariş adımı (`web.domain.orderStep.<KOD>`). */
 export const useOrderStepLabel = dictHook("web.domain.orderStep");
@@ -260,5 +261,20 @@ export function useFormatPaymentPlan(): (p: { paymentCategory?: string | null; a
       case "CUSTOM": return t("custom");
       default: return category(cat);
     }
+  };
+}
+
+/** Teklif belgesi bölümü (`web.domain.bidDocKind.<KOD>`). */
+export const useBidDocKindLabel = dictHook("web.domain.bidDocKind");
+
+/**
+ * Para girişi hatası — `lib/money-input.ts` React DIŞIDIR ve ANAHTAR döner
+ * (`web.shared.moneyInput.*`); metin çizim yerinde burada çevrilir.
+ */
+export function useMoneyInputError(): (value: number, opts?: { min?: number }) => string | null {
+  const t = useTranslations("web.shared.moneyInput");
+  return (value, opts) => {
+    const err = moneyInputError(value, opts);
+    return err ? t(err.key, err.values) : null;
   };
 }

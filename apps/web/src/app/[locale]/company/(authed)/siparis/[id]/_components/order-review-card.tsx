@@ -5,7 +5,7 @@ import { Button } from "@/components/catalyst/button";
 import { Subheading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { Textarea } from "@/components/catalyst/textarea";
-import { StarRating, ratingLabel } from "@/components/ui/star-rating";
+import { StarRating, useRatingLabel } from "@/components/ui/star-rating";
 import { useOrderReview, useUpsertReview } from "@/hooks/use-company-orders";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useEffect, useState } from "react";
@@ -23,6 +23,7 @@ export function OrderReviewCard({
   ratee?: "buyer" | "supplier";
 }) {
   const t = useTranslations("web.panel.trade.orderReviewCard");
+  const ratingLabel = useRatingLabel();
   const title = ratee === "buyer" ? t("musteriDegerlendirme") : t("tedarikciDegerlendirme");
   const { data: existing } = useOrderReview(orderId, true);
   const upsert = useUpsertReview(orderId);

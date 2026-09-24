@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { orderStageIndex, orderSteps } from "../order-status";
+import { orderStageIndex, orderStatusMeta, orderSteps } from "../order-status";
 
 /**
  * Süreç izleyicisi 4 kilometre taşı (2026-09-10, kullanıcı kararı): adımlar
@@ -7,9 +7,17 @@ import { orderStageIndex, orderSteps } from "../order-status";
  * adım (Onay) — bekleyen = süren, onaylanan = biten.
  */
 describe("orderSteps / orderStageIndex", () => {
+  /* i18n Faz 2: adım/durum METNİ katalogda (`web.domain.orderStep.*`,
+     `web.domain.orderStatus.*`); burada ANAHTAR sözleşmesi sınanır. */
   it("dört kısa adım; orta adım teslim şekline duyarlı", () => {
-    expect(orderSteps(true).map((s) => s.label)).toEqual(["Onay", "Gönderim", "Teslim", "Tamamlandı"]);
-    expect(orderSteps(false).map((s) => s.label)).toEqual(["Onay", "Hazırlık", "Teslim", "Tamamlandı"]);
+    expect(orderSteps(true).map((s) => s.labelKey)).toEqual(["APPROVAL", "SHIP", "DELIVERY", "COMPLETE"]);
+    expect(orderSteps(false).map((s) => s.labelKey)).toEqual(["APPROVAL", "SHIP_PICKUP", "DELIVERY", "COMPLETE"]);
+  });
+
+  it("durum rozeti: satıcı taşımıyorsa IN_DELIVERY → teslime hazır anahtarı", () => {
+    expect(orderStatusMeta("IN_DELIVERY", true)).toEqual({ labelKey: "IN_DELIVERY", tone: "active" });
+    expect(orderStatusMeta("IN_DELIVERY", false)).toEqual({ labelKey: "IN_DELIVERY_PICKUP", tone: "active" });
+    expect(orderStatusMeta("COMPLETED")).toEqual({ labelKey: "COMPLETED", tone: "done" });
   });
 
   it("durum → biten/süren adım", () => {

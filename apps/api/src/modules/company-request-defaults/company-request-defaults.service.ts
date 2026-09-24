@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import {
   Currency,
@@ -137,7 +138,13 @@ export class CompanyRequestDefaultsService {
   async save(user: AuthenticatedCompanyUser, input: unknown): Promise<RequestDefaultsResponse> {
     const parsed = requestDefaultsSchema.safeParse(input);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues.map((i) => i.message).join(", "));
+      // Gövde zod şemasından gelir (mesajlar şemanın kendi metinleri); yalnız
+      // SABİT çerçeve katalogdan çevrilir.
+      throw new BadRequestException(
+        i18nMessage("api.companyRequestDefaults.talepSartlariGecersiz", {
+          issues: parsed.error.issues.map((i) => i.message).join(", "),
+        }),
+      );
     }
     const data = await this.withValidAddress(user.companyId, this.normalize(parsed.data, user.country ?? null));
     await this.prisma.company.update({

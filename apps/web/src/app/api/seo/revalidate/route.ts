@@ -36,7 +36,9 @@ export async function POST(req: Request): Promise<Response> {
   try {
     body = (await req.json()) as { paths?: unknown; tags?: unknown };
   } catch {
-    return Response.json({ error: "Geçersiz gövde" }, { status: 400 });
+    // MAKİNEYE yanıt (çağıran API sunucusu, kullanıcı değil) — komşu
+    // dallardaki "Not found"/"Forbidden" gibi İngilizce ve çevrilmez.
+    return Response.json({ error: "Invalid body" }, { status: 400 });
   }
   const paths = (Array.isArray(body.paths) ? body.paths : [])
     .filter((p): p is string => typeof p === "string" && p.length <= 200 && PATH_RE.test(p))

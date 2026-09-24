@@ -1,7 +1,11 @@
 /**
- * İlan + teklif durumunun SATICI perspektifinden okunabilir "etkin durum"
- * etiketine dönüşümü (eski tedarikçi paneli deriveSupplierTenderState portu,
- * birleşik Listing/ListingBid durumlarına uyarlandı).
+ * İlan + teklif durumunun SATICI perspektifinden "etkin durum" ANAHTARINA
+ * dönüşümü (eski tedarikçi paneli deriveSupplierTenderState portu, birleşik
+ * Listing/ListingBid durumlarına uyarlandı).
+ *
+ * i18n Faz 2: metin katalogda (`web.domain.sellerState.<anahtar>`), çizim
+ * `useSellerStateLabel()`; burada yalnız anahtar + rozet sınıfı üretilir.
+ * Aşağıdaki karşılıklar okuma kolaylığı içindir (kaynak: katalog).
  *
  *   OPEN + teklif yok + davetli   → "Davet Edildi"
  *   OPEN + teklif yok + davetsiz  → "Teklife Açık"
@@ -21,9 +25,8 @@
 
 import { calendarDaysBetween } from "@/lib/time-zone";
 export interface SellerTenderState {
-  /** Katalog anahtarı (`web.domain.sellerState.*`) — `useSellerStateLabel()(key)`; `label` Türkçe yedek. */
+  /** Katalog anahtarı (`web.domain.sellerState.*`) — metni `useSellerStateLabel()(key)` basar. */
   key: string;
-  label: string;
   className: string;
   tone: "neutral" | "info" | "active" | "win" | "lose" | "warn";
 }
@@ -36,18 +39,18 @@ export function deriveSellerTenderState(
   invited: boolean,
 ): SellerTenderState {
   if (listingStatus === "CANCELLED") {
-    return { key: "cancelled", label: "İptal Edildi", className: NEUTRAL, tone: "neutral" };
+    return { key: "cancelled", className: NEUTRAL, tone: "neutral" };
   }
   if (bidStatus === "WON") {
     return {
-      key: "won", label: "Kazandınız",
+      key: "won",
       className: "bg-emerald-50 text-emerald-700 border-emerald-200",
       tone: "win",
     };
   }
   if (bidStatus === "AWARDED_PARTIAL") {
     return {
-      key: "wonPartial", label: "Kısmen Kazandınız",
+      key: "wonPartial",
       className: "bg-emerald-50 text-emerald-700 border-emerald-200",
       tone: "win",
     };
@@ -55,26 +58,24 @@ export function deriveSellerTenderState(
   if (bidStatus === "LOST") {
     return {
       key: "lost",
-      label: "Kaybettiniz",
       className: "bg-rose-50 text-rose-700 border-rose-200",
       tone: "lose",
     };
   }
   if (bidStatus === "WITHDRAWN") {
-    return { key: "withdrawn", label: "Geri Çekildi", className: NEUTRAL, tone: "neutral" };
+    return { key: "withdrawn", className: NEUTRAL, tone: "neutral" };
   }
   if (listingStatus === "OPEN") {
     if (bidStatus === "DRAFT") {
       return {
         key: "draftMine",
-        label: "Taslak Teklifim",
         className: "bg-amber-50 text-amber-700 border-amber-200",
         tone: "warn",
       };
     }
     if (bidStatus === "SUBMITTED") {
       return {
-        key: "submitted", label: "Teklif Gönderildi",
+        key: "submitted",
         className: "bg-violet-50 text-violet-700 border-violet-200",
         tone: "active",
       };
@@ -82,13 +83,12 @@ export function deriveSellerTenderState(
     if (invited) {
       return {
         key: "invited",
-        label: "Davet Edildi",
         className: "bg-blue-50 text-blue-700 border-blue-200",
         tone: "info",
       };
     }
     return {
-      key: "open", label: "Teklife Açık",
+      key: "open",
       className: "bg-blue-50 text-blue-700 border-blue-200",
       tone: "info",
     };
@@ -105,26 +105,26 @@ export function deriveSellerTenderState(
     if (bidStatus === "SUBMITTED") {
       if (listingStatus !== "CLOSED") {
         return {
-          key: "evaluating", label: "Değerlendiriliyor",
+          key: "evaluating",
           className: "bg-indigo-50 text-indigo-700 border-indigo-200",
           tone: "active",
         };
       }
       return {
-        key: "awaitingResult", label: "Sonuç Bekleniyor",
+        key: "awaitingResult",
         className: "bg-zinc-100 text-zinc-600 border-zinc-200",
         tone: "info",
       };
     }
     return {
-      key: bidStatus === "DRAFT" ? "closedDraftNotSent" : "closed", label: bidStatus === "DRAFT" ? "Kapandı (taslak gönderilmedi)" : "Kapandı",
+      key: bidStatus === "DRAFT" ? "closedDraftNotSent" : "closed",
       className: NEUTRAL,
       tone: "neutral",
     };
   }
   // AWARDED / CLOSED_NO_AWARD (teklifsiz veya sonuçsuz)
   return {
-    key: bidStatus ? "closed" : "closedNoBid", label: bidStatus ? "Kapandı" : "Kapandı (teklif vermediniz)",
+    key: bidStatus ? "closed" : "closedNoBid",
     className: NEUTRAL,
     tone: "neutral",
   };
@@ -141,11 +141,15 @@ export function daysUntil(iso: string | null): number | null {
   return calendarDaysBetween(new Date(), new Date(iso));
 }
 
-/** Aciliyet metni + rengi — eski kart footer davranışı. */
+/**
+ * Aciliyet RENGİ — eski kart footer davranışı. Metin katalogdan gelir
+ * (`web.domain.closing.*`); tek okuma yolu `@/i18n/domain` `useClosingUrgency`,
+ * eşikler burada kalır ki renk ve metin ayrışmasın.
+ */
 export function closingUrgency(
   listingStatus: string,
   closesAt: string | null,
-): { text: string; className: string } | null {
+): { className: string } | null {
   const days = daysUntil(closesAt);
   if (listingStatus !== "OPEN" || days === null) return null;
   /* amber-600 (#e17100) beyaz zeminde 3,20:1 — AA sınırı 4,5. axe bunu
@@ -153,21 +157,5 @@ export function closingUrgency(
      rose-600 (4,53) ve zinc-500 (4,83) zaten sınırın üstünde. */
   const className =
     days <= 1 ? "text-rose-600" : days <= 3 ? "text-amber-700" : "text-zinc-500";
-  const text =
-    days > 0 ? `${days} gün kaldı` : days === 0 ? "Bugün biter" : "Süre doldu";
-  return { text, className };
-}
-
-/**
- * "Süresi doldu · N gün önce" — kapanış geçmiş ama karar verilmemiş kayıt
- * (v2 4d). "Değerlendirmede" rozeti tek başına 6 gündür kapalı bir talebi
- * hâlâ açık gibi okutuyordu; zaman notu durumun yanına gelir.
- */
-export function expiredNote(status: string, closesAt: string | null): string | null {
-  if (!closesAt) return null;
-  if (!["OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"].includes(status)) return null;
-  const days = daysUntil(closesAt);
-  if (days == null || days >= 0) return null;
-  const ago = -days;
-  return ago === 0 ? "Süresi doldu · bugün" : `Süresi doldu · ${ago} gün önce`;
+  return { className };
 }

@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { formatNumber } from "@/i18n/format";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -33,8 +36,9 @@ import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-function money(n: number | null, sym = "₺") {
-  return n == null ? "—" : `${n.toLocaleString("tr-TR")} ${sym}`;
+/** Tutar + sembol — sayı okuyucunun dilinde. */
+function money(n: number | null, sym: string, locale: Locale) {
+  return n == null ? "—" : `${formatNumber(n, locale)} ${sym}`;
 }
 
 /**
@@ -48,6 +52,8 @@ export function BidComparisonView({
   type: ReportType;
   basePath: string;
 }) {
+  const tr = useTranslations("web.panel.reports.bidComparisonView");
+  const locale = useLocale() as Locale;
   const isAlim = type === "ALIM";
   const [listingId, setListingId] = useState("");
   const [criteria, setCriteria] = useState<"PRICE" | "ANSWERS" | "BOTH">(
@@ -74,15 +80,15 @@ export function BidComparisonView({
     try {
       await report.mutateAsync(payload());
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Rapor oluşturulamadı"));
+      toast.error(extractErrorMessage(err, tr("raporOlusturulamadi")));
     }
   };
   const runDownload = async () => {
     try {
       const { filename } = await download.mutateAsync(payload());
-      toast.success(`${filename} indiriliyor`);
+      toast.success(tr("indiriliyor", { file: filename }));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İndirme başarısız"));
+      toast.error(extractErrorMessage(err, tr("indirmeBasarisiz")));
     }
   };
 
@@ -101,26 +107,23 @@ export function BidComparisonView({
           className="inline-flex items-center gap-1 hover:text-zinc-800 hover:underline"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Raporlar
+          {tr("raporlar")}
         </Link>
       </nav>
-      <Heading>Teklif Karşılaştırma Raporu</Heading>
+      <Heading>{tr("teklifKarsilastirmaRaporu")}</Heading>
       <Text className="text-sm text-zinc-500">
-        Bir {isAlim ? "satın alma talebine" : "ilana"} gelen teklifleri kalem bazında yan
-        yana karşılaştırın —{" "}
-        {isAlim ? "en düşük birim fiyatlar" : "en yüksek birim fiyatlar"}{" "}
-        vurgulanır.
+        {tr("birSatinAlmaTalebineGelenTeklifleri")}
       </Text>
 
       {/* Kriter kartı */}
       <section className="space-y-4 card p-5 shadow-sm">
         <Field>
-          <Label>{isAlim ? "Satın Alma Talebi" : "İlan"}</Label>
+          <Label>{tr("satinAlmaTalebi")}</Label>
           <Select
             value={listingId}
             onChange={(e) => setListingId(e.target.value)}
           >
-            <option value="">— Seçin —</option>
+            <option value="">{tr("secin")}</option>
             {(myTenders.data ?? [])
               .filter((t) => t.status !== "DRAFT")
               .map((t) => (
@@ -133,7 +136,7 @@ export function BidComparisonView({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
             <p className="mb-2 text-xs font-medium text-zinc-500">
-              Karşılaştırma Kriteri
+              {tr("karsilastirmaKriteri")}
             </p>
             <RadioGroup
               value={criteria}
@@ -142,40 +145,40 @@ export function BidComparisonView({
             >
               <RadioField>
                 <Radio value="PRICE" />
-                <Label>Fiyatlar</Label>
+                <Label>{tr("fiyatlar")}</Label>
               </RadioField>
               <RadioField>
                 <Radio value="ANSWERS" />
-                <Label>Soru yanıtları</Label>
+                <Label>{tr("soruYanitlari")}</Label>
               </RadioField>
               <RadioField>
                 <Radio value="BOTH" />
-                <Label>Fiyatlar + yanıtlar</Label>
+                <Label>{tr("fiyatlarYanitlar")}</Label>
               </RadioField>
             </RadioGroup>
           </div>
           <div className="space-y-1.5">
-            <p className="mb-2 text-xs font-medium text-zinc-500">Seçenekler</p>
+            <p className="mb-2 text-xs font-medium text-zinc-500">{tr("secenekler")}</p>
             <CheckboxField>
               <Checkbox
                 checked={includeNonBidders}
                 onChange={setIncludeNonBidders}
               />
-              <Label>Teklif vermeyen davetlileri de göster</Label>
+              <Label>{tr("teklifVermeyenDavetlileriDeGoster")}</Label>
             </CheckboxField>
             <CheckboxField>
               <Checkbox
                 checked={showBidCurrencies}
                 onChange={setShowBidCurrencies}
               />
-              <Label>Teklif para birimlerini göster</Label>
+              <Label>{tr("teklifParaBirimleriniGoster")}</Label>
             </CheckboxField>
             <CheckboxField>
               <Checkbox
                 checked={includeRoundHistory}
                 onChange={setIncludeRoundHistory}
               />
-              <Label>Tur geçmişini ekle (açık eksiltme/artırma)</Label>
+              <Label>{tr("turGecmisiniEkleAcikEksiltme")}</Label>
             </CheckboxField>
           </div>
         </div>
@@ -184,7 +187,7 @@ export function BidComparisonView({
             {report.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" data-slot="icon" />
             ) : null}
-            Raporu Oluştur
+            {tr("raporuOlustur")}
           </Button>
           <Button
             outline
@@ -192,7 +195,7 @@ export function BidComparisonView({
             disabled={!listingId || download.isPending}
           >
             <FileSpreadsheet data-slot="icon" />
-            Excel İndir
+            {tr("excelIndir")}
           </Button>
         </div>
       </section>
@@ -209,11 +212,10 @@ export function BidComparisonView({
             <Badge color={isAlim ? "blue" : "emerald"}>
               {data.listing.title}
             </Badge>
-            <Badge color="zinc">Tur {data.listing.round}</Badge>
+            <Badge color="zinc">{tr("tur", { round: data.listing.round })}</Badge>
             {data.includePrice && data.listing.referenceTotal > 0 ? (
               <Badge color="zinc">
-                {isAlim ? "Hedef" : "Taban"} Toplam:{" "}
-                {money(data.listing.referenceTotal, sym)}
+                {tr("hedefToplam", { total: money(data.listing.referenceTotal, sym, locale) })}
               </Badge>
             ) : null}
           </div>
@@ -222,10 +224,8 @@ export function BidComparisonView({
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <TableHeader className="sticky left-0 z-10 bg-white">Kalem</TableHeader>
-                  <TableHeader className="text-right">
-                    {isAlim ? "Hedef" : "Taban"}
-                  </TableHeader>
+                  <TableHeader className="sticky left-0 z-10 bg-white">{tr("kalem")}</TableHeader>
+                  <TableHeader className="text-right">{tr("hedef")}</TableHeader>
                   {data.parties.map((p) => (
                     <TableHeader key={p.companyId} className="text-right">
                       <span className="block max-w-[140px] truncate">
@@ -233,7 +233,7 @@ export function BidComparisonView({
                       </span>
                       {!p.submitted ? (
                         <span className="text-xs font-normal text-zinc-400">
-                          teklif yok
+                          {tr("teklifYok")}
                         </span>
                       ) : null}
                     </TableHeader>
@@ -246,12 +246,12 @@ export function BidComparisonView({
                     <TableCell className="sticky left-0 z-10 bg-white text-zinc-900">
                       {it.name}{" "}
                       <span className="text-xs text-zinc-400">
-                        ({it.quantity.toLocaleString("tr-TR")} {it.unit})
+                        ({formatNumber(it.quantity, locale)} {it.unit})
                       </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-500">
                       {it.referenceUnitPrice != null
-                        ? it.referenceUnitPrice.toLocaleString("tr-TR")
+                        ? formatNumber(it.referenceUnitPrice, locale)
                         : "—"}
                     </TableCell>
                     {data.parties.map((p) => {
@@ -270,12 +270,14 @@ export function BidComparisonView({
                           {data.includePrice ? (
                             <span className="block">
                               {ip?.unitPrice != null
-                                ? ip.unitPrice.toLocaleString("tr-TR")
+                                ? formatNumber(ip.unitPrice, locale)
                                 : "—"}
                               {ip?.deltaVsReferencePct != null ? (
                                 <span className="ml-1 text-xs text-zinc-400">
-                                  ({ip.deltaVsReferencePct > 0 ? "+" : ""}
-                                  {ip.deltaVsReferencePct}%)
+                                  {tr("yuzdeFark", {
+                                    sign: ip.deltaVsReferencePct > 0 ? "+" : "",
+                                    n: ip.deltaVsReferencePct,
+                                  })}
                                 </span>
                               ) : null}
                             </span>
@@ -294,11 +296,11 @@ export function BidComparisonView({
                   <>
                     <TableRow>
                       <TableCell className="sticky left-0 z-10 bg-white font-semibold text-zinc-900">
-                        GENEL TOPLAM
+                        {tr("genelToplam")}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-zinc-500">
                         {data.listing.referenceTotal > 0
-                          ? data.listing.referenceTotal.toLocaleString("tr-TR")
+                          ? formatNumber(data.listing.referenceTotal, locale)
                           : "—"}
                       </TableCell>
                       {data.parties.map((p) => (
@@ -307,7 +309,7 @@ export function BidComparisonView({
                           className="bg-zinc-50 text-right font-semibold tabular-nums text-zinc-900"
                         >
                           {p.totalAmount != null
-                            ? p.totalAmount.toLocaleString("tr-TR")
+                            ? formatNumber(p.totalAmount, locale)
                             : "—"}
                           {p.bidCurrency ? (
                             <span className="ml-1 text-xs text-zinc-400">
@@ -319,7 +321,7 @@ export function BidComparisonView({
                     </TableRow>
                     <TableRow>
                       <TableCell className="sticky left-0 z-10 bg-white font-semibold text-zinc-900">
-                        SIRA {isAlim ? "(en ucuz=1)" : "(en yüksek=1)"}
+                        {tr("siraEnUcuz1")}
                       </TableCell>
                       <TableCell />
                       {data.parties.map((p) => (
@@ -333,7 +335,7 @@ export function BidComparisonView({
                     </TableRow>
                     <TableRow>
                       <TableCell className="text-zinc-700">
-                        {isAlim ? "Hedefe Göre Tasarruf" : "Taban Üstü Kazanç"}
+                        {tr("hedefeGoreTasarruf")}
                       </TableCell>
                       <TableCell />
                       {data.parties.map((p) => (
@@ -342,7 +344,7 @@ export function BidComparisonView({
                           className="text-right tabular-nums text-emerald-700"
                         >
                           {p.deltaVsReference != null
-                            ? p.deltaVsReference.toLocaleString("tr-TR")
+                            ? formatNumber(p.deltaVsReference, locale)
                             : "—"}
                         </TableCell>
                       ))}
@@ -357,10 +359,9 @@ export function BidComparisonView({
           {data.includePrice && data.recommendedAwards.length > 0 ? (
             <div className="card p-5">
               <Subheading className="mb-3">
-                Önerilen Kazanan{" "}
+                {tr("onerilenKazanan")}{" "}
                 <span className="text-xs font-normal text-zinc-400">
-                  (kalem bazında {isAlim ? "en düşük" : "en yüksek"} birim
-                  fiyat)
+                  {tr("kalemBazindaEnDusukBirimFiyat")}
                 </span>
               </Subheading>
               <ul className="divide-y divide-zinc-50">
@@ -375,7 +376,7 @@ export function BidComparisonView({
                         {ra.companyName}
                       </span>
                       <span className=" font-semibold tabular-nums">
-                        {money(ra.unitPrice, sym)}
+                        {money(ra.unitPrice, sym, locale)}
                       </span>
                     </span>
                   </li>
@@ -387,24 +388,24 @@ export function BidComparisonView({
           {/* Tur geçmişi */}
           {data.roundHistory.length > 0 ? (
             <div className="card p-5">
-              <Subheading className="mb-3">Tur Geçmişi</Subheading>
+              <Subheading className="mb-3">{tr("turGecmisi")}</Subheading>
               <Table dense>
                 <TableHead>
                   <TableRow>
-                    <TableHeader>Tur</TableHeader>
-                    <TableHeader>{isAlim ? "Tedarikçi" : "Alıcı"}</TableHeader>
-                    <TableHeader className="text-right">Tutar</TableHeader>
+                    <TableHeader>{tr("tur2")}</TableHeader>
+                    <TableHeader>{tr("tedarikci")}</TableHeader>
+                    <TableHeader className="text-right">{tr("tutar")}</TableHeader>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {data.roundHistory.map((h, i) => (
                     <TableRow key={i}>
-                      <TableCell>Tur {h.round}</TableCell>
+                      <TableCell>{tr("tur", { round: h.round })}</TableCell>
                       <TableCell className="sticky left-0 z-10 bg-white text-zinc-900">
                         {h.bidderName}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {money(h.amount, sym)}
+                        {money(h.amount, sym, locale)}
                       </TableCell>
                     </TableRow>
                   ))}

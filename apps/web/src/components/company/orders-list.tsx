@@ -35,7 +35,7 @@ import { cn } from "@/lib/utils";
 import { sellerShipsGoods } from "@rothern/shared";
 import { formatMoney } from "@/components/ui/money";
 import { StatusBadge } from "@/components/ui/status-badge";
-import { orderStageIndex, orderStatusMeta, orderSteps, type OrderStepKey } from "@/lib/orders/order-status";
+import { orderStageIndex, orderStatusMeta, orderSteps } from "@/lib/orders/order-status";
 import {
   ArrowUpDown,
   Building2,
@@ -56,21 +56,17 @@ const PAGE_SIZE = 12;
 
 // 4 kilometre taşı — TEK kaynaktan (order-status.orderSteps / orderStageIndex);
 // etiket PAYLAŞILAN katalogdan (`web.domain.orderStep.<KEY>`; satıcı taşımıyorsa
-// SHIP → SHIP_PICKUP "Hazırlık").
-const stepKey = (key: OrderStepKey, sellerShips: boolean) =>
-  key === "SHIP" && !sellerShips ? "SHIP_PICKUP" : key;
+// SHIP → SHIP_PICKUP "Hazırlık"), anahtarı `orderSteps` verir.
 
 /**
  * Durum rozeti metni PAYLAŞILAN katalogdan (`web.domain.orderStatus.<KOD>`,
- * sipariş detayıyla aynı sözlük); IN_DELIVERY teslim şekline duyarlı (alıcı
- * toplarsa "Teslime Hazır"). Bilinmeyen kod `orderStatusMeta` yedeğine düşer.
+ * sipariş detayıyla aynı sözlük); anahtarı `orderStatusMeta` üretir —
+ * IN_DELIVERY teslim şekline duyarlı (alıcı toplarsa "Teslime Hazır").
  */
 function useOrderStatusLabel() {
   const t = useTranslations("web.domain.orderStatus");
-  return (status: CompanyOrderStatus, sellerShips: boolean) => {
-    const key = status === "IN_DELIVERY" && !sellerShips ? "IN_DELIVERY_PICKUP" : status;
-    return t.has(key as never) ? t(key as never) : orderStatusMeta(status, sellerShips).label;
-  };
+  return (status: CompanyOrderStatus, sellerShips: boolean) =>
+    t(orderStatusMeta(status, sellerShips).labelKey as never);
 }
 
 /**
@@ -89,7 +85,7 @@ function StageStepper({
 }) {
   const t = useTranslations("web.panel.trade.ordersList");
   const ts = useTranslations("web.domain.orderStep");
-  const STAGES = orderSteps(sellerShips).map((s) => ts(stepKey(s.key, sellerShips) as never));
+  const STAGES = orderSteps(sellerShips).map((s) => ts(s.labelKey as never));
   const isDone = doneCount >= STAGES.length;
   return (
     <div>

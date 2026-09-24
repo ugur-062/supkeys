@@ -1,6 +1,17 @@
 import { describe, expect, it } from "vitest";
 import type { AiSearchIntentResult } from "@rothern/shared";
-import { intentChips, intentToProductQuery, intentToRequestQuery } from "../ai-search";
+import { messagesFor, WEB_NAMESPACES } from "@rothern/i18n/messages";
+import { createTranslator } from "use-intl/core";
+import { intentChips, intentToProductQuery, intentToRequestQuery, type IntentChipT } from "../ai-search";
+
+// `intentChips` React DIŞI: çevirmeni ÇAĞIRAN verir. Testte TR katalogdan
+// kurulur — beklenen Türkçe metin tek kaynaktan gelir.
+const t = createTranslator({
+  locale: "tr",
+  messages: messagesFor("tr", WEB_NAMESPACES),
+  namespace: "web.panel.shell.aiIntentBand" as never,
+  timeZone: "Europe/Istanbul",
+}) as unknown as IntentChipT;
 
 const base: AiSearchIntentResult = {
   portal: "satinalma",
@@ -37,13 +48,13 @@ describe("ai-search — yorum → URL süzgeci", () => {
 
   it("çipler URL'de duran parçalardan; kaldırılan çip düşer", () => {
     const sp = new URLSearchParams(intentToProductQuery(base));
-    expect(intentChips(base, sp).map((c) => c.param)).toEqual(["q", "kategori", "sehir", "dogrulanmis", "faaliyet", "fiyatMax", "moqMax"]);
-    expect(intentChips(base, sp).find((c) => c.param === "moqMax")?.label).toBe("Min. sipariş ≤ 50 adet");
-    expect(intentChips(base, sp).find((c) => c.param === "fiyatMax")?.label).toBe("Birim fiyat ≤ 1.500,5 TRY");
+    expect(intentChips(base, sp, t).map((c) => c.param)).toEqual(["q", "kategori", "sehir", "dogrulanmis", "faaliyet", "fiyatMax", "moqMax"]);
+    expect(intentChips(base, sp, t).find((c) => c.param === "moqMax")?.label).toBe("Min. sipariş ≤ 50 adet");
+    expect(intentChips(base, sp, t).find((c) => c.param === "fiyatMax")?.label).toBe("Birim fiyat ≤ 1.500,5 TRY");
     sp.delete("sehir");
     sp.delete("q");
-    expect(intentChips(base, sp).map((c) => c.param)).toEqual(["kategori", "dogrulanmis", "faaliyet", "fiyatMax", "moqMax"]);
+    expect(intentChips(base, sp, t).map((c) => c.param)).toEqual(["kategori", "dogrulanmis", "faaliyet", "fiyatMax", "moqMax"]);
     // Satışta alıcıya özgü çipler hiç çıkmaz.
-    expect(intentChips({ ...base, portal: "satis" }, new URLSearchParams("q=x&kategori=39000000&dogrulanmis=1")).map((c) => c.param)).toEqual(["q", "kategori"]);
+    expect(intentChips({ ...base, portal: "satis" }, new URLSearchParams("q=x&kategori=39000000&dogrulanmis=1"), t).map((c) => c.param)).toEqual(["q", "kategori"]);
   });
 });

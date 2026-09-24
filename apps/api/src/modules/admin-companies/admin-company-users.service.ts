@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ConflictException,
@@ -46,7 +47,7 @@ export class AdminCompanyUsersService {
       where: { id: companyId },
       select: { ownerUserId: true },
     });
-    if (!company) throw new NotFoundException("Firma bulunamadı");
+    if (!company) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
     const users = await this.prisma.companyUser.findMany({
       where: { companyId },
       select: {
@@ -104,7 +105,7 @@ export class AdminCompanyUsersService {
     const user = await this.requireMember(companyId, userId);
     if (user.isOwner && !active) {
       throw new BadRequestException(
-        "Firma sahibi devre dışı bırakılamaz — önce sahipliği devredin",
+        i18nMessage("api.adminCompanies.firmaSahibiDevreDisiBirakilamazOnce"),
       );
     }
     await this.prisma.companyUser.update({
@@ -147,17 +148,17 @@ export class AdminCompanyUsersService {
     const user = await this.requireMember(companyId, userId);
     const email = rawEmail.trim().toLowerCase();
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
-      throw new BadRequestException("Geçerli bir e-posta girin");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.gecerliBirEPostaGirin"));
     }
     if (email === user.email) {
-      throw new BadRequestException("Yeni e-posta mevcutla aynı");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.yeniEPostaMevcutlaAyni"));
     }
     const clash = await this.prisma.companyUser.findUnique({
       where: { email },
       select: { id: true },
     });
     if (clash) {
-      throw new ConflictException("Bu e-posta başka bir kullanıcıda kayıtlı");
+      throw new ConflictException(i18nMessage("api.adminCompanies.buEPostaBaskaBirKullanicida"));
     }
     // Önce Supabase (login kaynağı) — başarısızsa domain'e dokunma.
     if (user.authId) {
@@ -196,10 +197,10 @@ export class AdminCompanyUsersService {
       where: { id: companyId },
       select: { id: true, tier: true, membershipEndAt: true },
     });
-    if (!company) throw new NotFoundException("Firma bulunamadı");
+    if (!company) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
     const email = input.email.trim().toLowerCase();
     if (!ASSIGNABLE_ROLES.includes(input.role as CompanyRole)) {
-      throw new BadRequestException("Geçersiz rol");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.gecersizRol"));
     }
     // Yetki tablosu (Faz 4): admin eliyle açılan koltuk da paket kapısından
     // geçer — eskiden admin limitin üstüne SA/ST ekleyebiliyordu.
@@ -215,7 +216,7 @@ export class AdminCompanyUsersService {
         const used = countSeats(rows).total;
         if (used + 1 > limit) {
           throw new BadRequestException(
-            `Koltuk dolu (${used}/${limit}) — bu rol için firmanın paketi yükseltilmeli`,
+            i18nMessage("api.adminCompanies.koltukDoluBuRolIcinFirmanin", { used: used, limit: limit }),
           );
         }
       }
@@ -225,7 +226,7 @@ export class AdminCompanyUsersService {
       select: { id: true },
     });
     if (clash) {
-      throw new ConflictException("Bu e-posta ile zaten bir kullanıcı var");
+      throw new ConflictException(i18nMessage("api.adminCompanies.buEPostaIleZatenBir"));
     }
     // Supabase hesabı rastgele parola ile açılır — kullanıcı reset linkiyle
     // kendi parolasını koyar (parola hiçbir yerde loglanmaz/paylaşılmaz).
@@ -271,7 +272,7 @@ export class AdminCompanyUsersService {
         company: { select: { ownerUserId: true } },
       },
     });
-    if (!user) throw new NotFoundException("Kullanıcı bu firmada bulunamadı");
+    if (!user) throw new NotFoundException(i18nMessage("api.adminCompanies.kullaniciBuFirmadaBulunamadi"));
     return { ...user, isOwner: user.id === user.company.ownerUserId };
   }
 

@@ -1,8 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { useSatisAnalytics } from "@/hooks/use-company-dashboard";
-import { DASH } from "@/lib/dashboard/strings";
+import { numberPossessive } from "@/lib/turkish";
 import { Trophy } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 
@@ -16,6 +16,7 @@ const MIN_DECIDED_FOR_RATE = 10;
  */
 export function WinRateCard() {
   const t = useTranslations("web.panel.shell.winRateCard");
+  const locale = useLocale();
   const analytics = useSatisAnalytics("year");
 
   if (analytics.isLoading) {
@@ -42,10 +43,17 @@ export function WinRateCard() {
       {decided >= MIN_DECIDED_FOR_RATE ? (
         <>
           <span className="font-semibold tabular-nums text-slate-950">
-            {DASH.heroWinTitle(String(Math.round((won / decided) * 100)))}
+            {t("kazanmaOrani", { pct: Math.round((won / decided) * 100) })}
           </span>
           <span className="text-slate-500">
-            {t("son12Ay", { heroWinSupport: DASH.heroWinSupport(won, decided) })}
+            {t("son12Ay", {
+              heroWinSupport: t("kararaBaglananTeklifinKazandi", {
+                total: decided,
+                // Türkçe iyelik eki sayının okunuşuna bağlı (3'ü / 5'i) — ek
+                // KODDA üretilir, çeviri tek yer tutucu görür. Yalnız Türkçede.
+                won: locale === "tr" ? `${won}${numberPossessive(won)}` : String(won),
+              }),
+            })}
           </span>
         </>
       ) : (

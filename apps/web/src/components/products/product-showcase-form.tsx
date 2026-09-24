@@ -36,7 +36,7 @@ import {
   UNITS,
   getUnit,
   productCompletion,
-  productPublishBlockers,
+  productPublishBlockerCodes,
   productSeoReadiness,
   generateSlug,
   slugifyText,
@@ -228,7 +228,7 @@ export function ProductShowcaseForm({
       completion: productCompletion(like, {
         requiredAttributeKeys: attributeDefs.filter((d) => d.isRequired).map((d) => d.key),
       }),
-      blockers: productPublishBlockers(like),
+      blockers: productPublishBlockerCodes(like),
     };
   }, [patch, images, keywords, priceMode, attributes, attributeDefs]);
 

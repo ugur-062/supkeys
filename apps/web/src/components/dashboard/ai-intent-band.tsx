@@ -52,7 +52,7 @@ export function AiIntentBand({
   const router = useRouter();
   const pathname = usePathname();
   const params = sp ?? new URLSearchParams();
-  const chips = intentChips(intent, params);
+  const chips = intentChips(intent, params, (key, values) => t(key as never, values as never));
 
   const remove = (param: string) => {
     const next = new URLSearchParams(params.toString());

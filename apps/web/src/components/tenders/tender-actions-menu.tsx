@@ -84,6 +84,8 @@ export function TenderActionsMenu({
   carryableBidCount = 0,
 }: Props) {
   const t = useTranslations("web.panel.requests.tenderActionsMenu");
+  // Kapanış tarihi kuralının metni PAYLAŞILAN ad alanında (form şeması da onu okur).
+  const tClosesAt = useTranslations("web.panel.requests.closesAt");
   const router = useRouter();
   const confirm = useConfirm();
   const changeClosing = useChangeClosing(id);
@@ -192,7 +194,7 @@ export function TenderActionsMenu({
 
   const handleNextRound = async () => {
     // F2: kapanış gelecekte + en fazla 2 yıl (backend birebir) — sessiz-400 yerine.
-    const closingErr = closesAtError(nrClosing);
+    const closingErr = closesAtError(nrClosing, (k) => tClosesAt(k));
     if (closingErr) {
       toast.error(closingErr);
       return;
@@ -282,7 +284,7 @@ export function TenderActionsMenu({
 
   const handleChangeClosing = async () => {
     // F2: gelecekte + en fazla 2 yıl (backend changeClosingTime birebir).
-    const err = closesAtError(newClosing);
+    const err = closesAtError(newClosing, (k) => tClosesAt(k));
     if (err) {
       toast.error(err);
       return;

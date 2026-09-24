@@ -10,6 +10,7 @@ import {
   MaxLength,
   Min,
 } from "class-validator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 /** Firma dizini sorgusu — giriş gerektirir; her alan dar ve doğrulanmış. */
 export class DirectoryQueryDto {
@@ -26,7 +27,7 @@ export class DirectoryQueryDto {
   city?: string;
 
   @IsOptional()
-  @Matches(/^\d{8}$/, { message: "Kategori kodu 8 haneli olmalı" })
+  @Matches(/^\d{8}$/, { message: () => tApi("api.dto.directoryQuery.kategoriKodu8HaneliOlmali") })
   category?: string;
 
   @IsOptional()

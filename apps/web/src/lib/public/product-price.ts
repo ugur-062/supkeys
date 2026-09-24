@@ -25,21 +25,16 @@ export interface PriceDisplay {
 
 /** "41.000 ₺" — sembol tek kaynaktan (`CURRENCY_SYMBOL`); bilinmeyen kod olduğu gibi. */
 /**
- * Dil bilen etiketler (i18n Faz 1). Verilmezse Türkçe — panel bugün böyle.
+ * Dil bilen etiketler (i18n Faz 1) — ÇAĞIRAN VERİR, varsayılan YOK.
  * İstemci: `usePriceLabels()` (i18n/domain.ts); sunucu: `priceLabelsFor()` (i18n/server.ts).
- * Katalog BURAYA import edilmez: bu modül istemci kartlarına giriyor.
+ * Katalog BURAYA import edilmez: bu modül istemci kartlarına giriyor; Türkçe
+ * bir yedek sözlük tutmak da katalogla ayrışan ikinci bir kaynak olurdu.
  */
 export interface PriceLabels {
   locale: string;
   onRequest: string;
   fromQty: (qty: string, unit: string) => string;
 }
-
-const TR_LABELS: PriceLabels = {
-  locale: "tr-TR",
-  onRequest: "Fiyat için teklif isteyin",
-  fromQty: (qty, unit) => `${qty} ${unit} ve üzeri için`,
-};
 
 function fmt(amount: number, currency: string, locale = "tr-TR"): string {
   return `${amount.toLocaleString(locale, {
@@ -54,7 +49,7 @@ export function productPrice(p: {
   priceTiers?: PriceTier[] | null;
   priceCurrency: string;
   unit: string;
-}, labels: PriceLabels = TR_LABELS): PriceDisplay {
+}, labels: PriceLabels): PriceDisplay {
   if (p.priceMode === "FIXED" && p.priceAmount != null) {
     return {
       headline: `${fmt(Number(p.priceAmount), p.priceCurrency, labels.locale)} / ${p.unit}`,

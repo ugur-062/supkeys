@@ -6,6 +6,7 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 export enum CompanyAddressTypeDto {
   FATURA = "FATURA",
@@ -14,7 +15,9 @@ export enum CompanyAddressTypeDto {
 }
 
 export class UpsertAddressDto {
-  @IsEnum(CompanyAddressTypeDto, { message: "Geçersiz adres tipi" })
+  @IsEnum(CompanyAddressTypeDto, {
+    message: () => tApi("api.dto.companyAddress.gecersizAdresTipi"),
+  })
   type!: CompanyAddressTypeDto;
 
   @IsString()

@@ -1,3 +1,4 @@
+import { i18nMessage } from "../i18n/http-i18n";
 import { BadRequestException } from "@nestjs/common";
 import {
   isValidEmailLike,
@@ -34,7 +35,7 @@ export function buildCorporateIdentityData(
   if (dto.mersisNo !== undefined) {
     const v = dto.mersisNo.trim();
     if (!isValidMersis(v)) {
-      throw new BadRequestException("MERSİS no boş veya 16 haneli olmalıdır");
+      throw new BadRequestException(i18nMessage("api.helpers.mersisNoBosVeya16Haneli"));
     }
     data.mersisNo = v || null;
   }
@@ -44,14 +45,14 @@ export function buildCorporateIdentityData(
   if (dto.kepAddress !== undefined) {
     const v = dto.kepAddress.trim();
     if (v && !isValidEmailLike(v)) {
-      throw new BadRequestException("KEP adresi geçerli bir e-posta olmalıdır");
+      throw new BadRequestException(i18nMessage("api.helpers.kepAdresiGecerliBirEPosta"));
     }
     data.kepAddress = v || null;
   }
   if (dto.iban !== undefined) {
     const v = dto.iban.trim();
     if (v && !isValidIbanTr(v)) {
-      throw new BadRequestException("IBAN geçersiz (TR, 26 hane olmalı)");
+      throw new BadRequestException(i18nMessage("api.helpers.ibanGecersizTr26HaneOlmali"));
     }
     data.iban = v ? normalizeIban(v) : null;
   }

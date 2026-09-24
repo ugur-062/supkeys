@@ -68,10 +68,92 @@ export function orderLike(flat: Flat, reference: Flat): Flat {
  */
 export function placeholders(message: string): string[] {
   const names = new Set<string>();
-  const re = /\{\s*([A-Za-z_][\w]*)\s*[,}]/g;
-  let m: RegExpExecArray | null;
-  while ((m = re.exec(message)) !== null) names.add(m[1]!);
+  parseIcuMessage(message, 0, names, false);
   return [...names].sort();
+}
+
+/**
+ * Küçük ICU ayrıştırıcısı (bağımlılıksız): yalnız ARGÜMAN adlarını toplar.
+ * Düz regex `select`/`plural` dal gövdesindeki tek sözcüğü (`other {order}`,
+ * `extended {uzatıldı}`) argüman sanıyordu → dal sözcüğü ASCII olan dilde
+ * sahte "yer tutucu uyumsuz" reddi. Dal gövdeleri yeniden MESAJ olarak
+ * ayrıştırılır (iç içe `{{title}}` argümanı yine sayılır). ICU tırnaklaması:
+ * `''` tek tırnak, `'{…'` kaçışlı metin.
+ */
+function parseIcuMessage(s: string, start: number, names: Set<string>, nested: boolean): number {
+  let i = start;
+  while (i < s.length) {
+    const c = s[i]!;
+    if (c === "'") {
+      if (s[i + 1] === "'") {
+        i += 2;
+        continue;
+      }
+      if (s[i + 1] === "{" || s[i + 1] === "}" || s[i + 1] === "#") {
+        const end = s.indexOf("'", i + 1);
+        i = end < 0 ? s.length : end + 1;
+        continue;
+      }
+      i++;
+      continue;
+    }
+    if (c === "}" && nested) return i + 1;
+    if (c === "{") {
+      i = parseIcuArgument(s, i + 1, names);
+      continue;
+    }
+    i++;
+  }
+  return i;
+}
+
+function parseIcuArgument(s: string, start: number, names: Set<string>): number {
+  let i = start;
+  const skipWs = () => {
+    while (i < s.length && /\s/.test(s[i]!)) i++;
+  };
+  const readToken = () => {
+    const from = i;
+    while (i < s.length && !/[\s,{}]/.test(s[i]!)) i++;
+    return s.slice(from, i);
+  };
+  skipWs();
+  const name = readToken();
+  if (name) names.add(name);
+  skipWs();
+  if (s[i] === "}") return i + 1;
+  if (s[i] !== ",") return skipToClose(s, i);
+  i++;
+  skipWs();
+  const type = readToken();
+  skipWs();
+  if (s[i] === "}") return i + 1;
+  if (s[i] !== ",") return skipToClose(s, i);
+  i++;
+  if (type !== "plural" && type !== "select" && type !== "selectordinal") return skipToClose(s, i);
+  // Seçenekler: `seçici {mesaj}` çiftleri (+ `offset:n`), argümanın `}`ine dek.
+  while (i < s.length) {
+    skipWs();
+    if (s[i] === "}") return i + 1;
+    if (s[i] === "{") {
+      i = parseIcuMessage(s, i + 1, names, true);
+      continue;
+    }
+    if (!readToken()) i++;
+  }
+  return i;
+}
+
+/** Biçim stili (`{d, date, ::yyyy}`) gibi yapısız kuyruğu derinlik sayarak atlar. */
+function skipToClose(s: string, start: number): number {
+  let depth = 1;
+  let i = start;
+  while (i < s.length && depth > 0) {
+    if (s[i] === "{") depth++;
+    else if (s[i] === "}") depth--;
+    i++;
+  }
+  return i;
 }
 
 export function placeholdersMatch(source: string, target: string): boolean {

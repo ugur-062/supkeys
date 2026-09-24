@@ -29,7 +29,9 @@ import { CompanyLoginForm } from "../login-form";
 function unverifiedError() {
   return new AxiosError("hata", "ERR_BAD_REQUEST", undefined, undefined, {
     status: 403,
-    data: { message: "Giriş yapmadan önce e-posta adresinizi doğrulayın." },
+    // API sözleşmesi: 403 + yapısal `code` (form mesaj METNİNE değil koda bakar;
+    // i18n Faz 2'de metin eşleşmesi kaldırıldı — mesaj istek dilinde gelir).
+    data: { message: "Giriş yapmadan önce e-posta adresinizi doğrulayın.", code: "EMAIL_NOT_VERIFIED" },
     statusText: "Forbidden",
     headers: {},
     config: {} as never,

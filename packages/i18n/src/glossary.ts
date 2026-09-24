@@ -21,10 +21,11 @@ export function bannedTerms(locale: Locale): string[] {
 
 /**
  * Yasaklı terim SÖZCÜK BAŞINDA aranır (ekli biçimler de yakalansın: "ihaleye",
- * "tenders"); "bartender" gibi içte geçenler yakalanmaz.
+ * "tenders"); "bartender" gibi içte geçenler yakalanmaz. ICU argüman ADLARI
+ * (`{tenderTitle}`) kullanıcıya görünmez → aramadan önce silinir.
  */
 export function findBannedTerm(text: string, locale: Locale): string | null {
-  const lower = text.toLocaleLowerCase(locale);
+  const lower = text.replace(/\{\s*[A-Za-z_]\w*\s*(?=[,}])/g, "{").toLocaleLowerCase(locale);
   for (const term of bannedTerms(locale)) {
     const t = term.toLocaleLowerCase(locale);
     const re = new RegExp(`(^|[^\\p{L}])${escapeRegExp(t)}`, "u");

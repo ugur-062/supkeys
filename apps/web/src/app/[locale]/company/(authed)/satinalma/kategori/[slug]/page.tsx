@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { useNavLabel } from "@/i18n/domain";
+import { formatNumber } from "@/i18n/format";
 import { isHiddenCategory } from "@rothern/shared";
 import { PanelProductIndex } from "@/components/company/market/panel-product-index";
 import { MarketHeader, MarketTabs } from "@/components/company/market/market-band";
@@ -29,6 +32,9 @@ export default function PanelCategoryPage() {
 }
 
 function CategoryView({ code }: { code: string }) {
+  const t = useTranslations("web.panel.market.kategoriSlugPage");
+  const tn = useNavLabel();
+  const locale = useLocale();
   const photo = categoryPhotoSrc(code) ?? segmentPhotoSrc([code]);
   return (
     <PanelProductIndex
@@ -48,17 +54,17 @@ function CategoryView({ code }: { code: string }) {
         return (
           <MarketHeader
             breadcrumb={[
-              { label: "Satınalma", href: PANEL_MARKET.home },
-              { label: "Ürünler", href: PANEL_MARKET.products },
+              { label: tn("portal.satinalma"), href: PANEL_MARKET.home },
+              { label: tn("satinalma.urunler"), href: PANEL_MARKET.products },
               ...(name ? [{ label: name }] : []),
             ]}
-            count={loaded ? `${total.toLocaleString("tr-TR")} ürün` : undefined}
+            count={loaded ? t("urun", { n: formatNumber(total, locale) }) : undefined}
             /* Tek satır açıklama: kategoriye ÖZEL bir iddia değil, ne
                yaptığını söyleyen sabit kalıp — kategori başına pazarlama
                metni yazmak (ve uydurmak) yerine ad değişkeni. */
             lead={
               name
-                ? `${name} kategorisindeki tedarikçi ürünleri — süzün, karşılaştırın, doğrudan bilgi isteyin.`
+                ? t("kategorisindekiTedarikciUrunleriSuzunKarsila", { name: name })
                 : undefined
             }
             /* KATEGORİ GÖRSELİ (2026-09-08, kullanıcı tasarımı): 58 segmentin

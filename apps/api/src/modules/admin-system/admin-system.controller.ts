@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Body,
@@ -184,7 +185,7 @@ export class AdminSystemController {
       .catch(() => null);
     if (current && (dto.rate > current * 10 || dto.rate < current / 10)) {
       throw new BadRequestException(
-        `Girilen kur mevcut değerden (${current}) aşırı sapıyor — kontrol edin`,
+        i18nMessage("api.adminSystem.girilenKurMevcutDegerdenAsiriSapiyor", { current: current }),
       );
     }
     const rateDate = new Date();
@@ -316,7 +317,7 @@ export class AdminSystemController {
       where: { id },
       select: { id: true, query: true },
     });
-    if (!row) throw new BadRequestException("Kayıt bulunamadı");
+    if (!row) throw new BadRequestException(i18nMessage("api.adminSystem.kayitBulunamadi"));
 
     await this.prisma.categorySearchMiss.update({
       where: { id },

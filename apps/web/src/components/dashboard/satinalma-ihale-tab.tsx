@@ -121,7 +121,7 @@ export function SatinalmaIhaleTab({
             deltaPct={analytics.money.deltas.realizedSavings}
             spark={analytics.savingsTrend}
             sparkLabels={{ valueSuffix: " ₺" }}
-            hint="hedef fiyata göre · yalnız TRY"
+            hint={t("hedefFiyataGoreYalnizTry")}
           />
         </div>
       ) : null}

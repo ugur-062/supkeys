@@ -34,8 +34,8 @@ import { useEffect, useState } from "react";
  * GELMEDİ, yalnız bağlantılar.
  *
  * SIRA: önce gidilecek yerler (pazar yeri), sonra açıklayıcı sayfalar.
- * Adlar `MARKETPLACE_LABELS`ten — üst çubuk, liste sayfası ve footer aynı
- * sözcüğü kullanmalı ("ürün ≠ ilan" ayrımı orada belgeli).
+ * Adlar `web.marketplace.labels.*` katalogundan — üst çubuk, liste sayfası ve
+ * footer aynı sözcüğü kullanmalı ("ürün ≠ ilan" ayrımı orada belgeli).
  *
  * Sonuç: header 100 px'ten **64 px'e** indi. Sayfaların üst boşluğu
  * (`pt-28`) olduğu gibi duruyor — artık nefes payı daha geniş, kesişme yok;

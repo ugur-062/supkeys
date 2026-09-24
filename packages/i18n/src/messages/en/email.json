@@ -1,1 +1,61 @@
-{}
+{
+  "layout": {
+    "copyright": "© 2026 Rothern",
+    "footerNote": "You received this email from the rothern.com platform.",
+    "textSignature": "— Rothern"
+  },
+  "passwordReset": {
+    "subject": "🔑 Your password reset link — Rothern",
+    "preview": "Link for your password reset request.",
+    "heading": "Reset your password 🔑",
+    "greeting": "Hello {firstName},",
+    "intro": "You requested a password reset for your Rothern account. Click the button below to set a new password.",
+    "infoTitle": "Link details",
+    "accountLabel": "Account:",
+    "validityLabel": "Valid for:",
+    "validityValue": "{minutes, plural, one {# minute} other {# minutes}}",
+    "onceOnly": "This link can only be used once.",
+    "cta": "Reset password",
+    "ignoreNote": "If you didn’t make this request, you can ignore this email — nothing changes in your account unless you use the link.",
+    "textTitle": "Rothern password reset",
+    "textIntro": "You requested a password reset for your account.",
+    "textValidity": "The link is valid for {minutes, plural, one {# minute} other {# minutes}} and can only be used once.",
+    "textCta": "To reset your password: {url}",
+    "textIgnore": "If you didn’t make this request, you can ignore this email."
+  },
+  "referralInvite": {
+    "subject": "🤝 {inviterName} invited you to Rothern",
+    "preview": "{inviterName} wants to connect with you on Rothern.",
+    "heading": "You’ve been invited to Rothern 🤝",
+    "greeting": "Hello,",
+    "intro": "<b>{inviterName}</b> would like to connect with you to run procurement through Rothern. Rothern is a B2B procurement platform that brings quote collection, reverse auctions, orders and payment tracking together in one place.",
+    "autoConnect": "When you sign up with this email, you are automatically connected with <b>{inviterName}</b> — this connection is permanent and works regardless of plan.",
+    "infoTitle": "Invitation details",
+    "inviterLabel": "Invited by:",
+    "inviteeLabel": "Invited:",
+    "infoNote": "When you sign up with this address, the connection is created automatically.",
+    "cta": "Sign up for Rothern",
+    "ignoreNote": "If you weren’t expecting this invitation, you can ignore this email — no action will be taken.",
+    "textTitle": "Rothern invitation",
+    "textIntro": "{inviterName} invited you to Rothern.",
+    "textAbout": "Rothern is a B2B procurement platform that brings quote collection,\nreverse auctions, orders and payment tracking together in one place.",
+    "textAutoConnect": "When you sign up with this address ({email}), you are automatically connected with {inviterName}.",
+    "textCta": "To sign up: {url}",
+    "textIgnore": "If you weren’t expecting this invitation, you can ignore this email."
+  },
+  "tenderExternalInvite": {
+    "subject": "📋 {inviterName} invited you to the buying request \"{tenderTitle}\"",
+    "preview": "{inviterName} would like a quote from you for the buying request \"{tenderTitle}\".",
+    "heading": "You’ve been invited to a buying request 📋",
+    "greeting": "Hello,",
+    "intro": "<b>{inviterName}</b> would like a quote from you for the buying request they opened on the Rothern B2B procurement platform:",
+    "categoryLine": "Category: {categories}",
+    "closesAtLine": "Quote deadline: {closesAt}",
+    "howTo": "To submit a quote, all you need is a free company account — once registration is complete you are automatically invited to this request and connected with {inviterName}.",
+    "cta": "Sign up and submit a quote",
+    "footnote": "This email is a one-time buying request invitation sent by {inviterName} through Rothern; you have not been added to a marketing list. If you don’t want to receive such invitations, you can <optout>turn them off here with one click</optout>.",
+    "textIntro": "{inviterName} invited you to the buying request \"{tenderTitle}\" on Rothern.",
+    "textCta": "Sign up and submit a quote: {url}",
+    "textOptOut": "To turn off such invitations: {url}"
+  }
+}

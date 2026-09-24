@@ -1,5 +1,6 @@
 import { Text } from "@react-email/components";
 import * as React from "react";
+import { DEFAULT_LOCALE, emailT, type Locale } from "../i18n";
 import type { TenderExternalInviteData } from "../types";
 import { Button } from "./_components/button";
 import { Heading } from "./_components/heading";
@@ -8,7 +9,7 @@ import { COLORS, FONTS } from "./_components/tokens";
 
 /**
  * Faz C — dış tedarikçi daveti ("X sizi 'Y' satın alma talebine davet etti").
- * Tek seferlik davet formatı: pazarlama dili yok, yalnız ihale başlığı +
+ * Tek seferlik davet formatı: pazarlama dili yok, yalnız talep başlığı +
  * kategori + kapanış (kapalı zarf: tutar/teklif bilgisi ASLA). Alt bilgide
  * kim-neden-gönderdi açıklaması + tek tık opt-out (İYS/ETK hijyeni).
  */
@@ -43,56 +44,81 @@ const footnote = {
   lineHeight: "1.6",
 };
 
+/** Cümle içinde kalın yazılan parça — çeviride sözcük sırası değişse de yerini korur. */
+const bold = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
+
 export function makeTenderExternalInviteSubject(
   props: TenderExternalInviteData,
+  locale: Locale = DEFAULT_LOCALE,
 ): string {
-  return `📋 ${props.inviterName} sizi "${props.tenderTitle}" satın alma talebine davet etti`;
+  return emailT(locale)("email.tenderExternalInvite.subject", {
+    inviterName: props.inviterName,
+    tenderTitle: props.tenderTitle,
+  });
 }
 
-export function TenderExternalInviteEmail(props: TenderExternalInviteData) {
+export function TenderExternalInviteEmail(
+  props: TenderExternalInviteData & { locale?: Locale },
+) {
+  const locale = props.locale ?? DEFAULT_LOCALE;
+  const t = emailT(locale);
+
   return (
     <Layout
-      preview={`${props.inviterName}, "${props.tenderTitle}" satın alma talebi için sizden teklif almak istiyor.`}
+      preview={t("email.tenderExternalInvite.preview", {
+        inviterName: props.inviterName,
+        tenderTitle: props.tenderTitle,
+      })}
+      locale={locale}
     >
-      <Heading>Bir satın alma talebine davet edildiniz 📋</Heading>
+      <Heading>{t("email.tenderExternalInvite.heading")}</Heading>
 
-      <Text style={paragraph}>Merhaba,</Text>
+      <Text style={paragraph}>{t("email.tenderExternalInvite.greeting")}</Text>
 
       <Text style={paragraph}>
-        <strong>{props.inviterName}</strong>, Rothern B2B tedarik platformunda
-        açtığı ihale için sizden teklif almak istiyor:
+        {t.rich("email.tenderExternalInvite.intro", {
+          inviterName: props.inviterName,
+          b: bold,
+        })}
       </Text>
 
       <Text style={infoBox}>
         <strong>{props.tenderTitle}</strong>
         <br />
-        Kategori: {props.categories}
+        {t("email.tenderExternalInvite.categoryLine", {
+          categories: props.categories,
+        })}
         {props.closesAt ? (
           <>
             <br />
-            Son teklif tarihi: {props.closesAt}
+            {t("email.tenderExternalInvite.closesAtLine", {
+              closesAt: props.closesAt,
+            })}
           </>
         ) : null}
       </Text>
 
       <Text style={paragraph}>
-        Teklif verebilmek için ücretsiz firma hesabı oluşturmanız yeterli —
-        kayıt tamamlandığında bu ihaleye otomatik davet edilirsiniz ve{" "}
-        {props.inviterName} ile bağlantınız kurulur.
+        {t("email.tenderExternalInvite.howTo", {
+          inviterName: props.inviterName,
+        })}
       </Text>
 
       <div style={ctaWrap}>
-        <Button href={props.registerUrl}>Kaydol ve Teklif Ver</Button>
+        <Button href={props.registerUrl}>
+          {t("email.tenderExternalInvite.cta")}
+        </Button>
       </div>
 
       <Text style={footnote}>
-        Bu e-posta, {props.inviterName} firmasının Rothern üzerinden gönderdiği
-        tek seferlik bir ihale davetidir; bir pazarlama listesine eklenmediniz.
-        Bu tür davetleri almak istemiyorsanız{" "}
-        <a href={props.optOutUrl} style={{ color: COLORS.slate500 }}>
-          buradan tek tıkla kapatabilirsiniz
-        </a>
-        .
+        {t.rich("email.tenderExternalInvite.footnote", {
+          inviterName: props.inviterName,
+          optout: (chunks: React.ReactNode) => (
+            <a href={props.optOutUrl} style={{ color: COLORS.slate500 }}>
+              {chunks}
+            </a>
+          ),
+        })}
       </Text>
     </Layout>
   );
@@ -100,14 +126,27 @@ export function TenderExternalInviteEmail(props: TenderExternalInviteData) {
 
 export function renderTenderExternalInviteText(
   props: TenderExternalInviteData,
+  locale: Locale = DEFAULT_LOCALE,
 ): string {
+  const t = emailT(locale);
   return [
-    `${props.inviterName} sizi Rothern'de "${props.tenderTitle}" satın alma talebine davet etti.`,
-    `Kategori: ${props.categories}`,
-    ...(props.closesAt ? [`Son teklif tarihi: ${props.closesAt}`] : []),
+    t("email.tenderExternalInvite.textIntro", {
+      inviterName: props.inviterName,
+      tenderTitle: props.tenderTitle,
+    }),
+    t("email.tenderExternalInvite.categoryLine", {
+      categories: props.categories,
+    }),
+    ...(props.closesAt
+      ? [
+          t("email.tenderExternalInvite.closesAtLine", {
+            closesAt: props.closesAt,
+          }),
+        ]
+      : []),
     "",
-    `Kaydol ve teklif ver: ${props.registerUrl}`,
+    t("email.tenderExternalInvite.textCta", { url: props.registerUrl }),
     "",
-    `Bu tür davetleri kapatmak için: ${props.optOutUrl}`,
+    t("email.tenderExternalInvite.textOptOut", { url: props.optOutUrl }),
   ].join("\n");
 }

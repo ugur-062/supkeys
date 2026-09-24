@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { Prisma } from "@rothern/db";
 import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
 import { categoryPrefix, isCategoryCode, PAID_TIER, tierAtLeast, tokenizeQuery } from "@rothern/shared";
@@ -94,7 +95,7 @@ export class PublicProfileService {
     // Kapı TEK KAYNAK (`common/company/public-profile-gate.ts`): sitemap ve
     // pazar yeri kartındaki ad bağlantısı AYNI kararı verir.
     if (!c || !hasPublicProfile(c)) {
-      throw new NotFoundException("Profil bulunamadı");
+      throw new NotFoundException(i18nMessage("api.publicProfile.profilBulunamadi"));
     }
     const [categories, reviewRows, productCount] = await Promise.all([
       this.resolveCategoryNames([...c.sellerCategoryIds, ...c.buyerCategoryIds]),
@@ -325,7 +326,7 @@ export class PublicProfileService {
       },
       select: PUBLIC_PRODUCT_SELECT,
     });
-    if (!row) throw new NotFoundException("Ürün bulunamadı");
+    if (!row) throw new NotFoundException(i18nMessage("api.publicProfile.urunBulunamadi"));
     // Nitelikler ETİKETLENEREK döner: ziyaretçiye ham anahtar
     // ("koruma_sinifi") göstermek bir hata ekranı gibi okunur. Çözümleyici
     // panelle AYNI kaynak — sorulan alanla gösterilen etiket ayrışamaz.
@@ -424,7 +425,7 @@ export class PublicProfileService {
       },
     });
     if (!c || !hasPublicProfile(c)) {
-      throw new NotFoundException("Profil bulunamadı");
+      throw new NotFoundException(i18nMessage("api.publicProfile.profilBulunamadi"));
     }
     return c;
   }

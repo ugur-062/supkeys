@@ -1,6 +1,9 @@
 "use client";
 
-import { ROLE_LABELS } from "@/lib/company/labels";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { useRoleLabel } from "@/i18n/domain";
+import { formatDate } from "@/lib/format-date";
 import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { Badge } from "@/components/catalyst/badge";
@@ -51,8 +54,6 @@ import {
 import type { CompanyRole } from "@/lib/company-auth/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { SelectMenu } from "@/components/ui/select-menu";
-import { formatDistanceToNowStrict } from "date-fns";
-import { tr } from "date-fns/locale";
 import {
   Crown,
   MailPlus,
@@ -69,8 +70,6 @@ import { isValidPhone } from "@/lib/company/phone";
 import { InviteUserDialog } from "./invite-user-dialog";
 import { PermissionTable } from "@/components/company/permission-table";
 
-const ROLE_LABEL = ROLE_LABELS;
-
 export function CompanyUsersSection({
   canManage,
   meId,
@@ -78,6 +77,8 @@ export function CompanyUsersSection({
   canManage: boolean;
   meId: string | undefined;
 }) {
+  const t = useTranslations("web.panel.settings.companyUsersSection");
+  const locale = useLocale() as Locale;
   const { data: users, isLoading, isError, refetch } = useCompanyUsers();
   const { data: seats } = useSeats();
   const seatSelection = useSeatSelection();
@@ -96,9 +97,9 @@ export function CompanyUsersSection({
   const handleToggleActive = async (u: CompanyTeamUser) => {
     try {
       await setActive.mutateAsync({ id: u.id, active: !u.isActive });
-      toast.success(u.isActive ? "Pasif yapıldı" : "Tekrar aktif edildi");
+      toast.success(u.isActive ? t("pasifYapildi") : t("tekrarAktifEdildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İşlem başarısız"));
+      toast.error(extractErrorMessage(err, t("islemBasarisiz")));
     }
   };
 
@@ -106,10 +107,10 @@ export function CompanyUsersSection({
     if (!deleting) return;
     try {
       await removeUser.mutateAsync(deleting.id);
-      toast.success("Kullanıcı çıkarıldı");
+      toast.success(t("kullaniciCikarildi"));
       setDeleting(null);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Çıkarılamadı"));
+      toast.error(extractErrorMessage(err, t("cikarilamadi")));
     }
   };
 
@@ -119,36 +120,45 @@ export function CompanyUsersSection({
         <div className="flex items-center gap-2">
           <Users2 className="h-4 w-4 text-zinc-500" />
           <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-900">
-            Kullanıcılar ({(users ?? []).length})
+            {t("kullanicilar", { length: (users ?? []).length })}
           </h3>
         </div>
         {canManage ? (
-          <Button onClick={() => setInviteOpen(true)}>Üye Davet Et</Button>
+          <Button onClick={() => setInviteOpen(true)}>{t("uyeDavetEt")}</Button>
         ) : null}
       </header>
 
       {/* Faz K — koltuk barı: SA/ST taşıyan aktif kişi sayısı / paket limiti. */}
       {seats && seats.limit != null ? (
         <div className="border-b border-zinc-950/5 px-5 py-2.5 text-xs text-zinc-600">
-          Koltuk: <strong>{seats.used}/{seats.limit}</strong>
+          {t.rich("koltuk", {
+            strong: (c) => <strong>{c}</strong>,
+            used: seats.used,
+            limit: seats.limit,
+          })}
           <span className="ml-1 text-zinc-500">
-            (satınalma {seats.usedBuy} · satış {seats.usedSell}
             {seats.pendingSeatInvites > 0
-              ? ` · bekleyen davet ${seats.pendingSeatInvites}`
-              : ""}
-            )
+              ? t("koltukKirilimiBekleyenDavet", {
+                  usedBuy: seats.usedBuy,
+                  usedSell: seats.usedSell,
+                  pending: seats.pendingSeatInvites,
+                })
+              : t("koltukKirilimi", { usedBuy: seats.usedBuy, usedSell: seats.usedSell })}
           </span>
           <span className="ml-1 text-zinc-500">
-            — satınalma ve satış işlem yetkisi ayrı koltuk sayar
+            {t("satinalmaVeSatisIslemYetkisi")}
           </span>
         </div>
       ) : null}
       {seats && seats.overflow > 0 ? (
         <div className="flex flex-wrap items-center justify-between gap-2 border-b border-amber-200 bg-amber-50 px-5 py-3 text-sm text-amber-800">
           <span>
-            Paketinizde <strong>{seats.limit}</strong> koltuk var,{" "}
-            <strong>{seats.overflow}</strong> koltuk fazla — yeni işlem yetkisi
-            verilemez. Mevcut kullanıcılar çalışmaya devam eder.
+            {t.rich("paketinizdeKoltukVarFazla", {
+              strong: (c) => <strong>{c}</strong>,
+              // `overflow > 0` iken limit her zaman doludur; tip daraltması için yedek.
+              limit: seats.limit ?? 0,
+              overflow: seats.overflow,
+            })}
           </span>
           {meIsOwner ? (
             <Button
@@ -157,32 +167,32 @@ export function CompanyUsersSection({
                 setSeatSelOpen(true);
               }}
             >
-              Kalacak Koltukları Seç
+              {t("kalacakKoltuklariSec")}
             </Button>
           ) : null}
         </div>
       ) : null}
 
       {isLoading ? (
-        <p className="px-5 py-6 text-sm text-zinc-500">Yükleniyor…</p>
+        <p className="px-5 py-6 text-sm text-zinc-500">{t("yukleniyor")}</p>
       ) : isError ? (
         <p role="alert" className="px-5 py-6 text-sm text-rose-800">
-          Kullanıcılar yüklenemedi.{" "}
+          {t("kullanicilarYuklenemedi")}{" "}
           <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">
-            Yeniden dene
+            {t("yenidenDene")}
           </button>
         </p>
       ) : (users ?? []).length === 0 ? (
-        <p className="px-5 py-6 text-sm text-zinc-500">Henüz kullanıcı yok — ekibinizi davet edin.</p>
+        <p className="px-5 py-6 text-sm text-zinc-500">{t("henuzKullaniciYokEkibiniziDavet")}</p>
       ) : (
         <div className="px-2 [--gutter:--spacing(5)]">
           <Table dense>
             <TableHead>
               <TableRow>
-                <TableHeader>Kullanıcı</TableHeader>
-                <TableHeader>Roller</TableHeader>
-                <TableHeader>Durum</TableHeader>
-                <TableHeader>Son Giriş</TableHeader>
+                <TableHeader>{t("kullanici")}</TableHeader>
+                <TableHeader>{t("roller")}</TableHeader>
+                <TableHeader>{t("durum")}</TableHeader>
+                <TableHeader>{t("sonGiris")}</TableHeader>
                 <TableHeader className="text-right" />
               </TableRow>
             </TableHead>
@@ -207,7 +217,7 @@ export function CompanyUsersSection({
                             ) : null}
                             {isMe ? (
                               <span className="ml-1.5 text-xs uppercase text-zinc-500">
-                                (Siz)
+                                {t("siz")}
                               </span>
                             ) : null}
                           </p>
@@ -227,42 +237,37 @@ export function CompanyUsersSection({
                             <RoleBadge key={r} role={r} />
                           ))
                         ) : (u.permissions ?? []).length > 0 && !u.isOwner ? (
-                          <Badge color="zinc">Görüntüleyici</Badge>
+                          <Badge color="zinc">{t("goruntuleyici")}</Badge>
                         ) : u.isOwner ? null : (
-                          <span className="text-xs text-zinc-500">Yetki yok</span>
+                          <span className="text-xs text-zinc-500">{t("yetkiYok")}</span>
                         )}
                         {u.custom ? (
-                          <Badge color="amber" title="Hazır setten farklı, kişiye özel yetkiler">
-                            Özel
+                          <Badge color="amber" title={t("hazirSettenFarkliKisiyeOzel")}>
+                            {t("ozel")}
                           </Badge>
                         ) : null}
                       </div>
                     </TableCell>
                     <TableCell>
                       {u.isActive ? (
-                        <Badge color="lime">Aktif</Badge>
+                        <Badge color="lime">{t("aktif")}</Badge>
                       ) : (
-                        <Badge color="zinc">Pasif</Badge>
+                        <Badge color="zinc">{t("pasif")}</Badge>
                       )}
                     </TableCell>
                     <TableCell className="text-xs text-zinc-500">
-                      {u.lastLoginAt
-                        ? formatDistanceToNowStrict(new Date(u.lastLoginAt), {
-                            addSuffix: true,
-                            locale: tr,
-                          })
-                        : "—"}
+                      {u.lastLoginAt ? formatDate(u.lastLoginAt, "relative", locale) : "—"}
                     </TableCell>
                     <TableCell className="text-right">
                       {canManage ? (
                         <Dropdown>
-                          <DropdownButton plain aria-label="Aksiyonlar">
+                          <DropdownButton plain aria-label={t("aksiyonlar")}>
                             <MoreVertical className="h-4 w-4" />
                           </DropdownButton>
                           <DropdownMenu anchor="bottom end">
                             <DropdownItem onClick={() => setEditing(u)}>
                               <Pencil data-slot="icon" />
-                              <DropdownLabel>Düzenle</DropdownLabel>
+                              <DropdownLabel>{t("duzenle")}</DropdownLabel>
                             </DropdownItem>
                             {/* Yıkıcı aksiyonlar kendine ve kurucuya kapalı —
                                 backend setActive/remove self-guard'larının aynası. */}
@@ -271,12 +276,12 @@ export function CompanyUsersSection({
                                 {u.isActive ? (
                                   <>
                                     <PowerOff data-slot="icon" />
-                                    <DropdownLabel>Pasif Yap</DropdownLabel>
+                                    <DropdownLabel>{t("pasifYap")}</DropdownLabel>
                                   </>
                                 ) : (
                                   <>
                                     <Power data-slot="icon" />
-                                    <DropdownLabel>Tekrar Aktif Et</DropdownLabel>
+                                    <DropdownLabel>{t("tekrarAktifEt")}</DropdownLabel>
                                   </>
                                 )}
                               </DropdownItem>
@@ -286,7 +291,7 @@ export function CompanyUsersSection({
                                 <DropdownDivider />
                                 <DropdownItem onClick={() => setDeleting(u)}>
                                   <Trash2 data-slot="icon" />
-                                  <DropdownLabel>Çıkar</DropdownLabel>
+                                  <DropdownLabel>{t("cikar")}</DropdownLabel>
                                 </DropdownItem>
                               </>
                             ) : null}
@@ -316,31 +321,32 @@ export function CompanyUsersSection({
       ) : null}
 
       <Dialog open={Boolean(deleting)} onClose={() => setDeleting(null)} size="md">
-        <DialogTitle>Kullanıcıyı Çıkar</DialogTitle>
-        <DialogDescription>Bu işlem geri alınamaz.</DialogDescription>
+        <DialogTitle>{t("kullaniciyiCikar")}</DialogTitle>
+        <DialogDescription>{t("buIslemGeriAlinamaz")}</DialogDescription>
         <DialogBody>
           {deleting ? (
             <>
               <p className="text-sm text-zinc-700">
-                <strong className="text-zinc-900">
-                  {deleting.firstName} {deleting.lastName}
-                </strong>{" "}
-                ({deleting.email}) ekipten çıkarılsın mı?
+                {t.rich("ekiptenCikarilsinMi", {
+                  strong: (c) => <strong className="text-zinc-900">{c}</strong>,
+                  name: `${deleting.firstName} ${deleting.lastName}`,
+                  email: deleting.email,
+                })}
               </p>
               <ul className="mt-3 list-disc space-y-1.5 pl-4 text-xs text-zinc-600">
-                <li>Kullanıcı sisteme giriş yapamaz</li>
-                <li>Açtığı satın alma talepleri ve onaylar kayıtta kalır</li>
-                <li>E-posta tekrar davet için kullanılabilir</li>
+                <li>{t("kullaniciSistemeGirisYapamaz")}</li>
+                <li>{t("actigiSatinAlmaTalepleriVe")}</li>
+                <li>{t("ePostaTekrarDavetIcin")}</li>
               </ul>
             </>
           ) : null}
         </DialogBody>
         <DialogActions>
           <Button plain onClick={() => setDeleting(null)}>
-            Vazgeç
+            {t("vazgec")}
           </Button>
           <Button color="red" onClick={handleDelete} disabled={removeUser.isPending}>
-            Çıkar
+            {t("cikar")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -351,12 +357,9 @@ export function CompanyUsersSection({
         onClose={() => setSeatSelOpen(false)}
         size="lg"
       >
-        <DialogTitle>Kalacak Koltukları Seç</DialogTitle>
+        <DialogTitle>{t("kalacakKoltuklariSec")}</DialogTitle>
         <DialogDescription>
-          Paketinizde {seats?.limit ?? 0} koltuk var. Kalacak koltukları
-          (kişi · satınalma/satış) seçin — seçilmeyen koltuğun o gruptaki
-          işlem yetkileri kaldırılır; hesap, görüntüleme ve diğer yetkiler
-          aynen kalır, açık işleri kalan ekip tamamlayabilir.
+          {t("paketinizdeKoltukVarKalacak", { limit: seats?.limit ?? 0 })}
         </DialogDescription>
         <DialogBody className="space-y-2">
           {(users ?? [])
@@ -394,10 +397,10 @@ export function CompanyUsersSection({
                   <span className="min-w-0">
                     <span className="font-semibold text-zinc-900">
                       {u.firstName} {u.lastName}
-                      {u.isOwner ? " (Kurucu)" : ""}
+                      {u.isOwner ? ` ${t("kurucu")}` : ""}
                     </span>
                     <span className="block truncate text-xs text-zinc-500">
-                      {u.email} · {g === "buy" ? "Satınalma koltuğu" : "Satış koltuğu"}
+                      {u.email} · {g === "buy" ? t("satinalmaKoltugu") : t("satisKoltugu")}
                     </span>
                   </span>
                 </label>
@@ -406,7 +409,7 @@ export function CompanyUsersSection({
         </DialogBody>
         <DialogActions>
           <Button plain onClick={() => setSeatSelOpen(false)}>
-            Vazgeç
+            {t("vazgec")}
           </Button>
           <Button
             disabled={seatSelection.isPending || keep.length === 0}
@@ -414,15 +417,15 @@ export function CompanyUsersSection({
               try {
                 const res = await seatSelection.mutateAsync(keep);
                 toast.success(
-                  `Koltuk seçimi uygulandı — ${res.droppedCount} kişinin işlem yetkileri kaldırıldı`,
+                  t("koltukSecimiUygulandiKisininIslem", { droppedCount: res.droppedCount }),
                 );
                 setSeatSelOpen(false);
               } catch (err) {
-                toast.error(extractErrorMessage(err, "Uygulanamadı"));
+                toast.error(extractErrorMessage(err, t("uygulanamadi")));
               }
             }}
           >
-            Uygula
+            {t("uygula")}
           </Button>
         </DialogActions>
       </Dialog>
@@ -432,6 +435,9 @@ export function CompanyUsersSection({
 
 /** Bekleyen davetler — iptal / yeniden gönder (eski sistem paritesi). */
 function PendingInvitations() {
+  const t = useTranslations("web.panel.settings.companyUsersSection");
+  const locale = useLocale() as Locale;
+  const roleLabel = useRoleLabel();
   const { data: invitations } = useCompanyInvitations();
   const cancel = useCancelInvitation();
   const resend = useResendInvitation();
@@ -441,17 +447,17 @@ function PendingInvitations() {
   const handleCancel = async (id: string) => {
     try {
       await cancel.mutateAsync(id);
-      toast.success("Davet iptal edildi");
+      toast.success(t("davetIptalEdildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İptal edilemedi"));
+      toast.error(extractErrorMessage(err, t("iptalEdilemedi")));
     }
   };
   const handleResend = async (id: string) => {
     try {
       await resend.mutateAsync(id);
-      toast.success("Davet yeniden gönderildi — süre uzatıldı");
+      toast.success(t("davetYenidenGonderildiSureUzatildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Gönderilemedi"));
+      toast.error(extractErrorMessage(err, t("gonderilemedi")));
     }
   };
 
@@ -460,7 +466,7 @@ function PendingInvitations() {
       <header className="flex items-center gap-2 px-5 pb-1 pt-4">
         <MailPlus className="h-4 w-4 text-zinc-500" />
         <h3 className="text-xs font-bold uppercase tracking-wide text-zinc-900">
-          Bekleyen Davetler ({invitations.length})
+          {t("bekleyenDavetler", { length: invitations.length })}
         </h3>
       </header>
       <ul className="divide-y divide-zinc-100 px-5 pb-3">
@@ -478,22 +484,20 @@ function PendingInvitations() {
                   </span>
                   {inv.roles.map((r) => (
                     <Badge key={r} color="zinc">
-                      {ROLE_LABEL[r] ?? r}
+                      {roleLabel(r)}
                     </Badge>
                   ))}
                   {expired ? (
-                    <Badge color="red">Süresi doldu</Badge>
+                    <Badge color="red">{t("suresiDoldu")}</Badge>
                   ) : (
-                    <Badge color="amber">Bekliyor</Badge>
+                    <Badge color="amber">{t("bekliyor")}</Badge>
                   )}
                 </div>
                 <p className="mt-0.5 text-xs text-zinc-500">
-                  {inv.invitedByName} davet etti ·{" "}
+                  {t("davetEtti", { name: inv.invitedByName })} ·{" "}
                   {expired
-                    ? "yeniden gönderilebilir"
-                    : `${formatDistanceToNowStrict(new Date(inv.expiresAt), {
-                        locale: tr,
-                      })} içinde sona erer`}
+                    ? t("yenidenGonderilebilir")
+                    : t("sonaErer", { when: formatDate(inv.expiresAt, "relative", locale) })}
                 </p>
               </div>
               <div className="flex shrink-0 items-center gap-1">
@@ -502,12 +506,12 @@ function PendingInvitations() {
                   onClick={() => handleResend(inv.id)}
                   disabled={resend.isPending}
                 >
-                  Yeniden Gönder
+                  {t("yenidenGonder")}
                 </Button>
                 <Button
                   plain
-                  aria-label="Daveti iptal et"
-                  title="Daveti iptal et"
+                  aria-label={t("davetiIptalEt")}
+                  title={t("davetiIptalEt")}
                   onClick={() => handleCancel(inv.id)}
                   disabled={cancel.isPending}
                 >
@@ -534,6 +538,7 @@ function EditUserModal({
   isSelf: boolean;
   onClose: () => void;
 }) {
+  const t = useTranslations("web.panel.settings.companyUsersSection");
   const update = useUpdateUser();
   const setPermissions = useSetUserPermissions();
   const { data: catalog } = usePermissionCatalog();
@@ -573,10 +578,10 @@ function EditUserModal({
     phone.trim() !== (user.phone ?? "");
   const dirty = infoChanged || permsChanged;
   // Satır içi hatalar (Ayarlar denetimi 2026-09-10: toast değil, alanda).
-  const firstNameError = firstName.trim().length < 2 ? "Ad en az 2 karakter" : null;
-  const lastNameError = lastName.trim().length < 2 ? "Soyad en az 2 karakter" : null;
-  const phoneError = isValidPhone(phone) ? null : "Geçerli bir telefon numarası girin";
-  const permsError = !user.isOwner && perms.length === 0 ? "En az bir yetki seçin" : null;
+  const firstNameError = firstName.trim().length < 2 ? t("adEnAz2Karakter") : null;
+  const lastNameError = lastName.trim().length < 2 ? t("soyadEnAz2Karakter") : null;
+  const phoneError = isValidPhone(phone) ? null : t("gecerliBirTelefonNumarasiGirin");
+  const permsError = !user.isOwner && perms.length === 0 ? t("enAzBirYetkiSecin") : null;
   const hasError = Boolean(firstNameError || lastNameError || phoneError || permsError);
 
   // Kuruculuk devri — panel açılır, eski Kurucu (siz) yeni rolünü seçer.
@@ -597,10 +602,10 @@ function EditUserModal({
         roles: ["SAHIP" as CompanyRole],
         previousOwnerRoles: NEW_ROLE_MAP[myNewRole],
       });
-      toast.success("Kuruculuk devredildi");
+      toast.success(t("kuruculukDevredildi"));
       onClose();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kuruculuk devredilemedi"));
+      toast.error(extractErrorMessage(err, t("kuruculukDevredilemedi")));
     }
   };
 
@@ -619,10 +624,10 @@ function EditUserModal({
       if (permsChanged && !permsLocked) {
         await setPermissions.mutateAsync({ id: user.id, permissions: perms });
       }
-      toast.success("Kullanıcı güncellendi");
+      toast.success(t("kullaniciGuncellendi"));
       onClose();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Güncellenemedi"));
+      toast.error(extractErrorMessage(err, t("guncellenemedi")));
     }
   };
 
@@ -630,17 +635,17 @@ function EditUserModal({
 
   return (
     <Dialog open onClose={onClose} size="3xl">
-      <DialogTitle>Kullanıcıyı Düzenle</DialogTitle>
+      <DialogTitle>{t("kullaniciyiDuzenle")}</DialogTitle>
       <DialogDescription>{user.email}</DialogDescription>
       {/* Uzun içerik (yetki tablosu) viewport'u aşıp üstü header altında
           kalmasın diye body iç scroll ile sınırlanır; pr/-mr çifti içeriğin
           scrollbar'a yapışmasını önler. */}
       <DialogBody className="-mr-3 max-h-[70vh] space-y-5 overflow-y-auto pr-3">
         <div>
-          <p className="text-sm font-semibold text-zinc-900">Kişi Bilgileri</p>
+          <p className="text-sm font-semibold text-zinc-900">{t("kisiBilgileri")}</p>
           <div className="mt-2 grid grid-cols-2 gap-3">
             <Field>
-              <Label>Ad</Label>
+              <Label>{t("ad")}</Label>
               <Input
                 value={firstName}
                 invalid={touched && Boolean(firstNameError)}
@@ -649,7 +654,7 @@ function EditUserModal({
               {touched && firstNameError ? <ErrorMessage>{firstNameError}</ErrorMessage> : null}
             </Field>
             <Field>
-              <Label>Soyad</Label>
+              <Label>{t("soyad")}</Label>
               <Input
                 value={lastName}
                 invalid={touched && Boolean(lastNameError)}
@@ -659,7 +664,7 @@ function EditUserModal({
             </Field>
           </div>
           <Field className="mt-3">
-            <Label>Telefon</Label>
+            <Label>{t("telefon")}</Label>
             <PhoneInput value={phone} onChange={setPhone} />
             {touched && phoneError ? <ErrorMessage>{phoneError}</ErrorMessage> : null}
           </Field>
@@ -669,18 +674,18 @@ function EditUserModal({
             kişiye özel. Kurucu satırında yalnız işlem tikleri düzenlenir. */}
         <div>
           <div className="flex items-baseline justify-between gap-2">
-            <p className="text-sm font-semibold text-zinc-900">Yetkiler</p>
+            <p className="text-sm font-semibold text-zinc-900">{t("yetkiler")}</p>
             {permsLocked ? (
               <p className="text-xs text-zinc-500">
-                Kendi yetkilerinizi düzenleyemezsiniz — Kurucu veya başka bir yönetici yapmalı.
+                {t("kendiYetkileriniziDuzenleyemezsinizKurucuVey")}
               </p>
             ) : seatsFull ? (
               <p className="text-xs text-amber-700">
-                Kullanıcı hakkı dolu — yeni koltuk verilemez.
+                {t("kullaniciHakkiDoluYeniKoltuk")}
               </p>
             ) : (
               <p className="text-xs text-zinc-500">
-                Satınalma/satış işlem tikleri koltuk sayar.
+                {t("satinalmaSatisIslemTikleriKoltuk")}
               </p>
             )}
           </div>
@@ -690,11 +695,9 @@ function EditUserModal({
                 <Crown className="h-4 w-4" />
               </span>
               <span className="min-w-0">
-                <span className="font-semibold text-zinc-900">Kurucu</span>
+                <span className="font-semibold text-zinc-900">{t("kurucu2")}</span>
                 <span className="mt-0.5 block text-xs leading-relaxed text-zinc-600">
-                  Yönetim, onay ve görüntüleme yetkileri Kurucuda örtüktür ve
-                  kısılamaz. Yalnız işlem (koltuk) tiklerini değiştirebilirsiniz;
-                  kuruculuk yalnız devirle değişir.
+                  {t("yonetimOnayVeGoruntulemeYetkileri")}
                 </span>
               </span>
             </div>
@@ -713,7 +716,7 @@ function EditUserModal({
                 disabled={permsLocked}
               />
             ) : (
-              <p className="text-sm text-zinc-500">Yetki kataloğu yükleniyor…</p>
+              <p className="text-sm text-zinc-500">{t("yetkiKataloguYukleniyor")}</p>
             )}
             {touched && permsError ? (
               <p className="mt-1 text-xs text-red-600">{permsError}</p>
@@ -724,41 +727,39 @@ function EditUserModal({
             transferOpen ? (
               <div className="mt-3 space-y-2 rounded-lg border border-amber-200 bg-amber-50 p-3">
                 <p className="text-xs font-semibold text-amber-900">
-                  Kuruculuğu {user.firstName} {user.lastName} kişisine devret
+                  {t("kuruculuguKisisineDevret", { firstName: user.firstName, lastName: user.lastName })}
                 </p>
                 <p className="text-xs text-amber-800">
-                  Bu işlem geri alınamaz: fatura, firma silme ve devir yetkisi
-                  yeni Kurucuya geçer; siz aşağıda seçtiğiniz rolle devam
-                  edersiniz.
+                  {t("buIslemGeriAlinamazFatura")}
                 </p>
                 <p className="text-xs text-amber-800">
-                  Devirden sonra <strong>sizin</strong> rolünüz ne olsun?
+                  {t.rich("devirdenSonraSizinRolunuz", { strong: (c) => <strong>{c}</strong> })}
                 </p>
                 <SelectMenu
                   value={myNewRole}
                   onChange={(v) => setMyNewRole(v as typeof myNewRole)}
-                  ariaLabel="Devir sonrası rolünüz"
+                  ariaLabel={t("devirSonrasiRolunuz")}
                   options={[
-                    { value: "YONETICI", label: "Yönetici (yönetim; işlem yok)" },
-                    { value: "SATIN_ALMACI", label: "Satın Almacı (yalnız alış)" },
-                    { value: "SATISCI", label: "Satışçı (yalnız satış)" },
-                    { value: "BOTH", label: "Satın Almacı + Satışçı" },
+                    { value: "YONETICI", label: t("yoneticiYonetimIslemYok") },
+                    { value: "SATIN_ALMACI", label: t("satinAlmaciYalnizAlis") },
+                    { value: "SATISCI", label: t("satisciYalnizSatis") },
+                    { value: "BOTH", label: t("satinAlmaciSatisci") },
                   ]}
                 />
                 <div className="flex flex-wrap gap-2 pt-1">
                   <Button color="amber" onClick={confirmTransfer} disabled={update.isPending}>
                     <Crown data-slot="icon" />
-                    {update.isPending ? "Devrediliyor…" : "Devret"}
+                    {update.isPending ? t("devrediliyor") : t("devret")}
                   </Button>
                   <Button plain onClick={() => setTransferOpen(false)}>
-                    Vazgeç
+                    {t("vazgec")}
                   </Button>
                 </div>
               </div>
             ) : (
               <Button outline className="mt-3" onClick={() => setTransferOpen(true)}>
                 <Crown data-slot="icon" />
-                Kuruculuğu bu kullanıcıya devret
+                {t("kuruculuguBuKullaniciyaDevret")}
               </Button>
             )
           ) : null}
@@ -766,10 +767,10 @@ function EditUserModal({
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button onClick={save} disabled={busy || !dirty}>
-          {busy ? "Kaydediliyor…" : "Kaydet"}
+          {busy ? t("kaydediliyor") : t("kaydet")}
         </Button>
       </DialogActions>
     </Dialog>

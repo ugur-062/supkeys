@@ -14,7 +14,6 @@ import {
 } from "recharts";
 import { InfoTooltip } from "./info-tooltip";
 import type { Period } from "./period-toggle";
-import { DASH } from "@/lib/dashboard/strings";
 import type { SatinalmaAnalytics } from "@/hooks/use-company-dashboard";
 import {
   ChartCard,
@@ -85,7 +84,7 @@ export function TasarrufTab({ data, period, analytics }: Props) {
           kullanıcı kararı: "Şirketim'deki zaman tasarrufu kısımları gereksiz").
           Sekme yalnız MALİYET tasarrufunu gösterir. */}
       {period === "quarter" ? (
-        <p className="text-xs text-zinc-400">{DASH.quarterCostNote}</p>
+        <p className="text-xs text-zinc-400">{t("maliyetKiriliminda")}</p>
       ) : null}
 
       {/* Tasarruf trendi: aylık bar + kümülatif çizgi (yalnız TRY ihaleler). */}

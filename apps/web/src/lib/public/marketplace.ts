@@ -48,19 +48,12 @@ export const MARKETPLACE_ROUTES = {
   demand: PUBLIC_PATHS.demand,
 } as const;
 
-/** @deprecated i18n Faz 1: dil bilen yüzeyler `web.marketplace.labels.*` katalog anahtarlarını kullanır; burası Türkçe kalan panel/meta yolları için. */
-export const MARKETPLACE_LABELS = {
-  demands: "Alım Talepleri",
-  /**
-   * ÜRÜN ≠ TALEP. Talep süreli bir işlemdir, ürün firmanın kalıcı vitrinidir.
-   * Ziyaretçiye ürüne "ilan" demek, kapanmayan bir kaydı süreli sanmasına yol
-   * açar.
-   */
-  products: "Ürünler",
-  companies: "Firmalar",
-  /** Tekil kayıt için başlık öneki (sayfa H1'inde değil, listelerde rozet). */
-  demandOne: "Alım talebi",
-} as const;
+/*
+ * Pazar yeri adları (Alım Talepleri · Ürünler · Firmalar · Alım talebi) artık
+ * YALNIZ katalogda: `web.marketplace.labels.*`. Buradaki Türkçe kopya
+ * (`MARKETPLACE_LABELS`) i18n Faz 1'den beri hiçbir yerden okunmuyordu —
+ * ikinci bir kaynak olarak durması sessizce ayrışma riskiydi, kaldırıldı.
+ */
 
 export type PublicListingType = "ALIM";
 
@@ -148,12 +141,8 @@ export function publicState(status: string): PublicListingState {
   return STATE_BY_STATUS[status] ?? "closed";
 }
 
-/** @deprecated i18n Faz 1: `web.marketplace.state.*` (useTranslations). Panel yolu için Türkçe kalır. */
-export const STATE_LABEL: Record<PublicListingState, string> = {
-  open: "Teklife açık",
-  evaluating: "Değerlendirmede",
-  closed: "Kapandı",
-};
+/* Durum etiketleri katalogda: `web.marketplace.state.*` (`useTranslations`).
+   Buradaki eski Türkçe sözlük (`STATE_LABEL`) okunmuyordu, kaldırıldı. */
 
 /**
  * Yalnız "open" indekslenir. Kapanmış kayıt sitede DURUR (arşiv değeri var,

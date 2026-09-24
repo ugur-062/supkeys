@@ -1,8 +1,11 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { userHasPermission } from "@/lib/company/permissions";
 import { useSearchParams } from "next/navigation";
 import { formatDate } from "@/lib/format-date";
+import { formatNumber } from "@/i18n/format";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Heading } from "@/components/catalyst/heading";
@@ -58,22 +61,23 @@ import { toast } from "sonner";
  *    "Talebim" rozeti (çip var), ayrı durum/tür seçicileri.
  */
 
-const TYPE_LABEL: Record<PendingApproval["type"], string> = {
-  LISTING_PUBLISH: "İlan yayını",
-  LISTING_AWARD: "Kazandırma",
+// Tür ve durum etiketleri katalogda (`type.<KOD>`, `typeLower.<KOD>`,
+// `status.<KOD>`); burada yalnız rozet rengi.
+const REQ_STATUS_COLOR: Record<ApprovalHistoryItem["status"], "amber" | "green" | "rose" | "zinc"> = {
+  PENDING: "amber",
+  APPROVED: "green",
+  REJECTED: "rose",
+  CANCELLED: "zinc",
 };
 
-const REQ_STATUS: Record<ApprovalHistoryItem["status"], { label: string; color: "amber" | "green" | "rose" | "zinc" }> = {
-  PENDING: { label: "Bekliyor", color: "amber" },
-  APPROVED: { label: "Onaylandı", color: "green" },
-  REJECTED: { label: "Reddedildi", color: "rose" },
-  CANCELLED: { label: "İptal edildi", color: "zinc" },
-};
-
-const money = (amount: number, currency: string) => `${amount.toLocaleString("tr-TR")} ${currencySymbol(currency)}`;
+/** Tutar + sembol — sayı okuyucunun dilinde. */
+const money = (amount: number, currency: string, locale: Locale) =>
+  `${formatNumber(amount, locale)} ${currencySymbol(currency)}`;
 
 /** Adım zaman çizelgesi — kim, hangi sırada, ne karar verdi. */
 function StepsTimeline({ steps }: { steps: ApprovalHistoryItem["steps"] }) {
+  const t = useTranslations("web.panel.approvals.onaylarPage");
+  const locale = useLocale() as Locale;
   return (
     <ol className="mt-2 space-y-1.5">
       {steps.map((s) => {
@@ -89,14 +93,14 @@ function StepsTimeline({ steps }: { steps: ApprovalHistoryItem["steps"] }) {
           );
         const verb =
           s.status === "APPROVED"
-            ? "onayladı"
+            ? t("onayladi")
             : s.status === "REJECTED"
-              ? "reddetti"
+              ? t("reddetti")
               : s.status === "SKIPPED"
-                ? "atlandı (bütçe eşiği)"
+                ? t("atlandiButceEsigi")
                 : s.status === "PENDING"
-                  ? "karar bekleniyor"
-                  : "sırada";
+                  ? t("kararBekleniyor")
+                  : t("sirada");
         return (
           <li key={s.order} className="flex items-start gap-2 text-xs">
             <span className="mt-0.5 shrink-0">{icon}</span>
@@ -107,9 +111,9 @@ function StepsTimeline({ steps }: { steps: ApprovalHistoryItem["steps"] }) {
               </span>
               <span className="ml-1.5 text-zinc-500">
                 {verb}
-                {s.decidedAt ? ` · ${formatDate(s.decidedAt, "datetime")}` : ""}
+                {s.decidedAt ? ` · ${formatDate(s.decidedAt, "datetime", locale)}` : ""}
               </span>
-              {s.note ? <span className="block text-zinc-500">Not: {s.note}</span> : null}
+              {s.note ? <span className="block text-zinc-500">{t("not", { note: s.note })}</span> : null}
             </span>
           </li>
         );
@@ -138,13 +142,14 @@ function Empty({ title, description }: { title: string; description?: string }) 
 
 /** Sorgu hatası — yanıltıcı "boş" durumu yerine gerçek hata + yeniden dene. */
 function ErrorState({ onRetry }: { onRetry: () => void }) {
+  const t = useTranslations("web.panel.approvals.onaylarPage");
   return (
     <div role="alert" className="rounded-2xl border border-rose-200 bg-rose-50/60 p-8 text-center">
       <AlertTriangle className="mx-auto h-8 w-8 text-rose-400" aria-hidden />
-      <p className="mt-3 text-sm font-medium text-rose-900">Kayıtlar yüklenemedi</p>
-      <p className="mt-1 text-sm text-rose-700/80">Bağlantı sorunu olabilir. Lütfen yeniden deneyin.</p>
+      <p className="mt-3 text-sm font-medium text-rose-900">{t("kayitlarYuklenemedi")}</p>
+      <p className="mt-1 text-sm text-rose-700/80">{t("baglantiSorunuOlabilirLutfenYeniden")}</p>
       <Button className="mt-4" outline onClick={onRetry}>
-        Yeniden Dene
+        {t("yenidenDene")}
       </Button>
     </div>
   );
@@ -192,10 +197,11 @@ function Meta({ parts }: { parts: (string | null | undefined)[] }) {
 }
 
 function InitiatorNote({ note }: { note: string | null }) {
+  const t = useTranslations("web.panel.approvals.onaylarPage");
   if (!note) return null;
   return (
     <p className="mt-2 rounded-lg bg-zinc-50 px-2.5 py-1.5 text-xs text-zinc-600">
-      <span className="font-semibold text-zinc-500">Başlatan notu:</span> {note}
+      <span className="font-semibold text-zinc-500">{t("baslatanNotu")}</span> {note}
     </p>
   );
 }
@@ -218,6 +224,8 @@ function DecideCard({
   onApprove: () => void;
   onReject: () => void;
 }) {
+  const t = useTranslations("web.panel.approvals.onaylarPage");
+  const locale = useLocale() as Locale;
   return (
     <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
       <CardTitle
@@ -225,17 +233,17 @@ function DecideCard({
         canOpenListing={canOpenListing}
         right={
           <Badge color="amber">
-            Adım {p.currentStepOrder}/{p.totalSteps}
+            {t("adim", { currentStepOrder: p.currentStepOrder, totalSteps: p.totalSteps })}
           </Badge>
         }
       />
       <Meta
         parts={[
           p.requestNo,
-          p.type === "LISTING_PUBLISH" ? TYPE_LABEL[p.type] : null,
-          money(p.amount, p.currency),
-          `${p.createdBy} başlattı`,
-          formatDate(p.createdAt, "datetime"),
+          p.type === "LISTING_PUBLISH" ? t("type.LISTING_PUBLISH") : null,
+          money(p.amount, p.currency, locale),
+          t("baslatti", { createdBy: p.createdBy }),
+          formatDate(p.createdAt, "datetime", locale),
         ]}
       />
       <InitiatorNote note={p.initiatorNote} />
@@ -248,16 +256,16 @@ function DecideCard({
           className="inline-flex items-center gap-1 text-sm font-medium text-zinc-600 hover:text-zinc-950"
         >
           <ChevronDown aria-hidden className={cn("size-4 transition", detailOpen && "rotate-180")} />
-          {detailOpen ? "Detayı gizle" : "Detay — kazanan, rekabet, kalemler"}
+          {detailOpen ? t("detayiGizle") : t("detayKazananRekabetKalemler")}
         </button>
         <div className="flex items-center gap-2">
           <Button plain onClick={onReject} disabled={busy}>
             <XCircle className="h-4 w-4 text-red-500" aria-hidden />
-            Reddet
+            {t("reddet")}
           </Button>
           <Button onClick={onApprove} disabled={busy}>
             <CheckCircle2 className="h-4 w-4" aria-hidden />
-            {busy ? "Onaylanıyor…" : "Onayla"}
+            {busy ? t("onaylaniyor") : t("onayla")}
           </Button>
         </div>
       </div>
@@ -284,15 +292,16 @@ function RequestCard({
   cancelPending: boolean;
   canOpenListing: boolean;
 }) {
-  const st = REQ_STATUS[h.status];
+  const t = useTranslations("web.panel.approvals.onaylarPage");
+  const locale = useLocale() as Locale;
   return (
     <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
       <CardTitle
         listing={h.listing}
         canOpenListing={canOpenListing}
         right={
-          <Badge color={st.color}>
-            {st.label}
+          <Badge color={REQ_STATUS_COLOR[h.status]}>
+            {t(`status.${h.status}` as never)}
             {h.status === "PENDING" ? ` · ${h.currentStepOrder}/${h.totalSteps}` : ""}
           </Badge>
         }
@@ -300,27 +309,27 @@ function RequestCard({
       <Meta
         parts={[
           h.requestNo,
-          h.type === "LISTING_PUBLISH" ? TYPE_LABEL[h.type] : null,
-          money(h.amount, h.currency),
-          h.mine ? "Siz başlattınız" : `${h.createdBy} başlattı`,
-          h.decidedAt ? `${formatDate(h.createdAt, "short")} → ${formatDate(h.decidedAt, "datetime")}` : formatDate(h.createdAt, "datetime"),
+          h.type === "LISTING_PUBLISH" ? t("type.LISTING_PUBLISH") : null,
+          money(h.amount, h.currency, locale),
+          h.mine ? t("sizBaslattiniz") : t("baslatti", { createdBy: h.createdBy }),
+          h.decidedAt ? `${formatDate(h.createdAt, "short", locale)} → ${formatDate(h.decidedAt, "datetime", locale)}` : formatDate(h.createdAt, "datetime", locale),
         ]}
       />
       {h.status === "PENDING" && h.currentApprover ? (
-        <p className="mt-1 text-xs text-amber-700">Sırada: {h.currentApprover}</p>
+        <p className="mt-1 text-xs text-amber-700">{t("sirada2", { currentApprover: h.currentApprover })}</p>
       ) : null}
       <InitiatorNote note={h.initiatorNote} />
       <div className="mt-3 flex flex-wrap items-center justify-between gap-2 border-t border-zinc-950/5 pt-3">
         <details className="group min-w-0 flex-1">
           <summary className="inline-flex cursor-pointer list-none items-center gap-1 text-sm font-medium text-zinc-600 hover:text-zinc-950">
             <ChevronDown aria-hidden className="size-4 transition group-open:rotate-180" />
-            Adımlar ({h.decidedSteps}/{h.totalSteps})
+            {t("adimlar", { decidedSteps: h.decidedSteps, totalSteps: h.totalSteps })}
           </summary>
           <StepsTimeline steps={h.steps} />
         </details>
         {canCancel && h.status === "PENDING" ? (
           <Button plain onClick={() => onCancel(h)} disabled={cancelPending}>
-            {cancelPending ? "İptal ediliyor…" : "İptal et"}
+            {cancelPending ? t("iptalEdiliyor") : t("iptalEt")}
           </Button>
         ) : null}
       </div>
@@ -330,14 +339,11 @@ function RequestCard({
 
 type View = "pending" | "all" | "flows";
 type Chip = "all" | "pending" | "mine" | "done";
-const CHIPS: { key: Chip; label: string }[] = [
-  { key: "all", label: "Tümü" },
-  { key: "pending", label: "Bekleyen" },
-  { key: "mine", label: "Başlattıklarım" },
-  { key: "done", label: "Sonuçlanan" },
-];
+// Çip etiketleri katalogda `chip.<key>`.
+const CHIPS: Chip[] = ["all", "pending", "mine", "done"];
 
 export default function OnaylarPage() {
+  const tr = useTranslations("web.panel.approvals.onaylarPage");
   // Görünüm URL'de (?tab=) — yenileme/paylaşımda korunur. Eski "history"
   // bağlantıları "all"a düşer (birleşti).
   const searchParams = useSearchParams();
@@ -389,20 +395,20 @@ export default function OnaylarPage() {
   const approve = async (p: PendingApproval) => {
     if (
       !(await confirm({
-        title: "İsteği onayla",
-        description: `"${p.listing.title}" için ${TYPE_LABEL[p.type].toLocaleLowerCase("tr")} isteği onaylansın mı? ${
-          p.currentStepOrder === p.totalSteps ? "Bu son adım — işlem hemen uygulanır." : "Sonraki onaycıya geçilir."
+        title: tr("istegiOnayla"),
+        description: `${tr("icinIstegiOnaylansinMi", { title: p.listing.title, type: tr(`typeLower.${p.type}` as never) })} ${
+          p.currentStepOrder === p.totalSteps ? tr("buSonAdimIslemHemenUygulanir") : tr("sonrakiOnayciyaGecilir")
         }`,
-        confirmLabel: "Onayla",
+        confirmLabel: tr("onayla"),
       }))
     )
       return;
     setActingId(p.id);
     try {
       await decide.mutateAsync({ id: p.id, action: "approve" });
-      toast.success("Onaylandı");
+      toast.success(tr("onaylandi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İşlem başarısız"));
+      toast.error(extractErrorMessage(err, tr("islemBasarisiz")));
     } finally {
       setActingId(null);
     }
@@ -413,10 +419,10 @@ export default function OnaylarPage() {
     setActingId(rejecting.id);
     try {
       await decide.mutateAsync({ id: rejecting.id, action: "reject", note: reason.trim() || undefined });
-      toast.success("Reddedildi");
+      toast.success(tr("reddedildi"));
       setRejecting(null);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İşlem başarısız"));
+      toast.error(extractErrorMessage(err, tr("islemBasarisiz")));
     } finally {
       setActingId(null);
     }
@@ -425,9 +431,9 @@ export default function OnaylarPage() {
   const cancelRequest = async (h: ApprovalHistoryItem) => {
     if (
       !(await confirm({
-        title: "Onay isteğini iptal et",
-        description: `"${h.listing.title}" için onay isteği iptal edilsin mi? İlan eski durumuna döner.`,
-        confirmLabel: "İptal et",
+        title: tr("onayIsteginiIptalEt"),
+        description: tr("icinOnayIstegiIptalEdilsin", { title: h.listing.title }),
+        confirmLabel: tr("iptalEt"),
         destructive: true,
       }))
     )
@@ -435,9 +441,9 @@ export default function OnaylarPage() {
     setActingId(h.id);
     try {
       await cancel.mutateAsync(h.id);
-      toast.success("Onay isteği iptal edildi");
+      toast.success(tr("onayIstegiIptalEdildi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İptal edilemedi"));
+      toast.error(extractErrorMessage(err, tr("iptalEdilemedi")));
     } finally {
       setActingId(null);
     }
@@ -453,11 +459,11 @@ export default function OnaylarPage() {
             className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900"
           >
             <ArrowLeft aria-hidden className="size-4" />
-            Onaylara dön
+            {tr("onaylaraDon")}
           </button>
-          <Heading>Onay akışları</Heading>
+          <Heading>{tr("onayAkislari")}</Heading>
           <Text className="mt-1 text-sm text-zinc-500">
-            Kazandırma isteklerinin kimden, hangi sırayla ve hangi tutar eşiğinde onay alacağını tanımlayın.
+            {tr("kazandirmaIsteklerininKimdenHangiSirayla")}
           </Text>
         </div>
         <ApprovalFlowsSection canManage={canManageFlows} />
@@ -466,8 +472,8 @@ export default function OnaylarPage() {
   }
 
   const tabs: { key: "pending" | "all"; label: string; count?: number }[] = [
-    { key: "pending", label: "Sıra sizde", count: pending?.length ?? 0 },
-    { key: "all", label: "Tüm istekler", count: all?.length ?? 0 },
+    { key: "pending", label: tr("siraSizde"), count: pending?.length ?? 0 },
+    { key: "all", label: tr("tumIstekler"), count: all?.length ?? 0 },
   ];
   // Sekme vurgusu portal renginde (2026-09-19 mockup): satınalma mavi, satış emerald.
   const tabTone =
@@ -479,20 +485,20 @@ export default function OnaylarPage() {
     <div className="space-y-6">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <Heading>Onaylar</Heading>
+          <Heading>{tr("onaylar")}</Heading>
           <Text className="mt-1 text-sm text-zinc-500">
-            Kazandırma isteklerini onaylayın ya da reddedin; firmadaki tüm istekleri tek listede izleyin.
+            {tr("kazandirmaIstekleriniOnaylayinYaDa")}
           </Text>
         </div>
         {canManageFlows ? (
           <Button outline onClick={() => setView("flows")}>
             <Workflow data-slot="icon" aria-hidden />
-            Onay akışlarını düzenle
+            {tr("onayAkislariniDuzenle")}
           </Button>
         ) : null}
       </div>
 
-      <div role="tablist" aria-label="Onay görünümleri" className="flex gap-1 border-b border-zinc-950/10">
+      <div role="tablist" aria-label={tr("onayGorunumleri")} className="flex gap-1 border-b border-zinc-950/10">
         {tabs.map((t) => (
           <button
             key={t.key}
@@ -532,8 +538,8 @@ export default function OnaylarPage() {
             <ErrorState onRetry={() => refetchPending()} />
           ) : !pending || pending.length === 0 ? (
             <Empty
-              title="Sıra sizde bekleyen onay yok"
-              description="Size yönlendirilen kazandırma istekleri burada listelenir. Yeni bir istek geldiğinde burada görünecektir."
+              title={tr("siraSizdeBekleyenOnayYok")}
+              description={tr("sizeYonlendirilenKazandirmaIstekleriBurada")}
             />
           ) : (
             <div className="space-y-3">
@@ -557,19 +563,19 @@ export default function OnaylarPage() {
       {view === "all" ? (
         <div role="tabpanel" id="onaylar-panel-all" aria-labelledby="onaylar-tab-all" className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
-            <div className="flex flex-wrap gap-1.5" role="group" aria-label="İstek süzgeci">
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label={tr("istekSuzgeci")}>
               {CHIPS.map((c) => (
                 <button
-                  key={c.key}
+                  key={c}
                   type="button"
-                  aria-pressed={chip === c.key}
-                  onClick={() => setChip(c.key)}
+                  aria-pressed={chip === c}
+                  onClick={() => setChip(c)}
                   className={cn(
                     "rounded-full px-3 py-1 text-sm font-medium transition",
-                    chip === c.key ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200",
+                    chip === c ? "bg-zinc-950 text-white" : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200",
                   )}
                 >
-                  {c.label}
+                  {tr(`chip.${c}` as never)}
                 </button>
               ))}
             </div>
@@ -578,7 +584,7 @@ export default function OnaylarPage() {
             <SearchInput
               value={search}
               onChange={setSearch}
-              placeholder="Onay no / talep ara…"
+              placeholder={tr("onayNoTalepAra")}
               className="ml-auto w-full sm:w-72"
             />
           </div>
@@ -592,12 +598,12 @@ export default function OnaylarPage() {
             <Empty
               title={
                 chip === "pending"
-                  ? "Bekleyen istek yok."
+                  ? tr("bekleyenIstekYok")
                   : chip === "mine"
-                    ? "Başlattığınız istek yok."
+                    ? tr("baslattiginizIstekYok")
                     : chip === "done"
-                      ? "Sonuçlanan istek yok."
-                      : "Kayıt bulunamadı — firmadaki tüm onay istekleri burada listelenir."
+                      ? tr("sonuclananIstekYok")
+                      : tr("kayitBulunamadiFirmadakiTumOnay")
               }
             />
           ) : (
@@ -621,9 +627,9 @@ export default function OnaylarPage() {
         open={rejecting != null}
         onClose={() => setRejecting(null)}
         onSubmit={submitReject}
-        title="İsteği reddet"
-        description="Ret gerekçesi isteği başlatana iletilir (opsiyonel)."
-        confirmLabel="Reddet"
+        title={tr("istegiReddet")}
+        description={tr("retGerekcesiIstegiBaslatanaIletilir")}
+        confirmLabel={tr("reddet")}
         destructive
         pending={decide.isPending}
       />

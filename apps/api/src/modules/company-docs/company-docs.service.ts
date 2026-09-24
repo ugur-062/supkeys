@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ConflictException,
@@ -127,7 +128,7 @@ export class CompanyDocsService {
         ibanHolder: true,
       },
     })) as Record<string, unknown> | null;
-    if (!c) throw new NotFoundException("Firma bulunamadı");
+    if (!c) throw new NotFoundException(i18nMessage("api.companyDocs.firmaBulunamadi"));
     // Hassas KYC belgeleri: kalıcı public URL yerine kısa ömürlü presigned GET
     // (bucket public olsa bile yetkisiz erişim engellenir).
     const entries = await Promise.all(
@@ -199,9 +200,9 @@ export class CompanyDocsService {
     mimeType: string,
     fileSize?: number,
   ) {
-    if (!(kind in DOC_FIELDS)) throw new BadRequestException("Geçersiz belge türü");
+    if (!(kind in DOC_FIELDS)) throw new BadRequestException(i18nMessage("api.companyDocs.gecersizBelgeTuru"));
     if (!ALLOWED_MIME.includes(mimeType)) {
-      throw new BadRequestException("Sadece PDF veya görsel yüklenebilir");
+      throw new BadRequestException(i18nMessage("api.companyDocs.sadecePdfVeyaGorselYuklenebilir"));
     }
     assertSafeFileName(fileName);
     assertReportedSize(fileSize);
@@ -217,12 +218,12 @@ export class CompanyDocsService {
     key: string,
     actor?: AuthenticatedCompanyUser,
   ) {
-    if (!(kind in DOC_META)) throw new BadRequestException("Geçersiz belge türü");
+    if (!(kind in DOC_META)) throw new BadRequestException(i18nMessage("api.companyDocs.gecersizBelgeTuru"));
     const k = kind as DocKind;
     // GÜVENLİK: key yalnız BU firmanın klasörüne işaret edebilir; aksi halde
     // başka firmanın/rastgele bir nesnenin URL'i kaydedilebilirdi.
     if (!key.startsWith(`company-docs/${companyId}/`)) {
-      throw new BadRequestException("Geçersiz dosya anahtarı");
+      throw new BadRequestException(i18nMessage("api.companyDocs.gecersizDosyaAnahtari"));
     }
     // KİLİT: belge yalnız (a) hiç gönderilmemişken (UNVERIFIED) ya da (b) genel
     // durum REJECTED iken ve BU belge onaylı değilken DOĞRUDAN değiştirilebilir.
@@ -247,18 +248,18 @@ export class CompanyDocsService {
           unknown
         >)
       | null;
-    if (!company) throw new NotFoundException("Firma bulunamadı");
+    if (!company) throw new NotFoundException(i18nMessage("api.companyDocs.firmaBulunamadi"));
     const overall = company.companyVerificationStatus;
     const docStatus = company[DOC_META[k].status] as KycDocStatus;
     if (docStatus === "APPROVED") {
-      throw new BadRequestException("Bu belge onaylandı; değiştirilemez");
+      throw new BadRequestException(i18nMessage("api.companyDocs.buBelgeOnaylandiDegistirilemez"));
     }
     if (overall === "VERIFIED") {
       return this.submitRevision(companyId, k, key, actor);
     }
     if (overall === "PENDING") {
       throw new BadRequestException(
-        "Doğrulama inceleniyor; belge değiştirilemez",
+        i18nMessage("api.companyDocs.dogrulamaInceleniyorBelgeDegistirilemez"),
       );
     }
     await assertUploadedObjectValid(
@@ -349,7 +350,7 @@ export class CompanyDocsService {
       // Kısmi-unique yarışı (eşzamanlı iki commit) — X-CF-3 deseni.
       if ((e as { code?: string }).code === "P2002") {
         throw new ConflictException(
-          "Bu belge için bekleyen bir güncelleme zaten incelemede — sayfayı yenileyin",
+          i18nMessage("api.companyDocs.buBelgeIcinBekleyenBirGuncelleme"),
         );
       }
       throw e;
@@ -384,14 +385,14 @@ export class CompanyDocsService {
     const missing = required.filter((k) => !docs[k]);
     if (missing.length > 0) {
       throw new BadRequestException(
-        `Eksik belge var (${missing.length}); tüm belgeleri yükleyin`,
+        i18nMessage("api.companyDocs.eksikBelgeVarTumBelgeleriYukleyin", { length: missing.length }),
       );
     }
     if (status === "VERIFIED") {
-      throw new BadRequestException("Firma zaten doğrulanmış");
+      throw new BadRequestException(i18nMessage("api.companyDocs.firmaZatenDogrulanmis"));
     }
     if (status === "PENDING") {
-      throw new BadRequestException("Doğrulama zaten inceleniyor");
+      throw new BadRequestException(i18nMessage("api.companyDocs.dogrulamaZatenInceleniyor"));
     }
     // KYC KİMLİK BİLGİLERİ — ZORUNLULUK EVRENSEL, BİÇİM ÜLKEYE GÖRE
     // (2026-09-14, kullanıcı: "bu evrensel bir sistem, yurtdışı yurtiçi
@@ -419,26 +420,28 @@ export class CompanyDocsService {
     const ibanHolder = kyc.ibanHolder?.trim();
 
     if (isTR && (!mersisNo || !/^\d{16}$/.test(mersisNo))) {
-      throw new BadRequestException("MERSİS numarası 16 haneli olmalı.");
+      throw new BadRequestException(i18nMessage("api.companyDocs.mersisNumarasi16HaneliOlmali"));
     }
     if (!tradeRegistryNo) {
-      throw new BadRequestException("Sicil / kayıt numarası gerekli.");
+      throw new BadRequestException(i18nMessage("api.companyDocs.sicilKayitNumarasiGerekli"));
     }
     if (!iban) {
       throw new BadRequestException(
-        usesIban ? "IBAN gerekli." : "Banka hesap numarası gerekli.",
+        usesIban
+          ? i18nMessage("api.companyDocs.ibanGerekli")
+          : i18nMessage("api.companyDocs.bankaHesapNumarasiGerekli"),
       );
     }
     if (usesIban) {
       const gecerli = isTR ? isValidIbanTr(iban) : ibanChecksumOk(iban);
       if (!gecerli) {
         throw new BadRequestException(
-          "Geçerli bir IBAN gerekli — kontrol hanesi tutmuyor.",
+          i18nMessage("api.companyDocs.gecerliBirIbanGerekliKontrolHanesi"),
         );
       }
     }
     if (!ibanHolder) {
-      throw new BadRequestException("Hesap sahibi gerekli.");
+      throw new BadRequestException(i18nMessage("api.companyDocs.hesapSahibiGerekli"));
     }
     // Onaylı belgeler APPROVED kalır (admin yeniden incelemez); onaylı olmayan
     // (PENDING/REJECTED) belgeler PENDING'e çekilir + gerekçeleri temizlenir.

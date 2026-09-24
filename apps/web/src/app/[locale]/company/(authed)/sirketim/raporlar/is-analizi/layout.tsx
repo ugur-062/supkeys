@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { PermissionGate } from "@/components/company/permission-gate";
 import { PremiumOnly } from "@/components/company-shell/premium-only";
 
@@ -7,12 +8,13 @@ import { PremiumOnly } from "@/components/company-shell/premium-only";
  * raporu yetkisi buraya GİRİŞ VERMEZ (2026-09-17).
  */
 export default function IsAnaliziLayout({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("web.panel.reports.raporlarIsAnaliziLayout");
   return (
     <PremiumOnly minTier="SILVER">
       <PermissionGate
         permission="insights:view"
-        title="İş Analizi yetki gerektirir"
-        description="Bu sayfa “Ziyaret edenler ve iş analizi” tikini ister."
+        title={t("isAnaliziYetkiGerektirir")}
+        description={t("buSayfaZiyaretEdenlerVe")}
       >
         {children}
       </PermissionGate>

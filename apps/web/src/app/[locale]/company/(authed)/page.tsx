@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import {
   useCompanyAuth,
   useHasCompanyPermission,
@@ -11,6 +12,7 @@ import { useRouter } from "@/i18n/navigation";
 import { useEffect } from "react";
 
 export default function CompanyHome() {
+  const t = useTranslations("web.panel.company.page");
   const { user, company } = useCompanyAuth();
   const router = useRouter();
   const lastPortal = usePortalStore((s) => s.lastPortal);
@@ -40,5 +42,5 @@ export default function CompanyHome() {
     );
   }, [user, company?.tier, lastPortal, canAct, router]);
 
-  return <div className="p-8 text-sm text-zinc-400">Yönlendiriliyor…</div>;
+  return <div className="p-8 text-sm text-zinc-400">{t("yonlendiriliyor")}</div>;
 }

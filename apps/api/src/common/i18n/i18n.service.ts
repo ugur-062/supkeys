@@ -18,6 +18,13 @@ export function translatorFor(locale: Locale = currentLocale()): ApiTranslator {
 type TranslateArgs = Parameters<ApiTranslator>;
 
 /**
+ * Katalog anahtarı (tipli): `common + api + email` ağacındaki her yaprak.
+ * Bildirim/e-posta yükleri metin yerine ANAHTAR taşısın diye dışa aktarılır —
+ * metin alıcı başına, alıcının diliyle üretilir (bkz. `renderPayload`).
+ */
+export type ApiMessageKey = TranslateArgs[0];
+
+/**
  * DI dışı kısayol: `tApi("api.validation.required")`. Dil verilmezse istek
  * bağlamından okunur. Servislerde DI tercih edilir (`I18nService`), ama
  * `main.ts` exceptionFactory gibi DI'sız yerler bunu kullanır.

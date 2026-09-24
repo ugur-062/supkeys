@@ -6,21 +6,24 @@ import type { CompanyOrderStatus } from "@/hooks/use-company-orders";
  * detay farklı etiket gösteriyordu ("Teslim Alındı" vs "Ödeme bekleniyor",
  * "İptal Edildi" vs "İptal") — durum rozeti nereden bakılırsa bakılsın
  * buradan gelir; ödeme durumu AYRI iletişimdir (yaşam döngüsü ayrımı).
+ *
+ * i18n Faz 2: TON burada, METİN katalogda (`web.domain.orderStatus.<KOD>`);
+ * okuma `@/i18n/domain` `useOrderStatusLabel`.
  */
-export const ORDER_STATUS: Record<
-  CompanyOrderStatus,
-  { label: string; tone: StatusTone }
-> = {
-  PENDING: { label: "Onay Bekliyor", tone: "pending" },
-  ACCEPTED: { label: "Onaylandı", tone: "active" },
-  CREATED: { label: "Yeni", tone: "neutral" },
-  IN_DELIVERY: { label: "Gönderildi", tone: "active" },
-  DELIVERED: { label: "Teslim Alındı", tone: "active" },
-  COMPLETED: { label: "Tamamlandı", tone: "done" },
-  REJECTED: { label: "Reddedildi", tone: "failed" },
-  CANCELLED: { label: "İptal Edildi", tone: "neutral" },
-  DISPUTED: { label: "İhtilaflı", tone: "pending" },
+export const ORDER_STATUS: Record<CompanyOrderStatus, { tone: StatusTone }> = {
+  PENDING: { tone: "pending" },
+  ACCEPTED: { tone: "active" },
+  CREATED: { tone: "neutral" },
+  IN_DELIVERY: { tone: "active" },
+  DELIVERED: { tone: "active" },
+  COMPLETED: { tone: "done" },
+  REJECTED: { tone: "failed" },
+  CANCELLED: { tone: "neutral" },
+  DISPUTED: { tone: "pending" },
 };
+
+/** Durum rozetinin KATALOG anahtarı (`web.domain.orderStatus.<KOD>`). */
+export type OrderStatusLabelKey = CompanyOrderStatus | "IN_DELIVERY_PICKUP";
 
 export type OrderStepKey = "APPROVAL" | "SHIP" | "DELIVERY" | "COMPLETE";
 
@@ -33,17 +36,20 @@ export type OrderStepKey = "APPROVAL" | "SHIP" | "DELIVERY" | "COMPLETE";
  * tekrar ediyordu. İzleyici artık OLAYLARI listeler; hangi olayın sürdüğünü
  * `orderStageIndex` söyler, durumun adı rozette kalır.
  * Liste kartı ve detay izleyicisi AYNI diziden okur. Orta adım teslim şekline
- * duyarlı: satıcı taşımıyorsa (EXW…) "Hazırlık".
+ * duyarlı: satıcı taşımıyorsa (EXW…) "Hazırlık" — i18n Faz 2'de adım METNİ
+ * katalogda (`web.domain.orderStep.<KOD>`, SHIP_PICKUP = "Hazırlık"), burada
+ * yalnız adım anahtarları ve sıraları var.
  */
 export function orderSteps(sellerShips: boolean): {
   key: OrderStepKey;
-  label: string;
+  /** Katalog anahtarı — SHIP, satıcı taşımıyorsa SHIP_PICKUP'a düşer. */
+  labelKey: string;
 }[] {
   return [
-    { key: "APPROVAL", label: "Onay" },
-    { key: "SHIP", label: sellerShips ? "Gönderim" : "Hazırlık" },
-    { key: "DELIVERY", label: "Teslim" },
-    { key: "COMPLETE", label: "Tamamlandı" },
+    { key: "APPROVAL", labelKey: "APPROVAL" },
+    { key: "SHIP", labelKey: sellerShips ? "SHIP" : "SHIP_PICKUP" },
+    { key: "DELIVERY", labelKey: "DELIVERY" },
+    { key: "COMPLETE", labelKey: "COMPLETE" },
   ];
 }
 
@@ -78,13 +84,16 @@ export function orderStageIndex(status: CompanyOrderStatus): {
   }
 }
 
-/** IN_DELIVERY etiketi teslim şekline duyarlı: satıcı taşımıyorsa alıcı toplar. */
+/**
+ * Durum rozetinin anahtarı + tonu. IN_DELIVERY teslim şekline duyarlı: satıcı
+ * taşımıyorsa alıcı toplar (`IN_DELIVERY_PICKUP` — "Teslime Hazır").
+ */
 export function orderStatusMeta(
   status: CompanyOrderStatus,
   sellerShips = true,
-): { label: string; tone: StatusTone } {
+): { labelKey: OrderStatusLabelKey; tone: StatusTone } {
   const base = ORDER_STATUS[status] ?? ORDER_STATUS.CREATED;
-  if (status === "IN_DELIVERY" && !sellerShips)
-    return { ...base, label: "Teslime Hazır" };
-  return base;
+  const labelKey: OrderStatusLabelKey =
+    status === "IN_DELIVERY" && !sellerShips ? "IN_DELIVERY_PICKUP" : status;
+  return { labelKey, tone: base.tone };
 }

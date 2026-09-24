@@ -1,3 +1,4 @@
+import { i18nMessage } from "../i18n/http-i18n";
 import {
   BadRequestException,
   ForbiddenException,
@@ -46,7 +47,7 @@ export async function requestPublicImageUpload(
   mimeType: string,
 ): Promise<{ url: string; key: string }> {
   if (!IMAGE_MIME.includes(mimeType)) {
-    throw new BadRequestException("Yalnızca JPEG, PNG veya WebP yüklenebilir");
+    throw new BadRequestException(i18nMessage("api.company.yalnizcaJpegPngVeyaWebpYuklenebilir"));
   }
   const key = storage.buildTenantProfileKey(
     companyId,
@@ -71,7 +72,7 @@ export async function requestPublicDocumentUpload(
   mimeType: string,
 ): Promise<{ url: string; key: string }> {
   if (!DOCUMENT_MIME.includes(mimeType)) {
-    throw new BadRequestException("Yalnızca PDF yüklenebilir");
+    throw new BadRequestException(i18nMessage("api.company.yalnizcaPdfYuklenebilir"));
   }
   const key = storage.buildTenantProfileKey(
     companyId,
@@ -89,7 +90,7 @@ export async function resolvePublicDocument(
   key: string,
 ): Promise<{ url: string }> {
   if (!key.startsWith(storage.buildTenantProfilePrefix(companyId))) {
-    throw new ForbiddenException("Bu belge anahtarına erişim yetkiniz yok");
+    throw new ForbiddenException(i18nMessage("api.company.buBelgeAnahtarinaErisimYetkinizYok"));
   }
   await assertUploadedObjectValid(
     storage,
@@ -101,7 +102,7 @@ export async function resolvePublicDocument(
   const url = storage.getPublicUrl(key);
   if (!url) {
     throw new ServiceUnavailableException(
-      "Belge yayınlama yapılandırması eksik (R2_PUBLIC_BASE_URL) — belge yüklenemedi. Lütfen sistem yöneticinize bildirin.",
+      i18nMessage("api.company.belgeYayinlamaYapilandirmasiEksikR2Public"),
     );
   }
   return { url };
@@ -113,7 +114,7 @@ export async function resolvePublicImage(
   key: string,
 ): Promise<{ url: string }> {
   if (!key.startsWith(storage.buildTenantProfilePrefix(companyId))) {
-    throw new ForbiddenException("Bu görsel anahtarına erişim yetkiniz yok");
+    throw new ForbiddenException(i18nMessage("api.company.buGorselAnahtarinaErisimYetkinizYok"));
   }
   await assertUploadedObjectValid(
     storage,
@@ -125,7 +126,7 @@ export async function resolvePublicImage(
   const url = storage.getPublicUrl(key);
   if (!url) {
     throw new ServiceUnavailableException(
-      "Görsel yayınlama yapılandırması eksik (R2_PUBLIC_BASE_URL) — görsel yüklenemedi. Lütfen sistem yöneticinize bildirin.",
+      i18nMessage("api.company.gorselYayinlamaYapilandirmasiEksikR2Public"),
     );
   }
   return { url };

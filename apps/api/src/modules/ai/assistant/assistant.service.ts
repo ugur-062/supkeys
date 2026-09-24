@@ -1,3 +1,5 @@
+import { currentLocale } from "../../../common/i18n/locale-context";
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   ForbiddenException,
   Inject,
@@ -29,8 +31,8 @@ import {
   type AiToolCall,
 } from "../providers/ai-provider.interface";
 import {
-  ASSISTANT_SYSTEM_PROMPT,
-  SUMMARY_SYSTEM_PROMPT,
+  assistantSystemPrompt,
+  summarySystemPrompt,
   buildDraftContext,
   buildSummaryPrompt,
 } from "./assistant.prompts";
@@ -93,7 +95,7 @@ export class AssistantService {
     const provider = this.provider!;
     const text = (dto.message ?? "").trim().slice(0, MAX_TURN_MESSAGE_LEN);
     if (!text && !(dto.fileKeys && dto.fileKeys.length > 0)) {
-      throw new ForbiddenException("Mesaj boş olamaz");
+      throw new ForbiddenException(i18nMessage("api.ai.mesajBosOlamaz"));
     }
 
     const session = dto.sessionId
@@ -114,7 +116,7 @@ export class AssistantService {
     if (dto.fileKeys && dto.fileKeys.length > 0) {
       // Yalnız satın alma talebi çıkarılır (satış ilanı kaldırıldı 2026-09-04).
       if (!allowedPortals(user).has("satinalma")) {
-        throw new ForbiddenException("Belgeden talep taslağı yalnız satın alma portalında çıkarılır");
+        throw new ForbiddenException(i18nMessage("api.ai.belgedenTalepTaslagiYalnizSatinAlma"));
       }
       const extracted = await this.tenderExtract.extract(user, {
         fileKeys: dto.fileKeys,
@@ -130,18 +132,22 @@ export class AssistantService {
     const portals = allowedPortals(user);
     const toolDefs = toolDefsForUser(portals);
 
+    // i18n Faz 3: asistan İSTEK DİLİNDE yanıtlar (Accept-Language → ALS;
+    // başlık yoksa JWT'deki kullanıcı dili). Dil adı prompt'a açıkça yazılır.
+    const locale = currentLocale();
+    const basePrompt = assistantSystemPrompt(locale);
     // AI-3: taslak varsa modele context ver (system prompt'a eklenir).
     const systemPrompt = draft
-      ? `${ASSISTANT_SYSTEM_PROMPT}\n\n${buildDraftContext(
+      ? `${basePrompt}\n\n${buildDraftContext(
           JSON.stringify(draft.draft),
           draft.missingRequired,
         )}`
-      : ASSISTANT_SYSTEM_PROMPT;
+      : basePrompt;
 
     // Bütçe rezervasyonu ÇAĞRIDAN ÖNCE (fail-closed worst-case tahmin: araç
     // döngüsü + çıktı). Gerçek maliyet settle'da düzeltilir.
     const estInputChars =
-      ASSISTANT_SYSTEM_PROMPT.length +
+      basePrompt.length +
       JSON.stringify(toolDefs).length +
       plan.history.reduce((n, t) => n + JSON.stringify(t).length, 0) +
       text.length;
@@ -312,8 +318,11 @@ export class AssistantService {
       const detail = raw.match(/"message"\s*:\s*"([^"]{1,160})/)?.[1];
       throw new ServiceUnavailableException(
         code
-          ? `Asistan şu an yanıt veremedi (sağlayıcı hatası ${code}${detail ? `: ${detail}` : ""}) — birkaç saniye sonra tekrar deneyin.`
-          : "Asistan şu an yanıt veremedi — birkaç saniye sonra tekrar deneyin.",
+          ? i18nMessage("api.ai.asistanYanitVeremediSaglayiciHatasi", {
+              code,
+              detail: detail ? `: ${detail}` : "",
+            })
+          : i18nMessage("api.ai.asistanYanitVeremedi"),
       );
     }
 
@@ -554,9 +563,11 @@ export class AssistantService {
       .map((m) => `${m.role === "USER" ? "Kullanıcı" : "Asistan"}: ${m.content}`)
       .join("\n");
     const prompt = buildSummaryPrompt(session.summary, overflowText);
+    // Özet sonraki turlarda modele geri beslenir → sohbetin dilinde yazılır.
+    const summarySystem = summarySystemPrompt(currentLocale());
 
     const est: AiTokenUsage = {
-      inputTokens: Math.ceil((SUMMARY_SYSTEM_PROMPT.length + prompt.length) / 4),
+      inputTokens: Math.ceil((summarySystem.length + prompt.length) / 4),
       outputTokens: 2048,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
@@ -578,7 +589,7 @@ export class AssistantService {
     try {
       const result = await this.provider.complete({
         model: this.config.models.default,
-        system: SUMMARY_SYSTEM_PROMPT,
+        system: summarySystem,
         prompt,
         // Thought token'ları da tavandan yer — 512'de özet boş kalabiliyordu.
         maxOutputTokens: 2048,
@@ -657,7 +668,7 @@ export class AssistantService {
         archivedAt: null,
       },
     });
-    if (!session) throw new NotFoundException("Sohbet bulunamadı");
+    if (!session) throw new NotFoundException(i18nMessage("api.ai.sohbetBulunamadi"));
     return session;
   }
 

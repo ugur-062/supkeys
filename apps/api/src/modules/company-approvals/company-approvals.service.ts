@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ConflictException,
@@ -22,7 +23,11 @@ import {
 } from "../../common/company/bid-items";
 import { AuditService } from "../audit/audit.service";
 import { EmailService } from "../email/email.service";
-import { NotificationService } from "../notifications/notification.service";
+import {
+  NotificationService,
+  localeOf,
+} from "../notifications/notification.service";
+import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
 import { resolveWebUrl } from "../../common/config/web-url";
 import {
   CreateApprovalFlowDto,
@@ -90,6 +95,8 @@ export class CompanyApprovalsService {
           // maili ihale başlığı+numarasıyla eski çalışana gidiyordu.
           isActive: true,
           deletedAt: true,
+          // i18n Faz 3: bildirim/e-posta metni ALICININ dilinde üretilir.
+          locale: true,
         },
       }),
       this.prisma.listing.findUnique({
@@ -106,15 +113,24 @@ export class CompanyApprovalsService {
     if (!isNotificationEnabled(prefs, "approval_pending")) return;
     const webUrl =
       resolveWebUrl(this.config);
+    // Talep başlığı/numarası ICU parametresi; eksik başlık ayrımı mesajın
+    // İÇİNDE (`{hasTitle, select, …}`) çünkü yedek metin ("Satın Alma Talebi")
+    // de alıcının dilinde olmalı.
+    const listingParams = {
+      hasTitle: listing?.title != null ? "yes" : "no",
+      title: listing?.title ?? "",
+      number: listing?.number ?? "—",
+    };
     // In-app kanal — onaycı kullanıcısına. Best-effort: yazım hatası (ör.
     // kullanıcı bu arada silindi) onay akışını çökertmesin.
     await this.notifications
       .pushToUser(approverUserId, {
         type: "approval_pending",
-        title: "Onayınız bekleniyor",
-        body: `"${listing?.title ?? "Satın Alma Talebi"}" (${listing?.number ?? "—"}) için onay sırası sizde. Lütfen Onaylar sayfasından inceleyip karar verin.`,
-        ctaLabel: "Onaylar Sayfası",
-        ctaUrl: appRoutes.approvals(webUrl),
+        titleKey: "api.notifications.approvals.pending.title",
+        bodyKey: "api.notifications.approvals.pending.body",
+        ctaLabelKey: "api.notifications.approvals.pending.cta",
+        params: listingParams,
+        ctaPath: appRoutes.approvals(webUrl),
         listingId,
       })
       .catch((err) =>
@@ -124,27 +140,48 @@ export class CompanyApprovalsService {
           }`,
         ),
       );
+    const locale = localeOf(approver.locale);
+    const subject = tApi(
+      "api.notifications.approvals.pending.title",
+      undefined,
+      locale,
+    );
     void this.email
       .send({
         to: {
           email: approver.email,
           name: `${approver.firstName} ${approver.lastName}`,
         },
-        subject: "Onayınız bekleniyor",
+        subject,
+        locale,
         templateData: {
           template: "notification",
           data: {
-            subject: "Onayınız bekleniyor",
-            heading: "Onayınız bekleniyor",
+            subject,
+            heading: subject,
             paragraphs: [
-              "Merhaba,",
-              `"${listing?.title ?? "Satın Alma Talebi"}" (${listing?.number ?? "—"}) için onay sırası sizde. Lütfen Onaylar sayfasından inceleyip karar verin.`,
+              tApi("api.notifications.common.greeting", undefined, locale),
+              tApi(
+                "api.notifications.approvals.pending.body",
+                listingParams,
+                locale,
+              ),
               ...(daysWaiting && daysWaiting > 0
-                ? [`Bu onay ${daysWaiting} gündür bekliyor.`]
+                ? [
+                    tApi(
+                      "api.notifications.approvals.pending.waitingDays",
+                      { days: daysWaiting },
+                      locale,
+                    ),
+                  ]
                 : []),
             ],
-            ctaLabel: "Onaylar Sayfası",
-            ctaUrl: appRoutes.approvals(webUrl),
+            ctaLabel: tApi(
+              "api.notifications.approvals.pending.cta",
+              undefined,
+              locale,
+            ),
+            ctaUrl: appRoutes.approvals(webUrl, locale),
           },
         },
         context: { type: "approval_pending", id: listingId },
@@ -167,9 +204,21 @@ export class CompanyApprovalsService {
     listingId: string,
     decision: "APPROVED" | "REJECTED",
     note?: string,
+    /**
+     * SİSTEMİN yazdığı gerekçe serbest metin değildir → `note` yerine gövdenin
+     * kendi anahtarı verilir, böylece o cümle de alıcının dilinde çıkar.
+     * Kullanıcının yazdığı not (`dto.note`) çevrilmez, param olarak geçer.
+     */
+    bodyKey?: ApiMessageKey,
   ) {
     try {
-      await this.notifyRequesterInner(requestCreatorId, listingId, decision, note);
+      await this.notifyRequesterInner(
+        requestCreatorId,
+        listingId,
+        decision,
+        note,
+        bodyKey,
+      );
     } catch (err) {
       this.logger.warn(
         `Onay sonucu bildirimi hazırlanamadı: ${
@@ -184,11 +233,18 @@ export class CompanyApprovalsService {
     listingId: string,
     decision: "APPROVED" | "REJECTED",
     note?: string,
+    bodyKey: ApiMessageKey = "api.notifications.approvals.decided.body",
   ) {
     const [creator, listing] = await Promise.all([
       this.prisma.companyUser.findUnique({
         where: { id: requestCreatorId },
-        select: { email: true, firstName: true, lastName: true },
+        // i18n Faz 3: sonuç e-postası isteği BAŞLATANIN dilinde yazılır.
+        select: {
+          email: true,
+          firstName: true,
+          lastName: true,
+          locale: true,
+        },
       }),
       this.prisma.listing.findUnique({
         where: { id: listingId },
@@ -199,20 +255,30 @@ export class CompanyApprovalsService {
     const approved = decision === "APPROVED";
     const webUrl =
       resolveWebUrl(this.config);
-    const title = approved ? "Onay isteğiniz onaylandı" : "Onay isteğiniz reddedildi";
-    const body = `"${listing?.title ?? "Satın Alma Talebi"}" (${listing?.number ?? "—"}) için başlattığınız onay isteği ${
-      approved ? "onaylandı ve işlem uygulandı" : "reddedildi"
-    }.${note ? ` Not: ${note}` : ""}`;
+    const titleKey = approved
+      ? ("api.notifications.approvals.decided.approvedTitle" as const)
+      : ("api.notifications.approvals.decided.rejectedTitle" as const);
+    // Karar sözcüğü ("onaylandı ve işlem uygulandı" / "reddedildi") ve not
+    // eki mesajın İÇİNDE select dalı — alıcının dilinde çekilsin.
+    const params = {
+      hasTitle: listing?.title != null ? "yes" : "no",
+      title: listing?.title ?? "",
+      number: listing?.number ?? "—",
+      approved: approved ? "yes" : "no",
+      hasNote: note ? "yes" : "no",
+      note: note ?? "",
+    };
     await this.notifications
       .pushToUser(requestCreatorId, {
         // Karar SONUCU (onaylandı/reddedildi) — "sıra sizde" (approval_pending)
         // tipiyle değil; sonuç kapatılamaz olmalı, başlatan kendi isteğinin
         // sonucunu tercihle susturamasın.
         type: "approval_decided",
-        title,
-        body,
-        ctaLabel: "Satın Alma Talebini Gör",
-        ctaUrl: appRoutes.listing(webUrl, listingId),
+        titleKey,
+        bodyKey,
+        ctaLabelKey: "api.notifications.approvals.decided.cta",
+        params,
+        ctaPath: appRoutes.listing(webUrl, listingId),
         listingId,
       })
       .catch((err) =>
@@ -222,6 +288,8 @@ export class CompanyApprovalsService {
           }`,
         ),
       );
+    const locale = localeOf(creator.locale);
+    const title = tApi(titleKey, undefined, locale);
     void this.email
       .send({
         to: {
@@ -229,14 +297,22 @@ export class CompanyApprovalsService {
           name: `${creator.firstName} ${creator.lastName}`,
         },
         subject: title,
+        locale,
         templateData: {
           template: "notification",
           data: {
             subject: title,
             heading: title,
-            paragraphs: ["Merhaba,", body],
-            ctaLabel: "Satın Alma Talebini Gör",
-            ctaUrl: appRoutes.listing(webUrl, listingId),
+            paragraphs: [
+              tApi("api.notifications.common.greeting", undefined, locale),
+              tApi(bodyKey, params, locale),
+            ],
+            ctaLabel: tApi(
+              "api.notifications.approvals.decided.cta",
+              undefined,
+              locale,
+            ),
+            ctaUrl: appRoutes.listing(webUrl, listingId, locale),
           },
         },
         context: { type: "approval_decided", id: listingId },
@@ -257,12 +333,12 @@ export class CompanyApprovalsService {
     // Yayın onayı kaldırıldı — onay akışı yalnız KAZANDIRMA için tanımlanır.
     if (dto.type !== "LISTING_AWARD") {
       throw new BadRequestException(
-        "Onay akışı yalnızca kazandırma için tanımlanabilir",
+        i18nMessage("api.companyApprovals.onayAkisiYalnizcaKazandirmaIcinTanimlanabilir"),
       );
     }
     if ((dto.initiatorRoles ?? []).includes("ONAYLAYICI" as never)) {
       throw new BadRequestException(
-        "Onaylayıcı rolü onay akışını başlatamaz",
+        i18nMessage("api.companyApprovals.onaylayiciRoluOnayAkisiniBaslatamaz"),
       );
     }
     let prev = -1;
@@ -270,7 +346,7 @@ export class CompanyApprovalsService {
       const min = s.conditionMinAmount ?? 0;
       if (min < prev) {
         throw new BadRequestException(
-          "Adım bütçe eşikleri artan sırada olmalı (her adım öncekinden büyük/eşit)",
+          i18nMessage("api.companyApprovals.adimButceEsikleriArtanSiradaOlmali"),
         );
       }
       prev = min;
@@ -513,7 +589,7 @@ export class CompanyApprovalsService {
       where: { id: flowId },
       include: { steps: { orderBy: { order: "asc" } } },
     });
-    if (!src) throw new NotFoundException("Onay akışı bulunamadı");
+    if (!src) throw new NotFoundException(i18nMessage("api.companyApprovals.onayAkisiBulunamadi"));
     // §10.7: "(kopya) (kopya)" birikmez — taban ad + "— Kopya N" numaralanır.
     const base = src.name.replace(/\s*(\(kopya\)|— Kopya( \d+)?)\s*$/i, "").trim();
     const siblings = await this.prisma.approvalFlow.findMany({
@@ -614,7 +690,7 @@ export class CompanyApprovalsService {
       ]);
       if (!substitute) {
         throw new ForbiddenException(
-          "Onay akışında sizden başka uygun bir onaylayıcı yok — akışa bir onaylayıcı ekleyin veya firma sahibine başvurun.",
+          i18nMessage("api.companyApprovals.onayAkisindaSizdenBaskaUygunBir"),
         );
       }
       drafts[firstActive]!.approverUserId = substitute;
@@ -634,7 +710,7 @@ export class CompanyApprovalsService {
     });
     if (existingPending) {
       throw new ConflictException(
-        "Bu ilan için zaten bekleyen bir onay isteği var",
+        i18nMessage("api.companyApprovals.buIlanIcinZatenBekleyenBir"),
       );
     }
 
@@ -672,7 +748,7 @@ export class CompanyApprovalsService {
           // yeniden deneme dup'ı çözmez → hemen çakışma döndür (aynı mesaj).
           if (target.includes("pending") || target.includes("listingId")) {
             throw new ConflictException(
-              "Bu ilan için zaten bekleyen bir onay isteği var",
+              i18nMessage("api.companyApprovals.buIlanIcinZatenBekleyenBir"),
             );
           }
           // (companyId,requestNo) çakışması → yeni no ile son denemeye dek tekrar.
@@ -828,21 +904,21 @@ export class CompanyApprovalsService {
       include: { steps: { orderBy: { order: "asc" } } },
     });
     if (!req || req.companyId !== user.companyId) {
-      throw new NotFoundException("Onay isteği bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyApprovals.onayIstegiBulunamadi"));
     }
     if (req.status !== "PENDING") {
-      throw new BadRequestException("Bu istek beklemede değil");
+      throw new BadRequestException(i18nMessage("api.companyApprovals.buIstekBeklemedeDegil"));
     }
     const step = req.steps.find((s) => s.status === "PENDING");
     if (!step || step.approverUserId !== user.userId) {
-      throw new ForbiddenException("Bu adımın onaycısı değilsiniz");
+      throw new ForbiddenException(i18nMessage("api.companyApprovals.buAdiminOnaycisiDegilsiniz"));
     }
     // INV-APPR-1 (görev ayrılığı): başlatan kendi isteğini ONAYLAYAMAZ. Bir adımın
     // approver'ı yanlışlıkla/kötü niyetle initiator'a eşitlenmişse burada kesilir;
     // geçersiz-approver (initiator) ikamesi requestApproval + fallback cron'da.
     if (user.userId === req.createdById) {
       throw new ForbiddenException(
-        "Kendi başlattığınız kazandırmayı onaylayamazsınız (görev ayrılığı).",
+        i18nMessage("api.companyApprovals.kendiBaslattiginizKazandirmayiOnaylayamazsinizGo"),
       );
     }
 
@@ -874,7 +950,7 @@ export class CompanyApprovalsService {
         return true;
       });
       if (!won) {
-        throw new BadRequestException("Bu adım zaten sonuçlandırıldı");
+        throw new BadRequestException(i18nMessage("api.companyApprovals.buAdimZatenSonuclandirildi"));
       }
       // INV-AUDIT-1: yetki kararı (onay adımı reddi) — commit SONRASI, emit'ten önce.
       // Kim, hangi adımı reddetti? (Kazandırmanın kendisi ayrı iz bırakır.)
@@ -937,13 +1013,13 @@ export class CompanyApprovalsService {
       // İstek bu arada iptal edildiyse throw → adım flip'i geri alınır (rollback),
       // hayalet sipariş üretilmez.
       if (fin.count === 0) {
-        throw new BadRequestException("Bu istek artık beklemede değil");
+        throw new BadRequestException(i18nMessage("api.companyApprovals.buIstekArtikBeklemedeDegil"));
       }
       return "final" as const;
     });
 
     if (outcome === "conflict") {
-      throw new BadRequestException("Bu adım zaten sonuçlandırıldı");
+      throw new BadRequestException(i18nMessage("api.companyApprovals.buAdimZatenSonuclandirildi"));
     }
     if (outcome === "next") {
       // INV-AUDIT-1: yetki kararı (ara adım onayı) — commit SONRASI, bildirimden önce.
@@ -1002,7 +1078,7 @@ export class CompanyApprovalsService {
         }`,
       );
       throw new BadRequestException(
-        "Kazandırma uygulanamadı — teklif durumu değişmiş olabilir. Lütfen tekrar deneyin.",
+        i18nMessage("api.companyApprovals.kazandirmaUygulanamadiTeklifDurumuDegismisOlabil"),
       );
     }
     // INV-AUDIT-1: yetki kararı (SON adım onayı) — YALNIZ kazandırma başarıyla
@@ -1048,18 +1124,18 @@ export class CompanyApprovalsService {
       },
     });
     if (!req || req.companyId !== user.companyId) {
-      throw new NotFoundException("Onay isteği bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyApprovals.onayIstegiBulunamadi"));
     }
     // Başlatan VEYA "Onay akışı tanımlama" yetkisi taşıyan (Kurucu/Yönetici
     // hazır setinde) iptal eder — etiket değil izin (yetki tablosu 2026-09-05).
     const isManager = hasCompanyPermission(user, "approvals:manage");
     if (req.createdById !== user.userId && !isManager) {
       throw new ForbiddenException(
-        "Bu isteği yalnızca başlatan veya Yönetici iptal edebilir",
+        i18nMessage("api.companyApprovals.buIstegiYalnizcaBaslatanVeyaYonetici"),
       );
     }
     if (req.status !== "PENDING") {
-      throw new BadRequestException("Yalnızca bekleyen istek iptal edilebilir");
+      throw new BadRequestException(i18nMessage("api.companyApprovals.yalnizcaBekleyenIstekIptalEdilebilir"));
     }
     // Yarış koruması: iptal, onaycı kararıyla eşzamanlı gelebilir. İsteği yalnız
     // hâlâ PENDING iken CANCELLED'a çevir (atomik CAS). Kaybeden taraf listing'i
@@ -1086,7 +1162,7 @@ export class CompanyApprovalsService {
       return true;
     });
     if (!won) {
-      throw new BadRequestException("Yalnızca bekleyen istek iptal edilebilir");
+      throw new BadRequestException(i18nMessage("api.companyApprovals.yalnizcaBekleyenIstekIptalEdilebilir"));
     }
     return { ok: true };
   }
@@ -1360,7 +1436,8 @@ export class CompanyApprovalsService {
       req.createdById,
       req.listingId,
       "REJECTED",
-      "Onay akışında sizden başka uygun bir onaylayıcı yok — akışa bir onaylayıcı ekleyin veya firma sahibine başvurun.",
+      undefined,
+      "api.notifications.approvals.decided.bodyNoEligibleApprover",
     );
   }
 
@@ -1585,7 +1662,7 @@ export class CompanyApprovalsService {
         },
       },
     });
-    if (!r) throw new NotFoundException("Onay isteği bulunamadı");
+    if (!r) throw new NotFoundException(i18nMessage("api.companyApprovals.onayIstegiBulunamadi"));
     const isStepApprover = r.steps.some(
       (s) => s.approverUserId === user.userId,
     );
@@ -1594,7 +1671,7 @@ export class CompanyApprovalsService {
       r.createdById !== user.userId &&
       !hasCompanyPermission(user, "approvals:manage")
     ) {
-      throw new NotFoundException("Onay isteği bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyApprovals.onayIstegiBulunamadi"));
     }
 
     const [bids, people] = await Promise.all([
@@ -1840,7 +1917,7 @@ export class CompanyApprovalsService {
       },
     });
     if (!f || f.companyId !== companyId) {
-      throw new NotFoundException("Onay akışı bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyApprovals.onayAkisiBulunamadi"));
     }
     return f;
   }
@@ -1865,7 +1942,7 @@ export class CompanyApprovalsService {
       }),
     ]);
     if (rows.length !== uniq.length) {
-      throw new BadRequestException("Geçersiz veya pasif onaycı kullanıcı");
+      throw new BadRequestException(i18nMessage("api.companyApprovals.gecersizVeyaPasifOnayciKullanici"));
     }
     // Onaycı = "Onaylama" (approval:act) izni taşıyan (Kurucu/Yönetici hazır
     // setinde var; Onaylayıcı seti tam bu). İşlem izni tek başına yetmez.
@@ -1882,7 +1959,7 @@ export class CompanyApprovalsService {
     );
     if (bad) {
       throw new BadRequestException(
-        `${bad.firstName} ${bad.lastName} onaycı olamaz — onaycının "Onaylama" yetkisi olmalı`,
+        i18nMessage("api.companyApprovals.onayciOlamazOnaycininOnaylamaYetkisiOlmali", { firstName: bad.firstName, lastName: bad.lastName }),
       );
     }
   }

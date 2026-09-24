@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { countryDisplayName } from "@/i18n/domain";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -32,11 +35,10 @@ import { toast } from "sonner";
 
 const TYPE_ORDER: CompanyAddressType[] = ["FATURA", "TESLIMAT", "ILETISIM"];
 
-function typeLabel(t: CompanyAddressType) {
-  return t === "FATURA" ? "Fatura" : t === "ILETISIM" ? "İletişim" : "Teslimat";
-}
-
 export function AddressBookSection({ canManage }: { canManage: boolean }) {
+  const t = useTranslations("web.panel.settings.addressBookSection");
+  const typeLabel = (type: CompanyAddressType) =>
+    type === "FATURA" ? t("fatura") : type === "ILETISIM" ? t("iletisim") : t("teslimat");
   const { data: addresses, isLoading, isError, refetch } = useAddresses();
   const del = useDeleteAddress();
   const confirm = useConfirm();
@@ -44,17 +46,17 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
 
   const handleDelete = async (a: CompanyAddress) => {
     const ok = await confirm({
-      title: "Adres silinsin mi?",
-      description: `"${a.title}" adresi kalıcı olarak silinecek.`,
-      confirmLabel: "Sil",
+      title: t("adresSilinsinMi"),
+      description: t("adresiKaliciOlarakSilinecek", { title: a.title }),
+      confirmLabel: t("sil"),
       destructive: true,
     });
     if (!ok) return;
     try {
       await del.mutateAsync(a.id);
-      toast.success("Adres silindi");
+      toast.success(t("adresSilindi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Silinemedi"));
+      toast.error(extractErrorMessage(err, t("silinemedi")));
     }
   };
 
@@ -62,29 +64,28 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
     <section className="rounded-xl border border-zinc-950/10 bg-white p-5">
       <div className="flex items-center justify-between">
         <div>
-          <Subheading>Kayıtlı adresler</Subheading>
+          <Subheading>{t("kayitliAdresler")}</Subheading>
           <Text className="mt-0.5 text-sm text-zinc-500">
-            Fatura ve teslimat adreslerini kaydedin; satın alma taleplerinde ve siparişlerde seçin.
+            {t("faturaVeTeslimatAdresleriniKaydedin")}
           </Text>
         </div>
         {canManage ? (
-          <Button onClick={() => setEditing("new")}>Adres Ekle</Button>
+          <Button onClick={() => setEditing("new")}>{t("adresEkle")}</Button>
         ) : null}
       </div>
 
       {isLoading ? (
-        <Text className="mt-3 text-sm text-zinc-500">Yükleniyor…</Text>
+        <Text className="mt-3 text-sm text-zinc-500">{t("yukleniyor")}</Text>
       ) : isError ? (
         <p role="alert" className="mt-3 text-sm text-rose-800">
-          Adresler yüklenemedi.{" "}
+          {t("adreslerYuklenemedi")}{" "}
           <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">
-            Yeniden dene
+            {t("yenidenDene")}
           </button>
         </p>
       ) : !addresses || addresses.length === 0 ? (
         <Text className="mt-3 text-sm text-zinc-500">
-          Henüz kayıtlı adres yok. Fatura adresi siparişte, teslimat adresi
-          satın alma talebinde seçilir.
+          {t("henuzKayitliAdresYokFatura")}
         </Text>
       ) : (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -114,16 +115,16 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
                   <div className="flex shrink-0 items-center gap-1">
                     <Button
                       plain
-                      aria-label="Düzenle"
-                      title="Düzenle"
+                      aria-label={t("duzenle")}
+                      title={t("duzenle")}
                       onClick={() => setEditing(a)}
                     >
                       <Pencil className="h-4 w-4 text-zinc-500" />
                     </Button>
                     <Button
                       plain
-                      aria-label="Sil"
-                      title="Sil"
+                      aria-label={t("sil")}
+                      title={t("sil")}
                       onClick={() => handleDelete(a)}
                     >
                       <Trash2 className="h-4 w-4 text-red-500" />
@@ -143,7 +144,7 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
                 >
                   {typeLabel(a.type)}
                 </Badge>
-                {a.isDefault ? <Badge color="amber">Varsayılan</Badge> : null}
+                {a.isDefault ? <Badge color="amber">{t("varsayilan")}</Badge> : null}
               </div>
               <div className="mt-1.5 text-xs text-zinc-500">
                 {a.addressLine}
@@ -152,7 +153,7 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
               </div>
               {a.type === "FATURA" && (a.taxOffice || a.taxNumber) ? (
                 <div className="mt-0.5 text-xs text-zinc-500">
-                  VD: {a.taxOffice ?? "—"} · VKN: {a.taxNumber ?? "—"}
+                  {t("vdVkn", { taxOffice: a.taxOffice ?? "—", taxNumber: a.taxNumber ?? "—" })}
                 </div>
               ) : null}
             </div>
@@ -177,6 +178,8 @@ function AddressDialog({
   address: CompanyAddress | null;
   onClose: () => void;
 }) {
+  const t = useTranslations("web.panel.settings.addressBookSection");
+  const locale = useLocale() as Locale;
   const save = useSaveAddress();
   const [f, setF] = useState({
     type: address?.type ?? ("TESLIMAT" as CompanyAddressType),
@@ -197,9 +200,9 @@ function AddressDialog({
 
   // Satır içi hatalar — backend DTO ile aynı zorunluluk (title/addressLine
   // MinLength 1); telefon tek kaynak `isValidPhone`.
-  const titleError = f.title.trim() ? null : "Başlık zorunlu";
-  const addressError = f.addressLine.trim() ? null : "Açık adres zorunlu";
-  const phoneError = isValidPhone(f.phone) ? null : "Geçerli bir telefon numarası giriniz";
+  const titleError = f.title.trim() ? null : t("baslikZorunlu");
+  const addressError = f.addressLine.trim() ? null : t("acikAdresZorunlu");
+  const phoneError = isValidPhone(f.phone) ? null : t("gecerliBirTelefonNumarasiGiriniz");
   const hasError = Boolean(titleError || addressError || phoneError);
 
   const submit = async () => {
@@ -211,20 +214,20 @@ function AddressDialog({
     // kaldırıldı; alanlar hâlâ formda ve girildiğinde kaydedilir.
     try {
       await save.mutateAsync({ id: address?.id, ...f });
-      toast.success(address ? "Adres güncellendi" : "Adres eklendi");
+      toast.success(address ? t("adresGuncellendi") : t("adresEklendi"));
       onClose();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kaydedilemedi"));
+      toast.error(extractErrorMessage(err, t("kaydedilemedi")));
     }
   };
 
   return (
     <Dialog open onClose={onClose} size="2xl">
-      <DialogTitle>{address ? "Adresi Düzenle" : "Yeni Adres"}</DialogTitle>
+      <DialogTitle>{address ? t("adresiDuzenle") : t("yeniAdres")}</DialogTitle>
       <DialogBody className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field>
-            <Label>Adres tipi</Label>
+            <Label>{t("adresTipi")}</Label>
             <Select
               value={f.type}
               onChange={(e) => {
@@ -233,55 +236,55 @@ function AddressDialog({
                 set(type === "FATURA" ? { type } : { type, taxOffice: "", taxNumber: "" });
               }}
             >
-              <option value="TESLIMAT">Teslimat</option>
-              <option value="FATURA">Fatura</option>
-              <option value="ILETISIM">İletişim</option>
+              <option value="TESLIMAT">{t("teslimat")}</option>
+              <option value="FATURA">{t("fatura")}</option>
+              <option value="ILETISIM">{t("iletisim")}</option>
             </Select>
           </Field>
           <Field>
-            <Label>Başlık</Label>
+            <Label>{t("baslik")}</Label>
             <Input
               value={f.title}
               invalid={touched && Boolean(titleError)}
               onChange={(e) => set({ title: e.target.value })}
-              placeholder="Merkez, Depo…"
+              placeholder={t("merkezDepo")}
             />
             {touched && titleError ? <ErrorMessage>{titleError}</ErrorMessage> : null}
           </Field>
           <Field>
-            <Label>İlgili kişi</Label>
+            <Label>{t("ilgiliKisi")}</Label>
             <Input
               value={f.contactName}
               onChange={(e) => set({ contactName: e.target.value })}
             />
           </Field>
           <Field>
-            <Label>Telefon</Label>
+            <Label>{t("telefon")}</Label>
             <PhoneInput value={f.phone} onChange={(v) => set({ phone: v })} />
             {touched && phoneError ? <ErrorMessage>{phoneError}</ErrorMessage> : null}
           </Field>
           <Field>
-            <Label>Ülke</Label>
+            <Label>{t("ulke")}</Label>
             <Select
               value={f.country}
               onChange={(e) => set({ country: e.target.value })}
             >
               {COUNTRIES.map((c) => (
                 <option key={c.code} value={c.code}>
-                  {c.name}
+                  {countryDisplayName(c.code, locale)}
                 </option>
               ))}
             </Select>
           </Field>
           <Field>
-            <Label>İl</Label>
+            <Label>{t("il")}</Label>
             <Input
               value={f.city}
               onChange={(e) => set({ city: e.target.value })}
             />
           </Field>
           <Field>
-            <Label>İlçe</Label>
+            <Label>{t("ilce")}</Label>
             <Input
               value={f.district}
               onChange={(e) => set({ district: e.target.value })}
@@ -289,7 +292,7 @@ function AddressDialog({
           </Field>
         </div>
         <Field>
-          <Label>Açık adres</Label>
+          <Label>{t("acikAdres")}</Label>
           <Textarea
             rows={2}
             value={f.addressLine}
@@ -300,7 +303,7 @@ function AddressDialog({
         </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
           <Field>
-            <Label>Posta kodu</Label>
+            <Label>{t("postaKodu")}</Label>
             <Input
               value={f.postalCode}
               onChange={(e) => set({ postalCode: e.target.value })}
@@ -309,14 +312,14 @@ function AddressDialog({
           {f.type === "FATURA" ? (
             <>
               <Field>
-                <Label>Vergi dairesi</Label>
+                <Label>{t("vergiDairesi")}</Label>
                 <Input
                   value={f.taxOffice}
                   onChange={(e) => set({ taxOffice: e.target.value })}
                 />
               </Field>
               <Field>
-                <Label>Vergi no</Label>
+                <Label>{t("vergiNo")}</Label>
                 <Input
                   value={f.taxNumber}
                   onChange={(e) => set({ taxNumber: e.target.value })}
@@ -332,15 +335,15 @@ function AddressDialog({
             onChange={(e) => set({ isDefault: e.target.checked })}
             className="h-4 w-4 rounded border-zinc-300"
           />
-          Bu tip için varsayılan adres
+          {t("buTipIcinVarsayilanAdres")}
         </label>
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button onClick={submit} disabled={save.isPending}>
-          {save.isPending ? "Kaydediliyor…" : address ? "Kaydet" : "Ekle"}
+          {save.isPending ? t("kaydediliyor") : address ? t("kaydet") : t("ekle")}
         </Button>
       </DialogActions>
     </Dialog>

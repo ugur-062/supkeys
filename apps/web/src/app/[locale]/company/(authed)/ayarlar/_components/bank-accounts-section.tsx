@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/catalyst/badge";
 import { Iban } from "@/components/ui/iban";
 import { Button } from "@/components/catalyst/button";
@@ -27,6 +28,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 export function BankAccountsSection({ canManage }: { canManage: boolean }) {
+  const t = useTranslations("web.panel.settings.bankAccountsSection");
   const { data: accounts, isLoading, isError, refetch } = useBankAccounts();
   const del = useDeleteBankAccount();
   const confirm = useConfirm();
@@ -36,17 +38,17 @@ export function BankAccountsSection({ canManage }: { canManage: boolean }) {
 
   const handleDelete = async (a: CompanyBankAccount) => {
     const ok = await confirm({
-      title: "Banka hesabı silinsin mi?",
-      description: `"${a.title}" hesabı kalıcı olarak silinecek. Mevcut siparişler IBAN'ın kendi kopyasını taşır, etkilenmez.`,
-      confirmLabel: "Sil",
+      title: t("bankaHesabiSilinsinMi"),
+      description: t("hesabiKaliciOlarakSilinecekMevcut", { title: a.title }),
+      confirmLabel: t("sil"),
       destructive: true,
     });
     if (!ok) return;
     try {
       await del.mutateAsync(a.id);
-      toast.success("Banka hesabı silindi");
+      toast.success(t("bankaHesabiSilindi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Silinemedi"));
+      toast.error(extractErrorMessage(err, t("silinemedi")));
     }
   };
 
@@ -55,29 +57,29 @@ export function BankAccountsSection({ canManage }: { canManage: boolean }) {
       {/* Başlık/açıklama SettingsShell'de — burada tekrar edilmez (2026-09-10). */}
       <div className="flex flex-wrap items-center justify-between gap-3">
         <Text className="text-sm text-zinc-600">
-          Kayıtlı hesaplar sipariş onayında seçilir — IBAN elle girilmez.
+          {t("kayitliHesaplarSiparisOnayindaSecilir")}
         </Text>
         {canManage ? (
-          <Button onClick={() => setEditing("new")}>Hesap Ekle</Button>
+          <Button onClick={() => setEditing("new")}>{t("hesapEkle")}</Button>
         ) : (
           <Text className="text-xs text-zinc-500">
-            Banka hesabı yalnız Kurucu tarafından eklenir.
+            {t("bankaHesabiYalnizKurucuTarafindan")}
           </Text>
         )}
       </div>
 
       {isLoading ? (
-        <Text className="mt-3 text-sm text-zinc-500">Yükleniyor…</Text>
+        <Text className="mt-3 text-sm text-zinc-500">{t("yukleniyor")}</Text>
       ) : isError ? (
         <p role="alert" className="mt-3 text-sm text-rose-800">
-          Banka hesapları yüklenemedi.{" "}
+          {t("bankaHesaplariYuklenemedi")}{" "}
           <button type="button" onClick={() => void refetch()} className="font-semibold underline underline-offset-2">
-            Yeniden dene
+            {t("yenidenDene")}
           </button>
         </p>
       ) : !accounts || accounts.length === 0 ? (
         <Text className="mt-3 text-sm text-zinc-500">
-          Henüz kayıtlı banka hesabı yok.
+          {t("henuzKayitliBankaHesabiYok")}
         </Text>
       ) : (
         <div className="mt-4 grid gap-3 sm:grid-cols-2">
@@ -96,16 +98,16 @@ export function BankAccountsSection({ canManage }: { canManage: boolean }) {
                   <div className="flex shrink-0 items-center gap-1">
                     <Button
                       plain
-                      aria-label="Düzenle"
-                      title="Düzenle"
+                      aria-label={t("duzenle")}
+                      title={t("duzenle")}
                       onClick={() => setEditing(a)}
                     >
                       <Pencil className="h-4 w-4 text-zinc-500" />
                     </Button>
                     <Button
                       plain
-                      aria-label="Sil"
-                      title="Sil"
+                      aria-label={t("sil")}
+                      title={t("sil")}
                       onClick={() => handleDelete(a)}
                     >
                       <Trash2 className="h-4 w-4 text-red-500" />
@@ -115,7 +117,7 @@ export function BankAccountsSection({ canManage }: { canManage: boolean }) {
               </div>
               {a.isDefault ? (
                 <div className="mt-1.5">
-                  <Badge color="amber">Varsayılan</Badge>
+                  <Badge color="amber">{t("varsayilan")}</Badge>
                 </div>
               ) : null}
               <div className="mt-1.5 text-xs text-zinc-600">
@@ -147,6 +149,7 @@ function BankAccountModal({
   account: CompanyBankAccount | null;
   onClose: () => void;
 }) {
+  const t = useTranslations("web.panel.settings.bankAccountsSection");
   const save = useSaveBankAccount();
   const [title, setTitle] = useState(account?.title ?? "");
   const [holder, setHolder] = useState(account?.accountHolder ?? "");
@@ -166,8 +169,8 @@ function BankAccountModal({
       : !/^[A-Z]{2}[0-9A-Z]{8,32}$/.test(ibanClean) || !ibanChecksumOk(ibanClean));
   const ibanError = ibanInvalid
     ? ibanClean.startsWith("TR")
-      ? "Geçerli bir TR IBAN girin (TR + 24 rakam, kontrol hanesi tutmalı)."
-      : "Geçerli bir IBAN girin — kontrol hanesi tutmuyor."
+      ? t("gecerliBirTrIbanGirin")
+      : t("gecerliBirIbanGirinKontrol")
     : null;
 
   const submit = async () => {
@@ -180,10 +183,10 @@ function BankAccountModal({
         bankName: bankName.trim() || undefined,
         isDefault,
       });
-      toast.success(account ? "Hesap güncellendi" : "Hesap eklendi");
+      toast.success(account ? t("hesapGuncellendi") : t("hesapEklendi"));
       onClose();
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Kaydedilemedi"));
+      toast.error(extractErrorMessage(err, t("kaydedilemedi")));
     }
   };
 
@@ -192,43 +195,43 @@ function BankAccountModal({
   return (
     <Dialog open onClose={onClose} size="lg">
       <DialogTitle>
-        {account ? "Hesabı Düzenle" : "Yeni Banka Hesabı"}
+        {account ? t("hesabiDuzenle") : t("yeniBankaHesabi")}
       </DialogTitle>
       <DialogBody className="space-y-4">
         <Field>
-          <Label>Hesap Başlığı *</Label>
+          <Label>{t("hesapBasligi")}</Label>
           <Input
             value={title}
             onChange={(e) => setTitle(e.target.value)}
-            placeholder="Örn. TL Vadesiz — İş Bankası"
+            placeholder={t("ornTlVadesizIsBankasi")}
             maxLength={120}
           />
         </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field>
-            <Label>Hesap Sahibi *</Label>
+            <Label>{t("hesapSahibi")}</Label>
             <Input
               value={holder}
               onChange={(e) => setHolder(e.target.value)}
-              placeholder="Firma unvanı"
+              placeholder={t("firmaUnvani")}
               maxLength={140}
             />
             <Text className="mt-1 text-xs text-zinc-500">
-              Vergi levhasındaki unvanla aynı olmalı; alıcı ödemeyi bu ada yapar.
+              {t("vergiLevhasindakiUnvanlaAyniOlmali")}
             </Text>
           </Field>
           <Field>
-            <Label>Banka Adı</Label>
+            <Label>{t("bankaAdi")}</Label>
             <Input
               value={bankName}
               onChange={(e) => setBankName(e.target.value)}
-              placeholder="Opsiyonel"
+              placeholder={t("opsiyonel")}
               maxLength={120}
             />
           </Field>
         </div>
         <Field>
-          <Label>IBAN *</Label>
+          <Label>{t("iban")}</Label>
           <Input
             value={iban}
             invalid={Boolean(ibanError)}
@@ -241,15 +244,15 @@ function BankAccountModal({
         </Field>
         <CheckboxField>
           <Checkbox checked={isDefault} onChange={setIsDefault} />
-          <Label>Varsayılan hesap (sipariş onayında ön-seçili gelir)</Label>
+          <Label>{t("varsayilanHesapSiparisOnayindaOn")}</Label>
         </CheckboxField>
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button onClick={submit} disabled={save.isPending || !valid}>
-          {save.isPending ? "Kaydediliyor…" : "Kaydet"}
+          {save.isPending ? t("kaydediliyor") : t("kaydet")}
         </Button>
       </DialogActions>
     </Dialog>
