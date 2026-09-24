@@ -519,9 +519,21 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   `t(key)` dize anahtarla `as never`; codemod VERİ değerlerini de çevirir
   (`<option value>`, `accept` uzantıları, DOM id'leri, sıralama değerleri) →
   yazma turundan sonra elle geri alınır; kaydedilen `unit` Türkçe ad kalır (API
-  sözlüğü), yalnız etiket çevrilir. Partiler 1-3 (kabuk/panolar · talep
-  ekranları · teklif/sipariş/ürün/bilgi talebi) BİTTİ; cırcır tabanı 310 dosya
-  / 3.799.
+  sözlüğü), yalnız etiket çevrilir. Partiler 1-5 (kabuk/panolar · talep
+  ekranları · teklif/sipariş/ürün/bilgi talebi · ayarlar/şirketim/onaylar/
+  raporlar/paketler · lib sözlükleri) BİTTİ.
+- **FAZ 3 — API METİNLERİ (2026-09-24):** istisnalar, DTO mesajları, 429
+  metni (`throttleMessage()`), bildirim/e-posta (ALICININ dili; e-posta paketi
+  `@rothern/i18n` okur), eşleşme gerekçeleri, pano etiketleri (analitik
+  önbellek anahtarı DİL içerir), Excel şablon yardım metinleri. **Excel SÜTUN
+  BAŞLIKLARI, sayfa adları ve teslim süresi açılır değerleri TÜRKÇE KALIR** —
+  yüklenen dosya başlık metniyle ayrıştırılıyor; çeviriler başlığı tırnak içinde
+  Türkçe yazar. Ay kısaltmaları `shortMonthLabel` (Intl). Bilinçli kalanlar
+  (cırcır 117 dosya / 915): sözleşme metinleri, AI istemleri, günlük/Sentry
+  mesajları, admin modülleri, DB'ye yazılan gerekçeler, dev galerisi.
+  **i18n kapısı yer tutucu paritesini ICU ayrıştırıcısıyla ölçer** (regex
+  select dalındaki tek sözcüğü argüman sanıyordu); yasaklı terim araması
+  argüman adlarını (`{tenderTitle}`) yok sayar.
 - **PANEL DE OKUYUCUNUN DİLİNDE (Faz 1e kapanış, 2026-09-23 akşam, kullanıcı:
   "kalemler çevrilmemiş"):** başka firmanın verisini okuyan panel uçları da
   çeviri servisinden geçer — `company/listings/seller-tenders` (başlık +
@@ -1988,8 +2000,8 @@ istemcisi sessizce kısıtlı role düşüp sağlık/giriş/cron'u bozamaz.
 - WebSocket real-time bildirim
 - Admin: impersonate (güvenlik değerlendirilecek), iade/refund, CSV export,
   dahili not, global arama
-- i18n Faz 2–3 (`docs/plan-i18n.md`): panel metinleri (2, cırcır 426 dosya /
-  6.023 literal) · API istisna/DTO/bildirim/e-posta (3). Faz 4 kategori adları
+- i18n: Faz 2 (panel) + Faz 3 (API/bildirim/e-posta) 2026-09-24'te BİTTİ;
+  sırada arama (İngilizce sorgu Türkçe adı bulmuyor) ve canlıya alma. Faz 4 kategori adları
   2026-09-23'te BİTTİ; nitelik etiketleri/süzgeç değerleri küçük artık.
   Faz 0 + Faz 1 (herkese açık yüzey, kimlik akışı, dil seçici) + Faz 1e
   (içerik otomatik çevirisi) + Faz 4 (kategori adları) 2026-09-23'te BİTTİ.

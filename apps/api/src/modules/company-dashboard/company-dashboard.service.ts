@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
 import type { Currency } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { tApi } from "../../common/i18n/i18n.service";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
@@ -298,21 +299,26 @@ export class CompanyDashboardService {
       ...invitations.map((iv): ActivityRow => ({
         type: "invitation",
         title: iv.listing.title,
-        subtitle: `Satın Alma Talebi daveti · ${iv.listing.number ?? "—"}`,
+        subtitle: tApi("api.companyDashboard.activity.invitationSubtitle", {
+          number: iv.listing.number ?? "—",
+        }),
         at: iv.createdAt,
         href: `/company/ilan/${iv.listing.id}`,
       })),
       ...bids.map((b): ActivityRow => ({
         type: "bid",
         title: b.listing.title,
-        subtitle: `Teklif · ${b.listing.number ?? "—"} · v${b.version}`,
+        subtitle: tApi("api.companyDashboard.activity.bidSubtitle", {
+          number: b.listing.number ?? "—",
+          version: String(b.version),
+        }),
         at: b.submittedAt ?? b.createdAt,
         href: `/company/ilan/${b.listing.id}`,
       })),
       ...orders.map((o): ActivityRow => ({
         type: "order",
-        title: o.listing?.title ?? "Sipariş",
-        subtitle: `Sipariş · ${o.number ?? "—"}`,
+        title: o.listing?.title ?? tApi("api.companyDashboard.activity.orderTitle"),
+        subtitle: tApi("api.companyDashboard.activity.orderSubtitle", { number: o.number ?? "—" }),
         at: o.createdAt,
         href: `/company/siparis/${o.id}`,
       })),

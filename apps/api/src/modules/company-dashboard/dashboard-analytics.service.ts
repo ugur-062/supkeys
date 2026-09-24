@@ -1,4 +1,7 @@
 import { Injectable } from "@nestjs/common";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
+import { shortMonthLabel, tApi } from "../../common/i18n/i18n.service";
+import { currentLocale } from "../../common/i18n/locale-context";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import {
   periodStart,
@@ -11,13 +14,9 @@ import {
  * (çoklu birimi tek eksende toplamak yanıltıcı — reports-summary ile aynı
  * karar, UI etikette söyler). Hedef/bütçe verisi platformda YOK — o
  * grafikler frontend'de EmptyState + TODO.
- * 5 dk in-memory cache (time-savings deseni).
+ * 5 dk in-memory cache (time-savings deseni) — anahtar istek dilini de taşır
+ * (etiketler ve kategori adları dile göre üretilir).
  */
-
-const MONTHS_TR = [
-  "Oca", "Şub", "Mar", "Nis", "May", "Haz",
-  "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara",
-];
 
 export interface MonthPoint {
   key: string;
@@ -35,7 +34,7 @@ export function monthWindows(now: Date): { start: Date; end: Date; key: string; 
       start,
       end,
       key: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}`,
-      label: MONTHS_TR[start.getMonth()]!,
+      label: shortMonthLabel(start),
     });
   }
   return out;
@@ -143,7 +142,7 @@ export class DashboardAnalyticsService {
     // boyunca MASKESİZ tedarikçi adlarını alıyordu (P4 maskesinin cache
     // üzerinden baypası — denetim 2026-08-25 Parça 8).
     const maskKey = maskSupplierNames ? "m1" : "m0";
-    return this.cached(`sa:${companyId}:${period}${rangeKey}:${maskKey}`, async () => {
+    return this.cached(`sa:${companyId}:${period}${rangeKey}:${maskKey}:${currentLocale()}`, async () => {
       const now = new Date();
       // Özel aralık: [from, to) dönem penceresi; önceki dönem = eşit uzunlukta
       // hemen öncesi. Aralıksızda mevcut month/quarter/year davranışı.
@@ -302,25 +301,25 @@ export class DashboardAnalyticsService {
       );
       const cohort = pListings;
       const funnel = [
-        { key: "listings", label: "Satın Alma Talebi Açıldı", count: cohort.length },
+        { key: "listings", label: tApi("api.companyDashboard.funnel.listings"), count: cohort.length },
         {
           key: "bids",
-          label: "Teklif Aldı",
+          label: tApi("api.companyDashboard.funnel.bids"),
           count: cohort.filter((l) => l.bids.length > 0).length,
         },
         {
           key: "awarded",
-          label: "Kazandırıldı",
+          label: tApi("api.companyDashboard.funnel.awarded"),
           count: cohort.filter((l) => l.awardedAt).length,
         },
         {
           key: "orders",
-          label: "Siparişe Döndü",
+          label: tApi("api.companyDashboard.funnel.orders"),
           count: cohort.filter((l) => orderedListingIds.has(l.id)).length,
         },
         {
           key: "delivered",
-          label: "Teslim Edildi",
+          label: tApi("api.companyDashboard.funnel.delivered"),
           count: cohort.filter((l) => deliveredListingIds.has(l.id)).length,
         },
       ];
@@ -393,10 +392,10 @@ export class DashboardAnalyticsService {
       const segNames = segIds.length
         ? await this.prisma.category.findMany({
             where: { id: { in: segIds } },
-            select: { id: true, nameTr: true },
+            select: { id: true, ...CATEGORY_NAME_SELECT },
           })
         : [];
-      const nameById = new Map(segNames.map((c) => [c.id, c.nameTr]));
+      const nameById = new Map(segNames.map((c) => [c.id, categoryName(c)]));
       const categorySavings = [...catAgg.entries()]
         .map(([id, a]) => ({
           label: nameById.get(id) ?? id,
@@ -482,7 +481,7 @@ export class DashboardAnalyticsService {
         const ws = new Date(now.getTime() + i * 7 * 86_400_000);
         weeks.push({
           start: ws,
-          label: `${ws.getDate()} ${MONTHS_TR[ws.getMonth()]}`,
+          label: `${ws.getDate()} ${shortMonthLabel(ws)}`,
           amount: 0,
         });
       }
@@ -564,7 +563,7 @@ export class DashboardAnalyticsService {
   // ── SATIŞ ────────────────────────────────────────────────────────────────
   async satis(companyId: string, period: SavingsPeriod, range?: PeriodRange) {
     const rangeKey = range ? `:${+range.from}-${+range.to}` : "";
-    return this.cached(`st:${companyId}:${period}${rangeKey}`, async () => {
+    return this.cached(`st:${companyId}:${period}${rangeKey}:${currentLocale()}`, async () => {
       const now = new Date();
       const start = range?.from ?? periodStart(period, now);
       const end = range?.to ?? now;
@@ -678,15 +677,15 @@ export class DashboardAnalyticsService {
       const wonBids = pBids.filter((b) => b.status === "WON" || b.status === "AWARDED_PARTIAL");
       const pipeline = [
         {
-          key: "invites", label: "Davet",
+          key: "invites", label: tApi("api.companyDashboard.pipeline.invites"),
           count: invitations.filter(
             (iv) => iv.createdAt >= start && iv.createdAt < end,
           ).length,
           amountTry: null as number | null, // TODO: teklifsiz davetin tutarı yok
         },
-        { key: "submitted", label: "Teklif Verildi", count: submitted.length, amountTry: tryAmt(submitted) },
-        { key: "evaluating", label: "Değerlendirmede", count: evaluating.length, amountTry: tryAmt(evaluating) },
-        { key: "won", label: "Kazanıldı", count: wonBids.length, amountTry: tryAmt(wonBids) },
+        { key: "submitted", label: tApi("api.companyDashboard.pipeline.submitted"), count: submitted.length, amountTry: tryAmt(submitted) },
+        { key: "evaluating", label: tApi("api.companyDashboard.pipeline.evaluating"), count: evaluating.length, amountTry: tryAmt(evaluating) },
+        { key: "won", label: tApi("api.companyDashboard.pipeline.won"), count: wonBids.length, amountTry: tryAmt(wonBids) },
       ];
 
       // ── Müşteri Pareto (12 ay TRY gelir) ──
@@ -740,10 +739,10 @@ export class DashboardAnalyticsService {
       const segNames = segIds.length
         ? await this.prisma.category.findMany({
             where: { id: { in: segIds } },
-            select: { id: true, nameTr: true },
+            select: { id: true, ...CATEGORY_NAME_SELECT },
           })
         : [];
-      const nameById = new Map(segNames.map((c) => [c.id, c.nameTr]));
+      const nameById = new Map(segNames.map((c) => [c.id, categoryName(c)]));
       const categoryWinRate = [...catAgg.entries()]
         .map(([id, a]) => ({
           label: nameById.get(id) ?? id,

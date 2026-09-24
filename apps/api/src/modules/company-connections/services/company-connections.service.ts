@@ -475,7 +475,7 @@ export class CompanyConnectionsService {
           e instanceof NotFoundException ||
           e instanceof ForbiddenException
             ? ((e.getResponse() as { message?: string }).message ?? e.message)
-            : "Gönderilemedi";
+            : tApi("api.companyConnections.gonderilemedi");
         results.push({ email, status: "skipped", reason });
       }
     }
@@ -937,7 +937,7 @@ export class CompanyConnectionsService {
         matchReason: affinityReady
           ? affinityReasonTextThirdParty((hit?.reasons ?? null) as never)
           : declaredOverlap > 0
-            ? "Faaliyet alanlarında işaretli"
+            ? tApi("api.companyAffinity.reason.thirdParty.declared")
             : null,
       };
     });

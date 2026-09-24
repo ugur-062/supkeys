@@ -34,6 +34,20 @@ export function tApi(key: TranslateArgs[0], values?: Record<string, string | num
   return (t as unknown as (k: string, v?: Record<string, string | number | Date>) => string)(key, values);
 }
 
+/**
+ * Kısa ay adı — istek dilinde (`Intl`; tr → "Oca", "Şub", … eski sabit
+ * listeyle birebir). Biçimleyici dil başına önbellekli.
+ */
+const monthFormatters = new Map<Locale, Intl.DateTimeFormat>();
+export function shortMonthLabel(d: Date, locale: Locale = currentLocale()): string {
+  let f = monthFormatters.get(locale);
+  if (!f) {
+    f = new Intl.DateTimeFormat(locale, { month: "short" });
+    monthFormatters.set(locale, f);
+  }
+  return f.format(d);
+}
+
 @Injectable()
 export class I18nService {
   /** İstek bağlamındaki dil. */

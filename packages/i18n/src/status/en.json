@@ -979,6 +979,66 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyAffinity.reason.own.bids": {
+    "hash": "786da292c5",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyAffinity.reason.own.catalogItems": {
+    "hash": "28efc619ab",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyAffinity.reason.own.declared": {
+    "hash": "6b22186c91",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyAffinity.reason.own.invitations": {
+    "hash": "83b6e3bcf1",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyAffinity.reason.own.publishedListings": {
+    "hash": "c20458fefd",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyAffinity.reason.own.wonOrders": {
+    "hash": "daa742910c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyAffinity.reason.thirdParty.bids": {
+    "hash": "e94680f3b2",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyAffinity.reason.thirdParty.catalogItems": {
+    "hash": "5b0a780b2b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyAffinity.reason.thirdParty.declared": {
+    "hash": "533f295837",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyAffinity.reason.thirdParty.invitations": {
+    "hash": "1ae7586347",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyAffinity.reason.thirdParty.publishedListings": {
+    "hash": "4b09c339c6",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyAffinity.reason.thirdParty.wonOrders": {
+    "hash": "441fee8b2e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "api.companyApprovals.adimButceEsikleriArtanSiradaOlmali": {
     "hash": "3a0c0e2353",
     "status": "reviewed",
@@ -1459,6 +1519,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyConnections.gonderilemedi": {
+    "hash": "2323b9f1cc",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "api.companyConnections.gunlukDisDavetLimitineUlasildi": {
     "hash": "b902ababc5",
     "status": "reviewed",
@@ -1484,8 +1549,73 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyDashboard.activity.bidSubtitle": {
+    "hash": "84894c272b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyDashboard.activity.invitationSubtitle": {
+    "hash": "e563e16278",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyDashboard.activity.orderSubtitle": {
+    "hash": "b57cb84044",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyDashboard.activity.orderTitle": {
+    "hash": "5c98595b35",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "api.companyDashboard.buPanoyuGoruntulemeYetkinizYok": {
     "hash": "8723982401",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyDashboard.funnel.awarded": {
+    "hash": "381d7c961b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyDashboard.funnel.bids": {
+    "hash": "c89f50ace4",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyDashboard.funnel.delivered": {
+    "hash": "dfc4d9885a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyDashboard.funnel.listings": {
+    "hash": "278496a03e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyDashboard.funnel.orders": {
+    "hash": "197c3eeb27",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyDashboard.pipeline.evaluating": {
+    "hash": "34b46bd982",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyDashboard.pipeline.invites": {
+    "hash": "e0e58e899a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyDashboard.pipeline.submitted": {
+    "hash": "730b24e60d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyDashboard.pipeline.won": {
+    "hash": "07ca2ad1b0",
     "status": "reviewed",
     "at": "2026-09-24"
   },
@@ -1794,6 +1924,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyListings.bidImport.birimFarkli": {
+    "hash": "7f04a001e1",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.birimFiyatAraligi": {
+    "hash": "f4655ba14c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "api.companyListings.bidImport.birimFiyatSayiDegil": {
     "hash": "4a68d29d1c",
     "status": "reviewed",
@@ -1819,6 +1959,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyListings.bidImport.miktarFarkli": {
+    "hash": "45057d7623",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "api.companyListings.bidImport.paraBirimiKabulEdilmiyor": {
     "hash": "e086780295",
     "status": "reviewed",
@@ -1834,8 +1979,88 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyListings.bidImport.satirParaBirimiKabulEdilmiyor": {
+    "hash": "6afa3d0ed5",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.template.currencyError": {
+    "hash": "d1a0454707",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.template.currencyTitle": {
+    "hash": "d8d810201b",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.template.deliveryError": {
+    "hash": "92b1803a6e",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.template.deliveryTitle": {
+    "hash": "d5ac242d96",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.template.fileNameFallback": {
+    "hash": "6232d55b28",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.template.fileNamePrefix": {
+    "hash": "2376275bc0",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.template.helpDecimal": {
+    "hash": "a30ab9e347",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.template.helpFill": {
+    "hash": "57bcba9334",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.template.helpSheet": {
+    "hash": "cd6441f0a4",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.template.helpSkip": {
+    "hash": "6849993e1a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.template.helpTitle": {
+    "hash": "c35c264029",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.template.helpUpload": {
+    "hash": "d72bbd2dfb",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.teslimAnlasilamadi": {
+    "hash": "e37c2317aa",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "api.companyListings.bidImport.teslimSuresiTaninmadi": {
     "hash": "8f7feade10",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.toplamdanTuretildi": {
+    "hash": "118f42d586",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.bidImport.toplamUyusmuyor": {
+    "hash": "de2fb6186d",
     "status": "reviewed",
     "at": "2026-09-24"
   },
@@ -2209,6 +2434,41 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyListings.itemImport.hint.description": {
+    "hash": "bc5f629f54",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.hint.materialCode": {
+    "hash": "ea82e98116",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.hint.name": {
+    "hash": "3c32dc5b1d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.hint.quantity": {
+    "hash": "7af85dd597",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.hint.requiredByDate": {
+    "hash": "520d68e798",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.hint.targetUnitPrice": {
+    "hash": "df2995ce1c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.hint.unit": {
+    "hash": "6ce1fad1e4",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "api.companyListings.itemImport.miktarAraligi": {
     "hash": "243ce0bafc",
     "status": "reviewed",
@@ -2224,8 +2484,98 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyListings.itemImport.sample.description1": {
+    "hash": "c29ac7de05",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.sample.description3": {
+    "hash": "ee5fa3e228",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.sample.name1": {
+    "hash": "e8708a5657",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.sample.name2": {
+    "hash": "56f63032b0",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.sample.name3": {
+    "hash": "2ba197b8d0",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.sample.unit2": {
+    "hash": "13f39a2865",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "api.companyListings.itemImport.sayiDegil": {
     "hash": "b275e88593",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.template.fileName": {
+    "hash": "67d812fc3a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.template.helpColumn": {
+    "hash": "d4e162a11a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.template.helpDescription": {
+    "hash": "6f80065c74",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.template.helpRequired": {
+    "hash": "d7c095f7ae",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.template.no": {
+    "hash": "b861f134f8",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.template.noteColumns": {
+    "hash": "0339061da0",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.template.noteDates": {
+    "hash": "6fabd781b6",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.template.noteHeader": {
+    "hash": "7a668b2ef0",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.template.noteMaxRows": {
+    "hash": "f24264345d",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.template.notePrices": {
+    "hash": "d9d79657a5",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.template.noteUpload": {
+    "hash": "bc54bfa47c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.itemImport.template.yes": {
+    "hash": "d157d3a685",
     "status": "reviewed",
     "at": "2026-09-24"
   },
@@ -2346,6 +2696,16 @@
   },
   "api.companyListings.pesinOdemedePesinYuzdesi1100": {
     "hash": "700dbf06e2",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.productMatch.category": {
+    "hash": "1ed92445d0",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyListings.productMatch.text": {
+    "hash": "1b90d7ca67",
     "status": "reviewed",
     "at": "2026-09-24"
   },
@@ -3044,6 +3404,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyReports.digerKategoriler": {
+    "hash": "861fed125c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "api.companyReports.dosyaGenelRapor": {
     "hash": "195178082a",
     "status": "reviewed",
@@ -3294,8 +3659,23 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyRequestDefaults.akreditifAltTipiniSecin": {
+    "hash": "6fcd95e85c",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyRequestDefaults.anaParaBirimiIzinVerilenlerde": {
+    "hash": "31c46a6883",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "api.companyRequestDefaults.talepSartlariGecersiz": {
     "hash": "6d79b79333",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyRequestDefaults.vadeGunSayisiZorunlu": {
+    "hash": "05c84f05e7",
     "status": "reviewed",
     "at": "2026-09-24"
   },
@@ -3384,6 +3764,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyUsers.enAzBirAktifYonetimYetkilisiKalmali": {
+    "hash": "9f9621cc22",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "api.companyUsers.enAzBirRolSecin": {
     "hash": "1a56f9ce46",
     "status": "reviewed",
@@ -3439,8 +3824,18 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyUsers.koltukDoluBekleyenDahil": {
+    "hash": "59966e3821",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
   "api.companyUsers.koltukDoluDavetSuAnKabul": {
     "hash": "eb9867a945",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.companyUsers.koltukDoluIslemYetkisi": {
+    "hash": "881295c4a0",
     "status": "reviewed",
     "at": "2026-09-24"
   },
@@ -4201,6 +4596,11 @@
   },
   "api.http.bulunamadi": {
     "hash": "242c0f02c9",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "api.http.cokFazlaDeneme": {
+    "hash": "bcc4f68586",
     "status": "reviewed",
     "at": "2026-09-24"
   },

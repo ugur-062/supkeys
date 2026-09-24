@@ -101,24 +101,32 @@ export class ListingItemImportService {
     // 2) Nasıl Doldurulur
     const help = wb.addWorksheet(ITEM_IMPORT_HELP_SHEET);
     help.columns = [{ width: 30 }, { width: 14 }, { width: 90 }];
-    const h0 = help.addRow(["Sütun", "Zorunlu", "Açıklama"]);
+    const h0 = help.addRow([
+      tApi("api.companyListings.itemImport.template.helpColumn"),
+      tApi("api.companyListings.itemImport.template.helpRequired"),
+      tApi("api.companyListings.itemImport.template.helpDescription"),
+    ]);
     h0.eachCell((cell) => {
       cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
       cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: `FF${INK}` } };
     });
     for (const c of cols) {
-      const r = help.addRow([c.header, c.required ? "Evet" : "Hayır", c.hint]);
+      const r = help.addRow([
+        c.header,
+        tApi(c.required ? "api.companyListings.itemImport.template.yes" : "api.companyListings.itemImport.template.no"),
+        tApi(`api.companyListings.itemImport.hint.${c.key}` as "api.companyListings.itemImport.hint.name"),
+      ]);
       r.getCell(3).alignment = { wrapText: true, vertical: "top" };
       if (c.required) r.getCell(2).font = { bold: true };
     }
     help.addRow([]);
     const notes = [
-      `"${ITEM_IMPORT_SHEET}" sayfasında 1. satır başlıktır — DEĞİŞTİRMEYİN. Kalemleri 2. satırdan itibaren alt alta yazın.`,
-      `En fazla ${ITEM_IMPORT_MAX_ROWS} kalem. Boş satırlar atlanır.`,
-      "Fiyatlar KDV HARİÇ girilir. Ondalık ayracı virgül veya nokta olabilir (12,5 ya da 12.5).",
-      "Tarihler GG.AA.YYYY (ör. 15.09.2026) ya da Excel tarih hücresi olabilir.",
-      "Dosyayı kaydedip (.xlsx) satın alma talebi formundaki 'Excel ile İçe Aktar' ile yükleyin; aktarmadan önce önizleme görürsünüz.",
-      "Sütunların sırası önemli değil; başlık metni aynı kaldığı sürece sütun ekleyip çıkarabilirsiniz (zorunlular hariç).",
+      tApi("api.companyListings.itemImport.template.noteHeader", { sheet: ITEM_IMPORT_SHEET }),
+      tApi("api.companyListings.itemImport.template.noteMaxRows", { max: ITEM_IMPORT_MAX_ROWS }),
+      tApi("api.companyListings.itemImport.template.notePrices"),
+      tApi("api.companyListings.itemImport.template.noteDates"),
+      tApi("api.companyListings.itemImport.template.noteUpload"),
+      tApi("api.companyListings.itemImport.template.noteColumns"),
     ];
     for (const n of notes) {
       const r = help.addRow([n]);
@@ -137,28 +145,28 @@ export class ListingItemImportService {
     });
     const samples: Record<ItemImportColumnKey, unknown>[] = [
       {
-        name: 'Çelik boru 2" DN50 dikişsiz',
+        name: tApi("api.companyListings.itemImport.sample.name1"),
         quantity: 120,
         unit: "m",
-        description: "ST37, 6 m boy, kaynaklı bağlantıya uygun",
+        description: tApi("api.companyListings.itemImport.sample.description1"),
         materialCode: "BRU-200",
         requiredByDate: "15.09.2026",
         targetUnitPrice: 185,
       },
       {
-        name: "Dirsek 90° 2\"",
+        name: tApi("api.companyListings.itemImport.sample.name2"),
         quantity: 40,
-        unit: "adet",
+        unit: tApi("api.companyListings.itemImport.sample.unit2"),
         description: "",
         materialCode: "DRS-290",
         requiredByDate: "",
         targetUnitPrice: 42.5,
       },
       {
-        name: "Flanş DN50 PN16",
+        name: tApi("api.companyListings.itemImport.sample.name3"),
         quantity: 12.5,
         unit: "kg",
-        description: "Kör flanş, galvaniz",
+        description: tApi("api.companyListings.itemImport.sample.description3"),
         materialCode: "",
         requiredByDate: "30.09.2026",
         targetUnitPrice: "",

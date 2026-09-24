@@ -351,7 +351,38 @@
       "miktarAraligi": "{label} must be between 0.001 and 1,000,000,000",
       "terminGecersiz": "Due date is invalid (DD.MM.YYYY expected)",
       "birimTamSayi": "The \"{unit}\" unit requires a whole number — decimal quantities cannot be entered",
-      "birimOndalik": "The quantity for \"{unit}\" can have at most {n, plural, one {# decimal place} other {# decimal places}}"
+      "birimOndalik": "The quantity for \"{unit}\" can have at most {n, plural, one {# decimal place} other {# decimal places}}",
+      "template": {
+        "fileName": "rothern-buying-request-line-item-template",
+        "helpColumn": "Column",
+        "helpRequired": "Required",
+        "helpDescription": "Description",
+        "yes": "Yes",
+        "no": "No",
+        "noteHeader": "Row 1 of the \"{sheet}\" sheet is the header — DO NOT CHANGE IT. Enter line items one per row starting from row 2.",
+        "noteMaxRows": "Up to {max, plural, one {# line item} other {# line items}}. Empty rows are skipped.",
+        "notePrices": "Enter prices EXCLUDING VAT. The decimal separator can be a comma or a period (12,5 or 12.5).",
+        "noteDates": "Dates can be DD.MM.YYYY (e.g. 15.09.2026) or an Excel date cell.",
+        "noteUpload": "Save the file (.xlsx) and upload it with “Import from Excel” on the buying request form; you will see a preview before anything is imported.",
+        "noteColumns": "Column order does not matter; you can add or remove columns (except required ones) as long as the header text stays the same."
+      },
+      "hint": {
+        "name": "Required. Up to 200 characters. E.g.: Steel pipe 2\" DN50",
+        "quantity": "Required. Number; up to 3 decimal places (0.001 – 1,000,000,000). E.g.: 120 or 12,5",
+        "unit": "Required. Up to 20 characters. E.g.: adet, kg, m, m², lt, paket, koli, ton",
+        "description": "Optional. Technical specification/spec note, up to 2000 characters.",
+        "materialCode": "Optional. Your stock/ERP code, up to 50 characters.",
+        "requiredByDate": "Optional. Latest delivery date for the line item. DD.MM.YYYY or an Excel date cell.",
+        "targetUnitPrice": "Optional. Your budget/target unit price (excluding VAT). Suppliers DO NOT see it."
+      },
+      "sample": {
+        "name1": "Steel pipe 2\" DN50 seamless",
+        "description1": "ST37, 6 m length, suitable for welded connections",
+        "name2": "Elbow 90° 2\"",
+        "unit2": "adet",
+        "name3": "Flange DN50 PN16",
+        "description3": "Blind flange, galvanized"
+      }
     },
     "bidImport": {
       "birimFiyatSayiDegil": "Unit price is not a number",
@@ -365,7 +396,28 @@
       "kdvDahilUyari": "The prices in the document appear to INCLUDE VAT — quote prices must exclude VAT, please check",
       "belgeParaBirimiKabulEdilmiyor": "The document currency ({currency}) is not accepted in this buying request ({allowed})",
       "fiyatEslenemedi": "No prices could be matched from the document to the buying request’s line items — you can match them manually or use the template",
-      "dusukGuven": "{n, plural, one {# line item was} other {# line items were}} matched with low confidence — check the yellow rows"
+      "dusukGuven": "{n, plural, one {# line item was} other {# line items were}} matched with low confidence — check the yellow rows",
+      "birimFiyatAraligi": "Unit price must be between 0.01 and 1e15",
+      "toplamdanTuretildi": "Unit price was derived from the document total ÷ quantity",
+      "toplamUyusmuyor": "In the document, unit price × quantity does not match the total",
+      "miktarFarkli": "The quantity in the document ({docQuantity}) differs from the one in the buying request ({itemQuantity})",
+      "birimFarkli": "The unit in the document ({docUnit}) differs from the one in the buying request ({itemUnit})",
+      "satirParaBirimiKabulEdilmiyor": "The currency in the document ({currency}) is not accepted in this buying request — the quote currency will be used",
+      "teslimAnlasilamadi": "Could not interpret the delivery time: \"{text}\"",
+      "template": {
+        "currencyTitle": "Currency",
+        "currencyError": "Currencies accepted in this buying request: {list}",
+        "deliveryTitle": "Delivery time",
+        "deliveryError": "Select from the list",
+        "helpTitle": "Quote template — {title}",
+        "helpSheet": "The grey columns on the \"{sheet}\" sheet are the buying request’s line items — DO NOT CHANGE THEM (do not add or delete rows).",
+        "helpFill": "Fill in the white columns: \"Birim Fiyat\" (unit price, EXCLUDING VAT, required), \"Para Birimi\" (currency, from the list), \"Teslim Süresi\" (delivery time, from the list), \"Not\" (note).",
+        "helpSkip": "Leave the \"Birim Fiyat\" (unit price) cell EMPTY for any line item you do not want to quote on (if the buying request requires all line items, the app will warn you).",
+        "helpDecimal": "The decimal separator can be a comma or a period (185,50 or 185.50).",
+        "helpUpload": "Save the file and upload it with “Price with Excel template” on the quote page — you will see a preview first; it does not submit the quote.",
+        "fileNamePrefix": "quote-template",
+        "fileNameFallback": "buying-request"
+      }
     },
     "cekIcinVadeGunSayisiZorunlu": "The number of payment term days is required for a cheque",
     "senetIcinVadeGunSayisiZorunlu": "The number of payment term days is required for a promissory note",
@@ -373,7 +425,11 @@
     "alimIcinFormatSecin": "Select a format for the buying request (Quote collection / Negotiation)",
     "satisIcinFormatSecin": "Select a format for the sales listing (Quote collection / Forward auction)",
     "ozelTalebeYalnizDavetliFirmalar": "Only invited companies can submit quotes to this private buying request",
-    "tekliIcinPremiumUyelikGerekir": "A premium membership is required to submit a quote to this request"
+    "tekliIcinPremiumUyelikGerekir": "A premium membership is required to submit a quote to this request",
+    "productMatch": {
+      "category": "Your product is in this category: {product}",
+      "text": "Matches your product: {product}"
+    }
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "Request not found",
@@ -538,7 +594,8 @@
     "onerilenKazanan": "Suggested winner (lowest per line item)",
     "dosyaGenelRapor": "general-report",
     "dosyaTasarrufRaporu": "savings-report",
-    "dosyaTeklifKarsilastirma": "quote-comparison"
+    "dosyaTeklifKarsilastirma": "quote-comparison",
+    "digerKategoriler": "Other"
   },
   "companyViews": {
     "isAnaliziSilverVeUzeriPaketlerde": "Business Insights is available on Silver and higher plans."
@@ -552,7 +609,26 @@
     "gecersizWebhookImzasi": "Invalid webhook signature"
   },
   "companyDashboard": {
-    "buPanoyuGoruntulemeYetkinizYok": "You do not have permission to view this dashboard"
+    "buPanoyuGoruntulemeYetkinizYok": "You do not have permission to view this dashboard",
+    "activity": {
+      "invitationSubtitle": "Buying request invitation · {number}",
+      "bidSubtitle": "Quote · {number} · v{version}",
+      "orderTitle": "Order",
+      "orderSubtitle": "Order · {number}"
+    },
+    "funnel": {
+      "listings": "Buying request opened",
+      "bids": "Received quotes",
+      "awarded": "Awarded",
+      "orders": "Converted to order",
+      "delivered": "Delivered"
+    },
+    "pipeline": {
+      "invites": "Invitation",
+      "submitted": "Quote submitted",
+      "evaluating": "Under evaluation",
+      "won": "Won"
+    }
   },
   "companyConnections": {
     "tokenGerekli": "Token is required",
@@ -579,7 +655,8 @@
     "gunlukDisDavetLimitineUlasildi": "The daily external invitation limit has been reached ({cap})",
     "buAdresDavetAlmakIstemiyor": "This address does not want to receive invitations",
     "buAdresZatenRothernDeKayitliDizinden": "This address is already registered on Rothern — send a connection invitation from the directory",
-    "buAdreseDahaOnceDavetGonderilmis": "An invitation has already been sent to this address"
+    "buAdreseDahaOnceDavetGonderilmis": "An invitation has already been sent to this address",
+    "gonderilemedi": "Could not be sent"
   },
   "companySupplierTemplates": {
     "baglantinizOlmayanFirmaKayit": "Companies you are not connected to: {length, plural, one {# record} other {# records}}",
@@ -623,7 +700,10 @@
     "buPaketteKoltukSiniriYok": "This plan has no seat limit",
     "secimListesindeKoltukKullanmayanBirKullanici": "The selection list contains a user who does not use a seat",
     "enFazlaKoltukSecebilirsinizPaketLimiti": "You can select at most {limit, plural, one {# seat} other {# seats}} (plan limit)",
-    "gecersizIzin": "Invalid permission: {permission}"
+    "gecersizIzin": "Invalid permission: {permission}",
+    "enAzBirAktifYonetimYetkilisiKalmali": "The company must keep at least one active administrator (Founder/Manager)",
+    "koltukDoluBekleyenDahil": "All seats are taken ({used} active + {pending} pending invitations / {limit}) — upgrade your plan or free up a seat to grant buying/sales transaction permissions",
+    "koltukDoluIslemYetkisi": "All seats are taken ({used}/{limit}) — upgrade your plan or free up a seat to grant buying/sales transaction permissions"
   },
   "companyQuestionTemplates": {
     "sablonBulunamadi": "Template not found",
@@ -829,7 +909,8 @@
     "ilanBulunamadi": "Request not found"
   },
   "http": {
-    "bulunamadi": "Not found"
+    "bulunamadi": "Not found",
+    "cokFazlaDeneme": "Too many attempts. Please wait a minute and try again."
   },
   "companyDocs": {
     "firmaBulunamadi": "Company not found",
@@ -1081,7 +1162,10 @@
     }
   },
   "companyRequestDefaults": {
-    "talepSartlariGecersiz": "Request terms are invalid: {issues}"
+    "talepSartlariGecersiz": "Request terms are invalid: {issues}",
+    "anaParaBirimiIzinVerilenlerde": "The main currency must be among the allowed currencies",
+    "vadeGunSayisiZorunlu": "Number of payment term days is required",
+    "akreditifAltTipiniSecin": "Select the letter of credit subtype"
   },
   "notifications": {
     "common": {
@@ -1518,5 +1602,25 @@
   "storage": {
     "r2BucketErisilemiyor": "R2 bucket is not accessible",
     "dosyaIcerigiOkunamadi": "Could not read the file contents"
+  },
+  "companyAffinity": {
+    "reason": {
+      "own": {
+        "wonOrders": "You have completed orders in this area",
+        "bids": "You have submitted quotes in this area before",
+        "catalogItems": "Your catalog has items in this area",
+        "invitations": "You were invited to requests in this area",
+        "publishedListings": "You have published requests in this area",
+        "declared": "Marked in your areas of activity"
+      },
+      "thirdParty": {
+        "wonOrders": "Has completed orders in this area",
+        "bids": "Has submitted quotes in this area before",
+        "catalogItems": "Has items in this area in its catalog",
+        "invitations": "Was invited to requests in this area",
+        "publishedListings": "Has published requests in this area",
+        "declared": "Marked in its areas of activity"
+      }
+    }
   }
 }

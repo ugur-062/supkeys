@@ -351,7 +351,38 @@
       "miktarAraligi": "{label} 0,001 ile 1.000.000.000 arasında olmalı",
       "terminGecersiz": "Termin tarihi geçersiz (GG.AA.YYYY bekleniyor)",
       "birimTamSayi": "\"{unit}\" birimi tam sayı ister — ondalıklı miktar girilemez",
-      "birimOndalik": "Miktar \"{unit}\" için en fazla {n} ondalık olabilir"
+      "birimOndalik": "Miktar \"{unit}\" için en fazla {n} ondalık olabilir",
+      "template": {
+        "fileName": "rothern-satin-alma-talebi-kalem-sablonu",
+        "helpColumn": "Sütun",
+        "helpRequired": "Zorunlu",
+        "helpDescription": "Açıklama",
+        "yes": "Evet",
+        "no": "Hayır",
+        "noteHeader": "\"{sheet}\" sayfasında 1. satır başlıktır — DEĞİŞTİRMEYİN. Kalemleri 2. satırdan itibaren alt alta yazın.",
+        "noteMaxRows": "En fazla {max} kalem. Boş satırlar atlanır.",
+        "notePrices": "Fiyatlar KDV HARİÇ girilir. Ondalık ayracı virgül veya nokta olabilir (12,5 ya da 12.5).",
+        "noteDates": "Tarihler GG.AA.YYYY (ör. 15.09.2026) ya da Excel tarih hücresi olabilir.",
+        "noteUpload": "Dosyayı kaydedip (.xlsx) satın alma talebi formundaki ''Excel ile İçe Aktar'' ile yükleyin; aktarmadan önce önizleme görürsünüz.",
+        "noteColumns": "Sütunların sırası önemli değil; başlık metni aynı kaldığı sürece sütun ekleyip çıkarabilirsiniz (zorunlular hariç)."
+      },
+      "hint": {
+        "name": "Zorunlu. En fazla 200 karakter. Ör: Çelik boru 2\" DN50",
+        "quantity": "Zorunlu. Sayı; en fazla 3 ondalık (0,001 – 1.000.000.000). Ör: 120 veya 12,5",
+        "unit": "Zorunlu. En fazla 20 karakter. Ör: adet, kg, m, m², lt, paket, koli, ton",
+        "description": "İsteğe bağlı. Teknik özellik/şartname notu, en fazla 2000 karakter.",
+        "materialCode": "İsteğe bağlı. Stok/ERP kodunuz, en fazla 50 karakter.",
+        "requiredByDate": "İsteğe bağlı. Kalemin en geç teslim tarihi. GG.AA.YYYY ya da Excel tarih hücresi.",
+        "targetUnitPrice": "İsteğe bağlı. Bütçe/hedef birim fiyatınız (KDV hariç). Tedarikçiler GÖRMEZ."
+      },
+      "sample": {
+        "name1": "Çelik boru 2\" DN50 dikişsiz",
+        "description1": "ST37, 6 m boy, kaynaklı bağlantıya uygun",
+        "name2": "Dirsek 90° 2\"",
+        "unit2": "adet",
+        "name3": "Flanş DN50 PN16",
+        "description3": "Kör flanş, galvaniz"
+      }
     },
     "bidImport": {
       "birimFiyatSayiDegil": "Birim fiyat sayı değil",
@@ -365,7 +396,28 @@
       "kdvDahilUyari": "Belgedeki fiyatlar KDV DAHİL görünüyor — teklif fiyatları KDV hariç olmalı, kontrol edin",
       "belgeParaBirimiKabulEdilmiyor": "Belge para birimi ({currency}) bu satın alma talebinde kabul edilmiyor ({allowed})",
       "fiyatEslenemedi": "Belgeden satın alma talebi kalemlerine fiyat eşlenemedi — elle eşleyebilir ya da şablonu kullanabilirsiniz",
-      "dusukGuven": "{n} kalem düşük güvenle eşleşti — sarı satırları kontrol edin"
+      "dusukGuven": "{n} kalem düşük güvenle eşleşti — sarı satırları kontrol edin",
+      "birimFiyatAraligi": "Birim fiyat 0,01 ile 1e15 arasında olmalı",
+      "toplamdanTuretildi": "Birim fiyat belgedeki toplam ÷ miktardan türetildi",
+      "toplamUyusmuyor": "Belgede birim × miktar toplamla uyuşmuyor",
+      "miktarFarkli": "Belgedeki miktar ({docQuantity}) satın alma talebindekinden ({itemQuantity}) farklı",
+      "birimFarkli": "Belgedeki birim ({docUnit}) satın alma talebindekinden ({itemUnit}) farklı",
+      "satirParaBirimiKabulEdilmiyor": "Belgedeki para birimi ({currency}) bu satın alma talebinde kabul edilmiyor — teklif birimi kullanılacak",
+      "teslimAnlasilamadi": "Teslim süresi anlaşılamadı: \"{text}\"",
+      "template": {
+        "currencyTitle": "Para birimi",
+        "currencyError": "Bu satın alma talebinde kabul edilen para birimleri: {list}",
+        "deliveryTitle": "Teslim süresi",
+        "deliveryError": "Listeden seçin",
+        "helpTitle": "Teklif şablonu — {title}",
+        "helpSheet": "\"{sheet}\" sayfasındaki gri sütunlar satın alma talebinin kalemleridir, DEĞİŞTİRMEYİN (satır eklemeyin/silmeyin).",
+        "helpFill": "Beyaz sütunları doldurun: Birim Fiyat (KDV HARİÇ, zorunlu), Para Birimi (listeden), Teslim Süresi (listeden), Not.",
+        "helpSkip": "Teklif vermek istemediğiniz kalemin Birim Fiyat hücresini BOŞ bırakın (satın alma talebi tüm kalemleri zorunlu kılıyorsa uygulamada uyarılırsınız).",
+        "helpDecimal": "Ondalık ayracı virgül veya nokta olabilir (185,50 ya da 185.50).",
+        "helpUpload": "Dosyayı kaydedip teklif sayfasındaki ''Excel Şablonu ile Fiyatla'' ile yükleyin — önce önizleme görürsünüz, teklif göndermez.",
+        "fileNamePrefix": "teklif-sablonu",
+        "fileNameFallback": "satın alma talebi"
+      }
     },
     "cekIcinVadeGunSayisiZorunlu": "Çek için vade gün sayısı zorunlu",
     "senetIcinVadeGunSayisiZorunlu": "Senet için vade gün sayısı zorunlu",
@@ -373,7 +425,11 @@
     "alimIcinFormatSecin": "Alım ilanı için format seçin (Teklif Toplama / Pazarlık)",
     "satisIcinFormatSecin": "Satış ilanı için format seçin (Teklif Toplama / Açık Artırma)",
     "ozelTalebeYalnizDavetliFirmalar": "Bu özel satın alma talebine yalnızca davetli firmalar teklif verebilir",
-    "tekliIcinPremiumUyelikGerekir": "Bu ilana teklif vermek için premium üyelik gerekir"
+    "tekliIcinPremiumUyelikGerekir": "Bu ilana teklif vermek için premium üyelik gerekir",
+    "productMatch": {
+      "category": "Ürününüz bu kategoride: {product}",
+      "text": "Ürününüzle eşleşiyor: {product}"
+    }
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "İlan bulunamadı",
@@ -538,7 +594,8 @@
     "onerilenKazanan": "Önerilen Kazanan (kalem bazında en düşük)",
     "dosyaGenelRapor": "genel-rapor",
     "dosyaTasarrufRaporu": "tasarruf-raporu",
-    "dosyaTeklifKarsilastirma": "teklif-karsilastirma"
+    "dosyaTeklifKarsilastirma": "teklif-karsilastirma",
+    "digerKategoriler": "Diğer"
   },
   "companyViews": {
     "isAnaliziSilverVeUzeriPaketlerde": "İş Analizi Silver ve üzeri paketlerde."
@@ -552,7 +609,26 @@
     "gecersizWebhookImzasi": "Geçersiz webhook imzası"
   },
   "companyDashboard": {
-    "buPanoyuGoruntulemeYetkinizYok": "Bu panoyu görüntüleme yetkiniz yok"
+    "buPanoyuGoruntulemeYetkinizYok": "Bu panoyu görüntüleme yetkiniz yok",
+    "activity": {
+      "invitationSubtitle": "Satın Alma Talebi daveti · {number}",
+      "bidSubtitle": "Teklif · {number} · v{version}",
+      "orderTitle": "Sipariş",
+      "orderSubtitle": "Sipariş · {number}"
+    },
+    "funnel": {
+      "listings": "Satın Alma Talebi Açıldı",
+      "bids": "Teklif Aldı",
+      "awarded": "Kazandırıldı",
+      "orders": "Siparişe Döndü",
+      "delivered": "Teslim Edildi"
+    },
+    "pipeline": {
+      "invites": "Davet",
+      "submitted": "Teklif Verildi",
+      "evaluating": "Değerlendirmede",
+      "won": "Kazanıldı"
+    }
   },
   "companyConnections": {
     "tokenGerekli": "Token gerekli",
@@ -579,7 +655,8 @@
     "gunlukDisDavetLimitineUlasildi": "Günlük dış davet limitine ulaşıldı ({cap})",
     "buAdresDavetAlmakIstemiyor": "Bu adres davet almak istemiyor",
     "buAdresZatenRothernDeKayitliDizinden": "Bu adres zaten Rothern'de kayıtlı — dizinden bağlantı daveti gönderin",
-    "buAdreseDahaOnceDavetGonderilmis": "Bu adrese daha önce davet gönderilmiş"
+    "buAdreseDahaOnceDavetGonderilmis": "Bu adrese daha önce davet gönderilmiş",
+    "gonderilemedi": "Gönderilemedi"
   },
   "companySupplierTemplates": {
     "baglantinizOlmayanFirmaKayit": "Bağlantınız olmayan firma: {length} kayıt",
@@ -623,7 +700,10 @@
     "buPaketteKoltukSiniriYok": "Bu pakette koltuk sınırı yok",
     "secimListesindeKoltukKullanmayanBirKullanici": "Seçim listesinde koltuk kullanmayan bir kullanıcı var",
     "enFazlaKoltukSecebilirsinizPaketLimiti": "En fazla {limit} koltuk seçebilirsiniz (paket limiti)",
-    "gecersizIzin": "Geçersiz izin: {permission}"
+    "gecersizIzin": "Geçersiz izin: {permission}",
+    "enAzBirAktifYonetimYetkilisiKalmali": "Firmada en az bir aktif yönetim yetkilisi (Kurucu/Yönetici) kalmalı",
+    "koltukDoluBekleyenDahil": "Koltuk dolu ({used} aktif + {pending} bekleyen davet / {limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın",
+    "koltukDoluIslemYetkisi": "Koltuk dolu ({used}/{limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın"
   },
   "companyQuestionTemplates": {
     "sablonBulunamadi": "Şablon bulunamadı",
@@ -829,7 +909,8 @@
     "ilanBulunamadi": "İlan bulunamadı"
   },
   "http": {
-    "bulunamadi": "Bulunamadı"
+    "bulunamadi": "Bulunamadı",
+    "cokFazlaDeneme": "Çok fazla deneme yapıldı. Lütfen bir dakika bekleyip yeniden deneyin."
   },
   "companyDocs": {
     "firmaBulunamadi": "Firma bulunamadı",
@@ -1081,7 +1162,10 @@
     }
   },
   "companyRequestDefaults": {
-    "talepSartlariGecersiz": "Talep şartları geçersiz: {issues}"
+    "talepSartlariGecersiz": "Talep şartları geçersiz: {issues}",
+    "anaParaBirimiIzinVerilenlerde": "Ana para birimi izin verilenler arasında olmalı",
+    "vadeGunSayisiZorunlu": "Vade gün sayısı zorunlu",
+    "akreditifAltTipiniSecin": "Akreditif alt tipini seçin"
   },
   "notifications": {
     "common": {
@@ -1518,5 +1602,25 @@
   "storage": {
     "r2BucketErisilemiyor": "R2 bucket erişilemiyor",
     "dosyaIcerigiOkunamadi": "Dosya içeriği okunamadı"
+  },
+  "companyAffinity": {
+    "reason": {
+      "own": {
+        "wonOrders": "Bu alanda tamamlanmış siparişiniz var",
+        "bids": "Bu alanda daha önce teklif verdiniz",
+        "catalogItems": "Kataloğunuzda bu alandan kalemler var",
+        "invitations": "Bu alandaki taleplere davet edildiniz",
+        "publishedListings": "Bu alanda ilan yayınladınız",
+        "declared": "Faaliyet alanlarınızda işaretli"
+      },
+      "thirdParty": {
+        "wonOrders": "Bu alanda tamamlanmış siparişi var",
+        "bids": "Bu alanda daha önce teklif verdi",
+        "catalogItems": "Kataloğunda bu alandan kalemler var",
+        "invitations": "Bu alandaki taleplere davet edildi",
+        "publishedListings": "Bu alanda ilan yayınladı",
+        "declared": "Faaliyet alanlarında işaretli"
+      }
+    }
   }
 }

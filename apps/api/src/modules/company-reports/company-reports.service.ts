@@ -5,6 +5,8 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import type { Prisma } from "@rothern/db";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
+import { shortMonthLabel, tApi } from "../../common/i18n/i18n.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import {
   bidRateToTry,
@@ -850,20 +852,6 @@ export class CompanyReportsService {
     const now = new Date();
     const start6 = new Date(now.getFullYear(), now.getMonth() - 5, 1);
     const start12 = new Date(now.getFullYear(), now.getMonth() - 11, 1);
-    const MONTHS_TR = [
-      "Oca",
-      "Şub",
-      "Mar",
-      "Nis",
-      "May",
-      "Haz",
-      "Tem",
-      "Ağu",
-      "Eyl",
-      "Eki",
-      "Kas",
-      "Ara",
-    ];
     const monthKey = (d: Date) =>
       `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
     const buckets = new Map<
@@ -873,7 +861,7 @@ export class CompanyReportsService {
     for (let i = 5; i >= 0; i--) {
       const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
       buckets.set(monthKey(d), {
-        label: MONTHS_TR[d.getMonth()],
+        label: shortMonthLabel(d),
         listings: 0,
         bids: 0,
         orderTotalTry: 0,
@@ -954,10 +942,10 @@ export class CompanyReportsService {
     const catNames = top.length
       ? await this.prisma.category.findMany({
           where: { id: { in: top.map(([id]) => id) } },
-          select: { id: true, nameTr: true },
+          select: { id: true, ...CATEGORY_NAME_SELECT },
         })
       : [];
-    const nameById = new Map(catNames.map((c) => [c.id, c.nameTr]));
+    const nameById = new Map(catNames.map((c) => [c.id, categoryName(c)]));
     const rest = [...catCounts.values()].reduce((a, b) => a + b, 0) -
       top.reduce((a, [, n]) => a + n, 0);
     const categories = [
@@ -965,7 +953,7 @@ export class CompanyReportsService {
         name: nameById.get(id) ?? id,
         count,
       })),
-      ...(rest > 0 ? [{ name: "Diğer", count: rest }] : []),
+      ...(rest > 0 ? [{ name: tApi("api.companyReports.digerKategoriler"), count: rest }] : []),
     ];
 
     return {

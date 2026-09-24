@@ -351,7 +351,38 @@
       "miktarAraligi": "{label}: значение должно быть от 0,001 до 1 000 000 000",
       "terminGecersiz": "Недействительный срок (ожидается ДД.ММ.ГГГГ)",
       "birimTamSayi": "Единица «{unit}» требует целого числа — дробное количество ввести нельзя",
-      "birimOndalik": "Количество для «{unit}» может иметь не более {n, plural, one {# знака} few {# знаков} many {# знаков} other {# знака}} после запятой"
+      "birimOndalik": "Количество для «{unit}» может иметь не более {n, plural, one {# знака} few {# знаков} many {# знаков} other {# знака}} после запятой",
+      "template": {
+        "fileName": "rothern-zayavka-na-zakupku-shablon-pozitsiy",
+        "helpColumn": "Столбец",
+        "helpRequired": "Обязательно",
+        "helpDescription": "Описание",
+        "yes": "Да",
+        "no": "Нет",
+        "noteHeader": "Строка 1 на листе «{sheet}» — заголовок, НЕ ИЗМЕНЯЙТЕ её. Вводите позиции по одной в строке, начиная со строки 2.",
+        "noteMaxRows": "Не более {max, plural, one {# позиции} few {# позиций} many {# позиций} other {# позиции}}. Пустые строки пропускаются.",
+        "notePrices": "Цены указываются БЕЗ НДС. Десятичным разделителем может быть запятая или точка (12,5 или 12.5).",
+        "noteDates": "Даты указываются в формате ДД.ММ.ГГГГ (например, 15.09.2026) или как ячейка даты Excel.",
+        "noteUpload": "Сохраните файл (.xlsx) и загрузите его через «Импорт из Excel» в форме заявки на закупку; перед импортом Вы увидите предпросмотр.",
+        "noteColumns": "Порядок столбцов не важен; можно добавлять и удалять столбцы (кроме обязательных), если текст заголовков остаётся прежним."
+      },
+      "hint": {
+        "name": "Обязательно. Не более 200 символов. Например: Труба стальная 2\" DN50",
+        "quantity": "Обязательно. Число; не более 3 знаков после запятой (0,001 – 1 000 000 000). Например: 120 или 12,5",
+        "unit": "Обязательно. Не более 20 символов. Например: adet, kg, m, m², lt, paket, koli, ton",
+        "description": "Необязательно. Технические характеристики или примечание к спецификации, не более 2000 символов.",
+        "materialCode": "Необязательно. Ваш складской/ERP-код, не более 50 символов.",
+        "requiredByDate": "Необязательно. Крайний срок поставки позиции. ДД.ММ.ГГГГ или ячейка даты Excel.",
+        "targetUnitPrice": "Необязательно. Ваша бюджетная/целевая цена за единицу (без НДС). Поставщики её НЕ ВИДЯТ."
+      },
+      "sample": {
+        "name1": "Труба стальная 2\" DN50 бесшовная",
+        "description1": "ST37, длина 6 м, под сварное соединение",
+        "name2": "Отвод 90° 2\"",
+        "unit2": "adet",
+        "name3": "Фланец DN50 PN16",
+        "description3": "Глухой фланец, оцинкованный"
+      }
     },
     "bidImport": {
       "birimFiyatSayiDegil": "Цена за единицу не является числом",
@@ -365,7 +396,28 @@
       "kdvDahilUyari": "Цены в документе, по-видимому, указаны С НДС — цены в предложении должны быть без НДС, проверьте",
       "belgeParaBirimiKabulEdilmiyor": "Валюта документа ({currency}) не принимается в этой заявке на закупку ({allowed})",
       "fiyatEslenemedi": "Не удалось сопоставить цены из документа с позициями заявки на закупку — сопоставьте их вручную или используйте шаблон",
-      "dusukGuven": "{n, plural, one {# позиция сопоставлена} few {# позиции сопоставлены} many {# позиций сопоставлено} other {# позиции сопоставлено}} с низкой уверенностью — проверьте жёлтые строки"
+      "dusukGuven": "{n, plural, one {# позиция сопоставлена} few {# позиции сопоставлены} many {# позиций сопоставлено} other {# позиции сопоставлено}} с низкой уверенностью — проверьте жёлтые строки",
+      "birimFiyatAraligi": "Цена за единицу должна быть от 0,01 до 1e15",
+      "toplamdanTuretildi": "Цена за единицу рассчитана как итог в документе ÷ количество",
+      "toplamUyusmuyor": "В документе цена за единицу × количество не совпадает с итогом",
+      "miktarFarkli": "Количество в документе ({docQuantity}) отличается от указанного в заявке на закупку ({itemQuantity})",
+      "birimFarkli": "Единица измерения в документе ({docUnit}) отличается от указанной в заявке на закупку ({itemUnit})",
+      "satirParaBirimiKabulEdilmiyor": "Валюта в документе ({currency}) не принимается в этой заявке на закупку — будет использована валюта предложения",
+      "teslimAnlasilamadi": "Не удалось распознать срок поставки: «{text}»",
+      "template": {
+        "currencyTitle": "Валюта",
+        "currencyError": "Валюты, принимаемые в этой заявке на закупку: {list}",
+        "deliveryTitle": "Срок поставки",
+        "deliveryError": "Выберите из списка",
+        "helpTitle": "Шаблон предложения — {title}",
+        "helpSheet": "Серые столбцы на листе «{sheet}» — позиции заявки на закупку, НЕ ИЗМЕНЯЙТЕ их (не добавляйте и не удаляйте строки).",
+        "helpFill": "Заполните белые столбцы: «Birim Fiyat» (цена за единицу, БЕЗ НДС, обязательно), «Para Birimi» (валюта, из списка), «Teslim Süresi» (срок поставки, из списка), «Not» (примечание).",
+        "helpSkip": "Оставьте ячейку «Birim Fiyat» (цена за единицу) ПУСТОЙ для позиций, по которым Вы не хотите делать предложение (если заявка на закупку требует всех позиций, приложение предупредит Вас).",
+        "helpDecimal": "Десятичным разделителем может быть запятая или точка (185,50 или 185.50).",
+        "helpUpload": "Сохраните файл и загрузите его через «Заполнить цены по шаблону Excel» на странице предложения — сначала Вы увидите предпросмотр; предложение при этом не отправляется.",
+        "fileNamePrefix": "shablon-predlozheniya",
+        "fileNameFallback": "zayavka-na-zakupku"
+      }
     },
     "cekIcinVadeGunSayisiZorunlu": "Для чека необходимо указать срок отсрочки в днях",
     "senetIcinVadeGunSayisiZorunlu": "Для векселя необходимо указать срок отсрочки в днях",
@@ -373,7 +425,11 @@
     "alimIcinFormatSecin": "Выберите формат заявки на закупку (Сбор предложений / Переговоры)",
     "satisIcinFormatSecin": "Выберите формат объявления о продаже (Сбор предложений / Аукцион на повышение)",
     "ozelTalebeYalnizDavetliFirmalar": "На эту закрытую заявку на закупку могут отправлять предложения только приглашённые компании",
-    "tekliIcinPremiumUyelikGerekir": "Чтобы отправить предложение на этот запрос, требуется премиум-подписка"
+    "tekliIcinPremiumUyelikGerekir": "Чтобы отправить предложение на этот запрос, требуется премиум-подписка",
+    "productMatch": {
+      "category": "Ваш товар относится к этой категории: {product}",
+      "text": "Совпадает с Вашим товаром: {product}"
+    }
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "Запрос не найден",
@@ -538,7 +594,8 @@
     "onerilenKazanan": "Рекомендуемый победитель (минимальная цена по позиции)",
     "dosyaGenelRapor": "obshchiy-otchet",
     "dosyaTasarrufRaporu": "otchet-ob-ekonomii",
-    "dosyaTeklifKarsilastirma": "sravnenie-predlozheniy"
+    "dosyaTeklifKarsilastirma": "sravnenie-predlozheniy",
+    "digerKategoriler": "Прочее"
   },
   "companyViews": {
     "isAnaliziSilverVeUzeriPaketlerde": "Бизнес-аналитика доступна в тарифах Silver и выше."
@@ -552,7 +609,26 @@
     "gecersizWebhookImzasi": "Недействительная подпись вебхука"
   },
   "companyDashboard": {
-    "buPanoyuGoruntulemeYetkinizYok": "У вас нет прав на просмотр этой панели"
+    "buPanoyuGoruntulemeYetkinizYok": "У вас нет прав на просмотр этой панели",
+    "activity": {
+      "invitationSubtitle": "Приглашение в заявку на закупку · {number}",
+      "bidSubtitle": "Предложение · {number} · v{version}",
+      "orderTitle": "Заказ",
+      "orderSubtitle": "Заказ · {number}"
+    },
+    "funnel": {
+      "listings": "Заявка на закупку открыта",
+      "bids": "Получены предложения",
+      "awarded": "Присуждено",
+      "orders": "Оформлен заказ",
+      "delivered": "Доставлено"
+    },
+    "pipeline": {
+      "invites": "Приглашение",
+      "submitted": "Предложение отправлено",
+      "evaluating": "На рассмотрении",
+      "won": "Выиграно"
+    }
   },
   "companyConnections": {
     "tokenGerekli": "Требуется токен",
@@ -579,7 +655,8 @@
     "gunlukDisDavetLimitineUlasildi": "Достигнут дневной лимит внешних приглашений ({cap})",
     "buAdresDavetAlmakIstemiyor": "Этот адрес не хочет получать приглашения",
     "buAdresZatenRothernDeKayitliDizinden": "Этот адрес уже зарегистрирован в Rothern — отправьте приглашение в контакты из каталога",
-    "buAdreseDahaOnceDavetGonderilmis": "На этот адрес уже было отправлено приглашение"
+    "buAdreseDahaOnceDavetGonderilmis": "На этот адрес уже было отправлено приглашение",
+    "gonderilemedi": "Не удалось отправить"
   },
   "companySupplierTemplates": {
     "baglantinizOlmayanFirmaKayit": "Компании, с которыми у вас нет контакта: {length, plural, one {# запись} few {# записи} many {# записей} other {# записи}}",
@@ -623,7 +700,10 @@
     "buPaketteKoltukSiniriYok": "В этом тарифе нет лимита мест",
     "secimListesindeKoltukKullanmayanBirKullanici": "В списке выбора есть пользователь, не занимающий место",
     "enFazlaKoltukSecebilirsinizPaketLimiti": "Вы можете выбрать не более {limit, plural, one {# места} few {# мест} many {# мест} other {# мест}} (лимит тарифа)",
-    "gecersizIzin": "Некорректное право: {permission}"
+    "gecersizIzin": "Некорректное право: {permission}",
+    "enAzBirAktifYonetimYetkilisiKalmali": "В компании должен остаться хотя бы один активный администратор (Основатель/Руководитель)",
+    "koltukDoluBekleyenDahil": "Все места заняты ({used} активных + {pending} ожидающих приглашений / {limit}) — чтобы выдать права на операции закупок/продаж, повысьте тариф или освободите место",
+    "koltukDoluIslemYetkisi": "Все места заняты ({used}/{limit}) — чтобы выдать права на операции закупок/продаж, повысьте тариф или освободите место"
   },
   "companyQuestionTemplates": {
     "sablonBulunamadi": "Шаблон не найден",
@@ -829,7 +909,8 @@
     "ilanBulunamadi": "Запрос не найден"
   },
   "http": {
-    "bulunamadi": "Не найдено"
+    "bulunamadi": "Не найдено",
+    "cokFazlaDeneme": "Слишком много попыток. Подождите минуту и попробуйте снова."
   },
   "companyDocs": {
     "firmaBulunamadi": "Компания не найдена",
@@ -1081,7 +1162,10 @@
     }
   },
   "companyRequestDefaults": {
-    "talepSartlariGecersiz": "Условия запроса некорректны: {issues}"
+    "talepSartlariGecersiz": "Условия запроса некорректны: {issues}",
+    "anaParaBirimiIzinVerilenlerde": "Основная валюта должна входить в число разрешённых",
+    "vadeGunSayisiZorunlu": "Количество дней отсрочки платежа обязательно",
+    "akreditifAltTipiniSecin": "Выберите подтип аккредитива"
   },
   "notifications": {
     "common": {
@@ -1518,5 +1602,25 @@
   "storage": {
     "r2BucketErisilemiyor": "Бакет R2 недоступен",
     "dosyaIcerigiOkunamadi": "Не удалось прочитать содержимое файла"
+  },
+  "companyAffinity": {
+    "reason": {
+      "own": {
+        "wonOrders": "У Вас есть выполненные заказы в этой области",
+        "bids": "Вы уже отправляли предложения в этой области",
+        "catalogItems": "В Вашем каталоге есть позиции из этой области",
+        "invitations": "Вас приглашали в запросы в этой области",
+        "publishedListings": "Вы публиковали запросы в этой области",
+        "declared": "Отмечено в Ваших сферах деятельности"
+      },
+      "thirdParty": {
+        "wonOrders": "Есть выполненные заказы в этой области",
+        "bids": "Ранее отправляла предложения в этой области",
+        "catalogItems": "В каталоге есть позиции из этой области",
+        "invitations": "Приглашалась в запросы в этой области",
+        "publishedListings": "Публиковала запросы в этой области",
+        "declared": "Отмечено в её сферах деятельности"
+      }
+    }
   }
 }

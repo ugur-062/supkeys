@@ -154,8 +154,10 @@ export class BidImportService {
             allowBlank: true,
             formulae: [`"${currencyList.join(",")}"`],
             showErrorMessage: true,
-            errorTitle: "Para birimi",
-            error: `Bu satın alma talebinde kabul edilen para birimleri: ${currencyList.join(", ")}`,
+            errorTitle: tApi("api.companyListings.bidImport.template.currencyTitle"),
+            error: tApi("api.companyListings.bidImport.template.currencyError", {
+              list: currencyList.join(", "),
+            }),
           };
         }
         if (c.key === "deliveryTime") {
@@ -164,8 +166,8 @@ export class BidImportService {
             allowBlank: true,
             formulae: [`"${deliveryList.join(",")}"`],
             showErrorMessage: true,
-            errorTitle: "Teslim süresi",
-            error: "Listeden seçin",
+            errorTitle: tApi("api.companyListings.bidImport.template.deliveryTitle"),
+            error: tApi("api.companyListings.bidImport.template.deliveryError"),
           };
         }
       });
@@ -186,13 +188,13 @@ export class BidImportService {
     const help = wb.addWorksheet(BID_IMPORT_HELP_SHEET);
     help.columns = [{ width: 110 }];
     const lines = [
-      `Teklif şablonu — ${l.title}`,
+      tApi("api.companyListings.bidImport.template.helpTitle", { title: l.title }),
       "",
-      `"${BID_IMPORT_SHEET}" sayfasındaki gri sütunlar satın alma talebinin kalemleridir, DEĞİŞTİRMEYİN (satır eklemeyin/silmeyin).`,
-      "Beyaz sütunları doldurun: Birim Fiyat (KDV HARİÇ, zorunlu), Para Birimi (listeden), Teslim Süresi (listeden), Not.",
-      "Teklif vermek istemediğiniz kalemin Birim Fiyat hücresini BOŞ bırakın (satın alma talebi tüm kalemleri zorunlu kılıyorsa uygulamada uyarılırsınız).",
-      "Ondalık ayracı virgül veya nokta olabilir (185,50 ya da 185.50).",
-      "Dosyayı kaydedip teklif sayfasındaki 'Excel Şablonu ile Fiyatla' ile yükleyin — önce önizleme görürsünüz, teklif göndermez.",
+      tApi("api.companyListings.bidImport.template.helpSheet", { sheet: BID_IMPORT_SHEET }),
+      tApi("api.companyListings.bidImport.template.helpFill"),
+      tApi("api.companyListings.bidImport.template.helpSkip"),
+      tApi("api.companyListings.bidImport.template.helpDecimal"),
+      tApi("api.companyListings.bidImport.template.helpUpload"),
     ];
     lines.forEach((t, i) => {
       const r = help.addRow([t]);
@@ -201,8 +203,11 @@ export class BidImportService {
     });
 
     const out = await wb.xlsx.writeBuffer();
-    const safe = l.title.replace(/[^a-zA-Z0-9ğüşöçıİĞÜŞÖÇ _-]/g, "").slice(0, 40).trim() || "satın alma talebi";
-    return { buffer: Buffer.from(out as ArrayBuffer), fileName: `teklif-sablonu-${safe}.xlsx` };
+    const safe =
+      l.title.replace(/[^a-zA-Z0-9ğüşöçıİĞÜŞÖÇ _-]/g, "").slice(0, 40).trim() ||
+      tApi("api.companyListings.bidImport.template.fileNameFallback");
+    const prefix = tApi("api.companyListings.bidImport.template.fileNamePrefix");
+    return { buffer: Buffer.from(out as ArrayBuffer), fileName: `${prefix}-${safe}.xlsx` };
   }
 
   // ------------------------------------------------------------ ŞABLON OKU

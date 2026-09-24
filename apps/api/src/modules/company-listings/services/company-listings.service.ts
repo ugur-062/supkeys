@@ -626,7 +626,7 @@ export class CompanyListingsService {
         } as const);
     const FOOTER = "api.notifications.listings.categoryMatch.footerNote" as const;
     const PLANS_CTA = "api.notifications.listings.cta.viewPlans" as const;
-    const p = { title: listing.title ?? "İlan", number: listing.number ?? "—" };
+    const p = { title: listing.title, number: listing.number ?? "—" };
     // Ücretsiz (efektif STANDART) alıcı: talep ona KİLİTLİ — metin dürüst olsun,
     // CTA paket sayfasına (kilit kartı satış anasayfasında da sayıyı gösterir).
     // Ücretsiz ama alıcıyla GEÇERLİ bağlantısı olan firma talebi görebilir ve
@@ -6356,6 +6356,8 @@ export class CompanyListingsService {
         bidsOpenAt: true,
         type: true,
         createdById: true,
+        title: true,
+        number: true,
       },
     });
     if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
@@ -6411,18 +6413,14 @@ export class CompanyListingsService {
       const embargoed =
         listing.bidsOpenAt && listing.bidsOpenAt.getTime() > Date.now();
       if (listing.status === "OPEN" && !embargoed) {
-        const title = await this.prisma.listing.findUnique({
-          where: { id: listingId },
-          select: { title: true, number: true },
-        });
         const url = appRoutes.listing(this.webUrl(), listingId);
         const addPortal = this.bidderPortal(listing.type);
         const addRecipients = await this.companyRecipients(toAdd, addPortal);
         // Aynı cümle `notifyListingInvitees`in "invitation" modunda da
         // kullanılır — anahtarlar ortak, iki yüzey ayrışmaz.
         const p = {
-          title: title?.title ?? "Satın Alma Talebi",
-          number: title?.number ?? "—",
+          title: listing.title,
+          number: listing.number ?? "—",
         };
         for (const cid of toAdd) {
           const r = addRecipients.get(cid);
@@ -6521,6 +6519,8 @@ export class CompanyListingsService {
         status: true,
         type: true,
         createdById: true,
+        title: true,
+        number: true,
       },
     });
     if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
@@ -6563,18 +6563,14 @@ export class CompanyListingsService {
     }
 
     // Tedarikçiye eleme bildirimi (gerekçe paylaşılmaz — eski sistem davranışı).
-    const info = await this.prisma.listing.findUnique({
-      where: { id: listingId },
-      select: { title: true, number: true, type: true },
-    });
-    const elimPortal = info ? this.bidderPortal(info.type) : undefined;
+    const elimPortal = this.bidderPortal(listing.type);
     const recipient = await this.companyRecipient(
       bid.bidderCompanyId,
       elimPortal,
     );
     const elimParams = {
-      title: info?.title ?? "Satın Alma Talebi",
-      number: info?.number ?? "—",
+      title: listing.title,
+      number: listing.number ?? "—",
     };
     if (recipient) {
       this.notify(

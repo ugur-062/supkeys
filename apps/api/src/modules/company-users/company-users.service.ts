@@ -63,7 +63,7 @@ const INVITATION_TTL_DAYS = 7;
  */
 class LastActiveAdminError extends BadRequestException {
   constructor() {
-    super("Firmada en az bir aktif yönetim yetkilisi (Kurucu/Yönetici) kalmalı");
+    super(i18nMessage("api.companyUsers.enAzBirAktifYonetimYetkilisiKalmali"));
   }
 }
 
@@ -1524,8 +1524,12 @@ export class CompanyUsersService {
       }
       throw new BadRequestException(
         opts.includePending && pendingSeatInvites > 0
-          ? `Koltuk dolu (${used} aktif + ${pendingSeatInvites} bekleyen davet / ${limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın`
-          : `Koltuk dolu (${used}/${limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın`,
+          ? i18nMessage("api.companyUsers.koltukDoluBekleyenDahil", {
+              used,
+              pending: pendingSeatInvites,
+              limit,
+            })
+          : i18nMessage("api.companyUsers.koltukDoluIslemYetkisi", { used, limit }),
       );
     }
   }

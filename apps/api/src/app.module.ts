@@ -7,7 +7,7 @@ import { SentryModule } from "@sentry/nestjs/setup";
 import { ServerErrorSentryFilter } from "./common/logging/server-error-sentry.filter";
 import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
-import { THROTTLE_MESSAGE } from "./common/http/throttle-message";
+import { throttleMessage } from "./common/http/throttle-message";
 import { ClientIpThrottlerGuard } from "./common/http/client-ip-throttler.guard";
 import { maskSensitiveUrl } from "./common/logging/mask-sensitive-url";
 import { LoggerModule } from "nestjs-pino";
@@ -155,7 +155,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     // kütüphane varsayılanı "ThrottlerException: Too Many Requests" idi
     // (2026-09-19 incelemesinde staging giriş ekranında görüldü).
     ThrottlerModule.forRoot({
-      errorMessage: THROTTLE_MESSAGE,
+      errorMessage: () => throttleMessage(),
       throttlers: [
         {
           name: "default",
