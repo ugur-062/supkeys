@@ -183,4 +183,8 @@ describe("categoryHref — dilden bağımsız kategori adresi (i18n Faz 4)", () 
     expect(categoryHref({ id: "39000000", name: "Elektrik Sistemleri" })).toBe("/urunler/kategori/39000000-elektrik-sistemleri");
     expect(categoryHref({ id: "39000000" })).toBe("/urunler/kategori/39000000");
   });
+  it("segment dışı kod (L2-L4) kategori sayfasına değil süzgeçli dizine gider — sayfa yalnız segmentte var (2026-09-24)", () => {
+    expect(categoryHref({ id: "31163200", name: "Tutucu hırdavat", slug: "tutucu-hirdavat" })).toBe("/urunler?kategori=31163200");
+    expect(categoryHref({ id: "31160000", name: "Donanım" })).toBe("/urunler?kategori=31160000");
+  });
 });

@@ -98,8 +98,23 @@ export const listingPath = sharedListingPath;
  * önce; yoksa addan üretilir. Çevrilmiş addan slug üretmek dile göre değişen
  * adres ve 308 zinciri demekti (talep adresiyle aynı karar, i18n Faz 4).
  */
+/**
+ * Kategori bağlantısı — TEK KURAL (2026-09-24): kategori SAYFASI yalnız SEGMENT
+ * (L1, `XX000000`) kodları için vardır (sayfa `facets.categories`ten çözer, facet
+ * alt kodları segmentine yuvarlar). Daha derin kod (ürün kırıntısı, arama
+ * önerisi, JSON-LD) süzgeçli dizine gider: `/urunler?kategori=<kod>` — bağlantı
+ * hiçbir zaman 404'e düşmez (ürün sayfasındaki L3 kırıntısı Türkçede de 404
+ * veriyordu, üç dilli bağlantı taraması yakaladı). Segment adresi API `slug`ı
+ * (Türkçe ad) ile; yoksa addan üretim yalnız yedek.
+ */
 export function categoryHref(c: { id: string; name?: string | null; slug?: string | null }): string {
+  if (!isSegmentCode(c.id)) return `${PUBLIC_PATHS.products}?kategori=${c.id}`;
   return c.slug ? `${PUBLIC_PATHS.products}/kategori/${c.id}-${c.slug}` : categoryPath(c.id, c.name ?? undefined);
+}
+
+/** 8 haneli kodun segment (L1) olup olmadığı: `31000000` evet, `31163200` hayır. */
+export function isSegmentCode(code: string): boolean {
+  return /^\d{2}000000$/.test(code);
 }
 
 export function listingHref(l: { number: string; title: string; slug?: string | null }): string {

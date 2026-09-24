@@ -71,7 +71,7 @@ describe("SearchTypeahead", () => {
     await u.type(screen.getByRole("combobox", { name: /içinde ara/ }), "pano");
     await screen.findByText("Panolar");
     await u.keyboard("{ArrowDown}{Enter}");
-    expect(h.push).toHaveBeenCalledWith(expect.stringContaining("/urunler/kategori/39120000"));
+    expect(h.push).toHaveBeenCalledWith(expect.stringContaining("/urunler?kategori=39120000"));
   });
 
   it("son aramalar yazılır ve boş kutuda gösterilir", async () => {
