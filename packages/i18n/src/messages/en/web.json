@@ -730,15 +730,6 @@
     "searchTabs": {
       "label": "Result type"
     },
-    "indexIntro": {
-      "categoryTotal": "{total, plural, one {# product is} other {# products are}} listed on Rothern in the {subject} category.",
-      "cityTotal": "Companies based in {subject} list {total, plural, one {# product} other {# products}} in their Rothern showcases.",
-      "cities": "Provinces where products are listed: {list}.",
-      "cats": "Categories with the most products: {list}.",
-      "activities": "Companies listing products include {list}.",
-      "allPriced": "Every product shows a price.",
-      "somePriced": "{priced, plural, one {# product shows} other {# products show}} a price; you can request a quote from the seller for the rest."
-    },
     "empty": {
       "notFound": "No {noun} found.",
       "clear": "Clear filters",

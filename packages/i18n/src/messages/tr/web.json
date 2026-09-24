@@ -730,15 +730,6 @@
     "searchTabs": {
       "label": "Sonuç türü"
     },
-    "indexIntro": {
-      "categoryTotal": "Rothern'de {subject} kategorisinde {total} ürün listeli.",
-      "cityTotal": "{subject} merkezli firmaların Rothern vitrinlerinde {total} ürün listeli.",
-      "cities": "Ürünlerin bulunduğu iller: {list}.",
-      "cats": "En çok ürün bulunan kategoriler: {list}.",
-      "activities": "Ürünleri listeleyen firmalar arasında {list} bulunuyor.",
-      "allPriced": "Ürünlerin tamamında fiyat açık yazılı.",
-      "somePriced": "{priced} üründe fiyat açık yazılı; kalanı için satıcıdan teklif isteyebilirsiniz."
-    },
     "empty": {
       "notFound": "{noun} bulunamadı.",
       "clear": "Filtreleri temizle",

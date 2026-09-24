@@ -730,15 +730,6 @@
     "searchTabs": {
       "label": "Тип результатов"
     },
-    "indexIntro": {
-      "categoryTotal": "В категории «{subject}» на Rothern размещено {total, plural, one {# товар} few {# товара} many {# товаров} other {# товара}}.",
-      "cityTotal": "Компании из региона {subject} разместили на витринах Rothern {total, plural, one {# товар} few {# товара} many {# товаров} other {# товара}}.",
-      "cities": "Регионы, где размещены товары: {list}.",
-      "cats": "Категории с наибольшим числом товаров: {list}.",
-      "activities": "Среди компаний, разместивших товары: {list}.",
-      "allPriced": "Цена указана у всех товаров.",
-      "somePriced": "Цена указана у {priced, plural, one {# товара} few {# товаров} many {# товаров} other {# товара}}; по остальным можно запросить предложение у продавца."
-    },
     "empty": {
       "notFound": "{noun}: ничего не найдено.",
       "clear": "Сбросить фильтры",

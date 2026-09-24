@@ -1,4 +1,3 @@
-import { provinceDisplayName } from "@rothern/shared";
 import { getLocale, getTranslations } from "next-intl/server";
 import { FilterResults, FilterShell, MobileFilterButton, ResultCount } from "./filter-shell";
 import { Pagination } from "@/components/ui/pagination";
@@ -11,7 +10,6 @@ import { crossCounts } from "@/lib/public/cross-counts";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
 import { CityLinks } from "./city-links";
-import { IndexIntro } from "./index-intro";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbNode, graph, itemListNode } from "@/lib/seo/jsonld";
 import { categoryHref } from "@/lib/public/marketplace";
@@ -47,12 +45,11 @@ interface Props {
   /** Şehir açılış sayfası: süzgeç URL'den değil YOLDAN gelir (Parça 3). */
   fixedCity?: string;
   /** Listenin ÜSTÜNDE görünen giriş metni (GEO: alıntılanabilir tanım). */
-  intro?: ReactNode;
   /** Listenin ALTINDA görünen bağlantı şeridi (iç bağlantı ağı). */
   footer?: ReactNode;
 }
 
-export async function ProductIndex({ title, lead, searchParams, category, image, fixedCity, intro, footer }: Props) {
+export async function ProductIndex({ title, lead, searchParams, category, image, fixedCity, footer }: Props) {
   const t = await getTranslations("web.marketplace.index");
   const tl = await getTranslations("web.marketplace.labels");
   const tt = await getTranslations("web.marketplace.typeahead");
@@ -110,15 +107,10 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
   return (
     <>
     <JsonLd data={listLd} />
-    {/* Giriş paragrafı: kategori ve şehir sayfalarında VERİDEN türetilir
-        (Parça 4). Ana dizinde çizilmez — orada özne yok, cümle "Rothern'de
-        57 ürün var" gibi boş bir tekrar olurdu. */}
-    {intro ??
-      (category ? (
-        <IndexIntro subject={category.name} total={page.total} facets={facets} kind="category" />
-      ) : fixedCity ? (
-        <IndexIntro subject={provinceDisplayName(fixedCity, locale)} total={page.total} facets={facets} kind="city" />
-      ) : null)}
+    {/* Giriş paragrafı (kategori/şehir özeti) KALDIRILDI — 2026-09-24,
+        kullanıcı: "rothern header alt kısmındaki bilgiyi kaldır, diğer tüm
+        dillerde de". Özet cümle JSON-LD `ItemList` ve meta açıklamasında
+        yaşamaya devam eder; sayfada tekrar çizilmez. */}
     <FilterShell basePath={basePath} fixedCategory={category?.id} total={page.total} pushFilters drawer={<ProductFilters facets={facets} idPrefix="m" />}>
       <PublicListPage
           tabs={
