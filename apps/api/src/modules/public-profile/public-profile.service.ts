@@ -154,7 +154,12 @@ export class PublicProfileService {
     };
     if (!this.translations) return profile;
     const [localized] = await this.translations.localizeCompanies([profile], [c.id], currentLocale());
-    return localized ?? profile;
+    const out = localized ?? profile;
+    // Tanıtım metni bu dilde henüz çevrilmediyse profil indekslenmez (i18n SEO).
+    if (out.indexable && (await this.translations.translationPending("COMPANY", c.id, currentLocale()))) {
+      return { ...out, indexable: false };
+    }
+    return out;
   }
 
   /** Herkese açık firma dizini — TEK KAYNAK `common/company/company-directory.ts` (panel de okur). */
@@ -355,8 +360,12 @@ export class PublicProfileService {
     const [localizedProduct] = this.translations
       ? await this.translations.localizeProducts([product], [row.id], currentLocale())
       : [product];
+    // Bu dilde çeviri henüz gelmediyse sayfa `noindex` basar (i18n SEO).
+    const translationPending = this.translations
+      ? await this.translations.translationPending("PRODUCT", row.id, currentLocale())
+      : false;
     return {
-      product: localizedProduct ?? product,
+      product: { ...(localizedProduct ?? product), translationPending },
       company: {
         name: company.name,
         slug: company.slug,

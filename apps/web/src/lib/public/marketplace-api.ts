@@ -306,6 +306,8 @@ export interface PublicProductCard extends ProductPriceFields {
 }
 
 export interface PublicProduct extends Omit<PublicProductCard, "excerpt"> {
+  /** Bu dilde çeviri henüz gelmedi (sayfa kaynak metni gösterir) → `noindex`. */
+  translationPending?: boolean;
   description: string | null;
   specification: string | null;
   brand: string | null;

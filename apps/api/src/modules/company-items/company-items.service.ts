@@ -1005,10 +1005,10 @@ export class CompanyItemsService {
     });
     // Yayındaki ürünün sayfası değişti → motorlar ve web önbelleği. Taslakta
     // herkese açık adres yok; bildirim gereksiz.
-    if (row.isPublic) {
-      this.seo?.productChanged(id);
-      void this.translations?.enqueue("PRODUCT", id);
-    }
+    if (row.isPublic) this.seo?.productChanged(id);
+    // Vitrindeki ya da onay bekleyen ürünün içeriği değişti → yeniden çeviri
+    // (kaynak aynıysa işlem yok). Taslak çevrilmez: yalnız sahibi görür.
+    if (row.isPublic || row.reviewStatus === "PENDING") void this.translations?.enqueue("PRODUCT", id);
     return this.serializeShowcase(row);
   }
 
@@ -1121,6 +1121,11 @@ export class CompanyItemsService {
       entityId: id,
       metadata: { name: updated.name, slug, wasPublic: row.isPublic },
     });
+    // Onaya gönderilen ürün ŞİMDİ çevrilir: admin onayladığı an EN/RU sayfa
+    // çevrilmiş içerikle yayına çıkar (onayda çevirmek birkaç dakikalık
+    // Türkçe-içerikli EN sayfa penceresi açıyordu). Onaydaki enqueue kaynak
+    // aynıysa işlem yapmaz.
+    void this.translations?.enqueue("PRODUCT", id);
     return this.serializeShowcase(updated);
   }
 

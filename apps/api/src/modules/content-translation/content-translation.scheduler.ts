@@ -29,6 +29,13 @@ export class ContentTranslationScheduler {
         const r = await this.translations.rebuildAllSearchTexts();
         if (r.entities > 0) this.logger.log(`Search text rebuilt for ${r.entities} entities`);
       }
+      if (this.translations.enabled) {
+        const c = await this.translations.ensureCoverage(50);
+        const n = c.products + c.listings + c.companies;
+        if (n > 0 || c.retried > 0) {
+          this.logger.log(`Translation coverage: queued ${c.products} products, ${c.listings} listings, ${c.companies} companies; retried ${c.retried}`);
+        }
+      }
       const r = await this.translations.processPending(25);
       if (r.processed > 0) {
         this.logger.log(`Content translation sweep: ${r.done} done, ${r.failed} failed / ${r.processed} processed`);

@@ -212,10 +212,9 @@ describe("ContentTranslationService", () => {
   function rig(opts: { providerText?: string; providerFails?: boolean; existing?: unknown[] } = {}) {
     const rows = new Map<string, Record<string, unknown>>();
     const prisma = {
-      companyItem: {
-        findUnique: jest.fn(async () => ({ ...product, attributes: null, categoryId: null })),
-        updateMany: jest.fn(async () => ({ count: 1 })),
-      },
+      companyItem: { findUnique: jest.fn(async () => ({ ...product, attributes: null, categoryId: null })) },
+      // Arama metni HAM SQL ile yazılır (updatedAt'e dokunmasın): `$executeRaw\`…${text}…${id}\``.
+      $executeRaw: jest.fn(async () => 1),
       listing: { findUnique: jest.fn() },
       company: { findUnique: jest.fn() },
       category: { findMany: jest.fn(async () => []) },
@@ -237,7 +236,8 @@ describe("ContentTranslationService", () => {
           return rows.get(key);
         }),
         updateMany: jest.fn(async (args: { data: Record<string, unknown> }) => {
-          for (const r of rows.values()) Object.assign(r, { status: args.data.status, error: args.data.error });
+          const patch = Object.fromEntries(Object.entries({ status: args.data.status, error: args.data.error }).filter(([, v]) => v !== undefined));
+          for (const r of rows.values()) Object.assign(r, patch);
           return { count: rows.size };
         }),
         deleteMany: jest.fn(async () => ({ count: 0 })),
@@ -274,8 +274,9 @@ describe("ContentTranslationService", () => {
     // Aynı kaynakla ikinci enqueue işlem yapmaz.
     expect(await svc.enqueue("PRODUCT", "p1")).toBe(false);
     // Çok dilli arama metni DONE anında yazılır: kaynak + EN + RU, katlanmış.
-    const writes = prisma.companyItem.updateMany.mock.calls as unknown as [{ data: { searchTextI18n: string } }][];
-    const last = writes[writes.length - 1]![0].data.searchTextI18n;
+    const writes = prisma.$executeRaw.mock.calls as unknown as [TemplateStringsArray, string, string][];
+    const last = writes[writes.length - 1]![1];
+    expect(writes[writes.length - 1]![0].join("?")).toContain('UPDATE "company_items" SET "searchTextI18n"');
     expect(last).toContain("bakir levha");
     expect(last).toContain("copper sheet");
     expect(last).toContain(foldSearchText("медный лист")); // й → и: sorgu da aynı katlanır

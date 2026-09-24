@@ -302,7 +302,13 @@ export class PublicMarketplaceService {
     if (!this.translations) return detail;
     const [localized] = await this.translations.localizeListings([detail], [row.id], currentLocale(), excerptOf);
     const [withIndustry] = await this.translations.localizeListingCompanies([localized ?? detail], [row.company?.id], currentLocale());
-    return withIndustry ?? localized ?? detail;
+    const out = withIndustry ?? localized ?? detail;
+    // Bu dilde çeviri henüz yoksa sayfa kaynak metni gösterir → indekslenmez
+    // (kapsam denetimi dakikalar içinde çevirir, SEO bildirimi sayfayı tazeler).
+    if (out.indexable && (await this.translations.translationPending("LISTING", row.id, currentLocale()))) {
+      return { ...out, indexable: false };
+    }
+    return out;
   }
 
   /* ---------------------------------------------------------------- */

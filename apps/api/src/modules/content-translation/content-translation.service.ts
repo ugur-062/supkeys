@@ -1,11 +1,12 @@
 import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
-import { LOCALES, type Locale } from "@rothern/i18n";
+import { DEFAULT_LOCALE, LOCALES, type Locale } from "@rothern/i18n";
 import { foldSearchText } from "@rothern/shared";
 import { labelAttributes, resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AI_CONFIG, AI_PROVIDER_TOKEN, type AiConfig } from "../ai/ai.config";
 import { costFromUsage } from "../ai/ai-budget.service";
+import { SeoIndexService } from "../seo-index/seo-index.service";
 import type { AiTokenUsage, BaseAiProvider } from "../ai/providers/ai-provider.interface";
 import {
   TRANSLATION_SYSTEM_PROMPT,
@@ -40,6 +41,8 @@ import {
  * maliyet satırda (`costUsd`) izlenir.
  */
 const MAX_ATTEMPTS = 3;
+/** Kalıcı FAILED kayıt bu süreden sonra yeniden denenir (kapsam denetimi). */
+const FAILED_RETRY_MS = 6 * 60 * 60 * 1000;
 const TIMEOUT_MS = 120_000;
 const MAX_OUTPUT_TOKENS = 8192;
 
@@ -91,6 +94,8 @@ export class ContentTranslationService {
     private readonly prisma: PrismaBypassService,
     @Optional() @Inject(AI_CONFIG) private readonly cfg?: AiConfig,
     @Optional() @Inject(AI_PROVIDER_TOKEN) private readonly provider?: BaseAiProvider | null,
+    // SONDA ve @Optional (rig stub kuralı): elle kurulan test düzenekleri kırılmasın.
+    @Optional() private readonly seoIndex?: SeoIndexService,
   ) {}
 
   get enabled(): boolean {
@@ -166,7 +171,15 @@ export class ContentTranslationService {
       const upToDate =
         existing.length === LOCALES.length &&
         existing.every((r) => r.sourceHash === hash && r.status === "DONE");
-      if (upToDate) return false;
+      if (upToDate) {
+        // "Denetlendi" damgası: kaynak aynı ama varlık başka sebeple güncellendi
+        // (durum, paket…) → kapsam denetimi onu bir daha bayat saymasın.
+        await this.prisma.contentTranslation.updateMany({
+          where: { entityType: type, entityId: id },
+          data: { updatedAt: new Date() },
+        });
+        return false;
+      }
       for (const locale of LOCALES) {
         await this.prisma.contentTranslation.upsert({
           where: { entityType_entityId_locale: { entityType: type, entityId: id, locale } },
@@ -381,6 +394,9 @@ export class ContentTranslationService {
         id,
         buildSearchTextI18n(type, source, Object.values(parsed.perLocale), foldSearchText),
       );
+      // EN/RU sayfalar ŞİMDİ çevrilmiş içerikle tazelenir ve motorlara üç dilde
+      // bildirilir (yayın anındaki bildirim çeviri gelmeden gitmişti).
+      this.notifySeo(type, id);
       return "done";
     } finally {
       this.inFlight.delete(key);
@@ -426,14 +442,27 @@ export class ContentTranslationService {
     return { entities: rows.length };
   }
 
-  /** Fail-open: arama metni yazılamazsa çeviri DONE kalır (sonraki açılış kurar). */
+  private notifySeo(type: TranslatableEntityType, id: string): void {
+    if (!this.seoIndex) return;
+    if (type === "PRODUCT") this.seoIndex.productChanged(id);
+    else if (type === "LISTING") this.seoIndex.listingChanged(id);
+    else this.seoIndex.companyChanged(id);
+  }
+
+  /**
+   * Fail-open: arama metni yazılamazsa çeviri DONE kalır (sonraki açılış kurar).
+   * HAM SQL, bilinçli: Prisma `updateMany` `@updatedAt`i ilerletirdi → sitemap
+   * `lastmod` sahte değişir ve kapsam denetimi kaydı sonsuza dek "bayat" görürdü.
+   */
   private async writeSearchText(type: TranslatableEntityType, id: string, text: string): Promise<void> {
-    const data = { searchTextI18n: text };
     try {
-      // updateMany: varlık silinmişse sessizce 0 satır (update P2025 atardı).
-      if (type === "PRODUCT") await this.prisma.companyItem.updateMany({ where: { id }, data });
-      else if (type === "LISTING") await this.prisma.listing.updateMany({ where: { id }, data });
-      else await this.prisma.company.updateMany({ where: { id }, data });
+      if (type === "PRODUCT") {
+        await this.prisma.$executeRaw`UPDATE "company_items" SET "searchTextI18n" = ${text} WHERE "id" = ${id}`;
+      } else if (type === "LISTING") {
+        await this.prisma.$executeRaw`UPDATE "listings" SET "searchTextI18n" = ${text} WHERE "id" = ${id}`;
+      } else {
+        await this.prisma.$executeRaw`UPDATE "companies" SET "searchTextI18n" = ${text} WHERE "id" = ${id}`;
+      }
     } catch (err) {
       this.logger.warn(`Search text write failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`);
     }
@@ -545,6 +574,28 @@ export class ContentTranslationService {
   }
 
   /** Okuma yolu FAIL-OPEN: çeviri tablosu okunamazsa özgün metin döner. */
+  /**
+   * Bu dilde çeviri BEKLENİYOR mu? (i18n SEO, 2026-09-25) — sayfa o dilde
+   * kaynak metni gösteriyorsa (çeviri henüz gelmedi) arama motoruna `noindex`
+   * verilir: EN adreste Türkçe içerik indekslenmez. Kaynak dilin kendisi ve
+   * (bayat da olsa) çevirisi olan dil beklemez. Hiç satır yoksa kaynak Türkçe
+   * varsayılır. Hata → false (DB aksaklığı sayfayı indeksten düşürmesin).
+   */
+  async translationPending(type: TranslatableEntityType, id: string, locale: Locale): Promise<boolean> {
+    try {
+      const rows = await this.prisma.contentTranslation.findMany({
+        where: { entityType: type, entityId: id },
+        select: { locale: true, fields: true, sourceLocale: true },
+      });
+      if (rows.length === 0) return locale !== DEFAULT_LOCALE;
+      const row = rows.find((r) => r.locale === locale);
+      if (!row) return true;
+      return row.fields == null && row.sourceLocale !== locale;
+    } catch {
+      return false;
+    }
+  }
+
   private async safeMap<T extends TranslationFields>(
     type: TranslatableEntityType,
     ids: (string | null | undefined)[],
@@ -563,6 +614,53 @@ export class ContentTranslationService {
   /* ---------------------------------------------------------------- */
 
   /** Herkese açık tüm ürün/talep/profilleri kuyruğa alır (geriye dönük doldurma). */
+  /**
+   * KAPSAM DENETİMİ — başkasının görebildiği her kayıt çevrili olmalı
+   * (kullanıcı kararı 2026-09-25: "çevirisi olmayan kayıt söz konusu değil").
+   * Yazma yolları `enqueue` çağırır ama her yol değil (admin düzenlemesi,
+   * seed/e2e betikleri, özellikten önce yayınlanmış kayıtlar). Süpürücü her
+   * turda şunları kuyruğa alır: çeviri satırı OLMAYAN ya da kaynağı son
+   * çeviriden/denetimden YENİ olan görünür kayıtlar —
+   *   · ürün: vitrinde ya da onay bekliyor (onay anında EN/RU hazır olsun) · talep: yayınlanmış (her durum; teklifçi
+   *     ve vitrin kapanmış talebi de görür) · firma: kayıt tamamlanmış, aktif,
+   *     metni var (`hasTranslatableText` ile aynı ≥2 karakter kuralı).
+   * Taslak ürün/talep çevrilmez: yalnız sahibi görür, sahibi kendi metnini
+   * HAM okur; yayın/onay anında zaten kuyruğa girer.
+   * Kalıcı FAILED (≤3 deneme bitti) 6 saat sonra yeniden denenir.
+   */
+  async ensureCoverage(limit = 50): Promise<{ products: number; listings: number; companies: number; retried: number }> {
+    const retry = await this.prisma.contentTranslation.updateMany({
+      where: { status: "FAILED", attempts: { gte: MAX_ATTEMPTS }, updatedAt: { lt: new Date(Date.now() - FAILED_RETRY_MS) } },
+      data: { attempts: 0 },
+    });
+    const products = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT e."id" FROM "company_items" e
+       WHERE (e."isPublic" = true OR e."reviewStatus"::text = 'PENDING')
+         AND NOT EXISTS (SELECT 1 FROM "content_translations" t
+                          WHERE t."entityType"::text = 'PRODUCT' AND t."entityId" = e."id" AND t."updatedAt" >= e."updatedAt")
+       ORDER BY e."updatedAt" ASC LIMIT ${limit}`;
+    const listings = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT e."id" FROM "listings" e
+       WHERE e."publishedAt" IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM "content_translations" t
+                          WHERE t."entityType"::text = 'LISTING' AND t."entityId" = e."id" AND t."updatedAt" >= e."updatedAt")
+       ORDER BY e."updatedAt" ASC LIMIT ${limit}`;
+    const companies = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT e."id" FROM "companies" e
+       WHERE e."onboardingCompletedAt" IS NOT NULL AND e."isActive" = true
+         AND (length(btrim(coalesce(e."aboutText", ''))) >= 2
+              OR length(btrim(coalesce(e."industry", ''))) >= 2
+              OR EXISTS (SELECT 1 FROM unnest(e."services") s WHERE length(btrim(s)) >= 2))
+         AND NOT EXISTS (SELECT 1 FROM "content_translations" t
+                          WHERE t."entityType"::text = 'COMPANY' AND t."entityId" = e."id" AND t."updatedAt" >= e."updatedAt")
+       ORDER BY e."updatedAt" ASC LIMIT ${limit}`;
+    const out = { products: 0, listings: 0, companies: 0, retried: retry.count };
+    for (const r of products) if (await this.enqueueQuiet("PRODUCT", r.id)) out.products += 1;
+    for (const r of listings) if (await this.enqueueQuiet("LISTING", r.id)) out.listings += 1;
+    for (const r of companies) if (await this.enqueueQuiet("COMPANY", r.id)) out.companies += 1;
+    return out;
+  }
+
   async enqueueAllPublic(where: {
     products: Prisma.CompanyItemWhereInput;
     listings: Prisma.ListingWhereInput;

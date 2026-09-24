@@ -38,7 +38,9 @@ export async function generateMetadata({
     companySlug: slug,
     product: data.product,
     company: data.company,
-    indexable: MARKETPLACE_LIVE,
+    // Bu dilde çeviri henüz gelmediyse (sayfa kaynak metni gösterir) indekslenmez;
+    // çeviri bitince API sayfayı tazeler ve üç dilde IndexNow'a bildirir.
+    indexable: MARKETPLACE_LIVE && !data.product.translationPending,
   }, { locale, t: seoT(locale) }).metadata;
 }
 

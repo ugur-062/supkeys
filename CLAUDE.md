@@ -522,6 +522,26 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   sözlüğü), yalnız etiket çevrilir. Partiler 1-5 (kabuk/panolar · talep
   ekranları · teklif/sipariş/ürün/bilgi talebi · ayarlar/şirketim/onaylar/
   raporlar/paketler · lib sözlükleri) BİTTİ.
+- **HER ÜRÜN VE TALEP ÜÇ DİLDE — İSTİSNASIZ (2026-09-25, kullanıcı: "bir ürünün
+  veya alım talebinin eklendiği diller hariç diğer dillerde karşılığı olmaması
+  mümkün değil"; SEO/GEO dahil).** Dört halka: (1) **Tetik** — ürün ONAYA
+  GÖNDERİLDİĞİ an (`publish`) çevrilir, onayda EN/RU hazırdır; talep yayında;
+  firma profil kaydında. (2) **Kapsam denetimi** `ensureCoverage` (5 dk
+  süpürücü, AI açıksa): görünür kayıt (vitrindeki/onay bekleyen ürün,
+  YAYINLANMIŞ her durumdaki talep, metni olan kayıtlı firma) çeviri satırı yoksa
+  ya da `updatedAt`i son çeviri/denetimden yeniyse kuyruğa alır — `enqueue`
+  çağırmayan yollar (admin düzenlemesi, seed/e2e betikleri, özellikten önceki
+  kayıtlar) böyle yakalanır; kaynak aynıysa satırlara "denetlendi" damgası
+  vurulur. Kalıcı FAILED 6 saat sonra yeniden denenir. Taslak çevrilmez (yalnız
+  sahibi görür, HAM okur). (3) **SEO** — çeviri DONE olunca `SeoIndexService`
+  tetiklenir (sayfalar çevrilmiş içerikle tazelenir); IndexNow her adresi ÜÇ
+  dilde bildirir (`localizedIndexNowUrls`); web tazeleme ucu `/<dil><iç yol>`
+  biçimlerini de tazeler. (4) **Çevirisi henüz gelmemiş dil sayfası `noindex`**
+  (`translationPending`: ürün `product.translationPending`, talep/firma
+  `indexable:false`) — EN adreste Türkçe içerik asla indekslenmez. Arama metni
+  HAM SQL ile yazılır: Prisma `updateMany` `@updatedAt`i ilerletip sitemap
+  lastmod'unu ve kapsam denetimini bozardı. Sözleşme:
+  `content-translation-coverage.spec`, `seo-index-locales.spec`.
 - **ÇOK DİLLİ ARAMA (2026-09-24):** `company_items`/`listings`/`companies`
   `searchTextI18n` (migration `20260924200000`, trigram GIN) = katlanmış KAYNAK
   + DONE EN/RU çeviriler (ürün ad+anahtar kelime — açıklama DEĞİL, talep
