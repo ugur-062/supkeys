@@ -185,7 +185,7 @@
   "companyBidDocuments": {
     "ilanBulunamadi": "Request not found",
     "satinAlmaTalebiTeklifeKapaliBelge": "The buying request is closed to quotes — documents cannot be added or deleted",
-    "teklifBelgeleriIcinTeklifVermeYetkisi": "Quote documents require the ''Submit quote'' permission",
+    "teklifBelgeleriIcinTeklifVermeYetkisi": "Quote documents require the “Submit quotes” permission",
     "onceTeklifVerinSonraBelgeEkleyin": "Submit a quote first, then attach documents",
     "gonderilmisTeklifinBelgeleriDegistirilemez": "The documents of a submitted quote cannot be changed",
     "sadecePdfGorselVeyaExcelYuklenebilir": "Only PDF, image or Excel files can be uploaded",
@@ -257,12 +257,12 @@
     "teslimSuresiZorunluSureGirmediginizKalemler": "Delivery time is required (for the line items where you did not enter one)",
     "teslimTarihiGecmisteOlamaz": "The delivery date cannot be in the past",
     "buSatinAlmaTalebindeTeklifDosyasi": "A quote file is required for this buying request — save a draft first, then attach the file",
-    "buSatinAlmaTalebiKalemBazli": "This buying request is line item based; enter a unit price for at least one line item",
+    "buSatinAlmaTalebiKalemBazli": "This buying request is line-item based; enter a unit price for at least one line item",
     "gecerliKalemTeklifiYok": "There is no valid line item quote",
     "ayniKalemBirdenFazlaKezGirilemez": "The same line item cannot be entered more than once",
     "buSatinAlmaTalebindeTumKalemlere": "You must quote every line item in this buying request",
     "fiyatlananHerKaleminBirimFiyatiSifirdan": "The unit price of every priced line item must be greater than zero",
-    "kalemBazindaFarkliParaBirimiYalniz": "Different currencies per line item can be used only in sealed bid buying requests",
+    "kalemBazindaFarkliParaBirimiYalniz": "Different currencies per line item can be used only in sealed-bid buying requests",
     "buIlanIcinGecersizKalemPara": "Invalid line item currency for this request: {c}",
     "guncelKurBilgisiYokTcmbKalem": "No current exchange rate is available (TCMB {c}) — different currencies per line item cannot be used right now; submit the quote in a single currency or try again later",
     "teklifToplamiSifirdanBuyukOlmali": "The quote total must be greater than zero",
@@ -419,8 +419,8 @@
         "fileNameFallback": "buying-request"
       }
     },
-    "cekIcinVadeGunSayisiZorunlu": "The number of payment term days is required for a cheque",
-    "senetIcinVadeGunSayisiZorunlu": "The number of payment term days is required for a promissory note",
+    "cekIcinVadeGunSayisiZorunlu": "The number of days until maturity is required for a cheque",
+    "senetIcinVadeGunSayisiZorunlu": "The number of days until maturity is required for a promissory note",
     "vadeliOdemeIcinGunSayisiZorunlu": "The number of days is required for deferred payment",
     "alimIcinFormatSecin": "Select a format for the buying request (Quote collection / Negotiation)",
     "satisIcinFormatSecin": "Select a format for the sales listing (Quote collection / Forward auction)",
@@ -646,7 +646,7 @@
     "kendinizeIstekGonderemezsiniz": "You cannot send a request to yourself",
     "firmaBulunamadi": "Company not found",
     "buFirmaylaZatenBaglisiniz": "You are already connected with this company",
-    "buFirmaSizeZatenIstekGondermis": "This company has already sent you a request — accept it from ''Incoming requests''",
+    "buFirmaSizeZatenIstekGondermis": "This company has already sent you a request — accept it under “Incoming requests”",
     "buFirmayaZatenIstekGonderdiniz": "You have already sent a request to this company",
     "davetBulunamadi": "Invitation not found",
     "firmaProfiliBulunamadi": "Company profile not found",
@@ -667,7 +667,7 @@
     "enAzBirYetkiSecin": "Select at least one permission",
     "buEPostaZatenKayitli": "This email address is already registered",
     "buEPostayaBekleyenBirDavet": "There is already a pending invitation for this email address — resend it if needed",
-    "kullaniciVeYetkiTikiniYalnizcaKurucu": "Only the Founder can grant the ''Users and permissions'' tick",
+    "kullaniciVeYetkiTikiniYalnizcaKurucu": "Only the Founder can grant the “Users and permissions” permission",
     "davetBulunamadi": "Invitation not found",
     "firmaHesabiAktifDegil": "The company account is not active",
     "buEPostaIleZatenBir": "An account with this email address already exists",
@@ -694,8 +694,8 @@
     "devirdeEskiKurucuTekrarKurucuOlamaz": "In a transfer the previous Founder cannot become Founder again",
     "kuruculukYalnizcaAktifBirKullaniciyaDevredilebil": "The Founder role can only be transferred to an active user",
     "firmaBulunamadi": "Company not found",
-    "satinalmaYetkisiYalnizGoldPaketteVerilebilir": "Buying permissions can only be granted on the Gold plan — creating requests and awarding are closed on other plans.",
-    "koltukDoluDavetSuAnKabul": "The seats are full — the invitation cannot be accepted right now; contact your company manager",
+    "satinalmaYetkisiYalnizGoldPaketteVerilebilir": "Buying permissions can only be granted on the Gold plan — creating requests and awarding are unavailable on other plans.",
+    "koltukDoluDavetSuAnKabul": "All seats are taken — the invitation cannot be accepted right now; contact your company manager",
     "koltukSeciminiYalnizcaKurucuYapabilir": "Only the Founder can make the seat selection",
     "buPaketteKoltukSiniriYok": "This plan has no seat limit",
     "secimListesindeKoltukKullanmayanBirKullanici": "The selection list contains a user who does not use a seat",
@@ -842,7 +842,7 @@
     "redGerekcesiEnAz10Karakter": "The rejection reason must be at least 10 characters",
     "ayipIhbariBulunanSiparisSevkEdilemez": "An order with a defect notice cannot be shipped — the goods have already been delivered; the parties resolve it between themselves",
     "alicininAkreditifiHenuzAcmadiAkreditifAcilip": "The buyer has not opened the letter of credit yet — the order cannot be shipped until the letter of credit is opened and accepted",
-    "akreditifiKabulEtmedenGonderemezsinizAkreditifBo": "You cannot ship before accepting the letter of credit — complete the ''Accept letter of credit'' step in the Letter of credit section",
+    "akreditifiKabulEtmedenGonderemezsinizAkreditifBo": "You cannot ship before accepting the letter of credit — complete the “I accepted the letter of credit” step in the Letter of credit section",
     "buSiparistePesinOdemeSartiVar": "This order requires an advance payment — {toLocaleString} {curSym} in advance must be confirmed before shipping (confirmed: {toLocaleString2} {curSym2})",
     "alicininOnayBekleyenOdemeKaydiVar": "The buyer has a payment record awaiting confirmation — confirm or reject it in the Payments section before shipping the order",
     "vesaikMukabiliTeslimAlmadanOnceTam": "Cash against documents: the full payment must be confirmed before taking delivery",
@@ -1011,7 +1011,7 @@
       "parolaEnAzBirOzelKarakterIcermeli": "Password must contain at least one special character",
       "kullaniciSozlesmesiniKabulEtmelisiniz": "You must accept the user agreement",
       "aracilikVeKullanimSozlesmesiniKabulEtmelisiniz": "You must accept the intermediation and use agreement",
-      "kvkkAydinlatmaMetniniOnaylamalisiniz": "You must approve the data protection notice (KVKK)",
+      "kvkkAydinlatmaMetniniOnaylamalisiniz": "You must confirm the KVKK privacy notice",
       "enAzBirRolSecin": "Select at least one role"
     },
     "account": {
@@ -1031,7 +1031,7 @@
       "gecerliBirEpostaAdresiGiriniz": "Enter a valid email address"
     },
     "companySignup": {
-      "adEnAz2KarakterOlmali": "The name must be at least 2 characters",
+      "adEnAz2KarakterOlmali": "First name must be at least 2 characters",
       "soyadEnAz2KarakterOlmali": "Last name must be at least 2 characters",
       "gecerliBirEPostaAdresiGiriniz": "Enter a valid email address",
       "gecerliBirTelefonGiriniz": "Enter a valid phone number",
@@ -1309,9 +1309,9 @@
       },
       "role": {
         "SAHIP": "Founder",
-        "YONETICI": "Administrator",
-        "SATIN_ALMACI": "Buyer",
-        "SATISCI": "Sales rep",
+        "YONETICI": "Manager",
+        "SATIN_ALMACI": "Purchaser",
+        "SATISCI": "Salesperson",
         "ONAYLAYICI": "Approver"
       },
       "permissionsChanged": {
@@ -1358,7 +1358,7 @@
       },
       "reply": {
         "subject": "You’ve received a reply to your inquiry",
-        "heading": "Your reply is ready",
+        "heading": "You’ve got a reply",
         "intro": "{company} replied to your inquiry about \"{product}\".",
         "claimedRead": "You can read the reply on your My Inquiries page.",
         "guestRead": "Create your free account to read the reply; this inquiry and its replies will be linked to your account.",
@@ -1507,11 +1507,11 @@
       "belgeGuncellemesiReddedildiBaslik": "Your document update was rejected",
       "belgeGuncellemesiReddedildiGovde": "The new document you submitted was not approved; your current document remains valid. You can review the reason and upload a new document.",
       "paketSonlandirildiBaslik": "Your plan membership has ended",
-      "paketSonlandirildiAnaParagraf": "Your company plan has been changed to Standard membership by a platform administrator. With Standard membership you cannot open new buying requests or invite companies; buyer identity and replies on public requests and incoming inquiries are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies with a plan); up to 10 products can be published in your showcase. You can complete your existing requests and quote on invitations you receive.",
+      "paketSonlandirildiAnaParagraf": "Your company plan has been changed to Standard membership by a platform administrator. With Standard membership you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies for incoming inquiries, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies with a plan); up to 10 products can be published in your showcase. You can complete your existing requests and quote on invitations you receive.",
       "paketSonlandirildiKirpilanUrun": "{adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted, and you can republish when you return to Silver.",
       "paketSonlandirildiDavetIptal": "The pending connection invitations you sent have been cancelled.",
-      "paketSonlandirildiGovde": "Your company plan has been changed to Standard membership by a platform administrator. With Standard membership you cannot open new buying requests or invite companies; buyer identity and replies on public requests and incoming inquiries are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies with a plan); up to 10 products can be published in your showcase. You can complete your existing requests and quote on invitations you receive. The pending connection invitations you sent have been cancelled.",
-      "paketSonlandirildiGovdeKirpildi": "Your company plan has been changed to Standard membership by a platform administrator. With Standard membership you cannot open new buying requests or invite companies; buyer identity and replies on public requests and incoming inquiries are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies with a plan); up to 10 products can be published in your showcase. You can complete your existing requests and quote on invitations you receive. {adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted, and you can republish when you return to Silver. The pending connection invitations you sent have been cancelled.",
+      "paketSonlandirildiGovde": "Your company plan has been changed to Standard membership by a platform administrator. With Standard membership you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies for incoming inquiries, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies with a plan); up to 10 products can be published in your showcase. You can complete your existing requests and quote on invitations you receive. The pending connection invitations you sent have been cancelled.",
+      "paketSonlandirildiGovdeKirpildi": "Your company plan has been changed to Standard membership by a platform administrator. With Standard membership you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies for incoming inquiries, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies with a plan); up to 10 products can be published in your showcase. You can complete your existing requests and quote on invitations you receive. {adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted, and you can republish when you return to Silver. The pending connection invitations you sent have been cancelled.",
       "paketTanimlandiBaslik": "Your plan membership has been activated",
       "paketTanimlandiGovde": "The {paket} plan has been assigned to your company account. You can start using your plan benefits right away.",
       "askiyaAlindiBaslik": "Your account has been suspended",
@@ -1580,7 +1580,7 @@
     },
     "membership": {
       "sonaErdiKonu": "Your Premium membership has ended",
-      "sonaErdiAnaParagraf": "Your plan membership has expired and your account has been moved to Standard membership. On Standard you cannot open new buying requests or invite companies; public requests, and buyer identity and replies on incoming inquiries, are unlocked with the Silver plan. Your profile and showcase stay in the directory (listed after companies on a plan), and up to 10 products can be published in your showcase. You can complete your existing listings and submit quotes to invitations you receive.",
+      "sonaErdiAnaParagraf": "Your plan membership has expired and your account has been moved to Standard membership. On Standard you cannot open new buying requests or invite companies; public requests, and buyer identity and replies on incoming inquiries, are unlocked with the Silver plan. Your profile and showcase stay in the directory (listed after companies on a plan), and up to 10 products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive.",
       "sonaErdiKirpilanUrun": "{adet, plural, one {# product} other {# products}} over the limit {adet, plural, one {was} other {were}} moved to draft; nothing was deleted, and you can publish them again when you return to Silver.",
       "sonaErdiYukseltme": "To move to a plan again, you can upgrade from your account.",
       "premiumaGec": "Upgrade to Premium"
@@ -1592,7 +1592,7 @@
     }
   },
   "permission": {
-    "buy_view": "View buying",
+    "buy_view": "View purchasing",
     "buy_listing_manage": "Create and manage requests",
     "buy_order_manage": "Purchase order actions",
     "sell_view": "View sales",

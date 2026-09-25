@@ -160,12 +160,14 @@ General rules:
 - Detect the source language. For the source language itself return the text UNCHANGED (no edits, no fixes).
 - Translate by MEANING with the terminology industry buyers actually use and search for — never word by word. Neutral, commercial, concise; no marketing language; never add, invent or drop information.
 - Keep EXACTLY: every number's digits, standards (DIN, ISO, EN, TSE, GOST, AISI, IEC), part/model numbers, brand names, product codes, chemical formulas, currencies, proper names (companies, places, ports) and Turkish registries (ÜTS, TSE).
+- Codes (M6, CF226A, 6205-2RS, S420MC, DN50, 4x16, HP 26A) are copied character by character in LATIN letters — never replace a Latin letter in a code with a Cyrillic look-alike (М, А, С, Е, Н, Р, Т, Х) and never convert a letter inside a code into a unit.
+- Place names in en: English spelling for Istanbul and Izmir (no dotted İ); other Turkish place names keep their Turkish spelling. In ru: standard Russian names (Стамбул, Измир, Анкара), others transliterated.
 - Company legal names stay unchanged (e.g. "San. Tic. A.Ş.", "ООО", "LLC").
 - Use ONE target term per source term consistently across name/title, description, keywords, attributes, items, details and questions.
 
 Numbers (critical): in Turkish "." separates THOUSANDS and "," is the DECIMAL mark (2.400 = two thousand four hundred; 0,02 = two hundredths). Re-format numbers for the target language without changing digits: en → 2,400 · 1,200 · 0.02; ru → 2 400 · 1 200 · 0,02. Never write "2.400" in en or ru. Write "15,000 m²", not "15 thousand m²".
 
-Units: do NOT copy unit words/symbols — write them in the target language's standard symbols: en → mm, cm, m, m², m³, kg, g, t, kW, kV, V, A, W, bar, l, pcs; ru → мм, см, м, м², м³, кг, г, т, кВт, кВ, В, А, Вт, бар, л, шт. Keep °C, %, IP ratings; g/m² → г/м² (ru).
+Units: do NOT copy unit words/symbols — write them in the target language's standard symbols: en → mm, cm, m, m², m³, kg, g, t, kW, kV, V, A, W, bar, L (litre), pcs; ru → мм, см, м, м², м³, кг, г, т, кВт, кВ, В, А, Вт, бар, л, шт. Keep °C, %, IP ratings; g/m² → г/м² (ru).
 
 Glossary (mandatory): "satın alma talebi / alım talebi / talep" = "buying request / request" (en), "заявка на закупку / запрос" (ru) — NEVER "tender" / "тендер" / "конкурс". "teklif" = "quote" / "коммерческое предложение". "kapalı zarf" = "sealed bid" / "закрытые предложения". "kazandırma / kazandırmak" = "award / to award" / "присуждение / присудить". "pazarlık" = "negotiation round" / "раунд переговоров". "kalem" = "line item" / "позиция". "vitrin" = "showcase" / "витрина". "tedarikçi" = "supplier" / "поставщик".
 
@@ -175,7 +177,12 @@ Turkish false friends — translate by meaning, not by the look-alike word:
 - tesisat → installation / piping (plumbing only if sanitary) — монтаж / трубопроводы
 - plaza → office tower / business centre — бизнес-центр
 - uygulama (construction) → project / works — работы / проекты
-- proje mobilyası → contract furniture — мебель для проектов
+- proje mobilyası → contract furniture — контрактная мебель
+- ana sanayi (automotive context) → automotive OEMs — автопроизводители (OEM); yan sanayi → automotive parts suppliers — поставщики автокомпонентов
+- kurumsal tedarik → corporate supply — корпоративные поставки
+- fatura → invoice — счёт (счёт-фактура)
+- yetki belgesi → certificate of authorization / authorized dealer certificate — сертификат дистрибьютора (авторизационное письмо)
+- penye (kumaş) → combed cotton — гребенной хлопок (кулирное полотно из гребенного хлопка)
 - katlı (corrugated board) → -ply — -слойный
 - çelik profil → steel hollow section / structural section — профильная труба / профиль
 - makara (cable) → cable drum — барабан
@@ -190,7 +197,8 @@ Field rules:
 - keywords / services: each entry must be a complete, standalone search phrase a buyer in the target market would actually type (expand fragments: "plakalı" → "plate heat exchanger", not "plate"); never output an acronym used only in Turkey. Keep array length and order.
 - attributes: translate label and textual value; keep numeric values and codes; keep array length and order.
 - details, questions, terms, paymentNote: faithful full translations (technical specifications — keep every value, tolerance and standard).
-- ru style: qualifiers in parentheses after the first word are lower case; don't start a sentence with a bare number or code.
+- ru style: qualifiers in parentheses after the first word are lower case; don't start a sentence with a bare number or code; make adjectives and participles agree in gender/number with their noun; avoid long genitive chains in titles; hyphenate compounds such as ПЭТ-бутылка.
+- Use one attribute value word consistently (e.g. product condition "Sıfır" = "New" / "Новый", never "Brand new").
 
 Output STRICT JSON only (no markdown, no commentary):
 { "sourceLocale": "tr" | "en" | "ru" | "other", "translations": { "tr": <fields>, "en": <fields>, "ru": <fields> } }
@@ -287,14 +295,40 @@ const RU_UNITS: [string, string][] = [
   ["kWh", "кВт·ч"], ["MW", "МВт"], ["Hz", "Гц"], ["bar", "бар"], ["lt", "л"], ["pcs", "шт"], ["ton", "т"],
   ["m", "м"], ["g", "г"], ["t", "т"], ["W", "Вт"], ["V", "В"], ["A", "А"], ["l", "л"],
 ];
+const unitAlt = (units: string[]) => [...units].sort((a, b) => b.length - a.length).map(escapeRe).join("|");
+const SINGLE_LETTER_UNITS = RU_UNITS.map(([u]) => u).filter((u) => u.length === 1);
+const MULTI_LETTER_UNITS = RU_UNITS.map(([u]) => u).filter((u) => u.length > 1);
+// SAYI bir kodun parçası OLMAMALI: önünde harf/rakam yok ("CF226A", "HP26A"
+// dokunulmaz — inceleme 2026-09-26 gerilemesi). Tek harfli birimler (A, V, W,
+// m, g, l, t) YALNIZ boşluktan sonra ("26A" parça numarasıdır, "26 A" akımdır).
 const RU_UNIT_RE = new RegExp(
-  `(\\d(?:[.,]\\d+)?)(\\s?)(${[...RU_UNITS].sort((a, b) => b[0].length - a[0].length).map(([u]) => escapeRe(u)).join("|")})(?![\\p{L}\\d])`,
+  `(?<![\\p{L}\\d.,-])(\\d+(?:[.,\\u00a0]\\d+)*)(?:(\\s?)(${unitAlt(MULTI_LETTER_UNITS)})|(\\s)(${unitAlt(SINGLE_LETTER_UNITS)}))(?![\\p{L}\\d])`,
   "gu",
 );
 const RU_UNIT_MAP = new Map(RU_UNITS);
 
 export function localizeRuUnits(dst: string): string {
-  return dst.replace(RU_UNIT_RE, (_m, num: string, sp: string, unit: string) => `${num}${sp}${RU_UNIT_MAP.get(unit) ?? unit}`);
+  return dst.replace(
+    RU_UNIT_RE,
+    (_m, num: string, sp1: string | undefined, u1: string | undefined, sp2: string | undefined, u2: string | undefined) => {
+      const unit = (u1 ?? u2)!;
+      return `${num}${sp1 ?? sp2 ?? ""}${RU_UNIT_MAP.get(unit) ?? unit}`;
+    },
+  );
+}
+
+/*
+ * KOD KORUMA — kaynaktaki ürün/parça/malzeme kodu (M6, CF226A, 6205-2RS,
+ * S420MC, DN50, 4x16) her çeviride AYNEN geçmeli; model Kiril benzer harfle
+ * ("М6") ya da bozarak yazarsa ret + yeniden deneme. Kod = büyük Latin harf +
+ * rakam içeren sözcük; "400kVAr" gibi SAYI+birim biçimi kod sayılmaz (birim
+ * hedef dile çevrilebilir).
+ */
+const CODE_TOKEN = /(?<![\p{L}\d])(?=[A-Za-z0-9/-]*[A-Z])(?=[A-Za-z0-9/-]*\d)[A-Za-z0-9]+(?:[-/][A-Za-z0-9]+)*(?![\p{L}\d])/gu;
+const NUMBER_WITH_UNIT = /^\d+(?:[.,]\d+)?[A-Za-z]{1,4}[²³]?$/;
+
+export function codeTokens(src: string): string[] {
+  return [...new Set((src.match(CODE_TOKEN) ?? []).filter((t) => !NUMBER_WITH_UNIT.test(t)))];
 }
 
 /**
@@ -330,7 +364,16 @@ export function qualityErrors(field: string, locale: Locale, sourceText: string,
     }
   }
   if (locale === "en" && /[А-Яа-яЁё]/.test(dst)) errs.push(`${field}: Cyrillic text in English translation`);
+  // Latin ve Kiril harfi aynı sözcükte (kod Kiril benzer harfle yazılmış: "Мodel", "S420МC").
+  const mixed = dst.match(/[\p{L}\d]*(?:[A-Za-z][\p{L}\d]*[А-Яа-яЁё]|[А-Яа-яЁё][\p{L}\d]*[A-Za-z])[\p{L}\d]*/u);
+  if (mixed) errs.push(`${field}: "${mixed[0]}" mixes Latin and Cyrillic letters — codes stay in Latin`);
   return errs;
+}
+
+/** Alanın kaynak metnindeki kodlar hedefte AYNEN var mı? */
+export function codeErrors(field: string, src: string, dst: string): string[] {
+  const missing = codeTokens(src).filter((c) => !new RegExp(`(?<![\\p{L}\\d])${escapeRe(c)}(?![\\p{L}\\d])`, "u").test(dst));
+  return missing.length ? [`${field}: codes must stay unchanged in Latin letters: ${missing.slice(0, 4).join(", ")}`] : [];
 }
 
 type Polisher = (src: string, dst: string, field: string) => string;
@@ -412,6 +455,7 @@ export function polishTranslations(
       if (parsed.sourceLocale === "tr") out = localizeNumbers(src, out, locale);
       if (locale === "ru") out = localizeRuUnits(out);
       for (const e of qualityErrors(field, locale, all, out)) errors.push(`${locale}.${e}`);
+      for (const e of codeErrors(field, src, out)) errors.push(`${locale}.${e}`);
       return out;
     });
   }

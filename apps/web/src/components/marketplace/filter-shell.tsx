@@ -238,17 +238,29 @@ export function FilterResults({ children }: { children: ReactNode }) {
  * "Güncelleniyor…" `quiet` modda da GÖRÜNÜR — bekleme geri bildirimi
  * gözle görülmeli.
  */
+/** Sayılan şey — "N … bulundu" cümlesi dil başına ICU çoğuluyla tek mesajda. */
+export type ResultCountKind = "product" | "company" | "buyingRequest" | "openRequest";
+
+const FOUND_KEY = {
+  product: "foundProduct",
+  company: "foundCompany",
+  buyingRequest: "foundBuyingRequest",
+  openRequest: "foundOpenRequest",
+} as const satisfies Record<ResultCountKind, string>;
+
 export function ResultCount({
+  kind,
   noun,
   loading = false,
   quiet = false,
 }: {
+  kind: ResultCountKind;
+  /** Yalnız "… bulunamadı" cümlesi için (sayısız). */
   noun: string;
   loading?: boolean;
   quiet?: boolean;
 }) {
   const t = useTranslations("web.marketplace.filters");
-  const fmt = useFormatter();
   const { total, isPending } = useFilters();
   const busy = loading || isPending;
   return (
@@ -256,7 +268,7 @@ export function ResultCount({
       {busy
         ? t("updating")
         : total > 0
-          ? t("found", { total: fmt.number(total), noun })
+          ? t(FOUND_KEY[kind], { total })
           : t("notFound", { noun })}
     </p>
   );

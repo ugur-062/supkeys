@@ -1,8 +1,7 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useNavLabel } from "@/i18n/domain";
-import { formatNumber } from "@/i18n/format";
 import { isHiddenCategory } from "@rothern/shared";
 import { PanelProductIndex } from "@/components/company/market/panel-product-index";
 import { MarketHeader, MarketTabs } from "@/components/company/market/market-band";
@@ -34,7 +33,6 @@ export default function PanelCategoryPage() {
 function CategoryView({ code }: { code: string }) {
   const t = useTranslations("web.panel.market.kategoriSlugPage");
   const tn = useNavLabel();
-  const locale = useLocale();
   const photo = categoryPhotoSrc(code) ?? segmentPhotoSrc([code]);
   return (
     <PanelProductIndex
@@ -58,7 +56,7 @@ function CategoryView({ code }: { code: string }) {
               { label: tn("satinalma.urunler"), href: PANEL_MARKET.products },
               ...(name ? [{ label: name }] : []),
             ]}
-            count={loaded ? t("urun", { n: formatNumber(total, locale) }) : undefined}
+            count={loaded ? t("urun", { n: total }) : undefined}
             /* Tek satır açıklama: kategoriye ÖZEL bir iddia değil, ne
                yaptığını söyleyen sabit kalıp — kategori başına pazarlama
                metni yazmak (ve uydurmak) yerine ad değişkeni. */

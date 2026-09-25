@@ -147,7 +147,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
           <span className="flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-3">
               <MobileFilterButton />
-              <ResultCount noun={t("productNoun")} />
+              <ResultCount kind="product" noun={t("productNoun")} />
             </span>
             <span className="flex items-center gap-2">
               <SortControl />

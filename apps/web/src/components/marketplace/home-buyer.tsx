@@ -66,7 +66,6 @@ export function HomeBuyer({
         hrefFor={(c) =>
           c.count > 0 ? categoryHref(c) : `${MARKETPLACE_ROUTES.products}?kategori=${c.id}`
         }
-        countNoun={t("productNoun")}
         ctaLabel={t("categoriesCta")}
         visual="icon"
       />

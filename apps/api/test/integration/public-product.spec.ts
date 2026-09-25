@@ -64,7 +64,7 @@ async function seedCompanyWithProduct(
       unit: "adet",
       slug: `pano-${seq}`,
       code: "GIZLI-KOD-1",
-      targetPrice: 999,
+      targetPrice: 7654321,
       description: "x".repeat(120),
       images: ["a.webp"],
       keywords: ["pano"],
@@ -150,7 +150,8 @@ describe("ürün vitrini — sızıntı", () => {
     // Alış hedefi ve stok kodu metin olarak da geçmemeli.
     const json = JSON.stringify(one);
     expect(json).not.toContain("GIZLI-KOD-1");
-    expect(json).not.toContain("999");
+    // Ayırt edici değer: "999" rastgele cuid/zaman damgasında da çıkıp testi kararsız yapıyordu.
+    expect(json).not.toContain("7654321");
   });
 
   it("FİRMA ADI ürün sayfasında GÖRÜNÜR — ilanın tersi, bilinçli", async () => {

@@ -329,7 +329,7 @@ export function IhalelerView() {
           <ResultCount
             total={filtered.length}
             isFiltered={isFiltered}
-            unit={t.unit}
+            kind="satinAlmaTalebi"
             isLoading={list.isLoading}
             className="ml-auto"
           />

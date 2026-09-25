@@ -1,4 +1,4 @@
-import { setRequestLocale, getTranslations, getFormatter } from "next-intl/server";
+import { setRequestLocale, getTranslations } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { isHiddenCategory } from "@rothern/shared";
@@ -63,7 +63,6 @@ export async function generateMetadata({
   const cat = code ? await resolveCategory(code) : null;
   // Bilinmeyen/boş kategori: sayfa 404 verir; meta yine şablondan ve noindex.
   const t = await getTranslations({ locale, namespace: "web.marketplace.pages" });
-  const fmt = await getFormatter({ locale });
   if (!cat) {
     return buildMetadata({
       title: t("categoryNotFoundTitle"),
@@ -73,7 +72,7 @@ export async function generateMetadata({
       locale,
     });
   }
-  const count = fmt.number(cat.count);
+  const count = cat.count;
   return buildMetadata({
     // 75 karakter tavanı (canlı denetim 2026-09-11: uzun kategori adı 86'ya
     // taşıyordu) — kuyruk düşer, ad kelime sınırında kısalır.
@@ -115,12 +114,11 @@ export default async function Page({
 
   const sp = await searchParams;
   const tp = await getTranslations("web.marketplace.pages");
-  const fmtp = await getFormatter();
   return (
     <PublicLayout className={MARKET_GROUND}>
         <ProductIndex
           title={cat.name}
-          lead={tp("categoryLead", { name: cat.name, count: fmtp.number(cat.count) })}
+          lead={tp("categoryLead", { name: cat.name, count: cat.count })}
           searchParams={sp}
           category={{ id: cat.id, name: cat.name }}
           image={segmentPhotoSrc([cat.id])}

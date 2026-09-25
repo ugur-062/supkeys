@@ -18,7 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { useState } from "react";
+import { useState, type ReactNode } from "react";
 import { ErrorState } from "@/components/ui/error-state";
 
 /**
@@ -149,7 +149,7 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
                 <li key={r.key}>
                   <Link
                     href={tx.href}
-                    aria-label={`${r.count} ${tRow(tx.textKey as never)}${time ? ` — ${time}` : ""}`}
+                    aria-label={`${tRow.markup(tx.textKey as never, { n: r.count, b: (c: string) => c } as never)}${time ? ` — ${time}` : ""}`}
                     className="group flex items-center gap-3 px-5 py-3 transition hover:bg-slate-50 focus-visible:outline-none focus-visible:bg-slate-50"
                   >
                     <span
@@ -162,10 +162,12 @@ export function ActionCenter({ portal }: { portal: "satinalma" | "satis" }) {
                       <meta.icon className="h-4 w-4" aria-hidden />
                     </span>
                     <span className="min-w-0 flex-1 text-sm text-slate-700">
-                      <strong className="font-semibold tabular-nums text-slate-950">
-                        {r.count}
-                      </strong>{" "}
-                      <span className="group-hover:text-slate-950">{tRow(tx.textKey as never)}</span>
+                      <span className="group-hover:text-slate-950">
+                        {tRow.rich(tx.textKey as never, {
+                          n: r.count,
+                          b: (c: ReactNode) => <strong className="font-semibold tabular-nums text-slate-950">{c}</strong>,
+                        } as never)}
+                      </span>
                       {time ? (
                         <span
                           className={cn(
@@ -269,7 +271,7 @@ export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
             <Link
               key={r.key}
               href={row.href}
-              title={time ? `${tRow(row.textKey as never)} — ${time}` : tRow(row.textKey as never)}
+              title={`${tRow.markup(row.textKey as never, { n: r.count, b: (c: string) => c } as never)}${time ? ` — ${time}` : ""}`}
               className={cn(
                 "group inline-flex items-center gap-1.5 rounded-full py-1 pr-3 pl-1.5 text-sm font-medium ring-1 ring-inset transition",
                 r.severity === "critical"
@@ -287,8 +289,12 @@ export function ActionStrip({ portal }: { portal: "satinalma" | "satis" }) {
               >
                 <meta.icon className="h-3.5 w-3.5" aria-hidden />
               </span>
-              <span className="tabular-nums font-semibold">{r.count}</span>
-              <span className="font-normal">{tRow(row.textKey as never)}</span>
+              <span className="font-normal">
+                {tRow.rich(row.textKey as never, {
+                  n: r.count,
+                  b: (c: ReactNode) => <span className="tabular-nums font-semibold">{c}</span>,
+                } as never)}
+              </span>
             </Link>
           );
         })}

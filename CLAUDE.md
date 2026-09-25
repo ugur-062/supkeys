@@ -567,6 +567,26 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   kusurlu kayıtlar yerel betikle (`--env-file`, DB'ye yazmadan) yeniden
   çevrilip eski/yeni karşılaştırılır. Sözleşme: `content-translation.spec`
   (kalite katmanı v2, nitelik değeri), `attribute-unit-label.spec`.
+  **İkinci tur (2026-09-26):** taze 30 gerçek kayıtta EN 8,8/10 · RU 8,0/10
+  (v1: 7 / 6,5). Yakalanan GERİLEME: Rusça birim dönüştürücüsü parça
+  kodlarını bozuyordu ("HP 26A"/"CF226A" → Kiril А). Kural: sayı bir kodun
+  parçasıysa (önünde harf/rakam) dokunulmaz, TEK harfli birim (A V W m g l t)
+  yalnız BOŞLUKTAN sonra çevrilir. **Kod koruma kapısı** (`codeTokens`/
+  `codeErrors`): kaynaktaki büyük harf+rakam kodları (M6, CF226A, 6205-2RS,
+  S420MC, DN50) her çeviride AYNEN olmalı; Latin+Kiril karışık sözcük ret.
+  İstem: kodlar Latin, Istanbul/Izmir yazımı, litre "L", ana/yan sanayi,
+  kontrakt mebel, fatura→счёт.
+- **ARAYÜZ KATALOĞU TAM İNCELEME (2026-09-26):** 6.961 anahtar × EN/RU, 8
+  paralel incelemeci → 70 EN + 226 RU düzeltme (anlam: asistan "öneriyorum"
+  kartları RU'da "yaptım" diyordu, paket bitiş bildirimi yanlış kuralı
+  anlatıyordu; yer tutucu hâl ekleri; "Unvan"=Legal name). Terim kararları:
+  RU **"ИИ"** (AI değil), bağlantı = **контакт**, resmî **"Вы"** tutarlı,
+  ters açık eksiltme = "аукцион на понижение", "закрытые торги" YOK.
+  **Sayı + sabit çoğul isim YASAK:** sayı ve isim TEK ICU çoğul mesajında
+  (`{n, plural, one {# …} few {…} many {…} other {…}}`; TR `{n, number} …`);
+  biçimlenmiş sayı DİZESİ çoğul mesaja verilmez (≥1000'de "NaN products"
+  basıyordu — SEO başlıkları/OG). `ResultCount kind=…`, `CategoryTile`
+  sayacı, aksiyon merkezi satırları bu kalıpla.
 - **ÇOK DİLLİ ARAMA (2026-09-24):** `company_items`/`listings`/`companies`
   `searchTextI18n` (migration `20260924200000`, trigram GIN) = katlanmış KAYNAK
   + DONE EN/RU çeviriler (ürün ad+anahtar kelime — açıklama DEĞİL, talep

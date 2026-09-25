@@ -1,3 +1,4 @@
+import { PRODUCT_LIMITS } from "@rothern/shared";
 /**
  * SIK SORULAN SORULAR — TEK KAYNAK (2026-09-09, Parça 4: GEO).
  *
@@ -52,7 +53,7 @@ export function faqGroups(locale: Locale = DEFAULT_LOCALE): FaqGroup[] {
     {
       heading: t("web.marketing.faq.g3.heading"),
       items: [
-        { q: t("web.marketing.faq.g3.q1"), a: t("web.marketing.faq.g3.a1") },
+        { q: t("web.marketing.faq.g3.q1"), a: t("web.marketing.faq.g3.a1", { n: PRODUCT_LIMITS.STANDART ?? 0 }) },
         { q: t("web.marketing.faq.g3.q2"), a: t("web.marketing.faq.g3.a2") },
         { q: t("web.marketing.faq.g3.q3"), a: t("web.marketing.faq.g3.a3") },
         { q: t("web.marketing.faq.g3.q4"), a: t("web.marketing.faq.g3.a4") },

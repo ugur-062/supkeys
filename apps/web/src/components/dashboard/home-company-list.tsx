@@ -31,7 +31,7 @@ export function HomeCompanyList({ portal }: { portal: PortalKey }) {
           <h2 id="home-company-list-title" className="text-xl font-semibold tracking-tight text-zinc-950">
             {t("firmalar")}
           </h2>
-          {data ? <span className="tnum text-sm text-zinc-500">{total.toLocaleString("tr-TR")} firma</span> : null}
+          {data ? <span className="tnum text-sm text-zinc-500">{t("firmaSayisi", { n: total })}</span> : null}
         </span>
         <Link
           href={all}

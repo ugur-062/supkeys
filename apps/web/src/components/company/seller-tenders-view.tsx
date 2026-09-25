@@ -172,7 +172,7 @@ function RequestList({
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-3">
               <MobileFilterButton />
-              <ResultCount noun={t.unit} />
+              <ResultCount kind="openRequest" noun={t.unit} />
             </span>
             <RequestSortControl />
           </div>

@@ -33,15 +33,12 @@ import { Link } from "@/i18n/navigation";
 export function CategoryTile({
   category: c,
   href,
-  countNoun,
   variant = "wide",
   visual = "photo",
   sizes = "(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw",
 }: {
   category: ShowcaseCategory;
   href: string;
-  /** "ürün" / "açık talep" — sayının birimi. */
-  countNoun?: string;
   variant?: "wide" | "square";
   /** Fotoğraf mı, çizgisel ikon mu? */
   visual?: "photo" | "icon";
@@ -49,7 +46,6 @@ export function CategoryTile({
 }) {
   const tt = useTranslations("web.marketplace.categoryTile");
   const fmt = useFormatter();
-  const noun = countNoun ?? tt("productNoun");
   const { icon: Icon, tone } = categoryVisual([c.id]);
   const t = TONE_CLASS[tone];
   const photo = visual === "photo" ? c.imageSrc : null;
@@ -139,7 +135,7 @@ export function CategoryTile({
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-zinc-900">{c.name}</span>
           <span className="tnum block text-xs text-zinc-500">
-            {c.count > 0 ? `${fmt.number(c.count)} ${noun}` : tt("explore")}
+            {c.count > 0 ? tt("productCount", { n: c.count }) : tt("explore")}
           </span>
         </span>
         <ArrowRightIcon

@@ -385,7 +385,7 @@ const tn = useNavLabel();
           <ResultCount
             total={filtered.length}
             isFiltered={isFiltered}
-            unit={t("teklif")}
+            kind="teklif"
             className="ml-auto"
           />
         </div>

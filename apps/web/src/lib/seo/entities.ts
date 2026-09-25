@@ -1,5 +1,5 @@
 import { provinceDisplayName } from "@rothern/shared";
-import { INTL_LOCALE, formatNumber } from "@/i18n/format";
+import { INTL_LOCALE } from "@/i18n/format";
 import { localizePath } from "@/i18n/href";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { SITE_NAME } from "./meta";
@@ -273,7 +273,7 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
     [
       joinParts([c.name, c.industry], " — "),
       c.city ? ts("web.seo.basedIn", { city: provinceDisplayName(c.city, locale) }) : null,
-      c.productCount > 0 ? ts("web.seo.productsInShowcase", { n: formatNumber(c.productCount, locale) }) : null,
+      c.productCount > 0 ? ts("web.seo.productsInShowcase", { n: c.productCount }) : null,
       c.verified ? ts("web.seo.verifiedOnRothern") : null,
     ],
     " · ",
@@ -285,7 +285,7 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
   const parts = [
     lead,
     joinParts([c.industry, provinceDisplayName(c.city, locale)], ", "),
-    c.productCount > 0 ? ts("web.seo.products", { n: formatNumber(c.productCount, locale) }) : null,
+    c.productCount > 0 ? ts("web.seo.products", { n: c.productCount }) : null,
     ts("web.seo.companyProfile"),
   ];
   const base = joinParts(parts, " · ");

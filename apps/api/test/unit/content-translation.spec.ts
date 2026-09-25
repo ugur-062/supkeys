@@ -5,6 +5,8 @@ import {
   localizeNumbers,
   localizeRuUnits,
   qualityErrors,
+  codeErrors,
+  codeTokens,
   buildPrompt,
   buildSearchTextI18n,
   hasTranslatableText,
@@ -204,10 +206,31 @@ describe("kalite katmanı v2 (inceleme 2026-09-25)", () => {
   });
 
   it("Rusçada sayıdan sonraki Latin birim Kiril sembole çevrilir; kodlara dokunulmaz", () => {
-    expect(localizeRuUnits("Ширина 600 mm, мощность 150 kW, 80 g/m², <1 kV, 12m")).toBe(
-      "Ширина 600 мм, мощность 150 кВт, 80 г/м², <1 кВ, 12м",
+    // Bitişik TEK harfli birim ("12m") bilinçli dönüştürülmez: "26A" parça numarasıyla ayırt edilemez.
+    expect(localizeRuUnits("Ширина 600 mm, мощность 150 kW, 80 g/m², <1 kV, 12 m")).toBe(
+      "Ширина 600 мм, мощность 150 кВт, 80 г/м², <1 кВ, 12 м",
     );
     expect(localizeRuUnits("Болт M8, IP65, DN50, Siemens S7")).toBe("Болт M8, IP65, DN50, Siemens S7");
+  });
+
+  it("GERİLEME (v2 incelemesi): parça kodu içindeki harf birime çevrilmez; tek harfli birim yalnız boşluktan sonra", () => {
+    expect(localizeRuUnits("Картридж HP 26A (CF226A), совместимый")).toBe("Картридж HP 26A (CF226A), совместимый");
+    expect(localizeRuUnits("Ток 16 A, напряжение 220 V, 40 W, 5 l")).toBe("Ток 16 А, напряжение 220 В, 40 Вт, 5 л");
+    expect(localizeRuUnits("Профиль S420MC, 6205-2RS, 2x2,5mm²")).toBe("Профиль S420MC, 6205-2RS, 2x2,5mm²");
+    expect(localizeRuUnits("вес 1\u00a0200 kg")).toBe("вес 1\u00a0200 кг");
+  });
+
+  it("kod koruma: kaynak kodları hedefte AYNEN olmalı; sayı+birim kod sayılmaz", () => {
+    expect(codeTokens("Rulman 6205-2RS, M6 cıvata, CF226A, S420MC sac, DN50, 4x16, 400kVAr, 24V, 3D")).toEqual([
+      "6205-2RS", "M6", "CF226A", "S420MC", "DN50",
+    ]);
+    expect(codeErrors("name", "M6 cıvata", "Болт М6")[0]).toMatch(/codes must stay unchanged.*M6/);
+    expect(codeErrors("name", "M6 cıvata", "Болт M6")).toEqual([]);
+  });
+
+  it("Latin + Kiril karışık sözcük reddedilir; ayrı sözcükler serbest", () => {
+    expect(qualityErrors("name", "ru", "S420MC sac", "Лист S420МC")[0]).toMatch(/mixes Latin and Cyrillic/);
+    expect(qualityErrors("name", "ru", "IP65 kablo", "Кабель IP65, ПЭТ-бутылка, SMD-светодиод")).toEqual([]);
   });
 
   it("yasaklı terim, çevrilmemiş Türkçe ve İngilizcede Kiril reddedilir; kaynaktaki özel ad serbest", () => {

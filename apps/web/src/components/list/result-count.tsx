@@ -1,13 +1,19 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
-import { formatNumber } from "@/i18n/format";
+import { useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
+
+/**
+ * Sayılan şey. Sayı ile ad AYNI ICU mesajında (`{n, plural, …}`) — ayrı
+ * çevrilmiş bir çoğul ad sayının yanına yapıştırılınca EN "1 orders", RU
+ * "1 заказов" çıkıyordu.
+ */
+export type ResultCountKind = "sonuc" | "teklif" | "siparis" | "satinAlmaTalebi";
 
 interface Props {
   total: number;
   isFiltered: boolean;
-  unit?: string;
+  kind?: ResultCountKind;
   className?: string;
   /** B6: veri henüz yüklenmediyse "0 satın alma talebi" basma — küçük skeleton göster. */
   isLoading?: boolean;
@@ -16,12 +22,11 @@ interface Props {
 export function ResultCount({
   total,
   isFiltered,
-  unit,
+  kind = "sonuc",
   className,
   isLoading = false,
 }: Props) {
   const t = useTranslations("web.panel.shell.resultCount");
-  const locale = useLocale();
   if (isLoading) {
     return (
       <span
@@ -35,10 +40,10 @@ export function ResultCount({
   }
   return (
     <p className={cn("text-sm text-slate-500", className)}>
-      <strong className="text-zinc-900 font-semibold">
-        {formatNumber(total, locale)}
-      </strong>{" "}
-      {unit ?? t("sonuc")}
+      {t.rich(kind, {
+        n: total,
+        b: (chunks) => <strong className="text-zinc-900 font-semibold">{chunks}</strong>,
+      })}
       {isFiltered ? (
         <span className="text-slate-400 ml-1">{t("filtrelenmis")}</span>
       ) : null}

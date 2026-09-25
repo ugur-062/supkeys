@@ -320,7 +320,7 @@ export function SatisMusteriTab({
             <p className="text-4xl font-semibold tracking-tight tabular-nums text-rose-600">
               {analytics.missed.count}
             </p>
-            <p className="text-sm text-slate-500">{t("davetTeklifsizKapandi")}</p>
+            <p className="text-sm text-slate-500">{t("davetTeklifsizKapandi", { n: analytics.missed.count })}</p>
             {/* TODO: toplam tutar bilinemez — teklif verilmedi, ihale toplam
                 değeri platformda tutulmuyor. */}
             <p className="text-xs text-slate-400">

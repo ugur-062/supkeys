@@ -216,7 +216,10 @@ function VisitorRow({ v }: { v: VisitorItem }) {
         ))}
       </p>
       <p className="text-sm font-semibold tabular-nums text-zinc-950 md:text-right">
-        {v.visits} <span className="text-xs font-normal text-zinc-500">{t("ziyaretBirim")}</span>
+        {t.rich("ziyaretBirim", {
+          n: v.visits,
+          unit: (chunks) => <span className="text-xs font-normal text-zinc-500">{chunks}</span>,
+        })}
       </p>
       <p className="text-xs text-zinc-500 md:text-right">{formatDate(v.lastViewedAt, "short", locale)}</p>
       <div className="md:text-right">

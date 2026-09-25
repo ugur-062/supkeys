@@ -290,8 +290,11 @@ export default function CompanyProfilePage() {
                   value:
                     typeof l.itemCount === "number" ? (
                       <span className="flex items-baseline gap-1">
-                        <span className="font-semibold tabular-nums text-slate-900">{l.itemCount}</span>
-                        <span className="text-[11px] text-slate-500">{t("kalemBirimi")}</span>
+                        {t.rich("kalemBirimi", {
+                          n: l.itemCount,
+                          num: (chunks) => <span className="font-semibold tabular-nums text-slate-900">{chunks}</span>,
+                          unit: (chunks) => <span className="text-[11px] text-slate-500">{chunks}</span>,
+                        })}
                       </span>
                     ) : (
                       <span className="text-slate-500">—</span>

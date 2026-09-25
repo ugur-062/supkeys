@@ -2,7 +2,7 @@ import { provinceDisplayName } from "@rothern/shared";
 import { productPrice } from "@/lib/public/product-price";
 import type { PublicListingDetail, PublicProduct, PublicProductCompany, PublicProfile } from "@/lib/public/marketplace-api";
 import { joinParts } from "@/lib/seo/meta";
-import { formatNumber, priceLabelsFor, webTranslator } from "@/i18n/server";
+import { priceLabelsFor, webTranslator } from "@/i18n/server";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 
 /**
@@ -67,7 +67,7 @@ export function companyOgContent(p: PublicProfile, locale: Locale = DEFAULT_LOCA
     title: clampTitle(p.name),
     subtitle: joinParts([p.industry, provinceDisplayName(p.city, locale)], " · ") || null,
     facts: [
-      p.productCount > 0 ? t("web.seo.productsInShowcase", { n: formatNumber(p.productCount, locale) }) : null,
+      p.productCount > 0 ? t("web.seo.productsInShowcase", { n: p.productCount }) : null,
       p.foundedYear ? t("web.seo.og.since", { year: p.foundedYear }) : null,
       p.employeeCount ? t("web.seo.og.employees", { n: p.employeeCount }) : null,
     ].filter((f): f is string => !!f),
@@ -107,7 +107,7 @@ export function categoryOgContent(name: string, count: number, locale: Locale = 
     eyebrow: t("web.seo.og.category"),
     title: clampTitle(name),
     subtitle: t("web.seo.og.categorySubtitle"),
-    facts: count > 0 ? [t("web.seo.og.products", { n: formatNumber(count, locale) })] : [],
+    facts: count > 0 ? [t("web.seo.og.products", { n: count })] : [],
     image: null,
     badge: null,
   };
@@ -120,7 +120,7 @@ export function cityOgContent(kind: "products" | "companies", city: string, coun
     eyebrow: t("web.seo.og.city"),
     title: kind === "products" ? t("web.seo.og.cityProductsTitle", { city: cityName }) : t("web.seo.og.cityCompaniesTitle", { city: cityName }),
     subtitle: kind === "products" ? t("web.seo.og.cityProductsSub") : t("web.seo.og.cityCompaniesSub"),
-    facts: count > 0 ? [kind === "products" ? t("web.seo.og.products", { n: formatNumber(count, locale) }) : t("web.seo.og.companies", { n: formatNumber(count, locale) })] : [],
+    facts: count > 0 ? [kind === "products" ? t("web.seo.og.products", { n: count }) : t("web.seo.og.companies", { n: count })] : [],
     image: null,
     badge: null,
   };

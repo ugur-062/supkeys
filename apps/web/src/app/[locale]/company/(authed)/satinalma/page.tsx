@@ -192,7 +192,6 @@ export default function SatinalmaDashboardPage() {
           <CategoryShowcaseRows
             rows={rows}
             hrefFor={(c) => panelCategoryPath(c.id, c.name)}
-            countNoun={t("urun2")}
             ctaLabel={t("simdiTedarikciBulun")}
           />
 

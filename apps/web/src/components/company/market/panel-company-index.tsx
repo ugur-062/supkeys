@@ -159,7 +159,7 @@ function Inner({
 
       <MarketListLayout
         rail={<PanelCompanyFilters idPrefix="d" />}
-        toolbarStart={<ResultCount noun={t("firmaNoun")} loading={result.isLoading} />}
+        toolbarStart={<ResultCount kind="company" noun={t("firmaNoun")} loading={result.isLoading} />}
         toolbarEnd={<CompanySortBar />}
         page={state.page}
         total={total}

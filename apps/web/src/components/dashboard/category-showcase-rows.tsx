@@ -4,7 +4,7 @@ import { CategoryTile } from "@/components/marketplace/category-tile";
 import type { ShowcaseCategory } from "@/lib/public/category-showcase";
 import { categoryVisual } from "@/lib/public/category-visual";
 import { useSegmentTagline } from "@/i18n/domain";
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { ArrowRight } from "lucide-react";
 import Image from "next/image";
 import { Link } from "@/i18n/navigation";
@@ -67,13 +67,11 @@ export function toShowcaseRows(all: ShowcaseCategory[], rows = 3, perRow = 10): 
 export function CategoryShowcaseRows({
   rows,
   hrefFor,
-  countNoun: countNounProp,
   ctaLabel,
   visual = "photo",
 }: {
   rows: ShowcaseRow[];
   hrefFor: (c: ShowcaseCategory) => string;
-  countNoun?: string;
   /** Promo kartın düğmesi — "Şimdi tedarikçi bulun". */
   ctaLabel: string;
   /**
@@ -83,8 +81,6 @@ export function CategoryShowcaseRows({
    */
   visual?: "photo" | "icon";
 }) {
-  const t = useTranslations("web.marketplace.panelHome.categoryShowcaseRows");
-  const countNoun = countNounProp ?? t("urun");
   if (rows.length === 0) return null;
   return (
     <div className="space-y-6">
@@ -96,14 +92,13 @@ export function CategoryShowcaseRows({
              kalanı kategorilere gider (kaynaktaki `clamp(280px,22vw,340px)`). */
           className="grid gap-6 lg:grid-cols-[clamp(17rem,22vw,21rem)_1fr]"
         >
-          <PromoCard category={row.promo} href={hrefFor(row.promo)} countNoun={countNoun} ctaLabel={ctaLabel} visual={visual} />
+          <PromoCard category={row.promo} href={hrefFor(row.promo)} ctaLabel={ctaLabel} visual={visual} />
           <ul className="grid grid-cols-2 gap-4 sm:grid-cols-3 lg:grid-cols-5">
             {row.items.map((c) => (
               <li key={c.id}>
                 <CategoryTile
                   category={c}
                   href={hrefFor(c)}
-                  countNoun={countNoun}
                   variant="square"
                   visual={visual}
                   sizes="(max-width: 640px) 45vw, (max-width: 1024px) 30vw, 14vw"
@@ -121,19 +116,17 @@ export function CategoryShowcaseRows({
 function PromoCard({
   category: c,
   href,
-  countNoun,
   ctaLabel,
   visual,
 }: {
   category: ShowcaseCategory;
   href: string;
-  countNoun: string;
   ctaLabel: string;
   visual: "photo" | "icon";
 }) {
   const { icon: Icon } = categoryVisual([c.id]);
   const tagline = useSegmentTagline();
-  const format = useFormatter();
+  const tt = useTranslations("web.marketplace.categoryTile");
   if (visual === "icon") {
     /* İKONLU TANITIM KARTI (2026-09-21, kullanıcı mockup'ı): mavi gradyan,
        sol üstte büyük çizgisel ikon, arkada dalga + silik dev ikon dekoru,
@@ -156,7 +149,7 @@ function PromoCard({
         <span className="relative mt-auto block pt-10">
           {c.count > 0 ? (
             <span className="tnum block text-sm text-blue-100">
-              {format.number(c.count)} {countNoun}
+              {tt("productCount", { n: c.count })}
             </span>
           ) : null}
           <span className="mt-1 block text-2xl/8 font-bold text-balance">{c.name}</span>
@@ -190,7 +183,7 @@ function PromoCard({
       <span className="block p-6">
         {c.count > 0 ? (
           <span className="tnum block text-sm text-blue-100">
-            {format.number(c.count)} {countNoun}
+            {tt("productCount", { n: c.count })}
           </span>
         ) : null}
         <span className="mt-0.5 block text-lg font-semibold text-white">{c.name}</span>

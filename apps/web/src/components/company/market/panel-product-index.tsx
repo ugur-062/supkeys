@@ -188,7 +188,7 @@ function Inner({
         toolbarStart={
           /* Sayı BAŞLIKTA yazılı (MarketHeader `count`); burada yalnız canlı
              bölge ve "Güncelleniyor…" kalır (`quiet`). */
-          <ResultCount noun={t("urun2")} loading={result.isLoading} quiet />
+          <ResultCount kind="product" noun={t("urun2")} loading={result.isLoading} quiet />
         }
         toolbarEnd={
           <span className="flex items-center gap-2">

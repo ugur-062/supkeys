@@ -488,7 +488,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
           <ResultCount
             total={filtered.length}
             isFiltered={isFiltered}
-            unit={t("siparis2")}
+            kind="siparis"
             isLoading={isLoading}
             className="ml-auto"
           />

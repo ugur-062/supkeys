@@ -93,7 +93,7 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
           <span className="flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-3">
               <MobileFilterButton />
-              <ResultCount noun={noun.toLocaleLowerCase("tr-TR")} />
+              <ResultCount kind="buyingRequest" noun={noun.toLocaleLowerCase("tr-TR")} />
             </span>
             <ListingSortBar />
           </span>

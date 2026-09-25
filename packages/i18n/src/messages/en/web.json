@@ -28,7 +28,7 @@
       "contact": "Contact",
       "legal": "Agreements",
       "userAgreement": "User Agreement",
-      "mediation": "Mediation Agreement",
+      "mediation": "Intermediation Agreement",
       "privacy": "Privacy",
       "kvkk": "Data Protection Notice (KVKK)",
       "distanceSales": "Distance Sales Agreement",
@@ -56,7 +56,6 @@
       "buyerCtaText": "Can't find the product you need?",
       "buyerCtaLabel": "Post a request",
       "categoriesCta": "Find suppliers now",
-      "productNoun": "products",
       "newestTitle": "Recently added products",
       "newestLead": "The latest products suppliers added to their showcases.",
       "demandsTitle": "What buyers are looking for right now",
@@ -216,7 +215,7 @@
       "g3": {
         "heading": "Products and prices",
         "q1": "Is the product showcase free?",
-        "a1": "Yes. With the free Standard membership you can create a company profile, appear in the directory and publish up to ten products. What paid plans add is standing out, not being visible: priority ranking in the directory, unlimited products, product documents and video, the “Verified” badge and access to public requests.",
+        "a1": "Yes. With the free Standard plan you can create a company profile, appear in the directory and publish up to {n} products; company verification and the “Verified” badge are free as well. What paid plans add is standing out, not being visible: priority ranking in the directory, unlimited products, product documents and video, and access to public requests.",
         "q2": "Why do some products have no price?",
         "a2": "A price can take three forms: a fixed price, tiered pricing by quantity, or “request a quote”. The third is not missing data but the seller's deliberate choice, and the platform does not penalise it — otherwise sellers would type an unreal price just to fill the field. Prices exclude VAT and are the seller's declaration.",
         "q3": "What does the “Verified” badge mean?",
@@ -653,7 +652,7 @@
       "daysLeft": "{n, plural, one {# day left} other {# days left}}",
       "sector": "Industry",
       "location": "Location",
-      "lastBid": "Closing date",
+      "lastBid": "Quote deadline",
       "buyerVerification": "Buyer verification",
       "bidPrivacy": "Quote privacy",
       "sealedTooltip": "Quotes are sealed: bidders never see each other's prices.",
@@ -682,7 +681,7 @@
       "prev": "Previous products"
     },
     "categoryTile": {
-      "productNoun": "products",
+      "productCount": "{n, plural, one {# product} other {# products}}",
       "explore": "Explore"
     },
     "categoryGrid": {
@@ -751,7 +750,10 @@
     },
     "filters": {
       "updating": "Updating…",
-      "found": "{total} {noun} found",
+      "foundProduct": "{total, plural, one {# product found} other {# products found}}",
+      "foundCompany": "{total, plural, one {# company found} other {# companies found}}",
+      "foundBuyingRequest": "{total, plural, one {# buying request found} other {# buying requests found}}",
+      "foundOpenRequest": "{total, plural, one {# open request found} other {# open requests found}}",
       "notFound": "No {noun} found",
       "filterButton": "Filter",
       "filtersTitle": "Filters",
@@ -765,8 +767,8 @@
       "clearAll": "Clear all",
       "activeCount": "{n, plural, one {# filter active} other {# filters active}}",
       "histLabel": "Price distribution",
-      "histTitle": "{from} – {to} ₺ · {count} products",
-      "histSr": "{from}-{to} ₺ range, {count} products",
+      "histTitle": "{from} – {to} ₺ · {count, plural, one {# product} other {# products}}",
+      "histSr": "{from}-{to} ₺ range, {count, plural, one {# product} other {# products}}",
       "companyProfile": "Company profile",
       "verified": "Verified",
       "fastReply": "Fast responder",
@@ -855,7 +857,7 @@
       "viewPortfolio": "View portfolio ({n})",
       "mainCategories": "Main categories",
       "moq": "MOQ: {n} {unit}",
-      "moreProducts": "+{n} more products",
+      "moreProducts": "+{n} more",
       "verifiedCompany": "Verified company",
       "viewProfile": "View profile →"
     },
@@ -886,12 +888,12 @@
       "demandsLead": "Companies' public buying requests. A free account lets you see items and the buyer, and submit quotes.",
       "categoryNotFoundTitle": "Category not found",
       "categoryNotFoundDesc": "No products are published in this category. Browse other categories in the product directory.",
-      "categoryTitleTail": "{count} products",
-      "categoryMetaDesc": "{count} products in the {name} category from supplier showcases, with technical specifications, minimum order and price details. Pick the company and request information directly.",
-      "categoryLead": "{count} products in the {name} category. From company showcases; contact directly for a quote.",
+      "categoryTitleTail": "{count, plural, one {# product} other {# products}}",
+      "categoryMetaDesc": "{count, plural, one {# product} other {# products}} in the {name} category from supplier showcases, with technical specifications, minimum order and price details. Pick the company and request information directly.",
+      "categoryLead": "{count, plural, one {# product} other {# products}} in the {name} category. From company showcases; contact directly for a quote.",
       "cityNotFound": "City not found",
       "cityTitle": "{name} suppliers and products",
-      "cityMetaDescHas": "{count} products from the showcases of companies in {name}, with technical specifications, minimum order and price details. Pick the supplier and request information directly.",
+      "cityMetaDescHas": "{count, plural, one {# product} other {# products}} from the showcases of companies in {name}, with technical specifications, minimum order and price details. Pick the supplier and request information directly.",
       "cityMetaDescNone": "No products are published on Rothern for {name} yet. Browse suppliers in nearby provinces or publish your buying request for free.",
       "cityLeadHas": "Products companies in {name} put in their Rothern showcases. Filter by category, activity type and price.",
       "cityLeadNone": "No products are published for {name} yet. Continue with the provinces below or post a buying request.",
@@ -910,7 +912,7 @@
       "gateAsideHint": "A free account lets you connect with {name}, message them and receive quotes — 2 minutes, no credit card."
     },
     "price": {
-      "onRequest": "Request a quote for the price",
+      "onRequest": "Price on request",
       "fromQty": "for {qty} {unit} and above"
     },
     "product": {
@@ -1073,13 +1075,11 @@
         "oneriler": "Suggestions",
         "ornekIstanbulaTeslim": "Example: “Delivered to Istanbul, 50 units of 400 kVAr power factor correction panels, verified manufacturer” — the AI sets the filters and the results are listed below."
       },
-      "categoryShowcaseRows": {
-        "urun": "products"
-      },
       "homeCompanyList": {
         "firmalar": "Companies",
         "tumunuGor": "View all",
-        "henuzListelenenFirmaYok": "No companies listed yet."
+        "henuzListelenenFirmaYok": "No companies listed yet.",
+        "firmaSayisi": "{n, plural, one {# company} other {# companies}}"
       }
     },
     "hero": {
@@ -1481,7 +1481,7 @@
       "TEKLIF_MEKTUBU": "Quote letter",
       "TEKNIK_DOKUMAN": "Technical document",
       "REFERANS": "Reference / Completion certificate",
-      "KATALOG": "Catalogue / Brochure",
+      "KATALOG": "Catalog / Brochure",
       "TEMINAT": "Letter of guarantee",
       "DIGER": "Other"
     },
@@ -1517,15 +1517,15 @@
     }
   },
   "seo": {
-    "productsInShowcase": "{n} products in the showcase",
+    "productsInShowcase": "{n, plural, one {# product} other {# products}} in the showcase",
     "verifiedOnRothern": "Verified company on Rothern",
-    "products": "{n} products",
+    "products": "{n, plural, one {# product} other {# products}}",
     "companyProfile": "Rothern company profile",
     "exploreTail": "· Browse the products, request information, connect.",
     "basedIn": "based in {city}",
     "productsOf": "{name} products",
-    "turkey": "Turkey",
-    "items": "{n} items",
+    "turkey": "Türkiye",
+    "items": "{n, plural, one {# line item} other {# line items}}",
     "buyerCity": "buyer: {city}",
     "openForQuotes": "open for quotes",
     "closed": "closed",
@@ -1538,7 +1538,7 @@
       "verifiedSupplier": "Verified supplier",
       "company": "COMPANY",
       "since": "Since {year}",
-      "employees": "{n} employees",
+      "employees": "{n, plural, one {# employee} other {# employees}}",
       "verifiedCompany": "Verified company",
       "demand": "BUYING REQUEST · {number}",
       "closes": "Quote deadline: {date}",
@@ -1546,13 +1546,13 @@
       "closedBadge": "Closed",
       "category": "CATEGORY",
       "categorySubtitle": "From supplier showcases",
-      "products": "{n} products",
+      "products": "{n, plural, one {# product} other {# products}}",
       "city": "CITY",
       "cityProductsTitle": "{city} suppliers and products",
       "cityCompaniesTitle": "Companies in {city}",
       "cityProductsSub": "Showcase products with specifications and prices",
       "cityCompaniesSub": "Supplier and buyer directory",
-      "companies": "{n} companies",
+      "companies": "{n, plural, one {# company} other {# companies}}",
       "brandEyebrow": "B2B SOURCING MARKETPLACE",
       "brandTitle": "The platform that brings buyers and suppliers together in one account",
       "brandSubtitle": "Product showcase · Buying requests · Sealed-bid quotes · Order tracking",
@@ -1690,7 +1690,7 @@
       "changeEmail": "← Change email address",
       "title": "Create your account",
       "subtitle": "Start your first buying request in 10 minutes. No credit card required.",
-      "founderNote": "Because you are the first to open the company, the account is assigned to you as its <b>Founder</b> — you get all permissions. You can transfer it to another user later.",
+      "founderNote": "Because you are the first to open the company account, you are assigned as its <b>Founder</b> — you get all permissions. You can transfer this role to another user later.",
       "corporateEmail": "Work email",
       "passwordRepeat": "Password (repeat)",
       "creating": "Creating…",
@@ -1786,7 +1786,7 @@
       "select": "Select…",
       "city": "City *",
       "stateRegion": "State / region",
-      "neighborhood": "Neighbourhood",
+      "neighborhood": "Neighborhood",
       "postalCode": "Postal code",
       "addressLine": "Street address *",
       "sameAsBilling": "Use the billing address as the delivery address",
@@ -1795,11 +1795,11 @@
       "deliveryCity": "City *",
       "deliveryDistrict": "District",
       "tcknLabel": "Turkish ID number *",
-      "foreignIdLabel": "Authorised person ID no",
+      "foreignIdLabel": "Authorized person ID no",
       "tcknInvalidPerson": "Enter a valid Turkish ID number",
       "founderBox": "As the person who set up the company you are its <b>Founder</b> — you have full authority including administration and all operations (posting requests, submitting quotes).",
       "sectorQuestion": "What do you buy and sell?",
-      "sectorHint": "Select your concrete products and services — your industry is derived from your selection automatically. Public requests are forwarded to you based on this declaration; if you leave it empty you will receive no request notifications.",
+      "sectorHint": "Select your concrete products and services — your industry is derived from your selection automatically. Open requests are forwarded to you based on this declaration; if you leave it empty you will receive no request notifications.",
       "sectorsFailed": "Industries could not be loaded.",
       "retry": "Try again",
       "pickerLabel": "Your products and services",
@@ -1810,7 +1810,7 @@
       "sumTaxOffice": "Tax office",
       "sumAddress": "Address",
       "sumCountry": "Country",
-      "sumAuthorized": "Authorised person",
+      "sumAuthorized": "Authorized person",
       "sumRole": "Role",
       "sumRoleValue": "Founder · selling seat",
       "sumSectors": "Industries",
@@ -2157,7 +2157,7 @@
         "kacirilanFirsatlar": "Missed Opportunities",
         "teklifVerilmedenSuresiDolanDavetler": "Invitations that expired without a quote (last 12 months)",
         "kacirilanFirsatlar2": "Missed opportunities",
-        "davetTeklifsizKapandi": "invitations closed without a quote",
+        "davetTeklifsizKapandi": "{n, plural, one {invitation closed without a quote} other {invitations closed without a quote}}",
         "tutarHesaplanamazTeklifVerilmedenKapanan": "Amount cannot be calculated — the value of a buying request closed without a quote is unknown.",
         "kacirilanFirsatYok": "No missed opportunities",
         "son12AydaTeklifsizKapanan": "You have no invited buying requests that closed without a quote in the last 12 months."
@@ -2256,7 +2256,10 @@
       },
       "resultCount": {
         "filtrelenmis": "(filtered)",
-        "sonuc": "results"
+        "sonuc": "{n, plural, one {<b>#</b> result} other {<b>#</b> results}}",
+        "teklif": "{n, plural, one {<b>#</b> quote} other {<b>#</b> quotes}}",
+        "siparis": "{n, plural, one {<b>#</b> order} other {<b>#</b> orders}}",
+        "satinAlmaTalebi": "{n, plural, one {<b>#</b> buying request} other {<b>#</b> buying requests}}"
       },
       "searchInput": {
         "aramayiTemizle": "Clear search",
@@ -2287,25 +2290,25 @@
       },
       "actionRows": {
         "satinalma": {
-          "overduePayments": "order(s) with overdue payment",
-          "overdueDeliveries": "order(s) past the delivery date",
-          "zeroBidClosingSoon": "buying request(s) closing soon with no quotes",
-          "closingSoon": "buying request(s) closing soon",
-          "awaitingDecision": "buying request(s) with quotes awaiting your decision",
-          "pendingApprovals": "award(s) awaiting approval",
-          "sellerApproval": "order(s) awaiting seller confirmation",
-          "receiveOrders": "order(s) waiting for you to confirm receipt",
-          "paymentWindow": "order(s) awaiting payment",
-          "messages": "unread message(s)"
+          "overduePayments": "{n, plural, one {<b>#</b> order with overdue payment} other {<b>#</b> orders with overdue payment}}",
+          "overdueDeliveries": "{n, plural, one {<b>#</b> order past the delivery date} other {<b>#</b> orders past the delivery date}}",
+          "zeroBidClosingSoon": "{n, plural, one {<b>#</b> buying request closing soon with no quotes} other {<b>#</b> buying requests closing soon with no quotes}}",
+          "closingSoon": "{n, plural, one {<b>#</b> buying request closing soon} other {<b>#</b> buying requests closing soon}}",
+          "awaitingDecision": "{n, plural, one {<b>#</b> buying request with quotes awaiting your decision} other {<b>#</b> buying requests with quotes awaiting your decision}}",
+          "pendingApprovals": "{n, plural, one {<b>#</b> award awaiting approval} other {<b>#</b> awards awaiting approval}}",
+          "sellerApproval": "{n, plural, one {<b>#</b> order awaiting seller confirmation} other {<b>#</b> orders awaiting seller confirmation}}",
+          "receiveOrders": "{n, plural, one {<b>#</b> order waiting for you to confirm receipt} other {<b>#</b> orders waiting for you to confirm receipt}}",
+          "paymentWindow": "{n, plural, one {<b>#</b> order awaiting payment} other {<b>#</b> orders awaiting payment}}",
+          "messages": "{n, plural, one {<b>#</b> unread message} other {<b>#</b> unread messages}}"
         },
         "satis": {
-          "overdueDeliveries": "order(s) past the delivery date",
-          "unansweredInvites": "invitation(s) you have not quoted on yet",
-          "expiringBids": "quote(s) about to expire",
-          "pendingOrders": "order(s) awaiting your confirmation",
-          "unansweredInquiries": "inquiry(ies) awaiting your reply",
-          "paymentWindow": "order(s) awaiting payment",
-          "messages": "unread message(s)"
+          "overdueDeliveries": "{n, plural, one {<b>#</b> order past the delivery date} other {<b>#</b> orders past the delivery date}}",
+          "unansweredInvites": "{n, plural, one {<b>#</b> invitation you have not quoted on yet} other {<b>#</b> invitations you have not quoted on yet}}",
+          "expiringBids": "{n, plural, one {<b>#</b> quote about to expire} other {<b>#</b> quotes about to expire}}",
+          "pendingOrders": "{n, plural, one {<b>#</b> order awaiting your confirmation} other {<b>#</b> orders awaiting your confirmation}}",
+          "unansweredInquiries": "{n, plural, one {<b>#</b> inquiry awaiting your reply} other {<b>#</b> inquiries awaiting your reply}}",
+          "paymentWindow": "{n, plural, one {<b>#</b> order awaiting payment} other {<b>#</b> orders awaiting payment}}",
+          "messages": "{n, plural, one {<b>#</b> unread message} other {<b>#</b> unread messages}}"
         }
       }
     },
@@ -2422,7 +2425,7 @@
         "tedarikSurecleriniziYonetinAcinDavet": "Manage your procurement processes — open, invite, award.",
         "sablonlar": "Templates",
         "raporlar": "Reports",
-        "enFazla500GosteriliyorDaha": "Showing at most 500 {unit} — if there are more, narrow down with search and filters.",
+        "enFazla500GosteriliyorDaha": "Showing at most 500 results ({unit}) — if there are more, narrow down with search and filters.",
         "adiVeyaNumarasiAra": "Search by {searchNoun} name or number…",
         "siralama": "Sort",
         "tumDurumlar": "All statuses ({length})",
@@ -2613,7 +2616,7 @@
         "teklifDosyasiEkiZorunlu": "Quote file attachment required",
         "acikEksiltmeAyarlari": "Reverse auction settings",
         "tedarikciGorunurlugu": "Supplier visibility",
-        "turBasina1TeklifKendi": "1 quote per round · must be lower than your previous one",
+        "turBasina1TeklifKendi": "1 quote per round · must be lower than the company’s own previous quote",
         "teklifKurali": "Quote rule",
         "ondalikBasamak": "Decimal places",
         "otomatikSureUzatma": "Automatic time extension",
@@ -3397,20 +3400,20 @@
       },
       "saveTemplateDialog": {
         "sablonOlarakKaydet": "Save as template",
-        "buTekrarKullanmakUzereSablonlayin": "Turn this {acc} into a template for reuse",
+        "buTekrarKullanmakUzereSablonlayin": "Save {acc} as a template for reuse",
         "sablonAdi": "Template name",
         "orAylikOfisMalzemesi": "E.g. Monthly office supplies",
-        "kalemlerKategorilerVeAyarlarSablona": "Line items, categories and settings are included in the template. The closing date and invited {counterpartyPluralLower} are chosen again for each {loc}.",
+        "kalemlerKategorilerVeAyarlarSablona": "Line items, categories and settings are included in the template. The closing date and invited {counterpartyPluralLower} are selected again {loc} each time the template is used.",
         "vazgec": "Cancel",
         "kaydet": "Save"
       },
       "itemDetailModal": {
-        "gostereceginizEkBilgilerVeDahili": "Additional information shown to {counterpartyPluralDat}, plus internal notes.",
+        "gostereceginizEkBilgilerVeDahili": "Additional information shown {counterpartyPluralDat}, plus internal notes.",
         "tedarikciyeGosterilir": "Shown to the supplier.",
         "aciklamaSpesifikasyon": "Description / Specification",
         "markaModelKaliteGereksinimleriTeknik": "Brand, model, quality requirements, technical features…",
         "gereksinimTarihi": "Required-by date",
-        "buFiyatiGorecekNdaAcik": "{counterpartyPlural} will see this price (open in {rules}).",
+        "buFiyatiGorecekNdaAcik": "{counterpartyPlural} will see this price (enabled in “{rules}”).",
         "yalnizSizinIcinKarsiTarafa": "For you only — not shown to the other party.",
         "hedefBirimFiyat": "Target unit price",
         "vazgec": "Cancel",
@@ -3558,7 +3561,7 @@
         "indiriliyor": "Downloading…",
         "sablonuIndir": "Download template",
         "excelCsvSec": "Select Excel / CSV",
-        "kendiListenizDeOlabilirBasliklar": "Your own list works too — the headers must match the template (item name, quantity, unit…)",
+        "kendiListenizDeOlabilirBasliklar": "Your own list works too — the headers must match the template (Kalem Adı, Miktar, Birim…)",
         "satirHazir": "{validCount, plural, one {# row ready} other {# rows ready}}",
         "hataliSatirAktarilmaz": "{invalidCount, plural, one {# invalid row (will not be imported)} other {# invalid rows (will not be imported)}}",
         "satirTavanNedeniyleOkunmadiEn": "{truncated, plural, one {# row was} other {# rows were}} not read because of the limit (max. 500 line items)",
@@ -3832,7 +3835,7 @@
         "profil": "Profile",
         "profiliGor": "View profile",
         "firmaProfiliniziInceledi": "{n, plural, one {# company viewed your profile} other {# companies viewed your profile}}",
-        "ziyaretBirim": "visits"
+        "ziyaretBirim": "{n, plural, one {# <unit>visit</unit>} other {# <unit>visits</unit>}}"
       },
       "silverLockCard": {
         "baglantiDavetiyleGelenTalepleriUcretsiz": "Requests that come through a connection invitation are visible free of charge.",
@@ -3848,7 +3851,7 @@
       "sellerTendersView": {
         "bagliOldugunuzAlicilarinTalepleriHerkese": "Requests from buyers you are connected with — all public requests are unlocked with the Silver plan.",
         "bagliOldugunuzAlicilarinVeHerkese": "All requests from your connected buyers and all public requests — filter, sort and submit quotes.",
-        "enFazla300GosteriliyorDaha": "Showing at most 300 {unit} — if there are more, narrow the list with search and filters.",
+        "enFazla300GosteriliyorDaha": "Showing at most 300 results ({unit}) — if there are more, narrow the list with search and filters.",
         "suzgecler": "Filters",
         "suzgeclerYukleniyor": "Loading filters…",
         "acikTaleplerYuklenemedi": "Open requests could not be loaded.",
@@ -3922,8 +3925,7 @@
         "taahhutTeslim": "Committed delivery: {value}",
         "verildi": "Submitted {date}",
         "kapanisa": "Closes in",
-        "ozet": "<b>{active}</b> awaiting decision · <b>{won}</b> won (including partial)",
-        "teklif": "quotes"
+        "ozet": "<b>{active}</b> awaiting decision · <b>{won}</b> won (including partial)"
       },
       "templatesView": {
         "grupAdiEnAz2": "Group name must be at least 2 characters",
@@ -3971,7 +3973,7 @@
         "henuzSablonYokSihirbazinUst": "No templates yet. Create your first template with “Save as Template” in the top bar of the wizard.",
         "talepteKullan": "Use in request",
         "sablonunuSil": "Delete template {name}",
-        "sablonu": "Template",
+        "sablonu": "template",
         "answerType": {
           "TEXT": "Text",
           "NUMBER": "Number",
@@ -4020,7 +4022,6 @@
         "tarihAraligi": "Date range",
         "tum": "All {partyPlural}",
         "karsiTarafFiltresi": "Counterparty filter",
-        "siparis2": "orders",
         "arama": "Search: \"{search}\"",
         "siparislerYuklenemediLutfenTekrarDeneyin": "Orders could not be loaded. Please try again.",
         "eslesenSiparisYok": "No matching orders",
@@ -4189,7 +4190,7 @@
         "arsivBos": "Archive is empty",
         "katalogHenuzBos": "Catalog is empty for now",
         "arsivlenmisKalemYok": "No archived line items.",
-        "birSatinAlmaTalebiOlusturduktan": "After you create a buying request, you can fill it using the “Save to catalog” button above the line item list.",
+        "birSatinAlmaTalebiOlusturduktan": "After you create a buying request, you can fill the catalog using the “Save to catalog” button above the line item list.",
         "kezKullanildi": "{usageCount, plural, one {Used # time} other {Used # times}}",
         "arsivle": "Archive",
         "geriAl": "Restore",
@@ -4259,7 +4260,7 @@
         "plusNKalem": "+{n, plural, one {# line item} other {# line items}}"
       },
       "requestFilters": {
-        "uygunluk": "Eligibility",
+        "uygunluk": "Relevance",
         "durum": "Status",
         "kapanis": "Closing",
         "hepsi": "All",
@@ -4507,22 +4508,22 @@
             "body": "Unit price drops as quantity grows — the most realistic option in B2B."
           },
           "ON_REQUEST": {
-            "title": "Request a quote for price",
+            "title": "Request a quote for pricing",
             "body": "Choose this if you do not want to publish a price. It does not cost you any points."
           }
         },
         "birimFiyatYerTutucu": "0.00",
         "kademeBaslangicMiktari": "Tier {n}: starting quantity",
         "kademeBirimFiyat": "Tier {n}: unit price",
-        "urunSayfasindaFiyatIcinTeklifIsteyinYazacak": "The product page will show <strong>“Request a quote for price”</strong>. This is not a gap but a clear statement — the buyer knows the price is negotiable."
+        "urunSayfasindaFiyatIcinTeklifIsteyinYazacak": "The product page will show <strong>“Request a quote for pricing”</strong>. This is not a gap but a clear statement — the buyer knows the price is negotiable."
       },
       "attributeFields": {
         "tamamlanmaSkorunuEtkiler": "Affects the completion score",
         "seciniz": "Select"
       },
       "panelInquiryDialog": {
-        "talepGonderilemedi": "Could not send request",
-        "talebinizGonderildi": "Your request has been sent",
+        "talepGonderilemedi": "Could not send inquiry",
+        "talebinizGonderildi": "Your inquiry has been sent",
         "bilgiTeklifIste": "Request info / quote",
         "kapat": "Close",
         "taleplerimiGor": "View my inquiries",
@@ -4531,7 +4532,7 @@
         "orn500Adet": "e.g. 500 pcs",
         "ihtiyaciniziTeslimYeriniVeTermini": "Describe your need, the delivery location and the deadline.",
         "gonderiliyor": "Sending…",
-        "talebiGonder": "Send request",
+        "talebiGonder": "Send inquiry",
         "buUrunuSatinAlmaTalebime": "Add this product to my buying request",
         "bilgiTalebiTekFirmayaGider": "An inquiry goes to a single company; a buying request collects quotes from all suitable suppliers.",
         "talebinizFirmasinaIletildi": "Your inquiry has been sent to <strong>{company}</strong>. When a reply arrives, you will see it on your My Inquiries page.",
@@ -4544,9 +4545,9 @@
         "urunlerinizHakkindaGelenSorularYanitladikca": "Questions received about your products — as you reply, your answers appear in the buyer panel.",
         "tedarikciUrunleriHakkindaGonderdiginizSorula": "Questions you sent about supplier products and the replies received.",
         "urunAra": "Search products",
-        "bilgiTalebiKimSorduguVe": "{count, plural, one {# inquiry} other {# inquiries}} — who asked and replying are unlocked with Silver",
-        "gelenSorulariGorursunuzKimSordugu": "You can see incoming questions; who asked and replying unlock with Silver",
-        "ucretsizUyelikteAlicininSorusunuAdedini": "On the free membership you can see the question, quantity and city of the buyer. Buyer identity, contact details and replying unlock with the Silver plan — buyers turn to verified suppliers.",
+        "bilgiTalebiKimSorduguVe": "{count, plural, one {# inquiry} other {# inquiries}} — the asker’s identity and replying unlock with Silver",
+        "gelenSorulariGorursunuzKimSordugu": "You can see incoming questions; the asker’s identity and replying unlock with Silver",
+        "ucretsizUyelikteAlicininSorusunuAdedini": "On the free plan, you can see the buyer’s question, quantity and city. The buyer’s identity, contact details and replying unlock with the Silver plan — buyers turn to verified suppliers.",
         "yukleniyor": "Loading…",
         "henuzBilgiTalebiYok": "No inquiries yet.",
         "gonderdiginizTalepYok": "You have not sent any inquiries.",
@@ -5009,7 +5010,7 @@
           "bidElimination": "When my quote is eliminated",
           "listingClosed": "When a buying request I took part in closes",
           "categoryMatch": "When a new buying request matching my category is opened",
-          "approvalPending": "When my approval is awaited",
+          "approvalPending": "When my approval is required",
           "announcement": "Platform announcements"
         },
         "transactional": {
@@ -5117,7 +5118,7 @@
         "uyelik": "Membership",
         "dogrulama": "Verification",
         "dogrulamaBelgeleri": "Verification documents",
-        "unvan": "Company name",
+        "unvan": "Legal name",
         "dogrulamaInceleniyorFirmaAdiVe": "Verification is in progress; the company name and legal name are locked until the review is complete.",
         "firmaAdiVeYasalUnvan": "The company name and legal name have been verified against documents; contact support for a change (amendment of the legal name).",
         "dogrulamaBasladiktanSonraFirmaAdi": "Once verification starts, the company name and legal name are locked.",
@@ -5370,7 +5371,7 @@
           "bid": "Quotes",
           "order": "Orders",
           "user": "Users",
-          "seats": "User rights",
+          "seats": "User seats",
           "bank_account": "Bank accounts",
           "address": "Addresses",
           "docs": "Documents (KYC)",
@@ -5610,7 +5611,7 @@
         "geri": "Back",
         "baglantilar": "Connections",
         "engellenemedi": "Could not block",
-        "kalemBirimi": "line items"
+        "kalemBirimi": "{n, plural, one {<num>#</num> <unit>line item</unit>} other {<num>#</num> <unit>line items</unit>}}"
       },
       "page": {
         "yonlendiriliyor": "Redirecting…"
@@ -5627,7 +5628,7 @@
         "buCeyrek": "this quarter",
         "buYil": "this year",
         "seciliAralik": "selected range",
-        "isAnalizi": "Business analytics",
+        "isAnalizi": "Business Insights",
         "sayilar": "Figures",
         "adetlerAnlikTutarlarVeGrafikler": "Counts are live; amounts and charts follow the selected period.",
         "satinalma": "Buying",
@@ -5866,7 +5867,6 @@
         "firma": "Company",
         "aradiginizUrunuBulamadinizMi": "Can't find the product you need?",
         "talepAc": "Post a request",
-        "urun2": "products",
         "simdiTedarikciBulun": "Find suppliers now"
       },
       "firmaslugUrunSlugPage": {
@@ -5934,7 +5934,7 @@
         "genelSatinAlmaTalebiRaporu": "General buying request report",
         "tekSatinAlmaTalebiVeya": "List a single buying request, or your buying requests in a date range — with participation, winner and savings.",
         "tasarrufRaporu": "Savings report",
-        "rekabetinSizeKazandirdiginiGorunHedef": "See what competition has gained you — with line item detail against the target price.",
+        "rekabetinSizeKazandirdiginiGorunHedef": "See what competition has saved you — with line item detail against the target price.",
         "teklifKarsilastirmaRaporu": "Quote comparison report",
         "birSatinAlmaTalebineGelen": "Compare the quotes received for a buying request side by side, line item by line item."
       },
@@ -5947,7 +5947,7 @@
         "enDusukBirimFiyatlar": "lowest unit prices",
         "enYuksekBirimFiyatlar": "highest unit prices",
         "satinAlmaTalebi": "Buying request",
-        "ilan": "Request",
+        "ilan": "Listing",
         "secin": "— Select —",
         "karsilastirmaKriteri": "Comparison criterion",
         "fiyatlar": "Prices",
@@ -5974,7 +5974,7 @@
         "tedarikci": "Supplier",
         "alici": "Buyer",
         "tutar": "Amount",
-        "indiriliyor": "{file} is downloading",
+        "indiriliyor": "Downloading {file}",
         "birSatinAlmaTalebineGelenTeklifleri": "Compare the quotes received for a buying request side by side, line item by line item — the lowest unit prices are highlighted.",
         "raporuOlustur": "Generate report",
         "hedefToplam": "Target total: {total}",
@@ -6024,8 +6024,8 @@
         "tasarruf": "Savings",
         "toplamTasarruf": "Total savings",
         "indiriliyor": "Downloading {file}",
-        "tekBirSatinAlmaTalebiniRaporlayacagim": "I will report a single buying request",
-        "belirliTarihAraligindakiSatinAlmaTaleplerini": "I will report buying requests in a specific date range",
+        "tekBirSatinAlmaTalebiniRaporlayacagim": "Report on a single buying request",
+        "belirliTarihAraligindakiSatinAlmaTaleplerini": "Report on buying requests in a specific date range",
         "raporuOlustur": "Generate report",
         "sonucEnFazlaKayitlaSinirlandi": "The result is limited to {max} records — older ones are NOT in this report. Narrow the date range to see them all.",
         "ortTeklif": "Avg. quotes",

@@ -56,7 +56,6 @@
       "buyerCtaText": "Aradığınız ürünü bulamadınız mı?",
       "buyerCtaLabel": "Talep aç",
       "categoriesCta": "Şimdi tedarikçi bulun",
-      "productNoun": "ürün",
       "newestTitle": "Yeni eklenen ürünler",
       "newestLead": "Tedarikçilerin vitrinlerine en son eklediği ürünler.",
       "demandsTitle": "Alıcılar şu an bunları arıyor",
@@ -216,7 +215,7 @@
       "g3": {
         "heading": "Ürünler ve fiyat",
         "q1": "Ürün vitrini ücretsiz mi?",
-        "a1": "Evet. Ücretsiz Standart üyelikle firma profili açabilir, dizinde yer alabilir ve on ürüne kadar yayımlayabilirsiniz. Ücretli paketlerin getirdiği şey görünmek değil öne çıkmaktır: dizinde öncelikli sıralama, sınırsız ürün, ürün belgesi ve videosu, “Doğrulanmış” rozeti ve herkese açık taleplere erişim.",
+        "a1": "Evet. Ücretsiz Standart üyelikle firma profili açabilir, dizinde yer alabilir ve {n} ürüne kadar yayımlayabilirsiniz; firma doğrulaması ve “Doğrulanmış” rozeti de ücretsizdir. Ücretli paketlerin getirdiği şey görünmek değil öne çıkmaktır: dizinde öncelikli sıralama, sınırsız ürün, ürün belgesi ve videosu ve herkese açık taleplere erişim.",
         "q2": "Bazı ürünlerde neden fiyat yazmıyor?",
         "a2": "Fiyat üç biçimde olabilir: sabit fiyat, miktara göre kademeli fiyat ya da “fiyat için teklif isteyin”. Üçüncüsü eksik veri değil, satıcının bilinçli tercihidir ve platform bunu cezalandırmaz — aksi hâlde satıcılar alanı doldurmak için gerçek olmayan bir fiyat yazardı. Fiyatlar KDV hariçtir ve satıcının beyanıdır.",
         "q3": "“Doğrulanmış” rozeti ne anlama geliyor?",
@@ -682,7 +681,7 @@
       "prev": "Önceki ürünler"
     },
     "categoryTile": {
-      "productNoun": "ürün",
+      "productCount": "{n, number} ürün",
       "explore": "Keşfet"
     },
     "categoryGrid": {
@@ -751,7 +750,10 @@
     },
     "filters": {
       "updating": "Güncelleniyor…",
-      "found": "{total} {noun} bulundu",
+      "foundProduct": "{total, number} ürün bulundu",
+      "foundCompany": "{total, number} firma bulundu",
+      "foundBuyingRequest": "{total, number} alım talebi bulundu",
+      "foundOpenRequest": "{total, number} açık talep bulundu",
       "notFound": "{noun} bulunamadı",
       "filterButton": "Filtrele",
       "filtersTitle": "Süzgeçler",
@@ -886,9 +888,9 @@
       "demandsLead": "Firmaların herkese açık alım talepleri. Kalemleri ve alıcıyı görmek, teklif vermek için ücretsiz hesap.",
       "categoryNotFoundTitle": "Kategori bulunamadı",
       "categoryNotFoundDesc": "Bu kategoride yayımlanmış ürün yok. Ürün dizininden diğer kategorilere göz atın.",
-      "categoryTitleTail": "{count} ürün",
-      "categoryMetaDesc": "{name} kategorisinde {count} ürün: teknik özellik, minimum sipariş ve fiyat bilgisiyle tedarikçi firmaların vitrininden. Firmayı seçin, doğrudan bilgi isteyin.",
-      "categoryLead": "{name} kategorisinde {count} ürün. Firmaların vitrinlerinden; teklif için doğrudan iletişime geçin.",
+      "categoryTitleTail": "{count, number} ürün",
+      "categoryMetaDesc": "{name} kategorisinde {count, number} ürün: teknik özellik, minimum sipariş ve fiyat bilgisiyle tedarikçi firmaların vitrininden. Firmayı seçin, doğrudan bilgi isteyin.",
+      "categoryLead": "{name} kategorisinde {count, number} ürün. Firmaların vitrinlerinden; teklif için doğrudan iletişime geçin.",
       "cityNotFound": "Şehir bulunamadı",
       "cityTitle": "{name} tedarikçileri ve ürünleri",
       "cityMetaDescHas": "{name}'daki firmaların vitrinlerindeki {count} ürün: teknik özellik, minimum sipariş ve fiyat bilgisiyle. Tedarikçiyi seçin, doğrudan bilgi isteyin.",
@@ -1073,13 +1075,11 @@
         "oneriler": "Öneriler",
         "ornekIstanbulaTeslim": "Örnek: “İstanbul''a teslim, 50 adet 400 kVAr kompanzasyon panosu, doğrulanmış üretici” — AI süzgeçleri kurar, sonuçlar aşağıda listelenir."
       },
-      "categoryShowcaseRows": {
-        "urun": "ürün"
-      },
       "homeCompanyList": {
         "firmalar": "Firmalar",
         "tumunuGor": "Tümünü gör",
-        "henuzListelenenFirmaYok": "Henüz listelenen firma yok."
+        "henuzListelenenFirmaYok": "Henüz listelenen firma yok.",
+        "firmaSayisi": "{n, number} firma"
       }
     },
     "hero": {
@@ -1517,9 +1517,9 @@
     }
   },
   "seo": {
-    "productsInShowcase": "{n} ürün vitrinde",
+    "productsInShowcase": "{n, number} ürün vitrinde",
     "verifiedOnRothern": "Rothern'de doğrulanmış firma",
-    "products": "{n} ürün",
+    "products": "{n, number} ürün",
     "companyProfile": "Rothern firma profili",
     "exploreTail": "· Ürünlerini inceleyin, bilgi isteyin, bağlantı kurun.",
     "basedIn": "{city} merkezli",
@@ -1546,13 +1546,13 @@
       "closedBadge": "Kapandı",
       "category": "KATEGORİ",
       "categorySubtitle": "Tedarikçi firmaların vitrininden",
-      "products": "{n} ürün",
+      "products": "{n, number} ürün",
       "city": "ŞEHİR",
       "cityProductsTitle": "{city} tedarikçileri ve ürünleri",
       "cityCompaniesTitle": "{city} firmaları",
       "cityProductsSub": "Vitrindeki ürünler, teknik özellik ve fiyatla",
       "cityCompaniesSub": "Tedarikçi ve alıcı dizini",
-      "companies": "{n} firma",
+      "companies": "{n, number} firma",
       "brandEyebrow": "B2B TEDARİK PAZAR YERİ",
       "brandTitle": "Alıcı ve tedarikçiyi tek hesapta birleştiren platform",
       "brandSubtitle": "Ürün vitrini · Alım talebi · Kapalı zarf teklif · Sipariş takibi",
@@ -2157,7 +2157,7 @@
         "kacirilanFirsatlar": "Kaçırılan Fırsatlar",
         "teklifVerilmedenSuresiDolanDavetler": "Teklif verilmeden süresi dolan davetler (son 12 ay)",
         "kacirilanFirsatlar2": "Kaçırılan fırsatlar",
-        "davetTeklifsizKapandi": "davet teklifsiz kapandı",
+        "davetTeklifsizKapandi": "{n, plural, other {davet teklifsiz kapandı}}",
         "tutarHesaplanamazTeklifVerilmedenKapanan": "Tutar hesaplanamaz — teklif verilmeden kapanan satın alma talebinin değeri bilinmez.",
         "kacirilanFirsatYok": "Kaçırılan fırsat yok",
         "son12AydaTeklifsizKapanan": "Son 12 ayda teklifsiz kapanan davetli satın alma talebiniz bulunmuyor."
@@ -2256,7 +2256,10 @@
       },
       "resultCount": {
         "filtrelenmis": "(filtrelenmiş)",
-        "sonuc": "sonuç"
+        "sonuc": "<b>{n, number}</b> sonuç",
+        "teklif": "<b>{n, number}</b> teklif",
+        "siparis": "<b>{n, number}</b> sipariş",
+        "satinAlmaTalebi": "<b>{n, number}</b> satın alma talebi"
       },
       "searchInput": {
         "aramayiTemizle": "Aramayı temizle",
@@ -2287,25 +2290,25 @@
       },
       "actionRows": {
         "satinalma": {
-          "overduePayments": "siparişin ödemesi gecikti",
-          "overdueDeliveries": "siparişin teslim tarihi geçti",
-          "zeroBidClosingSoon": "satın alma talebiniz teklifsiz kapanmak üzere",
-          "closingSoon": "satın alma talebiniz kapanmak üzere",
-          "awaitingDecision": "satın alma talebinizde karar bekleyen teklif var",
-          "pendingApprovals": "kazandırma onay bekliyor",
-          "sellerApproval": "sipariş satıcı onayında",
-          "receiveOrders": "sipariş teslim almanızı bekliyor",
-          "paymentWindow": "siparişin ödemesi bekleniyor",
-          "messages": "okunmamış mesajınız var"
+          "overduePayments": "<b>{n, number}</b> siparişin ödemesi gecikti",
+          "overdueDeliveries": "<b>{n, number}</b> siparişin teslim tarihi geçti",
+          "zeroBidClosingSoon": "<b>{n, number}</b> satın alma talebiniz teklifsiz kapanmak üzere",
+          "closingSoon": "<b>{n, number}</b> satın alma talebiniz kapanmak üzere",
+          "awaitingDecision": "<b>{n, number}</b> satın alma talebinizde karar bekleyen teklif var",
+          "pendingApprovals": "<b>{n, number}</b> kazandırma onay bekliyor",
+          "sellerApproval": "<b>{n, number}</b> sipariş satıcı onayında",
+          "receiveOrders": "<b>{n, number}</b> sipariş teslim almanızı bekliyor",
+          "paymentWindow": "<b>{n, number}</b> siparişin ödemesi bekleniyor",
+          "messages": "<b>{n, number}</b> okunmamış mesajınız var"
         },
         "satis": {
-          "overdueDeliveries": "siparişin teslim tarihi geçti",
-          "unansweredInvites": "davete henüz teklif vermediniz",
-          "expiringBids": "teklifinizin geçerliliği dolmak üzere",
-          "pendingOrders": "sipariş onayınızı bekliyor",
-          "unansweredInquiries": "bilgi talebi yanıtınızı bekliyor",
-          "paymentWindow": "siparişin ödemesi bekleniyor",
-          "messages": "okunmamış mesajınız var"
+          "overdueDeliveries": "<b>{n, number}</b> siparişin teslim tarihi geçti",
+          "unansweredInvites": "<b>{n, number}</b> davete henüz teklif vermediniz",
+          "expiringBids": "<b>{n, number}</b> teklifinizin geçerliliği dolmak üzere",
+          "pendingOrders": "<b>{n, number}</b> sipariş onayınızı bekliyor",
+          "unansweredInquiries": "<b>{n, number}</b> bilgi talebi yanıtınızı bekliyor",
+          "paymentWindow": "<b>{n, number}</b> siparişin ödemesi bekleniyor",
+          "messages": "<b>{n, number}</b> okunmamış mesajınız var"
         }
       }
     },
@@ -3832,7 +3835,7 @@
         "profil": "Profil",
         "profiliGor": "Profili gör",
         "firmaProfiliniziInceledi": "{n} firma profilinizi inceledi",
-        "ziyaretBirim": "ziyaret"
+        "ziyaretBirim": "{n, number} <unit>ziyaret</unit>"
       },
       "silverLockCard": {
         "baglantiDavetiyleGelenTalepleriUcretsiz": "Bağlantı davetiyle gelen talepleri ücretsiz görürsünüz.",
@@ -3922,8 +3925,7 @@
         "taahhutTeslim": "Taahhüt teslim: {value}",
         "verildi": "Verildi {date}",
         "kapanisa": "Kapanışa",
-        "ozet": "<b>{active}</b> karar bekleyen · <b>{won}</b> kazanılan (kısmi dahil)",
-        "teklif": "teklif"
+        "ozet": "<b>{active}</b> karar bekleyen · <b>{won}</b> kazanılan (kısmi dahil)"
       },
       "templatesView": {
         "grupAdiEnAz2": "Grup adı en az 2 karakter olmalı",
@@ -4020,7 +4022,6 @@
         "tarihAraligi": "Tarih aralığı",
         "tum": "Tüm {partyPlural}",
         "karsiTarafFiltresi": "Karşı taraf filtresi",
-        "siparis2": "sipariş",
         "arama": "Arama: \"{search}\"",
         "siparislerYuklenemediLutfenTekrarDeneyin": "Siparişler yüklenemedi. Lütfen tekrar deneyin.",
         "eslesenSiparisYok": "Eşleşen sipariş yok",
@@ -5610,7 +5611,7 @@
         "geri": "Geri",
         "baglantilar": "Bağlantılar",
         "engellenemedi": "Engellenemedi",
-        "kalemBirimi": "kalem"
+        "kalemBirimi": "<num>{n, number}</num> <unit>kalem</unit>"
       },
       "page": {
         "yonlendiriliyor": "Yönlendiriliyor…"
@@ -5849,7 +5850,7 @@
     },
     "market": {
       "kategoriSlugPage": {
-        "urun": "{n} ürün",
+        "urun": "{n, number} ürün",
         "kategorisindekiTedarikciUrunleriSuzunKarsila": "{name} kategorisindeki tedarikçi ürünleri — süzün, karşılaştırın, doğrudan bilgi isteyin."
       },
       "satinalmaPage": {
@@ -5866,7 +5867,6 @@
         "firma": "Firma",
         "aradiginizUrunuBulamadinizMi": "Aradığınız ürünü bulamadınız mı?",
         "talepAc": "Talep aç",
-        "urun2": "ürün",
         "simdiTedarikciBulun": "Şimdi tedarikçi bulun"
       },
       "firmaslugUrunSlugPage": {

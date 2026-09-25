@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import { ErrorState } from "@/components/ui/error-state";
 import { useActionCenter, type ActionCenterApiRow, type ActionSeverity } from "@/hooks/use-company-dashboard";
 import { useUnreadMessages } from "@/hooks/use-company-messages";
@@ -150,15 +151,19 @@ export function CompanyActionCenter({ portals }: { portals: PortalKey[] }) {
                   <li key={`${r.portal}:${r.key}`}>
                     <Link
                       href={r.href}
-                      aria-label={`${r.count} ${tRow(r.textKey as never)}${time ? ` — ${time}` : ""}`}
+                      aria-label={`${tRow.markup(r.textKey as never, { n: r.count, b: (c: string) => c } as never)}${time ? ` — ${time}` : ""}`}
                       className="group flex items-center gap-3 px-5 py-3 transition hover:bg-zinc-50 focus-visible:bg-zinc-50 focus-visible:outline-none"
                     >
                       <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", meta.cls)} title={t(meta.labelKey as never)}>
                         <meta.icon className="size-4" aria-hidden />
                       </span>
                       <span className="min-w-0 flex-1 text-sm text-zinc-700">
-                        <strong className="font-semibold tabular-nums text-zinc-950">{r.count}</strong>{" "}
-                        <span className="group-hover:text-zinc-950">{tRow(r.textKey as never)}</span>
+                        <span className="group-hover:text-zinc-950">
+                          {tRow.rich(r.textKey as never, {
+                            n: r.count,
+                            b: (c: ReactNode) => <strong className="font-semibold tabular-nums text-zinc-950">{c}</strong>,
+                          } as never)}
+                        </span>
                         {time ? (
                           <span
                             className={cn(
