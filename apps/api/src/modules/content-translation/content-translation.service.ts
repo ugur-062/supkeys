@@ -110,7 +110,16 @@ export class ContentTranslationService {
     if (type === "PRODUCT") {
       const row = await this.prisma.companyItem.findUnique({
         where: { id },
-        select: { name: true, description: true, keywords: true, attributes: true, categoryId: true, unit: true, unitCode: true },
+        select: {
+          name: true,
+          description: true,
+          specification: true,
+          keywords: true,
+          attributes: true,
+          categoryId: true,
+          unit: true,
+          unitCode: true,
+        },
       });
       if (!row) return null;
       const defs = await resolveCategoryAttributes(this.prisma, row.categoryId);
@@ -124,6 +133,8 @@ export class ContentTranslationService {
         attributes: labeled
           .map((a) => ({ label: a.label, value: Array.isArray(a.value) ? a.value.join(", ") : String(a.value ?? "") }))
           .filter((a) => a.value.trim() !== ""),
+        // Yalnız doluyken (eski kayıtların kaynak özeti değişmesin).
+        ...(row.specification?.trim() ? { specification: row.specification.trim() } : {}),
       };
     }
     if (type === "LISTING") {
@@ -133,12 +144,31 @@ export class ContentTranslationService {
           title: true,
           description: true,
           keywords: true,
-          items: { select: { name: true }, orderBy: { lineNo: "asc" } },
+          terms: true,
+          paymentNote: true,
+          items: {
+            select: { name: true, description: true, specification: true, questions: { select: { text: true } } },
+            orderBy: { lineNo: "asc" },
+          },
         },
       });
       if (!row) return null;
-      const items = [...new Set(row.items.map((i) => (i.name ?? "").trim()).filter(Boolean))];
-      return { title: row.title, description: row.description, keywords: row.keywords, items };
+      const uniq = (xs: (string | null | undefined)[]) => [...new Set(xs.map((x) => (x ?? "").trim()).filter(Boolean))];
+      const items = uniq(row.items.map((i) => i.name));
+      const details = uniq(row.items.flatMap((i) => [i.description, i.specification]));
+      const questions = uniq(row.items.flatMap((i) => i.questions.map((q) => q.text)));
+      // Teklif verenin gördüğü serbest metinler — YALNIZ doluyken anahtar
+      // (boş anahtar eski taleplerin kaynak özetini değiştirirdi).
+      return {
+        title: row.title,
+        description: row.description,
+        keywords: row.keywords,
+        items,
+        ...(row.terms?.trim() ? { terms: row.terms.trim() } : {}),
+        ...(row.paymentNote?.trim() ? { paymentNote: row.paymentNote.trim() } : {}),
+        ...(details.length ? { details } : {}),
+        ...(questions.length ? { questions } : {}),
+      };
     }
     const row = await this.prisma.company.findUnique({
       where: { id },

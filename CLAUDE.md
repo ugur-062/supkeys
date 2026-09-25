@@ -542,6 +542,31 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   HAM SQL ile yazılır: Prisma `updateMany` `@updatedAt`i ilerletip sitemap
   lastmod'unu ve kapsam denetimini bozardı. Sözleşme:
   `content-translation-coverage.spec`, `seo-index-locales.spec`.
+- **ÇEVİRİ KALİTESİ v2 (2026-09-25, kullanıcı: "kusursuz olmalı, sonradan
+  eklenenler de kaliteli çevrilmeli"):** 75 kayıtlık dil incelemesi (EN 7/10, RU
+  6,5/10) sonrası: (1) istem yeniden yazıldı — sayı biçimi, hedef dil birim
+  sembolleri, false-friend listesi (pano→switchboard/щит, plaza→business centre…),
+  Türkiye'ye özgü kısaltmalar (OSB, GES, AG/OG, KDV) açılır, anahtar kelime =
+  tam arama ifadesi, sözlüğe kazandırma/pazarlık/kalem; (2) **kesin son işlem**
+  (`polishTranslations`): kaynak Türkçeyken Türkçe biçimli sayı hedefte aynen
+  kalmışsa yeniden biçimlenir (en 1,200 · 0.02; ru 1 200 · 0,02), Rusçada
+  sayıdan sonraki Latin birim Kiril olur; (3) **ret + geri bildirimle yeniden
+  deneme**: içerik yasaklı terimleri (en tender; ru тендер/конкурс — UI
+  kataloğundan ayrı, orada "открытые торги" meşru), küçük harfli Türkçe-harfli
+  sözcük (çevrilmemiş), İngilizcede Kiril. "15 bin" → "15,000" kabul edilir.
+  (4) `TRANSLATION_PROMPT_VERSION` kaynak özetine girer — istem/kural anlamlı
+  değişince ARTIR: kapsam denetimi tüm kayıtları yeni kalitede yeniden çevirir.
+  (5) Kapsama yeni alanlar: ürün `specification`; talep `terms`, `paymentNote`,
+  kalem açıklaması/şartnamesi (`details`), kalem soruları — YALNIZ doluyken
+  kaynağa girer (boş anahtar eski kayıtların özetini değiştirmesin). (6) Okuma
+  hatası düzeltildi: nitelik etiketi katalogdan okuyucunun dilinde geldiği için
+  çift Türkçe etiketle eşleşmiyor, serbest metin nitelik DEĞERLERİ EN/RU'da
+  Türkçe kalıyordu → eşleme değer üzerinden. (7) Nitelik BİRİMİ okuyucunun
+  dilinde (`attributeUnitLabel`: ay→mo./мес., kişi→people/чел.…). Gemini 3'te
+  temperature DEĞİŞTİRİLMEZ (Google önerisi 1.0). Değerlendirme yöntemi:
+  kusurlu kayıtlar yerel betikle (`--env-file`, DB'ye yazmadan) yeniden
+  çevrilip eski/yeni karşılaştırılır. Sözleşme: `content-translation.spec`
+  (kalite katmanı v2, nitelik değeri), `attribute-unit-label.spec`.
 - **ÇOK DİLLİ ARAMA (2026-09-24):** `company_items`/`listings`/`companies`
   `searchTextI18n` (migration `20260924200000`, trigram GIN) = katlanmış KAYNAK
   + DONE EN/RU çeviriler (ürün ad+anahtar kelime — açıklama DEĞİL, talep

@@ -33,6 +33,8 @@ export interface ProductSource {
   attributes: { label: string; value: string }[];
   /** SERBEST metin ölçü birimi (koddan gelmeyen, örn. "kullanıcı"); koda bağlı birimler katalogdan çevrilir, buraya girmez. */
   unit?: string;
+  /** Teknik şartname (herkese açık ürün sayfası) — YALNIZ doluyken anahtar var (eski kayıtların kaynak özeti değişmesin). */
+  specification?: string;
 }
 export interface ListingSource {
   title: string;
@@ -40,6 +42,19 @@ export interface ListingSource {
   keywords: string[];
   /** Kalem adları (herkese açık kısım). */
   items: string[];
+  /*
+   * Teklif verenin gördüğü serbest metinler (2026-09-25 kapsam turu). HEPSİ
+   * yalnız doluyken anahtar olarak girer — boş anahtar eklemek eski taleplerin
+   * kaynak özetini değiştirip toplu yeniden çeviri (maliyet) tetiklerdi.
+   */
+  /** Şartlar ve koşullar. */
+  terms?: string;
+  /** Serbest ödeme şartı notu. */
+  paymentNote?: string;
+  /** Kalem açıklaması + teknik şartname metinleri (tekil, metinle eşlenir). */
+  details?: string[];
+  /** Kalem soruları (tekil, metinle eşlenir). */
+  questions?: string[];
 }
 export interface CompanySource {
   aboutText: string | null;
@@ -55,12 +70,17 @@ export interface ProductTranslation {
   keywords: Pair[];
   attributes: AttributePair[];
   unit?: string | null;
+  specification?: string | null;
 }
 export interface ListingTranslation {
   title: string;
   description: string | null;
   keywords: Pair[];
   items: Pair[];
+  terms?: string | null;
+  paymentNote?: string | null;
+  details?: Pair[];
+  questions?: Pair[];
 }
 export interface CompanyTranslation {
   aboutText: string | null;
@@ -92,8 +112,20 @@ function canonical(value: unknown): string {
 }
 
 /** Kaynak alanların kararlı özeti — değişince çeviri bayatlar. */
+/**
+ * İstem/kalite katmanı SÜRÜMÜ — kaynak özetine girer. İstem ya da son işlem
+ * kuralı ANLAMLI biçimde değişince artırılır: mevcut tüm kayıtlar kapsam
+ * denetimiyle yeni kalitede yeniden çevrilir (tek tek elle tetiklemek yok).
+ * v2 (2026-09-25): sayı biçimi, Rusça birimler, false-friend/sözlük, içerik
+ * yasaklı terimleri, çevrilmemiş Türkçe kapısı.
+ */
+export const TRANSLATION_PROMPT_VERSION = 2;
+
 export function sourceHash(type: TranslatableEntityType, source: SourceFields): string {
-  return createHash("sha256").update(`${type}:${canonical(source)}`).digest("hex").slice(0, 32);
+  return createHash("sha256")
+    .update(`${type}:v${TRANSLATION_PROMPT_VERSION}:${canonical(source)}`)
+    .digest("hex")
+    .slice(0, 32);
 }
 
 /** Çevrilecek anlamlı metin var mı? (Boş ürün/profil için model çağrılmaz.) */
@@ -121,17 +153,45 @@ const ENTITY_LABEL: Record<TranslatableEntityType, string> = {
   COMPANY: "a company profile",
 };
 
-export const TRANSLATION_SYSTEM_PROMPT = `You are a professional translator for an industrial B2B sourcing marketplace based in Turkey (buyers and suppliers in Turkey, Russia, Central Asia, China and the UAE).
+export const TRANSLATION_SYSTEM_PROMPT = `You are a professional translator for an industrial B2B sourcing marketplace based in Turkey (buyers and suppliers in Turkey, Russia, Central Asia, China and the UAE). Your readers are procurement professionals and engineers.
 You receive SOURCE fields written by a user and return the SAME fields in Turkish (tr), English (en) and Russian (ru).
-Rules:
+
+General rules:
 - Detect the source language. For the source language itself return the text UNCHANGED (no edits, no fixes).
-- Keep every number, unit, standard (DIN, ISO, EN, TSE, GOST), part/model number, brand name, product code, chemical formula and currency EXACTLY as in the source. Never add, invent or drop information. Never add marketing language.
-- Keep line breaks and list structure. Company legal names stay unchanged (e.g. "San. Tic. A.Ş.", "ООО", "LLC").
-- Glossary: "satın alma talebi / alım talebi / talep" = "buying request / request" (en), "заявка на закупку / запрос" (ru) — NEVER "tender" / "тендер". "teklif" = "quote" (en), "предложение" (ru). "kapalı zarf" = "sealed bid" / "закрытое предложение". "vitrin" = "showcase" / "витрина".
-- Product and item names: natural naming in the target language with the technical terms industry buyers actually use.
-- keywords / services: translate each entry as a search term a buyer would type; keep the array length and order.
-- attributes: translate label and textual value; keep numeric values, codes and units; keep the array length and order.
-- Tone: neutral, commercial, concise.
+- Translate by MEANING with the terminology industry buyers actually use and search for — never word by word. Neutral, commercial, concise; no marketing language; never add, invent or drop information.
+- Keep EXACTLY: every number's digits, standards (DIN, ISO, EN, TSE, GOST, AISI, IEC), part/model numbers, brand names, product codes, chemical formulas, currencies, proper names (companies, places, ports) and Turkish registries (ÜTS, TSE).
+- Company legal names stay unchanged (e.g. "San. Tic. A.Ş.", "ООО", "LLC").
+- Use ONE target term per source term consistently across name/title, description, keywords, attributes, items, details and questions.
+
+Numbers (critical): in Turkish "." separates THOUSANDS and "," is the DECIMAL mark (2.400 = two thousand four hundred; 0,02 = two hundredths). Re-format numbers for the target language without changing digits: en → 2,400 · 1,200 · 0.02; ru → 2 400 · 1 200 · 0,02. Never write "2.400" in en or ru. Write "15,000 m²", not "15 thousand m²".
+
+Units: do NOT copy unit words/symbols — write them in the target language's standard symbols: en → mm, cm, m, m², m³, kg, g, t, kW, kV, V, A, W, bar, l, pcs; ru → мм, см, м, м², м³, кг, г, т, кВт, кВ, В, А, Вт, бар, л, шт. Keep °C, %, IP ratings; g/m² → г/м² (ru).
+
+Glossary (mandatory): "satın alma talebi / alım talebi / talep" = "buying request / request" (en), "заявка на закупку / запрос" (ru) — NEVER "tender" / "тендер" / "конкурс". "teklif" = "quote" / "коммерческое предложение". "kapalı zarf" = "sealed bid" / "закрытые предложения". "kazandırma / kazandırmak" = "award / to award" / "присуждение / присудить". "pazarlık" = "negotiation round" / "раунд переговоров". "kalem" = "line item" / "позиция". "vitrin" = "showcase" / "витрина". "tedarikçi" = "supplier" / "поставщик".
+
+Turkish false friends — translate by meaning, not by the look-alike word:
+- pano (electrical) → switchboard / distribution board — щит (распределительный щит)
+- konstrüksiyon → (steel/mounting) structure — (металло)конструкции
+- tesisat → installation / piping (plumbing only if sanitary) — монтаж / трубопроводы
+- plaza → office tower / business centre — бизнес-центр
+- uygulama (construction) → project / works — работы / проекты
+- proje mobilyası → contract furniture — мебель для проектов
+- katlı (corrugated board) → -ply — -слойный
+- çelik profil → steel hollow section / structural section — профильная труба / профиль
+- makara (cable) → cable drum — барабан
+- soğuk depo → cold store — холодильный склад
+- dış cephe (services) → facade (e.g. facade cleaning) — фасад (мойка фасадов)
+- sosyal alanlar → staff welfare areas — бытовые помещения
+- 7/24 → 24/7
+Turkish-only abbreviations: expand once with the original in parentheses — OSB → Organized Industrial Zone (OSB) / Организованная промышленная зона (OSB); GES → solar power plant (GES) / солнечная электростанция (СЭС); AG/OG → LV/MV / НН/СН; KDV → VAT / НДС. dönüm → decares / декаров (do not convert).
+
+Field rules:
+- Product and item names: the natural product name in the target language (e.g. "Köşebent" → "Angle bar" / "Уголок стальной").
+- keywords / services: each entry must be a complete, standalone search phrase a buyer in the target market would actually type (expand fragments: "plakalı" → "plate heat exchanger", not "plate"); never output an acronym used only in Turkey. Keep array length and order.
+- attributes: translate label and textual value; keep numeric values and codes; keep array length and order.
+- details, questions, terms, paymentNote: faithful full translations (technical specifications — keep every value, tolerance and standard).
+- ru style: qualifiers in parentheses after the first word are lower case; don't start a sentence with a bare number or code.
+
 Output STRICT JSON only (no markdown, no commentary):
 { "sourceLocale": "tr" | "en" | "ru" | "other", "translations": { "tr": <fields>, "en": <fields>, "ru": <fields> } }
 where <fields> has exactly the same keys and shapes as SOURCE.`;
@@ -158,8 +218,20 @@ export function numbersOf(text: string): string[] {
   return out;
 }
 
-/** Kaynaktaki her sayı hedefte de var mı (çoklu küme olarak)? */
+/**
+ * Kaynaktaki her sayı hedefte de var mı (çoklu küme olarak)? Türkçe "15 bin"
+ * / "2 milyon" hedefte rakamla ("15,000") yazılabilir (istem bunu İSTER) →
+ * açılmış biçim de kabul edilir.
+ */
 export function numbersPreserved(src: string, dst: string): boolean {
+  if (numbersPreservedExact(src, dst)) return true;
+  const expanded = src
+    .replace(/(\d+)\s*milyon\b/giu, (_m, d: string) => `${d}000000`)
+    .replace(/(\d+)\s*bin\b/giu, (_m, d: string) => `${d}000`);
+  return expanded !== src && numbersPreservedExact(expanded, dst);
+}
+
+function numbersPreservedExact(src: string, dst: string): boolean {
   const need = numbersOf(src);
   if (need.length === 0) return true;
   const pool = new Map<string, number>();
@@ -170,6 +242,181 @@ export function numbersPreserved(src: string, dst: string): boolean {
     pool.set(n, c - 1);
   }
   return true;
+}
+
+/* ------------------------------------------------------------------ */
+/* Kalite katmanı — kesin son işlem + reddetme kuralları (v2)          */
+/* ------------------------------------------------------------------ */
+
+// Türkçe sayı: "." binlik, "," ondalık. Kaynak Türkçeyken biçim BELİRSİZ DEĞİL
+// → modele bırakılmaz, kodda yeniden biçimlenir (inceleme 2026-09-25: model
+// "1.200 decares" yazıyordu — İngilizcede 1,2 okunur).
+const TR_THOUSANDS = /(?<![\d.,])\d{1,3}(?:\.\d{3})+(?:,\d+)?(?![\d.,]*\d)/g;
+const TR_DECIMAL = /(?<![\d.,])\d+,\d+(?![\d.,]*\d)/g;
+const NBSP = "\u00a0";
+
+function escapeRe(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+/** Türkçe biçimli sayıyı hedef dile çevirir (rakamlar aynı). */
+export function formatTrNumber(token: string, locale: "en" | "ru"): string {
+  const [int = "", dec] = token.split(",");
+  const intOut = int.includes(".") ? int.split(".").join(locale === "en" ? "," : NBSP) : int;
+  if (dec === undefined) return intOut;
+  return `${intOut}${locale === "en" ? "." : ","}${dec}`;
+}
+
+/** Kaynakta Türkçe biçimli olup hedefte AYNEN kopyalanmış sayıları düzeltir. */
+export function localizeNumbers(src: string, dst: string, locale: "en" | "ru"): string {
+  const tokens = new Set([...(src.match(TR_THOUSANDS) ?? []), ...(src.match(TR_DECIMAL) ?? [])]);
+  let out = dst;
+  for (const tok of [...tokens].sort((a, b) => b.length - a.length)) {
+    const re = new RegExp(`(?<![\\d.,])${escapeRe(tok)}(?![\\d.,]*\\d)`, "g");
+    out = out.replace(re, formatTrNumber(tok, locale));
+  }
+  return out;
+}
+
+// Rusçada Latin birim → standart Kiril sembol (yalnız SAYIDAN sonra; M8 gibi
+// kodlara dokunmaz). Bileşikler önce.
+const RU_UNITS: [string, string][] = [
+  ["g/m²", "г/м²"], ["kg/m²", "кг/м²"], ["kg/m³", "кг/м³"], ["m³/h", "м³/ч"], ["l/min", "л/мин"], ["km/h", "км/ч"], ["rpm", "об/мин"],
+  ["mm²", "мм²"], ["cm²", "см²"], ["m²", "м²"], ["m³", "м³"], ["m2", "м²"], ["m3", "м³"],
+  ["mm", "мм"], ["cm", "см"], ["km", "км"], ["kg", "кг"], ["gr", "г"], ["kVA", "кВА"], ["kW", "кВт"], ["kV", "кВ"],
+  ["kWh", "кВт·ч"], ["MW", "МВт"], ["Hz", "Гц"], ["bar", "бар"], ["lt", "л"], ["pcs", "шт"], ["ton", "т"],
+  ["m", "м"], ["g", "г"], ["t", "т"], ["W", "Вт"], ["V", "В"], ["A", "А"], ["l", "л"],
+];
+const RU_UNIT_RE = new RegExp(
+  `(\\d(?:[.,]\\d+)?)(\\s?)(${[...RU_UNITS].sort((a, b) => b[0].length - a[0].length).map(([u]) => escapeRe(u)).join("|")})(?![\\p{L}\\d])`,
+  "gu",
+);
+const RU_UNIT_MAP = new Map(RU_UNITS);
+
+export function localizeRuUnits(dst: string): string {
+  return dst.replace(RU_UNIT_RE, (_m, num: string, sp: string, unit: string) => `${num}${sp}${RU_UNIT_MAP.get(unit) ?? unit}`);
+}
+
+/**
+ * İçerik çevirisine özel yasaklı terimler (UI kataloğundan AYRI: orada
+ * "открытые торги" açık eksiltme için meşru). "конкурс" ihale çağrışımı taşır.
+ */
+const CONTENT_BANNED: Partial<Record<Locale, RegExp[]>> = {
+  en: [/\btenders?\b/i, /\btendering\b/i],
+  ru: [/тендер/i, /конкурс/i],
+};
+// Sözcük = harf/rakam dizisi; tire ve kesme AYIRIR ("Çerkezköy-based" →
+// "Çerkezköy", "Çerkezköy'de" → "Çerkezköy").
+const TR_LETTER_WORD = /[\p{L}\d]*[çğışöüÇĞİŞÖÜ][\p{L}\d]*/gu;
+/** Kaynakta geçmese de hedefte Türkçe harfle yazılması doğal olan özel adlar. */
+const TR_WORD_ALLOW = new Set(["Türkiye"]);
+
+/** Hedef metnin kalite hataları (yeniden deneme geri bildirimi). */
+export function qualityErrors(field: string, locale: Locale, sourceText: string, dst: string): string[] {
+  const errs: string[] = [];
+  for (const re of CONTENT_BANNED[locale] ?? []) {
+    if (re.test(dst)) errs.push(`${field}: forbidden term (${re.source}) — use the glossary`);
+  }
+  // Çevrilmemiş Türkçe: KÜÇÜK harfle başlayan Türkçe-harfli sözcük hiçbir
+  // zaman özel ad değildir ("montajı") → her zaman hata. Büyük harfle
+  // başlayan (yer/marka adı, ÜTS) kaynakta aynen geçiyorsa serbest; tümce
+  // başındaki "Bakır" gibi belirsiz durum yanlış ret riskiyle REDDEDİLMEZ
+  // (yanlış ret çeviriyi kalıcı FAILED'e düşürürdü).
+  for (const w of dst.match(TR_LETTER_WORD) ?? []) {
+    const lower = /^[\p{Ll}]/u.test(w);
+    if (lower || (!sourceText.includes(w) && !TR_WORD_ALLOW.has(w))) {
+      errs.push(`${field}: Turkish word "${w}" left untranslated`);
+      break;
+    }
+  }
+  if (locale === "en" && /[А-Яа-яЁё]/.test(dst)) errs.push(`${field}: Cyrillic text in English translation`);
+  return errs;
+}
+
+type Polisher = (src: string, dst: string, field: string) => string;
+
+/** Çevirinin tüm metin alanlarını (kaynağıyla) gezer; dönen değer yerine yazılır. */
+function mapFields(type: TranslatableEntityType, source: SourceFields, t: TranslationFields, fn: Polisher): TranslationFields {
+  const pair = (field: string) => (p: Pair, i: number): Pair => ({ src: p.src, dst: fn(p.src, p.dst, `${field}[${i}]`) });
+  const text = (field: string, src: string | null | undefined, dst: string | null | undefined) =>
+    dst == null || src == null ? (dst ?? null) : fn(src, dst, field);
+  if (type === "PRODUCT") {
+    const s = source as ProductSource;
+    const x = t as ProductTranslation;
+    return {
+      ...x,
+      name: text("name", s.name, x.name) ?? x.name,
+      description: text("description", s.description, x.description),
+      keywords: x.keywords.map(pair("keywords")),
+      attributes: x.attributes.map((a, i) => ({
+        label: { src: a.label.src, dst: fn(a.label.src, a.label.dst, `attributes[${i}].label`) },
+        value: { src: a.value.src, dst: fn(a.value.src, a.value.dst, `attributes[${i}].value`) },
+      })),
+      ...(x.unit != null ? { unit: text("unit", s.unit, x.unit) } : {}),
+      ...(x.specification != null ? { specification: text("specification", s.specification, x.specification) } : {}),
+    };
+  }
+  if (type === "LISTING") {
+    const s = source as ListingSource;
+    const x = t as ListingTranslation;
+    return {
+      ...x,
+      title: text("title", s.title, x.title) ?? x.title,
+      description: text("description", s.description, x.description),
+      keywords: x.keywords.map(pair("keywords")),
+      items: x.items.map(pair("items")),
+      ...(x.terms != null ? { terms: text("terms", s.terms, x.terms) } : {}),
+      ...(x.paymentNote != null ? { paymentNote: text("paymentNote", s.paymentNote, x.paymentNote) } : {}),
+      ...(x.details ? { details: x.details.map(pair("details")) } : {}),
+      ...(x.questions ? { questions: x.questions.map(pair("questions")) } : {}),
+    };
+  }
+  const s = source as CompanySource;
+  const x = t as CompanyTranslation;
+  return {
+    aboutText: text("aboutText", s.aboutText, x.aboutText),
+    services: x.services.map(pair("services")),
+    industry: text("industry", s.industry, x.industry),
+  };
+}
+
+/** Kaynağın tüm metni (çevrilmemiş-Türkçe kapısı için özel ad havuzu). */
+function sourceTextOf(source: SourceFields): string {
+  const parts: string[] = [];
+  const walk = (v: unknown) => {
+    if (typeof v === "string") parts.push(v);
+    else if (Array.isArray(v)) v.forEach(walk);
+    else if (v && typeof v === "object") Object.values(v).forEach(walk);
+  };
+  walk(source);
+  return parts.join("\n");
+}
+
+/**
+ * Doğrulanmış çeviriye kalite katmanı: (1) kaynak Türkçeyse sayı biçimi,
+ * (2) Rusçada birim sembolleri — kesin düzeltme; (3) yasaklı terim,
+ * çevrilmemiş Türkçe, İngilizcede Kiril — REDDEDİLİR (geri bildirimle yeniden).
+ */
+export function polishTranslations(
+  type: TranslatableEntityType,
+  source: SourceFields,
+  parsed: ParsedTranslation,
+): ParsedTranslation | { error: string } {
+  const errors: string[] = [];
+  const all = sourceTextOf(source);
+  const perLocale = { ...parsed.perLocale };
+  for (const locale of LOCALES) {
+    if (locale === parsed.sourceLocale || (locale !== "en" && locale !== "ru")) continue;
+    perLocale[locale] = mapFields(type, source, perLocale[locale], (src, dst, field) => {
+      let out = dst;
+      if (parsed.sourceLocale === "tr") out = localizeNumbers(src, out, locale);
+      if (locale === "ru") out = localizeRuUnits(out);
+      for (const e of qualityErrors(field, locale, all, out)) errors.push(`${locale}.${e}`);
+      return out;
+    });
+  }
+  if (errors.length > 0) return { error: errors.slice(0, 6).join("; ") };
+  return { sourceLocale: parsed.sourceLocale, perLocale };
 }
 
 function stripFences(text: string): string {
@@ -235,6 +482,7 @@ function parseOne(type: TranslatableEntityType, source: SourceFields, dst: unkno
       keywords: checkList("keywords", s.keywords, d.keywords, errors),
       attributes: checkAttributes(s.attributes, d.attributes, errors),
       ...(s.unit ? { unit: checkText("unit", s.unit, d.unit, errors) } : {}),
+      ...(s.specification ? { specification: checkText("specification", s.specification, d.specification, errors) } : {}),
     };
   }
   if (type === "LISTING") {
@@ -244,6 +492,10 @@ function parseOne(type: TranslatableEntityType, source: SourceFields, dst: unkno
       description: checkText("description", s.description, d.description, errors),
       keywords: checkList("keywords", s.keywords, d.keywords, errors),
       items: checkList("items", s.items, d.items, errors),
+      ...(s.terms ? { terms: checkText("terms", s.terms, d.terms, errors) } : {}),
+      ...(s.paymentNote ? { paymentNote: checkText("paymentNote", s.paymentNote, d.paymentNote, errors) } : {}),
+      ...(s.details?.length ? { details: checkList("details", s.details, d.details, errors) } : {}),
+      ...(s.questions?.length ? { questions: checkList("questions", s.questions, d.questions, errors) } : {}),
     };
   }
   const s = source as CompanySource;
@@ -279,7 +531,7 @@ export function parseModelOutput(
     for (const e of fieldErrors) errors.push(`${locale}.${e}`);
   }
   if (errors.length > 0) return { error: errors.slice(0, 6).join("; ") };
-  return { sourceLocale, perLocale };
+  return polishTranslations(type, source, { sourceLocale, perLocale });
 }
 
 /* ------------------------------------------------------------------ */
@@ -304,15 +556,26 @@ export function localizeList(values: string[], pairs: Pair[] | undefined): strin
 
 const ATTR_SEP = "\t|\t";
 
+/**
+ * Nitelik listesi. ETİKET okuma anında katalogdan zaten okuyucunun dilinde
+ * gelir (Faz 4b) → çeviri çiftiyle eşleme ETİKETLE yapılamaz (2026-09-25
+ * hatası: EN sayfada etiket İngilizce, çift Türkçe etiket arıyordu → serbest
+ * metin DEĞERLER Türkçe kalıyordu). Önce etiket+değer (Türkçe okuyucu), sonra
+ * yalnız DEĞER ile eşlenir; etiket eşleşmediyse katalog etiketi korunur.
+ */
 export function localizeAttributes<T extends { label: string; value: string }>(
   list: T[],
   pairs: AttributePair[] | undefined,
 ): T[] {
   if (!pairs?.length) return list;
-  const m = new Map(pairs.map((p) => [`${p.label.src}${ATTR_SEP}${p.value.src}`, p]));
+  const byBoth = new Map(pairs.map((p) => [`${p.label.src}${ATTR_SEP}${p.value.src}`, p]));
+  const byValue = new Map<string, AttributePair>();
+  for (const p of pairs) if (!byValue.has(p.value.src)) byValue.set(p.value.src, p);
   return list.map((a) => {
-    const p = m.get(`${a.label}${ATTR_SEP}${a.value}`);
-    return p ? { ...a, label: p.label.dst, value: p.value.dst } : a;
+    const both = byBoth.get(`${a.label}${ATTR_SEP}${a.value}`);
+    if (both) return { ...a, label: both.label.dst, value: both.value.dst };
+    const v = byValue.get(a.value);
+    return v ? { ...a, value: v.value.dst } : a;
   });
 }
 
@@ -325,6 +588,7 @@ export function localizeProduct<T extends { name: string }>(item: T, t: ProductT
   if ("description" in src) out.description = t.description ?? src.description;
   if ("excerpt" in src && t.description) out.excerpt = productExcerpt(t.description);
   if ("unit" in src && t.unit) out.unit = t.unit;
+  if ("specification" in src && t.specification) out.specification = t.specification;
   if (Array.isArray(src.keywords)) out.keywords = localizeList(src.keywords as string[], t.keywords);
   if (Array.isArray(src.attributeList)) {
     out.attributeList = localizeAttributes(src.attributeList as { label: string; value: string }[], t.attributes);
@@ -345,6 +609,15 @@ export function localizeFeatures(features: string[], pairs: AttributePair[] | un
       const head = `${p.label.src}: ${p.value.src}`;
       if (f === head || f.startsWith(`${head} `)) return `${p.label.dst}: ${p.value.dst}${f.slice(head.length)}`;
     }
+    // Etiket katalogdan zaten okuyucunun dilinde → yalnız DEĞER eşlenir.
+    const i = f.indexOf(": ");
+    if (i > 0) {
+      const label = f.slice(0, i);
+      const rest = f.slice(i + 2);
+      for (const p of pairs) {
+        if (rest === p.value.src || rest.startsWith(`${p.value.src} `)) return `${label}: ${p.value.dst}${rest.slice(p.value.src.length)}`;
+      }
+    }
     return f;
   });
 }
@@ -359,9 +632,24 @@ export function localizeListing<T extends { title: string }>(
   if ("description" in src) out.description = t.description ?? src.description;
   if ("excerpt" in src && t.description && excerptOf) out.excerpt = excerptOf(t.description);
   if (Array.isArray(src.keywords)) out.keywords = localizeList(src.keywords as string[], t.keywords);
+  if ("terms" in src && t.terms) out.terms = t.terms;
+  if ("paymentNote" in src && t.paymentNote) out.paymentNote = t.paymentNote;
   if (Array.isArray(src.items)) {
     const m = pairMap(t.items);
-    out.items = (src.items as { name: string }[]).map((i) => ({ ...i, name: m.get(i.name) ?? i.name }));
+    const details = pairMap(t.details);
+    const questions = pairMap(t.questions);
+    out.items = (src.items as Loose[]).map((i) => {
+      const o: Loose = { ...i, name: m.get(i.name as string) ?? i.name };
+      // Kaynak listesi KIRPILMIŞ metinle kurulur → eşleme de kırpılmış metinle.
+      if (typeof i.description === "string") o.description = details.get(i.description.trim()) ?? i.description;
+      if (typeof i.specification === "string") o.specification = details.get(i.specification.trim()) ?? i.specification;
+      if (Array.isArray(i.questions)) {
+        o.questions = (i.questions as Loose[]).map((q) =>
+          typeof q.text === "string" ? { ...q, text: questions.get(q.text.trim()) ?? q.text } : q,
+        );
+      }
+      return o;
+    });
   }
   // Panel Açık Talepler kartı kalem adlarını düz dizi taşır (`itemNames`).
   if (Array.isArray(src.itemNames)) out.itemNames = localizeList(src.itemNames as string[], t.items);

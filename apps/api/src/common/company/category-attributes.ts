@@ -61,6 +61,39 @@ export async function resolveCategoryAttributes(
     .map(toResolved);
 }
 
+/**
+ * Nitelik BİRİMİ gösterimi okuyucunun dilinde (2026-09-25 çeviri denetimi:
+ * EN sayfada "36 ay", "12 kişi" görünüyordu). Katalogdaki birim kümesi küçük
+ * ve kapalı (seed `category-attributes.ts`); tanınmayan birim olduğu gibi.
+ * Ay/kişi/saat kısaltmalı yazılır — "1 months" gibi çoğul hatası olmasın.
+ */
+const ATTRIBUTE_UNIT_I18N: Record<string, { en: string; ru: string }> = {
+  ay: { en: "mo.", ru: "мес." },
+  kişi: { en: "people", ru: "чел." },
+  saat: { en: "h", ru: "ч" },
+  ton: { en: "t", ru: "т" },
+  "ton/saat": { en: "t/h", ru: "т/ч" },
+  adet: { en: "pcs", ru: "шт" },
+  mm: { en: "mm", ru: "мм" },
+  m: { en: "m", ru: "м" },
+  "m²": { en: "m²", ru: "м²" },
+  km: { en: "km", ru: "км" },
+  kg: { en: "kg", ru: "кг" },
+  "g/m²": { en: "g/m²", ru: "г/м²" },
+  kW: { en: "kW", ru: "кВт" },
+  W: { en: "W", ru: "Вт" },
+  V: { en: "V", ru: "В" },
+  kVA: { en: "kVA", ru: "кВА" },
+  bar: { en: "bar", ru: "бар" },
+  HP: { en: "hp", ru: "л.с." },
+  "Shore A": { en: "Shore A", ru: "по Шору A" },
+};
+
+export function attributeUnitLabel(unit: string | null, locale: string): string | null {
+  if (!unit || (locale !== "en" && locale !== "ru")) return unit;
+  return ATTRIBUTE_UNIT_I18N[unit]?.[locale] ?? unit;
+}
+
 /** Satır → `ResolvedAttribute` (tekil ve toplu çözümleyici AYNI eşleme). */
 function toResolved(r: {
   groupKey: string;
@@ -89,7 +122,7 @@ function toResolved(r: {
     type: r.type,
     options: r.options,
     ...(optionLabels ? { optionLabels } : {}),
-    unit: r.unit,
+    unit: attributeUnitLabel(r.unit, locale),
     isRequired: r.isRequired,
     definedAt: r.categoryId,
   };

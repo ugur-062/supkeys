@@ -1,9 +1,14 @@
 import { foldSearchText } from "@rothern/shared";
 import {
   SEARCH_TEXT_I18N_MAX,
+  formatTrNumber,
+  localizeNumbers,
+  localizeRuUnits,
+  qualityErrors,
   buildPrompt,
   buildSearchTextI18n,
   hasTranslatableText,
+  localizeAttributes,
   localizeCompany,
   localizeFeatures,
   localizeListing,
@@ -71,6 +76,156 @@ describe("buildSearchTextI18n", () => {
       foldSearchText,
     );
     expect(long.length).toBeLessThanOrEqual(SEARCH_TEXT_I18N_MAX);
+  });
+});
+
+describe("teklif verenin gördüğü serbest metinler (kapsam turu 2026-09-25)", () => {
+  const listing = {
+    title: "Paslanmaz boru alımı",
+    description: null,
+    keywords: [],
+    items: ["Paslanmaz boru DN50"],
+    terms: "Teslimat fabrikaya yapılacaktır.",
+    details: ["AISI 304, 6 m boy", "EN 10217-7 sertifikalı"],
+    questions: ["Stok durumu nedir?"],
+  };
+  const out = (withDetails = true) =>
+    JSON.stringify({
+      sourceLocale: "tr",
+      translations: Object.fromEntries(
+        ["tr", "en", "ru"].map((l) => [
+          l,
+          {
+            title: l === "tr" ? listing.title : "Stainless pipe purchase",
+            description: null,
+            keywords: [],
+            items: [l === "tr" ? listing.items[0] : "Stainless pipe DN50"],
+            terms: l === "tr" ? listing.terms : "Delivery to the factory.",
+            details: withDetails ? ["AISI 304, 6 m length", "EN 10217-7 certified"] : [],
+            questions: ["What is the stock status?"],
+          },
+        ]),
+      ),
+    });
+
+  it("şartlar, kalem ayrıntıları ve sorular doğrulanır; liste uzunluğu uymazsa hata", () => {
+    const ok = parseModelOutput("LISTING", listing, out());
+    expect("error" in ok).toBe(false);
+    const bad = parseModelOutput("LISTING", listing, out(false));
+    expect("error" in bad && bad.error).toMatch(/details/);
+  });
+
+  it("okuma yolu: kalem açıklaması/şartnamesi ve soru metni kırpılmış metinle eşlenir", () => {
+    const parsed = parseModelOutput("LISTING", listing, out());
+    if ("error" in parsed) throw new Error(parsed.error);
+    const view = localizeListing(
+      {
+        title: listing.title,
+        terms: listing.terms,
+        items: [
+          {
+            name: "Paslanmaz boru DN50",
+            description: "AISI 304, 6 m boy ",
+            specification: "EN 10217-7 sertifikalı",
+            questions: [{ id: "q1", text: "Stok durumu nedir?" }],
+          },
+        ],
+      },
+      parsed.perLocale.en as never,
+    );
+    expect(view.terms).toBe("Delivery to the factory.");
+    expect(view.items[0]).toMatchObject({
+      name: "Stainless pipe DN50",
+      description: "AISI 304, 6 m length",
+      specification: "EN 10217-7 certified",
+      questions: [{ id: "q1", text: "What is the stock status?" }],
+    });
+  });
+
+  it("boş isteğe bağlı alan kaynak özetini DEĞİŞTİRMEZ (eski kayıtlar toplu yeniden çevrilmez)", () => {
+    const base = { title: "T", description: null, keywords: [], items: ["a"] };
+    expect(sourceHash("LISTING", base)).toBe(sourceHash("LISTING", { ...base }));
+    expect(sourceHash("LISTING", { ...base, terms: "x" })).not.toBe(sourceHash("LISTING", base));
+  });
+
+  it("ürün teknik şartnamesi çevrilir ve detay sayfasında üzerine yazılır", () => {
+    const src = { ...product, specification: "Kalınlık toleransı ±0,1 mm" };
+    const t = { ...goodOutput(false) } as { translations: Record<string, Record<string, unknown>> } & Record<string, unknown>;
+    const specs: Record<string, string> = { tr: src.specification, en: "Thickness tolerance ±0.1 mm", ru: "Допуск по толщине ±0,1 мм" };
+    for (const l of ["tr", "en", "ru"]) t.translations[l]!.specification = specs[l];
+    const parsed = parseModelOutput("PRODUCT", { ...src, attributes: [] }, JSON.stringify(t));
+    if ("error" in parsed) throw new Error(parsed.error);
+    const view = localizeProduct({ name: src.name, specification: src.specification }, parsed.perLocale.en as never);
+    expect(view.specification).toBe("Thickness tolerance ±0.1 mm");
+  });
+});
+
+describe("nitelik değeri — etiket katalogdan okuyucunun dilinde gelir (2026-09-25 hatası)", () => {
+  const pairs = [{ label: { src: "Saklama koşulu", dst: "Storage conditions" }, value: { src: "Oda sıcaklığı", dst: "Room temperature" } }];
+  it("detay: etiket İngilizce (katalog) iken DEĞER yine çevrilir, katalog etiketi korunur", () => {
+    expect(localizeAttributes([{ label: "Storage condition", value: "Oda sıcaklığı" }], pairs)).toEqual([
+      { label: "Storage condition", value: "Room temperature" },
+    ]);
+  });
+  it("kart özellik satırı: 'Label: değer birim' — değer çevrilir, etiket ve birim kalır", () => {
+    expect(localizeFeatures(["Storage condition: Oda sıcaklığı"], pairs)).toEqual(["Storage condition: Room temperature"]);
+  });
+  it("Türkçe okuyucu yolu değişmedi (etiket+değer)", () => {
+    expect(localizeAttributes([{ label: "Saklama koşulu", value: "Oda sıcaklığı" }], pairs)).toEqual([
+      { label: "Storage conditions", value: "Room temperature" },
+    ]);
+  });
+});
+
+describe("kalite katmanı v2 (inceleme 2026-09-25)", () => {
+  it("'15 bin m²' hedefte '15,000 m²' ya da '15 thousand m²' olabilir; başka sayı olamaz", () => {
+    expect(numbersPreserved("15 bin m² üretim alanı", "15,000 m² production area")).toBe(true);
+    expect(numbersPreserved("15 bin m² üretim alanı", "15 thousand m² production area")).toBe(true);
+    expect(numbersPreserved("2 milyon adet", "2,000,000 pcs")).toBe(true);
+    expect(numbersPreserved("15 bin m²", "16,000 m²")).toBe(false);
+  });
+
+  it("Türkçe sayı biçimi hedef dile göre yeniden yazılır, rakamlar aynı", () => {
+    expect(formatTrNumber("1.200", "en")).toBe("1,200");
+    expect(formatTrNumber("1.234,56", "en")).toBe("1,234.56");
+    expect(formatTrNumber("0,02", "en")).toBe("0.02");
+    expect(formatTrNumber("2.400", "ru")).toBe("2\u00a0400");
+    expect(formatTrNumber("0,02", "ru")).toBe("0,02");
+  });
+
+  it("yalnız kaynakta Türkçe biçimli olup hedefe AYNEN kopyalanan sayı düzeltilir", () => {
+    const src = "8.000 m² alan, tolerans ±0,02 mm, EN 1.4301 malzeme, 15.09.2026 teslim";
+    expect(localizeNumbers(src, "LED conversion of 8.000 m² area, tolerance ±0,02 mm, EN 1.4301, delivery 15.09.2026", "en")).toBe(
+      "LED conversion of 8,000 m² area, tolerance ±0.02 mm, EN 1.4301, delivery 15.09.2026",
+    );
+    // Model zaten doğru yazdıysa dokunulmaz.
+    expect(localizeNumbers(src, "8,000 m² area", "en")).toBe("8,000 m² area");
+    expect(localizeNumbers("2.400 kg stok", "2.400 кг на складе", "ru")).toBe("2\u00a0400 кг на складе");
+  });
+
+  it("Rusçada sayıdan sonraki Latin birim Kiril sembole çevrilir; kodlara dokunulmaz", () => {
+    expect(localizeRuUnits("Ширина 600 mm, мощность 150 kW, 80 g/m², <1 kV, 12m")).toBe(
+      "Ширина 600 мм, мощность 150 кВт, 80 г/м², <1 кВ, 12м",
+    );
+    expect(localizeRuUnits("Болт M8, IP65, DN50, Siemens S7")).toBe("Болт M8, IP65, DN50, Siemens S7");
+  });
+
+  it("yasaklı terim, çevrilmemiş Türkçe ve İngilizcede Kiril reddedilir; kaynaktaki özel ad serbest", () => {
+    const src = "Çerkezköy'de pano montajı";
+    expect(qualityErrors("title", "en", src, "Switchboard installation in Çerkezköy")).toEqual([]);
+    expect(qualityErrors("title", "en", src, "Pano montajı in Çerkezköy")[0]).toMatch(/untranslated/);
+    expect(qualityErrors("title", "en", src, "Tender for switchboards")[0]).toMatch(/forbidden/);
+    expect(qualityErrors("title", "ru", src, "Конкурс на поставку щитов")[0]).toMatch(/forbidden/);
+    expect(qualityErrors("title", "en", src, "Switchboard щит")[0]).toMatch(/Cyrillic/);
+    expect(qualityErrors("title", "en", "Türk malı", "Made in Türkiye")).toEqual([]);
+    expect(qualityErrors("about", "en", "Çerkezköy merkezli toptancı", "Çerkezköy-based wholesaler")).toEqual([]);
+  });
+
+  it("parseModelOutput kalite katmanını uygular: Türkçe kalan çeviri yeniden denemeye düşer", () => {
+    const bad = goodOutput(false) as { translations: Record<string, Record<string, unknown>> };
+    bad.translations.en!.name = "Copper levhası 2 mm · 1000×2000";
+    const r = parseModelOutput("PRODUCT", { ...product, attributes: [] }, JSON.stringify(bad));
+    expect("error" in r && r.error).toMatch(/en\.name: Turkish word "levhası"/);
   });
 });
 
