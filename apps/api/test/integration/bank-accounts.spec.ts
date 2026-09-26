@@ -77,6 +77,37 @@ describe("banka hesabı defteri — CRUD", () => {
     expect(after[0]!.title).toBe("TL Vadesiz — İş Bankası");
   });
 
+  it("IBAN kullanmayan ülke (CN): hesap no + SWIFT + banka adı; eksikse ret (2026-09-27)", async () => {
+    const svc = makeBankService();
+    const c = await makeCompanyWithUser(prisma, { country: "CN" });
+    // Eskiden IBAN zorunluydu → IBAN'sız ülkenin satıcısı hesap kaydedemiyor,
+    // bu yüzden SİPARİŞ DE KABUL EDEMİYORDU.
+    await expect(
+      svc.create(c.auth, { title: "USD", accountHolder: "示例", accountNumber: "6222021234567890123" }),
+    ).rejects.toThrow(/SWIFT/);
+    await expect(
+      svc.create(c.auth, { title: "USD", accountHolder: "示例", accountNumber: "6222021234567890123", swiftBic: "BKCHCNBJ" }),
+    ).rejects.toThrow(/Banka adı/);
+    const acct = await svc.create(c.auth, {
+      title: "USD",
+      accountHolder: "示例",
+      accountNumber: "6222021234567890123",
+      swiftBic: "bkch cnbj",
+      bankName: "Bank of China",
+    });
+    expect(acct).toMatchObject({ iban: null, accountNumber: "6222021234567890123", swiftBic: "BKCHCNBJ", bankCountry: "CN" });
+  });
+
+  it("IBAN ülkesinde (DE) hesap no ile kayıt reddedilir — IBAN zorunlu", async () => {
+    const svc = makeBankService();
+    const c = await makeCompanyWithUser(prisma, { country: "DE" });
+    await expect(
+      svc.create(c.auth, { title: "EUR", accountHolder: "Muster GmbH", accountNumber: "0532013000", swiftBic: "COBADEFF", bankName: "Commerzbank" }),
+    ).rejects.toThrow(/IBAN/);
+    const acct = await svc.create(c.auth, { title: "EUR", accountHolder: "Muster GmbH", iban: "DE89 3704 0044 0532 0130 00" });
+    expect(acct).toMatchObject({ iban: "DE89370400440532013000", bankCountry: "DE" });
+  });
+
   it("geçersiz TR IBAN reddedilir; başka firmanın hesabı 404 (IDOR)", async () => {
     const svc = makeBankService();
     const a = await makeCompanyWithUser(prisma, { country: "TR" });
@@ -88,7 +119,7 @@ describe("banka hesabı defteri — CRUD", () => {
         accountHolder: "X",
         iban: "TR1234567890",
       }),
-    ).rejects.toThrow(/TR IBAN/);
+    ).rejects.toThrow(/IBAN/);
 
     const acct = await svc.create(a.auth, {
       title: "TL",

@@ -10,6 +10,7 @@ import {
   useDeliveryTermLabel,
   useFormatPaymentPlan,
   useScopeLabel,
+  usePlaceLabel,
 } from "@/i18n/domain";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import type { Currency, TenderLogisticsDetails } from "@/lib/tenders/types";
@@ -87,6 +88,7 @@ function RuleChip({ active, label }: { active: boolean; label: string }) {
 
 export function GeneralInfoTab({ l }: { l: ListingDetail }) {
   const t = useTranslations("web.panel.requests.generalInfoTab");
+  const placeLabel = usePlaceLabel();
   const locale = useLocale() as Locale;
   const scopeLabel = useScopeLabel();
   const deliveryTermLabel = useDeliveryTermLabel();
@@ -199,10 +201,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
             <Fact label={t("teslimatAdresi")} full>
               <span className="font-medium">{l.deliveryAddress.title}</span> —{" "}
               {l.deliveryAddress.addressLine}
-              {l.deliveryAddress.district
-                ? `, ${l.deliveryAddress.district}`
-                : ""}
-              {l.deliveryAddress.city ? `, ${l.deliveryAddress.city}` : ""}
+              {placeLabel(l.deliveryAddress) ? `, ${placeLabel(l.deliveryAddress)}` : ""}
             </Fact>
           ) : null}
           {l.billingAddress ? (

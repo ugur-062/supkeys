@@ -160,7 +160,7 @@
       "noIntermediationTitle": "We do not intermediate trade",
       "noIntermediationBody": "The only thing sold through Rothern is membership plans. The platform does not intermediate the value of goods and services between companies and does not carry money; contracts and payments run directly between the parties. The payment steps on the order screen are a record of the notifications the parties make to each other.",
       "whoTitle": "Who can use it",
-      "whoBody": "Company registrations are currently accepted from Turkey, Northern Cyprus, Russia, Azerbaijan, Kazakhstan, Uzbekistan, China and the United Arab Emirates. Each country has its own document set; verification is done by a person without exception, and there is no automatic approval path. See the <faq>frequently asked questions</faq> and <how>How It Works</how> pages for details.",
+      "whoBody": "Companies from every country can register, except the United States and countries under comprehensive sanctions (Iran, North Korea, Syria, Cuba). The document set depends on the country; verification is always done by a person, and there is no automatic approval path. For details, see the <faq>frequently asked questions</faq> and <how>How it works</how> pages.",
       "operatorTitle": "Operator",
       "operatorBody": "The platform is operated by <b>{legalName}</b> ({address} · {taxOffice} — Tax No: {taxNo}). You can reach us at <mail>{email}</mail>; see our <contact>Contact and Imprint</contact> page for full company details."
     },
@@ -201,7 +201,7 @@
         "q2": "Does Rothern intermediate transactions?",
         "a2": "No. The only thing sold through Rothern is membership plans. The platform does not intermediate the value of goods and services between companies and does not carry money; trade runs directly between the parties. The payment steps on the order screen are notifications the parties make to each other.",
         "q3": "Which countries can register?",
-        "a3": "Turkey, Northern Cyprus, Russia, Azerbaijan, Kazakhstan, Uzbekistan, China and the United Arab Emirates. Each country has its own document set; in China, for example, the 营业执照 (business licence) carries registry, tax and representative details in one document, so no separate tax document is requested."
+        "a3": "From every country except the United States and countries under comprehensive sanctions (Iran, North Korea, Syria, Cuba). The document set depends on the country: most countries provide a company registration certificate, a tax registration certificate and the authorised person's ID or passport; in China the 营业执照 (business licence) carries registration, tax and representative details in one document, so no separate tax certificate is required."
       },
       "g2": {
         "heading": "Quotes and confidentiality",
@@ -508,7 +508,7 @@
         "orderTitle": "From order to delivery",
         "orderBody": "Shipping, delivery and payment status in one panel.",
         "discoverTitle": "Discover & connect",
-        "discoverBody": "Category-matched company discovery — at home or in 98 countries."
+        "discoverBody": "Category-matched company discovery — at home or abroad."
       },
       "control": {
         "eyebrow": "Everything in one panel",
@@ -779,9 +779,9 @@
       "citySearch": "Search provinces",
       "noCity": "No matching province",
       "nearMe": "Near me",
-      "nearPlaceholder": "Province or postal code",
-      "nearAria": "Near me — province or postal code",
-      "nearNotFound": "Province not found — type a province name or a 5-digit postal code.",
+      "nearPlaceholder": "Province in Türkiye or Turkish postal code",
+      "nearAria": "Near me — province in Türkiye or Turkish postal code",
+      "nearNotFound": "Province not found — type a province in Türkiye or a 5-digit Turkish postal code. The distance filter currently works in Türkiye only.",
       "radius": "Radius:",
       "radiusHint": "{name} and provinces whose centres are within {radius} km.",
       "certifications": "Certifications",
@@ -1758,7 +1758,8 @@
       "companyType": {
         "LIMITED": "Limited company",
         "JOINT_STOCK": "Joint-stock company",
-        "SOLE_PROPRIETOR": "Sole proprietorship"
+        "SOLE_PROPRIETOR": "Sole proprietorship",
+        "OTHER": "Other"
       },
       "viesUnavailable": "The VIES service is unavailable right now, try again later",
       "viesValid": "VAT number verified (VIES)",
@@ -1820,7 +1821,11 @@
       "back": "Back",
       "next": "Continue",
       "saving": "Saving…",
-      "finish": "Finish"
+      "finish": "Finish",
+      "legalFormLocal": "Legal form (local name)",
+      "legalFormLocalPlaceholder": "e.g. GmbH, LLC, ООО, Cooperative",
+      "legalFormLocalRequired": "Enter your legal form",
+      "taxIdHint": "In this country: {label}"
     }
   },
   "panel": {
@@ -3360,7 +3365,9 @@
         "acikAdres": "Full address",
         "adresiKaydet": "Save address",
         "vazgec": "Cancel",
-        "depo": "Warehouse"
+        "depo": "Warehouse",
+        "ulke": "Country",
+        "sehir": "City"
       },
       "step2Items": {
         "kalemTavanNedeniyleEklenmediEn": "{dropped, plural, one {# line item was} other {# line items were}} not added because of the limit (max {MAXLISTINGITEMS})",
@@ -4786,7 +4793,10 @@
           "kalemYok": "No line items",
           "toplam": "Total",
           "genel": "(general)"
-        }
+        },
+        "hesapNo": "Account number",
+        "swiftBic": "SWIFT / BIC",
+        "bankaAdi": "Bank"
       },
       "siparisIdLayout": {
         "siparisDetayiYetkiGerektirir": "Order details require permission",
@@ -5061,7 +5071,10 @@
         "adresEklendi": "Address added",
         "kaydedilemedi": "Could not be saved",
         "adreslerYuklenemedi": "Addresses could not be loaded.",
-        "vdVkn": "Tax office: {taxOffice} · Tax no: {taxNumber}"
+        "vdVkn": "Tax office: {taxOffice} · Tax no: {taxNumber}",
+        "sehir": "City",
+        "eyaletBolge": "State / region",
+        "vergiNoYabanci": "Tax / VAT number"
       },
       "bankAccountsSection": {
         "bankaHesabiSilinsinMi": "Delete the bank account?",
@@ -5096,7 +5109,15 @@
         "silinemedi": "Could not be deleted",
         "hesapEklendi": "Account added",
         "kaydedilemedi": "Could not be saved",
-        "bankaHesaplariYuklenemedi": "Bank accounts could not be loaded."
+        "bankaHesaplariYuklenemedi": "Bank accounts could not be loaded.",
+        "bankCountry": "Bank country",
+        "accountNumber": "Account number",
+        "swiftBic": "SWIFT / BIC code",
+        "swiftOptional": "SWIFT / BIC code (optional)",
+        "noIbanHint": "Banks in this country do not use IBAN: the account number, SWIFT/BIC code and bank name are required.",
+        "bankNameRequired": "Bank name",
+        "accountNumberInvalid": "Enter a valid account number (4–40 characters)",
+        "swiftInvalid": "Enter a valid SWIFT/BIC code (8 or 11 characters)"
       },
       "companyProfileSection": {
         "firmaAdiEnAz2": "The company name must be at least 2 characters",
@@ -5152,7 +5173,8 @@
         "companyType": {
           "JOINT_STOCK": "Joint stock company",
           "LIMITED": "Limited company",
-          "SOLE_PROPRIETOR": "Sole proprietorship"
+          "SOLE_PROPRIETOR": "Sole proprietorship",
+          "OTHER": "Other"
         },
         "vergiNoTckn": "Tax number (TCKN)",
         "vergiNo": "Tax number",
@@ -5443,7 +5465,13 @@
         "firmanizDogrulandiHerkeseAcik": "Your company is verified. Submitting quotes to public requests, publishing requests and switching plans are now open to you.",
         "dogrulamaIcindirSiparisTahsilat": "This is used for verification. Order collection accounts are kept in <banka>Bank Accounts</banka>.",
         "belgeGuncellemenizReddedildi": "Your document update was rejected — your current document remains valid.",
-        "belgeGuncellemenizReddedildiGerekce": "Your document update was rejected: {reason} — your current document remains valid."
+        "belgeGuncellemenizReddedildiGerekce": "Your document update was rejected: {reason} — your current document remains valid.",
+        "swiftBic": "SWIFT / BIC code",
+        "swiftPlaceholder": "e.g. DEUTDEFF",
+        "swiftHint": "Your bank's international code — needed to receive payments from abroad",
+        "swiftInvalid": "Enter a valid SWIFT/BIC code (8 or 11 characters)",
+        "bankName": "Bank name",
+        "accountNumberInvalid": "Enter a valid account number (4–40 characters)"
       },
       "ayarlarFirmaLayout": {
         "firmaBilgileriYetkiGerektirir": "Company details require permission",
@@ -5558,7 +5586,7 @@
           "tradeRegistry": "Certificate of incorporation",
           "signatureCircular": "Signature circular",
           "activityCert": "Certificate of Activity",
-          "idFront": "Authorized signatory ID",
+          "idFront": "Authorized signatory ID or passport",
           "idBack": "Authorized signatory ID — back"
         },
         "yuklemeBasarisiz": "Upload failed"
@@ -6555,6 +6583,11 @@
     "passwordInput": {
       "sifreyiGizle": "Hide password",
       "sifreyiGoster": "Show password"
+    },
+    "countryPicker": {
+      "placeholder": "Search country…",
+      "open": "Open country list",
+      "noResults": "No matching country"
     }
   }
 }

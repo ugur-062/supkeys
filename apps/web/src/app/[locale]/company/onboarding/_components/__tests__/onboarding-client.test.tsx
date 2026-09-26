@@ -66,6 +66,14 @@ beforeEach(() => {
   ];
 });
 
+/** Aranabilir ülke seçicide (Combobox) ülke seç — 245 ülkelik native liste yerine (2026-09-27). */
+async function pickCountry(user: ReturnType<typeof userEvent.setup>, query: string, name: string) {
+  const box = screen.getByRole("combobox", { name: /^Ülke/ });
+  await user.clear(box);
+  await user.type(box, query);
+  await user.click(await screen.findByRole("option", { name: new RegExp(name) }));
+}
+
 describe("OnboardingClient — adım 1 (şirket)", () => {
   it("zorunlu alanlar boşken 'Devam' devre dışı", () => {
     render(<OnboardingClient />);
@@ -78,7 +86,7 @@ describe("OnboardingClient — adım 1 (şirket)", () => {
     expect(screen.getByLabelText("İl *")).toBeInTheDocument();
     expect(screen.getByLabelText("Vergi Dairesi *")).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByLabelText("Ülke *"), "KZ");
+    await pickCountry(user, "Kazak", "Kazakistan");
     expect(screen.queryByLabelText("İl *")).not.toBeInTheDocument();
     expect(screen.getByLabelText("Şehir *")).toBeInTheDocument();
     expect(screen.getByLabelText("Eyalet / Bölge")).toBeInTheDocument();
@@ -212,23 +220,16 @@ describe("OnboardingClient — adım 3 (özet + gönderim)", () => {
 });
 
 /**
- * VIES testleri ŞU AN ATLANIYOR — silinmedi.
- *
- * 2026-09-01 kayıt kapısıyla AB ülkeleri kapatıldı
- * (docs/plan-country-registration.md), dolayısıyla ülke listesinde seçilebilir
- * bir AB ülkesi YOK ve bu akışa UI'dan ulaşılamıyor. VIES kodu (uç + hook +
- * buton) OLDUĞU GİBİ DURUYOR ve çalışıyor; AB açıldığında `describe.skip` →
- * `describe` yeterli olacak.
- *
- * Testleri silmek yanlış olurdu: AB açıldığında bu yolun sessizce bozulmuş
- * olduğunu fark etmenin tek yolu bunlar.
+ * VIES — AB ülkelerinde KDV numarası doğrulama. 2026-09-01 – 09-27 arası AB
+ * kayda kapalıydı ve bu testler atlanıyordu; kayıt tüm ülkelere açılınca
+ * (ABD ve yaptırım ülkeleri hariç) yeniden etkin.
  */
-describe.skip("OnboardingClient — VIES (yabancı; AB kapalıyken erişilemez)", () => {
+describe("OnboardingClient — VIES (AB ülkeleri)", () => {
   it("AB ülkesinde VIES butonu görünür + doğrulama çağrılır", async () => {
     const user = userEvent.setup();
     h.viesAsync.mockResolvedValue({ valid: true, name: "ACME GmbH" });
     render(<OnboardingClient />);
-    await user.selectOptions(screen.getByLabelText("Ülke *"), "DE");
+    await pickCountry(user, "Alman", "Almanya");
     await user.type(screen.getByLabelText("Vergi / Sicil No *"), "DE811234567");
 
     const viesBtn = screen.getByRole("button", { name: /VIES ile doğrula/i });
@@ -244,7 +245,7 @@ describe.skip("OnboardingClient — VIES (yabancı; AB kapalıyken erişilemez)"
     const user = userEvent.setup();
     h.viesAsync.mockRejectedValue(new Error("network"));
     render(<OnboardingClient />);
-    await user.selectOptions(screen.getByLabelText("Ülke *"), "DE");
+    await pickCountry(user, "Alman", "Almanya");
     await user.type(screen.getByLabelText("Vergi / Sicil No *"), "DE811234567");
     await user.click(screen.getByRole("button", { name: /VIES ile doğrula/i }));
     expect(h.toast.error).toHaveBeenCalled();

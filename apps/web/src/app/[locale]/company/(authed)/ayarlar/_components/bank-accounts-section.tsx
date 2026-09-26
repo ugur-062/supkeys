@@ -22,7 +22,9 @@ import {
 } from "@/hooks/use-company-bank-accounts";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { ibanChecksumOk, isValidIbanTr, normalizeIban } from "@rothern/shared";
+import { bankDetailsErrors, countryUsesIban, normalizeIban, normalizeSwift } from "@rothern/shared";
+import { CountryCombobox } from "@/components/ui/country-combobox";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -121,7 +123,12 @@ export function BankAccountsSection({ canManage }: { canManage: boolean }) {
                 </div>
               ) : null}
               <div className="mt-1.5 text-xs text-zinc-600">
-                <Iban value={a.iban} />
+                {a.iban ? (
+                  <Iban value={a.iban} />
+                ) : (
+                  <span className="tabular-nums">{a.accountNumber}</span>
+                )}
+                {a.swiftBic ? <span className="text-zinc-500"> · SWIFT {a.swiftBic}</span> : null}
               </div>
               <div className="mt-0.5 text-xs text-zinc-500">
                 {a.accountHolder}
@@ -153,25 +160,36 @@ function BankAccountModal({
   const save = useSaveBankAccount();
   const [title, setTitle] = useState(account?.title ?? "");
   const [holder, setHolder] = useState(account?.accountHolder ?? "");
+  const companyCountry = useCompanyAuthStore((st) => st.company?.country) ?? "TR";
+  const [bankCountry, setBankCountry] = useState(
+    account?.bankCountry ?? (account?.iban ? account.iban.slice(0, 2) : companyCountry),
+  );
   const [iban, setIban] = useState(account?.iban ?? "");
+  const [accountNumber, setAccountNumber] = useState(account?.accountNumber ?? "");
+  const [swift, setSwift] = useState(account?.swiftBic ?? "");
   const [bankName, setBankName] = useState(account?.bankName ?? "");
   const [isDefault, setIsDefault] = useState(account?.isDefault ?? false);
 
-  // IBAN doğrulaması — backend company-bank-accounts.service ile BİREBİR:
-  // TR katı (isValidIbanTr), yabancı IBAN da mod-97 (`ibanChecksumOk`, Dalga
-  // B P3). Web eskiden yabancıda yalnız biçime bakıyordu; tek hane hatalı
-  // DE/NL IBAN'ı geçirip sunucudan 400 alıyordu.
+  // Kural TEK KAYNAK `bankDetailsErrors` — backend `assertBankDetails` ile aynı
+  // (2026-09-27): bankanın ülkesi IBAN kullanıyorsa IBAN (TR katı, diğerleri
+  // mod-97); kullanmıyorsa hesap no + SWIFT/BIC + banka adı.
+  const usesIban = countryUsesIban(bankCountry);
   const ibanClean = normalizeIban(iban);
-  const ibanInvalid =
-    ibanClean.length > 0 &&
-    (ibanClean.startsWith("TR")
-      ? !isValidIbanTr(ibanClean)
-      : !/^[A-Z]{2}[0-9A-Z]{8,32}$/.test(ibanClean) || !ibanChecksumOk(ibanClean));
-  const ibanError = ibanInvalid
-    ? ibanClean.startsWith("TR")
-      ? t("gecerliBirTrIbanGirin")
-      : t("gecerliBirIbanGirinKontrol")
-    : null;
+  const errors = bankDetailsErrors({
+    country: bankCountry,
+    iban: usesIban ? ibanClean : null,
+    accountNumber: usesIban ? null : accountNumber,
+    swiftBic: swift,
+    bankName,
+  });
+  const ibanError =
+    usesIban && ibanClean && errors.includes("ibanInvalid")
+      ? ibanClean.startsWith("TR")
+        ? t("gecerliBirTrIbanGirin")
+        : t("gecerliBirIbanGirinKontrol")
+      : null;
+  const accountError = !usesIban && accountNumber.trim() && errors.includes("accountNumberInvalid") ? t("accountNumberInvalid") : null;
+  const swiftError = swift.trim() && errors.includes("swiftInvalid") ? t("swiftInvalid") : null;
 
   const submit = async () => {
     try {
@@ -179,7 +197,9 @@ function BankAccountModal({
         id: account?.id,
         title: title.trim(),
         accountHolder: holder.trim(),
-        iban: ibanClean,
+        bankCountry,
+        ...(usesIban ? { iban: ibanClean } : { accountNumber: accountNumber.trim() }),
+        swiftBic: normalizeSwift(swift) || undefined,
         bankName: bankName.trim() || undefined,
         isDefault,
       });
@@ -190,7 +210,7 @@ function BankAccountModal({
     }
   };
 
-  const valid = title.trim() && holder.trim() && ibanClean && !ibanInvalid;
+  const valid = title.trim() && holder.trim() && errors.length === 0;
 
   return (
     <Dialog open onClose={onClose} size="lg">
@@ -207,6 +227,11 @@ function BankAccountModal({
             maxLength={120}
           />
         </Field>
+        <Field>
+          <Label>{t("bankCountry")}</Label>
+          <CountryCombobox value={bankCountry} onChange={setBankCountry} ariaLabel={t("bankCountry")} />
+          {usesIban ? null : <Text className="mt-1 text-xs text-zinc-500">{t("noIbanHint")}</Text>}
+        </Field>
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Field>
             <Label>{t("hesapSahibi")}</Label>
@@ -221,26 +246,51 @@ function BankAccountModal({
             </Text>
           </Field>
           <Field>
-            <Label>{t("bankaAdi")}</Label>
+            <Label>{usesIban ? t("bankaAdi") : `${t("bankNameRequired")} *`}</Label>
             <Input
               value={bankName}
               onChange={(e) => setBankName(e.target.value)}
-              placeholder={t("opsiyonel")}
+              placeholder={usesIban ? t("opsiyonel") : undefined}
               maxLength={120}
             />
           </Field>
         </div>
+        {usesIban ? (
+          <Field>
+            <Label>{t("iban")}</Label>
+            <Input
+              value={iban}
+              invalid={Boolean(ibanError)}
+              onChange={(e) => setIban(e.target.value)}
+              placeholder={bankCountry === "TR" ? "TR00 0000 0000 0000 0000 0000 00" : `${bankCountry}00 …`}
+              maxLength={40}
+              className="tabular-nums"
+            />
+            {ibanError ? <ErrorMessage>{ibanError}</ErrorMessage> : null}
+          </Field>
+        ) : (
+          <Field>
+            <Label>{t("accountNumber")} *</Label>
+            <Input
+              value={accountNumber}
+              invalid={Boolean(accountError)}
+              onChange={(e) => setAccountNumber(e.target.value)}
+              maxLength={40}
+              className="tabular-nums"
+            />
+            {accountError ? <ErrorMessage>{accountError}</ErrorMessage> : null}
+          </Field>
+        )}
         <Field>
-          <Label>{t("iban")}</Label>
+          <Label>{usesIban ? t("swiftOptional") : `${t("swiftBic")} *`}</Label>
           <Input
-            value={iban}
-            invalid={Boolean(ibanError)}
-            onChange={(e) => setIban(e.target.value)}
-            placeholder="TR00 0000 0000 0000 0000 0000 00"
-            maxLength={40}
-            className="tabular-nums"
+            value={swift}
+            invalid={Boolean(swiftError)}
+            onChange={(e) => setSwift(e.target.value.toUpperCase())}
+            placeholder="DEUTDEFF"
+            maxLength={11}
           />
-          {ibanError ? <ErrorMessage>{ibanError}</ErrorMessage> : null}
+          {swiftError ? <ErrorMessage>{swiftError}</ErrorMessage> : null}
         </Field>
         <CheckboxField>
           <Checkbox checked={isDefault} onChange={setIsDefault} />

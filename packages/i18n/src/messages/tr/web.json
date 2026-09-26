@@ -160,7 +160,7 @@
       "noIntermediationTitle": "Ticarete aracılık etmiyoruz",
       "noIntermediationBody": "Rothern üzerinden satılan tek şey üyelik paketleridir. Firmalar arasındaki mal ve hizmet bedeline platform aracılık etmez, parayı taşımaz; sözleşme ve ödeme taraflar arasında doğrudan yürür. Sipariş ekranındaki ödeme adımları, tarafların birbirine yaptığı bildirimlerin kaydıdır.",
       "whoTitle": "Kimler kullanabilir",
-      "whoBody": "Şu anda Türkiye, KKTC, Rusya, Azerbaycan, Kazakistan, Özbekistan, Çin ve Birleşik Arap Emirlikleri'nden firma kaydı alınıyor. Her ülkenin kendi belge kümesi var; doğrulama istisnasız insan eliyle yapılıyor, otomatik onay yolu bulunmuyor. Ayrıntılar için <faq>sık sorulan sorular</faq> ve <how>Nasıl Çalışır</how> sayfalarına bakabilirsiniz.",
+      "whoBody": "Amerika Birleşik Devletleri ve kapsamlı yaptırım uygulanan ülkeler (İran, Kuzey Kore, Suriye, Küba) dışında dünyanın her ülkesinden firma kaydı alınıyor. Belge kümesi ülkeye göre değişiyor; doğrulama istisnasız insan eliyle yapılıyor, otomatik onay yolu bulunmuyor. Ayrıntılar için <faq>sık sorulan sorular</faq> ve <how>Nasıl Çalışır</how> sayfalarına bakabilirsiniz.",
       "operatorTitle": "İşletmeci",
       "operatorBody": "Platform, <b>{legalName}</b> tarafından işletilmektedir ({address} · {taxOffice} — Vergi No: {taxNo}). Bize <mail>{email}</mail> adresinden ulaşabilir, tam künye için <contact>İletişim ve Künye</contact> sayfamıza bakabilirsiniz."
     },
@@ -201,7 +201,7 @@
         "q2": "Rothern alım satıma aracılık ediyor mu?",
         "a2": "Hayır. Rothern üzerinden satılan tek şey üyelik paketleridir. Firmalar arasındaki mal ve hizmet bedeline platform aracılık etmez, parayı taşımaz; ticaret taraflar arasında doğrudan yürür. Sipariş ekranındaki ödeme adımları tarafların birbirine yaptığı bildirimlerdir.",
         "q3": "Hangi ülkelerden kayıt alınıyor?",
-        "a3": "Türkiye, KKTC, Rusya, Azerbaycan, Kazakistan, Özbekistan, Çin ve Birleşik Arap Emirlikleri. Her ülkenin kendi belge kümesi vardır; örneğin Çin'de 营业执照 (iş ruhsatı) sicil, vergi ve temsilci bilgisini tek belgede taşıdığı için ayrıca vergi belgesi istenmez."
+        "a3": "Amerika Birleşik Devletleri ve kapsamlı yaptırım uygulanan ülkeler (İran, Kuzey Kore, Suriye, Küba) dışındaki tüm ülkelerden. Belge kümesi ülkeye göre değişir: çoğu ülkeden şirket sicil belgesi, vergi kayıt belgesi ve yetkilinin kimliği ya da pasaportu istenir; Çin'de 营业执照 (iş ruhsatı) sicil, vergi ve temsilci bilgisini tek belgede taşıdığı için ayrıca vergi belgesi istenmez."
       },
       "g2": {
         "heading": "Teklif ve gizlilik",
@@ -508,7 +508,7 @@
         "orderTitle": "Siparişten teslime",
         "orderBody": "Kargo, teslim ve ödeme durumu tek panelde.",
         "discoverTitle": "Keşfet & bağlan",
-        "discoverBody": "Kategori eşleşmeli firma keşfi — yurtiçi ya da 98 ülkede."
+        "discoverBody": "Kategori eşleşmeli firma keşfi — yurtiçi ya da yurtdışı."
       },
       "control": {
         "eyebrow": "Tek panelde her şey",
@@ -779,9 +779,9 @@
       "citySearch": "İl ara",
       "noCity": "Eşleşen il yok",
       "nearMe": "Yakınımda",
-      "nearPlaceholder": "İl ya da posta kodu",
-      "nearAria": "Yakınımda — il ya da posta kodu",
-      "nearNotFound": "İl bulunamadı — il adı ya da 5 haneli posta kodu yazın.",
+      "nearPlaceholder": "Türkiye'de il ya da posta kodu",
+      "nearAria": "Yakınımda — Türkiye'de il ya da posta kodu",
+      "nearNotFound": "İl bulunamadı — Türkiye'deki bir il adı ya da 5 haneli Türk posta kodu yazın. Mesafe süzgeci şimdilik yalnız Türkiye'de çalışıyor.",
       "radius": "Yarıçap:",
       "radiusHint": "{name} ve merkezleri {radius} km içindeki iller.",
       "certifications": "Sertifikalar",
@@ -1758,7 +1758,8 @@
       "companyType": {
         "LIMITED": "Limited Şirket",
         "JOINT_STOCK": "Anonim Şirket",
-        "SOLE_PROPRIETOR": "Şahıs Firması"
+        "SOLE_PROPRIETOR": "Şahıs Firması",
+        "OTHER": "Diğer"
       },
       "viesUnavailable": "VIES servisine şu an ulaşılamıyor, sonra deneyin",
       "viesValid": "VAT numarası doğrulandı (VIES)",
@@ -1820,7 +1821,11 @@
       "back": "Geri",
       "next": "Devam",
       "saving": "Kaydediliyor…",
-      "finish": "Tamamla"
+      "finish": "Tamamla",
+      "legalFormLocal": "Hukuki yapı (yerel adıyla)",
+      "legalFormLocalPlaceholder": "ör. GmbH, LLC, ООО, Kooperatif",
+      "legalFormLocalRequired": "Hukuki yapınızı yazın",
+      "taxIdHint": "Bu ülkede: {label}"
     }
   },
   "panel": {
@@ -3360,7 +3365,9 @@
         "acikAdres": "Açık adres",
         "adresiKaydet": "Adresi kaydet",
         "vazgec": "Vazgeç",
-        "depo": "Depo"
+        "depo": "Depo",
+        "ulke": "Ülke",
+        "sehir": "Şehir"
       },
       "step2Items": {
         "kalemTavanNedeniyleEklenmediEn": "{dropped} kalem tavan nedeniyle eklenmedi (en fazla {MAXLISTINGITEMS})",
@@ -4786,7 +4793,10 @@
           "kalemYok": "Kalem yok",
           "toplam": "Toplam",
           "genel": "(genel)"
-        }
+        },
+        "hesapNo": "Hesap numarası",
+        "swiftBic": "SWIFT / BIC",
+        "bankaAdi": "Banka"
       },
       "siparisIdLayout": {
         "siparisDetayiYetkiGerektirir": "Sipariş detayı yetki gerektirir",
@@ -5061,7 +5071,10 @@
         "adresEklendi": "Adres eklendi",
         "kaydedilemedi": "Kaydedilemedi",
         "adreslerYuklenemedi": "Adresler yüklenemedi.",
-        "vdVkn": "VD: {taxOffice} · VKN: {taxNumber}"
+        "vdVkn": "VD: {taxOffice} · VKN: {taxNumber}",
+        "sehir": "Şehir",
+        "eyaletBolge": "Eyalet / bölge",
+        "vergiNoYabanci": "Vergi / KDV numarası"
       },
       "bankAccountsSection": {
         "bankaHesabiSilinsinMi": "Banka hesabı silinsin mi?",
@@ -5096,7 +5109,15 @@
         "silinemedi": "Silinemedi",
         "hesapEklendi": "Hesap eklendi",
         "kaydedilemedi": "Kaydedilemedi",
-        "bankaHesaplariYuklenemedi": "Banka hesapları yüklenemedi."
+        "bankaHesaplariYuklenemedi": "Banka hesapları yüklenemedi.",
+        "bankCountry": "Bankanın ülkesi",
+        "accountNumber": "Hesap numarası",
+        "swiftBic": "SWIFT / BIC kodu",
+        "swiftOptional": "SWIFT / BIC kodu (isteğe bağlı)",
+        "noIbanHint": "Bu ülkedeki bankalar IBAN kullanmıyor: hesap numarası, SWIFT/BIC kodu ve banka adı gerekli.",
+        "bankNameRequired": "Banka adı",
+        "accountNumberInvalid": "Geçerli bir hesap numarası girin (4-40 karakter)",
+        "swiftInvalid": "Geçerli bir SWIFT/BIC kodu girin (8 ya da 11 karakter)"
       },
       "companyProfileSection": {
         "firmaAdiEnAz2": "Firma adı en az 2 karakter olmalı",
@@ -5152,7 +5173,8 @@
         "companyType": {
           "JOINT_STOCK": "Anonim Şirket",
           "LIMITED": "Limited Şirket",
-          "SOLE_PROPRIETOR": "Şahıs Firması"
+          "SOLE_PROPRIETOR": "Şahıs Firması",
+          "OTHER": "Diğer"
         },
         "vergiNoTckn": "Vergi No (TCKN)",
         "vergiNo": "Vergi No",
@@ -5443,7 +5465,13 @@
         "firmanizDogrulandiHerkeseAcik": "Firmanız doğrulandı. Herkese açık taleplere teklif, talep yayını ve paket geçişi açık.",
         "dogrulamaIcindirSiparisTahsilat": "Doğrulama içindir. Sipariş tahsilat hesapları <banka>Banka Hesapları</banka>nda.",
         "belgeGuncellemenizReddedildi": "Belge güncellemeniz reddedildi — mevcut belgeniz geçerliliğini koruyor.",
-        "belgeGuncellemenizReddedildiGerekce": "Belge güncellemeniz reddedildi: {reason} — mevcut belgeniz geçerliliğini koruyor."
+        "belgeGuncellemenizReddedildiGerekce": "Belge güncellemeniz reddedildi: {reason} — mevcut belgeniz geçerliliğini koruyor.",
+        "swiftBic": "SWIFT / BIC kodu",
+        "swiftPlaceholder": "ör. TGBATRIS",
+        "swiftHint": "Bankanızın uluslararası kodu — yurt dışından ödeme alabilmek için gerekli",
+        "swiftInvalid": "Geçerli bir SWIFT/BIC kodu girin (8 ya da 11 karakter)",
+        "bankName": "Banka adı",
+        "accountNumberInvalid": "Geçerli bir hesap numarası girin (4-40 karakter)"
       },
       "ayarlarFirmaLayout": {
         "firmaBilgileriYetkiGerektirir": "Firma Bilgileri yetki gerektirir",
@@ -5558,7 +5586,7 @@
           "tradeRegistry": "Kuruluş / Sicil Belgesi (Certificate of Incorporation)",
           "signatureCircular": "İmza Sirküleri (Signature Circular)",
           "activityCert": "Faaliyet Belgesi (Certificate of Activity)",
-          "idFront": "Yetkili Kimliği (Authorized Signatory ID)",
+          "idFront": "Yetkili Kimliği veya Pasaportu (Authorized Signatory ID / Passport)",
           "idBack": "Yetkili Kimliği — Arka (ID Back)"
         },
         "yuklemeBasarisiz": "Yükleme başarısız"
@@ -6555,6 +6583,11 @@
     "passwordInput": {
       "sifreyiGizle": "Şifreyi gizle",
       "sifreyiGoster": "Şifreyi göster"
+    },
+    "countryPicker": {
+      "placeholder": "Ülke ara…",
+      "open": "Ülke listesini aç",
+      "noResults": "Eşleşen ülke yok"
     }
   }
 }

@@ -73,10 +73,12 @@ describe("ülke-farkında belge seti", () => {
     // yabancıda hiç istenmiyordu — "yurt içi / yurt dışı" ayrımıydı ve
     // sicil BELGESİNİ isteyip numarasını istememek tutarsızdı.
     // DE IBAN ülkesi → mod-97 doğrulanır.
+    // SWIFT/BIC firma doğrulamasında HER ÜLKEDE zorunlu (2026-09-27).
     await svc.submit(co.id, {
       tradeRegistryNo: "HRB 12345",
       iban: "DE89370400440532013000",
       ibanHolder: "Muster GmbH",
+      bankSwiftBic: "COBADEFFXXX",
     });
     const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
     expect(c.companyVerificationStatus).toBe("PENDING");
@@ -94,11 +96,38 @@ describe("ülke-farkında belge seti", () => {
     await expect(svc.submit(co.id)).rejects.toThrow(/Sicil \/ kayıt/);
     await expect(
       svc.submit(co.id, { tradeRegistryNo: "HRB 1" }),
-    ).rejects.toThrow(/IBAN gerekli/);
+    ).rejects.toThrow(/IBAN giriniz/);
     // IBAN kullanan ülkede kontrol hanesi doğrulanır.
     await expect(
-      svc.submit(co.id, { tradeRegistryNo: "HRB 1", iban: "DE00370400440532013000", ibanHolder: "X" }),
+      svc.submit(co.id, { tradeRegistryNo: "HRB 1", iban: "DE00370400440532013000", ibanHolder: "X", bankSwiftBic: "COBADEFF" }),
     ).rejects.toThrow(/kontrol hanesi/);
+    // SWIFT/BIC doğrulamada her ülkede zorunlu (kullanıcı kararı 2026-09-27) — IBAN geçerli olsa da.
+    await expect(
+      svc.submit(co.id, { tradeRegistryNo: "HRB 1", iban: "DE89370400440532013000", ibanHolder: "X" }),
+    ).rejects.toThrow(/SWIFT/);
+    await expect(
+      svc.submit(co.id, { tradeRegistryNo: "HRB 1", iban: "DE89370400440532013000", ibanHolder: "X", bankSwiftBic: "DEUT" }),
+    ).rejects.toThrow(/SWIFT/);
+  });
+
+  it("TR firmada da SWIFT zorunlu (IBAN'ın yanında)", async () => {
+    const svc = docsService();
+    const co = await makeCompany(prisma, {
+      companyVerificationStatus: "UNVERIFIED",
+      country: "TR",
+      docTradeRegistryUrl: "k1",
+      docTaxPlateUrl: "k2",
+      docIdFrontUrl: "k3",
+      docIdBackUrl: "k4",
+      docSignatureCircularUrl: "k5",
+      docActivityCertUrl: "k6",
+    });
+    const base = { mersisNo: "0123456789012345", tradeRegistryNo: "123456", iban: "TR330006100519786457841326", ibanHolder: "Acme A.Ş." };
+    await expect(svc.submit(co.id, base)).rejects.toThrow(/SWIFT/);
+    await svc.submit(co.id, { ...base, bankSwiftBic: "TGBATRIS" });
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
+    expect(c.companyVerificationStatus).toBe("PENDING");
+    expect(c.bankSwiftBic).toBe("TGBATRIS");
   });
 
   it("IBAN kullanmayan ülkede (CN) hesap numarası serbest biçim ama ZORUNLU", async () => {
@@ -112,11 +141,17 @@ describe("ülke-farkında belge seti", () => {
     });
     await expect(
       svc.submit(co.id, { tradeRegistryNo: "91110000", ibanHolder: "示例" }),
-    ).rejects.toThrow(/Banka hesap numarası/);
+    ).rejects.toThrow(/Hesap numarası zorunlu/);
+    // IBAN'sız ülke: hesap no + SWIFT + banka adı (2026-09-27).
+    await expect(
+      svc.submit(co.id, { tradeRegistryNo: "91110000", iban: "6222021234567890123", ibanHolder: "示例", bankSwiftBic: "BKCHCNBJ" }),
+    ).rejects.toThrow(/Banka adı/);
     await svc.submit(co.id, {
       tradeRegistryNo: "91110000",
       iban: "6222021234567890123",
       ibanHolder: "示例有限公司",
+      bankSwiftBic: "BKCHCNBJ",
+      bankName: "Bank of China",
     });
     const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
     expect(c.companyVerificationStatus).toBe("PENDING");
@@ -199,7 +234,7 @@ describe("VIES — AB VAT oto-doğrulama", () => {
     expect(calledUrl).not.toContain("..");
     expect(calledUrl).not.toContain("?x=1");
     // VAT alfanümerik dışını atar → "811234x1"
-    expect(calledUrl.endsWith("/vat/811234x1")).toBe(true);
+    expect(calledUrl.endsWith("/vat/811234X1")).toBe(true);
   });
 
   it("servis hatası → unavailable (patlamaz)", async () => {

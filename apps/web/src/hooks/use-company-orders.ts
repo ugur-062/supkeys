@@ -92,6 +92,7 @@ export interface OrderDeliveryAddress {
   contactName: string | null;
   phone: string | null;
   country: string;
+  stateRegion?: string | null;
   city: string | null;
   district: string | null;
   addressLine: string;
@@ -132,6 +133,10 @@ export interface CompanyOrderDetail extends CompanyOrder {
   acceptedNote: string | null;
   bankAccountHolder: string | null;
   bankIban: string | null;
+  /** IBAN kullanmayan ülkenin hesabı (2026-09-27). */
+  bankAccountNumber?: string | null;
+  bankSwiftBic?: string | null;
+  bankName?: string | null;
   expectedDeliveryDate: string | null;
   invoiceNumber: string | null;
   deliveryStartedAt: string | null;

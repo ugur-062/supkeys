@@ -616,6 +616,9 @@ export class AdminCompaniesService {
         tradeRegistryNo: true,
         iban: true,
         ibanHolder: true,
+        bankSwiftBic: true,
+        bankName: true,
+        legalFormLocal: true,
         // Belgeler: url/key + belge bazlı inceleme durumu + red gerekçesi.
         docTaxPlateUrl: true,
         docTaxPlateStatus: true,
@@ -700,6 +703,9 @@ export class AdminCompaniesService {
     const { users: _users, ...company } = c;
     return {
       ...company,
+      // Ülkenin zorunlu belge seti — admin ekranı kendi kopyasını TUTMAZ
+      // (2026-09-27: eskiden "TR 6 / yabancı 3" ikili kuralı KKTC/Çin/BAE'de yanlıştı).
+      requiredDocs: requiredKinds(c.country),
       docTaxPlateUrl,
       docTradeRegistryUrl,
       docSignatureCircularUrl,

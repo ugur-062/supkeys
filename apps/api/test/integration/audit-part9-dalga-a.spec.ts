@@ -385,7 +385,9 @@ describe("Dalga B — KYC kimlik alanları admin yolunda da zorunlu", () => {
     ).rejects.toThrow(/eksik kimlik bilgisi/i);
   });
 
-  it("yabancı firmada kimlik alanı kuralı uygulanmaz", async () => {
+  it("yabancı firmada da kimlik kuralı uygulanır — MERSİS hariç (2026-09-27)", async () => {
+    // Eskiden TR dışı firma için erken dönülüyordu: admin, firma tarafının
+    // `submit()`'te zorunlu tuttuğu sicil/banka/SWIFT BOŞKEN onaylayabiliyordu.
     const { service } = rig();
     const co = await makeCompanyWithUser(prisma, {
       country: "DE",
@@ -397,13 +399,37 @@ describe("Dalga B — KYC kimlik alanları admin yolunda da zorunlu", () => {
         docTradeRegistryUrl: "company-docs/x/tradeRegistry.pdf",
         docTaxPlateUrl: "company-docs/x/taxPlate.pdf",
         docIdFrontUrl: "company-docs/x/idFront.pdf",
-        mersisNo: null,
+        mersisNo: null, // Türkiye'ye özgü — yabancıda aranmaz
         iban: null,
       },
     });
     await expect(
       service.setVerification(co.company.id, "VERIFIED", "admin-1"),
+    ).rejects.toThrow(/IBAN/);
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: { iban: "DE89370400440532013000", bankSwiftBic: "COBADEFF" },
+    });
+    await expect(
+      service.setVerification(co.company.id, "VERIFIED", "admin-1"),
     ).resolves.toMatchObject({ ok: true });
+  });
+
+  it("IBAN kullanmayan ülkede (IN) banka adı da istenir", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, { country: "IN", companyVerificationStatus: "PENDING" });
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: {
+        docTradeRegistryUrl: "company-docs/x/tradeRegistry.pdf",
+        docTaxPlateUrl: "company-docs/x/taxPlate.pdf",
+        docIdFrontUrl: "company-docs/x/idFront.pdf",
+        iban: "50100123456789",
+        bankSwiftBic: "HDFCINBB",
+        bankName: null,
+      },
+    });
+    await expect(service.setVerification(co.company.id, "VERIFIED", "admin-1")).rejects.toThrow(/banka adı/);
   });
 });
 

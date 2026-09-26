@@ -157,33 +157,55 @@ sattığını **ürün vitriniyle** gösterir, alıcı **talep** açar; tek yön
 
 ---
 
-## Kayıt Ülkeleri — SEKİZ ülke
+## Kayıt Ülkeleri — TÜM ÜLKELER, KAPALI LİSTE HARİÇ (2026-09-27)
 
-Tek kaynak `@rothern/shared` `data/country-profiles.ts`. Gerekçe:
-`docs/plan-country-registration.md`.
+Kullanıcı kararı: "tüm ülkeler kayıt olabilsin, Amerika hariç". Tek kaynak
+`@rothern/shared` `data/country-profiles.ts` `REGISTRATION_BLOCKED`: **ABD +
+toprakları (PR, GU, VI, AS, MP)** ve **kapsamlı yaptırım ülkeleri İran, Kuzey
+Kore, Suriye, Küba** (ABD'li altyapı sağlayıcılarının — Vercel, Cloudflare,
+Supabase, Resend — kullanım koşulları yasaklıyor). 2026-09-01 – 09-27 arası
+yalnız sekiz ülke açıktı (`docs/plan-country-registration.md` tarihsel).
 
-TR (6 belge) · **XN KKTC** (ISO'da kodu YOK, dış sistemlere gönderilmemeli) ·
-RU · AZ · KZ · UZ (ortak yabancı temeli) · CN (营业执照 tek belge → vergi belgesi
-istenmez) · AE (Trade License zorunlu, vergi belgesi değil).
+- **Ülke listesi TAM** (`data/countries.ts` `COUNTRY_TABLE`: 245 = ISO +
+  `XK` Kosova + `XN` KKTC; kod · Türkçe ad · telefon kodu). STATİK (Intl'den
+  türetilmez — sunucu/tarayıcı ICU farkı hidrasyon uyuşmazlığı üretirdi); EN/RU
+  adı `countryDisplayName` (Intl + `XN` elle). `XN`/`XK` bayrağı çizilmez.
+- **Profil:** özel profiller (TR, KKTC, RU, AZ, KZ, UZ, CN, AE) aynen; profili
+  olmayan her geçerli ülke `getCountryProfile` ile VARSAYILAN yabancı profil
+  alır — **3 belge** (sicil + vergi kaydı + yetkili kimliği/pasaportu; kullanıcı
+  kararı), `usesIban` SWIFT IBAN kaydından (`data/iban-countries.ts`), AB üyeleri
+  `EU` grubu + VIES (`EU_VAT_COUNTRIES`; VIES Yunanistan için `EL`, numaradaki
+  ülke öneki atılır).
+- **BANKA KURALI TEK KAYNAK `helpers/bank-details.ts` `bankDetailsErrors`:**
+  bankanın ülkesi IBAN kullanıyorsa IBAN (TR katı, diğerleri mod-97); değilse
+  **hesap no + SWIFT/BIC + banka adı** (geçerli IBAN da kabul). **FİRMA
+  DOĞRULAMASINDA SWIFT HER ÜLKEDE ZORUNLU** (`{ requireSwift: true }`, kullanıcı
+  kararı aynı gün; TR dahil). API `assertBankDetails` (doğrulama `submit`,
+  Banka Hesapları, profil, admin); web formları aynı fonksiyonu çizer. IBAN'sız
+  ülkede `Company.iban` kolonu HESAP NUMARASINI taşır; `bankSwiftBic`/`bankName`
+  ayrı kolon. Banka hesabı defterinde IBAN isteğe bağlı (`accountNumber`,
+  `swiftBic`, `bankCountry`); sipariş kabulü hesap no/SWIFT/banka adını da
+  kaydeder. Eskiden IBAN'sız ülkenin satıcısı hesap kaydedemediği için SİPARİŞ
+  KABUL EDEMİYORDU. SWIFT de KYC kilidinde (IBAN gibi).
+- **Hukuki yapı `OTHER`** + `Company.legalFormLocal` (GmbH, LLC, ООО,
+  kooperatif…); "Diğer" seçilince yerel ad zorunlu.
+- **Adres:** `CompanyAddress.stateRegion`; ülke tam listeye göre doğrulanır;
+  her adres gösteriminde ülke (`usePlaceLabel`); hızlı talep "adres ekle" ülke
+  seçer (eskiden "TR"ye SABİTTİ); posta kodunda harf serbest (TR hariç).
+- **Aranabilir ülke seçici** `components/ui/country-combobox.tsx` (kayıt,
+  adres, hızlı talep adresi, banka ülkesi). Telefon: tam liste, ortak kodda
+  birincil ülke (+7 → RU, 7xx → KZ; +1 → US), numarasız seçilen ülke kaybolmaz.
+- **Türkiye'ye özgü kalanlar (bilinçli):** şehir sayfaları ve "Yakınımda"
+  mesafe süzgeci yalnız 81 il (metin bunu söyler); MERSİS, vergi dairesi, KEP
+  yalnız TR. Para birimi listesi genişletilmedi.
+- Migration `20260927120000_global_registration` (eklemeli). Sözleşmeler:
+  `country-profiles.spec`, `bank-details-phone.spec`, `onboarding.spec`
+  (kapalı liste + DE/OTHER), `foreign-verification.spec` (SWIFT), `bank-accounts.spec`,
+  web `country-combobox.test`, onboarding VIES testleri (yeniden etkin), admin
+  `docs-tab.test` (belge seti API'den `requiredDocs`).
 
-AB ve Afrika bilinçli KAPALI (VIES yazılı ve hazır; AB açmak profil eklemek).
-**Doğrulama ülkeden bağımsız ve istisnasız MANUELDİR** — `VERIFIED` yalnız
-admin `setVerification` ile yazılır, otomatik onay yolu hiç yok.
-
-**KİMLİK ALANLARI HERKESE ZORUNLU, BİÇİM ÜLKEYE GÖRE (2026-09-14, kullanıcı:
-"bu evrensel bir sistem, yurtdışı yurtiçi firması diye bir şey yok").**
-`company-docs.service.ts` `submit()` tek bir `if (isTR)` taşıyordu: yabancı
-firmadan sicil no, banka bilgisi ve hesap sahibi HİÇ istenmiyordu ve ekran
-"Yurt dışı firmalarda bu alanlar zorunlu değildir" yazıyordu. Sicil BELGESİNİ
-sekiz ülkenin hepsinde isteyip numarasını istememek tutarsızdı. Artık:
-sicil/kayıt no + banka + hesap sahibi **her ülkede zorunlu**; MERSİS yalnız
-TR'de ÇİZİLİR (başka ülkede karşılığı YOK — "opsiyonel" değil); banka alanı
-`CountryProfile.usesIban` ile ayrışır — IBAN ülkelerinde mod-97 (`ibanChecksumOk`,
-TR'de `isValidIbanTr`), RU/UZ/CN'de serbest biçimli hesap numarası ama yine
-zorunlu. Sözleşme: `foreign-verification.spec.ts`.
-
-Kapı YALNIZ YENİ KAYDA uygulanır: `COUNTRIES` (98) kısaltılmadı; mevcut
-firmaların ülkesi gösterilebilmeli, adres defterinde her ülke seçilebilmeli.
+Kapı YALNIZ YENİ KAYDA uygulanır: kapalı ülkedeki mevcut firmanın belge seti
+ve ekranları çalışmaya devam eder.
 
 **TALEP GÖRÜNÜRLÜK ÜLKESİ — YURTİÇİ/ULUSLARARASI KAPSAMI KALKTI (2026-09-21,
 kullanıcı kararı: "tüm alım talepleri görülsün herkese; sadece belirli

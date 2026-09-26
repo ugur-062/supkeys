@@ -40,6 +40,8 @@ export async function makeCompany(
       // değişiklik oluşmaz ve kilit hiç tetiklenmez.
       iban: "TR120006100519786457841399",
       ibanHolder: "Test Firma A.Ş.",
+      // SWIFT doğrulamada her ülkede zorunlu (2026-09-27) — "kimliği tam" fikstür.
+      bankSwiftBic: "TGBATRIS",
       ...over,
     },
   });

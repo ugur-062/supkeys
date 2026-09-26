@@ -24,20 +24,24 @@ import {
   TURKEY_LOCATIONS,
   isValidTaxIdForCountry,
   isValidTckn,
+  EU_VAT_COUNTRIES,
+  getCountryProfile,
   registrationCountries,
 } from "@rothern/shared";
+import { CountryCombobox } from "@/components/ui/country-combobox";
 import { Check } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
-const COMPANY_TYPE_VALUES = ["LIMITED", "JOINT_STOCK", "SOLE_PROPRIETOR"] as const;
-// AB VAT (VIES) kapsamındaki ülkeler.
-const EU_VAT = new Set([
-  "AT", "BE", "BG", "HR", "CY", "CZ", "DK", "EE", "FI", "FR", "DE", "GR",
-  "HU", "IE", "IT", "LV", "LT", "LU", "MT", "NL", "PL", "PT", "RO", "SK",
-  "SI", "ES", "SE",
-]);
+const COMPANY_TYPE_VALUES = ["LIMITED", "JOINT_STOCK", "SOLE_PROPRIETOR", "OTHER"] as const;
+/** Kayda açık ülke kodları (kapalı liste hariç — `REGISTRATION_BLOCKED`). */
+const REGISTRATION_CODES = registrationCountries().map((c) => c.code);
+
+/** Posta kodu: TR'de 5 rakam; diğer ülkelerde harf/rakam/boşluk/tire (SW1A 1AA, 1012 AB, K1A 0B1). */
+function cleanPostal(v: string, tr: boolean): string {
+  return tr ? v.replace(/\D/g, "") : v.toUpperCase().replace(/[^A-Z0-9 -]/g, "");
+}
 
 export function OnboardingClient() {
   const t = useTranslations("web.auth.onboarding");
@@ -53,14 +57,9 @@ export function OnboardingClient() {
 
   const STEPS = [t("step1"), t("step2"), t("step3")];
   const companyTypes = COMPANY_TYPE_VALUES.map((value) => ({ value, label: t(`companyType.${value}`) }));
-  /* Kayıt kapısı (2026-09-01): yalnız profili AÇIK ülkeler. `COUNTRIES` (98)
-     burada KULLANILMAZ — kaydolamayacağı bir ülkeyi seçtirip formun sonunda
-     reddetmek en kötü akış. Adres defteri ayrı: orada tüm ülkeler seçilebilir
-     (teslimat adresi kayıt kapısına tabi değil). Ad dile göre (Intl.DisplayNames). */
-  const countries = useMemo(
-    () => registrationCountries().map((c) => ({ code: c.code, name: countryDisplayName(c.code, locale) })),
-    [locale],
-  );
+  /* Kayıt kapısı (2026-09-27): tüm ülkeler, kapalı liste hariç (ABD + toprakları,
+     kapsamlı yaptırım ülkeleri) — kaydolamayacağı ülke seçicide HİÇ çıkmaz,
+     formun sonunda reddedilmez. Seçici aranabilir (`CountryCombobox`). */
 
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -68,6 +67,7 @@ export function OnboardingClient() {
     country: "TR",
     legalName: "",
     companyType: "LIMITED",
+    legalFormLocal: "",
     taxNumber: "",
     taxOffice: "",
     website: "",
@@ -122,8 +122,10 @@ export function OnboardingClient() {
     [f.city],
   );
 
+  const profile = getCountryProfile(f.country);
   const step1Valid =
     f.legalName.trim().length >= 2 &&
+    (f.companyType !== "OTHER" || f.legalFormLocal.trim().length >= 2) &&
     taxNumberValid &&
     // TR'de vergi dairesi zorunlu (backend @400) — gate'e ekli.
     (isTR ? f.taxOffice.trim().length > 0 : true) &&
@@ -143,7 +145,7 @@ export function OnboardingClient() {
     f.mainCategoryIds.length >= 1 &&
     f.mainCategoryIds.length <= MAX_COMPANY_MAIN_CATEGORIES;
 
-  const isEuVat = !isTR && EU_VAT.has(f.country);
+  const isEuVat = EU_VAT_COUNTRIES.has(f.country);
   const checkVies = async () => {
     try {
       const r = await vies.mutateAsync({
@@ -171,6 +173,7 @@ export function OnboardingClient() {
       await complete.mutateAsync({
         legalName: f.legalName.trim(),
         companyType: f.companyType,
+        ...(f.companyType === "OTHER" ? { legalFormLocal: f.legalFormLocal.trim() } : {}),
         country: f.country,
         taxNumber: f.taxNumber.trim(),
         taxOffice: f.taxOffice.trim() || undefined,
@@ -255,25 +258,24 @@ export function OnboardingClient() {
             </Field>
             <Field>
               <Label>{t("country")}</Label>
-              <Select
+              <CountryCombobox
                 value={f.country}
-                onChange={(e) =>
+                codes={REGISTRATION_CODES}
+                ariaLabel={t("country")}
+                onChange={(code) =>
                   // Ülke değişince ülkeye-özel alanları temizle (TR il/ilçe/vergi
                   // dairesi ↔ yabancı şehir/eyalet karışmasın).
                   setF((s) => ({
                     ...s,
-                    country: e.target.value,
+                    country: code,
                     city: "",
                     district: "",
                     taxOffice: "",
                     stateRegion: "",
+                    postalCode: "",
                   }))
                 }
-              >
-                {countries.map((c) => (
-                  <option key={c.code} value={c.code}>{c.name}</option>
-                ))}
-              </Select>
+              />
             </Field>
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
               <Field>
@@ -283,6 +285,16 @@ export function OnboardingClient() {
                     <option key={ct.value} value={ct.value}>{ct.label}</option>
                   ))}
                 </Select>
+                {f.companyType === "OTHER" ? (
+                  <Input
+                    className="mt-2"
+                    aria-label={t("legalFormLocal")}
+                    value={f.legalFormLocal}
+                    maxLength={80}
+                    placeholder={t("legalFormLocalPlaceholder")}
+                    onChange={(e) => set("legalFormLocal")(e.target.value)}
+                  />
+                ) : null}
               </Field>
               <Field>
                 <Label>{isTR ? t("taxTr") : t("taxForeign")}</Label>
@@ -294,6 +306,9 @@ export function OnboardingClient() {
                     )
                   }
                 />
+                {!isTR && profile && profile.taxIdRule !== "GENERIC" ? (
+                  <p className="mt-1 text-xs text-zinc-500">{t("taxIdHint", { label: profile.taxIdLabel })}</p>
+                ) : null}
                 {f.taxNumber.trim() && !taxNumberValid ? (
                   <p className="mt-1 text-xs text-red-600">
                     {isTR
@@ -376,7 +391,7 @@ export function OnboardingClient() {
               </Field>
               <Field>
                 <Label>{t("postalCode")}</Label>
-                <Input value={f.postalCode} onChange={(e) => set("postalCode")(e.target.value.replace(/\D/g, ""))} />
+                <Input value={f.postalCode} maxLength={12} onChange={(e) => set("postalCode")(cleanPostal(e.target.value, isTR))} />
               </Field>
             </div>
             <Field>
@@ -407,7 +422,7 @@ export function OnboardingClient() {
                   </Field>
                   <Field>
                     <Label>{t("postalCode")}</Label>
-                    <Input value={f.deliveryPostalCode} onChange={(e) => set("deliveryPostalCode")(e.target.value.replace(/\D/g, ""))} />
+                    <Input value={f.deliveryPostalCode} maxLength={12} onChange={(e) => set("deliveryPostalCode")(cleanPostal(e.target.value, isTR))} />
                   </Field>
                 </div>
                 <Field>
@@ -510,7 +525,7 @@ export function OnboardingClient() {
               />
               <Summary
                 label={t("sumCountry")}
-                value={countries.find((c) => c.code === f.country)?.name ?? countryDisplayName(f.country, locale)}
+                value={countryDisplayName(f.country, locale)}
               />
               <Summary label={t("sumAuthorized")} value={`${user?.firstName} ${user?.lastName}`} />
               {/* Satınalma koltuğu BURADA YAZILMAZ: talep açmak Gold paket

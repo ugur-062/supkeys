@@ -7104,6 +7104,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.auth.onboarding.companyType.OTHER": {
+    "hash": "861fed125c",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
   "web.auth.onboarding.companyType.SOLE_PROPRIETOR": {
     "hash": "94c226b025",
     "status": "reviewed",
@@ -7178,6 +7183,21 @@
     "hash": "e4423b0d9c",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.auth.onboarding.legalFormLocal": {
+    "hash": "755fcf4428",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "web.auth.onboarding.legalFormLocalPlaceholder": {
+    "hash": "a6c8d30946",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "web.auth.onboarding.legalFormLocalRequired": {
+    "hash": "95a9be386e",
+    "status": "reviewed",
+    "at": "2026-09-26"
   },
   "web.auth.onboarding.legalName": {
     "hash": "694644ef96",
@@ -7353,6 +7373,11 @@
     "hash": "1eb86f59ba",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.auth.onboarding.taxIdHint": {
+    "hash": "b4452017ad",
+    "status": "reviewed",
+    "at": "2026-09-26"
   },
   "web.auth.onboarding.taxOffice": {
     "hash": "ba277b5f95",
@@ -9390,9 +9415,9 @@
     "at": "2026-09-23"
   },
   "web.marketing.about.whoBody": {
-    "hash": "48a8f533b8",
+    "hash": "c7de546ae5",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-26"
   },
   "web.marketing.about.whoTitle": {
     "hash": "02dfc81b00",
@@ -9570,9 +9595,9 @@
     "at": "2026-09-23"
   },
   "web.marketing.faq.g1.a3": {
-    "hash": "b5083e691e",
+    "hash": "7a85518347",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-26"
   },
   "web.marketing.faq.g1.heading": {
     "hash": "123a7f2fcc",
@@ -10365,9 +10390,9 @@
     "at": "2026-09-23"
   },
   "web.marketing.howItWorks.features.discoverBody": {
-    "hash": "c6e1dfd03d",
+    "hash": "6a51318655",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-26"
   },
   "web.marketing.howItWorks.features.discoverTitle": {
     "hash": "22e85dd58b",
@@ -12295,9 +12320,9 @@
     "at": "2026-09-23"
   },
   "web.marketplace.filters.nearAria": {
-    "hash": "58b3cf45de",
+    "hash": "3d4d32e450",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-26"
   },
   "web.marketplace.filters.nearMe": {
     "hash": "4ce00dc867",
@@ -12305,14 +12330,14 @@
     "at": "2026-09-23"
   },
   "web.marketplace.filters.nearNotFound": {
-    "hash": "255a7e95f9",
+    "hash": "a539a01538",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-26"
   },
   "web.marketplace.filters.nearPlaceholder": {
-    "hash": "04dba5197f",
+    "hash": "a4a7ecd4b3",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-26"
   },
   "web.marketplace.filters.noCategory": {
     "hash": "ed42507a8f",
@@ -17748,6 +17773,16 @@
     "hash": "b170450a61",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.addressInline.sehir": {
+    "hash": "fd18a2e498",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "web.panel.requests.addressInline.ulke": {
+    "hash": "bbc688c971",
+    "status": "reviewed",
+    "at": "2026-09-26"
   },
   "web.panel.requests.addressInline.vazgec": {
     "hash": "14d2482077",
@@ -24594,6 +24629,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.addressBookSection.eyaletBolge": {
+    "hash": "9ba9b7caa6",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
   "web.panel.settings.addressBookSection.fatura": {
     "hash": "a34cd28072",
     "status": "reviewed",
@@ -24664,6 +24704,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.addressBookSection.sehir": {
+    "hash": "fd18a2e498",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
   "web.panel.settings.addressBookSection.sil": {
     "hash": "353ad5e393",
     "status": "reviewed",
@@ -24713,6 +24758,11 @@
     "hash": "7e4aea288c",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.settings.addressBookSection.vergiNoYabanci": {
+    "hash": "3815d15b8c",
+    "status": "reviewed",
+    "at": "2026-09-26"
   },
   "web.panel.settings.addressBookSection.yeniAdres": {
     "hash": "6fcca86dac",
@@ -25044,6 +25094,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.ayarlarDogrulamaPage.accountNumberInvalid": {
+    "hash": "faa5e02ad1",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
   "web.panel.settings.ayarlarDogrulamaPage.asagidaReddedildiIsaretliBelgeleriDuzeltip": {
     "hash": "2c0f5f7d9c",
     "status": "reviewed",
@@ -25053,6 +25108,11 @@
     "hash": "22d5b7fc35",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.settings.ayarlarDogrulamaPage.bankName": {
+    "hash": "44fa0ed78d",
+    "status": "reviewed",
+    "at": "2026-09-26"
   },
   "web.panel.settings.ayarlarDogrulamaPage.baziBelgelerReddedildi": {
     "hash": "02436b8eba",
@@ -25264,6 +25324,26 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.ayarlarDogrulamaPage.swiftBic": {
+    "hash": "97ac3bf7fa",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "web.panel.settings.ayarlarDogrulamaPage.swiftHint": {
+    "hash": "d021f0631a",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "web.panel.settings.ayarlarDogrulamaPage.swiftInvalid": {
+    "hash": "acb5f3123b",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "web.panel.settings.ayarlarDogrulamaPage.swiftPlaceholder": {
+    "hash": "1c9c501aeb",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
   "web.panel.settings.ayarlarDogrulamaPage.ticariSicilNo": {
     "hash": "1c6ccd1d05",
     "status": "reviewed",
@@ -25359,6 +25439,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.bankAccountsSection.accountNumber": {
+    "hash": "5948cc6663",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "web.panel.settings.bankAccountsSection.accountNumberInvalid": {
+    "hash": "faa5e02ad1",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
   "web.panel.settings.bankAccountsSection.bankaAdi": {
     "hash": "b7668dec35",
     "status": "reviewed",
@@ -25383,6 +25473,16 @@
     "hash": "dfdd0304cc",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.settings.bankAccountsSection.bankCountry": {
+    "hash": "6a88bfae3f",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "web.panel.settings.bankAccountsSection.bankNameRequired": {
+    "hash": "44fa0ed78d",
+    "status": "reviewed",
+    "at": "2026-09-26"
   },
   "web.panel.settings.bankAccountsSection.duzenle": {
     "hash": "525fd6fff9",
@@ -25469,6 +25569,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.bankAccountsSection.noIbanHint": {
+    "hash": "6edcfc4cca",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
   "web.panel.settings.bankAccountsSection.opsiyonel": {
     "hash": "8459b90d7d",
     "status": "reviewed",
@@ -25488,6 +25593,21 @@
     "hash": "6e363b04c5",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.settings.bankAccountsSection.swiftBic": {
+    "hash": "97ac3bf7fa",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "web.panel.settings.bankAccountsSection.swiftInvalid": {
+    "hash": "acb5f3123b",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "web.panel.settings.bankAccountsSection.swiftOptional": {
+    "hash": "def99b6795",
+    "status": "reviewed",
+    "at": "2026-09-26"
   },
   "web.panel.settings.bankAccountsSection.varsayilan": {
     "hash": "d6c79520c9",
@@ -25535,9 +25655,9 @@
     "at": "2026-09-24"
   },
   "web.panel.settings.companyDocs.foreign.idFront": {
-    "hash": "9244927637",
+    "hash": "cd56c6208a",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-26"
   },
   "web.panel.settings.companyDocs.foreign.signatureCircular": {
     "hash": "807f087710",
@@ -25618,6 +25738,11 @@
     "hash": "88c9bf2c22",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.settings.companyProfileSection.companyType.OTHER": {
+    "hash": "861fed125c",
+    "status": "reviewed",
+    "at": "2026-09-26"
   },
   "web.panel.settings.companyProfileSection.companyType.SOLE_PROPRIETOR": {
     "hash": "94c226b025",
@@ -32839,6 +32964,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.siparisIdPage.bankaAdi": {
+    "hash": "d47c1d0dc5",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
   "web.panel.trade.siparisIdPage.birimFiyat": {
     "hash": "a600d5be39",
     "status": "reviewed",
@@ -32878,6 +33008,11 @@
     "hash": "439145df69",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.siparisIdPage.hesapNo": {
+    "hash": "5948cc6663",
+    "status": "reviewed",
+    "at": "2026-09-26"
   },
   "web.panel.trade.siparisIdPage.hesapSahibi": {
     "hash": "11daf02a10",
@@ -33248,6 +33383,11 @@
     "hash": "ab245d5bfd",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.siparisIdPage.swiftBic": {
+    "hash": "d66efbd3ab",
+    "status": "reviewed",
+    "at": "2026-09-26"
   },
   "web.panel.trade.siparisIdPage.talepGonderilemedi": {
     "hash": "1293869337",
@@ -34473,6 +34613,21 @@
     "hash": "8141ba829e",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.shared.countryPicker.noResults": {
+    "hash": "b0e8344bfa",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "web.shared.countryPicker.open": {
+    "hash": "18995d5eba",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "web.shared.countryPicker.placeholder": {
+    "hash": "4eb5b4228e",
+    "status": "reviewed",
+    "at": "2026-09-26"
   },
   "web.shared.dropzone.dosyaSec": {
     "hash": "3fc11e416b",

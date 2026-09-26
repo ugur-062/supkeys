@@ -238,7 +238,11 @@ export function CompanyProfileSection() {
               bu alan HUKUKİ yapı. */}
           <DescriptionTerm>{t("hukukiYapi")}</DescriptionTerm>
           <DescriptionDetails>
-            {profile.companyType ? t(`companyType.${profile.companyType as CompanyType}` as never) : "—"}
+            {profile.companyType
+              ? profile.companyType === "OTHER" && profile.legalFormLocal
+                ? profile.legalFormLocal
+                : t(`companyType.${profile.companyType as CompanyType}` as never)
+              : "—"}
           </DescriptionDetails>
           <DescriptionTerm>{taxLabel}</DescriptionTerm>
           <DescriptionDetails className="tabular-nums">{taxValue}</DescriptionDetails>

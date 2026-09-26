@@ -31,11 +31,13 @@ const DOCS: {
   { key: "idBack", label: "Yetkili Kimlik (Arka)", url: "docIdBackUrl", status: "docIdBackStatus", reason: "docIdBackReason" },
 ];
 
-// Zorunlu belge seti — TR: 6, yabancı: 3 (backend requiredKinds ile aynı).
+// Zorunlu belge seti API'den (`requiredDocs`, tek kaynak shared
+// `requiredDocsForCountry`). Eski API yanıtı için yedek: TR 6, diğerleri 3.
 const FOREIGN_REQUIRED: DocKind[] = ["tradeRegistry", "taxPlate", "idFront"];
-function requiredKinds(country: string | null | undefined): DocKind[] {
+function requiredKinds(data: Pick<AdminCompanyDetail, "country" | "requiredDocs">): DocKind[] {
+  if (data.requiredDocs?.length) return data.requiredDocs;
   const all = DOCS.map((d) => d.key);
-  return (country ?? "TR").toUpperCase() === "TR"
+  return (data.country ?? "TR").toUpperCase() === "TR"
     ? all
     : all.filter((k) => FOREIGN_REQUIRED.includes(k));
 }
@@ -80,7 +82,7 @@ export function DocsTab({
   // Sayfa içi önizleme — açık olan belge (yeni sekmeye gitmeden inceleme).
   const [previewKey, setPreviewKey] = useState<DocKind | null>(null);
 
-  const required = useMemo(() => requiredKinds(data.country), [data.country]);
+  const required = useMemo(() => requiredKinds(data), [data]);
   const foreign = (data.country ?? "TR").toUpperCase() !== "TR";
 
   // Mevcut belge durumlarını taslağa yükle (APPROVED/REJECTED ön-seçili).
@@ -175,9 +177,9 @@ export function DocsTab({
 
       {foreign ? (
         <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Yabancı firma ({data.country}) — zorunlu belge seti: Ticaret Sicil,
-          Vergi Levhası muadili ve Yetkili Kimlik (Ön). Diğer belgeler
-          istenmez.
+          Yabancı firma ({data.country}) — zorunlu belge seti:{" "}
+          {DOCS.filter((d) => required.includes(d.key)).map((d) => d.label).join(", ")}.
+          Diğer belgeler istenmez.
         </div>
       ) : null}
 

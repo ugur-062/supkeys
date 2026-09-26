@@ -3,18 +3,23 @@
 import { PHONE_COUNTRIES, composePhone, parsePhone } from "@rothern/shared";
 import { useLocale } from "next-intl";
 import { countryDisplayName } from "@/i18n/domain";
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 /**
  * Uluslararası telefon girişi — solda bayrak + ülke kodu seçici (native select),
  * sağda ulusal numara. `value` tam string ("+90 5xxxxxxxxx"); onChange aynı
- * formatı döndürür. Varsayılan ülke TR. Kayıt, davet-kabul, ayarlar ve adres
- * defterinde ortak kullanılır.
+ * formatı döndürür. Kayıt, davet-kabul, ayarlar ve adres defterinde ortak.
+ *
+ * 2026-09-27 (kayıt tüm ülkelere açık): liste tam (245 ülke) ve ekrandaki dile
+ * göre sıralı; boş alanda varsayılan ülke firmanın ülkesi (yoksa TR); numara
+ * yazılmadan seçilen ülke artık KAYBOLMAZ (boş değer "+90"a dönüyordu); örnek
+ * numara yalnız Türkiye'de Türk cep biçiminde.
  */
 export function PhoneInput({
   value,
   onChange,
-  placeholder = "5XX XXX XX XX",
+  placeholder,
   autoComplete = "tel",
   disabled,
   id,
@@ -31,12 +36,25 @@ export function PhoneInput({
   ariaLabel?: string;
 }) {
   const locale = useLocale();
+  const companyCountry = useCompanyAuthStore((st) => st.company?.country);
   const parsed = useMemo(() => parsePhone(value), [value]);
+  const [pendingCode, setPendingCode] = useState<string | null>(null);
+  const hasNumber = parsed.national.replace(/\D/g, "").length > 0;
+  const fallback = companyCountry && PHONE_COUNTRIES.some((c) => c.code === companyCountry) ? companyCountry : "TR";
+  const code = hasNumber ? parsed.code : (pendingCode ?? fallback);
+  const current = PHONE_COUNTRIES.find((c) => c.code === code);
+  const options = useMemo(() => {
+    const rows = PHONE_COUNTRIES.map((c) => ({ ...c, label: countryDisplayName(c.code, locale) }));
+    const tr = rows.filter((r) => r.code === "TR");
+    return [...tr, ...rows.filter((r) => r.code !== "TR").sort((a, b) => a.label.localeCompare(b.label, locale))];
+  }, [locale]);
 
-  const setCountry = (code: string) =>
-    onChange(composePhone(code, parsed.national));
+  const setCountry = (next: string) => {
+    setPendingCode(next);
+    if (hasNumber) onChange(composePhone(next, parsed.national));
+  };
   const setNational = (national: string) =>
-    onChange(composePhone(parsed.code, national.replace(/[^\d]/g, "")));
+    onChange(composePhone(code, national.replace(/[^\d]/g, "")));
 
   return (
     <div
@@ -50,21 +68,21 @@ export function PhoneInput({
       {/* Ülke seçici — bayrak + arama kodu. */}
       <div className="relative flex items-center border-r border-zinc-950/10 bg-zinc-50">
         <span className="pointer-events-none pl-3 text-base leading-none">
-          {PHONE_COUNTRIES.find((c) => c.code === parsed.code)?.flag ?? "🏳️"}
+          {current?.flag ?? "🏳️"}
         </span>
         <span className="pointer-events-none pl-1.5 text-sm text-zinc-600">
-          +{PHONE_COUNTRIES.find((c) => c.code === parsed.code)?.dialCode ?? "90"}
+          +{current?.dialCode ?? "90"}
         </span>
         <select
           aria-label="Ülke kodu"
-          value={parsed.code}
+          value={code}
           disabled={disabled}
           onChange={(e) => setCountry(e.target.value)}
           className="absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent pr-6 text-transparent outline-none"
         >
-          {PHONE_COUNTRIES.map((c) => (
+          {options.map((c) => (
             <option key={c.code} value={c.code} className="text-zinc-900">
-              {c.flag} {countryDisplayName(c.code, locale)} (+{c.dialCode})
+              {c.flag} {c.label} (+{c.dialCode})
             </option>
           ))}
         </select>
@@ -89,7 +107,7 @@ export function PhoneInput({
         inputMode="tel"
         aria-label={ariaLabel}
         autoComplete={autoComplete}
-        placeholder={placeholder}
+        placeholder={placeholder ?? (code === "TR" ? "5XX XXX XX XX" : undefined)}
         disabled={disabled}
         value={parsed.national}
         onChange={(e) => setNational(e.target.value)}

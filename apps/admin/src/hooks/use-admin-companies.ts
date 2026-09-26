@@ -170,6 +170,13 @@ export interface AdminCompanyDetail {
   tradeRegistryNo: string | null;
   iban: string | null;
   ibanHolder: string | null;
+  /** SWIFT/BIC + banka adı (2026-09-27; IBAN kullanmayan ülkede banka adı zorunlu). */
+  bankSwiftBic?: string | null;
+  bankName?: string | null;
+  /** `companyType = OTHER` iken yerel hukuki yapı. */
+  legalFormLocal?: string | null;
+  /** Ülkenin zorunlu belge seti (API — tek kaynak). */
+  requiredDocs?: DocKind[];
   docTaxPlateUrl: string | null;
   /** Belge kindi → R2 anahtarı (presigned URL nesneyi tanımlamaz; bkz. #3). */
   docKeys?: Partial<Record<DocKind, string | null>>;

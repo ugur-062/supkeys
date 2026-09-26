@@ -13,11 +13,20 @@ import { moneyInputError } from "@/lib/money-input";
  * Alan sözlükleri — dil farkında (i18n Faz 1). Paylaşılan paketteki Türkçe
  * yardımcılar (`companyActivityLabel`, `scopeLabel`, `closingUrgency`) API ve
  * panel için tek kaynak olarak kalır; web'in dil bilen yüzeyleri bu hook'ları
- * kullanır. Ülke adı ISO kodlarında `Intl.DisplayNames`tan gelir (98 ülkeyi
- * üç dilde elle yazmadan), ISO dışı kod (XN/KKTC) paylaşılan Türkçe ada düşer.
+ * kullanır. Ülke adı ISO kodlarında `Intl.DisplayNames`tan gelir (245 ülkeyi
+ * üç dilde elle yazmadan); Türkçe ad paylaşılan tam listeden (statik — sunucu
+ * ile tarayıcının ICU farkı hidrasyon uyuşmazlığı üretmesin). KKTC (`XN`)
+ * ISO'da yok, `Intl` tanımaz → elle.
  */
 
+const NON_ISO_NAMES: Partial<Record<Locale, Record<string, string>>> = {
+  en: { XN: "Northern Cyprus" },
+  ru: { XN: "Северный Кипр" },
+};
+
 export function countryDisplayName(code: string, locale: Locale): string {
+  const override = NON_ISO_NAMES[locale]?.[code];
+  if (override) return override;
   if (locale !== DEFAULT_LOCALE && /^[A-Z]{2}$/.test(code) && code !== "XN") {
     try {
       const name = new Intl.DisplayNames([locale], { type: "region" }).of(code);
@@ -41,6 +50,31 @@ export function cityDisplayName(city: string | null | undefined, locale: Locale)
 export function useCityLabel(): (city: string | null | undefined) => string {
   const locale = useLocale() as Locale;
   return (city) => cityDisplayName(city, locale);
+}
+
+/**
+ * Adresin yer satırı: ilçe, şehir, eyalet/bölge, ülke — okuyucunun dilinde
+ * (2026-09-27, kayıt tüm ülkelere açık: adreslerde ülke hiç görünmüyordu;
+ * DAP/DDP gibi sınır ötesi teslimde "hangi ülke" belirsizdi).
+ */
+export function usePlaceLabel(): (a: {
+  district?: string | null;
+  city?: string | null;
+  stateRegion?: string | null;
+  postalCode?: string | null;
+  country?: string | null;
+}) => string {
+  const locale = useLocale() as Locale;
+  return (a) =>
+    [
+      a.district,
+      a.city ? cityDisplayName(a.city, locale) : null,
+      a.stateRegion,
+      a.postalCode,
+      a.country ? countryDisplayName(a.country, locale) : null,
+    ]
+      .filter(Boolean)
+      .join(", ");
 }
 
 /**

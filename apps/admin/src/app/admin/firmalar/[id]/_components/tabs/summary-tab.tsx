@@ -220,8 +220,10 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
               ) : null
             }
           />
-          <Row label="IBAN" value={data.iban} />
-          <Row label="IBAN Sahibi" value={data.ibanHolder} />
+          <Row label="IBAN / Hesap No" value={data.iban} />
+          <Row label="Hesap Sahibi" value={data.ibanHolder} />
+          <Row label="SWIFT / BIC" value={data.bankSwiftBic ?? null} />
+          <Row label="Banka" value={data.bankName ?? null} />
           <Row label="Kayıt tarihi" value={safeFormat(data.createdAt, "d MMM yyyy HH:mm")} />
           <Row
             label="Doğrulama tarihi"

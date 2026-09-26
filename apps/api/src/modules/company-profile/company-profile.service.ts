@@ -71,6 +71,7 @@ const SELECT = {
   taxNumber: true,
   taxOffice: true,
   companyType: true,
+  legalFormLocal: true,
   authorizedTckn: true,
   authorizedTitle: true,
   mersisNo: true,

@@ -45,6 +45,10 @@ export interface KycFields {
   tradeRegistryNo: string | null;
   iban: string | null;
   ibanHolder: string | null;
+  /** SWIFT/BIC — doğrulamada her ülkede zorunlu (2026-09-27). */
+  bankSwiftBic: string | null;
+  /** Banka adı — IBAN kullanmayan ülkede zorunlu. */
+  bankName: string | null;
 }
 
 /** Faz Y A-modeli — VERIFIED-sonrası belge güncellemesinin son revizyonu. */
@@ -56,6 +60,8 @@ export interface DocRevision {
 }
 
 export interface CompanyDocs extends KycFields {
+  /** Banka alanı IBAN mı (değilse hesap no) — API ülke kuralından. */
+  usesIban?: boolean;
   status: VerificationStatus;
   verifiedAt: string | null;
   rejectionReason: string | null;

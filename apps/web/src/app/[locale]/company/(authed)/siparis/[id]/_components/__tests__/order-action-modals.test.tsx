@@ -30,6 +30,9 @@ describe("AcceptOrderModal", () => {
     title: "Ana Hesap",
     accountHolder: "Firma A.Ş.",
     iban: "TR000011112222333344",
+    accountNumber: null,
+    swiftBic: null,
+    bankCountry: "TR",
     bankName: "Demo Bank",
     isDefault: true,
   };

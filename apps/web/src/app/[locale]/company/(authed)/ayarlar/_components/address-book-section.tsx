@@ -28,7 +28,8 @@ import {
   type CompanyAddressType,
 } from "@/hooks/use-company-addresses";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { COUNTRIES } from "@rothern/shared";
+import { CountryCombobox } from "@/components/ui/country-combobox";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -37,6 +38,7 @@ const TYPE_ORDER: CompanyAddressType[] = ["FATURA", "TESLIMAT", "ILETISIM"];
 
 export function AddressBookSection({ canManage }: { canManage: boolean }) {
   const t = useTranslations("web.panel.settings.addressBookSection");
+  const listLocale = useLocale() as Locale;
   const typeLabel = (type: CompanyAddressType) =>
     type === "FATURA" ? t("fatura") : type === "ILETISIM" ? t("iletisim") : t("teslimat");
   const { data: addresses, isLoading, isError, refetch } = useAddresses();
@@ -147,9 +149,10 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
                 {a.isDefault ? <Badge color="amber">{t("varsayilan")}</Badge> : null}
               </div>
               <div className="mt-1.5 text-xs text-zinc-500">
-                {a.addressLine}
-                {a.district ? `, ${a.district}` : ""}
-                {a.city ? `, ${a.city}` : ""}
+                {/* Ülke her adreste görünür (2026-09-27, kayıt tüm ülkelere açık). */}
+                {[a.addressLine, a.district, a.city, a.stateRegion, a.postalCode, countryDisplayName(a.country, listLocale)]
+                  .filter(Boolean)
+                  .join(", ")}
               </div>
               {a.type === "FATURA" && (a.taxOffice || a.taxNumber) ? (
                 <div className="mt-0.5 text-xs text-zinc-500">
@@ -179,14 +182,16 @@ function AddressDialog({
   onClose: () => void;
 }) {
   const t = useTranslations("web.panel.settings.addressBookSection");
-  const locale = useLocale() as Locale;
   const save = useSaveAddress();
+  // Yeni adresin ülkesi varsayılan olarak firmanın ülkesi (eskiden her zaman TR).
+  const companyCountry = useCompanyAuthStore((st) => st.company?.country) ?? "TR";
   const [f, setF] = useState({
     type: address?.type ?? ("TESLIMAT" as CompanyAddressType),
     title: address?.title ?? "",
     contactName: address?.contactName ?? "",
     phone: address?.phone ?? "",
-    country: address?.country ?? "TR",
+    country: address?.country ?? companyCountry,
+    stateRegion: address?.stateRegion ?? "",
     city: address?.city ?? "",
     district: address?.district ?? "",
     addressLine: address?.addressLine ?? "",
@@ -197,6 +202,7 @@ function AddressDialog({
   });
   const set = (patch: Partial<typeof f>) => setF((p) => ({ ...p, ...patch }));
   const [touched, setTouched] = useState(false);
+  const isTR = f.country === "TR";
 
   // Satır içi hatalar — backend DTO ile aynı zorunluluk (title/addressLine
   // MinLength 1); telefon tek kaynak `isValidPhone`.
@@ -265,31 +271,38 @@ function AddressDialog({
           </Field>
           <Field>
             <Label>{t("ulke")}</Label>
-            <Select
+            <CountryCombobox
               value={f.country}
-              onChange={(e) => set({ country: e.target.value })}
-            >
-              {COUNTRIES.map((c) => (
-                <option key={c.code} value={c.code}>
-                  {countryDisplayName(c.code, locale)}
-                </option>
-              ))}
-            </Select>
+              ariaLabel={t("ulke")}
+              onChange={(country) => set(country === "TR" ? { country, stateRegion: "" } : { country, taxOffice: "" })}
+            />
           </Field>
           <Field>
-            <Label>{t("il")}</Label>
+            <Label>{isTR ? t("il") : t("sehir")}</Label>
             <Input
               value={f.city}
               onChange={(e) => set({ city: e.target.value })}
             />
           </Field>
-          <Field>
-            <Label>{t("ilce")}</Label>
-            <Input
-              value={f.district}
-              onChange={(e) => set({ district: e.target.value })}
-            />
-          </Field>
+          {/* TR: ilçe; diğer ülkeler: eyalet/bölge (Bayern, Maharashtra…). */}
+          {isTR ? (
+            <Field>
+              <Label>{t("ilce")}</Label>
+              <Input
+                value={f.district}
+                onChange={(e) => set({ district: e.target.value })}
+              />
+            </Field>
+          ) : (
+            <Field>
+              <Label>{t("eyaletBolge")}</Label>
+              <Input
+                value={f.stateRegion}
+                maxLength={80}
+                onChange={(e) => set({ stateRegion: e.target.value })}
+              />
+            </Field>
+          )}
         </div>
         <Field>
           <Label>{t("acikAdres")}</Label>
@@ -311,15 +324,18 @@ function AddressDialog({
           </Field>
           {f.type === "FATURA" ? (
             <>
+              {/* Vergi dairesi Türkiye'ye özgü. */}
+              {isTR ? (
+                <Field>
+                  <Label>{t("vergiDairesi")}</Label>
+                  <Input
+                    value={f.taxOffice}
+                    onChange={(e) => set({ taxOffice: e.target.value })}
+                  />
+                </Field>
+              ) : null}
               <Field>
-                <Label>{t("vergiDairesi")}</Label>
-                <Input
-                  value={f.taxOffice}
-                  onChange={(e) => set({ taxOffice: e.target.value })}
-                />
-              </Field>
-              <Field>
-                <Label>{t("vergiNo")}</Label>
+                <Label>{isTR ? t("vergiNo") : t("vergiNoYabanci")}</Label>
                 <Input
                   value={f.taxNumber}
                   onChange={(e) => set({ taxNumber: e.target.value })}

@@ -89,7 +89,7 @@ export function AcceptOrderModal({
                 >
                   {accounts.data!.map((a) => (
                     <option key={a.id} value={a.id}>
-                      {a.title} · {a.iban.slice(0, 6)}…{a.iban.slice(-4)}
+                      {a.title} · {accountTail(a)}
                       {a.isDefault ? t("varsayilan") : ""}
                     </option>
                   ))}
@@ -321,4 +321,11 @@ export function NoteModal({
       </DialogActions>
     </Dialog>
   );
+}
+
+/** Hesap kısaltması: IBAN "TR3300…1234" ya da hesap no "…1234 · SWIFT" (2026-09-27). */
+function accountTail(a: { iban: string | null; accountNumber: string | null; swiftBic: string | null }): string {
+  if (a.iban) return `${a.iban.slice(0, 6)}…${a.iban.slice(-4)}`;
+  const acct = a.accountNumber ?? "";
+  return `…${acct.slice(-4)}${a.swiftBic ? ` · ${a.swiftBic}` : ""}`;
 }

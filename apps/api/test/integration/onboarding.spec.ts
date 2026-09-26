@@ -264,22 +264,67 @@ describe("completeOnboarding", () => {
     expect(c.authorizedTckn).toBeNull();
   });
 
-  it("KAPALI ülkeden yeni kayıt REDDEDİLİR (kayıt kapısı)", async () => {
+  it("KAPALI ülkeden (ABD, yaptırım) yeni kayıt REDDEDİLİR (kayıt kapısı 2026-09-27)", async () => {
+    const { service } = makeAuthService();
+    const cat = await makeCategory();
+    for (const country of ["US", "PR", "IR", "KP", "SY", "CU"]) {
+      const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+      await expect(
+        service.completeOnboarding(owner.user.id, owner.company.id, {
+          ...dto(cat.id),
+          country,
+          companyType: "LIMITED",
+          taxNumber: "123456789",
+          taxOffice: undefined,
+          district: undefined,
+          city: "City",
+          authorizedTckn: undefined,
+        } as never),
+      ).rejects.toThrow(/yeni kayıt alınmıyor/i);
+    }
+  });
+
+  it("AB (DE) ve eskiden kapalı ülkeler artık kabul edilir; hukuki yapı 'Diğer' yerel adla", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    await service.completeOnboarding(owner.user.id, owner.company.id, {
+      ...dto(cat.id),
+      country: "DE",
+      companyType: "OTHER",
+      legalFormLocal: "GmbH",
+      taxNumber: "DE811234567",
+      taxOffice: undefined,
+      district: undefined,
+      city: "München",
+      stateRegion: "Bayern",
+      authorizedTckn: undefined,
+    } as never);
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(c.country).toBe("DE");
+    expect(c.companyType).toBe("OTHER");
+    expect(c.legalFormLocal).toBe("GmbH");
+    // Eyalet adres defterine de yazılır (sipariş kaydında kaybolmasın).
+    const fatura = await prisma.companyAddress.findFirstOrThrow({ where: { companyId: owner.company.id, type: "FATURA" } });
+    expect(fatura).toMatchObject({ country: "DE", stateRegion: "Bayern", city: "München" });
+  });
+
+  it("'Diğer' seçilip yerel yapı adı boş bırakılırsa reddedilir", async () => {
     const { service } = makeAuthService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });
     const cat = await makeCategory();
     await expect(
       service.completeOnboarding(owner.user.id, owner.company.id, {
         ...dto(cat.id),
-        country: "DE", // AB kapalı
-        companyType: "LIMITED",
-        taxNumber: "DE811234567",
+        country: "IN",
+        companyType: "OTHER",
+        taxNumber: "27AAPFU0939F1ZV",
         taxOffice: undefined,
         district: undefined,
-        city: "Munich",
+        city: "Mumbai",
         authorizedTckn: undefined,
       } as never),
-    ).rejects.toThrow(/yeni kayıt alınmıyor/i);
+    ).rejects.toThrow(/hukuki yapı/i);
   });
 
   it("KKTC (XN) kabul edilir — ISO listesinde olmamasına rağmen", async () => {

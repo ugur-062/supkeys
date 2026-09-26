@@ -140,6 +140,15 @@ describe("DocsTab — KYC belge inceleme", () => {
     expect(screen.getByText("Ticaret Sicil Gazetesi")).toBeInTheDocument();
   });
 
+  it("zorunlu set API'den gelir (Çin: sicil + kimlik) — admin kendi ikili kuralını uygulamaz", () => {
+    render(
+      <DocsTab companyId="c1" data={detail({ country: "CN", requiredDocs: ["tradeRegistry", "idFront"] })} />,
+    );
+    expect(screen.getByText("Ticaret Sicil Gazetesi")).toBeInTheDocument();
+    // Eski ikili kural Çin'e de 3 belge (vergi levhası dahil) gösteriyordu.
+    expect(screen.queryByText("Vergi Levhası")).not.toBeInTheDocument();
+  });
+
   it("red şablonu chip'i tıklanınca gerekçe input'una dolar", async () => {
     const user = userEvent.setup();
     render(<DocsTab companyId="c1" data={detail()} />);

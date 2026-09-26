@@ -37,7 +37,9 @@ export interface CompanyProfile {
   activities: string[];
   taxNumber: string | null;
   taxOffice: string | null;
-  companyType: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR" | null;
+  companyType: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR" | "OTHER" | null;
+  /** `companyType = OTHER` iken yerel hukuki yapı (GmbH, LLC…). */
+  legalFormLocal?: string | null;
   authorizedTckn: string | null;
   authorizedTitle: string | null;
   mersisNo: string | null;

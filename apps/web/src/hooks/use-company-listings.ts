@@ -300,6 +300,7 @@ export interface ListingAddress {
   addressLine: string;
   district: string | null;
   city: string | null;
+  stateRegion?: string | null;
   postalCode: string | null;
   country: string;
   contactName: string | null;

@@ -18,10 +18,10 @@ import { isKycLocked, useVerificationMeta } from "@/lib/company/verification-sta
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { MissingFields } from "@/components/ui/missing-fields";
 import {
-  getCountryProfile,
-  ibanChecksumOk,
-  isValidIbanTr,
+  bankDetailsErrors,
+  countryUsesIban,
   normalizeIban,
+  normalizeSwift,
 } from "@rothern/shared";
 import { Check, FileText, Lock, Upload } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -48,12 +48,16 @@ export default function DogrulamaPage() {
   const [tradeRegistryNo, setTradeRegistryNo] = useState("");
   const [iban, setIban] = useState("");
   const [ibanHolder, setIbanHolder] = useState("");
+  const [swift, setSwift] = useState("");
+  const [bankName, setBankName] = useState("");
   useEffect(() => {
     if (!data) return;
     setMersisNo(data.mersisNo ?? "");
     setTradeRegistryNo(data.tradeRegistryNo ?? "");
     setIban(data.iban ?? "");
     setIbanHolder(data.ibanHolder ?? "");
+    setSwift(data.bankSwiftBic ?? "");
+    setBankName(data.bankName ?? "");
   }, [data]);
 
   // Gönderildikten sonra (PENDING) veya onaylandıktan sonra (VERIFIED) kilitli;
@@ -66,7 +70,9 @@ export default function DogrulamaPage() {
   // ve sicil BELGESİNİ zaten sekizinde de istiyoruz. Değişen yalnız biçim:
   // MERSİS Türkiye'ye özgü (başka ülkede YOK, "opsiyonel" değil), banka bilgisi
   // IBAN kullanan ülkede mod-97 doğrulanır, kullanmayanda hesap numarasıdır.
-  const usesIban = getCountryProfile(data?.country ?? "TR")?.usesIban ?? true;
+  // Banka kuralı TEK KAYNAK `bankDetailsErrors` (API `assertBankDetails` ile aynı);
+  // SWIFT/BIC firma doğrulamasında HER ÜLKEDE zorunlu (2026-09-27).
+  const usesIban = data?.usesIban ?? countryUsesIban(data?.country ?? "TR");
   const bankaEtiketi = usesIban ? "IBAN" : t("bankaHesapNo");
   // Belge bazlı kilit (backend commit() ile birebir): ONAYLANAN BELGE KALICI —
   // hiçbir durumda değiştirilemez; yeniden yükleme yalnız o belge reddedildiyse
@@ -104,8 +110,10 @@ export default function DogrulamaPage() {
       await submit.mutateAsync({
         mersisNo: mersisNo.trim(),
         tradeRegistryNo: tradeRegistryNo.trim(),
-        iban: normalizeIban(iban),
+        iban: usesIban ? normalizeIban(iban) : iban.trim(),
         ibanHolder: ibanHolder.trim(),
+        bankSwiftBic: normalizeSwift(swift),
+        ...(usesIban ? {} : { bankName: bankName.trim() }),
       });
       toast.success(t("belgelerDogrulamayaGonderildi"));
     } catch (err) {
@@ -121,16 +129,22 @@ export default function DogrulamaPage() {
     isTR && mersisNo.trim() && !/^\d{16}$/.test(mersisNo.trim())
       ? t("mersisNo16HaneliOlmali")
       : null;
-  const ibanGecerli = (v: string) => {
-    const n = normalizeIban(v);
-    if (!n) return false;
-    if (!usesIban) return true; // serbest biçim (RU/UZ/CN hesap numarası)
-    return isTR ? isValidIbanTr(n) : ibanChecksumOk(n);
-  };
+  const bankErrors = bankDetailsErrors(
+    {
+      country: data?.country ?? "TR",
+      ...(usesIban ? { iban } : { accountNumber: iban }),
+      swiftBic: swift,
+      bankName,
+    },
+    { requireSwift: true },
+  );
   const ibanError =
-    usesIban && normalizeIban(iban) && !ibanGecerli(iban)
+    iban.trim() && bankErrors.includes("ibanInvalid")
       ? t("gecerliBirIbanGirinKontrol")
-      : null;
+      : iban.trim() && bankErrors.includes("accountNumberInvalid")
+        ? t("accountNumberInvalid")
+        : null;
+  const swiftError = swift.trim() && bankErrors.includes("swiftInvalid") ? t("swiftInvalid") : null;
   const missing: string[] = [
     ...labels.filter((d) => data && !data.docs[d.key]).map((d) => d.label),
     // MERSİS yalnız TR — başka ülkede karşılığı yok.
@@ -138,7 +152,11 @@ export default function DogrulamaPage() {
       ? [t("mersisNo16Hane")]
       : []),
     ...(tradeRegistryNo.trim() ? [] : [isTR ? t("ticariSicilNo2") : t("sicilKayitNo")]),
-    ...(ibanGecerli(iban) ? [] : [usesIban ? t("gecerliIban") : t("bankaHesapNo")]),
+    ...(bankErrors.some((e) => e.startsWith("iban") || e.startsWith("accountNumber"))
+      ? [usesIban ? t("gecerliIban") : t("bankaHesapNo")]
+      : []),
+    ...(bankErrors.some((e) => e.startsWith("swift")) ? [t("swiftBic")] : []),
+    ...(bankErrors.includes("bankNameRequired") ? [t("bankName")] : []),
     ...(ibanHolder.trim() ? [] : [t("hesapSahibi2")]),
   ];
   const canSubmit = !!data && missing.length === 0 && !locked;
@@ -277,6 +295,33 @@ export default function DogrulamaPage() {
                   maxLength={120}
                 />
               </Field>
+              <Field>
+                <Label>{t("swiftBic")} *</Label>
+                <Input
+                  value={swift}
+                  invalid={Boolean(swiftError)}
+                  onChange={(e) => setSwift(e.target.value.toUpperCase())}
+                  placeholder={t("swiftPlaceholder")}
+                  disabled={!canManage || locked}
+                  maxLength={11}
+                />
+                {swiftError ? (
+                  <ErrorMessage>{swiftError}</ErrorMessage>
+                ) : (
+                  <Text className="mt-1 text-xs text-zinc-500">{t("swiftHint")}</Text>
+                )}
+              </Field>
+              {usesIban ? null : (
+                <Field>
+                  <Label>{t("bankName")} *</Label>
+                  <Input
+                    value={bankName}
+                    onChange={(e) => setBankName(e.target.value)}
+                    disabled={!canManage || locked}
+                    maxLength={120}
+                  />
+                </Field>
+              )}
             </div>
           </div>
 

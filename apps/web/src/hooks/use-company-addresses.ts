@@ -12,6 +12,8 @@ export interface CompanyAddress {
   contactName: string | null;
   phone: string | null;
   country: string;
+  /** Eyalet/bölge (TR dışı; 2026-09-27). */
+  stateRegion: string | null;
   city: string | null;
   district: string | null;
   addressLine: string;
@@ -27,6 +29,7 @@ export interface UpsertAddressInput {
   contactName?: string;
   phone?: string;
   country?: string;
+  stateRegion?: string;
   city?: string;
   district?: string;
   addressLine: string;

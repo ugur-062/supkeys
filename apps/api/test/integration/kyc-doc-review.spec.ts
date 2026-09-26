@@ -66,6 +66,8 @@ async function pendingCompany() {
     docActivityCertUrl: "company-docs/x/act.pdf",
     docIdFrontUrl: "company-docs/x/idf.pdf",
     docIdBackUrl: "company-docs/x/idb.pdf",
+    // SWIFT doğrulamada her ülkede zorunlu (2026-09-27) — admin onay kapısı da ister.
+    bankSwiftBic: "TGBATRIS",
   });
 }
 
@@ -186,6 +188,7 @@ describe("belge bazlı KYC inceleme", () => {
       tradeRegistryNo: "123456",
       iban: "TR330006100519786457841326",
       ibanHolder: "Firma A.Ş.",
+      bankSwiftBic: "TGBATRIS",
     });
     const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
     expect(c.companyVerificationStatus).toBe("PENDING");
@@ -235,6 +238,7 @@ describe("KYC belge — audit izi (INV-AUDIT-1)", () => {
         tradeRegistryNo: "123456",
         iban: RAW_IBAN,
         ibanHolder: "Firma A.Ş.",
+      bankSwiftBic: "TGBATRIS",
       },
       actor,
     );

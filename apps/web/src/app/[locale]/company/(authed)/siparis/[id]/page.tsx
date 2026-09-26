@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
-import { useNavLabel, useRoleLabel, useUnitLabel } from "@/i18n/domain";
+import { useNavLabel, useRoleLabel, useUnitLabel, usePlaceLabel } from "@/i18n/domain";
 import { formatNumber } from "@/i18n/format";
 import { Button } from "@/components/catalyst/button";
 import { Heading } from "@/components/catalyst/heading";
@@ -82,6 +82,7 @@ function SummaryRow({
 
 export default function OrderDetailPage() {
   const t = useTranslations("web.panel.trade.siparisIdPage");
+  const placeLabel = usePlaceLabel();
   const tn = useNavLabel();
   // Durum ve adım adları paylaşılan sözlükten (`web.domain.orderStatus|orderStep`);
   // `lib/orders/order-status` ton + konum kaynağı olarak kalır (anahtar yoksa TR adı).
@@ -722,13 +723,7 @@ export default function OrderDetailPage() {
               <p className="text-sm text-zinc-900">
                 <span className="font-medium">{o.deliveryAddress.title}</span>{" "}
                 — {o.deliveryAddress.addressLine}
-                {o.deliveryAddress.district
-                  ? `, ${o.deliveryAddress.district}`
-                  : ""}
-                {o.deliveryAddress.city ? `, ${o.deliveryAddress.city}` : ""}
-                {o.deliveryAddress.postalCode
-                  ? ` ${o.deliveryAddress.postalCode}`
-                  : ""}
+                {placeLabel(o.deliveryAddress) ? `, ${placeLabel(o.deliveryAddress)}` : ""}
               </p>
               {o.deliveryAddress.contactName || o.deliveryAddress.phone ? (
                 <p className="mt-1 text-xs text-zinc-500">
@@ -796,7 +791,7 @@ export default function OrderDetailPage() {
           ) : null}
 
           {/* Banka & Fatura */}
-          {o.bankAccountHolder || o.bankIban || o.invoiceNumber ? (
+          {o.bankAccountHolder || o.bankIban || o.bankAccountNumber || o.invoiceNumber ? (
             <section className="card p-5">
               <div className="mb-3 flex items-center gap-2">
                 <Banknote className="h-4 w-4 text-zinc-500" />
@@ -819,6 +814,24 @@ export default function OrderDetailPage() {
                     <dd className="text-zinc-900">
                       <Iban value={o.bankIban} />
                     </dd>
+                  </div>
+                ) : null}
+                {o.bankAccountNumber ? (
+                  <div>
+                    <dt className="text-xs text-zinc-500">{t("hesapNo")}</dt>
+                    <dd className="tabular-nums text-zinc-900">{o.bankAccountNumber}</dd>
+                  </div>
+                ) : null}
+                {o.bankSwiftBic ? (
+                  <div>
+                    <dt className="text-xs text-zinc-500">{t("swiftBic")}</dt>
+                    <dd className="text-zinc-900">{o.bankSwiftBic}</dd>
+                  </div>
+                ) : null}
+                {o.bankName ? (
+                  <div>
+                    <dt className="text-xs text-zinc-500">{t("bankaAdi")}</dt>
+                    <dd className="text-zinc-900">{o.bankName}</dd>
                   </div>
                 ) : null}
                 {o.invoiceNumber ? (
