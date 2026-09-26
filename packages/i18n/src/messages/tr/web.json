@@ -66,7 +66,7 @@
       "showcaseTitle": "Ürününüz vitrinde mi?",
       "showcaseLead": "Ürünlerinizi fiyat ve minimum sipariş bilgisiyle yayımlayın; alıcılar bulsun, bilgi talebi göndersin. Vitrin ücretsiz pakette de açık.",
       "addProduct": "Ürün ekle",
-      "seoParagraph": "Rothern, Türkiye'deki üretici, distribütör ve hizmet sağlayıcı firmaların ürünlerini fiyat ve minimum sipariş bilgisiyle listeleyen, alım taleplerini kapalı zarf teklifle buluşturan B2B pazar yeridir. Ürün ve firma profilleri herkese açıktır; teklif vermek, bilgi istemek ve alıcı bilgilerini görmek için ücretsiz hesap gerekir.",
+      "seoParagraph": "Rothern; üretici, distribütör ve hizmet sağlayıcı firmaların ürünlerini fiyat ve minimum sipariş bilgisiyle listeleyen, alım taleplerini kapalı zarf teklifle buluşturan B2B pazar yeridir. Ürün ve firma profilleri herkese açıktır; teklif vermek, bilgi istemek ve alıcı bilgilerini görmek için ücretsiz hesap gerekir.",
       "metaTitle": "B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
       "metaDescription": "Doğrulanmış tedarikçilerin ürünlerini fiyat ve MOQ ile inceleyin, firmalarla konuşun, alım taleplerine kapalı zarf teklif verin. Alıcı ve satıcı tek hesapta. Kaydolmak ücretsiz.",
       "metaAbsoluteTitle": "Rothern — B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
@@ -879,7 +879,7 @@
     },
     "pages": {
       "productsMetaTitle": "{label} — firmaların ürün vitrini",
-      "productsMetaDesc": "Türkiye'deki tedarikçi firmaların ürün kataloğu: teknik özellikler, minimum sipariş ve fiyat bilgisiyle. Ürünü bulun, firmasına doğrudan ulaşın.",
+      "productsMetaDesc": "Tedarikçi firmaların ürün kataloğu: teknik özellikler, minimum sipariş ve fiyat bilgisiyle. Ürünü bulun, firmasına doğrudan ulaşın.",
       "productsLead": "Firmaların vitrinlerine koyduğu ürünler. Kategori, şehir ve faaliyet tipine göre süzün; fiyat ve bilgi talebi için ücretsiz hesap açın.",
       "companiesMetaTitle": "{label} — doğrulanmış alıcı ve tedarikçi firmalar",
       "companiesMetaDesc": "Rothern'deki doğrulanmış alıcı ve tedarikçi firmalardan bir kesit. Dizinin tamamı, süzgeçler ve firmalarla iletişim ücretsiz üyelikle açılır.",
@@ -1085,7 +1085,7 @@
     "hero": {
       "supplierTitle": "Alıcılar ne arıyor gör, teklifini kapalı zarfta ver.",
       "buyerTitle": "Ürünü bul, tedarikçiyle konuş, teklifi kapalı zarfta al.",
-      "lead": "Türkiye''nin alıcı ve tedarikçiyi tek hesapta buluşturan B2B pazar yeri.",
+      "lead": "Alıcı ve tedarikçiyi tek hesapta buluşturan B2B pazar yeri.",
       "popularAria": "Popüler kategoriler",
       "popularLabel": "Popüler:",
       "supplierCtaLead": "Sana uygun talep yok mu?",

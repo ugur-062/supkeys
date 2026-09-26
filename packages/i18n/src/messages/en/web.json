@@ -66,7 +66,7 @@
       "showcaseTitle": "Is your product in the showcase?",
       "showcaseLead": "Publish your products with price and minimum order details so buyers can find you and send inquiries. The showcase is open on the free plan too.",
       "addProduct": "Add product",
-      "seoParagraph": "Rothern is a B2B marketplace that lists products from manufacturers, distributors and service providers in Turkey with price and minimum order details, and matches buying requests with sealed-bid quotes. Product and company profiles are public; a free account is needed to quote, request information and see buyer details.",
+      "seoParagraph": "Rothern is a B2B marketplace that lists products from manufacturers, distributors and service providers with price and minimum order details, and matches buying requests with sealed-bid quotes. Product and company profiles are public; a free account is needed to quote, request information and see buyer details.",
       "metaTitle": "B2B marketplace: products, suppliers and buying requests",
       "metaDescription": "Browse verified suppliers' products with price and MOQ, talk to companies, and send sealed-bid quotes on buying requests. Buyer and seller in one account. Signing up is free.",
       "metaAbsoluteTitle": "Rothern — B2B marketplace: products, suppliers and buying requests",
@@ -879,7 +879,7 @@
     },
     "pages": {
       "productsMetaTitle": "{label} — company product showcase",
-      "productsMetaDesc": "The product catalog of supplier companies in Turkey: technical specifications, minimum order and price details. Find the product and reach the company directly.",
+      "productsMetaDesc": "The product catalog of supplier companies: technical specifications, minimum order and price details. Find the product and reach the company directly.",
       "productsLead": "Products companies put in their showcases. Filter by category, city and activity type; open a free account for prices and inquiries.",
       "companiesMetaTitle": "{label} — verified buyer and supplier companies",
       "companiesMetaDesc": "A selection of verified buyer and supplier companies on Rothern. The full directory, filters and contacting companies open with a free membership.",
@@ -1085,7 +1085,7 @@
     "hero": {
       "supplierTitle": "See what buyers are looking for and submit your quote as a sealed bid.",
       "buyerTitle": "Find the product, talk to the supplier, get quotes as sealed bids.",
-      "lead": "Türkiye’s B2B marketplace that brings buyers and suppliers together in a single account.",
+      "lead": "The B2B marketplace that brings buyers and suppliers together in a single account.",
       "popularAria": "Popular categories",
       "popularLabel": "Popular:",
       "supplierCtaLead": "No matching requests for you?",

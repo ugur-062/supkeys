@@ -3,6 +3,7 @@ import { absoluteUrl, LANG_TAG, SITE_NAME } from "@/lib/seo/meta";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { localizePath } from "@/i18n/href";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
+import { registrationCountries } from "@rothern/shared";
 
 /**
  * YAPILANDIRILMIŞ VERİ TEK KAYNAĞI (2026-09-09).
@@ -75,7 +76,10 @@ export function organizationNode(): JsonLdNode {
       addressRegion: OPERATOR.addressParts.city,
       addressCountry: OPERATOR.addressParts.country,
     },
-    areaServed: { "@type": "Country", name: "Türkiye" },
+    /* Hizmet bölgesi = kayıt alınan ülkeler (tek kaynak `country-profiles`);
+       eskiden yalnız "Türkiye" yazıyordu ve platformu yerel gösteriyordu.
+       KKTC'nin ISO kodu yok (XN, dış sistemlere gönderilmez) → ad olarak. */
+    areaServed: registrationCountries().map((c) => ({ "@type": "Country", name: c.name })),
     contactPoint: [
       {
         "@type": "ContactPoint",
