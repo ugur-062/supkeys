@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   requestPublicImageUpload,
   resolvePublicImage,
@@ -26,6 +27,7 @@ import {
 } from "../../common/helpers/upload-validation";
 import { AuditService } from "../audit/audit.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { CategoryService } from "../categories/services/category.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { StorageService } from "../storage/storage.service";
@@ -91,6 +93,8 @@ export class CompanyProfileService {
     private readonly audit: AuditService,
     /** Yayın anı SEO bildirimi — SONDA ve isteğe bağlı (test rig'leri kırılmasın). */
     @Optional() private readonly seo?: SeoIndexService,
+    /** İçerik çevirisi (i18n Faz 1e): tanıtım/hizmet/sektör değişince çevrilir — SONDA ve isteğe bağlı. */
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
   /**
@@ -120,7 +124,7 @@ export class CompanyProfileService {
       where: { id: companyId },
       select: SELECT,
     });
-    if (!c) throw new NotFoundException("Firma bulunamadı");
+    if (!c) throw new NotFoundException(i18nMessage("api.companyProfile.firmaBulunamadi"));
     // INV-TIER-1: efektif tier — ham `tier` doğrudan dönmez (süre-dolma
     // penceresinde /me ile ıraksardı). membershipEndAt yalnız hesap içindi,
     // yanıttan çıkarılır.
@@ -248,7 +252,7 @@ export class CompanyProfileService {
     const seciminiDenetle = (ids: string[]) => {
       if (deepestCategoryPicks(ids).length > MAX_COMPANY_SUB_PICKS) {
         throw new BadRequestException(
-          `En fazla ${MAX_COMPANY_SUB_PICKS} ürün/hizmet seçebilirsiniz`,
+          i18nMessage("api.companyProfile.enFazlaUrunHizmetSecebilirsiniz", { MAXCOMPANYSUBPICKS: MAX_COMPANY_SUB_PICKS }),
         );
       }
     };
@@ -310,7 +314,7 @@ export class CompanyProfileService {
         [];
       if (alis.length === 0 && satis.length === 0) {
         throw new BadRequestException(
-          "En az bir ana kategori seçili kalmalı — kategorisi olmayan firmaya talep bildirimi gönderilemez.",
+          i18nMessage("api.companyProfile.enAzBirAnaKategoriSecili"),
         );
       }
     }
@@ -365,8 +369,8 @@ export class CompanyProfileService {
       if (changed || ibanChanged) {
         throw new BadRequestException(
           kycBefore.companyVerificationStatus === "PENDING"
-            ? "Doğrulama inceleniyor; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez"
-            : "Firmanız doğrulandı; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez — değişiklik için destek ile iletişime geçin",
+            ? i18nMessage("api.companyProfile.dogrulamaInceleniyorKilitliAlanlar")
+            : i18nMessage("api.companyProfile.firmanizDogrulandiKilitliAlanlar"),
         );
       }
     }
@@ -380,7 +384,7 @@ export class CompanyProfileService {
     if (dto.kepAddress !== undefined) {
       const kep = dto.kepAddress.trim();
       if (kep && !/^[^@\s]+@[^@\s]+\.kep\.tr$/i.test(kep)) {
-        throw new BadRequestException("Geçerli bir KEP adresi giriniz");
+        throw new BadRequestException(i18nMessage("api.companyProfile.gecerliBirKepAdresiGiriniz"));
       }
       data.kepAddress = kep || null;
     }
@@ -394,7 +398,7 @@ export class CompanyProfileService {
           ? isValidIbanTr(iban)
           : /^[A-Z]{2}[0-9A-Z]{8,32}$/.test(iban);
         if (!valid) {
-          throw new BadRequestException("Geçerli bir IBAN giriniz");
+          throw new BadRequestException(i18nMessage("api.companyProfile.gecerliBirIbanGiriniz"));
         }
         data.iban = iban;
       } else {
@@ -447,6 +451,9 @@ export class CompanyProfileService {
       // Profil herkese açıksa (ya da az önce açıldı/kapandıysa) firma
       // sayfası + dizin + ürün sayfalarındaki satıcı bloğu tazelenir.
       if (current?.publicEnabled || c.publicEnabled) this.seo?.companyChanged(companyId);
+      if (c.publicEnabled && (dto.aboutText !== undefined || dto.services !== undefined || dto.industry !== undefined)) {
+        void this.translations?.enqueue("COMPANY", companyId);
+      }
     }
     return c;
   }

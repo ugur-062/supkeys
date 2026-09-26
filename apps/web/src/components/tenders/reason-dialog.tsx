@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -37,6 +38,7 @@ export function ReasonDialog({
   pending?: boolean;
   destructive?: boolean;
 }) {
+  const t = useTranslations("web.panel.requests.reasonDialog");
   const [reason, setReason] = useState("");
   const trimmed = reason.trim();
   const tooShort = minLength > 0 && trimmed.length < minLength;
@@ -59,7 +61,7 @@ export function ReasonDialog({
       <DialogBody>
         <Field>
           <Label>
-            Gerekçe{minLength > 0 ? " *" : " (opsiyonel)"}
+            {minLength > 0 ? t("gerekceZorunlu") : t("gerekceOpsiyonel")}
           </Label>
           <Textarea
             rows={3}
@@ -67,20 +69,20 @@ export function ReasonDialog({
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder={
-              minLength > 0 ? `En az ${minLength} karakter` : "Kısa açıklama…"
+              minLength > 0 ? t("enAzKarakter", { minLength: minLength }) : t("kisaAciklama")
             }
             autoFocus
           />
           {tooShort && trimmed.length > 0 ? (
             <p className="mt-1 text-xs text-red-600">
-              En az {minLength} karakter olmalı
+              {t("enAzKarakterOlmali", { minLength: minLength })}
             </p>
           ) : null}
         </Field>
       </DialogBody>
       <DialogActions>
         <Button plain onClick={onClose}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button
           color={destructive ? "red" : undefined}

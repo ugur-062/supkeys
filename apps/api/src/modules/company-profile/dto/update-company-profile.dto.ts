@@ -18,6 +18,7 @@ import {
   MaxLength,
   Min,
 } from "class-validator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 export class UpdateCompanyProfileDto {
   @IsOptional()
@@ -121,7 +122,9 @@ export class UpdateCompanyProfileDto {
   // serviste doğrulanır (boş string = temizle).
   @IsOptional()
   @IsString()
-  @Matches(/^$|^\d{16}$/, { message: "MERSİS No 16 haneli olmalı" })
+  @Matches(/^$|^\d{16}$/, {
+    message: () => tApi("api.dto.updateCompanyProfile.mersisNo16HaneliOlmali"),
+  })
   mersisNo?: string;
 
   @IsOptional()

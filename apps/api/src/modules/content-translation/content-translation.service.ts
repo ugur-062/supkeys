@@ -1,0 +1,798 @@
+import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
+import { Prisma } from "@rothern/db";
+import { LOCALES, type Locale } from "@rothern/i18n";
+import { foldSearchText } from "@rothern/shared";
+import { labelAttributes, resolveCategoryAttributes } from "../../common/company/category-attributes";
+import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { AI_CONFIG, AI_PROVIDER_TOKEN, type AiConfig } from "../ai/ai.config";
+import { costFromUsage } from "../ai/ai-budget.service";
+import { SeoIndexService } from "../seo-index/seo-index.service";
+import type { AiTokenUsage, BaseAiProvider } from "../ai/providers/ai-provider.interface";
+import {
+  TRANSLATION_SYSTEM_PROMPT,
+  buildPrompt,
+  buildSearchTextI18n,
+  hasTranslatableText,
+  localizeCompany,
+  localizeListing,
+  localizeProduct,
+  parseModelOutput,
+  readyLocales,
+  SOURCE_HASH_PREFIX,
+  sourceHash,
+  type CompanyTranslation,
+  type ListingTranslation,
+  type ParsedTranslation,
+  type ProductTranslation,
+  type SourceFields,
+  type TranslatableEntityType,
+  type TranslationFields,
+} from "./content-translation.logic";
+
+/**
+ * İÇERİK ÇEVİRİSİ — servis (i18n Faz 1e, 2026-09-23).
+ *
+ * Akış: yazma yolu `enqueue(type, id)` der (fail-open, await edilmez) →
+ * üç dil için PENDING satır → `kick` aynı süreçte hemen çevirir → süpürücü
+ * cron (5 dk) kalanı ve başarısızları (≤3 deneme) yeniden dener.
+ * Okuma yolu `localize*` ile istek diline göre alanları üzerine yazar; DONE
+ * satır yoksa özgün metin döner.
+ *
+ * MOTOR: Gemini PRO (`models.premium`, Flash DEĞİL — kullanıcı kararı, pilot
+ * ölçüldü). Firma bütçesine YAZILMAZ: çeviri platformun SEO yatırımıdır,
+ * maliyet satırda (`costUsd`) izlenir.
+ */
+const MAX_ATTEMPTS = 3;
+/** Kalıcı FAILED kayıt bu süreden sonra yeniden denenir (kapsam denetimi). */
+const FAILED_RETRY_MS = 6 * 60 * 60 * 1000;
+const TIMEOUT_MS = 120_000;
+const MAX_OUTPUT_TOKENS = 8192;
+
+/**
+ * MODEL ADAYLARI — sırayla denenir, "model bulunamadı" (404) alan aday
+ * atlanır ve çalışan ad süreç ömrünce hatırlanır. Neden: Vertex AI
+ * `gemini-pro-latest` alias'ını TANIMAZ (2026-09-23 staging: 504 satır 404
+ * ile düştü); Generative Language API tanır. `CONTENT_TRANSLATION_MODEL`
+ * env'i listenin başına geçer; sonra `AI_MODEL_PREMIUM`, sonra bilinen Pro
+ * sürümleri (fiyat tablosunda olanlar).
+ */
+const PRO_FALLBACKS = ["gemini-3.1-pro", "gemini-3.1-pro-preview", "gemini-2.5-pro"];
+
+function isModelNotFound(err: unknown): boolean {
+  const m = (err instanceof Error ? err.message : String(err)).toLowerCase();
+  return /"code"\s*:\s*404/.test(m) || m.includes("not_found") || m.includes("was not found");
+}
+
+type Localized<T> = T & { translatedFrom?: string | null };
+
+interface StoredRow {
+  entityId: string;
+  fields: Prisma.JsonValue;
+  sourceLocale: string | null;
+}
+
+@Injectable()
+export class ContentTranslationService {
+  private readonly logger = new Logger(ContentTranslationService.name);
+  private readonly inFlight = new Set<string>();
+  private sweeping = false;
+  /** 404 ile elenen adaylar ve çalıştığı görülen model (süreç ömrünce). */
+  private readonly deadModels = new Set<string>();
+  private resolvedModel: string | null = null;
+
+  /** Deneme sırası: env → premium → bilinen Pro sürümleri (elenenler hariç). */
+  modelCandidates(): string[] {
+    const env = process.env.CONTENT_TRANSLATION_MODEL?.trim();
+    const list = [
+      ...(this.resolvedModel ? [this.resolvedModel] : []),
+      ...(env ? [env] : []),
+      ...(this.cfg ? [this.cfg.models.premium] : []),
+      ...PRO_FALLBACKS,
+    ];
+    return [...new Set(list)].filter((m) => !this.deadModels.has(m));
+  }
+
+  constructor(
+    private readonly prisma: PrismaBypassService,
+    @Optional() @Inject(AI_CONFIG) private readonly cfg?: AiConfig,
+    @Optional() @Inject(AI_PROVIDER_TOKEN) private readonly provider?: BaseAiProvider | null,
+    // SONDA ve @Optional (rig stub kuralı): elle kurulan test düzenekleri kırılmasın.
+    @Optional() private readonly seoIndex?: SeoIndexService,
+  ) {}
+
+  get enabled(): boolean {
+    return !!this.provider && !!this.cfg?.enabled;
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Kaynak                                                            */
+  /* ---------------------------------------------------------------- */
+
+  async loadSource(type: TranslatableEntityType, id: string): Promise<SourceFields | null> {
+    if (type === "PRODUCT") {
+      const row = await this.prisma.companyItem.findUnique({
+        where: { id },
+        select: {
+          name: true,
+          description: true,
+          specification: true,
+          keywords: true,
+          attributes: true,
+          categoryId: true,
+          unit: true,
+          unitCode: true,
+        },
+      });
+      if (!row) return null;
+      const defs = await resolveCategoryAttributes(this.prisma, row.categoryId);
+      const labeled = labelAttributes(row.attributes, defs) as { label: string; value: unknown }[];
+      return {
+        name: row.name,
+        // Serbest birim (kod yok) çevrilir; kodlu birim katalogdan → hash'e girmez.
+        ...(!row.unitCode && row.unit?.trim() ? { unit: row.unit.trim() } : {}),
+        description: row.description,
+        keywords: row.keywords,
+        attributes: labeled
+          .map((a) => ({ label: a.label, value: Array.isArray(a.value) ? a.value.join(", ") : String(a.value ?? "") }))
+          .filter((a) => a.value.trim() !== ""),
+        // Yalnız doluyken (eski kayıtların kaynak özeti değişmesin).
+        ...(row.specification?.trim() ? { specification: row.specification.trim() } : {}),
+      };
+    }
+    if (type === "LISTING") {
+      const row = await this.prisma.listing.findUnique({
+        where: { id },
+        select: {
+          title: true,
+          description: true,
+          keywords: true,
+          terms: true,
+          paymentNote: true,
+          items: {
+            select: { name: true, description: true, specification: true, questions: { select: { text: true } } },
+            orderBy: { lineNo: "asc" },
+          },
+        },
+      });
+      if (!row) return null;
+      const uniq = (xs: (string | null | undefined)[]) => [...new Set(xs.map((x) => (x ?? "").trim()).filter(Boolean))];
+      const items = uniq(row.items.map((i) => i.name));
+      const details = uniq(row.items.flatMap((i) => [i.description, i.specification]));
+      const questions = uniq(row.items.flatMap((i) => i.questions.map((q) => q.text)));
+      // Teklif verenin gördüğü serbest metinler — YALNIZ doluyken anahtar
+      // (boş anahtar eski taleplerin kaynak özetini değiştirirdi).
+      return {
+        title: row.title,
+        description: row.description,
+        keywords: row.keywords,
+        items,
+        ...(row.terms?.trim() ? { terms: row.terms.trim() } : {}),
+        ...(row.paymentNote?.trim() ? { paymentNote: row.paymentNote.trim() } : {}),
+        ...(details.length ? { details } : {}),
+        ...(questions.length ? { questions } : {}),
+      };
+    }
+    const row = await this.prisma.company.findUnique({
+      where: { id },
+      select: { aboutText: true, services: true, industry: true },
+    });
+    if (!row) return null;
+    return { aboutText: row.aboutText, services: row.services, industry: row.industry };
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Kuyruk                                                            */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * Kaynak değiştiyse (ya da hiç çevrilmediyse) üç dil için PENDING satır
+   * açar ve aynı süreçte çeviriyi başlatır. Fail-open: hata yalnız günlüğe.
+   */
+  async enqueue(type: TranslatableEntityType, id: string): Promise<boolean> {
+    try {
+      const source = await this.loadSource(type, id);
+      if (!source || !hasTranslatableText(source)) {
+        // Metni boşalmış kayıt: eski satırlar kalırsa kapsam denetimi onu her
+        // turda yeniden seçer ve kuyruğun başını tıkardı.
+        if (source) await this.prisma.contentTranslation.deleteMany({ where: { entityType: type, entityId: id } });
+        return false;
+      }
+      const hash = sourceHash(type, source);
+      // Kaynak değişti: arama metni YENİ kaynakla hemen tazelenir (eski
+      // çeviriler yeni çeviri gelene dek içinde kalır — bayat çeviri boştan iyi).
+      await this.refreshSearchText(type, id, source);
+      const existing = await this.prisma.contentTranslation.findMany({
+        where: { entityType: type, entityId: id },
+        select: { locale: true, sourceHash: true, status: true },
+      });
+      const upToDate =
+        existing.length === LOCALES.length &&
+        existing.every((r) => r.sourceHash === hash && r.status === "DONE");
+      if (upToDate) {
+        // "Denetlendi" damgası: kaynak aynı ama varlık başka sebeple güncellendi
+        // (durum, paket…) → kapsam denetimi onu bir daha bayat saymasın.
+        await this.prisma.contentTranslation.updateMany({
+          where: { entityType: type, entityId: id },
+          data: { updatedAt: new Date() },
+        });
+        return false;
+      }
+      for (const locale of LOCALES) {
+        await this.prisma.contentTranslation.upsert({
+          where: { entityType_entityId_locale: { entityType: type, entityId: id, locale } },
+          create: { entityType: type, entityId: id, locale, sourceHash: hash, status: "PENDING" },
+          // Eski `fields` KORUNUR: yeni çeviri gelene dek bayat çeviri boş metinden iyidir.
+          update: { sourceHash: hash, status: "PENDING", attempts: 0, error: null },
+        });
+      }
+      this.kick(type, id);
+      // Talep sahibinin firması: sektörü herkese açık talep sayfasında görünür → o firma
+      // herkese açık profilli olmasa da çevrilir (2026-09-23 tarama: "Makine İmalatı").
+      if (type === "LISTING") {
+        const owner = await this.prisma.listing.findUnique({ where: { id }, select: { companyId: true } });
+        if (owner?.companyId) void this.enqueue("COMPANY", owner.companyId).catch(() => undefined);
+      }
+      return true;
+    } catch (err) {
+      this.logger.warn(`Translation enqueue failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`);
+      return false;
+    }
+  }
+
+  /** Aynı süreçte, istek yanıtını bekletmeden çevir. */
+  kick(type: TranslatableEntityType, id: string): void {
+    if (!this.enabled) return;
+    setImmediate(() => {
+      void this.translateEntity(type, id).catch((err) =>
+        this.logger.warn(`Translation failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`),
+      );
+    });
+  }
+
+  /**
+   * Ortak sağlayıcı çağrısı — model aday zinciri ve 404 düşüşü ile (kategori
+   * toplu çevirisi gibi ürün/talep dışı işler için). Başarısızlıkta `error`.
+   */
+  async completeWithFallback(
+    system: string,
+    prompt: string,
+    opts: { maxOutputTokens?: number; timeoutMs?: number } = {},
+  ): Promise<{ text: string; model: string; cost: number } | { error: string }> {
+    if (!this.provider || !this.cfg) return { error: "translation provider not configured" };
+    for (const candidate of this.modelCandidates()) {
+      try {
+        const result = await this.provider.complete({
+          model: candidate,
+          system,
+          prompt,
+          maxOutputTokens: opts.maxOutputTokens ?? MAX_OUTPUT_TOKENS,
+          timeoutMs: opts.timeoutMs ?? TIMEOUT_MS,
+          thinkingLevel: "low",
+        });
+        if (this.resolvedModel !== candidate) {
+          this.resolvedModel = candidate;
+          this.logger.log(`Content translation model: ${candidate}`);
+        }
+        const pricing = this.cfg.pricing[candidate];
+        const cost = pricing ? Number(costFromUsage(result.usage, pricing)) : 0;
+        return { text: result.text, model: candidate, cost };
+      } catch (err) {
+        if (isModelNotFound(err)) {
+          this.deadModels.add(candidate);
+          this.logger.warn(`Translation model not available on this provider, trying next: ${candidate}`);
+          continue;
+        }
+        return { error: `provider: ${err instanceof Error ? err.message : String(err)}` };
+      }
+    }
+    return { error: "translation model not found (CONTENT_TRANSLATION_MODEL / AI_MODEL_PREMIUM unknown to the provider)" };
+  }
+
+  /** Süpürücü: bekleyen/başarısız (≤3 deneme) kayıtları sırayla çevirir. */
+  async processPending(limit = 25): Promise<{ processed: number; done: number; failed: number }> {
+    const out = { processed: 0, done: 0, failed: 0 };
+    if (this.sweeping || !this.enabled) return out;
+    this.sweeping = true;
+    try {
+      const rows = await this.prisma.contentTranslation.findMany({
+        where: { OR: [{ status: "PENDING" }, { status: "FAILED", attempts: { lt: MAX_ATTEMPTS } }] },
+        select: { entityType: true, entityId: true },
+        distinct: ["entityType", "entityId"],
+        orderBy: { updatedAt: "asc" },
+        take: limit,
+      });
+      for (const r of rows) {
+        out.processed += 1;
+        try {
+          const result = await this.translateEntity(r.entityType, r.entityId);
+          if (result === "done") out.done += 1;
+          else if (result === "failed") out.failed += 1;
+        } catch (err) {
+          // Tek varlığın hatası süpürmeyi DURDURMAZ; hata satıra yazılır ki
+          // `status` ucunda görünsün (2026-09-23: ilk backfill sessizce durmuştu).
+          out.failed += 1;
+          const message = err instanceof Error ? err.message : String(err);
+          this.logger.warn(`Translation error (${r.entityType} ${r.entityId}): ${message}`);
+          await this.markFailed(r.entityType, r.entityId, message).catch(() => undefined);
+        }
+      }
+    } finally {
+      this.sweeping = false;
+    }
+    return out;
+  }
+
+  /** Tek varlığı çevirir: model → doğrulama (bir düzeltme turu) → üç satır. */
+  async translateEntity(type: TranslatableEntityType, id: string): Promise<"done" | "skipped" | "failed"> {
+    const key = `${type}:${id}`;
+    if (this.inFlight.has(key)) return "skipped";
+    this.inFlight.add(key);
+    try {
+      const source = await this.loadSource(type, id);
+      if (!source || !hasTranslatableText(source)) {
+        await this.prisma.contentTranslation.deleteMany({ where: { entityType: type, entityId: id } });
+        await this.writeSearchText(type, id, "");
+        return "skipped";
+      }
+      const hash = sourceHash(type, source);
+      const rows = await this.prisma.contentTranslation.findMany({
+        where: { entityType: type, entityId: id },
+        select: { locale: true, status: true, sourceHash: true },
+      });
+      if (rows.length === 0) return "skipped";
+      if (rows.every((r) => r.status === "DONE" && r.sourceHash === hash)) return "skipped";
+      if (!this.provider || !this.cfg) {
+        await this.markFailed(type, id, "AI provider not configured");
+        return "failed";
+      }
+      const usage: AiTokenUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
+      let cost = 0;
+      let parsed: ParsedTranslation | null = null;
+      let feedback: string | undefined;
+      let model = this.modelCandidates()[0] ?? this.cfg.models.premium;
+      for (let attempt = 0; attempt < 2 && !parsed; attempt++) {
+        let result: Awaited<ReturnType<BaseAiProvider["complete"]>> | null = null;
+        // Model adayları: 404 "bulunamadı" alan aday elenir, sıradaki denenir.
+        for (const candidate of this.modelCandidates()) {
+          model = candidate;
+          try {
+            result = await this.provider.complete({
+              model,
+              system: TRANSLATION_SYSTEM_PROMPT,
+              prompt: buildPrompt(type, source, feedback),
+              maxOutputTokens: MAX_OUTPUT_TOKENS,
+              timeoutMs: TIMEOUT_MS,
+              // Çeviri muhakeme işi değil: düşük thinking kalite kaybetmeden
+              // maliyeti/gecikmeyi kısar (ilk staging backfill'de thinking
+              // token'ları çıktının ~3 katıydı; 3.1 Pro'da kayıt başına ~8 sent).
+              thinkingLevel: "low",
+            });
+            if (this.resolvedModel !== model) {
+              this.resolvedModel = model;
+              this.logger.log(`Content translation model: ${model}`);
+            }
+            break;
+          } catch (err) {
+            if (isModelNotFound(err)) {
+              this.deadModels.add(candidate);
+              this.logger.warn(`Translation model not available on this provider, trying next: ${candidate}`);
+              continue;
+            }
+            // Sağlayıcı hatası (kota, ağ): deneme sayılır, satıra yazılır, süpürücü sürer.
+            const message = err instanceof Error ? err.message : String(err);
+            await this.markFailed(type, id, `provider: ${message}`, { model, usage, cost });
+            return "failed";
+          }
+        }
+        if (!result) {
+          await this.markFailed(type, id, "translation model not found (CONTENT_TRANSLATION_MODEL / AI_MODEL_PREMIUM unknown to the provider)", { model, usage, cost });
+          return "failed";
+        }
+        const pricing = this.cfg.pricing[model];
+        usage.inputTokens += result.usage.inputTokens;
+        usage.outputTokens += result.usage.outputTokens;
+        usage.cacheReadTokens += result.usage.cacheReadTokens;
+        if (pricing) cost += Number(costFromUsage(result.usage, pricing));
+        const p = parseModelOutput(type, source, result.text);
+        if ("error" in p) {
+          feedback = p.error;
+          continue;
+        }
+        parsed = p;
+      }
+      if (!parsed) {
+        await this.markFailed(type, id, feedback ?? "translation could not be validated", { model, usage, cost });
+        return "failed";
+      }
+      const now = new Date();
+      for (const locale of LOCALES) {
+        const fields =
+          parsed.sourceLocale === locale ? Prisma.DbNull : (parsed.perLocale[locale] as unknown as Prisma.InputJsonValue);
+        const data = {
+          status: "DONE" as const,
+          fields,
+          sourceLocale: parsed.sourceLocale,
+          sourceHash: hash,
+          error: null,
+          model,
+          inputTokens: usage.inputTokens,
+          outputTokens: usage.outputTokens,
+          costUsd: new Prisma.Decimal(cost.toFixed(6)),
+          updatedAt: now,
+        };
+        await this.prisma.contentTranslation.upsert({
+          where: { entityType_entityId_locale: { entityType: type, entityId: id, locale } },
+          create: { entityType: type, entityId: id, locale, ...data },
+          update: data,
+        });
+      }
+      await this.writeSearchText(
+        type,
+        id,
+        buildSearchTextI18n(type, source, Object.values(parsed.perLocale), foldSearchText),
+      );
+      // EN/RU sayfalar ŞİMDİ çevrilmiş içerikle tazelenir ve motorlara üç dilde
+      // bildirilir (yayın anındaki bildirim çeviri gelmeden gitmişti).
+      this.notifySeo(type, id);
+      return "done";
+    } finally {
+      this.inFlight.delete(key);
+    }
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Çok dilli arama metni                                             */
+  /* ---------------------------------------------------------------- */
+
+  /**
+   * `searchTextI18n` = katlanmış kaynak + kayıtlı çeviriler. Çeviri yoksa
+   * yalnız kaynak (talep aramasında TR katlama yine kazanılır). Fail-open.
+   */
+  async refreshSearchText(type: TranslatableEntityType, id: string, source?: SourceFields | null): Promise<void> {
+    try {
+      const src = source === undefined ? await this.loadSource(type, id) : source;
+      if (!src) return;
+      const rows = await this.prisma.contentTranslation.findMany({
+        where: { entityType: type, entityId: id, fields: { not: Prisma.DbNull } },
+        select: { fields: true },
+      });
+      const translations = rows
+        .map((r) => r.fields)
+        .filter((f): f is Prisma.JsonObject => !!f && typeof f === "object" && !Array.isArray(f))
+        .map((f) => f as unknown as TranslationFields);
+      await this.writeSearchText(type, id, buildSearchTextI18n(type, src, translations, foldSearchText));
+    } catch (err) {
+      this.logger.warn(`Search text refresh failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  /**
+   * Çeviri satırı olan tüm varlıkların arama metnini yeniden kurar — model
+   * çağrısı YOK. Açılışta bir kez (süpürücü) ve yönetici ucundan.
+   */
+  async rebuildAllSearchTexts(): Promise<{ entities: number }> {
+    const rows = await this.prisma.contentTranslation.findMany({
+      select: { entityType: true, entityId: true },
+      distinct: ["entityType", "entityId"],
+    });
+    for (const r of rows) await this.refreshSearchText(r.entityType, r.entityId);
+    return { entities: rows.length };
+  }
+
+  private notifySeo(type: TranslatableEntityType, id: string): void {
+    if (!this.seoIndex) return;
+    if (type === "PRODUCT") this.seoIndex.productChanged(id);
+    else if (type === "LISTING") this.seoIndex.listingChanged(id);
+    else this.seoIndex.companyChanged(id);
+  }
+
+  /**
+   * Fail-open: arama metni yazılamazsa çeviri DONE kalır (sonraki açılış kurar).
+   * HAM SQL, bilinçli: Prisma `updateMany` `@updatedAt`i ilerletirdi → sitemap
+   * `lastmod` sahte değişir ve kapsam denetimi kaydı sonsuza dek "bayat" görürdü.
+   */
+  private async writeSearchText(type: TranslatableEntityType, id: string, text: string): Promise<void> {
+    try {
+      if (type === "PRODUCT") {
+        await this.prisma.$executeRaw`UPDATE "company_items" SET "searchTextI18n" = ${text} WHERE "id" = ${id}`;
+      } else if (type === "LISTING") {
+        await this.prisma.$executeRaw`UPDATE "listings" SET "searchTextI18n" = ${text} WHERE "id" = ${id}`;
+      } else {
+        await this.prisma.$executeRaw`UPDATE "companies" SET "searchTextI18n" = ${text} WHERE "id" = ${id}`;
+      }
+    } catch (err) {
+      this.logger.warn(`Search text write failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`);
+    }
+  }
+
+  private async markFailed(
+    type: TranslatableEntityType,
+    id: string,
+    error: string,
+    meta?: { model: string; usage: AiTokenUsage; cost: number },
+  ): Promise<void> {
+    await this.prisma.contentTranslation.updateMany({
+      where: { entityType: type, entityId: id },
+      data: {
+        status: "FAILED",
+        attempts: { increment: 1 },
+        error: error.slice(0, 500),
+        ...(meta
+          ? {
+              model: meta.model,
+              inputTokens: { increment: meta.usage.inputTokens },
+              outputTokens: { increment: meta.usage.outputTokens },
+              costUsd: new Prisma.Decimal(meta.cost.toFixed(6)),
+            }
+          : {}),
+      },
+    });
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Okuma                                                             */
+  /* ---------------------------------------------------------------- */
+
+  private async translationsFor<T extends TranslationFields>(
+    type: TranslatableEntityType,
+    ids: string[],
+    locale: Locale,
+  ): Promise<Map<string, T & { sourceLocale: string | null }>> {
+    const unique = [...new Set(ids.filter(Boolean))];
+    if (unique.length === 0) return new Map();
+    const rows: StoredRow[] = await this.prisma.contentTranslation.findMany({
+      where: { entityType: type, entityId: { in: unique }, locale, fields: { not: Prisma.DbNull } },
+      select: { entityId: true, fields: true, sourceLocale: true },
+    });
+    const out = new Map<string, T & { sourceLocale: string | null }>();
+    for (const r of rows) {
+      if (r.fields && typeof r.fields === "object" && !Array.isArray(r.fields)) {
+        out.set(r.entityId, { ...(r.fields as unknown as T), sourceLocale: r.sourceLocale });
+      }
+    }
+    return out;
+  }
+
+  /** `items[i]` ↔ `ids[i]`: çevirisi olan kart/detay üzerine yazılır, `translatedFrom` eklenir. */
+  async localizeProducts<T extends { name: string }>(
+    items: T[],
+    ids: (string | null | undefined)[],
+    locale: Locale,
+  ): Promise<Localized<T>[]> {
+    const map = await this.safeMap<ProductTranslation>("PRODUCT", ids, locale);
+    return items.map((item, i) => {
+      const t = ids[i] ? map.get(ids[i] as string) : undefined;
+      return t ? { ...localizeProduct(item, t), translatedFrom: t.sourceLocale } : item;
+    });
+  }
+
+  async localizeListings<T extends { title: string }>(
+    items: T[],
+    ids: (string | null | undefined)[],
+    locale: Locale,
+    excerptOf?: (d: string | null) => string | null,
+  ): Promise<Localized<T>[]> {
+    const map = await this.safeMap<ListingTranslation>("LISTING", ids, locale);
+    return items.map((item, i) => {
+      const t = ids[i] ? map.get(ids[i] as string) : undefined;
+      return t ? { ...localizeListing(item, t, excerptOf), translatedFrom: t.sourceLocale } : item;
+    });
+  }
+
+  async localizeCompanies<T extends object>(
+    items: T[],
+    ids: (string | null | undefined)[],
+    locale: Locale,
+  ): Promise<Localized<T>[]> {
+    const map = await this.safeMap<CompanyTranslation>("COMPANY", ids, locale);
+    return items.map((item, i) => {
+      const t = ids[i] ? map.get(ids[i] as string) : undefined;
+      return t ? { ...localizeCompany(item, t), translatedFrom: t.sourceLocale } : item;
+    });
+  }
+
+  /**
+   * Talep kartı/detayındaki alıcı firma SEKTÖRÜ (`company.industry`, serbest metin)
+   * o firmanın kendi çevirisinden (COMPANY → `industry`) okunur; firma kimliği
+   * yanıta girmez, yalnız arama anahtarıdır. Çeviri yoksa özgün kalır.
+   */
+  async localizeListingCompanies<T extends { company?: { industry?: string | null } | null }>(
+    items: T[],
+    companyIds: (string | null | undefined)[],
+    locale: Locale,
+  ): Promise<T[]> {
+    const map = await this.safeMap<CompanyTranslation>("COMPANY", companyIds, locale);
+    return items.map((item, i) => {
+      const id = companyIds[i];
+      const t = id ? map.get(id) : undefined;
+      if (!t?.industry || !item.company?.industry) return item;
+      return { ...item, company: { ...item.company, industry: t.industry } };
+    });
+  }
+
+  /**
+   * Bu dilde çeviri BEKLENİYOR mu? (i18n SEO, 2026-09-25) — sayfa o dilde
+   * kaynak metni gösteriyorsa (çeviri henüz gelmedi) arama motoruna `noindex`
+   * verilir: EN adreste Türkçe içerik indekslenmez. Kural `readyLocales`te
+   * (sitemap ile ortak). Hata → false (DB aksaklığı sayfayı indeksten düşürmesin).
+   */
+  async translationPending(type: TranslatableEntityType, id: string, locale: Locale): Promise<boolean> {
+    try {
+      const rows = await this.prisma.contentTranslation.findMany({
+        where: { entityType: type, entityId: id },
+        select: { locale: true, fields: true, sourceLocale: true },
+      });
+      return !readyLocales(rows).includes(locale);
+    } catch {
+      return false;
+    }
+  }
+
+  /**
+   * Toplu `readyLocales` — sitemap her kaydı yalnız HAZIR dillerinde listeler
+   * (sayfanın `noindex`iyle aynı kural). Hata → null: çağıran tüm dilleri
+   * varsayar (tablo aksaklığı sitemap'i boşaltmasın).
+   */
+  async readyLocalesFor(type: TranslatableEntityType, ids: string[]): Promise<Map<string, Locale[]> | null> {
+    try {
+      const unique = [...new Set(ids.filter(Boolean))];
+      const rows = unique.length
+        ? await this.prisma.contentTranslation.findMany({
+            where: { entityType: type, entityId: { in: unique } },
+            select: { entityId: true, locale: true, fields: true, sourceLocale: true },
+          })
+        : [];
+      const byId = new Map<string, typeof rows>();
+      for (const r of rows) byId.set(r.entityId, [...(byId.get(r.entityId) ?? []), r]);
+      return new Map(unique.map((id) => [id, readyLocales(byId.get(id) ?? [])]));
+    } catch (err) {
+      this.logger.warn(`Ready-locale lookup failed (${type}): ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    }
+  }
+
+  /** Okuma yolu FAIL-OPEN: çeviri tablosu okunamazsa özgün metin döner. */
+  private async safeMap<T extends TranslationFields>(
+    type: TranslatableEntityType,
+    ids: (string | null | undefined)[],
+    locale: Locale,
+  ): Promise<Map<string, T & { sourceLocale: string | null }>> {
+    try {
+      return await this.translationsFor<T>(type, ids.filter((x): x is string => !!x), locale);
+    } catch (err) {
+      this.logger.warn(`Translation lookup failed (${type}): ${err instanceof Error ? err.message : String(err)}`);
+      return new Map();
+    }
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Yönetim                                                           */
+  /* ---------------------------------------------------------------- */
+
+  /** Herkese açık tüm ürün/talep/profilleri kuyruğa alır (geriye dönük doldurma). */
+  /**
+   * KAPSAM DENETİMİ — başkasının görebildiği her kayıt çevrili olmalı
+   * (kullanıcı kararı 2026-09-25: "çevirisi olmayan kayıt söz konusu değil").
+   * Yazma yolları `enqueue` çağırır ama her yol değil (admin düzenlemesi,
+   * seed/e2e betikleri, özellikten önce yayınlanmış kayıtlar). Süpürücü her
+   * turda şunları kuyruğa alır: çeviri satırı OLMAYAN ya da kaynağı son
+   * çeviriden/denetimden YENİ olan görünür kayıtlar —
+   *   · ürün: vitrinde ya da onay bekliyor (onay anında EN/RU hazır olsun) · talep: yayınlanmış (her durum; teklifçi
+   *     ve vitrin kapanmış talebi de görür) · firma: kayıt tamamlanmış, aktif,
+   *     metni var (`hasTranslatableText` ile aynı ≥2 karakter kuralı).
+   * Taslak ürün/talep çevrilmez: yalnız sahibi görür, sahibi kendi metnini
+   * HAM okur; yayın/onay anında zaten kuyruğa girer.
+   * Kalıcı FAILED (≤3 deneme bitti) 6 saat sonra yeniden denenir.
+   * İSTEM SÜRÜMÜ: satırın özeti güncel önekle (`SOURCE_HASH_PREFIX`) başlamıyorsa
+   * kayıt bayattır — `TRANSLATION_PROMPT_VERSION` artınca her şey yeniden çevrilir.
+   */
+  async ensureCoverage(limit = 50): Promise<{ products: number; listings: number; companies: number; retried: number }> {
+    const retry = await this.prisma.contentTranslation.updateMany({
+      where: { status: "FAILED", attempts: { gte: MAX_ATTEMPTS }, updatedAt: { lt: new Date(Date.now() - FAILED_RETRY_MS) } },
+      data: { attempts: 0 },
+    });
+    const current = `${SOURCE_HASH_PREFIX}%`;
+    const products = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT e."id" FROM "company_items" e
+       WHERE (e."isPublic" = true OR e."reviewStatus"::text = 'PENDING')
+         AND NOT EXISTS (SELECT 1 FROM "content_translations" t
+                          WHERE t."entityType"::text = 'PRODUCT' AND t."entityId" = e."id" AND t."updatedAt" >= e."updatedAt"
+                            AND t."sourceHash" LIKE ${current})
+       ORDER BY e."updatedAt" ASC LIMIT ${limit}`;
+    const listings = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT e."id" FROM "listings" e
+       WHERE e."publishedAt" IS NOT NULL
+         AND NOT EXISTS (SELECT 1 FROM "content_translations" t
+                          WHERE t."entityType"::text = 'LISTING' AND t."entityId" = e."id" AND t."updatedAt" >= e."updatedAt"
+                            AND t."sourceHash" LIKE ${current})
+       ORDER BY e."updatedAt" ASC LIMIT ${limit}`;
+    const companies = await this.prisma.$queryRaw<{ id: string }[]>`
+      SELECT e."id" FROM "companies" e
+       WHERE e."onboardingCompletedAt" IS NOT NULL AND e."isActive" = true
+         AND (length(btrim(coalesce(e."aboutText", ''))) >= 2
+              OR length(btrim(coalesce(e."industry", ''))) >= 2
+              OR EXISTS (SELECT 1 FROM unnest(e."services") s WHERE length(btrim(s)) >= 2))
+         AND NOT EXISTS (SELECT 1 FROM "content_translations" t
+                          WHERE t."entityType"::text = 'COMPANY' AND t."entityId" = e."id" AND t."updatedAt" >= e."updatedAt"
+                            AND t."sourceHash" LIKE ${current})
+       ORDER BY e."updatedAt" ASC LIMIT ${limit}`;
+    const out = { products: 0, listings: 0, companies: 0, retried: retry.count };
+    for (const r of products) if (await this.enqueueQuiet("PRODUCT", r.id)) out.products += 1;
+    for (const r of listings) if (await this.enqueueQuiet("LISTING", r.id)) out.listings += 1;
+    for (const r of companies) if (await this.enqueueQuiet("COMPANY", r.id)) out.companies += 1;
+    return out;
+  }
+
+  async enqueueAllPublic(where: {
+    products: Prisma.CompanyItemWhereInput;
+    listings: Prisma.ListingWhereInput;
+    companies: Prisma.CompanyWhereInput;
+  }): Promise<{ products: number; listings: number; companies: number }> {
+    const [products, listings, companies] = await Promise.all([
+      this.prisma.companyItem.findMany({ where: where.products, select: { id: true } }),
+      this.prisma.listing.findMany({ where: where.listings, select: { id: true, companyId: true } }),
+      this.prisma.company.findMany({ where: where.companies, select: { id: true } }),
+    ]);
+    const counts = { products: 0, listings: 0, companies: 0 };
+    // `kick` olmadan yalnız satır aç; süpürücü (ya da `sweepAll`) sırayla çevirir —
+    // aynı anda yüzlerce model çağrısı açılmasın.
+    for (const p of products) if (await this.enqueueQuiet("PRODUCT", p.id)) counts.products += 1;
+    for (const l of listings) if (await this.enqueueQuiet("LISTING", l.id)) counts.listings += 1;
+    for (const c of companies) if (await this.enqueueQuiet("COMPANY", c.id)) counts.companies += 1;
+    // Talep sahipleri (herkese açık profili olmayanlar dahil): sektör talep sayfasında görünür.
+    const ownerIds = [...new Set(listings.map((l) => l.companyId))].filter((cid) => !companies.some((c) => c.id === cid));
+    for (const cid of ownerIds) if (await this.enqueueQuiet("COMPANY", cid)) counts.companies += 1;
+    return counts;
+  }
+
+  private async enqueueQuiet(type: TranslatableEntityType, id: string): Promise<boolean> {
+    const kick = this.kick;
+    this.kick = () => {};
+    try {
+      return await this.enqueue(type, id);
+    } finally {
+      this.kick = kick;
+    }
+  }
+
+  /** Arka planda kuyruk boşalana dek süpür (yönetici tetikler). */
+  sweepAll(): void {
+    if (!this.enabled) return;
+    setImmediate(() => {
+      void (async () => {
+        for (let i = 0; i < 200; i++) {
+          const r = await this.processPending(25);
+          if (r.processed === 0) break;
+        }
+      })().catch((err) => this.logger.warn(`Bulk translation stopped: ${err instanceof Error ? err.message : String(err)}`));
+    });
+  }
+
+  async stats(): Promise<{
+    enabled: boolean;
+    model: string | null;
+    byStatus: Record<string, number>;
+    costUsd: number;
+    lastErrors: { entityType: string; entityId: string; error: string | null; updatedAt: Date }[];
+  }> {
+    const [groups, cost, lastErrors] = await Promise.all([
+      this.prisma.contentTranslation.groupBy({ by: ["status"], _count: { _all: true } }),
+      this.prisma.contentTranslation.aggregate({ _sum: { costUsd: true } }),
+      this.prisma.contentTranslation.findMany({
+        where: { status: "FAILED" },
+        select: { entityType: true, entityId: true, error: true, updatedAt: true },
+        orderBy: { updatedAt: "desc" },
+        take: 10,
+      }),
+    ]);
+    const byStatus: Record<string, number> = {};
+    for (const g of groups) byStatus[g.status] = g._count._all;
+    return {
+      enabled: this.enabled,
+      model: this.resolvedModel ?? this.modelCandidates()[0] ?? null,
+      byStatus,
+      costUsd: Number(cost._sum.costUsd ?? 0),
+      lastErrors,
+    };
+  }
+}

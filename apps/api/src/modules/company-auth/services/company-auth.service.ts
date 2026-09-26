@@ -1,4 +1,14 @@
 import {
+  DEFAULT_LOCALE,
+  isLocale,
+  translateRoutePath,
+  type Locale,
+} from "@rothern/i18n";
+import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
+import { localeOf } from "../../notifications/notification.service";
+import { currentLocale } from "../../../common/i18n/locale-context";
+import { i18nMessage } from "../../../common/i18n/http-i18n";
+import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
@@ -49,6 +59,20 @@ import {
   totpEncKey,
 } from "../../../common/auth/totp-secret-cipher";
 
+/** Her bildirim e-postasının ilk paragrafı (alıcının dilinde). */
+const NOTIFY_GREETING_KEY = "api.notifications.common.greeting" as ApiMessageKey;
+
+/**
+ * İÇ (Türkçe, ön eksiz) yol → alıcının dilindeki TAM adres.
+ * `common/company/app-routes.ts` içindeki `localize` ile AYNI kural (o dosya
+ * yardımcıyı dışa aktardığında burası ona bağlanmalı — iki kopya ayrışmasın).
+ */
+function localizeUrl(base: string, path: string, locale: Locale): string {
+  const outer = translateRoutePath(path, locale);
+  if (locale === DEFAULT_LOCALE) return `${base}${outer}`;
+  return `${base}${outer === "/" ? `/${locale}` : `/${locale}${outer}`}`;
+}
+
 const ROLE_LABELS: Record<CompanyRole, string> = {
   [CompanyRole.SAHIP]: "Kurucu",
   [CompanyRole.YONETICI]: "Yönetici",
@@ -98,7 +122,7 @@ export class CompanyAuthService {
       select: { id: true },
     });
     if (existing) {
-      throw new ConflictException("Bu e-posta ile zaten bir hesap var");
+      throw new ConflictException(i18nMessage("api.companyAuth.buEPostaIleZatenBir"));
     }
 
     // 1) Supabase auth.users oluştur
@@ -126,6 +150,8 @@ export class CompanyAuthService {
           data: {
             email,
             authId,
+            // i18n: kayıt sayfasının dili hesabın dili olur (Accept-Language → ALS).
+            locale: currentLocale(),
             firstName: dto.firstName.trim(),
             lastName: dto.lastName.trim(),
             phone: dto.phone.trim(),
@@ -168,7 +194,7 @@ export class CompanyAuthService {
         e instanceof Prisma.PrismaClientKnownRequestError &&
         e.code === "P2002"
       ) {
-        throw new ConflictException("Bu e-posta ile zaten bir hesap var");
+        throw new ConflictException(i18nMessage("api.companyAuth.buEPostaIleZatenBir"));
       }
       throw e;
     }
@@ -226,6 +252,8 @@ export class CompanyAuthService {
     email: string,
     firstName: string,
     kind: "verify" | "login" = "verify",
+    /** ALICININ dili — verilmezse istek bağlamı (giriş/kayıt sayfasının dili). */
+    locale: Locale = currentLocale(),
   ): Promise<{ sent: boolean; capped?: boolean }> {
     // Hesap-bazlı üretim tavanı (son 60 dk). Aşıldıysa yeni kod ÜRETİLMEZ ve
     // e-posta gitmez; mevcut kod (varsa) geçerli kalır. Çağıran generic yanıt
@@ -250,24 +278,39 @@ export class CompanyAuthService {
       },
     });
     const isLogin = kind === "login";
-    const subject = isLogin ? "Giriş doğrulama kodunuz" : "E-posta doğrulama kodunuz";
+    // Metin ALICININ dilinde (katalog anahtarı + ICU parametresi).
+    const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+      tApi(key, values, locale);
+    const subject = t(
+      isLogin
+        ? "api.notifications.companyAuth.girisKoduKonu"
+        : "api.notifications.companyAuth.dogrulamaKoduKonu",
+    );
     try {
       const res = await this.email.send({
         to: { email, name: firstName },
         subject,
+        locale,
         templateData: {
           template: "notification",
           data: {
             subject,
-            heading: isLogin
-              ? "İki adımlı doğrulama kodu"
-              : "E-posta adresinizi doğrulayın",
-            paragraphs: [
-              "Merhaba,",
+            heading: t(
               isLogin
-                ? `Giriş için iki adımlı doğrulama kodunuz: ${code}`
-                : `Rothern hesabınızı etkinleştirmek için doğrulama kodunuz: ${code}`,
-              `Kod ${EMAIL_CODE_TTL_MIN} dakika geçerlidir.`,
+                ? "api.notifications.companyAuth.girisKoduBaslik"
+                : "api.notifications.companyAuth.dogrulamaKoduBaslik",
+            ),
+            paragraphs: [
+              t(NOTIFY_GREETING_KEY),
+              t(
+                isLogin
+                  ? "api.notifications.companyAuth.girisKoduGovde"
+                  : "api.notifications.companyAuth.dogrulamaKoduGovde",
+                { kod: code },
+              ),
+              t("api.notifications.companyAuth.kodGecerlilik", {
+                dakika: EMAIL_CODE_TTL_MIN,
+              }),
             ],
           },
         },
@@ -295,13 +338,24 @@ export class CompanyAuthService {
   async adminResendVerificationCode(userId: string): Promise<void> {
     const user = await this.bypass.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, firstName: true, emailVerifiedAt: true },
+      select: {
+        email: true,
+        firstName: true,
+        emailVerifiedAt: true,
+        locale: true,
+      },
     });
-    if (!user) throw new BadRequestException("Kullanıcı bulunamadı");
+    if (!user) throw new BadRequestException(i18nMessage("api.companyAuth.kullaniciBulunamadi"));
     if (user.emailVerifiedAt) {
-      throw new BadRequestException("E-posta zaten doğrulanmış");
+      throw new BadRequestException(i18nMessage("api.companyAuth.ePostaZatenDogrulanmis"));
     }
-    await this.issueEmailCode(userId, user.email, user.firstName);
+    await this.issueEmailCode(
+      userId,
+      user.email,
+      user.firstName,
+      "verify",
+      localeOf(user.locale),
+    );
   }
 
   /**
@@ -347,7 +401,7 @@ export class CompanyAuthService {
       where: { email: normalized },
       include: { company: true },
     });
-    if (!user) throw new BadRequestException("Kod geçersiz veya süresi dolmuş");
+    if (!user) throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
     // GÜVENLİK: bu uç KİMLİK DOĞRULAMASIZ. Zaten doğrulanmış e-postada kod
     // kontrolü olmadan token DÖNDÜRÜLEMEZ (hesap ele geçirme). Sadece bilgi ver;
     // oturum için normal login kullanılır.
@@ -359,16 +413,16 @@ export class CompanyAuthService {
       orderBy: { createdAt: "desc" },
     });
     if (!record || record.expiresAt < new Date()) {
-      throw new BadRequestException("Kod geçersiz veya süresi dolmuş");
+      throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
     }
     if (record.attempts >= EMAIL_CODE_MAX_ATTEMPTS) {
       throw new BadRequestException(
-        "Çok fazla hatalı deneme — yeni kod isteyin",
+        i18nMessage("api.companyAuth.cokFazlaHataliDenemeYeniKod"),
       );
     }
     if (record.codeHash !== this.hashCode(code)) {
       await this.bumpCodeAttempt(record.id);
-      throw new BadRequestException("Kod geçersiz veya süresi dolmuş");
+      throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
     }
     const [, updatedUser] = await this.bypass.$transaction([
       this.bypass.emailVerificationCode.update({
@@ -389,10 +443,21 @@ export class CompanyAuthService {
     const normalized = email.toLowerCase().trim();
     const user = await this.bypass.companyUser.findUnique({
       where: { email: normalized },
-      select: { id: true, firstName: true, emailVerifiedAt: true },
+      select: {
+        id: true,
+        firstName: true,
+        emailVerifiedAt: true,
+        locale: true,
+      },
     });
     if (user && !user.emailVerifiedAt) {
-      await this.issueEmailCode(user.id, normalized, user.firstName);
+      await this.issueEmailCode(
+        user.id,
+        normalized,
+        user.firstName,
+        "verify",
+        localeOf(user.locale),
+      );
     }
     return { success: true as const };
   }
@@ -414,17 +479,17 @@ export class CompanyAuthService {
     });
     if (!existing) throw new UnauthorizedException();
     if (existing.ownerUserId !== userId) {
-      throw new ForbiddenException("Yalnızca firma sahibi doğrulama yapabilir");
+      throw new ForbiddenException(i18nMessage("api.companyAuth.yalnizcaFirmaSahibiDogrulamaYapabilir"));
     }
     if (existing.onboardingCompletedAt) {
-      throw new BadRequestException("Firma doğrulaması zaten tamamlanmış");
+      throw new BadRequestException(i18nMessage("api.companyAuth.firmaDogrulamasiZatenTamamlanmis"));
     }
 
     const country = (dto.country || "TR").toUpperCase();
     // KKTC (XN) ISO listesinde YOK — profil kapısı onu tanır, `COUNTRIES`
     // tanımaz. Bu yüzden geçerlilik "ISO'da var VEYA açık bir profili var".
     if (!isValidCountryCode(country) && !isRegistrationOpen(country)) {
-      throw new BadRequestException("Geçersiz ülke seçimi");
+      throw new BadRequestException(i18nMessage("api.companyAuth.gecersizUlkeSecimi"));
     }
     // KAYIT KAPISI (2026-09-01): yeni kayıt yalnız profili AÇIK ülkelerden.
     // YALNIZ YENİ KAYDA uygulanır — mevcut firmalar etkilenmez (bu metot
@@ -432,29 +497,30 @@ export class CompanyAuthService {
     // kapatılan bir ülkedeki çalışan hesap kilitlenirdi.
     if (!isRegistrationOpen(country)) {
       throw new BadRequestException(
-        "Şu anda bu ülkeden yeni kayıt alınmıyor. Ülkenizin açılmasını " +
-          "istiyorsanız bizimle iletişime geçin.",
+        i18nMessage("api.companyAuth.buUlkedenYeniKayitAlinmiyor"),
       );
     }
     const isSole = dto.companyType === "SOLE_PROPRIETOR";
     if (!isValidTaxIdForCountry(dto.taxNumber, country, isSole)) {
       throw new BadRequestException(
-        country === "TR"
-          ? isSole
-            ? "Şahıs firması için 11 haneli geçerli TCKN giriniz"
-            : "Tüzel kişi için 10 haneli geçerli vergi numarası giriniz"
-          : "Geçerli bir vergi/sicil numarası giriniz",
+        i18nMessage(
+          country === "TR"
+            ? isSole
+              ? "api.companyAuth.sahisFirmasiIcin11HaneliTckn"
+              : "api.companyAuth.tuzelKisiIcin10HaneliVergiNo"
+            : "api.companyAuth.gecerliBirVergiSicilNumarasiGiriniz",
+        ),
       );
     }
     if (country === "TR") {
       if (!dto.authorizedTckn || !isValidTckn(dto.authorizedTckn)) {
-        throw new BadRequestException("Yetkili T.C. Kimlik No geçersiz");
+        throw new BadRequestException(i18nMessage("api.companyAuth.yetkiliTCKimlikNoGecersiz"));
       }
       if (!dto.taxOffice?.trim()) {
-        throw new BadRequestException("Vergi dairesi zorunlu");
+        throw new BadRequestException(i18nMessage("api.companyAuth.vergiDairesiZorunlu"));
       }
       if (!dto.district?.trim()) {
-        throw new BadRequestException("İlçe zorunlu");
+        throw new BadRequestException(i18nMessage("api.companyAuth.ilceZorunlu"));
       }
     }
 
@@ -697,13 +763,17 @@ export class CompanyAuthService {
         const inviterEmail = await this.companyNotifyEmail(inv.inviterCompanyId);
         if (inviterEmail) {
           this.sendNotificationEmail(
-            inviterEmail,
-            "Davetiniz kabul edildi",
-            [
-              "Merhaba,",
-              `Davet ettiğiniz ${newCompany?.name ?? "bir firma"} Rothern'e katıldı ve artık bağlantınız.`,
-            ],
-            { label: "Bağlantılarım", url: `${this.webBase()}/company` },
+            { email: inviterEmail.email, name: inviterEmail.name },
+            inviterEmail.locale,
+            {
+              subjectKey: "api.notifications.companyAuth.davetKabulBaslik",
+              paragraphKeys: newCompany?.name
+                ? ["api.notifications.companyAuth.davetKabulGovde"]
+                : ["api.notifications.companyAuth.davetKabulGovdeIsimsiz"],
+              ctaLabelKey: "api.notifications.companyAuth.baglantilarim",
+              ctaPath: "/company",
+              params: { firma: newCompany?.name ?? "" },
+            },
             "connection_accepted",
             inv.id,
           );
@@ -736,7 +806,7 @@ export class CompanyAuthService {
       // geçir (denetim 2026-08-23 #10: yanlış audit + kullanıcıya yanlış mesaj).
       if (err instanceof ServiceUnavailableException) throw err;
       auditFail("bad_credentials");
-      throw new UnauthorizedException("E-posta veya şifre hatalı");
+      throw new UnauthorizedException(i18nMessage("api.companyAuth.ePostaVeyaSifreHatali"));
     }
 
     const user = await this.bypass.companyUser.findUnique({
@@ -745,30 +815,26 @@ export class CompanyAuthService {
     });
     if (!user) {
       auditFail("user_missing");
-      throw new UnauthorizedException("E-posta veya şifre hatalı");
+      throw new UnauthorizedException(i18nMessage("api.companyAuth.ePostaVeyaSifreHatali"));
     }
     if (user.deletedAt || !user.isActive) {
       auditFail("user_inactive");
-      throw new ForbiddenException("Kullanıcı hesabı aktif değil");
+      throw new ForbiddenException(i18nMessage("api.companyAuth.kullaniciHesabiAktifDegil"));
     }
     if (user.company.isBlocked) {
       auditFail("company_blocked");
-      throw new ForbiddenException("Firma hesabı engellenmiş");
+      throw new ForbiddenException(i18nMessage("api.companyAuth.firmaHesabiEngellenmis"));
     }
     if (!user.company.isActive) {
       auditFail("company_inactive");
-      throw new ForbiddenException("Firma hesabı aktif değil");
+      throw new ForbiddenException(i18nMessage("api.companyAuth.firmaHesabiAktifDegil"));
     }
     if (!user.emailVerifiedAt) {
       auditFail("email_unverified");
       // Yapısal `code` — frontend akış kararını MESAJ METNİNE değil koda
       // bağlar (metin eşleşmesi CSRF 403'üyle karışıp sahte "kod gönderildi"
       // akışı tetiklemişti; mesaj değişse de akış kırılmasın).
-      throw new ForbiddenException({
-        statusCode: 403,
-        message: "Giriş yapmadan önce e-posta adresinizi doğrulayın.",
-        code: "EMAIL_NOT_VERIFIED",
-      });
+      throw new ForbiddenException({ ...i18nMessage("api.companyAuth.girisYapmadanOnceEPostaAdresinizi", undefined, "EMAIL_NOT_VERIFIED"), statusCode: 403 });
     }
 
     // 2FA açıksa: kod yoksa "gerekli" yanıtı. E-posta yönteminde kodu HEMEN
@@ -781,13 +847,14 @@ export class CompanyAuthService {
             user.email,
             user.firstName,
             "login",
+            localeOf(user.locale),
           );
           // failure-aware (1b): kod gitmezse kullanıcı ilerleyemez → sessizce
           // "kodu gir" deme, açık hata ver. Parola zaten doğrulandı (post-auth)
           // → enumeration sızıntısı DEĞİL. (Sentry alarmı send() içinde.)
           if (!sent) {
             throw new ServiceUnavailableException(
-              "Doğrulama kodu şu anda gönderilemedi. Lütfen birkaç dakika sonra tekrar deneyin.",
+              i18nMessage("api.companyAuth.dogrulamaKoduSuAndaGonderilemediLutfen"),
             );
           }
           return { twoFactorRequired: true as const, method: "email" as const };
@@ -803,7 +870,7 @@ export class CompanyAuthService {
       );
       if (!ok) {
         auditFail("bad_2fa");
-        throw new UnauthorizedException("Doğrulama kodu hatalı");
+        throw new UnauthorizedException(i18nMessage("api.companyAuth.dogrulamaKoduHatali"));
       }
       if (usedRecovery) {
         // Kurtarma koduyla giriş iz bırakır (tek kullanımlık kod tüketildi).
@@ -862,7 +929,7 @@ export class CompanyAuthService {
     // ile açılır. Bugün premium yalnız admin grant ile verilir. Bkz. INV-TIER-1.
     if (this.config.get<string>("PREMIUM_SELF_UPGRADE_ENABLED") !== "true") {
       throw new ForbiddenException(
-        "Premium şu an manuel onayla veriliyor — self-servis yükseltme geçici olarak kapalı",
+        i18nMessage("api.companyAuth.premiumSuAnManuelOnaylaVeriliyor"),
       );
     }
     // Kullanıcı satırı ARTIK OKUNMUYOR — 2FA şartı kalktı (aşağıdaki not).
@@ -880,7 +947,7 @@ export class CompanyAuthService {
     // GÜVENLİK: faturalandırma/paket işlemi yalnız firma sahibinde (billing:manage
     // OWNER_ONLY). Sahip olmayan doğrulanmış kullanıcı tier'ı yükseltemez.
     if (company.ownerUserId !== userId) {
-      throw new ForbiddenException("Yalnızca firma sahibi paket yükseltebilir");
+      throw new ForbiddenException(i18nMessage("api.companyAuth.yalnizcaFirmaSahibiPaketYukseltebilir"));
     }
     // INV-TIER-1: efektif tier — süresi-dolmuş (lazy) PAKET firma "zaten premium"
     // engeline takılmadan yenileyebilsin; efektif STANDARD ise yükseltme akışına girer.
@@ -889,7 +956,7 @@ export class CompanyAuthService {
     }
     if (company.companyVerificationStatus !== "VERIFIED") {
       throw new BadRequestException(
-        "Önce şirket belgelerinizi doğrulatmalısınız",
+        i18nMessage("api.companyAuth.onceSirketBelgeleriniziDogrulatmalisiniz"),
       );
     }
     // 2FA ve WEB SİTESİ ŞARTLARI KALDIRILDI (2026-09-15, kullanıcı kararı).
@@ -1040,7 +1107,7 @@ export class CompanyAuthService {
     });
     if (!user) throw new UnauthorizedException();
     if (user.twoFactorEnabled) {
-      throw new BadRequestException("İki adımlı doğrulama zaten açık");
+      throw new BadRequestException(i18nMessage("api.companyAuth.ikiAdimliDogrulamaZatenAcik"));
     }
     const secret = authenticator.generateSecret();
     await this.prisma.companyUser.update({
@@ -1061,27 +1128,45 @@ export class CompanyAuthService {
     return resolveWebUrl(this.config);
   }
 
-  /** Generic "notification" şablonlu e-posta — best-effort. */
+  /**
+   * Generic "notification" şablonlu e-posta — best-effort.
+   *
+   * DİL (i18n Faz 3): metin ALICININ dilinde üretilir; çağıran düz metin
+   * değil KATALOG ANAHTARI verir ve alıcının `locale`'ini geçirir. Selamlama
+   * ("Merhaba,") otomatik eklenir; `paragraphKeys` yalnız içerik paragrafları.
+   * `ctaPath` İÇ (Türkçe) yoldur, alıcının diline çevrilir.
+   */
   private sendNotificationEmail(
     to: { email: string; name?: string },
-    subject: string,
-    paragraphs: string[],
-    cta: { label: string; url: string },
+    locale: Locale,
+    msg: {
+      subjectKey: ApiMessageKey;
+      paragraphKeys: readonly ApiMessageKey[];
+      ctaLabelKey: ApiMessageKey;
+      ctaPath: string;
+      params?: Record<string, string | number>;
+    },
     type: string,
     id: string,
   ) {
+    const t = (key: ApiMessageKey) => tApi(key, msg.params, locale);
+    const subject = t(msg.subjectKey);
     void this.email
       .send({
         to,
         subject,
+        locale,
         templateData: {
           template: "notification",
           data: {
             subject,
             heading: subject,
-            paragraphs,
-            ctaLabel: cta.label,
-            ctaUrl: cta.url,
+            paragraphs: [
+              t(NOTIFY_GREETING_KEY),
+              ...msg.paragraphKeys.map(t),
+            ],
+            ctaLabel: t(msg.ctaLabelKey),
+            ctaUrl: localizeUrl(this.webBase(), msg.ctaPath, locale),
           },
         },
         context: { type, id },
@@ -1104,7 +1189,12 @@ export class CompanyAuthService {
         billingEmail: true,
         users: {
           where: { isActive: true, deletedAt: null },
-          select: { email: true, firstName: true, lastName: true },
+          select: {
+            email: true,
+            firstName: true,
+            lastName: true,
+            locale: true,
+          },
           orderBy: { createdAt: "asc" },
           take: 1,
         },
@@ -1115,16 +1205,18 @@ export class CompanyAuthService {
     const name = c.users[0]
       ? `${c.users[0].firstName} ${c.users[0].lastName}`.trim() || c.name
       : c.name;
-    return { email, name };
+    // E-POSTA DİLİ: firmanın EN ESKİ aktif üyesinin (pratikte kurucu) dili;
+    // yalnız `billingEmail` taşıyan, üyesi çözülmemiş firmada varsayılan.
+    return { email, name, locale: localeOf(c.users[0]?.locale) };
   }
 
   async enableTwoFactor(userId: string, code: string) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, twoFactorSecret: true },
+      select: { email: true, twoFactorSecret: true, locale: true },
     });
     if (!user?.twoFactorSecret) {
-      throw new BadRequestException("Önce 2FA kurulumunu başlatın");
+      throw new BadRequestException(i18nMessage("api.companyAuth.once2faKurulumunuBaslatin"));
     }
     if (
       !authenticator.verify({
@@ -1132,7 +1224,7 @@ export class CompanyAuthService {
         secret: this.decryptSecret(user.twoFactorSecret),
       })
     ) {
-      throw new BadRequestException("Doğrulama kodu hatalı");
+      throw new BadRequestException(i18nMessage("api.companyAuth.dogrulamaKoduHatali"));
     }
     const recoveryCodes = this.generateRecoveryCodes();
     await this.prisma.companyUser.update({
@@ -1146,7 +1238,7 @@ export class CompanyAuthService {
         ),
       },
     });
-    this.notify2faEnabled(userId, user.email);
+    this.notify2faEnabled(userId, user.email, localeOf(user.locale));
     return { ok: true, recoveryCodes };
   }
 
@@ -1154,10 +1246,16 @@ export class CompanyAuthService {
   async sendEmailTwoFactorCode(userId: string) {
     const user = await this.bypass.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, firstName: true },
+      select: { email: true, firstName: true, locale: true },
     });
     if (!user) throw new UnauthorizedException();
-    await this.issueEmailCode(userId, user.email, user.firstName, "login");
+    await this.issueEmailCode(
+      userId,
+      user.email,
+      user.firstName,
+      "login",
+      localeOf(user.locale),
+    );
     return { sent: true };
   }
 
@@ -1165,14 +1263,14 @@ export class CompanyAuthService {
   async enableEmailTwoFactor(userId: string, code: string) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, twoFactorEnabled: true },
+      select: { email: true, twoFactorEnabled: true, locale: true },
     });
     if (!user) throw new UnauthorizedException();
     if (user.twoFactorEnabled) {
-      throw new BadRequestException("İki adımlı doğrulama zaten açık");
+      throw new BadRequestException(i18nMessage("api.companyAuth.ikiAdimliDogrulamaZatenAcik"));
     }
     if (!(await this.consumeEmailCode(userId, code))) {
-      throw new BadRequestException("Doğrulama kodu hatalı veya süresi dolmuş");
+      throw new BadRequestException(i18nMessage("api.companyAuth.dogrulamaKoduHataliVeyaSuresiDolmus"));
     }
     const recoveryCodes = this.generateRecoveryCodes();
     await this.prisma.companyUser.update({
@@ -1187,11 +1285,11 @@ export class CompanyAuthService {
         ),
       },
     });
-    this.notify2faEnabled(userId, user.email);
+    this.notify2faEnabled(userId, user.email, localeOf(user.locale));
     return { ok: true, recoveryCodes };
   }
 
-  private notify2faEnabled(userId: string, email: string) {
+  private notify2faEnabled(userId: string, email: string, locale: Locale) {
     void this.audit.log({
       action: "auth.2fa_enabled",
       actorType: "company",
@@ -1200,12 +1298,13 @@ export class CompanyAuthService {
     });
     this.sendNotificationEmail(
       { email },
-      "İki adımlı doğrulama açıldı",
-      [
-        "Merhaba,",
-        "Hesabınızda iki adımlı doğrulama (2FA) etkinleştirildi. Bu işlemi siz yapmadıysanız derhal parolanızı değiştirin ve destekle iletişime geçin.",
-      ],
-      { label: "Hesap Ayarları", url: `${this.webBase()}/company/ayarlar` },
+      locale,
+      {
+        subjectKey: "api.notifications.companyAuth.ikiAdimliAcildiBaslik",
+        paragraphKeys: ["api.notifications.companyAuth.ikiAdimliAcildiGovde"],
+        ctaLabelKey: "api.notifications.companyAuth.hesapAyarlari",
+        ctaPath: "/company/ayarlar",
+      },
       "two_factor_enabled",
       userId,
     );
@@ -1215,15 +1314,15 @@ export class CompanyAuthService {
   async disableTwoFactor(userId: string, code: string) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, twoFactorEnabled: true },
+      select: { email: true, twoFactorEnabled: true, locale: true },
     });
     if (!user?.twoFactorEnabled) {
-      throw new BadRequestException("İki adımlı doğrulama zaten kapalı");
+      throw new BadRequestException(i18nMessage("api.companyAuth.ikiAdimliDogrulamaZatenKapali"));
     }
     // Kod: authenticator TOTP / e-posta kodu / kurtarma kodu (yönteme göre).
     const { ok } = await this.verifyTwoFactorCode(userId, code);
     if (!ok) {
-      throw new BadRequestException("Doğrulama kodu hatalı");
+      throw new BadRequestException(i18nMessage("api.companyAuth.dogrulamaKoduHatali"));
     }
     await this.prisma.companyUser.update({
       where: { id: userId },
@@ -1243,12 +1342,13 @@ export class CompanyAuthService {
     });
     this.sendNotificationEmail(
       { email: user.email },
-      "İki adımlı doğrulama kapatıldı",
-      [
-        "Merhaba,",
-        "Hesabınızda iki adımlı doğrulama (2FA) kapatıldı. Bu işlemi siz yapmadıysanız derhal parolanızı değiştirin ve destekle iletişime geçin.",
-      ],
-      { label: "Hesap Ayarları", url: `${this.webBase()}/company/ayarlar` },
+      localeOf(user.locale),
+      {
+        subjectKey: "api.notifications.companyAuth.ikiAdimliKapatildiBaslik",
+        paragraphKeys: ["api.notifications.companyAuth.ikiAdimliKapatildiGovde"],
+        ctaLabelKey: "api.notifications.companyAuth.hesapAyarlari",
+        ctaPath: "/company/ayarlar",
+      },
       "two_factor_disabled",
       userId,
     );
@@ -1278,11 +1378,14 @@ export class CompanyAuthService {
   // HESAP AYARLARI (eski ayarlar — kişisel)
   // ============================================================
 
-  /** Kendi profilini güncelle (ad/soyad/telefon). */
+  /** Kendi profilini güncelle (ad/soyad/telefon/dil). */
   async updateMe(
     userId: string,
-    dto: { firstName?: string; lastName?: string; phone?: string },
+    dto: { firstName?: string; lastName?: string; phone?: string; locale?: string },
   ) {
+    if (dto.locale !== undefined && !isLocale(dto.locale)) {
+      throw new BadRequestException(i18nMessage("api.validation.localeUnsupported"));
+    }
     await this.prisma.companyUser.update({
       where: { id: userId },
       data: {
@@ -1293,6 +1396,7 @@ export class CompanyAuthService {
           ? { lastName: dto.lastName.trim() }
           : {}),
         ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
+        ...(dto.locale !== undefined ? { locale: dto.locale } : {}),
       },
     });
     return this.getMe(userId);
@@ -1310,14 +1414,14 @@ export class CompanyAuthService {
   ) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { email: true, authId: true, companyId: true },
+      select: { email: true, authId: true, companyId: true, locale: true },
     });
     if (!user || !user.authId) throw new UnauthorizedException();
     try {
       await this.supabaseAuth.verifyPassword(user.email, currentPassword);
     } catch (err) {
       if (err instanceof ServiceUnavailableException) throw err;
-      throw new ForbiddenException("Mevcut parola hatalı");
+      throw new ForbiddenException(i18nMessage("api.companyAuth.mevcutParolaHatali"));
     }
     await this.supabaseAuth.updatePassword(user.authId, newPassword);
     const updated = await this.prisma.companyUser.update({
@@ -1333,12 +1437,13 @@ export class CompanyAuthService {
     });
     this.sendNotificationEmail(
       { email: user.email },
-      "Parolanız değiştirildi",
-      [
-        "Merhaba,",
-        "Hesabınızın parolası değiştirildi. Bu işlemi siz yapmadıysanız derhal parolanızı sıfırlayın ve destekle iletişime geçin.",
-      ],
-      { label: "Hesap Ayarları", url: `${this.webBase()}/company/ayarlar` },
+      localeOf(user.locale),
+      {
+        subjectKey: "api.notifications.companyAuth.parolaDegistiBaslik",
+        paragraphKeys: ["api.notifications.companyAuth.parolaDegistiGovde"],
+        ctaLabelKey: "api.notifications.companyAuth.hesapAyarlari",
+        ctaPath: "/company/ayarlar",
+      },
       "password_changed",
       userId,
     );
@@ -1366,7 +1471,7 @@ export class CompanyAuthService {
     const clean: Record<string, boolean> = {};
     for (const [k, v] of Object.entries(prefs ?? {})) {
       if (!valid.has(k)) {
-        throw new BadRequestException(`Geçersiz bildirim tercihi: ${k}`);
+        throw new BadRequestException(i18nMessage("api.companyAuth.gecersizBildirimTercihi", { k: k }));
       }
       clean[k] = v === true;
     }
@@ -1470,6 +1575,7 @@ export class CompanyAuthService {
       notificationPrefs:
         (user.notificationPrefs as Record<string, boolean> | null) ?? null,
       lastLoginAt: user.lastLoginAt,
+      locale: user.locale,
     };
   }
 

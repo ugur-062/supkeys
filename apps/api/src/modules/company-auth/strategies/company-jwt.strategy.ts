@@ -1,3 +1,5 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { applyUserLocale } from "../../../common/i18n/locale-context";
 import { Injectable, UnauthorizedException } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { PassportStrategy } from "@nestjs/passport";
@@ -46,6 +48,8 @@ export interface AuthenticatedCompanyUser {
    * eski anahtarlar eşlenmiş). Kapılar ve servisler yalnız bunu okur.
    */
   permissions: string[];
+  /** Kullanıcının seçtiği arayüz dili (`CompanyUser.locale`, varsayılan tr). */
+  locale: string;
 }
 
 @Injectable()
@@ -72,7 +76,7 @@ export class CompanyJwtStrategy extends PassportStrategy(
     payload: CompanyJwtPayload,
   ): Promise<AuthenticatedCompanyUser> {
     if (payload.type !== "company") {
-      throw new UnauthorizedException("Geçersiz token tipi");
+      throw new UnauthorizedException(i18nMessage("api.companyAuth.gecersizTokenTipi"));
     }
 
     // Roller + tier + sahiplik DB'den taze okunur (token'a güvenmeyiz).
@@ -84,16 +88,16 @@ export class CompanyJwtStrategy extends PassportStrategy(
     });
 
     if (!user || !user.isActive || user.deletedAt) {
-      throw new UnauthorizedException("Kullanıcı geçersiz");
+      throw new UnauthorizedException(i18nMessage("api.companyAuth.kullaniciGecersiz"));
     }
     if (!user.company.isActive || user.company.isBlocked) {
-      throw new UnauthorizedException("Firma hesabı pasif veya engellenmiş");
+      throw new UnauthorizedException(i18nMessage("api.companyAuth.firmaHesabiPasifVeyaEngellenmis"));
     }
     // Oturum sürümü: parola değişiminden önce kesilmiş token'lar reddedilir
     // (tv'siz eski token = 0 varsayılır — sürüm hiç artmadıysa geçerli kalır).
     if ((payload.tv ?? 0) !== user.tokenVersion) {
       throw new UnauthorizedException(
-        "Oturum geçersiz — lütfen yeniden giriş yapın",
+        i18nMessage("api.companyAuth.oturumGecersizLutfenYenidenGirisYapin"),
       );
     }
 
@@ -104,6 +108,9 @@ export class CompanyJwtStrategy extends PassportStrategy(
     // veride firma sahibi SAHIP etiketini taşımayabiliyordu (rol dizisi ayrı
     // yazılmış) — bu, portal erişimi/rol düzenleme/etiketleri sessizce
     // kırıyordu. Sahipse SAHIP etiketi HER ZAMAN efektif rollerde bulunur.
+    // İstek dili: Accept-Language yoksa kullanıcının kayıtlı dili (i18n Faz 0).
+    applyUserLocale(user.locale);
+
     const isOwner = user.company.ownerUserId === user.id;
     const effectiveRoles =
       isOwner && !user.roles.includes("SAHIP")
@@ -125,6 +132,7 @@ export class CompanyJwtStrategy extends PassportStrategy(
         permissions: user.permissions,
         roles: user.roles,
       }),
+      locale: user.locale,
     };
   }
 }

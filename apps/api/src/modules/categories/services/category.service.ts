@@ -1,9 +1,11 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
   Logger,
   NotFoundException,
 } from "@nestjs/common";
+import { CATEGORY_NAME_SELECT, categoryName, categorySlug, localizeCategoryRows } from "../../../common/company/category-name";
 import {
   categoryCatalogWhere,
   hiddenCategoryWhere,
@@ -53,20 +55,20 @@ export class CategoryService {
    * düzine sınıf var — o istek küçük ve seyrek.
    */
   async getAllActive() {
-    const cats = await this.prisma.category.findMany({
+    const cats = localizeCategoryRows(await this.prisma.category.findMany({
       // Gizli segmentler (katalog sadeleştirme, 2026-09-19) hiçbir listede yok.
       where: { isActive: true, level: { lte: 2 }, ...hiddenCategoryWhere() },
       orderBy: [{ level: "asc" }, { sortOrder: "asc" }],
       select: {
         id: true,
         code: true,
-        nameTr: true,
+        ...CATEGORY_NAME_SELECT,
         level: true,
         parentId: true,
         segmentLetter: true,
         sortOrder: true,
       },
-    });
+    }));
     return this.attachChildCount(cats);
   }
 
@@ -80,20 +82,24 @@ export class CategoryService {
    * modalı; o zaten drill-down sırasında `/all`'ı çekiyor.
    */
   async getSegments() {
-    const cats = await this.prisma.category.findMany({
+    const raw = await this.prisma.category.findMany({
       where: { isActive: true, level: 1, ...hiddenCategoryWhere() },
       orderBy: [{ sortOrder: "asc" }],
       select: {
         id: true,
         code: true,
-        nameTr: true,
+        ...CATEGORY_NAME_SELECT,
         level: true,
         parentId: true,
         segmentLetter: true,
         sortOrder: true,
       },
     });
-    return this.attachChildCount(cats);
+    // i18n Faz 4: ad okuyucunun dilinde; adres slug'ı HER ZAMAN Türkçe addan (dilden bağımsız).
+    const cats = localizeCategoryRows(raw);
+    const withCount = await this.attachChildCount(cats);
+    const trSlug = new Map(raw.map((c) => [c.id, categorySlug(c.nameTr)] as const));
+    return withCount.map((c) => ({ ...c, slug: trSlug.get(c.id) ?? categorySlug(c.nameTr) }));
   }
 
   /**
@@ -106,19 +112,19 @@ export class CategoryService {
    */
   async childrenOf(parentId: string, catalog: CategoryCatalog = "full") {
     if (!parentId) return [];
-    const cats = await this.prisma.category.findMany({
+    const cats = localizeCategoryRows(await this.prisma.category.findMany({
       where: { isActive: true, parentId, ...categoryCatalogWhere(catalog) },
       orderBy: [{ sortOrder: "asc" }],
       select: {
         id: true,
         code: true,
-        nameTr: true,
+        ...CATEGORY_NAME_SELECT,
         level: true,
         parentId: true,
         segmentLetter: true,
         sortOrder: true,
       },
-    });
+    }));
     return this.attachChildCount(cats, catalog);
   }
 
@@ -370,7 +376,7 @@ export class CategoryService {
         segAcc = {
           id: segment.id,
           code: segment.code,
-          nameTr: segment.nameTr,
+          nameTr: categoryName(segment),
           level: segment.level,
           segmentLetter: segment.segmentLetter,
           sortOrder: segment.sortOrder,
@@ -384,7 +390,7 @@ export class CategoryService {
         famAcc = {
           id: family.id,
           code: family.code,
-          nameTr: family.nameTr,
+          nameTr: categoryName(family),
           level: family.level,
           sortOrder: family.sortOrder,
           classes: new Map(),
@@ -397,7 +403,7 @@ export class CategoryService {
         clsAcc = {
           id: cls.id,
           code: cls.code,
-          nameTr: cls.nameTr,
+          nameTr: categoryName(cls),
           level: cls.level,
           sortOrder: cls.sortOrder,
           isMatch: cat.level === 3 && cat.id === cls.id,
@@ -413,7 +419,7 @@ export class CategoryService {
           clsAcc.commodities.set(commodity.id, {
             id: commodity.id,
             code: commodity.code,
-            nameTr: commodity.nameTr,
+            nameTr: categoryName(commodity),
             level: commodity.level,
             sortOrder: commodity.sortOrder,
             isMatch: true,
@@ -432,7 +438,7 @@ export class CategoryService {
         segAcc = {
           id: segment.id,
           code: segment.code,
-          nameTr: segment.nameTr,
+          nameTr: categoryName(segment),
           level: segment.level,
           segmentLetter: segment.segmentLetter,
           sortOrder: segment.sortOrder,
@@ -445,7 +451,7 @@ export class CategoryService {
         famAcc = {
           id: fam.id,
           code: fam.code,
-          nameTr: fam.nameTr,
+          nameTr: categoryName(fam),
           level: fam.level,
           sortOrder: fam.sortOrder,
           classes: new Map(),
@@ -457,7 +463,7 @@ export class CategoryService {
           famAcc.classes.set(cls.id, {
             id: cls.id,
             code: cls.code,
-            nameTr: cls.nameTr,
+            nameTr: categoryName(cls),
             level: cls.level,
             sortOrder: cls.sortOrder,
             isMatch: false,
@@ -475,7 +481,7 @@ export class CategoryService {
       .map((seg) => ({
         id: seg.id,
         code: seg.code,
-        nameTr: seg.nameTr,
+        nameTr: categoryName(seg),
         level: seg.level,
         segmentLetter: seg.segmentLetter,
         families: Array.from(seg.families.values())
@@ -483,14 +489,14 @@ export class CategoryService {
           .map((fam) => ({
             id: fam.id,
             code: fam.code,
-            nameTr: fam.nameTr,
+            nameTr: categoryName(fam),
             level: fam.level,
             classes: Array.from(fam.classes.values())
               .sort(sortByOrder)
               .map((cls) => ({
                 id: cls.id,
                 code: cls.code,
-                nameTr: cls.nameTr,
+                nameTr: categoryName(cls),
                 level: cls.level,
                 isMatch: cls.isMatch,
                 commodities: Array.from(cls.commodities.values())
@@ -498,7 +504,7 @@ export class CategoryService {
                   .map((com) => ({
                     id: com.id,
                     code: com.code,
-                    nameTr: com.nameTr,
+                    nameTr: categoryName(com),
                     level: com.level,
                     isMatch: com.isMatch,
                   })),
@@ -533,7 +539,7 @@ export class CategoryService {
                 parent: {
                   select: {
                     id: true,
-                    nameTr: true,
+                    ...CATEGORY_NAME_SELECT,
                     segmentLetter: true,
                     level: true,
                   },
@@ -548,7 +554,7 @@ export class CategoryService {
     return cats.map((c) => ({
       id: c.id,
       code: c.code,
-      nameTr: c.nameTr,
+      nameTr: categoryName(c),
       level: c.level,
       breadcrumb: buildBreadcrumb(c),
     }));
@@ -620,7 +626,7 @@ export class CategoryService {
     const missing = ids.filter((id) => !foundIds.has(id));
     if (missing.length > 0) {
       throw new NotFoundException(
-        `Geçersiz kategori ID: ${missing.join(", ")}`,
+        i18nMessage("api.categories.gecersizKategoriId", { join: missing.join(", ") }),
       );
     }
 
@@ -629,8 +635,10 @@ export class CategoryService {
       if (wrong.length > 0) {
         throw new BadRequestException(
           opts.exactLevel === 1
-            ? "Sadece ana başlık (Segment) seviyesindeki kategoriler seçilebilir."
-            : `Sadece level ${opts.exactLevel} kategoriler seçilebilir.`,
+            ? i18nMessage("api.categories.yalnizSegmentSeviyesiSecilebilir")
+            : i18nMessage("api.categories.yalnizBelirtilenSeviyeSecilebilir", {
+                level: opts.exactLevel,
+              }),
         );
       }
       return;
@@ -644,8 +652,8 @@ export class CategoryService {
         // — sabit metin kullanıcıya yanlış kuralı söylerdi.
         throw new BadRequestException(
           opts.minLevel >= 3
-            ? "Sadece Class veya Commodity seviyesindeki kategoriler seçilebilir (Segment/Family seçilemez)."
-            : "Ana başlık (Segment) alt kategori olarak seçilemez — bir alt kırılım seçin.",
+            ? i18nMessage("api.categories.yalnizClassVeyaCommoditySecilebilir")
+            : i18nMessage("api.categories.segmentAltKategoriOlarakSecilemez"),
         );
       }
     }
@@ -665,9 +673,9 @@ export function buildBreadcrumb(node: unknown): string {
   while (cur) {
     if (cur.level === 1) {
       const letter = cur.segmentLetter ? `${cur.segmentLetter}. ` : "";
-      parts.unshift(`${letter}${cur.nameTr}`);
+      parts.unshift(`${letter}${categoryName(cur)}`);
     } else if (cur.nameTr) {
-      parts.unshift(cur.nameTr);
+      parts.unshift(categoryName(cur));
     }
     cur = cur.parent;
   }

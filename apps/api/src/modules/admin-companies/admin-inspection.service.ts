@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -163,7 +164,7 @@ export class AdminInspectionService {
         },
       },
     });
-    if (!l) throw new NotFoundException("İlan bulunamadı");
+    if (!l) throw new NotFoundException(i18nMessage("api.adminCompanies.ilanBulunamadi"));
     return l;
   }
 
@@ -180,7 +181,7 @@ export class AdminInspectionService {
       data: { status: "CLOSED", cancelReason: reason.trim() },
     });
     if (done.count !== 1) {
-      throw new BadRequestException("Yalnız AÇIK ilan kapatılabilir");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.yalnizAcikIlanKapatilabilir"));
     }
     await this.audit.log({
       action: "admin.listing.closed",
@@ -191,15 +192,14 @@ export class AdminInspectionService {
       metadata: { reason },
     });
     this.realtime?.pingListing(id, [l.companyId]);
-    void this.companies.notifyCompany(
-      l.companyId,
-      "İlanınız yönetici tarafından kapatıldı",
-      [
-        "Merhaba,",
-        `"${l.title}" ilanınız platform yöneticisi tarafından teklife kapatıldı. Gerekçe: ${reason.trim()}`,
+    void this.companies.notifyCompany(l.companyId, {
+      type: "admin_listing_closed",
+      subjectKey: "api.notifications.adminInspection.ilanKapatildiBaslik",
+      paragraphKeys: [
+        "api.notifications.adminInspection.ilanKapatildiGovde",
       ],
-      "admin_listing_closed",
-    );
+      params: { baslik: l.title, gerekce: reason.trim() },
+    });
     return { ok: true };
   }
 
@@ -211,15 +211,15 @@ export class AdminInspectionService {
   async extendListing(id: string, closesAtRaw: string, adminId: string) {
     const l = await this.requireListing(id);
     if (l.status !== "OPEN") {
-      throw new BadRequestException("Yalnız AÇIK ilanın süresi uzatılabilir");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.yalnizAcikIlaninSuresiUzatilabilir"));
     }
     const closesAt = new Date(closesAtRaw);
     if (Number.isNaN(closesAt.getTime()) || closesAt <= new Date()) {
-      throw new BadRequestException("Kapanış gelecekte olmalı");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.kapanisGelecekteOlmali"));
     }
     if (l.closesAt && closesAt <= l.closesAt) {
       throw new BadRequestException(
-        "Yalnız uzatma yapılabilir — kısaltma teklif verenlere haksızlık olur",
+        i18nMessage("api.adminCompanies.yalnizUzatmaYapilabilirKisaltmaTeklifVerenlere"),
       );
     }
     await this.prisma.listing.update({
@@ -235,15 +235,14 @@ export class AdminInspectionService {
       metadata: { from: l.closesAt, to: closesAt },
     });
     this.realtime?.pingListing(id, [l.companyId]);
-    void this.companies.notifyCompany(
-      l.companyId,
-      "İlan kapanış süresi uzatıldı",
-      [
-        "Merhaba,",
-        `"${l.title}" ilanınızın kapanış tarihi destek talebiniz üzerine ${closesAt.toLocaleString("tr-TR")} olarak güncellendi.`,
+    void this.companies.notifyCompany(l.companyId, {
+      type: "admin_listing_extended",
+      subjectKey: "api.notifications.adminInspection.ilanUzatildiBaslik",
+      paragraphKeys: [
+        "api.notifications.adminInspection.ilanUzatildiGovde",
       ],
-      "admin_listing_extended",
-    );
+      params: { baslik: l.title, tarih: closesAt.toLocaleString("tr-TR") },
+    });
     return { ok: true, closesAt };
   }
 
@@ -265,15 +264,15 @@ export class AdminInspectionService {
         _count: { select: { orders: true } },
       },
     });
-    if (!l) throw new NotFoundException("İlan bulunamadı");
+    if (!l) throw new NotFoundException(i18nMessage("api.adminCompanies.ilanBulunamadi"));
     if (l.awardedAt || l._count.orders > 0) {
       throw new BadRequestException(
-        "Kazandırma yapılmış ilan yeniden açılamaz",
+        i18nMessage("api.adminCompanies.kazandirmaYapilmisIlanYenidenAcilamaz"),
       );
     }
     const closesAt = new Date(closesAtRaw);
     if (Number.isNaN(closesAt.getTime()) || closesAt <= new Date()) {
-      throw new BadRequestException("Kapanış gelecekte olmalı");
+      throw new BadRequestException(i18nMessage("api.adminCompanies.kapanisGelecekteOlmali"));
     }
     const done = await this.prisma.listing.updateMany({
       where: { id, status: { in: ["CLOSED", "IN_AWARD"] } },
@@ -281,7 +280,7 @@ export class AdminInspectionService {
     });
     if (done.count !== 1) {
       throw new BadRequestException(
-        "Yalnız kapalı/değerlendirmedeki (kazandırılmamış) ilan yeniden açılabilir",
+        i18nMessage("api.adminCompanies.yalnizKapaliDegerlendirmedekiKazandirilmamisIlan"),
       );
     }
     await this.audit.log({
@@ -293,15 +292,14 @@ export class AdminInspectionService {
       metadata: { closesAt },
     });
     this.realtime?.pingListing(id, [l.companyId]);
-    void this.companies.notifyCompany(
-      l.companyId,
-      "İlanınız yeniden açıldı",
-      [
-        "Merhaba,",
-        `"${l.title}" ilanınız destek talebiniz üzerine yeniden teklife açıldı. Yeni kapanış: ${closesAt.toLocaleString("tr-TR")}.`,
+    void this.companies.notifyCompany(l.companyId, {
+      type: "admin_listing_reopened",
+      subjectKey: "api.notifications.adminInspection.ilanYenidenAcildiBaslik",
+      paragraphKeys: [
+        "api.notifications.adminInspection.ilanYenidenAcildiGovde",
       ],
-      "admin_listing_reopened",
-    );
+      params: { baslik: l.title, tarih: closesAt.toLocaleString("tr-TR") },
+    });
     return { ok: true, closesAt };
   }
 
@@ -423,7 +421,7 @@ export class AdminInspectionService {
         },
       },
     });
-    if (!o) throw new NotFoundException("Sipariş bulunamadı");
+    if (!o) throw new NotFoundException(i18nMessage("api.adminCompanies.siparisBulunamadi"));
     // F5 (X7 frontend kardeşi): onaylı ödeme toplamı DECIMAL ile burada hesaplanır
     // (INV-MONEY-1) → admin sayfası float `reduce` ile yeniden toplamasın; kuruş
     // sapması olmadan "Onaylı: X" ve iptal-uyarısı bu değeri kullanır.
@@ -461,7 +459,7 @@ export class AdminInspectionService {
         sellerCompanyId: true,
       },
     });
-    if (!order) throw new NotFoundException("Sipariş bulunamadı");
+    if (!order) throw new NotFoundException(i18nMessage("api.adminCompanies.siparisBulunamadi"));
     // Admin, taraflardan farklı olarak IN_DELIVERY'deki takılmış siparişi de
     // iptal edebilir (destek müdahalesi); DELIVERED/COMPLETED dokunulmaz.
     const CANCELABLE: CompanyOrderStatus[] = [
@@ -476,7 +474,7 @@ export class AdminInspectionService {
       const status = rows[0]?.status;
       if (!status || !CANCELABLE.includes(status)) {
         throw new BadRequestException(
-          "Sipariş bu durumda iptal edilemez (teslim/tamamlanmış olabilir)",
+          i18nMessage("api.adminCompanies.siparisBuDurumdaIptalEdilemezTeslim"),
         );
       }
       const confirmedPayments = await tx.companyOrderPayment.count({
@@ -484,7 +482,7 @@ export class AdminInspectionService {
       });
       if (confirmedPayments > 0) {
         throw new BadRequestException(
-          "Onaylı ödemesi olan sipariş iptal edilemez — önce iade süreci",
+          i18nMessage("api.adminCompanies.onayliOdemesiOlanSiparisIptalEdilemez"),
         );
       }
       const done = await tx.companyOrder.updateMany({
@@ -496,7 +494,7 @@ export class AdminInspectionService {
         },
       });
       if (done.count !== 1) {
-        throw new BadRequestException("Sipariş durumu az önce değişti");
+        throw new BadRequestException(i18nMessage("api.adminCompanies.siparisDurumuAzOnceDegisti"));
       }
     });
     // Dalga B (denetim 2026-08-26 Parça 9): iptal İLANA dokunmaz — kazandırma
@@ -531,22 +529,29 @@ export class AdminInspectionService {
       order.buyerCompanyId,
       order.sellerCompanyId,
     ]);
-    const label = order.number ? `${order.number} numaralı` : "İlgili";
+    // Sipariş numarası varsa "N numaralı sipariş", yoksa "İlgili sipariş":
+    // cümlenin ÖZNESİ değiştiği için iki ayrı anahtar (çeviride sözcük sırası
+    // değişebilir, parça birleştirmek yanlış olurdu).
+    const numarali = !!order.number;
     for (const companyId of [order.buyerCompanyId, order.sellerCompanyId]) {
-      void this.companies.notifyCompany(
-        companyId,
-        "Sipariş yönetici tarafından iptal edildi",
-        [
-          "Merhaba,",
-          `${label} sipariş platform yöneticisi tarafından iptal edildi. Gerekçe: ${reason.trim()}`,
-          ...(stranded
-            ? [
-                "Bu iptalden sonra ilgili satın alma talebinin canlı siparişi kalmadı. Kazandırma geri alınamadığı için yeni bir tedarikçiyle devam etmek isterseniz destek ekibiyle iletişime geçin.",
-              ]
-            : []),
+      void this.companies.notifyCompany(companyId, {
+        type: "admin_order_cancelled",
+        subjectKey: "api.notifications.adminInspection.siparisIptalBaslik",
+        bodyKey: stranded
+          ? numarali
+            ? "api.notifications.adminInspection.siparisIptalGovdeNumaraliSahipsiz"
+            : "api.notifications.adminInspection.siparisIptalGovdeSahipsiz"
+          : numarali
+            ? "api.notifications.adminInspection.siparisIptalNumarali"
+            : "api.notifications.adminInspection.siparisIptalGenel",
+        paragraphKeys: [
+          numarali
+            ? "api.notifications.adminInspection.siparisIptalNumarali"
+            : "api.notifications.adminInspection.siparisIptalGenel",
+          stranded && "api.notifications.adminInspection.siparisIptalSahipsizTalep",
         ],
-        "admin_order_cancelled",
-      );
+        params: { numara: order.number ?? "", gerekce: reason.trim() },
+      });
     }
     return { ok: true };
   }
@@ -609,7 +614,7 @@ export class AdminInspectionService {
     });
     if (done.count !== 1) {
       throw new BadRequestException(
-        "Yalnız BEKLEYEN bağlantı daveti iptal edilebilir",
+        i18nMessage("api.adminCompanies.yalnizBekleyenBaglantiDavetiIptalEdilebilir"),
       );
     }
     await this.audit.log({
@@ -629,7 +634,7 @@ export class AdminInspectionService {
     });
     if (done.count !== 1) {
       throw new BadRequestException(
-        "Yalnız BEKLEYEN referans daveti iptal edilebilir",
+        i18nMessage("api.adminCompanies.yalnizBekleyenReferansDavetiIptalEdilebilir"),
       );
     }
     await this.audit.log({
@@ -647,7 +652,7 @@ export class AdminInspectionService {
       where: { id },
       select: { id: true, companyId: true, title: true, status: true, closesAt: true },
     });
-    if (!l) throw new NotFoundException("İlan bulunamadı");
+    if (!l) throw new NotFoundException(i18nMessage("api.adminCompanies.ilanBulunamadi"));
     return l;
   }
 }

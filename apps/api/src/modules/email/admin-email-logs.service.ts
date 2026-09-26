@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -32,7 +33,7 @@ export class AdminEmailLogsService {
         contextType: true,
       },
     });
-    if (!log) throw new NotFoundException("E-posta kaydı bulunamadı");
+    if (!log) throw new NotFoundException(i18nMessage("api.email.ePostaKaydiBulunamadi"));
 
     // Denetim 2026-08-26 Parça 9 #2: tek-kullanımlık sır taşıyan tiplerde
     // `payload` DB'ye MASKELİ yazılır (`{__redacted:…}`) — bu payload'la
@@ -49,7 +50,7 @@ export class AdminEmailLogsService {
       redactedPayload
     ) {
       throw new BadRequestException(
-        "Bu e-posta tek-kullanımlık kod/token taşıdığı için içeriği saklanmaz — yeniden gönderilemez. Kullanıcı kodu/daveti yeniden talep etmeli (parola sıfırlama, doğrulama kodu veya daveti tekrar gönderme akışı).",
+        i18nMessage("api.email.buEPostaTekKullanimlikKod"),
       );
     }
 
@@ -123,7 +124,7 @@ export class AdminEmailLogsService {
       },
     });
     if (!log) {
-      throw new NotFoundException("E-posta logu bulunamadı");
+      throw new NotFoundException(i18nMessage("api.email.ePostaLoguBulunamadi"));
     }
     return log;
   }

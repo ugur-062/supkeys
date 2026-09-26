@@ -21,7 +21,7 @@ vi.mock("../IhaleItemsPanel", () => ({
   IhaleItemsPanel: () => <div data-testid="items-panel" />,
 }));
 
-import { IhaleListRow, statusStyle } from "../IhaleListRow";
+import { IhaleListRow } from "../IhaleListRow";
 
 const ROW = {
   id: "l55",
@@ -54,7 +54,8 @@ describe("IhaleListRow", () => {
     );
     expect(screen.getByText("ROT-000055")).toBeInTheDocument();
     expect(screen.getByText("Paslanmaz çelik boru satışı")).toBeInTheDocument();
-    expect(screen.getByText(statusStyle("IN_AWARD").label)).toBeInTheDocument();
+    // Durum etiketi katalogdan (`web.panel.requests.ihalelistrow.status.evaluating`).
+    expect(screen.getByText("Değerlendirmede")).toBeInTheDocument();
     // Kapanış geçmiş + karar yok → zaman notu (4d).
     expect(screen.getByText(/Süresi doldu/)).toBeInTheDocument();
 

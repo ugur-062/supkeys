@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import type { AiSeoEnrichInput, AiSeoEnrichResult } from "@rothern/shared";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -22,7 +23,7 @@ export class SeoEnrichService {
   async enrich(user: AuthenticatedCompanyUser, input: AiSeoEnrichInput): Promise<AiSeoEnrichResult> {
     this.ai.assertAiAccess(user);
     const name = (input.name ?? "").replace(/\s+/g, " ").trim();
-    if (name.length < 2) throw new BadRequestException("Önce bir ad/başlık yazın.");
+    if (name.length < 2) throw new BadRequestException(i18nMessage("api.ai.onceBirAdBaslikYazin"));
     const clean: AiSeoEnrichInput = {
       kind: input.kind,
       name: name.slice(0, 200),
@@ -50,7 +51,7 @@ export class SeoEnrichService {
       parsed = tryParse(result.text);
     }
     if (parsed == null || !parsed.description || parsed.description.trim().length < DESC_MIN) {
-      throw new ServiceUnavailableException("Açıklama üretilemedi — birkaç olgu daha ekleyip tekrar deneyin.");
+      throw new ServiceUnavailableException(i18nMessage("api.ai.aciklamaUretilemediBirkacOlguDahaEkleyip"));
     }
 
     // SANİTİZER: uzunluk tavanı, madde/emoji temizliği, anahtar kelime birleşimi.

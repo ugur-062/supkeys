@@ -8,6 +8,7 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 /**
  * Birleşik sistem — firma self-servis kaydı. Kaydı yapan kişi firmanın SAHİBİ
@@ -19,44 +20,44 @@ import {
  */
 export class CompanySignupDto {
   @IsString()
-  @MinLength(2, { message: "Ad en az 2 karakter olmalı" })
+  @MinLength(2, { message: () => tApi("api.dto.companySignup.adEnAz2KarakterOlmali") })
   @MaxLength(80)
   firstName!: string;
 
   @IsString()
-  @MinLength(2, { message: "Soyad en az 2 karakter olmalı" })
+  @MinLength(2, { message: () => tApi("api.dto.companySignup.soyadEnAz2KarakterOlmali") })
   @MaxLength(80)
   lastName!: string;
 
-  @IsEmail({}, { message: "Geçerli bir e-posta adresi giriniz" })
+  @IsEmail({}, { message: () => tApi("api.dto.companySignup.gecerliBirEPostaAdresiGiriniz") })
   email!: string;
 
   // +90 5XX XXX XX XX (maske frontend'de). Rakam/boşluk/+/() kabul.
   @IsString()
-  @Matches(/^[0-9+\s()]{10,20}$/, { message: "Geçerli bir telefon giriniz" })
+  @Matches(/^[0-9+\s()]{10,20}$/, { message: () => tApi("api.dto.companySignup.gecerliBirTelefonGiriniz") })
   phone!: string;
 
   // En az 10 karakter; büyük + küçük + rakam + özel karakter.
   @IsString()
-  @MinLength(10, { message: "Parola en az 10 karakter olmalı" })
-  @MaxLength(72, { message: "Parola en fazla 72 karakter" })
-  @Matches(/[a-z]/, { message: "Parola en az bir küçük harf içermeli" })
-  @Matches(/[A-Z]/, { message: "Parola en az bir büyük harf içermeli" })
-  @Matches(/[0-9]/, { message: "Parola en az bir rakam içermeli" })
-  @Matches(/[^a-zA-Z0-9]/, { message: "Parola en az bir özel karakter içermeli" })
+  @MinLength(10, { message: () => tApi("api.dto.companySignup.parolaEnAz10KarakterOlmali") })
+  @MaxLength(72, { message: () => tApi("api.dto.companySignup.parolaEnFazla72Karakter") })
+  @Matches(/[a-z]/, { message: () => tApi("api.dto.companySignup.parolaEnAzBirKucukHarfIcermeli") })
+  @Matches(/[A-Z]/, { message: () => tApi("api.dto.companySignup.parolaEnAzBirBuyukHarfIcermeli") })
+  @Matches(/[0-9]/, { message: () => tApi("api.dto.companySignup.parolaEnAzBirRakamIcermeli") })
+  @Matches(/[^a-zA-Z0-9]/, { message: () => tApi("api.dto.companySignup.parolaEnAzBirOzelKarakterIcermeli") })
   password!: string;
 
   // Zorunlu sözleşmeler — kabul edilmeden kayıt tamamlanamaz.
   @IsBoolean()
-  @Equals(true, { message: "Kullanıcı sözleşmesini kabul etmelisiniz" })
+  @Equals(true, { message: () => tApi("api.dto.companySignup.kullaniciSozlesmesiniKabulEtmelisiniz") })
   termsAccepted!: boolean;
 
   @IsBoolean()
-  @Equals(true, { message: "Aracılık ve kullanım sözleşmesini kabul etmelisiniz" })
+  @Equals(true, { message: () => tApi("api.dto.companySignup.aracilikVeKullanimSozlesmesiniKabulEtmelisiniz") })
   mediationAccepted!: boolean;
 
   @IsBoolean()
-  @Equals(true, { message: "KVKK aydınlatma metnini onaylamalısınız" })
+  @Equals(true, { message: () => tApi("api.dto.companySignup.kvkkAydinlatmaMetniniOnaylamalisiniz") })
   kvkkAccepted!: boolean;
 
   // Opsiyonel açık rızalar (varsayılan kapalı).
@@ -81,16 +82,16 @@ export class CompanySignupDto {
 
 /** E-posta doğrulama — 6 haneli kod. */
 export class VerifyEmailDto {
-  @IsEmail({}, { message: "Geçerli bir e-posta adresi giriniz" })
+  @IsEmail({}, { message: () => tApi("api.dto.companySignup.gecerliBirEPostaAdresiGiriniz") })
   email!: string;
 
   @IsString()
-  @Matches(/^[0-9]{6}$/, { message: "6 haneli kod giriniz" })
+  @Matches(/^[0-9]{6}$/, { message: () => tApi("api.dto.companySignup.altiHaneliKodGiriniz") })
   code!: string;
 }
 
 /** Doğrulama kodunu yeniden gönder. */
 export class ResendEmailCodeDto {
-  @IsEmail({}, { message: "Geçerli bir e-posta adresi giriniz" })
+  @IsEmail({}, { message: () => tApi("api.dto.companySignup.gecerliBirEPostaAdresiGiriniz") })
   email!: string;
 }

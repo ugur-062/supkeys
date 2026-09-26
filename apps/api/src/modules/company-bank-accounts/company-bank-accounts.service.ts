@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -158,7 +159,7 @@ export class CompanyBankAccountsService {
     const iban = normalizeIban(raw.trim());
     if (iban.startsWith("TR")) {
       if (!isValidIbanTr(iban)) {
-        throw new BadRequestException("Geçerli bir TR IBAN giriniz");
+        throw new BadRequestException(i18nMessage("api.companyBankAccounts.gecerliBirTrIbanGiriniz"));
       }
       return iban;
     }
@@ -168,7 +169,7 @@ export class CompanyBankAccountsService {
     // ülke bağımsızdır; artık o da uygulanıyor.
     if (!ibanChecksumOk(iban)) {
       throw new BadRequestException(
-        "Geçerli bir IBAN giriniz — kontrol hanesi tutmuyor, lütfen yeniden kontrol edin",
+        i18nMessage("api.companyBankAccounts.gecerliBirIbanGirinizKontrolHanesi"),
       );
     }
     return iban;
@@ -180,7 +181,7 @@ export class CompanyBankAccountsService {
       where: { id },
     });
     if (!a || a.companyId !== companyId) {
-      throw new NotFoundException("Banka hesabı bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyBankAccounts.bankaHesabiBulunamadi"));
     }
     return a;
   }

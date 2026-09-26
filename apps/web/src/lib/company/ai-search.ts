@@ -72,20 +72,37 @@ export interface IntentChip {
   label: string;
 }
 
+/**
+ * Çip metinleri için çevirmen — `web.panel.shell.aiIntentBand` ad alanı.
+ * Bu modül React DIŞI (saf fonksiyon), hook çağıramaz: çizen bileşen
+ * (`AiIntentBand`) kendi `useTranslations`ını PARAMETRE olarak geçirir.
+ */
+export type IntentChipT = (key: string, values?: Record<string, string | number>) => string;
+
 /** Yorumun parçalarından URL'de HÂLÂ duranlar — çip olarak. */
-export function intentChips(r: AiSearchIntentResult, sp: URLSearchParams): IntentChip[] {
+export function intentChips(r: AiSearchIntentResult, sp: URLSearchParams, t: IntentChipT): IntentChip[] {
   const out: IntentChip[] = [];
   const has = (k: string) => sp.has(k) && sp.get(k) !== "";
-  if (r.query && has("q")) out.push({ param: "q", label: `Arama: "${r.query}"` });
-  if (r.category && has("kategori")) out.push({ param: "kategori", label: `Kategori: ${r.category.nameTr}` });
-  if (r.city && has("sehir")) out.push({ param: "sehir", label: `Şehir: ${r.city}` });
+  if (r.query && has("q")) out.push({ param: "q", label: t("chipArama", { query: r.query }) });
+  if (r.category && has("kategori")) out.push({ param: "kategori", label: t("chipKategori", { name: r.category.nameTr }) });
+  if (r.city && has("sehir")) out.push({ param: "sehir", label: t("chipSehir", { city: r.city }) });
   if (r.portal === "satinalma") {
-    if (r.verifiedOnly && has("dogrulanmis")) out.push({ param: "dogrulanmis", label: "Doğrulanmış firma" });
+    if (r.verifiedOnly && has("dogrulanmis")) out.push({ param: "dogrulanmis", label: t("chipDogrulanmisFirma") });
     if (r.activity && has("faaliyet")) out.push({ param: "faaliyet", label: companyActivityLabel(r.activity) });
     if (r.priceMax != null && has("fiyatMax"))
-      out.push({ param: "fiyatMax", label: `Birim fiyat ≤ ${r.priceMax.toLocaleString("tr-TR")}${r.currency ? ` ${r.currency}` : ""}` });
+      out.push({
+        param: "fiyatMax",
+        label: t("chipBirimFiyatMax", {
+          value: `${r.priceMax.toLocaleString("tr-TR")}${r.currency ? ` ${r.currency}` : ""}`,
+        }),
+      });
     if (r.quantity != null && has("moqMax"))
-      out.push({ param: "moqMax", label: `Min. sipariş ≤ ${Math.trunc(r.quantity).toLocaleString("tr-TR")}${r.unit ? ` ${r.unit}` : ""}` });
+      out.push({
+        param: "moqMax",
+        label: t("chipMinSiparisMax", {
+          value: `${Math.trunc(r.quantity).toLocaleString("tr-TR")}${r.unit ? ` ${r.unit}` : ""}`,
+        }),
+      });
   }
   return out;
 }

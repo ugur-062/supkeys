@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { BadRequestException, Injectable, Optional, ServiceUnavailableException } from "@nestjs/common";
 import {
   foldSearchText,
@@ -46,9 +47,9 @@ export class SearchIntentService {
   ): Promise<AiSearchIntentResult> {
     this.ai.assertAiAccess(user);
     const text = (dto.text ?? "").replace(/\s+/g, " ").trim();
-    if (text.length < 3) throw new BadRequestException("Ne aradığınızı birkaç kelimeyle yazın.");
+    if (text.length < 3) throw new BadRequestException(i18nMessage("api.ai.neAradiginiziBirkacKelimeyleYazin"));
     if (text.length > SEARCH_INTENT_MAX_TEXT) {
-      throw new BadRequestException(`En fazla ${SEARCH_INTENT_MAX_TEXT} karakter.`);
+      throw new BadRequestException(i18nMessage("api.ai.enFazlaKarakter", { SEARCHINTENTMAXTEXT: SEARCH_INTENT_MAX_TEXT }));
     }
     const portal: AiSearchPortal = dto.portal === "satis" ? "satis" : "satinalma";
 
@@ -72,7 +73,7 @@ export class SearchIntentService {
       parsed = tryParse(result.text);
     }
     if (parsed == null) {
-      throw new ServiceUnavailableException("Arama yorumlanamadı — tekrar deneyin.");
+      throw new ServiceUnavailableException(i18nMessage("api.ai.aramaYorumlanamadiTekrarDeneyin"));
     }
 
     const s = sanitizeIntent(parsed, text);

@@ -3,7 +3,7 @@ import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { PUBLIC_ROUTE_PREFIXES, isPublicRoute } from "./public-routes";
 
-const APP_DIR = path.resolve(__dirname, "../app");
+const APP_DIR = path.resolve(__dirname, "../app/[locale]");
 const FORCE_DYNAMIC = /export\s+const\s+dynamic\s*=\s*["']force-dynamic["']/;
 
 function readIfExists(file: string): string | null {
@@ -54,6 +54,32 @@ describe("isPublicRoute", () => {
     expect(isPublicRoute("/sozlesmeler/kvkk")).toBe(true);
     expect(isPublicRoute("/robots.txt")).toBe(true);
     expect(isPublicRoute("/sitemap.xml")).toBe(true);
+  });
+
+  it("dil ön ekli adresleri de tanır (i18n Faz 1): /en ve /ru herkese açık, /en/company değil", () => {
+    expect(isPublicRoute("/en")).toBe(true);
+    expect(isPublicRoute("/ru")).toBe(true);
+    expect(isPublicRoute("/en/urunler")).toBe(true);
+    expect(isPublicRoute("/ru/sozlesmeler/kvkk")).toBe(true);
+    expect(isPublicRoute("/en/firma/acme-metal")).toBe(true);
+    expect(isPublicRoute("/en/company")).toBe(false);
+    expect(isPublicRoute("/en/company/login")).toBe(false);
+    expect(isPublicRoute("/ru/reset-password")).toBe(false);
+    // Bilinmeyen iki harfli segment dil DEĞİLDİR.
+    expect(isPublicRoute("/xx/urunler")).toBe(false);
+  });
+
+  it("çevrili yol parçalarını tanır (2026-09-24): /en/products herkese açık, /ru/kompaniya/vhod panel", () => {
+    expect(isPublicRoute("/en/products")).toBe(true);
+    expect(isPublicRoute("/en/products/category/31000000-x")).toBe(true);
+    expect(isPublicRoute("/ru/tovary/gorod/izmir")).toBe(true);
+    expect(isPublicRoute("/en/companies/acme-metal")).toBe(true);
+    expect(isPublicRoute("/ru/zayavki/rot-000042-boru")).toBe(true);
+    expect(isPublicRoute("/en/legal/privacy")).toBe(true);
+    expect(isPublicRoute("/ru/kompaniya")).toBe(false);
+    expect(isPublicRoute("/ru/kompaniya/vhod")).toBe(false);
+    expect(isPublicRoute("/en/company/purchasing/my-requests")).toBe(false);
+    expect(isPublicRoute("/ru/sbros-parolya")).toBe(false);
   });
 
   it("panel rotalarını public SAYMAZ", () => {

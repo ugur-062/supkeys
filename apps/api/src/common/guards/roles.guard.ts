@@ -1,3 +1,4 @@
+import { i18nMessage } from "../i18n/http-i18n";
 import {
   CanActivate,
   ExecutionContext,
@@ -23,11 +24,11 @@ export class RolesGuard implements CanActivate {
     const user = request.user as { role?: string } | undefined;
 
     if (!user || !user.role) {
-      throw new ForbiddenException("Yetkisiz");
+      throw new ForbiddenException(i18nMessage("api.guards.yetkisiz"));
     }
 
     if (!allowed.includes(user.role)) {
-      throw new ForbiddenException("Bu işlem için yetkiniz yok");
+      throw new ForbiddenException(i18nMessage("api.guards.buIslemIcinYetkinizYok"));
     }
 
     return true;

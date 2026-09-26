@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { Injectable, ServiceUnavailableException } from "@nestjs/common";
 import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
 import { PrismaService } from "../../../common/prisma/prisma.service";
@@ -141,7 +142,7 @@ export class SupplierDiscoveryService {
       return { companies };
     } catch {
       throw new ServiceUnavailableException(
-        "Dış arama sonuçları işlenemedi — lütfen tekrar deneyin.",
+        i18nMessage("api.ai.disAramaSonuclariIslenemediLutfenTekrar"),
       );
     }
   }

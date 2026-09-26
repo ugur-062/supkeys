@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ForbiddenException,
@@ -15,6 +16,7 @@ import type { AuthenticatedCompanyUser } from "../company-auth/strategies/compan
 import { EmailService } from "../email/email.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { pickCompanyRecipients } from "../notifications/notification.service";
+import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
 import { resolveWebUrl } from "../../common/config/web-url";
 import { appRoutes } from "../../common/company/app-routes";
 
@@ -67,27 +69,37 @@ export class CompanyMessagesService {
       const name = to.name;
       const baseUrl =
         resolveWebUrl(this.config);
-      const subject = `${senderName} size mesaj gönderdi`;
+      // Metin ALICININ dilinde (pickCompanyRecipients alıcının `locale`ini
+      // çözer; fatura adresi dalında kurucunun dili).
+      const locale = to.locale;
+      const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+        tApi(key, values, locale);
+      const subject = t("api.notifications.companyMessages.newMessage.subject", {
+        sender: senderName,
+      });
       await this.email.send({
         to: { email, name },
         subject,
+        locale,
         templateData: {
           template: "notification",
           data: {
             subject,
-            heading: "Yeni mesajınız var",
+            heading: t("api.notifications.companyMessages.newMessage.heading"),
             paragraphs: [
-              "Merhaba,",
-              `${senderName} size Rothern üzerinden bir mesaj gönderdi. Görüntülemek ve yanıtlamak için giriş yapın.`,
+              t("api.notifications.companyMessages.newMessage.greeting"),
+              t("api.notifications.companyMessages.newMessage.body", {
+                sender: senderName,
+              }),
             ],
-            ctaLabel: "Mesajları Gör",
+            ctaLabel: t("api.notifications.companyMessages.newMessage.cta"),
             // Denetim 2026-08-23 Parça 4: CTA GÖNDERENİN portalını kullanıyordu;
             // alıcının portalı her zaman TERSİDİR (thread daima alıcı-satıcı
             // çifti). Alıcıda o portal yoksa (ör. SILVER-altı tedarikçi için
             // satınalma portalı) link Premium/erişim ekranına düşüyordu.
             // Birleşik gelen kutusu (2026-08-02) portal-bağımsız → doğrudan ona
             // gideriz; sohbet `with` parametresiyle açılır.
-            ctaUrl: appRoutes.messagesWith(baseUrl, senderCompanyId),
+            ctaUrl: appRoutes.messagesWith(baseUrl, senderCompanyId, locale),
           },
         },
         context: { type: "message_received", id: companyId },
@@ -113,7 +125,7 @@ export class CompanyMessagesService {
 
   private assertPortal(portal: string): MessagePortal {
     if (portal !== "satinalma" && portal !== "satis") {
-      throw new BadRequestException("Geçersiz portal");
+      throw new BadRequestException(i18nMessage("api.companyMessages.gecersizPortal"));
     }
     return portal;
   }
@@ -145,16 +157,24 @@ export class CompanyMessagesService {
     if (action === "read") {
       if (this.canReadPortal(user, portal)) return;
       throw new ForbiddenException(
-        portal === "satinalma"
-          ? "Mesajları görüntülemek için 'Satınalma görüntüleme' yetkisi gerekir"
-          : "Mesajları görüntülemek için 'Satış görüntüleme' yetkisi gerekir",
+        i18nMessage("api.companyMessages.mesajlariGoruntulemekIcinYetkiGerekir", {
+          permission: tApi(
+            portal === "satinalma"
+              ? "api.permission.buy_view"
+              : "api.permission.sell_view",
+          ),
+        }),
       );
     }
     if (hasCompanyPermission(user, this.portalSendPermission(portal))) return;
     throw new ForbiddenException(
-      portal === "satinalma"
-        ? "Mesaj göndermek için 'Talep açma ve yönetme' yetkisi gerekir"
-        : "Mesaj göndermek için 'Teklif verme' yetkisi gerekir",
+      i18nMessage("api.companyMessages.mesajGondermekIcinYetkiGerekir", {
+        permission: tApi(
+          portal === "satinalma"
+            ? "api.permission.buy_listing_manage"
+            : "api.permission.sell_bid_submit",
+        ),
+      }),
     );
   }
 
@@ -255,12 +275,12 @@ export class CompanyMessagesService {
       where: { id: otherCompanyId },
       select: { id: true, name: true },
     });
-    if (!other) throw new NotFoundException("Firma bulunamadı");
+    if (!other) throw new NotFoundException(i18nMessage("api.companyMessages.firmaBulunamadi"));
     // Blok (iki yön) → konuşma GÖRÜNMEZ (send() ile tutarlı karşılıklı-görünmezlik;
     // engellenen taraf eski geçmişi de okuyamaz).
     const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     if (blockedIds.includes(otherCompanyId)) {
-      throw new NotFoundException("Firma bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyMessages.firmaBulunamadi"));
     }
 
     const parties = this.parties(user.companyId, portal, otherCompanyId);
@@ -321,7 +341,7 @@ export class CompanyMessagesService {
     // aynı rol kapısının arkasında (requirePortalRole).
     this.requirePortalRole(user, portal, "send");
     if (otherCompanyId === user.companyId) {
-      throw new BadRequestException("Kendine mesaj gönderemezsin");
+      throw new BadRequestException(i18nMessage("api.companyMessages.kendineMesajGonderemezsin"));
     }
     const other = await this.prisma.company.findUnique({
       where: { id: otherCompanyId },
@@ -330,12 +350,12 @@ export class CompanyMessagesService {
     // Pasif veya admin-bloklu firmaya mesaj gönderilemez (istenmeyen bildirim/
     // e-posta üretmesin; varlığı sızdırmamak için jenerik 404).
     if (!other || !other.isActive || other.isBlocked) {
-      throw new NotFoundException("Firma bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyMessages.firmaBulunamadi"));
     }
     // Engel (iki yön) mesajlaşmayı da kapatır — engelleyen taraf sızdırılmaz.
     const blockedIds = await this.blocks.blockedCompanyIds(user.companyId);
     if (blockedIds.includes(otherCompanyId)) {
-      throw new NotFoundException("Firma bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyMessages.firmaBulunamadi"));
     }
 
     const parties = this.parties(user.companyId, portal, otherCompanyId);

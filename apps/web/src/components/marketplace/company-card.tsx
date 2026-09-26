@@ -1,3 +1,5 @@
+import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { cityDisplayName, countryDisplayName, useActivityLabel } from "@/i18n/domain";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Thumb } from "@/components/ui/thumb";
@@ -5,8 +7,7 @@ import type { PublicDirectoryCard } from "@/lib/public/marketplace-api";
 import { ArrowRightIcon, CalendarDaysIcon, ChatBubbleLeftRightIcon, ChevronRightIcon, CubeIcon, MapPinIcon, ShieldCheckIcon, UsersIcon } from "@heroicons/react/20/solid";
 import { ActivityIcon } from "./activity-icons";
 import { currencySymbol } from "@/lib/tenders/labels";
-import { companyActivityLabel, countryName } from "@rothern/shared";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 
 /**
@@ -60,25 +61,29 @@ export function CompanyCard({
    */
   footer?: React.ReactNode;
 }) {
+  const t = useTranslations("web.marketplace.companyCard");
+  const activityLabel = useActivityLabel();
+  const locale = useLocale();
+  const fmt = useFormatter();
   const activities = c.activities.slice(0, 3);
   const more = c.activities.length - activities.length;
   const certs = (c.certifications ?? []).slice(0, 2);
   const facts = [
-    c.productCount > 0 ? `${c.productCount.toLocaleString("tr-TR")} ürün` : null,
-    c.foundedYear ? `Kuruluş ${c.foundedYear}` : null,
-    c.employeeCount ? `${c.employeeCount} çalışan` : null,
+    c.productCount > 0 ? t("products", { n: c.productCount }) : null,
+    c.foundedYear ? t("founded", { year: c.foundedYear }) : null,
+    c.employeeCount ? t("employees", { n: c.employeeCount }) : null,
   ].filter(Boolean) as string[];
 
   const identity = (
     <>
       {c.verified ? (
         <Badge tone="verified" size="sm">
-          Doğrulanmış
+          {t("verified")}
         </Badge>
       ) : null}
       {c.gold ? (
         <Badge tone="gold" size="sm">
-          Gold Üye
+          {t("goldMember")}
         </Badge>
       ) : null}
     </>
@@ -121,13 +126,13 @@ export function CompanyCard({
                 {c.city || c.country ? (
                   <span className="inline-flex items-center gap-1">
                     <MapPinIcon aria-hidden className="size-3.5 text-zinc-500" />
-                    {[c.country ? countryName(c.country) : null, c.city].filter(Boolean).join(", ")}
+                    {[c.country ? countryDisplayName(c.country, locale) : null, cityDisplayName(c.city, locale)].filter(Boolean).join(", ")}
                   </span>
                 ) : null}
                 {activities.map((a) => (
                   <span key={a} className="inline-flex items-center gap-1">
                     <ActivityIcon code={a} className="size-3.5 text-zinc-500" />
-                    {companyActivityLabel(a)}
+                    {activityLabel(a)}
                   </span>
                 ))}
                 {more > 0 ? <span className="tnum">+{more}</span> : null}
@@ -137,7 +142,7 @@ export function CompanyCard({
                 {c.fastReply ? (
                   <span className="inline-flex items-center gap-1 font-medium text-emerald-700">
                     <ChatBubbleLeftRightIcon aria-hidden className="size-3.5" />
-                    Hızlı yanıt veren
+                    {t("fastReply")}
                   </span>
                 ) : null}
               </p>
@@ -151,7 +156,7 @@ export function CompanyCard({
                 href={`${href ?? `/firma/${c.slug}`}#urunler`}
                 className={`inline-flex items-center rounded-lg border bg-white px-3.5 py-2 text-sm font-semibold transition ${tone.outline}`}
               >
-                Portföyü görüntüle ({c.productCount.toLocaleString("tr-TR")})
+                {t("viewPortfolio", { n: fmt.number(c.productCount) })}
               </Link>
             ) : null}
             {cta ? (
@@ -174,7 +179,7 @@ export function CompanyCard({
             {(c.topCategories ?? []).length > 0 ? (
               <div className="rounded-lg bg-zinc-100/70 px-3 py-2.5">
                 <p className="text-[11px] font-semibold tracking-[0.06em] text-zinc-500 uppercase">
-                  Ana kategoriler
+                  {t("mainCategories")}
                 </p>
                 <ul className="mt-0.5 divide-y divide-zinc-950/5">
                   {(c.topCategories ?? []).map((t) => (
@@ -203,12 +208,12 @@ export function CompanyCard({
                     <p className="mt-1.5 line-clamp-2 text-xs/5 font-medium text-zinc-900">{pv.name}</p>
                     {pv.moq ? (
                       <p className="tnum text-[11px] text-zinc-500">
-                        MOQ: {Number(pv.moq).toLocaleString("tr-TR")} {pv.unit ?? ""}
+                        {t("moq", { n: fmt.number(Number(pv.moq)), unit: pv.unit ?? "" })}
                       </p>
                     ) : null}
                     {pv.priceAmount ? (
                       <p className="tnum text-xs font-bold text-zinc-900">
-                        {Number(pv.priceAmount).toLocaleString("tr-TR")}{" "}
+                        {fmt.number(Number(pv.priceAmount))}{" "}
                         {currencySymbol(pv.priceCurrency ?? "TRY")}
                       </p>
                     ) : null}
@@ -220,7 +225,7 @@ export function CompanyCard({
                       href={`${href ?? `/firma/${c.slug}`}#urunler`}
                       className={`tnum relative z-10 flex h-full min-h-24 w-full items-center justify-center rounded-lg text-sm font-semibold transition ${tone.soft}`}
                     >
-                      +{rest.toLocaleString("tr-TR")} ürün
+                      {t("moreProducts", { n: fmt.number(rest) })}
                     </Link>
                   </li>
                 ) : null}
@@ -242,19 +247,19 @@ export function CompanyCard({
             {c.productCount > 0 ? (
               <span className="inline-flex items-center gap-1.5 tnum border-l border-zinc-950/10 pl-4 first:border-0 first:pl-0">
                 <CubeIcon aria-hidden className="size-3.5 text-zinc-500" />
-                {c.productCount.toLocaleString("tr-TR")} ürün
+                {t("products", { n: c.productCount })}
               </span>
             ) : null}
             {c.foundedYear ? (
               <span className="inline-flex items-center gap-1.5 tnum border-l border-zinc-950/10 pl-4 first:border-0 first:pl-0">
                 <CalendarDaysIcon aria-hidden className="size-3.5 text-zinc-500" />
-                Kuruluş {c.foundedYear}
+                {t("founded", { year: c.foundedYear })}
               </span>
             ) : null}
             {c.employeeCount ? (
               <span className="inline-flex items-center gap-1.5 tnum border-l border-zinc-950/10 pl-4 first:border-0 first:pl-0">
                 <UsersIcon aria-hidden className="size-3.5 text-zinc-500" />
-                {c.employeeCount} çalışan
+                {t("employees", { n: c.employeeCount })}
               </span>
             ) : null}
           </div>
@@ -284,12 +289,12 @@ export function CompanyCard({
             <span className="mt-1 flex items-center gap-1.5">
               {c.verified ? (
                 <Badge tone="verified" size="sm" className="px-1">
-                  <span className="sr-only">Doğrulanmış firma</span>
+                  <span className="sr-only">{t("verifiedCompany")}</span>
                 </Badge>
               ) : null}
               {c.gold ? (
                 <Badge tone="gold" size="sm" className="px-1">
-                  <span className="sr-only">Gold Üye</span>
+                  <span className="sr-only">{t("goldMember")}</span>
                 </Badge>
               ) : null}
             </span>
@@ -313,7 +318,7 @@ export function CompanyCard({
         <div className="mt-3 flex flex-wrap gap-1.5">
           {activities.map((a) => (
             <Badge key={a} tone="neutral" size="sm">
-              {companyActivityLabel(a)}
+              {activityLabel(a)}
             </Badge>
           ))}
           {more > 0 ? (
@@ -347,7 +352,7 @@ export function CompanyCard({
           kırpılıyordu — kırpılmış veri, gösterilmeyen veriden kötüdür. */}
       <div className="mt-auto pt-4">
         {facts.length > 0 ? <p className="tnum truncate text-xs text-zinc-500">{facts.join(" · ")}</p> : null}
-        <p className="mt-1 text-sm font-semibold text-zinc-900 group-hover:text-zinc-600">Profili gör →</p>
+        <p className="mt-1 text-sm font-semibold text-zinc-900 group-hover:text-zinc-600">{t("viewProfile")}</p>
       </div>
       {footer ? <div className="relative z-10 mt-4 border-t border-zinc-200 pt-3">{footer}</div> : null}
     </article>

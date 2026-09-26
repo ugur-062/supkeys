@@ -1,9 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/catalyst/badge";
 import { Dropdown, DropdownButton, DropdownItem, DropdownMenu } from "@/components/catalyst/dropdown";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
-import type { ProductStatusMeta } from "@/lib/company/product-status";
+import type { ProductStatusKey } from "@/lib/company/product-status";
+import { useProductStatusMeta } from "./product-status-label";
 import { cn } from "@/lib/utils";
 import { ArrowTopRightOnSquareIcon, EllipsisVerticalIcon } from "@heroicons/react/20/solid";
 
@@ -29,7 +31,8 @@ export function ProductActionBar({
   publishLocked,
 }: {
   name: string;
-  status: ProductStatusMeta;
+  /** Durum KODU — etiket/renk okuyucunun dilinde `useProductStatusMeta` ile çizilir. */
+  status: ProductStatusKey;
   isNew: boolean;
   dirty: boolean;
   busy: boolean;
@@ -44,6 +47,8 @@ export function ProductActionBar({
   publicHref?: string | null;
   publishLocked?: boolean;
 }) {
+  const t = useTranslations("web.panel.trade.productActionBar");
+  const statusMeta = useProductStatusMeta()(status);
   const accent = useButtonAccent();
   const hasMenu = !!draftSave || !!unpublish || !!publicHref;
   return (
@@ -51,13 +56,13 @@ export function ProductActionBar({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h1 className="truncate text-lg font-semibold text-zinc-950">{name.trim() || (isNew ? "Yeni ürün" : "Ürün")}</h1>
-            <Badge color={isNew ? "zinc" : status.color}>{isNew ? "Yeni" : status.label}</Badge>
-            {dirty ? <span className="text-xs font-medium text-amber-700">Kaydedilmemiş değişiklik</span> : null}
+            <h1 className="truncate text-lg font-semibold text-zinc-950">{name.trim() || (isNew ? t("yeniUrun") : t("urun"))}</h1>
+            <Badge color={isNew ? "zinc" : statusMeta.color}>{isNew ? t("yeni") : statusMeta.label}</Badge>
+            {dirty ? <span className="text-xs font-medium text-amber-700">{t("kaydedilmemisDegisiklik")}</span> : null}
           </div>
           {publishLocked ? (
             <p className="mt-0.5 text-xs text-amber-800">
-              Ücretsiz pakette yayında/onayda ürün tavanı doldu — taslak kaydedebilirsiniz, daha fazlası için Silver paketine geçin.
+              {t("ucretsizPaketteYayindaOnaydaUrun")}
             </p>
           ) : null}
         </div>
@@ -72,28 +77,28 @@ export function ProductActionBar({
                 accentFillClass(accent),
               )}
             >
-              {busy ? "Kaydediliyor…" : primaryLabel}
+              {busy ? t("kaydediliyor") : primaryLabel}
             </button>
             {hasMenu ? (
               <Dropdown>
-                <DropdownButton plain aria-label="Diğer işlemler">
+                <DropdownButton plain aria-label={t("digerIslemler")}>
                   <EllipsisVerticalIcon className="size-5" />
                 </DropdownButton>
                 <DropdownMenu anchor="bottom end">
                   {draftSave ? (
                     <DropdownItem onClick={draftSave} disabled={busy}>
-                      Taslak olarak kaydet
+                      {t("taslakOlarakKaydet")}
                     </DropdownItem>
                   ) : null}
                   {publicHref ? (
                     <DropdownItem href={publicHref} target="_blank" rel="noopener">
                       <ArrowTopRightOnSquareIcon data-slot="icon" />
-                      Herkese açık sayfayı aç
+                      {t("herkeseAcikSayfayiAc")}
                     </DropdownItem>
                   ) : null}
                   {unpublish ? (
                     <DropdownItem onClick={unpublish} disabled={busy}>
-                      Vitrinden çek
+                      {t("vitrindenCek")}
                     </DropdownItem>
                   ) : null}
                 </DropdownMenu>
@@ -101,7 +106,7 @@ export function ProductActionBar({
             ) : null}
           </div>
         ) : (
-          <p className="text-xs text-zinc-500">Kaydetmek için “Ürün ve vitrin yönetimi” yetkisi gerekir.</p>
+          <p className="text-xs text-zinc-500">{t("kaydetmekIcinUrunVeVitrin")}</p>
         )}
       </div>
     </div>

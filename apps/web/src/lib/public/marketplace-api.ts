@@ -1,4 +1,5 @@
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
+import { getLocale } from "next-intl/server";
 import { SEO_TAGS } from "@/lib/seo/tags";
 import type { PublicListingType } from "./marketplace";
 
@@ -40,7 +41,11 @@ export interface PublicCategoryRef {
 }
 
 export interface PublicListingCard {
+  /** Metin istek diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e); çeviri yoksa yok. */
+  translatedFrom?: string | null;
   number: string;
+  /** Dilden bağımsız adres parçası (kaynak başlığın slug'ı) — `listingHref` bunu kullanır. */
+  slug?: string;
   type: PublicListingType;
   title: string;
   status: string;
@@ -111,13 +116,32 @@ export interface PublicFacets {
 
 export interface PublicSitemapRow {
   number: string;
+  slug?: string;
   title: string;
   type: PublicListingType;
   updatedAt: string;
+  /** Sayfanın kendi dilinde gösterilebildiği diller (sitemap; eski API'de yok). */
+  locales?: string[];
 }
 
 /** Liste/facet için kısa; ilan detayında biraz daha uzun (aşağıda geçilir). */
 const DEFAULT_REVALIDATE = 60;
+
+/**
+ * İSTEK DİLİ (i18n Faz 1e): herkese açık API ürün/talep/firma metnini
+ * `Accept-Language`a göre çevrilmiş döner (çeviri yoksa özgün). Sayfa dili
+ * next-intl'den; istek bağlamı yoksa (sitemap/OG rota işleyicileri) Türkçe.
+ * Next veri önbelleği başlığı anahtara katar → diller birbirine karışmaz.
+ */
+async function publicHeaders(): Promise<Record<string, string>> {
+  let locale = "tr";
+  try {
+    locale = await getLocale();
+  } catch {
+    /* rota işleyicisi / istek dışı */
+  }
+  return { accept: "application/json", "accept-language": locale };
+}
 
 async function getJson<T>(
   path: string,
@@ -137,7 +161,7 @@ async function getJson<T>(
   try {
     const res = await fetch(`${base}${path}`, {
       ...(fresh ? { cache: "no-store" as const } : { next: { revalidate, tags } }),
-      headers: { accept: "application/json" },
+      headers: await publicHeaders(),
     });
     if (!res.ok) {
       if (res.status !== 404) {
@@ -208,7 +232,7 @@ export async function fetchListing(
       `${base}/public/listings/${encodeURIComponent(number)}`,
       {
         next: { revalidate: 120, tags: [SEO_TAGS.listing(number), SEO_TAGS.listings] },
-        headers: { accept: "application/json" },
+        headers: await publicHeaders(),
       },
     );
     if (!res.ok) return null;
@@ -270,6 +294,10 @@ export interface ProductPriceFields {
 
 /** Herkese açık ürün kartı — FİYATLI (görünürlük v2, Europages kalıbı). */
 export interface PublicProductCard extends ProductPriceFields {
+  /** Birim kodu (`UNITS.code`) — etiket dile göre `useUnitLabel`; eski yanıtlarda yok. */
+  unitCode?: string | null;
+  /** Metin istek diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e); çeviri yoksa yok. */
+  translatedFrom?: string | null;
   slug: string;
   name: string;
   images: string[];
@@ -280,6 +308,8 @@ export interface PublicProductCard extends ProductPriceFields {
 }
 
 export interface PublicProduct extends Omit<PublicProductCard, "excerpt"> {
+  /** Bu dilde çeviri henüz gelmedi (sayfa kaynak metni gösterir) → `noindex`. */
+  translationPending?: boolean;
   description: string | null;
   specification: string | null;
   brand: string | null;
@@ -297,7 +327,7 @@ export interface PublicProduct extends Omit<PublicProductCard, "excerpt"> {
    */
   attributeList: { key: string; label: string; value: string; unit: string | null }[];
   /** Kırıntı için kategori adı. */
-  category?: { id: string; name: string } | null;
+  category?: { id: string; name: string; slug?: string } | null;
   publishedAt: string | null;
   updatedAt: string;
 }
@@ -328,6 +358,8 @@ export interface PublicProductCompany {
  * puan dağılımı, sipariş sayıları, talep/ilan listesi ÜYEYE (API döndürmez).
  */
 export interface PublicProfile {
+  /** Metin istek diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e); çeviri yoksa yok. */
+  translatedFrom?: string | null;
   name: string;
   /**
    * Arama motoruna girsin mi — VİTRİNDEN AYRI kapı. Sayfa herkese açık ama
@@ -340,7 +372,7 @@ export interface PublicProfile {
   slug: string | null;
   industry: string | null;
   activities?: string[];
-  categories: { id: string; name: string }[];
+  categories: { id: string; name: string; slug?: string }[];
   city: string | null;
   country: string | null;
   logoUrl: string | null;
@@ -374,9 +406,12 @@ export async function fetchCompanyProfile(
       // etiketle tazeleme; tazeleme kanalı (API → /api/seo/revalidate) sır
       // tanımlı değilse hiç çalışmaz ve sahibi az önce yüklediği kapağı
       // göremez. `?onizleme=1` ile gelen istek veriyi doğrudan API'den çeker.
-      opts.fresh
-        ? { cache: "no-store" }
-        : { next: { revalidate: 300, tags: [SEO_TAGS.company(slug), SEO_TAGS.companies] } },
+      {
+        ...(opts.fresh
+          ? { cache: "no-store" as const }
+          : { next: { revalidate: 300, tags: [SEO_TAGS.company(slug), SEO_TAGS.companies] } }),
+        headers: await publicHeaders(),
+      },
     );
     if (!res.ok) return null;
     return (await res.json()) as PublicProfile;
@@ -481,15 +516,17 @@ export interface SuggestResult {
     companyName?: string;
     image?: string | null;
   }[];
-  categories: { id: string; name: string; level: number }[];
+  categories: { id: string; name: string; level: number; slug?: string }[];
   companies: { name: string; slug: string; city: string | null; logoUrl?: string | null }[];
   /** Açık alım talepleri (kapsam: talepler). Sahip ADI YOK — anonimlik. */
-  listings?: { number: string; title: string; closesAt: string | null }[];
+  listings?: { number: string; slug?: string; title: string; closesAt: string | null }[];
 }
 
 /** Mega menü kategori ağacı — L1 segment + L2 aile, ürün sayısıyla. */
 export interface CategoryMenuNode {
   id: string;
+  /** Dilden bağımsız adres parçası (Türkçe ad) — `categoryHref`. */
+  slug?: string;
   name: string;
   count: number;
   children: { id: string; name: string; count: number }[];
@@ -497,6 +534,8 @@ export interface CategoryMenuNode {
 
 /** Herkese açık dizin kartı (v2) — kimlik yok (Rothern ID/iletişim üyeye). */
 export interface PublicDirectoryCard {
+  /** Metin istek diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e); çeviri yoksa yok. */
+  translatedFrom?: string | null;
   name: string;
   slug: string;
   city: string | null;
@@ -621,11 +660,12 @@ export interface ProductAttributeFacet {
   key: string;
   nameTr: string;
   unit: string | null;
-  values: { value: string; count: number }[];
+  /** `value` kanonik (süzgeç parametresi); `label` okuyucunun dilinde (i18n Faz 4b). */
+  values: { value: string; label?: string; count: number }[];
 }
 
 export interface ProductFacets {
-  categories: { id: string; name: string; level: number; count: number }[];
+  categories: { id: string; name: string; level: number; count: number; slug?: string }[];
   /** Seçili kategorinin BİR ALT seviyesi — kategori sayfasının çipleri. */
   subCategories?: { id: string; name: string; level: number; count: number }[];
   /**
@@ -800,6 +840,8 @@ export function fetchCompanyProducts(
 /** L1 segmentler (58) — `categories/segments`, anahtara tabi değil. */
 export interface CategorySegment {
   id: string;
+  /** Dilden bağımsız adres parçası (Türkçe ad) — `categoryHref`. */
+  slug?: string;
   nameTr: string;
   childCount?: number;
 }
@@ -842,7 +884,7 @@ export async function fetchProduct(
           revalidate: 300,
           tags: [SEO_TAGS.product(companySlug, productSlug), SEO_TAGS.company(companySlug), SEO_TAGS.products],
         },
-        headers: { accept: "application/json" },
+        headers: await publicHeaders(),
       },
     );
     if (!res.ok) return null;
@@ -863,6 +905,8 @@ export interface ProductSitemapRow {
   updatedAt: string;
   /** İlk 3 görsel — image sitemap uzantısı. */
   images: string[];
+  /** Çevirisi hazır diller (eski API'de yok → tüm diller). */
+  locales?: string[];
 }
 
 export interface SitemapBucket {
@@ -875,7 +919,7 @@ export interface SitemapSummary {
   products: SitemapBucket;
   companies: SitemapBucket;
   listings: SitemapBucket;
-  categories: { id: string; name: string; count: number; lastmod: string }[];
+  categories: { id: string; name: string; count: number; lastmod: string; slug?: string }[];
   productCities: { city: string; count: number; lastmod: string }[];
   companyCities: { city: string; count: number; lastmod: string }[];
 }
@@ -891,7 +935,7 @@ export function fetchSitemapSummary(): Promise<SitemapSummary> {
   );
 }
 
-export function fetchCompanySitemap(page = 0): Promise<{ slug: string; updatedAt: string }[]> {
+export function fetchCompanySitemap(page = 0): Promise<{ slug: string; updatedAt: string; locales?: string[] }[]> {
   return getJson(`/public/sitemap/companies?page=${page}`, [], 900, [SEO_TAGS.sitemap]);
 }
 

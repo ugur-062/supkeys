@@ -1,8 +1,12 @@
+import { provinceDisplayName } from "@rothern/shared";
+import { INTL_LOCALE } from "@/i18n/format";
+import { localizePath } from "@/i18n/href";
+import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { SITE_NAME } from "./meta";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES, categoryPath, listingPath } from "@/lib/public/marketplace";
-import { productPrice } from "@/lib/public/product-price";
+import { MARKETPLACE_ROUTES, categoryHref, listingHref } from "@/lib/public/marketplace";
+import { productPrice, type PriceLabels } from "@/lib/public/product-price";
 import { breadcrumbNode, compact, graph, type JsonLdNode } from "@/lib/seo/jsonld";
-import { absoluteUrl, buildMetadata, clampDescription, joinParts } from "@/lib/seo/meta";
+import { absoluteUrl, buildMetadata, clampDescription, joinParts, LANG_TAG } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 
 /**
@@ -59,22 +63,49 @@ export interface ProductSeoInput {
   indexable: boolean;
 }
 
-function priceSentence(p: ProductSeoInput["product"]): string {
-  const price = productPrice(p);
-  if (price.hasPrice) return price.headline;
-  return "Fiyat için teklif isteyin";
+/**
+ * Gevşek anahtarlı çevirmen — üreticiler bunu PARAMETRE alır. Sunucuda
+ * `seoT(locale)` (i18n/server.ts, `server-only`), istemcide `useSeoT()`
+ * (i18n/domain.ts). Bu modül `@/i18n/server`ı İMPORT ETMEZ: ürün/talep
+ * detay bileşenleri ve panel formlarının parçacık önizlemesi istemcide de
+ * çalışıyor; `server-only` zinciri derlemeyi kırar (2026-09-23, staging).
+ */
+export type SeoT = (key: string, values?: Record<string, string | number | Date>) => string;
+
+function priceLabels(t: SeoT, locale: Locale): PriceLabels {
+  return {
+    locale: INTL_LOCALE[locale] ?? "tr-TR",
+    onRequest: t("web.marketplace.price.onRequest"),
+    fromQty: (qty, unit) => t("web.marketplace.price.fromQty", { qty, unit }),
+  };
 }
 
-export function productSeo(input: ProductSeoInput): {
+function priceSentence(p: ProductSeoInput["product"], locale: Locale, t: SeoT): string {
+  const labels = priceLabels(t, locale);
+  const price = productPrice(p, labels);
+  if (price.hasPrice) return price.headline;
+  return labels.onRequest;
+}
+
+export interface SeoOptions {
+  /** Sayfanın dili (i18n Faz 1) — kanonik/hreflang ve JSON-LD adresi bu dilin. */
+  locale?: Locale;
+  /** Çevirmen: sunucuda `seoT(locale)`, istemcide `useSeoT()`. */
+  t: SeoT;
+}
+
+export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
   metadata: Metadata;
   jsonLd: JsonLdNode;
   summary: string;
 } {
+  const locale = opts.locale ?? DEFAULT_LOCALE;
+  const ts = opts.t;
   const { product: pr, company: co, companySlug } = input;
   const path = `/firma/${companySlug}/urun/${pr.slug}`;
-  const url = absoluteUrl(path);
+  const url = absoluteUrl(localizePath(path, locale));
   const images = pr.images.map((i) => (i.startsWith("http") ? i : absoluteUrl(i)));
-  const where = joinParts([co.name, co.city], ", ");
+  const where = joinParts([co.name, provinceDisplayName(co.city, locale)], ", ");
 
   /* Tanım cümlesi: NE + KİM + NEREDE + FİYAT + MOQ. Arama sonucunda ve AI
      cevabında tek başına anlamlı olmalı — "ürün sayfası" demek yetmez. */
@@ -82,8 +113,8 @@ export function productSeo(input: ProductSeoInput): {
     [
       joinParts([pr.name, pr.category?.name], " — "),
       where ? `${where} vitrininde` : null,
-      priceSentence(pr),
-      pr.moq ? `min. ${pr.moq} ${pr.unit}` : null,
+      priceSentence(pr, locale, ts),
+      pr.moq ? ts("web.seo.og.minOrder", { n: pr.moq, unit: pr.unit }) : null,
     ],
     " · ",
   );
@@ -93,7 +124,7 @@ export function productSeo(input: ProductSeoInput): {
      eklenir; 160'ta kelime sınırında kesilir. */
   const lead = pr.description ? clampDescription(pr.description, 96) : null;
   const description = clampDescription(
-    joinParts([lead, priceSentence(pr), pr.moq ? `min. ${pr.moq} ${pr.unit}` : null, where], " · "),
+    joinParts([lead, priceSentence(pr, locale, ts), pr.moq ? ts("web.seo.og.minOrder", { n: pr.moq, unit: pr.unit }) : null, where], " · "),
   );
 
   // Başlık tavanı 75 (canlı denetim 2026-09-11: 83 karakterlik ürün adı taşıyordu):
@@ -139,7 +170,7 @@ export function productSeo(input: ProductSeoInput): {
         ? {
             address: {
               "@type": "PostalAddress",
-              addressLocality: co.city,
+              addressLocality: provinceDisplayName(co.city, locale),
               addressCountry: co.country ?? "TR",
             },
           }
@@ -152,7 +183,7 @@ export function productSeo(input: ProductSeoInput): {
     name: pr.name,
     url,
     description: pr.description ?? summary,
-    inLanguage: "tr-TR",
+    inLanguage: LANG_TAG[locale],
     image: images,
     ...(pr.category?.name ? { category: pr.category.name } : {}),
     ...(pr.brand ? { brand: { "@type": "Brand", name: pr.brand } } : {}),
@@ -177,16 +208,17 @@ export function productSeo(input: ProductSeoInput): {
       path,
       images: images.slice(0, 1),
       noindex: !input.indexable,
+      locale: opts.locale,
     }),
     jsonLd: graph([
       productNode,
       breadcrumbNode([
-        { name: "Anasayfa", path: "/" },
-        { name: MARKETPLACE_LABELS.products, path: MARKETPLACE_ROUTES.products },
-        ...(pr.category ? [{ name: pr.category.name, path: categoryPath(pr.category.id, pr.category.name) }] : []),
+        { name: ts("web.marketing.breadcrumbHome"), path: "/" },
+        { name: ts("web.marketplace.labels.products"), path: MARKETPLACE_ROUTES.products },
+        ...(pr.category ? [{ name: pr.category.name, path: categoryHref(pr.category) }] : []),
         { name: co.name, path: `/firma/${companySlug}` },
         { name: pr.name, path },
-      ]),
+      ], locale),
     ]),
     summary,
   };
@@ -227,20 +259,22 @@ function httpUrls(values: (string | null | undefined)[]): string[] {
   return values.filter((v): v is string => !!v && /^https?:\/\//i.test(v.trim())).map((v) => v.trim());
 }
 
-export function companySeo(c: CompanySeoInput): {
+export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
   metadata: Metadata;
   jsonLd: JsonLdNode;
   summary: string;
 } {
+  const locale = opts.locale ?? DEFAULT_LOCALE;
+  const ts = opts.t;
   const path = `/firma/${c.slug}`;
-  const url = absoluteUrl(path);
+  const url = absoluteUrl(localizePath(path, locale));
 
   const summary = joinParts(
     [
       joinParts([c.name, c.industry], " — "),
-      c.city ? `${c.city} merkezli` : null,
-      c.productCount > 0 ? `${c.productCount} ürün vitrinde` : null,
-      c.verified ? "Rothern'de doğrulanmış firma" : null,
+      c.city ? ts("web.seo.basedIn", { city: provinceDisplayName(c.city, locale) }) : null,
+      c.productCount > 0 ? ts("web.seo.productsInShowcase", { n: c.productCount }) : null,
+      c.verified ? ts("web.seo.verifiedOnRothern") : null,
     ],
     " · ",
   );
@@ -250,13 +284,13 @@ export function companySeo(c: CompanySeoInput): {
   // (canlı denetim 2026-09-11) — parçacık için en az ~50: genel cümle eklenir.
   const parts = [
     lead,
-    joinParts([c.industry, c.city], ", "),
-    c.productCount > 0 ? `${c.productCount} ürün` : null,
-    "Rothern firma profili",
+    joinParts([c.industry, provinceDisplayName(c.city, locale)], ", "),
+    c.productCount > 0 ? ts("web.seo.products", { n: c.productCount }) : null,
+    ts("web.seo.companyProfile"),
   ];
   const base = joinParts(parts, " · ");
   const description = clampDescription(
-    base.length >= 50 ? base : `${base} · Ürünlerini inceleyin, bilgi isteyin, bağlantı kurun.`,
+    base.length >= 50 ? base : `${base} ${ts("web.seo.exploreTail")}`,
   );
 
   const image = c.coverImageUrl ?? c.logoUrl;
@@ -267,7 +301,7 @@ export function companySeo(c: CompanySeoInput): {
     name: c.name,
     url,
     description: c.aboutText ?? summary,
-    inLanguage: "tr-TR",
+    inLanguage: LANG_TAG[locale],
     ...(c.logoUrl ? { logo: c.logoUrl } : {}),
     ...(image ? { image } : {}),
     ...(c.foundedYear ? { foundingDate: String(c.foundedYear) } : {}),
@@ -281,17 +315,17 @@ export function companySeo(c: CompanySeoInput): {
       ? {
           address: {
             "@type": "PostalAddress",
-            addressLocality: c.city,
+            addressLocality: provinceDisplayName(c.city, locale),
             addressCountry: c.country ?? "TR",
           },
         }
       : {}),
-    areaServed: { "@type": "Country", name: c.country === "TR" || !c.country ? "Türkiye" : c.country },
+    areaServed: { "@type": "Country", name: c.country === "TR" || !c.country ? ts("web.seo.turkey") : c.country },
     ...(c.products?.length
       ? {
           hasOfferCatalog: {
             "@type": "OfferCatalog",
-            name: `${c.name} ürünleri`,
+            name: ts("web.seo.productsOf", { name: c.name }),
             itemListElement: c.products.slice(0, 10).map((p, i) => ({
               "@type": "ListItem",
               position: i + 1,
@@ -311,19 +345,20 @@ export function companySeo(c: CompanySeoInput): {
 
   return {
     metadata: buildMetadata({
-      title: joinParts([c.name, joinParts([c.industry, c.city], ", ")], " — "),
+      title: joinParts([c.name, joinParts([c.industry, provinceDisplayName(c.city, locale)], ", ")], " — "),
       description,
       path,
       images: image ? [image] : undefined,
       type: "profile",
+      locale: opts.locale,
     }),
     jsonLd: graph([
       orgNode,
       breadcrumbNode([
-        { name: "Anasayfa", path: "/" },
-        { name: MARKETPLACE_LABELS.companies, path: MARKETPLACE_ROUTES.companies },
+        { name: ts("web.marketing.breadcrumbHome"), path: "/" },
+        { name: ts("web.marketplace.labels.companies"), path: MARKETPLACE_ROUTES.companies },
         { name: c.name, path },
-      ]),
+      ], locale),
     ]),
     summary,
   };
@@ -335,6 +370,8 @@ export function companySeo(c: CompanySeoInput): {
 
 export interface ListingSeoInput {
   number: string;
+  /** Dilden bağımsız slug (API) — yoksa başlıktan üretilir. */
+  slug?: string | null;
   title: string;
   description: string | null;
   closesAt: string | null;
@@ -354,6 +391,8 @@ export interface ListingSeoInput {
  */
 export function listingSeoInput(l: {
   number: string;
+  /** Dilden bağımsız slug (API) — yoksa başlıktan üretilir. */
+  slug?: string | null;
   title: string;
   description: string | null;
   closesAt: string | null;
@@ -367,6 +406,7 @@ export function listingSeoInput(l: {
 }): ListingSeoInput {
   return {
     number: l.number,
+    slug: l.slug ?? null,
     title: l.title,
     description: l.description,
     closesAt: l.closesAt,
@@ -383,13 +423,15 @@ export function listingSeoInput(l: {
   };
 }
 
-export function listingSeo(l: ListingSeoInput): {
+export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
   metadata: Metadata;
   jsonLd: JsonLdNode;
   summary: string;
 } {
-  const path = listingPath(l.number, l.title);
-  const url = absoluteUrl(path);
+  const locale = opts.locale ?? DEFAULT_LOCALE;
+  const ts = opts.t;
+  const path = listingHref(l);
+  const url = absoluteUrl(localizePath(path, locale));
   const cat = l.categories[0]?.name ?? null;
   const qty =
     l.itemSummary.totalQuantity && l.itemSummary.unit
@@ -400,9 +442,9 @@ export function listingSeo(l: ListingSeoInput): {
     [
       joinParts([l.title, cat], " — "),
       qty,
-      l.itemSummary.count > 1 ? `${l.itemSummary.count} kalem` : null,
-      l.buyer.city ? `alıcı: ${l.buyer.city}` : null,
-      l.open ? "teklife açık" : "kapandı",
+      l.itemSummary.count > 1 ? ts("web.seo.items", { n: l.itemSummary.count }) : null,
+      l.buyer.city ? ts("web.seo.buyerCity", { city: provinceDisplayName(l.buyer.city, locale) }) : null,
+      l.open ? ts("web.seo.openForQuotes") : ts("web.seo.closed"),
     ],
     " · ",
   );
@@ -411,10 +453,10 @@ export function listingSeo(l: ListingSeoInput): {
     joinParts(
       [
         l.description ? clampDescription(l.description, 90) : null,
-        qty ? `Miktar: ${qty}` : null,
+        qty ? ts("web.seo.qty", { qty }) : null,
         cat,
-        l.buyer.city ?? null,
-        "Kapalı zarf teklif — Rothern",
+        l.buyer.city ? provinceDisplayName(l.buyer.city, locale) : null,
+        ts("web.seo.sealedTail"),
       ],
       " · ",
     ),
@@ -425,7 +467,7 @@ export function listingSeo(l: ListingSeoInput): {
     name: l.title,
     url,
     identifier: l.number,
-    inLanguage: "tr-TR",
+    inLanguage: LANG_TAG[locale],
     description: l.description ?? summary,
     ...(l.closesAt ? { validThrough: l.closesAt } : {}),
     availability: l.open ? "https://schema.org/InStock" : "https://schema.org/Discontinued",
@@ -453,7 +495,7 @@ export function listingSeo(l: ListingSeoInput): {
             "@type": "Place",
             address: {
               "@type": "PostalAddress",
-              addressLocality: l.buyer.city,
+              addressLocality: provinceDisplayName(l.buyer.city, locale),
               addressCountry: l.buyer.country ?? "TR",
             },
           },
@@ -468,14 +510,15 @@ export function listingSeo(l: ListingSeoInput): {
       path,
       images: l.coverImageUrl ? [l.coverImageUrl] : undefined,
       noindex: !l.indexable,
+      locale: opts.locale,
     }),
     jsonLd: graph([
       demandNode,
       breadcrumbNode([
-        { name: "Anasayfa", path: "/" },
-        { name: MARKETPLACE_LABELS.demands, path: MARKETPLACE_ROUTES.demands },
+        { name: ts("web.marketing.breadcrumbHome"), path: "/" },
+        { name: ts("web.marketplace.labels.demands"), path: MARKETPLACE_ROUTES.demands },
         { name: l.title, path },
-      ]),
+      ], locale),
     ]),
     summary,
   };

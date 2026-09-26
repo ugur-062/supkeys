@@ -1,5 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { revalidatePath, revalidateTag } from "next/cache";
+import { LOCALES } from "@rothern/i18n";
 
 /**
  * POST /api/seo/revalidate — API'nin yayın anı tazeleme kancası (SEO Parça 5).
@@ -36,7 +37,9 @@ export async function POST(req: Request): Promise<Response> {
   try {
     body = (await req.json()) as { paths?: unknown; tags?: unknown };
   } catch {
-    return Response.json({ error: "Geçersiz gövde" }, { status: 400 });
+    // MAKİNEYE yanıt (çağıran API sunucusu, kullanıcı değil) — komşu
+    // dallardaki "Not found"/"Forbidden" gibi İngilizce ve çevrilmez.
+    return Response.json({ error: "Invalid body" }, { status: 400 });
   }
   const paths = (Array.isArray(body.paths) ? body.paths : [])
     .filter((p): p is string => typeof p === "string" && p.length <= 200 && PATH_RE.test(p))
@@ -46,7 +49,13 @@ export async function POST(req: Request): Promise<Response> {
     .slice(0, MAX_ITEMS);
 
   for (const t of tags) revalidateTag(t);
-  for (const p of paths) revalidatePath(p);
+  // Sayfalar `[locale]` altında: önbellek İÇ yol + dil segmentiyle tutulur
+  // (`/en/urunler/…` — middleware dış `/en/products/…`u buna yazar; Türkçe
+  // `/tr/urunler/…`). Çıplak yol da kalır (kök rota işleyicileri, sitemap).
+  for (const p of paths) {
+    revalidatePath(p);
+    for (const l of LOCALES) revalidatePath(p === "/" ? `/${l}` : `/${l}${p}`);
+  }
 
   return Response.json({ ok: true, paths: paths.length, tags: tags.length });
 }

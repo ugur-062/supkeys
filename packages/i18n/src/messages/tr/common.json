@@ -1,0 +1,11 @@
+{
+  "errors": {
+    "forbidden": "Bu işlem için yetkiniz yok",
+    "notFound": "Kayıt bulunamadı",
+    "badRequest": "Geçersiz istek",
+    "conflict": "Bu işlem mevcut durumda yapılamaz",
+    "unprocessable": "Geçersiz veri",
+    "server": "Sunucu hatası, lütfen tekrar deneyin",
+    "network": "Bağlantı hatası, internet bağlantınızı kontrol edin"
+  }
+}

@@ -1,5 +1,9 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { useListingStatusLabel } from "@/i18n/domain";
+import { INTL_LOCALE } from "@/i18n/format";
 import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -26,27 +30,29 @@ import {
 import { useTenders } from "@/hooks/use-company-tenders";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { ArrowLeft, FileSpreadsheet, Loader2 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CURRENCIES } from "@/lib/tenders/labels";
 
-const STATUS_TR: Record<string, string> = {
-  DRAFT: "Taslak",
-  IN_APPROVAL: "Onayda",
-  OPEN: "Yayında",
-  CLOSED: "Teklife Kapalı",
-  IN_AWARD_APPROVAL: "Kazandırma Onayı",
-  AWARDED: "Tamamlandı",
-  CANCELLED: "İptal",
-  CLOSED_NO_AWARD: "Kazansız",
-};
+// Durum etiketi katalogdan (`useListingStatusLabel`); burada yalnız süzgeç sırası.
+const STATUS_OPTIONS = [
+  "DRAFT",
+  "IN_APPROVAL",
+  "OPEN",
+  "CLOSED",
+  "IN_AWARD_APPROVAL",
+  "AWARDED",
+  "CANCELLED",
+  "CLOSED_NO_AWARD",
+] as const;
 // Liste TEK KAYNAK: labels.ts CURRENCIES (tablodan türetilir) — Dalga B-2.
 
-function tl(n: number | null) {
+/** TRY toplamı — okuyucunun dilinde, ondalıksız. */
+function tl(n: number | null, locale: Locale) {
   return n == null
     ? "—"
-    : `${n.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺`;
+    : `${n.toLocaleString(INTL_LOCALE[locale] ?? "tr-TR", { maximumFractionDigits: 0 })} ₺`;
 }
 
 /** Genel İhale/İlan Raporu — tek ihale VEYA tarih aralığı (eski sistem deseni). */
@@ -57,8 +63,9 @@ export function GeneralReportView({
   type: ReportType;
   basePath: string; // "/company/sirketim/raporlar"
 }) {
-  const isAlim = type === "ALIM";
-  const deltaWord = isAlim ? "Tasarruf" : "Kazanç";
+  const tr = useTranslations("web.panel.reports.generalReportView");
+  const locale = useLocale() as Locale;
+  const statusLabel = useListingStatusLabel();
   const [mode, setMode] = useState<"SINGLE" | "RANGE" | null>(null);
   const [listingId, setListingId] = useState("");
   const [rangeStart, setRangeStart] = useState("");
@@ -102,7 +109,7 @@ export function GeneralReportView({
     try {
       await report.mutateAsync(p);
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Rapor oluşturulamadı"));
+      toast.error(extractErrorMessage(err, tr("raporOlusturulamadi")));
     }
   };
   const runDownload = async () => {
@@ -110,9 +117,9 @@ export function GeneralReportView({
     if (!p) return;
     try {
       const { filename } = await download.mutateAsync(p);
-      toast.success(`${filename} indiriliyor`);
+      toast.success(tr("indiriliyor", { file: filename }));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İndirme başarısız"));
+      toast.error(extractErrorMessage(err, tr("indirmeBasarisiz")));
     }
   };
 
@@ -126,16 +133,16 @@ export function GeneralReportView({
           className="inline-flex items-center gap-1 hover:text-zinc-800 hover:underline"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Raporlar
+          {tr("raporlar")}
         </Link>
       </nav>
-      <Heading>{isAlim ? "Genel Satın Alma Talebi Raporu" : "Genel İlan Raporu"}</Heading>
+      <Heading>{tr("genelSatinAlmaTalebiRaporu")}</Heading>
 
       {/* Kriter kartı */}
       <section className="space-y-4 card p-5 shadow-sm">
         <div>
           <p className="mb-2 text-xs font-medium text-zinc-500">
-            Raporlama Kriteri
+            {tr("raporlamaKriteri")}
           </p>
           <RadioGroup
             value={mode ?? ""}
@@ -144,28 +151,23 @@ export function GeneralReportView({
           >
             <RadioField>
               <Radio value="SINGLE" />
-              <Label>
-                Tek bir {isAlim ? "satın alma talebini" : "ilanı"} raporlayacağım
-              </Label>
+              <Label>{tr("tekBirSatinAlmaTalebiniRaporlayacagim")}</Label>
             </RadioField>
             <RadioField>
               <Radio value="RANGE" />
-              <Label>
-                Belirli tarih aralığındaki {isAlim ? "satın alma taleplerini" : "ilanları"}{" "}
-                raporlayacağım
-              </Label>
+              <Label>{tr("belirliTarihAraligindakiSatinAlmaTaleplerini")}</Label>
             </RadioField>
           </RadioGroup>
         </div>
 
         {mode === "SINGLE" ? (
           <Field>
-            <Label>{isAlim ? "Satın Alma Talebi" : "İlan"}</Label>
+            <Label>{tr("satinAlmaTalebi")}</Label>
             <Select
               value={listingId}
               onChange={(e) => setListingId(e.target.value)}
             >
-              <option value="">— Seçin —</option>
+              <option value="">{tr("secin")}</option>
               {(myTenders.data ?? []).map((t) => (
                 <option key={t.id} value={t.id}>
                   {t.tenderNumber} — {t.title}
@@ -178,7 +180,7 @@ export function GeneralReportView({
         {mode === "RANGE" ? (
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
             <Field>
-              <Label>Başlangıç</Label>
+              <Label>{tr("baslangic")}</Label>
               <Input
                 type="date"
                 value={rangeStart}
@@ -186,7 +188,7 @@ export function GeneralReportView({
               />
             </Field>
             <Field>
-              <Label>Bitiş</Label>
+              <Label>{tr("bitis")}</Label>
               <Input
                 type="date"
                 value={rangeEnd}
@@ -194,31 +196,31 @@ export function GeneralReportView({
               />
             </Field>
             <Field>
-              <Label>Usul</Label>
+              <Label>{tr("usul")}</Label>
               <Select value={fmt} onChange={(e) => setFmt(e.target.value)}>
-                <option value="">Tümü</option>
-                <option value="RFQ">Teklif Toplama</option>
-                <option value="ENGLISH_AUCTION">Pazarlık</option>
+                <option value="">{tr("tumu")}</option>
+                <option value="RFQ">{tr("teklifToplama")}</option>
+                <option value="ENGLISH_AUCTION">{tr("pazarlik")}</option>
               </Select>
             </Field>
             <Field>
-              <Label>Durum</Label>
+              <Label>{tr("durum")}</Label>
               <Select value={status} onChange={(e) => setStatus(e.target.value)}>
-                <option value="">Tümü</option>
-                {Object.entries(STATUS_TR).map(([v, l]) => (
+                <option value="">{tr("tumu")}</option>
+                {STATUS_OPTIONS.map((v) => (
                   <option key={v} value={v}>
-                    {l}
+                    {statusLabel(v)}
                   </option>
                 ))}
               </Select>
             </Field>
             <Field>
-              <Label>Para Birimi</Label>
+              <Label>{tr("paraBirimi")}</Label>
               <Select
                 value={currency}
                 onChange={(e) => setCurrency(e.target.value)}
               >
-                <option value="">Tümü</option>
+                <option value="">{tr("tumu")}</option>
                 {CURRENCIES.map((c) => (
                   <option key={c} value={c}>
                     {c}
@@ -234,7 +236,7 @@ export function GeneralReportView({
             {report.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" data-slot="icon" />
             ) : null}
-            Raporu Oluştur
+            {tr("raporuOlustur")}
           </Button>
           <Button
             outline
@@ -242,7 +244,7 @@ export function GeneralReportView({
             disabled={!canSubmit || download.isPending}
           >
             <FileSpreadsheet data-slot="icon" />
-            Excel İndir
+            {tr("excelIndir")}
           </Button>
         </div>
       </section>
@@ -260,9 +262,7 @@ export function GeneralReportView({
               role="status"
               className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
             >
-              Sonuç en fazla {data.maxRows ?? 500} kayıtla sınırlandı — daha
-              eskiler bu raporda YOK. Tarih aralığını daraltarak tamamını
-              görebilirsiniz.
+              {tr("sonucEnFazlaKayitlaSinirlandi", { max: data.maxRows ?? 500 })}
             </p>
           ) : null}
           {/* Özet şeridi */}
@@ -270,14 +270,14 @@ export function GeneralReportView({
             {(
               [
                 [
-                  isAlim ? "Toplam Satın Alma Talebi" : "Toplam İlan",
+                  tr("toplamSatinAlmaTalebi"),
                   String(data.summary.totalListings),
                 ],
-                ["Kazandırılan", String(data.summary.awardedListings)],
-                ["Yanıt Oranı", `%${data.summary.overallResponseRate}`],
-                ["Ort. Teklif", String(data.summary.avgBidsPerListing)],
-                ["Kazanan Toplam", tl(data.summary.totalAwardedValue)],
-                [`Toplam ${deltaWord}`, tl(data.summary.totalDelta), true],
+                [tr("kazandirilan"), String(data.summary.awardedListings)],
+                [tr("yanitOrani"), tr("yuzde", { n: data.summary.overallResponseRate })],
+                [tr("ortTeklif"), String(data.summary.avgBidsPerListing)],
+                [tr("kazananToplam"), tl(data.summary.totalAwardedValue, locale)],
+                [tr("toplamTasarruf"), tl(data.summary.totalDelta, locale), true],
               ] as Array<[string, string, boolean?]>
             ).map(([k, v, accent]) => (
               <div key={k} className="bg-white p-3.5">
@@ -299,19 +299,15 @@ export function GeneralReportView({
             <Table dense>
               <TableHead>
                 <TableRow>
-                  <TableHeader className="sticky left-0 z-10 bg-white">{isAlim ? "Satın Alma Talebi" : "İlan"}</TableHeader>
-                  <TableHeader>Durum</TableHeader>
-                  <TableHeader className="text-right">Davet</TableHeader>
-                  <TableHeader className="text-right">Teklif</TableHeader>
-                  <TableHeader className="text-right">Yanıt %</TableHeader>
-                  <TableHeader className="text-right">
-                    {isAlim ? "Hedef" : "Taban"}
-                  </TableHeader>
-                  <TableHeader className="text-right">Kazanan</TableHeader>
-                  <TableHeader>
-                    {isAlim ? "Kazanan Tedarikçi" : "Kazanan Alıcı"}
-                  </TableHeader>
-                  <TableHeader className="text-right">{deltaWord}</TableHeader>
+                  <TableHeader className="sticky left-0 z-10 bg-white">{tr("satinAlmaTalebi")}</TableHeader>
+                  <TableHeader>{tr("durum")}</TableHeader>
+                  <TableHeader className="text-right">{tr("davet")}</TableHeader>
+                  <TableHeader className="text-right">{tr("teklif")}</TableHeader>
+                  <TableHeader className="text-right">{tr("yanit")}</TableHeader>
+                  <TableHeader className="text-right">{tr("hedef")}</TableHeader>
+                  <TableHeader className="text-right">{tr("kazanan")}</TableHeader>
+                  <TableHeader>{tr("kazananTedarikci")}</TableHeader>
+                  <TableHeader className="text-right">{tr("tasarruf")}</TableHeader>
                 </TableRow>
               </TableHead>
               <TableBody>
@@ -327,13 +323,13 @@ export function GeneralReportView({
                       <div className="tabular-nums text-xs text-zinc-400">
                         {t.number ?? "—"}
                         {t.closesAt
-                          ? ` · ${formatDate(t.closesAt, "short")}`
+                          ? ` · ${formatDate(t.closesAt, "short", locale)}`
                           : ""}
                       </div>
                     </TableCell>
                     <TableCell>
                       <Badge color="zinc">
-                        {STATUS_TR[t.status] ?? t.status}
+                        {statusLabel(t.status)}
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
@@ -343,19 +339,19 @@ export function GeneralReportView({
                       {t.submittedBidCount}
                     </TableCell>
                     <TableCell className="text-right tabular-nums">
-                      {t.responseRate != null ? `%${t.responseRate}` : "—"}
+                      {t.responseRate != null ? tr("yuzde", { n: t.responseRate }) : "—"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-600">
-                      {tl(t.estimatedTotal)}
+                      {tl(t.estimatedTotal, locale)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-900">
-                      {tl(t.winningTotal)}
+                      {tl(t.winningTotal, locale)}
                     </TableCell>
                     <TableCell className="max-w-[180px] truncate text-zinc-700">
                       {t.winnerName ?? "—"}
                     </TableCell>
                     <TableCell className="text-right font-semibold tabular-nums text-emerald-700">
-                      {tl(t.delta)}
+                      {tl(t.delta, locale)}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -363,8 +359,7 @@ export function GeneralReportView({
             </Table>
           </div>
           <Text className="text-xs text-zinc-400">
-            Tutarlar teklif anındaki TCMB kuruyla TRY karşılığı olarak
-            gösterilir.
+            {tr("tutarlarTeklifAnindakiTcmbKuruyla")}
           </Text>
         </section>
       ) : null}

@@ -17,19 +17,19 @@ describe("ikincil rotalar — menü dışı ama etiketli", () => {
     // Profilim ŞİRKETİM alanında (2026-09-05): hiçbir portal menüsünde yok.
     for (const p of Object.values(PORTALS)) {
       expect(allPortalRoutes(p).some((i) => i.href.endsWith("/profilim"))).toBe(false);
-      expect(allPortalRoutes(p).some((i) => i.label === "Raporlar")).toBe(false);
+      expect(allPortalRoutes(p).some((i) => i.label === "sirketim.reports")).toBe(false);
     }
   });
 
   it("breadcrumb + routeLabel ikincil ve Şirketim rotalarını çözer", () => {
-    expect(getCompanyBreadcrumb("/company/satinalma/sablonlar")).toBe("Şablonlar");
-    expect(routeLabel("/company/satinalma/sablonlar")).toBe("Şablonlar");
-    expect(getCompanyBreadcrumb("/company/sirketim")).toBe("Şirketim · Genel Bakış");
-    expect(getCompanyBreadcrumb("/company/sirketim/profil")).toBe("Profil");
-    expect(getCompanyBreadcrumb("/company/sirketim/raporlar")).toBe("Raporlar");
-    expect(getCompanyBreadcrumb("/company/sirketim/raporlar/tasarruf")).toBe("Raporlar");
-    expect(routeLabel("/company/sirketim/raporlar")).toBe("Raporlar");
-    expect(routeLabel("/company/sirketim/profil")).toBe("Profil");
+    expect(getCompanyBreadcrumb("/company/satinalma/sablonlar")).toBe("satinalma.sablonlar");
+    expect(routeLabel("/company/satinalma/sablonlar")).toBe("satinalma.sablonlar");
+    expect(getCompanyBreadcrumb("/company/sirketim")).toBe("sirketim.overviewCrumb");
+    expect(getCompanyBreadcrumb("/company/sirketim/profil")).toBe("sirketim.profile");
+    expect(getCompanyBreadcrumb("/company/sirketim/raporlar")).toBe("sirketim.reports");
+    expect(getCompanyBreadcrumb("/company/sirketim/raporlar/tasarruf")).toBe("sirketim.reports");
+    expect(routeLabel("/company/sirketim/raporlar")).toBe("sirketim.reports");
+    expect(routeLabel("/company/sirketim/profil")).toBe("sirketim.profile");
   });
 
   it("PORTAL_SECONDARY_HREFS Şirketim rotalarına işaret eder; satışta tek ikincil rota firma dizini", () => {
@@ -43,6 +43,6 @@ describe("ikincil rotalar — menü dışı ama etiketli", () => {
     // anasayfa arama anahtarı ("Firma") ve Bağlantılar › Keşfet oraya götürür.
     expect(PORTALS.satis.secondaryNav.map((i) => i.href)).toEqual(["/company/satis/firmalar"]);
     // Şirketim menüsü: Genel Bakış › Profil › Ziyaret Edenler › Raporlar.
-    expect(COMPANY_AREA.nav.map((i) => i.label)).toEqual(["Genel Bakış", "Profil", "Ziyaret Edenler", "Raporlar"]);
+    expect(COMPANY_AREA.nav.map((i) => i.label)).toEqual(["sirketim.overview", "sirketim.profile", "sirketim.visitors", "sirketim.reports"]);
   });
 });

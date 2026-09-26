@@ -19,7 +19,7 @@
  * Idempotent; TSV'de olmayan kategorilere dokunmaz, DEĞİŞMEYEN satırı yazmaz.
  */
 import { PrismaClient, Prisma } from "@prisma/client";
-import { foldSearchText } from "@rothern/shared";
+import { categorySearchText } from "@rothern/shared";
 import * as path from "path";
 import { buildKeywordsByCode } from "./lib/category-keywords";
 
@@ -50,7 +50,7 @@ async function main() {
 
   const cats = await prisma.category.findMany({
     where: { code: { in: [...entries.keys()] } },
-    select: { code: true, nameTr: true, keywords: true },
+    select: { code: true, nameTr: true, keywords: true, nameEn: true, nameRu: true },
   });
   const byCode = new Map(cats.map((c) => [c.code, c]));
 
@@ -67,7 +67,7 @@ async function main() {
     const cat = byCode.get(code);
     if (!cat) continue;
     if (cat.keywords === kw) continue;
-    rows.push({ code, kw, st: foldSearchText(`${cat.nameTr} ${kw}`) });
+    rows.push({ code, kw, st: categorySearchText({ ...cat, keywords: kw }) });
   }
   console.log(`   ${rows.length} satır değişiyor, ${cats.length - rows.length} zaten güncel\n`);
 

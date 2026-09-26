@@ -1,10 +1,13 @@
+"use client";
+
 import { Badge } from "@/components/catalyst/badge";
-import { roleLabel } from "@/lib/company/labels";
+import { useRoleLabel } from "@/i18n/domain";
 
 /**
  * C31 — rol gösterimi TEK bileşen: Kurucu = amber rozet, operasyon/etiket
- * rolleri = zinc rozet; etiketler merkez sözlükten (labels.ts). Serbest
- * span/caps/renk varyantları yasak — her yüzey bunu kullanır.
+ * rolleri = zinc rozet; etiketler okuyucunun dilinde (`web.domain.role.<KOD>`,
+ * tek kaynak `@/i18n/domain` `useRoleLabel`). Serbest span/caps/renk
+ * varyantları yasak — her yüzey bunu kullanır.
  */
 export function RoleBadge({
   role,
@@ -13,7 +16,8 @@ export function RoleBadge({
   role?: string;
   owner?: boolean;
 }) {
-  if (owner) return <Badge color="amber">Kurucu</Badge>;
+  const roleLabel = useRoleLabel();
+  if (owner) return <Badge color="amber">{roleLabel("SAHIP")}</Badge>;
   if (!role) return null;
   return <Badge color="zinc">{roleLabel(role)}</Badge>;
 }

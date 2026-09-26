@@ -1,0 +1,1626 @@
+{
+  "validation": {
+    "failed": "Doğrulama hatası",
+    "required": "Bu alan zorunlu",
+    "invalid": "Geçersiz değer",
+    "notAccepted": "Bu alan kabul edilmiyor",
+    "emailInvalid": "Geçerli bir e-posta giriniz",
+    "phoneInvalid": "Geçerli bir telefon numarası giriniz",
+    "taxNumberInvalid": "Vergi numarası 10 veya 11 haneli olmalı",
+    "urlInvalid": "Geçerli bir bağlantı (URL) giriniz",
+    "uuidInvalid": "Geçerli bir kimlik (ID) giriniz",
+    "dateInvalid": "Geçerli bir tarih giriniz",
+    "dateFuture": "Tarih gelecekte olmalı",
+    "mustBeString": "Geçerli bir metin olmalı",
+    "mustBeNumber": "Geçerli bir sayı olmalı",
+    "mustBeBoolean": "Geçerli bir değer olmalı",
+    "mustBeArray": "Geçerli bir liste olmalı",
+    "stringMin": "En az {n} karakter olmalı",
+    "stringMax": "En fazla {n} karakter olabilir",
+    "numberMin": "{n} veya daha büyük olmalı",
+    "numberMax": "{n} veya daha küçük olmalı",
+    "arrayMin": "En az {n} öğe seçilmeli",
+    "arrayMax": "En fazla {n} öğe seçilebilir",
+    "inValues": "Geçersiz seçim",
+    "passwordMin": "Şifre en az 8 karakter olmalı",
+    "localeUnsupported": "Desteklenmeyen dil",
+    "paramGecerliBirTamSayiOlmali": "{param} geçerli bir tam sayı olmalı",
+    "paramGecerliBirTamSayiOlmaliGelen": "{param} geçerli bir tam sayı olmalı (gelen: {value})"
+  },
+  "business": {
+    "notFound": "Kayıt bulunamadı",
+    "forbidden": "Bu işlem için yetkiniz yok",
+    "conflict": "Bu kayıt zaten mevcut",
+    "invalidStatus": "Mevcut durumda bu işlem yapılamaz",
+    "expired": "Süresi dolmuş",
+    "alreadyUsed": "Bu kayıt daha önce kullanılmış",
+    "rateLimit": "Çok hızlı işlem yaptınız, lütfen biraz bekleyin"
+  },
+  "companyApprovals": {
+    "onayAkisiYalnizcaKazandirmaIcinTanimlanabilir": "Onay akışı yalnızca kazandırma için tanımlanabilir",
+    "onaylayiciRoluOnayAkisiniBaslatamaz": "Onaylayıcı rolü onay akışını başlatamaz",
+    "adimButceEsikleriArtanSiradaOlmali": "Adım bütçe eşikleri artan sırada olmalı (her adım öncekinden büyük/eşit)",
+    "onayAkisiBulunamadi": "Onay akışı bulunamadı",
+    "onayAkisindaSizdenBaskaUygunBir": "Onay akışında sizden başka uygun bir onaylayıcı yok — akışa bir onaylayıcı ekleyin veya firma sahibine başvurun.",
+    "buIlanIcinZatenBekleyenBir": "Bu ilan için zaten bekleyen bir onay isteği var",
+    "onayIstegiBulunamadi": "Onay isteği bulunamadı",
+    "buIstekBeklemedeDegil": "Bu istek beklemede değil",
+    "buAdiminOnaycisiDegilsiniz": "Bu adımın onaycısı değilsiniz",
+    "kendiBaslattiginizKazandirmayiOnaylayamazsinizGo": "Kendi başlattığınız kazandırmayı onaylayamazsınız (görev ayrılığı).",
+    "buAdimZatenSonuclandirildi": "Bu adım zaten sonuçlandırıldı",
+    "buIstekArtikBeklemedeDegil": "Bu istek artık beklemede değil",
+    "kazandirmaUygulanamadiTeklifDurumuDegismisOlabil": "Kazandırma uygulanamadı — teklif durumu değişmiş olabilir. Lütfen tekrar deneyin.",
+    "buIstegiYalnizcaBaslatanVeyaYonetici": "Bu isteği yalnızca başlatan veya Yönetici iptal edebilir",
+    "yalnizcaBekleyenIstekIptalEdilebilir": "Yalnızca bekleyen istek iptal edilebilir",
+    "gecersizVeyaPasifOnayciKullanici": "Geçersiz veya pasif onaycı kullanıcı",
+    "onayciOlamazOnaycininOnaylamaYetkisiOlmali": "{firstName} {lastName} onaycı olamaz — onaycının \"Onaylama\" yetkisi olmalı"
+  },
+  "companyBlocks": {
+    "gecersizFirmaKodu": "Geçersiz firma kodu",
+    "firmaBulunamadi": "Firma bulunamadı",
+    "kendiniziEngelleyemezsiniz": "Kendinizi engelleyemezsiniz"
+  },
+  "supabaseAuth": {
+    "girisServisiGeciciOlarakKullanilamiyorLutfen": "Giriş servisi geçici olarak kullanılamıyor — lütfen birazdan tekrar deneyin",
+    "ePostaVeyaParolaHatali": "E-posta veya parola hatalı",
+    "buEPostaIleZatenBir": "Bu e-posta ile zaten bir hesap var",
+    "hesapOlusturulamadiLutfenBirazdanTekrarDeneyin": "Hesap oluşturulamadı, lütfen birazdan tekrar deneyin",
+    "davetEPostasiGonderilemedi": "Davet e-postası gönderilemedi",
+    "sifreDegistirilemedi": "Şifre değiştirilemedi",
+    "buEPostaBaskaBirHesapta": "Bu e-posta başka bir hesapta kayıtlı",
+    "ePostaDegistirilemedi": "E-posta değiştirilemedi"
+  },
+  "companyAuth": {
+    "yetkisiz": "Yetkisiz",
+    "gecersizTokenTipi": "Geçersiz token tipi",
+    "kullaniciGecersiz": "Kullanıcı geçersiz",
+    "firmaHesabiPasifVeyaEngellenmis": "Firma hesabı pasif veya engellenmiş",
+    "oturumGecersizLutfenYenidenGirisYapin": "Oturum geçersiz — lütfen yeniden giriş yapın",
+    "buIslemIcinYetkinizYok": "Bu işlem için yetkiniz yok",
+    "buEPostaIleZatenBir": "Bu e-posta ile zaten bir hesap var",
+    "kullaniciBulunamadi": "Kullanıcı bulunamadı",
+    "ePostaZatenDogrulanmis": "E-posta zaten doğrulanmış",
+    "kodGecersizVeyaSuresiDolmus": "Kod geçersiz veya süresi dolmuş",
+    "cokFazlaHataliDenemeYeniKod": "Çok fazla hatalı deneme — yeni kod isteyin",
+    "yalnizcaFirmaSahibiDogrulamaYapabilir": "Yalnızca firma sahibi doğrulama yapabilir",
+    "firmaDogrulamasiZatenTamamlanmis": "Firma doğrulaması zaten tamamlanmış",
+    "gecersizUlkeSecimi": "Geçersiz ülke seçimi",
+    "yetkiliTCKimlikNoGecersiz": "Yetkili T.C. Kimlik No geçersiz",
+    "vergiDairesiZorunlu": "Vergi dairesi zorunlu",
+    "ilceZorunlu": "İlçe zorunlu",
+    "ePostaVeyaSifreHatali": "E-posta veya şifre hatalı",
+    "kullaniciHesabiAktifDegil": "Kullanıcı hesabı aktif değil",
+    "firmaHesabiEngellenmis": "Firma hesabı engellenmiş",
+    "firmaHesabiAktifDegil": "Firma hesabı aktif değil",
+    "girisYapmadanOnceEPostaAdresinizi": "Giriş yapmadan önce e-posta adresinizi doğrulayın.",
+    "dogrulamaKoduSuAndaGonderilemediLutfen": "Doğrulama kodu şu anda gönderilemedi. Lütfen birkaç dakika sonra tekrar deneyin.",
+    "dogrulamaKoduHatali": "Doğrulama kodu hatalı",
+    "premiumSuAnManuelOnaylaVeriliyor": "Premium şu an manuel onayla veriliyor — self-servis yükseltme geçici olarak kapalı",
+    "yalnizcaFirmaSahibiPaketYukseltebilir": "Yalnızca firma sahibi paket yükseltebilir",
+    "onceSirketBelgeleriniziDogrulatmalisiniz": "Önce şirket belgelerinizi doğrulatmalısınız",
+    "ikiAdimliDogrulamaZatenAcik": "İki adımlı doğrulama zaten açık",
+    "once2faKurulumunuBaslatin": "Önce 2FA kurulumunu başlatın",
+    "dogrulamaKoduHataliVeyaSuresiDolmus": "Doğrulama kodu hatalı veya süresi dolmuş",
+    "ikiAdimliDogrulamaZatenKapali": "İki adımlı doğrulama zaten kapalı",
+    "mevcutParolaHatali": "Mevcut parola hatalı",
+    "gecersizBildirimTercihi": "Geçersiz bildirim tercihi: {k}",
+    "buOzellikGoldPaketGerektirir": "Bu özellik Gold paket gerektirir (satınalma paneli).",
+    "buOzellikPaketVeyaUzeriGerektirir": "Bu özellik {tier} veya üzeri paket gerektirir.",
+    "buUlkedenYeniKayitAlinmiyor": "Şu anda bu ülkeden yeni kayıt alınmıyor. Ülkenizin açılmasını istiyorsanız bizimle iletişime geçin.",
+    "sahisFirmasiIcin11HaneliTckn": "Şahıs firması için 11 haneli geçerli TCKN giriniz",
+    "tuzelKisiIcin10HaneliVergiNo": "Tüzel kişi için 10 haneli geçerli vergi numarası giriniz",
+    "gecerliBirVergiSicilNumarasiGiriniz": "Geçerli bir vergi/sicil numarası giriniz"
+  },
+  "publicProfile": {
+    "profilBulunamadi": "Profil bulunamadı",
+    "urunBulunamadi": "Ürün bulunamadı"
+  },
+  "companyAddresses": {
+    "buAdresAktifIlandaKullaniliyorOnce": "Bu adres {activeUse} aktif ilanda kullanılıyor — {what}; önce ilanlardaki adresi değiştirin",
+    "buAdresGonderilmisTeklifteKullaniliyorTeklif": "Bu adres {bidUse} gönderilmiş teklifte kullanılıyor — teklif sonuçlanana kadar {what}",
+    "adresBulunamadi": "Adres bulunamadı",
+    "silinemez": "silinemez",
+    "adresBilgileriDegistirilemez": "adres bilgileri değiştirilemez"
+  },
+  "adminCompanies": {
+    "firmaBulunamadi": "Firma bulunamadı",
+    "firmaSahibiDevreDisiBirakilamazOnce": "Firma sahibi devre dışı bırakılamaz — önce sahipliği devredin",
+    "gecerliBirEPostaGirin": "Geçerli bir e-posta girin",
+    "yeniEPostaMevcutlaAyni": "Yeni e-posta mevcutla aynı",
+    "buEPostaBaskaBirKullanicida": "Bu e-posta başka bir kullanıcıda kayıtlı",
+    "gecersizRol": "Geçersiz rol",
+    "koltukDoluBuRolIcinFirmanin": "Koltuk dolu ({used}/{limit}) — bu rol için firmanın paketi yükseltilmeli",
+    "buEPostaIleZatenBir": "Bu e-posta ile zaten bir kullanıcı var",
+    "kullaniciBuFirmadaBulunamadi": "Kullanıcı bu firmada bulunamadı",
+    "yalnizOnayBekleyenUrunOnaylanabilir": "Yalnız onay bekleyen ürün onaylanabilir",
+    "urununUrlParcasiSlugYokFirma": "Ürünün URL parçası (slug) yok — firma yeniden göndermeli",
+    "urunDurumuDegistiSayfayiYenileyin": "Ürün durumu değişti — sayfayı yenileyin",
+    "urunSecilmedi": "Ürün seçilmedi",
+    "tekSeferdeEnFazlaUrunOnaylanabilir": "Tek seferde en fazla {BULKAPPROVEMAX} ürün onaylanabilir",
+    "yalnizOnayBekleyenUrunReddedilebilir": "Yalnız onay bekleyen ürün reddedilebilir",
+    "urunBulunamadi": "Ürün bulunamadı",
+    "ilanBulunamadi": "İlan bulunamadı",
+    "yalnizAcikIlanKapatilabilir": "Yalnız AÇIK ilan kapatılabilir",
+    "yalnizAcikIlaninSuresiUzatilabilir": "Yalnız AÇIK ilanın süresi uzatılabilir",
+    "kapanisGelecekteOlmali": "Kapanış gelecekte olmalı",
+    "yalnizUzatmaYapilabilirKisaltmaTeklifVerenlere": "Yalnız uzatma yapılabilir — kısaltma teklif verenlere haksızlık olur",
+    "kazandirmaYapilmisIlanYenidenAcilamaz": "Kazandırma yapılmış ilan yeniden açılamaz",
+    "yalnizKapaliDegerlendirmedekiKazandirilmamisIlan": "Yalnız kapalı/değerlendirmedeki (kazandırılmamış) ilan yeniden açılabilir",
+    "siparisBulunamadi": "Sipariş bulunamadı",
+    "siparisBuDurumdaIptalEdilemezTeslim": "Sipariş bu durumda iptal edilemez (teslim/tamamlanmış olabilir)",
+    "onayliOdemesiOlanSiparisIptalEdilemez": "Onaylı ödemesi olan sipariş iptal edilemez — önce iade süreci",
+    "siparisDurumuAzOnceDegisti": "Sipariş durumu az önce değişti",
+    "yalnizBekleyenBaglantiDavetiIptalEdilebilir": "Yalnız BEKLEYEN bağlantı daveti iptal edilebilir",
+    "yalnizBekleyenReferansDavetiIptalEdilebilir": "Yalnız BEKLEYEN referans daveti iptal edilebilir",
+    "firmaAdiBosOlamaz": "Firma adı boş olamaz",
+    "gecerliBirIbanGerekliTr24": "Geçerli bir IBAN gerekli (TR + 24 rakam).",
+    "dogrulamaIcinEksikKimlikBilgisiFirma": "Doğrulama için eksik kimlik bilgisi: {join}. Firma bu alanları doldurmadan onaylanamaz.",
+    "eksikBelgeVarKararVerilemez": "Eksik belge var; karar verilemez ({k})",
+    "firmaDogrulamaDurumuAzOnceDegisti": "Firma doğrulama durumu az önce değişti — sayfayı yenileyip tekrar deneyin",
+    "herZorunluBelgeIcinKararGerekli": "Her zorunlu belge için karar gerekli ({k})",
+    "reddedilenBelgeyeGerekceGerekli": "Reddedilen belgeye gerekçe gerekli ({k})",
+    "belgelerVeyaDogrulamaDurumuAzOnce": "Belgeler veya doğrulama durumu az önce değişti — sayfayı yenileyip kararı tekrar verin",
+    "gecersizKarar": "Geçersiz karar",
+    "revizyonBulunamadi": "Revizyon bulunamadı",
+    "yalnizcaBekleyenRevizyonIncelenebilir": "Yalnızca bekleyen revizyon incelenebilir",
+    "gecersizBelgeTuru": "Geçersiz belge türü",
+    "reddedilenRevizyonaGerekceGerekli": "Reddedilen revizyona gerekçe gerekli",
+    "revizyonAzOnceKararaBaglandi": "Revizyon az önce karara bağlandı",
+    "firmaninUyeligiAzOnceDegistiSayfayi": "Firmanın üyeliği az önce değişti — sayfayı yenileyip tekrar deneyin",
+    "uzatmaYalnizPaketliUyelikteOnceBir": "Uzatma yalnız paketli üyelikte — önce bir paket (Silver/Gold) verin",
+    "buFirmaninUyeligiSuresizUzatilamazSure": "Bu firmanın üyeliği süresiz — uzatılamaz. Süre tanımlamak isterseniz önce paketi yeniden verin (bitiş tarihiyle).",
+    "notEnAz3KarakterOlmali": "Not en az 3 karakter olmalı",
+    "notBulunamadi": "Not bulunamadı",
+    "firmaAskiyaAlmaYetkisiYalnizSuper": "Firma askıya alma yetkisi yalnız SUPER_ADMIN''dedir — şikayeti askıya almadan sonuçlandırabilirsiniz",
+    "sikayetBulunamadi": "Şikayet bulunamadı",
+    "buSikayetZatenSonuclanmis": "Bu şikayet zaten sonuçlanmış"
+  },
+  "categories": {
+    "gecersizKategoriId": "Geçersiz kategori ID: {join}",
+    "yalnizSegmentSeviyesiSecilebilir": "Sadece ana başlık (Segment) seviyesindeki kategoriler seçilebilir.",
+    "yalnizClassVeyaCommoditySecilebilir": "Sadece Class veya Commodity seviyesindeki kategoriler seçilebilir (Segment/Family seçilemez).",
+    "segmentAltKategoriOlarakSecilemez": "Ana başlık (Segment) alt kategori olarak seçilemez — bir alt kırılım seçin.",
+    "yalnizBelirtilenSeviyeSecilebilir": "Sadece level {level} kategoriler seçilebilir."
+  },
+  "companyBidDocuments": {
+    "ilanBulunamadi": "İlan bulunamadı",
+    "satinAlmaTalebiTeklifeKapaliBelge": "Satın Alma Talebi teklife kapalı — belge eklenemez/silinemez",
+    "teklifBelgeleriIcinTeklifVermeYetkisi": "Teklif belgeleri için ''Teklif verme'' yetkisi gerekir",
+    "onceTeklifVerinSonraBelgeEkleyin": "Önce teklif verin, sonra belge ekleyin",
+    "gonderilmisTeklifinBelgeleriDegistirilemez": "Gönderilmiş teklifin belgeleri değiştirilemez",
+    "sadecePdfGorselVeyaExcelYuklenebilir": "Sadece PDF, görsel veya Excel yüklenebilir",
+    "gecersizDosyaAnahtari": "Geçersiz dosya anahtarı",
+    "birTeklifeEnFazlaBelgeEklenebilir": "Bir teklife en fazla {MAXDOCUMENTSPERBID} belge eklenebilir — önce eskilerden silin",
+    "belgeBulunamadi": "Belge bulunamadı",
+    "buBelgeyiSilemezsiniz": "Bu belgeyi silemezsiniz"
+  },
+  "companyListings": {
+    "kendiSatinAlmaTalebinizeTeklifVeremezsiniz": "Kendi satın alma talebinize teklif veremezsiniz",
+    "buSatinAlmaTalebindeKalemListesi": "Bu satın alma talebinde kalem listesi yok ya da görüntüleme yetkiniz yok — fiyat içe aktarma yalnız kalemli satın alma taleplerinde",
+    "dosyaBos": "Dosya boş",
+    "dosyaCokBuyuk5MbSiniri": "Dosya çok büyük (5 MB sınırı)",
+    "makroluDosyaXlsmKabulEdilmez": "Makrolu dosya (.xlsm) kabul edilmez",
+    "excelDosyasiOkunamadiXlsxOlarakKaydedip": "Excel dosyası okunamadı — .xlsx olarak kaydedip deneyin",
+    "csvDosyasiCokBuyukSablonuXlsx": "CSV dosyası çok büyük — şablonu .xlsx olarak kaydedip yükleyin (CSV için sınır 1 MB)",
+    "csvDosyasiOkunamadi": "CSV dosyası okunamadı",
+    "desteklenmeyenDosyaBuSatinAlmaTalebinin": "Desteklenmeyen dosya — bu satın alma talebinin Excel şablonunu indirip doldurun",
+    "dosyadaSayfaBulunamadi": "Dosyada sayfa bulunamadı",
+    "buDosyaBuSatinAlmaTalebinin": "Bu dosya bu satın alma talebinin teklif şablonu değil (ItemId / Birim Fiyat sütunları yok). Şablonu ''Excel Şablonu ile Fiyatla'' penceresinden indirin.",
+    "makroluDosyaXlsmKabulEdilmezXlsx": "Makrolu dosya (.xlsm) kabul edilmez — .xlsx olarak kaydedin",
+    "excelDosyasiOkunamadiXlsxOlarakYeniden": "Excel dosyası okunamadı — .xlsx olarak yeniden kaydedip deneyin",
+    "desteklenmeyenDosyaExcelXlsxVeyaCsv": "Desteklenmeyen dosya — Excel (.xlsx) veya CSV yükleyin. Şablonu indirip kullanabilirsiniz.",
+    "dosyaVerisiGecersiz": "Dosya verisi geçersiz",
+    "sablonSutunlariBulunamadiBaslikSatirindaEn": "Şablon sütunları bulunamadı — başlık satırında en az ''Kalem Adı'', ''Miktar'' ve ''Birim'' olmalı. Şablonu indirip kullanın.",
+    "kapanisTarihiZorunlu": "Kapanış tarihi zorunlu",
+    "kapanisTarihiGelecekteOlmali": "Kapanış tarihi gelecekte olmalı",
+    "kapanisTarihiCokIleriEnFazla": "Kapanış tarihi çok ileri (en fazla 2 yıl)",
+    "acilisTarihiKapanistanOnceOlmali": "Açılış tarihi kapanıştan önce olmalı",
+    "pesinOdemedePesinYuzdesi1100": "Peşin ödemede peşin yüzdesi (%1-100) zorunlu",
+    "akreditifIcinAltTipSightUsance": "Akreditif için alt tip (Sight/Usance) seçin",
+    "vadeliUsanceAkreditifIcinVadeGun": "Vadeli (Usance) akreditif için vade gün sayısı zorunlu",
+    "ozelOdemeSeklindeOdemeKosuluNotu": "Özel ödeme şeklinde ödeme koşulu notu zorunlu",
+    "izinVerilenParaBirimleriIlaninAna": "İzin verilen para birimleri ilanın ana birimini içermeli",
+    "gecersizHedefUlkeKodu": "Geçersiz hedef ülke kodu: {c}",
+    "gecersizKategoriSecimi": "Geçersiz kategori seçimi",
+    "ozelDavetliIlanEnAzBir": "Özel (davetli) ilan en az bir davetli firma ile yayınlanabilir",
+    "icinGoldPaketSatinalmaPaneliGerekir": "{action} için Gold paket (satınalma paneli) gerekir. Mevcut satın alma taleplerinizi tamamlayabilirsiniz ancak yeni ilan işi başlatamazsınız.",
+    "firmaDogrulamanizTamamlanmadanBelgeleriniziAyarl": "Firma doğrulamanız tamamlanmadan {action} — belgelerinizi Ayarlar → Doğrulama''dan yükleyip onaya gönderin.",
+    "satinAlmaTalebiAcmakIcinGold": "Satın alma talebi açmak için Gold paket (satınalma paneli) gerekir.",
+    "talepAcmakIcinTalepAcmaVe": "Talep açmak için ''Talep açma ve yönetme'' yetkisi gerekir",
+    "satinAlmaTalebiIcinFormatSecin": "Satın alma talebi için format seçin (Teklif Toplama / Pazarlık)",
+    "pazarlikDogrudanAcilamazTalebiTeklifToplama": "Pazarlık doğrudan açılamaz — talebi teklif toplama olarak açın, ''Pazarlığa Geç'' ile açık eksiltme turuna aktarın",
+    "ilanBulunamadi": "İlan bulunamadı",
+    "sadeceTaslakVeyaHenuzTeklifGelmemis": "Sadece taslak veya henüz teklif gelmemiş satın alma talepleri düzenlenebilir",
+    "buSatinAlmaTalebineTeklifVerilmis": "Bu satın alma talebine teklif verilmiş; düzenleme yapılamaz",
+    "satinAlmaTalebiFormatiDuzenlemeylePazarliga": "Satın Alma Talebi formatı düzenlemeyle pazarlığa çevrilemez — ''Pazarlığa Geç'' ile aktarın",
+    "buSatinAlmaTalebineAzOnce": "Bu satın alma talebine az önce teklif verildi; düzenleme yapılamaz",
+    "yalnizcaTaslakIlanSilinebilirYayinlanmisIlan": "Yalnızca taslak ilan silinebilir; yayınlanmış ilan iptal edilir",
+    "yalnizcaTaslakIlanYayinlanabilir": "Yalnızca taslak ilan yayınlanabilir",
+    "yayinIcinGecerliBirKapanisTarihi": "Yayın için geçerli bir kapanış tarihi (gelecekte) gerekli",
+    "ozelDavetliIlanYayinlamakIcinEn": "Özel (davetli) ilan yayınlamak için en az bir firma davet edilmeli",
+    "ilanDurumuDegistiYalnizcaTaslakYayinlanabilir": "İlan durumu değişti; yalnızca taslak yayınlanabilir",
+    "herkeseAcikTalepleriGormekVeTeklif": "Herkese açık talepleri görmek ve teklif vermek için Silver paketi gerekir. Bağlantı davetiyle gelen talepleri ücretsiz görürsünüz.",
+    "icinGuncelTcmbKuruBulunamadiBu": "{cur} için güncel TCMB kuru bulunamadı — bu para birimiyle açık eksiltme/artırma açılamaz",
+    "gecersizTeslimatFaturaAdresi": "Geçersiz teslimat/fatura adresi",
+    "kendiIlaninizaTeklifVeremezsiniz": "Kendi talebinize teklif veremezsiniz",
+    "teklifVermekIcinTeklifVermeYetkisi": "Teklif vermek için ''Teklif verme'' yetkisi gerekir",
+    "ilanTeklifeKapali": "İlan teklife kapalı",
+    "teklifVermeHenuzBaslamadiAcilisSaatini": "Teklif verme henüz başlamadı (açılış saatini bekleyin)",
+    "teklifSuresiDoldu": "Teklif süresi doldu",
+    "geriCekilenTeklifYenidenVerilemez": "Geri çekilen teklif yeniden verilemez",
+    "gonderilmisTeklifDuzenlenemezDegisiklikIcinAlici": "Gönderilmiş teklif düzenlenemez — değişiklik için alıcıyla iletişime geçin; alıcı teklifinizi elerse yeniden teklif verebilirsiniz",
+    "acikEksiltmeArtirmadaGonderilmisTeklifTaslaga": "Açık eksiltme/artırmada gönderilmiş teklif taslağa çekilemez — yeni tutarı doğrudan gönderin",
+    "buIlanIcinGecersizParaBirimi": "Bu ilan için geçersiz para birimi",
+    "acikEksiltmeArtirmadaParaBirimiDegistirilemez": "Açık eksiltme/artırmada para birimi değiştirilemez — teklifinizi {currency} olarak verin",
+    "buTurdakiTeklifiniziVerdinizIlanSahibi": "Bu turdaki teklifinizi verdiniz — ilan sahibi yeni tur açarsa güncelleyebilirsiniz",
+    "teklifGondermekIcinGecerlilikSuresiZorunlu": "Teklif göndermek için geçerlilik süresi zorunlu",
+    "teslimSuresiZorunluSureGirmediginizKalemler": "Teslim süresi zorunlu (süre girmediğiniz kalemler için)",
+    "teslimTarihiGecmisteOlamaz": "Teslim tarihi geçmişte olamaz",
+    "buSatinAlmaTalebindeTeklifDosyasi": "Bu satın alma talebinde teklif dosyası zorunlu — önce taslak kaydedip dosya ekleyin",
+    "buSatinAlmaTalebiKalemBazli": "Bu satın alma talebi kalem-bazlı; en az bir kaleme birim fiyat girin",
+    "gecerliKalemTeklifiYok": "Geçerli kalem teklifi yok",
+    "ayniKalemBirdenFazlaKezGirilemez": "Aynı kalem birden fazla kez girilemez",
+    "buSatinAlmaTalebindeTumKalemlere": "Bu satın alma talebinde tüm kalemlere teklif vermelisiniz",
+    "fiyatlananHerKaleminBirimFiyatiSifirdan": "Fiyatlanan her kalemin birim fiyatı sıfırdan büyük olmalı",
+    "kalemBazindaFarkliParaBirimiYalniz": "Kalem bazında farklı para birimi yalnız kapalı zarf alım satın alma taleplerinde kullanılabilir",
+    "buIlanIcinGecersizKalemPara": "Bu ilan için geçersiz kalem para birimi: {c}",
+    "guncelKurBilgisiYokTcmbKalem": "Güncel kur bilgisi yok (TCMB {c}) — kalem bazlı farklı para birimi şu an kullanılamıyor; teklifi tek birimde verin veya daha sonra tekrar deneyin",
+    "teklifToplamiSifirdanBuyukOlmali": "Teklif toplamı sıfırdan büyük olmalı",
+    "gecersizSoruCevabi": "Geçersiz soru cevabı",
+    "ayniSoruyaBirdenFazlaCevapGirilemez": "Aynı soruya birden fazla cevap girilemez",
+    "zorunluKalemSorusuCevaplanmadi": "Zorunlu kalem sorusu cevaplanmadı: \"{text}\"",
+    "gecerliBirTutarGirin": "Geçerli bir tutar girin",
+    "teklifToplamiCokBuyuk": "Teklif toplamı çok büyük",
+    "pazarliktaOncedenFiyatladiginizKalemBirakilamazI": "Pazarlıkta önceden fiyatladığınız kalem bırakılamaz — \"{name}\" için fiyat girin",
+    "pazarlikOncekiTeklifinizinAltindaOlmali": "Pazarlık: {scopeNote} önceki teklifinizin ({fmt} {bidSym}) altında olmalı",
+    "acikArtirmaOncekiTeklifinizinUzerindeOlmali": "Açık artırma: {scopeNote} önceki teklifinizin ({fmt} {bidSym}) üzerinde olmalı",
+    "ilanBuSiradaGuncellendiDurumTur": "İlan bu sırada güncellendi (durum/tur değişti) — sayfayı yenileyip teklifi tekrar gönderin",
+    "ilanKalemleriBuSiradaDegistiSayfayi": "İlan kalemleri bu sırada değişti — sayfayı yenileyip teklifi tekrar gönderin",
+    "sadeceIlanSahibiKazandirabilir": "Sadece ilan sahibi kazandırabilir",
+    "ilanZatenKazandirilmisVeyaIptal": "İlan zaten kazandırılmış veya iptal",
+    "kazandirmaIcinYetkinizYok": "Kazandırma için yetkiniz yok",
+    "gecersizTeklif": "Geçersiz teklif",
+    "buSatinAlmaTalebiTeklifBelgesi": "Bu satın alma talebi teklif belgesi zorunlu kılıyor; kazanan teklifin belgesi yok",
+    "ilanDurumuDegistiKazandirmayiTekrarDeneyin": "İlan durumu değişti; kazandırmayı tekrar deneyin",
+    "teklifinGecerlilikSuresiDolmusTedarikcidenSure": "Teklifin geçerlilik süresi dolmuş; tedarikçiden süre uzatması isteyin ya da yeni tur açın",
+    "teklifArtikGecerliDegilGeriCekilmis": "Teklif artık geçerli değil (geri çekilmiş veya elenmiş) — kazandırılamaz",
+    "siparisTutariTutarsizligiKazandirmaGuvenlikNeden": "Sipariş tutarı tutarsızlığı — kazandırma güvenlik nedeniyle durduruldu (destek ekibiyle iletişime geçin)",
+    "ilanZatenKazandirilmis": "İlan zaten kazandırılmış",
+    "teklifArtikGecerliDegilElenmisVeya": "Teklif artık geçerli değil (elenmiş veya çekilmiş) — kazandırılamaz",
+    "belgeZorunluKazananTeklifinYukluBelgesi": "Belge zorunlu — kazanan teklifin yüklü belgesi yok",
+    "buSatinAlmaTalebindeKalemYok": "Bu satın alma talebinde kalem yok",
+    "enAzBirKalemIcinKazanan": "En az bir kalem için kazanan seçin",
+    "birKalemBirdenFazlaKazananaVerilemez": "Bir kalem birden fazla kazanana verilemez",
+    "gecersizKalemTeklif": "Geçersiz kalem/teklif",
+    "secilenTeklifinKalemiIcinFiyatiYok": "Seçilen teklifin \"{name}\" kalemi için fiyatı yok",
+    "kazananTekliflerdenBiriArtikGecerliDegil": "Kazanan tekliflerden biri artık geçerli değil (elenmiş veya çekilmiş) — kazandırma uygulanamadı",
+    "sadeceIlanSahibiYeniTurAcabilir": "Sadece ilan sahibi yeni tur açabilir",
+    "buIlanYoneticiTarafindanTeklifeKapatildi": "Bu ilan yönetici tarafından teklife kapatıldı — yeni tur açılamaz, destek ile iletişime geçin",
+    "yeniTurYalnizcaAcikVeyaKapanmis": "Yeni tur yalnızca açık veya kapanmış ilanda açılabilir",
+    "ilanDurumuDegistiYeniTurAcilamadi": "İlan durumu değişti; yeni tur açılamadı",
+    "buIlanYoneticiTarafindanTeklifeKapatildi2": "Bu ilan yönetici tarafından teklife kapatıldı — geçerlilik süresi uzatılamaz",
+    "satinAlmaTalebiSonuclandiGecerlilikSuresi": "Satın Alma Talebi sonuçlandı — geçerlilik süresi uzatılamaz",
+    "buIlandaTeklifinizYok": "Bu ilanda teklifiniz yok",
+    "teklifGecerliliginiUzatmakIcinTeklifVerme": "Teklif geçerliliğini uzatmak için ''Teklif verme'' yetkisi gerekir",
+    "buTeklifinGecerlilikSuresiUzatilamaz": "Bu teklifin geçerlilik süresi uzatılamaz",
+    "uzatilacakGonderilmisBirTeklifYokTeklif": "Uzatılacak gönderilmiş bir teklif yok — teklif verme ekranını kullanın",
+    "buTeklifGuncelTuraAitDegil": "Bu teklif güncel tura ait değil — lütfen yeni teklif verin",
+    "uzatmaYetersizTeklifinSonGecerlilikGunu": "Uzatma yetersiz — teklifin son geçerlilik günü hâlâ geçmişte kalıyor, daha uzun bir süre girin",
+    "sadeceIlanSahibiDavetEkleyebilir": "Sadece ilan sahibi davet ekleyebilir",
+    "buIlanaArtikDavetEklenemez": "Bu ilana artık davet eklenemez",
+    "kapanisa2DakikadanAzKalaPazarlik": "Kapanışa 2 dakikadan az kala pazarlık satın alma talebine tedarikçi eklenemez",
+    "sadeceIlanSahibiElemeYapabilir": "Sadece ilan sahibi eleme yapabilir",
+    "buDurumdaElemeYapilamaz": "Bu durumda eleme yapılamaz",
+    "teklifDurumuDegistiElemeUygulanamadi": "Teklif durumu değişti; eleme uygulanamadı",
+    "sadeceIlanSahibiIptalEdebilir": "Sadece ilan sahibi iptal edebilir",
+    "sadeceAcikIlanIptalEdilebilir": "Sadece açık ilan iptal edilebilir",
+    "ilanDurumuDegistiIptalUygulanamadi": "İlan durumu değişti; iptal uygulanamadı",
+    "satinAlmaTalebiZatenDegerlendirmede": "Satın Alma Talebi zaten değerlendirmede",
+    "yalnizcaAcikSatinAlmaTalebiDegerlendirmeye": "Yalnızca açık satın alma talebi değerlendirmeye alınabilir",
+    "ilanDurumuDegistiSayfayiYenileyin": "İlan durumu değişti — sayfayı yenileyin",
+    "kapanisTarihiAcilisTarihindenSonraOlmali": "Kapanış tarihi açılış tarihinden sonra olmalı",
+    "kapanisa2DakikadanAzKaldiAcik": "Kapanışa 2 dakikadan az kaldı — açık eksiltme/artırmada kapanış saati artık değiştirilemez",
+    "ilanDurumuDegistiKapanisZamaniGuncellenemedi": "İlan durumu değişti; kapanış zamanı güncellenemedi",
+    "buIlanKapatilamaz": "Bu ilan kapatılamaz",
+    "ilanDurumuDegistiKazanansizKapatmaUygulanamadi": "İlan durumu değişti; kazanansız kapatma uygulanamadı",
+    "sadeceAcikIlandaYapilabilir": "Sadece açık ilanda yapılabilir",
+    "buIlaniYonetmeYetkinizYok": "Bu ilanı yönetme yetkiniz yok — yalnız ilanı açan operatör yönetebilir",
+    "actionPublish": "ilan yayınlayamazsınız",
+    "actionBid": "teklif veremezsiniz",
+    "actionAward": "kazandıramazsınız",
+    "oncedenFiyatladiginizKalemlerinToplami": "önceden fiyatladığınız kalemlerin toplamı",
+    "yeniTeklifiniz": "yeni teklifiniz",
+    "actionPublishWork": "İlan yayınlamak",
+    "actionNewRound": "Yeni tur açmak",
+    "actionInviteSupplier": "Satın Alma Talebine yeni tedarikçi davet etmek",
+    "excelDosyasiCokBuyukKarmasik": "Excel dosyası çok büyük/karmaşık — yalnız Kalemler sayfasını bırakıp 500 satırın altında yükleyin",
+    "itemImport": {
+      "column": {
+        "name": "Kalem Adı",
+        "quantity": "Miktar",
+        "unit": "Birim",
+        "description": "Açıklama",
+        "materialCode": "Malzeme Kodu",
+        "targetUnitPrice": "Hedef Birim Fiyat"
+      },
+      "bos": "{label} boş",
+      "cokUzun": "{label} çok uzun (en fazla {max} karakter)",
+      "sayiDegil": "{label} sayı değil",
+      "paraAraligi": "{label} 0,01 ile 1e15 arasında olmalı",
+      "ondalik": "{label} en fazla {n} ondalık olabilir",
+      "miktarAraligi": "{label} 0,001 ile 1.000.000.000 arasında olmalı",
+      "terminGecersiz": "Termin tarihi geçersiz (GG.AA.YYYY bekleniyor)",
+      "birimTamSayi": "\"{unit}\" birimi tam sayı ister — ondalıklı miktar girilemez",
+      "birimOndalik": "Miktar \"{unit}\" için en fazla {n} ondalık olabilir",
+      "template": {
+        "fileName": "rothern-satin-alma-talebi-kalem-sablonu",
+        "helpColumn": "Sütun",
+        "helpRequired": "Zorunlu",
+        "helpDescription": "Açıklama",
+        "yes": "Evet",
+        "no": "Hayır",
+        "noteHeader": "\"{sheet}\" sayfasında 1. satır başlıktır — DEĞİŞTİRMEYİN. Kalemleri 2. satırdan itibaren alt alta yazın.",
+        "noteMaxRows": "En fazla {max} kalem. Boş satırlar atlanır.",
+        "notePrices": "Fiyatlar KDV HARİÇ girilir. Ondalık ayracı virgül veya nokta olabilir (12,5 ya da 12.5).",
+        "noteDates": "Tarihler GG.AA.YYYY (ör. 15.09.2026) ya da Excel tarih hücresi olabilir.",
+        "noteUpload": "Dosyayı kaydedip (.xlsx) satın alma talebi formundaki ''Excel ile İçe Aktar'' ile yükleyin; aktarmadan önce önizleme görürsünüz.",
+        "noteColumns": "Sütunların sırası önemli değil; başlık metni aynı kaldığı sürece sütun ekleyip çıkarabilirsiniz (zorunlular hariç)."
+      },
+      "hint": {
+        "name": "Zorunlu. En fazla 200 karakter. Ör: Çelik boru 2\" DN50",
+        "quantity": "Zorunlu. Sayı; en fazla 3 ondalık (0,001 – 1.000.000.000). Ör: 120 veya 12,5",
+        "unit": "Zorunlu. En fazla 20 karakter. Ör: adet, kg, m, m², lt, paket, koli, ton",
+        "description": "İsteğe bağlı. Teknik özellik/şartname notu, en fazla 2000 karakter.",
+        "materialCode": "İsteğe bağlı. Stok/ERP kodunuz, en fazla 50 karakter.",
+        "requiredByDate": "İsteğe bağlı. Kalemin en geç teslim tarihi. GG.AA.YYYY ya da Excel tarih hücresi.",
+        "targetUnitPrice": "İsteğe bağlı. Bütçe/hedef birim fiyatınız (KDV hariç). Tedarikçiler GÖRMEZ."
+      },
+      "sample": {
+        "name1": "Çelik boru 2\" DN50 dikişsiz",
+        "description1": "ST37, 6 m boy, kaynaklı bağlantıya uygun",
+        "name2": "Dirsek 90° 2\"",
+        "unit2": "adet",
+        "name3": "Flanş DN50 PN16",
+        "description3": "Kör flanş, galvaniz"
+      }
+    },
+    "bidImport": {
+      "birimFiyatSayiDegil": "Birim fiyat sayı değil",
+      "paraBirimiTaninmadi": "Para birimi tanınmadı: {value}",
+      "paraBirimiKabulEdilmiyor": "Para birimi ({currency}) bu satın alma talebinde kabul edilmiyor ({allowed})",
+      "teslimSuresiTaninmadi": "Teslim süresi tanınmadı: {value}",
+      "ayniKalemBirdenCokSatir": "Aynı kalem şablonda birden çok satırda — son satır geçerli",
+      "baglanamayanSatir": "{n} satır satın alma talebi kalemlerine bağlanamadı (ItemId bozuk/silinmiş) — atlandı",
+      "fiyatGirilmisKalemYok": "Şablonda fiyat girilmiş kalem yok",
+      "sablonSatir": "Şablon satır {n}",
+      "kdvDahilUyari": "Belgedeki fiyatlar KDV DAHİL görünüyor — teklif fiyatları KDV hariç olmalı, kontrol edin",
+      "belgeParaBirimiKabulEdilmiyor": "Belge para birimi ({currency}) bu satın alma talebinde kabul edilmiyor ({allowed})",
+      "fiyatEslenemedi": "Belgeden satın alma talebi kalemlerine fiyat eşlenemedi — elle eşleyebilir ya da şablonu kullanabilirsiniz",
+      "dusukGuven": "{n} kalem düşük güvenle eşleşti — sarı satırları kontrol edin",
+      "birimFiyatAraligi": "Birim fiyat 0,01 ile 1e15 arasında olmalı",
+      "toplamdanTuretildi": "Birim fiyat belgedeki toplam ÷ miktardan türetildi",
+      "toplamUyusmuyor": "Belgede birim × miktar toplamla uyuşmuyor",
+      "miktarFarkli": "Belgedeki miktar ({docQuantity}) satın alma talebindekinden ({itemQuantity}) farklı",
+      "birimFarkli": "Belgedeki birim ({docUnit}) satın alma talebindekinden ({itemUnit}) farklı",
+      "satirParaBirimiKabulEdilmiyor": "Belgedeki para birimi ({currency}) bu satın alma talebinde kabul edilmiyor — teklif birimi kullanılacak",
+      "teslimAnlasilamadi": "Teslim süresi anlaşılamadı: \"{text}\"",
+      "template": {
+        "currencyTitle": "Para birimi",
+        "currencyError": "Bu satın alma talebinde kabul edilen para birimleri: {list}",
+        "deliveryTitle": "Teslim süresi",
+        "deliveryError": "Listeden seçin",
+        "helpTitle": "Teklif şablonu — {title}",
+        "helpSheet": "\"{sheet}\" sayfasındaki gri sütunlar satın alma talebinin kalemleridir, DEĞİŞTİRMEYİN (satır eklemeyin/silmeyin).",
+        "helpFill": "Beyaz sütunları doldurun: Birim Fiyat (KDV HARİÇ, zorunlu), Para Birimi (listeden), Teslim Süresi (listeden), Not.",
+        "helpSkip": "Teklif vermek istemediğiniz kalemin Birim Fiyat hücresini BOŞ bırakın (satın alma talebi tüm kalemleri zorunlu kılıyorsa uygulamada uyarılırsınız).",
+        "helpDecimal": "Ondalık ayracı virgül veya nokta olabilir (185,50 ya da 185.50).",
+        "helpUpload": "Dosyayı kaydedip teklif sayfasındaki ''Excel Şablonu ile Fiyatla'' ile yükleyin — önce önizleme görürsünüz, teklif göndermez.",
+        "fileNamePrefix": "teklif-sablonu",
+        "fileNameFallback": "satın alma talebi"
+      }
+    },
+    "cekIcinVadeGunSayisiZorunlu": "Çek için vade gün sayısı zorunlu",
+    "senetIcinVadeGunSayisiZorunlu": "Senet için vade gün sayısı zorunlu",
+    "vadeliOdemeIcinGunSayisiZorunlu": "Vadeli ödeme için gün sayısı zorunlu",
+    "alimIcinFormatSecin": "Alım ilanı için format seçin (Teklif Toplama / Pazarlık)",
+    "satisIcinFormatSecin": "Satış ilanı için format seçin (Teklif Toplama / Açık Artırma)",
+    "ozelTalebeYalnizDavetliFirmalar": "Bu özel satın alma talebine yalnızca davetli firmalar teklif verebilir",
+    "tekliIcinPremiumUyelikGerekir": "Bu ilana teklif vermek için premium üyelik gerekir",
+    "productMatch": {
+      "category": "Ürününüz bu kategoride: {product}",
+      "text": "Ürününüzle eşleşiyor: {product}"
+    }
+  },
+  "companyListingDocuments": {
+    "ilanBulunamadi": "İlan bulunamadı",
+    "sadeceIlanSahibiDosyaEkleyebilir": "Sadece ilan sahibi dosya ekleyebilir",
+    "satinAlmaTalebiTeklifeKapaliBelgeler": "Satın Alma Talebi teklife kapalı; belgeler değiştirilemez",
+    "buSatinAlmaTalebineTeklifVerilmis": "Bu satın alma talebine teklif verilmiş; belgeler değiştirilemez",
+    "sadecePdfGorselVeyaExcelYuklenebilir": "Sadece PDF, görsel veya Excel yüklenebilir",
+    "gecersizDosyaAnahtari": "Geçersiz dosya anahtarı",
+    "birIlanaEnFazlaBelgeEklenebilir": "Bir ilana en fazla {MAXDOCUMENTSPERLISTING} belge eklenebilir — önce eskilerden silin",
+    "kalemBulunamadi": "Kalem bulunamadı",
+    "birKalemeEnFazlaBelgeEklenebilir": "Bir kaleme en fazla {MAXDOCUMENTSPERITEM} belge eklenebilir",
+    "belgeBulunamadi": "Belge bulunamadı"
+  },
+  "companyProfile": {
+    "firmaBulunamadi": "Firma bulunamadı",
+    "enFazlaUrunHizmetSecebilirsiniz": "En fazla {MAXCOMPANYSUBPICKS} ürün/hizmet seçebilirsiniz",
+    "enAzBirAnaKategoriSecili": "En az bir ana kategori seçili kalmalı — kategorisi olmayan firmaya talep bildirimi gönderilemez.",
+    "gecerliBirKepAdresiGiriniz": "Geçerli bir KEP adresi giriniz",
+    "gecerliBirIbanGiriniz": "Geçerli bir IBAN giriniz",
+    "dogrulamaInceleniyorKilitliAlanlar": "Doğrulama inceleniyor; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez",
+    "firmanizDogrulandiKilitliAlanlar": "Firmanız doğrulandı; firma adı, ünvan, kimlik ve IBAN bilgileri değiştirilemez — değişiklik için destek ile iletişime geçin"
+  },
+  "companyMessages": {
+    "gecersizPortal": "Geçersiz portal",
+    "firmaBulunamadi": "Firma bulunamadı",
+    "kendineMesajGonderemezsin": "Kendine mesaj gönderemezsin",
+    "mesajlariGoruntulemekIcinYetkiGerekir": "Mesajları görüntülemek için ''{permission}'' yetkisi gerekir",
+    "mesajGondermekIcinYetkiGerekir": "Mesaj göndermek için ''{permission}'' yetkisi gerekir"
+  },
+  "companyListingTemplates": {
+    "sablonIcerigiCokBuyukMaks500": "Şablon içeriği çok büyük (maks 500 KB)",
+    "sablonBulunamadi": "Şablon bulunamadı"
+  },
+  "companyReviews": {
+    "puan1Ile5ArasindaOlmali": "Puan 1 ile 5 arasında olmalı",
+    "siparisBulunamadi": "Sipariş bulunamadı",
+    "yalnizcaTamamlanmisSiparislerDegerlendirilebilir": "Yalnızca tamamlanmış siparişler değerlendirilebilir",
+    "firmaProfiliBulunamadi": "Firma profili bulunamadı",
+    "degerlendirmeYazmakIcinYetkiGerekir": "Değerlendirme yazmak için ''{permission}'' yetkisi gerekir"
+  },
+  "adminAuth": {
+    "buEPostaIleZatenBir": "Bu e-posta ile zaten bir yönetici var",
+    "kendiRolunuzuDusuremezsiniz": "Kendi rolünüzü düşüremezsiniz",
+    "sonAktifSuperAdminDusurulemezPasiflestirilemez": "Son aktif SUPER_ADMIN düşürülemez/pasifleştirilemez",
+    "kendiniziPasiflestiremezsiniz": "Kendinizi pasifleştiremezsiniz",
+    "hesapSupabaseKoprusuneBagliDegil": "Hesap Supabase köprüsüne bağlı değil",
+    "yoneticiBulunamadi": "Yönetici bulunamadı",
+    "gecersizTokenTipi": "Geçersiz token tipi",
+    "adminBulunamadiVeyaPasif": "Admin bulunamadı veya pasif",
+    "oturumGecersizYenidenGirisYapin": "Oturum geçersiz — yeniden giriş yapın",
+    "n2faRequired": "2FA_REQUIRED",
+    "dogrulamaKoduHatali": "Doğrulama kodu hatalı",
+    "yeniSifreEnAz12Karakter": "Yeni şifre en az 12 karakter olmalı",
+    "mevcutSifreHatali": "Mevcut şifre hatalı",
+    "n2faZatenEtkin": "2FA zaten etkin",
+    "n2faEtkinDegil": "2FA etkin değil",
+    "buIslemIcinYetkinizYok": "Bu işlem için yetkiniz yok",
+    "ePostaVeyaSifreHatali": "E-posta veya şifre hatalı"
+  },
+  "companyComplaints": {
+    "gecersizFirmaKodu": "Geçersiz firma kodu",
+    "firmaBulunamadi": "Firma bulunamadı",
+    "kendiniziSikayetEdemezsiniz": "Kendinizi şikayet edemezsiniz",
+    "buFirmaIcinZatenAcikSikayetiniz": "Bu firma için zaten açık şikayetiniz var"
+  },
+  "email": {
+    "ePostaKaydiBulunamadi": "E-posta kaydı bulunamadı",
+    "buEPostaTekKullanimlikKod": "Bu e-posta tek-kullanımlık kod/token taşıdığı için içeriği saklanmaz — yeniden gönderilemez. Kullanıcı kodu/daveti yeniden talep etmeli (parola sıfırlama, doğrulama kodu veya daveti tekrar gönderme akışı).",
+    "ePostaLoguBulunamadi": "E-posta logu bulunamadı"
+  },
+  "companyActivity": {
+    "aktiviteLogunuYalnizcaYonetimYetkisiTasiyanlar": "Aktivite logunu yalnızca yönetim yetkisi taşıyanlar görüntüleyebilir"
+  },
+  "passwordReset": {
+    "gecersizVeyaKullanilmisBaglanti": "Geçersiz veya kullanılmış bağlantı",
+    "buBaglantiZatenKullanilmis": "Bu bağlantı zaten kullanılmış",
+    "baglantininSuresiDolmus": "Bağlantının süresi dolmuş",
+    "hesapGecersizVeyaPasif": "Hesap geçersiz veya pasif",
+    "buHesapSupabaseAuthABagli": "Bu hesap Supabase Auth''a bağlı değil — destek ekibiyle iletişime geçin"
+  },
+  "companyReports": {
+    "alimRaporlariIcinSatinalmaRaporlariYetkisi": "Alım raporları için ''Satınalma raporları'' yetkisi gerekir",
+    "satinAlmaTalebiBulunamadiNumaraVeya": "Satın Alma Talebi bulunamadı — numara veya ID hatalı olabilir",
+    "satinAlmaTalebiNumarasiYaDa": "Satın Alma Talebi numarası ya da ID zorunlu",
+    "satinAlmaTalebiBulunamadi": "Satın Alma Talebi bulunamadı",
+    "tarihAraligiZorunlu": "Tarih aralığı zorunlu",
+    "olusturulmaTarih": "Oluşturulma: {tarih}",
+    "aralikBaslangicBitis": "Aralık: {bas} – {bit}",
+    "genelSatinAlmaTalebiRaporu": "Genel Satın Alma Talebi Raporu",
+    "tasarrufRaporu": "Tasarruf Raporu",
+    "kalemBazli": "Kalem Bazlı",
+    "turGecmisi": "Tur Geçmişi",
+    "rapor": "Rapor",
+    "noTurSayfaAdi": "{no} - Tur {tur}",
+    "turN": "Tur {n}",
+    "nKayit": "{n} kayıt",
+    "hedefToplamTutar": "Hedef Toplam: {tutar}",
+    "durumTaslak": "Taslak",
+    "durumOnayBekliyor": "Onay Bekliyor",
+    "durumYayinda": "Yayında",
+    "durumTeklifeKapali": "Teklife Kapalı",
+    "durumKazandirmaOnayi": "Kazandırma Onayı",
+    "durumTamamlandi": "Tamamlandı",
+    "durumIptal": "İptal",
+    "durumKazansizKapatildi": "Kazansız Kapatıldı",
+    "usulTeklifToplama": "Teklif Toplama",
+    "usulPazarlik": "Pazarlık",
+    "basNo": "No",
+    "basBaslik": "Başlık",
+    "basUsul": "Usul",
+    "basDurum": "Durum",
+    "basPara": "Para",
+    "basTur": "Tur",
+    "basKapanis": "Kapanış",
+    "basDavetli": "Davetli",
+    "basTeklif": "Teklif",
+    "basYanitYuzde": "Yanıt %",
+    "basHedefToplam": "Hedef Toplam",
+    "basEnDusukTry": "En Düşük (TRY)",
+    "basEnYuksekTry": "En Yüksek (TRY)",
+    "basKazananTry": "Kazanan (TRY)",
+    "basKazananTedarikci": "Kazanan Tedarikçi",
+    "basTasarrufTry": "Tasarruf (TRY)",
+    "basOlusturan": "Oluşturan",
+    "basTasarrufYuzde": "Tasarruf %",
+    "basKazananTedarikciler": "Kazanan Tedarikçiler",
+    "basKalem": "Kalem",
+    "basBirim": "Birim",
+    "basKazananAdet": "Kazanan Adet",
+    "basHedefBirim": "Hedef Birim",
+    "basKazananBirim": "Kazanan Birim",
+    "basHedefTutar": "Hedef Tutar",
+    "basKazananTutar": "Kazanan Tutar",
+    "basTasarruf": "Tasarruf",
+    "basAdet": "Adet",
+    "basTedarikci": "Tedarikçi",
+    "basBirimFiyat": "Birim Fiyat",
+    "basTutar": "Tutar",
+    "basParaBirimi": "Para Birimi",
+    "firmaBirimFiyat": "{firma} - Birim Fiyat",
+    "firmaToplam": "{firma} - Toplam",
+    "firmaYanit": "{firma} - Yanıt",
+    "ozet": "Özet",
+    "toplamSatinAlmaTalebi": "Toplam Satın Alma Talebi",
+    "kazandirilan": "Kazandırılan",
+    "ozetIptal": "İptal",
+    "toplamDavet": "Toplam Davet",
+    "toplamTeklif": "Toplam Teklif",
+    "yanitOrani": "Yanıt Oranı",
+    "ortTeklifSatinAlmaTalebi": "Ort. Teklif / Satın Alma Talebi",
+    "kazananToplamTry": "Kazanan Toplam (TRY)",
+    "toplamTasarrufTry": "Toplam Tasarruf (TRY)",
+    "durumDagilimi": "Durum Dağılımı",
+    "toplamIkiNokta": "Toplam:",
+    "ortalamaTasarrufYuzde": "Ortalama Tasarruf %",
+    "enIyi": "En İyi",
+    "enZayif": "En Zayıf",
+    "tedarikciBazliKazanilanTutar": "Tedarikçi Bazlı Kazanılan Tutar",
+    "genelToplam": "GENEL TOPLAM",
+    "siraEnUcuz": "SIRA (en ucuz=1)",
+    "hedefeGoreTasarruf": "Hedefe Göre Tasarruf",
+    "onerilenKazanan": "Önerilen Kazanan (kalem bazında en düşük)",
+    "dosyaGenelRapor": "genel-rapor",
+    "dosyaTasarrufRaporu": "tasarruf-raporu",
+    "dosyaTeklifKarsilastirma": "teklif-karsilastirma",
+    "digerKategoriler": "Diğer"
+  },
+  "companyViews": {
+    "isAnaliziSilverVeUzeriPaketlerde": "İş Analizi Silver ve üzeri paketlerde."
+  },
+  "resendWebhook": {
+    "svixIdHeaderZorunlu": "svix-id header zorunlu",
+    "gecersizWebhookPayload": "Geçersiz webhook payload",
+    "webhookSecretYapilandirilmamis": "Webhook secret yapılandırılmamış",
+    "eksikWebhookHeaderLari": "Eksik webhook header''ları",
+    "rawBodyYokBodyParserConfig": "Raw body yok — body parser config hatası",
+    "gecersizWebhookImzasi": "Geçersiz webhook imzası"
+  },
+  "companyDashboard": {
+    "buPanoyuGoruntulemeYetkinizYok": "Bu panoyu görüntüleme yetkiniz yok",
+    "activity": {
+      "invitationSubtitle": "Satın Alma Talebi daveti · {number}",
+      "bidSubtitle": "Teklif · {number} · v{version}",
+      "orderTitle": "Sipariş",
+      "orderSubtitle": "Sipariş · {number}"
+    },
+    "funnel": {
+      "listings": "Satın Alma Talebi Açıldı",
+      "bids": "Teklif Aldı",
+      "awarded": "Kazandırıldı",
+      "orders": "Siparişe Döndü",
+      "delivered": "Teslim Edildi"
+    },
+    "pipeline": {
+      "invites": "Davet",
+      "submitted": "Teklif Verildi",
+      "evaluating": "Değerlendirmede",
+      "won": "Kazanıldı"
+    }
+  },
+  "companyConnections": {
+    "tokenGerekli": "Token gerekli",
+    "baglantiDavetiGondermekIcinBirPaket": "Bağlantı daveti göndermek için bir paket (Silver+) gerekir. Paketsiz üyeler yalnızca gelen davetleri kabul edebilir.",
+    "gecersizRothernIdXxxxXxxx": "Geçersiz Rothern ID (XXXX-XXXX)",
+    "buRothernIdYeSahipFirma": "Bu Rothern ID''ye sahip firma bulunamadı",
+    "buEPostaAdresininBagliOldugu": "Bu e-posta adresinin bağlı olduğu firma artık aktif değil",
+    "buEPostaAdresiDavetAlmak": "Bu e-posta adresi davet almak istemediğini bildirdi",
+    "davetGondermekIcinBirPaketSilver": "Davet göndermek için bir paket (Silver+) gerekir.",
+    "satinAlmaTalebiBulunamadi": "Satın Alma Talebi bulunamadı",
+    "buSatinAlmaTalebiIcinDis": "Bu satın alma talebi için dış davet gönderme yetkiniz yok — ilanı yöneten kullanıcı ve ilgili rol gerekir",
+    "yalnizTaslakAcikSatinAlmaTalebi": "Yalnız taslak/açık satın alma talebi için dış davet gönderilebilir",
+    "gecerliEPostaAdresiVerilmedi": "Geçerli e-posta adresi verilmedi",
+    "gecersizBaglanti": "Geçersiz bağlantı",
+    "kendinizeIstekGonderemezsiniz": "Kendinize istek gönderemezsiniz",
+    "firmaBulunamadi": "Firma bulunamadı",
+    "buFirmaylaZatenBaglisiniz": "Bu firmayla zaten bağlısınız",
+    "buFirmaSizeZatenIstekGondermis": "Bu firma size zaten istek göndermiş — Gelen İstekler''den kabul edin",
+    "buFirmayaZatenIstekGonderdiniz": "Bu firmaya zaten istek gönderdiniz",
+    "davetBulunamadi": "Davet bulunamadı",
+    "firmaProfiliBulunamadi": "Firma profili bulunamadı",
+    "davetZatenYanitlanmis": "Davet zaten yanıtlanmış",
+    "baglantiBulunamadi": "Bağlantı bulunamadı",
+    "gunlukDisDavetLimitineUlasildi": "Günlük dış davet limitine ulaşıldı ({cap})",
+    "buAdresDavetAlmakIstemiyor": "Bu adres davet almak istemiyor",
+    "buAdresZatenRothernDeKayitliDizinden": "Bu adres zaten Rothern'de kayıtlı — dizinden bağlantı daveti gönderin",
+    "buAdreseDahaOnceDavetGonderilmis": "Bu adrese daha önce davet gönderilmiş",
+    "gonderilemedi": "Gönderilemedi"
+  },
+  "companySupplierTemplates": {
+    "baglantinizOlmayanFirmaKayit": "Bağlantınız olmayan firma: {length} kayıt",
+    "sablonBulunamadi": "Şablon bulunamadı"
+  },
+  "companyUsers": {
+    "kuruculukDavetleVerilemezMevcutBirKullaniciya": "Kuruculuk davetle verilemez; mevcut bir kullanıcıya devredin",
+    "enAzBirYetkiSecin": "En az bir yetki seçin",
+    "buEPostaZatenKayitli": "Bu e-posta zaten kayıtlı",
+    "buEPostayaBekleyenBirDavet": "Bu e-postaya bekleyen bir davet zaten var — gerekirse yeniden gönderin",
+    "kullaniciVeYetkiTikiniYalnizcaKurucu": "''Kullanıcı ve yetki'' tikini yalnızca Kurucu verebilir",
+    "davetBulunamadi": "Davet bulunamadı",
+    "firmaHesabiAktifDegil": "Firma hesabı aktif değil",
+    "buEPostaIleZatenBir": "Bu e-posta ile zaten bir hesap var",
+    "davetArtikGecerliDegil": "Davet artık geçerli değil",
+    "buDavetZatenKabulEdilmis": "Bu davet zaten kabul edilmiş",
+    "buDavetIptalEdilmis": "Bu davet iptal edilmiş",
+    "davetinSuresiDolmusFirmanizdanYeniDavet": "Davetin süresi dolmuş — firmanızdan yeni davet isteyin",
+    "kurucununIzinleriKisitlanamazTumYetkilereSahipti": "Kurucunun izinleri kısıtlanamaz (tüm yetkilere sahiptir)",
+    "firmaSahibiPasiflestirilemez": "Firma sahibi pasifleştirilemez",
+    "kendiniziPasiflestiremezsiniz": "Kendinizi pasifleştiremezsiniz",
+    "izinleriYalnizcaKurucuDuzenleyebilir": "İzinleri yalnızca Kurucu düzenleyebilir",
+    "kurucuCikarilamazOnceKuruculuguDevredin": "Kurucu çıkarılamaz — önce kuruculuğu devredin",
+    "kendiniziCikaramazsiniz": "Kendinizi çıkaramazsınız",
+    "enAzBirRolSecin": "En az bir rol seçin",
+    "kurucuYoneticiOnaylayiciIleBirlestirilemezYetkil": "Kurucu, Yönetici/Onaylayıcı ile birleştirilemez (yetkilerini zaten kapsar); işlem için Satın Almacı/Satışçı ekleyin",
+    "kurucuVeYoneticiZatenOnayVerebilir": "Kurucu ve Yönetici zaten onay verebilir; ayrıca Onaylayıcı rolü gerekmez.",
+    "kullaniciBulunamadi": "Kullanıcı bulunamadı",
+    "kendiYetkileriniziDuzenleyemezsinizKurucuVeyaBas": "Kendi yetkilerinizi düzenleyemezsiniz — Kurucu veya başka bir yönetici yapmalı",
+    "kuruculuguYalnizcaMevcutKurucuDevredebilir": "Kuruculuğu yalnızca mevcut Kurucu devredebilir",
+    "yoneticiEtiketiniYalnizcaKurucuVerebilir": "Yönetici etiketini yalnızca Kurucu verebilir",
+    "rolAtamayiYalnizcaKurucuVeyaYonetici": "Rol atamayı yalnızca Kurucu veya Yönetici yapabilir",
+    "yoneticiVeyaKurucuRolundekiBirKullanicinin": "Yönetici veya Kurucu rolündeki bir kullanıcının rollerini yalnızca Kurucu veya Yönetici değiştirebilir",
+    "kuruculuguBirakmadanOnceBaskaBirAktif": "Kuruculuğu bırakmadan önce başka bir aktif kullanıcıya devretmelisiniz",
+    "devirdeEskiKurucuTekrarKurucuOlamaz": "Devirde eski Kurucu tekrar Kurucu olamaz",
+    "kuruculukYalnizcaAktifBirKullaniciyaDevredilebil": "Kuruculuk yalnızca aktif bir kullanıcıya devredilebilir",
+    "firmaBulunamadi": "Firma bulunamadı",
+    "satinalmaYetkisiYalnizGoldPaketteVerilebilir": "Satınalma yetkisi yalnız Gold pakette verilebilir — talep açma ve kazandırma diğer paketlerde kapalı.",
+    "koltukDoluDavetSuAnKabul": "Koltuk dolu — davet şu an kabul edilemiyor; firma yöneticinize başvurun",
+    "koltukSeciminiYalnizcaKurucuYapabilir": "Koltuk seçimini yalnızca Kurucu yapabilir",
+    "buPaketteKoltukSiniriYok": "Bu pakette koltuk sınırı yok",
+    "secimListesindeKoltukKullanmayanBirKullanici": "Seçim listesinde koltuk kullanmayan bir kullanıcı var",
+    "enFazlaKoltukSecebilirsinizPaketLimiti": "En fazla {limit} koltuk seçebilirsiniz (paket limiti)",
+    "gecersizIzin": "Geçersiz izin: {permission}",
+    "enAzBirAktifYonetimYetkilisiKalmali": "Firmada en az bir aktif yönetim yetkilisi (Kurucu/Yönetici) kalmalı",
+    "koltukDoluBekleyenDahil": "Koltuk dolu ({used} aktif + {pending} bekleyen davet / {limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın",
+    "koltukDoluIslemYetkisi": "Koltuk dolu ({used}/{limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın"
+  },
+  "companyQuestionTemplates": {
+    "sablonBulunamadi": "Şablon bulunamadı",
+    "sablonAdiZorunlu": "Şablon adı zorunlu",
+    "enAz1SoruGerekli": "En az 1 soru gerekli"
+  },
+  "companyBankAccounts": {
+    "gecerliBirTrIbanGiriniz": "Geçerli bir TR IBAN giriniz",
+    "gecerliBirIbanGirinizKontrolHanesi": "Geçerli bir IBAN giriniz — kontrol hanesi tutmuyor, lütfen yeniden kontrol edin",
+    "bankaHesabiBulunamadi": "Banka hesabı bulunamadı"
+  },
+  "ai": {
+    "firmaBulunamadi": "Firma bulunamadı",
+    "paketinizAiOzellikleriniIcermiyorSilverVeya": "Paketiniz AI özelliklerini içermiyor — Silver veya üzeri paket gerekir.",
+    "aiKullanimKaydiBulunamadi": "AI kullanım kaydı bulunamadı",
+    "onceBirAdBaslikYazin": "Önce bir ad/başlık yazın.",
+    "aciklamaUretilemediBirkacOlguDahaEkleyip": "Açıklama üretilemedi — birkaç olgu daha ekleyip tekrar deneyin.",
+    "ucretsizPaketteProfilAiIleBir": "Ücretsiz pakette profil AI ile bir kez doldurulabilir — tekrar oluşturmak için Silver veya üzeri paket gerekir.",
+    "aiOzelligiSuAndaKullanilamiyor": "AI özelliği şu anda kullanılamıyor.",
+    "onceFirmaWebSiteniziEkleyinProfilim": "Önce firma web sitenizi ekleyin (Profilim → Düzenle).",
+    "gunlukAiProfilOlusturmaLimitineUlasildi": "Günlük AI profil oluşturma limitine ulaşıldı ({DAILYLIMIT}) — yarın tekrar deneyin.",
+    "aiSuAnYanitVeremediBirkac": "AI şu an yanıt veremedi — birkaç saniye sonra tekrar deneyin.",
+    "aiCiktisiIslenemediLutfenTekrarDeneyin": "AI çıktısı işlenemedi — lütfen tekrar deneyin.",
+    "sitedenYeterliBilgiCikarilamadiProfiliElle": "Siteden yeterli bilgi çıkarılamadı — profili elle doldurabilirsiniz.",
+    "neAradiginiziBirkacKelimeyleYazin": "Ne aradığınızı birkaç kelimeyle yazın.",
+    "enFazlaKarakter": "En fazla {SEARCHINTENTMAXTEXT} karakter.",
+    "aramaYorumlanamadiTekrarDeneyin": "Arama yorumlanamadı — tekrar deneyin.",
+    "onaylananIslemDogrulamadanGecmediLutfenIlgili": "Onaylanan işlem doğrulamadan geçmedi ({detail}) — lütfen ilgili sayfadan tekrar deneyin.",
+    "enAzBirDosyaGerekli": "En az bir dosya gerekli",
+    "dosyaCokBuyuk15MbSiniri": "Dosya çok büyük (15 MB sınırı) — belgeyi bölerek veya sıkıştırarak deneyin",
+    "secilenDosyalarinToplamBoyutuCokBuyuk": "Seçilen dosyaların toplam boyutu çok büyük — daha az dosya seçin",
+    "desteklenmeyenDosyaTuruPdfFotografJpg": "Desteklenmeyen dosya türü — PDF, fotoğraf (JPG/PNG/WebP/HEIC) veya Excel/CSV yükleyin",
+    "tekSeferdeYaBirPdfYa": "Tek seferde ya BİR PDF, ya BİR Excel/CSV ya da fotoğraflar yükleyin (karışık gönderilemez)",
+    "belgeCokUzunEnFazlaGoruntu": "Belge çok uzun (en fazla {maxPages} görüntü) — ilgili bölümü seçin",
+    "csvDosyasiCokBuyukIlgiliSatirlari": "CSV dosyası çok büyük — ilgili satırları küçük bir dosyada veya .xlsx olarak yükleyin",
+    "tabloDosyasiOkunamadiXlsxVeyaCsv": "Tablo dosyası okunamadı — .xlsx veya .csv olarak kaydedip deneyin",
+    "tabloBosGorunuyor": "Tablo boş görünüyor",
+    "belgeCokUzunEnFazlaSayfa": "Belge çok uzun (en fazla {maxPages} sayfa) — ilgili sayfaları ayrı dosyada yükleyin",
+    "belgeCokUzunSayfaEnFazla": "Belge çok uzun ({total} sayfa, en fazla {maxPages}) — ilgili bölümü seçin",
+    "pdfOkunamadiDosyaBozukVeyaSifreli": "PDF okunamadı — dosya bozuk veya şifreli olabilir",
+    "belgeCokUzunSayfaEnFazla2": "Belge çok uzun ({pages} sayfa, en fazla {maxPages}) — ilgili bölümü seçin",
+    "buOnayZatenKullanilmis": "Bu onay zaten kullanılmış.",
+    "bilinmeyenAksiyonTipi": "Bilinmeyen aksiyon tipi.",
+    "sohbetBulunamadi": "Sohbet bulunamadı",
+    "onayBekleyenIslemBulunamadi": "Onay bekleyen işlem bulunamadı.",
+    "onaySuresiDolduAsistandanIslemiYeniden": "Onay süresi doldu — asistandan işlemi yeniden isteyin.",
+    "sadecePdfVeyaFotografJpgPng": "Sadece PDF veya fotoğraf (JPG/PNG/WebP/HEIC) yüklenebilir",
+    "gecersizDosyaAnahtari": "Geçersiz dosya anahtarı",
+    "enAzBirDosyaSecin": "En az bir dosya seçin",
+    "belgeCokUzunEnFazlaDosya": "Belge çok uzun (en fazla {maxPages} dosya)",
+    "mesajBosOlamaz": "Mesaj boş olamaz",
+    "enAzBirKalemAdiGerekir": "En az bir kalem adı gerekir",
+    "disAramaSonuclariIslenemediLutfenTekrar": "Dış arama sonuçları işlenemedi — lütfen tekrar deneyin.",
+    "belgedenTalepTaslagiYalnizSatinAlma": "Belgeden talep taslağı yalnız satın alma portalında çıkarılır",
+    "dosyaYuklenmemisGorunuyorLutfenTekrarDeneyin": "Dosya yüklenmemiş görünüyor — lütfen tekrar deneyin",
+    "aiOzelligiSuAndaKullanilamiyorYapilandirilmamis": "AI özelliği şu anda kullanılamıyor (yapılandırılmamış).",
+    "aiOzellikleriSilverVeyaUzeriPaket": "AI özellikleri Silver veya üzeri paket gerektirir.",
+    "aiOzellikleriniYalnizcaBuAlandaIslem": "AI özelliklerini yalnızca bu alanda işlem yetkisi taşıyan kullanıcılar kullanabilir.",
+    "aiIstegiZamanAsiminaUgradiLutfen": "AI isteği zaman aşımına uğradı — lütfen tekrar deneyin.",
+    "aiKullaniminiYalnizcaYonetimYaDa": "AI kullanımını yalnızca yönetim ya da işlem yetkisi taşıyan kullanıcılar görüntüleyebilir.",
+    "belgeCokUzunEnFazlaDosyaIlgiliBolumuSecin": "Belge çok uzun (en fazla {maxPages} dosya) — ilgili bölümü seçin",
+    "assistant": {
+      "card": {
+        "listing": "Satın Alma Talebi: {title} ({number})",
+        "invitees": "Davet edilecek: {list}"
+      },
+      "sendInvites": {
+        "note": "Yalnız bağlantılı firmalara davet gider; diğerleri atlanır."
+      },
+      "publish": {
+        "headingAlim": "Alım satın alma talebi YAYINLANACAK: {title}",
+        "headingSatis": "Satış ilanı YAYINLANACAK: {title}",
+        "items": "Kalemler: {list} ({count} kalem)",
+        "category": "Kategori: {list}",
+        "closing": "Kapanış: {closesAt} · Para birimi: {currency} · Görünürlük: Davetli (kapalı)",
+        "payment": "Ödeme: {plan} · Teslim: {delivery}",
+        "description": "Açıklama: {text}",
+        "terms": "Şartname: {text}",
+        "note": "Yayınlandığında teklif almaya açılır; kapanış ve kalemler teklif geldikten sonra değiştirilemez.",
+        "sourceWarning": "Açıklama/şartname metinleri belgeden geldi — onaylamadan önce okuyun."
+      },
+      "eliminate": {
+        "bid": "Elenecek teklif: {supplier} — {amount} {currency}",
+        "reason": "Gerekçe: {reason}",
+        "note": "Tedarikçiye eleme bildirimi gider; dilerse yeniden teklif verebilir."
+      },
+      "award": {
+        "heading": "Satın Alma Talebi KAZANDIRILACAK: {title} ({number})",
+        "winner": "Kazanan: {supplier} — {amount} {currency} (tüm kalemler)",
+        "irreversible": "Bu işlem GERİ ALINAMAZ: diğer teklifler kaybeder, sipariş oluşturulur.",
+        "approvalNote": "Firmanızda onay akışı tanımlıysa işlem önce şirket onayına düşer."
+      },
+      "placeBid": {
+        "heading": "TEKLİF VERİLECEK: {title} ({number})",
+        "moreItems": "… ve {count} kalem daha",
+        "total": "TOPLAM: {amount} {currency} · Teslim: {delivery}",
+        "totalWithValidity": "TOPLAM: {amount} {currency} · Teslim: {delivery} · Geçerlilik: {days} gün",
+        "note": "Gönderilen teklif GERİ ÇEKİLEMEZ ve değiştirilemez (kapalı zarf)."
+      },
+      "orderReceived": {
+        "heading": "Sipariş TESLİM ALINDI işaretlenecek: {number}",
+        "seller": "Satıcı: {seller} · Tutar: {amount} {currency}",
+        "note": "Satıcıya bildirim gider; sorun varsa teslim sonrası kusur bildirimi ayrıca yapılabilir."
+      },
+      "payment": {
+        "unspecified": "belirtilmedi",
+        "advance": "%{percent} peşin",
+        "term": "{days} gün vade"
+      },
+      "preview": {
+        "empty": "yok",
+        "truncated": "{text}… ({count} karakter)"
+      },
+      "result": {
+        "invitesSent": "Davetler gönderildi (yalnız bağlantılı firmalara).",
+        "bidEliminated": "Teklif elendi — tedarikçiye bildirim gönderildi.",
+        "awarded": "Kazandırma tamamlandı — sipariş oluşturuldu.",
+        "awardPending": "Kazandırma başlatıldı — firmanızın onay akışına iletildi.",
+        "bidPlaced": "Teklifiniz gönderildi (kapalı zarf — yalnız satın alma talebi sahibi görür).",
+        "orderReceived": "Sipariş teslim alındı olarak işaretlendi — satıcıya bildirim gitti.",
+        "published": "Satın Alma Talebi yayınlandı — teklifler artık toplanıyor.",
+        "rejected": "İşlem iptal edildi — hiçbir şey yapılmadı."
+      }
+    },
+    "saglayiciHataDondurdu": "AI sağlayıcısı hata döndürdü — lütfen tekrar deneyin.",
+    "asistanYanitVeremediSaglayiciHatasi": "Asistan şu an yanıt veremedi (sağlayıcı hatası {code}{detail}) — birkaç saniye sonra tekrar deneyin.",
+    "asistanYanitVeremedi": "Asistan şu an yanıt veremedi — birkaç saniye sonra tekrar deneyin.",
+    "tabloDosyasiOkunamadi": "Tablo dosyası okunamadı — .xlsx olarak yeniden kaydedip deneyin",
+    "tabloDosyasiCokBuyuk": "Tablo dosyası çok büyük — ilgili sayfayı ayrı, küçük bir dosyada yükleyin"
+  },
+  "companyOrders": {
+    "buIslemiYapamazsiniz": "Bu işlemi yapamazsınız",
+    "siparisBuDurumdaBuIslemeUygun": "Sipariş bu durumda bu işleme uygun değil",
+    "gecersizBankaHesabiSecimi": "Geçersiz banka hesabı seçimi",
+    "odemeAlabilmekIcinOnaydaBirBanka": "Ödeme alabilmek için onayda bir banka hesabı seçmelisiniz — kayıtlı hesabınız yoksa Ayarlar → Banka Hesapları''ndan ekleyin (yalnız Kurucu ekleyebilir)",
+    "redGerekcesiEnAz10Karakter": "Red gerekçesi en az 10 karakter olmalı",
+    "ayipIhbariBulunanSiparisSevkEdilemez": "Ayıp ihbarı bulunan sipariş sevk edilemez — mal zaten teslim edilmiş; çözüm taraflar arasında",
+    "alicininAkreditifiHenuzAcmadiAkreditifAcilip": "Alıcının akreditifi henüz açmadı — akreditif açılıp kabul edilmeden gönderilemez",
+    "akreditifiKabulEtmedenGonderemezsinizAkreditifBo": "Akreditifi kabul etmeden gönderemezsiniz — Akreditif bölümünden ''Akreditifi Kabul Ettim'' adımını tamamlayın",
+    "buSiparistePesinOdemeSartiVar": "Bu siparişte peşin ödeme şartı var — gönderim için {toLocaleString} {curSym} peşin tahsilat onaylanmalı (onaylı: {toLocaleString2} {curSym2})",
+    "alicininOnayBekleyenOdemeKaydiVar": "Alıcının onay bekleyen ödeme kaydı var — siparişi göndermeden önce Ödemeler bölümünden onaylayın veya reddedin",
+    "vesaikMukabiliTeslimAlmadanOnceTam": "Vesaik mukabili: teslim almadan önce tam ödemenin onaylanması gerekir",
+    "iptalGerekcesiEnAz10Karakter": "İptal gerekçesi en az 10 karakter olmalı",
+    "onayliOdemeBulunanSiparisIptalEdilemez": "Onaylı ödeme bulunan sipariş iptal edilemez — iade için destek ekibiyle iletişime geçin",
+    "siparisDurumuAzOnceDegistiSayfayi": "Sipariş durumu az önce değişti — sayfayı yenileyip tekrar deneyin",
+    "iptalTalebiGerekcesiEnAz10": "İptal talebi gerekçesi en az 10 karakter olmalı",
+    "iptalTalebiYalnizOnaylanmisVeAcik": "İptal talebi yalnız onaylanmış (ve açık talebi olmayan) siparişte açılabilir",
+    "geriCekilecekAcikBirIptalTalebi": "Geri çekilecek açık bir iptal talebi yok",
+    "onaylanacakAcikBirIptalTalebiIhtilaf": "Onaylanacak açık bir iptal talebi/ihtilaf yok — durum değişmiş olabilir",
+    "reddedilecekAcikBirIptalTalebiYok": "Reddedilecek açık bir iptal talebi yok — durum değişmiş olabilir",
+    "ayipIhbariGerekcesiEnAz10": "Ayıp ihbarı gerekçesi en az 10 karakter olmalı",
+    "ayipIhbariYalnizTeslimAlinmisSipariste": "Ayıp ihbarı yalnız teslim alınmış siparişte açılabilir",
+    "siparisinTeslimTarihiYok": "Siparişin teslim tarihi yok",
+    "muayeneAyipIhbariSuresiGunDoldu": "Muayene/ayıp ihbarı süresi ({DEFECTNOTICEWINDOWDAYS} gün) doldu",
+    "ayipIhbariAcilamadiSiparisDurumuDegismis": "Ayıp ihbarı açılamadı — sipariş durumu değişmiş veya zaten bir ihbar var",
+    "geriCekilecekAcikBirAyipIhbari": "Geri çekilecek açık bir ayıp ihbarı yok",
+    "ayipIhbariGeriCekilemediDurumDegismis": "Ayıp ihbarı geri çekilemedi — durum değişmiş olabilir",
+    "buSiparisAkreditifliDegil": "Bu sipariş akreditifli değil",
+    "akreditifZatenAcildiOlarakIsaretlendi": "Akreditif zaten açıldı olarak işaretlendi",
+    "onceAlicininAkreditifiAcmasiGerekir": "Önce alıcının akreditifi açması gerekir",
+    "akreditifZatenKabulEdildi": "Akreditif zaten kabul edildi",
+    "akreditifKabulEdilmedenOdemeAlindiIsaretlenemez": "Akreditif kabul edilmeden ödeme alındı işaretlenemez",
+    "odemeSiparisGonderildiktenSonraIsaretlenebilir": "Ödeme, sipariş gönderildikten sonra işaretlenebilir",
+    "odemeZatenAlindiOlarakIsaretlendi": "Ödeme zaten alındı olarak işaretlendi",
+    "siparisBulunamadi": "Sipariş bulunamadı",
+    "odemeyiYalnizcaAliciKaydedebilir": "Ödemeyi yalnızca alıcı kaydedebilir",
+    "tutar0DanBuyukOlmali": "Tutar 0''dan büyük olmalı",
+    "kalanOdemeBuTutariAsanOdeme": "Kalan ödeme {toLocaleString} {curSym} — bu tutarı aşan ödeme kaydedilemez",
+    "odemeyiYalnizcaSaticiOnaylayabilir": "Ödemeyi yalnızca satıcı onaylayabilir",
+    "odemeKaydiBulunamadi": "Ödeme kaydı bulunamadı",
+    "iptalEdilmisSiparisteOdemeOnaylanamaz": "İptal edilmiş siparişte ödeme onaylanamaz",
+    "buOdemeZatenSonuclanmis": "Bu ödeme zaten sonuçlanmış",
+    "buIslemIcinYetkiGerekirYoneticinizdenIsteyin": "Bu işlem için ''{permission}'' yetkisi gerekir — firma yöneticinizden isteyin",
+    "akreditifliSiparisteManuelOdemeGirilmez": "Akreditifli siparişte ödeme banka kanalından yapılır — manuel ödeme kaydı girilmez",
+    "siparisOdemeKaydinaUygunDegil": "Bu sipariş şu an ödeme kaydına uygun değil"
+  },
+  "companyItems": {
+    "ucretsizPaketteEnFazlaUrunYayinda": "Ücretsiz pakette en fazla {limit} ürün yayında/onayda olabilir. Bu ürünü geri almak için önce bir ürünü vitrinden çekin ya da Silver paketine geçin.",
+    "ilanBulunamadi": "İlan bulunamadı",
+    "urunBulunamadi": "Ürün bulunamadı",
+    "urunIncelemedeEkibimizOnaylayanaYaDa": "Ürün incelemede — ekibimiz onaylayana ya da düzeltme isteyene kadar değiştirilemez.",
+    "katalogKalemiBulunamadi": "Katalog kalemi bulunamadı",
+    "urunAdiZorunlu": "Ürün adı zorunlu",
+    "onayaGonderilemedi": "Onaya gönderilemedi — {join}",
+    "ucretsizPaketteEnFazlaUrunYayinda2": "Ücretsiz pakette en fazla {limit} ürün yayında/onayda olabilir. Daha fazlası için Silver paketine geçin.",
+    "katalogEnFazlaKalemTasiyabilirKullanmadiklariniz": "Katalog en fazla {MAXCATALOGITEMS} kalem taşıyabilir — kullanmadıklarınızı arşivleyin",
+    "kalemAdiZorunlu": "Kalem adı zorunlu",
+    "stokKoduKatalogdaZatenVarKod": "\"{code}\" stok kodu katalogda zaten var — kod firma içinde tekil olmalı",
+    "publishBlocker": {
+      "name": "Ürün adı en az {minName} karakter olmalı",
+      "category": "Kategori seçilmeli",
+      "description": "Açıklama en az {minDescription} karakter olmalı",
+      "images": "En az 1 görsel eklenmeli",
+      "keywords": "En az 1 anahtar kelime eklenmeli",
+      "price": "Seçilen fiyat modunun alanları doldurulmalı"
+    }
+  },
+  "guards": {
+    "yetkisiz": "Yetkisiz",
+    "buIslemIcinYetkinizYok": "Bu işlem için yetkiniz yok"
+  },
+  "publicMarketplace": {
+    "ilanBulunamadi": "İlan bulunamadı"
+  },
+  "http": {
+    "bulunamadi": "Bulunamadı",
+    "cokFazlaDeneme": "Çok fazla deneme yapıldı. Lütfen bir dakika bekleyip yeniden deneyin."
+  },
+  "companyDocs": {
+    "firmaBulunamadi": "Firma bulunamadı",
+    "gecersizBelgeTuru": "Geçersiz belge türü",
+    "sadecePdfVeyaGorselYuklenebilir": "Sadece PDF veya görsel yüklenebilir",
+    "gecersizDosyaAnahtari": "Geçersiz dosya anahtarı",
+    "buBelgeOnaylandiDegistirilemez": "Bu belge onaylandı; değiştirilemez",
+    "dogrulamaInceleniyorBelgeDegistirilemez": "Doğrulama inceleniyor; belge değiştirilemez",
+    "buBelgeIcinBekleyenBirGuncelleme": "Bu belge için bekleyen bir güncelleme zaten incelemede — sayfayı yenileyin",
+    "eksikBelgeVarTumBelgeleriYukleyin": "Eksik belge var ({length}); tüm belgeleri yükleyin",
+    "firmaZatenDogrulanmis": "Firma zaten doğrulanmış",
+    "dogrulamaZatenInceleniyor": "Doğrulama zaten inceleniyor",
+    "mersisNumarasi16HaneliOlmali": "MERSİS numarası 16 haneli olmalı.",
+    "sicilKayitNumarasiGerekli": "Sicil / kayıt numarası gerekli.",
+    "gecerliBirIbanGerekliKontrolHanesi": "Geçerli bir IBAN gerekli — kontrol hanesi tutmuyor.",
+    "hesapSahibiGerekli": "Hesap sahibi gerekli.",
+    "bankaHesapNumarasiGerekli": "Banka hesap numarası gerekli.",
+    "ibanGerekli": "IBAN gerekli."
+  },
+  "files": {
+    "dosyaVerisiGecersiz": "Dosya verisi geçersiz",
+    "dosyaBos": "Dosya boş",
+    "dosyaCokBuyukMbSiniri": "Dosya çok büyük ({round} MB sınırı)",
+    "makroluDosyaXlsmKabulEdilmezXlsx": "Makrolu dosya (.xlsm) kabul edilmez — .xlsx olarak kaydedin",
+    "excelDosyasiOkunamadiXlsxOlarakYeniden": "Excel dosyası okunamadı — .xlsx olarak yeniden kaydedip deneyin",
+    "csvDosyasiCokBuyukSablonuXlsx": "CSV dosyası çok büyük — şablonu .xlsx olarak kaydedip yükleyin (CSV için sınır 1 MB)",
+    "csvDosyasiOkunamadi": "CSV dosyası okunamadı",
+    "desteklenmeyenDosyaExcelXlsxVeyaCsv": "Desteklenmeyen dosya — Excel (.xlsx) veya CSV yükleyin. Şablonu indirip kullanabilirsiniz.",
+    "dosyadaSayfaBulunamadi": "Dosyada sayfa bulunamadı",
+    "excelDosyasiOkunamadiZip": "Excel dosyası okunamadı — .xlsx olarak yeniden kaydedip deneyin",
+    "excelDosyasiCokBuyukKarmasik": "Excel dosyası çok büyük/karmaşık — tek sayfa bırakıp yeniden deneyin"
+  },
+  "company": {
+    "urunBulunamadi": "Ürün bulunamadı",
+    "yalnizcaJpegPngVeyaWebpYuklenebilir": "Yalnızca JPEG, PNG veya WebP yüklenebilir",
+    "yalnizcaPdfYuklenebilir": "Yalnızca PDF yüklenebilir",
+    "buBelgeAnahtarinaErisimYetkinizYok": "Bu belge anahtarına erişim yetkiniz yok",
+    "belgeYayinlamaYapilandirmasiEksikR2Public": "Belge yayınlama yapılandırması eksik (R2_PUBLIC_BASE_URL) — belge yüklenemedi. Lütfen sistem yöneticinize bildirin.",
+    "buGorselAnahtarinaErisimYetkinizYok": "Bu görsel anahtarına erişim yetkiniz yok",
+    "gorselYayinlamaYapilandirmasiEksikR2Public": "Görsel yayınlama yapılandırması eksik (R2_PUBLIC_BASE_URL) — görsel yüklenemedi. Lütfen sistem yöneticinize bildirin."
+  },
+  "publicInquiry": {
+    "talebinizSuAnGonderilemediLutfenBirkac": "Talebiniz şu an gönderilemedi. Lütfen birkaç dakika sonra tekrar deneyin.",
+    "buEPostaAdresineGonderimYapilamiyor": "Bu e-posta adresine gönderim yapılamıyor. Farklı bir adres deneyin.",
+    "kendiUrununuzIcinBilgiTalebiGonderemezsiniz": "Kendi ürününüz için bilgi talebi gönderemezsiniz",
+    "buUrunIcinZatenBirTalep": "Bu ürün için zaten bir talep gönderdiniz — yanıtı Bilgi Taleplerim sayfasından takip edebilirsiniz",
+    "bugunIcinTalepSinirinaUlastinizYarin": "Bugün için talep sınırına ulaştınız — yarın tekrar deneyebilirsiniz",
+    "talepBulunamadi": "Talep bulunamadı",
+    "baglantiGecersiz": "Bağlantı geçersiz",
+    "baglantininSuresiDolduTalebiYenidenGonderin": "Bağlantının süresi doldu — talebi yeniden gönderin",
+    "urunBulunamadi": "Ürün bulunamadı",
+    "buEPostaAdresindenBugunCok": "Bu e-posta adresinden bugün çok fazla talep gönderildi — yarın tekrar deneyin",
+    "cokFazlaTalepGonderildiBirSure": "Çok fazla talep gönderildi — bir süre sonra tekrar deneyin"
+  },
+  "adminSystem": {
+    "girilenKurMevcutDegerdenAsiriSapiyor": "Girilen kur mevcut değerden ({current}) aşırı sapıyor — kontrol edin",
+    "kayitBulunamadi": "Kayıt bulunamadı"
+  },
+  "helpers": {
+    "n1ArasiAnaKategoriSecmelisiniz": "1-{MAXCOMPANYMAINCATEGORIES} arası ana kategori seçmelisiniz",
+    "altKategoriBeyaniFazlaGenis": "Alt kategori beyanı fazla geniş",
+    "enFazlaUrunHizmetSecebilirsiniz": "En fazla {MAXCOMPANYSUBPICKS} ürün/hizmet seçebilirsiniz",
+    "gecersizAnaKategoriYalnizcaSegmentSecilebilir": "Geçersiz ana kategori (yalnızca segment seçilebilir)",
+    "gecersizAltKategoriSecimi": "Geçersiz alt kategori seçimi",
+    "mersisNoBosVeya16Haneli": "MERSİS no boş veya 16 haneli olmalıdır",
+    "kepAdresiGecerliBirEPosta": "KEP adresi geçerli bir e-posta olmalıdır",
+    "ibanGecersizTr26HaneOlmali": "IBAN geçersiz (TR, 26 hane olmalı)",
+    "buDosyaTuruYuklenemez": "Bu dosya türü yüklenemez",
+    "dosyaBoyutu50MbSiniriniAsiyor": "Dosya boyutu 50 MB sınırını aşıyor veya geçersiz",
+    "dosyaYuklenmemisGorunuyorLutfenTekrarDeneyin": "Dosya yüklenmemiş görünüyor — lütfen tekrar deneyin",
+    "dosyaBoyutuMbSiniriniAsiyor": "Dosya boyutu {round} MB sınırını aşıyor",
+    "yuklenenDosyaninTuruKabulEdilmiyorDosyayi": "Yüklenen dosyanın türü kabul edilmiyor — dosyayı kontrol edip tekrar deneyin",
+    "gecersizGorselAdresi": "Geçersiz görsel adresi",
+    "gorselYalnizKendiProfilDeponuzdanOlabilir": "Görsel yalnız kendi profil deponuzdan olabilir"
+  },
+  "auth": {
+    "csrfDogrulamasiBasarisiz": "CSRF doğrulaması başarısız"
+  },
+  "common": {
+    "gecersizWebSitesiAdresi": "Geçersiz web sitesi adresi",
+    "sadeceHttpHttpsAdresleriDesteklenir": "Sadece http/https adresleri desteklenir",
+    "buAdresCekilemez": "Bu adres çekilemez",
+    "webSitesineUlasilamadi": "Web sitesine ulaşılamadı",
+    "webSayfasiCokBuyuk": "Web sayfası çok büyük"
+  },
+  "dto": {
+    "companyUser": {
+      "gecerliEpostaGirin": "Geçerli e-posta girin",
+      "gecersizRol": "Geçersiz rol",
+      "adEnAz2KarakterOlmali": "Ad en az 2 karakter olmalı",
+      "soyadEnAz2KarakterOlmali": "Soyad en az 2 karakter olmalı",
+      "gecerliBirTelefonGiriniz": "Geçerli bir telefon giriniz",
+      "parolaEnAz10KarakterOlmali": "Parola en az 10 karakter olmalı",
+      "parolaEnFazla72Karakter": "Parola en fazla 72 karakter",
+      "parolaEnAzBirKucukHarfIcermeli": "Parola en az bir küçük harf içermeli",
+      "parolaEnAzBirBuyukHarfIcermeli": "Parola en az bir büyük harf içermeli",
+      "parolaEnAzBirRakamIcermeli": "Parola en az bir rakam içermeli",
+      "parolaEnAzBirOzelKarakterIcermeli": "Parola en az bir özel karakter içermeli",
+      "kullaniciSozlesmesiniKabulEtmelisiniz": "Kullanıcı sözleşmesini kabul etmelisiniz",
+      "aracilikVeKullanimSozlesmesiniKabulEtmelisiniz": "Aracılık ve kullanım sözleşmesini kabul etmelisiniz",
+      "kvkkAydinlatmaMetniniOnaylamalisiniz": "KVKK aydınlatma metnini onaylamalısınız",
+      "enAzBirRolSecin": "En az bir rol seçin"
+    },
+    "account": {
+      "parolaEnAz8Karakter": "Parola en az 8 karakter",
+      "enAzBirBuyukHarfAZ": "En az bir büyük harf (A-Z)",
+      "enAzBirKucukHarfAz": "En az bir küçük harf (a-z)",
+      "enAzBirRakam": "En az bir rakam",
+      "altiHaneliKodGirin": "6 haneli kod girin"
+    },
+    "companyLogin": {
+      "gecerliBirEpostaAdresiGiriniz": "Geçerli bir e-posta adresi giriniz"
+    },
+    "companyForgotPassword": {
+      "gecerliEpostaGirin": "Geçerli e-posta girin"
+    },
+    "adminLogin": {
+      "gecerliBirEpostaAdresiGiriniz": "Geçerli bir e-posta adresi giriniz"
+    },
+    "companySignup": {
+      "adEnAz2KarakterOlmali": "Ad en az 2 karakter olmalı",
+      "soyadEnAz2KarakterOlmali": "Soyad en az 2 karakter olmalı",
+      "gecerliBirEPostaAdresiGiriniz": "Geçerli bir e-posta adresi giriniz",
+      "gecerliBirTelefonGiriniz": "Geçerli bir telefon giriniz",
+      "parolaEnAz10KarakterOlmali": "Parola en az 10 karakter olmalı",
+      "parolaEnFazla72Karakter": "Parola en fazla 72 karakter",
+      "parolaEnAzBirKucukHarfIcermeli": "Parola en az bir küçük harf içermeli",
+      "parolaEnAzBirBuyukHarfIcermeli": "Parola en az bir büyük harf içermeli",
+      "parolaEnAzBirRakamIcermeli": "Parola en az bir rakam içermeli",
+      "parolaEnAzBirOzelKarakterIcermeli": "Parola en az bir özel karakter içermeli",
+      "kullaniciSozlesmesiniKabulEtmelisiniz": "Kullanıcı sözleşmesini kabul etmelisiniz",
+      "aracilikVeKullanimSozlesmesiniKabulEtmelisiniz": "Aracılık ve kullanım sözleşmesini kabul etmelisiniz",
+      "kvkkAydinlatmaMetniniOnaylamalisiniz": "KVKK aydınlatma metnini onaylamalısınız",
+      "altiHaneliKodGiriniz": "6 haneli kod giriniz"
+    },
+    "onboarding": {
+      "beyaniOnaylamalisiniz": "Beyanı onaylamalısınız",
+      "gecersizUlkeKodu": "Geçersiz ülke kodu"
+    },
+    "confirmPasswordReset": {
+      "parolaEnAz8KarakterOlmali": "Parola en az 8 karakter olmalı",
+      "parolaEnAzBirKucukHarfIcermeli": "Parola en az bir küçük harf içermeli",
+      "parolaEnAzBirBuyukHarfIcermeli": "Parola en az bir büyük harf içermeli",
+      "parolaEnAzBirRakamIcermeli": "Parola en az bir rakam içermeli"
+    },
+    "createInquiry": {
+      "gecersizFirmaAdresi": "Geçersiz firma adresi",
+      "gecersizUrunAdresi": "Geçersiz ürün adresi",
+      "gecerliBirEPostaAdresiGirin": "Geçerli bir e-posta adresi girin"
+    },
+    "inviteByEmail": {
+      "gecerliBirEPostaAdresiGirin": "Geçerli bir e-posta adresi girin",
+      "enAzBirEPostaGirin": "En az bir e-posta girin",
+      "tekSeferdeEnFazla50EPosta": "Tek seferde en fazla 50 e-posta",
+      "gecersizEPostaAdresiVar": "Geçersiz e-posta adresi var"
+    },
+    "inviteConnection": {
+      "firmaKoduGerekli": "Firma kodu gerekli"
+    },
+    "sendMessage": {
+      "mesajBosOlamaz": "Mesaj boş olamaz",
+      "mesajCokUzunEnFazla5000Karakter": "Mesaj çok uzun (en fazla 5000 karakter)"
+    },
+    "placeBid": {
+      "gecerliBirBirimFiyatGirin": "Geçerli bir birim fiyat girin",
+      "birimFiyatCokBuyuk": "Birim fiyat çok büyük",
+      "gecersizKalemTeslimTarihi": "Geçersiz kalem teslim tarihi",
+      "gecersizKalemTeslimSuresi": "Geçersiz kalem teslim süresi",
+      "gecersizKalemParaBirimi": "Geçersiz kalem para birimi",
+      "gecerliBirTutarGirin": "Geçerli bir tutar girin",
+      "tutar0danBuyukOlmali": "Tutar 0''dan büyük olmalı",
+      "tutarCokBuyuk": "Tutar çok büyük",
+      "gecersizTeslimTarihi": "Geçersiz teslim tarihi",
+      "gecersizTeslimSuresi": "Geçersiz teslim süresi"
+    },
+    "createListing": {
+      "gecersizOlcuBirimi": "Geçersiz ölçü birimi",
+      "gecersizIlanTipi": "Geçersiz ilan tipi",
+      "gecersizFormat": "Geçersiz format",
+      "gecersizGorunurluk": "Geçersiz görünürlük",
+      "baslikEnAz3KarakterOlmali": "Başlık en az 3 karakter olmalı",
+      "baslikEnFazla200Karakter": "Başlık en fazla 200 karakter",
+      "gecersizTarih": "Geçersiz tarih"
+    },
+    "nextRound": {
+      "gecersizSatinAlmaTalebiTipi": "Geçersiz satın alma talebi tipi",
+      "gecersizTeklifTasimaModu": "Geçersiz teklif taşıma modu",
+      "gecerliBirKapanisTarihiGirin": "Geçerli bir kapanış tarihi girin",
+      "gecerliBirAcilisTarihiGirin": "Geçerli bir açılış tarihi girin",
+      "gecersizGorunurlukModu": "Geçersiz görünürlük modu"
+    },
+    "extendBidValidity": {
+      "gunSayisiTamSayiOlmali": "Gün sayısı tam sayı olmalı",
+      "enAz1GunUzatilabilir": "En az 1 gün uzatılabilir",
+      "tekSeferdeEnFazla365GunUzatilabilir": "Tek seferde en fazla 365 gün uzatılabilir"
+    },
+    "ownerAction": {
+      "gecerliBirKapanisTarihiGirin": "Geçerli bir kapanış tarihi girin"
+    },
+    "awardListing": {
+      "teklifSecilmedi": "Teklif seçilmedi"
+    },
+    "approval": {
+      "enAzBirOnayAdimiEkleyin": "En az bir onay adımı ekleyin"
+    },
+    "orderPayment": {
+      "tutar0danBuyukOlmali": "Tutar 0''dan büyük olmalı",
+      "tutarCokBuyuk": "Tutar çok büyük",
+      "cekNumarasiZorunludur": "Çek numarası zorunludur",
+      "gecersizVadeTarihi": "Geçersiz vade tarihi",
+      "gerekceZorunludur": "Gerekçe zorunludur",
+      "gerekceEnAz10KarakterOlmali": "Gerekçe en az 10 karakter olmalı",
+      "redSebebiZorunludur": "Red sebebi zorunludur",
+      "redSebebiEnAz10KarakterOlmali": "Red sebebi en az 10 karakter olmalı"
+    },
+    "orderAction": {
+      "gecerliBirTeslimTarihiGirin": "Geçerli bir teslim tarihi girin",
+      "gecersizBankaHesabiSecimi": "Geçersiz banka hesabı seçimi",
+      "faturaNumarasiZorunludur": "Fatura numarası zorunludur"
+    },
+    "publicProductQuery": {
+      "kategoriKodu8HaneliOlmali": "Kategori kodu 8 haneli olmalı",
+      "calisanKovasiSayiListesiOlmali": "Çalışan kovası sayı listesi olmalı",
+      "nitelikSuzgeciAnahtarDegerBiciminde": "Nitelik süzgeci anahtar:değer biçiminde olmalı"
+    },
+    "publicListQuery": {
+      "kategoriKodu8HaneliOlmali": "Kategori kodu 8 haneli olmalı"
+    },
+    "publicDirectoryQuery": {
+      "kategoriKodu8HaneliOlmali": "Kategori kodu 8 haneli olmalı"
+    },
+    "updateCompanyProfile": {
+      "mersisNo16HaneliOlmali": "MERSİS No 16 haneli olmalı"
+    },
+    "directoryQuery": {
+      "kategoriKodu8HaneliOlmali": "Kategori kodu 8 haneli olmalı"
+    },
+    "panelDirectoryQuery": {
+      "kategoriKodu8HaneliOlmali": "Kategori kodu 8 haneli olmalı"
+    },
+    "companyAddress": {
+      "gecersizAdresTipi": "Geçersiz adres tipi"
+    },
+    "companyItems": {
+      "gecersizOlcuBirimi": "Geçersiz ölçü birimi"
+    },
+    "adminCompanies": {
+      "redGerekcesiEnAz3KarakterOlmali": "Red gerekçesi en az 3 karakter olmalı"
+    }
+  },
+  "companyRequestDefaults": {
+    "talepSartlariGecersiz": "Talep şartları geçersiz: {issues}",
+    "anaParaBirimiIzinVerilenlerde": "Ana para birimi izin verilenler arasında olmalı",
+    "vadeGunSayisiZorunlu": "Vade gün sayısı zorunlu",
+    "akreditifAltTipiniSecin": "Akreditif alt tipini seçin"
+  },
+  "notifications": {
+    "common": {
+      "greeting": "Merhaba,",
+      "gitRothern": "Rothern'e Git",
+      "belgeleriTamamla": "Belgeleri Tamamla",
+      "belgeleriGuncelle": "Belgeleri Güncelle",
+      "belgelerim": "Belgelerim",
+      "hesabim": "Hesabım"
+    },
+    "orders": {
+      "ctaOrder": "Siparişi Gör",
+      "accepted": {
+        "subject": "Siparişiniz onaylandı",
+        "heading": "Sipariş onaylandı",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} siparişiniz satıcı tarafından onaylandı ve hazırlanıyor."
+      },
+      "rejected": {
+        "subject": "Siparişiniz reddedildi",
+        "heading": "Sipariş reddedildi",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} siparişiniz satıcı tarafından reddedildi.{hasReason, select, yes { Gerekçe: {reason}} other {}}{reopened, select, yes { Satın alma talebiniz yeniden değerlendirmeye alındı; diğer teklifler tekrar açık, başka bir tedarikçiye kazandırabilir ya da yeni tur açabilirsiniz.} other {}}"
+      },
+      "shipped": {
+        "subject": "Siparişiniz gönderildi",
+        "heading": "Sipariş yolda",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} siparişiniz gönderildi (Fatura no: {invoiceNumber})."
+      },
+      "readyForPickup": {
+        "subject": "Siparişiniz teslime hazır",
+        "heading": "Teslime hazır",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} siparişiniz teslime hazır — teslim alabilirsiniz (Fatura no: {invoiceNumber})."
+      },
+      "autoCompleted": {
+        "subject": "Sipariş teslim alındı ve tamamlandı",
+        "heading": "Sipariş tamamlandı",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} siparişi alıcı tarafından teslim alındı ve tamamlandı."
+      },
+      "completed": {
+        "subject": "Sipariş tamamlandı",
+        "heading": "Sipariş tamamlandı",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} siparişi tamamlandı."
+      },
+      "cancelled": {
+        "subject": "Sipariş iptal edildi",
+        "heading": "Sipariş iptal edildi",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} siparişi alıcı tarafından iptal edildi.{hasReason, select, yes { Gerekçe: {reason}} other {}}"
+      },
+      "cancelRequested": {
+        "subject": "Satıcı sipariş iptali talep etti",
+        "heading": "Satıcı sipariş iptali talep etti",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için satıcı iptal talep etti. Gerekçe: {reason} — Onaylayın veya reddedin."
+      },
+      "cancelRequestWithdrawn": {
+        "subject": "İptal talebi geri çekildi",
+        "heading": "İptal talebi geri çekildi",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için satıcı iptal talebini geri çekti; sipariş devam ediyor."
+      },
+      "cancelApproved": {
+        "subject": "İptal talebi onaylandı",
+        "heading": "İptal talebi onaylandı",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş, alıcının onayıyla iptal edildi."
+      },
+      "cancelRejected": {
+        "subject": "İptal talebi reddedildi — sipariş ihtilaflı",
+        "heading": "İptal talebi reddedildi — sipariş ihtilaflı",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için iptal talebiniz reddedildi. Sipariş ihtilaflı; mal bulunursa sevk edebilir, ya da alıcı sonradan iptali onaylayabilir."
+      },
+      "defectReported": {
+        "subject": "Ayıp ihbarı — sipariş ihtilaflı",
+        "heading": "Ayıp ihbarı",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için alıcı ayıp ihbarında bulundu (TTK 23). Gerekçe: {reason} — çözüm taraflar arasındadır."
+      },
+      "defectWithdrawn": {
+        "subject": "Ayıp ihbarı geri çekildi",
+        "heading": "Ayıp ihbarı geri çekildi",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için alıcı ayıp ihbarını geri çekti; sipariş önceki durumuna döndü."
+      },
+      "lcOpened": {
+        "subject": "Akreditif açıldı — kabulünüz bekleniyor",
+        "heading": "Akreditif açıldı",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için alıcı akreditifi açtı. Bankanızdan teyit edip 'Akreditifi Kabul Ettim' adımını tamamlayın."
+      },
+      "lcAccepted": {
+        "subject": "Akreditif kabul edildi",
+        "heading": "Akreditif kabul edildi",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için satıcı akreditifi kabul etti ve gönderime hazırlanıyor."
+      },
+      "lcPaymentReceived": {
+        "subject": "Akreditif ödemesi alındı",
+        "heading": "Ödeme alındı",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için akreditif ödemesi banka kanalından alındı."
+      },
+      "paymentDue": {
+        "subject": "Ödeme vadesi yaklaşıyor",
+        "heading": "Ödeme vadesi yaklaşıyor",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için ödeme vadesi {dueDate} — kalan tutar {amount} {currency}."
+      },
+      "paymentRecorded": {
+        "subject": "Yeni ödeme kaydı — onayınız bekleniyor",
+        "heading": "Ödeme kaydedildi",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için {amount} {currency} tutarında ödeme kaydedildi. Onaylamanız bekleniyor."
+      },
+      "paymentConfirmed": {
+        "subject": "Ödemeniz onaylandı",
+        "heading": "Ödeme onaylandı",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için ödemeniz satıcı tarafından onaylandı."
+      },
+      "paymentRejected": {
+        "subject": "Ödemeniz reddedildi",
+        "heading": "Ödeme reddedildi",
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için ödemeniz reddedildi.{hasReason, select, yes { Gerekçe: {reason}} other {}}"
+      }
+    },
+    "approvals": {
+      "pending": {
+        "title": "Onayınız bekleniyor",
+        "body": "\"{hasTitle, select, yes {{title}} other {Satın Alma Talebi}}\" ({number}) için onay sırası sizde. Lütfen Onaylar sayfasından inceleyip karar verin.",
+        "cta": "Onaylar Sayfası",
+        "waitingDays": "Bu onay {days} gündür bekliyor."
+      },
+      "decided": {
+        "approvedTitle": "Onay isteğiniz onaylandı",
+        "rejectedTitle": "Onay isteğiniz reddedildi",
+        "body": "\"{hasTitle, select, yes {{title}} other {Satın Alma Talebi}}\" ({number}) için başlattığınız onay isteği {approved, select, yes {onaylandı ve işlem uygulandı} other {reddedildi}}.{hasNote, select, yes { Not: {note}} other {}}",
+        "cta": "Satın Alma Talebini Gör",
+        "bodyNoEligibleApprover": "\"{hasTitle, select, yes {{title}} other {Satın Alma Talebi}}\" ({number}) için başlattığınız onay isteği reddedildi. Not: Onay akışında sizden başka uygun bir onaylayıcı yok — akışa bir onaylayıcı ekleyin veya firma sahibine başvurun."
+      }
+    },
+    "companyUsers": {
+      "invite": {
+        "subject": "{company} sizi ekibine davet ediyor",
+        "heading": "Ekip Daveti",
+        "intro": "{inviter}, sizi {company} firmasının ekibine katılmaya davet ediyor.",
+        "setOwnPassword": "Daveti kabul ederken adınızı ve parolanızı kendiniz belirlersiniz.",
+        "rowCompany": "Firma",
+        "rowRole": "Rol",
+        "rowValidity": "Geçerlilik",
+        "validityDays": "{days} gün",
+        "cta": "Daveti Kabul Et",
+        "footer": "Bu daveti siz beklemiyorsanız e-postayı yok sayabilirsiniz."
+      },
+      "role": {
+        "SAHIP": "Kurucu",
+        "YONETICI": "Yönetici",
+        "SATIN_ALMACI": "Satın Almacı",
+        "SATISCI": "Satışçı",
+        "ONAYLAYICI": "Onaylayıcı"
+      },
+      "permissionsChanged": {
+        "title": "Yetkileriniz güncellendi",
+        "body": "Firma yöneticiniz yetkilerinizi değiştirdi. Menü ve erişimleriniz yeni yetkilere göre yenilendi.",
+        "cta": "Panele git"
+      },
+      "seatSelection": {
+        "title": "İşlem yetkileriniz kaldırıldı",
+        "body": "Paket küçültmesi nedeniyle bazı işlem yetkileriniz (koltuk) kaldırıldı. Hesabınız, görüntüleme ve diğer yetkileriniz aynen devam ediyor."
+      }
+    },
+    "companyConnections": {
+      "someCompany": "Bir firma",
+      "greeting": "Merhaba,",
+      "emailCta": "Rothern'e Git",
+      "request": {
+        "title": "Yeni bağlantı isteği",
+        "body": "{company} sizinle bağlantı kurmak istiyor. Bağlantılar sayfasındaki Gelen İstekler'den yanıtlayabilirsiniz.",
+        "emailBody": "{company} sizinle bağlantı kurmak istiyor. Rothern'de Bağlantılar → Gelen İstekler'den yanıtlayabilirsiniz."
+      },
+      "accepted": {
+        "title": "Bağlantı isteğiniz kabul edildi",
+        "body": "{company} bağlantı isteğinizi kabul etti — artık birbirinizin bağlantılara açık satın alma taleplerini görebilirsiniz."
+      }
+    },
+    "companyMessages": {
+      "newMessage": {
+        "subject": "{sender} size mesaj gönderdi",
+        "heading": "Yeni mesajınız var",
+        "greeting": "Merhaba,",
+        "body": "{sender} size Rothern üzerinden bir mesaj gönderdi. Görüntülemek ve yanıtlamak için giriş yapın.",
+        "cta": "Mesajları Gör"
+      }
+    },
+    "publicInquiry": {
+      "verify": {
+        "subject": "Talebinizi onaylayın",
+        "heading": "Tek adım kaldı",
+        "intro": "{product} ürünü hakkındaki talebiniz henüz gönderilmedi.",
+        "action": "Aşağıdaki bağlantıya tıklayarak e-posta adresinizi doğrulayın; talebiniz o an satıcıya iletilecek.",
+        "cta": "Talebimi onayla",
+        "footer": "Bu talebi siz göndermediyseniz bu e-postayı yok sayabilirsiniz — onaylanmayan talep satıcıya iletilmez."
+      },
+      "reply": {
+        "subject": "Talebinize yanıt geldi",
+        "heading": "Yanıtınız hazır",
+        "intro": "{company}, \"{product}\" hakkındaki talebinizi yanıtladı.",
+        "claimedRead": "Yanıtı Bilgi Taleplerim sayfanızdan okuyabilirsiniz.",
+        "guestRead": "Yanıtı okumak için ücretsiz hesabınızı oluşturun; bu talebiniz ve gelen yanıtlar hesabınıza bağlanacak.",
+        "claimedCta": "Yanıtı oku",
+        "guestCta": "Hesabımı oluştur ve yanıtı oku"
+      },
+      "seller": {
+        "subject": "Ürününüz için yeni bilgi talebi",
+        "heading": "Yeni bilgi talebi",
+        "intro": "{visitor}, \"{product}\" ürününüz hakkında bilgi istedi.",
+        "introWithQuantity": "{visitor}, \"{product}\" ürününüz hakkında bilgi istedi ({quantity}).",
+        "action": "Talebi panelinizden görüntüleyip yanıtlayabilirsiniz.",
+        "cta": "Talebi görüntüle"
+      },
+      "sellerFree": {
+        "subject": "Ürününüz için yeni bilgi talebi — yanıtlamak için Silver",
+        "heading": "Bir alıcı ürününüzü sordu",
+        "intro": "Bir alıcı \"{product}\" ürününüz hakkında bilgi istedi.",
+        "introWithQuantity": "Bir alıcı \"{product}\" ürününüz hakkında bilgi istedi ({quantity}).",
+        "action": "Ücretsiz üyelikte soruyu görürsünüz; alıcının kimliği, iletişim bilgileri ve yanıt Silver paketiyle açılır.",
+        "cta": "Talebi görüntüle"
+      }
+    },
+    "listings": {
+      "cta": {
+        "viewRequest": "Satın Alma Talebini Gör",
+        "reviewBids": "Teklifleri İncele",
+        "placeBid": "Teklif Ver",
+        "viewOrder": "Siparişi Gör",
+        "viewPlans": "Paketleri Gör",
+        "viewOpenRequests": "Açık Satın Alma Taleplerini Gör",
+        "viewSalesListings": "Satış İlanlarını Gör"
+      },
+      "closed": {
+        "subject": "Satın Alma Talebinde teklif alımı kapandı",
+        "title": "Satın Alma Talebi değerlendirme aşamasında",
+        "body": "\"{title}\" ({number}) satın alma talebinde teklif alımı kapandı; satın alma talebi değerlendirme aşamasına geçti. Sonuç açıklandığında bilgilendirileceksiniz."
+      },
+      "closedOwner": {
+        "subject": "Satın Alma Talebiniz kapandı — kazandırma kararı bekleniyor",
+        "title": "Kazandırma kararı zamanı",
+        "body": "\"{title}\" ({number}) satın alma talebiniz teklife kapandı. Teklifleri inceleyip kazandırma kararınızı verebilirsiniz."
+      },
+      "categoryMatch": {
+        "footerNote": "Bu bildirimi kategori tercihlerinize göre alıyorsunuz.",
+        "buy": {
+          "heading": "Kategorinize uygun yeni satın alma talebi",
+          "openSubject": "Size uygun yeni bir satın alma talebi yayınlandı",
+          "openBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\" ({number}). İncelemek ve teklif vermek için Rothern''e giriş yapın.",
+          "openInAppBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi: \"{title}\" ({number}).",
+          "lockedSubject": "Kategorinizde yeni bir satın alma talebi var — Silver ile açılır",
+          "lockedBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\" ({number}). Ücretsiz üyelikte herkese açık talepler kilitlidir; görmek ve teklif vermek için Silver paketine geçin. Bağlantı davetiyle gelen talepleri her zaman ücretsiz görürsünüz.",
+          "lockedInAppTitle": "Kategorinizde yeni bir satın alma talebi — Silver ile açılır",
+          "lockedInAppBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\". Görmek ve teklif vermek için Silver paketine geçin."
+        },
+        "sell": {
+          "heading": "Kategorinize uygun yeni satış ilanı",
+          "openSubject": "Size uygun yeni bir satış ilanı yayınlandı",
+          "openBody": "Aldığınız kategorilerle eşleşen yeni bir satış ilanı yayınlandı: \"{title}\" ({number}). İncelemek ve satın almak için Rothern''e giriş yapın.",
+          "openInAppBody": "Aldığınız kategorilerle eşleşen yeni bir satış ilanı: \"{title}\" ({number}).",
+          "lockedSubject": "Kategorinizde yeni bir satış ilanı var — Silver ile açılır",
+          "lockedBody": "Aldığınız kategorilerle eşleşen yeni bir satış ilanı yayınlandı: \"{title}\" ({number}). Ücretsiz üyelikte herkese açık talepler kilitlidir; görmek ve satın almak için Silver paketine geçin. Bağlantı davetiyle gelen talepleri her zaman ücretsiz görürsünüz.",
+          "lockedInAppTitle": "Kategorinizde yeni bir satış ilanı — Silver ile açılır",
+          "lockedInAppBody": "Aldığınız kategorilerle eşleşen yeni bir satış ilanı yayınlandı: \"{title}\". Görmek ve satın almak için Silver paketine geçin."
+        }
+      },
+      "invitation": {
+        "subject": "Bir satın alma talebine davet edildiniz",
+        "title": "Satın Alma Talebi daveti",
+        "body": "\"{title}\" ({number}) satın alma talebine davet edildiniz. Detayları görmek ve teklif vermek için giriş yapın.",
+        "inAppBody": "\"{title}\" ({number}) satın alma talebine davet edildiniz."
+      },
+      "reminder": {
+        "subject": "Satın Alma Talebi kapanışı yaklaşıyor",
+        "title": "Kapanış hatırlatması",
+        "body": "\"{title}\" ({number}) satın alma talebinin kapanışı yaklaşıyor. Teklif vermek için son şansınız."
+      },
+      "newRound": {
+        "subject": "Satın Alma Talebinde yeni tur başladı",
+        "title": "Yeni tur açıldı",
+        "body": "\"{title}\" ({number}) satın alma talebinde yeni bir tur açıldı. Güncel teklifinizi vermek için giriş yapın.",
+        "inAppBody": "\"{title}\" ({number}) satın alma talebinde yeni tur açıldı — güncel teklifinizi verin."
+      },
+      "bidReceived": {
+        "title": "Yeni teklif geldi",
+        "body": "\"{title}\" ({number}) talebinize yeni bir teklif verildi."
+      },
+      "awarded": {
+        "subject": "Tebrikler — teklifiniz kazandı",
+        "title": "Teklifiniz kazandı",
+        "body": "Bir satın alma talebinde teklifiniz kazandı ve {orderNumbers} numaralı {count, plural, one {sipariş} other {siparişler}} oluştu. Sipariş detaylarını ve sonraki adımları Rothern''den takip edebilirsiniz.",
+        "bodyShort": "Bir satın alma talebinde teklifiniz kazandı ve {orderNumbers} numaralı {count, plural, one {sipariş} other {siparişler}} oluştu."
+      },
+      "lost": {
+        "title": "Satın Alma Talebi sonuçlandı",
+        "body": "\"{title}\" ({number}) satın alma talebi sonuçlandı; bu turda teklifiniz kazanmadı.",
+        "emailBody": "\"{title}\" ({number}) satın alma talebi sonuçlandı; bu turda teklifiniz kazanmadı. Yeni fırsatlar için Rothern''i takip edebilirsiniz."
+      },
+      "nextRoundCarried": {
+        "subject": "Yeni tur açıldı — teklifiniz taşındı",
+        "heading": "Teklifiniz yeni tura taşındı",
+        "inAppTitle": "Yeni tur — teklifiniz taşındı",
+        "body": "\"{title}\" ({number}) satın alma talebinde {round, select, auction {açık eksiltme turu} other {yeni tur}} açıldı. {amount} teklifiniz geçerlilik süresi devam ettiği için aynen taşındı — dilerseniz fiyatınızı düşürebilirsiniz."
+      },
+      "nextRoundExpired": {
+        "subject": "Teklifinizin geçerlilik süresi doldu — işlem gerekli",
+        "title": "Teklifinizin geçerliliği doldu",
+        "body": "\"{title}\" ({number}) satın alma talebinde {round, select, auction {açık eksiltme turu} other {yeni tur}} açıldı ancak önceki teklifinizin geçerlilik süresi dolduğu için teklifiniz taşınamadı. {opens, select, future {Açılışa ({openAt}) kadar} other {Devam etmek için}} yeni fiyat verin ya da mevcut teklifinizin geçerlilik süresini uzatın."
+      },
+      "eliminated": {
+        "subject": "Teklifiniz hakkında güncelleme",
+        "title": "Teklifiniz değerlendirme dışı kaldı",
+        "body": "\"{title}\" ({number}) satın alma talebinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz."
+      },
+      "cancelled": {
+        "title": "Satın Alma Talebi iptal edildi",
+        "body": "\"{title}\" ({number}) satın alma talebi ilan sahibi tarafından iptal edildi.{hasReason, select, yes { Gerekçe: {reason}} other {}}"
+      },
+      "closedNoAward": {
+        "subject": "Satın Alma Talebi kazanan olmadan kapatıldı",
+        "title": "Satın Alma Talebi sonuçlanmadan kapatıldı",
+        "body": "\"{title}\" ({number}) satın alma talebi kazanan seçilmeden kapatıldı.{hasReason, select, yes { Gerekçe: {reason}} other {}}"
+      },
+      "closingChanged": {
+        "subject": "Satın Alma Talebi kapanış zamanı değişti",
+        "title": "Kapanış zamanı değişti",
+        "body": "\"{title}\" ({number}) satın alma talebinin kapanış zamanı {direction, select, extended {uzatıldı} advanced {öne çekildi} other {güncellendi}}. Yeni kapanış: {closesAt}."
+      },
+      "evaluationReminder": {
+        "subject": "Değerlendirmedeki satın alma talebinde teklif geçerlilikleri doluyor",
+        "title": "Teklif geçerlilikleri dolmak üzere",
+        "body": "\"{title}\" ({number}) satın alma talebi değerlendirmede ve {count} teklifin geçerlilik süresi dolmak üzere (ya da doldu). Kararınızı verin ya da tedarikçilerden geçerlilik uzatması isteyin."
+      }
+    },
+    "adminCompanies": {
+      "ulkeDegistiBaslik": "Ülke değişikliği: doğrulama belgeleriniz güncellenmeli",
+      "ulkeDegistiGovde": "Firmanızın ülkesi güncellendiği için zorunlu doğrulama belgeleri değişti. Eksik belgeleri yükleyip doğrulamayı yeniden gönderin.",
+      "dogrulamaOnaylandiBaslik": "Firma doğrulamanız onaylandı",
+      "dogrulamaOnaylandiGovde": "Firma doğrulama belgeleriniz incelendi ve onaylandı. Firmanız artık \"Doğrulanmış\" rozetiyle görünür; doğrulama gerektiren adımlara (talep yayınlama, herkese açık taleplere teklif) devam edebilirsiniz.",
+      "dogrulamaReddedildiBaslik": "Firma doğrulamanız reddedildi",
+      "dogrulamaReddedildiGovde": "Firma doğrulama belgeleriniz incelendi ancak onaylanamadı. Lütfen belgelerinizi güncelleyip yeniden gönderin.",
+      "baziBelgelerReddedildiBaslik": "Bazı belgeleriniz reddedildi",
+      "baziBelgelerReddedildiGovde": "Firma doğrulama belgelerinizin bir kısmı onaylanmadı. Reddedilen belgeleri düzeltip yeniden gönderin; onaylanan belgeleri tekrar yüklemenize gerek yok.",
+      "belgeGuncellemesiOnaylandiBaslik": "Belge güncellemeniz onaylandı",
+      "belgeGuncellemesiOnaylandiGovde": "Gönderdiğiniz yeni belge incelendi ve onaylandı; artık geçerli belgeniz olarak kayıtlıdır.",
+      "belgeGuncellemesiReddedildiBaslik": "Belge güncellemeniz reddedildi",
+      "belgeGuncellemesiReddedildiGovde": "Gönderdiğiniz yeni belge onaylanmadı; mevcut belgeniz geçerliliğini korumaktadır. Gerekçeyi görüp yeni bir belge yükleyebilirsiniz.",
+      "paketSonlandirildiBaslik": "Paket üyeliğiniz sonlandırıldı",
+      "paketSonlandirildiAnaParagraf": "Firma paketiniz platform yöneticisi tarafından Standart üyeliğe alındı. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
+      "paketSonlandirildiKirpilanUrun": "Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz.",
+      "paketSonlandirildiDavetIptal": "Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
+      "paketSonlandirildiGovde": "Firma paketiniz platform yöneticisi tarafından Standart üyeliğe alındı. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz. Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
+      "paketSonlandirildiGovdeKirpildi": "Firma paketiniz platform yöneticisi tarafından Standart üyeliğe alındı. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz. Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz. Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
+      "paketTanimlandiBaslik": "Paket üyeliğiniz tanımlandı",
+      "paketTanimlandiGovde": "Firma hesabınıza {paket} paketi tanımlandı. Paket haklarınızı hemen kullanmaya başlayabilirsiniz.",
+      "askiyaAlindiBaslik": "Hesabınız askıya alındı",
+      "askiyaAlindiGerekce": "Firma hesabınız platform yöneticisi tarafından askıya alındı. Gerekçe: {gerekce}",
+      "askiyaAlindiItiraz": "İtiraz veya bilgi için destek ekibimizle iletişime geçebilirsiniz.",
+      "askiyaAlindiGovde": "Firma hesabınız platform yöneticisi tarafından askıya alındı. Gerekçe: {gerekce} İtiraz veya bilgi için destek ekibimizle iletişime geçebilirsiniz.",
+      "askiKaldirildiBaslik": "Hesabınızın askısı kaldırıldı",
+      "askiKaldirildiGovde": "Firma hesabınızın askısı kaldırıldı; platformu yeniden kullanabilirsiniz."
+    },
+    "adminProducts": {
+      "yayinaAlindiBaslik": "Ürününüz yayına alındı",
+      "yayinaAlindiGovde": "\"{ad}\" ürününüz incelendi ve vitrinde yayına alındı. Alıcılar artık ürün sayfanızı görebilir ve bilgi talebi gönderebilir.",
+      "guncellemeOnaylandiBaslik": "Ürün güncellemeniz onaylandı",
+      "guncellemeOnaylandiGovde": "\"{ad}\" ürününüzdeki değişiklik incelendi ve onaylandı; vitrindeki hâli güncel.",
+      "urunuGor": "Ürünü gör",
+      "urunlerimiGor": "Ürünlerimi gör",
+      "topluYayinaAlindiBaslik": "{adet} ürününüz yayına alındı",
+      "topluTekParagraf": "\"{ad}\" ürününüz incelendi ve vitrinde yayına alındı.",
+      "topluCokParagraf": "{adet} ürününüz incelendi ve vitrinde yayına alındı: {liste}.",
+      "topluCokParagrafKirpik": "{adet} ürününüz incelendi ve vitrinde yayına alındı: {liste} ve {kalan} tane daha.",
+      "topluAliciNotu": "Alıcılar artık ürün sayfalarınızı görebilir ve bilgi talebi gönderebilir.",
+      "topluTekGovde": "\"{ad}\" ürününüz incelendi ve vitrinde yayına alındı. Alıcılar artık ürün sayfalarınızı görebilir ve bilgi talebi gönderebilir.",
+      "topluCokGovde": "{adet} ürününüz incelendi ve vitrinde yayına alındı: {liste}. Alıcılar artık ürün sayfalarınızı görebilir ve bilgi talebi gönderebilir.",
+      "topluCokGovdeKirpik": "{adet} ürününüz incelendi ve vitrinde yayına alındı: {liste} ve {kalan} tane daha. Alıcılar artık ürün sayfalarınızı görebilir ve bilgi talebi gönderebilir.",
+      "duzeltmeIstendiBaslik": "Ürününüzde düzeltme istendi",
+      "duzeltmeIstendiParagraf": "\"{ad}\" ürününüz incelendi ve düzeltme için size geri gönderildi. Gerekçe: {gerekce}",
+      "duzeltmeIstendiParagrafVitrinden": "\"{ad}\" ürününüz incelendi ve düzeltme için size geri gönderildi. Ürün düzeltme tamamlanana kadar vitrinden çekildi. Gerekçe: {gerekce}",
+      "duzeltmeIstendiTekrarGonder": "Gerekçedeki değişikliği yapıp ürünü yeniden onaya gönderebilirsiniz.",
+      "duzeltmeIstendiGovde": "\"{ad}\" ürününüz incelendi ve düzeltme için size geri gönderildi. Gerekçe: {gerekce} Gerekçedeki değişikliği yapıp ürünü yeniden onaya gönderebilirsiniz.",
+      "duzeltmeIstendiGovdeVitrinden": "\"{ad}\" ürününüz incelendi ve düzeltme için size geri gönderildi. Ürün düzeltme tamamlanana kadar vitrinden çekildi. Gerekçe: {gerekce} Gerekçedeki değişikliği yapıp ürünü yeniden onaya gönderebilirsiniz.",
+      "duzeltVeGonder": "Düzelt ve yeniden gönder"
+    },
+    "adminInspection": {
+      "ilanKapatildiBaslik": "Talebiniz yönetici tarafından kapatıldı",
+      "ilanKapatildiGovde": "\"{baslik}\" talebiniz platform yöneticisi tarafından teklife kapatıldı. Gerekçe: {gerekce}",
+      "ilanUzatildiBaslik": "İlan kapanış süresi uzatıldı",
+      "ilanUzatildiGovde": "\"{baslik}\" talebinizin kapanış tarihi destek talebiniz üzerine {tarih} olarak güncellendi.",
+      "ilanYenidenAcildiBaslik": "Talebiniz yeniden açıldı",
+      "ilanYenidenAcildiGovde": "\"{baslik}\" talebiniz destek talebiniz üzerine yeniden teklife açıldı. Yeni kapanış: {tarih}.",
+      "siparisIptalBaslik": "Sipariş yönetici tarafından iptal edildi",
+      "siparisIptalNumarali": "{numara} numaralı sipariş platform yöneticisi tarafından iptal edildi. Gerekçe: {gerekce}",
+      "siparisIptalGenel": "İlgili sipariş platform yöneticisi tarafından iptal edildi. Gerekçe: {gerekce}",
+      "siparisIptalSahipsizTalep": "Bu iptalden sonra ilgili satın alma talebinin canlı siparişi kalmadı. Kazandırma geri alınamadığı için yeni bir tedarikçiyle devam etmek isterseniz destek ekibiyle iletişime geçin.",
+      "siparisIptalGovdeNumaraliSahipsiz": "{numara} numaralı sipariş platform yöneticisi tarafından iptal edildi. Gerekçe: {gerekce} Bu iptalden sonra ilgili satın alma talebinin canlı siparişi kalmadı. Kazandırma geri alınamadığı için yeni bir tedarikçiyle devam etmek isterseniz destek ekibiyle iletişime geçin.",
+      "siparisIptalGovdeSahipsiz": "İlgili sipariş platform yöneticisi tarafından iptal edildi. Gerekçe: {gerekce} Bu iptalden sonra ilgili satın alma talebinin canlı siparişi kalmadı. Kazandırma geri alınamadığı için yeni bir tedarikçiyle devam etmek isterseniz destek ekibiyle iletişime geçin."
+    },
+    "companyAuth": {
+      "dogrulamaKoduKonu": "E-posta doğrulama kodunuz",
+      "dogrulamaKoduBaslik": "E-posta adresinizi doğrulayın",
+      "dogrulamaKoduGovde": "Rothern hesabınızı etkinleştirmek için doğrulama kodunuz: {kod}",
+      "girisKoduKonu": "Giriş doğrulama kodunuz",
+      "girisKoduBaslik": "İki adımlı doğrulama kodu",
+      "girisKoduGovde": "Giriş için iki adımlı doğrulama kodunuz: {kod}",
+      "kodGecerlilik": "Kod {dakika} dakika geçerlidir.",
+      "davetKabulBaslik": "Davetiniz kabul edildi",
+      "davetKabulGovde": "Davet ettiğiniz {firma} Rothern'e katıldı ve artık bağlantınız.",
+      "davetKabulGovdeIsimsiz": "Davet ettiğiniz bir firma Rothern'e katıldı ve artık bağlantınız.",
+      "baglantilarim": "Bağlantılarım",
+      "ikiAdimliAcildiBaslik": "İki adımlı doğrulama açıldı",
+      "ikiAdimliAcildiGovde": "Hesabınızda iki adımlı doğrulama (2FA) etkinleştirildi. Bu işlemi siz yapmadıysanız derhal parolanızı değiştirin ve destekle iletişime geçin.",
+      "ikiAdimliKapatildiBaslik": "İki adımlı doğrulama kapatıldı",
+      "ikiAdimliKapatildiGovde": "Hesabınızda iki adımlı doğrulama (2FA) kapatıldı. Bu işlemi siz yapmadıysanız derhal parolanızı değiştirin ve destekle iletişime geçin.",
+      "parolaDegistiBaslik": "Parolanız değiştirildi",
+      "parolaDegistiGovde": "Hesabınızın parolası değiştirildi. Bu işlemi siz yapmadıysanız derhal parolanızı sıfırlayın ve destekle iletişime geçin.",
+      "hesapAyarlari": "Hesap Ayarları"
+    },
+    "membership": {
+      "sonaErdiKonu": "Premium üyeliğiniz sona erdi",
+      "sonaErdiAnaParagraf": "Paket üyeliğinizin süresi doldu ve hesabınız Standart üyeliğe geçirildi. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
+      "sonaErdiKirpilanUrun": "Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz.",
+      "sonaErdiYukseltme": "Tekrar pakete geçmek için hesabınızdan yükseltme yapabilirsiniz.",
+      "premiumaGec": "Premium'a Geç"
+    },
+    "ai": {
+      "butceUyarisiBaslik": "AI bütçe uyarısı",
+      "butceUyarisiGovde": "Firmanızın aylık AI kullanımı %{yuzde} seviyesine ulaştı. Bütçe dolduğunda AI özellikleri ay sonuna kadar kapanır.",
+      "kullanimiGor": "Kullanımı Gör"
+    }
+  },
+  "permission": {
+    "buy_view": "Satınalma görüntüleme",
+    "buy_listing_manage": "Talep açma ve yönetme",
+    "buy_order_manage": "Alım siparişi işlemleri",
+    "sell_view": "Satış görüntüleme",
+    "sell_bid_submit": "Teklif verme",
+    "sell_order_manage": "Satış siparişi işlemleri"
+  },
+  "storage": {
+    "r2BucketErisilemiyor": "R2 bucket erişilemiyor",
+    "dosyaIcerigiOkunamadi": "Dosya içeriği okunamadı"
+  },
+  "companyAffinity": {
+    "reason": {
+      "own": {
+        "wonOrders": "Bu alanda tamamlanmış siparişiniz var",
+        "bids": "Bu alanda daha önce teklif verdiniz",
+        "catalogItems": "Kataloğunuzda bu alandan kalemler var",
+        "invitations": "Bu alandaki taleplere davet edildiniz",
+        "publishedListings": "Bu alanda ilan yayınladınız",
+        "declared": "Faaliyet alanlarınızda işaretli"
+      },
+      "thirdParty": {
+        "wonOrders": "Bu alanda tamamlanmış siparişi var",
+        "bids": "Bu alanda daha önce teklif verdi",
+        "catalogItems": "Kataloğunda bu alandan kalemler var",
+        "invitations": "Bu alandaki taleplere davet edildi",
+        "publishedListings": "Bu alanda ilan yayınladı",
+        "declared": "Faaliyet alanlarında işaretli"
+      }
+    }
+  }
+}

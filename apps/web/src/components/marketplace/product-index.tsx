@@ -1,3 +1,4 @@
+import { getLocale, getTranslations } from "next-intl/server";
 import { FilterResults, FilterShell, MobileFilterButton, ResultCount } from "./filter-shell";
 import { Pagination } from "@/components/ui/pagination";
 import { ProductCard } from "./product-card";
@@ -9,10 +10,9 @@ import { crossCounts } from "@/lib/public/cross-counts";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
 import { CityLinks } from "./city-links";
-import { IndexIntro } from "./index-intro";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbNode, graph, itemListNode } from "@/lib/seo/jsonld";
-import { categoryPath } from "@/lib/public/marketplace";
+import { categoryHref } from "@/lib/public/marketplace";
 import {
   buildProductFilterQuery,
   parseProductFilters,
@@ -20,7 +20,7 @@ import {
   type SearchParamsLike,
 } from "@/lib/public/product-filter-params";
 import { signupHref } from "@/lib/public/visibility";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
 
 /**
@@ -45,12 +45,16 @@ interface Props {
   /** Şehir açılış sayfası: süzgeç URL'den değil YOLDAN gelir (Parça 3). */
   fixedCity?: string;
   /** Listenin ÜSTÜNDE görünen giriş metni (GEO: alıntılanabilir tanım). */
-  intro?: ReactNode;
   /** Listenin ALTINDA görünen bağlantı şeridi (iç bağlantı ağı). */
   footer?: ReactNode;
 }
 
-export async function ProductIndex({ title, lead, searchParams, category, image, fixedCity, intro, footer }: Props) {
+export async function ProductIndex({ title, lead, searchParams, category, image, fixedCity, footer }: Props) {
+  const t = await getTranslations("web.marketplace.index");
+  const tl = await getTranslations("web.marketplace.labels");
+  const tt = await getTranslations("web.marketplace.typeahead");
+  const tm = await getTranslations("web.marketing");
+  const locale = await getLocale();
   const state = parseProductFilters(
     fixedCity ? { ...searchParams, sehir: fixedCity } : searchParams,
     category?.id,
@@ -74,7 +78,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
      "1..12" der ve aynı sıralı liste tekrarlanmış görünür.
      Kanonik yol kategori sayfasında kategoriye, dizinde köke işaret eder —
      süzgeçli varyantlar kendi kanoniğini zaten `/urunler` olarak bildiriyor. */
-  const listPath = category ? categoryPath(category.id, category.name) : basePath;
+  const listPath = category ? categoryHref(category) : basePath;
   const listLd = graph([
     itemListNode({
       name: title,
@@ -88,11 +92,14 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
     }),
     ...(category
       ? [
-          breadcrumbNode([
-            { name: "Anasayfa", path: "/" },
-            { name: "Ürünler", path: basePath },
-            { name: category.name, path: listPath },
-          ]),
+          breadcrumbNode(
+            [
+              { name: tm("breadcrumbHome"), path: "/" },
+              { name: tl("products"), path: basePath },
+              { name: category.name, path: listPath },
+            ],
+            locale,
+          ),
         ]
       : []),
   ]);
@@ -100,15 +107,10 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
   return (
     <>
     <JsonLd data={listLd} />
-    {/* Giriş paragrafı: kategori ve şehir sayfalarında VERİDEN türetilir
-        (Parça 4). Ana dizinde çizilmez — orada özne yok, cümle "Rothern'de
-        57 ürün var" gibi boş bir tekrar olurdu. */}
-    {intro ??
-      (category ? (
-        <IndexIntro subject={category.name} total={page.total} facets={facets} kind="category" />
-      ) : fixedCity ? (
-        <IndexIntro subject={fixedCity} total={page.total} facets={facets} kind="city" />
-      ) : null)}
+    {/* Giriş paragrafı (kategori/şehir özeti) KALDIRILDI — 2026-09-24,
+        kullanıcı: "rothern header alt kısmındaki bilgiyi kaldır, diğer tüm
+        dillerde de". Özet cümle JSON-LD `ItemList` ve meta açıklamasında
+        yaşamaya devam eder; sayfada tekrar çizilmez. */}
     <FilterShell basePath={basePath} fixedCategory={category?.id} total={page.total} pushFilters drawer={<ProductFilters facets={facets} idPrefix="m" />}>
       <PublicListPage
           tabs={
@@ -119,8 +121,8 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         image={image}
         breadcrumb={
           category ? (
-            <nav aria-label="Konum" className="mb-3 text-sm text-zinc-500">
-              <Link href={basePath} className="hover:text-zinc-900">Ürünler</Link>
+            <nav aria-label={t("breadcrumb")} className="mb-3 text-sm text-zinc-500">
+              <Link href={basePath} className="hover:text-zinc-900">{tl("products")}</Link>
               <span aria-hidden className="mx-2">/</span>
               <span className="text-zinc-900">{category.name}</span>
             </nav>
@@ -135,7 +137,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
             gorunum: state.view,
           },
           hiddenList: { nitelik: state.attrs },
-          placeholder: "Ürün, marka veya parça numarası arayın",
+          placeholder: tt("productsPlaceholder"),
         }}
         chips={[]}
         clearHref={basePath}
@@ -145,7 +147,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
           <span className="flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-3">
               <MobileFilterButton />
-              <ResultCount noun="ürün" />
+              <ResultCount kind="product" noun={t("productNoun")} />
             </span>
             <span className="flex items-center gap-2">
               <SortControl />
@@ -157,14 +159,14 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         <FilterResults>
           {page.items.length === 0 ? (
             <PublicEmptyState
-              noun="Bu kriterlerle ürün"
+              noun={t("productsEmptyNoun")}
               clearHref={hasFilter || category ? basePath : undefined}
-              extra={{ label: "Talep aç — tedarikçiler teklif versin", href: talepHref }}
+              extra={{ label: t("openRequestCta"), href: talepHref }}
             />
           ) : (
             <ResultGrid
               count={page.items.length}
-              heading="Ürün sonuçları"
+              heading={t("productResults")}
               layout={state.view === "liste" ? "list" : "grid"}
             >
               {page.items.map((p, i) => (
@@ -174,7 +176,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
                   companySlug={p.company.slug}
                   company={p.company}
                   product={p}
-                  cta="Bilgi iste"
+                  cta={t("inquire")}
                   compare
                   priority={i < 3}
                 />
@@ -202,7 +204,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
           href={talepHref}
           className="fixed right-5 bottom-5 z-30 inline-flex items-center gap-1 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-700"
         >
-          Talep aç
+          {t("openRequest")}
         </Link>
       </PublicListPage>
     </FilterShell>

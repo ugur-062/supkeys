@@ -1,30 +1,23 @@
 "use client";
 
+import type { Locale } from "@rothern/i18n";
+
 import { companyApi } from "@/lib/company-auth/api";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 
 /**
  * Kapatılabilir bildirim tercihleri (backend NOTIFICATION_PREF_KEYS ile birebir).
- * UI'da toggle olarak gösterilir; varsayılan tümü açık.
+ * UI'da toggle olarak gösterilir; varsayılan tümü açık. Etiket katalogda:
+ * `web.panel.settings.accountSettingsSection.notificationPref.<key>`.
  */
-export const NOTIFICATION_PREFS: { key: string; label: string }[] = [
-  { key: "invitation", label: "Satın Alma Talebi daveti aldığımda" },
-  { key: "reminder", label: "Davetli olduğum satın alma talebinin kapanışı yaklaştığında" },
-  { key: "bidElimination", label: "Teklifim elendiğinde" },
-  { key: "listingClosed", label: "Katıldığım satın alma talebi kapandığında" },
-  { key: "categoryMatch", label: "Kategorime uygun yeni satın alma talebi açıldığında" },
-  { key: "approvalPending", label: "Onayım beklendiğinde" },
-  { key: "announcement", label: "Platform duyuruları" },
-];
-
-/**
- * Transactional bildirimler — kapatılamaz, her zaman gönderilir. UI'da bilgi
- * olarak gösterilir (toggle'sız).
- */
-export const TRANSACTIONAL_NOTIFICATIONS: string[] = [
-  "Teklifim kazandığında / sipariş oluştuğunda",
-  "Siparişimin durumu değiştiğinde",
-  "Şifre sıfırlama ve hesap/davet e-postaları",
+export const NOTIFICATION_PREFS: { key: string }[] = [
+  { key: "invitation" },
+  { key: "reminder" },
+  { key: "bidElimination" },
+  { key: "listingClosed" },
+  { key: "categoryMatch" },
+  { key: "approvalPending" },
+  { key: "announcement" },
 ];
 
 export function useUpdateMe() {
@@ -34,6 +27,8 @@ export function useUpdateMe() {
       firstName?: string;
       lastName?: string;
       phone?: string;
+      /** Arayüz/bildirim dili (i18n Faz 1) — Ayarlar › Hesap Bilgileri › Dil. */
+      locale?: Locale;
     }) => {
       const { data } = await companyApi.patch("/company-auth/me", input);
       return data;

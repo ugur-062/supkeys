@@ -1,15 +1,20 @@
 "use client";
 
+import { useCityLabel, usePriceLabels, useUnitLabel } from "@/i18n/domain";
+
+import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { countryDisplayName } from "@/i18n/domain";
+
 import { CategoryImage } from "./category-image";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Thumb } from "@/components/ui/thumb";
 import { productPrice } from "@/lib/public/product-price";
-import { countryFlag, countryName } from "@rothern/shared";
+import { countryFlag } from "@rothern/shared";
 import type { ProductPriceFields, PublicProductCard } from "@/lib/public/marketplace-api";
 import { cn } from "@/lib/utils";
 import { ChevronRightIcon, MapPinIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useState, type ReactNode } from "react";
 
 /**
@@ -54,14 +59,15 @@ import { useState, type ReactNode } from "react";
 const NEW_TAB = { target: "_blank", rel: "noopener noreferrer" } as const;
 
 function NewTabHint() {
-  return <span className="sr-only"> (yeni sekmede açılır)</span>;
+  const t = useTranslations("web.marketplace.productCard");
+  return <span className="sr-only"> {t("newTab")}</span>;
 }
 
 export type ProductCardProduct = Pick<
   PublicProductCard,
   "slug" | "name" | "images" | "categoryId" | "unit" | "priceMode"
 > &
-  Partial<Pick<PublicProductCard, "excerpt"> & ProductPriceFields> & {
+  Partial<Pick<PublicProductCard, "excerpt" | "unitCode"> & ProductPriceFields> & {
     /** "Yeni" rozeti (≤7 gün) — dizin kartında dolu, firma altı listede yok. */
     publishedAt?: string | null;
   };
@@ -166,6 +172,11 @@ export function ProductCard({
   priority?: boolean;
   className?: string;
 }) {
+  const t = useTranslations("web.marketplace.productCard");
+  const cityLabel = useCityLabel();
+  const unitLabel = useUnitLabel();
+  const fmt = useFormatter();
+  const priceLabels = usePriceLabels();
   const target = href ?? (companySlug ? `/firma/${companySlug}/urun/${product.slug}` : undefined);
   const firm: ProductCardCompany | undefined =
     company ?? (companyName ? { name: companyName, city: companyCity } : undefined);
@@ -212,8 +223,8 @@ export function ProductCard({
     priceAmount: product.priceAmount ?? null,
     priceTiers: product.priceTiers ?? null,
     priceCurrency: product.priceCurrency ?? "TRY",
-    unit: product.unit,
-  });
+    unit: unitLabel(product.unit, product.unitCode),
+  }, priceLabels);
   const compact = variant === "compact";
   const ctaCls =
     accent === "blue"
@@ -249,12 +260,12 @@ export function ProductCard({
           <div className="flex flex-wrap items-center gap-1.5">
             {firm?.verified ? (
               <Badge tone="verified" size="sm">
-                Doğrulanmış
+                {t("verified")}
               </Badge>
             ) : null}
             {fresh ? (
               <Badge tone="new" size="sm">
-                Yeni
+                {t("new")}
               </Badge>
             ) : null}
           </div>
@@ -290,7 +301,7 @@ export function ProductCard({
               {firm.city ? (
                 <span className="flex shrink-0 items-center gap-0.5 whitespace-nowrap">
                   <MapPinIcon aria-hidden className="size-3.5 text-zinc-400" />
-                  {firm.city}
+                  {cityLabel(firm.city)}
                 </span>
               ) : null}
             </div>
@@ -306,7 +317,7 @@ export function ProductCard({
               </span>
               {product.moq ? (
                 <span className="tnum block text-xs text-zinc-500">
-                  {`Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}`}
+                  {t("minOrder", { n: fmt.number(Number(product.moq)), unit: unitLabel(product.unit, product.unitCode) })}
                 </span>
               ) : null}
             </span>
@@ -327,7 +338,7 @@ export function ProductCard({
             {price.headline}
           </p>
           <p className="tnum mt-0.5 text-xs text-zinc-500">
-            {product.moq ? `Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}` : "\u00A0"}
+            {product.moq ? t("minOrder", { n: fmt.number(Number(product.moq)), unit: unitLabel(product.unit, product.unitCode) }) : "\u00A0"}
           </p>
           {cta ? (
             <span className={cn("mt-3 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition", ctaCls)}>
@@ -344,7 +355,7 @@ export function ProductCard({
   // "Yeni". "Doğrulanmış" kapağa ÇIKMAZ: firma özelliğidir ve firma satırında
   // ikon olarak zaten duruyor; ikisini birden basmak aynı olguyu iki kez
   // yazmak olurdu (kaldırılan "Gold Üye" rozetiyle aynı gürültü).
-  const coverBadge = badge ?? (fresh ? <Badge tone="new" size="sm">Yeni</Badge> : null);
+  const coverBadge = badge ?? (fresh ? <Badge tone="new" size="sm">{t("new")}</Badge> : null);
 
   return (
     <article
@@ -446,7 +457,7 @@ export function ProductCard({
                 <span className="truncate text-xs font-medium text-zinc-700">{firm.name}</span>
                 {firm.verified ? (
                   <Badge tone="verified" size="sm" className="shrink-0 px-1">
-                    <span className="sr-only">Doğrulanmış firma</span>
+                    <span className="sr-only">{t("verifiedCompany")}</span>
                   </Badge>
                 ) : null}
                 {/* "Gold Üye" METİN rozeti olarak KALDIRILMIŞTI (2026-09-07):
@@ -456,14 +467,14 @@ export function ProductCard({
                     kullanıcı için okunur (etiketi ekran okuyucuda). */}
                 {firm.gold ? (
                   <Badge tone="gold" size="sm" className="shrink-0 px-1">
-                    <span className="sr-only">Gold Üye</span>
+                    <span className="sr-only">{t("goldMember")}</span>
                   </Badge>
                 ) : null}
               </span>
               {firm.city ? (
                 <span className="mt-0.5 flex items-center gap-0.5 text-[11px] text-zinc-500">
                   <MapPinIcon aria-hidden className="size-3 shrink-0 text-zinc-400" />
-                  <span className="truncate">{firm.city}</span>
+                  <span className="truncate">{cityLabel(firm.city)}</span>
                 </span>
               ) : null}
             </span>
@@ -488,7 +499,7 @@ export function ProductCard({
               MOQ yok). */}
           <p className="tnum mt-0.5 text-xs text-zinc-500">
             {product.moq
-              ? `Min. ${Number(product.moq).toLocaleString("tr-TR")} ${product.unit}`
+              ? t("minOrder", { n: fmt.number(Number(product.moq)), unit: unitLabel(product.unit, product.unitCode) })
               : "\u00A0"}
           </p>
           {cta && !compact && target ? (
@@ -521,12 +532,13 @@ export function ProductCard({
  * Emoji dekoratif; anlamı `sr-only` ülke adı taşır.
  */
 function CountryFlag({ code }: { code?: string | null }) {
+  const locale = useLocale();
   const flag = countryFlag(code);
   if (!flag) return null;
   return (
-    <span className="shrink-0 text-sm leading-none" title={countryName(code as string)}>
+    <span className="shrink-0 text-sm leading-none" title={countryDisplayName(code as string, locale)}>
       <span aria-hidden>{flag}</span>
-      <span className="sr-only">{countryName(code as string)}</span>
+      <span className="sr-only">{countryDisplayName(code as string, locale)}</span>
     </span>
   );
 }
@@ -543,6 +555,7 @@ function CountryFlag({ code }: { code?: string | null }) {
  * görünür.
  */
 function CompareToggle({ name, onChange }: { name: string; onChange?: (on: boolean) => void }) {
+  const t = useTranslations("web.marketplace.productCard");
   const [on, setOn] = useState(false);
   return (
     <label
@@ -561,7 +574,7 @@ function CompareToggle({ name, onChange }: { name: string; onChange?: (on: boole
         }}
         className="size-3.5 rounded border-zinc-300 text-zinc-950 focus:ring-zinc-950"
       />
-      Karşılaştır
+      {t("compare")}
       <span className="sr-only">: {name}</span>
     </label>
   );

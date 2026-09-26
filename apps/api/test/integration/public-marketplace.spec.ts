@@ -17,6 +17,8 @@ import {
 } from "../../src/common/http/marketplace-live.guard";
 import { Prisma } from "@rothern/db";
 import { PublicMarketplaceService } from "../../src/modules/public-marketplace/public-marketplace.service";
+import { PublicSitemapService } from "../../src/modules/public-marketplace/public-sitemap.service";
+import { ContentTranslationService } from "../../src/modules/content-translation/content-translation.service";
 import type { PrismaBypassService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeBid, makeCompanyWithUser, makeItem, makeListing } from "./factories";
@@ -35,6 +37,7 @@ const FORBIDDEN_KEYS = [
   "bidCount",
   "invitations",
   "internalNotes",
+  "searchTextI18n",
   "terms",
   "paymentNote",
   "logistics",
@@ -326,6 +329,23 @@ describe("pazar yeri — indeks kapısı vitrinden DAR", () => {
     expect(map[0].title).toBe("Çelik Boru Alımı");
   });
 
+  it("sitemap her talebi yalnız HAZIR dillerinde verir (çevirisiz dil → yalnız Türkçe)", async () => {
+    const { listing } = await seedPublicListing();
+    const bypass = prisma as unknown as PrismaBypassService;
+    const translations = new ContentTranslationService(bypass);
+    const sitemap = new PublicSitemapService(bypass, translations);
+    expect((await sitemap.listings(0)).map((r) => r.locales)).toEqual([["tr"]]);
+    await translations.enqueue("LISTING", listing.id);
+    await prisma.contentTranslation.updateMany({ where: { entityId: listing.id }, data: { status: "DONE", sourceLocale: "tr" } });
+    await prisma.contentTranslation.update({
+      where: { entityType_entityId_locale: { entityType: "LISTING", entityId: listing.id, locale: "en" } },
+      data: { fields: { title: "Steel pipe purchase", description: null, keywords: [], items: [] } },
+    });
+    expect((await sitemap.listings(0))[0]!.locales).toEqual(["tr", "en"]);
+    // Çeviri servisi yoksa (test düzeneği / modül yok) tüm diller.
+    expect((await new PublicSitemapService(bypass).listings(0))[0]!.locales).toEqual(["tr", "en", "ru"]);
+  });
+
   it("STANDART paketli firmanın ilanı da vitrinde ve indekste", async () => {
     // Paket kapısı `/firma/<slug>` PROFİLİNE aittir; ilan vitrinine değil.
     // İlan sayfası zaten firmayı adlandırmıyor, dolayısıyla ücretsiz üyenin
@@ -470,5 +490,29 @@ describe("ilan kapağı — TÜRETİLİR", () => {
     const detail = await service().getByNumber(listing.number as string);
     expect(card.coverImageUrl).toBe(detail.coverImageUrl);
     expect(card.coverImageUrl).toBe("ayni.webp");
+  });
+});
+
+describe("pazar yeri — çok dilli talep araması (searchTextI18n)", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("İngilizce sorgu çevirisi olan Türkçe talebi bulur; sütun boşken bulmaz", async () => {
+    const { listing } = await seedPublicListing();
+    expect((await service().list({ q: "seamless pipes" })).items).toHaveLength(0);
+    await prisma.listing.update({
+      where: { id: listing.id },
+      data: { searchTextI18n: "celik boru alimi dikissiz steel pipe purchase seamless" },
+    });
+    const res = await service().list({ q: "seamless pipes" });
+    expect(res.items.map((i) => i.number)).toEqual([listing.number]);
+  });
+
+  it("katlanmış kaynak: büyük İ ve aksansız yazım talebi bulur", async () => {
+    const { listing } = await seedPublicListing({ title: "İskele Sistemi Alımı", keywords: [] });
+    await prisma.listing.update({ where: { id: listing.id }, data: { searchTextI18n: "iskele sistemi alimi" } });
+    expect((await service().list({ q: "ISKELE" })).items).toHaveLength(1);
+    expect((await service().list({ q: "alimi" })).items).toHaveLength(1);
   });
 });

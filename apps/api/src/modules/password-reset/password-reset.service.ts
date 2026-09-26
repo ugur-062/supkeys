@@ -1,3 +1,7 @@
+import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
+import { localizeAppPath } from "../../common/company/app-routes";
+import { localeOf } from "../notifications/notification.service";
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import * as crypto from "node:crypto";
 import { ForbiddenException, Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
@@ -46,21 +50,21 @@ export class PasswordResetService {
       },
     });
     if (!record) {
-      throw new ForbiddenException("Geçersiz veya kullanılmış bağlantı");
+      throw new ForbiddenException(i18nMessage("api.passwordReset.gecersizVeyaKullanilmisBaglanti"));
     }
     if (record.usedAt) {
-      throw new ForbiddenException("Bu bağlantı zaten kullanılmış");
+      throw new ForbiddenException(i18nMessage("api.passwordReset.buBaglantiZatenKullanilmis"));
     }
     if (record.expiresAt.getTime() < Date.now()) {
-      throw new ForbiddenException("Bağlantının süresi dolmuş");
+      throw new ForbiddenException(i18nMessage("api.passwordReset.baglantininSuresiDolmus"));
     }
     const target = record.companyUser;
     if (!target || !target.isActive) {
-      throw new ForbiddenException("Hesap geçersiz veya pasif");
+      throw new ForbiddenException(i18nMessage("api.passwordReset.hesapGecersizVeyaPasif"));
     }
     if (!target.authId) {
       throw new ForbiddenException(
-        "Bu hesap Supabase Auth'a bağlı değil — destek ekibiyle iletişime geçin",
+        i18nMessage("api.passwordReset.buHesapSupabaseAuthABagli"),
       );
     }
 
@@ -72,7 +76,7 @@ export class PasswordResetService {
       data: { usedAt: new Date() },
     });
     if (claimed.count === 0) {
-      throw new ForbiddenException("Bu bağlantı zaten kullanılmış");
+      throw new ForbiddenException(i18nMessage("api.passwordReset.buBaglantiZatenKullanilmis"));
     }
     await this.supabaseAuth.updatePassword(target.authId, newPassword);
     // Tüm mevcut oturumlar geçersizleşir (tokenVersion) — parola sıfırlama
@@ -88,10 +92,21 @@ export class PasswordResetService {
     const email = rawEmail.trim().toLowerCase();
     const cu = await this.prisma.companyUser.findFirst({
       where: { email, isActive: true, deletedAt: null },
-      select: { id: true, email: true, firstName: true, authId: true },
+      select: {
+        id: true,
+        email: true,
+        firstName: true,
+        authId: true,
+        locale: true,
+      },
     });
     if (cu?.authId) {
-      await this.issue({ companyUserId: cu.id }, cu.email, cu.firstName ?? "");
+      await this.issue(
+        { companyUserId: cu.id },
+        cu.email,
+        cu.firstName ?? "",
+        localeOf(cu.locale),
+      );
     }
     return { success: true };
   }
@@ -100,6 +115,8 @@ export class PasswordResetService {
     owner: ResetOwner,
     email: string,
     firstName: string,
+    // Alıcı KAYITLI bir kullanıcı: e-posta ve bağlantı onun dilinde üretilir.
+    locale: Locale = DEFAULT_LOCALE,
   ): Promise<void> {
     // Tek aktif token politikası — bu kullanıcının kullanılmamış token'larını sil.
     await this.prisma.passwordResetToken.deleteMany({
@@ -122,11 +139,12 @@ export class PasswordResetService {
     const baseUrl = (
       resolveWebUrl(this.config)
     ).replace(/\/$/, "");
-    const resetUrl = `${baseUrl}/reset-password?token=${plainToken}`;
+    const resetUrl = `${baseUrl}${localizeAppPath(`/reset-password?token=${plainToken}`, locale)}`;
 
     try {
       await this.email.send({
         to: { email, name: firstName || email },
+        locale,
         templateData: {
           template: "password_reset",
           data: {

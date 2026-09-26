@@ -1,5 +1,7 @@
 "use client";
 
+import { useFormatter, useTranslations } from "next-intl";
+
 import { Chip } from "@/components/ui/chip";
 import { useFilterAccent } from "./filter-shell";
 
@@ -71,6 +73,7 @@ export function Group({
   defaultOpen?: boolean;
   children: ReactNode;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   const [open, setOpen] = useOpenState(storageKey, defaultOpen);
   const id = useId();
   return (
@@ -99,7 +102,7 @@ export function Group({
         </button>
         {count > 0 ? (
           <button type="button" onClick={onClear} className="text-xs text-zinc-500 underline underline-offset-2 hover:text-zinc-950">
-            Temizle
+            {t("clear")}
           </button>
         ) : null}
       </div>
@@ -177,7 +180,7 @@ export function ShowMore({
   selected,
   idPrefix,
   onToggle,
-  emptyText = "Seçenek yok",
+  emptyText,
 }: {
   items: FacetOption[];
   selected: string[];
@@ -185,10 +188,11 @@ export function ShowMore({
   onToggle: (key: string, on: boolean) => void;
   emptyText?: string;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   const [all, setAll] = useState(false);
   // Seçili olanlar her zaman görünür (kısıtlı listede kaybolmasın).
   const visible = all ? items : items.filter((i, idx) => idx < SHOW || selected.includes(i.key));
-  if (items.length === 0) return <p className="px-2 text-xs text-zinc-500">{emptyText}</p>;
+  if (items.length === 0) return <p className="px-2 text-xs text-zinc-500">{emptyText ?? t("noOptions")}</p>;
   return (
     <>
       {visible.map((i) => (
@@ -204,7 +208,7 @@ export function ShowMore({
       ))}
       {items.length > SHOW ? (
         <button type="button" onClick={() => setAll(!all)} className="px-2 pt-1 text-xs font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950">
-          {all ? "Daha az göster" : `Tümünü göster (${items.length})`}
+          {all ? t("showLess") : t("showAll", { n: items.length })}
         </button>
       ) : null}
     </>
@@ -216,7 +220,7 @@ export function ShowMoreRadio({
   selected,
   idPrefix,
   onSelect,
-  emptyText = "Seçenek yok",
+  emptyText,
 }: {
   items: FacetOption[];
   selected?: string;
@@ -224,9 +228,10 @@ export function ShowMoreRadio({
   onSelect: (key: string) => void;
   emptyText?: string;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   const [all, setAll] = useState(false);
   const visible = all ? items : items.filter((i, idx) => idx < SHOW || i.key === selected);
-  if (items.length === 0) return <p className="px-2 text-xs text-zinc-500">{emptyText}</p>;
+  if (items.length === 0) return <p className="px-2 text-xs text-zinc-500">{emptyText ?? t("noOptions")}</p>;
   return (
     <>
       {visible.map((i) => (
@@ -242,7 +247,7 @@ export function ShowMoreRadio({
       ))}
       {items.length > SHOW ? (
         <button type="button" onClick={() => setAll(!all)} className="px-2 pt-1 text-xs font-medium text-zinc-700 underline underline-offset-2 hover:text-zinc-950">
-          {all ? "Daha az göster" : `Tümünü göster (${items.length})`}
+          {all ? t("showLess") : t("showAll", { n: items.length })}
         </button>
       ) : null}
     </>
@@ -267,21 +272,22 @@ export function FilterChipBar({
   onClearAll: () => void;
   sticky?: boolean;
 }) {
+  const t = useTranslations("web.marketplace.filters");
   if (chips.length === 0) return null;
   return (
     <div
       className={`${sticky ? "sticky top-20 z-20" : ""} -mx-2 mb-4 flex flex-wrap items-center gap-2 rounded-xl bg-white/90 px-2 py-2 text-sm ring-1 ring-zinc-950/5 backdrop-blur`}
     >
-      <span className="text-zinc-500">Süzgeçler:</span>
+      <span className="text-zinc-500">{t("chipsLabel")}</span>
       {chips.map((c) => (
-        <Chip key={c.key} onRemove={c.onRemove} removeLabel={`${c.label} süzgecini kaldır`} className="h-7 text-xs">
+        <Chip key={c.key} onRemove={c.onRemove} removeLabel={t("removeFilter", { label: c.label })} className="h-7 text-xs">
           {c.label}
         </Chip>
       ))}
       <button type="button" onClick={onClearAll} className="text-sm font-medium text-zinc-900 underline underline-offset-2 hover:text-zinc-600">
-        Tümünü temizle
+        {t("clearAll")}
       </button>
-      <span className="sr-only">{activeCount} süzgeç aktif</span>
+      <span className="sr-only">{t("activeCount", { n: activeCount })}</span>
     </div>
   );
 }
@@ -336,27 +342,27 @@ export function PriceHistogram({
   to?: number;
   onPick: (from: number, to: number) => void;
 }) {
+  const t = useTranslations("web.marketplace.filters");
+  const fmt = useFormatter();
   const peak = Math.max(1, ...data.buckets.map((b) => b.count));
   const selected = (b: { from: number; to: number }) =>
     (from == null || b.to > from) && (to == null || b.from < to);
   const active = from != null || to != null;
   return (
     <div className="mb-2">
-      <div className="flex h-12 items-end gap-px" role="group" aria-label="Fiyat dağılımı">
+      <div className="flex h-12 items-end gap-px" role="group" aria-label={t("histLabel")}>
         {data.buckets.map((b) => (
           <button
             key={b.from}
             type="button"
             onClick={() => onPick(b.from, b.to)}
-            title={`${b.from.toLocaleString("tr-TR")} – ${b.to.toLocaleString("tr-TR")} ₺ · ${b.count} ürün`}
+            title={t("histTitle", { from: fmt.number(b.from), to: fmt.number(b.to), count: b.count })}
             className={`flex-1 rounded-t-sm transition hover:bg-zinc-900 ${
               !active || selected(b) ? "bg-zinc-400" : "bg-zinc-200"
             }`}
             style={{ height: `${Math.max(6, (b.count / peak) * 100)}%` }}
           >
-            <span className="sr-only">
-              {b.from}-{b.to} ₺ aralığı, {b.count} ürün
-            </span>
+            <span className="sr-only">{t("histSr", { from: b.from, to: b.to, count: b.count })}</span>
           </button>
         ))}
       </div>

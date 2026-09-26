@@ -1,8 +1,16 @@
 import { IsInt, Max, Min } from "class-validator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 export class ExtendBidValidityDto {
-  @IsInt({ message: "Gün sayısı tam sayı olmalı" })
-  @Min(1, { message: "En az 1 gün uzatılabilir" })
-  @Max(365, { message: "Tek seferde en fazla 365 gün uzatılabilir" })
+  @IsInt({
+    message: () => tApi("api.dto.extendBidValidity.gunSayisiTamSayiOlmali"),
+  })
+  @Min(1, {
+    message: () => tApi("api.dto.extendBidValidity.enAz1GunUzatilabilir"),
+  })
+  @Max(365, {
+    message: () =>
+      tApi("api.dto.extendBidValidity.tekSeferdeEnFazla365GunUzatilabilir"),
+  })
   additionalDays!: number;
 }

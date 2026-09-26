@@ -7,6 +7,8 @@ import {
   categoryPath,
   parseCategoryCode,
   isIndexableState,
+  categoryHref,
+  listingHref,
   listingPath,
   listingSlug,
   parseListingNumber,
@@ -109,7 +111,7 @@ describe("durum daraltma ve indeks kapısı", () => {
  * üzerinden o unutmayı yakalar.
  */
 describe("yayın anahtarı kapsamı", () => {
-  const APP = path.resolve(__dirname, "../../app");
+  const APP = path.resolve(__dirname, "../../app/[locale]");
   const PAGES = [
     "alim-talepleri/page.tsx",
     "firmalar/page.tsx",
@@ -127,8 +129,10 @@ describe("yayın anahtarı kapsamı", () => {
   });
 
   it("robots ve sitemap de anahtarı okur", () => {
+    // Rota işleyicileri dil segmentinin DIŞINDA (kök app/), i18n Faz 1.
+    const ROOT_APP = path.resolve(__dirname, "../../app");
     for (const f of ["robots.ts", "sitemap.xml/route.ts"]) {
-      expect(readFileSync(path.join(APP, f), "utf-8")).toContain(
+      expect(readFileSync(path.join(ROOT_APP, f), "utf-8")).toContain(
         "MARKETPLACE_LIVE",
       );
     }
@@ -156,5 +160,31 @@ describe("ürün kategori yolu", () => {
     expect(parseCategoryCode("elektrik")).toBeNull();
     expect(parseCategoryCode("3900000")).toBeNull(); // 7 hane
     expect(parseCategoryCode("")).toBeNull();
+  });
+});
+
+describe("listingHref — dilden bağımsız talep adresi (i18n Faz 1e)", () => {
+  it("API slug'ı varsa onu kullanır: çevrilmiş başlık adresi değiştirmez", () => {
+    expect(listingHref({ number: "ROT-1", title: "Steel Pipe", slug: "rot-1-celik-boru" })).toBe("/talep/rot-1-celik-boru");
+  });
+  it("slug yoksa başlıktan üretir (eski yanıt / test kurgusu)", () => {
+    expect(listingHref({ number: "ROT-1", title: "Çelik Boru" })).toBe(listingPath("ROT-1", "Çelik Boru"));
+    expect(listingHref({ number: "ROT-1", title: "Boru", slug: null })).toBe("/talep/rot-1-boru");
+  });
+});
+
+describe("categoryHref — dilden bağımsız kategori adresi (i18n Faz 4)", () => {
+  it("API slug'ı (Türkçe ad) varsa onu kullanır: çevrilmiş ad adresi değiştirmez", () => {
+    expect(categoryHref({ id: "39000000", name: "Electrical systems", slug: "elektrik-sistemleri-ve-aydinlatma" })).toBe(
+      "/urunler/kategori/39000000-elektrik-sistemleri-ve-aydinlatma",
+    );
+  });
+  it("slug yoksa addan üretir (eski yanıt / test kurgusu)", () => {
+    expect(categoryHref({ id: "39000000", name: "Elektrik Sistemleri" })).toBe("/urunler/kategori/39000000-elektrik-sistemleri");
+    expect(categoryHref({ id: "39000000" })).toBe("/urunler/kategori/39000000");
+  });
+  it("segment dışı kod (L2-L4) kategori sayfasına değil süzgeçli dizine gider — sayfa yalnız segmentte var (2026-09-24)", () => {
+    expect(categoryHref({ id: "31163200", name: "Tutucu hırdavat", slug: "tutucu-hirdavat" })).toBe("/urunler?kategori=31163200");
+    expect(categoryHref({ id: "31160000", name: "Donanım" })).toBe("/urunler?kategori=31160000");
   });
 });

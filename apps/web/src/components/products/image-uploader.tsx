@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useUploadProductImage } from "@/hooks/use-company-items";
 import { resizeImageFile, ImageProcessingError } from "@/lib/image-resize";
 import { PhotoIcon, StarIcon, TrashIcon } from "@heroicons/react/20/solid";
@@ -34,6 +35,9 @@ export function ImageUploader({
   images: string[];
   onChange: (next: string[]) => void;
 }) {
+  const t = useTranslations("web.panel.trade.imageUploader");
+  // Görsel işleme (EXIF temizliği) hatası metni — `lib/image-resize.ts` React dışı.
+  const tImg = useTranslations("web.shared.imageProcessing");
   const upload = useUploadProductImage();
   const inputRef = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -59,7 +63,7 @@ export function ImageUploader({
     if (!files?.length) return;
     const room = MAX_IMAGES - images.length;
     if (room <= 0) {
-      toast.error(`En fazla ${MAX_IMAGES} görsel eklenebilir`);
+      toast.error(t("enFazlaGorselEklenebilir", { max: MAX_IMAGES }));
       return;
     }
     setBusy(true);
@@ -68,29 +72,32 @@ export function ImageUploader({
     for (const file of Array.from(files).slice(0, room)) {
       try {
         if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
-          next.push(`${file.name}: yalnız JPG, PNG veya WebP yüklenebilir.`);
+          next.push(t("yalnizJpgPngVeyaWebp", { name: file.name }));
           continue;
         }
         if (file.size > MAX_BYTES) {
           // Telefon fotoğrafı sık sık 5 MB'ı aşar; reddetmek yerine küçültüp
           // yüklüyoruz, kullanıcıya söylüyoruz.
           next.push(
-            `${file.name}: ${(file.size / 1024 / 1024).toFixed(1)} MB — 5 MB üstü, otomatik küçültüldü.`,
+            t("mb5MbUstuOtomatik", { name: file.name, size: (file.size / 1024 / 1024).toFixed(1) }),
           );
         }
         const dims = await readDimensions(file);
         if (dims && (dims.w < MIN_EDGE || dims.h < MIN_EDGE * 0.75)) {
           next.push(
-            `${file.name}: ${dims.w}×${dims.h}px — kartta bulanık görünebilir (en az ${MIN_EDGE}×${MIN_EDGE * 0.75} px önerilir).`,
+            t("kucukGorselKarttaBulanik", { name: file.name, w: dims.w, h: dims.h, minW: MIN_EDGE, minH: MIN_EDGE * 0.75 }),
           );
         }
-        const resized = await resizeImageFile(file, { maxEdge: 1600 });
+        const resized = await resizeImageFile(file, {
+          maxEdge: 1600,
+          errorMessage: tImg("exifTemizlenemedi"),
+        });
         added.push(await upload.mutateAsync(resized));
       } catch (e) {
         next.push(
           e instanceof ImageProcessingError
-            ? `${file.name}: ${e.message}`
-            : `${file.name} yüklenemedi.`,
+            ? t("dosyaVeHata", { name: file.name, message: e.message })
+            : t("yuklenemedi", { name: file.name }),
         );
       }
     }
@@ -104,19 +111,17 @@ export function ImageUploader({
     <div>
       <div className="flex items-center justify-between">
         <p className="text-sm font-medium text-zinc-900">
-          Görseller
+          {t("gorseller")}
           <span className="ml-1 font-normal text-zinc-500">
             ({images.length}/{MAX_IMAGES})
           </span>
         </p>
         <p className="text-xs text-zinc-500">
-          {images.length > 0 ? "İlk görsel kapak — " : ""}3–8 görsel önerilir
+          {images.length > 0 ? t("ilkGorselKapakGorselOnerilir") : t("gorselOnerilir")}
         </p>
       </div>
       <p className="mt-1 text-xs text-zinc-500">
-        JPG, PNG veya WebP · en az {MIN_EDGE}×{MIN_EDGE * 0.75} px · en fazla 5 MB
-        (büyükler otomatik küçültülür). Onaya göndermek için en az 1 görsel gerekir;
-        sürükleyerek sıralayın, ilki kapak olur.
+        {t("jpgPngVeyaWebpEnAz", { minW: MIN_EDGE, minH: MIN_EDGE * 0.75 })}
       </p>
 
       {/* BIRAKMA ALANI: dosyaları buraya sürükleyin — telefon/masaüstü fark etmez. */}
@@ -157,7 +162,7 @@ export function ImageUploader({
               setDragIndex(null);
             }}
             onDragEnd={() => setDragIndex(null)}
-            title="Sürükleyerek sırala"
+            title={t("surukleyerekSirala")}
             className={`group relative aspect-square cursor-grab overflow-hidden rounded-xl bg-zinc-100 ring-1 ring-zinc-950/5 active:cursor-grabbing ${
               dragIndex === i ? "opacity-50" : ""
             }`}
@@ -166,7 +171,7 @@ export function ImageUploader({
             <img src={src} alt="" className="size-full object-cover" />
             {i === 0 ? (
               <span className="absolute top-1.5 left-1.5 rounded-full bg-zinc-950/80 px-2 py-0.5 text-[10px] font-medium text-white">
-                Kapak
+                {t("kapak")}
               </span>
             ) : null}
             <div className="absolute inset-x-1 bottom-1 flex gap-1 opacity-0 transition group-hover:opacity-100">
@@ -178,7 +183,7 @@ export function ImageUploader({
                     next.splice(i, 1);
                     onChange([src, ...next]);
                   }}
-                  title="Kapak yap"
+                  title={t("kapakYap")}
                   className="flex-1 rounded-md bg-white/90 py-1 text-zinc-700 hover:bg-white"
                 >
                   <StarIcon aria-hidden className="mx-auto size-3.5" />
@@ -187,7 +192,7 @@ export function ImageUploader({
               <button
                 type="button"
                 onClick={() => onChange(images.filter((_, x) => x !== i))}
-                title="Kaldır"
+                title={t("kaldir")}
                 className="flex-1 rounded-md bg-white/90 py-1 text-zinc-700 hover:bg-white"
               >
                 <TrashIcon aria-hidden className="mx-auto size-3.5" />
@@ -206,9 +211,9 @@ export function ImageUploader({
             >
               <PhotoIcon aria-hidden className="size-6" />
               <span className="text-xs font-medium">
-                {busy ? "Yükleniyor…" : "Görsel ekle"}
+                {busy ? t("yukleniyor") : t("gorselEkle")}
               </span>
-              <span className="text-[10px] text-zinc-500">ya da sürükleyip bırakın</span>
+              <span className="text-[10px] text-zinc-500">{t("yaDaSurukleyipBirakin")}</span>
             </button>
           </li>
         ) : null}

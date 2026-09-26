@@ -1,6 +1,7 @@
 import type { PrismaClient } from "@rothern/db";
+import { CATEGORY_NAME_SELECT, categoryName } from "./category-name";
 import { isHiddenCategory } from "@rothern/shared";
-import { categorySegment, isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
+import { categorySegment, foldSearchText, isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, stemPrefix, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
 import { effectiveTier } from "./effective-tier";
 import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "./public-profile-gate";
 import { productSearchClauses } from "./product-index";
@@ -35,6 +36,12 @@ export interface DirectoryParams {
 export interface DirectoryScope {
   excludeIds?: string[];
   restrictIds?: string[];
+  /**
+   * i18n Faz 1e: kart önizleme/eşleşen ürün ADLARI okuyucunun dilinde — çağıran
+   * `ContentTranslationService.localizeProducts`i bağlar (yerel dil `currentLocale`).
+   * Verilmezse özgün ad. Ürün `id`si yalnız arama anahtarıdır, yanıta yazılmaz.
+   */
+  localizeProducts?: <T extends { name: string }>(items: T[], ids: string[]) => Promise<T[]>;
 }
 
 /** Sayfa başına 20 firma kartı (PROMPT 4; eskiden 24). */
@@ -116,6 +123,8 @@ export async function directoryRows(
                         { aboutText: { contains: t, mode: "insensitive" as const } },
                         { services: { has: t } },
                         { rothernId: { contains: t.toUpperCase() } },
+                        // Katlanmış kaynak + EN/RU çeviri (sektör/hizmet/tanıtım).
+                        { searchTextI18n: { contains: stemPrefix(foldSearchText(t)) } },
                       ],
                     })),
                   },
@@ -201,9 +210,9 @@ export async function buildDirectory(
   const slice = eligible.slice((page - 1) * pageSize, page * pageSize);
   const ids = [...new Set(slice.flatMap((r) => [...r.sellerCategoryIds, ...r.buyerCategoryIds].slice(0, 1)))].filter(isCategoryCode);
   const cats = ids.length
-    ? await prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, nameTr: true } })
+    ? await prisma.category.findMany({ where: { id: { in: ids } }, select: { id: true, ...CATEGORY_NAME_SELECT } })
     : [];
-  const nameById = new Map(cats.map((c) => [c.id, c.nameTr]));
+  const nameById = new Map(cats.map((c) => [c.id, categoryName(c)]));
   // "ARAMANIZA UYAN ÜRÜNLER" — kartın küçük resim şeridi arama varken
   // sorguya uyan ürünleri gösterir. Ayrı bir sorgu, çünkü Prisma aynı
   // ilişkiyi iki farklı `where` ile İKİ KEZ seçemez; firma ELEMESİ buna
@@ -229,6 +238,7 @@ export async function buildDirectory(
     const previewRows = await prisma.companyItem.findMany({
       where: { ...publicProductWhere(), companyId: { in: slice.map((r) => r.id) } },
       select: {
+        id: true,
         companyId: true,
         slug: true,
         name: true,
@@ -242,7 +252,8 @@ export async function buildDirectory(
       orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
       take: slice.length * 4,
     });
-    for (const i of previewRows) {
+    const previewLocalized = opts.localizeProducts ? await opts.localizeProducts(previewRows, previewRows.map((r) => r.id)) : previewRows;
+    for (const i of previewLocalized) {
       const list = previewByCompany.get(i.companyId) ?? [];
       if (list.length >= 4) continue;
       list.push({
@@ -263,11 +274,12 @@ export async function buildDirectory(
   if (searchClauses.length > 0 && slice.length > 0) {
     const hits = await prisma.companyItem.findMany({
       where: { ...publicProductWhere(), companyId: { in: slice.map((r) => r.id) }, AND: searchClauses },
-      select: { companyId: true, slug: true, name: true, images: true },
+      select: { id: true, companyId: true, slug: true, name: true, images: true },
       orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
       take: slice.length * 4,
     });
-    for (const h of hits) {
+    const hitsLocalized = opts.localizeProducts ? await opts.localizeProducts(hits, hits.map((r) => r.id)) : hits;
+    for (const h of hitsLocalized) {
       const list = matchedByCompany.get(h.companyId) ?? [];
       if (list.length >= 3) continue;
       list.push({ slug: h.slug ?? "", name: h.name, image: h.images[0] ?? null });
@@ -287,9 +299,9 @@ export async function buildDirectory(
     });
     const codes = [...new Set(grouped.map((g) => g.categoryId).filter((c): c is string => isCategoryCode(c ?? "")))];
     const catRows = codes.length
-      ? await prisma.category.findMany({ where: { id: { in: codes } }, select: { id: true, nameTr: true } })
+      ? await prisma.category.findMany({ where: { id: { in: codes } }, select: { id: true, ...CATEGORY_NAME_SELECT } })
       : [];
-    const catName = new Map(catRows.map((c) => [c.id, c.nameTr]));
+    const catName = new Map(catRows.map((c) => [c.id, categoryName(c)]));
     for (const g of grouped) {
       // Gizli segment (katalog sadeleştirme) "Ana kategoriler"e girmez.
       if (!g.categoryId || !catName.has(g.categoryId) || isHiddenCategory(g.categoryId)) continue;
@@ -399,9 +411,9 @@ export async function directoryFacets(
   }
   const catIds = [...catCount.keys()];
   const catNames = catIds.length
-    ? await prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, nameTr: true } })
+    ? await prisma.category.findMany({ where: { id: { in: catIds } }, select: { id: true, ...CATEGORY_NAME_SELECT } })
     : [];
-  const nameById = new Map(catNames.map((c) => [c.id, c.nameTr] as const));
+  const nameById = new Map(catNames.map((c) => [c.id, categoryName(c)] as const));
   const all = rows.filter(others("none"));
   return {
     total: all.length,

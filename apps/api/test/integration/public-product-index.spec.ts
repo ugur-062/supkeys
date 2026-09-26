@@ -31,6 +31,7 @@ const FORBIDDEN = [
   "isPublic",
   "isActive",
   "searchText",
+  "searchTextI18n",
 ];
 
 function allKeys(v: unknown, out = new Set<string>()): Set<string> {
@@ -485,5 +486,25 @@ describe("süzgeç v3 — çoklu seçim, aralık, bağlama duyarlı facet", () =
     ]);
     // Faaliyet sayaçları KENDİ seçimini hariç tutar: DISTRIBUTOR hâlâ görünür.
     expect(f.activities.find((a) => a.activity === "DISTRIBUTOR")?.count).toBe(1);
+  });
+});
+
+describe("ürün dizini — çok dilli arama (searchTextI18n)", () => {
+  beforeEach(async () => {
+    await truncateAll();
+    resetEmployeeValueCache();
+  });
+
+  it("İngilizce/Rusça sorgu çevirisi olan Türkçe ürünü bulur (çoğul toleranslı)", async () => {
+    const { product } = await seedProduct({}, { searchTextI18n: "dagitim panosu pano distribution panel распределительныи щит" });
+    const ids = async (q: string) => (await service().listProducts({ q })).items.map((p) => p.slug);
+    expect(await ids("distribution panels")).toEqual([product.slug]);
+    expect(await ids("распределительный щит")).toEqual([product.slug]);
+    expect(await ids("switchboard")).toEqual([]);
+  });
+
+  it("Türkçe arama değişmedi (searchText yolu)", async () => {
+    const { product } = await seedProduct();
+    expect((await service().listProducts({ q: "Dağıtım PANOSU" })).items.map((p) => p.slug)).toEqual([product.slug]);
   });
 });

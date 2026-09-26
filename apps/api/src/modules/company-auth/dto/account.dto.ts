@@ -1,4 +1,6 @@
+import { LOCALES } from "@rothern/i18n";
 import {
+  IsIn,
   IsObject,
   IsOptional,
   IsString,
@@ -6,6 +8,8 @@ import {
   MaxLength,
   MinLength,
 } from "class-validator";
+
+import { tApi } from "../../../common/i18n/i18n.service";
 
 export class UpdateMeDto {
   @IsOptional()
@@ -24,6 +28,11 @@ export class UpdateMeDto {
   @IsString()
   @MaxLength(30)
   phone?: string;
+
+  /** Arayüz dili — desteklenen kodlar @rothern/i18n LOCALES (tr/en/ru). */
+  @IsOptional()
+  @IsIn(LOCALES)
+  locale?: string;
 }
 
 export class ChangePasswordDto {
@@ -31,11 +40,11 @@ export class ChangePasswordDto {
   currentPassword!: string;
 
   @IsString()
-  @MinLength(8, { message: "Parola en az 8 karakter" })
+  @MinLength(8, { message: () => tApi("api.dto.account.parolaEnAz8Karakter") })
   @MaxLength(72)
-  @Matches(/[A-Z]/, { message: "En az bir büyük harf (A-Z)" })
-  @Matches(/[a-z]/, { message: "En az bir küçük harf (a-z)" })
-  @Matches(/[0-9]/, { message: "En az bir rakam" })
+  @Matches(/[A-Z]/, { message: () => tApi("api.dto.account.enAzBirBuyukHarfAZ") })
+  @Matches(/[a-z]/, { message: () => tApi("api.dto.account.enAzBirKucukHarfAz") })
+  @Matches(/[0-9]/, { message: () => tApi("api.dto.account.enAzBirRakam") })
   newPassword!: string;
 }
 
@@ -46,7 +55,7 @@ export class UpdateNotificationPrefsDto {
 
 export class TwoFactorCodeDto {
   @IsString()
-  @MinLength(6, { message: "6 haneli kod girin" })
+  @MinLength(6, { message: () => tApi("api.dto.account.altiHaneliKodGirin") })
   @MaxLength(10)
   code!: string;
 }

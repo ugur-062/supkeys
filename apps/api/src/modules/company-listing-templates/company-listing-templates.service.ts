@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -23,7 +24,7 @@ export class CompanyListingTemplatesService {
       JSON.stringify(input.payload ?? null).length >
       CompanyListingTemplatesService.MAX_PAYLOAD_BYTES
     ) {
-      throw new BadRequestException("Şablon içeriği çok büyük (maks 500 KB)");
+      throw new BadRequestException(i18nMessage("api.companyListingTemplates.sablonIcerigiCokBuyukMaks500"));
     }
     const t = await this.prisma.listingTemplate.create({
       data: {
@@ -56,7 +57,7 @@ export class CompanyListingTemplatesService {
       select: { companyId: true },
     });
     if (!t || t.companyId !== user.companyId) {
-      throw new NotFoundException("Şablon bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListingTemplates.sablonBulunamadi"));
     }
     await this.prisma.listingTemplate.delete({ where: { id } });
     return { ok: true };

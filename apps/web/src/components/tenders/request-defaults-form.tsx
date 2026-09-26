@@ -1,38 +1,42 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { useAddresses } from "@/hooks/use-company-addresses";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
-  CURRENCIES,
-  CURRENCY_NAMES,
-  DELIVERY_TERM_LABELS,
-  LC_TYPE_LABELS,
-  PAYMENT_CATEGORY_LABELS,
-} from "@/lib/tenders/labels";
-import type { Currency, DeliveryTerm, LcSubType, PaymentCategory } from "@/lib/tenders/types";
+  countryDisplayName,
+  useCurrencyName,
+  useDeliveryTermLabel,
+  useLcTypeLabel,
+  usePaymentCategoryLabel,
+} from "@/i18n/domain";
+import { CURRENCIES, DELIVERY_TERMS } from "@/lib/tenders/labels";
+import type { LcSubType } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import { COUNTRIES, PAYMENT_CATEGORIES, REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, countryName, sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
+import { COUNTRIES, PAYMENT_CATEGORIES, REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
 import { Globe, MapPin } from "lucide-react";
 import { createContext, useContext } from "react";
 
 const INPUT =
   "w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10";
 
-export const BID_VISIBILITY_LABELS: Record<string, string> = {
-  OWN_ONLY: "Tedarikçi yalnız kendi teklifini görür",
-  BEST_PRICE: "Tedarikçi en iyi teklifi görür",
-  OWN_RANK: "Tedarikçi yalnız kendi sıralamasını görür (önerilen)",
-  BEST_AND_OWN_RANK: "En iyi teklif + kendi sıralaması",
-  ALL: "Tüm teklifler ve sıralama açık",
-};
+/** Tedarikçi görünürlüğü seçenekleri (sıra); etiket katalogdan `bidVisibility.<KOD>`. */
+const BID_VISIBILITY_CODES = ["OWN_ONLY", "BEST_PRICE", "OWN_RANK", "BEST_AND_OWN_RANK", "ALL"] as const;
 
-export const VISIBILITY_LABELS: Record<string, { label: string; hint: string }> = {
-  PUBLIC: { label: "Herkese açık", hint: "Pazar yerinde listelenir; kayıtlı her tedarikçi teklif verebilir." },
-  CONNECTIONS: { label: "Bağlantılarım", hint: "Yalnız bağlı olduğunuz firmalar görür." },
-  PRIVATE: { label: "Seçtiklerim", hint: "Yalnız davet ettiğiniz firmalar görür." },
-};
+export type VisibilityCode = "PUBLIC" | "CONNECTIONS" | "PRIVATE";
+
+/** Görünürlük seçeneği etiketi + ipucu — katalogdan (`web.panel.requests.requestDefaultsForm.visibility.*`). */
+export function useVisibilityLabels(): Record<VisibilityCode, { label: string; hint: string }> {
+  const t = useTranslations("web.panel.requests.requestDefaultsForm");
+  return {
+    PUBLIC: { label: t("visibility.PUBLIC.label"), hint: t("visibility.PUBLIC.hint") },
+    CONNECTIONS: { label: t("visibility.CONNECTIONS.label"), hint: t("visibility.CONNECTIONS.hint") },
+    PRIVATE: { label: t("visibility.PRIVATE.label"), hint: t("visibility.PRIVATE.hint") },
+  };
+}
 
 /**
  * TALEP ŞARTLARI FORMU — ticari profil (2026-09-09).
@@ -60,6 +64,13 @@ export function RequestDefaultsForm({
   /** Yalnız bu bölümler çizilir (hızlı kartta tek satır düzenleme). */
   only?: ("scope" | "delivery" | "payment" | "currency" | "visibility" | "close" | "bids" | "address" | "rules")[];
 }) {
+  const tr = useTranslations("web.panel.requests.requestDefaultsForm");
+  const locale = useLocale() as Locale;
+  const visibilityLabels = useVisibilityLabels();
+  const deliveryTermLabel = useDeliveryTermLabel();
+  const paymentCategoryLabel = usePaymentCategoryLabel();
+  const lcTypeLabel = useLcTypeLabel();
+  const currencyName = useCurrencyName();
   const addresses = useAddresses();
   const { company } = useCompanyAuth();
   const ownerCountry = company?.country ?? "TR";
@@ -68,7 +79,7 @@ export function RequestDefaultsForm({
   const countries = value.targetCountries ?? [];
   const limited = countries.length > 0;
   const priceWarning = sellerDoorPriceWarning(countries, ownerCountry, value.deliveryTerm);
-  const allTerms = Object.keys(DELIVERY_TERM_LABELS);
+  const allTerms = DELIVERY_TERMS;
   const domesticTerms = allTerms.filter((t) => t.startsWith("DOMESTIC_"));
   const incoterms = allTerms.filter((t) => !t.startsWith("DOMESTIC_"));
 
@@ -79,11 +90,11 @@ export function RequestDefaultsForm({
     <BareContext.Provider value={bare}>
     <div className={gap}>
       {show("scope") ? (
-        <Block title="Görünürlük ülkesi" hint="Talebi hangi ülkelerdeki tedarikçiler görsün? Çıkardığınız ülkedeki firmalar talebi görmez.">
+        <Block title={tr("gorunurlukUlkesi")} hint={tr("talebiHangiUlkelerdekiTedarikcilerGorsun")}>
           <div className="grid grid-cols-2 gap-3">
             {[
-              { v: false, icon: Globe, label: "Tüm ülkeler" },
-              { v: true, icon: MapPin, label: "Seçili ülkeler" },
+              { v: false, icon: Globe, label: tr("tumUlkeler") },
+              { v: true, icon: MapPin, label: tr("seciliUlkeler") },
             ].map((o) => (
               <button
                 key={String(o.v)}
@@ -102,13 +113,13 @@ export function RequestDefaultsForm({
           </div>
           {limited ? (
             <div className="mt-3 space-y-2">
-              <ul className="flex flex-wrap gap-1.5" aria-label="Seçili ülkeler">
+              <ul className="flex flex-wrap gap-1.5" aria-label={tr("seciliUlkeler")}>
                 {countries.map((c) => (
                   <li key={c} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-600/20">
-                    {countryName(c)}
+                    {countryDisplayName(c, locale)}
                     <button
                       type="button"
-                      aria-label={`${countryName(c)} ülkesini çıkar`}
+                      aria-label={tr("ulkesiniCikar", { countryName: countryDisplayName(c, locale) })}
                       onClick={() => set({ targetCountries: countries.filter((x) => x !== c) })}
                       className="text-blue-400 hover:text-blue-700"
                     >
@@ -118,7 +129,7 @@ export function RequestDefaultsForm({
                 ))}
               </ul>
               <select
-                aria-label="Ülke ekle"
+                aria-label={tr("ulkeEkle")}
                 value=""
                 onChange={(e) => {
                   const code = e.target.value;
@@ -126,14 +137,14 @@ export function RequestDefaultsForm({
                 }}
                 className={INPUT}
               >
-                <option value="">+ Ülke ekle</option>
+                <option value="">{tr("ulkeEkle2")}</option>
                 {COUNTRIES.filter((c) => !countries.includes(c.code)).map((c) => (
                   <option key={c.code} value={c.code}>
-                    {c.name}
+                    {countryDisplayName(c.code, locale)}
                   </option>
                 ))}
               </select>
-              {countries.length === 0 ? <p className="text-xs text-red-700">En az bir ülke seçin; yoksa talebi kimse görmez.</p> : null}
+              {countries.length === 0 ? <p className="text-xs text-red-700">{tr("enAzBirUlkeSecin")}</p> : null}
             </div>
           ) : null}
         </Block>
@@ -141,36 +152,36 @@ export function RequestDefaultsForm({
 
       {show("delivery") ? (
         <Field>
-          <Label htmlFor="tsart-teslim">Teslim şekli</Label>
+          <Label htmlFor="tsart-teslim">{tr("teslimSekli")}</Label>
           <select id="tsart-teslim" value={value.deliveryTerm ?? ""} onChange={(e) => set({ deliveryTerm: e.target.value || null })} className={INPUT}>
-            <option value="">— Seçin —</option>
-            <optgroup label="Adrese / yurtiçi teslim">
+            <option value="">{tr("secin")}</option>
+            <optgroup label={tr("adreseYurticiTeslim")}>
               {domesticTerms.map((t) => (
                 <option key={t} value={t}>
-                  {DELIVERY_TERM_LABELS[t as DeliveryTerm]}
+                  {deliveryTermLabel(t)}
                 </option>
               ))}
             </optgroup>
-            <optgroup label="Incoterm (sınır ötesi)">
+            <optgroup label={tr("incotermSinirOtesi")}>
               {incoterms.map((t) => (
                 <option key={t} value={t}>
-                  {DELIVERY_TERM_LABELS[t as DeliveryTerm]}
+                  {deliveryTermLabel(t)}
                 </option>
               ))}
             </optgroup>
           </select>
           {priceWarning ? (
             <p className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800" role="note">
-              Bu teslim şeklinde fiyat tedarikçinin kapısında oluşur; farklı ülkelerden gelen teklifler navlun ve gümrük içermez, karşılaştırma tedarikçi kapısı fiyatıyla yapılır. Kapıya inmiş fiyat için “Adrese teslim” ya da DAP/DDP seçin.
+              {tr("buTeslimSeklindeFiyatTedarikcinin")}
             </p>
           ) : null}
         </Field>
       ) : null}
 
       {show("payment") ? (
-        <Block title="Ödeme koşulu" hint="Tedarikçi teklifini bu koşula göre verir; sipariş adımları buradan türer.">
+        <Block title={tr("odemeKosulu")} hint={tr("tedarikciTeklifiniBuKosulaGore")}>
           <select
-            aria-label="Ödeme koşulu"
+            aria-label={tr("odemeKosulu")}
             value={value.paymentCategory}
             onChange={(e) => {
               const c = e.target.value;
@@ -185,30 +196,30 @@ export function RequestDefaultsForm({
           >
             {PAYMENT_CATEGORIES.map((c) => (
               <option key={c} value={c}>
-                {PAYMENT_CATEGORY_LABELS[c as PaymentCategory]}
+                {paymentCategoryLabel(c)}
               </option>
             ))}
           </select>
           <div className="mt-3 grid grid-cols-1 gap-3 sm:grid-cols-2">
             {value.paymentCategory === "ADVANCE" ? (
-              <Field hint="100 = tam peşin; altı kısmi peşin (kalan teslimde).">
-                <Label htmlFor="tsart-pesin">Peşin yüzdesi</Label>
+              <Field hint={tr("n100TamPesinAltiKismi")}>
+                <Label htmlFor="tsart-pesin">{tr("pesinYuzdesi")}</Label>
                 <input id="tsart-pesin" type="number" min={1} max={100} value={value.advancePercent ?? 100} onChange={(e) => set({ advancePercent: Number(e.target.value) || null })} className={INPUT} />
               </Field>
             ) : null}
             {value.paymentCategory === "LETTER_OF_CREDIT" ? (
               <Field>
-                <Label htmlFor="tsart-lc">Akreditif tipi</Label>
+                <Label htmlFor="tsart-lc">{tr("akreditifTipi")}</Label>
                 <select id="tsart-lc" value={value.lcType ?? "SIGHT"} onChange={(e) => set({ lcType: e.target.value })} className={INPUT}>
                   {(["SIGHT", "USANCE"] as LcSubType[]).map((t) => (
-                    <option key={t} value={t}>{LC_TYPE_LABELS[t]}</option>
+                    <option key={t} value={t}>{lcTypeLabel(t)}</option>
                   ))}
                 </select>
               </Field>
             ) : null}
             {needsDays ? (
               <Field>
-                <Label htmlFor="tsart-vade" required>Vade (gün)</Label>
+                <Label htmlFor="tsart-vade" required>{tr("vadeGun")}</Label>
                 <input id="tsart-vade" type="number" min={1} max={365} value={value.paymentDays ?? ""} onChange={(e) => set({ paymentDays: Number(e.target.value) || null })} className={INPUT} />
               </Field>
             ) : null}
@@ -217,10 +228,10 @@ export function RequestDefaultsForm({
       ) : null}
 
       {show("currency") ? (
-        <Block title="Para birimi" hint="Ana birim teklif karşılaştırmasının tabanıdır; diğerleri izinli.">
+        <Block title={tr("paraBirimi")} hint={tr("anaBirimTeklifKarsilastirmasininTabanidir")}>
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <Field>
-              <Label htmlFor="tsart-para">Ana para birimi</Label>
+              <Label htmlFor="tsart-para">{tr("anaParaBirimi")}</Label>
               <select
                 id="tsart-para"
                 value={value.primaryCurrency}
@@ -231,13 +242,13 @@ export function RequestDefaultsForm({
                 className={INPUT}
               >
                 {CURRENCIES.map((c) => (
-                  <option key={c} value={c}>{c} — {CURRENCY_NAMES[c as Currency]}</option>
+                  <option key={c} value={c}>{c} — {currencyName(c)}</option>
                 ))}
               </select>
             </Field>
             <div>
               {/* Çip grubu — tek kontrol yok, başlık olarak basılıp gruba bağlanır. */}
-              <Label as="p" id="tsart-birimler-baslik">Kabul edilen birimler</Label>
+              <Label as="p" id="tsart-birimler-baslik">{tr("kabulEdilenBirimler")}</Label>
               <div role="group" aria-labelledby="tsart-birimler-baslik" className="flex flex-wrap gap-1.5">
                 {CURRENCIES.map((c) => {
                   const on = value.allowedCurrencies.includes(c);
@@ -262,7 +273,7 @@ export function RequestDefaultsForm({
       ) : null}
 
       {show("visibility") ? (
-        <Block title="Kimler görsün" hint="Talebin varsayılan görünürlüğü; her talepte değiştirilebilir.">
+        <Block title={tr("kimlerGorsun")} hint={tr("talebinVarsayilanGorunurluguHerTalepte")}>
           <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
             {(["PUBLIC", "CONNECTIONS", "PRIVATE"] as const).map((v) => (
               <button
@@ -272,8 +283,8 @@ export function RequestDefaultsForm({
                 aria-pressed={value.visibility === v}
                 className={cn("rounded-xl border p-3 text-left transition", value.visibility === v ? "border-zinc-900 ring-1 ring-zinc-900" : "border-zinc-300 hover:bg-zinc-50")}
               >
-                <p className="text-sm font-semibold text-zinc-950">{VISIBILITY_LABELS[v].label}</p>
-                <p className="mt-0.5 text-xs text-zinc-500">{VISIBILITY_LABELS[v].hint}</p>
+                <p className="text-sm font-semibold text-zinc-950">{visibilityLabels[v].label}</p>
+                <p className="mt-0.5 text-xs text-zinc-500">{visibilityLabels[v].hint}</p>
               </button>
             ))}
           </div>
@@ -281,30 +292,30 @@ export function RequestDefaultsForm({
       ) : null}
 
       {show("close") ? (
-        <Block title="Teklif toplama süresi" hint="Kapanış = yayın + bu kadar gün.">
+        <Block title={tr("teklifToplamaSuresi")} hint={tr("kapanisYayinBuKadarGun")}>
           <div className="flex flex-wrap items-center gap-2">
             {REQUEST_CLOSE_DAY_OPTIONS.map((d) => (
               <button key={d} type="button" aria-pressed={value.closeDays === d} onClick={() => set({ closeDays: d })} className={cn("rounded-full px-3 py-1.5 text-sm font-medium ring-1 transition", value.closeDays === d ? "bg-zinc-900 text-white ring-zinc-900" : "bg-white text-zinc-700 ring-zinc-300 hover:bg-zinc-50")}>
-                {d} gün
+                {tr("gun", { d: d })}
               </button>
             ))}
             <label className="flex items-center gap-2 text-sm text-zinc-600">
-              <input type="number" min={1} max={REQUEST_CLOSE_DAYS_MAX} value={value.closeDays} onChange={(e) => set({ closeDays: Math.min(REQUEST_CLOSE_DAYS_MAX, Math.max(1, Number(e.target.value) || 1)) })} className="w-20 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" aria-label="Özel gün sayısı" />
-              gün
+              <input type="number" min={1} max={REQUEST_CLOSE_DAYS_MAX} value={value.closeDays} onChange={(e) => set({ closeDays: Math.min(REQUEST_CLOSE_DAYS_MAX, Math.max(1, Number(e.target.value) || 1)) })} className="w-20 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" aria-label={tr("ozelGunSayisi")} />
+              {tr("gun2")}
             </label>
           </div>
         </Block>
       ) : null}
 
       {show("bids") ? (
-        <Block title="Teklif kuralları" hint="Kapalı zarf: tedarikçiler birbirinin teklifini görmez.">
+        <Block title={tr("teklifKurallari")} hint={tr("kapaliZarfTedarikcilerBirbirininTeklifini")}>
           <div className="space-y-3">
-            <Toggle label="Kapalı zarf" checked={value.isSealedBid} onChange={(v) => set({ isSealedBid: v })} />
+            <Toggle label={tr("kapaliZarf")} checked={value.isSealedBid} onChange={(v) => set({ isSealedBid: v })} />
             <Field>
-              <Label htmlFor="tsart-gorunur">Tedarikçi ne görür</Label>
+              <Label htmlFor="tsart-gorunur">{tr("tedarikciNeGorur")}</Label>
               <select id="tsart-gorunur" value={value.bidVisibility} onChange={(e) => set({ bidVisibility: e.target.value })} className={INPUT}>
-                {Object.entries(BID_VISIBILITY_LABELS).map(([v, l]) => (
-                  <option key={v} value={v}>{l}</option>
+                {BID_VISIBILITY_CODES.map((v) => (
+                  <option key={v} value={v}>{tr(`bidVisibility.${v}`)}</option>
                 ))}
               </select>
             </Field>
@@ -313,9 +324,9 @@ export function RequestDefaultsForm({
       ) : null}
 
       {show("address") ? (
-        <Block title="Teslimat adresi" hint="Varsayılan adres; her talepte değiştirilebilir.">
-          <select aria-label="Teslimat adresi" value={value.deliveryAddressId ?? ""} onChange={(e) => set({ deliveryAddressId: e.target.value || null })} className={INPUT}>
-            <option value="">— Talepte seçilir —</option>
+        <Block title={tr("teslimatAdresi")} hint={tr("varsayilanAdresHerTalepteDegistirilebilir")}>
+          <select aria-label={tr("teslimatAdresi")} value={value.deliveryAddressId ?? ""} onChange={(e) => set({ deliveryAddressId: e.target.value || null })} className={INPUT}>
+            <option value="">{tr("talepteSecilir")}</option>
             {(addresses.data ?? []).map((a) => (
               <option key={a.id} value={a.id}>
                 {a.title}{a.city ? ` · ${a.city}` : ""}
@@ -323,16 +334,16 @@ export function RequestDefaultsForm({
             ))}
           </select>
           <div className="mt-3">
-            <Toggle label="Fatura adresi teslimat adresiyle aynı" checked={value.billingSameAsDelivery} onChange={(v) => set({ billingSameAsDelivery: v })} />
+            <Toggle label={tr("faturaAdresiTeslimatAdresiyleAyni")} checked={value.billingSameAsDelivery} onChange={(v) => set({ billingSameAsDelivery: v })} />
           </div>
         </Block>
       ) : null}
 
       {show("rules") ? (
-        <Block title="Tekliften beklentiler">
+        <Block title={tr("tekliftenBeklentiler")}>
           <div className="space-y-3">
-            <Toggle label="Tüm kalemlere teklif zorunlu" checked={value.requireAllItems} onChange={(v) => set({ requireAllItems: v })} />
-            <Toggle label="Teklifle birlikte belge zorunlu" checked={value.requireBidDocument} onChange={(v) => set({ requireBidDocument: v })} />
+            <Toggle label={tr("tumKalemlereTeklifZorunlu")} checked={value.requireAllItems} onChange={(v) => set({ requireAllItems: v })} />
+            <Toggle label={tr("teklifleBirlikteBelgeZorunlu")} checked={value.requireBidDocument} onChange={(v) => set({ requireBidDocument: v })} />
           </div>
         </Block>
       ) : null}

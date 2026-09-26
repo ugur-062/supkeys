@@ -1,6 +1,8 @@
 "use client";
 
 import { PHONE_COUNTRIES, composePhone, parsePhone } from "@rothern/shared";
+import { useLocale } from "next-intl";
+import { countryDisplayName } from "@/i18n/domain";
 import { useMemo } from "react";
 
 /**
@@ -28,6 +30,7 @@ export function PhoneInput({
   invalid?: boolean;
   ariaLabel?: string;
 }) {
+  const locale = useLocale();
   const parsed = useMemo(() => parsePhone(value), [value]);
 
   const setCountry = (code: string) =>
@@ -61,7 +64,7 @@ export function PhoneInput({
         >
           {PHONE_COUNTRIES.map((c) => (
             <option key={c.code} value={c.code} className="text-zinc-900">
-              {c.flag} {c.name} (+{c.dialCode})
+              {c.flag} {countryDisplayName(c.code, locale)} (+{c.dialCode})
             </option>
           ))}
         </select>

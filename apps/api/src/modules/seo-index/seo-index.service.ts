@@ -11,6 +11,8 @@ import {
   productPath,
   segmentCodeOf,
 } from "@rothern/shared";
+import { LOCALES } from "@rothern/i18n";
+import { localizeAppPath } from "../../common/company/app-routes";
 import { resolveWebUrl } from "../../common/config/web-url";
 import { PrismaService } from "../../common/prisma/prisma.service";
 
@@ -95,6 +97,15 @@ export const SEO_TAGS = {
   company: (slug: string) => `company:${slug}`,
   listing: (number: string) => `listing:${number.toLowerCase()}`,
 } as const;
+
+/**
+ * IndexNow adres listesi — her Türkçe İÇ yolun üç dildeki DIŞ adresi
+ * (i18n SEO, 2026-09-25). `/en/products/…`, `/ru/tovary/…` ayrı adreslerdir;
+ * yalnız Türkçe bildirilirse motor EN/RU sayfayı ancak sitemap turunda öğrenir.
+ */
+export function localizedIndexNowUrls(base: string, paths: string[]): string[] {
+  return [...new Set(paths.flatMap((p) => LOCALES.map((l) => `${base}${localizeAppPath(p, l)}`)))];
+}
 
 @Injectable()
 export class SeoIndexService {
@@ -329,7 +340,7 @@ export class SeoIndexService {
       return;
     }
     const host = new URL(base).host;
-    const urlList = paths.map((p) => `${base}${p}`);
+    const urlList = localizedIndexNowUrls(base, paths);
     for (let i = 0; i < urlList.length; i += INDEXNOW_BATCH) {
       const batch = urlList.slice(i, i + INDEXNOW_BATCH);
       try {

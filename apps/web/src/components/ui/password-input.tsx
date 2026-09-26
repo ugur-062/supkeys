@@ -2,6 +2,7 @@
 
 import { Input } from "@/components/catalyst/input";
 import { cn } from "@/lib/utils";
+import { useTranslations } from "next-intl";
 import { Eye, EyeOff } from "lucide-react";
 import { forwardRef, useState, type ComponentPropsWithoutRef } from "react";
 
@@ -29,6 +30,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, Props>(function Passwo
   { className, ...props },
   ref,
 ) {
+  const t = useTranslations("web.shared.passwordInput");
   const [gorunur, setGorunur] = useState(false);
   const Ikon = gorunur ? EyeOff : Eye;
 
@@ -44,7 +46,7 @@ export const PasswordInput = forwardRef<HTMLInputElement, Props>(function Passwo
       <button
         type="button"
         /* Etiket DURUMA göre değişir: ekran okuyucu bir sonraki eylemi okur. */
-        aria-label={gorunur ? "Şifreyi gizle" : "Şifreyi göster"}
+        aria-label={gorunur ? t("sifreyiGizle") : t("sifreyiGoster")}
         onClick={() => setGorunur((v) => !v)}
         className="absolute top-1/2 right-3 -translate-y-1/2 rounded p-0.5 text-zinc-500 transition-colors hover:text-zinc-900 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-900"
       >

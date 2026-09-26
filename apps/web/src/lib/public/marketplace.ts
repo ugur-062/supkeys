@@ -48,18 +48,12 @@ export const MARKETPLACE_ROUTES = {
   demand: PUBLIC_PATHS.demand,
 } as const;
 
-export const MARKETPLACE_LABELS = {
-  demands: "Alım Talepleri",
-  /**
-   * ÜRÜN ≠ TALEP. Talep süreli bir işlemdir, ürün firmanın kalıcı vitrinidir.
-   * Ziyaretçiye ürüne "ilan" demek, kapanmayan bir kaydı süreli sanmasına yol
-   * açar.
-   */
-  products: "Ürünler",
-  companies: "Firmalar",
-  /** Tekil kayıt için başlık öneki (sayfa H1'inde değil, listelerde rozet). */
-  demandOne: "Alım talebi",
-} as const;
+/*
+ * Pazar yeri adları (Alım Talepleri · Ürünler · Firmalar · Alım talebi) artık
+ * YALNIZ katalogda: `web.marketplace.labels.*`. Buradaki Türkçe kopya
+ * (`MARKETPLACE_LABELS`) i18n Faz 1'den beri hiçbir yerden okunmuyordu —
+ * ikinci bir kaynak olarak durması sessizce ayrışma riskiydi, kaldırıldı.
+ */
 
 export type PublicListingType = "ALIM";
 
@@ -84,6 +78,41 @@ export type PublicListingType = "ALIM";
 export const listingSlug = sharedListingSlug;
 export const parseListingNumber = sharedParseListingNumber;
 export const listingPath = sharedListingPath;
+
+/**
+ * Talep bağlantısı — API'nin verdiği DİLDEN BAĞIMSIZ `slug` önce (kaynak
+ * başlığın slug'ı: `/en/talep/<slug>` = `/talep/<slug>`, hreflang alternatifleri
+ * yönlendirmesiz), slug gelmediyse başlıktan üretilir (eski yanıtlar / testler).
+ * Çevrilmiş başlıktan slug ÜRETME: her dilde ayrı adres, sitemap'te 308 zinciri
+ * ve Kiril'i düşen çıplak RU slug'ları demekti (staging'de ölçüldü, 2026-09-23).
+ */
+/**
+ * Kategori bağlantısı — API'nin verdiği DİLDEN BAĞIMSIZ `slug` (Türkçe addan)
+ * önce; yoksa addan üretilir. Çevrilmiş addan slug üretmek dile göre değişen
+ * adres ve 308 zinciri demekti (talep adresiyle aynı karar, i18n Faz 4).
+ */
+/**
+ * Kategori bağlantısı — TEK KURAL (2026-09-24): kategori SAYFASI yalnız SEGMENT
+ * (L1, `XX000000`) kodları için vardır (sayfa `facets.categories`ten çözer, facet
+ * alt kodları segmentine yuvarlar). Daha derin kod (ürün kırıntısı, arama
+ * önerisi, JSON-LD) süzgeçli dizine gider: `/urunler?kategori=<kod>` — bağlantı
+ * hiçbir zaman 404'e düşmez (ürün sayfasındaki L3 kırıntısı Türkçede de 404
+ * veriyordu, üç dilli bağlantı taraması yakaladı). Segment adresi API `slug`ı
+ * (Türkçe ad) ile; yoksa addan üretim yalnız yedek.
+ */
+export function categoryHref(c: { id: string; name?: string | null; slug?: string | null }): string {
+  if (!isSegmentCode(c.id)) return `${PUBLIC_PATHS.products}?kategori=${c.id}`;
+  return c.slug ? `${PUBLIC_PATHS.products}/kategori/${c.id}-${c.slug}` : categoryPath(c.id, c.name ?? undefined);
+}
+
+/** 8 haneli kodun segment (L1) olup olmadığı: `31000000` evet, `31163200` hayır. */
+export function isSegmentCode(code: string): boolean {
+  return /^\d{2}000000$/.test(code);
+}
+
+export function listingHref(l: { number: string; title: string; slug?: string | null }): string {
+  return l.slug ? `${PUBLIC_PATHS.demand}/${l.slug}` : sharedListingPath(l.number, l.title);
+}
 
 /* ------------------------------------------------------------------ */
 /* Durum — ziyaretçiye gösterilen                                      */
@@ -112,11 +141,8 @@ export function publicState(status: string): PublicListingState {
   return STATE_BY_STATUS[status] ?? "closed";
 }
 
-export const STATE_LABEL: Record<PublicListingState, string> = {
-  open: "Teklife açık",
-  evaluating: "Değerlendirmede",
-  closed: "Kapandı",
-};
+/* Durum etiketleri katalogda: `web.marketplace.state.*` (`useTranslations`).
+   Buradaki eski Türkçe sözlük (`STATE_LABEL`) okunmuyordu, kaldırıldı. */
 
 /**
  * Yalnız "open" indekslenir. Kapanmış kayıt sitede DURUR (arşiv değeri var,

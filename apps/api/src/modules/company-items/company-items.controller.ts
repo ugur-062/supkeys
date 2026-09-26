@@ -1,3 +1,4 @@
+import { tApi } from "../../common/i18n/i18n.service";
 import {
   Body,
   Controller,
@@ -47,7 +48,7 @@ class CatalogItemDto {
   @IsOptional() @Trim() @IsString() @MaxLength(2000) description?: string;
   @IsOptional() @Trim() @IsString() @MaxLength(5000) specification?: string;
   @Trim() @IsString() @MinLength(1) @MaxLength(20) unit!: string;
-  @IsOptional() @IsString() @IsIn(UNIT_CODES, { message: "Geçersiz ölçü birimi" })
+  @IsOptional() @IsString() @IsIn(UNIT_CODES, { message: () => tApi("api.dto.companyItems.gecersizOlcuBirimi") })
   unitCode?: string;
   @IsOptional() @Trim() @IsString() @MaxLength(20) categoryId?: string;
   @IsOptional() @Trim() @IsString() @MaxLength(100) brand?: string;
@@ -89,7 +90,7 @@ class ShowcaseDto {
    * fiyat/MOQ satırı bu birimle okunur, kullanıcı onu formda görmeli.
    */
   @IsOptional() @Trim() @IsString() @MaxLength(20) unit?: string;
-  @IsOptional() @IsString() @IsIn(UNIT_CODES, { message: "Geçersiz ölçü birimi" })
+  @IsOptional() @IsString() @IsIn(UNIT_CODES, { message: () => tApi("api.dto.companyItems.gecersizOlcuBirimi") })
   unitCode?: string;
 
   /** İLKİ KAPAK. Tavan 8 — daha fazlası kart/galeri düzenini bozar. */

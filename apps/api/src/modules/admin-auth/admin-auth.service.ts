@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Injectable,
@@ -18,7 +19,11 @@ import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import type { AdminJwtPayload } from "./strategies/admin-jwt.strategy";
 
-const INVALID_CREDENTIALS_MESSAGE = "E-posta veya şifre hatalı";
+/**
+ * Kimlik hatasının KATALOG ANAHTARI — iki çağrı yeri (parola ve hesap
+ * durumu) BİLEREK aynı mesajı basar: hangi adımın düştüğü sızmasın.
+ */
+const INVALID_CREDENTIALS_KEY = "api.adminAuth.ePostaVeyaSifreHatali" as const;
 
 @Injectable()
 export class AdminAuthService {
@@ -50,7 +55,7 @@ export class AdminAuthService {
     } catch (err) {
       if (err instanceof ServiceUnavailableException) throw err; // kesinti ≠ parola hatası
       auditFail("bad_credentials");
-      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+      throw new UnauthorizedException(i18nMessage(INVALID_CREDENTIALS_KEY));
     }
 
     const admin = await this.prisma.platformAdmin.findUnique({
@@ -59,14 +64,14 @@ export class AdminAuthService {
 
     if (!admin || !admin.isActive) {
       auditFail("inactive_or_missing");
-      throw new UnauthorizedException(INVALID_CREDENTIALS_MESSAGE);
+      throw new UnauthorizedException(i18nMessage(INVALID_CREDENTIALS_KEY));
     }
 
     // 2FA (TOTP) — etkinse parola YETMEZ: kod ister; frontend bu mesajı
     // yakalayıp kod alanını gösterir ve isteği code ile tekrarlar.
     if (admin.twoFactorEnabled && admin.twoFactorSecret) {
       if (!dto.code) {
-        throw new UnauthorizedException("2FA_REQUIRED");
+        throw new UnauthorizedException(i18nMessage("api.adminAuth.n2faRequired"));
       }
       const ok = authenticator.verify({
         token: dto.code.trim(),
@@ -74,7 +79,7 @@ export class AdminAuthService {
       });
       if (!ok) {
         auditFail("bad_2fa_code");
-        throw new UnauthorizedException("Doğrulama kodu hatalı");
+        throw new UnauthorizedException(i18nMessage("api.adminAuth.dogrulamaKoduHatali"));
       }
     }
 
@@ -136,16 +141,16 @@ export class AdminAuthService {
   async changePassword(adminId: string, current: string, next: string) {
     const admin = await this.requireAdmin(adminId);
     if (next.length < 12) {
-      throw new BadRequestException("Yeni şifre en az 12 karakter olmalı");
+      throw new BadRequestException(i18nMessage("api.adminAuth.yeniSifreEnAz12Karakter"));
     }
     try {
       await this.supabaseAuth.verifyPassword(admin.email, current);
     } catch (err) {
       if (err instanceof ServiceUnavailableException) throw err;
-      throw new BadRequestException("Mevcut şifre hatalı");
+      throw new BadRequestException(i18nMessage("api.adminAuth.mevcutSifreHatali"));
     }
     if (!admin.authId) {
-      throw new BadRequestException("Hesap Supabase köprüsüne bağlı değil");
+      throw new BadRequestException(i18nMessage("api.adminAuth.hesapSupabaseKoprusuneBagliDegil"));
     }
     await this.supabaseAuth.updatePassword(admin.authId, next);
     // Oturum iptali: diğer cihazlardaki admin oturumları düşer; bu oturum için
@@ -194,7 +199,7 @@ export class AdminAuthService {
   async setupTwoFactor(adminId: string) {
     const admin = await this.requireAdmin(adminId);
     if (admin.twoFactorEnabled) {
-      throw new BadRequestException("2FA zaten etkin");
+      throw new BadRequestException(i18nMessage("api.adminAuth.n2faZatenEtkin"));
     }
     const secret = authenticator.generateSecret();
     const otpauthUrl = authenticator.keyuri(admin.email, "Rothern Admin", secret);
@@ -205,10 +210,10 @@ export class AdminAuthService {
   async enableTwoFactor(adminId: string, secret: string, code: string) {
     const admin = await this.requireAdmin(adminId);
     if (admin.twoFactorEnabled) {
-      throw new BadRequestException("2FA zaten etkin");
+      throw new BadRequestException(i18nMessage("api.adminAuth.n2faZatenEtkin"));
     }
     if (!authenticator.verify({ token: code.trim(), secret })) {
-      throw new BadRequestException("Doğrulama kodu hatalı");
+      throw new BadRequestException(i18nMessage("api.adminAuth.dogrulamaKoduHatali"));
     }
     await this.prisma.platformAdmin.update({
       where: { id: adminId },
@@ -229,7 +234,7 @@ export class AdminAuthService {
   async disableTwoFactor(adminId: string, code: string) {
     const admin = await this.requireAdmin(adminId);
     if (!admin.twoFactorEnabled || !admin.twoFactorSecret) {
-      throw new BadRequestException("2FA etkin değil");
+      throw new BadRequestException(i18nMessage("api.adminAuth.n2faEtkinDegil"));
     }
     if (
       !authenticator.verify({
@@ -237,7 +242,7 @@ export class AdminAuthService {
         secret: this.decryptSecret(admin.twoFactorSecret),
       })
     ) {
-      throw new BadRequestException("Doğrulama kodu hatalı");
+      throw new BadRequestException(i18nMessage("api.adminAuth.dogrulamaKoduHatali"));
     }
     await this.prisma.platformAdmin.update({
       where: { id: adminId },

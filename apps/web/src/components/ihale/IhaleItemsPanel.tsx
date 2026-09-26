@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useUnitLabel } from "@/i18n/domain";
 import { IHALE_VIEW_FOCUS } from "./IhaleListRow";
 import { companyApi } from "@/lib/company-auth/api";
 import { formatMoney } from "@/components/ui/money";
@@ -7,7 +9,7 @@ import { cn } from "@/lib/utils";
 import type { ListingDetail } from "@/hooks/use-company-listings";
 import { useQuery } from "@tanstack/react-query";
 import { PackageOpen } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 
 /** Kademeli liste eşikleri: ≤5 hepsi; 6-20 "daha göster"; >20 detaya link. */
@@ -52,6 +54,8 @@ export function IhaleItemsPanel({
   /** Liste verisinde kalem sayısı varsa başlık fetch beklemeden dolar. */
   initialCount?: number;
 }) {
+  const t = useTranslations("web.panel.requests.ihaleitemspanel");
+  const unitLabel = useUnitLabel();
   const { data, isPending, isError, refetch, isRefetching } =
     useLazyListingItems(listingId);
   const [showAll, setShowAll] = useState(false);
@@ -59,7 +63,7 @@ export function IhaleItemsPanel({
   const knownCount = data ? (data.itemCount ?? data.items?.length ?? 0) : initialCount;
   const heading = (
     <p className="text-[11px] font-semibold uppercase tracking-wide text-slate-400">
-      Kalemler{knownCount != null ? ` (${knownCount})` : ""}
+      {knownCount != null ? t("kalemlerN", { n: knownCount }) : t("kalemler")}
     </p>
   );
 
@@ -84,7 +88,7 @@ export function IhaleItemsPanel({
       <div className={frame}>
         {heading}
         <p className="mt-2 text-[12px]">
-          <span className="text-rose-600">Kalemler yüklenemedi.</span>{" "}
+          <span className="text-rose-600">{t("kalemlerYuklenemedi")}</span>{" "}
           <button
             type="button"
             onClick={() => void refetch()}
@@ -94,7 +98,7 @@ export function IhaleItemsPanel({
               IHALE_VIEW_FOCUS,
             )}
           >
-            Tekrar dene
+            {t("tekrarDene")}
           </button>
         </p>
       </div>
@@ -110,7 +114,7 @@ export function IhaleItemsPanel({
         {heading}
         <p className="mt-2 flex items-center gap-1.5 text-[12px] text-slate-400">
           <PackageOpen className="h-4 w-4" aria-hidden />
-          Bu ilanda kalem tanımlanmamış.
+          {t("buIlandaKalemTanimlanmamis")}
         </p>
       </div>
     );
@@ -141,14 +145,14 @@ export function IhaleItemsPanel({
                 #
               </th>
               <th scope="col" className="py-1 pr-2 text-[11px] font-normal text-slate-400">
-                Kalem
+                {t("kalem")}
               </th>
               <th scope="col" className="py-1 pr-2 text-right text-[11px] font-normal text-slate-400">
-                Miktar
+                {t("miktar")}
               </th>
               {showTarget ? (
                 <th scope="col" className="py-1 text-right text-[11px] font-normal text-slate-400">
-                  Hedef Fiyat
+                  {t("hedefFiyat")}
                 </th>
               ) : null}
             </tr>
@@ -181,7 +185,7 @@ export function IhaleItemsPanel({
                   ) : null}
                 </td>
                 <td className="whitespace-nowrap py-1.5 pr-2 text-right align-top text-[13px] tabular-nums leading-tight text-slate-700">
-                  {Number(it.quantity).toLocaleString("tr-TR")} {it.unit}
+                  {Number(it.quantity).toLocaleString("tr-TR")} {unitLabel(it.unit)}
                 </td>
                 {showTarget ? (
                   <td className="whitespace-nowrap py-1.5 text-right align-top text-[13px] tabular-nums leading-tight text-slate-700">
@@ -204,7 +208,7 @@ export function IhaleItemsPanel({
             IHALE_VIEW_FOCUS,
           )}
         >
-          {showAll ? "Daha az göster" : `${total - PREVIEW_COUNT} kalem daha göster`}
+          {showAll ? t("dahaAzGoster") : t("nKalemDahaGoster", { n: total - PREVIEW_COUNT })}
         </button>
       ) : null}
       {total > INLINE_MAX ? (
@@ -215,7 +219,7 @@ export function IhaleItemsPanel({
             IHALE_VIEW_FOCUS,
           )}
         >
-          Tüm {total} kalemi detayda gör →
+          {t("tumKalemiDetaydaGor", { total: total })}
         </Link>
       ) : null}
     </div>

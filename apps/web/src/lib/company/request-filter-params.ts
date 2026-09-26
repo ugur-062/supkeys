@@ -23,23 +23,28 @@ export type PeriodWindow = 7 | 30 | 90;
 
 export const CLOSING_WINDOWS: readonly ClosingWindow[] = [3, 7, 30];
 export const PERIOD_WINDOWS: readonly PeriodWindow[] = [7, 30, 90];
-export const FIT_OPTIONS: readonly { key: RequestFit; label: string }[] = [
-  { key: "davet", label: "Davet edildim" },
-  { key: "baglanti", label: "Bağlantılı alıcı" },
-  { key: "urun", label: "Ürünlerimle eşleşen" },
-  { key: "kategori", label: "Kategorime uygun" },
-  { key: "teklif", label: "Teklif verdiklerim" },
+/**
+ * Süzgeç seçenekleri ANAHTAR listesidir; etiket katalogdan gelir (i18n Faz 2:
+ * `web.panel.trade.requestFilters.{fit,status,sort}.<anahtar>` — çizim
+ * `components/company/request-filters.tsx`).
+ */
+export const FIT_OPTIONS: readonly { key: RequestFit }[] = [
+  { key: "davet" },
+  { key: "baglanti" },
+  { key: "urun" },
+  { key: "kategori" },
+  { key: "teklif" },
 ];
-export const STATUS_OPTIONS: readonly { key: RequestStatusFilter; label: string }[] = [
-  { key: "aktif", label: "Aktif" },
-  { key: "gecmis", label: "Geçmiş" },
-  { key: "tumu", label: "Tümü" },
+export const STATUS_OPTIONS: readonly { key: RequestStatusFilter }[] = [
+  { key: "aktif" },
+  { key: "gecmis" },
+  { key: "tumu" },
 ];
-export const SORT_OPTIONS: readonly { key: RequestSort | undefined; label: string }[] = [
-  { key: undefined, label: "Size uygun" },
-  { key: "yakin", label: "Yakın biten" },
-  { key: "uzak", label: "Uzak biten" },
-  { key: "yeni", label: "En yeni" },
+export const SORT_OPTIONS: readonly { key: RequestSort | undefined }[] = [
+  { key: undefined },
+  { key: "yakin" },
+  { key: "uzak" },
+  { key: "yeni" },
 ];
 
 export interface RequestFilterState {

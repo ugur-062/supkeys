@@ -1,6 +1,7 @@
 "use client";
 
-import { entityLabels } from "@/lib/company/terms";
+import { useTranslations } from "next-intl";
+import { useEntityLabels } from "@/i18n/domain";
 
 import { Button } from "@/components/catalyst/button";
 import {
@@ -34,7 +35,8 @@ export function SaveTemplateDialog({
   isSaving,
   defaultName,
 }: Props) {
-  const L = entityLabels();
+  const t = useTranslations("web.panel.requests.saveTemplateDialog");
+  const L = useEntityLabels();
   const [name, setName] = useState(defaultName ?? "");
   // Dialog hep mount olduğundan ilk-state bayatlar: açılışta güncel başlıkla doldur.
   useEffect(() => {
@@ -56,40 +58,39 @@ export function SaveTemplateDialog({
           <BookmarkPlus className="h-5 w-5 text-brand-600" />
         </div>
         <div>
-          <DialogTitle>Şablon olarak kaydet</DialogTitle>
+          <DialogTitle>{t("sablonOlarakKaydet")}</DialogTitle>
           <DialogDescription>
-            Bu {L.acc} tekrar kullanmak üzere şablonlayın
+            {t("buTekrarKullanmakUzereSablonlayin", { acc: L.acc })}
           </DialogDescription>
         </div>
       </div>
 
       <DialogBody className="space-y-3">
         <Field>
-          <Label>Şablon adı</Label>
+          <Label>{t("sablonAdi")}</Label>
           <Input
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
             maxLength={100}
-            placeholder="Ör. Aylık ofis malzemesi"
+            placeholder={t("orAylikOfisMalzemesi")}
             onKeyDown={(e) => {
               if (e.key === "Enter" && canSave && !isSaving) onSave(trimmed);
             }}
           />
         </Field>
         <p className="text-xs text-zinc-500">
-          Kalemler, kategoriler ve ayarlar şablona dahil edilir. Kapanış tarihi
-          ve davetli {L.counterpartyPluralLower} her {L.loc} yeniden seçilir.
+          {t("kalemlerKategorilerVeAyarlarSablona", { counterpartyPluralLower: L.counterpartyPluralLower, loc: L.loc })}
         </p>
       </DialogBody>
 
       <DialogActions>
         <Button plain onClick={onClose} disabled={isSaving}>
-          Vazgeç
+          {t("vazgec")}
         </Button>
         <Button onClick={() => onSave(trimmed)} disabled={!canSave || isSaving}>
           <BookmarkPlus data-slot="icon" />
-          Kaydet
+          {t("kaydet")}
         </Button>
       </DialogActions>
     </Dialog>

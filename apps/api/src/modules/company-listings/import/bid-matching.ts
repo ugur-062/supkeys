@@ -1,3 +1,4 @@
+import { tApi } from "../../../common/i18n/i18n.service";
 import {
   BID_DELIVERY_TIMES,
   BID_DELIVERY_TIME_LABELS,
@@ -175,8 +176,8 @@ export function normalizeDeliveryTime(v: unknown): string | null {
 
 export function validUnitPrice(n: number | null): { value: number | null; error: string | null } {
   if (n == null) return { value: null, error: null };
-  if (!Number.isFinite(n)) return { value: null, error: "Birim fiyat sayı değil" };
-  if (n < MIN_MONEY || n > MAX_MONEY) return { value: null, error: "Birim fiyat 0,01 ile 1e15 arasında olmalı" };
+  if (!Number.isFinite(n)) return { value: null, error: tApi("api.companyListings.bidImport.birimFiyatSayiDegil") };
+  if (n < MIN_MONEY || n > MAX_MONEY) return { value: null, error: tApi("api.companyListings.bidImport.birimFiyatAraligi") };
   const r = Math.round(n * 100) / 100;
   if (Math.abs(r - n) > 1e-9) {
     // 2 ondalığa yuvarla (belgeden 3+ ondalık gelebilir) — uyarı değil, sessiz.
@@ -297,21 +298,28 @@ export function applyDocRowValues(
   const v = validUnitPrice(d.value == null ? null : Math.round(d.value * 10 ** MONEY_DECIMALS) / 10 ** MONEY_DECIMALS);
   m.unitPrice = v.value;
   if (v.error) m.warnings.push(v.error);
-  if (d.derived && v.value != null) m.warnings.push("Birim fiyat belgedeki toplam ÷ miktardan türetildi");
+  if (d.derived && v.value != null) m.warnings.push(tApi("api.companyListings.bidImport.toplamdanTuretildi"));
   if (r.unitPrice != null && r.totalPrice != null && r.quantity != null && r.quantity > 0) {
     const calc = r.unitPrice * r.quantity;
     if (Math.abs(calc - r.totalPrice) / Math.max(r.totalPrice, 1) > 0.02) {
-      m.warnings.push("Belgede birim × miktar toplamla uyuşmuyor");
+      m.warnings.push(tApi("api.companyListings.bidImport.toplamUyusmuyor"));
     }
   }
   if (r.quantity != null && Number.isFinite(r.quantity)) {
     const q = Number(it.quantity);
     if (Number.isFinite(q) && q > 0 && Math.abs(q - r.quantity) / q > 0.001) {
-      m.warnings.push(`Belgedeki miktar (${r.quantity}) satın alma talebindekinden (${it.quantity}) farklı`);
+      m.warnings.push(
+        tApi("api.companyListings.bidImport.miktarFarkli", {
+          docQuantity: String(r.quantity),
+          itemQuantity: String(it.quantity),
+        }),
+      );
     }
   }
   if (r.unit && foldText(r.unit) !== foldText(it.unit)) {
-    m.warnings.push(`Belgedeki birim (${r.unit}) satın alma talebindekinden (${it.unit}) farklı`);
+    m.warnings.push(
+      tApi("api.companyListings.bidImport.birimFarkli", { docUnit: r.unit, itemUnit: it.unit }),
+    );
   }
   const cur = normalizeCurrency(r.currency);
   if (cur) {
@@ -319,9 +327,9 @@ export function applyDocRowValues(
       // Ana birimle aynıysa null bırak (= teklifin ana birimi).
       m.currency = cur === opts.primaryCurrency ? null : cur;
     } else {
-      m.warnings.push(`Belgedeki para birimi (${cur}) bu satın alma talebinde kabul edilmiyor — teklif birimi kullanılacak`);
+      m.warnings.push(tApi("api.companyListings.bidImport.satirParaBirimiKabulEdilmiyor", { currency: cur }));
     }
   }
   m.deliveryTime = normalizeDeliveryTime(r.deliveryText);
-  if (r.deliveryText && !m.deliveryTime) m.warnings.push(`Teslim süresi anlaşılamadı: "${r.deliveryText}"`);
+  if (r.deliveryText && !m.deliveryTime) m.warnings.push(tApi("api.companyListings.bidImport.teslimAnlasilamadi", { text: r.deliveryText }));
 }

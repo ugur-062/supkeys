@@ -1,8 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
+import { useCityLabel } from "@/i18n/domain";
 import { Avatar } from "@/components/ui/avatar";
 import { Thumb } from "@/components/ui/thumb";
-import { categoryPath, listingPath, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { categoryHref, listingHref, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import type { SuggestResult } from "@/lib/public/marketplace-api";
 import {
   EMPTY_SUGGEST,
@@ -13,8 +16,8 @@ import {
 } from "@/lib/public/suggest-client";
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon, ClockIcon, MagnifyingGlassIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 /**
@@ -32,41 +35,31 @@ import { useEffect, useId, useMemo, useRef, useState } from "react";
  * Erişilebilirlik: WAI combobox (aria-expanded/-controls/-activedescendant),
  * ↑↓ gezinir, Enter seçer (seçim yoksa formu gönderir), Esc kapatır.
  */
+/**
+ * Kapsamın DİLDEN BAĞIMSIZ parçası: anahtar + form hedefi. Etiket ve yer
+ * tutucu katalogdan gelir (`scopeText`) — burada Türkçe kopyası tutulsaydı
+ * iki kaynak ayrışırdı (metin sunucuda değişir, kutuda eski hâli kalırdı).
+ */
 export interface ScopeOption {
   key: SuggestScope;
-  label: string;
   /** Form hedefi — liste sayfası. */
   action: string;
-  placeholder: string;
 }
 
 export const SEARCH_SCOPES: Record<SuggestScope, ScopeOption> = {
-  products: {
-    key: "products",
-    label: "Ürünler",
-    action: MARKETPLACE_ROUTES.products,
-    placeholder: "Ürün, marka veya parça numarası arayın",
-  },
-  companies: {
-    key: "companies",
-    label: "Firmalar",
-    action: MARKETPLACE_ROUTES.companies,
-    placeholder: "Firma adı, sektör veya hizmet",
-  },
-  listings: {
-    key: "listings",
-    label: "Talepler",
-    action: MARKETPLACE_ROUTES.demands,
-    placeholder: "Talep başlığı veya kategori",
-  },
+  products: { key: "products", action: MARKETPLACE_ROUTES.products },
+  companies: { key: "companies", action: MARKETPLACE_ROUTES.companies },
+  listings: { key: "listings", action: MARKETPLACE_ROUTES.demands },
 };
 
 type Row = { key: string; href: string; label: string; meta?: string; node?: React.ReactNode; group: string };
 
-function rowsFrom(s: SuggestResult): Row[] {
+type GroupLabels = { categories: string; products: string; companies: string; listings: string };
+
+function rowsFrom(s: SuggestResult, g: GroupLabels, cityLabel: (city: string | null | undefined) => string): Row[] {
   const rows: Row[] = [];
   for (const c of s.categories) {
-    rows.push({ key: `c-${c.id}`, href: categoryPath(c.id, c.name), label: c.name, group: "Kategoriler" });
+    rows.push({ key: `c-${c.id}`, href: categoryHref(c), label: c.name, group: g.categories });
   }
   for (const p of s.products) {
     rows.push({
@@ -75,7 +68,7 @@ function rowsFrom(s: SuggestResult): Row[] {
       label: p.name,
       meta: p.companyName,
       node: <Thumb src={p.image ?? undefined} alt="" size="sm" className="size-8 rounded-md" />,
-      group: "Ürünler",
+      group: g.products,
     });
   }
   for (const c of s.companies) {
@@ -83,18 +76,18 @@ function rowsFrom(s: SuggestResult): Row[] {
       key: `f-${c.slug}`,
       href: `/firma/${c.slug}`,
       label: c.name,
-      meta: c.city ?? undefined,
+      meta: cityLabel(c.city) || undefined,
       node: <Avatar name={c.name} src={c.logoUrl} size={32} />,
-      group: "Firmalar",
+      group: g.companies,
     });
   }
   for (const l of s.listings ?? []) {
     rows.push({
       key: `t-${l.number}`,
-      href: listingPath(l.number, l.title),
+      href: listingHref(l),
       label: l.title,
       meta: l.number,
-      group: "Alım talepleri",
+      group: g.listings,
     });
   }
   return rows;
@@ -124,7 +117,26 @@ export function SearchTypeahead({
   const [open, setOpen] = useState(false);
   const [active, setActive] = useState(-1);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const opt = SEARCH_SCOPES[scope];
+  const t = useTranslations("web.marketplace.typeahead");
+  const tl = useTranslations("web.marketplace.labels");
+  const cityLabel = useCityLabel();
+  // Kapsam etiketleri/yer tutucuları dil bilen katalogdan; SEARCH_SCOPES yalnız anahtar + hedef.
+  const scopeText = (k: SuggestScope): { label: string; placeholder: string } =>
+    k === "products"
+      ? { label: tl("products"), placeholder: t("productsPlaceholder") }
+      : k === "companies"
+        ? { label: tl("companies"), placeholder: t("companiesPlaceholder") }
+        : { label: t("listingsLabel"), placeholder: t("listingsPlaceholder") };
+  const opt = { ...SEARCH_SCOPES[scope], ...scopeText(scope) };
+  const groups = useMemo<GroupLabels>(
+    () => ({
+      categories: t("groupCategories"),
+      products: t("groupProducts"),
+      companies: t("groupCompanies"),
+      listings: t("groupListings"),
+    }),
+    [t],
+  );
   const big = size === "lg";
 
   useEffect(() => {
@@ -147,7 +159,7 @@ export function SearchTypeahead({
     };
   }, [q, scope]);
 
-  const rows = useMemo(() => rowsFrom(sug), [sug]);
+  const rows = useMemo(() => rowsFrom(sug, groups, cityLabel), [sug, groups, cityLabel]);
   const showRecent = q.trim().length < 2 && recent.length > 0;
   const panel = open && (rows.length > 0 || showRecent);
 
@@ -183,7 +195,7 @@ export function SearchTypeahead({
       {big && scopes.length > 1 ? (
         <div
           role="tablist"
-          aria-label="Nerede aransın"
+          aria-label={t("whereLabel")}
           className="mx-auto mb-3 flex w-fit max-w-full flex-wrap justify-center gap-1 rounded-full bg-zinc-100 p-1"
         >
           {scopes.map((k) => {
@@ -200,7 +212,7 @@ export function SearchTypeahead({
                   on ? "bg-zinc-950 text-white shadow-sm" : "text-zinc-600 hover:text-zinc-950",
                 )}
               >
-                {SEARCH_SCOPES[k].label}
+                {scopeText(k).label}
               </button>
             );
           })}
@@ -228,7 +240,7 @@ export function SearchTypeahead({
               /* Kapsam seçici kutunun İÇİNDE — dar üst çubukta ayrı sekme
                  satırına yer yok. Native <select>: klavye ve mobil bedava. */
               <label className="relative flex h-full shrink-0 items-center border-r border-zinc-950/10 pr-1 pl-3">
-                <span className="sr-only">Arama kapsamı</span>
+                <span className="sr-only">{t("scopeLabel")}</span>
                 <select
                   value={scope}
                   onChange={(e) => setScope(e.target.value as SuggestScope)}
@@ -236,7 +248,7 @@ export function SearchTypeahead({
                 >
                   {scopes.map((k) => (
                     <option key={k} value={k}>
-                      {SEARCH_SCOPES[k].label}
+                      {scopeText(k).label}
                     </option>
                   ))}
                 </select>
@@ -260,7 +272,7 @@ export function SearchTypeahead({
               }}
               onKeyDown={onKeyDown}
               placeholder={opt.placeholder}
-              aria-label={`${opt.label} içinde ara`}
+              aria-label={t("searchIn", { scope: opt.label })}
               role="combobox"
               aria-expanded={panel}
               aria-controls={listId}
@@ -279,7 +291,7 @@ export function SearchTypeahead({
               type="submit"
               className="h-14 shrink-0 rounded-full bg-blue-600 px-7 text-sm font-semibold text-white transition hover:bg-blue-700 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-zinc-950"
             >
-              Ara
+              {t("submit")}
             </button>
           ) : null}
         </div>
@@ -288,13 +300,13 @@ export function SearchTypeahead({
           <div
             id={listId}
             role="listbox"
-            aria-label="Arama önerileri"
+            aria-label={t("suggestions")}
             className="absolute inset-x-0 top-full z-30 mt-2 max-h-[70vh] overflow-y-auto rounded-2xl bg-white text-left shadow-xl ring-1 ring-zinc-950/10"
           >
             {showRecent ? (
               <div className="py-1">
                 <p className="px-4 pt-1.5 pb-0.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
-                  Son aramalar
+                  {t("recent")}
                 </p>
                 <ul>
                   {recent.map((r) => (

@@ -42,6 +42,7 @@ apps/admin    Next.js   :3001  admin.rothern.com
 packages/db       @rothern/db      Prisma schema + migrations + seed + scripts
 packages/shared   @rothern/shared  Zod + types + helpers
 packages/email    @rothern/email   React Email + Resend
+packages/i18n     @rothern/i18n    Dil katalogları (ICU JSON) + çevirmen + i18n kapısı
 ```
 
 `pnpm dev` (turbo, hepsi) veya `pnpm --filter @rothern/{api,web,admin} dev`.
@@ -230,6 +231,433 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 
 ---
 
+## Çok Dillilik (i18n) — Faz 0 + Faz 1 (herkese açık yüzey ve kimlik akışı) TAMAM (2026-09-23)
+
+Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
+Çince/Arapça sonra. Terim: "talep" → EN **Request** (asla "tender"), RU
+**запрос** (asla "тендер") — sözlük `packages/i18n/src/glossary.json`.
+
+- **Geliştirici YALNIZ `tr` yazar.** Anahtar + Türkçe metin
+  `packages/i18n/src/messages/tr/<ad-alanı>.json` (web `common`+`web`, API
+  `common`+`api`+`email`). Anahtarlar kararlı ve alan bazlı
+  (`web.settings.language.label`); Türkçe metin anahtar DEĞİL.
+- **MAKİNE ÇEVİRİSİ YOK (kullanıcı kararı 2026-09-23, "Gemini Flash
+  bağlama"):** EN/RU metinleri **Claude** yazar — fazlar sırasında ekran
+  bağlamıyla TR ile birlikte; ICU çoğul (`{n, plural, one {…} other {…}}`)
+  EN/RU'da gerekir, TR'de gerekmez. `pnpm i18n:sync` yalnız eksik/bayat
+  anahtarları listeler (`--out`), `--apply <dosya>` uygular ve `reviewed`
+  işaretler, `--mark-reviewed <önek>` onaylar. Sonradan insan eliyle eklenen
+  dizeler için ayrı çözüm bulunacak; Flash'a geri dönülmez.
+- **Eksik çeviri ekranı bozmaz:** çalışma zamanı `ru → en → tr` düşer
+  (`messagesFor`). Anahtar `tr`de de yoksa anahtar yolu görünür (geliştirici hatası).
+- **CI kapısı `pnpm i18n:check`:** orphan anahtar · ICU yer tutucu paritesi ·
+  yasaklı terim · **EN %100 (eksik + bayat = 0)** · RU rapor · **cırcır**:
+  dosya başına sabit Türkçe literal sayısı tabanı AŞAMAZ, yeni dosya SIFIR
+  olmalı (`ratchet:update` yalnız düşürür; artış `--force` ister ve incelemede
+  görünür). Sezgisel Türkçe ÖZEL harfe bakar (ç ğ ı ö ş ü); "Kaydet" gibi
+  ASCII sözcükleri görmez — bilinçli sınır.
+- **Dil kullanıcıda:** `CompanyUser.locale` (`/me` döner, `PATCH company-auth/me
+  { locale }` yazar). Web `NEXT_LOCALE` çerezine yansıtır (`LocaleCookieSync`)
+  ve her API isteğine `Accept-Language` koyar; API `LocaleMiddleware` → ALS
+  (`currentLocale()`), başlık desteklenen dil vermediyse JWT stratejisi kullanıcının
+  kayıtlı dilini uygular. Bildirim/e-posta ALICININ dilini kullanır (Faz 3).
+- **API'de metin:** `tApi("api.validation.required")` ya da DI `I18nService`;
+  istisna için `throw new BadRequestException(i18nMessage("api.business.expired",
+  undefined, "BID_EXPIRED"))` (istek dilinde mesaj + `code` + `i18nKey`).
+  class-validator VARSAYILAN mesajları `translateValidatorMessage` ile istek
+  dilinde; DTO'daki elle `message:` dizeleri Faz 3'e kadar Türkçe kalır (sınıf
+  tanımında değerlenir, dil bilmez → fonksiyon biçimine geçecek).
+- **YÖNLENDİRME (Faz 1, 2026-09-23): tüm sayfalar `src/app/[locale]/`
+  altında.** Türkçe ÖN EKSİZ (`/urunler`, bugünkü her adres aynen), diğer
+  diller ön ekli (`/en/urunler`, `/ru/company/…`); `localePrefix: "as-needed"`,
+  **otomatik dil tespiti KAPALI** (`localeDetection: false` — Googlebot `/`den
+  `/en`e atılmaz, kök sayfa önbellekli kalır); dil seçici ve panelde
+  `LocaleUrlSync` (üyenin kayıtlı dili ≠ adresteki dil → aynı sayfayı doğru
+  ön ekle açar) tek geçiş yolu. **YOL PARÇALARI ÜÇ DİLDE (2026-09-24,
+  kullanıcı kararı "hangi dilse o dilde"):** `/en/products/category/<kod-ad>`,
+  `/ru/tovary/kategoriya/…`, `/en/companies/<firma>/products/<ürün>`,
+  `/en/buying-requests/<slug>`, panel `/en/company/purchasing/my-requests`,
+  `/ru/kompaniya/zakupki/moi-zayavki` (panel kökü dile göre; Türkçe `/company`
+  olduğu gibi — gönderilmiş e-postalar kırılmasın). Rusça LATİN çeviriyazı
+  (Kiril paylaşımda `%D0…` oluyordu). Varlık slug'ları hiçbir dilde değişmez.
+  TEK KAYNAK `@rothern/i18n` `ROUTE_PATHNAMES` (iç şablon → dil başına dış
+  şablon; `translateRoutePath`/`internalRoutePath` saf, edge-safe). next-intl
+  `routing.pathnames` middleware'de dış→iç yeniden yazar ve yanlış biçimi
+  (`/en/urunler`, `/products`, `/ru/company/login`) doğru biçime 308'ler.
+  **KOD İÇ (Türkçe) YOLU YAZAR:** `Link href="/urunler"`, `router.push`,
+  `redirect`, `localizePath` girdisi hep iç yol; çeviriyi `@/i18n/navigation`
+  sarmalayıcısı ve `@/i18n/href` yapar (next-intl dize adresi şablona
+  eşlemez, `usePathname` dinamik rotada ŞABLON döner → sarmalayıcı şart;
+  istemci hook'ları `navigation-client.tsx`te, sunucu importu için ayrı).
+  `usePathname`/`stripLocale` her zaman İÇ yol döner (menü aktiflik ve
+  `/company/login` karşılaştırmaları dilden bağımsız). `isPublicRoute`
+  (CSP profili) dış yolu iç yola indirger — indirgemeseydi `/en/products`
+  nonce'lu CSP alıp statik HTML'in betikleri engellenirdi. Yeni sayfa =
+  `ROUTE_PATHNAMES`e satır; `pathnames.test` üç dil + çakışma ister.
+  Tek kaynaklar: `src/i18n/{routing,navigation,navigation-client,request,href,params}.ts`.
+  Kök rota işleyicileri (`api`, `sitemaps`, `sitemap.xml`, `robots.ts`,
+  `llms*.txt`, `indexnow`) ve `global-error.tsx` `[locale]` DIŞINDA kalır;
+  middleware bunları ve uzantılı dosyaları next-intl'e SOKMAZ (soksa
+  `/tr/sitemap.xml`e yazılıp 404 olur).
+  **ÖN YÜKLEME İSTEKLERİ DE MIDDLEWARE'DEN GEÇER (2026-09-23 akşam):** `matcher`
+  `Next-Router-Prefetch` / `Purpose: prefetch` isteklerini muaf tutuyordu (CSP
+  nonce optimizasyonu); TR adresler ön eksiz olduğu için `<Link>` ön yüklemeleri
+  `/tr/…` yeniden yazımından geçmeyip `[locale]="urunler"` gibi yanlış eşleşiyor,
+  `/urunler?_rsc=…` 404 dönüyor, tıklamada "Sayfa bulunamadı" açılıyordu.
+  `missing` bir daha EKLENMEZ; `src/middleware.test.ts` kilitler.
+- **`next/link` ve `next/navigation` YASAK yerler:** `Link`, `useRouter`,
+  `usePathname`, `redirect`, `permanentRedirect` HER ZAMAN `@/i18n/navigation`
+  dan (ön ek otomatik; `usePathname` ön eksiz döner). `useSearchParams`,
+  `useParams`, `notFound` `next/navigation`da kalır. `permanentRedirect({ href,
+  locale })` nesne alır. `window.location.href = "/company/…"` yerine
+  `localizePath(path, runtimeLocale())`; yol karşılaştırmasında `stripLocale`.
+  `<a href="/…">` iç bağlantı `no-html-link-for-pages` lint'ini kırar → `Link`.
+  Testlerde `vitest.setup.ts` `@/i18n/navigation`ı Next'in hook'larına geçirir
+  (dosya bazlı `next/navigation` sahteleri aynen çalışır).
+- **Statiklik:** `src/i18n/request.ts` YALNIZ `requestLocale` (segment) okur,
+  çerez/başlık OKUMAZ → herkese açık sayfalar dil başına prerender
+  (`.next/server/app/<dil>/urunler.html` üretilir). `[locale]/layout.tsx`
+  `generateStaticParams` + `setRequestLocale` taşır. **Etiket tuzağı
+  (ölçüldü):** derleme tablosu `[locale]` altındaki HER rotayı ● (SSG)
+  etiketler, panel dahil; `force-dynamic` yine geçerlidir — kanıt: panel için
+  `.html` üretilmez ve `prerender-manifest.json`da yer almaz. Etikete bakıp
+  `connection()`/`cookies()` ekleme.
+- **SEO:** `buildMetadata({ …, locale })` kanonik = o dilin adresi,
+  `alternates.languages` tr/en/ru + `x-default` (tr), `og:locale`; her herkese
+  açık `page.tsx` `generateMetadata({ params })` + `localeFromParams`. Varlık
+  üreticileri `productSeo/companySeo/listingSeo(input, { locale, t })`. Sitemap
+  her URL'de `<xhtml:link hreflang>` (üç dil + x-default; `located()` tek
+  yardımcı), robots `/en/`·`/ru/` izin + `/en/company/` vb. yasak,
+  `next.config` yönlendirmeleri `withLocales` ile üç dilde.
+- **React dışı yerde** (axios interceptor, zod hata haritası) `tRuntime(
+  "common.errors.*")` — köprü (`I18nRuntimeBridge`) yoksa Türkçe `common`
+  yedeği. Katalogun tamamını istemciye gömme (üç dilin metni paket boyutunu
+  şişirir): kök `@rothern/i18n` hafiftir, kataloglar `@rothern/i18n/messages`,
+  çevirmen `@rothern/i18n/translator` alt yollarından gelir.
+- **Testler:** web `vitest.setup.ts` next-intl'i TR katalogla SAHTELER —
+  bileşen testleri sağlayıcısız koşar, Türkçe beklentiler değişmez. API jest
+  `@rothern/i18n`'i **dist**'ten okur (use-intl yalnız ESM; paket build'i
+  çevirmeni esbuild ile CJS'e gömer) → testten önce
+  `pnpm --filter @rothern/i18n build` ŞART.
+- **`next/navigation` HOOK'U SUNUCUDAN İMPORT EDİLEN MODÜLDE OLAMAZ (2026-09-24,
+  yerel `next build` yakaladı; tsc/vitest/lint görmedi):** `usePathname` içeren
+  modül bir sunucu bileşeninden import edilince derleme "needs usePathname …
+  Client Component" ile düşer. Kural: hook'lar `"use client"` dosyada, kabuk
+  modül yeniden dışa aktarır (`navigation.tsx` ↔ `navigation-client.tsx`).
+- **Yeni workspace paketi ÜÇ yere eklenir** (2026-09-23'te yakalandı):
+  `apps/api/Dockerfile` (`COPY packages/<ad>/package.json` + build satırı),
+  `apps/web/vercel.json` `buildCommand`, jest `moduleNameMapper`. Biri
+  unutulursa yerel yeşil, dağıtım kırmızı.
+- **FAZ 1 KAPSAMI (2026-09-23, 9 parti):** pazarlama başlığı/altbilgi,
+  anasayfa iki yüz, pazar yeri dizinleri/süzgeçleri/kartları/detay sayfaları,
+  Hakkımızda · İletişim · SSS · Nasıl Çalışır, talep-onayla/davet-kapat/şifre
+  sıfırlama, giriş · kayıt · şifremi unuttum · ekip daveti · firma doğrulama
+  sihirbazı, dil seçici (üst çubuk küre menüsü + mobil menü + altbilgi) ve
+  Ayarlar › Hesap Bilgileri › Dil (anında `PATCH me { locale }` + aynı sayfa
+  yeni ön ekle). **Panel metinleri Faz 2** (cırcır tabanı 433 dosya / 6.194
+  literal; hepsi panel/admin/API).
+- **Sunucu sayfası kalıbı:** `generateMetadata` → `getTranslations({ locale,
+  namespace })`; gövde `await getTranslations("web.…")`; bağlantılı cümle
+  `t.rich("key", { faq: (c) => <Link …>{c}</Link> })` — çeviride sözcük sırası
+  değişince bağlantı yerini kaybetmesin. Kırıntı: `breadcrumbNode(items,
+  locale)` (adres o dilin ön ekiyle, ad `web.marketing.breadcrumbHome`).
+- **İstemciye GİTMEYEN ad alanları** (`src/i18n/client-messages.ts`
+  `SERVER_ONLY_NAMESPACES`: `web.marketing.{about,contact,faq,legal,
+  inquiryVerify}`): kök düzen `NextIntlClientProvider messages={clientMessages(…)}`
+  ile ayıklar; `client-messages.test` "use client" dosyalarını tarar — bir
+  istemci bileşeni bu ad alanından okursa kırmızı (çalışma zamanında ham anahtar
+  basardı). Listeye ekleme = o testi koşmak. (`web.seo` listede DEĞİL: ürün/
+  talep detayı ve panel formlarının parçacık önizlemesi istemcide okur.)
+- **`server-only` ZİNCİR TUZAĞI (2026-09-23, staging 3 dağıtım kırmızı):**
+  `src/i18n/server.ts` `server-only` işaretli (katalog yükleyici istemciye
+  girmesin). İstemcide de çizilen paylaşılan bir modül (`lib/seo/entities.ts`
+  → `product-detail`, `listing-detail`, ürün formu, Profilim) onu import
+  edince `next build` kırılır; vitest/tsc/lint GÖRMEZ. Kural: paylaşılan
+  üreticiler çevirmeni PARAMETRE alır — `productSeo/companySeo/listingSeo(
+  input, { locale, t })`; sunucuda `t: seoT(locale)` (i18n/server.ts),
+  istemcide `t: useSeoT()` (i18n/domain.ts). Sayı biçimi `i18n/format.ts`
+  (saf). `@/i18n/server`ı yalnız sayfalar, rota işleyicileri, `faq-data`,
+  `og/content` import eder. Kökten herkese açık yüzeye dokunan değişiklikte
+  yerel `pnpm build` ŞART.
+- **Sözleşme metinleri YALNIZ TÜRKÇE** (hukuki metin çevrilmez): `LegalDoc`
+  EN/RU'da üstte "Türkçe metin esastır" notu basar, gövde `lang="tr"`, JSON-LD
+  `inLanguage` tr-TR; yalnız kabuk ve meta çevrilir; `updatedAt` ISO tarih.
+- **Paket kartı metni katalogda** (`web.pricing.plans.*`, pazarlama sayfası
+  `usePricingPlans`); panel Faz 2'ye kadar `PRICING_PLANS`i okur ve
+  `plans-i18n.test` iki kaynağı BİREBİR tutar (özellik sayısı dahil). Segment
+  sloganları `web.marketing.taglines.s<kod>` + `useSegmentTagline`.
+- **SSS tek kaynak `faqGroups(locale)`** (`sss/faq-data.ts`): sayfa, `FAQPage`
+  JSON-LD ve `llms-full.txt` (TR) aynı fonksiyondan; `faq.test` üç dilde
+  kalite kapısı (soru "?" ile biter, cevap ≥120 karakter, fiyat yazmaz).
+- **Kimlik akışı ortak parçaları:** `usePasswordRules` + `PasswordStrength`,
+  `ConsentRows` (kayıt ve davet kabul kopyaları birleşti); zod şemaları
+  `useMemo(() => makeSchema(t), [t])` ile dil bilen. Dil seçici etiketleri
+  dilin KENDİ adıyla ve çevrilmez (`LOCALE_LABELS`). Üst çubukta
+  `useSearchParams` YOK (statik sayfada Suspense ister) — sorgu `window`dan
+  efektte okunur.
+- **Faz 1'de düzeltilen bayat vaatler:** Nasıl Çalışır "teslim belgesi"
+  (sipariş belgesi 2026-08-22'de kalktı) ve "sınırsız kullanıcı" (koltuk 2/4/6)
+  metinden çıktı; "ilan" → "talep" (alıcı yüzü).
+- **KULLANICI İÇERİĞİ OTOMATİK ÇEVRİLİR (Faz 1e, 2026-09-23, kullanıcı kararı
+  "her eklenen otomatik çevrilsin", motor Gemini PRO — pilot gerçek staging
+  içeriğiyle ölçüldü, Flash DEĞİL):** ürün (ad, açıklama, anahtar kelime,
+  nitelik etiket/değer), alım talebi (başlık, açıklama, kalem adları, anahtar
+  kelime), firma profili (tanıtım, hizmetler, sektör). Tablo
+  `content_translations` (migration `20260923180000`; varlık × dil satırı,
+  `sourceHash`, `fields` JSON; kaynak dilin satırı `fields=NULL`). Modül
+  `modules/content-translation/` — `logic.ts` SAF (istem, doğrulama, üzerine
+  yazma), `service.ts` (kuyruk + Gemini + okuma), 5 dk süpürücü cron,
+  `admin/content-translations/{status,backfill}` (SUPER_ADMIN).
+  Tetikler fail-open `void this.translations?.enqueue(...)`: ürün onayı
+  (tekli/toplu), yayındaki ürünün vitrin güncellemesi, talep yayını / eski
+  onay akışı / güncelleme / yeni tur (`listingChanged` yanına), profil kaydı
+  (tanıtım/hizmet/sektör). Kaynak değişince hash değişir → yeniden; aynı
+  kaynak ikinci kez ÇEVRİLMEZ.
+  **Uydurma kapısı:** kaynaktaki her SAYI hedefte de olmalı (binlik ayraç
+  normalize), liste alanları aynı uzunlukta; ihlalde bir düzeltme turu, yine
+  bozuksa FAILED (≤3 deneme). Sözlük: talep → request/запрос, tender YASAK.
+  **Okuma:** herkese açık uçlar `currentLocale()` (Accept-Language) ile
+  `localize{Products,Listings,Companies}` — DONE satır yoksa özgün metin;
+  `translatedFrom` alanı gelir, web `AutoTranslatedNote` "Otomatik çeviri
+  (kaynak: Türkçe)" basar. Bunun için `PUBLIC_*_SELECT`lere `id` girdi —
+  mapper'lar yanıta YAZMAZ (anonimlik sözleşmesi korunur); `relatedProducts`
+  `ids` döner, herkese açık uç soyar. Web `marketplace-api.ts` her isteğe
+  `accept-language` (next-intl `getLocale`, rota işleyicisinde tr) koyar —
+  Next veri önbelleği başlığı anahtara katar. Arama v1'de ÖZGÜN metinde
+  (İngilizce sorgu Türkçe adı bulmaz — sonraki adım). Firma bütçesine
+  yazılmaz; maliyet satırda (`costUsd`). **Ölçüldü (staging backfill
+  2026-09-23, 168 kayıt, Vertex `gemini-3.1-pro-preview`):** toplam 8,16 USD;
+  düşük thinking ile kayıt başına ≈ 4 sent (varsayılan thinking ile ≈ 8,5
+  sent), ~5 kayıt/dk. Kategori adları ayrı (Faz 4).
+  Sözleşme: `test/unit/content-translation.spec.ts` (yerel PG yoksa
+  `--globalSetup=<noop>` ile koşulur).
+  **Kategori adları da üç dilde (Faz 4, aynı gün) — bkz. Kategori Kataloğu.**
+  **JSON-LD `inLanguage` sayfa dilinden** (`LANG_TAG`); sözleşmeler tr-TR kalır;
+  `WebSite` düğümü üç dili listeler.
+- **BAŞTAN AŞAĞI TARAMA (2026-09-23 gece, kullanıcı: "her şeyi kontrol et,
+  çeviri kusursuz olmalı"):** herkese açık 20 yolun SSR metni EN/RU'da Türkçe
+  harf sezgiseliyle tarandı (`tr-leftover-scan.py`, özel adlar hariç). Kapanan
+  kalıntılar: hero dekor kartları (`hero-decor.tsx` başlık/ipucu artık
+  `web.marketing.heroDecor.*` anahtarı, `HeroDecor` `t.has` ile çevirir),
+  firma faaliyet tipi (`useActivityLabel` — `companyActivityLabel` herkese açık
+  bileşende KULLANILMAZ), ülke adları (`countryDisplayName` — telefon kodu listesi,
+  firma kartı, bayrak başlığı, profil), `CompanyProfileView` metinleri
+  (`web.marketplace.profile.*`; panel de aynı bileşen), ölçü birimleri
+  (`useUnitLabel`, `web.domain.unit.<KOD>`; ürün kartı/detayı, talep kalemleri),
+  firma dizini kart önizleme ürün adları (`buildDirectory` `opts.localizeProducts`),
+  talep sayfasındaki alıcı sektörü (`localizeListingCompanies`, firma çevirisinden),
+  nitelik ETİKETLERİ + SEÇENEKLERİ (Faz 4b: `CategoryAttribute.nameEn/nameRu/
+  optionsEn/optionsRu`, migration `20260923235000`; `ResolvedAttribute.nameTr`
+  yerel etiket + `optionLabels`; facet `values[].label`; TSV
+  `category-attribute-names.i18n.tsv` + `apply/export-category-attribute-names-i18n`;
+  toplu iş `admin/content-translations/categories/attributes/backfill`).
+  **Giriş dili hesaba yazılır:** `useCompanyLogin.onSuccess` giriş sayfasının
+  dili ≠ kayıtlı dil ise `PATCH me { locale }` (yoksa `LocaleUrlSync` paneli
+  eski dile atıyordu — kullanıcı bulgusu "İngilizce seçtiğim hâlde her şey
+  Türkçe"); kayıt ve davet kabulü `locale: currentLocale()` ile doğar.
+  **Şehir adları üç dilde (2026-09-24):** `@rothern/shared`
+  `TR_PROVINCE_NAMES_I18N` (81 il; EN = İngilizce Vikipedi yazımı — yalnız
+  Istanbul/Izmir/Hakkari aksansız, kalanı Türkçe imla; RU Kiril, Стамбул) +
+  `provinceDisplayName(raw, locale)`; web `cityDisplayName`/`useCityLabel`
+  (`i18n/domain.ts`). Bağlı yerler: SEO üreticileri (`entities.ts` başlık/
+  açıklama/JSON-LD `addressLocality`), OG kartları, şehir açılış sayfası
+  başlığı/h1/özne, kart/detay/typeahead, süzgeç facet ETİKETLERİ ve aktif
+  çipler (anahtar ham TR adı kalır — `?sehir=` değeri değişmez). Tanınmayan
+  şehir (yabancı, ilçe) olduğu gibi; Türkçede ham metin. Sözleşme
+  `i18n/__tests__/city-display.test`. **Serbest metin ölçü birimi:**
+  `unitCode`süz üründe `unit` metni çeviri kaynağına girer ve çevrilir; kodlu
+  birim katalogdan (`useUnitLabel`). **Talep yayını sahibinin firma profilini
+  de kuyruğa alır** (`enqueue("LISTING")` → sahip COMPANY; backfill de
+  sahipleri kapsar) — talep sayfasındaki alıcı sektörü firma çevirisinden.
+  Bilinçli kalanlar: ürün/firma ÖZEL ADLARI ve yabancı şehirler, sözleşme
+  metinleri (TR), panel arayüz metinleri (Faz 2), arama Türkçe. Süzgeç kenar çubuğu etiketi
+  ürün dilinde "Süzgeçler" (Faz 1'de "Filtreler" yazılmıştı; e2e onu arar).
+  **MODEL ADI TUZAĞI (2026-09-23, staging'de ölçüldü):** Vertex AI
+  `gemini-pro-latest` alias'ını TANIMAZ (404 NOT_FOUND) — Generative Language
+  API tanır. Render'daki `AI_MODEL_PREMIUM=gemini-pro-latest` bu yüzden
+  Vertex'te ÇALIŞMAZ (premium yükseltme yolu da). Çeviri servisi aday
+  listesiyle kendini kurtarır (`CONTENT_TRANSLATION_MODEL` → premium →
+  `gemini-3.1-pro` → `-preview` → `gemini-2.5-pro`; 404 alan elenir, çalışan
+  hatırlanır; `status` ucu çalışan modeli gösterir). Kalıcı çözüm Render
+  env'inde Vertex'in tanıdığı Pro adı.
+- **FAZ 2 — PANEL METİNLERİ (2026-09-24, kullanıcı: "her şeyi bitir, sonra canlıya
+  alacağız"; parti parti):** ad alanı `web.panel.<alan>.<dosyaSlug>.<anahtar>`
+  (`web.panel.shell.*` kabuk+panolar, `web.panel.requests.*` talep ekranları …);
+  anahtar = Türkçe metnin ASCII camelCase kısaltması. Mekanik dönüşüm git dışı
+  codemod ile (`apps/web/.tmp-i18n-codemod.ts`, TS AST: JSX metni, izinli
+  öznitelik, toast, koşullu dize, basit şablon → `t()`; bileşene
+  `useTranslations` enjekte eder; modül düzeyi sözlük / satır içi zengin metin /
+  karmaşık koşum RAPORLANIR ve elle yapılır). **Kurallar:** (1) `web.panel`
+  KÖK SAĞLAYICIYA GİTMEZ — `clientMessages()` ayıklar, `company/(authed)/
+  layout.tsx` (sunucu) `panelMessages()` ile iç içe ikinci sağlayıcı kurar;
+  herkese açık yüzeyle paylaşılan bileşen (`components/marketplace|marketing|
+  home`, herkese açık sayfalar) `web.panel` OKUYAMAZ (`client-messages.test`
+  dosya sisteminden zorunlu tutar) — paylaşılan pano parçaları
+  `web.marketplace.panelHome`. (2) Menü/rota etiketleri KATALOG ANAHTARIDIR:
+  `MODULE_LABELS`/`PORTALS`/`COMPANY_AREA`/`routeLabel`/`getCompanyBreadcrumb`
+  değerleri `web.panel.nav.*` anahtarı, çizim `useNavLabel()` (`tn(item.label)`);
+  `fromLabel` sorgu parametresi anahtar taşırsa detay sayfası çevirir.
+  (3) Sözlükler hook oldu (`i18n/domain.ts`): `useEntityLabels` (hâl ekli
+  Satın Alma Talebi sözlüğü — EN/RU'da hâl yer tutucusu cümle içinde kalır),
+  `useListingTerms`, `useFormatPaymentPlan`, `useListingStatusLabel`,
+  `useSellerStateLabel` (`deriveSellerTenderState().key`), `useRoleLabel`,
+  `useTierLabel`, `useAiFeatureLabel`, `useAuditActionLabel`, `useLcTypeLabel`,
+  `useTransportModeLabel`, `useCurrencyName` (Intl), `useRelativeTime`,
+  `useOrderStatusLabel`/`useOrderStepLabel` (sipariş listesi + detayı TEK
+  sözlük), ürün durumu `useProductStatusMeta` (`products/product-status-label.ts`);
+  eski TR sözlükler (`lib/company/labels.ts`, `lib/tenders/labels.ts`,
+  `lib/company/terms.ts`) göç bitene dek durur, yeni kod hook kullanır; ölü
+  sözlükler silindi. Modül düzeyi Türkçe yardımcı (`timeAgo`, `timeLabel`,
+  `relaxedNote`) → hook (`useRelativeTime`, `useTimeLabel`, `useRelaxedNote`).
+  (4) Zod şemaları `make…Schema(t)` fabrikası + `useMemo`. (5) EN/RU'yu Claude
+  yazar: `pnpm i18n:sync --out` listesi parçalara bölünüp paralel çevirmen
+  ajanlarına verilir, `--apply` ile uygulanır; `i18n:check` yasaklı terimi
+  (Türkçe kaynakta "ihale" dahil) yakalar. (6) Tuzaklar: JSX `&apos;` gibi
+  entity'ler decode edilmeli; `t` adı bileşende başka bağ olabilir (tema `t`,
+  `.map((t) =>`) → codemod çakışmada `tr`/`tPanel`; varsayılan parametre
+  değeri (`countNoun = "ürün"`) `t` görmez → gövdeye taşı; typed
+  `t(key)` dize anahtarla `as never`; codemod VERİ değerlerini de çevirir
+  (`<option value>`, `accept` uzantıları, DOM id'leri, sıralama değerleri) →
+  yazma turundan sonra elle geri alınır; kaydedilen `unit` Türkçe ad kalır (API
+  sözlüğü), yalnız etiket çevrilir. Partiler 1-5 (kabuk/panolar · talep
+  ekranları · teklif/sipariş/ürün/bilgi talebi · ayarlar/şirketim/onaylar/
+  raporlar/paketler · lib sözlükleri) BİTTİ.
+- **HER ÜRÜN VE TALEP ÜÇ DİLDE — İSTİSNASIZ (2026-09-25, kullanıcı: "bir ürünün
+  veya alım talebinin eklendiği diller hariç diğer dillerde karşılığı olmaması
+  mümkün değil"; SEO/GEO dahil).** Dört halka: (1) **Tetik** — ürün ONAYA
+  GÖNDERİLDİĞİ an (`publish`) çevrilir, onayda EN/RU hazırdır; talep yayında;
+  firma profil kaydında. (2) **Kapsam denetimi** `ensureCoverage` (5 dk
+  süpürücü, AI açıksa): görünür kayıt (vitrindeki/onay bekleyen ürün,
+  YAYINLANMIŞ her durumdaki talep, metni olan kayıtlı firma) çeviri satırı yoksa
+  ya da `updatedAt`i son çeviri/denetimden yeniyse kuyruğa alır — `enqueue`
+  çağırmayan yollar (admin düzenlemesi, seed/e2e betikleri, özellikten önceki
+  kayıtlar) böyle yakalanır; kaynak aynıysa satırlara "denetlendi" damgası
+  vurulur. Kalıcı FAILED 6 saat sonra yeniden denenir. Taslak çevrilmez (yalnız
+  sahibi görür, HAM okur). (3) **SEO** — çeviri DONE olunca `SeoIndexService`
+  tetiklenir (sayfalar çevrilmiş içerikle tazelenir); IndexNow her adresi ÜÇ
+  dilde bildirir (`localizedIndexNowUrls`); web tazeleme ucu `/<dil><iç yol>`
+  biçimlerini de tazeler. (4) **Çevirisi henüz gelmemiş dil sayfası `noindex`**
+  (`translationPending`: ürün `product.translationPending`, talep/firma
+  `indexable:false`) — EN adreste Türkçe içerik asla indekslenmez. Kural TEK
+  saf fonksiyonda: `readyLocales` (kaynak dil + metni olan diller; satır yoksa
+  YA DA kaynak dili henüz bilinmiyorsa Türkçe varsayılır — 2026-09-26'ya dek ilk
+  çeviri beklerken/kalıcı FAILED'de TÜRKÇE sayfa da `noindex` alıyordu). Arama
+  metni HAM SQL ile yazılır: Prisma `updateMany` `@updatedAt`i ilerletip sitemap
+  lastmod'unu ve kapsam denetimini bozardı. (5) **Sitemap her dil sürümünü AYRI
+  `<url>` verir** (2026-09-26; önceden yalnız TR `<loc>`tu, EN/RU yalnız
+  alternatif — EN `<loc>` sayısı 0 ölçüldü): `sitemap-parts.ts` `located(path,
+  extra, locales)`, her girdide tam hreflang seti + `x-default`; ürün/talep/firma
+  YALNIZ hazır dillerinde (API sitemap satırı `locales` — `readyLocalesFor`,
+  sayfanın `noindex`iyle aynı kural; eski API'de alan yoksa tüm diller). Parça
+  5.000 kayıt (API `SITEMAP_PAGE_SIZE` = web `PART_PAGE_SIZE`; × dil sayısı
+  50.000 sınırının altında). (6) **SEO denetimi üç dilde**
+  (`seo:audit`, `VERCEL_BYPASS=` ile staging): her parçadan her dil örneklenir;
+  html lang, og:locale, hreflang kendini içerir + x-default, JSON-LD
+  `inLanguage`, EN/RU başlık/açıklama/h1'de küçük harfli Türkçe-harfli sözcük
+  (sözleşme h1'i `lang="tr"` muaf) ve her hreflang adresi 200. Sözleşme:
+  `content-translation-coverage.spec`, `seo-index-locales.spec`,
+  `public-marketplace.spec` "HAZIR dillerinde", web `sitemap.test` "sitemap
+  dilleri", `seo-audit-checks.test` "diller".
+- **ÇEVİRİ KALİTESİ v2 (2026-09-25, kullanıcı: "kusursuz olmalı, sonradan
+  eklenenler de kaliteli çevrilmeli"):** 75 kayıtlık dil incelemesi (EN 7/10, RU
+  6,5/10) sonrası: (1) istem yeniden yazıldı — sayı biçimi, hedef dil birim
+  sembolleri, false-friend listesi (pano→switchboard/щит, plaza→business centre…),
+  Türkiye'ye özgü kısaltmalar (OSB, GES, AG/OG, KDV) açılır, anahtar kelime =
+  tam arama ifadesi, sözlüğe kazandırma/pazarlık/kalem; (2) **kesin son işlem**
+  (`polishTranslations`): kaynak Türkçeyken Türkçe biçimli sayı hedefte aynen
+  kalmışsa yeniden biçimlenir (en 1,200 · 0.02; ru 1 200 · 0,02), Rusçada
+  sayıdan sonraki Latin birim Kiril olur; (3) **ret + geri bildirimle yeniden
+  deneme**: içerik yasaklı terimleri (en tender; ru тендер/конкурс — UI
+  kataloğundan ayrı, orada "открытые торги" meşru), küçük harfli Türkçe-harfli
+  sözcük (çevrilmemiş), İngilizcede Kiril. "15 bin" → "15,000" kabul edilir.
+  (4) `TRANSLATION_PROMPT_VERSION` kaynak özetinin ÖNEKİDİR (`v3:<özet>`,
+  `SOURCE_HASH_PREFIX`) — istem/kural anlamlı değişince ARTIR: kapsam denetimi
+  `sourceHash NOT LIKE 'v<N>:%'` satırları da seçer ve her kaydı yeni kalitede
+  yeniden çevirir; bitene dek eski çeviri gösterilir (sayfa noindex'e düşmez).
+  **TUZAK (2026-09-26 bulundu):** sürüm önceden yalnız özetin İÇİNDEYDİ ve
+  kapsam denetimi kaydı yalnız varlığın `updatedAt`i ilerleyince seçiyordu →
+  v2'ye geçişte staging'deki 459 kaydın HİÇBİRİ yeniden çevrilmedi (taramada
+  49 kayıtta TR sayı biçimi, Latin birim, Kiril "А4", çevrilmemiş şartname).
+  v3 = parça kodu koruması. Metni boşalan kaydın eski satırları `enqueue`de
+  silinir (kuyruğun başını tıkamasın).
+  (5) Kapsama yeni alanlar: ürün `specification`; talep `terms`, `paymentNote`,
+  kalem açıklaması/şartnamesi (`details`), kalem soruları — YALNIZ doluyken
+  kaynağa girer (boş anahtar eski kayıtların özetini değiştirmesin). (6) Okuma
+  hatası düzeltildi: nitelik etiketi katalogdan okuyucunun dilinde geldiği için
+  çift Türkçe etiketle eşleşmiyor, serbest metin nitelik DEĞERLERİ EN/RU'da
+  Türkçe kalıyordu → eşleme değer üzerinden. (7) Nitelik BİRİMİ okuyucunun
+  dilinde (`attributeUnitLabel`: ay→mo./мес., kişi→people/чел.…). Gemini 3'te
+  temperature DEĞİŞTİRİLMEZ (Google önerisi 1.0). Değerlendirme yöntemi:
+  kusurlu kayıtlar yerel betikle (`--env-file`, DB'ye yazmadan) yeniden
+  çevrilip eski/yeni karşılaştırılır. Sözleşme: `content-translation.spec`
+  (kalite katmanı v2, nitelik değeri), `attribute-unit-label.spec`.
+  **İkinci tur (2026-09-26):** taze 30 gerçek kayıtta EN 8,8/10 · RU 8,0/10
+  (v1: 7 / 6,5). Yakalanan GERİLEME: Rusça birim dönüştürücüsü parça
+  kodlarını bozuyordu ("HP 26A"/"CF226A" → Kiril А). Kural: sayı bir kodun
+  parçasıysa (önünde harf/rakam) dokunulmaz, TEK harfli birim (A V W m g l t)
+  yalnız BOŞLUKTAN sonra çevrilir. **Kod koruma kapısı** (`codeTokens`/
+  `codeErrors`): kaynaktaki büyük harf+rakam kodları (M6, CF226A, 6205-2RS,
+  S420MC, DN50) her çeviride AYNEN olmalı; Latin+Kiril karışık sözcük ret.
+  İstem: kodlar Latin, Istanbul/Izmir yazımı, litre "L", ana/yan sanayi,
+  kontrakt mebel, fatura→счёт.
+- **ARAYÜZ KATALOĞU TAM İNCELEME (2026-09-26):** 6.961 anahtar × EN/RU, 8
+  paralel incelemeci → 70 EN + 226 RU düzeltme (anlam: asistan "öneriyorum"
+  kartları RU'da "yaptım" diyordu, paket bitiş bildirimi yanlış kuralı
+  anlatıyordu; yer tutucu hâl ekleri; "Unvan"=Legal name). Terim kararları:
+  RU **"ИИ"** (AI değil), bağlantı = **контакт**, resmî **"Вы"** tutarlı,
+  ters açık eksiltme = "аукцион на понижение", "закрытые торги" YOK.
+  **Sayı + sabit çoğul isim YASAK:** sayı ve isim TEK ICU çoğul mesajında
+  (`{n, plural, one {# …} few {…} many {…} other {…}}`; TR `{n, number} …`);
+  biçimlenmiş sayı DİZESİ çoğul mesaja verilmez (≥1000'de "NaN products"
+  basıyordu — SEO başlıkları/OG). `ResultCount kind=…`, `CategoryTile`
+  sayacı, aksiyon merkezi satırları bu kalıpla.
+- **ÇOK DİLLİ ARAMA (2026-09-24):** `company_items`/`listings`/`companies`
+  `searchTextI18n` (migration `20260924200000`, trigram GIN) = katlanmış KAYNAK
+  + DONE EN/RU çeviriler (ürün ad+anahtar kelime — açıklama DEĞİL, talep
+  başlık+açıklama+anahtar+kalem, firma sektör+hizmet+tanıtım). YALNIZ içerik
+  çevirisi servisi yazar: `enqueue` (yeni kaynakla hemen) + DONE anı; açılıştan
+  sonraki ilk süpürme mevcut çevirilerden yeniden kurar (model çağrısı yok;
+  elle: `POST admin/content-translations/search-text/rebuild`). Sorgular
+  `searchText` YANINDA buna da bakar: ürün dizini (`productSearchClauses` tek
+  kaynak), talep araması (`searchWhere` — ham ILIKE dalları yedek), firma dizini
+  (iki kopya), firma profili ürün araması (token artık katlanır — eskiden ham
+  token "DAĞITIM"ı bulmuyordu). `stemPrefix` İngilizce çoğul toleransı taşır
+  (pipes→pipe, boxes→box, batteries→batter; -ss/-us/-is dokunulmaz); Rusça
+  çekim YOK. Kiril katlamada й→и (iki taraf aynı). Herkese açık projeksiyonlar
+  sütunu taşımaz (sözleşme testlerinde yasaklı anahtar). Çevirisi olmayan kayıt
+  (AI kapalı/FAILED) yalnız Türkçe yoldan bulunur.
+- **FAZ 3 — API METİNLERİ (2026-09-24):** istisnalar, DTO mesajları, 429
+  metni (`throttleMessage()`), bildirim/e-posta (ALICININ dili; e-posta paketi
+  `@rothern/i18n` okur), eşleşme gerekçeleri, pano etiketleri (analitik
+  önbellek anahtarı DİL içerir), Excel şablon yardım metinleri. **Excel SÜTUN
+  BAŞLIKLARI, sayfa adları ve teslim süresi açılır değerleri TÜRKÇE KALIR** —
+  yüklenen dosya başlık metniyle ayrıştırılıyor; çeviriler başlığı tırnak içinde
+  Türkçe yazar. Ay kısaltmaları `shortMonthLabel` (Intl). Bilinçli kalanlar
+  (cırcır 117 dosya / 915): sözleşme metinleri, AI istemleri, günlük/Sentry
+  mesajları, admin modülleri, DB'ye yazılan gerekçeler, dev galerisi.
+  **i18n kapısı yer tutucu paritesini ICU ayrıştırıcısıyla ölçer** (regex
+  select dalındaki tek sözcüğü argüman sanıyordu); yasaklı terim araması
+  argüman adlarını (`{tenderTitle}`) yok sayar.
+- **PANEL DE OKUYUCUNUN DİLİNDE (Faz 1e kapanış, 2026-09-23 akşam, kullanıcı:
+  "kalemler çevrilmemiş"):** başka firmanın verisini okuyan panel uçları da
+  çeviri servisinden geçer — `company/listings/seller-tenders` (başlık +
+  `itemNames`), teklifçi `getOne` dalı (başlık/açıklama/anahtar/kalem adı),
+  `company/items/discover*` (kart adı/özet/özellik satırı + detay),
+  `company/directory/search` ve `companies/:rothernId` (tanıtım/hizmet/sektör).
+  Dil `currentLocale()`: Accept-Language ya da JWT'deki kayıtlı dil. KENDİ
+  verisi (sahip dalı, kendi profili/ürünü) HAM kalır — sahibi düzenler. Panel
+  talep detayı `AutoTranslatedNote` basar; ürün/profil sayfaları paylaşılan
+  gövdeyle zaten basıyor. **Yeni çapraz-firma okuma ucu = `localize*` çağrısı.**
+- **TALEP ADRESİ DİLDEN BAĞIMSIZ (aynı tur):** `/en/talep/<slug>` = `/talep/<slug>`
+  — slug KAYNAK başlıktan; API her talep yanıtında `slug` verir, web
+  `listingHref(l)` kullanır (`listingPath(number, title)` yalnız yedek/test).
+  Çevrilmiş başlıktan slug üretmek sitemap hreflang'ında 308 zinciri ve Kiril
+  düşünce çıplak RU slug'ı (`rot-000007`) üretiyordu — staging'de ölçüldü.
+  Ürün/firma slug'ı zaten donuk sütun. Sözleşme: `listing-page.test`,
+  `marketplace.test` "listingHref".
+
+---
+
 ## Konvansiyonlar
 - Validation: react-hook-form + zod (web), class-validator (API DTO). Hata
   mesajları Türkçe. `<Field error hint>` sarmalama.
@@ -299,7 +727,8 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 | Kategori ata zinciri / ön ek | `@rothern/shared` `category-code.ts` (`categoryPrefix`) |
 | Model kategori ipucu → kod (AI) | `modules/ai/category-hint-resolver.ts` |
 | Katalog seçimi (discovery/tam) | `@rothern/shared` `constants/category-catalog.ts` |
-| Arama katlama + tokenleme + kök | `@rothern/shared` `helpers/search-fold.ts` (`stemPrefix`) |
+| Arama katlama + tokenleme + kök (TR ek + EN çoğul) · kategori arama metni | `@rothern/shared` `helpers/search-fold.ts` (`stemPrefix`, `categorySearchText`) |
+| Çok dilli arama metni (`searchTextI18n`) | `modules/content-translation` (`buildSearchTextI18n`, `refreshSearchText`) |
 | Para/kur bazı · kalem toplamı · ödeme durumu | `common/company/{report-currency,bid-items,order-payments}.ts` |
 | Teslim SÜRESİ → tarih | `common/company/delivery-time.ts` |
 | Faz O dar-bağlam | `common/company/full-read-context.ts` |
@@ -328,6 +757,10 @@ Sözleşme: `kyc-bid-gate.spec.ts`.
 | Sitemap parçaları · XML | `lib/seo/sitemap-parts.ts` · `lib/seo/sitemap-xml.ts` (API `public-sitemap.service.ts`) |
 | Önbellek etiketleri (web ⇔ API) | `lib/seo/tags.ts` ⇔ `modules/seo-index/seo-index.service.ts` `SEO_TAGS` |
 | Arama görünürlüğü puanı (ürün/firma/talep) | `@rothern/shared` `helpers/seo-readiness.ts` |
+| Dil listesi · varsayılan · çerez adı · düşüş zinciri · `Accept-Language` müzakeresi | `@rothern/i18n` `locales.ts` (`LOCALES`, `DEFAULT_LOCALE`, `LOCALE_COOKIE`, `negotiateLocale`) |
+| Çeviri katalogları (tr kaynak) · terim sözlüğü + yasaklı sözcükler · cırcır tabanı | `packages/i18n/src/messages/<dil>/*.json` · `src/glossary.json` · `baseline/hardcoded.json` |
+| İstek dili (API) · çevirmen · anahtarlı istisna | `common/i18n/{locale-context,i18n.service,http-i18n}.ts` (`currentLocale`, `tApi`, `i18nMessage`) |
+| React dışı çeviri köprüsü (web) · dil çerezi | `src/i18n/{runtime,locale-cookie}.ts` (`tRuntime`, `effectiveClientLocale`) |
 
 ---
 
@@ -463,6 +896,33 @@ Sözlük önceliği: üretilen dosya ÖNCE, elle yazılan SONRA → insan karar�
 > değiştirir → birebir garantisini bozar). `gen-category-leaves` **SİLİNDİ**.
 
 **Kürasyon:** sonuçsuz aramalar `category_search_misses`'e → admin paneli.
+
+**Nitelik etiketleri/seçenekleri de üç dilde (Faz 4b, 2026-09-23 gece):** bkz. Çok Dillilik § Baştan aşağı tarama.
+
+**KATEGORİ ADI ÜÇ DİLDE (i18n Faz 4, 2026-09-23):** `Category.nameEn` /
+`nameRu` (migration `20260923230000`, NULL = çeviri yok → Türkçeye düşer).
+Tek kaynak `src/seeds/category-names.i18n.tsv` (`kod ⇥ EN ⇥ RU`): staging'de
+Gemini Pro TOPLU işi üretir (`POST admin/content-translations/categories/
+backfill`, 120'lik partiler, kod kümesi + Kiril/Türkçe-harf kapıları, hatalı
+parti ikiye bölünür; `GET …/categories/status`), sonra
+`pnpm --filter @rothern/db export-category-names-i18n` dosyayı depoya yazar;
+`seed-categories` ve `apply-category-names-i18n` oradan okur — CANLIDA MODEL
+ÇAĞRISI YOK. Kapsam: görünür 29 segmentin tüm satırları (19.132), gizli
+segmentler çevrilmez. **Okuma kuralı:** kategori satırı seçilirken
+`...CATEGORY_NAME_SELECT`, yanıta dönüşürken `categoryName(row)` ya da toplu
+`localizeCategoryRows(rows)` (`common/company/category-name.ts`; dil
+`currentLocale()`). Herkese açık uçlar, `categories/*` (panel seçicileri
+`nameTr` alanında YEREL adı alır — alan adı geriye dönük), Açık Talepler,
+ürün keşfi, dizin/profil bağlı. **ADRES SLUG'I HER ZAMAN TÜRKÇE ADDAN**
+(`categorySlug`): API kategori nesnelerine `slug` verir, web `categoryHref(c)`
+kullanır — `/en/urunler/kategori/<kod>-<tr-slug>`. **Kategori `searchText`
+EN/RU adları da içerir** (2026-09-24) — tek kaynak `@rothern/shared`
+`categorySearchText`; ad değiştiren her betik onu çağırır (`seed-categories`,
+`apply-category-{keywords,translations,names-i18n}`). AI toplu çevirisi
+(`category-translation.service`) searchText YAZMAZ → ardından `export` +
+`apply-category-names-i18n` koşulur. Sözleşme:
+`test/unit/category-name.spec.ts`, `category-translation.spec.ts`, web
+`marketplace.test` "categoryHref".
 
 **KATALOG SADELEŞTİRME — 29 SEGMENT GİZLİ (2026-09-19, kullanıcı kararı:
 "endüstriyel, inşaat, sanayi tarzı şeyler hariç gereksiz kategorileri
@@ -1311,9 +1771,14 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Son migration `20260914120000_listing_preferred_activities` (aranan tedarikçi
-  tipi; tümüyle additive: `CompanyActivity[]` kolonu + boş dizi varsayılanı,
-  backfill/index/tip değişimi YOK). Staging'e 2026-09-14'te uygulandı.
+- Son migration `20260924200000_search_text_i18n` (`searchTextI18n` × 3 +
+  trigram GIN; staging'e 2026-09-24'te uygulandı, CANLIDA BEKLİYOR). Öncesi
+  `20260923235000_category_attribute_names_i18n`
+  (`category_attributes.nameEn/nameRu/optionsEn/optionsRu`). Öncesi
+  `20260923230000_category_names_i18n`, `20260923180000_content_translations`,
+  `20260923120000_company_user_locale`. Dördü de eklemeli, staging'e 2026-09-23'te
+  uygulandı, **CANLIDA BEKLİYOR** (PR #57 birleştirilmeden önce, sırayla).
+  Öncesi `20260914120000_listing_preferred_activities`.
 - Şema değişikliği: `migrate` (dev) → `migrate:deploy` (prod). Manuel SQL için
   `prisma/migrations/<timestamp>_<ad>/migration.sql`. **Her yeni migration'dan
   ÖNCE `docs/migration-safety.md` kontrol listesini oku.**
@@ -1341,6 +1806,16 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   göstermez). Herkese açık statik sayfaya panel bileşeni takarken **yerelde
   üretim derlemesi al.** `<Suspense>` yedeği BOŞ KUTU OLAMAZ — sınırın içindeki
   her şey istemciye ertelenir, `<h1>` statik HTML'den düşer (SEO kaybı).
+- **YUMUŞAK 404 TUZAĞI — `loading.tsx` + `notFound()` (2026-09-24, canlıda da
+  ölçüldü):** `loading.tsx` bir Suspense sınırıdır; altındaki dinamik sayfa
+  `notFound()` atınca kabuk çoktan akmıştır → Next **200** + `<meta
+  name="robots" content="noindex">` döner (Googlebot'a da 200 = soft 404).
+  `/urunler/loading.tsx` altındaki `kategori/[slug]` ve `sehir/[il]` böyle
+  200 dönüyordu; iskelet `urunler/(dizin)/` rota grubuna taşındı (yalnız dizin
+  sayfasını sarar), alt sayfalar sınırın DIŞINDA → gerçek 404. Kural:
+  `notFound()` atabilen dinamik segmentin ÜSTÜNE `loading.tsx` koyma; iskelet
+  istiyorsan rota grubuyla yalnız o sayfayı sar. `/firma/*` ve `/talep/*`
+  zaten sınırsız (404 doğru).
 - **Rig stub gotcha (denetimde 8 kez tekrarladı):** yaygın enjekte edilen bir
   servise YENİ bağımlılık eklendiğinde elle kurulan test rig'leri kırılır —
   (a) eksik stub → `x is not a function`, (b) **constructor SIRASI kayması** →
@@ -1405,8 +1880,8 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 
 ## Test & Kalite
 
-- API **176 dosya** (parçalı koşum, 2026-09-12 yeşil) · web **124 / 704** ·
-  admin **17 / 84** — yeşil (2026-09-12).
+- API **177 dosya** (parçalı koşum, 2026-09-12 yeşil; i18n birimi 2026-09-23)
+  · web **146 / 824** (2026-09-23, Faz 1e kapanış) · admin **17 / 84** · i18n **6 / 22**.
 - **Bağımlılık kapısı (2026-09-12):** CI'da `pnpm audit --prod --audit-level high`.
   Tarama yokken üretim bağımlılıklarında 2 kritik + 20 yüksek birikmişti
   (Next 15.5.18 RCE uyarısı dahil) → Next 15.5.25 + hedefli `pnpm.overrides`
@@ -1635,7 +2110,15 @@ istemcisi sessizce kısıtlı role düşüp sağlık/giriş/cron'u bozamaz.
 - WebSocket real-time bildirim
 - Admin: impersonate (güvenlik değerlendirilecek), iade/refund, CSV export,
   dahili not, global arama
-- i18n (UI hâlâ Türkçe; next-intl greenfield, ayrı büyük iş)
+- i18n: Faz 2 (panel) + Faz 3 (API/bildirim/e-posta) + çok dilli arama
+  2026-09-24'te BİTTİ; sırada canlıya alma (5 migration + PR #57). Faz 4 kategori adları
+  2026-09-23'te BİTTİ; nitelik etiketleri/süzgeç değerleri küçük artık.
+  Faz 0 + Faz 1 (herkese açık yüzey, kimlik akışı, dil seçici) + Faz 1e
+  (içerik otomatik çevirisi) + Faz 4 (kategori adları) 2026-09-23'te BİTTİ.
+  Canlı sırası: üç migration (`20260923120000` locale, `20260923180000`
+  content_translations, `20260923230000` category_names_i18n) → PR #57 →
+  `apply-category-names-i18n` (TSV'den, model yok) → Render `AI_MODEL_PREMIUM`
+  Vertex'in tanıdığı Pro adı (yapıldı) → admin backfill (canlı boş, gerekmez).
 
 **Teknik borç**
 - **Tablo okuma tek kaynağı yarım:** `listing-item-import.service.ts` hâlâ
@@ -1690,5 +2173,8 @@ korunmazsa 400; fnResponse turundan sonra boş user turu EKLEME.
 - `--dangerously-skip-permissions` ile riskli komut çalıştırma.
 
 ## Git
-Repo `git@github.com:ugur-062/rothern.git` · branch `main`.
-Her özellikten sonra commit + push (commit'i bekletme).
+Repo `git@github.com:ugur-062/supkeys.git` — GitHub adı `ugur-062/supkeys`
+(marka rothern oldu, DEPO ADI DEĞİŞMEDİ; `gh api repos/ugur-062/rothern/…` 404 döner) ·
+branch `main`. Her özellikten sonra commit + push (commit'i bekletme).
+**`gh pr edit` ÇALIŞMIYOR** (2026-09-23: GitHub Projects classic GraphQL hatası) →
+`gh api -X PATCH repos/ugur-062/supkeys/pulls/<N> -f title=… -F body=@dosya`.

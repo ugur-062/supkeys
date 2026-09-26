@@ -1,0 +1,102 @@
+import { getTranslations, setRequestLocale } from "next-intl/server";
+import { localeFromParams, type LocaleParams } from "@/i18n/params";
+import { PublicLayout } from "@/components/marketplace/public-layout";
+import { JsonLd } from "@/components/seo/json-ld";
+import { faqGroups } from "./faq-data";
+import { breadcrumbNode, faqNode, graph } from "@/lib/seo/jsonld";
+import { buildMetadata } from "@/lib/seo/meta";
+import type { Metadata } from "next";
+import { Link } from "@/i18n/navigation";
+
+/**
+ * SIK SORULAN SORULAR (2026-09-09, Parça 4: GEO).
+ *
+ * Üretken arama motorları bir cevabı HAZIR ve KAYNAKLANABİLİR bulduğunda o
+ * sayfayı alıntılar. "Rothern'de teklifler gizli mi?" sorusunun cevabı
+ * platformun içinde dağınık duruyordu; burada tek yerde, tam cümlelerle ve
+ * `FAQPage` işaretlemesiyle duruyor.
+ *
+ * Soru-cevaplar `faq-data.ts`ten gelir — sayfa ve şema AYNI listeden beslenir.
+ */
+export const revalidate = 3600;
+
+export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
+  const locale = await localeFromParams(params);
+  const t = await getTranslations({ locale, namespace: "web.marketing.faq" });
+  return buildMetadata({
+    locale,
+    title: t("metaTitle"),
+    description: t("metaDesc"),
+    path: "/sss",
+  });
+}
+
+const LINK = "underline hover:text-zinc-900";
+
+export default async function Page({ params }: { params: LocaleParams }) {
+  const locale = await localeFromParams(params);
+  setRequestLocale(locale);
+  const t = await getTranslations("web.marketing.faq");
+  const tm = await getTranslations("web.marketing");
+  const groups = faqGroups(locale);
+  const flat = groups.flatMap((g) => g.items);
+  return (
+    <PublicLayout>
+      <JsonLd
+        data={graph([
+          faqNode(flat.map((f) => ({ q: f.q, a: f.a }))),
+          breadcrumbNode(
+            [
+              { name: tm("breadcrumbHome"), path: "/" },
+              { name: t("title"), path: "/sss" },
+            ],
+            locale,
+          ),
+        ])}
+      />
+      <div className="mx-auto max-w-3xl px-6 pt-28 pb-16">
+        <h1 className="text-2xl font-bold text-zinc-900">{t("title")}</h1>
+        <p className="mt-2 text-sm/6 text-zinc-600">
+          {t.rich("intro", {
+            how: (chunks) => (
+              <Link href="/nasil-calisir" className={LINK}>
+                {chunks}
+              </Link>
+            ),
+            pricing: (chunks) => (
+              <Link href="/nasil-calisir#fiyatlar" className={LINK}>
+                {chunks}
+              </Link>
+            ),
+          })}
+        </p>
+
+        {groups.map((group) => (
+          <section key={group.heading} className="mt-10">
+            <h2 className="text-sm font-semibold tracking-wide text-zinc-500 uppercase">
+              {group.heading}
+            </h2>
+            <dl className="mt-4 divide-y divide-zinc-950/5 border-y border-zinc-950/5">
+              {group.items.map((item) => (
+                <div key={item.q} className="py-5">
+                  <dt className="text-base font-semibold text-zinc-950">{item.q}</dt>
+                  <dd className="mt-2 text-sm/6 text-zinc-600">{item.a}</dd>
+                </div>
+              ))}
+            </dl>
+          </section>
+        ))}
+
+        <p className="mt-10 text-sm/6 text-zinc-600">
+          {t.rich("notFound", {
+            contact: (chunks) => (
+              <Link href="/iletisim" className={LINK}>
+                {chunks}
+              </Link>
+            ),
+          })}
+        </p>
+      </div>
+    </PublicLayout>
+  );
+}

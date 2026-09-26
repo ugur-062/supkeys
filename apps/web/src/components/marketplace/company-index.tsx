@@ -1,14 +1,15 @@
+import { getTranslations } from "next-intl/server";
 import { CompanyCard } from "@/components/marketplace/company-card";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { PublicSearchTabs } from "@/components/marketplace/public-search-tabs";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { fetchPublicDirectory } from "@/lib/public/marketplace-api";
 import { loginHref, signupHref } from "@/lib/public/visibility";
 import { JsonLd } from "@/components/seo/json-ld";
 import { graph, itemListNode } from "@/lib/seo/jsonld";
 import { ArrowRightIcon, LockClosedIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * FİRMA DİZİNİ — ÜYELİĞE YÖNLENDİREN VİTRİN (2026-09-22, kullanıcı kararı:
@@ -34,13 +35,17 @@ import Link from "next/link";
 export const TEASER_COUNT = 6;
 
 export async function CompanyIndex({
-  title = MARKETPLACE_LABELS.companies,
-  lead = "Rothern'deki alıcı ve tedarikçi firmalardan bir kesit. Dizinin tamamı, süzgeçler ve firmalarla iletişim ücretsiz üyelikle açılır.",
+  title,
+  lead,
 }: {
   searchParams?: SearchParamsLike;
   title?: string;
   lead?: string;
 }) {
+  const t = await getTranslations("web.marketplace.index");
+  const tl = await getTranslations("web.marketplace.labels");
+  const heading = title ?? tl("companies");
+  const intro = lead ?? t("companyLead");
   const result = await fetchPublicDirectory({ page: 1 });
   const items = result.items.filter((c) => !!c.slug).slice(0, TEASER_COUNT);
   const base = MARKETPLACE_ROUTES.companies;
@@ -48,7 +53,7 @@ export async function CompanyIndex({
   /* ITEMLIST — yalnız gösterilen kartlar; `totalItems` bilinçli YOK. */
   const listLd = graph([
     itemListNode({
-      name: MARKETPLACE_LABELS.companies,
+      name: tl("companies"),
       path: base,
       startPosition: 1,
       items: items.map((c) => ({ name: c.name, path: `/firma/${c.slug}` })),
@@ -61,8 +66,8 @@ export async function CompanyIndex({
       <div className="mx-auto max-w-7xl px-6 pt-28 pb-20 lg:px-8">
         <PublicSearchTabs active="companies" />
         <header className="mt-6 max-w-3xl">
-          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 sm:text-4xl">{title}</h1>
-          <p className="mt-3 text-base/7 text-zinc-600">{lead}</p>
+          <h1 className="text-3xl font-bold tracking-tight text-zinc-950 sm:text-4xl">{heading}</h1>
+          <p className="mt-3 text-base/7 text-zinc-600">{intro}</p>
         </header>
 
         {items.length > 0 ? (
@@ -72,7 +77,7 @@ export async function CompanyIndex({
                 key={c.slug}
                 company={c}
                 variant="wide"
-                cta={{ label: "Bilgi iste", href: signupHref("teklif", `/firma/${c.slug}`) }}
+                cta={{ label: t("inquire"), href: signupHref("teklif", `/firma/${c.slug}`) }}
               />
             ))}
           </div>
@@ -90,12 +95,9 @@ export async function CompanyIndex({
             </span>
             <div>
               <h2 id="firmalar-uyelik" className="text-lg font-semibold text-zinc-950">
-                Dizinin tamamı üyelere açık
+                {t("membersOnlyTitle")}
               </h2>
-              <p className="mt-1 max-w-xl text-sm/6 text-zinc-600">
-                Tüm firmaları görün, faaliyet tipi, şehir ve kategoriye göre süzün, doğrudan bilgi isteyin.
-                Üyelik ücretsizdir; alıcı ve tedarikçi tek hesapta.
-              </p>
+              <p className="mt-1 max-w-xl text-sm/6 text-zinc-600">{t("membersOnlyBody")}</p>
             </div>
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-3">
@@ -103,14 +105,14 @@ export async function CompanyIndex({
               href={signupHref("ikisi", "/company/satinalma/firmalar")}
               className="inline-flex items-center gap-1.5 rounded-lg bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
-              Ücretsiz üye ol
+              {t("joinFree")}
               <ArrowRightIcon aria-hidden className="size-4" />
             </Link>
             <Link
               href={loginHref("/company/satinalma/firmalar")}
               className="text-sm font-semibold text-zinc-700 hover:text-zinc-950"
             >
-              Giriş yap
+              {t("login")}
             </Link>
           </div>
         </section>

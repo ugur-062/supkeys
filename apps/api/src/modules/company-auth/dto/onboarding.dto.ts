@@ -19,6 +19,7 @@ import {
   MAX_COMPANY_MAIN_CATEGORIES,
   MAX_COMPANY_SUB_CATEGORIES,
 } from "@rothern/shared";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 export enum CompanyTypeDto {
   JOINT_STOCK = "JOINT_STOCK",
@@ -171,7 +172,7 @@ export class CompleteOnboardingDto {
   // ── Adım 3: Beyan ──
 
   @IsBoolean()
-  @Equals(true, { message: "Beyanı onaylamalısınız" })
+  @Equals(true, { message: () => tApi("api.dto.onboarding.beyaniOnaylamalisiniz") })
   declarationAccepted!: boolean;
 }
 
@@ -179,7 +180,7 @@ export class CompleteOnboardingDto {
 export class ViesCheckDto {
   @IsString()
   @Length(2, 2)
-  @Matches(/^[A-Za-z]{2}$/, { message: "Geçersiz ülke kodu" })
+  @Matches(/^[A-Za-z]{2}$/, { message: () => tApi("api.dto.onboarding.gecersizUlkeKodu") })
   countryCode!: string;
 
   @IsString()

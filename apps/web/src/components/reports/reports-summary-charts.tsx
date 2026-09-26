@@ -1,7 +1,9 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { formatNumber } from "@/i18n/format";
 import { formatMoney } from "@/components/ui/money";
-import { numberPossessive } from "@/lib/turkish";
 import { companyApi } from "@/lib/company-auth/api";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -99,6 +101,8 @@ function CategoryTick({
 
 
 export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
+  const t = useTranslations("web.panel.reports.reportsSummaryCharts");
+  const locale = useLocale() as Locale;
   const { data, isLoading, isError } = useReportsSummary(type);
   // Paket kapısı / hata: bölüm görünmez (hub kartları etkilenmez).
   if (isError) return null;
@@ -113,7 +117,6 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
   }
   if (!data) return null;
 
-  const isAlim = type === "ALIM";
   const hasVolume = data.months.some((m) => m.listings > 0 || m.bids > 0);
   const hasOrders = data.months.some((m) => m.orderTotalTry > 0);
   const winPct =
@@ -130,17 +133,13 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
       {/* B12: bölümde iki pencere var (grafikler 6 ay, oran/segment 12 ay)
           — başlık nötr; her kart kendi dönemini hint'inde söyler. */}
       <h2 className="mb-3 text-sm font-semibold text-zinc-900">
-        Performans Özeti
+        {t("performansOzeti")}
       </h2>
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         {hasVolume ? (
           <ChartCard
-            title={
-              isAlim
-                ? "Aylık Talep ve Gelen Teklif"
-                : "Aylık Açık Talep ve Verilen Teklif"
-            }
-            hint="Adet — son 6 ay"
+            title={t("aylikTalepVeGelenTeklif")}
+            hint={t("adetSon6Ay")}
           >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.months} barGap={2}>
@@ -159,13 +158,13 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
                 />
                 <Bar
                   dataKey="listings"
-                  name={isAlim ? "Satın Alma Talebi" : "Açık Talep"}
+                  name={t("satinAlmaTalebi")}
                   fill={ZINC_900}
                   radius={[3, 3, 0, 0]}
                 />
                 <Bar
                   dataKey="bids"
-                  name={isAlim ? "Gelen Teklif" : "Verilen Teklif"}
+                  name={t("gelenTeklif")}
                   fill={ZINC_400}
                   radius={[3, 3, 0, 0]}
                 />
@@ -176,12 +175,8 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
 
         {winPct !== null ? (
           <ChartCard
-            title={isAlim ? "Kazandırma Oranı" : "Kazanma Oranı"}
-            hint={
-              isAlim
-                ? `Son 12 ayda sonuçlanan ${data.winRate.total} satın alma talebinin ${data.winRate.won}${numberPossessive(data.winRate.won)} kazandırıldı`
-                : `Son 12 ayda karara bağlanan ${data.winRate.total} teklifin ${data.winRate.won}${numberPossessive(data.winRate.won)} kazandı`
-            }
+            title={t("kazandirmaOrani")}
+            hint={t("son12AydaSonuclananSatin", { total: data.winRate.total, won: data.winRate.won })}
           >
             <div className="relative h-full">
               <ResponsiveContainer width="100%" height="100%">
@@ -208,7 +203,7 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
               </ResponsiveContainer>
               <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
                 <span className=" text-3xl font-semibold tabular-nums text-zinc-900">
-                  %{winPct}
+                  {t("yuzde", { n: winPct })}
                 </span>
               </div>
             </div>
@@ -217,11 +212,11 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
 
         {hasOrders ? (
           <ChartCard
-            title={isAlim ? "Aylık Alış Hacmi" : "Aylık Satış Hacmi"}
+            title={t("aylikAlisHacmi")}
             hint={
               data.orders.avgTry != null
-                ? `Yalnız TRY siparişler — ortalama ${formatMoney(data.orders.avgTry, "TRY")}`
-                : "Yalnız TRY siparişler"
+                ? t("yalnizTrySiparislerOrtalama", { avg: formatMoney(data.orders.avgTry, "TRY") })
+                : t("yalnizTrySiparisler")
             }
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -237,15 +232,15 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
                   // "1,2 Mn") — kural: KPI/eksen kısaltır, tablo/detay tam yazar.
                   tickFormatter={(v: number) =>
                     v >= 1_000_000
-                      ? `${(v / 1_000_000).toLocaleString("tr-TR")} Mn`
+                      ? t("eksenMilyon", { n: formatNumber(v / 1_000_000, locale) })
                       : v >= 1_000
-                        ? `${(v / 1_000).toLocaleString("tr-TR")} B`
+                        ? t("eksenBin", { n: formatNumber(v / 1_000, locale) })
                         : String(v)
                   }
                 />
                 <Tooltip
                   cursor={{ fill: "rgba(0,0,0,0.04)" }}
-                  formatter={(v) => [formatMoney(Number(v ?? 0), "TRY"), "Tutar"]}
+                  formatter={(v) => [formatMoney(Number(v ?? 0), "TRY"), t("tutar")]}
                 />
                 <Bar dataKey="orderTotalTry" fill={ZINC_900} radius={[3, 3, 0, 0]} />
               </BarChart>
@@ -255,12 +250,8 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
 
         {data.categories.length > 0 ? (
           <ChartCard
-            title="Kategori Dağılımı"
-            hint={
-              isAlim
-                ? "Son 12 ayda açtığınız satın alma taleplerin segmentleri"
-                : "Son 12 ayda teklif verdiğiniz satın alma taleplerin segmentleri"
-            }
+            title={t("kategoriDagilimi")}
+            hint={t("son12AydaActiginizSatin")}
           >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={data.categories} layout="vertical" barSize={14}>
@@ -276,7 +267,7 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
                 />
                 <Tooltip
                   cursor={{ fill: "rgba(0,0,0,0.04)" }}
-                  formatter={(v) => [Number(v ?? 0), "Satın Alma Talebi"]}
+                  formatter={(v) => [Number(v ?? 0), t("satinAlmaTalebi")]}
                 />
                 <Bar dataKey="count" fill={ZINC_900} radius={[0, 3, 3, 0]} />
               </BarChart>

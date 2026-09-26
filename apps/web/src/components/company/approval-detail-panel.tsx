@@ -1,19 +1,21 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/catalyst/badge";
 import { ListSkeleton } from "@/components/list";
 import { useApprovalDetail } from "@/hooks/use-company-approvals";
 import { formatDate } from "@/lib/format-date";
 import { currencySymbol } from "@/lib/tenders/labels";
 import { BadgeCheck } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
-const STEP_LABEL: Record<string, { label: string; color: "amber" | "green" | "rose" | "zinc" }> = {
-  WAITING: { label: "Sırada", color: "zinc" },
-  PENDING: { label: "Bekliyor", color: "amber" },
-  APPROVED: { label: "Onaylandı", color: "green" },
-  REJECTED: { label: "Reddedildi", color: "rose" },
-  SKIPPED: { label: "Atlandı", color: "zinc" },
+// Adım durumu etiketi katalog anahtarı (`step.<KOD>`) — çizim yerinde `t(key)`.
+const STEP_LABEL: Record<string, { key: string; color: "amber" | "green" | "rose" | "zinc" }> = {
+  WAITING: { key: "step.WAITING", color: "zinc" },
+  PENDING: { key: "step.PENDING", color: "amber" },
+  APPROVED: { key: "step.APPROVED", color: "green" },
+  REJECTED: { key: "step.REJECTED", color: "rose" },
+  SKIPPED: { key: "step.SKIPPED", color: "zinc" },
 };
 
 function money(amount: number | null | undefined, currency: string) {
@@ -34,18 +36,19 @@ function qty(amount: number, unit: string) {
  * görüntüleme izni olana (API `canOpenListing`).
  */
 export function ApprovalDetailPanel({ id }: { id: string }) {
+  const t = useTranslations("web.panel.trade.approvalDetailPanel");
   const { data, isLoading, isError, refetch } = useApprovalDetail(id, true);
   if (isLoading) return <ListSkeleton rows={3} />;
   if (isError || !data) {
     return (
       <div className="flex flex-wrap items-center gap-3 text-sm text-zinc-600">
-        <span>Onay detayı yüklenemedi.</span>
+        <span>{t("onayDetayiYuklenemedi")}</span>
         <button
           type="button"
           onClick={() => void refetch()}
           className="font-medium text-blue-600 hover:underline"
         >
-          Tekrar dene
+          {t("tekrarDene")}
         </button>
       </div>
     );
@@ -58,7 +61,7 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
       {/* Kazanan */}
       <section aria-labelledby={`onay-kazanan-${d.id}`}>
         <h4 id={`onay-kazanan-${d.id}`} className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          {d.award.kind === "by-item" ? "Kazananlar (kalem bazlı)" : "Kazanan teklif"}
+          {d.award.kind === "by-item" ? t("kazananlarKalemBazli") : t("kazananTeklif")}
         </h4>
         {d.award.kind === "full" ? (
           d.award.winner ? (
@@ -66,20 +69,20 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
               <span className="font-medium text-zinc-950">{d.award.winner.companyName}</span>
               {d.award.winner.verified ? (
                 <Badge color="blue">
-                  <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> Doğrulanmış
+                  <BadgeCheck className="h-3.5 w-3.5" aria-hidden /> {t("dogrulanmis")}
                 </Badge>
               ) : (
-                <Badge color="zinc">Doğrulanmamış firma</Badge>
+                <Badge color="zinc">{t("dogrulanmamisFirma")}</Badge>
               )}
               <span className="tabular-nums font-semibold text-zinc-950">
                 {money(d.award.winner.amount, d.award.winner.currency)}
               </span>
               <span className="text-xs text-zinc-500">
-                {d.award.winner.itemsCovered}/{d.listing.itemCount} kalem
+                {t("kalemKapsam", { covered: d.award.winner.itemsCovered, total: d.listing.itemCount })}
               </span>
             </div>
           ) : (
-            <p className="mt-1 text-zinc-500">Kazanan teklif artık görüntülenemiyor.</p>
+            <p className="mt-1 text-zinc-500">{t("kazananTeklifArtikGoruntulenemiyor")}</p>
           )
         ) : d.award.kind === "by-item" ? (
           <div className="mt-1.5 space-y-2">
@@ -88,12 +91,12 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
                 <li key={w.bidId} className="rounded-lg border border-zinc-950/10 px-2.5 py-1.5">
                   <span className="font-medium text-zinc-950">{w.companyName}</span>{" "}
                   {w.verified ? (
-                    <Badge color="blue">Doğrulanmış</Badge>
+                    <Badge color="blue">{t("dogrulanmis")}</Badge>
                   ) : (
-                    <Badge color="zinc">Doğrulanmamış</Badge>
+                    <Badge color="zinc">{t("dogrulanmamis")}</Badge>
                   )}
                   <span className="ml-2 tabular-nums font-semibold">{money(w.total, w.currency)}</span>
-                  <span className="ml-1 text-xs text-zinc-500">· {w.lineCount} kalem</span>
+                  <span className="ml-1 text-xs text-zinc-500">· {t("nKalem", { n: w.lineCount })}</span>
                 </li>
               ))}
             </ul>
@@ -101,11 +104,11 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
               <table className="w-full text-xs">
                 <thead className="text-left text-zinc-500">
                   <tr>
-                    <th className="py-1 pr-3 font-medium">Kalem</th>
-                    <th className="py-1 pr-3 font-medium">Miktar</th>
-                    <th className="py-1 pr-3 font-medium">Firma</th>
-                    <th className="py-1 pr-3 text-right font-medium">Birim fiyat</th>
-                    <th className="py-1 text-right font-medium">Tutar</th>
+                    <th className="py-1 pr-3 font-medium">{t("kalem")}</th>
+                    <th className="py-1 pr-3 font-medium">{t("miktar")}</th>
+                    <th className="py-1 pr-3 font-medium">{t("firma")}</th>
+                    <th className="py-1 pr-3 text-right font-medium">{t("birimFiyat")}</th>
+                    <th className="py-1 text-right font-medium">{t("tutar")}</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -123,34 +126,34 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
             </div>
           </div>
         ) : (
-          <p className="mt-1 text-zinc-500">Bu istekte kazandırma verisi yok.</p>
+          <p className="mt-1 text-zinc-500">{t("buIstekteKazandirmaVerisiYok")}</p>
         )}
       </section>
 
       {/* Rekabet */}
       <section aria-labelledby={`onay-rekabet-${d.id}`}>
         <h4 id={`onay-rekabet-${d.id}`} className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Rekabet
+          {t("rekabet")}
         </h4>
         <dl className="mt-1.5 grid grid-cols-2 gap-x-4 gap-y-1 sm:grid-cols-4">
           <div>
-            <dt className="text-xs text-zinc-500">Geçerli teklif</dt>
+            <dt className="text-xs text-zinc-500">{t("gecerliTeklif")}</dt>
             <dd className="font-medium tabular-nums">{comp.validBidCount}</dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-500">En düşük toplam</dt>
+            <dt className="text-xs text-zinc-500">{t("enDusukToplam")}</dt>
             <dd className="font-medium tabular-nums">
               {comp.currency ? money(comp.lowestTotal, comp.currency) : "—"}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-500">İkinci toplam</dt>
+            <dt className="text-xs text-zinc-500">{t("ikinciToplam")}</dt>
             <dd className="font-medium tabular-nums">
               {comp.currency ? money(comp.secondLowestTotal, comp.currency) : "—"}
             </dd>
           </div>
           <div>
-            <dt className="text-xs text-zinc-500">Kazananın sırası</dt>
+            <dt className="text-xs text-zinc-500">{t("kazananinSirasi")}</dt>
             <dd className="font-medium tabular-nums">
               {comp.winnerRank ? `${comp.winnerRank}.` : "—"}
             </dd>
@@ -158,7 +161,7 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
         </dl>
         {comp.currencyMixed ? (
           <p className="mt-1 text-xs text-amber-700">
-            Teklifler farklı para birimlerinde; sıralama yalnız kazananın para birimindeki teklifleri kapsar.
+            {t("tekliflerFarkliParaBirimlerindeSiralama")}
           </p>
         ) : null}
       </section>
@@ -166,14 +169,14 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
       {/* Talep */}
       <section aria-labelledby={`onay-talep-${d.id}`}>
         <h4 id={`onay-talep-${d.id}`} className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Talep
+          {t("talep")}
         </h4>
         <p className="mt-1.5 text-zinc-700">
-          {d.listing.itemCount} kalem
+          {t("nKalem", { n: d.listing.itemCount })}
           {d.listing.totalQuantity
             ? ` · ${qty(d.listing.totalQuantity.amount, d.listing.totalQuantity.unit)}`
             : ""}
-          {d.listing.closesAt ? ` · Kapanış ${formatDate(d.listing.closesAt, "datetime")}` : ""}
+          {d.listing.closesAt ? ` ${t("kapanis", { formatDate: formatDate(d.listing.closesAt, "datetime") })}` : ""}
         </p>
         {d.listing.items.length > 0 ? (
           <ul className="mt-1 flex flex-wrap gap-1.5">
@@ -183,7 +186,7 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
               </li>
             ))}
             {d.listing.items.length > 12 ? (
-              <li className="px-1 py-0.5 text-xs text-zinc-500">+{d.listing.items.length - 12} kalem</li>
+              <li className="px-1 py-0.5 text-xs text-zinc-500">{t("plusNKalem", { n: d.listing.items.length - 12 })}</li>
             ) : null}
           </ul>
         ) : null}
@@ -192,7 +195,7 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
             href={`/company/ilan/${d.listing.id}`}
             className="mt-2 inline-block text-xs font-medium text-blue-600 hover:underline"
           >
-            Talebi aç
+            {t("talebiAc")}
           </Link>
         ) : null}
       </section>
@@ -200,7 +203,7 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
       {/* Adımlar */}
       <section aria-labelledby={`onay-adimlar-${d.id}`}>
         <h4 id={`onay-adimlar-${d.id}`} className="text-xs font-semibold uppercase tracking-wide text-zinc-500">
-          Onay adımları
+          {t("onayAdimlari")}
         </h4>
         <ol className="mt-1.5 space-y-1">
           {d.steps.map((s) => {
@@ -210,10 +213,10 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
                 <span className="tabular-nums text-zinc-400">{s.order}.</span>
                 <span className="font-medium text-zinc-950">
                   {s.approverName}
-                  {s.mine ? " (siz)" : ""}
+                  {s.mine ? t("siz") : ""}
                 </span>
                 {s.displayLabel ? <span className="text-zinc-500">{s.displayLabel}</span> : null}
-                <Badge color={st.color}>{st.label}</Badge>
+                <Badge color={st.color}>{t(st.key as never)}</Badge>
                 {s.decidedAt ? (
                   <span className="text-zinc-400">{formatDate(s.decidedAt, "datetime")}</span>
                 ) : null}

@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { BadRequestException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { Prisma, type ProductReviewStatus } from "@rothern/db";
 import { productPath } from "@rothern/shared";
@@ -5,6 +6,7 @@ import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { AuditService } from "../audit/audit.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { AdminCompaniesService } from "./admin-companies.service";
 
 /**
@@ -138,6 +140,8 @@ export class AdminProductsService {
     private readonly audit: AuditService,
     private readonly companies: AdminCompaniesService,
     @Optional() private readonly seo?: SeoIndexService,
+    /** İçerik çevirisi (i18n Faz 1e) — SONDA ve isteğe bağlı (test rig'leri). */
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
   async list(q: AdminProductListQuery): Promise<{ items: AdminProductRow[]; total: number; page: number; pageSize: number }> {
@@ -242,8 +246,8 @@ export class AdminProductsService {
   /** ONAYLA — PENDING → APPROVED + vitrine çıkar. Tek gerçek: isPublic burada true olur. */
   async approve(id: string, adminId: string) {
     const r = await this.require(id);
-    if (r.reviewStatus !== "PENDING") throw new BadRequestException("Yalnız onay bekleyen ürün onaylanabilir");
-    if (!r.slug) throw new BadRequestException("Ürünün URL parçası (slug) yok — firma yeniden göndermeli");
+    if (r.reviewStatus !== "PENDING") throw new BadRequestException(i18nMessage("api.adminCompanies.yalnizOnayBekleyenUrunOnaylanabilir"));
+    if (!r.slug) throw new BadRequestException(i18nMessage("api.adminCompanies.urununUrlParcasiSlugYokFirma"));
     const now = new Date();
     const done = await this.prisma.companyItem.updateMany({
       where: { id, reviewStatus: "PENDING" },
@@ -256,7 +260,7 @@ export class AdminProductsService {
         rejectReason: null,
       },
     });
-    if (done.count !== 1) throw new BadRequestException("Ürün durumu değişti — sayfayı yenileyin");
+    if (done.count !== 1) throw new BadRequestException(i18nMessage("api.adminCompanies.urunDurumuDegistiSayfayiYenileyin"));
     await this.audit.log({
       action: "admin.product.approved",
       actorType: "admin",
@@ -268,19 +272,21 @@ export class AdminProductsService {
       metadata: { name: r.name, wasPublic: r.isPublic },
     });
     this.seo?.productChanged(id);
+    void this.translations?.enqueue("PRODUCT", id);
     const path = r.company.slug ? productPath(r.company.slug, r.slug) : "/company/satis/urunlerim";
-    void this.companies.notifyCompany(
-      r.company.id,
-      r.isPublic ? "Ürün güncellemeniz onaylandı" : "Ürününüz yayına alındı",
-      [
-        "Merhaba,",
+    void this.companies.notifyCompany(r.company.id, {
+      type: "product_approved",
+      subjectKey: r.isPublic
+        ? "api.notifications.adminProducts.guncellemeOnaylandiBaslik"
+        : "api.notifications.adminProducts.yayinaAlindiBaslik",
+      paragraphKeys: [
         r.isPublic
-          ? `"${r.name}" ürününüzdeki değişiklik incelendi ve onaylandı; vitrindeki hâli güncel.`
-          : `"${r.name}" ürününüz incelendi ve vitrinde yayına alındı. Alıcılar artık ürün sayfanızı görebilir ve bilgi talebi gönderebilir.`,
+          ? "api.notifications.adminProducts.guncellemeOnaylandiGovde"
+          : "api.notifications.adminProducts.yayinaAlindiGovde",
       ],
-      "product_approved",
-      { label: "Ürünü gör", path },
-    );
+      params: { ad: r.name },
+      cta: { labelKey: "api.notifications.adminProducts.urunuGor", path },
+    });
     return { ok: true };
   }
 
@@ -300,10 +306,10 @@ export class AdminProductsService {
    */
   async approveMany(ids: string[], adminId: string) {
     const tekil = Array.from(new Set(ids.filter(Boolean)));
-    if (tekil.length === 0) throw new BadRequestException("Ürün seçilmedi");
+    if (tekil.length === 0) throw new BadRequestException(i18nMessage("api.adminCompanies.urunSecilmedi"));
     if (tekil.length > BULK_APPROVE_MAX) {
       throw new BadRequestException(
-        `Tek seferde en fazla ${BULK_APPROVE_MAX} ürün onaylanabilir`,
+        i18nMessage("api.adminCompanies.tekSeferdeEnFazlaUrunOnaylanabilir", { BULKAPPROVEMAX: BULK_APPROVE_MAX }),
       );
     }
     const onaylanan: { id: string; companyId: string; name: string }[] = [];
@@ -353,6 +359,7 @@ export class AdminProductsService {
         metadata: { name: r.name, wasPublic: r.isPublic, bulk: true },
       });
       this.seo?.productChanged(id);
+      void this.translations?.enqueue("PRODUCT", id);
       onaylanan.push({ id, companyId: r.company.id, name: r.name });
     }
 
@@ -364,24 +371,41 @@ export class AdminProductsService {
       byCompany.set(o.companyId, liste);
     }
     for (const [companyId, adlar] of byCompany) {
-      void this.companies.notifyCompany(
-        companyId,
-        adlar.length === 1
-          ? "Ürününüz yayına alındı"
-          : `${adlar.length} ürününüz yayına alındı`,
-        [
-          "Merhaba,",
-          adlar.length === 1
-            ? `"${adlar[0]}" ürününüz incelendi ve vitrinde yayına alındı.`
-            : `${adlar.length} ürününüz incelendi ve vitrinde yayına alındı: ${adlar
-                .slice(0, 5)
-                .map((a) => `"${a}"`)
-                .join(", ")}${adlar.length > 5 ? ` ve ${adlar.length - 5} tane daha` : ""}.`,
-          "Alıcılar artık ürün sayfalarınızı görebilir ve bilgi talebi gönderebilir.",
+      const tek = adlar.length === 1;
+      const kirpik = adlar.length > 5;
+      void this.companies.notifyCompany(companyId, {
+        type: "product_approved",
+        subjectKey: tek
+          ? "api.notifications.adminProducts.yayinaAlindiBaslik"
+          : "api.notifications.adminProducts.topluYayinaAlindiBaslik",
+        // İki paragraf → in-app satırı birleşmiş metnin anahtarını taşır.
+        bodyKey: tek
+          ? "api.notifications.adminProducts.topluTekGovde"
+          : kirpik
+            ? "api.notifications.adminProducts.topluCokGovdeKirpik"
+            : "api.notifications.adminProducts.topluCokGovde",
+        paragraphKeys: [
+          tek
+            ? "api.notifications.adminProducts.topluTekParagraf"
+            : kirpik
+              ? "api.notifications.adminProducts.topluCokParagrafKirpik"
+              : "api.notifications.adminProducts.topluCokParagraf",
+          "api.notifications.adminProducts.topluAliciNotu",
         ],
-        "product_approved",
-        { label: "Ürünlerimi gör", path: "/company/satis/urunlerim" },
-      );
+        params: {
+          ad: adlar[0] ?? "",
+          adet: adlar.length,
+          liste: adlar
+            .slice(0, 5)
+            .map((a) => `"${a}"`)
+            .join(", "),
+          kalan: Math.max(adlar.length - 5, 0),
+        },
+        cta: {
+          labelKey: "api.notifications.adminProducts.urunlerimiGor",
+          path: "/company/satis/urunlerim",
+        },
+      });
     }
     return { approved: onaylanan.length, skipped: atlanan };
   }
@@ -394,7 +418,7 @@ export class AdminProductsService {
    */
   async reject(id: string, reason: string, adminId: string) {
     const r = await this.require(id);
-    if (r.reviewStatus !== "PENDING") throw new BadRequestException("Yalnız onay bekleyen ürün reddedilebilir");
+    if (r.reviewStatus !== "PENDING") throw new BadRequestException(i18nMessage("api.adminCompanies.yalnizOnayBekleyenUrunReddedilebilir"));
     const clean = reason.trim();
     const done = await this.prisma.companyItem.updateMany({
       where: { id, reviewStatus: "PENDING" },
@@ -406,7 +430,7 @@ export class AdminProductsService {
         rejectReason: clean,
       },
     });
-    if (done.count !== 1) throw new BadRequestException("Ürün durumu değişti — sayfayı yenileyin");
+    if (done.count !== 1) throw new BadRequestException(i18nMessage("api.adminCompanies.urunDurumuDegistiSayfayiYenileyin"));
     await this.audit.log({
       action: "admin.product.rejected",
       actorType: "admin",
@@ -418,17 +442,25 @@ export class AdminProductsService {
       metadata: { name: r.name, reason: clean, wasPublic: r.isPublic },
     });
     if (r.isPublic) this.seo?.productChanged(id);
-    void this.companies.notifyCompany(
-      r.company.id,
-      "Ürününüzde düzeltme istendi",
-      [
-        "Merhaba,",
-        `"${r.name}" ürününüz incelendi ve düzeltme için size geri gönderildi.${r.isPublic ? " Ürün düzeltme tamamlanana kadar vitrinden çekildi." : ""} Gerekçe: ${clean}`,
-        "Gerekçedeki değişikliği yapıp ürünü yeniden onaya gönderebilirsiniz.",
+    void this.companies.notifyCompany(r.company.id, {
+      type: "product_rejected",
+      subjectKey: "api.notifications.adminProducts.duzeltmeIstendiBaslik",
+      // İki paragraf → in-app satırı birleşmiş metnin anahtarını taşır.
+      bodyKey: r.isPublic
+        ? "api.notifications.adminProducts.duzeltmeIstendiGovdeVitrinden"
+        : "api.notifications.adminProducts.duzeltmeIstendiGovde",
+      paragraphKeys: [
+        r.isPublic
+          ? "api.notifications.adminProducts.duzeltmeIstendiParagrafVitrinden"
+          : "api.notifications.adminProducts.duzeltmeIstendiParagraf",
+        "api.notifications.adminProducts.duzeltmeIstendiTekrarGonder",
       ],
-      "product_rejected",
-      { label: "Düzelt ve yeniden gönder", path: "/company/satis/urunlerim?sekme=rejected" },
-    );
+      params: { ad: r.name, gerekce: clean },
+      cta: {
+        labelKey: "api.notifications.adminProducts.duzeltVeGonder",
+        path: "/company/satis/urunlerim?sekme=rejected",
+      },
+    });
     return { ok: true };
   }
 
@@ -436,7 +468,7 @@ export class AdminProductsService {
 
   private async require(id: string): Promise<Row> {
     const r = await this.prisma.companyItem.findUnique({ where: { id }, select: PRODUCT_SELECT });
-    if (!r) throw new NotFoundException("Ürün bulunamadı");
+    if (!r) throw new NotFoundException(i18nMessage("api.adminCompanies.urunBulunamadi"));
     return r;
   }
 

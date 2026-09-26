@@ -1,12 +1,14 @@
 "use client";
 
-import { categoryPath } from "@/lib/public/marketplace";
+import { useTranslations } from "next-intl";
+
+import { categoryHref } from "@/lib/public/marketplace";
 import type { CategoryMenuNode } from "@/lib/public/marketplace-api";
 import { categoryVisual } from "@/lib/public/category-visual";
 import { fetchCategoryMenu } from "@/lib/public/suggest-client";
 import { cn } from "@/lib/utils";
 import { ChevronDownIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 /**
@@ -24,7 +26,9 @@ import { useCallback, useEffect, useRef, useState } from "react";
  * verir, Tab paneli gezer, panel dışına çıkınca kapanır. `aria-expanded`
  * düğmede, panel `aria-hidden` DEĞİL — kapalıyken hiç çizilmez.
  */
-export function MegaMenu({ label = "Kategoriler" }: { label?: string } = {}) {
+export function MegaMenu({ label }: { label?: string } = {}) {
+  const t = useTranslations("web.marketplace.megaMenu");
+  const buttonLabel = label ?? t("label");
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CategoryMenuNode[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -118,7 +122,7 @@ export function MegaMenu({ label = "Kategoriler" }: { label?: string } = {}) {
           open && "bg-zinc-100",
         )}
       >
-        {label}
+        {buttonLabel}
         <ChevronDownIcon aria-hidden className={cn("size-4 transition", open && "rotate-180")} />
       </button>
 
@@ -159,7 +163,7 @@ export function MegaMenu({ label = "Kategoriler" }: { label?: string } = {}) {
                 {cells.map((c) => (
                   <li key={c.id}>
                     <Link
-                      href={categoryPath(c.id, c.name)}
+                      href={categoryHref(c)}
                       onClick={() => {
                         pinned.current = false;
                         setOpen(false);
@@ -174,14 +178,14 @@ export function MegaMenu({ label = "Kategoriler" }: { label?: string } = {}) {
               </ul>
               {active ? (
                 <Link
-                  href={categoryPath(active.id, active.name)}
+                  href={categoryHref(active)}
                   onClick={() => {
                     pinned.current = false;
                     setOpen(false);
                   }}
                   className="mt-4 inline-flex items-center gap-1 border-t border-zinc-950/5 pt-3 text-sm font-semibold text-zinc-950 hover:text-zinc-600"
                 >
-                  Tüm {active.name} ürünleri →
+                  {t("allOf", { name: active.name })}
                 </Link>
               ) : null}
 
@@ -190,7 +194,7 @@ export function MegaMenu({ label = "Kategoriler" }: { label?: string } = {}) {
               {cells.length < 6 && fallback.length > 0 ? (
                 <div className="mt-5 border-t border-zinc-950/5 pt-3">
                   <p className="mb-2 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
-                    Ürünü olan dallar
+                    {t("withProducts")}
                   </p>
                   <div className="flex flex-wrap gap-1.5">
                     {fallback
@@ -199,7 +203,7 @@ export function MegaMenu({ label = "Kategoriler" }: { label?: string } = {}) {
                       .map((f) => (
                         <Link
                           key={f.id}
-                          href={categoryPath(f.id, f.name)}
+                          href={categoryHref(f)}
                           onClick={() => {
                             pinned.current = false;
                             setOpen(false);

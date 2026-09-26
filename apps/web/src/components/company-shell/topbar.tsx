@@ -1,5 +1,7 @@
 "use client";
 
+import { useNavLabel } from "@/i18n/domain";
+import { useTranslations } from "next-intl";
 import { isManagementUser, userHasPermission } from "@/lib/company/permissions";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { RothernLogo } from "@/components/brand/logo";
@@ -30,8 +32,8 @@ import {
   Cog6ToothIcon,
   BuildingOffice2Icon,
 } from "@heroicons/react/20/solid";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { usePathname } from "@/i18n/navigation";
 import { MessagesPopover } from "./messages-popover";
 import { NotificationBell } from "./notification-bell";
 
@@ -51,6 +53,8 @@ export function CompanyTopbar({
   activePortal: PortalKey;
   onOpenMobileNav: () => void;
 }) {
+  const t = useTranslations("web.panel.shell.topbar");
+  const tn = useNavLabel();
   const { company, user } = useCompanyAuth();
   const logout = useCompanyLogout();
   // Birleşik mesaj kutusu (2026-08-02): ikon, HERHANGİ bir işlem rolü
@@ -82,17 +86,17 @@ export function CompanyTopbar({
         href="#icerik"
         className="sr-only rounded-lg bg-zinc-950 px-3 py-1.5 text-sm font-semibold text-white focus:not-sr-only focus:absolute focus:left-3 focus:top-2.5 focus:z-50"
       >
-        İçeriğe geç
+        {t("icerigeGec")}
       </a>
       {/* Mobil: menü */}
       <button
         type="button"
         onClick={onOpenMobileNav}
-        aria-label="Menüyü aç"
+        aria-label={t("menuyuAc")}
         className="flex size-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900 lg:hidden"
       >
         <svg viewBox="0 0 20 20" className="size-5 fill-current" aria-hidden>
-          <path d="M2 6.75C2 6.33579 2.33579 6 2.75 6H17.25C17.6642 6 18 6.33579 18 6.75C18 7.16421 17.6642 7.5 17.25 7.5H2.75C2.33579 7.5 2 7.16421 2 6.75ZM2 13.25C2 12.8358 2.33579 12.5 2.75 12.5H17.25C17.6642 12.5 18 12.8358 18 13.25C18 13.6642 17.6642 14 17.25 14H2.75C2.33579 14 2 13.6642 2 13.25Z" />
+          <path d={t("m2675c2633579")} />
         </svg>
       </button>
 
@@ -130,7 +134,7 @@ export function CompanyTopbar({
       {showCompanyArea ? (
       <Link
         href={COMPANY_AREA_BASE}
-        aria-label={COMPANY_AREA.label}
+        aria-label={tn(COMPANY_AREA.label)}
         aria-current={inCompanyArea ? "page" : undefined}
         // Bildirim/mesaj düğmesiyle BİREBİR: çerçeve ve dolgu yok, yalnız
         // ikon + etiket; hover'da aynı hafif zemin; aktifken koyu metin.
@@ -143,7 +147,7 @@ export function CompanyTopbar({
       >
         <BuildingOffice2Icon className="size-5" aria-hidden />
         <span className="text-[10px] leading-none font-semibold" aria-hidden>
-          {COMPANY_AREA.label}
+          {tn(COMPANY_AREA.label)}
         </span>
       </Link>
       ) : null}
@@ -161,7 +165,7 @@ export function CompanyTopbar({
           <Dropdown>
             <DropdownButton
               plain
-              aria-label="Hesap menüsü"
+              aria-label={t("hesapMenusu")}
               className="!px-2"
             >
               <span className="flex items-center gap-3">
@@ -176,7 +180,7 @@ export function CompanyTopbar({
                     {user.firstName} {user.lastName}
                   </span>
                   <span className="block text-xs leading-tight text-zinc-500">
-                    {user.isOwner ? "Kurucu" : (company?.name ?? "")}
+                    {user.isOwner ? t("kurucu") : (company?.name ?? "")}
                   </span>
                 </span>
                 <ChevronDownIcon className="hidden size-4 text-zinc-400 md:block" />
@@ -203,17 +207,17 @@ export function CompanyTopbar({
               {showCompanyArea ? (
               <DropdownItem href={COMPANY_AREA_BASE} className="sm:hidden">
                 <BuildingOffice2Icon data-slot="icon" />
-                <DropdownLabel>{COMPANY_AREA.label}</DropdownLabel>
+                <DropdownLabel>{tn(COMPANY_AREA.label)}</DropdownLabel>
               </DropdownItem>
               ) : null}
               <DropdownItem href="/company/ayarlar">
                 <Cog6ToothIcon data-slot="icon" />
-                <DropdownLabel>Ayarlar</DropdownLabel>
+                <DropdownLabel>{t("ayarlar")}</DropdownLabel>
               </DropdownItem>
               <DropdownDivider />
               <DropdownItem onClick={() => logout()}>
                 <ArrowRightStartOnRectangleIcon data-slot="icon" />
-                <DropdownLabel>Çıkış Yap</DropdownLabel>
+                <DropdownLabel>{t("cikisYap")}</DropdownLabel>
               </DropdownItem>
             </DropdownMenu>
           </Dropdown>

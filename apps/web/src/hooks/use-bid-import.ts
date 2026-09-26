@@ -3,6 +3,7 @@
 import { companyApi } from "@/lib/company-auth/api";
 import type { BidImportResult } from "@rothern/shared";
 import { useMutation } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 /**
  * Teklif fiyatı içe aktarma (Faz 2, 2026-08-22). İki yol, tek önizleme sözleşmesi
@@ -10,10 +11,11 @@ import { useMutation } from "@tanstack/react-query";
  * Hiçbiri teklif YAZMAZ — "Forma uygula" itemState'i doldurur, gönderme ayrı.
  */
 
-function fileToBase64(file: File): Promise<string> {
+/** `readError`: kullanıcıya gösterilecek metin — çağıran hook çevirir. */
+function fileToBase64(file: File, readError: string): Promise<string> {
   return new Promise((resolve, reject) => {
     const reader = new FileReader();
-    reader.onerror = () => reject(new Error("Dosya okunamadı"));
+    reader.onerror = () => reject(new Error(readError));
     reader.onload = () => {
       const s = String(reader.result ?? "");
       resolve(s.includes(",") ? s.slice(s.indexOf(",") + 1) : s);
@@ -50,9 +52,10 @@ export function useDownloadBidTemplate(listingId: string) {
 }
 
 export function useParseBidTemplate(listingId: string) {
+  const t = useTranslations("web.panel.trade.bidImport");
   return useMutation({
     mutationFn: async (file: File) => {
-      const dataBase64 = await fileToBase64(file);
+      const dataBase64 = await fileToBase64(file, t("dosyaOkunamadi"));
       const { data } = await companyApi.post<BidImportResult>(
         `/company/listings/${listingId}/bid-import/parse`,
         { fileName: file.name, mimeType: file.type || "application/octet-stream", dataBase64 },
@@ -63,7 +66,8 @@ export function useParseBidTemplate(listingId: string) {
   });
 }
 
-async function uploadOne(file: File): Promise<string> {
+/** `uploadError`: kullanıcıya gösterilecek metin — çağıran hook çevirir. */
+async function uploadOne(file: File, uploadError: string): Promise<string> {
   const { data: presigned } = await companyApi.post<{ url: string; key: string }>(
     "/company/ai/uploads/url",
     { fileName: file.name, mimeType: file.type, fileSize: file.size },
@@ -73,15 +77,16 @@ async function uploadOne(file: File): Promise<string> {
     body: file,
     headers: { "Content-Type": file.type },
   });
-  if (!put.ok) throw new Error("Dosya yüklenemedi — lütfen tekrar deneyin");
+  if (!put.ok) throw new Error(uploadError);
   return presigned.key;
 }
 
 export function useAiBidPriceExtract(listingId: string) {
+  const t = useTranslations("web.panel.trade.bidImport");
   return useMutation({
     mutationFn: async (files: File[]) => {
       const fileKeys: string[] = [];
-      for (const f of files) fileKeys.push(await uploadOne(f));
+      for (const f of files) fileKeys.push(await uploadOne(f, t("dosyaYuklenemedi")));
       const { data } = await companyApi.post<BidImportResult>(
         "/company/ai/bid-price-extract",
         { listingId, fileKeys },

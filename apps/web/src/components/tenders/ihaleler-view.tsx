@@ -1,7 +1,8 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import { useListingStatusLabel, useListingTerms, useNavLabel } from "@/i18n/domain";
 import { MODULE_LABELS, PORTAL_SECONDARY_HREFS } from "@/lib/company/portals";
-import { listingTerms } from "@/lib/company/terms";
 import {
   FilterMultiSelect,
   FilterSelect,
@@ -10,7 +11,6 @@ import {
   ResultCount,
   SearchInput,
 } from "@/components/list";
-import { LISTING_STATUS_LABELS } from "@/components/tenders/status-badge";
 import { IhaleListView } from "@/components/ihale/IhaleListView";
 import { Button } from "@/components/ui/button";
 import {
@@ -18,25 +18,28 @@ import {
   type TenderListItem,
 } from "@/hooks/use-company-tenders";
 import { ArrowUpDown, BarChart3, Building2, CalendarRange, Globe, LayoutTemplate, User as UserIcon } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
 
+// Etiketler katalog anahtarı (`web.panel.requests.ihalelerView.sort.*` /
+// `.range.*`); çizim yerinde `tr(key)` ile çevrilir.
 const SORT_OPTIONS = [
-  { value: "createdAt:desc", label: "En Yeni" },
-  { value: "createdAt:asc", label: "En Eski" },
-  { value: "bidsCloseAt:asc", label: "Yakın Biten" },
-  { value: "bidsCloseAt:desc", label: "Uzak Biten" },
-];
+  { value: "createdAt:desc", key: "sort.newest" },
+  { value: "createdAt:asc", key: "sort.oldest" },
+  { value: "bidsCloseAt:asc", key: "sort.closingSoon" },
+  { value: "bidsCloseAt:desc", key: "sort.closingLate" },
+] as const;
+const DEFAULT_SORT = "createdAt:desc";
 
 type RangeKey = "7d" | "30d" | "3m" | "6m" | "12m" | "all";
-const RANGE_OPTIONS: { value: RangeKey; label: string }[] = [
-  { value: "7d", label: "Son 7 Gün" },
-  { value: "30d", label: "Son 30 Gün" },
-  { value: "3m", label: "Son 3 Ay" },
-  { value: "6m", label: "Son 6 Ay" },
-  { value: "12m", label: "Son 1 Yıl" },
-  { value: "all", label: "Tümü" },
+const RANGE_OPTIONS: { value: RangeKey; key: string }[] = [
+  { value: "7d", key: "range.d7" },
+  { value: "30d", key: "range.d30" },
+  { value: "3m", key: "range.m3" },
+  { value: "6m", key: "range.m6" },
+  { value: "12m", key: "range.m12" },
+  { value: "all", key: "range.all" },
 ];
 // C4: varsayılan "Tümü" — "Son 3 Ay" sessizce eski talepleri gizliyordu ve
 // isFiltered mantığını ters çeviriyordu (Tümü seçince "filtrelenmiş" yazıyordu).
@@ -63,22 +66,26 @@ type TabKey =
 // IN_AWARD = "Değerlendirmede" — kapanan talep doğrudan bu duruma geçer
 // (ayrı "Teklife Kapalı" ara durumu 2026-07-13'te kaldırıldı).
 // Çoklu seçim (2026-09-10): "Tümü" satırını FilterMultiSelect kendisi ekler.
-const STATUS_OPTIONS: { value: Exclude<TabKey, "all">; label: string }[] = [
-  { value: "DRAFT", label: LISTING_STATUS_LABELS.DRAFT },
-  { value: "IN_APPROVAL", label: LISTING_STATUS_LABELS.IN_APPROVAL },
-  { value: "OPEN", label: LISTING_STATUS_LABELS.OPEN },
-  { value: "IN_AWARD", label: LISTING_STATUS_LABELS.IN_AWARD },
-  { value: "IN_AWARD_APPROVAL", label: LISTING_STATUS_LABELS.IN_AWARD_APPROVAL },
-  { value: "AWARDED", label: LISTING_STATUS_LABELS.AWARDED },
-  { value: "CLOSED_NO_AWARD", label: LISTING_STATUS_LABELS.CLOSED_NO_AWARD },
-  { value: "CANCELLED", label: LISTING_STATUS_LABELS.CANCELLED },
+// Etiket katalogdan (`useListingStatusLabel`), burada yalnız sıra + değer.
+const STATUS_VALUES: Exclude<TabKey, "all">[] = [
+  "DRAFT",
+  "IN_APPROVAL",
+  "OPEN",
+  "IN_AWARD",
+  "IN_AWARD_APPROVAL",
+  "AWARDED",
+  "CLOSED_NO_AWARD",
+  "CANCELLED",
 ];
 
 const PAGE_SIZE = 20;
 
 export function IhalelerView() {
+  const tr = useTranslations("web.panel.requests.ihalelerView");
+  const tn = useNavLabel();
+  const statusLabel = useListingStatusLabel();
   // Sayaç/arama metinleri kayıt tipi sözlüğünden (tek kaynak).
-  const t = listingTerms("ALIM");
+  const t = useListingTerms("ALIM");
   const secondary = PORTAL_SECONDARY_HREFS.satinalma;
   const list = useTenders();
   const all = useMemo(() => list.data ?? [], [list.data]);
@@ -90,10 +97,10 @@ export function IhalelerView() {
   const [statuses, setStatuses] = useState<string[]>(() =>
     (urlStatus ?? "")
       .split(",")
-      .filter((v) => STATUS_OPTIONS.some((o) => o.value === v)),
+      .filter((v) => (STATUS_VALUES as string[]).includes(v)),
   );
   const [search, setSearch] = useState("");
-  const [sort, setSort] = useState("createdAt:desc");
+  const [sort, setSort] = useState<string>(DEFAULT_SORT);
   // Drill-down'la gelindiyse tarih aralığı daraltılmaz — KPI sayısıyla liste
   // sayısı tutmalı (varsayılan "Son 3 Ay" filtresi kartla çelişiyordu).
   const [range, setRange] = useState<RangeKey>(urlStatus ? "all" : DEFAULT_RANGE);
@@ -216,8 +223,8 @@ export function IhalelerView() {
   return (
     <div className="space-y-6">
       <PageHeader
-        title={MODULE_LABELS.satinalma.ihalelerim}
-        description="Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın."
+        title={tn(MODULE_LABELS.satinalma.ihalelerim)}
+        description={tr("tedarikSurecleriniziYonetinAcinDavet")}
         action={
           <div className="flex flex-wrap items-center gap-2">
             {/* Sol menü sadeleştirmesi (2026-08-22): Şablonlar + Raporlar
@@ -226,13 +233,13 @@ export function IhalelerView() {
             <Link href={secondary.sablonlar}>
               <Button variant="secondary">
                 <LayoutTemplate className="h-4 w-4" />
-                Şablonlar
+                {tr("sablonlar")}
               </Button>
             </Link>
             <Link href={secondary.raporlar}>
               <Button variant="secondary">
                 <BarChart3 className="h-4 w-4" />
-                Raporlar
+                {tr("raporlar")}
               </Button>
             </Link>
             {/* Başlıkta "Yeni …" CTA'sı YOK (v2 3b): aynı eylem sol menüdeki
@@ -244,8 +251,7 @@ export function IhalelerView() {
 
       {atCap ? (
         <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5 text-xs text-amber-800">
-          En fazla 500 {t.unit} gösteriliyor — daha fazlası varsa arama ve
-          filtrelerle daraltın.
+          {tr("enFazla500GosteriliyorDaha", { unit: t.unit })}
         </div>
       ) : null}
 
@@ -255,16 +261,16 @@ export function IhalelerView() {
           <SearchInput
             value={search}
             onChange={reset(setSearch)}
-            placeholder={`${t.searchNoun} adı veya numarası ara…`}
+            placeholder={tr("adiVeyaNumarasiAra", { searchNoun: t.searchNoun })}
             className="flex-1"
           />
           <FilterSelect
             icon={ArrowUpDown}
             value={sort}
             onChange={reset(setSort)}
-            options={SORT_OPTIONS}
-            ariaLabel="Sıralama"
-            active={sort !== "createdAt:desc"}
+            options={SORT_OPTIONS.map((o) => ({ value: o.value, label: tr(o.key) }))}
+            ariaLabel={tr("siralama")}
+            active={sort !== DEFAULT_SORT}
             className="sm:min-w-[150px]"
           />
         </div>
@@ -276,31 +282,31 @@ export function IhalelerView() {
             onChange={reset(setStatuses)}
             // C43: sayaç HER seçenekte — "(0)" yazmayan seçenek tıklanıp boş
             // sonuç veriyordu, sayı bilgisi tutarsızdı.
-            options={STATUS_OPTIONS.map((o) => ({
-              value: o.value,
-              label: `${o.label} (${stats[o.value] ?? 0})`,
+            options={STATUS_VALUES.map((v) => ({
+              value: v,
+              label: `${statusLabel(v)} (${stats[v] ?? 0})`,
             }))}
-            allLabel={`Tüm Durumlar (${facetRows.length})`}
-            ariaLabel="Durum filtresi"
+            allLabel={tr("tumDurumlar", { length: facetRows.length })}
+            ariaLabel={tr("durumFiltresi")}
           />
           <FilterSelect
             icon={Globe}
             value={scope}
             onChange={(v) => reset(setScope)(v as "all" | "open" | "limited")}
             options={[
-              { value: "all", label: "Tüm Görünürlükler" },
-              { value: "open", label: "Tüm ülkelere açık" },
-              { value: "limited", label: "Belirli ülkeler" },
+              { value: "all", label: tr("tumGorunurlukler") },
+              { value: "open", label: tr("tumUlkelereAcik") },
+              { value: "limited", label: tr("belirliUlkeler") },
             ]}
-            ariaLabel="Görünürlük filtresi"
+            ariaLabel={tr("gorunurlukFiltresi")}
             active={scope !== "all"}
           />
           <FilterSelect
             icon={CalendarRange}
             value={range}
             onChange={(v) => reset(setRange)(v as RangeKey)}
-            options={RANGE_OPTIONS}
-            ariaLabel="Tarih aralığı"
+            options={RANGE_OPTIONS.map((o) => ({ value: o.value, label: tr(o.key as never) }))}
+            ariaLabel={tr("tarihAraligi")}
             active={range !== DEFAULT_RANGE}
           />
           <FilterSelect
@@ -310,20 +316,20 @@ export function IhalelerView() {
             options={[
               {
                 value: "",
-                label: "Tüm Sorumlular",
+                label: tr("tumSorumlular"),
               },
               ...buyers.map((b) => ({
                 value: b.id,
                 label: `${b.firstName} ${b.lastName} (${b.count})`,
               })),
             ]}
-            ariaLabel="Sorumlu filtresi"
+            ariaLabel={tr("sorumluFiltresi")}
             active={!!createdById}
           />
           <ResultCount
             total={filtered.length}
             isFiltered={isFiltered}
-            unit={t.unit}
+            kind="satinAlmaTalebi"
             isLoading={list.isLoading}
             className="ml-auto"
           />
@@ -337,7 +343,7 @@ export function IhalelerView() {
         isLoading={list.isLoading}
         isError={list.isError}
         onRetry={() => list.refetch()}
-        emptyCtaLabel="Satın Alma Talebi Aç"
+        emptyCtaLabel={tr("satinAlmaTalebiAc")}
       />
 
       {totalPages > 1 ? (

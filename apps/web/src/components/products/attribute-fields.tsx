@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import type { AttributeDef } from "@/hooks/use-company-items";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
@@ -25,6 +26,7 @@ export function AttributeFields({
   values: Record<string, string | string[]>;
   onChange: (next: Record<string, string | string[]>) => void;
 }) {
+  const t = useTranslations("web.panel.trade.attributeFields");
   if (defs.length === 0) return null;
 
   const set = (key: string, value: string | string[]) => {
@@ -58,7 +60,7 @@ export function AttributeFields({
                 <span className="ml-1 font-normal text-zinc-500">({d.unit})</span>
               ) : null}
               {d.isRequired ? (
-                <span className="ml-1 text-zinc-500" title="Tamamlanma skorunu etkiler">
+                <span className="ml-1 text-zinc-500" title={t("tamamlanmaSkorunuEtkiler")}>
                   *
                 </span>
               ) : null}
@@ -71,7 +73,7 @@ export function AttributeFields({
                 onChange={(e) => set(d.key, e.target.value)}
                 className="w-full rounded-lg border border-zinc-300 bg-white px-3 py-2 text-sm text-zinc-950 outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
               >
-                <option value="">Seçiniz</option>
+                <option value="">{t("seciniz")}</option>
                 {d.options.map((o) => (
                   <option key={o} value={o}>
                     {o}

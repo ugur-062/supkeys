@@ -8,6 +8,7 @@
  * sekme grafiksiz. Ayrı dosya + `next/dynamic` ile grafik kodu ancak ilgili
  * sekme açıldığında iniyor. Sadece TAŞINDI — mantık değişmedi.
  */
+import { useTranslations } from "next-intl";
 import {
   ChartCard,
   DashboardEmptyState,
@@ -28,7 +29,7 @@ import {
 } from "recharts";
 import { formatCompactMoney, formatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /** Gelir sekmesi — trend + kazanma yığını + TL pipeline. */
 export function SatisGelirTab({
@@ -38,6 +39,7 @@ export function SatisGelirTab({
   analytics?: import("@/hooks/use-company-dashboard").SatisAnalytics;
   loading: boolean;
 }) {
+  const t = useTranslations("web.panel.shell.satisChartTabs");
   if (loading || !analytics) {
     return (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden>
@@ -55,10 +57,10 @@ export function SatisGelirTab({
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <ChartCard
-        title="Gelir Trendi"
+        title={t("gelirTrendi")}
         rangeBadge="son 12 ay"
-        subtitle="Aylık gelir (alan) + yılbaşından beri kümülatif (çizgi) — TRY satışlar"
-        ariaLabel="Aylık gelir trendi"
+        subtitle={t("aylikGelirAlanYilbasindanBeri")}
+        ariaLabel={t("aylikGelirTrendi")}
         href="/company/satis/siparisler"
         className="lg:col-span-2"
       >
@@ -72,7 +74,7 @@ export function SatisGelirTab({
                 <RTooltip
                   formatter={(v, n) => [
                     formatMoney(Number(v ?? 0), "TRY"),
-                    n === "value" ? "Aylık" : "Kümülatif",
+                    n === "value" ? t("aylik") : t("kumulatif"),
                   ]}
                 />
                 <Area type="monotone" dataKey="value" stroke="#059669" strokeWidth={1.5} fill="#059669" fillOpacity={0.12} isAnimationActive={false} />
@@ -82,19 +84,19 @@ export function SatisGelirTab({
           </div>
         ) : (
           <DashboardEmptyState
-            title="Henüz gelir verisi yok"
-            body="İlk satışın siparişe dönüştüğünde aylık gelir burada birikecek."
-            ctaLabel="Açık Taleplere Göz At"
+            title={t("henuzGelirVerisiYok")}
+            body={t("ilkSatisinSipariseDonustugundeAylik")}
+            ctaLabel={t("acikTaleplereGozAt")}
             ctaHref="/company/satis/acik-talepler"
           />
         )}
       </ChartCard>
 
       <ChartCard
-        title="Kazanma / Kaybetme Dağılımı"
+        title={t("kazanmaKaybetmeDagilimi")}
         rangeBadge="son 12 ay"
-        subtitle="Aylık karara bağlanan teklifler (kazanıldı · kaybedildi · beklemede)"
-        ariaLabel="Aylık kazanma kaybetme dağılımı"
+        subtitle={t("aylikKararaBaglananTekliflerKazanildi")}
+        ariaLabel={t("aylikKazanmaKaybetmeDagilimi")}
         href="/company/satis/tekliflerim"
       >
         {hasWinLoss ? (
@@ -107,7 +109,7 @@ export function SatisGelirTab({
                 <RTooltip
                   formatter={(v, n) => [
                     Number(v ?? 0),
-                    n === "won" ? "Kazanıldı" : n === "lost" ? "Kaybedildi" : "Beklemede",
+                    n === "won" ? t("kazanildi") : n === "lost" ? "Kaybedildi" : "Beklemede",
                   ]}
                 />
                 <RBar dataKey="won" stackId="w" fill="#059669" />
@@ -118,17 +120,17 @@ export function SatisGelirTab({
           </div>
         ) : (
           <DashboardEmptyState
-            title="Henüz karar verisi yok"
-            body="Tekliflerin karara bağlandıkça aylık kazanma/kaybetme dağılımı burada görünecek."
+            title={t("henuzKararVerisiYok")}
+            body={t("tekliflerinKararaBaglandikcaAylikKazanma")}
           />
         )}
       </ChartCard>
 
       {/* Faz 7.2: "Pipeline" → Satış Hunisi (tek dil). */}
       <ChartCard
-        title="Satış Hunisi"
-        subtitle="Davet adet; sonraki aşamalar TL (teklifsiz davetin tutarı bilinemez)"
-        ariaLabel="Satış hunisi"
+        title={t("satisHunisi")}
+        subtitle={t("davetAdetSonrakiAsamalarTl")}
+        ariaLabel={t("satisHunisi2")}
       >
         {analytics.pipeline.some((p) => p.count > 0) ? (
           <FunnelChart
@@ -147,9 +149,9 @@ export function SatisGelirTab({
           />
         ) : (
           <DashboardEmptyState
-            title="Satış hunisi boş"
-            body="Davet alıp teklif verdikçe aşamalar burada dolacak."
-            ctaLabel="Açık Taleplere Göz At"
+            title={t("satisHunisiBos")}
+            body={t("davetAlipTeklifVerdikceAsamalar")}
+            ctaLabel={t("acikTaleplereGozAt")}
             ctaHref="/company/satis/acik-talepler"
           />
         )}
@@ -166,6 +168,7 @@ export function SatisMusteriTab({
   analytics?: import("@/hooks/use-company-dashboard").SatisAnalytics;
   loading: boolean;
 }) {
+  const t = useTranslations("web.panel.shell.satisChartTabs");
   if (loading || !analytics) {
     return (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden>
@@ -179,23 +182,23 @@ export function SatisMusteriTab({
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <ChartCard
-        title="Müşteri Konsantrasyonu"
+        title={t("musteriKonsantrasyonu")}
         rangeBadge="son 12 ay"
-        subtitle="En iyi 5 müşterinin gelir payı (son 12 ay, TRY)"
-        ariaLabel="Müşteri konsantrasyonu Pareto"
+        subtitle={t("enIyi5MusterininGelir")}
+        ariaLabel={t("musteriKonsantrasyonuPareto")}
         right={
           analytics.pareto.concentrationWarning ? (
             /* Faz 7.5: uyarı aksiyonsuz kalmasın — müşteri tabanını
                genişletmenin yolu yeni ihalelere teklif vermek. */
             <span className="flex flex-col items-end gap-1">
               <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700 ring-1 ring-amber-200">
-                ⚠ Konsantrasyon riski
+                {t("konsantrasyonRiski")}
               </span>
               <Link
                 href="/company/satis/acik-talepler"
                 className="whitespace-nowrap text-xs font-semibold text-zinc-700 underline hover:text-zinc-950"
               >
-                Açık satın alma taleplerine göz at
+                {t("acikSatinAlmaTaleplerineGoz")}
               </Link>
             </span>
           ) : undefined
@@ -235,17 +238,17 @@ export function SatisMusteriTab({
           </ul>
         ) : (
           <DashboardEmptyState
-            title="Henüz müşteri geliri yok"
-            body="Satışların tamamlandıkça müşteri dağılımı burada görünecek."
+            title={t("henuzMusteriGeliriYok")}
+            body={t("satislarinTamamlandikcaMusteriDagilimiBurada")}
           />
         )}
       </ChartCard>
 
       <ChartCard
-        title="Kategori Bazlı Kazanma Oranı"
+        title={t("kategoriBazliKazanmaOrani")}
         rangeBadge="son 12 ay"
-        subtitle="Hangi kategorilerde güçlüyüz (karara bağlanan teklifler, son 12 ay)"
-        ariaLabel="Kategori bazlı kazanma oranı"
+        subtitle={t("hangiKategorilerdeGucluyuzKararaBaglanan")}
+        ariaLabel={t("kategoriBazliKazanmaOrani2")}
       >
         {analytics.categoryWinRate.length > 0 ? (
           <ul className="space-y-2.5">
@@ -258,7 +261,7 @@ export function SatisMusteriTab({
                   <span className="tabular-nums text-slate-900">
                     <strong>%{c.winPct}</strong>
                     <span className="ml-1 text-slate-400">
-                      ({c.decided} teklif)
+                      {t("teklif", { decided: c.decided })}
                     </span>
                   </span>
                 </div>
@@ -273,17 +276,17 @@ export function SatisMusteriTab({
           </ul>
         ) : (
           <DashboardEmptyState
-            title="Henüz karar verisi yok"
-            body="Tekliflerin sonuçlandıkça kategori bazlı gücün burada görünecek."
+            title={t("henuzKararVerisiYok")}
+            body={t("tekliflerinSonuclandikcaKategoriBazliGucun")}
           />
         )}
       </ChartCard>
 
       <ChartCard
-        title="Teklif Yanıt Süresi"
+        title={t("teklifYanitSuresi")}
         rangeBadge="son 12 ay"
-        subtitle="Davetten teklife geçen ortalama süre (saat, aylık)"
-        ariaLabel="Teklif yanıt süresi trendi"
+        subtitle={t("davettenTeklifeGecenOrtalamaSure")}
+        ariaLabel={t("teklifYanitSuresiTrendi")}
       >
         {analytics.responseTrend.some((p) => p.value != null) ? (
           <div className="h-48">
@@ -299,17 +302,17 @@ export function SatisMusteriTab({
           </div>
         ) : (
           <DashboardEmptyState
-            title="Henüz yanıt verisi yok"
-            body="Davetlere teklif verdikçe ortalama yanıt süren burada görünecek."
+            title={t("henuzYanitVerisiYok")}
+            body={t("davetlereTeklifVerdikceOrtalamaYanit")}
           />
         )}
       </ChartCard>
 
       <ChartCard
-        title="Kaçırılan Fırsatlar"
+        title={t("kacirilanFirsatlar")}
         rangeBadge="son 12 ay"
-        subtitle="Teklif verilmeden süresi dolan davetler (son 12 ay)"
-        ariaLabel="Kaçırılan fırsatlar"
+        subtitle={t("teklifVerilmedenSuresiDolanDavetler")}
+        ariaLabel={t("kacirilanFirsatlar2")}
         href="/company/satis/acik-talepler"
       >
         {analytics.missed.count > 0 ? (
@@ -317,18 +320,17 @@ export function SatisMusteriTab({
             <p className="text-4xl font-semibold tracking-tight tabular-nums text-rose-600">
               {analytics.missed.count}
             </p>
-            <p className="text-sm text-slate-500">davet teklifsiz kapandı</p>
+            <p className="text-sm text-slate-500">{t("davetTeklifsizKapandi", { n: analytics.missed.count })}</p>
             {/* TODO: toplam tutar bilinemez — teklif verilmedi, ihale toplam
                 değeri platformda tutulmuyor. */}
             <p className="text-xs text-slate-400">
-              Tutar hesaplanamaz — teklif verilmeden kapanan satın alma talebinin değeri
-              bilinmez.
+              {t("tutarHesaplanamazTeklifVerilmedenKapanan")}
             </p>
           </div>
         ) : (
           <DashboardEmptyState
-            title="Kaçırılan fırsat yok"
-            body="Son 12 ayda teklifsiz kapanan davetli satın alma talebiniz bulunmuyor."
+            title={t("kacirilanFirsatYok")}
+            body={t("son12AydaTeklifsizKapanan")}
           />
         )}
       </ChartCard>

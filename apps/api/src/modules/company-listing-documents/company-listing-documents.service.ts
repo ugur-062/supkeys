@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { hasValidConnection } from "../../common/company/valid-connection";
 import { countryCanSee } from "@rothern/shared";
 import { isListingVisibleToViewer, listingBidEligibility } from "../../common/company/listing-visibility";
@@ -14,7 +15,7 @@ import { PrismaService } from "../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import { CompanyBlocksService } from "../company-blocks/company-blocks.service";
 import {
-  LISTING_MANAGE_DENY_MESSAGE,
+  LISTING_MANAGE_DENY_KEY,
   listingManageDenial,
 } from "../company-listings/listing-manage-access";
 import { StorageService } from "../storage/storage.service";
@@ -75,7 +76,7 @@ export class CompanyListingDocumentsService {
     // taslak ya da açılışı gelmemiş ihalenin dosyaları id'yi bilen firmaca
     // indirilebiliyordu (mühürlü açılış avantajı).
     if (listing.status === "DRAFT") {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListingDocuments.ilanBulunamadi"));
     }
     if (listing.bidsOpenAt && listing.bidsOpenAt.getTime() > Date.now()) {
       // getOne istisnası: ilanda TEKLİFİ olan firma (önceki tur katılımcısı)
@@ -83,7 +84,7 @@ export class CompanyListingDocumentsService {
       const myBid = await this.prisma.listingBid.count({
         where: { listingId: listing.id, bidderCompanyId: user.companyId },
       });
-      if (myBid === 0) throw new NotFoundException("İlan bulunamadı");
+      if (myBid === 0) throw new NotFoundException(i18nMessage("api.companyListingDocuments.ilanBulunamadi"));
     }
 
     // Engellenen firma şartname/çizim dosyalarını göremez (getOne/placeBid ile
@@ -91,7 +92,7 @@ export class CompanyListingDocumentsService {
     // bağlantılı/premium firma dosyaları indirebiliyordu).
     const blockedIds = await this.blocks.blockedCompanyIds(listing.companyId);
     if (blockedIds.includes(user.companyId)) {
-      throw new NotFoundException("İlan bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListingDocuments.ilanBulunamadi"));
     }
 
     // Denetim 2026-08-24 Parça 7: "bağlantılı mı" sorusu ham `ACTIVE` sayımıyla
@@ -127,7 +128,7 @@ export class CompanyListingDocumentsService {
     // Görünürlük ülkesi (2026-09-21): boş = herkes; dolu = izleyen listede.
     if (allowed) allowed = countryCanSee(listing.targetCountries, user.country);
 
-    if (!allowed) throw new NotFoundException("İlan bulunamadı");
+    if (!allowed) throw new NotFoundException(i18nMessage("api.companyListingDocuments.ilanBulunamadi"));
   }
 
   private async requireOwner(
@@ -138,15 +139,15 @@ export class CompanyListingDocumentsService {
       where: { id: listingId },
       select: { id: true, companyId: true, type: true, createdById: true },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListingDocuments.ilanBulunamadi"));
     if (listing.companyId !== user.companyId) {
-      throw new ForbiddenException("Sadece ilan sahibi dosya ekleyebilir");
+      throw new ForbiddenException(i18nMessage("api.companyListingDocuments.sadeceIlanSahibiDosyaEkleyebilir"));
     }
     // Belgeler ilanın İÇERİĞİDİR → updateListing ile AYNI yönetim kapısı
     // (listingManageDenial tek kaynak): izin ∧ oluşturan; SAHİP istisnası yok.
     // Rolsüz/etiket-only üye şartname/çizim ekleyemez-silemez.
     if (listingManageDenial(user, listing)) {
-      throw new ForbiddenException(LISTING_MANAGE_DENY_MESSAGE);
+      throw new ForbiddenException(i18nMessage(LISTING_MANAGE_DENY_KEY));
     }
     return listing;
   }
@@ -163,11 +164,11 @@ export class CompanyListingDocumentsService {
       where: { id: listingId },
       select: { status: true },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListingDocuments.ilanBulunamadi"));
     if (listing.status === "DRAFT") return; // taslak her zaman düzenlenebilir
     if (listing.status !== "OPEN") {
       throw new BadRequestException(
-        "Satın Alma Talebi teklife kapalı; belgeler değiştirilemez",
+        i18nMessage("api.companyListingDocuments.satinAlmaTalebiTeklifeKapaliBelgeler"),
       );
     }
     // HERHANGİ bir teklif kaydı kilitler — updateListing ve arayüzdeki canEdit
@@ -182,7 +183,7 @@ export class CompanyListingDocumentsService {
     });
     if (bidCount > 0) {
       throw new BadRequestException(
-        "Bu satın alma talebine teklif verilmiş; belgeler değiştirilemez",
+        i18nMessage("api.companyListingDocuments.buSatinAlmaTalebineTeklifVerilmis"),
       );
     }
   }
@@ -193,7 +194,7 @@ export class CompanyListingDocumentsService {
     input: { fileName: string; mimeType: string; fileSize?: number },
   ) {
     if (!ALLOWED_MIME.includes(input.mimeType)) {
-      throw new BadRequestException("Sadece PDF, görsel veya Excel yüklenebilir");
+      throw new BadRequestException(i18nMessage("api.companyListingDocuments.sadecePdfGorselVeyaExcelYuklenebilir"));
     }
     assertSafeFileName(input.fileName);
     assertReportedSize(input.fileSize);
@@ -224,10 +225,10 @@ export class CompanyListingDocumentsService {
     // (F4). Mime de burada yeniden doğrulanır (requestUploadUrl ile aynı set).
     const prefix = `listing-docs/${listingId}/`;
     if (!input.key.startsWith(prefix) || input.key.length > 300) {
-      throw new BadRequestException("Geçersiz dosya anahtarı");
+      throw new BadRequestException(i18nMessage("api.companyListingDocuments.gecersizDosyaAnahtari"));
     }
     if (!ALLOWED_MIME.includes(input.mimeType)) {
-      throw new BadRequestException("Sadece PDF, görsel veya Excel yüklenebilir");
+      throw new BadRequestException(i18nMessage("api.companyListingDocuments.sadecePdfGorselVeyaExcelYuklenebilir"));
     }
     assertSafeFileName(input.fileName);
     await assertUploadedObjectValid(
@@ -244,7 +245,7 @@ export class CompanyListingDocumentsService {
     });
     if (existing >= MAX_DOCUMENTS_PER_LISTING) {
       throw new BadRequestException(
-        `Bir ilana en fazla ${MAX_DOCUMENTS_PER_LISTING} belge eklenebilir — önce eskilerden silin`,
+        i18nMessage("api.companyListingDocuments.birIlanaEnFazlaBelgeEklenebilir", { MAXDOCUMENTSPERLISTING: MAX_DOCUMENTS_PER_LISTING }),
       );
     }
     // Faz 3 — kalem-bazlı belge. Kalem AYNI ilana ait olmalı: aksi hâlde
@@ -254,13 +255,13 @@ export class CompanyListingDocumentsService {
       const owned = await this.prisma.listingItem.count({
         where: { id: input.itemId, listingId },
       });
-      if (owned !== 1) throw new NotFoundException("Kalem bulunamadı");
+      if (owned !== 1) throw new NotFoundException(i18nMessage("api.companyListingDocuments.kalemBulunamadi"));
       const perItem = await this.prisma.listingDocument.count({
         where: { itemId: input.itemId },
       });
       if (perItem >= MAX_DOCUMENTS_PER_ITEM) {
         throw new BadRequestException(
-          `Bir kaleme en fazla ${MAX_DOCUMENTS_PER_ITEM} belge eklenebilir`,
+          i18nMessage("api.companyListingDocuments.birKalemeEnFazlaBelgeEklenebilir", { MAXDOCUMENTSPERITEM: MAX_DOCUMENTS_PER_ITEM }),
         );
       }
       itemId = input.itemId;
@@ -316,7 +317,7 @@ export class CompanyListingDocumentsService {
         company: { select: { country: true } },
       },
     });
-    if (!listing) throw new NotFoundException("İlan bulunamadı");
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListingDocuments.ilanBulunamadi"));
     await this.assertCanView(user, listing);
     const docs = await this.prisma.listingDocument.findMany({
       where: { listingId },
@@ -348,7 +349,7 @@ export class CompanyListingDocumentsService {
       where: { id: docId },
     });
     if (!doc || doc.listingId !== listingId) {
-      throw new NotFoundException("Belge bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyListingDocuments.belgeBulunamadi"));
     }
     // Best-effort R2 silme; başarısız olursa DB satırı yine silinir ama
     // sahipsiz nesne izlenebilsin diye logla (sessiz yutma yok).

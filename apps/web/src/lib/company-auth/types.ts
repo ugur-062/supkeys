@@ -1,3 +1,4 @@
+import type { Locale } from "@rothern/i18n";
 // Birleşik sistem — Company auth tipleri (backend /company-auth ile uyumlu).
 
 export type CompanyRole =
@@ -29,6 +30,8 @@ export interface CompanyUserDto {
   twoFactorEnabled: boolean;
   notificationPrefs: Record<string, boolean> | null;
   lastLoginAt: string | null;
+  /** Arayüz dili (tr/en/ru) — @rothern/i18n LOCALES; eski anlık görüntüde olmayabilir. */
+  locale?: Locale;
 }
 
 export interface CompanyProfile {

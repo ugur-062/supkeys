@@ -35,6 +35,8 @@ export const SHOWCASE_ORDER = [
 export interface ShowcaseCategory {
   id: string;
   name: string;
+  /** Dilden bağımsız adres parçası (Türkçe ad, API) — `categoryHref`; yoksa addan üretilir. */
+  slug?: string;
   /** > 0 ise kartta rozet. */
   count: number;
   /** Fotoğraf → ürün kapağı → null (üretilmiş görsel). */
@@ -42,7 +44,7 @@ export interface ShowcaseCategory {
 }
 
 export function buildShowcase(input: {
-  segments: { id: string; name: string }[];
+  segments: { id: string; name: string; slug?: string }[];
   counts: { id: string; count: number }[];
   /** Kategori kodu (herhangi seviye) → ürün kapağı; segmenti koddan türetiriz. */
   productCovers: { categoryId: string | null; image: string | undefined }[];
@@ -53,6 +55,7 @@ export function buildShowcase(input: {
   // Gizli segmentler (katalog sadeleştirme 2026-09-19) vitrine HİÇ girmez —
   // API zaten süzüyor, burası ikinci savunma.
   const nameById = new Map(input.segments.filter((s) => !isHiddenCategory(s.id)).map((s) => [s.id, s.name]));
+  const slugById = new Map(input.segments.map((s) => [s.id, s.slug] as const));
   const countById = new Map(input.counts.map((c) => [c.id, c.count]));
   const coverBySeg = new Map<string, string>();
   for (const p of input.productCovers) {
@@ -73,6 +76,7 @@ export function buildShowcase(input: {
   return ordered.map((id) => ({
     id,
     name: nameById.get(id) as string,
+    slug: slugById.get(id) ?? undefined,
     count: countById.get(id) ?? 0,
     imageSrc: categoryPhotoSrc(id) ?? coverBySeg.get(id) ?? null,
   }));

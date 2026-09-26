@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   BadRequestException,
   Inject,
@@ -92,7 +93,7 @@ export class TenderExtractService {
     this.ai.assertAiAccess(user);
     if (!ALLOWED_UPLOAD_MIMES.includes(dto.mimeType)) {
       throw new BadRequestException(
-        "Sadece PDF veya fotoğraf (JPG/PNG/WebP/HEIC) yüklenebilir",
+        i18nMessage("api.ai.sadecePdfVeyaFotografJpgPng"),
       );
     }
     assertSafeFileName(dto.fileName);
@@ -112,15 +113,15 @@ export class TenderExtractService {
     // IDOR: anahtarlar yalnız BU firmanın ai-extract klasöründen olabilir.
     for (const key of dto.fileKeys) {
       if (!isOwnAiExtractKey(key, user.companyId)) {
-        throw new BadRequestException("Geçersiz dosya anahtarı");
+        throw new BadRequestException(i18nMessage("api.ai.gecersizDosyaAnahtari"));
       }
     }
     if (dto.fileKeys.length === 0) {
-      throw new BadRequestException("En az bir dosya seçin");
+      throw new BadRequestException(i18nMessage("api.ai.enAzBirDosyaSecin"));
     }
     if (dto.fileKeys.length > this.config.maxPages) {
       throw new BadRequestException(
-        `Belge çok uzun (en fazla ${this.config.maxPages} dosya) — ilgili bölümü seçin`,
+        i18nMessage("api.ai.belgeCokUzunEnFazlaDosyaIlgiliBolumuSecin", { maxPages: this.config.maxPages }),
       );
     }
 
@@ -204,7 +205,7 @@ export class TenderExtractService {
   ): Promise<AiTenderExtractResult> {
     this.ai.assertAiAccess(user);
     const message = (dto.message ?? "").trim();
-    if (!message) throw new BadRequestException("Mesaj boş olamaz");
+    if (!message) throw new BadRequestException(i18nMessage("api.ai.mesajBosOlamaz"));
 
     // Girdi taslak da sanitize edilir — istemciden gelen JSON'a güvenilmez.
     const incoming = sanitizeAiDraft(dto.draft, "refine");
@@ -257,7 +258,7 @@ export class TenderExtractService {
     const named = items
       .map((i) => ({ ...i, name: (i.name ?? "").trim().slice(0, 300) }))
       .filter((i) => i.name.length >= 2);
-    if (named.length === 0) throw new BadRequestException("En az bir kalem adı gerekir");
+    if (named.length === 0) throw new BadRequestException(i18nMessage("api.ai.enAzBirKalemAdiGerekir"));
     try {
       const result = await this.ai.callAi(user, {
         feature: "tender_extract",

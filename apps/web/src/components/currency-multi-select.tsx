@@ -1,5 +1,9 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { INTL_LOCALE } from "@/i18n/format";
+import { useCurrencyName } from "@/i18n/domain";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Check,
@@ -11,9 +15,7 @@ import {
 } from "lucide-react";
 import { useCurrentExchangeRates } from "@/hooks/use-exchange-rates";
 import type { Currency } from "@/lib/tenders/types";
-import { CURRENCY_NAMES, CURRENCY_SYMBOL,
-  CURRENCIES,
-} from "@/lib/tenders/labels";
+import { CURRENCY_SYMBOL, CURRENCIES } from "@/lib/tenders/labels";
 
 // Liste TEK KAYNAK: labels.ts CURRENCIES (tablodan türetilir) — Dalga B-2.
 
@@ -44,6 +46,11 @@ export function CurrencyMultiSelect({
   disabled,
   maxSelection = 8,
 }: Props) {
+  const t = useTranslations("web.panel.settings.currencyMultiSelect");
+  const locale = useLocale() as Locale;
+  const intl = INTL_LOCALE[locale] ?? "tr-TR";
+  // Para birimi adı Intl'den, dil bilir (Türk lirası / Turkish lira).
+  const currencyName = useCurrencyName();
   const ratesQuery = useCurrentExchangeRates();
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
@@ -73,25 +80,25 @@ export function CurrencyMultiSelect({
 
   useEffect(() => {
     if (!warningMsg) return;
-    const t = setTimeout(() => setWarningMsg(null), 3000);
-    return () => clearTimeout(t);
+    const timer = setTimeout(() => setWarningMsg(null), 3000);
+    return () => clearTimeout(timer);
   }, [warningMsg]);
 
   const filtered = useMemo(() => {
-    const q = search.trim().toLocaleLowerCase("tr-TR");
+    const q = search.trim().toLocaleLowerCase(intl);
     if (!q) return CURRENCIES;
     return CURRENCIES.filter(
       (c) =>
         c.toLowerCase().includes(q) ||
-        CURRENCY_NAMES[c].toLocaleLowerCase("tr-TR").includes(q),
+        currencyName(c).toLocaleLowerCase(intl).includes(q),
     );
-  }, [search]);
+  }, [search, intl, currencyName]);
 
   const formatRate = (c: Currency): string => {
     if (c === "TRY") return "1.0000";
     const rate = ratesQuery.data?.rates?.[c];
     if (rate === undefined) return "...";
-    return `₺${rate.toLocaleString("tr-TR", {
+    return `₺${rate.toLocaleString(intl, {
       minimumFractionDigits: 4,
       maximumFractionDigits: 4,
     })}`;
@@ -101,7 +108,7 @@ export function CurrencyMultiSelect({
     if (disabled) return;
     if (value.includes(c)) {
       if (value.length === 1) {
-        setWarningMsg("En az 1 para birimi seçili olmalı");
+        setWarningMsg(t("enAz1ParaBirimi"));
         return;
       }
       const next = value.filter((x) => x !== c);
@@ -113,7 +120,7 @@ export function CurrencyMultiSelect({
       return;
     }
     if (value.length >= maxSelection) {
-      setWarningMsg(`En fazla ${maxSelection} para birimi seçebilirsiniz`);
+      setWarningMsg(t("enFazlaParaBirimiSecebilirsiniz", { maxSelection: maxSelection }));
       return;
     }
     const next = [...value, c];
@@ -158,7 +165,7 @@ export function CurrencyMultiSelect({
         <div className="flex flex-1 flex-wrap items-center gap-2">
           {value.length === 0 ? (
             <span className="text-sm text-slate-500">
-              Para birimlerini seçin
+              {t("paraBirimleriniSecin")}
             </span>
           ) : (
             value.map((c) => {
@@ -171,9 +178,7 @@ export function CurrencyMultiSelect({
                       ? "border-zinc-500 bg-zinc-50 text-zinc-800"
                       : "border-slate-200 bg-white text-slate-700"
                   }`}
-                  title={`${CURRENCY_NAMES[c]} ${
-                    isPrimary ? "(Ana para birimi)" : ""
-                  }`}
+                  title={isPrimary ? t("adAnaParaBirimi", { name: currencyName(c) }) : currencyName(c)}
                 >
                   {isPrimary ? (
                     <Star className="h-3 w-3 fill-current text-amber-500" />
@@ -189,7 +194,7 @@ export function CurrencyMultiSelect({
                         toggle(c);
                       }}
                       className="ml-0.5 rounded p-0.5 hover:bg-slate-200 hover:text-rose-600"
-                      aria-label={`${c} kaldır`}
+                      aria-label={t("kaldir", { c: c })}
                     >
                       <XIcon className="h-3 w-3" />
                     </button>
@@ -226,7 +231,7 @@ export function CurrencyMultiSelect({
                 ref={searchRef}
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Para birimi ara..."
+                placeholder={t("paraBirimiAra")}
                 className="w-full rounded-lg border border-slate-200 bg-white py-2 pl-9 pr-3 text-sm focus:border-zinc-500 focus:outline-none focus:ring-1 focus:ring-zinc-500"
               />
             </div>
@@ -245,7 +250,7 @@ export function CurrencyMultiSelect({
               </div>
             ) : filtered.length === 0 ? (
               <div className="py-8 text-center text-sm text-slate-500">
-                Sonuç bulunamadı
+                {t("sonucBulunamadi")}
               </div>
             ) : (
               <ul role="listbox">
@@ -294,7 +299,7 @@ export function CurrencyMultiSelect({
                             {c}
                           </span>
                           <span className="text-sm text-slate-500">
-                            — {CURRENCY_NAMES[c]}
+                            — {currencyName(c)}
                           </span>
                         </div>
 
@@ -314,10 +319,10 @@ export function CurrencyMultiSelect({
                           }`}
                           title={
                             isPrimary
-                              ? "Ana para birimi"
-                              : "Ana para birimi yap"
+                              ? t("anaParaBirimi")
+                              : t("anaParaBirimiYap")
                           }
-                          aria-label="Ana para birimi"
+                          aria-label={t("anaParaBirimi")}
                         >
                           <Star
                             className={`h-4 w-4 ${
@@ -336,14 +341,14 @@ export function CurrencyMultiSelect({
           {/* Footer */}
           <div className="flex items-center justify-between border-t border-slate-100 bg-slate-50/60 px-3 py-2 text-xs">
             <span className="text-slate-600">
-              {value.length}/{maxSelection} seçildi · ★ ana
+              {t("secildiAna", { length: value.length, maxSelection: maxSelection })}
             </span>
             <button
               type="button"
               onClick={() => setOpen(false)}
               className="rounded-md bg-zinc-500 px-3 py-1.5 text-xs font-semibold text-white hover:bg-zinc-600"
             >
-              Tamam
+              {t("tamam")}
             </button>
           </div>
         </div>

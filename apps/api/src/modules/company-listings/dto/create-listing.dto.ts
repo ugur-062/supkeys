@@ -25,6 +25,7 @@ import {
   UNITS,
 } from "@rothern/shared";
 import { Trim } from "../../../common/decorators/trim.decorator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 /** DTO `@IsIn` için kod listesi — TEK KAYNAK UNITS. */
 const UNIT_CODES = UNITS.map((u) => u.code);
@@ -158,7 +159,9 @@ export class ListingItemDto {
    */
   @IsOptional()
   @IsString()
-  @IsIn(UNIT_CODES, { message: "Geçersiz ölçü birimi" })
+  @IsIn(UNIT_CODES, {
+    message: () => tApi("api.dto.createListing.gecersizOlcuBirimi"),
+  })
   unitCode?: string;
 
   // ── Faz 3: kalem detayları (hepsi opsiyonel) ─────────────────────────
@@ -307,7 +310,9 @@ export class LogisticsDto {
 }
 
 export class CreateListingDto {
-  @IsEnum(ListingTypeDto, { message: "Geçersiz ilan tipi" })
+  @IsEnum(ListingTypeDto, {
+    message: () => tApi("api.dto.createListing.gecersizIlanTipi"),
+  })
   type!: ListingTypeDto;
 
   // true → taslak olarak kaydet (yayınlama); false/undefined → yayınla.
@@ -337,16 +342,24 @@ export class CreateListingDto {
   billingAddressId?: string;
 
   @IsOptional()
-  @IsEnum(ListingFormatDto, { message: "Geçersiz format" })
+  @IsEnum(ListingFormatDto, {
+    message: () => tApi("api.dto.createListing.gecersizFormat"),
+  })
   format?: ListingFormatDto;
 
   @IsOptional()
-  @IsEnum(ListingVisibilityDto, { message: "Geçersiz görünürlük" })
+  @IsEnum(ListingVisibilityDto, {
+    message: () => tApi("api.dto.createListing.gecersizGorunurluk"),
+  })
   visibility?: ListingVisibilityDto;
 
   @IsString()
-  @MinLength(3, { message: "Başlık en az 3 karakter olmalı" })
-  @MaxLength(200, { message: "Başlık en fazla 200 karakter" })
+  @MinLength(3, {
+    message: () => tApi("api.dto.createListing.baslikEnAz3KarakterOlmali"),
+  })
+  @MaxLength(200, {
+    message: () => tApi("api.dto.createListing.baslikEnFazla200Karakter"),
+  })
   title!: string;
 
   @IsOptional()
@@ -355,11 +368,17 @@ export class CreateListingDto {
   description?: string;
 
   @IsOptional()
-  @IsISO8601({}, { message: "Geçersiz tarih" })
+  @IsISO8601(
+    {},
+    { message: () => tApi("api.dto.createListing.gecersizTarih") },
+  )
   closesAt?: string;
 
   @IsOptional()
-  @IsISO8601({}, { message: "Geçersiz tarih" })
+  @IsISO8601(
+    {},
+    { message: () => tApi("api.dto.createListing.gecersizTarih") },
+  )
   bidsOpenAt?: string;
 
   // ── Kalemler / davet / kategori ──

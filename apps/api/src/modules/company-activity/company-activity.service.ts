@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { ForbiddenException, Injectable } from "@nestjs/common";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -22,7 +23,7 @@ export class CompanyActivityService {
   ) {
     if (!hasCompanyPermission(user, ACTIVITY_LOG_PERMISSIONS)) {
       throw new ForbiddenException(
-        "Aktivite logunu yalnızca yönetim yetkisi taşıyanlar görüntüleyebilir",
+        i18nMessage("api.companyActivity.aktiviteLogunuYalnizcaYonetimYetkisiTasiyanlar"),
       );
     }
     return this.audit.queryForTenant(user.companyId, query);

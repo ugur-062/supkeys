@@ -1,5 +1,7 @@
 "use client";
 
+import { useNavLabel } from "@/i18n/domain";
+import { useTranslations } from "next-intl";
 import {
   BuildingStorefrontIcon,
   ArrowsRightLeftIcon,
@@ -8,7 +10,7 @@ import {
   LockClosedIcon,
   ShoppingCartIcon,
 } from "@heroicons/react/24/outline";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useEffect, useRef, useState } from "react";
 import { cn } from "@/lib/utils";
 import { usePortalStore } from "@/lib/company/portal-store";
@@ -27,8 +29,8 @@ const IKON_RENGI: Record<PortalKey, string> = {
 
 /** Panelde ne yapıldığını TEK cümleyle anlatır — panel açıklaması burada. */
 const NE_YAPAR: Record<PortalKey, string> = {
-  satinalma: "Talep açar, teklif toplar, kazandırırsınız.",
-  satis: "Açık talepleri görür, teklif verir, ürünlerinizi yayınlarsınız.",
+  satinalma: "neYaparSatinalma",
+  satis: "neYaparSatis",
 };
 
 /**
@@ -69,6 +71,8 @@ export function PortalSwitch({
   available: readonly PortalKey[];
   onNavigate?: () => void;
 }) {
+  const t = useTranslations("web.panel.shell.portalSwitch");
+  const tn = useNavLabel();
   const [open, setOpen] = useState(false);
   const setLastPortal = usePortalStore((s) => s.setLastPortal);
   const kutu = useRef<HTMLDivElement>(null);
@@ -102,7 +106,7 @@ export function PortalSwitch({
         type="button"
         aria-haspopup="dialog"
         aria-expanded={open}
-        aria-label={`Panel değiştir — şu an ${aktifDef.label}`}
+        aria-label={t("panelDegistirSuAn", { label: tn(aktifDef.label) })}
         onClick={() => setOpen((v) => !v)}
         className={cn(
           "inline-flex h-12 flex-col items-center justify-center gap-0.5 rounded-lg px-2.5 text-zinc-900 transition hover:bg-zinc-950/5 focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500",
@@ -134,7 +138,7 @@ export function PortalSwitch({
           className="flex items-center gap-0.5 text-[10px] leading-none font-semibold whitespace-nowrap"
           aria-hidden
         >
-          {aktifDef.label}
+          {tn(aktifDef.label)}
           <ChevronUpDownIcon className="size-3 text-zinc-500" />
         </span>
       </button>
@@ -142,11 +146,11 @@ export function PortalSwitch({
       {open ? (
         <div
           role="dialog"
-          aria-label="Panel değiştir"
+          aria-label={t("panelDegistir")}
           className="absolute top-full right-0 z-50 mt-1 w-72 overflow-hidden rounded-xl border border-zinc-950/10 bg-white shadow-lg"
         >
           <p className="border-b border-zinc-950/5 px-3 py-2 text-xs font-semibold uppercase tracking-wide text-zinc-500">
-            Panel değiştir
+            {t("panelDegistir")}
           </p>
           <ul>
             {sirali.map((p) => {
@@ -184,24 +188,24 @@ export function PortalSwitch({
                     <span className="min-w-0 flex-1">
                       <span className="flex items-center gap-1.5">
                         <span className="text-sm font-semibold text-zinc-900">
-                          {def.label}
+                          {tn(def.label)}
                         </span>
                         {!acik ? (
                           <LockClosedIcon
                             className="size-3.5 text-zinc-400"
-                            aria-label="Paketle açılır"
+                            aria-label={t("paketleAcilir")}
                           />
                         ) : null}
                         {aktif ? (
                           <CheckIcon
                             className="size-4 text-zinc-500"
-                            aria-label="Şu an buradasınız"
+                            aria-label={t("suAnBuradasiniz")}
                           />
                         ) : null}
                       </span>
                       <span className="mt-0.5 block text-xs text-zinc-600">
-                        {NE_YAPAR[p]}
-                        {!acik ? " Gold paketiyle açılır." : ""}
+                        {t(NE_YAPAR[p] as never)}
+                        {!acik ? t("goldPaketiyleAcilir") : ""}
                       </span>
                     </span>
                   </Link>

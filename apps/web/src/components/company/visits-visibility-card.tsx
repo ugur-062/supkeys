@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCompanyProfile, useUpdateCompanyProfile } from "@/hooks/use-company-profile";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
@@ -14,6 +15,7 @@ import { toast } from "sonner";
  * (Profilim'deki "Kaydet" çubuğuna bağlı değil).
  */
 export function VisitsVisibilityCard({ className }: { className?: string }) {
+  const t = useTranslations("web.panel.trade.visitsVisibilityCard");
   const profile = useCompanyProfile();
   const update = useUpdateCompanyProfile();
   const on = profile.data?.visitsVisible ?? true;
@@ -22,9 +24,9 @@ export function VisitsVisibilityCard({ className }: { className?: string }) {
   const toggle = async () => {
     try {
       await update.mutateAsync({ visitsVisible: !on });
-      toast.success(!on ? "Ziyaretleriniz artık adınızla görünür" : "Ziyaretleriniz artık yalnız sayı olarak görünür");
+      toast.success(!on ? t("ziyaretlerinizArtikAdinizlaGorunur") : t("ziyaretlerinizArtikYalnizSayiOlarak"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Ayar kaydedilemedi"));
+      toast.error(extractErrorMessage(err, t("ayarKaydedilemedi")));
     }
   };
 
@@ -34,16 +36,16 @@ export function VisitsVisibilityCard({ className }: { className?: string }) {
         <EyeIcon className="size-5" />
       </span>
       <div className="min-w-0 flex-1">
-        <p className="text-sm font-semibold text-zinc-950">Ziyaretlerim karşı tarafa görünsün</p>
+        <p className="text-sm font-semibold text-zinc-950">{t("ziyaretlerimKarsiTarafaGorunsun")}</p>
         <p className="text-xs/5 text-zinc-500">
-          İncelediğiniz firmalar, kendi Ziyaret Edenler listesinde firmanızı adıyla görür. Kapatırsanız ziyaretiniz yalnız sayı olarak kalır.
+          {t("incelediginizFirmalarKendiZiyaretEdenler")}
         </p>
       </div>
       <button
         type="button"
         role="switch"
         aria-checked={on}
-        aria-label="Ziyaretlerim karşı tarafa görünsün"
+        aria-label={t("ziyaretlerimKarsiTarafaGorunsun")}
         disabled={busy}
         onClick={() => void toggle()}
         className={cn(

@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import { useNavLabel } from "@/i18n/domain";
+import { formatNumber } from "@/i18n/format";
 import { FilterShellCore, ResultCount, useFilters } from "@/components/marketplace/filter-shell";
 import { CompanyActiveChips, CompanyFilters, CompanySortBar } from "@/components/marketplace/company-filters";
 import { CompanyCard } from "@/components/marketplace/company-card";
@@ -22,7 +25,7 @@ import {
   panelProductPath,
 } from "@/lib/company/panel-market";
 import type { PortalKey } from "@/lib/company/portals";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { MarketHeader, MarketTabs } from "./market-band";
 import { MarketEmpty, MarketGridSkeleton, MarketListLayout } from "./market-list-layout";
@@ -43,11 +46,14 @@ function productsHref(state: CompanyFilterState): string {
   return `${PANEL_MARKET.products}${qs ? `?${qs}` : ""}`;
 }
 
-/** Bağlantı durumu rozeti — pazar listesinde de görünür (panelin yapısal avantajı). */
-const STATUS_BADGE: Record<string, { label: string; className: string } | undefined> = {
-  active: { label: "Bağlısınız", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
-  pending: { label: "İstek gönderildi", className: "bg-amber-50 text-amber-700 ring-amber-200" },
-  incoming: { label: "İstek geldi", className: "bg-blue-50 text-blue-700 ring-blue-200" },
+/**
+ * Bağlantı durumu rozeti — pazar listesinde de görünür (panelin yapısal avantajı).
+ * `label` katalog anahtarıdır (`web.panel.market.panelCompanyIndex.*`), çizim yerinde çevrilir.
+ */
+const STATUS_BADGE: Record<string, { label: "baglisiniz" | "istekGonderildi" | "istekGeldi"; className: string } | undefined> = {
+  active: { label: "baglisiniz", className: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
+  pending: { label: "istekGonderildi", className: "bg-amber-50 text-amber-700 ring-amber-200" },
+  incoming: { label: "istekGeldi", className: "bg-blue-50 text-blue-700 ring-blue-200" },
 };
 
 /**
@@ -85,9 +91,10 @@ export function PanelCompanyIndex({ portal = "satinalma" }: { portal?: PortalKey
 }
 
 function PanelCompanyFilters({ idPrefix }: { idPrefix: string }) {
+  const t = useTranslations("web.panel.market.panelCompanyIndex");
   const { state } = useFilters<CompanyFilterState>();
   const facets = useCompanySearchFacets(toPanelDirectoryParams(state));
-  if (!facets.data) return <p className="text-sm text-zinc-500">Süzgeçler yükleniyor…</p>;
+  if (!facets.data) return <p className="text-sm text-zinc-500">{t("suzgeclerYukleniyor")}</p>;
   return <CompanyFilters facets={facets.data} idPrefix={idPrefix} showConnection />;
 }
 
@@ -100,6 +107,9 @@ function Inner({
   result: ReturnType<typeof useCompanySearch>;
   portal: PortalKey;
 }) {
+  const t = useTranslations("web.panel.market.panelCompanyIndex");
+  const tn = useNavLabel();
+  const locale = useLocale();
   const { update } = useFilters<CompanyFilterState>();
   const facets = useCompanySearchFacets(toPanelDirectoryParams(state));
   const data = result.data;
@@ -126,12 +136,12 @@ function Inner({
         accent={isSatis ? "default" : "blue"}
         breadcrumb={
           isSatis
-            ? [{ label: "Satış", href: SELLER_MARKET.home }, { label: "Firmalar" }]
-            : [{ label: "Satınalma", href: PANEL_MARKET.home }, { label: "Firmalar" }]
+            ? [{ label: tn("portal.satis"), href: SELLER_MARKET.home }, { label: tn("common.companies") }]
+            : [{ label: tn("portal.satinalma"), href: PANEL_MARKET.home }, { label: tn("common.companies") }]
         }
-        title="Firmalar"
-        lead={isSatis ? "Alıcı olabilecek firmaları bulun; bağlantı isteği ve mesaj firma sayfasında." : undefined}
-        count={data ? `${total.toLocaleString("tr-TR")} firma` : undefined}
+        title={tn("common.companies")}
+        lead={isSatis ? t("aliciOlabilecekFirmalariBulunBaglanti") : undefined}
+        count={data ? t("firma", { n: formatNumber(total, locale) }) : undefined}
         tabs={
           isSatis ? undefined : (
             <MarketTabs
@@ -149,7 +159,7 @@ function Inner({
 
       <MarketListLayout
         rail={<PanelCompanyFilters idPrefix="d" />}
-        toolbarStart={<ResultCount noun="firma" loading={result.isLoading} />}
+        toolbarStart={<ResultCount kind="company" noun={t("firmaNoun")} loading={result.isLoading} />}
         toolbarEnd={<CompanySortBar />}
         page={state.page}
         total={total}
@@ -159,7 +169,7 @@ function Inner({
         {result.isLoading ? (
           <MarketGridSkeleton count={6} variant="company" />
         ) : !data || data.items.length === 0 ? (
-          <MarketEmpty title="Bu kriterlerle firma yok." />
+          <MarketEmpty title={t("buKriterlerleFirmaYok")} />
         ) : (
           /* YATAY LİSTE (2026-09-08, kullanıcı kararı: "kare kare değil,
              yatay birer birer"): firma dizini bir DEĞERLENDİRME ekranı —
@@ -200,6 +210,7 @@ export function PanelCompanyCard({
   query?: string;
   portal: PortalKey;
 }) {
+  const t = useTranslations("web.panel.market.panelCompanyIndex");
   const badge = STATUS_BADGE[company.connectionStatus];
   // "Aramanıza uyan" ürün şeridi ürün detayına (satınalma pazarı) bağlanır;
   // satışta o rota yok ve satıcı ürün DEĞİL alıcı arıyor → şerit çizilmez.
@@ -213,11 +224,11 @@ export function PanelCompanyCard({
       href={panelCompanyPath(company.rothernId ?? company.slug)}
       /* Birincil eylem firmanın PANEL sayfası: bağlantı isteği ve mesaj
          orada yaşıyor — kartta ayrı bir "iletişim" akışı yok. */
-      cta={{ label: "İletişime geçin", href: panelCompanyPath(company.rothernId ?? company.slug) }}
+      cta={{ label: t("iletisimeGecin"), href: panelCompanyPath(company.rothernId ?? company.slug) }}
       badge={
         badge ? (
           <span className={`inline-flex items-center rounded-md px-2 py-0.5 text-[11px] font-semibold ring-1 ${badge.className}`}>
-            {badge.label}
+            {t(badge.label)}
           </span>
         ) : undefined
       }
@@ -225,7 +236,7 @@ export function PanelCompanyCard({
         query && matched.length > 0 ? (
           <>
             <p className="text-[11px] font-semibold uppercase tracking-[0.08em] text-zinc-500">
-              Aramanıza uyan
+              {t("aramanizaUyan")}
             </p>
             <ul className="mt-1.5 space-y-1">
               {matched.slice(0, 3).map((p) => (
@@ -240,7 +251,7 @@ export function PanelCompanyCard({
                     className="line-clamp-1 text-sm text-zinc-700 underline-offset-2 hover:text-zinc-950 hover:underline"
                   >
                     {p.name}
-                    <span className="sr-only"> (yeni sekmede açılır)</span>
+                    <span className="sr-only"> {t("yeniSekmedeAcilir")}</span>
                   </Link>
                 </li>
               ))}

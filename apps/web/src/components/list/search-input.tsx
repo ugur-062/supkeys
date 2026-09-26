@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Input, InputGroup } from "@/components/catalyst/input";
 import { cn } from "@/lib/utils";
 import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
@@ -21,10 +22,11 @@ interface Props {
 export function SearchInput({
   value,
   onChange,
-  placeholder = "Ara...",
+  placeholder,
   className,
   debounceMs = 300,
 }: Props) {
+  const t = useTranslations("web.panel.shell.searchInput");
   const [local, setLocal] = useState(value);
 
   useEffect(() => {
@@ -54,7 +56,7 @@ export function SearchInput({
           type="text"
           value={local}
           onChange={(e) => handleChange(e.target.value)}
-          placeholder={placeholder}
+          placeholder={placeholder ?? t("ara")}
           className={local ? "[&_input]:pr-9" : undefined}
         />
       </InputGroup>
@@ -63,7 +65,7 @@ export function SearchInput({
           type="button"
           onClick={handleClear}
           className="absolute right-2 top-1/2 z-10 -translate-y-1/2 rounded-md p-1 text-zinc-400 transition-colors hover:bg-zinc-100 hover:text-zinc-600"
-          aria-label="Aramayı temizle"
+          aria-label={t("aramayiTemizle")}
         >
           <X className="h-3.5 w-3.5" />
         </button>

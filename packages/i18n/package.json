@@ -1,0 +1,62 @@
+{
+  "name": "@rothern/i18n",
+  "version": "0.0.1",
+  "private": true,
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "scripts": {
+    "build": "tsc && node scripts/bundle-translator.mjs",
+    "dev": "tsc -w",
+    "typecheck": "tsc --noEmit",
+    "clean": "rm -rf dist tsconfig.tsbuildinfo",
+    "test": "vitest run",
+    "check": "tsx scripts/check.ts",
+    "ratchet:update": "tsx scripts/check.ts --update-baseline",
+    "sync": "tsx scripts/sync.ts"
+  },
+  "dependencies": {
+    "use-intl": "4.14.6",
+    "react": "^19.0.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.2",
+    "@types/react": "^19.2.14",
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.2",
+    "vitest": "^4.1.9",
+    "esbuild": "0.27.7"
+  },
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    },
+    "./messages": {
+      "types": "./dist/messages.d.ts",
+      "default": "./dist/messages.js"
+    },
+    "./translator": {
+      "types": "./dist/translator.d.ts",
+      "default": "./dist/translator.js"
+    },
+    "./glossary": {
+      "types": "./dist/glossary.d.ts",
+      "default": "./dist/glossary.js"
+    },
+    "./catalog/*": "./src/messages/*",
+    "./package.json": "./package.json"
+  },
+  "typesVersions": {
+    "*": {
+      "messages": [
+        "dist/messages.d.ts"
+      ],
+      "translator": [
+        "dist/translator.d.ts"
+      ],
+      "glossary": [
+        "dist/glossary.d.ts"
+      ]
+    }
+  }
+}

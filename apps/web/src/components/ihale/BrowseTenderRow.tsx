@@ -1,22 +1,21 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { formatDate } from "@/lib/format-date";
-import { listingTerms } from "@/lib/company/terms";
+import { useActivityLabel, useListingTerms, useSellerStateLabel } from "@/i18n/domain";
 import type { SellerTenderRow } from "@/hooks/use-seller-tenders";
 import {
   closingUrgency,
   daysUntil,
   deriveSellerTenderState,
 } from "@/lib/tenders/seller-state";
-import { companyActivityLabel } from "@rothern/shared";
 import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
 import { Building2, Lock } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ListingCard, ROW_FOCUS, type ListingCardData } from "@/components/marketplace/listing-card";
-import { expiredNote } from "@/lib/tenders/seller-state";
 import { IhaleItemsPanel } from "./IhaleItemsPanel";
-import { DaysLeftChip, InfoChip } from "./IhaleListRow";
+import { DaysLeftChip, InfoChip, useExpiredNote } from "./IhaleListRow";
 
 /**
  * Başkalarının talepleri için yoğun SATIR görünümü (Açık Talepler) —
@@ -31,22 +30,6 @@ import { DaysLeftChip, InfoChip } from "./IhaleListRow";
 const shortDate = (iso: string | null) => formatDate(iso, "short");
 const fullDate = (iso: string | null) => formatDate(iso, "datetime");
 
-
-/** Benim teklifim → kısa etiket (sağ uç metrik). */
-function myBidLabel(t: SellerTenderRow): string | null {
-  if (!t.myBidStatus) return null;
-  const base =
-    t.myBidStatus === "SUBMITTED"
-      ? "Verildi"
-      : t.myBidStatus === "WON" || t.myBidStatus === "AWARDED_PARTIAL"
-        ? "Kazandınız"
-        : t.myBidStatus === "LOST"
-          ? "Kaybedildi"
-          : t.myBidStatus === "DRAFT"
-            ? "Taslak"
-            : t.myBidStatus;
-  return t.myBidVersion && t.myBidVersion > 1 ? `${base} · v${t.myBidVersion}` : base;
-}
 
 /**
  * BAŞKASININ talebi — `ListingCard` row ADAPTÖRÜ (Açık Talepler / pano
@@ -63,12 +46,16 @@ export function BrowseTenderRow({
   /** Pano özet widget'ı — tek satır (firma · kapanış · eylem), panel yok. */
   compact?: boolean;
 }) {
+  const tr = useTranslations("web.panel.requests.browsetenderrow");
+  const sellerStateLabel = useSellerStateLabel();
+  const activityLabel = useActivityLabel();
+  const expiredNote = useExpiredNote();
   const state = deriveSellerTenderState(t.status, t.myBidStatus, t.invited);
   const urgency = closingUrgency(t.status, t.closesAt);
 
   // Açık talepler artık satış ANASAYFASINDA (2026-09-05) — geri bağlantı oraya.
   const fromHref = "/company/satis#acik-talepler";
-  const fromLabel = listingTerms("ACIK_TALEP").title;
+  const fromLabel = useListingTerms("ACIK_TALEP").title;
   const detailHref = `/company/ilan/${t.id}?from=${encodeURIComponent(fromHref)}&fromLabel=${encodeURIComponent(fromLabel)}`;
 
   const strip =
@@ -80,12 +67,27 @@ export function BrowseTenderRow({
           ? "border-l-amber-500"
           : "border-l-emerald-500";
 
-  const my = myBidLabel(t);
-  const ownerLabel = t.owner ? t.owner.name : "Gizli firma";
+  // Benim teklifim → kısa etiket (sağ uç metrik); sürüm eki "· v2".
+  const myBase = !t.myBidStatus
+    ? null
+    : t.myBidStatus === "SUBMITTED"
+      ? tr("verildi")
+      : t.myBidStatus === "WON" || t.myBidStatus === "AWARDED_PARTIAL"
+        ? tr("kazandiniz")
+        : t.myBidStatus === "LOST"
+          ? tr("kaybedildi")
+          : t.myBidStatus === "DRAFT"
+            ? tr("taslak")
+            : t.myBidStatus;
+  const my =
+    myBase && t.myBidVersion && t.myBidVersion > 1
+      ? tr("teklifSurumu", { label: myBase, version: t.myBidVersion })
+      : myBase;
+  const hiddenOwner = !t.owner;
   const stop = (e: React.SyntheticEvent) => e.stopPropagation();
 
   const firma = {
-    label: "Firma",
+    label: tr("firma"),
     value: t.owner ? (
       <span className="flex min-w-0 items-center gap-1.5">
         <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-emerald-50">
@@ -100,13 +102,13 @@ export function BrowseTenderRow({
         <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-amber-50">
           <Lock className="h-3 w-3 text-amber-500" aria-hidden />
         </span>
-        <span className="truncate italic text-slate-500">Gizli firma</span>
-        <InfoChip tone="amber">Premium</InfoChip>
+        <span className="truncate italic text-slate-500">{tr("gizliFirma")}</span>
+        <InfoChip tone="amber">{tr("premium")}</InfoChip>
       </span>
     ),
   };
   const kapanis = {
-    label: "Kapanış",
+    label: tr("kapanis"),
     value: (
       <span title={fullDate(t.closesAt)}>
         <span
@@ -124,11 +126,11 @@ export function BrowseTenderRow({
     ),
   };
   const kalem = {
-    label: "Kalem",
+    label: tr("kalem"),
     value: (
       <span className="flex items-baseline gap-1">
         <span className="font-semibold tabular-nums text-slate-900">{t.itemCount}</span>
-        <span className="text-[11px] text-slate-400">kalem</span>
+        <span className="text-[11px] text-slate-400">{tr("kalemLower")}</span>
         <span className="ml-1 inline-flex rounded border border-slate-200 bg-white px-1 py-px tabular-nums text-[10px] font-semibold text-slate-500">
           {t.currency}
         </span>
@@ -136,20 +138,20 @@ export function BrowseTenderRow({
     ),
   };
   const kapsam = {
-    label: "Görünürlük",
+    label: tr("gorunurluk"),
     value: (
       <span className="flex flex-col items-start gap-1">
         <ScopeChip targetCountries={t.targetCountries} />
         {t.format === "ENGLISH_AUCTION" ? (
-          <InfoChip tone="violet">Pazarlık</InfoChip>
+          <InfoChip tone="violet">{tr("pazarlik")}</InfoChip>
         ) : (
-          <span className="text-[11px] leading-tight text-slate-400">Teklif Toplama</span>
+          <span className="text-[11px] leading-tight text-slate-400">{tr("teklifToplama")}</span>
         )}
       </span>
     ),
   };
   const kategori = {
-    label: "Kategori",
+    label: tr("kategori"),
     value:
       t.categories.length > 0 ? (
         <span title={t.categories.map((c) => c.name).join(", ")}>
@@ -163,7 +165,7 @@ export function BrowseTenderRow({
           </span>
           {t.categories.length + t.extraCategoryCount > 1 ? (
             <span className="block text-[11px] leading-tight text-slate-400">
-              +{t.categories.length + t.extraCategoryCount - 1} kategori
+              {tr("artiNKategori", { n: t.categories.length + t.extraCategoryCount - 1 })}
             </span>
           ) : null}
         </span>
@@ -176,9 +178,9 @@ export function BrowseTenderRow({
   // hücresi yerine eylem). Kompakt kartta her durumda bir eylem var.
   const canBidNow = !my && t.canBid && t.status === "OPEN";
   const action = canBidNow
-    ? { label: "Teklif ver", href: detailHref }
+    ? { label: tr("teklifVer"), href: detailHref }
     : compact
-      ? { label: my ? "Teklifim" : "İncele", href: detailHref }
+      ? { label: my ? tr("teklifim") : tr("incele"), href: detailHref }
       : null;
 
   const data: ListingCardData = {
@@ -189,7 +191,7 @@ export function BrowseTenderRow({
     kind: "talep",
     coverImageUrl: t.coverImageUrl,
     categoryIds: t.categories.map((c) => c.code),
-    status: { label: state.label, className: state.className },
+    status: { label: sellerStateLabel(state.key), className: state.className },
     strip,
     timeNote: expiredNote(t.status, t.closesAt),
     // Küçük belge ikonu KALKTI (2026-09-19 v3 kartı başlıkta kendi ikon karosunu taşır).
@@ -197,25 +199,25 @@ export function BrowseTenderRow({
     // cevabı — yalnız kategori kolonunda kalınca mobilde hiç görünmüyordu.
     chips: (
       <>
-        {t.invited ? <InfoChip tone="amber">Size özel davet</InfoChip> : null}
-        {!t.invited && t.connected ? <InfoChip tone="violet">Bağlantılı</InfoChip> : null}
+        {t.invited ? <InfoChip tone="amber">{tr("sizeOzelDavet")}</InfoChip> : null}
+        {!t.invited && t.connected ? <InfoChip tone="violet">{tr("baglantili")}</InfoChip> : null}
         {/* Sarmalayıcı inline-flex: satır içi span çipe fazladan satır
             yüksekliği veriyordu → yan yana çiplerin boyu eşit değildi
             (2026-09-19, kullanıcı). */}
         {t.productMatch ? (
-          <span className="inline-flex" title={t.matchedProduct ? `Kataloğunuzdaki ürün: ${t.matchedProduct}` : undefined}>
-            <InfoChip tone="emerald">Ürününüzle eşleşti</InfoChip>
+          <span className="inline-flex" title={t.matchedProduct ? tr("katalogunuzdakiUrun", { matchedProduct: t.matchedProduct }) : undefined}>
+            <InfoChip tone="emerald">{tr("urununuzleEslesti")}</InfoChip>
           </span>
         ) : null}
-        {t.categoryMatch ? <InfoChip tone="blue">Profilinizle eşleşti</InfoChip> : null}
+        {t.categoryMatch ? <InfoChip tone="blue">{tr("profilinizleEslesti")}</InfoChip> : null}
         {/* Sıralamada öne geldiyse SEBEBİ görünmeli; tercih uymuyorsa da talep
             listede kalır (eleme yok) — o yüzden rozet yalnız UYAN'a basılır. */}
         {t.activityMatch ? (
           <span
             className="inline-flex"
-            title={(t.preferredActivities ?? []).map(companyActivityLabel).join(" · ")}
+            title={(t.preferredActivities ?? []).map((code) => activityLabel(code)).join(" · ")}
           >
-            <InfoChip tone="slate">Aranan tedarikçi tipi</InfoChip>
+            <InfoChip tone="slate">{tr("arananTedarikciTipi")}</InfoChip>
           </span>
         ) : null}
       </>
@@ -223,7 +225,7 @@ export function BrowseTenderRow({
     facts: compact ? [firma, kapanis] : [firma, kalem, kapsam, kapanis, kategori],
     metric: my
       ? {
-          label: "Teklifim",
+          label: tr("teklifim"),
           value: (
             <Link
               href={detailHref}
@@ -245,27 +247,27 @@ export function BrowseTenderRow({
               <div className="flex flex-wrap items-center gap-1.5 text-[11px]">
                 {t.invited ? (
                   <span className="rounded border border-amber-200 bg-amber-50 px-1.5 py-0.5 font-semibold text-amber-700">
-                    Davetlisiniz
+                    {tr("davetlisiniz")}
                   </span>
                 ) : null}
                 {!t.invited && t.connected ? (
                   <span className="rounded border border-violet-200 bg-violet-50 px-1.5 py-0.5 font-semibold text-violet-700">
-                    Bağlantılı
+                    {tr("baglantili")}
                   </span>
                 ) : null}
                 {t.visibility === "PUBLIC" ? (
                   <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700">
-                    Herkese Açık
+                    {tr("herkeseAcik")}
                   </span>
                 ) : null}
                 {t.productMatch ? (
                   <span className="rounded border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 font-semibold text-emerald-700">
-                    {t.matchedProduct ? `Ürününüz: ${t.matchedProduct}` : "Ürününüzle eşleşti"}
+                    {t.matchedProduct ? tr("urununuz", { matchedProduct: t.matchedProduct }) : tr("urununuzleEslesti")}
                   </span>
                 ) : null}
                 {t.categoryMatch ? (
                   <span className="rounded border border-blue-200 bg-blue-50 px-1.5 py-0.5 font-semibold text-blue-700">
-                    Profilinizle eşleşti
+                    {tr("profilinizleEslesti")}
                   </span>
                 ) : null}
                 {/* "NEDEN GÖSTERİLDİ" — ilgi motorunun kara kutu olmaması için
@@ -274,7 +276,7 @@ export function BrowseTenderRow({
                 {t.matchReason ? (
                   <span
                     className="rounded border border-slate-200 bg-slate-50 px-1.5 py-0.5 text-slate-600"
-                    title="Bu talep geçmiş etkinliğinize göre önceliklendirildi"
+                    title={tr("buTalepGecmisEtkinliginizeGore")}
                   >
                     {t.matchReason}
                   </span>
@@ -294,10 +296,10 @@ export function BrowseTenderRow({
               <dl className="mt-2 grid grid-cols-2 gap-x-6 gap-y-1.5 sm:grid-cols-4">
                 {(
                   [
-                    ["Kapanış", fullDate(t.closesAt) || "—"],
-                    ["Kalem", String(t.itemCount)],
-                    ["Para birimi", t.currency],
-                    ["Usul", t.format === "ENGLISH_AUCTION" ? "Pazarlık" : "Teklif Toplama"],
+                    [tr("kapanis"), fullDate(t.closesAt) || "—"],
+                    [tr("kalem"), String(t.itemCount)],
+                    [tr("paraBirimi"), t.currency],
+                    [tr("usul"), t.format === "ENGLISH_AUCTION" ? tr("pazarlik") : tr("teklifToplama")],
                   ] as const
                 ).map(([k, v]) => (
                   <div key={k}>
@@ -319,7 +321,7 @@ export function BrowseTenderRow({
                   ROW_FOCUS,
                 )}
               >
-                {ownerLabel === "Gizli firma" ? "Detaya git →" : "Kalemler ve tüm detay →"}
+                {hiddenOwner ? tr("detayaGit") : tr("kalemlerVeTumDetay")}
               </Link>
             </>
           ),

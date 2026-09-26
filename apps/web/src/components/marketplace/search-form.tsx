@@ -1,3 +1,4 @@
+import { useTranslations } from "next-intl";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import { AccentButton } from "@/components/ui/accent-fill";
 
@@ -16,7 +17,7 @@ import { AccentButton } from "@/components/ui/accent-fill";
 export function SearchForm({
   action,
   defaultValue,
-  placeholder = "Ne arıyorsunuz? (ürün, hizmet, malzeme)",
+  placeholder,
   hidden,
   hiddenList,
   size = "md",
@@ -35,6 +36,7 @@ export function SearchForm({
   /** `lg` = hero (daha yüksek ve gölgeli). */
   size?: "md" | "lg";
 }) {
+  const t = useTranslations("web.marketplace.search");
   const lg = size === "lg";
   return (
     <form action={action} method="get" role="search" className="w-full">
@@ -60,8 +62,8 @@ export function SearchForm({
             type="search"
             name="q"
             defaultValue={defaultValue}
-            placeholder={placeholder}
-            aria-label="Pazar yerinde ara"
+            placeholder={placeholder ?? t("placeholder")}
+            aria-label={t("ariaLabel")}
             className={`w-full rounded-full bg-transparent pr-4 pl-11 text-base text-zinc-950 outline-none placeholder:text-zinc-400 ${
               lg ? "h-14" : "h-12"
             }`}
@@ -73,7 +75,7 @@ export function SearchForm({
             lg ? "h-14 px-7 text-sm" : "h-12 px-6 text-sm"
           }`}
         >
-          Ara
+          {t("submit")}
         </AccentButton>
       </div>
     </form>

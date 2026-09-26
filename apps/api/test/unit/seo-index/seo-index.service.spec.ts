@@ -95,10 +95,17 @@ describe("SeoIndexService", () => {
        olmalı. Kök olduğu için bu her zaman sağlanır. */
     const kapsam = inBody.keyLocation.slice(0, inBody.keyLocation.lastIndexOf("/") + 1);
     for (const u of inBody.urlList) expect(u.startsWith(kapsam)).toBe(true);
+    // Her adres ÜÇ dilde (i18n SEO 2026-09-25, `localizedIndexNowUrls`).
     expect(inBody.urlList).toEqual([
       "https://www.rothern.com/firma/acme-metal/urun/celik-boru",
+      "https://www.rothern.com/en/companies/acme-metal/products/celik-boru",
+      "https://www.rothern.com/ru/kompanii/acme-metal/tovary/celik-boru",
       "https://www.rothern.com/firma/acme-metal",
+      "https://www.rothern.com/en/companies/acme-metal",
+      "https://www.rothern.com/ru/kompanii/acme-metal",
       "https://www.rothern.com/urunler/kategori/39000000-elektrik-malzemeleri",
+      "https://www.rothern.com/en/products/category/39000000-elektrik-malzemeleri",
+      "https://www.rothern.com/ru/tovary/kategoriya/39000000-elektrik-malzemeleri",
     ]);
   });
 
@@ -144,7 +151,11 @@ describe("SeoIndexService", () => {
     // İKİ değişiklik, TEK IndexNow + TEK revalidate isteği (toplu).
     expect(fetchMock).toHaveBeenCalledTimes(2);
     const inBody = JSON.parse(fetchMock.mock.calls[1][1].body);
-    expect(inBody.urlList).toEqual(["https://www.rothern.com/talep/rot-000042-celik-boru-alimi"]);
+    expect(inBody.urlList).toEqual([
+      "https://www.rothern.com/talep/rot-000042-celik-boru-alimi",
+      "https://www.rothern.com/en/buying-requests/rot-000042-celik-boru-alimi",
+      "https://www.rothern.com/ru/zayavki/rot-000042-celik-boru-alimi",
+    ]);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.tags).toEqual(expect.arrayContaining([SEO_TAGS.listing("ROT-000042"), SEO_TAGS.listing("ROT-000043")]));
   });

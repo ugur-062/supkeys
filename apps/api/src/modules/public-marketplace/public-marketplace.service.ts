@@ -1,9 +1,13 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { PublicListFacetQueryDto } from "./dto/public-list-query.dto";
-import { hiddenCategoryWhere, isHiddenCategory } from "@rothern/shared";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { hiddenCategoryWhere, isHiddenCategory, listingSlug } from "@rothern/shared";
+import { Optional, Injectable, NotFoundException } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
-import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText } from "@rothern/shared";
+import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText, stemPrefix } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
+import { currentLocale } from "../../common/i18n/locale-context";
+import { CATEGORY_NAME_SELECT, categoryName, categorySlug, localizeCategoryRows } from "../../common/company/category-name";
 import {
   marketplaceIndexableWhere,
   marketplaceListingWhere,
@@ -63,19 +67,24 @@ const FACET_SCAN_CAP = 5000;
 
 @Injectable()
 export class PublicMarketplaceService {
-  constructor(private readonly prisma: PrismaBypassService) {}
+  constructor(
+    private readonly prisma: PrismaBypassService,
+    /** İçerik çevirisi (i18n Faz 1e) — isteğe bağlı; yoksa özgün metin. */
+    @Optional() private readonly translations?: ContentTranslationService,
+  ) {}
 
   private async resolveCategories(
     codes: string[],
-  ): Promise<Map<string, { id: string; name: string; level: number }>> {
+  ): Promise<Map<string, { id: string; name: string; level: number; slug: string }>> {
     const unique = [...new Set(codes)].filter(Boolean);
     if (unique.length === 0) return new Map();
     const rows = await this.prisma.category.findMany({
       where: { id: { in: unique } },
-      select: { id: true, nameTr: true, level: true },
+      select: { id: true, ...CATEGORY_NAME_SELECT, level: true },
     });
+    // i18n Faz 4: ad okuyucunun dilinde, `slug` HER ZAMAN Türkçe addan (adres dilden bağımsız).
     return new Map(
-      rows.map((r) => [r.id, { id: r.id, name: r.nameTr, level: r.level }]),
+      rows.map((r) => [r.id, { id: r.id, name: categoryName(r), level: r.level, slug: categorySlug(r.nameTr) }]),
     );
   }
 
@@ -85,6 +94,7 @@ export class PublicMarketplaceService {
   ): PublicListingCard {
     return {
       number: row.number ?? "",
+      slug: listingSlug(row.number ?? "", row.title),
       type: row.type,
       title: row.title,
       status: row.status,
@@ -110,6 +120,7 @@ export class PublicMarketplaceService {
   ): PublicListing {
     return {
       number: row.number ?? "",
+      slug: listingSlug(row.number ?? "", row.title),
       type: row.type,
       title: row.title,
       description: row.description,
@@ -211,8 +222,17 @@ export class PublicMarketplaceService {
     const cats = await this.resolveCategories(
       rows.flatMap((r) => r.categoryIds),
     );
+    const cards = rows.map((r) => this.toCard(r, cats));
+    // i18n Faz 1e: kart metni + alıcı firmanın sektörü okuyucunun dilinde.
+    const localizedCards = this.translations
+      ? await this.translations.localizeListingCompanies(
+          await this.translations.localizeListings(cards, rows.map((r) => r.id), currentLocale(), excerptOf),
+          rows.map((r) => r.company?.id),
+          currentLocale(),
+        )
+      : cards;
     return {
-      items: rows.map((r) => this.toCard(r, cats)),
+      items: localizedCards,
       total,
       page,
       pageSize: LISTING_PAGE_SIZE,
@@ -246,10 +266,10 @@ export class PublicMarketplaceService {
   }
 
   /**
-   * Serbest arama — başlık/açıklama/anahtar kelime. Kategori aramasındaki
-   * `searchText` yolundan AYRI: orada katlanmış tek bir sütun var, burada
-   * yok. Sorgu tokenlenir ve her token AND'lenir (sıra önemsiz), her token
-   * üç alanda OR'lanır.
+   * Serbest arama — başlık/açıklama/anahtar kelime + `searchTextI18n`
+   * (katlanmış kaynak + EN/RU çeviriler, kalem adları dahil; içerik çevirisi
+   * servisi yazar). Ham ILIKE dalları sütun henüz dolmamış talepler için
+   * yedek. Token AND, alanlar OR.
    */
   private searchWhere(raw?: string): Prisma.ListingWhereInput {
     const tokens = raw ? tokenizeQuery(raw) : [];
@@ -260,6 +280,7 @@ export class PublicMarketplaceService {
           { title: { contains: t, mode: "insensitive" as const } },
           { description: { contains: t, mode: "insensitive" as const } },
           { keywords: { has: t } },
+          { searchTextI18n: { contains: stemPrefix(foldSearchText(t)) } },
         ],
       })),
     };
@@ -275,9 +296,19 @@ export class PublicMarketplaceService {
       where: { ...marketplaceListingWhere(now), number },
       select: PUBLIC_LISTING_SELECT,
     });
-    if (!row) throw new NotFoundException("İlan bulunamadı");
+    if (!row) throw new NotFoundException(i18nMessage("api.publicMarketplace.ilanBulunamadi"));
     const cats = await this.resolveCategories(row.categoryIds);
-    return this.toDetail(row, cats);
+    const detail = this.toDetail(row, cats);
+    if (!this.translations) return detail;
+    const [localized] = await this.translations.localizeListings([detail], [row.id], currentLocale(), excerptOf);
+    const [withIndustry] = await this.translations.localizeListingCompanies([localized ?? detail], [row.company?.id], currentLocale());
+    const out = withIndustry ?? localized ?? detail;
+    // Bu dilde çeviri henüz yoksa sayfa kaynak metni gösterir → indekslenmez
+    // (kapsam denetimi dakikalar içinde çevirir, SEO bildirimi sayfayı tazeler).
+    if (out.indexable && (await this.translations.translationPending("LISTING", row.id, currentLocale()))) {
+      return { ...out, indexable: false };
+    }
+    return out;
   }
 
   /* ---------------------------------------------------------------- */
@@ -415,7 +446,12 @@ export class PublicMarketplaceService {
       }),
     ]);
     const items = await attachProductFeatures(this.prisma, rows, rows.map(toProductIndexCard));
-    return { items, total, page, pageSize: PAGE_SIZE };
+    return {
+      items: this.translations ? await this.translations.localizeProducts(items, rows.map((r) => r.id), currentLocale()) : items,
+      total,
+      page,
+      pageSize: PAGE_SIZE,
+    };
   }
 
   /**
@@ -429,7 +465,9 @@ export class PublicMarketplaceService {
       orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
       take: Math.min(limit * 6, 200),
     });
-    const cards = rows.map(toProductIndexCard);
+    const cards = this.translations
+      ? await this.translations.localizeProducts(rows.map(toProductIndexCard), rows.map((r) => r.id), currentLocale())
+      : rows.map(toProductIndexCard);
     cards.sort((a, b) => Number(b.company.verified) - Number(a.company.verified));
     const perCompany = new Map<string, number>();
     const out: ProductIndexCard[] = [];
@@ -444,8 +482,16 @@ export class PublicMarketplaceService {
   }
 
   /** Ürün sayfası ilişkili bloklar — `common/company/related-products.ts`. */
-  relatedProducts(companySlug: string, productSlug: string) {
-    return relatedProducts(this.prisma, companySlug, productSlug);
+  async relatedProducts(companySlug: string, productSlug: string) {
+    const { ids, ...rest } = await relatedProducts(this.prisma, companySlug, productSlug);
+    if (!this.translations) return rest;
+    const locale = currentLocale();
+    const t = this.translations;
+    return {
+      fromCompany: { items: await t.localizeProducts(rest.fromCompany.items, ids.fromCompany, locale), total: rest.fromCompany.total },
+      similar: await t.localizeProducts(rest.similar, ids.similar, locale),
+      popular: await t.localizeProducts(rest.popular, ids.popular, locale),
+    };
   }
 
   /**
@@ -466,6 +512,7 @@ export class PublicMarketplaceService {
         ? this.prisma.companyItem.findMany({
             where: { ...publicProductWhere(), ...(tokens.length ? { AND: productSearchClauses(q) } : {}) },
             select: {
+              id: true,
               name: true,
               slug: true,
               images: true,
@@ -484,7 +531,7 @@ export class PublicMarketplaceService {
           ...hiddenCategoryWhere(),
           AND: tokens.map((t) => ({ searchText: { contains: foldSearchText(t) } })),
         },
-        select: { id: true, nameTr: true, level: true },
+        select: { id: true, ...CATEGORY_NAME_SELECT, level: true },
         orderBy: [{ level: "asc" }],
         take: 5,
       }),
@@ -503,32 +550,39 @@ export class PublicMarketplaceService {
             // Vitrin kapısı + AÇIK: kapanmış talebi öneri olarak sunmak
             // "teklif ver" beklentisi yaratır. Sahip ADI YOK (anonimlik).
             where: { ...marketplaceListingWhere(now), status: "OPEN", ...this.searchWhere(q) },
-            select: { number: true, title: true, closesAt: true },
+            select: { id: true, number: true, title: true, closesAt: true },
             orderBy: [{ publishedAt: "desc" }],
             take: 5,
           })
         : [],
     ]);
+    const productHits = products.map((p) => ({
+      name: p.name,
+      slug: p.slug ?? "",
+      companySlug: p.company.slug ?? "",
+      companyName: p.company.name,
+      image: p.images[0] ?? null,
+    }));
+    const listingHits = listings.map((l) => ({
+      number: l.number,
+      slug: listingSlug(l.number ?? "", l.title),
+      title: l.title,
+      closesAt: l.closesAt?.toISOString() ?? null,
+    }));
     return {
-      products: products.map((p) => ({
-        name: p.name,
-        slug: p.slug ?? "",
-        companySlug: p.company.slug ?? "",
-        companyName: p.company.name,
-        image: p.images[0] ?? null,
-      })),
-      categories: categories.map((c) => ({ id: c.id, name: c.nameTr, level: c.level })),
+      products: this.translations
+        ? await this.translations.localizeProducts(productHits, products.map((p) => p.id), currentLocale())
+        : productHits,
+      categories: categories.map((c) => ({ id: c.id, name: categoryName(c), level: c.level, slug: categorySlug(c.nameTr) })),
       companies: companies.map((c) => ({
         name: c.name,
         slug: c.slug as string,
         city: c.city,
         logoUrl: c.logoUrl,
       })),
-      listings: listings.map((l) => ({
-        number: l.number,
-        title: l.title,
-        closesAt: l.closesAt?.toISOString() ?? null,
-      })),
+      listings: this.translations
+        ? await this.translations.localizeListings(listingHits, listings.map((l) => l.id), currentLocale())
+        : listingHits,
     };
   }
 
@@ -550,7 +604,7 @@ export class PublicMarketplaceService {
       }),
       this.prisma.category.findMany({
         where: { inDiscovery: true, level: { lte: 2 }, ...hiddenCategoryWhere() },
-        select: { id: true, nameTr: true, level: true },
+        select: { id: true, ...CATEGORY_NAME_SELECT, level: true },
       }),
     ]);
     const segCount = new Map<string, number>();
@@ -568,11 +622,12 @@ export class PublicMarketplaceService {
       .filter((c) => c.level === 1)
       .map((seg) => ({
         id: seg.id,
-        name: seg.nameTr,
+        name: categoryName(seg),
+        slug: categorySlug(seg.nameTr),
         count: segCount.get(seg.id) ?? 0,
         children: families
           .filter((f) => f.id.slice(0, 2) === seg.id.slice(0, 2))
-          .map((f) => ({ id: f.id, name: f.nameTr, count: famCount.get(f.id) ?? 0 }))
+          .map((f) => ({ id: f.id, name: categoryName(f), slug: categorySlug(f.nameTr), count: famCount.get(f.id) ?? 0 }))
           .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"))
           .slice(0, 12),
       }))
@@ -752,7 +807,7 @@ export class PublicMarketplaceService {
    * adresi izler, sayfada başka bir kanonik görür ve ikisini de güvensiz sayar.
    */
   async sitemap(): Promise<
-    { number: string; title: string; type: string; updatedAt: string }[]
+    { number: string; slug: string; title: string; type: string; updatedAt: string }[]
   > {
     const now = new Date();
     const rows = await this.prisma.listing.findMany({
@@ -763,6 +818,7 @@ export class PublicMarketplaceService {
     });
     return rows.map((r) => ({
       number: r.number as string,
+      slug: listingSlug(r.number as string, r.title),
       title: r.title,
       type: r.type,
       updatedAt: r.updatedAt.toISOString(),

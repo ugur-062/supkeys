@@ -1,3 +1,4 @@
+import { i18nMessage } from "../i18n/http-i18n";
 import { BadRequestException } from "@nestjs/common";
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
@@ -29,7 +30,7 @@ export interface SpreadsheetLimits {
 export function decodeBase64Strict(s: string): Buffer {
   const clean = s.replace(/^data:[^;]+;base64,/, "");
   if (!/^[A-Za-z0-9+/=\s]*$/.test(clean)) {
-    throw new BadRequestException("Dosya verisi geçersiz");
+    throw new BadRequestException(i18nMessage("api.files.dosyaVerisiGecersiz"));
   }
   return Buffer.from(clean, "base64");
 }
@@ -42,8 +43,8 @@ export function assertXlsxSafe(buffer: Buffer): void {
     if (e instanceof ZipInspectError) {
       throw new BadRequestException(
         e.reason === "corrupt" || e.reason === "zip64"
-          ? "Excel dosyası okunamadı — .xlsx olarak yeniden kaydedip deneyin"
-          : "Excel dosyası çok büyük/karmaşık — tek sayfa bırakıp yeniden deneyin",
+          ? i18nMessage("api.files.excelDosyasiOkunamadiZip")
+          : i18nMessage("api.files.excelDosyasiCokBuyukKarmasik"),
       );
     }
     throw e;
@@ -64,10 +65,10 @@ export async function readUploadedWorksheet(input: {
   limits: SpreadsheetLimits;
 }): Promise<ExcelJS.Worksheet> {
   const { buffer, fileName, mimeType, limits } = input;
-  if (buffer.length === 0) throw new BadRequestException("Dosya boş");
+  if (buffer.length === 0) throw new BadRequestException(i18nMessage("api.files.dosyaBos"));
   if (buffer.length > limits.maxFileBytes) {
     throw new BadRequestException(
-      `Dosya çok büyük (${Math.round(limits.maxFileBytes / 1024 / 1024)} MB sınırı)`,
+      i18nMessage("api.files.dosyaCokBuyukMbSiniri", { round: Math.round(limits.maxFileBytes / 1024 / 1024) }),
     );
   }
 
@@ -81,7 +82,7 @@ export async function readUploadedWorksheet(input: {
   if (isZip) {
     if (/\.xlsm$/i.test(fileName)) {
       throw new BadRequestException(
-        "Makrolu dosya (.xlsm) kabul edilmez — .xlsx olarak kaydedin",
+        i18nMessage("api.files.makroluDosyaXlsmKabulEdilmezXlsx"),
       );
     }
     assertXlsxSafe(buffer);
@@ -89,13 +90,13 @@ export async function readUploadedWorksheet(input: {
       await wb.xlsx.load(buffer as unknown as ArrayBuffer);
     } catch {
       throw new BadRequestException(
-        "Excel dosyası okunamadı — .xlsx olarak yeniden kaydedip deneyin",
+        i18nMessage("api.files.excelDosyasiOkunamadiXlsxOlarakYeniden"),
       );
     }
   } else if (looksCsv) {
     if (buffer.length > limits.maxCsvBytes) {
       throw new BadRequestException(
-        "CSV dosyası çok büyük — şablonu .xlsx olarak kaydedip yükleyin (CSV için sınır 1 MB)",
+        i18nMessage("api.files.csvDosyasiCokBuyukSablonuXlsx"),
       );
     }
     try {
@@ -103,17 +104,17 @@ export async function readUploadedWorksheet(input: {
         parserOptions: { delimiter: detectCsvDelimiter(buffer) },
       });
     } catch {
-      throw new BadRequestException("CSV dosyası okunamadı");
+      throw new BadRequestException(i18nMessage("api.files.csvDosyasiOkunamadi"));
     }
   } else {
     throw new BadRequestException(
-      "Desteklenmeyen dosya — Excel (.xlsx) veya CSV yükleyin. Şablonu indirip kullanabilirsiniz.",
+      i18nMessage("api.files.desteklenmeyenDosyaExcelXlsxVeyaCsv"),
     );
   }
 
   const named = wb.getWorksheet(limits.sheetName);
   const ws = named ?? wb.worksheets.find((w) => w.rowCount > 0) ?? wb.worksheets[0];
-  if (!ws) throw new BadRequestException("Dosyada sayfa bulunamadı");
+  if (!ws) throw new BadRequestException(i18nMessage("api.files.dosyadaSayfaBulunamadi"));
   return ws;
 }
 

@@ -1,3 +1,4 @@
+import { i18nMessage } from "../i18n/http-i18n";
 import {
   type CanActivate,
   type ExecutionContext,
@@ -82,7 +83,7 @@ export class CsrfGuard implements CanActivate {
 
     const headerToken = req.headers[CSRF_HEADER];
     if (typeof headerToken !== "string" || headerToken.length === 0) {
-      throw new ForbiddenException("CSRF doğrulaması başarısız");
+      throw new ForbiddenException(i18nMessage("api.auth.csrfDogrulamasiBasarisiz"));
     }
     // Realm-farkında eşleşme: header, MEVCUT auth cookie'sine karşılık gelen
     // realm'in CSRF token'ıyla eşleşmeli (web ve admin ayrı cookie taşır).
@@ -95,6 +96,6 @@ export class CsrfGuard implements CanActivate {
       }
     }
 
-    throw new ForbiddenException("CSRF doğrulaması başarısız");
+    throw new ForbiddenException(i18nMessage("api.auth.csrfDogrulamasiBasarisiz"));
   }
 }

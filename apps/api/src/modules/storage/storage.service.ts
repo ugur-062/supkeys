@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   Injectable,
   InternalServerErrorException,
@@ -130,7 +131,9 @@ export class StorageService implements OnModuleInit {
         this.logger.error(
           `R2 bucket erişilemiyor (name=${e?.name ?? "?"}, code=${e?.Code ?? "?"}, status=${status ?? "?"}): ${msg}. Endpoint=${endpoint}, Bucket=${bucket}. API token'ın bu bucket'a yetkili olduğunu kontrol et.`,
         );
-        throw new InternalServerErrorException("R2 bucket erişilemiyor");
+        throw new InternalServerErrorException(
+          i18nMessage("api.storage.r2BucketErisilemiyor"),
+        );
       }
     }
   }
@@ -376,7 +379,9 @@ export class StorageService implements OnModuleInit {
     );
     const bytes = await result.Body?.transformToByteArray();
     if (!bytes) {
-      throw new InternalServerErrorException("Dosya içeriği okunamadı");
+      throw new InternalServerErrorException(
+        i18nMessage("api.storage.dosyaIcerigiOkunamadi"),
+      );
     }
     return Buffer.from(bytes);
   }

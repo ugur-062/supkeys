@@ -24,8 +24,20 @@ export interface PriceDisplay {
 }
 
 /** "41.000 ₺" — sembol tek kaynaktan (`CURRENCY_SYMBOL`); bilinmeyen kod olduğu gibi. */
-function fmt(amount: number, currency: string): string {
-  return `${amount.toLocaleString("tr-TR", {
+/**
+ * Dil bilen etiketler (i18n Faz 1) — ÇAĞIRAN VERİR, varsayılan YOK.
+ * İstemci: `usePriceLabels()` (i18n/domain.ts); sunucu: `priceLabelsFor()` (i18n/server.ts).
+ * Katalog BURAYA import edilmez: bu modül istemci kartlarına giriyor; Türkçe
+ * bir yedek sözlük tutmak da katalogla ayrışan ikinci bir kaynak olurdu.
+ */
+export interface PriceLabels {
+  locale: string;
+  onRequest: string;
+  fromQty: (qty: string, unit: string) => string;
+}
+
+function fmt(amount: number, currency: string, locale = "tr-TR"): string {
+  return `${amount.toLocaleString(locale, {
     minimumFractionDigits: 0,
     maximumFractionDigits: 2,
   })} ${currencySymbol(currency)}`;
@@ -37,10 +49,10 @@ export function productPrice(p: {
   priceTiers?: PriceTier[] | null;
   priceCurrency: string;
   unit: string;
-}): PriceDisplay {
+}, labels: PriceLabels): PriceDisplay {
   if (p.priceMode === "FIXED" && p.priceAmount != null) {
     return {
-      headline: `${fmt(Number(p.priceAmount), p.priceCurrency)} / ${p.unit}`,
+      headline: `${fmt(Number(p.priceAmount), p.priceCurrency, labels.locale)} / ${p.unit}`,
       note: null,
       tiers: null,
       hasPrice: true,
@@ -54,15 +66,15 @@ export function productPrice(p: {
     const sorted = [...p.priceTiers].sort((a, b) => a.minQty - b.minQty);
     const cheapest = sorted.reduce((m, t) => (t.unitPrice < m.unitPrice ? t : m));
     return {
-      headline: `${fmt(cheapest.unitPrice, p.priceCurrency)} / ${p.unit}`,
-      note: `${cheapest.minQty.toLocaleString("tr-TR")} ${p.unit} ve üzeri için`,
+      headline: `${fmt(cheapest.unitPrice, p.priceCurrency, labels.locale)} / ${p.unit}`,
+      note: labels.fromQty(cheapest.minQty.toLocaleString(labels.locale), p.unit),
       tiers: sorted,
       hasPrice: true,
     };
   }
 
   return {
-    headline: "Fiyat için teklif isteyin",
+    headline: labels.onRequest,
     note: null,
     tiers: null,
     hasPrice: false,

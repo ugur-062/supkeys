@@ -309,6 +309,8 @@ export interface ListingAddress {
 }
 
 export interface ListingDetail {
+  /** Teklifçi görünümü: metin okuyucunun diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e). */
+  translatedFrom?: string | null;
   /** Sunucu parmak izi — bir sonraki istekte If-None-Match olarak gider
    *  (sahip dalı; başkası için tanımsız). Perf turu, denetim P10. */
   etag?: string;

@@ -1,6 +1,7 @@
 import { Transform } from "class-transformer";
 import { IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from "class-validator";
 import type { DirectoryParams } from "../../../common/company/company-directory";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 /**
  * PANEL FİRMA DİZİNİ SORGUSU — herkese açık `PublicDirectoryQueryDto` ile
@@ -28,7 +29,9 @@ export class PanelDirectoryQueryDto {
 
   /** Kategori — 8 haneli kod, virgüllü çoklu (en çok 10). */
   @IsOptional()
-  @Matches(/^\d{8}(,\d{8}){0,9}$/, { message: "Kategori kodu 8 haneli olmalı" })
+  @Matches(/^\d{8}(,\d{8}){0,9}$/, {
+    message: () => tApi("api.dto.panelDirectoryQuery.kategoriKodu8HaneliOlmali"),
+  })
   category?: string;
 
   @IsOptional()

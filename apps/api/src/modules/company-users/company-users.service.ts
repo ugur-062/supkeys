@@ -1,3 +1,5 @@
+import { appRoutes } from "../../common/company/app-routes";
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ConflictException,
@@ -7,6 +9,10 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
+import { currentLocale } from "../../common/i18n/locale-context";
+import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
+import { localeOf } from "../notifications/notification.service";
+import { type Locale } from "@rothern/i18n";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "node:crypto";
 import { CompanyRole, Prisma } from "@rothern/db";
@@ -57,17 +63,26 @@ const INVITATION_TTL_DAYS = 7;
  */
 class LastActiveAdminError extends BadRequestException {
   constructor() {
-    super("Firmada en az bir aktif yönetim yetkilisi (Kurucu/Yönetici) kalmalı");
+    super(i18nMessage("api.companyUsers.enAzBirAktifYonetimYetkilisiKalmali"));
   }
 }
 
-const ROLE_LABEL: Record<CompanyRole, string> = {
-  SAHIP: "Kurucu",
-  YONETICI: "Yönetici",
-  SATIN_ALMACI: "Satın Almacı",
-  SATISCI: "Satışçı",
-  ONAYLAYICI: "Onaylayıcı",
+/**
+ * Rol etiketi — katalog ANAHTARI (metin alıcının dilinde üretilir; davet
+ * e-postasının "Rol" satırı). Bilinmeyen rol ham koda düşer.
+ */
+const ROLE_LABEL_KEY: Record<CompanyRole, ApiMessageKey> = {
+  SAHIP: "api.notifications.companyUsers.role.SAHIP",
+  YONETICI: "api.notifications.companyUsers.role.YONETICI",
+  SATIN_ALMACI: "api.notifications.companyUsers.role.SATIN_ALMACI",
+  SATISCI: "api.notifications.companyUsers.role.SATISCI",
+  ONAYLAYICI: "api.notifications.companyUsers.role.ONAYLAYICI",
 };
+
+function roleLabel(role: CompanyRole, locale: Locale): string {
+  const key: ApiMessageKey | undefined = ROLE_LABEL_KEY[role];
+  return key ? tApi(key, undefined, locale) : String(role);
+}
 
 @Injectable()
 export class CompanyUsersService {
@@ -152,12 +167,12 @@ export class CompanyUsersService {
     const requested = (dto.roles ?? []) as CompanyRole[];
     if (requested.includes("SAHIP")) {
       throw new BadRequestException(
-        "Kuruculuk davetle verilemez; mevcut bir kullanıcıya devredin",
+        i18nMessage("api.companyUsers.kuruculukDavetleVerilemezMevcutBirKullaniciya"),
       );
     }
     const permissions = this.resolveGrantedPermissions(dto.permissions, requested);
     if (permissions.length === 0) {
-      throw new BadRequestException("En az bir yetki seçin");
+      throw new BadRequestException(i18nMessage("api.companyUsers.enAzBirYetkiSecin"));
     }
     const roles = rolesFromPermissions(permissions, false) as CompanyRole[];
     // Yetki üretim kapısı: "Kullanıcı ve yetki" tikini yalnız Kurucu verir;
@@ -178,7 +193,7 @@ export class CompanyUsersService {
       select: { id: true, deletedAt: true },
     });
     if (existing && !existing.deletedAt) {
-      throw new ConflictException("Bu e-posta zaten kayıtlı");
+      throw new ConflictException(i18nMessage("api.companyUsers.buEPostaZatenKayitli"));
     }
     const pending = await this.prisma.companyUserInvitation.findFirst({
       where: {
@@ -191,7 +206,7 @@ export class CompanyUsersService {
     });
     if (pending) {
       throw new ConflictException(
-        "Bu e-postaya bekleyen bir davet zaten var — gerekirse yeniden gönderin",
+        i18nMessage("api.companyUsers.buEPostayaBekleyenBirDavet"),
       );
     }
 
@@ -249,7 +264,9 @@ export class CompanyUsersService {
       return !c || !valid.has(c);
     });
     if (invalid.length > 0) {
-      throw new BadRequestException(`Geçersiz izin: ${invalid[0]}`);
+      throw new BadRequestException(
+        i18nMessage("api.companyUsers.gecersizIzin", { permission: invalid[0] }),
+      );
     }
   }
 
@@ -267,7 +284,7 @@ export class CompanyUsersService {
     if (actor.isOwner) return;
     if (next.includes("users:manage") && !current.includes("users:manage")) {
       throw new ForbiddenException(
-        "'Kullanıcı ve yetki' tikini yalnızca Kurucu verebilir",
+        i18nMessage("api.companyUsers.kullaniciVeYetkiTikiniYalnizcaKurucu"),
       );
     }
   }
@@ -310,7 +327,7 @@ export class CompanyUsersService {
       },
       data: { status: "CANCELLED" },
     });
-    if (res.count === 0) throw new NotFoundException("Davet bulunamadı");
+    if (res.count === 0) throw new NotFoundException(i18nMessage("api.companyUsers.davetBulunamadi"));
     return { ok: true };
   }
 
@@ -320,7 +337,7 @@ export class CompanyUsersService {
       where: { id, companyId: actor.companyId },
     });
     if (!inv || (inv.status !== "PENDING" && inv.status !== "EXPIRED")) {
-      throw new NotFoundException("Davet bulunamadı");
+      throw new NotFoundException(i18nMessage("api.companyUsers.davetBulunamadi"));
     }
     // Dalga B-3: yeniden gönderim rol-verme kapısını YENİDEN uygulamalı.
     // Eskiden yalnız firma-sahipliği kontrol ediliyordu; süresi dolmuş bir
@@ -372,14 +389,14 @@ export class CompanyUsersService {
   async acceptInvitation(token: string, dto: AcceptCompanyInvitationDto) {
     const inv = await this.requireUsableInvitation(token);
     if (!inv.company.isActive || inv.company.isBlocked) {
-      throw new BadRequestException("Firma hesabı aktif değil");
+      throw new BadRequestException(i18nMessage("api.companyUsers.firmaHesabiAktifDegil"));
     }
     const existing = await this.prisma.companyUser.findUnique({
       where: { email: inv.email },
       select: { id: true, deletedAt: true },
     });
     if (existing && !existing.deletedAt) {
-      throw new ConflictException("Bu e-posta ile zaten bir hesap var");
+      throw new ConflictException(i18nMessage("api.companyUsers.buEPostaIleZatenBir"));
     }
 
     const { authId } = await this.supabaseAuth.createUser(
@@ -407,12 +424,14 @@ export class CompanyUsersService {
           data: { status: "ACCEPTED", acceptedAt: now },
         });
         if (claimed.count === 0) {
-          throw new BadRequestException("Davet artık geçerli değil");
+          throw new BadRequestException(i18nMessage("api.companyUsers.davetArtikGecerliDegil"));
         }
         const u = await tx.companyUser.create({
           data: {
             email: inv.email,
             authId,
+            // i18n: davet kabul sayfasının dili hesabın dili olur.
+            locale: currentLocale(),
             firstName: dto.firstName.trim(),
             lastName: dto.lastName.trim(),
             phone: dto.phone?.trim() || null,
@@ -472,12 +491,12 @@ export class CompanyUsersService {
         company: { select: { name: true, isActive: true, isBlocked: true } },
       },
     });
-    if (!inv) throw new NotFoundException("Davet bulunamadı");
+    if (!inv) throw new NotFoundException(i18nMessage("api.companyUsers.davetBulunamadi"));
     if (inv.status === "ACCEPTED") {
-      throw new BadRequestException("Bu davet zaten kabul edilmiş");
+      throw new BadRequestException(i18nMessage("api.companyUsers.buDavetZatenKabulEdilmis"));
     }
     if (inv.status === "CANCELLED") {
-      throw new BadRequestException("Bu davet iptal edilmiş");
+      throw new BadRequestException(i18nMessage("api.companyUsers.buDavetIptalEdilmis"));
     }
     if (inv.status === "EXPIRED" || inv.expiresAt <= new Date()) {
       if (inv.status === "PENDING") {
@@ -487,7 +506,7 @@ export class CompanyUsersService {
         });
       }
       throw new BadRequestException(
-        "Davetin süresi dolmuş — firmanızdan yeni davet isteyin",
+        i18nMessage("api.companyUsers.davetinSuresiDolmusFirmanizdanYeniDavet"),
       );
     }
     return inv;
@@ -501,7 +520,7 @@ export class CompanyUsersService {
     if (!inv) return;
     const inviter = await this.prisma.companyUser.findUnique({
       where: { id: inv.invitedById },
-      select: { firstName: true, lastName: true },
+      select: { firstName: true, lastName: true, locale: true },
     });
     const inviterName =
       `${inviter?.firstName ?? ""} ${inviter?.lastName ?? ""}`.trim() ||
@@ -509,34 +528,50 @@ export class CompanyUsersService {
     const baseUrl = (
       resolveWebUrl(this.config)
     ).replace(/\/$/, "");
-    const acceptUrl = `${baseUrl}/company/davet/${inv.token}`;
+    // DİL: davet edilen kişi henüz kayıtlı değil (dili yok) → DAVET EDENİN
+    // dili kullanılır; ekibe kattığı kişiyle hangi dilde konuştuğunu o bilir.
+    const locale = localeOf(inviter?.locale);
+    // Bağlantı da e-postanın dilinde açılsın (yol parçaları dile göre).
+    const acceptUrl = appRoutes.invite(baseUrl, inv.token, locale);
+    const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
+      tApi(key, values, locale);
     try {
       await this.email.send({
         to: { email: inv.email },
+        locale,
         templateData: {
           template: "notification",
           data: {
-            subject: `${inv.company.name} sizi ekibine davet ediyor`,
-            heading: "Ekip Daveti",
+            subject: t("api.notifications.companyUsers.invite.subject", {
+              company: inv.company.name,
+            }),
+            heading: t("api.notifications.companyUsers.invite.heading"),
             paragraphs: [
-              `${inviterName}, sizi ${inv.company.name} firmasının ekibine katılmaya davet ediyor.`,
-              "Daveti kabul ederken adınızı ve parolanızı kendiniz belirlersiniz.",
+              t("api.notifications.companyUsers.invite.intro", {
+                inviter: inviterName,
+                company: inv.company.name,
+              }),
+              t("api.notifications.companyUsers.invite.setOwnPassword"),
             ],
             infoRows: [
-              { label: "Firma", value: inv.company.name },
               {
-                label: "Rol",
-                value: inv.roles.map((r) => ROLE_LABEL[r] ?? r).join(" + "),
+                label: t("api.notifications.companyUsers.invite.rowCompany"),
+                value: inv.company.name,
               },
               {
-                label: "Geçerlilik",
-                value: `${INVITATION_TTL_DAYS} gün`,
+                label: t("api.notifications.companyUsers.invite.rowRole"),
+                value: inv.roles.map((r) => roleLabel(r, locale)).join(" + "),
+              },
+              {
+                label: t("api.notifications.companyUsers.invite.rowValidity"),
+                value: t("api.notifications.companyUsers.invite.validityDays", {
+                  days: INVITATION_TTL_DAYS,
+                }),
               },
             ],
-            ctaLabel: "Daveti Kabul Et",
+            ctaLabel: t("api.notifications.companyUsers.invite.cta"),
             ctaUrl: acceptUrl,
-            footerNote:
-              "Bu daveti siz beklemiyorsanız e-postayı yok sayabilirsiniz.",
+            footerNote: t("api.notifications.companyUsers.invite.footer"),
           },
         },
         context: { type: "company_user_invitation", id: inv.id },
@@ -795,10 +830,11 @@ export class CompanyUsersService {
     try {
       await this.notifications?.pushToUser(targetId, {
         type: "permissions_changed",
-        title: "Yetkileriniz güncellendi",
-        body: "Firma yöneticiniz yetkilerinizi değiştirdi. Menü ve erişimleriniz yeni yetkilere göre yenilendi.",
-        ctaUrl: "/company",
-        ctaLabel: "Panele git",
+        titleKey: "api.notifications.companyUsers.permissionsChanged.title",
+        bodyKey: "api.notifications.companyUsers.permissionsChanged.body",
+        ctaLabelKey: "api.notifications.companyUsers.permissionsChanged.cta",
+        // Türkçe İÇ yol — alıcının diline çevrilir (`/en/company`).
+        ctaPath: "/company",
       });
     } catch (err) {
       this.logger.warn(
@@ -832,7 +868,7 @@ export class CompanyUsersService {
     const targetIsOwner = company?.ownerUserId === targetId;
     if (targetIsOwner && !actor.isOwner) {
       throw new BadRequestException(
-        "Kurucunun izinleri kısıtlanamaz (tüm yetkilere sahiptir)",
+        i18nMessage("api.companyUsers.kurucununIzinleriKisitlanamazTumYetkilereSahipti"),
       );
     }
     this.assertKnownPermissions(requested);
@@ -910,10 +946,10 @@ export class CompanyUsersService {
       select: { ownerUserId: true },
     });
     if (company?.ownerUserId === targetId) {
-      throw new BadRequestException("Firma sahibi pasifleştirilemez");
+      throw new BadRequestException(i18nMessage("api.companyUsers.firmaSahibiPasiflestirilemez"));
     }
     if (targetId === actor.userId) {
-      throw new BadRequestException("Kendinizi pasifleştiremezsiniz");
+      throw new BadRequestException(i18nMessage("api.companyUsers.kendiniziPasiflestiremezsiniz"));
     }
     if (!active) {
       // Denetim 2026-08-23 LOW: #8 düşürme koruması burada da uygulanır —
@@ -982,7 +1018,7 @@ export class CompanyUsersService {
   ) {
     if (!actor.isOwner) {
       throw new ForbiddenException(
-        "İzinleri yalnızca Kurucu düzenleyebilir",
+        i18nMessage("api.companyUsers.izinleriYalnizcaKurucuDuzenleyebilir"),
       );
     }
     const target = await this.requireMember(actor.companyId, targetId);
@@ -992,7 +1028,7 @@ export class CompanyUsersService {
     });
     if (company?.ownerUserId === targetId) {
       throw new BadRequestException(
-        "Kurucunun izinleri kısıtlanamaz (tüm yetkilere sahiptir)",
+        i18nMessage("api.companyUsers.kurucununIzinleriKisitlanamazTumYetkilereSahipti"),
       );
     }
 
@@ -1005,7 +1041,9 @@ export class CompanyUsersService {
       return !c || !valid.has(c);
     });
     if (invalid.length > 0) {
-      throw new BadRequestException(`Geçersiz izin: ${invalid[0]}`);
+      throw new BadRequestException(
+        i18nMessage("api.companyUsers.gecersizIzin", { permission: invalid[0] }),
+      );
     }
     const added = new Set(dto.added.map(canon) as string[]);
     const removed = new Set(
@@ -1071,11 +1109,11 @@ export class CompanyUsersService {
     });
     if (company?.ownerUserId === targetId) {
       throw new BadRequestException(
-        "Kurucu çıkarılamaz — önce kuruculuğu devredin",
+        i18nMessage("api.companyUsers.kurucuCikarilamazOnceKuruculuguDevredin"),
       );
     }
     if (targetId === actor.userId) {
-      throw new BadRequestException("Kendinizi çıkaramazsınız");
+      throw new BadRequestException(i18nMessage("api.companyUsers.kendiniziCikaramazsiniz"));
     }
     // Denetim 2026-08-23 LOW: yönetici hedefi yalnız Kurucu/Yönetici çıkarabilir
     // (remove geri dönüşsüz — rol değişikliğinden daha kritik).
@@ -1145,19 +1183,19 @@ export class CompanyUsersService {
    */
   private assertValidRoleCombo(roles: CompanyRole[]) {
     if (roles.length === 0) {
-      throw new BadRequestException("En az bir rol seçin");
+      throw new BadRequestException(i18nMessage("api.companyUsers.enAzBirRolSecin"));
     }
     if (
       roles.includes("SAHIP") &&
       (roles.includes("YONETICI") || roles.includes("ONAYLAYICI"))
     ) {
       throw new BadRequestException(
-        "Kurucu, Yönetici/Onaylayıcı ile birleştirilemez (yetkilerini zaten kapsar); işlem için Satın Almacı/Satışçı ekleyin",
+        i18nMessage("api.companyUsers.kurucuYoneticiOnaylayiciIleBirlestirilemezYetkil"),
       );
     }
     if (roles.includes("YONETICI") && roles.includes("ONAYLAYICI")) {
       throw new BadRequestException(
-        "Kurucu ve Yönetici zaten onay verebilir; ayrıca Onaylayıcı rolü gerekmez.",
+        i18nMessage("api.companyUsers.kurucuVeYoneticiZatenOnayVerebilir"),
       );
     }
   }
@@ -1173,7 +1211,7 @@ export class CompanyUsersService {
         authId: true,
       },
     });
-    if (!u) throw new NotFoundException("Kullanıcı bulunamadı");
+    if (!u) throw new NotFoundException(i18nMessage("api.companyUsers.kullaniciBulunamadi"));
     return u;
   }
 
@@ -1185,7 +1223,7 @@ export class CompanyUsersService {
   private assertNotSelf(actor: AuthenticatedCompanyUser, targetId: string) {
     if (targetId === actor.userId && !actor.isOwner) {
       throw new BadRequestException(
-        "Kendi yetkilerinizi düzenleyemezsiniz — Kurucu veya başka bir yönetici yapmalı",
+        i18nMessage("api.companyUsers.kendiYetkileriniziDuzenleyemezsinizKurucuVeyaBas"),
       );
     }
   }
@@ -1226,14 +1264,14 @@ export class CompanyUsersService {
     // Sahiplik (SAHIP) yalnız mevcut firma sahibi tarafından devredilebilir.
     if (labelAdded("SAHIP") && !actor.isOwner) {
       throw new ForbiddenException(
-        "Kuruculuğu yalnızca mevcut Kurucu devredebilir",
+        i18nMessage("api.companyUsers.kuruculuguYalnizcaMevcutKurucuDevredebilir"),
       );
     }
     // Faz R: YONETICI bir ETİKETTİR — yalnız Kurucu VERİR (Yönetici başka
     // Yönetici üretemez).
     if (labelAdded("YONETICI") && !actor.isOwner) {
       throw new ForbiddenException(
-        "Yönetici etiketini yalnızca Kurucu verebilir",
+        i18nMessage("api.companyUsers.yoneticiEtiketiniYalnizcaKurucuVerebilir"),
       );
     }
     // Roller (SA/ST/ONAYLAYICI): Kurucu veya Yönetici atar — users:manage
@@ -1256,7 +1294,7 @@ export class CompanyUsersService {
         });
       }
       throw new ForbiddenException(
-        "Rol atamayı yalnızca Kurucu veya Yönetici yapabilir",
+        i18nMessage("api.companyUsers.rolAtamayiYalnizcaKurucuVeyaYonetici"),
       );
     }
   }
@@ -1295,7 +1333,7 @@ export class CompanyUsersService {
         metadata: { reason: "not_admin", targetRoles: target.roles },
       });
       throw new ForbiddenException(
-        "Yönetici veya Kurucu rolündeki bir kullanıcının rollerini yalnızca Kurucu veya Yönetici değiştirebilir",
+        i18nMessage("api.companyUsers.yoneticiVeyaKurucuRolundekiBirKullanicinin"),
       );
     }
   }
@@ -1321,7 +1359,7 @@ export class CompanyUsersService {
     const targetIsOwner = currentOwnerId === targetId;
     if (!targetWantsOwner && targetIsOwner) {
       throw new BadRequestException(
-        "Kuruculuğu bırakmadan önce başka bir aktif kullanıcıya devretmelisiniz",
+        i18nMessage("api.companyUsers.kuruculuguBirakmadanOnceBaskaBirAktif"),
       );
     }
     if (targetWantsOwner && !targetIsOwner) {
@@ -1332,7 +1370,7 @@ export class CompanyUsersService {
           : [CompanyRole.YONETICI];
       if (demoted.includes(CompanyRole.SAHIP)) {
         throw new BadRequestException(
-          "Devirde eski Kurucu tekrar Kurucu olamaz",
+          i18nMessage("api.companyUsers.devirdeEskiKurucuTekrarKurucuOlamaz"),
         );
       }
       this.assertValidRoleCombo(demoted);
@@ -1345,7 +1383,7 @@ export class CompanyUsersService {
       });
       if (!target?.isActive) {
         throw new BadRequestException(
-          "Kuruculuk yalnızca aktif bir kullanıcıya devredilebilir",
+          i18nMessage("api.companyUsers.kuruculukYalnizcaAktifBirKullaniciyaDevredilebil"),
         );
       }
       if (currentOwnerId) {
@@ -1397,7 +1435,7 @@ export class CompanyUsersService {
       where: { id: companyId },
       select: { tier: true, membershipEndAt: true, ownerUserId: true },
     });
-    if (!company) throw new NotFoundException("Firma bulunamadı");
+    if (!company) throw new NotFoundException(i18nMessage("api.companyUsers.firmaBulunamadi"));
     const limit =
       SEAT_LIMITS[effectiveTier(company.tier, company.membershipEndAt)];
     const [users, invites] = await Promise.all([
@@ -1473,7 +1511,7 @@ export class CompanyUsersService {
     // sorun sayı değil paket.
     if (opts.groups.has("buy") && !tierAtLeast(tier, BUYING_TIER)) {
       throw new BadRequestException(
-        "Satınalma yetkisi yalnız Gold pakette verilebilir — talep açma ve kazandırma diğer paketlerde kapalı.",
+        i18nMessage("api.companyUsers.satinalmaYetkisiYalnizGoldPaketteVerilebilir"),
       );
     }
     if (limit == null) return; // limitsiz kademe (bugün yok)
@@ -1481,13 +1519,17 @@ export class CompanyUsersService {
     if (occupied + need > limit) {
       if (opts.context === "accept") {
         throw new ConflictException(
-          "Koltuk dolu — davet şu an kabul edilemiyor; firma yöneticinize başvurun",
+          i18nMessage("api.companyUsers.koltukDoluDavetSuAnKabul"),
         );
       }
       throw new BadRequestException(
         opts.includePending && pendingSeatInvites > 0
-          ? `Koltuk dolu (${used} aktif + ${pendingSeatInvites} bekleyen davet / ${limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın`
-          : `Koltuk dolu (${used}/${limit}) — satınalma/satış işlem yetkisi için paketi yükseltin veya bir koltuğu boşaltın`,
+          ? i18nMessage("api.companyUsers.koltukDoluBekleyenDahil", {
+              used,
+              pending: pendingSeatInvites,
+              limit,
+            })
+          : i18nMessage("api.companyUsers.koltukDoluIslemYetkisi", { used, limit }),
       );
     }
   }
@@ -1505,13 +1547,13 @@ export class CompanyUsersService {
   ) {
     if (!actor.isOwner) {
       throw new ForbiddenException(
-        "Koltuk seçimini yalnızca Kurucu yapabilir",
+        i18nMessage("api.companyUsers.koltukSeciminiYalnizcaKurucuYapabilir"),
       );
     }
     const result = await this.lockedAdminTx(actor.companyId, async (tx) => {
       const { limit } = await this.seatUsage(actor.companyId, tx);
       if (limit == null) {
-        throw new BadRequestException("Bu pakette koltuk sınırı yok");
+        throw new BadRequestException(i18nMessage("api.companyUsers.buPaketteKoltukSiniriYok"));
       }
       const company = await tx.company.findUnique({
         where: { id: actor.companyId },
@@ -1539,7 +1581,7 @@ export class CompanyUsersService {
           const h = holders.find((x) => x.id === k);
           if (!h) {
             throw new BadRequestException(
-              "Seçim listesinde koltuk kullanmayan bir kullanıcı var",
+              i18nMessage("api.companyUsers.secimListesindeKoltukKullanmayanBirKullanici"),
             );
           }
           for (const g of h.groups) keep.add(`${k}:${g}`);
@@ -1547,7 +1589,7 @@ export class CompanyUsersService {
           const h = holders.find((x) => x.id === k.userId);
           if (!h || !h.groups.has(k.group)) {
             throw new BadRequestException(
-              "Seçim listesinde koltuk kullanmayan bir kullanıcı var",
+              i18nMessage("api.companyUsers.secimListesindeKoltukKullanmayanBirKullanici"),
             );
           }
           keep.add(`${k.userId}:${k.group}`);
@@ -1555,7 +1597,7 @@ export class CompanyUsersService {
       }
       if (keep.size > limit) {
         throw new BadRequestException(
-          `En fazla ${limit} koltuk seçebilirsiniz (paket limiti)`,
+          i18nMessage("api.companyUsers.enFazlaKoltukSecebilirsinizPaketLimiti", { limit: limit }),
         );
       }
       const dropped: {
@@ -1623,9 +1665,9 @@ export class CompanyUsersService {
       void this.notifications
         ?.pushToUser(d.id, {
           type: "seat_selection",
-          title: "İşlem yetkileriniz kaldırıldı",
-          body: "Paket küçültmesi nedeniyle bazı işlem yetkileriniz (koltuk) kaldırıldı. Hesabınız, görüntüleme ve diğer yetkileriniz aynen devam ediyor.",
-        } as never)
+          titleKey: "api.notifications.companyUsers.seatSelection.title",
+          bodyKey: "api.notifications.companyUsers.seatSelection.body",
+        })
         .catch((err: unknown) =>
           this.logger.warn(
             `Seat-selection bildirimi yazılamadı (${d.id}): ${

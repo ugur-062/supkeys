@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { BadRequestException, Controller, Get, Query } from "@nestjs/common";
 import { CompanyConnectionsService } from "../services/company-connections.service";
 
@@ -12,7 +13,7 @@ export class ReferralOptOutController {
 
   @Get()
   optOut(@Query("token") token?: string) {
-    if (!token) throw new BadRequestException("Token gerekli");
+    if (!token) throw new BadRequestException(i18nMessage("api.companyConnections.tokenGerekli"));
     return this.service.markReferralOptOut(token);
   }
 }

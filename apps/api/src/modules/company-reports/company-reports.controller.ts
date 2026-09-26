@@ -1,3 +1,6 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
+import { tApi } from "../../common/i18n/i18n.service";
+import { DEFAULT_LOCALE } from "@rothern/i18n";
 import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
 import {
   Body,
@@ -37,7 +40,7 @@ const REPORTS_PERMISSION = "buy:reports:view";
 function assertAllowed(user: AuthenticatedCompanyUser) {
   if (!hasCompanyPermission(user, REPORTS_PERMISSION)) {
     throw new ForbiddenException(
-      "Alım raporları için 'Satınalma raporları' yetkisi gerekir",
+      i18nMessage("api.companyReports.alimRaporlariIcinSatinalmaRaporlariYetkisi"),
     );
   }
 }
@@ -52,6 +55,43 @@ function xlsx(res: Response, filename: string, buffer: Buffer) {
 }
 
 const stamp = () => new Date().toISOString().slice(0, 10);
+
+const NAME_FOLD: Record<string, string> = {
+  ç: "c",
+  ğ: "g",
+  ı: "i",
+  ö: "o",
+  ş: "s",
+  ü: "u",
+  Ç: "c",
+  Ğ: "g",
+  İ: "i",
+  Ö: "o",
+  Ş: "s",
+  Ü: "u",
+};
+
+function asciiSlug(text: string) {
+  return text
+    .replace(/[çğıöşüÇĞİÖŞÜ]/g, (c) => NAME_FOLD[c] ?? c)
+    .toLowerCase()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+/**
+ * İndirilen dosyanın adı da kullanıcıya görünür → istek dilinde üretilir.
+ * `Content-Disposition` yalnız ASCII taşıyabildiği için çevrilen ad slug'a
+ * indirgenir; Türkçe değerler zaten slug olduğundan TR çıktısı birebir aynı
+ * kalır. Latin dışı bir ad (Kiril) slug'dan tümüyle düşerdi → yedek TÜRKÇE
+ * addır, dosya hiçbir dilde yalnız tarihe inmez.
+ */
+function reportFile(key: Parameters<typeof tApi>[0]) {
+  const slug = asciiSlug(tApi(key)) || asciiSlug(tApi(key, undefined, DEFAULT_LOCALE));
+  return slug ? `${slug}-${stamp()}.xlsx` : `${stamp()}.xlsx`;
+}
 
 @Controller("company/reports")
 @RequireTier("GOLD")
@@ -89,7 +129,7 @@ export class CompanyReportsController {
     assertAllowed(user);
     const data = await this.service.general(user.companyId, body);
     const buf = await this.excel.general(data);
-    return xlsx(res, `genel-rapor-${stamp()}.xlsx`, buf);
+    return xlsx(res, reportFile("api.companyReports.dosyaGenelRapor"), buf);
   }
 
   @Post("savings")
@@ -110,7 +150,7 @@ export class CompanyReportsController {
     assertAllowed(user);
     const data = await this.service.savings(user.companyId, body);
     const buf = await this.excel.savings(data);
-    return xlsx(res, `tasarruf-raporu-${stamp()}.xlsx`, buf);
+    return xlsx(res, reportFile("api.companyReports.dosyaTasarrufRaporu"), buf);
   }
 
   @Post("bid-comparison")
@@ -131,6 +171,10 @@ export class CompanyReportsController {
     assertAllowed(user);
     const data = await this.service.bidComparison(user.companyId, body);
     const buf = await this.excel.bidComparison(data);
-    return xlsx(res, `teklif-karsilastirma-${stamp()}.xlsx`, buf);
+    return xlsx(
+      res,
+      reportFile("api.companyReports.dosyaTeklifKarsilastirma"),
+      buf,
+    );
   }
 }

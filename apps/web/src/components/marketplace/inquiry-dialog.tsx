@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { CheckCircleIcon, XMarkIcon } from "@heroicons/react/20/solid";
@@ -34,6 +36,7 @@ export function InquiryDialog({
   productName: string;
   companyName: string;
 }) {
+  const t = useTranslations("web.marketplace.inquiry");
   const openedAt = useRef<number>(Date.now());
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -73,11 +76,11 @@ export function InquiryDialog({
         const body = (await res.json().catch(() => null)) as
           | { message?: string }
           | null;
-        throw new Error(body?.message ?? "Talep gönderilemedi");
+        throw new Error(body?.message ?? t("failed"));
       }
       setSent(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Talep gönderilemedi");
+      setError(err instanceof Error ? err.message : t("failed"));
     } finally {
       setBusy(false);
     }
@@ -90,13 +93,13 @@ export function InquiryDialog({
         <DialogPanel className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
           <div className="flex items-start justify-between gap-4">
             <DialogTitle className="text-lg font-semibold tracking-tight text-zinc-950">
-              {sent ? "E-postanızı kontrol edin" : "Teklif iste"}
+              {sent ? t("checkEmail") : t("title")}
             </DialogTitle>
             <button
               type="button"
               onClick={onClose}
               className="-m-1 rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-              aria-label="Kapat"
+              aria-label={t("close")}
             >
               <XMarkIcon aria-hidden className="size-5" />
             </button>
@@ -106,48 +109,42 @@ export function InquiryDialog({
             <div className="mt-6">
               <p className="flex items-start gap-2 rounded-xl bg-emerald-50 p-4 text-sm/6 text-emerald-900 ring-1 ring-emerald-600/20">
                 <CheckCircleIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
-                <span>
-                  Talebiniz <strong>henüz gönderilmedi.</strong> E-postanıza
-                  gelen bağlantıya tıklayın; talebiniz o an{" "}
-                  {companyName} firmasına iletilecek.
-                </span>
+                <span>{t.rich("sentBody", { company: companyName, b: (chunks) => <strong>{chunks}</strong> })}</span>
               </p>
               <p className="mt-4 text-xs/5 text-zinc-500">
-                Bu adım, adresinizin gerçek olduğunu doğruluyor — satıcılara
-                sahte talep gitmesini böyle engelliyoruz.
+                {t("sentNote")}
               </p>
               <button
                 type="button"
                 onClick={onClose}
                 className="mt-6 w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-blue-700"
               >
-                Tamam
+                {t("ok")}
               </button>
             </div>
           ) : (
             <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-4">
               <p className="text-sm/6 text-zinc-500">
-                <strong className="text-zinc-900">{productName}</strong> hakkında{" "}
-                {companyName} firmasına soru gönderin. Hesap gerekmez.
+                {t.rich("intro", { product: productName, company: companyName, b: (chunks) => <strong className="text-zinc-900">{chunks}</strong> })}
               </p>
 
               <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-                <Input name="name" label="Ad soyad" required maxLength={100} />
+                <Input name="name" label={t("name")} required maxLength={100} />
                 <Input
                   name="email"
                   type="email"
-                  label="E-posta"
+                  label={t("email")}
                   required
                   maxLength={200}
                 />
-                <Input name="companyName" label="Firma adı" maxLength={150} />
-                <Input name="phone" label="Telefon" maxLength={40} />
+                <Input name="companyName" label={t("companyName")} maxLength={150} />
+                <Input name="phone" label={t("phone")} maxLength={40} />
               </div>
 
               <Input
                 name="quantity"
-                label="Miktar"
-                placeholder="örn. 500 adet"
+                label={t("quantity")}
+                placeholder={t("quantityPlaceholder")}
                 maxLength={100}
               />
 
@@ -156,7 +153,7 @@ export function InquiryDialog({
                   htmlFor="inq-message"
                   className="block text-sm font-medium text-zinc-900"
                 >
-                  Mesajınız <span className="text-zinc-400">*</span>
+                  {t("message")} <span className="text-zinc-400">*</span>
                 </label>
                 <textarea
                   id="inq-message"
@@ -165,14 +162,14 @@ export function InquiryDialog({
                   minLength={10}
                   maxLength={3000}
                   rows={4}
-                  placeholder="İhtiyacınızı, teslim yerini ve termini yazın."
+                  placeholder={t("messagePlaceholder")}
                   className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
                 />
               </div>
 
               {/* Bot tuzağı — ekran okuyucudan ve gözden gizli. */}
               <div aria-hidden className="hidden">
-                <label htmlFor="inq-website">Web sitesi</label>
+                <label htmlFor="inq-website">{t("website")}</label>
                 <input id="inq-website" name="website" tabIndex={-1} autoComplete="off" />
               </div>
 
@@ -187,10 +184,10 @@ export function InquiryDialog({
                 disabled={busy}
                 className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
               >
-                {busy ? "Gönderiliyor…" : "Talebi gönder"}
+                {busy ? t("sending") : t("submit")}
               </button>
               <p className="text-center text-xs text-zinc-500">
-                Yanıtı okumak için ücretsiz hesap gerekir.
+                {t("replyNote")}
               </p>
             </form>
           )}

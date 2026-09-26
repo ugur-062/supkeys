@@ -1,5 +1,8 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
+import { INTL_LOCALE, formatNumber } from "@/i18n/format";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
@@ -23,17 +26,18 @@ import {
 } from "@/hooks/use-company-reports";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { ArrowLeft, ChevronDown, FileSpreadsheet, Loader2 } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
 import { CURRENCIES } from "@/lib/tenders/labels";
 
 // Liste TEK KAYNAK: labels.ts CURRENCIES (tablodan türetilir) — Dalga B-2.
 
-function tl(n: number | null) {
+/** TRY toplamı — okuyucunun dilinde, ondalıksız. */
+function tl(n: number | null, locale: Locale) {
   return n == null
     ? "—"
-    : `${n.toLocaleString("tr-TR", { maximumFractionDigits: 0 })} ₺`;
+    : `${n.toLocaleString(INTL_LOCALE[locale] ?? "tr-TR", { maximumFractionDigits: 0 })} ₺`;
 }
 
 /**
@@ -47,9 +51,12 @@ export function SavingsReportView({
   type: ReportType;
   basePath: string;
 }) {
+  const t = useTranslations("web.panel.reports.savingsReportView");
+  const locale = useLocale() as Locale;
+  // Yüzde bir ondalıkla, okuyucunun dilinde (ICU düz argümanı sayı biçimlemez).
+  const pct1 = (n: number) =>
+    n.toLocaleString(INTL_LOCALE[locale] ?? "tr-TR", { maximumFractionDigits: 1 });
   const isAlim = type === "ALIM";
-  const deltaWord = isAlim ? "Tasarruf" : "Kazanç";
-  const partyWord = isAlim ? "Tedarikçi" : "Alıcı";
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
   const [currency, setCurrency] = useState("");
@@ -70,15 +77,15 @@ export function SavingsReportView({
     try {
       await report.mutateAsync(payload());
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Rapor oluşturulamadı"));
+      toast.error(extractErrorMessage(err, t("raporOlusturulamadi")));
     }
   };
   const runDownload = async () => {
     try {
       const { filename } = await download.mutateAsync(payload());
-      toast.success(`${filename} indiriliyor`);
+      toast.success(t("indiriliyor", { file: filename }));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "İndirme başarısız"));
+      toast.error(extractErrorMessage(err, t("indirmeBasarisiz")));
     }
   };
 
@@ -92,23 +99,19 @@ export function SavingsReportView({
           className="inline-flex items-center gap-1 hover:text-zinc-800 hover:underline"
         >
           <ArrowLeft className="h-3.5 w-3.5" />
-          Raporlar
+          {t("raporlar")}
         </Link>
       </nav>
-      <Heading>
-        {isAlim ? "Tasarruf Raporu" : "Rekabet Kazancı Raporu"}
-      </Heading>
+      <Heading>{t("tasarrufRaporu")}</Heading>
       <Text className="text-sm text-zinc-500">
-        {isAlim
-          ? "Kazandırılan satın alma taleplerinde rekabetin size kazandırdığı tutar (en yüksek teklif − kazanan) ve hedef fiyata göre kalem detayı."
-          : "Kazandırılan ilanlarda rekabetin fiyatı yükselttiği tutar (kazanan − en düşük teklif) ve tabana göre kalem detayı."}
+        {t("kazandirilanSatinAlmaTaleplerindeRekabetin")}
       </Text>
 
       {/* Kriter kartı */}
       <section className="space-y-4 card p-5 shadow-sm">
         <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
           <Field>
-            <Label>Başlangıç</Label>
+            <Label>{t("baslangic")}</Label>
             <Input
               type="date"
               value={rangeStart}
@@ -116,7 +119,7 @@ export function SavingsReportView({
             />
           </Field>
           <Field>
-            <Label>Bitiş</Label>
+            <Label>{t("bitis")}</Label>
             <Input
               type="date"
               value={rangeEnd}
@@ -124,12 +127,12 @@ export function SavingsReportView({
             />
           </Field>
           <Field>
-            <Label>Para Birimi (ilan)</Label>
+            <Label>{t("paraBirimiTalep")}</Label>
             <Select
               value={currency}
               onChange={(e) => setCurrency(e.target.value)}
             >
-              <option value="">Tümü</option>
+              <option value="">{t("tumu")}</option>
               {CURRENCIES.map((c) => (
                 <option key={c} value={c}>
                   {c}
@@ -143,7 +146,7 @@ export function SavingsReportView({
             {report.isPending ? (
               <Loader2 className="h-4 w-4 animate-spin" data-slot="icon" />
             ) : null}
-            Raporu Oluştur
+            {t("raporuOlustur")}
           </Button>
           <Button
             outline
@@ -151,7 +154,7 @@ export function SavingsReportView({
             disabled={!canSubmit || download.isPending}
           >
             <FileSpreadsheet data-slot="icon" />
-            Excel İndir
+            {t("excelIndir")}
           </Button>
         </div>
       </section>
@@ -161,7 +164,7 @@ export function SavingsReportView({
       ) : data ? (
         data.rows.length === 0 ? (
           <div className="rounded-2xl border border-dashed border-zinc-300 bg-zinc-50/50 p-8 text-center text-sm text-zinc-500">
-            Bu aralıkta kazandırılmış {isAlim ? "satın alma talebi" : "ilan"} yok.
+            {t("buAraliktaKazandirilmisSatinAlmaTalebiYok")}
           </div>
         ) : (
           <section className="space-y-4">
@@ -173,29 +176,24 @@ export function SavingsReportView({
                 role="status"
                 className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-sm text-amber-900"
               >
-                Sonuç en fazla {data.maxRows ?? 500} kayıtla sınırlandı — daha
-                eskiler bu toplamlara DAHİL DEĞİL. Tarih aralığını daraltarak
-                tamamını görebilirsiniz.
+                {t("sonucEnFazlaKayitlaSinirlandi", { max: data.maxRows ?? 500 })}
               </p>
             ) : null}
             {/* Özet şeridi */}
             <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-xl border border-slate-200/80 bg-zinc-950/[0.06] sm:grid-cols-3 lg:grid-cols-5">
               {(
                 [
+                  [t("satinAlmaTalebi"), String(data.summary.totalListings)],
+                  [t("kazananToplam"), tl(data.summary.grandActual, locale)],
+                  [t("toplamTasarruf"), tl(data.summary.grandDelta, locale), true],
                   [
-                    isAlim ? "Satın Alma Talebi" : "İlan",
-                    String(data.summary.totalListings),
-                  ],
-                  ["Kazanan Toplam", tl(data.summary.grandActual)],
-                  [`Toplam ${deltaWord}`, tl(data.summary.grandDelta), true],
-                  [
-                    `${deltaWord} %`,
-                    `%${data.summary.grandDeltaPct.toLocaleString("tr-TR", { maximumFractionDigits: 1 })}`,
+                    t("tasarrufYuzde"),
+                    t("yuzde", { n: pct1(data.summary.grandDeltaPct) }),
                     true,
                   ],
                   [
-                    `Ort. ${deltaWord} %`,
-                    `%${data.summary.avgDeltaPct.toLocaleString("tr-TR", { maximumFractionDigits: 1 })}`,
+                    t("ortTasarrufYuzde"),
+                    t("yuzde", { n: pct1(data.summary.avgDeltaPct) }),
                   ],
                 ] as Array<[string, string, boolean?]>
               ).map(([k, v, accent]) => (
@@ -216,15 +214,19 @@ export function SavingsReportView({
             <div className="flex flex-wrap gap-2">
               {data.summary.best ? (
                 <Badge color="green">
-                  En iyi: {data.summary.best.title} (%
-                  {data.summary.best.deltaPct?.toFixed(0) ?? "-"})
+                  {t("enIyi", {
+                    title: data.summary.best.title,
+                    pct: data.summary.best.deltaPct?.toFixed(0) ?? "-",
+                  })}
                 </Badge>
               ) : null}
               {data.summary.worst &&
               data.summary.worst.title !== data.summary.best?.title ? (
                 <Badge color="amber">
-                  En zayıf: {data.summary.worst.title} (%
-                  {data.summary.worst.deltaPct?.toFixed(0) ?? "-"})
+                  {t("enZayif", {
+                    title: data.summary.worst.title,
+                    pct: data.summary.worst.deltaPct?.toFixed(0) ?? "-",
+                  })}
                 </Badge>
               ) : null}
             </div>
@@ -234,13 +236,11 @@ export function SavingsReportView({
               <Table dense>
                 <TableHead>
                   <TableRow>
-                    <TableHeader>{isAlim ? "Satın Alma Talebi" : "İlan"}</TableHeader>
-                    <TableHeader className="text-right">Teklif</TableHeader>
-                    <TableHeader className="text-right">
-                      {isAlim ? "En Yüksek" : "En Düşük"}
-                    </TableHeader>
-                    <TableHeader className="text-right">Kazanan</TableHeader>
-                    <TableHeader className="text-right">{deltaWord}</TableHeader>
+                    <TableHeader>{t("satinAlmaTalebi")}</TableHeader>
+                    <TableHeader className="text-right">{t("teklif")}</TableHeader>
+                    <TableHeader className="text-right">{t("enYuksek")}</TableHeader>
+                    <TableHeader className="text-right">{t("kazanan")}</TableHeader>
+                    <TableHeader className="text-right">{t("tasarruf")}</TableHeader>
                     <TableHeader className="text-right">%</TableHeader>
                     <TableHeader />
                   </TableRow>
@@ -265,17 +265,17 @@ export function SavingsReportView({
                           {r.bidCount}
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-zinc-600">
-                          {tl(isAlim ? r.highestBid : r.lowestBid)}
+                          {tl(isAlim ? r.highestBid : r.lowestBid, locale)}
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-zinc-900">
-                          {tl(r.winningTotal)}
+                          {tl(r.winningTotal, locale)}
                         </TableCell>
                         <TableCell className="text-right font-semibold tabular-nums text-emerald-700">
-                          {tl(r.delta)}
+                          {tl(r.delta, locale)}
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-zinc-600">
                           {r.deltaPct != null
-                            ? `%${r.deltaPct.toFixed(0)}`
+                            ? t("yuzde", { n: r.deltaPct.toFixed(0) })
                             : "—"}
                         </TableCell>
                         <TableCell className="text-right">
@@ -284,7 +284,7 @@ export function SavingsReportView({
                             onClick={() =>
                               setOpenRow(openRow === r.id ? null : r.id)
                             }
-                            aria-label="Kalem detayı"
+                            aria-label={t("kalemDetayi")}
                             className="text-zinc-400 hover:text-zinc-700"
                           >
                             <ChevronDown
@@ -300,26 +300,26 @@ export function SavingsReportView({
                           <TableCell colSpan={7} className="bg-zinc-50/60">
                             <div className="space-y-2 py-2">
                               <Subheading className="text-sm">
-                                Kalem Detayı
+                                {t("kalemDetayi2")}
                               </Subheading>
                               <Table dense>
                                 <TableHead>
                                   <TableRow>
-                                    <TableHeader>Kalem</TableHeader>
+                                    <TableHeader>{t("kalem")}</TableHeader>
                                     <TableHeader className="text-right">
-                                      Adet
+                                      {t("adet")}
                                     </TableHeader>
                                     <TableHeader className="text-right">
-                                      {isAlim ? "Hedef Birim" : "Taban Birim"}
+                                      {t("hedefBirim")}
                                     </TableHeader>
                                     <TableHeader className="text-right">
-                                      Kazanan Birim
+                                      {t("kazananBirim")}
                                     </TableHeader>
                                     <TableHeader>
-                                      Kazanan {partyWord}
+                                      {t("kazananTedarikci")}
                                     </TableHeader>
                                     <TableHeader className="text-right">
-                                      {deltaWord}
+                                      {t("tasarruf")}
                                     </TableHeader>
                                   </TableRow>
                                 </TableHead>
@@ -337,16 +337,12 @@ export function SavingsReportView({
                                       </TableCell>
                                       <TableCell className="text-right tabular-nums text-zinc-600">
                                         {it.referenceUnitPrice != null
-                                          ? it.referenceUnitPrice.toLocaleString(
-                                              "tr-TR",
-                                            )
+                                          ? formatNumber(it.referenceUnitPrice, locale)
                                           : "—"}
                                       </TableCell>
                                       <TableCell className="text-right tabular-nums text-zinc-900">
                                         {it.winningUnitPrice != null
-                                          ? it.winningUnitPrice.toLocaleString(
-                                              "tr-TR",
-                                            )
+                                          ? formatNumber(it.winningUnitPrice, locale)
                                           : "—"}
                                       </TableCell>
                                       <TableCell className="text-zinc-700">
@@ -354,7 +350,7 @@ export function SavingsReportView({
                                       </TableCell>
                                       <TableCell className="text-right font-semibold tabular-nums text-emerald-700">
                                         {it.delta != null
-                                          ? it.delta.toLocaleString("tr-TR")
+                                          ? formatNumber(it.delta, locale)
                                           : "—"}
                                       </TableCell>
                                     </TableRow>
@@ -375,7 +371,7 @@ export function SavingsReportView({
             {data.summary.byParty.length > 0 ? (
               <div className="card p-5">
                 <Subheading className="mb-3">
-                  {partyWord} Bazlı Kazanılan Tutar
+                  {t("tedarikciBazliKazanilanTutar")}
                 </Subheading>
                 <ul className="divide-y divide-zinc-50">
                   {data.summary.byParty.map((b) => (
@@ -387,7 +383,7 @@ export function SavingsReportView({
                         {b.name}
                       </span>
                       <span className=" font-semibold tabular-nums">
-                        {tl(b.awarded)}
+                        {tl(b.awarded, locale)}
                       </span>
                     </li>
                   ))}
@@ -395,8 +391,7 @@ export function SavingsReportView({
               </div>
             ) : null}
             <Text className="text-xs text-zinc-400">
-              Tutarlar teklif anındaki TCMB kuruyla TRY karşılığı olarak
-              toplanır. Kalem detayı ilan birimindedir.
+              {t("tutarlarTeklifAnindakiTcmbKuruyla")}
             </Text>
           </section>
         )

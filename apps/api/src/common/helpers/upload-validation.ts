@@ -1,3 +1,4 @@
+import { i18nMessage } from "../i18n/http-i18n";
 import { BadRequestException } from "@nestjs/common";
 import type {
   BucketKind,
@@ -36,7 +37,7 @@ const FORBIDDEN_EXTENSIONS = new Set([
 export function assertSafeFileName(fileName: string): void {
   const ext = fileName.split(".").pop()?.toLowerCase() ?? "";
   if (ext && FORBIDDEN_EXTENSIONS.has(ext)) {
-    throw new BadRequestException("Bu dosya türü yüklenemez");
+    throw new BadRequestException(i18nMessage("api.helpers.buDosyaTuruYuklenemez"));
   }
 }
 
@@ -44,7 +45,7 @@ export function assertSafeFileName(fileName: string): void {
 export function assertReportedSize(size: number | undefined): void {
   if (size != null && (size <= 0 || size > MAX_UPLOAD_BYTES)) {
     throw new BadRequestException(
-      "Dosya boyutu 50 MB sınırını aşıyor veya geçersiz",
+      i18nMessage("api.helpers.dosyaBoyutu50MbSiniriniAsiyor"),
     );
   }
 }
@@ -76,14 +77,14 @@ export async function assertUploadedObjectValid(
   const head = await storage.checkExists(bucket, key);
   if (!head.exists) {
     throw new BadRequestException(
-      "Dosya yüklenmemiş görünüyor — lütfen tekrar deneyin",
+      i18nMessage("api.helpers.dosyaYuklenmemisGorunuyorLutfenTekrarDeneyin"),
     );
   }
   if (head.size != null && head.size > maxBytes) {
     // Yetim (limit aşan) nesneyi temizle ki bucket şişmesin.
     await storage.deleteObject(bucket, key).catch(() => undefined);
     throw new BadRequestException(
-      `Dosya boyutu ${Math.round(maxBytes / 1024 / 1024)} MB sınırını aşıyor`,
+      i18nMessage("api.helpers.dosyaBoyutuMbSiniriniAsiyor", { round: Math.round(maxBytes / 1024 / 1024) }),
     );
   }
   if (allowedContentTypes && allowedContentTypes.length > 0) {
@@ -91,7 +92,7 @@ export async function assertUploadedObjectValid(
     if (!allowedContentTypes.includes(actual)) {
       await storage.deleteObject(bucket, key).catch(() => undefined);
       throw new BadRequestException(
-        "Yüklenen dosyanın türü kabul edilmiyor — dosyayı kontrol edip tekrar deneyin",
+        i18nMessage("api.helpers.yuklenenDosyaninTuruKabulEdilmiyorDosyayi"),
       );
     }
   }
@@ -116,14 +117,14 @@ export function assertOwnProfileImageUrl(
   try {
     url = new URL(value);
   } catch {
-    throw new BadRequestException("Geçersiz görsel adresi");
+    throw new BadRequestException(i18nMessage("api.helpers.gecersizGorselAdresi"));
   }
   if (url.protocol !== "https:" && url.protocol !== "http:") {
-    throw new BadRequestException("Geçersiz görsel adresi"); // data:/javascript: elenir
+    throw new BadRequestException(i18nMessage("api.helpers.gecersizGorselAdresi")); // data:/javascript: elenir
   }
   if (!opts.allowedHosts.includes(url.host)) {
     throw new BadRequestException(
-      "Görsel yalnız kendi profil deponuzdan olabilir",
+      i18nMessage("api.helpers.gorselYalnizKendiProfilDeponuzdanOlabilir"),
     );
   }
   // Dalga B-3: `decodeURIComponent` try dışındaydı — bozuk yüzde-kaçışlı bir
@@ -138,7 +139,7 @@ export function assertOwnProfileImageUrl(
   }
   if (!path.includes(opts.tenantPrefix)) {
     throw new BadRequestException(
-      "Görsel yalnız kendi profil deponuzdan olabilir",
+      i18nMessage("api.helpers.gorselYalnizKendiProfilDeponuzdanOlabilir"),
     );
   }
 }

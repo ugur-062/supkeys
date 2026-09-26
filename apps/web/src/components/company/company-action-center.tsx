@@ -1,5 +1,7 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+import type { ReactNode } from "react";
 import { ErrorState } from "@/components/ui/error-state";
 import { useActionCenter, type ActionCenterApiRow, type ActionSeverity } from "@/hooks/use-company-dashboard";
 import { useUnreadMessages } from "@/hooks/use-company-messages";
@@ -7,7 +9,7 @@ import type { PortalKey } from "@/lib/company/portals";
 import { ACTION_ROWS } from "@/lib/dashboard/strings";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Info, type LucideIcon } from "lucide-react";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * BEKLEYEN İŞLER — Şirketim › Genel Bakış (2026-09-05). Eski Aksiyon
@@ -18,18 +20,20 @@ import Link from "next/link";
  */
 const DAY_MS = 86_400_000;
 type Group = "overdue" | "today" | "week" | "waiting";
-const GROUP_LABEL: Record<Group, string> = { overdue: "Gecikmiş", today: "Bugün", week: "Bu hafta", waiting: "Bekleyen" };
+// Grup/önem etiketleri katalog anahtarı — çizim yerinde `t(key)`.
+const GROUP_KEY: Record<Group, string> = { overdue: "group.overdue", today: "group.today", week: "group.week", waiting: "group.waiting" };
 const GROUP_ORDER: Group[] = ["overdue", "today", "week", "waiting"];
 const SEVERITY_RANK: Record<ActionSeverity, number> = { critical: 0, warning: 1, info: 2 };
-const SEVERITY_META: Record<ActionSeverity, { icon: LucideIcon; cls: string; label: string }> = {
-  critical: { icon: AlertTriangle, cls: "bg-rose-50 text-rose-600", label: "kritik" },
-  warning: { icon: Clock3, cls: "bg-amber-50 text-amber-600", label: "uyarı" },
-  info: { icon: Info, cls: "bg-zinc-100 text-zinc-500", label: "bilgi" },
+const SEVERITY_META: Record<ActionSeverity, { icon: LucideIcon; cls: string; labelKey: string }> = {
+  critical: { icon: AlertTriangle, cls: "bg-rose-50 text-rose-600", labelKey: "severity.critical" },
+  warning: { icon: Clock3, cls: "bg-amber-50 text-amber-600", labelKey: "severity.warning" },
+  info: { icon: Info, cls: "bg-zinc-100 text-zinc-500", labelKey: "severity.info" },
 };
 
 export interface CompanyActionItem extends ActionCenterApiRow {
   portal: PortalKey;
-  text: string;
+  /** Satır cümlesinin katalog anahtarı (`web.panel.shell.actionRows.*`). */
+  textKey: string;
   href: string;
 }
 
@@ -49,15 +53,18 @@ export function groupOf(r: ActionCenterApiRow): Group {
   return "waiting";
 }
 
-function timeLabel(r: ActionCenterApiRow): string | null {
-  if (r.overdueDays != null) return r.overdueDays === 0 ? "bugün gecikti" : `${r.overdueDays} gün gecikti`;
+/** Zaman etiketi çevirmeni — bileşenin `t`si (`web.panel.trade.companyActionCenter`) daraltılarak geçilir. */
+type TimeT = (key: string, values?: { n: number }) => string;
+
+function timeLabel(r: ActionCenterApiRow, t: TimeT): string | null {
+  if (r.overdueDays != null) return r.overdueDays === 0 ? t("bugunGecikti") : t("gunGecikti", { n: r.overdueDays });
   if (r.dueAt) {
     const d = daysUntil(r.dueAt);
-    if (d <= 0) return "bugün";
-    if (d === 1) return "yarın";
-    return `${d} gün kaldı`;
+    if (d <= 0) return t("bugun");
+    if (d === 1) return t("yarin");
+    return t("gunKaldi", { n: d });
   }
-  if (r.waitingDays != null && r.waitingDays > 0) return `${r.waitingDays} gündür bekliyor`;
+  if (r.waitingDays != null && r.waitingDays > 0) return t("gundurBekliyor", { n: r.waitingDays });
   return null;
 }
 
@@ -71,9 +78,9 @@ export function buildCompanyActions(
     const all: ActionCenterApiRow[] = [...rows];
     if (unread > 0) all.push({ key: "messages", severity: "info", count: unread, dueAt: null, overdueDays: null, waitingDays: null });
     for (const r of all) {
-      const t = texts[r.key];
-      if (!t) continue;
-      out[groupOf(r)].push({ ...r, portal, text: t.text, href: t.href });
+      const row = texts[r.key];
+      if (!row) continue;
+      out[groupOf(r)].push({ ...r, portal, textKey: row.textKey, href: row.href });
     }
   }
   for (const g of GROUP_ORDER) {
@@ -83,6 +90,9 @@ export function buildCompanyActions(
 }
 
 export function CompanyActionCenter({ portals }: { portals: PortalKey[] }) {
+  const t = useTranslations("web.panel.trade.companyActionCenter");
+  // Satır cümleleri PAYLAŞILAN haritada (eski Aksiyon Merkezi aynı anahtarları okur).
+  const tRow = useTranslations("web.panel.shell.actionRows");
   const hasSa = portals.includes("satinalma");
   const hasSt = portals.includes("satis");
   const sa = useActionCenter("satinalma", hasSa);
@@ -96,8 +106,8 @@ export function CompanyActionCenter({ portals }: { portals: PortalKey[] }) {
   if (error) {
     return (
       <ErrorState
-        title="Bekleyen işler yüklenemedi"
-        message="Liste alınamadı — bu, bekleyen işiniz olmadığı anlamına GELMEZ."
+        title={t("bekleyenIslerYuklenemedi")}
+        message={t("listeAlinamadiBuBekleyenIsiniz")}
         onRetry={() => {
           if (hasSa) void sa.refetch();
           if (hasSt) void st.refetch();
@@ -110,12 +120,13 @@ export function CompanyActionCenter({ portals }: { portals: PortalKey[] }) {
     ...(hasSt ? [{ portal: "satis" as const, rows: st.data?.rows ?? [], unread: stUnread.data?.count ?? 0 }] : []),
   ]);
   const total = GROUP_ORDER.reduce((n, g) => n + groups[g].length, 0);
+  const timeT: TimeT = (key, values) => t(key as never, values as never);
 
   return (
     <section aria-labelledby="bekleyen-isler" className="overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5">
       <div className="flex items-center justify-between gap-3 border-b border-zinc-950/5 px-5 py-3.5">
         <h2 id="bekleyen-isler" className="text-base font-semibold tracking-tight text-zinc-950">
-          Bekleyen işler
+          {t("bekleyenIsler")}
         </h2>
         {total > 0 ? (
           <span className="rounded-full bg-zinc-950 px-2.5 py-0.5 text-xs font-semibold tabular-nums text-white">{total}</span>
@@ -124,31 +135,35 @@ export function CompanyActionCenter({ portals }: { portals: PortalKey[] }) {
       {total === 0 ? (
         <p className="flex items-center gap-2 px-5 py-4 text-sm text-zinc-600">
           <CheckCircle2 className="size-4 text-emerald-500" aria-hidden />
-          Bekleyen iş yok.
+          {t("bekleyenIsYok")}
         </p>
       ) : (
         GROUP_ORDER.filter((g) => groups[g].length > 0).map((g) => (
           <div key={g}>
             <p className="bg-zinc-50 px-5 py-1.5 text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">
-              {GROUP_LABEL[g]} <span className="normal-case tabular-nums text-zinc-400">· {groups[g].length}</span>
+              {t(GROUP_KEY[g] as never)} <span className="normal-case tabular-nums text-zinc-400">· {groups[g].length}</span>
             </p>
             <ul className="divide-y divide-zinc-950/5">
               {groups[g].map((r) => {
                 const meta = SEVERITY_META[r.severity];
-                const time = timeLabel(r);
+                const time = timeLabel(r, timeT);
                 return (
                   <li key={`${r.portal}:${r.key}`}>
                     <Link
                       href={r.href}
-                      aria-label={`${r.count} ${r.text}${time ? ` — ${time}` : ""}`}
+                      aria-label={`${tRow.markup(r.textKey as never, { n: r.count, b: (c: string) => c } as never)}${time ? ` — ${time}` : ""}`}
                       className="group flex items-center gap-3 px-5 py-3 transition hover:bg-zinc-50 focus-visible:bg-zinc-50 focus-visible:outline-none"
                     >
-                      <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", meta.cls)} title={meta.label}>
+                      <span className={cn("flex size-8 shrink-0 items-center justify-center rounded-lg", meta.cls)} title={t(meta.labelKey as never)}>
                         <meta.icon className="size-4" aria-hidden />
                       </span>
                       <span className="min-w-0 flex-1 text-sm text-zinc-700">
-                        <strong className="font-semibold tabular-nums text-zinc-950">{r.count}</strong>{" "}
-                        <span className="group-hover:text-zinc-950">{r.text}</span>
+                        <span className="group-hover:text-zinc-950">
+                          {tRow.rich(r.textKey as never, {
+                            n: r.count,
+                            b: (c: ReactNode) => <strong className="font-semibold tabular-nums text-zinc-950">{c}</strong>,
+                          } as never)}
+                        </span>
                         {time ? (
                           <span
                             className={cn(
@@ -166,7 +181,7 @@ export function CompanyActionCenter({ portals }: { portals: PortalKey[] }) {
                           r.portal === "satinalma" ? "bg-blue-50 text-blue-700" : "bg-emerald-50 text-emerald-700",
                         )}
                       >
-                        {r.portal === "satinalma" ? "Satınalma" : "Satış"}
+                        {r.portal === "satinalma" ? t("satinalma") : t("satis")}
                       </span>
                       <ChevronRight className="size-4 shrink-0 text-zinc-300 transition-all group-hover:translate-x-0.5 group-hover:text-zinc-600" aria-hidden />
                     </Link>

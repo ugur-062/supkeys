@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -29,42 +30,42 @@ export function RoundHistoryDialog({
   onClose: () => void;
   currency?: string;
 }) {
+  const t = useTranslations("web.panel.requests.roundHistoryDialog");
   const history = useRoundHistory(id, open);
   const rounds = history.data ?? [];
   const sym = !currency || currency === "TRY" ? "₺" : currency;
 
   return (
     <Dialog open={open} onClose={onClose} size="2xl">
-      <DialogTitle>Tur Geçmişi</DialogTitle>
+      <DialogTitle>{t("turGecmisi")}</DialogTitle>
       <DialogBody className="space-y-5">
         {history.isLoading ? (
-          <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+          <Text className="text-sm text-zinc-500">{t("yukleniyor")}</Text>
         ) : history.isError ? (
           <div className="flex flex-col items-center gap-3 py-4">
             <Text className="text-sm text-red-600">
-              Tur geçmişi yüklenemedi.
+              {t("turGecmisiYuklenemedi")}
             </Text>
             <Button outline onClick={() => history.refetch()}>
-              Tekrar dene
+              {t("tekrarDene")}
             </Button>
           </div>
         ) : rounds.length === 0 ? (
           <Text className="text-sm text-zinc-500">
-            Henüz tamamlanmış tur yok. Yeni tur başlattığında önceki turun
-            teklifleri burada arşivlenir.
+            {t("henuzTamamlanmisTurYokYeni")}
           </Text>
         ) : (
           rounds.map((r) => (
             <div key={r.round} className="space-y-2">
               <div className="text-sm font-semibold text-zinc-900">
-                Tur {r.round}
+                {t("tur", { round: r.round })}
               </div>
               <div className="rounded-xl border border-zinc-950/5 px-2 [--gutter:--spacing(4)]">
                 <Table dense>
                   <TableHead>
                     <TableRow>
-                      <TableHeader>Tedarikçi</TableHeader>
-                      <TableHeader className="text-right">Teklif</TableHeader>
+                      <TableHeader>{t("tedarikci")}</TableHeader>
+                      <TableHeader className="text-right">{t("teklif")}</TableHeader>
                     </TableRow>
                   </TableHead>
                   <TableBody>
@@ -92,7 +93,7 @@ export function RoundHistoryDialog({
         )}
       </DialogBody>
       <DialogActions>
-        <Button onClick={onClose}>Kapat</Button>
+        <Button onClick={onClose}>{t("kapat")}</Button>
       </DialogActions>
     </Dialog>
   );

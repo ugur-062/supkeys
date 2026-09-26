@@ -2,7 +2,8 @@
 /**
  * VARLIK ADI SIZINTISI — regresyon (v2 denetimi, 2026-09-03).
  *
- * Sihirbaz metni YALNIZ `entityLabels()` sözlüğünden gelir; varlık adı tek
+ * Sihirbaz metni YALNIZ varlık sözlüğünden gelir (`useEntityLabels()` →
+ * `web.domain.entity.satinalma`); varlık adı tek
  * yerde değişir. Satış ilanı sihirbazı 2026-09-04'te kaldırıldı — sözlük tek
  * girdiye indi ama kural kalır (yeni bir varlık eklenirse kopya-yapıştır
  * sızıntısı yine buradan yakalanır). İki katman:
@@ -16,7 +17,7 @@ import path from "node:path";
 import { FormProvider, useForm } from "react-hook-form";
 import { describe, expect, it, vi } from "vitest";
 import { DEFAULT_FORM_VALUES, type TenderFormData } from "@/lib/tenders/form-schema";
-import { ENTITY_LABELS } from "@/lib/company/terms";
+import { messagesFor } from "@rothern/i18n/messages";
 
 vi.mock("@/hooks/use-company-connections", () => ({
   useConnections: () => ({ data: [] }),
@@ -61,7 +62,9 @@ function Harness({
 
 describe("varlık adı sızıntısı", () => {
   it("sözlük: girdilerde 'ihale' ve 'ilan' yok", () => {
-    for (const v of Object.values(ENTITY_LABELS.satinalma)) {
+    /* Varlık sözlüğü artık KATALOGDA (i18n Faz 2) — kaynak dil kaydı okunur. */
+    const entity = messagesFor("tr", ["web"]).web.domain.entity.satinalma;
+    for (const v of Object.values(entity)) {
       expect(v).not.toMatch(/(?<![.\w])ihale/i);
       expect(v).not.toMatch(/\bilan/i);
     }

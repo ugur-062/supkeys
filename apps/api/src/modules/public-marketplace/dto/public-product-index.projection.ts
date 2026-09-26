@@ -23,6 +23,8 @@ import { labelAttributes, resolveCategoryAttributesBatch } from "../../../common
  * `completionScore` (iç kalite ölçütü), cuid `id`. Fiyat/MOQ AÇIK (v2).
  */
 export const PRODUCT_INDEX_SELECT = {
+  // İç kimlik yalnız ÇEVİRİ eşlemesi için (i18n Faz 1e); mapper yanıta YAZMAZ.
+  id: true,
   slug: true,
   attributes: true,
   name: true,

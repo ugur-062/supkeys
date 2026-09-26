@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   ForbiddenException,
   Inject,
@@ -114,7 +115,7 @@ export class AiBudgetService {
       where: { id: companyId },
       select: { tier: true, membershipEndAt: true },
     });
-    if (!company) throw new NotFoundException("Firma bulunamadı");
+    if (!company) throw new NotFoundException(i18nMessage("api.ai.firmaBulunamadi"));
     const pool =
       this.config.monthlyBudgetUsd[
         effectiveTier(company.tier, company.membershipEndAt)
@@ -161,7 +162,7 @@ export class AiBudgetService {
       const pool = await this.poolFor(args.companyId, tx);
       if (pool == null) {
         throw new ForbiddenException(
-          "Paketiniz AI özelliklerini içermiyor — Silver veya üzeri paket gerekir.",
+          i18nMessage("api.ai.paketinizAiOzellikleriniIcermiyorSilverVeya"),
         );
       }
       const poolD = new Prisma.Decimal(pool);
@@ -232,7 +233,7 @@ export class AiBudgetService {
       where: { id },
       select: { model: true, companyId: true },
     });
-    if (!row) throw new NotFoundException("AI kullanım kaydı bulunamadı");
+    if (!row) throw new NotFoundException(i18nMessage("api.ai.aiKullanimKaydiBulunamadi"));
     const pricing = this.config.pricing[row.model];
     if (!pricing) {
       // loadAiConfig boot'ta doğrular — buraya düşmek config regresyonudur.

@@ -21,31 +21,35 @@
  * konum" değil.
  */
 export class ImageProcessingError extends Error {
-  constructor() {
-    super(
-      "Görsel işlenemedi — konum/EXIF bilgisini temizleyemediğimiz için yüklenmedi. Ekran görüntüsü alıp yeniden deneyin.",
-    );
+  /**
+   * Kullanıcıya gösterilecek metin ÇAĞIRANDAN gelir (katalog anahtarı
+   * `web.shared.imageProcessing.exifTemizlenemedi`): bu modül React dışıdır,
+   * çevirmene erişemez. Verilmezse mesaj BOŞ kalır ve `extractErrorMessage`
+   * çağıranın kendi çevrilmiş yedek metnine düşer.
+   */
+  constructor(message = "") {
+    super(message);
     this.name = "ImageProcessingError";
   }
 }
 
 export async function resizeImageFile(
   file: File,
-  opts: { maxEdge: number; quality?: number },
+  opts: { maxEdge: number; quality?: number; errorMessage?: string },
 ): Promise<File> {
   const quality = opts.quality ?? 0.85;
   if (typeof window === "undefined" || typeof document === "undefined") {
-    throw new ImageProcessingError();
+    throw new ImageProcessingError(opts.errorMessage);
   }
   // Desteklenmeyen tür buraya gelmemeli (çağıran MIME süzüyor); gelirse geçme.
   if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
-    throw new ImageProcessingError();
+    throw new ImageProcessingError(opts.errorMessage);
   }
   let bitmap: ImageBitmap | HTMLImageElement;
   try {
     bitmap = await loadBitmap(file);
   } catch {
-    throw new ImageProcessingError();
+    throw new ImageProcessingError(opts.errorMessage);
   }
   try {
     const { width, height } = bitmap;
@@ -57,12 +61,12 @@ export async function resizeImageFile(
     canvas.width = w;
     canvas.height = h;
     const ctx = canvas.getContext("2d");
-    if (!ctx) throw new ImageProcessingError();
+    if (!ctx) throw new ImageProcessingError(opts.errorMessage);
     ctx.drawImage(bitmap as CanvasImageSource, 0, 0, w, h);
     const blob = await new Promise<Blob | null>((resolve) =>
       canvas.toBlob(resolve, "image/webp", quality),
     );
-    if (!blob || blob.size === 0) throw new ImageProcessingError();
+    if (!blob || blob.size === 0) throw new ImageProcessingError(opts.errorMessage);
     const name = file.name.replace(/\.[a-z0-9]+$/i, "") + ".webp";
     return new File([blob], name, { type: "image/webp", lastModified: Date.now() });
   } finally {

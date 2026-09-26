@@ -1,13 +1,18 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
+import { stripLocale } from "@/i18n/href";
+
 import { RothernLogo } from "@/components/brand/logo";
 import { Sheet } from "@/components/ui/sheet";
-import { MARKETPLACE_LABELS, MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
+import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { Bars3Icon } from "@heroicons/react/24/outline";
-import Link from "next/link";
-import { usePathname } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { usePathname } from "@/i18n/navigation";
 import { useAudienceValue } from "@/components/marketplace/audience-switch";
 import { cn } from "@/lib/utils";
+import { LanguageSwitcher } from "./language-switcher";
 import { useEffect, useState } from "react";
 
 /**
@@ -29,8 +34,8 @@ import { useEffect, useState } from "react";
  * GELMEDİ, yalnız bağlantılar.
  *
  * SIRA: önce gidilecek yerler (pazar yeri), sonra açıklayıcı sayfalar.
- * Adlar `MARKETPLACE_LABELS`ten — üst çubuk, liste sayfası ve footer aynı
- * sözcüğü kullanmalı ("ürün ≠ ilan" ayrımı orada belgeli).
+ * Adlar `web.marketplace.labels.*` katalogundan — üst çubuk, liste sayfası ve
+ * footer aynı sözcüğü kullanmalı ("ürün ≠ ilan" ayrımı orada belgeli).
  *
  * Sonuç: header 100 px'ten **64 px'e** indi. Sayfaların üst boşluğu
  * (`pt-28`) olduğu gibi duruyor — artık nefes payı daha geniş, kesişme yok;
@@ -57,15 +62,16 @@ import { useEffect, useState } from "react";
 const PRICING_HREF = "/nasil-calisir#fiyatlar";
 
 /** Logonun yanındaki menü — tek kaynak (masaüstü satırı + mobil çekmece). */
-const NAV = [
-  { name: MARKETPLACE_LABELS.products, href: MARKETPLACE_ROUTES.products },
-  { name: MARKETPLACE_LABELS.companies, href: MARKETPLACE_ROUTES.companies },
-  { name: MARKETPLACE_LABELS.demands, href: MARKETPLACE_ROUTES.demands },
-  { name: "Nasıl Çalışır", href: "/nasil-calisir" },
-  { name: "Fiyatlar", href: PRICING_HREF },
-];
-
 export function MarketingHeader() {
+  const t = useTranslations("web.marketing.nav");
+  const tl = useTranslations("web.marketplace.labels");
+  const NAV = [
+    { name: tl("products"), href: MARKETPLACE_ROUTES.products },
+    { name: tl("companies"), href: MARKETPLACE_ROUTES.companies },
+    { name: tl("demands"), href: MARKETPLACE_ROUTES.demands },
+    { name: t("howItWorks"), href: "/nasil-calisir" },
+    { name: t("pricing"), href: PRICING_HREF },
+  ];
   const [menuOpen, setMenuOpen] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const [here, setHere] = useState<string | null>(null);
@@ -80,7 +86,7 @@ export function MarketingHeader() {
   /* Aktif satır: `pathname` yalnız EFEKT BAĞIMLILIĞI — render dalı değil.
      Rota değişince yeniden değerlendirilir, ilk boyada boş kalır. */
   useEffect(() => {
-    setHere(window.location.pathname);
+    setHere(stripLocale(window.location.pathname));
   }, [pathname]);
 
   useEffect(() => {
@@ -118,7 +124,7 @@ export function MarketingHeader() {
               yaslı hâli "çok soldan başlıyor" diye iki kez geri geldi
               (kullanıcı, 2026-09-10). Sağ grup ml-auto taşımaz, boşluğu nav
               iki yana eşit paylaştırır. */}
-          <nav aria-label="Site menüsü" className="hidden items-center gap-8 lg:mx-auto lg:flex">
+          <nav aria-label={t("siteMenu")} className="hidden items-center gap-8 lg:mx-auto lg:flex">
             {NAV.map((item) => {
               const on = isActive(item.href);
               return (
@@ -139,11 +145,12 @@ export function MarketingHeader() {
           </nav>
 
           <div className="hidden items-center gap-4 lg:flex">
+            <LanguageSwitcher />
             <Link
               href="/company/login"
               className="text-sm font-semibold whitespace-nowrap text-zinc-900 transition hover:text-zinc-600"
             >
-              Giriş Yap
+              {t("login")}
             </Link>
             <Link
               href="/company/kayit"
@@ -152,7 +159,7 @@ export function MarketingHeader() {
                 signupGreen ? "bg-emerald-600 hover:bg-emerald-700" : "bg-blue-600 hover:bg-blue-700",
               )}
             >
-              Ücretsiz Kaydol
+              {t("signup")}
             </Link>
           </div>
 
@@ -161,7 +168,7 @@ export function MarketingHeader() {
             onClick={() => setMenuOpen(true)}
             className="ml-auto inline-flex size-10 items-center justify-center rounded-lg text-zinc-700 hover:bg-zinc-100 lg:hidden"
           >
-            <span className="sr-only">Menüyü aç</span>
+            <span className="sr-only">{t("openMenu")}</span>
             <Bars3Icon aria-hidden className="size-6" />
           </button>
         </div>
@@ -172,7 +179,7 @@ export function MarketingHeader() {
         open={menuOpen}
         onClose={() => setMenuOpen(false)}
         side="right"
-        title="Menü"
+        title={t("menu")}
         footer={
           <div className="flex flex-col gap-2">
             <Link
@@ -183,14 +190,14 @@ export function MarketingHeader() {
                 signupGreen ? "bg-emerald-600" : "bg-blue-600",
               )}
             >
-              Ücretsiz Kaydol
+              {t("signup")}
             </Link>
             <Link
               href="/company/login"
               onClick={() => setMenuOpen(false)}
               className="rounded-full px-4 py-2.5 text-center text-sm font-semibold text-zinc-900 ring-1 ring-zinc-950/10 ring-inset"
             >
-              Giriş Yap
+              {t("login")}
             </Link>
           </div>
         }
@@ -211,6 +218,7 @@ export function MarketingHeader() {
             </Link>
           ))}
         </nav>
+        <LanguageSwitcher variant="inline" className="mt-6 border-t border-zinc-100 pt-4" />
       </Sheet>
     </header>
   );

@@ -1,5 +1,6 @@
 import { Transform } from "class-transformer";
 import { IsIn, IsInt, IsOptional, IsString, Matches, Max, MaxLength, Min } from "class-validator";
+import { tApi } from "../../../common/i18n/i18n.service";
 
 /** Herkese açık firma dizini sorgusu — her alan dar (önbellek anahtarı + contains). */
 export class PublicDirectoryQueryDto {
@@ -18,7 +19,9 @@ export class PublicDirectoryQueryDto {
 
   /** Kategori — 8 haneli kod, virgüllü çoklu (en çok 10). */
   @IsOptional()
-  @Matches(/^\d{8}(,\d{8}){0,9}$/, { message: "Kategori kodu 8 haneli olmalı" })
+  @Matches(/^\d{8}(,\d{8}){0,9}$/, {
+    message: () => tApi("api.dto.publicDirectoryQuery.kategoriKodu8HaneliOlmali"),
+  })
   category?: string;
 
   @IsOptional()

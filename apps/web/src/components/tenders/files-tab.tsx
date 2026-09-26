@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { Badge } from "@/components/catalyst/badge";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { Button } from "@/components/catalyst/button";
@@ -7,7 +8,6 @@ import { Text } from "@/components/catalyst/text";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import {
   LISTING_DOC_KINDS,
-  LISTING_DOC_KIND_LABELS,
   useDeleteListingDoc,
   useListingDocuments,
   useUploadListingDoc,
@@ -17,7 +17,7 @@ import { formatDate } from "@/lib/tenders/date";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { FileText, Paperclip, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { entityLabels } from "@/lib/company/terms";
+import { useEntityLabels } from "@/i18n/domain";
 import { toast } from "sonner";
 
 export function FilesTab({
@@ -31,7 +31,11 @@ export function FilesTab({
   // değiştirilebilir; kapandıktan sonra salt-okunur.
   canEdit?: boolean;
 }) {
-  const L = entityLabels();
+  const t = useTranslations("web.panel.requests.filesTab");
+  const L = useEntityLabels();
+  // Belge bölümü adları katalogdan (`LISTING_DOC_KIND_LABELS` Türkçe sözlüğü
+  // diğer tüketiciler için duruyor; burada kod → anahtar).
+  const docKindLabel = (k: ListingDocKind) => t(`docKind.${k}` as never);
   const confirm = useConfirm();
   const docs = useListingDocuments(listingId, true);
   const upload = useUploadListingDoc(listingId);
@@ -45,32 +49,32 @@ export function FilesTab({
     if (!file) return;
     // 50MB ön-kontrolü — R2 PUT'ta patlamadan anlaşılır mesaj.
     if (file.size > 50 * 1024 * 1024) {
-      toast.error(`"${file.name}" 50MB sınırını aşıyor`);
+      toast.error(t("n50mbSiniriniAsiyor", { name: file.name }));
       return;
     }
     try {
       await upload.mutateAsync({ file, kind });
-      toast.success("Dosya yüklendi");
+      toast.success(t("dosyaYuklendi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Yüklenemedi"));
+      toast.error(extractErrorMessage(err, t("yuklenemedi")));
     }
   };
 
   const handleDelete = async (docId: string) => {
     if (
       !(await confirm({
-        title: "Dosyayı sil",
-        description: "Dosya silinsin mi?",
-        confirmLabel: "Sil",
+        title: t("dosyayiSil"),
+        description: t("dosyaSilinsinMi"),
+        confirmLabel: t("sil"),
         destructive: true,
       }))
     )
       return;
     try {
       await del.mutateAsync(docId);
-      toast.success("Dosya silindi");
+      toast.success(t("dosyaSilindi"));
     } catch (err) {
-      toast.error(extractErrorMessage(err, "Silinemedi"));
+      toast.error(extractErrorMessage(err, t("silinemedi")));
     }
   };
 
@@ -78,7 +82,7 @@ export function FilesTab({
   // Bölümlere göre grupla; yalnızca dosyası olan bölümler gösterilir.
   const grouped = LISTING_DOC_KINDS.map((k) => ({
     kind: k,
-    label: LISTING_DOC_KIND_LABELS[k],
+    label: docKindLabel(k),
     items: rows.filter((d) => d.kind === k),
   })).filter((g) => g.items.length > 0);
 
@@ -89,12 +93,12 @@ export function FilesTab({
           <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-100">
             <FileText className="h-4 w-4 text-zinc-700" />
           </div>
-          <h3 className="font-semibold text-zinc-900">{L.entityShort} Dosyaları</h3>
+          <h3 className="font-semibold text-zinc-900">{t("dosyalari", { entityShort: L.entityShort })}</h3>
         </div>
         {isOwner && canEdit ? (
           <div className="flex flex-wrap items-center gap-2">
             <label className="sr-only" htmlFor="listing-doc-kind">
-              Dosya bölümü
+              {t("dosyaBolumu")}
             </label>
             <SelectMenu
               id="listing-doc-kind"
@@ -103,17 +107,17 @@ export function FilesTab({
               className="min-w-44"
               options={LISTING_DOC_KINDS.map((k) => ({
                 value: k,
-                label: LISTING_DOC_KIND_LABELS[k],
+                label: docKindLabel(k),
               }))}
             />
             <Button as="label" outline>
               <Paperclip data-slot="icon" />
-              {upload.isPending ? "Yükleniyor…" : "Dosya Ekle"}
+              {upload.isPending ? t("yukleniyor") : t("dosyaEkle")}
               <input
                 type="file"
                 className="hidden"
                 accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
-                aria-label={`${LISTING_DOC_KIND_LABELS[kind]} bölümüne dosya ekle`}
+                aria-label={t("bolumuneDosyaEkle", { item: docKindLabel(kind) })}
                 onChange={handleUpload}
                 disabled={upload.isPending}
               />
@@ -121,18 +125,18 @@ export function FilesTab({
           </div>
         ) : isOwner ? (
           <Text className="text-xs text-zinc-400">
-            Dosyalar Düzenle ekranından yönetilir
+            {t("dosyalarDuzenleEkranindanYonetilir")}
           </Text>
         ) : null}
       </div>
 
       {docs.isLoading ? (
-        <Text className="text-sm text-zinc-500">Yükleniyor…</Text>
+        <Text className="text-sm text-zinc-500">{t("yukleniyor")}</Text>
       ) : docs.isError ? (
         <div className="flex flex-col items-center justify-center gap-3 py-10 text-center">
-          <Text className="text-sm text-red-600">Dosyalar yüklenemedi.</Text>
+          <Text className="text-sm text-red-600">{t("dosyalarYuklenemedi")}</Text>
           <Button outline onClick={() => docs.refetch()}>
-            Tekrar dene
+            {t("tekrarDene")}
           </Button>
         </div>
       ) : rows.length === 0 ? (
@@ -142,8 +146,8 @@ export function FilesTab({
           </div>
           <p className="mt-3 text-sm text-zinc-500">
             {isOwner && canEdit
-              ? "Henüz dosya eklenmemiş. Bölüm seçip Şartname, teknik resim vb. ekleyebilirsiniz."
-              : `Bu ${L.dat} dosya eklenmemiş.`}
+              ? t("henuzDosyaEklenmemisBolumSecip")
+              : t("buDosyaEklenmemis", { dat: L.dat })}
           </p>
         </div>
       ) : (
@@ -178,11 +182,11 @@ export function FilesTab({
                         <button
                           type="button"
                           onClick={() => handleDelete(d.id)}
-                          aria-label={`${d.fileName} dosyasını sil`}
+                          aria-label={t("dosyasiniSil", { fileName: d.fileName })}
                           className="inline-flex items-center gap-1 text-xs text-zinc-400 hover:text-red-600"
                         >
                           <Trash2 className="h-3.5 w-3.5" />
-                          Sil
+                          {t("sil")}
                         </button>
                       ) : null}
                     </div>

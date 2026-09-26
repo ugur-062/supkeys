@@ -1,5 +1,7 @@
 "use client";
 
+import { useNavLabel } from "@/i18n/domain";
+import { useTranslations } from "next-intl";
 import { useCompanyAuth, useCompanyMe } from "@/hooks/use-company-auth";
 import { usePortalStore } from "@/lib/company/portal-store";
 import {
@@ -13,7 +15,7 @@ import {
 import { cn } from "@/lib/utils";
 import * as Headless from "@headlessui/react";
 import { X } from "lucide-react";
-import { usePathname } from "next/navigation";
+import { usePathname } from "@/i18n/navigation";
 import { useState } from "react";
 import { AssistantLauncher } from "./assistant/assistant-launcher";
 import { CompanySidebarContent } from "./sidebar";
@@ -25,6 +27,8 @@ const RAIL = "4.5rem"; // 72px
 const RAIL_EXPANDED = "16rem"; // 256px
 
 export function CompanyShell({ children }: { children: React.ReactNode }) {
+  const t = useTranslations("web.panel.shell.shell");
+  const tn = useNavLabel();
   // Login sonrası /me ile firma + roller tazelenir.
   useCompanyMe();
   const pathname = usePathname();
@@ -84,13 +88,13 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
           <div className="flex h-14 items-center justify-between border-b border-zinc-100 px-4">
             <span className="text-sm font-semibold text-zinc-900">
               {isCompanyAreaPath(pathname)
-                ? COMPANY_AREA.label
+                ? tn(COMPANY_AREA.label)
                 : available.length === 0
-                  ? "Menü"
-                  : PORTALS[activePortal].label}
+                  ? t("menu")
+                  : tn(PORTALS[activePortal].label)}
             </span>
             <Headless.CloseButton
-              aria-label="Menüyü kapat"
+              aria-label={t("menuyuKapat")}
               className="flex size-9 items-center justify-center rounded-lg text-zinc-500 hover:bg-zinc-950/5 hover:text-zinc-900"
             >
               <X className="size-5" aria-hidden />

@@ -84,9 +84,41 @@ const TR_SUFFIXES = [
 ].sort((a, b) => b.length - a.length);
 
 export function stemPrefix(token: string): string {
-  if (token.length < 6) return token;
-  for (const suf of TR_SUFFIXES) {
-    if (token.endsWith(suf) && token.length - suf.length >= 4) return token.slice(0, token.length - suf.length);
+  if (token.length >= 6) {
+    for (const suf of TR_SUFFIXES) {
+      if (token.endsWith(suf) && token.length - suf.length >= 4) return token.slice(0, token.length - suf.length);
+    }
   }
+  return englishPluralStem(token);
+}
+
+/**
+ * İngilizce çoğul toleransı (i18n arama, 2026-09-24) — çok dilli arama
+ * metninde (`searchTextI18n`) "pipes" → "pipe", "valves" → "valve",
+ * "boxes" → "box", "batteries" → "batter" ("battery"yi de bulur). Türkçe ek
+ * listesi `-s` taşımadığı için yalnız Türkçe kural düşürmediğinde ve ≥5
+ * karakterde çalışır; "-ss/-us/-is" (glass, cactus, analysis) dokunulmaz.
+ * Rusça çekim bilinçli YOK (v1).
+ */
+function englishPluralStem(token: string): string {
+  if (token.length < 5 || !/^[a-z]+$/.test(token)) return token;
+  if (token.endsWith("ies")) return token.slice(0, -3);
+  if (/(?:x|z|ch|sh|ss)es$/.test(token)) return token.slice(0, -2);
+  if (token.endsWith("s") && !/(?:ss|us|is)$/.test(token)) return token.slice(0, -1);
   return token;
+}
+
+/**
+ * Kategori arama metni — TEK KAYNAK (seed + tüm apply betikleri). Türkçe ad +
+ * anahtar kelimeler + EN/RU adlar (i18n arama, 2026-09-24): "steel pipes"
+ * yazan İngilizce kullanıcı kategoriyi de bulur. Ad değiştiren her betik
+ * bunu yeniden hesaplamalı, yoksa arama eski adla kalır.
+ */
+export function categorySearchText(c: {
+  nameTr: string;
+  keywords?: string | null;
+  nameEn?: string | null;
+  nameRu?: string | null;
+}): string {
+  return foldSearchText([c.nameTr, c.keywords, c.nameEn, c.nameRu].filter(Boolean).join(" "));
 }

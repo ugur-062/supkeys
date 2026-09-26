@@ -172,13 +172,19 @@ export function productSearchClauses(
   // `includeCompanyName: false` — firma dizininde ÜRÜN metnini aramak için:
   // orada firma adı zaten ayrı bir dalda aranıyor, burada da aransa ada
   // uyan firmanın TÜM ürünleri "aramaya uyan ürün" sayılırdı.
+  // `searchTextI18n`: kaynak + EN/RU çevirileri (içerik çevirisi servisi
+  // yazar) — "steel pipe" Türkçe "Çelik boru" kaydını bulur.
   const withCompany = opts.includeCompanyName ?? true;
-  return tokens.map((t) => ({
-    OR: [
-      { searchText: { contains: stemPrefix(foldSearchText(t)) } },
-      ...(withCompany ? [{ company: { name: { contains: t, mode: "insensitive" as const } } }] : []),
-    ],
-  }));
+  return tokens.map((t) => {
+    const needle = stemPrefix(foldSearchText(t));
+    return {
+      OR: [
+        { searchText: { contains: needle } },
+        { searchTextI18n: { contains: needle } },
+        ...(withCompany ? [{ company: { name: { contains: t, mode: "insensitive" as const } } }] : []),
+      ],
+    };
+  });
 }
 
 /**
@@ -479,9 +485,11 @@ export const ATTR_FACET_VALUES = 12;
 
 export interface AttributeFacet {
   key: string;
+  /** Okuyucunun dilinde etiket (i18n Faz 4b); alan adı geriye dönük. */
   nameTr: string;
   unit: string | null;
-  values: { value: string; count: number }[];
+  /** `value` kanonik (Türkçe, süzgeç parametresi); `label` okuyucunun dilinde gösterim. */
+  values: { value: string; label?: string; count: number }[];
 }
 
 /**
@@ -527,7 +535,7 @@ export async function attributeFacets(
       nameTr: d.nameTr,
       unit: d.unit,
       values: [...counts.get(d.key)!.entries()]
-        .map(([value, count]) => ({ value, count }))
+        .map(([value, count]) => ({ value, ...(d.optionLabels?.[value] ? { label: d.optionLabels[value] } : {}), count }))
         .sort((a, b) => b.count - a.count || a.value.localeCompare(b.value, "tr"))
         .slice(0, ATTR_FACET_VALUES),
     }))

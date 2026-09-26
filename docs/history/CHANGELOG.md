@@ -4,6 +4,230 @@ Bu dosya tamamlanmış aşamaların detaylı kaydıdır. Aktif çalışma için 
 
 ---
 
+## 2026-09-24 — i18n Faz 2 parti 3: teklif · sipariş · ürün · bilgi talebi ekranları üç dilde
+
+- 57 bileşen/sayfa (`siparis/[id]` + alt parçalar, Tekliflerim, Siparişler, ürün
+  formu/önizleme/eylem çubuğu/ray/görsel yükleyici, bilgi talepleri, şablonlar,
+  onay detayı, yetki tablosu, İş Analizi, Ziyaret Edenler, kilit kartları):
+  codemod + 4 düzenleme ajanı, +1.003 anahtar (katalog 4.098; 6 çevirmen ajanı,
+  EN/RU %100). Sözlük hook'ları: `useOrderStatusLabel`/`useOrderStepLabel`
+  (`web.domain.orderStatus|orderStep`, liste + detay tek sözlük),
+  `useProductStatusMeta` (`products/product-status-label.ts`; durum kodu/rengi
+  `lib/company/product-status.ts`ten, metin katalogdan), yetki tablosu izin/grup
+  adları `perm.<kod>`/`group.<grup>` (`t.has`, yoksa sunucu etiketi).
+- Codemod düzeltmeleri: `&ldquo;` varlıkları katalog değerinde çözüldü; veri
+  değerleri (`accept` uzantı listesi, `<option value>`) literale döndü;
+  kaydedilen `unit` Türkçe ad kalır (API sözlüğü), yalnız ekran etiketi çevrilir.
+- Yasaklı terim yakalandı: `siparisIdPage.bagliIhaleKaydiYokSilinmis` → "Bağlı
+  talep kaydı yok" (`bagliTalepKaydiYokSilinmis`).
+- Cırcır tabanı 310 dosya / 3.799 (348 / 4.579'dan). Web 149 dosya / 843 test,
+  lint 0 hata, yerel `next build` yeşil.
+- Kalan (paylaşılan kaynaklar, parti 5): `bidDeliveryTimeLabel`,
+  `productPublishBlockers` (kodsuz Türkçe), `ImageProcessingError` metni,
+  `ACTION_ROWS` (`lib/dashboard/strings.ts`), `lib/orders/order-status.ts` ve
+  `request-filter-params.ts` etiketleri, `toLocaleString("tr-TR")` biçimleri.
+
+## 2026-09-24 — i18n Faz 2 parti 2: talep ekranları üç dilde
+
+- 55 bileşen/sayfa (`components/tenders`, `components/ihale`, talep detayı, teklif
+  verme, kazandırma, hızlı talep, şablonlar): codemod 971 anahtar + 3 düzenleme
+  ajanı 338 anahtar (zod şeması `makeTenderFormSchema(t)`, kapanış tarihi
+  doğrulaması, görünürlük/durum sözlükleri hook); sözlük hook'ları `domain.ts`
+  (`useEntityLabels`, `useListingTerms`, `useFormatPaymentPlan`, `useListingStatusLabel`,
+  `useSellerStateLabel`, `useTierLabel`, `useAiFeatureLabel`, `useAuditActionLabel`,
+  `useLcTypeLabel`, `useTransportModeLabel`, `useCurrencyName`); ölü sözlükler silindi.
+- Codemod düzeltmesi: `page.tsx` ad alanı dizin adlı (`ilanIdPage`); paylaşılan
+  `page` ad alanında 3 anahtar çakışması ayrıştırıldı.
+- Katalog 3.095 anahtar, EN/RU %100 (8 paralel çevirmen ajanı). Cırcır tabanı
+  348 dosya / 4.579. Web 149 dosya / 843 test, yerel `next build` yeşil.
+
+## 2026-09-24 — i18n Faz 2 parti 1: panel kabuğu ve panolar üç dilde (ad9a8249)
+
+- Codemod + elle 80 kalem; menü etiketleri katalog anahtarı (`web.panel.nav`,
+  `useNavLabel`); rol/göreli zaman/aksiyon merkezi hook'ları; `web.panel` yalnız
+  panel sağlayıcısında (`panelMessages`, sunucu `company/(authed)/layout.tsx`);
+  paylaşılan pano bileşenleri `web.marketplace.panelHome`.
+- Katalog +399 anahtar TR, EN/RU Claude çevirisi (3 paralel ajan + delta);
+  "ihale" taşıyan iki metin ürün diline çekildi. Staging tıklama gezintisi EN/RU:
+  kabuk/menü/panolar çevrili, ham anahtar sızıntısı yok.
+
+## 2026-09-24 — yol parçaları üç dilde (Faz 1f) + kategori/şehir giriş paragrafı kaldırıldı
+
+Kullanıcı: "yol parçaları da hangi dilse o dilde olsun; her şeyi bitir, sonra
+canlıya alacağız". Kararlar: RU Latin çeviriyazı, panel kökü dile göre, admin Türkçe.
+
+- `@rothern/i18n` `ROUTE_PATHNAMES` + `translateRoutePath`/`internalRoutePath`
+  (86 rota); next-intl `routing.pathnames`; `@/i18n/navigation` sarmalayıcısı
+  (`Link`/`useRouter`/`redirect` iç yol alır, dış yol üretir; `usePathname` iç
+  yol döner; istemci hook'ları `navigation-client.tsx`); `href.ts` şablon farkında;
+  robots panel kökünü dile göre kapatır. Testler: i18n `pathnames.test`, web
+  `href.test`, `navigation.test`, `public-routes.test`, `robots.test`.
+- Kategori ve şehir sayfalarındaki `IndexIntro` paragrafı üç dilde kaldırıldı.
+- Web 149 dosya / 838 test, yerel `next build` yeşil (ilk deneme `usePathname`
+  sunucu importuyla düştü → istemci modülü ayrıldı).
+
+## 2026-09-24 (gece) — Faz 1e kapanış: son kalıntılar, şehir adları üç dilde, yumuşak 404
+
+Kullanıcı: "sayfa yolları gibi her şeyi kontrol et, çeviri kusursuz olmalı".
+Staging: içerik çevirisi backfill (564 kayıt DONE, 0 hata), EN/RU kalıntı
+taraması (kalan yalnız özel adlar: firma adları, MERSİS, vergi dairesi), kategori
+doğrulaması üç dilde (29 segment, menü, facet, slug), SEO dil kontrolü (36
+sayfa-dil), CI + Vercel yeşil.
+
+- `seed-category-attributes.ts` bozuk import (CI typecheck kırmızıydı) onarıldı.
+- Serbest metin ölçü birimi ("kullanıcı") çeviri kaynağına girdi; talep yayını
+  sahibinin firma profilini de kuyruğa alıyor (talep sayfası "Makine İmalatı" →
+  "Machinery Manufacturing"); ürün detayı satıcı özeti faaliyet etiketi.
+- Şehir adları EN/RU: `TR_PROVINCE_NAMES_I18N` (81 il) + `provinceDisplayName`;
+  web `cityDisplayName`/`useCityLabel` SEO başlık/açıklama/JSON-LD, OG, şehir
+  sayfası, kartlar, typeahead, süzgeç etiketleri ve aktif çiplere bağlandı
+  (süzgeç anahtarı ham TR). "İstanbul" → "Istanbul" / "Стамбул".
+- Yumuşak 404: `/urunler/loading.tsx` Suspense sınırı kategori/şehir alt
+  sayfalarının `notFound()`unu 200'e çeviriyordu (canlıda da) → iskelet
+  `urunler/(dizin)/` rota grubuna taşındı; alt sayfalar gerçek 404.
+- Web 147 dosya / 829 test yeşil; i18n kapısı yeşil (cırcır 425 / 5991).
+
+## 2026-09-23 (gece, 2. tur) — baştan aşağı tarama: herkese açık kalıntılar, nitelikler, giriş dili
+
+Kullanıcı: "her şeyi kontrol et, çeviri kusursuz olmalı" + "panele giriş yapınca
+İngilizce seçtiğim hâlde her şey Türkçe". Staging e2e paketi (90 test: 85 geçti,
+3 bayat süzgeç testi + 2 sağlayıcı kotası/zaman aşımı), üç dilde 420 sayfalık
+bağlantı taraması (0 kırık), 20 herkese açık yolun EN/RU metin taraması.
+
+- Herkese açık kalıntılar kapandı: hero dekor kartları, faaliyet tipi etiketleri,
+  ülke adları (telefon kodu listesi dahil), `CompanyProfileView` metinleri, ölçü
+  birimleri, dizin kartı ürün adları, talep sayfasındaki alıcı sektörü.
+- Faz 4b: nitelik etiketleri + seçenekleri EN/RU (kolonlar + migration
+  `20260923235000`, toplu iş, TSV, seed/apply/export); süzgeç facet'i `label`.
+- Giriş dili hesaba yazılır (`useCompanyLogin`); kayıt/davet `currentLocale()`.
+- e2e: `/firmalar` süzgeç testi üyelik vitrinine göre yeniden yazıldı; aylık
+  Resend kotası ortam sınırı sayılır; TR süzgeç etiketi "Süzgeçler"e döndü.
+- Staging Vercel `SEO_REVALIDATE_SECRET` Render ile eşitlendi.
+
+## 2026-09-23 (gece) — i18n Faz 4: kategori adları EN/RU + JSON-LD dil etiketi
+
+Kullanıcı: "kategoriler yapıldı mı, her şeyi baştan aşağı kontrol et, SEO/GEO her
+dilde". Üç dilli SEO taraması (12 sayfa × 3 dil): dil/kanonik/hreflang/og:locale
+doğru; JSON-LD `inLanguage` her sayfada tr-TR (düzeltildi: sayfa dili,
+sözleşmeler tr-TR, WebSite üç dil); kategori adları EN/RU'da Türkçeydi.
+
+- `Category.nameEn/nameRu` (migration `20260923230000`), `category-name.ts`
+  yardımcısı, herkese açık + panel + `categories/*` uçları bağlandı; API kategori
+  nesnelerine Türkçe addan `slug`, web `categoryHref()`.
+- `CategoryTranslationService`: Gemini Pro toplu iş (staging), TSV dışa aktarımı
+  (`export-category-names-i18n`), seed/apply TSV'den — canlıda model yok.
+- Birim testler: `category-name.spec`, `category-translation.spec`; web
+  `categoryHref`.
+- Tetik testi (staging, gerçek işlemler): yeni ürün + ürün güncellemesi + profil
+  güncellemesi otomatik çevrildi; DOĞRUDAN OPEN açılan yeni talep (`create`,
+  hızlı talep kartının yolu) ne çevriliyor ne IndexNow'a gidiyordu, `update`
+  yolu da çeviriyi tetiklemiyordu → ikisine de `listingChanged` + `enqueue`.
+
+## 2026-09-23 (akşam) — Faz 1e kapanış turu: panel çevirisi, ön yükleme 404'ü, dilden bağımsız talep adresi
+
+Kullanıcı bulgusu: "kalemler çevrilmemiş, bazı alım taleplerine girince 404".
+Baştan aşağı tarama (sitemap 642 adres, dizin/anasayfa bağlantıları, panel
+gezintisi Playwright ile TR/EN) sonucu üç kök neden:
+
+- **Panel çevirisiz kalmıştı:** herkese açık uçlar çeviriyordu, giriş yapmış
+  tedarikçinin Açık Talepler listesi/detayı, alıcının ürün keşfi ve firma
+  dizini/profili özgün metni basıyordu. `seller-tenders` (`itemNames` dahil),
+  teklifçi `getOne` dalı, `items/discover*` (kart özellik satırları dahil),
+  `company/directory/*` çeviri servisine bağlandı; kendi verisi ham kalır.
+  Panel talep detayı ve ürün/profil sayfaları "Otomatik çeviri" notunu basar.
+- **`middleware.ts` ön yüklemeleri muaf tutuyordu** → TR (ön eksiz) adreslerin
+  `<Link>` ön yüklemeleri `/tr/…` yeniden yazımından geçmeyip 404 alıyordu;
+  tıklamada "Sayfa bulunamadı". `missing` kaldırıldı, testle kilitlendi.
+- **Talep adresi dile göre değişiyordu** (çevrilmiş başlıktan slug): sitemap
+  hreflang alternatifleri 308 zinciri, RU slug'ları çıplak numara. API artık
+  kaynak başlığın `slug`ını verir, web `listingHref()` ile her dilde aynı
+  adresi kullanır.
+
+Doğrulama: API tsc + lint, web tsc + lint + 146 dosya / 824 test, i18n kapısı,
+çeviri birim testleri 23; staging'de yeniden tarama (aşağıdaki kayıt).
+
+## 2026-09-23 — Kullanıcı içeriği OTOMATİK ÇEVİRİ (i18n Faz 1e)
+
+**Karar (kullanıcı):** ürün, alım talebi ve firma profili metinleri her
+eklendiğinde/değiştiğinde üç dile otomatik çevrilsin; motor Gemini Pro
+(pilot gerçek staging içeriğiyle ölçüldü, Flash reddedildi).
+
+- **API:** `content_translations` tablosu (migration `20260923180000`, staging'e
+  uygulandı), `ContentTranslationModule` (saf mantık + servis + 5 dk süpürücü +
+  yönetici backfill/status ucu); tetikler ürün onayı/vitrin güncellemesi, talep
+  yayını/güncelleme/yeni tur, profil kaydı (fail-open); sayı koruma + liste
+  uzunluğu doğrulaması, geri bildirimli düzeltme turu; herkese açık uçlar
+  istek diline göre çevrilmiş alan + `translatedFrom` döner (select'lere `id`
+  girdi, yanıta çıkmaz).
+- **Web:** `accept-language` her herkese açık API isteğinde; `AutoTranslatedNote`
+  ürün/talep/firma sayfasında; DTO tipleri `translatedFrom`.
+- **Test:** `content-translation.spec.ts` 21 test (sayı koruma, çıktı doğrulama,
+  üzerine yazma, kuyruk akışı, fail-open, model 404 → aday).
+- **Staging'de ölçüldü:** Vertex `gemini-pro-latest`i tanımıyor (404) → aday
+  listesi (`gemini-3.1-pro-preview` çalıştı); süpürücü varlık başına hata yazar;
+  düşük thinking. Backfill: 168 kayıt / 504 satır, 0 hata, 8,16 USD, ~27 dk;
+  EN/RU ürün/talep/firma sayfaları çevrilmiş başlık + "Otomatik çeviri" notuyla
+  doğrulandı, Türkçe sayfalar değişmedi.
+
+## 2026-09-23 — Çok dillilik Faz 1 (herkese açık yüzey + kimlik akışı) TAMAM
+
+**Karar (kullanıcı):** makine çevirisi yok — EN/RU metinleri Claude ekran
+bağlamıyla yazdı; Flash'ın ürettiği 40 RU dizesi yeniden çevrildi. 9 parti,
+katalog 40 → 1.150 anahtar, EN/RU %100 `reviewed`, cırcır 508 → 433 dosya.
+
+- **Yönlendirme (1b):** `app/[locale]`, TR ön eksiz, `as-needed`, otomatik tespit
+  kapalı; `@/i18n/navigation` tek kaynak (116 dosya codemod); hreflang +
+  `og:locale` + sitemap `xhtml:link` + robots + `withLocales` yönlendirmeleri;
+  CSP middleware next-intl ile birleşik (nonce yalnız panelde).
+- **Herkese açık yüzey (1c, 6 parti):** başlık/altbilgi/mega menü/typeahead,
+  anasayfa iki yüz, dizinler + süzgeç kabuğu + kartlar + boş durumlar,
+  ürün/firma/talep detayları, bilgi talebi diyaloğu, SEO üreticileri
+  (`webTranslator`, `formatNumber`), OG kartları, alan sözlükleri
+  (`useActivityLabel` · `useScopeLabel` · `useClosingUrgency` · `usePriceLabels`
+  · `countryDisplayName`), `formatDate(value, variant, locale)`.
+- **Statik sayfalar (1d/7):** Hakkımızda, İletişim/Künye, SSS (`faqGroups(locale)`
+  — sayfa + `FAQPage` + llms-full tek kaynak, üç dilde kalite testi), Nasıl
+  Çalışır (156 dize + önizleme kartlarının örnek verileri), sözleşme kabuğu
+  ("Türkçe metin esastır"), talep-onayla, davet-kapat, şifre sıfırlama; kök
+  meta dil bilen; kırıntılar dil ön ekli (`breadcrumbNode(items, locale)`);
+  paket kartı metinleri katalogda (`usePricingPlans` + parite testi); segment
+  sloganları katalogda (`useSegmentTagline`).
+- **Kimlik akışı (1d/8):** giriş (2FA/e-posta doğrulama), kayıt + kod adımı,
+  şifremi unuttum, ekip daveti, firma doğrulama sihirbazı; ortak
+  `usePasswordRules`/`PasswordStrength`/`ConsentRows`; meta `generateMetadata`,
+  "— Rothern" çift marka düzeltildi.
+- **Dil seçici (1d/9):** üst çubuk küre menüsü + mobil menü + altbilgi;
+  Ayarlar › Hesap Bilgileri › Dil (anında `PATCH me { locale }`, sayfa yeni
+  ön ekle); `clientMessages` sunucuya özel ad alanlarını istemci yükünden
+  ayıklar (+ "use client" tarayan bekçi testi).
+- **Bayat vaat düzeltmeleri:** "teslim belgesi", "sınırsız kullanıcı", "ilan"
+  → "talep" (Nasıl Çalışır, kayıt sihirbazı).
+- Web 143 dosya / 814 test yeşil; üretim derlemesi yeşil.
+
+## 2026-09-23 — Çok dillilik Faz 0 (altyapı) KURULDU
+
+**Karar (kullanıcı):** TR kaynak + EN + RU; "talep" → Request/запрос, "tender"/"тендер"
+yasaklı. Plan `docs/plan-i18n.md`.
+
+- **`@rothern/i18n` paketi:** ICU JSON kataloglar (`tr/en/ru × common/web/api/email`),
+  `messagesFor` düşüş zinciri (ru → en → tr), `createApiTranslator`/`createWebTranslator`
+  (use-intl çekirdeği esbuild ile CJS'e gömülü — use-intl yalnız ESM, jest CJS),
+  sözlük + yasaklı terim, `check` (orphan · yer tutucu · yasaklı · EN %100 · cırcır)
+  ve `sync` (Gemini REST + sözlük, `machine`/`reviewed` durum dosyası) betikleri.
+  İlk 40 anahtar; RU çevirisi betikle üretildi, EN elle ve `reviewed`.
+- **Cırcır tabanı:** 508 dosya / 6.984 sabit Türkçe literal (web+api+shared+email);
+  yeni dosya sıfır olmalı, artış `--force` ister.
+- **API:** `LocaleMiddleware` (Accept-Language → ALS) · `I18nService`/`tApi`/
+  `i18nMessage` · `translateValidatorMessage` + ValidationPipe metinleri istek dilinde
+  · JWT stratejisi kayıtlı dili uygular · `CompanyUser.locale` (migration
+  `20260923120000`, staging'e uygulandı) · `/me` döner, `PATCH me { locale }` yazar.
+- **Web:** next-intl v4 yönlendirmesiz, sağlayıcı yalnız `app/company` (cookies()
+  dinamik tuzağı) · `src/i18n/{request,runtime,runtime-bridge,locale-cookie}` ·
+  `LocaleCookieSync` · axios toast'ları `tRuntime` + `Accept-Language` · vitest
+  next-intl sahtesi (142 dosya / 791 test yeşil, üretim derlemesi yeşil).
+- **Dağıtım:** Dockerfile + vercel.json + jest mapper yeni paketi kurar; CI'da
+  `i18n test + check` adımı.
+
 ## 2026-07-19 → 07-21 — RLS multi-tenant backstop LOKAL ROLLOUT TAMAM (INV-MT-5)
 
 **Sonuç:** Postgres RLS güvenlik ağı **27 tabloda gerçek policy'li, lokal-kanıtlı** (kısıtlı

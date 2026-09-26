@@ -2,6 +2,7 @@
 
 import { companyApi } from "@/lib/company-auth/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useTranslations } from "next-intl";
 
 export interface CatalogItem {
   id: string;
@@ -294,6 +295,7 @@ export function usePublishProduct() {
  * şart: presigned PUT ne boyutu ne içerik tipini imzalayabiliyor.
  */
 export function useUploadProductImage() {
+  const t = useTranslations("web.panel.trade.companyItems");
   return useMutation({
     mutationFn: async (file: File): Promise<string> => {
       const { data: signed } = await companyApi.post<{
@@ -308,7 +310,7 @@ export function useUploadProductImage() {
         body: file,
         headers: { "Content-Type": file.type },
       });
-      if (!put.ok) throw new Error("Görsel yüklenemedi");
+      if (!put.ok) throw new Error(t("gorselYuklenemedi"));
       const { data } = await companyApi.post<{ url: string }>(
         "/company/items/images/resolve",
         { key: signed.key },
@@ -320,6 +322,7 @@ export function useUploadProductImage() {
 
 /** Ürün belgesi (PDF) — görselle aynı iki adım, ayrı allowlist. */
 export function useUploadProductDocument() {
+  const t = useTranslations("web.panel.trade.companyItems");
   return useMutation({
     mutationFn: async (file: File): Promise<string> => {
       const { data: signed } = await companyApi.post<{ url: string; key: string }>(
@@ -331,7 +334,7 @@ export function useUploadProductDocument() {
         body: file,
         headers: { "Content-Type": file.type },
       });
-      if (!put.ok) throw new Error("Belge yüklenemedi");
+      if (!put.ok) throw new Error(t("belgeYuklenemedi"));
       const { data } = await companyApi.post<{ url: string }>(
         "/company/items/documents/resolve",
         { key: signed.key },

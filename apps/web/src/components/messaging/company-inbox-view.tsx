@@ -1,5 +1,6 @@
 "use client";
 
+import { useLocale, useTranslations } from "next-intl";
 import { formatDate } from "@/lib/format-date";
 import { PageHeader } from "@/components/list";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
@@ -13,7 +14,6 @@ import {
 import { canUseMessaging, PORTAL_ORDER } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
 import { format, isToday } from "date-fns";
-import { tr } from "date-fns/locale";
 import { MessageSquare, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
 import { useMemo, useState } from "react";
@@ -38,13 +38,15 @@ interface ThreadRow {
   unread: boolean;
 }
 
-/** "Bu konuşmada ben kimim?" rozeti — satinalma kutusu = ben ALICIYIM. */
-const ROLE_CHIP: Record<MessagePortal, { label: string; cls: string }> = {
-  satinalma: { label: "Alıcısınız", cls: "bg-blue-50 text-blue-700" },
-  satis: { label: "Satıcısınız", cls: "bg-emerald-50 text-emerald-700" },
+/** "Bu konuşmada ben kimim?" rozeti — satinalma kutusu = ben ALICIYIM. Etiket katalog anahtarı. */
+const ROLE_CHIP: Record<MessagePortal, { label: "rozetAlicisiniz" | "rozetSaticisiniz"; cls: string }> = {
+  satinalma: { label: "rozetAlicisiniz", cls: "bg-blue-50 text-blue-700" },
+  satis: { label: "rozetSaticisiniz", cls: "bg-emerald-50 text-emerald-700" },
 };
 
 export function CompanyInboxView() {
+  const t = useTranslations("web.panel.inbox.companyInboxView");
+  const locale = useLocale();
   const { user } = useCompanyAuth();
   // Kullanıcının mesajlaşabildiği taraflar (işlem rolü olan portallar).
   const myPortals = PORTAL_ORDER.filter((p) =>
@@ -70,14 +72,14 @@ export function CompanyInboxView() {
   const [search, setSearch] = useState("");
 
   const rows = useMemo<ThreadRow[]>(() => {
-    const threadRows: ThreadRow[] = (threads.data ?? []).map((t) => ({
-      key: `${t.portal}:${t.otherPartyId}`,
-      id: t.otherPartyId,
-      name: t.otherPartyName,
-      portal: t.portal,
-      lastMessagePreview: t.lastMessagePreview,
-      lastMessageAt: t.lastMessageAt,
-      unread: t.unread,
+    const threadRows: ThreadRow[] = (threads.data ?? []).map((th) => ({
+      key: `${th.portal}:${th.otherPartyId}`,
+      id: th.otherPartyId,
+      name: th.otherPartyName,
+      portal: th.portal,
+      lastMessagePreview: th.lastMessagePreview,
+      lastMessageAt: th.lastMessageAt,
+      unread: th.unread,
     }));
     const threadCompanyIds = new Set(threadRows.map((r) => r.id));
     // Henüz konuşulmamış bağlantılar — yeni sohbet başlatma girişleri
@@ -110,7 +112,7 @@ export function CompanyInboxView() {
 
   const selectedRowName =
     rows.find((r) => r.id === selected?.id)?.name ??
-    (threads.data ?? []).find((t) => t.otherPartyId === selected?.id)
+    (threads.data ?? []).find((th) => th.otherPartyId === selected?.id)
       ?.otherPartyName ??
     null;
 
@@ -118,17 +120,16 @@ export function CompanyInboxView() {
     return (
       <div className="space-y-5">
         <PageHeader
-          title="Mesajlar"
-          description="Satınalma ve satış konuşmaların — tek kutuda."
+          title={t("mesajlar")}
+          description={t("satinalmaVeSatisKonusmalarinTek")}
         />
         <div className="flex flex-col items-center rounded-xl border border-zinc-950/10 bg-white px-6 py-16 text-center">
           <MessageSquare className="mb-3 h-10 w-10 text-zinc-300" />
           <p className="text-sm font-medium text-zinc-700">
-            Mesajlaşma için Satın Almacı veya Satışçı rolü gerekir.
+            {t("mesajlasmaIcinSatinAlmaciVeya")}
           </p>
           <p className="mt-1 max-w-sm text-xs text-zinc-500">
-            Bu hesapta operasyon rolü tanımlı değil. Rolleri Ayarlar →
-            Kullanıcılar&apos;dan kurucu düzenleyebilir.
+            {t("buHesaptaOperasyonRoluTanimli")}
           </p>
         </div>
       </div>
@@ -138,8 +139,8 @@ export function CompanyInboxView() {
   return (
     <div className="space-y-5">
       <PageHeader
-        title="Mesajlar"
-        description="Satınalma ve satış konuşmalarınız — tek kutuda; her konuşmada hangi tarafta olduğunuz rozetle görünür."
+        title={t("mesajlar")}
+        description={t("satinalmaVeSatisKonusmalarinizTek")}
       />
 
       {/* C44: standart düzen — konuşma listesi SOLDA, sohbet SAĞDA. */}
@@ -156,7 +157,7 @@ export function CompanyInboxView() {
               <input
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                placeholder="Kişi ara…"
+                placeholder={t("kisiAra")}
                 className="w-full rounded-lg border border-surface-border bg-white py-2 pl-9 pr-3 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
               />
             </div>
@@ -175,7 +176,7 @@ export function CompanyInboxView() {
               <div className="flex h-full flex-col items-center justify-center px-6 text-center">
                 <MessageSquare className="mb-2 h-8 w-8 text-zinc-300" />
                 <p className="text-sm text-zinc-500">
-                  Mesajlaşmak için önce bir firmayla bağlantı kur.
+                  {t("mesajlasmakIcinOnceBirFirmayla")}
                 </p>
               </div>
             ) : (
@@ -211,7 +212,7 @@ export function CompanyInboxView() {
                             <span
                               className={`shrink-0 rounded-full px-1.5 py-0.5 text-xs font-semibold ${ROLE_CHIP[r.portal].cls}`}
                             >
-                              {ROLE_CHIP[r.portal].label}
+                              {t(ROLE_CHIP[r.portal].label)}
                             </span>
                           ) : null}
                         </span>
@@ -219,7 +220,7 @@ export function CompanyInboxView() {
                           <span className="shrink-0 text-xs text-zinc-400">
                             {isToday(new Date(r.lastMessageAt))
                               ? format(new Date(r.lastMessageAt), "HH:mm")
-                              : formatDate(r.lastMessageAt, "short")}
+                              : formatDate(r.lastMessageAt, "short", locale)}
                           </span>
                         ) : null}
                       </div>
@@ -228,7 +229,7 @@ export function CompanyInboxView() {
                           className="truncate text-xs text-zinc-500"
                           title={r.lastMessagePreview ?? undefined}
                         >
-                          {r.lastMessagePreview ?? "Yeni sohbet"}
+                          {r.lastMessagePreview ?? t("yeniSohbet")}
                         </span>
                         {r.unread ? (
                           <span className="ml-auto h-2 w-2 shrink-0 rounded-full bg-blue-600" />
@@ -253,22 +254,16 @@ export function CompanyInboxView() {
                 onClick={() => setSelected(null)}
                 className="border-b border-zinc-950/5 px-4 py-2 text-left text-xs text-zinc-500 sm:hidden"
               >
-                ← Kişiler
+                {t("kisiler")}
               </button>
               {/* Bağlam şeridi — bu konuşmada hangi taraftayım? İki rolü olan
                   kullanıcı yönü buradan değiştirebilir (yeni sohbet yönü). */}
               <div className="flex flex-wrap items-center gap-2 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2">
                 <span className="text-xs text-zinc-600">
-                  Bu konuşmada{" "}
-                  <strong>
-                    {selected.portal === "satinalma"
-                      ? "alıcısınız"
-                      : "satıcısınız"}
-                  </strong>
-                  {" — "}
-                  {selected.portal === "satinalma"
-                    ? `${selectedRowName} size satış yapıyor.`
-                    : `${selectedRowName} sizden alım yapıyor.`}
+                  {t.rich(selected.portal === "satinalma" ? "buKonusmadaAlicisiniz" : "buKonusmadaSaticisiniz", {
+                    name: selectedRowName,
+                    strong: (chunks) => <strong>{chunks}</strong>,
+                  })}
                 </span>
                 {myPortals.length === 2 ? (
                   <div className="ml-auto flex gap-1 rounded-lg bg-zinc-100 p-0.5">
@@ -289,7 +284,7 @@ export function CompanyInboxView() {
                             : "text-zinc-500 hover:text-zinc-800",
                         )}
                       >
-                        {p === "satinalma" ? "Alıcı olarak" : "Satıcı olarak"}
+                        {p === "satinalma" ? t("aliciOlarak") : t("saticiOlarak")}
                       </button>
                     ))}
                   </div>
@@ -308,9 +303,9 @@ export function CompanyInboxView() {
           ) : (
             <div className="flex h-full flex-col items-center justify-center bg-zinc-50 text-center">
               <MessageSquare className="mb-3 h-10 w-10 text-zinc-300" />
-              <p className="text-sm font-medium text-zinc-600">Bir kişi seç</p>
+              <p className="text-sm font-medium text-zinc-600">{t("birKisiSec")}</p>
               <p className="mt-1 text-xs text-zinc-400">
-                Soldan bir firma seçerek sohbete başlayın.
+                {t("soldanBirFirmaSecerekSohbete")}
               </p>
             </div>
           )}

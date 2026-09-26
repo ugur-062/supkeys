@@ -1,5 +1,7 @@
+import { useTranslations } from "next-intl";
+import { useCityLabel } from "@/i18n/domain";
 import { allCitySlugs, cityCompanyPath, cityProductPath } from "@/lib/public/city";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 
 /**
  * ŞEHİR BAĞLANTI ŞERİDİ — iç bağlantı ağı (2026-09-09, Parça 3).
@@ -20,6 +22,8 @@ export function CityLinks({
   kind: "products" | "companies";
   activeCity?: string;
 }) {
+  const t = useTranslations("web.marketplace.cityLinks");
+  const cityLabel = useCityLabel();
   const known = new Set(allCitySlugs().map((c) => c.name));
   const list = cities
     .filter((c) => c.count > 0 && known.has(c.city) && c.city !== activeCity)
@@ -28,7 +32,7 @@ export function CityLinks({
   if (list.length === 0) return null;
 
   const href = kind === "products" ? cityProductPath : cityCompanyPath;
-  const heading = kind === "products" ? "Şehre göre ürünler" : "Şehre göre firmalar";
+  const heading = kind === "products" ? t("products") : t("companies");
 
   return (
     <section className="mx-auto mt-10 max-w-7xl px-4 pb-12 sm:px-6 lg:px-8">
@@ -40,7 +44,7 @@ export function CityLinks({
               href={href(c.city)}
               className="inline-flex items-center gap-1.5 rounded-full bg-white px-3 py-1.5 text-sm text-zinc-700 ring-1 ring-zinc-950/10 ring-inset transition hover:text-zinc-950 hover:ring-zinc-950/20"
             >
-              {c.city}
+              {cityLabel(c.city)}
               <span className="text-xs text-zinc-500 tabular-nums">{c.count}</span>
             </Link>
           </li>

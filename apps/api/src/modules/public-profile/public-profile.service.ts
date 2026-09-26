@@ -1,5 +1,7 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import { Prisma } from "@rothern/db";
-import { categoryPrefix, isCategoryCode, PAID_TIER, tierAtLeast, tokenizeQuery } from "@rothern/shared";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
+import { categoryPrefix, foldSearchText, isCategoryCode, PAID_TIER, stemPrefix, tierAtLeast, tokenizeQuery } from "@rothern/shared";
 import {
   PUBLIC_PRODUCT_SELECT,
   toPublicProduct,
@@ -23,8 +25,10 @@ import {
   REVIEW_SUMMARY_TAKE,
   buildReviewSummary,
 } from "../company-reviews/review-summary";
-import { Injectable, NotFoundException } from "@nestjs/common";
+import { Optional, Injectable, NotFoundException } from "@nestjs/common";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
+import { currentLocale } from "../../common/i18n/locale-context";
 import { effectiveTier } from "../../common/company/effective-tier";
 
 /**
@@ -33,7 +37,11 @@ import { effectiveTier } from "../../common/company/effective-tier";
  */
 @Injectable()
 export class PublicProfileService {
-  constructor(private readonly prisma: PrismaBypassService) {}
+  constructor(
+    private readonly prisma: PrismaBypassService,
+    /** İçerik çevirisi (i18n Faz 1e) — isteğe bağlı; yoksa özgün metin. */
+    @Optional() private readonly translations?: ContentTranslationService,
+  ) {}
 
   /**
    * HERKESE AÇIK FİRMA PROFİLİ — v2 (2026-09-04, Europages kalıbı, kullanıcı
@@ -87,7 +95,7 @@ export class PublicProfileService {
     // Kapı TEK KAYNAK (`common/company/public-profile-gate.ts`): sitemap ve
     // pazar yeri kartındaki ad bağlantısı AYNI kararı verir.
     if (!c || !hasPublicProfile(c)) {
-      throw new NotFoundException("Profil bulunamadı");
+      throw new NotFoundException(i18nMessage("api.publicProfile.profilBulunamadi"));
     }
     const [categories, reviewRows, productCount] = await Promise.all([
       this.resolveCategoryNames([...c.sellerCategoryIds, ...c.buyerCategoryIds]),
@@ -102,7 +110,7 @@ export class PublicProfileService {
       }),
     ]);
     const summary = buildReviewSummary(reviewRows, { revealNames: false });
-    return {
+    const profile = {
       name: c.name,
       slug: c.slug,
       industry: c.industry,
@@ -144,13 +152,27 @@ export class PublicProfileService {
         publicProductCount: productCount,
       }),
     };
+    if (!this.translations) return profile;
+    const [localized] = await this.translations.localizeCompanies([profile], [c.id], currentLocale());
+    const out = localized ?? profile;
+    // Tanıtım metni bu dilde henüz çevrilmediyse profil indekslenmez (i18n SEO).
+    if (out.indexable && (await this.translations.translationPending("COMPANY", c.id, currentLocale()))) {
+      return { ...out, indexable: false };
+    }
+    return out;
   }
 
   /** Herkese açık firma dizini — TEK KAYNAK `common/company/company-directory.ts` (panel de okur). */
   async publicDirectory(q: DirectoryParams) {
-    const res = await buildDirectory(this.prisma, q);
+    const locale = currentLocale();
+    const res = await buildDirectory(this.prisma, q, {
+      localizeProducts: this.translations ? (items, ids) => this.translations!.localizeProducts(items, ids, locale) : undefined,
+    });
     // Kimlik alanları public karttan DÜŞER (Rothern ID üyeye).
-    return { ...res, items: res.items.map(({ id, rothernId, ...card }) => { void id; void rothernId; return card; }) };
+    const items = this.translations
+      ? await this.translations.localizeCompanies(res.items, res.items.map((i) => i.id), currentLocale())
+      : res.items;
+    return { ...res, items: items.map(({ id, rothernId, ...card }) => { void id; void rothernId; return card; }) };
   }
 
   publicDirectoryFacets(q: DirectoryParams = {}) {
@@ -158,8 +180,16 @@ export class PublicProfileService {
   }
 
   /** Ürün sayfası ilişkili bloklar — panel ve public aynı fonksiyon. */
-  related(companySlug: string, productSlug: string) {
-    return relatedProducts(this.prisma, companySlug, productSlug);
+  async related(companySlug: string, productSlug: string) {
+    const { ids, ...rest } = await relatedProducts(this.prisma, companySlug, productSlug);
+    if (!this.translations) return rest;
+    const locale = currentLocale();
+    const t = this.translations;
+    return {
+      fromCompany: { items: await t.localizeProducts(rest.fromCompany.items, ids.fromCompany, locale), total: rest.fromCompany.total },
+      similar: await t.localizeProducts(rest.similar, ids.similar, locale),
+      popular: await t.localizeProducts(rest.popular, ids.popular, locale),
+    };
   }
 
   /**
@@ -174,9 +204,9 @@ export class PublicProfileService {
     if (uniq.length === 0) return [] as { id: string; name: string }[];
     const rows = await this.prisma.category.findMany({
       where: { id: { in: uniq } },
-      select: { id: true, nameTr: true },
+      select: { id: true, ...CATEGORY_NAME_SELECT },
     });
-    const byId = new Map(rows.map((r) => [r.id, r.nameTr]));
+    const byId = new Map(rows.map((r) => [r.id, categoryName(r)]));
     return uniq
       .filter((id) => byId.has(id))
       .map((id) => ({ id, name: byId.get(id) as string }));
@@ -265,7 +295,14 @@ export class PublicProfileService {
           { categoryId: { startsWith: categoryPrefix(q.categoryId) as string } }
         : {}),
       ...(tokens.length
-        ? { AND: tokens.map((t) => ({ searchText: { contains: t } })) }
+        ? // Token KATLANIR (ham "Çelik" katlanmış sütunda hiç eşleşmiyordu) +
+          // çok dilli sütun (ürün dizini `productSearchClauses` ile aynı kural).
+          {
+            AND: tokens.map((t) => {
+              const needle = stemPrefix(foldSearchText(t));
+              return { OR: [{ searchText: { contains: needle } }, { searchTextI18n: { contains: needle } }] };
+            }),
+          }
         : {}),
     };
 
@@ -281,8 +318,9 @@ export class PublicProfileService {
       }),
     ]);
 
+    const cards = rows.map(toPublicProductCard);
     return {
-      items: rows.map(toPublicProductCard),
+      items: this.translations ? await this.translations.localizeProducts(cards, rows.map((r) => r.id), currentLocale()) : cards,
       total,
       page,
       pageSize,
@@ -300,7 +338,7 @@ export class PublicProfileService {
       },
       select: PUBLIC_PRODUCT_SELECT,
     });
-    if (!row) throw new NotFoundException("Ürün bulunamadı");
+    if (!row) throw new NotFoundException(i18nMessage("api.publicProfile.urunBulunamadi"));
     // Nitelikler ETİKETLENEREK döner: ziyaretçiye ham anahtar
     // ("koruma_sinifi") göstermek bir hata ekranı gibi okunur. Çözümleyici
     // panelle AYNI kaynak — sorulan alanla gösterilen etiket ayrışamaz.
@@ -309,17 +347,25 @@ export class PublicProfileService {
       row.categoryId
         ? this.prisma.category.findUnique({
             where: { id: row.categoryId },
-            select: { id: true, nameTr: true },
+            select: { id: true, ...CATEGORY_NAME_SELECT },
           })
         : null,
     ]);
+    const product = {
+      ...toPublicProduct(row),
+      attributeList: labelAttributes(row.attributes, attributeDefs),
+      // Kırıntı için kategori adı (Ana sayfa › Kategori › Firma › Ürün).
+      category: category ? { id: category.id, name: categoryName(category) } : null,
+    };
+    const [localizedProduct] = this.translations
+      ? await this.translations.localizeProducts([product], [row.id], currentLocale())
+      : [product];
+    // Bu dilde çeviri henüz gelmediyse sayfa `noindex` basar (i18n SEO).
+    const translationPending = this.translations
+      ? await this.translations.translationPending("PRODUCT", row.id, currentLocale())
+      : false;
     return {
-      product: {
-        ...toPublicProduct(row),
-        attributeList: labelAttributes(row.attributes, attributeDefs),
-        // Kırıntı için kategori adı (Ana sayfa › Kategori › Firma › Ürün).
-        category: category ? { id: category.id, name: category.nameTr } : null,
-      },
+      product: { ...(localizedProduct ?? product), translationPending },
       company: {
         name: company.name,
         slug: company.slug,
@@ -395,7 +441,7 @@ export class PublicProfileService {
       },
     });
     if (!c || !hasPublicProfile(c)) {
-      throw new NotFoundException("Profil bulunamadı");
+      throw new NotFoundException(i18nMessage("api.publicProfile.profilBulunamadi"));
     }
     return c;
   }

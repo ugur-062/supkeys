@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useSendInquiry } from "@/hooks/use-inquiries";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import {
@@ -8,8 +9,8 @@ import {
 } from "@/lib/tenders/map-product-to-form";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { CheckCircleIcon, XMarkIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { Link } from "@/i18n/navigation";
+import { useRouter } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
 
 /**
@@ -51,6 +52,7 @@ export function PanelInquiryDialog({
   /** Talep sihirbazına taşınacak ürün tohumu. */
   seed: ProductSeed;
 }) {
+  const t = useTranslations("web.panel.trade.panelInquiryDialog");
   const send = useSendInquiry();
   const router = useRouter();
   const [sent, setSent] = useState(false);
@@ -76,7 +78,7 @@ export function PanelInquiryDialog({
       });
       setSent(true);
     } catch (err) {
-      setError(extractErrorMessage(err, "Talep gönderilemedi"));
+      setError(extractErrorMessage(err, t("talepGonderilemedi")));
     }
   };
 
@@ -99,13 +101,13 @@ export function PanelInquiryDialog({
         <DialogPanel className="w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
           <div className="flex items-start justify-between gap-4">
             <DialogTitle className="text-lg font-semibold tracking-tight text-zinc-950">
-              {sent ? "Talebiniz gönderildi" : "Bilgi / teklif iste"}
+              {sent ? t("talebinizGonderildi") : t("bilgiTeklifIste")}
             </DialogTitle>
             <button
               type="button"
               onClick={onClose}
               className="-m-1 rounded-lg p-1 text-zinc-400 hover:bg-zinc-100 hover:text-zinc-700"
-              aria-label="Kapat"
+              aria-label={t("kapat")}
             >
               <XMarkIcon aria-hidden className="size-5" />
             </button>
@@ -116,8 +118,10 @@ export function PanelInquiryDialog({
               <p className="flex items-start gap-2 rounded-xl bg-emerald-50 p-4 text-sm/6 text-emerald-900 ring-1 ring-emerald-600/20">
                 <CheckCircleIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  Talebiniz <strong>{companyName}</strong> firmasına iletildi.
-                  Yanıt geldiğinde Bilgi Taleplerim sayfanızda görürsünüz.
+                  {t.rich("talebinizFirmasinaIletildi", {
+                    company: companyName,
+                    strong: (c) => <strong>{c}</strong>,
+                  })}
                 </span>
               </p>
               <div className="mt-6 flex flex-wrap gap-2">
@@ -125,29 +129,29 @@ export function PanelInquiryDialog({
                   href="/company/satinalma/bilgi-taleplerim"
                   className="flex-1 rounded-full bg-blue-600 px-4 py-2.5 text-center text-sm font-semibold text-white transition hover:bg-blue-700"
                 >
-                  Taleplerimi gör
+                  {t("taleplerimiGor")}
                 </Link>
                 <button
                   type="button"
                   onClick={onClose}
                   className="rounded-full border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-800 hover:bg-zinc-50"
                 >
-                  Kapat
+                  {t("kapat")}
                 </button>
               </div>
             </div>
           ) : (
             <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-4">
               <p className="text-sm/6 text-zinc-500">
-                <strong className="text-zinc-900">{productName}</strong>{" "}
-                hakkında {companyName} firmasına soru gönderin. Firma adınız
-                talebe eklenir; e-posta adresiniz satıcıya gösterilmez.
+                {t.rich("hakkindaFirmasinaSoruGonderin", {
+                  product: productName,
+                  company: companyName,
+                  strong: (c) => <strong className="text-zinc-900">{c}</strong>,
+                })}
               </p>
               {sellerFreeMember ? (
                 <p className="rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
-                  Bu tedarikçi ücretsiz üye: sorunuzu görür ama yanıtlamak için Silver
-                  paketine geçmesi gerekir. Hızlı yanıt için ürün sayfasındaki benzer
-                  ürünlerden doğrulanmış tedarikçilere de sorabilirsiniz.
+                  {t("buTedarikciUcretsizUyeSorunuzu")}
                 </p>
               ) : null}
 
@@ -156,13 +160,13 @@ export function PanelInquiryDialog({
                   htmlFor="pinq-quantity"
                   className="block text-sm font-medium text-zinc-900"
                 >
-                  Miktar
+                  {t("miktar")}
                 </label>
                 <input
                   id="pinq-quantity"
                   name="quantity"
                   maxLength={60}
-                  placeholder="örn. 500 adet"
+                  placeholder={t("orn500Adet")}
                   className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
                 />
               </div>
@@ -172,7 +176,7 @@ export function PanelInquiryDialog({
                   htmlFor="pinq-message"
                   className="block text-sm font-medium text-zinc-900"
                 >
-                  Mesajınız <span className="text-zinc-400">*</span>
+                  {t("mesajiniz")} <span className="text-zinc-400">*</span>
                 </label>
                 <textarea
                   id="pinq-message"
@@ -181,7 +185,7 @@ export function PanelInquiryDialog({
                   minLength={10}
                   maxLength={3000}
                   rows={4}
-                  placeholder="İhtiyacınızı, teslim yerini ve termini yazın."
+                  placeholder={t("ihtiyaciniziTeslimYeriniVeTermini")}
                   className="mt-1 w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-zinc-900 focus:ring-2 focus:ring-zinc-900/10"
                 />
               </div>
@@ -197,7 +201,7 @@ export function PanelInquiryDialog({
                 disabled={send.isPending}
                 className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
               >
-                {send.isPending ? "Gönderiliyor…" : "Talebi gönder"}
+                {send.isPending ? t("gonderiliyor") : t("talebiGonder")}
               </button>
 
               <div className="border-t border-zinc-950/5 pt-4">
@@ -206,11 +210,10 @@ export function PanelInquiryDialog({
                   onClick={toTender}
                   className="w-full rounded-full border border-zinc-300 px-4 py-2.5 text-sm font-medium text-zinc-800 transition hover:bg-zinc-50"
                 >
-                  Bu ürünü satın alma talebime ekle
+                  {t("buUrunuSatinAlmaTalebime")}
                 </button>
                 <p className="mt-2 text-center text-xs text-zinc-500">
-                  Bilgi talebi tek firmaya gider; satın alma talebi uygun tüm
-                  tedarikçilerden teklif toplar.
+                  {t("bilgiTalebiTekFirmayaGider")}
                 </p>
               </div>
             </form>

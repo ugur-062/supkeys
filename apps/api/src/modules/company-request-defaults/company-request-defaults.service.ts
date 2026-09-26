@@ -1,3 +1,5 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
+import { tApi } from "../../common/i18n/i18n.service";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import {
   Currency,
@@ -55,13 +57,13 @@ export const requestDefaultsSchema = z
   })
   .superRefine((d, ctx) => {
     if (!d.allowedCurrencies.includes(d.primaryCurrency)) {
-      ctx.addIssue({ code: "custom", path: ["allowedCurrencies"], message: "Ana para birimi izin verilenler arasında olmalı" });
+      ctx.addIssue({ code: "custom", path: ["allowedCurrencies"], message: tApi("api.companyRequestDefaults.anaParaBirimiIzinVerilenlerde") });
     }
     if (["DEFERRED", "CHEQUE", "SENET"].includes(d.paymentCategory) && !d.paymentDays) {
-      ctx.addIssue({ code: "custom", path: ["paymentDays"], message: "Vade gün sayısı zorunlu" });
+      ctx.addIssue({ code: "custom", path: ["paymentDays"], message: tApi("api.companyRequestDefaults.vadeGunSayisiZorunlu") });
     }
     if (d.paymentCategory === "LETTER_OF_CREDIT" && !d.lcType) {
-      ctx.addIssue({ code: "custom", path: ["lcType"], message: "Akreditif alt tipini seçin" });
+      ctx.addIssue({ code: "custom", path: ["lcType"], message: tApi("api.companyRequestDefaults.akreditifAltTipiniSecin") });
     }
   });
 
@@ -137,7 +139,13 @@ export class CompanyRequestDefaultsService {
   async save(user: AuthenticatedCompanyUser, input: unknown): Promise<RequestDefaultsResponse> {
     const parsed = requestDefaultsSchema.safeParse(input);
     if (!parsed.success) {
-      throw new BadRequestException(parsed.error.issues.map((i) => i.message).join(", "));
+      // Gövde zod şemasından gelir (mesajlar şemanın kendi metinleri); yalnız
+      // SABİT çerçeve katalogdan çevrilir.
+      throw new BadRequestException(
+        i18nMessage("api.companyRequestDefaults.talepSartlariGecersiz", {
+          issues: parsed.error.issues.map((i) => i.message).join(", "),
+        }),
+      );
     }
     const data = await this.withValidAddress(user.companyId, this.normalize(parsed.data, user.country ?? null));
     await this.prisma.company.update({

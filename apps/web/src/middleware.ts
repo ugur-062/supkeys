@@ -1,5 +1,33 @@
 import { NextRequest, NextResponse } from "next/server";
+import createMiddleware from "next-intl/middleware";
+import { routing } from "@/i18n/routing";
 import { isPublicRoute } from "@/lib/public-routes";
+
+/**
+ * i18n Faz 1: dil ön eki yönlendirmesi (next-intl) CSP ile AYNI middleware'de.
+ * Sıra: önce nonce/CSP istek başlıklarına yazılır (next-intl yanıtı
+ * `request.headers`ı aynen aktarır), sonra next-intl kararı (ön eksiz Türkçe
+ * yolu `/tr/...`e yeniden yazar, `/en/...`i geçirir), en son yanıt başlıkları.
+ * Kök dışı rota işleyicileri (api, sitemap, robots, llms, indexnow) ve uzantılı
+ * dosyalar next-intl'e GİRMEZ — girse `/tr/sitemap.xml`e yazılıp 404 olurdu.
+ */
+const intlMiddleware = createMiddleware(routing);
+
+const INTL_SKIP = [
+  /^\/api(\/|$)/,
+  /^\/sitemaps(\/|$)/,
+  /^\/sitemap\.xml$/,
+  /^\/robots\.txt$/,
+  /^\/llms(-full)?\.txt$/,
+  /^\/indexnow(\/|$)/,
+  /^\/_next(\/|$)/,
+  /^\/_vercel(\/|$)/,
+  /\/[^/]*\.[a-zA-Z0-9]+$/, // uzantılı dosya (public/ varlıkları)
+];
+
+function skipsIntl(pathname: string): boolean {
+  return INTL_SKIP.some((re) => re.test(pathname));
+}
 
 /**
  * CSP — İKİ profil, tek yerden. Ayrımın kaynağı `lib/public-routes.ts`.
@@ -57,26 +85,44 @@ function buildCsp(nonce: string | null, isDev: boolean): string {
  * çıkarıp yol parçasına taşımak (`/alim-talepleri/kategori/<kod>`) o sayfaları
  * statik/ISR yapar. Long-tail turunda yapılacak.
  */
+/**
+ * next-intl'in yönlendirmeleri 307 döner (kanonik olmayan dil biçimi
+ * `/en/urunler` → `/en/products`, `/products` → `/urunler`, `/tr/x` → `/x`).
+ * Hepsi KALICI kanonikleştirmedir; arama motoru ve tarayıcı 308 ile hedefi
+ * öğrensin (307 her seferinde yeniden taranır ve sinyal aktarmaz). Başlıklar
+ * (Location + next-intl'in dil çerezi) aynen taşınır.
+ */
+export function permanentize(response: NextResponse): NextResponse {
+  if (response.status !== 307 || !response.headers.get("location")) return response;
+  return new NextResponse(null, { status: 308, headers: response.headers });
+}
+
 export function middleware(request: NextRequest) {
   const isDev = process.env.NODE_ENV === "development";
+  const pathname = request.nextUrl.pathname;
   // Public rota → nonce ÜRETME. Üretip kullanmamak, statik HTML'i nonce'lı
-  // CSP ile servis etme hatasına açık kapı bırakırdı.
-  const publicRoute = isPublicRoute(request.nextUrl.pathname);
+  // CSP ile servis etme hatasına açık kapı bırakırdı. (`isPublicRoute` dil
+  // ön ekini kendi soyar.)
+  const publicRoute = isPublicRoute(pathname);
   const nonce = publicRoute
     ? null
     : Buffer.from(crypto.randomUUID()).toString("base64");
   const csp = buildCsp(nonce, isDev);
 
-  const requestHeaders = new Headers(request.headers);
   if (nonce) {
-    requestHeaders.set("x-nonce", nonce);
     // Next.js nonce'ı BU header'dan okur; public rotada set edilmez ki
-    // framework nonce basmaya kalkıp statik çıktıyı kirletmesin.
-    requestHeaders.set("Content-Security-Policy", csp);
+    // framework nonce basmaya kalkıp statik çıktıyı kirletmesin. İstek
+    // başlığına yazılır: next-intl yanıtı `request.headers`ı aynen taşır.
+    request.headers.set("x-nonce", nonce);
+    request.headers.set("Content-Security-Policy", csp);
   }
 
-  const response = NextResponse.next({ request: { headers: requestHeaders } });
+  const response = skipsIntl(pathname)
+    ? NextResponse.next({ request: { headers: request.headers } })
+    : permanentize(intlMiddleware(request));
+
   response.headers.set("Content-Security-Policy", csp);
+  response.headers.set("x-dbg", `${pathname}|${String(publicRoute)}|${nonce ? "nonce" : "no-nonce"}`);
   // Dalga B-4: HSTS hiçbir yerde set edilmiyordu (API'de helmet var, ön yüzde
   // yoktu). Tarayıcı, alan adını bir yıl boyunca yalnız HTTPS üzerinden
   // konuşmaya zorlar → ilk isteğin http'ye düşüp çerezi sızdırdığı SSL-stripping
@@ -93,13 +139,18 @@ export function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    // API, statik varlıklar ve prefetch'ler hariç tüm rotalar.
-    {
-      source: "/((?!api|_next/static|_next/image|favicon.ico).*)",
-      missing: [
-        { type: "header", key: "next-router-prefetch" },
-        { type: "header", key: "purpose", value: "prefetch" },
-      ],
-    },
+    // API ve statik varlıklar hariç tüm rotalar — PREFETCH DAHİL.
+    //
+    // Eskiden `missing: [next-router-prefetch, purpose: prefetch]` ile
+    // ön yükleme istekleri middleware'den muaf tutuluyordu (CSP nonce'u
+    // boşa üretmemek için). i18n Faz 1'den beri (2026-09-23) bütün sayfalar
+    // `[locale]` altında ve Türkçe adresler ÖN EKSİZ: `/urunler`ı `/tr/urunler`a
+    // yeniden yazan şey bu middleware'deki next-intl. Ön yükleme muaf kalınca
+    // `<Link>` ön yüklemeleri ham yola gidiyor, `[locale]="urunler"` gibi
+    // yanlış eşleşip 404 dönüyordu; tıklanınca sayfa "Sayfa bulunamadı"
+    // açılıyordu (staging'de ölçüldü: `/urunler?_rsc=…` + `Next-Router-Prefetch`
+    // → 404, `/en/urunler` → 200). Nonce'un ön yüklemede üretilmesinin zararı
+    // yok — gezinti yükleri satır içi script taşımaz.
+    "/((?!api|_next/static|_next/image|favicon.ico).*)",
   ],
 };

@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   CanActivate,
   ExecutionContext,
@@ -30,7 +31,7 @@ export class CompanyPaidTierGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     const req = context.switchToHttp().getRequest();
     const user = req.user as AuthenticatedCompanyUser | undefined;
-    if (!user) throw new ForbiddenException("Yetkisiz");
+    if (!user) throw new ForbiddenException(i18nMessage("api.companyAuth.yetkisiz"));
     const min =
       this.reflector.getAllAndOverride<TierName | undefined>(COMPANY_TIER_KEY, [
         context.getHandler(),
@@ -39,8 +40,10 @@ export class CompanyPaidTierGuard implements CanActivate {
     if (!tierAtLeast(user.tier, min)) {
       throw new ForbiddenException(
         min === "GOLD"
-          ? "Bu özellik Gold paket gerektirir (satınalma paneli)."
-          : `Bu özellik ${TIER_LABEL[min]} veya üzeri paket gerektirir.`,
+          ? i18nMessage("api.companyAuth.buOzellikGoldPaketGerektirir")
+          : i18nMessage("api.companyAuth.buOzellikPaketVeyaUzeriGerektirir", {
+              tier: TIER_LABEL[min],
+            }),
       );
     }
     return true;

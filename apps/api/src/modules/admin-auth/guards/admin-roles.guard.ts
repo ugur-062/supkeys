@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   CanActivate,
   ExecutionContext,
@@ -31,7 +32,7 @@ export class AdminRolesGuard implements CanActivate {
       const req = context.switchToHttp().getRequest();
       const role = req.user?.role as string | undefined;
       if (!role || !required.includes(role)) {
-        throw new ForbiddenException("Bu işlem için yetkiniz yok");
+        throw new ForbiddenException(i18nMessage("api.adminAuth.buIslemIcinYetkinizYok"));
       }
       return true;
     }
@@ -44,6 +45,6 @@ export class AdminRolesGuard implements CanActivate {
     if (allowAny) return true;
 
     // Fail-closed: işaretlenmemiş uç reddedilir.
-    throw new ForbiddenException("Bu işlem için yetkiniz yok");
+    throw new ForbiddenException(i18nMessage("api.adminAuth.buIslemIcinYetkinizYok"));
   }
 }

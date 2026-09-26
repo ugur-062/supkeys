@@ -1,9 +1,19 @@
 import { describe, expect, it } from "vitest";
+import { createTranslator } from "use-intl/core";
+import { WEB_NAMESPACES, messagesFor } from "@rothern/i18n/messages";
 import {
   DEFAULT_FORM_VALUES,
-  tenderFormSchema,
+  makeTenderFormSchema,
   type TenderFormData,
 } from "../form-schema";
+
+/* i18n Faz 2: şema FABRİKA — mesajlar kullanıcının dilinden. Test Türkçe
+   katalogla kurar ki beklentiler gerçek metni (ör. "2 yıl") sınasın. */
+const tTr = createTranslator({ locale: "tr", messages: messagesFor("tr", WEB_NAMESPACES) as never }) as unknown as (
+  key: string,
+  values?: Record<string, string | number>,
+) => string;
+const tenderFormSchema = makeTenderFormSchema((key, values) => tTr(`web.panel.requests.${key}`, values));
 
 const future = new Date(Date.now() + 7 * 24 * 3600 * 1000).toISOString();
 

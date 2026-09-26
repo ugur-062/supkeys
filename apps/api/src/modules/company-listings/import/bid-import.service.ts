@@ -1,3 +1,5 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { tApi } from "../../../common/i18n/i18n.service";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import {
   BID_DELIVERY_TIMES,
@@ -75,7 +77,7 @@ export class BidImportService {
       }[];
     };
     if (d.isOwner) {
-      throw new BadRequestException("Kendi satın alma talebinize teklif veremezsiniz");
+      throw new BadRequestException(i18nMessage("api.companyListings.kendiSatinAlmaTalebinizeTeklifVeremezsiniz"));
     }
     const items: MatchItem[] = (d.items ?? []).map((it) => ({
       id: it.id,
@@ -87,7 +89,7 @@ export class BidImportService {
     }));
     if (items.length === 0) {
       throw new BadRequestException(
-        "Bu satın alma talebinde kalem listesi yok ya da görüntüleme yetkiniz yok — fiyat içe aktarma yalnız kalemli satın alma taleplerinde",
+        i18nMessage("api.companyListings.buSatinAlmaTalebindeKalemListesi"),
       );
     }
     const primary = d.primaryCurrency ?? null;
@@ -152,8 +154,10 @@ export class BidImportService {
             allowBlank: true,
             formulae: [`"${currencyList.join(",")}"`],
             showErrorMessage: true,
-            errorTitle: "Para birimi",
-            error: `Bu satın alma talebinde kabul edilen para birimleri: ${currencyList.join(", ")}`,
+            errorTitle: tApi("api.companyListings.bidImport.template.currencyTitle"),
+            error: tApi("api.companyListings.bidImport.template.currencyError", {
+              list: currencyList.join(", "),
+            }),
           };
         }
         if (c.key === "deliveryTime") {
@@ -162,8 +166,8 @@ export class BidImportService {
             allowBlank: true,
             formulae: [`"${deliveryList.join(",")}"`],
             showErrorMessage: true,
-            errorTitle: "Teslim süresi",
-            error: "Listeden seçin",
+            errorTitle: tApi("api.companyListings.bidImport.template.deliveryTitle"),
+            error: tApi("api.companyListings.bidImport.template.deliveryError"),
           };
         }
       });
@@ -184,13 +188,13 @@ export class BidImportService {
     const help = wb.addWorksheet(BID_IMPORT_HELP_SHEET);
     help.columns = [{ width: 110 }];
     const lines = [
-      `Teklif şablonu — ${l.title}`,
+      tApi("api.companyListings.bidImport.template.helpTitle", { title: l.title }),
       "",
-      `"${BID_IMPORT_SHEET}" sayfasındaki gri sütunlar satın alma talebinin kalemleridir, DEĞİŞTİRMEYİN (satır eklemeyin/silmeyin).`,
-      "Beyaz sütunları doldurun: Birim Fiyat (KDV HARİÇ, zorunlu), Para Birimi (listeden), Teslim Süresi (listeden), Not.",
-      "Teklif vermek istemediğiniz kalemin Birim Fiyat hücresini BOŞ bırakın (satın alma talebi tüm kalemleri zorunlu kılıyorsa uygulamada uyarılırsınız).",
-      "Ondalık ayracı virgül veya nokta olabilir (185,50 ya da 185.50).",
-      "Dosyayı kaydedip teklif sayfasındaki 'Excel Şablonu ile Fiyatla' ile yükleyin — önce önizleme görürsünüz, teklif göndermez.",
+      tApi("api.companyListings.bidImport.template.helpSheet", { sheet: BID_IMPORT_SHEET }),
+      tApi("api.companyListings.bidImport.template.helpFill"),
+      tApi("api.companyListings.bidImport.template.helpSkip"),
+      tApi("api.companyListings.bidImport.template.helpDecimal"),
+      tApi("api.companyListings.bidImport.template.helpUpload"),
     ];
     lines.forEach((t, i) => {
       const r = help.addRow([t]);
@@ -199,8 +203,11 @@ export class BidImportService {
     });
 
     const out = await wb.xlsx.writeBuffer();
-    const safe = l.title.replace(/[^a-zA-Z0-9ğüşöçıİĞÜŞÖÇ _-]/g, "").slice(0, 40).trim() || "satın alma talebi";
-    return { buffer: Buffer.from(out as ArrayBuffer), fileName: `teklif-sablonu-${safe}.xlsx` };
+    const safe =
+      l.title.replace(/[^a-zA-Z0-9ğüşöçıİĞÜŞÖÇ _-]/g, "").slice(0, 40).trim() ||
+      tApi("api.companyListings.bidImport.template.fileNameFallback");
+    const prefix = tApi("api.companyListings.bidImport.template.fileNamePrefix");
+    return { buffer: Buffer.from(out as ArrayBuffer), fileName: `${prefix}-${safe}.xlsx` };
   }
 
   // ------------------------------------------------------------ ŞABLON OKU
@@ -211,34 +218,34 @@ export class BidImportService {
   ): Promise<BidImportResult> {
     const l = await this.loadListing(user, listingId);
     const buffer = Buffer.from(input.dataBase64.replace(/^data:[^;]+;base64,/, ""), "base64");
-    if (buffer.length === 0) throw new BadRequestException("Dosya boş");
-    if (buffer.length > BID_IMPORT_MAX_FILE_BYTES) throw new BadRequestException("Dosya çok büyük (5 MB sınırı)");
+    if (buffer.length === 0) throw new BadRequestException(i18nMessage("api.companyListings.dosyaBos"));
+    if (buffer.length > BID_IMPORT_MAX_FILE_BYTES) throw new BadRequestException(i18nMessage("api.companyListings.dosyaCokBuyuk5MbSiniri"));
 
     const wb = new ExcelJS.Workbook();
     const isZip = buffer[0] === 0x50 && buffer[1] === 0x4b;
     if (isZip) {
-      if (/\.xlsm$/i.test(input.fileName)) throw new BadRequestException("Makrolu dosya (.xlsm) kabul edilmez");
+      if (/\.xlsm$/i.test(input.fileName)) throw new BadRequestException(i18nMessage("api.companyListings.makroluDosyaXlsmKabulEdilmez"));
       assertXlsxSafe(buffer); // zip bombası koruması (denetim 2026-08-23)
       try {
         await wb.xlsx.load(buffer as unknown as ArrayBuffer);
       } catch {
-        throw new BadRequestException("Excel dosyası okunamadı — .xlsx olarak kaydedip deneyin");
+        throw new BadRequestException(i18nMessage("api.companyListings.excelDosyasiOkunamadiXlsxOlarakKaydedip"));
       }
     } else if (/\.csv$/i.test(input.fileName) && !buffer.subarray(0, 4096).includes(0)) {
       // Bkz. listing-item-import: CSV parse belleği hücre sayısıyla patlar.
       if (buffer.length > BID_IMPORT_MAX_CSV_BYTES) {
         throw new BadRequestException(
-          "CSV dosyası çok büyük — şablonu .xlsx olarak kaydedip yükleyin (CSV için sınır 1 MB)",
+          i18nMessage("api.companyListings.csvDosyasiCokBuyukSablonuXlsx"),
         );
       }
       await wb.csv.read(Readable.from(buffer)).catch(() => {
-        throw new BadRequestException("CSV dosyası okunamadı");
+        throw new BadRequestException(i18nMessage("api.companyListings.csvDosyasiOkunamadi"));
       });
     } else {
-      throw new BadRequestException("Desteklenmeyen dosya — bu satın alma talebinin Excel şablonunu indirip doldurun");
+      throw new BadRequestException(i18nMessage("api.companyListings.desteklenmeyenDosyaBuSatinAlmaTalebinin"));
     }
     const ws = wb.getWorksheet(BID_IMPORT_SHEET) ?? wb.worksheets[0];
-    if (!ws) throw new BadRequestException("Dosyada sayfa bulunamadı");
+    if (!ws) throw new BadRequestException(i18nMessage("api.companyListings.dosyadaSayfaBulunamadi"));
 
     // Başlık satırı + sütun haritası (ItemId ZORUNLU — kesin eşleme bununla).
     let headerRow = 0;
@@ -257,7 +264,7 @@ export class BidImportService {
     const keys = new Set(map.values());
     if (!keys.has("itemId") || !keys.has("unitPrice")) {
       throw new BadRequestException(
-        "Bu dosya bu satın alma talebinin teklif şablonu değil (ItemId / Birim Fiyat sütunları yok). Şablonu 'Excel Şablonu ile Fiyatla' penceresinden indirin.",
+        i18nMessage("api.companyListings.buDosyaBuSatinAlmaTalebinin"),
       );
     }
     const colOf = (k: BidImportColumnKey) => [...map.entries()].find(([, v]) => v === k)?.[0];
@@ -293,7 +300,7 @@ export class BidImportService {
         itemName: it.name,
         itemQuantity: it.quantity,
         itemUnit: it.unit,
-        source: `Şablon satır ${r}`,
+        source: tApi("api.companyListings.bidImport.sablonSatir", { n: r }),
         unitPrice: null,
         currency: null,
         deliveryTime: null,
@@ -305,7 +312,7 @@ export class BidImportService {
       // Fiyat: boş = kapsam dışı (hata değil).
       if (priceRaw != null && String(priceRaw).trim() !== "") {
         const n = parseLocaleNumber(priceRaw);
-        if (n == null) m.errors.push("Birim fiyat sayı değil");
+        if (n == null) m.errors.push(tApi("api.companyListings.bidImport.birimFiyatSayiDegil"));
         else {
           const v = validUnitPrice(n);
           if (v.error) m.errors.push(v.error);
@@ -314,10 +321,16 @@ export class BidImportService {
       }
       const curRaw = get("currency");
       const cur = normalizeCurrency(curRaw);
-      if (curRaw != null && String(curRaw).trim() !== "" && !cur) m.errors.push(`Para birimi tanınmadı: ${String(curRaw)}`);
+      if (curRaw != null && String(curRaw).trim() !== "" && !cur)
+        m.errors.push(tApi("api.companyListings.bidImport.paraBirimiTaninmadi", { value: String(curRaw) }));
       if (cur) {
         if (l.allowedCurrencies.length > 0 && !l.allowedCurrencies.includes(cur)) {
-          m.errors.push(`Para birimi (${cur}) bu satın alma talebinde kabul edilmiyor (${l.allowedCurrencies.join(", ")})`);
+          m.errors.push(
+            tApi("api.companyListings.bidImport.paraBirimiKabulEdilmiyor", {
+              currency: cur,
+              allowed: l.allowedCurrencies.join(", "),
+            }),
+          );
         } else {
           m.currency = cur === l.primaryCurrency ? null : cur;
         }
@@ -325,15 +338,16 @@ export class BidImportService {
       const delRaw = get("deliveryTime");
       if (delRaw != null && String(delRaw).trim() !== "") {
         const d = normalizeDeliveryTime(delRaw);
-        if (!d) m.errors.push(`Teslim süresi tanınmadı: ${String(delRaw)}`);
+        if (!d) m.errors.push(tApi("api.companyListings.bidImport.teslimSuresiTaninmadi", { value: String(delRaw) }));
         m.deliveryTime = d;
       }
       const note = get("note");
       m.note = note != null && String(note).trim() !== "" ? String(note).trim().slice(0, 500) : null;
-      if (seen.has(it.id)) m.warnings.push("Aynı kalem şablonda birden çok satırda — son satır geçerli");
+      if (seen.has(it.id)) m.warnings.push(tApi("api.companyListings.bidImport.ayniKalemBirdenCokSatir"));
       seen.set(it.id, m);
     }
-    if (unknownRows > 0) notices.push(`${unknownRows} satır satın alma talebi kalemlerine bağlanamadı (ItemId bozuk/silinmiş) — atlandı`);
+    if (unknownRows > 0)
+      notices.push(tApi("api.companyListings.bidImport.baglanamayanSatir", { n: unknownRows }));
 
     // Her kalem için bir satır (şablonda olmayan/boş kalem → none).
     const matches: BidImportMatch[] = l.items.map(
@@ -355,7 +369,7 @@ export class BidImportService {
         },
     );
     const priced = matches.filter((m) => m.unitPrice != null && m.errors.length === 0).length;
-    if (priced === 0) notices.push("Şablonda fiyat girilmiş kalem yok");
+    if (priced === 0) notices.push(tApi("api.companyListings.bidImport.fiyatGirilmisKalemYok"));
     return {
       mode: "template",
       listingId: l.id,
@@ -380,16 +394,21 @@ export class BidImportService {
     });
     const notices: string[] = [];
     if (docMeta.pricesIncludeVat === true) {
-      notices.push("Belgedeki fiyatlar KDV DAHİL görünüyor — teklif fiyatları KDV hariç olmalı, kontrol edin");
+      notices.push(tApi("api.companyListings.bidImport.kdvDahilUyari"));
     }
     const docCur = normalizeCurrency(docMeta.docCurrency);
     if (docCur && l.allowedCurrencies.length > 0 && !l.allowedCurrencies.includes(docCur)) {
-      notices.push(`Belge para birimi (${docCur}) bu satın alma talebinde kabul edilmiyor (${l.allowedCurrencies.join(", ")})`);
+      notices.push(
+        tApi("api.companyListings.bidImport.belgeParaBirimiKabulEdilmiyor", {
+          currency: docCur,
+          allowed: l.allowedCurrencies.join(", "),
+        }),
+      );
     }
     const matchedCount = matches.filter((m) => m.unitPrice != null).length;
-    if (matchedCount === 0) notices.push("Belgeden satın alma talebi kalemlerine fiyat eşlenemedi — elle eşleyebilir ya da şablonu kullanabilirsiniz");
+    if (matchedCount === 0) notices.push(tApi("api.companyListings.bidImport.fiyatEslenemedi"));
     const medium = matches.filter((m) => m.confidence === "medium").length;
-    if (medium > 0) notices.push(`${medium} kalem düşük güvenle eşleşti — sarı satırları kontrol edin`);
+    if (medium > 0) notices.push(tApi("api.companyListings.bidImport.dusukGuven", { n: medium }));
     return {
       mode: "ai",
       listingId: l.id,

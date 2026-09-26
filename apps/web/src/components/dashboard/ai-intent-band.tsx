@@ -1,9 +1,11 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { AI_TENDER_DRAFT_KEY, intentChips } from "@/lib/company/ai-search";
 import type { AiSearchIntentResult, AiSearchRelaxed } from "@rothern/shared";
 import { SparklesIcon, XMarkIcon } from "@heroicons/react/20/solid";
-import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useSearchParams } from "next/navigation";
+import { usePathname, useRouter } from "@/i18n/navigation";
 
 /**
  * "AI şöyle anladı" bandı — AI aramasının yorumu + uygulanan süzgeç çipleri.
@@ -11,27 +13,30 @@ import { usePathname, useRouter, useSearchParams } from "next/navigation";
  * güncellenir). Satınalmada "Bu tanımla talep aç" sihirbazı taslakla açar
  * (mevcut AI taslak köprüsü). Kara kutu yok: her parça görünür ve geri alınır.
  */
-const RELAXED_LABEL: Record<AiSearchRelaxed, string> = {
-  category: "kategori",
-  priceMax: "fiyat tavanı",
-  quantity: "adet",
-  activity: "faaliyet tipi",
-  verifiedOnly: "doğrulanmış firma",
-  city: "şehir",
-  query: "arama kısaltıldı",
+const RELAXED_KEY: Record<AiSearchRelaxed, string> = {
+  category: "relaxedCategory",
+  priceMax: "relaxedPriceMax",
+  quantity: "relaxedQuantity",
+  activity: "relaxedActivity",
+  verifiedOnly: "relaxedVerifiedOnly",
+  city: "relaxedCity",
+  query: "relaxedQuery",
 };
 
-/** "Sonuç vermediği için kaldırıldı: kategori (Kompanzasyon panoları), şehir" */
-export function relaxedNote(r: AiSearchIntentResult): string | null {
-  if (!r.relaxed?.length) return null;
-  const parts = r.relaxed.map((k) =>
-    k === "category" && r.relaxedCategoryName
-      ? `${RELAXED_LABEL[k]} (${r.relaxedCategoryName})`
-      : k === "query" && r.query
-        ? `${RELAXED_LABEL[k]} ("${r.query}" kaldı)`
-        : RELAXED_LABEL[k],
-  );
-  return `Sonuç vermediği için kaldırıldı: ${parts.join(", ")}.`;
+/** "Sonuç vermediği için kaldırıldı: kategori (Kompanzasyon panoları), şehir" — dil bilen hook. */
+export function useRelaxedNote(): (r: AiSearchIntentResult) => string | null {
+  const t = useTranslations("web.panel.shell.aiIntentBand");
+  return (r) => {
+    if (!r.relaxed?.length) return null;
+    const parts = r.relaxed.map((k) =>
+      k === "category" && r.relaxedCategoryName
+        ? t("relaxedKategoriAd", { name: r.relaxedCategoryName })
+        : k === "query" && r.query
+          ? t("relaxedQueryKaldi", { query: r.query })
+          : t(RELAXED_KEY[k] as never),
+    );
+    return t("sonucVermedigiIcinKaldirildi", { parts: parts.join(", ") });
+  };
 }
 
 export function AiIntentBand({
@@ -41,11 +46,13 @@ export function AiIntentBand({
   intent: AiSearchIntentResult;
   onDismiss: () => void;
 }) {
+  const relaxedNote = useRelaxedNote();
+  const t = useTranslations("web.panel.shell.aiIntentBand");
   const sp = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const params = sp ?? new URLSearchParams();
-  const chips = intentChips(intent, params);
+  const chips = intentChips(intent, params, (key, values) => t(key as never, values as never));
 
   const remove = (param: string) => {
     const next = new URLSearchParams(params.toString());
@@ -64,7 +71,7 @@ export function AiIntentBand({
   return (
     <div
       role="status"
-      aria-label="AI arama yorumu"
+      aria-label={t("aiAramaYorumu")}
       className="rounded-2xl border border-blue-200/80 bg-blue-50/60 px-4 py-3 text-sm text-zinc-800"
     >
       <div className="flex items-start gap-3">
@@ -73,7 +80,7 @@ export function AiIntentBand({
           <p className="font-medium text-zinc-950">{intent.summary}</p>
           {chips.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-xs text-zinc-500">Uygulanan süzgeçler:</span>
+              <span className="text-xs text-zinc-500">{t("uygulananSuzgecler")}</span>
               {chips.map((c) => (
                 <button
                   key={c.param}
@@ -83,21 +90,21 @@ export function AiIntentBand({
                 >
                   {c.label}
                   <XMarkIcon aria-hidden className="size-3.5" />
-                  <span className="sr-only">süzgecini kaldır</span>
+                  <span className="sr-only">{t("suzgeciniKaldir")}</span>
                 </button>
               ))}
             </div>
           ) : (
-            <p className="text-xs text-zinc-500">Uygulanan süzgeç kalmadı — liste tamamını gösteriyor.</p>
+            <p className="text-xs text-zinc-500">{t("uygulananSuzgecKalmadiListeTamamini")}</p>
           )}
           {relaxedNote(intent) ? <p className="text-xs text-zinc-600">{relaxedNote(intent)}</p> : null}
           {intent.categoryHint && !intent.category && !intent.relaxed?.includes("category") ? (
             <p className="text-xs text-zinc-600">
-              Kategori bulunamadı: &ldquo;{intent.categoryHint}&rdquo; — kenar süzgecinden seçebilirsiniz.
+              {t("kategoriBulunamadiKenar", { categoryHint: intent.categoryHint })}
             </p>
           ) : null}
           {intent.warned ? (
-            <p className="text-xs text-amber-700">AI bütçenizin %80&apos;i doldu — Ayarlar › AI Kullanımı.</p>
+            <p className="text-xs text-amber-700">{t("aiButcenizin80Doldu")}</p>
           ) : null}
         </div>
         <div className="flex shrink-0 items-center gap-2">
@@ -107,13 +114,13 @@ export function AiIntentBand({
               onClick={openDraft}
               className="rounded-full bg-blue-600 px-3.5 py-1.5 text-xs font-semibold text-white transition hover:bg-blue-700"
             >
-              Bu tanımla talep aç
+              {t("buTanimlaTalepAc")}
             </button>
           ) : null}
           <button
             type="button"
             onClick={onDismiss}
-            aria-label="AI yorumunu kapat"
+            aria-label={t("aiYorumunuKapat")}
             className="-m-1 rounded-full p-1 text-zinc-500 hover:bg-white hover:text-zinc-950"
           >
             <XMarkIcon aria-hidden className="size-4" />

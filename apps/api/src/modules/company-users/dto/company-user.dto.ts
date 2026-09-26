@@ -16,6 +16,8 @@ import {
   ValidateNested,
 } from "class-validator";
 
+import { tApi } from "../../../common/i18n/i18n.service";
+
 export enum CompanyRoleDto {
   // SAHIP yalnız DEVİR (updateRoles/updateUser) için geçerli; davet servis
   // katmanında ayrıca engellenir ("sahiplik davetle verilemez").
@@ -31,14 +33,14 @@ export enum CompanyRoleDto {
  * parolasını kendisi belirler (KVKK/consent). Admin yalnızca e-posta + rol girer.
  */
 export class InviteCompanyUserDto {
-  @IsEmail({}, { message: "Geçerli e-posta girin" })
+  @IsEmail({}, { message: () => tApi("api.dto.companyUser.gecerliEpostaGirin") })
   email!: string;
 
   /** Rol hazır setleri (eski istemci). `permissions` verilirse yok sayılır. */
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(5)
-  @IsEnum(CompanyRoleDto, { each: true, message: "Geçersiz rol" })
+  @IsEnum(CompanyRoleDto, { each: true, message: () => tApi("api.dto.companyUser.gecersizRol") })
   roles?: CompanyRoleDto[];
 
   /** Yetki tablosu (Faz 4): davetle verilen AÇIK izin listesi. */
@@ -62,39 +64,39 @@ export class SetUserPermissionsDto {
 /** Davet kabulü (public) — signup ile aynı kişi/parola/sözleşme kuralları. */
 export class AcceptCompanyInvitationDto {
   @IsString()
-  @MinLength(2, { message: "Ad en az 2 karakter olmalı" })
+  @MinLength(2, { message: () => tApi("api.dto.companyUser.adEnAz2KarakterOlmali") })
   @MaxLength(80)
   firstName!: string;
 
   @IsString()
-  @MinLength(2, { message: "Soyad en az 2 karakter olmalı" })
+  @MinLength(2, { message: () => tApi("api.dto.companyUser.soyadEnAz2KarakterOlmali") })
   @MaxLength(80)
   lastName!: string;
 
   @IsOptional()
   @IsString()
-  @Matches(/^[0-9+\s()]{10,20}$/, { message: "Geçerli bir telefon giriniz" })
+  @Matches(/^[0-9+\s()]{10,20}$/, { message: () => tApi("api.dto.companyUser.gecerliBirTelefonGiriniz") })
   phone?: string;
 
   @IsString()
-  @MinLength(10, { message: "Parola en az 10 karakter olmalı" })
-  @MaxLength(72, { message: "Parola en fazla 72 karakter" })
-  @Matches(/[a-z]/, { message: "Parola en az bir küçük harf içermeli" })
-  @Matches(/[A-Z]/, { message: "Parola en az bir büyük harf içermeli" })
-  @Matches(/[0-9]/, { message: "Parola en az bir rakam içermeli" })
-  @Matches(/[^a-zA-Z0-9]/, { message: "Parola en az bir özel karakter içermeli" })
+  @MinLength(10, { message: () => tApi("api.dto.companyUser.parolaEnAz10KarakterOlmali") })
+  @MaxLength(72, { message: () => tApi("api.dto.companyUser.parolaEnFazla72Karakter") })
+  @Matches(/[a-z]/, { message: () => tApi("api.dto.companyUser.parolaEnAzBirKucukHarfIcermeli") })
+  @Matches(/[A-Z]/, { message: () => tApi("api.dto.companyUser.parolaEnAzBirBuyukHarfIcermeli") })
+  @Matches(/[0-9]/, { message: () => tApi("api.dto.companyUser.parolaEnAzBirRakamIcermeli") })
+  @Matches(/[^a-zA-Z0-9]/, { message: () => tApi("api.dto.companyUser.parolaEnAzBirOzelKarakterIcermeli") })
   password!: string;
 
   @IsBoolean()
-  @Equals(true, { message: "Kullanıcı sözleşmesini kabul etmelisiniz" })
+  @Equals(true, { message: () => tApi("api.dto.companyUser.kullaniciSozlesmesiniKabulEtmelisiniz") })
   termsAccepted!: boolean;
 
   @IsBoolean()
-  @Equals(true, { message: "Aracılık ve kullanım sözleşmesini kabul etmelisiniz" })
+  @Equals(true, { message: () => tApi("api.dto.companyUser.aracilikVeKullanimSozlesmesiniKabulEtmelisiniz") })
   mediationAccepted!: boolean;
 
   @IsBoolean()
-  @Equals(true, { message: "KVKK aydınlatma metnini onaylamalısınız" })
+  @Equals(true, { message: () => tApi("api.dto.companyUser.kvkkAydinlatmaMetniniOnaylamalisiniz") })
   kvkkAccepted!: boolean;
 
   @IsOptional()
@@ -135,9 +137,9 @@ export class SeatSelectionDto {
 
 export class UpdateUserRolesDto {
   @IsArray()
-  @ArrayMinSize(1, { message: "En az bir rol seçin" })
+  @ArrayMinSize(1, { message: () => tApi("api.dto.companyUser.enAzBirRolSecin") })
   @ArrayMaxSize(5)
-  @IsEnum(CompanyRoleDto, { each: true, message: "Geçersiz rol" })
+  @IsEnum(CompanyRoleDto, { each: true, message: () => tApi("api.dto.companyUser.gecersizRol") })
   roles!: CompanyRoleDto[];
 }
 
@@ -161,9 +163,9 @@ export class UpdateUserDto {
 
   @IsOptional()
   @IsArray()
-  @ArrayMinSize(1, { message: "En az bir rol seçin" })
+  @ArrayMinSize(1, { message: () => tApi("api.dto.companyUser.enAzBirRolSecin") })
   @ArrayMaxSize(5)
-  @IsEnum(CompanyRoleDto, { each: true, message: "Geçersiz rol" })
+  @IsEnum(CompanyRoleDto, { each: true, message: () => tApi("api.dto.companyUser.gecersizRol") })
   roles?: CompanyRoleDto[];
 
   // Kuruculuk devrinde eski Kurucu'nun yeni rolü (kişiye sorulur).
@@ -171,7 +173,7 @@ export class UpdateUserDto {
   @IsArray()
   @ArrayMinSize(1)
   @ArrayMaxSize(5)
-  @IsEnum(CompanyRoleDto, { each: true, message: "Geçersiz rol" })
+  @IsEnum(CompanyRoleDto, { each: true, message: () => tApi("api.dto.companyUser.gecersizRol") })
   previousOwnerRoles?: CompanyRoleDto[];
 }
 

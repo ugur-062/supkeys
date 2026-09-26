@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { BadRequestException, Inject, Injectable, Logger } from "@nestjs/common";
 import type { BidImportResult } from "@rothern/shared";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -44,12 +45,12 @@ export class BidPriceExtractService {
     this.ai.assertAiAccess(user);
     for (const key of dto.fileKeys) {
       if (!isOwnAiExtractKey(key, user.companyId)) {
-        throw new BadRequestException("Geçersiz dosya anahtarı");
+        throw new BadRequestException(i18nMessage("api.ai.gecersizDosyaAnahtari"));
       }
     }
-    if (dto.fileKeys.length === 0) throw new BadRequestException("En az bir dosya seçin");
+    if (dto.fileKeys.length === 0) throw new BadRequestException(i18nMessage("api.ai.enAzBirDosyaSecin"));
     if (dto.fileKeys.length > this.config.maxPages) {
-      throw new BadRequestException(`Belge çok uzun (en fazla ${this.config.maxPages} dosya)`);
+      throw new BadRequestException(i18nMessage("api.ai.belgeCokUzunEnFazlaDosya", { maxPages: this.config.maxPages }));
     }
 
     // Kalemler+yetki (getOne) ile R2 indirme bağımsız → paralel (uzak DB/R2

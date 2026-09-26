@@ -47,6 +47,10 @@ describe("POST /api/seo/revalidate", () => {
     expect(await res.json()).toEqual({ ok: true, paths: 2, tags: 2 });
     expect(revalidatePath).toHaveBeenCalledWith("/firma/acme");
     expect(revalidatePath).toHaveBeenCalledWith("/urunler/kategori/39000000-elektrik");
+    // `[locale]` altındaki iç yol + dil segmenti de tazelenir (EN/RU sayfalar).
+    expect(revalidatePath).toHaveBeenCalledWith("/en/firma/acme");
+    expect(revalidatePath).toHaveBeenCalledWith("/ru/firma/acme");
+    expect(revalidatePath).toHaveBeenCalledWith("/tr/firma/acme");
     expect(revalidateTag).toHaveBeenCalledWith("product:acme/boru");
     expect(revalidateTag).toHaveBeenCalledWith("seo:sitemap");
     expect(revalidateTag).toHaveBeenCalledTimes(2);

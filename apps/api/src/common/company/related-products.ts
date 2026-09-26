@@ -1,3 +1,4 @@
+import { i18nMessage } from "../i18n/http-i18n";
 import type { PrismaClient } from "@rothern/db";
 import { NotFoundException } from "@nestjs/common";
 import { publicProductWhere } from "./public-profile-gate";
@@ -28,7 +29,7 @@ export async function relatedProducts(prisma: Db, companySlug: string, productSl
     where: { ...publicProductWhere(), slug: productSlug, company: { slug: companySlug } },
     select: { id: true, companyId: true, categoryId: true },
   });
-  if (!base) throw new NotFoundException("Ürün bulunamadı");
+  if (!base) throw new NotFoundException(i18nMessage("api.company.urunBulunamadi"));
   const [fromCompany, fromTotal] = await Promise.all([
     prisma.companyItem.findMany({
       where: { ...publicProductWhere(), companyId: base.companyId, id: { not: base.id } },
@@ -68,9 +69,17 @@ export async function relatedProducts(prisma: Db, companySlug: string, productSl
     : [];
   const verifiedFirst = (rows: typeof fromCompany) =>
     rows.map(toProductIndexCard).sort((a, b) => Number(b.company.verified) - Number(a.company.verified));
+  const similarCards = verifiedFirst(similar);
+  const similarIds = similarCards.map((c) => similar.find((r) => r.slug === c.slug && r.company.slug === c.company.slug)?.id ?? "");
   return {
     fromCompany: { items: fromCompany.map(toProductIndexCard), total: fromTotal },
-    similar: verifiedFirst(similar),
+    similar: similarCards,
     popular: popular.map(toProductIndexCard),
+    /** İç kimlikler — YALNIZ çeviri eşlemesi için; herkese açık uç yanıta koymadan soyar (i18n Faz 1e). */
+    ids: {
+      fromCompany: fromCompany.map((r) => r.id),
+      similar: similarIds,
+      popular: popular.map((r) => r.id),
+    },
   };
 }

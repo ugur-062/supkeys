@@ -87,20 +87,20 @@ export interface CompanyAreaDef {
 }
 
 export const COMPANY_AREA: CompanyAreaDef = {
-  label: "Şirketim",
+  label: "sirketim.title",
   basePath: COMPANY_AREA_BASE,
   nav: [
-    { icon: BuildingOffice2Icon, label: "Genel Bakış", href: COMPANY_AREA_BASE },
+    { icon: BuildingOffice2Icon, label: "sirketim.overview", href: COMPANY_AREA_BASE },
     // Herkese açık profil HER pakete açık (2026-09-06: ücretsiz firma da
     // yayınlar; paketin karşılığı dizinde öncelik + "Doğrulanmış" rozeti).
-    { icon: IdentificationIcon, label: "Profil", href: `${COMPANY_AREA_BASE}/profil` },
+    { icon: IdentificationIcon, label: "sirketim.profile", href: `${COMPANY_AREA_BASE}/profil` },
     // Sayılar herkese açık, kimlikli liste Silver+ (sayfa içinde kilit); menüde
     // "Ziyaret edenler ve iş analizi" tiki (Satışçı/Yönetici/Kurucu setinde).
-    { icon: EyeIcon, label: "Ziyaret Edenler", href: `${COMPANY_AREA_BASE}/ziyaretciler`, permission: "insights:view" },
+    { icon: EyeIcon, label: "sirketim.visitors", href: `${COMPANY_AREA_BASE}/ziyaretciler`, permission: "insights:view" },
     // Raporlar iki tarafın da girişi (2026-09-17): satınalma raporları
     // (Gold + buy:reports:view) VE İş Analizi (Silver + insights:view). Satır
     // ikisinden biri varsa çizilir; hub içeride yalnız yetkili kartı gösterir.
-    { icon: ChartBarIcon, label: "Raporlar", href: `${COMPANY_AREA_BASE}/raporlar`, minTier: "SILVER", permission: ["buy:reports:view", "insights:view"] },
+    { icon: ChartBarIcon, label: "sirketim.reports", href: `${COMPANY_AREA_BASE}/raporlar`, minTier: "SILVER", permission: ["buy:reports:view", "insights:view"] },
   ],
   secondaryNav: [],
 };
@@ -108,43 +108,48 @@ export const COMPANY_AREA: CompanyAreaDef = {
 export const isCompanyAreaPath = (pathname: string | null): boolean =>
   !!pathname && (pathname === COMPANY_AREA_BASE || pathname.startsWith(`${COMPANY_AREA_BASE}/`));
 
+/**
+ * MENÜ ETİKETLERİ KATALOG ANAHTARIDIR (i18n Faz 2, 2026-09-24): değerler
+ * `web.panel.nav.*` altındaki anahtar; çizim yeri `useTranslations("web.panel.nav")`
+ * ile çevirir (`tn(item.label)`). Türkçe metin katalogda, burada değil.
+ */
 export const MODULE_LABELS = {
   satinalma: {
     // Portal bağlamı zaten "Satınalma" — menüde kısa biçim yeterli ve
     // "Taleplerim" sol menüde taşıyordu.
-    ihalelerim: "Taleplerim",
+    ihalelerim: "satinalma.taleplerim",
     // Satıştaki "Bilgi Talepleri" ile karıştırılmamalı: orası ürünlerime
     // GELEN sorular, burası benim GÖNDERDİKLERİM. Ayrımı iyelik kipi taşıyor
     // ("Ürünlerim"/"Ürün Ara" ile aynı kural).
-    bilgiTaleplerim: "Bilgi Taleplerim",
-    siparisler: "Siparişlerim",
+    bilgiTaleplerim: "satinalma.bilgiTaleplerim",
+    siparisler: "satinalma.siparisler",
   },
   satis: {
     // Satış portalında BAŞKA firmaların satın alma talepleri "talep"tir
     // ("Açık Talepler"); firmanın kendi sattıkları ÜRÜN kataloğundadır
     // ("Ürünlerim"). Satış ilanı özelliği kaldırıldı (2026-09-04).
-    urunler: "Ürünlerim",
+    urunler: "satis.urunlerim",
     // Misafir ziyaretçilerin ürün sayfalarından gönderdiği sorular (Faz 1) —
     // "mesaj" DEĞİL: mesajlaşma firma↔firma, bu kanalda gönderenin hesabı
     // olmayabilir. Aynı sözcüğü kullanmak iki farklı akışı karıştırırdı.
-    bilgiTalepleri: "Bilgi Talepleri",
+    bilgiTalepleri: "satis.bilgiTalepleri",
     // 2026-09-17, kullanıcı kararı: "sadece Tekliflerim olsun" — portal öneki
     // kalktı (satınalma tarafında bu adla sayfa yok; üst çubuk zaten portalı
     // söylüyor).
-    teklifler: "Tekliflerim",
-    siparisler: "Satışlarım",
+    teklifler: "satis.tekliflerim",
+    siparisler: "satis.satislarim",
   },
 } as const;
 
 export const PORTALS: Record<PortalKey, PortalDef> = {
   satinalma: {
     key: "satinalma",
-    label: "Satınalma",
+    label: "portal.satinalma",
     role: "SATIN_ALMACI",
     basePath: "/company/satinalma",
     accent: "blue",
     nav: [
-      { icon: HomeIcon, label: "Anasayfa", href: "/company/satinalma" },
+      { icon: HomeIcon, label: "common.home", href: "/company/satinalma" },
       {
         icon: ClipboardDocumentListIcon,
         label: MODULE_LABELS.satinalma.ihalelerim,
@@ -166,7 +171,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
       {
         icon: UsersIcon,
-        label: "Bağlantılar",
+        label: "common.connections",
         href: "/company/satinalma/tedarikcilerim",
       },
     ],
@@ -178,13 +183,13 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       // onun sağında yaşayan ikinci bölgedir. Burada durmalarının sebebi
       // rota KAYDI: breadcrumb, sayfa başlığı ve tier kapısı bu listeden
       // beslenir (`allPortalRoutes`).
-      { icon: CubeIcon, label: "Ürünler", href: "/company/satinalma/urunler" },
-      { icon: BuildingOffice2Icon, label: "Firmalar", href: "/company/satinalma/firmalar" },
+      { icon: CubeIcon, label: "satinalma.urunler", href: "/company/satinalma/urunler" },
+      { icon: BuildingOffice2Icon, label: "common.companies", href: "/company/satinalma/firmalar" },
       // Raporlar ve Profilim ŞİRKETİM alanına taşındı (2026-09-05, Europages
       // "My Company" kalıbı) — bkz. COMPANY_AREA.
       {
         icon: DocumentDuplicateIcon,
-        label: "Şablonlar",
+        label: "satinalma.sablonlar",
         href: "/company/satinalma/sablonlar",
         minTier: "GOLD",
       },
@@ -192,12 +197,12 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
   },
   satis: {
     key: "satis",
-    label: "Satış",
+    label: "portal.satis",
     role: "SATISCI",
     basePath: "/company/satis",
     accent: "emerald",
     nav: [
-      { icon: HomeIcon, label: "Anasayfa", href: "/company/satis" },
+      { icon: HomeIcon, label: "common.home", href: "/company/satis" },
       {
         // GAP FIX (2026-09-03): sayfa Faz 2'de yazılmıştı ama menüye HİÇ
         // eklenmemişti — kullanıcı ürününü nereden ekleyeceğini soramaz hâle
@@ -229,7 +234,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
       },
       {
         icon: BuildingStorefrontIcon,
-        label: "Bağlantılar",
+        label: "common.connections",
         href: "/company/satis/musterilerim",
       },
     ],
@@ -238,7 +243,7 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
     // "kime satabilirim"i arar — anasayfa arama anahtarı ve Bağlantılar ›
     // Keşfet oraya götürür; sol menüde DEĞİL (satınalmadaki kuralla aynı).
     secondaryNav: [
-      { icon: BuildingOffice2Icon, label: "Firmalar", href: "/company/satis/firmalar" },
+      { icon: BuildingOffice2Icon, label: "common.companies", href: "/company/satis/firmalar" },
     ],
   },
 };

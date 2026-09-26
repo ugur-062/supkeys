@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { useCategorySearchTree } from "@/hooks/use-categories";
 import { useMemo } from "react";
 
@@ -12,6 +13,7 @@ import { useMemo } from "react";
  * yerine tek dokunuş. AI (Silver+) varsa onun önerisi de aynı çipe düşer.
  */
 export function CategorySuggest({ seedText, selected, onPick }: { seedText: string; selected: string[]; onPick: (id: string) => void }) {
+  const t = useTranslations("web.panel.requests.categorySuggest");
   const words = useMemo(
     () =>
       seedText
@@ -49,10 +51,10 @@ export function CategorySuggest({ seedText, selected, onPick }: { seedText: stri
   if (!q || suggestions.length === 0) return null;
   return (
     <p className="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs text-zinc-500">
-      Öneri:
+      {t("oneri")}
       {suggestions.map((s) => (
         <button key={s.id} type="button" onClick={() => onPick(s.id)} className="rounded-md border border-dashed border-blue-300 px-1.5 py-0.5 text-[11px] font-medium text-blue-800 hover:border-blue-600 hover:bg-blue-50">
-          + {s.name}
+          {t("ekle", { name: s.name })}
         </button>
       ))}
     </p>

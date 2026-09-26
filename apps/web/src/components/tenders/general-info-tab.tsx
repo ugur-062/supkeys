@@ -1,20 +1,18 @@
 "use client";
 
-import { scopeLabel } from "@rothern/shared";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { LogisticsInfoCard } from "@/components/tenders/logistics-info";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import type { ListingDetail } from "@/hooks/use-company-listings";
-import { countryName } from "@rothern/shared";
 import {
-  CURRENCY_SYMBOL,
-  DELIVERY_TERM_LABELS,
-  formatPaymentPlan,
-} from "@/lib/tenders/labels";
-import type {
-  Currency,
-  DeliveryTerm,
-  TenderLogisticsDetails,
-} from "@/lib/tenders/types";
+  countryDisplayName,
+  useDeliveryTermLabel,
+  useFormatPaymentPlan,
+  useScopeLabel,
+} from "@/i18n/domain";
+import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
+import type { Currency, TenderLogisticsDetails } from "@/lib/tenders/types";
 import { formatDateTime } from "@/lib/tenders/date";
 import { cn } from "@/lib/utils";
 import {
@@ -28,20 +26,6 @@ import {
 } from "lucide-react";
 
 const fmt = formatDateTime;
-
-const VISIBILITY_LABELS: Record<string, string> = {
-  PUBLIC: "Herkese Açık",
-  CONNECTIONS: "Bağlantılar",
-  PRIVATE: "Davetli (Kapalı)",
-};
-
-const BID_VISIBILITY_LABELS: Record<string, string> = {
-  OWN_ONLY: "Sadece kendi teklifi",
-  BEST_PRICE: "Sadece en iyi teklif",
-  OWN_RANK: "Sadece kendi sıralaması",
-  BEST_AND_OWN_RANK: "En iyi teklif + kendi sıralaması",
-  ALL: "Tüm teklifler ve sıralama",
-};
 
 function Section({
   title,
@@ -102,6 +86,14 @@ function RuleChip({ active, label }: { active: boolean; label: string }) {
 }
 
 export function GeneralInfoTab({ l }: { l: ListingDetail }) {
+  const t = useTranslations("web.panel.requests.generalInfoTab");
+  const locale = useLocale() as Locale;
+  const scopeLabel = useScopeLabel();
+  const deliveryTermLabel = useDeliveryTermLabel();
+  const formatPaymentPlan = useFormatPaymentPlan();
+  // Görünürlük / tedarikçi görünürlüğü kodları → katalog (bilinmeyen kod ham).
+  const visibilityLabel = (v: string) => (t.has(`visibility.${v}` as never) ? t(`visibility.${v}` as never) : v);
+  const bidVisibilityLabel = (v: string) => (t.has(`bidVisibility.${v}` as never) ? t(`bidVisibility.${v}` as never) : "—");
   const categories = useCategoriesByIds(l.categoryIds ?? []);
   const cur = (l.primaryCurrency as Currency) ?? "TRY";
   // İzinli TÜM birimler gösterilir (ana birim önde) — yalnız ana birimi
@@ -121,12 +113,12 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
       ) : null}
 
       {/* Süreç */}
-      <Section title="Süreç" icon={Workflow}>
+      <Section title={t("surec")} icon={Workflow}>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
-          <Fact label="Sahibi">{l.owner?.name ?? "—"}</Fact>
+          <Fact label={t("sahibi")}>{l.owner?.name ?? "—"}</Fact>
           {categories.data && categories.data.length > 0 ? (
             <Fact
-              label={categories.data.length > 1 ? "Kategoriler" : "Kategori"}
+              label={categories.data.length > 1 ? t("kategoriler") : t("kategori")}
               full
             >
               <ul className="space-y-0.5">
@@ -138,15 +130,15 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
               </ul>
             </Fact>
           ) : null}
-          <Fact label="Oluşturulma">{fmt(l.createdAt)}</Fact>
-          <Fact label="Teklif Açılış">{fmt(l.bidsOpenAt)}</Fact>
-          <Fact label="Teklif Kapanış">{fmt(l.closesAt)}</Fact>
-          <Fact label="Kapanış Hatırlatması">
-            Kapanışa 60 dk kala (otomatik) — teklif vermemiş davetlilere
+          <Fact label={t("olusturulma")}>{fmt(l.createdAt)}</Fact>
+          <Fact label={t("teklifAcilis")}>{fmt(l.bidsOpenAt)}</Fact>
+          <Fact label={t("teklifKapanis")}>{fmt(l.closesAt)}</Fact>
+          <Fact label={t("kapanisHatirlatmasi")}>
+            {t("kapanisa60DkKalaOtomatik")}
           </Fact>
           <Fact
             label={
-              currencyList.length > 1 ? "Para Birimleri" : "Para Birimi"
+              currencyList.length > 1 ? t("paraBirimleri") : t("paraBirimi")
             }
           >
             <span className="flex flex-wrap items-center gap-2">
@@ -158,55 +150,53 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
                   {c} {CURRENCY_SYMBOL[c]}
                   {currencyList.length > 1 && c === cur ? (
                     <span className="ml-1 text-xs font-medium uppercase text-zinc-500">
-                      ana
+                      {t("ana")}
                     </span>
                   ) : null}
                 </span>
               ))}
             </span>
           </Fact>
-          <Fact label="Görünürlük">
+          <Fact label={t("gorunurluk")}>
             <span className="inline-flex items-center rounded-md bg-zinc-100 px-2 py-0.5 font-semibold text-zinc-800">
-              {VISIBILITY_LABELS[l.visibility] ?? l.visibility}
+              {visibilityLabel(l.visibility)}
             </span>
           </Fact>
-          <Fact label="Görünürlük">
+          <Fact label={t("gorunurluk")}>
             {scopeLabel(l.targetCountries ?? [])}
           </Fact>
-          <Fact label="Format">
+          <Fact label={t("format")}>
             {l.format === "ENGLISH_AUCTION"
-              ? "Pazarlık (Açık Eksiltme)"
-              : "Teklif Toplama (Kapalı Zarf)"}
+              ? t("pazarlikAcikEksiltme")
+              : t("teklifToplamaKapaliZarf")}
           </Fact>
           {(l.targetCountries ?? []).length > 2 ? (
-            <Fact label="Görünürlük ülkeleri" full>
-              {(l.targetCountries ?? []).map((c) => countryName(c)).join(", ")}
+            <Fact label={t("gorunurlukUlkeleri")} full>
+              {(l.targetCountries ?? []).map((c) => countryDisplayName(c, locale)).join(", ")}
             </Fact>
           ) : null}
         </dl>
       </Section>
 
       {/* Teslim & Ödeme */}
-      <Section title="Teslim & Ödeme" icon={Truck}>
+      <Section title={t("teslimOdeme")} icon={Truck}>
         <dl className="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
-          <Fact label="Teslim Şekli">
-            {l.deliveryTerm
-              ? DELIVERY_TERM_LABELS[l.deliveryTerm as DeliveryTerm]
-              : "—"}
+          <Fact label={t("teslimSekli")}>
+            {l.deliveryTerm ? deliveryTermLabel(l.deliveryTerm) : "—"}
           </Fact>
-          <Fact label="Ödeme">
+          <Fact label={t("odeme")}>
             {formatPaymentPlan(l)}
             {/* Teklifçi şartı teklif VERMEDEN görsün: kazanırsa sipariş
                 onayından önce teminat mektubu yüklemesi gerekecek. */}
-            {l.requireGuaranteeLetter ? " · Teminat mektubu şartlı" : ""}
+            {l.requireGuaranteeLetter ? t("teminatMektubuSartli") : ""}
           </Fact>
           {l.paymentNote ? (
-            <Fact label="Ödeme Koşulu Notu" full>
+            <Fact label={t("odemeKosuluNotu")} full>
               {l.paymentNote}
             </Fact>
           ) : null}
           {l.deliveryAddress ? (
-            <Fact label="Teslimat Adresi" full>
+            <Fact label={t("teslimatAdresi")} full>
               <span className="font-medium">{l.deliveryAddress.title}</span> —{" "}
               {l.deliveryAddress.addressLine}
               {l.deliveryAddress.district
@@ -216,12 +206,12 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
             </Fact>
           ) : null}
           {l.billingAddress ? (
-            <Fact label="Fatura Adresi" full>
+            <Fact label={t("faturaAdresi")} full>
               <span className="font-medium">{l.billingAddress.title}</span> —{" "}
               {l.billingAddress.addressLine}
               {l.billingAddress.city ? `, ${l.billingAddress.city}` : ""}
               {l.billingAddress.taxNumber
-                ? ` · VKN: ${l.billingAddress.taxNumber}`
+                ? t("vkn", { taxNumber: l.billingAddress.taxNumber })
                 : ""}
             </Fact>
           ) : null}
@@ -229,43 +219,41 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
       </Section>
 
       {/* Kurallar */}
-      <Section title="Satın Alma Talebi Kuralları" icon={ShieldCheck}>
+      <Section title={t("satinAlmaTalebiKurallari")} icon={ShieldCheck}>
         <div className="flex flex-wrap gap-2">
           <RuleChip
             active={!!l.isSealedBid}
-            label="Kapalı zarf (tedarikçiler arası gizlilik)"
+            label={t("kapaliZarfTedarikcilerArasiGizlilik")}
           />
           <RuleChip
             active={!!l.requireAllItems}
-            label="Tüm kalemlere teklif zorunlu"
+            label={t("tumKalemlereTeklifZorunlu")}
           />
           <RuleChip
             active={!!l.requireBidDocument}
-            label="Teklif dosyası eki zorunlu"
+            label={t("teklifDosyasiEkiZorunlu")}
           />
         </div>
       </Section>
 
       {/* Açık Eksiltme Ayarları */}
       {l.format === "ENGLISH_AUCTION" ? (
-        <Section title="Açık Eksiltme Ayarları" icon={Gavel}>
+        <Section title={t("acikEksiltmeAyarlari")} icon={Gavel}>
           <dl className="grid grid-cols-2 gap-x-6 gap-y-4 lg:grid-cols-3">
-            <Fact label="Tedarikçi Görünürlüğü">
-              {l.bidVisibility
-                ? (BID_VISIBILITY_LABELS[l.bidVisibility] ?? "—")
-                : "—"}
+            <Fact label={t("tedarikciGorunurlugu")}>
+              {l.bidVisibility ? bidVisibilityLabel(l.bidVisibility) : "—"}
             </Fact>
             {/* Minimum pay kaldırıldı (2026-07-13) — kural sabit metin. */}
-            <Fact label="Teklif Kuralı">
-              Tur başına 1 teklif · kendi öncekinden düşük olmalı
+            <Fact label={t("teklifKurali")}>
+              {t("turBasina1TeklifKendi")}
             </Fact>
-            <Fact label="Ondalık Basamak">
+            <Fact label={t("ondalikBasamak")}>
               {String(l.decimalPlaces ?? 2)}
             </Fact>
-            <Fact label="Otomatik Süre Uzatma" full>
+            <Fact label={t("otomatikSureUzatma")} full>
               {l.autoExtendOnLateBid
-                ? `Son ${l.autoExtendThresholdMin} dk içinde teklif → ${l.autoExtendByMinutes} dk uzar`
-                : "Kapalı"}
+                ? t("sonDkIcindeTeklifDk", { autoExtendThresholdMin: l.autoExtendThresholdMin ?? 0, autoExtendByMinutes: l.autoExtendByMinutes ?? 0 })
+                : t("kapali")}
             </Fact>
           </dl>
         </Section>
@@ -273,7 +261,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
 
       {/* Hüküm ve Koşullar */}
       {l.terms ? (
-        <Section title="Hüküm ve Koşullar" icon={FileText}>
+        <Section title={t("hukumVeKosullar")} icon={FileText}>
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">
             {l.terms}
           </p>
@@ -287,9 +275,9 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
             <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-zinc-200/70">
               <Lock className="h-4 w-4 text-zinc-700" />
             </div>
-            <h3 className="font-semibold text-zinc-900">Satın Alma Talebi Notları</h3>
+            <h3 className="font-semibold text-zinc-900">{t("satinAlmaTalebiNotlari")}</h3>
             <span className="inline-flex items-center gap-1 rounded-md bg-zinc-200 px-2 py-0.5 text-xs font-semibold uppercase tracking-wide text-zinc-700">
-              Şirket içi
+              {t("sirketIci")}
             </span>
           </div>
           <p className="whitespace-pre-wrap text-sm leading-relaxed text-zinc-700">

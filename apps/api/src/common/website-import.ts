@@ -1,3 +1,4 @@
+import { i18nMessage } from "./i18n/http-i18n";
 import { BadRequestException } from "@nestjs/common";
 
 /**
@@ -28,10 +29,10 @@ export function assertPublicHttpUrl(raw: string): URL {
   try {
     url = new URL(raw.trim());
   } catch {
-    throw new BadRequestException("Geçersiz web sitesi adresi");
+    throw new BadRequestException(i18nMessage("api.common.gecersizWebSitesiAdresi"));
   }
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new BadRequestException("Sadece http/https adresleri desteklenir");
+    throw new BadRequestException(i18nMessage("api.common.sadeceHttpHttpsAdresleriDesteklenir"));
   }
   const host = url.hostname.toLowerCase();
   const blocked =
@@ -48,7 +49,7 @@ export function assertPublicHttpUrl(raw: string): URL {
     host.startsWith("[fc") ||
     host.startsWith("[fd");
   if (blocked) {
-    throw new BadRequestException("Bu adres çekilemez");
+    throw new BadRequestException(i18nMessage("api.common.buAdresCekilemez"));
   }
   return url;
 }
@@ -238,11 +239,11 @@ export async function fetchSiteMeta(website: string): Promise<SiteMeta> {
   const url = assertPublicHttpUrl(website);
   const res = await fetchWithTimeout(url, "text/html");
   if (!res || !res.ok) {
-    throw new BadRequestException("Web sitesine ulaşılamadı");
+    throw new BadRequestException(i18nMessage("api.common.webSitesineUlasilamadi"));
   }
   const len = Number(res.headers.get("content-length") ?? "0");
   if (len && len > MAX_HTML_BYTES) {
-    throw new BadRequestException("Web sayfası çok büyük");
+    throw new BadRequestException(i18nMessage("api.common.webSayfasiCokBuyuk"));
   }
   const buf = Buffer.from(await res.arrayBuffer());
   const html = buf.subarray(0, MAX_HTML_BYTES).toString("utf8");

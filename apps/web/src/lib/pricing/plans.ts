@@ -17,6 +17,10 @@ import type { CompanyTier } from "@/lib/company-auth/types";
  * tutarı farklı ve henüz açıklanmadı — bu yüzden burada YOK; satın alma ekranı
  * yalnız yıllık dönemi hesaplar. (Fiyatların kendisi kullanıcı kararı bekliyor;
  * değişirse yalnız bu dosya değişir.)
+ *
+ * METİN i18n Faz 1'de KATALOĞA da yazıldı (`web.pricing.plans.*`); pazarlama
+ * sayfası `usePricingPlans` ile oradan okur, panel hâlâ buradan (Faz 2'de
+ * geçer). İki kaynak `__tests__/plans-i18n.test.ts` ile birebir tutulur.
  */
 export interface PricingPlan {
   tier: CompanyTier;

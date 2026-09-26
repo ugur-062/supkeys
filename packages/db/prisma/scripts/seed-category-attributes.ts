@@ -12,6 +12,8 @@
  *   npx tsx prisma/scripts/seed-category-attributes.ts
  */
 import { PrismaClient, type CategoryAttributeType } from "@prisma/client";
+import { readAttributeI18n } from "./lib/category-keywords";
+import * as path from "path";
 import { CATEGORY_ATTRIBUTES } from "../../src/seeds/category-attributes";
 
 const prisma = new PrismaClient();
@@ -33,14 +35,19 @@ async function main() {
 
   // 2) Upsert
   let written = 0;
+  // i18n Faz 4b: EN/RU etiket ve seçenekler (TSV'den; yoksa dokunulmaz).
+  const i18n = readAttributeI18n(path.resolve(__dirname, "../../src/seeds"));
   for (const [categoryId, defs] of Object.entries(CATEGORY_ATTRIBUTES)) {
     for (const [i, d] of defs.entries()) {
+      const tr = i18n.get(`${categoryId}:${d.key}`);
+      const i18nData = tr ? { nameEn: tr.en, nameRu: tr.ru, optionsEn: tr.optionsEn, optionsRu: tr.optionsRu } : {};
       await prisma.categoryAttribute.upsert({
         where: { categoryId_groupKey: { categoryId, groupKey: d.key } },
         create: {
           categoryId,
           groupKey: d.key,
           nameTr: d.nameTr,
+          ...i18nData,
           type: d.type as CategoryAttributeType,
           options: d.options ?? [],
           unit: d.unit ?? null,
@@ -49,6 +56,7 @@ async function main() {
         },
         update: {
           nameTr: d.nameTr,
+          ...i18nData,
           type: d.type as CategoryAttributeType,
           options: d.options ?? [],
           unit: d.unit ?? null,

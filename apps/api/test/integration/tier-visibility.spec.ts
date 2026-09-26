@@ -197,10 +197,10 @@ describe("Faz T — Gold Üye rozeti + akış-kurma SILVER kapısı", () => {
     const { PublicProfileService } = await import(
       "../../src/modules/public-profile/public-profile.service"
     );
-    const svc = new PublicProfileService(prisma as never, {
-      presignStoredObject: async () => null,
-      getPublicUrl: () => null,
-    } as never);
+    // Eski imzadan kalan depolama stub'ı KALDIRILDI (2026-09-23): ikinci parametre
+    // artık isteğe bağlı ContentTranslationService — stub oraya düşüp
+    // "localizeCompanies is not a function" veriyordu (rig-stub tuzağı).
+    const svc = new PublicProfileService(prisma as never);
     const gold = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     await prisma.company.update({
       where: { id: gold.company.id },

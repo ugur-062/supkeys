@@ -1,5 +1,6 @@
 "use client";
 
+import { useTranslations } from "next-intl";
 import { foldSearchText } from "@rothern/shared";
 import { Input, InputGroup } from "@/components/catalyst/input";
 import { Button } from "@/components/ui/button";
@@ -31,10 +32,11 @@ export function SegmentOnlyPicker({
   maxSelection = 10,
   error,
   disabled,
-  placeholder = "Faaliyet alanlarınızı seçin",
-  title = "Faaliyet Alanlarınız",
-  description = "Tedarik edebileceğiniz ana kategorileri seçin. Birden fazla kategori seçebilirsiniz; bu seçim alıcılara önerilirken kullanılır.",
+  placeholder,
+  title,
+  description,
 }: Props) {
+  const t = useTranslations("web.shared.segmentOnlyPicker");
   const [open, setOpen] = useState(false);
   const { data: segments } = useRoots();
 
@@ -70,10 +72,10 @@ export function SegmentOnlyPicker({
             </div>
             <div className="text-left">
               <p className="text-sm font-semibold text-zinc-900">
-                {placeholder}
+                {placeholder ?? t("faaliyetAlanlariniziSecin")}
               </p>
               <p className="mt-0.5 text-xs text-slate-500">
-                En fazla {maxSelection} kategori seçebilirsiniz
+                {t("enFazlaKategoriSecebilirsiniz", { maxSelection: maxSelection })}
               </p>
             </div>
           </div>
@@ -100,7 +102,7 @@ export function SegmentOnlyPicker({
                     type="button"
                     onClick={() => onChange(value.filter((x) => x !== seg.id))}
                     className="ml-1 rounded hover:text-rose-600"
-                    aria-label={`${seg.nameTr} kaldır`}
+                    aria-label={t("kaldir", { name: seg.nameTr })}
                   >
                     <XIcon className="h-3 w-3" />
                   </button>
@@ -115,7 +117,7 @@ export function SegmentOnlyPicker({
               className="flex items-center gap-1 text-sm font-semibold text-zinc-600 hover:text-zinc-700"
             >
               <Plus className="h-4 w-4" />
-              Kategori Ekle / Düzenle
+              {t("kategoriEkleDuzenle")}
             </button>
           ) : null}
         </div>
@@ -131,8 +133,8 @@ export function SegmentOnlyPicker({
         value={value}
         onConfirm={onChange}
         maxSelection={maxSelection}
-        title={title}
-        description={description}
+        title={title ?? t("faaliyetAlanlariniz")}
+        description={description ?? t("tedarikEdebileceginizAnaKategorileriSecin")}
       />
     </>
   );
@@ -161,6 +163,7 @@ export function SegmentOnlyModal({
   title,
   description,
 }: ModalProps) {
+  const tr = useTranslations("web.shared.segmentOnlyPicker");
   const [draftIds, setDraftIds] = useState<string[]>(value);
   const [search, setSearch] = useState("");
   const [warningMsg, setWarningMsg] = useState<string | null>(null);
@@ -213,7 +216,7 @@ export function SegmentOnlyModal({
       return;
     }
     if (draftIds.length >= maxSelection) {
-      setWarningMsg(`En fazla ${maxSelection} kategori seçebilirsiniz`);
+      setWarningMsg(tr("enFazlaKategoriSecebilirsiniz", { maxSelection: maxSelection }));
       return;
     }
     setDraftIds([...draftIds, id]);
@@ -248,7 +251,7 @@ export function SegmentOnlyModal({
             type="button"
             onClick={onClose}
             className="rounded-lg p-1 hover:bg-slate-100"
-            aria-label="Kapat"
+            aria-label={tr("kapat")}
           >
             <XIcon className="h-5 w-5 text-slate-600" />
           </button>
@@ -262,13 +265,13 @@ export function SegmentOnlyModal({
               ref={searchRef}
               value={search}
               onChange={(e) => setSearch(e.target.value)}
-              placeholder="Kategori ara..."
+              placeholder={tr("kategoriAra")}
             />
           </InputGroup>
           <p className="mt-2 text-xs text-slate-500">{description}</p>
           <div className="mt-3 flex items-center justify-between text-sm">
             <span className="text-slate-600">
-              {draftIds.length} kategori seçildi (max {maxSelection})
+              {tr("kategoriSecildiMax", { n: draftIds.length, max: maxSelection })}
             </span>
             {draftIds.length > 0 ? (
               <button
@@ -276,7 +279,7 @@ export function SegmentOnlyModal({
                 onClick={() => setDraftIds([])}
                 className="text-sm font-semibold text-zinc-600 hover:text-zinc-700"
               >
-                Tüm Seçimi Temizle
+                {tr("tumSecimiTemizle")}
               </button>
             ) : null}
           </div>
@@ -295,7 +298,7 @@ export function SegmentOnlyModal({
             </div>
           ) : filteredSegments.length === 0 ? (
             <div className="py-12 text-center text-sm text-slate-500">
-              Sonuç bulunamadı
+              {tr("sonucBulunamadi")}
             </div>
           ) : (
             <ul className="space-y-0.5" role="listbox">
@@ -356,10 +359,10 @@ export function SegmentOnlyModal({
         {/* Footer */}
         <div className="flex items-center justify-end gap-2 border-t border-slate-200 bg-slate-50 px-5 py-3">
           <Button variant="ghost" onClick={onClose}>
-            Vazgeç
+            {tr("vazgec")}
           </Button>
           <Button onClick={handleConfirm} disabled={draftIds.length === 0}>
-            Onayla {draftIds.length > 0 ? `(${draftIds.length})` : ""}
+            {draftIds.length > 0 ? tr("onaylaN", { n: draftIds.length }) : tr("onayla")}
           </Button>
         </div>
       </div>

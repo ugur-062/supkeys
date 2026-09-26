@@ -1,11 +1,13 @@
 "use client";
 
+import { useTranslations } from "next-intl";
+
 import { ListingTeaserRow } from "./listing-teaser-row";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
 import { ArrowRightIcon, PlusIcon } from "@heroicons/react/20/solid";
-import Link from "next/link";
+import { Link } from "@/i18n/navigation";
 import { ButtonAccentProvider } from "@/components/ui/button-accent";
 
 const MIN_DEMANDS = 3;
@@ -40,6 +42,7 @@ export function HomeSupplier({
   demands: PublicListingCard[];
   total: number;
 }) {
+  const t = useTranslations("web.marketing.home");
   return (
     /* Tedarikçi yüzünde dolgulu düğmeler YEŞİL — "Teklif ver" kabuk dışı
        varsayılanla mavi çıkıyordu (2026-09-18, kullanıcı). */
@@ -49,19 +52,16 @@ export function HomeSupplier({
         <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
           <div>
             <h2 id="acik-talepler" className="text-lg font-semibold tracking-tight text-zinc-950">
-              Alıcılar şu an bunları arıyor
+              {t("demandsTitle")}
             </h2>
-            <p className="mt-1 max-w-2xl text-sm text-zinc-500">
-              Kalemler, miktar, kapsam ve kalan süre herkese açık. Alıcı adı, şartname ve belgeler yalnız
-              üyelere — kapalı zarf kuralı.
-            </p>
+            <p className="mt-1 max-w-2xl text-sm text-zinc-500">{t("demandsLead")}</p>
           </div>
           {demands.length >= MIN_DEMANDS ? (
             <Link
               href={MARKETPLACE_ROUTES.demands}
               className="inline-flex items-center gap-1 text-sm font-semibold text-emerald-700 hover:text-emerald-800"
             >
-              Tüm talepler{total > 0 ? ` (${total})` : ""}
+              {t("allDemands")}{total > 0 ? ` (${total})` : ""}
               <ArrowRightIcon aria-hidden className="size-4" />
             </Link>
           ) : null}
@@ -79,12 +79,12 @@ export function HomeSupplier({
           /* Eşiğin altında ızgara çizilmez — üç karttan az bir "pazar" boş
              görünürdü. Tek satır, kaydolmaya çıkar. */
           <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-zinc-600">
-            Talepler, kaydolduktan sonra panelinizde kategorinize göre eşleşir.
+            {t("demandsEmpty")}
             <Link
               href={signupHref("teklif")}
               className="font-semibold text-emerald-700 underline underline-offset-2 hover:text-emerald-800"
             >
-              Ücretsiz kaydolun
+              {t("signupFree")}
             </Link>
           </p>
         )}
@@ -94,18 +94,15 @@ export function HomeSupplier({
           niyetiyle kayda gider ve onboarding sonrası aynı sihirbaza düşer. */}
       <section className="flex flex-wrap items-center justify-between gap-4 rounded-2xl bg-emerald-50 px-6 py-5 ring-1 ring-emerald-600/10">
         <div>
-          <h2 className="text-base font-semibold text-zinc-950">Ürününüz vitrinde mi?</h2>
-          <p className="mt-1 text-sm text-zinc-600">
-            Ürünlerinizi fiyat ve minimum sipariş bilgisiyle yayımlayın; alıcılar bulsun, bilgi talebi
-            göndersin. Vitrin ücretsiz pakette de açık.
-          </p>
+          <h2 className="text-base font-semibold text-zinc-950">{t("showcaseTitle")}</h2>
+          <p className="mt-1 text-sm text-zinc-600">{t("showcaseLead")}</p>
         </div>
         <Link
           href={signupHref("vitrin")}
           className="inline-flex shrink-0 items-center gap-1.5 rounded-full bg-emerald-700 px-5 py-2.5 text-sm font-semibold text-white transition hover:bg-emerald-800"
         >
           <PlusIcon aria-hidden className="size-4" />
-          Ürün ekle
+          {t("addProduct")}
         </Link>
       </section>
     </div>

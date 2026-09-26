@@ -1,3 +1,4 @@
+import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ConflictException,
@@ -69,7 +70,7 @@ export class AdminStaffService {
       select: { id: true },
     });
     if (clash) {
-      throw new ConflictException("Bu e-posta ile zaten bir yönetici var");
+      throw new ConflictException(i18nMessage("api.adminAuth.buEPostaIleZatenBir"));
     }
     const password = tempPassword();
     const { authId } = await this.supabase.createUser(email, password, {
@@ -102,7 +103,7 @@ export class AdminStaffService {
   async setRole(id: string, role: AdminRole, actorId: string) {
     const target = await this.requireStaff(id);
     if (id === actorId && role !== "SUPER_ADMIN") {
-      throw new BadRequestException("Kendi rolünüzü düşüremezsiniz");
+      throw new BadRequestException(i18nMessage("api.adminAuth.kendiRolunuzuDusuremezsiniz"));
     }
     if (target.role === "SUPER_ADMIN" && role !== "SUPER_ADMIN") {
       // Dalga B: sayım + yazım ayrıydı — eşzamanlı iki düşürme ikisi de
@@ -114,7 +115,7 @@ export class AdminStaffService {
         });
         if (others === 0) {
           throw new BadRequestException(
-            "Son aktif SUPER_ADMIN düşürülemez/pasifleştirilemez",
+            i18nMessage("api.adminAuth.sonAktifSuperAdminDusurulemezPasiflestirilemez"),
           );
         }
         await tx.platformAdmin.update({ where: { id }, data: { role } });
@@ -138,7 +139,7 @@ export class AdminStaffService {
   async setActive(id: string, active: boolean, actorId: string) {
     const target = await this.requireStaff(id);
     if (id === actorId && !active) {
-      throw new BadRequestException("Kendinizi pasifleştiremezsiniz");
+      throw new BadRequestException(i18nMessage("api.adminAuth.kendiniziPasiflestiremezsiniz"));
     }
     if (target.role === "SUPER_ADMIN" && !active) {
       // Dalga B: bkz. setRole — sayım + yazım tek transaction'da.
@@ -148,7 +149,7 @@ export class AdminStaffService {
         });
         if (others === 0) {
           throw new BadRequestException(
-            "Son aktif SUPER_ADMIN düşürülemez/pasifleştirilemez",
+            i18nMessage("api.adminAuth.sonAktifSuperAdminDusurulemezPasiflestirilemez"),
           );
         }
         await tx.platformAdmin.update({
@@ -177,7 +178,7 @@ export class AdminStaffService {
   async resetPassword(id: string, actorId: string) {
     const target = await this.requireStaff(id);
     if (!target.authId) {
-      throw new BadRequestException("Hesap Supabase köprüsüne bağlı değil");
+      throw new BadRequestException(i18nMessage("api.adminAuth.hesapSupabaseKoprusuneBagliDegil"));
     }
     const password = tempPassword();
     await this.supabase.updatePassword(target.authId, password);
@@ -205,7 +206,7 @@ export class AdminStaffService {
       where: { id },
       select: { id: true, role: true, authId: true, isActive: true },
     });
-    if (!admin) throw new NotFoundException("Yönetici bulunamadı");
+    if (!admin) throw new NotFoundException(i18nMessage("api.adminAuth.yoneticiBulunamadi"));
     return admin;
   }
 
