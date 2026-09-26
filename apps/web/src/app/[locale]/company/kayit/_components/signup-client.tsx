@@ -23,7 +23,6 @@ import {
 import { usePasswordRules } from "@/lib/company-auth/password-rules";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { Crown } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
@@ -268,11 +267,6 @@ export function CompanySignupClient() {
         }}
         className="space-y-3"
       >
-        {/* Kurucu bilgilendirmesi — ilk kullanıcı firmanın Kurucusu olur. */}
-        <div className="flex items-start gap-2 rounded-lg border border-violet-200 bg-violet-50 px-3 py-2.5 text-xs text-violet-800">
-          <Crown className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-          <span>{t.rich("founderNote", { b: (chunks) => <strong>{chunks}</strong> })}</span>
-        </div>
         <div className="grid grid-cols-2 gap-3">
           <Field>
             <Label>{tc("firstName")}</Label>

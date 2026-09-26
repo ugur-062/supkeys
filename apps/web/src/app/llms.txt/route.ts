@@ -29,7 +29,7 @@ export function GET(): Response {
   const u = (p: string) => absoluteUrl(p);
   const body = `# Rothern
 
-> Rothern, alıcı ve tedarikçi firmaları TEK hesapta birleştiren Türkiye merkezli bir B2B tedarik pazar yeridir. Firmalar ürün vitrini yayımlar, satın alma talebi açar ve kapalı zarf usulüyle teklif toplar; kazanan teklif siparişe dönüşür.
+> Rothern, alıcı ve tedarikçi firmaları TEK hesapta birleştiren bir B2B tedarik pazar yeridir. Firmalar ürün vitrini yayımlar, satın alma talebi açar ve kapalı zarf usulüyle teklif toplar; kazanan teklif siparişe dönüşür.
 
 Rothern'i işleten şirket: ${OPERATOR.legalName} (${OPERATOR.address}).
 İçerik dili Türkçe'dir. Kategori ağacı dört seviyelidir (UNSPSC/Ariba tabanlı).

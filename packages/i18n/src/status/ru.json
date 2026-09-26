@@ -7584,11 +7584,6 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
-  "web.auth.signup.founderNote": {
-    "hash": "e58ec3f172",
-    "status": "reviewed",
-    "at": "2026-09-25"
-  },
   "web.auth.signup.metaTitle": {
     "hash": "7820f19547",
     "status": "reviewed",
@@ -9245,9 +9240,9 @@
     "at": "2026-09-24"
   },
   "web.marketing.about.intro": {
-    "hash": "263cba4ffe",
+    "hash": "1418f42729",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-26"
   },
   "web.marketing.about.metaDesc": {
     "hash": "b04b7d4de8",
@@ -9525,9 +9520,9 @@
     "at": "2026-09-23"
   },
   "web.marketing.faq.g1.a1": {
-    "hash": "36d4b1121f",
+    "hash": "6bb9f44aae",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-26"
   },
   "web.marketing.faq.g1.a2": {
     "hash": "8b9bd92533",

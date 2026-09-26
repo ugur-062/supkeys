@@ -37,7 +37,7 @@ export async function GET(): Promise<Response> {
   parts.push("# Rothern — genişletilmiş site kılavuzu");
   parts.push("");
   parts.push(
-    "> Türkiye merkezli B2B tedarik pazar yeri. Bu dosya envanterin güncel özetini ve gezinme adreslerini içerir; kurallar ve alıntı sınırları için /llms.txt.",
+    "> B2B tedarik pazar yeri. Bu dosya envanterin güncel özetini ve gezinme adreslerini içerir; kurallar ve alıntı sınırları için /llms.txt.",
   );
   parts.push("");
 
