@@ -169,6 +169,9 @@ enum CompanyType {
   JOINT_STOCK
   LIMITED
   SOLE_PROPRIETOR
+  /// Diğer (2026-09-27, kayıt tüm ülkelere açıldı): GmbH, LLC, ООО, kooperatif…
+  /// Yerel yapı adı `Company.legalFormLocal`de.
+  OTHER
 }
 
 /// Firmanın NE YAPTIĞI — CompanyType'ın (hukuki biçim) tamamlayıcısı.
@@ -549,6 +552,8 @@ model Company {
   name        String // ticari ad
   legalName   String?
   companyType CompanyType?
+  /// `companyType = OTHER` iken firmanın yerel hukuki yapısı ("GmbH", "LLC"…).
+  legalFormLocal String?
   taxNumber   String?      @unique
   taxOffice   String?
   country     String       @default("TR")
@@ -577,8 +582,12 @@ model Company {
   mersisNo               String?
   tradeRegistryNo        String?
   kepAddress             String?
+  /// IBAN ülkesinde IBAN; IBAN kullanmayan ülkede HESAP NUMARASI (`countryUsesIban`).
   iban                   String?
   ibanHolder             String?
+  /// IBAN kullanmayan ülkede zorunlu (2026-09-27): SWIFT/BIC + banka adı.
+  bankSwiftBic           String?
+  bankName               String?
 
   // Kategoriler — AYRI: ne alırım vs ne satarım
   buyerCategoryIds     String[] @default([])
@@ -1126,6 +1135,10 @@ model CompanyOrder {
   acceptedNote             String?
   bankAccountHolder        String?
   bankIban                 String?
+  /// IBAN kullanmayan ülkenin hesabı (2026-09-27): hesap no + SWIFT + banka adı.
+  bankAccountNumber        String?
+  bankSwiftBic             String?
+  bankName                 String?
   expectedDeliveryDate     DateTime?
   // AKREDİTİF adımları (paymentCategory=LETTER_OF_CREDIT, Faz 3): alıcı LC
   // açtırır (LC belgesi zorunlu) → satıcı kabul eder (gönderim kilidi açılır)
@@ -2420,7 +2433,12 @@ model CompanyBankAccount {
   company       Company @relation(fields: [companyId], references: [id], onDelete: Cascade)
   title         String // "TL Vadesiz — İş Bankası" vb.
   accountHolder String
-  iban          String
+  /// IBAN ülkesinde zorunlu; IBAN kullanmayan ülkede boş → `accountNumber` + `swiftBic`.
+  iban          String?
+  accountNumber String?
+  swiftBic      String?
+  /// Bankanın ülkesi (ISO) — biçim kararı buradan (`countryUsesIban`).
+  bankCountry   String?
   bankName      String?
   isDefault     Boolean @default(false)
 
@@ -2467,6 +2485,8 @@ model CompanyAddress {
   contactName String?
   phone       String?
   country     String             @default("TR")
+  /// Eyalet/bölge (TR dışı: "Bayern", "Maharashtra"); TR'de boş.
+  stateRegion String?
   city        String?
   district    String?
   addressLine String

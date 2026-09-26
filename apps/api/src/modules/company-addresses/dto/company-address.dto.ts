@@ -40,6 +40,12 @@ export class UpsertAddressDto {
   @MaxLength(2)
   country?: string;
 
+  /** Eyalet/bölge (TR dışı adres; 2026-09-27). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  stateRegion?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(80)

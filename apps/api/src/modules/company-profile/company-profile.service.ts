@@ -14,7 +14,11 @@ import {
   MAX_COMPANY_SUB_PICKS,
   deepestCategoryPicks,
   generateSlug,
-  isValidIbanTr,
+  countryUsesIban,
+  isValidAccountNumber,
+  isValidIbanAny,
+  isValidSwiftBic,
+  normalizeSwift,
   maskIban,
   normalizeIban,
 } from "@rothern/shared";
@@ -339,6 +343,7 @@ export class CompanyProfileService {
       "mersisNo",
       "tradeRegistryNo",
       "ibanHolder",
+      "bankName",
     ] as const;
     const norm = (v: string | null | undefined) => (v?.trim() ? v.trim() : null);
     const kycBefore = await this.prisma.company.findUnique({
@@ -351,6 +356,9 @@ export class CompanyProfileService {
         tradeRegistryNo: true,
         iban: true,
         ibanHolder: true,
+        bankSwiftBic: true,
+        bankName: true,
+        country: true,
       },
     });
     const kycLocked =
@@ -365,8 +373,12 @@ export class CompanyProfileService {
       const ibanChanged =
         dto.iban !== undefined &&
         (dto.iban.trim() ? normalizeIban(dto.iban) : null) !==
-          (kycBefore.iban ?? null);
-      if (changed || ibanChanged) {
+          (kycBefore.iban ? normalizeIban(kycBefore.iban) : null);
+      // SWIFT de ödeme yolunu değiştirir → IBAN gibi kilitli.
+      const swiftChanged =
+        dto.bankSwiftBic !== undefined &&
+        (normalizeSwift(dto.bankSwiftBic) || null) !== (kycBefore.bankSwiftBic ?? null);
+      if (changed || ibanChanged || swiftChanged) {
         throw new BadRequestException(
           kycBefore.companyVerificationStatus === "PENDING"
             ? i18nMessage("api.companyProfile.dogrulamaInceleniyorKilitliAlanlar")
@@ -391,20 +403,32 @@ export class CompanyProfileService {
     if (dto.iban !== undefined) {
       const raw = dto.iban.trim();
       if (raw) {
-        const iban = normalizeIban(raw);
-        // Banka hesaplarıyla aynı kural: TR katı; yabancı IBAN gevşek format
-        // (yabancı firma profili TR-only kuralla IBAN kaydedemiyordu).
-        const valid = iban.startsWith("TR")
-          ? isValidIbanTr(iban)
-          : /^[A-Z]{2}[0-9A-Z]{8,32}$/.test(iban);
-        if (!valid) {
-          throw new BadRequestException(i18nMessage("api.companyProfile.gecerliBirIbanGiriniz"));
+        // Ülkeye göre (2026-09-27): IBAN ülkesinde IBAN (mod-97, TR katı);
+        // IBAN kullanmayan ülkede bu alan HESAP NUMARASI taşır.
+        if (countryUsesIban(kycBefore?.country ?? "TR")) {
+          const iban = normalizeIban(raw);
+          if (!isValidIbanAny(iban)) {
+            throw new BadRequestException(i18nMessage("api.companyProfile.gecerliBirIbanGiriniz"));
+          }
+          data.iban = iban;
+        } else {
+          if (!isValidAccountNumber(raw)) {
+            throw new BadRequestException(i18nMessage("api.bankDetails.accountNumberInvalid"));
+          }
+          data.iban = raw;
         }
-        data.iban = iban;
       } else {
         data.iban = null;
       }
     }
+    if (dto.bankSwiftBic !== undefined) {
+      const sw = normalizeSwift(dto.bankSwiftBic);
+      if (sw && !isValidSwiftBic(sw)) {
+        throw new BadRequestException(i18nMessage("api.bankDetails.swiftInvalid"));
+      }
+      data.bankSwiftBic = sw || null;
+    }
+    if (dto.bankName !== undefined) data.bankName = dto.bankName.trim() || null;
 
     // Public profil açıksa ve henüz slug yoksa SEO-dostu benzersiz slug üret.
     const current = await this.prisma.company.findUnique({

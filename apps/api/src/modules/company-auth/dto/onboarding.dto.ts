@@ -25,6 +25,8 @@ export enum CompanyTypeDto {
   JOINT_STOCK = "JOINT_STOCK",
   LIMITED = "LIMITED",
   SOLE_PROPRIETOR = "SOLE_PROPRIETOR",
+  /** Diğer (GmbH, LLC, ООО, kooperatif…) — yerel adı `legalFormLocal`. */
+  OTHER = "OTHER",
 }
 
 /**
@@ -39,6 +41,12 @@ export class CompleteOnboardingDto {
 
   @IsEnum(CompanyTypeDto)
   companyType!: CompanyTypeDto;
+
+  /** `companyType = OTHER` iken ZORUNLU (serviste): "GmbH", "LLC", "ООО"… */
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  legalFormLocal?: string;
 
   @IsOptional()
   @IsString()

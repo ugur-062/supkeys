@@ -1,6 +1,6 @@
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
-import { PAID_TIERS, maskIban } from "@rothern/shared";
+import { PAID_TIERS, countryUsesIban, isValidAccountNumber, isValidIbanAny, maskIban } from "@rothern/shared";
 import {
   BadRequestException,
   ConflictException,
@@ -807,13 +807,23 @@ export class AdminCompaniesService {
       before.country ??
       "TR"
     ).toUpperCase();
-    if (effectiveCountry === "TR" && typeof data.iban === "string") {
-      const iban = data.iban.replace(/\s+/g, "").toUpperCase();
-      if (!/^TR\d{24}$/.test(iban)) {
-        throw new BadRequestException(i18nMessage("api.adminCompanies.gecerliBirIbanGerekliTr24"));
+    // Ülkeye göre (2026-09-27): IBAN ülkesinde IBAN (TR katı, diğerleri mod-97),
+    // IBAN kullanmayan ülkede hesap numarası — firma tarafıyla aynı kural.
+    if (typeof data.iban === "string" && data.iban.trim()) {
+      if (countryUsesIban(effectiveCountry)) {
+        const iban = data.iban.replace(/\s+/g, "").toUpperCase();
+        if (!isValidIbanAny(iban)) {
+          throw new BadRequestException(
+            effectiveCountry === "TR"
+              ? i18nMessage("api.adminCompanies.gecerliBirIbanGerekliTr24")
+              : i18nMessage("api.bankDetails.ibanInvalid"),
+          );
+        }
+        data.iban = iban;
+      } else if (!isValidAccountNumber(data.iban)) {
+        throw new BadRequestException(i18nMessage("api.bankDetails.accountNumberInvalid"));
       }
-      data.iban = iban;
-      changes.iban = { from: changes.iban?.from ?? null, to: maskIban(iban) };
+      changes.iban = { from: changes.iban?.from ?? null, to: maskIban(data.iban as string) };
     }
     if (Object.keys(data).length === 0) {
       return { ok: true, changed: [] };
@@ -889,13 +899,23 @@ export class AdminCompaniesService {
     tradeRegistryNo: string | null;
     iban: string | null;
     ibanHolder: string | null;
+    bankSwiftBic: string | null;
+    bankName: string | null;
   }): void {
-    if ((c.country ?? "TR").toUpperCase() !== "TR") return;
+    // ÜLKEDEN BAĞIMSIZ (2026-09-27): eskiden TR dışı firma için erken dönüyordu
+    // → admin yabancı firmayı sicil/banka bilgisi BOŞKEN onaylayabiliyordu,
+    // oysa firma tarafı `submit()` hepsini istiyordu. Kural aynı: sicil + banka
+    // (IBAN ya da hesap no) + hesap sahibi + SWIFT her ülkede; MERSİS yalnız TR;
+    // banka adı IBAN kullanmayan ülkede.
+    const country = (c.country ?? "TR").toUpperCase();
+    const usesIban = countryUsesIban(country);
     const missing: string[] = [];
-    if (!c.mersisNo?.trim()) missing.push("MERSİS numarası");
+    if (country === "TR" && !c.mersisNo?.trim()) missing.push("MERSİS numarası");
     if (!c.tradeRegistryNo?.trim()) missing.push("ticari sicil numarası");
-    if (!c.iban?.trim()) missing.push("IBAN");
-    if (!c.ibanHolder?.trim()) missing.push("IBAN hesap sahibi");
+    if (!c.iban?.trim()) missing.push(usesIban ? "IBAN" : "banka hesap numarası");
+    if (!c.ibanHolder?.trim()) missing.push("hesap sahibi");
+    if (!c.bankSwiftBic?.trim()) missing.push("SWIFT/BIC");
+    if (!usesIban && !c.bankName?.trim()) missing.push("banka adı");
     if (missing.length > 0) {
       throw new BadRequestException(
         i18nMessage("api.adminCompanies.dogrulamaIcinEksikKimlikBilgisiFirma", { join: missing.join(", ") }),
@@ -927,6 +947,8 @@ export class AdminCompaniesService {
         tradeRegistryNo: true,
         iban: true,
         ibanHolder: true,
+        bankSwiftBic: true,
+        bankName: true,
         docTaxPlateUrl: true,
         docTradeRegistryUrl: true,
         docSignatureCircularUrl: true,
@@ -1045,6 +1067,8 @@ export class AdminCompaniesService {
         tradeRegistryNo: true,
         iban: true,
         ibanHolder: true,
+        bankSwiftBic: true,
+        bankName: true,
         docTaxPlateUrl: true,
         docTradeRegistryUrl: true,
         docSignatureCircularUrl: true,

@@ -147,6 +147,18 @@ export class UpdateCompanyProfileDto {
   @MaxLength(120)
   ibanHolder?: string;
 
+  /** SWIFT/BIC (doğrulamada her ülkede zorunlu; KYC kilidinde). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(15)
+  bankSwiftBic?: string;
+
+  /** Banka adı (IBAN kullanmayan ülkede zorunlu; KYC kilidinde). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  bankName?: string;
+
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(20)

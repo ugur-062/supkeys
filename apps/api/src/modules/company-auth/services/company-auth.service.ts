@@ -486,19 +486,23 @@ export class CompanyAuthService {
     }
 
     const country = (dto.country || "TR").toUpperCase();
-    // KKTC (XN) ISO listesinde YOK — profil kapısı onu tanır, `COUNTRIES`
-    // tanımaz. Bu yüzden geçerlilik "ISO'da var VEYA açık bir profili var".
-    if (!isValidCountryCode(country) && !isRegistrationOpen(country)) {
+    // Tam ülke listesi (KKTC `XN` dahil, 2026-09-27).
+    if (!isValidCountryCode(country)) {
       throw new BadRequestException(i18nMessage("api.companyAuth.gecersizUlkeSecimi"));
     }
-    // KAYIT KAPISI (2026-09-01): yeni kayıt yalnız profili AÇIK ülkelerden.
-    // YALNIZ YENİ KAYDA uygulanır — mevcut firmalar etkilenmez (bu metot
-    // yukarıda `onboardingCompletedAt` ile zaten korunuyor). Aksi hâlde
-    // kapatılan bir ülkedeki çalışan hesap kilitlenirdi.
+    // KAYIT KAPISI (2026-09-27): her ülke açık, `REGISTRATION_BLOCKED` hariç
+    // (ABD + toprakları, kapsamlı yaptırım ülkeleri). YALNIZ YENİ KAYDA
+    // uygulanır — mevcut firmalar etkilenmez (bu metot yukarıda
+    // `onboardingCompletedAt` ile zaten korunuyor).
     if (!isRegistrationOpen(country)) {
       throw new BadRequestException(
         i18nMessage("api.companyAuth.buUlkedenYeniKayitAlinmiyor"),
       );
+    }
+    // Hukuki yapı "Diğer" (2026-09-27): yerel yapı adı zorunlu (GmbH, LLC…).
+    const legalFormLocal = dto.legalFormLocal?.trim() || null;
+    if (dto.companyType === "OTHER" && (!legalFormLocal || legalFormLocal.length < 2)) {
+      throw new BadRequestException(i18nMessage("api.companyAuth.yerelHukukiYapiZorunlu"));
     }
     const isSole = dto.companyType === "SOLE_PROPRIETOR";
     if (!isValidTaxIdForCountry(dto.taxNumber, country, isSole)) {
@@ -560,6 +564,7 @@ export class CompanyAuthService {
           name: dto.legalName.trim(),
           legalName: dto.legalName.trim(),
           companyType: dto.companyType,
+          legalFormLocal: dto.companyType === "OTHER" ? legalFormLocal : null,
           country,
           taxNumber: dto.taxNumber.trim(),
           taxOffice: dto.taxOffice?.trim() || null,
@@ -619,6 +624,9 @@ export class CompanyAuthService {
           type: "FATURA",
           title: "Merkez",
           country,
+          // Eyalet/bölge adres defterine de taşınır (2026-09-27) — yoksa TR dışı
+          // adresin "state"i sipariş kaydında kayboluyordu.
+          stateRegion: dto.stateRegion?.trim() || null,
           city: dto.city.trim(),
           district: dto.district?.trim() || null,
           postalCode: dto.postalCode?.trim() || null,
@@ -634,6 +642,7 @@ export class CompanyAuthService {
           type: "TESLIMAT",
           title: deliverySame ? "Teslimat (fatura ile aynı)" : "Teslimat",
           country,
+          stateRegion: deliverySame ? dto.stateRegion?.trim() || null : null,
           city: (deliverySame ? dto.city : dto.deliveryCity ?? dto.city).trim(),
           district:
             (deliverySame ? dto.district : dto.deliveryDistrict)?.trim() || null,
@@ -892,8 +901,18 @@ export class CompanyAuthService {
   // VIES — AB VAT numarası ücretsiz oto-doğrulama (Faz 5)
   // ============================================================
   async viesCheck(countryCode: string, vatNumber: string) {
-    const cc = countryCode.toUpperCase().trim().replace(/[^A-Z]/g, "");
-    const num = vatNumber.replace(/[^A-Za-z0-9]/g, "");
+    // VIES Yunanistan için ISO "GR" değil "EL" kullanır; numara ülke önekiyle
+    // girilmişse ("DE811234567") önek ATILIR — VIES yalnız numarayı ister
+    // (2026-09-27: önekli numara her zaman "geçersiz" dönüyordu).
+    const iso = countryCode.toUpperCase().trim().replace(/[^A-Z]/g, "");
+    const cc = iso === "GR" ? "EL" : iso;
+    let num = vatNumber.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    for (const prefix of [cc, iso]) {
+      if (num.startsWith(prefix)) {
+        num = num.slice(prefix.length);
+        break;
+      }
+    }
     const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${encodeURIComponent(
       cc,
     )}/vat/${encodeURIComponent(num)}`;

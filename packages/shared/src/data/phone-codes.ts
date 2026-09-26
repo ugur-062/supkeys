@@ -1,32 +1,53 @@
 /**
  * Telefon ülke kodları (dial code) — telefon giriş alanındaki ülke seçici için.
- * ISO 3166-1 alpha-2 → uluslararası arama kodu. COUNTRIES ile aynı ülke seti.
- * Bayrak emojisi koddan türetilir (codeToFlag) — ayrı görsel varlık gerekmez.
+ * Kaynak `COUNTRY_TABLE` (tam ülke listesi, 2026-09-27); bayrak emojisi koddan
+ * türetilir (codeToFlag) — ayrı görsel varlık gerekmez.
  */
-import { COUNTRIES } from "./countries";
+import { COUNTRIES, COUNTRY_TABLE } from "./countries";
 
 /** ISO alpha-2 → dial code (baştaki + olmadan). */
-export const PHONE_DIAL_CODES: Record<string, string> = {
-  TR: "90", DE: "49", US: "1", AD: "376", AO: "244", AR: "54", AL: "355",
-  AZ: "994", BH: "973", BD: "880", BE: "32", BY: "375", AE: "971", GB: "44",
-  BA: "387", BR: "55", BG: "359", DZ: "213", CN: "86", DK: "45", EC: "593",
-  ID: "62", EE: "372", ET: "251", MA: "212", FI: "358", FR: "33", GH: "233",
-  ZA: "27", KR: "82", GE: "995", HR: "385", IN: "91", NL: "31", IQ: "964",
-  IR: "98", IE: "353", ES: "34", IL: "972", SE: "46", CH: "41", IT: "39",
-  IS: "354", JP: "81", ME: "382", QA: "974", KZ: "7", KE: "254", CY: "357",
-  KG: "996", CO: "57", KW: "965", LV: "371", LB: "961", LU: "352", LT: "370",
-  HU: "36", MK: "389", MY: "60", MT: "356", MX: "52", EG: "20", MD: "373",
-  MN: "976", MR: "222", NO: "47", UZ: "998", PK: "92", PA: "507", PE: "51",
-  PL: "48", PT: "351", RO: "40", RU: "7", RS: "381", SA: "966", SY: "963",
-  CL: "56", TJ: "992", TW: "886", TH: "66", TN: "216", TM: "993", UA: "380",
-  OM: "968", JO: "962", VN: "84", GR: "30", NZ: "64", AU: "61", AT: "43",
-  CA: "1", CZ: "420", SK: "421", SI: "386", SG: "65", PH: "63", NG: "234",
+export const PHONE_DIAL_CODES: Record<string, string> = Object.fromEntries(
+  COUNTRY_TABLE.map(([code, , dial]) => [code, dial]),
+);
+
+/**
+ * Ortak dial code'da ayrıştırıcının seçtiği BİRİNCİL ülke. Numara yalnız
+ * "+1 …" / "+7 …" olarak saklandığı için hangi ülke olduğu bilinmez; en olası
+ * ülke seçilir (eskiden liste sırasındaki ilk ülke kazanıyordu: +7 → Kazakistan,
+ * yani her Rus numarası Kazakistan görünüyordu).
+ */
+const PRIMARY_FOR_DIAL: Record<string, string> = {
+  "1": "US",
+  "7": "RU",
+  "44": "GB",
+  "39": "IT",
+  "47": "NO",
+  "61": "AU",
+  "64": "NZ",
+  "90": "TR",
+  "212": "MA",
+  "262": "RE",
+  "358": "FI",
+  "590": "GP",
+  "599": "CW",
+  "672": "NF",
 };
+
+/**
+ * Birincil ülkeden AYRILAN numara önekleri — dial code'dan sonraki ilk
+ * haneler ülkeyi kesin söylüyor: Kazakistan +7 6xx/7xx, KKTC sabit hat +90 392.
+ * (KKTC cep önekleri 533/548 Türkiye operatör aralıklarıyla ÇAKIŞIR → eklenmez;
+ * yoksa Türk cep numaraları KKTC görünürdü.)
+ */
+const NATIONAL_PREFIX_COUNTRY: { dial: string; prefixes: string[]; code: string }[] = [
+  { dial: "7", prefixes: ["6", "7"], code: "KZ" },
+  { dial: "90", prefixes: ["392"], code: "XN" },
+];
 
 /** ISO alpha-2 kodundan bayrak emojisi (bölgesel gösterge sembolleri). */
 export function codeToFlag(code: string): string {
   const cc = (code || "").toUpperCase();
-  if (cc.length !== 2 || !/^[A-Z]{2}$/.test(cc)) return "🏳️";
+  if (cc.length !== 2 || !/^[A-Z]{2}$/.test(cc) || cc === "XN" || cc === "XK") return "🏳️";
   return String.fromCodePoint(
     ...[...cc].map((ch) => 0x1f1e6 + (ch.charCodeAt(0) - 65)),
   );
@@ -49,9 +70,24 @@ export const PHONE_COUNTRIES: readonly PhoneCountry[] = COUNTRIES.filter(
   flag: codeToFlag(c.code),
 }));
 
+/** En uzun dial code önce — "+1268" (Antigua) "+1"den (ABD) önce denenmeli. */
+const DIALS_LONGEST_FIRST = [...new Set(Object.values(PHONE_DIAL_CODES))].sort(
+  (a, b) => b.length - a.length,
+);
+
+function countryForDial(dial: string, national: string): string {
+  for (const rule of NATIONAL_PREFIX_COUNTRY) {
+    if (rule.dial === dial && rule.prefixes.some((p) => national.startsWith(p))) return rule.code;
+  }
+  if (PRIMARY_FOR_DIAL[dial]) return PRIMARY_FOR_DIAL[dial]!;
+  return PHONE_COUNTRIES.find((c) => c.dialCode === dial)?.code ?? "TR";
+}
+
 /**
  * Tam telefon değerini (ör. "+90 5xx...") ülke koduna + ulusal numaraya ayırır.
- * Bilinen dial code'lardan en uzun eşleşeni seçer. Eşleşme yoksa varsayılan TR.
+ * Bilinen dial code'lardan en uzun eşleşeni seçer; ortak kodda birincil ülke
+ * (ve ulusal önek kuralları). "+" ile başlamayan değer Türkiye sayılır (eski
+ * kayıtlar).
  */
 export function parsePhone(
   value: string | null | undefined,
@@ -61,13 +97,10 @@ export function parsePhone(
     return { code: "TR", national: raw.replace(/[^\d ]/g, "").trim() };
   }
   const digits = raw.slice(1).replace(/\D/g, "");
-  // En uzun dial code eşleşmesi (ör. +1 vs +90 çakışması için uzun önce).
-  const sorted = [...PHONE_COUNTRIES].sort(
-    (a, b) => b.dialCode.length - a.dialCode.length,
-  );
-  for (const c of sorted) {
-    if (digits.startsWith(c.dialCode)) {
-      return { code: c.code, national: digits.slice(c.dialCode.length) };
+  for (const dial of DIALS_LONGEST_FIRST) {
+    if (digits.startsWith(dial)) {
+      const national = digits.slice(dial.length);
+      return { code: countryForDial(dial, national), national };
     }
   }
   return { code: "TR", national: digits };

@@ -9,13 +9,13 @@ import {
 import type { CompanyVerificationStatus, KycDocStatus } from "@rothern/db";
 import { randomUUID } from "node:crypto";
 import {
-  isValidIbanTr,
+  countryUsesIban,
   maskIban,
   normalizeIban,
+  normalizeSwift,
   requiredDocsForCountry,
-  getCountryProfile,
-  ibanChecksumOk,
 } from "@rothern/shared";
+import { assertBankDetails } from "../../common/company/bank-details";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -126,6 +126,8 @@ export class CompanyDocsService {
         tradeRegistryNo: true,
         iban: true,
         ibanHolder: true,
+        bankSwiftBic: true,
+        bankName: true,
       },
     })) as Record<string, unknown> | null;
     if (!c) throw new NotFoundException(i18nMessage("api.companyDocs.firmaBulunamadi"));
@@ -190,6 +192,10 @@ export class CompanyDocsService {
       tradeRegistryNo: c.tradeRegistryNo as string | null,
       iban: c.iban as string | null,
       ibanHolder: c.ibanHolder as string | null,
+      bankSwiftBic: c.bankSwiftBic as string | null,
+      bankName: c.bankName as string | null,
+      // Banka alanı biçimi (IBAN mı hesap no mu) — web aynı kuralı çizer.
+      usesIban: countryUsesIban(c.country as string | null),
     };
   }
 
@@ -377,6 +383,8 @@ export class CompanyDocsService {
       tradeRegistryNo?: string;
       iban?: string;
       ibanHolder?: string;
+      bankSwiftBic?: string;
+      bankName?: string;
     } = {},
     actor?: AuthenticatedCompanyUser,
   ) {
@@ -408,16 +416,19 @@ export class CompanyDocsService {
     // ÜLKEYE GÖRE DEĞİŞEN yalnız BİÇİM:
     //  · MERSİS — Türkiye'ye ÖZGÜ bir sicil numarası; başka ülkede karşılığı
     //    YOKTUR. "Yabancıda opsiyonel" değil, "o ülkede mevcut değil".
-    //  · Banka — IBAN kullanan ülkede mod-97 doğrulanır, kullanmayanda
-    //    (RU/UZ/CN) serbest biçimli hesap numarası kabul edilir. İkisinde de
-    //    ZORUNLU: sipariş ve ödeme akışı hesap bilgisi olmadan yürümüyor.
-    const profile = getCountryProfile(country ?? "TR");
+    //  · Banka — kural tek kaynak `assertBankDetails` (IBAN ülkesinde IBAN,
+    //    değilse hesap no + banka adı); SWIFT/BIC firma doğrulamasında HER
+    //    ÜLKEDE zorunlu (2026-09-27, kullanıcı: "şirket doğrularken swift
+    //    numarası girmek zorunlu olsun"). `iban` kolonu IBAN'sız ülkede hesap
+    //    numarasını taşır.
     const isTR = (country ?? "TR").toUpperCase() === "TR";
-    const usesIban = profile?.usesIban ?? true;
+    const usesIban = countryUsesIban(country ?? "TR");
     const mersisNo = kyc.mersisNo?.trim();
     const tradeRegistryNo = kyc.tradeRegistryNo?.trim();
-    const iban = kyc.iban ? normalizeIban(kyc.iban) : undefined;
+    const iban = kyc.iban ? (usesIban ? normalizeIban(kyc.iban) : kyc.iban.trim()) : undefined;
     const ibanHolder = kyc.ibanHolder?.trim();
+    const bankSwiftBic = kyc.bankSwiftBic !== undefined ? normalizeSwift(kyc.bankSwiftBic) : undefined;
+    const bankName = kyc.bankName?.trim();
 
     if (isTR && (!mersisNo || !/^\d{16}$/.test(mersisNo))) {
       throw new BadRequestException(i18nMessage("api.companyDocs.mersisNumarasi16HaneliOlmali"));
@@ -425,21 +436,15 @@ export class CompanyDocsService {
     if (!tradeRegistryNo) {
       throw new BadRequestException(i18nMessage("api.companyDocs.sicilKayitNumarasiGerekli"));
     }
-    if (!iban) {
-      throw new BadRequestException(
-        usesIban
-          ? i18nMessage("api.companyDocs.ibanGerekli")
-          : i18nMessage("api.companyDocs.bankaHesapNumarasiGerekli"),
-      );
-    }
-    if (usesIban) {
-      const gecerli = isTR ? isValidIbanTr(iban) : ibanChecksumOk(iban);
-      if (!gecerli) {
-        throw new BadRequestException(
-          i18nMessage("api.companyDocs.gecerliBirIbanGerekliKontrolHanesi"),
-        );
-      }
-    }
+    assertBankDetails(
+      {
+        country: country ?? "TR",
+        ...(usesIban ? { iban } : { accountNumber: iban }),
+        swiftBic: bankSwiftBic,
+        bankName,
+      },
+      { requireSwift: true },
+    );
     if (!ibanHolder) {
       throw new BadRequestException(i18nMessage("api.companyDocs.hesapSahibiGerekli"));
     }
@@ -463,12 +468,14 @@ export class CompanyDocsService {
         ...(tradeRegistryNo !== undefined ? { tradeRegistryNo } : {}),
         ...(iban !== undefined ? { iban } : {}),
         ...(ibanHolder !== undefined ? { ibanHolder } : {}),
+        ...(bankSwiftBic !== undefined ? { bankSwiftBic } : {}),
+        ...(bankName !== undefined ? { bankName: bankName || null } : {}),
       },
     });
     // INV-AUDIT-1: doğrulamaya gönderim — KYC alan ADLARI + sıfırlanan belge
     // türleri; IBAN yalnız maskeli referans. IBAN yazımı para-yolu → critical.
     const kycFields = (
-      ["mersisNo", "tradeRegistryNo", "iban", "ibanHolder"] as const
+      ["mersisNo", "tradeRegistryNo", "iban", "ibanHolder", "bankSwiftBic", "bankName"] as const
     ).filter((f) => kyc[f] !== undefined);
     await this.audit.log({
       action: "company.docs.submitted",

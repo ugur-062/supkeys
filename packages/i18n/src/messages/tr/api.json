@@ -109,7 +109,8 @@
     "buUlkedenYeniKayitAlinmiyor": "Şu anda bu ülkeden yeni kayıt alınmıyor. Ülkenizin açılmasını istiyorsanız bizimle iletişime geçin.",
     "sahisFirmasiIcin11HaneliTckn": "Şahıs firması için 11 haneli geçerli TCKN giriniz",
     "tuzelKisiIcin10HaneliVergiNo": "Tüzel kişi için 10 haneli geçerli vergi numarası giriniz",
-    "gecerliBirVergiSicilNumarasiGiriniz": "Geçerli bir vergi/sicil numarası giriniz"
+    "gecerliBirVergiSicilNumarasiGiriniz": "Geçerli bir vergi/sicil numarası giriniz",
+    "yerelHukukiYapiZorunlu": "\"Diğer\" seçildiğinde firmanızın hukuki yapısını yazın (ör. GmbH, LLC)"
   },
   "publicProfile": {
     "profilBulunamadi": "Profil bulunamadı",
@@ -1622,5 +1623,14 @@
         "declared": "Faaliyet alanlarında işaretli"
       }
     }
+  },
+  "bankDetails": {
+    "ibanRequired": "Bu ülkedeki bankalar IBAN kullanıyor; IBAN giriniz",
+    "ibanInvalid": "Geçerli bir IBAN giriniz — kontrol hanesi tutmuyor, lütfen yeniden kontrol edin",
+    "accountNumberRequired": "Hesap numarası zorunlu",
+    "accountNumberInvalid": "Geçerli bir hesap numarası giriniz (4-40 karakter, harf ve rakam)",
+    "swiftRequired": "SWIFT/BIC kodu zorunlu",
+    "swiftInvalid": "Geçerli bir SWIFT/BIC kodu giriniz (8 ya da 11 karakter, ör. DEUTDEFF)",
+    "bankNameRequired": "Banka adı zorunlu"
   }
 }

@@ -244,16 +244,23 @@ export class CompanyOrdersService {
       src.paymentCategory === "CASH_AGAINST_DOCS";
     let bankAccountHolder: string | null = null;
     let bankIban: string | null = null;
+    // IBAN kullanmayan ülkenin hesabı (2026-09-27): hesap no + SWIFT + banka adı.
+    let bankAccountNumber: string | null = null;
+    let bankSwiftBic: string | null = null;
+    let bankName: string | null = null;
     if (input.bankAccountId) {
       const acct = await this.prisma.companyBankAccount.findUnique({
         where: { id: input.bankAccountId },
-        select: { companyId: true, accountHolder: true, iban: true },
+        select: { companyId: true, accountHolder: true, iban: true, accountNumber: true, swiftBic: true, bankName: true },
       });
       if (!acct || acct.companyId !== user.companyId) {
         throw new BadRequestException(i18nMessage("api.companyOrders.gecersizBankaHesabiSecimi"));
       }
       bankAccountHolder = acct.accountHolder;
       bankIban = acct.iban;
+      bankAccountNumber = acct.accountNumber;
+      bankSwiftBic = acct.swiftBic;
+      bankName = acct.bankName;
     } else if (!skipBankRequired) {
       throw new BadRequestException(
         i18nMessage("api.companyOrders.odemeAlabilmekIcinOnaydaBirBanka"),
@@ -297,6 +304,9 @@ export class CompanyOrdersService {
         acceptedNote: input.acceptedNote?.trim() || null,
         bankAccountHolder,
         bankIban,
+        bankAccountNumber,
+        bankSwiftBic,
+        bankName,
         expectedDeliveryDate,
       },
     });
@@ -2197,6 +2207,9 @@ export class CompanyOrdersService {
       acceptedNote: o.acceptedNote,
       bankAccountHolder: o.bankAccountHolder,
       bankIban: o.bankIban,
+      bankAccountNumber: o.bankAccountNumber,
+      bankSwiftBic: o.bankSwiftBic,
+      bankName: o.bankName,
       expectedDeliveryDate: o.expectedDeliveryDate,
       invoiceNumber: o.invoiceNumber,
       deliveryStartedAt: o.deliveryStartedAt,

@@ -5,6 +5,7 @@ import {
   Injectable,
   NotFoundException,
 } from "@nestjs/common";
+import { isValidCountryCode } from "@rothern/shared";
 import { CompanyAddressType, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
@@ -58,7 +59,8 @@ export class CompanyAddressesService {
           title: dto.title.trim(),
           contactName: dto.contactName?.trim() || null,
           phone: dto.phone?.trim() || null,
-          country: dto.country?.trim() || "TR",
+          country: normalizeAddressCountry(dto.country),
+          stateRegion: dto.stateRegion?.trim() || null,
           city: dto.city?.trim() || null,
           district: dto.district?.trim() || null,
           addressLine: dto.addressLine.trim(),
@@ -102,6 +104,7 @@ export class CompanyAddressesService {
     // düzeltmesi mümkün kalsın.
     const LOCKED_FIELDS = [
       "country",
+      "stateRegion",
       "city",
       "district",
       "addressLine",
@@ -111,7 +114,8 @@ export class CompanyAddressesService {
     ] as const;
     const norm = (v: string | null | undefined) => (v?.trim() ? v.trim() : null);
     const incoming: Record<(typeof LOCKED_FIELDS)[number], string | null> = {
-      country: dto.country?.trim() || "TR",
+      country: normalizeAddressCountry(dto.country),
+      stateRegion: norm(dto.stateRegion),
       city: norm(dto.city),
       district: norm(dto.district),
       addressLine: dto.addressLine.trim(),
@@ -138,7 +142,8 @@ export class CompanyAddressesService {
           title: dto.title.trim(),
           contactName: dto.contactName?.trim() || null,
           phone: dto.phone?.trim() || null,
-          country: dto.country?.trim() || "TR",
+          country: normalizeAddressCountry(dto.country),
+          stateRegion: dto.stateRegion?.trim() || null,
           city: dto.city?.trim() || null,
           district: dto.district?.trim() || null,
           addressLine: dto.addressLine.trim(),
@@ -160,6 +165,7 @@ export class CompanyAddressesService {
         "contactName",
         "phone",
         "country",
+        "stateRegion",
         "city",
         "district",
         "addressLine",
@@ -291,4 +297,17 @@ export class CompanyAddressesService {
       data: { isDefault: false },
     });
   }
+}
+
+/**
+ * Adres ülkesi (2026-09-27): büyük harfe çevrilir ve TAM ülke listesine göre
+ * doğrulanır (eskiden yalnız `MaxLength(2)` vardı — "zz" kaydedilebiliyordu).
+ * Boş → TR (eski istemciler).
+ */
+function normalizeAddressCountry(raw: string | undefined): string {
+  const c = raw?.trim().toUpperCase() || "TR";
+  if (!isValidCountryCode(c)) {
+    throw new BadRequestException(i18nMessage("api.companyAuth.gecersizUlkeSecimi"));
+  }
+  return c;
 }

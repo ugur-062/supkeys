@@ -829,6 +829,41 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.bankDetails.accountNumberInvalid": {
+    "hash": "9d605f9a18",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "api.bankDetails.accountNumberRequired": {
+    "hash": "1dd8347501",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "api.bankDetails.bankNameRequired": {
+    "hash": "2c3f908548",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "api.bankDetails.ibanInvalid": {
+    "hash": "65886a17ae",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "api.bankDetails.ibanRequired": {
+    "hash": "7bb82741f8",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "api.bankDetails.swiftInvalid": {
+    "hash": "f3f61308df",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
+  "api.bankDetails.swiftRequired": {
+    "hash": "6c449e2c6b",
+    "status": "reviewed",
+    "at": "2026-09-26"
+  },
   "api.business.alreadyUsed": {
     "hash": "c87b8eaaae",
     "status": "reviewed",
@@ -1308,6 +1343,11 @@
     "hash": "d32210482c",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.companyAuth.yerelHukukiYapiZorunlu": {
+    "hash": "0c08736edf",
+    "status": "reviewed",
+    "at": "2026-09-26"
   },
   "api.companyAuth.yetkiliTCKimlikNoGecersiz": {
     "hash": "d815e92463",

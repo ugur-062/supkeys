@@ -109,7 +109,8 @@
     "buUlkedenYeniKayitAlinmiyor": "New registrations from this country are not currently accepted. Contact us if you would like your country to be opened.",
     "sahisFirmasiIcin11HaneliTckn": "Enter a valid 11-digit Turkish ID number (TCKN) for a sole proprietorship",
     "tuzelKisiIcin10HaneliVergiNo": "Enter a valid 10-digit tax number for a legal entity",
-    "gecerliBirVergiSicilNumarasiGiriniz": "Enter a valid tax/registration number"
+    "gecerliBirVergiSicilNumarasiGiriniz": "Enter a valid tax/registration number",
+    "yerelHukukiYapiZorunlu": "When \"Other\" is selected, enter your company's legal form (e.g. GmbH, LLC)"
   },
   "publicProfile": {
     "profilBulunamadi": "Profile not found",
@@ -1622,5 +1623,14 @@
         "declared": "Marked in its areas of activity"
       }
     }
+  },
+  "bankDetails": {
+    "ibanRequired": "Banks in this country use IBAN; please enter an IBAN",
+    "ibanInvalid": "Enter a valid IBAN — the check digits do not match, please check it again",
+    "accountNumberRequired": "Account number is required",
+    "accountNumberInvalid": "Enter a valid account number (4–40 characters, letters and digits)",
+    "swiftRequired": "SWIFT/BIC code is required",
+    "swiftInvalid": "Enter a valid SWIFT/BIC code (8 or 11 characters, e.g. DEUTDEFF)",
+    "bankNameRequired": "Bank name is required"
   }
 }
