@@ -7,7 +7,8 @@ import {
   type SitemapSummary,
 } from "@/lib/public/marketplace-api";
 import { allCitySlugs, cityProductPath } from "@/lib/public/city";
-import { localizedAlternates } from "@/i18n/href";
+import { DEFAULT_LOCALE, LOCALES, type Locale } from "@rothern/i18n";
+import { localizePath } from "@/i18n/href";
 import { absoluteUrl } from "@/lib/seo/meta";
 import type { SitemapIndexItem, SitemapUrl } from "@/lib/seo/sitemap-xml";
 
@@ -30,10 +31,19 @@ import type { SitemapIndexItem, SitemapUrl } from "@/lib/seo/sitemap-xml";
  * Adresler sayfanın kanonik etiketiyle AYNI fonksiyondan üretilir
  * (`listingPath`, `categoryPath`, `cityProductPath` — `@rothern/shared`).
  * `lastmod` UYDURULMAZ: kümede gerçek en yeni `updatedAt` (API summary).
+ *
+ * DİLLER (i18n SEO 2026-09-26): her dil sürümü KENDİ `<url>` girdisidir
+ * (Google: "her dil için ayrı <url>, her birinde tam hreflang seti"). Eskiden
+ * yalnız Türkçe adres `<loc>`tu, EN/RU yalnız alternatifti. Ürün/talep/firma
+ * yalnız HAZIR dillerinde listelenir (API `locales` — sayfanın `noindex`iyle
+ * aynı kural): çevirisi gelmemiş dil ne girdi ne alternatif olur.
  */
 
-/** API sayfa boyutu ile AYNI (`SITEMAP_PAGE_SIZE`) — parça sayısı bundan türer. */
-export const PART_PAGE_SIZE = 20_000;
+/**
+ * API sayfa boyutu ile AYNI (`SITEMAP_PAGE_SIZE`) — parça sayısı bundan türer.
+ * Kayıt başına dil sayısı kadar URL: 5.000 × 3 = 15.000 (sınır 50.000).
+ */
+export const PART_PAGE_SIZE = 5_000;
 
 const PART_RE = /^(pages|categories|cities|products|companies|listings)(?:-(\d+))?$/;
 
@@ -104,28 +114,39 @@ const STATIC_PAGES: SitemapUrl[] = [
   ].map((loc) => ({ loc, changefreq: "yearly" as const, priority: 0.3 })),
 ];
 
-/** Göreli (Türkçe, ön eksiz) yol → mutlak adres + üç dil hreflang (i18n Faz 1). */
-function located(path: string): Pick<SitemapUrl, "loc" | "alternates"> {
-  return {
-    loc: absoluteUrl(path),
-    alternates: Object.fromEntries(Object.entries(localizedAlternates(path)).map(([k, v]) => [k, absoluteUrl(v)])),
-  };
+/**
+ * Göreli (Türkçe, ön eksiz) iç yol → HER dil için bir girdi; her girdide aynı
+ * hreflang seti (+ `x-default` Türkçe). `locales` verilmezse tüm diller.
+ * Türkçe yoksa (kaynak dili başka ve Türkçe çevirisi gelmemiş) `x-default`
+ * yazılmaz — var olmayan sayfayı varsayılan göstermeyelim.
+ */
+export function located(
+  path: string,
+  extra: Omit<SitemapUrl, "loc" | "alternates">,
+  locales: readonly Locale[] = LOCALES,
+): SitemapUrl[] {
+  const langs = LOCALES.filter((l) => locales.includes(l));
+  if (langs.length === 0) return [];
+  const alternates: Record<string, string> = {};
+  for (const l of langs) alternates[l] = absoluteUrl(localizePath(path, l));
+  if (langs.includes(DEFAULT_LOCALE)) alternates["x-default"] = alternates[DEFAULT_LOCALE]!;
+  return langs.map((l) => ({ ...extra, loc: alternates[l]!, alternates }));
+}
+
+/** API eski sürümdeyse (`locales` yok) tüm diller — dağıtım sırasından bağımsız. */
+function localesOf(row: { locales?: string[] }): Locale[] {
+  return Array.isArray(row.locales) ? LOCALES.filter((l) => row.locales!.includes(l)) : [...LOCALES];
 }
 
 export async function buildPart(part: PartName): Promise<SitemapUrl[]> {
   switch (part.kind) {
     case "pages":
-      return STATIC_PAGES.map((p) => ({ ...p, ...located(p.loc) }));
+      return STATIC_PAGES.flatMap(({ loc, ...rest }) => located(loc, rest));
     case "categories": {
       const s = await fetchSitemapSummary();
       return s.categories
         .filter((c) => c.count > 0)
-        .map((c) => ({
-          ...located(categoryHref(c)),
-          lastmod: c.lastmod,
-          changefreq: "daily",
-          priority: 0.8,
-        }));
+        .flatMap((c) => located(categoryHref(c), { lastmod: c.lastmod, changefreq: "daily", priority: 0.8 }));
     }
     case "cities": {
       const s = await fetchSitemapSummary();
@@ -133,7 +154,7 @@ export async function buildPart(part: PartName): Promise<SitemapUrl[]> {
       return [
         ...s.productCities
           .filter((c) => c.count > 0 && known.has(c.city))
-          .map((c) => ({ ...located(cityProductPath(c.city)), lastmod: c.lastmod, changefreq: "daily" as const, priority: 0.7 })),
+          .flatMap((c) => located(cityProductPath(c.city), { lastmod: c.lastmod, changefreq: "daily", priority: 0.7 })),
         // Firma şehir sayfaları YOK (2026-09-22): dizin liste değil, üyeliğe
         // yönlendiren vitrin; `/firmalar/sehir/<il>` → `/firmalar` 308.
       ];
@@ -142,31 +163,30 @@ export async function buildPart(part: PartName): Promise<SitemapUrl[]> {
       const rows = await fetchProductSitemap(part.page);
       // Ürün: firmanın altında yaşayan KALICI içerik — vitrinin asıl
       // indekslenecek gövdesi. Görseller image sitemap uzantısıyla.
-      return rows.map((p) => ({
-        ...located(`/firma/${p.companySlug}/urun/${p.slug}`),
-        lastmod: p.updatedAt,
-        changefreq: "weekly",
-        priority: 0.7,
-        images: (p.images ?? []).filter((i) => /^https?:\/\//.test(i)).map((i) => ({ loc: i, title: p.name })),
-      }));
+      return rows.flatMap((p) =>
+        located(
+          `/firma/${p.companySlug}/urun/${p.slug}`,
+          {
+            lastmod: p.updatedAt,
+            changefreq: "weekly",
+            priority: 0.7,
+            images: (p.images ?? []).filter((i) => /^https?:\/\//.test(i)).map((i) => ({ loc: i, title: p.name })),
+          },
+          localesOf(p),
+        ),
+      );
     }
     case "companies": {
       const rows = await fetchCompanySitemap(part.page);
-      return rows.map((c) => ({
-        ...located(`/firma/${c.slug}`),
-        lastmod: c.updatedAt,
-        changefreq: "weekly",
-        priority: 0.8,
-      }));
+      return rows.flatMap((c) =>
+        located(`/firma/${c.slug}`, { lastmod: c.updatedAt, changefreq: "weekly", priority: 0.8 }, localesOf(c)),
+      );
     }
     case "listings": {
       const rows = await fetchListingSitemap(part.page);
-      return rows.map((l) => ({
-        ...located(listingHref(l)),
-        lastmod: l.updatedAt,
-        changefreq: "daily",
-        priority: 0.7,
-      }));
+      return rows.flatMap((l) =>
+        located(listingHref(l), { lastmod: l.updatedAt, changefreq: "daily", priority: 0.7 }, localesOf(l)),
+      );
     }
   }
 }

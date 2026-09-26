@@ -1,5 +1,5 @@
 import { createHash } from "node:crypto";
-import { LOCALES, type Locale } from "@rothern/i18n";
+import { DEFAULT_LOCALE, LOCALES, type Locale } from "@rothern/i18n";
 
 /**
  * İÇERİK ÇEVİRİSİ — SAF MANTIK (test edilebilir, DI'sız).
@@ -111,21 +111,40 @@ function canonical(value: unknown): string {
   return JSON.stringify(value ?? null);
 }
 
-/** Kaynak alanların kararlı özeti — değişince çeviri bayatlar. */
 /**
- * İstem/kalite katmanı SÜRÜMÜ — kaynak özetine girer. İstem ya da son işlem
- * kuralı ANLAMLI biçimde değişince artırılır: mevcut tüm kayıtlar kapsam
- * denetimiyle yeni kalitede yeniden çevrilir (tek tek elle tetiklemek yok).
+ * İstem/kalite katmanı SÜRÜMÜ — kaynak özetinin ÖNEKİ. İstem ya da son işlem
+ * kuralı ANLAMLI biçimde değişince artırılır: kapsam denetimi öneki eski olan
+ * her kaydı seçer ve yeni kalitede yeniden çevirir (tek tek elle tetiklemek
+ * yok; yeniden çeviri bitene dek eski çeviri gösterilir, sayfa noindex'e düşmez).
  * v2 (2026-09-25): sayı biçimi, Rusça birimler, false-friend/sözlük, içerik
  * yasaklı terimleri, çevrilmemiş Türkçe kapısı.
+ * v3 (2026-09-26): parça kodu koruması (Latin kod, Kiril benzer harf reddi).
+ * Neden ÖNEK: sürüm yalnız özetin İÇİNDE olsaydı SQL eski sürümlü satırı
+ * göremezdi — kapsam denetimi kaydı ancak varlığın kendisi değişince seçiyordu
+ * ve v2'ye geçişte staging'deki 459 kaydın hiçbiri yeniden çevrilmemişti.
  */
-export const TRANSLATION_PROMPT_VERSION = 2;
+export const TRANSLATION_PROMPT_VERSION = 3;
+/** Güncel sürümün özet öneki (`v3:`); SQL `LIKE 'v3:%'` ile okur. */
+export const SOURCE_HASH_PREFIX = `v${TRANSLATION_PROMPT_VERSION}:`;
 
+/** Kaynak alanların kararlı özeti (sürüm önekli) — değişince çeviri bayatlar. */
 export function sourceHash(type: TranslatableEntityType, source: SourceFields): string {
-  return createHash("sha256")
-    .update(`${type}:v${TRANSLATION_PROMPT_VERSION}:${canonical(source)}`)
-    .digest("hex")
-    .slice(0, 32);
+  const digest = createHash("sha256").update(`${type}:${canonical(source)}`).digest("hex").slice(0, 32);
+  return `${SOURCE_HASH_PREFIX}${digest}`;
+}
+
+/**
+ * HAZIR DİLLER — kayıt hangi dillerde KENDİ DİLİNDE gösterilebilir? (i18n SEO)
+ * Kaynak dil her zaman hazır; diğer dil yalnız çeviri metni (`fields`) varsa
+ * (bayat da olsa — yeniden çeviri sürerken eski çeviri gösterilir). Satır yoksa
+ * ya da kaynak dil henüz bilinmiyorsa (ilk çeviri beklemede, kalıcı FAILED)
+ * kaynak Türkçe VARSAYILIR — aksi hâlde Türkçe sayfa da "bekliyor" sayılıp
+ * `noindex` alıyordu (2026-09-26 bulgusu). Sayfanın `noindex`i
+ * (`translationPending`) ve sitemap'in dil girdileri AYNI fonksiyondan okur.
+ */
+export function readyLocales(rows: { locale: string; fields: unknown; sourceLocale: string | null }[]): Locale[] {
+  const src = rows.find((r) => r.sourceLocale)?.sourceLocale ?? DEFAULT_LOCALE;
+  return LOCALES.filter((l) => l === src || rows.some((r) => r.locale === l && r.fields != null));
 }
 
 /** Çevrilecek anlamlı metin var mı? (Boş ürün/profil için model çağrılmaz.) */

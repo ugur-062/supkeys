@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
-import { DEFAULT_LOCALE, LOCALES, type Locale } from "@rothern/i18n";
+import { LOCALES, type Locale } from "@rothern/i18n";
 import { foldSearchText } from "@rothern/shared";
 import { labelAttributes, resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
@@ -17,6 +17,8 @@ import {
   localizeListing,
   localizeProduct,
   parseModelOutput,
+  readyLocales,
+  SOURCE_HASH_PREFIX,
   sourceHash,
   type CompanyTranslation,
   type ListingTranslation,
@@ -189,7 +191,12 @@ export class ContentTranslationService {
   async enqueue(type: TranslatableEntityType, id: string): Promise<boolean> {
     try {
       const source = await this.loadSource(type, id);
-      if (!source || !hasTranslatableText(source)) return false;
+      if (!source || !hasTranslatableText(source)) {
+        // Metni boşalmış kayıt: eski satırlar kalırsa kapsam denetimi onu her
+        // turda yeniden seçer ve kuyruğun başını tıkardı.
+        if (source) await this.prisma.contentTranslation.deleteMany({ where: { entityType: type, entityId: id } });
+        return false;
+      }
       const hash = sourceHash(type, source);
       // Kaynak değişti: arama metni YENİ kaynakla hemen tazelenir (eski
       // çeviriler yeni çeviri gelene dek içinde kalır — bayat çeviri boştan iyi).
@@ -603,13 +610,11 @@ export class ContentTranslationService {
     });
   }
 
-  /** Okuma yolu FAIL-OPEN: çeviri tablosu okunamazsa özgün metin döner. */
   /**
    * Bu dilde çeviri BEKLENİYOR mu? (i18n SEO, 2026-09-25) — sayfa o dilde
    * kaynak metni gösteriyorsa (çeviri henüz gelmedi) arama motoruna `noindex`
-   * verilir: EN adreste Türkçe içerik indekslenmez. Kaynak dilin kendisi ve
-   * (bayat da olsa) çevirisi olan dil beklemez. Hiç satır yoksa kaynak Türkçe
-   * varsayılır. Hata → false (DB aksaklığı sayfayı indeksten düşürmesin).
+   * verilir: EN adreste Türkçe içerik indekslenmez. Kural `readyLocales`te
+   * (sitemap ile ortak). Hata → false (DB aksaklığı sayfayı indeksten düşürmesin).
    */
   async translationPending(type: TranslatableEntityType, id: string, locale: Locale): Promise<boolean> {
     try {
@@ -617,15 +622,36 @@ export class ContentTranslationService {
         where: { entityType: type, entityId: id },
         select: { locale: true, fields: true, sourceLocale: true },
       });
-      if (rows.length === 0) return locale !== DEFAULT_LOCALE;
-      const row = rows.find((r) => r.locale === locale);
-      if (!row) return true;
-      return row.fields == null && row.sourceLocale !== locale;
+      return !readyLocales(rows).includes(locale);
     } catch {
       return false;
     }
   }
 
+  /**
+   * Toplu `readyLocales` — sitemap her kaydı yalnız HAZIR dillerinde listeler
+   * (sayfanın `noindex`iyle aynı kural). Hata → null: çağıran tüm dilleri
+   * varsayar (tablo aksaklığı sitemap'i boşaltmasın).
+   */
+  async readyLocalesFor(type: TranslatableEntityType, ids: string[]): Promise<Map<string, Locale[]> | null> {
+    try {
+      const unique = [...new Set(ids.filter(Boolean))];
+      const rows = unique.length
+        ? await this.prisma.contentTranslation.findMany({
+            where: { entityType: type, entityId: { in: unique } },
+            select: { entityId: true, locale: true, fields: true, sourceLocale: true },
+          })
+        : [];
+      const byId = new Map<string, typeof rows>();
+      for (const r of rows) byId.set(r.entityId, [...(byId.get(r.entityId) ?? []), r]);
+      return new Map(unique.map((id) => [id, readyLocales(byId.get(id) ?? [])]));
+    } catch (err) {
+      this.logger.warn(`Ready-locale lookup failed (${type}): ${err instanceof Error ? err.message : String(err)}`);
+      return null;
+    }
+  }
+
+  /** Okuma yolu FAIL-OPEN: çeviri tablosu okunamazsa özgün metin döner. */
   private async safeMap<T extends TranslationFields>(
     type: TranslatableEntityType,
     ids: (string | null | undefined)[],
@@ -657,23 +683,28 @@ export class ContentTranslationService {
    * Taslak ürün/talep çevrilmez: yalnız sahibi görür, sahibi kendi metnini
    * HAM okur; yayın/onay anında zaten kuyruğa girer.
    * Kalıcı FAILED (≤3 deneme bitti) 6 saat sonra yeniden denenir.
+   * İSTEM SÜRÜMÜ: satırın özeti güncel önekle (`SOURCE_HASH_PREFIX`) başlamıyorsa
+   * kayıt bayattır — `TRANSLATION_PROMPT_VERSION` artınca her şey yeniden çevrilir.
    */
   async ensureCoverage(limit = 50): Promise<{ products: number; listings: number; companies: number; retried: number }> {
     const retry = await this.prisma.contentTranslation.updateMany({
       where: { status: "FAILED", attempts: { gte: MAX_ATTEMPTS }, updatedAt: { lt: new Date(Date.now() - FAILED_RETRY_MS) } },
       data: { attempts: 0 },
     });
+    const current = `${SOURCE_HASH_PREFIX}%`;
     const products = await this.prisma.$queryRaw<{ id: string }[]>`
       SELECT e."id" FROM "company_items" e
        WHERE (e."isPublic" = true OR e."reviewStatus"::text = 'PENDING')
          AND NOT EXISTS (SELECT 1 FROM "content_translations" t
-                          WHERE t."entityType"::text = 'PRODUCT' AND t."entityId" = e."id" AND t."updatedAt" >= e."updatedAt")
+                          WHERE t."entityType"::text = 'PRODUCT' AND t."entityId" = e."id" AND t."updatedAt" >= e."updatedAt"
+                            AND t."sourceHash" LIKE ${current})
        ORDER BY e."updatedAt" ASC LIMIT ${limit}`;
     const listings = await this.prisma.$queryRaw<{ id: string }[]>`
       SELECT e."id" FROM "listings" e
        WHERE e."publishedAt" IS NOT NULL
          AND NOT EXISTS (SELECT 1 FROM "content_translations" t
-                          WHERE t."entityType"::text = 'LISTING' AND t."entityId" = e."id" AND t."updatedAt" >= e."updatedAt")
+                          WHERE t."entityType"::text = 'LISTING' AND t."entityId" = e."id" AND t."updatedAt" >= e."updatedAt"
+                            AND t."sourceHash" LIKE ${current})
        ORDER BY e."updatedAt" ASC LIMIT ${limit}`;
     const companies = await this.prisma.$queryRaw<{ id: string }[]>`
       SELECT e."id" FROM "companies" e
@@ -682,7 +713,8 @@ export class ContentTranslationService {
               OR length(btrim(coalesce(e."industry", ''))) >= 2
               OR EXISTS (SELECT 1 FROM unnest(e."services") s WHERE length(btrim(s)) >= 2))
          AND NOT EXISTS (SELECT 1 FROM "content_translations" t
-                          WHERE t."entityType"::text = 'COMPANY' AND t."entityId" = e."id" AND t."updatedAt" >= e."updatedAt")
+                          WHERE t."entityType"::text = 'COMPANY' AND t."entityId" = e."id" AND t."updatedAt" >= e."updatedAt"
+                            AND t."sourceHash" LIKE ${current})
        ORDER BY e."updatedAt" ASC LIMIT ${limit}`;
     const out = { products: 0, listings: 0, companies: 0, retried: retry.count };
     for (const r of products) if (await this.enqueueQuiet("PRODUCT", r.id)) out.products += 1;

@@ -18,6 +18,9 @@ import {
   numbersOf,
   numbersPreserved,
   parseModelOutput,
+  readyLocales,
+  SOURCE_HASH_PREFIX,
+  TRANSLATION_PROMPT_VERSION,
   sourceHash,
   type ProductSource,
 } from "../../src/modules/content-translation/content-translation.logic";
@@ -316,6 +319,11 @@ describe("sourceHash / hasTranslatableText", () => {
       sourceHash("COMPANY", { aboutText: "a", services: [], industry: null }),
     );
   });
+  it("özet istem sürümüyle ÖNEKLİ — kapsam denetimi eski sürümü SQL'de görür", () => {
+    expect(SOURCE_HASH_PREFIX).toBe(`v${TRANSLATION_PROMPT_VERSION}:`);
+    expect(sourceHash("PRODUCT", product).startsWith(SOURCE_HASH_PREFIX)).toBe(true);
+    expect(sourceHash("PRODUCT", product)).toMatch(/^v\d+:[0-9a-f]{32}$/);
+  });
   it("boş profil çevrilmez", () => {
     expect(hasTranslatableText({ aboutText: null, services: [], industry: null })).toBe(false);
     expect(hasTranslatableText({ aboutText: "Metal", services: [], industry: null })).toBe(true);
@@ -515,5 +523,22 @@ describe("ContentTranslationService", () => {
     const out = await svc.localizeProducts([{ name: product.name }, { name: "Başka" }], ["p1", "p2"], "en");
     expect(out[0]).toMatchObject({ name: "Copper sheet 2 mm · 1000×2000", translatedFrom: "tr" });
     expect(out[1]).toEqual({ name: "Başka" });
+  });
+});
+
+describe("readyLocales — sayfa noindex'i ve sitemap dilleri ortak kural", () => {
+  const row = (locale: string, fields: unknown, sourceLocale: string | null) => ({ locale, fields, sourceLocale });
+  it("satır yok → yalnız Türkçe (kaynak Türkçe varsayılır)", () => {
+    expect(readyLocales([])).toEqual(["tr"]);
+  });
+  it("ilk çeviri BEKLERKEN (kaynak dili henüz boş) Türkçe hazır sayılır — noindex almaz", () => {
+    expect(readyLocales([row("tr", null, null), row("en", null, null), row("ru", null, null)])).toEqual(["tr"]);
+  });
+  it("çeviri bitti: kaynak + metni olan diller", () => {
+    expect(readyLocales([row("tr", null, "tr"), row("en", { t: 1 }, "tr"), row("ru", { t: 1 }, "tr")])).toEqual(["tr", "en", "ru"]);
+    expect(readyLocales([row("tr", null, "tr"), row("en", { t: 1 }, "tr"), row("ru", null, "tr")])).toEqual(["tr", "en"]);
+  });
+  it("kaynak İngilizce: Türkçe çeviri gelene dek Türkçe hazır değil", () => {
+    expect(readyLocales([row("tr", null, "en"), row("en", null, "en"), row("ru", null, "en")])).toEqual(["en"]);
   });
 });

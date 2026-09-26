@@ -17,6 +17,8 @@ import {
 } from "../../src/common/http/marketplace-live.guard";
 import { Prisma } from "@rothern/db";
 import { PublicMarketplaceService } from "../../src/modules/public-marketplace/public-marketplace.service";
+import { PublicSitemapService } from "../../src/modules/public-marketplace/public-sitemap.service";
+import { ContentTranslationService } from "../../src/modules/content-translation/content-translation.service";
 import type { PrismaBypassService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeBid, makeCompanyWithUser, makeItem, makeListing } from "./factories";
@@ -325,6 +327,23 @@ describe("pazar yeri — indeks kapısı vitrinden DAR", () => {
     expect(map).toHaveLength(1);
     expect(map[0].number).toBe(listing.number);
     expect(map[0].title).toBe("Çelik Boru Alımı");
+  });
+
+  it("sitemap her talebi yalnız HAZIR dillerinde verir (çevirisiz dil → yalnız Türkçe)", async () => {
+    const { listing } = await seedPublicListing();
+    const bypass = prisma as unknown as PrismaBypassService;
+    const translations = new ContentTranslationService(bypass);
+    const sitemap = new PublicSitemapService(bypass, translations);
+    expect((await sitemap.listings(0)).map((r) => r.locales)).toEqual([["tr"]]);
+    await translations.enqueue("LISTING", listing.id);
+    await prisma.contentTranslation.updateMany({ where: { entityId: listing.id }, data: { status: "DONE", sourceLocale: "tr" } });
+    await prisma.contentTranslation.update({
+      where: { entityType_entityId_locale: { entityType: "LISTING", entityId: listing.id, locale: "en" } },
+      data: { fields: { title: "Steel pipe purchase", description: null, keywords: [], items: [] } },
+    });
+    expect((await sitemap.listings(0))[0]!.locales).toEqual(["tr", "en"]);
+    // Çeviri servisi yoksa (test düzeneği / modül yok) tüm diller.
+    expect((await new PublicSitemapService(bypass).listings(0))[0]!.locales).toEqual(["tr", "en", "ru"]);
   });
 
   it("STANDART paketli firmanın ilanı da vitrinde ve indekste", async () => {

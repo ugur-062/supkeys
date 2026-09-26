@@ -538,10 +538,26 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   dilde bildirir (`localizedIndexNowUrls`); web tazeleme ucu `/<dil><iç yol>`
   biçimlerini de tazeler. (4) **Çevirisi henüz gelmemiş dil sayfası `noindex`**
   (`translationPending`: ürün `product.translationPending`, talep/firma
-  `indexable:false`) — EN adreste Türkçe içerik asla indekslenmez. Arama metni
-  HAM SQL ile yazılır: Prisma `updateMany` `@updatedAt`i ilerletip sitemap
-  lastmod'unu ve kapsam denetimini bozardı. Sözleşme:
-  `content-translation-coverage.spec`, `seo-index-locales.spec`.
+  `indexable:false`) — EN adreste Türkçe içerik asla indekslenmez. Kural TEK
+  saf fonksiyonda: `readyLocales` (kaynak dil + metni olan diller; satır yoksa
+  YA DA kaynak dili henüz bilinmiyorsa Türkçe varsayılır — 2026-09-26'ya dek ilk
+  çeviri beklerken/kalıcı FAILED'de TÜRKÇE sayfa da `noindex` alıyordu). Arama
+  metni HAM SQL ile yazılır: Prisma `updateMany` `@updatedAt`i ilerletip sitemap
+  lastmod'unu ve kapsam denetimini bozardı. (5) **Sitemap her dil sürümünü AYRI
+  `<url>` verir** (2026-09-26; önceden yalnız TR `<loc>`tu, EN/RU yalnız
+  alternatif — EN `<loc>` sayısı 0 ölçüldü): `sitemap-parts.ts` `located(path,
+  extra, locales)`, her girdide tam hreflang seti + `x-default`; ürün/talep/firma
+  YALNIZ hazır dillerinde (API sitemap satırı `locales` — `readyLocalesFor`,
+  sayfanın `noindex`iyle aynı kural; eski API'de alan yoksa tüm diller). Parça
+  5.000 kayıt (API `SITEMAP_PAGE_SIZE` = web `PART_PAGE_SIZE`; × dil sayısı
+  50.000 sınırının altında). (6) **SEO denetimi üç dilde**
+  (`seo:audit`, `VERCEL_BYPASS=` ile staging): her parçadan her dil örneklenir;
+  html lang, og:locale, hreflang kendini içerir + x-default, JSON-LD
+  `inLanguage`, EN/RU başlık/açıklama/h1'de küçük harfli Türkçe-harfli sözcük
+  (sözleşme h1'i `lang="tr"` muaf) ve her hreflang adresi 200. Sözleşme:
+  `content-translation-coverage.spec`, `seo-index-locales.spec`,
+  `public-marketplace.spec` "HAZIR dillerinde", web `sitemap.test` "sitemap
+  dilleri", `seo-audit-checks.test` "diller".
 - **ÇEVİRİ KALİTESİ v2 (2026-09-25, kullanıcı: "kusursuz olmalı, sonradan
   eklenenler de kaliteli çevrilmeli"):** 75 kayıtlık dil incelemesi (EN 7/10, RU
   6,5/10) sonrası: (1) istem yeniden yazıldı — sayı biçimi, hedef dil birim
@@ -554,8 +570,16 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   deneme**: içerik yasaklı terimleri (en tender; ru тендер/конкурс — UI
   kataloğundan ayrı, orada "открытые торги" meşru), küçük harfli Türkçe-harfli
   sözcük (çevrilmemiş), İngilizcede Kiril. "15 bin" → "15,000" kabul edilir.
-  (4) `TRANSLATION_PROMPT_VERSION` kaynak özetine girer — istem/kural anlamlı
-  değişince ARTIR: kapsam denetimi tüm kayıtları yeni kalitede yeniden çevirir.
+  (4) `TRANSLATION_PROMPT_VERSION` kaynak özetinin ÖNEKİDİR (`v3:<özet>`,
+  `SOURCE_HASH_PREFIX`) — istem/kural anlamlı değişince ARTIR: kapsam denetimi
+  `sourceHash NOT LIKE 'v<N>:%'` satırları da seçer ve her kaydı yeni kalitede
+  yeniden çevirir; bitene dek eski çeviri gösterilir (sayfa noindex'e düşmez).
+  **TUZAK (2026-09-26 bulundu):** sürüm önceden yalnız özetin İÇİNDEYDİ ve
+  kapsam denetimi kaydı yalnız varlığın `updatedAt`i ilerleyince seçiyordu →
+  v2'ye geçişte staging'deki 459 kaydın HİÇBİRİ yeniden çevrilmedi (taramada
+  49 kayıtta TR sayı biçimi, Latin birim, Kiril "А4", çevrilmemiş şartname).
+  v3 = parça kodu koruması. Metni boşalan kaydın eski satırları `enqueue`de
+  silinir (kuyruğun başını tıkamasın).
   (5) Kapsama yeni alanlar: ürün `specification`; talep `terms`, `paymentNote`,
   kalem açıklaması/şartnamesi (`details`), kalem soruları — YALNIZ doluyken
   kaynağa girer (boş anahtar eski kayıtların özetini değiştirmesin). (6) Okuma

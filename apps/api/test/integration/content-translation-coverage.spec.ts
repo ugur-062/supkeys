@@ -10,8 +10,11 @@
  *     vurulur, bir sonraki turda yeniden seçilmez;
  *   · arama metni yazımı `updatedAt`e DOKUNMAZ (sitemap lastmod sahte değişmesin);
  *   · kalıcı FAILED 6 saat sonra yeniden denenir;
+ *   · İSTEM SÜRÜMÜ artınca (özet öneki eski) DONE kayıt da yeniden kuyruğa girer,
+ *     eski çeviri yeni gelene dek gösterilir ve sayfa "bekliyor" sayılmaz;
  *   · `translationPending`: kaynak dil beklemez, çevirisi olmayan dil bekler.
  */
+import { SOURCE_HASH_PREFIX } from "../../src/modules/content-translation/content-translation.logic";
 import { ContentTranslationService } from "../../src/modules/content-translation/content-translation.service";
 import type { PrismaBypassService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
@@ -113,6 +116,30 @@ describe("içerik çevirisi — kapsam denetimi", () => {
     expect(rows.every((row) => row.updatedAt >= l.updatedAt && row.status === "DONE")).toBe(true);
   });
 
+  it("istem sürümü eskiyse DONE çeviri yeniden kuyruğa girer; eski çeviri korunur, sayfa beklemede sayılmaz", async () => {
+    const { listing } = await seedListing();
+    const svc = service();
+    await svc.ensureCoverage();
+    // Eski sürümün ürettiği bitmiş çeviri (önek yok — v2 öncesi biçim).
+    const oldFields = { title: "Stainless pipe purchase", description: null, keywords: [], items: [] };
+    await prisma.contentTranslation.updateMany({
+      where: { entityId: listing.id },
+      data: { status: "DONE", sourceHash: "0123456789abcdef0123456789abcdef", sourceLocale: "tr" },
+    });
+    await prisma.contentTranslation.update({
+      where: { entityType_entityId_locale: { entityType: "LISTING", entityId: listing.id, locale: "en" } },
+      data: { fields: oldFields },
+    });
+    const r = await svc.ensureCoverage();
+    expect(r.listings).toBe(1);
+    const rows = await rowsFor(listing.id);
+    expect(rows.every((x) => x.status === "PENDING" && x.sourceHash.startsWith(SOURCE_HASH_PREFIX))).toBe(true);
+    expect(rows.find((x) => x.locale === "en")?.fields).toEqual(oldFields);
+    expect(await svc.translationPending("LISTING", listing.id, "en")).toBe(false);
+    // Aynı sürümde ikinci tur seçmez (sonsuz kuyruk yok).
+    expect((await svc.ensureCoverage()).listings).toBe(0);
+  });
+
   it("arama metni yazımı updatedAt'e dokunmaz", async () => {
     const { listing } = await seedListing();
     const before = await prisma.listing.findUniqueOrThrow({ where: { id: listing.id } });
@@ -142,8 +169,11 @@ describe("içerik çevirisi — kapsam denetimi", () => {
     // Hiç satır yok: kaynak Türkçe varsayılır.
     expect(await svc.translationPending("LISTING", listing.id, "tr")).toBe(false);
     expect(await svc.translationPending("LISTING", listing.id, "en")).toBe(true);
-    await svc.ensureCoverage(); // PENDING, fields yok
+    await svc.ensureCoverage(); // PENDING, fields yok, kaynak dili henüz bilinmiyor
     expect(await svc.translationPending("LISTING", listing.id, "en")).toBe(true);
+    // Türkçe sayfa ilk çeviriyi (ya da kalıcı FAILED'i) beklerken noindex ALMAZ.
+    expect(await svc.translationPending("LISTING", listing.id, "tr")).toBe(false);
+    expect((await svc.readyLocalesFor("LISTING", [listing.id]))?.get(listing.id)).toEqual(["tr"]);
     await prisma.contentTranslation.updateMany({
       where: { entityId: listing.id, locale: "tr" },
       data: { status: "DONE", sourceLocale: "tr" },
@@ -155,5 +185,11 @@ describe("içerik çevirisi — kapsam denetimi", () => {
     expect(await svc.translationPending("LISTING", listing.id, "tr")).toBe(false);
     expect(await svc.translationPending("LISTING", listing.id, "en")).toBe(false);
     expect(await svc.translationPending("LISTING", listing.id, "ru")).toBe(true);
+    expect((await svc.readyLocalesFor("LISTING", [listing.id, "yok"]))).toEqual(
+      new Map([
+        [listing.id, ["tr", "en"]],
+        ["yok", ["tr"]],
+      ]),
+    );
   });
 });

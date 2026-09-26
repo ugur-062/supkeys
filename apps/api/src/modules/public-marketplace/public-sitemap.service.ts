@@ -1,9 +1,12 @@
-import { Injectable } from "@nestjs/common";
+import { Injectable, Optional } from "@nestjs/common";
+import { LOCALES, type Locale } from "@rothern/i18n";
 import { isHiddenCategory } from "@rothern/shared";
 import { knownCityName, segmentCodeOf } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { marketplaceIndexableWhere } from "../../common/company/listing-visibility";
 import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "../../common/company/public-profile-gate";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
+import type { TranslatableEntityType } from "../content-translation/content-translation.logic";
 
 /**
  * SİTEMAP KAYNAĞI — sayfalı + görselli + gerçek `lastmod` (SEO Parça 5).
@@ -22,8 +25,13 @@ import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "../../common/company/p
  * "çelik boru" görsel aramasında vitrin fotoğrafı çıkar, sayfaya trafik gelir.
  */
 
-/** Dosya başına 50.000 sınırının altında; ad+3 görselle boyut da makul kalır. */
-export const SITEMAP_PAGE_SIZE = 20_000;
+/**
+ * Kayıt/parça. Her kayıt HER HAZIR DİLİNDE ayrı `<url>` girdisi üretir
+ * (i18n SEO 2026-09-26) — 5.000 × 3 dil = 15.000 URL; 5 dile çıkınca 25.000.
+ * Protokol sınırı 50.000 URL ve 50 MB; girdi başına 4-6 hreflang + 3 görsel
+ * ~1,5 KB → parça ~22 MB. Web `PART_PAGE_SIZE` ile AYNI olmalı.
+ */
+export const SITEMAP_PAGE_SIZE = 5_000;
 /** Bellekte taranan ürün tavanı (facet tarayıcısıyla aynı disiplin). */
 const SCAN_CAP = 200_000;
 
@@ -33,6 +41,8 @@ export interface SitemapProductRow {
   name: string;
   updatedAt: string;
   images: string[];
+  /** Sayfanın kendi dilinde gösterilebildiği diller (çevirisi hazır olanlar). */
+  locales: Locale[];
 }
 
 export interface SitemapBucket {
@@ -55,7 +65,20 @@ export interface SitemapSummary {
 
 @Injectable()
 export class PublicSitemapService {
-  constructor(private readonly prisma: PrismaBypassService) {}
+  constructor(
+    private readonly prisma: PrismaBypassService,
+    // SONDA ve @Optional (rig stub kuralı): yoksa her kayıt tüm dillerde listelenir.
+    @Optional() private readonly translations?: ContentTranslationService,
+  ) {}
+
+  /**
+   * Kayıt başına HAZIR diller — sayfanın `noindex`iyle aynı kural
+   * (`readyLocales`): çevirisi gelmemiş dil sitemap'e ve hreflang'e girmez.
+   */
+  private async localesOf(type: TranslatableEntityType, ids: string[]): Promise<(id: string) => Locale[]> {
+    const map = this.translations ? await this.translations.readyLocalesFor(type, ids) : null;
+    return (id) => (map ? (map.get(id) ?? [...LOCALES]) : [...LOCALES]);
+  }
 
   async summary(): Promise<SitemapSummary> {
     const now = new Date();
@@ -116,6 +139,7 @@ export class PublicSitemapService {
     const rows = await this.prisma.companyItem.findMany({
       where: publicProductWhere(),
       select: {
+        id: true,
         slug: true,
         name: true,
         images: true,
@@ -128,6 +152,7 @@ export class PublicSitemapService {
       skip: page * SITEMAP_PAGE_SIZE,
       take: SITEMAP_PAGE_SIZE,
     });
+    const locales = await this.localesOf("PRODUCT", rows.map((r) => r.id));
     return rows
       .filter((r) => r.slug && r.company.slug)
       .map((r) => ({
@@ -136,34 +161,38 @@ export class PublicSitemapService {
         name: r.name,
         updatedAt: r.updatedAt.toISOString(),
         images: r.images.slice(0, 3),
+        locales: locales(r.id),
       }));
   }
 
-  async companies(page: number): Promise<{ slug: string; updatedAt: string }[]> {
+  async companies(page: number): Promise<{ slug: string; updatedAt: string; locales: Locale[] }[]> {
     const rows = await this.prisma.company.findMany({
       where: PUBLIC_PROFILE_WHERE,
-      select: { slug: true, updatedAt: true },
+      select: { id: true, slug: true, updatedAt: true },
       orderBy: { id: "asc" },
       skip: page * SITEMAP_PAGE_SIZE,
       take: SITEMAP_PAGE_SIZE,
     });
+    const locales = await this.localesOf("COMPANY", rows.map((r) => r.id));
     return rows
-      .filter((r): r is { slug: string; updatedAt: Date } => !!r.slug)
-      .map((r) => ({ slug: r.slug, updatedAt: r.updatedAt.toISOString() }));
+      .filter((r): r is { id: string; slug: string; updatedAt: Date } => !!r.slug)
+      .map((r) => ({ slug: r.slug, updatedAt: r.updatedAt.toISOString(), locales: locales(r.id) }));
   }
 
-  async listings(page: number): Promise<{ number: string; title: string; updatedAt: string }[]> {
+  async listings(page: number): Promise<{ number: string; title: string; updatedAt: string; locales: Locale[] }[]> {
     const rows = await this.prisma.listing.findMany({
       where: { ...marketplaceIndexableWhere(new Date()), number: { not: null } },
-      select: { number: true, title: true, updatedAt: true },
+      select: { id: true, number: true, title: true, updatedAt: true },
       orderBy: { id: "asc" },
       skip: page * SITEMAP_PAGE_SIZE,
       take: SITEMAP_PAGE_SIZE,
     });
+    const locales = await this.localesOf("LISTING", rows.map((r) => r.id));
     return rows.map((r) => ({
       number: r.number as string,
       title: r.title,
       updatedAt: r.updatedAt.toISOString(),
+      locales: locales(r.id),
     }));
   }
 

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { sitemapIndexXml, urlsetXml, xmlEscape } from "../sitemap-xml";
-import { indexItems, parsePartName, partPath } from "../sitemap-parts";
+import { indexItems, located, parsePartName, partPath } from "../sitemap-parts";
 
 describe("sitemap XML", () => {
   it("URL, lastmod (saniye hassasiyeti), görsel uzantısı ve kaçış", () => {
@@ -66,11 +66,53 @@ describe("sitemap parçaları", () => {
       companyCities: [],
     });
     const locs = items.map((i) => i.loc);
-    // 45.000 / 20.000 → 3 ürün parçası; boş firma seti yine 1 parça (boş dosya, 404 değil)
-    expect(locs.filter((l) => l.includes("/sitemaps/products"))).toHaveLength(3);
+    // 45.000 / 5.000 → 9 ürün parçası; boş firma seti yine 1 parça (boş dosya, 404 değil)
+    expect(locs.filter((l) => l.includes("/sitemaps/products"))).toHaveLength(9);
     expect(locs.filter((l) => l.includes("/sitemaps/companies"))).toHaveLength(1);
     expect(locs).toContain("http://localhost:3000/sitemaps/products-2.xml");
     expect(items.find((i) => i.loc.endsWith("/sitemaps/categories.xml"))?.lastmod).toBe("2026-09-07T00:00:00.000Z");
     expect(items.find((i) => i.loc.endsWith("/sitemaps/pages.xml"))?.lastmod).toBeNull();
+  });
+});
+
+describe("sitemap dilleri (i18n SEO 2026-09-26)", () => {
+  const S = "http://localhost:3000";
+
+  it("her dil KENDİ <url> girdisi; her girdide aynı tam hreflang seti + x-default Türkçe", () => {
+    const urls = located("/firma/acme/urun/boru", { changefreq: "weekly" });
+    expect(urls.map((u) => u.loc)).toEqual([
+      `${S}/firma/acme/urun/boru`,
+      `${S}/en/companies/acme/products/boru`,
+      `${S}/ru/kompanii/acme/tovary/boru`,
+    ]);
+    for (const u of urls) {
+      expect(u.alternates).toEqual({
+        tr: `${S}/firma/acme/urun/boru`,
+        en: `${S}/en/companies/acme/products/boru`,
+        ru: `${S}/ru/kompanii/acme/tovary/boru`,
+        "x-default": `${S}/firma/acme/urun/boru`,
+      });
+      expect(u.changefreq).toBe("weekly");
+    }
+  });
+
+  it("çevirisi gelmemiş dil ne girdi ne alternatif olur", () => {
+    const urls = located("/firma/acme/urun/boru", {}, ["tr"]);
+    expect(urls).toHaveLength(1);
+    expect(urls[0]!.alternates).toEqual({ tr: `${S}/firma/acme/urun/boru`, "x-default": `${S}/firma/acme/urun/boru` });
+  });
+
+  it("Türkçe yoksa x-default yazılmaz; hiç dil yoksa girdi yok", () => {
+    const urls = located("/firma/acme", {}, ["en", "ru"]);
+    expect(urls.map((u) => u.loc)).toEqual([`${S}/en/companies/acme`, `${S}/ru/kompanii/acme`]);
+    expect(urls[0]!.alternates).not.toHaveProperty("x-default");
+    expect(located("/firma/acme", {}, [])).toEqual([]);
+  });
+
+  it("XML: her girdide kendini de içeren hreflang bağlantıları", () => {
+    const xml = urlsetXml(located("/urunler", { priority: 0.9 }));
+    expect(xml.match(/<url>/g)).toHaveLength(3);
+    expect(xml.match(/<xhtml:link /g)).toHaveLength(12);
+    expect(xml).toContain(`<loc>${S}/ru/tovary</loc>`);
   });
 });

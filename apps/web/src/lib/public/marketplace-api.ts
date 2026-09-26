@@ -120,6 +120,8 @@ export interface PublicSitemapRow {
   title: string;
   type: PublicListingType;
   updatedAt: string;
+  /** Sayfanın kendi dilinde gösterilebildiği diller (sitemap; eski API'de yok). */
+  locales?: string[];
 }
 
 /** Liste/facet için kısa; ilan detayında biraz daha uzun (aşağıda geçilir). */
@@ -903,6 +905,8 @@ export interface ProductSitemapRow {
   updatedAt: string;
   /** İlk 3 görsel — image sitemap uzantısı. */
   images: string[];
+  /** Çevirisi hazır diller (eski API'de yok → tüm diller). */
+  locales?: string[];
 }
 
 export interface SitemapBucket {
@@ -931,7 +935,7 @@ export function fetchSitemapSummary(): Promise<SitemapSummary> {
   );
 }
 
-export function fetchCompanySitemap(page = 0): Promise<{ slug: string; updatedAt: string }[]> {
+export function fetchCompanySitemap(page = 0): Promise<{ slug: string; updatedAt: string; locales?: string[] }[]> {
   return getJson(`/public/sitemap/companies?page=${page}`, [], 900, [SEO_TAGS.sitemap]);
 }
 
