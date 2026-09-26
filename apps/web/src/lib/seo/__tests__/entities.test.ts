@@ -1,5 +1,6 @@
 import {
   companySeo as companySeo0,
+  companyTitle,
   listingSeo as listingSeo0,
   listingSeoInput,
   productSeo as productSeo0,
@@ -207,5 +208,16 @@ describe("yardımcılar", () => {
 
   it("compact boş alanları düğümden düşürür", () => {
     expect(compact({ a: "x", b: undefined, c: "", d: [] })).toEqual({ a: "x" });
+  });
+});
+
+describe("companyTitle — 75 karakter tavanı (SEO denetimi 2026-09-26)", () => {
+  it("sığarsa ad — sektör, şehir; sığmazsa önce şehir, sonra sektör düşer", () => {
+    expect(companyTitle("Acme Metal", "Steel pipes", "Izmir")).toBe("Acme Metal — Steel pipes, Izmir");
+    const long = companyTitle("Antalya Tarım Ürünleri Koop.", "Agriculture and greenhouse farming", "Antalya");
+    expect(long).toBe("Antalya Tarım Ürünleri Koop. — Agriculture and greenhouse farming");
+    expect(`${long} · Rothern`.length).toBeLessThanOrEqual(75);
+    expect(companyTitle("Acme", "x".repeat(90), "Bursa")).toBe("Acme — Bursa");
+    expect(companyTitle("Acme", null, null)).toBe("Acme");
   });
 });

@@ -149,12 +149,13 @@ function localeProblems(url, h, nodes, html) {
   if (!self) out.push(`hreflang'de kendi dili (${locale}) yok`);
   else if (normalize(self) !== normalize(url)) out.push(`hreflang ${locale} ≠ url (${self})`);
   if (!h.hreflang["x-default"]) out.push("hreflang x-default yok");
+  // Sözleşme sayfası (h1 `lang="tr"`): gövde bilinçli Türkçe, JSON-LD `inLanguage` tr-TR kalır.
+  const h1Tr = /<h1\b[^>]*\blang=["']tr["']/i.test(html);
   const main = nodes.find((n) => ["Product", "Demand", "FAQPage", "ItemList", "CollectionPage", "WebPage"].includes(n["@type"]));
-  if (main?.inLanguage && typeof main.inLanguage === "string" && !main.inLanguage.toLowerCase().startsWith(locale)) {
+  if (!h1Tr && main?.inLanguage && typeof main.inLanguage === "string" && !main.inLanguage.toLowerCase().startsWith(locale)) {
     out.push(`${main["@type"]}.inLanguage ${main.inLanguage}`);
   }
   if (locale !== "tr") {
-    const h1Tr = /<h1\b[^>]*\blang=["']tr["']/i.test(html);
     const fields = { title: h.title, description: h.description, ...(h1Tr ? {} : { h1: h.h1 }) };
     for (const [k, v] of Object.entries(fields)) {
       const left = turkishLeftovers(v);

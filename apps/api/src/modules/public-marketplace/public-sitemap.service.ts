@@ -4,7 +4,7 @@ import { isHiddenCategory } from "@rothern/shared";
 import { knownCityName, segmentCodeOf } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { marketplaceIndexableWhere } from "../../common/company/listing-visibility";
-import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "../../common/company/public-profile-gate";
+import { PUBLIC_PROFILE_WHERE, isProfileIndexable, publicProductWhere } from "../../common/company/public-profile-gate";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import type { TranslatableEntityType } from "../content-translation/content-translation.logic";
 
@@ -168,15 +168,31 @@ export class PublicSitemapService {
   async companies(page: number): Promise<{ slug: string; updatedAt: string; locales: Locale[] }[]> {
     const rows = await this.prisma.company.findMany({
       where: PUBLIC_PROFILE_WHERE,
-      select: { id: true, slug: true, updatedAt: true },
+      select: {
+        id: true,
+        slug: true,
+        updatedAt: true,
+        aboutText: true,
+        logoUrl: true,
+        website: true,
+        // Sayfanın sayımıyla AYNI kapı (`public-profile.service` getBySlug).
+        _count: { select: { items: { where: publicProductWhere() } } },
+      },
       orderBy: { id: "asc" },
       skip: page * SITEMAP_PAGE_SIZE,
       take: SITEMAP_PAGE_SIZE,
     });
-    const locales = await this.localesOf("COMPANY", rows.map((r) => r.id));
-    return rows
-      .filter((r): r is { id: string; slug: string; updatedAt: Date } => !!r.slug)
-      .map((r) => ({ slug: r.slug, updatedAt: r.updatedAt.toISOString(), locales: locales(r.id) }));
+    // VİTRİN ≠ İNDEKS: yalnız indekslenebilir profil — sayfanın `robots`u AYNI
+    // fonksiyonu okur (`isProfileIndexable`). Bu süzgeç eski `listPublicSlugs`
+    // ucundaydı; web bu servise geçince düştü ve sitemap `noindex` taşıyan
+    // profilleri listeliyordu (yerel SEO denetimi 2026-09-26).
+    const indexable = rows.filter(
+      (r) =>
+        !!r.slug &&
+        isProfileIndexable({ aboutText: r.aboutText, logoUrl: r.logoUrl, website: r.website, publicProductCount: r._count.items }),
+    );
+    const locales = await this.localesOf("COMPANY", indexable.map((r) => r.id));
+    return indexable.map((r) => ({ slug: r.slug as string, updatedAt: r.updatedAt.toISOString(), locales: locales(r.id) }));
   }
 
   async listings(page: number): Promise<{ number: string; title: string; updatedAt: string; locales: Locale[] }[]> {

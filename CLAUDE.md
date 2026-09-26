@@ -2175,6 +2175,6 @@ korunmazsa 400; fnResponse turundan sonra boş user turu EKLEME.
 ## Git
 Repo `git@github.com:ugur-062/supkeys.git` — GitHub adı `ugur-062/supkeys`
 (marka rothern oldu, DEPO ADI DEĞİŞMEDİ; `gh api repos/ugur-062/rothern/…` 404 döner) ·
-branch `main`. Her özellikten sonra commit + push (commit'i bekletme).
+branch `main`. Her özellikten sonra commit; **push BİRİKTİRİLİR** (2026-09-27, kullanıcı: "limiti doldurduk, her şeyi deploy etme hemen" — `main`'e her push Vercel web+admin önizleme derlemesi = Build CPU dakikası = para). İş bir bütün olarak bitince, kullanıcıya haber vererek TEK push; doğrulama yerelde (`next build`, vitest, jest).
 **`gh pr edit` ÇALIŞMIYOR** (2026-09-23: GitHub Projects classic GraphQL hatası) →
 `gh api -X PATCH repos/ugur-062/supkeys/pulls/<N> -f title=… -F body=@dosya`.

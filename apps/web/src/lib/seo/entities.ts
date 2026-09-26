@@ -345,7 +345,7 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
 
   return {
     metadata: buildMetadata({
-      title: joinParts([c.name, joinParts([c.industry, provinceDisplayName(c.city, locale)], ", ")], " — "),
+      title: companyTitle(c.name, c.industry, provinceDisplayName(c.city, locale)),
       description,
       path,
       images: image ? [image] : undefined,
@@ -532,6 +532,20 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
  * düşülür — çağıranların hatırlamasına bırakılmaz.
  */
 const TITLE_SUFFIX = ` · ${SITE_NAME}`;
+
+/**
+ * Firma başlığı "ad — sektör, şehir"; 75 karakter tavanına sığmazsa önce şehir,
+ * sonra sektör düşer, en son ad kısalır. Çevrilmiş sektör adları (EN/RU) uzun
+ * olabildiği için tavan aşılıyordu (yerel SEO denetimi 2026-09-26: 80-84).
+ */
+export function companyTitle(name: string, industry?: string | null, city?: string | null): string {
+  const max = 75 - TITLE_SUFFIX.length;
+  for (const tail of [joinParts([industry, city], ", "), industry ?? "", city ?? ""]) {
+    const full = joinParts([name, tail], " — ");
+    if (tail && full.length <= max) return full;
+  }
+  return clampTitle(name);
+}
 
 export function clampTitle(
   name: string,

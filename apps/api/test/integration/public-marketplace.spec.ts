@@ -346,6 +346,24 @@ describe("pazar yeri — indeks kapısı vitrinden DAR", () => {
     expect((await new PublicSitemapService(bypass).listings(0))[0]!.locales).toEqual(["tr", "en", "ru"]);
   });
 
+  it("firma sitemap'i yalnız İNDEKSLENEBİLİR profili verir (sayfanın robots kuralıyla aynı)", async () => {
+    const bypass = prisma as unknown as PrismaBypassService;
+    const thin = await makeCompanyWithUser(prisma);
+    const rich = await makeCompanyWithUser(prisma);
+    await prisma.company.update({ where: { id: thin.company.id }, data: { publicEnabled: true, slug: "ince-profil", aboutText: null } });
+    await prisma.company.update({
+      where: { id: rich.company.id },
+      data: {
+        publicEnabled: true,
+        slug: "dolu-profil",
+        website: "https://dolu.example.com",
+        aboutText: "Paslanmaz çelik boru ve bağlantı elemanları üretiyoruz; otuz yıldır sanayi firmalarına tedarik ediyoruz.",
+      },
+    });
+    const rows = await new PublicSitemapService(bypass).companies(0);
+    expect(rows.map((r) => r.slug)).toEqual(["dolu-profil"]);
+  });
+
   it("STANDART paketli firmanın ilanı da vitrinde ve indekste", async () => {
     // Paket kapısı `/firma/<slug>` PROFİLİNE aittir; ilan vitrinine değil.
     // İlan sayfası zaten firmayı adlandırmıyor, dolayısıyla ücretsiz üyenin
