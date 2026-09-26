@@ -5,7 +5,7 @@ import { provinceDisplayName } from "@rothern/shared";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { CityLinks } from "@/components/marketplace/city-links";
 import { ProductIndex, type ProductSearchParams } from "@/components/marketplace/product-index";
-import { allCitySlugs, cityFromSlug, cityProductPath, citySlug } from "@/lib/public/city";
+import { cityFromSlug, cityProductPath, citySlug } from "@/lib/public/city";
 import { fetchProductFacets } from "@/lib/public/marketplace-api";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { buildMetadata } from "@/lib/seo/meta";
@@ -34,14 +34,9 @@ export const dynamicParams = true;
 
 type Params = Promise<{ locale: string; il: string }>;
 
-export async function generateStaticParams() {
-  if (!MARKETPLACE_LIVE) return [];
-  const facets = await fetchProductFacets({});
-  const known = new Map(allCitySlugs().map((c) => [c.name, c.slug]));
-  return facets.cities
-    .filter((c) => c.count > 0 && known.has(c.city))
-    .map((c) => ({ il: known.get(c.city)! }));
-}
+/* `generateStaticParams` YOK (2026-09-26): sayfa `searchParams` okuduğu için
+   zaten dinamik; derleme anındaki geçici API hatası sayfayı statik 404/boş
+   olarak kilitleyebiliyordu (bkz. kategori sayfası). */
 
 async function cityOr404(il: string, locale: Locale) {
   const name = cityFromSlug(il);

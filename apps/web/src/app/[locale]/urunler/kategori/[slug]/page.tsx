@@ -27,21 +27,15 @@ import { permanentRedirect } from "@/i18n/navigation";
  * üretilebiliyor (Next 15'te `searchParams` okuyan sayfa dinamiktir) ve her
  * kategori kendi indekslenebilir adresini alıyor.
  *
- * `generateStaticParams` facet listesinden beslenir: yalnız ÜRÜNÜ OLAN
- * kategoriler önceden üretilir. 158 bin kategorinin tamamını üretmek hem
- * build'i şişirir hem de boş sayfa yığını üretirdi — "ince içerik" cezası
- * tam olarak budur. Listede olmayan kategori istenirse sayfa yine çalışır
- * (`dynamicParams` varsayılan açık), yalnız ilk istekte üretilir.
+ * `generateStaticParams` YOK (2026-09-26): sayfa `searchParams` okuduğu için
+ * zaten her istekte dinamik üretiliyor; önceden üretim hiçbir şey kazandırmıyor,
+ * üstelik KIRILGANDI — derleme anında facet çağrısı geçici hata verince sayfa
+ * `searchParams`'a ulaşmadan 404'e düşüp STATİK 404 olarak kaydediliyor, sonraki
+ * her yenileme `DYNAMIC_SERVER_USAGE` ile 500 verip sayfayı bir sonraki
+ * dağıtıma dek 404'te bırakıyordu (yerel denetimde EN 31000000 böyle kaldı).
+ * Veri önbelleği (`fetch` `revalidate` + etiket) aynen çalışır.
  */
 export const revalidate = 600;
-
-export async function generateStaticParams() {
-  if (!MARKETPLACE_LIVE) return [];
-  const facets = await fetchProductFacets();
-  return facets.categories.map((c) => ({
-    slug: categoryHref(c).split("/").pop() as string,
-  }));
-}
 
 /** Koddan kategori adını çözer (facet listesi = ürünü olan kategoriler). */
 async function resolveCategory(code: string) {

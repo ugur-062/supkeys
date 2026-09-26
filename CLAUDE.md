@@ -1806,6 +1806,17 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   göstermez). Herkese açık statik sayfaya panel bileşeni takarken **yerelde
   üretim derlemesi al.** `<Suspense>` yedeği BOŞ KUTU OLAMAZ — sınırın içindeki
   her şey istemciye ertelenir, `<h1>` statik HTML'den düşer (SEO kaybı).
+- **`generateStaticParams` + `searchParams` BİRLİKTE KULLANILMAZ (2026-09-26, yerel
+  üretim derlemesinde ölçüldü):** `searchParams` okuyan sayfa zaten dinamiktir;
+  önceden üretim bir şey kazandırmaz ama derleme anında API geçici hata verirse
+  sayfa `notFound()` ile `searchParams`'a ulaşmadan biter, Next onu STATİK 404
+  olarak kaydeder ve sonraki her yenileme `DYNAMIC_SERVER_USAGE` ile 500 verir →
+  sayfa bir sonraki dağıtıma dek 404 (EN kategori 31000000 böyle kaldı).
+  Kategori ve şehir sayfalarından kaldırıldı. Yerel doğrulama: `NEXT_PUBLIC_
+  MARKETPLACE_LIVE=true NEXT_PUBLIC_SITE_URL=http://localhost:3000 next build`
+  (SITE_URL'siz pazar yeri açık derleme bilerek düşer) + API `MARKETPLACE_LIVE=
+  true node dist/main.js`; yerel `DATABASE_URL` `connection_limit=1` →
+  açılış süpürmesi sırasında facet 500'leri YEREL eserdir.
 - **YUMUŞAK 404 TUZAĞI — `loading.tsx` + `notFound()` (2026-09-24, canlıda da
   ölçüldü):** `loading.tsx` bir Suspense sınırıdır; altındaki dinamik sayfa
   `notFound()` atınca kabuk çoktan akmıştır → Next **200** + `<meta
