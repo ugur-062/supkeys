@@ -17,6 +17,13 @@ export class PublicDirectoryQueryDto {
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   city?: string;
 
+  /** Ülke (ISO) — virgüllü çoklu, firmanın kayıt ülkesi (2026-09-27). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  country?: string;
+
   /** Kategori — 8 haneli kod, virgüllü çoklu (en çok 10). */
   @IsOptional()
   @Matches(/^\d{8}(,\d{8}){0,9}$/, {

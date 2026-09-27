@@ -18,6 +18,7 @@ import { subCategoryCounts } from "../../src/common/company/product-index";
 import type { PrismaBypassService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
+import { resolveCityId } from "../../src/common/geo/geo-index";
 
 const stub = () => ({}) as never;
 /**
@@ -53,6 +54,7 @@ async function seedSeller(over: Record<string, unknown> = {}, product: Record<st
       city: "İstanbul",
       publicEnabled: true,
       ...over,
+      cityId: resolveCityId("TR", (over.city as string | undefined) ?? "İstanbul"),
     },
   });
   await prisma.companyItem.create({
@@ -190,13 +192,15 @@ describe("panel pazar katmanı — parite", () => {
     await seedSeller({ name: "Trakya Pano", slug: "trakya-pano", city: "İstanbul" });
     await seedSeller({ name: "Ege Kablo", slug: "ege-kablo", city: "İzmir" });
     const all = await directoryFacets(prisma, {}, {});
-    expect(all.cities.map((c) => c.city).sort()).toEqual(["İstanbul", "İzmir"]);
+    // Facet değeri kalıcı adres (2026-09-27, dünya şehir listesi).
+    expect(all.cities.map((c) => c.city).sort()).toEqual(["istanbul", "izmir"]);
     // Arama daraltır — eskiden facet ucu `q` hiç almıyordu.
     const searched = await directoryFacets(prisma, {}, { q: "Trakya" });
-    expect(searched.cities).toEqual([{ city: "İstanbul", count: 1 }]);
-    // Şehir seçiliyken ŞEHİR sayaçları daralmaz (çoklu seçim mümkün kalsın).
+    expect(searched.cities).toEqual([{ city: "istanbul", name: "İstanbul", country: "TR", count: 1 }]);
+    // Şehir seçiliyken ŞEHİR sayaçları daralmaz (çoklu seçim mümkün kalsın);
+    // eski bağlantıdaki ham il adı da çözülür.
     const withCity = await directoryFacets(prisma, {}, { city: "İstanbul" });
-    expect(withCity.cities.map((c) => c.city).sort()).toEqual(["İstanbul", "İzmir"]);
+    expect(withCity.cities.map((c) => c.city).sort()).toEqual(["istanbul", "izmir"]);
   });
 
   it("dizin kartı ARAMAYA UYAN ürünleri taşır; firma adıyla eşleşen firma ürünsüz de listede kalır", async () => {

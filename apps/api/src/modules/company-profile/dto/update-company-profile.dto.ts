@@ -57,6 +57,11 @@ export class UpdateCompanyProfileDto {
   @MaxLength(80)
   city?: string;
 
+  /** Dünya şehir listesi kaydı (2026-09-27) — seçiciden; yoksa metinden eşlenir. */
+  @IsOptional()
+  @IsInt()
+  cityId?: number;
+
   @IsOptional()
   @IsString()
   @MaxLength(80)

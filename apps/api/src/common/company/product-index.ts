@@ -8,8 +8,7 @@ import {
   foldSearchText,
   isCompanyActivity,
   isRadiusOption,
-  provincesWithin,
-  resolveProvince,
+  isValidCountryCode,
   stemPrefix,
   tokenizeQuery,
   isHiddenCategory,
@@ -17,6 +16,8 @@ import {
 import { resolveCategoryAttributes } from "./category-attributes";
 import { FAST_REPLY_HOURS } from "./reply-time";
 import { publicProductWhere } from "./public-profile-gate";
+import { geoIndex } from "../geo/geo-index";
+import { currentLocale } from "../i18n/locale-context";
 
 /**
  * ÜRÜN DİZİNİ — where/orderBy/facet TEK KAYNAK (2026-09-04).
@@ -29,8 +30,14 @@ import { publicProductWhere } from "./public-profile-gate";
 export interface ProductIndexParams {
   q?: string;
   category?: string;
-  /** Tek değer ya da virgüllü liste ("İstanbul,İzmir") — ÇOKLU seçim. */
+  /**
+   * Şehir — kalıcı adres ya da virgüllü liste ("istanbul,de-munich") — ÇOKLU
+   * seçim. Dünya şehir listesinden (`cityId`, 2026-09-27); eski bağlantıdaki
+   * ham Türk il adı ("İstanbul") de çözülür.
+   */
   city?: string;
+  /** Satıcı ülkesi — ISO kod ya da virgüllü liste ("TR,DE") — ÇOKLU (2026-09-27). */
+  country?: string;
   /** Tek kod ya da virgüllü liste — ÇOKLU seçim. */
   activity?: string;
   verified?: boolean;
@@ -52,7 +59,7 @@ export interface ProductIndexParams {
   cert?: string;
   /** Virgüllü çalışan kovası ALT SINIRLARI ("10,50") — bkz. `employee-bucket`. */
   employees?: string;
-  /** "Yakınımda" merkezi: il adı ya da posta kodu. `radius` ile birlikte. */
+  /** "Yakınımda" merkezi: şehir adresi (dünya geneli), Türk il adı ya da Türk posta kodu. `radius` ile birlikte. */
   near?: string;
   /** Yarıçap (km) — 25 | 50 | 100 | 250. */
   radius?: number;
@@ -144,15 +151,31 @@ export async function employeeValuesQuery(
 }
 
 /**
- * "Yakınımda" → il adları. Merkez çözülemezse ya da yarıçap geçersizse BOŞ
- * döner ve süzgeç HİÇ uygulanmaz — bilinmeyen bir şehir yüzünden listeyi
- * boşaltmak yerine kısıtı yok saymak doğrusu (kullanıcı yazım hatası yapmış
- * olabilir; çipte ne seçildiği zaten görünüyor).
+ * "Yakınımda" → şehir kayıtları (DÜNYA GENELİ, 2026-09-27; eskiden yalnız 81
+ * il). Merkez çözülemezse ya da yarıçap geçersizse BOŞ döner ve süzgeç HİÇ
+ * uygulanmaz — bilinmeyen bir şehir yüzünden listeyi boşaltmak yerine kısıtı
+ * yok saymak doğrusu (çipte ne seçildiği zaten görünüyor).
  */
-export function nearCities(q: Pick<ProductIndexParams, "near" | "radius">): string[] {
-  const origin = resolveProvince(q.near);
+export function nearCityIds(q: Pick<ProductIndexParams, "near" | "radius">): number[] {
+  const idx = geoIndex();
+  const origin = idx.resolveNear(q.near);
   if (!origin || q.radius == null || !isRadiusOption(q.radius)) return [];
-  return provincesWithin(origin, q.radius);
+  return idx.within(origin, q.radius);
+}
+
+/** Şehir süzgeci değerleri → kayıt id'leri (kalıcı adres ya da eski ham il adı). */
+export function cityIdsOf(v?: string): number[] {
+  const idx = geoIndex();
+  return multi(v)
+    .map((x) => idx.resolveParam(x)?.id)
+    .filter((x): x is number => x != null);
+}
+
+/** Satıcı ülkesi süzgeci değerleri (geçerli ISO kodlar, büyük harf). */
+export function countriesOf(v?: string): string[] {
+  return multi(v)
+    .map((x) => x.toUpperCase())
+    .filter(isValidCountryCode);
 }
 
 export const PRODUCT_PAGE_SIZE = 24;
@@ -222,17 +245,22 @@ export function productIndexWhere(
   extra: Prisma.CompanyItemWhereInput[] = [],
   opts: { employeeValues?: string[] } = {},
 ): Prisma.CompanyItemWhereInput {
-  const cities = multi(q.city);
+  const cityValues = multi(q.city);
+  const cities = cityIdsOf(q.city);
+  const countries = countriesOf(q.country);
   const activities = multi(q.activity).filter(isCompanyActivity);
   const certs = multi(q.cert);
   const employeeKeys = employeeKeysOf(q.employees);
-  const near = nearCities(q);
+  const near = nearCityIds(q);
   const and: Prisma.CompanyItemWhereInput[] = [
     ...productSearchClauses(q.q),
     // Şehir AYRI bir yan koşul: `publicProductWhere` de `company` altında
     // filtreliyor ve tek nesnede aynı anahtar iki kez bulunamaz. Çoklu seçim
     // = OR (İstanbul VEYA İzmir).
-    ...(cities.length ? [{ company: { city: { in: cities } } }] : []),
+    // Tanınmayan şehir değeri → boş küme (`in: []`): seçilen şehir yoksa sonuç
+    // da yok (eskiden ham ad eşleşmediğinde de böyleydi).
+    ...(cityValues.length ? [{ company: { cityId: { in: cities } } }] : []),
+    ...(countries.length ? [{ company: { country: { in: countries } } }] : []),
     ...(activities.length ? [{ company: { activities: { hasSome: activities } } }] : []),
     ...(q.verified ? [{ company: { companyVerificationStatus: "VERIFIED" as const } }] : []),
     ...(q.price === "has"
@@ -243,7 +271,7 @@ export function productIndexWhere(
     // "Yakınımda": il MERKEZLERİ arası mesafeden türetilen il listesi. Şehir
     // süzgeciyle birlikte seçilirse ikisi de uygulanır (kesişim) — iki ayrı
     // koşul, çünkü tek `company` nesnesinde aynı anahtar iki kez olamaz.
-    ...(near.length ? [{ company: { city: { in: near } } }] : []),
+    ...(near.length ? [{ company: { cityId: { in: near } } }] : []),
     // Ölçümü OLMAYAN firma (null) dışarıda kalır — "yavaş" saymıyoruz,
     // "bilmiyoruz" diyoruz; kullanıcı hızlı olduğu KANITLI olanı istedi.
     ...(q.fastReply ? [{ company: { medianReplyHours: { lte: FAST_REPLY_HOURS } } }] : []),
@@ -304,6 +332,9 @@ export interface ProductFacetRow {
   priceAmount?: number | null;
   company: {
     city: string | null;
+    /** Dünya şehir listesi kaydı (2026-09-27); eski satırda olmayabilir. */
+    cityId?: number | null;
+    country?: string | null;
     activities: string[];
     companyVerificationStatus?: string;
     certifications?: string[];
@@ -322,6 +353,9 @@ export function toFacetRow(r: {
   priceAmount?: Prisma.Decimal | null;
   company: {
     city: string | null;
+    /** Dünya şehir listesi kaydı (2026-09-27); eski satırda olmayabilir. */
+    cityId?: number | null;
+    country?: string | null;
     activities: string[];
     companyVerificationStatus?: string;
     certifications?: string[];
@@ -346,11 +380,17 @@ export function toFacetRow(r: {
  * gelir; şehir/faaliyet/doğrulanmış/fiyat burada bellekte uygulanır.
  */
 export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndexParams) {
-  const cities = new Set(multi(sel.city));
+  const cities = new Set(cityIdsOf(sel.city));
+  const hasCity = multi(sel.city).length > 0;
+  const countries = new Set(countriesOf(sel.country));
   const acts = new Set(multi(sel.activity));
   const certs = new Set(multi(sel.cert));
   const empKeys = new Set(employeeKeysOf(sel.employees));
-  const okCity = (r: ProductFacetRow) => cities.size === 0 || (!!r.company.city && cities.has(r.company.city));
+  const okCity = (r: ProductFacetRow) => !hasCity || (r.company.cityId != null && cities.has(r.company.cityId));
+  const okCountry = (r: ProductFacetRow) => countries.size === 0 || (!!r.company.country && countries.has(r.company.country));
+  // "Yakınımda" sayaçlara da uygulanır (eskiden liste daralıyor, sayılar daralmıyordu).
+  const nearSet = new Set(nearCityIds(sel));
+  const okNear = (r: ProductFacetRow) => nearSet.size === 0 || (r.company.cityId != null && nearSet.has(r.company.cityId));
   const okAct = (r: ProductFacetRow) => acts.size === 0 || r.company.activities.some((a) => acts.has(a));
   const okVer = (r: ProductFacetRow) => !sel.verified || r.company.companyVerificationStatus === "VERIFIED";
   const okPrice = (r: ProductFacetRow) =>
@@ -372,22 +412,25 @@ export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndex
   // Her boyut KENDİ seçimi hariç, diğer TÜM seçimler uygulanmış küme üzerinde
   // sayılır. Boyut ekledikçe bu listeler uzuyor; biri unutulursa o boyutun
   // sayacı fazla gösterir ve tıklayınca liste beklenenden dar çıkar.
-  const base = (r: ProductFacetRow) => okCert(r) && okEmp(r) && okFast(r);
+  // Satıcı ülkesi (2026-09-27) her boyutun tabanında — kendi boyutu (forCountry) hariç.
+  const base = (r: ProductFacetRow) => okCert(r) && okEmp(r) && okFast(r) && okCountry(r) && okNear(r);
   const forCity = rows.filter((r) => okAct(r) && okVer(r) && okPrice(r) && base(r));
+  const forCountry = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r) && okEmp(r) && okFast(r) && okNear(r));
   const forAct = rows.filter((r) => okCity(r) && okVer(r) && okPrice(r) && base(r));
   const forVer = rows.filter((r) => okCity(r) && okAct(r) && okPrice(r) && base(r));
-  const forFast = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r) && okEmp(r));
+  const forFast = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r) && okEmp(r) && okCountry(r) && okNear(r));
   const forPrice = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && base(r));
-  const forCert = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okEmp(r));
-  const forEmp = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r));
+  const forCert = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okEmp(r) && okFast(r) && okCountry(r) && okNear(r));
+  const forEmp = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && okCert(r) && okFast(r) && okCountry(r) && okNear(r));
   const forAll = rows.filter((r) => okCity(r) && okAct(r) && okVer(r) && okPrice(r) && base(r));
   return {
     // Gizli segment (katalog sadeleştirme 2026-09-19) facet'e girmez — adı
     // çözülemediği için süzgeçte çıplak kod ("10000000") görünüyordu.
     categories: [...count(forAll, (r) => (r.categoryId && r.categoryId.length === 8 && !isHiddenCategory(r.categoryId) ? [`${r.categoryId.slice(0, 2)}000000`] : [])).entries()],
-    cities: [...count(forCity, (r) => (r.company.city?.trim() ? [r.company.city.trim()] : [])).entries()]
-      .map(([city, count]) => ({ city, count }))
-      .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
+    cities: cityFacet(count(forCity, (r) => (r.company.cityId != null ? [String(r.company.cityId)] : []))),
+    countries: [...count(forCountry, (r) => (r.company.country ? [r.company.country] : [])).entries()]
+      .map(([country, count]) => ({ country, count }))
+      .sort((a, b) => b.count - a.count || a.country.localeCompare(b.country)),
     activities: [...count(forAct, (r) => r.company.activities).entries()]
       .map(([activity, count]) => ({ activity, count }))
       .sort((a, b) => b.count - a.count),
@@ -568,4 +611,20 @@ export function subCategoryCounts(rows: { categoryId: string | null }[], categor
     m.set(key, (m.get(key) ?? 0) + 1);
   }
   return [...m.entries()].sort((a, b) => b[1] - a[1]);
+}
+
+/**
+ * Şehir facet'i (2026-09-27): `cityId` → { city: KALICI ADRES (URL değeri),
+ * name: okuyucunun dilinde ad, country, count }. Web değeri `?sehir=`e yazar,
+ * `name`i çizer. Listede artık olmayan id sayılmaz.
+ */
+export function cityFacet(counts: Map<string, number>): { city: string; name: string; country: string; count: number }[] {
+  const idx = geoIndex();
+  const locale = currentLocale();
+  const out: { city: string; name: string; country: string; count: number }[] = [];
+  for (const [id, count] of counts) {
+    const row = idx.byId(Number(id));
+    if (row) out.push({ city: row.slug, name: idx.label(row, locale), country: row.countryCode, count });
+  }
+  return out.sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, locale));
 }

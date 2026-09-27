@@ -6,6 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { isValidCountryCode } from "@rothern/shared";
+import { resolveCityId } from "../../common/geo/geo-index";
 import { CompanyAddressType, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
@@ -62,6 +63,8 @@ export class CompanyAddressesService {
           country: normalizeAddressCountry(dto.country),
           stateRegion: dto.stateRegion?.trim() || null,
           city: dto.city?.trim() || null,
+          // Dünya şehir listesi kaydı (2026-09-27).
+          cityId: resolveCityId(normalizeAddressCountry(dto.country), dto.city, dto.cityId),
           district: dto.district?.trim() || null,
           addressLine: dto.addressLine.trim(),
           postalCode: dto.postalCode?.trim() || null,
@@ -145,6 +148,8 @@ export class CompanyAddressesService {
           country: normalizeAddressCountry(dto.country),
           stateRegion: dto.stateRegion?.trim() || null,
           city: dto.city?.trim() || null,
+          // Dünya şehir listesi kaydı (2026-09-27).
+          cityId: resolveCityId(normalizeAddressCountry(dto.country), dto.city, dto.cityId),
           district: dto.district?.trim() || null,
           addressLine: dto.addressLine.trim(),
           postalCode: dto.postalCode?.trim() || null,

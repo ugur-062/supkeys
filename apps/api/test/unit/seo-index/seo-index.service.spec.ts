@@ -50,7 +50,7 @@ describe("SeoIndexService", () => {
       isPublic: true,
       isActive: true,
       categoryId: "39121004",
-      company: { slug: "acme-metal", city: "İstanbul", publicEnabled: true },
+      company: { slug: "acme-metal", cityId: -1034, country: "TR", publicEnabled: true },
     });
     const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
     svc.productChanged("item1");
@@ -116,7 +116,7 @@ describe("SeoIndexService", () => {
       isPublic: false,
       isActive: true,
       categoryId: null,
-      company: { slug: "acme-metal", city: null, publicEnabled: true },
+      company: { slug: "acme-metal", cityId: null, country: null, publicEnabled: true },
     });
     const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
     svc.productChanged("item1");
@@ -164,7 +164,8 @@ describe("SeoIndexService", () => {
     const prisma = makePrisma();
     (prisma.company.findUnique as jest.Mock).mockResolvedValue({
       slug: "acme-metal",
-      city: "İzmir",
+      cityId: -1035, // İzmir (dünya şehir listesi, 2026-09-27)
+      country: "TR",
       publicEnabled: true,
       isActive: true,
       isBlocked: true,
@@ -175,7 +176,9 @@ describe("SeoIndexService", () => {
     expect(fetchMock).toHaveBeenCalledTimes(1);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.tags).toContain(SEO_TAGS.company("acme-metal"));
-    expect(body.paths).toEqual(expect.arrayContaining(["/firmalar/sehir/izmir", "/urunler/sehir/izmir"]));
+    // Firma şehir sayfası 2026-09-22'de kalktı (308) → yalnız ürün şehir sayfası + ülke sayfası.
+    expect(body.paths).toEqual(expect.arrayContaining(["/urunler/sehir/izmir", "/urunler/ulke/tr-turkiye"]));
+    expect(body.paths).not.toContain("/firmalar/sehir/izmir");
   });
 
   it("anahtar yoksa kanal atlanır; NODE_ENV=test'te hiç çağrı yok; hata yutulur", async () => {

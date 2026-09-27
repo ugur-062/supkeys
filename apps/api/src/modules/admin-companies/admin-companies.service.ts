@@ -1,5 +1,6 @@
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
+import { resolveCityId } from "../../common/geo/geo-index";
 import { PAID_TIERS, countryUsesIban, isValidAccountNumber, isValidIbanAny, maskIban } from "@rothern/shared";
 import {
   BadRequestException,
@@ -834,7 +835,15 @@ export class AdminCompaniesService {
     if (Object.keys(data).length === 0) {
       return { ok: true, changed: [] };
     }
-    await this.prisma.company.update({ where: { id }, data });
+    // Şehir ya da ülke değiştiyse dünya şehir listesi kaydı yeniden eşlenir (2026-09-27).
+    const writeData: Record<string, string | number | null> = { ...data };
+    if ("city" in data || "country" in data) {
+      writeData.cityId = resolveCityId(
+        (data.country as string | null | undefined) ?? before.country,
+        "city" in data ? (data.city as string | null) : before.city,
+      );
+    }
+    await this.prisma.company.update({ where: { id }, data: writeData });
     // Dalga B: ülke değişimi ZORUNLU BELGE SETİNİ değiştirir (TR 6 / yabancı 3).
     // DE→TR çevrilen VERIFIED bir firmada imza sirküleri/faaliyet belgesi/kimlik
     // arkası hiç yüklenmemiş olabilir; eski davranışta durum VERIFIED kalıyor ve

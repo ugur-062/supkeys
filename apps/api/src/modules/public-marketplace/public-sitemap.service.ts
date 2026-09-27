@@ -1,7 +1,8 @@
 import { Injectable, Optional } from "@nestjs/common";
 import { LOCALES, type Locale } from "@rothern/i18n";
 import { isHiddenCategory } from "@rothern/shared";
-import { knownCityName, segmentCodeOf } from "@rothern/shared";
+import { segmentCodeOf } from "@rothern/shared";
+import { geoIndex } from "../../common/geo/geo-index";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { marketplaceIndexableWhere } from "../../common/company/listing-visibility";
 import { PUBLIC_PROFILE_WHERE, isProfileIndexable, publicProductWhere } from "../../common/company/public-profile-gate";
@@ -57,10 +58,16 @@ export interface SitemapSummary {
   listings: SitemapBucket;
   /** Segment (L1) kategorileri — yalnız ürünü olanlar. */
   categories: { id: string; name: string; count: number; lastmod: string }[];
-  /** Ürünü olan iller (yalnız TANINAN il). */
-  productCities: { city: string; count: number; lastmod: string }[];
-  /** Profili açık firması olan iller. */
-  companyCities: { city: string; count: number; lastmod: string }[];
+  /**
+   * Ürünü olan şehirler — DÜNYA GENELİ (2026-09-27; eskiden yalnız 81 il).
+   * `city` = şehir sayfasının KALICI ADRESİ ("bursa", "de-munich"), `name`
+   * Türkçe ad, `country` ISO.
+   */
+  productCities: { city: string; name: string; country: string; count: number; lastmod: string }[];
+  /** Profili açık firması olan şehirler (aynı biçim). */
+  companyCities: { city: string; name: string; country: string; count: number; lastmod: string }[];
+  /** Ürünü olan satıcı ülkeleri — ülke sayfaları (2026-09-27). */
+  productCountries: { country: string; count: number; lastmod: string }[];
 }
 
 @Injectable()
@@ -88,28 +95,28 @@ export class PublicSitemapService {
       this.bucket(this.prisma.listing, { ...marketplaceIndexableWhere(now), number: { not: null } }),
       this.prisma.companyItem.findMany({
         where: publicProductWhere(),
-        select: { categoryId: true, updatedAt: true, company: { select: { city: true } } },
+        select: { categoryId: true, updatedAt: true, company: { select: { cityId: true, country: true } } },
         take: SCAN_CAP,
       }),
       this.prisma.company.findMany({
         where: PUBLIC_PROFILE_WHERE,
-        select: { city: true, updatedAt: true },
+        select: { cityId: true, updatedAt: true },
         take: SCAN_CAP,
       }),
     ]);
 
     const segments = new Map<string, { count: number; lastmod: Date }>();
     const pCities = new Map<string, { count: number; lastmod: Date }>();
+    const pCountries = new Map<string, { count: number; lastmod: Date }>();
     for (const r of productRows) {
       const seg = segmentCodeOf(r.categoryId);
       if (seg) bump(segments, seg, r.updatedAt);
-      const city = knownCityName(r.company.city);
-      if (city) bump(pCities, city, r.updatedAt);
+      if (r.company.cityId != null) bump(pCities, String(r.company.cityId), r.updatedAt);
+      if (r.company.country) bump(pCountries, r.company.country, r.updatedAt);
     }
     const cCities = new Map<string, { count: number; lastmod: Date }>();
     for (const r of companyRows) {
-      const city = knownCityName(r.city);
-      if (city) bump(cCities, city, r.updatedAt);
+      if (r.cityId != null) bump(cCities, String(r.cityId), r.updatedAt);
     }
 
     // Gizli segmentler sitemap'e girmez (herkese açık kategori sayfası da 404).
@@ -132,6 +139,9 @@ export class PublicSitemapService {
         .sort((a, b) => b.count - a.count || a.id.localeCompare(b.id)),
       productCities: toCityList(pCities),
       companyCities: toCityList(cCities),
+      productCountries: [...pCountries.entries()]
+        .map(([country, v]) => ({ country, count: v.count, lastmod: v.lastmod.toISOString() }))
+        .sort((a, b) => b.count - a.count || a.country.localeCompare(b.country)),
     };
   }
 
@@ -232,8 +242,13 @@ function bump(m: Map<string, { count: number; lastmod: Date }>, key: string, at:
   }
 }
 
+/** `cityId` → şehir sayfası satırı (kalıcı adres + Türkçe ad); listede olmayan id düşer. */
 function toCityList(m: Map<string, { count: number; lastmod: Date }>) {
-  return [...m.entries()]
-    .map(([city, v]) => ({ city, count: v.count, lastmod: v.lastmod.toISOString() }))
-    .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr"));
+  const idx = geoIndex();
+  const out: { city: string; name: string; country: string; count: number; lastmod: string }[] = [];
+  for (const [id, v] of m) {
+    const row = idx.byId(Number(id));
+    if (row) out.push({ city: row.slug, name: idx.label(row, "tr"), country: row.countryCode, count: v.count, lastmod: v.lastmod.toISOString() });
+  }
+  return out.sort((a, b) => b.count - a.count || a.city.localeCompare(b.city));
 }

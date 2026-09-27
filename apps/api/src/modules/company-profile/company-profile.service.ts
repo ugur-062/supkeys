@@ -24,6 +24,7 @@ import {
 } from "@rothern/shared";
 import { ensureUniqueCompanySlug } from "../../common/company/company-slug";
 import { effectiveTier } from "../../common/company/effective-tier";
+import { resolveCityId } from "../../common/geo/geo-index";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import {
   assertUploadedObjectValid,
@@ -430,6 +431,10 @@ export class CompanyProfileService {
       data.bankSwiftBic = sw || null;
     }
     if (dto.bankName !== undefined) data.bankName = dto.bankName.trim() || null;
+    // Şehir → dünya şehir listesi kaydı (2026-09-27; şehir sayfası/süzgeç).
+    if (dto.city !== undefined || dto.cityId !== undefined) {
+      data.cityId = resolveCityId(kycBefore?.country ?? "TR", dto.city ?? null, dto.cityId);
+    }
 
     // Public profil açıksa ve henüz slug yoksa SEO-dostu benzersiz slug üret.
     const current = await this.prisma.company.findUnique({

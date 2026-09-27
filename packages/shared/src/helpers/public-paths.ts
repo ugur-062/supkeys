@@ -1,5 +1,6 @@
 import { TR_PROVINCES } from "../data/tr-provinces";
 import { slugifyText } from "./slug";
+import { countryName, isValidCountryCode } from "../data/countries";
 
 /**
  * HERKESE AÇIK ADRES ŞEMASI — TEK KAYNAK (2026-09-09, SEO Parça 5).
@@ -98,4 +99,23 @@ export function knownCityName(name: string | null | undefined): string | null {
 }
 
 export const cityProductPath = (name: string) => `${PUBLIC_PATHS.products}/sehir/${citySlug(name)}`;
+
+/**
+ * ÜLKE SAYFASI (2026-09-27): `/urunler/ulke/<kod>-<türkçe-ad>` ("de-almanya") —
+ * kod ÖNDE (slug kuralı), ad adresten bağımsız ayrıştırılır; dilden bağımsız
+ * (EN `/en/products/country/de-almanya`, varlık slug'ları dile göre değişmez).
+ */
+export function countrySlug(code: string): string {
+  const cc = code.toUpperCase();
+  return `${cc.toLowerCase()}-${slugifyText(countryName(cc))}`;
+}
+
+/** Ülke slug'ından ISO kod ("de-almanya" → "DE"); geçersizse null. */
+export function countryCodeFromSlug(slug: string | null | undefined): string | null {
+  const m = /^([a-z]{2})(?:-|$)/.exec((slug ?? "").trim().toLowerCase());
+  const cc = m?.[1]?.toUpperCase();
+  return cc && isValidCountryCode(cc) ? cc : null;
+}
+
+export const countryProductPath = (code: string) => `${PUBLIC_PATHS.products}/ulke/${countrySlug(code)}`;
 export const cityCompanyPath = (name: string) => `${PUBLIC_PATHS.companies}/sehir/${citySlug(name)}`;

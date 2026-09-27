@@ -6,6 +6,7 @@ import {
 } from "../../src/common/company/product-index";
 import { FAST_REPLY_HOURS, medianFirstReplyHours, roundReplyHours } from "../../src/common/company/reply-time";
 import { employeeBucket } from "@rothern/shared";
+import { resolveCityId } from "../../src/common/geo/geo-index";
 
 /**
  * SÜZGEÇ SAYAÇLARI — SAF mantık (2026-09-07 grupları).
@@ -28,6 +29,8 @@ const row = (o: Partial<ProductFacetRow> & { company?: Partial<ProductFacetRow["
     employeeCount: null,
     medianReplyHours: null,
     ...o.company,
+    // Gerçek satır gibi şehirden dünya şehir listesi kaydı (2026-09-27).
+    cityId: o.company?.cityId !== undefined ? o.company.cityId : resolveCityId("TR", o.company?.city ?? "İstanbul"),
   },
 });
 
@@ -77,7 +80,7 @@ describe("contextualFacetCounts — yeni boyutlar", () => {
     // Kendi boyutu hariç → CE hâlâ sayılır.
     expect(f.certifications.find((c) => c.cert === "CE")?.count).toBe(1);
     // Şehir sertifikayla daralır → sertifikasız üçüncü satır düşer.
-    expect(f.cities.find((c) => c.city === "İzmir")?.count).toBe(1);
+    expect(f.cities.find((c) => c.city === "izmir")?.count).toBe(1);
     // Çalışan da daralır → 250+ kalmaz.
     expect(f.employees.find((e) => e.key === 250)).toBeUndefined();
   });
@@ -86,7 +89,7 @@ describe("contextualFacetCounts — yeni boyutlar", () => {
     const f = contextualFacetCounts(rows, { employees: "50" });
     expect(f.employees.map((e) => e.key).sort((a, b) => a - b)).toEqual([10, 50, 250]);
     // Şehir çalışan seçimiyle daralır: yalnız 50-249'luk firma kalır.
-    expect(f.cities).toEqual([{ city: "İstanbul", count: 1 }]);
+    expect(f.cities).toEqual([{ city: "istanbul", name: "İstanbul", country: "TR", count: 1 }]);
   });
 
   it("sertifika serbest metni KIRPILIR ama normalize EDİLMEZ", () => {

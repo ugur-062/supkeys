@@ -41,6 +41,13 @@ export class PublicProductQueryDto {
   @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
   city?: string;
 
+  /** Satıcı ülkesi — ISO kod ya da virgüllü çoklu ("TR,DE") (2026-09-27). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  @Transform(({ value }) => (typeof value === "string" ? value.trim() : value))
+  country?: string;
+
   /** Sıralama — `relevance`, `newest`, `price` (artan), `price_desc` (azalan); fiyatsızlar sonda. */
   @IsOptional()
   @IsIn(["relevance", "newest", "price", "price_desc"])
@@ -197,6 +204,11 @@ export class PublicProductFacetQueryDto {
   @IsString()
   @MaxLength(400)
   city?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  country?: string;
 
   @IsOptional()
   @IsString()

@@ -10,6 +10,7 @@ import { SearchIntentService, parseModelNumber } from "../../src/modules/ai/sear
 import type { CompanyListingsService } from "../../src/modules/company-listings/services/company-listings.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
+import { resolveCityId } from "../../src/common/geo/geo-index";
 
 function rig(modelJson: unknown | string, second?: unknown | string, listings?: Partial<CompanyListingsService>) {
   const reply = (v: unknown | string) => ({
@@ -48,7 +49,7 @@ async function makePublicProduct(over: {
   await prisma.company.update({
     where: { id: company.id },
     data: {
-      name: `Vitrin ${pseq}`, slug: `vitrin-si-${pseq}`, city: over.city ?? "İzmir", publicEnabled: true,
+      name: `Vitrin ${pseq}`, slug: `vitrin-si-${pseq}`, city: over.city ?? "İzmir", cityId: resolveCityId("TR", over.city ?? "İzmir"), publicEnabled: true,
       ...(over.verified ? { companyVerificationStatus: "VERIFIED" } : {}),
       ...(over.activities ? { activities: over.activities as never } : {}),
     },
@@ -71,7 +72,7 @@ describe("AI arama — search-intent", () => {
   it("ALICI: süzgeç alanları temizlenir, kategori katalogdan çözülür, il kanonik yazıma döner, taslak kurulur", async () => {
     const { auth } = await makeCompanyWithUser(prisma);
     const other = await makeCompanyWithUser(prisma);
-    await prisma.company.update({ where: { id: other.company.id }, data: { city: "İstanbul" } });
+    await prisma.company.update({ where: { id: other.company.id }, data: { city: "İstanbul", cityId: resolveCityId("TR", "İstanbul") } });
     await makeCategory("39121500", "Kompanzasyon panoları", 3);
     // Canlı bulgu: anahtar kelimesi "kompanzasyon panosu" olan bir HİZMET
     // kategorisi ada göre önce gelmemeli (ad önceliği + ek toleransı).

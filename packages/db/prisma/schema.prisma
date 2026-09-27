@@ -560,6 +560,10 @@ model Company {
   stateRegion String?
 
   // Adres (inline; ileride Address[] defteriyle zenginleşir)
+  /// Dünya şehir listesi kaydı (`geo_cities.id`; 2026-09-27). Şehir sayfaları,
+  /// şehir süzgeci ve "Yakınımda" bunu okur; `city` metni gösterim içindir.
+  /// Türkiye'de il kaydı. FK YOK (liste yeniden tohumlanabilsin).
+  cityId       Int?
   city         String?
   district     String?
   neighborhood String?
@@ -733,6 +737,7 @@ model Company {
   viewsReceived          CompanyView[] @relation("ViewTarget")
   viewsMade              CompanyView[] @relation("ViewViewer")
 
+  @@index([cityId])
   @@map("companies")
 }
 
@@ -2487,6 +2492,8 @@ model CompanyAddress {
   country     String             @default("TR")
   /// Eyalet/bölge (TR dışı: "Bayern", "Maharashtra"); TR'de boş.
   stateRegion String?
+  /// Dünya şehir listesi kaydı (`geo_cities.id`; 2026-09-27) — FK YOK.
+  cityId      Int?
   city        String?
   district    String?
   addressLine String
@@ -2615,4 +2622,27 @@ model ContentTranslation {
   @@unique([entityType, entityId, locale])
   @@index([status, updatedAt])
   @@map("content_translations")
+}
+
+/// DÜNYA ŞEHİR LİSTESİ (2026-09-27, kullanıcı: "şehir sayfaları türkiye özel
+/// olamaz"). Kaynak GeoNames cities15000 (CC BY 4.0) — `src/seeds/geo-cities.tsv`
+/// + Türkiye'nin 81 ili (negatif id, paylaşılan `TR_PROVINCES`) + KKTC şehirleri.
+/// Şehir sayfası adresi `slug` ("bursa", "de-munich"); "Yakınımda" `lat/lng`.
+model GeoCity {
+  id          Int     @id
+  countryCode String
+  admin1      String?
+  name        String
+  nameTr      String?
+  nameEn      String?
+  nameRu      String?
+  lat         Float
+  lng         Float
+  population  Int     @default(0)
+  slug        String  @unique
+  /// Katlanmış arama metni: tüm adlar + yerel yazım (trigram GIN — migration'da).
+  searchText  String  @default("")
+
+  @@index([countryCode])
+  @@map("geo_cities")
 }

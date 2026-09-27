@@ -5,6 +5,7 @@ import {
   IsString,
   MaxLength,
   MinLength,
+  IsInt,
 } from "class-validator";
 import { tApi } from "../../../common/i18n/i18n.service";
 
@@ -50,6 +51,11 @@ export class UpsertAddressDto {
   @IsString()
   @MaxLength(80)
   city?: string;
+
+  /** Dünya şehir listesi kaydı (2026-09-27) — seçiciden; yoksa metinden eşlenir. */
+  @IsOptional()
+  @IsInt()
+  cityId?: number;
 
   @IsOptional()
   @IsString()

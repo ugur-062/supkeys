@@ -35,6 +35,8 @@ import {
   productIndexWhere,
   subCategoryCounts,
   toFacetRow,
+  cityFacet,
+  cityIdsOf,
 } from "../../common/company/product-index";
 import { relatedProducts } from "../../common/company/related-products";
 import {
@@ -180,10 +182,11 @@ export class PublicMarketplaceService {
     // Ayrı bir `company:` spread'i olarak yazılsaydı kapının
     // publicListingsEnabled/isActive/isBlocked koşullarını ezer ve süzgeç
     // kullanan her sorguda kapı sessizce açılırdı.
-    const cities = multi(q.city);
+    // Şehir dünya şehir listesinden (`cityId`, 2026-09-27); eski ham il adı da çözülür.
+    const cityValues = multi(q.city);
     const company: Prisma.CompanyWhereInput = {
       ...(gate.company as Prisma.CompanyWhereInput),
-      ...(cities.length === 1 ? { city: cities[0] } : cities.length > 1 ? { city: { in: cities } } : {}),
+      ...(cityValues.length ? { cityId: { in: cityIdsOf(q.city) } } : {}),
     };
     const where: Prisma.ListingWhereInput = {
       ...gate,
@@ -340,7 +343,7 @@ export class PublicMarketplaceService {
         categoryIds: true,
         targetCountries: true,
         closesAt: true,
-        company: { select: { city: true } },
+        company: { select: { city: true, cityId: true } },
       },
       take: FACET_SCAN_CAP + 1,
     });
@@ -349,10 +352,11 @@ export class PublicMarketplaceService {
     type Row = (typeof scanned)[number];
 
     const prefix = q.category ? categoryPrefix(q.category) : null;
-    const cities = multi(q.city);
+    const hasCity = multi(q.city).length > 0;
+    const cityIds = new Set(cityIdsOf(q.city));
     const dayMs = 86_400_000;
     const inCat = (r: Row) => !prefix || r.categoryIds.some((c) => c.startsWith(prefix));
-    const inCity = (r: Row) => cities.length === 0 || (!!r.company.city && cities.includes(r.company.city.trim()));
+    const inCity = (r: Row) => !hasCity || (r.company.cityId != null && cityIds.has(r.company.cityId));
     const country = q.country?.toUpperCase();
     const inScope = (r: Row) => !country || r.targetCountries.length === 0 || r.targetCountries.includes(country);
     const withinDays = (r: Row, d: number) =>
@@ -373,8 +377,7 @@ export class PublicMarketplaceService {
     }
     const cityCount = new Map<string, number>();
     for (const r of forCity) {
-      const city = r.company.city?.trim();
-      if (city) cityCount.set(city, (cityCount.get(city) ?? 0) + 1);
+      if (r.company.cityId != null) cityCount.set(String(r.company.cityId), (cityCount.get(String(r.company.cityId)) ?? 0) + 1);
     }
     const typeCount = new Map<string, number>();
     for (const r of scanned) typeCount.set(r.type, (typeCount.get(r.type) ?? 0) + 1);
@@ -392,9 +395,7 @@ export class PublicMarketplaceService {
         })
         .filter((c): c is NonNullable<typeof c> => !!c)
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr")),
-      cities: [...cityCount.entries()]
-        .map(([city, count]) => ({ city, count }))
-        .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
+      cities: cityFacet(cityCount),
       types: [...typeCount.entries()].map(([type, count]) => ({ type, count })),
       // Kapsam süzgeci (yurtiçi / uluslararası) — sayfa açıklaması bunu vaat
       // ediyordu, süzgeç yoktu.
@@ -729,6 +730,8 @@ export class PublicMarketplaceService {
         company: {
           select: {
             city: true,
+            cityId: true,
+            country: true,
             activities: true,
             companyVerificationStatus: true,
             certifications: true,
@@ -745,6 +748,7 @@ export class PublicMarketplaceService {
     const inCategory = prefix ? scanned.filter((r) => (r.categoryId ?? "").startsWith(prefix)) : scanned;
     const sel = {
       city: q.city,
+      country: q.country,
       activity: q.activity,
       verified: q.verified === "1",
       price: q.price,

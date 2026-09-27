@@ -29,6 +29,7 @@ import { AiModule } from "./modules/ai/ai.module";
 import { AuditModule } from "./modules/audit/audit.module";
 import { SeoIndexModule } from "./modules/seo-index/seo-index.module";
 import { ContentTranslationModule } from "./modules/content-translation/content-translation.module";
+import { GeoModule } from "./modules/geo/geo.module";
 import { CategoriesModule } from "./modules/categories/categories.module";
 import { CompanyAuthModule } from "./modules/company-auth/company-auth.module";
 import { CompanyBidDocumentsModule } from "./modules/company-bid-documents/company-bid-documents.module";
@@ -182,6 +183,7 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     AuditModule,
     SeoIndexModule,
     ContentTranslationModule,
+    GeoModule,
     HealthModule,
     // Admin
     AdminAuthModule,

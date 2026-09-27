@@ -4,15 +4,17 @@ import { isHiddenCategory } from "@rothern/shared";
 import { categorySegment, foldSearchText, isCategoryCode, isCompanyActivity, looksLikeProse, PAID_TIER, profileCompleteness, stemPrefix, tierAtLeast, tokenizeQuery, type TierName } from "@rothern/shared";
 import { effectiveTier } from "./effective-tier";
 import { PUBLIC_PROFILE_WHERE, publicProductWhere } from "./public-profile-gate";
-import { productSearchClauses } from "./product-index";
+import { cityFacet, cityIdsOf, countriesOf, productSearchClauses } from "./product-index";
 import { FAST_REPLY_HOURS } from "./reply-time";
 
 type Db = Pick<PrismaClient, "company" | "category" | "companyItem">;
 
 export interface DirectoryParams {
   q?: string;
-  /** Virgüllü çoklu şehir. */
+  /** Virgüllü çoklu şehir (kalıcı adres; eski ham il adı da çözülür — 2026-09-27). */
   city?: string;
+  /** Virgüllü çoklu ülke (ISO) — firmanın kayıt ülkesi (2026-09-27). */
+  country?: string;
   /** Virgüllü çoklu 8 haneli kod (alıcı ya da satıcı beyanı). */
   category?: string;
   /** Virgüllü çoklu faaliyet kodu. */
@@ -78,7 +80,9 @@ export async function directoryRows(
   opts: DirectoryScope = {},
 ) {
   const tokens = q.q ? tokenizeQuery(q.q) : [];
-  const cities = multi(q.city);
+  const cityValues = multi(q.city);
+  const cityIds = cityIdsOf(q.city);
+  const countries = countriesOf(q.country);
   const activities = multi(q.activity).filter(isCompanyActivity);
   const categories = multi(q.category).filter(isCategoryCode);
   const rows = await prisma.company.findMany({
@@ -89,7 +93,8 @@ export async function directoryRows(
         : opts.excludeIds?.length
           ? { id: { notIn: opts.excludeIds } }
           : {}),
-      ...(cities.length === 1 ? { city: cities[0] } : cities.length > 1 ? { city: { in: cities } } : {}),
+      ...(cityValues.length ? { cityId: { in: cityIds } } : {}),
+      ...(countries.length ? { country: { in: countries } } : {}),
       ...(activities.length ? { activities: { hasSome: activities } } : {}),
       ...(q.verified ? { companyVerificationStatus: "VERIFIED" } : {}),
       AND: [
@@ -147,6 +152,7 @@ export async function directoryRows(
       name: true,
       slug: true,
       city: true,
+      cityId: true,
       country: true,
       industry: true,
       activities: true,
@@ -363,7 +369,9 @@ export async function directoryFacets(
 ) {
   const rows = await directoryRows(prisma, { q: params.q }, opts);
   type Row = (typeof rows)[number];
-  const cities = multi(params.city);
+  const hasCity = multi(params.city).length > 0;
+  const cityIds = new Set(cityIdsOf(params.city));
+  const countries = new Set(countriesOf(params.country));
   const activities = multi(params.activity).filter(isCompanyActivity);
   const categories = multi(params.category).filter(isCategoryCode);
   // SÜZGEÇ eşleşmesi: DB tarafıyla birebir — dört dizi de ham hâliyle.
@@ -382,7 +390,8 @@ export async function directoryFacets(
       .filter(isCategoryCode)
       // Gizli segment facet'te de yok (eski beyanlar süzgeç listesini kirletmesin).
       .filter((c) => !isHiddenCategory(c));
-  const inCity = (r: Row) => cities.length === 0 || (!!r.city && cities.includes(r.city.trim()));
+  const inCity = (r: Row) => !hasCity || (r.cityId != null && cityIds.has(r.cityId));
+  const inCountry = (r: Row) => countries.size === 0 || countries.has(r.country);
   const inAct = (r: Row) => activities.length === 0 || r.activities.some((a) => activities.includes(a));
   const inCat = (r: Row) => categories.length === 0 || cats(r).some((c) => categories.includes(c));
   const inVerified = (r: Row) => !params.verified || r.companyVerificationStatus === "VERIFIED";
@@ -390,6 +399,7 @@ export async function directoryFacets(
   const inGold = (r: Row) => !params.gold || isGold(r);
   const others = (skip: string) => (r: Row) =>
     (skip === "city" || inCity(r)) &&
+    (skip === "country" || inCountry(r)) &&
     (skip === "activity" || inAct(r)) &&
     (skip === "category" || inCat(r)) &&
     (skip === "verified" || inVerified(r)) &&
@@ -398,8 +408,11 @@ export async function directoryFacets(
 
   const cityCount = new Map<string, number>();
   for (const r of rows.filter(others("city"))) {
-    const city = r.city?.trim();
-    if (city) cityCount.set(city, (cityCount.get(city) ?? 0) + 1);
+    if (r.cityId != null) cityCount.set(String(r.cityId), (cityCount.get(String(r.cityId)) ?? 0) + 1);
+  }
+  const countryCount = new Map<string, number>();
+  for (const r of rows.filter(others("country"))) {
+    if (r.country) countryCount.set(r.country, (countryCount.get(r.country) ?? 0) + 1);
   }
   const activityCount = new Map<string, number>();
   for (const r of rows.filter(others("activity"))) {
@@ -420,9 +433,10 @@ export async function directoryFacets(
     verified: rows.filter(others("verified")).filter((r) => r.companyVerificationStatus === "VERIFIED").length,
     withProducts: rows.filter(others("products")).filter((r) => r._count.items > 0).length,
     gold: rows.filter(others("gold")).filter(isGold).length,
-    cities: [...cityCount.entries()]
-      .map(([city, count]) => ({ city, count }))
-      .sort((a, b) => b.count - a.count || a.city.localeCompare(b.city, "tr")),
+    cities: cityFacet(cityCount),
+    countries: [...countryCount.entries()]
+      .map(([country, count]) => ({ country, count }))
+      .sort((a, b) => b.count - a.count || a.country.localeCompare(b.country)),
     activities: [...activityCount.entries()]
       .map(([activity, count]) => ({ activity, count }))
       .sort((a, b) => b.count - a.count),

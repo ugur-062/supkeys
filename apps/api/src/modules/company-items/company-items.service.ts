@@ -601,6 +601,8 @@ export class CompanyItemsService {
         company: {
           select: {
             city: true,
+            cityId: true,
+            country: true,
             activities: true,
             companyVerificationStatus: true,
             certifications: true,

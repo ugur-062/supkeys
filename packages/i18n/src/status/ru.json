@@ -4549,6 +4549,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.geo.sehirBulunamadi": {
+    "hash": "a38f34aeb1",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "api.guards.buIslemIcinYetkinizYok": {
     "hash": "366363a16c",
     "status": "reviewed",

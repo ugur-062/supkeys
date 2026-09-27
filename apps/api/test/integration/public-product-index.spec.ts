@@ -11,6 +11,7 @@ import { PublicMarketplaceService } from "../../src/modules/public-marketplace/p
 import type { PrismaBypassService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
+import { resolveCityId } from "../../src/common/geo/geo-index";
 // Çalışan kovası süzgeci `employeeCount` DISTINCT değerlerini 15 dk önbelleğe
 // alır; her test kendi firmalarını kurduğu için önbellek turlar arasında
 // bayat kalır ve süzgeç boş dönerdi.
@@ -72,6 +73,8 @@ async function seedProduct(
       city: "İstanbul",
       publicEnabled: true,
       ...companyOver,
+      // Gerçek yazma yolu gibi (2026-09-27): süzgeç/facet `cityId` okur.
+      cityId: resolveCityId("TR", (companyOver.city as string | undefined) ?? "İstanbul"),
     },
   });
   const product = await prisma.companyItem.create({
@@ -290,7 +293,8 @@ describe("ürün dizini — kapı", () => {
     await seedProduct({ city: "Bursa" });
     await seedProduct({ city: "Bursa", publicEnabled: false });
     const f = await service().productFacets({});
-    expect(f.cities.find((c) => c.city === "Bursa")?.count).toBe(1);
+    // Facet değeri şehrin KALICI ADRESİ, `name` görünen ad (2026-09-27).
+    expect(f.cities.find((c) => c.city === "bursa")).toMatchObject({ name: "Bursa", country: "TR", count: 1 });
     expect(f.truncated).toBe(false);
   });
 });
@@ -433,7 +437,7 @@ describe("süzgeç v3 — çoklu seçim, aralık, bağlama duyarlı facet", () =
     // Sertifika sayacı KENDİ seçimini hariç tutar → CE hâlâ görünür.
     expect(f.certifications.find((c) => c.cert === "CE")?.count).toBe(1);
     // Şehir sayacı sertifika seçimiyle DARALIR → C (sertifikasız) düşer.
-    expect(f.cities.find((c) => c.city === "İzmir")?.count).toBe(1);
+    expect(f.cities.find((c) => c.city === "izmir")?.count).toBe(1);
     // Çalışan sayacı da sertifika seçimiyle daralır.
     expect(f.employees.find((e) => e.key === 250)).toBeUndefined();
   });
@@ -481,8 +485,8 @@ describe("süzgeç v3 — çoklu seçim, aralık, bağlama duyarlı facet", () =
     const f = await service().productFacets({ activity: "MANUFACTURER" });
     // Şehir sayaçları faaliyet süzgeciyle daralır (C düşer).
     expect([...f.cities].sort((a, b) => a.city.localeCompare(b.city))).toEqual([
-      { city: "İstanbul", count: 1 },
-      { city: "İzmir", count: 1 },
+      { city: "istanbul", name: "İstanbul", country: "TR", count: 1 },
+      { city: "izmir", name: "İzmir", country: "TR", count: 1 },
     ]);
     // Faaliyet sayaçları KENDİ seçimini hariç tutar: DISTRIBUTOR hâlâ görünür.
     expect(f.activities.find((a) => a.activity === "DISTRIBUTOR")?.count).toBe(1);

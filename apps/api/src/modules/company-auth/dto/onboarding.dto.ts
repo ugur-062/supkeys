@@ -6,6 +6,7 @@ import {
   IsBoolean,
   IsEnum,
   IsIn,
+  IsInt,
   IsOptional,
   IsString,
   Length,
@@ -77,6 +78,11 @@ export class CompleteOnboardingDto {
   @Length(2, 80)
   city!: string;
 
+  /** Dünya şehir listesi kaydı (2026-09-27) — seçiciden; yoksa metinden eşlenir. */
+  @IsOptional()
+  @IsInt()
+  cityId?: number;
+
   @IsOptional()
   @IsString()
   @MaxLength(80)
@@ -111,6 +117,10 @@ export class CompleteOnboardingDto {
   @IsString()
   @Length(2, 80)
   deliveryCity?: string;
+
+  @IsOptional()
+  @IsInt()
+  deliveryCityId?: number;
 
   @IsOptional()
   @IsString()

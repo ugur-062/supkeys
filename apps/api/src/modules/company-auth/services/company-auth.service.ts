@@ -7,6 +7,7 @@ import {
 import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
 import { localeOf } from "../../notifications/notification.service";
 import { currentLocale } from "../../../common/i18n/locale-context";
+import { resolveCityId } from "../../../common/geo/geo-index";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   BadRequestException,
@@ -504,6 +505,8 @@ export class CompanyAuthService {
     if (dto.companyType === "OTHER" && (!legalFormLocal || legalFormLocal.length < 2)) {
       throw new BadRequestException(i18nMessage("api.companyAuth.yerelHukukiYapiZorunlu"));
     }
+    // Dünya şehir listesi kaydı (2026-09-27): şehir sayfası/süzgeç/"Yakınımda".
+    const cityId = resolveCityId(country, dto.city, dto.cityId);
     const isSole = dto.companyType === "SOLE_PROPRIETOR";
     if (!isValidTaxIdForCountry(dto.taxNumber, country, isSole)) {
       throw new BadRequestException(
@@ -586,6 +589,7 @@ export class CompanyAuthService {
           publicEnabled: true,
           slug: await ensureUniqueCompanySlug(tx, dto.legalName.trim(), companyId),
           city: dto.city.trim(),
+          cityId,
           district: dto.district?.trim() || null,
           stateRegion: dto.stateRegion?.trim() || null,
           neighborhood: dto.neighborhood?.trim() || null,
@@ -628,6 +632,7 @@ export class CompanyAuthService {
           // adresin "state"i sipariş kaydında kayboluyordu.
           stateRegion: dto.stateRegion?.trim() || null,
           city: dto.city.trim(),
+          cityId,
           district: dto.district?.trim() || null,
           postalCode: dto.postalCode?.trim() || null,
           addressLine: dto.addressLine.trim(),
@@ -644,6 +649,9 @@ export class CompanyAuthService {
           country,
           stateRegion: deliverySame ? dto.stateRegion?.trim() || null : null,
           city: (deliverySame ? dto.city : dto.deliveryCity ?? dto.city).trim(),
+          cityId: deliverySame
+            ? cityId
+            : resolveCityId(country, dto.deliveryCity ?? dto.city, dto.deliveryCityId),
           district:
             (deliverySame ? dto.district : dto.deliveryDistrict)?.trim() || null,
           postalCode:

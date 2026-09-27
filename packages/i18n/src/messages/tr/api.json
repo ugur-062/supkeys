@@ -1632,5 +1632,8 @@
     "swiftRequired": "SWIFT/BIC kodu zorunlu",
     "swiftInvalid": "Geçerli bir SWIFT/BIC kodu giriniz (8 ya da 11 karakter, ör. DEUTDEFF)",
     "bankNameRequired": "Banka adı zorunlu"
+  },
+  "geo": {
+    "sehirBulunamadi": "Şehir bulunamadı"
   }
 }

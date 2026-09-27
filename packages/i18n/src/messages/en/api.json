@@ -1632,5 +1632,8 @@
     "swiftRequired": "SWIFT/BIC code is required",
     "swiftInvalid": "Enter a valid SWIFT/BIC code (8 or 11 characters, e.g. DEUTDEFF)",
     "bankNameRequired": "Bank name is required"
+  },
+  "geo": {
+    "sehirBulunamadi": "City not found"
   }
 }

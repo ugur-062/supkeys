@@ -3,10 +3,9 @@ import { ConfigService } from "@nestjs/config";
 import {
   PUBLIC_PATHS,
   categoryPath,
-  cityCompanyPath,
   cityProductPath,
   companyPath,
-  knownCityName,
+  countryProductPath,
   listingPath,
   productPath,
   segmentCodeOf,
@@ -15,6 +14,7 @@ import { LOCALES } from "@rothern/i18n";
 import { localizeAppPath } from "../../common/company/app-routes";
 import { resolveWebUrl } from "../../common/config/web-url";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { geoIndex } from "../../common/geo/geo-index";
 
 /**
  * YAYIN ANI → ARAMA MOTORU BİLDİRİMİ (2026-09-09, SEO Parça 5).
@@ -137,12 +137,12 @@ export class SeoIndexService {
           isPublic: true,
           isActive: true,
           categoryId: true,
-          company: { select: { slug: true, city: true, publicEnabled: true } },
+          company: { select: { slug: true, cityId: true, country: true, publicEnabled: true } },
         },
       });
       if (!row?.company.slug) return;
       const visible = row.isPublic && row.isActive && row.company.publicEnabled;
-      const change = await this.productChange(row.company.slug, row.slug, row.categoryId, row.company.city, visible);
+      const change = await this.productChange(row.company.slug, row.slug, row.categoryId, row.company.cityId, row.company.country, visible);
       this.enqueue(change);
     });
   }
@@ -152,15 +152,18 @@ export class SeoIndexService {
     void this.safely("firma", async () => {
       const row = await this.prisma.company.findUnique({
         where: { id: companyId },
-        select: { slug: true, city: true, publicEnabled: true, isActive: true, isBlocked: true },
+        select: { slug: true, cityId: true, country: true, publicEnabled: true, isActive: true, isBlocked: true },
       });
       if (!row?.slug) return;
       const visible = row.publicEnabled && row.isActive && !row.isBlocked;
-      const city = knownCityName(row.city);
+      // Şehir sayfası dünya şehir listesinden (2026-09-27); firma şehir sayfası
+      // (`/firmalar/sehir`) 2026-09-22'de kalktı — 308 döner, bildirilmez.
+      const city = geoIndex().byId(row.cityId);
       const paths = [
         companyPath(row.slug),
         PUBLIC_PATHS.companies,
-        ...(city ? [cityCompanyPath(city), cityProductPath(city)] : []),
+        ...(city ? [cityProductPath(city.slug)] : []),
+        ...(row.country ? [countryProductPath(row.country)] : []),
         SITEMAP_PATHS.index,
         SITEMAP_PATHS.companies,
         SITEMAP_PATHS.products, // ürün sayfaları firma adı/şehri taşır
@@ -172,7 +175,7 @@ export class SeoIndexService {
         // (web `fetchProduct` bu etiketi taşır) — ad/şehir/logo değişince
         // ürün sayfasındaki satıcı bloğu bayat kalmasın.
         tags: [SEO_TAGS.company(row.slug), SEO_TAGS.companies, SEO_TAGS.facets, SEO_TAGS.sitemap],
-        indexNow: visible ? [companyPath(row.slug), ...(city ? [cityCompanyPath(city)] : [])] : [],
+        indexNow: visible ? [companyPath(row.slug)] : [],
       });
     });
   }
@@ -213,14 +216,15 @@ export class SeoIndexService {
     companySlug: string,
     productSlug: string | null,
     categoryId: string | null,
-    cityRaw: string | null,
+    cityId: number | null,
+    country: string | null,
     visible: boolean,
   ): Promise<SeoChange> {
     const segment = segmentCodeOf(categoryId);
     const cat = segment
       ? await this.prisma.category.findUnique({ where: { id: segment }, select: { nameTr: true } })
       : null;
-    const city = knownCityName(cityRaw);
+    const city = geoIndex().byId(cityId);
     const own = productSlug ? productPath(companySlug, productSlug) : null;
     const catPath = segment && cat ? categoryPath(segment, cat.nameTr) : null;
     const paths = [
@@ -229,7 +233,8 @@ export class SeoIndexService {
       PUBLIC_PATHS.products,
       "/",
       ...(catPath ? [catPath] : []),
-      ...(city ? [cityProductPath(city)] : []),
+      ...(city ? [cityProductPath(city.slug)] : []),
+      ...(country ? [countryProductPath(country)] : []),
       SITEMAP_PATHS.index,
       SITEMAP_PATHS.products,
       SITEMAP_PATHS.categories,

@@ -1632,5 +1632,8 @@
     "swiftRequired": "Укажите код SWIFT/BIC",
     "swiftInvalid": "Укажите корректный код SWIFT/BIC (8 или 11 символов, например DEUTDEFF)",
     "bankNameRequired": "Укажите название банка"
+  },
+  "geo": {
+    "sehirBulunamadi": "Город не найден"
   }
 }
