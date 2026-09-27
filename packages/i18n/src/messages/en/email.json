@@ -2,7 +2,11 @@
   "layout": {
     "copyright": "© {year} Rothern",
     "footerNote": "You received this email from the {site} platform.",
-    "textSignature": "— Rothern"
+    "textSignature": "— Rothern",
+    "unsubscribe": "Don't want these emails? <unsub>Unsubscribe</unsub>.",
+    "unsubscribeWithPrefs": "Don't want these emails? <unsub>Unsubscribe</unsub> or <prefs>manage your email preferences</prefs>.",
+    "textUnsubscribe": "Unsubscribe: {url}",
+    "textPreferences": "Email preferences: {url}"
   },
   "passwordReset": {
     "subject": "🔑 Your password reset link — Rothern",

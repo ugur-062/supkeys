@@ -14,6 +14,13 @@ export interface EmailEnv {
   siteUrl?: string;
   /** Test için sabitlenebilir "şimdi" (yıl). */
   now?: Date;
+  /**
+   * Tek tık çıkış sayfası (imzalı jetonlu). Verilirse alt bilgi "abonelikten
+   * çıkın" satırını basar — işlem e-postalarında (kod, şifre, sipariş) YOK.
+   */
+  unsubscribeUrl?: string;
+  /** Kayıtlı kullanıcının bildirim ayarları sayfası (varsa alt bilgide). */
+  preferencesUrl?: string;
 }
 
 export const EmailEnvContext = React.createContext<EmailEnv>({});

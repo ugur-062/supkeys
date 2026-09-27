@@ -19,7 +19,7 @@ import { isCorsOriginAllowed } from "./common/cors-origin";
 import { checkJwtSecret } from "./common/config/jwt-secret";
 import { assertProdWebUrl } from "./common/config/web-url";
 import { assertProdConfigSanity } from "./common/config/prod-config-sanity";
-import { assertProdEmailSender } from "./common/config/email-sender";
+import { assertProdEmailSender, assertProdStreamSenders } from "./common/config/email-sender";
 import { checkAiKey } from "./common/config/ai-config";
 import { reportToSentry } from "./instrument";
 import { translateValidatorMessage } from "./common/error-messages";
@@ -96,6 +96,7 @@ async function bootstrap() {
   // hata sessizdi (gönderim başarılı, günlük temiz, testler yeşil). Artık
   // yanlış adresle boot edilmez (bkz. common/config/email-sender.ts).
   assertProdEmailSender(config);
+  assertProdStreamSenders(config);
 
   // Faz AI-0 — AI anahtar sağlığı: placeholder/bozuk anahtar prod'da BOOT
   // ETMEZ (bozuk anahtarla "AI açık" sanılıp runtime'da her çağrının 502

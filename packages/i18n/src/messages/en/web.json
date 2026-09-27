@@ -665,6 +665,36 @@
       "addrDemandPattern": "Buying request pattern",
       "hFaq": "Frequently asked questions",
       "faqFull": "Full version: {url}"
+    },
+    "emailPrefs": {
+      "metaTitle": "Email preferences",
+      "loading": "Loading…",
+      "title": "Email preferences",
+      "forAddress": "Address: {email}",
+      "question": "Don't want these emails anymore?",
+      "scopeLine": "You'll stop receiving: <b>{scope}</b>",
+      "confirm": "Unsubscribe",
+      "confirmAll": "Unsubscribe from all optional emails",
+      "transactionalNote": "Transactional emails, such as account security, orders and quote results, will still be sent.",
+      "doneTitle": "You've been unsubscribed",
+      "doneBody": "We'll no longer send these emails to this address: {scope}.",
+      "alreadyTitle": "You've already unsubscribed from these emails",
+      "manage": "If you have an account, you can manage all your notification preferences in <link>Settings › Notifications</link>.",
+      "invalidTitle": "Invalid link",
+      "invalidBody": "This link is invalid. If you have an account, you can change your notification preferences in Settings › Notifications.",
+      "error": "Something went wrong. Please try again.",
+      "scope": {
+        "invitation": "request invitations",
+        "reminder": "reminders",
+        "bidElimination": "quote elimination notices",
+        "listingClosed": "request closing notices",
+        "categoryMatch": "new requests matching your categories",
+        "approvalPending": "approval requests",
+        "announcement": "platform announcements",
+        "invite": "buying request invitations",
+        "lifecycle": "tips and suggestions",
+        "all": "all optional emails from Rothern"
+      }
     }
   },
   "marketplace": {

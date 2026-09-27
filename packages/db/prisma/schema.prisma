@@ -113,7 +113,27 @@ model EmailLog {
   @@index([template])
   @@index([contextType, contextId])
   @@index([queuedAt])
+  // Alıcı başına sıklık sorguları (davet 7 gün kuralı, günlük tavan).
+  @@index([toEmail, queuedAt])
   @@map("email_logs")
+}
+
+/**
+ * Tek tık abonelikten çıkış (RFC 8058, 2026-09-27) — ADRES bazlı kalıcı kayıt.
+ * Kayıtlı kullanıcının kategori tercihi ayrıca `CompanyUser.notificationPrefs`e
+ * yazılır (Ayarlar › Bildirimler aynı değeri gösterir); bu tablo kullanıcı
+ * olmayan alıcıyı (firma `billingEmail`i) ve "tüm isteğe bağlı" kapsamını
+ * taşır. İşlem e-postaları (kod, şifre, sipariş) bu tabloya BAKMAZ.
+ */
+model EmailOptOut {
+  id        String   @id @default(cuid())
+  email     String
+  /// Bildirim tercih anahtarı (`categoryMatch`…), `lifecycle` ya da `all`.
+  scope     String
+  createdAt DateTime @default(now())
+
+  @@unique([email, scope])
+  @@map("email_opt_outs")
 }
 
 enum EmailStatus {

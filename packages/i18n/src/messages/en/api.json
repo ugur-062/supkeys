@@ -1733,5 +1733,8 @@
     "MDY": "{n, plural, one {# man-day} other {# man-days}}",
     "TRP": "{n, plural, one {# trip} other {# trips}}",
     "other": "{n, number} {unit}"
+  },
+  "emailUnsubscribe": {
+    "invalidLink": "This unsubscribe link is invalid."
   }
 }

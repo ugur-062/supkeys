@@ -137,6 +137,11 @@ export interface SendEmailInput {
   replyTo?: string;
   rendered: RenderedEmail;
   attachments?: EmailAttachment[];
+  /**
+   * Ek başlıklar — ör. `List-Unsubscribe` + `List-Unsubscribe-Post`
+   * (RFC 8058 tek tık çıkış; Gmail/Yahoo/Outlook toplu gönderici kuralı).
+   */
+  headers?: Record<string, string>;
 }
 
 export interface SendEmailResult {

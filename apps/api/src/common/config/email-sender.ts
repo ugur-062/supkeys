@@ -115,3 +115,30 @@ export function assertProdEmailSender(config: ConfigService): void {
       `Render → ilgili servis → EMAIL_FROM_ADDRESS=bildirim@${expected} yapın.`,
   );
 }
+
+/**
+ * Akış göndericileri (2026-09-27): `EMAIL_FROM_ADDRESS_{NOTIFICATION,INVITE,
+ * LIFECYCLE}` İSTEĞE BAĞLI — boşsa akış varsayılan göndericiye düşer. Doluysa
+ * aynı alan adı kuralı işler (alt alan adı serbest: `davet@invite.rothern.com`).
+ * Yanlış bir değer davetlerin sağlayıcı test alanından çıkmasına yol açardı.
+ */
+export const OPTIONAL_STREAM_SENDER_ENVS = [
+  "EMAIL_FROM_ADDRESS_NOTIFICATION",
+  "EMAIL_FROM_ADDRESS_INVITE",
+  "EMAIL_FROM_ADDRESS_LIFECYCLE",
+] as const;
+
+export function assertProdStreamSenders(config: ConfigService): void {
+  const nodeEnv = config.get<string>("NODE_ENV");
+  const webUrl = config.get<string>("WEB_URL");
+  for (const key of OPTIONAL_STREAM_SENDER_ENVS) {
+    const value = (config.get<string>(key) ?? "").trim();
+    if (!value) continue;
+    const rejection = checkProdSenderDomain({ nodeEnv, fromAddress: value, webUrl });
+    if (rejection === null) continue;
+    throw new Error(
+      `${key} must be on this environment's domain (or a subdomain): "${expectedSenderDomain(webUrl)}" ` +
+        `(got: "${value}"). Leave it empty to send this stream from EMAIL_FROM_ADDRESS.`,
+    );
+  }
+}

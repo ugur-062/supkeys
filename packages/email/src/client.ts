@@ -43,13 +43,21 @@ export class EmailClient {
     }
   }
 
+  /**
+   * `from`/`replyTo` verilmezse istemcinin varsayılanı. Akış bazlı gönderen
+   * (bildirim/davet alt alan adı) ve davette "Firma (Rothern üzerinden)"
+   * görünen adı çağırandan gelir.
+   */
   send(
-    input: Omit<SendEmailInput, "from" | "replyTo">,
+    input: Omit<SendEmailInput, "from" | "replyTo"> & {
+      from?: { email: string; name?: string };
+      replyTo?: string;
+    },
   ): Promise<SendEmailResult> {
     return this.provider.send({
       ...input,
-      from: this.from,
-      replyTo: this.replyTo,
+      from: input.from ?? this.from,
+      replyTo: input.replyTo ?? this.replyTo,
       // Gömülü Rothern logosu + çağıranın (varsa) ekleri.
       attachments: [LOGO_ATTACHMENT, ...(input.attachments ?? [])],
     });

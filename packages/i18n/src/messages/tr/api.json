@@ -1733,5 +1733,8 @@
     "MDY": "{n, number} adam-gün",
     "TRP": "{n, number} sefer",
     "other": "{n, number} {unit}"
+  },
+  "emailUnsubscribe": {
+    "invalidLink": "Bu abonelikten çıkma bağlantısı geçersiz."
   }
 }

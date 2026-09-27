@@ -6,7 +6,8 @@
  * `/company/davet/<token>` yolunda jeton taşır. Olayın `request.url`i ve
  * `breadcrumb`ları bunları olduğu gibi gönderirdi.
  */
-const SECRET_QUERY_KEYS = ["token", "code", "secret", "password", "email"];
+// `t`: e-posta çıkış jetonu (`/e-posta-tercihleri?t=`) ve misafir bilgi talebi onayı.
+const SECRET_QUERY_KEYS = ["token", "t", "code", "secret", "password", "email"];
 
 export function scrubUrl(raw: string): string {
   try {

@@ -665,6 +665,36 @@
       "addrDemandPattern": "Alım talebi şeması",
       "hFaq": "Sık sorulan sorular",
       "faqFull": "Tam hâli: {url}"
+    },
+    "emailPrefs": {
+      "metaTitle": "E-posta tercihleri",
+      "loading": "Yükleniyor…",
+      "title": "E-posta tercihleri",
+      "forAddress": "Adres: {email}",
+      "question": "Bu e-postaları artık almak istemiyor musunuz?",
+      "scopeLine": "Çıkılacak e-postalar: <b>{scope}</b>",
+      "confirm": "Abonelikten çık",
+      "confirmAll": "Tüm isteğe bağlı e-postalardan çık",
+      "transactionalNote": "Hesap güvenliği, sipariş ve teklif sonucu gibi işlem e-postaları gönderilmeye devam eder.",
+      "doneTitle": "Abonelikten çıktınız",
+      "doneBody": "Bu adrese artık şu e-postalar gönderilmeyecek: {scope}.",
+      "alreadyTitle": "Bu e-postalardan zaten çıkmışsınız",
+      "manage": "Hesabınız varsa tüm bildirim tercihlerinizi <link>Ayarlar › Bildirimler</link> sayfasından yönetebilirsiniz.",
+      "invalidTitle": "Bağlantı geçersiz",
+      "invalidBody": "Bu bağlantı geçersiz. Hesabınız varsa bildirim tercihlerinizi Ayarlar › Bildirimler sayfasından değiştirebilirsiniz.",
+      "error": "İşlem tamamlanamadı. Lütfen yeniden deneyin.",
+      "scope": {
+        "invitation": "talep davetleri",
+        "reminder": "hatırlatmalar",
+        "bidElimination": "teklif eleme bildirimleri",
+        "listingClosed": "talep kapanış bildirimleri",
+        "categoryMatch": "kategorinize uyan yeni talepler",
+        "approvalPending": "onay istekleri",
+        "announcement": "platform duyuruları",
+        "invite": "alım talebi davetleri",
+        "lifecycle": "ipuçları ve öneriler",
+        "all": "Rothern'den gelen tüm isteğe bağlı e-postalar"
+      }
     }
   },
   "marketplace": {

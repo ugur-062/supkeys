@@ -61,6 +61,7 @@ export class ResendProvider extends BaseEmailProvider {
       html: input.rendered.html,
       text: input.rendered.text,
       replyTo: input.replyTo,
+      ...(input.headers && Object.keys(input.headers).length > 0 ? { headers: input.headers } : {}),
       ...(attachments && attachments.length > 0 ? { attachments } : {}),
       }),
     );

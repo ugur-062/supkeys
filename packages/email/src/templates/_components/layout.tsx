@@ -61,6 +61,8 @@ const footerStyle = {
   lineHeight: "1.6",
 };
 
+const footerLink = { color: COLORS.slate500, textDecoration: "underline" };
+
 // Logo gömülü (inline CID) ek olarak gönderilir → uzak görsel engelleyen
 // istemcilerde ve dev'de (localhost) de görünür. Ek client.ts'te eklenir.
 const LOGO_SRC = `cid:${LOGO_CID}`;
@@ -110,6 +112,28 @@ export function Layout({ preview, locale = DEFAULT_LOCALE, children }: LayoutPro
               {t("email.layout.copyright", { year: String(year) })}
               <br />
               {t("email.layout.footerNote", { site: siteHost(env.siteUrl) })}
+              {/* Tek tık çıkış + tercihler — yalnız işlem DIŞI e-postalarda
+                  (gönderim servisi bağlamı kurar; kod/şifre/siparişte yok). */}
+              {env.unsubscribeUrl ? (
+                <>
+                  <br />
+                  {t.rich(
+                    env.preferencesUrl ? "email.layout.unsubscribeWithPrefs" : "email.layout.unsubscribe",
+                    {
+                      unsub: (chunks: React.ReactNode) => (
+                        <a href={env.unsubscribeUrl} style={footerLink}>
+                          {chunks}
+                        </a>
+                      ),
+                      prefs: (chunks: React.ReactNode) => (
+                        <a href={env.preferencesUrl} style={footerLink}>
+                          {chunks}
+                        </a>
+                      ),
+                    },
+                  )}
+                </>
+              ) : null}
             </Text>
           </Section>
         </Container>

@@ -1,6 +1,6 @@
 import { render } from "@react-email/render";
 import * as React from "react";
-import { DEFAULT_LOCALE, type Locale } from "./i18n";
+import { DEFAULT_LOCALE, emailT, type Locale } from "./i18n";
 import {
   makePasswordResetSubject,
   PasswordResetEmail,
@@ -40,6 +40,23 @@ export async function renderEmail(
   spec: EmailTemplateData,
   locale: Locale = DEFAULT_LOCALE,
   env: EmailEnv = {},
+): Promise<RenderedEmail> {
+  const rendered = await renderTemplate(spec, locale, env);
+  // Düz metin sürümü de çıkış bağlantısını taşır (HTML alt bilgisiyle aynı
+  // kural: yalnız işlem dışı e-postada, bağlam kurulduysa).
+  if (!env.unsubscribeUrl) return rendered;
+  const t = emailT(locale);
+  const lines = [
+    t("email.layout.textUnsubscribe", { url: env.unsubscribeUrl }),
+    ...(env.preferencesUrl ? [t("email.layout.textPreferences", { url: env.preferencesUrl })] : []),
+  ];
+  return { ...rendered, text: `${rendered.text}\n\n${lines.join("\n")}` };
+}
+
+async function renderTemplate(
+  spec: EmailTemplateData,
+  locale: Locale,
+  env: EmailEnv,
 ): Promise<RenderedEmail> {
   switch (spec.template) {
     case "password_reset": {

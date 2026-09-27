@@ -1733,5 +1733,8 @@
     "MDY": "{n, plural, one {# человеко-день} few {# человеко-дня} many {# человеко-дней} other {# человеко-дня}}",
     "TRP": "{n, plural, one {# рейс} few {# рейса} many {# рейсов} other {# рейса}}",
     "other": "{n, number} {unit}"
+  },
+  "emailUnsubscribe": {
+    "invalidLink": "Эта ссылка для отписки недействительна."
   }
 }

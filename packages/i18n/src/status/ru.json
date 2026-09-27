@@ -4654,6 +4654,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.emailUnsubscribe.invalidLink": {
+    "hash": "68830e6456",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "api.files.csvDosyasiCokBuyukSablonuXlsx": {
     "hash": "9e82948497",
     "status": "reviewed",
@@ -7124,10 +7129,30 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "email.layout.textPreferences": {
+    "hash": "da74054150",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "email.layout.textSignature": {
     "hash": "785db4a777",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "email.layout.textUnsubscribe": {
+    "hash": "56e8cbb542",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.layout.unsubscribe": {
+    "hash": "5e46d97b5a",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.layout.unsubscribeWithPrefs": {
+    "hash": "b2bdc0eee3",
+    "status": "reviewed",
+    "at": "2026-09-27"
   },
   "email.passwordReset.accountLabel": {
     "hash": "ea23e3085f",
@@ -10668,6 +10693,136 @@
     "hash": "5f0806d573",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.marketing.emailPrefs.alreadyTitle": {
+    "hash": "3b87be713a",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.confirm": {
+    "hash": "3a4340b0ef",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.confirmAll": {
+    "hash": "3d972b3356",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.doneBody": {
+    "hash": "c2d07bdeba",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.doneTitle": {
+    "hash": "c58ffb97d6",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.error": {
+    "hash": "729aa09ceb",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.forAddress": {
+    "hash": "835890ed2c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.invalidBody": {
+    "hash": "b0fd590023",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.invalidTitle": {
+    "hash": "0429402e53",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.loading": {
+    "hash": "3a5e96d474",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.manage": {
+    "hash": "7fd0f4b872",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.metaTitle": {
+    "hash": "4e3fdaefd4",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.question": {
+    "hash": "fde6e9c035",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.scope.all": {
+    "hash": "c88e044a23",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.scope.announcement": {
+    "hash": "915d8b39fd",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.scope.approvalPending": {
+    "hash": "b75aa32adf",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.scope.bidElimination": {
+    "hash": "8279b33f06",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.scope.categoryMatch": {
+    "hash": "51eef5f7ae",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.scope.invitation": {
+    "hash": "6da0785f83",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.scope.invite": {
+    "hash": "bf3249f7da",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.scope.lifecycle": {
+    "hash": "9bfcb66367",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.scope.listingClosed": {
+    "hash": "4e7a0471be",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.scope.reminder": {
+    "hash": "10ea502ba9",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.scopeLine": {
+    "hash": "d84847e488",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.title": {
+    "hash": "4e3fdaefd4",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.transactionalNote": {
+    "hash": "f8755d6283",
+    "status": "reviewed",
+    "at": "2026-09-27"
   },
   "web.marketing.faq.g1.a1": {
     "hash": "6bb9f44aae",

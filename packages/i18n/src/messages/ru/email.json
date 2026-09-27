@@ -2,7 +2,11 @@
   "layout": {
     "copyright": "© {year} Rothern",
     "footerNote": "Вы получили это письмо от платформы {site}.",
-    "textSignature": "— Rothern"
+    "textSignature": "— Rothern",
+    "unsubscribe": "Не хотите получать такие письма? <unsub>Отпишитесь</unsub>.",
+    "unsubscribeWithPrefs": "Не хотите получать такие письма? <unsub>Отпишитесь</unsub> или <prefs>настройте уведомления по электронной почте</prefs>.",
+    "textUnsubscribe": "Отписаться: {url}",
+    "textPreferences": "Настройки писем: {url}"
   },
   "passwordReset": {
     "subject": "🔑 Ссылка для сброса пароля — Rothern",

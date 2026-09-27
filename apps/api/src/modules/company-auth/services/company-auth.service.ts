@@ -1614,7 +1614,7 @@ export class CompanyAuthService {
     }
     const current = await this.prisma.companyUser.findUnique({
       where: { id: userId },
-      select: { notificationPrefs: true },
+      select: { notificationPrefs: true, email: true },
     });
     const merged = {
       ...((current?.notificationPrefs as Record<string, boolean> | null) ?? {}),
@@ -1624,6 +1624,15 @@ export class CompanyAuthService {
       where: { id: userId },
       data: { notificationPrefs: merged },
     });
+    // Tek tık çıkışla adrese yazılmış kayıt (kullanıcı olmadan önce firma
+    // e-postasıyken ya da "tümü" kapsamıyla) yeniden açılan türü engellemesin:
+    // Ayarlar ekranındaki seçim son sözdür.
+    const reopened = Object.entries(clean).filter(([, v]) => v).map(([k]) => k);
+    if (reopened.length > 0 && current?.email) {
+      await this.prisma.emailOptOut.deleteMany({
+        where: { email: current.email.toLowerCase(), scope: { in: [...reopened, "all"] } },
+      });
+    }
     return this.getMe(userId);
   }
 

@@ -2,7 +2,11 @@
   "layout": {
     "copyright": "© {year} Rothern",
     "footerNote": "Bu e-postayı {site} platformundan aldınız.",
-    "textSignature": "— Rothern"
+    "textSignature": "— Rothern",
+    "unsubscribe": "Bu tür e-postaları almak istemiyorsanız <unsub>abonelikten çıkın</unsub>.",
+    "unsubscribeWithPrefs": "Bu tür e-postaları almak istemiyorsanız <unsub>abonelikten çıkın</unsub> ya da <prefs>e-posta tercihlerinizi yönetin</prefs>.",
+    "textUnsubscribe": "Abonelikten çıkmak için: {url}",
+    "textPreferences": "E-posta tercihleri: {url}"
   },
   "passwordReset": {
     "subject": "🔑 Şifre sıfırlama bağlantınız — Rothern",

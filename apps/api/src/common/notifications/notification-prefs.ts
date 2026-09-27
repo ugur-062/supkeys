@@ -61,6 +61,15 @@ export function isNotificationEnabled(prefs: Prefs, type: string): boolean {
   return prefs?.[key] !== false;
 }
 
+/** Bildirim tipinin tercih anahtarı; transactional tipte `null`. */
+export function prefKeyForType(type: string | undefined | null): NotificationPrefKey | null {
+  return type ? (PREF_KEY_BY_TYPE[type] ?? null) : null;
+}
+
+export function isNotificationPrefKey(v: unknown): v is NotificationPrefKey {
+  return typeof v === "string" && (NOTIFICATION_PREF_KEYS as readonly string[]).includes(v);
+}
+
 /** Bir tip transactional (kapatılamaz) mı? */
 export function isTransactionalNotification(type: string): boolean {
   return !PREF_KEY_BY_TYPE[type];

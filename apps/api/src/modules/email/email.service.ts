@@ -12,7 +12,15 @@ import type { Locale } from "@rothern/i18n";
 import { reportToSentry } from "../../instrument";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { resolveWebUrl } from "../../common/config/web-url";
+import { localizeAppPath } from "../../common/company/app-routes";
 import { isCriticalEmailContext } from "./critical-contexts";
+import {
+  STREAM_SENDER_ENV,
+  streamForContext,
+  unsubscribeScopeFor,
+  type EmailStream,
+} from "./email-streams";
+import { signUnsubscribeToken } from "./unsubscribe-token";
 
 // Geriye-dönük uyumluluk: mevcut import'lar (testler dahil) bu sembolü
 // email.service'ten çeker. Tek kaynak critical-contexts.ts; burada re-export.
@@ -30,7 +38,21 @@ export interface SendEmailInput {
    * payload'dan N kişiye dağıldığı için dil ALICI BAŞINA geçirilmelidir.
    */
   locale?: Locale;
+  /**
+   * Gönderenin GÖRÜNEN adı (adres akıştan gelir) — ör. davette
+   * "ABC İnşaat (Rothern üzerinden)". Verilmezse `EMAIL_FROM_NAME`.
+   */
+  fromName?: string;
 }
+
+/**
+ * Çıkış sayfası (web, dil ön ekli) ve RFC 8058 tek tık ucu. Tek tık ucu web
+ * alan adındadır (`/api/email/unsubscribe`, API'ye iletir): bağlantı gönderen
+ * alan adıyla hizalı kalır ve API'nin genel adresini bilmesi gerekmez.
+ */
+export const UNSUBSCRIBE_PAGE_PATH = "/e-posta-tercihleri";
+export const UNSUBSCRIBE_ONE_CLICK_PATH = "/api/email/unsubscribe";
+const PREFERENCES_PATH = "/company/ayarlar/bildirimler";
 
 /**
  * Payload'ında tek-kullanımlık sır (parola-reset token'ı, 2FA/doğrulama kodu)
@@ -78,6 +100,8 @@ export class EmailService implements OnModuleInit {
   private readonly logger = new Logger(EmailService.name);
   private client!: EmailClient;
   private providerName!: EmailProviderName;
+  /** Akış başına gönderen (boş akış varsayılana düşer — bkz. email-streams). */
+  private senders!: Record<EmailStream, { email: string; name?: string }>;
 
   constructor(
     private readonly config: ConfigService,
@@ -92,6 +116,16 @@ export class EmailService implements OnModuleInit {
     const replyTo = this.config.get<string>("EMAIL_REPLY_TO");
 
     this.providerName = provider;
+    const senderFor = (stream: EmailStream) => {
+      const v = (this.config.get<string>(STREAM_SENDER_ENV[stream]) ?? "").trim();
+      return { email: v || fromEmail, name: fromName };
+    };
+    this.senders = {
+      TRANSACTIONAL: { email: fromEmail, name: fromName },
+      NOTIFICATION: senderFor("NOTIFICATION"),
+      INVITE: senderFor("INVITE"),
+      LIFECYCLE: senderFor("LIFECYCLE"),
+    };
     this.client = createEmailClient({
       provider,
       from: { email: fromEmail, name: fromName },
@@ -179,6 +213,34 @@ export class EmailService implements OnModuleInit {
       return { emailLogId: skipped.id, sent: false };
     }
 
+    // Tek tık çıkış (2026-09-27): işlem dışı akışta adres o kapsamdan (ya da
+    // "tümü"nden) çıktıysa gönderilmez. Kayıtlı kullanıcının kategori tercihi
+    // çağıranda (`isNotificationEnabled`) uygulanır; bu kapı kullanıcı OLMAYAN
+    // alıcıyı (firma `billingEmail`i) ve davet adreslerini de kapsar.
+    const stream = streamForContext(input.context?.type);
+    const scope = unsubscribeScopeFor(input.context?.type);
+    if (scope && (await this.isOptedOut(input.to.email, scope))) {
+      const skipped = await this.prisma.emailLog.create({
+        data: {
+          template: input.templateData.template,
+          toEmail: input.to.email,
+          toName: input.to.name,
+          subject: input.subject ?? input.templateData.template,
+          provider: this.providerName,
+          status: "FAILED",
+          errorMessage: `opted_out: ${scope}`,
+          failedAt: new Date(),
+          contextType: input.context?.type,
+          contextId: input.context?.id,
+          attemptCount: 0,
+        },
+        select: { id: true },
+      });
+      this.logger.log(`skipped (opted out of "${scope}"): ${input.templateData.template}`);
+      return { emailLogId: skipped.id, sent: false };
+    }
+    const unsubscribe = scope ? this.unsubscribeLinks(input.to.email, scope, input.locale ?? "tr", stream) : null;
+
     // Hassas tiplerde token/kod düz saklanmaz (bkz. REDACTED_CONTEXT_TYPES).
     // NOT: bu payload ile YENİDEN GÖNDERİM yapılamaz — admin-email-logs.resend
     // bu tipleri reddeder (denetim 2026-08-26 Parça 9 #2).
@@ -207,6 +269,7 @@ export class EmailService implements OnModuleInit {
       // Alt bilgideki alan adı gönderen ortamın web adresinden (staging kendi alanını basar).
       rendered = await renderEmail(input.templateData, input.locale, {
         siteUrl: resolveWebUrl(this.config),
+        ...(unsubscribe?.env ?? {}),
       });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
@@ -223,9 +286,14 @@ export class EmailService implements OnModuleInit {
     }
 
     try {
+      // Elle kurulan servis (birim testleri onModuleInit'i koşmaz) istemcinin
+      // varsayılan göndericisine düşer.
+      const sender = this.senders?.[stream];
       const result = await this.client.send({
         to: input.to,
         rendered,
+        ...(sender ? { from: { email: sender.email, name: input.fromName ?? sender.name } } : {}),
+        ...(unsubscribe ? { headers: unsubscribe.headers } : {}),
       });
 
       await this.prisma.emailLog.update({
@@ -265,5 +333,51 @@ export class EmailService implements OnModuleInit {
       }
       throw err;
     }
+  }
+
+  /** Adres bu kapsamdan (ya da tüm isteğe bağlı e-postalardan) çıkmış mı? */
+  private async isOptedOut(email: string, scope: string): Promise<boolean> {
+    const lower = email.trim().toLowerCase();
+    const row = await this.prisma.emailOptOut.findFirst({
+      where: { email: lower, scope: { in: [scope, "all"] } },
+      select: { id: true },
+    });
+    if (row) return true;
+    if (scope !== "invite") return false;
+    const invite = await this.prisma.referralOptOut.findUnique({
+      where: { email: lower },
+      select: { email: true },
+    });
+    return !!invite;
+  }
+
+  /**
+   * Alt bilgi bağlantıları + RFC 8058 başlıkları. `JWT_SECRET` yoksa (yalnız
+   * yerel test) jeton imzalanamaz → çıkış bağlantısı basılmaz, e-posta yine gider.
+   */
+  private unsubscribeLinks(
+    email: string,
+    scope: NonNullable<ReturnType<typeof unsubscribeScopeFor>>,
+    locale: Locale,
+    stream: EmailStream,
+  ): { env: { unsubscribeUrl: string; preferencesUrl?: string }; headers: Record<string, string> } | null {
+    const secret = this.config.get<string>("JWT_SECRET");
+    if (!secret) return null;
+    const web = resolveWebUrl(this.config);
+    const token = signUnsubscribeToken({ email, scope, locale }, secret);
+    const pageUrl = `${web}${localizeAppPath(UNSUBSCRIBE_PAGE_PATH, locale)}?t=${token}`;
+    const oneClickUrl = `${web}${UNSUBSCRIBE_ONE_CLICK_PATH}?t=${token}`;
+    return {
+      env: {
+        unsubscribeUrl: pageUrl,
+        // Tercih ekranı yalnız hesabı olan alıcıya anlamlı; davet adresi
+        // kayıtsızdır → bağlantı basılmaz.
+        ...(stream === "INVITE" ? {} : { preferencesUrl: `${web}${localizeAppPath(PREFERENCES_PATH, locale)}` }),
+      },
+      headers: {
+        "List-Unsubscribe": `<${oneClickUrl}>`,
+        "List-Unsubscribe-Post": "List-Unsubscribe=One-Click",
+      },
+    };
   }
 }
