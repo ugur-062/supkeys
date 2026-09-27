@@ -85,7 +85,21 @@ export function MarketplaceFooter() {
           ))}
         </div>
         <div className="mt-12 flex flex-col gap-3 border-t border-zinc-200 pt-8 text-sm text-zinc-500 sm:flex-row sm:items-center sm:justify-between">
-          <p>© {new Date().getFullYear()} Rothern</p>
+          <div className="flex flex-col gap-1">
+            <p>© {new Date().getFullYear()} Rothern</p>
+            {/* GeoNames CC BY 4.0 atfı — şehir sayfaları, süzgeçler ve "Yakınımda" bu veriden. */}
+            <p className="text-xs">
+              {t("geoAttributionPrefix")}{" "}
+              <a href="https://www.geonames.org/" target="_blank" rel="noopener" className="underline hover:text-zinc-950">
+                GeoNames
+              </a>{" "}
+              (
+              <a href="https://creativecommons.org/licenses/by/4.0/" target="_blank" rel="noopener license" className="underline hover:text-zinc-950">
+                CC BY 4.0
+              </a>
+              )
+            </p>
+          </div>
           <LanguageSwitcher variant="inline" />
           <div className="flex gap-4">
             <Link href="/company/login" className="hover:text-zinc-950">

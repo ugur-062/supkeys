@@ -1,7 +1,7 @@
 import { webTranslator } from "@/i18n/server";
 import { localeFromParams } from "@/i18n/params";
 import { cityFromSlug } from "@/lib/public/city";
-import { fetchProductFacets } from "@/lib/public/marketplace-api";
+import { fetchGeoCity, fetchProductFacets } from "@/lib/public/marketplace-api";
 import { brandOgContent, cityOgContent } from "@/lib/seo/og/content";
 import { OG_CONTENT_TYPE, OG_SIZE, renderOgCard } from "@/lib/seo/og/card";
 
@@ -16,9 +16,12 @@ export const contentType = OG_CONTENT_TYPE;
 export default async function Image({ params }: { params: Promise<{ locale: string;  il: string }> }) {
   const { il } = await params;
   const locale = await localeFromParams(params);
-  const name = cityFromSlug(il);
-  if (!name) return renderOgCard(brandOgContent(locale));
-  const facets = await fetchProductFacets({ city: name });
-  const count = facets.cities.find((c) => c.city === name)?.count ?? 0;
+  // Dünya şehir listesi (2026-09-27); API eskiyse Türk illeri yerel listeden.
+  const geo = await fetchGeoCity(il);
+  const slug = geo?.slug ?? (cityFromSlug(il) ? il : null);
+  const name = geo?.name ?? cityFromSlug(il);
+  if (!slug || !name) return renderOgCard(brandOgContent(locale));
+  const facets = await fetchProductFacets({ city: slug });
+  const count = facets.cities.find((c) => c.city === slug)?.count ?? 0;
   return renderOgCard(cityOgContent("products", name, count, locale));
 }

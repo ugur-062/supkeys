@@ -154,6 +154,7 @@ export function useDiscoverSearch(
       if (params.q) sp.set("q", params.q);
       if (params.category) sp.set("category", params.category);
       if (params.city) sp.set("city", params.city);
+      if (params.country) sp.set("country", params.country);
       if (params.activity) sp.set("activity", params.activity);
       if (params.verified) sp.set("verified", "1");
       if (params.price) sp.set("price", params.price);
@@ -189,6 +190,7 @@ export function useDiscoverProductFacets(params: ProductFacetParams = {}) {
       if (params.category) sp.set("category", params.category);
       if (params.q) sp.set("q", params.q);
       if (params.city) sp.set("city", params.city);
+      if (params.country) sp.set("country", params.country);
       if (params.activity) sp.set("activity", params.activity);
       if (params.verified) sp.set("verified", "1");
       if (params.price) sp.set("price", params.price);

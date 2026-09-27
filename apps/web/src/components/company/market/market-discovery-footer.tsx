@@ -16,7 +16,7 @@ export function MarketDiscoveryFooter({
   cityHref,
   categoryHref,
 }: {
-  cities: { city: string; count: number }[];
+  cities: { city: string; name?: string; count: number }[];
   categories: { id: string; name: string; count: number }[];
   cityHref: (city: string) => string;
   categoryHref: (c: { id: string; name: string }) => string;
@@ -48,7 +48,7 @@ export function MarketDiscoveryFooter({
         {topCities.length > 0 ? (
           <Block title={t("sehreGoreTedarikciler")}>
             {topCities.map((c) => (
-              <Item key={c.city} href={cityHref(c.city)} label={c.city} count={c.count} />
+              <Item key={c.city} href={cityHref(c.city)} label={c.name ?? c.city} count={c.count} />
             ))}
           </Block>
         ) : null}

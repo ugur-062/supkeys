@@ -34,6 +34,8 @@ export const ROUTE_PATHNAMES: RoutePathnames = {
   "/urunler": P("/urunler", "/products", "/tovary"),
   "/urunler/kategori/[slug]": P("/urunler/kategori/[slug]", "/products/category/[slug]", "/tovary/kategoriya/[slug]"),
   "/urunler/sehir/[il]": P("/urunler/sehir/[il]", "/products/city/[il]", "/tovary/gorod/[il]"),
+  // Ülke sayfası (2026-09-27): satıcı ülkesine göre ürünler; slug `<kod>-<türkçe-ad>`.
+  "/urunler/ulke/[ulke]": P("/urunler/ulke/[ulke]", "/products/country/[ulke]", "/tovary/strana/[ulke]"),
   "/firmalar": P("/firmalar", "/companies", "/kompanii"),
   "/firma/[slug]": P("/firma/[slug]", "/companies/[slug]", "/kompanii/[slug]"),
   "/firma/[slug]/urun/[urunSlug]": P("/firma/[slug]/urun/[urunSlug]", "/companies/[slug]/products/[urunSlug]", "/kompanii/[slug]/tovary/[urunSlug]"),

@@ -9839,6 +9839,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketing.footer.geoAttributionPrefix": {
+    "hash": "7c749ed75a",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.marketing.footer.kvkk": {
     "hash": "6459c3dbb9",
     "status": "reviewed",
@@ -12004,6 +12009,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketplace.cityLinks.countries": {
+    "hash": "e00935ec70",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.marketplace.cityLinks.products": {
     "hash": "29050b940d",
     "status": "reviewed",
@@ -12423,6 +12433,11 @@
     "hash": "9d28d29169",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.marketplace.filters.sellerCountry": {
+    "hash": "18a64aaf1b",
+    "status": "reviewed",
+    "at": "2026-09-27"
   },
   "web.marketplace.filters.showAll": {
     "hash": "f396c71e39",
@@ -13105,24 +13120,24 @@
     "at": "2026-09-25"
   },
   "web.marketplace.pages.cityLeadHas": {
-    "hash": "52acba2ca5",
+    "hash": "21739e1167",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-27"
   },
   "web.marketplace.pages.cityLeadNone": {
-    "hash": "e12660bce8",
+    "hash": "4304aa3a27",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-27"
   },
   "web.marketplace.pages.cityMetaDescHas": {
-    "hash": "47186a54b5",
+    "hash": "ee6506ce27",
     "status": "reviewed",
-    "at": "2026-09-25"
+    "at": "2026-09-27"
   },
   "web.marketplace.pages.cityMetaDescNone": {
-    "hash": "6a02e5060c",
+    "hash": "0c1defd7e4",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-27"
   },
   "web.marketplace.pages.cityNotFound": {
     "hash": "a38f34aeb1",
@@ -13153,6 +13168,36 @@
     "hash": "931a4f9bdb",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.marketplace.pages.countryLeadHas": {
+    "hash": "f30373e541",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketplace.pages.countryLeadNone": {
+    "hash": "b9398eac2b",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketplace.pages.countryMetaDescHas": {
+    "hash": "8f737dc7e2",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketplace.pages.countryMetaDescNone": {
+    "hash": "28f68d7dcd",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketplace.pages.countryNotFound": {
+    "hash": "d8b60d6192",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketplace.pages.countryTitle": {
+    "hash": "338977e76d",
+    "status": "reviewed",
+    "at": "2026-09-27"
   },
   "web.marketplace.pages.demandsLead": {
     "hash": "bd8a7e679f",
@@ -34538,6 +34583,11 @@
     "hash": "14d2482077",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.shared.cityPicker.placeholder": {
+    "hash": "9b71cd8496",
+    "status": "reviewed",
+    "at": "2026-09-27"
   },
   "web.shared.companyActivityPicker.enFazlaSecim": {
     "hash": "6970f4a26e",

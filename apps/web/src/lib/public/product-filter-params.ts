@@ -27,6 +27,8 @@ export interface ProductFilterState {
   q?: string;
   category?: string;
   cities: string[];
+  /** Satıcı ülkesi (ISO) — `?ulke=DE,IT` (2026-09-27). */
+  countries: string[];
   activities: string[];
   verified: boolean;
   price?: "var" | "teklif";
@@ -73,6 +75,7 @@ export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string
     q: get(sp, "q")?.trim() || undefined,
     category: cat && /^\d{8}$/.test(cat) ? cat : undefined,
     cities: list(get(sp, "sehir") ?? get(sp, "il")),
+    countries: list(get(sp, "ulke")).map((c) => c.toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c)),
     activities: list(get(sp, "faaliyet")).filter(isCompanyActivity),
     verified: get(sp, "dogrulanmis") === "1",
     price: price === "var" || price === "teklif" ? price : undefined,
@@ -102,6 +105,7 @@ export function toProductListParams(f: ProductFilterState): ProductListParams & 
     q: f.q,
     category: f.category,
     city: f.cities.length ? f.cities.join(",") : undefined,
+    country: f.countries.length ? f.countries.join(",") : undefined,
     activity: f.activities.length ? f.activities.join(",") : undefined,
     verified: f.verified || undefined,
     price: f.price === "var" ? "has" : f.price === "teklif" ? "request" : undefined,
@@ -127,6 +131,7 @@ export function buildProductFilterQuery(f: ProductFilterState): string {
   if (f.q) sp.set("q", f.q);
   if (f.category) sp.set("kategori", f.category);
   if (f.cities.length) sp.set("sehir", f.cities.join(","));
+  if (f.countries.length) sp.set("ulke", f.countries.join(","));
   if (f.activities.length) sp.set("faaliyet", f.activities.join(","));
   if (f.verified) sp.set("dogrulanmis", "1");
   if (f.price) sp.set("fiyat", f.price);
@@ -153,7 +158,7 @@ export function buildProductFilterQuery(f: ProductFilterState): string {
 /** Aktif süzgeç sayısı (arama, sıralama ve sayfa hariç) — "Filtrele (3)". */
 export function activeFilterCount(f: ProductFilterState): number {
   return (
-    (f.category ? 1 : 0) + f.cities.length + f.activities.length + (f.verified ? 1 : 0) + (f.fastReply ? 1 : 0) + (f.price ? 1 : 0) +
+    (f.category ? 1 : 0) + f.cities.length + f.countries.length + f.activities.length + (f.verified ? 1 : 0) + (f.fastReply ? 1 : 0) + (f.price ? 1 : 0) +
     (f.priceMin != null || f.priceMax != null ? 1 : 0) + (f.moqMax != null ? 1 : 0) + f.attrs.length +
     f.certs.length + f.employees.length + (f.near && f.radius ? 1 : 0)
   );
@@ -161,6 +166,7 @@ export function activeFilterCount(f: ProductFilterState): number {
 
 export const EMPTY_FILTERS: ProductFilterState = {
   cities: [],
+  countries: [],
   activities: [],
   verified: false,
   attrs: [],

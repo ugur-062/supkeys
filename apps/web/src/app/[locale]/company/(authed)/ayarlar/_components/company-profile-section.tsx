@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { countryDisplayName, useTierLabel } from "@/i18n/domain";
+import { CityCombobox } from "@/components/ui/city-combobox";
 import {
   isKycLocked,
   useVerificationMeta,
@@ -59,6 +60,8 @@ type FormState = {
   name: string;
   legalName: string;
   city: string;
+  /** Dünya şehir listesi kaydı (seçiciden; 2026-09-27). */
+  cityId: number | null;
   district: string;
   addressLine: string;
   postalCode: string;
@@ -74,6 +77,7 @@ const EMPTY_FORM: FormState = {
   name: "",
   legalName: "",
   city: "",
+  cityId: null,
   district: "",
   addressLine: "",
   postalCode: "",
@@ -91,6 +95,7 @@ function toForm(p: CompanyProfile): FormState {
     name: p.name ?? "",
     legalName: p.legalName ?? "",
     city: p.city ?? "",
+    cityId: p.cityId ?? null,
     district: p.district ?? "",
     addressLine: p.addressLine ?? "",
     postalCode: p.postalCode ?? "",
@@ -394,7 +399,11 @@ export function CompanyProfileSection() {
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field>
               <Label>{t("ilSehir")}</Label>
-              <Input value={form.city} onChange={(e) => set({ city: e.target.value })} />
+              <CityCombobox
+                country={profile.country ?? "TR"}
+                value={form.city}
+                onChange={({ city, cityId }) => set({ city, cityId })}
+              />
             </Field>
             <Field>
               <Label>{t("ilce")}</Label>

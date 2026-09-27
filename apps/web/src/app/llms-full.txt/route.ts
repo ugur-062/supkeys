@@ -1,7 +1,8 @@
 import { MARKETPLACE_ROUTES, categoryHref } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { fetchProductFacets, fetchPublicDirectoryFacets, fetchStats } from "@/lib/public/marketplace-api";
-import { cityProductPath, allCitySlugs } from "@/lib/public/city";
+import { cityProductPath } from "@/lib/public/city";
+import { countryName, countryProductPath } from "@rothern/shared";
 import { faqFlat } from "@/app/[locale]/sss/faq-data";
 import { absoluteUrl } from "@/lib/seo/meta";
 
@@ -30,7 +31,6 @@ export async function GET(): Promise<Response> {
     fetchPublicDirectoryFacets({}),
   ]);
 
-  const known = new Set(allCitySlugs().map((c) => c.name));
   const line = (s: string) => s;
   const parts: string[] = [];
 
@@ -67,13 +67,26 @@ export async function GET(): Promise<Response> {
     parts.push("");
   }
 
-  /* --- Şehirler --- */
-  const cities = facets.cities.filter((c) => c.count > 0 && known.has(c.city)).slice(0, 30);
+  /* --- Şehirler (dünya geneli, 2026-09-27) --- */
+  const cities = facets.cities.filter((c) => c.count > 0).slice(0, 30);
   if (cities.length) {
     parts.push("## Şehirlere göre ürünler");
     parts.push("");
     for (const c of cities) {
-      parts.push(line(`- [${c.city}](${absoluteUrl(cityProductPath(c.city))}) — ${c.count} ürün`));
+      const name = c.name ?? c.city;
+      const where = c.country && c.country !== "TR" ? `${name}, ${countryName(c.country)}` : name;
+      parts.push(line(`- [${where}](${absoluteUrl(cityProductPath(c.city))}) — ${c.count} ürün`));
+    }
+    parts.push("");
+  }
+
+  /* --- Satıcı ülkeleri (2026-09-27) --- */
+  const countries = (facets.countries ?? []).filter((c) => c.count > 0).slice(0, 30);
+  if (countries.length) {
+    parts.push("## Ülkelere göre ürünler");
+    parts.push("");
+    for (const c of countries) {
+      parts.push(line(`- [${countryName(c.country)}](${absoluteUrl(countryProductPath(c.country))}) — ${c.count} ürün`));
     }
     parts.push("");
   }

@@ -29,6 +29,7 @@ import {
   registrationCountries,
 } from "@rothern/shared";
 import { CountryCombobox } from "@/components/ui/country-combobox";
+import { CityCombobox } from "@/components/ui/city-combobox";
 import { Check } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
@@ -72,6 +73,8 @@ export function OnboardingClient() {
     taxOffice: "",
     website: "",
     city: "",
+    /** Dünya şehir listesi kaydı (TR dışı seçiciden; 2026-09-27). */
+    cityId: null as number | null,
     district: "",
     stateRegion: "",
     neighborhood: "",
@@ -179,6 +182,7 @@ export function OnboardingClient() {
         taxOffice: f.taxOffice.trim() || undefined,
         website: f.website.trim() || undefined,
         city: f.city.trim(),
+        ...(f.cityId != null ? { cityId: f.cityId } : {}),
         district: f.district.trim() || undefined,
         stateRegion: f.stateRegion.trim() || undefined,
         neighborhood: f.neighborhood.trim() || undefined,
@@ -269,6 +273,7 @@ export function OnboardingClient() {
                     ...s,
                     country: code,
                     city: "",
+                    cityId: null,
                     district: "",
                     taxOffice: "",
                     stateRegion: "",
@@ -376,7 +381,12 @@ export function OnboardingClient() {
               <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                 <Field>
                   <Label>{t("city")}</Label>
-                  <Input value={f.city} onChange={(e) => set("city")(e.target.value)} />
+                  <CityCombobox
+                    country={f.country}
+                    value={f.city}
+                    ariaLabel={t("city")}
+                    onChange={({ city, cityId }) => setF((s) => ({ ...s, city, cityId }))}
+                  />
                 </Field>
                 <Field>
                   <Label>{t("stateRegion")}</Label>

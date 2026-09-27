@@ -1,8 +1,9 @@
 "use client";
 
-import { useActivityLabel, useCityLabel } from "@/i18n/domain";
+import { countryDisplayName, useActivityLabel, useCityLabel } from "@/i18n/domain";
+import type { Locale } from "@rothern/i18n";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { Check, FilterChipBar, Group, ShowMore, type FilterChip } from "./filter-primitives";
 import { useFilters } from "./filter-shell";
@@ -43,6 +44,7 @@ export function CompanyFilters({
   showConnection?: boolean;
 }) {
   const t = useTranslations("web.marketplace.filters");
+  const dirLocale = useLocale() as Locale;
   const cityLabel = useCityLabel();
   const activityLabel = useActivityLabel();
   const { state, update } = useFilters<CompanyFilterState>();
@@ -105,12 +107,22 @@ export function CompanyFilters({
       </Group>
       <Group title={t("city")} count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="dir-city">
         <ShowMore
-          items={facets.cities.map((c) => ({ key: c.city, label: cityLabel(c.city), count: c.count }))}
+          items={facets.cities.map((c) => ({ key: c.city, label: c.name ?? cityLabel(c.city), count: c.count }))}
           selected={state.cities}
           idPrefix={`${idPrefix}-city`}
           onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
         />
       </Group>
+      {(facets.countries?.length ?? 0) > 1 || state.countries.length ? (
+        <Group title={t("sellerCountry")} count={state.countries.length} onClear={() => update({ countries: [] })} storageKey="dir-country">
+          <ShowMore
+            items={(facets.countries ?? []).map((c) => ({ key: c.country, label: countryDisplayName(c.country, dirLocale), count: c.count }))}
+            selected={state.countries}
+            idPrefix={`${idPrefix}-country`}
+            onToggle={(k, on) => update((s) => ({ ...s, countries: on ? [...s.countries, k] : s.countries.filter((x) => x !== k) }))}
+          />
+        </Group>
+      ) : null}
       <Group
         title={t("category")}
         count={state.categories.length}
@@ -130,6 +142,7 @@ export function CompanyFilters({
 
 export function CompanyActiveChips({ facets }: { facets: PublicDirectoryFacets }) {
   const t = useTranslations("web.marketplace.filters");
+  const chipLocale = useLocale() as Locale;
   const cityLabel = useCityLabel();
   const activityLabel = useActivityLabel();
   const { state, update, clear } = useFilters<CompanyFilterState>();
@@ -145,7 +158,8 @@ export function CompanyActiveChips({ facets }: { facets: PublicDirectoryFacets }
       onRemove: () => update({ connection: undefined }),
     });
   for (const a of state.activities) chips.push({ key: `a:${a}`, label: activityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
-  for (const c of state.cities) chips.push({ key: `c:${c}`, label: cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+  for (const c of state.cities) chips.push({ key: `c:${c}`, label: facets.cities.find((f) => f.city === c)?.name ?? cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+  for (const c of state.countries) chips.push({ key: `u:${c}`, label: countryDisplayName(c, chipLocale), onRemove: () => update((s) => ({ ...s, countries: s.countries.filter((x) => x !== c) })) });
   for (const k of state.categories) chips.push({ key: `k:${k}`, label: categoryName(k), onRemove: () => update((s) => ({ ...s, categories: s.categories.filter((x) => x !== k) })) });
   return <FilterChipBar chips={chips} activeCount={activeCompanyFilterCount(state)} onClearAll={clear} />;
 }

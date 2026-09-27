@@ -1,8 +1,12 @@
 "use client";
 
-import { useActivityLabel, useCityLabel } from "@/i18n/domain";
+import { countryDisplayName, useActivityLabel, useCityLabel } from "@/i18n/domain";
+import type { Locale } from "@rothern/i18n";
+import { citySlug } from "@rothern/shared";
+import { searchGeoCities, type GeoCity } from "@/lib/public/geo-client";
+import { useGeoCityName } from "./use-geo-city-name";
 
-import { useFormatter, useTranslations } from "next-intl";
+import { useFormatter, useLocale, useTranslations } from "next-intl";
 
 import { useFilterAccent, useFilters } from "./filter-shell";
 import type { ProductFacets } from "@/lib/public/marketplace-api";
@@ -19,6 +23,7 @@ import {
   SlidersHorizontal,
   Tag,
   Users,
+  Globe2,
 } from "lucide-react";
 import { ActivityIcon } from "./activity-icons";
 import {
@@ -122,6 +127,7 @@ export function ProductFilters({ facets, idPrefix = "f" }: { facets: ProductFace
       </Group>
 
       <LocationGroup facets={facets} state={state} update={update} idPrefix={idPrefix} />
+      <CountryGroup facets={facets} state={state} update={update} idPrefix={idPrefix} />
 
       <CertificationGroup facets={facets} state={state} update={update} idPrefix={idPrefix} />
 
@@ -234,9 +240,12 @@ function LocationGroup({
   const [q, setQ] = useState("");
   const cityLabel = useCityLabel();
   const fold = (v: string) => v.toLocaleLowerCase("tr");
+  // Dünya şehir listesi (2026-09-27): değer kalıcı adres, ad API'den okuyucunun
+  // dilinde (`name`); eski API yanıtında ad yoksa Türk il adı çevrilir.
+  const label = (c: ProductFacets["cities"][number]) => c.name ?? cityLabel(c.city);
   const items = facets.cities
-    .filter((c) => !q || fold(c.city).includes(fold(q)) || fold(cityLabel(c.city)).includes(fold(q)) || state.cities.includes(c.city))
-    .map((c) => ({ key: c.city, label: cityLabel(c.city), count: c.count }));
+    .filter((c) => !q || fold(c.city).includes(fold(q)) || fold(label(c)).includes(fold(q)) || state.cities.includes(c.city))
+    .map((c) => ({ key: c.city, label: label(c), count: c.count }));
   return (
     <Group title={t("location")} icon={<MapPin className="size-4" />} count={state.cities.length} onClear={() => update({ cities: [] })} storageKey="sehir">
       {facets.cities.length > SHOW ? (
@@ -254,7 +263,11 @@ function LocationGroup({
   );
 }
 
-/** "Yakınımda": merkez (il ya da posta kodu) + yarıçap kaydırıcısı. */
+/**
+ * "Yakınımda": merkez + yarıçap kaydırıcısı — DÜNYA GENELİ (2026-09-27).
+ * Merkez dünya şehir listesinden aranır (yazarken öneri); Türk il adı ve Türk
+ * posta kodu eskisi gibi doğrudan çözülür. Süzgeç değeri şehrin kalıcı adresi.
+ */
 function NearbyControls({
   state,
   update,
@@ -265,47 +278,87 @@ function NearbyControls({
   idPrefix: string;
 }) {
   const t = useTranslations("web.marketplace.filters");
-  const [near, setNear] = useState(state.near ?? "");
-  const province = resolveProvince(near);
-  /**
-   * Durumdan kutuya senkron — ama KULLANICI YAZARKEN DEĞİL.
-   *
-   * Düz `setNear(state.near ?? "")` bir hata üretiyordu: çözülmeyen bir harf
-   * yazıldığı anda süzgeç temizleniyor, bu efekt tetikleniyor ve kutuyu
-   * BOŞALTIYORDU — yani "İzmir"i silip yeniden yazmaya kalkan kullanıcının
-   * yazdığı kayboluyordu. Kutu yalnız dışarıdan gelen bir değişimde
-   * (geri tuşu, çipten kaldırma, paylaşılan bağlantı) güncellenir.
-   */
+  const locale = useLocale() as Locale;
+  const currentName = useGeoCityName(state.near);
+  const [text, setText] = useState("");
+  const [options, setOptions] = useState<GeoCity[]>([]);
+  const [open, setOpen] = useState(false);
+  // Durumdan kutuya: yalnız dışarıdan gelen değişimde (bağlantı, çip kaldırma).
   useEffect(() => {
-    const local = resolveProvince(near)?.name;
-    if (state.near === local) return; // zaten senkron
-    if (!state.near && !local) return; // kullanıcı yazıyor, henüz çözülmedi
-    setNear(state.near ?? "");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [state.near]);
+    setText(state.near ? currentName : "");
+  }, [state.near, currentName]);
+  // Öneri: yazılan metin seçili adla aynı değilse (250 ms gecikmeyle).
+  useEffect(() => {
+    const q = text.trim();
+    if (!open || q.length < 2 || (state.near && q === currentName)) {
+      setOptions([]);
+      return;
+    }
+    let alive = true;
+    const h = setTimeout(() => {
+      void searchGeoCities(q, { locale, limit: 6 }).then((r) => alive && setOptions(r));
+    }, 250);
+    return () => {
+      alive = false;
+      clearTimeout(h);
+    };
+  }, [text, open, state.near, currentName, locale]);
   const radius = state.radius ?? 100;
   const accent = useFilterAccent();
-  // Merkez ÇÖZÜLENE dek süzgeç yazılmaz: yarım bir kısıt listeyi boşaltırdı.
-  const apply = (nextRadius: number) => {
-    if (province) update({ near: province.name, radius: nextRadius });
+  const choose = (slug: string) => {
+    setOpen(false);
+    setOptions([]);
+    update({ near: slug, radius });
   };
+  // Türk posta kodu / il adı doğrudan (eski davranış; öneri beklemeden).
+  const province = resolveProvince(text);
   return (
     <div className="mt-3 border-t border-zinc-100 px-2 pt-3">
       <p className="mb-1.5 text-xs font-semibold text-zinc-600">{t("nearMe")}</p>
       <input
         id={`${idPrefix}-near`}
-        value={near}
+        value={text}
+        onFocus={() => setOpen(true)}
         onChange={(e) => {
-          setNear(e.target.value);
-          const p = resolveProvince(e.target.value);
-          if (p) update({ near: p.name, radius });
-          else if (state.near) update({ near: undefined, radius: undefined });
+          setText(e.target.value);
+          setOpen(true);
+          if (/^\d{5}$/.test(e.target.value.trim()) && resolveProvince(e.target.value)) {
+            choose(citySlug(resolveProvince(e.target.value)!.name));
+          } else if (state.near && e.target.value !== currentName) {
+            update({ near: undefined, radius: undefined });
+          }
+        }}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            if (options[0]) choose(options[0].slug);
+            else if (province) choose(citySlug(province.name));
+          }
         }}
         placeholder={t("nearPlaceholder")}
         aria-label={t("nearAria")}
+        autoComplete="off"
         className="h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
       />
-      {near && !province ? (
+      {options.length > 0 ? (
+        <ul className="mt-1 overflow-hidden rounded-lg border border-zinc-200 bg-white text-sm" role="listbox" aria-label={t("nearAria")}>
+          {options.map((o) => (
+            <li key={o.id}>
+              <button
+                type="button"
+                role="option"
+                aria-selected={state.near === o.slug}
+                onClick={() => choose(o.slug)}
+                className="flex w-full items-center justify-between gap-2 px-2 py-1.5 text-left hover:bg-zinc-100"
+              >
+                <span className="truncate">{o.name}</span>
+                <span className="shrink-0 text-[11px] text-zinc-500">{countryDisplayName(o.countryCode, locale)}</span>
+              </button>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+      {text.trim().length >= 3 && !state.near && !options.length && !province ? (
         <p className="mt-1 text-[11px] text-amber-700">{t("nearNotFound")}</p>
       ) : null}
       <label className="mt-2 block text-[11px] text-zinc-500" htmlFor={`${idPrefix}-radius`}>
@@ -318,8 +371,8 @@ function NearbyControls({
         max={RADIUS_OPTIONS.length - 1}
         step={1}
         value={Math.max(0, RADIUS_OPTIONS.indexOf(radius as (typeof RADIUS_OPTIONS)[number]))}
-        onChange={(e) => apply(RADIUS_OPTIONS[Number(e.target.value)]!)}
-        disabled={!province}
+        onChange={(e) => state.near && update({ near: state.near, radius: RADIUS_OPTIONS[Number(e.target.value)]! })}
+        disabled={!state.near}
         className={`mt-1 w-full disabled:opacity-40 ${
           accent === "blue" ? "accent-blue-600" : "accent-zinc-950"
         }`}
@@ -329,12 +382,45 @@ function NearbyControls({
           <span key={r}>{r}</span>
         ))}
       </p>
-      {province ? (
+      {state.near ? (
         <p className="mt-1 text-[11px] text-zinc-500">
-          {t("radiusHint", { name: province.name, radius })}
+          {t("radiusHint", { name: currentName, radius })}
         </p>
       ) : null}
     </div>
+  );
+}
+
+/**
+ * SATICI ÜLKESİ (2026-09-27) — facet'ten dinamik: yalnız ürünü olan ülkeler,
+ * ekranın dilinde ad. Çoklu seçim (OR).
+ */
+function CountryGroup({
+  facets,
+  state,
+  update,
+  idPrefix,
+}: {
+  facets: ProductFacets;
+  state: ProductFilterState;
+  update: (p: Partial<ProductFilterState> | ((s: ProductFilterState) => ProductFilterState)) => void;
+  idPrefix: string;
+}) {
+  const t = useTranslations("web.marketplace.filters");
+  const locale = useLocale() as Locale;
+  const countries = facets.countries ?? [];
+  if (countries.length < 2 && state.countries.length === 0) return null;
+  const items = countries.map((c) => ({ key: c.country, label: countryDisplayName(c.country, locale), count: c.count }));
+  return (
+    <Group title={t("sellerCountry")} icon={<Globe2 className="size-4" />} count={state.countries.length} onClear={() => update({ countries: [] })} storageKey="ulke">
+      <ShowMore
+        items={items}
+        selected={state.countries}
+        idPrefix={`${idPrefix}-country`}
+        onToggle={(k, on) => update((s) => ({ ...s, countries: on ? [...s.countries, k] : s.countries.filter((x) => x !== k) }))}
+        emptyText={t("noCity")}
+      />
+    </Group>
   );
 }
 
@@ -636,6 +722,9 @@ function presetRanges(hist: {
 export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
   const t = useTranslations("web.marketplace.filters");
   const cityLabel = useCityLabel();
+  const chipLocale = useLocale() as Locale;
+  const { state: chipState } = useFilters();
+  const nearName = useGeoCityName(chipState.near);
   const fmt = useFormatter();
   const activityLabel = useActivityLabel();
   const { state, update, clear } = useFilters();
@@ -651,7 +740,11 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
         state.category,
       onRemove: () => update({ category: undefined, attrs: [] }),
     });
-  for (const c of state.cities) chips.push({ key: `c:${c}`, label: cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+  for (const c of state.cities) {
+    const known = facets.cities.find((f) => f.city === c)?.name;
+    chips.push({ key: `c:${c}`, label: known ?? cityLabel(c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+  }
+  for (const c of state.countries) chips.push({ key: `u:${c}`, label: countryDisplayName(c, chipLocale), onRemove: () => update((s) => ({ ...s, countries: s.countries.filter((x) => x !== c) })) });
   for (const a of state.activities) chips.push({ key: `a:${a}`, label: activityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
   if (state.verified) chips.push({ key: "v", label: t("verified"), onRemove: () => update({ verified: false }) });
   if (state.price) chips.push({ key: "p", label: state.price === "var" ? t("priced") : t("onRequest"), onRemove: () => update({ price: undefined }) });
@@ -662,7 +755,7 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
   if (state.near && state.radius) {
     chips.push({
       key: "near",
-      label: `${state.near} · ${state.radius} km`,
+      label: `${nearName} · ${state.radius} km`,
       onRemove: () => update({ near: undefined, radius: undefined }),
     });
   }

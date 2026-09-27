@@ -61,6 +61,8 @@ describe("ROUTE_PATHNAMES — yol parçaları üç dilde", () => {
     expect(internalRoutePath("/products/city/izmir", "en")).toBe("/urunler/sehir/izmir");
     expect(internalRoutePath("/urunler/sehir/izmir", "en")).toBe("/urunler/sehir/izmir");
     expect(internalRoutePath("/tovary/gorod/izmir", "en")).toBe("/urunler/sehir/izmir");
+    expect(internalRoutePath("/products/country/de-almanya", "en")).toBe("/urunler/ulke/de-almanya");
+    expect(internalRoutePath("/tovary/strana/de-almanya", "ru")).toBe("/urunler/ulke/de-almanya");
     expect(internalRoutePath("/kompaniya/vhod?next=1", "ru")).toBe("/company/login?next=1");
     expect(internalRoutePath("/bilinmeyen/yol", "en")).toBe("/bilinmeyen/yol");
   });

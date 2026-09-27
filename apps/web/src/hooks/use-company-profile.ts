@@ -11,6 +11,8 @@ export interface CompanyProfile {
   website: string | null;
   country: string;
   city: string | null;
+  /** Dünya şehir listesi kaydı (2026-09-27). */
+  cityId?: number | null;
   district: string | null;
   addressLine: string | null;
   postalCode: string | null;

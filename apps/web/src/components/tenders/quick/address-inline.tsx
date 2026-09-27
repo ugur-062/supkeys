@@ -7,6 +7,7 @@ import { TR_PROVINCES } from "@rothern/shared";
 import { useState } from "react";
 import { toast } from "sonner";
 import { CountryCombobox } from "@/components/ui/country-combobox";
+import { CityCombobox } from "@/components/ui/city-combobox";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 const INPUT = "w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15";
@@ -16,7 +17,8 @@ const INPUT = "w-full rounded-lg border border-zinc-300 px-3 py-2 text-sm outlin
  * Dört alan (başlık, ülke, il/şehir, adres); kayıt TESLİMAT tipiyle açılır ve
  * seçili gelir. Ülke varsayılanı firmanın ülkesi (2026-09-27: eskiden ülke
  * "TR"ye SABİTTİ — Alman alıcının deposu Türkiye adresi olarak kaydediliyordu).
- * Türkiye'de 81 il listesi, diğer ülkelerde serbest şehir.
+ * Türkiye'de 81 il listesi, diğer ülkelerde dünya şehir listesinden öneri
+ * (serbest yazım da açık).
  */
 export function AddressInline({ onCreated, onCancel }: { onCreated: (id: string) => void; onCancel: () => void }) {
   const t = useTranslations("web.panel.requests.addressInline");
@@ -26,6 +28,7 @@ export function AddressInline({ onCreated, onCancel }: { onCreated: (id: string)
   const companyCountry = useCompanyAuthStore((st) => st.company?.country) ?? "TR";
   const [country, setCountry] = useState(companyCountry);
   const [city, setCity] = useState("");
+  const [cityId, setCityId] = useState<number | null>(null);
   const [line, setLine] = useState("");
 
   const submit = async () => {
@@ -34,7 +37,7 @@ export function AddressInline({ onCreated, onCancel }: { onCreated: (id: string)
       return;
     }
     try {
-      const created = (await save.mutateAsync({ type: "TESLIMAT", title: title.trim(), city: city.trim() || undefined, addressLine: line.trim(), country })) as { id: string };
+      const created = (await save.mutateAsync({ type: "TESLIMAT", title: title.trim(), city: city.trim() || undefined, cityId: cityId ?? undefined, addressLine: line.trim(), country })) as { id: string };
       onCreated(created.id);
       toast.success(t("adresEklendi"));
     } catch {
@@ -52,6 +55,7 @@ export function AddressInline({ onCreated, onCancel }: { onCreated: (id: string)
           onChange={(c) => {
             setCountry(c);
             setCity("");
+            setCityId(null);
           }}
         />
       </div>
@@ -63,7 +67,16 @@ export function AddressInline({ onCreated, onCancel }: { onCreated: (id: string)
           ))}
         </select>
       ) : (
-        <input value={city} onChange={(e) => setCity(e.target.value)} placeholder={t("sehir")} aria-label={t("sehir")} maxLength={80} className={INPUT} />
+        <CityCombobox
+          country={country}
+          value={city}
+          ariaLabel={t("sehir")}
+          placeholder={t("sehir")}
+          onChange={(next) => {
+            setCity(next.city);
+            setCityId(next.cityId);
+          }}
+        />
       )}
       <input value={line} onChange={(e) => setLine(e.target.value)} placeholder={t("acikAdres")} aria-label={t("acikAdres")} className={INPUT} />
       <div className="flex gap-2">

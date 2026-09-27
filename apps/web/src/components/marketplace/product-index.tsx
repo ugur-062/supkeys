@@ -10,6 +10,7 @@ import { crossCounts } from "@/lib/public/cross-counts";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
 import { CityLinks } from "./city-links";
+import { CountryLinks } from "./country-links";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbNode, graph, itemListNode } from "@/lib/seo/jsonld";
 import { categoryHref } from "@/lib/public/marketplace";
@@ -44,19 +45,25 @@ interface Props {
   image?: string | null;
   /** Şehir açılış sayfası: süzgeç URL'den değil YOLDAN gelir (Parça 3). */
   fixedCity?: string;
+  /** Ülke sayfası (2026-09-27): satıcı ülkesi YOLDAN gelir. */
+  fixedCountry?: string;
   /** Listenin ÜSTÜNDE görünen giriş metni (GEO: alıntılanabilir tanım). */
   /** Listenin ALTINDA görünen bağlantı şeridi (iç bağlantı ağı). */
   footer?: ReactNode;
 }
 
-export async function ProductIndex({ title, lead, searchParams, category, image, fixedCity, footer }: Props) {
+export async function ProductIndex({ title, lead, searchParams, category, image, fixedCity, fixedCountry, footer }: Props) {
   const t = await getTranslations("web.marketplace.index");
   const tl = await getTranslations("web.marketplace.labels");
   const tt = await getTranslations("web.marketplace.typeahead");
   const tm = await getTranslations("web.marketing");
   const locale = await getLocale();
   const state = parseProductFilters(
-    fixedCity ? { ...searchParams, sehir: fixedCity } : searchParams,
+    {
+      ...searchParams,
+      ...(fixedCity ? { sehir: fixedCity } : {}),
+      ...(fixedCountry ? { ulke: fixedCountry } : {}),
+    },
     category?.id,
   );
   const params = toProductListParams(state);
@@ -64,7 +71,22 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
 
   const [page, facets, otherCounts] = await Promise.all([
     fetchProducts(params),
-    fetchProductFacets({ category: params.category, q: params.q, city: params.city, activity: params.activity, verified: params.verified, price: params.price }),
+    // Facet sayımı listeyle AYNI süzgeçleri görür (2026-09-27: ülke, "Yakınımda",
+    // sertifika, çalışan ve hızlı yanıt eskiden facet çağrısına hiç gitmiyordu).
+    fetchProductFacets({
+      category: params.category,
+      q: params.q,
+      city: params.city,
+      country: params.country,
+      activity: params.activity,
+      verified: params.verified,
+      price: params.price,
+      cert: params.cert,
+      employees: params.employees,
+      near: params.near,
+      radius: params.radius,
+      fastReply: params.fastReply,
+    }),
     // Sekme rozetleri: aynı sorgunun ÖTEKİ yüzeylerdeki toplamı
     // (yalnız arama varken istek atılır).
     crossCounts(state.q, "products"),
@@ -212,7 +234,12 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         bağlantı olmadan sitemap tek başına otorite aktarmaz. Şehir sayfası
         kendi şeridini `footer` ile verir (orada facet, o şehre daralmış
         olurdu ve şerit boş çıkardı). */}
-    {footer ?? <CityLinks cities={facets.cities} kind="products" activeCity={fixedCity} />}
+    {footer ?? (
+      <>
+        <CityLinks cities={facets.cities} kind="products" activeCity={fixedCity} />
+        <CountryLinks countries={facets.countries} activeCountry={fixedCountry} />
+      </>
+    )}
     </>
   );
 }

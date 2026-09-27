@@ -78,7 +78,7 @@
   "apps/web/src/app/[locale]/sozlesmeler/mesafeli-satis/page.tsx": 22,
   "apps/web/src/app/api/client-error/route.ts": 1,
   "apps/web/src/app/global-error.tsx": 2,
-  "apps/web/src/app/llms-full.txt/route.ts": 17,
+  "apps/web/src/app/llms-full.txt/route.ts": 19,
   "apps/web/src/app/llms.txt/route.ts": 9,
   "apps/web/src/components/company/company-overview.tsx": 3,
   "apps/web/src/components/ihale/IhaleListView.tsx": 1,

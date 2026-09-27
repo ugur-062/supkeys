@@ -29,6 +29,8 @@ export interface DirectorySearchParams {
   q?: string;
   /** Virgüllü çoklu. */
   city?: string;
+  /** Firma ülkesi — ISO, virgüllü (2026-09-27). */
+  country?: string;
   /** Virgüllü çoklu 8 haneli kod. */
   category?: string;
   /** Virgüllü çoklu faaliyet kodu. */
@@ -48,6 +50,7 @@ function directoryQuery(params: DirectorySearchParams): string {
   const sp = new URLSearchParams();
   if (params.q) sp.set("q", params.q);
   if (params.city) sp.set("city", params.city);
+  if (params.country) sp.set("country", params.country);
   if (params.category) sp.set("category", params.category);
   if (params.activity) sp.set("activity", params.activity);
   if (params.verified) sp.set("verified", "1");

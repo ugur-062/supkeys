@@ -1,3 +1,4 @@
+import type { GeoCity } from "./geo-client";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
 import { getLocale } from "next-intl/server";
 import { SEO_TAGS } from "@/lib/seo/tags";
@@ -102,9 +103,21 @@ export interface PublicListPage {
   pageSize: number;
 }
 
+export interface CityFacet {
+  city: string;
+  name?: string;
+  country?: string;
+  count: number;
+}
+
 export interface PublicFacets {
   categories: (PublicCategoryRef & { count: number })[];
-  cities: { city: string; count: number }[];
+  /**
+   * Şehirler (2026-09-27, dünya şehir listesi): `city` = kalıcı adres (URL
+   * değeri: "bursa", "de-munich"), `name` = okuyucunun dilinde ad. Eski API
+   * `name`/`country` vermeyebilir → çizim `name ?? city`.
+   */
+  cities: CityFacet[];
   types: { type: string; count: number }[];
   /** Görünürlük ülkesi: tüm ülkelere açık sayısı + hedef listelerde geçen ülkeler. */
   openToAll: number;
@@ -589,7 +602,14 @@ export interface PublicDirectoryFacets {
   withProducts: number;
   /** Gold Üye sayısı (bağlamsal; eski yanıtta yok). */
   gold?: number;
-  cities: { city: string; count: number }[];
+  /**
+   * Şehirler (2026-09-27, dünya şehir listesi): `city` = kalıcı adres (URL
+   * değeri: "bursa", "de-munich"), `name` = okuyucunun dilinde ad. Eski API
+   * `name`/`country` vermeyebilir → çizim `name ?? city`.
+   */
+  cities: CityFacet[];
+  /** Firma ülkesi facet'i (2026-09-27; eski API'de yok). */
+  countries?: { country: string; count: number }[];
   activities: { activity: string; count: number }[];
   /** Firma beyanı kategorileri (L1/L2-4), firma sayısıyla. */
   categories?: { id: string; name: string; count: number }[];
@@ -599,6 +619,8 @@ export interface PublicDirectoryParams {
   q?: string;
   /** Virgüllü çoklu. */
   city?: string;
+  /** Firma ülkesi — ISO, virgüllü çoklu (2026-09-27). */
+  country?: string;
   /** Virgüllü çoklu 8 haneli kod. */
   category?: string;
   /** Virgüllü çoklu. */
@@ -614,6 +636,7 @@ export function fetchPublicDirectory(params: PublicDirectoryParams = {}): Promis
   const sp = new URLSearchParams();
   if (params.q) sp.set("q", params.q);
   if (params.city) sp.set("city", params.city);
+  if (params.country) sp.set("country", params.country);
   if (params.category) sp.set("category", params.category);
   if (params.activity) sp.set("activity", params.activity);
   if (params.verified) sp.set("verified", "1");
@@ -675,7 +698,14 @@ export interface ProductFacets {
    * kenar önbelleği bu alanı taşımayabilir.
    */
   selectedCategory?: { id: string; name: string; level: number } | null;
-  cities: { city: string; count: number }[];
+  /**
+   * Şehirler (2026-09-27, dünya şehir listesi): `city` = kalıcı adres (URL
+   * değeri: "bursa", "de-munich"), `name` = okuyucunun dilinde ad. Eski API
+   * `name`/`country` vermeyebilir → çizim `name ?? city`.
+   */
+  cities: CityFacet[];
+  /** Satıcı ülkesi facet'i (2026-09-27; eski API'de yok). */
+  countries?: { country: string; count: number }[];
   activities: { activity: string; count: number }[];
   /** v3: bağlama duyarlı sayaçlar. */
   verified: number;
@@ -706,6 +736,8 @@ export interface ProductListParams {
   q?: string;
   category?: string;
   city?: string;
+  /** Satıcı ülkesi — ISO, virgüllü çoklu (2026-09-27). */
+  country?: string;
   /** `anahtar:değer` çiftleri — uçta tekrarlanan `attr` parametresine döner. */
   attr?: string[];
   /** Satıcının faaliyet tipi kodu — virgüllü çoklu. */
@@ -762,6 +794,7 @@ export function fetchProducts(
   if (params.q) sp.set("q", params.q);
   if (params.category) sp.set("category", params.category);
   if (params.city) sp.set("city", params.city);
+  if (params.country) sp.set("country", params.country);
   if (params.activity) sp.set("activity", params.activity);
   if (params.sort && params.sort !== "relevance") sp.set("sort", params.sort);
   if (params.verified) sp.set("verified", "1");
@@ -796,7 +829,7 @@ export function fetchProducts(
  */
 export type ProductFacetParams = Pick<
   ProductListParams,
-  "category" | "q" | "city" | "activity" | "verified" | "price" | "cert" | "employees" | "near" | "radius" | "fastReply"
+  "category" | "q" | "city" | "country" | "activity" | "verified" | "price" | "cert" | "employees" | "near" | "radius" | "fastReply"
 >;
 
 /** Facet sayaçları BAĞLAMA DUYARLI: diğer seçimler de gönderilir. */
@@ -805,6 +838,7 @@ export function fetchProductFacets(params: ProductFacetParams = {}): Promise<Pro
   if (params.category) sp.set("category", params.category);
   if (params.q) sp.set("q", params.q);
   if (params.city) sp.set("city", params.city);
+  if (params.country) sp.set("country", params.country);
   if (params.activity) sp.set("activity", params.activity);
   if (params.verified) sp.set("verified", "1");
   if (params.price) sp.set("price", params.price);
@@ -920,16 +954,38 @@ export interface SitemapSummary {
   companies: SitemapBucket;
   listings: SitemapBucket;
   categories: { id: string; name: string; count: number; lastmod: string; slug?: string }[];
-  productCities: { city: string; count: number; lastmod: string }[];
-  companyCities: { city: string; count: number; lastmod: string }[];
+  /** Şehir sayfaları (dünya geneli): `city` kalıcı adres, `name` Türkçe ad. */
+  productCities: { city: string; name?: string; country?: string; count: number; lastmod: string }[];
+  companyCities: { city: string; name?: string; country?: string; count: number; lastmod: string }[];
+  /** Ülke sayfaları (satıcı ülkesi, 2026-09-27; eski API'de yok). */
+  productCountries?: { country: string; count: number; lastmod: string }[];
 }
 
 const EMPTY_BUCKET: SitemapBucket = { count: 0, lastmod: null };
 
+/**
+ * Şehir sayfası (2026-09-27, dünya şehir listesi): kalıcı adres → şehir. Eski
+ * ham il adı da çözülür (sayfa 308 ile kanoniğe atar). Başvuru verisi → uzun
+ * önbellek. Bulunamazsa null → sayfa `notFound()`.
+ */
+export async function fetchGeoCity(slug: string): Promise<GeoCity | null> {
+  const base = resolveApiBaseUrl();
+  if (!base) return null;
+  try {
+    const res = await fetch(`${base}/public/geo/cities/${encodeURIComponent(slug)}`, {
+      next: { revalidate: 86400 },
+      headers: await publicHeaders(),
+    });
+    return res.ok ? ((await res.json()) as GeoCity) : null;
+  } catch {
+    return null;
+  }
+}
+
 export function fetchSitemapSummary(): Promise<SitemapSummary> {
   return getJson<SitemapSummary>(
     "/public/sitemap/summary",
-    { products: EMPTY_BUCKET, companies: EMPTY_BUCKET, listings: EMPTY_BUCKET, categories: [], productCities: [], companyCities: [] },
+    { products: EMPTY_BUCKET, companies: EMPTY_BUCKET, listings: EMPTY_BUCKET, categories: [], productCities: [], companyCities: [], productCountries: [] },
     900,
     [SEO_TAGS.sitemap],
   );

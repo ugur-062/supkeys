@@ -35,7 +35,8 @@
       "refund": "İptal ve İade",
       "tagline": "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu.",
       "login": "Giriş yap",
-      "signup": "Ücretsiz kaydol"
+      "signup": "Ücretsiz kaydol",
+      "geoAttributionPrefix": "Şehir verisi:"
     },
     "audience": {
       "label": "Hangi taraftasınız?",
@@ -695,7 +696,8 @@
     },
     "cityLinks": {
       "products": "Şehre göre ürünler",
-      "companies": "Şehre göre firmalar"
+      "companies": "Şehre göre firmalar",
+      "countries": "Ülkeye göre ürünler"
     },
     "floatingCta": {
       "label": "Talep aç"
@@ -826,7 +828,8 @@
       "remaining": "Kalan süre",
       "country": "Ülke",
       "sortRecent": "Son eklenen",
-      "sortClosing": "Süresi yaklaşan"
+      "sortClosing": "Süresi yaklaşan",
+      "sellerCountry": "Satıcı ülkesi"
     },
     "index": {
       "breadcrumb": "Konum",
@@ -893,10 +896,10 @@
       "categoryLead": "{name} kategorisinde {count, number} ürün. Firmaların vitrinlerinden; teklif için doğrudan iletişime geçin.",
       "cityNotFound": "Şehir bulunamadı",
       "cityTitle": "{name} tedarikçileri ve ürünleri",
-      "cityMetaDescHas": "{name}'daki firmaların vitrinlerindeki {count} ürün: teknik özellik, minimum sipariş ve fiyat bilgisiyle. Tedarikçiyi seçin, doğrudan bilgi isteyin.",
-      "cityMetaDescNone": "{name} için Rothern'de henüz yayımlanmış ürün yok. Yakın illerdeki tedarikçileri inceleyin ya da alım talebinizi ücretsiz yayımlayın.",
-      "cityLeadHas": "{name}'daki firmaların Rothern vitrinine koyduğu ürünler. Kategori, faaliyet tipi ve fiyat bilgisine göre süzün.",
-      "cityLeadNone": "{name} için henüz yayımlanmış ürün yok. Aşağıdaki illerden devam edebilir ya da alım talebi açabilirsiniz.",
+      "cityMetaDescHas": "{name} konumlu firmaların vitrinlerinden {count} ürün: teknik özellik, minimum sipariş ve fiyat bilgisiyle. Tedarikçiyi seçin, doğrudan bilgi isteyin.",
+      "cityMetaDescNone": "{name} için Rothern'de henüz yayımlanmış ürün yok. Yakın şehirlerdeki tedarikçileri inceleyin ya da alım talebinizi ücretsiz yayımlayın.",
+      "cityLeadHas": "{name} konumlu firmaların Rothern vitrinine koyduğu ürünler. Kategori, faaliyet tipi ve fiyat bilgisine göre süzün.",
+      "cityLeadNone": "{name} için henüz yayımlanmış ürün yok. Aşağıdaki şehirlerden devam edebilir ya da alım talebi açabilirsiniz.",
       "loadingProducts": "Ürünler yükleniyor",
       "loadingCompanies": "Firmalar yükleniyor",
       "loadingDemands": "Alım talepleri yükleniyor",
@@ -909,7 +912,13 @@
       "connectCta": "Bağlantı isteği gönder",
       "gateStats": "Rothern ID ve iletişim",
       "gateAside": "Puan dağılımı, sipariş geçmişi ve açık talepler",
-      "gateAsideHint": "{name} ile bağlantı kurmak, mesajlaşmak ve teklif almak için ücretsiz hesap — 2 dakika, kredi kartı yok."
+      "gateAsideHint": "{name} ile bağlantı kurmak, mesajlaşmak ve teklif almak için ücretsiz hesap — 2 dakika, kredi kartı yok.",
+      "countryNotFound": "Ülke bulunamadı",
+      "countryTitle": "{name} tedarikçileri ve ürünleri",
+      "countryMetaDescHas": "{name} merkezli tedarikçilerin Rothern vitrinlerinden {count} ürün: teknik özellik, minimum sipariş ve fiyat bilgisiyle. Tedarikçiyi seçin, doğrudan bilgi isteyin.",
+      "countryMetaDescNone": "{name} merkezli tedarikçilerin Rothern'de henüz yayımlanmış ürünü yok. Diğer ülkelerdeki tedarikçileri inceleyin ya da alım talebinizi ücretsiz yayımlayın.",
+      "countryLeadHas": "{name} merkezli firmaların Rothern vitrinine koyduğu ürünler. Şehir, kategori, faaliyet tipi ve fiyat bilgisine göre süzün.",
+      "countryLeadNone": "{name} merkezli tedarikçilerin henüz yayımlanmış ürünü yok. Diğer ülkelerden devam edebilir ya da alım talebi açabilirsiniz."
     },
     "price": {
       "onRequest": "Fiyat için teklif isteyin",
@@ -6588,6 +6597,9 @@
       "placeholder": "Ülke ara…",
       "open": "Ülke listesini aç",
       "noResults": "Eşleşen ülke yok"
+    },
+    "cityPicker": {
+      "placeholder": "Şehir yazın…"
     }
   }
 }

@@ -6,7 +6,8 @@ import {
   fetchSitemapSummary,
   type SitemapSummary,
 } from "@/lib/public/marketplace-api";
-import { allCitySlugs, cityProductPath } from "@/lib/public/city";
+import { cityProductPath } from "@/lib/public/city";
+import { countryProductPath } from "@rothern/shared";
 import { DEFAULT_LOCALE, LOCALES, type Locale } from "@rothern/i18n";
 import { localizePath } from "@/i18n/href";
 import { absoluteUrl } from "@/lib/seo/meta";
@@ -18,7 +19,8 @@ import type { SitemapIndexItem, SitemapUrl } from "@/lib/seo/sitemap-xml";
  *   /sitemap.xml                → indeks (aşağıdakilerin listesi)
  *   /sitemaps/pages.xml         → anasayfa, dizinler, kurumsal/yasal
  *   /sitemaps/categories.xml    → ürünü olan segment sayfaları
- *   /sitemaps/cities.xml        → verisi olan il sayfaları (ürün + firma)
+ *   /sitemaps/cities.xml        → ürünü olan şehir sayfaları (DÜNYA GENELİ, 2026-09-27)
+ *   /sitemaps/countries.xml     → ürünü olan satıcı ülkesi sayfaları (2026-09-27)
  *   /sitemaps/products[-N].xml  → ürünler (20.000/parça, görselli)
  *   /sitemaps/companies[-N].xml → firma profilleri
  *   /sitemaps/listings[-N].xml  → yalnız DİZİNLENEBİLİR alım talepleri
@@ -45,10 +47,10 @@ import type { SitemapIndexItem, SitemapUrl } from "@/lib/seo/sitemap-xml";
  */
 export const PART_PAGE_SIZE = 5_000;
 
-const PART_RE = /^(pages|categories|cities|products|companies|listings)(?:-(\d+))?$/;
+const PART_RE = /^(pages|categories|cities|countries|products|companies|listings)(?:-(\d+))?$/;
 
 export interface PartName {
-  kind: "pages" | "categories" | "cities" | "products" | "companies" | "listings";
+  kind: "pages" | "categories" | "cities" | "countries" | "products" | "companies" | "listings";
   page: number;
 }
 
@@ -75,6 +77,8 @@ export function indexItems(summary: SitemapSummary): SitemapIndexItem[] {
   items.push({ loc: absoluteUrl(partPath("categories")), lastmod: catLast });
   const cityLast = maxIso([...summary.productCities, ...summary.companyCities].map((c) => c.lastmod));
   items.push({ loc: absoluteUrl(partPath("cities")), lastmod: cityLast });
+  // Eski API `productCountries` vermez → parça yine listelenir (boş urlset, 404 değil).
+  items.push({ loc: absoluteUrl(partPath("countries")), lastmod: maxIso((summary.productCountries ?? []).map((c) => c.lastmod)) });
   for (const kind of ["products", "companies", "listings"] as const) {
     const bucket = summary[kind];
     for (let p = 0; p < pageCount(bucket.count); p++) {
@@ -150,14 +154,19 @@ export async function buildPart(part: PartName): Promise<SitemapUrl[]> {
     }
     case "cities": {
       const s = await fetchSitemapSummary();
-      const known = new Set(allCitySlugs().map((c) => c.name));
-      return [
-        ...s.productCities
-          .filter((c) => c.count > 0 && known.has(c.city))
-          .flatMap((c) => located(cityProductPath(c.city), { lastmod: c.lastmod, changefreq: "daily", priority: 0.7 })),
-        // Firma şehir sayfaları YOK (2026-09-22): dizin liste değil, üyeliğe
-        // yönlendiren vitrin; `/firmalar/sehir/<il>` → `/firmalar` 308.
-      ];
+      // Dünya geneli (2026-09-27): API `city` = şehrin KALICI ADRESİ; eski API
+      // Türk il ADI döner — `cityProductPath` ikisini de doğru adrese çevirir.
+      return s.productCities
+        .filter((c) => c.count > 0)
+        .flatMap((c) => located(cityProductPath(c.city), { lastmod: c.lastmod, changefreq: "daily", priority: 0.7 }));
+      // Firma şehir sayfaları YOK (2026-09-22): dizin liste değil, üyeliğe
+      // yönlendiren vitrin; `/firmalar/sehir/<il>` → `/firmalar` 308.
+    }
+    case "countries": {
+      const s = await fetchSitemapSummary();
+      return (s.productCountries ?? [])
+        .filter((c) => c.count > 0 && /^[A-Z]{2}$/.test(c.country))
+        .flatMap((c) => located(countryProductPath(c.country), { lastmod: c.lastmod, changefreq: "daily", priority: 0.7 }));
     }
     case "products": {
       const rows = await fetchProductSitemap(part.page);

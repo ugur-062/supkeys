@@ -29,6 +29,7 @@ import {
 } from "@/hooks/use-company-addresses";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { CountryCombobox } from "@/components/ui/country-combobox";
+import { CityCombobox } from "@/components/ui/city-combobox";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -193,6 +194,7 @@ function AddressDialog({
     country: address?.country ?? companyCountry,
     stateRegion: address?.stateRegion ?? "",
     city: address?.city ?? "",
+    cityId: address?.cityId ?? (null as number | null),
     district: address?.district ?? "",
     addressLine: address?.addressLine ?? "",
     postalCode: address?.postalCode ?? "",
@@ -274,14 +276,16 @@ function AddressDialog({
             <CountryCombobox
               value={f.country}
               ariaLabel={t("ulke")}
-              onChange={(country) => set(country === "TR" ? { country, stateRegion: "" } : { country, taxOffice: "" })}
+              onChange={(country) => set(country === "TR" ? { country, stateRegion: "", city: "", cityId: null } : { country, taxOffice: "", city: "", cityId: null })}
             />
           </Field>
           <Field>
             <Label>{isTR ? t("il") : t("sehir")}</Label>
-            <Input
+            <CityCombobox
+              country={f.country}
               value={f.city}
-              onChange={(e) => set({ city: e.target.value })}
+              ariaLabel={isTR ? t("il") : t("sehir")}
+              onChange={({ city, cityId }) => set({ city, cityId })}
             />
           </Field>
           {/* TR: ilçe; diğer ülkeler: eyalet/bölge (Bayern, Maharashtra…). */}

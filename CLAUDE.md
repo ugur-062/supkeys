@@ -195,9 +195,9 @@ yalnız sekiz ülke açıktı (`docs/plan-country-registration.md` tarihsel).
 - **Aranabilir ülke seçici** `components/ui/country-combobox.tsx` (kayıt,
   adres, hızlı talep adresi, banka ülkesi). Telefon: tam liste, ortak kodda
   birincil ülke (+7 → RU, 7xx → KZ; +1 → US), numarasız seçilen ülke kaybolmaz.
-- **Türkiye'ye özgü kalanlar (bilinçli):** şehir sayfaları ve "Yakınımda"
-  mesafe süzgeci yalnız 81 il (metin bunu söyler); MERSİS, vergi dairesi, KEP
-  yalnız TR. Para birimi listesi genişletilmedi.
+- **Türkiye'ye özgü kalanlar (bilinçli):** MERSİS, vergi dairesi, KEP
+  yalnız TR (şehir sayfaları ve "Yakınımda" aynı gün dünya geneline açıldı —
+  aşağıda "DÜNYA ŞEHİRLERİ"). Para birimi listesi genişletilmedi.
 - Migration `20260927120000_global_registration` (eklemeli). Sözleşmeler:
   `country-profiles.spec`, `bank-details-phone.spec`, `onboarding.spec`
   (kapalı liste + DE/OTHER), `foreign-verification.spec` (SWIFT), `bank-accounts.spec`,
@@ -206,6 +206,41 @@ yalnız sekiz ülke açıktı (`docs/plan-country-registration.md` tarihsel).
 
 Kapı YALNIZ YENİ KAYDA uygulanır: kapalı ülkedeki mevcut firmanın belge seti
 ve ekranları çalışmaya devam eder.
+
+**DÜNYA ŞEHİRLERİ + ÜLKE SAYFALARI (2026-09-27, kullanıcı: "şehir sayfaları
+türkiye özel olamaz, bu uluslararası bir sistem").** Tablo `geo_cities`
+(migration `20260927150000`): GeoNames `cities15000` (nüfus ≥15.000, TR
+HARİÇ, ~33,7 bin) + Türkiye'nin 81 İLİ (id = -(1000+plaka), slug bugünkü il
+slug'ı — `/urunler/sehir/bursa` DEĞİŞMEZ; GeoNames'in ilçe ölçekli TR
+şehirleri alınmaz) + 6 KKTC şehri (id -2001…, slug `xn-…`); tek kaynak
+`@rothern/shared` `data/geo-special-cities.ts`. `Company.cityId` +
+`CompanyAddress.cityId` (FK yok). Yabancı slug `<cc>-<ad>` (`de-munich`).
+- **Okuma:** API açılışta tabloyu belleğe alır (`GeoCityService` →
+  `setGeoIndex`); saf fonksiyonlar `geoIndex()` okur, yüklenmeden önce
+  (açılış, birim testi) TR+KKTC YEDEĞİ döner. `resolveParam` kalıcı adres +
+  ESKİ ham il adı (`?sehir=İstanbul` gönderilmiş bağlantılar) çözer.
+- **Yazma:** `resolveCityId(ülke, metin, cityId?)` — istemcinin id'si aynı
+  ülkedense o, yoksa metinden (`pickGeoCity`: TR il adı; diğer ülkede herhangi
+  dildeki TAM ad ya da yerel yazım); eşleşmezse null, metin yine kaydedilir
+  (yalnız şehir sayfası/süzgecine girmez). Kayıt, Firma Bilgileri, adres
+  defteri, hızlı talep satır içi adresi, admin düzenleme bağlı. Web
+  `CityCombobox` (serbest yazım açık; Headless `Input` — düz `<input>`
+  Catalyst `Label`ına bağlanmaz). Uçlar `GET public/geo/cities?q&country`,
+  `GET public/geo/cities/:slug`.
+- **Süzgeç/facet:** şehir facet'i `{city: slug, name, country, count}` (ad
+  okuyucunun dilinde); `?ulke=<CC>` SATICI ÜLKESİ süzgeci + facet'i (ürün ve
+  firma dizini, panel dahil); "Yakınımda" dünya genelinde (haversine; yabancı
+  posta kodu ÇÖZÜLMEZ, rakam yalnız TR). Ülke sayfası `/urunler/ulke/<cc>-<ad>`
+  (EN `/products/country/…`, RU `/tovary/strana/…`), sitemap `countries`
+  parçası, llms-full şehir+ülke listesi, IndexNow şehir+ülke sayfası.
+- **Atıf:** GeoNames CC BY 4.0 — altbilgide ("Şehir verisi: GeoNames");
+  kaldırma.
+- **Kurulum sırası (staging ve canlı):** migration → `pnpm --filter
+  @rothern/db seed-geo-cities` (TSV `src/seeds/geo-cities.tsv` depodadır;
+  yeniden üretmek `GEONAMES_DIR=… build-geo-cities`) → `backfill-city-ids`
+  (`--dry` önce). Seed koşulmadan API TR yedeğiyle çalışır, yabancı şehir
+  sayfası 404 verir. Sözleşme: `geo-index.spec`, `product-facets.spec`,
+  `public-product-index.spec`, `seo-index.spec`, i18n `pathnames.test`.
 
 **TALEP GÖRÜNÜRLÜK ÜLKESİ — YURTİÇİ/ULUSLARARASI KAPSAMI KALKTI (2026-09-21,
 kullanıcı kararı: "tüm alım talepleri görülsün herkese; sadece belirli
@@ -1793,7 +1828,12 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Son migration `20260924200000_search_text_i18n` (`searchTextI18n` × 3 +
+- Son migration `20260927150000_geo_cities` (+ `20260927120000_global_registration`;
+  ikisi de eklemeli, staging VE canlıda BEKLİYOR — Render askısı 1 Ekim'e
+  dek; ardından `seed-geo-cities` + `backfill-city-ids`). i18n'in beş
+  migration'ı canlı DB'ye yedek alınarak uygulandı (aşağıdaki "BEKLİYOR"
+  notları bayat). Öncesi
+  `20260924200000_search_text_i18n` (`searchTextI18n` × 3 +
   trigram GIN; staging'e 2026-09-24'te uygulandı, CANLIDA BEKLİYOR). Öncesi
   `20260923235000_category_attribute_names_i18n`
   (`category_attributes.nameEn/nameRu/optionsEn/optionsRu`). Öncesi
