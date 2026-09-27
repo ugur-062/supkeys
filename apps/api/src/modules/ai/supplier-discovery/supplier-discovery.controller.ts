@@ -2,7 +2,6 @@ import { RequireTier } from "../../company-auth/decorators/require-tier.decorato
 import { Body, Controller, Post, UseGuards } from "@nestjs/common";
 import {
   ArrayMaxSize,
-  ArrayMinSize,
   IsArray,
   IsIn,
   IsOptional,
@@ -20,28 +19,28 @@ import { CompanyJwtAuthGuard } from "../../company-auth/guards/company-jwt-auth.
 import { CompanyPaidTierGuard } from "../../company-auth/guards/company-paid-tier.guard";
 import { SupplierDiscoveryService } from "./supplier-discovery.service";
 
+/**
+ * Keşif girdisi (2026-09-27, Faz 1): kategori ARTIK ZORUNLU DEĞİL — talep
+ * formunun kalemler bölümünde kategori seçilmeden kalem adlarıyla aranır.
+ * İkisi de boşsa sonuç boş döner. Talepten açılışta (`listingId`) ülkeler
+ * talepten okunur; formda `targetCountries` gelir (boş = tüm ülkeler).
+ */
 class DiscoveryDto {
   @IsIn(["ALIM"])
   type!: "ALIM";
 
+  @IsOptional()
   @IsArray()
-  @ArrayMinSize(1)
   @ArrayMaxSize(10)
   @IsString({ each: true })
-  categoryIds!: string[];
-}
+  categoryIds?: string[];
 
-class ExternalDiscoveryDto extends DiscoveryDto {
   @IsOptional()
   @IsArray()
   @ArrayMaxSize(15)
   @IsString({ each: true })
+  @MaxLength(200, { each: true })
   itemNames?: string[];
-
-  @IsOptional()
-  @IsString()
-  @MaxLength(60)
-  region?: string;
 
   /** Kayıtlı talepten açılış — hedef ülkeler talepten okunur (firma kapsamlı). */
   @IsOptional()
@@ -55,6 +54,13 @@ class ExternalDiscoveryDto extends DiscoveryDto {
   @ArrayMaxSize(60)
   @Matches(/^[A-Z]{2}$/, { each: true })
   targetCountries?: string[];
+}
+
+class ExternalDiscoveryDto extends DiscoveryDto {
+  @IsOptional()
+  @IsString()
+  @MaxLength(60)
+  region?: string;
 }
 
 /**

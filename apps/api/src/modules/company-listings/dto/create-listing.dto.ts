@@ -330,6 +330,19 @@ export class CreateListingDto {
   @ArrayMaxSize(200)
   targetCountries?: string[];
 
+  /**
+   * Yayınlanınca AI yurt içi + yurt dışında tedarikçi arasın (2026-09-27);
+   * sonuç talep sayfasında tek tık davet önerisi olur. Maliyet platformun.
+   */
+  @IsOptional()
+  @IsBoolean()
+  aiDiscovery?: boolean;
+
+  /** Kayıtsız tedarikçiye giden davette firma adı görünsün (varsayılan açık). */
+  @IsOptional()
+  @IsBoolean()
+  inviteShowName?: boolean;
+
   // Teslimat / fatura adresi (CompanyAddress id).
   @IsOptional()
   @IsString()

@@ -8,7 +8,10 @@ import { CheckCircleIcon, SparklesIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import type { ExternalInviteResult } from "@/hooks/use-supplier-discovery";
+import { isInviteAccepted } from "@/lib/tenders/external-invite-status";
 import { cn } from "@/lib/utils";
+import { ListingSuggestions } from "@/components/tenders/ai-suppliers/listing-suggestions";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 /**
  * YAYIN SONRASI — engel değil öneri (2026-09-09).
@@ -36,6 +39,7 @@ export function PublishedPanel({
   const { company } = useCompanyAuth();
   // API `company/ai/supplier-discovery` @RequireTier("GOLD") — ekran aynı kapı.
   const aiAvailable = !!company && tierAtLeast(company.tier, BUYING_TIER);
+  const buyerCountry = useCompanyAuthStore((st) => st.company?.country);
   return (
     <div className="mx-auto max-w-2xl rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-zinc-950/5">
       <CheckCircleIcon aria-hidden className="mx-auto size-12 text-emerald-500" />
@@ -64,7 +68,7 @@ export function PublishedPanel({
           ) : (
             <>
               <p className="mt-1 text-sm text-zinc-700">
-                {t("davetGonderildiSayisi", { n: inviteResults.filter((r) => r.status === "SENT").length })}
+                {t("davetSirayaAlindiSayisi", { n: inviteResults.filter((r) => isInviteAccepted(r.status)).length })}
               </p>
               <ul className="mt-2 space-y-1">
                 {inviteResults.map((r) => (
@@ -73,7 +77,7 @@ export function PublishedPanel({
                     <span
                       className={cn(
                         "shrink-0 font-semibold",
-                        r.status === "SENT"
+                        isInviteAccepted(r.status)
                           ? "text-emerald-700"
                           : r.status === "FAILED" || r.status === "SUPPRESSED"
                             ? "text-red-700"
@@ -87,6 +91,14 @@ export function PublishedPanel({
               </ul>
             </>
           )}
+        </div>
+      ) : null}
+      {/* Yayında otomatik AI araması (2026-09-27, Faz 1): tur sürerken "AI
+          arıyor…", bitince bulunanlar SEÇİLİ — tek tıkla davet. Otomatik arama
+          kapalıysa bileşen hiçbir şey çizmez. */}
+      {aiAvailable ? (
+        <div className="mt-6">
+          <ListingSuggestions listingId={listingId} itemNames={itemNames} buyerCountry={buyerCountry} variant="panel" />
         </div>
       ) : null}
       <button type="button" onClick={onNew} className="mt-4 text-sm font-medium text-zinc-600 hover:text-zinc-900">

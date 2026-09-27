@@ -16,7 +16,7 @@ import {
   Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { isCategoryCode, listingPath, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode, PAID_TIER } from "@rothern/shared";
+import { isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode, PAID_TIER } from "@rothern/shared";
 import { publicProductWhere } from "../../../common/company/public-profile-gate";
 import { buildDirectory, directoryFacets, type DirectoryParams, type DirectoryScope } from "../../../common/company/company-directory";
 import { PRODUCT_INDEX_SELECT, toProductIndexCard } from "../../public-marketplace/dto/public-product-index.projection";
@@ -39,29 +39,35 @@ import {
   localeOf,
 } from "../../notifications/notification.service";
 import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
-import { appRoutes, localizeAppPath } from "../../../common/company/app-routes";
+import { appRoutes } from "../../../common/company/app-routes";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import {
   effectiveTier,
   anyPackageWhere,
 } from "../../../common/company/effective-tier";
-import { marketplaceListingWhere, visibleOwnerListingWhere } from "../../../common/company/listing-visibility";
+import { visibleOwnerListingWhere } from "../../../common/company/listing-visibility";
 import { hasValidConnection } from "../../../common/company/valid-connection";
 import { listingManageDenial } from "../../company-listings/listing-manage-access";
 import { affinityReasonTextThirdParty } from "../../company-affinity/company-affinity.service";
 import {
-  INVITE_ITEM_PREVIEW,
-  INVITE_TRANSLATION_WAIT_MS,
   REFERRAL_DAILY_CAP,
   REFERRAL_RESEND_COOLDOWN_DAYS,
   deliverInvite,
-  formatInviteDeadline,
-  formatInvitePlace,
   referralCooldownStart,
   type InviteDeliveryResult,
 } from "../../../common/company/invite-delivery";
-import type { TenderExternalInviteData } from "@rothern/email";
 import { isLocale, recipientLocale, type Locale } from "@rothern/i18n";
+import {
+  COMPANY_DAILY_INVITE_CAP,
+  coldInviteBlockedByCountry,
+  utcDayStart,
+  type InviteSourceKind,
+} from "../../../common/company/external-invite-policy";
+import {
+  countryFromEmailDomain,
+  nextBusinessWindow,
+  timeZoneForCountry,
+} from "../../../common/time/country-time-zone";
 
 type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 
@@ -72,6 +78,7 @@ const EXTERNAL_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
  * SENT/SKIPPED vardı ve SENT gönderimden ÖNCE yazılıyordu.
  */
 export type ExternalInviteStatus =
+  | "QUEUED"
   | "SENT"
   | "FAILED"
   | "SUPPRESSED"
@@ -79,12 +86,15 @@ export type ExternalInviteStatus =
   | "ALREADY_INVITED"
   | "OPTED_OUT"
   | "DAILY_LIMIT"
+  | "CONSENT_REQUIRED"
   | "INVALID";
 
 export interface ExternalInviteResult {
   email: string;
   status: ExternalInviteStatus;
   reason?: string;
+  /** QUEUED: e-postanın en erken gideceği an (alıcının mesai saati). */
+  sendAfter?: string;
 }
 
 /**
@@ -407,33 +417,31 @@ export class CompanyConnectionsService {
    *               pasif firma / engelli) — reason ile
    */
   /**
-   * Faz C — DIŞ ihale daveti: "X sizi 'Y' satın alma talebine davet etti" e-postası.
-   * İtibar/ETK frenleri:
-   *  - günlük firma tavanı (ihale-bağlamlı davet, UTC gün): 20
-   *  - aynı adrese (bu firmadan) ömür boyu TEK davet (mevcut referral = skip)
-   *  - opt-out listesi + kayıtlı-kullanıcı adresi = skip (dizinden davet edilir)
-   * Kayıt token'la tamamlanınca: bağlantı ACTIVE + bu ihaleye otomatik davet
-   * (acceptReferralInvites).
+   * DIŞ TALEP DAVETİ — KUYRUĞA ALIR (2026-09-27, teslim edilebilirlik Faz 0b).
    *
-   * ALICININ DİLİ (2026-09-27): alıcı kayıtlı değil → dil alıcı başına
-   * `recipientLocale` (ekranda seçilen → AI keşfinin bulduğu ülke → e-posta
-   * uzantısı → davet edenin dili); kayda (`locale`) yazılır. Başlık, kalemler,
-   * kategori, tarih, teslim yeri ve bağlantılar o dilde. Talep çevirisi henüz
-   * gelmediyse gönderimden ÖNCE en fazla `INVITE_TRANSLATION_WAIT_MS`
-   * beklenir; süre dolar/başarısız olursa özgün metinle gider. Eskiden hepsi
-   * davet edenin dilindeydi: Rusça arayüzlü alıcı Alman tedarikçiyi davet
-   * edince Rusça e-posta + `/ru/…` kayıt bağlantısı → hesap Rusça doğuyordu.
+   * Eskiden e-posta bu istekte, adres adres BEKLENEREK gönderiliyordu ve davet
+   * `CompanyReferralInvite` satırının kendisiydi (davet eden × adres benzersiz →
+   * bir alıcı aynı tedarikçiyi yalnız İLK talebine davet edebiliyordu). Artık:
+   *  - referral satırı (davet eden × adres) yalnız bağlantı jetonunu taşır,
+   *  - her talep daveti `ExternalListingInvite` satırıdır (talep × adres),
+   *  - e-postayı dakikalık `ExternalInviteDispatcher` gönderir: alıcının
+   *    ülkesinde mesai saatinde, platform geneli tavanla, adrese 7 günde bir
+   *    (bekleyenler tek e-postada), talep YAYINDAYKEN.
+   *  - Elle yazılan adres (MANUAL) beklemeden gider — alıcı o firmayı tanıyor.
    *
-   * İÇERİK (kapalı zarf + anonimlik): başlık, numara, ilk kalemler (ad +
-   * miktar + birim), kalem sayısı, teslim yeri (yalnız şehir + ülke), son
-   * teklif tarihi, kategori, aranan tedarikçi tipi, vitrindeyse herkese açık
-   * sayfa. Hedef fiyat, marka/şartname/belge, ticari şartlar, tam adres,
-   * teklif sayısı ve diğer davetliler ASLA.
+   * Frenler: firma başına günlük `COMPANY_DAILY_INVITE_CAP` talep daveti;
+   * opt-out ve kayıtlı adres atlanır (kayıtlı firma dizinden/platform içi
+   * davet edilir); aynı talebe aynı adres bir kez.
+   *
+   * ALICININ DİLİ: `recipientLocale` (ekranda seçilen → AI keşfinin bulduğu
+   * ülke → e-posta uzantısı → davet edenin dili); kayda yazılır, e-posta ve
+   * kayıt bağlantısı o dilde. İÇERİK kuralları `InviteContentBuilder`da.
    */
   async inviteExternalForListing(
     user: AuthenticatedCompanyUser,
     listingId: string,
     recipientsRaw: ReadonlyArray<string | ExternalInviteRecipient>,
+    source: InviteSourceKind = "MANUAL",
   ) {
     if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
@@ -442,26 +450,7 @@ export class CompanyConnectionsService {
     }
     const listing = await this.prisma.listing.findFirst({
       where: { id: listingId, companyId: user.companyId },
-      select: {
-        id: true,
-        title: true,
-        number: true,
-        status: true,
-        closesAt: true,
-        categoryIds: true,
-        type: true,
-        createdById: true,
-        deliveryAddressId: true,
-        preferredActivities: true,
-        // Kapalı zarf: kalemden YALNIZ ad + miktar + birim (hedef fiyat,
-        // marka, açıklama, şartname seçilmez — e-postaya giremez).
-        items: {
-          select: { name: true, quantity: true, unit: true, unitCode: true },
-          orderBy: { lineNo: "asc" },
-          take: INVITE_ITEM_PREVIEW,
-        },
-        _count: { select: { items: true } },
-      },
+      select: { id: true, status: true, type: true, createdById: true },
     });
     if (!listing) throw new NotFoundException(i18nMessage("api.companyConnections.satinAlmaTalebiBulunamadi"));
     // INV-AZ-1 (denetim 2026-08-23 P2 #7): dış davet = ilan-yönetim eylemi —
@@ -487,17 +476,6 @@ export class CompanyConnectionsService {
       throw new BadRequestException(i18nMessage("api.companyConnections.yalnizTaslakAcikSatinAlmaTalebi"));
     }
 
-    const DAILY_CAP = 20;
-    const dayStart = new Date();
-    dayStart.setUTCHours(0, 0, 0, 0);
-    const sentToday = await this.prisma.companyReferralInvite.count({
-      where: {
-        inviterCompanyId: user.companyId,
-        listingId: { not: null },
-        createdAt: { gte: dayStart },
-      },
-    });
-
     // Adres başına tekilleştirme (ilk geçen kazanır). Biçimi geçersiz adres
     // SESSİZCE düşmez — sonuçta INVALID olarak görünür.
     const byEmail = new Map<string, ExternalInviteRecipient>();
@@ -508,128 +486,60 @@ export class CompanyConnectionsService {
     }
     const normalized = [...byEmail.values()];
     const invalid = normalized.filter((r) => !EXTERNAL_EMAIL_RE.test(r.email)).map((r) => r.email);
-    const recipients = normalized.filter((r) => EXTERNAL_EMAIL_RE.test(r.email)).slice(0, DAILY_CAP);
+    const recipients = normalized.filter((r) => EXTERNAL_EMAIL_RE.test(r.email)).slice(0, COMPANY_DAILY_INVITE_CAP);
     const emails = recipients.map((r) => r.email);
     if (emails.length === 0 && invalid.length === 0) {
       throw new BadRequestException(i18nMessage("api.companyConnections.gecerliEPostaAdresiVerilmedi"));
     }
 
-    const [optOuts, existing, registered, me, cats, address] = await Promise.all([
-      this.prisma.referralOptOut.findMany({
-        where: { email: { in: emails } },
+    const now = new Date();
+    const [createdToday, optOuts, registered, alreadyForListing, referrals] = await Promise.all([
+      this.prisma.externalListingInvite.count({
+        where: { inviterCompanyId: user.companyId, createdAt: { gte: utcDayStart(now) } },
+      }),
+      this.prisma.referralOptOut.findMany({ where: { email: { in: emails } }, select: { email: true } }),
+      // Kayıtlı kullanıcı başka firmanın kiracısı → bypass (RLS açıkken ana
+      // istemci göremez ve adres "kayıtsız" sanılırdı).
+      this.bypass.companyUser.findMany({ where: { email: { in: emails }, deletedAt: null }, select: { email: true } }),
+      this.prisma.externalListingInvite.findMany({
+        where: { listingId: listing.id, email: { in: emails } },
         select: { email: true },
       }),
       this.prisma.companyReferralInvite.findMany({
         where: { inviterCompanyId: user.companyId, email: { in: emails } },
-        select: { email: true },
+        select: { email: true, status: true, locale: true },
       }),
-      this.prisma.companyUser.findMany({
-        where: { email: { in: emails }, deletedAt: null },
-        select: { email: true },
-      }),
-      this.prisma.company.findUnique({
-        where: { id: user.companyId },
-        select: { name: true },
-      }),
-      this.prisma.category.findMany({
-        where: { id: { in: listing.categoryIds.slice(0, 3) } },
-        select: CATEGORY_NAME_SELECT,
-      }),
-      listing.deliveryAddressId
-        ? this.prisma.companyAddress.findFirst({
-            where: { id: listing.deliveryAddressId, companyId: user.companyId },
-            select: { city: true, country: true },
-          })
-        : Promise.resolve(null),
     ]);
     const optOutSet = new Set(optOuts.map((o) => o.email));
-    const existingSet = new Set(existing.map((e) => e.email));
     const registeredSet = new Set(registered.map((r) => r.email.toLowerCase()));
-
-    const baseUrl = resolveWebUrl(this.config);
+    const alreadySet = new Set(alreadyForListing.map((e) => e.email));
+    const referralBy = new Map(referrals.map((r) => [r.email, r]));
     const inviterLocale = currentLocale();
-    const langOf = new Map<string, Locale>(
-      recipients.map((r) => [
-        r.email,
-        recipientLocale({ explicit: r.locale, country: r.country, email: r.email, fallback: inviterLocale }),
-      ]),
-    );
-
-    // Gönderilecek alıcıların dilleri: talep çevirisi hazır değilse BİR KEZ
-    // beklenir (üç dilin çevirisi tek model çağrısıyla gelir).
-    const willSend = emails.filter((e) => !optOutSet.has(e) && !registeredSet.has(e) && !existingSet.has(e));
-    const neededLocales = [...new Set(willSend.map((e) => langOf.get(e) ?? inviterLocale))];
-    if (neededLocales.length > 0 && this.translations) {
-      await this.translations.ensureTranslated("LISTING", listing.id, neededLocales, INVITE_TRANSLATION_WAIT_MS);
-    }
-
-    // Herkese açık talep sayfası YALNIZ vitrindeyse (tek kaynak
-    // `marketplaceListingWhere`); adres slug'ı KAYNAK başlıktan (dilden bağımsız).
-    const inVitrine =
-      !!listing.number &&
-      willSend.length > 0 &&
-      (await this.prisma.listing.count({
-        where: { AND: [{ id: listing.id }, marketplaceListingWhere(new Date())] },
-      })) > 0;
-
-    const contentCache = new Map<Locale, Omit<TenderExternalInviteData, "registerUrl" | "optOutUrl">>();
-    const contentFor = async (locale: Locale) => {
-      const hit = contentCache.get(locale);
-      if (hit) return hit;
-      const base = { title: listing.title, items: listing.items.map((i) => ({ name: i.name })) };
-      const [loc] = this.translations
-        ? await this.translations.localizeListings([base], [listing.id], locale)
-        : [base];
-      const content = {
-        inviterName: this.companyNameOr(me?.name, locale),
-        tenderTitle: loc?.title ?? listing.title,
-        tenderNumber: listing.number ?? null,
-        // Kategori adı alıcının dilinde (katalog çevirisi; yoksa Türkçe).
-        categories: cats.map((c) => categoryName(c, locale)),
-        // Son teklif tarihi İstanbul duvar saatiyle, alıcının dilinde (+ saat dilimi).
-        closesAt: listing.closesAt ? formatInviteDeadline(listing.closesAt, locale) : null,
-        items: listing.items.map((it, i) => ({
-          name: loc?.items?.[i]?.name ?? it.name,
-          quantity: Number(it.quantity),
-          unitCode: it.unitCode,
-          unit: it.unit,
-        })),
-        itemCount: listing._count.items,
-        deliveryPlace: address ? formatInvitePlace(address.city, address.country, locale) : null,
-        supplierTypes: listing.preferredActivities,
-        publicUrl:
-          inVitrine && listing.number
-            ? `${baseUrl}${localizeAppPath(listingPath(listing.number, listing.title), locale)}`
-            : null,
-      };
-      contentCache.set(locale, content);
-      return content;
-    };
 
     const results: ExternalInviteResult[] = invalid.map((email) => ({
       email,
       status: "INVALID",
       reason: tApi("api.companyConnections.gecersizEPostaAdresi"),
     }));
-    let budget = DAILY_CAP - sentToday;
-    for (const email of emails) {
+    let budget = COMPANY_DAILY_INVITE_CAP - createdToday;
+    let queued = 0;
+    for (const r of recipients) {
+      const email = r.email;
       if (budget <= 0) {
         results.push({
           email,
           status: "DAILY_LIMIT",
-          reason: tApi("api.companyConnections.gunlukDisDavetLimitineUlasildi", { cap: DAILY_CAP }),
+          reason: tApi("api.companyConnections.gunlukDisDavetLimitineUlasildi", { cap: COMPANY_DAILY_INVITE_CAP }),
         });
         continue;
       }
       if (optOutSet.has(email)) {
-        results.push({
-          email,
-          status: "OPTED_OUT",
-          reason: tApi("api.companyConnections.buAdresDavetAlmakIstemiyor"),
-        });
+        results.push({ email, status: "OPTED_OUT", reason: tApi("api.companyConnections.buAdresDavetAlmakIstemiyor") });
         continue;
       }
-      if (registeredSet.has(email)) {
+      const prior = referralBy.get(email);
+      // Farklı e-postayla kayıt olmuş (referral kabul edilmiş) firma da kayıtlı sayılır.
+      if (registeredSet.has(email) || prior?.status === "ACCEPTED") {
         results.push({
           email,
           status: "SKIPPED_REGISTERED",
@@ -637,7 +547,7 @@ export class CompanyConnectionsService {
         });
         continue;
       }
-      if (existingSet.has(email)) {
+      if (alreadySet.has(email)) {
         results.push({
           email,
           status: "ALREADY_INVITED",
@@ -645,62 +555,63 @@ export class CompanyConnectionsService {
         });
         continue;
       }
-      const locale = langOf.get(email) ?? inviterLocale;
-      const inv = await this.prisma.companyReferralInvite.create({
-        data: {
-          inviterCompanyId: user.companyId,
+      const country = r.country?.trim().toUpperCase() || countryFromEmailDomain(email);
+      if (coldInviteBlockedByCountry(source, country)) {
+        results.push({
           email,
-          invitedById: user.userId,
-          listingId: listing.id,
-          locale,
-        },
-      });
-      budget--;
-      const content = await contentFor(locale);
-      // Gönderim BEKLENİR (2026-09-27): eskiden ateşle-unut + önceden "SENT"
-      // yazılıyordu. Günlük tavan 20 olduğu için bekleme süresi sınırlı.
-      const out = await deliverInvite(() =>
-        this.email.send({
-          to: { email },
-          // Alıcı kayıtlı DEĞİL → ALICININ dili (yukarıda türetildi, kayıtta).
-          locale,
-          templateData: {
-            template: "tender_external_invite",
-            data: {
-              ...content,
-              // Kayıttan sonra doğrudan talebe (onboarding sonrası da korunur).
-              registerUrl: appRoutes.signupWithRef(baseUrl, inv.token, locale, `/company/ilan/${listing.id}`),
-              optOutUrl: appRoutes.optOut(baseUrl, inv.token, locale),
-            },
-          },
-          context: { type: "tender_external_invite", id: inv.id },
-        }),
-      );
-      if (out.delivery === "SENT") {
-        results.push({ email, status: "SENT" });
+          status: "CONSENT_REQUIRED",
+          reason: tApi("api.companyConnections.onayGerekenUlke"),
+        });
         continue;
       }
-      this.logger.error(
-        `Dış davet e-postası gönderilemedi (${inv.id}): ${out.delivery}${
-          out.timedOut ? " (timeout)" : ""
-        }${out.error ? ` — ${out.error}` : ""}`,
-      );
-      // Kesin başarısızlıkta kayıt geri alınır: "ömür boyu tek davet" freni
-      // gitmemiş bir e-posta yüzünden adresi kalıcı kilitlemesin ve günlük
-      // tavandan düşmesin. Zaman aşımında e-posta yine de gidebilir → token
-      // yaşamalı, kayıt KALIR.
-      if (!out.timedOut) {
-        await this.prisma.companyReferralInvite.delete({ where: { id: inv.id } }).catch(() => undefined);
-        budget++;
-      }
-      results.push({
+      const locale = recipientLocale({
+        explicit: r.locale,
+        country: r.country,
         email,
-        status: out.delivery,
-        reason:
-          out.delivery === "SUPPRESSED"
-            ? tApi("api.companyConnections.buAdresEPostaAlamiyor")
-            : tApi("api.companyConnections.gonderilemedi"),
+        fallback: isLocale(prior?.locale) ? prior.locale : inviterLocale,
       });
+      // Bağlantı jetonu (davet eden × adres) — varsa korunur; talep bağlamı
+      // eski okuyucular için İLK talepte yazılır.
+      const referral = await this.prisma.companyReferralInvite.upsert({
+        where: { inviterCompanyId_email: { inviterCompanyId: user.companyId, email } },
+        create: { inviterCompanyId: user.companyId, email, invitedById: user.userId, listingId: listing.id, locale },
+        update: {},
+        select: { id: true },
+      });
+      // Elle yazılan adres hemen; AI'ın bulduğu adres alıcının mesai saatinde
+      // (aynı ana yığılmasın diye 0-45 dk dağıtılır).
+      const sendAfter =
+        source === "MANUAL"
+          ? now
+          : nextBusinessWindow(now, timeZoneForCountry(country), Math.floor(Math.random() * 45));
+      try {
+        await this.prisma.externalListingInvite.create({
+          data: {
+            listingId: listing.id,
+            inviterCompanyId: user.companyId,
+            referralInviteId: referral.id,
+            email,
+            locale,
+            country,
+            source,
+            sendAfter,
+          },
+        });
+      } catch (e) {
+        // Eşzamanlı ikinci istek aynı (talep, adres) satırını yazdıysa.
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          results.push({
+            email,
+            status: "ALREADY_INVITED",
+            reason: tApi("api.companyConnections.buAdreseDahaOnceDavetGonderilmis"),
+          });
+          continue;
+        }
+        throw e;
+      }
+      budget--;
+      queued++;
+      results.push({ email, status: "QUEUED", sendAfter: sendAfter.toISOString() });
     }
 
     void this.audit.log({
@@ -711,12 +622,17 @@ export class CompanyConnectionsService {
       tenantId: user.companyId,
       entityType: "listing",
       entityId: listing.id,
-      metadata: {
-        sent: results.filter((r) => r.status === "SENT").length,
-        skipped: results.filter((r) => r.status !== "SENT").length,
-      },
+      metadata: { queued, skipped: results.length - queued, source },
     });
     return { results };
+  }
+
+  /** Davet bağlantısı açıldı — ilgi damgası (bkz. ReferralVisitController). */
+  async markReferralVisited(token: string): Promise<void> {
+    // Uç kimliksiz, satır başka firmanın kiracısında → bypass.
+    await this.bypass.companyReferralInvite
+      .updateMany({ where: { token, status: "PENDING" }, data: { lastClickedAt: new Date() } })
+      .catch(() => undefined);
   }
 
   /** Opt-out (public): davet token'ındaki adrese bir daha davet gönderilmez. */

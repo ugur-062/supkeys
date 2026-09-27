@@ -266,6 +266,51 @@ export class AiService {
     }
   }
 
+  /** AI yapılandırılmış mı (anahtar + sağlayıcı)? Sistem işleri önce buna bakar. */
+  get isEnabled(): boolean {
+    return this.config.enabled && !!this.provider;
+  }
+
+  /**
+   * PLATFORMUN ÖDEDİĞİ çağrı (2026-09-27, AI tedarikçi keşfi Faz 1) — kullanıcı
+   * yok, firma bütçesine YAZILMAZ. Yalnız platformun kendi edinme kanalı olan
+   * işler (yayın sonrası otomatik tedarikçi araması) kullanır; maliyet çağırana
+   * döner ve çağıran KENDİ tavanını uygular (bkz. discovery-runs, günlük USD
+   * tavanı). İçerik çevirisiyle aynı ilke: platform işi, platform bütçesi.
+   * Kullanıcının tetiklediği her şey `callAi` (bütçe + erişim kapısı) kalır.
+   */
+  async callAiSystem(
+    options: Pick<AiCallOptions, "prompt" | "system" | "responseSchema" | "webSearch" | "thinkingLevel">,
+  ): Promise<AiCallResult & { costUsd: number }> {
+    if (!this.isEnabled) {
+      throw new ServiceUnavailableException(
+        i18nMessage("api.ai.aiOzelligiSuAndaKullanilamiyorYapilandirilmamis"),
+      );
+    }
+    const model = this.config.models.default;
+    const result = await this.provider!.complete({
+      model,
+      prompt: options.prompt,
+      system: options.system,
+      responseSchema: options.responseSchema,
+      webSearch: options.webSearch,
+      thinkingLevel: options.thinkingLevel,
+      maxOutputTokens: this.config.maxOutputTokens,
+      timeoutMs: this.config.timeoutMs,
+    });
+    const cost = costFromUsage(result.usage, this.config.pricing[model]!, {
+      grounded: options.webSearch === true,
+    });
+    return {
+      finishReason: result.finishReason,
+      outputTokens: result.usage.outputTokens,
+      text: result.text,
+      downgraded: false,
+      warned: false,
+      costUsd: Number(cost),
+    };
+  }
+
   /**
    * Kullanım ekranı (yalnız YÜZDE — dolar UI'a sızmaz):
    * - Kurucu/Yönetici: firma toplamı + kim/hangi özellik kırılımı.

@@ -11,6 +11,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { useInviteConnection } from "@/hooks/use-company-connections";
+import { isInviteAccepted } from "@/lib/tenders/external-invite-status";
 import {
   useExternalSupplierDiscovery,
   useExternalTenderInvite,
@@ -128,18 +129,24 @@ export function SupplierDiscoveryModal({
 
   // Platform önerileri: kategori bağlamı hazır olunca (listingId'li açılışta
   // detay sonradan yüklenir) BİR kez çek.
-  const catKey = effCategoryIds.join(",");
+  const catKey = `${effCategoryIds.join(",")}|${effItemNames.join("|")}`;
   useEffect(() => {
-    if (!isOpen || effCategoryIds.length === 0) return;
+    if (!isOpen || (effCategoryIds.length === 0 && effItemNames.length === 0)) return;
     discovery
-      .mutateAsync({ type: "ALIM", categoryIds: effCategoryIds })
+      .mutateAsync({
+        type: "ALIM",
+        categoryIds: effCategoryIds,
+        // Vitrinde kalemi satan üyeler + talebin ülkeleri (2026-09-27).
+        itemNames: effItemNames.slice(0, 15),
+        ...(listingId ? { listingId } : { targetCountries: targetCountries ?? [] }),
+      })
       .then(setCandidates)
       .catch(() => toast.error(tr("onerilerYuklenemediTekrarDeneyin")));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, catKey]);
 
   const runExternalSearch = async () => {
-    if (external.isPending || effCategoryIds.length === 0) return;
+    if (external.isPending || (effCategoryIds.length === 0 && effItemNames.length === 0)) return;
     try {
       const res = await external.mutateAsync({
         type: "ALIM",
@@ -150,8 +157,12 @@ export function SupplierDiscoveryModal({
         ...(listingId ? { listingId } : { targetCountries: targetCountries ?? [] }),
       });
       // E-POSTASI OLMAYAN FİRMA LİSTELENMEZ (2026-09-17, kullanıcı kararı):
-      // davet gönderilemeyecek satır yalnız gürültüdür.
-      const withEmail = res.filter((c) => !!(c.email ?? "").trim());
+      // davet gönderilemeyecek satır yalnız gürültüdür. Zaten davetli, kayıtlı
+      // üye ya da önceden onay isteyen ülkedeki aday da bu listeye girmez
+      // (2026-09-27: "davetli olanlara bir daha gitmesin").
+      const withEmail = res.filter(
+        (c) => !!(c.email ?? "").trim() && (c.status ?? "SUGGESTED") === "SUGGESTED",
+      );
       setExternalResults(withEmail);
       setSelectedExt(new Set());
       setEmailDrafts(
@@ -205,12 +216,12 @@ export function SupplierDiscoveryModal({
       return;
     }
     try {
-      const results = await sendExternal.mutateAsync({ listingId, invites });
+      const results = await sendExternal.mutateAsync({ listingId, invites, source: "AI_FORM" });
       setSendStatus((m) => ({ ...m, ...Object.fromEntries(results.map((r) => [r.email, r.status])) }));
-      const sent = results.filter((r) => r.status === "SENT");
-      const notSent = results.filter((r) => r.status !== "SENT");
+      const sent = results.filter((r) => isInviteAccepted(r.status));
+      const notSent = results.filter((r) => !isInviteAccepted(r.status));
       if (sent.length > 0) {
-        toast.success(tr("davetEPostasiGonderildi", { length: sent.length }));
+        toast.success(tr("davetlerSirayaAlindi", { n: sent.length }));
       }
       for (const s of notSent.slice(0, 3)) {
         const line = tr("atlandiSatiri", { email: s.email, reason: s.reason ?? tStatus(s.status) });
@@ -319,7 +330,7 @@ export function SupplierDiscoveryModal({
                 />
                 <Button
                   onClick={runExternalSearch}
-                  disabled={external.isPending || effCategoryIds.length === 0}
+                  disabled={external.isPending || (effCategoryIds.length === 0 && effItemNames.length === 0)}
                 >
                   {external.isPending ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -346,7 +357,7 @@ export function SupplierDiscoveryModal({
                     const isCollected = collectMode && email !== "" && collectedSet.has(email);
                     // Gönderildi ya da talebe eklendi → satır kilitli; başarısız
                     // gönderim yeniden seçilebilir.
-                    const isSent = status === "SENT" || isCollected;
+                    const isSent = (status !== undefined && isInviteAccepted(status)) || isCollected;
                     return (
                       <li
                         key={`${c.name}-${i}`}
@@ -475,7 +486,7 @@ export function SupplierDiscoveryModal({
             </>
           ) : (
           <div className="flex-1 overflow-y-auto px-6 py-4">
-            {effCategoryIds.length === 0 ? (
+            {effCategoryIds.length === 0 && effItemNames.length === 0 ? (
               <p className="py-10 text-center text-sm text-zinc-500">
                 {tr("onceSatinAlmaTalebininKategorisini")}
               </p>

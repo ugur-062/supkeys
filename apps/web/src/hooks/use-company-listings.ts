@@ -103,6 +103,10 @@ export interface CreateListingInput {
   /** Eski alan — sunucu yok sayar, türetir (2026-09-21). */
   isInternational?: boolean;
   targetCountries?: string[]; // görünürlük ülkeleri (boş = tüm ülkeler)
+  /** Yayınlanınca AI yurt içi + yurt dışında tedarikçi arasın (2026-09-27). */
+  aiDiscovery?: boolean;
+  /** Kayıtsız tedarikçiye giden davette firma adı görünsün. */
+  inviteShowName?: boolean;
   deliveryAddressId?: string;
   billingAddressId?: string;
   format?: ListingFormat;
@@ -313,6 +317,9 @@ export interface ListingDetail {
   type: ListingType;
   isInternational: boolean;
   targetCountries: string[];
+  /** Yalnız sahip dalında (sunucu teklifçiye göndermez). */
+  aiDiscovery?: boolean;
+  inviteShowName?: boolean;
   format: ListingFormat | null;
   visibility: ListingVisibility;
   title: string;

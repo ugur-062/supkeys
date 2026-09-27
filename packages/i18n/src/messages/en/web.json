@@ -693,7 +693,8 @@
         "announcement": "platform announcements",
         "invite": "buying request invitations",
         "lifecycle": "tips and suggestions",
-        "all": "all optional emails from Rothern"
+        "all": "all optional emails from Rothern",
+        "aiSuggestions": "AI supplier suggestions"
       }
     }
   },
@@ -2490,7 +2491,8 @@
           "sellerApproval": "{n, plural, one {<b>#</b> order awaiting seller confirmation} other {<b>#</b> orders awaiting seller confirmation}}",
           "receiveOrders": "{n, plural, one {<b>#</b> order waiting for you to confirm receipt} other {<b>#</b> orders waiting for you to confirm receipt}}",
           "paymentWindow": "{n, plural, one {<b>#</b> order awaiting payment} other {<b>#</b> orders awaiting payment}}",
-          "messages": "{n, plural, one {<b>#</b> unread message} other {<b>#</b> unread messages}}"
+          "messages": "{n, plural, one {<b>#</b> unread message} other {<b>#</b> unread messages}}",
+          "aiSuggestions": "{n, plural, one {AI found suppliers for <b>#</b> buying request — invite them with one click} other {AI found suppliers for <b>#</b> buying requests — invite them with one click}}"
         },
         "satis": {
           "overdueDeliveries": "{n, plural, one {<b>#</b> order past the delivery date} other {<b>#</b> orders past the delivery date}}",
@@ -2912,7 +2914,8 @@
         "davetEPostasiGonderN": "Send invitation email ({n})",
         "baglantiDavetiGonder": "Send connection invitation",
         "davetDiliFirma": "Invitation language for {name}",
-        "davetDiliIpucu": "Each invitation email is sent in the language selected on its row; the default language is based on the company’s country."
+        "davetDiliIpucu": "Each invitation email is sent in the language selected on its row; the default language is based on the company’s country.",
+        "davetlerSirayaAlindi": "{n, plural, one {# invitation} other {# invitations}} queued; emails are sent during business hours in the recipient's country."
       },
       "ihaleitemspanel": {
         "kalemlerYuklenemedi": "Line items could not be loaded.",
@@ -3537,7 +3540,8 @@
         "belge": "Document",
         "yayinIcinFirmaDogrulamasiGerekir": "Publishing requires company verification — <link>upload your documents</link>. You can save a draft for now.",
         "belgeleriYukleyin": "upload documents",
-        "disDavetDili": "Invitation language for {email}"
+        "disDavetDili": "Invitation language for {email}",
+        "disDavetSirayaAlindi": "{n, plural, one {# invitation} other {# invitations}} queued; emails are sent during business hours in the recipient's country."
       },
       "publishedPanel": {
         "talebinizYayinda": "Your request is live",
@@ -3548,7 +3552,8 @@
         "yeniTalepAc": "Post a new request",
         "davetEPostalari": "Invitation emails",
         "davetEPostalariGonderilemedi": "The invitation emails could not be sent; you can retry with “Find suppliers with AI” on the request page.",
-        "davetGonderildiSayisi": "{n, plural, one {# invitation email sent} other {# invitation emails sent}}"
+        "davetGonderildiSayisi": "{n, plural, one {# invitation email sent} other {# invitation emails sent}}",
+        "davetSirayaAlindiSayisi": "{n, plural, one {# invitation} other {# invitations}} queued — emails are sent during business hours in the recipient's country"
       },
       "externalInviteStatus": {
         "SENT": "Sent",
@@ -3558,7 +3563,9 @@
         "ALREADY_INVITED": "Already invited",
         "OPTED_OUT": "Opted out of invitations",
         "DAILY_LIMIT": "Daily limit reached",
-        "INVALID": "Invalid address"
+        "INVALID": "Invalid address",
+        "QUEUED": "Queued",
+        "CONSENT_REQUIRED": "No unsolicited invitations to this country"
       },
       "setupCard": {
         "ilkTalebinizUcKisaSoru": "Your first request — three quick questions",
@@ -4018,6 +4025,62 @@
         "descriptionNoList": "The buyer opened this request only to suppliers in specific countries.",
         "inviteNote": "If the buyer invites you, you can submit a quote.",
         "backToOpen": "Back to open requests"
+      },
+      "aiSuppliers": {
+        "groupAbroad": "Abroad",
+        "groupOther": "Other",
+        "selectAll": "Select all",
+        "clearAll": "Clear selection",
+        "canSupply": "Can supply: {items}",
+        "website": "Website",
+        "select": "Select {name}",
+        "status": {
+          "ALREADY_INVITED": "Already invited",
+          "INVITED": "Invited",
+          "MEMBER": "Rothern member — notified on the platform",
+          "CONSENT_REQUIRED": "No unsolicited invitations to this country"
+        },
+        "recentlyInvited": "Invited by another buyer this week — your invitation goes out in a combined email",
+        "panelTitle": "Who sells these items?",
+        "panelLead": "AI searches for your items at home and abroad; the companies it finds come pre-selected, so remove the ones you don't want. Invitations go out in each company's own language once the request is published.",
+        "panelLeadRestricted": "AI searches only in the countries this request is open to: {countries}.",
+        "findButton": "Find suppliers with AI",
+        "searching": "AI is searching at home and abroad… (30–60 s — you can keep filling in the form)",
+        "resultsSummary": "{n, plural, one {# company} other {# companies}} found · {covered}/{total} items covered",
+        "selectedSummary": "{n, plural, one {# company} other {# companies}} will be invited when you publish",
+        "uncovered": "No suppliers found for: {items}",
+        "findMoreForItem": "Find more for {item}",
+        "itemsChanged": "Items changed — search again",
+        "searchAgain": "Search again",
+        "noResults": "AI found no suitable companies. Try more specific item names and search again.",
+        "failed": "The search couldn't be completed. Please try again.",
+        "goldOnly": "Finding suppliers with AI is available on the Gold plan.",
+        "membersTitle": "Sellers on Rothern",
+        "membersLead": "Rothern members who sell your items or match your category. You can send them a connection request.",
+        "connect": "Send connection request",
+        "connectSent": "Request sent",
+        "connectSentToast": "Connection request sent to {name}",
+        "connectFailed": "The connection request couldn't be sent",
+        "inCatalog": "In their catalog: {items}",
+        "bandTitle": "AI found {n, plural, one {# supplier} other {# suppliers}}",
+        "bandAbroad": "({n, number} abroad)",
+        "bandLead": "They're all pre-selected; remove the ones you don't want and invite the rest with one click. Invitations go out in each company's own language, during business hours in its country.",
+        "bandSearching": "AI is searching for suppliers for your request at home and abroad…",
+        "inviteButton": "Invite {n, plural, one {# company} other {# companies}}",
+        "invitedToast": "{n, plural, one {# invitation} other {# invitations}} queued; emails are sent during business hours in the recipient's country.",
+        "inviteFailed": "The invitations couldn't be sent. Please try again.",
+        "dismiss": "Hide",
+        "showList": "Show list",
+        "hideList": "Hide list",
+        "secondRound": "AI searched again because few quotes came in",
+        "allHandled": "All suggested companies have been invited.",
+        "aiDiscoveryToggle": "When I publish, let AI find suppliers at home and abroad",
+        "aiDiscoveryHint": "You'll see them on your request page and invite them with one click. Free of charge.",
+        "aiDiscoveryPrivateOff": "Private requests aren't searched automatically.",
+        "showNameToggle": "Show my company name in invitation emails",
+        "showNameHint": "If off, invitations say \"A buyer\". Invitations that show the company name get more replies.",
+        "summaryInSection1": "The companies AI found are in the list in section 1.",
+        "goToList": "Go to list"
       }
     },
     "trade": {
@@ -5237,13 +5300,17 @@
           "listingClosed": "When a buying request I took part in closes",
           "categoryMatch": "When a new buying request matching my category is opened",
           "approvalPending": "When my approval is required",
-          "announcement": "Platform announcements"
+          "announcement": "Platform announcements",
+          "aiSuggestions": "When AI finds new suppliers for my request",
+          "lifecycle": "Usage tips and weekly visibility summary"
         },
         "transactional": {
           "bidWon": "When my quote wins / an order is created",
           "orderStatus": "When the status of my order changes",
           "accountMail": "Password reset and account/invitation emails"
-        }
+        },
+        "categoryMatchInstant": "Send every category email instantly",
+        "categoryMatchInstantHint": "When off, 3 emails a day arrive instantly and the rest are collected into one evening summary."
       },
       "addressBookSection": {
         "adresSilinsinMi": "Delete address?",

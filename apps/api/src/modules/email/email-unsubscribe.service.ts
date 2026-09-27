@@ -77,13 +77,13 @@ export class EmailUnsubscribeService {
       where: { email, deletedAt: null },
       select: { id: true, notificationPrefs: true },
     });
-    if (user && scope !== "lifecycle") {
+    if (user) {
+      // Kayıtlı kullanıcının tercihi TEK yerde: Ayarlar › Bildirimler aynı
+      // değeri gösterir ve geri açabilir (karşılama serisi `lifecycle` dahil).
       const prefs = { ...((user.notificationPrefs as Record<string, boolean> | null) ?? {}) };
       const keys = scope === "all" ? NOTIFICATION_PREF_KEYS : [scope];
       for (const k of keys) prefs[k] = false;
       await this.bypass.companyUser.update({ where: { id: user.id }, data: { notificationPrefs: prefs } });
-      // "Tümü" karşılama serisi/özetleri de kapsar (tercih ekranında anahtarı yok).
-      if (scope === "all") await this.optOut(email, "lifecycle");
       return;
     }
     await this.optOut(email, scope);
@@ -107,7 +107,6 @@ export class EmailUnsubscribeService {
       select: { id: true },
     });
     if (row) return true;
-    if (scope === "lifecycle") return false;
     const user = await this.bypass.companyUser.findFirst({
       where: { email, deletedAt: null },
       select: { notificationPrefs: true },

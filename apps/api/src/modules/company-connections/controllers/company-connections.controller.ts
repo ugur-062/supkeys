@@ -91,7 +91,7 @@ export class CompanyConnectionsController {
     @Body() dto: ExternalTenderInviteDto,
   ) {
     // Yeni istemci alıcı başına dil/ülke (`invites`), eski istemci düz adres.
-    return this.service.inviteExternalForListing(user, dto.listingId, dto.invites ?? dto.emails ?? []);
+    return this.service.inviteExternalForListing(user, dto.listingId, dto.invites ?? dto.emails ?? [], dto.source);
   }
 
   @Post("invite-by-email")

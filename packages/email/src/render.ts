@@ -17,6 +17,11 @@ import {
   renderTenderExternalInviteText,
 } from "./templates/tender-external-invite";
 import {
+  makeTenderInviteDigestSubject,
+  renderTenderInviteDigestText,
+  TenderInviteDigestEmail,
+} from "./templates/tender-invite-digest";
+import {
   makeNotificationSubject,
   NotificationEmail,
   renderNotificationText,
@@ -77,6 +82,16 @@ async function renderTemplate(
         subject: makeTenderExternalInviteSubject(spec.data, locale),
         html,
         text: renderTenderExternalInviteText(spec.data, locale),
+      };
+    }
+    case "tender_invite_digest": {
+      const html = await render(
+        withEnv(env, React.createElement(TenderInviteDigestEmail, { ...spec.data, locale })),
+      );
+      return {
+        subject: makeTenderInviteDigestSubject(spec.data, locale),
+        html,
+        text: renderTenderInviteDigestText(spec.data, locale),
       };
     }
     case "referral_invite": {

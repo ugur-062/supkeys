@@ -98,7 +98,7 @@ export function formatInviteDeadline(d: Date, locale: Locale): string {
  * Dış talep davetinde gösterilen kalem sayısı — e-posta cazip olsun ama
  * talebin tamamını dökmesin; kalanı "+N kalem daha" (2026-09-27).
  */
-export const INVITE_ITEM_PREVIEW = 6;
+export const INVITE_ITEM_PREVIEW = 10;
 
 /**
  * Dış davetten önce talep çevirisinin (alıcının dili) en fazla ne kadar

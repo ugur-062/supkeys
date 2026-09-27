@@ -87,9 +87,11 @@ export class ExternalInviteRecipientDto {
 }
 
 /**
- * Faz C — dış ihale daveti: ihale + en fazla 20 alıcı. Geriye uyumlu: eski
- * istemci `emails`, yeni istemci alıcı başına dil/ülke taşıyan `invites`;
- * ikisinden biri şart.
+ * Faz C — dış talep daveti: talep + en fazla 60 alıcı (firma günlük tavanı).
+ * Geriye uyumlu: eski istemci `emails`, yeni istemci alıcı başına dil/ülke
+ * taşıyan `invites`; ikisinden biri şart. `source`: adres elle mi yazıldı
+ * (hemen gider) yoksa AI keşfinden mi seçildi (alıcının mesai saatinde,
+ * sıklık freniyle) — verilmezse MANUAL.
  */
 export class ExternalTenderInviteDto {
   @IsString()
@@ -97,14 +99,18 @@ export class ExternalTenderInviteDto {
 
   @ValidateIf((o: ExternalTenderInviteDto) => o.invites === undefined)
   @IsArray()
-  @ArrayMaxSize(20)
+  @ArrayMaxSize(60)
   @IsString({ each: true })
   emails?: string[];
 
   @ValidateIf((o: ExternalTenderInviteDto) => o.emails === undefined)
   @IsArray()
-  @ArrayMaxSize(20)
+  @ArrayMaxSize(60)
   @ValidateNested({ each: true })
   @Type(() => ExternalInviteRecipientDto)
   invites?: ExternalInviteRecipientDto[];
+
+  @IsOptional()
+  @IsIn(["MANUAL", "AI_FORM", "AI_AUTO"])
+  source?: "MANUAL" | "AI_FORM" | "AI_AUTO";
 }

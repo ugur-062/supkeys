@@ -75,4 +75,4 @@ export function pendingInvitesKey(listingId: string): string {
 }
 
 /** Yayında tek istekte gönderilebilecek dış davet sayısı (API `ExternalTenderInviteDto` üst sınırı). */
-export const MAX_PENDING_EXTERNAL_INVITES = 20;
+export const MAX_PENDING_EXTERNAL_INVITES = 60;

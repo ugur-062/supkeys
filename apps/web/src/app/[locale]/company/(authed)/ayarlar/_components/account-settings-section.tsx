@@ -398,11 +398,14 @@ export function NotificationPrefsSection() {
     const stored = user?.notificationPrefs ?? null;
     const init: Record<string, boolean> = {};
     for (const p of NOTIFICATION_PREFS) init[p.key] = stored?.[p.key] ?? true;
+    // Bayrak (tür değil): kategori e-postalarının hepsi anında — varsayılan KAPALI
+    // (günde 3 anında, fazlası akşam özeti; 2026-09-27, Faz 2).
+    init.categoryMatchInstant = stored?.categoryMatchInstant === true;
     setPrefs(init);
   }, [user]);
 
   const setAll = (val: boolean) => {
-    const next: Record<string, boolean> = {};
+    const next: Record<string, boolean> = { ...prefs };
     for (const p of NOTIFICATION_PREFS) next[p.key] = val;
     setPrefs(next);
   };
@@ -470,6 +473,22 @@ export function NotificationPrefsSection() {
           );
         })}
       </div>
+
+      {/* Kategori e-postası sıklığı (2026-09-27, Faz 2): kapalıyken günde 3
+          anında + akşam özeti; açıkken her talep anında. */}
+      <label className="mt-4 flex items-start gap-3 rounded-xl border border-zinc-100 px-4 py-3">
+        <input
+          type="checkbox"
+          className="mt-0.5 h-4 w-4 rounded border-zinc-300"
+          checked={!!prefs.categoryMatchInstant}
+          disabled={prefs.categoryMatch === false}
+          onChange={(e) => setPrefs({ ...prefs, categoryMatchInstant: e.target.checked })}
+        />
+        <span className="min-w-0">
+          <span className="block text-sm text-zinc-900">{t("categoryMatchInstant")}</span>
+          <span className="mt-0.5 block text-xs text-zinc-600">{t("categoryMatchInstantHint")}</span>
+        </span>
+      </label>
 
       <div className="mt-5 rounded-xl border border-zinc-200 bg-zinc-100/60 p-4">
         <p className="text-xs font-semibold uppercase tracking-wide text-zinc-500">

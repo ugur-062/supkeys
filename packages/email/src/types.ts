@@ -2,6 +2,7 @@ export type EmailTemplate =
   | "password_reset"
   | "referral_invite"
   | "tender_external_invite"
+  | "tender_invite_digest"
   | "notification";
 
 export type EmailProviderName = "resend";
@@ -75,6 +76,35 @@ export interface TenderExternalInviteData {
   publicUrl?: string | null;
   registerUrl: string;
   optOutUrl: string;
+  /**
+   * Kapanıştan önceki TEK hatırlatma (2026-09-27) — konu, başlık ve giriş
+   * cümlesi hatırlatma sürümüyle basılır; içerik aynı.
+   */
+  reminder?: boolean;
+}
+
+/** Özet e-postasında bir talep daveti (içerik kuralları tekli davetle aynı). */
+export interface TenderInviteDigestEntry {
+  inviterName: string;
+  tenderTitle: string;
+  tenderNumber?: string | null;
+  closesAt: string | null;
+  deliveryPlace?: string | null;
+  /** İlk kalemler (özette en fazla 3). */
+  items?: TenderExternalInviteItem[];
+  itemCount?: number;
+  /** Kayıt + talebe dönüş bağlantısı (o davet edenin jetonu). */
+  ctaUrl: string;
+}
+
+/**
+ * Aynı kayıtsız adrese bekleyen BİRDEN ÇOK talep daveti TEK e-postada
+ * (2026-09-27, kullanıcı: "aynı kişiye sık değil"): adres başına 7 günde bir
+ * e-posta kuralında bekleyen davetler kaybolmaz, burada birlikte gider.
+ */
+export interface TenderInviteDigestData {
+  invites: TenderInviteDigestEntry[];
+  optOutUrl: string;
 }
 
 /**
@@ -109,6 +139,10 @@ export type EmailTemplateData =
   | {
       template: "tender_external_invite";
       data: TenderExternalInviteData;
+    }
+  | {
+      template: "tender_invite_digest";
+      data: TenderInviteDigestData;
     }
   | {
       template: "notification";

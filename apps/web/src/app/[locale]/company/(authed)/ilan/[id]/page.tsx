@@ -85,6 +85,7 @@ import { Link } from "@/i18n/navigation";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useScrolledPast } from "@/hooks/use-scrolled-past";
+import { ListingSuggestions } from "@/components/tenders/ai-suppliers/listing-suggestions";
 import { toast } from "sonner";
 import { useImportListingToCatalog } from "@/hooks/use-company-items";
 
@@ -211,6 +212,8 @@ export default function ListingDetailPage() {
       ? rawFrom
       : null;
   const fromLabel = searchParams.get("fromLabel");
+  // Bildirim/e-posta bağlantısı (`?ai-davet=1`): AI öneri listesi açık gelir.
+  const aiInviteParam = searchParams.get("ai-davet") === "1";
   const tn = useNavLabel();
   const td = useTranslations("web.domain");
   const locale = useLocale();
@@ -1830,6 +1833,18 @@ export default function ListingDetailPage() {
         </div>
 
         {orderStrip}
+
+        {/* YAYIN SONRASI AI ÖNERİLERİ (2026-09-27, Faz 1): sahibin görünümünde
+            bant — bulunan tedarikçiler SEÇİLİ, tek tıkla davet; "Gizle" kapatır. */}
+        {canDiscover && discoverTierOk && l.status === "OPEN" ? (
+          <ListingSuggestions
+            listingId={l.id}
+            itemNames={(l.items ?? []).map((i) => i.name)}
+            buyerCountry={company?.country}
+            variant="band"
+            defaultOpen={aiInviteParam}
+          />
+        ) : null}
 
         <div className="card p-5">
           <div className="min-w-0" ref={setHeaderEl}>{header}</div>

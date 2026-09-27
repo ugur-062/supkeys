@@ -280,16 +280,18 @@ davette kalemler olsun ki cazip gelsin, dil kusursuz, filtreler dahil tüm
   dili kullanır; kayıt/kabul bağlantısı o dilin ön ekiyle → hesap o dilde doğar.
   Misafir bilgi talebi `PublicInquiry.locale`. KAYITLI alıcıya her zaman
   `CompanyUser.locale`.
-- **DIŞ DAVET E-POSTASI = BEYAZ LİSTE** (`TenderExternalInviteData`): numara,
-  ilk 6 kalem "ad — miktar birim" (+N), şehir + ülke, son tarih (GMT+3),
-  kategori (çoğul), aranan tedarikçi tipi, vitrindeyse herkese açık sayfa,
-  "kapalı zarf" + "ücretsiz" cümleleri; kayıt bağlantısı `redirect=/company/
-  ilan/<id>`. Hedef fiyat, şartname, marka, belge, ticari şart, tam adres ASLA.
-  Gönderimden önce talep çevirisi `ContentTranslationService.ensureTranslated`
-  ile EN FAZLA 60 sn beklenir (kullanıcı kararı), olmazsa özgün metin. Soğuk
-  davet konusunda emoji yok; alt bilgideki alan adı gönderen ortamdan
-  (`renderEmail(…, { siteUrl })`), yıl dinamik. `/company` kökü `?redirect=`
-  niyetini onboarding durumu bilinmeden tüketmez.
+- **DIŞ DAVET E-POSTASI = BEYAZ LİSTE** (`TenderExternalInviteData`, içerik tek
+  kaynak `common/company/external-invite-content.ts` `InviteContentBuilder`):
+  DAVET EDEN FİRMANIN ADI, numara, ilk 10 kalem "ad — miktar birim" (+N), şehir
+  + ülke, son tarih (GMT+3), kategori (çoğul), aranan tedarikçi tipi, vitrindeyse
+  herkese açık sayfa, "kapalı zarf" + "ücretsiz" cümleleri; kayıt bağlantısı
+  `redirect=/company/ilan/<id>`. Hedef fiyat, şartname, marka, belge, ticari
+  şart, tam adres ASLA. Konu "ABC İnşaat sizden teklif istiyor: M6 cıvata,
+  Rulman +1 kalem", gönderen "ABC İnşaat (Rothern üzerinden)" (`inviteFromName`;
+  görünen ad RFC 5322 tırnaklı). Çeviri gelmediyse gönderim 10 dk'ya dek
+  ertelenir, sonra özgün metin. Soğuk davet konusunda emoji yok; alt bilgideki
+  alan adı gönderen ortamdan (`renderEmail(…, { siteUrl })`), yıl dinamik.
+  `/company` kökü `?redirect=` niyetini onboarding durumu bilinmeden tüketmez.
 - **BİLDİRİM PARAMETRELERİ TİPLİ** (`common/notifications/notification-params.
   ts`): `dateParam`/`moneyParam`/`numberParam`/`listingTitleParam` alıcı başına
   ve alıcının dilinde çözülür (İstanbul duvar saati, en/ru "(GMT+3)", talep
@@ -1547,9 +1549,10 @@ eksikse "otomatik" değildir:
   `opengraph-image`leri hiç kullanılmıyordu → `ogCardPath()` (dil öneki + İÇ
   yol; çevrilmiş yol + `/opengraph-image` 404 verir). IndexNow şehir/ülke
   adreslerini de bildirir.
-- **Davet e-postaları (2026-09-27 denetimi):** ekip daveti, dış talep daveti ve
-  referans daveti gönderimi BEKLER ve gerçek durumu döner (SENT/FAILED/
-  SUPPRESSED/…; ekran "gönderildi" demeden önce) · hızlı talepte yayından ÖNCE
+- **Davet e-postaları (2026-09-27 denetimi):** ekip daveti ve referans daveti
+  gönderimi BEKLER ve gerçek durumu döner (SENT/FAILED/SUPPRESSED/…; ekran
+  "gönderildi" demeden önce); dış TALEP daveti aynı gün KUYRUĞA geçti (QUEUED,
+  bkz. "E-POSTA TESLİM EDİLEBİLİRLİĞİ") · hızlı talepte yayından ÖNCE
   AI ile bulunan adresler forma eklenir, talebe özel davet YAYINDA gider (eskiden
   talepsiz genel "katıl" e-postası gidiyordu) · referans daveti: çıkış bağlantısı,
   günde 50/firma, aynı adrese 7 günde bir, son gönderimden 30 gün geçerli, `ref`
@@ -1567,6 +1570,135 @@ eksikse "otomatik" değildir:
   web sitemap fetch'leri `SEO_TAGS.sitemap` etiketi taşımalı.
 
 ---
+
+## E-POSTA TESLİM EDİLEBİLİRLİĞİ + DAVET KUYRUĞU (2026-09-27, Faz 0)
+
+Kullanıcı kararı: "reklam mailine düşmemeli; kayıtsızlara daha fazla gönderelim
+ama aynı kişiye sık değil". Plan: Faz 0 altyapı → Faz 1 AI tedarikçi keşfi
+(kalemler paneli, yayın sonrası otomatik arama + tek tık davet, uluslararası) →
+Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
+
+- **AKIŞLAR** (tek kaynak `modules/email/email-streams.ts`): bağlam tipinden
+  türer — kullanıcının kapatabildiği tür NOTIFICATION, kayıtsız adrese davet
+  (`referral_invite`, `tender_external_invite`) INVITE, `lifecycle_*` LIFECYCLE,
+  kalan her şey TRANSACTIONAL. Akış başına gönderen İSTEĞE BAĞLI env
+  `EMAIL_FROM_ADDRESS_{NOTIFICATION,INVITE,LIFECYCLE}` (boşsa
+  `EMAIL_FROM_ADDRESS`; açılış kapısı alt alan adına izin verir). Öneri:
+  `talep@updates.rothern.com`, `davet@invite.rothern.com` — DNS (SPF/DKIM)
+  Resend'de alan adı eklenince; soğuk davet şikâyeti kodları spam'e sürüklemesin.
+- **TEK TIK ÇIKIŞ (RFC 8058):** işlem dışı her e-posta `List-Unsubscribe` +
+  `List-Unsubscribe-Post` başlığı ve alt bilgide çıkış/tercih bağlantısı taşır
+  (düz metin dahil); kod/şifre/sipariş TAŞIMAZ. Jeton AES-256-GCM (adres +
+  kapsam + dil; anahtar `JWT_SECRET`ten türetilmiş, DB satırı yok, süresiz).
+  Uçlar: API `GET/POST public/email/unsubscribe` (GET yalnız okur), web
+  `/api/email/unsubscribe` (başlıktaki adres; POST'u iletir, GET onay sayfasına
+  yönlendirir), sayfa `/e-posta-tercihleri` (EN `/email-preferences`, RU
+  `/nastroyki-pisem`; çıkış DÜĞMEYLE — güvenlik tarayıcıları bağlantıyı açar).
+  Yazım: kullanıcıda `notificationPrefs[kapsam]=false`, kullanıcı olmayan
+  adreste (`billingEmail`) `email_opt_outs`, davet kapsamında
+  `referral_opt_outs`; Ayarlar'da yeniden açmak adres kaydını siler.
+- **DAVET KUYRUĞU** (`external_listing_invites`, talep × adres): eskiden davet
+  `CompanyReferralInvite`in kendisiydi ve (davet eden × adres) BENZERSİZ olduğu
+  için alıcı aynı tedarikçiyi yalnız İLK talebine davet edebiliyordu. Artık
+  referral satırı yalnız bağlantı jetonu. `inviteExternalForListing` yalnız
+  kuyruğa alır (QUEUED + `sendAfter`; `source` MANUAL | AI_FORM | AI_AUTO);
+  dakikalık `ExternalInviteDispatcher` gönderir. Kurallar tek kaynak
+  `common/company/external-invite-policy.ts`: firma günde 60 talep daveti ·
+  platform günlük tavanı ölçüme bağlı (ilk hafta `COLD_INVITE_BASE_DAILY`=150,
+  sorunsuz her hafta ×2, `COLD_INVITE_MAX_DAILY`=5000; 7 günde şikâyet >%0,1 ya
+  da kalıcı geri dönme >%2 → dünün yarısı) · AI kaynaklı davet alıcının
+  ülkesinde hafta içi 09-16 (`common/time/country-time-zone.ts`; ülke yoksa
+  e-posta uzantısı, o da yoksa İstanbul) · adres başına 7 günde bir e-posta
+  (tüm alıcılar toplamı), bekleyenler TEK özet e-postada (`tender_invite_digest`,
+  ≤5 talep, her kart kendi jetonu) · davet bağlantısını açan adres
+  (`lastClickedAt`, kayıt sayfası `POST public/referral-visit`) ve elle yazılan
+  adres (MANUAL) freni beklemez · ilgi göstermeyen adrese 90 günde 3 e-postadan
+  sonra durur · talep yayında değilse bekler, kapanınca düşer · kapanışa 6-48
+  saat kala TEK hatırlatma · B2B'de önceden onay isteyen ülkelere (Almanya,
+  Kanada — `COLD_INVITE_CONSENT_COUNTRIES`, hukuk görüşü gelene dek) AI'ın
+  bulduğu adrese davet GİTMEZ (`CONSENT_REQUIRED`), elle yazılan gider. Kayıt olunca adrese gelmiş TÜM açık talep davetleri
+  (başka alıcılarınki dahil) `ListingInvitation` olur (`attachExternalListingInvites`).
+  Web QUEUED'u başarı sayar (`isInviteAccepted`).
+- **AI TEDARİKÇİ KEŞFİ (Faz 1, 2026-09-27; kullanıcı: "kalemler kısmında AI ile
+  tedarikçi bul'u çok daha iyi yap; talep açıldıktan sonra da bulunanlara tek
+  tıkla davet; uluslararası ise yurt dışı dahil; adaylar seçili gelsin; davetli
+  olana bir daha gitmesin").** Servis `modules/ai/supplier-discovery/`:
+  - **Arama geçişleri** (`discoveryPasses`): talep belirli ülkelere açıksa tek
+    geçiş (yalnız o ülkeler); tüm ülkelere açıksa İKİ PARALEL geçiş — yurt içi
+    (LOCAL) + yurt dışı (ABROAD: model en güçlü 5 üretici/ihracatçı ülkeyi seçer,
+    `COLD_INVITE_CONSENT_COUNTRIES` hariç). Kalemler NUMARALI verilir, aday
+    `matchedItems` taşır. Kategori ZORUNLU DEĞİL (kalemlerle aranır).
+  - **Aday işaretleme** (`annotate`, tek kaynak): e-postasız, MX'i olmayan
+    (`common/net/mx-check.ts`, geçici DNS hatasında fail-open), davet almak
+    istemeyen DÜŞER; aynı web sitesinden tek adres; durum SUGGESTED ·
+    ALREADY_INVITED (bu talebe) · MEMBER (adres ya da SİTE alan adı kayıtlı
+    firmayla eşleşti) · CONSENT_REQUIRED; `recentlyInvited` (7 günde başka
+    alıcıdan davet aldı → özetle gider). Yalnız SUGGESTED seçilebilir ve SEÇİLİ gelir.
+  - **Platform keşfi** (`discoverRegistered`) yayın bildirimiyle AYNI eşleştirici
+    (satış ana segment + `sellerSubCategoryIds`; eskiden alt kodu ana alanda
+    arıyordu) + vitrinde kalemi SATAN firma (`productSearchClauses`, kalem başına)
+    + talebin görünürlük ülkesi. Üyelere bugünkü gibi BAĞLANTI daveti (talebe
+    doğrudan davet bağlantı şartı taşır — `addInvitations`, kural değişmedi).
+  - **Formda** (`components/tenders/ai-suppliers/form-supplier-panel.tsx`):
+    kalemlerin ALTINDA, pencere açmadan; kalemler girilip 5 sn değişmeyince
+    oturumda bir kez KENDİLİĞİNDEN arar (kullanıcı bütçesi, `callAi`); sonuç
+    formun dış davet listesine seçili yazılır, davet YAYINDA (`AI_FORM`) gider;
+    kapsanmayan kalem için "daha fazla bul". 3. bölümde iki anahtar: yayında
+    otomatik arama (`Listing.aiDiscovery`, özel talepte kapalı) ve davette firma
+    adı (`Listing.inviteShowName`; kapalıysa "Bir alıcı firma", gönderen "Rothern").
+  - **Yayın sonrası** (`DiscoveryRunsService`, dakikalık `discovery.runs`):
+    `announceListingOpen` tur satırı yazar (AI modülüne bağımlılık yok); tur
+    PLATFORM bütçesiyle (`AiService.callAiSystem`, firma bütçesine yazılmaz; günlük
+    tavan `AI_DISCOVERY_DAILY_USD`=15) koşar, adaylar `supplier_discovery_candidates`e.
+    Yayın paneli ve talep sayfası bandı (`listing-suggestions.tsx`) hepsi seçili
+    liste + tek tık davet (`AI_AUTO`, kuyruk); "Gizle" kapatır. Alıcı 10 dk içinde
+    işlem yapmadıysa talebi AÇANA bildirim + e-posta (`ai_supplier_suggestions`,
+    tercih `aiSuggestions`; bağlantı `?ai-davet=1` listeyi açık getirir, gönderim
+    uygulama içinde). Süre yarılandı + teklif < 3 → İKİNCİ TUR (önceki adaylar
+    hariç; talep başına en fazla 2 otomatik tur). Eylem merkezi satırı `aiSuggestions`.
+  - Uçlar: `POST company/ai/supplier-discovery` (+`/external`; DTO kategori
+    isteğe bağlı, `itemNames`/`listingId`/`targetCountries`), `GET/POST company/
+    ai/supplier-discovery/listings/:id{,/invite,/dismiss}` (GOLD + buy:listing:manage).
+  - Migration `20260927230000_supplier_discovery_runs` (eklemeli). Sözleşmeler:
+    `supplier-discovery-external.spec`, `supplier-discovery.spec`, `discovery-
+    runs.spec`, web `quick-request.test` "KALEMLER PANELİ", `listing-suggestions.test`.
+- **GÜNLÜK E-POSTA PROGRAMI (Faz 2, 2026-09-27; kullanıcı: "haftada 1 az, her
+  gün gönderelim; kategorisi uyuşan kayıtlıya sık").** Kurallar tek kaynak
+  `common/email/email-program-policy.ts`, uygulama `modules/email-programs/`
+  (15 dk'lık `emailPrograms.tick`; her alt iş yerel saat penceresini ve
+  tekilliğini EmailLog'dan okur):
+  - **Kategori eşleşmesi:** alıcı başına YEREL gün içinde 3 e-posta anında,
+    fazlası `email_digest_items`a → yerel 18:00'de TEK özet
+    (`listing_category_digest`, tercih `categoryMatch`; ücretsiz alıcıda Silver
+    teşviki, talep bağlantısı yok). Tercih bayrağı `categoryMatchInstant`
+    (`NOTIFICATION_FLAG_KEYS`, varsayılan kapalı) sınırı kaldırır. Doğrudan
+    davet ve uygulama içi bildirim bu kurala GİRMEZ.
+  - **Karşılama serisi** (LIFECYCLE akışı, `lifecycle_<adım>`, tercih
+    `lifecycle` — `prefKeyForType` `lifecycle_*` önekini eşler): profil (gün 1)
+    → ilk ürün (3) → doğrulama (7) → pazar (14, kategorisinde talep varsa);
+    DAVRANIŞA BAĞLI (tamamlanan adım atlanır), firma başına günde bir, sahibe,
+    yerel 10:00; 180 gündür giriş yoksa gitmez. Hizmet kullanımı iletisi
+    (pazarlama izni aranmaz; çıkış her e-postada).
+  - **Haftalık görünürlük özeti** (`lifecycle_weekly`): pazartesi yerel 10:00,
+    son 7 günde görüntülenme varsa; son giriş 30+ gün → iki haftada bir,
+    90+ → dört haftada bir, 180+ → hiç.
+  - **Teklifsiz talep** (`listing_zero_bid`, tercih `reminder`): kapanışa 12-72
+    saat, hiç teklif yok → talebi AÇANA e-posta + uygulama içi, her biri BİR kez
+    (bağlantı `?ai-davet=1` otomatik arama açıksa).
+  - Kayıtlı kullanıcının tek tık çıkışı `lifecycle` dahil tercih JSON'una yazılır.
+  - Migration `20260927235000_email_digest_items` (eklemeli). Sözleşmeler:
+    `email-program-policy.spec`, `email-programs.spec`, `category-match.spec`
+    "GÜNDE 3 ANINDA".
+- Migration'lar `20260927210000_email_opt_outs`, `20260927220000_external_
+  listing_invites` (eklemeli; eski talep bağlamlı referral davetleri SENT talep
+  daveti olarak taşınır). Sözleşmeler: `email-streams.spec`, `email-unsubscribe.
+  spec`, `external-invite-policy.spec`, `external-tender-invite.spec`,
+  `external-invite-content.spec`, `referral-signup.spec` "TALEP DAVETLERİ",
+  `tender-external-invite-email.spec` (özet/hatırlatma), `email-display-name.spec`.
+- **Sizde (operatör):** Resend'de alt alan adları + DNS; Google Postmaster,
+  Microsoft SNDS, Yandex Postoffice, Mail.ru Postmaster; DMARC `rua` adresi
+  izlenip `p=quarantine`e geçiş; Resend kullanım politikası (web'den bulunan
+  adrese soğuk gönderim) kontrolü; Almanya/Kanada için hukuk görüşü.
 
 ## Panel — pazar bölgesi ve anasayfalar
 
@@ -2035,7 +2167,11 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Son migration `20260927200100_international_locale_price_base` (+
+- Son migration `20260927235000_email_digest_items` (+
+  `20260927230000_supplier_discovery_runs`, `20260927220000_external_listing_
+  invites`, `20260927210000_email_opt_outs`; eklemeli, e-posta Faz 0-2).
+  Öncesi
+  `20260927200100_international_locale_price_base` (+
   `20260927200000_currency_additions` — enum `ADD VALUE` AYRI dosyada;
   `20260927150000_geo_cities`, `20260927120000_global_registration`; hepsi
   eklemeli, staging VE canlıda BEKLİYOR — Render askısı 1 Ekim'e dek; ardından

@@ -102,7 +102,10 @@ function supplierTypeLabels(t: EmailTranslator, codes: readonly string[] | undef
 }
 
 /** HTML ve düz metin sürümünün ORTAK bilgi satırları (ikisi ayrışmasın). */
-function infoLines(t: EmailTranslator, props: TenderExternalInviteData): string[] {
+export function infoLines(
+  t: EmailTranslator,
+  props: Pick<TenderExternalInviteData, "supplierTypes" | "tenderNumber" | "categories" | "deliveryPlace" | "closesAt">,
+): string[] {
   const types = supplierTypeLabels(t, props.supplierTypes);
   return [
     ...(props.tenderNumber ? [t("email.tenderExternalInvite.numberLine", { number: props.tenderNumber })] : []),
@@ -132,14 +135,39 @@ function itemLines(t: EmailTranslator, props: TenderExternalInviteData): { lines
   };
 }
 
+/**
+ * Konudaki kalem özeti: ilk iki kalem adı + "+N kalem" ("M6 cıvata, Rulman +1
+ * kalem"). Kalem yoksa talep başlığı. Konu kişiye özel ve somut olsun diye
+ * (2026-09-27, kullanıcı: "şirket adı ve kalemler daha etkili olur").
+ */
+export function inviteSubjectItems(
+  t: EmailTranslator,
+  props: Pick<TenderExternalInviteData, "items" | "itemCount" | "tenderTitle">,
+): string {
+  const items = props.items ?? [];
+  if (items.length === 0) return props.tenderTitle;
+  const names = items.slice(0, 2).map((i) => i.name);
+  const total = Math.max(props.itemCount ?? items.length, items.length);
+  const more = total - names.length;
+  return more > 0
+    ? `${names.join(", ")} ${t("email.tenderExternalInvite.subjectMore", { count: more })}`
+    : names.join(", ");
+}
+
 export function makeTenderExternalInviteSubject(
   props: TenderExternalInviteData,
   locale: Locale = DEFAULT_LOCALE,
 ): string {
-  return emailT(locale)("email.tenderExternalInvite.subject", {
-    inviterName: props.inviterName,
-    tenderTitle: props.tenderTitle,
-  });
+  const t = emailT(locale);
+  const items = inviteSubjectItems(t, props);
+  return props.reminder
+    ? t("email.tenderExternalInvite.reminderSubject", { inviterName: props.inviterName, items })
+    : t("email.tenderExternalInvite.subjectItems", { inviterName: props.inviterName, items });
+}
+
+/** Gönderenin görünen adı: "ABC İnşaat (Rothern üzerinden)" — alıcının dilinde. */
+export function inviteFromName(inviterName: string, locale: Locale = DEFAULT_LOCALE): string {
+  return emailT(locale)("email.tenderExternalInvite.fromName", { inviterName });
 }
 
 export function TenderExternalInviteEmail(
@@ -158,12 +186,14 @@ export function TenderExternalInviteEmail(
       })}
       locale={locale}
     >
-      <Heading>{t("email.tenderExternalInvite.heading")}</Heading>
+      <Heading>
+        {t(props.reminder ? "email.tenderExternalInvite.reminderHeading" : "email.tenderExternalInvite.heading")}
+      </Heading>
 
       <Text style={paragraph}>{t("email.tenderExternalInvite.greeting")}</Text>
 
       <Text style={paragraph}>
-        {t.rich("email.tenderExternalInvite.intro", {
+        {t.rich(props.reminder ? "email.tenderExternalInvite.reminderIntro" : "email.tenderExternalInvite.intro", {
           inviterName: props.inviterName,
           b: bold,
         })}
@@ -246,7 +276,7 @@ export function renderTenderExternalInviteText(
   const t = emailT(locale);
   const items = itemLines(t, props);
   return [
-    t("email.tenderExternalInvite.textIntro", {
+    t(props.reminder ? "email.tenderExternalInvite.textReminderIntro" : "email.tenderExternalInvite.textIntro", {
       inviterName: props.inviterName,
       tenderTitle: props.tenderTitle,
     }),

@@ -16,6 +16,8 @@ const h = vi.hoisted(() => ({
   push: vi.fn(),
   connections: [] as unknown[],
   sendExternal: vi.fn(),
+  externalSearch: vi.fn().mockResolvedValue([]),
+  platformSearch: vi.fn().mockResolvedValue([]),
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
@@ -31,7 +33,10 @@ vi.mock("@/hooks/use-company-addresses", () => ({
   useAddresses: () => ({ data: [{ id: "addr1", type: "TESLIMAT", title: "Depo", city: "İzmir", isDefault: true }], isLoading: false }),
   useSaveAddress: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
-vi.mock("@/hooks/use-company-connections", () => ({ useConnections: () => ({ data: h.connections, isLoading: false }) }));
+vi.mock("@/hooks/use-company-connections", () => ({
+  useConnections: () => ({ data: h.connections, isLoading: false }),
+  useInviteConnection: () => ({ mutateAsync: vi.fn(), isPending: false }),
+}));
 vi.mock("@/hooks/use-company-listings", () => ({
   useCreateListing: () => ({ mutateAsync: h.create, isPending: false }),
   // Düzenleme modu (2026-09-19, sihirbaz kaldırıldı) — burada yeni kart sınanır.
@@ -43,6 +48,11 @@ vi.mock("@/hooks/use-ai-search-intent", () => ({ useAiSearchIntent: () => ({ mut
 vi.mock("@/components/tenders/supplier-discovery-modal", () => ({ SupplierDiscoveryModal: () => null }));
 vi.mock("@/hooks/use-supplier-discovery", () => ({
   useExternalTenderInvite: () => ({ mutateAsync: h.sendExternal, isPending: false }),
+  useExternalSupplierDiscovery: () => ({ mutateAsync: h.externalSearch, isPending: false }),
+  useSupplierDiscovery: () => ({ mutateAsync: h.platformSearch, isPending: false }),
+  useListingDiscovery: () => ({ data: undefined }),
+  useInviteDiscoveryCandidates: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useDismissListingDiscovery: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 vi.mock("@/components/tenders/wizard/catalog-picker-dialog", () => ({ CatalogPickerDialog: () => null }));
 vi.mock("@/components/tenders/wizard/staged-documents", () => ({ StagedDocuments: () => <div data-testid="staged-docs" /> }));
@@ -209,10 +219,52 @@ describe("QuickRequest", () => {
       expect(h.sendExternal).toHaveBeenCalledWith({
         listingId: "l3",
         invites: [{ email: "info@firma.kz", locale: "en" }],
+        source: "AI_FORM",
       }),
     );
     expect(await screen.findByText("Davet e-postaları")).toBeInTheDocument();
-    expect(screen.getByText("1 davet e-postası gönderildi")).toBeInTheDocument();
+    expect(screen.getByText("1 davet sıraya alındı — e-postalar alıcının ülkesinde mesai saatinde gönderilir")).toBeInTheDocument();
+  }, 30_000);
+
+  it("KALEMLER PANELİ: AI'ın bulduğu firmalar SEÇİLİ gelir; çıkarılan gitmez; yayında kalanlara AI_FORM daveti", async () => {
+    // 2026-09-27, kullanıcı: "kalemler kısmında AI ile tedarikçi bul; aday
+    // seçme şansı olsun ama otomatik seçili olsun".
+    sessionStorage.clear();
+    h.create.mockResolvedValue({ id: "l7", number: "ROT-000070" });
+    h.sendExternal.mockReset().mockResolvedValue([{ email: "info@viti.it", status: "QUEUED" }]);
+    h.externalSearch.mockReset().mockResolvedValue([
+      { name: "Viti Srl", email: "info@viti.it", country: "IT", city: "Milano", website: "viti.it", reason: "Cıvata üreticisi", matchedItems: [1], scope: "ABROAD", status: "SUGGESTED" },
+      { name: "Cıvata AŞ", email: "satis@civata.com.tr", country: "TR", city: "Bursa", website: null, reason: "Yerli üretici", matchedItems: [1], scope: "LOCAL", status: "SUGGESTED" },
+      { name: "Davetli Ltd", email: "eski@davetli.com", country: "TR", city: null, website: null, reason: "r", matchedItems: [], scope: "LOCAL", status: "ALREADY_INVITED" },
+    ]);
+    wrap(<QuickRequest />);
+    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "M6 cıvata" } });
+    fireEvent.click(await screen.findByRole("button", { name: "AI ile tedarikçi bul" }));
+    await waitFor(() => expect(h.externalSearch).toHaveBeenCalledWith(expect.objectContaining({ itemNames: ["M6 cıvata"] })));
+    // İki uygun aday seçili; zaten davetli olan kilitli ve seçili değil.
+    const viti = await screen.findByLabelText("Viti Srl seç");
+    expect(viti).toBeChecked();
+    expect(screen.getByLabelText("Cıvata AŞ seç")).toBeChecked();
+    expect(screen.getByLabelText("Davetli Ltd seç")).toBeDisabled();
+    expect(screen.getByText("Zaten davetli")).toBeInTheDocument();
+    expect(screen.getByText(/Yayında 2 firmaya davet gidecek/)).toBeInTheDocument();
+    // Tek kalemle aranınca her aday o kalemi sağlar (arama o kalem içindi).
+    expect(screen.getAllByText("Sağlayabileceği kalemler: M6 cıvata").length).toBe(3);
+    // Alıcı yerli firmayı çıkarır.
+    fireEvent.click(screen.getByLabelText("Cıvata AŞ seç"));
+    expect(screen.getByText(/Yayında 1 firmaya davet gidecek/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+    await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
+    // Yayında otomatik arama ve firma adı varsayılan AÇIK gider.
+    expect(h.create.mock.calls[0][0]).toMatchObject({ aiDiscovery: expect.any(Boolean), inviteShowName: true });
+    await waitFor(() =>
+      expect(h.sendExternal).toHaveBeenCalledWith({
+        listingId: "l7",
+        invites: [{ email: "info@viti.it", locale: "en", country: "IT" }],
+        source: "AI_FORM",
+      }),
+    );
   }, 30_000);
 
   it("1. bölüm: başlık → 'AI ile başlık ve kategori bul' → kategori (tek sütun); düğme kalemsiz pasif", async () => {

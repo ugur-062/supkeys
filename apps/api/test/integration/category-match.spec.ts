@@ -206,6 +206,71 @@ describe("notifyCategoryMatchedCompanies — ALIM → satıcılar", () => {
     expect(sentEmails(email)).toEqual(["aktif@firma.com"]);
   });
 
+  it("GÜNDE 3 ANINDA (Faz 2): bugün 3 kategori e-postası almış adrese 4.'sü AKŞAM ÖZETİNE düşer; 'hepsi anında' sınırı kaldırır", async () => {
+    const { service, email } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    await prisma.company.update({
+      where: { id: seller.company.id },
+      data: { sellerCategoryIds: [SEG], billingEmail: "satici@firma.com" },
+    });
+    for (let i = 0; i < 3; i++) {
+      await prisma.emailLog.create({
+        data: {
+          template: "notification",
+          toEmail: "satici@firma.com",
+          subject: "s",
+          provider: "test",
+          status: "SENT",
+          contextType: "listing_category_match",
+          contextId: `onceki-${i}`,
+        },
+      });
+    }
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      visibility: "PUBLIC",
+      categoryIds: [CLASS],
+    });
+    await service.notifyCategoryMatchedCompanies(listing.id);
+    expect(sentEmails(email)).toEqual([]);
+    const item = await prisma.emailDigestItem.findFirstOrThrow({ where: { email: "satici@firma.com" } });
+    expect(item).toMatchObject({ listingId: listing.id, kind: "CATEGORY_MATCH", sentAt: null });
+
+    // Kullanıcı alıcı + "hepsi anında" → sınır yok.
+    const { service: s2, email: e2 } = makeService();
+    const seller2 = await makeCompanyWithUser(prisma, { country: "TR" });
+    await prisma.company.update({ where: { id: seller2.company.id }, data: { sellerCategoryIds: [SEG] } });
+    await prisma.companyUser.update({
+      where: { id: seller2.user.id },
+      data: { notificationPrefs: { categoryMatchInstant: true } },
+    });
+    for (let i = 0; i < 3; i++) {
+      await prisma.emailLog.create({
+        data: {
+          template: "notification",
+          toEmail: seller2.user.email,
+          subject: "s",
+          provider: "test",
+          status: "SENT",
+          contextType: "listing_category_match",
+          contextId: `x-${i}`,
+        },
+      });
+    }
+    const l2 = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      visibility: "PUBLIC",
+      categoryIds: [CLASS],
+    });
+    await s2.notifyCategoryMatchedCompanies(l2.id);
+    expect(sentEmails(e2)).toContain(seller2.user.email);
+  });
+
   it("PUBLIC olmayan (CONNECTIONS) ilan hiç kimseye yayınlanmaz", async () => {
     const { service, email } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" });

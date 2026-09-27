@@ -72,7 +72,14 @@
     "sealedBid": "Your quote is a sealed bid — other suppliers cannot see your price.",
     "freeToQuote": "Signing up and submitting a quote is free.",
     "publicLink": "You can <link>view the public page of this request</link>.",
-    "textPublicLink": "Public page of this request: {url}"
+    "textPublicLink": "Public page of this request: {url}",
+    "subjectItems": "{inviterName} is requesting your quote: {items}",
+    "subjectMore": "{count, plural, one {+# item} other {+# items}}",
+    "fromName": "{inviterName} via Rothern",
+    "reminderSubject": "Reminder: {inviterName} is waiting for your quote — {items}",
+    "reminderHeading": "The quote deadline is approaching",
+    "reminderIntro": "<b>{inviterName}</b> is still waiting for your quote on the buying request they invited you to. The deadline is approaching:",
+    "textReminderIntro": "Reminder: {inviterName} is waiting for your quote on the buying request \"{tenderTitle}\"."
   },
   "domain": {
     "qty": {
@@ -114,5 +121,17 @@
       "IMPORTER_EXPORTER": "Importer / Exporter",
       "CONTRACT_MANUFACTURER": "Contract manufacturer"
     }
+  },
+  "tenderInviteDigest": {
+    "subject": "{first} and {count, plural, one {# other buyer} other {# other buyers}} want your quote",
+    "subjectSameBuyer": "{first} wants your quote on {count, plural, one {# request} other {# requests}}",
+    "preview": "{count, plural, one {# buying request is} other {# buying requests are}} waiting for your quote on Rothern.",
+    "heading": "Buying requests waiting for your quote",
+    "intro": "The following companies invited you to quote on their buying requests on the Rothern B2B procurement platform:",
+    "cta": "View request and submit a quote",
+    "footnote": "This email bundles buying request invitations sent through Rothern by the companies above; you have not been added to a marketing list. If you don't want to receive such invitations, you can <optout>turn them off here with one click</optout>.",
+    "textIntro": "{count, plural, one {# buying request is} other {# buying requests are}} waiting for your quote on Rothern:",
+    "textItem": "{inviterName} — {tenderTitle}: {url}",
+    "textOptOut": "To turn off such invitations: {url}"
   }
 }

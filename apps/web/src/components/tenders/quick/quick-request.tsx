@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { PublishedPanel } from "./published-panel";
 import { SetupCard } from "./setup-card";
 import { SupplierPicker } from "./supplier-picker";
-import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
+import { clearFormSupplierPanel, FormSupplierPanel } from "@/components/tenders/ai-suppliers/form-supplier-panel";
 import { TermsPanel } from "./terms-panel";
 import { RequestDefaultsForm, useVisibilityLabels } from "@/components/tenders/request-defaults-form";
 import { useAiMissingFieldLabel, useCityLabel, useFormatPaymentPlan, usePaymentCategoryLabel } from "@/i18n/domain";
@@ -44,6 +44,7 @@ import { mapToInput } from "@/lib/tenders/map-to-input";
 import { applyConnectionsScope } from "@/lib/tenders/connections-scope";
 import { MAX_PENDING_EXTERNAL_INVITES, QUICK_DRAFT_KEY, clearSession, normalizeExternalInvites, pendingInvitesKey, readSession, writeSession, type QuickDraft } from "@/lib/tenders/quick-draft";
 import { useExternalTenderInvite, type ExternalInviteResult, type ExternalInviteTarget } from "@/hooks/use-supplier-discovery";
+import { isInviteAccepted } from "@/lib/tenders/external-invite-status";
 import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
 import { titleFromItems, type TitleTranslate } from "@/lib/tenders/quick-parse";
 import { applyRequestDefaults, closesAtFromDays, defaultsFromForm } from "@/lib/tenders/request-defaults";
@@ -91,6 +92,7 @@ export function QuickRequest({
   // Şema mesajları (`formSchema.*`, `closesAt.*`) ve üretilen başlık sözcükleri
   // (`quickParse.*`) üst ad alanından — form kullanıcının diliyle kurulur.
   const tReq = useTranslations("web.panel.requests");
+  const tAi = useTranslations("web.panel.requests.aiSuppliers");
   const locale = useLocale() as Locale;
   const formatPaymentPlan = useFormatPaymentPlan();
   const missingLabel = useAiMissingFieldLabel();
@@ -123,9 +125,6 @@ export function QuickRequest({
   const [setupDone, setSetupDone] = useState(false);
   const [addingAddress, setAddingAddress] = useState(false);
   const [docOpen, setDocOpen] = useState(false);
-  // "AI ile daha fazla tedarikçiye eriş" — 3. bölümde (Kimler görsün?),
-  // 2026-09-17 kullanıcı kararı; kalem adları + kategori bağlamıyla arar.
-  const [discoveryOpen, setDiscoveryOpen] = useState(false);
   // AI ile başlık + kategori (2026-09-17): kalemlerden; başlık ve kategori
   // ÜZERİNE yazılır (düğmeye bilinçli basıldı), anahtar kelimeler yalnız boşsa.
   const draftSuggest = useAiRequestDraftSuggest();
@@ -302,8 +301,8 @@ export function QuickRequest({
         clearSession(pendingInvitesKey(listingId));
         if (inviteResults === "error") toast.warning(tr("disDavetlerGonderilemedi"));
         else if (inviteResults) {
-          const sent = inviteResults.filter((r) => r.status === "SENT").length;
-          if (sent > 0) toast.success(tr("disDavetGonderildi", { n: sent }));
+          const sent = inviteResults.filter((r) => isInviteAccepted(r.status)).length;
+          if (sent > 0) toast.success(tr("disDavetSirayaAlindi", { n: sent }));
           if (sent < inviteResults.length) toast.warning(tr("disDavetGonderilmedi", { n: inviteResults.length - sent }));
         }
         router.push(`/company/ilan/${listingId}`);
@@ -313,6 +312,7 @@ export function QuickRequest({
       await uploadStaged(listing.id);
       const inviteResults = await sendPendingInvites(listing.id);
       clearSession(QUICK_DRAFT_KEY);
+      clearFormSupplierPanel();
       setPublished({ id: listing.id, title: values.title, categoryIds: values.categoryIds, itemNames: values.items.map((i) => i.name), inviteResults });
       window.scrollTo({ top: 0 });
     } catch (err) {
@@ -329,21 +329,17 @@ export function QuickRequest({
   const sendPendingInvites = async (id: string): Promise<ExternalInviteResult[] | "error" | null> => {
     if (externalInvites.length === 0) return null;
     try {
-      const results = await sendExternal.mutateAsync({ listingId: id, invites: externalInvites.slice(0, MAX_PENDING_EXTERNAL_INVITES) });
+      const results = await sendExternal.mutateAsync({
+        listingId: id,
+        invites: externalInvites.slice(0, MAX_PENDING_EXTERNAL_INVITES),
+        source: "AI_FORM",
+      });
       setExternalInvites([]);
       return results;
     } catch {
       return "error";
     }
   };
-  const collectExternalInvites = (invites: ExternalInviteTarget[]) => {
-    // Adres başına tekil; aynı adres yeniden eklenirse ilk seçim (ve dili) kalır.
-    const known = new Set(externalInvites.map((i) => i.email));
-    const merged = [...externalInvites, ...invites.filter((i) => !known.has(i.email))];
-    if (merged.length > MAX_PENDING_EXTERNAL_INVITES) toast.info(tr("enFazlaDisDavet", { max: MAX_PENDING_EXTERNAL_INVITES }));
-    setExternalInvites(merged.slice(0, MAX_PENDING_EXTERNAL_INVITES));
-  };
-
   /** Başlık boşsa kalemlerden türet — satırlar elle girildiğinde otomatik başlık yok. */
   const ensureTitle = () => {
     const v = getValues();
@@ -374,6 +370,7 @@ export function QuickRequest({
       await uploadStaged(listing.id);
       if (externalInvites.length) writeSession(pendingInvitesKey(listing.id), externalInvites);
       clearSession(QUICK_DRAFT_KEY);
+      clearFormSupplierPanel();
       toast.success(tr("taslakKaydedildi"));
       router.push(`/company/ilan/${listing.id}`);
     } catch (err) {
@@ -559,6 +556,8 @@ export function QuickRequest({
                     type="button"
                     onClick={() => {
                       clearSession(QUICK_DRAFT_KEY);
+                      clearFormSupplierPanel();
+                      setExternalInvites([]);
                       setRestoredDraft(false);
                       reset(applyRequestDefaults({ ...DEFAULT_FORM_VALUES }, terms));
                     }}
@@ -604,6 +603,18 @@ export function QuickRequest({
 
               {/* Kalem satırları — sihirbazın Kalemler adımıyla BİREBİR aynı bileşen. */}
               <Step2Items />
+
+              {/* AI TEDARİKÇİ PANELİ (2026-09-27, Faz 1): kalemlerin hemen altında,
+                  pencere açmadan; bulunanlar seçili gelir, davet YAYINDA gider. */}
+              <FormSupplierPanel
+                itemNames={discoveryItemNames}
+                categoryIds={watched.categoryIds ?? []}
+                targetCountries={watched.targetCountries ?? []}
+                buyerCountry={companyCountry}
+                available={discoveryAvailable}
+                value={externalInvites}
+                onChange={(next) => setExternalInvites(next.slice(0, MAX_PENDING_EXTERNAL_INVITES))}
+              />
 
               {/* BAŞLIK → AI → KATEGORİ tek sütun (2026-09-17, kullanıcı kararı:
                   "kategori seçimi talep başlığının altında olmalı; AI ile
@@ -780,29 +791,68 @@ export function QuickRequest({
             lead={tr("kapaliZarfHerDurumdaGecerli")}
             status={<Done>{summary.who}</Done>}
           >
-            {/* AI KEŞİF (2026-09-17, kullanıcı kararı: "daha fazla tedarikçiye
-                eriş tuşu 3. kısımda olmalı, kalemleri analiz ederek tedarikçi
-                bulmalı"): kategori + kalem adları modala gider; platform
-                önerisi kategoriden, web araması kalemlerden bağlam alır. */}
-            <div className="mb-4 flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
-              <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
-                <Sparkles className="h-5 w-5" aria-hidden />
-              </div>
-              <div className="min-w-0 flex-1">
-                <p className="text-sm font-semibold text-zinc-900">{tr("aiIleDahaFazlaTedarikciye")}</p>
-                <p className="text-xs text-zinc-500">
-                  {tr("kalemleriniziVeKategoriyiAnalizEder")}
+            {/* AI AYARLARI (2026-09-27, Faz 1): tedarikçi arama 1. bölümdeki
+                panelde (kalemlerin altında). Burada yalnız yayın sonrası otomatik
+                arama ve davette firma adı — iki anahtar. */}
+            <div className="mb-4 space-y-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+              <Controller
+                control={form.control}
+                name="aiDiscovery"
+                render={({ field }) => (
+                  <label className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-zinc-300"
+                      checked={visibility !== "PRIVATE" && !!field.value}
+                      disabled={visibility === "PRIVATE" || !discoveryAvailable}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                    />
+                    <span className="min-w-0">
+                      <span className="flex items-center gap-1.5 text-sm font-medium text-zinc-900">
+                        <Sparkles className="h-4 w-4 text-blue-600" aria-hidden />
+                        {tAi("aiDiscoveryToggle")}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-zinc-600">
+                        {!discoveryAvailable
+                          ? tAi("goldOnly")
+                          : visibility === "PRIVATE"
+                            ? tAi("aiDiscoveryPrivateOff")
+                            : tAi("aiDiscoveryHint")}
+                      </span>
+                    </span>
+                  </label>
+                )}
+              />
+              <Controller
+                control={form.control}
+                name="inviteShowName"
+                render={({ field }) => (
+                  <label className="flex items-start gap-3">
+                    <input
+                      type="checkbox"
+                      className="mt-0.5 h-4 w-4 rounded border-zinc-300"
+                      checked={!!field.value}
+                      onChange={(e) => field.onChange(e.target.checked)}
+                    />
+                    <span className="min-w-0">
+                      <span className="block text-sm font-medium text-zinc-900">{tAi("showNameToggle")}</span>
+                      <span className="mt-0.5 block text-xs text-zinc-600">{tAi("showNameHint")}</span>
+                    </span>
+                  </label>
+                )}
+              />
+              {externalInvites.length > 0 ? (
+                <p className="text-xs text-zinc-700">
+                  {tAi("summaryInSection1")}{" "}
+                  <button
+                    type="button"
+                    onClick={() => document.getElementById("ai-tedarikci")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+                    className="font-medium text-blue-700 hover:underline"
+                  >
+                    {tAi("goToList")}
+                  </button>
                 </p>
-              </div>
-              <Button
-                type="button"
-                onClick={() => setDiscoveryOpen(true)}
-                disabled={!discoveryAvailable}
-                title={discoveryAvailable ? undefined : tr("aiIleTedarikciBulmaGold")}
-                iconLeft={<Sparkles />}
-              >
-                {tr("kesfet")}
-              </Button>
+              ) : null}
             </div>
             {/* Yayında talebe özel davet gidecek adresler (AI keşfinden). */}
             {externalInvites.length > 0 ? (
@@ -881,15 +931,6 @@ export function QuickRequest({
                 />
               </div>
             ) : null}
-            <SupplierDiscoveryModal
-              isOpen={discoveryOpen}
-              onClose={() => setDiscoveryOpen(false)}
-              categoryIds={watched.categoryIds ?? []}
-              itemNames={discoveryItemNames}
-              targetCountries={watched.targetCountries ?? []}
-              collected={externalInvites.map((i) => i.email)}
-              onCollect={collectExternalInvites}
-            />
           </NumberedSection>
 
           {/* 4 ── BELGELER */}

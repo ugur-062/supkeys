@@ -64,6 +64,9 @@ export function mapDetailToForm(
     // "Yeni Tur" aktarması); eksiltme ilanının kopyası formatı miras almaz.
     type: forCopy ? "RFQ" : ((l.format as TenderFormData["type"]) ?? "RFQ"),
     targetCountries: l.targetCountries ?? [],
+    // Kopya yeni talep: ayarlar varsayılana döner; düzenleme kayıttakini açar.
+    aiDiscovery: forCopy ? DEFAULT_FORM_VALUES.aiDiscovery : (l.aiDiscovery ?? false),
+    inviteShowName: forCopy ? DEFAULT_FORM_VALUES.inviteShowName : (l.inviteShowName ?? true),
     deliveryAddressId: l.deliveryAddressId ?? "",
     // Fatura adresi teslimattan farklıysa tik kapalı + seçim yüklenir;
     // aynıysa/boşsa tik açık (varsayılan davranış).

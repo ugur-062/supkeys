@@ -203,6 +203,11 @@ function makeBaseTenderSchema(t: RequestsTranslate) {
     // Görünürlük ülkeleri (ISO kodları). BOŞ = tüm ülkeler (2026-09-21;
     // yurtiçi/uluslararası kapsamı kalktı — yurtiçi = [firma ülkesi]).
     targetCountries: z.array(z.string()),
+    // AI tedarikçi keşfi (2026-09-27, Faz 1): yayınlanınca AI yurt içi + yurt
+    // dışında arasın (herkese açık/bağlantılara açık talepte varsayılan açık);
+    // davet e-postasında firma adı görünsün (varsayılan açık).
+    aiDiscovery: z.boolean(),
+    inviteShowName: z.boolean(),
     // Teslimat / fatura adresi (CompanyAddress id) — opsiyonel.
     // Teslimat adresi OPSİYONEL (W2): hizmet/lojistik ihalede fiziksel adres
     // anlamsız; backend zaten @IsOptional — frontend backend'den katı olmamalı.
@@ -447,6 +452,8 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
   keywords: [],
   type: "RFQ",
   targetCountries: [],
+  aiDiscovery: true,
+  inviteShowName: true,
   deliveryAddressId: "",
   billingAddressId: undefined,
   billingSameAsDelivery: true,

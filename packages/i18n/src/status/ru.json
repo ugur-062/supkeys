@@ -1589,6 +1589,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyConnections.anonymousBuyer": {
+    "hash": "95bb119923",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "api.companyConnections.baglantiBulunamadi": {
     "hash": "9abef94f15",
     "status": "reviewed",
@@ -1721,6 +1726,11 @@
   },
   "api.companyConnections.kendinizeIstekGonderemezsiniz": {
     "hash": "7f533871d7",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.companyConnections.onayGerekenUlke": {
+    "hash": "ba0d8de424",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -5459,6 +5469,151 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.notifications.digest.body": {
+    "hash": "70c35b4755",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.digest.bodyLocked": {
+    "hash": "46f2cc1a98",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.digest.closesRow": {
+    "hash": "b143d84518",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.digest.cta": {
+    "hash": "cb6d5170c7",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.digest.footer": {
+    "hash": "e5234e0669",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.digest.subject": {
+    "hash": "15c0c25605",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.discovery.body": {
+    "hash": "0fffef0fb7",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.discovery.cta": {
+    "hash": "966838a7d9",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.discovery.emailBody": {
+    "hash": "e98162b2d9",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.discovery.emailFooter": {
+    "hash": "617407bf1e",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.discovery.emailHeading": {
+    "hash": "9d6a450b9a",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.discovery.emailSubject": {
+    "hash": "3c0e6eb866",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.discovery.title": {
+    "hash": "ef0c9e39ac",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.first_product.body": {
+    "hash": "7f009aa7d3",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.first_product.cta": {
+    "hash": "383bd51788",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.first_product.subject": {
+    "hash": "791652bd50",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.market.body": {
+    "hash": "d00ccf2fa4",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.market.bodyLocked": {
+    "hash": "4fbb8eaec2",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.market.cta": {
+    "hash": "cb6d5170c7",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.market.subject": {
+    "hash": "2a9da1f3d4",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.profile.body": {
+    "hash": "3748ac2395",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.profile.cta": {
+    "hash": "3d27f576c0",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.profile.subject": {
+    "hash": "2b9045148c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.verify.body": {
+    "hash": "26d1d0cad9",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.verify.cta": {
+    "hash": "7bd5e1aca2",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.verify.subject": {
+    "hash": "7425699d1c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.weekly.body": {
+    "hash": "ff4e8aee5f",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.weekly.cta": {
+    "hash": "413c701de7",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.weekly.subject": {
+    "hash": "a9b3238e53",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "api.notifications.listings.awarded.body": {
     "hash": "3d668ef68f",
     "status": "reviewed",
@@ -6248,6 +6403,31 @@
     "hash": "c5d42330d1",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.notifications.zeroBid.body": {
+    "hash": "1eaab86586",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.zeroBid.cta": {
+    "hash": "a41b1cbe49",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.zeroBid.heading": {
+    "hash": "4cb3d4e2d4",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.zeroBid.inAppBody": {
+    "hash": "b0e32838ff",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.zeroBid.subject": {
+    "hash": "584eaab356",
+    "status": "reviewed",
+    "at": "2026-09-27"
   },
   "api.passwordReset.baglantininSuresiDolmus": {
     "hash": "4989b1e38b",
@@ -7369,6 +7549,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "email.tenderExternalInvite.fromName": {
+    "hash": "8f4b07a858",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "email.tenderExternalInvite.greeting": {
     "hash": "b6953841cf",
     "status": "reviewed",
@@ -7419,6 +7604,21 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "email.tenderExternalInvite.reminderHeading": {
+    "hash": "c9ec209f30",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderExternalInvite.reminderIntro": {
+    "hash": "3c9ea1219a",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderExternalInvite.reminderSubject": {
+    "hash": "cffd24045a",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "email.tenderExternalInvite.sealedBid": {
     "hash": "aedef11730",
     "status": "reviewed",
@@ -7426,6 +7626,16 @@
   },
   "email.tenderExternalInvite.subject": {
     "hash": "3d74e532d1",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderExternalInvite.subjectItems": {
+    "hash": "df9659a4e8",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderExternalInvite.subjectMore": {
+    "hash": "5b88f6d326",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -7451,6 +7661,61 @@
   },
   "email.tenderExternalInvite.textPublicLink": {
     "hash": "229eedc14e",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderExternalInvite.textReminderIntro": {
+    "hash": "70f4c82ef8",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderInviteDigest.cta": {
+    "hash": "d474cacc01",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderInviteDigest.footnote": {
+    "hash": "1068057d12",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderInviteDigest.heading": {
+    "hash": "de1be2c38a",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderInviteDigest.intro": {
+    "hash": "631840ff53",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderInviteDigest.preview": {
+    "hash": "21c5cc4cec",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderInviteDigest.subject": {
+    "hash": "a87affde2b",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderInviteDigest.subjectSameBuyer": {
+    "hash": "17b7324284",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderInviteDigest.textIntro": {
+    "hash": "8cbc502c86",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderInviteDigest.textItem": {
+    "hash": "68b39385e7",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "email.tenderInviteDigest.textOptOut": {
+    "hash": "f99e5f6a3d",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -10756,6 +11021,11 @@
   },
   "web.marketing.emailPrefs.question": {
     "hash": "fde6e9c035",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.emailPrefs.scope.aiSuggestions": {
+    "hash": "555a8c025a",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -19604,6 +19874,266 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.aiSuppliers.aiDiscoveryHint": {
+    "hash": "fed488c41c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.aiDiscoveryPrivateOff": {
+    "hash": "299b385a0f",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.aiDiscoveryToggle": {
+    "hash": "174fb14c7a",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.allHandled": {
+    "hash": "05cb59c465",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.bandAbroad": {
+    "hash": "09319251b7",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.bandLead": {
+    "hash": "6b349466f9",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.bandSearching": {
+    "hash": "42cc98a922",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.bandTitle": {
+    "hash": "4b7d31ab0e",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.canSupply": {
+    "hash": "eb78e3861c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.clearAll": {
+    "hash": "bad84e6213",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.connect": {
+    "hash": "86c1fb8be9",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.connectFailed": {
+    "hash": "348e389453",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.connectSent": {
+    "hash": "98e9289b53",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.connectSentToast": {
+    "hash": "af6697fe08",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.dismiss": {
+    "hash": "3c92047542",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.failed": {
+    "hash": "4fe25894e0",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.findButton": {
+    "hash": "6b72631f7e",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.findMoreForItem": {
+    "hash": "c832d51c27",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.goldOnly": {
+    "hash": "d0ae30733c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.goToList": {
+    "hash": "5986d29c0a",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.groupAbroad": {
+    "hash": "65a2a6453d",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.groupOther": {
+    "hash": "861fed125c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.hideList": {
+    "hash": "6ba483cf22",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.inCatalog": {
+    "hash": "5ebff4ccf3",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.inviteButton": {
+    "hash": "91b39bd533",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.invitedToast": {
+    "hash": "47fde3b7fc",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.inviteFailed": {
+    "hash": "38c605bb31",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.itemsChanged": {
+    "hash": "f66e4e7a5f",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.membersLead": {
+    "hash": "5da87f697f",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.membersTitle": {
+    "hash": "071c850c76",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.noResults": {
+    "hash": "d1c6e9de37",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.panelLead": {
+    "hash": "4b1fdb6e80",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.panelLeadRestricted": {
+    "hash": "b31032b048",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.panelTitle": {
+    "hash": "dbd92cca46",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.recentlyInvited": {
+    "hash": "2e41e1abb9",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.resultsSummary": {
+    "hash": "b9bac8a1f9",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.searchAgain": {
+    "hash": "07f8c485cd",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.searching": {
+    "hash": "05eb0ed682",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.secondRound": {
+    "hash": "62ac657928",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.select": {
+    "hash": "425a4a9afd",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.selectAll": {
+    "hash": "1f3f9f9a65",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.selectedSummary": {
+    "hash": "4aa6cfa4cc",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.showList": {
+    "hash": "ce4cb8cfa9",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.showNameHint": {
+    "hash": "3c8ec3fef7",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.showNameToggle": {
+    "hash": "6ac196a22b",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.status.ALREADY_INVITED": {
+    "hash": "475680c573",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.status.CONSENT_REQUIRED": {
+    "hash": "6e1fd8e9a8",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.status.INVITED": {
+    "hash": "de81c4eac5",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.status.MEMBER": {
+    "hash": "bc2f50bd91",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.summaryInSection1": {
+    "hash": "b67e631975",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.uncovered": {
+    "hash": "2c985113dc",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.website": {
+    "hash": "03cba5b43e",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.panel.requests.auctionBidWorkbench.birimFiyatAria": {
     "hash": "dc6eb715a0",
     "status": "reviewed",
@@ -20434,6 +20964,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.externalInviteStatus.CONSENT_REQUIRED": {
+    "hash": "6e1fd8e9a8",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.panel.requests.externalInviteStatus.DAILY_LIMIT": {
     "hash": "6343afa0c1",
     "status": "reviewed",
@@ -20451,6 +20986,11 @@
   },
   "web.panel.requests.externalInviteStatus.OPTED_OUT": {
     "hash": "ae3f4411a2",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.externalInviteStatus.QUEUED": {
+    "hash": "af87dea1a8",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -23679,6 +24219,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.publishedPanel.davetSirayaAlindiSayisi": {
+    "hash": "951b6fee6b",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.panel.requests.publishedPanel.talebiGor": {
     "hash": "676062f685",
     "status": "reviewed",
@@ -23886,6 +24431,11 @@
   },
   "web.panel.requests.quickRequest.disDavetlerGonderilemedi": {
     "hash": "d27aa9e757",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.quickRequest.disDavetSirayaAlindi": {
+    "hash": "47fde3b7fc",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -25054,6 +25604,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.supplierDiscoveryModal.davetlerSirayaAlindi": {
+    "hash": "47fde3b7fc",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.panel.requests.supplierDiscoveryModal.ePostaAdresiniDogrulayinGirin": {
     "hash": "f3defa4a9a",
     "status": "reviewed",
@@ -25944,6 +26499,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.accountSettingsSection.categoryMatchInstant": {
+    "hash": "63346578eb",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.settings.accountSettingsSection.categoryMatchInstantHint": {
+    "hash": "30935e632b",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.panel.settings.accountSettingsSection.duzenle": {
     "hash": "525fd6fff9",
     "status": "reviewed",
@@ -26034,6 +26599,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.accountSettingsSection.notificationPref.aiSuggestions": {
+    "hash": "d0514a3286",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.panel.settings.accountSettingsSection.notificationPref.announcement": {
     "hash": "8097367cf9",
     "status": "reviewed",
@@ -26058,6 +26628,11 @@
     "hash": "cb30266b22",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.settings.accountSettingsSection.notificationPref.lifecycle": {
+    "hash": "c9c68d7ae3",
+    "status": "reviewed",
+    "at": "2026-09-27"
   },
   "web.panel.settings.accountSettingsSection.notificationPref.listingClosed": {
     "hash": "8902d33bea",
@@ -28833,6 +29408,11 @@
     "hash": "168b542221",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.shell.actionRows.satinalma.aiSuggestions": {
+    "hash": "aef74a8841",
+    "status": "reviewed",
+    "at": "2026-09-27"
   },
   "web.panel.shell.actionRows.satinalma.awaitingDecision": {
     "hash": "f3927cb97e",

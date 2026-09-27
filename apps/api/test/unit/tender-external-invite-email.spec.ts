@@ -52,7 +52,8 @@ function visible(html: string): string {
 describe("tender_external_invite — üç dilde zengin davet", () => {
   it("İngilizce: kalem satırları, çoğul, kategori çoğulu, teslim yeri, satış cümleleri, bağlantılar", async () => {
     const out = await render("en");
-    expect(out.subject).toBe('Acme Makina A.Ş. invited you to quote on the buying request "Steel pipes for plant expansion"');
+    // Konu: davet eden + ilk iki kalem + kalan sayısı (2026-09-27).
+    expect(out.subject).toBe("Acme Makina A.Ş. is requesting your quote: Seamless pipe DN50, Flange DN50 +10 items");
     const text = visible(out.html);
     expect(text).toContain("Request no.: ROT-000042");
     expect(text).toContain("Categories: Pipes, Fittings");
@@ -90,7 +91,7 @@ describe("tender_external_invite — üç dilde zengin davet", () => {
       ],
       itemCount: 8,
     });
-    expect(out.subject).toContain("приглашает Вас принять участие в заявке на закупку");
+    expect(out.subject).toBe("Acme Makina A.Ş. запрашивает у Вас предложение: Труба, Фланец и ещё 6 позиций");
     const text = visible(out.html);
     expect(text).toContain("Категория: Трубы");
     expect(text).toContain("Труба — 3 рулона");
@@ -112,7 +113,7 @@ describe("tender_external_invite — üç dilde zengin davet", () => {
       publicUrl: null,
       supplierTypes: [],
     });
-    expect(out.subject).toBe('Acme Makina A.Ş. sizi "Steel pipes for plant expansion" satın alma talebine davet etti');
+    expect(out.subject).toBe("Acme Makina A.Ş. sizden teklif istiyor: Dikişsiz boru");
     const text = visible(out.html);
     expect(text).toContain("Kategori: Boru");
     expect(text).toContain("Talep edilen 1 kalem:");
@@ -141,5 +142,55 @@ describe("tender_external_invite — üç dilde zengin davet", () => {
       // Sabit alan adı yerine ortam; env verilmezse rothern.com.
       expect(visible(ref.html)).toContain("rothern.com");
     }
+  });
+});
+
+describe("hatırlatma + özet e-postası + gönderen adı (2026-09-27, Faz 0b)", () => {
+  it("hatırlatma sürümü: konu ve giriş hatırlatma, içerik aynı", async () => {
+    const out = await render("en", { reminder: true });
+    expect(out.subject).toBe("Reminder: Acme Makina A.Ş. is waiting for your quote — Seamless pipe DN50, Flange DN50 +10 items");
+    expect(visible(out.html)).toContain("is still waiting for your quote");
+    expect(out.text.startsWith("Reminder:")).toBe(true);
+  });
+
+  const entry = (inviterName: string, n: string) => ({
+    inviterName,
+    tenderTitle: `Request ${n}`,
+    tenderNumber: `ROT-00000${n}`,
+    closesAt: "October 5, 2026 at 01:30 GMT+3",
+    deliveryPlace: "Munich, Germany",
+    items: [
+      { name: "Bolt M6", quantity: 500, unitCode: "PCE", unit: "adet" },
+      { name: "Nut M6", quantity: 500, unitCode: "PCE", unit: "adet" },
+      { name: "Washer", quantity: 500, unitCode: "PCE", unit: "adet" },
+      { name: "Gasket", quantity: 5, unitCode: "PCE", unit: "adet" },
+    ],
+    itemCount: 4,
+    ctaUrl: `https://staging.supkeys.com/en/company/signup?ref=tok${n}`,
+  });
+
+  it("özet: farklı alıcılar → 'A and N other buyers', her kartın kendi bağlantısı, en fazla 3 kalem", async () => {
+    const out = await renderEmail(
+      {
+        template: "tender_invite_digest",
+        data: { invites: [entry("ABC Construction", "1"), entry("XYZ Metal", "2"), entry("XYZ Metal", "3")], optOutUrl: "https://x/opt" },
+      },
+      "en",
+    );
+    expect(out.subject).toBe("ABC Construction and 1 other buyer want your quote");
+    expect(out.html).toContain("ref=tok1");
+    expect(out.html).toContain("ref=tok3");
+    const text = visible(out.html);
+    expect(text).toContain("Bolt M6 — 500 pieces");
+    expect(text).not.toContain("Gasket");
+    expect(text).toContain("+1 more line item");
+    expect(out.text).toContain("https://x/opt");
+  });
+
+  it("özet: tek alıcının birden çok talebi → 'X wants your quote on N requests' (Türkçe/Rusça çoğul)", async () => {
+    const data = { invites: [entry("ABC", "1"), entry("ABC", "2")], optOutUrl: "https://x/opt" };
+    expect((await renderEmail({ template: "tender_invite_digest", data }, "en")).subject).toBe("ABC wants your quote on 2 requests");
+    expect((await renderEmail({ template: "tender_invite_digest", data }, "tr")).subject).toBe("ABC 2 talep için sizden teklif istiyor");
+    expect((await renderEmail({ template: "tender_invite_digest", data }, "ru")).subject).toBe("ABC ждёт Ваших предложений по 2 заявкам");
   });
 });

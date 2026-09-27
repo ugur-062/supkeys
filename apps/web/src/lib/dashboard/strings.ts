@@ -30,6 +30,10 @@ export const ACTION_ROWS: Record<
       textKey: "satinalma.closingSoon",
       href: "/company/satinalma/taleplerim",
     },
+    aiSuggestions: {
+      textKey: "satinalma.aiSuggestions",
+      href: "/company/satinalma/taleplerim",
+    },
     awaitingDecision: {
       textKey: "satinalma.awaitingDecision",
       href: "/company/satinalma/taleplerim",

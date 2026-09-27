@@ -22,6 +22,17 @@ function withTimeout<T>(p: Promise<T>): Promise<T> {
   ]);
 }
 
+/**
+ * Görünen ad RFC 5322 özel karakteri taşıyorsa tırnaklanır: davette gönderen
+ * "ABC İnşaat (Rothern üzerinden)" — tırnaksız parantez YORUM sayılır ve bazı
+ * istemciler adı kırpar; virgül/nokta da adresi bölebilir.
+ */
+export function quoteDisplayName(name: string): string {
+  const clean = name.replace(/[\r\n]+/g, " ").trim();
+  if (!/[()<>[\]:;@\\,."]/.test(clean)) return clean;
+  return `"${clean.replace(/\\/g, "\\\\").replace(/"/g, '\\"')}"`;
+}
+
 export class ResendProvider extends BaseEmailProvider {
   readonly name: EmailProviderName = "resend";
   private readonly client: Resend;
@@ -33,7 +44,7 @@ export class ResendProvider extends BaseEmailProvider {
 
   async send(input: SendEmailInput): Promise<SendEmailResult> {
     const fromHeader = input.from.name
-      ? `${input.from.name} <${input.from.email}>`
+      ? `${quoteDisplayName(input.from.name)} <${input.from.email}>`
       : input.from.email;
 
     const attachments = input.attachments?.map((a) => ({

@@ -72,7 +72,14 @@
     "sealedBid": "Teklifiniz kapalı zarftadır — diğer tedarikçiler fiyatınızı göremez.",
     "freeToQuote": "Kayıt olmak ve teklif vermek ücretsizdir.",
     "publicLink": "Talebin herkese açık sayfasını <link>buradan inceleyebilirsiniz</link>.",
-    "textPublicLink": "Talebin herkese açık sayfası: {url}"
+    "textPublicLink": "Talebin herkese açık sayfası: {url}",
+    "subjectItems": "{inviterName} sizden teklif istiyor: {items}",
+    "subjectMore": "{count, plural, other {+# kalem}}",
+    "fromName": "{inviterName} (Rothern üzerinden)",
+    "reminderSubject": "Hatırlatma: {inviterName} teklifinizi bekliyor — {items}",
+    "reminderHeading": "Teklif süresi yakında doluyor",
+    "reminderIntro": "<b>{inviterName}</b>, sizi davet ettiği satın alma talebi için hâlâ teklifinizi bekliyor. Son teklif tarihi yaklaşıyor:",
+    "textReminderIntro": "Hatırlatma: {inviterName}, \"{tenderTitle}\" satın alma talebi için teklifinizi bekliyor."
   },
   "domain": {
     "qty": {
@@ -114,5 +121,17 @@
       "IMPORTER_EXPORTER": "İthalatçı / İhracatçı",
       "CONTRACT_MANUFACTURER": "Fason imalatçı"
     }
+  },
+  "tenderInviteDigest": {
+    "subject": "{first} ve {count, plural, other {# alıcı daha}} sizden teklif istiyor",
+    "subjectSameBuyer": "{first} {count, plural, other {# talep}} için sizden teklif istiyor",
+    "preview": "Rothern'de sizden teklif bekleyen {count, plural, other {# satın alma talebi}} var.",
+    "heading": "Sizden teklif bekleyen talepler",
+    "intro": "Rothern B2B tedarik platformunda aşağıdaki firmalar sizi satın alma taleplerine davet etti:",
+    "cta": "Talebi görüntüle ve teklif ver",
+    "footnote": "Bu e-posta, yukarıdaki firmaların Rothern üzerinden gönderdiği satın alma talebi davetlerini bir araya getirir; bir pazarlama listesine eklenmediniz. Bu tür davetleri almak istemiyorsanız <optout>buradan tek tıkla kapatabilirsiniz</optout>.",
+    "textIntro": "Rothern'de sizden teklif bekleyen {count, plural, other {# satın alma talebi}} var:",
+    "textItem": "{inviterName} — {tenderTitle}: {url}",
+    "textOptOut": "Bu tür davetleri kapatmak için: {url}"
   }
 }

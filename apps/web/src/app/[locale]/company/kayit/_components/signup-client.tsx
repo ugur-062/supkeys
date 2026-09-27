@@ -23,6 +23,7 @@ import {
 import { usePasswordRules } from "@/lib/company-auth/password-rules";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { api } from "@/lib/api";
 import { Link } from "@/i18n/navigation";
 import { isValidPhoneNumber } from "@rothern/shared";
 import { useTranslations } from "next-intl";
@@ -43,6 +44,12 @@ export function CompanySignupClient() {
   // yalnız bu davet ACTIVE bağlantı olur; diğer davetler PENDING istek kalır.
   const searchParams = useSearchParams();
   const referralToken = searchParams.get("ref") ?? undefined;
+  // Davet bağlantısı açıldı → ilgi sinyali (2026-09-27): bu adrese yeni talep
+  // davetleri 7 günlük sıklık freni beklemeden gider. Sessiz, bir kez.
+  useEffect(() => {
+    if (!referralToken) return;
+    void api.post("/public/referral-visit", { token: referralToken }).catch(() => undefined);
+  }, [referralToken]);
   /**
    * Niyet YALNIZ adresten gelir — form artık SORMUYOR (2026-09-14).
    *

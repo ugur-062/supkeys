@@ -1,3 +1,5 @@
+import { categoryMatchInstantAllowed, localDayStart } from "../../../common/email/email-program-policy";
+import { timeZoneForCountry } from "../../../common/time/country-time-zone";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { localizeDefaultAddressTitle } from "../../../common/company/default-address-title";
 import {
@@ -707,7 +709,7 @@ export class CompanyListingsService {
         },
         OR: catOr,
       },
-      select: { id: true, tier: true, membershipEndAt: true, activities: true },
+      select: { id: true, tier: true, membershipEndAt: true, activities: true, country: true },
       // Flood-guard (bilinçli). `orderBy` OLMADAN kesme, 300'ü aşan segmentte
       // "kim haber alır"ı tarama sırasına bırakıyordu; en YENİ firmalar hiç
       // haber alamayabiliyordu. Deterministik sıra + sessiz kesmeyi loglama.
@@ -819,10 +821,60 @@ export class CompanyListingsService {
       listing.id,
       [...recipients.values()].map((r) => r.locale),
     ).catch(() => new Map<Locale, PreviewRow[]>());
+    // GÜNDE 3 ANINDA, FAZLASI AKŞAM ÖZETİ (2026-09-27, Faz 2; kullanıcı:
+    // "kayıtlıya kategorisi uyuşuyorsa sık gönderelim"). Alıcının yerel günü
+    // (firma ülkesinin saat dilimi) içinde bu tür e-posta 3'e ulaştıysa talep
+    // özet kuyruğuna düşer ve yerel 18:00'de tek e-postada gider
+    // (`EmailProgramsService.sendDigests`). "Hepsi anında" tercihi
+    // (`categoryMatchInstant`) sınırı kaldırır. Uygulama içi bildirim değişmez.
+    const now = new Date();
+    const recentSends = await this.bypass.emailLog.findMany({
+      where: {
+        toEmail: { in: [...recipients.values()].map((r) => r.email) },
+        contextType: "listing_category_match",
+        status: { not: "FAILED" },
+        queuedAt: { gte: new Date(now.getTime() - 36 * 3_600_000) },
+      },
+      select: { toEmail: true, queuedAt: true },
+    });
+    const sentInCall = new Map<string, number>();
+    const countryOf = new Map(candidates.map((c) => [c.id, c.country]));
     let sent = 0;
+    let digested = 0;
     for (const c of sirali) {
       const to = recipients.get(c.id);
       if (!to) continue;
+      if (!isNotificationEnabled(to.prefs, "listing_category_match")) continue;
+      const dayStart = localDayStart(now, timeZoneForCountry(countryOf.get(c.id)));
+      const sentToday =
+        recentSends.filter((r) => r.toEmail === to.email && r.queuedAt >= dayStart).length +
+        (sentInCall.get(to.email) ?? 0);
+      if (
+        !categoryMatchInstantAllowed({
+          sentTodayLocal: sentToday,
+          allInstant: to.prefs?.categoryMatchInstant === true,
+        })
+      ) {
+        await this.bypass.emailDigestItem
+          .upsert({
+            where: { email_kind_listingId: { email: to.email, kind: "CATEGORY_MATCH", listingId: listing.id } },
+            create: {
+              email: to.email,
+              locale: to.locale,
+              companyId: c.id,
+              kind: "CATEGORY_MATCH",
+              listingId: listing.id,
+              locked: !!isFree.get(c.id),
+            },
+            update: {},
+          })
+          .catch((err) =>
+            this.logger.warn(`digest enqueue failed: ${err instanceof Error ? err.message : String(err)}`),
+          );
+        digested++;
+        continue;
+      }
+      sentInCall.set(to.email, (sentInCall.get(to.email) ?? 0) + 1);
       this.notify(
         to,
         isFree.get(c.id)
@@ -881,6 +933,7 @@ export class CompanyListingsService {
         portal: matchPortal,
       });
     }
+    if (digested > 0) this.logger.log(`category match ${listing.number}: ${digested} to evening digest`);
     this.logger.log(
       `Kategori eşleşmesi (${listing.number}): ${sent}/${candidates.length} firmaya bildirim (${
         isBuyDemand ? "satıcı" : "alıcı"
@@ -949,6 +1002,23 @@ export class CompanyListingsService {
   // davet/teklif satırlarını tarar. Ana client'la RLS açıldığında bağlamsız
   // çağrı 0 satır döner — hata yok, log yok, bildirim sessizce hiç gitmez;
   // istek yolundan gelen çağrı da sahibin bağlamıyla davetlileri göremezdi.
+  /** Yayında otomatik AI keşfi açık talep için tur (daha önce açılmadıysa). */
+  private async enqueueDiscoveryRun(listingId: string): Promise<void> {
+    const l = await this.bypass.listing.findUnique({
+      where: { id: listingId },
+      select: { aiDiscovery: true, companyId: true, targetCountries: true },
+    });
+    if (!l?.aiDiscovery) return;
+    const existing = await this.bypass.supplierDiscoveryRun.findFirst({
+      where: { listingId, trigger: { in: ["PUBLISH", "SECOND_ROUND"] } },
+      select: { id: true },
+    });
+    if (existing) return;
+    await this.bypass.supplierDiscoveryRun.create({
+      data: { listingId, companyId: l.companyId, trigger: "PUBLISH", targetCountries: l.targetCountries },
+    });
+  }
+
   async announceListingOpen(
     listingId: string,
     kind: "invitation" | "newRound",
@@ -1026,6 +1096,15 @@ export class CompanyListingsService {
           `Kategori eşleşme bildirimi başarısız (${listingId}): ${
             err instanceof Error ? err.message : String(err)
           }`,
+        ),
+      );
+      // AI TEDARİKÇİ KEŞFİ (2026-09-27, Faz 1): talepte açıksa yayın anında
+      // tur kuyruğa girer; dakikalık iş (`DiscoveryRunsService`) platform
+      // bütçesiyle yurt içi + yurt dışı arar, alıcıya tek tık davet önerir.
+      // Yalnız satır yazılır (AI modülüne bağımlılık yok); hata duyuruyu durdurmaz.
+      await this.enqueueDiscoveryRun(listingId).catch((err) =>
+        this.logger.warn(
+          `AI discovery enqueue failed (${listingId}): ${err instanceof Error ? err.message : String(err)}`,
         ),
       );
     }
@@ -1491,6 +1570,10 @@ export class CompanyListingsService {
           // türetilir — kural taşımaz.
           targetCountries: normalizeTargetCountries(dto.targetCountries),
           isInternational: deriveIsInternational(normalizeTargetCountries(dto.targetCountries), user.country),
+          // AI keşfi + davette firma adı (2026-09-27, Faz 1) — eski istemci
+          // göndermezse: arama kapalı, ad görünür.
+          aiDiscovery: dto.aiDiscovery ?? false,
+          inviteShowName: dto.inviteShowName ?? true,
           deliveryAddressId: dto.deliveryAddressId ?? null,
           billingAddressId: dto.billingAddressId ?? null,
           format,
@@ -1764,6 +1847,9 @@ export class CompanyListingsService {
           // türetilir — kural taşımaz.
           targetCountries: normalizeTargetCountries(dto.targetCountries),
           isInternational: deriveIsInternational(normalizeTargetCountries(dto.targetCountries), user.country),
+          // Göndermeyen (eski) istemci ayarı DEĞİŞTİRMEZ.
+          ...(dto.aiDiscovery !== undefined ? { aiDiscovery: dto.aiDiscovery } : {}),
+          ...(dto.inviteShowName !== undefined ? { inviteShowName: dto.inviteShowName } : {}),
           deliveryAddressId: dto.deliveryAddressId ?? null,
           billingAddressId: dto.billingAddressId ?? null,
           format,

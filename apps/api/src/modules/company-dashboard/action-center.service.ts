@@ -93,7 +93,7 @@ export class ActionCenterService {
     const in2d = new Date(now.getTime() + 2 * DAY_MS);
     const in3d = new Date(now.getTime() + 3 * DAY_MS);
 
-    const [openListings, decisionListings, approvals, orders, payments] =
+    const [openListings, decisionListings, approvals, orders, payments, aiRuns] =
       await Promise.all([
         // Açık ihaleler: kapanış + teklif varlığı (bugün/yarın + 0-teklif satırları).
         this.prisma.listing.findMany({
@@ -151,6 +151,19 @@ export class ActionCenterService {
         this.prisma.companyOrderPayment.findMany({
           where: { order: { buyerCompanyId: companyId }, status: "CONFIRMED" },
           select: { orderId: true, amount: true },
+        }),
+        // AI tedarikçi önerisi bekleyen açık talepler (2026-09-27, Faz 1):
+        // bitmiş, kapatılmamış tur + henüz davet edilmemiş aday.
+        this.prisma.supplierDiscoveryRun.findMany({
+          where: {
+            companyId,
+            state: "DONE",
+            dismissedAt: null,
+            trigger: { in: ["PUBLISH", "SECOND_ROUND"] },
+            listing: { status: "OPEN" },
+            candidates: { some: { status: "SUGGESTED" } },
+          },
+          select: { listingId: true, finishedAt: true },
         }),
       ]);
 
@@ -224,6 +237,11 @@ export class ActionCenterService {
       }),
       row("closingSoon", "warning", closingSoon.length, {
         dueAt: minDate(closingSoon.map((l) => l.closesAt)),
+      }),
+      row("aiSuggestions", "info", new Set(aiRuns.map((r) => r.listingId)).size, {
+        waitingDays: aiRuns.length
+          ? Math.max(...aiRuns.map((r) => (r.finishedAt ? daysAgo(r.finishedAt, now) : 0)))
+          : null,
       }),
       row("awaitingDecision", "warning", decisionListings.length, {
         waitingDays: oldestSubmitted ? daysAgo(oldestSubmitted, now) : null,

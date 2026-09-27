@@ -673,7 +673,9 @@
     "buAdreseSonGunlerdeDavetGonderildi": "Bu adrese son {days, number} gün içinde zaten davet gönderildi",
     "gunlukDavetLimitineUlasildi": "Günlük davet limitine ulaşıldı (günde {cap}). Yarın yeniden deneyin.",
     "buAdresEPostaAlamiyor": "Bu adres daha önce e-postalarımızı kalıcı olarak geri çevirdi ya da şikâyet etti; e-posta gönderilmedi",
-    "gecersizEPostaAdresi": "Geçersiz e-posta adresi"
+    "gecersizEPostaAdresi": "Geçersiz e-posta adresi",
+    "onayGerekenUlke": "Bu ülkedeki firmalara önceden onay alınmadan davet gönderilmiyor. Firmayı tanıyorsanız adresi elle ekleyin.",
+    "anonymousBuyer": "Bir alıcı firma"
   },
   "companySupplierTemplates": {
     "baglantinizOlmayanFirmaKayit": "Bağlantınız olmayan firma: {length} kayıt",
@@ -1623,6 +1625,58 @@
       "butceUyarisiBaslik": "AI bütçe uyarısı",
       "butceUyarisiGovde": "Firmanızın aylık AI kullanımı %{yuzde} seviyesine ulaştı. Bütçe dolduğunda AI özellikleri ay sonuna kadar kapanır.",
       "kullanimiGor": "Kullanımı Gör"
+    },
+    "discovery": {
+      "title": "AI tedarikçi buldu",
+      "body": "\"{title}\" talebiniz için AI {n, plural, other {# tedarikçi}} buldu{abroad, plural, =0 {} other { (yurt dışından: #)}}. Tek tıkla davet edebilirsiniz.",
+      "cta": "Tedarikçileri gör ve davet et",
+      "emailSubject": "Talebiniz için {n, plural, other {# tedarikçi}} bulundu",
+      "emailHeading": "Talebinize uygun tedarikçiler bulundu",
+      "emailBody": "AI, \"{title}\" ({number}) talebiniz için yurt içinde ve yurt dışında {n, plural, other {# tedarikçi}} buldu{abroad, plural, =0 {} other { (yurt dışından: #)}}. Listeyi açın; istemediklerinizi çıkarıp kalanları tek tıkla davet edin. Davetler her tedarikçinin kendi dilinde ve kendi ülkesinde mesai saatinde gönderilir.",
+      "emailFooter": "Teklif sayısı az kalırsa süre yarılandığında AI bir kez daha arar."
+    },
+    "digest": {
+      "subject": "Bugün kategorinizde {n, plural, other {# talep}} daha açıldı",
+      "body": "Günlük anlık bildirim sınırına ulaşıldığı için bugün açılan diğer talepleri tek e-postada topladık:",
+      "bodyLocked": "Kategorinizde bugün açılan diğer talepler aşağıda. Bu talepleri görmek ve teklif vermek için Silver pakete geçin.",
+      "closesRow": "Son teklif: {date}",
+      "cta": "Açık talepleri gör",
+      "footer": "Kategori e-postalarının hepsini anında almak için Ayarlar › Bildirimler'den \"Hepsi anında\" seçeneğini açabilirsiniz."
+    },
+    "lifecycle": {
+      "profile": {
+        "subject": "Profilinizi 1 dakikada AI ile doldurun",
+        "body": "Alıcılar tedarikçi seçerken önce profile bakar. Web sitenizi girin, AI tanıtım metninizi hazırlasın — ücretsiz ve bir kez.",
+        "cta": "Profili doldur"
+      },
+      "first_product": {
+        "subject": "İlk ürününüzü ekleyin — alıcılar sizi aramada bulsun",
+        "body": "Vitrindeki ürünler Google'da ve Rothern aramasında görünür. Ücretsiz pakette 50 ürüne kadar ekleyebilirsiniz.",
+        "cta": "Ürün ekle"
+      },
+      "verify": {
+        "subject": "Ücretsiz doğrulanın, \"Doğrulanmış\" rozeti alın",
+        "body": "Doğrulanmış firmalar alıcıların listesinde öne çıkar ve daha çok davet alır. Belgeleri yüklemek birkaç dakika sürer.",
+        "cta": "Doğrulamaya başla"
+      },
+      "market": {
+        "subject": "Kategorinizde son 2 haftada {n, plural, other {# talep}} açıldı",
+        "body": "Kategorinize uyan alım taleplerine Açık Talepler'den teklif verebilirsiniz.",
+        "bodyLocked": "Bu talepleri görmek ve teklif vermek için Silver pakete geçin. Bağlantılı olduğunuz ya da sizi davet eden alıcıların taleplerine ücretsiz pakette de teklif verebilirsiniz.",
+        "cta": "Açık talepleri gör"
+      },
+      "weekly": {
+        "subject": "Bu hafta firmanız {n, plural, other {# kez}} görüntülendi",
+        "body": "Profiliniz ve ürünleriniz son 7 günde {n, plural, other {# kez}} görüntülendi. Kimlerin baktığını Ziyaret Edenler sayfasında görebilirsiniz.",
+        "cta": "Ziyaretçileri gör"
+      }
+    },
+    "zeroBid": {
+      "subject": "\"{title}\" talebiniz henüz teklif almadı",
+      "heading": "Talebiniz teklif bekliyor",
+      "body": "\"{title}\" ({number}) talebiniz {closesAt} tarihinde kapanıyor ve henüz teklif gelmedi. AI'ın bulduğu tedarikçileri tek tıkla davet edin ya da teklif süresini uzatın.",
+      "inAppBody": "\"{title}\" talebiniz henüz teklif almadı. AI'ın bulduğu tedarikçileri davet edin ya da süreyi uzatın.",
+      "cta": "Talebi aç"
     }
   },
   "permission": {

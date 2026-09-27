@@ -39,7 +39,7 @@ import { ensureUniqueCompanySlug } from "../../../common/company/company-slug";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
 import { ensureOwnerBuySeat } from "../../../common/company/owner-buy-seat";
-import { NOTIFICATION_PREF_KEYS } from "../../../common/notifications/notification-prefs";
+import { NOTIFICATION_FLAG_KEYS, NOTIFICATION_PREF_KEYS } from "../../../common/notifications/notification-prefs";
 import {
   PrismaService,
   PrismaBypassService,
@@ -735,7 +735,6 @@ export class CompanyAuthService {
     const invites = found
       .filter((inv) => !isReferralExpired(inv.updatedAt, now))
       .sort((a, b) => Number(b.token === usedToken) - Number(a.token === usedToken));
-    if (invites.length === 0) return;
     for (const inv of invites) {
       if (inv.inviterCompanyId === newCompanyId) continue;
       // BK-CONN-1: rıza yalnız KULLANILAN davet linki için verildi. O token'ın
@@ -760,35 +759,6 @@ export class CompanyAuthService {
         },
         update: {},
       });
-      // Faz C: davet ihale bağlamlıysa ve link KULLANILDIYSA — ihale hâlâ
-      // davete açıksa yeni firmayı ihaleye otomatik davet et (kapalı zarf
-      // etkisi yok; firma paneline girince ihaleyi davetlilerinde görür).
-      if (isUsed && inv.listingId) {
-        const listing = await this.bypass.listing.findUnique({
-          where: { id: inv.listingId },
-          select: { id: true, status: true, companyId: true },
-        });
-        if (
-          listing &&
-          listing.companyId === inv.inviterCompanyId &&
-          (listing.status === "DRAFT" || listing.status === "OPEN")
-        ) {
-          await this.bypass.listingInvitation.upsert({
-            where: {
-              listingId_invitedCompanyId: {
-                listingId: listing.id,
-                invitedCompanyId: newCompanyId,
-              },
-            },
-            create: {
-              listingId: listing.id,
-              invitedCompanyId: newCompanyId,
-              invitedById: inv.invitedById,
-            },
-            update: {},
-          });
-        }
-      }
       await this.bypass.companyReferralInvite.update({
         where: { id: inv.id },
         data: {
@@ -820,6 +790,40 @@ export class CompanyAuthService {
       // anında firmanın adı henüz geçici (kurucunun adı) — davet eden firma
       // ya yer tutucuyu ya da isimsiz metni görüyordu. E-posta onboarding
       // tamamlanınca, GERÇEK firma adıyla gider (`notifyReferralInvitersJoined`).
+    }
+
+    // TALEP DAVETLERİ (talep × adres, 2026-09-27): bu adrese gelmiş ya da
+    // kullanılan jetonun taşıdığı talep davetleri, talep hâlâ davete açıksa
+    // yeni firmaya platform içi davet olur — alıcı o tedarikçiyi o talebe
+    // KENDİSİ davet etti (başka alıcıların davetleri de; bağlantı rızası ayrı,
+    // yukarıda). Kapalı zarf etkisi yok: firma panelde talebi davetlilerinde görür.
+    await this.attachExternalListingInvites(email, newCompanyId, invites.map((i) => i.id));
+  }
+
+  private async attachExternalListingInvites(
+    email: string,
+    newCompanyId: string,
+    referralIds: string[],
+  ): Promise<void> {
+    const rows = await this.bypass.externalListingInvite.findMany({
+      where: {
+        OR: [{ email: email.toLowerCase() }, ...(referralIds.length ? [{ referralInviteId: { in: referralIds } }] : [])],
+        listing: { status: { in: ["DRAFT", "OPEN"] } },
+      },
+      select: {
+        listingId: true,
+        inviterCompanyId: true,
+        listing: { select: { companyId: true } },
+        referralInvite: { select: { invitedById: true } },
+      },
+    });
+    for (const r of rows) {
+      if (r.inviterCompanyId === newCompanyId || r.listing.companyId !== r.inviterCompanyId) continue;
+      await this.bypass.listingInvitation.upsert({
+        where: { listingId_invitedCompanyId: { listingId: r.listingId, invitedCompanyId: newCompanyId } },
+        create: { listingId: r.listingId, invitedCompanyId: newCompanyId, invitedById: r.referralInvite.invitedById },
+        update: {},
+      });
     }
   }
 
@@ -1604,7 +1608,7 @@ export class CompanyAuthService {
     userId: string,
     prefs: Record<string, unknown>,
   ) {
-    const valid = new Set<string>(NOTIFICATION_PREF_KEYS);
+    const valid = new Set<string>([...NOTIFICATION_PREF_KEYS, ...NOTIFICATION_FLAG_KEYS]);
     const clean: Record<string, boolean> = {};
     for (const [k, v] of Object.entries(prefs ?? {})) {
       if (!valid.has(k)) {
@@ -1627,7 +1631,9 @@ export class CompanyAuthService {
     // Tek tık çıkışla adrese yazılmış kayıt (kullanıcı olmadan önce firma
     // e-postasıyken ya da "tümü" kapsamıyla) yeniden açılan türü engellemesin:
     // Ayarlar ekranındaki seçim son sözdür.
-    const reopened = Object.entries(clean).filter(([, v]) => v).map(([k]) => k);
+    const reopened = Object.entries(clean)
+      .filter(([k, v]) => v && (NOTIFICATION_PREF_KEYS as readonly string[]).includes(k))
+      .map(([k]) => k);
     if (reopened.length > 0 && current?.email) {
       await this.prisma.emailOptOut.deleteMany({
         where: { email: current.email.toLowerCase(), scope: { in: [...reopened, "all"] } },

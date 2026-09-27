@@ -21,6 +21,9 @@ export function mapToInput(d: TenderFormData): CreateListingInput {
     // Format: RFQ / açık eksiltme.
     format: d.type,
     targetCountries: d.targetCountries,
+    // Özel talepte (yalnız seçilen firmalar) otomatik arama anlamsız — gönderilmez.
+    aiDiscovery: d.visibility === "PRIVATE" ? false : d.aiDiscovery,
+    inviteShowName: d.inviteShowName,
     deliveryAddressId: d.deliveryAddressId || undefined,
     // "Fatura adresim teslimatla aynı" tiki: fatura adresi teslimat adresinden
     // kopyalanır; tik kaldırıldıysa kullanıcının seçtiği adres gider.

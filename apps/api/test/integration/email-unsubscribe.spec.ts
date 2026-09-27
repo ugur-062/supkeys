@@ -110,13 +110,13 @@ describe("EmailUnsubscribeService", () => {
     expect(await prisma.emailOptOut.count()).toBe(0);
   });
 
-  it("'tümü' → kullanıcının bütün tercihleri kapanır + karşılama serisi durur", async () => {
+  it("'tümü' → kullanıcının bütün tercihleri kapanır (karşılama serisi `lifecycle` dahil — Ayarlar aynı değeri gösterir)", async () => {
     const { user } = await makeCompanyWithUser(prisma);
     const token = signUnsubscribeToken({ email: user.email, scope: "categoryMatch", locale: "tr" }, SECRET);
     await unsub().unsubscribe(token, true);
     const row = await prisma.companyUser.findUniqueOrThrow({ where: { id: user.id }, select: { notificationPrefs: true } });
-    expect(row.notificationPrefs).toMatchObject({ categoryMatch: false, invitation: false, announcement: false });
-    expect(await prisma.emailOptOut.findFirst({ where: { email: user.email.toLowerCase(), scope: "lifecycle" } })).not.toBeNull();
+    expect(row.notificationPrefs).toMatchObject({ categoryMatch: false, invitation: false, announcement: false, lifecycle: false });
+    expect(await prisma.emailOptOut.count()).toBe(0);
   });
 
   it("davet kapsamı → referral_opt_outs (mevcut davet frenleri aynı tabloyu okur)", async () => {

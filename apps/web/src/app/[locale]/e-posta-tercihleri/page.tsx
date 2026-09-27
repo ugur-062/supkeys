@@ -27,6 +27,7 @@ type Scope =
   | "categoryMatch"
   | "approvalPending"
   | "announcement"
+  | "aiSuggestions"
   | "invite"
   | "lifecycle"
   | "all";

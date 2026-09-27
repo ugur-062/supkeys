@@ -18,6 +18,8 @@ export const NOTIFICATION_PREFS: { key: string }[] = [
   { key: "categoryMatch" },
   { key: "approvalPending" },
   { key: "announcement" },
+  { key: "aiSuggestions" },
+  { key: "lifecycle" },
 ];
 
 export function useUpdateMe() {

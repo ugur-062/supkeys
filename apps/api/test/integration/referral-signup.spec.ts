@@ -198,4 +198,32 @@ describe("davet kabul e-postası onboarding'de, gerçek firma adıyla", () => {
     expect(call.templateData.data.subject).toBe("Your invitation was accepted");
     expect(call.templateData.data.paragraphs.join(" ")).toContain("Yeni Tedarik A.Ş.");
   });
+
+  it("TALEP DAVETLERİ (talep × adres): adrese gelmiş açık talep davetleri yeni firmaya bağlanır; kapanmış talep bağlanmaz", async () => {
+    const service = svc();
+    const a = await makeCompany(prisma, { tier: "GOLD" });
+    const aUser = await makeUser(prisma, a.id, ["SAHIP"] as never);
+    const b = await makeCompany(prisma, { tier: "GOLD" });
+    const bUser = await makeUser(prisma, b.id, ["SAHIP"] as never);
+    const c = await makeCompany(prisma, { tier: "GOLD" });
+    const EMAIL = "tedarik@firma.com";
+    const ra = await referral(a.id, aUser.id, EMAIL, "tok-a");
+    const rb = await referral(b.id, bUser.id, EMAIL, "tok-b");
+    const mk = (companyId: string, userId: string, status: "OPEN" | "AWARDED") =>
+      prisma.listing.create({ data: { companyId, createdById: userId, type: "ALIM", title: "t", status, visibility: "PUBLIC" } });
+    const a1 = await mk(a.id, aUser.id, "OPEN");
+    const a2 = await mk(a.id, aUser.id, "OPEN");
+    const b1 = await mk(b.id, bUser.id, "OPEN");
+    const bClosed = await mk(b.id, bUser.id, "AWARDED");
+    for (const [l, r] of [[a1, ra], [a2, ra], [b1, rb], [bClosed, rb]] as const) {
+      await prisma.externalListingInvite.create({
+        data: { listingId: l.id, inviterCompanyId: l.companyId, referralInviteId: r.id, email: EMAIL, locale: "tr", state: "SENT" },
+      });
+    }
+
+    await consume(service, EMAIL, c.id, "tok-a");
+
+    const invited = await prisma.listingInvitation.findMany({ where: { invitedCompanyId: c.id }, select: { listingId: true } });
+    expect(invited.map((i) => i.listingId).sort()).toEqual([a1.id, a2.id, b1.id].sort());
+  });
 });

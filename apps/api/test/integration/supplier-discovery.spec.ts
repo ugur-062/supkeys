@@ -7,6 +7,7 @@ import { SupplierDiscoveryService } from "../../src/modules/ai/supplier-discover
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
+import { foldSearchText } from "@rothern/shared";
 
 const svc = () => new SupplierDiscoveryService(prisma as unknown as PrismaService);
 
@@ -21,11 +22,13 @@ beforeEach(async () => {
 describe("SupplierDiscoveryService.discoverRegistered", () => {
   it("segment/alt eşleşen SILVER+ firmalar döner; profilsiz STANDART, bağlantılı, bloklu ve kendisi dönmez", async () => {
     const buyer = await makeCompanyWithUser(prisma);
-    // Alt-kategori (class) eşleşmesi → güçlü
+    // Alt-kategori (class) eşleşmesi → güçlü. Depolama kuralı: L2-L4 seçimi
+    // `sellerSubCategoryIds`e, segmenti `sellerCategoryIds`e (yayın bildirimi
+    // eşleştiricisiyle aynı — eskiden keşif alt kodu ana alanda arıyordu).
     const strong = await makeCompanyWithUser(prisma, { name: "Güçlü AŞ", tier: "SILVER" });
     await prisma.company.update({
       where: { id: strong.company.id },
-      data: { sellerCategoryIds: ["30991500"], city: "İstanbul" },
+      data: { sellerCategoryIds: ["30000000"], sellerSubCategoryIds: ["30991500"], city: "İstanbul" },
     });
     // Segment eşleşmesi → normal
     const seg = await makeCompanyWithUser(prisma, { name: "Segment AŞ", tier: "SILVER" });
@@ -102,5 +105,50 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
     });
     expect(res.candidates).toHaveLength(1);
     expect(res.candidates[0]!.connectionStatus).toBe("PENDING");
+  });
+
+  it("vitrinde kalemi SATAN firma kategori beyanı uymasa da önerilir; hangi kalem olduğu işaretlenir (2026-09-27)", async () => {
+    const buyer = await makeCompanyWithUser(prisma);
+    const seller = await makeCompanyWithUser(prisma, { name: "Cıvata AŞ", tier: "SILVER" });
+    await prisma.company.update({
+      where: { id: seller.company.id },
+      data: { slug: "civata-as", publicEnabled: true, sellerCategoryIds: ["12000000"] },
+    });
+    await prisma.companyItem.create({
+      data: {
+        companyId: seller.company.id,
+        createdById: seller.user.id,
+        name: "M6 Cıvata DIN 933",
+        unit: "adet",
+        slug: "m6-civata",
+        isPublic: true,
+        publishedAt: new Date(),
+        searchText: foldSearchText("M6 Cıvata DIN 933 bağlantı elemanı"),
+      },
+    });
+    const res = await svc().discoverRegistered(buyer.auth, {
+      type: "ALIM",
+      itemNames: ["Rulman 6205", "M6 cıvata"],
+    });
+    expect(res.candidates.map((c) => c.name)).toEqual(["Cıvata AŞ"]);
+    expect(res.candidates[0]!.matchedItems).toEqual([2]);
+    expect(res.candidates[0]!.strongMatch).toBe(true);
+  });
+
+  it("talep belirli ülkelere açıksa o ülkelerin dışındaki firma önerilmez", async () => {
+    const buyer = await makeCompanyWithUser(prisma);
+    const tr = await makeCompanyWithUser(prisma, { name: "TR AŞ", tier: "SILVER" });
+    const de = await makeCompanyWithUser(prisma, { name: "DE GmbH", tier: "SILVER", country: "DE" });
+    for (const c of [tr, de]) {
+      await prisma.company.update({ where: { id: c.company.id }, data: { sellerCategoryIds: ["30000000"] } });
+    }
+    const all = await svc().discoverRegistered(buyer.auth, { type: "ALIM", categoryIds: ["30991500"] });
+    expect(all.candidates.map((c) => c.name).sort()).toEqual(["DE GmbH", "TR AŞ"]);
+    const onlyDe = await svc().discoverRegistered(buyer.auth, {
+      type: "ALIM",
+      categoryIds: ["30991500"],
+      targetCountries: ["DE"],
+    });
+    expect(onlyDe.candidates.map((c) => c.name)).toEqual(["DE GmbH"]);
   });
 });

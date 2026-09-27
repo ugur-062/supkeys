@@ -693,7 +693,8 @@
         "announcement": "platform duyuruları",
         "invite": "alım talebi davetleri",
         "lifecycle": "ipuçları ve öneriler",
-        "all": "Rothern'den gelen tüm isteğe bağlı e-postalar"
+        "all": "Rothern'den gelen tüm isteğe bağlı e-postalar",
+        "aiSuggestions": "AI tedarikçi önerileri"
       }
     }
   },
@@ -2490,7 +2491,8 @@
           "sellerApproval": "<b>{n, number}</b> sipariş satıcı onayında",
           "receiveOrders": "<b>{n, number}</b> sipariş teslim almanızı bekliyor",
           "paymentWindow": "<b>{n, number}</b> siparişin ödemesi bekleniyor",
-          "messages": "<b>{n, number}</b> okunmamış mesajınız var"
+          "messages": "<b>{n, number}</b> okunmamış mesajınız var",
+          "aiSuggestions": "AI, <b>{n, number}</b> satın alma talebiniz için tedarikçi buldu — tek tıkla davet edin"
         },
         "satis": {
           "overdueDeliveries": "<b>{n, number}</b> siparişin teslim tarihi geçti",
@@ -2912,7 +2914,8 @@
         "davetEPostasiGonderN": "Davet E-postası Gönder ({n})",
         "baglantiDavetiGonder": "Bağlantı daveti gönder",
         "davetDiliFirma": "{name} için davet dili",
-        "davetDiliIpucu": "Davet e-postası satırda seçilen dilde gider; varsayılan dil firmanın ülkesinden gelir."
+        "davetDiliIpucu": "Davet e-postası satırda seçilen dilde gider; varsayılan dil firmanın ülkesinden gelir.",
+        "davetlerSirayaAlindi": "{n, plural, other {# davet}} sıraya alındı; e-postalar alıcının ülkesinde mesai saatinde gönderilir."
       },
       "ihaleitemspanel": {
         "kalemlerYuklenemedi": "Kalemler yüklenemedi.",
@@ -3537,7 +3540,8 @@
         "belge": "Belge",
         "yayinIcinFirmaDogrulamasiGerekir": "Yayın için firma doğrulaması gerekir — <link>belgeleri yükleyin</link>. Şimdilik taslak kaydedebilirsiniz.",
         "belgeleriYukleyin": "belgeleri yükleyin",
-        "disDavetDili": "{email} için davet dili"
+        "disDavetDili": "{email} için davet dili",
+        "disDavetSirayaAlindi": "{n, plural, other {# davet}} sıraya alındı; e-postalar alıcının ülkesinde mesai saatinde gönderilir."
       },
       "publishedPanel": {
         "talebinizYayinda": "Talebiniz yayında",
@@ -3548,7 +3552,8 @@
         "yeniTalepAc": "Yeni talep aç",
         "davetEPostalari": "Davet e-postaları",
         "davetEPostalariGonderilemedi": "Davet e-postaları gönderilemedi; talep sayfasındaki “AI ile tedarikçi bul” ile yeniden deneyebilirsiniz.",
-        "davetGonderildiSayisi": "{n, number} davet e-postası gönderildi"
+        "davetGonderildiSayisi": "{n, number} davet e-postası gönderildi",
+        "davetSirayaAlindiSayisi": "{n, plural, other {# davet}} sıraya alındı — e-postalar alıcının ülkesinde mesai saatinde gönderilir"
       },
       "externalInviteStatus": {
         "SENT": "Gönderildi",
@@ -3558,7 +3563,9 @@
         "ALREADY_INVITED": "Daha önce davet edildi",
         "OPTED_OUT": "Davet almak istemiyor",
         "DAILY_LIMIT": "Günlük limit doldu",
-        "INVALID": "Geçersiz adres"
+        "INVALID": "Geçersiz adres",
+        "QUEUED": "Sıraya alındı",
+        "CONSENT_REQUIRED": "Bu ülkeye izinsiz davet gönderilmiyor"
       },
       "setupCard": {
         "ilkTalebinizUcKisaSoru": "İlk talebiniz — üç kısa soru",
@@ -4018,6 +4025,62 @@
         "descriptionNoList": "Alıcı bu talebi yalnız belirli ülkelerdeki tedarikçilere açtı.",
         "inviteNote": "Alıcı sizi davet ederse teklif verebilirsiniz.",
         "backToOpen": "Açık taleplere dön"
+      },
+      "aiSuppliers": {
+        "groupAbroad": "Yurt dışı",
+        "groupOther": "Diğer",
+        "selectAll": "Tümünü seç",
+        "clearAll": "Seçimi kaldır",
+        "canSupply": "Sağlayabileceği kalemler: {items}",
+        "website": "Web sitesi",
+        "select": "{name} seç",
+        "status": {
+          "ALREADY_INVITED": "Zaten davetli",
+          "INVITED": "Davet edildi",
+          "MEMBER": "Rothern üyesi — platformda haberdar olur",
+          "CONSENT_REQUIRED": "Bu ülkeye izinsiz davet gönderilmiyor"
+        },
+        "recentlyInvited": "Bu hafta başka bir alıcıdan davet aldı — davetiniz özet e-postayla gider",
+        "panelTitle": "Bu kalemleri kim satıyor?",
+        "panelLead": "AI kalemlerinizi yurt içinde ve yurt dışında arar; bulduğu firmalar seçili gelir, istemediğinizi çıkarın. Davetler talep yayınlanınca her firmanın kendi dilinde gider.",
+        "panelLeadRestricted": "AI yalnız talebin açık olduğu ülkelerde arar: {countries}.",
+        "findButton": "AI ile tedarikçi bul",
+        "searching": "AI yurt içinde ve yurt dışında arıyor… (30-60 sn — bu arada formu doldurmaya devam edebilirsiniz)",
+        "resultsSummary": "{n, plural, other {# firma}} bulundu · {covered}/{total} kalem karşılandı",
+        "selectedSummary": "Yayında {n, plural, other {# firmaya}} davet gidecek",
+        "uncovered": "Şu kalemler için tedarikçi bulunamadı: {items}",
+        "findMoreForItem": "{item} için daha fazla bul",
+        "itemsChanged": "Kalemler değişti — yeniden ara",
+        "searchAgain": "Yeniden ara",
+        "noResults": "AI uygun firma bulamadı. Kalem adlarını daha açık yazıp yeniden deneyin.",
+        "failed": "Arama tamamlanamadı. Yeniden deneyin.",
+        "goldOnly": "AI ile tedarikçi bulma Gold pakette açılır.",
+        "membersTitle": "Rothern'deki satıcılar",
+        "membersLead": "Kalemlerinizi satan ya da kategorinize uyan Rothern üyeleri. Bağlantı daveti gönderebilirsiniz.",
+        "connect": "Bağlantı daveti gönder",
+        "connectSent": "Davet gönderildi",
+        "connectSentToast": "{name} firmasına bağlantı daveti gönderildi",
+        "connectFailed": "Bağlantı daveti gönderilemedi",
+        "inCatalog": "Vitrininde: {items}",
+        "bandTitle": "AI {n, plural, other {# tedarikçi}} buldu",
+        "bandAbroad": "(yurt dışından: {n, number})",
+        "bandLead": "Hepsi seçili geldi; istemediklerinizi çıkarın ve tek tıkla davet edin. Davetler her firmanın kendi dilinde ve kendi ülkesinde mesai saatinde gider.",
+        "bandSearching": "AI talebiniz için yurt içinde ve yurt dışında tedarikçi arıyor…",
+        "inviteButton": "{n, plural, other {# firmaya}} davet gönder",
+        "invitedToast": "{n, plural, other {# davet}} sıraya alındı; e-postalar alıcının ülkesinde mesai saatinde gönderilir.",
+        "inviteFailed": "Davetler gönderilemedi. Yeniden deneyin.",
+        "dismiss": "Gizle",
+        "showList": "Listeyi göster",
+        "hideList": "Listeyi gizle",
+        "secondRound": "Teklif az geldiği için AI yeniden aradı",
+        "allHandled": "Önerilen tüm firmalar davet edildi.",
+        "aiDiscoveryToggle": "Yayınlayınca AI yurt içinde ve yurt dışında tedarikçi arasın",
+        "aiDiscoveryHint": "Bulunanları talep sayfanızda görür, tek tıkla davet edersiniz. Ücretsiz.",
+        "aiDiscoveryPrivateOff": "Özel taleplerde otomatik arama yapılmaz.",
+        "showNameToggle": "Davet e-postasında firma adım görünsün",
+        "showNameHint": "Kapatırsanız davette \"Bir alıcı firma\" yazar. Firma adı görünen davetler daha çok yanıt alır.",
+        "summaryInSection1": "AI'ın bulduğu firmalar 1. bölümdeki listede.",
+        "goToList": "Listeye git"
       }
     },
     "trade": {
@@ -5237,13 +5300,17 @@
           "listingClosed": "Katıldığım satın alma talebi kapandığında",
           "categoryMatch": "Kategorime uygun yeni satın alma talebi açıldığında",
           "approvalPending": "Onayım beklendiğinde",
-          "announcement": "Platform duyuruları"
+          "announcement": "Platform duyuruları",
+          "aiSuggestions": "AI talebim için yeni tedarikçi bulduğunda",
+          "lifecycle": "Kullanım ipuçları ve haftalık görünürlük özeti"
         },
         "transactional": {
           "bidWon": "Teklifim kazandığında / sipariş oluştuğunda",
           "orderStatus": "Siparişimin durumu değiştiğinde",
           "accountMail": "Şifre sıfırlama ve hesap/davet e-postaları"
-        }
+        },
+        "categoryMatchInstant": "Kategori e-postalarının hepsi anında gelsin",
+        "categoryMatchInstantHint": "Kapalıyken günde 3 e-posta anında gelir, fazlası akşam tek bir özette toplanır."
       },
       "addressBookSection": {
         "adresSilinsinMi": "Adres silinsin mi?",

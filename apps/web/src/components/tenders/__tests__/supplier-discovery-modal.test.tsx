@@ -90,6 +90,7 @@ describe("SupplierDiscoveryModal — dış davet", () => {
           { email: "info@baret.com", locale: "tr", country: "TR" },
           { email: "satis@kask.com", locale: "tr", country: null },
         ],
+        source: "AI_FORM",
       }),
     );
     expect(await screen.findByText("Gönderildi")).toBeInTheDocument();

@@ -673,7 +673,9 @@
     "buAdreseSonGunlerdeDavetGonderildi": "An invitation was already sent to this address in the last {days, plural, one {# day} other {# days}}",
     "gunlukDavetLimitineUlasildi": "The daily invitation limit has been reached ({cap} per day). Please try again tomorrow.",
     "buAdresEPostaAlamiyor": "This address has previously rejected our emails permanently or reported them as spam; no email was sent",
-    "gecersizEPostaAdresi": "Invalid email address"
+    "gecersizEPostaAdresi": "Invalid email address",
+    "onayGerekenUlke": "Invitations aren't sent to companies in this country without prior consent. If you know the company, add the address manually.",
+    "anonymousBuyer": "A buyer"
   },
   "companySupplierTemplates": {
     "baglantinizOlmayanFirmaKayit": "Companies you are not connected to: {length, plural, one {# record} other {# records}}",
@@ -1623,6 +1625,58 @@
       "butceUyarisiBaslik": "AI budget alert",
       "butceUyarisiGovde": "Your company’s monthly AI usage has reached {yuzde}%. When the budget runs out, AI features are disabled until the end of the month.",
       "kullanimiGor": "View usage"
+    },
+    "discovery": {
+      "title": "AI found suppliers",
+      "body": "AI found {n, plural, one {# supplier} other {# suppliers}} for your request \"{title}\"{abroad, plural, =0 {} other { (# abroad)}}. You can invite them with one click.",
+      "cta": "View and invite suppliers",
+      "emailSubject": "{n, plural, one {# supplier} other {# suppliers}} found for your request",
+      "emailHeading": "Suppliers found for your request",
+      "emailBody": "AI found {n, plural, one {# supplier} other {# suppliers}} at home and abroad for your request \"{title}\" ({number}){abroad, plural, =0 {} other { — # of them abroad}}. Open the list, remove the ones you don't want and invite the rest with one click. Invitations are sent in each supplier's own language, during business hours in their country.",
+      "emailFooter": "If you still have few quotes when half of the time has passed, AI will search once more."
+    },
+    "digest": {
+      "subject": "{n, plural, one {# more request} other {# more requests}} opened in your categories today",
+      "body": "You reached today's limit for instant alerts, so we've collected the other requests opened today in one email:",
+      "bodyLocked": "Here are the other requests opened in your categories today. Upgrade to Silver to view them and submit quotes.",
+      "closesRow": "Quote deadline: {date}",
+      "cta": "View open requests",
+      "footer": "To get every category email instantly, turn on \"All instantly\" in Settings › Notifications."
+    },
+    "lifecycle": {
+      "profile": {
+        "subject": "Fill in your profile with AI in one minute",
+        "body": "Buyers check the profile first when choosing a supplier. Enter your website and AI will draft your company description — free, one time.",
+        "cta": "Complete profile"
+      },
+      "first_product": {
+        "subject": "Add your first product so buyers can find you",
+        "body": "Products in your showcase appear in Google and Rothern search. The free plan lets you list up to 50 products.",
+        "cta": "Add product"
+      },
+      "verify": {
+        "subject": "Get verified for free and earn the \"Verified\" badge",
+        "body": "Verified companies stand out in buyers' lists and receive more invitations. Uploading your documents takes a few minutes.",
+        "cta": "Start verification"
+      },
+      "market": {
+        "subject": "{n, plural, one {# request was} other {# requests were}} opened in your categories in the last 2 weeks",
+        "body": "You can quote on buying requests in your categories from Open Requests.",
+        "bodyLocked": "Upgrade to Silver to view these requests and quote on them. On the free plan you can still quote on requests from buyers you're connected with or who invite you.",
+        "cta": "View open requests"
+      },
+      "weekly": {
+        "subject": "Your company was viewed {n, plural, one {# time} other {# times}} this week",
+        "body": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. See who looked on the Visitors page.",
+        "cta": "See visitors"
+      }
+    },
+    "zeroBid": {
+      "subject": "Your request \"{title}\" hasn't received any quotes yet",
+      "heading": "Your request is waiting for quotes",
+      "body": "Your request \"{title}\" ({number}) closes on {closesAt} and hasn't received any quotes yet. Invite the suppliers AI found with one click, or extend the quote deadline.",
+      "inAppBody": "Your request \"{title}\" hasn't received any quotes yet. Invite the suppliers AI found or extend the deadline.",
+      "cta": "Open request"
     }
   },
   "permission": {
