@@ -15,6 +15,7 @@ import { isInviteAccepted } from "@/lib/tenders/external-invite-status";
 import {
   useExternalSupplierDiscovery,
   useExternalTenderInvite,
+  useInviteDiscoveredMembers,
   useSupplierDiscovery,
   type DiscoveryCandidate,
   type ExternalCandidate,
@@ -42,8 +43,10 @@ import { toast } from "sonner";
 
 /**
  * "AI ile daha fazla tedarikçiye eriş" — Faz A: platform dizininden ihale
- * kategorileriyle eşleşen, bağlantısız firmalar. Seçilenlere BAĞLANTI daveti
- * gider (kabul eden ihaleye davet edilebilir hâle gelir / PUBLIC ihaleyi görür).
+ * kategorileriyle ya da vitrinindeki ürünle kalemlere eşleşen, bağlantısız
+ * firmalar. Talepten açılışta (2026-09-28, kullanıcı: "sistemimize kayıtlıysa
+ * doğrudan davet etsin") üye DOĞRUDAN TALEBE davet edilir — bağlantı şartı
+ * yok; talepsiz açılışta eskisi gibi BAĞLANTI daveti gider.
  */
 export function SupplierDiscoveryModal({
   isOpen,
@@ -77,6 +80,8 @@ export function SupplierDiscoveryModal({
 }) {
   const tr = useTranslations("web.panel.requests.supplierDiscoveryModal");
   const tStatus = useTranslations("web.panel.requests.externalInviteStatus");
+  const tAi = useTranslations("web.panel.requests.aiSuppliers");
+  const tMember = useTranslations("web.panel.requests.memberInviteStatus");
   const uiLocale = useLocale() as Locale;
   const [tab, setTab] = useState<"platform" | "external">("platform");
   // listingId verildiyse (ihale detayından açılış) bağlamı kendisi çeker —
@@ -94,6 +99,7 @@ export function SupplierDiscoveryModal({
           .filter(Boolean);
   const discovery = useSupplierDiscovery();
   const invite = useInviteConnection();
+  const inviteMembers = useInviteDiscoveredMembers();
   const [candidates, setCandidates] = useState<DiscoveryCandidate[]>([]);
   const [invited, setInvited] = useState<Set<string>>(new Set());
   const [inviting, setInviting] = useState<string | null>(null);
@@ -247,7 +253,27 @@ export function SupplierDiscoveryModal({
     setSelectedExt(new Set());
   };
 
+  /** Talepten açılış: üyeleri doğrudan talebe davet (tek ya da hepsi). */
+  const inviteToListing = async (list: DiscoveryCandidate[]) => {
+    if (!listingId || list.length === 0 || inviting) return;
+    setInviting(list.length === 1 ? list[0]!.companyId : "*");
+    try {
+      const results = await inviteMembers.mutateAsync({ listingId, companyIds: list.map((c) => c.companyId) });
+      const ok = results.filter((r) => r.status === "INVITED" || r.status === "ALREADY_INVITED").map((r) => r.companyId);
+      setInvited((s) => new Set([...s, ...ok]));
+      const n = results.filter((r) => r.status === "INVITED").length;
+      if (n > 0) toast.success(tAi("memberInvitedToast", { n }));
+      const other = results.find((r) => r.status === "DAILY_LIMIT" || r.status === "NOT_ELIGIBLE");
+      if (other) toast.warning(tMember(other.status));
+    } catch (err) {
+      toast.error(extractErrorMessage(err, tr("davetGonderilemedi")));
+    } finally {
+      setInviting(null);
+    }
+  };
+
   const sendInvite = async (c: DiscoveryCandidate) => {
+    if (listingId) return inviteToListing([c]);
     if (!c.rothernId || inviting) return;
     setInviting(c.companyId);
     try {
@@ -500,10 +526,30 @@ export function SupplierDiscoveryModal({
                 {tr("buKategorilerdeOnerilebilecekYeniFirma")}
               </p>
             ) : (
+              <>
+              {listingId ? (
+                <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+                  <p className="text-xs text-zinc-600">{tAi("groupMembersLead")}</p>
+                  {(() => {
+                    const rest = candidates.filter((c) => !invited.has(c.companyId) && !c.alreadyInvited);
+                    return rest.length > 1 ? (
+                      <Button size="sm" disabled={inviting !== null} onClick={() => void inviteToListing(rest)}>
+                        {inviting === "*" ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : null}
+                        {tr("hepsiniTalebeDavetEt", { n: rest.length })}
+                      </Button>
+                    ) : null;
+                  })()}
+                </div>
+              ) : null}
               <ul className="space-y-2">
                 {candidates.map((c) => {
-                  const done =
-                    invited.has(c.companyId) || c.connectionStatus === "PENDING";
+                  const done = listingId
+                    ? invited.has(c.companyId) || !!c.alreadyInvited
+                    : invited.has(c.companyId) || c.connectionStatus === "PENDING";
+                  const items = (c.matchedItems ?? [])
+                    .map((n) => effItemNames[n - 1])
+                    .filter(Boolean)
+                    .join(", ");
                   return (
                     <li
                       key={c.companyId}
@@ -534,35 +580,39 @@ export function SupplierDiscoveryModal({
                             </span>
                           ) : null}
                         </p>
+                        {items ? (
+                          <p className="mt-1 text-xs font-medium text-blue-800">{tAi("memberItems", { items })}</p>
+                        ) : null}
                       </div>
                       {done ? (
                         <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-emerald-700">
                           <Check className="h-3.5 w-3.5" />
-                          {tr("davetGonderildi2")}
+                          {listingId ? tr("talebeDavetli") : tr("davetGonderildi2")}
                         </span>
                       ) : (
                         <Button
                           size="sm"
                           variant="secondary"
-                          disabled={inviting === c.companyId}
+                          disabled={inviting !== null}
                           onClick={() => sendInvite(c)}
                         >
                           {inviting === c.companyId ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />
                           ) : null}
-                          {tr("baglantiDavetiGonder")}
+                          {listingId ? tr("talebeDavetEt") : tr("baglantiDavetiGonder")}
                         </Button>
                       )}
                     </li>
                   );
                 })}
               </ul>
+              </>
             )}
           </div>
           )}
 
           <div className="border-t border-zinc-950/5 bg-zinc-50/60 px-6 py-3 text-xs text-zinc-500">
-            {tr("davetKabulEdilinceFirmaBaglantilariniza")}
+            {listingId && tab === "platform" ? tr("uyeDogrudanTalebeDavet") : tr("davetKabulEdilinceFirmaBaglantilariniza")}
           </div>
         </DialogPanel>
       </div>

@@ -18,6 +18,7 @@ const h = vi.hoisted(() => ({
   sendExternal: vi.fn(),
   externalSearch: vi.fn().mockResolvedValue([]),
   platformSearch: vi.fn().mockResolvedValue([]),
+  inviteMembers: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
@@ -50,6 +51,7 @@ vi.mock("@/hooks/use-ai-search-intent", () => ({ useAiSearchIntent: () => ({ mut
 vi.mock("@/components/tenders/supplier-discovery-modal", () => ({ SupplierDiscoveryModal: () => null }));
 vi.mock("@/hooks/use-supplier-discovery", () => ({
   useExternalTenderInvite: () => ({ mutateAsync: h.sendExternal, isPending: false }),
+  useInviteDiscoveredMembers: () => ({ mutateAsync: h.inviteMembers, isPending: false }),
   useExternalSupplierDiscovery: () => ({ mutateAsync: h.externalSearch, isPending: false }),
   useSupplierDiscovery: () => ({ mutateAsync: h.platformSearch, isPending: false }),
   useListingDiscovery: () => ({ data: undefined }),
@@ -267,6 +269,51 @@ describe("QuickRequest", () => {
         source: "AI_FORM",
       }),
     );
+  }, 30_000);
+
+  it("KALEMLER PANELİ — ROTHERN ÜYELERİ: en üstte, gerekçeli ve SEÇİLİ; yayında talebe DOĞRUDAN davet edilir", async () => {
+    // 2026-09-28, kullanıcı: "sistemimize kayıtlıysa ayrıca gösterelim,
+    // kategori veya kalem eşleşmesi var diye; davet ederken en üstte seçili".
+    sessionStorage.clear();
+    h.create.mockResolvedValue({ id: "l8", number: "ROT-000080" });
+    h.sendExternal.mockReset().mockResolvedValue([{ email: "info@viti.it", status: "QUEUED" }]);
+    h.inviteMembers.mockReset().mockResolvedValue([{ companyId: "co1", status: "INVITED" }]);
+    h.platformSearch.mockReset().mockResolvedValue([
+      { companyId: "co1", name: "Bağlantı AŞ", city: "Bursa", country: "TR", rothernId: "R1", matchedCategories: ["Cıvatalar"], strongMatch: true, matchedItems: [1], connectionStatus: "NONE", alreadyInvited: false },
+      { companyId: "co2", name: "Somun Ltd", city: null, country: "TR", rothernId: "R2", matchedCategories: [], strongMatch: true, matchedItems: [1], connectionStatus: "NONE", alreadyInvited: false },
+    ]);
+    h.externalSearch.mockReset().mockResolvedValue([
+      { name: "Viti Srl", email: "info@viti.it", country: "IT", city: "Milano", website: "viti.it", reason: "r", matchedItems: [1], scope: "ABROAD", status: "SUGGESTED" },
+      // Web'de bulunan ama adresi üyeyle eşleşen firma → üye satırına katılır.
+      { name: "Bağlantı AŞ", email: "satis@baglanti.com", country: "TR", city: "Bursa", website: null, reason: "r", matchedItems: [1], scope: "LOCAL", status: "MEMBER", memberCompanyId: "co1" },
+    ]);
+    wrap(<QuickRequest />);
+    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "M6 cıvata" } });
+    fireEvent.click(await screen.findByRole("button", { name: "AI ile tedarikçi bul" }));
+    const member = await screen.findByLabelText("Bağlantı AŞ seç");
+    await waitFor(() => expect(member).toBeChecked());
+    // Üye grubu listenin başında; web'de de bulunan üye tek satır.
+    const groups = screen.getAllByRole("region").filter((r) => /Rothern'de kayıtlı|Yurt dışı/.test(r.getAttribute("aria-label") ?? ""));
+    expect(groups[0]).toHaveAccessibleName("Rothern'de kayıtlı");
+    expect(screen.getAllByLabelText("Bağlantı AŞ seç")).toHaveLength(1);
+    expect(screen.getByText("Web'de de bulundu")).toBeInTheDocument();
+    expect(screen.getByText("Kategori eşleşmesi: Cıvatalar")).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText(/Yayında 3 firmaya davet gidecek/)).toBeInTheDocument());
+    // Alıcı bir üyeyi çıkarır.
+    fireEvent.click(screen.getByLabelText("Somun Ltd seç"));
+    expect(screen.getByText(/Talebe doğrudan davet edilecek Rothern üyeleri \(1\)/)).toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+    await waitFor(() => expect(h.inviteMembers).toHaveBeenCalledWith({ listingId: "l8", companyIds: ["co1"] }));
+    // Üyeye e-posta daveti GİTMEZ; yalnız web adayı kuyruğa.
+    await waitFor(() =>
+      expect(h.sendExternal).toHaveBeenCalledWith({
+        listingId: "l8",
+        invites: [{ email: "info@viti.it", locale: "en", country: "IT" }],
+        source: "AI_FORM",
+      }),
+    );
+    expect(await screen.findByText("Rothern üyeleri")).toBeInTheDocument();
   }, 30_000);
 
   it("1. bölüm: başlık → 'AI ile başlık ve kategori bul' → kategori (tek sütun); düğme kalemsiz pasif", async () => {

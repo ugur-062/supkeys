@@ -25,7 +25,8 @@ import { CandidateList, isSelectable, type CandidateRow } from "./candidate-list
  *  - `band`: talep sayfası — sahibin görünümünde bant; `?ai-davet=1` (bildirim/
  *    e-posta bağlantısı) listeyi açık getirir; "Gizle" bir daha göstermez.
  * Bulunanlar SEÇİLİ gelir; kullanıcının çıkardığı yeniden seçilmez. Davet
- * kuyruğa girer (alıcının dilinde, kendi ülkesinde mesai saatinde).
+ * kuyruğa girer (alıcının dilinde, kendi ülkesinde mesai saatinde). Rothern
+ * üyeleri (2026-09-28) listenin en üstünde; onlar DOĞRUDAN talebe davet edilir.
  */
 function toRow(c: RunCandidate): CandidateRow {
   return {
@@ -40,6 +41,9 @@ function toRow(c: RunCandidate): CandidateRow {
     scope: c.scope ?? null,
     status: c.status,
     recentlyInvited: c.recentlyInvited ?? false,
+    memberCompanyId: c.memberCompanyId ?? null,
+    matchedCategories: c.matchedCategories ?? [],
+    alsoOnWeb: c.source === "BOTH" || (c.source === "WEB" && !!c.memberCompanyId),
   };
 }
 
@@ -71,15 +75,18 @@ export function ListingSuggestions({
     const byEmail = new Map<string, CandidateRow>();
     for (const r of runs) {
       for (const c of r.candidates) {
-        const k = (c.email ?? c.id).toLowerCase();
+        const k = c.memberCompanyId ? `m:${c.memberCompanyId}` : (c.email ?? c.id).toLowerCase();
         if (!byEmail.has(k)) byEmail.set(k, toRow(c));
       }
     }
     return [...byEmail.values()];
   }, [runs]);
   const open_ = useMemo(() => rows.filter(isSelectable), [rows]);
-  const abroad = open_.filter((r) => r.scope === "ABROAD").length;
-  const secondRound = runs.some((r) => r.trigger === "SECOND_ROUND" && r.candidates.some((c) => c.status === "SUGGESTED"));
+  const abroad = open_.filter((r) => r.scope === "ABROAD" && !r.memberCompanyId).length;
+  const members = open_.filter((r) => r.memberCompanyId).length;
+  const secondRound = runs.some(
+    (r) => r.trigger === "SECOND_ROUND" && r.candidates.some((c) => c.status === "SUGGESTED" || c.status === "MEMBER"),
+  );
 
   // Yeni gelen seçilebilir adaylar SEÇİLİ başlar (bir kez; kullanıcı çıkardıysa kalır).
   useEffect(() => {
@@ -97,9 +104,13 @@ export function ListingSuggestions({
 
   const send = async () => {
     try {
-      const results = await invite.mutateAsync(chosen);
+      const { results, memberResults } = await invite.mutateAsync(chosen);
+      const invitedMembers = memberResults.filter((r) => r.status === "INVITED").length;
+      if (invitedMembers > 0) toast.success(t("memberInvitedToast", { n: invitedMembers }));
       const ok = results.filter((r) => isInviteAccepted(r.status)).length;
       if (ok > 0) toast.success(t("invitedToast", { n: ok }));
+      const limited = memberResults.filter((r) => r.status === "DAILY_LIMIT").length;
+      if (limited > 0) toast.warning(t("memberDailyLimit", { n: limited }));
       setSelected(new Set());
     } catch (err) {
       toast.error(extractErrorMessage(err, t("inviteFailed")));
@@ -129,6 +140,7 @@ export function ListingSuggestions({
           ) : (
             <p className="text-sm font-semibold text-zinc-900">
               {t("bandTitle", { n: open_.length })}{" "}
+              {members > 0 ? <span className="font-normal text-zinc-700">{t("bandMembers", { n: members })} </span> : null}
               {abroad > 0 ? <span className="font-normal text-zinc-700">{t("bandAbroad", { n: abroad })}</span> : null}
             </p>
           )}

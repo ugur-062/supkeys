@@ -43,9 +43,10 @@ export interface ExternalCandidate {
 
 /**
  * Aday durumu (2026-09-27, Faz 1) — listede hepsi seçili gelir, bunlar HARİÇ:
- *  - ALREADY_INVITED: bu talebe zaten davet edildi
- *  - MEMBER: adres/web sitesi kayıtlı bir firmanın — e-posta değil platform yolu
+ *  - ALREADY_INVITED: bu talebe zaten davet edildi (adres ya da üye firma)
  *  - CONSENT_REQUIRED: önceden onay isteyen ülke (AI'ın bulduğu adrese davet gitmez)
+ * MEMBER (2026-09-28): adres/web sitesi kayıtlı bir firmanın — e-posta değil,
+ * DOĞRUDAN TALEBE davet (üye grubunda en üstte, seçili).
  */
 export type CandidateStatus = "SUGGESTED" | "ALREADY_INVITED" | "MEMBER" | "CONSENT_REQUIRED";
 
@@ -193,7 +194,11 @@ export interface DiscoveryCandidate {
   companyId: string;
   name: string;
   city: string | null;
+  /** Firmanın ülkesi (ISO-2) — bayrak ve grup için. */
+  country: string | null;
   rothernId: string | null;
+  /** Bu talebe zaten davetli (talepten açılışta). */
+  alreadyInvited: boolean;
   /** Eşleşen kategori adları (en fazla 3 — rozet için). */
   matchedCategories: string[];
   /** Alt-kategori (family/class) eşleşmesi ya da vitrinde kalemi satıyor (daha güçlü sinyal)? */
@@ -454,6 +459,18 @@ export class SupplierDiscoveryService {
       if (h && hosts.includes(h)) memberByHost.set(h, c.id);
     }
     const mxOk = new Map(mx);
+    // Eşleşen üye bu talebe zaten davetliyse (bağlantı ya da AI yolu) işaretlenir.
+    const memberIds = [...new Set([...memberByEmail.values(), ...memberByHost.values()])];
+    const invitedMembers = new Set(
+      listingId && memberIds.length > 0
+        ? (
+            await db.listingInvitation.findMany({
+              where: { listingId, invitedCompanyId: { in: memberIds } },
+              select: { invitedCompanyId: true },
+            })
+          ).map((i) => i.invitedCompanyId)
+        : [],
+    );
 
     const out: AnnotatedCandidate[] = [];
     const seenHosts = new Set<string>();
@@ -470,7 +487,9 @@ export class SupplierDiscoveryService {
       // Platform üyesi kendi firmamız olamaz (kendi sitemizi bulduysa düşer).
       if (member === companyId) continue;
       const status: CandidateStatus = member
-        ? "MEMBER"
+        ? invitedMembers.has(member)
+          ? "ALREADY_INVITED"
+          : "MEMBER"
         : invitedSet.has(c.email)
           ? "ALREADY_INVITED"
           : c.country && COLD_INVITE_CONSENT_COUNTRIES.has(c.country)
@@ -498,6 +517,24 @@ export class SupplierDiscoveryService {
       targetCountries?: string[];
     },
   ): Promise<{ candidates: DiscoveryCandidate[] }> {
+    return this.discoverRegisteredFor(user.companyId, input);
+  }
+
+  /**
+   * Kullanıcısız çekirdek (yayın sonrası tur da çağırır). `listingId` verilirse
+   * ülke kısıtı talepten okunur (firma kapsamlı) ve davetliler işaretlenir.
+   */
+  async discoverRegisteredFor(
+    companyId: string,
+    input: {
+      categoryIds?: string[];
+      itemNames?: string[];
+      listingId?: string;
+      targetCountries?: string[];
+      locale?: Locale;
+    },
+  ): Promise<{ candidates: DiscoveryCandidate[] }> {
+    const user = { companyId };
     const codes = (input.categoryIds ?? []).filter((c) => /^\d{8}$/.test(c));
     const items = (input.itemNames ?? []).map((n) => n.trim()).filter(Boolean).slice(0, MAX_ITEMS_IN_PROMPT);
     if (codes.length === 0 && items.length === 0) return { candidates: [] };
@@ -506,7 +543,7 @@ export class SupplierDiscoveryService {
       : { segmentIds: [] as string[], subCandidates: [] as string[] };
 
     const listing = input.listingId
-      ? await this.prisma.listing.findFirst({
+      ? await this.reader.listing.findFirst({
           where: { id: input.listingId, companyId: user.companyId },
           select: { targetCountries: true },
         })
@@ -515,13 +552,13 @@ export class SupplierDiscoveryService {
 
     // Bloklar (iki yön) + mevcut bağlantılar (her durumda) hariç tutulur.
     const [blocks, conns] = await Promise.all([
-      this.prisma.companyBlock.findMany({
+      this.reader.companyBlock.findMany({
         where: {
           OR: [{ blockerCompanyId: user.companyId }, { blockedCompanyId: user.companyId }],
         },
         select: { blockerCompanyId: true, blockedCompanyId: true },
       }),
-      this.prisma.companyConnection.findMany({
+      this.reader.companyConnection.findMany({
         where: {
           OR: [{ inviterCompanyId: user.companyId }, { inviteeCompanyId: user.companyId }],
         },
@@ -534,6 +571,18 @@ export class SupplierDiscoveryService {
       excluded.add(b.blockedCompanyId);
     }
     const pendingWith = new Set<string>();
+    // Bu talepte BAĞLANTI yolundan zaten görünür olanlar dışlanır; davetliler
+    // işaretlenir (listede kilitli "zaten davetli" görünsün).
+    const invitedSet = new Set(
+      input.listingId
+        ? (
+            await this.reader.listingInvitation.findMany({
+              where: { listingId: input.listingId },
+              select: { invitedCompanyId: true },
+            })
+          ).map((i) => i.invitedCompanyId)
+        : [],
+    );
     for (const c of conns) {
       const other = c.inviterCompanyId === user.companyId ? c.inviteeCompanyId : c.inviterCompanyId;
       if (c.status === "PENDING" && c.inviterCompanyId === user.companyId) {
@@ -571,7 +620,7 @@ export class SupplierDiscoveryService {
     ];
     if (catOr.length === 0) return { candidates: [] };
 
-    const rows = await this.prisma.company.findMany({
+    const rows = await this.reader.company.findMany({
       where: {
         id: { notIn: [...excluded] },
         isActive: true,
@@ -588,6 +637,7 @@ export class SupplierDiscoveryService {
         id: true,
         name: true,
         city: true,
+        country: true,
         rothernId: true,
         sellerCategoryIds: true,
         sellerSubCategoryIds: true,
@@ -618,11 +668,11 @@ export class SupplierDiscoveryService {
     const allMatchedIds = [...new Set(top.flatMap((s) => s.matched))];
     const catNames = new Map(
       (
-        await this.prisma.category.findMany({
+        await this.reader.category.findMany({
           where: { id: { in: allMatchedIds } },
           select: { id: true, ...CATEGORY_NAME_SELECT },
         })
-      ).map((c) => [c.id, categoryName(c)]),
+      ).map((c) => [c.id, input.locale ? categoryName(c, input.locale) : categoryName(c)]),
     );
 
     return {
@@ -630,7 +680,9 @@ export class SupplierDiscoveryService {
         companyId: r.id,
         name: r.name,
         city: r.city,
+        country: r.country ?? null,
         rothernId: r.rothernId,
+        alreadyInvited: invitedSet.has(r.id),
         matchedCategories: matched.map((m) => catNames.get(m)).filter((n): n is string => !!n),
         strongMatch: strong,
         matchedItems,

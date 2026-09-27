@@ -7,7 +7,7 @@ import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { CheckCircleIcon, SparklesIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { useState } from "react";
-import type { ExternalInviteResult } from "@/hooks/use-supplier-discovery";
+import type { ExternalInviteResult, MemberInviteResult } from "@/hooks/use-supplier-discovery";
 import { isInviteAccepted } from "@/lib/tenders/external-invite-status";
 import { cn } from "@/lib/utils";
 import { ListingSuggestions } from "@/components/tenders/ai-suppliers/listing-suggestions";
@@ -25,6 +25,7 @@ export function PublishedPanel({
   categoryIds,
   itemNames,
   inviteResults = null,
+  memberResults = null,
   onNew,
 }: {
   listingId: string;
@@ -33,10 +34,13 @@ export function PublishedPanel({
   itemNames: string[];
   /** Yayın öncesi eklenen dış davetlerin GERÇEK sonucu (adres başına); "error" = istek düştü. */
   inviteResults?: ExternalInviteResult[] | "error" | null;
+  /** Yayın öncesi seçilen Rothern üyelerinin doğrudan talep daveti sonucu. */
+  memberResults?: Array<MemberInviteResult & { name: string }> | "error" | null;
   onNew: () => void;
 }) {
   const t = useTranslations("web.panel.requests.publishedPanel");
   const tStatus = useTranslations("web.panel.requests.externalInviteStatus");
+  const tMember = useTranslations("web.panel.requests.memberInviteStatus");
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
   const { company } = useCompanyAuth();
   // API `company/ai/supplier-discovery` @RequireTier("GOLD") — ekran aynı kapı.
@@ -65,6 +69,35 @@ export function PublishedPanel({
           {t("uygunTedarikciOnerVeDavet")}
         </button>
       </div>
+      {memberResults ? (
+        <div className="mt-6 rounded-xl bg-zinc-100 p-4 text-left ring-1 ring-zinc-950/5">
+          <p className="text-sm font-semibold text-zinc-950">{t("uyeDavetleri")}</p>
+          {memberResults === "error" ? (
+            <p className="mt-1 text-sm text-red-700">{t("uyeDavetleriGonderilemedi")}</p>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-zinc-700">
+                {t("uyeDavetEdildiSayisi", { n: memberResults.filter((r) => r.status === "INVITED").length })}
+              </p>
+              <ul className="mt-2 space-y-1">
+                {memberResults.map((r) => (
+                  <li key={r.companyId} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="min-w-0 truncate text-zinc-800">{r.name}</span>
+                    <span
+                      className={cn(
+                        "shrink-0 font-semibold",
+                        r.status === "INVITED" || r.status === "ALREADY_INVITED" ? "text-emerald-700" : "text-zinc-600",
+                      )}
+                    >
+                      {tMember(r.status)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      ) : null}
       {inviteResults ? (
         <div className="mt-6 rounded-xl bg-zinc-100 p-4 text-left ring-1 ring-zinc-950/5">
           <p className="text-sm font-semibold text-zinc-950">{t("davetEPostalari")}</p>

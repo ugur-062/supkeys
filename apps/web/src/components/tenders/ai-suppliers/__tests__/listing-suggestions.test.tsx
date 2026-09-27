@@ -6,13 +6,14 @@ import { ListingSuggestions } from "../listing-suggestions";
 /**
  * YAYIN SONRASI AI ÖNERİLERİ (2026-09-27, Faz 1): bulunanlar SEÇİLİ gelir,
  * tek tıkla davet; davet edilmiş aday kilitli; "Gizle" bandı kapatır; tur
- * sürerken "AI arıyor…".
+ * sürerken "AI arıyor…". Rothern üyeleri (2026-09-28) EN ÜSTTE, gerekçeli ve
+ * seçili; davet onlar için doğrudan talebe gider.
  */
 const h = vi.hoisted(() => ({
   data: undefined as unknown,
   invite: vi.fn(),
   dismiss: vi.fn(),
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }));
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/hooks/use-supplier-discovery", () => ({
@@ -43,7 +44,10 @@ const done = (candidates: unknown[], extra: Record<string, unknown> = {}) => ({
 });
 
 beforeEach(() => {
-  h.invite.mockReset().mockResolvedValue([{ email: "a@x.com", status: "QUEUED" }, { email: "b@x.com", status: "QUEUED" }]);
+  h.invite.mockReset().mockResolvedValue({
+    results: [{ email: "a@x.com", status: "QUEUED" }, { email: "b@x.com", status: "QUEUED" }],
+    memberResults: [],
+  });
   h.dismiss.mockReset();
   h.toast.success.mockReset();
 });
@@ -66,6 +70,35 @@ describe("ListingSuggestions", () => {
     fireEvent.click(screen.getByRole("button", { name: "2 firmaya davet gönder" }));
     await waitFor(() => expect(h.invite).toHaveBeenCalledWith(["a", "b"]));
     expect(h.toast.success).toHaveBeenCalled();
+  });
+
+  it("Rothern üyeleri EN ÜSTTE ayrı grupta, gerekçeli (kalem/kategori) ve SEÇİLİ; e-postasız da davet edilir", async () => {
+    h.invite.mockResolvedValue({ results: [{ email: "a@x.com", status: "QUEUED" }], memberResults: [{ companyId: "co1", status: "INVITED" }] });
+    h.data = done([
+      cand("a", "Cıvata AŞ"),
+      cand("m1", "Bağlantı Elemanları AŞ", {
+        email: null,
+        status: "MEMBER",
+        memberCompanyId: "co1",
+        matchedCategories: ["Cıvatalar"],
+        source: "PLATFORM",
+        reason: null,
+        scope: null,
+      }),
+      cand("m2", "Somun Ltd", { status: "INVITED", memberCompanyId: "co2", source: "BOTH", email: null }),
+    ]);
+    render(<ListingSuggestions listingId="l1" itemNames={["M6 cıvata"]} buyerCountry="TR" variant="band" defaultOpen />);
+    expect(screen.getByText("(Rothern üyesi: 1)")).toBeInTheDocument();
+    const groups = screen.getAllByRole("region");
+    expect(groups[0]).toHaveAccessibleName("Rothern'de kayıtlı");
+    expect(screen.getByLabelText("Bağlantı Elemanları AŞ seç")).toBeChecked();
+    expect(screen.getAllByText("Kalem eşleşmesi: M6 cıvata")).toHaveLength(2);
+    expect(screen.getByText("Kategori eşleşmesi: Cıvatalar")).toBeInTheDocument();
+    expect(screen.getByLabelText("Somun Ltd seç")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "2 firmaya davet gönder" }));
+    await waitFor(() => expect(h.invite).toHaveBeenCalledTimes(1));
+    expect([...h.invite.mock.calls[0][0]].sort()).toEqual(["a", "m1"]);
+    expect(h.toast.success).toHaveBeenCalledWith("1 Rothern üyesi talebe davet edildi");
   });
 
   it("?ai-davet=1 ile liste açık gelir; çıkarılan aday davet edilmez", async () => {

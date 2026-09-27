@@ -1527,6 +1527,14 @@
         "more": "{n, plural, other {+# kalem daha}}",
         "closesAt": "Son teklif tarihi",
         "place": "Teslim yeri"
+      },
+      "aiInvitation": {
+        "subject": "{inviter} sizi bir satın alma talebine davet etti",
+        "subjectAnon": "Sattıklarınıza uygun bir satın alma talebine davet edildiniz",
+        "body": "\"{title}\" ({number}) satın alma talebine davet edildiniz. Talep edilen kalemleri aşağıda görebilirsiniz; ayrıntılar ve teklif için talebi açın.",
+        "bodyProduct": "\"{title}\" ({number}) satın alma talebine davet edildiniz. Sizi vitrininizdeki \"{product}\" ürünü nedeniyle önerdik; talep edilen kalemler aşağıda.",
+        "bodyCategory": "\"{title}\" ({number}) satın alma talebine davet edildiniz. Talep, sattığınız kategoriyle eşleşiyor; talep edilen kalemler aşağıda.",
+        "footer": "Bu davet, Rothern'in tedarikçi önerisiyle gönderildi. Talep davetlerini Ayarlar › Bildirimler'den kapatabilirsiniz."
       }
     },
     "adminCompanies": {
@@ -1641,7 +1649,10 @@
       "bodyLocked": "Kategorinizde bugün açılan diğer talepler aşağıda. Bu talepleri görmek ve teklif vermek için Silver pakete geçin.",
       "closesRow": "Son teklif: {date}",
       "cta": "Açık talepleri gör",
-      "footer": "Kategori e-postalarının hepsini anında almak için Ayarlar › Bildirimler'den \"Hepsi anında\" seçeneğini açabilirsiniz."
+      "footer": "Kategori e-postalarının hepsini anında almak için Ayarlar › Bildirimler'den \"Hepsi anında\" seçeneğini açabilirsiniz.",
+      "invitationSubject": "Bugün {n, plural, other {# talebe}} daha davet edildiniz",
+      "invitationBody": "Günlük anlık bildirim sınırına ulaşıldığı için bugünkü diğer talep davetlerini tek e-postada topladık:",
+      "invitationCta": "Davetleri gör"
     },
     "lifecycle": {
       "profile": {

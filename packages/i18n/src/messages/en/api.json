@@ -1527,6 +1527,14 @@
         "more": "{n, plural, one {+# more line item} other {+# more line items}}",
         "closesAt": "Quote deadline",
         "place": "Delivery location"
+      },
+      "aiInvitation": {
+        "subject": "{inviter} invited you to a buying request",
+        "subjectAnon": "You've been invited to a buying request that matches what you sell",
+        "body": "You've been invited to the buying request \"{title}\" ({number}). The requested line items are below; open the request for details and to submit a quote.",
+        "bodyProduct": "You've been invited to the buying request \"{title}\" ({number}). We suggested you because of \"{product}\" in your showcase; the requested line items are below.",
+        "bodyCategory": "You've been invited to the buying request \"{title}\" ({number}). The request matches the category you sell in; the requested line items are below.",
+        "footer": "This invitation was sent based on Rothern's supplier suggestions. You can turn off request invitations in Settings › Notifications."
       }
     },
     "adminCompanies": {
@@ -1641,7 +1649,10 @@
       "bodyLocked": "Here are the other requests opened in your categories today. Upgrade to Silver to view them and submit quotes.",
       "closesRow": "Quote deadline: {date}",
       "cta": "View open requests",
-      "footer": "To get every category email instantly, turn on \"All instantly\" in Settings › Notifications."
+      "footer": "To get every category email instantly, turn on \"All instantly\" in Settings › Notifications.",
+      "invitationSubject": "You were invited to {n, plural, one {# more request} other {# more requests}} today",
+      "invitationBody": "You reached today's limit for instant alerts, so we've collected today's other request invitations in one email:",
+      "invitationCta": "View invitations"
     },
     "lifecycle": {
       "profile": {

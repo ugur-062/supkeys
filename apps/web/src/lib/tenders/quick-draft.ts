@@ -1,5 +1,5 @@
 import { isLocale, recipientLocale, type Locale } from "@rothern/i18n";
-import type { ExternalInviteTarget } from "@/hooks/use-supplier-discovery";
+import type { ExternalInviteTarget, MemberInviteTarget } from "@/hooks/use-supplier-discovery";
 import type { TenderFormData } from "./form-schema";
 
 /**
@@ -42,7 +42,29 @@ export function clearSession(key: string): void {
 export type QuickDraft = Pick<TenderFormData, "title" | "description" | "items" | "categoryIds" | "keywords" | "deliveryAddressId" | "visibility" | "invitedSupplierIds" | "bidsCloseAt"> & {
   /** AI keşfinden eklenen, yayında talebe özel davet gidecek alıcılar (adres + dil + ülke; 2026-09-27). */
   externalInvites?: ExternalInviteTarget[];
+  /** AI'ın bulduğu, yayında talebe DOĞRUDAN davet edilecek Rothern üyeleri (2026-09-28). */
+  memberInvites?: MemberInviteTarget[];
 };
+
+/** Saklanmış üye davetlerini okur; bozuk girdi atlanır. */
+export function normalizeMemberInvites(raw: unknown): MemberInviteTarget[] {
+  if (!Array.isArray(raw)) return [];
+  const out: MemberInviteTarget[] = [];
+  const seen = new Set<string>();
+  for (const entry of raw) {
+    const obj = entry && typeof entry === "object" ? (entry as Record<string, unknown>) : null;
+    const companyId = typeof obj?.companyId === "string" ? obj.companyId : "";
+    if (!companyId || seen.has(companyId)) continue;
+    seen.add(companyId);
+    out.push({ companyId, name: typeof obj?.name === "string" ? obj.name : "" });
+  }
+  return out;
+}
+
+/** Taslak talebin bekleyen ÜYE davetleri (dış davetlerle aynı yol, ayrı anahtar). */
+export function pendingMemberInvitesKey(listingId: string): string {
+  return `quick-request-member-invites:${listingId}`;
+}
 
 /**
  * Saklanmış bekleyen davetleri okur. Eski taslaklar düz adres dizisi

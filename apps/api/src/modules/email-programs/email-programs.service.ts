@@ -32,6 +32,7 @@ const DIGEST_MAX_ROWS = 15;
 const GREETING = "api.notifications.common.greeting" as const;
 
 export const CATEGORY_DIGEST_CONTEXT = "listing_category_digest";
+export const INVITATION_DIGEST_CONTEXT = "listing_invitation_digest";
 export const ZERO_BID_CONTEXT = "listing_zero_bid";
 export const LIFECYCLE_WEEKLY_CONTEXT = "lifecycle_weekly";
 const lifecycleContext = (step: LifecycleStep) => `lifecycle_${step}`;
@@ -95,11 +96,15 @@ export class EmailProgramsService {
       where: { sentAt: null },
       orderBy: { createdAt: "asc" },
       take: 3000,
-      select: { id: true, email: true, locale: true, companyId: true, listingId: true, locked: true, createdAt: true },
+      select: { id: true, email: true, kind: true, locale: true, companyId: true, listingId: true, locked: true, createdAt: true },
     });
     if (items.length === 0) return 0;
+    // Adres × tür başına bir özet: kategori eşleşmesi ve talep davetleri ayrı.
     const byEmail = new Map<string, typeof items>();
-    for (const it of items) byEmail.set(it.email, [...(byEmail.get(it.email) ?? []), it]);
+    for (const it of items) {
+      const k = `${it.kind}|${it.email}`;
+      byEmail.set(k, [...(byEmail.get(k) ?? []), it]);
+    }
     const countryOf = new Map(
       (
         await this.prisma.company.findMany({
@@ -110,7 +115,9 @@ export class EmailProgramsService {
     );
 
     let sent = 0;
-    for (const [email, group] of byEmail) {
+    for (const [, group] of byEmail) {
+      const email = group[0]!.email;
+      const isInvite = group[0]!.kind === "INVITATION";
       const tz = timeZoneForCountry(countryOf.get(group[0]!.companyId));
       if (!digestDue({ now, timeZone: tz, oldestItemAt: group[0]!.createdAt })) continue;
       const markSent = () =>
@@ -131,9 +138,11 @@ export class EmailProgramsService {
             .localizeListings(shown.map((l) => ({ title: l.title })), shown.map((l) => l.id), locale)
             .catch(() => shown.map((l) => ({ title: l.title })))
         : shown.map((l) => ({ title: l.title }));
-      const allLocked = group.every((g) => g.locked);
+      const allLocked = !isInvite && group.every((g) => g.locked);
       const t = (key: ApiMessageKey, p?: Record<string, string | number>) => tApi(key, p, locale);
-      const subject = t("api.notifications.digest.subject", { n: listings.length });
+      const subject = t(isInvite ? "api.notifications.digest.invitationSubject" : "api.notifications.digest.subject", {
+        n: listings.length,
+      });
       try {
         await this.email.send({
           to: { email },
@@ -146,7 +155,13 @@ export class EmailProgramsService {
               heading: subject,
               paragraphs: [
                 t(GREETING),
-                t(allLocked ? "api.notifications.digest.bodyLocked" : "api.notifications.digest.body"),
+                t(
+                  isInvite
+                    ? "api.notifications.digest.invitationBody"
+                    : allLocked
+                      ? "api.notifications.digest.bodyLocked"
+                      : "api.notifications.digest.body",
+                ),
               ],
               infoRows: shown.map((l, i) => ({
                 label: `${localized[i]?.title ?? l.title}${l.number ? ` (${l.number})` : ""}`,
@@ -154,12 +169,18 @@ export class EmailProgramsService {
                   ? t("api.notifications.digest.closesRow", { date: formatInviteDeadline(l.closesAt, locale) })
                   : "—",
               })),
-              ctaLabel: t(allLocked ? "api.notifications.listings.cta.upgradeSilver" : "api.notifications.digest.cta"),
+              ctaLabel: t(
+                isInvite
+                  ? "api.notifications.digest.invitationCta"
+                  : allLocked
+                    ? "api.notifications.listings.cta.upgradeSilver"
+                    : "api.notifications.digest.cta",
+              ),
               ctaUrl: `${this.web}${localizeAppPath(allLocked ? "/company/premium" : "/company/satis", locale)}`,
               footerNote: t("api.notifications.digest.footer"),
             },
           },
-          context: { type: CATEGORY_DIGEST_CONTEXT, id: group[0]!.id },
+          context: { type: isInvite ? INVITATION_DIGEST_CONTEXT : CATEGORY_DIGEST_CONTEXT, id: group[0]!.id },
         });
         await markSent();
         sent++;

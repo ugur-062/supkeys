@@ -8,7 +8,11 @@ export interface DiscoveryCandidate {
   companyId: string;
   name: string;
   city: string | null;
+  /** Firmanın ülkesi (ISO-2). */
+  country?: string | null;
   rothernId: string | null;
+  /** Talepten açılışta: bu talebe zaten davetli. */
+  alreadyInvited?: boolean;
   matchedCategories: string[];
   strongMatch: boolean;
   /** Vitrindeki ürünü kalem adıyla eşleşen kalemler (1'den sıra no). */
@@ -18,9 +22,10 @@ export interface DiscoveryCandidate {
 
 /**
  * Aday durumu (API `CandidateStatus`, 2026-09-27): listede hepsi seçili gelir,
- * bunlar HARİÇ — zaten davetli, kayıtlı üye (platform yolu), önceden onay
- * isteyen ülke (AI'ın bulduğu adrese davet gitmez). INVITED yalnız kayıtlı
- * talep turlarında (bu ekrandan davet edildi).
+ * bunlar HARİÇ — zaten davetli, önceden onay isteyen ülke (AI'ın bulduğu
+ * adrese davet gitmez). MEMBER (2026-09-28): kayıtlı Rothern üyesi — e-posta
+ * değil DOĞRUDAN TALEBE davet edilir, üye grubunda en üstte ve seçili.
+ * INVITED yalnız kayıtlı talep turlarında (bu ekrandan davet edildi).
  */
 export type CandidateStatus = "SUGGESTED" | "ALREADY_INVITED" | "MEMBER" | "CONSENT_REQUIRED" | "INVITED";
 
@@ -39,6 +44,8 @@ export interface ExternalCandidate {
   status?: CandidateStatus;
   /** Son 7 günde başka alıcıdan davet aldı — davet özet e-postayla gider. */
   recentlyInvited?: boolean;
+  /** Adres ya da web sitesi kayıtlı bir firmayla eşleşti (MEMBER). */
+  memberCompanyId?: string | null;
 }
 
 export interface ExternalDiscoveryInput {
@@ -157,6 +164,11 @@ export function useSupplierDiscovery() {
 export interface RunCandidate extends ExternalCandidate {
   id: string;
   status: CandidateStatus;
+  reason: string;
+  /** Üyenin eşleştiği kategori adları (gerekçe). */
+  matchedCategories?: string[];
+  /** PLATFORM (üye dizini) | WEB (web araması) | BOTH. */
+  source?: "PLATFORM" | "WEB" | "BOTH" | null;
 }
 
 export interface DiscoveryRun {
@@ -200,17 +212,56 @@ export function useListingDiscovery(listingId: string | null | undefined, enable
   });
 }
 
+/** Üyeye doğrudan talep daveti sonucu (API `inviteDiscoveredMembers`). */
+export type MemberInviteStatus = "INVITED" | "ALREADY_INVITED" | "DAILY_LIMIT" | "NOT_ELIGIBLE";
+export interface MemberInviteResult {
+  companyId: string;
+  status: MemberInviteStatus;
+}
+
+/** Formda seçilen üye — yayında talebe doğrudan davet edilir. */
+export interface MemberInviteTarget {
+  companyId: string;
+  name: string;
+}
+
 export function useInviteDiscoveryCandidates(listingId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (candidateIds: string[]) => {
-      const { data } = await companyApi.post<{ results: ExternalInviteResult[] }>(
+      const { data } = await companyApi.post<{ results: ExternalInviteResult[]; memberResults?: MemberInviteResult[] }>(
         `/company/ai/supplier-discovery/listings/${listingId}/invite`,
         { candidateIds },
       );
+      return { results: data.results, memberResults: data.memberResults ?? [] };
+    },
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: listingDiscoveryKey(listingId) });
+      // Davetli listesi (talep sayfası) doğrudan davet edilen üyeleri de göstersin.
+      void qc.invalidateQueries({ queryKey: ["company-listings", "detail", listingId] });
+    },
+  });
+}
+
+/**
+ * AI'ın bulduğu ROTHERN ÜYELERİNİ doğrudan talebe davet (2026-09-28; bağlantı
+ * şartı yok, günlük tavan e-posta davetleriyle ortak). Form yayını ve keşif
+ * penceresi kullanır.
+ */
+export function useInviteDiscoveredMembers() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: { listingId: string; companyIds: string[] }) => {
+      const { data } = await companyApi.post<{ results: MemberInviteResult[] }>(
+        `/company/ai/supplier-discovery/listings/${input.listingId}/invite-members`,
+        { companyIds: input.companyIds.slice(0, 60) },
+      );
       return data.results;
     },
-    onSuccess: () => void qc.invalidateQueries({ queryKey: listingDiscoveryKey(listingId) }),
+    onSuccess: (_d, input) => {
+      void qc.invalidateQueries({ queryKey: listingDiscoveryKey(input.listingId) });
+      void qc.invalidateQueries({ queryKey: ["company-listings", "detail", input.listingId] });
+    },
   });
 }
 

@@ -95,6 +95,28 @@ describe("akşam özeti", () => {
   });
 });
 
+describe("davet özeti (AI üye davetleri, 2026-09-28)", () => {
+  it("INVITATION öğeleri kategori özetinden AYRI e-postada gider (davet konusu, davet bağlamı)", async () => {
+    const { svc, email } = makeService();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const a = await makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN", title: "Cıvata" });
+    const b = await makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN", title: "Rulman" });
+    const created = new Date("2026-10-07T06:00:00Z");
+    await prisma.emailDigestItem.create({
+      data: { email: "satis@firma.com", locale: "tr", companyId: seller.company.id, kind: "INVITATION", listingId: a.id, createdAt: created },
+    });
+    await prisma.emailDigestItem.create({
+      data: { email: "satis@firma.com", locale: "tr", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: b.id, createdAt: created },
+    });
+    expect(await svc.sendDigests(new Date("2026-10-07T15:30:00Z"))).toBe(2);
+    const calls = email.send.mock.calls.map((c) => c[0] as { subject: string; context: { type: string } });
+    const invite = calls.find((c) => c.context.type === "listing_invitation_digest")!;
+    expect(invite.subject).toBe("Bugün 1 talebe daha davet edildiniz");
+    expect(calls.map((c) => c.context.type).sort()).toEqual(["listing_category_digest", "listing_invitation_digest"]);
+  });
+});
+
 describe("karşılama serisi", () => {
   it("yerel 10:00'da profil adımı; aynı gün ikinci ipucu yok; tamamlanan adım atlanır", async () => {
     const clock = { now: null as Date | null };

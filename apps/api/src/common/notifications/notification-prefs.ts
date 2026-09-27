@@ -60,6 +60,9 @@ const PREF_KEY_BY_TYPE: Record<string, NotificationPrefKey | undefined> = {
   ai_supplier_suggestions: "aiSuggestions",
   // Faz 2: akşam özeti kategori tercihine, teklifsiz talep hatırlatmalara bağlı.
   listing_category_digest: "categoryMatch",
+  // AI'ın önerdiği üyeye doğrudan talep daveti (+ akşam özeti) — davet tercihi.
+  listing_invitation_ai: "invitation",
+  listing_invitation_digest: "invitation",
   listing_zero_bid: "reminder",
   // Aşağıdakiler bilinçli olarak listelenmez → transactional:
   //   password_reset, referral_invite, bid_awarded, order_status_changed

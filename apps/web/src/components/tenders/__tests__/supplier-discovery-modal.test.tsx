@@ -18,6 +18,7 @@ const h = vi.hoisted(() => ({
   external: vi.fn(),
   sendExternal: vi.fn(),
   discovery: vi.fn(),
+  inviteMembers: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }));
 vi.mock("sonner", () => ({ toast: h.toast }));
@@ -31,6 +32,7 @@ vi.mock("@/hooks/use-supplier-discovery", () => ({
   useSupplierDiscovery: () => ({ mutateAsync: h.discovery, isPending: false }),
   useExternalSupplierDiscovery: () => ({ mutateAsync: h.external, isPending: false }),
   useExternalTenderInvite: () => ({ mutateAsync: h.sendExternal, isPending: false }),
+  useInviteDiscoveredMembers: () => ({ mutateAsync: h.inviteMembers, isPending: false }),
 }));
 
 import { SupplierDiscoveryModal } from "../supplier-discovery-modal";
@@ -124,5 +126,20 @@ describe("SupplierDiscoveryModal — dış davet", () => {
       { email: "info@rohr.de", locale: "ru", country: "DE" },
       { email: "sales@truby.kz", locale: "ru", country: null },
     ]);
+  });
+
+  it("kayıtlı talep, Platformda sekmesi: üye DOĞRUDAN talebe davet edilir (bağlantı daveti değil); davetli olan kilitli", async () => {
+    h.discovery.mockResolvedValue([
+      { companyId: "co1", name: "Bağlantı AŞ", city: "Bursa", rothernId: "R1", matchedCategories: ["Cıvatalar"], strongMatch: true, matchedItems: [], connectionStatus: "NONE", alreadyInvited: false },
+      { companyId: "co2", name: "Somun Ltd", city: null, rothernId: "R2", matchedCategories: [], strongMatch: false, matchedItems: [], connectionStatus: "NONE", alreadyInvited: true },
+    ]);
+    h.inviteMembers.mockReset().mockResolvedValue([{ companyId: "co1", status: "INVITED" }]);
+    render(<SupplierDiscoveryModal isOpen onClose={() => {}} categoryIds={["39121600"]} listingId="l1" />);
+    await screen.findByText("Bağlantı AŞ");
+    expect(screen.getByText("Talebe davetli")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Talebe davet et" }));
+    await waitFor(() => expect(h.inviteMembers).toHaveBeenCalledWith({ listingId: "l1", companyIds: ["co1"] }));
+    expect(h.toast.success).toHaveBeenCalledWith("1 Rothern üyesi talebe davet edildi");
+    expect(await screen.findAllByText("Talebe davetli")).toHaveLength(2);
   });
 });

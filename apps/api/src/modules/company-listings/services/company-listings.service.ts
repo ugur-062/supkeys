@@ -1,4 +1,7 @@
 import { categoryMatchInstantAllowed, localDayStart } from "../../../common/email/email-program-policy";
+import { COMPANY_DAILY_INVITE_CAP, utcDayStart } from "../../../common/company/external-invite-policy";
+import { productSearchClauses } from "../../../common/company/product-index";
+import { publicProductWhere } from "../../../common/company/public-profile-gate";
 import { timeZoneForCountry } from "../../../common/time/country-time-zone";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { localizeDefaultAddressTitle } from "../../../common/company/default-address-title";
@@ -6774,6 +6777,246 @@ export class CompanyListingsService {
       }
     }
     return { added: toAdd.length, skipped: wanted.length - toAdd.length };
+  }
+
+  /**
+   * AI KEŞFİNİN ÖNERDİĞİ ÜYEYİ TALEBE DOĞRUDAN DAVET (2026-09-28, kullanıcı
+   * kararı: "sistemimize kayıtlıysa ayrıca gösterelim — kategori ya da kalem
+   * eşleşmesi var diye; en üstte seçili olsun, doğrudan davet edelim").
+   *
+   * Elle davetten (`addInvitations`, yalnız BAĞLANTILI firma) farkı: bağlantı
+   * şartı YOK. Yerine frenler:
+   *  - firma aktif, askıda değil, iki yönlü engel yok, talebin görünürlük
+   *    ülkesine uyuyor (davet edilse talebi göremezdi);
+   *  - alıcı başına günlük tavan dış davetlerle ORTAK (`COMPANY_DAILY_INVITE_CAP`);
+   *  - üyeye günde 3 AI kaynaklı davet e-postası anında, fazlası akşam özeti.
+   * Gerekçe SUNUCUDA hesaplanır (vitrinde kalemi satıyor / kategori eşleşiyor)
+   * ve davete yazılır; e-posta "vitrininizdeki X ürünü nedeniyle" der.
+   * Davetli firma ücretsiz paketteyse de talebi görür ve teklif verir.
+   */
+  async inviteDiscoveredMembers(user: AuthenticatedCompanyUser, listingId: string, companyIdsRaw: string[]) {
+    this.assertPaidForNewListingWork(user, "inviteSupplier");
+    const listing = await this.prisma.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        companyId: true,
+        status: true,
+        format: true,
+        closesAt: true,
+        bidsOpenAt: true,
+        type: true,
+        createdById: true,
+        title: true,
+        number: true,
+        targetCountries: true,
+        categoryIds: true,
+        inviteShowName: true,
+        items: { select: { name: true }, orderBy: { lineNo: "asc" }, take: 15 },
+      },
+    });
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
+    if (listing.companyId !== user.companyId) {
+      throw new ForbiddenException(i18nMessage("api.companyListings.sadeceIlanSahibiDavetEkleyebilir"));
+    }
+    this.assertListingManageRole(user, listing);
+    if (listing.status !== "DRAFT" && listing.status !== "OPEN") {
+      throw new BadRequestException(i18nMessage("api.companyListings.buIlanaArtikDavetEklenemez"));
+    }
+
+    const ids = [...new Set(companyIdsRaw)].filter((id) => id && id !== user.companyId).slice(0, COMPANY_DAILY_INVITE_CAP);
+    const dayStart = utcDayStart(new Date());
+    const [blockedList, companies, existing, externalToday, memberToday] = await Promise.all([
+      this.blocks.blockedCompanyIds(user.companyId),
+      this.bypass.company.findMany({
+        where: { id: { in: ids }, isActive: true, isBlocked: false },
+        select: { id: true, country: true, sellerCategoryIds: true, sellerSubCategoryIds: true },
+      }),
+      this.bypass.listingInvitation.findMany({
+        where: { listingId, invitedCompanyId: { in: ids } },
+        select: { invitedCompanyId: true },
+      }),
+      this.bypass.externalListingInvite.count({ where: { inviterCompanyId: user.companyId, createdAt: { gte: dayStart } } }),
+      this.bypass.listingInvitation.count({
+        where: { origin: "AI", listing: { companyId: user.companyId }, createdAt: { gte: dayStart } },
+      }),
+    ]);
+    const blocked = new Set(blockedList);
+    const byId = new Map(companies.map((c) => [c.id, c]));
+    const already = new Set(existing.map((e) => e.invitedCompanyId));
+    let budget = COMPANY_DAILY_INVITE_CAP - externalToday - memberToday;
+
+    type Status = "INVITED" | "ALREADY_INVITED" | "DAILY_LIMIT" | "NOT_ELIGIBLE";
+    const results: Array<{ companyId: string; status: Status }> = [];
+    const toAdd: string[] = [];
+    for (const id of ids) {
+      const c = byId.get(id);
+      if (already.has(id)) results.push({ companyId: id, status: "ALREADY_INVITED" });
+      else if (!c || blocked.has(id) || !countryCanSee(listing.targetCountries, c.country)) {
+        results.push({ companyId: id, status: "NOT_ELIGIBLE" });
+      } else if (budget <= 0) results.push({ companyId: id, status: "DAILY_LIMIT" });
+      else {
+        toAdd.push(id);
+        budget--;
+        results.push({ companyId: id, status: "INVITED" });
+      }
+    }
+    if (toAdd.length === 0) return { results };
+
+    // Gerekçe: vitrinde kalemi satan ürünün adı; yoksa kategori eşleşmesi.
+    const productOf = new Map<string, string>();
+    for (const it of listing.items) {
+      const clauses = productSearchClauses(it.name, { includeCompanyName: false });
+      if (clauses.length === 0) continue;
+      const rows = await this.bypass.companyItem.findMany({
+        where: { AND: [{ companyId: { in: toAdd } }, publicProductWhere(), ...clauses] },
+        select: { companyId: true, name: true },
+        take: 50,
+      });
+      for (const r of rows) if (!productOf.has(r.companyId)) productOf.set(r.companyId, r.name);
+    }
+    const { segmentIds, subCandidates } = deriveCategoryMatchCandidates(listing.categoryIds);
+    const seg = new Set(segmentIds);
+    const sub = new Set(subCandidates);
+    const reasonOf = (id: string): { productName?: string; category?: boolean } => {
+      const product = productOf.get(id);
+      if (product) return { productName: product };
+      const c = byId.get(id)!;
+      return c.sellerSubCategoryIds.some((x) => sub.has(x)) || c.sellerCategoryIds.some((x) => seg.has(x))
+        ? { category: true }
+        : {};
+    };
+
+    await this.bypass.listingInvitation.createMany({
+      data: toAdd.map((cid) => ({
+        listingId,
+        invitedCompanyId: cid,
+        invitedById: user.userId,
+        origin: "AI",
+        aiReason: reasonOf(cid),
+      })),
+      skipDuplicates: true,
+    });
+    void this.audit.log({
+      action: "company.listing.ai_member_invited",
+      actorType: "company",
+      actorId: user.userId,
+      actorEmail: user.email,
+      tenantId: user.companyId,
+      entityType: "listing",
+      entityId: listingId,
+      metadata: { invited: toAdd.length },
+    });
+
+    // OPEN ve embargo yoksa bildirim (arka planda; önizleme çevirisi beklenir).
+    // Embargoluda açılış duyurusu davetlilerin hepsine gider.
+    const embargoed = listing.bidsOpenAt && listing.bidsOpenAt.getTime() > Date.now();
+    if (listing.status === "OPEN" && !embargoed) {
+      void this.notifyAiMemberInvites(listing, toAdd, reasonOf, new Map(companies.map((c) => [c.id, c.country]))).catch(
+        (err) => this.logger.warn(`AI member invite notify failed (${listingId}): ${err instanceof Error ? err.message : String(err)}`),
+      );
+    }
+    return { results };
+  }
+
+  private async notifyAiMemberInvites(
+    listing: { id: string; title: string; number: string | null; type: ListingType; companyId: string; inviteShowName: boolean },
+    companyIds: string[],
+    reasonOf: (id: string) => { productName?: string; category?: boolean },
+    countryOf: Map<string, string | null>,
+  ): Promise<void> {
+    const portal = this.bidderPortal(listing.type);
+    const recipients = await this.companyRecipients(companyIds, portal);
+    const emails = [...recipients.values()].map((r) => r.email);
+    const [owner, preview, recent, sameListing] = await Promise.all([
+      this.bypass.company.findUnique({ where: { id: listing.companyId }, select: { name: true } }),
+      this.listingPreviewFor(listing.id, [...recipients.values()].map((r) => r.locale)).catch(
+        () => new Map<Locale, PreviewRow[]>(),
+      ),
+      this.bypass.emailLog.findMany({
+        where: {
+          toEmail: { in: [...recipients.values()].map((r) => r.email) },
+          contextType: "listing_invitation_ai",
+          status: { not: "FAILED" },
+          queuedAt: { gte: new Date(Date.now() - 36 * 3_600_000) },
+        },
+        select: { toEmail: true, queuedAt: true },
+      }),
+      // Bu talep için zaten e-posta almış adres (kategori duyurusu / davet)
+      // ikinci kez almaz — yalnız davetli olur ve uygulama içi bildirim görür.
+      this.bypass.emailLog.findMany({
+        where: {
+          toEmail: { in: emails },
+          contextId: listing.id,
+          contextType: { in: ["listing_category_match", "listing_invitation", "listing_invitation_ai"] },
+          status: { not: "FAILED" },
+        },
+        select: { toEmail: true },
+      }),
+    ]);
+    const alreadyMailed = new Set(sameListing.map((r) => r.toEmail));
+    const now = new Date();
+    const sentInCall = new Map<string, number>();
+    const p = {
+      title: listingTitleParam(listing.id, listing.title),
+      number: listing.number ?? "—",
+      inviter: owner?.name ?? "",
+    };
+    for (const cid of companyIds) {
+      const to = recipients.get(cid);
+      if (!to || !isNotificationEnabled(to.prefs, "listing_invitation_ai")) continue;
+      if (alreadyMailed.has(to.email)) continue;
+      // Akşam özetinde bekleyen kategori eşleşmesi davete dönüşür (tek satır).
+      await this.bypass.emailDigestItem
+        .deleteMany({ where: { email: to.email, kind: "CATEGORY_MATCH", listingId: listing.id, sentAt: null } })
+        .catch(() => undefined);
+      const dayStart = localDayStart(now, timeZoneForCountry(countryOf.get(cid)));
+      const sentToday =
+        recent.filter((r) => r.toEmail === to.email && r.queuedAt >= dayStart).length + (sentInCall.get(to.email) ?? 0);
+      if (!categoryMatchInstantAllowed({ sentTodayLocal: sentToday, allInstant: to.prefs?.categoryMatchInstant === true })) {
+        await this.bypass.emailDigestItem
+          .upsert({
+            where: { email_kind_listingId: { email: to.email, kind: "INVITATION", listingId: listing.id } },
+            create: { email: to.email, locale: to.locale, companyId: cid, kind: "INVITATION", listingId: listing.id },
+            update: {},
+          })
+          .catch(() => undefined);
+        continue;
+      }
+      sentInCall.set(to.email, (sentInCall.get(to.email) ?? 0) + 1);
+      const reason = reasonOf(cid);
+      this.notify(
+        to,
+        {
+          subjectKey:
+            listing.inviteShowName && owner?.name
+              ? "api.notifications.listings.aiInvitation.subject"
+              : "api.notifications.listings.aiInvitation.subjectAnon",
+          headingKey: "api.notifications.listings.invitation.title",
+          bodyKey: reason.productName
+            ? "api.notifications.listings.aiInvitation.bodyProduct"
+            : reason.category
+              ? "api.notifications.listings.aiInvitation.bodyCategory"
+              : "api.notifications.listings.aiInvitation.body",
+          params: { ...p, product: reason.productName ?? "" },
+          ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+          ctaUrl: (l) => appRoutes.listing(this.webUrl(), listing.id, l),
+          infoRowsFor: (l) => preview.get(l),
+          footerNoteKey: "api.notifications.listings.aiInvitation.footer",
+        },
+        { type: "listing_invitation_ai", id: listing.id },
+      );
+    }
+    await this.notifications.pushToCompanies(companyIds, {
+      type: "listing_invitation",
+      portal,
+      titleKey: "api.notifications.listings.invitation.title",
+      bodyKey: "api.notifications.listings.invitation.inAppBody",
+      ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+      params: { title: p.title, number: p.number },
+      ctaPath: appRoutes.listing(this.webUrl(), listing.id),
+      listingId: listing.id,
+    });
   }
 
   /**

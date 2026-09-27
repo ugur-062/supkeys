@@ -5494,6 +5494,21 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "api.notifications.digest.invitationBody": {
+    "hash": "5d43e6ca7e",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.digest.invitationCta": {
+    "hash": "006cbc9a21",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.digest.invitationSubject": {
+    "hash": "8d74c274a1",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "api.notifications.digest.subject": {
     "hash": "15c0c25605",
     "status": "reviewed",
@@ -5611,6 +5626,36 @@
   },
   "api.notifications.lifecycle.weekly.subject": {
     "hash": "a9b3238e53",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.listings.aiInvitation.body": {
+    "hash": "b6dc71585e",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.listings.aiInvitation.bodyCategory": {
+    "hash": "2e28802ac7",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.listings.aiInvitation.bodyProduct": {
+    "hash": "bbf20ab55d",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.listings.aiInvitation.footer": {
+    "hash": "e0a43f7884",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.listings.aiInvitation.subject": {
+    "hash": "6b9ed8652c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "api.notifications.listings.aiInvitation.subjectAnon": {
+    "hash": "2e97795386",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -20014,6 +20059,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.aiSuppliers.bandMembers": {
+    "hash": "19945b270c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.panel.requests.aiSuppliers.bandSearching": {
     "hash": "42cc98a922",
     "status": "reviewed",
@@ -20089,6 +20139,16 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.aiSuppliers.groupMembers": {
+    "hash": "a36422d36c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.groupMembersLead": {
+    "hash": "8959094b39",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.panel.requests.aiSuppliers.groupOther": {
     "hash": "861fed125c",
     "status": "reviewed",
@@ -20121,6 +20181,31 @@
   },
   "web.panel.requests.aiSuppliers.itemsChanged": {
     "hash": "f66e4e7a5f",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.memberAlsoWeb": {
+    "hash": "596a01d0fe",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.memberCategories": {
+    "hash": "e137640c7a",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.memberDailyLimit": {
+    "hash": "c982260239",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.memberInvitedToast": {
+    "hash": "92e76ed765",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.aiSuppliers.memberItems": {
+    "hash": "dd3edaf30c",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -20225,7 +20310,7 @@
     "at": "2026-09-27"
   },
   "web.panel.requests.aiSuppliers.status.MEMBER": {
-    "hash": "bc2f50bd91",
+    "hash": "d1cbc6a6e9",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -22339,6 +22424,26 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.memberInviteStatus.ALREADY_INVITED": {
+    "hash": "475680c573",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.memberInviteStatus.DAILY_LIMIT": {
+    "hash": "8ad6cceb2c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.memberInviteStatus.INVITED": {
+    "hash": "a7501456e0",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.memberInviteStatus.NOT_ELIGIBLE": {
+    "hash": "a81ae9639b",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.panel.requests.myBidStatusPanel.aliciTeklifleriDegerlendirmeyeAldiSonuc": {
     "hash": "7a8473dfa5",
     "status": "reviewed",
@@ -24349,6 +24454,21 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.publishedPanel.uyeDavetEdildiSayisi": {
+    "hash": "0bcd1f0b16",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.publishedPanel.uyeDavetleri": {
+    "hash": "08ed45039e",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.publishedPanel.uyeDavetleriGonderilemedi": {
+    "hash": "a004457c95",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.panel.requests.publishedPanel.uygunTedarikciOnerVeDavet": {
     "hash": "076f14e358",
     "status": "reviewed",
@@ -24471,6 +24591,16 @@
   },
   "web.panel.requests.quickRequest.bekleyenDisDavetlerAciklama": {
     "hash": "9d5f5923d4",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.quickRequest.bekleyenUyeDavetleri": {
+    "hash": "a909424e68",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.quickRequest.bekleyenUyeDavetleriAciklama": {
+    "hash": "f5210ba314",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -24921,6 +25051,21 @@
   },
   "web.panel.requests.quickRequest.teslimatAdresiTeklifToplamaSuresi": {
     "hash": "49638193c9",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.quickRequest.uyeDavetEdildi": {
+    "hash": "92e76ed765",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.quickRequest.uyeDavetiniKaldir": {
+    "hash": "a36c5f7e29",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.quickRequest.uyeDavetleriGonderilemedi": {
+    "hash": "a004457c95",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -25794,6 +25939,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.supplierDiscoveryModal.hepsiniTalebeDavetEt": {
+    "hash": "6f664e863b",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.panel.requests.supplierDiscoveryModal.kapat": {
     "hash": "9e6ecd5955",
     "status": "reviewed",
@@ -25834,6 +25984,16 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.supplierDiscoveryModal.talebeDavetEt": {
+    "hash": "fa539a773a",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.supplierDiscoveryModal.talebeDavetli": {
+    "hash": "25ad7dc847",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "web.panel.requests.supplierDiscoveryModal.talebeEkleN": {
     "hash": "369eeb1fc8",
     "status": "reviewed",
@@ -25851,6 +26011,11 @@
   },
   "web.panel.requests.supplierDiscoveryModal.tedarikciKaynagi": {
     "hash": "e23723874c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.supplierDiscoveryModal.uyeDogrudanTalebeDavet": {
+    "hash": "535e64c089",
     "status": "reviewed",
     "at": "2026-09-27"
   },

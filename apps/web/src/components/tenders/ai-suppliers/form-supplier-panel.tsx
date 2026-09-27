@@ -1,13 +1,13 @@
 "use client";
 
 import { Button } from "@/components/ui/button";
-import { useInviteConnection } from "@/hooks/use-company-connections";
 import {
   useExternalSupplierDiscovery,
   useSupplierDiscovery,
   type DiscoveryCandidate,
   type ExternalCandidate,
   type ExternalInviteTarget,
+  type MemberInviteTarget,
 } from "@/hooks/use-supplier-discovery";
 import { countryDisplayName } from "@/i18n/domain";
 import { clearSession, readSession, writeSession } from "@/lib/tenders/quick-draft";
@@ -33,8 +33,12 @@ import { CandidateList, isSelectable, type CandidateRow } from "./candidate-list
  * - Talep tüm ülkelere açıksa yurt içi + yurt dışı; kısıtlıysa yalnız o ülkeler.
  * - Bulunanlar SEÇİLİ gelir; seçim formun dış davet listesine yazılır
  *   (`value`), davet talep YAYINLANINCA her firmanın kendi dilinde gider.
- * - Rothern üyeleri ayrı listede (kalemlerini satan / kategorisine uyan);
- *   onlara bağlantı daveti gönderilir.
+ * - ROTHERN ÜYELERİ (2026-09-28, kullanıcı: "sistemimize kayıtlıysa ayrıca
+ *   gösterelim, kategori ya da kalem eşleşmesi var diye; davet ederken en
+ *   üstte seçili olur"): platform dizininden (kalemini vitrininde satan /
+ *   kategorisine uyan) ve web aramasında adresi bir üyeyle eşleşenlerden
+ *   oluşur, listenin EN ÜSTÜNDE ve SEÇİLİ gelir; seçim `members`a yazılır,
+ *   yayında talebe DOĞRUDAN davet edilir (bağlantı şartı yok).
  */
 const RESULTS_KEY = "rothern:quick-ai-suppliers";
 const AUTO_KEY = "rothern:quick-ai-suppliers:auto";
@@ -52,6 +56,51 @@ interface Stored {
   members: DiscoveryCandidate[];
 }
 
+const memberKey = (companyId: string) => `m:${companyId}`;
+
+function memberFromPlatform(m: DiscoveryCandidate): CandidateRow {
+  return {
+    key: memberKey(m.companyId),
+    name: m.name,
+    email: null,
+    website: null,
+    city: m.city,
+    country: m.country ?? null,
+    reason: null,
+    matchedItems: m.matchedItems ?? [],
+    scope: null,
+    status: m.alreadyInvited ? "ALREADY_INVITED" : "MEMBER",
+    memberCompanyId: m.companyId,
+    matchedCategories: m.matchedCategories,
+  };
+}
+
+/**
+ * Üyeler (platform + web'de adresi üyeyle eşleşenler) EN ÜSTTE, sonra web
+ * adayları. Web'de de bulunan üye tek satırda birleşir ("web'de de bulundu").
+ */
+export function combineRows(platform: DiscoveryCandidate[], web: CandidateRow[]): CandidateRow[] {
+  const members = platform.map(memberFromPlatform);
+  const byId = new Map(members.map((m) => [m.memberCompanyId!, m]));
+  const external: CandidateRow[] = [];
+  for (const r of web) {
+    if (!r.memberCompanyId || r.status === "CONSENT_REQUIRED") {
+      external.push(r);
+      continue;
+    }
+    const hit = byId.get(r.memberCompanyId);
+    if (hit) {
+      hit.alsoOnWeb = true;
+      hit.matchedItems = [...new Set([...(hit.matchedItems ?? []), ...(r.matchedItems ?? [])])].sort((a, b) => a - b);
+      continue;
+    }
+    const row: CandidateRow = { ...r, key: memberKey(r.memberCompanyId), email: null, alsoOnWeb: true };
+    members.push(row);
+    byId.set(r.memberCompanyId, row);
+  }
+  return [...members, ...external];
+}
+
 function toRow(c: ExternalCandidate): CandidateRow {
   return {
     key: (c.email ?? c.name).toLowerCase(),
@@ -65,6 +114,7 @@ function toRow(c: ExternalCandidate): CandidateRow {
     scope: c.scope ?? null,
     status: c.status ?? "SUGGESTED",
     recentlyInvited: c.recentlyInvited ?? false,
+    memberCompanyId: c.memberCompanyId ?? null,
   };
 }
 
@@ -93,6 +143,8 @@ export function FormSupplierPanel({
   available,
   value,
   onChange,
+  members: memberValue,
+  onMembersChange,
 }: {
   /** Adı girilmiş kalemler, formdaki sırayla (sıra no = aday `matchedItems`). */
   itemNames: string[];
@@ -104,24 +156,29 @@ export function FormSupplierPanel({
   /** Yayında davet gidecek dış adresler (formun listesi). */
   value: ExternalInviteTarget[];
   onChange: (next: ExternalInviteTarget[]) => void;
+  /** Yayında talebe doğrudan davet edilecek üyeler. */
+  members: MemberInviteTarget[];
+  onMembersChange: (next: MemberInviteTarget[]) => void;
 }) {
   const t = useTranslations("web.panel.requests.aiSuppliers");
   const uiLocale = useLocale() as Locale;
   const external = useExternalSupplierDiscovery();
   const platform = useSupplierDiscovery();
-  const connect = useInviteConnection();
   const [rows, setRows] = useState<CandidateRow[]>([]);
   const [members, setMembers] = useState<DiscoveryCandidate[]>([]);
   const [searchKey, setSearchKey] = useState<string | null>(null);
   const [failed, setFailed] = useState(false);
   const [moreBusy, setMoreBusy] = useState<string | null>(null);
-  const [connected, setConnected] = useState<Set<string>>(new Set());
   // Kullanıcının bilerek çıkardığı adaylar yeni aramada yeniden seçilmez.
   const [deselected, setDeselected] = useState<Set<string>>(new Set());
   const restored = useRef(false);
   // Arama ~1 dk sürer; bu arada kullanıcı seçimi değiştirebilir → güncel liste.
   const valueRef = useRef(value);
   valueRef.current = value;
+  const memberRef = useRef(memberValue);
+  memberRef.current = memberValue;
+  const deselectedRef = useRef(deselected);
+  deselectedRef.current = deselected;
 
   const currentKey = useMemo(
     () => JSON.stringify([itemNames.map((n) => n.trim().toLowerCase()), [...targetCountries].sort()]),
@@ -144,20 +201,36 @@ export function FormSupplierPanel({
     writeSession(RESULTS_KEY, { searchKey, rows, members } satisfies Stored);
   }, [rows, members, searchKey]);
 
-  const selectedKeys = useMemo(() => new Set(value.map((v) => v.email.toLowerCase())), [value]);
+  const allRows = useMemo(() => combineRows(members, rows), [members, rows]);
+  const selectedKeys = useMemo(
+    () => new Set([...value.map((v) => v.email.toLowerCase()), ...memberValue.map((m) => memberKey(m.companyId))]),
+    [value, memberValue],
+  );
   const emit = (next: ExternalInviteTarget[]) => onChange(next);
+  const memberTarget = (r: CandidateRow): MemberInviteTarget => ({ companyId: r.memberCompanyId!, name: r.name });
   const targetOf = (r: CandidateRow): ExternalInviteTarget => ({
     email: r.email!.toLowerCase(),
     locale: recipientLocale({ country: r.country ?? null, email: r.email, website: r.website, fallback: uiLocale }),
     country: r.country ?? null,
   });
 
-  /** Yeni bulunan seçilebilir adaylar SEÇİLİ gelir (kullanıcı kararı). */
+  /** Yeni bulunan seçilebilir adaylar SEÇİLİ gelir (kullanıcı kararı); üyeler de. */
   const preselect = (found: CandidateRow[]) => {
     const cur = valueRef.current;
     const have = new Set(cur.map((v) => v.email.toLowerCase()));
-    const add = found.filter((r) => isSelectable(r) && !have.has(r.key) && !deselected.has(r.key)).map(targetOf);
+    const fresh = found.filter((r) => isSelectable(r) && !deselectedRef.current.has(r.key));
+    const add = fresh.filter((r) => !r.memberCompanyId && !have.has(r.key)).map(targetOf);
     if (add.length > 0) emit([...cur, ...add]);
+    const curM = memberRef.current;
+    const haveM = new Set(curM.map((m) => m.companyId));
+    const addM = fresh
+      .filter((r) => r.memberCompanyId && r.status === "MEMBER" && !haveM.has(r.memberCompanyId))
+      .map(memberTarget);
+    if (addM.length > 0) {
+      const next = [...curM, ...addM];
+      memberRef.current = next;
+      onMembersChange(next);
+    }
   };
 
   const runSearch = async (names: string[], opts: { merge: boolean }) => {
@@ -168,7 +241,10 @@ export function FormSupplierPanel({
     if (!opts.merge) {
       void platform
         .mutateAsync({ ...base, itemNames: names })
-        .then(setMembers)
+        .then((found) => {
+          setMembers(found);
+          preselect(found.map(memberFromPlatform));
+        })
         .catch(() => undefined);
     }
     try {
@@ -204,29 +280,35 @@ export function FormSupplierPanel({
   }, [available, currentKey, searchKey]);
 
   const toggle = (key: string) => {
-    const r = rows.find((x) => x.key === key);
+    const r = allRows.find((x) => x.key === key);
     if (!r || !isSelectable(r)) return;
-    if (selectedKeys.has(key)) {
-      setDeselected((s) => new Set(s).add(key));
-      emit(value.filter((v) => v.email.toLowerCase() !== key));
+    const on = !selectedKeys.has(key);
+    setDeselected((s) => {
+      const n = new Set(s);
+      if (on) n.delete(key);
+      else n.add(key);
+      return n;
+    });
+    if (r.memberCompanyId) {
+      onMembersChange(on ? [...memberValue, memberTarget(r)] : memberValue.filter((m) => m.companyId !== r.memberCompanyId));
     } else {
-      setDeselected((s) => {
-        const n = new Set(s);
-        n.delete(key);
-        return n;
-      });
-      emit([...value, targetOf(r)]);
+      emit(on ? [...value, targetOf(r)] : value.filter((v) => v.email.toLowerCase() !== key));
     }
   };
   const setMany = (keys: string[], on: boolean) => {
     const set = new Set(keys);
+    const picked = allRows.filter((r) => set.has(r.key) && isSelectable(r));
+    const memberIds = new Set(picked.filter((r) => r.memberCompanyId).map((r) => r.memberCompanyId!));
     if (on) {
-      const add = rows.filter((r) => set.has(r.key) && isSelectable(r) && !selectedKeys.has(r.key)).map(targetOf);
       setDeselected((s) => new Set([...s].filter((k) => !set.has(k))));
-      emit([...value, ...add]);
+      const add = picked.filter((r) => !r.memberCompanyId && !selectedKeys.has(r.key)).map(targetOf);
+      if (add.length) emit([...value, ...add]);
+      const addM = picked.filter((r) => r.memberCompanyId && !selectedKeys.has(r.key)).map(memberTarget);
+      if (addM.length) onMembersChange([...memberValue, ...addM]);
     } else {
       setDeselected((s) => new Set([...s, ...keys]));
-      emit(value.filter((v) => !set.has(v.email.toLowerCase())));
+      if (picked.some((r) => !r.memberCompanyId)) emit(value.filter((v) => !set.has(v.email.toLowerCase())));
+      if (memberIds.size) onMembersChange(memberValue.filter((m) => !memberIds.has(m.companyId)));
     }
   };
 
@@ -239,20 +321,9 @@ export function FormSupplierPanel({
     }
   };
 
-  const sendConnect = async (c: DiscoveryCandidate) => {
-    if (!c.rothernId) return;
-    try {
-      await connect.mutateAsync(c.rothernId);
-      setConnected((s) => new Set(s).add(c.companyId));
-      toast.success(t("connectSentToast", { name: c.name }));
-    } catch (err) {
-      toast.error(extractErrorMessage(err, t("connectFailed")));
-    }
-  };
-
-  const covered = new Set(rows.flatMap((r) => r.matchedItems ?? []));
+  const covered = new Set(allRows.flatMap((r) => r.matchedItems ?? []));
   const uncovered = searchKey !== null ? itemNames.filter((_, i) => !covered.has(i + 1)) : [];
-  const selectedCount = rows.filter((r) => isSelectable(r) && selectedKeys.has(r.key)).length;
+  const selectedCount = allRows.filter((r) => isSelectable(r) && selectedKeys.has(r.key)).length;
   const stale = searchKey !== null && searchKey !== currentKey;
   const restricted = targetCountries.length > 0;
 
@@ -298,19 +369,19 @@ export function FormSupplierPanel({
         </p>
       ) : null}
 
-      {searchKey !== null && !external.isPending ? (
+      {(searchKey !== null && !external.isPending) || (external.isPending && members.length > 0) ? (
         <div className="mt-4 space-y-4">
-          {rows.length === 0 ? (
+          {allRows.length === 0 ? (
             <p className="text-sm text-zinc-700">{failed ? t("failed") : t("noResults")}</p>
           ) : (
             <>
               <p className="text-xs font-medium text-zinc-700">
-                {t("resultsSummary", { n: rows.length, covered: covered.size, total: itemNames.length })}
+                {t("resultsSummary", { n: allRows.length, covered: covered.size, total: itemNames.length })}
                 {" · "}
                 <span className="text-blue-800">{t("selectedSummary", { n: selectedCount })}</span>
               </p>
               <CandidateList
-                candidates={rows}
+                candidates={allRows}
                 itemNames={itemNames}
                 buyerCountry={buyerCountry}
                 selected={selectedKeys}
@@ -341,37 +412,6 @@ export function FormSupplierPanel({
         </div>
       ) : null}
 
-      {members.length > 0 && !external.isPending ? (
-        <div className="mt-5 border-t border-blue-200 pt-4">
-          <p className="text-sm font-semibold text-zinc-900">{t("membersTitle")}</p>
-          <p className="mt-0.5 text-xs text-zinc-600">{t("membersLead")}</p>
-          <ul className="mt-3 space-y-2">
-            {members.map((m) => {
-              const sent = connected.has(m.companyId) || m.connectionStatus === "PENDING";
-              const items = (m.matchedItems ?? []).map((n) => itemNames[n - 1]).filter(Boolean).join(", ");
-              return (
-                <li key={m.companyId} className="flex flex-wrap items-center justify-between gap-2 rounded-xl bg-white p-3 ring-1 ring-zinc-200">
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-zinc-900">{m.name}</p>
-                    <p className="text-xs text-zinc-600">
-                      {[m.city, ...m.matchedCategories].filter(Boolean).join(" · ")}
-                    </p>
-                    {items ? <p className="text-xs font-medium text-zinc-800">{t("inCatalog", { items })}</p> : null}
-                  </div>
-                  <Button
-                    type="button"
-                    variant="secondary"
-                    disabled={sent || connect.isPending || !m.rothernId}
-                    onClick={() => void sendConnect(m)}
-                  >
-                    {sent ? t("connectSent") : t("connect")}
-                  </Button>
-                </li>
-              );
-            })}
-          </ul>
-        </div>
-      ) : null}
     </div>
   );
 }

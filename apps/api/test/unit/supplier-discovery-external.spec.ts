@@ -27,6 +27,8 @@ function rig(opts: {
   optOuts?: string[];
   users?: Array<{ email: string; companyId: string }>;
   invited?: string[];
+  /** Bu talebe zaten davetli ÜYE firmalar (ListingInvitation). */
+  invitedMembers?: string[];
   recent?: string[];
   hostCompanies?: Array<{ id: string; website: string }>;
   noMx?: string[];
@@ -47,6 +49,9 @@ function rig(opts: {
     referralOptOut: { findMany: jest.fn().mockResolvedValue((opts.optOuts ?? []).map((email) => ({ email }))) },
     companyUser: { findMany: jest.fn().mockResolvedValue(opts.users ?? []) },
     externalListingInvite: { findMany: jest.fn().mockResolvedValue((opts.invited ?? []).map((email) => ({ email }))) },
+    listingInvitation: {
+      findMany: jest.fn().mockResolvedValue((opts.invitedMembers ?? []).map((invitedCompanyId) => ({ invitedCompanyId }))),
+    },
     emailLog: { findMany: jest.fn().mockResolvedValue((opts.recent ?? []).map((toEmail) => ({ toEmail }))) },
   };
   const parsedList = Array.isArray(opts.parsed) ? opts.parsed : null;
@@ -168,7 +173,11 @@ describe("SupplierDiscoveryService.annotate — mükerrer davet koruması", () =
       users: [{ email: "uye@x.com", companyId: "c9" }],
       invited: ["davetli@x.com"],
       recent: ["yeni@x.com"],
-      hostCompanies: [{ id: "c8", website: "https://www.kayitli-firma.com" }],
+      hostCompanies: [
+        { id: "c8", website: "https://www.kayitli-firma.com" },
+        { id: "c7", website: "https://davetli-uye.com" },
+      ],
+      invitedMembers: ["c7"],
       noMx: ["olu@yok-alan.com"],
     });
     const out = await service.annotate("c1", "l1", [
@@ -181,6 +190,8 @@ describe("SupplierDiscoveryService.annotate — mükerrer davet koruması", () =
       { ...base, name: "Site üye", email: "info@kayitli-firma.com", website: "kayitli-firma.com/tr", country: "TR" },
       { ...base, name: "A info", email: "info@ayni.com", website: "https://ayni.com", country: "TR" },
       { ...base, name: "A satış", email: "satis@ayni.com", website: "http://www.ayni.com", country: "TR" },
+      // Üye bu talebe zaten davetli → yeniden davet önerilmez (2026-09-28).
+      { ...base, name: "Davetli üye", email: "info@davetli-uye.com", website: "davetli-uye.com", country: "TR" },
     ]);
     expect(out.map((c) => [c.name, c.status, c.recentlyInvited])).toEqual([
       ["Üye", "MEMBER", false],
@@ -188,6 +199,7 @@ describe("SupplierDiscoveryService.annotate — mükerrer davet koruması", () =
       ["Yeni", "SUGGESTED", true],
       ["Site üye", "MEMBER", false],
       ["A info", "SUGGESTED", false],
+      ["Davetli üye", "ALREADY_INVITED", false],
     ]);
   });
 

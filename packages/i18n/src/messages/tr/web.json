@@ -2937,7 +2937,11 @@
         "baglantiDavetiGonder": "Bağlantı daveti gönder",
         "davetDiliFirma": "{name} için davet dili",
         "davetDiliIpucu": "Davet e-postası satırda seçilen dilde gider; varsayılan dil firmanın ülkesinden gelir.",
-        "davetlerSirayaAlindi": "{n, plural, other {# davet}} sıraya alındı; e-postalar alıcının ülkesinde mesai saatinde gönderilir."
+        "davetlerSirayaAlindi": "{n, plural, other {# davet}} sıraya alındı; e-postalar alıcının ülkesinde mesai saatinde gönderilir.",
+        "hepsiniTalebeDavetEt": "Hepsini talebe davet et ({n, number})",
+        "talebeDavetli": "Talebe davetli",
+        "talebeDavetEt": "Talebe davet et",
+        "uyeDogrudanTalebeDavet": "Rothern üyeleri doğrudan talebinize davet edilir — bağlantınız olmaları gerekmez; uygulamada ve e-postayla haberdar olurlar."
       },
       "ihaleitemspanel": {
         "kalemlerYuklenemedi": "Kalemler yüklenemedi.",
@@ -3563,7 +3567,12 @@
         "yayinIcinFirmaDogrulamasiGerekir": "Yayın için firma doğrulaması gerekir — <link>belgeleri yükleyin</link>. Şimdilik taslak kaydedebilirsiniz.",
         "belgeleriYukleyin": "belgeleri yükleyin",
         "disDavetDili": "{email} için davet dili",
-        "disDavetSirayaAlindi": "{n, plural, other {# davet}} sıraya alındı; e-postalar alıcının ülkesinde mesai saatinde gönderilir."
+        "disDavetSirayaAlindi": "{n, plural, other {# davet}} sıraya alındı; e-postalar alıcının ülkesinde mesai saatinde gönderilir.",
+        "uyeDavetleriGonderilemedi": "Üye davetleri gönderilemedi. Talep sayfasından yeniden deneyin.",
+        "uyeDavetEdildi": "{n, plural, other {# Rothern üyesi}} talebe davet edildi",
+        "bekleyenUyeDavetleri": "Talebe doğrudan davet edilecek Rothern üyeleri ({n, number})",
+        "bekleyenUyeDavetleriAciklama": "Talep yayınlanınca bu firmalar talebinize davetli olur ve uygulamada ve e-postayla haberdar edilir. Bağlantınız olmaları gerekmez.",
+        "uyeDavetiniKaldir": "{name} davetini kaldır"
       },
       "publishedPanel": {
         "talebinizYayinda": "Talebiniz yayında",
@@ -3575,7 +3584,10 @@
         "davetEPostalari": "Davet e-postaları",
         "davetEPostalariGonderilemedi": "Davet e-postaları gönderilemedi; talep sayfasındaki “AI ile tedarikçi bul” ile yeniden deneyebilirsiniz.",
         "davetGonderildiSayisi": "{n, number} davet e-postası gönderildi",
-        "davetSirayaAlindiSayisi": "{n, plural, other {# davet}} sıraya alındı — e-postalar alıcının ülkesinde mesai saatinde gönderilir"
+        "davetSirayaAlindiSayisi": "{n, plural, other {# davet}} sıraya alındı — e-postalar alıcının ülkesinde mesai saatinde gönderilir",
+        "uyeDavetleri": "Rothern üyeleri",
+        "uyeDavetleriGonderilemedi": "Üye davetleri gönderilemedi. Talep sayfasından yeniden deneyin.",
+        "uyeDavetEdildiSayisi": "{n, plural, other {# üye}} talebe davet edildi — uygulamada ve e-postayla haberdar edilirler."
       },
       "externalInviteStatus": {
         "SENT": "Gönderildi",
@@ -4059,7 +4071,7 @@
         "status": {
           "ALREADY_INVITED": "Zaten davetli",
           "INVITED": "Davet edildi",
-          "MEMBER": "Rothern üyesi — platformda haberdar olur",
+          "MEMBER": "Rothern üyesi",
           "CONSENT_REQUIRED": "Bu ülkeye izinsiz davet gönderilmiyor"
         },
         "recentlyInvited": "Bu hafta başka bir alıcıdan davet aldı — davetiniz özet e-postayla gider",
@@ -4077,13 +4089,6 @@
         "noResults": "AI uygun firma bulamadı. Kalem adlarını daha açık yazıp yeniden deneyin.",
         "failed": "Arama tamamlanamadı. Yeniden deneyin.",
         "goldOnly": "AI ile tedarikçi bulma Gold pakette açılır.",
-        "membersTitle": "Rothern'deki satıcılar",
-        "membersLead": "Kalemlerinizi satan ya da kategorinize uyan Rothern üyeleri. Bağlantı daveti gönderebilirsiniz.",
-        "connect": "Bağlantı daveti gönder",
-        "connectSent": "Davet gönderildi",
-        "connectSentToast": "{name} firmasına bağlantı daveti gönderildi",
-        "connectFailed": "Bağlantı daveti gönderilemedi",
-        "inCatalog": "Vitrininde: {items}",
         "bandTitle": "AI {n, plural, other {# tedarikçi}} buldu",
         "bandAbroad": "(yurt dışından: {n, number})",
         "bandLead": "Hepsi seçili geldi; istemediklerinizi çıkarın ve tek tıkla davet edin. Davetler her firmanın kendi dilinde ve kendi ülkesinde mesai saatinde gider.",
@@ -4102,7 +4107,15 @@
         "showNameToggle": "Davet e-postasında firma adım görünsün",
         "showNameHint": "Kapatırsanız davette \"Bir alıcı firma\" yazar. Firma adı görünen davetler daha çok yanıt alır.",
         "summaryInSection1": "AI'ın bulduğu firmalar 1. bölümdeki listede.",
-        "goToList": "Listeye git"
+        "goToList": "Listeye git",
+        "groupMembers": "Rothern'de kayıtlı",
+        "groupMembersLead": "Doğrudan talebinize davet edilir; uygulamada ve e-postayla haberdar olurlar. Bağlantınız olmaları gerekmez.",
+        "memberItems": "Kalem eşleşmesi: {items}",
+        "memberCategories": "Kategori eşleşmesi: {categories}",
+        "memberAlsoWeb": "Web'de de bulundu",
+        "memberInvitedToast": "{n, plural, other {# Rothern üyesi}} talebe davet edildi",
+        "memberDailyLimit": "Günlük davet sınırı doldu — {n, plural, other {# firma}} yarın davet edilebilir",
+        "bandMembers": "(Rothern üyesi: {n, number})"
       },
       "share": {
         "title": "Talebinizi paylaşın",
@@ -4114,6 +4127,12 @@
         "copied": "Bağlantı kopyalandı",
         "text": "Alım talebi: {title} — Rothern'de teklif verin",
         "emailSubject": "Alım talebi: {title}"
+      },
+      "memberInviteStatus": {
+        "INVITED": "Talebe davet edildi",
+        "ALREADY_INVITED": "Zaten davetli",
+        "DAILY_LIMIT": "Günlük davet sınırı doldu",
+        "NOT_ELIGIBLE": "Bu talebi göremiyor (ülke kısıtı ya da engel)"
       }
     },
     "trade": {

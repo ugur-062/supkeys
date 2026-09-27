@@ -12,10 +12,17 @@ import { isNotificationEnabled } from "../../../common/notifications/notificatio
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { CompanyConnectionsService } from "../../company-connections/services/company-connections.service";
 import { listingManageDenial } from "../../company-listings/listing-manage-access";
+import { CompanyListingsService } from "../../company-listings/services/company-listings.service";
 import { EmailService } from "../../email/email.service";
 import { NotificationService } from "../../notifications/notification.service";
 import { AiService } from "../ai.service";
-import { SupplierDiscoveryService, websiteHost, type DiscoveryAiRunner } from "./supplier-discovery.service";
+import {
+  SupplierDiscoveryService,
+  websiteHost,
+  type AnnotatedCandidate,
+  type DiscoveryAiRunner,
+  type DiscoveryCandidate,
+} from "./supplier-discovery.service";
 
 const MINUTE_MS = 60_000;
 const HOUR_MS = 60 * MINUTE_MS;
@@ -49,6 +56,12 @@ export const AI_SUGGESTIONS_NOTIFICATION = "ai_supplier_suggestions";
  *    e-posta ("N tedarikçi bulundu"); e-postadaki düğme listeyi AÇAR, gönderim
  *    uygulama içinde (güvenlik tarayıcıları bağlantıyı açabilir).
  *  - Süre yarılandığında teklif 3'ten azsa İKİNCİ TUR (önceki adaylar hariç).
+ *  - ROTHERN ÜYELERİ (2026-09-28, kullanıcı: "sistemimize kayıtlıysa ayrıca
+ *    gösterelim, kategori ya da kalem eşleşmesi var diye"): tur platform
+ *    dizinini de tarar (model çağrısı yok, AI kapalıyken de); web aramasında
+ *    adresi/sitesi bir üyeyle eşleşen aday da üye sayılır (kaynak BOTH). Üye
+ *    adayı (`status = MEMBER`, `memberCompanyId`) e-posta davetine değil
+ *    DOĞRUDAN TALEBE davet edilir (`inviteDiscoveredMembers`, bağlantı şartı yok).
  */
 @Injectable()
 export class DiscoveryRunsService {
@@ -63,6 +76,7 @@ export class DiscoveryRunsService {
     private readonly config: ConfigService,
     @Optional() private readonly email?: EmailService,
     @Optional() private readonly notifications?: NotificationService,
+    @Optional() private readonly listings?: CompanyListingsService,
   ) {}
 
   /** Talep için tur kuyruğa al (aynı talepte bekleyen/koşan tur varsa yenisi açılmaz). */
@@ -154,59 +168,75 @@ export class DiscoveryRunsService {
       await fail("listing_not_open");
       return true;
     }
-    if (!this.ai.isEnabled) {
-      await fail("ai_disabled");
-      return true;
-    }
-    if ((await this.spentTodayUsd(now)) >= this.dailyBudgetUsd()) {
-      await fail("platform_daily_budget");
-      return true;
-    }
     try {
       const [owner, creator, previous] = await Promise.all([
         this.bypass.company.findUnique({ where: { id: run.companyId }, select: { country: true } }),
         this.bypass.companyUser.findUnique({ where: { id: run.listing.createdById }, select: { locale: true } }),
         this.bypass.supplierDiscoveryCandidate.findMany({
           where: { run: { listingId: run.listingId }, runId: { not: runId } },
-          select: { email: true, website: true },
+          select: { email: true, website: true, memberCompanyId: true },
         }),
       ]);
       const locale: Locale = isLocale(creator?.locale) ? creator.locale : "tr";
-      const runner: DiscoveryAiRunner = async ({ stage: _stage, ...opts }) => this.ai.callAiSystem(opts);
-      const { companies, costUsd } = await this.discovery.searchWeb(
-        {
-          buyerCountry: owner?.country ?? null,
-          targetCountries: run.targetCountries,
+      const itemNames = run.listing.items.map((i) => i.name);
+      const seenMembers = new Set(previous.map((p) => p.memberCompanyId).filter((m): m is string => !!m));
+
+      // 1) Platform üyeleri — model çağrısı yok, bütçeden bağımsız.
+      const platform = await this.discovery
+        .discoverRegisteredFor(run.companyId, {
           categoryIds: run.listing.categoryIds,
-          itemNames: run.listing.items.map((i) => i.name),
+          itemNames,
+          listingId: run.listingId,
           locale,
-          excludeEmails: previous.map((p) => p.email).filter((e): e is string => !!e),
-          excludeHosts: previous.map((p) => websiteHost(p.website)).filter((h): h is string => !!h),
-        },
-        runner,
-      );
-      const annotated = await this.discovery.annotate(run.companyId, run.listingId, companies, now);
-      if (annotated.length > 0) {
-        await this.bypass.supplierDiscoveryCandidate.createMany({
-          data: annotated.map((c) => ({
-            runId,
-            name: c.name,
-            email: c.email,
-            website: c.website,
-            city: c.city,
-            country: c.country,
-            reason: c.reason,
-            matchedItems: c.matchedItems,
-            scope: c.scope,
-            status: c.status,
-            recentlyInvited: c.recentlyInvited,
-            memberCompanyId: c.memberCompanyId,
-          })),
+        })
+        .then((r) => r.candidates.filter((c) => !seenMembers.has(c.companyId)))
+        .catch((err) => {
+          this.logger.warn(`discovery run ${runId} platform pass failed: ${err instanceof Error ? err.message : String(err)}`);
+          return [] as DiscoveryCandidate[];
         });
+
+      // 2) Web araması — AI açık ve platform bütçesi yetiyorsa.
+      let web: AnnotatedCandidate[] = [];
+      let costUsd: number | null = null;
+      let webError: string | null = null;
+      if (!this.ai.isEnabled) webError = "ai_disabled";
+      else if ((await this.spentTodayUsd(now)) >= this.dailyBudgetUsd()) webError = "platform_daily_budget";
+      else {
+        try {
+          const runner: DiscoveryAiRunner = async ({ stage: _stage, ...opts }) => this.ai.callAiSystem(opts);
+          const found = await this.discovery.searchWeb(
+            {
+              buyerCountry: owner?.country ?? null,
+              targetCountries: run.targetCountries,
+              categoryIds: run.listing.categoryIds,
+              itemNames,
+              locale,
+              excludeEmails: previous.map((p) => p.email).filter((e): e is string => !!e),
+              excludeHosts: previous.map((p) => websiteHost(p.website)).filter((h): h is string => !!h),
+            },
+            runner,
+          );
+          costUsd = found.costUsd;
+          web = await this.discovery.annotate(run.companyId, run.listingId, found.companies, now);
+        } catch (err) {
+          webError = err instanceof Error ? err.message : String(err);
+          this.logger.warn(`discovery run ${runId} web pass failed: ${webError}`);
+        }
       }
+
+      const rows = mergeCandidates(platform, web, seenMembers, owner?.country ?? null);
+      if (rows.length > 0) {
+        await this.bypass.supplierDiscoveryCandidate.createMany({ data: rows.map((r) => ({ runId, ...r })) });
+      }
+      // Web yolu düştü ama üye bulundu → tur yine DONE (öneri var); hata not düşer.
       await this.bypass.supplierDiscoveryRun.update({
         where: { id: runId },
-        data: { state: "DONE", finishedAt: new Date(), costUsd },
+        data: {
+          state: webError && rows.length === 0 ? "FAILED" : "DONE",
+          error: webError ? webError.slice(0, 300) : null,
+          finishedAt: new Date(),
+          costUsd,
+        },
       });
     } catch (err) {
       this.logger.warn(`discovery run ${runId} failed: ${err instanceof Error ? err.message : String(err)}`);
@@ -273,7 +303,7 @@ export class DiscoveryRunsService {
     let n = 0;
     for (const run of runs) {
       await this.bypass.supplierDiscoveryRun.update({ where: { id: run.id }, data: { notifiedAt: now } });
-      const open = run.candidates.filter((c) => c.status === "SUGGESTED");
+      const open = run.candidates.filter((c) => c.status === "SUGGESTED" || c.status === "MEMBER");
       if (!run.listing || !run.listingId || open.length === 0) continue;
       const abroad = open.filter((c) => c.scope === "ABROAD").length;
       await this.notifyCreator(run.listingId, run.listing, open.length, abroad).catch((err) =>
@@ -373,20 +403,28 @@ export class DiscoveryRunsService {
             scope: true,
             status: true,
             recentlyInvited: true,
+            memberCompanyId: true,
+            matchedCategories: true,
+            source: true,
           },
         },
       },
     });
-    // Ekrandan (pencere/form) sonradan davet edilmiş adres de "davet edildi" görünsün.
+    // Ekrandan (pencere/form) sonradan davet edilmiş adres/üye de "davet edildi" görünsün.
     const emails = runs.flatMap((r) => r.candidates.map((c) => c.email)).filter((e): e is string => !!e);
-    const invited = new Set(
-      (
-        await this.prisma.externalListingInvite.findMany({
-          where: { listingId, email: { in: emails } },
-          select: { email: true },
-        })
-      ).map((i) => i.email),
-    );
+    const memberIds = runs.flatMap((r) => r.candidates.map((c) => c.memberCompanyId)).filter((m): m is string => !!m);
+    const [invitedEmails, invitedMembers] = await Promise.all([
+      this.prisma.externalListingInvite.findMany({
+        where: { listingId, email: { in: emails } },
+        select: { email: true },
+      }),
+      this.prisma.listingInvitation.findMany({
+        where: { listingId, invitedCompanyId: { in: memberIds } },
+        select: { invitedCompanyId: true },
+      }),
+    ]);
+    const invited = new Set(invitedEmails.map((i) => i.email));
+    const invitedMember = new Set(invitedMembers.map((i) => i.invitedCompanyId));
     return {
       aiDiscovery: listing.aiDiscovery,
       listingStatus: listing.status,
@@ -394,38 +432,76 @@ export class DiscoveryRunsService {
         ...r,
         candidates: r.candidates.map((c) => ({
           ...c,
-          status: c.status === "SUGGESTED" && c.email && invited.has(c.email) ? "INVITED" : c.status,
+          status:
+            c.status === "MEMBER" && c.memberCompanyId && invitedMember.has(c.memberCompanyId)
+              ? "INVITED"
+              : c.status === "SUGGESTED" && c.email && invited.has(c.email)
+                ? "INVITED"
+                : c.status,
         })),
       })),
     };
   }
 
-  /** Seçilen adaylara tek tıkla davet — kuyruk (`AI_AUTO`), kurallar kuyrukta. */
+  /**
+   * Seçilen adaylara tek tıkla davet: Rothern üyesi → DOĞRUDAN talebe
+   * (`inviteDiscoveredMembers`, bağlantı şartı yok, günlük tavan davet
+   * kuyruğuyla ortak); diğerleri → e-posta kuyruğu (`AI_AUTO`).
+   */
   async invite(user: AuthenticatedCompanyUser, listingId: string, candidateIds: string[]) {
     await this.ownListing(user, listingId);
     const cands = await this.prisma.supplierDiscoveryCandidate.findMany({
       where: {
         id: { in: candidateIds.slice(0, 60) },
-        status: "SUGGESTED",
-        email: { not: null },
+        OR: [
+          { status: "SUGGESTED", email: { not: null } },
+          { status: "MEMBER", memberCompanyId: { not: null } },
+        ],
         run: { listingId, companyId: user.companyId },
       },
-      select: { id: true, email: true, country: true },
+      select: { id: true, email: true, country: true, status: true, memberCompanyId: true },
     });
-    if (cands.length === 0) return { results: [] };
-    const { results } = await this.connections.inviteExternalForListing(
-      user,
-      listingId,
-      cands.map((c) => ({ email: c.email!, country: c.country })),
-      "AI_AUTO",
-    );
-    const statusOf = new Map(results.map((r) => [r.email, r.status]));
-    for (const c of cands) {
-      const st = statusOf.get(c.email!);
-      const next = st === "QUEUED" ? "INVITED" : st === "ALREADY_INVITED" ? "ALREADY_INVITED" : null;
-      if (next) await this.prisma.supplierDiscoveryCandidate.update({ where: { id: c.id }, data: { status: next } });
+    const members = cands.filter((c) => c.status === "MEMBER" && c.memberCompanyId);
+    const externals = cands.filter((c) => c.status === "SUGGESTED" && c.email);
+
+    let memberResults: Array<{ companyId: string; status: string }> = [];
+    if (members.length > 0 && this.listings) {
+      ({ results: memberResults } = await this.listings.inviteDiscoveredMembers(
+        user,
+        listingId,
+        members.map((c) => c.memberCompanyId!),
+      ));
+      const st = new Map(memberResults.map((r) => [r.companyId, r.status]));
+      for (const c of members) {
+        const r = st.get(c.memberCompanyId!);
+        const next = r === "INVITED" ? "INVITED" : r === "ALREADY_INVITED" ? "ALREADY_INVITED" : null;
+        if (next) await this.prisma.supplierDiscoveryCandidate.update({ where: { id: c.id }, data: { status: next } });
+      }
     }
-    return { results };
+
+    let results: Awaited<ReturnType<CompanyConnectionsService["inviteExternalForListing"]>>["results"] = [];
+    if (externals.length > 0) {
+      ({ results } = await this.connections.inviteExternalForListing(
+        user,
+        listingId,
+        externals.map((c) => ({ email: c.email!, country: c.country })),
+        "AI_AUTO",
+      ));
+      const statusOf = new Map(results.map((r) => [r.email, r.status]));
+      for (const c of externals) {
+        const st = statusOf.get(c.email!);
+        const next = st === "QUEUED" ? "INVITED" : st === "ALREADY_INVITED" ? "ALREADY_INVITED" : null;
+        if (next) await this.prisma.supplierDiscoveryCandidate.update({ where: { id: c.id }, data: { status: next } });
+      }
+    }
+    return { results, memberResults };
+  }
+
+  /** Formdan/pencereden seçilen üyeler (aday kaydı olmadan, firma kimliğiyle). */
+  async inviteMembers(user: AuthenticatedCompanyUser, listingId: string, companyIds: string[]) {
+    await this.ownListing(user, listingId);
+    if (!this.listings) return { results: [] };
+    return this.listings.inviteDiscoveredMembers(user, listingId, companyIds);
   }
 
   /** Öneri bandını kapat (bu talepteki turlar bir daha bildirilmez). */
@@ -437,4 +513,82 @@ export class DiscoveryRunsService {
     });
     return { ok: true };
   }
+}
+
+type CandidateRow = {
+  name: string;
+  email: string | null;
+  website: string | null;
+  city: string | null;
+  country: string | null;
+  reason: string | null;
+  matchedItems: number[];
+  scope: string | null;
+  status: string;
+  recentlyInvited: boolean;
+  memberCompanyId: string | null;
+  matchedCategories: string[];
+  source: string;
+};
+
+/**
+ * Platform üyeleri + web adayları TEK listede: web'de bulunup üyeyle eşleşen
+ * aday platform satırına katılır (kaynak BOTH, kalemler birleşir); platformda
+ * çıkmayan web üyesi kendi satırıyla üye sayılır. Önceki turlarda önerilmiş
+ * üye yeniden önerilmez.
+ */
+export function mergeCandidates(
+  platform: DiscoveryCandidate[],
+  web: AnnotatedCandidate[],
+  seenMembers: Set<string>,
+  buyerCountry: string | null,
+): CandidateRow[] {
+  const scopeOf = (country: string | null) =>
+    country && buyerCountry ? (country === buyerCountry ? "LOCAL" : "ABROAD") : null;
+  const rows: CandidateRow[] = platform.map((p) => ({
+    name: p.name,
+    email: null,
+    website: null,
+    city: p.city,
+    country: p.country,
+    reason: null,
+    matchedItems: p.matchedItems,
+    scope: scopeOf(p.country),
+    status: p.alreadyInvited ? "ALREADY_INVITED" : "MEMBER",
+    recentlyInvited: false,
+    memberCompanyId: p.companyId,
+    matchedCategories: p.matchedCategories,
+    source: "PLATFORM",
+  }));
+  const byMember = new Map(rows.map((r) => [r.memberCompanyId!, r]));
+  for (const c of web) {
+    if (c.memberCompanyId) {
+      const hit = byMember.get(c.memberCompanyId);
+      if (hit) {
+        hit.source = "BOTH";
+        hit.matchedItems = [...new Set([...hit.matchedItems, ...c.matchedItems])].sort((a, b) => a - b);
+        hit.reason = hit.reason ?? c.reason;
+        continue;
+      }
+      if (seenMembers.has(c.memberCompanyId)) continue;
+    }
+    const row: CandidateRow = {
+      name: c.name,
+      email: c.email,
+      website: c.website,
+      city: c.city,
+      country: c.country,
+      reason: c.reason,
+      matchedItems: c.matchedItems,
+      scope: c.scope,
+      status: c.status,
+      recentlyInvited: c.recentlyInvited,
+      memberCompanyId: c.memberCompanyId,
+      matchedCategories: [],
+      source: "WEB",
+    };
+    rows.push(row);
+    if (c.memberCompanyId) byMember.set(c.memberCompanyId, row);
+  }
+  return rows;
 }

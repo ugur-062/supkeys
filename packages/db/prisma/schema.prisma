@@ -1223,8 +1223,12 @@ model SupplierDiscoveryCandidate {
   status          String               @default("SUGGESTED")
   /// Son 7 günde başka alıcıdan davet aldı (davet özet e-postayla gider).
   recentlyInvited Boolean              @default(false)
-  /// Adres ya da web sitesi kayıtlı bir firmayla eşleşti.
+  /// Adres ya da web sitesi kayıtlı bir firmayla eşleşti (ya da platform keşfi).
   memberCompanyId String?
+  /// Üyenin eşleştiği kategori adları (gerekçe rozeti).
+  matchedCategories String[]         @default([])
+  /// PLATFORM (üye dizini) | WEB (web araması) | BOTH
+  source          String?
   createdAt       DateTime             @default(now())
 
   @@index([runId])
@@ -2350,6 +2354,11 @@ model ListingInvitation {
   invitedCompanyId String
   invitedCompany   Company  @relation("ListingInvitee", fields: [invitedCompanyId], references: [id], onDelete: Cascade)
   invitedById      String // CompanyUser (daveti gönderen)
+  /// Davetin kaynağı: null = elle (bağlantı), "AI" = AI keşfinin önerdiği üye
+  /// (bağlantı şartı yok, günlük tavanlı — 2026-09-28).
+  origin           String?
+  /// AI önerisinin gerekçesi (davet e-postasına yazılır): { productName? , category?, web? }
+  aiReason         Json?
   createdAt        DateTime @default(now())
 
   @@unique([listingId, invitedCompanyId])

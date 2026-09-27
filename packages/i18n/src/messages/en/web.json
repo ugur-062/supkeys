@@ -2937,7 +2937,11 @@
         "baglantiDavetiGonder": "Send connection invitation",
         "davetDiliFirma": "Invitation language for {name}",
         "davetDiliIpucu": "Each invitation email is sent in the language selected on its row; the default language is based on the company’s country.",
-        "davetlerSirayaAlindi": "{n, plural, one {# invitation} other {# invitations}} queued; emails are sent during business hours in the recipient's country."
+        "davetlerSirayaAlindi": "{n, plural, one {# invitation} other {# invitations}} queued; emails are sent during business hours in the recipient's country.",
+        "hepsiniTalebeDavetEt": "Invite all to the request ({n, number})",
+        "talebeDavetli": "Invited to the request",
+        "talebeDavetEt": "Invite to request",
+        "uyeDogrudanTalebeDavet": "Rothern members are invited straight to your request — they don't need to be your contacts; they're notified in the app and by email."
       },
       "ihaleitemspanel": {
         "kalemlerYuklenemedi": "Line items could not be loaded.",
@@ -3563,7 +3567,12 @@
         "yayinIcinFirmaDogrulamasiGerekir": "Publishing requires company verification — <link>upload your documents</link>. You can save a draft for now.",
         "belgeleriYukleyin": "upload documents",
         "disDavetDili": "Invitation language for {email}",
-        "disDavetSirayaAlindi": "{n, plural, one {# invitation} other {# invitations}} queued; emails are sent during business hours in the recipient's country."
+        "disDavetSirayaAlindi": "{n, plural, one {# invitation} other {# invitations}} queued; emails are sent during business hours in the recipient's country.",
+        "uyeDavetleriGonderilemedi": "Member invitations couldn't be sent. Try again from the request page.",
+        "uyeDavetEdildi": "{n, plural, one {# Rothern member} other {# Rothern members}} invited to the request",
+        "bekleyenUyeDavetleri": "Rothern members to invite straight to the request ({n, number})",
+        "bekleyenUyeDavetleriAciklama": "Once the request is published, these companies are invited to it and notified in the app and by email. They don't need to be your contacts.",
+        "uyeDavetiniKaldir": "Remove invitation for {name}"
       },
       "publishedPanel": {
         "talebinizYayinda": "Your request is live",
@@ -3575,7 +3584,10 @@
         "davetEPostalari": "Invitation emails",
         "davetEPostalariGonderilemedi": "The invitation emails could not be sent; you can retry with “Find suppliers with AI” on the request page.",
         "davetGonderildiSayisi": "{n, plural, one {# invitation email sent} other {# invitation emails sent}}",
-        "davetSirayaAlindiSayisi": "{n, plural, one {# invitation} other {# invitations}} queued — emails are sent during business hours in the recipient's country"
+        "davetSirayaAlindiSayisi": "{n, plural, one {# invitation} other {# invitations}} queued — emails are sent during business hours in the recipient's country",
+        "uyeDavetleri": "Rothern members",
+        "uyeDavetleriGonderilemedi": "Member invitations couldn't be sent. Try again from the request page.",
+        "uyeDavetEdildiSayisi": "{n, plural, one {# member} other {# members}} invited to the request — they'll be notified in the app and by email."
       },
       "externalInviteStatus": {
         "SENT": "Sent",
@@ -4059,7 +4071,7 @@
         "status": {
           "ALREADY_INVITED": "Already invited",
           "INVITED": "Invited",
-          "MEMBER": "Rothern member — notified on the platform",
+          "MEMBER": "Rothern member",
           "CONSENT_REQUIRED": "No unsolicited invitations to this country"
         },
         "recentlyInvited": "Invited by another buyer this week — your invitation goes out in a combined email",
@@ -4077,13 +4089,6 @@
         "noResults": "AI found no suitable companies. Try more specific item names and search again.",
         "failed": "The search couldn't be completed. Please try again.",
         "goldOnly": "Finding suppliers with AI is available on the Gold plan.",
-        "membersTitle": "Sellers on Rothern",
-        "membersLead": "Rothern members who sell your items or match your category. You can send them a connection request.",
-        "connect": "Send connection request",
-        "connectSent": "Request sent",
-        "connectSentToast": "Connection request sent to {name}",
-        "connectFailed": "The connection request couldn't be sent",
-        "inCatalog": "In their catalog: {items}",
         "bandTitle": "AI found {n, plural, one {# supplier} other {# suppliers}}",
         "bandAbroad": "({n, number} abroad)",
         "bandLead": "They're all pre-selected; remove the ones you don't want and invite the rest with one click. Invitations go out in each company's own language, during business hours in its country.",
@@ -4102,7 +4107,15 @@
         "showNameToggle": "Show my company name in invitation emails",
         "showNameHint": "If off, invitations say \"A buyer\". Invitations that show the company name get more replies.",
         "summaryInSection1": "The companies AI found are in the list in section 1.",
-        "goToList": "Go to list"
+        "goToList": "Go to list",
+        "groupMembers": "Registered on Rothern",
+        "groupMembersLead": "They're invited straight to your request and notified in the app and by email. They don't need to be your contacts.",
+        "memberItems": "Matches line items: {items}",
+        "memberCategories": "Matches category: {categories}",
+        "memberAlsoWeb": "Also found on the web",
+        "memberInvitedToast": "{n, plural, one {# Rothern member} other {# Rothern members}} invited to the request",
+        "memberDailyLimit": "Daily invitation limit reached — {n, plural, one {# company} other {# companies}} can be invited tomorrow",
+        "bandMembers": "(Rothern members: {n, number})"
       },
       "share": {
         "title": "Share your request",
@@ -4114,6 +4127,12 @@
         "copied": "Link copied",
         "text": "Buying request: {title} — submit your quote on Rothern",
         "emailSubject": "Buying request: {title}"
+      },
+      "memberInviteStatus": {
+        "INVITED": "Invited to the request",
+        "ALREADY_INVITED": "Already invited",
+        "DAILY_LIMIT": "Daily invitation limit reached",
+        "NOT_ELIGIBLE": "Can't see this request (country restriction or block)"
       }
     },
     "trade": {

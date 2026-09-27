@@ -20,6 +20,15 @@ class InviteCandidatesDto {
   candidateIds!: string[];
 }
 
+class InviteMembersDto {
+  @IsArray()
+  @ArrayMinSize(1)
+  @ArrayMaxSize(60)
+  @IsString({ each: true })
+  @MaxLength(40, { each: true })
+  companyIds!: string[];
+}
+
 /**
  * Yayın sonrası AI tedarikçi önerileri (2026-09-27, Faz 1): talep sayfasındaki
  * bant ve yayın paneli okur; alıcı seçtiklerini tek tıkla davet eder. Talep
@@ -45,6 +54,20 @@ export class DiscoveryRunsController {
     @Body() dto: InviteCandidatesDto,
   ) {
     return this.service.invite(user, listingId, dto.candidateIds);
+  }
+
+  /**
+   * AI'ın önerdiği ROTHERN ÜYELERİNİ doğrudan talebe davet (2026-09-28;
+   * bağlantı şartı yok, günlük tavan e-posta davetleriyle ortak).
+   */
+  @Post("invite-members")
+  @RequireCompanyPermission("buy:listing:manage")
+  inviteMembers(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Param("listingId") listingId: string,
+    @Body() dto: InviteMembersDto,
+  ) {
+    return this.service.inviteMembers(user, listingId, dto.companyIds);
   }
 
   @Post("dismiss")

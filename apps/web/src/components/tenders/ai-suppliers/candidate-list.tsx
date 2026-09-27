@@ -14,7 +14,10 @@ import { useLocale, useTranslations } from "next-intl";
  * çizer. Kullanıcı kararı: "aday seçme şansı olsun ama otomatik seçili olsun;
  * davetli olanlara bir daha gitmesin" — SUGGESTED satırlar seçilebilir (çağıran
  * başlangıçta hepsini seçer), diğer durumlar kilitli ve nedenini söyler.
- * Gruplar: alıcının ülkesi · yurt dışı · (bilinmeyen) diğer.
+ * Gruplar: ROTHERN ÜYELERİ (en üstte; 2026-09-28, kullanıcı: "sistemimize
+ * kayıtlıysa ayrıca gösterelim, kategori ya da kalem eşleşmesi var diye") ·
+ * alıcının ülkesi · yurt dışı · (bilinmeyen) diğer. Üye e-posta değil
+ * DOĞRUDAN TALEBE davet edilir — adresi olmasa da seçilebilir.
  */
 export interface CandidateRow {
   key: string;
@@ -28,10 +31,23 @@ export interface CandidateRow {
   scope?: "LOCAL" | "ABROAD" | null;
   status?: CandidateStatus;
   recentlyInvited?: boolean;
+  /** Kayıtlı üye (platform dizini ya da web adresi eşleşti). */
+  memberCompanyId?: string | null;
+  /** Üyenin eşleştiği kategori adları (gerekçe). */
+  matchedCategories?: string[];
+  /** Web aramasında da bulundu (üye). */
+  alsoOnWeb?: boolean;
+}
+
+/** Satır üye grubunda mı (davet edilmiş/davetli üyeler de orada kalır). */
+export function isMemberRow(c: CandidateRow): boolean {
+  return !!c.memberCompanyId && c.status !== "CONSENT_REQUIRED";
 }
 
 export function isSelectable(c: CandidateRow): boolean {
-  return (c.status ?? "SUGGESTED") === "SUGGESTED" && !!c.email;
+  const status = c.status ?? "SUGGESTED";
+  if (status === "MEMBER") return !!c.memberCompanyId;
+  return status === "SUGGESTED" && !!c.email;
 }
 
 function safeHref(url: string): string | null {
@@ -65,14 +81,17 @@ export function CandidateList({
 }) {
   const t = useTranslations("web.panel.requests.aiSuppliers");
   const locale = useLocale() as Locale;
-  const groups: Array<{ id: string; label: string; rows: CandidateRow[] }> = [
+  const members = candidates.filter(isMemberRow);
+  const rest = candidates.filter((c) => !isMemberRow(c));
+  const groups: Array<{ id: string; label: string; lead?: string; rows: CandidateRow[] }> = [
+    { id: "MEMBER", label: t("groupMembers"), lead: t("groupMembersLead"), rows: members },
     {
       id: "LOCAL",
       label: buyerCountry ? countryDisplayName(buyerCountry, locale) : t("groupOther"),
-      rows: candidates.filter((c) => c.scope === "LOCAL"),
+      rows: rest.filter((c) => c.scope === "LOCAL"),
     },
-    { id: "ABROAD", label: t("groupAbroad"), rows: candidates.filter((c) => c.scope === "ABROAD") },
-    { id: "OTHER", label: t("groupOther"), rows: candidates.filter((c) => c.scope !== "LOCAL" && c.scope !== "ABROAD") },
+    { id: "ABROAD", label: t("groupAbroad"), rows: rest.filter((c) => c.scope === "ABROAD") },
+    { id: "OTHER", label: t("groupOther"), rows: rest.filter((c) => c.scope !== "LOCAL" && c.scope !== "ABROAD") },
   ].filter((g) => g.rows.length > 0);
 
   const itemLabel = (nums: number[] | undefined) =>
@@ -89,9 +108,17 @@ export function CandidateList({
         return (
           <section key={g.id} aria-label={g.label}>
             <div className="mb-2 flex items-center justify-between gap-2">
-              <h4 className="text-xs font-semibold tracking-wide text-zinc-700 uppercase">
-                {g.label} <span className="font-normal text-zinc-500">· {g.rows.length}</span>
-              </h4>
+              <div className="min-w-0">
+                <h4
+                  className={cn(
+                    "text-xs font-semibold tracking-wide uppercase",
+                    g.id === "MEMBER" ? "text-blue-800" : "text-zinc-700",
+                  )}
+                >
+                  {g.label} <span className="font-normal text-zinc-500">· {g.rows.length}</span>
+                </h4>
+                {g.lead ? <p className="mt-0.5 text-xs text-zinc-600">{g.lead}</p> : null}
+              </div>
               {keys.length > 0 ? (
                 <button
                   type="button"
@@ -111,6 +138,8 @@ export function CandidateList({
                 const items = itemLabel(c.matchedItems);
                 const href = c.website ? safeHref(c.website) : null;
                 const status = c.status ?? "SUGGESTED";
+                const member = isMemberRow(c);
+                const categories = (c.matchedCategories ?? []).join(", ");
                 return (
                   <li
                     key={c.key}
@@ -131,7 +160,7 @@ export function CandidateList({
                       <div className="min-w-0 flex-1">
                         <p className="flex flex-wrap items-center gap-x-2 text-sm font-semibold text-zinc-900">
                           <span className="min-w-0 break-words">{c.name}</span>
-                          {status !== "SUGGESTED" ? (
+                          {status !== "SUGGESTED" && status !== "MEMBER" ? (
                             <span
                               className={cn(
                                 "rounded-full px-2 py-0.5 text-[11px] font-medium",
@@ -151,7 +180,7 @@ export function CandidateList({
                               {place}
                             </span>
                           ) : null}
-                          {c.email ? <span className="break-all">{c.email}</span> : null}
+                          {c.email && !member ? <span className="break-all">{c.email}</span> : null}
                           {href ? (
                             <a
                               href={href}
@@ -164,9 +193,28 @@ export function CandidateList({
                             </a>
                           ) : null}
                         </p>
+                        {member && (items || categories || c.alsoOnWeb) ? (
+                          <p className="mt-1.5 flex flex-wrap gap-1.5">
+                            {items ? (
+                              <span className="rounded-full bg-blue-50 px-2 py-0.5 text-[11px] font-medium text-blue-800 ring-1 ring-blue-600/20">
+                                {t("memberItems", { items })}
+                              </span>
+                            ) : null}
+                            {categories ? (
+                              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-zinc-600/10">
+                                {t("memberCategories", { categories })}
+                              </span>
+                            ) : null}
+                            {c.alsoOnWeb ? (
+                              <span className="rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] font-medium text-zinc-700 ring-1 ring-zinc-600/10">
+                                {t("memberAlsoWeb")}
+                              </span>
+                            ) : null}
+                          </p>
+                        ) : null}
                         {c.reason ? <p className="mt-1 text-xs text-zinc-700">{c.reason}</p> : null}
-                        {items ? <p className="mt-1 text-xs font-medium text-zinc-800">{t("canSupply", { items })}</p> : null}
-                        {c.recentlyInvited && selectable ? (
+                        {items && !member ? <p className="mt-1 text-xs font-medium text-zinc-800">{t("canSupply", { items })}</p> : null}
+                        {c.recentlyInvited && selectable && !member ? (
                           <p className="mt-1 text-xs text-amber-800">{t("recentlyInvited")}</p>
                         ) : null}
                       </div>

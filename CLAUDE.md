@@ -1631,14 +1631,54 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   - **Aday işaretleme** (`annotate`, tek kaynak): e-postasız, MX'i olmayan
     (`common/net/mx-check.ts`, geçici DNS hatasında fail-open), davet almak
     istemeyen DÜŞER; aynı web sitesinden tek adres; durum SUGGESTED ·
-    ALREADY_INVITED (bu talebe) · MEMBER (adres ya da SİTE alan adı kayıtlı
-    firmayla eşleşti) · CONSENT_REQUIRED; `recentlyInvited` (7 günde başka
-    alıcıdan davet aldı → özetle gider). Yalnız SUGGESTED seçilebilir ve SEÇİLİ gelir.
+    ALREADY_INVITED (bu talebe; eşleşen ÜYE bu talebe davetliyse de) · MEMBER
+    (adres ya da SİTE alan adı kayıtlı firmayla eşleşti) · CONSENT_REQUIRED;
+    `recentlyInvited` (7 günde başka alıcıdan davet aldı → özetle gider).
+    SUGGESTED (e-postalı) ve MEMBER seçilebilir ve SEÇİLİ gelir.
   - **Platform keşfi** (`discoverRegistered`) yayın bildirimiyle AYNI eşleştirici
     (satış ana segment + `sellerSubCategoryIds`; eskiden alt kodu ana alanda
     arıyordu) + vitrinde kalemi SATAN firma (`productSearchClauses`, kalem başına)
-    + talebin görünürlük ülkesi. Üyelere bugünkü gibi BAĞLANTI daveti (talebe
-    doğrudan davet bağlantı şartı taşır — `addInvitations`, kural değişmedi).
+    + talebin görünürlük ülkesi. Kullanıcısız çekirdek `discoverRegisteredFor`
+    (yayın sonrası tur da çağırır; `country` + `alreadyInvited` döner).
+  - **ÜYEYE DOĞRUDAN TALEP DAVETİ (2026-09-28, kullanıcı: "sistemimize
+    kayıtlıysa ayrıca gösterelim, kategori veya kalem eşleşmesi var diye;
+    davet ederken en üstte seçili olur").** AI'ın önerdiği Rothern üyesi (platform
+    keşfi ya da web'de adresi/sitesi üyeyle eşleşen aday) listenin EN ÜSTÜNDE
+    "Rothern'de kayıtlı" grubunda, gerekçe çipleriyle ("Kalem eşleşmesi: …",
+    "Kategori eşleşmesi: …", "Web'de de bulundu") ve SEÇİLİ gelir; e-posta
+    davetine DEĞİL doğrudan talebe davet edilir — **BAĞLANTI ŞARTI YOK** (eski
+    "yalnız bağlantılıya doğrudan davet" kuralının tek istisnası; `addInvitations`
+    elle davet yolu bağlantı şartını korur). Tek kaynak `CompanyListingsService.
+    inviteDiscoveredMembers`: sahip + `buy:listing:manage`, DRAFT/OPEN; engelli
+    (iki yön)/pasif/askıdaki ve talebin ülkesine uymayan (`countryCanSee`)
+    NOT_ELIGIBLE; zaten davetli ALREADY_INVITED; **günlük tavan e-posta
+    davetleriyle ORTAK** (`COMPANY_DAILY_INVITE_CAP` 60 − bugünkü dış davet −
+    bugünkü AI üye daveti) → DAILY_LIMIT. `ListingInvitation.origin = "AI"` +
+    `aiReason` (vitrinde kalemi satan ürünün adı, yoksa `{category:true}`).
+    Bildirim (OPEN ∧ embargosuz; embargoluda açılış duyurusu davetlilere gider):
+    e-posta `listing_invitation_ai` (tercih `invitation`; konu firma adı
+    `inviteShowName`e bağlı; gövde gerekçeli; kalem önizlemesi) — alıcının YEREL
+    gününde 3'ü geçmez, fazlası akşam özetine (`EmailDigestItem.kind =
+    INVITATION`, bağlam `listing_invitation_digest`, kategori özetinden AYRI
+    e-posta); bu talep için zaten e-posta almış adrese (kategori duyurusu/davet)
+    ikincisi GİTMEZ ve bekleyen CATEGORY_MATCH özet satırı düşer; uygulama içi
+    bildirim her zaman. Ücretsiz (STANDART) üye de davet edilebilir ve davetli
+    olduğu için Silver'sız teklif verir (davetli talep kuralı). Keşif turu
+    (`DiscoveryRunsService.process`) platform üyelerini de önerir — model çağrısı
+    YOK, AI kapalıyken/bütçe dolmuşken de (web yolu düşüp üye bulunduysa tur DONE
+    + `error`); aday `status = MEMBER`, `memberCompanyId`, `matchedCategories`,
+    `source` PLATFORM/WEB/BOTH (`mergeCandidates`); önceki turda önerilen üye
+    yeniden önerilmez. Tek tık davet (`invite`) adayları ayırır: üye →
+    `inviteDiscoveredMembers`, diğerleri → e-posta kuyruğu; yanıt `{results,
+    memberResults}`. Formda seçilen üyeler `memberInvites` (taslakta
+    `QuickDraft.memberInvites`, kayıtlı taslakta `pendingMemberInvitesKey`)
+    yayında `POST …/listings/:id/invite-members` ile gider; yayın paneli sonucu
+    ad ad gösterir. Keşif penceresinin "Platformda" sekmesi talepten açılınca
+    "Talebe davet et" / "Hepsini talebe davet et" (talepsiz açılışta bağlantı
+    daveti). Migration `20260928090000_ai_member_invites` (eklemeli). Sözleşmeler:
+    `ai-member-invite.spec`, `email-programs.spec` "davet özeti", web
+    `quick-request.test` "ROTHERN ÜYELERİ", `listing-suggestions.test`,
+    `supplier-discovery-modal.test` "Platformda".
   - **Formda** (`components/tenders/ai-suppliers/form-supplier-panel.tsx`):
     kalemlerin ALTINDA, pencere açmadan; kalemler girilip 5 sn değişmeyince
     oturumda bir kez KENDİLİĞİNDEN arar (kullanıcı bütçesi, `callAi`); sonuç
@@ -1658,7 +1698,8 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     hariç; talep başına en fazla 2 otomatik tur). Eylem merkezi satırı `aiSuggestions`.
   - Uçlar: `POST company/ai/supplier-discovery` (+`/external`; DTO kategori
     isteğe bağlı, `itemNames`/`listingId`/`targetCountries`), `GET/POST company/
-    ai/supplier-discovery/listings/:id{,/invite,/dismiss}` (GOLD + buy:listing:manage).
+    ai/supplier-discovery/listings/:id{,/invite,/invite-members,/dismiss}` (GOLD +
+    buy:listing:manage).
   - Migration `20260927230000_supplier_discovery_runs` (eklemeli). Sözleşmeler:
     `supplier-discovery-external.spec`, `supplier-discovery.spec`, `discovery-
     runs.spec`, web `quick-request.test` "KALEMLER PANELİ", `listing-suggestions.test`.
@@ -1671,8 +1712,10 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     fazlası `email_digest_items`a → yerel 18:00'de TEK özet
     (`listing_category_digest`, tercih `categoryMatch`; ücretsiz alıcıda Silver
     teşviki, talep bağlantısı yok). Tercih bayrağı `categoryMatchInstant`
-    (`NOTIFICATION_FLAG_KEYS`, varsayılan kapalı) sınırı kaldırır. Doğrudan
-    davet ve uygulama içi bildirim bu kurala GİRMEZ.
+    (`NOTIFICATION_FLAG_KEYS`, varsayılan kapalı) sınırı kaldırır. Alıcının
+    elle yaptığı doğrudan davet ve uygulama içi bildirim bu kurala GİRMEZ; AI'ın
+    önerdiği üyeye doğrudan davet (2026-09-28) AYNI sınıra girer (kendi sayacı,
+    fazlası `INVITATION` özeti).
   - **Karşılama serisi** (LIFECYCLE akışı, `lifecycle_<adım>`, tercih
     `lifecycle` — `prefKeyForType` `lifecycle_*` önekini eşler): profil (gün 1)
     → ilk ürün (3) → doğrulama (7) → pazar (14, kategorisinde talep varsa);
@@ -2190,9 +2233,10 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Son migration `20260927235000_email_digest_items` (+
-  `20260927230000_supplier_discovery_runs`, `20260927220000_external_listing_
-  invites`, `20260927210000_email_opt_outs`; eklemeli, e-posta Faz 0-2).
+- Son migration `20260928090000_ai_member_invites` (+
+  `20260927235000_email_digest_items`, `20260927230000_supplier_discovery_runs`,
+  `20260927220000_external_listing_invites`, `20260927210000_email_opt_outs`;
+  eklemeli, e-posta Faz 0-2 + üyeye doğrudan davet; staging VE canlıda BEKLİYOR).
   Öncesi
   `20260927200100_international_locale_price_base` (+
   `20260927200000_currency_additions` — enum `ADD VALUE` AYRI dosyada;
