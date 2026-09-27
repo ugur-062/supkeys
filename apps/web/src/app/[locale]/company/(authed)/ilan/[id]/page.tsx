@@ -86,6 +86,7 @@ import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useScrolledPast } from "@/hooks/use-scrolled-past";
 import { ListingSuggestions } from "@/components/tenders/ai-suppliers/listing-suggestions";
+import { ShareListing } from "@/components/tenders/share-listing";
 import { toast } from "sonner";
 import { useImportListingToCatalog } from "@/hooks/use-company-items";
 
@@ -1851,6 +1852,11 @@ export default function ListingDetailPage() {
           {/* İşlemler — görünür buton çubuğu (kutu içinde). F7: 10 aksiyonun
               tamamı backend'de assertListingManageRole ister → menü yalnız
               canManage'e görünür; etiket-only gözetim sayfayı yine görür. */}
+          {l.isOwner && l.publicPath ? (
+            <div className="mt-4 border-t border-zinc-950/5 pt-4">
+              <ShareListing publicPath={l.publicPath} title={l.title} compact />
+            </div>
+          ) : null}
           {canDiscover ? (
             <div className="mt-4 flex flex-wrap items-center gap-3 border-t border-zinc-950/5 pt-4">
               <Button

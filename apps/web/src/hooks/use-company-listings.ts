@@ -319,6 +319,8 @@ export interface ListingDetail {
   targetCountries: string[];
   /** Yalnız sahip dalında (sunucu teklifçiye göndermez). */
   aiDiscovery?: boolean;
+  /** Sahip dalı: talep vitrindeyse herkese açık İÇ yol (paylaş), değilse null. */
+  publicPath?: string | null;
   inviteShowName?: boolean;
   format: ListingFormat | null;
   visibility: ListingVisibility;

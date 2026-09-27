@@ -18,6 +18,7 @@ import {
   useViesCheck,
 } from "@/hooks/use-company-auth";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { clearInvitePrefill, readInvitePrefill } from "@/lib/company-auth/invite-prefill";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import {
   MAX_COMPANY_MAIN_CATEGORIES,
@@ -128,7 +129,17 @@ export function OnboardingClient() {
   useEffect(() => {
     if (countryReady || !me.data) return;
     const initial = initialOnboardingCountry(me.data.user.phone, locale);
-    setF((s) => (s.country ? s : { ...s, country: initial }));
+    // Davetle gelen firma (2026-09-27, Faz 3): AI keşfinin bulduğu kendi
+    // firma bilgisi formu başlatır — ad, site, ülke, şehir; kullanıcı düzeltebilir.
+    const invite = readInvitePrefill();
+    const inviteCountry = invite?.country && isRegistrationOpen(invite.country) ? invite.country.toUpperCase() : null;
+    setF((s) => ({
+      ...s,
+      country: s.country || inviteCountry || initial,
+      legalName: s.legalName || invite?.companyName || "",
+      website: s.website || invite?.website || "",
+      city: s.city || invite?.city || "",
+    }));
     setCountryReady(true);
   }, [countryReady, me.data, locale]);
   /**
@@ -244,6 +255,7 @@ export function OnboardingClient() {
         declarationAccepted: f.declarationAccepted,
       });
       toast.success(t("completed"));
+      clearInvitePrefill();
       window.location.href = localizePath("/company", runtimeLocale());
     } catch (err) {
       setError(extractErrorMessage(err, t("saveFailed")));

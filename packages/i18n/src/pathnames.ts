@@ -59,6 +59,7 @@ export const ROUTE_PATHNAMES: RoutePathnames = {
   "/talep-onayla": P("/talep-onayla", "/confirm-inquiry", "/podtverdit-zapros"),
   "/davet-kapat": P("/davet-kapat", "/stop-invitations", "/otkaz-ot-priglasheniy"),
   "/e-posta-tercihleri": P("/e-posta-tercihleri", "/email-preferences", "/nastroyki-pisem"),
+  "/talep-davet": P("/talep-davet", "/request-invitation", "/priglashenie-k-zaprosu"),
   "/reset-password": P("/reset-password", "/reset-password", "/sbros-parolya"),
   // ---- kimlik ----------------------------------------------------------
   "/company/login": P("/company/login", "/company/login", "/kompaniya/vhod"),

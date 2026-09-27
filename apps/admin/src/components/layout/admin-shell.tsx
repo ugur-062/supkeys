@@ -37,6 +37,7 @@ import {
   ScrollText,
   Settings,
   ShieldAlert,
+  TrendingUp,
   UserCog,
   X,
 } from "lucide-react";
@@ -105,6 +106,13 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/uyelik-raporu",
         icon: BadgeDollarSign,
         activeMatch: "/admin/uyelik-raporu",
+        roles: ["SUPER_ADMIN", "SALES"],
+      },
+      {
+        label: "Büyüme",
+        href: "/admin/buyume",
+        icon: TrendingUp,
+        activeMatch: "/admin/buyume",
         roles: ["SUPER_ADMIN", "SALES"],
       },
       {

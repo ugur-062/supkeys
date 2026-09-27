@@ -79,7 +79,9 @@
     "reminderSubject": "Напоминание: {inviterName} ждёт Вашего предложения — {items}",
     "reminderHeading": "Срок подачи предложений скоро истекает",
     "reminderIntro": "<b>{inviterName}</b> всё ещё ждёт Вашего предложения по заявке на закупку, на которую Вас пригласили. Срок подачи скоро истекает:",
-    "textReminderIntro": "Напоминание: {inviterName} ждёт Вашего предложения по заявке на закупку «{tenderTitle}»."
+    "textReminderIntro": "Напоминание: {inviterName} ждёт Вашего предложения по заявке на закупку «{tenderTitle}».",
+    "previewLink": "<link>Посмотреть все позиции запроса</link> без регистрации.",
+    "textPreviewLink": "Все позиции запроса (без регистрации): {url}"
   },
   "domain": {
     "qty": {

@@ -64,6 +64,11 @@ import {
   type InviteSourceKind,
 } from "../../../common/company/external-invite-policy";
 import {
+  INVITE_LISTING_SELECT,
+  InviteContentBuilder,
+  type InviteListing,
+} from "../../../common/company/external-invite-content";
+import {
   countryFromEmailDomain,
   nextBusinessWindow,
   timeZoneForCountry,
@@ -72,6 +77,8 @@ import {
 type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 
 const EXTERNAL_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+/** Kayıtsız önizlemede gösterilen en fazla kalem (e-postada 10). */
+const PREVIEW_ITEM_LIMIT = 100;
 
 /**
  * Dış talep daveti — adres başına GERÇEK sonuç (2026-09-27). Eskiden yalnız
@@ -88,6 +95,15 @@ export type ExternalInviteStatus =
   | "DAILY_LIMIT"
   | "CONSENT_REQUIRED"
   | "INVALID";
+
+/** Davetle gelen firmanın kayıt/onboarding formuna önceden doldurma. */
+export interface ReferralPrefill {
+  email: string | null;
+  companyName: string | null;
+  website: string | null;
+  country: string | null;
+  city: string | null;
+}
 
 export interface ExternalInviteResult {
   email: string;
@@ -627,12 +643,85 @@ export class CompanyConnectionsService {
     return { results };
   }
 
-  /** Davet bağlantısı açıldı — ilgi damgası (bkz. ReferralVisitController). */
-  async markReferralVisited(token: string): Promise<void> {
+  /**
+   * Davet bağlantısı açıldı — ilgi damgası + ÖNCEDEN DOLDURMA (2026-09-27,
+   * Faz 3; bkz. ReferralVisitController). Dönen bilgiler davetin gittiği
+   * adresin KENDİ firmasıdır (AI keşfinin web'de bulduğu ad, site, ülke, şehir):
+   * jeton yalnız o adrese gitti. Geçersiz jetonda alanlar boş döner (jetonun
+   * geçerliliği sızdırılmaz).
+   */
+  async markReferralVisited(token: string): Promise<ReferralPrefill> {
+    const empty: ReferralPrefill = { email: null, companyName: null, website: null, country: null, city: null };
     // Uç kimliksiz, satır başka firmanın kiracısında → bypass.
+    const inv = await this.bypass.companyReferralInvite
+      .findFirst({ where: { token, status: "PENDING" }, select: { id: true, email: true } })
+      .catch(() => null);
+    if (!inv) return empty;
     await this.bypass.companyReferralInvite
-      .updateMany({ where: { token, status: "PENDING" }, data: { lastClickedAt: new Date() } })
+      .update({ where: { id: inv.id }, data: { lastClickedAt: new Date() } })
       .catch(() => undefined);
+    const [cand, listingInvite] = await Promise.all([
+      this.bypass.supplierDiscoveryCandidate.findFirst({
+        where: { email: inv.email },
+        orderBy: { createdAt: "desc" },
+        select: { name: true, website: true, country: true, city: true },
+      }),
+      this.bypass.externalListingInvite.findFirst({
+        where: { referralInviteId: inv.id },
+        orderBy: { createdAt: "desc" },
+        select: { country: true },
+      }),
+    ]);
+    return {
+      email: inv.email,
+      companyName: cand?.name ?? null,
+      website: cand?.website ?? null,
+      country: cand?.country ?? listingInvite?.country ?? null,
+      city: cand?.city ?? null,
+    };
+  }
+
+  /**
+   * KAYITSIZ TALEP ÖNİZLEMESİ (2026-09-27, Faz 3; kullanıcı onaylı plan:
+   * "davet edilen firma kayıt olmadan talebi görebilecek"). Davet jetonu ile
+   * açılır; içerik davet e-postasıyla AYNI beyaz liste (`InviteContentBuilder`)
+   * ama kalemlerin TAMAMI. Hedef fiyat, şartname, belge, ticari şart, tam adres,
+   * teklif sayısı ve diğer davetliler yine yok. Yalnız bu jetonla davet edilmiş
+   * ve YAYINDAKİ talep; kapanmışsa `closed`.
+   */
+  async invitePreview(token: string, listingId?: string) {
+    const inv = await this.bypass.companyReferralInvite.findFirst({
+      where: { token },
+      select: { id: true, status: true },
+    });
+    const pick = inv
+      ? await this.bypass.externalListingInvite.findFirst({
+          where: {
+            referralInviteId: inv.id,
+            ...(listingId ? { listingId } : {}),
+            listing: { status: { not: "DRAFT" } },
+          },
+          orderBy: { createdAt: "desc" },
+          select: { listingId: true },
+        })
+      : null;
+    if (!inv || !pick) throw new NotFoundException(i18nMessage("api.companyConnections.gecersizBaglanti"));
+    const listing = await this.bypass.listing.findUniqueOrThrow({
+      where: { id: pick.listingId },
+      select: {
+        ...INVITE_LISTING_SELECT,
+        items: { ...INVITE_LISTING_SELECT.items, take: PREVIEW_ITEM_LIMIT },
+      },
+    });
+    const builder = new InviteContentBuilder(this.bypass, resolveWebUrl(this.config), this.translations);
+    const { showName: _showName, ...content } = await builder.content(listing as InviteListing, currentLocale());
+    return {
+      listingId: listing.id,
+      closed: listing.status !== "OPEN",
+      // Kayıt olmuş (bağlantı kabul edilmiş) adres doğrudan panele gider.
+      accepted: inv.status !== "PENDING",
+      ...content,
+    };
   }
 
   /** Opt-out (public): davet token'ındaki adrese bir daha davet gönderilmez. */

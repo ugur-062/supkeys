@@ -11,7 +11,7 @@ import {
   NotFoundException,
   Optional,
 } from "@nestjs/common";
-import { hiddenCategoryWhere, isHiddenCategory } from "@rothern/shared";
+import { hiddenCategoryWhere, isHiddenCategory, listingPath } from "@rothern/shared";
 import {
   CompanyRole,
   ListingType,
@@ -50,6 +50,7 @@ import {
 import {
   isListingVisibleToViewer,
   listingBidEligibility,
+  marketplaceListingWhere,
 } from "../../../common/company/listing-visibility";
 import {
   PRICED_ITEM_WHERE,
@@ -3294,11 +3295,18 @@ export class CompanyListingsService {
       // Number(b.amount)` karışık kurda kur normalize ETMEDEN sıralıyordu → 100 USD
       // (~3000 TRY) 3000 TRY'nin altında görünüp sahip yanlış firmaya kazandırırdı.
       const rankedBids = this.rankAuctionBids(bids, listing.auctionRateSnapshot, false);
+      // Herkese açık sayfa YALNIZ vitrindeyse (tek kaynak `marketplaceListingWhere`)
+      // — paylaş düğmesi (2026-09-27, Faz 3) 404 veren bağlantı paylaştırmasın.
+      const inVitrine =
+        !!listing.number &&
+        (await this.bypass.listing.count({ where: { AND: [{ id }, marketplaceListingWhere(new Date())] } })) > 0;
       return {
         ...this.detail(listing),
         // İstemci bunu bir sonraki istekte If-None-Match ile geri gönderir.
         etag: fp,
         isOwner: true,
+        // İÇ yol (`/talep/rot-000042-…`); web dile göre çevirir. Vitrinde değilse null.
+        publicPath: inVitrine && listing.number ? listingPath(listing.number, listing.title) : null,
         // F7: buton izin-kapısı için — kazandır/ele assertListingManageRole
         // (createdById===userId VEYA SAHİP) ister; UI aynı kapıyı uygular.
         createdById: listing.createdById,

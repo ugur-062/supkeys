@@ -90,6 +90,9 @@ export const appRoutes = {
   /** Davet e-postalarından çıkış (opt-out). */
   optOut: (base: string, token: string, locale: Locale = DEFAULT_LOCALE) =>
     `${base}${localize(`/davet-kapat?token=${token}`, locale)}`,
+  /** Kayıtsız talep önizlemesi (davet jetonu + talep; 2026-09-27, Faz 3). */
+  invitePreview: (base: string, token: string, listingId: string, locale: Locale = DEFAULT_LOCALE) =>
+    `${base}${localize(`/talep-davet?ref=${token}&l=${listingId}`, locale)}`,
   /** Misafir bilgi talebi e-posta doğrulaması. */
   inquiryVerify: (base: string, token: string, locale: Locale = DEFAULT_LOCALE) =>
     `${base}${localize(`/talep-onayla?t=${token}`, locale)}`,

@@ -70,6 +70,7 @@ import { NotificationModule } from "./modules/notifications/notification.module"
 import { PasswordResetModule } from "./modules/password-reset/password-reset.module";
 import { ResendWebhookModule } from "./modules/resend-webhook/resend-webhook.module";
 import { EmailProgramsModule } from "./modules/email-programs/email-programs.module";
+import { AdminGrowthModule } from "./modules/admin-growth/admin-growth.module";
 import { StorageModule } from "./modules/storage/storage.module";
 import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module";
 
@@ -231,6 +232,8 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
     AiModule,
     // Günlük e-posta programı (2026-09-27, Faz 2).
     EmailProgramsModule,
+    // Büyüme ölçümü — yönetici davet hunisi (2026-09-27, Faz 4).
+    AdminGrowthModule,
   ],
   providers: [
     // Global guard: @SkipThrottle ile özel endpoint'lerde bypass edilebilir.

@@ -77,6 +77,11 @@ export interface TenderExternalInviteData {
   registerUrl: string;
   optOutUrl: string;
   /**
+   * Kayıt olmadan talebin tüm kalemlerini gösteren jetonlu önizleme
+   * (2026-09-27, Faz 3) — verilirse ikincil bağlantı olarak basılır.
+   */
+  previewUrl?: string | null;
+  /**
    * Kapanıştan önceki TEK hatırlatma (2026-09-27) — konu, başlık ve giriş
    * cümlesi hatırlatma sürümüyle basılır; içerik aynı.
    */

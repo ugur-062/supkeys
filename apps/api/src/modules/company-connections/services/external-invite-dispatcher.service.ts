@@ -151,6 +151,12 @@ export class ExternalInviteDispatcher {
     });
   }
 
+  /** Bugünkü platform tavanı + gönderilen (yönetici büyüme ekranı da okur). */
+  async capStatus(now: Date = new Date()): Promise<ColdInviteCap & { sentToday: number }> {
+    const [cap, sentToday] = await Promise.all([this.dailyCap(now), this.sentToday(now)]);
+    return { ...cap, sentToday };
+  }
+
   private async dailyCap(now: Date): Promise<ColdInviteCap> {
     const weekAgo = new Date(now.getTime() - 7 * DAY_MS);
     const dayStart = utcDayStart(now);
@@ -327,6 +333,7 @@ export class ExternalInviteDispatcher {
     const locale = (isLocale(first.locale) ? first.locale : "tr") as Locale;
     const registerUrl = (inv: DueInvite) =>
       appRoutes.signupWithRef(baseUrl, inv.referralInvite.token, locale, `/company/ilan/${inv.listingId}`);
+    const previewUrl = (inv: DueInvite) => appRoutes.invitePreview(baseUrl, inv.referralInvite.token, inv.listingId, locale);
     const optOutUrl = appRoutes.optOut(baseUrl, first.referralInvite.token, locale);
     try {
       if (batch.length === 1) {
@@ -338,7 +345,13 @@ export class ExternalInviteDispatcher {
           ...(showName ? { fromName: inviteFromName(content.inviterName, locale) } : {}),
           templateData: {
             template: "tender_external_invite",
-            data: { ...content, registerUrl: registerUrl(first), optOutUrl, ...(reminder ? { reminder: true } : {}) },
+            data: {
+              ...content,
+              registerUrl: registerUrl(first),
+              previewUrl: previewUrl(first),
+              optOutUrl,
+              ...(reminder ? { reminder: true } : {}),
+            },
           },
           context: { type: INVITE_CONTEXT, id: first.id },
         });
@@ -355,7 +368,8 @@ export class ExternalInviteDispatcher {
           deliveryPlace: c.deliveryPlace,
           items: c.items,
           itemCount: c.itemCount,
-          ctaUrl: registerUrl(inv),
+          // Özette kart "görüntüle ve teklif ver" → önizleme (oradan kayıt).
+          ctaUrl: previewUrl(inv),
         });
       }
       const res = await this.email.send({

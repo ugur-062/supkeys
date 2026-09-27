@@ -696,6 +696,28 @@
         "all": "all optional emails from Rothern",
         "aiSuggestions": "AI supplier suggestions"
       }
+    },
+    "invitePreview": {
+      "metaTitle": "Buying request invitation",
+      "loading": "Loading request…",
+      "heading": "{inviterName} is requesting your quote",
+      "lead": "You've been invited to quote on this buying request on the Rothern B2B procurement platform.",
+      "number": "Request no.: {number}",
+      "deadline": "Quote deadline",
+      "delivery": "Delivery location",
+      "categories": "Category",
+      "supplierTypes": "Supplier type sought",
+      "itemsTitle": "{n, plural, one {# line item} other {# line items}} requested",
+      "moreItems": "{n, plural, one {+# more line item} other {+# more line items}} — visible after you sign up",
+      "sealedBid": "Your quote is a sealed bid — other suppliers cannot see your price.",
+      "freeToQuote": "Signing up and submitting a quote is free.",
+      "signupCta": "Sign up free and submit a quote",
+      "loginCta": "Log in and submit a quote",
+      "optOut": "I don't want invitations",
+      "closedTitle": "This request is closed for quotes",
+      "closedBody": "Sign up for free to hear about similar requests.",
+      "invalidTitle": "Invitation not found",
+      "invalidBody": "This link is invalid or the invitation is no longer valid."
     }
   },
   "marketplace": {
@@ -4081,6 +4103,17 @@
         "showNameHint": "If off, invitations say \"A buyer\". Invitations that show the company name get more replies.",
         "summaryInSection1": "The companies AI found are in the list in section 1.",
         "goToList": "Go to list"
+      },
+      "share": {
+        "title": "Share your request",
+        "lead": "Share your public request page to reach more suppliers.",
+        "linkedin": "Share on LinkedIn",
+        "whatsapp": "Send via WhatsApp",
+        "email": "Send by email",
+        "copy": "Copy link",
+        "copied": "Link copied",
+        "text": "Buying request: {title} — submit your quote on Rothern",
+        "emailSubject": "Buying request: {title}"
       }
     },
     "trade": {

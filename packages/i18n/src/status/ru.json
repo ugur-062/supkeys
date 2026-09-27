@@ -7599,6 +7599,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "email.tenderExternalInvite.previewLink": {
+    "hash": "b657092867",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
   "email.tenderExternalInvite.publicLink": {
     "hash": "46b7b2f59f",
     "status": "reviewed",
@@ -7658,6 +7663,11 @@
     "hash": "f99e5f6a3d",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "email.tenderExternalInvite.textPreviewLink": {
+    "hash": "39b4602f96",
+    "status": "reviewed",
+    "at": "2026-09-27"
   },
   "email.tenderExternalInvite.textPublicLink": {
     "hash": "229eedc14e",
@@ -12723,6 +12733,106 @@
     "hash": "cde81339c2",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.marketing.invitePreview.categories": {
+    "hash": "b7964404a7",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.closedBody": {
+    "hash": "faaba16e96",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.closedTitle": {
+    "hash": "d9d09b02c7",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.deadline": {
+    "hash": "274a2a423a",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.delivery": {
+    "hash": "795d9de788",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.freeToQuote": {
+    "hash": "3513d1260e",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.heading": {
+    "hash": "88f4838e28",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.invalidBody": {
+    "hash": "5f0d3c9a69",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.invalidTitle": {
+    "hash": "9b438b0eeb",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.itemsTitle": {
+    "hash": "9e6f95229a",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.lead": {
+    "hash": "c346617d16",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.loading": {
+    "hash": "79de3572bb",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.loginCta": {
+    "hash": "689027a5bc",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.metaTitle": {
+    "hash": "e0ad102901",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.moreItems": {
+    "hash": "3c5409c083",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.number": {
+    "hash": "f716307f82",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.optOut": {
+    "hash": "87ce86196c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.sealedBid": {
+    "hash": "aedef11730",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.signupCta": {
+    "hash": "0da0c7df48",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.marketing.invitePreview.supplierTypes": {
+    "hash": "f39c481fae",
+    "status": "reviewed",
+    "at": "2026-09-27"
   },
   "web.marketing.legal.aracilik.metaDesc": {
     "hash": "ea867c932b",
@@ -25288,6 +25398,51 @@
     "hash": "f5c618cd54",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.share.copied": {
+    "hash": "cad0a79419",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.share.copy": {
+    "hash": "9b0a7269e5",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.share.email": {
+    "hash": "ad00cc2f41",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.share.emailSubject": {
+    "hash": "8be824085b",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.share.lead": {
+    "hash": "4d5290f8c6",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.share.linkedin": {
+    "hash": "617c8dcbc4",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.share.text": {
+    "hash": "985de5236c",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.share.title": {
+    "hash": "b802c54f83",
+    "status": "reviewed",
+    "at": "2026-09-27"
+  },
+  "web.panel.requests.share.whatsapp": {
+    "hash": "074f0a7723",
+    "status": "reviewed",
+    "at": "2026-09-27"
   },
   "web.panel.requests.stagedDocuments.bolumSecipSartnameTeknikResim": {
     "hash": "86fe51c791",

@@ -410,3 +410,56 @@ describe("ExternalInviteDispatcher — gönderim", () => {
     expect(email.send).toHaveBeenCalledTimes(1);
   });
 });
+
+describe("Faz 3 — kayıtsız önizleme + önceden doldurma", () => {
+  it("davet jetonuyla talebin TÜM kalemleri beyaz listeyle görünür; başka talep ve geçersiz jeton 404", async () => {
+    const service = makeService();
+    const owner = await makeCompanyWithUser(prisma);
+    await prisma.company.update({ where: { id: owner.company.id }, data: { name: "ABC İnşaat" } });
+    const listing = await openListing(owner.company.id, owner.user.id, { title: "Bağlantı elemanları" });
+    for (let i = 0; i < 14; i++) {
+      await makeItem(prisma, listing.id, {
+        name: `Kalem ${i + 1}`,
+        quantity: new Prisma.Decimal(10),
+        unit: "adet",
+        unitCode: "PCE",
+        targetPrice: new Prisma.Decimal(5),
+        specification: "GİZLİ ŞARTNAME",
+      });
+    }
+    const other = await openListing(owner.company.id, owner.user.id);
+    await service.inviteExternalForListing(owner.auth, listing.id, ["dis@firma.com"]);
+    const token = (await prisma.companyReferralInvite.findFirstOrThrow({ where: { email: "dis@firma.com" } })).token;
+
+    const p = await service.invitePreview(token);
+    expect(p).toMatchObject({ listingId: listing.id, inviterName: "ABC İnşaat", tenderTitle: "Bağlantı elemanları", itemCount: 14, closed: false, accepted: false });
+    expect(p.items).toHaveLength(14);
+    const json = JSON.stringify(p);
+    expect(json).not.toContain("GİZLİ ŞARTNAME");
+    expect(json).not.toContain("targetPrice");
+    expect(json).not.toContain("showName");
+    await expect(service.invitePreview(token, other.id)).rejects.toMatchObject({ status: 404 });
+    await expect(service.invitePreview("yok")).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("ziyaret: ilgi damgası + adresin KENDİ firma bilgisi (AI keşfinden); geçersiz jetonda boş", async () => {
+    const service = makeService();
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const listing = await openListing(owner.company.id, owner.user.id);
+    await service.inviteExternalForListing(owner.auth, listing.id, [{ email: "info@viti.it", country: "IT" }]);
+    const run = await prisma.supplierDiscoveryRun.create({ data: { companyId: owner.company.id, listingId: listing.id, trigger: "PUBLISH", state: "DONE" } });
+    await prisma.supplierDiscoveryCandidate.create({
+      data: { runId: run.id, name: "Viti Srl", email: "info@viti.it", website: "viti.it", country: "IT", city: "Milano" },
+    });
+    const token = (await prisma.companyReferralInvite.findFirstOrThrow({ where: { email: "info@viti.it" } })).token;
+    expect(await service.markReferralVisited(token)).toEqual({
+      email: "info@viti.it",
+      companyName: "Viti Srl",
+      website: "viti.it",
+      country: "IT",
+      city: "Milano",
+    });
+    expect((await prisma.companyReferralInvite.findFirstOrThrow({ where: { token } })).lastClickedAt).not.toBeNull();
+    expect(await service.markReferralVisited("yok")).toEqual({ email: null, companyName: null, website: null, country: null, city: null });
+  });
+});

@@ -24,6 +24,7 @@ import { usePasswordRules } from "@/lib/company-auth/password-rules";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { api } from "@/lib/api";
+import { saveInvitePrefill, type InvitePrefill } from "@/lib/company-auth/invite-prefill";
 import { Link } from "@/i18n/navigation";
 import { isValidPhoneNumber } from "@rothern/shared";
 import { useTranslations } from "next-intl";
@@ -46,10 +47,6 @@ export function CompanySignupClient() {
   const referralToken = searchParams.get("ref") ?? undefined;
   // Davet bağlantısı açıldı → ilgi sinyali (2026-09-27): bu adrese yeni talep
   // davetleri 7 günlük sıklık freni beklemeden gider. Sessiz, bir kez.
-  useEffect(() => {
-    if (!referralToken) return;
-    void api.post("/public/referral-visit", { token: referralToken }).catch(() => undefined);
-  }, [referralToken]);
   /**
    * Niyet YALNIZ adresten gelir — form artık SORMUYOR (2026-09-14).
    *
@@ -78,6 +75,18 @@ export function CompanySignupClient() {
     password: "",
     passwordConfirm: "",
   });
+  // Davetle gelen firma: e-posta hazır gelir, firma bilgileri onboarding'e
+  // saklanır (2026-09-27, Faz 3 — adresin kendi firması, AI keşfinin bulduğu).
+  useEffect(() => {
+    if (!referralToken) return;
+    void api
+      .post<InvitePrefill>("/public/referral-visit", { token: referralToken })
+      .then(({ data }) => {
+        saveInvitePrefill(data);
+        if (data?.email) setForm((f) => (f.email ? f : { ...f, email: data.email! }));
+      })
+      .catch(() => undefined);
+  }, [referralToken]);
   const [consents, setConsents] = useState<Consents>({
     terms: false,
     mediation: false,

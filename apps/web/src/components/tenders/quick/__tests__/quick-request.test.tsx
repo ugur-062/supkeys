@@ -42,6 +42,8 @@ vi.mock("@/hooks/use-company-listings", () => ({
   // Düzenleme modu (2026-09-19, sihirbaz kaldırıldı) — burada yeni kart sınanır.
   useUpdateListing: () => ({ mutateAsync: vi.fn(), isPending: false }),
   usePublishListing: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  // Yayın paneli paylaş düğmesi için talep detayını okur (vitrindeyse).
+  useListingDetail: () => ({ data: undefined }),
 }));
 vi.mock("@/hooks/use-listing-templates", () => ({ useSaveTemplate: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock("@/hooks/use-ai-search-intent", () => ({ useAiSearchIntent: () => ({ mutateAsync: vi.fn(), isPending: false }) }));

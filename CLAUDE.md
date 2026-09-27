@@ -1689,6 +1689,29 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   - Migration `20260927235000_email_digest_items` (eklemeli). Sözleşmeler:
     `email-program-policy.spec`, `email-programs.spec`, `category-match.spec`
     "GÜNDE 3 ANINDA".
+- **ORGANİK BÜYÜME (Faz 3, 2026-09-27):**
+  - **Davetle gelene hazır form:** `POST public/referral-visit` (kayıt ve
+    önizleme sayfası çağırır) ilgi damgası + adresin KENDİ firma bilgisini döner
+    (AI keşfinin bulduğu ad/site/ülke/şehir; geçersiz jetonda boş). Web
+    `lib/company-auth/invite-prefill.ts` oturum deposu: kayıt e-postayı,
+    onboarding firma adı/site/ülke/şehri önceden doldurur (kapalı ülke alınmaz).
+  - **Kayıtsız talep önizlemesi:** `GET public/invite-preview?ref=&l=` (jetonlu;
+    davet e-postasının beyaz listesi + TÜM kalemler, en fazla 100; kapalı talepte
+    `closed`, kayıtlı adreste `accepted`). Sayfa `/talep-davet` (EN
+    `/request-invitation`, RU `/priglashenie-k-zaprosu`; noindex, force-dynamic).
+    Tekli davette ikincil bağlantı (`previewUrl`), özet e-postada kart düğmesi.
+  - **Paylaş:** talep detayının sahip dalı `publicPath` (YALNIZ vitrindeyse,
+    `marketplaceListingWhere`) → `ShareListing` (LinkedIn/WhatsApp/e-posta/kopyala)
+    yayın panelinde ve talep sayfasında.
+  - Sözleşmeler: `external-tender-invite.spec` "Faz 3", web `talep-davet/__tests__`,
+    `onboarding-client.test` "DAVETLE GELEN FİRMA".
+- **ÖLÇÜM (Faz 4):** yönetici `/admin/buyume` (SUPER_ADMIN + SALES) ←
+  `GET admin/growth/invites?days=` (`modules/admin-growth`): huni (talep daveti →
+  e-postası giden → teslim → tıklayan → kayıt olan → teklif veren), iptal
+  nedenleri, kaynak/ülke/dil, soğuk davet sağlığı (bugünkü tavan + fren, 7 gün
+  şikâyet/geri dönme oranı — `ExternalInviteDispatcher.capStatus`), AI keşif
+  turları + platform maliyeti, günlük program e-postaları, abonelikten çıkanlar.
+  Yalnız sayılar (kişisel veri yok). Sözleşme `admin-growth.spec`.
 - Migration'lar `20260927210000_email_opt_outs`, `20260927220000_external_
   listing_invites` (eklemeli; eski talep bağlamlı referral davetleri SENT talep
   daveti olarak taşınır). Sözleşmeler: `email-streams.spec`, `email-unsubscribe.

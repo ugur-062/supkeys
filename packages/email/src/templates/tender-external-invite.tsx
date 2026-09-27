@@ -243,7 +243,17 @@ export function TenderExternalInviteEmail(
         </Button>
       </div>
 
-      {props.publicUrl ? (
+      {props.previewUrl ? (
+        <Text style={secondaryLink}>
+          {t.rich("email.tenderExternalInvite.previewLink", {
+            link: (chunks: React.ReactNode) => (
+              <a href={props.previewUrl ?? undefined} style={{ color: COLORS.slate700 }}>
+                {chunks}
+              </a>
+            ),
+          })}
+        </Text>
+      ) : props.publicUrl ? (
         <Text style={secondaryLink}>
           {t.rich("email.tenderExternalInvite.publicLink", {
             link: (chunks: React.ReactNode) => (
@@ -294,7 +304,11 @@ export function renderTenderExternalInviteText(
     t("email.tenderExternalInvite.freeToQuote"),
     "",
     t("email.tenderExternalInvite.textCta", { url: props.registerUrl }),
-    ...(props.publicUrl ? [t("email.tenderExternalInvite.textPublicLink", { url: props.publicUrl })] : []),
+    ...(props.previewUrl
+      ? [t("email.tenderExternalInvite.textPreviewLink", { url: props.previewUrl })]
+      : props.publicUrl
+        ? [t("email.tenderExternalInvite.textPublicLink", { url: props.publicUrl })]
+        : []),
     "",
     t("email.tenderExternalInvite.textOptOut", { url: props.optOutUrl }),
   ].join("\n");

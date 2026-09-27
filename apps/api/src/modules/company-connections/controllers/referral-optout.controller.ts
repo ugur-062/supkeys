@@ -27,19 +27,35 @@ export class ReferralVisitDto {
 }
 
 /**
- * Davet bağlantısı AÇILDI (2026-09-27, Faz 0b) — kayıt sayfası `?ref=` ile
- * açılınca bildirir. İlgi sinyali: bağlantıyı açan adrese yeni davetler 7
- * günlük sıklık freni beklemeden gider. Yanıt her zaman aynı (jetonun geçerli
- * olup olmadığı sızdırılmaz); veri değiştirmesi yalnız zaman damgası.
+ * Davet bağlantısı AÇILDI (2026-09-27, Faz 0b/3) — kayıt ya da talep önizleme
+ * sayfası `?ref=` ile açılınca bildirir. İlgi sinyali: bağlantıyı açan adrese
+ * yeni davetler 7 günlük sıklık freni beklemeden gider. Yanıt: adresin kendi
+ * firmasına ait önceden doldurma bilgisi (geçersiz jetonda boş alanlar).
  */
 @Controller("public/referral-visit")
 export class ReferralVisitController {
   constructor(private readonly service: CompanyConnectionsService) {}
 
   @Post()
-  @HttpCode(204)
+  @HttpCode(200)
   @Throttle({ default: { limit: 20, ttl: 60_000 } })
-  async visit(@Body() dto: ReferralVisitDto): Promise<void> {
-    await this.service.markReferralVisited(dto.token);
+  visit(@Body() dto: ReferralVisitDto) {
+    return this.service.markReferralVisited(dto.token);
+  }
+}
+
+/**
+ * Davet edilen firmanın KAYIT OLMADAN talebi görmesi (2026-09-27, Faz 3).
+ * Jetonlu, guard'sız; içerik davet e-postasının beyaz listesi + tüm kalemler.
+ */
+@Controller("public/invite-preview")
+export class InvitePreviewController {
+  constructor(private readonly service: CompanyConnectionsService) {}
+
+  @Get()
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
+  preview(@Query("ref") ref?: string, @Query("l") listingId?: string) {
+    if (!ref || ref.length > 100) throw new BadRequestException(i18nMessage("api.companyConnections.tokenGerekli"));
+    return this.service.invitePreview(ref, listingId && listingId.length <= 40 ? listingId : undefined);
   }
 }

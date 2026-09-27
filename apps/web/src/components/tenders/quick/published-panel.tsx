@@ -11,6 +11,8 @@ import type { ExternalInviteResult } from "@/hooks/use-supplier-discovery";
 import { isInviteAccepted } from "@/lib/tenders/external-invite-status";
 import { cn } from "@/lib/utils";
 import { ListingSuggestions } from "@/components/tenders/ai-suppliers/listing-suggestions";
+import { ShareListing } from "@/components/tenders/share-listing";
+import { useListingDetail } from "@/hooks/use-company-listings";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 /**
@@ -40,6 +42,9 @@ export function PublishedPanel({
   // API `company/ai/supplier-discovery` @RequireTier("GOLD") — ekran aynı kapı.
   const aiAvailable = !!company && tierAtLeast(company.tier, BUYING_TIER);
   const buyerCountry = useCompanyAuthStore((st) => st.company?.country);
+  // Herkese açık sayfa vitrindeyse paylaş (2026-09-27, Faz 3).
+  const detail = useListingDetail(listingId);
+  const publicPath = detail.data?.publicPath ?? null;
   return (
     <div className="mx-auto max-w-2xl rounded-2xl bg-white p-8 text-center shadow-sm ring-1 ring-zinc-950/5">
       <CheckCircleIcon aria-hidden className="mx-auto size-12 text-emerald-500" />
@@ -96,6 +101,11 @@ export function PublishedPanel({
       {/* Yayında otomatik AI araması (2026-09-27, Faz 1): tur sürerken "AI
           arıyor…", bitince bulunanlar SEÇİLİ — tek tıkla davet. Otomatik arama
           kapalıysa bileşen hiçbir şey çizmez. */}
+      {publicPath ? (
+        <div className="mt-6">
+          <ShareListing publicPath={publicPath} title={title} />
+        </div>
+      ) : null}
       {aiAvailable ? (
         <div className="mt-6">
           <ListingSuggestions listingId={listingId} itemNames={itemNames} buyerCountry={buyerCountry} variant="panel" />

@@ -696,6 +696,28 @@
         "all": "Rothern'den gelen tüm isteğe bağlı e-postalar",
         "aiSuggestions": "AI tedarikçi önerileri"
       }
+    },
+    "invitePreview": {
+      "metaTitle": "Satın alma talebi daveti",
+      "loading": "Talep yükleniyor…",
+      "heading": "{inviterName} sizden teklif istiyor",
+      "lead": "Rothern B2B tedarik platformunda açılan bu satın alma talebine davet edildiniz.",
+      "number": "Talep no: {number}",
+      "deadline": "Son teklif tarihi",
+      "delivery": "Teslim yeri",
+      "categories": "Kategori",
+      "supplierTypes": "Aranan tedarikçi tipi",
+      "itemsTitle": "Talep edilen {n, plural, other {# kalem}}",
+      "moreItems": "{n, plural, other {+# kalem daha}} — kayıt olunca görünür",
+      "sealedBid": "Teklifiniz kapalı zarftadır — diğer tedarikçiler fiyatınızı göremez.",
+      "freeToQuote": "Kayıt olmak ve teklif vermek ücretsizdir.",
+      "signupCta": "Ücretsiz kaydol ve teklif ver",
+      "loginCta": "Giriş yap ve teklif ver",
+      "optOut": "Davet almak istemiyorum",
+      "closedTitle": "Bu talep teklife kapandı",
+      "closedBody": "Benzer taleplerden haberdar olmak için ücretsiz kaydolabilirsiniz.",
+      "invalidTitle": "Davet bulunamadı",
+      "invalidBody": "Bu bağlantı geçersiz ya da davet artık geçerli değil."
     }
   },
   "marketplace": {
@@ -4081,6 +4103,17 @@
         "showNameHint": "Kapatırsanız davette \"Bir alıcı firma\" yazar. Firma adı görünen davetler daha çok yanıt alır.",
         "summaryInSection1": "AI'ın bulduğu firmalar 1. bölümdeki listede.",
         "goToList": "Listeye git"
+      },
+      "share": {
+        "title": "Talebinizi paylaşın",
+        "lead": "Herkese açık talep sayfanızı paylaşarak daha çok tedarikçiye ulaşın.",
+        "linkedin": "LinkedIn'de paylaş",
+        "whatsapp": "WhatsApp ile gönder",
+        "email": "E-postayla gönder",
+        "copy": "Bağlantıyı kopyala",
+        "copied": "Bağlantı kopyalandı",
+        "text": "Alım talebi: {title} — Rothern'de teklif verin",
+        "emailSubject": "Alım talebi: {title}"
       }
     },
     "trade": {

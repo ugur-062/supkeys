@@ -61,6 +61,7 @@ async function fillStep1TR(user: ReturnType<typeof userEvent.setup>) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  sessionStorage.clear();
   h.meData = {
     user: { firstName: "Ada", lastName: "Yılmaz" },
     company: { onboardingCompletedAt: null },
@@ -81,6 +82,18 @@ async function pickCountry(user: ReturnType<typeof userEvent.setup>, query: stri
 }
 
 describe("OnboardingClient — adım 1 (şirket)", () => {
+  it("DAVETLE GELEN FİRMA (Faz 3): AI keşfinin bulduğu ad, site ve ülke formu başlatır", async () => {
+    sessionStorage.setItem(
+      "rothern:invite-prefill",
+      JSON.stringify({ email: "info@viti.it", companyName: "Viti Srl", website: "viti.it", country: "IT", city: "Milano" }),
+    );
+    render(<OnboardingClient />);
+    expect((await screen.findByLabelText("Firma Unvanı *")) as HTMLInputElement).toHaveValue("Viti Srl");
+    expect(screen.getByLabelText(/Web siteniz/)).toHaveValue("viti.it");
+    // Ülke İtalya → Türkiye'ye özgü il seçici çizilmez.
+    expect(screen.queryByLabelText("İl *")).toBeNull();
+  });
+
   it("zorunlu alanlar boşken 'Devam' devre dışı", () => {
     render(<OnboardingClient />);
     expect(screen.getByRole("button", { name: "Devam" })).toBeDisabled();
