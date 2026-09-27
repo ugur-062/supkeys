@@ -54,8 +54,14 @@ export class CompleteOnboardingDto {
   @Length(2, 2)
   country?: string;
 
+  /**
+   * Ham girdi: belgeden kopyalanan etiket/ülke öneki taşıyabilir ("ИНН …",
+   * "VAT DE…") — tavan bu yüzden 40. Asıl biçim kuralı serviste, NORMALİZE
+   * değer üzerinde (`normalizeTaxId` + `isValidTaxIdForCountry`, alt sınır 4 —
+   * web formu aynı fonksiyonu kullanır).
+   */
   @IsString()
-  @Length(4, 30)
+  @Length(4, 40)
   taxNumber!: string;
 
   @IsOptional()

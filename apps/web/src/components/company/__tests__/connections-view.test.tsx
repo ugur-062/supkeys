@@ -168,12 +168,34 @@ describe("ConnectionsView", () => {
     const box = await screen.findByLabelText("Davet edilecek e-posta adresleri");
     await user.type(box, "x@y.com");
     await user.click(screen.getByRole("button", { name: "Davet gönder" }));
-    expect(h.invite).toHaveBeenCalledWith("x@y.com");
+    expect(h.invite).toHaveBeenCalledWith({ email: "x@y.com", locale: "tr" });
     await user.click(screen.getByRole("button", { name: /Davet et/ }));
     const box2 = await screen.findByLabelText("Davet edilecek e-posta adresleri");
     await user.type(box2, "a@b.com, c@d.com");
     await user.click(screen.getByRole("button", { name: "2 adrese davet gönder" }));
-    expect(h.batch).toHaveBeenCalledWith(["a@b.com", "c@d.com"]);
+    expect(h.batch).toHaveBeenCalledWith([
+      { email: "a@b.com", locale: "tr" },
+      { email: "c@d.com", locale: "tr" },
+    ]);
+  });
+
+  it("Davet et: adres başına davet dili — uzantıdan varsayılan (.kz → Русский), değiştirilebilir", async () => {
+    const user = userEvent.setup();
+    h.batch.mockResolvedValue({ summary: { request: 0, invited: 2, skipped: 0 }, results: [] });
+    render(<ConnectionsView />);
+    await user.click(screen.getByRole("button", { name: /Davet et/ }));
+    await user.type(await screen.findByLabelText("Davet edilecek e-posta adresleri"), "zakupki@zavod.kz, info@firma.com");
+    const kz = screen.getByLabelText("zakupki@zavod.kz için davet dili") as HTMLSelectElement;
+    const com = screen.getByLabelText("info@firma.com için davet dili") as HTMLSelectElement;
+    expect(kz.value).toBe("ru");
+    // Genel uzantı → davet edenin (arayüz) dili.
+    expect(com.value).toBe("tr");
+    await user.selectOptions(com, "en");
+    await user.click(screen.getByRole("button", { name: "2 adrese davet gönder" }));
+    expect(h.batch).toHaveBeenCalledWith([
+      { email: "zakupki@zavod.kz", locale: "ru" },
+      { email: "info@firma.com", locale: "en" },
+    ]);
   });
 
   it("e-posta GİTMEDİYSE 'gönderildi' denmez: tekil uçta uyarı, toplu uçta gönderilemeyen sayısı + satır rozeti", async () => {

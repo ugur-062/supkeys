@@ -26,7 +26,6 @@ import {
   type LucideIcon,
 } from "lucide-react";
 
-const fmt = formatDateTime;
 
 function Section({
   title,
@@ -90,6 +89,7 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
   const t = useTranslations("web.panel.requests.generalInfoTab");
   const placeLabel = usePlaceLabel();
   const locale = useLocale() as Locale;
+  const fmt = (v: string | null | undefined) => formatDateTime(v, locale);
   const scopeLabel = useScopeLabel();
   const deliveryTermLabel = useDeliveryTermLabel();
   const formatPaymentPlan = useFormatPaymentPlan();

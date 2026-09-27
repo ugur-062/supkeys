@@ -26,15 +26,6 @@ export default function EditTenderPage() {
       />
     );
   }
-  if (l.type !== "ALIM") {
-    return (
-      <Notice
-        title={t("buEkranYalnizcaSatinAlma")}
-        desc={t("satisIlanlariKendiDuzenlemeEkranindan")}
-        href={`/company/ilan/${id}`}
-      />
-    );
-  }
   if (!l.canEdit) {
     return (
       <Notice

@@ -16,6 +16,8 @@ import {
 } from "@/lib/public/listing-filter-params";
 import { JsonLd } from "@/components/seo/json-ld";
 import { graph, itemListNode } from "@/lib/seo/jsonld";
+import { canonicalListingListPage } from "@/lib/seo/landing";
+import { pageQuery } from "@/lib/seo/meta";
 import { MARKETPLACE_ROUTES, listingHref, type PublicListingType } from "@/lib/public/marketplace";
 import { fetchFacets, fetchListings } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
@@ -37,11 +39,9 @@ interface Props {
 export async function ListingIndex({ title, lead, searchParams }: Props) {
   const t = await getTranslations("web.marketplace.index");
   const locale = await getLocale();
-  const tl = await getTranslations("web.marketplace.labels");
   const state = parseListingFilters(searchParams);
   const params = toListingListParams(state);
   const basePath = MARKETPLACE_ROUTES.demands;
-  const noun = tl("demandOne");
 
   const [page, facets, otherCounts] = await Promise.all([
     fetchListings(params),
@@ -53,12 +53,13 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
   const hasFilter = activeListingFilterCount(state) > 0 || !!state.q;
 
   /* ITEMLIST — liste sayfasının ne listelediğini söyler; başlıklar zaten
-     herkese açık (sahip kimliği DEĞİL). Sıra numarası sayfalamayı yansıtır. */
+     herkese açık (sahip kimliği DEĞİL). Sıra numarası sayfalamayı yansıtır;
+     yalnız `?sayfa=N` taşıyan sayfanın adresi kendisi (metadaki kanonikle aynı). */
   const listLd = graph([
     itemListNode({
       locale,
       name: title,
-      path: basePath,
+      path: `${basePath}${pageQuery(canonicalListingListPage(searchParams))}`,
       totalItems: page.total,
       startPosition: (page.page - 1) * page.pageSize + 1,
       items: page.items.map((l) => ({ name: l.title, path: listingHref(l) })),
@@ -95,7 +96,7 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
           <span className="flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-3">
               <MobileFilterButton />
-              <ResultCount kind="buyingRequest" noun={noun.toLocaleLowerCase("tr-TR")} />
+              <ResultCount kind="buyingRequest" />
             </span>
             <ListingSortBar />
           </span>
@@ -109,7 +110,7 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
               `ListingCard variant="row"`, kind "talep" → asla görsel). */}
           {page.items.length === 0 ? (
             <PublicEmptyState
-              noun={hasFilter ? t("listingEmptyFiltered") : t("listingEmpty")}
+              title={hasFilter ? t("listingEmptyFilteredTitle") : t("listingEmptyTitle")}
               clearHref={hasFilter ? basePath : undefined}
               extra={{ label: t("openRequest"), href: signupHref("talep") }}
             />

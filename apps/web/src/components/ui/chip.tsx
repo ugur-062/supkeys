@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { X } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 /**
@@ -33,6 +34,7 @@ export function Chip({
   className?: string;
   disabled?: boolean;
 }) {
+  const t = useTranslations("web.shared.ui");
   const base = cn(
     "inline-flex h-8 items-center gap-1.5 rounded-full border px-3 text-sm font-medium transition",
     selected
@@ -56,7 +58,7 @@ export function Chip({
         <button
           type="button"
           onClick={onRemove}
-          aria-label={removeLabel ?? "Kaldır"}
+          aria-label={removeLabel ?? t("remove")}
           className={cn(
             "-mr-1.5 flex size-5 items-center justify-center rounded-full",
             selected ? "hover:bg-white/15" : "hover:bg-zinc-100",

@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { breadcrumbNode, itemListNode, organizationNode } from "../jsonld";
-import { buildMetadata, ogCardPath } from "../meta";
+import { breadcrumbNode, itemListNode, organizationNode, webSiteNode } from "../jsonld";
+import { LEGAL_DOC_LOCALES, buildMetadata, contentLangOf, ogCardPath, siteVerification } from "../meta";
 
 /* 2026-09-27 SEO denetimi: liste JSON-LD'si ve varsayılan OG kartı sayfanın
    DİLİNDE olmalı — EN/RU sayfada Türkçe adres yazmak kanonikle çelişir. */
@@ -14,7 +14,8 @@ describe("itemListNode — dil", () => {
       path: "/urunler/ulke/de-almanya",
       items: [{ name: "Pipe", path: "/firma/acme/urun/boru" }],
     }) as { url: string; itemListElement: Array<{ url: string }> };
-    expect(node.url).toBe(`${S}/en/products/country/de-almanya`);
+    // Ülke slug'ı DİLİN ADIYLA (2026-09-27): iç yol Türkçe, dış adres `de-germany`.
+    expect(node.url).toBe(`${S}/en/products/country/de-germany`);
     expect(node.itemListElement[0]!.url).toBe(`${S}/en/companies/acme/products/boru`);
   });
 
@@ -41,7 +42,7 @@ describe("itemListNode — dil", () => {
     expect(node.itemListElement.map((i) => i.item)).toEqual([
       `${S}/ru`,
       `${S}/ru/tovary`,
-      `${S}/ru/tovary/strana/de-almanya`,
+      `${S}/ru/tovary/strana/de-germaniya`,
       `${S}/ru/tovary/gorod/de-munich`,
     ]);
   });
@@ -49,11 +50,12 @@ describe("itemListNode — dil", () => {
 
 describe("buildMetadata — varsayılan OG kartı", () => {
   it("görsel verilmeyen EN/RU sayfa kendi dilinin marka kartını alır", () => {
-    const en = buildMetadata({ title: "x", description: "y", path: "/nasil-calisir", locale: "en" });
-    expect(en.openGraph?.images).toEqual([`${S}/en/opengraph-image`]);
-    expect(en.twitter?.images).toEqual([`${S}/en/opengraph-image`]);
+    const en = buildMetadata({ title: "How it works", description: "y", path: "/nasil-calisir", locale: "en" });
+    // og:image:alt (sayfanın dilinde, başlık) + kartın bilinen boyutu.
+    expect(en.openGraph?.images).toEqual([{ url: `${S}/en/opengraph-image`, alt: "How it works", width: 1200, height: 630 }]);
+    expect(en.twitter?.images).toEqual([{ url: `${S}/en/opengraph-image`, alt: "How it works" }]);
     const tr = buildMetadata({ title: "x", description: "y", path: "/nasil-calisir" });
-    expect(tr.openGraph?.images).toEqual([`${S}/opengraph-image`]);
+    expect(tr.openGraph?.images).toEqual([{ url: `${S}/opengraph-image`, alt: "x", width: 1200, height: 630 }]);
   });
 
   it("segment kartı: dil ön eki + İÇ yol (çevrilmiş yol + /opengraph-image rota değil)", () => {
@@ -67,5 +69,61 @@ describe("organizationNode — destek dilleri", () => {
   it("üç dil", () => {
     const org = organizationNode() as { contactPoint: Array<{ availableLanguage: string[] }> };
     expect(org.contactPoint[0]!.availableLanguage).toEqual(["tr", "en", "ru"]);
+  });
+});
+
+describe("buildMetadata — hazır diller, sayfalama, sözleşmeler (2026-09-27)", () => {
+  it("hreflang YALNIZ hazır diller; x-default hazır ilk dile; og:locale:alternate aynı set", () => {
+    const m = buildMetadata({ title: "Pipe", description: "y", path: "/firma/acme/urun/boru", locale: "en", locales: ["en", "ru"] });
+    expect(m.alternates?.languages).toEqual({
+      en: `${S}/en/companies/acme/products/boru`,
+      ru: `${S}/ru/kompanii/acme/tovary/boru`,
+      "x-default": `${S}/en/companies/acme/products/boru`,
+    });
+    expect(m.alternates?.canonical).toBe(`${S}/en/companies/acme/products/boru`);
+    expect((m.openGraph as { alternateLocale?: string[] }).alternateLocale).toEqual(["ru_RU"]);
+  });
+
+  it("çevirisi bekleyen (noindex) dil kendi adresini kanonik söyler ama hreflang'e girmez", () => {
+    const m = buildMetadata({ title: "x", description: "y", path: "/firma/acme", locale: "ru", locales: ["tr"], noindex: true });
+    expect(m.alternates?.canonical).toBe(`${S}/ru/kompanii/acme`);
+    expect(m.alternates?.languages).toEqual({ tr: `${S}/firma/acme`, "x-default": `${S}/firma/acme` });
+  });
+
+  it("sözleşme metni: EN/RU sayfanın kanoniği Türkçe, hreflang yalnız tr", () => {
+    const m = buildMetadata({ title: "Terms", description: "y", path: "/sozlesmeler/kullanici", locale: "en", locales: LEGAL_DOC_LOCALES });
+    expect(m.alternates?.canonical).toBe(`${S}/sozlesmeler/kullanici`);
+    expect(m.alternates?.languages).toEqual({ tr: `${S}/sozlesmeler/kullanici`, "x-default": `${S}/sozlesmeler/kullanici` });
+  });
+
+  it("sayfalama: N>1 kendi kanoniği ve hreflang'i `?sayfa=N`; 1. sayfa sorgusuz", () => {
+    const p2 = buildMetadata({ title: "x", description: "y", path: "/urunler/ulke/de-almanya", locale: "en", page: 2 });
+    expect(p2.alternates?.canonical).toBe(`${S}/en/products/country/de-germany?sayfa=2`);
+    expect((p2.alternates?.languages as Record<string, string>).ru).toBe(`${S}/ru/tovary/strana/de-germaniya?sayfa=2`);
+    const p1 = buildMetadata({ title: "x", description: "y", path: "/urunler", page: 1 });
+    expect(p1.alternates?.canonical).toBe(`${S}/urunler`);
+  });
+});
+
+describe("içerik dili ve site düğümü (2026-09-27)", () => {
+  it("contentLangOf: yalnız sayfa dili hazır DEĞİLSE kaynağın dili; bilinmeyen kaynak yazılmaz", () => {
+    expect(contentLangOf({ readyLocales: ["tr", "en"], sourceLocale: "tr" }, "en")).toBeUndefined();
+    expect(contentLangOf({ readyLocales: ["tr"], sourceLocale: "tr" }, "ru")).toBe("tr");
+    expect(contentLangOf({ readyLocales: ["en"], sourceLocale: "de" }, "tr")).toBe("de");
+    expect(contentLangOf({ readyLocales: [], sourceLocale: "und" }, "en")).toBeUndefined();
+    expect(contentLangOf({}, "en")).toBeUndefined();
+  });
+
+  it("SearchAction adresi sayfanın dilinde", () => {
+    const node = webSiteNode("ru") as { potentialAction: { target: { urlTemplate: string } } };
+    expect(node.potentialAction.target.urlTemplate).toBe(`${S}/ru/tovary?q={search_term_string}`);
+  });
+
+  it("doğrulama meta etiketleri: Google, Bing, Yandex; boşlar yazılmaz", () => {
+    expect(siteVerification({})).toEqual({});
+    expect(siteVerification({ yandex: "abc", google: " " })).toEqual({ verification: { yandex: "abc" } });
+    expect(siteVerification({ google: "g", bing: "b", yandex: "y" })).toEqual({
+      verification: { google: "g", yandex: "y", other: { "msvalidate.01": "b" } },
+    });
   });
 });

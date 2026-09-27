@@ -5,7 +5,7 @@ import { hasAnySeatPermission } from "@/lib/company/permissions";
 import { BUYER_OBJECTS, BUYER_WIDGETS } from "@/lib/company/hero-decor";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { intentToProductQuery, stashAiIntent } from "@/lib/company/ai-search";
-import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
+import { foldSearchText, tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
 import { useRouter } from "@/i18n/navigation";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
 import { CategoryShowcaseRows, toShowcaseRows } from "@/components/dashboard/category-showcase-rows";
@@ -108,9 +108,10 @@ export default function SatinalmaDashboardPage() {
   const sugCompanies = useCompanySearch({ q }, q.length >= 2);
   const suggestions: PanelSuggestGroup[] = useMemo(() => {
     if (q.length < 2) return [];
-    const lower = q.toLocaleLowerCase("tr-TR");
+    // Katlanmış karşılaştırma — `tr-TR` küçültme Latin "I"yı "ı" yapıyordu.
+    const lower = foldSearchText(q);
     const cats = (facets.data?.categories ?? [])
-      .filter((c) => c.name.toLocaleLowerCase("tr-TR").includes(lower))
+      .filter((c) => foldSearchText(c.name).includes(lower))
       .slice(0, 3)
       .map((c) => ({ key: c.id, label: c.name, meta: t("urun", { count: c.count }), href: panelCategoryPath(c.id, c.name) }));
     const prods = (sugProducts.data ?? []).slice(0, 5).map((p) => ({

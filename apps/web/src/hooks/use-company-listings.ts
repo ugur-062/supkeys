@@ -74,18 +74,11 @@ export interface Listing {
   createdAt: string;
 }
 
-// Backend Prisma `Currency` enum'u ile birebir (9 birim) — eksik tutmak
-// AED/CNY tekliflerini `as` cast'leriyle maskeleyip sessiz hataya yol açıyordu.
-export type CurrencyCode =
-  | "TRY"
-  | "USD"
-  | "EUR"
-  | "GBP"
-  | "CHF"
-  | "JPY"
-  | "AED"
-  | "CNY"
-  | "RUB";
+// Backend Prisma `Currency` enum'u ile birebir — TEK KAYNAK `@rothern/shared`
+// `CURRENCY_CODES` (2026-09-27: 21 birim). Eksik tutmak yeni birimli teklifleri
+// `as` cast'leriyle maskeleyip sessiz hataya yol açıyordu.
+import type { CurrencyCode } from "@rothern/shared";
+export type { CurrencyCode };
 
 export interface ItemQuestionInput {
   text: string;

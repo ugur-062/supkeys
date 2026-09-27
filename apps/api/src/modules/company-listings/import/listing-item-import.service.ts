@@ -1,5 +1,6 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { tApi } from "../../../common/i18n/i18n.service";
+import { unitDisplayName } from "../../../common/i18n/unit-label";
 import { BadRequestException, Injectable } from "@nestjs/common";
 import {
   ITEM_IMPORT_EXAMPLE_SHEET,
@@ -536,8 +537,8 @@ function validateRow(
     const u = getUnit(unitCode)!;
     errors.push(
       u.decimals === 0
-        ? tApi("api.companyListings.itemImport.birimTamSayi", { unit: u.nameTr })
-        : tApi("api.companyListings.itemImport.birimOndalik", { unit: u.nameTr, n: u.decimals }),
+        ? tApi("api.companyListings.itemImport.birimTamSayi", { unit: unitDisplayName(u.code) })
+        : tApi("api.companyListings.itemImport.birimOndalik", { unit: unitDisplayName(u.code), n: u.decimals }),
     );
   }
 

@@ -20,6 +20,9 @@ import {
  *  2. Ad tam eşleşme (katlanmış)                  → exact
  *  3. Bigram Dice benzerliği ≥ 0.85               → high
  *  4. Benzerlik ≥ 0.60 (veya model ipucu + ≥0.35) → medium (önizlemede "emin misiniz?")
+ *     Belge kalemlerden FARKLI DİLDEYSE (Almanca proforma ↔ Türkçe kalem;
+ *     2026-09-27) harf benzerliği anlamı ölçemez → model ipucu tek başına
+ *     medium (kullanıcı onaylar); gerçek metin eşleşmesi yine önce gelir.
  *  5. Aksi                                        → eşleşmedi (kalem boş, belge satırı "unmatched")
  * Her kalem en çok bir belge satırı alır (en yüksek skor kazanır; çakışan
  * düşük skor serbest kalır). Sağlık kontrolleri: toplam÷miktar türetme, miktar
@@ -66,7 +69,9 @@ export function foldText(s: string | null | undefined): string {
     .replace(/[\u201C\u201D\u2033]/g, '"')
     .replace(/''/g, '"')
     .replace(/\b(inc|inch)\b/g, '"')
-    .replace(/[^a-z0-9"%./x+-]+/g, " ")
+    // Harf = HER yazı (2026-09-27): eskiden yalnız a-z kalıyordu — Kiril/Çince
+    // kalem adı boş metne iniyor, aynı dildeki belgeyle bile eşleşmiyordu.
+    .replace(/[^\p{L}\p{N}"%./+-]+/gu, " ")
     .replace(/\s+/g, " ")
     .trim();
 }
@@ -134,6 +139,11 @@ const CURRENCY_SYMBOLS: Record<string, string> = {
   aed: "AED",
   cny: "CNY",
   rub: "RUB",
+  "₽": "RUB",
+  "руб": "RUB",
+  "руб.": "RUB",
+  "₼": "AZN",
+  "₩": "KRW",
 };
 
 /** "₺", "TL", "usd", "EUR " → ISO kodu; tanınmazsa null. */
@@ -158,12 +168,16 @@ export function normalizeDeliveryTime(v: unknown): string | null {
   for (const code of BID_DELIVERY_TIMES) {
     if (foldText(BID_DELIVERY_TIME_LABELS[code as BidDeliveryTime]) === f) return code;
   }
-  if (/stok|hemen|mevcut|derhal|immediate|in stock/.test(f)) return "STOKTAN";
-  const m = f.match(/(\d+)\s*(?:-|ila|to)?\s*(\d+)?\s*(gun|gün|is gunu|hafta|ay|week|day|month)/);
+  if (/stok|hemen|mevcut|derhal|immediate|in stock|auf lager|sofort|в наличии|со склада|немедленно/.test(f)) return "STOKTAN";
+  // Birim sözcükleri TR/EN/DE/RU (belge tedarikçinin dilinde gelir).
+  const m = f.match(
+    /(\d+)\s*(?:-|ila|to|bis|до)?\s*(\d+)?\s*(gun|gün|is gunu|hafta|ay|week|day|month|tag|woche|monat|ден|дн|недел|месяц|мес)/,
+  );
   if (m) {
     const n = m[2] ? +m[2] : +m[1]!;
     const unit = m[3]!;
-    const days = /hafta|week/.test(unit) ? n * 7 : /ay|month/.test(unit) ? n * 30 : n;
+    // Önek kontrolü: "day" içindeki "ay" AY sayılmasın (eskiden 15 gün → 450 gün).
+    const days = /^(hafta|week|woche|недел)/.test(unit) ? n * 7 : /^(ay|month|monat|мес)/.test(unit) ? n * 30 : n;
     if (days <= 0) return "STOKTAN";
     if (days <= 14) return "W1_2";
     if (days <= 28) return "W3_4";
@@ -186,12 +200,53 @@ export function validUnitPrice(n: number | null): { value: number | null; error:
   return { value: n, error: null };
 }
 
-export function confidenceOf(score: number, exact: boolean, hinted: boolean): BidImportConfidence {
+export function confidenceOf(
+  score: number,
+  exact: boolean,
+  hinted: boolean,
+  /** Belge ile kalemler farklı dilde — ipucu benzerlik eşiği aranmadan medium. */
+  crossLanguage = false,
+): BidImportConfidence {
   if (exact) return "exact";
   if (score >= SIM_HIGH) return "high";
   if (score >= SIM_MEDIUM) return "medium";
-  if (hinted && score >= SIM_HINT_MIN) return "medium";
+  if (hinted && (score >= SIM_HINT_MIN || crossLanguage)) return "medium";
   return "none";
+}
+
+type Script = "latin" | "cyrillic" | "cjk" | "arabic" | "other";
+
+/** Metinlerin baskın yazısı (harf sayımına göre). */
+export function dominantScript(texts: readonly string[]): Script | null {
+  const n: Record<Script, number> = { latin: 0, cyrillic: 0, cjk: 0, arabic: 0, other: 0 };
+  for (const t of texts) {
+    for (const ch of t) {
+      if (!/\p{L}/u.test(ch)) continue;
+      if (/\p{Script=Latin}/u.test(ch)) n.latin++;
+      else if (/\p{Script=Cyrillic}/u.test(ch)) n.cyrillic++;
+      else if (/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/u.test(ch)) n.cjk++;
+      else if (/\p{Script=Arabic}/u.test(ch)) n.arabic++;
+      else n.other++;
+    }
+  }
+  const best = (Object.entries(n) as [Script, number][]).sort((a, b) => b[1] - a[1])[0]!;
+  return best[1] > 0 ? best[0] : null;
+}
+
+/**
+ * Belge satırları kalemlerden farklı dilde mi: model açıkça söylediyse o
+ * (`docLanguage` ≠ `itemsLanguage`), ayrıca yazı farkı (Kiril ↔ Latin) her
+ * durumda farklı dil sayılır.
+ */
+export function isCrossLanguage(
+  items: readonly { name: string }[],
+  rows: readonly { text: string }[],
+  declared?: boolean | null,
+): boolean {
+  if (declared) return true;
+  const a = dominantScript(items.map((i) => i.name));
+  const b = dominantScript(rows.map((r) => r.text));
+  return a != null && b != null && a !== b;
 }
 
 /**
@@ -201,11 +256,12 @@ export function confidenceOf(score: number, exact: boolean, hinted: boolean): Bi
 export function matchDocRows(
   items: MatchItem[],
   rows: DocRow[],
-  opts: { allowedCurrencies: string[]; primaryCurrency: string | null },
+  opts: { allowedCurrencies: string[]; primaryCurrency: string | null; crossLanguage?: boolean | null },
 ): { matches: BidImportMatch[]; unmatched: BidImportDocRow[] } {
   type Cand = { itemIdx: number; rowIdx: number; score: number; exact: boolean; hinted: boolean };
   const cands: Cand[] = [];
   const byLine = new Map(items.map((it, i) => [it.lineNo, i] as const));
+  const cross = isCrossLanguage(items, rows, opts.crossLanguage);
 
   items.forEach((it, i) => {
     const code = foldText(it.materialCode);
@@ -224,7 +280,7 @@ export function matchDocRows(
       }
       const hinted = r.hintLineNo != null && byLine.get(r.hintLineNo) === i;
       if (hinted) score = Math.max(score, similarity(it.name, r.text)); // ipucu skoru düşürmez
-      const conf = confidenceOf(score, exact, hinted);
+      const conf = confidenceOf(score, exact, hinted, cross);
       if (conf !== "none") cands.push({ itemIdx: i, rowIdx: j, score: exact ? 2 : score, exact, hinted });
     });
   });
@@ -260,7 +316,7 @@ export function matchDocRows(
     };
     if (!c) return base;
     const r = rows[c.rowIdx]!;
-    const out = { ...base, source: r.text, confidence: confidenceOf(c.exact ? 1 : c.score, c.exact, c.hinted) };
+    const out = { ...base, source: r.text, confidence: confidenceOf(c.exact ? 1 : c.score, c.exact, c.hinted, cross) };
     applyDocRowValues(out, r, it, opts);
     return out;
   });

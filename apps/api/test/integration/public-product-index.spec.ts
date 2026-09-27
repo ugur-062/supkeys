@@ -16,6 +16,8 @@ import { resolveCityId } from "../../src/common/geo/geo-index";
 // alır; her test kendi firmalarını kurduğu için önbellek turlar arasında
 // bayat kalır ve süzgeç boş dönerdi.
 import { resetEmployeeValueCache } from "../../src/common/company/product-index";
+import { productPriceBase } from "@rothern/shared";
+import { fxRate, resetFxRates, setFxRates } from "../../src/common/currency/fx-rates";
 
 const service = () =>
   new PublicMarketplaceService(prisma as unknown as PrismaBypassService);
@@ -94,6 +96,17 @@ async function seedProduct(
       publishedAt: new Date(),
       searchText: "dagitim panosu pano",
       ...productOver,
+      // Gerçek yazma yolu gibi (2026-09-27): fiyat süzgeci/sıralaması TRY
+      // karşılığını (`priceAmountBase`) okur.
+      priceAmountBase: productPriceBase(
+        {
+          priceMode: (productOver.priceMode as string | undefined) ?? "ON_REQUEST",
+          priceAmount: productOver.priceAmount ?? null,
+          priceTiers: productOver.priceTiers ?? null,
+          priceCurrency: (productOver.priceCurrency as string | undefined) ?? "TRY",
+        },
+        fxRate,
+      ),
     },
   });
   return { company: patched, product };
@@ -450,6 +463,43 @@ describe("süzgeç v3 — çoklu seçim, aralık, bağlama duyarlı facet", () =
     expect(
       (await service().listProducts({ priceMax: 500, priceUnpriced: "1" })).items.map((p) => p.name).sort(),
     ).toEqual(["Teklifle", "Ucuz"]);
+  });
+
+  it("KURLA ÇEVİR (2026-09-27): farklı birimdeki fiyatlar ortak tabanda süzülür, sıralanır, histogramlanır", async () => {
+    setFxRates({ EUR: 50, JPY: 0.25 });
+    try {
+      await seedProduct({}, { name: "Avro", priceMode: "FIXED", priceAmount: "450", priceCurrency: "EUR" });
+      await seedProduct({}, { name: "Lira", priceMode: "FIXED", priceAmount: "490", priceCurrency: "TRY" });
+      await seedProduct({}, { name: "Yen", priceMode: "FIXED", priceAmount: "10000", priceCurrency: "JPY" });
+      await seedProduct({}, {
+        name: "Kademeli",
+        priceMode: "TIERED",
+        priceTiers: [{ minQty: 1, unitPrice: 30 }, { minQty: 100, unitPrice: 20 }],
+        priceCurrency: "EUR",
+      });
+      // "En az 400 EUR": 450 EUR girer; 490 TRY (≈9,8 EUR) ve 10.000 JPY
+      // (≈50 EUR) girmez — eskiden ham tutar kıyaslanıp ikisi de giriyordu.
+      expect(
+        (await service().listProducts({ currency: "EUR", priceMin: 400 })).items.map((p) => p.name),
+      ).toEqual(["Avro"]);
+      // Kademeli ürün kartındaki "…'dan başlayan" fiyatla (20 EUR) süzülür.
+      expect(
+        (await service().listProducts({ currency: "EUR", priceMin: 15, priceMax: 25 })).items.map((p) => p.name),
+      ).toEqual(["Kademeli"]);
+      // Sıra TRY karşılığından: 22.500 > 2.500 (JPY) > 1.000 (kademeli) > 490.
+      expect((await service().listProducts({ sort: "price_desc" })).items.map((p) => p.name)).toEqual([
+        "Avro",
+        "Yen",
+        "Kademeli",
+        "Lira",
+      ]);
+      const f = await service().productFacets({ currency: "EUR" });
+      expect(f.currency).toBe("EUR");
+      expect(f.priceHistogram!.max).toBe(450);
+      expect(f.priceHistogram!.min).toBe(10);
+    } finally {
+      resetFxRates();
+    }
   });
 
   it("MOQ ön ayar sayaçları KÜMÜLATİF ve where ile aynı kuralı uygular", async () => {

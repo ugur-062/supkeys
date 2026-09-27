@@ -10,26 +10,52 @@ import {
   type DocKind,
   type DocStatus,
 } from "@/hooks/use-admin-companies";
+import { countryName } from "@/lib/country";
 import { Check, FileText, X } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
+import {
+  REJECT_REASONS,
+  hasRejectReason,
+  parseReason,
+} from "../verification-reason";
 
 // Belge türü → etiket + Company alanları (url/status/reason).
+//
+// İKİ ETİKET (2026-09-27): aynı kolon TR firmasında Türk belgesidir ("Vergi
+// Levhası", "Ticaret Sicil Gazetesi"), yabancı firmada ülkenin karşılığıdır
+// (kuruluş belgesi, vergi/KDV kaydı, pasaport). Yabancı etiketler web kataloğu
+// `web.panel.settings.companyDocs.foreign.*` TR metinleriyle AYNI — admin ile
+// firma aynı belgeye aynı adı versin.
 const DOCS: {
   key: DocKind;
   label: string;
+  foreignLabel: string;
   url: keyof AdminCompanyDetail;
   status: keyof AdminCompanyDetail;
   reason: keyof AdminCompanyDetail;
 }[] = [
-  { key: "taxPlate", label: "Vergi Levhası", url: "docTaxPlateUrl", status: "docTaxPlateStatus", reason: "docTaxPlateReason" },
-  { key: "tradeRegistry", label: "Ticaret Sicil Gazetesi", url: "docTradeRegistryUrl", status: "docTradeRegistryStatus", reason: "docTradeRegistryReason" },
-  { key: "signatureCircular", label: "İmza Sirküleri", url: "docSignatureCircularUrl", status: "docSignatureCircularStatus", reason: "docSignatureCircularReason" },
-  { key: "activityCert", label: "Faaliyet Belgesi", url: "docActivityCertUrl", status: "docActivityCertStatus", reason: "docActivityCertReason" },
-  { key: "idFront", label: "Yetkili Kimlik (Ön)", url: "docIdFrontUrl", status: "docIdFrontStatus", reason: "docIdFrontReason" },
-  { key: "idBack", label: "Yetkili Kimlik (Arka)", url: "docIdBackUrl", status: "docIdBackStatus", reason: "docIdBackReason" },
+  { key: "taxPlate", label: "Vergi Levhası", foreignLabel: "Vergi / KDV Kayıt Belgesi (Tax / VAT Certificate)", url: "docTaxPlateUrl", status: "docTaxPlateStatus", reason: "docTaxPlateReason" },
+  { key: "tradeRegistry", label: "Ticaret Sicil Gazetesi", foreignLabel: "Kuruluş / Sicil Belgesi (Certificate of Incorporation)", url: "docTradeRegistryUrl", status: "docTradeRegistryStatus", reason: "docTradeRegistryReason" },
+  { key: "signatureCircular", label: "İmza Sirküleri", foreignLabel: "İmza Sirküleri (Signature Circular)", url: "docSignatureCircularUrl", status: "docSignatureCircularStatus", reason: "docSignatureCircularReason" },
+  { key: "activityCert", label: "Faaliyet Belgesi", foreignLabel: "Faaliyet Belgesi (Certificate of Activity)", url: "docActivityCertUrl", status: "docActivityCertStatus", reason: "docActivityCertReason" },
+  { key: "idFront", label: "Yetkili Kimlik (Ön)", foreignLabel: "Yetkili Kimliği veya Pasaportu (Authorized Signatory ID / Passport)", url: "docIdFrontUrl", status: "docIdFrontStatus", reason: "docIdFrontReason" },
+  { key: "idBack", label: "Yetkili Kimlik (Arka)", foreignLabel: "Yetkili Kimliği — Arka (ID Back)", url: "docIdBackUrl", status: "docIdBackStatus", reason: "docIdBackReason" },
 ];
+
+function docLabel(d: (typeof DOCS)[number], foreign: boolean): string {
+  return foreign ? d.foreignLabel : d.label;
+}
+
+/** Red kararı gövdesi: kod ve/veya not (boş not gönderilmez). */
+function rejectPayload(dec: DocDecision): Pick<DocDecision, "reasonCode" | "reason"> {
+  const note = dec.reason?.trim() ?? "";
+  return {
+    ...(dec.reasonCode ? { reasonCode: dec.reasonCode } : {}),
+    ...(note ? { reason: note } : {}),
+  };
+}
 
 // Zorunlu belge seti API'den (`requiredDocs`, tek kaynak shared
 // `requiredDocsForCountry`). Eski API yanıtı için yedek: TR 6, diğerleri 3.
@@ -51,14 +77,53 @@ const DOC_BADGE: Record<
   REJECTED: { label: "Reddedildi", color: "red" },
 };
 
-/** Hazır red gerekçeleri — tıklayınca input'a dolar (elle düzenlenebilir). */
-const REJECT_TEMPLATES = [
-  "Belge okunmuyor / bulanık",
-  "Yanlış belge yüklenmiş",
-  "Belge güncel değil (son 3 ay içinde alınmış olmalı)",
-  "Belgedeki bilgiler firma bilgileriyle uyuşmuyor",
-  "İmza / kaşe Yüklenmedi",
-];
+/**
+ * Red gerekçesi seçici — KOD çipleri + isteğe bağlı not (2026-09-27).
+ *
+ * Eskiden hazır Türkçe cümle input'a dolup olduğu gibi saklanıyor ve firmanın
+ * Doğrulama sayfasında basılıyordu → yabancı firma gerekçeyi okuyamıyordu.
+ * Kod firmanın dilinde çevrilir; not firmaya olduğu gibi gider.
+ */
+function RejectReasonPicker({
+  label,
+  value,
+  onChange,
+}: {
+  label: string;
+  value: { reasonCode?: string | null; reason?: string };
+  onChange: (next: { reasonCode: string | null; reason: string }) => void;
+}) {
+  const code = value.reasonCode ?? null;
+  const note = value.reason ?? "";
+  return (
+    <div className="flex flex-col gap-1.5">
+      <div className="flex flex-wrap gap-1.5" role="group" aria-label={`${label} red gerekçesi`}>
+        {REJECT_REASONS.map((r) => (
+          <button
+            key={r.code}
+            type="button"
+            aria-pressed={code === r.code}
+            onClick={() => onChange({ reasonCode: code === r.code ? null : r.code, reason: note })}
+            className={`rounded-full border px-2 py-0.5 text-[11px] ${
+              code === r.code
+                ? "border-red-500 bg-red-50 font-medium text-red-700"
+                : "border-admin-border text-admin-text-muted hover:bg-admin-border/30"
+            }`}
+          >
+            {r.label}
+          </button>
+        ))}
+      </div>
+      <input
+        value={note}
+        onChange={(e) => onChange({ reasonCode: code, reason: e.target.value })}
+        placeholder="İsteğe bağlı not — firmaya olduğu gibi gösterilir; firmanın diliyle yazın ya da boş bırakın"
+        aria-label={`${label} red notu`}
+        className="border-admin-border bg-admin-surface text-admin-text w-full rounded-lg border px-3 py-1.5 text-xs"
+      />
+    </div>
+  );
+}
 
 /**
  * Belgeler — KYC belge bazlı inceleme (eski modalın portu). Yabancı firmada
@@ -86,16 +151,20 @@ export function DocsTab({
   const foreign = (data.country ?? "TR").toUpperCase() !== "TR";
 
   // Mevcut belge durumlarını taslağa yükle (APPROVED/REJECTED ön-seçili).
+  // Saklanan gerekçe "[KOD] not" biçiminde → koda + nota ayrılır.
   useEffect(() => {
     const init: Partial<Record<DocKind, DocDecision>> = {};
     for (const d of DOCS) {
       const st = data[d.status] as DocStatus;
       if (st === "APPROVED") init[d.key] = { status: "APPROVED" };
-      else if (st === "REJECTED")
+      else if (st === "REJECTED") {
+        const parsed = parseReason(data[d.reason] as string | null);
         init[d.key] = {
           status: "REJECTED",
-          reason: (data[d.reason] as string | null) ?? "",
+          reasonCode: parsed.code,
+          reason: parsed.note,
         };
+      }
     }
     setDecisions(init);
   }, [data]);
@@ -112,17 +181,19 @@ export function DocsTab({
   const save = () => {
     for (const k of required) {
       const meta = DOCS.find((d) => d.key === k)!;
+      const label = docLabel(meta, foreign);
       if (!data[meta.url]) {
-        toast.error(`Eksik belge: ${meta.label}`);
+        toast.error(`Eksik belge: ${label}`);
         return;
       }
       const dec = decisions[k];
       if (!dec) {
-        toast.error(`Karar verilmemiş belge: ${meta.label}`);
+        toast.error(`Karar verilmemiş belge: ${label}`);
         return;
       }
-      if (dec.status === "REJECTED" && (dec.reason?.trim().length ?? 0) < 3) {
-        toast.error(`Red gerekçesi girin: ${meta.label}`);
+      // Kod VEYA ≥3 karakterlik not (API `composeRejectReason` ile aynı).
+      if (dec.status === "REJECTED" && !hasRejectReason(dec)) {
+        toast.error(`Red gerekçesi seçin ya da not yazın: ${label}`);
         return;
       }
     }
@@ -134,7 +205,7 @@ export function DocsTab({
       const key = data.docKeys?.[k] ?? undefined;
       payload[k] =
         dec.status === "REJECTED"
-          ? { status: "REJECTED", reason: dec.reason!.trim(), key }
+          ? { status: "REJECTED", ...rejectPayload(dec), key }
           : { status: "APPROVED", key };
     }
     review.mutate(
@@ -169,7 +240,7 @@ export function DocsTab({
           </p>
           <ul className="divide-admin-border border-admin-border mt-3 divide-y rounded-xl border">
             {data.pendingRevisions.map((rev) => (
-              <RevisionRow key={rev.id} companyId={companyId} rev={rev} />
+              <RevisionRow key={rev.id} companyId={companyId} rev={rev} foreign={foreign} />
             ))}
           </ul>
         </section>
@@ -177,8 +248,8 @@ export function DocsTab({
 
       {foreign ? (
         <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
-          Yabancı firma ({data.country}) — zorunlu belge seti:{" "}
-          {DOCS.filter((d) => required.includes(d.key)).map((d) => d.label).join(", ")}.
+          Yabancı firma ({countryName(data.country)}) — zorunlu belge seti:{" "}
+          {DOCS.filter((d) => required.includes(d.key)).map((d) => d.foreignLabel).join(", ")}.
           Diğer belgeler istenmez.
         </div>
       ) : null}
@@ -201,12 +272,13 @@ export function DocsTab({
             const url = data[d.url] as string | null;
             const st = data[d.status] as DocStatus;
             const dec = decisions[d.key];
+            const label = docLabel(d, foreign);
             return (
               <li key={d.key} className="flex flex-col gap-2 px-4 py-3">
                 <div className="flex items-center justify-between gap-3">
                   <span className="text-admin-text flex items-center gap-2 text-sm">
                     <FileText className="text-admin-text-muted h-4 w-4" />
-                    {d.label}
+                    {label}
                     {url ? (
                       <Badge color={DOC_BADGE[st].color}>
                         {DOC_BADGE[st].label}
@@ -241,7 +313,7 @@ export function DocsTab({
                 {url && previewKey === d.key ? (
                   <iframe
                     src={url}
-                    title={`${d.label} önizleme`}
+                    title={`${label} önizleme`}
                     className="border-admin-border h-[480px] w-full rounded-lg border bg-white"
                   />
                 ) : null}
@@ -264,6 +336,7 @@ export function DocsTab({
                         onClick={() =>
                           setDecision(d.key, {
                             status: "REJECTED",
+                            reasonCode: dec?.reasonCode ?? null,
                             reason: dec?.reason ?? "",
                           })
                         }
@@ -277,38 +350,13 @@ export function DocsTab({
                       </button>
                     </div>
                     {dec?.status === "REJECTED" ? (
-                      <div className="flex flex-col gap-1.5">
-                        <input
-                          value={dec.reason ?? ""}
-                          onChange={(e) =>
-                            setDecision(d.key, {
-                              status: "REJECTED",
-                              reason: e.target.value,
-                            })
-                          }
-                          placeholder="Red gerekçesi — firmaya gösterilir (ör. belge okunmuyor)"
-                          aria-label={`${d.label} red gerekçesi`}
-                          className="border-admin-border bg-admin-surface text-admin-text w-full rounded-lg border px-3 py-1.5 text-xs"
-                        />
-                        {/* Hazır gerekçeler — tıkla doldur, gerekirse düzenle. */}
-                        <div className="flex flex-wrap gap-1.5">
-                          {REJECT_TEMPLATES.map((t) => (
-                            <button
-                              key={t}
-                              type="button"
-                              onClick={() =>
-                                setDecision(d.key, {
-                                  status: "REJECTED",
-                                  reason: t,
-                                })
-                              }
-                              className="border-admin-border text-admin-text-muted hover:bg-admin-border/30 rounded-full border px-2 py-0.5 text-[11px]"
-                            >
-                              {t}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
+                      <RejectReasonPicker
+                        label={label}
+                        value={dec}
+                        onChange={(v) =>
+                          setDecision(d.key, { status: "REJECTED", ...v })
+                        }
+                      />
                     ) : null}
                   </div>
                 ) : null}
@@ -330,22 +378,38 @@ export function DocsTab({
 function RevisionRow({
   companyId,
   rev,
+  foreign,
 }: {
   companyId: string;
   rev: AdminCompanyDetail["pendingRevisions"][number];
+  foreign: boolean;
 }) {
   const decide = useReviewDocRevision();
   const [rejecting, setRejecting] = useState(false);
-  const [reason, setReason] = useState("");
-  const label = DOCS.find((d) => d.key === rev.kind)?.label ?? rev.kind;
+  const [draft, setDraft] = useState<{ reasonCode: string | null; reason: string }>({
+    reasonCode: null,
+    reason: "",
+  });
+  const meta = DOCS.find((d) => d.key === rev.kind);
+  const label = meta ? docLabel(meta, foreign) : rev.kind;
 
   const submit = (status: "APPROVED" | "REJECTED") => {
-    if (status === "REJECTED" && reason.trim().length < 3) {
-      toast.error("Red gerekçesi girin");
+    if (status === "REJECTED" && !hasRejectReason(draft)) {
+      toast.error("Red gerekçesi seçin ya da not yazın");
       return;
     }
     decide.mutate(
-      { id: companyId, revId: rev.id, status, reason: reason.trim() || undefined },
+      {
+        id: companyId,
+        revId: rev.id,
+        status,
+        ...(status === "REJECTED"
+          ? {
+              reasonCode: draft.reasonCode ?? undefined,
+              reason: draft.reason.trim() || undefined,
+            }
+          : {}),
+      },
       {
         onSuccess: () =>
           toast.success(
@@ -396,31 +460,18 @@ function RevisionRow({
         </div>
       </div>
       {rejecting ? (
-        <div className="flex flex-wrap items-center gap-2 pl-6">
-          <input
-            value={reason}
-            onChange={(e) => setReason(e.target.value)}
-            placeholder="Red gerekçesi (firmaya iletilir)"
-            className="border-admin-border min-w-64 flex-1 rounded-lg border px-2.5 py-1.5 text-xs"
-          />
-          {REJECT_TEMPLATES.map((t) => (
-            <button
-              key={t}
-              type="button"
-              onClick={() => setReason(t)}
-              className="text-admin-text-muted rounded-full bg-zinc-100 px-2 py-0.5 text-[11px] hover:bg-zinc-200"
+        <div className="flex flex-col gap-2 pl-6">
+          <RejectReasonPicker label={label} value={draft} onChange={setDraft} />
+          <div>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => submit("REJECTED")}
+              loading={decide.isPending}
             >
-              {t}
-            </button>
-          ))}
-          <Button
-            size="sm"
-            variant="secondary"
-            onClick={() => submit("REJECTED")}
-            loading={decide.isPending}
-          >
-            Reddi Onayla
-          </Button>
+              Reddi Onayla
+            </Button>
+          </div>
         </div>
       ) : null}
     </li>

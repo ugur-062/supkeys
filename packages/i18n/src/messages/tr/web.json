@@ -109,17 +109,6 @@
       "kvkkTitle": "KVKK uyumlu",
       "kvkkBody": "Verileriniz Türkiye mevzuatına uygun işlenir."
     },
-    "twoCards": {
-      "sellTitle": "Firmanı listele, ürünlerini vitrine çıkar",
-      "sellPoint1": "Ücretsiz profil",
-      "sellPoint2": "Yapay zekâ ile profil ve katalog doldurma",
-      "sellPoint3": "Kategorinle eşleşen talep bildirimi",
-      "createProfile": "Ücretsiz profil oluştur",
-      "seePremium": "Premium'u gör",
-      "buyTitle": "Alım taleplerini takip et",
-      "buyBody": "Kategorinle eşleşen açık talepler e-postana gelsin; kapalı zarf teklifini panelden ver, karşılaştırmayı alıcı yapsın.",
-      "seeDemands": "Alım taleplerini gör"
-    },
     "flow": {
       "label": "Alıcı için üç adım",
       "step1Title": "Ara",
@@ -621,6 +610,61 @@
           "hint": "Doğrulama ücretsiz"
         }
       }
+    },
+    "llms": {
+      "summary": "Rothern, alıcı ve tedarikçi firmaları TEK hesapta birleştiren bir B2B tedarik pazar yeridir. Firmalar ürün vitrini yayımlar, satın alma talebi açar ve kapalı zarf usulüyle teklif toplar; kazanan teklif siparişe dönüşür.",
+      "operator": "Rothern'i işleten şirket: {legalName} ({address}).",
+      "languages": "Site üç dilde yayımlanır: Türkçe (kaynak dil, ön eksiz adresler; ör. ürün dizini {trExample}), İngilizce (/en ön ekli; ör. {enExample}) ve Rusça (/ru ön ekli; ör. {ruExample}). Her sayfanın dil sürümleri hreflang ile bağlıdır. Firmaların yazdığı içerik (ürün, alım talebi, firma tanıtımı) kaynak dilinden otomatik çevrilir ve sayfada \"otomatik çeviri\" notuyla işaretlenir; sözleşme metinleri yalnız Türkçedir. Kategori ağacı dört seviyelidir (UNSPSC/Ariba tabanlı).",
+      "hSurfaces": "Ana yüzeyler",
+      "surfaceProducts": "firmaların herkese açık ürün vitrini; teknik nitelik, minimum sipariş miktarı (MOQ) ve fiyat bilgisiyle. Kategori, satıcı ülkesi ve şehre göre süzülür.",
+      "surfaceGeo": "Ülke ve şehir sayfaları: satıcı ülkesine göre ürünler {countryPattern} (ör. {countryExample}), şehre göre ürünler {cityPattern} (dünya geneli şehir listesi, GeoNames tabanlı). Tedarikçiler Türkiye ile sınırlı değildir.",
+      "surfaceCompanies": "doğrulanmış alıcı ve tedarikçi firmalardan bir kesit; dizinin tamamı, faaliyet tipi/şehir/kategori süzgeçleri ve iletişim ücretsiz üyelikle açılır. Firma profilleri ({profilePattern}) herkese açıktır.",
+      "surfaceDemands": "firmaların yayımladığı açık satın alma talepleri; miktar, kategori, alıcının şehri ve kalan süre görünür.",
+      "howItWorksLink": "Nasıl çalışır",
+      "surfaceHow": "süreç, paketler ve fiyatlandırma.",
+      "aboutLink": "Hakkımızda",
+      "contactLink": "İletişim ve Künye",
+      "sitemapLink": "Site haritası",
+      "fullLink": "Genişletilmiş kılavuz (envanter, kategoriler, SSS)",
+      "hRules": "Alıntılarken uyulması gereken kurallar",
+      "rulesIntro": "Aşağıdakiler tasarım gereği YAYIMLANMAZ. Sayfada yoksa yoktur; tahmin edilerek doldurulmamalıdır:",
+      "ruleOwner": "**Alım talebini açan firmanın kimliği.** Talep sayfalarında alıcının adı, logosu ve profil bağlantısı bilinçli olarak gösterilmez; yalnız şehir, ülke, sektör ve faaliyet tipi açıktır. \"Bu talebi X firması açtı\" biçiminde bir çıkarım yanlıştır.",
+      "ruleBids": "**Teklifler ve teklif sayısı.** Teklif toplama kapalı zarf usulüyle yapılır; teklif verenler birbirinin teklifini göremez ve teklif SAYISI da yayımlanmaz.",
+      "ruleItems": "**Talep kalemlerinin ayrıntısı.** Herkese açık sayfada kalem adları, sayısı ve miktarları görünür; teknik şartname, marka/açıklama ve ekli dosyalar yalnız kayıtlı üyelere açıktır.",
+      "ruleContact": "**Firma iletişim bilgisi.** Telefon, e-posta ve sosyal hesaplar herkese açık profilde yer almaz.",
+      "hFields": "Doğru okunması gereken alanlar",
+      "fieldPrice": "**Fiyat üç biçimde olabilir:** sabit fiyat, miktara göre kademeli fiyat ya da \"fiyat için teklif isteyin\". Üçüncüsü eksik veri değil, satıcının bilinçli tercihidir.",
+      "fieldVerified": "**\"Doğrulanmış\" rozeti** firmanın ticari belgelerinin Rothern tarafından incelendiğini gösterir; ürün ya da hizmet kalitesi hakkında bir beyan değildir.",
+      "fieldTax": "**Fiyatlar satıcının beyan ettiği biçimdedir** (para birimi satıcının seçimidir). Vergiler satıcının ülkesindeki kurallara ve taraflar arasındaki anlaşmaya göre belirlenir; bir fiyatın belirli bir ülkenin vergisini (ör. KDV) içerdiği ya da içermediği varsayılmamalıdır. Rothern taraflar arasındaki mal/hizmet bedeline aracılık etmez.",
+      "fieldProduct": "**Ürün sayfası firmanın altında yaşar:** {productPattern}. Bir ürünü kaynak gösterirken firmasıyla birlikte anın.",
+      "hContact": "İletişim",
+      "support": "Destek: {email}",
+      "privacy": "Kişisel verilere ilişkin başvuru: {email}",
+      "hLanguages": "Diğer diller",
+      "slugCompany": "firma-slug",
+      "slugProduct": "urun-slug",
+      "slugCountry": "ulke-kodu-ad",
+      "slugCity": "sehir",
+      "slugDemand": "numara-baslik",
+      "fullTitle": "Rothern — genişletilmiş site kılavuzu",
+      "fullIntro": "B2B tedarik pazar yeri. Bu dosya envanterin güncel özetini ve gezinme adreslerini içerir; kurallar ve alıntı sınırları için {llmsUrl}. Aşağıdaki adresler bu dilin sürümüdür; diğer dillerdeki karşılıkları sayfalardaki hreflang bağlantılarındadır.",
+      "hInventory": "Envanter",
+      "invProducts": "Yayımlanmış ürün: {n, number}",
+      "invDemands": "Açık alım talebi: {n, number}",
+      "invCategories": "Ürünü olan kategori: {n, number}",
+      "generatedAt": "Sayılar {date} tarihinde üretildi ve saatlik yenilenir.",
+      "hCategories": "Ürünü olan kategoriler",
+      "hCities": "Şehirlere göre ürünler",
+      "hCountries": "Ülkelere göre ürünler",
+      "hAddresses": "Ana adresler",
+      "addrProducts": "Ürün dizini",
+      "addrCompanies": "Firma dizini",
+      "addrDemands": "Alım talepleri",
+      "addrProductPattern": "Ürün sayfası şeması",
+      "addrCompanyPattern": "Firma sayfası şeması",
+      "addrDemandPattern": "Alım talebi şeması",
+      "hFaq": "Sık sorulan sorular",
+      "faqFull": "Tam hâli: {url}"
     }
   },
   "marketplace": {
@@ -639,7 +683,6 @@
       "buyer": "Alıcı",
       "verifiedBuyer": "Doğrulanmış alıcı",
       "items": "Kalem",
-      "itemNoun": "kalem",
       "specsMembers": "şartname ve belgeler üyelere",
       "visibility": "Görünürlük",
       "sealedBid": "Kapalı zarf",
@@ -660,7 +703,8 @@
       "showDetails": "Detayları göster",
       "hideDetails": "Detayları gizle",
       "showItems": "Kalemleri göster",
-      "hideItems": "Kalemleri gizle"
+      "hideItems": "Kalemleri gizle",
+      "itemsCountRich": "<n>{count, number}</n> <u>kalem</u>"
     },
     "strip": {
       "seeAll": "Tümünü gör",
@@ -671,7 +715,7 @@
     "productCard": {
       "verified": "Doğrulanmış",
       "new": "Yeni",
-      "minOrder": "Min. {n} {unit}",
+      "minOrder": "Min. {qty}",
       "verifiedCompany": "Doğrulanmış firma",
       "goldMember": "Gold Üye",
       "compare": "Karşılaştır",
@@ -732,7 +776,6 @@
       "label": "Sonuç türü"
     },
     "empty": {
-      "notFound": "{noun} bulunamadı.",
       "clear": "Filtreleri temizle",
       "browse": "Kategorilere göz at"
     },
@@ -756,7 +799,6 @@
       "foundCompany": "{total, number} firma bulundu",
       "foundBuyingRequest": "{total, number} alım talebi bulundu",
       "foundOpenRequest": "{total, number} açık talep bulundu",
-      "notFound": "{noun} bulunamadı",
       "filterButton": "Filtrele",
       "filtersTitle": "Süzgeçler",
       "clear": "Temizle",
@@ -769,8 +811,8 @@
       "clearAll": "Tümünü temizle",
       "activeCount": "{n} süzgeç aktif",
       "histLabel": "Fiyat dağılımı",
-      "histTitle": "{from} – {to} ₺ · {count} ürün",
-      "histSr": "{from}-{to} ₺ aralığı, {count} ürün",
+      "histTitle": "{from} – {to} · {count, plural, other {# ürün}}",
+      "histSr": "{from}–{to} aralığı, {count, plural, other {# ürün}}",
       "companyProfile": "Firma profili",
       "verified": "Doğrulanmış",
       "fastReply": "Hızlı yanıt veren",
@@ -796,8 +838,8 @@
       "clearSearch": "Aramayı temizle",
       "noCategory": "Eşleşen kategori yok",
       "price": "Fiyat",
-      "minCurrency": "Min ₺",
-      "maxCurrency": "Max ₺",
+      "minCurrency": "Min {currency}",
+      "maxCurrency": "Max {currency}",
       "includeUnpriced": "Fiyatı belirtilmemiş ürünler dahil",
       "all": "Hepsi",
       "priced": "Fiyatı yazılı",
@@ -829,12 +871,19 @@
       "country": "Ülke",
       "sortRecent": "Son eklenen",
       "sortClosing": "Süresi yaklaşan",
-      "sellerCountry": "Satıcı ülkesi"
+      "sellerCountry": "Satıcı ülkesi",
+      "listingCountry": "Teklif verebilecek tedarikçi ülkesi",
+      "listingCountryPick": "Başka bir ülke seçin",
+      "listingCountryHint": "Tüm ülkelere açık talepler her seçimde listelenir.",
+      "notFoundProduct": "Ürün bulunamadı",
+      "notFoundCompany": "Firma bulunamadı",
+      "notFoundBuyingRequest": "Alım talebi bulunamadı",
+      "notFoundOpenRequest": "Açık talep bulunamadı",
+      "currency": "Para birimi",
+      "currencyHint": "Farklı para birimindeki fiyatlar günlük TCMB kuruyla çevrilerek karşılaştırılır."
     },
     "index": {
       "breadcrumb": "Konum",
-      "productNoun": "ürün",
-      "productsEmptyNoun": "Bu kriterlerle ürün",
       "openRequestCta": "Talep aç — tedarikçiler teklif versin",
       "productResults": "Ürün sonuçları",
       "inquire": "Bilgi iste",
@@ -845,10 +894,11 @@
       "joinFree": "Ücretsiz üye ol",
       "login": "Giriş yap",
       "listingPlaceholder": "Talep başlığı, kalem veya kategori arayın",
-      "listingEmptyFiltered": "Bu kriterlerle açık talep",
-      "listingEmpty": "Açık talep",
       "listingResults": "Talep sonuçları",
-      "results": "Sonuçlar"
+      "results": "Sonuçlar",
+      "productsEmptyTitle": "Bu kriterlerle ürün bulunamadı.",
+      "listingEmptyTitle": "Açık talep bulunamadı.",
+      "listingEmptyFilteredTitle": "Bu kriterlerle açık talep bulunamadı."
     },
     "companyCard": {
       "products": "{n} ürün",
@@ -859,7 +909,7 @@
       "fastReply": "Hızlı yanıt veren",
       "viewPortfolio": "Portföyü görüntüle ({n})",
       "mainCategories": "Ana kategoriler",
-      "moq": "MOQ: {n} {unit}",
+      "moq": "MOQ: {qty}",
       "moreProducts": "+{n} ürün",
       "verifiedCompany": "Doğrulanmış firma",
       "viewProfile": "Profili gör →"
@@ -876,7 +926,7 @@
       "searchLabel": "Bu firmanın ürünlerinde ara",
       "searchPlaceholder": "Ürün arama",
       "searchSubmit": "Ürünlerde ara",
-      "resultsFor": "“{q}” için {n} sonuç ·",
+      "resultsFor": "“{q}” için {n, number} sonuç ·",
       "removeSearch": "aramayı kaldır",
       "noneFor": "Bu firmanın ürünlerinde “{q}” bulunamadı."
     },
@@ -922,7 +972,7 @@
     },
     "price": {
       "onRequest": "Fiyat için teklif isteyin",
-      "fromQty": "{qty} {unit} ve üzeri için"
+      "fromQty": "{qty} ve üzeri için"
     },
     "product": {
       "home": "Anasayfa",
@@ -936,7 +986,7 @@
       "brand": "Marka: {brand}",
       "mpn": "MPN: {mpn}",
       "vatExcluded": "KDV hariç",
-      "minOrder": "Minimum sipariş: {n} {unit}",
+      "minOrder": "Minimum sipariş: {qty}",
       "qty": "Miktar",
       "unitPrice": "Birim fiyat",
       "tabFeatures": "Ürün Özellikleri",
@@ -964,14 +1014,14 @@
       "deliveryTerm": "Teslim şekli",
       "payment": "Ödeme",
       "paymentDays": "Vade",
-      "days": "{n} gün",
+      "days": "{n, number} gün",
       "breadcrumb": "Yol",
       "home": "Anasayfa",
       "preferredActivities": "Aranan tedarikçi tipi:",
       "closing": "Kapanış",
       "items": "Kalem",
       "itemsCount": "{count} kalem",
-      "totalQty": "toplam {qty} {unit}",
+      "totalQty": "toplam {qty}",
       "format": "Format",
       "formatAuction": "Pazarlık (Eksiltme)",
       "formatRfq": "Teklif Toplama",
@@ -1001,7 +1051,8 @@
       "trust2Body": "Talep yayımlayan ve kazandıran firmalar kimlik doğrulamasından geçer.",
       "trust3Title": "Komisyon yok",
       "trust3Body": "Platform alım-satım bedelinden pay almaz.",
-      "similar": "Benzer açık talepler"
+      "similar": "Benzer açık talepler",
+      "onlyCountriesCanBid": "{n, plural, other {Yalnız {countries} merkezli tedarikçiler teklif verebilir.}}"
     },
     "inquiry": {
       "failed": "Talep gönderilemedi",
@@ -1428,7 +1479,7 @@
       },
       "attributes": {
         "label": "En az {n} teknik nitelik",
-        "hint": "Nitelik tablosu yapılandırılmış veriye (Product.additionalProperty) girer; süzgeçte bulunursunuz."
+        "hint": "Nitelik tablosu arama motorlarına ürün özelliği olarak iletilir; alıcılar sizi süzgeçlerde bulur."
       },
       "brand": {
         "label": "Marka ya da model/parça numarası",
@@ -1444,7 +1495,7 @@
       },
       "logo": {
         "label": "Logo",
-        "hint": "Organization.logo — arama sonucu ve AI kartında görünür."
+        "hint": "Arama sonuçlarında ve AI yanıtlarındaki firma kartında görünür."
       },
       "cover": {
         "label": "Kapak görseli",
@@ -1460,23 +1511,23 @@
       },
       "categories": {
         "label": "En az 3 kategori (ana + alt)",
-        "hint": "Organization.knowsAbout ve eşleştirme kategoriden çalışır."
+        "hint": "Arama motorları uzmanlık alanınızı kategorilerden okur; talep eşleştirmesi de onlardan çalışır."
       },
       "website": {
         "label": "Web sitesi",
-        "hint": "sameAs: motor Rothern profilini firmanızın gerçek kimliğine bağlar."
+        "hint": "Arama motorları Rothern profilinizi web siteniz üzerinden firmanızın gerçek kimliğine bağlar."
       },
       "linkedin": {
         "label": "LinkedIn",
-        "hint": "İkinci sameAs kaynağı."
+        "hint": "Profilinizi firmanıza bağlayan ikinci kaynak."
       },
       "founded": {
         "label": "Kuruluş yılı",
-        "hint": "foundingDate — güven sinyali."
+        "hint": "Ne kadar süredir faaliyette olduğunuzu gösterir — güven sinyalidir."
       },
       "employees": {
         "label": "Çalışan sayısı",
-        "hint": "numberOfEmployees."
+        "hint": "Firmanızın ölçeğini gösterir; alıcılar tedarikçi seçerken buna bakar."
       },
       "services": {
         "label": "En az 3 hizmet",
@@ -1524,6 +1575,98 @@
       "industry": "Sektör",
       "city": "Şehir",
       "categories": "Faaliyet kategorileri"
+    },
+    "aiMissingField": {
+      "title": "Talep başlığı",
+      "items": "En az bir kalem",
+      "quantities": "Kalem miktarları",
+      "units": "Kalem birimleri",
+      "deliveryTerm": "Teslim şekli",
+      "bidsCloseAt": "Teklif kapanış tarihi",
+      "category": "Kategori seçimi"
+    },
+    "bidDeliveryTime": {
+      "STOKTAN": "Stoktan (hemen)",
+      "W1_2": "1-2 hafta",
+      "W3_4": "3-4 hafta",
+      "W5_8": "5-8 hafta",
+      "M2_3": "2-3 ay",
+      "M3_PLUS": "3 aydan uzun"
+    },
+    "systemText": {
+      "ORDER_REJECTED": "{hasText, select, yes {Sipariş satıcı tarafından reddedildi: {text}} other {Sipariş satıcı tarafından reddedildi}}",
+      "CANCEL_REQUEST_APPROVED": "Satıcı iptal talebi onaylandı",
+      "ADMIN": "{hasText, select, yes {[Yönetici] {text}} other {Yönetici tarafından iptal edildi}}",
+      "LC_PAID_VIA_BANK": "Akreditif ödemesi banka kanalından alındı"
+    },
+    "paymentMethod": {
+      "LETTER_OF_CREDIT": "Akreditif",
+      "CHEQUE": "Çek"
+    },
+    "taxId": {
+      "label": {
+        "TR_VKN": "Vergi No / TCKN",
+        "XN": "Vergi No",
+        "RU_INN": "Vergi kimlik no (ИНН / ОГРН)",
+        "AZ_TIN": "Vergi kimlik no (VÖEN)",
+        "KZ_BIN": "İşletme kimlik no (БИН)",
+        "UZ_INN": "Vergi kimlik no (СТИР)",
+        "CN_USCC": "Birleşik sosyal kredi kodu (统一社会信用代码)",
+        "AE_TRN": "TRN ya da ticaret ruhsatı no",
+        "EU": "KDV no (VAT) ya da vergi no",
+        "GENERIC": "Vergi / sicil no"
+      },
+      "hint": {
+        "TR_VKN": "Tüzel kişide 10 haneli VKN, şahıs firmasında 11 haneli TCKN.",
+        "XN": "KKTC Gelir ve Vergi Dairesi'nin verdiği numara.",
+        "RU_INN": "ИНН: şirkette 10, bireysel girişimcide 12 hane; ОГРН (13 hane) ya da ОГРНИП (15 hane) de kabul edilir.",
+        "AZ_TIN": "10 hane.",
+        "KZ_BIN": "12 hane.",
+        "UZ_INN": "9 hane (bireysel girişimcide 14 haneli ПИНФЛ).",
+        "CN_USCC": "18 karakter: rakamlar ve büyük harfler.",
+        "AE_TRN": "KDV kaydınız varsa 15 haneli TRN; yoksa ticaret ruhsatı numaranız.",
+        "EU": "Ülke önekiyle ya da öneksiz yazabilirsiniz (ör. DE123456789); VIES ile doğrulayabilirsiniz.",
+        "GENERIC": "Vergi kaydınızda ya da ticaret sicilinizde yazan numara."
+      }
+    },
+    "activityHint": {
+      "MANUFACTURER": "Ürünü kendi tesisinde imal ediyor",
+      "DISTRIBUTOR": "Başkasının ürettiğini stoklayıp satıyor",
+      "SERVICE_PROVIDER": "Ürün değil hizmet veriyor (montaj, bakım, mühendislik)",
+      "IMPORTER_EXPORTER": "Dış ticaret yapıyor",
+      "CONTRACT_MANUFACTURER": "Müşterinin çizimine ya da markasına göre üretiyor"
+    },
+    "qty": {
+      "KG": "{n, number} kg",
+      "GRM": "{n, number} g",
+      "TON": "{n, number} ton",
+      "M": "{n, number} m",
+      "CM": "{n, number} cm",
+      "MM": "{n, number} mm",
+      "KM": "{n, number} km",
+      "M2": "{n, number} m²",
+      "M3": "{n, number} m³",
+      "LTR": "{n, number} litre",
+      "ML": "{n, number} ml",
+      "PCE": "{n, number} adet",
+      "PAIR": "{n, number} çift",
+      "SET": "{n, number} set",
+      "DZN": "{n, number} düzine",
+      "PKT": "{n, number} paket",
+      "BOX": "{n, number} kutu",
+      "CRT": "{n, number} koli",
+      "PAL": "{n, number} palet",
+      "ROL": "{n, number} rulo",
+      "BAG": "{n, number} çuval",
+      "DRM": "{n, number} varil",
+      "HUR": "{n, number} saat",
+      "DAY": "{n, number} gün",
+      "MON": "{n, number} ay",
+      "YER": "{n, number} yıl",
+      "SRV": "{n, number} hizmet",
+      "MDY": "{n, number} adam-gün",
+      "TRP": "{n, number} sefer",
+      "other": "{n, number} {unit}"
     }
   },
   "seo": {
@@ -1534,7 +1677,6 @@
     "exploreTail": "· Ürünlerini inceleyin, bilgi isteyin, bağlantı kurun.",
     "basedIn": "{city} merkezli",
     "productsOf": "{name} ürünleri",
-    "turkey": "Türkiye",
     "items": "{n} kalem",
     "buyerCity": "alıcı: {city}",
     "openForQuotes": "teklife açık",
@@ -1544,7 +1686,7 @@
     "og": {
       "product": "ÜRÜN",
       "productWith": "ÜRÜN · {category}",
-      "minOrder": "Min. {n} {unit}",
+      "minOrder": "Min. {qty}",
       "verifiedSupplier": "Doğrulanmış tedarikçi",
       "company": "FİRMA",
       "since": "{year}'den beri",
@@ -1564,17 +1706,14 @@
       "cityCompaniesSub": "Tedarikçi ve alıcı dizini",
       "country": "ÜLKE",
       "countryProductsTitle": "{country} tedarikçileri ve ürünleri",
-      "countryAlt": "Ülke tedarikçileri — Rothern",
       "companies": "{n, number} firma",
       "brandEyebrow": "B2B TEDARİK PAZAR YERİ",
       "brandTitle": "Alıcı ve tedarikçiyi tek hesapta birleştiren platform",
-      "brandSubtitle": "Ürün vitrini · Alım talebi · Kapalı zarf teklif · Sipariş takibi",
-      "listingAlt": "Alım talebi — Rothern",
-      "cityAlt": "Şehir tedarikçileri — Rothern",
-      "productAlt": "Ürün — Rothern"
+      "brandSubtitle": "Ürün vitrini · Alım talebi · Kapalı zarf teklif · Sipariş takibi"
     },
     "siteDescription": "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu. Kapalı zarf teklif topla, talep aç, firma keşfet — al, sat, keşfet, tek panelden.",
-    "siteOgDescription": "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu."
+    "siteOgDescription": "Alıcı ve tedarikçiyi tek hesapta birleştiren B2B ticaret platformu.",
+    "inShowcaseOf": "{where} vitrininde"
   },
   "pricing": {
     "note": "Fiyatlar USD cinsindendir ve KDV hariçtir. Ödeme 6 aylık veya yıllık dönem için peşin alınır; aylık faturalama yoktur. 6 aylık dönemde aylık tutar farklıdır.",
@@ -1702,7 +1841,7 @@
       "codeNotReceived": "Kod gelmedi mi? Yeniden gönder",
       "changeEmail": "← E-posta adresini değiştir",
       "title": "Hesabını aç",
-      "subtitle": "İlk satın alma talebinizi 10 dakikada başlatın. Kredi kartı gerekmez.",
+      "subtitle": "Firmanızı ücretsiz kaydedin; profilinizi ve ürün vitrininizi dakikalar içinde yayınlayın. Kredi kartı gerekmez.",
       "corporateEmail": "Kurumsal e-posta",
       "passwordRepeat": "Şifre (tekrar)",
       "creating": "Oluşturuluyor…",
@@ -1710,7 +1849,8 @@
       "codeNotSent": "Doğrulama kodu şu anda gönderilemedi. Aşağıdan “Yeniden gönder” ile yeniden deneyin; sorun sürerse birkaç dakika sonra tekrar deneyin.",
       "codeSent": "Doğrulama kodu e-postanıza gönderildi",
       "failed": "Kayıt başarısız",
-      "alreadyVerified": "E-postanız zaten doğrulanmış. Lütfen giriş yapın."
+      "alreadyVerified": "E-postanız zaten doğrulanmış. Lütfen giriş yapın.",
+      "phoneInvalid": "Seçili ülke için geçerli bir telefon numarası girin."
     },
     "consents": {
       "termsAria": "Kullanıcı sözleşmesini kabul ediyorum",
@@ -1762,10 +1902,10 @@
       }
     },
     "onboarding": {
-      "metaTitle": "Firma Doğrulama",
+      "metaTitle": "Şirket bilgileri",
       "loading": "Yükleniyor…",
-      "title": "Firma Doğrulama",
-      "lead": "Panelini kullanmaya başlamak için firma bilgilerini tamamla. Kayıtta verdiğiniz bilgiler tekrar sorulmaz.",
+      "title": "Şirket bilgileri",
+      "lead": "Panelinizi kullanmaya başlamak için şirket bilgilerinizi tamamlayın. Kayıtta verdiğiniz bilgiler tekrar sorulmaz.",
       "step1": "Şirket Bilgileri",
       "step2": "Kişisel Bilgiler",
       "step3": "Özet & Beyan",
@@ -1779,13 +1919,12 @@
       "viesValid": "VAT numarası doğrulandı (VIES)",
       "viesInvalid": "VAT numarası VIES'te geçerli değil",
       "viesFailed": "VIES doğrulaması başarısız",
-      "completed": "Firma doğrulaması tamamlandı",
+      "completed": "Şirket bilgileriniz kaydedildi",
       "saveFailed": "Kaydedilemedi",
       "legalName": "Firma Unvanı *",
       "country": "Ülke *",
       "companyTypeLabel": "Firma Türü *",
       "taxTr": "Vergi No / TCKN *",
-      "taxForeign": "Vergi / Sicil No *",
       "tcknInvalid": "11 haneli geçerli TCKN giriniz",
       "vknInvalid": "10 haneli geçerli vergi numarası giriniz",
       "taxForeignInvalid": "Geçerli bir vergi/sicil numarası giriniz",
@@ -1811,7 +1950,7 @@
       "tcknLabel": "T.C. Kimlik No *",
       "foreignIdLabel": "Yetkili Kimlik No",
       "tcknInvalidPerson": "Geçerli bir T.C. Kimlik No giriniz",
-      "founderBox": "Firmayı kurduğunuz için <b>Kurucu</b>sunuz — yönetim ve tüm operasyonlar (talep açma, teklif verme) dahil tam yetkiye sahipsiniz.",
+      "founderBox": "Firmayı kurduğunuz için <b>Kurucu</b>sunuz — firma ayarları, kullanıcılar ve paket işlemleri dahil tüm yönetim yetkisi sizde. İşlem yetkileri paketinize bağlıdır: talep yayınlamak Gold paket ister.",
       "sectorQuestion": "Ne alıp satıyorsunuz?",
       "sectorHint": "Somut ürün ve hizmetlerinizi seçin — sektörünüz seçiminizden otomatik belirlenir. Açık talepler size bu beyana göre iletilir; boş bırakırsanız hiçbir talep bildirimi almazsınız.",
       "sectorsFailed": "Sektörler yüklenemedi.",
@@ -1821,7 +1960,6 @@
       "sumLegalName": "Firma Unvanı",
       "sumCompanyType": "Firma Türü",
       "sumTax": "Vergi No / TCKN",
-      "sumTaxForeign": "Vergi / Sicil No",
       "sumTaxOffice": "Vergi Dairesi",
       "sumAddress": "Adres",
       "sumCountry": "Ülke",
@@ -1830,7 +1968,7 @@
       "sumRoleValue": "Kurucu · satış koltuğu",
       "sumSectors": "Sektörler",
       "nextTitle": "Kayıttan sonra ne olacak?",
-      "nextBody": "Hesabınız <b>hemen açılır</b>; talepleri inceleyebilir, firmalarla bağlantı kurup mesajlaşabilirsiniz. Teklif göndermek ve talep yayınlamak için firma doğrulamanızın tamamlanması gerekir — belgelerinizi <b>Ayarlar → Doğrulama</b>'dan yükleyip onaya gönderin. Belgeleriniz ekibimizce elle incelenir.",
+      "nextBody": "Hesabınız <b>hemen açılır</b>; profilinizi ve ürün vitrininizi yayınlayabilir, firmalarla bağlantı kurup mesajlaşabilir, davet edildiğiniz taleplere teklif verebilirsiniz. Herkese açık talepleri görmek ve teklif vermek Silver, talep yayınlamak Gold paket ister; ikisi de firma doğrulaması gerektirir — belgelerinizi <b>Ayarlar → Doğrulama</b>'dan yükleyip onaya gönderin. Belgeleriniz ekibimizce elle incelenir.",
       "declarationAria": "Verdiğim bilgilerin doğru ve güncel olduğunu beyan ederim",
       "declaration": "Verdiğim bilgilerin doğru ve güncel olduğunu beyan ederim.",
       "back": "Geri",
@@ -1838,9 +1976,8 @@
       "saving": "Kaydediliyor…",
       "finish": "Tamamla",
       "legalFormLocal": "Hukuki yapı (yerel adıyla)",
-      "legalFormLocalPlaceholder": "ör. GmbH, LLC, ООО, Kooperatif",
-      "legalFormLocalRequired": "Hukuki yapınızı yazın",
-      "taxIdHint": "Bu ülkede: {label}"
+      "legalFormLocalPlaceholder": "ör. GmbH, LLC, S.A., kooperatif",
+      "legalFormLocalRequired": "Hukuki yapınızı yazın"
     }
   },
   "panel": {
@@ -2008,7 +2145,6 @@
         "uygulananSuzgecler": "Uygulanan süzgeçler:",
         "suzgeciniKaldir": "süzgecini kaldır",
         "uygulananSuzgecKalmadiListeTamamini": "Uygulanan süzgeç kalmadı — liste tamamını gösteriyor.",
-        "kategoriBulunamadiKenar": "Kategori bulunamadı: “{categoryHint}” — kenar süzgecinden seçebilirsiniz.",
         "aiButcenizin80Doldu": "AI bütçenizin %80'i doldu — Ayarlar › AI Kullanımı.",
         "buTanimlaTalepAc": "Bu tanımla talep aç",
         "aiYorumunuKapat": "AI yorumunu kapat",
@@ -2027,7 +2163,11 @@
         "chipSehir": "Şehir: {city}",
         "chipDogrulanmisFirma": "Doğrulanmış firma",
         "chipBirimFiyatMax": "Birim fiyat ≤ {value}",
-        "chipMinSiparisMax": "Min. sipariş ≤ {value}"
+        "chipMinSiparisMax": "Min. sipariş ≤ {value}",
+        "aiSoyleAnladi": "AI şöyle anladı:",
+        "kategoriEslesmedi": "Katalogda uygun kategori bulunamadı — kenar süzgecinden seçebilirsiniz.",
+        "relaxedCountry": "ülke",
+        "chipUlke": "Ülke: {country}"
       },
       "analyticsPrimitives": {
         "degisimYok": "değişim yok",
@@ -2039,7 +2179,8 @@
         "surecHunisi": "Süreç hunisi",
         "listeyeGit2": "{label} — listeye git",
         "oncekiDonemeGore": "Önceki döneme göre",
-        "degisimBasligi": "{basis} %{pct} {change}"
+        "degisimBasligi": "{basis} %{pct} {change}",
+        "son12Ay": "son 12 ay"
       },
       "featuredCompaniesBlock": {
         "dogrulanmisTedarikciler": "Doğrulanmış tedarikçiler",
@@ -2085,9 +2226,7 @@
       },
       "satinalmaIhaleTab": {
         "donemHarcamasi": "Dönem Harcaması",
-        "donemIciSiparislerYalnizTry": "dönem içi siparişler · yalnız TRY",
         "acikSiparisTaahhudu": "Açık Sipariş Taahhüdü",
-        "odenmemisSiparisBakiyesiYalnizTry": "ödenmemiş sipariş bakiyesi · yalnız TRY",
         "n30GundeVadesiGelen": "30 Günde Vadesi Gelen",
         "odemePlanlaVade30Gun": "ödeme planla — vade 30 gün içinde",
         "vadesiYaklasanOdemeYok": "vadesi yaklaşan ödeme yok",
@@ -2107,7 +2246,6 @@
         "satinAlmaTalebiAcilisindanSiparise": "Satın Alma Talebi açılışından siparişe geçen ortalama gün (aylık)",
         "donguSuresiTrendi": "Döngü süresi trendi",
         "nakitTakvimi": "Nakit Takvimi",
-        "onumuzdeki30GununOdemeYuku": "Önümüzdeki 30 günün ödeme yükü (haftalık, TRY siparişler)",
         "n30GunlukOdemeTakvimi": "30 günlük ödeme takvimi",
         "odeme": "Ödeme",
         "onumuzdeki30GundeVadesiGelen": "Önümüzdeki 30 günde vadesi gelen ödeme yok",
@@ -2134,11 +2272,14 @@
         "gun": "{n} gün",
         "saglikli": "Sağlıklı",
         "saat": "{n} saat",
-        "hedefFiyataGoreYalnizTry": "hedef fiyata göre · yalnız TRY"
+        "teklifSayisi": "{n, plural, other {# teklif}}",
+        "donemIciSiparislerCur": "dönem içi siparişler · {currency} karşılığı",
+        "odenmemisSiparisBakiyesiCur": "ödenmemiş sipariş bakiyesi · {currency} karşılığı",
+        "onumuzdeki30GununOdemeYukuCur": "Önümüzdeki 30 günün ödeme yükü (haftalık, {currency} karşılığı)",
+        "hedefFiyataGoreCur": "hedef fiyata göre · {currency} karşılığı"
       },
       "satisChartTabs": {
         "gelirTrendi": "Gelir Trendi",
-        "aylikGelirAlanYilbasindanBeri": "Aylık gelir (alan) + yılbaşından beri kümülatif (çizgi) — TRY satışlar",
         "aylikGelirTrendi": "Aylık gelir trendi",
         "aylik": "Aylık",
         "kumulatif": "Kümülatif",
@@ -2157,7 +2298,6 @@
         "satisHunisiBos": "Satış hunisi boş",
         "davetAlipTeklifVerdikceAsamalar": "Davet alıp teklif verdikçe aşamalar burada dolacak.",
         "musteriKonsantrasyonu": "Müşteri Konsantrasyonu",
-        "enIyi5MusterininGelir": "En iyi 5 müşterinin gelir payı (son 12 ay, TRY)",
         "musteriKonsantrasyonuPareto": "Müşteri konsantrasyonu Pareto",
         "konsantrasyonRiski": "⚠ Konsantrasyon riski",
         "acikSatinAlmaTaleplerineGoz": "Açık satın alma taleplerine göz at",
@@ -2179,7 +2319,11 @@
         "davetTeklifsizKapandi": "{n, plural, other {davet teklifsiz kapandı}}",
         "tutarHesaplanamazTeklifVerilmedenKapanan": "Tutar hesaplanamaz — teklif verilmeden kapanan satın alma talebinin değeri bilinmez.",
         "kacirilanFirsatYok": "Kaçırılan fırsat yok",
-        "son12AydaTeklifsizKapanan": "Son 12 ayda teklifsiz kapanan davetli satın alma talebiniz bulunmuyor."
+        "son12AydaTeklifsizKapanan": "Son 12 ayda teklifsiz kapanan davetli satın alma talebiniz bulunmuyor.",
+        "kaybedildi": "Kaybedildi",
+        "beklemede": "Beklemede",
+        "aylikGelirAlanYilbasindanBeriCur": "Aylık gelir (alan) + yılbaşından beri kümülatif (çizgi) — tüm satışlar, {currency} karşılığı",
+        "enIyi5MusterininGelirCur": "En iyi 5 müşterinin gelir payı (son 12 ay, {currency} karşılığı)"
       },
       "satisDashboardView": {
         "acikTalep": "{n} açık talep",
@@ -2195,11 +2339,12 @@
         "firma": "Firma",
         "urununuzVitrindeMi": "Ürününüz vitrinde mi?",
         "urunleriniziFiyatVeMinimumSiparis": "Ürünlerinizi fiyat ve minimum sipariş bilgisiyle yayımlayın; alıcılar bulsun, bilgi talebi göndersin.",
-        "urunEkle": "Ürün ekle"
+        "urunEkle": "Ürün ekle",
+        "talep": "Talep",
+        "kalemMeta": "Kalem: {item}"
       },
       "tasarrufTab": {
         "tasarrufTrendi": "Tasarruf Trendi",
-        "aylikTasarrufBarKumulatifCizgi": "Aylık tasarruf (bar) + kümülatif (çizgi) — TRY satın alma talepleri; hedef verisi platformda yok",
         "aylikTasarrufTrendi": "Aylık tasarruf trendi",
         "aylik": "Aylık",
         "kumulatif": "Kümülatif",
@@ -2210,9 +2355,7 @@
         "toplamIslemHacmim": "Toplam İşlem Hacmim",
         "ortalamaTasarrufOranim": "Ortalama Tasarruf Oranım",
         "enYuksekTasarruflu5Satin": "En Yüksek Tasarruflu 5 Satın Alma Talebim",
-        "varColorSlate200E2e8f0": "var(--color-slate-200, #e2e8f0)",
         "satinAlmaTalebi": "#{String}. Satın Alma Talebi",
-        "varColorSuccess50010b981": "var(--color-success-500, #10b981)",
         "tasarrufTutari": "Tasarruf Tutarı",
         "anaKategoriBazliTasarrufum": "Ana Kategori Bazlı Tasarrufum",
         "anaParaBirimiBazliTasarrufum": "Ana Para Birimi Bazlı Tasarrufum",
@@ -2221,9 +2364,10 @@
         "tooltipRate": "Toplam tasarruf / toplam işlem hacmi oranı. Genel verimlilik göstergesi.",
         "tooltipTop5": "Seçilen dönemde, kalem-bazlı tasarruf hesabıyla bulduğumuz en yüksek tasarruflu 5 satın alma talebi.",
         "tooltipCategory": "Kategori bazında ortalama tasarruf oranı (en az 1 kazandırılmış satın alma talebi olan kategoriler).",
-        "tooltipCurrency": "Satın Alma Talebi ana para birimine göre tasarruf oranı (TRY karşılığı baz alınır).",
+        "tooltipCurrency": "Satın alma talebinin ana para birimine göre tasarruf oranı.",
         "enYuksekTasarruflu": "En yüksek tasarruflu satın alma talebi",
-        "maliyetKiriliminda": "Maliyet kırılımında çeyrek dönemi henüz yok — yıl verisi gösteriliyor."
+        "maliyetKiriliminda": "Maliyet kırılımında çeyrek dönemi henüz yok — yıl verisi gösteriliyor.",
+        "aylikTasarrufBarKumulatifCizgiCur": "Aylık tasarruf (bar) + kümülatif (çizgi) — tüm satın alma talepleri, {currency} karşılığı; hedef verisi platformda yok"
       },
       "tedarikciTab": {
         "donemdeEnCokSatinAlma": "Dönemde en çok satın alma talebinize teklif veren tedarikçiler. Ortalama sıralama düşükse o tedarikçi sürekli en iyi 1-2 fiyat veriyor demektir.",
@@ -2235,8 +2379,6 @@
         "toplamTeklif": "Toplam Teklif",
         "sirada": "{rank}. sırada",
         "enRekabetciTalep": "En Rekabetçi Talep",
-        "varColorZinc90018181b": "var(--color-zinc-900, #18181b)",
-        "varColorZinc200E4e4e7": "var(--color-zinc-200, #e4e4e7)",
         "teklifVeren": "{bidderCount} Teklif Veren",
         "talepTeklifVerenSayisi": "Talepteki Teklif Veren Sayısı: {bidderCount}"
       },
@@ -2470,8 +2612,7 @@
           "m6": "Son 6 Ay",
           "m12": "Son 1 Yıl",
           "all": "Tümü"
-        },
-        "createdatDesc": "createdAt:desc"
+        }
       },
       "tenderActionsMenu": {
         "taslagiSil": "Taslağı sil",
@@ -2739,7 +2880,9 @@
         "atlandiSatiri": "{email}: {reason}",
         "webDeAra": "Web''de Ara",
         "davetEPostasiGonderN": "Davet E-postası Gönder ({n})",
-        "baglantiDavetiGonder": "Bağlantı daveti gönder"
+        "baglantiDavetiGonder": "Bağlantı daveti gönder",
+        "davetDiliFirma": "{name} için davet dili",
+        "davetDiliIpucu": "Davet e-postası satırda seçilen dilde gider; varsayılan dil firmanın ülkesinden gelir."
       },
       "ihaleitemspanel": {
         "kalemlerYuklenemedi": "Kalemler yüklenemedi.",
@@ -2757,7 +2900,7 @@
       "browsetenderrow": {
         "firma": "Firma",
         "gizliFirma": "Gizli firma",
-        "premium": "Premium",
+        "premium": "Silver",
         "kapanis": "Kapanış",
         "kalem": "Kalem",
         "gorunurluk": "Görünürlük",
@@ -2841,7 +2984,7 @@
         "neLazimNereyeNeZamana": "Ne lazım, nereye, ne zamana, kime — dört soru; ticari şartlar profilinizden gelir.",
         "onayDurumuDogrulanamadiTekrarDeneyin": "Onay durumu doğrulanamadı, tekrar deneyin",
         "kazandir": "Kazandır",
-        "kazandirilsinMiBuIslemGeri": "\"{bidderName}\" kazandırılsın mı? Bu işlem GERİ ALINAMAZ: diğer teklifler kaybeder (LOST) ve sipariş oluşur.",
+        "kazandirilsinMiBuIslemGeri": "\"{bidderName}\" kazandırılsın mı? Bu işlem GERİ ALINAMAZ: diğer teklifler kaybeder ve sipariş oluşur.",
         "evetKazandir": "Evet, kazandır",
         "kazandirmaOnayaGonderildi": "Kazandırma onaya gönderildi",
         "kazandirildiSiparisOlustu": "Kazandırıldı — sipariş {number} oluştu",
@@ -2866,7 +3009,7 @@
         "buHerkeseAcikTalepSilver": "Bu herkese açık talep Silver paketiyle açılır",
         "herkeseAcikSatinAlmaTaleplerini": "Herkese açık satın alma taleplerini görmek ve teklif vermek Silver ile gelir. Bağlantı davetiyle gelen taleplere ücretsiz teklif verirsiniz.",
         "satinAlmaTalebineUlasilamiyor": "Satın Alma Talebine ulaşılamıyor.",
-        "ilanKaldirilmisAdresHataliYa": "İlan kaldırılmış, adres hatalı ya da erişim koşullarınız değişmiş olabilir (ör. firma bağlantısı veya üyelik durumu). Sorun olduğunu düşünüyorsanız ilan sahibiyle iletişime geçin.",
+        "ilanKaldirilmisAdresHataliYa": "Talep kaldırılmış, adres hatalı ya da erişim koşullarınız değişmiş olabilir (ör. firma bağlantısı veya paket durumu). Sorun olduğunu düşünüyorsanız talep sahibiyle iletişime geçin.",
         "paneleDon": "Panele Dön",
         "ilanYuklenemedi": "İlan yüklenemedi.",
         "tekrarDene": "Tekrar dene",
@@ -2896,7 +3039,6 @@
         "icinTeklifiniSec": "{name} için {bidderName} teklifini seç",
         "teklifToplami": "Teklif Toplamı",
         "enIyiToplam": "En iyi toplam",
-        "tryKarsiligiyla": "(TRY karşılığıyla)",
         "kalemdeFiyatliTeklifYokToplu": "{missingItems} kalemde fiyatlı teklif yok — toplu/kalem-bazlı tasarruf kıyası yapılamıyor.",
         "kalemBazliKazandirma": "Kalem-bazlı Kazandırma",
         "herKalemIcinKazananTeklifi": "Her kalem için kazanan teklifi seç. Kazanan firma başına ayrı sipariş oluşur. İpucu: yukarıdaki Kalem Karşılaştırma tablosunda fiyat hücresine tıklayarak da seçim yapabilirsiniz.",
@@ -2972,7 +3114,6 @@
         "satinAlmaTalebiBolumleri": "Satın Alma Talebi bölümleri",
         "talepSartlariKaydedildiYeniTalepler": "Talep şartları kaydedildi — yeni talepler bunlarla başlar",
         "yukleniyor": "Yükleniyor…",
-        "henuzTalepAcmamissinizPlatformVarsayilani": "Henüz talep açmamışsınız; platform varsayılanı gösteriliyor (yurtiçi, açık hesap, TRY, 7 gün, kapalı zarf).",
         "neredeKullanilir": "Nerede kullanılır",
         "hizliTalepKartindaSartlarOzet": "Hızlı talep kartında şartlar özet olarak görünür; tek satırı değiştirmek için kartta “değiştir” deyin. Sihirbaz (detaylı talep) da bu değerlerle başlar.",
         "kaydediliyor": "Kaydediliyor…",
@@ -2980,8 +3121,6 @@
         "duzenlemekIcinTalepYonetimiYetkisi": "Düzenlemek için talep yönetimi yetkisi gerekir.",
         "satinAlmaTalebiBulunamadi": "Satın Alma Talebi bulunamadı",
         "buSatinAlmaTalebiniDuzenleme": "Bu satın alma talebini düzenleme yetkiniz yok.",
-        "buEkranYalnizcaSatinAlma": "Bu ekran yalnızca satın alma taleplerini düzenler",
-        "satisIlanlariKendiDuzenlemeEkranindan": "Satış ilanları kendi düzenleme ekranından güncellenir.",
         "duzenlenemez": "Düzenlenemez",
         "buSatinAlmaTalebineTeklif": "Bu satın alma talebine teklif verilmiş veya kapanmış; içerik değiştirilemez.",
         "geriDon": "Geri Dön",
@@ -3101,9 +3240,9 @@
         "kazananOlmadanKapatildi": "Kazanan olmadan kapatıldı.",
         "kalemKarsilastirma": "Kalem Karşılaştırma",
         "kalemKarsilastirmaSuzulmus": "Kalem Karşılaştırma ({visible}/{total})",
-        "kalemOrani": "{priced}/{total} kalem",
-        "kalemBazliDagitimEkTasarrufSaglamiyor": "Kalem bazlı dağıtım ek tasarruf sağlamıyor — en düşük toplu teklif (<strong>{amount} ₺</strong>) ile <strong>toplu kazandırma</strong> en ekonomik seçenek.",
-        "kalemBazliDagitimTasarruf": "Kalem bazlı dağıtım: <strong>{itemized} ₺</strong> · En düşük toplu teklif: <strong>{bestTotal} ₺</strong> → <strong>%{pct} tasarruf</strong>",
+        "kalemOrani": "{priced, number}/{total, number} kalem",
+        "kalemBazliDagitimEkTasarrufSaglamiyor": "Kalem bazlı dağıtım ek tasarruf sağlamıyor — en düşük toplu teklif (<strong>{amount}</strong>) ile <strong>toplu kazandırma</strong> en ekonomik seçenek.",
+        "kalemBazliDagitimTasarruf": "Kalem bazlı dağıtım: <strong>{itemized}</strong> · En düşük toplu teklif: <strong>{bestTotal}</strong> → <strong>{pct} tasarruf</strong>",
         "eksik": "Eksik ({incompleteCount})",
         "buIlanaTeklifVermekIcinSilverPaketi": "Bu ilana teklif vermek için <strong>Silver paketi</strong> gerekir (ya da ilanı açan firmadan bağlantı daveti alın).",
         "buAcikTalebeTeklifVermekIcinSatisciRolu": "Bu açık talebe teklif vermek için hesabınızda <strong>Satışçı</strong> rolü gerekir — firma yöneticiniz Ayarlar → Kullanıcılar''dan verebilir.",
@@ -3153,7 +3292,9 @@
         "sonYayimladiginizTalepten": "son yayımladığınız talepten",
         "tumKalemlere": "tüm kalemlere",
         "suresiz": "süresiz",
-        "secmekIcinTiklayin": "seçmek için tıklayın"
+        "secmekIcinTiklayin": "seçmek için tıklayın",
+        "karsiligiylaCur": "({currency} karşılığıyla)",
+        "henuzTalepAcmamissinizPlatformVarsayilaniCur": "Henüz talep açmamışsınız; platform varsayılanı gösteriliyor (tüm ülkeler, adrese teslim, açık hesap, {currency}, 7 gün, kapalı zarf)."
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "Henüz bağlantınız yok. “Herkese açık” seçin ya da yayından sonra tedarikçi önerisinden davet edin.",
@@ -3357,7 +3498,7 @@
           "specific": "Sayı ya da standart (DN50, ISO 9001, 400 kVAr) tedarikçinin doğru aramada bulmasını sağlar.",
           "description": "Kullanım amacı, teknik şart, teslim yeri/zamanı, belge beklentisi.",
           "category": "Eşleştirme ve kategori sayfası.",
-          "items": "Demand.eligibleQuantity — miktar okunabilir olmalı.",
+          "items": "Her kalemin miktarı ve birimi açıkça yazılı olmalı — tedarikçi neye fiyat vereceğini bilsin.",
           "itemDetail": "Her kalem için malzeme/ölçü/standart bir cümle."
         },
         "ne": "Ne",
@@ -3365,7 +3506,8 @@
         "kime": "Kime",
         "belge": "Belge",
         "yayinIcinFirmaDogrulamasiGerekir": "Yayın için firma doğrulaması gerekir — <link>belgeleri yükleyin</link>. Şimdilik taslak kaydedebilirsiniz.",
-        "belgeleriYukleyin": "belgeleri yükleyin"
+        "belgeleriYukleyin": "belgeleri yükleyin",
+        "disDavetDili": "{email} için davet dili"
       },
       "publishedPanel": {
         "talebinizYayinda": "Talebiniz yayında",
@@ -3464,9 +3606,7 @@
         "hedefBirimFiyat": "Hedef Birim Fiyat",
         "vazgec": "Vazgeç",
         "kaydet": "Kaydet",
-        "kalemDetaylari": "Kalem {n} Detayları",
-        "detailRequiredbydate": "detail-requiredByDate-{index}",
-        "detailTargetunitprice": "detail-targetUnitPrice-{index}"
+        "kalemDetaylari": "Kalem {n} Detayları"
       },
       "catalogPickerDialog": {
         "katalogdanKalemEkle": "Katalogdan Kalem Ekle",
@@ -3841,6 +3981,13 @@
       },
       "bidDocuments": {
         "dosyaYuklenemedi": "Dosya yüklenemedi (R2)"
+      },
+      "countryGate": {
+        "title": "Bu talep firmanızın ülkesine açık değil",
+        "description": "{n, plural, other {Alıcı bu talebi yalnız {countries} merkezli tedarikçilere açtı.}}",
+        "descriptionNoList": "Alıcı bu talebi yalnız belirli ülkelerdeki tedarikçilere açtı.",
+        "inviteNote": "Alıcı sizi davet ederse teklif verebilirsiniz.",
+        "backToOpen": "Açık taleplere dön"
       }
     },
     "trade": {
@@ -4057,9 +4204,9 @@
         "siparisIptalEdildi": "Sipariş iptal edildi",
         "alicilar": "Alıcılar",
         "tedarikciler": "Tedarikçiler",
-        "henuzSatisSiparisinizYokBir": "Henüz satış siparişiniz yok. Bir satış ilanınız veya açık talebe verdiğiniz teklif kazandığında burada görünür.",
+        "henuzSatisSiparisinizYokBir": "Henüz satış siparişiniz yok. Bir açık talebe verdiğiniz teklif kazandığında burada görünür.",
         "henuzAlisSiparisinizYokBir": "Henüz alış siparişiniz yok. Bir satın alma talebinizi kazandırdığınızda veya satın aldığınızda burada görünür.",
-        "satislarinizKazandiginizAcikTaleplerdenVe": "Satışlarınız — kazandığınız açık taleplerden ve satış ilanlarınızdan. Onaylayın, gönderin, ödemeyi takip edin.",
+        "satislarinizKazandiginizAcikTaleplerdenVe": "Satışlarınız — kazandığınız açık taleplerden. Onaylayın, gönderin, ödemeyi takip edin.",
         "alisSiparislerinizKazandirdiginizSatinAlma": "Alış siparişleriniz — kazandırdığınız satın alma taleplerinden ve satın almalarınızdan. Teslim alın, ödemenizi bildirin, tamamlayın.",
         "siparisNoIlanVeyaKarsi": "Sipariş no, ilan veya karşı taraf…",
         "siralama": "Sıralama",
@@ -4167,11 +4314,11 @@
         "kazanmaOrani": "%{round} kazanma oranı",
         "goruntulenme": "Görüntülenme",
         "bilgiTalebi": "Bilgi talebi",
-        "goruntulenmeBirim": "görüntülenme",
-        "firmaBirim": "firma",
         "saat": "{n} sa",
         "ortanca": "ortanca",
-        "kabulEdildi": "{n} kabul edildi"
+        "kabulEdildi": "{n} kabul edildi",
+        "goruntulenmeSayisi": "<b>{n, number}</b> görüntülenme",
+        "firmaSayisi": "<b>{n, number}</b> firma"
       },
       "permissionTable": {
         "hazirSetler": "Hazır setler",
@@ -4348,7 +4495,8 @@
           "yakin": "Yakın biten",
           "uzak": "Uzak biten",
           "yeni": "En yeni"
-        }
+        },
+        "aliciUlkesi": "Alıcı ülkesi"
       },
       "productShowcaseForm": {
         "belgeYuklenemediYalnizPdfEn": "Belge yüklenemedi — yalnız PDF, en fazla 10 MB",
@@ -4456,7 +4604,7 @@
         "islemler": "İşlemler",
         "kategoriSecilmedi": "Kategori seçilmedi",
         "duzeltme": "· Düzeltme: {rejectReason}",
-        "min": "Min. {amount} {unit}",
+        "min": "Min. {qty}",
         "ac": "{name} — aç",
         "priceMode": {
           "FIXED": "Sabit fiyat",
@@ -4465,8 +4613,8 @@
         },
         "firmaProfilinizHenuzHerkeseAcikDegil": "Firma profiliniz henüz herkese açık değil: ürünleriniz profil yayınlanana kadar dizinde ve firma sayfanızda görünmez. <link>Profili yayınla</link>.",
         "ucretsizPaketteEnFazlaUrun": "Ücretsiz pakette en fazla {limit} ürün yayında ya da onayda olabilir ({occupied}/{limit} kullanıldı). Taslak sınırsız. <link>Silver ile sınırsız ürün, belge ve video</link>.",
-        "fiyatBirim": "{amount} {currency} / {unit}",
-        "fiyatBirimKademeli": "{amount} {currency} / {unit} (kademeli)"
+        "fiyatBirim": "{amount} / {unit}",
+        "fiyatBirimKademeli": "{amount} / {unit} (kademeli)"
       },
       "editorRail": {
         "tamamlanma": "Tamamlanma",
@@ -4633,7 +4781,7 @@
         "kimMesaj": "{who}: {text}"
       },
       "orderPaymentsCard": {
-        "kalanBorcunUstundeBildirimYapilamaz": "Kalan borcun üstünde bildirim yapılamaz — kalan {toLocaleString} {curSym}",
+        "kalanBorcunUstundeBildirimYapilamaz": "Kalan borcun üstünde bildirim yapılamaz — kalan {toLocaleString}",
         "odemeBildirildiSaticininOnayiBekleniyor": "Ödeme bildirildi — satıcının onayı bekleniyor",
         "odemeBildirilemedi": "Ödeme bildirilemedi",
         "odemeyiAldim": "Ödemeyi aldım",
@@ -4769,7 +4917,6 @@
         "iptalEdildi": "İptal edildi",
         "bagliSatinAlmaTalebi": "Bağlı Satın Alma Talebi",
         "satinAlmaTalebi": "Satın alma talebi",
-        "satisIlani": "satış ilanı",
         "satinAlmaTalebineGit": "Satın Alma Talebine Git",
         "bagliTalepKaydiYokSilinmis": "Bağlı talep kaydı yok (silinmiş olabilir).",
         "aliciFirma": "Alıcı Firma",
@@ -4951,7 +5098,7 @@
         "gerekceOpsiyonel": "Gerekçe (opsiyonel)",
         "reddetIhtilafli": "Reddet (İhtilaflı)",
         "malBulunduysaYukaridanSiparisiGonder": "Mal bulunduysa yukarıdan <strong>Siparişi Gönder</strong> ile ihtilafı çözebilirsiniz.",
-        "onayliOdemenizVarIadeTaraflarArasinda": "Onaylı ödemeniz var ({amount} {currency}). İade taraflar arasında halledilir — <strong>platform para tutmaz</strong>. Ödemeniz iade edildikten sonra onaylamanız önerilir."
+        "onayliOdemenizVarIadeTaraflarArasinda": "Onaylı ödemeniz var ({amount}). İade taraflar arasında halledilir — <strong>platform para tutmaz</strong>. Ödemeniz iade edildikten sonra onaylamanız önerilir."
       },
       "orderDefectPanel": {
         "ayipIhbariGeriCekildiSiparis": "Ayıp ihbarı geri çekildi — sipariş önceki durumuna döndü",
@@ -5135,7 +5282,7 @@
         "hesabiDuzenle": "Hesabı Düzenle",
         "yeniBankaHesabi": "Yeni Banka Hesabı",
         "hesapBasligi": "Hesap Başlığı *",
-        "ornTlVadesizIsBankasi": "Örn. TL Vadesiz — İş Bankası",
+        "ornTlVadesizIsBankasi": "ör. Ana hesap",
         "hesapSahibi": "Hesap Sahibi *",
         "firmaUnvani": "Firma unvanı",
         "vergiLevhasindakiUnvanlaAyniOlmali": "Vergi levhasındaki unvanla aynı olmalı; alıcı ödemeyi bu ada yapar.",
@@ -5157,7 +5304,9 @@
         "noIbanHint": "Bu ülkedeki bankalar IBAN kullanmıyor: hesap numarası, SWIFT/BIC kodu ve banka adı gerekli.",
         "bankNameRequired": "Banka adı",
         "accountNumberInvalid": "Geçerli bir hesap numarası girin (4-40 karakter)",
-        "swiftInvalid": "Geçerli bir SWIFT/BIC kodu girin (8 ya da 11 karakter)"
+        "swiftInvalid": "Geçerli bir SWIFT/BIC kodu girin (8 ya da 11 karakter)",
+        "ibanOrAccountNumber": "IBAN ya da hesap numarası",
+        "optionalIbanHint": "Bu ülkede IBAN ya da yerel hesap numarası kullanılabilir. Hesap numarasıyla birlikte SWIFT/BIC kodu ve banka adı da gerekli."
       },
       "companyProfileSection": {
         "firmaAdiEnAz2": "Firma adı en az 2 karakter olmalı",
@@ -5189,7 +5338,6 @@
         "kepAdresi": "KEP Adresi",
         "ornekHs01KepTr": "ornek@hs01.kep.tr",
         "adres": "Adres",
-        "ilSehir": "İl / Şehir",
         "ilce": "İlçe",
         "postaKodu": "Posta kodu",
         "acikAdres": "Açık adres",
@@ -5221,7 +5369,11 @@
         "vergiSicilNo": "Vergi / Sicil No",
         "firmaBilgileriYuklenemedi": "Firma bilgileri yüklenemedi.",
         "kimlikBilgilerindeHataVarsa": "Kimlik bilgilerinde hata varsa değişiklik için destek ile iletişime geçin. MERSİS, ticaret sicil numarası ve IBAN <dogrulama>Doğrulama Belgeleri</dogrulama> sayfasından; sipariş tahsilat hesapları <banka>Banka Hesapları</banka> sayfasından yönetilir.",
-        "firmaMerkeziTeslimatVeFaturaAdresleri": "Firma merkezi. Teslimat ve fatura adresleri <adresler>Adres Yönetimi</adresler>nde tutulur."
+        "firmaMerkeziTeslimatVeFaturaAdresleri": "Firma merkezi. Teslimat ve fatura adresleri <adresler>Adres Yönetimi</adresler>nde tutulur.",
+        "kurucu": "Kurucu",
+        "il": "İl",
+        "sehir": "Şehir",
+        "eyaletBolge": "Eyalet / bölge"
       },
       "companyUsersSection": {
         "pasifYapildi": "Pasif yapıldı",
@@ -5337,7 +5489,9 @@
         "yetkiKataloguYukleniyor": "Yetki kataloğu yükleniyor…",
         "vazgec": "Vazgeç",
         "gonderiliyor": "Gönderiliyor…",
-        "davetGonder": "Davet Gönder"
+        "davetGonder": "Davet Gönder",
+        "davetDili": "Davet dili",
+        "davetDiliIpucu": "Davet e-postası ve kabul sayfası bu dilde açılır. Davetli, kabul ederken dili değiştirebilir."
       },
       "settingsShell": {
         "ayarlar": "Ayarlar"
@@ -5473,7 +5627,7 @@
         "mersisNo16Hane": "MERSİS No (16 hane)",
         "sicilKayitNo": "Sicil / Kayıt No",
         "gecerliIban": "Geçerli IBAN",
-        "dogrulamaUcretsizVePaketGerektirmez": "Doğrulama ÜCRETSİZ ve paket gerektirmez. Doğrulanan firmanın profilinde “Doğrulanmış” rozeti görünür, herkese açık taleplere teklif verebilir ve dilediği pakete geçebilir. Doğrulanmamış firma alıcıya “Doğrulanmamış firma” olarak görünür. Belgeleriniz ekibimizce elle incelenir.",
+        "dogrulamaUcretsizVePaketGerektirmez": "Doğrulama ÜCRETSİZDİR ve paket gerektirmez. Doğrulanan firmanın profilinde “Doğrulanmış” rozeti görünür ve firma paket satın alabilir; herkese açık taleplere teklif vermek için ayrıca Silver, talep yayınlamak için Gold paket gerekir. Doğrulanmamış firma alıcıya “Doğrulanmamış firma” olarak görünür. Belgeleriniz ekibimizce elle incelenir.",
         "yukleniyor": "Yükleniyor…",
         "durum": "Durum:",
         "baziBelgelerReddedildi": "Bazı belgeler reddedildi",
@@ -5487,7 +5641,7 @@
         "mersisNo": "MERSİS No *",
         "ticariSicilNo": "Ticari Sicil No *",
         "sicilKayitNo2": "Sicil / Kayıt No *",
-        "registrationCompanyNo": "Registration / Company No",
+        "registrationCompanyNo": "Sicil ya da şirket numarası",
         "ibanVeyaBankaHesapNo": "IBAN veya banka hesap no",
         "hesapSahibi": "Hesap Sahibi *",
         "firmaUnvaniAS": "Firma Unvanı A.Ş.",
@@ -5509,16 +5663,17 @@
         "bankaHesapNo": "Banka Hesap No",
         "ticariSicilNo2": "Ticari Sicil No",
         "hesapSahibi2": "Hesap sahibi",
-        "firmanizDogrulandiHerkeseAcik": "Firmanız doğrulandı. Herkese açık taleplere teklif, talep yayını ve paket geçişi açık.",
+        "firmanizDogrulandiHerkeseAcik": "Firmanız doğrulandı. Artık paket satın alabilirsiniz: herkese açık taleplere teklif Silver, talep yayını Gold paketle açılır.",
         "dogrulamaIcindirSiparisTahsilat": "Doğrulama içindir. Sipariş tahsilat hesapları <banka>Banka Hesapları</banka>nda.",
         "belgeGuncellemenizReddedildi": "Belge güncellemeniz reddedildi — mevcut belgeniz geçerliliğini koruyor.",
         "belgeGuncellemenizReddedildiGerekce": "Belge güncellemeniz reddedildi: {reason} — mevcut belgeniz geçerliliğini koruyor.",
         "swiftBic": "SWIFT / BIC kodu",
-        "swiftPlaceholder": "ör. TGBATRIS",
+        "swiftPlaceholder": "ör. DEUTDEFFXXX",
         "swiftHint": "Bankanızın uluslararası kodu — yurt dışından ödeme alabilmek için gerekli",
         "swiftInvalid": "Geçerli bir SWIFT/BIC kodu girin (8 ya da 11 karakter)",
         "bankName": "Banka adı",
-        "accountNumberInvalid": "Geçerli bir hesap numarası girin (4-40 karakter)"
+        "accountNumberInvalid": "Geçerli bir hesap numarası girin (4-40 karakter)",
+        "idBothSidesHint": "Kimlik kartıysa ön ve arka yüzünü tek dosyada (PDF ya da birleştirilmiş görsel) yükleyin."
       },
       "ayarlarFirmaLayout": {
         "firmaBilgileriYetkiGerektirir": "Firma Bilgileri yetki gerektirir",
@@ -5598,7 +5753,7 @@
         },
         "dogrulama": {
           "title": "Doğrulama Belgeleri",
-          "description": "Ücretsiz — profilinizde “Doğrulanmış” rozeti, herkese açık taleplere teklif hakkı"
+          "description": "Ücretsiz — profilinizde “Doğrulanmış” rozeti; herkese açık taleplere teklif (Silver) ve talep yayını (Gold) için ön koşul"
         }
       },
       "verificationStatus": {
@@ -5636,7 +5791,33 @@
           "idFront": "Yetkili Kimliği veya Pasaportu (Authorized Signatory ID / Passport)",
           "idBack": "Yetkili Kimliği — Arka (ID Back)"
         },
-        "yuklemeBasarisiz": "Yükleme başarısız"
+        "yuklemeBasarisiz": "Yükleme başarısız",
+        "xn": {
+          "taxPlate": "Vergi kayıt belgesi",
+          "tradeRegistry": "Şirket tescil belgesi",
+          "signatureCircular": "İmza sirküleri",
+          "activityCert": "Faaliyet belgesi",
+          "idFront": "Yetkili kimliği veya pasaportu",
+          "idBack": "Yetkili kimliği — arka yüz"
+        },
+        "country": {
+          "CN": {
+            "tradeRegistry": "İşletme ruhsatı (营业执照 · Business License)"
+          },
+          "AE": {
+            "tradeRegistry": "Ticaret ruhsatı (Trade License)"
+          }
+        }
+      },
+      "verificationReason": {
+        "UNREADABLE": "Belge okunmuyor ya da bulanık — net bir tarama yükleyin.",
+        "WRONG_DOCUMENT": "Yanlış belge yüklenmiş — istenen belgeyi yükleyin.",
+        "OUTDATED": "Belge güncel değil — son 3 ay içinde alınmış bir belge yükleyin.",
+        "MISMATCH": "Belgedeki bilgiler firma bilgilerinizle uyuşmuyor.",
+        "MISSING_SIGNATURE": "İmza ya da kaşe eksik.",
+        "INCOMPLETE": "Belge eksik — tüm sayfaları yükleyin.",
+        "COUNTRY_CHANGED": "Kayıt ülkeniz değişti; yeni ülkenin zorunlu belgelerini tamamlayıp yeniden gönderin.",
+        "note": "Not: {note}"
       }
     },
     "company": {
@@ -5666,7 +5847,7 @@
         "sikayetEt": "Şikayet Et",
         "tumUrunlerVeHizmetler": "Tüm Ürünler ve Hizmetler ({count})",
         "bilgiIste": "Bilgi iste",
-        "urunGosteriliyor": "{shown} / {total} ürün gösteriliyor.",
+        "urunGosteriliyor": "{shown, number} / {total, number} ürün gösteriliyor.",
         "acikSatinAlmaTalepleri": "Açık Satın Alma Talepleri",
         "sadeceHerkeseAcik": "Sadece herkese açık",
         "baglanirsanizBuFirmaninDavetliSatin": "Bağlanırsanız bu firmanın davetli satın alma taleplerini de görürsünüz.",
@@ -5722,7 +5903,6 @@
         "kismiKazanimDahil": "Kısmi kazanım dahil",
         "aktifSiparis": "Aktif Sipariş",
         "gelir": "Gelir",
-        "tamamlananSiparisTry": "{periodWord} · tamamlanan sipariş · TRY",
         "satisSayilariAlinamadi": "Satış sayıları alınamadı",
         "grafikler": "Grafikler",
         "seciliDonemIcinSekmeAdresle": "Seçili dönem için; sekme adresle paylaşılır.",
@@ -5734,7 +5914,8 @@
         "buAy": "bu ay",
         "genelBakis": "Genel Bakış",
         "ziyaretEdenler": "Ziyaret Edenler",
-        "tasarrufIpucu": "{periodWord} · %{rate} ortalama · yalnız TRY"
+        "tamamlananSiparisCur": "{periodWord} · tamamlanan sipariş · {currency}",
+        "tasarrufIpucuCur": "{periodWord} · %{rate} ortalama · {currency}"
       },
       "connectionsView": {
         "baglantiKuruldu": "Bağlantı kuruldu",
@@ -5823,7 +6004,10 @@
         "bagli": "Bağlı",
         "davetGonderildi": "{n} davet gönderildi",
         "davetGonderildiAtlandi": "{n} davet gönderildi, {skipped} atlandı",
-        "adres": "{n}/{max} adres"
+        "adres": "{n}/{max} adres",
+        "davetDili": "Davet dili",
+        "davetDiliIpucu": "Kayıtlı olmayan firmaya davet e-postası bu dilde gider; varsayılan dil adresin uzantısından gelir.",
+        "davetDiliAdres": "{email} için davet dili"
       },
       "profileEditor": {
         "gecersizBaglantiYalnizHttpHttps": "Geçersiz bağlantı — yalnız http/https adresleri kabul edilir",
@@ -5984,7 +6168,6 @@
         "aramanizaUyan": "Aramanıza uyan",
         "yeniSekmedeAcilir": "(yeni sekmede açılır)",
         "firma": "{n} firma",
-        "firmaNoun": "firma",
         "baglisiniz": "Bağlısınız",
         "istekGonderildi": "İstek gönderildi",
         "istekGeldi": "İstek geldi"
@@ -5992,7 +6175,6 @@
       "panelProductIndex": {
         "suzgeclerYukleniyor": "Süzgeçler yükleniyor…",
         "urun": "{n} ürün",
-        "urun2": "ürün",
         "buKriterlerleUrunYok": "Bu kriterlerle ürün yok.",
         "talepAcTedarikcilerTeklifVersin": "Talep aç — tedarikçiler teklif versin",
         "bilgiIste": "Bilgi iste",
@@ -6025,7 +6207,6 @@
         "enDusukBirimFiyatlar": "en düşük birim fiyatlar",
         "enYuksekBirimFiyatlar": "en yüksek birim fiyatlar",
         "satinAlmaTalebi": "Satın Alma Talebi",
-        "ilan": "İlan",
         "secin": "— Seçin —",
         "karsilastirmaKriteri": "Karşılaştırma Kriteri",
         "fiyatlar": "Fiyatlar",
@@ -6068,14 +6249,10 @@
         "indirmeBasarisiz": "İndirme başarısız",
         "raporlar": "Raporlar",
         "genelSatinAlmaTalebiRaporu": "Genel Satın Alma Talebi Raporu",
-        "genelIlanRaporu": "Genel İlan Raporu",
         "raporlamaKriteri": "Raporlama Kriteri",
         "satinAlmaTalebini": "satın alma talebini",
-        "ilani": "ilanı",
         "satinAlmaTaleplerini": "satın alma taleplerini",
-        "ilanlari": "ilanları",
         "satinAlmaTalebi": "Satın Alma Talebi",
-        "ilan": "İlan",
         "secin": "— Seçin —",
         "baslangic": "Başlangıç",
         "bitis": "Bitiş",
@@ -6087,7 +6264,6 @@
         "paraBirimi": "Para Birimi",
         "excelIndir": "Excel İndir",
         "toplamSatinAlmaTalebi": "Toplam Satın Alma Talebi",
-        "toplamIlan": "Toplam İlan",
         "kazandirilan": "Kazandırılan",
         "yanitOrani": "Yanıt Oranı",
         "davet": "Davet",
@@ -6098,7 +6274,6 @@
         "kazanan": "Kazanan",
         "kazananTedarikci": "Kazanan Tedarikçi",
         "kazananAlici": "Kazanan Alıcı",
-        "tutarlarTeklifAnindakiTcmbKuruyla": "Tutarlar teklif anındaki TCMB kuruyla TRY karşılığı olarak gösterilir.",
         "tasarruf": "Tasarruf",
         "toplamTasarruf": "Toplam Tasarruf",
         "indiriliyor": "{file} indiriliyor",
@@ -6108,7 +6283,8 @@
         "sonucEnFazlaKayitlaSinirlandi": "Sonuç en fazla {max} kayıtla sınırlandı — daha eskiler bu raporda YOK. Tarih aralığını daraltarak tamamını görebilirsiniz.",
         "ortTeklif": "Ort. Teklif",
         "kazananToplam": "Kazanan Toplam",
-        "yuzde": "%{n}"
+        "yuzde": "%{n}",
+        "tutarlarTeklifAnindakiTcmbKuruylaCur": "{currency, select, TRY {Tutarlar teklif anındaki TCMB kuruyla TRY karşılığı olarak gösterilir.} other {Tutarlar teklif anındaki TCMB kuruyla TRY'ye, oradan güncel kurla {currency} karşılığına çevrilir.}}"
       },
       "savingsReportView": {
         "kazanc": "Kazanç",
@@ -6120,15 +6296,12 @@
         "tasarrufRaporu": "Tasarruf Raporu",
         "rekabetKazanciRaporu": "Rekabet Kazancı Raporu",
         "kazandirilanSatinAlmaTaleplerindeRekabetin": "Kazandırılan satın alma taleplerinde rekabetin size kazandırdığı tutar (en yüksek teklif − kazanan) ve hedef fiyata göre kalem detayı.",
-        "kazandirilanIlanlardaRekabetinFiyatiYukseltt": "Kazandırılan ilanlarda rekabetin fiyatı yükselttiği tutar (kazanan − en düşük teklif) ve tabana göre kalem detayı.",
         "baslangic": "Başlangıç",
         "bitis": "Bitiş",
-        "paraBirimiIlan": "Para Birimi (ilan)",
         "tumu": "Tümü",
         "excelIndir": "Excel İndir",
         "satinAlmaTalebi": "Satın Alma Talebi",
         "satinAlmaTalebi2": "Satın Alma Talebi",
-        "ilan": "İlan",
         "teklif": "Teklif",
         "enYuksek": "En Yüksek",
         "enDusuk": "En Düşük",
@@ -6142,7 +6315,6 @@
         "kazananBirim": "Kazanan Birim",
         "kazanan2": "Kazanan {partyWord}",
         "bazliKazanilanTutar": "{partyWord} Bazlı Kazanılan Tutar",
-        "tutarlarTeklifAnindakiTcmbKuruyla": "Tutarlar teklif anındaki TCMB kuruyla TRY karşılığı olarak toplanır. Kalem detayı talep birimindedir.",
         "indiriliyor": "{file} indiriliyor",
         "raporuOlustur": "Raporu Oluştur",
         "tasarruf": "Tasarruf",
@@ -6157,7 +6329,8 @@
         "enIyi": "En iyi: {title} (%{pct})",
         "enZayif": "En zayıf: {title} (%{pct})",
         "paraBirimiTalep": "Para Birimi (talep)",
-        "yuzde": "%{n}"
+        "yuzde": "%{n}",
+        "tutarlarTeklifAnindakiTcmbKuruylaCur": "{currency, select, TRY {Tutarlar teklif anındaki TCMB kuruyla TRY karşılığı olarak toplanır; kalem detayı da TRY karşılığıdır.} other {Tutarlar teklif anındaki TCMB kuruyla TRY'ye, oradan güncel kurla {currency} karşılığına çevrilip toplanır; kalem detayı da {currency} karşılığıdır.}}"
       },
       "reportsSummaryCharts": {
         "performansOzeti": "Performans Özeti",
@@ -6171,18 +6344,17 @@
         "kazandirmaOrani": "Kazandırma Oranı",
         "kazanmaOrani": "Kazanma Oranı",
         "son12AydaSonuclananSatin": "Son 12 ayda sonuçlanan {total} satın alma talebinin {won} tanesi kazandırıldı",
-        "son12AydaKararaBaglanan": "Son 12 ayda karara bağlanan {total} teklifin {won}{numberPossessive} kazandı",
         "aylikAlisHacmi": "Aylık Alış Hacmi",
         "aylikSatisHacmi": "Aylık Satış Hacmi",
-        "yalnizTrySiparislerOrtalama": "Yalnız TRY siparişler — ortalama {avg}",
-        "yalnizTrySiparisler": "Yalnız TRY siparişler",
         "kategoriDagilimi": "Kategori Dağılımı",
         "son12AydaActiginizSatin": "Son 12 ayda açtığınız satın alma taleplerin segmentleri",
         "son12AydaTeklifVerdiginiz": "Son 12 ayda teklif verdiğiniz satın alma taleplerin segmentleri",
         "tutar": "Tutar",
         "eksenMilyon": "{n} Mn",
         "eksenBin": "{n} B",
-        "yuzde": "%{n}"
+        "yuzde": "%{n}",
+        "siparislerOrtalamaCur": "Tüm siparişler, {currency} karşılığı — ortalama {avg}",
+        "siparislerCur": "Tüm siparişler, {currency} karşılığı"
       }
     },
     "approvals": {
@@ -6199,7 +6371,7 @@
         "akisSilindi": "Akış silindi",
         "onayAkisi": "Onay akışı",
         "siparisOlusmadanOnce": "sipariş oluşmadan önce",
-        "ornegin50000UstuKazandirmalar": "Örneğin: “50.000 ₺ üstü kazandırmalar önce Satınalma Müdürü sonra Genel Müdür onayından geçsin.” Akış yoksa kazandırma anında uygulanır.",
+        "ornegin50000UstuKazandirmalar": "Örneğin: “{amount} üstü kazandırmalar önce Satınalma Müdürü sonra Genel Müdür onayından geçsin.” Akış yoksa kazandırma anında uygulanır.",
         "tanimliAkislar": "Tanımlı Akışlar",
         "yeniOnayAkisi": "Yeni Onay Akışı",
         "onayAkislariYuklenemedi": "Onay akışları yüklenemedi",
@@ -6233,7 +6405,7 @@
         "sureciBaslatanRoller": "Süreci başlatan roller",
         "buRollerdekiKisilerKazandirmaYaptiginda": "Bu rollerdeki kişiler kazandırma yaptığında onay zinciri devreye girer.",
         "onayAdimi": "Onay Adımı",
-        "veUstuKazandirmalardaDevreyeGirer": "{amount} ₺ ve üstü kazandırmalarda devreye girer",
+        "veUstuKazandirmalardaDevreyeGirer": "{amount} ve üstü kazandırmalarda devreye girer",
         "herTutardaDevreyeGirer": "Her tutarda devreye girer",
         "yukariTasi": "Yukarı taşı",
         "asagiTasi": "Aşağı taşı",
@@ -6268,9 +6440,9 @@
         "onaylayici": "Onaylayıcı",
         "onayciSec": "— onaycı seç —",
         "kazandirmayiSizinBaslattiginiz": "kazandırmayı sizin başlattığınız",
-        "butceEsigiOpsiyonel": "Bütçe eşiği ₺ (opsiyonel)",
+        "butceEsigiOpsiyonel": "Bütçe eşiği {currency} (opsiyonel)",
         "bosHerTutardaOnaylar": "Boş = her tutarda onaylar",
-        "esikOncekiAdiminEsigindenKucuk": "Eşik önceki adımın eşiğinden ({amount} ₺) küçük olamaz.",
+        "esikOncekiAdiminEsigindenKucuk": "Eşik önceki adımın eşiğinden ({amount}) küçük olamaz.",
         "kazandirmaTutariBuEsiginAltindaysa": "Kazandırma tutarı bu eşiğin altındaysa bu onaycı atlanır.",
         "ekle": "Ekle",
         "listingType": {
@@ -6293,7 +6465,7 @@
         "herAdimBirOnaycidir": "Her adım <strong>bir onaycıdır</strong>. Adımlar yukarıdan aşağıya SIRAYLA işler: ilk onaycı onaylamadan ikinciye geçilmez.",
         "birAdimaEsikKoyarsaniz": "Bir adıma eşik koyarsanız, kazandırma tutarı o eşiğin <strong>altındaysa o adım atlanır</strong>. Örn. yalnızca büyük tutarlar üst yöneticiye gitsin istiyorsanız kullanışlıdır.",
         "yalnizcaKurucuYoneticiVeyaOnaylayici": "Yalnızca <strong>Kurucu, Yönetici veya Onaylayıcı</strong> rolündeki aktif kullanıcılar. Başka birini onaycı yapmak için Ayarlar → Kullanıcılar''dan Onaylayıcı rolü verin.",
-        "esikVeUstu": "≥ {amount} ₺",
+        "esikVeUstu": "≥ {amount}",
         "herTutar": "her tutar",
         "onayciYokAyarlardanRolVerin": "Onaycı olabilecek aktif kullanıcı yok. <link>Ayarlar → Kullanıcılar</link>''dan bir kullanıcıya <strong>Onaylayıcı</strong> rolü verin.",
         "buKisiSirasiGeldigindeKazandirmayi": "Bu kişi, sırası geldiğinde kazandırmayı Onaylar sayfasından onaylar ya da reddeder. Yalnız <strong>Kurucu, Yönetici veya Onaylayıcı</strong> rolündeki aktif kullanıcılar listelenir; başka birini eklemek için <link>Ayarlar → Kullanıcılar</link>''dan Onaylayıcı rolü verin.",
@@ -6642,6 +6814,23 @@
     },
     "cityPicker": {
       "placeholder": "Şehir yazın…"
+    },
+    "ui": {
+      "pagination": "Sayfalama",
+      "previousPage": "Önceki sayfa",
+      "nextPage": "Sonraki sayfa",
+      "pageN": "Sayfa {n}",
+      "breadcrumb": "Yol",
+      "home": "Anasayfa",
+      "close": "Kapat",
+      "remove": "Kaldır",
+      "selectPlaceholder": "— seç —"
+    },
+    "phoneInput": {
+      "label": "Telefon",
+      "countryCode": "Ülke kodu",
+      "selectCountry": "Ülke seçin",
+      "placeholderIntl": "Ülke koduyla, ör. +49 30 1234567"
     }
   }
 }

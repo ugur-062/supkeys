@@ -89,8 +89,9 @@ describe("productSeo", () => {
       company,
       indexable: true,
     });
-    const offer = ((onRequest.jsonLd["@graph"] as Record<string, unknown>[])[0].offers) as Record<string, unknown>;
-    expect(offer.price).toBeUndefined();
+    // Fiyatsız Offer Rich Results hatasıdır → teklif düğümü HİÇ yazılmaz (2026-09-27).
+    expect((onRequest.jsonLd["@graph"] as Record<string, unknown>[])[0]).not.toHaveProperty("offers");
+    expect(JSON.stringify(onRequest.jsonLd)).not.toContain("InStock");
     expect(onRequest.summary).toContain("teklif isteyin");
   });
 });
@@ -219,5 +220,116 @@ describe("companyTitle — 75 karakter tavanı (SEO denetimi 2026-09-26)", () =>
     expect(`${long} · Rothern`.length).toBeLessThanOrEqual(75);
     expect(companyTitle("Acme", "x".repeat(90), "Bursa")).toBe("Acme — Bursa");
     expect(companyTitle("Acme", null, null)).toBe("Acme");
+  });
+});
+
+describe("çok dilli graf (2026-09-27 SEO denetimi)", () => {
+  const S = "https://www.rothern.com";
+  const EN = { locale: "en" as const, t: seoT("en") };
+  const graphOf = (ld: Record<string, unknown>) => ld["@graph"] as Record<string, unknown>[];
+
+  it("ürün: varlık @id dilden bağımsız, sayfa düğümü ItemPage dilli; varlıkta inLanguage yok", () => {
+    const tr = graphOf(productSeo0({ companySlug: "acme", product, company, indexable: true }, T).jsonLd);
+    const en = graphOf(productSeo0({ companySlug: "acme", product, company, indexable: true }, EN).jsonLd);
+    expect(tr[0]!["@id"]).toBe(`${S}/firma/acme/urun/plakali-isi-esanjoru-150-kw#product`);
+    expect(en[0]!["@id"]).toBe(tr[0]!["@id"]);
+    expect(en[0]).not.toHaveProperty("inLanguage");
+    const page = en.find((n) => n["@type"] === "ItemPage")!;
+    expect(page["@id"]).toBe(`${S}/en/companies/acme/products/plakali-isi-esanjoru-150-kw`);
+    expect(page.inLanguage).toBe("en-US");
+    expect(page.mainEntity).toEqual({ "@id": tr[0]!["@id"] });
+    expect(page.isPartOf).toEqual({ "@id": `${S}/#website` });
+  });
+
+  it("satıcı adresi okuyucunun dilinde, kimliği firma sayfasıyla aynı; birim etiketi dilde", () => {
+    const seo = productSeo0({ companySlug: "acme", product: { ...product, unitCode: "PCE" }, company, indexable: true }, EN);
+    const node = graphOf(seo.jsonLd)[0]!;
+    const seller = (node.offers as Record<string, unknown>).seller as Record<string, unknown>;
+    expect(seller.url).toBe(`${S}/en/companies/izmir-makina-endustri`);
+    expect(seller["@id"]).toBe(`${S}/firma/izmir-makina-endustri#company`);
+    expect(seo.summary).not.toContain("adet");
+    expect(seo.summary).not.toContain("vitrininde");
+    expect(String(seo.metadata.description)).not.toMatch(/\badet\b/);
+  });
+
+  it("kademeli fiyat → AggregateOffer (en düşük/en yüksek); kırıntı SEGMENT açılış sayfasına", () => {
+    const seo = productSeo0({
+      companySlug: "acme",
+      product: {
+        ...product,
+        priceMode: "TIERED",
+        priceAmount: null,
+        priceTiers: [{ minQty: 1, unitPrice: 120 }, { minQty: 100, unitPrice: 90 }],
+        segment: { id: "40000000", name: "Isıtma", slug: "isitma" },
+      },
+      company,
+      indexable: true,
+    }, T);
+    const g = graphOf(seo.jsonLd);
+    expect(g[0]!.offers).toMatchObject({ "@type": "AggregateOffer", lowPrice: 90, highPrice: 120, offerCount: 2 });
+    const crumbs = (g.find((n) => n["@type"] === "BreadcrumbList")!.itemListElement as { item: string }[]).map((i) => i.item);
+    expect(crumbs).toContain(`${S}/urunler/kategori/40000000-isitma`);
+    expect(crumbs.some((u) => u.includes("?kategori="))).toBe(false);
+  });
+
+  it("hreflang yalnız hazır diller (API readyLocales)", () => {
+    const seo = productSeo0({ companySlug: "acme", product: { ...product, readyLocales: ["tr", "ru"], sourceLocale: "tr" }, company, indexable: true }, T);
+    expect(Object.keys(seo.metadata.alternates?.languages ?? {})).toEqual(["tr", "ru", "x-default"]);
+  });
+
+  it("firma: areaServed yok, ülke yoksa addressCountry UYDURULMAZ, katalog adresleri dilde, kapaksız OG kartı kendi kartı", () => {
+    const seo = companySeo0({
+      slug: "acme",
+      name: "Acme GmbH",
+      industry: null,
+      city: "Munich",
+      country: null,
+      aboutText: null,
+      logoUrl: "https://cdn.rothern.com/logo.png",
+      coverImageUrl: null,
+      foundedYear: null,
+      employeeCount: null,
+      categories: [],
+      productCount: 1,
+      products: [{ name: "Pump", slug: "pump" }],
+    }, EN);
+    const g = graphOf(seo.jsonLd);
+    const org = g[0]!;
+    expect(org).not.toHaveProperty("areaServed");
+    expect(org).not.toHaveProperty("inLanguage");
+    expect(org["@id"]).toBe(`${S}/firma/acme#company`);
+    expect((org.address as Record<string, unknown>).addressCountry).toBeUndefined();
+    expect(JSON.stringify(org.hasOfferCatalog)).toContain(`${S}/en/companies/acme/products/pump`);
+    expect(g.find((n) => n["@type"] === "ProfilePage")?.inLanguage).toBe("en-US");
+    expect(seo.metadata.openGraph?.images).toEqual([
+      expect.objectContaining({ url: `${S}/en/firma/acme/opengraph-image`, width: 1200, height: 630 }),
+    ]);
+    const de = graphOf(companySeo0({ slug: "acme", name: "Acme GmbH", industry: null, city: "Munich", country: "DE", aboutText: null, logoUrl: null, coverImageUrl: null, foundedYear: null, employeeCount: null, categories: [], productCount: 0 }, EN).jsonLd)[0]!;
+    expect((de.address as Record<string, unknown>).addressCountry).toBe("DE");
+  });
+
+  it("talep: görsel yoksa talebin kendi OG kartı; Demand @id dilden bağımsız; kaynak dilde gösterimde inLanguage kaynağın", () => {
+    const l = {
+      number: "ROT-000159",
+      slug: "rot-000159-karton-koli",
+      title: "Karton koli",
+      description: null,
+      closesAt: null,
+      status: "OPEN",
+      indexable: false,
+      itemSummary: { count: 1, totalQuantity: "10", unit: "adet" },
+      categories: [],
+      isInternational: false,
+      coverImageUrl: null,
+      company: { city: "Antalya", country: "TR" },
+      readyLocales: ["tr"],
+      sourceLocale: "tr",
+    };
+    const seo = listingSeo0(listingSeoInput(l), EN);
+    const g = graphOf(seo.jsonLd);
+    expect(g[0]!["@id"]).toBe(`${S}/talep/rot-000159-karton-koli#demand`);
+    expect(g.find((n) => n["@type"] === "ItemPage")?.inLanguage).toBe("tr");
+    expect(seo.metadata.openGraph?.images).toEqual([expect.objectContaining({ url: `${S}/en/talep/rot-000159-karton-koli/opengraph-image` })]);
+    expect(JSON.stringify(g[0])).toContain("piece");
   });
 });

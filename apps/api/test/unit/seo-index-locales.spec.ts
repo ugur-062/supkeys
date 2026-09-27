@@ -16,4 +16,12 @@ describe("IndexNow — üç dilde adres (i18n SEO)", () => {
       "https://www.rothern.com/ru/zayavki/rot-000042-celik-boru",
     ]);
   });
+
+  it("ülke sayfası adresi dilin adıyla (2026-09-27): de-almanya · de-germany · de-germaniya", () => {
+    expect(localizedIndexNowUrls("https://www.rothern.com", ["/urunler/ulke/de-almanya"])).toEqual([
+      "https://www.rothern.com/urunler/ulke/de-almanya",
+      "https://www.rothern.com/en/products/country/de-germany",
+      "https://www.rothern.com/ru/tovary/strana/de-germaniya",
+    ]);
+  });
 });

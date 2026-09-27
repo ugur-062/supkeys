@@ -30,4 +30,18 @@ describe("href — yol parçaları dile göre (2026-09-24)", () => {
       "x-default": "/urunler/sehir/izmir",
     });
   });
+
+  it("localizedAlternates: yalnız hazır diller; x-default hazır İLK dile (Türkçe yoksa İngilizce)", () => {
+    expect(localizedAlternates("/firma/acme", ["en", "ru"])).toEqual({
+      en: "/en/companies/acme",
+      ru: "/ru/kompanii/acme",
+      "x-default": "/en/companies/acme",
+    });
+    expect(localizedAlternates("/firma/acme", ["ru", "tr"])).toEqual({
+      tr: "/firma/acme",
+      ru: "/ru/kompanii/acme",
+      "x-default": "/firma/acme",
+    });
+    expect(localizedAlternates("/firma/acme", [])).toEqual({});
+  });
 });

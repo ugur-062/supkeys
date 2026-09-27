@@ -26,8 +26,16 @@ export function useDocLabels(): (
 ) => { key: DocKind; label: string }[] {
   const t = useTranslations("web.panel.settings.companyDocs");
   return (country, required) => {
-    const group = (country ?? "TR").toUpperCase() === "TR" ? "tr" : "foreign";
-    return required.map((k) => ({ key: k, label: t(`${group}.${k}` as never) }));
+    const cc = (country ?? "TR").toUpperCase();
+    // KKTC kendi kümesi (2026-09-27): Türkçe ekranda iki dilli yabancı etiket
+    // ("Kuruluş / Sicil Belgesi (Certificate of Incorporation)") almasın.
+    const group = cc === "TR" ? "tr" : cc === "XN" ? "xn" : "foreign";
+    return required.map((k) => {
+      // Çin ve BAE'de sicil belgesinin yerel adı var (营业执照 / Trade License).
+      const special = `country.${cc}.${k}`;
+      const key = t.has(special as never) ? special : `${group}.${k}`;
+      return { key: k, label: t(key as never) };
+    });
   };
 }
 

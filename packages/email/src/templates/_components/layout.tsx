@@ -12,6 +12,7 @@ import {
 import * as React from "react";
 import { LOGO_CID } from "../../assets/logo";
 import { DEFAULT_LOCALE, emailT, type Locale } from "../../i18n";
+import { EmailEnvContext, siteHost } from "./email-env";
 import { COLORS, FONTS } from "./tokens";
 
 interface LayoutProps {
@@ -66,6 +67,9 @@ const LOGO_SRC = `cid:${LOGO_CID}`;
 
 export function Layout({ preview, locale = DEFAULT_LOCALE, children }: LayoutProps) {
   const t = emailT(locale);
+  // Alan adı ve yıl gönderim ortamından (bkz. email-env.ts) — sabit değil.
+  const env = React.useContext(EmailEnvContext);
+  const year = (env.now ?? new Date()).getUTCFullYear();
   return (
     <Html lang={locale}>
       <Head>
@@ -103,9 +107,9 @@ export function Layout({ preview, locale = DEFAULT_LOCALE, children }: LayoutPro
               }}
             />
             <Text style={footerStyle}>
-              {t("email.layout.copyright")}
+              {t("email.layout.copyright", { year: String(year) })}
               <br />
-              {t("email.layout.footerNote")}
+              {t("email.layout.footerNote", { site: siteHost(env.siteUrl) })}
             </Text>
           </Section>
         </Container>

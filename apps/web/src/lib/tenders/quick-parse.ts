@@ -1,4 +1,4 @@
-import { UNITS, normalizeUnit } from "@rothern/shared";
+import { UNITS, foldSearchText, normalizeUnit } from "@rothern/shared";
 
 /**
  * "NE LAZIM?" SATIR AYRIŞTIRICI — AI olmadan da çalışır (2026-09-09).
@@ -21,9 +21,10 @@ export interface ParsedLine {
 
 const UNIT_ALIASES = new Set<string>();
 for (const u of UNITS) {
-  UNIT_ALIASES.add(u.nameTr.toLocaleLowerCase("tr"));
-  UNIT_ALIASES.add(u.symbol.toLocaleLowerCase("tr"));
-  for (const a of u.aliases ?? []) UNIT_ALIASES.add(a.toLocaleLowerCase("tr"));
+  // Katlanmış (İngilizce "LITRE" `tr` küçültmeyle "lıtre" olup eşleşmiyordu).
+  UNIT_ALIASES.add(foldSearchText(u.nameTr));
+  UNIT_ALIASES.add(foldSearchText(u.symbol));
+  for (const a of u.aliases ?? []) UNIT_ALIASES.add(foldSearchText(a));
 }
 
 const NUM = "(\\d+(?:[.,]\\d+)?)";
@@ -40,7 +41,7 @@ function toNumber(raw: string): number {
 }
 
 function isUnit(token: string): boolean {
-  return UNIT_ALIASES.has(token.toLocaleLowerCase("tr").replace(/[.]/g, ""));
+  return UNIT_ALIASES.has(foldSearchText(token).replace(/[.]/g, ""));
 }
 
 export function parseLine(line: string): ParsedLine | null {

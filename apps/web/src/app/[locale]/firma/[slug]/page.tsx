@@ -9,6 +9,7 @@ import { GatedField } from "@/components/marketplace/gated-field";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { JsonLd } from "@/components/seo/json-ld";
 import { companySeo } from "@/lib/seo/entities";
+import { contentLangOf } from "@/lib/seo/meta";
 import { PANEL_TARGET, loginHref } from "@/lib/public/visibility";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -27,13 +28,11 @@ export async function generateMetadata({
   /* TEK KAYNAK (`lib/seo/entities.ts`): başlık/açıklama/kanonik/OG ile
      sayfanın JSON-LD'si aynı olgulardan türer. Eskiden başlık markayı elle
      ekliyordu ("… — Rothern") ve kök şablon bir daha ekliyordu. */
-  const meta = companySeo(seoInput(slug, p), { locale, t: seoT(locale) }).metadata;
   // VİTRİN ≠ İNDEKS: profil herkese açık (bağlantıyla gelen görür) ama kalite
-  // eşiğini geçmiyorsa arama motoruna girmez. Eşik sunucuda, sitemap ile AYNI
-  // fonksiyon — burada yalnız sonucu okuyoruz.
-  return p.indexable === false
-    ? { ...meta, robots: { index: false, follow: true } }
-    : meta;
+  // eşiğini geçmiyorsa (ya da bu dilde çevirisi bekliyorsa) arama motoruna
+  // girmez. Eşik sunucuda, sitemap ile AYNI fonksiyon — `seoInput.indexable`
+  // yalnız sonucu taşır; hreflang yalnız hazır diller (`readyLocales`).
+  return companySeo(seoInput(slug, p), { locale, t: seoT(locale) }).metadata;
 }
 
 /** Profil yükünden SEO girdisi — metadata ve JSON-LD aynı dönüşümü kullanır. */
@@ -56,6 +55,10 @@ function seoInput(slug: string, p: PublicProfile, products?: { name: string; slu
     products,
     website: p.website,
     linkedinUrl: p.linkedinUrl,
+    indexable: p.indexable !== false,
+    updatedAt: p.updatedAt ?? null,
+    readyLocales: p.readyLocales,
+    sourceLocale: p.sourceLocale,
   };
 }
 
@@ -130,6 +133,8 @@ export default async function PublicCompanyProfile({
             logoUrl: p.logoUrl,
             coverImageUrl: p.coverImageUrl,
             aboutText: p.aboutText,
+            // Tanıtım bu dilde hazır değilse (çeviri bekliyor / yabancı kaynak) bloklar kaynağın `lang`ını taşır.
+            contentLang: contentLangOf(p, locale),
             services: p.services ?? [],
             certifications: p.certifications ?? [],
             certificateImages: p.certificateImages ?? [],

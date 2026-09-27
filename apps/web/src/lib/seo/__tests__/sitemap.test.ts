@@ -10,12 +10,15 @@ const summary = vi.hoisted(() => ({
   categories: [],
   productCities: [
     { city: "istanbul", name: "İstanbul", country: "TR", count: 4, lastmod: "2026-09-20T00:00:00.000Z" },
-    { city: "de-munich", name: "München", country: "DE", count: 2, lastmod: "2026-09-21T00:00:00.000Z" },
+    { city: "de-munich", name: "München", country: "DE", count: 5, lastmod: "2026-09-21T00:00:00.000Z" },
+    // Eşiğin (MIN_LANDING_PRODUCTS = 3) altında → ince içerik, sitemap'e girmez.
+    { city: "it-parma", name: "Parma", country: "IT", count: 2, lastmod: "2026-09-21T00:00:00.000Z" },
     { city: "fr-lyon", name: "Lyon", country: "FR", count: 0, lastmod: "2026-09-22T00:00:00.000Z" },
   ],
   companyCities: [{ city: "Ankara", count: 3, lastmod: "2026-09-26T00:00:00.000Z" }],
   productCountries: [
-    { country: "DE", count: 2, lastmod: "2026-09-21T00:00:00.000Z" },
+    { country: "DE", count: 5, lastmod: "2026-09-21T00:00:00.000Z" },
+    { country: "IT", count: 2, lastmod: "2026-09-21T00:00:00.000Z" },
     { country: "TR", count: 4, lastmod: "2026-09-20T00:00:00.000Z" },
     { country: "FR", count: 0, lastmod: "2026-09-22T00:00:00.000Z" },
     { country: "xx", count: 1, lastmod: "2026-09-22T00:00:00.000Z" },
@@ -126,11 +129,21 @@ describe("sitemap dilleri (i18n SEO 2026-09-26)", () => {
     expect(urls[0]!.alternates).toEqual({ tr: `${S}/firma/acme/urun/boru`, "x-default": `${S}/firma/acme/urun/boru` });
   });
 
-  it("Türkçe yoksa x-default yazılmaz; hiç dil yoksa girdi yok", () => {
+  it("Türkçe yoksa x-default hazır İLK dile (sayfa metasıyla aynı kural); hiç dil yoksa girdi yok", () => {
     const urls = located("/firma/acme", {}, ["en", "ru"]);
     expect(urls.map((u) => u.loc)).toEqual([`${S}/en/companies/acme`, `${S}/ru/kompanii/acme`]);
-    expect(urls[0]!.alternates).not.toHaveProperty("x-default");
+    expect(urls[0]!.alternates?.["x-default"]).toBe(`${S}/en/companies/acme`);
     expect(located("/firma/acme", {}, [])).toEqual([]);
+  });
+
+  it("dil başına lastmod: çeviri güncellemesi o dilin girdisine yansır, verilmeyen dil ortak tarihe düşer", () => {
+    const urls = located(
+      "/firma/acme",
+      { lastmod: "2026-09-01T00:00:00.000Z" },
+      ["tr", "en", "ru"],
+      { en: "2026-09-20T00:00:00.000Z" },
+    );
+    expect(urls.map((u) => u.lastmod)).toEqual(["2026-09-01T00:00:00.000Z", "2026-09-20T00:00:00.000Z", "2026-09-01T00:00:00.000Z"]);
   });
 
   it("XML: her girdide kendini de içeren hreflang bağlantıları", () => {
@@ -144,27 +157,28 @@ describe("sitemap dilleri (i18n SEO 2026-09-26)", () => {
 describe("şehir ve ülke parçaları (dünya geneli, 2026-09-27)", () => {
   const S = "http://localhost:3000";
 
-  it("cities: yabancı şehir kalıcı adresiyle ve üç dilde; ürünsüz şehir yok", async () => {
+  it("cities: yabancı şehir kalıcı adresiyle ve üç dilde; ürünsüz ve eşik altı şehir yok", async () => {
     const locs = (await buildPart({ kind: "cities", page: 0 })).map((u) => u.loc);
     expect(locs).toContain(`${S}/urunler/sehir/de-munich`);
     expect(locs).toContain(`${S}/en/products/city/de-munich`);
     expect(locs).toContain(`${S}/ru/tovary/gorod/de-munich`);
     expect(locs).toContain(`${S}/urunler/sehir/istanbul`);
     expect(locs.some((l) => l.includes("fr-lyon"))).toBe(false);
+    expect(locs.some((l) => l.includes("it-parma"))).toBe(false);
     // Firma şehirleri parçaya GİRMEZ (firma şehir sayfaları kalktı).
     expect(locs.some((l) => l.includes("ankara"))).toBe(false);
   });
 
-  it("countries: ürünü olan geçerli ülke kodları, üç dilde, hreflang setiyle", async () => {
+  it("countries: eşiği geçen geçerli ülke kodları, üç dilde ve DİLİN ADIYLA, hreflang setiyle", async () => {
     const urls = await buildPart({ kind: "countries", page: 0 });
     const locs = urls.map((u) => u.loc);
     expect(locs).toEqual([
       `${S}/urunler/ulke/de-almanya`,
-      `${S}/en/products/country/de-almanya`,
-      `${S}/ru/tovary/strana/de-almanya`,
+      `${S}/en/products/country/de-germany`,
+      `${S}/ru/tovary/strana/de-germaniya`,
       `${S}/urunler/ulke/tr-turkiye`,
       `${S}/en/products/country/tr-turkiye`,
-      `${S}/ru/tovary/strana/tr-turkiye`,
+      `${S}/ru/tovary/strana/tr-turtsiya`,
     ]);
     expect(urls[0]!.alternates?.["x-default"]).toBe(`${S}/urunler/ulke/de-almanya`);
     expect(urls[0]!.lastmod).toBe("2026-09-21T00:00:00.000Z");
@@ -175,5 +189,17 @@ describe("şehir ve ülke parçaları (dünya geneli, 2026-09-27)", () => {
     expect(items.find((i) => i.loc.endsWith("/sitemaps/countries.xml"))?.lastmod).toBe("2026-09-22T00:00:00.000Z");
     // Firma şehri (2026-09-26) daha yeni ama parçada yok → lastmod'u etkilemez.
     expect(items.find((i) => i.loc.endsWith("/sitemaps/cities.xml"))?.lastmod).toBe("2026-09-22T00:00:00.000Z");
+  });
+});
+
+describe("sabit sayfalar parçası — sözleşme metinleri (2026-09-27)", () => {
+  const S = "http://localhost:3000";
+
+  it("sözleşmeler yalnız Türkçe listelenir (EN/RU sayfanın kanoniği Türkçe); diğer sayfalar üç dilde", async () => {
+    const locs = (await buildPart({ kind: "pages", page: 0 })).map((u) => u.loc);
+    expect(locs).toContain(`${S}/sozlesmeler/kvkk`);
+    expect(locs.some((l) => l.includes("/legal/") || l.includes("/dokumenty/"))).toBe(false);
+    expect(locs).toContain(`${S}/en/how-it-works`);
+    expect(locs).toContain(`${S}/ru/faq`);
   });
 });

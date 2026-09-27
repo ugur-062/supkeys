@@ -5,8 +5,11 @@ import {
   findPathnameCollisions,
   internalRoutePath,
   matchInternalRoute,
+  internalPathForLocale,
+  localizedRedirectDestination,
   translateRoutePath,
 } from "../pathnames";
+import { COUNTRY_SLUG_CODES, localizeCountrySlugParam, localizedCountrySlug } from "../country-slugs";
 
 describe("ROUTE_PATHNAMES — yol parçaları üç dilde", () => {
   it("her iç şablonun üç dilde karşılığı var, Türkçe iç şablonla aynı, parametre adları korunur", () => {
@@ -61,6 +64,7 @@ describe("ROUTE_PATHNAMES — yol parçaları üç dilde", () => {
     expect(internalRoutePath("/products/city/izmir", "en")).toBe("/urunler/sehir/izmir");
     expect(internalRoutePath("/urunler/sehir/izmir", "en")).toBe("/urunler/sehir/izmir");
     expect(internalRoutePath("/tovary/gorod/izmir", "en")).toBe("/urunler/sehir/izmir");
+    expect(internalRoutePath("/products/country/de-germany", "en")).toBe("/urunler/ulke/de-almanya");
     expect(internalRoutePath("/products/country/de-almanya", "en")).toBe("/urunler/ulke/de-almanya");
     expect(internalRoutePath("/tovary/strana/de-almanya", "ru")).toBe("/urunler/ulke/de-almanya");
     expect(internalRoutePath("/kompaniya/vhod?next=1", "ru")).toBe("/company/login?next=1");
@@ -71,5 +75,61 @@ describe("ROUTE_PATHNAMES — yol parçaları üç dilde", () => {
     expect(matchInternalRoute("/company/satinalma/taleplerim/yeni")?.internal).toBe("/company/satinalma/taleplerim/yeni");
     expect(matchInternalRoute("/firmalar/")?.internal).toBe("/firmalar");
     expect(matchInternalRoute("/firma/acme")?.params).toEqual({ slug: "acme" });
+  });
+});
+
+describe("ülke sayfası slug'ı dile göre (2026-09-27)", () => {
+  it("iç (Türkçe) yol → o dilin adıyla dış yol; sorgu korunur", () => {
+    expect(translateRoutePath("/urunler/ulke/de-almanya", "tr")).toBe("/urunler/ulke/de-almanya");
+    expect(translateRoutePath("/urunler/ulke/de-almanya", "en")).toBe("/products/country/de-germany");
+    expect(translateRoutePath("/urunler/ulke/de-almanya?sayfa=2", "ru")).toBe("/tovary/strana/de-germaniya?sayfa=2");
+    expect(translateRoutePath("/urunler/ulke/tr-turkiye", "ru")).toBe("/tovary/strana/tr-turtsiya");
+  });
+
+  it("ad kısmı ne olursa olsun kod önekten okunur (eski/başka dil biçimi tek sıçramada doğru biçime)", () => {
+    expect(translateRoutePath("/urunler/ulke/de-germany", "tr")).toBe("/urunler/ulke/de-almanya");
+    expect(translateRoutePath("/urunler/ulke/de", "en")).toBe("/products/country/de-germany");
+    expect(localizeCountrySlugParam("DE-xyz", "ru")).toBe("de-germaniya");
+  });
+
+  it("önbellek anahtarı: iç şablon + dilin parametresi (revalidate)", () => {
+    expect(internalPathForLocale("/urunler/ulke/de-almanya", "en")).toBe("/urunler/ulke/de-germany");
+    expect(internalPathForLocale("/urunler/ulke/de-almanya", "tr")).toBe("/urunler/ulke/de-almanya");
+    expect(internalPathForLocale("/firma/acme", "ru")).toBe("/firma/acme");
+  });
+
+  it("tanınmayan kod olduğu gibi kalır (sayfa 404'ü kendisi verir)", () => {
+    expect(translateRoutePath("/urunler/ulke/zz-yok", "en")).toBe("/products/country/zz-yok");
+    expect(localizedCountrySlug("ZZ", "en")).toBeNull();
+  });
+
+  it("her ülkenin üç dilde tekil, ASCII slug'ı var; kısaltma yok", () => {
+    expect(COUNTRY_SLUG_CODES.length).toBeGreaterThanOrEqual(245);
+    for (const locale of LOCALES) {
+      const seen = new Set<string>();
+      for (const cc of COUNTRY_SLUG_CODES) {
+        const slug = localizedCountrySlug(cc, locale)!;
+        expect(slug).toMatch(/^[a-z]{2}-[a-z0-9]+(?:-[a-z0-9]+)*$/);
+        expect(slug).not.toMatch(/-(o-va|o-v|st|sar)(-|$)/);
+        expect(seen.has(slug)).toBe(false);
+        seen.add(slug);
+      }
+    }
+  });
+});
+
+describe("yönlendirme hedefi dil sürümü (next.config, 2026-09-27)", () => {
+  it("tam şablon hedefi tek sıçramada o dilin dış yoluna", () => {
+    expect(localizedRedirectDestination("/company/login", "ru")).toBe("/ru/kompaniya/vhod");
+    expect(localizedRedirectDestination("/company/kayit", "en")).toBe("/en/company/signup");
+    expect(localizedRedirectDestination("/talep/:number", "en")).toBe("/en/buying-requests/:number");
+    expect(localizedRedirectDestination("/firmalar", "ru")).toBe("/ru/kompanii");
+    expect(localizedRedirectDestination("/company/onaylar?tab=flows", "en")).toBe("/en/company/approvals?tab=flows");
+    expect(localizedRedirectDestination("/urunler", "tr")).toBe("/urunler");
+  });
+
+  it("joker kuyruklu hedef iç biçimde kalır (next-intl kuyruğu kendisi çevirir)", () => {
+    expect(localizedRedirectDestination("/company/satinalma/taleplerim/:path*", "en")).toBe("/en/company/satinalma/taleplerim/:path*");
+    expect(localizedRedirectDestination("/firmalar/:path+", "ru")).toBe("/ru/firmalar/:path+");
   });
 });

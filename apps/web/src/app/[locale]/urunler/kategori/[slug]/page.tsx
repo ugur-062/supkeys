@@ -1,7 +1,6 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
-import { isHiddenCategory } from "@rothern/shared";
 import {
   ProductIndex,
   type ProductSearchParams,
@@ -12,10 +11,11 @@ import {
   parseCategoryCode,
 } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
-import { fetchProductFacets } from "@/lib/public/marketplace-api";
 import { segmentPhotoSrc } from "@/lib/public/category-photos";
 import { clampTitle } from "@/lib/seo/entities";
+import { canonicalProductListPage, queryStringOf } from "@/lib/seo/landing";
 import { buildMetadata } from "@/lib/seo/meta";
+import { resolveSegmentLanding } from "./category-data";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { permanentRedirect } from "@/i18n/navigation";
@@ -37,24 +37,21 @@ import { permanentRedirect } from "@/i18n/navigation";
  */
 export const revalidate = 600;
 
-/** Koddan kategori adını çözer (facet listesi = ürünü olan kategoriler). */
-async function resolveCategory(code: string) {
-  // Gizli segment (katalog sadeleştirme 2026-09-19): meta ve gövde AYNI
-  // kararı versin — facet'ten gelse bile "bulunamadı".
-  if (isHiddenCategory(code)) return null;
-  const facets = await fetchProductFacets();
-  return facets.categories.find((c) => c.id === code) ?? null;
-}
+/* Çözüm `resolveSegmentLanding` (segment listesi + liste ucu `total`ı) —
+   facet taraması DEĞİL (5.000 kayıt tavanı; bkz. category-data.ts). Gizli
+   segment (katalog sadeleştirme 2026-09-19) meta ve gövdede aynı: "bulunamadı". */
 
 export async function generateMetadata({
   params,
+  searchParams,
 }: {
   params: Promise<{ locale: string; slug: string }>;
+  searchParams: Promise<ProductSearchParams>;
 }): Promise<Metadata> {
   const { slug } = await params;
   const locale = await localeFromParams(params);
   const code = parseCategoryCode(slug);
-  const cat = code ? await resolveCategory(code) : null;
+  const cat = code ? await resolveSegmentLanding(code) : null;
   // Bilinmeyen/boş kategori: sayfa 404 verir; meta yine şablondan ve noindex.
   const t = await getTranslations({ locale, namespace: "web.marketplace.pages" });
   if (!cat) {
@@ -73,6 +70,8 @@ export async function generateMetadata({
     title: clampTitle(cat.name, t("categoryTitleTail", { count })),
     description: t("categoryMetaDesc", { name: cat.name, count }),
     path: categoryHref(cat),
+    // Sayfalanmış sayfa KENDİ kanoniği (`?sayfa=N`); başka süzgeç → taban.
+    page: canonicalProductListPage(await searchParams),
     images: segmentPhotoSrc([cat.id]) ? [segmentPhotoSrc([cat.id]) as string] : undefined,
     locale,
   });
@@ -90,9 +89,9 @@ export default async function Page({
   const { slug } = await params;
   const locale = await localeFromParams(params);
   const code = parseCategoryCode(slug);
-  if (!code || isHiddenCategory(code)) notFound();
+  if (!code) notFound();
 
-  const cat = await resolveCategory(code);
+  const cat = await resolveSegmentLanding(code);
   // Ürünü olmayan/bilinmeyen kod: sayfa üretmek yerine dizine dönmek doğru —
   // boş kategori sayfası hem ziyaretçiye hem indekse değersiz.
   if (!cat) notFound();
@@ -101,12 +100,13 @@ export default async function Page({
   // Google ikisini de güvensiz sayar. Yönlendirme sitemap'in ürettiği dizeyle
   // AYNI fonksiyondan gelir — ayrışamazlar.
   const canonical = categoryHref(cat);
+  const sp = await searchParams;
   // Bu segmentte `loading.tsx` YOK (2026-09-22 yayın taraması): iskelet
   // akışı başladıktan sonra çağrılan permanentRedirect 308 yerine 200 +
   // boş gövde üretiyordu (kanonik-olmayan slug arama motoruna kopya sayfa).
-  if (canonical.split("/").pop() !== slug) permanentRedirect({ href: canonical, locale });
+  // Sorgu KORUNUR (2026-09-27): `?sayfa=2` düşünce 2. sayfa 1. sayfayı açıyordu.
+  if (canonical.split("/").pop() !== slug) permanentRedirect({ href: `${canonical}${queryStringOf(sp)}`, locale });
 
-  const sp = await searchParams;
   const tp = await getTranslations("web.marketplace.pages");
   return (
     <PublicLayout className={MARKET_GROUND}>
@@ -114,7 +114,7 @@ export default async function Page({
           title={cat.name}
           lead={tp("categoryLead", { name: cat.name, count: cat.count })}
           searchParams={sp}
-          category={{ id: cat.id, name: cat.name }}
+          category={{ id: cat.id, name: cat.name, slug: cat.slug }}
           image={segmentPhotoSrc([cat.id])}
         />
     </PublicLayout>

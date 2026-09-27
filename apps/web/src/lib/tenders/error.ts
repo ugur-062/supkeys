@@ -1,3 +1,4 @@
+import { tRuntime } from "@/i18n/runtime";
 import axios from "axios";
 
 /**
@@ -43,7 +44,7 @@ export function extractErrorMessage(err: unknown, fallback: string): string {
       const entries = Object.values(fields);
       const shown = entries.slice(0, MAX_FIELD_ERRORS_IN_TOAST).join(" · ");
       const extra = entries.length - MAX_FIELD_ERRORS_IN_TOAST;
-      return extra > 0 ? `${shown} (+${extra} alan daha)` : shown;
+      return extra > 0 ? `${shown} (${tRuntime("common.errors.moreFields", { n: extra })})` : shown;
     }
     const data = err.response?.data as
       | { message?: string | string[] }

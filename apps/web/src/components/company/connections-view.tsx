@@ -1,7 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { tierAtLeast } from "@rothern/shared";
+import { useLocale, useTranslations } from "next-intl";
+import { recipientLocale, type Locale } from "@rothern/i18n";
+import { foldSearchText, tierAtLeast } from "@rothern/shared";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/catalyst/table";
@@ -52,6 +53,7 @@ import { cn } from "@/lib/utils";
 import { accentForPortal } from "@/components/ui/button-accent";
 import { marketCompaniesPath } from "@/lib/company/panel-market";
 import { useCityLabel } from "@/i18n/domain";
+import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
 import type { PortalKey } from "@/lib/company/portals";
 import {
   BadgeCheck,
@@ -127,13 +129,12 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
   // Bağlantılarım içi arama — ad / Rothern ID / sektör / şehir (istemci).
   const filteredConnections = useMemo(() => {
     const rows = connections.data ?? [];
-    const needle = connQ.trim().toLocaleLowerCase("tr");
+    const needle = foldSearchText(connQ);
     if (!needle) return rows;
     return rows.filter((c) =>
-      [c.company.name, c.company.rothernId ?? "", c.company.industry ?? "", c.company.city ?? ""]
-        .join(" ")
-        .toLocaleLowerCase("tr")
-        .includes(needle),
+      foldSearchText(
+        [c.company.name, c.company.rothernId ?? "", c.company.industry ?? "", c.company.city ?? ""].join(" "),
+      ).includes(needle),
     );
   }, [connections.data, connQ]);
 
@@ -644,12 +645,21 @@ function EmptyBox({ title, desc, action }: { title: string; desc: string; action
  * davet" formu + "Toplu Davet" diyaloğu birleşti). Bir adres → tekil uç
  * (kayıtlıysa istek, değilse davet e-postası); birden çok → toplu uç
  * (en fazla 50, adres başına sonuç raporu).
+ *
+ * DAVET DİLİ (2026-09-27): alıcı kayıtlı değil → adres başına dil seçilir;
+ * varsayılanı e-posta uzantısından (`.kz` → Rusça), yoksa arayüz dili.
+ * Eskiden davet edenin dilindeydi (Türk alıcının Kazak tedarikçiye daveti
+ * Türkçe gidiyordu). Kayıtlı adrese bağlantı isteği gider; dil kullanılmaz.
  */
 function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const t = useTranslations("web.panel.company.connectionsView");
+  const uiLocale = useLocale() as Locale;
   const single = useInviteByEmail();
   const batch = useInviteByEmailBatch();
   const [raw, setRaw] = useState("");
+  // Yalnız kullanıcının DEĞİŞTİRDİĞİ diller; diğerleri kuraldan.
+  const [langs, setLangs] = useState<Record<string, Locale>>({});
+  const langOf = (email: string): Locale => langs[email] ?? recipientLocale({ email, fallback: uiLocale });
   const [result, setResult] = useState<
     import("@/hooks/use-company-connections").BatchInviteResult | null
   >(null);
@@ -677,7 +687,8 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
     if (parsed.valid.length === 0 || overLimit) return;
     try {
       if (parsed.valid.length === 1) {
-        const res = await single.mutateAsync(parsed.valid[0] as string);
+        const email = parsed.valid[0] as string;
+        const res = await single.mutateAsync({ email, locale: langOf(email) });
         const addr = res.email ?? parsed.valid[0] ?? "";
         if (res.kind === "invited" && res.emailSent === false) {
           // Davet kaydı var ama e-posta gitmedi — "gönderildi" DENMEZ.
@@ -696,7 +707,7 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
         close();
         return;
       }
-      const res = await batch.mutateAsync(parsed.valid);
+      const res = await batch.mutateAsync(parsed.valid.map((email) => ({ email, locale: langOf(email) })));
       setResult(res);
       const sent = res.summary.request + res.summary.invited;
       toast.success(
@@ -712,6 +723,7 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
 
   const close = () => {
     setRaw("");
+    setLangs({});
     setResult(null);
     onClose();
   };
@@ -752,6 +764,25 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
                 </span>
               ) : null}
             </div>
+            {parsed.valid.length > 0 && !overLimit ? (
+              <div>
+                <p className="text-xs font-medium text-zinc-700">{t("davetDili")}</p>
+                <p className="text-xs text-zinc-500">{t("davetDiliIpucu")}</p>
+                <ul className="mt-1.5 max-h-48 space-y-1 overflow-y-auto">
+                  {parsed.valid.map((email) => (
+                    <li key={email} className="flex items-center justify-between gap-2 rounded-lg border border-zinc-100 px-2.5 py-1.5">
+                      <span className="min-w-0 truncate text-sm text-zinc-800">{email}</span>
+                      <InviteLocaleSelect
+                        value={langOf(email)}
+                        onChange={(l) => setLangs((m) => ({ ...m, [email]: l }))}
+                        label={t("davetDiliAdres", { email })}
+                        disabled={pending}
+                      />
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
           </>
         ) : (
           <ul className="max-h-72 space-y-1.5 overflow-y-auto">

@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
-import { useNavLabel, useRoleLabel, useUnitLabel, usePlaceLabel } from "@/i18n/domain";
+import { useBidDeliveryTimeLabel, useNavLabel, useRoleLabel, useQuantityLabel, useUnitLabel, usePlaceLabel } from "@/i18n/domain";
 import { formatNumber } from "@/i18n/format";
 import { Button } from "@/components/catalyst/button";
 import { Heading } from "@/components/catalyst/heading";
@@ -16,7 +16,7 @@ import {
 } from "@/components/catalyst/table";
 import { Text } from "@/components/catalyst/text";
 import { OrderPaymentsCard } from "@/components/orders/order-payments-card";
-import { formatMoney } from "@/components/ui/money";
+import { useFormatMoney } from "@/components/ui/money";
 import { Iban } from "@/components/ui/iban";
 import { MetaTag, StatusBadge } from "@/components/ui/status-badge";
 import {
@@ -37,7 +37,6 @@ import { orderStageIndex, orderStatusMeta, orderSteps } from "@/lib/orders/order
 import { routeLabel } from "@/lib/company/terms";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { subscribeRealtime } from "@/lib/realtime";
-import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { sellerShipsGoods } from "@rothern/shared";
 import { LcStepPanel } from "./_components/lc-step-panel";
 import { OrderCancelRequestPanel } from "./_components/order-cancel-request-panel";
@@ -90,7 +89,10 @@ export default function OrderDetailPage() {
   const tStep = useTranslations("web.domain.orderStep");
   const roleLabel = useRoleLabel();
   const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
+  const deliveryTimeLabel = useBidDeliveryTimeLabel();
   const locale = useLocale() as Locale;
+  const { money: formatMoney } = useFormatMoney();
   const params = useParams<{ id: string }>();
   const id = params.id;
   const { user } = useCompanyAuth();
@@ -139,9 +141,6 @@ export default function OrderDetailPage() {
   // F7: aksiyon butonları tarafın işlem rolünü ister (assertOrderRole aynası) —
   // etiket-only Kurucu/Yönetici sayfayı SALT-OKUNUR görür (Faz R gözetimi).
   const canAct = canActOnOrder(o.role, user);
-  const curSym =
-    CURRENCY_SYMBOL[(o.currency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
-    "₺";
   // Teslim şekli: satıcı taşır mı (gönder) yoksa alıcı toplar mı (teslime hazır)?
   const sellerShips = sellerShipsGoods(o.deliveryTerm);
   const steps = stepsFor(sellerShips);
@@ -300,10 +299,12 @@ export default function OrderDetailPage() {
     w.document.write(
       buildOrderPrintHtml(o, {
         isSeller,
-        curSym,
+        currency: o.currency ?? "TRY",
         statusLabel,
         labels: printLabels,
         locale,
+        deliveryTimeLabel,
+        quantityLabel: (n, u) => quantity(n, u),
       }),
     );
     w.document.close();
@@ -363,7 +364,7 @@ export default function OrderDetailPage() {
           {o.paymentDueDate
             ? t("odemeBekliyorKalanVade", {
                 amount: formatMoney(remainingDue, o.currency),
-                date: formatDate(o.paymentDueDate),
+                date: formatDate(o.paymentDueDate, "short", locale),
               })
             : t("odemeBekliyorKalan", {
                 amount: formatMoney(remainingDue, o.currency),
@@ -415,7 +416,7 @@ export default function OrderDetailPage() {
       {/* O3: vadeli/mal-mukabili siparişte vade gelecekteyse "şimdi öde"
           yerine vade tarihini göster (erken-ödemeye itme). */}
       {o.paymentDueDate && new Date(o.paymentDueDate) > new Date()
-        ? t("odemeVadesiKalanTutariO", { formatDate: formatDate(o.paymentDueDate) })
+        ? t("odemeVadesiKalanTutariO", { formatDate: formatDate(o.paymentDueDate, "short", locale) })
         : t("kalanOdemeniziOdemelerBolumundenKaydedin")}
     </Text>
   ) : isSeller && !terminal && paymentAwaitingConfirmation ? (
@@ -630,9 +631,7 @@ export default function OrderDetailPage() {
                       {o.listingNumber ?? "—"}
                       {o.listingType ? (
                         <span className="ml-2 font-sans">
-                          {o.listingType === "ALIM"
-                            ? t("satinAlmaTalebi")
-                            : t("satisIlani")}
+                          {t("satinAlmaTalebi")}
                         </span>
                       ) : null}
                     </p>
@@ -764,7 +763,7 @@ export default function OrderDetailPage() {
                         ) : null}
                       </TableCell>
                       <TableCell className="text-right text-zinc-600">
-                        {formatNumber(Number(it.quantity), locale)} {unitLabel(it.unit)}
+                        {quantity(it.quantity, it.unit)}
                       </TableCell>
                       <TableCell className="text-right text-zinc-600">
                         {itemDeliveryLabel(
@@ -772,6 +771,8 @@ export default function OrderDetailPage() {
                           o.expectedDeliveryDate,
                           it.deliveryTime,
                           printLabels.general,
+                          deliveryTimeLabel,
+                          locale,
                         )}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-zinc-600">
@@ -883,7 +884,7 @@ export default function OrderDetailPage() {
                 {t("nKalem", { n: o.items.length })}
               </SummaryRow>
               <SummaryRow label={t("siparisTarihi")}>
-                {formatDate(o.createdAt)}
+                {formatDate(o.createdAt, "short", locale)}
               </SummaryRow>
               <SummaryRow label={t("onayliOdeme")}>
                 <span className=" tabular-nums">
@@ -901,7 +902,7 @@ export default function OrderDetailPage() {
               </SummaryRow>
               {o.paymentDueDate ? (
                 <SummaryRow label={t("odemeVadesi")}>
-                  {formatDate(o.paymentDueDate)}
+                  {formatDate(o.paymentDueDate, "short", locale)}
                 </SummaryRow>
               ) : null}
             </dl>

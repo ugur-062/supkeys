@@ -4,7 +4,7 @@
  */
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
-import { INTL_LOCALE } from "@/i18n/format";
+import { intlLocale } from "@/i18n/format";
 
 export function MiniBars({
   data,
@@ -29,7 +29,7 @@ export function MiniBars({
   const fill = accent === "blue" ? "#2563eb" : accent === "emerald" ? "#059669" : "#71717a";
   const fmt = (iso: string) => {
     const d = new Date(`${iso}T00:00:00Z`);
-    return d.toLocaleDateString(INTL_LOCALE[locale] ?? "tr-TR", { day: "numeric", month: "short", timeZone: "UTC" });
+    return d.toLocaleDateString(intlLocale(locale), { day: "numeric", month: "short", timeZone: "UTC" });
   };
   return (
     <svg

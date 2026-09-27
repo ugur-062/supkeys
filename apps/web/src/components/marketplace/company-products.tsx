@@ -72,7 +72,7 @@ export async function CompanyProducts({
 
       {query ? (
         <p className="mt-3 text-sm text-zinc-500">
-          {t("resultsFor", { q: query, n: fmt.number(page.total) })}{" "}
+          {t("resultsFor", { q: query, n: page.total })}{" "}
           <Link href={`/firma/${companySlug}#urunler`} className="font-medium text-zinc-900 underline underline-offset-2">
             {t("removeSearch")}
           </Link>

@@ -1,8 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useNavLabel } from "@/i18n/domain";
-import { formatDate } from "@/lib/format-date";
+import { useFormatDate, useNavLabel } from "@/i18n/domain";
 import { MODULE_LABELS } from "@/lib/company/portals";
 import {
   ActiveFilterChips,
@@ -32,8 +31,8 @@ import {
 } from "@/hooks/use-company-orders";
 import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
-import { sellerShipsGoods } from "@rothern/shared";
-import { formatMoney } from "@/components/ui/money";
+import { foldSearchText, sellerShipsGoods } from "@rothern/shared";
+import { useFormatMoney } from "@/components/ui/money";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { orderStageIndex, orderStatusMeta, orderSteps } from "@/lib/orders/order-status";
 import {
@@ -184,10 +183,12 @@ const RANGE_DAYS: Record<RangeKey, number | null> = {
 
 function matchesSearch(o: CompanyOrder, q: string) {
   if (!q) return true;
+  // Katlanmış karşılaştırma (`q` da katlı gelir) — `tr` küçültme Latin "I"yı
+  // "ı" yapıp İngilizce/Rusça adları kaçırıyordu.
   return (
-    (o.listingTitle ?? "").toLocaleLowerCase("tr").includes(q) ||
-    (o.number ?? "").toLocaleLowerCase("tr").includes(q) ||
-    o.counterparty.toLocaleLowerCase("tr").includes(q)
+    foldSearchText(o.listingTitle ?? "").includes(q) ||
+    foldSearchText(o.number ?? "").includes(q) ||
+    foldSearchText(o.counterparty).includes(q)
   );
 }
 
@@ -213,6 +214,8 @@ function sym(currency: string | undefined): string {
  */
 function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
   const t = useTranslations("web.panel.trade.ordersList");
+  const fmtDate = useFormatDate();
+  const { money: formatMoney } = useFormatMoney();
   const statusLabel = useOrderStatusLabel();
   const { done, current, terminated: isTerminated } = orderStageIndex(o.status);
   // Teslim şekli: satıcı taşımıyorsa (EXW/fabrika teslim…) orta adım "Hazırlık".
@@ -236,7 +239,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
           <p className="flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
             <span className="tabular-nums font-medium text-zinc-700">{o.number ?? "—"}</span>
             <span aria-hidden>·</span>
-            <span>{formatDate(o.createdAt, "short")}</span>
+            <span>{fmtDate(o.createdAt, "short")}</span>
           </p>
           <p className="mt-1 truncate text-base font-semibold leading-snug text-zinc-950 group-hover:underline">
             {o.listingTitle ?? t("siparis")}
@@ -284,7 +287,7 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
             ) : (
               <p className="whitespace-nowrap text-xs text-amber-700">
                 {t("odemeBekliyor")}
-                {o.paymentDueDate ? ` ${t("vade", { formatDate: formatDate(o.paymentDueDate) })}` : ""}
+                {o.paymentDueDate ? ` ${t("vade", { formatDate: fmtDate(o.paymentDueDate) })}` : ""}
               </p>
             )
           ) : o.paymentSettled === true ? (
@@ -329,6 +332,8 @@ function CardSkeleton() {
 
 export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   const t = useTranslations("web.panel.trade.ordersList");
+  const fmtDate = useFormatDate();
+  const { money: formatMoney } = useFormatMoney();
   const tn = useNavLabel();
   const statusLabel = useOrderStatusLabel();
   const optionLabel = (o: { labelKey: string } | undefined, fallback: string) =>
@@ -377,7 +382,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
   const filtered = useMemo(() => {
     const days = RANGE_DAYS[range];
     const minDate = days ? Date.now() - days * 86_400_000 : null;
-    const q = search.trim().toLocaleLowerCase("tr");
+    const q = foldSearchText(search);
     const rows = all.filter((o) => {
       if (status.length > 0 && !status.includes(o.status)) return false;
       if (counterparty && o.counterparty !== counterparty) return false;
@@ -643,7 +648,7 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
                         {formatMoney(o.amount, o.currency)}
                       </TableCell>
                       <TableCell className="text-right text-zinc-600">
-                        {formatDate(o.createdAt, "short")}
+                        {fmtDate(o.createdAt, "short")}
                       </TableCell>
                     </TableRow>
                   );

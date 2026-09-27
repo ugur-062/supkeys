@@ -9,10 +9,13 @@ import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/categor
 import { shortMonthLabel, tApi } from "../../common/i18n/i18n.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import {
-  bidRateToTry,
   itemUnitPriceTry,
   listingAmountTry,
+  listingRateToTry,
+  reportCurrencyOf,
+  tryToCurrency,
 } from "../../common/company/report-currency";
+import { convertAmount } from "../../common/currency/fx-rates";
 
 /**
  * Raporlama motoru — eski sistemin (tenant-reports) birleşik Company modeline
@@ -40,7 +43,9 @@ export interface SavingsReportInput {
 }
 
 export interface ReportsSummary {
-  /** Son 6 ay — adet bazlı hacim + TRY sipariş toplamı (yalnız TRY siparişler). */
+  /** Tutarların birimi — firmanın rapor para birimi (alan adları `…Try` geriye dönük). */
+  currency: string;
+  /** Son 6 ay — adet bazlı hacim + sipariş toplamı (rapor biriminde, TÜM siparişler). */
   months: {
     key: string;
     label: string;
@@ -98,9 +103,25 @@ function bidTry(b: {
  */
 const MAX_REPORT_LISTINGS = 500;
 
+/** Kuruş yuvarlaması (rapor tutarları). */
+const round2 = (n: number) => Math.round(n * 100) / 100;
+
 @Injectable()
 export class CompanyReportsService {
   constructor(private readonly prisma: PrismaService) {}
+
+  /**
+   * FİRMANIN RAPOR PARA BİRİMİ (2026-09-27): kıyas/toplama TRY bazında
+   * (damga, INV-FX-1) yapılır, ÇIKTI bu birime çevrilir — Excel başlıkları ve
+   * ekran etiketleri de bu birimi yazar (eskiden sabit "(TRY)").
+   */
+  private async reportCurrency(companyId: string): Promise<string> {
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { country: true, requestDefaults: true },
+    });
+    return reportCurrencyOf(company);
+  }
 
   /** Numara (ROT-…) ya da id → sahibin ilanının id'si (scope'ta değilse 404). */
   private async resolveListingId(
@@ -181,11 +202,25 @@ export class CompanyReportsService {
     if (truncated) listings = listings.slice(0, MAX_REPORT_LISTINGS);
 
     const names = await this.userNames(listings.map((l) => l.createdById));
-    const rows = listings.map((l) =>
-      this.generalRow(l, names.get(l.createdById) ?? null),
-    );
+    const reportCur = await this.reportCurrency(companyId);
+    // TRY karşılıkları (damga) → rapor birimi; hedef toplamı İLANIN biriminde
+    // kalır ("Para" sütunu), özetteki toplamı rapor birimine çevrilir.
+    const conv = (v: number | null) => (v == null ? null : round2(tryToCurrency(v, reportCur) ?? 0));
+    const rows = listings.map((l) => {
+      const r = this.generalRow(l, names.get(l.createdById) ?? null);
+      return {
+        ...r,
+        lowestTotal: conv(r.lowestTotal),
+        highestTotal: conv(r.highestTotal),
+        winningTotal: conv(r.winningTotal),
+        delta: conv(r.delta),
+      };
+    });
+    const summary = this.summarizeGeneral(rows);
 
     return {
+      /** Tutar sütunlarının birimi (En düşük/En yüksek/Kazanan/Tasarruf). */
+      baseCurrency: reportCur,
       mode: dto.mode,
       type: "ALIM" as const,
       // Tavana dayandıysa kullanıcı bilir (sessiz kesme yok).
@@ -195,7 +230,12 @@ export class CompanyReportsService {
       rangeStart: dto.rangeStart ?? null,
       rangeEnd: dto.rangeEnd ?? null,
       listings: rows,
-      summary: this.summarizeGeneral(rows),
+      summary: {
+        ...summary,
+        totalEstimated: round2(
+          rows.reduce((s, r) => s + (r.estimatedTotal != null ? (convertAmount(r.estimatedTotal, r.currency, reportCur) ?? 0) : 0), 0),
+        ),
+      },
     };
   }
 
@@ -402,6 +442,9 @@ export class CompanyReportsService {
     });
     const truncated = listings.length > MAX_REPORT_LISTINGS;
     if (truncated) listings = listings.slice(0, MAX_REPORT_LISTINGS);
+    const reportCur = await this.reportCurrency(companyId);
+    // Kıyas TRY'de (damga); ÇIKTI rapor biriminde.
+    const conv = (v: number | null) => (v == null ? null : round2(tryToCurrency(v, reportCur) ?? 0));
 
     const rows = listings.map((l) => {
       const awarded = l.bids.filter(
@@ -433,14 +476,7 @@ export class CompanyReportsService {
       // İlan birimindeki referansı (hedef) TRY'ye çevirmek için oran:
       // TRY ilanda 1; aksi halde kazanan tekliflerin damgasından türetilir
       // (aynı ilanda teklifler ilan birimini kullanır). Yoksa referans yok.
-      const listingRate =
-        l.primaryCurrency === "TRY"
-          ? 1
-          : (awarded
-              .map((b) =>
-                b.currency === l.primaryCurrency ? bidRateToTry(b) : null,
-              )
-              .find((r): r is number => r != null) ?? null);
+      const listingRate = listingRateToTry({ primaryCurrency: l.primaryCurrency, bids: awarded });
 
       let targetTotal = 0;
       let actualTotal = 0;
@@ -475,12 +511,12 @@ export class CompanyReportsService {
           unit: it.unit,
           quantity: Number(it.quantity),
           awardedQuantity: win ? qty : null,
-          referenceUnitPrice: refUnit,
-          winningUnitPrice: win?.unitPrice ?? null,
+          referenceUnitPrice: conv(refUnit),
+          winningUnitPrice: conv(win?.unitPrice ?? null),
           winnerName: win?.bidderName ?? null,
-          itemReference: itemRef,
-          itemActual,
-          delta: itemDelta,
+          itemReference: conv(itemRef),
+          itemActual: conv(itemActual),
+          delta: conv(itemDelta),
         };
       });
 
@@ -507,16 +543,16 @@ export class CompanyReportsService {
         title: l.title,
         currency: l.primaryCurrency,
         bidCount: l.bids.length,
-        highestBid,
-        lowestBid,
-        winningTotal,
-        delta,
+        highestBid: conv(highestBid),
+        lowestBid: conv(lowestBid),
+        winningTotal: conv(winningTotal),
+        delta: conv(delta),
         deltaPct,
-        targetTotal,
-        actualTotal,
+        targetTotal: conv(targetTotal) ?? 0,
+        actualTotal: conv(actualTotal) ?? 0,
         winners: [...winners.entries()].map(([name, total]) => ({
           name,
-          total,
+          total: conv(total) ?? 0,
         })),
         items,
         awardedAt: l.awardedAt?.toISOString() ?? null,
@@ -545,6 +581,8 @@ export class CompanyReportsService {
       rangeStart: dto.rangeStart,
       rangeEnd: dto.rangeEnd,
       currency: dto.currency ?? null,
+      /** Tutarların birimi — firmanın rapor para birimi (`currency` süzgeçtir). */
+      baseCurrency: reportCur,
       // Tavana dayandıysa kullanıcı bilir (sessiz kesme yok) — `general` ile
       // aynı sözleşme.
       truncated,
@@ -649,14 +687,7 @@ export class CompanyReportsService {
     // P8 HIGH: referans (hedef) İLANIN birimindedir → kalem kıyasıyla
     // aynı baza (TRY) çekilir. Oran: TRY ilanda 1, aksi halde ilan birimini
     // kullanan tekliflerin damgasından türetilir.
-    const cmpListingRate =
-      l.primaryCurrency === "TRY"
-        ? 1
-        : (l.bids
-            .map((b) =>
-              b.currency === l.primaryCurrency ? bidRateToTry(b) : null,
-            )
-            .find((r): r is number => r != null) ?? null);
+    const cmpListingRate = listingRateToTry(l);
     const itemMeta = l.items.map((it) => ({
       id: it.id,
       name: it.name,
@@ -727,6 +758,10 @@ export class CompanyReportsService {
             ? itemMeta.map((it) => {
                 const bi = bid.items.find((x) => x.itemId === it.id);
                 const unitPrice = bi != null ? Number(bi.unitPrice) : null;
+                // Kıyas TRY karşılığıyla (referans da TRY): ham birim fiyat
+                // teklifin biriminde — EUR teklif TRY referansla ham kıyaslanınca
+                // yüzde anlamsız, "en iyi" işareti hiç düşmüyordu.
+                const unitTry = bi != null ? itemUnitPriceTry(bid, bi) : null;
                 const best = bestByItem.get(it.id);
                 return {
                   itemId: it.id,
@@ -735,15 +770,15 @@ export class CompanyReportsService {
                     unitPrice != null ? unitPrice * it.quantity : null,
                   isBest:
                     best != null &&
-                    unitPrice != null &&
+                    unitTry != null &&
                     best.partyId === pid &&
-                    Math.abs(best.unitPrice - unitPrice) < 1e-9,
+                    Math.abs(best.unitPrice - unitTry) < 1e-9,
                   deltaVsReferencePct:
-                    unitPrice != null &&
+                    unitTry != null &&
                     it.referenceUnitPrice != null &&
                     it.referenceUnitPrice > 0
                       ? Math.round(
-                          ((unitPrice - it.referenceUnitPrice) /
+                          ((unitTry - it.referenceUnitPrice) /
                             it.referenceUnitPrice) *
                             1000,
                         ) / 10
@@ -816,9 +851,15 @@ export class CompanyReportsService {
             }))
         : [];
 
+    // Kıyas TRY'de yapıldı; ÇIKTI firmanın rapor biriminde (alan adı
+    // `totalTry` geriye dönük). Ham birim fiyat/toplam teklifin biriminde kalır.
+    const reportCur = await this.reportCurrency(companyId);
+    const conv = (v: number | null) => (v == null ? null : round2(tryToCurrency(v, reportCur) ?? 0));
     return {
       type: "ALIM" as const,
       generatedAt: new Date().toISOString(),
+      /** `totalTry`, referans ve "en iyi" tutarların birimi. */
+      baseCurrency: reportCur,
       includePrice,
       includeAnswers,
       includeNonBidders: !!dto.includeNonBidders,
@@ -829,15 +870,20 @@ export class CompanyReportsService {
         title: l.title,
         currency: l.primaryCurrency,
         round: l.currentRound,
-        referenceTotal,
+        referenceTotal: conv(referenceTotal) ?? 0,
       },
       items: itemMeta.map((it) => ({
         ...it,
-        bestUnitPrice: bestByItem.get(it.id)?.unitPrice ?? null,
+        referenceUnitPrice: conv(it.referenceUnitPrice),
+        bestUnitPrice: conv(bestByItem.get(it.id)?.unitPrice ?? null),
         bestCompanyId: bestByItem.get(it.id)?.partyId ?? null,
       })),
-      parties,
-      recommendedAwards,
+      parties: parties.map((p) => ({
+        ...p,
+        totalTry: conv(p.totalTry),
+        deltaVsReference: conv(p.deltaVsReference),
+      })),
+      recommendedAwards: recommendedAwards.map((r) => ({ ...r, unitPrice: conv(r.unitPrice) ?? 0 })),
       roundHistory,
     };
   }
@@ -845,7 +891,7 @@ export class CompanyReportsService {
   /**
    * P2 (frontend denetimi §10.5): Raporlar hub özet grafikleri — adet bazlı
    * aylık hacim (para birimi tuzağı yok), kazanma oranı, sipariş ortalaması
-   * (yalnız TRY siparişler — çoklu birim karışmaz) ve kategori dağılımı.
+   * (rapor para biriminde, tüm siparişler — 2026-09-27) ve kategori dağılımı.
    * Kendi taleplerin + gelen teklifler.
    */
   async summary(companyId: string): Promise<ReportsSummary> {
@@ -914,12 +960,14 @@ export class CompanyReportsService {
     for (const l of listingRows) bump(l.createdAt, "listings");
     for (const b of bidRows) bump(b.createdAt, "bids");
 
-    // Sipariş toplamı yalnız TRY — çoklu birimi tek eksende toplamak yanıltıcı.
+    // Sipariş toplamı RAPOR BİRİMİNDE (2026-09-27): her sipariş kendi
+    // biriminden güncel kurla çevrilir. Eskiden yalnız TRY siparişler sayılıyordu.
+    const reportCur = await this.reportCurrency(companyId);
     let tryTotal = 0;
     let tryCount = 0;
     for (const o of orderRows) {
-      if (o.currency !== "TRY") continue;
-      const amt = Number(o.amount);
+      const amt = convertAmount(Number(o.amount), o.currency, reportCur);
+      if (amt == null) continue;
       tryTotal += amt;
       tryCount += 1;
       const b = buckets.get(monthKey(o.createdAt));
@@ -957,6 +1005,7 @@ export class CompanyReportsService {
     ];
 
     return {
+      currency: reportCur,
       months: [...buckets.entries()].map(([key, b]) => ({
         key,
         label: b.label,

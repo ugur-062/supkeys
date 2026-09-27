@@ -30,7 +30,8 @@ import type {
   SatinalmaAnalytics,
   SatinalmaDashboard,
 } from "@/hooks/use-company-dashboard";
-import { formatCompactMoney, formatMoney } from "@/components/ui/money";
+import { useFormatMoney } from "@/components/ui/money";
+import { currencySymbol } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { FileX2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -61,6 +62,14 @@ export function SatinalmaIhaleTab({
   showKpis?: boolean;
 }) {
   const t = useTranslations("web.panel.shell.satinalmaIhaleTab");
+  const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
+  const locale = useLocale();
+  const { money: fm, compact: fcm } = useFormatMoney();
+  // Tutarlar firmanın RAPOR BİRİMİNDE (2026-09-27; sunucu her siparişi kendi
+  // biriminden çevirir) — eskiden yalnız TRY siparişler sayılıyordu.
+  const cur = analytics?.currency ?? "TRY";
+  const formatMoney = (v: number) => fm(v, cur);
+  const formatCompactMoney = (v: number) => fcm(v, cur);
   const [subTab, setSubTab] = useState<SubTab>("own");
   // Faz 6.2 — varsayılan sıralama KAPANIŞA göre artan (ihale no değil);
   // kolon başlıkları tıklanınca yön/kolon değişir.
@@ -78,7 +87,7 @@ export function SatinalmaIhaleTab({
     <div className="space-y-6">
       {showKpis ? (
         <>
-      {/* Faz 4.1 — birincil satır TUTAR (TRY-only, etiketle söylenir);
+      {/* Faz 4.1 — birincil satır TUTAR (rapor biriminde, etikette söylenir);
           adet kartları ikinci satıra indi. */}
       {analytics ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
@@ -89,7 +98,7 @@ export function SatinalmaIhaleTab({
             href="/company/satinalma/siparisler"
             accent="blue"
             deltaPct={analytics.money.deltas.periodSpend}
-            hint={t("donemIciSiparislerYalnizTry")}
+            hint={t("donemIciSiparislerCur", { currency: cur })}
           />
           <KpiCard
             label={t("acikSiparisTaahhudu")}
@@ -97,7 +106,7 @@ export function SatinalmaIhaleTab({
             valueTitle={formatMoney(analytics.money.openCommitment)}
             href="/company/satinalma/siparisler"
             accent="blue"
-            hint={t("odenmemisSiparisBakiyesiYalnizTry")}
+            hint={t("odenmemisSiparisBakiyesiCur", { currency: cur })}
           />
           <KpiCard
             label={t("n30GundeVadesiGelen")}
@@ -120,8 +129,8 @@ export function SatinalmaIhaleTab({
             accent="blue"
             deltaPct={analytics.money.deltas.realizedSavings}
             spark={analytics.savingsTrend}
-            sparkLabels={{ valueSuffix: " ₺" }}
-            hint={t("hedefFiyataGoreYalnizTry")}
+            sparkLabels={{ valueSuffix: ` ${currencySymbol(cur)}` }}
+            hint={t("hedefFiyataGoreCur", { currency: cur })}
           />
         </div>
       ) : null}
@@ -200,7 +209,7 @@ export function SatinalmaIhaleTab({
           title={t("donguSuresi")}
           subtitle={t("satinAlmaTalebiAcilisindanSiparise")}
           ariaLabel={t("donguSuresiTrendi")}
-          rangeBadge="son 12 ay"
+          rangeBadge={tRange("son12Ay")}
         >
           <CycleTrendChart points={analytics?.cycleTrend} />
         </ChartCard>
@@ -210,7 +219,7 @@ export function SatinalmaIhaleTab({
           (Faz 6.3): ödeme yükü üçüncü sekmede saklı kalmasın. */}
       <ChartCard
         title={t("nakitTakvimi")}
-        subtitle={t("onumuzdeki30GununOdemeYuku")}
+        subtitle={t("onumuzdeki30GununOdemeYukuCur", { currency: cur })}
         ariaLabel={t("n30GunlukOdemeTakvimi")}
         href="/company/satinalma/siparisler?status=DELIVERED"
       >
@@ -221,7 +230,7 @@ export function SatinalmaIhaleTab({
                 <CartesianGrid vertical={false} stroke="#e2e8f0" />
                 <XAxis dataKey="label" tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: "#94a3b8" }} />
                 <YAxis tickLine={false} axisLine={false} width={52} tick={{ fontSize: 11, fill: "#94a3b8" }} />
-                <Tooltip formatter={(v) => [formatMoney(Number(v ?? 0), "TRY"), t("odeme")]} />
+                <Tooltip formatter={(v) => [formatMoney(Number(v ?? 0)), t("odeme")]} />
                 <Bar dataKey="amount" fill="#2563eb" radius={[3, 3, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
@@ -340,12 +349,12 @@ export function SatinalmaIhaleTab({
                       </Link>
                     </TableCell>
                     <TableCell className="tabular-nums text-xs text-zinc-400">
-                      {formatDate(r.openedAt)}
+                      {formatDate(r.openedAt, "short", locale)}
                     </TableCell>
                     <TableCell>
                       <span className="flex flex-col items-start gap-0.5">
                         <span className="text-[13px] font-semibold tabular-nums text-zinc-900">
-                          {formatDate(r.closesAt)}
+                          {formatDate(r.closesAt, "short", locale)}
                         </span>
                         <DaysLeftBadge closesAt={r.closesAt} />
                       </span>
@@ -452,7 +461,7 @@ function CompetitionCell({
   return (
     <span className="inline-flex flex-wrap items-center gap-1.5 whitespace-nowrap">
       <span className="inline-flex items-center rounded-full bg-amber-50 px-2 py-0.5 text-xs font-semibold text-amber-700">
-        {bids === 0 ? "0 teklif" : "1 teklif"}
+        {t("teklifSayisi", { n: bids })}
       </span>
       <Link
         href={`/company/ilan/${row.id}`}

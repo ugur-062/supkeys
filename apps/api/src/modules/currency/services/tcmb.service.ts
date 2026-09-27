@@ -1,6 +1,7 @@
 import { HttpService } from "@nestjs/axios";
 import { Injectable, Logger } from "@nestjs/common";
 import { firstValueFrom } from "rxjs";
+import { FOREIGN_CURRENCY_CODES } from "@rothern/shared";
 import { parseStringPromise } from "xml2js";
 
 /** TCMB XML'den fetch edilen kurlar — Currency code → 1 birim TRY karşılığı. */
@@ -10,17 +11,12 @@ export interface TcmbRates {
   date: string;
 }
 
-/** Türk B2B'de yaygın 9 birim (TRY hariç; TRY=1 sabit). */
-const TRACKED_CURRENCIES = [
-  "USD",
-  "EUR",
-  "GBP",
-  "CHF",
-  "JPY",
-  "AED",
-  "CNY",
-  "RUB",
-] as const;
+/**
+ * Çekilen birimler — TEK KAYNAK `@rothern/shared` `CURRENCY_CODES` (TRY
+ * hariç; TRY=1 sabit). 2026-09-27: TCMB'nin günlük kur verdiği 12 birim
+ * eklendi (AZN SEK NOK DKK BGN RON KRW SAR QAR KWD AUD CAD).
+ */
+const TRACKED_CURRENCIES = FOREIGN_CURRENCY_CODES;
 
 /**
  * V2-3 — TCMB günlük gösterge kurları XML feed'i.
@@ -83,7 +79,8 @@ export class TcmbService {
         if (!sellingStr) continue;
         const value = parseFloat(sellingStr);
         if (!Number.isFinite(value)) continue;
-        // TCMB JPY için Unit=100 (ForexSelling 100 JPY karşılığı). Normalize: 1 JPY = value / unit.
+        // TCMB bazı birimleri 100'lük verir (JPY, KRW: ForexSelling 100 birim
+        // karşılığı). Normalize: 1 birim = value / unit.
         const unitStr = c.Unit?.[0];
         const unit = unitStr ? parseInt(unitStr, 10) : 1;
         const safeUnit = Number.isFinite(unit) && unit > 0 ? unit : 1;

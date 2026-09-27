@@ -1,11 +1,13 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { useQuantityLabel } from "@/i18n/domain";
+import { intlLocale } from "@/i18n/format";
 import { Badge } from "@/components/catalyst/badge";
 import { ListSkeleton } from "@/components/list";
 import { useApprovalDetail } from "@/hooks/use-company-approvals";
 import { formatDate } from "@/lib/format-date";
-import { currencySymbol } from "@/lib/tenders/labels";
+import { affixCurrency } from "@/lib/tenders/labels";
 import { BadgeCheck } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 
@@ -18,13 +20,10 @@ const STEP_LABEL: Record<string, { key: string; color: "amber" | "green" | "rose
   SKIPPED: { key: "step.SKIPPED", color: "zinc" },
 };
 
-function money(amount: number | null | undefined, currency: string) {
+// Sayılar arayüz dilinin biçimiyle (`intl` = BCP-47; tr-TR sabitti).
+function moneyIn(intl: string, amount: number | null | undefined, currency: string) {
   if (amount == null) return "—";
-  return `${amount.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ${currencySymbol(currency)}`;
-}
-
-function qty(amount: number, unit: string) {
-  return `${amount.toLocaleString("tr-TR", { maximumFractionDigits: 3 })} ${unit}`.trim();
+  return affixCurrency(amount.toLocaleString(intl, { maximumFractionDigits: 2 }), currency, intl);
 }
 
 /**
@@ -37,6 +36,12 @@ function qty(amount: number, unit: string) {
  */
 export function ApprovalDetailPanel({ id }: { id: string }) {
   const t = useTranslations("web.panel.trade.approvalDetailPanel");
+  const locale = useLocale();
+  const intl = intlLocale(locale);
+  const money = (amount: number | null | undefined, currency: string) => moneyIn(intl, amount, currency);
+  // Miktar + birim okuyucunun dilinde, çoğul kuralıyla (`useQuantityLabel`).
+  const quantity = useQuantityLabel();
+  const qty = (amount: number, unit: string) => quantity(amount, unit);
   const { data, isLoading, isError, refetch } = useApprovalDetail(id, true);
   if (isLoading) return <ListSkeleton rows={3} />;
   if (isError || !data) {
@@ -176,7 +181,7 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
           {d.listing.totalQuantity
             ? ` · ${qty(d.listing.totalQuantity.amount, d.listing.totalQuantity.unit)}`
             : ""}
-          {d.listing.closesAt ? ` ${t("kapanis", { formatDate: formatDate(d.listing.closesAt, "datetime") })}` : ""}
+          {d.listing.closesAt ? ` ${t("kapanis", { formatDate: formatDate(d.listing.closesAt, "datetime", locale) })}` : ""}
         </p>
         {d.listing.items.length > 0 ? (
           <ul className="mt-1 flex flex-wrap gap-1.5">
@@ -218,7 +223,7 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
                 {s.displayLabel ? <span className="text-zinc-500">{s.displayLabel}</span> : null}
                 <Badge color={st.color}>{t(st.key as never)}</Badge>
                 {s.decidedAt ? (
-                  <span className="text-zinc-400">{formatDate(s.decidedAt, "datetime")}</span>
+                  <span className="text-zinc-400">{formatDate(s.decidedAt, "datetime", locale)}</span>
                 ) : null}
                 {s.note ? <span className="text-zinc-600">“{s.note}”</span> : null}
               </li>

@@ -17,6 +17,7 @@ import {
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
+import { resetFxRates, setFxRates } from "../../src/common/currency/fx-rates";
 
 const audit = { log: jest.fn() };
 const service = () =>
@@ -323,6 +324,23 @@ describe("ürün oluşturma — TEK ÇAĞRI (ilan sihirbazı değil)", () => {
     expect(p.priceMode).toBe("FIXED");
     // TASLAK doğar — yayımlamak ayrı adım.
     expect(p.isPublic).toBe(false);
+  });
+
+  it("para birimi verilmezse FİRMANIN ülkesinden doğar; TRY karşılığı yazımda hesaplanır (2026-09-27)", async () => {
+    setFxRates({ EUR: 50 });
+    try {
+      const { auth } = await makeCompanyWithUser(prisma, { country: "DE" });
+      const p = await service().createProduct(auth, { name: "Schaltschrank", unit: "adet", priceMode: "FIXED", priceAmount: 450 });
+      expect(p.priceCurrency).toBe("EUR");
+      const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: p.id }, select: { priceAmountBase: true } });
+      expect(Number(row.priceAmountBase)).toBe(22_500);
+      // Teklifle fiyata geçince taban düşer (süzgeçte "fiyatsız").
+      await service().updateShowcase(auth, p.id, { priceMode: "ON_REQUEST" });
+      const after = await prisma.companyItem.findUniqueOrThrow({ where: { id: p.id }, select: { priceAmountBase: true } });
+      expect(after.priceAmountBase).toBeNull();
+    } finally {
+      resetFxRates();
+    }
   });
 
   it("adsız ürün açılamaz", async () => {

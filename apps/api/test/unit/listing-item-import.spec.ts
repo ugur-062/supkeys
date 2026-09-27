@@ -5,6 +5,7 @@ import {
   parseLocaleNumber,
   parseImportDate,
 } from "../../src/modules/company-listings/import/listing-item-import.service";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 /**
  * Kalem Excel şablonu — şablon ↔ parser ROUND-TRIP + satır-hata matrisi.
@@ -122,6 +123,23 @@ describe("round-trip: doldurulmuş şablon → parse", () => {
     // Bilinmeyen birim satırı GEÇERLİ kalır (liste kapalı değil) ama kodsuz.
     expect(c!.errors).toEqual([]);
     expect(c!.item.unitCode).toBeNull();
+  });
+
+  it("Rusça birimler kod alır; birim hatası okuyucunun dilinde birim adı basar (2026-09-27)", async () => {
+    const b64 = await fillTemplate([
+      ["Болт", "12,5", "шт"], // шт = adet → ondalık reddedilir
+      ["Кабель", "120", "м"],
+      ["Цемент", "3", "мешок"],
+    ]);
+    const res = await runWithLocale("ru", () =>
+      svc.parse({ fileName: "s.xlsx", mimeType: "x", dataBase64: b64, listingType: "ALIM" }),
+    );
+    const [a, b, c] = res.rows;
+    expect(a!.item.unitCode).toBe("PCE");
+    expect(a!.errors[0]).toContain("«шт.»");
+    expect(a!.errors[0]).not.toContain("adet");
+    expect(b!.item.unitCode).toBe("M");
+    expect(c!.item.unitCode).toBe("BAG");
   });
 
   it("şablon dışı ama başlıkları uyumlu kendi listesi (alias + farklı sıra + üstte başlık satırları) okunur", async () => {

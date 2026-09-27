@@ -8,7 +8,13 @@ import { Check, FilterChipBar, Group, ShowMore, ShowMoreRadio, type FilterChip }
 import { useFilters } from "./filter-shell";
 import { SortBar } from "./sort-bar";
 import { activeListingFilterCount, type ListingFilterState } from "@/lib/public/listing-filter-params";
+import { hasListingCountryFacet, listingCountryOptions } from "@/lib/public/listing-country-facet";
 import type { PublicFacets } from "@/lib/public/marketplace-api";
+import { CountryCombobox } from "@/components/ui/country-combobox";
+import { registrationCountries } from "@rothern/shared";
+
+/** Seçicide yalnız kayda açık ülkeler — kapalı listedeki ülkeden tedarikçi olamaz. */
+const SUPPLIER_COUNTRY_CODES = registrationCountries().map((c) => c.code);
 
 const WITHIN_KEYS = ["3", "7", "30"] as const;
 
@@ -70,25 +76,39 @@ export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idP
           />
         ))}
       </Group>
-      {/* Görünürlük ülkesi (2026-09-21): "bu ülkedeki tedarikçi görebilir" —
-          tüm ülkelere açık talepler her seçimde kalır. */}
-      {(facets.countries ?? []).length > 0 ? (
+      {/* Görünürlük ülkesi (2026-09-21; seçenek kuralı 2026-09-27): "bu
+          ülkedeki tedarikçi teklif verebilir" — ürün dizinindeki "Ülke"
+          (satıcı ülkesi) ile AYNI soru değil, etiket de ayrı. Her ülke
+          seçilebilir (`listingCountryOptions`): liste açıkça hedeflenen
+          ülkeleri, seçici kalan her ülkeyi verir; tüm ülkelere açık talepler
+          her seçimde kalır. */}
+      {hasListingCountryFacet(facets, state.country) ? (
         <Group
-          title={t("country")}
+          title={t("listingCountry")}
           count={state.country ? 1 : 0}
           onClear={() => update({ country: undefined })}
           storageKey="lst-country"
         >
-          {(facets.countries ?? []).map((c) => (
+          {listingCountryOptions(facets, state.country).map((c) => (
             <Check
               key={c.code}
               id={`${idPrefix}-country-${c.code}`}
               label={countryDisplayName(c.code, locale)}
-              count={c.count + (facets.openToAll ?? 0)}
+              count={c.count}
               checked={state.country === c.code}
               onChange={() => update({ country: state.country === c.code ? undefined : c.code })}
             />
           ))}
+          <div className="mt-2 px-2">
+            <CountryCombobox
+              value=""
+              onChange={(code) => update({ country: code })}
+              codes={SUPPLIER_COUNTRY_CODES}
+              ariaLabel={t("listingCountryPick")}
+              id={`${idPrefix}-country-pick`}
+            />
+            <p className="mt-1.5 text-xs text-zinc-500">{t("listingCountryHint")}</p>
+          </div>
         </Group>
       ) : null}
     </div>

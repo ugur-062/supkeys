@@ -16,6 +16,7 @@ import { NotificationService } from "../../src/modules/notifications/notificatio
 import { prisma, truncateAll } from "./test-db";
 import { makeBid, makeCompanyWithUser, makeItem, makeListing } from "./factories";
 import { makeService } from "./make-service";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 const auditStub = { log: jest.fn().mockResolvedValue(undefined) };
 
@@ -339,6 +340,25 @@ describe("proposePublishTender", () => {
     expect(s?.pendingAction).toBeNull();
   });
 
+  it("onay kartı okuyucunun dilinde: kategori adı nameEn (Türkçe ad sızmaz)", async () => {
+    const actions = makeActions();
+    await seedCategory();
+    await prisma.category.update({ where: { id: "30991900" }, data: { nameEn: "Personal protective equipment" } });
+    const owner = await makeCompanyWithUser(prisma);
+    await prisma.companyAddress.create({
+      data: { companyId: owner.company.id, type: "TESLIMAT", title: "Depo", addressLine: "Test Mah. 1", city: "İstanbul" },
+    });
+    const { code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
+    const session = await makeSession(owner.user.id, owner.company.id, fullDraft());
+    const out = await runWithLocale("en", () =>
+      actions.proposePublishTender(owner.auth, session.id, { type: "ALIM", rothernIds: [code] }),
+    );
+    expect(out.ok).toBe(true);
+    const text = out.pending!.summary.join(" ");
+    expect(text).toContain("Personal protective equipment");
+    expect(text).not.toContain("Kişisel koruyucu donanım");
+  });
+
   it("reject: hiçbir şey yürütülmez, pendingAction temizlenir", async () => {
     const actions = makeActions();
     await seedCategory();
@@ -480,8 +500,27 @@ describe("Faz 3 — teklif verme + teslim alma", () => {
     });
     expect(out.ok).toBe(true);
     expect(out.pending!.severity).toBe("critical");
-    expect(out.pending!.summary.join(" ")).toContain("TOPLAM: 500 TRY");
+    expect(out.pending!.summary.join(" ")).toContain("TOPLAM: 500 ₺");
+    // Kalem satırı da okuyucunun dilinde: birim etiketi + sembollü tutar.
+    expect(out.pending!.summary.join(" ")).toContain("10 adet × 50 ₺ = 500 ₺");
+    expect(out.pending!.summary.join(" ")).toContain("Teslim: 1-2 hafta");
     expect(out.pending!.summary.join(" ")).toMatch(/GERİ ÇEKİLEMEZ/);
+    // Teslim süresi kartta okuyucunun dilinde (Türkçe sözlük sabit değil) —
+    // ayrı oturumda, ilk kartın onayı bozulmasın.
+    const enSession = await makeSession(bidder.user.id, bidder.company.id);
+    const en = await runWithLocale("en", () =>
+      actions.proposePlaceBid(bidder.auth, enSession.id, {
+        listingId: listing.id,
+        items: [{ itemId: item.id, unitPrice: 50 }],
+        deliveryTime: "W1_2",
+        validityDays: 30,
+      }),
+    );
+    expect(en.pending!.summary.join(" ")).toContain("Delivery: 1–2 weeks");
+    expect(en.pending!.summary.join(" ")).not.toContain("hafta");
+    // İngilizcede birim etiketi çevrilir, sembol önde.
+    expect(en.pending!.summary.join(" ")).toContain("10 pieces × ₺50 = ₺500");
+    expect(en.pending!.summary.join(" ")).toContain("TOTAL: ₺500");
 
     const res = await actions.confirm(bidder.auth, session.id, out.pending!.id);
     expect(res.status).toBe("executed");

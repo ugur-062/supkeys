@@ -1,5 +1,5 @@
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { useActivityLabel, useCityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useScopeLabel, useSeoT, useUnitLabel } from "@/i18n/domain";
+import { useActivityLabel, useCityLabel, useClosingUrgency, useDeliveryTermLabel, usePaymentCategoryLabel, useScopeLabel, useSeoT, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 import { PublicLayout } from "./public-layout";
 import { GatedField } from "./gated-field";
 import { Heading } from "@/components/catalyst/heading";
@@ -7,10 +7,13 @@ import { formatDate } from "@/lib/format-date";
 import { JsonLd } from "@/components/seo/json-ld";
 import { AutoTranslatedNote } from "./auto-translated-note";
 import { listingSeo, listingSeoInput } from "@/lib/seo/entities";
+import { contentLangOf } from "@/lib/seo/meta";
+import type { Locale } from "@rothern/i18n";
 import { MARKETPLACE_ROUTES, listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard, PublicListingDetail } from "@/lib/public/marketplace-api";
 import { PANEL_TARGET, loginHref, signupHref } from "@/lib/public/visibility";
 import { ListingTeaserRow } from "./listing-teaser-row";
+import { ListingEligibilityNote } from "./listing-eligibility-note";
 import { resolveSiteUrl } from "@/lib/site-url";
 import { currencySymbol } from "@/lib/tenders/labels";
 import {
@@ -41,6 +44,7 @@ export function ListingDetail({
 }) {
   const t = useTranslations("web.marketplace.listing");
   const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
   const tl = useTranslations("web.marketplace.labels");
   const tstate = useTranslations("web.marketplace.state");
   const locale = useLocale();
@@ -66,6 +70,9 @@ export function ListingDetail({
      şehir/ülke taşır) — sayfada gizlediğimiz kimliği yapılandırılmış veride
      vermek onu makine-okunur biçimde geri vermek olurdu. */
   const seo = listingSeo(listingSeoInput(listing), { locale, t: seoT });
+  // Talep metni bu dilde hazır değilse (çeviri bekliyor / yabancı kaynak)
+  // başlık, açıklama ve kalem adları kaynağın `lang`ını taşır (2026-09-27).
+  const contentLang = contentLangOf(listing, locale as Locale);
 
   const facts: { label: string; value: string }[] = [
     { label: t("number"), value: listing.number },
@@ -121,7 +128,7 @@ export function ListingDetail({
               </Link>
             </li>
             <li aria-hidden>/</li>
-            <li className="line-clamp-1 text-zinc-900">{listing.title}</li>
+            <li className="line-clamp-1 text-zinc-900" lang={contentLang}>{listing.title}</li>
           </ol>
         </nav>
 
@@ -158,6 +165,7 @@ export function ListingDetail({
             <Heading
               level={1}
               className="mt-4 text-3xl font-bold tracking-tight text-balance !text-zinc-950 sm:text-4xl"
+              lang={contentLang}
             >
               {listing.title}
             </Heading>
@@ -217,7 +225,7 @@ export function ListingDetail({
                     <span className="block">{t("itemsCount", { count: listing.itemCount })}</span>
                     {listing.itemSummary.totalQuantity && listing.itemSummary.unit ? (
                       <span className="mt-0.5 block text-xs font-medium text-zinc-500">
-                        {t("totalQty", { qty: fmt.number(Number(listing.itemSummary.totalQuantity)), unit: unitLabel(listing.itemSummary.unit) })}
+                        {t("totalQty", { qty: quantity(listing.itemSummary.totalQuantity, listing.itemSummary.unit) })}
                       </span>
                     ) : null}
                   </>
@@ -242,7 +250,7 @@ export function ListingDetail({
             {listing.description ? (
               <section className="rounded-2xl bg-white p-6 ring-1 ring-zinc-950/5">
                 <h2 className="text-lg font-semibold text-zinc-950">{t("description")}</h2>
-                <p className="mt-3 text-base/7 whitespace-pre-line text-zinc-700">
+                <p className="mt-3 text-base/7 whitespace-pre-line text-zinc-700" lang={contentLang}>
                   {listing.description}
                 </p>
               </section>
@@ -257,7 +265,7 @@ export function ListingDetail({
                   {t("itemsHeading", { count: listing.itemCount })}
                   {listing.itemSummary.totalQuantity ? (
                     <span className="ml-2 text-base font-normal text-zinc-500">
-                      {t("totalQty", { qty: fmt.number(Number(listing.itemSummary.totalQuantity)), unit: unitLabel(listing.itemSummary.unit) ?? "" })}
+                      {t("totalQty", { qty: quantity(listing.itemSummary.totalQuantity, listing.itemSummary.unit) })}
                     </span>
                   ) : null}
                 </h2>
@@ -265,9 +273,9 @@ export function ListingDetail({
                   {listing.items.map((row) => (
                     <li key={row.lineNo} className="flex items-center gap-3 bg-white px-5 py-3 text-sm">
                       <span className="w-8 shrink-0 tabular-nums text-zinc-400">{row.lineNo}</span>
-                      <span className="min-w-0 flex-1 truncate font-medium text-zinc-900">{row.name || t("itemFallback", { n: row.lineNo })}</span>
+                      <span className="min-w-0 flex-1 truncate font-medium text-zinc-900" lang={row.name ? contentLang : undefined}>{row.name || t("itemFallback", { n: row.lineNo })}</span>
                       <span className="ml-auto shrink-0 tabular-nums text-zinc-700">
-                        {fmt.number(Number(row.quantity))} {unitLabel(row.unit)}
+                        {quantity(row.quantity, row.unit)}
                       </span>
                     </li>
                   ))}
@@ -369,6 +377,9 @@ export function ListingDetail({
               <div className="mt-5 border-t border-zinc-950/5 pt-5">
                 {state === "open" ? (
                   <>
+                    {/* Yalnız belirli ülkelere açık talepte kimin teklif
+                        verebileceği KAYITTAN ÖNCE söylenir (2026-09-27). */}
+                    <ListingEligibilityNote targetCountries={listing.targetCountries} />
                     {/* Kayıt sonrası AYNI talebe döner (intent=teklif + redirect). */}
                     <AccentLink
                       href={signupHref("teklif", listingHref(listing))}

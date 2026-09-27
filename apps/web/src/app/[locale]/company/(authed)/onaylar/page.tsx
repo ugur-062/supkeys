@@ -25,7 +25,7 @@ import {
 } from "@/hooks/use-company-approvals";
 import { ListSkeleton, SearchInput } from "@/components/list";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { currencySymbol } from "@/lib/tenders/labels";
+import { affixCurrency } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import {
   AlertTriangle,
@@ -72,7 +72,7 @@ const REQ_STATUS_COLOR: Record<ApprovalHistoryItem["status"], "amber" | "green" 
 
 /** Tutar + sembol — sayı okuyucunun dilinde. */
 const money = (amount: number, currency: string, locale: Locale) =>
-  `${formatNumber(amount, locale)} ${currencySymbol(currency)}`;
+  affixCurrency(formatNumber(amount, locale), currency, locale);
 
 /** Adım zaman çizelgesi — kim, hangi sırada, ne karar verdi. */
 function StepsTimeline({ steps }: { steps: ApprovalHistoryItem["steps"] }) {

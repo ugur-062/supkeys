@@ -7,6 +7,7 @@ import {
 } from "@nestjs/common";
 import { isValidCountryCode } from "@rothern/shared";
 import { resolveCityId, storedCityName } from "../../common/geo/geo-index";
+import { localizeDefaultAddressTitle } from "../../common/company/default-address-title";
 import { CompanyAddressType, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
@@ -48,11 +49,13 @@ export class CompanyAddressesService {
     };
   }
 
-  list(companyId: string) {
-    return this.prisma.companyAddress.findMany({
+  async list(companyId: string) {
+    const rows = await this.prisma.companyAddress.findMany({
       where: { companyId },
       orderBy: [{ type: "asc" }, { isDefault: "desc" }, { createdAt: "asc" }],
     });
+    // Kayıtta yazılan varsayılan başlıklar ("Merkez"…) okuyucunun dilinde.
+    return rows.map((r) => ({ ...r, title: localizeDefaultAddressTitle(r.title) }));
   }
 
   async create(user: AuthenticatedCompanyUser, dto: UpsertAddressDto) {

@@ -19,6 +19,8 @@ import {
   numbersPreserved,
   parseModelOutput,
   readyLocales,
+  localeStateOf,
+  translatedAtOf,
   normalizeSourceLocale,
   isUntranslatedCopy,
   expandMagnitudes,
@@ -548,6 +550,73 @@ describe("readyLocales — sayfa noindex'i ve sitemap dilleri ortak kural", () =
   it("yabancı firmanın kaydı (kaynak 'und' ya da 'de'): çeviri gelmeden HİÇBİR dil hazır değil", () => {
     expect(readyLocales([row("tr", null, "und"), row("en", null, "und"), row("ru", null, "und")])).toEqual([]);
     expect(readyLocales([row("tr", { t: 1 }, "de"), row("en", { t: 1 }, "de"), row("ru", { t: 1 }, "de")])).toEqual(["tr", "en", "ru"]);
+  });
+});
+
+describe("dil durumu — detay yanıtı ve sitemap lastmod (2026-09-27)", () => {
+  const row = (locale: string, fields: unknown, sourceLocale: string | null) => ({ locale, fields, sourceLocale });
+  it("localeStateOf: satır yok → Türkçe hazır, kaynak Türkçe", () => {
+    expect(localeStateOf([])).toEqual({ readyLocales: ["tr"], sourceLocale: "tr" });
+  });
+  it("localeStateOf: Almanca kaynak, yalnız EN çevrildi → [en] ve 'de'; 'und' olduğu gibi", () => {
+    expect(localeStateOf([row("tr", null, "de"), row("en", { t: 1 }, "de"), row("ru", null, "de")])).toEqual({
+      readyLocales: ["en"],
+      sourceLocale: "de",
+    });
+    expect(localeStateOf([row("tr", null, "und"), row("en", null, "und")]).sourceLocale).toBe("und");
+  });
+  it("translatedAtOf: yalnız çevirisi OLAN diller (kaynak dil satırı `fields=null`)", () => {
+    const at = new Date("2026-09-27T10:00:00Z");
+    expect(
+      translatedAtOf([
+        { locale: "tr", fields: null, updatedAt: at },
+        { locale: "en", fields: { t: 1 }, updatedAt: at },
+        { locale: "ru", fields: null, updatedAt: at },
+        { locale: "de", fields: { t: 1 }, updatedAt: at },
+      ]),
+    ).toEqual({ en: at });
+  });
+
+  function svcWith(rows: Record<string, unknown>[] | Error) {
+    const prisma = {
+      contentTranslation: {
+        findMany: jest.fn(async (args: { where: { entityId: string | { in: string[] } } }) => {
+          if (rows instanceof Error) throw rows;
+          const ids = typeof args.where.entityId === "string" ? [args.where.entityId] : args.where.entityId.in;
+          return rows.filter((r) => ids.includes(r.entityId as string));
+        }),
+      },
+    };
+    return new ContentTranslationService(prisma as any); // eslint-disable-line @typescript-eslint/no-explicit-any
+  }
+
+  it("localeState: çeviri bitti → hazır diller + kaynak; hata → tüm diller (fail-open)", async () => {
+    const done = [
+      { entityId: "l1", locale: "tr", fields: null, sourceLocale: "tr" },
+      { entityId: "l1", locale: "en", fields: { title: "x" }, sourceLocale: "tr" },
+      { entityId: "l1", locale: "ru", fields: null, sourceLocale: "tr" },
+    ];
+    expect(await svcWith(done).localeState("LISTING", "l1")).toEqual({ readyLocales: ["tr", "en"], sourceLocale: "tr" });
+    expect(await svcWith(done).translationPending("LISTING", "l1", "ru")).toBe(true);
+    expect(await svcWith(new Error("db")).localeState("LISTING", "l1")).toEqual({
+      readyLocales: ["tr", "en", "ru"],
+      sourceLocale: "tr",
+    });
+    expect(await svcWith(new Error("db")).translationPending("LISTING", "l1", "ru")).toBe(false);
+  });
+
+  it("sitemapLocalesFor: dil başına çeviri zamanı yalnız çevrili dillerde; hata → null", async () => {
+    const at = new Date("2026-09-27T12:00:00Z");
+    const svc = svcWith([
+      { entityId: "p1", locale: "tr", fields: null, sourceLocale: "tr", updatedAt: at },
+      { entityId: "p1", locale: "en", fields: { name: "Pipe" }, sourceLocale: "tr", updatedAt: at },
+      { entityId: "p1", locale: "ru", fields: null, sourceLocale: "tr", updatedAt: at },
+    ]);
+    const map = await svc.sitemapLocalesFor("PRODUCT", ["p1", "p2"]);
+    expect(map?.get("p1")).toEqual({ locales: ["tr", "en"], translatedAt: { en: at } });
+    expect(map?.get("p2")).toEqual({ locales: ["tr"], translatedAt: {} });
+    expect((await svc.readyLocalesFor("PRODUCT", ["p1"]))?.get("p1")).toEqual(["tr", "en"]);
+    expect(await svcWith(new Error("db")).sitemapLocalesFor("PRODUCT", ["p1"])).toBeNull();
   });
 });
 

@@ -2,6 +2,7 @@
 
 import { companyApi } from "@/lib/company-auth/api";
 import type { CompanyRole } from "@/lib/company-auth/types";
+import type { Locale } from "@rothern/i18n";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 export interface CompanyTeamUser {
@@ -50,6 +51,8 @@ export interface InviteUserInput {
   /** Yetki tablosu (Faz 4): açık izin listesi; verilirse roller yok sayılır. */
   permissions?: string[];
   roles?: CompanyRole[];
+  /** Davet dili — e-posta + kabul sayfası; yoksa davet edenin kayıtlı dili. */
+  locale?: Locale;
 }
 
 export interface PendingInvitation {

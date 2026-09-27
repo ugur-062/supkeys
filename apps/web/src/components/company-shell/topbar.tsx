@@ -1,6 +1,7 @@
 "use client";
 
 import { useNavLabel } from "@/i18n/domain";
+import { upperForText } from "@/i18n/format";
 import { useTranslations } from "next-intl";
 import { isManagementUser, userHasPermission } from "@/lib/company/permissions";
 import { RoleBadge } from "@/components/ui/role-badge";
@@ -38,7 +39,8 @@ import { MessagesPopover } from "./messages-popover";
 import { NotificationBell } from "./notification-bell";
 
 function initialsOf(first?: string | null, last?: string | null) {
-  return `${first?.[0] ?? ""}${last?.[0] ?? ""}`.toLocaleUpperCase("tr-TR") || "?";
+  // Adın kendi diline göre büyük harf ("ivan" → "I", "ilker şahin" → "İŞ").
+  return upperForText(`${first?.[0] ?? ""}${last?.[0] ?? ""}`, `${first ?? ""} ${last ?? ""}`) || "?";
 }
 
 /**

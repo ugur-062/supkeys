@@ -54,4 +54,45 @@ describe("EditProfileDialog", () => {
     expect(h.mutate).not.toHaveBeenCalled();
     expect(h.toast.error).toHaveBeenCalled();
   });
+
+  /**
+   * Hukuki yapı (2026-09-27): yabancı firmanın GmbH/LLC'si admin'den
+   * düzeltilemiyordu. "Diğer" iken yerel ad zorunlu (API ile aynı kural).
+   */
+  it("hukuki yapı Diğer seçilince yerel ad zorunlu, ikisi birlikte gönderilir", async () => {
+    const user = userEvent.setup();
+    render(<EditProfileDialog companyId="c1" data={data({ country: "DE", companyType: "LIMITED" })} onClose={() => {}} />);
+    expect(screen.queryByLabelText("Yerel hukuki yapı")).not.toBeInTheDocument();
+    await user.selectOptions(screen.getByLabelText("Hukuki yapı"), "OTHER");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).not.toHaveBeenCalled();
+    expect(h.toast.error).toHaveBeenCalled();
+
+    await user.type(screen.getByLabelText("Yerel hukuki yapı"), "GmbH");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).toHaveBeenCalledWith(
+      { id: "c1", patch: { companyType: "OTHER", legalFormLocal: "GmbH" } },
+      expect.anything(),
+    );
+  });
+
+  it("mevcut yerel ad düzenlenir; hukuki yapı değişmediyse yalnız yerel ad gider", async () => {
+    const user = userEvent.setup();
+    render(
+      <EditProfileDialog
+        companyId="c1"
+        data={data({ country: "DE", companyType: "OTHER", legalFormLocal: "GmbH" })}
+        onClose={() => {}}
+      />,
+    );
+    const local = screen.getByLabelText("Yerel hukuki yapı");
+    expect(local).toHaveValue("GmbH");
+    await user.clear(local);
+    await user.type(local, "GmbH & Co. KG");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).toHaveBeenCalledWith(
+      { id: "c1", patch: { legalFormLocal: "GmbH & Co. KG" } },
+      expect.anything(),
+    );
+  });
 });

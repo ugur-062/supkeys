@@ -1,6 +1,7 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
+import type { Locale } from "@rothern/i18n";
 import { useMutation } from "@tanstack/react-query";
 
 export interface DiscoveryCandidate {
@@ -16,6 +17,8 @@ export interface DiscoveryCandidate {
 export interface ExternalCandidate {
   name: string;
   city: string | null;
+  /** Firmanın ülkesi (ISO-2) — AI web araması bulduysa; davet dilinin varsayılanı buradan. */
+  country?: string | null;
   website: string | null;
   email: string | null;
   reason: string;
@@ -64,16 +67,36 @@ export interface ExternalInviteResult {
   reason?: string;
 }
 
+/**
+ * Dış davet alıcısı (2026-09-27): adres + davet e-postasının DİLİ (satırdaki
+ * seçici; varsayılanı `recipientLocale` — ülke → uzantı → arayüz dili) +
+ * AI keşfinin bulduğu ülke. Keşif modalı → hızlı talep taslağı → yayın
+ * paneli → API boyunca aynı nesne taşınır.
+ */
+export interface ExternalInviteTarget {
+  email: string;
+  locale: Locale;
+  country?: string | null;
+}
+
 /** Faz C — dış davet e-postası (limitli; frenler backend'de). */
 export function useExternalTenderInvite() {
   return useMutation({
-    mutationFn: async (input: { listingId: string; emails: string[] }) => {
-      // Gönderim artık BEKLENİR (adres başına gerçek sonuç) — 20 adreste
-      // varsayılan 45 sn'yi aşabilir.
+    mutationFn: async (input: { listingId: string; invites: ExternalInviteTarget[] }) => {
+      // Gönderim artık BEKLENİR (adres başına gerçek sonuç) ve talep çevirisi
+      // alıcının dilinde hazır değilse sunucu ~60 sn bekler — 20 adreste
+      // varsayılan 45 sn yetmez.
       const { data } = await companyApi.post<{ results: ExternalInviteResult[] }>(
         "/company/connections/external-tender-invite",
-        input,
-        { timeout: 120_000 },
+        {
+          listingId: input.listingId,
+          invites: input.invites.map((i) => ({
+            email: i.email,
+            locale: i.locale,
+            ...(i.country ? { country: i.country } : {}),
+          })),
+        },
+        { timeout: 180_000 },
       );
       return data.results;
     },

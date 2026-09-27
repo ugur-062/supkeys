@@ -386,11 +386,17 @@ export class BidImportService {
   async fromDocRows(
     l: ListingForImport,
     rows: DocRow[],
-    docMeta: { pricesIncludeVat: boolean | null; docCurrency: string | null },
+    docMeta: {
+      pricesIncludeVat: boolean | null;
+      docCurrency: string | null;
+      /** Model belgenin kalemlerden farklı dilde olduğunu söyledi (ipucu eşiği gevşer). */
+      crossLanguage?: boolean | null;
+    },
   ): Promise<BidImportResult> {
     const { matches, unmatched } = matchDocRows(l.items, rows, {
       allowedCurrencies: l.allowedCurrencies,
       primaryCurrency: l.primaryCurrency,
+      crossLanguage: docMeta.crossLanguage,
     });
     const notices: string[] = [];
     if (docMeta.pricesIncludeVat === true) {

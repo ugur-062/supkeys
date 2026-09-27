@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { ProductDetailBody } from "@/components/marketplace/product-detail";
 import { Badge } from "@/components/catalyst/badge";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
@@ -116,6 +116,7 @@ export function ProductPreview({
   onEdit?: () => void;
 }) {
   const t = useTranslations("web.panel.trade.productPreview");
+  const locale = useLocale();
   const publish = usePublishProduct();
   const canManage = useHasCompanyPermission("sell:product:manage");
   const accent = useButtonAccent();
@@ -212,7 +213,7 @@ export function ProductPreview({
             {t("incelemedeOnizleme")}
             <Badge color={status.color}>{status.label}</Badge>
             {product.submittedAt ? (
-              <span className="text-xs font-normal text-amber-800">{t("gonderim", { date: formatDate(product.submittedAt, "datetime") })}</span>
+              <span className="text-xs font-normal text-amber-800">{t("gonderim", { date: formatDate(product.submittedAt, "datetime", locale) })}</span>
             ) : null}
           </p>
           <p className="mt-0.5 text-xs/5">

@@ -181,17 +181,23 @@ describe("QuickRequest", () => {
     }
   }, 30_000);
 
-  it("AI keşfinden eklenen dış davetler yayından ÖNCE gitmez; yayında talebe özel uçla gider, sonuç panelde", async () => {
-    // Yayın öncesi modal adresleri forma ekler (modal burada sahte) — taslakta
-    // saklanan liste geri yüklenir.
+  it("AI keşfinden eklenen dış davetler yayından ÖNCE gitmez; yayında talebe özel uçla ALICININ diliyle gider, sonuç panelde", async () => {
+    // Yayın öncesi modal alıcıları forma ekler (modal burada sahte) — taslakta
+    // saklanan liste geri yüklenir. Eski taslak düz adres taşıyabilir: dili
+    // kuraldan türetilir (.kz → Rusça).
     sessionStorage.setItem(
       "quick-request-draft",
-      JSON.stringify({ externalInvites: ["info@baret.com", "satis@kask.com"] }),
+      JSON.stringify({ externalInvites: ["info@firma.kz", { email: "satis@kask.com", locale: "en", country: "DE" }] }),
     );
     h.create.mockResolvedValue({ id: "l3", number: "ROT-000044" });
-    h.sendExternal.mockReset().mockResolvedValue([{ email: "info@baret.com", status: "SENT" }]);
+    h.sendExternal.mockReset().mockResolvedValue([{ email: "info@firma.kz", status: "SENT" }]);
     wrap(<QuickRequest />);
     expect(await screen.findByText("Yayında davet gidecek adresler (2)")).toBeInTheDocument();
+    const lang = screen.getByLabelText("info@firma.kz için davet dili") as HTMLSelectElement;
+    expect(lang.value).toBe("ru");
+    expect((screen.getByLabelText("satis@kask.com için davet dili") as HTMLSelectElement).value).toBe("en");
+    // Davet eden dili satırda değiştirir.
+    fireEvent.change(lang, { target: { value: "en" } });
     fireEvent.click(screen.getByRole("button", { name: "satis@kask.com adresini kaldır" }));
     expect(screen.getByText("Yayında davet gidecek adresler (1)")).toBeInTheDocument();
     expect(h.sendExternal).not.toHaveBeenCalled();
@@ -200,7 +206,10 @@ describe("QuickRequest", () => {
     fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
     await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
     await waitFor(() =>
-      expect(h.sendExternal).toHaveBeenCalledWith({ listingId: "l3", emails: ["info@baret.com"] }),
+      expect(h.sendExternal).toHaveBeenCalledWith({
+        listingId: "l3",
+        invites: [{ email: "info@firma.kz", locale: "en" }],
+      }),
     );
     expect(await screen.findByText("Davet e-postaları")).toBeInTheDocument();
     expect(screen.getByText("1 davet e-postası gönderildi")).toBeInTheDocument();

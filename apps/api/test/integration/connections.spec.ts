@@ -348,6 +348,38 @@ describe("e-posta daveti + referral", () => {
     });
   });
 
+  it("davet DİLİ: seçilen dil kayda + e-postaya; yeniden gönderim kayıttaki dille (2026-09-27)", async () => {
+    const { service, email } = rig();
+    const { a } = await twoCompanies();
+    // Türk alıcı Kazak tedarikçiyi davet eder: ekranda Rusça seçildi.
+    email.send.mockRejectedValueOnce(new Error("resend down"));
+    await service.inviteByEmail(a.auth, "zakupki@zavod.kz", "ru");
+    const inv = await prisma.companyReferralInvite.findFirstOrThrow({
+      where: { inviterCompanyId: a.company.id, email: "zakupki@zavod.kz" },
+    });
+    expect(inv.locale).toBe("ru");
+    // İlk gönderim düştü → yeniden (dil verilmeden) → kayıttaki Rusça.
+    await service.inviteByEmail(a.auth, "zakupki@zavod.kz");
+    const call = email.send.mock.calls.at(-1)?.[0] as {
+      locale: string;
+      templateData: { data: { registerUrl: string } };
+    };
+    expect(call.locale).toBe("ru");
+    expect(call.templateData.data.registerUrl).toContain("/ru/kompaniya/registratsiya?ref=");
+
+    // Dil verilmeyen yeni adres: uzantıdan (.kz → ru), genel uzantı → davet edenin dili (tr).
+    await service.inviteByEmailBatch(a.auth, ["satis@firma.kz", { email: "info@firma.com" }]);
+    const rows = await prisma.companyReferralInvite.findMany({
+      where: { inviterCompanyId: a.company.id, email: { in: ["satis@firma.kz", "info@firma.com"] } },
+      select: { email: true, locale: true },
+      orderBy: { email: "asc" },
+    });
+    expect(rows).toEqual([
+      { email: "info@firma.com", locale: "tr" },
+      { email: "satis@firma.kz", locale: "ru" },
+    ]);
+  });
+
   it("pasif firmanın kullanıcı e-postası → anlamlı hata (boşa referral maili gitmez)", async () => {
     const { service, email } = rig();
     const { a, b } = await twoCompanies();

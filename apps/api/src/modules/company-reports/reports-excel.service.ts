@@ -1,8 +1,8 @@
 import { Injectable } from "@nestjs/common";
 import ExcelJS from "exceljs";
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
 import { tApi } from "../../common/i18n/i18n.service";
+import { currentLocale } from "../../common/i18n/locale-context";
+import { formatMoney, formatNotificationDate } from "../../common/notifications/notification-params";
 import type { CompanyReportsService } from "./company-reports.service";
 
 type GeneralResult = Awaited<
@@ -86,11 +86,14 @@ export class ReportsExcelService {
     return wb.addWorksheet(safe || undefined);
   }
 
+  // Tarihler okuyucunun dilinde ve İstanbul duvar saatiyle (en/ru "(GMT+3)").
+  // Eskiden date-fns `tr` + SUNUCU saat dilimi (Render UTC) → saatler 3 saat
+  // kayık ve her dilde Türkçe biçimdeydi (2026-09-27).
   private title(ws: ExcelJS.Worksheet, text: string, generatedAt: string) {
     ws.addRow([text]).font = { bold: true, size: 16, color: { argb: INK } };
     ws.addRow([
       msg("api.companyReports.olusturulmaTarih", {
-        tarih: format(new Date(generatedAt), "dd.MM.yyyy HH:mm", { locale: tr }),
+        tarih: formatNotificationDate(new Date(generatedAt), currentLocale(), "dateTime"),
       }),
     ]).font = { italic: true, color: { argb: "64748B" } };
   }
@@ -105,8 +108,8 @@ export class ReportsExcelService {
     if (data.mode === "RANGE" && data.rangeStart && data.rangeEnd) {
       ws.addRow([
         msg("api.companyReports.aralikBaslangicBitis", {
-          bas: format(new Date(data.rangeStart), "dd.MM.yyyy", { locale: tr }),
-          bit: format(new Date(data.rangeEnd), "dd.MM.yyyy", { locale: tr }),
+          bas: formatNotificationDate(new Date(data.rangeStart), currentLocale(), "date"),
+          bit: formatNotificationDate(new Date(data.rangeEnd), currentLocale(), "date"),
         }),
       ]);
     }
@@ -124,11 +127,13 @@ export class ReportsExcelService {
       msg("api.companyReports.basTeklif"),
       msg("api.companyReports.basYanitYuzde"),
       msg("api.companyReports.basHedefToplam"),
-      msg("api.companyReports.basEnDusukTry"),
-      msg("api.companyReports.basEnYuksekTry"),
-      msg("api.companyReports.basKazananTry"),
+      // Tutar sütunları firmanın RAPOR PARA BİRİMİNDE (servis çevirir) —
+      // başlık birimi yazar (eskiden sabit "(TRY)").
+      msg("api.companyReports.basEnDusukCur", { currency: data.baseCurrency }),
+      msg("api.companyReports.basEnYuksekCur", { currency: data.baseCurrency }),
+      msg("api.companyReports.basKazananCur", { currency: data.baseCurrency }),
       msg("api.companyReports.basKazananTedarikci"),
-      msg("api.companyReports.basTasarrufTry"),
+      msg("api.companyReports.basTasarrufCur", { currency: data.baseCurrency }),
       msg("api.companyReports.basOlusturan"),
     ]);
     data.listings.forEach((t) => {
@@ -140,7 +145,7 @@ export class ReportsExcelService {
         t.currency,
         msg("api.companyReports.turN", { n: String(t.round) }),
         t.closesAt
-          ? format(new Date(t.closesAt), "dd.MM.yyyy HH:mm", { locale: tr })
+          ? formatNotificationDate(new Date(t.closesAt), currentLocale(), "dateTime")
           : "-",
         t.invitedCount,
         t.submittedBidCount,
@@ -177,9 +182,9 @@ export class ReportsExcelService {
           msg("api.companyReports.ortTeklifSatinAlmaTalebi"),
           s.avgBidsPerListing,
         ],
-        [msg("api.companyReports.basHedefToplam"), s.totalEstimated],
-        [msg("api.companyReports.kazananToplamTry"), s.totalAwardedValue],
-        [msg("api.companyReports.toplamTasarrufTry"), s.totalDelta],
+        [msg("api.companyReports.hedefToplamCur", { currency: data.baseCurrency }), s.totalEstimated],
+        [msg("api.companyReports.kazananToplamCur", { currency: data.baseCurrency }), s.totalAwardedValue],
+        [msg("api.companyReports.toplamTasarrufCur", { currency: data.baseCurrency }), s.totalDelta],
       ] as Array<[string, string | number]>
     ).forEach(([k, v]) => {
       const r = ws.addRow([k, v]);
@@ -209,8 +214,8 @@ export class ReportsExcelService {
     this.title(ws, reportTitle, data.generatedAt);
     ws.addRow([
       msg("api.companyReports.aralikBaslangicBitis", {
-        bas: format(new Date(data.rangeStart), "dd.MM.yyyy", { locale: tr }),
-        bit: format(new Date(data.rangeEnd), "dd.MM.yyyy", { locale: tr }),
+        bas: formatNotificationDate(new Date(data.rangeStart), currentLocale(), "date"),
+        bit: formatNotificationDate(new Date(data.rangeEnd), currentLocale(), "date"),
       }),
     ]);
     ws.addRow([]);
@@ -220,10 +225,10 @@ export class ReportsExcelService {
       msg("api.companyReports.basBaslik"),
       msg("api.companyReports.basPara"),
       msg("api.companyReports.basTeklif"),
-      msg("api.companyReports.basEnDusukTry"),
-      msg("api.companyReports.basEnYuksekTry"),
-      msg("api.companyReports.basKazananTry"),
-      msg("api.companyReports.basTasarrufTry"),
+      msg("api.companyReports.basEnDusukCur", { currency: data.baseCurrency }),
+      msg("api.companyReports.basEnYuksekCur", { currency: data.baseCurrency }),
+      msg("api.companyReports.basKazananCur", { currency: data.baseCurrency }),
+      msg("api.companyReports.basTasarrufCur", { currency: data.baseCurrency }),
       msg("api.companyReports.basTasarrufYuzde"),
       msg("api.companyReports.basKazananTedarikciler"),
     ]);
@@ -354,7 +359,8 @@ export class ReportsExcelService {
     if (data.includePrice && data.listing.referenceTotal > 0)
       ws.addRow([
         msg("api.companyReports.hedefToplamTutar", {
-          tutar: String(data.listing.referenceTotal),
+          // Tutar + sembol dilin yazımıyla (İngilizcede sembol önde).
+          tutar: formatMoney(data.listing.referenceTotal, data.baseCurrency, currentLocale()),
         }),
       ]).font = {
         bold: true,
@@ -435,7 +441,7 @@ export class ReportsExcelService {
         "",
       ];
       const deltaRow: (string | number)[] = [
-        msg("api.companyReports.hedefeGoreTasarruf"),
+        msg("api.companyReports.hedefeGoreTasarruf", { currency: data.baseCurrency }),
         "",
         "",
         "",

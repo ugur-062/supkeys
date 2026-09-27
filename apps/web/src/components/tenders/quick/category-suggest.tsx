@@ -1,5 +1,6 @@
 "use client";
 
+import { foldSearchText } from "@rothern/shared";
 import { useTranslations } from "next-intl";
 import { useCategorySearchTree } from "@/hooks/use-categories";
 import { useMemo } from "react";
@@ -16,8 +17,7 @@ export function CategorySuggest({ seedText, selected, onPick }: { seedText: stri
   const t = useTranslations("web.panel.requests.categorySuggest");
   const words = useMemo(
     () =>
-      seedText
-        .toLocaleLowerCase("tr")
+      foldSearchText(seedText)
         .split(/[^\p{L}\p{N}]+/u)
         .filter((w) => w.length >= 3 && !/^\d+$/.test(w)),
     [seedText],
@@ -38,7 +38,7 @@ export function CategorySuggest({ seedText, selected, onPick }: { seedText: stri
       }
     }
     const score = (name: string) => {
-      const n = name.toLocaleLowerCase("tr");
+      const n = foldSearchText(name);
       return words.reduce((acc, w) => acc + (n.includes(w) ? (w.length >= 5 ? 2 : 1) : 0), 0);
     };
     return out

@@ -25,8 +25,11 @@ import {
   isValidTaxIdForCountry,
   isValidTckn,
   EU_VAT_COUNTRIES,
-  getCountryProfile,
+  isRegistrationOpen,
+  normalizeTaxId,
+  parsePhone,
   registrationCountries,
+  taxIdLabelKey,
 } from "@rothern/shared";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
@@ -39,6 +42,23 @@ const COMPANY_TYPE_VALUES = ["LIMITED", "JOINT_STOCK", "SOLE_PROPRIETOR", "OTHER
 /** Kayda açık ülke kodları (kapalı liste hariç — `REGISTRATION_BLOCKED`). */
 const REGISTRATION_CODES = registrationCountries().map((c) => c.code);
 
+/**
+ * Ülke alanının BAŞLANGIÇ değeri (2026-09-27): eskiden her kayıt "TR" ile
+ * açılıyordu — Rus kullanıcı fark etmeden Türk firması olarak kaydoluyor, VKN
+ * kuralına takılıyordu. Sıra: kayıtta girilen telefonun ülkesi (kayda açıksa) →
+ * arayüz dili (tr → TR, ru → RU) → boş (İngilizce arayüz birçok ülkeden
+ * kullanılır; ülke bilinçli seçilmeden form ilerlemez).
+ */
+export function initialOnboardingCountry(phone: string | null | undefined, locale: string): string {
+  if (phone?.trim().startsWith("+")) {
+    const { code } = parsePhone(phone);
+    if (isRegistrationOpen(code)) return code;
+  }
+  if (locale === "tr") return "TR";
+  if (locale === "ru") return "RU";
+  return "";
+}
+
 /** Posta kodu: TR'de 5 rakam; diğer ülkelerde harf/rakam/boşluk/tire (SW1A 1AA, 1012 AB, K1A 0B1). */
 function cleanPostal(v: string, tr: boolean): string {
   return tr ? v.replace(/\D/g, "") : v.toUpperCase().replace(/[^A-Z0-9 -]/g, "");
@@ -47,6 +67,7 @@ function cleanPostal(v: string, tr: boolean): string {
 export function OnboardingClient() {
   const t = useTranslations("web.auth.onboarding");
   const tc = useTranslations("web.auth.common");
+  const tTax = useTranslations("web.domain.taxId");
   const locale = useLocale();
   const b = (chunks: ReactNode) => <strong>{chunks}</strong>;
   const authUser = useCompanyAuthStore((s) => s.user);
@@ -65,7 +86,8 @@ export function OnboardingClient() {
   const [step, setStep] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [f, setF] = useState({
-    country: "TR",
+    // Başlangıç ülkesi `/me` gelince kurulur (bkz. initialOnboardingCountry).
+    country: "",
     legalName: "",
     companyType: "LIMITED",
     legalFormLocal: "",
@@ -102,6 +124,13 @@ export function OnboardingClient() {
   const taxNumberValid = isValidTaxIdForCountry(f.taxNumber, f.country, isSole);
   const tcknValid = isTR ? isValidTckn(f.authorizedTckn) : true;
   const set = (k: keyof typeof f) => (v: unknown) => setF((s) => ({ ...s, [k]: v }));
+  const [countryReady, setCountryReady] = useState(false);
+  useEffect(() => {
+    if (countryReady || !me.data) return;
+    const initial = initialOnboardingCountry(me.data.user.phone, locale);
+    setF((s) => (s.country ? s : { ...s, country: initial }));
+    setCountryReady(true);
+  }, [countryReady, me.data, locale]);
   /**
    * Ana ve alt kategori TEK yazmada güncellenir: seçici ikisini birlikte
    * üretiyor (segment, seçilen yapraklardan türetiliyor) ve iki ayrı `set`
@@ -131,8 +160,9 @@ export function OnboardingClient() {
     [f.deliveryCity],
   );
 
-  const profile = getCountryProfile(f.country);
+  const taxKey = taxIdLabelKey(f.country);
   const step1Valid =
+    !!f.country &&
     f.legalName.trim().length >= 2 &&
     (f.companyType !== "OTHER" || f.legalFormLocal.trim().length >= 2) &&
     taxNumberValid &&
@@ -184,14 +214,15 @@ export function OnboardingClient() {
         companyType: f.companyType,
         ...(f.companyType === "OTHER" ? { legalFormLocal: f.legalFormLocal.trim() } : {}),
         country: f.country,
-        taxNumber: f.taxNumber.trim(),
+        taxNumber: normalizeTaxId(f.taxNumber, f.country),
         taxOffice: f.taxOffice.trim() || undefined,
         website: f.website.trim() || undefined,
         city: f.city.trim(),
         ...(f.cityId != null ? { cityId: f.cityId } : {}),
         district: f.district.trim() || undefined,
         stateRegion: f.stateRegion.trim() || undefined,
-        neighborhood: f.neighborhood.trim() || undefined,
+        // Mahalle yalnız Türkiye'de sorulur (API açık adres satırına katar).
+        neighborhood: (isTR && f.neighborhood.trim()) || undefined,
         postalCode: f.postalCode.trim() || undefined,
         addressLine: f.addressLine.trim(),
         deliverySameAsBilling: f.deliverySameAsBilling,
@@ -202,7 +233,7 @@ export function OnboardingClient() {
               ...(f.deliveryCityId != null ? { deliveryCityId: f.deliveryCityId } : {}),
               deliveryStateRegion: f.deliveryStateRegion.trim() || undefined,
               deliveryDistrict: f.deliveryDistrict.trim() || undefined,
-              deliveryNeighborhood: f.deliveryNeighborhood.trim() || undefined,
+              deliveryNeighborhood: (isTR && f.deliveryNeighborhood.trim()) || undefined,
               deliveryPostalCode: f.deliveryPostalCode.trim() || undefined,
               deliveryAddressLine: f.deliveryAddressLine.trim(),
             }),
@@ -315,7 +346,7 @@ export function OnboardingClient() {
                 ) : null}
               </Field>
               <Field>
-                <Label>{isTR ? t("taxTr") : t("taxForeign")}</Label>
+                <Label>{isTR ? t("taxTr") : `${tTax(`label.${taxKey}` as never)} *`}</Label>
                 <Input
                   value={f.taxNumber}
                   onChange={(e) =>
@@ -324,8 +355,11 @@ export function OnboardingClient() {
                     )
                   }
                 />
-                {!isTR && profile && profile.taxIdRule !== "GENERIC" ? (
-                  <p className="mt-1 text-xs text-zinc-500">{t("taxIdHint", { label: profile.taxIdLabel })}</p>
+                {/* Biçim ipucu arayüz dilinde, ülkenin resmî adıyla (2026-09-27;
+                    eskiden profildeki "БИН (BIN) — 12 hane" metni İngilizce
+                    ekranda olduğu gibi basılıyordu). */}
+                {f.country && !isTR ? (
+                  <p className="mt-1 text-xs text-zinc-500">{tTax(`hint.${taxKey}` as never)}</p>
                 ) : null}
                 {f.taxNumber.trim() && !taxNumberValid ? (
                   <p className="mt-1 text-xs text-red-600">
@@ -408,10 +442,13 @@ export function OnboardingClient() {
               </div>
             )}
             <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-              <Field>
-                <Label>{t("neighborhood")}</Label>
-                <Input value={f.neighborhood} onChange={(e) => set("neighborhood")(e.target.value)} />
-              </Field>
+              {/* Mahalle Türkiye'ye özgü adres parçası — yurt dışında sorulmaz. */}
+              {isTR ? (
+                <Field>
+                  <Label>{t("neighborhood")}</Label>
+                  <Input value={f.neighborhood} onChange={(e) => set("neighborhood")(e.target.value)} />
+                </Field>
+              ) : null}
               <Field>
                 <Label>{t("postalCode")}</Label>
                 <Input value={f.postalCode} maxLength={12} onChange={(e) => set("postalCode")(cleanPostal(e.target.value, isTR))} />
@@ -483,10 +520,12 @@ export function OnboardingClient() {
                   </div>
                 )}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field>
-                    <Label>{t("neighborhood")}</Label>
-                    <Input value={f.deliveryNeighborhood} onChange={(e) => set("deliveryNeighborhood")(e.target.value)} />
-                  </Field>
+                  {isTR ? (
+                    <Field>
+                      <Label>{t("neighborhood")}</Label>
+                      <Input value={f.deliveryNeighborhood} onChange={(e) => set("deliveryNeighborhood")(e.target.value)} />
+                    </Field>
+                  ) : null}
                   <Field>
                     <Label>{t("postalCode")}</Label>
                     <Input value={f.deliveryPostalCode} maxLength={12} onChange={(e) => set("deliveryPostalCode")(cleanPostal(e.target.value, isTR))} />
@@ -591,17 +630,20 @@ export function OnboardingClient() {
               />
               {/* Yabancıya "Vergi No / TCKN" ve boş "Vergi dairesi" satırı
                   gösterilmez — form etiketiyle aynı dil (2026-09-27). */}
-              <Summary label={isTR ? t("sumTax") : t("sumTaxForeign")} value={f.taxNumber} />
+              <Summary
+                label={isTR ? t("sumTax") : tTax(`label.${taxKey}` as never)}
+                value={normalizeTaxId(f.taxNumber, f.country)}
+              />
               {isTR ? <Summary label={t("sumTaxOffice")} value={f.taxOffice} /> : null}
               <Summary
                 label={t("sumAddress")}
-                value={`${f.addressLine}, ${[f.district, f.stateRegion, f.city]
+                value={`${[isTR ? f.neighborhood.trim() : "", f.addressLine].filter(Boolean).join(", ")}, ${[f.district, f.stateRegion, f.city]
                   .filter(Boolean)
                   .join(" / ")}`}
               />
               <Summary
                 label={t("sumCountry")}
-                value={countryDisplayName(f.country, locale)}
+                value={f.country ? countryDisplayName(f.country, locale) : null}
               />
               <Summary label={t("sumAuthorized")} value={`${user?.firstName} ${user?.lastName}`} />
               {/* Satınalma koltuğu BURADA YAZILMAZ: talep açmak Gold paket

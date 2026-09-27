@@ -42,6 +42,8 @@ export interface GeneralRow {
 }
 
 export interface GeneralResult {
+  /** Tutar sütunlarının (en düşük/yüksek/kazanan/tasarruf) birimi — firmanın rapor para birimi. */
+  baseCurrency?: string;
   mode: "SINGLE" | "RANGE";
   type: ReportType;
   generatedAt: string;
@@ -112,6 +114,8 @@ export interface SavingsResult {
   rangeStart: string;
   rangeEnd: string;
   currency: string | null;
+  /** Tutarların birimi — firmanın rapor para birimi (`currency` süzgeçtir). */
+  baseCurrency?: string;
   truncated?: boolean;
   maxRows?: number;
   rows: SavingsRow[];
@@ -162,6 +166,8 @@ export interface ComparisonParty {
 }
 
 export interface BidComparisonResult {
+  /** `totalTry`, referans ve "en iyi" tutarların birimi — firmanın rapor para birimi. */
+  baseCurrency?: string;
   type: ReportType;
   generatedAt: string;
   includePrice: boolean;
@@ -192,7 +198,8 @@ export interface BidComparisonResult {
     companyName: string;
     unitPrice: number;
   }[];
-  roundHistory: { round: number; bidderName: string; amount: number }[];
+  /** Tur arşivi — tutar teklifin KENDİ biriminde (`currency`). */
+  roundHistory: { round: number; bidderName: string; amount: number; currency?: string }[];
 }
 
 /* ── Mutations ── */

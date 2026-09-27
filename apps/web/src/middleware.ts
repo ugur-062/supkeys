@@ -18,7 +18,10 @@ const INTL_SKIP = [
   /^\/sitemaps(\/|$)/,
   /^\/sitemap\.xml$/,
   /^\/robots\.txt$/,
-  /^\/llms(-full)?\.txt$/,
+  // Kök (İngilizce) + dil sürümleri `/tr|en|ru/llms(-full).txt` (2026-09-27) —
+  // `[locale]/llms.txt/route.ts`e olduğu gibi düşer (next-intl `/tr/` önekini
+  // soyup Türkçe sürümü 404'e yollamasın).
+  /^\/(?:(?:tr|en|ru)\/)?llms(-full)?\.txt$/,
   /^\/indexnow(\/|$)/,
   /^\/_next(\/|$)/,
   /^\/_vercel(\/|$)/,
@@ -122,7 +125,6 @@ export function middleware(request: NextRequest) {
     : permanentize(intlMiddleware(request));
 
   response.headers.set("Content-Security-Policy", csp);
-  response.headers.set("x-dbg", `${pathname}|${String(publicRoute)}|${nonce ? "nonce" : "no-nonce"}`);
   // Dalga B-4: HSTS hiçbir yerde set edilmiyordu (API'de helmet var, ön yüzde
   // yoktu). Tarayıcı, alan adını bir yıl boyunca yalnız HTTPS üzerinden
   // konuşmaya zorlar → ilk isteğin http'ye düşüp çerezi sızdırdığı SSL-stripping

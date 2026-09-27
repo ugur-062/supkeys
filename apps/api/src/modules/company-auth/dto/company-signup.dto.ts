@@ -9,6 +9,7 @@ import {
   MinLength,
 } from "class-validator";
 import { tApi } from "../../../common/i18n/i18n.service";
+import { IsIntlPhone, NormalizePhone } from "./phone.validator";
 
 /**
  * Birleşik sistem — firma self-servis kaydı. Kaydı yapan kişi firmanın SAHİBİ
@@ -33,9 +34,12 @@ export class CompanySignupDto {
   @IsEmail({}, { message: () => tApi("api.dto.companySignup.gecerliBirEPostaAdresiGiriniz") })
   email!: string;
 
-  // +90 5XX XXX XX XX (maske frontend'de). Rakam/boşluk/+/() kabul.
+  // "+<ülke kodu> <numara>" (web `PhoneInput`); uzunluk ülkeye göre —
+  // tek kaynak `isValidPhoneNumber` (bkz. phone.validator.ts).
+  @NormalizePhone()
   @IsString()
-  @Matches(/^[0-9+\s()]{10,20}$/, { message: () => tApi("api.dto.companySignup.gecerliBirTelefonGiriniz") })
+  @MaxLength(30)
+  @IsIntlPhone({}, { message: () => tApi("api.dto.companySignup.gecerliBirTelefonGiriniz") })
   phone!: string;
 
   // En az 10 karakter; büyük + küçük + rakam + özel karakter.

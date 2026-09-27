@@ -9,7 +9,9 @@
  *   @rothern/i18n/catalog/<dil>/<ad-alanı>.json → ham katalog (küçük yedekler için)
  */
 export * from "./locales";
+export * from "./recipient-locale";
 export * from "./pathnames";
+export { localizedCountrySlug, localizeCountrySlugParam, COUNTRY_SLUG_CODES } from "./country-slugs";
 export type {
   ApiMessages,
   MessageTree,

@@ -3,6 +3,7 @@ import path from "node:path";
 import { ImageResponse } from "next/og";
 import { optimizable } from "@/lib/public/image-host";
 import { resolveSiteUrl } from "@/lib/site-url";
+import { OG_CARD_SIZE, SITE_NAME } from "@/lib/seo/meta";
 import type { OgContent } from "./content";
 
 /**
@@ -22,8 +23,16 @@ import type { OgContent } from "./content";
  * yerine tipografik kart).
  */
 
-export const OG_SIZE = { width: 1200, height: 630 } as const;
+export const OG_SIZE = OG_CARD_SIZE;
 export const OG_CONTENT_TYPE = "image/png";
+/**
+ * Segment kartlarının dosya sözleşmesindeki `alt` — STATİK dışa aktarım
+ * (Next, segmentin dilini göremez; dile göre `generateImageMetadata` görsel
+ * adresine `/0` eklerdi) → DİLDEN BAĞIMSIZ marka adı. Sayfanın gerçek
+ * og:image:alt'ı `buildMetadata`dan, sayfanın dilinde (2026-09-27: EN/RU
+ * sayfalara Türkçe `alt` basılıyordu).
+ */
+export const OG_ALT = SITE_NAME;
 
 let fontCache: Promise<{ regular: Buffer; bold: Buffer }> | null = null;
 

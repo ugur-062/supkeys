@@ -1,6 +1,6 @@
 "use client";
 
-import { useCityLabel, usePriceLabels, useUnitLabel } from "@/i18n/domain";
+import { useCityLabel, usePriceLabels, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { countryDisplayName } from "@/i18n/domain";
@@ -175,6 +175,7 @@ export function ProductCard({
   const t = useTranslations("web.marketplace.productCard");
   const cityLabel = useCityLabel();
   const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
   const fmt = useFormatter();
   const priceLabels = usePriceLabels();
   const target = href ?? (companySlug ? `/firma/${companySlug}/urun/${product.slug}` : undefined);
@@ -317,7 +318,7 @@ export function ProductCard({
               </span>
               {product.moq ? (
                 <span className="tnum block text-xs text-zinc-500">
-                  {t("minOrder", { n: fmt.number(Number(product.moq)), unit: unitLabel(product.unit, product.unitCode) })}
+                  {t("minOrder", { qty: quantity(product.moq, product.unit, product.unitCode) })}
                 </span>
               ) : null}
             </span>
@@ -338,7 +339,7 @@ export function ProductCard({
             {price.headline}
           </p>
           <p className="tnum mt-0.5 text-xs text-zinc-500">
-            {product.moq ? t("minOrder", { n: fmt.number(Number(product.moq)), unit: unitLabel(product.unit, product.unitCode) }) : "\u00A0"}
+            {product.moq ? t("minOrder", { qty: quantity(product.moq, product.unit, product.unitCode) }) : "\u00A0"}
           </p>
           {cta ? (
             <span className={cn("mt-3 inline-flex items-center justify-center rounded-lg px-3 py-2 text-xs font-semibold transition", ctaCls)}>
@@ -499,7 +500,7 @@ export function ProductCard({
               MOQ yok). */}
           <p className="tnum mt-0.5 text-xs text-zinc-500">
             {product.moq
-              ? t("minOrder", { n: fmt.number(Number(product.moq)), unit: unitLabel(product.unit, product.unitCode) })
+              ? t("minOrder", { qty: quantity(product.moq, product.unit, product.unitCode) })
               : "\u00A0"}
           </p>
           {cta && !compact && target ? (

@@ -30,9 +30,67 @@ const IBAN_VIA: Readonly<Record<string, string>> = {
   WF: "FR", BL: "FR", MF: "FR", AX: "FI", GG: "GB", JE: "GB", IM: "GB", XN: "TR",
 };
 
-/** Bu ülkenin bankaları IBAN kullanıyor mu (kayıt listesine göre). */
+/**
+ * KISMİ IBAN ÜLKELERİ (2026-09-27) — SWIFT IBAN kaydında VAR ama IBAN iç
+ * ödemede yerleşmemiş; bankalar çoğunlukla yalnız YURT DIŞINDAN gelen ödeme
+ * için IBAN verir, firmanın elindeki kimlik yerel hesap numarasıdır:
+ *  · Latin Amerika/Karayipler: BR (agência + conta, PIX), CR, DO, GT, SV, NI,
+ *    LC, VG — kayda 2013-2023 arasında girdiler.
+ *  · Afrika/Ortadoğu: EG (IBAN yalnız gelen uluslararası havalede zorunlu),
+ *    IQ, LY, SD, SO, DJ, BI, MR, MU, SC, ST, YE.
+ *  · Diğer: FK, TL, MN (2023'te kayda girdi).
+ * Eskiden bu ülkelerin hepsi IBAN'A ZORLANIYORDU → Brezilyalı firma yerel hesap
+ * numarasıyla doğrulamayı ve Banka Hesapları'nı geçemiyordu. Kural: IBAN YA DA
+ * hesap numarası + SWIFT/BIC + banka adı (`bank-details.ts` `countryIbanMode`
+ * = "optional"). IBAN'ı iç ödemede zorunlu ülkeler (AB/AEA, Körfez, TR, UA,
+ * KZ, PK, JO, IL, Balkanlar…) listede YOK — orada IBAN zorunlu kalır.
+ */
+export const IBAN_OPTIONAL: ReadonlySet<string> = new Set([
+  "BR", "CR", "DO", "GT", "SV", "NI", "LC", "VG",
+  "EG", "IQ", "LY", "SD", "SO", "DJ", "BI", "MR", "MU", "SC", "ST", "YE",
+  "FK", "TL", "MN",
+]);
+
+/** Ülkenin IBAN önek kodu (kendi kodu ya da ödünç aldığı: RE → FR, XN → TR). */
+function ibanPrefixFor(code: string): string | null {
+  const c = code.toUpperCase();
+  if (IBAN_LENGTHS[c] != null) return c;
+  return IBAN_VIA[c] ?? null;
+}
+
+/** Ülke SWIFT IBAN kaydında mı (kısmi ülkeler dahil). */
+export function countryInIbanRegistry(code: string | null | undefined): boolean {
+  return !!code && ibanPrefixFor(code) != null;
+}
+
+/**
+ * Bu ülkenin bankaları iç ödemede IBAN kullanıyor mu — IBAN ZORUNLU mu
+ * (kayıt listesi ∧ kısmi ülke değil). Kısmi ülkeler (`IBAN_OPTIONAL`) false:
+ * IBAN kabul edilir ama zorunlu değildir.
+ */
 export function countryHasIban(code: string | null | undefined): boolean {
   if (!code) return false;
-  const c = code.toUpperCase();
-  return IBAN_LENGTHS[c] != null || IBAN_VIA[c] != null;
+  return countryInIbanRegistry(code) && !IBAN_OPTIONAL.has(code.toUpperCase());
+}
+
+/**
+ * IBAN'ın ülke önekine göre KAYITLI uzunluğu ("DE…" → 22). Önek listede yoksa
+ * `null` (uzunluk denetlenmez, yalnız mod-97 — deneysel/yeni IBAN ülkeleri).
+ */
+export function ibanLengthForPrefix(prefix: string): number | null {
+  return IBAN_LENGTHS[prefix.toUpperCase()] ?? null;
+}
+
+/**
+ * Formdaki IBAN yer tutucusu — ülkenin öneki + kayıtlı uzunlukta sıfır, 4'lü
+ * gruplu: TR → "TR00 0000 0000 0000 0000 0000 00", RE → "FR00 …" (27).
+ * Ülke kayıtta değilse `null` (çağıran genel metne düşer).
+ */
+export function ibanPlaceholder(code: string | null | undefined): string | null {
+  if (!code) return null;
+  const prefix = ibanPrefixFor(code);
+  const len = prefix ? IBAN_LENGTHS[prefix] : null;
+  if (!prefix || !len) return null;
+  const raw = `${prefix}00${"0".repeat(len - 4)}`;
+  return raw.replace(/(.{4})(?=.)/g, "$1 ");
 }

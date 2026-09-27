@@ -5,6 +5,7 @@ import { useConnections, type Connection } from "@/hooks/use-company-connections
 import { cn } from "@/lib/utils";
 import { companyActivityLabel, foldSearchText, stemPrefix, tokenizeQuery } from "@rothern/shared";
 import { useActivityLabel, useCityLabel } from "@/i18n/domain";
+import { upperForText } from "@/i18n/format";
 import {
   CheckBadgeIcon,
   ChevronDownIcon,
@@ -73,7 +74,7 @@ export function SupplierPicker({
   const [shown, setShown] = useState(PAGE);
   const scoped = mode === "connections";
 
-  const term = q.trim().toLocaleLowerCase("tr");
+  const term = foldSearchText(q);
   const scored = useMemo(() => {
     const tokens = itemTokens(itemNames);
     const prefixes = categoryPrefixes(categoryIds);
@@ -97,7 +98,7 @@ export function SupplierPicker({
         if (sector && c.company.industry !== sector) return false;
         if (city && c.company.city !== city) return false;
         if (!term) return true;
-        const hay = [c.company.name, c.company.city, c.company.industry].filter(Boolean).join(" ").toLocaleLowerCase("tr");
+        const hay = foldSearchText([c.company.name, c.company.city, c.company.industry].filter(Boolean).join(" "));
         return hay.includes(term);
       }),
     [scored, sector, city, term],
@@ -367,7 +368,7 @@ function initials(name: string): string {
   return name
     .split(/\s+/)
     .slice(0, 2)
-    .map((p) => p[0]?.toLocaleUpperCase("tr") ?? "")
+    .map((p) => (p[0] ? upperForText(p[0], name) : ""))
     .join("");
 }
 

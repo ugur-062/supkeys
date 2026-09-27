@@ -1,6 +1,7 @@
 import { cn } from "@/lib/utils";
 import { ChevronRightIcon, HomeIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
+import { useTranslations } from "next-intl";
 import { Fragment } from "react";
 
 export interface BreadcrumbItem {
@@ -35,16 +36,17 @@ export function Breadcrumb({
   accent?: "default" | "blue";
   className?: string;
 }) {
+  const t = useTranslations("web.shared.ui");
   const last = items.length - 1;
   return (
-    <nav aria-label="Yol" className={cn("text-sm text-zinc-500", className)}>
+    <nav aria-label={t("breadcrumb")} className={cn("text-sm text-zinc-500", className)}>
       <ol className="flex items-center gap-1">
         {home ? (
           <>
             <li className="shrink-0">
               <Link href={home.href} className="block text-zinc-400 transition hover:text-zinc-700">
                 <HomeIcon aria-hidden className="size-4" />
-                <span className="sr-only">{home.label ?? "Anasayfa"}</span>
+                <span className="sr-only">{home.label ?? t("home")}</span>
               </Link>
             </li>
             <li aria-hidden className="shrink-0 text-zinc-300">

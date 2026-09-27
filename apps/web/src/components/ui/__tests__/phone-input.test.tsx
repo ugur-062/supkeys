@@ -8,14 +8,15 @@ vi.mock("@/lib/company-auth/store", () => ({
   useCompanyAuthStore: (sel: (s: unknown) => unknown) => sel({ company: null }),
 }));
 
-import { PhoneInput } from "../phone-input";
+import { PhoneInput, defaultPhoneCountry } from "../phone-input";
 
 let last = "";
-function Harness({ initial = "" }: { initial?: string }) {
+function Harness({ initial = "", defaultCountry }: { initial?: string; defaultCountry?: string }) {
   const [v, setV] = useState(initial);
   return (
     <PhoneInput
       value={v}
+      defaultCountry={defaultCountry}
       onChange={(next) => {
         last = next;
         setV(next);
@@ -24,6 +25,7 @@ function Harness({ initial = "" }: { initial?: string }) {
   );
 }
 
+// Erişilebilir adlar katalogdan (`web.shared.phoneInput.*`; testler TR katalogla koşar).
 const numberBox = () => screen.getByLabelText("Telefon");
 const countryBox = () => screen.getByLabelText("Ülke kodu") as HTMLSelectElement;
 
@@ -83,5 +85,49 @@ describe("PhoneInput — uluslararası numara", () => {
     expect(countryBox().value).toBe("DE");
     await user.type(numberBox(), "301234567");
     expect(last).toBe("+49 301234567");
+  });
+});
+
+/**
+ * Ulusal önek ülkeye göre (2026-09-27): eski SSCB "8", Macaristan "06"; Latin
+ * dışı rakamlar çevrilir; varsayılan ülke arayüz dilinden (İngilizcede yok).
+ */
+describe("PhoneInput — ülkeye göre ulusal önek ve varsayılan ülke", () => {
+  it("Rusya: '8 916 123-45-67' → +7 9161234567 (8 son hanede düşer)", async () => {
+    const user = userEvent.setup();
+    render(<Harness defaultCountry="RU" />);
+    expect(countryBox().value).toBe("RU");
+    await user.type(numberBox(), "8 916 123-45-67");
+    expect(last).toBe("+7 9161234567");
+    expect(countryBox().value).toBe("RU");
+  });
+
+  it("Rusya seçiliyken '8 701…' → Kazakistan numarası", () => {
+    render(<Harness defaultCountry="RU" />);
+    fireEvent.change(numberBox(), { target: { value: "8 701 123 45 67" } });
+    expect(last).toBe("+7 7011234567");
+    expect(countryBox().value).toBe("KZ");
+  });
+
+  it("Macaristan: '06 30 123 4567' → +36 301234567", () => {
+    render(<Harness defaultCountry="HU" />);
+    fireEvent.change(numberBox(), { target: { value: "06 30 123 4567" } });
+    expect(last).toBe("+36 301234567");
+  });
+
+  it("Arap-Hint rakamlar sessizce düşmez: '+٢٠ ١٠٠ ١٢٣ ٤٥٦٧' → Mısır", () => {
+    render(<Harness />);
+    fireEvent.change(numberBox(), { target: { value: "+٢٠ ١٠٠ ١٢٣ ٤٥٦٧" } });
+    expect(last).toBe("+20 1001234567");
+    expect(countryBox().value).toBe("EG");
+  });
+
+  it("varsayılan ülke: firma → çağıran → dil (tr → TR, ru → RU, en → seçim zorunlu)", () => {
+    expect(defaultPhoneCountry({ locale: "ru" })).toBe("RU");
+    expect(defaultPhoneCountry({ locale: "tr" })).toBe("TR");
+    expect(defaultPhoneCountry({ locale: "en" })).toBeNull();
+    expect(defaultPhoneCountry({ locale: "en", defaultCountry: "DE" })).toBe("DE");
+    expect(defaultPhoneCountry({ locale: "ru", companyCountry: "AZ", defaultCountry: "DE" })).toBe("AZ");
+    expect(defaultPhoneCountry({ locale: "en", companyCountry: "ZZ" })).toBeNull();
   });
 });

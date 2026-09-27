@@ -3,7 +3,8 @@
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { useMoneyInputError, useRoleLabel } from "@/i18n/domain";
-import { INTL_LOCALE } from "@/i18n/format";
+import { intlLocale } from "@/i18n/format";
+import { affixCurrency, currencySymbol } from "@/lib/tenders/labels";
 import { userHasPermission } from "@/lib/company/permissions";
 import { Link } from "@/i18n/navigation";
 import { Badge } from "@/components/catalyst/badge";
@@ -59,16 +60,23 @@ const listingTypeKey = (lt: ApprovalListingType | null) =>
   lt === "ALIM" ? ("listingType.ALIM" as const) : ("listingType.all" as const);
 const strong = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
 
-/** Eşik tutarı (₺) — okuyucunun dilinde, ondalıksız. */
+/**
+ * Onay eşikleri TRY karşılığıdır; sembol katalog metnine gömülmez, `{currency}`
+ * yer tutucusuyla tek kaynaktan gelir.
+ */
+const TRY_SYMBOL = currencySymbol("TRY");
+
+/**
+ * Eşik tutarı (TRY) — okuyucunun dilinde, ondalıksız, sembolüyle (yeri dilden:
+ * İngilizcede "₺50,000", Türkçede "50.000 ₺"). Sembol katalog metnine
+ * gömülmez; mesajlar tek `{amount}` alır.
+ */
 function useFmtTl() {
   const locale = useLocale() as Locale;
-  return useMemo(
-    () =>
-      new Intl.NumberFormat(INTL_LOCALE[locale] ?? "tr-TR", {
-        maximumFractionDigits: 0,
-      }),
-    [locale],
-  );
+  return useMemo(() => {
+    const nf = new Intl.NumberFormat(intlLocale(locale), { maximumFractionDigits: 0 });
+    return { format: (n: number) => affixCurrency(nf.format(n), "TRY", locale) };
+  }, [locale]);
 }
 
 interface StepDraft {
@@ -238,7 +246,7 @@ function FlowList({
       <InfoNote>
         <p>{t.rich("onayAkisiAciklama", { strong })}</p>
         <p className="text-blue-800/90">
-          {t("ornegin50000UstuKazandirmalar")}
+          {t("ornegin50000UstuKazandirmalar", { amount: fmtTl.format(50_000) })}
         </p>
       </InfoNote>
 
@@ -382,7 +390,7 @@ function FlowList({
                       ) : null}
                       {s.conditionMinAmount != null ? (
                         <span className="text-amber-600">
-                          ≥{fmtTl.format(s.conditionMinAmount)}₺
+                          {t("esikVeUstu", { amount: fmtTl.format(s.conditionMinAmount) })}
                         </span>
                       ) : null}
                     </span>
@@ -997,7 +1005,7 @@ function StepEditorDialog({
           ) : null}
         </Field>
         <Field>
-          <Label>{t("butceEsigiOpsiyonel")}</Label>
+          <Label>{t("butceEsigiOpsiyonel", { currency: TRY_SYMBOL })}</Label>
           <Input
             type="number"
             min={0}

@@ -1,7 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { useBidDocKindLabel, useUnitLabel } from "@/i18n/domain";
+import { useLocale, useTranslations } from "next-intl";
+import { useBidDeliveryTimeLabel, useBidDocKindLabel, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -28,8 +28,8 @@ import {
 } from "@/hooks/use-company-listings";
 import { formatDateTime } from "@/lib/tenders/date";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { formatMoney } from "@/components/ui/money";
-import { bidDeliveryTimeLabel } from "@rothern/shared";
+import { useFormatMoney } from "@/components/ui/money";
+import { formatNumber } from "@/i18n/format";
 import { ArrowLeftIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
@@ -43,8 +43,12 @@ import { toast } from "sonner";
 
 export default function BidDetailPage() {
   const t = useTranslations("web.panel.requests.page");
+  const bidDeliveryTimeLabel = useBidDeliveryTimeLabel();
   const docKindLabel = useBidDocKindLabel();
   const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
+  const locale = useLocale();
+  const { money: formatMoney } = useFormatMoney();
   const params = useParams<{ id: string; bidId: string }>();
   const { id, bidId } = params;
   const { data: l, isLoading, isError, refetch } = useListingDetail(id);
@@ -166,7 +170,7 @@ export default function BidDetailPage() {
             </div>
             <Heading>{bid.bidderName}</Heading>
             <Text className="text-sm text-zinc-500">
-              {formatDateTime(bid.createdAt)}
+              {formatDateTime(bid.createdAt, locale)}
             </Text>
           </div>
           <div className="text-right">
@@ -217,7 +221,7 @@ export default function BidDetailPage() {
             <dd className="font-medium text-zinc-900">
               {bidDeliveryTimeLabel(bid.deliveryTime) ??
                 (bid.deliveryDate
-                  ? formatDate(bid.deliveryDate, "short")
+                  ? formatDate(bid.deliveryDate, "short", locale)
                   : "—")}
             </dd>
           </div>
@@ -267,7 +271,7 @@ export default function BidDetailPage() {
                               value:
                                 bidDeliveryTimeLabel(bi.deliveryTime) ??
                                 (bi.deliveryDate
-                                  ? formatDate(bi.deliveryDate, "short")
+                                  ? formatDate(bi.deliveryDate, "short", locale)
                                   : "—"),
                             })}
                           </span>
@@ -282,7 +286,7 @@ export default function BidDetailPage() {
                         ))}
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-zinc-600">
-                        {Number(it.quantity).toLocaleString("tr-TR")} {unitLabel(it.unit, it.unitCode)}
+                        {quantity(it.quantity, it.unit, it.unitCode)}
                       </TableCell>
                       {/* Madde 9: kalem kendi para birimini taşıyabilir. */}
                       <TableCell className="text-right tabular-nums text-zinc-700">

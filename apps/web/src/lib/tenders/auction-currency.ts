@@ -6,6 +6,9 @@
  * sabittir; sihirbaz/yeni-tur önizlemesinde güncel kurlar verilir.
  */
 
+import { affixCurrency, currencySymbol as sharedCurrencySymbol } from "@rothern/shared";
+import { intlLocale } from "@/i18n/format";
+
 export function auctionRateOf(
   currency: string,
   rates: Record<string, number> | null | undefined,
@@ -46,16 +49,18 @@ export function convertAuctionStep(
   return Math.ceil(v * 100) / 100;
 }
 
+/** Sembol tek kaynaktan (`@rothern/shared`); boş kod TRY sayılır. */
 export function currencySymbol(currency: string | null | undefined): string {
-  return !currency || currency === "TRY" ? "₺" : currency;
+  return sharedCurrencySymbol(currency || "TRY");
 }
 
-/** "10,64 $ · 9,32 €" — adımın diğer izinli birimlerdeki karşılıkları. */
+/** "10,64 $ · 9,32 €" — adımın diğer izinli birimlerdeki karşılıkları (arayüz dilinde). */
 export function formatStepConversions(
   value: number,
   fromCurrency: string,
   toCurrencies: string[],
   rates: Record<string, number> | null | undefined,
+  locale: string,
 ): string {
   const parts: string[] = [];
   for (const cur of toCurrencies) {
@@ -63,10 +68,11 @@ export function formatStepConversions(
     const v = convertAuctionStep(value, fromCurrency, cur, rates);
     if (v == null) continue;
     parts.push(
-      `${v.toLocaleString("tr-TR", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      })} ${currencySymbol(cur)}`,
+      affixCurrency(
+        v.toLocaleString(intlLocale(locale), { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+        cur,
+        locale,
+      ),
     );
   }
   return parts.join(" · ");

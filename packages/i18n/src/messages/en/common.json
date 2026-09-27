@@ -6,6 +6,14 @@
     "conflict": "This action is not possible in the current state",
     "unprocessable": "Invalid data",
     "server": "Server error, please try again",
-    "network": "Connection error, please check your internet connection"
+    "network": "Connection error, please check your internet connection",
+    "moreFields": "{n, plural, one {+# more field} other {+# more fields}}",
+    "uploadFailed": "The file could not be uploaded — please try again",
+    "fileReadFailed": "The file could not be read"
+  },
+  "globalError": {
+    "title": "Something went wrong",
+    "body": "An unexpected error occurred. Please refresh the page.",
+    "retry": "Try again"
   }
 }

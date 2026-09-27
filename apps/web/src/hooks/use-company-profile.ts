@@ -1,5 +1,6 @@
 "use client";
 
+import { tRuntime } from "@/i18n/runtime";
 import { companyApi } from "@/lib/company-auth/api";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
@@ -14,6 +15,8 @@ export interface CompanyProfile {
   /** Dünya şehir listesi kaydı (2026-09-27). */
   cityId?: number | null;
   district: string | null;
+  /** Eyalet/bölge (TR dışı). */
+  stateRegion?: string | null;
   addressLine: string | null;
   postalCode: string | null;
   aboutText: string | null;
@@ -67,6 +70,7 @@ export type CompanyProfileUpdate = Partial<
     | "website"
     | "city"
     | "district"
+    | "stateRegion"
     | "addressLine"
     | "postalCode"
     | "aboutText"
@@ -117,7 +121,7 @@ export function useUploadProfileImage() {
         body: file,
         headers: { "Content-Type": file.type },
       });
-      if (!put.ok) throw new Error("Dosya yüklenemedi (R2)");
+      if (!put.ok) throw new Error(tRuntime("common.errors.uploadFailed"));
       const { data: res } = await companyApi.post<{ url: string }>(
         "/company/profile/image/commit",
         { kind, key: data.key },

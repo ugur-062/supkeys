@@ -1,4 +1,5 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { currentLocale } from "../../../common/i18n/locale-context";
 import {
   BadRequestException,
   Inject,
@@ -21,17 +22,17 @@ import { sanitizeAiDraft, type SanitizedDraft } from "./ai-draft-sanitizer";
 import { CategorySuggestService } from "./category-suggest.service";
 import {
   TITLE_RESPONSE_SCHEMA,
-  TITLE_SYSTEM_PROMPT,
   buildTitlePrompt,
   sanitizeSuggestedTitle,
+  titleSystemPrompt,
   type TitleSuggestItem,
 } from "./title-suggest";
 import {
   EXTRACT_RESPONSE_SCHEMA,
-  EXTRACT_SYSTEM_PROMPT,
-  REFINE_SYSTEM_PROMPT,
   buildExtractPrompt,
   buildRefinePrompt,
+  extractSystemPrompt,
+  refineSystemPrompt,
 } from "./tender-extract.prompts";
 
 /**
@@ -80,7 +81,7 @@ export class TenderExtractService {
       ...sanitized,
       draft: { ...sanitized.draft, suggestedCategoryIds: ids },
       missingRequired: sanitized.missingRequired.filter(
-        (m) => !m.startsWith("Kategori"),
+        (m) => m !== "category",
       ),
     };
   }
@@ -140,7 +141,7 @@ export class TenderExtractService {
     const callOptions = {
       feature: "tender_extract",
       prompt,
-      system: EXTRACT_SYSTEM_PROMPT,
+      system: extractSystemPrompt(currentLocale()),
       vision: routed.route !== "text",
       parts: routed.parts,
       responseSchema: EXTRACT_RESPONSE_SCHEMA as unknown as object,
@@ -212,7 +213,7 @@ export class TenderExtractService {
     const result = await this.ai.callAi(user, {
       feature: "tender_extract",
       prompt: buildRefinePrompt(JSON.stringify(incoming.draft), message.slice(0, 2000)),
-      system: REFINE_SYSTEM_PROMPT,
+      system: refineSystemPrompt(currentLocale()),
       responseSchema: EXTRACT_RESPONSE_SCHEMA as unknown as object,
       metadata: { route: "refine" },
     });
@@ -232,7 +233,7 @@ export class TenderExtractService {
           suggestedCategoryIds: incoming.draft.suggestedCategoryIds,
         },
         missingRequired: sanitized.missingRequired.filter(
-          (m) => !m.startsWith("Kategori"),
+          (m) => m !== "category",
         ),
       };
     }
@@ -263,7 +264,7 @@ export class TenderExtractService {
       const result = await this.ai.callAi(user, {
         feature: "tender_extract",
         prompt: buildTitlePrompt(named),
-        system: TITLE_SYSTEM_PROMPT,
+        system: titleSystemPrompt(currentLocale()),
         responseSchema: TITLE_RESPONSE_SCHEMA as unknown as object,
         metadata: { route: "title-suggest" },
       });

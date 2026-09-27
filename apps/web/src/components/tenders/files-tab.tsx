@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { Badge } from "@/components/catalyst/badge";
 import { SelectMenu } from "@/components/ui/select-menu";
 import { Button } from "@/components/catalyst/button";
@@ -32,6 +32,7 @@ export function FilesTab({
   canEdit?: boolean;
 }) {
   const t = useTranslations("web.panel.requests.filesTab");
+  const locale = useLocale();
   const L = useEntityLabels();
   // Belge bölümü adları katalogdan (`LISTING_DOC_KIND_LABELS` Türkçe sözlüğü
   // diğer tüketiciler için duruyor; burada kod → anahtar).
@@ -176,7 +177,7 @@ export function FilesTab({
                     </a>
                     <div className="flex shrink-0 items-center gap-3">
                       <span className="text-xs text-zinc-400">
-                        {formatDate(d.createdAt)}
+                        {formatDate(d.createdAt, locale)}
                       </span>
                       {isOwner && canEdit && d.mine ? (
                         <button

@@ -154,6 +154,25 @@ describe("ürün vitrini — sızıntı", () => {
     expect(json).not.toContain("7654321");
   });
 
+  it("ürün detayı segment halkasını (L1, iniş sayfası) ve dil durumunu verir", async () => {
+    await prisma.category.create({
+      data: { id: "39000000", code: "39000000", nameTr: "Elektrik Malzemeleri", nameEn: "Electrical supplies", level: 1, isActive: true },
+    });
+    const { company, product } = await seedCompanyWithProduct({}, { categoryId: "39122215" });
+    const one = await service().getPublicProduct(company.slug as string, product.slug as string);
+    // Ad okuyucunun dilinde (istek bağlamı yok → Türkçe), adres parçası Türkçe addan.
+    expect(one.product.segment).toEqual({ id: "39000000", name: "Elektrik Malzemeleri", slug: "elektrik-malzemeleri" });
+    // Çeviri servisi yok → tüm diller hazır, kaynak Türkçe, bekleyen yok.
+    expect(one.product.readyLocales).toEqual(["tr", "en", "ru"]);
+    expect(one.product.sourceLocale).toBe("tr");
+    expect(one.product.translationPending).toBe(false);
+
+    // Segment satırı yoksa (ya da gizli segment) halka null — kırıntı yazılmaz.
+    const other = await seedCompanyWithProduct({}, { categoryId: "10101501" });
+    const two = await service().getPublicProduct(other.company.slug as string, other.product.slug as string);
+    expect(two.product.segment).toBeNull();
+  });
+
   it("FİRMA ADI ürün sayfasında GÖRÜNÜR — ilanın tersi, bilinçli", async () => {
     const { company, product } = await seedCompanyWithProduct();
     const one = await service().getPublicProduct(

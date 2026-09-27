@@ -1,5 +1,6 @@
 import { PRODUCT_LIMITS } from "@rothern/shared";
 import type { CompanyTier } from "@/lib/company-auth/types";
+import { formatNumber } from "@/i18n/format";
 
 /**
  * PAKET KATALOĞU — TEK KAYNAK (2026-09-15).
@@ -97,7 +98,7 @@ export function planByTier(tier: CompanyTier): PricingPlan {
   return PRICING_PLANS.find((p) => p.tier === tier) ?? PRICING_PLANS[0]!;
 }
 
-/** "$1.920" — Türkçe binlik ayraç, USD. */
-export function formatUsd(amount: number): string {
-  return `$${amount.toLocaleString("tr-TR")}`;
+/** "$1.920" (TR) / "$1,920" (EN) — arayüz dilinin binlik ayracı, USD. */
+export function formatUsd(amount: number, locale: string): string {
+  return `$${formatNumber(amount, locale)}`;
 }

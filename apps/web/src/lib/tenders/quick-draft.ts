@@ -1,3 +1,5 @@
+import { isLocale, recipientLocale, type Locale } from "@rothern/i18n";
+import type { ExternalInviteTarget } from "@/hooks/use-supplier-discovery";
 import type { TenderFormData } from "./form-schema";
 
 /**
@@ -38,9 +40,30 @@ export function clearSession(key: string): void {
 }
 
 export type QuickDraft = Pick<TenderFormData, "title" | "description" | "items" | "categoryIds" | "keywords" | "deliveryAddressId" | "visibility" | "invitedSupplierIds" | "bidsCloseAt"> & {
-  /** AI keşfinden eklenen, yayında talebe özel davet gidecek adresler (2026-09-27). */
-  externalInvites?: string[];
+  /** AI keşfinden eklenen, yayında talebe özel davet gidecek alıcılar (adres + dil + ülke; 2026-09-27). */
+  externalInvites?: ExternalInviteTarget[];
 };
+
+/**
+ * Saklanmış bekleyen davetleri okur. Eski taslaklar düz adres dizisi
+ * (`string[]`) taşıyordu — onlar kaybolmaz, dil `recipientLocale` ile
+ * (e-posta uzantısı → arayüz dili) türetilir. Bozuk girdi atlanır.
+ */
+export function normalizeExternalInvites(raw: unknown, fallback: Locale): ExternalInviteTarget[] {
+  if (!Array.isArray(raw)) return [];
+  const out: ExternalInviteTarget[] = [];
+  const seen = new Set<string>();
+  for (const entry of raw) {
+    const obj = typeof entry === "string" ? { email: entry } : entry && typeof entry === "object" ? (entry as Record<string, unknown>) : null;
+    const email = typeof obj?.email === "string" ? obj.email.trim().toLowerCase() : "";
+    if (!email || seen.has(email)) continue;
+    seen.add(email);
+    const country = typeof obj?.country === "string" && /^[A-Z]{2}$/.test(obj.country) ? obj.country : null;
+    const locale = isLocale(obj?.locale) ? obj.locale : recipientLocale({ country, email, fallback });
+    out.push({ email, locale, ...(country ? { country } : {}) });
+  }
+  return out;
+}
 
 /**
  * Taslak olarak kaydedilen talebin BEKLEYEN dış davet adresleri — taslak

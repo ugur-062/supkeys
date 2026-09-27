@@ -1,7 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { formatDate } from "@/lib/format-date";
+import { intlLocale } from "@/i18n/format";
 import {
   usePaymentDecision,
   useRecordPayment,
@@ -18,13 +19,13 @@ import {
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
-import { MoneyInput } from "@/components/ui/money-input";
+import { MoneyInput, formatMoneyDisplay } from "@/components/ui/money-input";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
-import { useFormatPaymentPlan, useMoneyInputError } from "@/i18n/domain";
+import { affixCurrency, currencySymbol } from "@/lib/tenders/labels";
+import { useFormatPaymentPlan, useMoneyInputError, usePaymentMethodLabel, useSystemText } from "@/i18n/domain";
 import { Check, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { useConfirm } from "@/components/providers/confirm-dialog";
@@ -50,8 +51,9 @@ const PAYMENT_STATUS: Record<
   },
 };
 
-function fmt(n: string | number) {
-  return Number(n).toLocaleString("tr-TR", { minimumFractionDigits: 2 });
+/** Tutar — arayüz dilinin sayı biçimiyle (`intl` = BCP-47). */
+function fmt(n: string | number, intl: string) {
+  return Number(n).toLocaleString(intl, { minimumFractionDigits: 2 });
 }
 
 /**
@@ -63,14 +65,19 @@ function fmt(n: string | number) {
  */
 export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const tr = useTranslations("web.panel.trade.orderPaymentsCard");
+  const locale = useLocale();
+  const intl = intlLocale(locale);
   const moneyError = useMoneyInputError();
   const td = useTranslations("web.domain");
   const formatPlan = useFormatPaymentPlan();
+  // Sistemin ürettiği kayıt (akreditif) KOD taşır → okuyucunun dilinde.
+  const methodLabel = usePaymentMethodLabel();
+  const systemText = useSystemText();
   // Birincil düğme rengi portaldan (satınalmada siyah yok — 2026-09-17 kuralı).
   const accent = useButtonAccent();
-  const curSym =
-    CURRENCY_SYMBOL[(order.currency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
-    "₺";
+  // Sembol tek kaynaktan; YERİ dilden (`affixCurrency`: İngilizcede önde).
+  const cur = order.currency ?? "TRY";
+  const curSym = currencySymbol(cur);
   const isBuyer = order.role === "buyer";
   const isSeller = order.role === "seller";
   // F7: ödeme kaydet/onayla tarafın işlem rolünü ister (assertOrderRole aynası).
@@ -126,7 +133,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
     // bekleyenler dahil kalanın üstünde bildirim daha formda durdurulur.
     if (value > Number(t.remaining) + 0.005) {
       toast.error(
-        tr("kalanBorcunUstundeBildirimYapilamaz", { toLocaleString: Number(t.remaining).toLocaleString("tr-TR", { minimumFractionDigits: 2 }), curSym: curSym }),
+        tr("kalanBorcunUstundeBildirimYapilamaz", { toLocaleString: amountLabel(t.remaining) }),
       );
       return;
     }
@@ -147,8 +154,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const [rejectId, setRejectId] = useState<string | null>(null);
 
   /** Tutarı erişilebilir ad ve onay metni için biçimler. */
-  const amountLabel = (amount: number | string) =>
-    `${Number(amount).toLocaleString("tr-TR", { minimumFractionDigits: 2 })} ${curSym}`;
+  const amountLabel = (amount: number | string) => affixCurrency(fmt(amount, intl), cur, intl);
 
   /**
    * #5: "Ödemeyi Aldım" GERİ ALINAMAZ (backend `paymentDecision` atomik CAS
@@ -211,9 +217,9 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
 
       {/* Toplamlar */}
       <div className="grid grid-cols-3 divide-x divide-zinc-950/5 border-b border-zinc-950/5">
-        <Totals label={tr("onaylanan")} value={t.confirmed} tone="text-success-600" curSym={curSym} />
-        <Totals label={tr("bekleyen")} value={t.pending} tone="text-warning-600" curSym={curSym} />
-        <Totals label={tr("kalan")} value={t.remaining} tone="text-zinc-900" curSym={curSym} />
+        <Totals label={tr("onaylanan")} value={t.confirmed} tone="text-success-600" currency={cur} />
+        <Totals label={tr("bekleyen")} value={t.pending} tone="text-warning-600" currency={cur} />
+        <Totals label={tr("kalan")} value={t.remaining} tone="text-zinc-900" currency={cur} />
       </div>
 
       {/* Vade tarihi (Vadeli/Çek/kısmi-peşin kalanı) — teslim sonrası hesaplanır.
@@ -233,7 +239,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
               }
             >
               {tr.rich("odemeVadesi", {
-                date: formatDate(order.paymentDueDate, "short"),
+                date: formatDate(order.paymentDueDate, "short", locale),
                 strong: (c) => <strong>{c}</strong>,
               })}
               {overdue ? ` ${tr("gunGecikti", { overdueDays: overdueDays })}` : ""}
@@ -269,7 +275,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
               <MoneyInput
                 value={amount}
                 onChange={setAmount}
-                placeholder="0,00"
+                placeholder={formatMoneyDisplay("0.00", locale)}
                 aria-label={tr("odemeTutari")}
               />
               {/* §10.3: tek tık tam kapama. */}
@@ -322,12 +328,12 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
               >
                 <div className="min-w-0">
                   <div className="tabular-nums text-sm font-semibold text-zinc-900">
-                    {fmt(p.amount)} {curSym}
+                    {amountLabel(p.amount)}
                   </div>
                   <div className="text-xs text-zinc-500">
-                    {p.method ? `${p.method} · ` : ""}
-                    {formatDate(p.createdAt, "short")}
-                    {p.note ? ` · ${p.note}` : ""}
+                    {methodLabel(p.method) ? `${methodLabel(p.method)} · ` : ""}
+                    {formatDate(p.createdAt, "short", locale)}
+                    {p.note ? ` · ${systemText(p.note)}` : ""}
                     {p.status === "REJECTED" && p.rejectReason
                       ? ` · ${p.rejectReason}`
                       : ""}
@@ -337,7 +343,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
                       {tr("cekNo", { chequeNo: p.chequeNo })}
                       {p.chequeBank ? ` · ${p.chequeBank}` : ""}
                       {p.chequeDueDate
-                        ? ` ${tr("vade", { formatDate: formatDate(p.chequeDueDate, "short") })}`
+                        ? ` ${tr("vade", { formatDate: formatDate(p.chequeDueDate, "short", locale) })}`
                         : ""}
                     </div>
                   ) : null}
@@ -403,20 +409,21 @@ function Totals({
   label,
   value,
   tone,
-  curSym,
+  currency,
 }: {
   label: string;
   value: string;
   tone: string;
-  curSym: string;
+  currency: string;
 }) {
+  const intl = intlLocale(useLocale());
   return (
     <div className="px-4 py-3 text-center">
       <div className="text-xs font-medium uppercase tracking-wide text-zinc-400">
         {label}
       </div>
       <div className={`mt-0.5 tabular-nums text-sm font-semibold ${tone}`}>
-        {fmt(value)} {curSym}
+        {affixCurrency(fmt(value, intl), currency, intl)}
       </div>
     </div>
   );

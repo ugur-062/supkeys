@@ -2,8 +2,21 @@
 
 import { DEFAULT_LOCALE } from "@rothern/i18n";
 import { useLocale } from "next-intl";
+import { useEffect, useState } from "react";
 import { Input } from "@/components/ui/input";
-import { appZoneLabel } from "@/lib/time-zone";
+import { appZoneLabel, wallClock } from "@/lib/time-zone";
+
+/**
+ * Tarayıcının saati ürün saat diliminden (İstanbul) farklı mı? Aynı ofsetteki
+ * dilimler (Moskova, Riyad) farklı sayılmaz — ipucu gereksiz olurdu.
+ */
+export function browserZoneDiffers(at: Date = new Date()): boolean {
+  const w = wallClock(at);
+  // İstanbul duvar saatini UTC sayınca gerçek andan farkı = dilim ofseti (dk).
+  const wallAsUtc = Date.UTC(w.year, w.month - 1, w.day, w.hour, w.minute, w.second);
+  const istanbulOffsetMin = Math.round((wallAsUtc - Math.floor(at.getTime() / 1000) * 1000) / 60000);
+  return istanbulOffsetMin !== -at.getTimezoneOffset();
+}
 
 /**
  * Ayrık tarih + saat seçici — tek `datetime-local` yerine. Kullanıcı yalnız
@@ -12,8 +25,11 @@ import { appZoneLabel } from "@/lib/time-zone";
  * datetime-local ile aynı format) ya da boş string.
  *
  * SAAT ÜRÜN SAAT DİLİMİNDE (Europe/Istanbul, 2026-09-27): değer gösterimle
- * aynı duvar saatidir (`parseAppWallClockInput` ile ana çevrilir); Türkçe
- * dışı dillerde saat kutusunun yanında dilim etiketi ("GMT+3") görünür.
+ * aynı duvar saatidir (`parseAppWallClockInput` ile ana çevrilir); saat
+ * kutusunun yanında dilim etiketi ("GMT+3") görünür — Türkçe dışı dillerde
+ * her zaman, Türkçe arayüzde de tarayıcının saati İstanbul'dan farklıysa
+ * (Bakü/Berlin'deki Türkçe kullanıcı). Tarayıcı dilimi yalnız efektte okunur
+ * (sunucu çizimi dilden türer; hidrasyon güvenli).
  */
 export function DateTimeInput({
   value,
@@ -39,6 +55,8 @@ export function DateTimeInput({
   timeAriaLabel?: string;
 }) {
   const locale = useLocale();
+  const [zoneDiffers, setZoneDiffers] = useState(false);
+  useEffect(() => setZoneDiffers(browserZoneDiffers()), []);
   const [datePart = "", timePart = ""] = value ? value.split("T") : [];
   return (
     <div className="flex gap-2">
@@ -80,7 +98,7 @@ export function DateTimeInput({
           }}
         />
       </div>
-      {locale !== DEFAULT_LOCALE ? (
+      {locale !== DEFAULT_LOCALE || zoneDiffers ? (
         <span className="self-center text-xs text-zinc-500">{appZoneLabel()}</span>
       ) : null}
     </div>

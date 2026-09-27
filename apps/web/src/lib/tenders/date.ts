@@ -7,16 +7,20 @@ type DateInput = Date | string | number | null | undefined;
 /**
  * B9 — İNCE KABUK: tüm çıktılar kanonik formatlayıcıya (lib/format-date.ts)
  * delege edilir; iki util'in formatları birbirinden KAYAMAZ. Yeni kod doğrudan
- * `formatDate(value, variant)` kullansın.
+ * `formatDate(value, variant, locale)` ya da `useFormatDate()` kullansın.
+ *
+ * Dil ZORUNLU (2026-09-27): dilsiz çağrılar İngilizce arayüzde Türkçe ay adı
+ * ve dilim etiketsiz saat basıyordu (yurt dışındaki satıcı kapanışı kendi
+ * saati sanıyordu).
  */
 
 /** Tarih (gün) — "5 Tem 2026". Geçersiz/boş girdide "—". */
-export function formatDate(value: DateInput): string {
-  return canonical(normalize(value), "short");
+export function formatDate(value: DateInput, locale: Locale): string {
+  return canonical(normalize(value), "short", locale);
 }
 
-/** Tarih + saat — "5 Tem 2026 14:30". Geçersiz/boş girdide "—". */
-export function formatDateTime(value: DateInput, locale?: Locale): string {
+/** Tarih + saat — "5 Tem 2026 14:30" (TR dışı: "… 14:30 (GMT+3)"). Geçersiz/boş girdide "—". */
+export function formatDateTime(value: DateInput, locale: Locale): string {
   return canonical(normalize(value), "datetime", locale);
 }
 
@@ -24,7 +28,7 @@ export function formatDateTime(value: DateInput, locale?: Locale): string {
  * Yalnızca saat — "14:30". Geçersiz/boş girdide "—". `locale` Türkçe dışıysa
  * dilim etiketi eklenir ("14:30 (GMT+3)").
  */
-export function formatTime(value: DateInput, locale?: Locale | string): string {
+export function formatTime(value: DateInput, locale: Locale | string): string {
   const d = normalize(value);
   if (!d) return "—";
   const dd = d instanceof Date ? d : new Date(d);

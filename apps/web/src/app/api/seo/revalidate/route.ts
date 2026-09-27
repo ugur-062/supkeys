@@ -1,6 +1,6 @@
 import { timingSafeEqual } from "node:crypto";
 import { revalidatePath, revalidateTag } from "next/cache";
-import { LOCALES } from "@rothern/i18n";
+import { LOCALES, internalPathForLocale } from "@rothern/i18n";
 
 /**
  * POST /api/seo/revalidate — API'nin yayın anı tazeleme kancası (SEO Parça 5).
@@ -52,9 +52,14 @@ export async function POST(req: Request): Promise<Response> {
   // Sayfalar `[locale]` altında: önbellek İÇ yol + dil segmentiyle tutulur
   // (`/en/urunler/…` — middleware dış `/en/products/…`u buna yazar; Türkçe
   // `/tr/urunler/…`). Çıplak yol da kalır (kök rota işleyicileri, sitemap).
+  // Dile göre çevrilen parametre (ülke slug'ı, 2026-09-27): EN sayfa
+  // `/en/urunler/ulke/de-germany` anahtarıyla durur → `internalPathForLocale`.
   for (const p of paths) {
     revalidatePath(p);
-    for (const l of LOCALES) revalidatePath(p === "/" ? `/${l}` : `/${l}${p}`);
+    for (const l of LOCALES) {
+      const own = internalPathForLocale(p, l);
+      revalidatePath(own === "/" ? `/${l}` : `/${l}${own}`);
+    }
   }
 
   return Response.json({ ok: true, paths: paths.length, tags: tags.length });

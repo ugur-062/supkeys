@@ -1,12 +1,12 @@
 import { useFormatter, useLocale, useTranslations } from "next-intl";
-import { cityDisplayName, countryDisplayName, useActivityLabel } from "@/i18n/domain";
+import { cityDisplayName, countryDisplayName, useActivityLabel, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Thumb } from "@/components/ui/thumb";
 import type { PublicDirectoryCard } from "@/lib/public/marketplace-api";
 import { ArrowRightIcon, CalendarDaysIcon, ChatBubbleLeftRightIcon, ChevronRightIcon, CubeIcon, MapPinIcon, ShieldCheckIcon, UsersIcon } from "@heroicons/react/20/solid";
 import { ActivityIcon } from "./activity-icons";
-import { currencySymbol } from "@/lib/tenders/labels";
+import { affixCurrency } from "@/lib/tenders/labels";
 import { Link } from "@/i18n/navigation";
 import { cn } from "@/lib/utils";
 
@@ -63,6 +63,9 @@ export function CompanyCard({
 }) {
   const t = useTranslations("web.marketplace.companyCard");
   const activityLabel = useActivityLabel();
+  // Önizleme ürününün birimi Türkçe ad olarak saklanır ("adet") — okuyucunun dilinde.
+  const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
   const locale = useLocale();
   const fmt = useFormatter();
   const activities = c.activities.slice(0, 3);
@@ -208,13 +211,12 @@ export function CompanyCard({
                     <p className="mt-1.5 line-clamp-2 text-xs/5 font-medium text-zinc-900">{pv.name}</p>
                     {pv.moq ? (
                       <p className="tnum text-[11px] text-zinc-500">
-                        {t("moq", { n: fmt.number(Number(pv.moq)), unit: pv.unit ?? "" })}
+                        {t("moq", { qty: quantity(pv.moq, pv.unit) })}
                       </p>
                     ) : null}
                     {pv.priceAmount ? (
                       <p className="tnum text-xs font-bold text-zinc-900">
-                        {fmt.number(Number(pv.priceAmount))}{" "}
-                        {currencySymbol(pv.priceCurrency ?? "TRY")}
+                        {affixCurrency(fmt.number(Number(pv.priceAmount)), pv.priceCurrency ?? "TRY", locale)}
                       </p>
                     ) : null}
                   </li>

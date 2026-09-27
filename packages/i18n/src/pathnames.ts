@@ -1,3 +1,4 @@
+import { localizeCountrySlugParam } from "./country-slugs";
 import { DEFAULT_LOCALE, LOCALES, type Locale } from "./locales";
 
 /**
@@ -13,6 +14,9 @@ import { DEFAULT_LOCALE, LOCALES, type Locale } from "./locales";
  *
  * Varlık slug'ları ([slug], [il], [id] …) HİÇBİR dilde değişmez: ürün/firma/
  * talep slug'ı kaynak metinden, kategori kod+Türkçe ad, şehir Türkçe il adı.
+ * TEK İSTİSNA ülke sayfası `[ulke]` (2026-09-27): parça bir varlık değil
+ * dilin sözcüğüdür (`de-almanya` · `de-germany` · `de-germaniya`) — çeviri
+ * `PARAM_LOCALIZERS` ile burada, kod önekten okunur (`country-slugs.ts`).
  *
  * KULLANANLAR: web next-intl `routing.pathnames` (middleware yeniden yazma +
  * yanlış biçimi 308), web `@/i18n/navigation` (dize adresi şablona eşleyip
@@ -34,7 +38,7 @@ export const ROUTE_PATHNAMES: RoutePathnames = {
   "/urunler": P("/urunler", "/products", "/tovary"),
   "/urunler/kategori/[slug]": P("/urunler/kategori/[slug]", "/products/category/[slug]", "/tovary/kategoriya/[slug]"),
   "/urunler/sehir/[il]": P("/urunler/sehir/[il]", "/products/city/[il]", "/tovary/gorod/[il]"),
-  // Ülke sayfası (2026-09-27): satıcı ülkesine göre ürünler; slug `<kod>-<türkçe-ad>`.
+  // Ülke sayfası (2026-09-27): satıcı ülkesine göre ürünler; slug `<kod>-<ad>`, ad DİLE GÖRE (`PARAM_LOCALIZERS`).
   "/urunler/ulke/[ulke]": P("/urunler/ulke/[ulke]", "/products/country/[ulke]", "/tovary/strana/[ulke]"),
   "/firmalar": P("/firmalar", "/companies", "/kompanii"),
   "/firma/[slug]": P("/firma/[slug]", "/companies/[slug]", "/kompanii/[slug]"),
@@ -165,6 +169,23 @@ function compile(template: string, params: Record<string, string>): string {
   return template.replace(/\[([^\]]+)\]/g, (_, name: string) => params[name] ?? `[${name}]`);
 }
 
+/**
+ * Dile göre çevrilen PARAMETRE parçaları (iç şablon → parametre → çevirici).
+ * Yalnız ülke sayfası: `/urunler/ulke/de-almanya` + en → `/products/country/de-germany`.
+ * Hem iç→dış hem dış→iç yönde uygulanır (iç yol her zaman Türkçe biçim).
+ */
+const PARAM_LOCALIZERS: Readonly<Record<string, Readonly<Record<string, (value: string, locale: Locale) => string>>>> = {
+  "/urunler/ulke/[ulke]": { ulke: localizeCountrySlugParam },
+};
+
+function localizeParams(internal: string, params: Record<string, string>, locale: Locale): Record<string, string> {
+  const fns = PARAM_LOCALIZERS[internal];
+  if (!fns) return params;
+  const out = { ...params };
+  for (const [name, fn] of Object.entries(fns)) if (out[name]) out[name] = fn(out[name]!, locale);
+  return out;
+}
+
 /** Yol · sorgu · parça ayrımı — sorgu ve `#` olduğu gibi korunur. */
 function splitUrl(href: string): { path: string; rest: string } {
   const m = /^([^?#]*)(.*)$/.exec(href);
@@ -204,7 +225,22 @@ export function translateRoutePath(href: string, locale: Locale): string {
   const { path, rest } = splitUrl(href);
   const hit = bestMatch(splitSegments(normalizePath(path)), (t) => t.internal);
   if (!hit) return href;
-  return compile(ROUTE_PATHNAMES[hit.template.internal]![locale], hit.params) + rest;
+  const internal = hit.template.internal;
+  return compile(ROUTE_PATHNAMES[internal]![locale], localizeParams(internal, hit.params, locale)) + rest;
+}
+
+/**
+ * İÇ şablon + o dilin PARAMETRE biçimi (`PARAM_LOCALIZERS`): Next önbelleğinde
+ * sayfa `/<dil><iç yol>` anahtarıyla durur ve parametre dış adresten geldiği
+ * için dile göre değişir (`/en/urunler/ulke/de-germany`). Önbellek tazeleme
+ * (`/api/seo/revalidate`) bu biçimi ister. Parametresi çevrilmeyen yol aynen döner.
+ */
+export function internalPathForLocale(href: string, locale: Locale): string {
+  if (!href.startsWith("/") || href.startsWith("//")) return href;
+  const { path, rest } = splitUrl(href);
+  const hit = bestMatch(splitSegments(normalizePath(path)), (t) => t.internal);
+  if (!hit || !PARAM_LOCALIZERS[hit.template.internal]) return href;
+  return compile(hit.template.internal, localizeParams(hit.template.internal, hit.params, locale)) + rest;
 }
 
 /**
@@ -220,9 +256,23 @@ export function internalRoutePath(href: string, locale: Locale): string {
   const order: Locale[] = [locale, ...LOCALES.filter((l) => l !== locale)];
   for (const l of order) {
     const hit = bestMatch(actual, (t) => ROUTE_PATHNAMES[t.internal]![l]);
-    if (hit) return compile(hit.template.internal, hit.params) + rest;
+    if (hit) return compile(hit.template.internal, localizeParams(hit.template.internal, hit.params, DEFAULT_LOCALE)) + rest;
   }
   return href;
+}
+
+/**
+ * `next.config` yönlendirmesinin dil sürümü hedefi (2026-09-27): tam şablona
+ * eşleşen hedef (`/company/login`, `/talep/:number`, `/company/onaylar?tab=flows`)
+ * o dilin DIŞ yoluna çevrilir → tek sıçrama (eskiden `/ru/giris` →
+ * `/ru/company/login` → `/ru/kompaniya/vhod`). Sonu joker (`:path*`/`:path+`)
+ * olan hedef iç biçimde kalır: kuyruk bilinmediği için şablona eşlenemez,
+ * next-intl onu kendisi doğru biçime 308'ler.
+ */
+export function localizedRedirectDestination(destination: string, locale: Locale): string {
+  const outer = /\/:[A-Za-z]+[*+](?:$|[/?])/.test(destination) ? destination : translateRoutePath(destination, locale);
+  if (locale === DEFAULT_LOCALE) return outer;
+  return outer === "/" ? `/${locale}` : `/${locale}${outer}`;
 }
 
 /** Aynı dilde iki iç şablonun aynı dış şablona düşmesi — sessiz çakışma denetimi (test). */

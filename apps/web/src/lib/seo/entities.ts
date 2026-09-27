@@ -1,12 +1,21 @@
 import { provinceDisplayName } from "@rothern/shared";
-import { INTL_LOCALE } from "@/i18n/format";
+import { findUnitDef, intlLocale } from "@/i18n/format";
 import { localizePath } from "@/i18n/href";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { SITE_NAME } from "./meta";
 import { MARKETPLACE_ROUTES, categoryHref, listingHref } from "@/lib/public/marketplace";
 import { productPrice, type PriceLabels } from "@/lib/public/product-price";
-import { breadcrumbNode, compact, graph, type JsonLdNode } from "@/lib/seo/jsonld";
-import { absoluteUrl, buildMetadata, clampDescription, joinParts, LANG_TAG } from "@/lib/seo/meta";
+import { SITE_ID, breadcrumbNode, compact, graph, type JsonLdNode } from "@/lib/seo/jsonld";
+import {
+  absoluteUrl,
+  buildMetadata,
+  clampDescription,
+  contentLangOf,
+  joinParts,
+  LANG_TAG,
+  ogCardPath,
+  readyLocalesOf,
+} from "@/lib/seo/meta";
 import type { Metadata } from "next";
 
 /**
@@ -27,7 +36,28 @@ import type { Metadata } from "next";
  * (`joinParts` boşları atar) — "fiyat: belirtilmemiş" gibi doldurma yapılmaz.
  * Kapılı alan (ilan sahibinin adı, firma iletişimi, teklifler) buraya
  * PARAMETRE OLARAK BİLE geçmez; sözleşme testi çıktıyı tarar.
+ *
+ * ÇOK DİLLİ GRAF (2026-09-27 SEO denetimi): her sayfada İKİ düğüm —
+ *   · SAYFA düğümü (`ItemPage`/`ProfilePage`): `@id`/`url` = o dilin adresi,
+ *     `inLanguage`, `isPartOf` (site), `mainEntity`, `dateModified`;
+ *   · VARLIK düğümü (`Product`/`Organization`/`Demand`): `@id` DİLDEN
+ *     BAĞIMSIZ (Türkçe kanonik + `#product`/`#company`/`#demand`) — üç dil
+ *     sayfası AYNI varlığı anlatır, üç ayrı firma/ürün değil. `inLanguage`
+ *     bu tiplerde geçerli bir özellik DEĞİL, yalnız sayfa düğümünde.
+ * Varlık düğümü grafta İLK sırada kalır (testler ve tüketiciler onu okur).
  */
+
+/** Dilden bağımsız varlık kimlikleri — Türkçe (ön eksiz) kanonik + parça. */
+export const entityId = {
+  product: (companySlug: string, productSlug: string) => `${absoluteUrl(`/firma/${companySlug}/urun/${productSlug}`)}#product`,
+  company: (slug: string) => `${absoluteUrl(`/firma/${slug}`)}#company`,
+  demand: (path: string) => `${absoluteUrl(path)}#demand`,
+};
+
+/** ISO ülke kodu mu (`addressCountry`) — boş/serbest metin yazılmaz, "TR" UYDURULMAZ. */
+function isoCountry(code: string | null | undefined): string | undefined {
+  return code && /^[A-Z]{2}$/.test(code) ? code : undefined;
+}
 
 /* ------------------------------------------------------------------ */
 /* Ürün                                                                */
@@ -43,14 +73,22 @@ export interface ProductSeoInput {
     brand: string | null;
     mpn: string | null;
     unit: string;
+    /** Katalog birimi — varsa etiket okuyucunun dilinde (`web.domain.unit.<KOD>`). */
+    unitCode?: string | null;
     moq: string | null;
     priceMode: "FIXED" | "TIERED" | "ON_REQUEST";
     priceAmount: string | null;
     priceTiers: { minQty: number; unitPrice: number }[] | null;
     priceCurrency: string;
     category?: { id: string; name: string } | null;
+    /** Kategorinin segmenti (L1) — kırıntı segment açılış sayfasına bağlanır. */
+    segment?: { id: string; name: string; slug?: string } | null;
     attributeList?: { label: string; value: string; unit: string | null }[];
     keywords?: string[];
+    updatedAt?: string | null;
+    /** Dil durumu (API): hreflang yalnız hazır diller; kaynak dilde gösterimde `inLanguage`. */
+    readyLocales?: string[];
+    sourceLocale?: string;
   };
   company: {
     name: string;
@@ -74,17 +112,83 @@ export type SeoT = (key: string, values?: Record<string, string | number | Date>
 
 function priceLabels(t: SeoT, locale: Locale): PriceLabels {
   return {
-    locale: INTL_LOCALE[locale] ?? "tr-TR",
+    locale: intlLocale(locale),
     onRequest: t("web.marketplace.price.onRequest"),
-    fromQty: (qty, unit) => t("web.marketplace.price.fromQty", { qty, unit }),
+    fromQty: (n, unit, code) => t("web.marketplace.price.fromQty", { qty: quantityWith(t, n, unit, code) }),
   };
 }
 
-function priceSentence(p: ProductSeoInput["product"], locale: Locale, t: SeoT): string {
+/**
+ * Ölçü birimi etiketi OKUYUCUNUN DİLİNDE (istemci `useUnitLabel` ile aynı
+ * eşleme): kod ya da Türkçe ad/simge katalogdaysa `web.domain.unit.<KOD>`,
+ * değilse özgün metin (kodsuz serbest birim zaten içerik çevirisinden gelir).
+ * Eskiden meta açıklaması ve OG fiyatı EN sayfada "… / adet" basıyordu.
+ */
+export function unitLabelWith(t: SeoT, unit: string | null | undefined, code?: string | null): string {
+  const known = findUnitDef(unit, code);
+  return known ? t(`web.domain.unit.${known.code}`) : (unit ?? "");
+}
+
+/**
+ * Miktar + birim DİLİN ÇOĞUL KURALIYLA (`web.domain.qty.<KOD>`): "100 pieces",
+ * "100 коробок", "100 adet". Tekil etiketi sayının yanına yapıştırmak EN/RU'da
+ * "100 piece" / "100 коробка" basıyordu (2026-09-27). Kodsuz serbest birimde
+ * sayı + metin (`qty.other`).
+ */
+export function quantityWith(t: SeoT, n: number | string, unit: string | null | undefined, code?: string | null): string {
+  const num = Number(n);
+  const known = findUnitDef(unit, code);
+  if (!Number.isFinite(num)) return [String(n), unitLabelWith(t, unit, code)].filter(Boolean).join(" ");
+  return known
+    ? t(`web.domain.qty.${known.code}`, { n: num })
+    : t("web.domain.qty.other", { n: num, unit: unit ?? "" });
+}
+
+function priceSentence(p: ProductSeoInput["product"], locale: Locale, t: SeoT, unit: string): string {
   const labels = priceLabels(t, locale);
-  const price = productPrice(p, labels);
+  const price = productPrice({ ...p, unit }, labels);
   if (price.hasPrice) return price.headline;
   return labels.onRequest;
+}
+
+/**
+ * Teklif düğümü — YALNIZ gerçek fiyat varsa (2026-09-27): fiyatsız `Offer`
+ * ("teklif isteyin") ya da stok bilmeden yazılan `InStock` Rich Results
+ * hatasıdır ve uydurmadır. Sabit fiyat → `Offer.price`; kademeli → en düşük/
+ * en yüksek birim fiyatlı `AggregateOffer` (+ kademeler `priceSpecification`).
+ */
+function offerNode(
+  pr: ProductSeoInput["product"],
+  url: string,
+  unit: string,
+  seller: JsonLdNode,
+): JsonLdNode | undefined {
+  const moq = pr.moq
+    ? { eligibleQuantity: { "@type": "QuantitativeValue", minValue: Number(pr.moq) || undefined, unitText: unit } }
+    : {};
+  if (pr.priceMode === "FIXED" && pr.priceAmount) {
+    return compact({ "@type": "Offer", url, price: pr.priceAmount, priceCurrency: pr.priceCurrency, ...moq, seller });
+  }
+  if (pr.priceMode === "TIERED" && pr.priceTiers?.length) {
+    const prices = pr.priceTiers.map((t) => t.unitPrice);
+    return compact({
+      "@type": "AggregateOffer",
+      url,
+      lowPrice: Math.min(...prices),
+      highPrice: Math.max(...prices),
+      priceCurrency: pr.priceCurrency,
+      offerCount: pr.priceTiers.length,
+      priceSpecification: pr.priceTiers.map((t) => ({
+        "@type": "UnitPriceSpecification",
+        price: t.unitPrice,
+        priceCurrency: pr.priceCurrency,
+        eligibleQuantity: { "@type": "QuantitativeValue", minValue: t.minQty, unitText: unit },
+      })),
+      ...moq,
+      seller,
+    });
+  }
+  return undefined;
 }
 
 export interface SeoOptions {
@@ -106,15 +210,17 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
   const url = absoluteUrl(localizePath(path, locale));
   const images = pr.images.map((i) => (i.startsWith("http") ? i : absoluteUrl(i)));
   const where = joinParts([co.name, provinceDisplayName(co.city, locale)], ", ");
+  const unit = unitLabelWith(ts, pr.unit, pr.unitCode);
+  const minOrder = pr.moq ? ts("web.seo.og.minOrder", { qty: quantityWith(ts, pr.moq, pr.unit, pr.unitCode) }) : null;
 
   /* Tanım cümlesi: NE + KİM + NEREDE + FİYAT + MOQ. Arama sonucunda ve AI
      cevabında tek başına anlamlı olmalı — "ürün sayfası" demek yetmez. */
   const summary = joinParts(
     [
       joinParts([pr.name, pr.category?.name], " — "),
-      where ? `${where} vitrininde` : null,
-      priceSentence(pr, locale, ts),
-      pr.moq ? ts("web.seo.og.minOrder", { n: pr.moq, unit: pr.unit }) : null,
+      where ? ts("web.seo.inShowcaseOf", { where }) : null,
+      priceSentence(pr, locale, ts, unit),
+      minOrder,
     ],
     " · ",
   );
@@ -123,67 +229,37 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
      sıralamada hem alıntıda şablon cümleden değerlidir. Olgular arkaya
      eklenir; 160'ta kelime sınırında kesilir. */
   const lead = pr.description ? clampDescription(pr.description, 96) : null;
-  const description = clampDescription(
-    joinParts([lead, priceSentence(pr, locale, ts), pr.moq ? ts("web.seo.og.minOrder", { n: pr.moq, unit: pr.unit }) : null, where], " · "),
-  );
+  const description = clampDescription(joinParts([lead, priceSentence(pr, locale, ts, unit), minOrder, where], " · "));
 
   // Başlık tavanı 75 (canlı denetim 2026-09-11: 83 karakterlik ürün adı taşıyordu):
   // önce firma adı düşer, yine uzunsa ürün adı kelime sınırında kısaltılır.
   const title = clampTitle(pr.name, co.name);
+  const productId = entityId.product(companySlug, pr.slug);
 
-  const offer = compact({
-    "@type": "Offer",
-    url,
-    availability: "https://schema.org/InStock",
-    priceCurrency: pr.priceCurrency,
-    ...(pr.priceMode === "FIXED" && pr.priceAmount ? { price: pr.priceAmount } : {}),
-    ...(pr.priceMode === "TIERED" && pr.priceTiers?.length
+  /* Satıcı kimliği ÜRÜNDE açıktır (ilan sahibinin tersine): ürün sayfası
+     firmanın opt-in vitrinidir ve adı sayfada zaten yazılı. Adres okuyucunun
+     dilinde, kimlik dilden bağımsız (firma sayfasındaki `Organization`la aynı). */
+  const seller = compact({
+    "@type": "Organization",
+    ...(co.slug ? { "@id": entityId.company(co.slug), url: absoluteUrl(localizePath(`/firma/${co.slug}`, locale)) } : {}),
+    name: co.name,
+    ...(co.city
       ? {
-          priceSpecification: pr.priceTiers.map((t) => ({
-            "@type": "UnitPriceSpecification",
-            price: t.unitPrice,
-            priceCurrency: pr.priceCurrency,
-            eligibleQuantity: {
-              "@type": "QuantitativeValue",
-              minValue: t.minQty,
-              unitText: pr.unit,
-            },
-          })),
+          address: compact({
+            "@type": "PostalAddress",
+            addressLocality: provinceDisplayName(co.city, locale),
+            addressCountry: isoCountry(co.country),
+          }),
         }
       : {}),
-    ...(pr.moq
-      ? {
-          eligibleQuantity: {
-            "@type": "QuantitativeValue",
-            minValue: Number(pr.moq) || undefined,
-            unitText: pr.unit,
-          },
-        }
-      : {}),
-    /* Satıcı kimliği ÜRÜNDE açıktır (ilan sahibinin tersine): ürün sayfası
-       firmanın opt-in vitrinidir ve adı sayfada zaten yazılı. */
-    seller: compact({
-      "@type": "Organization",
-      name: co.name,
-      ...(co.slug ? { url: absoluteUrl(`/firma/${co.slug}`) } : {}),
-      ...(co.city
-        ? {
-            address: {
-              "@type": "PostalAddress",
-              addressLocality: provinceDisplayName(co.city, locale),
-              addressCountry: co.country ?? "TR",
-            },
-          }
-        : {}),
-    }),
   });
 
   const productNode = compact({
     "@type": "Product",
+    "@id": productId,
     name: pr.name,
     url,
     description: pr.description ?? summary,
-    inLanguage: LANG_TAG[locale],
     image: images,
     ...(pr.category?.name ? { category: pr.category.name } : {}),
     ...(pr.brand ? { brand: { "@type": "Brand", name: pr.brand } } : {}),
@@ -198,7 +274,22 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
           })),
         }
       : {}),
-    offers: offer,
+    offers: offerNode(pr, url, unit, seller),
+    mainEntityOfPage: { "@id": url },
+  });
+
+  const pageNode = compact({
+    "@type": "ItemPage",
+    "@id": url,
+    url,
+    name: title,
+    description,
+    inLanguage: contentLangOf(pr, locale) ?? LANG_TAG[locale],
+    isPartOf: { "@id": SITE_ID() },
+    mainEntity: { "@id": productId },
+    breadcrumb: { "@id": `${url}#breadcrumb` },
+    ...(images[0] ? { primaryImageOfPage: { "@type": "ImageObject", url: images[0] } } : {}),
+    ...(pr.updatedAt ? { dateModified: pr.updatedAt } : {}),
   });
 
   return {
@@ -206,19 +297,28 @@ export function productSeo(input: ProductSeoInput, opts: SeoOptions): {
       title,
       description,
       path,
-      images: images.slice(0, 1),
+      // Ürün fotoğrafı yoksa (yayın kapısı ≥1 ister; önizleme/eski kayıt)
+      // ürünün KENDİ kartı — marka kartı değil.
+      images: images.length ? images.slice(0, 1) : [ogCardPath(path, locale)],
       noindex: !input.indexable,
       locale: opts.locale,
+      locales: readyLocalesOf(pr.readyLocales),
     }),
     jsonLd: graph([
       productNode,
-      breadcrumbNode([
-        { name: ts("web.marketing.breadcrumbHome"), path: "/" },
-        { name: ts("web.marketplace.labels.products"), path: MARKETPLACE_ROUTES.products },
-        ...(pr.category ? [{ name: pr.category.name, path: categoryHref(pr.category) }] : []),
-        { name: co.name, path: `/firma/${companySlug}` },
-        { name: pr.name, path },
-      ], locale),
+      pageNode,
+      {
+        "@id": `${url}#breadcrumb`,
+        ...breadcrumbNode([
+          { name: ts("web.marketing.breadcrumbHome"), path: "/" },
+          { name: ts("web.marketplace.labels.products"), path: MARKETPLACE_ROUTES.products },
+          // Kırıntı SEGMENT açılış sayfasına (2026-09-27): L3 kodu süzgeç
+          // adresine düşüyordu (`/en/products?kategori=…`, kanoniği dizin).
+          ...(pr.segment ? [{ name: pr.segment.name, path: categoryHref(pr.segment) }] : []),
+          { name: co.name, path: `/firma/${companySlug}` },
+          { name: pr.name, path },
+        ], locale),
+      },
     ]),
     summary,
   };
@@ -253,6 +353,12 @@ export interface CompanySeoInput {
    */
   website?: string | null;
   linkedinUrl?: string | null;
+  /** Kalite kapısı (API `indexable`) — `false` ise `noindex`. Verilmezse indekslenebilir. */
+  indexable?: boolean;
+  updatedAt?: string | null;
+  /** Dil durumu (API): hreflang yalnız hazır diller. */
+  readyLocales?: string[];
+  sourceLocale?: string;
 }
 
 function httpUrls(values: (string | null | undefined)[]): string[] {
@@ -294,14 +400,15 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
   );
 
   const image = c.coverImageUrl ?? c.logoUrl;
+  const companyId = entityId.company(c.slug);
+  const title = companyTitle(c.name, c.industry, provinceDisplayName(c.city, locale));
 
   const orgNode = compact({
     "@type": "Organization",
-    "@id": `${url}#company`,
+    "@id": companyId,
     name: c.name,
     url,
     description: c.aboutText ?? summary,
-    inLanguage: LANG_TAG[locale],
     ...(c.logoUrl ? { logo: c.logoUrl } : {}),
     ...(image ? { image } : {}),
     ...(c.foundedYear ? { foundingDate: String(c.foundedYear) } : {}),
@@ -311,16 +418,18 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
     ...(c.categories.length ? { knowsAbout: c.categories.map((k) => k.name) } : {}),
     ...(c.certifications?.length ? { hasCredential: c.certifications } : {}),
     ...(httpUrls([c.website, c.linkedinUrl]).length ? { sameAs: httpUrls([c.website, c.linkedinUrl]) } : {}),
+    /* Adres: ülke yalnız ISO kodu varsa (eskiden yoksa "TR" UYDURULUYORDU).
+       `areaServed` YAZILMAZ: firmanın merkez ülkesi hizmet bölgesi değildir
+       ve eskiden ham kod ("DE") ad olarak basılıyordu (2026-09-27). */
     ...(c.city
       ? {
-          address: {
+          address: compact({
             "@type": "PostalAddress",
             addressLocality: provinceDisplayName(c.city, locale),
-            addressCountry: c.country ?? "TR",
-          },
+            addressCountry: isoCountry(c.country),
+          }),
         }
       : {}),
-    areaServed: { "@type": "Country", name: c.country === "TR" || !c.country ? ts("web.seo.turkey") : c.country },
     ...(c.products?.length
       ? {
           hasOfferCatalog: {
@@ -329,12 +438,26 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
             itemListElement: c.products.slice(0, 10).map((p, i) => ({
               "@type": "ListItem",
               position: i + 1,
-              url: absoluteUrl(`${path}/urun/${p.slug}`),
+              url: absoluteUrl(localizePath(`${path}/urun/${p.slug}`, locale)),
               name: p.name,
             })),
           },
         }
       : {}),
+    mainEntityOfPage: { "@id": url },
+  });
+
+  const pageNode = compact({
+    "@type": "ProfilePage",
+    "@id": url,
+    url,
+    name: title,
+    description,
+    inLanguage: contentLangOf(c, locale) ?? LANG_TAG[locale],
+    isPartOf: { "@id": SITE_ID() },
+    mainEntity: { "@id": companyId },
+    breadcrumb: { "@id": `${url}#breadcrumb` },
+    ...(c.updatedAt ? { dateModified: c.updatedAt } : {}),
   });
 
   /* ORTALAMA PUAN YAZILMAZ: şema `aggregateRating` için oy SAYISI ister
@@ -345,20 +468,29 @@ export function companySeo(c: CompanySeoInput, opts: SeoOptions): {
 
   return {
     metadata: buildMetadata({
-      title: companyTitle(c.name, c.industry, provinceDisplayName(c.city, locale)),
+      title,
       description,
       path,
-      images: image ? [image] : undefined,
+      // Kapak yoksa firmanın KENDİ OG kartı (ad + sektör + şehir); logo kare
+      // ve küçük — paylaşım kartında bozuk görünür (2026-09-27: kapaksız
+      // firmaların hepsi marka kartına düşüyordu, segment kartı kullanılmıyordu).
+      images: [c.coverImageUrl ?? ogCardPath(path, locale)],
       type: "profile",
+      noindex: c.indexable === false,
       locale: opts.locale,
+      locales: readyLocalesOf(c.readyLocales),
     }),
     jsonLd: graph([
       orgNode,
-      breadcrumbNode([
-        { name: ts("web.marketing.breadcrumbHome"), path: "/" },
-        { name: ts("web.marketplace.labels.companies"), path: MARKETPLACE_ROUTES.companies },
-        { name: c.name, path },
-      ], locale),
+      pageNode,
+      {
+        "@id": `${url}#breadcrumb`,
+        ...breadcrumbNode([
+          { name: ts("web.marketing.breadcrumbHome"), path: "/" },
+          { name: ts("web.marketplace.labels.companies"), path: MARKETPLACE_ROUTES.companies },
+          { name: c.name, path },
+        ], locale),
+      },
     ]),
     summary,
   };
@@ -382,6 +514,10 @@ export interface ListingSeoInput {
   /** SAHİBİN ADI ALINMAZ — bilerek: tip düzeyinde de sızdırılamasın. */
   buyer: { city: string | null; country: string | null; isInternational: boolean };
   coverImageUrl: string | null;
+  updatedAt?: string | null;
+  /** Dil durumu (API): hreflang yalnız hazır diller. */
+  readyLocales?: string[];
+  sourceLocale?: string;
 }
 
 /**
@@ -403,6 +539,9 @@ export function listingSeoInput(l: {
   isInternational: boolean;
   coverImageUrl: string | null;
   company: { city: string | null; country: string | null };
+  updatedAt?: string | null;
+  readyLocales?: string[];
+  sourceLocale?: string;
 }): ListingSeoInput {
   return {
     number: l.number,
@@ -420,6 +559,9 @@ export function listingSeoInput(l: {
       isInternational: l.isInternational,
     },
     coverImageUrl: l.coverImageUrl,
+    updatedAt: l.updatedAt ?? null,
+    readyLocales: l.readyLocales,
+    sourceLocale: l.sourceLocale,
   };
 }
 
@@ -433,10 +575,8 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
   const path = listingHref(l);
   const url = absoluteUrl(localizePath(path, locale));
   const cat = l.categories[0]?.name ?? null;
-  const qty =
-    l.itemSummary.totalQuantity && l.itemSummary.unit
-      ? `${l.itemSummary.totalQuantity} ${l.itemSummary.unit}`
-      : null;
+  const unit = l.itemSummary.unit ? unitLabelWith(ts, l.itemSummary.unit) : null;
+  const qty = l.itemSummary.totalQuantity && unit ? `${l.itemSummary.totalQuantity} ${unit}` : null;
 
   const summary = joinParts(
     [
@@ -462,12 +602,14 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
     ),
   );
 
+  const demandId = entityId.demand(path);
+  const title = joinParts([l.title, l.number], " — ");
   const demandNode = compact({
     "@type": "Demand",
+    "@id": demandId,
     name: l.title,
     url,
     identifier: l.number,
-    inLanguage: LANG_TAG[locale],
     description: l.description ?? summary,
     ...(l.closesAt ? { validThrough: l.closesAt } : {}),
     availability: l.open ? "https://schema.org/InStock" : "https://schema.org/Discontinued",
@@ -485,7 +627,7 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
           eligibleQuantity: {
             "@type": "QuantitativeValue",
             value: l.itemSummary.totalQuantity,
-            unitText: l.itemSummary.unit,
+            unitText: unit,
           },
         }
       : {}),
@@ -493,32 +635,53 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
       ? {
           areaServed: {
             "@type": "Place",
-            address: {
+            address: compact({
               "@type": "PostalAddress",
               addressLocality: provinceDisplayName(l.buyer.city, locale),
-              addressCountry: l.buyer.country ?? "TR",
-            },
+              addressCountry: isoCountry(l.buyer.country),
+            }),
           },
         }
       : {}),
+    mainEntityOfPage: { "@id": url },
+  });
+
+  const pageNode = compact({
+    "@type": "ItemPage",
+    "@id": url,
+    url,
+    name: title,
+    description,
+    inLanguage: contentLangOf(l, locale) ?? LANG_TAG[locale],
+    isPartOf: { "@id": SITE_ID() },
+    mainEntity: { "@id": demandId },
+    breadcrumb: { "@id": `${url}#breadcrumb` },
+    ...(l.updatedAt ? { dateModified: l.updatedAt } : {}),
   });
 
   return {
     metadata: buildMetadata({
-      title: joinParts([l.title, l.number], " — "),
+      title,
       description,
       path,
-      images: l.coverImageUrl ? [l.coverImageUrl] : undefined,
+      // Görsel yoksa talebin KENDİ OG kartı (numara + başlık + konum; sahip adı
+      // YOK) — eskiden marka kartına düşüyordu, segment kartı kullanılmıyordu.
+      images: [l.coverImageUrl ?? ogCardPath(path, locale)],
       noindex: !l.indexable,
       locale: opts.locale,
+      locales: readyLocalesOf(l.readyLocales),
     }),
     jsonLd: graph([
       demandNode,
-      breadcrumbNode([
-        { name: ts("web.marketing.breadcrumbHome"), path: "/" },
-        { name: ts("web.marketplace.labels.demands"), path: MARKETPLACE_ROUTES.demands },
-        { name: l.title, path },
-      ], locale),
+      pageNode,
+      {
+        "@id": `${url}#breadcrumb`,
+        ...breadcrumbNode([
+          { name: ts("web.marketing.breadcrumbHome"), path: "/" },
+          { name: ts("web.marketplace.labels.demands"), path: MARKETPLACE_ROUTES.demands },
+          { name: l.title, path },
+        ], locale),
+      },
     ]),
     summary,
   };

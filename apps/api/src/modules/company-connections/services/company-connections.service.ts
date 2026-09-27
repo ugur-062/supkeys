@@ -16,7 +16,7 @@ import {
   Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode, PAID_TIER } from "@rothern/shared";
+import { isCategoryCode, listingPath, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode, PAID_TIER } from "@rothern/shared";
 import { publicProductWhere } from "../../../common/company/public-profile-gate";
 import { buildDirectory, directoryFacets, type DirectoryParams, type DirectoryScope } from "../../../common/company/company-directory";
 import { PRODUCT_INDEX_SELECT, toProductIndexCard } from "../../public-marketplace/dto/public-product-index.projection";
@@ -39,24 +39,29 @@ import {
   localeOf,
 } from "../../notifications/notification.service";
 import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
-import { appRoutes } from "../../../common/company/app-routes";
+import { appRoutes, localizeAppPath } from "../../../common/company/app-routes";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import {
   effectiveTier,
   anyPackageWhere,
 } from "../../../common/company/effective-tier";
-import { visibleOwnerListingWhere } from "../../../common/company/listing-visibility";
+import { marketplaceListingWhere, visibleOwnerListingWhere } from "../../../common/company/listing-visibility";
 import { hasValidConnection } from "../../../common/company/valid-connection";
 import { listingManageDenial } from "../../company-listings/listing-manage-access";
 import { affinityReasonTextThirdParty } from "../../company-affinity/company-affinity.service";
 import {
+  INVITE_ITEM_PREVIEW,
+  INVITE_TRANSLATION_WAIT_MS,
   REFERRAL_DAILY_CAP,
   REFERRAL_RESEND_COOLDOWN_DAYS,
   deliverInvite,
   formatInviteDeadline,
+  formatInvitePlace,
   referralCooldownStart,
   type InviteDeliveryResult,
 } from "../../../common/company/invite-delivery";
+import type { TenderExternalInviteData } from "@rothern/email";
+import { isLocale, recipientLocale, type Locale } from "@rothern/i18n";
 
 type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 
@@ -80,6 +85,17 @@ export interface ExternalInviteResult {
   email: string;
   status: ExternalInviteStatus;
   reason?: string;
+}
+
+/**
+ * Dış davet alıcısı — ekranda satır başına dil seçilir (varsayılanı ülke/
+ * uzantıdan), AI keşfi firmanın ülkesini de taşır. Hepsi isteğe bağlı: eski
+ * istemci yalnız adres gönderir, dil sunucuda `recipientLocale` ile türer.
+ */
+export interface ExternalInviteRecipient {
+  email: string;
+  locale?: string | null;
+  country?: string | null;
 }
 
 /** Bağlantı kartı için firma alanları (ihale daveti adımı + bağlantılar). */
@@ -169,8 +185,8 @@ export class CompanyConnectionsService {
    * çağrı aynı adrese yeniden e-posta atıyor ve yanıt gönderimden önce
    * "gitti" diyordu.
    */
-  async inviteByEmail(user: AuthenticatedCompanyUser, emailRaw: string) {
-    const prepared = await this.prepareReferralInvite(user, emailRaw);
+  async inviteByEmail(user: AuthenticatedCompanyUser, emailRaw: string, locale?: string | null) {
+    const prepared = await this.prepareReferralInvite(user, emailRaw, locale);
     if (prepared.kind === "request") return prepared;
     const res = await this.sendReferralInvite(prepared);
     return {
@@ -188,13 +204,20 @@ export class CompanyConnectionsService {
    * zamanı: tavan sayımı ve 30 günlük token ömrü buradan okur).
    * Frenler anahtarlı istisna atar (`code`): ALREADY_INVITED, DAILY_LIMIT,
    * OPTED_OUT — toplu uç bunları adres başına sonuca çevirir.
+   *
+   * DİL (2026-09-27): alıcı kayıtlı değil → ekranda seçilen dil; yoksa
+   * kayıttaki önceki davetin dili (yeniden gönderim aynı dilde); yoksa
+   * `recipientLocale` (e-posta uzantısı → davet edenin dili). Kayda yazılır.
+   * Eskiden davet edenin diliydi: Türk alıcının Kazak tedarikçiye davetini
+   * Türkçe e-posta + Türkçe kayıt bağlantısı taşıyordu.
    */
   private async prepareReferralInvite(
     user: AuthenticatedCompanyUser,
     emailRaw: string,
+    localeRaw?: string | null,
   ): Promise<
     | { kind: "request"; targetName: string }
-    | { kind: "send"; email: string; inviteId: string; token: string; inviterName: string }
+    | { kind: "send"; email: string; inviteId: string; token: string; inviterName: string; locale: Locale }
   > {
     if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
@@ -240,7 +263,7 @@ export class CompanyConnectionsService {
 
     const prior = await this.prisma.companyReferralInvite.findUnique({
       where: { inviterCompanyId_email: { inviterCompanyId: user.companyId, email } },
-      select: { id: true, status: true },
+      select: { id: true, status: true, locale: true },
     });
     // Kabul edilmiş davet yeniden gönderilmez (adres kayıt olmadan — farklı
     // e-postayla kayıt — kabul edilmiş olabilir; token zaten kullanıldı).
@@ -307,6 +330,11 @@ export class CompanyConnectionsService {
       where: { id: user.companyId },
       select: { name: true },
     });
+    const locale: Locale = isLocale(localeRaw)
+      ? localeRaw
+      : isLocale(prior?.locale)
+        ? prior.locale
+        : recipientLocale({ email, fallback: currentLocale() });
     // `updatedAt` = son gönderim zamanı (tavan sayımı + 30 günlük token ömrü).
     const inv = await this.prisma.companyReferralInvite.upsert({
       where: {
@@ -316,8 +344,9 @@ export class CompanyConnectionsService {
         inviterCompanyId: user.companyId,
         email,
         invitedById: user.userId,
+        locale,
       },
-      update: { updatedAt: new Date() },
+      update: { updatedAt: new Date(), locale },
       select: { id: true, token: true },
     });
     return {
@@ -325,7 +354,8 @@ export class CompanyConnectionsService {
       email,
       inviteId: inv.id,
       token: inv.token,
-      inviterName: this.companyNameOr(me?.name),
+      inviterName: this.companyNameOr(me?.name, locale),
+      locale,
     };
   }
 
@@ -335,10 +365,11 @@ export class CompanyConnectionsService {
     inviteId: string;
     token: string;
     inviterName: string;
+    locale: Locale;
   }): Promise<InviteDeliveryResult> {
     const baseUrl = resolveWebUrl(this.config);
-    // Alıcı kayıtlı DEĞİL (dili yok) → DAVET EDENİN dili; daveti o yazıyor.
-    const locale = currentLocale();
+    // Alıcı kayıtlı DEĞİL → davette çözülen ALICI dili (kayıtta saklı).
+    const locale = p.locale;
     const res = await deliverInvite(() =>
       this.email.send({
         to: { email: p.email },
@@ -382,12 +413,27 @@ export class CompanyConnectionsService {
    *  - aynı adrese (bu firmadan) ömür boyu TEK davet (mevcut referral = skip)
    *  - opt-out listesi + kayıtlı-kullanıcı adresi = skip (dizinden davet edilir)
    * Kayıt token'la tamamlanınca: bağlantı ACTIVE + bu ihaleye otomatik davet
-   * (acceptReferralInvites). Kapalı zarf: e-postada yalnız başlık/kategori/kapanış.
+   * (acceptReferralInvites).
+   *
+   * ALICININ DİLİ (2026-09-27): alıcı kayıtlı değil → dil alıcı başına
+   * `recipientLocale` (ekranda seçilen → AI keşfinin bulduğu ülke → e-posta
+   * uzantısı → davet edenin dili); kayda (`locale`) yazılır. Başlık, kalemler,
+   * kategori, tarih, teslim yeri ve bağlantılar o dilde. Talep çevirisi henüz
+   * gelmediyse gönderimden ÖNCE en fazla `INVITE_TRANSLATION_WAIT_MS`
+   * beklenir; süre dolar/başarısız olursa özgün metinle gider. Eskiden hepsi
+   * davet edenin dilindeydi: Rusça arayüzlü alıcı Alman tedarikçiyi davet
+   * edince Rusça e-posta + `/ru/…` kayıt bağlantısı → hesap Rusça doğuyordu.
+   *
+   * İÇERİK (kapalı zarf + anonimlik): başlık, numara, ilk kalemler (ad +
+   * miktar + birim), kalem sayısı, teslim yeri (yalnız şehir + ülke), son
+   * teklif tarihi, kategori, aranan tedarikçi tipi, vitrindeyse herkese açık
+   * sayfa. Hedef fiyat, marka/şartname/belge, ticari şartlar, tam adres,
+   * teklif sayısı ve diğer davetliler ASLA.
    */
   async inviteExternalForListing(
     user: AuthenticatedCompanyUser,
     listingId: string,
-    emailsRaw: string[],
+    recipientsRaw: ReadonlyArray<string | ExternalInviteRecipient>,
   ) {
     if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
@@ -396,7 +442,26 @@ export class CompanyConnectionsService {
     }
     const listing = await this.prisma.listing.findFirst({
       where: { id: listingId, companyId: user.companyId },
-      select: { id: true, title: true, status: true, closesAt: true, categoryIds: true, type: true, createdById: true },
+      select: {
+        id: true,
+        title: true,
+        number: true,
+        status: true,
+        closesAt: true,
+        categoryIds: true,
+        type: true,
+        createdById: true,
+        deliveryAddressId: true,
+        preferredActivities: true,
+        // Kapalı zarf: kalemden YALNIZ ad + miktar + birim (hedef fiyat,
+        // marka, açıklama, şartname seçilmez — e-postaya giremez).
+        items: {
+          select: { name: true, quantity: true, unit: true, unitCode: true },
+          orderBy: { lineNo: "asc" },
+          take: INVITE_ITEM_PREVIEW,
+        },
+        _count: { select: { items: true } },
+      },
     });
     if (!listing) throw new NotFoundException(i18nMessage("api.companyConnections.satinAlmaTalebiBulunamadi"));
     // INV-AZ-1 (denetim 2026-08-23 P2 #7): dış davet = ilan-yönetim eylemi —
@@ -433,17 +498,23 @@ export class CompanyConnectionsService {
       },
     });
 
-    // Biçimi geçersiz adres SESSİZCE düşmez — sonuçta INVALID olarak görünür.
-    const normalized = [...new Set(
-      (emailsRaw ?? []).map((e) => (e ?? "").trim().toLowerCase()).filter(Boolean),
-    )];
-    const invalid = normalized.filter((e) => !EXTERNAL_EMAIL_RE.test(e));
-    const emails = normalized.filter((e) => EXTERNAL_EMAIL_RE.test(e)).slice(0, DAILY_CAP);
+    // Adres başına tekilleştirme (ilk geçen kazanır). Biçimi geçersiz adres
+    // SESSİZCE düşmez — sonuçta INVALID olarak görünür.
+    const byEmail = new Map<string, ExternalInviteRecipient>();
+    for (const raw of recipientsRaw ?? []) {
+      const r = typeof raw === "string" ? { email: raw } : (raw ?? { email: "" });
+      const email = (r.email ?? "").trim().toLowerCase();
+      if (email && !byEmail.has(email)) byEmail.set(email, { ...r, email });
+    }
+    const normalized = [...byEmail.values()];
+    const invalid = normalized.filter((r) => !EXTERNAL_EMAIL_RE.test(r.email)).map((r) => r.email);
+    const recipients = normalized.filter((r) => EXTERNAL_EMAIL_RE.test(r.email)).slice(0, DAILY_CAP);
+    const emails = recipients.map((r) => r.email);
     if (emails.length === 0 && invalid.length === 0) {
       throw new BadRequestException(i18nMessage("api.companyConnections.gecerliEPostaAdresiVerilmedi"));
     }
 
-    const [optOuts, existing, registered, me, cats] = await Promise.all([
+    const [optOuts, existing, registered, me, cats, address] = await Promise.all([
       this.prisma.referralOptOut.findMany({
         where: { email: { in: emails } },
         select: { email: true },
@@ -464,19 +535,76 @@ export class CompanyConnectionsService {
         where: { id: { in: listing.categoryIds.slice(0, 3) } },
         select: CATEGORY_NAME_SELECT,
       }),
+      listing.deliveryAddressId
+        ? this.prisma.companyAddress.findFirst({
+            where: { id: listing.deliveryAddressId, companyId: user.companyId },
+            select: { city: true, country: true },
+          })
+        : Promise.resolve(null),
     ]);
     const optOutSet = new Set(optOuts.map((o) => o.email));
     const existingSet = new Set(existing.map((e) => e.email));
     const registeredSet = new Set(registered.map((r) => r.email.toLowerCase()));
 
     const baseUrl = resolveWebUrl(this.config);
-    const locale = currentLocale();
-    // Kategori adı da davet edenin dilinde (e-posta metniyle aynı dil).
-    const categories =
-      cats.map((c) => categoryName(c, locale)).join(", ") || "-";
-    // Son teklif tarihi İstanbul duvar saatiyle (ham UTC günü 00:00–03:00
-    // arası kapanışta bir gün önceyi gösteriyordu).
-    const closesAt = listing.closesAt ? formatInviteDeadline(listing.closesAt, locale) : null;
+    const inviterLocale = currentLocale();
+    const langOf = new Map<string, Locale>(
+      recipients.map((r) => [
+        r.email,
+        recipientLocale({ explicit: r.locale, country: r.country, email: r.email, fallback: inviterLocale }),
+      ]),
+    );
+
+    // Gönderilecek alıcıların dilleri: talep çevirisi hazır değilse BİR KEZ
+    // beklenir (üç dilin çevirisi tek model çağrısıyla gelir).
+    const willSend = emails.filter((e) => !optOutSet.has(e) && !registeredSet.has(e) && !existingSet.has(e));
+    const neededLocales = [...new Set(willSend.map((e) => langOf.get(e) ?? inviterLocale))];
+    if (neededLocales.length > 0 && this.translations) {
+      await this.translations.ensureTranslated("LISTING", listing.id, neededLocales, INVITE_TRANSLATION_WAIT_MS);
+    }
+
+    // Herkese açık talep sayfası YALNIZ vitrindeyse (tek kaynak
+    // `marketplaceListingWhere`); adres slug'ı KAYNAK başlıktan (dilden bağımsız).
+    const inVitrine =
+      !!listing.number &&
+      willSend.length > 0 &&
+      (await this.prisma.listing.count({
+        where: { AND: [{ id: listing.id }, marketplaceListingWhere(new Date())] },
+      })) > 0;
+
+    const contentCache = new Map<Locale, Omit<TenderExternalInviteData, "registerUrl" | "optOutUrl">>();
+    const contentFor = async (locale: Locale) => {
+      const hit = contentCache.get(locale);
+      if (hit) return hit;
+      const base = { title: listing.title, items: listing.items.map((i) => ({ name: i.name })) };
+      const [loc] = this.translations
+        ? await this.translations.localizeListings([base], [listing.id], locale)
+        : [base];
+      const content = {
+        inviterName: this.companyNameOr(me?.name, locale),
+        tenderTitle: loc?.title ?? listing.title,
+        tenderNumber: listing.number ?? null,
+        // Kategori adı alıcının dilinde (katalog çevirisi; yoksa Türkçe).
+        categories: cats.map((c) => categoryName(c, locale)),
+        // Son teklif tarihi İstanbul duvar saatiyle, alıcının dilinde (+ saat dilimi).
+        closesAt: listing.closesAt ? formatInviteDeadline(listing.closesAt, locale) : null,
+        items: listing.items.map((it, i) => ({
+          name: loc?.items?.[i]?.name ?? it.name,
+          quantity: Number(it.quantity),
+          unitCode: it.unitCode,
+          unit: it.unit,
+        })),
+        itemCount: listing._count.items,
+        deliveryPlace: address ? formatInvitePlace(address.city, address.country, locale) : null,
+        supplierTypes: listing.preferredActivities,
+        publicUrl:
+          inVitrine && listing.number
+            ? `${baseUrl}${localizeAppPath(listingPath(listing.number, listing.title), locale)}`
+            : null,
+      };
+      contentCache.set(locale, content);
+      return content;
+    };
 
     const results: ExternalInviteResult[] = invalid.map((email) => ({
       email,
@@ -517,30 +645,31 @@ export class CompanyConnectionsService {
         });
         continue;
       }
+      const locale = langOf.get(email) ?? inviterLocale;
       const inv = await this.prisma.companyReferralInvite.create({
         data: {
           inviterCompanyId: user.companyId,
           email,
           invitedById: user.userId,
           listingId: listing.id,
+          locale,
         },
       });
       budget--;
+      const content = await contentFor(locale);
       // Gönderim BEKLENİR (2026-09-27): eskiden ateşle-unut + önceden "SENT"
       // yazılıyordu. Günlük tavan 20 olduğu için bekleme süresi sınırlı.
       const out = await deliverInvite(() =>
         this.email.send({
           to: { email },
-          // Alıcı kayıtlı DEĞİL → DAVET EDENİN dili (bkz. referral_invite).
+          // Alıcı kayıtlı DEĞİL → ALICININ dili (yukarıda türetildi, kayıtta).
           locale,
           templateData: {
             template: "tender_external_invite",
             data: {
-              inviterName: this.companyNameOr(me?.name),
-              tenderTitle: listing.title,
-              categories,
-              closesAt,
-              registerUrl: appRoutes.signupWithRef(baseUrl, inv.token, locale),
+              ...content,
+              // Kayıttan sonra doğrudan talebe (onboarding sonrası da korunur).
+              registerUrl: appRoutes.signupWithRef(baseUrl, inv.token, locale, `/company/ilan/${listing.id}`),
               optOutUrl: appRoutes.optOut(baseUrl, inv.token, locale),
             },
           },
@@ -612,21 +741,30 @@ export class CompanyConnectionsService {
     return { ok: true };
   }
 
-  async inviteByEmailBatch(user: AuthenticatedCompanyUser, emails: string[]) {
+  async inviteByEmailBatch(
+    user: AuthenticatedCompanyUser,
+    entries: ReadonlyArray<string | { email: string; locale?: string | null }>,
+  ) {
     if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
         i18nMessage("api.companyConnections.baglantiDavetiGondermekIcinBirPaket"),
       );
     }
-    // Normalize + sıra korumalı dedupe.
+    // Normalize + sıra korumalı dedupe; adres başına dil (yeni istemci).
     const seen = new Set<string>();
     const unique: string[] = [];
-    for (const raw of emails) {
-      const e = raw.trim().toLowerCase();
+    const localeFor = new Map<string, string | null | undefined>();
+    for (const raw of entries) {
+      const entry = typeof raw === "string" ? { email: raw } : raw;
+      const e = (entry.email ?? "").trim().toLowerCase();
       if (e && !seen.has(e)) {
         seen.add(e);
         unique.push(e);
+        localeFor.set(e, entry.locale);
       }
+    }
+    if (unique.length === 0) {
+      throw new BadRequestException(i18nMessage("api.companyConnections.gecerliEPostaAdresiVerilmedi"));
     }
 
     type BatchRow = {
@@ -643,7 +781,7 @@ export class CompanyConnectionsService {
     // 1) Kapılar + kayıtlar SIRAYLA (tavan sayımı doğru kalsın).
     for (const [index, email] of unique.entries()) {
       try {
-        const prep = await this.prepareReferralInvite(user, email);
+        const prep = await this.prepareReferralInvite(user, email, localeFor.get(email));
         if (prep.kind === "request") {
           results[index] = { email, status: "request", code: "REQUEST", targetName: prep.targetName };
         } else {
@@ -822,10 +960,8 @@ export class CompanyConnectionsService {
    * yedek pratikte kullanılmaz; kullanılırsa İSTEK dilinde üretilir (tek
    * `params` sözlüğü N alıcıya dağıldığı için alıcı başına ayrışamaz).
    */
-  private companyNameOr(name?: string | null): string {
-    return (
-      name ?? tApi("api.notifications.companyConnections.someCompany", undefined, currentLocale())
-    );
+  private companyNameOr(name?: string | null, locale: Locale = currentLocale()): string {
+    return name ?? tApi("api.notifications.companyConnections.someCompany", undefined, locale);
   }
 
   /** Firmanın bildirim e-postasına (billingEmail → ilk aktif kullanıcı) bildirim

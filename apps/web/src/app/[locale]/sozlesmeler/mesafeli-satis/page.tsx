@@ -2,7 +2,7 @@ import { setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import type { Metadata } from "next";
 import { LegalDoc } from "@/components/marketing/legal-doc";
-import { buildMetadata } from "@/lib/seo/meta";
+import { LEGAL_DOC_LOCALES, buildMetadata } from "@/lib/seo/meta";
 import { OPERATOR } from "@/lib/company-info";
 
 /* "— Rothern" YOK: kök şablon (`%s · Rothern`) markayı ekliyor; elle
@@ -11,6 +11,8 @@ export async function generateMetadata({ params }: { params: LocaleParams }): Pr
   const locale = await localeFromParams(params);
   return buildMetadata({
     locale,
+    // Hukuki metin yalnız Türkçe: EN/RU sayfanın kanoniği Türkçe adres.
+    locales: LEGAL_DOC_LOCALES,
   title: "Mesafeli Satış Sözleşmesi",
   description:
     "Rothern üyelik paketlerinin mesafeli satış koşulları: ücret, ödeme, yenileme, cayma ve iptal.",

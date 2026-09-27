@@ -12,6 +12,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { Type } from "class-transformer";
+import { FOREIGN_CURRENCY_CODES } from "@rothern/shared";
 import {
   IsEmail,
   IsIn,
@@ -44,16 +45,8 @@ class ResolveCategoryMissDto {
   note!: string;
 }
 
-const MANUAL_CURRENCIES = [
-  "USD",
-  "EUR",
-  "GBP",
-  "CHF",
-  "JPY",
-  "AED",
-  "CNY",
-  "RUB",
-];
+// TEK KAYNAK `@rothern/shared` (TRY hariç — TRY=1 sabit).
+const MANUAL_CURRENCIES: readonly string[] = FOREIGN_CURRENCY_CODES;
 
 class ManualRateDto {
   @IsIn(MANUAL_CURRENCIES)
@@ -205,6 +198,8 @@ export class AdminSystemController {
       },
       update: { rate: dto.rate, source: "MANUAL", fetchedAt: new Date() },
     });
+    // Bellek içi kur tablosu + ürün fiyat tabanı yeni kurla tazelensin.
+    await this.exchangeRates.onRatesChanged();
     await this.audit.log({
       action: "admin.system.manual_rate_set",
       actorType: "admin",

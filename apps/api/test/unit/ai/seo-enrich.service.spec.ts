@@ -1,4 +1,6 @@
 import { SeoEnrichService } from "../../../src/modules/ai/seo-enrich/seo-enrich.service";
+import { clampSentences, isMostlyCjk, lowerCaseWords } from "../../../src/modules/ai/ai-text";
+import { runWithLocale } from "../../../src/common/i18n/locale-context";
 
 /**
  * Açıklama güçlendirme — sanitizer sözleşmesi: madde/emoji temizliği,
@@ -48,6 +50,31 @@ describe("SeoEnrichService", () => {
 
     const bad = makeAi(["bozuk", "{}"]);
     await expect(new SeoEnrichService(bad as never).enrich(user, { kind: "listing", name: "Boru alımı" })).rejects.toThrow(/üretilemedi/);
+  });
+
+  it("DİL: içerik (açıklama/anahtar kelime/ad önerisi) girdinin dilinde, eksik olgu etiketleri arayüz dilinde — kural istemin SONUNDA; sabit 'Türkçe' yok", async () => {
+    const ai = makeAi([JSON.stringify({ description: LONG, keywords: [] })]);
+    await runWithLocale("ru", () => new SeoEnrichService(ai as never).enrich(user, { kind: "product", name: "Edelstahlbogen" }));
+    const system = ai.callAi.mock.calls[0][1].system as string;
+    expect(system).toContain("ÇIKTI DİLİ (description, keywords, titleSuggestion)");
+    expect(system).toContain("KULLANICI METNİ DİLİ (missingFacts)");
+    expect(system).toContain("Русский (ru)");
+    expect(system).not.toMatch(/Türkçe bir açıklama|doğal Türkçeyle|İngilizce karşılığı/);
+    expect(system.trimEnd().endsWith("girdi başka dilde olsa bile.")).toBe(true);
+  });
+
+  it("anahtar kelime küçük harfi dile duyarlı; CJK açıklama kısa sınırla kabul edilir ve '。' sınırında kesilir", async () => {
+    const zh = "不锈钢弯头采用AISI 316合金制造，适用于食品工厂。".repeat(20);
+    const ai = makeAi([JSON.stringify({ description: zh, keywords: ["IP65", "IŞIK", "不锈钢"] })]);
+    const r = await new SeoEnrichService(ai as never).enrich(user, { kind: "product", name: "不锈钢弯头" });
+    expect(ai.callAi).toHaveBeenCalledTimes(1); // 120 karakter altı sayılmadı (CJK ÷3)
+    expect(r.keywords).toEqual(["ip65", "ışık", "不锈钢"]);
+    expect(r.description.length).toBeLessThanOrEqual(300);
+    expect(r.description.endsWith("。")).toBe(true);
+    expect(isMostlyCjk(zh)).toBe(true);
+    expect(isMostlyCjk(LONG)).toBe(false);
+    expect(lowerCaseWords("İSTANBUL IP65")).toBe("istanbul ip65");
+    expect(clampSentences("Первое предложение. Второе предложение длиннее.", 30)).toBe("Первое предложение.");
   });
 
   it("ad yoksa 400; ad önerisi adla aynıysa null", async () => {

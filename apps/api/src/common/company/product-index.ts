@@ -18,6 +18,7 @@ import { FAST_REPLY_HOURS } from "./reply-time";
 import { publicProductWhere } from "./public-profile-gate";
 import { geoIndex } from "../geo/geo-index";
 import { currentLocale } from "../i18n/locale-context";
+import { fxRate } from "../currency/fx-rates";
 
 /**
  * ÜRÜN DİZİNİ — where/orderBy/facet TEK KAYNAK (2026-09-04).
@@ -42,7 +43,15 @@ export interface ProductIndexParams {
   activity?: string;
   verified?: boolean;
   price?: "has" | "request";
-  /** TRY cinsinden birim fiyat aralığı (yalnız fiyatı yazılı ürünler). */
+  /**
+   * Fiyat süzgecinin/histogramının PARA BİRİMİ (ISO; 2026-09-27 "kurla
+   * çevir"). `priceMin`/`priceMax` bu birimde yorumlanır ve TCMB kuruyla
+   * TRY'ye çevrilip `priceAmountBase` ile karşılaştırılır; histogram da bu
+   * birimde döner. Verilmezse TRY. Varsayılanı ÇAĞIRAN seçer (ziyaretçide
+   * arayüz dili, panelde firma ülkesi — `fx-rates.ts` `resolve*Currency`).
+   */
+  currency?: string;
+  /** `currency` cinsinden birim fiyat aralığı (yalnız fiyatı yazılı ürünler). */
   priceMin?: number;
   priceMax?: number;
   /** "Min. sipariş ≤ X" — MOQ'su bu değerden küçük/eşit ya da hiç olmayanlar. */
@@ -78,6 +87,14 @@ export const MOQ_BUCKETS = [10, 100, 1000] as const;
 
 /** Fiyat histogramı kova sayısı — ray genişliğinde okunur kalan en yüksek değer. */
 export const PRICE_HISTOGRAM_BUCKETS = 12;
+
+/**
+ * Süzgeç para biriminin TRY kuru — bilinmeyen/boş kod TRY sayılır (1).
+ * Aralık sınırları `× kur` ile TRY tabanına, histogram `÷ kur` ile geri çevrilir.
+ */
+function currencyRate(code?: string): number {
+  return fxRate(code) ?? 1;
+}
 
 /** Virgüllü çoklu değer → dizi (boşlar düşer, tavan 10). */
 export function multi(v?: string): string[] {
@@ -281,13 +298,22 @@ export function productIndexWhere(
     // `employeeValues` ile geçer (bkz. `employeeValuesFor`). Liste boşsa
     // seçim hiçbir şeyi eşlemiyordur; `in: []` doğru sonucu (0 kayıt) verir.
     ...(employeeKeys.length ? [{ company: { employeeCount: { in: opts.employeeValues ?? [] } } }] : []),
-    // Fiyat aralığı yalnız yazılı birim fiyatı olanlara uygulanır (sabit fiyat;
-    // kademeli ürünlerin tabanı priceAmount'ta yok — kapsam dışı, bilinçli).
+    // Fiyat aralığı KURLA ÇEVRİLMİŞ ortak tabanda (2026-09-27): sınırlar
+    // seçilen para biriminden TRY'ye çevrilir, ürünün TRY karşılığıyla
+    // (`priceAmountBase`, kartta görünen fiyat: sabitte tutar, kademelide en
+    // düşük kademe) karşılaştırılır. Eskiden ham `priceAmount` para birimine
+    // bakmadan kıyaslanıyordu: "en çok 500" diyen Alman alıcıya 450 EUR'luk
+    // ürünle 490 TRY'lik ürün karışıyordu.
     ...(q.priceMin != null || q.priceMax != null
       ? [
           {
             OR: [
-              { priceAmount: { ...(q.priceMin != null ? { gte: q.priceMin } : {}), ...(q.priceMax != null ? { lte: q.priceMax } : {}) } },
+              {
+                priceAmountBase: {
+                  ...(q.priceMin != null ? { gte: q.priceMin * currencyRate(q.currency) } : {}),
+                  ...(q.priceMax != null ? { lte: q.priceMax * currencyRate(q.currency) } : {}),
+                },
+              },
               ...(q.priceUnpriced ? [{ priceMode: "ON_REQUEST" as const }] : []),
             ],
           },
@@ -319,8 +345,10 @@ export function productIndexOrderBy(
 ): Prisma.CompanyItemOrderByWithRelationInput[] {
   const paidFirst = { company: { tier: "desc" as const } };
   if (sort === "newest") return [paidFirst, { publishedAt: "desc" }, { completionScore: "desc" }];
-  if (sort === "price") return [{ priceAmount: { sort: "asc", nulls: "last" } }, { completionScore: "desc" }];
-  if (sort === "price_desc") return [{ priceAmount: { sort: "desc", nulls: "last" } }, { completionScore: "desc" }];
+  // Fiyat sırası TRY karşılığından (`priceAmountBase`): ham tutarla
+  // sıralanınca JPY/KRW ürünleri (büyük sayı) en pahalı, KWD en ucuz görünürdü.
+  if (sort === "price") return [{ priceAmountBase: { sort: "asc", nulls: "last" } }, { completionScore: "desc" }];
+  if (sort === "price_desc") return [{ priceAmountBase: { sort: "desc", nulls: "last" } }, { completionScore: "desc" }];
   return [paidFirst, { completionScore: "desc" }, { publishedAt: "desc" }];
 }
 
@@ -330,6 +358,8 @@ export interface ProductFacetRow {
   /** Prisma `Decimal` → satır eşlemesinde `.toNumber()` (bkz. `toFacetRow`). */
   moq?: number | null;
   priceAmount?: number | null;
+  /** Fiyatın TRY karşılığı — histogram bundan, seçilen para birimine çevrilerek. */
+  priceAmountBase?: number | null;
   company: {
     city: string | null;
     /** Dünya şehir listesi kaydı (2026-09-27); eski satırda olmayabilir. */
@@ -351,6 +381,7 @@ export function toFacetRow(r: {
   priceMode?: string;
   moq?: Prisma.Decimal | null;
   priceAmount?: Prisma.Decimal | null;
+  priceAmountBase?: Prisma.Decimal | null;
   company: {
     city: string | null;
     /** Dünya şehir listesi kaydı (2026-09-27); eski satırda olmayabilir. */
@@ -368,6 +399,7 @@ export function toFacetRow(r: {
     priceMode: r.priceMode,
     moq: r.moq != null ? Number(r.moq) : null,
     priceAmount: r.priceAmount != null ? Number(r.priceAmount) : null,
+    priceAmountBase: r.priceAmountBase != null ? Number(r.priceAmountBase) : null,
     company: r.company,
   };
 }
@@ -461,7 +493,7 @@ export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndex
     moq: Object.fromEntries(
       MOQ_BUCKETS.map((b) => [b, forAll.filter((r) => r.moq == null || r.moq <= b).length]),
     ) as Record<string, number>,
-    priceHistogram: priceHistogram(forAll),
+    priceHistogram: priceHistogram(forAll, sel.currency),
   };
 }
 
@@ -483,14 +515,22 @@ export function contextualFacetCounts(rows: ProductFacetRow[], sel: ProductIndex
  *
  * Fiyatı yazılı ürün 2'den azsa ya da hepsi aynı fiyattaysa `null` →
  * çağıran histogramı hiç çizmez (boş kutu basmayız).
+ *
+ * PARA BİRİMİ (2026-09-27): fiyatlar TRY karşılığından (`priceAmountBase`)
+ * `currency` birimine çevrilir — farklı birimdeki ürünler tek eksende. Kova
+ * sınırları o birimde; web aynı birimle `priceMin/priceMax` geri gönderir.
  */
-export function priceHistogram(rows: ProductFacetRow[]): {
+export function priceHistogram(rows: ProductFacetRow[], currency?: string): {
   min: number;
   max: number;
   quantiles: { p33: number; p66: number };
   buckets: { from: number; to: number; count: number }[];
 } | null {
-  const prices = rows.map((r) => r.priceAmount).filter((p): p is number => p != null && p > 0).sort((a, b) => a - b);
+  const rate = currencyRate(currency);
+  const prices = rows
+    .map((r) => (r.priceAmountBase != null ? r.priceAmountBase / rate : null))
+    .filter((p): p is number => p != null && p > 0)
+    .sort((a, b) => a - b);
   if (prices.length < 2) return null;
   const at = (q: number) => prices[Math.min(prices.length - 1, Math.max(0, Math.round(q * (prices.length - 1))))]!;
   const lo = Math.max(1, at(0.05));

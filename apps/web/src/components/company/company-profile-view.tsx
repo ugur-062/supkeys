@@ -3,7 +3,7 @@ import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-not
 import { cityDisplayName, countryDisplayName, useActivityLabel } from "@/i18n/domain";
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
-import { INTL_LOCALE } from "@/i18n/format";
+import { INTL_LOCALE, upperForText } from "@/i18n/format";
 import type { ReactNode } from "react";
 import { MapPinIcon, StarIcon } from "@heroicons/react/20/solid";
 import { countryFlag, type ReviewSummary } from "@rothern/shared";
@@ -62,6 +62,13 @@ export interface ProfileViewData {
   aboutText: string | null;
   /** Metin sayfa diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e). */
   translatedFrom?: string | null;
+  /**
+   * Firma metni (tanıtım, sektör, hizmetler) SAYFANIN DİLİNDE DEĞİLSE onun dili
+   * — çevirisi bekleyen ya da Türkçe dışı kaynaklı içerik (`contentLangOf`).
+   * Metin blokları `lang` taşır (2026-09-27: EN sayfada Türkçe tanıtım
+   * `<html lang="en">` altında okunuyordu). Verilmezse sayfanın dili.
+   */
+  contentLang?: string;
   /**
    * Aşağıdakiler OPSİYONEL: herkese açık sayfa (anonim katman) bu alanları
    * HİÇ vermez — `null` bile yazılsa RSC yüküne anahtar adı düşer ve "gizli
@@ -254,7 +261,7 @@ export function CompanyProfileView({
                   className="h-20 w-20 rounded-xl object-cover sm:h-24 sm:w-24"
                   fallback={
                     <div className="flex h-20 w-20 items-center justify-center rounded-xl bg-blue-600 text-3xl font-bold text-white sm:h-24 sm:w-24">
-                      {p.name.charAt(0).toLocaleUpperCase("tr-TR")}
+                      {upperForText(p.name.charAt(0), p.name)}
                     </div>
                   }
                 />
@@ -311,7 +318,7 @@ export function CompanyProfileView({
                           {cityDisplayName(p.city, locale)}
                         </span>
                       ) : null}
-                      {p.industry ? <span className="text-zinc-500">· {p.industry}</span> : null}
+                      {p.industry ? <span className="text-zinc-500" lang={p.contentLang}>· {p.industry}</span> : null}
                     </p>
                     {p.activities?.length ? (
                       <p className="mt-1.5 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm text-zinc-700">
@@ -339,7 +346,7 @@ export function CompanyProfileView({
               aynı paragrafı iki kez basmayız. */}
           {p.aboutText ? (
             <div className="mt-4 max-w-4xl">
-              <p className="line-clamp-2 text-[15px] leading-relaxed text-zinc-600">{p.aboutText}</p>
+              <p className="line-clamp-2 text-[15px] leading-relaxed text-zinc-600" lang={p.contentLang}>{p.aboutText}</p>
               <a
                 href="#hakkinda"
                 className="mt-1 inline-block text-sm font-semibold text-zinc-900 underline underline-offset-4 hover:text-zinc-600"
@@ -377,7 +384,7 @@ export function CompanyProfileView({
           ) : p.aboutText ? (
             <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">{t("aboutName", { name: p.name })}</h2>
-              <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-zinc-600">
+              <p className="mt-3 whitespace-pre-wrap text-[15px] leading-relaxed text-zinc-600" lang={p.contentLang}>
                 {p.aboutText}
               </p>
               <AutoTranslatedNote from={p.translatedFrom} className="mt-2" />
@@ -395,7 +402,7 @@ export function CompanyProfileView({
           ) : services.length > 0 ? (
             <section className="card p-6">
               <h2 className="text-base font-semibold text-zinc-900">{t("services")}</h2>
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-3 flex flex-wrap gap-2" lang={p.contentLang}>
                 {services.map((s) => (
                   <span
                     key={s}

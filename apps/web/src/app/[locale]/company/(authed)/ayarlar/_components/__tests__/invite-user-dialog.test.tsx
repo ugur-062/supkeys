@@ -51,7 +51,11 @@ describe("InviteUserDialog", () => {
     expect(send).toBeEnabled();
     fireEvent.click(send);
     await waitFor(() => expect(h.invite).toHaveBeenCalledTimes(1));
-    expect(h.invite.mock.calls[0][0]).toMatchObject({ email: "ali@firma.com", permissions: ["buy:view", "buy:listing:manage"] });
+    expect(h.invite.mock.calls[0][0]).toMatchObject({
+      email: "ali@firma.com",
+      permissions: ["buy:view", "buy:listing:manage"],
+      locale: "tr",
+    });
     await waitFor(() => expect(h.toast.success).toHaveBeenCalled());
   });
 
@@ -66,6 +70,19 @@ describe("InviteUserDialog", () => {
     opts.action.onClick();
     await waitFor(() => expect(h.resend).toHaveBeenCalledWith("inv1"));
     await waitFor(() => expect(h.toast.success).toHaveBeenCalledWith("Davet e-postası yeniden gönderildi."));
+  });
+
+  it("davet dili: varsayılan arayüz dili gönderilir; seçilen dil davet ucuna gider", async () => {
+    render(<InviteUserDialog open onClose={() => {}} />);
+    const select = screen.getByLabelText("Davet dili") as HTMLSelectElement;
+    // Dil adları dilin KENDİ adıyla (çevrilmez).
+    expect(Array.from(select.options).map((o) => o.textContent)).toEqual(["Türkçe", "English", "Русский"]);
+    expect(select.value).toBe("tr"); // test sahtesinde arayüz dili Türkçe
+    fireEvent.change(select, { target: { value: "en" } });
+    fireEvent.change(screen.getByPlaceholderText("kisi@firma.com"), { target: { value: "john@firma.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Davet Gönder" }));
+    await waitFor(() => expect(h.invite).toHaveBeenCalledTimes(1));
+    expect(h.invite.mock.calls[0][0]).toMatchObject({ email: "john@firma.com", locale: "en" });
   });
 
   it("suppress edilmiş adres: uyarı, yeniden gönder eylemi YOK (aynı adrese yine gitmez)", async () => {

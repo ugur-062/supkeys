@@ -1,9 +1,13 @@
 import {
+  CURRENCY_CODES,
   MAX_LISTING_HORIZON_MS,
   MAX_MONEY,
   MAX_QUANTITY,
   MIN_QUANTITY,
+  getUnit,
+  normalizeUnit,
   type AiFieldFlag,
+  type AiMissingField,
   type AiTenderDraft,
   type AiTenderDraftItem,
 } from "@rothern/shared";
@@ -21,9 +25,8 @@ import type { AiExtractRoute } from "./ai-extract-router";
  */
 
 // DTO/zod ile birebir enum listeleri (create-listing.dto.ts / form-schema.ts).
-const CURRENCIES = new Set([
-  "TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY", "RUB",
-]);
+// Para birimi tek kaynak `@rothern/shared` `CURRENCY_CODES` (Prisma enum'la birebir).
+const CURRENCIES = new Set<string>(CURRENCY_CODES);
 const DELIVERY_TERMS = new Set([
   "DOMESTIC_DELIVERED", "DOMESTIC_PICKUP", "DOMESTIC_CARRIER_COLLECT",
   "DOMESTIC_ON_VEHICLE", "EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP",
@@ -43,10 +46,25 @@ const VISION_CRITICAL_TOP_FIELDS = ["bidsCloseAt", "primaryCurrency"] as const;
 const KNOWN_PATH_RE =
   /^(title|description|primaryCurrency|deliveryTerm|paymentCategory|paymentDays|advancePercent|bidsCloseAt|keywords|isInternational|termsAndConditions|items\.\d+\.(name|description|quantity|unit|materialCode|requiredByDate|targetUnitPrice))$/;
 
+/**
+ * Model birimi → formun sakladığı biçim (2026-09-27): tanınan birim — kod
+ * ("PCE"), İngilizce ("pcs") ya da Türkçe ("Adet") — katalogdaki Türkçe ada
+ * ("adet") iner; web `useUnitLabel` onu okuyucunun dilinde basar ("pcs",
+ * "шт."). Tanınmayan serbest metin olduğu gibi kalır (kullanıcı formda görür).
+ * İstem birimi kodla ister: Almanca/Rusça belgeden "Stück"/"шт" gelse de
+ * kalem tek biçimde saklansın.
+ */
+export function canonicalUnitName(raw: string | null | undefined): string | null {
+  const t = raw?.trim();
+  if (!t) return null;
+  const code = normalizeUnit(t);
+  return code ? (getUnit(code)?.nameTr ?? t) : t;
+}
+
 export interface SanitizedDraft {
   draft: AiTenderDraft;
   flags: AiFieldFlag[];
-  missingRequired: string[];
+  missingRequired: AiMissingField[];
 }
 
 const round = (n: number, decimals: number) => {
@@ -146,7 +164,7 @@ export function sanitizeAiDraft(
         max: MAX_QUANTITY,
         decimals: 3,
       }),
-      unit: str(it.unit, p("unit"), { min: 1, max: 20 }),
+      unit: canonicalUnitName(str(it.unit, p("unit"), { min: 1, max: 20 })),
       materialCode: str(it.materialCode, p("materialCode"), { max: 50 }),
       requiredByDate: isoDate(it.requiredByDate, p("requiredByDate"), {}),
       targetUnitPrice: num(it.targetUnitPrice, p("targetUnitPrice"), {
@@ -213,20 +231,20 @@ export function sanitizeAiDraft(
   if (draft.pricesIncludeVat === true) flag("prices", "vat_warning");
 
   // Eksik ZORUNLU alanlar (AI sorar; opsiyoneller boş bırakılır — kullanıcı yorulmaz).
-  const missingRequired: string[] = [];
-  if (!draft.title) missingRequired.push("Satın Alma Talebi başlığı");
+  const missingRequired: AiMissingField[] = [];
+  if (!draft.title) missingRequired.push("title");
   const usableItems = items.filter((i) => i.name);
-  if (usableItems.length === 0) missingRequired.push("En az bir kalem");
+  if (usableItems.length === 0) missingRequired.push("items");
   else {
-    if (usableItems.some((i) => i.quantity == null)) missingRequired.push("Kalem miktarları");
-    if (usableItems.some((i) => !i.unit)) missingRequired.push("Kalem birimleri");
+    if (usableItems.some((i) => i.quantity == null)) missingRequired.push("quantities");
+    if (usableItems.some((i) => !i.unit)) missingRequired.push("units");
   }
-  if (!draft.deliveryTerm) missingRequired.push("Teslim şekli");
-  if (!draft.bidsCloseAt) missingRequired.push("Teklif kapanış tarihi");
+  if (!draft.deliveryTerm) missingRequired.push("deliveryTerm");
+  if (!draft.bidsCloseAt) missingRequired.push("bidsCloseAt");
   // Kategori: AI önerisi varsa formda ön-dolu gelir (kullanıcı kontrol eder);
   // yoksa kullanıcının seçmesi gereken zorunlu alan olarak bildirilir.
   if (draft.suggestedCategoryIds.length === 0) {
-    missingRequired.push("Kategori seçimi (platformdan)");
+    missingRequired.push("category");
   }
 
   return { draft, flags, missingRequired };

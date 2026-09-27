@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useAiMissingFieldLabel } from "@/i18n/domain";
 import { useAiTenderRefine } from "@/hooks/use-ai-tender-import";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -99,6 +100,7 @@ export function AiFlagsBanner({
   onResult: (r: AiTenderExtractResult) => void;
 }) {
   const t = useTranslations("web.panel.requests.aiFlagsBanner");
+  const missingLabel = useAiMissingFieldLabel();
   const form = useFormContext<TenderFormData>();
   const refine = useAiTenderRefine();
   const [message, setMessage] = useState("");
@@ -180,10 +182,10 @@ export function AiFlagsBanner({
         <div className="text-sm text-zinc-700">
           <p className="font-medium">{t("yayinlamadanOnceTamamlamanizGerekenler")}</p>
           <ul className="mt-1 space-y-0.5">
-            {result.missingRequired.map((line) => (
-              <li key={line} className="flex items-start gap-2">
+            {result.missingRequired.map((code) => (
+              <li key={code} className="flex items-start gap-2">
                 <span className="mt-2 h-1 w-1 shrink-0 rounded-full bg-amber-500" />
-                {line}
+                {missingLabel(code)}
               </li>
             ))}
           </ul>

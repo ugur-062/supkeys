@@ -115,7 +115,7 @@ describe("SeoIndexService", () => {
       "https://www.rothern.com/ru/tovary/gorod/istanbul",
       "https://www.rothern.com/urunler/ulke/tr-turkiye",
       "https://www.rothern.com/en/products/country/tr-turkiye",
-      "https://www.rothern.com/ru/tovary/strana/tr-turkiye",
+      "https://www.rothern.com/ru/tovary/strana/tr-turtsiya",
     ]);
   });
 
@@ -196,7 +196,7 @@ describe("SeoIndexService", () => {
       "https://www.rothern.com/ru/tovary/gorod/izmir",
       "https://www.rothern.com/urunler/ulke/tr-turkiye",
       "https://www.rothern.com/en/products/country/tr-turkiye",
-      "https://www.rothern.com/ru/tovary/strana/tr-turkiye",
+      "https://www.rothern.com/ru/tovary/strana/tr-turtsiya",
     ]);
   });
 

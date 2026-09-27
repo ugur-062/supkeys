@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { foldSearchText } from "@rothern/shared";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { useFilters } from "@/components/marketplace/filter-shell";
 import {
@@ -33,9 +34,12 @@ import { useMemo, useState } from "react";
  *
  * Sıra "teklif verecek miyim" sorusunun sırası: neden karşımda (Uygunluk) →
  * hâlâ açık mı (Durum) → alanım mı (Kategori) → yetişir miyim (Kapsam,
- * Kapanış) → kim (Alıcı, Şehir) → koşullar (Para birimi, Usul) → ne zaman
- * çıktı (Yayın tarihi). Arama kutusu YOK — hero kutusu `?q=` yazar, burada
- * yalnız çip olarak görünür (aynı sayfada iki arama kutusu olmasın).
+ * Kapanış) → kim (Alıcı, Şehir, Ülke) → koşullar (Para birimi, Usul) → ne
+ * zaman çıktı (Yayın tarihi). Şehir ve ülke etiketleri okuyucunun dilinde
+ * (facet motoru `SellerTendersView`den etiketleyici alır); tek ülkeden gelen
+ * listede ülke grubu çizilmez (tek seçenekli süzgeç gürültüdür). Arama
+ * kutusu YOK — hero kutusu `?q=` yazar, burada yalnız çip olarak görünür
+ * (aynı sayfada iki arama kutusu olmasın).
  */
 type Update = ReturnType<typeof useFilters<RequestFilterState>>["update"];
 
@@ -114,6 +118,17 @@ export function RequestFilters({ facets, idPrefix = "t" }: { facets: RequestFace
         />
       </Group>
 
+      {facets.countries.length > 1 || state.countries.length > 0 ? (
+        <Group title={t("aliciUlkesi")} count={state.countries.length} onClear={() => update({ countries: [] })} storageKey="talep-ulke">
+          <ShowMore
+            items={facets.countries}
+            selected={state.countries}
+            idPrefix={`${idPrefix}-country`}
+            onToggle={(k, on) => update((s) => ({ ...s, countries: toggleIn(s.countries, k, on) }))}
+          />
+        </Group>
+      ) : null}
+
       <Group title={t("paraBirimi")} count={state.currencies.length} onClear={() => update({ currencies: [] })} storageKey="talep-para">
         <ShowMore
           items={facets.currencies}
@@ -162,8 +177,9 @@ function CategoryGroup({
   const tr = useTranslations("web.panel.trade.requestFilters");
   const [q, setQ] = useState("");
   const items = useMemo(() => {
-    const t = q.trim().toLocaleLowerCase("tr-TR");
-    return facets.categories.filter((c) => !t || c.label.toLocaleLowerCase("tr-TR").includes(t));
+    // Katlanmış karşılaştırma — `tr-TR` küçültme Latin "I"yı "ı" yapıyordu.
+    const t = foldSearchText(q);
+    return facets.categories.filter((c) => !t || foldSearchText(c.label).includes(t));
   }, [facets.categories, q]);
   return (
     <Group title={tr("kategori")} count={state.categories.length} onClear={() => update({ categories: [] })} storageKey="talep-kategori">
@@ -213,7 +229,9 @@ export function RequestActiveChips({ facets }: { facets: RequestFacets }) {
   for (const b of state.buyers)
     chips.push({ key: `buyer:${b}`, label: name(facets.buyers, b), onRemove: () => update((s) => ({ ...s, buyers: s.buyers.filter((x) => x !== b) })) });
   for (const c of state.cities)
-    chips.push({ key: `city:${c}`, label: c, onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+    chips.push({ key: `city:${c}`, label: name(facets.cities, c), onRemove: () => update((s) => ({ ...s, cities: s.cities.filter((x) => x !== c) })) });
+  for (const c of state.countries)
+    chips.push({ key: `country:${c}`, label: name(facets.countries, c), onRemove: () => update((s) => ({ ...s, countries: s.countries.filter((x) => x !== c) })) });
   for (const c of state.currencies)
     chips.push({ key: `cur:${c}`, label: c, onRemove: () => update((s) => ({ ...s, currencies: s.currencies.filter((x) => x !== c) })) });
   if (state.format) chips.push({ key: "format", label: state.format === "pazarlik" ? t("pazarlik") : t("teklifToplama"), onRemove: () => update({ format: undefined }) });

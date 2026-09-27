@@ -9,9 +9,9 @@ import {
 import type { CompanyVerificationStatus, KycDocStatus } from "@rothern/db";
 import { randomUUID } from "node:crypto";
 import {
+  classifyBankAccountInput,
   countryUsesIban,
   maskIban,
-  normalizeIban,
   normalizeSwift,
   requiredDocsForCountry,
 } from "@rothern/shared";
@@ -425,7 +425,9 @@ export class CompanyDocsService {
     const usesIban = countryUsesIban(country ?? "TR");
     const mersisNo = kyc.mersisNo?.trim();
     const tradeRegistryNo = kyc.tradeRegistryNo?.trim();
-    const iban = kyc.iban ? (usesIban ? normalizeIban(kyc.iban) : kyc.iban.trim()) : undefined;
+    // IBAN zorunlu olmayan ülkede de geçerli IBAN yazılabilir → boşluksuz saklanır.
+    const acct = classifyBankAccountInput(country ?? "TR", kyc.iban);
+    const iban = kyc.iban ? (acct.iban ?? acct.accountNumber ?? kyc.iban.trim()) : undefined;
     const ibanHolder = kyc.ibanHolder?.trim();
     const bankSwiftBic = kyc.bankSwiftBic !== undefined ? normalizeSwift(kyc.bankSwiftBic) : undefined;
     const bankName = kyc.bankName?.trim();

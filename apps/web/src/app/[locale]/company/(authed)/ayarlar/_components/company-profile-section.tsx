@@ -30,9 +30,9 @@ import {
 } from "@/hooks/use-company-profile";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import {
-  getCountryProfile,
   isTurkey,
   maskNationalId,
+  taxIdLabelKey,
 } from "@rothern/shared";
 import { Lock, UserRound } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -63,6 +63,8 @@ type FormState = {
   /** Dünya şehir listesi kaydı (seçiciden; 2026-09-27). */
   cityId: number | null;
   district: string;
+  /** Eyalet/bölge — yalnız TR dışında (2026-09-27: kayıttan sonra düzenlenemiyordu). */
+  stateRegion: string;
   addressLine: string;
   postalCode: string;
   kepAddress: string;
@@ -79,6 +81,7 @@ const EMPTY_FORM: FormState = {
   city: "",
   cityId: null,
   district: "",
+  stateRegion: "",
   addressLine: "",
   postalCode: "",
   kepAddress: "",
@@ -97,6 +100,7 @@ function toForm(p: CompanyProfile): FormState {
     city: p.city ?? "",
     cityId: p.cityId ?? null,
     district: p.district ?? "",
+    stateRegion: p.stateRegion ?? "",
     addressLine: p.addressLine ?? "",
     postalCode: p.postalCode ?? "",
     kepAddress: p.kepAddress ?? "",
@@ -114,11 +118,18 @@ function toForm(p: CompanyProfile): FormState {
 /** Hukuki yapı etiketi `companyType.<KOD>` katalog anahtarından çizilir (Anonim / Limited / Şahıs). */
 type CompanyType = NonNullable<CompanyProfile["companyType"]>;
 
+/**
+ * Kayıtta yazılan "Kurucu" unvanı — hangi dilde yazıldıysa (eski kayıtlar
+ * Türkçe) okuyucunun dilinde gösterilir; elle girilmiş unvan olduğu gibi.
+ */
+const FOUNDER_TITLES = new Set(["Kurucu", "Founder", "Основатель"]);
+
 // KEP: backend regex birebir (@...kep.tr).
 const KEP_RE = /^[^@\s]+@[^@\s]+\.kep\.tr$/i;
 
 export function CompanyProfileSection() {
   const t = useTranslations("web.panel.settings.companyProfileSection");
+  const tTax = useTranslations("web.domain.taxId");
   const locale = useLocale() as Locale;
   const tierLabel = useTierLabel();
   const verificationMeta = useVerificationMeta();
@@ -204,15 +215,15 @@ export function CompanyProfileSection() {
 
   const verification = verificationMeta(profile.companyVerificationStatus);
   const isSole = profile.companyType === "SOLE_PROPRIETOR";
-  const countryProfile = getCountryProfile(profile.country);
-  // Vergi kimliği etiketi ülkeye göre; TR'de kısa ad, yurt dışında ülke
-  // profilinin adı (INN/BIN/USCC/TRN…). Şahıs firmasında vergi no = TCKN →
-  // kişisel veri, maskeli.
+  // Vergi kimliği etiketi ülkeye göre; TR'de kısa ad, yurt dışında arayüz
+  // dilinde + resmî yerel ad parantezde (INN/BIN/USCC/TRN…; katalog
+  // `web.domain.taxId.label.*` — eskiden profildeki karışık dilli metin ham
+  // basılıyordu). Şahıs firmasında vergi no = TCKN → kişisel veri, maskeli.
   const taxLabel = isTR
     ? isSole
       ? t("vergiNoTckn")
       : t("vergiNo")
-    : (countryProfile?.taxIdLabel ?? t("vergiSicilNo"));
+    : tTax(`label.${taxIdLabelKey(profile.country)}` as never);
   const taxValue = profile.taxNumber
     ? isSole
       ? maskNationalId(profile.taxNumber)
@@ -264,7 +275,13 @@ export function CompanyProfileSection() {
             {profile.authorizedTckn ? maskNationalId(profile.authorizedTckn) : "—"}
           </DescriptionDetails>
           <DescriptionTerm>{t("yetkiliUnvani")}</DescriptionTerm>
-          <DescriptionDetails>{profile.authorizedTitle ?? "—"}</DescriptionDetails>
+          <DescriptionDetails>
+            {profile.authorizedTitle
+              ? FOUNDER_TITLES.has(profile.authorizedTitle.trim())
+                ? t("kurucu")
+                : profile.authorizedTitle
+              : "—"}
+          </DescriptionDetails>
           <DescriptionTerm>{t("uyelik")}</DescriptionTerm>
           <DescriptionDetails>
             <Badge
@@ -398,20 +415,33 @@ export function CompanyProfileSection() {
         <div className="mt-4 space-y-4">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
             <Field>
-              <Label>{t("ilSehir")}</Label>
+              <Label>{isTR ? t("il") : t("sehir")}</Label>
               <CityCombobox
                 country={profile.country ?? "TR"}
                 value={form.city}
                 onChange={({ city, cityId }) => set({ city, cityId })}
               />
             </Field>
-            <Field>
-              <Label>{t("ilce")}</Label>
-              <Input
-                value={form.district}
-                onChange={(e) => set({ district: e.target.value })}
-              />
-            </Field>
+            {/* TR'de ilçe; yurt dışında eyalet/bölge (kayıtta sorulan alan —
+                eskiden burada yoktu ve yabancıya "İlçe" gösteriliyordu). */}
+            {isTR ? (
+              <Field>
+                <Label>{t("ilce")}</Label>
+                <Input
+                  value={form.district}
+                  onChange={(e) => set({ district: e.target.value })}
+                />
+              </Field>
+            ) : (
+              <Field>
+                <Label>{t("eyaletBolge")}</Label>
+                <Input
+                  value={form.stateRegion}
+                  maxLength={100}
+                  onChange={(e) => set({ stateRegion: e.target.value })}
+                />
+              </Field>
+            )}
             <Field>
               <Label>{t("postaKodu")}</Label>
               <Input

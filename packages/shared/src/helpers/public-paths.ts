@@ -101,9 +101,13 @@ export function knownCityName(name: string | null | undefined): string | null {
 export const cityProductPath = (name: string) => `${PUBLIC_PATHS.products}/sehir/${citySlug(name)}`;
 
 /**
- * ÜLKE SAYFASI (2026-09-27): `/urunler/ulke/<kod>-<türkçe-ad>` ("de-almanya") —
- * kod ÖNDE (slug kuralı), ad adresten bağımsız ayrıştırılır; dilden bağımsız
- * (EN `/en/products/country/de-almanya`, varlık slug'ları dile göre değişmez).
+ * ÜLKE SAYFASI (2026-09-27): İÇ yol `/urunler/ulke/<kod>-<türkçe-ad>`
+ * ("de-almanya") — kod ÖNDE (slug kuralı), ad adresten bağımsız ayrıştırılır.
+ * DIŞ adreste ad OKUYUCUNUN DİLİNDE (`/en/products/country/de-germany`,
+ * `/ru/tovary/strana/de-germaniya`): çeviriyi `@rothern/i18n`
+ * `translateRoutePath` yapar (`country-slugs.ts`, 245 ülke statik tablo) —
+ * burası yalnız Türkçe iç biçimi üretir. Sayfa kanonik kontrolünde dilin
+ * slug'ını `localizedCountrySlug(cc, locale)` ile karşılaştırır.
  */
 export function countrySlug(code: string): string {
   const cc = code.toUpperCase();

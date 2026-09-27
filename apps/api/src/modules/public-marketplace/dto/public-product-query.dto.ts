@@ -11,6 +11,7 @@ import {
   MaxLength,
   Min,
 } from "class-validator";
+import { CURRENCY_CODES } from "@rothern/shared";
 import { tApi } from "../../../common/i18n/i18n.service";
 
 /**
@@ -53,7 +54,16 @@ export class PublicProductQueryDto {
   @IsIn(["relevance", "newest", "price", "price_desc"])
   sort?: "relevance" | "newest" | "price" | "price_desc";
 
-  /** Birim fiyat aralığı (TRY). */
+  /**
+   * Fiyat süzgecinin para birimi (2026-09-27, "kurla çevir"): `priceMin`/
+   * `priceMax` bu birimde, TCMB kuruyla ortak tabana çevrilip karşılaştırılır.
+   * Verilmezse istek dilinden (tr TRY · ru RUB · en USD). Liste dar (önbellek).
+   */
+  @IsOptional()
+  @IsIn(CURRENCY_CODES)
+  currency?: string;
+
+  /** Birim fiyat aralığı (`currency` cinsinden). */
   @IsOptional()
   @Transform(({ value }) => (value === "" || value == null ? undefined : Number(value)))
   @IsInt()
@@ -222,6 +232,11 @@ export class PublicProductFacetQueryDto {
   @IsOptional()
   @IsIn(["has", "request"])
   price?: "has" | "request";
+
+  /** Fiyat histogramının para birimi — liste ucundaki `currency` ile aynı kural. */
+  @IsOptional()
+  @IsIn(CURRENCY_CODES)
+  currency?: string;
 
   /**
    * Firma sertifikası — tek ya da virgüllü çoklu ("ISO 9001,CE"), OR'lanır.

@@ -106,7 +106,8 @@ export interface SatisStats {
   bids: { active: number };
   wonTenders: number;
   orders: { pending: number };
-  revenue: { total: number; last30: number; prev30: number };
+  /** `currency`: firmanın rapor para birimi (2026-09-27; eski yanıtta yok → TRY). */
+  revenue: { total: number; last30: number; prev30: number; currency?: string };
   last30Days: { bidsSubmitted: number; prevBidsSubmitted: number };
   buyers: { active: number };
 }
@@ -200,6 +201,11 @@ export interface AnalyticsMonthPoint {
 }
 
 export interface SatinalmaAnalytics {
+  /**
+   * Parasal serilerin birimi — firmanın rapor para birimi (Talep Şartları ana
+   * birimi ya da ülkenin birimi). Her tutar kendi biriminden çevrilir.
+   */
+  currency?: string;
   actions: {
     closingSoon: number;
     awaitingDecision: number;
@@ -229,7 +235,7 @@ export interface SatinalmaAnalytics {
     avgResponseHours: number | null;
   }[];
   cashCalendar: { label: string; amount: number }[];
-  /** Faz 4 — tutar KPI'ları (TRY-only; UI etikette söyler). */
+  /** Faz 4 — tutar KPI'ları (`currency` biriminde). */
   money: {
     periodSpend: number;
     openCommitment: number;
@@ -251,6 +257,8 @@ export interface SatinalmaAnalytics {
 }
 
 export interface SatisAnalytics {
+  /** Parasal serilerin birimi (alan adları `amountTry`/`totalTry` geriye dönük). */
+  currency?: string;
   actions: {
     unansweredInvites: number;
     closingSoonInvites: number;

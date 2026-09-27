@@ -1,5 +1,5 @@
 import type { PriceTier } from "./marketplace-api";
-import { currencySymbol } from "@/lib/tenders/labels";
+import { affixCurrency } from "@/lib/tenders/labels";
 
 /**
  * ÜRÜN FİYAT GÖSTERİMİ — tek kaynak.
@@ -33,14 +33,19 @@ export interface PriceDisplay {
 export interface PriceLabels {
   locale: string;
   onRequest: string;
-  fromQty: (qty: string, unit: string) => string;
+  /**
+   * "100 adet ve üzeri için" — miktar + birim DİLİN ÇOĞUL KURALIYLA ("for 100
+   * pieces and above", "100 коробок и более"); birim kodu varsa katalogdan.
+   */
+  fromQty: (minQty: number, unit: string, unitCode?: string | null) => string;
 }
 
-function fmt(amount: number, currency: string, locale = "tr-TR"): string {
-  return `${amount.toLocaleString(locale, {
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 2,
-  })} ${currencySymbol(currency)}`;
+function fmt(amount: number, currency: string, locale: string): string {
+  return affixCurrency(
+    amount.toLocaleString(locale, { minimumFractionDigits: 0, maximumFractionDigits: 2 }),
+    currency,
+    locale,
+  );
 }
 
 export function productPrice(p: {
@@ -49,6 +54,7 @@ export function productPrice(p: {
   priceTiers?: PriceTier[] | null;
   priceCurrency: string;
   unit: string;
+  unitCode?: string | null;
 }, labels: PriceLabels): PriceDisplay {
   if (p.priceMode === "FIXED" && p.priceAmount != null) {
     return {
@@ -67,7 +73,7 @@ export function productPrice(p: {
     const cheapest = sorted.reduce((m, t) => (t.unitPrice < m.unitPrice ? t : m));
     return {
       headline: `${fmt(cheapest.unitPrice, p.priceCurrency, labels.locale)} / ${p.unit}`,
-      note: labels.fromQty(cheapest.minQty.toLocaleString(labels.locale), p.unit),
+      note: labels.fromQty(cheapest.minQty, p.unit, p.unitCode),
       tiers: sorted,
       hasPrice: true,
     };

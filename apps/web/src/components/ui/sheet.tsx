@@ -3,6 +3,7 @@
 import { cn } from "@/lib/utils";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
 import { X } from "lucide-react";
+import { useTranslations } from "next-intl";
 import type { ReactNode } from "react";
 
 /**
@@ -31,6 +32,7 @@ export function Sheet({
   children: ReactNode;
   className?: string;
 }) {
+  const t = useTranslations("web.shared.ui");
   const bottom = side === "bottom";
   return (
     <Dialog open={open} onClose={onClose} className="relative z-50">
@@ -49,7 +51,7 @@ export function Sheet({
           <button
             type="button"
             onClick={onClose}
-            aria-label="Kapat"
+            aria-label={t("close")}
             className="-m-1 rounded-lg p-1 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
           >
             <X aria-hidden className="size-5" />

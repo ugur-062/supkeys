@@ -8,6 +8,7 @@ import {
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { dizinBos } from "@/lib/seo/empty-index-guard";
+import { canonicalProductListPage } from "@/lib/seo/landing";
 import { buildMetadata } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -23,14 +24,22 @@ export const revalidate = 300;
 
 /**
  * Kanonik: süzgeçli varyantlar `/urunler`e işaret eder (ince içerik
- * yığını indekslenmesin). Kategori yol sayfaları kendi kanoniklerini taşır.
+ * yığını indekslenmesin); yalnız `?sayfa=N` taşıyan sayfa KENDİ kanoniği
+ * (2026-09-27, `canonicalProductListPage`). Kategori yol sayfaları kendi
+ * kanoniklerini taşır.
  */
 /**
  * Meta İSTEK ANINDA üretilir: dizin BOŞSA `noindex` basılır (ince içerik /
  * yumuşak 404 koruması, `lib/seo/empty-index-guard.ts`). İlk kayıt girince
  * kural kendiliğinden kalkar.
  */
-export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: LocaleParams;
+  searchParams: Promise<ProductSearchParams>;
+}): Promise<Metadata> {
   const locale = await localeFromParams(params);
   const bos = await dizinBos("urunler");
   const t = await getTranslations({ locale, namespace: "web.marketplace.pages" });
@@ -40,6 +49,7 @@ export async function generateMetadata({ params }: { params: LocaleParams }): Pr
     title: t("productsMetaTitle", { label: tl("products") }),
     description: t("productsMetaDesc"),
     path: MARKETPLACE_ROUTES.products,
+    page: canonicalProductListPage(await searchParams),
     noindex: bos,
   });
 }

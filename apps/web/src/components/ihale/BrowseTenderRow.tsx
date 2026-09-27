@@ -1,8 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { formatDate } from "@/lib/format-date";
-import { useActivityLabel, useListingTerms, useSellerStateLabel } from "@/i18n/domain";
+import { useActivityLabel, useListingTerms, useSellerStateLabel, useFormatDate } from "@/i18n/domain";
 import type { SellerTenderRow } from "@/hooks/use-seller-tenders";
 import {
   closingUrgency,
@@ -26,11 +25,6 @@ import { DaysLeftChip, InfoChip, useExpiredNote } from "./IhaleListRow";
  * genişletme satırında.
  */
 
-// B9: tek tarih dili — kanonik formatlayıcı (yıl her yerde görünür).
-const shortDate = (iso: string | null) => formatDate(iso, "short");
-const fullDate = (iso: string | null) => formatDate(iso, "datetime");
-
-
 /**
  * BAŞKASININ talebi — `ListingCard` row ADAPTÖRÜ (Açık Talepler / pano
  * widget'ı). Düzen kartta; burada SellerTenderRow → sütun kümesi: Firma ·
@@ -47,6 +41,10 @@ export function BrowseTenderRow({
   compact?: boolean;
 }) {
   const tr = useTranslations("web.panel.requests.browsetenderrow");
+  // Tarihler okuyucunun dilinde; saatli olan TR dışında "(GMT+3)" taşır.
+  const fmtDate = useFormatDate();
+  const shortDate = (iso: string | null) => fmtDate(iso, "short");
+  const fullDate = (iso: string | null) => fmtDate(iso, "datetime");
   const sellerStateLabel = useSellerStateLabel();
   const activityLabel = useActivityLabel();
   const expiredNote = useExpiredNote();

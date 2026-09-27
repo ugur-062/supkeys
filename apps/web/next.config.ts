@@ -2,6 +2,7 @@ import path from "node:path";
 import { withSentryConfig } from "@sentry/nextjs";
 import type { NextConfig } from "next";
 import createNextIntlPlugin from "next-intl/plugin";
+import { localizedRedirectDestination } from "@rothern/i18n";
 
 // V2-7+ güvenlik (OWASP A05) — tamamlayıcı header'lar.
 // CSP burada DEĞİL: nonce tabanlı script-src per-request üretilir → src/
@@ -124,12 +125,15 @@ const nextConfig: NextConfig = {
   async redirects() {
     // i18n Faz 1: her yönlendirmenin `/en/…` ve `/ru/…` kopyası — eski adres
     // hangi dilde açıldıysa aynı dilde yeni adrese gitsin (Türkçe ön eksiz).
+    // Hedef o dilin DIŞ yolu (2026-09-27): eskiden Türkçe iç yol yazılıyordu →
+    // `/ru/giris` → `/ru/company/login` → `/ru/kompaniya/vhod` zinciri (next-intl
+    // ikinci 308'i atıyordu). Tek sıçrama: `localizedRedirectDestination`.
     const withLocales = (
       rules: { source: string; destination: string; permanent: boolean }[],
     ) => [
       ...rules,
-      ...["en", "ru"].flatMap((l) =>
-        rules.map((r) => ({ ...r, source: `/${l}${r.source}`, destination: `/${l}${r.destination}` })),
+      ...(["en", "ru"] as const).flatMap((l) =>
+        rules.map((r) => ({ ...r, source: `/${l}${r.source}`, destination: localizedRedirectDestination(r.destination, l) })),
       ),
     ];
     return withLocales([

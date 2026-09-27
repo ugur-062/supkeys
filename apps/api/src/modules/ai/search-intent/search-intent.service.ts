@@ -1,8 +1,11 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { BadRequestException, Injectable, Optional, ServiceUnavailableException } from "@nestjs/common";
 import {
+  CURRENCY_CODES,
   foldSearchText,
   isCompanyActivity,
+  isCurrencyCode,
+  isValidCountryCode,
   stemPrefix,
   tokenizeQuery,
   type AiSearchIntentResult,
@@ -10,20 +13,27 @@ import {
   type AiSearchRelaxed,
   type AiTenderExtractResult,
 } from "@rothern/shared";
+import type { Locale } from "@rothern/i18n";
 import { PrismaBypassService, PrismaService } from "../../../common/prisma/prisma.service";
 import { productIndexWhere } from "../../../common/company/product-index";
+import { categoryName } from "../../../common/company/category-name";
+import { geoIndex, type GeoCityRow } from "../../../common/geo/geo-index";
+import { resolveCompanyCurrency } from "../../../common/currency/fx-rates";
+import { currentLocale } from "../../../common/i18n/locale-context";
+import { tApi } from "../../../common/i18n/i18n.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { CompanyListingsService } from "../../company-listings/services/company-listings.service";
 import { AiService, type AiCallResult } from "../ai.service";
-import { resolveCategoryHints } from "../category-hint-resolver";
+import { resolveCategoryHints, type ResolvedCategory } from "../category-hint-resolver";
+import { canonicalUnitName } from "../tender-extract/ai-draft-sanitizer";
+import { lowerCaseWords } from "../ai-text";
 import {
   SEARCH_INTENT_RESPONSE_SCHEMA,
-  SEARCH_INTENT_SYSTEM_PROMPT,
   buildSearchIntentPrompt,
+  searchIntentSystemPrompt,
 } from "./search-intent.prompts";
 
 export const SEARCH_INTENT_MAX_TEXT = 500;
-const CURRENCIES = new Set(["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY", "RUB"]);
 
 /**
  * AI ARAMA — doğal dil → süzgeç. Model sonuç vermez, süzgeç verir; liste
@@ -52,11 +62,12 @@ export class SearchIntentService {
       throw new BadRequestException(i18nMessage("api.ai.enFazlaKarakter", { SEARCHINTENTMAXTEXT: SEARCH_INTENT_MAX_TEXT }));
     }
     const portal: AiSearchPortal = dto.portal === "satis" ? "satis" : "satinalma";
+    const locale = currentLocale();
 
     const callOptions = {
       feature: "search_intent",
       prompt: buildSearchIntentPrompt(text, portal),
-      system: SEARCH_INTENT_SYSTEM_PROMPT,
+      system: searchIntentSystemPrompt(locale, CURRENCY_CODES),
       responseSchema: SEARCH_INTENT_RESPONSE_SCHEMA as unknown as object,
       thinkingLevel: "low" as const,
       metadata: { portal, chars: text.length },
@@ -77,70 +88,74 @@ export class SearchIntentService {
     }
 
     const s = sanitizeIntent(parsed, text);
-    const [resolved, city] = await Promise.all([
-      s.categoryHint
-        ? resolveCategoryHints(this.prisma, [s.categoryHint], { discoveryOnly: portal === "satinalma" })
-        : Promise.resolve(new Map<string, { id: string; nameTr: string }>()),
-      s.city ? this.canonicalCity(s.city) : Promise.resolve(null),
-    ]);
+    const resolved = s.categoryHint
+      ? await resolveCategoryHints(this.prisma, [s.categoryHint], { discoveryOnly: portal === "satinalma" })
+      : new Map<string, ResolvedCategory>();
     const category = s.categoryHint ? (resolved.get(s.categoryHint) ?? null) : null;
+    const place = resolvePlace(s.city, s.country);
 
     // Taslak, GEVŞETMEDEN ÖNCEKİ çözümle kurulur: kategori ürün listesinde
     // sonuç vermese de talep için doğru öneri olabilir (kullanıcı formda görür).
     const draft =
       portal === "satinalma" && (s.itemName || s.query)
-        ? buildDraft(text, s, category, result)
+        ? buildDraft(text, s, category, result, locale)
         : null;
+
+    // Fiyat tavanının birimi: model söylediyse o, yoksa ürün dizininin panel
+    // varsayılanı (firma ülkesinin para birimi — web `para` yazmazsa sunucu
+    // da onu çözer; sayım ile liste aynı birimde kıyaslar).
+    const priceCurrency = resolveCompanyCurrency(s.currency, user.country ?? null);
 
     // GEVŞETME: süzgeçlerin tamamı 0 sonuç veriyorsa en az güvenilenden
     // başlayarak kaldır — AI araması "hiçbir şey bulunamadı" ile bitmesin.
+    // Şehir anahtarı iki portalda da dünya şehir listesinin kalıcı adresi
+    // (`?sehir=bursa,de-munich`); ülke ürün dizininde SATICININ, açık
+    // taleplerde ALICININ ülkesi (`?ulke=`).
     const filters: Filters = {
       query: s.query,
       category,
-      city,
+      city: place.city?.slug ?? null,
+      country: place.country,
       verifiedOnly: s.verifiedOnly,
       activity: s.activity,
       priceMax: s.priceMax,
+      priceCurrency,
       quantity: s.quantity,
     };
-    const { applied, relaxed } =
+    const out =
       portal === "satinalma"
         ? await this.relaxProducts(user, filters)
-        : await this.relaxRequests(user, filters);
+        : await this.relaxRequests(user, filters, place.unresolvedCity ? s.city : null);
+    const { applied } = out;
+    // Metinde şehir geçti ama dünya şehir listesinde (satışta: eşlenmemiş
+    // alıcı şehirlerinde de) bulunamadı: süzgeç uygulanamaz (uygulansaydı 0
+    // sonuç verirdi) — bant "şehir kaldırıldı" der.
+    const relaxed: AiSearchRelaxed[] =
+      place.unresolvedCity && !out.rawCity && !out.relaxed.includes("city") ? ["city", ...out.relaxed] : out.relaxed;
 
     return {
       portal,
       summary: s.summary,
       query: applied.query,
-      category: applied.category,
+      category: applied.category ? { id: applied.category.id, name: categoryName(applied.category, locale) } : null,
       categoryHint: s.categoryHint,
       city: applied.city,
+      cityName: applied.city ? (place.city ? geoIndex().label(place.city, locale) : applied.city) : null,
+      country: applied.country,
       verifiedOnly: applied.verifiedOnly,
       activity: applied.activity,
       priceMax: applied.priceMax,
-      currency: s.currency,
+      // Tavan uygulandıysa KIYASLANAN birim (web `?para=` yazar, çip basar).
+      currency: applied.priceMax != null ? priceCurrency : s.currency,
       quantity: applied.quantity,
       unit: s.unit,
       keywords: s.keywords,
       relaxed,
-      relaxedCategoryName: relaxed.includes("category") ? (category?.nameTr ?? null) : null,
+      relaxedCategoryName: relaxed.includes("category") && category ? categoryName(category, locale) : null,
       draft,
       downgraded: result.downgraded,
       warned: result.warned,
     };
-  }
-
-  /** Modelin yazdığı il → veritabanındaki yazım ("istanbul" → "İstanbul"); yoksa olduğu gibi. */
-  private async canonicalCity(raw: string): Promise<string> {
-    const rows = await this.prisma.company.findMany({
-      where: { city: { not: null } },
-      select: { city: true },
-      distinct: ["city"],
-      take: 500,
-    });
-    const want = foldSearchText(raw);
-    const hit = rows.map((r) => r.city).find((c) => c && foldSearchText(c) === want);
-    return hit ?? raw;
   }
 
   /** Ürün dizini: sayım gerçek süzgeç motorundan (`productIndexWhere`) — liste ile aynı kural. */
@@ -152,60 +167,110 @@ export class SearchIntentService {
             q: x.query ?? undefined,
             category: x.category?.id,
             city: x.city ?? undefined,
+            country: x.country ?? undefined,
             activity: x.activity ?? undefined,
             verified: x.verifiedOnly || undefined,
             priceMax: x.priceMax ?? undefined,
+            currency: x.priceMax != null ? x.priceCurrency : undefined,
             moqMax: x.quantity != null ? Math.max(1, Math.trunc(x.quantity)) : undefined,
           },
           [{ companyId: { not: user.companyId } }],
         ),
       });
-    return relax(f, PRODUCT_RELAX_ORDER, count);
+    const r = await relax(f, PRODUCT_RELAX_ORDER, count);
+    return { ...r, rawCity: null as string | null };
   }
 
-  /** Açık talepler: satıcının görebildiği açık talepler (liste ile AYNI kaynak) üzerinde sayım. */
-  private async relaxRequests(user: AuthenticatedCompanyUser, f: Filters) {
-    if (!this.listings) return { applied: f, relaxed: [] as AiSearchRelaxed[] };
+  /**
+   * Açık talepler: satıcının görebildiği açık talepler (liste ile AYNI kaynak)
+   * üzerinde sayım — web süzgeciyle AYNI kural (`request-facets` `passes`):
+   * şehir anahtarı alıcının dünya şehir kaydının kalıcı adresi (eşlenmemiş
+   * şehirde ham metin; ham metin eski bağlantılar için de eşleşir), ülke
+   * alıcının ülkesi.
+   *
+   * `unmatchedCity`: model şehri dünya listesinde bulunamadı — alıcısı
+   * eşlenmemiş (serbest metin) şehirde olan satırlarda aynı ad aranır;
+   * bulunursa süzgeç o HAM metinle kurulur (web de ham metinle eşler).
+   */
+  private async relaxRequests(user: AuthenticatedCompanyUser, f: Filters, unmatchedCity: string | null) {
+    if (!this.listings) return { applied: f, relaxed: [] as AiSearchRelaxed[], rawCity: null as string | null };
     const rows = await this.listings.sellerTenders(user, "ALIM", { openOnly: true });
     const hay = rows.map((r) => ({
       seg: r.categories.map((c) => c.code.slice(0, 2)),
-      city: r.ownerCity ?? null,
+      cityKey: r.ownerCitySlug || r.ownerCity || null,
+      cityText: r.ownerCity ?? null,
+      country: r.ownerCountry ?? null,
       text: foldSearchText(
         [r.title, r.number ?? "", r.owner?.name ?? "", ...(r.itemNames ?? []), ...r.categories.map((c) => c.name)].join(" "),
       ),
     }));
+    let rawCity: string | null = null;
+    if (!f.city && unmatchedCity) {
+      const want = foldSearchText(unmatchedCity);
+      rawCity =
+        hay.find((h) => h.cityText && h.cityKey === h.cityText && foldSearchText(h.cityText) === want)?.cityText ?? null;
+    }
+    const start: Filters = rawCity ? { ...f, city: rawCity } : f;
     const count = async (x: Filters) => {
       // Web listesiyle AYNI kural: kelimeler AND, ek toleranslı (`stemPrefix`).
       const ts = x.query ? tokenizeQuery(x.query).map((t) => stemPrefix(foldSearchText(t))) : [];
       const seg = x.category?.id.slice(0, 2);
-      const city = x.city ? foldSearchText(x.city) : null;
       return hay.filter(
         (h) =>
           ts.every((t) => h.text.includes(t)) &&
           (!seg || h.seg.includes(seg)) &&
-          (!city || (h.city != null && foldSearchText(h.city) === city)),
+          (!x.city || h.cityKey === x.city || h.cityText === x.city) &&
+          (!x.country || h.country === x.country),
       ).length;
     };
-    return relax(f, REQUEST_RELAX_ORDER, count);
+    const r = await relax(start, REQUEST_RELAX_ORDER, count);
+    return { ...r, rawCity };
   }
+}
+
+/**
+ * Modelin şehir/ülke yazımı → dünya şehir listesi kaydı. Ülke verildiyse şehir
+ * O ÜLKEDE aranır (aynı adlı şehirler: "Batumi" GE); verilmediyse herhangi
+ * dildeki tam ad (en kalabalık kayıt, Türkiye illeri önce). Ülke koduyla
+ * birlikte geçersiz kod düşer; şehirden ülke TÜRETİLMEZ — şehir süzgeci zaten
+ * ülkeyi daraltır, ülke yalnız şehir gevşetilince kalan yedek süzgeçtir.
+ */
+export function resolvePlace(
+  city: string | null,
+  country: string | null,
+): { city: GeoCityRow | null; country: string | null; unresolvedCity: boolean } {
+  const cc = country && isValidCountryCode(country) ? country : null;
+  if (!city) return { city: null, country: cc, unresolvedCity: false };
+  const idx = geoIndex();
+  const row = cc ? idx.byId(idx.resolveText(cc, city)) : idx.resolveParam(city);
+  return { city: row, country: cc, unresolvedCity: row == null };
 }
 
 interface Filters {
   query: string | null;
-  category: { id: string; nameTr: string } | null;
+  category: ResolvedCategory | null;
+  /**
+   * Şehir süzgecinin URL anahtarı (`?sehir=`): dünya şehir listesinin kalıcı
+   * adresi; satışta eşlenmemiş alıcı şehrinde ham metin.
+   */
   city: string | null;
+  /** Ürün dizininde satıcının, açık taleplerde alıcının ülkesi (ISO, `?ulke=`). */
+  country: string | null;
   verifiedOnly: boolean;
   activity: string | null;
   priceMax: number | null;
+  /** `priceMax`ın birimi — dizin kurla TRY tabanına çevirip kıyaslar. */
+  priceCurrency: string;
   quantity: number | null;
 }
 
 /**
  * En az güvenilenden en çok güvenilene: kategori (ipucu çözümü) → tavanlar →
- * nitelikler → şehir → EN SON arama kelimeleri (kısaltılır, tümden kalkmaz).
+ * nitelikler → şehir → ülke (şehir kalkınca ülke yedek süzgeç olarak kalır)
+ * → EN SON arama kelimeleri (kısaltılır, tümden kalkmaz).
  */
-const PRODUCT_RELAX_ORDER: AiSearchRelaxed[] = ["category", "priceMax", "quantity", "activity", "verifiedOnly", "city", "query"];
-const REQUEST_RELAX_ORDER: AiSearchRelaxed[] = ["category", "city", "query"];
+const PRODUCT_RELAX_ORDER: AiSearchRelaxed[] = ["category", "priceMax", "quantity", "activity", "verifiedOnly", "city", "country", "query"];
+const REQUEST_RELAX_ORDER: AiSearchRelaxed[] = ["category", "city", "country", "query"];
 
 const queryTokens = (q: string | null) => (q ? tokenizeQuery(q) : []);
 
@@ -275,6 +340,7 @@ interface SanitizedIntent {
   itemName: string | null;
   categoryHint: string | null;
   city: string | null;
+  country: string | null;
   verifiedOnly: boolean;
   activity: string | null;
   priceMax: number | null;
@@ -304,30 +370,37 @@ export function parseModelNumber(v: unknown, max: number): number | null {
   return Math.round(n * 1000) / 1000;
 }
 
+/** Eski istemin sabit öneki — bant artık kendi başlığını basıyor. */
+const LEGACY_SUMMARY_PREFIX = /^anlad[ıi]ğ[ıi]m\s*:\s*/i;
+
 export function sanitizeIntent(raw: Record<string, unknown>, text: string): SanitizedIntent {
   const cat = str(raw.categoryHint, 80);
   const cur = str(raw.currency, 3)?.toUpperCase() ?? null;
+  const cc = str(raw.country, 2)?.toUpperCase() ?? null;
   const act = str(raw.activity, 40);
   const kw = Array.isArray(raw.keywords)
-    ? [...new Set(raw.keywords.filter((k): k is string => typeof k === "string").map((k) => k.trim().toLocaleLowerCase("tr-TR").slice(0, 40)).filter(Boolean))].slice(0, 8)
+    ? [...new Set(raw.keywords.filter((k): k is string => typeof k === "string").map((k) => lowerCaseWords(k.trim()).slice(0, 40)).filter(Boolean))].slice(0, 8)
     : [];
-  const unitRaw = str(raw.unit, 20);
+  const summary = str(raw.summary, 200)?.replace(LEGACY_SUMMARY_PREFIX, "").trim() || null;
   return {
-    summary: str(raw.summary, 200) ?? `Anladığım: ${text.slice(0, 120)}`,
+    // Yedek özet arayüz dilinde; kullanıcının metni aynen tırnak içinde.
+    summary: summary ?? tApi("api.ai.searchSummaryFallback", { text: text.slice(0, 120) }),
     title: str(raw.title, 80),
     query: str(raw.query, 120),
     itemName: str(raw.itemName, 120),
     // Kod gibi görünen ipucu düşer — kodu sistem bulur.
     categoryHint: cat && !/^\d{4,}$/.test(cat) ? cat : null,
-    city: str(raw.city, 40),
+    city: str(raw.city, 60),
+    country: cc && isValidCountryCode(cc) ? cc : null,
     verifiedOnly: raw.verifiedOnly === true,
     activity: act && isCompanyActivity(act) ? act : null,
     priceMax: parseModelNumber(raw.priceMax, 1e12),
-    currency: cur && CURRENCIES.has(cur) ? cur : null,
+    currency: isCurrencyCode(cur) ? cur : null,
     quantity: parseModelNumber(raw.quantity, 1e9),
-    // Birim insan etiketi olarak kalır ("adet") — sihirbaz taslak kalemini
-    // etiketle okur (tender-extract sanitizer ile aynı), kodu formda çözer.
-    unit: unitRaw ? unitRaw.toLocaleLowerCase("tr-TR") : null,
+    // Birim: tanınan birim (kod "PCE", "pcs", "adet"…) formun sakladığı
+    // Türkçe ada ("adet") — web `useUnitLabel` okuyucunun dilinde basar;
+    // tanınmayan serbest metin olduğu gibi (tender-extract sanitizer ile aynı).
+    unit: canonicalUnitName(str(raw.unit, 20)),
     keywords: kw,
   };
 }
@@ -335,13 +408,14 @@ export function sanitizeIntent(raw: Record<string, unknown>, text: string): Sani
 function buildDraft(
   text: string,
   s: SanitizedIntent,
-  category: { id: string; nameTr: string } | null,
+  category: ResolvedCategory | null,
   result: AiCallResult,
+  locale: Locale,
 ): AiTenderExtractResult {
   const itemName = (s.itemName ?? s.query) as string;
   return {
     draft: {
-      title: s.title ?? `${itemName} alımı`.slice(0, 80),
+      title: s.title ?? tApi("api.ai.searchDraftTitle", { item: itemName }, locale).slice(0, 80),
       description: text.slice(0, 2000),
       primaryCurrency: s.currency,
       deliveryTerm: null,

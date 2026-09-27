@@ -223,6 +223,33 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(screen.getByRole("button", { name: /Firma X/ })).toBeInTheDocument();
   });
 
+  it("alıcı şehri ve ülkesi (2026-09-27): şehir API'nin yerel adıyla, anahtarı slug; ülke grubu birden fazla ülkede çizilir, URL'e ?ulke= yazar", async () => {
+    const user = userEvent.setup();
+    h.rows = [
+      row({ title: "Yerli talep", ownerCountry: "TR", ownerCity: "İstanbul", ownerCitySlug: "istanbul", ownerCityLabel: "İstanbul" }),
+      row({ title: "Alman talebi", ownerCountry: "DE", ownerCity: "Munich", ownerCitySlug: "de-munich", ownerCityLabel: "Münih" }),
+    ];
+    const { unmount } = render(<SellerTendersView />);
+    await user.click(group("Alıcı şehri").getByLabelText(/^Münih/));
+    expect(h.replace).toHaveBeenLastCalledWith("/company/satis?sehir=de-munich", { scroll: false });
+    await user.click(group("Alıcı ülkesi").getByLabelText(/^Almanya/));
+    expect(h.replace).toHaveBeenLastCalledWith("/company/satis?ulke=DE", { scroll: false });
+    unmount();
+
+    h.search = "ulke=DE";
+    render(<SellerTendersView />);
+    expect(screen.getByText(/Alman talebi/)).toBeInTheDocument();
+    expect(screen.queryByText(/Yerli talep/)).not.toBeInTheDocument();
+    // Aktif çip okuyucunun dilinde ülke adı (ham kod değil).
+    expect(screen.getByRole("button", { name: /Almanya/ })).toBeInTheDocument();
+  });
+
+  it("tek ülkeden gelen listede alıcı ülkesi grubu çizilmez", () => {
+    h.rows = [row({ ownerCountry: "TR" }), row({ ownerCountry: "TR" })];
+    render(<SellerTendersView />);
+    expect(sidebar().queryByRole("button", { name: /^Alıcı ülkesi/ })).toBeNull();
+  });
+
   it("arama URL'den (?q=) uygulanır ve çip olarak kaldırılabilir", async () => {
     const user = userEvent.setup();
     h.rows = [row({ title: "Çelik Boru Alımı" }), row({ title: "Kablo Alımı" })];

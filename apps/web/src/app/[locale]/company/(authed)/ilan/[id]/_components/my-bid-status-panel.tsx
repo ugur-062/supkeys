@@ -1,8 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { useUnitLabel } from "@/i18n/domain";
+import { useLocale, useTranslations } from "next-intl";
+import { useBidDeliveryTimeLabel, useSystemText, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 import { formatDate } from "@/lib/format-date";
+import { intlLocale } from "@/i18n/format";
 import { Badge } from "@/components/catalyst/badge";
 import { Callout } from "@/components/ui/callout";
 import { Button } from "@/components/catalyst/button";
@@ -30,11 +31,10 @@ import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDateTime } from "@/lib/tenders/date";
 import { cn } from "@/lib/utils";
 import { Trophy } from "lucide-react";
-import { bidDeliveryTimeLabel } from "@rothern/shared";
 import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
-import { currencySymbol } from "@/lib/tenders/labels";
+import { affixCurrency } from "@/lib/tenders/labels";
 
 type Tone = "success" | "info" | "warning" | "danger";
 
@@ -68,15 +68,21 @@ const BID_STATUS_BADGE: Record<string, { key: string; color: "zinc" | "amber" | 
 /** Teklif özeti kartı — statü / versiyon / toplam + geçerlilik + kalemler + not. */
 export function BidSummaryCard({ l }: { l: ListingDetail }) {
   const t = useTranslations("web.panel.requests.myBidStatusPanel");
+  const bidDeliveryTimeLabel = useBidDeliveryTimeLabel();
   const bid = l.myBid;
   const extend = useExtendBidValidity(l.id);
   const [extendOpen, setExtendOpen] = useState(false);
   const [extendDays, setExtendDays] = useState("30");
   const { user } = useCompanyAuth();
   const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
+  const locale = useLocale();
+  const intl = intlLocale(locale);
   if (!bid) return null;
   // Dalga B-2: elle sembol türetme kaldırıldı (USD "$" yerine "USD" gösteriyordu).
-  const symbol = currencySymbol(bid.currency ?? "TRY");
+  // Sembolün yeri dilden (`affixCurrency`): İngilizcede önde.
+  const cur = bid.currency ?? "TRY";
+  const withSym = (formatted: string) => affixCurrency(formatted, cur, intl);
   const itemName = new Map(
     (l.items ?? []).map((it) => [it.id, it] as const),
   );
@@ -132,7 +138,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
       toast.success(
         res.revived
           ? t("gecerlilikUzatildiTeklifinizAyniFiyatla")
-          : t("gecerlilikUzatildiTarihineKadar", { formatDateTime: formatDateTime(res.validUntil) }),
+          : t("gecerlilikUzatildiTarihineKadar", { formatDateTime: formatDateTime(res.validUntil, locale) }),
       );
       setExtendOpen(false);
     } catch (err) {
@@ -158,7 +164,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
             {t("toplam")}
           </p>
           <p className="mt-1 text-sm font-bold text-zinc-950 tabular-nums">
-            {Number(bid.amount).toLocaleString("tr-TR")} {symbol}
+            {withSym(Number(bid.amount).toLocaleString(intl))}
           </p>
         </div>
       </div>
@@ -176,7 +182,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                   validityExpired ? "text-rose-600" : "text-zinc-900",
                 )}
               >
-                {t("tarihineKadar", { date: formatDate(validUntil, "short") })}
+                {t("tarihineKadar", { date: formatDate(validUntil, "short", locale) })}
               </p>
               <Badge
                 color={
@@ -205,8 +211,8 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
         <DialogTitle>{t("teklifGecerliliginiUzat")}</DialogTitle>
         <DialogDescription>
           {validityExpired
-            ? t("teklifinizinGecerliligiTarihindeDoldu", { formatDate: formatDate(validUntil, "short") })
-            : t("teklifinizTarihineKadarGecerli", { formatDate: formatDate(validUntil, "short") })}{" "}
+            ? t("teklifinizinGecerliligiTarihindeDoldu", { formatDate: formatDate(validUntil, "short", locale) })
+            : t("teklifinizTarihineKadarGecerli", { formatDate: formatDate(validUntil, "short", locale) })}{" "}
           {t("sectiginizSureMevcutBitisTarihine")}
         </DialogDescription>
         <DialogBody className="space-y-4">
@@ -256,7 +262,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
           ) : newValidUntil ? (
             <p className="text-sm text-zinc-700">
               {t.rich("yeniBitis", {
-                date: formatDate(newValidUntil, "short"),
+                date: formatDate(newValidUntil, "short", locale),
                 strong: (c) => <span className="font-semibold text-zinc-950">{c}</span>,
               })}
             </p>
@@ -319,26 +325,25 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
                           {item
-                            ? `${Number(item.quantity).toLocaleString("tr-TR")} ${unitLabel(item.unit, item.unitCode)}`
+                            ? quantity(item.quantity, item.unit, item.unitCode)
                             : "—"}
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
-                          {Number(bi.unitPrice).toLocaleString("tr-TR")}{" "}
-                          {symbol}
+                          {withSym(Number(bi.unitPrice).toLocaleString(intl))}
                         </TableCell>
                         {hasDelivery ? (
                           <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
                             {bidDeliveryTimeLabel(bi.deliveryTime) ??
                               (bi.deliveryDate
-                                ? formatDate(bi.deliveryDate, "short")
+                                ? formatDate(bi.deliveryDate, "short", locale)
                                 : "—")}
                           </TableCell>
                         ) : null}
                         <TableCell className="text-right font-medium whitespace-nowrap text-zinc-900 tabular-nums">
                           {item
-                            ? `${(
-                                Number(bi.unitPrice) * Number(item.quantity)
-                              ).toLocaleString("tr-TR")} ${symbol}`
+                            ? withSym(
+                                (Number(bi.unitPrice) * Number(item.quantity)).toLocaleString(intl),
+                              )
                             : "—"}
                         </TableCell>
                       </TableRow>
@@ -352,7 +357,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                     <TableCell />
                     {hasDelivery ? <TableCell /> : null}
                     <TableCell className="text-right font-bold whitespace-nowrap text-zinc-950 tabular-nums">
-                      {Number(bid.amount).toLocaleString("tr-TR")} {symbol}
+                      {withSym(Number(bid.amount).toLocaleString(intl))}
                     </TableCell>
                   </TableRow>
                 </TableBody>
@@ -379,6 +384,8 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
  */
 export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
   const t = useTranslations("web.panel.requests.myBidStatusPanel");
+  const systemText = useSystemText();
+  const locale = useLocale();
   const bid = l.myBid;
   const open = l.status === "OPEN";
   // Kazanınca oluşan sipariş, teklifçinin (satıcının) kendi portalında
@@ -446,7 +453,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
       <StatusAlert key="lost-open" tone="warning" title={t("teklifinizBuTurdaElendi")}>
         {bid.eliminationReason ? (
           <p>
-            <span className="font-medium">{t("gerekce2")}</span> {bid.eliminationReason}
+            <span className="font-medium">{t("gerekce2")}</span> {systemText(bid.eliminationReason)}
           </p>
         ) : null}
         <p className="mt-1">
@@ -461,7 +468,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
   } else if (bid.status === "WITHDRAWN") {
     alerts.push(
       <StatusAlert key="wd" tone="info" title={t("teklifiniziGeriCektiniz")}>
-        {bid.updatedAt ? <p>{formatDateTime(bid.updatedAt)}</p> : null}
+        {bid.updatedAt ? <p>{formatDateTime(bid.updatedAt, locale)}</p> : null}
       </StatusAlert>,
     );
   } else if (bid.status === "DRAFT" && open && bid.submittedAt) {
@@ -522,7 +529,7 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
     alerts.push(
       <StatusAlert key="ok" tone="success" title={t("teklifinizAlindi")}>
         {bid.submittedAt ? (
-          <p>{t("verildi", { formatDateTime: formatDateTime(bid.submittedAt) })}</p>
+          <p>{t("verildi", { formatDateTime: formatDateTime(bid.submittedAt, locale) })}</p>
         ) : null}
       </StatusAlert>,
     );

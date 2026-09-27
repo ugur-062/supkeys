@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { useListingStatusLabel } from "@/i18n/domain";
-import { INTL_LOCALE } from "@/i18n/format";
+import { intlLocale } from "@/i18n/format";
 import { formatDate } from "@/lib/format-date";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
@@ -33,7 +33,7 @@ import { ArrowLeft, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
-import { CURRENCIES } from "@/lib/tenders/labels";
+import { CURRENCIES, affixCurrency } from "@/lib/tenders/labels";
 
 // Durum etiketi katalogdan (`useListingStatusLabel`); burada yalnız süzgeç sırası.
 const STATUS_OPTIONS = [
@@ -48,11 +48,15 @@ const STATUS_OPTIONS = [
 ] as const;
 // Liste TEK KAYNAK: labels.ts CURRENCIES (tablodan türetilir) — Dalga B-2.
 
-/** TRY toplamı — okuyucunun dilinde, ondalıksız. */
-function tl(n: number | null, locale: Locale) {
+/**
+ * Tutar — okuyucunun dilinde, ondalıksız; sembol tek kaynaktan
+ * (`currencySymbol`). Birim ÇAĞIRANDAN: hedef toplam talebin biriminde,
+ * teklif tutarları firmanın rapor biriminde (`baseCurrency`).
+ */
+function tl(n: number | null, locale: Locale, currency: string) {
   return n == null
     ? "—"
-    : `${n.toLocaleString(INTL_LOCALE[locale] ?? "tr-TR", { maximumFractionDigits: 0 })} ₺`;
+    : affixCurrency(n.toLocaleString(intlLocale(locale), { maximumFractionDigits: 0 }), currency, locale);
 }
 
 /** Genel İhale/İlan Raporu — tek ihale VEYA tarih aralığı (eski sistem deseni). */
@@ -276,8 +280,8 @@ export function GeneralReportView({
                 [tr("kazandirilan"), String(data.summary.awardedListings)],
                 [tr("yanitOrani"), tr("yuzde", { n: data.summary.overallResponseRate })],
                 [tr("ortTeklif"), String(data.summary.avgBidsPerListing)],
-                [tr("kazananToplam"), tl(data.summary.totalAwardedValue, locale)],
-                [tr("toplamTasarruf"), tl(data.summary.totalDelta, locale), true],
+                [tr("kazananToplam"), tl(data.summary.totalAwardedValue, locale, data.baseCurrency ?? "TRY")],
+                [tr("toplamTasarruf"), tl(data.summary.totalDelta, locale, data.baseCurrency ?? "TRY"), true],
               ] as Array<[string, string, boolean?]>
             ).map(([k, v, accent]) => (
               <div key={k} className="bg-white p-3.5">
@@ -342,16 +346,16 @@ export function GeneralReportView({
                       {t.responseRate != null ? tr("yuzde", { n: t.responseRate }) : "—"}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-600">
-                      {tl(t.estimatedTotal, locale)}
+                      {tl(t.estimatedTotal, locale, t.currency)}
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-900">
-                      {tl(t.winningTotal, locale)}
+                      {tl(t.winningTotal, locale, data.baseCurrency ?? "TRY")}
                     </TableCell>
                     <TableCell className="max-w-[180px] truncate text-zinc-700">
                       {t.winnerName ?? "—"}
                     </TableCell>
                     <TableCell className="text-right font-semibold tabular-nums text-emerald-700">
-                      {tl(t.delta, locale)}
+                      {tl(t.delta, locale, data.baseCurrency ?? "TRY")}
                     </TableCell>
                   </TableRow>
                 ))}
@@ -359,7 +363,7 @@ export function GeneralReportView({
             </Table>
           </div>
           <Text className="text-xs text-zinc-400">
-            {tr("tutarlarTeklifAnindakiTcmbKuruyla")}
+            {tr("tutarlarTeklifAnindakiTcmbKuruylaCur", { currency: data.baseCurrency ?? "TRY" })}
           </Text>
         </section>
       ) : null}

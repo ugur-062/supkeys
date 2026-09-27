@@ -1,6 +1,10 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { foldSearchText } from "@rothern/shared";
+import { formatPercent, intlLocale } from "@/i18n/format";
+import { useQuantityLabel } from "@/i18n/domain";
+import { affixCurrency } from "@/lib/tenders/labels";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Input } from "@/components/catalyst/input";
@@ -23,10 +27,9 @@ import {
 import { useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
-function money(v: number | string, currency: string): string {
-  return `${Number(v).toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ${
-    currency === "TRY" ? "₺" : currency
-  }`;
+/** Tutar — arayüz dilinin sayı biçimiyle (`intl` = BCP-47), sembol tek kaynaktan. */
+function money(v: number | string, currency: string, intl: string): string {
+  return affixCurrency(Number(v).toLocaleString(intl, { maximumFractionDigits: 2 }), currency, intl);
 }
 
 /** Sayfanın hesapladığı hedef durumu — çubuk ve araçlar bunu tüketir.
@@ -106,6 +109,10 @@ export function AuctionBidWorkbench({
   renderItemExtras: (it: ListingItemRow) => ReactNode;
 }) {
   const t = useTranslations("web.panel.requests.auctionBidWorkbench");
+  // Miktar + birim okuyucunun dilinde, çoğul kuralıyla (ham "adet" basılıyordu).
+  const quantity = useQuantityLabel();
+  const locale = useLocale();
+  const intl = intlLocale(locale);
   const [percent, setPercent] = useState(defaultPercent);
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState<"ALL" | "CHANGED" | "LOCKED">("ALL");
@@ -132,9 +139,7 @@ export function AuctionBidWorkbench({
     const own = Number(target.ownLastTotal ?? 0);
     const diff = Number(madeDiff);
     if (!(own > 0) || !(diff > 0)) return null;
-    return ((diff / own) * 100).toLocaleString("tr-TR", {
-      maximumFractionDigits: 1,
-    });
+    return formatPercent((diff / own) * 100, locale, { maximumFractionDigits: 1 });
   })();
 
   /** Araçların çalışacağı kalemler: fiyatlı olanlar (kilitliler bayraklı —
@@ -166,14 +171,14 @@ export function AuctionBidWorkbench({
   }, [items, prices, initialPrices]);
 
   const visibleItems = useMemo(() => {
-    const q = query.trim().toLocaleLowerCase("tr-TR");
+    const q = foldSearchText(query);
     return items.filter((it) => {
       if (filter === "CHANGED" && !changedIds.has(it.id)) return false;
       if (filter === "LOCKED" && !lockedIds.has(it.id)) return false;
       if (!q) return true;
       return (
-        it.name.toLocaleLowerCase("tr-TR").includes(q) ||
-        (it.materialCode ?? "").toLocaleLowerCase("tr-TR").includes(q)
+        foldSearchText(it.name).includes(q) ||
+        foldSearchText(it.materialCode ?? "").includes(q)
       );
     });
   }, [items, query, filter, changedIds, lockedIds]);
@@ -243,7 +248,7 @@ export function AuctionBidWorkbench({
       >
         <span>
           {t.rich("mevcutToplam", {
-            amount: money(target.exactTotalStr, currency),
+            amount: money(target.exactTotalStr, currency, intl),
             strong: (c) => <strong className="tabular-nums">{c}</strong>,
           })}
         </span>
@@ -255,7 +260,7 @@ export function AuctionBidWorkbench({
           <>
             <span>
               {t.rich("oncekiTeklifin", {
-                amount: money(target.ownLastTotal ?? "0", currency),
+                amount: money(target.ownLastTotal ?? "0", currency, intl),
                 strong: (c) => <strong className="tabular-nums">{c}</strong>,
               })}
             </span>
@@ -266,7 +271,7 @@ export function AuctionBidWorkbench({
               <span className="inline-flex items-center gap-1 font-semibold">
                 <CheckCircle2 className="h-4 w-4" aria-hidden="true" />
                 {t.rich("indirim", {
-                  amount: `${money(madeDiff, currency)}${madePct != null ? ` (%${madePct})` : ""}`,
+                  amount: `${money(madeDiff, currency, intl)}${madePct != null ? ` (${madePct})` : ""}`,
                   strong: (c) => <strong className="tabular-nums">{c}</strong>,
                 })}
               </span>
@@ -399,7 +404,7 @@ export function AuctionBidWorkbench({
                           {[
                             it.materialCode,
                             it.targetPrice
-                              ? t("hedef", { money: money(it.targetPrice, currency) })
+                              ? t("hedef", { money: money(it.targetPrice, currency, intl) })
                               : null,
                             meta?.note ?? null,
                           ]
@@ -408,12 +413,12 @@ export function AuctionBidWorkbench({
                         </p>
                       </td>
                       <td className="px-3 py-2 text-right whitespace-nowrap text-zinc-600 tabular-nums">
-                        {Number(it.quantity)} {it.unit}
+                        {quantity(it.quantity, it.unit, it.unitCode)}
                       </td>
                       <td className="px-3 py-2 text-right text-zinc-400 tabular-nums">
                         {init ? (
                           <span className={cn(changed && "line-through")}>
-                            {Number(init).toLocaleString("tr-TR", {
+                            {Number(init).toLocaleString(intl, {
                               maximumFractionDigits: decimals,
                             })}
                           </span>
@@ -458,7 +463,7 @@ export function AuctionBidWorkbench({
                       {/* "önce X" alt satırı kaldırıldı — önceki fiyat zaten
                           kendi kolonunda (üstü çizili), iki kez yazılıyordu. */}
                       <td className="px-3 py-2 text-right font-semibold whitespace-nowrap text-zinc-800 tabular-nums">
-                        {lineTotal !== null ? money(lineTotal, currency) : "—"}
+                        {lineTotal !== null ? money(lineTotal, currency, intl) : "—"}
                       </td>
                       <td className="px-2 py-2 text-center">
                         {!optedOut ? (

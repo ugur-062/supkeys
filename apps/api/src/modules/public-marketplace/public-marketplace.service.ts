@@ -7,6 +7,8 @@ import { tokenizeQuery, categoryPrefix, isCompanyActivity, foldSearchText, stemP
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { currentLocale } from "../../common/i18n/locale-context";
+import { DEFAULT_LOCALE, LOCALES } from "@rothern/i18n";
+import { resolveVisitorCurrency } from "../../common/currency/fx-rates";
 import { CATEGORY_NAME_SELECT, categoryName, categorySlug, localizeCategoryRows } from "../../common/company/category-name";
 import {
   marketplaceIndexableWhere,
@@ -302,13 +304,19 @@ export class PublicMarketplaceService {
     if (!row) throw new NotFoundException(i18nMessage("api.publicMarketplace.ilanBulunamadi"));
     const cats = await this.resolveCategories(row.categoryIds);
     const detail = this.toDetail(row, cats);
-    if (!this.translations) return detail;
-    const [localized] = await this.translations.localizeListings([detail], [row.id], currentLocale(), excerptOf);
-    const [withIndustry] = await this.translations.localizeListingCompanies([localized ?? detail], [row.company?.id], currentLocale());
-    const out = withIndustry ?? localized ?? detail;
+    // Dil durumu (i18n SEO, 2026-09-27): web hreflang'i yalnız HAZIR dillere
+    // yazar, kaynak metni gösterdiği dilde `lang={sourceLocale}` basar.
+    if (!this.translations) return { ...detail, readyLocales: [...LOCALES], sourceLocale: DEFAULT_LOCALE };
+    const locale = currentLocale();
+    const [[localized], state] = await Promise.all([
+      this.translations.localizeListings([detail], [row.id], locale, excerptOf),
+      this.translations.localeState("LISTING", row.id),
+    ]);
+    const [withIndustry] = await this.translations.localizeListingCompanies([localized ?? detail], [row.company?.id], locale);
+    const out = { ...(withIndustry ?? localized ?? detail), ...state };
     // Bu dilde çeviri henüz yoksa sayfa kaynak metni gösterir → indekslenmez
     // (kapsam denetimi dakikalar içinde çevirir, SEO bildirimi sayfayı tazeler).
-    if (out.indexable && (await this.translations.translationPending("LISTING", row.id, currentLocale()))) {
+    if (out.indexable && !state.readyLocales.includes(locale)) {
       return { ...out, indexable: false };
     }
     return out;
@@ -381,10 +389,17 @@ export class PublicMarketplaceService {
     }
     const typeCount = new Map<string, number>();
     for (const r of scanned) typeCount.set(r.type, (typeCount.get(r.type) ?? 0) + 1);
-    // Ülke facet'i: "tüm ülkelere açık" sayısı + hedef listelerde geçen ülkeler.
+    // Ülke facet'i ("Teklif verebilecek tedarikçi ülkesi", 2026-09-27 kuralı):
+    // HER ülke seçilebilir ve C ülkesinin sayısı = `openToAll` + C'yi açıkça
+    // hedefleyen talepler (`countryCanSee`, liste süzgeci `inScope` ile aynı).
+    // `countries` yalnız AÇIK hedef sayılarını taşır (istemci `openToAll`
+    // ekler); seçili ülke hedeflenmemiş olsa da 0 ile listede kalır ki çip ve
+    // sayaç "tüm ülkelere açık" talepleri göstersin (eskiden liste yalnız
+    // hedeflenen ülkelerdi → her talep herkese açıkken grup hiç çizilmiyordu).
     const openToAll = forScope.filter((r) => r.targetCountries.length === 0).length;
     const countryCount = new Map<string, number>();
     for (const r of forScope) for (const c of r.targetCountries) countryCount.set(c, (countryCount.get(c) ?? 0) + 1);
+    if (country && /^[A-Z]{2}$/.test(country) && !countryCount.has(country)) countryCount.set(country, 0);
 
     const cats = await this.resolveCategories([...catCount.keys()]);
     return {
@@ -397,8 +412,7 @@ export class PublicMarketplaceService {
         .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr")),
       cities: cityFacet(cityCount),
       types: [...typeCount.entries()].map(([type, count]) => ({ type, count })),
-      // Kapsam süzgeci (yurtiçi / uluslararası) — sayfa açıklaması bunu vaat
-      // ediyordu, süzgeç yoktu.
+      // Görünürlük ülkesi süzgeci — bkz. yukarıdaki kural (seçilebilir her ülke).
       openToAll,
       countries: [...countryCount.entries()]
         .map(([code, count]) => ({ code, count }))
@@ -432,7 +446,13 @@ export class PublicMarketplaceService {
     // Where/orderBy TEK KAYNAK (`common/company/product-index.ts`) — panelin
     // "Ürün Ara"sı aynı fonksiyonu okur.
     const where = productIndexWhere(
-      { ...q, verified: q.verified === "1", priceUnpriced: q.priceUnpriced === "1", fastReply: q.fastReply === "1" },
+      {
+        ...q,
+        verified: q.verified === "1",
+        priceUnpriced: q.priceUnpriced === "1",
+        fastReply: q.fastReply === "1",
+        currency: resolveVisitorCurrency(q.currency, currentLocale()),
+      },
       [],
       { employeeValues: await employeeValuesQuery(this.prisma, q.employees) },
     );
@@ -701,6 +721,8 @@ export class PublicMarketplaceService {
     certifications: { cert: string; count: number }[];
     employees: { key: number; count: number }[];
     moq: Record<string, number>;
+    /** Histogramın (ve süzgeç sınırlarının) para birimi — web etiketleri bununla. */
+    currency: string;
     priceHistogram: {
       min: number;
       max: number;
@@ -727,6 +749,7 @@ export class PublicMarketplaceService {
         attributes: true,
         moq: true,
         priceAmount: true,
+        priceAmountBase: true,
         company: {
           select: {
             city: true,
@@ -757,6 +780,7 @@ export class PublicMarketplaceService {
       near: q.near,
       radius: q.radius,
       fastReply: q.fastReply === "1",
+      currency: resolveVisitorCurrency(q.currency, currentLocale()),
     };
     // `attributes` facet'i ham satırı ister (JSON alanı), sayaçlar eşlenmişi.
     const ctx = contextualFacetCounts(inCategory.map(toFacetRow), sel);
@@ -794,6 +818,7 @@ export class PublicMarketplaceService {
       certifications: ctx.certifications,
       employees: ctx.employees,
       moq: ctx.moq,
+      currency: sel.currency,
       priceHistogram: ctx.priceHistogram,
       attributes: await attributeFacets(this.prisma, q.category, inCategory),
       truncated,

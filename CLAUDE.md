@@ -197,7 +197,8 @@ yalnız sekiz ülke açıktı (`docs/plan-country-registration.md` tarihsel).
   birincil ülke (+7 → RU, 7xx → KZ; +1 → US), numarasız seçilen ülke kaybolmaz.
 - **Türkiye'ye özgü kalanlar (bilinçli):** MERSİS, vergi dairesi, KEP
   yalnız TR (şehir sayfaları ve "Yakınımda" aynı gün dünya geneline açıldı —
-  aşağıda "DÜNYA ŞEHİRLERİ"). Para birimi listesi genişletilmedi.
+  aşağıda "DÜNYA ŞEHİRLERİ"). Para birimi listesi 2026-09-27'de 21'e çıktı
+  (bkz. "ULUSLARARASI TUR 2").
 - Migration `20260927120000_global_registration` (eklemeli). Sözleşmeler:
   `country-profiles.spec`, `bank-details-phone.spec`, `onboarding.spec`
   (kapalı liste + DE/OTHER), `foreign-verification.spec` (SWIFT), `bank-accounts.spec`,
@@ -262,9 +263,125 @@ slug'ı — `/urunler/sehir/bursa` DEĞİŞMEZ; GeoNames'in ilçe ölçekli TR
 - **Kurulum sırası (staging ve canlı):** migration → `pnpm --filter
   @rothern/db seed-geo-cities` (TSV `src/seeds/geo-cities.tsv` depodadır;
   yeniden üretmek `GEONAMES_DIR=… build-geo-cities`) → `backfill-city-ids`
-  (`--dry` önce). Seed koşulmadan API TR yedeğiyle çalışır, yabancı şehir
-  sayfası 404 verir. Sözleşme: `geo-index.spec`, `product-facets.spec`,
+  (`--dry` önce) → `backfill-price-base` (`--dry` önce; ürün fiyat süzgecinin
+  TRY tabanı, bkz. "ULUSLARARASI TUR 2"). Seed koşulmadan API TR yedeğiyle
+  çalışır, yabancı şehir sayfası 404 verir. Sözleşme: `geo-index.spec`, `product-facets.spec`,
   `public-product-index.spec`, `seo-index.spec`, i18n `pathnames.test`.
+
+**ULUSLARARASI TUR 2 (2026-09-27, kullanıcı: "her biri doğru dillerde gitmeli,
+davette kalemler olsun ki cazip gelsin, dil kusursuz, filtreler dahil tüm
+ülkelere uygun").** 6 denetim + 9 paralel düzeltme paketi. Kurallar:
+- **KAYITSIZ ALICININ DİLİ ÜLKEDEN** (`@rothern/i18n` `recipientLocale`):
+  satırda seçilen → ülke (TR/XN/AZ tr; RU/BY/KZ/KG/UZ/TJ/TM/AM ru; UA/GE/MD/
+  Baltık dahil diğerleri en) → e-posta/site ccTLD → davet edenin dili. Dış talep
+  daveti, AI keşfi (aday `country` ISO-2 taşır), "tedarikçini davet et" ve
+  ekip daveti (diyalogda dil seçici) bu kuralla; dil `CompanyReferralInvite.
+  locale` / `CompanyUserInvitation.locale`e yazılır, yeniden gönderim aynı
+  dili kullanır; kayıt/kabul bağlantısı o dilin ön ekiyle → hesap o dilde doğar.
+  Misafir bilgi talebi `PublicInquiry.locale`. KAYITLI alıcıya her zaman
+  `CompanyUser.locale`.
+- **DIŞ DAVET E-POSTASI = BEYAZ LİSTE** (`TenderExternalInviteData`): numara,
+  ilk 6 kalem "ad — miktar birim" (+N), şehir + ülke, son tarih (GMT+3),
+  kategori (çoğul), aranan tedarikçi tipi, vitrindeyse herkese açık sayfa,
+  "kapalı zarf" + "ücretsiz" cümleleri; kayıt bağlantısı `redirect=/company/
+  ilan/<id>`. Hedef fiyat, şartname, marka, belge, ticari şart, tam adres ASLA.
+  Gönderimden önce talep çevirisi `ContentTranslationService.ensureTranslated`
+  ile EN FAZLA 60 sn beklenir (kullanıcı kararı), olmazsa özgün metin. Soğuk
+  davet konusunda emoji yok; alt bilgideki alan adı gönderen ortamdan
+  (`renderEmail(…, { siteUrl })`), yıl dinamik. `/company` kökü `?redirect=`
+  niyetini onboarding durumu bilinmeden tüketmez.
+- **BİLDİRİM PARAMETRELERİ TİPLİ** (`common/notifications/notification-params.
+  ts`): `dateParam`/`moneyParam`/`numberParam`/`listingTitleParam` alıcı başına
+  ve alıcının dilinde çözülür (İstanbul duvar saati, en/ru "(GMT+3)", talep
+  başlığı alıcının dilindeki çeviriden). Başka firmaya giden bildirime ÖNCEDEN
+  biçimlenmiş tarih/tutar ya da ham başlık VERİLMEZ. "Davetiniz kabul edildi"
+  onboarding BİTİNCE (gerçek firma adıyla) gider; kayıttaki geçici ad "Ad Soyad".
+- **PARA:** tek liste `@rothern/shared` `CURRENCY_CODES`/`CURRENCY_ENUM` (21;
+  Prisma enum'la birebir; DTO'larda elle liste YAZILMAZ). Yeni birim = enum +
+  migration (`ADD VALUE` ayrı dosya) + `fx-rates.ts` yedek kuru + `CURRENCY_
+  SYMBOLS`. KZT/UZS/PLN/CZK/HUF TCMB'de yok (ikinci kaynak gelince). Sembol
+  tek kaynak `CURRENCY_SYMBOLS` (belirsiz sembol yok: JP¥/CN¥, A$/CA$, kr/лв
+  yerine ISO); **YERİ dilden** `affixCurrency` (İngilizcede önde "$1,200.00",
+  harfli kodda "CHF 1,200.00"; tr/ru sonda). Mesajlar tek `{amount}` alır —
+  `{amount} {currency}` kalıbı YAZILMAZ. Ürün fiyat süzgeci/sıralaması/
+  histogramı `CompanyItem.priceAmountBase` (TRY karşılığı; yazımda + her kur
+  çekiminde ham SQL ile tazelenir) üzerinden, `?para=` (varsayılan ziyaretçide
+  dil, panelde firma ülkesi). Pano/rapor firma rapor biriminde
+  (`reportCurrencyOf`: Talep Şartları ana birimi → ülke birimi). Yeni ürün
+  firma ülkesinin birimiyle doğar.
+- **WEB BİÇİM:** para/sayı/yüzde/tarih HER ZAMAN arayüz diliyle
+  (`useFormatMoney`, `useFormatDate`, `formatPercent`, `intlLocale`); `formatDate`
+  dilde ZORUNLU parametre. `"tr-TR"` literali ve `toLocale{Lower,Upper}Case("tr")`
+  yalnız izinli dosyalarda (`no-hardcoded-intl-locale.test`). Tutar girişi
+  (`MoneyInput`) arayüz dilinin ayraçlarıyla okur (EN "12,500" = 12500).
+  Baş harf büyütme `upperForText` (Türkçe harf yoksa dilden bağımsız).
+  **Miktar + birim DİLİN ÇOĞUL KURALIYLA:** web `useQuantityLabel` / saf
+  `quantityWith` (lib/seo/entities), API `quantityDisplay` (common/i18n/
+  unit-label), e-posta `email.domain.qty` — katalog `*.qty.<KOD>` ICU çoğul
+  ("100 pieces", "100 коробок", "100 adet"). `${n} ${unitLabel(u)}` yapıştırma
+  YASAK (EN/RU "100 piece" basıyordu, herkese açık ürün sayfasında da); mesaj
+  tek `{qty}` alır. Tekil etiket yalnız birim TEK BAŞINA ("₺50 / piece",
+  sütun başlığı) gösterilirken.
+- **AI ÇIKTI DİLİ** (`common/i18n/ai-language.ts`, kural satırı istemin SONUNDA):
+  İÇERİK alanları (başlık, açıklama, anahtar kelime, kalem, tanıtım) GİRDİNİN
+  dilinde — çevrilmez (karışık dilli kayıt çeviriyi FAILED'e düşürüp kaydı
+  hiçbir dilde indekslenemez yapıyordu); kullanıcıya görünen özet/gerekçe/eksik
+  alan etiketi arayüz dilinde. Model ipucu metni (categoryHint) ham basılmaz.
+  `missingRequired` KOD (`AiMissingField`), etiket istemcide. AI arama dünya
+  şehri + ülke + para birimi süzgeci üretir. AI istemleri bilinçli Türkçe →
+  cırcır artışı `ratchet:update --force` ile kabul edilir (yalnız istem dosyası).
+- **SİSTEM METİNLERİ KODLA** (`@rothern/shared` `system-text.ts`, `[[KOD]]
+  metin`; red gerekçesi `verification-reason.ts` `[KOD] not`): platformun
+  yazdığı gerekçe/not/ödeme yöntemi/adres başlığı/yetkili unvanı Türkçe cümle
+  olarak SAKLANMAZ; eski Türkçe kayıtlar tanınır (`legacy-system-texts.ts`,
+  `localizeDefaultAddressTitle`). Boş durum/"bulunamadı" cümleleri türe göre
+  tam cümle; paket tavanı gibi sayılar `{limit}` parametresiyle.
+- **KAYIT/KYC:** VIES yanıtı `isValid` (`valid` DEĞİL; `userError`
+  MS_UNAVAILABLE/TIMEOUT… = "servis yanıt vermedi", `"---"` ad/adres = null;
+  sonuç audit `company.vies_checked`). Vergi no `normalizeTaxId` (ИНН/VAT/ülke
+  öneki, Arap-Hint rakamı) + kural başına uzunluk, web ve API AYNI fonksiyon;
+  etiket katalogda (`web.domain.taxId.*`), yerel ad `taxIdLocalName`. Telefon
+  ulusal ön eki ülke başına ("0", RU/KZ/BY/TM/TJ "8", HU "06"), uzunluk
+  ülkeye göre (`isValidPhoneNumber`/`IsIntlPhone`), varsayılan ülke dilden.
+  "IBAN isteğe bağlı" ülkeler (BR, CR, DO…) hesap no + SWIFT kabul eder; IBAN
+  uzunluğu ülkeye göre. Kapalı ülke banka ülkesi ve admin ülke düzenlemesinde de
+  reddedilir. Onboarding ülkeyi telefon/dilden başlatır (EN'de seçim zorunlu),
+  mahalle adres satırına eklenir (yalnız TR), yabancı firma Firma Bilgileri'nde
+  eyalet/bölge düzenler. Onboarding başlığı "Şirket bilgileri" (doğrulama DEĞİL).
+- **SÜZGEÇ/UYGUNLUK:** Açık Talepler şehir süzgeci kalıcı slug (`?sehir=
+  de-munich`; ham metin yedeği) + alıcı ülkesi (`?ulke=`). Ülke kısıtlı talep:
+  herkese açık sayfada "Yalnız … merkezli tedarikçiler" notu; panelde uygun
+  olmayan firmaya 404 değil 403 `COUNTRY_NOT_ELIGIBLE` (+ `targetCountries`,
+  içerik YOK; görünürlük kuralı önce). Talep dizininde ülke süzgecinin anlamı
+  "Teklif verebilecek tedarikçi ülkesi" (sayı = tüm ülkelere açık + o ülkeyi
+  hedefleyen). Birim eşanlamlıları EN çoğul + RU (шт, кг, кв.м…).
+- **SEO/GEO:** hreflang/x-default/sitemap YALNIZ hazır diller (`buildMetadata(
+  { locales })`, API detay `readyLocales` + `sourceLocale`; x-default hazır
+  ilk dile tr → en → ru). Sözleşme sayfaları yalnız tr (EN/RU kanoniği TR).
+  `?sayfa=N` kendi kanoniği, süzgeçli varyant tabana (`lib/seo/landing.ts`);
+  şehir/ülke sayfası `MIN_LANDING_PRODUCTS = 3` altında noindex + sitemap dışı.
+  JSON-LD `inLanguage` yalnız sayfa düğümünde (ItemPage/ProfilePage/WebPage),
+  varlık `@id` dilden bağımsız (TR adres + `#product`/`#company`/`#demand`),
+  fiyatsız ürün `offers` taşımaz, ülkesiz firmaya "TR" yazılmaz. Kaynak dilde
+  gösterilen blok `lang` taşır. Kök `/llms.txt` İNGİLİZCE, dil sürümleri
+  `/<dil>/llms(-full).txt` (`web.marketing.llms.*`, istemciye gitmez). Dil
+  yönlendirmeleri tek sıçrama (`localizedRedirectDestination`; next.config
+  `@rothern/i18n` import eder). Yandex doğrulaması `NEXT_PUBLIC_YANDEX_SITE_
+  VERIFICATION`. Kategori iniş sayfası facet taramasına değil segment + ürün
+  `total`ına dayanır.
+- **TERİMLER:** EN talep = "buying request" (herkese açık adresle aynı; paket
+  satın alma isteği "purchase request" kalır), teklif = "quote" (yalnız "sealed
+  bid"), kalem = "line item", giriş "log in", sektör "Industry", satış tarafı
+  "Sales", ABD yazımı, sentence case. RU "Вы/Ваш" büyük, onay = "согласование/
+  Согласующий", açık eksiltme "аукцион на понижение", eleme "исключить/
+  исключено" ("отклонить" yalnız ret), bağlantı "контакт", paket "тариф".
+Sözleşmeler: `recipient-locale.test`, `tender-external-invite-email.spec`,
+`invite-email-status.spec`, `content-translation-wait.spec`, `notification-
+params.spec`, `currency-conversion.spec`, `new-currencies.spec`, `price-base-
+refresh.spec`, `foreign-verification.spec` (gerçek VIES biçimi),
+`foreign-kyc-identity.spec`, `ai-output-language.spec`, `system-text.spec`,
+web `no-hardcoded-intl-locale.test`, `money.test`, `price-currency-filter.test`,
+`country-slugs.test`, `llms.test`, `landing.test`.
 
 **TALEP GÖRÜNÜRLÜK ÜLKESİ — YURTİÇİ/ULUSLARARASI KAPSAMI KALKTI (2026-09-21,
 kullanıcı kararı: "tüm alım talepleri görülsün herkese; sadece belirli
@@ -360,7 +477,9 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   `/en/buying-requests/<slug>`, panel `/en/company/purchasing/my-requests`,
   `/ru/kompaniya/zakupki/moi-zayavki` (panel kökü dile göre; Türkçe `/company`
   olduğu gibi — gönderilmiş e-postalar kırılmasın). Rusça LATİN çeviriyazı
-  (Kiril paylaşımda `%D0…` oluyordu). Varlık slug'ları hiçbir dilde değişmez.
+  (Kiril paylaşımda `%D0…` oluyordu). Varlık slug'ları hiçbir dilde değişmez —
+  TEK İSTİSNA ülke sayfası `[ulke]` (`de-almanya` · `de-germany` ·
+  `de-germaniya`; `@rothern/i18n` `country-slugs.ts` + `PARAM_LOCALIZERS`).
   TEK KAYNAK `@rothern/i18n` `ROUTE_PATHNAMES` (iç şablon → dil başına dış
   şablon; `translateRoutePath`/`internalRoutePath` saf, edge-safe). next-intl
   `routing.pathnames` middleware'de dış→iç yeniden yazar ve yanlış biçimi
@@ -468,7 +587,7 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   `plans-i18n.test` iki kaynağı BİREBİR tutar (özellik sayısı dahil). Segment
   sloganları `web.marketing.taglines.s<kod>` + `useSegmentTagline`.
 - **SSS tek kaynak `faqGroups(locale)`** (`sss/faq-data.ts`): sayfa, `FAQPage`
-  JSON-LD ve `llms-full.txt` (TR) aynı fonksiyondan; `faq.test` üç dilde
+  JSON-LD ve `llms-full.txt` (dil sürümleriyle) aynı fonksiyondan; `faq.test` üç dilde
   kalite kapısı (soru "?" ile biter, cevap ≥120 karakter, fiyat yazmaz).
 - **Kimlik akışı ortak parçaları:** `usePasswordRules` + `PasswordStrength`,
   `ConsentRows` (kayıt ve davet kabul kopyaları birleşti); zod şemaları
@@ -858,6 +977,12 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 | Sitemap parçaları · XML | `lib/seo/sitemap-parts.ts` · `lib/seo/sitemap-xml.ts` (API `public-sitemap.service.ts`) |
 | Önbellek etiketleri (web ⇔ API) | `lib/seo/tags.ts` ⇔ `modules/seo-index/seo-index.service.ts` `SEO_TAGS` |
 | Arama görünürlüğü puanı (ürün/firma/talep) | `@rothern/shared` `helpers/seo-readiness.ts` |
+| Kayıtsız alıcının dili (davetler) | `@rothern/i18n` `recipient-locale.ts` (`recipientLocale`, `localeForCountry`) |
+| Para birimi listesi · sembol · sembolün yeri | `@rothern/shared` `constants/currencies.ts` (`CURRENCY_CODES`, `CURRENCY_SYMBOLS`, `affixCurrency`) · API kur tablosu `common/currency/fx-rates.ts` |
+| Bildirimde tarih/tutar/talep başlığı (alıcının dilinde) | `common/notifications/notification-params.ts` |
+| AI çıktı dili kuralı | `common/i18n/ai-language.ts` |
+| Sistemin yazdığı metin (kodlu) · KYC red gerekçesi | `@rothern/shared` `helpers/system-text.ts` · `helpers/verification-reason.ts` |
+| Web para/sayı/tarih biçimi | `src/i18n/format.ts` (`intlLocale`, `formatPercent`, `upperForText`) · `components/ui/money.tsx` (`useFormatMoney`) · `lib/format-date.ts` (`useFormatDate`) |
 | Dil listesi · varsayılan · çerez adı · düşüş zinciri · `Accept-Language` müzakeresi | `@rothern/i18n` `locales.ts` (`LOCALES`, `DEFAULT_LOCALE`, `LOCALE_COOKIE`, `negotiateLocale`) |
 | Çeviri katalogları (tr kaynak) · terim sözlüğü + yasaklı sözcükler · cırcır tabanı | `packages/i18n/src/messages/<dil>/*.json` · `src/glossary.json` · `baseline/hardcoded.json` |
 | İstek dili (API) · çevirmen · anahtarlı istisna | `common/i18n/{locale-context,i18n.service,http-i18n}.ts` (`currentLocale`, `tApi`, `i18nMessage`) |
@@ -1412,8 +1537,10 @@ eksikse "otomatik" değildir:
   (kullanıcı kararı 2026-09-09); Instagram/Rothern ID üyede kalır.
 - **Liste sayfaları (2026-09-27 denetimi):** `itemListNode(…, locale)` liste ve
   öğe adreslerini o dilin adresiyle yazar (EN/RU'da Türkçe adres veriyordu);
-  şehir/ülke/kategori sayfasında sayfalama İNİŞ adresinde kalır (`?sayfa=N`,
-  kanonik iniş sayfası; kategori sayfalaması 308'de `sayfa`yı düşürüyordu);
+  şehir/ülke/kategori sayfasında sayfalama İNİŞ adresinde kalır (`?sayfa=N`;
+  kategori sayfalaması 308'de `sayfa`yı düşürüyordu) — kanonik kuralı aynı gün
+  TERSİNE döndü: `?sayfa=N` taşıyan sayfa KENDİ kanoniği (Google önerisi),
+  bkz. "ULUSLARARASI TUR 2";
   şehir/ülke sayfasının `noindex`i ve sayacı ürün listesinin `total`ından (facet
   5.000 tarama tavanlıdır); BreadcrumbList Anasayfa › Ürünler › Ülke (› Şehir).
   **OG görseli:** `buildMetadata` kendi görselini koyduğu için segment
@@ -1892,9 +2019,12 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Son migration `20260927150000_geo_cities` (+ `20260927120000_global_registration`;
-  ikisi de eklemeli, staging VE canlıda BEKLİYOR — Render askısı 1 Ekim'e
-  dek; ardından `seed-geo-cities` + `backfill-city-ids`). i18n'in beş
+- Son migration `20260927200100_international_locale_price_base` (+
+  `20260927200000_currency_additions` — enum `ADD VALUE` AYRI dosyada;
+  `20260927150000_geo_cities`, `20260927120000_global_registration`; hepsi
+  eklemeli, staging VE canlıda BEKLİYOR — Render askısı 1 Ekim'e dek; ardından
+  `seed-geo-cities` + `backfill-city-ids` + `backfill-price-base`). API'ye
+  alan/parametre eklendi (davet `invites`, ürün `currency`) → API web'den ÖNCE. i18n'in beş
   migration'ı canlı DB'ye yedek alınarak uygulandı (aşağıdaki "BEKLİYOR"
   notları bayat). Öncesi
   `20260924200000_search_text_i18n` (`searchTextI18n` × 3 +

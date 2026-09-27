@@ -13,8 +13,10 @@ import { CityLinks } from "./city-links";
 import { CountryLinks } from "./country-links";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbNode, graph, itemListNode } from "@/lib/seo/jsonld";
+import { canonicalProductListPage } from "@/lib/seo/landing";
+import { pageQuery } from "@/lib/seo/meta";
 import { categoryHref } from "@/lib/public/marketplace";
-import { cityProductPath, countryProductPath } from "@rothern/shared";
+import { cityProductPath, countryProductPath, currencyForLocale } from "@rothern/shared";
 import {
   buildProductFilterQuery,
   parseProductFilters,
@@ -40,8 +42,12 @@ interface Props {
   title: string;
   lead: string;
   searchParams: SearchParamsLike;
-  /** Kategori yol sayfasında sabit kod. */
-  category?: { id: string; name: string };
+  /**
+   * Kategori yol sayfasında sabit kod. `slug` (Türkçe ad, API) ŞART: yoksa
+   * adres okuyucunun dilindeki addan üretilir ve kanonikle ayrışır (EN
+   * sayfalama bağlantısı 308'e düşüp `?sayfa=`yı kaybediyordu).
+   */
+  category?: { id: string; name: string; slug?: string };
   /** Kategori sayfası: segment fotoğrafı (başlık yanında). */
   image?: string | null;
   /** Şehir açılış sayfası: süzgeç URL'den değil YOLDAN gelir (Parça 3). */
@@ -73,7 +79,10 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
     },
     category?.id,
   );
-  const params = toProductListParams(state);
+  // Fiyat süzgecinin varsayılan birimi arayüz dilinden (tr TRY · ru RUB · en
+  // USD) — AÇIKÇA gönderilir: uç kenar önbelleğinde, dile göre değişen örtük
+  // varsayılan önbellek anahtarında görünmezdi.
+  const params = toProductListParams(state, { defaultCurrency: currencyForLocale(locale) });
   const basePath = MARKETPLACE_ROUTES.products;
 
   const [page, facets, otherCounts] = await Promise.all([
@@ -93,6 +102,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
       near: params.near,
       radius: params.radius,
       fastReply: params.fastReply,
+      currency: params.currency,
     }),
     // Sekme rozetleri: aynı sorgunun ÖTEKİ yüzeylerdeki toplamı
     // (yalnız arama varken istek atılır).
@@ -128,12 +138,15 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
      "1..12" der ve aynı sıralı liste tekrarlanmış görünür.
      Kanonik yol açılış sayfasında (kategori/şehir/ülke) o sayfaya, dizinde
      köke işaret eder — süzgeçli varyantlar kanoniğini `/urunler` bildiriyor.
+     Sayfalanmış sayfa (yalnız `?sayfa=N`) kendi adresini söyler — sayfa
+     metasındaki kanonikle aynı kural (`canonicalProductListPage`).
      Adresler sayfanın dilinde (`locale`). */
+  const listPage = canonicalProductListPage(searchParams);
   const listLd = graph([
     itemListNode({
       locale,
       name: title,
-      path: landingPath,
+      path: `${landingPath}${pageQuery(listPage)}`,
       totalItems: page.total,
       startPosition: (page.page - 1) * page.pageSize + 1,
       items: page.items.map((p) => ({
@@ -207,7 +220,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
           <span className="flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-3">
               <MobileFilterButton />
-              <ResultCount kind="product" noun={t("productNoun")} />
+              <ResultCount kind="product" />
             </span>
             <span className="flex items-center gap-2">
               <SortControl />
@@ -219,7 +232,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         <FilterResults>
           {page.items.length === 0 ? (
             <PublicEmptyState
-              noun={t("productsEmptyNoun")}
+              title={t("productsEmptyTitle")}
               clearHref={hasFilter || category ? basePath : undefined}
               extra={{ label: t("openRequestCta"), href: talepHref }}
             />

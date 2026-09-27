@@ -27,6 +27,24 @@ describe("ürün süzgeç URL şeması", () => {
     expect(parseProductFilters({ gorunum: "kart" }).view).toBeUndefined();
   });
 
+  it("`para` (2026-09-27 kurla çevir): fiyat süzgecinin birimi — tercih gibi davranır", () => {
+    const f = parseProductFilters({ para: "eur", fiyatMax: "500" });
+    expect(f.currency).toBe("EUR");
+    // Süzgeç sayılmaz (yalnız aralık sayılır), temizlemede KALIR.
+    expect(activeFilterCount(f)).toBe(1);
+    expect(clearProductFilters(f).currency).toBe("EUR");
+    expect(clearProductFilters(f).priceMax).toBeUndefined();
+    expect(buildProductFilterQuery(f)).toContain("para=EUR");
+    expect(toProductListParams(f)).toMatchObject({ currency: "EUR", priceMax: 500 });
+    // URL'de yoksa çağıranın varsayılanı (herkese açık sayfa dilden verir).
+    expect(toProductListParams(parseProductFilters({}), { defaultCurrency: "USD" }).currency).toBe("USD");
+    expect(toProductListParams(parseProductFilters({})).currency).toBeUndefined();
+    // Bilinmeyen kod düşer.
+    expect(parseProductFilters({ para: "XYZ" }).currency).toBeUndefined();
+    // Gidiş-dönüş kararlı.
+    expect(parseProductFilters(new URLSearchParams(buildProductFilterQuery(f)))).toEqual(f);
+  });
+
   it("aktif süzgeç sayısı arama/sıralama/sayfayı saymaz", () => {
     expect(activeFilterCount(parseProductFilters({ q: "x", sirala: "yeni", sayfa: "2", sehir: "A,B", dogrulanmis: "1" }))).toBe(3);
   });

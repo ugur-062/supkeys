@@ -7,7 +7,7 @@ import { clientMessages } from "@/i18n/client-messages";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { notFound } from "next/navigation";
 import { QueryProvider } from "@/components/providers/query-provider";
-import { OG_LOCALE, SITE_NAME, absoluteUrl } from "@/lib/seo/meta";
+import { OG_LOCALE, SITE_NAME, absoluteUrl, siteVerification } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { Geist_Mono, Inter } from "next/font/google";
 import { Toaster } from "sonner";
@@ -72,17 +72,13 @@ export async function generateMetadata({ params }: { params: LocaleParams }): Pr
   description: t("siteDescription"),
   /* Arama motoru sahiplik doğrulaması — env'den (Parça 9). Boşsa etiket
      yazılmaz. Google: Search Console "HTML etiketi"; Bing: Webmaster Tools
-     meta (msvalidate.01). Vercel env → redeploy. */
-  ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION || process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION
-    ? {
-        verification: {
-          ...(process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION ? { google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION } : {}),
-          ...(process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION
-            ? { other: { "msvalidate.01": process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION } }
-            : {}),
-        },
-      }
-    : {}),
+     meta (msvalidate.01); Yandex: Webmaster (yandex-verification — RU
+     aramasının ana motoru). Vercel env → redeploy. */
+  ...siteVerification({
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
+    bing: process.env.NEXT_PUBLIC_BING_SITE_VERIFICATION,
+    yandex: process.env.NEXT_PUBLIC_YANDEX_SITE_VERIFICATION,
+  }),
   icons: {
     icon: [
       { url: "/favicon.ico", sizes: "any" },

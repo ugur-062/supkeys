@@ -6,6 +6,7 @@ import { ButtonAccentProvider } from "@/components/ui/button-accent";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { dizinBos } from "@/lib/seo/empty-index-guard";
+import { canonicalListingListPage } from "@/lib/seo/landing";
 import { buildMetadata } from "@/lib/seo/meta";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import type { Metadata } from "next";
@@ -23,7 +24,13 @@ export const revalidate = 60;
  * yumuşak 404 koruması, `lib/seo/empty-index-guard.ts`). İlk kayıt girince
  * kural kendiliğinden kalkar.
  */
-export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: LocaleParams;
+  searchParams: Promise<SearchParamsLike>;
+}): Promise<Metadata> {
   const locale = await localeFromParams(params);
   const bos = await dizinBos("talepler");
   const t = await getTranslations({ locale, namespace: "web.marketplace.pages" });
@@ -33,6 +40,8 @@ export async function generateMetadata({ params }: { params: LocaleParams }): Pr
     title: t("demandsMetaTitle", { label: tl("demands") }),
     description: t("demandsMetaDesc"),
     path: MARKETPLACE_ROUTES.demands,
+    // Yalnız `?sayfa=N` taşıyan sayfa kendi kanoniği; süzgeçli varyant tabana.
+    page: canonicalListingListPage(await searchParams),
     noindex: bos,
   });
 }

@@ -60,7 +60,9 @@ describe("Admin aksiyonları audit'lenir", () => {
   it("verification_set → audit_log", async () => {
     const { service } = rig();
     const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
-    await service.setVerification(co.company.id, "REJECTED", "admin-7");
+    // Red gerekçesi (kod VEYA ≥3 karakterlik not) servis katmanında da zorunlu
+    // (2026-09-27, kodlu gerekçe) — yalnız kodla red.
+    await service.setVerification(co.company.id, "REJECTED", "admin-7", undefined, "UNREADABLE");
     const row = await prisma.auditLog.findFirst({
       where: {
         action: "admin.company.verification_set",

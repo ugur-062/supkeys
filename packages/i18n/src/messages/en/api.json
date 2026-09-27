@@ -51,7 +51,7 @@
     "buIstekArtikBeklemedeDegil": "This request is no longer pending",
     "kazandirmaUygulanamadiTeklifDurumuDegismisOlabil": "The award could not be applied — the quote status may have changed. Please try again.",
     "buIstegiYalnizcaBaslatanVeyaYonetici": "Only the person who started this request or a Manager can cancel it",
-    "yalnizcaBekleyenIstekIptalEdilebilir": "Only a pending request can be cancelled",
+    "yalnizcaBekleyenIstekIptalEdilebilir": "Only a pending request can be canceled",
     "gecersizVeyaPasifOnayciKullanici": "Invalid or inactive approver user",
     "onayciOlamazOnaycininOnaylamaYetkisiOlmali": "{firstName} {lastName} cannot be an approver — an approver must have the \"Approve\" permission"
   },
@@ -61,7 +61,7 @@
     "kendiniziEngelleyemezsiniz": "You cannot block yourself"
   },
   "supabaseAuth": {
-    "girisServisiGeciciOlarakKullanilamiyorLutfen": "The sign-in service is temporarily unavailable — please try again shortly",
+    "girisServisiGeciciOlarakKullanilamiyorLutfen": "The login service is temporarily unavailable — please try again shortly",
     "ePostaVeyaParolaHatali": "Email address or password is incorrect",
     "buEPostaIleZatenBir": "An account with this email address already exists",
     "hesapOlusturulamadiLutfenBirazdanTekrarDeneyin": "The account could not be created, please try again shortly",
@@ -75,7 +75,7 @@
     "gecersizTokenTipi": "Invalid token type",
     "kullaniciGecersiz": "The user is invalid",
     "firmaHesabiPasifVeyaEngellenmis": "The company account is inactive or blocked",
-    "oturumGecersizLutfenYenidenGirisYapin": "Your session is invalid — please sign in again",
+    "oturumGecersizLutfenYenidenGirisYapin": "Your session is invalid — please log in again",
     "buIslemIcinYetkinizYok": "You do not have permission for this action",
     "buEPostaIleZatenBir": "An account with this email address already exists",
     "kullaniciBulunamadi": "User not found",
@@ -85,7 +85,7 @@
     "yalnizcaFirmaSahibiDogrulamaYapabilir": "Only the company owner can complete verification",
     "firmaDogrulamasiZatenTamamlanmis": "Company verification is already complete",
     "gecersizUlkeSecimi": "Invalid country selection",
-    "yetkiliTCKimlikNoGecersiz": "The authorised person's Turkish ID number (TCKN) is invalid",
+    "yetkiliTCKimlikNoGecersiz": "The authorized person's Turkish ID number (TCKN) is invalid",
     "vergiDairesiZorunlu": "Tax office is required",
     "ilceZorunlu": "District is required",
     "ePostaVeyaSifreHatali": "Email address or password is incorrect",
@@ -95,7 +95,7 @@
     "girisYapmadanOnceEPostaAdresinizi": "Verify your email address before signing in.",
     "dogrulamaKoduSuAndaGonderilemediLutfen": "The verification code could not be sent right now. Please try again in a few minutes.",
     "dogrulamaKoduHatali": "The verification code is incorrect",
-    "premiumSuAnManuelOnaylaVeriliyor": "Premium is currently granted by manual approval — self-service upgrade is temporarily closed",
+    "premiumSuAnManuelOnaylaVeriliyor": "Plans are currently granted by manual approval — self-service upgrade is temporarily unavailable",
     "yalnizcaFirmaSahibiPaketYukseltebilir": "Only the company owner can upgrade the plan",
     "onceSirketBelgeleriniziDogrulatmalisiniz": "You must have your company documents verified first",
     "ikiAdimliDogrulamaZatenAcik": "Two-factor authentication is already enabled",
@@ -106,11 +106,17 @@
     "gecersizBildirimTercihi": "Invalid notification preference: {k}",
     "buOzellikGoldPaketGerektirir": "This feature requires the Gold plan (buying panel).",
     "buOzellikPaketVeyaUzeriGerektirir": "This feature requires the {tier} plan or higher.",
-    "buUlkedenYeniKayitAlinmiyor": "New registrations from this country are not currently accepted. Contact us if you would like your country to be opened.",
+    "buUlkedenYeniKayitAlinmiyor": "New registrations from this country are not currently accepted.",
     "sahisFirmasiIcin11HaneliTckn": "Enter a valid 11-digit Turkish ID number (TCKN) for a sole proprietorship",
     "tuzelKisiIcin10HaneliVergiNo": "Enter a valid 10-digit tax number for a legal entity",
     "gecerliBirVergiSicilNumarasiGiriniz": "Enter a valid tax/registration number",
-    "yerelHukukiYapiZorunlu": "When \"Other\" is selected, enter your company's legal form (e.g. GmbH, LLC)"
+    "yerelHukukiYapiZorunlu": "When \"Other\" is selected, enter your company's legal form (e.g. GmbH, LLC)",
+    "defaults": {
+      "founderTitle": "Founder",
+      "headOfficeTitle": "Head office",
+      "deliverySameTitle": "Delivery (same as billing)",
+      "deliveryTitle": "Delivery"
+    }
   },
   "publicProfile": {
     "profilBulunamadi": "Profile not found",
@@ -148,11 +154,11 @@
     "kazandirmaYapilmisIlanYenidenAcilamaz": "An awarded request cannot be reopened",
     "yalnizKapaliDegerlendirmedekiKazandirilmamisIlan": "Only a closed or under-evaluation request that has not been awarded can be reopened",
     "siparisBulunamadi": "Order not found",
-    "siparisBuDurumdaIptalEdilemezTeslim": "The order cannot be cancelled in this state (it may be delivered or completed)",
-    "onayliOdemesiOlanSiparisIptalEdilemez": "An order with an approved payment cannot be cancelled — start the refund process first",
+    "siparisBuDurumdaIptalEdilemezTeslim": "The order cannot be canceled in this state (it may be delivered or completed)",
+    "onayliOdemesiOlanSiparisIptalEdilemez": "An order with an approved payment cannot be canceled — start the refund process first",
     "siparisDurumuAzOnceDegisti": "The order status changed a moment ago",
-    "yalnizBekleyenBaglantiDavetiIptalEdilebilir": "Only a PENDING connection invitation can be cancelled",
-    "yalnizBekleyenReferansDavetiIptalEdilebilir": "Only a PENDING referral invitation can be cancelled",
+    "yalnizBekleyenBaglantiDavetiIptalEdilebilir": "Only a PENDING connection invitation can be canceled",
+    "yalnizBekleyenReferansDavetiIptalEdilebilir": "Only a PENDING referral invitation can be canceled",
     "firmaAdiBosOlamaz": "Company name cannot be empty",
     "gecersizUlkeKodu": "Invalid country code",
     "gecerliBirIbanGerekliTr24": "A valid IBAN is required (TR + 24 digits).",
@@ -168,14 +174,17 @@
     "gecersizBelgeTuru": "Invalid document type",
     "reddedilenRevizyonaGerekceGerekli": "A reason is required for a rejected revision",
     "revizyonAzOnceKararaBaglandi": "The revision was decided a moment ago",
-    "firmaninUyeligiAzOnceDegistiSayfayi": "The company membership changed a moment ago — refresh the page and try again",
-    "uzatmaYalnizPaketliUyelikteOnceBir": "Extension is available only on a paid membership — assign a plan (Silver/Gold) first",
-    "buFirmaninUyeligiSuresizUzatilamazSure": "This company has an unlimited membership — it cannot be extended. To set a term, assign the plan again first (with an end date).",
+    "firmaninUyeligiAzOnceDegistiSayfayi": "The company's plan changed a moment ago — refresh the page and try again",
+    "uzatmaYalnizPaketliUyelikteOnceBir": "Extension is available only on a paid plan — assign a plan (Silver/Gold) first",
+    "buFirmaninUyeligiSuresizUzatilamazSure": "This company's plan has no end date — it cannot be extended. To set a term, assign the plan again first (with an end date).",
     "notEnAz3KarakterOlmali": "The note must be at least 3 characters",
     "notBulunamadi": "Note not found",
     "firmaAskiyaAlmaYetkisiYalnizSuper": "Only SUPER_ADMIN can suspend a company — you can resolve the complaint without suspending it",
     "sikayetBulunamadi": "Complaint not found",
-    "buSikayetZatenSonuclanmis": "This complaint has already been resolved"
+    "buSikayetZatenSonuclanmis": "This complaint has already been resolved",
+    "gecersizRedGerekcesiKodu": "Invalid rejection reason code",
+    "buUlkeKaydaKapali": "Registration is closed for this country; the company cannot be moved to it",
+    "yerelHukukiYapiZorunlu": "The local legal form is required when the legal structure is \"Other\" (e.g. GmbH, LLC)"
   },
   "categories": {
     "gecersizKategoriId": "Invalid category ID: {join}",
@@ -226,7 +235,7 @@
     "gecersizKategoriSecimi": "Invalid category selection",
     "ozelDavetliIlanEnAzBir": "A private (invite-only) request can be published with at least one invited company",
     "icinGoldPaketSatinalmaPaneliGerekir": "{action} requires a Gold plan (buying panel). You can complete your existing buying requests, but you cannot start new request work.",
-    "firmaDogrulamanizTamamlanmadanBelgeleriniziAyarl": "Until your company verification is complete, {action} — upload your documents from Settings → Verification and submit them for approval.",
+    "firmaDogrulamanizTamamlanmadanBelgeleriniziAyarl": "Until your company verification is complete, {action} — upload your documents in Settings → Verification and submit them for review.",
     "satinAlmaTalebiAcmakIcinGold": "A Gold plan (buying panel) is required to open a buying request.",
     "talepAcmakIcinTalepAcmaVe": "The ''Open and manage requests'' permission is required to open a request",
     "satinAlmaTalebiIcinFormatSecin": "Select a format for the buying request (Quote collection / Negotiation)",
@@ -236,7 +245,7 @@
     "buSatinAlmaTalebineTeklifVerilmis": "Quotes have been submitted for this buying request; it can no longer be edited",
     "satinAlmaTalebiFormatiDuzenlemeylePazarliga": "The buying request format cannot be turned into a negotiation by editing — use ''Switch to negotiation''",
     "buSatinAlmaTalebineAzOnce": "A quote was just submitted for this buying request; it can no longer be edited",
-    "yalnizcaTaslakIlanSilinebilirYayinlanmisIlan": "Only a draft request can be deleted; a published request is cancelled",
+    "yalnizcaTaslakIlanSilinebilirYayinlanmisIlan": "Only a draft request can be deleted; a published request is canceled",
     "yalnizcaTaslakIlanYayinlanabilir": "Only a draft request can be published",
     "yayinIcinGecerliBirKapanisTarihi": "Publishing requires a valid closing date in the future",
     "ozelDavetliIlanYayinlamakIcinEn": "At least one company must be invited to publish a private (invite-only) request",
@@ -279,7 +288,7 @@
     "ilanBuSiradaGuncellendiDurumTur": "The request was updated in the meantime (status or round changed) — refresh the page and submit your quote again",
     "ilanKalemleriBuSiradaDegistiSayfayi": "The request line items changed in the meantime — refresh the page and submit your quote again",
     "sadeceIlanSahibiKazandirabilir": "Only the request owner can award",
-    "ilanZatenKazandirilmisVeyaIptal": "The request has already been awarded or cancelled",
+    "ilanZatenKazandirilmisVeyaIptal": "The request has already been awarded or canceled",
     "kazandirmaIcinYetkinizYok": "You do not have permission to award",
     "gecersizTeklif": "Invalid quote",
     "buSatinAlmaTalebiTeklifBelgesi": "This buying request requires a quote document; the winning quote has none",
@@ -315,7 +324,7 @@
     "buDurumdaElemeYapilamaz": "Quotes cannot be eliminated in this status",
     "teklifDurumuDegistiElemeUygulanamadi": "The quote status changed; the elimination could not be applied",
     "sadeceIlanSahibiIptalEdebilir": "Only the request owner can cancel",
-    "sadeceAcikIlanIptalEdilebilir": "Only an open request can be cancelled",
+    "sadeceAcikIlanIptalEdilebilir": "Only an open request can be canceled",
     "ilanDurumuDegistiIptalUygulanamadi": "The request status changed; the cancellation could not be applied",
     "satinAlmaTalebiZatenDegerlendirmede": "The buying request is already under evaluation",
     "yalnizcaAcikSatinAlmaTalebiDegerlendirmeye": "Only an open buying request can be moved to evaluation",
@@ -412,7 +421,7 @@
         "deliveryTitle": "Delivery time",
         "deliveryError": "Select from the list",
         "helpTitle": "Quote template — {title}",
-        "helpSheet": "The grey columns on the \"{sheet}\" sheet are the buying request’s line items — DO NOT CHANGE THEM (do not add or delete rows).",
+        "helpSheet": "The gray columns on the \"{sheet}\" sheet are the buying request’s line items — DO NOT CHANGE THEM (do not add or delete rows).",
         "helpFill": "Fill in the white columns: \"Birim Fiyat\" (unit price, EXCLUDING VAT, required), \"Para Birimi\" (currency, from the list), \"Teslim Süresi\" (delivery time, from the list), \"Not\" (note).",
         "helpSkip": "Leave the \"Birim Fiyat\" (unit price) cell EMPTY for any line item you do not want to quote on (if the buying request requires all line items, the app will warn you).",
         "helpDecimal": "The decimal separator can be a comma or a period (185,50 or 185.50).",
@@ -425,13 +434,13 @@
     "senetIcinVadeGunSayisiZorunlu": "The number of days until maturity is required for a promissory note",
     "vadeliOdemeIcinGunSayisiZorunlu": "The number of days is required for deferred payment",
     "alimIcinFormatSecin": "Select a format for the buying request (Quote collection / Negotiation)",
-    "satisIcinFormatSecin": "Select a format for the sales listing (Quote collection / Forward auction)",
     "ozelTalebeYalnizDavetliFirmalar": "Only invited companies can submit quotes to this private buying request",
-    "tekliIcinPremiumUyelikGerekir": "A premium membership is required to submit a quote to this request",
+    "tekliIcinPremiumUyelikGerekir": "The Silver plan is required to submit a quote to this request",
     "productMatch": {
       "category": "Your product is in this category: {product}",
       "text": "Matches your product: {product}"
-    }
+    },
+    "talepBaskaUlkelereAcik": "This request is open only to suppliers based in specific countries, and your company's country is not one of them."
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "Request not found",
@@ -481,7 +490,7 @@
     "yoneticiBulunamadi": "Administrator not found",
     "gecersizTokenTipi": "Invalid token type",
     "adminBulunamadiVeyaPasif": "Admin not found or inactive",
-    "oturumGecersizYenidenGirisYapin": "Session is invalid — sign in again",
+    "oturumGecersizYenidenGirisYapin": "Session is invalid — log in again",
     "n2faRequired": "2FA_REQUIRED",
     "dogrulamaKoduHatali": "Verification code is incorrect",
     "yeniSifreEnAz12Karakter": "New password must be at least 12 characters",
@@ -535,7 +544,7 @@
     "durumTeklifeKapali": "Closed to quotes",
     "durumKazandirmaOnayi": "Award approval",
     "durumTamamlandi": "Completed",
-    "durumIptal": "Cancelled",
+    "durumIptal": "Canceled",
     "durumKazansizKapatildi": "Closed without award",
     "usulTeklifToplama": "Quote collection",
     "usulPazarlik": "Negotiation round",
@@ -550,11 +559,7 @@
     "basTeklif": "Quote",
     "basYanitYuzde": "Response %",
     "basHedefToplam": "Target total",
-    "basEnDusukTry": "Lowest (TRY)",
-    "basEnYuksekTry": "Highest (TRY)",
-    "basKazananTry": "Winning (TRY)",
     "basKazananTedarikci": "Winning supplier",
-    "basTasarrufTry": "Savings (TRY)",
     "basOlusturan": "Created by",
     "basTasarrufYuzde": "Savings %",
     "basKazananTedarikciler": "Winning suppliers",
@@ -577,13 +582,11 @@
     "ozet": "Summary",
     "toplamSatinAlmaTalebi": "Total buying requests",
     "kazandirilan": "Awarded",
-    "ozetIptal": "Cancelled",
+    "ozetIptal": "Canceled",
     "toplamDavet": "Total invitations",
     "toplamTeklif": "Total quotes",
     "yanitOrani": "Response rate",
     "ortTeklifSatinAlmaTalebi": "Avg. quotes / buying request",
-    "kazananToplamTry": "Winning total (TRY)",
-    "toplamTasarrufTry": "Total savings (TRY)",
     "durumDagilimi": "Status breakdown",
     "toplamIkiNokta": "Total:",
     "ortalamaTasarrufYuzde": "Average savings %",
@@ -592,12 +595,19 @@
     "tedarikciBazliKazanilanTutar": "Amount won by supplier",
     "genelToplam": "GRAND TOTAL",
     "siraEnUcuz": "RANK (cheapest=1)",
-    "hedefeGoreTasarruf": "Savings vs. target",
+    "hedefeGoreTasarruf": "Savings vs. target ({currency})",
     "onerilenKazanan": "Suggested winner (lowest per line item)",
     "dosyaGenelRapor": "general-report",
     "dosyaTasarrufRaporu": "savings-report",
     "dosyaTeklifKarsilastirma": "quote-comparison",
-    "digerKategoriler": "Other"
+    "digerKategoriler": "Other",
+    "basEnDusukCur": "Lowest ({currency})",
+    "basEnYuksekCur": "Highest ({currency})",
+    "basKazananCur": "Winning ({currency})",
+    "basTasarrufCur": "Savings ({currency})",
+    "hedefToplamCur": "Target total ({currency})",
+    "kazananToplamCur": "Winning total ({currency})",
+    "toplamTasarrufCur": "Total savings ({currency})"
   },
   "companyViews": {
     "isAnaliziSilverVeUzeriPaketlerde": "Business Insights is available on Silver and higher plans."
@@ -630,7 +640,8 @@
       "submitted": "Quote submitted",
       "evaluating": "Under evaluation",
       "won": "Won"
-    }
+    },
+    "noData": "No data"
   },
   "companyConnections": {
     "tokenGerekli": "Token is required",
@@ -679,7 +690,7 @@
     "buEPostaIleZatenBir": "An account with this email address already exists",
     "davetArtikGecerliDegil": "The invitation is no longer valid",
     "buDavetZatenKabulEdilmis": "This invitation has already been accepted",
-    "buDavetIptalEdilmis": "This invitation has been cancelled",
+    "buDavetIptalEdilmis": "This invitation has been canceled",
     "davetinSuresiDolmusFirmanizdanYeniDavet": "The invitation has expired — ask your company for a new invitation",
     "kurucununIzinleriKisitlanamazTumYetkilereSahipti": "The permissions of the Founder cannot be restricted (the Founder holds all permissions)",
     "firmaSahibiPasiflestirilemez": "The company owner cannot be deactivated",
@@ -708,7 +719,7 @@
     "enFazlaKoltukSecebilirsinizPaketLimiti": "You can select at most {limit, plural, one {# seat} other {# seats}} (plan limit)",
     "gecersizIzin": "Invalid permission: {permission}",
     "enAzBirAktifYonetimYetkilisiKalmali": "The company must keep at least one active administrator (Founder/Manager)",
-    "koltukDoluBekleyenDahil": "All seats are taken ({used} active + {pending} pending invitations / {limit}) — upgrade your plan or free up a seat to grant buying/sales transaction permissions",
+    "koltukDoluBekleyenDahil": "All seats are taken ({used, number} active + {pending, plural, one {# pending invitation} other {# pending invitations}} / {limit, number}) — upgrade your plan or free up a seat to grant purchasing/sales transaction permissions",
     "koltukDoluIslemYetkisi": "All seats are taken ({used}/{limit}) — upgrade your plan or free up a seat to grant buying/sales transaction permissions"
   },
   "companyQuestionTemplates": {
@@ -781,7 +792,6 @@
       },
       "publish": {
         "headingAlim": "Buying request WILL BE PUBLISHED: {title}",
-        "headingSatis": "Sales listing WILL BE PUBLISHED: {title}",
         "items": "Line items: {list} ({count, plural, one {# line item} other {# line items}})",
         "category": "Category: {list}",
         "closing": "Closing: {closesAt} · Currency: {currency} · Visibility: Invited (private)",
@@ -792,26 +802,26 @@
         "sourceWarning": "The description/specification texts came from the document — read them before confirming."
       },
       "eliminate": {
-        "bid": "Quote to be eliminated: {supplier} — {amount} {currency}",
+        "bid": "Quote to be eliminated: {supplier} — {amount}",
         "reason": "Reason: {reason}",
         "note": "The supplier is notified of the elimination and may submit a new quote."
       },
       "award": {
         "heading": "Buying request WILL BE AWARDED: {title} ({number})",
-        "winner": "Winner: {supplier} — {amount} {currency} (all line items)",
+        "winner": "Winner: {supplier} — {amount} (all line items)",
         "irreversible": "This action CANNOT BE UNDONE: the other quotes lose and an order is created.",
         "approvalNote": "If your company has an approval flow, the action will first go to company approval."
       },
       "placeBid": {
         "heading": "QUOTE WILL BE SUBMITTED: {title} ({number})",
         "moreItems": "… and {count, plural, one {# more line item} other {# more line items}}",
-        "total": "TOTAL: {amount} {currency} · Delivery: {delivery}",
-        "totalWithValidity": "TOTAL: {amount} {currency} · Delivery: {delivery} · Validity: {days, plural, one {# day} other {# days}}",
+        "total": "TOTAL: {amount} · Delivery: {delivery}",
+        "totalWithValidity": "TOTAL: {amount} · Delivery: {delivery} · Validity: {days, plural, one {# day} other {# days}}",
         "note": "A submitted quote CANNOT BE WITHDRAWN or changed (sealed bid)."
       },
       "orderReceived": {
         "heading": "Order will be marked RECEIVED: {number}",
-        "seller": "Seller: {seller} · Amount: {amount} {currency}",
+        "seller": "Seller: {seller} · Amount: {amount}",
         "note": "The seller is notified; if there is a problem, a defect report can still be filed after delivery."
       },
       "payment": {
@@ -831,14 +841,35 @@
         "bidPlaced": "Your quote has been submitted (sealed bid — only the owner of the buying request can see it).",
         "orderReceived": "The order has been marked as received — the seller has been notified.",
         "published": "Buying request published — quotes are now being collected.",
-        "rejected": "Action cancelled — nothing was done."
+        "rejected": "Action canceled — nothing was done."
+      },
+      "draftSessionTitle": "Buying request draft",
+      "fallbackReply": "I couldn't put together a reply to this right now. Could you try asking in a different way?",
+      "documentUploaded": "[document uploaded]",
+      "deliveryTime": {
+        "STOKTAN": "From stock (immediate)",
+        "W1_2": "1–2 weeks",
+        "W3_4": "3–4 weeks",
+        "W5_8": "5–8 weeks",
+        "M2_3": "2–3 months",
+        "M3_PLUS": "Over 3 months"
       }
     },
     "saglayiciHataDondurdu": "The AI provider returned an error — please try again.",
     "asistanYanitVeremediSaglayiciHatasi": "The assistant could not respond right now (provider error {code}{detail}) — please try again in a few seconds.",
     "asistanYanitVeremedi": "The assistant could not respond right now — please try again in a few seconds.",
     "tabloDosyasiOkunamadi": "The spreadsheet file could not be read — re-save it as .xlsx and try again",
-    "tabloDosyasiCokBuyuk": "The spreadsheet file is too large — upload the relevant sheet as a separate, smaller file"
+    "tabloDosyasiCokBuyuk": "The spreadsheet file is too large — upload the relevant sheet as a separate, smaller file",
+    "searchSummaryFallback": "Search for “{text}”",
+    "searchDraftTitle": "Purchase of {item}",
+    "budget": {
+      "requestCap": "This request alone exceeds the allowed AI usage limit — try splitting the document.",
+      "pool": "Your company's monthly AI budget is used up — AI features will be available again next month.",
+      "userCap": "You have reached your personal AI usage cap (50% of the company pool) — contact your company administrator.",
+      "dailyCap": "The daily AI usage cap has been reached — try again tomorrow."
+    },
+    "bidPriceSalvaged": "The AI output hit its length limit — {n, plural, one {# row was} other {# rows were}} recovered; the rest of the document may not have been read (split the document and try again)",
+    "bidPriceUnreadable": "The document could not be read — the AI did not return a valid result; try the template instead"
   },
   "companyOrders": {
     "buIslemiYapamazsiniz": "You cannot perform this action",
@@ -849,11 +880,11 @@
     "ayipIhbariBulunanSiparisSevkEdilemez": "An order with a defect notice cannot be shipped — the goods have already been delivered; the parties resolve it between themselves",
     "alicininAkreditifiHenuzAcmadiAkreditifAcilip": "The buyer has not opened the letter of credit yet — the order cannot be shipped until the letter of credit is opened and accepted",
     "akreditifiKabulEtmedenGonderemezsinizAkreditifBo": "You cannot ship before accepting the letter of credit — complete the “I accepted the letter of credit” step in the Letter of credit section",
-    "buSiparistePesinOdemeSartiVar": "This order requires an advance payment — {toLocaleString} {curSym} in advance must be confirmed before shipping (confirmed: {toLocaleString2} {curSym2})",
+    "buSiparistePesinOdemeSartiVar": "This order requires an advance payment — {toLocaleString} in advance must be confirmed before shipping (confirmed: {toLocaleString2})",
     "alicininOnayBekleyenOdemeKaydiVar": "The buyer has a payment record awaiting confirmation — confirm or reject it in the Payments section before shipping the order",
     "vesaikMukabiliTeslimAlmadanOnceTam": "Cash against documents: the full payment must be confirmed before taking delivery",
     "iptalGerekcesiEnAz10Karakter": "The cancellation reason must be at least 10 characters",
-    "onayliOdemeBulunanSiparisIptalEdilemez": "An order with a confirmed payment cannot be cancelled — contact the support team for a refund",
+    "onayliOdemeBulunanSiparisIptalEdilemez": "An order with a confirmed payment cannot be canceled — contact the support team for a refund",
     "siparisDurumuAzOnceDegistiSayfayi": "The order status has just changed — refresh the page and try again",
     "iptalTalebiGerekcesiEnAz10": "The cancellation request reason must be at least 10 characters",
     "iptalTalebiYalnizOnaylanmisVeAcik": "A cancellation request can only be opened on an approved order that has no open request",
@@ -877,10 +908,10 @@
     "siparisBulunamadi": "Order not found",
     "odemeyiYalnizcaAliciKaydedebilir": "Only the buyer can record a payment",
     "tutar0DanBuyukOlmali": "The amount must be greater than 0",
-    "kalanOdemeBuTutariAsanOdeme": "The remaining payment is {toLocaleString} {curSym} — a payment above this amount cannot be recorded",
+    "kalanOdemeBuTutariAsanOdeme": "The remaining payment is {toLocaleString} — a payment above this amount cannot be recorded",
     "odemeyiYalnizcaSaticiOnaylayabilir": "Only the seller can confirm a payment",
     "odemeKaydiBulunamadi": "Payment record not found",
-    "iptalEdilmisSiparisteOdemeOnaylanamaz": "Payment cannot be confirmed on a cancelled order",
+    "iptalEdilmisSiparisteOdemeOnaylanamaz": "Payment cannot be confirmed on a canceled order",
     "buOdemeZatenSonuclanmis": "This payment has already been resolved",
     "buIslemIcinYetkiGerekirYoneticinizdenIsteyin": "This action requires the “{permission}” permission — ask your company administrator",
     "akreditifliSiparisteManuelOdemeGirilmez": "In an order with a letter of credit, payment is made through the bank — no manual payment record can be entered",
@@ -1164,7 +1195,7 @@
       "gecersizOlcuBirimi": "Invalid unit of measure"
     },
     "adminCompanies": {
-      "redGerekcesiEnAz3KarakterOlmali": "The rejection reason must be at least 3 characters"
+      "redGerekcesiEnAz3KarakterOlmali": "Select a rejection reason or write a note of at least 3 characters"
     }
   },
   "companyRequestDefaults": {
@@ -1215,9 +1246,9 @@
         "body": "{hasNumber, select, yes {Order {number}} other {The order}} has been completed."
       },
       "cancelled": {
-        "subject": "Order cancelled",
-        "heading": "Order cancelled",
-        "body": "{hasNumber, select, yes {Order {number}} other {The order}} was cancelled by the buyer.{hasReason, select, yes { Reason: {reason}} other {}}"
+        "subject": "Order canceled",
+        "heading": "Order canceled",
+        "body": "{hasNumber, select, yes {Order {number}} other {The order}} was canceled by the buyer.{hasReason, select, yes { Reason: {reason}} other {}}"
       },
       "cancelRequested": {
         "subject": "Seller requested order cancellation",
@@ -1232,7 +1263,7 @@
       "cancelApproved": {
         "subject": "Cancellation request approved",
         "heading": "Cancellation request approved",
-        "body": "{hasNumber, select, yes {Order {number}} other {The order}} was cancelled with the buyer’s approval."
+        "body": "{hasNumber, select, yes {Order {number}} other {The order}} was canceled with the buyer’s approval."
       },
       "cancelRejected": {
         "subject": "Cancellation request rejected — order disputed",
@@ -1267,12 +1298,12 @@
       "paymentDue": {
         "subject": "Payment due soon",
         "heading": "Payment due soon",
-        "body": "Payment for {hasNumber, select, yes {order {number}} other {the order}} is due on {dueDate} — remaining amount {amount} {currency}."
+        "body": "Payment for {hasNumber, select, yes {order {number}} other {the order}} is due on {dueDate} — remaining amount {amount}."
       },
       "paymentRecorded": {
         "subject": "New payment recorded — awaiting your confirmation",
         "heading": "Payment recorded",
-        "body": "A payment of {amount} {currency} has been recorded for {hasNumber, select, yes {order {number}} other {the order}}. Your confirmation is awaited."
+        "body": "A payment of {amount} has been recorded for {hasNumber, select, yes {order {number}} other {the order}}. Your confirmation is awaited."
       },
       "paymentConfirmed": {
         "subject": "Your payment has been confirmed",
@@ -1350,7 +1381,7 @@
         "subject": "{sender} sent you a message",
         "heading": "You have a new message",
         "greeting": "Hello,",
-        "body": "{sender} sent you a message on Rothern. Sign in to view and reply.",
+        "body": "{sender} sent you a message on Rothern. Log in to view and reply.",
         "cta": "View messages"
       }
     },
@@ -1396,8 +1427,7 @@
         "placeBid": "Submit quote",
         "viewOrder": "View order",
         "viewPlans": "View plans",
-        "viewOpenRequests": "View open buying requests",
-        "viewSalesListings": "View sales listings"
+        "viewOpenRequests": "View open buying requests"
       },
       "closed": {
         "subject": "Quote submission closed for a buying request",
@@ -1414,28 +1444,18 @@
         "buy": {
           "heading": "New buying request in your category",
           "openSubject": "A new buying request that fits you was published",
-          "openBody": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). Sign in to Rothern to review it and submit a quote.",
+          "openBody": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). Log in to Rothern to review it and submit a quote.",
           "openInAppBody": "New buying request matching the categories you sell: \"{title}\" ({number}).",
           "lockedSubject": "There is a new buying request in your category — unlocks with Silver",
-          "lockedBody": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). Public requests are locked on the free membership; upgrade to the Silver plan to view them and submit quotes. You can always view requests you are invited to through a connection for free.",
+          "lockedBody": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). Public requests are locked on the free plan; upgrade to the Silver plan to view them and submit quotes. You can always view requests you are invited to through a connection for free.",
           "lockedInAppTitle": "New buying request in your category — unlocks with Silver",
           "lockedInAppBody": "A new buying request matching the categories you sell was published: \"{title}\". Upgrade to the Silver plan to view it and submit a quote."
-        },
-        "sell": {
-          "heading": "New sales listing in your category",
-          "openSubject": "A new sales listing that fits you was published",
-          "openBody": "A new sales listing matching the categories you buy was published: \"{title}\" ({number}). Sign in to Rothern to review and buy.",
-          "openInAppBody": "New sales listing matching the categories you buy: \"{title}\" ({number}).",
-          "lockedSubject": "There is a new sales listing in your category — unlocks with Silver",
-          "lockedBody": "A new sales listing matching the categories you buy was published: \"{title}\" ({number}). Public requests are locked on the free membership; upgrade to the Silver plan to view and buy. You can always view requests you are invited to through a connection for free.",
-          "lockedInAppTitle": "New sales listing in your category — unlocks with Silver",
-          "lockedInAppBody": "A new sales listing matching the categories you buy was published: \"{title}\". Upgrade to the Silver plan to view and buy."
         }
       },
       "invitation": {
         "subject": "You have been invited to a buying request",
         "title": "Buying request invitation",
-        "body": "You have been invited to the buying request \"{title}\" ({number}). Sign in to view the details and submit a quote.",
+        "body": "You have been invited to the buying request \"{title}\" ({number}). Log in to view the details and submit a quote.",
         "inAppBody": "You have been invited to the buying request \"{title}\" ({number})."
       },
       "reminder": {
@@ -1446,7 +1466,7 @@
       "newRound": {
         "subject": "A new round has started on a buying request",
         "title": "New round opened",
-        "body": "A new round has opened on the buying request \"{title}\" ({number}). Sign in to submit your updated quote.",
+        "body": "A new round has opened on the buying request \"{title}\" ({number}). Log in to submit your updated quote.",
         "inAppBody": "A new round has opened on the buying request \"{title}\" ({number}) — submit your updated quote."
       },
       "bidReceived": {
@@ -1481,8 +1501,8 @@
         "body": "Your quote for the buying request \"{title}\" ({number}) was eliminated in this round. You may update it and submit a new quote."
       },
       "cancelled": {
-        "title": "Buying request cancelled",
-        "body": "The buying request \"{title}\" ({number}) was cancelled by its owner.{hasReason, select, yes { Reason: {reason}} other {}}"
+        "title": "Buying request canceled",
+        "body": "The buying request \"{title}\" ({number}) was canceled by its owner.{hasReason, select, yes { Reason: {reason}} other {}}"
       },
       "closedNoAward": {
         "subject": "Buying request closed without a winner",
@@ -1504,7 +1524,7 @@
       "ulkeDegistiBaslik": "Country change: your verification documents need updating",
       "ulkeDegistiGovde": "Because your company’s country was updated, the required verification documents have changed. Upload the missing documents and resubmit your verification.",
       "dogrulamaOnaylandiBaslik": "Your company verification was approved",
-      "dogrulamaOnaylandiGovde": "Your company verification documents have been reviewed and approved. Your company now appears with the \"Verified\" badge; you can proceed with steps that require verification (publishing requests, quoting on public requests).",
+      "dogrulamaOnaylandiGovde": "Your company verification documents have been reviewed and approved. Your company now appears with the \"Verified\" badge and steps that require verification are unlocked. Publishing requests also requires the Gold plan and quoting on public requests requires the Silver plan; you can quote on requests you are invited to or that come from your connections without a plan.",
       "dogrulamaReddedildiBaslik": "Your company verification was rejected",
       "dogrulamaReddedildiGovde": "Your company verification documents were reviewed but could not be approved. Please update your documents and resubmit.",
       "baziBelgelerReddedildiBaslik": "Some of your documents were rejected",
@@ -1513,13 +1533,13 @@
       "belgeGuncellemesiOnaylandiGovde": "The new document you submitted has been reviewed and approved; it is now on file as your valid document.",
       "belgeGuncellemesiReddedildiBaslik": "Your document update was rejected",
       "belgeGuncellemesiReddedildiGovde": "The new document you submitted was not approved; your current document remains valid. You can review the reason and upload a new document.",
-      "paketSonlandirildiBaslik": "Your plan membership has ended",
-      "paketSonlandirildiAnaParagraf": "Your company plan has been changed to Standard membership by a platform administrator. With Standard membership you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies for incoming inquiries, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies with a plan); up to 10 products can be published in your showcase. You can complete your existing requests and quote on invitations you receive.",
+      "paketSonlandirildiBaslik": "Your plan has ended",
+      "paketSonlandirildiAnaParagraf": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies on incoming information requests, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive.",
       "paketSonlandirildiKirpilanUrun": "{adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted, and you can republish when you return to Silver.",
-      "paketSonlandirildiDavetIptal": "The pending connection invitations you sent have been cancelled.",
-      "paketSonlandirildiGovde": "Your company plan has been changed to Standard membership by a platform administrator. With Standard membership you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies for incoming inquiries, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies with a plan); up to 10 products can be published in your showcase. You can complete your existing requests and quote on invitations you receive. The pending connection invitations you sent have been cancelled.",
-      "paketSonlandirildiGovdeKirpildi": "Your company plan has been changed to Standard membership by a platform administrator. With Standard membership you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies for incoming inquiries, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies with a plan); up to 10 products can be published in your showcase. You can complete your existing requests and quote on invitations you receive. {adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted, and you can republish when you return to Silver. The pending connection invitations you sent have been cancelled.",
-      "paketTanimlandiBaslik": "Your plan membership has been activated",
+      "paketSonlandirildiDavetIptal": "The pending connection invitations you sent have been canceled.",
+      "paketSonlandirildiGovde": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies on incoming information requests, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive. The pending connection invitations you sent have been canceled.",
+      "paketSonlandirildiGovdeKirpildi": "A platform administrator has moved your company to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies on incoming information requests, are unlocked with the Silver plan. Your profile and showcase remain in the directory (listed after companies on a paid plan); up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive. {adet, plural, one {# product exceeding the limit was moved to draft} other {# products exceeding the limit were moved to draft}}; nothing was deleted, and you can republish when you return to Silver. The pending connection invitations you sent have been canceled.",
+      "paketTanimlandiBaslik": "Your plan has been activated",
       "paketTanimlandiGovde": "The {paket} plan has been assigned to your company account. You can start using your plan benefits right away.",
       "askiyaAlindiBaslik": "Your account has been suspended",
       "askiyaAlindiGerekce": "Your company account has been suspended by a platform administrator. Reason: {gerekce}",
@@ -1558,18 +1578,18 @@
       "ilanUzatildiGovde": "At your support request, the closing date of your request \"{baslik}\" has been updated to {tarih}.",
       "ilanYenidenAcildiBaslik": "Your request has been reopened",
       "ilanYenidenAcildiGovde": "At your support request, your request \"{baslik}\" has been reopened for quotes. New closing date: {tarih}.",
-      "siparisIptalBaslik": "Order cancelled by an administrator",
-      "siparisIptalNumarali": "Order {numara} was cancelled by a platform administrator. Reason: {gerekce}",
-      "siparisIptalGenel": "The related order was cancelled by a platform administrator. Reason: {gerekce}",
+      "siparisIptalBaslik": "Order canceled by an administrator",
+      "siparisIptalNumarali": "Order {numara} was canceled by a platform administrator. Reason: {gerekce}",
+      "siparisIptalGenel": "The related order was canceled by a platform administrator. Reason: {gerekce}",
       "siparisIptalSahipsizTalep": "After this cancellation, the related buying request has no active order left. Since an award cannot be reversed, please contact the support team if you would like to continue with a new supplier.",
-      "siparisIptalGovdeNumaraliSahipsiz": "Order {numara} was cancelled by a platform administrator. Reason: {gerekce} After this cancellation, the related buying request has no active order left. Since an award cannot be reversed, please contact the support team if you would like to continue with a new supplier.",
-      "siparisIptalGovdeSahipsiz": "The related order was cancelled by a platform administrator. Reason: {gerekce} After this cancellation, the related buying request has no active order left. Since an award cannot be reversed, please contact the support team if you would like to continue with a new supplier."
+      "siparisIptalGovdeNumaraliSahipsiz": "Order {numara} was canceled by a platform administrator. Reason: {gerekce} After this cancellation, the related buying request has no active order left. Since an award cannot be reversed, please contact the support team if you would like to continue with a new supplier.",
+      "siparisIptalGovdeSahipsiz": "The related order was canceled by a platform administrator. Reason: {gerekce} After this cancellation, the related buying request has no active order left. Since an award cannot be reversed, please contact the support team if you would like to continue with a new supplier."
     },
     "companyAuth": {
       "dogrulamaKoduKonu": "Your email verification code",
       "dogrulamaKoduBaslik": "Verify your email address",
       "dogrulamaKoduGovde": "Your verification code to activate your Rothern account: {kod}",
-      "girisKoduKonu": "Your sign-in verification code",
+      "girisKoduKonu": "Your login verification code",
       "girisKoduBaslik": "Two-step verification code",
       "girisKoduGovde": "Your two-step verification code for signing in: {kod}",
       "kodGecerlilik": "The code is valid for {dakika, plural, one {# minute} other {# minutes}}.",
@@ -1586,11 +1606,11 @@
       "hesapAyarlari": "Account settings"
     },
     "membership": {
-      "sonaErdiKonu": "Your Premium membership has ended",
-      "sonaErdiAnaParagraf": "Your plan membership has expired and your account has been moved to Standard membership. On Standard you cannot open new buying requests or invite companies; public requests, and buyer identity and replies on incoming inquiries, are unlocked with the Silver plan. Your profile and showcase stay in the directory (listed after companies on a plan), and up to 10 products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive.",
+      "sonaErdiKonu": "Your plan has expired",
+      "sonaErdiAnaParagraf": "Your plan has expired and your account has been moved to the free Standard plan. On the Standard plan you cannot open new buying requests or invite companies; public requests, as well as buyer identity and replies on incoming information requests, are unlocked with the Silver plan. Your profile and showcase stay in the directory (listed after companies on a paid plan), and up to {limit, number} products can be published in your showcase. You can complete your existing requests and submit quotes to invitations you receive.",
       "sonaErdiKirpilanUrun": "{adet, plural, one {# product} other {# products}} over the limit {adet, plural, one {was} other {were}} moved to draft; nothing was deleted, and you can publish them again when you return to Silver.",
       "sonaErdiYukseltme": "To move to a plan again, you can upgrade from your account.",
-      "premiumaGec": "Upgrade to Premium"
+      "premiumaGec": "View plans"
     },
     "ai": {
       "butceUyarisiBaslik": "AI budget alert",
@@ -1637,9 +1657,74 @@
     "accountNumberInvalid": "Enter a valid account number (4–40 characters, letters and digits)",
     "swiftRequired": "SWIFT/BIC code is required",
     "swiftInvalid": "Enter a valid SWIFT/BIC code (8 or 11 characters, e.g. DEUTDEFF)",
-    "bankNameRequired": "Bank name is required"
+    "bankNameRequired": "Bank name is required",
+    "bankCountryInvalid": "Select a valid bank country",
+    "bankCountryBlocked": "A bank account in this country cannot be saved"
   },
   "geo": {
     "sehirBulunamadi": "City not found"
+  },
+  "units": {
+    "PCE": "piece",
+    "PAIR": "pair",
+    "SET": "set",
+    "DZN": "dozen",
+    "KG": "kg",
+    "GRM": "g",
+    "TON": "t",
+    "M": "m",
+    "CM": "cm",
+    "MM": "mm",
+    "KM": "km",
+    "M2": "m²",
+    "M3": "m³",
+    "LTR": "L",
+    "ML": "mL",
+    "PKT": "pack",
+    "BOX": "box",
+    "CRT": "carton",
+    "PAL": "pallet",
+    "ROL": "roll",
+    "BAG": "bag",
+    "DRM": "drum",
+    "HUR": "hour",
+    "DAY": "day",
+    "MON": "month",
+    "YER": "year",
+    "SRV": "service",
+    "MDY": "man-day",
+    "TRP": "trip"
+  },
+  "qty": {
+    "KG": "{n, number} kg",
+    "GRM": "{n, number} g",
+    "TON": "{n, number} t",
+    "M": "{n, number} m",
+    "CM": "{n, number} cm",
+    "MM": "{n, number} mm",
+    "KM": "{n, number} km",
+    "M2": "{n, number} m²",
+    "M3": "{n, number} m³",
+    "LTR": "{n, number} L",
+    "ML": "{n, number} mL",
+    "PCE": "{n, plural, one {# piece} other {# pieces}}",
+    "PAIR": "{n, plural, one {# pair} other {# pairs}}",
+    "SET": "{n, plural, one {# set} other {# sets}}",
+    "DZN": "{n, plural, one {# dozen} other {# dozen}}",
+    "PKT": "{n, plural, one {# pack} other {# packs}}",
+    "BOX": "{n, plural, one {# box} other {# boxes}}",
+    "CRT": "{n, plural, one {# carton} other {# cartons}}",
+    "PAL": "{n, plural, one {# pallet} other {# pallets}}",
+    "ROL": "{n, plural, one {# roll} other {# rolls}}",
+    "BAG": "{n, plural, one {# bag} other {# bags}}",
+    "DRM": "{n, plural, one {# drum} other {# drums}}",
+    "HUR": "{n, plural, one {# hour} other {# hours}}",
+    "DAY": "{n, plural, one {# day} other {# days}}",
+    "MON": "{n, plural, one {# month} other {# months}}",
+    "YER": "{n, plural, one {# year} other {# years}}",
+    "SRV": "{n, plural, one {# service} other {# services}}",
+    "MDY": "{n, plural, one {# man-day} other {# man-days}}",
+    "TRP": "{n, plural, one {# trip} other {# trips}}",
+    "other": "{n, number} {unit}"
   }
 }

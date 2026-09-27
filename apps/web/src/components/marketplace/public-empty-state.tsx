@@ -7,16 +7,17 @@ import { AccentLink } from "@/components/ui/accent-fill";
  *
  * Denetim: üç sayfada üç farklı metin vardı ve boş sayfa boş sayfaya
  * bağlantı veriyordu (`/satilik` → "Alım taleplerine bak" → o da boş).
- * Şablon tek: "{Tür} bulunamadı." + "Filtreleri temizle" (süzgeç varsa) +
+ * Şablon tek: "… bulunamadı." (TAM cümle, çağıran verir — isim parçasını
+ * cümleye eklemek EN/RU'da çekimi bozuyordu) + "Filtreleri temizle" (süzgeç varsa) +
  * "Kategorilere göz at" (anasayfa kategori ızgarası — her zaman dolu).
  */
 export function PublicEmptyState({
-  noun,
+  title,
   clearHref,
   extra,
 }: {
-  /** "Ürün", "Alım talebi", "Satış ilanı", "Firma" */
-  noun: string;
+  /** Tam cümle: "Bu kriterlerle ürün bulunamadı." */
+  title: string;
   /** Süzgeç aktifken temizleme hedefi; yoksa düğme basılmaz. */
   clearHref?: string;
   /** Ek eylem — ürün dizininde "Bu ürün için talep aç" (arama terimi ön-dolu). */
@@ -27,7 +28,7 @@ export function PublicEmptyState({
   // eski `bg-zinc-50/60` orada zeminden ayrışmıyor ve kutu kayboluyordu.
   return (
     <div className="rounded-2xl border border-dashed border-zinc-300 bg-white px-6 py-12 text-center">
-      <p className="text-base font-semibold text-zinc-900">{t("notFound", { noun })}</p>
+      <p className="text-base font-semibold text-zinc-900">{title}</p>
       <div className="mt-4 flex flex-wrap items-center justify-center gap-3 text-sm">
         {extra ? (
           <AccentLink

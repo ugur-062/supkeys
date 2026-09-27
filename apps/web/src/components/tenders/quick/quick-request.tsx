@@ -26,7 +26,7 @@ import { SupplierPicker } from "./supplier-picker";
 import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
 import { TermsPanel } from "./terms-panel";
 import { RequestDefaultsForm, useVisibilityLabels } from "@/components/tenders/request-defaults-form";
-import { useCityLabel, useFormatPaymentPlan, usePaymentCategoryLabel } from "@/i18n/domain";
+import { useAiMissingFieldLabel, useCityLabel, useFormatPaymentPlan, usePaymentCategoryLabel } from "@/i18n/domain";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useAddresses } from "@/hooks/use-company-addresses";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
@@ -42,8 +42,9 @@ import { parseAppWallClockInput } from "@/lib/time-zone";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { mapToInput } from "@/lib/tenders/map-to-input";
 import { applyConnectionsScope } from "@/lib/tenders/connections-scope";
-import { MAX_PENDING_EXTERNAL_INVITES, QUICK_DRAFT_KEY, clearSession, pendingInvitesKey, readSession, writeSession, type QuickDraft } from "@/lib/tenders/quick-draft";
-import { useExternalTenderInvite, type ExternalInviteResult } from "@/hooks/use-supplier-discovery";
+import { MAX_PENDING_EXTERNAL_INVITES, QUICK_DRAFT_KEY, clearSession, normalizeExternalInvites, pendingInvitesKey, readSession, writeSession, type QuickDraft } from "@/lib/tenders/quick-draft";
+import { useExternalTenderInvite, type ExternalInviteResult, type ExternalInviteTarget } from "@/hooks/use-supplier-discovery";
+import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
 import { titleFromItems, type TitleTranslate } from "@/lib/tenders/quick-parse";
 import { applyRequestDefaults, closesAtFromDays, defaultsFromForm } from "@/lib/tenders/request-defaults";
 import { cn } from "@/lib/utils";
@@ -92,6 +93,7 @@ export function QuickRequest({
   const tReq = useTranslations("web.panel.requests");
   const locale = useLocale() as Locale;
   const formatPaymentPlan = useFormatPaymentPlan();
+  const missingLabel = useAiMissingFieldLabel();
   const paymentCategoryLabel = usePaymentCategoryLabel();
   const cityLabel = useCityLabel();
   // Görünürlük kartı etiketleri Talep Şartları formuyla AYNI kaynaktan (`requestDefaultsForm.visibility.*`).
@@ -128,9 +130,10 @@ export function QuickRequest({
   // ÜZERİNE yazılır (düğmeye bilinçli basıldı), anahtar kelimeler yalnız boşsa.
   const draftSuggest = useAiRequestDraftSuggest();
   const [published, setPublished] = useState<{ id: string; title: string; categoryIds: string[]; itemNames: string[]; inviteResults: ExternalInviteResult[] | "error" | null } | null>(null);
-  // AI keşfinden eklenen dış davet adresleri — YAYINDA talebe özel davet
-  // (`external-tender-invite`) gider; yayından önce e-posta GİTMEZ (2026-09-27).
-  const [externalInvites, setExternalInvites] = useState<string[]>([]);
+  // AI keşfinden eklenen dış davet alıcıları (adres + dil + ülke) — YAYINDA
+  // talebe özel davet (`external-tender-invite`) gider; yayından önce e-posta
+  // GİTMEZ (2026-09-27). Dil satırda değiştirilebilir.
+  const [externalInvites, setExternalInvites] = useState<ExternalInviteTarget[]>([]);
   const [stagedDocs, setStagedDocs] = useState<StagedListingDoc[]>([]);
   const [restoredDraft, setRestoredDraft] = useState(false);
   const connections = useConnections();
@@ -177,13 +180,17 @@ export function QuickRequest({
     if (draft) setRestoredDraft(true);
     // Bekleyen dış davetler: yeni kartta taslaktan, düzenlemede taslak
     // kaydında bırakılan listeden.
-    const pending = isEdit && listingId ? readSession<string[]>(pendingInvitesKey(listingId)) : draftInvites;
-    if (pending?.length) setExternalInvites(pending.slice(0, MAX_PENDING_EXTERNAL_INVITES));
+    // Eski taslak düz adres dizisi taşıyabilir — dil kuralla türetilir.
+    const pending = normalizeExternalInvites(
+      isEdit && listingId ? readSession<unknown>(pendingInvitesKey(listingId)) : draftInvites,
+      locale,
+    );
+    if (pending.length) setExternalInvites(pending.slice(0, MAX_PENDING_EXTERNAL_INVITES));
     if (!d.deliveryAddressId && addresses.data?.length) {
       const pick = addresses.data.find((a) => a.isDefault && a.type === "TESLIMAT") ?? addresses.data.find((a) => a.type === "TESLIMAT") ?? addresses.data[0];
       if (pick) setValue("deliveryAddressId", pick.id);
     }
-  }, [defaultsQ.data, addresses.data, initialValues, reset, setValue, isEdit, listingId, companyCountry]);
+  }, [defaultsQ.data, addresses.data, initialValues, reset, setValue, isEdit, listingId, companyCountry, locale]);
 
   const closeDays = terms?.closeDays ?? REQUEST_DEFAULTS_FALLBACK.closeDays;
   const updateTerms = (next: RequestDefaults) => {
@@ -246,7 +253,7 @@ export function QuickRequest({
     const cur = getValues();
     if (!cur.description?.trim() && mapped.description) setValue("description", mapped.description, { shouldDirty: true });
     if (!cur.categoryIds.length && mapped.categoryIds.length) setValue("categoryIds", mapped.categoryIds, { shouldDirty: true, shouldValidate: true });
-    if (r.missingRequired?.length) toast.warning(tr("belgedenOkunamayanAlanlar", { join: r.missingRequired.join(", ") }));
+    if (r.missingRequired?.length) toast.warning(tr("belgedenOkunamayanAlanlar", { join: r.missingRequired.map(missingLabel).join(", ") }));
     else toast.success(tr("belgedenDoldurulduKalemleriKontrolEdin"));
   };
 
@@ -322,15 +329,17 @@ export function QuickRequest({
   const sendPendingInvites = async (id: string): Promise<ExternalInviteResult[] | "error" | null> => {
     if (externalInvites.length === 0) return null;
     try {
-      const results = await sendExternal.mutateAsync({ listingId: id, emails: externalInvites.slice(0, MAX_PENDING_EXTERNAL_INVITES) });
+      const results = await sendExternal.mutateAsync({ listingId: id, invites: externalInvites.slice(0, MAX_PENDING_EXTERNAL_INVITES) });
       setExternalInvites([]);
       return results;
     } catch {
       return "error";
     }
   };
-  const collectExternalInvites = (emails: string[]) => {
-    const merged = [...new Set([...externalInvites, ...emails])];
+  const collectExternalInvites = (invites: ExternalInviteTarget[]) => {
+    // Adres başına tekil; aynı adres yeniden eklenirse ilk seçim (ve dili) kalır.
+    const known = new Set(externalInvites.map((i) => i.email));
+    const merged = [...externalInvites, ...invites.filter((i) => !known.has(i.email))];
     if (merged.length > MAX_PENDING_EXTERNAL_INVITES) toast.info(tr("enFazlaDisDavet", { max: MAX_PENDING_EXTERNAL_INVITES }));
     setExternalInvites(merged.slice(0, MAX_PENDING_EXTERNAL_INVITES));
   };
@@ -801,13 +810,20 @@ export function QuickRequest({
                 <p className="text-sm font-medium text-zinc-900">{tr("bekleyenDisDavetler", { n: externalInvites.length })}</p>
                 <p className="mt-0.5 text-xs text-zinc-600">{tr("bekleyenDisDavetlerAciklama")}</p>
                 <ul className="mt-2 flex flex-wrap gap-1.5">
-                  {externalInvites.map((email) => (
-                    <li key={email} className="inline-flex max-w-full items-center gap-1 rounded-full bg-white py-1 pr-1 pl-2.5 text-xs text-zinc-800 ring-1 ring-zinc-200">
+                  {externalInvites.map(({ email, locale: inviteLocale }) => (
+                    <li key={email} className="inline-flex max-w-full items-center gap-1.5 rounded-full bg-white py-1 pr-1 pl-2.5 text-xs text-zinc-800 ring-1 ring-zinc-200">
                       <span className="truncate">{email}</span>
+                      {/* Davet e-postasının dili — yayında bu dilde gider. */}
+                      <InviteLocaleSelect
+                        value={inviteLocale}
+                        onChange={(l) => setExternalInvites((cur) => cur.map((i) => (i.email === email ? { ...i, locale: l } : i)))}
+                        label={tr("disDavetDili", { email })}
+                        className="rounded-full py-0.5"
+                      />
                       <button
                         type="button"
                         aria-label={tr("disDavetAdresiniKaldir", { email })}
-                        onClick={() => setExternalInvites((cur) => cur.filter((e) => e !== email))}
+                        onClick={() => setExternalInvites((cur) => cur.filter((i) => i.email !== email))}
                         className="rounded-full p-0.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
                       >
                         <XMarkIcon aria-hidden className="size-3.5" />
@@ -871,7 +887,7 @@ export function QuickRequest({
               categoryIds={watched.categoryIds ?? []}
               itemNames={discoveryItemNames}
               targetCountries={watched.targetCountries ?? []}
-              collected={externalInvites}
+              collected={externalInvites.map((i) => i.email)}
               onCollect={collectExternalInvites}
             />
           </NumberedSection>

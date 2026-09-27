@@ -31,7 +31,7 @@ const labels: OrderPrintLabels = {
   total: "Toplam",
   general: "(genel)",
 };
-const ctx = { isSeller: false, curSym: "₺", statusLabel: "Onaylandı", labels, locale: "tr" };
+const ctx = { isSeller: false, currency: "TRY", statusLabel: "Onaylandı", labels, locale: "tr" };
 
 describe("buildOrderPrintHtml — stored XSS escape", () => {
   it("kalem adındaki <img onerror> ÇALIŞMAZ (escape'lenir, metin olur)", () => {

@@ -1,7 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { AI_TENDER_DRAFT_KEY, intentChips } from "@/lib/company/ai-search";
+import { countryDisplayName, useActivityLabel, useCityLabel, useQuantityLabel } from "@/i18n/domain";
+import type { Locale } from "@rothern/i18n";
 import type { AiSearchIntentResult, AiSearchRelaxed } from "@rothern/shared";
 import { SparklesIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import { useSearchParams } from "next/navigation";
@@ -20,6 +22,7 @@ const RELAXED_KEY: Record<AiSearchRelaxed, string> = {
   activity: "relaxedActivity",
   verifiedOnly: "relaxedVerifiedOnly",
   city: "relaxedCity",
+  country: "relaxedCountry",
   query: "relaxedQuery",
 };
 
@@ -48,11 +51,22 @@ export function AiIntentBand({
 }) {
   const relaxedNote = useRelaxedNote();
   const t = useTranslations("web.panel.shell.aiIntentBand");
+  const locale = useLocale() as Locale;
+  const activityLabel = useActivityLabel();
+  const quantity = useQuantityLabel();
+  const cityLabel = useCityLabel();
   const sp = useSearchParams();
   const router = useRouter();
   const pathname = usePathname();
   const params = sp ?? new URLSearchParams();
-  const chips = intentChips(intent, params, (key, values) => t(key as never, values as never));
+  const chips = intentChips(intent, params, {
+    t: (key, values) => t(key as never, values as never),
+    locale,
+    activityLabel,
+    quantity: (n, u) => quantity(n, u),
+    cityLabel: (c) => cityLabel(c),
+    countryLabel: (cc) => countryDisplayName(cc, locale),
+  });
 
   const remove = (param: string) => {
     const next = new URLSearchParams(params.toString());
@@ -77,7 +91,10 @@ export function AiIntentBand({
       <div className="flex items-start gap-3">
         <SparklesIcon aria-hidden className="mt-0.5 size-5 shrink-0 text-blue-600" />
         <div className="min-w-0 flex-1 space-y-2">
-          <p className="font-medium text-zinc-950">{intent.summary}</p>
+          {/* Özet API'den ARAYÜZ dilinde ve öneksiz gelir; başlık burada. */}
+          <p className="font-medium text-zinc-950">
+            <span className="font-normal text-zinc-600">{t("aiSoyleAnladi")}</span> {intent.summary}
+          </p>
           {chips.length > 0 ? (
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-xs text-zinc-500">{t("uygulananSuzgecler")}</span>
@@ -98,10 +115,10 @@ export function AiIntentBand({
             <p className="text-xs text-zinc-500">{t("uygulananSuzgecKalmadiListeTamamini")}</p>
           )}
           {relaxedNote(intent) ? <p className="text-xs text-zinc-600">{relaxedNote(intent)}</p> : null}
+          {/* İpucu metni (`categoryHint`) Türkçe katalog araması içindir —
+              ham basılmaz; yalnız "eşleşmedi" bilgisi verilir. */}
           {intent.categoryHint && !intent.category && !intent.relaxed?.includes("category") ? (
-            <p className="text-xs text-zinc-600">
-              {t("kategoriBulunamadiKenar", { categoryHint: intent.categoryHint })}
-            </p>
+            <p className="text-xs text-zinc-600">{t("kategoriEslesmedi")}</p>
           ) : null}
           {intent.warned ? (
             <p className="text-xs text-amber-700">{t("aiButcenizin80Doldu")}</p>

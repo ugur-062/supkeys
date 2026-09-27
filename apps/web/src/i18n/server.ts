@@ -4,8 +4,8 @@ import { DEFAULT_LOCALE, type Locale, type WebTranslator } from "@rothern/i18n";
 import { createWebTranslator } from "@rothern/i18n/translator";
 import { APP_TIME_ZONE } from "@/lib/time-zone";
 import type { PriceLabels } from "@/lib/public/product-price";
-import type { SeoT } from "@/lib/seo/entities";
-import { INTL_LOCALE } from "./format";
+import { quantityWith, type SeoT } from "@/lib/seo/entities";
+import { intlLocale } from "./format";
 
 export { formatNumber } from "./format";
 
@@ -41,8 +41,9 @@ export function seoT(locale: Locale = DEFAULT_LOCALE): SeoT {
 export function priceLabelsFor(locale: Locale = DEFAULT_LOCALE): PriceLabels {
   const t = webTranslator(locale);
   return {
-    locale: INTL_LOCALE[locale] ?? "tr-TR",
+    locale: intlLocale(locale),
     onRequest: t("web.marketplace.price.onRequest"),
-    fromQty: (qty, unit) => t("web.marketplace.price.fromQty", { qty, unit }),
+    fromQty: (n, unit, code) =>
+      t("web.marketplace.price.fromQty", { qty: quantityWith(seoT(locale), n, unit, code) }),
   };
 }

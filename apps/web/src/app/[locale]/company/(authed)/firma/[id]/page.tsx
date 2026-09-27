@@ -218,7 +218,7 @@ export default function CompanyProfilePage() {
             sahte bir "daha fazla" düğmesi de basmıyoruz (hedefi yok). */}
         {productCount > products.length ? (
           <p className="tnum mt-4 text-sm text-zinc-500">
-            {t("urunGosteriliyor", { shown: formatNumber(products.length, locale), total: formatNumber(productCount, locale) })}
+            {t("urunGosteriliyor", { shown: products.length, total: productCount })}
           </p>
         ) : null}
       </section>

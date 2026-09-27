@@ -7,6 +7,7 @@ import { CompanyRole, Prisma } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeUser } from "./factories";
 import { makeAuthService } from "./make-auth-service";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 // Geçerli TCKN (test): 10000000146. Şahıs firmasında vergi no = TCKN.
 const TCKN = "10000000146";
@@ -87,6 +88,130 @@ describe("completeOnboarding", () => {
       where: { companyId: owner.company.id },
     });
     expect(addrs.map((a) => a.type).sort()).toEqual(["FATURA", "TESLIMAT"]);
+  });
+
+  /**
+   * 2026-09-27 uluslararası denetim: onboarding'in yazdığı VERİ (yetkili unvanı,
+   * varsayılan adres başlıkları) kullanıcının dilinde; mahalle açık adres
+   * satırına katılır (ayrı kolonu yoktu, hiçbir yerde gösterilmiyordu).
+   */
+  it("TR: mahalle adres satırına katılır, varsayılan başlıklar ve 'Kurucu' Türkçe", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    await service.completeOnboarding(owner.user.id, owner.company.id, dto(cat.id) as never);
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(c.neighborhood).toBe("Caferağa");
+    expect(c.addressLine).toBe("Caferağa, Moda Cad. No:1");
+    expect(c.authorizedTitle).toBe("Kurucu");
+    const addrs = await prisma.companyAddress.findMany({
+      where: { companyId: owner.company.id },
+      orderBy: { type: "asc" },
+    });
+    expect(addrs.map((a) => [a.type, a.title, a.addressLine])).toEqual([
+      ["FATURA", "Merkez", "Caferağa, Moda Cad. No:1"],
+      ["TESLIMAT", "Teslimat (fatura ile aynı)", "Caferağa, Moda Cad. No:1"],
+    ]);
+  });
+
+  it("RU arayüzü + Rus firma: veri Rusça, ИНН öneki atılır, ayrı teslimatın mahallesi de satıra", async () => {
+    const { service } = makeAuthService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    await runWithLocale("ru", () =>
+      service.completeOnboarding(owner.user.id, owner.company.id, {
+        ...dto(cat.id),
+        country: "RU",
+        companyType: "LIMITED",
+        taxNumber: "ИНН 7707083893",
+        taxOffice: undefined,
+        district: undefined,
+        neighborhood: undefined,
+        city: "Moscow",
+        authorizedTckn: undefined,
+        deliverySameAsBilling: false,
+        deliveryCity: "Kazan",
+        deliveryNeighborhood: "Vakhitovsky",
+        deliveryAddressLine: "Kremlyovskaya 1",
+      } as never),
+    );
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(c.taxNumber).toBe("7707083893");
+    expect(c.authorizedTitle).toBe("Основатель");
+    const addrs = await prisma.companyAddress.findMany({
+      where: { companyId: owner.company.id },
+      orderBy: { type: "asc" },
+    });
+    expect(addrs.map((a) => [a.type, a.title, a.addressLine])).toEqual([
+      ["FATURA", "Головной офис", "Moda Cad. No:1"],
+      ["TESLIMAT", "Доставка", "Vakhitovsky, Kremlyovskaya 1"],
+    ]);
+  });
+
+  it("vergi no ülke kuralıyla denetlenir: RU 9 hane ve CN 17 karakter reddedilir", async () => {
+    const { service } = makeAuthService();
+    const cat = await makeCategory();
+    for (const [country, taxNumber] of [
+      ["RU", "770708389"],
+      ["CN", "91110000MA01AAAA1"],
+      ["KZ", "12345678901"],
+    ]) {
+      const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+      await expect(
+        service.completeOnboarding(owner.user.id, owner.company.id, {
+          ...dto(cat.id),
+          country,
+          companyType: "LIMITED",
+          taxNumber,
+          taxOffice: undefined,
+          district: undefined,
+          city: "City",
+          authorizedTckn: undefined,
+        } as never),
+      ).rejects.toThrow(/vergi\/sicil/i);
+    }
+  });
+
+  it("AB firması: kayıttan sonra VIES arka planda sorulur ve audit'e yazılır (test ortamı dışında)", async () => {
+    const { service, audit } = makeAuthService({ NODE_ENV: "development" });
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    const realFetch = global.fetch;
+    const fetchMock = jest.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({ isValid: true, userError: "VALID", name: "---", address: "---" }),
+    });
+    global.fetch = fetchMock as never;
+    try {
+      await service.completeOnboarding(owner.user.id, owner.company.id, {
+        ...dto(cat.id),
+        country: "DE",
+        companyType: "OTHER",
+        legalFormLocal: "GmbH",
+        taxNumber: "DE811569869",
+        taxOffice: undefined,
+        district: undefined,
+        neighborhood: undefined,
+        city: "Berlin",
+        authorizedTckn: undefined,
+      } as never);
+      // Arka plan işi (fire-and-forget) — birkaç tur bekle.
+      for (let i = 0; i < 20 && audit.log.mock.calls.length === 0; i++) {
+        await new Promise((r) => setImmediate(r));
+      }
+      expect(String(fetchMock.mock.calls[0]?.[0])).toContain("/ms/DE/vat/811569869");
+      expect(audit.log).toHaveBeenCalledWith(
+        expect.objectContaining({
+          action: "company.vies_checked",
+          entityId: owner.company.id,
+          metadata: expect.objectContaining({ valid: true, name: null, source: "onboarding" }),
+        }),
+      );
+      const c = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+      expect(c.taxNumber).toBe("811569869");
+    } finally {
+      global.fetch = realFetch;
+    }
   });
 
   /**

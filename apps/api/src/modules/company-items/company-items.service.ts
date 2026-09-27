@@ -20,7 +20,11 @@ import {
   PRODUCT_MEDIA_TIER,
   slugifyText,
   tierAtLeast,
-  tokenizeQuery, categoryPrefix, type TierName } from "@rothern/shared";
+  tokenizeQuery, categoryPrefix, type TierName,
+  defaultCurrencyForCountry,
+  isCurrencyCode,
+  productPriceBase } from "@rothern/shared";
+import { fxRate, resolveCompanyCurrency } from "../../common/currency/fx-rates";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { showcaseContentChanged } from "../../common/company/product-content-diff";
 import { effectiveTier } from "../../common/company/effective-tier";
@@ -510,6 +514,8 @@ export class CompanyItemsService {
   ) {
     const page = Math.max(1, q.page ?? 1);
     const size = Math.min(Math.max(q.pageSize ?? PRODUCT_PAGE_SIZE, 1), 48);
+    // Fiyat süzgecinin para birimi: seçilmediyse FİRMANIN ülkesinden.
+    q = { ...q, currency: resolveCompanyCurrency(q.currency, user.country) };
     const where = productIndexWhere(q, [{ companyId: { not: user.companyId } }], {
       employeeValues: await employeeValuesQuery(this.prisma, q.employees),
     });
@@ -587,6 +593,9 @@ export class CompanyItemsService {
    * panelin nitelik süzgeci sessizce HEP boş dönüyordu.
    */
   async discoverFacets(user: AuthenticatedCompanyUser, q: ProductIndexParams = {}) {
+    // Histogram firmanın para biriminde (seçilmediyse ülkesinden) — liste
+    // ucuyla AYNI çözüm, yoksa sınırlar bir birimde gösterilip ötekinde süzülürdü.
+    q = { ...q, currency: resolveCompanyCurrency(q.currency, user.country) };
     const raw = await this.crossTenant.companyItem.findMany({
       where: {
         ...publicProductWhere(),
@@ -599,6 +608,7 @@ export class CompanyItemsService {
         attributes: true,
         moq: true,
         priceAmount: true,
+        priceAmountBase: true,
         company: {
           select: {
             city: true,
@@ -664,6 +674,8 @@ export class CompanyItemsService {
       certifications: ctx.certifications,
       employees: ctx.employees,
       moq: ctx.moq,
+      /** Histogramın (ve süzgeç sınırlarının) para birimi. */
+      currency: q.currency,
       priceHistogram: ctx.priceHistogram,
       attributes: await attributeFacets(this.prisma, q.category, inCategory),
       truncated,
@@ -1034,10 +1046,14 @@ export class CompanyItemsService {
       unitCode: input.unitCode,
     });
     await this.assertCapacity(user.companyId, 1);
+    // Para birimi verilmediyse FİRMANIN ülkesinden (2026-09-27): yabancı
+    // satıcının ürünü TRY ile doğmasın.
+    const fallbackCurrency = defaultCurrencyForCountry(user.country);
     const created = await this.prisma.companyItem
       .create({
         data: {
           ...base,
+          priceCurrency: (isCurrencyCode(input.priceCurrency) ? input.priceCurrency : fallbackCurrency) as Currency,
           companyId: user.companyId,
           createdById: user.userId,
         },
@@ -1180,7 +1196,7 @@ export class CompanyItemsService {
   }
 
   private async normalizeShowcase(
-    before: { categoryId: string | null; name?: string; brand?: string | null; mpn?: string | null },
+    before: { categoryId: string | null; name?: string; brand?: string | null; mpn?: string | null; priceCurrency?: string | null },
     input: ShowcaseInput,
   ) {
     const images = (input.images ?? []).map((u) => u.trim()).filter(Boolean);
@@ -1249,8 +1265,24 @@ export class CompanyItemsService {
       ...(input.priceCurrency
         ? { priceCurrency: input.priceCurrency as Currency }
         : {}),
+      // TRY karşılığı (ürün dizininin fiyat süzgeci/sıralaması) — yazımda
+      // hesaplanır, günlük kur işi tazeler. Tek kural `productPriceBase`.
+      priceAmountBase: this.priceBaseOf(input, before.priceCurrency),
       moq: input.moq == null ? null : new Prisma.Decimal(input.moq),
     };
+  }
+
+  private priceBaseOf(input: ShowcaseInput, beforeCurrency?: string | null): Prisma.Decimal | null {
+    const base = productPriceBase(
+      {
+        priceMode: input.priceMode ?? "ON_REQUEST",
+        priceAmount: input.priceMode === "FIXED" ? input.priceAmount : null,
+        priceTiers: input.priceMode === "TIERED" ? input.priceTiers : null,
+        priceCurrency: input.priceCurrency ?? beforeCurrency ?? "TRY",
+      },
+      fxRate,
+    );
+    return base == null ? null : new Prisma.Decimal(base.toFixed(2));
   }
 
   /**

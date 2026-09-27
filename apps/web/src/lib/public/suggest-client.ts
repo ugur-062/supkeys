@@ -1,3 +1,4 @@
+import { foldSearchText } from "@rothern/shared";
 import type { CategoryMenuNode, SuggestResult } from "./marketplace-api";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
 
@@ -75,7 +76,7 @@ export function pushRecentSearch(term: string): void {
   const t = term.trim();
   if (t.length < 2) return;
   try {
-    const next = [t, ...readRecentSearches().filter((x) => x.toLocaleLowerCase("tr") !== t.toLocaleLowerCase("tr"))].slice(0, RECENT_MAX);
+    const next = [t, ...readRecentSearches().filter((x) => foldSearchText(x) !== foldSearchText(t))].slice(0, RECENT_MAX);
     window.localStorage.setItem(RECENT_KEY, JSON.stringify(next));
   } catch {
     /* özel pencere / kapalı depolama — öneri kaybı kabul */

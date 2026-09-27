@@ -1,5 +1,7 @@
 import { MarketingHeader } from "@/components/marketing/marketing-header";
 import { JsonLd } from "@/components/seo/json-ld";
+import { isLocale } from "@rothern/i18n";
+import { useLocale } from "next-intl";
 import { siteGraph } from "@/lib/seo/jsonld";
 import { MarketplaceFooter } from "./marketplace-footer";
 import type { ReactNode } from "react";
@@ -41,6 +43,7 @@ export function PublicLayout({
   /** Gövde zemini. Katalog sayfaları `MARKET_GROUND`, gerisi beyaz. */
   className?: string;
 }) {
+  const locale = useLocale();
   return (
     <div className={`min-h-dvh ${className}`}>
       {/* SİTE KİMLİĞİ HER PUBLIC SAYFADA (2026-09-09). Eskiden yalnız
@@ -51,7 +54,7 @@ export function PublicLayout({
           düğümler (Product, Organization/firma, Demand, ItemList) buna EK
           olarak kendi script'lerinde durur; `@id` üzerinden aynı grafiğe
           bağlanırlar. */}
-      <JsonLd data={siteGraph()} />
+      <JsonLd data={siteGraph(isLocale(locale) ? locale : undefined)} />
       <MarketingHeader />
       <main>{children}</main>
       <MarketplaceFooter />

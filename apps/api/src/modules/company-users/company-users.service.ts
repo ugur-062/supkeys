@@ -12,7 +12,7 @@ import {
 import { currentLocale } from "../../common/i18n/locale-context";
 import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
 import { localeOf } from "../notifications/notification.service";
-import { type Locale } from "@rothern/i18n";
+import { isLocale, type Locale } from "@rothern/i18n";
 import { ConfigService } from "@nestjs/config";
 import * as crypto from "node:crypto";
 import { CompanyRole, Prisma } from "@rothern/db";
@@ -245,6 +245,8 @@ export class CompanyUsersService {
           Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000,
         ),
         invitedById: actor.userId,
+        // Davet dili (diyalogdaki seçim); yoksa gönderimde davet edenin dili.
+        locale: isLocale(dto.locale) ? dto.locale : null,
       },
     });
     // INV-AUDIT-1: ilk yetki verilişi (davet) iz bırakır — e-posta (PII)
@@ -554,9 +556,12 @@ export class CompanyUsersService {
     const baseUrl = (
       resolveWebUrl(this.config)
     ).replace(/\/$/, "");
-    // DİL: davet edilen kişi henüz kayıtlı değil (dili yok) → DAVET EDENİN
-    // dili kullanılır; ekibe kattığı kişiyle hangi dilde konuştuğunu o bilir.
-    const locale = localeOf(inviter?.locale);
+    // DİL (2026-09-27): davet edilen kişi henüz kayıtlı değil (dili yok) →
+    // davet edenin diyalogda SEÇTİĞİ dil (`CompanyUserInvitation.locale`);
+    // eski/dilsiz davette davet edenin kayıtlı dili. Türk kurucu İngilizce
+    // konuşan çalışanını davet edince e-posta, kabul sayfası ve (sayfada
+    // değiştirilmezse) hesap İngilizce olur. Yeniden gönderim kayıtlı dili korur.
+    const locale = isLocale(inv.locale) ? inv.locale : localeOf(inviter?.locale);
     // Bağlantı da e-postanın dilinde açılsın (yol parçaları dile göre).
     const acceptUrl = appRoutes.invite(baseUrl, inv.token, locale);
     const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>

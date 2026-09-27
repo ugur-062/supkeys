@@ -24,6 +24,8 @@ export type EmailRichValues = Record<
 export interface EmailTranslator {
   (key: EmailMessageKey, values?: EmailValues): string;
   rich(key: EmailMessageKey, values?: EmailRichValues): React.ReactNode;
+  /** Katalogda var mı (dinamik anahtar: ölçü birimi, faaliyet kodu). */
+  has(key: EmailMessageKey): boolean;
 }
 
 const cache = new Map<Locale, EmailTranslator>();

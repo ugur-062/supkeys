@@ -71,7 +71,7 @@
       "metaTitle": "B2B marketplace: products, suppliers and buying requests",
       "metaDescription": "Browse verified suppliers' products with price and MOQ, talk to companies, and send sealed-bid quotes on buying requests. Buyer and seller in one account. Signing up is free.",
       "metaAbsoluteTitle": "Rothern — B2B marketplace: products, suppliers and buying requests",
-      "comingSoonTitle": "Coming Soon",
+      "comingSoonTitle": "Coming soon",
       "comingSoonDescription": "Rothern is currently in development. We'll be with you very soon."
     },
     "comingSoon": {
@@ -82,7 +82,7 @@
     },
     "rfq": {
       "point1": "Only suppliers matching your category",
-      "point2": "Quotes never see each other: sealed bids",
+      "point2": "Sealed bids: suppliers never see each other's quotes",
       "point3": "Comparison table, award on one screen",
       "title": "Post one request, receive several sealed-bid quotes",
       "cta": "Post a request"
@@ -108,17 +108,6 @@
       "noFeeBody": "The platform takes no share of the transaction value.",
       "kvkkTitle": "KVKK compliant",
       "kvkkBody": "Your data is processed in line with Turkish data protection law."
-    },
-    "twoCards": {
-      "sellTitle": "List your company, put your products in the showcase",
-      "sellPoint1": "Free profile",
-      "sellPoint2": "AI-assisted profile and catalog setup",
-      "sellPoint3": "Request alerts matching your category",
-      "createProfile": "Create a free profile",
-      "seePremium": "See Premium",
-      "buyTitle": "Follow buying requests",
-      "buyBody": "Get open requests matching your category by email; submit your sealed-bid quote from the panel and let the buyer compare.",
-      "seeDemands": "See buying requests"
     },
     "flow": {
       "label": "Three steps for buyers",
@@ -148,7 +137,7 @@
       "what1": "Industrial purchasing still runs largely on email, phone and Excel: the buyer pulls the supplier list out of their own notebook, compares quotes by hand, and there is no single place showing who quoted what and when. Rothern moves this flow into one panel — from posting the request to delivering the order, every step lives on the same record, and who did what and when stays auditable.",
       "what2": "On the supplier side the issue is visibility: a company listing its products can quote on a request posted by a buyer that has never heard of it. Matching is built on a four-level international category tree and the activity types companies declare.",
       "oneAccountTitle": "One account, both sides",
-      "oneAccountBody": "A company is usually both a buyer and a seller. On Rothern a single company account opens both panels: on the buying side you post requests and collect quotes; on the selling side you quote on others' requests and manage your product showcase. What each team member can do on each side is set separately in a permission table; you can define a manager who only approves, a viewer who cannot quote, or a salesperson who works only on the selling side.",
+      "oneAccountBody": "A company is usually both a buyer and a seller. On Rothern a single company account opens both panels: on the buying side you post requests and collect quotes; on the sales side you quote on others' requests and manage your product showcase. What each team member can do on each side is set separately in a permission table; you can define a manager who only approves, a viewer who cannot quote, or a salesperson who works only on the sales side.",
       "principlesTitle": "Our principles",
       "p1Title": "Sealed bids are really sealed.",
       "p1Body": "Bidders cannot see each other's quotes; not even the NUMBER of quotes is published. A “how many quotes” counter that makes competition visible is a pressure tool for driving prices down — so there isn't one.",
@@ -159,7 +148,7 @@
       "p4Title": "We don't make up numbers.",
       "p4Body": "We show nothing we haven't measured. Counters like “40 suppliers viewed this product” do not appear on the site unless there is a real measurement behind them; if a field is empty, it looks empty.",
       "noIntermediationTitle": "We do not intermediate trade",
-      "noIntermediationBody": "The only thing sold through Rothern is membership plans. The platform does not intermediate the value of goods and services between companies and does not carry money; contracts and payments run directly between the parties. The payment steps on the order screen are a record of the notifications the parties make to each other.",
+      "noIntermediationBody": "The only thing sold through Rothern is subscription plans. The platform does not intermediate the value of goods and services between companies and does not carry money; contracts and payments run directly between the parties. The payment steps on the order screen are a record of the notifications the parties make to each other.",
       "whoTitle": "Who can use it",
       "whoBody": "Companies from every country can register, except the United States and countries under comprehensive sanctions (Iran, North Korea, Syria, Cuba). The document set depends on the country; verification is always done by a person, and there is no automatic approval path. For details, see the <faq>frequently asked questions</faq> and <how>How it works</how> pages.",
       "operatorTitle": "Operator",
@@ -171,7 +160,7 @@
       "title": "Contact and Imprint",
       "intro": "Rothern is a B2B sourcing platform operated by {legalName}. For questions write to <support>{supportEmail}</support>; for requests about your personal data use <kvkk>{kvkkEmail}</kvkk>.",
       "whereTitle": "Where to write about what",
-      "supportTitle": "Account, membership and technical support",
+      "supportTitle": "Account, plan and technical support",
       "supportBody": "<mail>{email}</mail> — login problems, company verification, plan and seat questions, everything about publishing products and the request flow. Including your company name and, if relevant, the request/product address shortens the process.",
       "dataTitle": "Requests about personal data",
       "dataBody": "<mail>{email}</mail> — access, correction and deletion requests under data protection law (KVKK). This address is for data requests only; use the address above for support questions.",
@@ -198,16 +187,16 @@
       "g1": {
         "heading": "Platform",
         "q1": "What is Rothern?",
-        "a1": "Rothern is a B2B sourcing marketplace that brings buyer and supplier companies together in one account. Companies publish product showcases, post buying requests, collect sealed-bid quotes and turn the winning quote into an order. The same company account works on both the buying and selling side; there is no need to open two accounts.",
+        "a1": "Rothern is a B2B sourcing marketplace that brings buyer and supplier companies together in one account. Companies publish product showcases, post buying requests, collect sealed-bid quotes and turn the winning quote into an order. The same company account works on both the buying and sales side; there is no need to open two accounts.",
         "q2": "Does Rothern intermediate transactions?",
-        "a2": "No. The only thing sold through Rothern is membership plans. The platform does not intermediate the value of goods and services between companies and does not carry money; trade runs directly between the parties. The payment steps on the order screen are notifications the parties make to each other.",
+        "a2": "No. The only thing sold through Rothern is subscription plans. The platform does not intermediate the value of goods and services between companies and does not carry money; trade runs directly between the parties. The payment steps on the order screen are notifications the parties make to each other.",
         "q3": "Which countries can register?",
-        "a3": "From every country except the United States and countries under comprehensive sanctions (Iran, North Korea, Syria, Cuba). The document set depends on the country: most countries provide a company registration certificate, a tax registration certificate and the authorised person's ID or passport; in China the 营业执照 (business licence) carries registration, tax and representative details in one document, so no separate tax certificate is required."
+        "a3": "From every country except the United States and countries under comprehensive sanctions (Iran, North Korea, Syria, Cuba). The document set depends on the country: most countries provide a company registration certificate, a tax registration certificate and the authorized person's ID or passport; in China the 营业执照 (business license) carries registration, tax and representative details in one document, so no separate tax certificate is required."
       },
       "g2": {
         "heading": "Quotes and confidentiality",
         "q1": "Are quotes confidential?",
-        "a1": "Yes, quotes are collected as sealed bids. Bidders can never see each other's quotes, and the NUMBER of quotes is not published either. Only the company that posted the request sees the quotes it receives. A submitted quote cannot be edited or withdrawn — if the buyer eliminates it, the supplier can submit a new version.",
+        "a1": "Yes, quotes are collected as sealed bids. Suppliers can never see each other's quotes, and the NUMBER of quotes is not published either. Only the company that posted the request sees the quotes it receives. A submitted quote cannot be edited or withdrawn — if the buyer eliminates it, the supplier can submit a new version.",
         "q2": "Why isn't the name of the company that posted the request visible?",
         "a2": "In a buying request, “who is buying” is direct competitive intelligence: a company looking for 40 tons of steel pipe reveals its production plan. That is why public request pages do not show the buyer's name, logo or profile link. What is visible is attributes, not identity: city, country, industry, activity type and the “Verified buyer” badge. The buyer's identity is disclosed to the other party during the quote process.",
         "q3": "What do I need to quote on a request?",
@@ -218,10 +207,10 @@
         "q1": "Is the product showcase free?",
         "a1": "Yes. With the free Standard plan you can create a company profile, appear in the directory and publish up to {n} products; company verification and the “Verified” badge are free as well. What paid plans add is standing out, not being visible: priority ranking in the directory, unlimited products, product documents and video, and access to public requests.",
         "q2": "Why do some products have no price?",
-        "a2": "A price can take three forms: a fixed price, tiered pricing by quantity, or “request a quote”. The third is not missing data but the seller's deliberate choice, and the platform does not penalise it — otherwise sellers would type an unreal price just to fill the field. Prices exclude VAT and are the seller's declaration.",
+        "a2": "A price can take three forms: a fixed price, tiered pricing by quantity, or “request a quote”. The third is not missing data but the seller's deliberate choice, and the platform does not penalize it — otherwise sellers would type an unreal price just to fill the field. Prices exclude VAT and are the seller's declaration.",
         "q3": "What does the “Verified” badge mean?",
-        "a3": "It means the company's documents covering its trade registry, tax and authorised-person details were reviewed and accepted by Rothern. Verification is done by a person without exception; there is no automatic approval path. The badge concerns the company's identity — it is not a statement about product or service quality.",
-        "q4": "How are products categorised?",
+        "a3": "It means the company's documents covering its trade registry, tax and authorized-person details were reviewed and accepted by Rothern. Verification is done by a person without exception; there is no automatic approval path. The badge concerns the company's identity — it is not a statement about product or service quality.",
+        "q4": "How are products categorized?",
         "a4": "A four-level international category tree (segment / family / class / commodity) is used; the source is Ariba's UNSPSC-based catalog with more than 158,000 codes. Requests and products are opened with at least a third-level code, so buyer and supplier match in the same language."
       },
       "g4": {
@@ -229,7 +218,7 @@
         "q1": "Do I wait for approval to register?",
         "a1": "No. The account works immediately after email verification and a short setup step. Admin approval is only needed for document verification (KYC), and even that is required only where the platform vouches for you rather than for every action: quoting on a public request, publishing a request and awarding.",
         "q2": "Can several people from my team use the same account?",
-        "a2": "Yes. Users are invited to the company account and each person's permissions are set separately in a permission table: buying, selling, approval and administration. Every person who acts on the buying or selling side uses a “seat”; the number of seats depends on the plan. People who only view or approve do not use a seat.",
+        "a2": "Yes. Users are invited to the company account and each person's permissions are set separately in a permission table: buying, sales, approval and administration. Every person who acts on the buying or sales side uses a “seat”; the number of seats depends on the plan. People who only view or approve do not use a seat.",
         "q3": "What happens to my personal data?",
         "a3": "Rothern is the data controller under Turkish data protection law (KVKK). The notice and privacy policy are in the agreements section at the bottom of the site; you can send requests to {kvkkEmail}. You choose which fields of the company profile are public; contact details are shown only to registered members, not to visitors."
       }
@@ -256,7 +245,7 @@
       },
       "iade": {
         "metaTitle": "Delivery, Cancellation and Refund Terms",
-        "metaDesc": "Delivery, cancellation and refund terms for Rothern membership plans; withdrawal and refund process (Turkish text)."
+        "metaDesc": "Delivery, cancellation and refund terms for Rothern subscription plans; withdrawal and refund process (Turkish text)."
       }
     },
     "inquiryVerify": {
@@ -317,7 +306,7 @@
       "s51": "Pharmaceutical products through a secure supply chain.",
       "s52": "Consumer products for home and office.",
       "s53": "Apparel and personal care for bulk purchase.",
-      "s54": "Precious metal and jewellery products.",
+      "s54": "Precious metal and jewelry products.",
       "s55": "Printed and digital publishing products.",
       "s56": "Furniture and furnishings for workspaces.",
       "s57": "Emergency and relief supplies.",
@@ -341,7 +330,7 @@
       "s91": "Personal and household services.",
       "s92": "Security and public order services.",
       "s93": "Social and civic services.",
-      "s94": "Association, club and organisation services.",
+      "s94": "Association, club and organization services.",
       "s95": "Land, building and infrastructure investments."
     },
     "howItWorks": {
@@ -359,10 +348,10 @@
       },
       "faq": {
         "q1": "Do buyers and suppliers register separately?",
-        "a1": "No. Rothern has a single company account; the same account both buys and sells. The roles you assign to people (buying / selling) determine what they can see and do.",
+        "a1": "No. Rothern has a single company account; the same account both buys and sells. The roles you assign to people (buying / sales) determine what they can see and do.",
         "q2": "Can suppliers see each other's quotes?",
         "a2": "Never. Sealed bids: each supplier sees only its own quote. The request owner sees all quotes and awards the best one.",
-        "q3": "What can I do with the Standard membership?",
+        "q3": "What can I do on the Standard plan?",
         "a3": "You publish your profile, open a showcase of up to {n} products, discover companies, and quote on requests from companies that invited you or are connected to you. Seeing and quoting on public requests, sending connection invitations, seeing the buyer's identity in incoming inquiries and replying, and the “Verified” badge come with Silver; posting your own buying requests comes with Gold.",
         "q4": "Does the platform handle payments?",
         "a4": "No. Payment is made directly between the parties; Rothern does not handle money. Payment is only marked as “paid” or “payment pending”. There is no per-seat fee.",
@@ -464,7 +453,7 @@
         "about": "Quality production in industrial steel products with 20+ years of experience, a strong supply chain and sustainable growth.",
         "website": "www.demosteel.com",
         "visitSite": "Visit our website",
-        "catalog": "Company catalogue",
+        "catalog": "Company catalog",
         "download": "Download file",
         "rfqLine": "For your buying requests",
         "requestQuote": "Request a quote"
@@ -515,7 +504,7 @@
         "eyebrow": "Everything in one panel",
         "title": "Beyond trade, full control",
         "teamTitle": "Invite your team, assign roles",
-        "teamBody": "Manager, buying, selling and approver roles — manage your team with ease and set up your workflows in one click.",
+        "teamBody": "Manager, buying, sales and approver roles — manage your team with ease and set up your workflows in one click.",
         "teamB1": "Role-based permissions and visibility",
         "teamB2": "Viewers and approvers don't use a seat",
         "teamB3": "Secure account options (2FA)",
@@ -547,15 +536,15 @@
         "rfqC": "₺13,400",
         "auctionTag": "Buying • Reverse auction",
         "auctionTitle": "Negotiation",
-        "auctionBody": "The price drops live; the best offer stands out.",
+        "auctionBody": "The price drops live; the best quote stands out.",
         "auction1": "₺16,500",
         "auction2": "₺14,200",
         "auction3": "₺13,100",
         "auction4": "₺12,000",
-        "current": "● Current offer",
+        "current": "● Current quote",
         "aiTag": "AI",
         "aiTitle": "Request draft from a document",
-        "aiBody": "Upload the specification or RFQ; let AI extract the items, quantities and category, then approve.",
+        "aiBody": "Upload the specification or RFQ; let AI extract the line items, quantities and category, then approve.",
         "aiFile": "specification-2026.pdf",
         "aiRead": "Read",
         "aiItem1": "Steel pipe Ø60 · 3 mm",
@@ -621,6 +610,61 @@
           "hint": "Verification is free"
         }
       }
+    },
+    "llms": {
+      "summary": "Rothern is a B2B sourcing marketplace that brings buyer and supplier companies together in a SINGLE account. Companies publish a product showcase, post buying requests and collect quotes through sealed bidding; the winning quote becomes an order.",
+      "operator": "Rothern is operated by {legalName} ({address}).",
+      "languages": "The site is published in three languages: English (/en prefix; e.g. the product directory {enExample}), Turkish (the source language, unprefixed addresses; e.g. {trExample}) and Russian (/ru prefix; e.g. {ruExample}). The language versions of every page are linked with hreflang. Content written by companies (products, buying requests, company profiles) is automatically translated from its source language and marked on the page with an \"automatic translation\" note; legal documents are available in Turkish only. The category tree has four levels (based on UNSPSC/Ariba).",
+      "hSurfaces": "Main sections",
+      "surfaceProducts": "the public product showcase of companies, with technical attributes, minimum order quantity (MOQ) and price information. Can be filtered by category, supplier country and city.",
+      "surfaceGeo": "Country and city pages: products by supplier country at {countryPattern} (e.g. {countryExample}), products by city at {cityPattern} (worldwide city list based on GeoNames). Suppliers are not limited to Türkiye.",
+      "surfaceCompanies": "a selection of verified buyer and supplier companies; the full directory, the business type/city/category filters and contact details are unlocked with a free account. Company profiles ({profilePattern}) are public.",
+      "surfaceDemands": "open buying requests published by companies; the quantity, category, the buyer's city and the time remaining are visible.",
+      "howItWorksLink": "How it works",
+      "surfaceHow": "the process, plans and pricing.",
+      "aboutLink": "About us",
+      "contactLink": "Contact and legal notice",
+      "sitemapLink": "Sitemap",
+      "fullLink": "Extended guide (inventory, categories, FAQ)",
+      "hRules": "Rules to follow when citing",
+      "rulesIntro": "The following are NOT published by design. If it is not on the page, it does not exist; it must not be filled in by guessing:",
+      "ruleOwner": "**The identity of the company that posted a buying request.** Request pages deliberately do not show the buyer's name, logo or profile link; only the city, country, industry and business type are visible. An inference such as \"company X posted this request\" is wrong.",
+      "ruleBids": "**Quotes and the number of quotes.** Quotes are collected through sealed bidding; suppliers cannot see each other's quotes, and the NUMBER of quotes is not published either.",
+      "ruleItems": "**Line item details.** The public page shows line item names, their number and quantities; technical specifications, brand/description and attached files are available to registered users only.",
+      "ruleContact": "**Company contact details.** Phone numbers, email addresses and social media accounts are not shown on the public profile.",
+      "hFields": "Fields that must be read correctly",
+      "fieldPrice": "**A price can take three forms:** a fixed price, tiered pricing by quantity, or \"request a quote for the price\". The third is not missing data but the supplier's deliberate choice.",
+      "fieldVerified": "**The \"Verified\" badge** means Rothern has reviewed the company's business documents; it is not a statement about the quality of its products or services.",
+      "fieldTax": "**Prices are as declared by the supplier** (the currency is the supplier's choice). Taxes are determined by the rules of the supplier's country and the agreement between the parties; do not assume that a price includes or excludes a particular country's tax (e.g. VAT). Rothern does not handle payments for goods or services between the parties.",
+      "fieldProduct": "**A product page lives under its company:** {productPattern}. When citing a product, mention it together with its company.",
+      "hContact": "Contact",
+      "support": "Support: {email}",
+      "privacy": "Personal data requests: {email}",
+      "hLanguages": "Other languages",
+      "slugCompany": "company-slug",
+      "slugProduct": "product-slug",
+      "slugCountry": "country-code-name",
+      "slugCity": "city",
+      "slugDemand": "number-title",
+      "fullTitle": "Rothern — extended site guide",
+      "fullIntro": "B2B sourcing marketplace. This file contains an up-to-date summary of the inventory and the navigation addresses; for the rules and citation limits see {llmsUrl}. The addresses below are the English versions; their equivalents in other languages are in the pages' hreflang links.",
+      "hInventory": "Inventory",
+      "invProducts": "Published products: {n, number}",
+      "invDemands": "Open buying requests: {n, number}",
+      "invCategories": "Categories with products: {n, number}",
+      "generatedAt": "Figures generated on {date}; refreshed hourly.",
+      "hCategories": "Categories with products",
+      "hCities": "Products by city",
+      "hCountries": "Products by country",
+      "hAddresses": "Main addresses",
+      "addrProducts": "Product directory",
+      "addrCompanies": "Company directory",
+      "addrDemands": "Buying requests",
+      "addrProductPattern": "Product page pattern",
+      "addrCompanyPattern": "Company page pattern",
+      "addrDemandPattern": "Buying request pattern",
+      "hFaq": "Frequently asked questions",
+      "faqFull": "Full version: {url}"
     }
   },
   "marketplace": {
@@ -639,7 +683,6 @@
       "buyer": "Buyer",
       "verifiedBuyer": "Verified buyer",
       "items": "Items",
-      "itemNoun": "items",
       "specsMembers": "specifications and documents for members",
       "visibility": "Visibility",
       "sealedBid": "Sealed bid",
@@ -656,11 +699,12 @@
       "lastBid": "Quote deadline",
       "buyerVerification": "Buyer verification",
       "bidPrivacy": "Quote privacy",
-      "sealedTooltip": "Quotes are sealed: bidders never see each other's prices.",
+      "sealedTooltip": "Quotes are sealed: suppliers never see each other's prices.",
       "showDetails": "Show details",
       "hideDetails": "Hide details",
       "showItems": "Show items",
-      "hideItems": "Hide items"
+      "hideItems": "Hide items",
+      "itemsCountRich": "{count, plural, one {<n>#</n> <u>item</u>} other {<n>#</n> <u>items</u>}}"
     },
     "strip": {
       "seeAll": "See all",
@@ -671,9 +715,9 @@
     "productCard": {
       "verified": "Verified",
       "new": "New",
-      "minOrder": "Min. {n} {unit}",
+      "minOrder": "Min. {qty}",
       "verifiedCompany": "Verified company",
-      "goldMember": "Gold Member",
+      "goldMember": "Gold member",
       "compare": "Compare",
       "newTab": "(opens in a new tab)"
     },
@@ -687,7 +731,7 @@
     },
     "categoryGrid": {
       "title": "Explore by category",
-      "lead": "Products and buying requests are organised under 58 top-level categories. Pick the branch you need.",
+      "lead": "Products and buying requests are organized under 58 top-level categories. Pick the branch you need.",
       "all": "All categories"
     },
     "popularChips": {
@@ -732,7 +776,6 @@
       "label": "Result type"
     },
     "empty": {
-      "notFound": "No {noun} found.",
       "clear": "Clear filters",
       "browse": "Browse categories"
     },
@@ -756,7 +799,6 @@
       "foundCompany": "{total, plural, one {# company found} other {# companies found}}",
       "foundBuyingRequest": "{total, plural, one {# buying request found} other {# buying requests found}}",
       "foundOpenRequest": "{total, plural, one {# open request found} other {# open requests found}}",
-      "notFound": "No {noun} found",
       "filterButton": "Filter",
       "filtersTitle": "Filters",
       "clear": "Clear",
@@ -769,8 +811,8 @@
       "clearAll": "Clear all",
       "activeCount": "{n, plural, one {# filter active} other {# filters active}}",
       "histLabel": "Price distribution",
-      "histTitle": "{from} – {to} ₺ · {count, plural, one {# product} other {# products}}",
-      "histSr": "{from}-{to} ₺ range, {count, plural, one {# product} other {# products}}",
+      "histTitle": "{from} – {to} · {count, plural, one {# product} other {# products}}",
+      "histSr": "{from}–{to} range, {count, plural, one {# product} other {# products}}",
       "companyProfile": "Company profile",
       "verified": "Verified",
       "fastReply": "Fast responder",
@@ -785,7 +827,7 @@
       "nearAria": "Near me — city name or Turkish postal code",
       "nearNotFound": "City not found — type a city name or a 5-digit Turkish postal code.",
       "radius": "Radius:",
-      "radiusHint": "{name} and cities whose centres are within {radius} km.",
+      "radiusHint": "{name} and cities whose centers are within {radius} km.",
       "certifications": "Certifications",
       "certSearch": "Search certifications",
       "noCert": "No matching certification",
@@ -796,8 +838,8 @@
       "clearSearch": "Clear search",
       "noCategory": "No matching category",
       "price": "Price",
-      "minCurrency": "Min ₺",
-      "maxCurrency": "Max ₺",
+      "minCurrency": "Min {currency}",
+      "maxCurrency": "Max {currency}",
       "includeUnpriced": "Include products without a price",
       "all": "All",
       "priced": "Priced",
@@ -819,7 +861,7 @@
       "connected": "My connections",
       "notConnected": "Not connected yet",
       "hasProducts": "With products",
-      "goldMember": "Gold Member",
+      "goldMember": "Gold member",
       "activityType": "Activity type",
       "city": "City",
       "sortAZ": "A-Z",
@@ -829,37 +871,45 @@
       "country": "Country",
       "sortRecent": "Recently added",
       "sortClosing": "Closing soon",
-      "sellerCountry": "Supplier country"
+      "sellerCountry": "Supplier country",
+      "listingCountry": "Open to suppliers in",
+      "listingCountryPick": "Choose another country",
+      "listingCountryHint": "Requests open to all countries are included in every selection.",
+      "notFoundProduct": "No products found",
+      "notFoundCompany": "No companies found",
+      "notFoundBuyingRequest": "No buying requests found",
+      "notFoundOpenRequest": "No open requests found",
+      "currency": "Currency",
+      "currencyHint": "Prices in other currencies are converted at the daily CBRT rate for comparison."
     },
     "index": {
       "breadcrumb": "Breadcrumb",
-      "productNoun": "products",
-      "productsEmptyNoun": "products matching these criteria",
       "openRequestCta": "Post a request and let suppliers quote",
       "productResults": "Product results",
       "inquire": "Request info",
       "openRequest": "Post a request",
-      "companyLead": "A selection of buyer and supplier companies on Rothern. The full directory, filters and contacting companies open with a free membership.",
+      "companyLead": "A selection of buyer and supplier companies on Rothern. The full directory, filters and contacting companies open with a free account.",
       "membersOnlyTitle": "The full directory is for members",
       "membersOnlyBody": "See every company, filter by activity type, city and category, and request information directly. Membership is free; buyer and supplier in one account.",
       "joinFree": "Join free",
       "login": "Log in",
       "listingPlaceholder": "Search request titles, items or categories",
-      "listingEmptyFiltered": "open requests matching these criteria",
-      "listingEmpty": "open requests",
       "listingResults": "Request results",
-      "results": "Results"
+      "results": "Results",
+      "productsEmptyTitle": "No products match these criteria.",
+      "listingEmptyTitle": "No open requests found.",
+      "listingEmptyFilteredTitle": "No open requests match these criteria."
     },
     "companyCard": {
       "products": "{n, plural, one {# product} other {# products}}",
       "founded": "Founded {year}",
-      "employees": "{n} employees",
+      "employees": "Employees: {n}",
       "verified": "Verified",
-      "goldMember": "Gold Member",
+      "goldMember": "Gold member",
       "fastReply": "Fast responder",
       "viewPortfolio": "View portfolio ({n})",
       "mainCategories": "Main categories",
-      "moq": "MOQ: {n} {unit}",
+      "moq": "MOQ: {qty}",
       "moreProducts": "+{n} more",
       "verifiedCompany": "Verified company",
       "viewProfile": "View profile →"
@@ -872,11 +922,11 @@
       "prevImage": "Previous image"
     },
     "companyProducts": {
-      "title": "All Products and Services ({n})",
+      "title": "All products and services ({n})",
       "searchLabel": "Search this company's products",
       "searchPlaceholder": "Search products",
       "searchSubmit": "Search products",
-      "resultsFor": "{n} results for “{q}” ·",
+      "resultsFor": "{n, plural, one {# result} other {# results}} for “{q}” ·",
       "removeSearch": "clear search",
       "noneFor": "Nothing matching “{q}” in this company's products."
     },
@@ -885,7 +935,7 @@
       "productsMetaDesc": "The product catalog of supplier companies: technical specifications, minimum order and price details. Find the product and reach the company directly.",
       "productsLead": "Products companies put in their showcases. Filter by category, city and activity type; open a free account for prices and inquiries.",
       "companiesMetaTitle": "{label} — verified buyer and supplier companies",
-      "companiesMetaDesc": "A selection of verified buyer and supplier companies on Rothern. The full directory, filters and contacting companies open with a free membership.",
+      "companiesMetaDesc": "A selection of verified buyer and supplier companies on Rothern. The full directory, filters and contacting companies open with a free account.",
       "demandsMetaTitle": "{label} — open buying requests from around the world",
       "demandsMetaDesc": "Browse open buying requests published by companies by category and city. Sign up to Rothern for free to quote.",
       "demandsLead": "Companies' public buying requests. A free account lets you see items and the buyer, and submit quotes.",
@@ -922,7 +972,7 @@
     },
     "price": {
       "onRequest": "Price on request",
-      "fromQty": "for {qty} {unit} and above"
+      "fromQty": "for {qty} and above"
     },
     "product": {
       "home": "Home",
@@ -932,15 +982,15 @@
       "noAccount": "No account yet?",
       "signupFree": "Sign up free",
       "twoMinutes": "· 2 minutes, no credit card",
-      "newProduct": "New Product",
+      "newProduct": "New product",
       "brand": "Brand: {brand}",
       "mpn": "MPN: {mpn}",
       "vatExcluded": "Excl. VAT",
-      "minOrder": "Minimum order: {n} {unit}",
+      "minOrder": "Minimum order: {qty}",
       "qty": "Quantity",
       "unitPrice": "Unit price",
-      "tabFeatures": "Product Features",
-      "tabSpecs": "Technical Specifications",
+      "tabFeatures": "Product features",
+      "tabSpecs": "Technical specifications",
       "specText": "Technical specification",
       "tabDocs": "Documents",
       "tabCerts": "Certifications",
@@ -948,9 +998,9 @@
       "viewAll": "View all products",
       "viewAllCount": "View all products ({n})",
       "founded": "Founded {year}",
-      "employees": "{n} employees",
+      "employees": "Employees: {n}",
       "verifiedCompany": "Verified company",
-      "goldMember": "Gold Member",
+      "goldMember": "Gold member",
       "similarOthers": "Similar products — from other suppliers",
       "newIn": "New in {category}",
       "newInCategory": "New in this category"
@@ -964,14 +1014,14 @@
       "deliveryTerm": "Delivery term",
       "payment": "Payment",
       "paymentDays": "Payment term",
-      "days": "{n} days",
+      "days": "{n, plural, one {# day} other {# days}}",
       "breadcrumb": "Breadcrumb",
       "home": "Home",
       "preferredActivities": "Preferred supplier type:",
       "closing": "Closes",
       "items": "Items",
       "itemsCount": "{count, plural, one {# item} other {# items}}",
-      "totalQty": "total {qty} {unit}",
+      "totalQty": "total {qty}",
       "format": "Format",
       "formatAuction": "Negotiation (reverse auction)",
       "formatRfq": "Quote collection",
@@ -1001,7 +1051,8 @@
       "trust2Body": "Companies that publish requests and award them pass identity verification.",
       "trust3Title": "No commission",
       "trust3Body": "The platform takes no share of the transaction value.",
-      "similar": "Similar open requests"
+      "similar": "Similar open requests",
+      "onlyCountriesCanBid": "{n, plural, one {Only suppliers based in {countries} can submit quotes.} other {Only suppliers based in {countries} can submit quotes.}}"
     },
     "inquiry": {
       "failed": "The inquiry could not be sent",
@@ -1032,7 +1083,7 @@
       "unverifiedTitle": "Identity not verified — verification is the first step to a Silver or Gold plan",
       "verified": "Verified",
       "unverified": "Not verified",
-      "goldMember": "Gold Member",
+      "goldMember": "Gold member",
       "readMore": "Read more",
       "about": "About",
       "aboutName": "About {name}",
@@ -1100,7 +1151,7 @@
       "supplierCtaLead": "No matching requests for you?",
       "buyerCtaLead": "Can’t find what you’re looking for?",
       "supplierCtaLabel": "List your products",
-      "buyerCtaLabel": "Create a request",
+      "buyerCtaLabel": "Post a request",
       "supplierCtaTail": "and let buyers find you.",
       "buyerCtaTail": "and let verified suppliers send you quotes."
     }
@@ -1287,10 +1338,10 @@
       "IN_AWARD_APPROVAL": "Award approval",
       "AWARDED": "Completed",
       "CLOSED_NO_AWARD": "Closed without award",
-      "CANCELLED": "Cancelled/Closed"
+      "CANCELLED": "Canceled/Closed"
     },
     "sellerState": {
-      "cancelled": "Cancelled",
+      "cancelled": "Canceled",
       "won": "You won",
       "wonPartial": "You won partially",
       "withdrawn": "Withdrawn",
@@ -1322,7 +1373,7 @@
     "auditAction": {
       "company_listing_published": "Buying request published",
       "company_listing_awarded": "Buying request awarded",
-      "company_listing_cancelled": "Buying request cancelled",
+      "company_listing_cancelled": "Buying request canceled",
       "company_listing_evaluation_started": "Evaluation started",
       "company_listing_closed_no_award": "Buying request closed without award",
       "company_listing_next_round_created": "Negotiation round opened",
@@ -1334,7 +1385,7 @@
       "company_order_shipped": "Order shipped",
       "company_order_received": "Order received",
       "company_order_completed": "Order completed",
-      "company_order_cancelled": "Order cancelled",
+      "company_order_cancelled": "Order canceled",
       "company_order_cancel_requested": "Order cancellation requested",
       "company_order_cancel_request_approved": "Order cancellation request approved",
       "company_order_cancel_request_withdrawn": "Order cancellation request withdrawn",
@@ -1391,7 +1442,7 @@
       "DELIVERED": "Received",
       "COMPLETED": "Completed",
       "REJECTED": "Rejected",
-      "CANCELLED": "Cancelled",
+      "CANCELLED": "Canceled",
       "DISPUTED": "Disputed"
     },
     "orderStep": {
@@ -1428,7 +1479,7 @@
       },
       "attributes": {
         "label": "{n, plural, one {At least # technical attribute} other {At least # technical attributes}}",
-        "hint": "The attribute table feeds structured data (Product.additionalProperty); buyers find you through filters."
+        "hint": "The attribute table is passed to search engines as product specifications; buyers find you through filters."
       },
       "brand": {
         "label": "Brand or model/part number",
@@ -1444,7 +1495,7 @@
       },
       "logo": {
         "label": "Logo",
-        "hint": "Organization.logo — shown in search results and AI cards."
+        "hint": "Shown in search results and on your company card in AI answers."
       },
       "cover": {
         "label": "Cover image",
@@ -1460,23 +1511,23 @@
       },
       "categories": {
         "label": "At least 3 categories (main + sub)",
-        "hint": "Organization.knowsAbout and matching work from categories."
+        "hint": "Search engines read your areas of expertise from your categories; request matching works from them too."
       },
       "website": {
         "label": "Website",
-        "hint": "sameAs: engines link your Rothern profile to your company’s real identity."
+        "hint": "Search engines use your website to link your Rothern profile to your company’s real identity."
       },
       "linkedin": {
         "label": "LinkedIn",
-        "hint": "Second sameAs source."
+        "hint": "A second source linking your profile to your company."
       },
       "founded": {
         "label": "Year founded",
-        "hint": "foundingDate — a trust signal."
+        "hint": "Shows how long you have been in business — a trust signal."
       },
       "employees": {
         "label": "Number of employees",
-        "hint": "numberOfEmployees."
+        "hint": "Shows the size of your company; buyers look at it when choosing suppliers."
       },
       "services": {
         "label": "At least 3 services",
@@ -1524,6 +1575,98 @@
       "industry": "Industry",
       "city": "City",
       "categories": "Business categories"
+    },
+    "aiMissingField": {
+      "title": "Request title",
+      "items": "At least one line item",
+      "quantities": "Line item quantities",
+      "units": "Line item units",
+      "deliveryTerm": "Delivery terms",
+      "bidsCloseAt": "Quote closing date",
+      "category": "Category"
+    },
+    "bidDeliveryTime": {
+      "STOKTAN": "From stock (immediate)",
+      "W1_2": "1–2 weeks",
+      "W3_4": "3–4 weeks",
+      "W5_8": "5–8 weeks",
+      "M2_3": "2–3 months",
+      "M3_PLUS": "Over 3 months"
+    },
+    "systemText": {
+      "ORDER_REJECTED": "{hasText, select, yes {Order rejected by the seller: {text}} other {Order rejected by the seller}}",
+      "CANCEL_REQUEST_APPROVED": "Seller's cancellation request approved",
+      "ADMIN": "{hasText, select, yes {[Administrator] {text}} other {Canceled by an administrator}}",
+      "LC_PAID_VIA_BANK": "Letter of credit payment received through the bank"
+    },
+    "paymentMethod": {
+      "LETTER_OF_CREDIT": "Letter of credit",
+      "CHEQUE": "Check"
+    },
+    "taxId": {
+      "label": {
+        "TR_VKN": "Tax number / Turkish ID (TCKN)",
+        "XN": "Tax number",
+        "RU_INN": "Taxpayer ID (ИНН / ОГРН)",
+        "AZ_TIN": "Taxpayer ID (VÖEN)",
+        "KZ_BIN": "Business ID (БИН)",
+        "UZ_INN": "Taxpayer ID (СТИР)",
+        "CN_USCC": "Unified social credit code (统一社会信用代码)",
+        "AE_TRN": "TRN or trade license number",
+        "EU": "VAT number or tax ID",
+        "GENERIC": "Tax or registration number"
+      },
+      "hint": {
+        "TR_VKN": "10-digit VKN for companies, 11-digit TCKN for sole proprietors.",
+        "XN": "The number issued by the Northern Cyprus Inland Revenue Office.",
+        "RU_INN": "ИНН: 10 digits for companies, 12 for sole proprietors; an ОГРН (13 digits) or ОГРНИП (15 digits) is also accepted.",
+        "AZ_TIN": "10 digits.",
+        "KZ_BIN": "12 digits.",
+        "UZ_INN": "9 digits (a 14-digit ПИНФЛ for sole proprietors).",
+        "CN_USCC": "18 characters: digits and capital letters.",
+        "AE_TRN": "Your 15-digit TRN if you are VAT-registered; otherwise your trade license number.",
+        "EU": "You can enter it with or without the country prefix (e.g. DE123456789) and check it with VIES.",
+        "GENERIC": "The number shown on your tax registration or trade register."
+      }
+    },
+    "activityHint": {
+      "MANUFACTURER": "Makes the product in its own facility",
+      "DISTRIBUTOR": "Stocks and sells products made by others",
+      "SERVICE_PROVIDER": "Provides services rather than products (installation, maintenance, engineering)",
+      "IMPORTER_EXPORTER": "Engaged in foreign trade",
+      "CONTRACT_MANUFACTURER": "Manufactures to the customer's drawings or brand"
+    },
+    "qty": {
+      "KG": "{n, number} kg",
+      "GRM": "{n, number} g",
+      "TON": "{n, number} t",
+      "M": "{n, number} m",
+      "CM": "{n, number} cm",
+      "MM": "{n, number} mm",
+      "KM": "{n, number} km",
+      "M2": "{n, number} m²",
+      "M3": "{n, number} m³",
+      "LTR": "{n, number} L",
+      "ML": "{n, number} mL",
+      "PCE": "{n, plural, one {# piece} other {# pieces}}",
+      "PAIR": "{n, plural, one {# pair} other {# pairs}}",
+      "SET": "{n, plural, one {# set} other {# sets}}",
+      "DZN": "{n, plural, one {# dozen} other {# dozen}}",
+      "PKT": "{n, plural, one {# pack} other {# packs}}",
+      "BOX": "{n, plural, one {# box} other {# boxes}}",
+      "CRT": "{n, plural, one {# carton} other {# cartons}}",
+      "PAL": "{n, plural, one {# pallet} other {# pallets}}",
+      "ROL": "{n, plural, one {# roll} other {# rolls}}",
+      "BAG": "{n, plural, one {# bag} other {# bags}}",
+      "DRM": "{n, plural, one {# drum} other {# drums}}",
+      "HUR": "{n, plural, one {# hour} other {# hours}}",
+      "DAY": "{n, plural, one {# day} other {# days}}",
+      "MON": "{n, plural, one {# month} other {# months}}",
+      "YER": "{n, plural, one {# year} other {# years}}",
+      "SRV": "{n, plural, one {# service} other {# services}}",
+      "MDY": "{n, plural, one {# man-day} other {# man-days}}",
+      "TRP": "{n, plural, one {# trip} other {# trips}}",
+      "other": "{n, number} {unit}"
     }
   },
   "seo": {
@@ -1534,7 +1677,6 @@
     "exploreTail": "· Browse the products, request information, connect.",
     "basedIn": "based in {city}",
     "productsOf": "{name} products",
-    "turkey": "Türkiye",
     "items": "{n, plural, one {# line item} other {# line items}}",
     "buyerCity": "buyer: {city}",
     "openForQuotes": "open for quotes",
@@ -1544,7 +1686,7 @@
     "og": {
       "product": "PRODUCT",
       "productWith": "PRODUCT · {category}",
-      "minOrder": "Min. {n} {unit}",
+      "minOrder": "Min. {qty}",
       "verifiedSupplier": "Verified supplier",
       "company": "COMPANY",
       "since": "Since {year}",
@@ -1564,17 +1706,14 @@
       "cityCompaniesSub": "Supplier and buyer directory",
       "country": "COUNTRY",
       "countryProductsTitle": "Suppliers and products in {country}",
-      "countryAlt": "Suppliers by country — Rothern",
       "companies": "{n, plural, one {# company} other {# companies}}",
       "brandEyebrow": "B2B SOURCING MARKETPLACE",
       "brandTitle": "The platform that brings buyers and suppliers together in one account",
-      "brandSubtitle": "Product showcase · Buying requests · Sealed-bid quotes · Order tracking",
-      "listingAlt": "Buying request — Rothern",
-      "cityAlt": "City suppliers — Rothern",
-      "productAlt": "Product — Rothern"
+      "brandSubtitle": "Product showcase · Buying requests · Sealed-bid quotes · Order tracking"
     },
     "siteDescription": "The B2B trading platform that brings buyers and suppliers together in one account. Collect sealed-bid quotes, post requests, discover companies — buy, sell and explore from a single panel.",
-    "siteOgDescription": "The B2B trading platform that brings buyers and suppliers together in one account."
+    "siteOgDescription": "The B2B trading platform that brings buyers and suppliers together in one account.",
+    "inShowcaseOf": "in the showcase of {where}"
   },
   "pricing": {
     "note": "Prices are in USD and exclude VAT. Payment is taken upfront for a 6-month or annual period; there is no monthly billing. The monthly amount differs for the 6-month period.",
@@ -1597,9 +1736,9 @@
         "f2": "Unlimited products, product documents (PDF) and video",
         "f3": "Unlimited quotes on public buying requests",
         "f4": "Sending connection invitations and seeing the buyer's identity in inquiries",
-        "f5": "Visitors and Business Analytics",
+        "f5": "Visitors and Business Insights",
         "f6": "AI: pricing from documents, AI request search",
-        "f7": "4 selling seats"
+        "f7": "4 sales seats"
       },
       "gold": {
         "name": "Gold",
@@ -1610,7 +1749,7 @@
         "f3": "Awarding, approval flows, reports & templates",
         "f4": "AI — request draft from documents, chat assistant, supplier discovery",
         "f5": "“Gold Member” badge — a trust mark on your profile and quotes",
-        "f6": "6 seats (buying and selling)"
+        "f6": "6 seats (buying and sales)"
       }
     }
   },
@@ -1702,15 +1841,16 @@
       "codeNotReceived": "Didn't get the code? Resend",
       "changeEmail": "← Change email address",
       "title": "Create your account",
-      "subtitle": "Start your first buying request in 10 minutes. No credit card required.",
+      "subtitle": "Register your company for free and publish your profile and product showcase in minutes. No credit card required.",
       "corporateEmail": "Work email",
-      "passwordRepeat": "Password (repeat)",
+      "passwordRepeat": "Confirm password",
       "creating": "Creating…",
       "submit": "Create account",
       "codeNotSent": "The verification code could not be sent right now. Try again with “Resend” below; if the problem persists, try again in a few minutes.",
       "codeSent": "The verification code has been sent to your email",
       "failed": "Sign-up failed",
-      "alreadyVerified": "Your email is already verified. Please log in."
+      "alreadyVerified": "Your email is already verified. Please log in.",
+      "phoneInvalid": "Enter a valid phone number for the selected country."
     },
     "consents": {
       "termsAria": "I accept the user agreement",
@@ -1719,7 +1859,7 @@
       "mediation": "I accept the <a>platform intermediation and use agreement</a>",
       "kvkkAria": "I have read the KVKK privacy notice",
       "kvkk": "I have read the <a>KVKK privacy notice</a>",
-      "kvkkProviders": "(providers abroad: Supabase/Vercel/Resend)",
+      "kvkkProviders": "(processors outside Türkiye: Supabase/Vercel/Resend)",
       "profile": "Profile and service improvement (optional)",
       "marketing": "Marketing and analytics / commercial messages (optional)"
     },
@@ -1762,9 +1902,9 @@
       }
     },
     "onboarding": {
-      "metaTitle": "Company verification",
+      "metaTitle": "Company details",
       "loading": "Loading…",
-      "title": "Company verification",
+      "title": "Company details",
       "lead": "Complete your company details to start using your panel. Details you gave at sign-up are not asked again.",
       "step1": "Company details",
       "step2": "Personal details",
@@ -1779,13 +1919,12 @@
       "viesValid": "VAT number verified (VIES)",
       "viesInvalid": "The VAT number is not valid in VIES",
       "viesFailed": "VIES verification failed",
-      "completed": "Company verification completed",
+      "completed": "Your company details have been saved",
       "saveFailed": "Could not be saved",
       "legalName": "Legal name *",
       "country": "Country *",
       "companyTypeLabel": "Company type *",
       "taxTr": "Tax No / TCKN *",
-      "taxForeign": "Tax / registry no *",
       "tcknInvalid": "Enter a valid 11-digit TCKN",
       "vknInvalid": "Enter a valid 10-digit tax number",
       "taxForeignInvalid": "Enter a valid tax/registry number",
@@ -1811,7 +1950,7 @@
       "tcknLabel": "Turkish ID number *",
       "foreignIdLabel": "Authorized person ID no",
       "tcknInvalidPerson": "Enter a valid Turkish ID number",
-      "founderBox": "As the person who set up the company you are its <b>Founder</b> — you have full authority including administration and all operations (posting requests, submitting quotes).",
+      "founderBox": "As the person who set up the company you are its <b>Founder</b> — you hold full administrative rights, including company settings, users and plan management. What you can do in operations depends on your plan: publishing requests requires the Gold plan.",
       "sectorQuestion": "What do you buy and sell?",
       "sectorHint": "Select your concrete products and services — your industry is derived from your selection automatically. Open requests are forwarded to you based on this declaration; if you leave it empty you will receive no request notifications.",
       "sectorsFailed": "Industries could not be loaded.",
@@ -1821,16 +1960,15 @@
       "sumLegalName": "Legal name",
       "sumCompanyType": "Company type",
       "sumTax": "Tax No / TCKN",
-      "sumTaxForeign": "Tax / registry no",
       "sumTaxOffice": "Tax office",
       "sumAddress": "Address",
       "sumCountry": "Country",
       "sumAuthorized": "Authorized person",
       "sumRole": "Role",
-      "sumRoleValue": "Founder · selling seat",
+      "sumRoleValue": "Founder · sales access",
       "sumSectors": "Industries",
       "nextTitle": "What happens after sign-up?",
-      "nextBody": "Your account <b>opens immediately</b>; you can browse requests, connect with companies and message them. To submit quotes and publish requests your company verification must be completed — upload your documents under <b>Settings → Verification</b> and submit them for review. Documents are reviewed manually by our team.",
+      "nextBody": "Your account <b>opens immediately</b>: you can publish your profile and product showcase, connect and message with companies, and quote on requests you are invited to. Viewing and quoting on public requests requires the Silver plan and publishing requests requires the Gold plan; both also require company verification — upload your documents under <b>Settings → Verification</b> and submit them for review. Documents are reviewed manually by our team.",
       "declarationAria": "I declare that the information I provided is accurate and up to date",
       "declaration": "I declare that the information I provided is accurate and up to date.",
       "back": "Back",
@@ -1838,9 +1976,8 @@
       "saving": "Saving…",
       "finish": "Finish",
       "legalFormLocal": "Legal form (local name)",
-      "legalFormLocalPlaceholder": "e.g. GmbH, LLC, ООО, Cooperative",
-      "legalFormLocalRequired": "Enter your legal form",
-      "taxIdHint": "In this country: {label}"
+      "legalFormLocalPlaceholder": "e.g. GmbH, LLC, S.A., cooperative",
+      "legalFormLocalRequired": "Enter your legal form"
     }
   },
   "panel": {
@@ -1875,7 +2012,7 @@
         "eksik": "Missing: {join}",
         "satinAlmaTalebiFormunuAc": "Open buying request form",
         "onaylandiVeGerceklestirildi": "✓ Confirmed and completed",
-        "iptalEdildi": "Cancelled",
+        "iptalEdildi": "Canceled",
         "yurutuluyor": "Running…",
         "onayla": "Confirm",
         "vazgec": "Cancel",
@@ -1957,7 +2094,7 @@
         "paketleAcilir": "Unlocked with a plan",
         "suAnBuradasiniz": "You are here",
         "goldPaketiyleAcilir": "Unlocked with the Gold plan.",
-        "neYaparSatinalma": "Create requests, collect quotes and award them.",
+        "neYaparSatinalma": "Post requests, collect quotes and award them.",
         "neYaparSatis": "See open requests, submit quotes and publish your products."
       },
       "shell": {
@@ -2008,9 +2145,8 @@
         "uygulananSuzgecler": "Applied filters:",
         "suzgeciniKaldir": "remove filter",
         "uygulananSuzgecKalmadiListeTamamini": "No filters remain — the list shows everything.",
-        "kategoriBulunamadiKenar": "Category not found: “{categoryHint}” — you can choose one from the side filter.",
         "aiButcenizin80Doldu": "80% of your AI budget is used — Settings › AI Usage.",
-        "buTanimlaTalepAc": "Create a request with this description",
+        "buTanimlaTalepAc": "Post a request with this description",
         "aiYorumunuKapat": "Dismiss AI interpretation",
         "relaxedCategory": "category",
         "relaxedPriceMax": "price cap",
@@ -2027,7 +2163,11 @@
         "chipSehir": "City: {city}",
         "chipDogrulanmisFirma": "Verified company",
         "chipBirimFiyatMax": "Unit price ≤ {value}",
-        "chipMinSiparisMax": "Min. order ≤ {value}"
+        "chipMinSiparisMax": "Min. order ≤ {value}",
+        "aiSoyleAnladi": "AI understood:",
+        "kategoriEslesmedi": "No matching category found in the catalog — you can choose one from the side filter.",
+        "relaxedCountry": "country",
+        "chipUlke": "Country: {country}"
       },
       "analyticsPrimitives": {
         "degisimYok": "no change",
@@ -2039,7 +2179,8 @@
         "surecHunisi": "Process funnel",
         "listeyeGit2": "{label} — go to list",
         "oncekiDonemeGore": "Compared with the previous period",
-        "degisimBasligi": "{basis}: {pct}% {change}"
+        "degisimBasligi": "{basis}: {pct}% {change}",
+        "son12Ay": "last 12 months"
       },
       "featuredCompaniesBlock": {
         "dogrulanmisTedarikciler": "Verified suppliers",
@@ -2085,9 +2226,7 @@
       },
       "satinalmaIhaleTab": {
         "donemHarcamasi": "Period spend",
-        "donemIciSiparislerYalnizTry": "orders within the period · TRY only",
         "acikSiparisTaahhudu": "Open order commitments",
-        "odenmemisSiparisBakiyesiYalnizTry": "unpaid order balance · TRY only",
         "n30GundeVadesiGelen": "Due within 30 days",
         "odemePlanlaVade30Gun": "plan payments — due within 30 days",
         "vadesiYaklasanOdemeYok": "no payments due soon",
@@ -2107,7 +2246,6 @@
         "satinAlmaTalebiAcilisindanSiparise": "Average days from opening a buying request to the order (monthly)",
         "donguSuresiTrendi": "Cycle time trend",
         "nakitTakvimi": "Cash calendar",
-        "onumuzdeki30GununOdemeYuku": "Payment load for the next 30 days (weekly, TRY orders)",
         "n30GunlukOdemeTakvimi": "30-day payment calendar",
         "odeme": "Payment",
         "onumuzdeki30GundeVadesiGelen": "No payments due in the next 30 days",
@@ -2134,59 +2272,65 @@
         "gun": "{n, plural, one {{n} day} other {{n} days}}",
         "saglikli": "Healthy",
         "saat": "{n, plural, one {# hour} other {# hours}}",
-        "hedefFiyataGoreYalnizTry": "vs. target price · TRY only"
+        "teklifSayisi": "{n, plural, one {# quote} other {# quotes}}",
+        "donemIciSiparislerCur": "orders within the period · in {currency}",
+        "odenmemisSiparisBakiyesiCur": "unpaid order balance · in {currency}",
+        "onumuzdeki30GununOdemeYukuCur": "Payment load for the next 30 days (weekly, in {currency})",
+        "hedefFiyataGoreCur": "vs. target price · in {currency}"
       },
       "satisChartTabs": {
         "gelirTrendi": "Revenue trend",
-        "aylikGelirAlanYilbasindanBeri": "Monthly revenue (area) + year-to-date cumulative (line) — TRY sales",
         "aylikGelirTrendi": "Monthly revenue trend",
         "aylik": "Monthly",
         "kumulatif": "Cumulative",
         "henuzGelirVerisiYok": "No revenue data yet",
         "ilkSatisinSipariseDonustugundeAylik": "Monthly revenue will accumulate here once your first sale turns into an order.",
-        "acikTaleplereGozAt": "Browse Open Requests",
-        "kazanmaKaybetmeDagilimi": "Win / Loss Breakdown",
+        "acikTaleplereGozAt": "Browse open requests",
+        "kazanmaKaybetmeDagilimi": "Win/loss breakdown",
         "aylikKararaBaglananTekliflerKazanildi": "Quotes decided per month (won · lost · pending)",
         "aylikKazanmaKaybetmeDagilimi": "Monthly win/loss breakdown",
         "kazanildi": "Won",
         "henuzKararVerisiYok": "No decision data yet",
         "tekliflerinKararaBaglandikcaAylikKazanma": "As your quotes are decided, the monthly win/loss breakdown will appear here.",
-        "satisHunisi": "Sales Funnel",
+        "satisHunisi": "Sales funnel",
         "davetAdetSonrakiAsamalarTl": "Invitations by count; later stages in TRY (the value of an invitation without a quote is unknown)",
         "satisHunisi2": "Sales funnel",
         "satisHunisiBos": "Sales funnel is empty",
         "davetAlipTeklifVerdikceAsamalar": "As you receive invitations and submit quotes, the stages will fill in here.",
-        "musteriKonsantrasyonu": "Customer Concentration",
-        "enIyi5MusterininGelir": "Revenue share of your top 5 customers (last 12 months, TRY)",
+        "musteriKonsantrasyonu": "Customer concentration",
         "musteriKonsantrasyonuPareto": "Customer concentration Pareto",
         "konsantrasyonRiski": "⚠ Concentration risk",
         "acikSatinAlmaTaleplerineGoz": "Browse open buying requests",
         "henuzMusteriGeliriYok": "No customer revenue yet",
         "satislarinTamamlandikcaMusteriDagilimiBurada": "As your sales are completed, the customer breakdown will appear here.",
-        "kategoriBazliKazanmaOrani": "Win Rate by Category",
+        "kategoriBazliKazanmaOrani": "Win rate by category",
         "hangiKategorilerdeGucluyuzKararaBaglanan": "Which categories you are strongest in (decided quotes, last 12 months)",
         "kategoriBazliKazanmaOrani2": "Win rate by category",
         "teklif": "({decided, plural, one {# quote} other {# quotes}})",
         "tekliflerinSonuclandikcaKategoriBazliGucun": "As your quotes are decided, your strength by category will appear here.",
-        "teklifYanitSuresi": "Quote Response Time",
+        "teklifYanitSuresi": "Quote response time",
         "davettenTeklifeGecenOrtalamaSure": "Average time from invitation to quote (hours, monthly)",
         "teklifYanitSuresiTrendi": "Quote response time trend",
         "henuzYanitVerisiYok": "No response data yet",
         "davetlereTeklifVerdikceOrtalamaYanit": "As you submit quotes for invitations, your average response time will appear here.",
-        "kacirilanFirsatlar": "Missed Opportunities",
+        "kacirilanFirsatlar": "Missed opportunities",
         "teklifVerilmedenSuresiDolanDavetler": "Invitations that expired without a quote (last 12 months)",
         "kacirilanFirsatlar2": "Missed opportunities",
         "davetTeklifsizKapandi": "{n, plural, one {invitation closed without a quote} other {invitations closed without a quote}}",
         "tutarHesaplanamazTeklifVerilmedenKapanan": "Amount cannot be calculated — the value of a buying request closed without a quote is unknown.",
         "kacirilanFirsatYok": "No missed opportunities",
-        "son12AydaTeklifsizKapanan": "You have no invited buying requests that closed without a quote in the last 12 months."
+        "son12AydaTeklifsizKapanan": "You have no invited buying requests that closed without a quote in the last 12 months.",
+        "kaybedildi": "Lost",
+        "beklemede": "Pending",
+        "aylikGelirAlanYilbasindanBeriCur": "Monthly revenue (area) + year-to-date cumulative (line) — all sales, in {currency}",
+        "enIyi5MusterininGelirCur": "Revenue share of your top 5 customers (last 12 months, in {currency})"
       },
       "satisDashboardView": {
         "acikTalep": "{n, plural, one {# open request} other {# open requests}}",
         "acikTalep2": "{count, plural, one {# open request} other {# open requests}}",
         "acikTalepler": "Open requests",
         "alicilar": "Buyers",
-        "sektorler": "Sectors",
+        "sektorler": "Industries",
         "satinAlmaTalepleri": "Buying requests",
         "hangiTalebeTeklifVereceksiniz": "Which request will you quote on?",
         "kategorinizeUygunAcikTaleplerKapali": "Open requests matching your categories — sealed bids, quotes hidden from one another; the award is decided in a single table.",
@@ -2195,50 +2339,48 @@
         "firma": "Company",
         "urununuzVitrindeMi": "Is your product in the showcase?",
         "urunleriniziFiyatVeMinimumSiparis": "Publish your products with price and minimum order details so buyers can find them and send inquiries.",
-        "urunEkle": "Add product"
+        "urunEkle": "Add product",
+        "talep": "Request",
+        "kalemMeta": "Line item: {item}"
       },
       "tasarrufTab": {
-        "tasarrufTrendi": "Savings Trend",
-        "aylikTasarrufBarKumulatifCizgi": "Monthly savings (bars) + cumulative (line) — TRY buying requests; no target data on the platform",
+        "tasarrufTrendi": "Savings trend",
         "aylikTasarrufTrendi": "Monthly savings trend",
         "aylik": "Monthly",
         "kumulatif": "Cumulative",
         "henuzTasarrufVerisiYok": "No savings data yet",
         "ilkSatinAlmaTalebiniziSonuclandirdiginizda": "Once you complete your first buying request (with target-priced line items), monthly savings will accumulate here.",
-        "satinAlmaTalebiAc": "Create Buying Request",
-        "toplamTasarrufum": "My Total Savings",
-        "toplamIslemHacmim": "My Total Transaction Volume",
-        "ortalamaTasarrufOranim": "My Average Savings Rate",
-        "enYuksekTasarruflu5Satin": "My Top 5 Buying Requests by Savings",
-        "varColorSlate200E2e8f0": "var(--color-slate-200, #e2e8f0)",
-        "satinAlmaTalebi": "Buying Request #{String}",
-        "varColorSuccess50010b981": "var(--color-success-500, #10b981)",
-        "tasarrufTutari": "Savings Amount",
-        "anaKategoriBazliTasarrufum": "My Savings by Main Category",
-        "anaParaBirimiBazliTasarrufum": "My Savings by Base Currency",
+        "satinAlmaTalebiAc": "Post a request",
+        "toplamTasarrufum": "My total savings",
+        "toplamIslemHacmim": "My total transaction volume",
+        "ortalamaTasarrufOranim": "My average savings rate",
+        "enYuksekTasarruflu5Satin": "My top 5 buying requests by savings",
+        "satinAlmaTalebi": "Buying request #{String}",
+        "tasarrufTutari": "Savings amount",
+        "anaKategoriBazliTasarrufum": "My savings by main category",
+        "anaParaBirimiBazliTasarrufum": "My savings by base currency",
         "tooltipSavings": "Calculated across all line items in your buying requests: for each line item, the difference between the best first quote and the best final quote is multiplied by the line item quantity, then summed.",
         "tooltipVolume": "Sum of the winning line items (unit price × quantity) in awarded buying requests.",
         "tooltipRate": "Total savings divided by total transaction volume. An overall efficiency indicator.",
         "tooltipTop5": "The 5 buying requests with the highest savings in the selected period, based on the line-item savings calculation.",
         "tooltipCategory": "Average savings rate by category (categories with at least 1 awarded buying request).",
-        "tooltipCurrency": "Savings rate by the base currency of the buying request (based on the TRY equivalent).",
+        "tooltipCurrency": "Savings rate by the base currency of the buying request.",
         "enYuksekTasarruflu": "Buying request with the highest savings",
-        "maliyetKiriliminda": "No quarterly data in the cost breakdown yet — showing yearly data."
+        "maliyetKiriliminda": "No quarterly data in the cost breakdown yet — showing yearly data.",
+        "aylikTasarrufBarKumulatifCizgiCur": "Monthly savings (bars) + cumulative (line) — all buying requests, in {currency}; no target data on the platform"
       },
       "tedarikciTab": {
-        "donemdeEnCokSatinAlma": "Suppliers that quoted on the most of your buying requests in the period. A low average rank means that supplier consistently offers one of the best 1-2 prices.",
-        "enSikTeklifVerenTedarikciler": "Most Frequently Quoting Suppliers",
+        "donemdeEnCokSatinAlma": "Suppliers that quoted on the most of your buying requests in the period. A low average rank means that supplier consistently quotes one of the best 1–2 prices.",
+        "enSikTeklifVerenTedarikciler": "Most frequently quoting suppliers",
         "buDonemdeTeklifVerenTedarikci": "No suppliers submitted quotes in this period.",
         "tedarikciler": "Suppliers",
-        "teklifVerdigiTalep": "Requests Quoted",
-        "ortalamaSira": "Average Rank",
-        "toplamTeklif": "Total Quotes",
+        "teklifVerdigiTalep": "Requests quoted",
+        "ortalamaSira": "Average rank",
+        "toplamTeklif": "Total quotes",
         "sirada": "Ranked #{rank}",
-        "enRekabetciTalep": "Most Competitive Request",
-        "varColorZinc90018181b": "var(--color-zinc-900, #18181b)",
-        "varColorZinc200E4e4e7": "var(--color-zinc-200, #e4e4e7)",
-        "teklifVeren": "{bidderCount, plural, one {# Bidder} other {# Bidders}}",
-        "talepTeklifVerenSayisi": "Number of Bidders in the Buying Request: {bidderCount}"
+        "enRekabetciTalep": "Most competitive request",
+        "teklifVeren": "{bidderCount, plural, one {# supplier quoted} other {# suppliers quoted}}",
+        "talepTeklifVerenSayisi": "Suppliers who quoted on the buying request: {bidderCount}"
       },
       "todayBand": {
         "bugun": "Today"
@@ -2470,8 +2612,7 @@
           "m6": "Last 6 months",
           "m12": "Last 12 months",
           "all": "All"
-        },
-        "createdatDesc": "createdAt:desc"
+        }
       },
       "tenderActionsMenu": {
         "taslagiSil": "Delete draft",
@@ -2481,7 +2622,7 @@
         "pazarlikTuruAcildi": "Negotiation round opened",
         "yeniTurAcildi": "New round opened",
         "yeniTurAcilamadi": "Could not open new round",
-        "satinAlmaTalebiIptalEdildi": "Buying request cancelled",
+        "satinAlmaTalebiIptalEdildi": "Buying request canceled",
         "iptalEdilemedi": "Could not cancel",
         "enAzBirFirmaSec": "Select at least one company",
         "satinAlmaTalebiKazananOlmadan": "Buying request closed without a winner",
@@ -2739,7 +2880,9 @@
         "atlandiSatiri": "{email}: {reason}",
         "webDeAra": "Search the web",
         "davetEPostasiGonderN": "Send invitation email ({n})",
-        "baglantiDavetiGonder": "Send connection invitation"
+        "baglantiDavetiGonder": "Send connection invitation",
+        "davetDiliFirma": "Invitation language for {name}",
+        "davetDiliIpucu": "Each invitation email is sent in the language selected on its row; the default language is based on the company’s country."
       },
       "ihaleitemspanel": {
         "kalemlerYuklenemedi": "Line items could not be loaded.",
@@ -2757,7 +2900,7 @@
       "browsetenderrow": {
         "firma": "Company",
         "gizliFirma": "Undisclosed company",
-        "premium": "Premium",
+        "premium": "Silver",
         "kapanis": "Closing",
         "kalem": "Line items",
         "gorunurluk": "Visibility",
@@ -2841,7 +2984,7 @@
         "neLazimNereyeNeZamana": "What you need, where to, by when, to whom — four questions; commercial terms come from your profile.",
         "onayDurumuDogrulanamadiTekrarDeneyin": "Approval status could not be verified, try again",
         "kazandir": "Award",
-        "kazandirilsinMiBuIslemGeri": "Award to \"{bidderName}\"? This action CANNOT BE UNDONE: the other quotes lose (LOST) and an order is created.",
+        "kazandirilsinMiBuIslemGeri": "Award to \"{bidderName}\"? This action CANNOT BE UNDONE: the other quotes lose and an order is created.",
         "evetKazandir": "Yes, award",
         "kazandirmaOnayaGonderildi": "Award sent for approval",
         "kazandirildiSiparisOlustu": "Awarded — order {number} created",
@@ -2852,8 +2995,8 @@
         "onayIsteginiIptalEt": "Cancel approval request",
         "onayIstegiIptalEdilsinMi": "Cancel the approval request? The request will return to its previous status.",
         "iptalEt": "Cancel",
-        "onayIstegiIptalEdildi": "Approval request cancelled",
-        "iptalEdilemedi": "Could not be cancelled",
+        "onayIstegiIptalEdildi": "Approval request canceled",
+        "iptalEdilemedi": "Could not be canceled",
         "satinAlmaTalebiniYayinla": "Publish buying request",
         "satinAlmaTalebiYayinlansinMi": "Publish the buying request? Once published, suppliers can see it.",
         "yayinla": "Publish",
@@ -2866,7 +3009,7 @@
         "buHerkeseAcikTalepSilver": "This public request is available with the Silver plan",
         "herkeseAcikSatinAlmaTaleplerini": "Viewing public buying requests and submitting quotes comes with Silver. You submit quotes for free on requests that reach you through a connection invitation.",
         "satinAlmaTalebineUlasilamiyor": "The buying request cannot be accessed.",
-        "ilanKaldirilmisAdresHataliYa": "The request may have been removed, the address may be incorrect, or your access conditions may have changed (e.g. company connection or membership status). If you think something is wrong, contact the request owner.",
+        "ilanKaldirilmisAdresHataliYa": "The request may have been removed, the address may be incorrect, or your access conditions may have changed (e.g. company connection or plan status). If you think something is wrong, contact the request owner.",
         "paneleDon": "Back to panel",
         "ilanYuklenemedi": "The request could not be loaded.",
         "tekrarDene": "Try again",
@@ -2896,7 +3039,6 @@
         "icinTeklifiniSec": "Select the quote from {bidderName} for {name}",
         "teklifToplami": "Quote total",
         "enIyiToplam": "Best total",
-        "tryKarsiligiyla": "(TRY equivalent)",
         "kalemdeFiyatliTeklifYokToplu": "{missingItems, plural, one {# line item has no priced quote} other {# line items have no priced quote}} — the bulk vs. line-item savings comparison cannot be made.",
         "kalemBazliKazandirma": "Award by line item",
         "herKalemIcinKazananTeklifi": "Select the winning quote for each line item. A separate order is created for each winning company. Tip: you can also make a selection by clicking a price cell in the line item comparison table above.",
@@ -2972,7 +3114,6 @@
         "satinAlmaTalebiBolumleri": "Buying request sections",
         "talepSartlariKaydedildiYeniTalepler": "Request terms saved — new requests will start with them",
         "yukleniyor": "Loading…",
-        "henuzTalepAcmamissinizPlatformVarsayilani": "You have not opened a request yet; the platform default is shown (domestic, open account, TRY, 7 days, sealed bid).",
         "neredeKullanilir": "Where it is used",
         "hizliTalepKartindaSartlarOzet": "In the quick request card the terms appear as a summary; to change a single line, choose “change” on the card. The wizard (detailed request) also starts with these values.",
         "kaydediliyor": "Saving…",
@@ -2980,8 +3121,6 @@
         "duzenlemekIcinTalepYonetimiYetkisi": "Editing requires the request management permission.",
         "satinAlmaTalebiBulunamadi": "Buying request not found",
         "buSatinAlmaTalebiniDuzenleme": "You do not have permission to edit this buying request.",
-        "buEkranYalnizcaSatinAlma": "This screen only edits buying requests",
-        "satisIlanlariKendiDuzenlemeEkranindan": "Sales listings are updated from their own edit screen.",
         "duzenlenemez": "Cannot be edited",
         "buSatinAlmaTalebineTeklif": "This buying request has received quotes or is closed; its content cannot be changed.",
         "geriDon": "Go back",
@@ -3101,9 +3240,9 @@
         "kazananOlmadanKapatildi": "Closed without a winner.",
         "kalemKarsilastirma": "Line item comparison",
         "kalemKarsilastirmaSuzulmus": "Line item comparison ({visible}/{total})",
-        "kalemOrani": "{priced}/{total} line items",
-        "kalemBazliDagitimEkTasarrufSaglamiyor": "Splitting by line item brings no extra savings — a <strong>bulk award</strong> at the lowest total quote (<strong>{amount} ₺</strong>) is the most economical option.",
-        "kalemBazliDagitimTasarruf": "Split by line item: <strong>{itemized} ₺</strong> · Lowest total quote: <strong>{bestTotal} ₺</strong> → <strong>{pct}% savings</strong>",
+        "kalemOrani": "{priced, number} of {total, plural, one {# line item} other {# line items}}",
+        "kalemBazliDagitimEkTasarrufSaglamiyor": "Splitting by line item brings no extra savings — a <strong>bulk award</strong> at the lowest total quote (<strong>{amount}</strong>) is the most economical option.",
+        "kalemBazliDagitimTasarruf": "Split by line item: <strong>{itemized}</strong> · Lowest total quote: <strong>{bestTotal}</strong> → <strong>{pct} savings</strong>",
         "eksik": "Incomplete ({incompleteCount})",
         "buIlanaTeklifVermekIcinSilverPaketi": "Submitting a quote for this request requires the <strong>Silver plan</strong> (or a connection invitation from the company that opened the request).",
         "buAcikTalebeTeklifVermekIcinSatisciRolu": "Submitting a quote for this open request requires the <strong>Salesperson</strong> role on your account — your company administrator can grant it under Settings → Users.",
@@ -3153,15 +3292,17 @@
         "sonYayimladiginizTalepten": "from your last published request",
         "tumKalemlere": "all line items",
         "suresiz": "indefinitely",
-        "secmekIcinTiklayin": "click to select"
+        "secmekIcinTiklayin": "click to select",
+        "karsiligiylaCur": "({currency} equivalent)",
+        "henuzTalepAcmamissinizPlatformVarsayilaniCur": "You have not opened a request yet; the platform default is shown (all countries, delivered to your address, open account, {currency}, 7 days, sealed bid)."
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "You have no connections yet. Choose “Public” or invite suppliers from the suggestions after publishing.",
         "baglantilarim": "My connections",
         "isaretliFirmalarTalebiGorurVe": "Checked companies see the request and receive an invitation. A company you uncheck never sees the request and receives no notification or email.",
-        "firmaAdiSehirSektorAra": "Search by company name, city, sector",
+        "firmaAdiSehirSektorAra": "Search by company name, city, industry",
         "firmaAra": "Search companies",
-        "sektor": "Sector",
+        "sektor": "Industry",
         "sehir": "City",
         "tumunuSec": "Select all",
         "tumunuKaldir": "Deselect all",
@@ -3327,7 +3468,7 @@
         "taslakKaydedilemedi": "Could not save draft",
         "pazarYerindeListelenirBuKategoride": "Listed on the marketplace; the directory has {total, plural, one {# company} other {# companies}} in this category, and any registered supplier can submit a quote.",
         "pazarYerindeListelenir": "Listed on the marketplace; the directory has {total, plural, one {# company} other {# companies}}, and any registered supplier can submit a quote.",
-        "baglantinizdanFirmaGorecekCikardiginiz": "{on} of your {total} connections will see it; the {off, plural, one {# company} other {# companies}} you removed will not see the request and will not be notified.",
+        "baglantinizdanFirmaGorecekCikardiginiz": "{on, number} of your {total, plural, one {# connection} other {# connections}} will see it; the {off, plural, one {# company} other {# companies}} you removed will not see the request and will not be notified.",
         "kalemSayisi": "{n, plural, one {# line item} other {# line items}}",
         "dosyaSayisi": "{n, plural, one {# file} other {# files}}",
         "davetSayisi": "{n, plural, one {# invitation} other {# invitations}}",
@@ -3357,7 +3498,7 @@
           "specific": "A number or a standard (DN50, ISO 9001, 400 kVAr) helps suppliers find it with the right search.",
           "description": "Intended use, technical requirements, delivery place/time, expected documents.",
           "category": "Matching and the category page.",
-          "items": "Demand.eligibleQuantity — the quantity must be readable.",
+          "items": "Each line item needs a clear quantity and unit, so suppliers know what they are pricing.",
           "itemDetail": "One sentence per line item: material/size/standard."
         },
         "ne": "What",
@@ -3365,7 +3506,8 @@
         "kime": "Who",
         "belge": "Document",
         "yayinIcinFirmaDogrulamasiGerekir": "Publishing requires company verification — <link>upload your documents</link>. You can save a draft for now.",
-        "belgeleriYukleyin": "upload documents"
+        "belgeleriYukleyin": "upload documents",
+        "disDavetDili": "Invitation language for {email}"
       },
       "publishedPanel": {
         "talebinizYayinda": "Your request is live",
@@ -3373,7 +3515,7 @@
         "talebiGor": "View request",
         "uygunTedarikciOnerVeDavet": "Suggest and invite suitable suppliers",
         "tedarikciOnerisiGoldPakette": "Supplier suggestions are available on the Gold plan",
-        "yeniTalepAc": "Create new request",
+        "yeniTalepAc": "Post a new request",
         "davetEPostalari": "Invitation emails",
         "davetEPostalariGonderilemedi": "The invitation emails could not be sent; you can retry with “Find suppliers with AI” on the request page.",
         "davetGonderildiSayisi": "{n, plural, one {# invitation email sent} other {# invitation emails sent}}"
@@ -3464,9 +3606,7 @@
         "hedefBirimFiyat": "Target unit price",
         "vazgec": "Cancel",
         "kaydet": "Save",
-        "kalemDetaylari": "Line item {n} details",
-        "detailRequiredbydate": "detail-requiredByDate-{index}",
-        "detailTargetunitprice": "detail-targetUnitPrice-{index}"
+        "kalemDetaylari": "Line item {n} details"
       },
       "catalogPickerDialog": {
         "katalogdanKalemEkle": "Add line item from catalog",
@@ -3722,7 +3862,7 @@
         "genelNot": "General note",
         "satislarimiGoruntule": "View my sales",
         "buSatinAlmaTalebineTeklif": "You have not submitted a quote for this buying request.",
-        "satinAlmaTalebiIlanSahibi": "The buying request was cancelled by its owner.",
+        "satinAlmaTalebiIlanSahibi": "The buying request was canceled by its owner.",
         "gerekce": "Reason: {cancelReason}",
         "siparisOlusturulduOnayinBekleniyor": "Order created — awaiting your confirmation.",
         "odemeyiSiparisSayfasindanIzle": "Track the payment on the order page.",
@@ -3773,7 +3913,7 @@
         "enIyiTeklifHerkeseGorunur": "The best quote is visible to everyone",
         "yalnizcaKendiSiraniziGorursunuz": "You only see your own rank",
         "enIyiTeklifKendiSiranGorunur": "Best quote + your own rank visible",
-        "tumTekliflerAnonimGorunur": "All quotes visible (anonymised)",
+        "tumTekliflerAnonimGorunur": "All quotes visible (anonymized)",
         "birTeklif": "1 quote",
         "otoUzatmaNotu": "· A quote received in the last {threshold} min extends the close by {by} min"
       },
@@ -3841,6 +3981,13 @@
       },
       "bidDocuments": {
         "dosyaYuklenemedi": "File could not be uploaded (R2)"
+      },
+      "countryGate": {
+        "title": "This request isn't open to your company's country",
+        "description": "{n, plural, one {The buyer opened this request only to suppliers based in {countries}.} other {The buyer opened this request only to suppliers based in {countries}.}}",
+        "descriptionNoList": "The buyer opened this request only to suppliers in specific countries.",
+        "inviteNote": "If the buyer invites you, you can submit a quote.",
+        "backToOpen": "Back to open requests"
       }
     },
     "trade": {
@@ -3931,22 +4078,22 @@
         "kapandi": "Closed",
         "sonucBekleniyor": "Awaiting result",
         "talepKapandi": "Request closed",
-        "sipariseGit": "Go to Order",
-        "yenidenTeklifVer": "Submit New Quote",
+        "sipariseGit": "Go to order",
+        "yenidenTeklifVer": "Submit a new quote",
         "acikTaleplereVerdiginizTumTeklifler": "All quotes you have submitted to open requests, and their results.",
         "acikTaleplerEkranindanBirTalebe": "When you submit a quote to a request from the Open Requests screen, it appears here.",
         "teklifOzeti": "Quote summary",
         "talepAdiNumarasiVeyaAlici": "Search by request name, number or buyer…",
         "siralama": "Sort",
-        "tumDurumlar": "All Statuses",
+        "tumDurumlar": "All statuses",
         "durumaGoreFiltrele": "Filter by status",
         "tarihAraligi": "Date range",
         "arama": "Search: \"{search}\"",
         "eslesenTeklifYok": "No matching quotes",
         "henuzTeklifVermediniz": "You have not submitted any quotes yet",
         "filtreleriDegistiripTekrarDene": "Change the filters and try again.",
-        "filtreleriTemizle": "Clear Filters",
-        "acikTaleplereGozAt": "Browse Open Requests",
+        "filtreleriTemizle": "Clear filters",
+        "acikTaleplereGozAt": "Browse open requests",
         "status": {
           "DRAFT": "Draft",
           "SUBMITTED": "Under review",
@@ -3966,7 +4113,7 @@
           "d7": "Last 7 days",
           "d30": "Last 30 days",
           "d90": "Last 3 months",
-          "d365": "Past year"
+          "d365": "Last 12 months"
         },
         "taahhutTeslim": "Committed delivery: {value}",
         "verildi": "Submitted {date}",
@@ -3978,25 +4125,25 @@
         "enAz1FirmaSecin": "Select at least 1 company",
         "grupGuncellendi": "Group updated",
         "grupKaydedildi": "Group saved",
-        "grubuDuzenle": "Edit Group",
-        "yeniGrubu": "New {partyWord} Group",
+        "grubuDuzenle": "Edit group",
+        "yeniGrubu": "New {partyWord} group",
         "grupAdi": "Group name",
         "ornInsaatMalzemesiTedarikcileri": "E.g. Construction material suppliers",
         "baglantilarinizdanSecili": "(from your connections · {size} selected)",
         "henuzBaglantinizYokOnceBaglantilar": "You have no connections yet — first add companies from the Connections page.",
         "vazgec": "Cancel",
         "kaydet": "Save",
-        "grubuOlustur": "Create Group",
+        "grubuOlustur": "Create group",
         "setAdiEnAz2": "Set name must be at least 2 characters",
         "enAz1SoruGirin": "Enter at least 1 question",
         "soruSetiGuncellendi": "Question set updated",
         "soruSetiKaydedildi": "Question set saved",
-        "soruSetiniDuzenle": "Edit Question Set",
-        "yeniSoruSeti": "New Question Set",
+        "soruSetiniDuzenle": "Edit question set",
+        "yeniSoruSeti": "New question set",
         "setAdi": "Set name",
         "ornKaliteBelgeleriSorulari": "E.g. Quality certificate questions",
         "sorular": "Questions",
-        "soruEkle": "Add Question",
+        "soruEkle": "Add question",
         "cevapTuru": "Answer type",
         "zorunlu": "Required",
         "soruyuKaldir": "Remove question",
@@ -4005,16 +4152,16 @@
         "silindi": "Deleted",
         "sablonlar": "Templates",
         "tedarikci": "Supplier",
-        "gruplari": "{partyWord} Groups",
+        "gruplari": "{partyWord} groups",
         "birlikteDavetEttiginizFirmalariGruplayin": "Group the companies you invite together — add them with one click in the invitation step of the wizard.",
-        "yeniGrup": "New Group",
+        "yeniGrup": "New group",
         "grubunuDuzenle": "Edit group {name}",
-        "soruSetleri": "Question Sets",
+        "soruSetleri": "Question sets",
         "kalemSorulariniSetOlarakKaydedin": "Save line item questions as a set — reuse them in the line item step of the wizard.",
-        "yeniSet": "New Set",
+        "yeniSet": "New set",
         "henuzSoruSetiYokMensei": "No question sets yet. Turn your standard questions — origin, warranty, certificates — into a set.",
         "setiniDuzenle": "Edit set {name}",
-        "satinAlmaTalebiSablonlari": "Buying Request Templates",
+        "satinAlmaTalebiSablonlari": "Buying request templates",
         "sihirbazdaSablonOlarakKaydetIle": "Created with \"Save as Template\" in the wizard; applied from the \"Load from Template\" menu in a new buying request.",
         "henuzSablonYokSihirbazinUst": "No templates yet. Create your first template with “Save as Template” in the top bar of the wizard.",
         "talepteKullan": "Use in request",
@@ -4054,12 +4201,12 @@
         "vade": "· due {formatDate}",
         "odemeTamam": "Payment complete",
         "siparisReddedildi": "Order rejected",
-        "siparisIptalEdildi": "Order cancelled",
+        "siparisIptalEdildi": "Order canceled",
         "alicilar": "Buyers",
         "tedarikciler": "Suppliers",
-        "henuzSatisSiparisinizYokBir": "You have no sales orders yet. When one of your sales listings or a quote you submitted to an open request wins, it appears here.",
+        "henuzSatisSiparisinizYokBir": "You have no sales orders yet. When a quote you submitted to an open request wins, it appears here.",
         "henuzAlisSiparisinizYokBir": "You have no purchase orders yet. When you award one of your buying requests or make a purchase, it appears here.",
-        "satislarinizKazandiginizAcikTaleplerdenVe": "Your sales — from open requests you won and from your sales listings. Confirm, ship and track payment.",
+        "satislarinizKazandiginizAcikTaleplerdenVe": "Your sales — from open requests you won. Confirm, ship and track payment.",
         "alisSiparislerinizKazandirdiginizSatinAlma": "Your purchase orders — from the buying requests you awarded and from your purchases. Receive the goods, report your payment and complete the order.",
         "siparisNoIlanVeyaKarsi": "Order no., request or counterparty…",
         "siralama": "Sort",
@@ -4073,8 +4220,8 @@
         "eslesenSiparisYok": "No matching orders",
         "henuzSiparisYok": "No orders yet",
         "filtreleriDegistiripTekrarDene": "Change the filters and try again.",
-        "filtreleriTemizle": "Clear Filters",
-        "acikTaleplereGozAt": "Browse Open Requests",
+        "filtreleriTemizle": "Clear filters",
+        "acikTaleplereGozAt": "Browse open requests",
         "taleplerimeGit": "Go to My Requests",
         "no": "No.",
         "durum": "Status",
@@ -4096,7 +4243,7 @@
           "COMPLETED": "Completed",
           "DISPUTED": "Disputed",
           "REJECTED": "Rejected",
-          "CANCELLED": "Cancelled"
+          "CANCELLED": "Canceled"
         },
         "statusFilter": {
           "IN_DELIVERY": "Shipped / Ready"
@@ -4106,7 +4253,7 @@
           "d7": "Last 7 days",
           "d30": "Last 30 days",
           "d3m": "Last 3 months",
-          "d12m": "Past year"
+          "d12m": "Last 12 months"
         },
         "step": {
           "APPROVAL": "Approval",
@@ -4120,7 +4267,7 @@
       "lockedRequestsCard": {
         "silverIleAcilacakAcikTalep": "{total, plural, one {# open request} other {# open requests}} unlocked with Silver",
         "herkeseAcikTaleplerSilverIle": "Public requests are visible with Silver",
-        "ucretsizUyelikteYalnizBaglantiDavetiyle": "On the free membership you only see requests that come through a connection invitation. All public requests, quote submission and buyer identity are unlocked with the Silver plan.",
+        "ucretsizUyelikteYalnizBaglantiDavetiyle": "On the free plan you only see requests that come through a connection invitation. All public requests, quote submission and buyer identity are unlocked with the Silver plan.",
         "kapanis": "Closes {formatDate}",
         "kategorinizde": "{n} in your categories",
         "buHaftaYeni": "{n} new this week",
@@ -4167,11 +4314,11 @@
         "kazanmaOrani": "{round}% win rate",
         "goruntulenme": "Views",
         "bilgiTalebi": "Inquiries",
-        "goruntulenmeBirim": "views",
-        "firmaBirim": "companies",
         "saat": "{n} h",
         "ortanca": "median",
-        "kabulEdildi": "{n} accepted"
+        "kabulEdildi": "{n} accepted",
+        "goruntulenmeSayisi": "{n, plural, one {<b>#</b> view} other {<b>#</b> views}}",
+        "firmaSayisi": "{n, plural, one {<b>#</b> company} other {<b>#</b> companies}}"
       },
       "permissionTable": {
         "hazirSetler": "Presets",
@@ -4201,12 +4348,12 @@
           "management": "Management"
         },
         "perm": {
-          "buy_view": "View buying",
-          "buy_listing_manage": "Open and manage requests",
+          "buy_view": "View purchasing",
+          "buy_listing_manage": "Create and manage requests",
           "buy_award": "Award",
           "buy_order_manage": "Purchase order actions",
           "buy_inquiry_send": "Send inquiries",
-          "buy_reports_view": "Buying reports",
+          "buy_reports_view": "Purchasing reports",
           "sell_view": "View sales",
           "sell_bid_submit": "Submit quotes",
           "sell_order_manage": "Sales order actions",
@@ -4348,7 +4495,8 @@
           "yakin": "Closing soon",
           "uzak": "Closing last",
           "yeni": "Newest"
-        }
+        },
+        "aliciUlkesi": "Buyer country"
       },
       "productShowcaseForm": {
         "belgeYuklenemediYalnizPdfEn": "Document could not be uploaded — PDF only, up to 10 MB",
@@ -4456,7 +4604,7 @@
         "islemler": "Actions",
         "kategoriSecilmedi": "No category selected",
         "duzeltme": "· Revision: {rejectReason}",
-        "min": "Min. {amount} {unit}",
+        "min": "Min. {qty}",
         "ac": "{name} — open",
         "priceMode": {
           "FIXED": "Fixed price",
@@ -4465,8 +4613,8 @@
         },
         "firmaProfilinizHenuzHerkeseAcikDegil": "Your company profile is not public yet: your products will not appear in the directory or on your company page until the profile is published. <link>Publish profile</link>.",
         "ucretsizPaketteEnFazlaUrun": "On the free plan, up to {limit} products can be published or under review ({occupied}/{limit} used). Drafts are unlimited. <link>Unlimited products, documents and video with Silver</link>.",
-        "fiyatBirim": "{amount} {currency} / {unit}",
-        "fiyatBirimKademeli": "{amount} {currency} / {unit} (tiered)"
+        "fiyatBirim": "{amount} / {unit}",
+        "fiyatBirimKademeli": "{amount} / {unit} (tiered)"
       },
       "editorRail": {
         "tamamlanma": "Completion",
@@ -4633,7 +4781,7 @@
         "kimMesaj": "{who}: {text}"
       },
       "orderPaymentsCard": {
-        "kalanBorcunUstundeBildirimYapilamaz": "You cannot report more than the outstanding balance — remaining {toLocaleString} {curSym}",
+        "kalanBorcunUstundeBildirimYapilamaz": "You cannot report more than the outstanding balance — remaining {toLocaleString}",
         "odemeBildirildiSaticininOnayiBekleniyor": "Payment reported — awaiting seller confirmation",
         "odemeBildirilemedi": "Could not report payment",
         "odemeyiAldim": "Payment received",
@@ -4731,7 +4879,7 @@
         "teslimAlindi": "Goods received",
         "siparisTamamlandi": "Order completed",
         "siparisReddedildi": "Order rejected",
-        "siparisIptalEdildi": "Order cancelled",
+        "siparisIptalEdildi": "Order canceled",
         "iptalEdilemedi": "Could not cancel",
         "iptalTalebiGonderildiAlicininOnayina": "Cancellation request sent — awaiting the buyer''s approval",
         "talepGonderilemedi": "Request could not be sent",
@@ -4757,7 +4905,7 @@
         "satisSiparisi": "Sales order",
         "alisSiparisi": "Purchase order",
         "siparis": "Order",
-        "onayliOdemeBulunanSiparisIptal": "An order with a confirmed payment cannot be cancelled — contact support for a refund.",
+        "onayliOdemeBulunanSiparisIptal": "An order with a confirmed payment cannot be canceled — contact support for a refund.",
         "siparisiIptalEt": "Cancel order",
         "iptalTalebi": "Cancellation request",
         "muayeneSuresiGun": "Inspection period: {defectDaysLeft, plural, one {# day} other {# days}}",
@@ -4766,10 +4914,9 @@
         "reddet": "Reject",
         "kabulEt": "Accept",
         "saticiReddetti": "Seller rejected",
-        "iptalEdildi": "Cancelled",
+        "iptalEdildi": "Canceled",
         "bagliSatinAlmaTalebi": "Linked buying request",
         "satinAlmaTalebi": "Buying request",
-        "satisIlani": "sales listing",
         "satinAlmaTalebineGit": "Go to buying request",
         "bagliTalepKaydiYokSilinmis": "No linked request record (it may have been deleted).",
         "aliciFirma": "Buyer company",
@@ -4804,7 +4951,7 @@
         "redGerekcesiAliciyaIletilir": "The rejection reason will be sent to the buyer.",
         "iptalGerekcesiSaticiyaIletilir": "The cancellation reason will be sent to the seller.",
         "iptalTalebiAc": "Open cancellation request",
-        "nedenSevkEdemiyorsunuzGerekceAliciya": "Why can''t you ship? The reason is sent to the buyer; if the buyer approves, the order is cancelled, and if they reject it, the order is marked as disputed.",
+        "nedenSevkEdemiyorsunuzGerekceAliciya": "Why can''t you ship? The reason is sent to the buyer; if the buyer approves, the order is canceled, and if they reject it, the order is marked as disputed.",
         "iptalTalebiGonder": "Send cancellation request",
         "ayipIhbariTtk23": "Defect notice (Turkish Commercial Code art. 23)",
         "teslimAldiginizMaldakiAyibiAciklayin": "Describe the defect in the goods you received. The notice is recorded and serves as evidence in a dispute; the order moves to the disputed state. Resolution is between you and the seller — the platform is not an arbitrator.",
@@ -4863,7 +5010,7 @@
         "gerekce2": "Reason: {defectReason}",
         "siparisIhtilafli": "Order disputed",
         "iptalTalebiReddedildiIkiYonlu": "Cancellation request rejected — both ways out remain open.",
-        "siparisIptalEdildi": "Order cancelled",
+        "siparisIptalEdildi": "Order canceled",
         "siparisGecmisi": "Order history",
         "sistem": "System",
         "tahminiTeslim": "Estimated delivery: {date}",
@@ -4933,7 +5080,7 @@
       "orderCancelRequestPanel": {
         "islemBasarisiz": "Operation failed",
         "iptalTalebiGeriCekildi": "Cancellation request withdrawn",
-        "iptalOnaylandiSiparisIptalEdildi": "Cancellation approved — order cancelled",
+        "iptalOnaylandiSiparisIptalEdildi": "Cancellation approved — order canceled",
         "iptalTalebiReddedildiSiparisIhtilafli": "Cancellation request rejected — order disputed",
         "siparisIhtilafli": "Order disputed",
         "saticiSiparisIptaliTalepEtti": "The seller has requested order cancellation",
@@ -4944,14 +5091,14 @@
         "iptaliOnayla": "Approve cancellation",
         "reddet": "Reject",
         "iptaliOnayla2": "Approve cancellation",
-        "siparisIptalEdilecekBuIslem": "The order will be cancelled. This action cannot be undone.",
+        "siparisIptalEdilecekBuIslem": "The order will be canceled. This action cannot be undone.",
         "vazgec": "Go back",
         "iptalTalebiniReddet": "Reject cancellation request",
         "siparisIhtilafliDisputedOlarakIsaretlenecek": "The order will be marked as disputed (DISPUTED) — it will not return to the confirmed state. The seller can ship once the goods are available.",
         "gerekceOpsiyonel": "Reason (optional)",
         "reddetIhtilafli": "Reject (disputed)",
         "malBulunduysaYukaridanSiparisiGonder": "If the goods are available, you can resolve the dispute with <strong>Ship order</strong> above.",
-        "onayliOdemenizVarIadeTaraflarArasinda": "You have a confirmed payment ({amount} {currency}). Refunds are settled between the parties — <strong>the platform does not hold funds</strong>. We recommend approving only after your payment has been refunded."
+        "onayliOdemenizVarIadeTaraflarArasinda": "You have a confirmed payment ({amount}). Refunds are settled between the parties — <strong>the platform does not hold funds</strong>. We recommend approving only after your payment has been refunded."
       },
       "orderDefectPanel": {
         "ayipIhbariGeriCekildiSiparis": "Defect notice withdrawn — the order has returned to its previous state",
@@ -5013,7 +5160,7 @@
         "soyad": "Last name",
         "telefon": "Phone",
         "ePosta": "Email",
-        "girisKimliginizdirDegistirmekIcinDestek": "This is your sign-in ID; contact support to change it.",
+        "girisKimliginizdirDegistirmekIcinDestek": "This is your login ID; contact support to change it.",
         "vazgec": "Cancel",
         "kaydediliyor": "Saving…",
         "kaydet": "Save",
@@ -5135,7 +5282,7 @@
         "hesabiDuzenle": "Edit account",
         "yeniBankaHesabi": "New bank account",
         "hesapBasligi": "Account label *",
-        "ornTlVadesizIsBankasi": "e.g. TRY current account — İş Bankası",
+        "ornTlVadesizIsBankasi": "e.g. Main account",
         "hesapSahibi": "Account holder *",
         "firmaUnvani": "Legal name",
         "vergiLevhasindakiUnvanlaAyniOlmali": "It must match the name on the tax certificate; the buyer pays to this name.",
@@ -5157,7 +5304,9 @@
         "noIbanHint": "Banks in this country do not use IBAN: the account number, SWIFT/BIC code and bank name are required.",
         "bankNameRequired": "Bank name",
         "accountNumberInvalid": "Enter a valid account number (4–40 characters)",
-        "swiftInvalid": "Enter a valid SWIFT/BIC code (8 or 11 characters)"
+        "swiftInvalid": "Enter a valid SWIFT/BIC code (8 or 11 characters)",
+        "ibanOrAccountNumber": "IBAN or account number",
+        "optionalIbanHint": "In this country you can use an IBAN or a local account number. With an account number, the SWIFT/BIC code and bank name are also required."
       },
       "companyProfileSection": {
         "firmaAdiEnAz2": "The company name must be at least 2 characters",
@@ -5172,9 +5321,9 @@
         "kayitUlkesi": "Country of registration",
         "hukukiYapi": "Legal form",
         "vergiDairesi": "Tax office",
-        "yetkiliTCKimlikNo": "Authorised person Turkish ID no (TCKN)",
-        "yetkiliKimlikNo": "Authorised person ID no",
-        "yetkiliUnvani": "Authorised person title",
+        "yetkiliTCKimlikNo": "Authorized person Turkish ID no (TCKN)",
+        "yetkiliKimlikNo": "Authorized person ID no",
+        "yetkiliUnvani": "Authorized person title",
         "uyelik": "Membership",
         "dogrulama": "Verification",
         "dogrulamaBelgeleri": "Verification documents",
@@ -5189,7 +5338,6 @@
         "kepAdresi": "KEP address",
         "ornekHs01KepTr": "example@hs01.kep.tr",
         "adres": "Address",
-        "ilSehir": "Province / city",
         "ilce": "District",
         "postaKodu": "Postal code",
         "acikAdres": "Full address",
@@ -5221,7 +5369,11 @@
         "vergiSicilNo": "Tax / registry number",
         "firmaBilgileriYuklenemedi": "Company details could not be loaded.",
         "kimlikBilgilerindeHataVarsa": "If there is an error in your identity details, contact support to have it changed. The MERSİS number, trade registry number and IBAN are managed on the <dogrulama>Verification Documents</dogrulama> page; order collection accounts are managed on the <banka>Bank Accounts</banka> page.",
-        "firmaMerkeziTeslimatVeFaturaAdresleri": "Company headquarters. Delivery and billing addresses are kept in <adresler>Address Management</adresler>."
+        "firmaMerkeziTeslimatVeFaturaAdresleri": "Company headquarters. Delivery and billing addresses are kept in <adresler>Address Management</adresler>.",
+        "kurucu": "Founder",
+        "il": "Province",
+        "sehir": "City",
+        "eyaletBolge": "State / region"
       },
       "companyUsersSection": {
         "pasifYapildi": "Deactivated",
@@ -5238,7 +5390,7 @@
         "kullanici": "User",
         "roller": "Roles",
         "durum": "Status",
-        "sonGiris": "Last sign-in",
+        "sonGiris": "Last login",
         "siz": "(You)",
         "goruntuleyici": "Viewer",
         "yetkiYok": "No permissions",
@@ -5253,7 +5405,7 @@
         "cikar": "Remove",
         "kullaniciyiCikar": "Remove user",
         "buIslemGeriAlinamaz": "This action cannot be undone.",
-        "kullaniciSistemeGirisYapamaz": "The user cannot sign in",
+        "kullaniciSistemeGirisYapamaz": "The user cannot log in",
         "actigiSatinAlmaTalepleriVe": "The buying requests they opened and their approvals stay on record",
         "ePostaTekrarDavetIcin": "The email address can be used for a new invitation",
         "vazgec": "Cancel",
@@ -5263,7 +5415,7 @@
         "uygula": "Apply",
         "koltukSecimiUygulandiKisininIslem": "Seat selection applied — action permissions were removed from {droppedCount, plural, one {# user} other {# users}}",
         "uygulanamadi": "Could not apply",
-        "davetIptalEdildi": "Invitation cancelled",
+        "davetIptalEdildi": "Invitation canceled",
         "iptalEdilemedi": "Could not cancel",
         "davetYenidenGonderildiSureUzatildi": "Invitation resent — the validity period was extended",
         "gonderilemedi": "Could not send",
@@ -5333,11 +5485,13 @@
         "kisiFirmaCom": "person@company.com",
         "gecerliBirEPostaAdresi": "Enter a valid email address (e.g. person@company.com).",
         "yetkiler": "Permissions",
-        "kullaniciHakkiDoluIslemTikleri": "The user allowance is full — upgrade your plan to grant action ticks.",
+        "kullaniciHakkiDoluIslemTikleri": "All user seats are taken — upgrade your plan to grant transaction permissions.",
         "yetkiKataloguYukleniyor": "Loading the permission catalog…",
         "vazgec": "Cancel",
         "gonderiliyor": "Sending…",
-        "davetGonder": "Send invitation"
+        "davetGonder": "Send invitation",
+        "davetDili": "Invitation language",
+        "davetDiliIpucu": "The invitation email and the acceptance page open in this language. The invitee can change it when accepting."
       },
       "settingsShell": {
         "ayarlar": "Settings"
@@ -5368,7 +5522,7 @@
         "kopyala": "Copy",
         "anahtarKopyalandi": "Key copied",
         "kurtarmaKodlarinizSimdiKaydedinBir": "Your recovery codes — save them now, they will not be shown again!",
-        "authenticatorCihaziniziKaybedersenizBuKodlar": "If you lose your authenticator device, you can sign in with one of these codes. Each code can be used only once.",
+        "authenticatorCihaziniziKaybedersenizBuKodlar": "If you lose your authenticator device, you can log in with one of these codes. Each code can be used only once.",
         "txtIndir": "Download .txt",
         "kodlariKaydettim": "I have saved the codes",
         "n2faYiKapat": "Turn off 2FA",
@@ -5379,7 +5533,7 @@
         "ePostayaKodGonder": "Send code to email",
         "kurtarmaDosyasiBaslik": "Rothern 2FA recovery codes ({email})",
         "kurtarmaDosyasiNot": "Each code can be used ONLY ONCE — keep them somewhere safe.",
-        "adresine6HaneliKodGonderdik": "We sent a 6-digit code to <strong>{email}</strong>. Enter it to confirm — from now on a code will be sent to your email at every sign-in.",
+        "adresine6HaneliKodGonderdik": "We sent a 6-digit code to <strong>{email}</strong>. Enter it to confirm — from now on a code will be sent to your email at every login.",
         "n6HaneliKod": "6-digit code"
       },
       "ayarlarAdreslerLayout": {
@@ -5473,7 +5627,7 @@
         "mersisNo16Hane": "MERSİS number (16 digits)",
         "sicilKayitNo": "Registry / registration number",
         "gecerliIban": "Valid IBAN",
-        "dogrulamaUcretsizVePaketGerektirmez": "Verification is FREE and does not require a plan. A verified company shows the “Verified” badge on its profile, can submit quotes to public requests and can switch to any plan. An unverified company appears to buyers as an “Unverified company”. Your documents are reviewed manually by our team.",
+        "dogrulamaUcretsizVePaketGerektirmez": "Verification is FREE and does not require a plan. A verified company shows the “Verified” badge on its profile and can purchase a plan; quoting on public requests additionally requires the Silver plan, and publishing requests requires the Gold plan. An unverified company appears to buyers as an “Unverified company”. Your documents are reviewed manually by our team.",
         "yukleniyor": "Loading…",
         "durum": "Status:",
         "baziBelgelerReddedildi": "Some documents were rejected",
@@ -5487,7 +5641,7 @@
         "mersisNo": "MERSİS number *",
         "ticariSicilNo": "Trade registry number *",
         "sicilKayitNo2": "Registry / registration number *",
-        "registrationCompanyNo": "Registration / Company No",
+        "registrationCompanyNo": "Registration or company number",
         "ibanVeyaBankaHesapNo": "IBAN or bank account number",
         "hesapSahibi": "Account holder *",
         "firmaUnvaniAS": "Company Name Inc.",
@@ -5509,16 +5663,17 @@
         "bankaHesapNo": "Bank account number",
         "ticariSicilNo2": "Trade registry number",
         "hesapSahibi2": "Account holder",
-        "firmanizDogrulandiHerkeseAcik": "Your company is verified. Submitting quotes to public requests, publishing requests and switching plans are now open to you.",
+        "firmanizDogrulandiHerkeseAcik": "Your company is verified. You can now purchase a plan: quoting on public requests comes with Silver, publishing requests with Gold.",
         "dogrulamaIcindirSiparisTahsilat": "This is used for verification. Order collection accounts are kept in <banka>Bank Accounts</banka>.",
         "belgeGuncellemenizReddedildi": "Your document update was rejected — your current document remains valid.",
         "belgeGuncellemenizReddedildiGerekce": "Your document update was rejected: {reason} — your current document remains valid.",
         "swiftBic": "SWIFT / BIC code",
-        "swiftPlaceholder": "e.g. DEUTDEFF",
+        "swiftPlaceholder": "e.g. DEUTDEFFXXX",
         "swiftHint": "Your bank's international code — needed to receive payments from abroad",
         "swiftInvalid": "Enter a valid SWIFT/BIC code (8 or 11 characters)",
         "bankName": "Bank name",
-        "accountNumberInvalid": "Enter a valid account number (4–40 characters)"
+        "accountNumberInvalid": "Enter a valid account number (4–40 characters)",
+        "idBothSidesHint": "If it is an ID card, upload the front and back in a single file (a PDF or a combined image)."
       },
       "ayarlarFirmaLayout": {
         "firmaBilgileriYetkiGerektirir": "Company details require permission",
@@ -5566,7 +5721,7 @@
         },
         "twoFactor": {
           "title": "Two-factor authentication",
-          "description": "Extra sign-in security with an authenticator app"
+          "description": "Extra login security with an authenticator app"
         },
         "profil": {
           "title": "Company profile",
@@ -5598,7 +5753,7 @@
         },
         "dogrulama": {
           "title": "Verification documents",
-          "description": "Free — a “Verified” badge on your profile and the right to quote on public requests"
+          "description": "Free — a “Verified” badge on your profile; required for quoting on public requests (Silver) and publishing requests (Gold)"
         }
       },
       "verificationStatus": {
@@ -5636,7 +5791,33 @@
           "idFront": "Authorized signatory ID or passport",
           "idBack": "Authorized signatory ID — back"
         },
-        "yuklemeBasarisiz": "Upload failed"
+        "yuklemeBasarisiz": "Upload failed",
+        "xn": {
+          "taxPlate": "Tax registration certificate",
+          "tradeRegistry": "Company registration certificate",
+          "signatureCircular": "Signature circular",
+          "activityCert": "Certificate of activity",
+          "idFront": "Authorized signatory ID or passport",
+          "idBack": "Authorized signatory ID — back"
+        },
+        "country": {
+          "CN": {
+            "tradeRegistry": "Business license (营业执照)"
+          },
+          "AE": {
+            "tradeRegistry": "Trade license"
+          }
+        }
+      },
+      "verificationReason": {
+        "UNREADABLE": "The document is unreadable or blurry — upload a clear scan.",
+        "WRONG_DOCUMENT": "The wrong document was uploaded — upload the requested document.",
+        "OUTDATED": "The document is out of date — upload one issued within the last 3 months.",
+        "MISMATCH": "The details on the document do not match your company details.",
+        "MISSING_SIGNATURE": "The signature or company stamp is missing.",
+        "INCOMPLETE": "The document is incomplete — upload all pages.",
+        "COUNTRY_CHANGED": "Your registration country has changed; complete the documents required for the new country and resubmit.",
+        "note": "Note: {note}"
       }
     },
     "company": {
@@ -5666,7 +5847,7 @@
         "sikayetEt": "Report",
         "tumUrunlerVeHizmetler": "All products and services ({count})",
         "bilgiIste": "Request info",
-        "urunGosteriliyor": "Showing {shown} of {total} products.",
+        "urunGosteriliyor": "Showing {shown, number} of {total, plural, one {# product} other {# products}}.",
         "acikSatinAlmaTalepleri": "Open buying requests",
         "sadeceHerkeseAcik": "Public only",
         "baglanirsanizBuFirmaninDavetliSatin": "If you connect, you will also see this company''s invite-only buying requests.",
@@ -5722,7 +5903,6 @@
         "kismiKazanimDahil": "Partial awards included",
         "aktifSiparis": "Active orders",
         "gelir": "Revenue",
-        "tamamlananSiparisTry": "{periodWord} · completed orders · TRY",
         "satisSayilariAlinamadi": "Sales figures could not be loaded",
         "grafikler": "Charts",
         "seciliDonemIcinSekmeAdresle": "For the selected period; the tab is shared along with the link.",
@@ -5734,7 +5914,8 @@
         "buAy": "this month",
         "genelBakis": "Overview",
         "ziyaretEdenler": "Visitors",
-        "tasarrufIpucu": "{periodWord} · {rate}% average · TRY only"
+        "tamamlananSiparisCur": "{periodWord} · completed orders · {currency}",
+        "tasarrufIpucuCur": "{periodWord} · {rate}% average · {currency}"
       },
       "connectionsView": {
         "baglantiKuruldu": "Connection established",
@@ -5774,8 +5955,8 @@
         "kaydoluncaOtomatikBaglanir": "Connects automatically once they sign up",
         "ePostaDaveti": "Email invitation",
         "iptalEt": "Cancel",
-        "davetIptalEdildi": "Invitation cancelled",
-        "iptalEdilemedi": "The invitation could not be cancelled",
+        "davetIptalEdildi": "Invitation canceled",
+        "iptalEdilemedi": "The invitation could not be canceled",
         "baglantiKaldirilsinMi": "Remove the connection?",
         "ileBaglantinizKaldirilacak": "Your connection with \"{name}\" will be removed.",
         "kaldir": "Remove",
@@ -5823,7 +6004,10 @@
         "bagli": "Connected",
         "davetGonderildi": "{n, plural, one {# invitation sent} other {# invitations sent}}",
         "davetGonderildiAtlandi": "{n, plural, one {# invitation sent} other {# invitations sent}}, {skipped} skipped",
-        "adres": "{n}/{max} addresses"
+        "adres": "{n}/{max} addresses",
+        "davetDili": "Invitation language",
+        "davetDiliIpucu": "Companies that are not yet registered receive the invitation email in this language; the default is based on the address’s domain.",
+        "davetDiliAdres": "Invitation language for {email}"
       },
       "profileEditor": {
         "gecersizBaglantiYalnizHttpHttps": "Invalid link — only http/https addresses are accepted",
@@ -5875,7 +6059,7 @@
         "kaldirilamadi": "Could not remove {label}",
         "logoyuAyarla": "Adjust logo",
         "kapakGorseliniAyarla": "Adjust cover image",
-        "kapakEkranGenisligineGoreKenarlardan": "The cover may be cropped slightly at the edges depending on screen width; keep the important part in the centre.",
+        "kapakEkranGenisligineGoreKenarlardan": "The cover may be cropped slightly at the edges depending on screen width; keep the important part in the center.",
         "kapakGorseliSec": "Select cover image",
         "kapagiDuzenle": "Edit cover",
         "kapagiDegistir": "Change cover",
@@ -5984,7 +6168,6 @@
         "aramanizaUyan": "Matching your search",
         "yeniSekmedeAcilir": "(opens in a new tab)",
         "firma": "{n, plural, one {# company} other {# companies}}",
-        "firmaNoun": "companies",
         "baglisiniz": "Connected",
         "istekGonderildi": "Request sent",
         "istekGeldi": "Request received"
@@ -5992,7 +6175,6 @@
       "panelProductIndex": {
         "suzgeclerYukleniyor": "Loading filters…",
         "urun": "{n, plural, one {# product} other {# products}}",
-        "urun2": "products",
         "buKriterlerleUrunYok": "No products match these criteria.",
         "talepAcTedarikcilerTeklifVersin": "Post a request and let suppliers quote",
         "bilgiIste": "Request info",
@@ -6025,7 +6207,6 @@
         "enDusukBirimFiyatlar": "lowest unit prices",
         "enYuksekBirimFiyatlar": "highest unit prices",
         "satinAlmaTalebi": "Buying request",
-        "ilan": "Listing",
         "secin": "— Select —",
         "karsilastirmaKriteri": "Comparison criterion",
         "fiyatlar": "Prices",
@@ -6068,14 +6249,10 @@
         "indirmeBasarisiz": "Download failed",
         "raporlar": "Reports",
         "genelSatinAlmaTalebiRaporu": "General buying request report",
-        "genelIlanRaporu": "General listing report",
         "raporlamaKriteri": "Reporting criterion",
         "satinAlmaTalebini": "buying request",
-        "ilani": "listing",
         "satinAlmaTaleplerini": "buying requests",
-        "ilanlari": "listings",
         "satinAlmaTalebi": "Buying request",
-        "ilan": "Listing",
         "secin": "— Select —",
         "baslangic": "Start",
         "bitis": "End",
@@ -6087,7 +6264,6 @@
         "paraBirimi": "Currency",
         "excelIndir": "Download Excel",
         "toplamSatinAlmaTalebi": "Total buying requests",
-        "toplamIlan": "Total listings",
         "kazandirilan": "Awarded",
         "yanitOrani": "Response rate",
         "davet": "Invited",
@@ -6098,7 +6274,6 @@
         "kazanan": "Winner",
         "kazananTedarikci": "Winning supplier",
         "kazananAlici": "Winning buyer",
-        "tutarlarTeklifAnindakiTcmbKuruyla": "Amounts are shown as the TRY equivalent at the CBRT rate at the time of the quote.",
         "tasarruf": "Savings",
         "toplamTasarruf": "Total savings",
         "indiriliyor": "Downloading {file}",
@@ -6108,7 +6283,8 @@
         "sonucEnFazlaKayitlaSinirlandi": "The result is limited to {max} records — older ones are NOT in this report. Narrow the date range to see them all.",
         "ortTeklif": "Avg. quotes",
         "kazananToplam": "Winner total",
-        "yuzde": "{n}%"
+        "yuzde": "{n}%",
+        "tutarlarTeklifAnindakiTcmbKuruylaCur": "{currency, select, TRY {Amounts are shown as the TRY equivalent at the CBRT rate at the time of the quote.} other {Amounts are converted to TRY at the CBRT rate at the time of the quote, then to {currency} at the current rate.}}"
       },
       "savingsReportView": {
         "kazanc": "Gain",
@@ -6120,15 +6296,12 @@
         "tasarrufRaporu": "Savings report",
         "rekabetKazanciRaporu": "Competition gain report",
         "kazandirilanSatinAlmaTaleplerindeRekabetin": "The amount competition saved you on awarded buying requests (highest quote − winner), plus line item detail against the target price.",
-        "kazandirilanIlanlardaRekabetinFiyatiYukseltt": "The amount by which competition raised the price on awarded listings (winner − lowest quote), plus line item detail against the floor.",
         "baslangic": "Start",
         "bitis": "End",
-        "paraBirimiIlan": "Currency (listing)",
         "tumu": "All",
         "excelIndir": "Download Excel",
         "satinAlmaTalebi": "Buying request",
         "satinAlmaTalebi2": "Buying request",
-        "ilan": "Listing",
         "teklif": "Quotes",
         "enYuksek": "Highest",
         "enDusuk": "Lowest",
@@ -6142,7 +6315,6 @@
         "kazananBirim": "Winning unit price",
         "kazanan2": "Winning {partyWord}",
         "bazliKazanilanTutar": "Amount won by {partyWord}",
-        "tutarlarTeklifAnindakiTcmbKuruyla": "Amounts are totalled as the TRY equivalent at the CBRT rate at the time of the quote. Line item detail is in the request currency.",
         "indiriliyor": "Downloading {file}",
         "raporuOlustur": "Generate report",
         "tasarruf": "Savings",
@@ -6157,7 +6329,8 @@
         "enIyi": "Best: {title} ({pct}%)",
         "enZayif": "Weakest: {title} ({pct}%)",
         "paraBirimiTalep": "Currency (request)",
-        "yuzde": "{n}%"
+        "yuzde": "{n}%",
+        "tutarlarTeklifAnindakiTcmbKuruylaCur": "{currency, select, TRY {Amounts are totaled as the TRY equivalent at the CBRT rate at the time of the quote; line item detail is also the TRY equivalent.} other {Amounts are converted to TRY at the CBRT rate at the time of the quote, then to {currency} at the current rate and totaled; line item detail is also in {currency}.}}"
       },
       "reportsSummaryCharts": {
         "performansOzeti": "Performance summary",
@@ -6170,19 +6343,18 @@
         "verilenTeklif": "Quotes submitted",
         "kazandirmaOrani": "Award rate",
         "kazanmaOrani": "Win rate",
-        "son12AydaSonuclananSatin": "{won} of the {total} buying requests concluded in the last 12 months were awarded",
-        "son12AydaKararaBaglanan": "{won}{numberPossessive} of the {total} quotes decided in the last 12 months were won",
+        "son12AydaSonuclananSatin": "{won, number} of {total, plural, one {# buying request} other {# buying requests}} concluded in the last 12 months {won, plural, one {was} other {were}} awarded",
         "aylikAlisHacmi": "Monthly purchase volume",
         "aylikSatisHacmi": "Monthly sales volume",
-        "yalnizTrySiparislerOrtalama": "TRY orders only — average {avg}",
-        "yalnizTrySiparisler": "TRY orders only",
         "kategoriDagilimi": "Category distribution",
         "son12AydaActiginizSatin": "Segments of the buying requests you opened in the last 12 months",
         "son12AydaTeklifVerdiginiz": "Segments of the buying requests you quoted on in the last 12 months",
         "tutar": "Amount",
         "eksenMilyon": "{n}M",
         "eksenBin": "{n}K",
-        "yuzde": "{n}%"
+        "yuzde": "{n}%",
+        "siparislerOrtalamaCur": "All orders, in {currency} — average {avg}",
+        "siparislerCur": "All orders, in {currency}"
       }
     },
     "approvals": {
@@ -6199,7 +6371,7 @@
         "akisSilindi": "Flow deleted",
         "onayAkisi": "Approval flow",
         "siparisOlusmadanOnce": "before the order is created",
-        "ornegin50000UstuKazandirmalar": "For example: “Awards above 50,000 ₺ go first to the purchasing manager, then to the general manager.” If there is no flow, the award is applied immediately.",
+        "ornegin50000UstuKazandirmalar": "For example: “Awards above {amount} go first to the purchasing manager, then to the general manager.” If there is no flow, the award is applied immediately.",
         "tanimliAkislar": "Defined flows",
         "yeniOnayAkisi": "New approval flow",
         "onayAkislariYuklenemedi": "Could not load the approval flows",
@@ -6226,14 +6398,14 @@
         "akisiDuzenle": "Edit flow",
         "akisAdi": "Flow name",
         "ornYuksekTutarliKazandirmaOnayi": "E.g. High-value award approval",
-        "buAkisiListedeTaniyacaginizKisa": "A short name that helps you recognise this flow in the list.",
+        "buAkisiListedeTaniyacaginizKisa": "A short name that helps you recognize this flow in the list.",
         "buAkisNeZamanCalisir": "When does this flow run?",
         "siparisOlusmaz": "No order is created",
         "talepYayinlamaOnayiYokturTaslaklar": "There is no approval for publishing a request — drafts are always published directly.",
         "sureciBaslatanRoller": "Roles that start the process",
         "buRollerdekiKisilerKazandirmaYaptiginda": "The approval chain starts when people with these roles make an award.",
         "onayAdimi": "Approval step",
-        "veUstuKazandirmalardaDevreyeGirer": "Runs on awards of {amount} ₺ and above",
+        "veUstuKazandirmalardaDevreyeGirer": "Runs on awards of {amount} and above",
         "herTutardaDevreyeGirer": "Runs at any amount",
         "yukariTasi": "Move up",
         "asagiTasi": "Move down",
@@ -6268,9 +6440,9 @@
         "onaylayici": "Approver",
         "onayciSec": "— select approver —",
         "kazandirmayiSizinBaslattiginiz": "you started the award yourself",
-        "butceEsigiOpsiyonel": "Budget threshold ₺ (optional)",
+        "butceEsigiOpsiyonel": "Budget threshold {currency} (optional)",
         "bosHerTutardaOnaylar": "Empty = approves at any amount",
-        "esikOncekiAdiminEsigindenKucuk": "The threshold cannot be lower than the threshold of the previous step ({amount} ₺).",
+        "esikOncekiAdiminEsigindenKucuk": "The threshold cannot be lower than the threshold of the previous step ({amount}).",
         "kazandirmaTutariBuEsiginAltindaysa": "If the award amount is below this threshold, this approver is skipped.",
         "ekle": "Add",
         "listingType": {
@@ -6293,7 +6465,7 @@
         "herAdimBirOnaycidir": "Each step is <strong>one approver</strong>. Steps run IN ORDER from top to bottom: the second approver is not reached until the first one approves.",
         "birAdimaEsikKoyarsaniz": "If you set a threshold on a step and the award amount is below that threshold, <strong>that step is skipped</strong>. It is useful when, for example, you want only large amounts to reach senior management.",
         "yalnizcaKurucuYoneticiVeyaOnaylayici": "Only active users with the <strong>Founder, Manager or Approver</strong> role. To make someone else an approver, grant them the Approver role under Settings → Users.",
-        "esikVeUstu": "≥ {amount} ₺",
+        "esikVeUstu": "≥ {amount}",
         "herTutar": "any amount",
         "onayciYokAyarlardanRolVerin": "There is no active user who can be an approver. Grant a user the <strong>Approver</strong> role under <link>Settings → Users</link>.",
         "buKisiSirasiGeldigindeKazandirmayi": "When their turn comes, this person approves or rejects the award from the Approvals page. Only active users with the <strong>Founder, Manager or Approver</strong> role are listed; to add someone else, grant them the Approver role under <link>Settings → Users</link>.",
@@ -6318,7 +6490,7 @@
         "sizBaslattiniz": "Started by you",
         "sirada2": "Next: {currentApprover}",
         "adimlar": "Steps ({decidedSteps}/{totalSteps})",
-        "iptalEdiliyor": "Cancelling…",
+        "iptalEdiliyor": "Canceling…",
         "iptalEt": "Cancel",
         "istegiOnayla": "Approve request",
         "onaylandi": "Approved",
@@ -6326,7 +6498,7 @@
         "reddedildi": "Rejected",
         "onayIsteginiIptalEt": "Cancel approval request",
         "icinOnayIstegiIptalEdilsin": "Cancel the approval request for \"{title}\"? The request will return to its previous status.",
-        "onayIstegiIptalEdildi": "Approval request cancelled",
+        "onayIstegiIptalEdildi": "Approval request canceled",
         "iptalEdilemedi": "Could not cancel",
         "onaylaraDon": "Back to approvals",
         "onayAkislari": "Approval flows",
@@ -6359,7 +6531,7 @@
           "PENDING": "Pending",
           "APPROVED": "Approved",
           "REJECTED": "Rejected",
-          "CANCELLED": "Cancelled"
+          "CANCELLED": "Canceled"
         },
         "chip": {
           "all": "All",
@@ -6642,6 +6814,23 @@
     },
     "cityPicker": {
       "placeholder": "Type a city…"
+    },
+    "ui": {
+      "pagination": "Pagination",
+      "previousPage": "Previous page",
+      "nextPage": "Next page",
+      "pageN": "Page {n}",
+      "breadcrumb": "Breadcrumb",
+      "home": "Home",
+      "close": "Close",
+      "remove": "Remove",
+      "selectPlaceholder": "— select —"
+    },
+    "phoneInput": {
+      "label": "Phone",
+      "countryCode": "Country code",
+      "selectCountry": "Select country",
+      "placeholderIntl": "With country code, e.g. +49 30 1234567"
     }
   }
 }

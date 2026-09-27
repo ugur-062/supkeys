@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { DEFAULT_LOCALE, LOCALES, LOCALE_LABELS, pickLocale, type Locale } from "@rothern/i18n";
 import { Button } from "@/components/catalyst/button";
 import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import {
@@ -10,8 +11,9 @@ import {
   DialogDescription,
   DialogTitle,
 } from "@/components/catalyst/dialog";
-import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
+import { Description, ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
+import { Select } from "@/components/catalyst/select";
 import { PermissionTable } from "@/components/company/permission-table";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
@@ -29,6 +31,10 @@ import { toast } from "sonner";
  * katılacaksa burada işaretlenir; hazır set çipleri (Satın Almacı varsayılan)
  * tabloyu doldurur. Davetli, e-postadaki linkten adını/şifresini KENDİSİ
  * belirleyip sözleşmeleri onaylayarak katılır.
+ *
+ * DAVET DİLİ (2026-09-27): e-posta ve kabul sayfası seçilen dilde açılır
+ * (varsayılan: şu anki arayüz dili). Davetli kabul sayfasında dili yine
+ * değiştirebilir; hesap kabul ettiği sayfanın dilinde doğar.
  */
 export function InviteUserDialog({
   open,
@@ -58,6 +64,8 @@ export function InviteUserDialog({
   // Gerçek e-posta biçimi (eskiden yalnız "@" içeriyor mu diye bakılıyordu).
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(email.trim());
   const [perms, setPerms] = useState<string[]>([]);
+  const uiLocale = pickLocale(useLocale()) ?? DEFAULT_LOCALE;
+  const [inviteLocale, setInviteLocale] = useState<Locale>(uiLocale);
   // Katalog gelince varsayılan hazır set: Satın Almacı.
   useEffect(() => {
     if (catalog && perms.length === 0) setPerms(catalog.presets.SATIN_ALMACI);
@@ -69,7 +77,11 @@ export function InviteUserDialog({
   const handleSave = async () => {
     if (!canSave) return;
     try {
-      const res = await invite.mutateAsync({ email: email.trim(), permissions: perms });
+      const res = await invite.mutateAsync({
+        email: email.trim(),
+        permissions: perms,
+        locale: inviteLocale,
+      });
       // E-posta gerçekten gitti mi? Gitmediyse uyarı + yeniden gönder.
       reportDelivery(res, {
         id: res.id,
@@ -78,6 +90,7 @@ export function InviteUserDialog({
       });
       setEmail("");
       setPerms(catalog?.presets.SATIN_ALMACI ?? []);
+      setInviteLocale(uiLocale);
       onClose();
     } catch (err) {
       toast.error(extractErrorMessage(err, t("davetGonderilemedi")));
@@ -105,6 +118,21 @@ export function InviteUserDialog({
           {emailTouched && email && !emailValid ? (
             <ErrorMessage>{t("gecerliBirEPostaAdresi")}</ErrorMessage>
           ) : null}
+        </Field>
+        <Field className="max-w-xs">
+          <Label>{t("davetDili")}</Label>
+          <Description>{t("davetDiliIpucu")}</Description>
+          <Select
+            name="inviteLocale"
+            value={inviteLocale}
+            onChange={(e) => setInviteLocale(e.target.value as Locale)}
+          >
+            {LOCALES.map((code) => (
+              <option key={code} value={code} lang={code}>
+                {LOCALE_LABELS[code]}
+              </option>
+            ))}
+          </Select>
         </Field>
         <div>
           <div className="flex items-baseline justify-between gap-2">

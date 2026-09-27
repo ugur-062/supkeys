@@ -6,7 +6,7 @@ import { KpiCard } from "@/components/dashboard/analytics-primitives";
 import { PeriodControls } from "@/components/dashboard/period-controls";
 import { TcmbRatesChip } from "@/components/tcmb-rates-widget";
 import { ErrorState } from "@/components/ui/error-state";
-import { formatCompactMoney } from "@/components/ui/money";
+import { useFormatMoney } from "@/components/ui/money";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
   useSatinalmaAnalytics,
@@ -23,10 +23,11 @@ import { selectActiveOffers, selectActiveOrders, selectWonOffers } from "@/lib/c
 import { COMPANY_AREA_BASE, accessiblePortals, type PortalKey } from "@/lib/company/portals";
 import { userHasPermission } from "@/lib/company/permissions";
 import { cn } from "@/lib/utils";
+import { currencySymbol } from "@/lib/tenders/labels";
 import { tierAtLeast } from "@rothern/shared";
 import { Tab, TabGroup, TabList, TabPanel, TabPanels } from "@headlessui/react";
 import { ChartBarIcon, EyeIcon } from "@heroicons/react/20/solid";
-import { INTL_LOCALE, formatNumber } from "@/i18n/format";
+import { INTL_LOCALE } from "@/i18n/format";
 import { APP_TIME_ZONE } from "@/lib/time-zone";
 import dynamic from "next/dynamic";
 import { Link } from "@/i18n/navigation";
@@ -83,6 +84,7 @@ const TRIGGER = cn(
 export function CompanyOverview() {
   const t = useTranslations("web.panel.company.companyOverview");
   const locale = useLocale();
+  const { compact: formatCompactMoney, money: formatMoney } = useFormatMoney();
   const { company, user } = useCompanyAuth();
   const tier = company?.tier ?? "STANDART";
   const portals = accessiblePortals(user, tier);
@@ -125,6 +127,10 @@ export function CompanyOverview() {
   const periodWord = period === "month" ? t("buAy") : period === "quarter" ? t("buCeyrek") : period === "year" ? t("buYil") : t("seciliAralik");
   const savingsMetrics = tasarruf.data ? (period === "month" ? tasarruf.data.month : tasarruf.data.year) : null;
   const revenue = stAnalytics.data ? stAnalytics.data.revenueTrend.reduce((n, p) => n + (p.value ?? 0), 0) : null;
+  // Tutarlar firmanın RAPOR BİRİMİNDE (2026-09-27, sunucu çevirir) — eskiden
+  // "TRY"ye zorlanıyordu ve TRY dışı siparişler hiç sayılmıyordu.
+  const saCurrency = tasarruf.data?.currency ?? "TRY";
+  const stCurrency = stAnalytics.data?.currency ?? "TRY";
   const selectedIndex = Math.max(0, tabs.findIndex((item) => item.value === tab));
 
   return (
@@ -191,11 +197,11 @@ export function CompanyOverview() {
                   <KpiCard label={t("devamEdenSiparis")} value={ihale.data.ongoingOrders} href="/company/satinalma/siparisler" accent="blue" />
                   <KpiCard
                     label={t("tasarruf")}
-                    value={savingsMetrics ? formatCompactMoney(savingsMetrics.totalSavings, "TRY") : "—"}
-                    valueTitle={savingsMetrics ? `${formatNumber(savingsMetrics.totalSavings, locale)} ₺` : undefined}
+                    value={savingsMetrics ? formatCompactMoney(savingsMetrics.totalSavings, saCurrency) : "—"}
+                    valueTitle={savingsMetrics ? formatMoney(savingsMetrics.totalSavings, saCurrency) : undefined}
                     href={`${COMPANY_AREA_BASE}/raporlar/tasarruf`}
                     accent="blue"
-                    hint={savingsMetrics ? t("tasarrufIpucu", { periodWord: period === "month" ? t("buAy") : t("buYil"), rate: Math.round(savingsMetrics.averageSavingsRate) }) : t("hesaplaniyor")}
+                    hint={savingsMetrics ? t("tasarrufIpucuCur", { periodWord: period === "month" ? t("buAy") : t("buYil"), rate: Math.round(savingsMetrics.averageSavingsRate), currency: saCurrency }) : t("hesaplaniyor")}
                   />
                 </>
               ) : ihale.isError ? (
@@ -223,15 +229,15 @@ export function CompanyOverview() {
                   <KpiCard label={t("aktifSiparis")} value={selectActiveOrders(orders.data, "seller").length} href="/company/satis/siparisler" accent="emerald" deltaPct={stAnalytics.data?.deltas.orders} deltaPeriodLabel={t("oncekiDonemeGore", { periodWord: periodWord })} spark={stAnalytics.data?.kpiSeries.orders} />
                   <KpiCard
                     label={t("gelir")}
-                    value={revenue != null ? formatCompactMoney(revenue, "TRY") : "—"}
-                    valueTitle={revenue != null ? `${formatNumber(revenue, locale)} ₺` : undefined}
+                    value={revenue != null ? formatCompactMoney(revenue, stCurrency) : "—"}
+                    valueTitle={revenue != null ? formatMoney(revenue, stCurrency) : undefined}
                     href="/company/satis/siparisler"
                     accent="emerald"
                     deltaPct={stAnalytics.data?.deltas.revenue}
                     deltaPeriodLabel={t("oncekiDonemeGore", { periodWord: periodWord })}
                     spark={stAnalytics.data?.kpiSeries.revenue}
-                    sparkLabels={{ valueSuffix: " ₺" }}
-                    hint={t("tamamlananSiparisTry", { periodWord: periodWord })}
+                    sparkLabels={{ valueSuffix: ` ${currencySymbol(stCurrency)}` }}
+                    hint={t("tamamlananSiparisCur", { periodWord: periodWord, currency: stCurrency })}
                   />
                 </>
               ) : bids.isError || orders.isError ? (

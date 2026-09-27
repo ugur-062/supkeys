@@ -10,8 +10,9 @@ const GOOD = `<html lang="tr"><head>
 <meta name="description" content="Çelik boru, Acme Metal vitrininde. Fiyat için teklif isteyin · min. 100 metre · İzmir. Kapalı zarf teklif — Rothern.">
 <link rel="canonical" href="https://www.rothern.com/firma/acme/urun/celik-boru">
 <meta property="og:image" content="https://www.rothern.com/firma/acme/urun/celik-boru/opengraph-image">
+<meta property="og:image:alt" content="Çelik Boru — Acme Metal">
 <meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Product","name":"Çelik Boru","offers":{"@type":"Offer"}},{"@type":"BreadcrumbList","itemListElement":[]}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Product","name":"Çelik Boru","offers":{"@type":"Offer","price":"100","priceCurrency":"TRY"}},{"@type":"ItemPage","url":"https://www.rothern.com/firma/acme/urun/celik-boru","inLanguage":"tr-TR","mainEntity":{"@id":"x"}},{"@type":"BreadcrumbList","itemListElement":[]}]}</script>
 </head><body><h1>Çelik Boru</h1></body></html>`;
 
 describe("seo-audit-checks", () => {
@@ -24,7 +25,7 @@ describe("seo-audit-checks", () => {
   it("çift marka, kanonik uyumsuzluğu, eksik JSON-LD alanı ve Demand sahibi yakalanır", () => {
     const bad = GOOD.replace("· Rothern", "— Rothern · Rothern")
       .replace('rel="canonical" href="https://www.rothern.com/firma/acme/urun/celik-boru"', 'rel="canonical" href="https://www.rothern.com/firma/acme"')
-      .replace('"offers":{"@type":"Offer"}', '"seller":"X"')
+      .replace('"offers":{"@type":"Offer","price":"100","priceCurrency":"TRY"}', '"seller":"X"')
       .replace('"@type":"Product"', '"@type":"Demand"');
     const r = checkPage("https://www.rothern.com/firma/acme/urun/celik-boru", bad, { indexable: true, type: "listing" });
     expect(r.problems).toEqual(
@@ -51,8 +52,9 @@ const EN = `<html lang="en"><head>
 <meta name="description" content="Seamless steel pipe from Acme Metal in İzmir, minimum order 100 metres. Request a quote on Rothern today.">
 <link rel="canonical" href="${EN_URL}">
 <meta property="og:image" content="${EN_URL}/opengraph-image">
+<meta property="og:image:alt" content="Steel Pipe — Acme Metal">
 <meta name="twitter:card" content="summary_large_image">
-<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Product","inLanguage":"en-US","name":"Steel Pipe","offers":{"@type":"Offer"}}]}</script>
+<script type="application/ld+json">{"@context":"https://schema.org","@graph":[{"@type":"Product","name":"Steel Pipe"},{"@type":"ItemPage","url":"${EN_URL}","inLanguage":"en-US","mainEntity":{"@id":"x"}}]}</script>
 </head><body><h1>Steel Pipe</h1></body></html>`;
 
 describe("seo-audit-checks — diller (i18n SEO 2026-09-26)", () => {
@@ -80,7 +82,7 @@ describe("seo-audit-checks — diller (i18n SEO 2026-09-26)", () => {
         "html lang tr (en bekleniyor)",
         "og:locale tr_TR",
         "hreflang'de kendi dili (en) yok",
-        "Product.inLanguage tr-TR",
+        "ItemPage.inLanguage tr-TR",
         expect.stringContaining("description: çevrilmemiş Türkçe (şartlandırma"),
       ]),
     );
@@ -91,5 +93,22 @@ describe("seo-audit-checks — diller (i18n SEO 2026-09-26)", () => {
     expect(checkPage(EN_URL, legal).problems.filter((p) => p.startsWith("h1"))).toEqual([]);
     const notLegal = EN.replace("<h1>Steel Pipe</h1>", "<h1>Kullanıcı sözleşmesi</h1>");
     expect(checkPage(EN_URL, notLegal).problems).toContain("h1: çevrilmemiş Türkçe (sözleşmesi)");
+  });
+});
+
+describe("seo-audit-checks — şema ve görsel (2026-09-27)", () => {
+  it("fiyatsız Offer, varlık düğümünde inLanguage, og:image:alt eksikliği yakalanır", () => {
+    const bad = EN.replace('{"@type":"Product","name":"Steel Pipe"}', '{"@type":"Product","name":"Steel Pipe","inLanguage":"en-US","offers":{"@type":"Offer","priceCurrency":"TRY"}}').replace(
+      /<meta property="og:image:alt"[^>]*>\n/,
+      "",
+    );
+    const r = checkPage(EN_URL, bad, { indexable: true, type: "product" });
+    expect(r.problems).toEqual(expect.arrayContaining(["Product.offers fiyatsız", "Product.inLanguage geçersiz özellik", "og:image:alt yok"]));
+  });
+
+  it("offers'sız ürün (teklif isteyin) sorun değil; x-default listedeki bir dile gitmeli", () => {
+    expect(checkPage(EN_URL, EN, { indexable: true, type: "product" }).problems).toEqual([]);
+    const stray = EN.replace('hrefLang="x-default" href="https://www.rothern.com/firma/acme/urun/celik-boru"', 'hrefLang="x-default" href="https://www.rothern.com/ru/kompanii/acme/tovary/celik-boru"');
+    expect(checkPage(EN_URL, stray).problems).toContain("hreflang x-default listedeki bir dile gitmiyor");
   });
 });

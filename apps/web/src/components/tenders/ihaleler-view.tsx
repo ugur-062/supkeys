@@ -1,5 +1,6 @@
 "use client";
 
+import { foldSearchText } from "@rothern/shared";
 import { useTranslations } from "next-intl";
 import { useListingStatusLabel, useListingTerms, useNavLabel } from "@/i18n/domain";
 import { MODULE_LABELS, PORTAL_SECONDARY_HREFS } from "@/lib/company/portals";
@@ -114,7 +115,7 @@ export function IhalelerView() {
   const facetRows = useMemo(() => {
     const days = RANGE_DAYS[range];
     const minDate = days ? Date.now() - days * 86_400_000 : null;
-    const q = search.trim().toLocaleLowerCase("tr");
+    const q = foldSearchText(search);
     return all.filter((t) => {
       if (createdById && t.createdById !== createdById) return false;
       if (scope !== "all" && ((t.targetCountries ?? []).length === 0) !== (scope === "open"))
@@ -122,8 +123,8 @@ export function IhalelerView() {
       if (minDate && new Date(t.createdAt).getTime() < minDate) return false;
       if (
         q &&
-        !t.title.toLocaleLowerCase("tr").includes(q) &&
-        !t.tenderNumber.toLocaleLowerCase("tr").includes(q)
+        !foldSearchText(t.title).includes(q) &&
+        !foldSearchText(t.tenderNumber).includes(q)
       )
         return false;
       return true;
@@ -157,7 +158,7 @@ export function IhalelerView() {
   const filtered = useMemo(() => {
     const days = RANGE_DAYS[range];
     const minDate = days ? Date.now() - days * 86_400_000 : null;
-    const q = search.trim().toLocaleLowerCase("tr");
+    const q = foldSearchText(search);
     const rows = all.filter((t) => {
       if (statuses.length > 0 && !statuses.includes(t.status)) return false;
       if (createdById && t.createdById !== createdById) return false;
@@ -166,8 +167,8 @@ export function IhalelerView() {
       if (minDate && new Date(t.createdAt).getTime() < minDate) return false;
       if (
         q &&
-        !t.title.toLocaleLowerCase("tr").includes(q) &&
-        !t.tenderNumber.toLocaleLowerCase("tr").includes(q)
+        !foldSearchText(t.title).includes(q) &&
+        !foldSearchText(t.tenderNumber).includes(q)
       )
         return false;
       return true;

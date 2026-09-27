@@ -5,6 +5,7 @@
  * (F2/F3/F6), kazandırma→sipariş doğruluğu, çift-kazandırma (F1), kalem-bazlı
  * (F8), state-machine.
  */
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { CompanyRole, type ListingStatus, type ListingType } from "@rothern/db";
 import type { AuthenticatedCompanyUser } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
 import { prisma, truncateAll } from "./test-db";
@@ -18,6 +19,7 @@ import {
   makeUser,
 } from "./factories";
 import { makeService } from "./make-service";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 const FUTURE = new Date(Date.now() + 7 * 24 * 3600 * 1000);
 const PAST = new Date(Date.now() - 3600 * 1000);
@@ -161,10 +163,34 @@ describe("getOne — kapalı zarf (closed envelope)", () => {
 });
 
 describe("getOne — görünürlük ülkesi (2026-09-21: boş = herkes, dolu = yalnız o ülkeler)", () => {
-  it("yalnız sahibin ülkesi ([TR]): farklı ülke firması göremez (404)", async () => {
+  it("yalnız sahibin ülkesi ([TR]): farklı ülke firması İÇERİĞİ göremez — 403 COUNTRY_NOT_ELIGIBLE + hedef ülkeler (2026-09-27)", async () => {
     const { service, listing } = await setupAlim({ targetCountries: ["TR"] }); // owner TR
     const foreign = await makeCompanyWithUser(prisma, { country: "DE" });
-    await expect(service.getOne(foreign.auth, listing.id)).rejects.toThrow();
+    const err = await service.getOne(foreign.auth, listing.id).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(ForbiddenException);
+    const body = (err as ForbiddenException).getResponse() as Record<string, unknown>;
+    expect(body.code).toBe("COUNTRY_NOT_ELIGIBLE");
+    expect(body.targetCountries).toEqual(["TR"]);
+    expect(typeof body.message).toBe("string");
+    // Kapalı zarf / içerik: gövde yalnız kod + mesaj + hedef ülke taşır.
+    expect(Object.keys(body).sort()).toEqual(["code", "i18nKey", "message", "statusCode", "targetCountries"]);
+    expect(JSON.stringify(body)).not.toContain(listing.title);
+  });
+
+  it("ülke kapısı görünürlük kapısından SONRA: bağsız firma CONNECTIONS talebinde yine 404 (varlık sızmaz)", async () => {
+    const { service, listing } = await setupAlim({ targetCountries: ["TR"], visibility: "CONNECTIONS" });
+    const foreign = await makeCompanyWithUser(prisma, { country: "DE" });
+    await expect(service.getOne(foreign.auth, listing.id)).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it("davetli yabancı firma ülke kapısını aşar", async () => {
+    const { service, owner, listing } = await setupAlim({ targetCountries: ["TR"] });
+    const foreign = await makeCompanyWithUser(prisma, { country: "DE" });
+    await invite(prisma, listing.id, foreign.company.id, owner.user.id);
+    await expect(service.getOne(foreign.auth, listing.id)).resolves.toBeDefined();
   });
 
   it("boş hedef = tüm ülkeler: sahibin ülkesindeki firma da, yabancı da görür", async () => {
@@ -209,6 +235,37 @@ describe("getOne — görünürlük ülkesi (2026-09-21: boş = herkes, dolu = y
     const { service, mocks, bidder, listing } = await setupAlim();
     mocks.blocks.blockedCompanyIds.mockResolvedValue([bidder.company.id]);
     await expect(service.getOne(bidder.auth, listing.id)).rejects.toThrow();
+  });
+});
+
+describe("sellerTenders — sahip şehri süzgeç anahtarı + okuyucunun dilinde (2026-09-27)", () => {
+  it("eşlenmiş şehir kalıcı adres anahtarı ve okuyucunun dilinde ad taşır; eşlenmemişte null", async () => {
+    const { service, owner, bidder, listing } = await setupAlim();
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { city: "İstanbul", cityId: -1034 },
+    });
+    const ru = (await runWithLocale("ru", () => service.sellerTenders(bidder.auth))) as unknown as Record<string, unknown>[];
+    const row = ru.find((r) => r.id === listing.id)!;
+    expect(row).toMatchObject({
+      ownerCity: "İstanbul",
+      ownerCityId: -1034,
+      ownerCitySlug: "istanbul",
+      ownerCityLabel: "Стамбул",
+      ownerCountry: "TR",
+    });
+
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { city: "Bilinmeyen Kasaba", cityId: null },
+    });
+    const tr = (await service.sellerTenders(bidder.auth)) as unknown as Record<string, unknown>[];
+    expect(tr.find((r) => r.id === listing.id)).toMatchObject({
+      ownerCity: "Bilinmeyen Kasaba",
+      ownerCityId: null,
+      ownerCitySlug: null,
+      ownerCityLabel: null,
+    });
   });
 });
 

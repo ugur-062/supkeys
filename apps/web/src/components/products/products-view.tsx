@@ -2,10 +2,11 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
-import { useUnitLabel } from "@/i18n/domain";
+import { useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 import { formatNumber } from "@/i18n/format";
 import { useProductStatusMeta } from "./product-status-label";
-import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { defaultCurrencyForCountry } from "@rothern/shared";
 import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { useSearchParams } from "next/navigation";
 
@@ -29,7 +30,7 @@ import { formatDate } from "@/lib/format-date";
 import { productStatusKey } from "@/lib/company/product-status";
 import { ArrowLeftIcon, EllipsisVerticalIcon, EyeIcon, MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import { Thumb } from "@/components/ui/thumb";
-import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
+import { affixCurrency } from "@/lib/tenders/labels";
 import { Package } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useMemo, useState } from "react";
@@ -47,7 +48,11 @@ const TAB_KEYS: ProductTab[] = ["all", "published", "pending", "rejected", "draf
  * Liste ile form aynı sayfada, tek seferde tek ürün düzenlenir: ürün formu
  * uzun (görsel, nitelik, fiyat kademeleri) ve modal içine sığmıyor.
  */
-/** Boş vitrin kaydı — "yeni ürün" formunun başlangıç değeri. */
+/**
+ * Boş vitrin kaydı — "yeni ürün" formunun başlangıç değeri. Para birimi
+ * burada yalnız yer tutucu: çizimde FİRMANIN ülkesinden gelir (API de
+ * gönderilmeyen birimi aynı kuralla doldurur).
+ */
 const EMPTY_PRODUCT: ProductShowcase = {
   id: "",
   name: "",
@@ -80,6 +85,13 @@ const EMPTY_PRODUCT: ProductShowcase = {
 
 export function ProductsView() {
   const tr = useTranslations("web.panel.trade.productsView");
+  // Yeni ürün firmanın ülkesinin para birimiyle doğar (2026-09-27; eskiden
+  // her ürün TRY ile başlıyordu — Alman satıcı her seferinde elle EUR seçiyordu).
+  const { company } = useCompanyAuth();
+  const newProduct = useMemo(
+    () => ({ ...EMPTY_PRODUCT, priceCurrency: defaultCurrencyForCountry(company?.country) }),
+    [company?.country],
+  );
   const statusMeta = useProductStatusMeta();
   const [q, setQ] = useState("");
   // `?sekme=rejected` — "düzeltme istendi" e-postasındaki CTA doğrudan o sekmeye açar.
@@ -171,7 +183,7 @@ export function ProductsView() {
         <div className="mt-2">
           <ProductShowcaseForm
             mode="new"
-            product={EMPTY_PRODUCT}
+            product={newProduct}
             unit="adet"
             publishLimitReached={publishLimitReached}
             onClose={() => setCreating(false)}
@@ -443,6 +455,7 @@ function ProductRows({
   const t = useTranslations("web.panel.trade.productsView");
   const statusMeta = useProductStatusMeta();
   const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
   const locale = useLocale();
   const ids = useMemo(
     () => [...new Set(items.map((i) => i.categoryId).filter((c): c is string => !!c))],
@@ -458,8 +471,7 @@ function ProductRows({
     it.priceMode === "ON_REQUEST" || it.priceAmount == null
       ? priceModeLabel(it.priceMode)
       : t(it.priceMode === "TIERED" ? "fiyatBirimKademeli" : "fiyatBirim", {
-          amount: formatNumber(Number(it.priceAmount), locale),
-          currency: (CURRENCY_SYMBOL as Record<string, string>)[it.priceCurrency ?? "TRY"] ?? it.priceCurrency ?? "",
+          amount: affixCurrency(formatNumber(Number(it.priceAmount), locale), it.priceCurrency ?? "TRY", locale),
           unit: unitLabel(it.unit),
         });
   const th = "px-3 py-3 text-left text-xs font-semibold tracking-wide text-zinc-500";
@@ -521,7 +533,7 @@ function ProductRows({
                 <td className="hidden max-w-[10rem] truncate px-3 py-3 text-zinc-700 2xl:table-cell">{catName(item.categoryId) ?? "—"}</td>
                 <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 sm:table-cell">{price(item)}</td>
                 <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 xl:table-cell">
-                  {item.moq != null ? t("min", { amount: formatNumber(Number(item.moq), locale), unit: unitLabel(item.unit) }) : "—"}
+                  {item.moq != null ? t("min", { qty: quantity(item.moq, item.unit) }) : "—"}
                 </td>
                 <td className="hidden px-3 py-3 whitespace-nowrap tabular-nums text-zinc-700 xl:table-cell">
                   {item.viewCount != null ? (
@@ -529,7 +541,7 @@ function ProductRows({
                   ) : "—"}
                 </td>
                 <td className="hidden px-3 py-3 whitespace-nowrap text-zinc-700 2xl:table-cell">
-                  {formatDate(item.createdAt ?? item.updatedAt, "short")}
+                  {formatDate(item.createdAt ?? item.updatedAt, "short", locale)}
                 </td>
                 <td className="px-3 py-3 text-right">
                   <button

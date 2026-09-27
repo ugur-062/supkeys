@@ -22,6 +22,12 @@ export interface SellerTenderRow {
   owner: { id: string; name: string } | null;
   /** Şehir kimlik DEĞİL nitelik — maskeli kartta da kalır (lojistik kararı). */
   ownerCity?: string | null;
+  /** Dünya şehir dizini kaydı (eşlenmemiş şehirde null). */
+  ownerCityId?: number | null;
+  /** Şehir süzgeci anahtarı — kalıcı adres (`bursa`, `de-munich`); eşlenmemişte null. */
+  ownerCitySlug?: string | null;
+  /** Şehir adı okuyucunun dilinde (API `Accept-Language`); eşlenmemişte null. */
+  ownerCityLabel?: string | null;
   /** Kapak görseli: sahibin seçtiği, yoksa ilk kalemin ilk görseli. */
   coverImageUrl?: string | null;
   canBid: boolean;

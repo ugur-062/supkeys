@@ -22,6 +22,7 @@ function row(over: Partial<SellerTenderRow> = {}): SellerTenderRow {
     itemCount: 1,
     owner: { id: "c1", name: "Alıcı A" },
     ownerCity: "Bursa",
+    ownerCountry: "TR",
     canBid: true,
     invited: false,
     connected: false,
@@ -135,6 +136,62 @@ describe("requestFacets — bağlamsal sayaçlar", () => {
     expect(fx.period).toEqual({ 7: 1, 30: 1, 90: 2 });
     expect(fx.fit).toEqual({ davet: 0, baglanti: 0, urun: 0, kategori: 0, teklif: 0 });
     expect(fx.format).toEqual({ teklif: 2, pazarlik: 0 });
+  });
+});
+
+describe("şehir ve alıcı ülkesi (2026-09-27)", () => {
+  const COUNTRY: Record<string, string> = { TR: "Турция", DE: "Германия", GB: "Великобритания", CA: "Канада" };
+  const labels = { country: (c: string) => COUNTRY[c] ?? c, city: (raw: string) => (raw === "İzmir" ? "Измир" : raw) };
+
+  it("şehir anahtarı kalıcı adres (slug), etiket okuyucunun dilinde; eşlenmemişte ham metin (çevirmenden)", () => {
+    const rows = [
+      row({ ownerCity: "İstanbul", ownerCitySlug: "istanbul", ownerCityLabel: "Стамбул" }),
+      row({ ownerCity: "İzmir" }),
+    ];
+    const fx = requestFacets(rows, F(), NAMES, NOW, labels);
+    expect(fx.cities).toEqual([
+      { key: "İzmir", label: "Измир", count: 1 },
+      { key: "istanbul", label: "Стамбул", count: 1 },
+    ]);
+    expect(passes(rows[0]!, F({ cities: ["istanbul"] }), NOW)).toBe(true);
+    // Eski bağlantı: ham il adı yine eşleşir.
+    expect(passes(rows[0]!, F({ cities: ["İstanbul"] }), NOW)).toBe(true);
+    expect(passes(rows[1]!, F({ cities: ["istanbul"] }), NOW)).toBe(false);
+  });
+
+  it("farklı ülkelerdeki aynı adlı şehirler AYRI girdi; çakışan etikete ülke adı eklenir", () => {
+    const rows = [
+      row({ ownerCity: "London", ownerCitySlug: "gb-london", ownerCityLabel: "Лондон", ownerCountry: "GB" }),
+      row({ ownerCity: "London", ownerCitySlug: "ca-london", ownerCityLabel: "Лондон", ownerCountry: "CA" }),
+      row({ ownerCity: "Berlin", ownerCitySlug: "de-berlin", ownerCityLabel: "Берлин", ownerCountry: "DE" }),
+    ];
+    const fx = requestFacets(rows, F(), NAMES, NOW, labels);
+    expect(fx.cities.map((c) => `${c.key}=${c.label}`).sort()).toEqual([
+      "ca-london=Лондон (Канада)",
+      "de-berlin=Берлин",
+      "gb-london=Лондон (Великобритания)",
+    ]);
+    expect(rows.filter((r) => passes(r, F({ cities: ["gb-london"] }), NOW))).toHaveLength(1);
+  });
+
+  it("alıcı ülkesi süzgeci + bağlamsal sayaç (kendi boyutu hariç), etiket çevirmenden", () => {
+    const rows = [
+      row({ ownerCountry: "TR", currency: "TRY" }),
+      row({ ownerCountry: "TR", currency: "USD" }),
+      row({ ownerCountry: "DE", currency: "EUR" }),
+    ];
+    expect(passes(rows[2]!, F({ countries: ["DE"] }), NOW)).toBe(true);
+    expect(passes(rows[0]!, F({ countries: ["DE"] }), NOW)).toBe(false);
+    expect(passes(row({ ownerCountry: null }), F({ countries: ["TR"] }), NOW)).toBe(false);
+    const fx = requestFacets(rows, F({ countries: ["DE"], currencies: ["TRY", "EUR"] }), NAMES, NOW, labels);
+    // Ülke sayacı ülke süzgeci HARİÇ (para TRY/EUR uygulanır): TR 1, DE 1.
+    expect(fx.countries).toEqual([
+      { key: "DE", label: "Германия", count: 1 },
+      { key: "TR", label: "Турция", count: 1 },
+    ]);
+    // Seçili ama sonuçsuz ülke listede kalır.
+    const none = requestFacets(rows, F({ countries: ["GB"] }), NAMES, NOW, labels);
+    expect(none.countries.find((c) => c.key === "GB")).toEqual({ key: "GB", label: "Великобритания", count: 0 });
   });
 });
 

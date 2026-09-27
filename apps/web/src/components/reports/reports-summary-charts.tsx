@@ -3,7 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { formatNumber } from "@/i18n/format";
-import { formatMoney } from "@/components/ui/money";
+import { useFormatMoney } from "@/components/ui/money";
 import { companyApi } from "@/lib/company-auth/api";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -27,6 +27,8 @@ import {
  * Palet monokrom + tek semantik vurgu (emerald) — marka kararı §0.1.
  */
 interface ReportsSummary {
+  /** Tutarların birimi — firmanın rapor para birimi (eski yanıtta yok → TRY). */
+  currency?: string;
   months: {
     key: string;
     label: string;
@@ -103,6 +105,7 @@ function CategoryTick({
 export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
   const t = useTranslations("web.panel.reports.reportsSummaryCharts");
   const locale = useLocale() as Locale;
+  const { money: formatMoney } = useFormatMoney();
   const { data, isLoading, isError } = useReportsSummary(type);
   // Paket kapısı / hata: bölüm görünmez (hub kartları etkilenmez).
   if (isError) return null;
@@ -215,8 +218,8 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
             title={t("aylikAlisHacmi")}
             hint={
               data.orders.avgTry != null
-                ? t("yalnizTrySiparislerOrtalama", { avg: formatMoney(data.orders.avgTry, "TRY") })
-                : t("yalnizTrySiparisler")
+                ? t("siparislerOrtalamaCur", { avg: formatMoney(data.orders.avgTry, data.currency ?? "TRY"), currency: data.currency ?? "TRY" })
+                : t("siparislerCur", { currency: data.currency ?? "TRY" })
             }
           >
             <ResponsiveContainer width="100%" height="100%">
@@ -240,7 +243,7 @@ export function ReportsSummaryCharts({ type }: { type: "ALIM" }) {
                 />
                 <Tooltip
                   cursor={{ fill: "rgba(0,0,0,0.04)" }}
-                  formatter={(v) => [formatMoney(Number(v ?? 0), "TRY"), t("tutar")]}
+                  formatter={(v) => [formatMoney(Number(v ?? 0), data.currency ?? "TRY"), t("tutar")]}
                 />
                 <Bar dataKey="orderTotalTry" fill={ZINC_900} radius={[3, 3, 0, 0]} />
               </BarChart>

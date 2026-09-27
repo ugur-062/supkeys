@@ -168,6 +168,37 @@ export function readyLocales(rows: { locale: string; fields: unknown; sourceLoca
   return LOCALES.filter((l) => l === src || rows.some((r) => r.locale === l && r.fields != null));
 }
 
+/**
+ * Kaydın dil durumu — herkese açık detay yanıtı (i18n SEO, 2026-09-27): web
+ * hreflang'i yalnız HAZIR dillere yazar (`readyLocales`) ve kaynak metni
+ * gösterdiği dilde içerik bloğuna `lang={sourceLocale}` basar. Kaynak dil
+ * `readyLocales` ile aynı varsayımla: satır yoksa Türkçe; "und" (henüz
+ * bilinmiyor) olduğu gibi döner — web `lang` yazmaz.
+ */
+export function localeStateOf(rows: { locale: string; fields: unknown; sourceLocale: string | null }[]): {
+  readyLocales: Locale[];
+  sourceLocale: string;
+} {
+  return {
+    readyLocales: readyLocales(rows),
+    sourceLocale: rows.find((r) => r.sourceLocale)?.sourceLocale ?? DEFAULT_LOCALE,
+  };
+}
+
+/**
+ * Sitemap dil başına `lastmod` (2026-09-27): çevirisi OLAN (kaynak dil
+ * olmayan, `fields` dolu) her dilin satır zamanı. Kaynak dil burada yoktur —
+ * onun `lastmod`u varlığın kendi `updatedAt`idir.
+ */
+export function translatedAtOf(rows: { locale: string; fields: unknown; updatedAt: Date }[]): Partial<Record<Locale, Date>> {
+  const out: Partial<Record<Locale, Date>> = {};
+  for (const r of rows) {
+    if (r.fields == null || !(LOCALES as readonly string[]).includes(r.locale)) continue;
+    out[r.locale as Locale] = r.updatedAt;
+  }
+  return out;
+}
+
 /** Çevrilecek anlamlı metin var mı? (Boş ürün/profil için model çağrılmaz.) */
 export function hasTranslatableText(source: SourceFields): boolean {
   const texts: string[] = [];

@@ -6,11 +6,24 @@ import { BadRequestException, ServiceUnavailableException } from "@nestjs/common
 import { foldSearchText } from "@rothern/shared";
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import type { AiService } from "../../src/modules/ai/ai.service";
-import { SearchIntentService, parseModelNumber } from "../../src/modules/ai/search-intent/search-intent.service";
+import { SearchIntentService, parseModelNumber, sanitizeIntent } from "../../src/modules/ai/search-intent/search-intent.service";
+import { lowerCaseWords } from "../../src/modules/ai/ai-text";
+import { GeoIndex, geoIndex, setGeoIndex, type GeoCityRow } from "../../src/common/geo/geo-index";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 import type { CompanyListingsService } from "../../src/modules/company-listings/services/company-listings.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
 import { resolveCityId } from "../../src/common/geo/geo-index";
+
+/** Test dizini: Türkiye+KKTC yedeği + Münih (dünya listesi yüklenmiş gibi). */
+const MUNICH: GeoCityRow = {
+  id: 2867714, countryCode: "DE", name: "München", nameTr: "Münih", nameEn: "Munich", nameRu: "Мюнхен",
+  slug: "de-munich", lat: 48.137, lng: 11.575, population: 1260391, searchText: foldSearchText("München Munich Мюнхен Münih"),
+};
+function withWorldIndex() {
+  setGeoIndex(null);
+  setGeoIndex(new GeoIndex([...geoIndex().rows, MUNICH]));
+}
 
 function rig(modelJson: unknown | string, second?: unknown | string, listings?: Partial<CompanyListingsService>) {
   const reply = (v: unknown | string) => ({
@@ -59,7 +72,8 @@ async function makePublicProduct(over: {
       companyId: company.id, createdById: user.id, name: over.name ?? `Ürün ${pseq}`, unit: "adet",
       slug: `urun-si-${pseq}`, categoryId: over.categoryId, isPublic: true, publishedAt: new Date(),
       images: ["a.webp"], keywords: ["pano"], searchText: foldSearchText(`${over.name ?? "urun"} kompanzasyon panosu pano`),
-      ...(over.priceAmount != null ? { priceMode: "FIXED", priceAmount: over.priceAmount } : {}),
+      // Dizin fiyatı TRY karşılığıyla kıyaslar (`priceAmountBase`) — TRY üründe tutarın kendisi.
+      ...(over.priceAmount != null ? { priceMode: "FIXED", priceAmount: over.priceAmount, priceCurrency: "TRY", priceAmountBase: over.priceAmount } : {}),
     },
   });
 }
@@ -68,6 +82,7 @@ describe("AI arama — search-intent", () => {
   beforeEach(async () => {
     await truncateAll();
   });
+  afterEach(() => setGeoIndex(null));
 
   it("ALICI: süzgeç alanları temizlenir, kategori katalogdan çözülür, il kanonik yazıma döner, taslak kurulur", async () => {
     const { auth } = await makeCompanyWithUser(prisma);
@@ -106,8 +121,12 @@ describe("AI arama — search-intent", () => {
     expect(callAi.mock.calls[0][1]).toMatchObject({ feature: "search_intent", thinkingLevel: "low" });
     expect(r.portal).toBe("satinalma");
     expect(r.query).toBe("kompanzasyon panosu");
-    expect(r.category).toEqual({ id: "39121500", nameTr: "Kompanzasyon panoları" });
-    expect(r.city).toBe("İstanbul");
+    expect(r.category).toEqual({ id: "39121500", name: "Kompanzasyon panoları" });
+    // Şehir süzgeci değeri dünya şehir listesinin kalıcı adresi; ad ayrı.
+    expect(r.city).toBe("istanbul");
+    expect(r.cityName).toBe("İstanbul");
+    expect(r.country).toBeNull();
+    expect(r.summary).toBe("50 adet 400 kVAr kompanzasyon panosu, İstanbul, doğrulanmış üretici");
     expect(r.verifiedOnly).toBe(true);
     expect(r.activity).toBe("MANUFACTURER");
     expect(r.priceMax).toBe(1500.5);
@@ -226,6 +245,131 @@ describe("AI arama — search-intent", () => {
     await expect(s2.interpret(auth, { text: "çelik boru", portal: "satinalma" })).rejects.toBeInstanceOf(ServiceUnavailableException);
     expect(callAi).toHaveBeenCalledTimes(2);
     expect(callAi.mock.calls[1][1]).toMatchObject({ premiumRetry: true });
+  });
+
+  it("DİL: istem özet için arayüz dilini, içerik alanları için girdinin dilini söyler; yedek özet ve taslak başlığı arayüz dilinde; kategori adı okuyucunun dilinde", async () => {
+    const { auth } = await makeCompanyWithUser(prisma);
+    await makeCategory("39121500", "Kompanzasyon panoları", 3);
+    await prisma.category.update({ where: { id: "39121500" }, data: { nameEn: "Capacitor banks", nameRu: "Конденсаторные установки" } });
+    const { service, callAi } = rig({ summary: "", query: "capacitor bank", itemName: "Capacitor bank 400 kVAr", categoryHint: "kompanzasyon panoları" });
+    const r = await runWithLocale("en", () => service.interpret(auth, { text: "400 kVAr capacitor bank", portal: "satinalma" }));
+    const system = String(callAi.mock.calls[0][1].system);
+    expect(system).toContain("KULLANICI METNİ DİLİ (summary)");
+    expect(system).toContain("ÇIKTI DİLİ (title, itemName, keywords)");
+    expect(system).toContain("English (en)");
+    // Dil kuralı istemin SONUNDA (en yakın talimat).
+    expect(system.trimEnd().endsWith("korunur.")).toBe(true);
+    // Eski Türkçe sabit önek yok; yedek özet arayüz dilinde.
+    expect(system).not.toContain('"Anladığım: …" ile başlayan');
+    expect(r.summary).toBe("Search for “400 kVAr capacitor bank”");
+    expect(r.draft?.draft.title).toBe("Purchase of Capacitor bank 400 kVAr");
+    // Kategori adı İngilizce (gevşetme notu Türkçe ad basmaz): dizinde ürün
+    // yok → kategori gevşetildi, notta okuyucunun dilindeki ad.
+    expect(r.relaxed).toContain("category");
+    expect(r.relaxedCategoryName).toBe("Capacitor banks");
+    expect(r.draft?.draft.suggestedCategoryIds).toEqual(["39121500"]);
+  });
+
+  it("ŞEHİR dünya genelinde: model herhangi dilde yazar ('München'), ülke verildiyse o ülkede çözülür → kalıcı adres + okuyucunun dilinde ad + ülke süzgeci", async () => {
+    withWorldIndex();
+    const { auth } = await makeCompanyWithUser(prisma);
+    const seller = await makeCompanyWithUser(prisma);
+    await makeCategory("39121500", "Kompanzasyon panoları", 3);
+    await prisma.company.update({
+      where: { id: seller.company.id },
+      data: { name: "Münih GmbH", slug: "munih-gmbh", city: "Munich", country: "DE", cityId: MUNICH.id, publicEnabled: true },
+    });
+    await prisma.companyItem.create({
+      data: {
+        companyId: seller.company.id, createdById: seller.user.id, name: "Kondensator", unit: "adet", slug: "kondensator",
+        categoryId: "39121503", isPublic: true, publishedAt: new Date(), images: ["a.webp"], keywords: ["pano"],
+        searchText: foldSearchText("kondensator pano"),
+      },
+    });
+    const { service } = rig({ summary: "Pano in München", query: "pano", city: "München", country: "de" });
+    const r = await runWithLocale("ru", () => service.interpret(auth, { text: "Pano aus München", portal: "satinalma" }));
+    expect(r.city).toBe("de-munich");
+    expect(r.cityName).toBe("Мюнхен");
+    expect(r.country).toBe("DE");
+    expect(r.relaxed).toEqual([]);
+  });
+
+  it("FİYAT TAVANI modelin para biriminde kurla kıyaslanır; birim verilmezse firma ülkesinin birimi — sonuçtaki currency kıyaslanan birim", async () => {
+    const { auth } = await makeCompanyWithUser(prisma);
+    await makePublicProduct({ categoryId: "39121503", city: "İzmir", priceAmount: 1200 });
+    // 100 USD tavan: TRY karşılığı (yedek kur ≫ 12) 1.200 TRY'lik ürünü kapsar → gevşetme yok.
+    const { service } = rig({ summary: "pano", query: "pano", priceMax: "100", currency: "usd" });
+    const r = await service.interpret(auth, { text: "pano max 100 dollars", portal: "satinalma" });
+    expect(r.relaxed).toEqual([]);
+    expect(r.priceMax).toBe(100);
+    expect(r.currency).toBe("USD");
+    // Birimsiz tavan: Türk firmasında TRY → 100 TRY < 1.200 → tavan gevşetilir.
+    const { service: s2 } = rig({ summary: "pano", query: "pano", priceMax: "100" });
+    const r2 = await s2.interpret(auth, { text: "pano en fazla 100", portal: "satinalma" });
+    expect(r2.relaxed).toEqual(["priceMax"]);
+    expect(r2.priceMax).toBeNull();
+    // Yeni para birimleri de kabul (tek kaynak `CURRENCY_CODES`).
+    expect(sanitizeIntent({ summary: "x", currency: "azn" }, "x").currency).toBe("AZN");
+  });
+
+  it("ŞEHİR bulunamazsa süzgeç UYGULANMAZ ve 'şehir kaldırıldı' denir; ülke yedek süzgeç olarak kalır, o da boşsa gevşetilir", async () => {
+    const { auth } = await makeCompanyWithUser(prisma);
+    await makeCategory("39121500", "Kompanzasyon panoları", 3);
+    await makePublicProduct({ categoryId: "39121503", city: "İzmir" });
+    const { service } = rig({ summary: "pano", query: "pano", city: "Atlantis", country: "DE" });
+    const r = await service.interpret(auth, { text: "Atlantis'te pano", portal: "satinalma" });
+    expect(r.city).toBeNull();
+    expect(r.cityName).toBeNull();
+    // Ürün Türkiye'de → Almanya süzgeci de 0 → kaldırıldı.
+    expect(r.relaxed).toEqual(["city", "country"]);
+    expect(r.country).toBeNull();
+    // Geçersiz ülke kodu düşer.
+    const { service: s2 } = rig({ summary: "pano", query: "pano", country: "XX" });
+    expect((await s2.interpret(auth, { text: "pano", portal: "satinalma" })).country).toBeNull();
+  });
+
+  it("SATICI: şehir web süzgeciyle AYNI anahtar — alıcının kalıcı şehir adresi ('Мюнхен' → de-munich); ülke ALICI ülkesi süzgeci; eşlenmemiş alıcı şehrinde ham metin", async () => {
+    withWorldIndex();
+    const { auth } = await makeCompanyWithUser(prisma);
+    const rows = [
+      { title: "Pano alımı", number: "ROT-5", owner: { name: "Käufer" }, ownerCity: "Munich", ownerCitySlug: "de-munich", ownerCityId: MUNICH.id, ownerCountry: "DE", itemNames: [], categories: [{ code: "39121500", name: "Panolar" }] },
+      { title: "Pano alımı 2", number: "ROT-6", owner: { name: "Alıcı" }, ownerCity: "Bursa", ownerCitySlug: "bursa", ownerCountry: "TR", itemNames: [], categories: [{ code: "39121500", name: "Panolar" }] },
+      // Eşlenmemiş (serbest metin) alıcı şehri — web süzgeci ham metinle eşler.
+      { title: "Pano alımı 3", number: "ROT-7", owner: { name: "Kunde" }, ownerCity: "Kleinstadt", ownerCitySlug: null, ownerCountry: "DE", itemNames: [], categories: [{ code: "39121500", name: "Panolar" }] },
+    ];
+    const listings = { sellerTenders: jest.fn().mockResolvedValue(rows) };
+    const run = async (model: Record<string, unknown>) => {
+      const { service } = rig({ summary: "Pano", query: "pano", ...model }, undefined, listings as unknown as Partial<CompanyListingsService>);
+      return service.interpret(auth, { text: "pano", portal: "satis" });
+    };
+    const r = await run({ city: "Мюнхен", country: "DE" });
+    expect(r.relaxed).toEqual([]);
+    expect(r.city).toBe("de-munich");
+    expect(r.cityName).toBe("Münih");
+    expect(r.country).toBe("DE");
+    // Dünya listesinde olmayan şehir, eşlenmemiş alıcı şehrinde bulunursa ham metinle süzülür.
+    const raw = await run({ city: "kleinstadt" });
+    expect(raw.relaxed).toEqual([]);
+    expect(raw.city).toBe("Kleinstadt");
+    expect(raw.cityName).toBe("Kleinstadt");
+    // Ülke süzgeci satışta da sayıma girer: Fransız alıcı yok → ülke gevşetilir.
+    const fr = await run({ country: "FR" });
+    expect(fr.relaxed).toEqual(["country"]);
+    expect(fr.country).toBeNull();
+  });
+
+  it("sanitize: anahtar kelime küçük harfi DİLE DUYARLI ('IP65' → 'ip65', 'IŞIK' → 'ışık'); birim kanonik Türkçe ada iner; eski 'Anladığım:' öneki atılır", () => {
+    const s = sanitizeIntent(
+      { summary: "Anladığım: LED armatür", keywords: ["IP65", "IŞIK", "LED Panel"], unit: "PCS" },
+      "LED armatür IP65",
+    );
+    expect(s.keywords).toEqual(["ip65", "ışık", "led panel"]);
+    expect(s.summary).toBe("LED armatür");
+    expect(s.unit).toBe("adet");
+    expect(sanitizeIntent({ summary: "x", unit: "KG" }, "x").unit).toBe("kilogram");
+    // Tanınmayan birim serbest metin olarak kalır.
+    expect(sanitizeIntent({ summary: "x", unit: "Stück" }, "x").unit).toBe("Stück");
+    expect(lowerCaseWords("İSTANBUL IP65")).toBe("istanbul ip65");
   });
 
   it("sayı ayrıştırma: Türkçe/İngilizce biçimler", () => {

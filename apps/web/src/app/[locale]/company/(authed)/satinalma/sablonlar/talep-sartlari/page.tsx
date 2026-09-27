@@ -56,7 +56,7 @@ export default function TalepSartlariPage() {
               </p>
             ) : q.data?.source === "none" ? (
               <p className="mb-6 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-700">
-                {t("henuzTalepAcmamissinizPlatformVarsayilani")}
+                {t("henuzTalepAcmamissinizPlatformVarsayilaniCur", { currency: draft.primaryCurrency })}
               </p>
             ) : null}
             <RequestDefaultsForm value={draft} onChange={setDraft} />

@@ -24,25 +24,12 @@ import { usePasswordRules } from "@/lib/company-auth/password-rules";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { Link } from "@/i18n/navigation";
+import { isValidPhoneNumber } from "@rothern/shared";
 import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
-
-// TR: +90 5XX XXX XX XX otomatik maske. Uluslararası (+XX, +90 dışı): olduğu
-// gibi bırakılır (yabancı firma kullanıcıları).
-export function formatPhone(raw: string): string {
-  let s = raw.replace(/[^\d+\s()]/g, "");
-  // Uluslararası "00" öneki → "+" (ör. 0049… → +49…)
-  if (s.startsWith("00")) s = `+${s.slice(2)}`;
-  if (s.startsWith("+") && !s.startsWith("+90")) return s.slice(0, 20);
-  const d = s.replace(/\D/g, "").replace(/^90/, "").replace(/^0/, "").slice(0, 10);
-  const p = [d.slice(0, 3), d.slice(3, 6), d.slice(6, 8), d.slice(8, 10)].filter(
-    Boolean,
-  );
-  return d ? `+90 ${p.join(" ")}`.trim() : s;
-}
 
 export function CompanySignupClient() {
   const t = useTranslations("web.auth.signup");
@@ -92,6 +79,8 @@ export function CompanySignupClient() {
     profile: false,
   });
   const [error, setError] = useState<string | null>(null);
+  // Telefon hatası alandan ÇIKINCA gösterilir (yazarken her hanede uyarı çıkmasın).
+  const [phoneTouched, setPhoneTouched] = useState(false);
   const [step, setStep] = useState<"form" | "verify">("form");
   const [code, setCode] = useState("");
   const [cooldown, setCooldown] = useState(0);
@@ -117,11 +106,14 @@ export function CompanySignupClient() {
   const confirmOk =
     form.passwordConfirm.length > 0 && form.password === form.passwordConfirm;
   const allConsents = consents.terms && consents.mediation && consents.kvkk;
+  const phoneValid = isValidPhoneNumber(form.phone);
   const formValid =
     form.firstName.trim().length >= 1 &&
     form.lastName.trim().length >= 1 &&
     /\S+@\S+\.\S+/.test(form.email) &&
-    form.phone.replace(/\D/g, "").length >= 10 && // TR (90+10) veya uluslararası
+    // Ülke koduna göre ulusal uzunluk — API DTO ile TEK KAYNAK (2026-09-27;
+    // eskiden "en az 10 hane": Andorra/Lüksemburg reddediliyordu).
+    phoneValid &&
     pwOk &&
     confirmOk &&
     allConsents;
@@ -285,7 +277,19 @@ export function CompanySignupClient() {
 
         <Field>
           <Label>{tc("phone")}</Label>
-          <PhoneInput value={form.phone} onChange={set("phone")} />
+          <div
+            onBlur={(e) => {
+              // Ülke seçiciden numara kutusuna geçiş "alandan çıkış" sayılmaz.
+              if (!e.currentTarget.contains(e.relatedTarget as Node | null)) setPhoneTouched(true);
+            }}
+          >
+            <PhoneInput
+              value={form.phone}
+              onChange={set("phone")}
+              invalid={phoneTouched && !phoneValid}
+            />
+          </div>
+          {phoneTouched && !phoneValid ? <ErrorMessage>{t("phoneInvalid")}</ErrorMessage> : null}
         </Field>
 
         <Field>

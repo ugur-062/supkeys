@@ -130,6 +130,19 @@ describe("TeklifVerPage — kapılar", () => {
     }
   });
 
+  it("ülkesine açık olmayan talep 403 COUNTRY_NOT_ELIGIBLE → 'bulunamadı' DEĞİL ülke kartı (2026-09-27)", () => {
+    h.detail = undefined;
+    h.error = { response: { status: 403, data: { code: "COUNTRY_NOT_ELIGIBLE", targetCountries: ["TR"] } } };
+    try {
+      render(<TeklifVerPage />);
+      expect(screen.getByRole("heading", { name: "Bu talep firmanızın ülkesine açık değil" })).toBeInTheDocument();
+      expect(screen.getByText(/yalnız Türkiye merkezli tedarikçilere/)).toBeInTheDocument();
+      expect(screen.queryByText(/bulunamadı/)).toBeNull();
+    } finally {
+      h.error = null;
+    }
+  });
+
   it("teklif hakkı yok (ücretsiz, bağsız) → Silver kapısı", () => {
     h.detail = baseDetail({ canBid: false });
     render(<TeklifVerPage />);

@@ -192,38 +192,85 @@ describe("ülke-farkında belge seti", () => {
   });
 });
 
+/**
+ * VIES — gerçek REST biçimi (2026-09-27, canlı uçla doğrulandı):
+ * `{ isValid, userError, name, address, … }`. Eskiden testler `{ valid }`
+ * biçimini taklit ediyordu ve servis de onu okuyordu → canlıda HER AB firması
+ * "geçersiz" çıkıyordu; testler yeşildi çünkü yanlış biçimi sınıyordu.
+ */
 describe("VIES — AB VAT oto-doğrulama", () => {
   const realFetch = global.fetch;
   afterEach(() => {
     global.fetch = realFetch;
   });
+  const viesReply = (body: unknown) =>
+    jest.fn().mockResolvedValue({ ok: true, json: async () => body }) as never;
 
-  it("geçerli VAT → valid + firma adı", async () => {
+  it("geçerli VAT (isValid:true) → valid + firma adı", async () => {
     const { service } = makeAuthService();
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ valid: true, name: "ACME GmbH", address: "Berlin" }),
-    }) as never;
+    global.fetch = viesReply({
+      isValid: true,
+      userError: "VALID",
+      name: "ACME GmbH",
+      address: "Berlin",
+    });
     const r = await service.viesCheck("DE", "811234567");
     expect(r.valid).toBe(true);
     expect(r.name).toBe("ACME GmbH");
+    expect(r.unavailable).toBeUndefined();
   });
 
-  it("geçersiz VAT → valid:false", async () => {
+  it("Almanya adı paylaşmaz: name '---' → null (unvana kopyalanmaz)", async () => {
     const { service } = makeAuthService();
-    global.fetch = jest.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({ valid: false }),
-    }) as never;
-    const r = await service.viesCheck("DE", "000");
+    global.fetch = viesReply({
+      isValid: true,
+      userError: "VALID",
+      name: "---",
+      address: "---",
+    });
+    const r = await service.viesCheck("DE", "811569869");
+    expect(r).toMatchObject({ valid: true, name: null, address: null });
+  });
+
+  it("geçersiz VAT (isValid:false, INVALID) → valid:false, unavailable yok", async () => {
+    const { service } = makeAuthService();
+    global.fetch = viesReply({ isValid: false, userError: "INVALID" });
+    const r = await service.viesCheck("DE", "000000000");
     expect(r.valid).toBe(false);
+    expect(r.unavailable).toBeUndefined();
+  });
+
+  it.each(["MS_UNAVAILABLE", "TIMEOUT", "SERVICE_UNAVAILABLE", "MS_MAX_CONCURRENT_REQ"])(
+    "HTTP 200 + userError %s → unavailable (geçersiz DEĞİL)",
+    async (userError) => {
+      const { service } = makeAuthService();
+      global.fetch = viesReply({ isValid: false, userError });
+      const r = await service.viesCheck("DE", "811234567");
+      expect(r).toMatchObject({ valid: false, unavailable: true });
+    },
+  );
+
+  it("hata sarmalayıcısı (actionSucceed:false) → unavailable", async () => {
+    const { service } = makeAuthService();
+    global.fetch = viesReply({ actionSucceed: false, errorWrappers: [{ error: "MS_UNAVAILABLE" }] });
+    const r = await service.viesCheck("FR", "12345678901");
+    expect(r).toMatchObject({ valid: false, unavailable: true });
+  });
+
+  it("Yunanistan EL kodu, önek ve etiket atılır, Arap-Hint rakamlar çevrilir", async () => {
+    const { service } = makeAuthService();
+    const fetchMock = viesReply({ isValid: false, userError: "INVALID" });
+    global.fetch = fetchMock;
+    await service.viesCheck("GR", "EL ٠٩٤٠١٤٢٠١");
+    const calledUrl = String((fetchMock as unknown as jest.Mock).mock.calls[0][0]);
+    expect(calledUrl).toContain("/ms/EL/vat/094014201");
   });
 
   it("GÜVENLİK: countryCode/vatNumber URL'e enjekte edilemez (path sanitize)", async () => {
     const { service } = makeAuthService();
     const fetchMock = jest.fn().mockResolvedValue({
       ok: true,
-      json: async () => ({ valid: false }),
+      json: async () => ({ isValid: false, userError: "INVALID" }),
     });
     global.fetch = fetchMock as never;
     // Kötü niyetli girdi: path traversal + query enjeksiyonu denemesi.
@@ -240,11 +287,38 @@ describe("VIES — AB VAT oto-doğrulama", () => {
   it("servis hatası → unavailable (patlamaz)", async () => {
     const { service } = makeAuthService();
     global.fetch = jest.fn().mockRejectedValue(new Error("VIES down")) as never;
-    const r = (await service.viesCheck("DE", "811234567")) as {
-      valid: boolean;
-      unavailable?: boolean;
-    };
+    const r = await service.viesCheck("DE", "811234567");
     expect(r.valid).toBe(false);
     expect(r.unavailable).toBe(true);
+  });
+
+  it("firma bağlamıyla sorgu audit'e yazılır (admin görür; şema değişikliği yok)", async () => {
+    const { service, audit } = makeAuthService();
+    global.fetch = viesReply({ isValid: true, userError: "VALID", name: "ACME GmbH", address: "Berlin" });
+    await service.viesCheck("DE", "DE 811234567", { companyId: "c1", userId: "u1", source: "manual" });
+    expect(audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "company.vies_checked",
+        actorType: "company",
+        actorId: "u1",
+        entityType: "company",
+        entityId: "c1",
+        metadata: expect.objectContaining({
+          countryCode: "DE",
+          vatNumber: "811234567",
+          valid: true,
+          unavailable: false,
+          name: "ACME GmbH",
+          source: "manual",
+        }),
+      }),
+    );
+  });
+
+  it("firma bağlamı yoksa audit yazılmaz", async () => {
+    const { service, audit } = makeAuthService();
+    global.fetch = viesReply({ isValid: true, userError: "VALID" });
+    await service.viesCheck("DE", "811234567");
+    expect(audit.log).not.toHaveBeenCalled();
   });
 });

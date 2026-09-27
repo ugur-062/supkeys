@@ -72,9 +72,21 @@ export const appRoutes = {
   /** Ekip daveti kabul sayfası. */
   invite: (base: string, token: string, locale: Locale = DEFAULT_LOCALE) =>
     `${base}${localize(`/company/davet/${token}`, locale)}`,
-  /** Referans/dış davetten kayıt (token sorgu dizesinde). */
-  signupWithRef: (base: string, token: string, locale: Locale = DEFAULT_LOCALE) =>
-    `${base}${localize(`/company/kayit?ref=${token}`, locale)}`,
+  /**
+   * Referans/dış davetten kayıt (token sorgu dizesinde). `redirect` İÇ
+   * (Türkçe, ön eksiz) yoldur — kayıt + onboarding sonrası oraya dönülür
+   * (web `signup-intent`; dış talep daveti talebin kendisine götürür).
+   */
+  signupWithRef: (
+    base: string,
+    token: string,
+    locale: Locale = DEFAULT_LOCALE,
+    redirect?: string,
+  ) =>
+    `${base}${localize(
+      `/company/kayit?ref=${token}${redirect ? `&redirect=${encodeURIComponent(redirect)}` : ""}`,
+      locale,
+    )}`,
   /** Davet e-postalarından çıkış (opt-out). */
   optOut: (base: string, token: string, locale: Locale = DEFAULT_LOCALE) =>
     `${base}${localize(`/davet-kapat?token=${token}`, locale)}`,

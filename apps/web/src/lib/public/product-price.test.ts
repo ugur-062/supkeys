@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { messagesFor, WEB_NAMESPACES } from "@rothern/i18n/messages";
 import { createTranslator } from "use-intl/core";
 import { productPrice, type PriceLabels } from "./product-price";
+import { quantityWith, type SeoT } from "@/lib/seo/entities";
 
 const base = { priceCurrency: "TRY", unit: "adet" };
 
@@ -16,7 +17,19 @@ const t = createTranslator({
 const labels: PriceLabels = {
   locale: "tr-TR",
   onRequest: t("web.marketplace.price.onRequest"),
-  fromQty: (qty, unit) => t("web.marketplace.price.fromQty", { qty, unit }),
+  fromQty: (n, unit, code) => t("web.marketplace.price.fromQty", { qty: quantityWith(t as SeoT, n, unit, code) }),
+};
+
+// İngilizce: miktar ÇOĞUL kuralıyla ("500 pieces"), sembol önde.
+const tEn = createTranslator({
+  locale: "en",
+  messages: messagesFor("en", WEB_NAMESPACES),
+  timeZone: "Europe/Istanbul",
+}) as unknown as (key: string, values?: Record<string, string | number>) => string;
+const labelsEn: PriceLabels = {
+  locale: "en-US",
+  onRequest: tEn("web.marketplace.price.onRequest"),
+  fromQty: (n, unit, code) => tEn("web.marketplace.price.fromQty", { qty: quantityWith(tEn as SeoT, n, unit, code) }),
 };
 
 describe("ürün fiyat gösterimi", () => {
@@ -42,6 +55,19 @@ describe("ürün fiyat gösterimi", () => {
     expect(r.headline).toBe("420 ₺ / adet");
     expect(r.note).toBe("500 adet ve üzeri için");
     expect(r.tiers?.map((t) => t.minQty)).toEqual([1, 100, 500]); // sıralı
+  });
+
+  it("İngilizcede miktar çoğul, sembol önde", () => {
+    const tiers = [
+      { minQty: 1, unitPrice: 480 },
+      { minQty: 500, unitPrice: 420 },
+    ];
+    const r = productPrice(
+      { ...base, unit: "piece", unitCode: "PCE", priceMode: "TIERED", priceAmount: null, priceTiers: tiers },
+      labelsEn,
+    );
+    expect(r.headline).toBe("₺420 / piece");
+    expect(r.note).toBe("for 500 pieces and above");
   });
 
   it("teklif isteyin — boş değil, TAM CÜMLE", () => {

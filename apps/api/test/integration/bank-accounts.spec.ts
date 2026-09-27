@@ -108,6 +108,48 @@ describe("banka hesabı defteri — CRUD", () => {
     expect(acct).toMatchObject({ iban: "DE89370400440532013000", bankCountry: "DE" });
   });
 
+  it("kısmi IBAN ülkesi (BR): yerel hesap no + SWIFT + banka adı YA DA IBAN (2026-09-27)", async () => {
+    const svc = makeBankService();
+    const c = await makeCompanyWithUser(prisma, { country: "BR" });
+    // Eskiden BR IBAN'a zorlanıyordu → agência/conta ile kayıt imkânsızdı.
+    const local = await svc.create(c.auth, {
+      title: "BRL",
+      accountHolder: "Exemplo Ltda",
+      accountNumber: "0001 12345-6",
+      swiftBic: "BRASBRRJ",
+      bankName: "Banco do Brasil",
+    });
+    expect(local).toMatchObject({ iban: null, accountNumber: "0001 12345-6", bankCountry: "BR" });
+    // Hesap no alanına yazılan geçerli IBAN, IBAN olarak saklanır.
+    const viaIban = await svc.create(c.auth, {
+      title: "USD",
+      accountHolder: "Exemplo Ltda",
+      accountNumber: "BR18 0036 0305 0000 1000 9795 493C 1",
+    });
+    expect(viaIban).toMatchObject({ iban: "BR1800360305000010009795493C1", accountNumber: null, bankCountry: "BR" });
+  });
+
+  it("kayda kapalı ülkenin (US, IR…) bankası ya da geçersiz ülke kodu reddedilir", async () => {
+    const svc = makeBankService();
+    const c = await makeCompanyWithUser(prisma, { country: "TR" });
+    for (const bankCountry of ["US", "ir"]) {
+      await expect(
+        svc.create(c.auth, {
+          title: "USD",
+          accountHolder: "Firma A.Ş.",
+          bankCountry,
+          accountNumber: "123456789",
+          swiftBic: "CHASUS33",
+          bankName: "Chase",
+        }),
+      ).rejects.toMatchObject({ status: 400, response: expect.objectContaining({ code: "BANK_COUNTRY_BLOCKED" }) });
+    }
+    await expect(
+      svc.create(c.auth, { title: "X", accountHolder: "Firma A.Ş.", bankCountry: "ZZ", iban: VALID_TR_IBAN }),
+    ).rejects.toThrow(/ülke/i);
+    expect(await prisma.companyBankAccount.count({ where: { companyId: c.company.id } })).toBe(0);
+  });
+
   it("geçersiz TR IBAN reddedilir; başka firmanın hesabı 404 (IDOR)", async () => {
     const svc = makeBankService();
     const a = await makeCompanyWithUser(prisma, { country: "TR" });

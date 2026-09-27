@@ -17,6 +17,7 @@ import {
   useListingIntervention,
 } from "@/hooks/use-admin-inspection";
 import { safeFormat } from "@/lib/date";
+import { systemTextTr } from "@/lib/system-text";
 import {
   BID_STATUS,
   fmtMoney,
@@ -194,7 +195,7 @@ function ListingInspection({ id }: { id: string }) {
                         : "taslak"}
                     </TableCell>
                     <TableCell className="text-admin-text-muted max-w-[200px] truncate text-xs">
-                      {b.eliminationReason ?? "—"}
+                      {systemTextTr(b.eliminationReason) ?? "—"}
                     </TableCell>
                   </TableRow>
                 );

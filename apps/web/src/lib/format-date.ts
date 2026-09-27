@@ -28,9 +28,13 @@ const DATE_LOCALES = { tr, en: enUS, ru } as const;
 
 export function formatDate(
   value: string | Date | null | undefined,
-  variant: DateVariant = "short",
-  /** Görüntüleme dili (i18n Faz 1) — verilmezse Türkçe (panel bugün böyle). */
-  locale: Locale = DEFAULT_LOCALE,
+  variant: DateVariant,
+  /**
+   * Görüntüleme dili — ZORUNLU (2026-09-27): varsayılan Türkçe iken panelin
+   * ~40 çağrısı dil vermiyor, İngilizce arayüzde "12 Eki 2026 17:00" (dilim
+   * etiketsiz) basıyordu. Bileşende `useFormatDate()` (`@/i18n/domain`).
+   */
+  locale: Locale,
 ): string {
   const loc = DATE_LOCALES[locale] ?? tr;
   if (!value) return "—";

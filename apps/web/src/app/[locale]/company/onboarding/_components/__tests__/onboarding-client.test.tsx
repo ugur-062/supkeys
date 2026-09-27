@@ -47,7 +47,7 @@ vi.mock("@/hooks/use-company-auth", () => ({
 
 vi.mock("@/lib/public/geo-client", () => ({ searchGeoCities: vi.fn(async () => []) }));
 
-import { OnboardingClient } from "../onboarding-client";
+import { OnboardingClient, initialOnboardingCountry } from "../onboarding-client";
 
 // LIMITED (tüzel) → 10 haneli VKN; TR'de vergi dairesi zorunlu (backend mirror).
 async function fillStep1TR(user: ReturnType<typeof userEvent.setup>) {
@@ -61,6 +61,10 @@ async function fillStep1TR(user: ReturnType<typeof userEvent.setup>) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.meData = {
+    user: { firstName: "Ada", lastName: "Yılmaz" },
+    company: { onboardingCompletedAt: null },
+  };
   h.roots.isError = false;
   h.roots.data = [
     { id: "cat1", nameTr: "Yazılım & IT" },
@@ -232,7 +236,7 @@ describe("OnboardingClient — VIES (AB ülkeleri)", () => {
     h.viesAsync.mockResolvedValue({ valid: true, name: "ACME GmbH" });
     render(<OnboardingClient />);
     await pickCountry(user, "Alman", "Almanya");
-    await user.type(screen.getByLabelText("Vergi / Sicil No *"), "DE811234567");
+    await user.type(screen.getByLabelText("KDV no (VAT) ya da vergi no *"), "DE811234567");
 
     const viesBtn = screen.getByRole("button", { name: /VIES ile doğrula/i });
     await user.click(viesBtn);
@@ -248,7 +252,7 @@ describe("OnboardingClient — VIES (AB ülkeleri)", () => {
     h.viesAsync.mockRejectedValue(new Error("network"));
     render(<OnboardingClient />);
     await pickCountry(user, "Alman", "Almanya");
-    await user.type(screen.getByLabelText("Vergi / Sicil No *"), "DE811234567");
+    await user.type(screen.getByLabelText("KDV no (VAT) ya da vergi no *"), "DE811234567");
     await user.click(screen.getByRole("button", { name: /VIES ile doğrula/i }));
     expect(h.toast.error).toHaveBeenCalled();
   });
@@ -268,7 +272,7 @@ describe("OnboardingClient — yabancı firma", () => {
     await user.type(screen.getByLabelText("Firma Unvanı *"), "Müller Handel");
     await user.selectOptions(screen.getByLabelText("Firma Türü *"), "OTHER");
     await user.type(screen.getByLabelText(/Hukuki yapı \(yerel/i), "GmbH");
-    await user.type(screen.getByLabelText("Vergi / Sicil No *"), "DE811234567");
+    await user.type(screen.getByLabelText("KDV no (VAT) ya da vergi no *"), "DE811234567");
     await user.type(screen.getByLabelText("Şehir *"), "München");
     await user.type(screen.getAllByLabelText("Eyalet / Bölge")[0], "Bayern");
     await user.type(screen.getByLabelText("Açık Adres *"), "Leopoldstr. 1");
@@ -287,7 +291,9 @@ describe("OnboardingClient — yabancı firma", () => {
     await user.click(screen.getByRole("button", { name: /Onayla/ }));
     await user.click(screen.getByRole("button", { name: "Devam" }));
 
-    expect(screen.getByText("Vergi / Sicil No")).toBeInTheDocument();
+    // AB ülkesi: etiket katalogdan (web.domain.taxId.label.EU), değer normalize.
+    expect(screen.getByText("KDV no (VAT) ya da vergi no")).toBeInTheDocument();
+    expect(screen.getByText("811234567")).toBeInTheDocument();
     expect(screen.queryByText("Vergi No / TCKN")).not.toBeInTheDocument();
     expect(screen.queryByText("Vergi Dairesi")).not.toBeInTheDocument();
     expect(screen.getByText("GmbH")).toBeInTheDocument();
@@ -297,6 +303,8 @@ describe("OnboardingClient — yabancı firma", () => {
     expect(h.completeAsync).toHaveBeenCalledWith(
       expect.objectContaining({
         country: "DE",
+        // Ülke öneki atılır (tek kaynak shared normalizeTaxId; API aynı).
+        taxNumber: "811234567",
         legalFormLocal: "GmbH",
         stateRegion: "Bayern",
         deliverySameAsBilling: false,
@@ -306,4 +314,55 @@ describe("OnboardingClient — yabancı firma", () => {
       }),
     );
   }, 40_000); // Dört adımlı tam form + iki birleşik seçici: tam pakette yük altında 15 sn yetmiyor.
+});
+
+/**
+ * 2026-09-27 uluslararası denetim: ülke artık "TR" ön seçili DEĞİL — kayıt
+ * telefonunun ülkesi, yoksa arayüz dili, yoksa boş (bilinçli seçim).
+ */
+describe("OnboardingClient — başlangıç ülkesi ve ülkeye özgü alanlar", () => {
+  it("initialOnboardingCountry: telefon ülkesi → dil → boş", () => {
+    expect(initialOnboardingCountry("+7 9161234567", "en")).toBe("RU");
+    expect(initialOnboardingCountry("+7 7011234567", "tr")).toBe("KZ");
+    expect(initialOnboardingCountry("+49 301234567", "ru")).toBe("DE");
+    // Kayda kapalı ülkenin telefonu (ABD) ülkeyi belirlemez.
+    expect(initialOnboardingCountry("+1 2025550123", "en")).toBe("CA");
+    expect(initialOnboardingCountry(null, "ru")).toBe("RU");
+    expect(initialOnboardingCountry(null, "tr")).toBe("TR");
+    expect(initialOnboardingCountry("", "en")).toBe("");
+  });
+
+  it("+7 telefonlu kullanıcı: Rusya ile açılır, ИНН etiketi + ipucu, önekli numara kabul", async () => {
+    const user = userEvent.setup();
+    h.meData = {
+      user: { firstName: "Ivan", lastName: "Petrov", phone: "+7 9161234567" },
+      company: { onboardingCompletedAt: null },
+    };
+    render(<OnboardingClient />);
+    expect(screen.queryByLabelText("İl *")).not.toBeInTheDocument();
+    const tax = screen.getByLabelText("Vergi kimlik no (ИНН / ОГРН) *");
+    expect(screen.getByText(/ИНН: şirkette 10/)).toBeInTheDocument();
+    // 9 hane → geçersiz (INN 10/12 hane).
+    await user.type(tax, "770708389");
+    expect(screen.getByText(/Geçerli bir vergi\/sicil numarası/i)).toBeInTheDocument();
+    await user.clear(tax);
+    await user.type(tax, "ИНН 7707083893");
+    expect(screen.queryByText(/Geçerli bir vergi\/sicil numarası/i)).not.toBeInTheDocument();
+  });
+
+  it("Mahalle yalnız Türkiye'de sorulur", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    expect(screen.getByLabelText("Mahalle")).toBeInTheDocument();
+    await pickCountry(user, "Kazak", "Kazakistan");
+    expect(screen.queryByLabelText("Mahalle")).not.toBeInTheDocument();
+  });
+
+  it("faaliyet tipi açıklaması katalogdan (arayüz dili)", async () => {
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    await fillStep1TR(user);
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+    expect(screen.getByText("Ürünü kendi tesisinde imal ediyor")).toBeInTheDocument();
+  });
 });

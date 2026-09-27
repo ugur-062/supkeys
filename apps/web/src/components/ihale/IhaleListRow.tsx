@@ -1,9 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { formatDate } from "@/lib/format-date";
 import { MODULE_LABELS } from "@/lib/company/portals";
-import { useClosingUrgency, useScopeLabel } from "@/i18n/domain";
+import { useClosingUrgency, useFormatDate, useScopeLabel } from "@/i18n/domain";
 import { IhaleItemsPanel } from "./IhaleItemsPanel";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
 import { daysUntil } from "@/lib/tenders/seller-state";
@@ -68,11 +67,6 @@ export function statusStyle(status: TenderListItem["status"]): StatusStyle {
       };
   }
 }
-
-// B9: tek tarih dili — kanonik formatlayıcı (yıl her yerde görünür).
-const shortDate = (iso: string | null) => formatDate(iso, "short");
-const fullDate = (iso: string | null) => formatDate(iso, "datetime");
-
 
 /** Küçük bilgi çipi — kolonlardaki "hep aynı gri metin" yerine tonlu ayrım
  *  (her iki satır görünümü: kendi ihalelerim + başkalarının ihaleleri). */
@@ -157,6 +151,10 @@ export function IhaleListRow({
 }: IhaleListRowProps) {
   const tr = useTranslations("web.panel.requests.ihalelistrow");
   const te = useTranslations("web.domain.entity");
+  // Tarihler okuyucunun dilinde; saatli olan TR dışında "(GMT+3)" taşır.
+  const fmtDate = useFormatDate();
+  const shortDate = (iso: string | null) => fmtDate(iso, "short");
+  const fullDate = (iso: string | null) => fmtDate(iso, "datetime");
   const scopeLabel = useScopeLabel();
   const expiredNote = useExpiredNote();
   const st = statusStyle(t.status);

@@ -1,6 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
+import { useQuantityLabel } from "@/i18n/domain";
 import type { Locale } from "@rothern/i18n";
 import { formatNumber } from "@/i18n/format";
 import { Badge } from "@/components/catalyst/badge";
@@ -30,6 +31,7 @@ import {
 } from "@/hooks/use-company-reports";
 import { useTenders } from "@/hooks/use-company-tenders";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { currencySymbol } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -53,6 +55,7 @@ export function BidComparisonView({
   basePath: string;
 }) {
   const tr = useTranslations("web.panel.reports.bidComparisonView");
+  const quantity = useQuantityLabel();
   const locale = useLocale() as Locale;
   const isAlim = type === "ALIM";
   const [listingId, setListingId] = useState("");
@@ -93,11 +96,9 @@ export function BidComparisonView({
   };
 
   const data = report.data;
-  const sym = data
-    ? data.listing.currency === "TRY"
-      ? "₺"
-      : data.listing.currency
-    : "₺";
+  // Referans/önerilen birim fiyatlar firmanın RAPOR BİRİMİNDE (sunucu çevirir,
+  // `baseCurrency`); tur geçmişi satırı kendi birimini taşır.
+  const sym = currencySymbol(data?.baseCurrency ?? "TRY");
 
   return (
     <div className="space-y-5">
@@ -246,7 +247,7 @@ export function BidComparisonView({
                     <TableCell className="sticky left-0 z-10 bg-white text-zinc-900">
                       {it.name}{" "}
                       <span className="text-xs text-zinc-400">
-                        ({formatNumber(it.quantity, locale)} {it.unit})
+                        ({quantity(it.quantity, it.unit)})
                       </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-500">
@@ -405,7 +406,7 @@ export function BidComparisonView({
                         {h.bidderName}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {money(h.amount, sym, locale)}
+                        {money(h.amount, h.currency ? currencySymbol(h.currency) : sym, locale)}
                       </TableCell>
                     </TableRow>
                   ))}

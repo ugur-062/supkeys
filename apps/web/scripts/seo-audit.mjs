@@ -42,8 +42,11 @@ async function main() {
   log(robots.status === 200 && robots.text.includes(`${SITE}/sitemap.xml`), "robots.txt sitemap satırı");
   log(!/Disallow:\s*\/\s*$/m.test(robots.text), "robots.txt tümü kapalı DEĞİL");
 
-  const llms = await get(`${SITE}/llms.txt`, "text/plain");
-  log(llms.status === 200, "llms.txt 200");
+  // Kök kılavuz İngilizce + dil sürümleri (2026-09-27); `/en/llms.txt` eskiden 404'tü.
+  for (const path of ["/llms.txt", "/llms-full.txt", "/tr/llms.txt", "/en/llms.txt", "/ru/llms.txt", "/ru/llms-full.txt"]) {
+    const llms = await get(`${SITE}${path}`, "text/plain");
+    log(llms.status === 200, `${path} 200`);
+  }
 
   const idx = await get(`${SITE}/sitemap.xml`, "application/xml");
   log(idx.status === 200 && idx.text.includes("<sitemapindex"), "sitemap.xml indeks");

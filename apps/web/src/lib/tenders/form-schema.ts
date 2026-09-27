@@ -1,5 +1,6 @@
 import { z } from "zod";
 import {
+  CURRENCY_CODES,
   MAX_COMPANY_ACTIVITIES,
   MAX_MONEY,
   MAX_QUANTITY,
@@ -32,17 +33,9 @@ const money = (t: RequestsTranslate, schema: z.ZodNumber) =>
  *  sihirbaz form dizisi ve rapor/PDF üretimi makul bir tavan ister. */
 export const MAX_LISTING_ITEMS = 500;
 
-const CURRENCY_VALUES = [
-  "TRY",
-  "USD",
-  "EUR",
-  "GBP",
-  "CHF",
-  "JPY",
-  "AED",
-  "CNY",
-  "RUB",
-] as const;
+// Para birimi TEK KAYNAK `@rothern/shared` `CURRENCY_CODES` (elle liste
+// enum büyüdüğünde sessizce eskirdi — 2026-09-27'de 12 birim eklendi).
+const CURRENCY_VALUES = CURRENCY_CODES;
 const TYPE_VALUES = ["RFQ", "ENGLISH_AUCTION"] as const;
 const VISIBILITY_VALUES = ["PRIVATE", "CONNECTIONS", "PUBLIC"] as const;
 const DELIVERY_TERM_VALUES = [

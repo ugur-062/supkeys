@@ -101,3 +101,88 @@ describe("kontrollü input — ondalık hane fazlası ve virgül yolu", () => {
     expect(typeInto("1234567.89")).toBe("1234567.89");
   });
 });
+
+/**
+ * 2026-09-27 — ARAYÜZ DİLİNİN ayraçları. Kural Türkçe sözleşmeye sabitken
+ * İngilizce arayüzde "12,500" yapıştıran satıcının birim fiyatı 12,50
+ * oluyordu (gönderilen teklif düzenlenemez → PARA KAYBI).
+ */
+describe("parseMoneyDisplay — İngilizce arayüz (virgül binlik, nokta ondalık)", () => {
+  it("REGRESYON: tek virgül + 3 hane binliktir (12,500 → 12500)", () => {
+    expect(parseMoneyDisplay("12,500", "en")).toBe("12500");
+    expect(parseMoneyDisplay("1,500", "en")).toBe("1500");
+    expect(parseMoneyDisplay("1,234,567", "en")).toBe("1234567");
+    expect(parseMoneyDisplay("12,500.75", "en")).toBe("12500.75");
+    expect(parseMoneyDisplay("$ 12,500", "en")).toBe("12500");
+  });
+
+  it("nokta ondalıktır (dilin sözleşmesi); fazla hane kırpılır", () => {
+    expect(parseMoneyDisplay("12.5", "en")).toBe("12.5");
+    expect(parseMoneyDisplay("12.50", "en")).toBe("12.50");
+    expect(parseMoneyDisplay("0.125", "en")).toBe("0.12");
+    // Belirsiz: "12.500" İngilizcede on iki buçuktur (binlik okumak 1000× hata olurdu).
+    expect(parseMoneyDisplay("12.500", "en")).toBe("12.50");
+  });
+
+  it("virgül + ≤2 hane başka alışkanlıkla yazılmış ondalıktır (12,5 → 12.5)", () => {
+    expect(parseMoneyDisplay("12,5", "en")).toBe("12.5");
+    expect(parseMoneyDisplay("12,50", "en")).toBe("12.50");
+    expect(parseMoneyDisplay("12,", "en")).toBe("12.");
+  });
+
+  it("iki ayraç türü varsa sonuncusu ondalık (yapıştırılan TR/DE biçimi)", () => {
+    expect(parseMoneyDisplay("1.234,56", "en")).toBe("1234.56");
+    expect(parseMoneyDisplay("1,234.56", "en")).toBe("1234.56");
+  });
+
+  it("boşluk binliktir; tam genişlikli (IME) rakam/ayraç okunur", () => {
+    expect(parseMoneyDisplay("1 234 567.5", "en")).toBe("1234567.5");
+    expect(parseMoneyDisplay("１２，５００", "en")).toBe("12500");
+    expect(parseMoneyDisplay("１２．５", "en")).toBe("12.5");
+    expect(parseMoneyDisplay("1'234.50", "en")).toBe("1234.50");
+  });
+});
+
+describe("parseMoneyDisplay — Rusça arayüz (boşluk binlik, virgül ondalık)", () => {
+  it("bölünmez/dar boşluk ve düz boşluk binliktir", () => {
+    expect(parseMoneyDisplay("1 234,56", "ru")).toBe("1234.56");
+    expect(parseMoneyDisplay("1 234 567,5", "ru")).toBe("1234567.5");
+    expect(parseMoneyDisplay("1 234,56", "ru")).toBe("1234.56");
+  });
+
+  it("virgül ondalıktır; nokta TR'deki gibi ≤2 hane ondalık, 3 hane binlik", () => {
+    expect(parseMoneyDisplay("12,5", "ru")).toBe("12.5");
+    expect(parseMoneyDisplay("1500.50", "ru")).toBe("1500.50");
+    expect(parseMoneyDisplay("12.500", "ru")).toBe("12500");
+    // Belirsiz: "12,500" Rusçada on iki buçuktur.
+    expect(parseMoneyDisplay("12,500", "ru")).toBe("12.50");
+  });
+});
+
+describe("parseMoneyDisplay — Türkçe arayüzde yapıştırılan yabancı biçim", () => {
+  it("çoklu virgül düzgün binlik kalıbıysa binliktir (eskiden 1234.56 dönüyordu)", () => {
+    expect(parseMoneyDisplay("1,234,567", "tr")).toBe("1234567");
+    expect(parseMoneyDisplay("1,234,567.89", "tr")).toBe("1234567.89");
+  });
+
+  it("tek virgül dilin ondalığıdır (12,500 → 12,50 — Türkçe sözleşme)", () => {
+    expect(parseMoneyDisplay("12,500", "tr")).toBe("12.50");
+  });
+});
+
+describe("formatMoneyDisplay — dilin ayraçları", () => {
+  it("EN: 1,500.5 · RU: 1 500,5 (bölünmez boşluk) · TR: 1.500,5", () => {
+    expect(formatMoneyDisplay("1500.5", "en")).toBe("1,500.5");
+    expect(formatMoneyDisplay("1234567", "en")).toBe("1,234,567");
+    expect(formatMoneyDisplay("1500.5", "ru")).toBe("1 500,5");
+    expect(formatMoneyDisplay("1500.5", "tr")).toBe("1.500,5");
+  });
+
+  it("her dilde gidiş-dönüş kararlı", () => {
+    for (const locale of ["tr", "en", "ru"] as const) {
+      for (const raw of ["0.5", "12500", "1500.50", "1234567.89", "1500"]) {
+        expect(parseMoneyDisplay(formatMoneyDisplay(raw, locale), locale)).toBe(raw);
+      }
+    }
+  });
+});

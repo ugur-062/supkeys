@@ -2,13 +2,14 @@
 
 import { useTranslations } from "next-intl";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { foldSearchText } from "@rothern/shared";
 import { SilverLockCard } from "@/components/company/silver-lock-card";
-import { useActivityLabel, useCityLabel } from "@/i18n/domain";
+import { useActivityLabel, useCityLabel, useFormatDate } from "@/i18n/domain";
+import { upperForText } from "@/i18n/format";
 import { EmptyState } from "@/components/list";
 import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
 import { Badge } from "@/components/catalyst/badge";
-import { formatDate } from "@/lib/format-date";
 import { cn } from "@/lib/utils";
 import {
   useReceivedInquiries,
@@ -87,14 +88,15 @@ export function InquiriesView({
 
   const openCount = threads.filter((t) => t.replies.length === 0).length;
   const answeredCount = threads.length - openCount;
-  const term = q.trim().toLocaleLowerCase("tr");
+  // Katlanmış karşılaştırma — `tr` küçültme Latin "I"yı "ı" yapıyordu.
+  const term = foldSearchText(q);
   const visible = threads.filter((t) => {
     if (filter === "open" && t.replies.length > 0) return false;
     if (filter === "answered" && t.replies.length === 0) return false;
     if (!term) return true;
     return [t.title, t.subtitle, t.product.name, t.message]
       .filter(Boolean)
-      .some((s) => (s as string).toLocaleLowerCase("tr").includes(term));
+      .some((s) => foldSearchText(s as string).includes(term));
   });
 
   // Masaüstünde ilk konuşma seçili gelir; seçili olan süzgeçle kaybolursa ilkine düş.
@@ -260,7 +262,7 @@ interface Thread {
 function initials(s: string | null): string {
   if (!s) return "?";
   const parts = s.trim().split(/\s+/).slice(0, 2);
-  return parts.map((p) => p[0]?.toLocaleUpperCase("tr") ?? "").join("") || "?";
+  return parts.map((p) => (p[0] ? upperForText(p[0], s) : "")).join("") || "?";
 }
 
 function ThreadRow({
@@ -277,6 +279,7 @@ function ThreadRow({
   onSelect: () => void;
 }) {
   const tr = useTranslations("web.panel.trade.inquiriesView");
+  const formatDate = useFormatDate();
   const open = t.replies.length === 0;
   const last = t.replies.length ? t.replies[t.replies.length - 1] : null;
   // Son hareket: yanıt varsa yanıt, yoksa soru. Satırda "Kim: …" biçimi —
@@ -419,6 +422,7 @@ function Bubble({
   children: string;
 }) {
   const mine = side === "right";
+  const formatDate = useFormatDate();
   return (
     <div className={cn("flex flex-col", mine ? "items-end" : "items-start")}>
       <p className="mb-1 text-[11px] text-zinc-500">

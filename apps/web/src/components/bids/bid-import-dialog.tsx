@@ -15,10 +15,10 @@ import {
   useDownloadBidTemplate,
   useParseBidTemplate,
 } from "@/hooks/use-bid-import";
+import { useBidDeliveryTimeLabel, useFormatNumber } from "@/i18n/domain";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import {
-  bidDeliveryTimeLabel,
   type BidImportConfidence,
   type BidImportMatch,
   type BidImportResult,
@@ -254,6 +254,9 @@ function Preview({
   onReset: () => void;
 }) {
   const t = useTranslations("web.panel.trade.bidImportDialog");
+  const bidDeliveryTimeLabel = useBidDeliveryTimeLabel();
+  const fmtNum = useFormatNumber();
+  const fmt = (n: number) => fmtNum(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const priced = effective.filter((e) => e.unitPrice != null && e.m.errors.length === 0).length;
   const hasDocRows = result.unmatchedDocRows.length > 0;
   const toggleExclude = (id: string) => {
@@ -388,10 +391,6 @@ function Preview({
       </p>
     </>
   );
-}
-
-function fmt(n: number): string {
-  return n.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function ConfidenceBadge({ c, manual }: { c: BidImportConfidence; manual: boolean }) {

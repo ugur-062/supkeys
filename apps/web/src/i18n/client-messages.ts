@@ -17,6 +17,8 @@ export const SERVER_ONLY_NAMESPACES = [
   "web.marketing.faq",
   "web.marketing.legal",
   "web.marketing.inquiryVerify",
+  // llms.txt / llms-full.txt metinleri (2026-09-27) — yalnız rota işleyicisi okur.
+  "web.marketing.llms",
 ] as const;
 
 export function omitPaths(messages: AbstractIntlMessages, paths: readonly string[]): AbstractIntlMessages {

@@ -7,6 +7,7 @@ import { AdminInspectionService } from "../../src/modules/admin-companies/admin-
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing, makeUser } from "./factories";
+import { parseSystemText } from "@rothern/shared";
 
 const FUTURE = new Date(Date.now() + 7 * 86_400_000);
 const FURTHER = new Date(Date.now() + 14 * 86_400_000);
@@ -148,7 +149,8 @@ describe("sipariş iptali", () => {
       where: { id: order.id },
     });
     expect(after.status).toBe("CANCELLED");
-    expect(after.cancelReason).toContain("[Yönetici]");
+    // Kodlu saklanır (çok dillilik); firma ekranı okuyucunun dilinde çizer.
+    expect(parseSystemText(after.cancelReason)).toEqual({ code: "ADMIN", text: "taraflar anlaşamadı, destek #42" });
     expect(companies.notifyCompany).toHaveBeenCalledTimes(2);
   });
 

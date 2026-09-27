@@ -1,4 +1,3 @@
-import { tApi } from "../../common/i18n/i18n.service";
 import {
   Body,
   Controller,
@@ -22,6 +21,10 @@ import {
   MaxLength,
   Min,
 } from "class-validator";
+import {
+  VERIFICATION_REASON_CODES,
+  type VerificationReasonCode,
+} from "@rothern/shared";
 import type { DocKind } from "../company-docs/company-docs.service";
 import {
   CurrentAdmin,
@@ -90,27 +93,42 @@ class SuspendDto {
 }
 
 /**
- * Firma doğrulama reddi — gerekçe ZORUNLU (firmaya e-posta/bildirimle gider;
- * admin arayüzü de ≥3 karakter ister). UI kilidi ≠ API kilidi: 2026-09-11
- * staging QA'da gövdesiz istek 201 dönüyordu.
+ * Firma doğrulama reddi — gerekçe ZORUNLU (firmaya Doğrulama sayfasında
+ * gösterilir). UI kilidi ≠ API kilidi: 2026-09-11 staging QA'da gövdesiz istek
+ * 201 dönüyordu.
+ *
+ * KODLU GEREKÇE (2026-09-27): `reasonCode` (firmanın dilinde katalogdan
+ * çevrilir) VEYA ≥3 karakterlik serbest not zorunlu — kural serviste
+ * (`requireRejectReason`), çünkü iki alandan biri yeter.
  */
 class RejectDto {
+  @IsOptional()
   @IsString()
-  @Length(3, 500, { message: () => tApi("api.dto.adminCompanies.redGerekcesiEnAz3KarakterOlmali") })
-  reason!: string;
+  @MaxLength(500)
+  reason?: string;
+
+  @IsOptional()
+  @IsIn(VERIFICATION_REASON_CODES as unknown as string[])
+  reasonCode?: VerificationReasonCode;
 }
 
 /**
- * Belge bazlı inceleme kararları — { [docKind]: { status, reason?, key? } }.
+ * Belge bazlı inceleme kararları — { [docKind]: { status, reason?, reasonCode?, key? } }.
  * `key` = incelenen nesnenin R2 anahtarı (denetim 2026-08-26 Parça 9 #3):
  * gönderilirse karar O nesneye sabitlenir; arada belge değişmişse 409 döner.
+ * İç nesne serbest biçimli (`IsObject`) → `reasonCode` serviste doğrulanır.
  */
 class ReviewDocsDto {
   @IsObject()
   decisions!: Partial<
     Record<
       DocKind,
-      { status: "APPROVED" | "REJECTED"; reason?: string; key?: string }
+      {
+        status: "APPROVED" | "REJECTED";
+        reason?: string;
+        reasonCode?: VerificationReasonCode;
+        key?: string;
+      }
     >
   >;
 }
@@ -124,6 +142,10 @@ class ReviewDocRevisionDto {
   @IsString()
   @MaxLength(500)
   reason?: string;
+
+  @IsOptional()
+  @IsIn(VERIFICATION_REASON_CODES as unknown as string[])
+  reasonCode?: VerificationReasonCode;
 }
 
 /** Firma kimlik düzeltme — yalnız gönderilen alanlar değişir. */
@@ -162,6 +184,17 @@ class UpdateCompanyProfileDto {
   @IsString()
   @Length(2, 2)
   country?: string;
+
+  /** Hukuki yapı (2026-09-27): OTHER seçilince `legalFormLocal` zorunlu (serviste). */
+  @IsOptional()
+  @IsIn(["JOINT_STOCK", "LIMITED", "SOLE_PROPRIETOR", "OTHER"])
+  companyType?: "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR" | "OTHER";
+
+  /** Yerel hukuki yapı adı (GmbH, LLC, ООО…) — onboarding DTO'suyla aynı tavan. */
+  @IsOptional()
+  @IsString()
+  @MaxLength(80)
+  legalFormLocal?: string | null;
 
   @IsOptional()
   @IsString()
@@ -374,7 +407,13 @@ export class AdminCompaniesController {
     @CurrentAdmin() admin: AuthenticatedAdmin,
     @Body() dto: RejectDto,
   ) {
-    return this.service.setVerification(id, "REJECTED", admin.id, dto.reason);
+    return this.service.setVerification(
+      id,
+      "REJECTED",
+      admin.id,
+      dto.reason,
+      dto.reasonCode,
+    );
   }
 
   @Post("companies/:id/review")

@@ -21,8 +21,10 @@ import {
 import { MAX_MONEY } from "../../../common/constants/money";
 import {
   COMPANY_ACTIVITY_CODES,
+  CURRENCY_ENUM,
   MAX_COMPANY_ACTIVITIES,
   UNITS,
+  type CurrencyCode,
 } from "@rothern/shared";
 import { Trim } from "../../../common/decorators/trim.decorator";
 import { tApi } from "../../../common/i18n/i18n.service";
@@ -46,17 +48,13 @@ export enum ListingFormatDto {
   ENGLISH_AUCTION = "ENGLISH_AUCTION",
 }
 
-export enum CurrencyDto {
-  TRY = "TRY",
-  USD = "USD",
-  EUR = "EUR",
-  GBP = "GBP",
-  CHF = "CHF",
-  JPY = "JPY",
-  AED = "AED",
-  CNY = "CNY",
-  RUB = "RUB",
-}
+/**
+ * Para birimi — TEK KAYNAK `@rothern/shared` `CURRENCY_CODES` (Prisma enum'ıyla
+ * birebir). Elle yazılmış 9'luk liste 2026-09-27'de eskidi: web formu 21 birim
+ * sunarken AZN/SEK… seçilen talep yayında 400 alıyordu.
+ */
+export const CurrencyDto = CURRENCY_ENUM;
+export type CurrencyDto = CurrencyCode;
 
 export enum DeliveryTermDto {
   DOMESTIC_DELIVERED = "DOMESTIC_DELIVERED",

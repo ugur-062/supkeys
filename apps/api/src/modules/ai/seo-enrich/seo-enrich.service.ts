@@ -1,14 +1,19 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { currentLocale } from "../../../common/i18n/locale-context";
 import { BadRequestException, Injectable, ServiceUnavailableException } from "@nestjs/common";
 import type { AiSeoEnrichInput, AiSeoEnrichResult } from "@rothern/shared";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { AiService, type AiCallResult } from "../ai.service";
-import { SEO_ENRICH_RESPONSE_SCHEMA, SEO_ENRICH_SYSTEM_PROMPT, buildSeoEnrichPrompt } from "./seo-enrich.prompts";
+import { clampSentences, isMostlyCjk, lowerCaseWords } from "../ai-text";
+import { SEO_ENRICH_RESPONSE_SCHEMA, buildSeoEnrichPrompt, seoEnrichSystemPrompt } from "./seo-enrich.prompts";
 
 export const SEO_ENRICH_MAX_DESCRIPTION = 5000;
 export const SEO_ENRICH_MAX_FACTS = 40;
 const DESC_MIN = 120;
 const DESC_MAX = 900;
+/** CJK yazıda karakter başına bilgi ~3 kat — sınırlar ÷3 (içerik çevirisindeki kural). */
+const descMin = (s: string) => (isMostlyCjk(s) ? Math.round(DESC_MIN / 3) : DESC_MIN);
+const descMax = (s: string) => (isMostlyCjk(s) ? Math.round(DESC_MAX / 3) : DESC_MAX);
 const KEYWORD_MAX = 10;
 
 /**
@@ -39,26 +44,30 @@ export class SeoEnrichService {
     const callOptions = {
       feature: "seo_enrich",
       prompt: buildSeoEnrichPrompt(clean),
-      system: SEO_ENRICH_SYSTEM_PROMPT,
+      system: seoEnrichSystemPrompt(currentLocale()),
       responseSchema: SEO_ENRICH_RESPONSE_SCHEMA as unknown as object,
       thinkingLevel: "low" as const,
       metadata: { kind: clean.kind, chars: (clean.description ?? "").length, facts: clean.facts?.length ?? 0 },
     };
     let result: AiCallResult = await this.ai.callAi(user, callOptions);
     let parsed = tryParse(result.text);
-    if (parsed == null || !parsed.description || parsed.description.trim().length < DESC_MIN) {
+    const tooShort = (d: string | undefined) => !d || d.trim().length < descMin(d);
+    if (parsed == null || tooShort(parsed.description)) {
       result = await this.ai.callAi(user, { ...callOptions, premiumRetry: true, metadata: { ...callOptions.metadata, retry: true } });
       parsed = tryParse(result.text);
     }
-    if (parsed == null || !parsed.description || parsed.description.trim().length < DESC_MIN) {
+    if (parsed == null || !parsed.description || tooShort(parsed.description)) {
       throw new ServiceUnavailableException(i18nMessage("api.ai.aciklamaUretilemediBirkacOlguDahaEkleyip"));
     }
 
     // SANİTİZER: uzunluk tavanı, madde/emoji temizliği, anahtar kelime birleşimi.
-    const description = clampSentences(stripBullets(parsed.description), DESC_MAX);
+    const cleanDesc = stripBullets(parsed.description);
+    const description = clampSentences(cleanDesc, descMax(cleanDesc));
     const keywords = normalizeKeywords([...(clean.keywords ?? []), ...(parsed.keywords ?? [])]).slice(0, KEYWORD_MAX);
     const title = typeof parsed.titleSuggestion === "string" ? parsed.titleSuggestion.replace(/\s+/g, " ").trim() : "";
-    const titleSuggestion = title.length >= 10 && title.length <= 80 && title.toLowerCase() !== name.toLowerCase() ? title : null;
+    const titleMin = isMostlyCjk(title) ? 4 : 10;
+    const titleSuggestion =
+      title.length >= titleMin && title.length <= 80 && lowerCaseWords(title) !== lowerCaseWords(name) ? title : null;
     const missingFacts = (parsed.missingFacts ?? [])
       .filter((f): f is string => typeof f === "string")
       .map((f) => f.replace(/\s+/g, " ").trim().slice(0, 60))
@@ -93,7 +102,7 @@ function tryParse(text: string): (Raw & { description?: string; keywords?: strin
 function normalizeKeywords(list: string[]): string[] {
   const out: string[] = [];
   for (const k of list) {
-    const v = (k ?? "").toLowerCase().replace(/\s+/g, " ").trim().slice(0, 40);
+    const v = lowerCaseWords((k ?? "").replace(/\s+/g, " ").trim()).slice(0, 40);
     if (v.length >= 2 && !out.includes(v)) out.push(v);
   }
   return out;
@@ -105,12 +114,4 @@ function stripBullets(s: string): string {
     .replace(/[\u{1F300}-\u{1FAFF}\u{2600}-\u{27BF}]/gu, "")
     .replace(/\s+/g, " ")
     .trim();
-}
-
-/** Tavanı aşarsa CÜMLE sınırında keser — yarım cümle alıntılanmaz. */
-function clampSentences(s: string, max: number): string {
-  if (s.length <= max) return s;
-  const cut = s.slice(0, max);
-  const end = Math.max(cut.lastIndexOf(". "), cut.lastIndexOf("! "), cut.lastIndexOf("? "));
-  return end > max * 0.5 ? cut.slice(0, end + 1) : cut.trimEnd();
 }

@@ -1,3 +1,4 @@
+import { CURRENCY_CODES, CURRENCY_SYMBOLS, affixCurrency, currencySymbol } from "@rothern/shared";
 import type { Currency, DeliveryTerm } from "./types";
 
 /**
@@ -24,41 +25,22 @@ export const DELIVERY_TERMS: readonly DeliveryTerm[] = [
 ];
 
 /**
- * Para birimi sembolleri — TEK KAYNAK (denetim Dalga B-2, P10).
+ * Para birimi sembolleri — TEK KAYNAK `@rothern/shared` `CURRENCY_SYMBOLS`
+ * (2026-09-27: API bildirimleri ve e-postalar da aynı tabloyu okusun diye
+ * paylaşılan pakete taşındı). Geçmiş: repoda üç ayrı tablo vardı ve CHF/AED'de
+ * çelişiyordu; belirsiz semboller (JPY/CNY "¥", "kr", sağdan-sola "د.إ")
+ * yerine "JP¥"/"CN¥"/ISO kodu. Para biriminin ADI sembol değildir ve dil
+ * bilir → `@/i18n/domain` `useCurrencyName`.
  *
- * Repoda ÜÇ ayrı tablo vardı ve ikisi CHF/AED'de çelişiyordu:
- * `components/ui/money.tsx` "CHF"/"AED" (ISO kodu) derken burası ve
- * `lib/format-currency.ts` "₣"/"د.إ" diyordu — aynı tutar iki ekranda iki
- * farklı sembolle çıkıyordu. ISO kodu tercih edildi: "₣" genel frank işareti
- * (İsviçre konvansiyonu CHF) ve "د.إ" sağdan-sola yazılıp LTR tabloda hizayı
- * bozuyor. `money.tsx` ve `format-currency.ts` artık BURAYA bağlı;
- * `format-currency.ts` tümüyle kaldırıldı (ölü kod).
- *
- * Para biriminin ADI sembol değildir ve dil bilir → `@/i18n/domain`
- * `useCurrencyName` (Intl.DisplayNames).
+ * Sembolün sayıya göre YERİ dilden gelir (`affixCurrency`: İngilizcede önde,
+ * Türkçe/Rusçada sonda) — elle `${sayı} ${sembol}` birleştirme.
  */
-export const CURRENCY_SYMBOL: Record<Currency, string> = {
-  TRY: "₺",
-  USD: "$",
-  EUR: "€",
-  GBP: "£",
-  CHF: "CHF",
-  JPY: "¥",
-  AED: "AED",
-  CNY: "¥",
-  RUB: "₽",
-};
+export const CURRENCY_SYMBOL: Record<Currency, string> = CURRENCY_SYMBOLS;
 
 /**
- * Desteklenen para birimleri — tablodan TÜRETİLİR (dört ayrı elle yazılmış
- * liste vardı; biri güncellenip diğerleri unutulabiliyordu).
+ * Desteklenen para birimleri — SIRA `@rothern/shared` `CURRENCY_CODES`'tan
+ * (seçicilerde TRY/USD/EUR başta).
  */
-export const CURRENCIES = Object.keys(CURRENCY_SYMBOL) as Currency[];
+export const CURRENCIES: Currency[] = [...CURRENCY_CODES];
 
-/**
- * Serbest string kod → sembol (bilinmeyen kodda kodun kendisi döner).
- * `Money`/`formatMoney` gevşek `currency: string` aldığı için gerekli.
- */
-export function currencySymbol(code: string): string {
-  return (CURRENCY_SYMBOL as Record<string, string>)[code] ?? code;
-}
+export { affixCurrency, currencySymbol };

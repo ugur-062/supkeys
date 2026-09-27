@@ -21,7 +21,7 @@ import {
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { canActOnOrder } from "@/lib/orders/can-act-on-order";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
+import { affixCurrency } from "@/lib/tenders/labels";
 import { AlertTriangle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -61,9 +61,6 @@ export function OrderCancelRequestPanel({
 
   if (!pending && !disputed) return null;
 
-  const curSym =
-    (CURRENCY_SYMBOL as Record<string, string>)[order.currency] ??
-    order.currency;
   const confirmedPaid = Number(order.paymentTotals?.confirmed ?? 0);
   const reason = order.cancelRequestReason;
   const strong = (chunks: React.ReactNode) => <strong>{chunks}</strong>;
@@ -170,8 +167,7 @@ export function OrderCancelRequestPanel({
             <div className="rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
               {t.rich("onayliOdemenizVarIadeTaraflarArasinda", {
                 strong,
-                amount: formatNumber(confirmedPaid, locale),
-                currency: curSym,
+                amount: affixCurrency(formatNumber(confirmedPaid, locale), order.currency, locale),
               })}
             </div>
           ) : null}

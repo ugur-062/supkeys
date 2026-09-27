@@ -15,11 +15,14 @@ import {
   type DocKind,
 } from "@/hooks/use-company-docs";
 import { isKycLocked, useVerificationMeta } from "@/lib/company/verification-status";
+import { useVerificationReasonText } from "@/lib/company/verification-reason";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { MissingFields } from "@/components/ui/missing-fields";
 import {
   bankDetailsErrors,
+  countryIbanMode,
   countryUsesIban,
+  ibanPlaceholder,
   normalizeIban,
   normalizeSwift,
 } from "@rothern/shared";
@@ -34,6 +37,8 @@ export default function DogrulamaPage() {
   const t = useTranslations("web.panel.settings.ayarlarDogrulamaPage");
   const docLabels = useDocLabels();
   const verificationMeta = useVerificationMeta();
+  // Red gerekçeleri kodlu ("[UNREADABLE] not") → firmanın dilinde metin.
+  const reasonText = useVerificationReasonText();
   // Backend upload/submit uçları company:manage ister — diğer roller
   // yalnızca durumu görür (efektif izin: rol + sahip + override).
   const canManage = useHasCompanyPermission("company:manage");
@@ -186,7 +191,7 @@ export default function DogrulamaPage() {
             >
               <p className="font-semibold">{t("baziBelgelerReddedildi")}</p>
               <p className="mt-0.5">
-                {data.rejectionReason ||
+                {reasonText(data.rejectionReason) ||
                   t("asagidaReddedildiIsaretliBelgeleriDuzeltip")}
               </p>
             </div>
@@ -263,9 +268,13 @@ export default function DogrulamaPage() {
                   invalid={Boolean(ibanError)}
                   onChange={(e) => setIban(e.target.value)}
                   placeholder={
-                    isTR
-                      ? "TR00 0000 0000 0000 0000 0000 00"
-                      : t("ibanVeyaBankaHesapNo")
+                    // IBAN ülkesinde ülke önekli örnek; kısmi IBAN ülkesinde
+                    // (BR, EG…) "IBAN ya da hesap no"; IBAN'sız ülkede boş.
+                    usesIban
+                      ? (ibanPlaceholder(data.country) ?? "IBAN")
+                      : countryIbanMode(data.country) === "optional"
+                        ? t("ibanVeyaBankaHesapNo")
+                        : undefined
                   }
                   disabled={!canManage || locked}
                   maxLength={40}
@@ -418,14 +427,21 @@ export default function DogrulamaPage() {
                     {/* Belge bazlı red gerekçesi — kullanıcı ne düzelteceğini bilir. */}
                     {st === "REJECTED" && data.docReason[d.key] ? (
                       <p className="pl-6 text-xs text-red-600">
-                        {data.docReason[d.key]}
+                        {reasonText(data.docReason[d.key])}
                       </p>
+                    ) : null}
+                    {/* Yabancı firmada kimlik TEK yükleme alanı: kart ise iki
+                        yüzü birlikte istenir (TR'de ön/arka ayrı alan). */}
+                    {!isTR && d.key === "idFront" && editable ? (
+                      <p className="pl-6 text-xs text-zinc-500">{t("idBothSidesHint")}</p>
                     ) : null}
                     {/* Faz Y: reddedilen güncelleme — mevcut belge geçerli kalır. */}
                     {rev?.status === "REJECTED" ? (
                       <p className="pl-6 text-xs text-red-600">
                         {rev.reason
-                          ? t("belgeGuncellemenizReddedildiGerekce", { reason: rev.reason })
+                          ? t("belgeGuncellemenizReddedildiGerekce", {
+                              reason: reasonText(rev.reason) ?? rev.reason,
+                            })
                           : t("belgeGuncellemenizReddedildi")}
                       </p>
                     ) : null}

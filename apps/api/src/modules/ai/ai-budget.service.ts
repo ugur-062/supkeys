@@ -53,14 +53,17 @@ export interface ReserveResult {
 
 type BudgetDenial = "request_cap" | "pool" | "user_cap" | "daily_cap" | "premium_cap";
 
-const DENIAL_MESSAGES: Record<Exclude<BudgetDenial, "premium_cap">, string> = {
-  request_cap:
-    "Bu istek tek başına izin verilen AI kullanım sınırını aşıyor — belgeyi bölerek deneyin.",
-  pool: "Firmanızın aylık AI bütçesi doldu — AI özellikleri gelecek ay yeniden açılır.",
-  user_cap:
-    "Kişisel AI kullanım tavanınıza ulaştınız (firma havuzunun %50'si) — firma yöneticinize başvurun.",
-  daily_cap: "Günlük AI kullanım tavanına ulaşıldı — yarın tekrar deneyin.",
-};
+/**
+ * Ret mesajı KATALOG ANAHTARI — her bütçe reddinde toast olarak görünür;
+ * istek dilinde çevrilir (2026-09-27: eskiden sabit Türkçeydi). Gövde
+ * `i18nMessage` biçiminde (`code` web'in ayırt etmesi için).
+ */
+const DENIAL_KEYS = {
+  request_cap: "api.ai.budget.requestCap",
+  pool: "api.ai.budget.pool",
+  user_cap: "api.ai.budget.userCap",
+  daily_cap: "api.ai.budget.dailyCap",
+} as const satisfies Record<Exclude<BudgetDenial, "premium_cap">, string>;
 
 export function monthStartUtc(now: Date = new Date()): Date {
   return new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
@@ -218,7 +221,7 @@ export class AiBudgetService {
       // denendi) — mesaj son/genel sebepten üretilir.
       const reason = firstDenial === "premium_cap" ? "pool" : (firstDenial ?? "pool");
       throw new AiBudgetExceededException(
-        DENIAL_MESSAGES[reason as Exclude<BudgetDenial, "premium_cap">],
+        i18nMessage(DENIAL_KEYS[reason as Exclude<BudgetDenial, "premium_cap">], undefined, "AI_BUDGET_EXCEEDED"),
       );
     });
   }

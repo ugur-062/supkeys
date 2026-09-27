@@ -67,6 +67,12 @@ export class UpdateCompanyProfileDto {
   @MaxLength(80)
   district?: string;
 
+  /** Eyalet/bölge (TR dışı; onboarding DTO'suyla aynı tavan). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  stateRegion?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(500)

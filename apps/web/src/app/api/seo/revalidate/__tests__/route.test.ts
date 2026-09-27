@@ -56,6 +56,13 @@ describe("POST /api/seo/revalidate", () => {
     expect(revalidateTag).toHaveBeenCalledTimes(2);
   });
 
+  it("ülke sayfası: EN/RU önbellek anahtarı dilin slug'ıyla (2026-09-27)", async () => {
+    await post({ paths: ["/urunler/ulke/de-almanya"] }, "gizli");
+    expect(revalidatePath).toHaveBeenCalledWith("/tr/urunler/ulke/de-almanya");
+    expect(revalidatePath).toHaveBeenCalledWith("/en/urunler/ulke/de-germany");
+    expect(revalidatePath).toHaveBeenCalledWith("/ru/urunler/ulke/de-germaniya");
+  });
+
   it("bozuk JSON 400", async () => {
     expect((await post("{", "gizli")).status).toBe(400);
   });

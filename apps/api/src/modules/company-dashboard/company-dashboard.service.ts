@@ -5,14 +5,20 @@ import { tApi } from "../../common/i18n/i18n.service";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
-  bidRateToTry,
   itemUnitPriceTry,
   listingAmountTry,
+  listingRateToTry,
+  reportCurrencyOf,
+  tryToCurrency,
 } from "../../common/company/report-currency";
 
-/** "Acme Tedarik Ltd." → "ACM..." anonim kısa görünüm. */
+/**
+ * "Acme Tedarik Ltd." → "ACM..." anonim kısa görünüm. Türkçe büyütme yalnız
+ * Türkçe harfli adda ("industrial" → "İND" olmasın; web `upperForText` ile aynı).
+ */
 function shortenName(name: string): string {
-  const cleaned = name.trim().toLocaleUpperCase("tr-TR");
+  const t = name.trim();
+  const cleaned = /[çğıöşüÇĞİÖŞÜ]/.test(t) ? t.toLocaleUpperCase("tr-TR") : t.toUpperCase();
   if (cleaned.length <= 3) return cleaned;
   return `${cleaned.slice(0, 3)}...`;
 }
@@ -189,7 +195,15 @@ export class CompanyDashboardService {
       }),
     ]);
 
-    // Sipariş tutarlarını TRY-eşdeğere çevir (sipariş tarihi kuru, cache'li).
+    // Sipariş tutarları FİRMANIN RAPOR BİRİMİNE (2026-09-27): sipariş tarihinin
+    // kurlarıyla çapraz çevrim (kur_sipariş / kur_rapor, ikisi de TRY bazlı).
+    // Eskiden "TRY karşılığı" TRY etiketiyle dönüyordu — EUR satan Alman
+    // satıcı gelirini TRY görüyordu.
+    const company = await this.prisma.company.findUnique({
+      where: { id: companyId },
+      select: { country: true, requestDefaults: true },
+    });
+    const reportCur = reportCurrencyOf(company) as Currency;
     const rateCache = new Map<string, number>();
     const getRate = async (c: Currency, d: Date): Promise<number> => {
       if (c === "TRY") return 1;
@@ -206,7 +220,8 @@ export class CompanyDashboardService {
     for (const o of revenueOrders) {
       const cur = (o.currency ?? "TRY") as Currency;
       const rate = await getRate(cur, o.createdAt);
-      const v = Number(o.amount) * rate;
+      const baseRate = await getRate(reportCur, o.createdAt);
+      const v = cur === reportCur ? Number(o.amount) : (Number(o.amount) * rate) / baseRate;
       revenueTotal += v;
       if (o.createdAt >= d30) revenueLast30 += v;
       else if (o.createdAt >= d60) revenuePrev30 += v;
@@ -221,6 +236,8 @@ export class CompanyDashboardService {
         total: revenueTotal,
         last30: revenueLast30,
         prev30: revenuePrev30,
+        /** Tutarların birimi — firmanın rapor para birimi. */
+        currency: reportCur,
       },
       last30Days: { bidsSubmitted: bids30, prevBidsSubmitted: bidsPrev30 },
       buyers: { active: buyersActive },
@@ -355,6 +372,13 @@ export class CompanyDashboardService {
    */
   async satinalmaTasarruf(user: AuthenticatedCompanyUser) {
     const now = new Date();
+    // Tutarlar TRY'de hesaplanır (damga), gösterim FİRMANIN RAPOR BİRİMİNDE.
+    const reportCur = reportCurrencyOf(
+      await this.prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: { country: true, requestDefaults: true },
+      }),
+    );
     const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
     const yearStart = new Date(now.getFullYear(), 0, 1);
 
@@ -429,14 +453,7 @@ export class CompanyDashboardService {
         // TEK KAYNAK: report-currency.ts (rapordaki blokla birebir aynı).
         // İlan birimi TRY değilse oran, ilan birimini kullanan kazanan teklifin
         // DAMGASINDAN türetilir; damga yoksa referans yok → o satır kıyas dışı.
-        const listingRate =
-          l.primaryCurrency === "TRY"
-            ? 1
-            : (l.bids
-                .map((b) =>
-                  b.currency === l.primaryCurrency ? bidRateToTry(b) : null,
-                )
-                .find((r): r is number => r != null) ?? null);
+        const listingRate = listingRateToTry(l);
 
         // Kalem başına EN İYİ (ALIM → en düşük) TRY birim fiyatı. Aynı kalemi
         // birden çok kazanan teklif içerebilir (kalem-bazlı kazandırma).
@@ -475,11 +492,14 @@ export class CompanyDashboardService {
         return {
           number: l.number ?? "—",
           title: l.title,
-          // Tutarlar TRY-eşdeğerdir (yukarıda çevrildi) — etiket de öyle olmalı.
-          currency: "TRY",
+          // Kırılım anahtarı TALEBİN kendi birimi ("hangi birimde açılan
+          // taleplerde ne kadar tasarruf"; oran birimsizdir). Eskiden sabit
+          // "TRY" yazılıyordu → kırılım hep tek satırdı.
+          currency: l.primaryCurrency,
           awardedAt,
-          savings,
-          volume,
+          // TRY → rapor birimi (güncel kur).
+          savings: tryToCurrency(savings, reportCur) ?? 0,
+          volume: tryToCurrency(volume, reportCur) ?? 0,
           categoryLabel:
             (l.categoryIds[0] && catLabel.get(l.categoryIds[0])) ||
             "Kategorisiz",
@@ -536,6 +556,8 @@ export class CompanyDashboardService {
     };
 
     return {
+      /** Tutarların (toplam, ilk 5) birimi — firmanın rapor para birimi. */
+      currency: reportCur,
       month: summarize(monthAggs),
       year: summarize(yearAggs),
       topSavingsMonth: top5(monthAggs),
@@ -661,7 +683,7 @@ export class CompanyDashboardService {
       if (list.length === 0) {
         return {
           tenderNumber: "—",
-          title: "Veri yok",
+          title: tApi("api.companyDashboard.noData"),
           bidderCount: 0,
           distribution: [{ id: "t1", count: 0 }],
         };

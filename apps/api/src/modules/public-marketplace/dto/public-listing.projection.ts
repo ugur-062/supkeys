@@ -215,6 +215,13 @@ export interface PublicListing {
   company: PublicListingCompany;
   /** Kategori kodlarının çözülmüş adları (kod → ad); eksik kod atlanır. */
   categories: { id: string; name: string; level: number }[];
+  /**
+   * Dil durumu (i18n SEO, 2026-09-27) — YALNIZ detay yanıtında: talebin kendi
+   * dilinde gösterilebildiği diller (hreflang) ve özgün metnin dili ("und" =
+   * henüz bilinmiyor). Kimlik değil, içerik niteliği.
+   */
+  readyLocales?: string[];
+  sourceLocale?: string;
 }
 
 /** Liste kartı — detayın DAR alt kümesi (kalem/şartname gövdesi taşımaz). */

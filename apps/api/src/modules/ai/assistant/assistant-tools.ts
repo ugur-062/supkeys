@@ -1,4 +1,4 @@
-import { BUY_SEAT_PERMISSIONS, SELL_SEAT_PERMISSIONS } from "@rothern/shared";
+import { BUY_SEAT_PERMISSIONS, CURRENCY_CODES, SELL_SEAT_PERMISSIONS } from "@rothern/shared";
 import { hasCompanyPermission } from "../../company-auth/permissions/company-permissions.constants";
 import type { AiToolDef } from "../providers/ai-provider.interface";
 
@@ -64,8 +64,8 @@ export const TOOL_NAMES = {
   requestMarkOrderReceived: "request_mark_order_received",
 } as const;
 
-/** Currency/enum listeleri (sanitizer + DTO ile birebir; modele rehber). */
-const CURRENCY_ENUM = ["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY", "RUB"];
+/** Currency/enum listeleri (sanitizer + DTO ile birebir; modele rehber). Para birimi tek kaynak `CURRENCY_CODES`. */
+const CURRENCY_ENUM: string[] = [...CURRENCY_CODES];
 const DELIVERY_ENUM = [
   "DOMESTIC_DELIVERED", "DOMESTIC_PICKUP", "DOMESTIC_CARRIER_COLLECT",
   "DOMESTIC_ON_VEHICLE", "EXW", "FCA", "CPT", "CIP", "DAP", "DPU", "DDP",

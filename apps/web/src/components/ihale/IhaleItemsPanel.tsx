@@ -1,10 +1,10 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useUnitLabel } from "@/i18n/domain";
+import { useFormatNumber, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 import { IHALE_VIEW_FOCUS } from "./IhaleListRow";
 import { companyApi } from "@/lib/company-auth/api";
-import { formatMoney } from "@/components/ui/money";
+import { useFormatMoney } from "@/components/ui/money";
 import { cn } from "@/lib/utils";
 import type { ListingDetail } from "@/hooks/use-company-listings";
 import { useQuery } from "@tanstack/react-query";
@@ -56,6 +56,9 @@ export function IhaleItemsPanel({
 }) {
   const t = useTranslations("web.panel.requests.ihaleitemspanel");
   const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
+  const fmtNum = useFormatNumber();
+  const { money: formatMoney } = useFormatMoney();
   const { data, isPending, isError, refetch, isRefetching } =
     useLazyListingItems(listingId);
   const [showAll, setShowAll] = useState(false);
@@ -185,7 +188,7 @@ export function IhaleItemsPanel({
                   ) : null}
                 </td>
                 <td className="whitespace-nowrap py-1.5 pr-2 text-right align-top text-[13px] tabular-nums leading-tight text-slate-700">
-                  {Number(it.quantity).toLocaleString("tr-TR")} {unitLabel(it.unit)}
+                  {quantity(it.quantity, it.unit)}
                 </td>
                 {showTarget ? (
                   <td className="whitespace-nowrap py-1.5 text-right align-top text-[13px] tabular-nums leading-tight text-slate-700">

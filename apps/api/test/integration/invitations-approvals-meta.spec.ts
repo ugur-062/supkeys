@@ -10,6 +10,7 @@ import { AuditService } from "../../src/modules/audit/audit.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { makeCompanyWithUser, makeListing, makeUser } from "./factories";
 import { prisma, truncateAll } from "./test-db";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 afterAll(async () => {
   await truncateAll();
@@ -264,6 +265,56 @@ describe("token'lı davet-kabul", () => {
     expect(list).toHaveLength(1);
     expect(list[0]!.email).toBe("a-davet@firma.com");
     expect(list[0]!.invitedByName).toContain(a.user.firstName);
+  });
+
+  // DAVET DİLİ (2026-09-27): Türk kurucu İngilizce konuşan çalışanını davet
+  // eder → e-posta ve kabul adresi İngilizce; yeniden gönderim aynı dili korur;
+  // hesap kabul sayfasının dilinde doğar.
+  it("davet dili: seçilen dilde e-posta + kabul adresi, yeniden gönderimde korunur; dilsiz davet davet edenin dili", async () => {
+    const { service, email } = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma); // kurucu Türkçe (varsayılan)
+    type Sent = { locale: string; subject?: string; templateData: { data: { subject: string; ctaUrl: string } } };
+    const lastSent = () => email.send.mock.calls.at(-1)?.[0] as Sent;
+
+    const res = await service.invite(owner.auth, {
+      email: "english@firma.com",
+      permissions: ["buy:view"],
+      locale: "en",
+    } as never);
+    const inv = await prisma.companyUserInvitation.findUniqueOrThrow({ where: { id: res.id } });
+    expect(inv.locale).toBe("en");
+    expect(lastSent().locale).toBe("en");
+    expect(lastSent().templateData.data.ctaUrl).toBe(
+      `http://localhost:3000/en/company/invite/${inv.token}`,
+    );
+    expect(lastSent().templateData.data.subject).not.toMatch(/davet/i);
+
+    await service.resendInvitation(owner.auth, res.id);
+    const renewed = await prisma.companyUserInvitation.findUniqueOrThrow({ where: { id: res.id } });
+    expect(lastSent().locale).toBe("en");
+    expect(lastSent().templateData.data.ctaUrl).toBe(
+      `http://localhost:3000/en/company/invite/${renewed.token}`,
+    );
+
+    // Kabul sayfası İngilizce açıldı → hesap İngilizce doğar.
+    await runWithLocale("en", () =>
+      service.acceptInvitation(renewed.token, ACCEPT_DTO as never),
+    );
+    const user = await prisma.companyUser.findUniqueOrThrow({ where: { email: "english@firma.com" } });
+    expect(user.locale).toBe("en");
+
+    // Dil seçilmediyse davet edenin kayıtlı dili (Rusça kurucu → Rusça davet).
+    await prisma.companyUser.update({ where: { id: owner.user.id }, data: { locale: "ru" } });
+    const plain = await service.invite(owner.auth, {
+      email: "dilsiz@firma.com",
+      permissions: ["buy:view"],
+    } as never);
+    const plainInv = await prisma.companyUserInvitation.findUniqueOrThrow({ where: { id: plain.id } });
+    expect(plainInv.locale).toBeNull();
+    expect(lastSent().locale).toBe("ru");
+    expect(lastSent().templateData.data.ctaUrl).toBe(
+      `http://localhost:3000/ru/kompaniya/priglashenie/${plainInv.token}`,
+    );
   });
 });
 

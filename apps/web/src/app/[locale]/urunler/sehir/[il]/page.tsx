@@ -9,6 +9,7 @@ import { cityFromSlug, cityProductPath, citySlug } from "@/lib/public/city";
 import { fetchGeoCity, fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
 import { countryDisplayName } from "@/i18n/domain";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
+import { canonicalProductListPage, landingIndexable, queryStringOf } from "@/lib/seo/landing";
 import { buildMetadata, ogCardPath } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
@@ -22,7 +23,9 @@ import { permanentRedirect } from "@/i18n/navigation";
  * varyantıdır, kanoniği `/urunler`e işaret eder ve indekslenmez. Her ilin
  * KENDİ adresi, kendi başlığı, kendi açıklaması ve kendi kanoniği olur.
  *
- * BOŞ ŞEHRİN SAYFASI 404 DEĞİL, `noindex`: şehir listesi sabit ve kamuya açık bir
+ * BOŞ ŞEHRİN SAYFASI 404 DEĞİL, `noindex` (eşiğin — `MIN_LANDING_PRODUCTS` —
+ * altındaki şehir de; 33,7 bin dünya şehriyle tek ürünlük binlerce ince
+ * sayfa doğuyordu, 2026-09-27): şehir listesi sabit ve kamuya açık bir
  * olgu; "Yozgat" adresine gelen kullanıcıyı 404'e atmak yerine dürüst boş
  * liste + öteki şehirlere bağlantı gösteriyoruz. İndekse girmemesi yeter —
  * ince içerik sinyali oradan gelir. (Kategori sayfası tersine 404 verir:
@@ -76,15 +79,21 @@ async function cityProductCount(slug: string): Promise<number> {
   return (await fetchProducts({ city: slug })).total;
 }
 
-async function cityOr404(il: string, locale: Locale) {
+async function cityOr404(il: string, locale: Locale, query: string) {
   const city = await resolveCity(il, locale);
   if (!city) notFound();
-  // Kanonik olmayan yazım (büyük harf, eski ham il adı) → 308.
-  if (city.slug !== il) permanentRedirect({ href: cityProductPath(city.slug), locale });
+  // Kanonik olmayan yazım (büyük harf, eski ham il adı) → 308; sorgu KORUNUR.
+  if (city.slug !== il) permanentRedirect({ href: `${cityProductPath(city.slug)}${query}`, locale });
   return city;
 }
 
-export async function generateMetadata({ params }: { params: Params }): Promise<Metadata> {
+export async function generateMetadata({
+  params,
+  searchParams,
+}: {
+  params: Params;
+  searchParams: Promise<ProductSearchParams>;
+}): Promise<Metadata> {
   const { il } = await params;
   const locale = await localeFromParams(params);
   const city = await resolveCity(il, locale);
@@ -92,8 +101,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   if (!city) return { title: t("cityNotFound"), robots: { index: false } };
   const count = await cityProductCount(city.slug);
 
-  // Sayfa ≥2 kanoniği açılış sayfasına işaret eder (kategori sayfasıyla aynı
-  // kural: `searchParams` okunmaz, kanonik her zaman yol).
+  // Sayfalanmış sayfa (yalnız `?sayfa=N`) KENDİ kanoniği; başka süzgeç → taban
+  // (2026-09-27, Google önerisi — eski "her sayfa iniş adresine" kuralı kalktı).
   return buildMetadata({
     title: t("cityTitle", { name: city.shown }),
     description:
@@ -103,8 +112,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
     path: cityProductPath(city.slug),
     // Sayfanın kendi kartı (şehir/ülke adı + ürün sayısı), sayfanın dilinde.
     images: [ogCardPath(cityProductPath(city.slug), locale)],
-    // Ürünü olmayan şehir: sayfa DURUR ama indekse girmez (ince içerik).
-    noindex: count === 0,
+    page: canonicalProductListPage(await searchParams),
+    // Eşiğin altındaki şehir: sayfa DURUR ama indekse girmez (ince içerik;
+    // sitemap aynı `landingIndexable`ı okur).
+    noindex: !landingIndexable(count),
     locale,
   });
 }
@@ -120,9 +131,10 @@ export default async function Page({
   if (!MARKETPLACE_LIVE) notFound();
   const { il } = await params;
   const locale = await localeFromParams(params);
-  const city = await cityOr404(il, locale);
+  const sp = await searchParams;
+  const city = await cityOr404(il, locale, queryStringOf(sp));
   const tp = await getTranslations("web.marketplace.pages");
-  const [sp, facets, count] = await Promise.all([searchParams, fetchProductFacets({}), cityProductCount(city.slug)]);
+  const [facets, count] = await Promise.all([fetchProductFacets({}), cityProductCount(city.slug)]);
 
   return (
     <PublicLayout className={MARKET_GROUND}>

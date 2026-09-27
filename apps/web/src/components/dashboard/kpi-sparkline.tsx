@@ -1,5 +1,6 @@
 "use client";
 
+import { useFormatNumber } from "@/i18n/domain";
 import {
   Area,
   AreaChart,
@@ -24,6 +25,7 @@ export function KpiSparkline({
   stroke: string;
   valueSuffix?: string;
 }) {
+  const fmtNum = useFormatNumber();
   return (
     <ResponsiveContainer width="100%" height="100%">
       <AreaChart data={spark}>
@@ -41,7 +43,7 @@ export function KpiSparkline({
                 <span className="font-medium">{p.label ?? p.key}</span>
                 {": "}
                 <span className="tabular-nums">
-                  {new Intl.NumberFormat("tr-TR").format(p.value)}
+                  {fmtNum(p.value)}
                   {valueSuffix ?? ""}
                 </span>
               </div>

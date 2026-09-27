@@ -1,6 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useFormatMoney } from "@/components/ui/money";
+import { useFormatPercent } from "@/i18n/domain";
 import {
   Bar,
   BarChart,
@@ -47,6 +49,8 @@ export interface CurrencyBreakdownRow {
 }
 
 export interface TasarrufTabData {
+  /** Tutarların birimi — firmanın rapor para birimi (eski yanıtta yok → TRY). */
+  currency?: string;
   month: SavingsMetrics;
   year: SavingsMetrics;
   topSavingsMonth: TopSavingTender[];
@@ -67,6 +71,16 @@ interface Props {
 
 export function TasarrufTab({ data, period, analytics }: Props) {
   const t = useTranslations("web.panel.shell.tasarrufTab");
+  // Tutar/yüzde arayüz dilinin biçimiyle (tr-TR sabitti; kısaltma "Mr/M/K"
+  // yerine dilin kısaltması — `formatCompactMoney`).
+  const { money, compact } = useFormatMoney();
+  const pct = useFormatPercent();
+  // Tutarlar FİRMANIN RAPOR BİRİMİNDE (2026-09-27; sunucu çevirir). Adlar
+  // (`formatTRY`) tarihsel.
+  const cur = data.currency ?? analytics?.currency ?? "TRY";
+  const formatTRY = (amount: number) => (Number.isFinite(amount) ? money(amount, cur) : "—");
+  const formatPercent = (p: number) => (Number.isFinite(p) ? pct(p, { maximumFractionDigits: 2 }) : "—");
+  const abbreviateTRY = (n: number) => compact(n, cur);
   // Maliyet kırılımında çeyrek agregatı yok — yıl gösterilir (etiketli, uydurma yok).
   const costPeriod: "month" | "year" = period === "month" ? "month" : "year";
 
@@ -87,11 +101,11 @@ export function TasarrufTab({ data, period, analytics }: Props) {
         <p className="text-xs text-zinc-400">{t("maliyetKiriliminda")}</p>
       ) : null}
 
-      {/* Tasarruf trendi: aylık bar + kümülatif çizgi (yalnız TRY ihaleler). */}
+      {/* Tasarruf trendi: aylık bar + kümülatif çizgi (rapor biriminde, tüm talepler). */}
       <div className="grid grid-cols-1 gap-4">
         <ChartCard
           title={t("tasarrufTrendi")}
-          subtitle={t("aylikTasarrufBarKumulatifCizgi")}
+          subtitle={t("aylikTasarrufBarKumulatifCizgiCur", { currency: cur })}
           ariaLabel={t("aylikTasarrufTrendi")}
         >
           {analytics && analytics.savingsTrend.some((p) => p.value > 0) ? (
@@ -196,7 +210,7 @@ export function TasarrufTab({ data, period, analytics }: Props) {
               >
                 <CartesianGrid
                   strokeDasharray="3 3"
-                  stroke={t("varColorSlate200E2e8f0")}
+                  stroke="var(--color-slate-200, #e2e8f0)"
                 />
                 <XAxis
                   dataKey="rank"
@@ -218,12 +232,12 @@ export function TasarrufTab({ data, period, analytics }: Props) {
                     border: "1px solid #e2e8f0",
                     fontSize: 12,
                   }}
-                  formatter={(v) => [formatTRY(Number(v)), "Tasarruf"]}
+                  formatter={(v) => [formatTRY(Number(v)), t("tasarrufTutari")]}
                   labelFormatter={(rank) => t("satinAlmaTalebi", { String: String(rank) })}
                 />
                 <Bar
                   dataKey="amount"
-                  fill={t("varColorSuccess50010b981")}
+                  fill="var(--color-success-500, #10b981)"
                   radius={[6, 6, 0, 0]}
                 />
               </BarChart>
@@ -305,6 +319,7 @@ function BreakdownCard({
   rows: Array<{ label: string; percent?: number; amountLabel?: string }>;
   color: "brand" | "indigo";
 }) {
+  const pct = useFormatPercent();
   const fill =
     color === "brand"
       ? "bg-zinc-900"
@@ -336,7 +351,7 @@ function BreakdownCard({
                       {r.amountLabel}
                     </span>
                   ) : null}
-                  {hasData ? `${(r.percent as number).toFixed(2)}%` : "—"}
+                  {hasData ? pct(r.percent as number, { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : "—"}
                 </span>
               </div>
               <div className="h-2.5 w-full overflow-hidden rounded-full bg-slate-100">
@@ -355,25 +370,4 @@ function BreakdownCard({
       </ul>
     </section>
   );
-}
-
-function formatTRY(amount: number): string {
-  if (!Number.isFinite(amount)) return "—";
-  return new Intl.NumberFormat("tr-TR", {
-    style: "currency",
-    currency: "TRY",
-    maximumFractionDigits: 2,
-  }).format(amount);
-}
-
-function formatPercent(p: number): string {
-  if (!Number.isFinite(p)) return "—";
-  return `%${p.toLocaleString("tr-TR", { maximumFractionDigits: 2 })}`;
-}
-
-function abbreviateTRY(n: number): string {
-  if (n >= 1_000_000_000) return `${(n / 1_000_000_000).toFixed(0)}Mr ₺`;
-  if (n >= 1_000_000) return `${(n / 1_000_000).toFixed(0)}M ₺`;
-  if (n >= 1_000) return `${(n / 1_000).toFixed(0)}K ₺`;
-  return `${n} ₺`;
 }

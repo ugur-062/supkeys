@@ -1,7 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { formatDate } from "@/lib/format-date";
+import { useSystemText } from "@/i18n/domain";
 import type { CompanyOrderDetail } from "@/hooks/use-company-orders";
 import { sellerShipsGoods } from "@rothern/shared";
 import {
@@ -24,10 +26,10 @@ type Event = {
   lines: string[];
 };
 
-function fmt(v: string | null) {
+function fmtAt(v: string | null, locale: Locale) {
   if (!v) return "";
   try {
-    return formatDate(v, "datetime");
+    return formatDate(v, "datetime", locale);
   } catch {
     return v;
   }
@@ -36,6 +38,10 @@ function fmt(v: string | null) {
 /** Sipariş geçmişi — eski OrderTimeline ile aynı olaylar (yalnızca damgası olanlar). */
 export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
   const t = useTranslations("web.panel.trade.orderTimeline");
+  const locale = useLocale();
+  const fmt = (v: string | null) => fmtAt(v, locale);
+  // İptal gerekçesi sistem kodu taşıyabilir (yönetici iptali, onaylanan iptal talebi).
+  const systemText = useSystemText();
   const sellerLabel = o.role === "seller" ? t("sizSatici") : t("satici");
   const buyerLabel = o.role === "buyer" ? t("sizAlici") : t("alici");
 
@@ -185,7 +191,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       title: t("siparisIptalEdildi"),
       at: fmt(o.cancelledAt),
       actor: buyerLabel,
-      lines: o.cancelReason ? [t("sebep", { reason: o.cancelReason })] : [],
+      lines: o.cancelReason ? [t("sebep", { reason: systemText(o.cancelReason) })] : [],
     });
   }
 

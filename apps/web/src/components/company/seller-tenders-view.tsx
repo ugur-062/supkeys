@@ -1,8 +1,9 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { SECTOR_EDIT_HREF } from "@/lib/company/portals";
-import { useListingTerms } from "@/i18n/domain";
+import { countryDisplayName, useCityLabel, useListingTerms } from "@/i18n/domain";
 import { EmptyState, ListSkeleton, Pagination } from "@/components/list";
 import { BrowseTenderRow } from "@/components/ihale/BrowseTenderRow";
 import {
@@ -66,9 +67,17 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
     () => new Map((segments.data ?? []).map((s) => [s.id, s.nameTr] as const)),
     [segments.data],
   );
+  // Şehir/ülke etiketleri okuyucunun dilinde (2026-09-27): şehir adı API'den
+  // (dünya şehir dizini), eşlenmemiş Türk il adı `useCityLabel` ile.
+  const locale = useLocale() as Locale;
+  const cityLabel = useCityLabel();
   const facets = useMemo(
-    () => requestFacets(all, state, segmentNames, now),
-    [all, key, segmentNames, now], // eslint-disable-line react-hooks/exhaustive-deps
+    () =>
+      requestFacets(all, state, segmentNames, now, {
+        country: (c) => countryDisplayName(c, locale),
+        city: (raw) => cityLabel(raw),
+      }),
+    [all, key, segmentNames, now, locale], // eslint-disable-line react-hooks/exhaustive-deps
   );
   const filtered = useMemo(
     () => sortRequests(all.filter((r) => passes(r, state, now)), state.sort),
@@ -172,7 +181,7 @@ function RequestList({
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <span className="flex items-center gap-3">
               <MobileFilterButton />
-              <ResultCount kind="openRequest" noun={t.unit} />
+              <ResultCount kind="openRequest" />
             </span>
             <RequestSortControl />
           </div>

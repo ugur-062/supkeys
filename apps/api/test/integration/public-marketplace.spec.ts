@@ -341,9 +341,29 @@ describe("pazar yeri — indeks kapısı vitrinden DAR", () => {
       where: { entityType_entityId_locale: { entityType: "LISTING", entityId: listing.id, locale: "en" } },
       data: { fields: { title: "Steel pipe purchase", description: null, keywords: [], items: [] } },
     });
-    expect((await sitemap.listings(0))[0]!.locales).toEqual(["tr", "en"]);
-    // Çeviri servisi yoksa (test düzeneği / modül yok) tüm diller.
-    expect((await new PublicSitemapService(bypass).listings(0))[0]!.locales).toEqual(["tr", "en", "ru"]);
+    const row = (await sitemap.listings(0))[0]!;
+    expect(row.locales).toEqual(["tr", "en"]);
+    // Dil başına lastmod (2026-09-27): yalnız hazır diller; EN çeviri zamanını
+    // izler (≥ varlık updatedAt), Türkçe varlığın kendi zamanı.
+    expect(Object.keys(row.lastmods ?? {}).sort()).toEqual(["en", "tr"]);
+    expect(row.lastmods!.tr).toBe(row.updatedAt);
+    expect(row.lastmods!.en! >= row.updatedAt).toBe(true);
+    // Çeviri servisi yoksa (test düzeneği / modül yok) tüm diller, lastmods yok.
+    const plain = (await new PublicSitemapService(bypass).listings(0))[0]!;
+    expect(plain.locales).toEqual(["tr", "en", "ru"]);
+    expect(plain.lastmods).toBeUndefined();
+  });
+
+  it("talep detayı dil durumunu verir: readyLocales + sourceLocale (hreflang / lang)", async () => {
+    const { listing } = await seedPublicListing();
+    const bypass = prisma as unknown as PrismaBypassService;
+    const translations = new ContentTranslationService(bypass);
+    const svc = new PublicMarketplaceService(bypass, translations);
+    const before = await svc.getByNumber(listing.number!);
+    expect(before.readyLocales).toEqual(["tr"]);
+    expect(before.sourceLocale).toBe("tr");
+    // Çeviri servisi yoksa tüm diller hazır sayılır.
+    expect((await new PublicMarketplaceService(bypass).getByNumber(listing.number!)).readyLocales).toEqual(["tr", "en", "ru"]);
   });
 
   it("firma sitemap'i yalnız İNDEKSLENEBİLİR profili verir (sayfanın robots kuralıyla aynı)", async () => {
@@ -422,6 +442,26 @@ describe("pazar yeri — süzgeç ve arama", () => {
     expect((await service().list({ q: "çelik boru" })).items).toHaveLength(1);
     expect((await service().list({ q: "boru çelik" })).items).toHaveLength(1);
     expect((await service().list({ q: "boru" })).items).toHaveLength(2);
+  });
+
+  it("görünürlük ülkesi facet'i: HER ülke seçilebilir, sayı = tüm ülkelere açık + açıkça hedefleyen (2026-09-27)", async () => {
+    await seedPublicListing({ targetCountries: [] });
+    await seedPublicListing({ targetCountries: [], title: "Vinç alımı" });
+    await seedPublicListing({ targetCountries: ["TR"], title: "Kablo alımı" });
+    const all = await service().facets({});
+    expect(all.openToAll).toBe(2);
+    expect(all.countries).toEqual([{ code: "TR", count: 1 }]);
+    // Hiç hedeflenmemiş ülke (DE) seçilince 0 açık hedefle listede kalır —
+    // istemci `openToAll` ekler: Alman ziyaretçi tüm ülkelere açık 2 talebi görür.
+    const de = await service().facets({ country: "de" });
+    expect(de.openToAll).toBe(2);
+    expect(de.countries).toEqual([
+      { code: "TR", count: 1 },
+      { code: "DE", count: 0 },
+    ]);
+    // Liste AYNI kural: DE → yalnız tüm ülkelere açık iki talep; TR → üçü.
+    expect((await service().list({ country: "DE" })).total).toBe(2);
+    expect((await service().list({ country: "TR" })).total).toBe(3);
   });
 
   it("kapanmış ilan aramaya varsayılan olarak girmez", async () => {

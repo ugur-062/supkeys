@@ -1,6 +1,6 @@
 import { Inject, Injectable, Logger, Optional } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
-import { LOCALES, type Locale } from "@rothern/i18n";
+import { DEFAULT_LOCALE, LOCALES, type Locale } from "@rothern/i18n";
 import { foldSearchText } from "@rothern/shared";
 import { labelAttributes, resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
@@ -17,9 +17,11 @@ import {
   localizeListing,
   localizeProduct,
   parseModelOutput,
+  localeStateOf,
   readyLocales,
   SOURCE_HASH_PREFIX,
   sourceHash,
+  translatedAtOf,
   type CompanyTranslation,
   type ListingTranslation,
   type ParsedTranslation,
@@ -285,6 +287,73 @@ export class ContentTranslationService {
         this.logger.warn(`Translation failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`),
       );
     });
+  }
+
+  /**
+   * ÇEVİRİYİ BEKLE (2026-09-27, dış talep daveti): istenen dillerin çevirisi
+   * hazır değilse en fazla `timeoutMs` bekler. Kayıtsız alıcıya giden davet
+   * e-postası alıcının dilinde olmalı; talep az önce yayınlandıysa çevirisi
+   * henüz sürüyordur. Döner: `true` = istenen her dil hazır (ya da kaynak
+   * dilin kendisi / çevrilecek metin yok), `false` = süre doldu, çeviri
+   * başarısız ya da AI kapalı → çağıran ÖZGÜN metinle devam eder.
+   *
+   * Çift çeviri yok: kaynak özeti güncel satırlar varsa `enqueue` ÇAĞRILMAZ
+   * (enqueue deneme sayacını sıfırlayıp yeniden kuyruğa alırdı); sürmekte
+   * olan çeviri (`inFlight`) yalnız beklenir, bekleyen ama sahipsiz satır için
+   * bir kez `kick` edilir. Başarısız satır BEKLENMEZ (süpürücü kendi yeniden
+   * dener; burada model çağrısı yakılmaz).
+   */
+  async ensureTranslated(
+    type: TranslatableEntityType,
+    id: string,
+    locales: readonly Locale[],
+    timeoutMs = 60_000,
+    pollMs = 1_500,
+  ): Promise<boolean> {
+    const wanted = [...new Set(locales)];
+    if (wanted.length === 0) return true;
+    try {
+      const source = await this.loadSource(type, id);
+      if (!source || !hasTranslatableText(source)) return true;
+      if (!this.enabled) return false;
+      const hash = sourceHash(type, source);
+      const key = `${type}:${id}`;
+      const deadline = Date.now() + timeoutMs;
+      let started = false;
+      for (;;) {
+        const rows = await this.prisma.contentTranslation.findMany({
+          where: { entityType: type, entityId: id },
+          select: { locale: true, status: true, sourceHash: true, sourceLocale: true },
+        });
+        const current = rows.length > 0 && rows.every((r) => r.sourceHash === hash);
+        // Kaynak dili (model saptadıysa gerçek, değilse sahibin ülkesinden
+        // tahmin): o dile çeviri gerekmez — Türk alıcı Türk tedarikçiyi davet
+        // edince 60 sn beklenmez.
+        const src = rows.find((r) => r.sourceLocale)?.sourceLocale ?? null;
+        const pending = wanted.filter(
+          (l) => l !== src && !rows.some((r) => r.locale === l && r.status === "DONE" && r.sourceHash === hash),
+        );
+        if (current && pending.length === 0) return true;
+        if (current && rows.some((r) => r.status === "FAILED") && !this.inFlight.has(key)) return false;
+        if (!started) {
+          started = true;
+          // Hiç kuyruğa girmemiş kayıt (taslak talep): istenen dil zaten
+          // kaynağın tahmini diliyse model çağrılmaz.
+          if (rows.length === 0) {
+            const guess = await this.guessSourceLocale(type, id);
+            if (wanted.every((l) => l === guess)) return true;
+          }
+          if (!current) await this.enqueue(type, id);
+          else if (!this.inFlight.has(key)) this.kick(type, id);
+        }
+        const left = deadline - Date.now();
+        if (left <= 0) return false;
+        await new Promise((resolve) => setTimeout(resolve, Math.min(pollMs, left)));
+      }
+    } catch (err) {
+      this.logger.warn(`Translation wait failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`);
+      return false;
+    }
   }
 
   /**
@@ -678,14 +747,25 @@ export class ContentTranslationService {
    * (sitemap ile ortak). Hata → false (DB aksaklığı sayfayı indeksten düşürmesin).
    */
   async translationPending(type: TranslatableEntityType, id: string, locale: Locale): Promise<boolean> {
+    return !(await this.localeState(type, id)).readyLocales.includes(locale);
+  }
+
+  /**
+   * Kaydın dil durumu (i18n SEO, 2026-09-27) — herkese açık detay yanıtına
+   * girer: `readyLocales` (hreflang yalnız bunlar; `translationPending` de
+   * buradan) ve `sourceLocale` (kaynak metni gösterilen dilde `lang`). Kural
+   * `localeStateOf`ta. Hata → tüm diller hazır + Türkçe (DB aksaklığı sayfayı
+   * indeksten düşürmesin — `translationPending`in eski fail-open davranışı).
+   */
+  async localeState(type: TranslatableEntityType, id: string): Promise<{ readyLocales: Locale[]; sourceLocale: string }> {
     try {
       const rows = await this.prisma.contentTranslation.findMany({
         where: { entityType: type, entityId: id },
         select: { locale: true, fields: true, sourceLocale: true },
       });
-      return !readyLocales(rows).includes(locale);
+      return localeStateOf(rows);
     } catch {
-      return false;
+      return { readyLocales: [...LOCALES], sourceLocale: DEFAULT_LOCALE };
     }
   }
 
@@ -695,17 +775,36 @@ export class ContentTranslationService {
    * varsayar (tablo aksaklığı sitemap'i boşaltmasın).
    */
   async readyLocalesFor(type: TranslatableEntityType, ids: string[]): Promise<Map<string, Locale[]> | null> {
+    const map = await this.sitemapLocalesFor(type, ids);
+    return map ? new Map([...map].map(([id, v]) => [id, v.locales])) : null;
+  }
+
+  /**
+   * Sitemap girdisi (2026-09-27): hazır diller + her ÇEVRİLMİŞ dilin satır
+   * zamanı (`translatedAt`) — EN/RU `lastmod`u çeviri güncellemesini de
+   * yansıtsın (eskiden yalnız varlığın `updatedAt`i; yeniden çeviri EN
+   * sayfasını değiştirse de sitemap "değişmedi" diyordu). Hata → null.
+   */
+  async sitemapLocalesFor(
+    type: TranslatableEntityType,
+    ids: string[],
+  ): Promise<Map<string, { locales: Locale[]; translatedAt: Partial<Record<Locale, Date>> }> | null> {
     try {
       const unique = [...new Set(ids.filter(Boolean))];
       const rows = unique.length
         ? await this.prisma.contentTranslation.findMany({
             where: { entityType: type, entityId: { in: unique } },
-            select: { entityId: true, locale: true, fields: true, sourceLocale: true },
+            select: { entityId: true, locale: true, fields: true, sourceLocale: true, updatedAt: true },
           })
         : [];
       const byId = new Map<string, typeof rows>();
       for (const r of rows) byId.set(r.entityId, [...(byId.get(r.entityId) ?? []), r]);
-      return new Map(unique.map((id) => [id, readyLocales(byId.get(id) ?? [])]));
+      return new Map(
+        unique.map((id) => {
+          const own = byId.get(id) ?? [];
+          return [id, { locales: readyLocales(own), translatedAt: translatedAtOf(own) }];
+        }),
+      );
     } catch (err) {
       this.logger.warn(`Ready-locale lookup failed (${type}): ${err instanceof Error ? err.message : String(err)}`);
       return null;

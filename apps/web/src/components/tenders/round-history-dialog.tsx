@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useFormatNumber } from "@/i18n/domain";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -31,6 +32,7 @@ export function RoundHistoryDialog({
   currency?: string;
 }) {
   const t = useTranslations("web.panel.requests.roundHistoryDialog");
+  const fmtNum = useFormatNumber();
   const history = useRoundHistory(id, open);
   const rounds = history.data ?? [];
   const sym = !currency || currency === "TRY" ? "₺" : currency;
@@ -81,7 +83,7 @@ export function RoundHistoryDialog({
                               : "text-zinc-700"
                           }`}
                         >
-                          {Number(b.amount).toLocaleString("tr-TR")} {sym}
+                          {fmtNum(b.amount)} {sym}
                         </TableCell>
                       </TableRow>
                     ))}

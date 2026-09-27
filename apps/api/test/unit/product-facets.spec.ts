@@ -21,6 +21,8 @@ const row = (o: Partial<ProductFacetRow> & { company?: Partial<ProductFacetRow["
   moq: null,
   priceAmount: null,
   ...o,
+  // TRY ürünlerde taban = tutar (2026-09-27: histogram TRY karşılığından).
+  priceAmountBase: o.priceAmountBase !== undefined ? o.priceAmountBase : (o.priceAmount ?? null),
   company: {
     city: "İstanbul",
     activities: ["MANUFACTURER"],

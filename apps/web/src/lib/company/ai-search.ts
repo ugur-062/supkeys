@@ -1,5 +1,6 @@
+import { affixCurrency } from "@rothern/shared";
 import type { AiSearchIntentResult } from "@rothern/shared";
-import { companyActivityLabel } from "@rothern/shared";
+import { formatNumber } from "@/i18n/format";
 import { buildProductFilterQuery, EMPTY_FILTERS } from "@/lib/public/product-filter-params";
 import { buildRequestFilterQuery, EMPTY_REQUEST_FILTERS, segmentOf } from "@/lib/company/request-filter-params";
 
@@ -47,21 +48,29 @@ export function intentToProductQuery(r: AiSearchIntentResult): string {
     q: r.query ?? undefined,
     category: r.category?.id,
     cities: r.city ? [r.city] : [],
+    countries: r.country ? [r.country] : [],
     activities: r.activity ? [r.activity] : [],
     verified: r.verifiedOnly,
     priceMax: r.priceMax ?? undefined,
+    // Tavanın birimi açıkça yazılır (sunucu hangi birimle saydıysa o) —
+    // bağlantı başka dilde/firmada açılınca tavan başka birimde okunmasın.
+    currency: r.priceMax != null && r.currency ? r.currency : undefined,
     moqMax: r.quantity != null ? Math.max(1, Math.trunc(r.quantity)) : undefined,
     page: 1,
   });
 }
 
-/** Satış: açık talep süzgeci (kategori SEGMENT düzeyinde, şehir = alıcı şehri). */
+/**
+ * Satış: açık talep süzgeci (kategori SEGMENT düzeyinde; şehir = alıcı
+ * şehrinin kalıcı adresi, ülke = alıcı ülkesi).
+ */
 export function intentToRequestQuery(r: AiSearchIntentResult): string {
   return buildRequestFilterQuery({
     ...EMPTY_REQUEST_FILTERS,
     q: r.query ?? undefined,
     categories: r.category ? [segmentOf(r.category.id)] : [],
     cities: r.city ? [r.city] : [],
+    countries: r.country ? [r.country] : [],
     page: 1,
   });
 }
@@ -79,28 +88,51 @@ export interface IntentChip {
  */
 export type IntentChipT = (key: string, values?: Record<string, string | number>) => string;
 
+/**
+ * Çip biçimleyicileri — hepsi okuyucunun dilinde; bileşen `@/i18n/domain`
+ * hook'larından kurar (faaliyet tipi, birim, şehir, ülke adı). Eskiden
+ * Türkçe sözlük ve `"tr-TR"` sayı biçimi sabitti (EN/RU arayüzde Türkçe çip).
+ */
+export interface IntentChipFormat {
+  t: IntentChipT;
+  locale: string;
+  activityLabel: (code: string) => string;
+  /** Miktar + birim, dilin çoğul kuralıyla (`useQuantityLabel`). */
+  quantity: (qty: number, unit: string) => string;
+  cityLabel: (city: string) => string;
+  countryLabel: (code: string) => string;
+}
+
 /** Yorumun parçalarından URL'de HÂLÂ duranlar — çip olarak. */
-export function intentChips(r: AiSearchIntentResult, sp: URLSearchParams, t: IntentChipT): IntentChip[] {
+export function intentChips(r: AiSearchIntentResult, sp: URLSearchParams, f: IntentChipFormat): IntentChip[] {
+  const { t } = f;
   const out: IntentChip[] = [];
   const has = (k: string) => sp.has(k) && sp.get(k) !== "";
   if (r.query && has("q")) out.push({ param: "q", label: t("chipArama", { query: r.query }) });
-  if (r.category && has("kategori")) out.push({ param: "kategori", label: t("chipKategori", { name: r.category.nameTr }) });
-  if (r.city && has("sehir")) out.push({ param: "sehir", label: t("chipSehir", { city: r.city }) });
+  if (r.category && has("kategori")) out.push({ param: "kategori", label: t("chipKategori", { name: r.category.name }) });
+  if (r.city && has("sehir"))
+    out.push({ param: "sehir", label: t("chipSehir", { city: r.cityName ?? f.cityLabel(r.city) }) });
+  // Ülke: ürün dizininde satıcının, açık taleplerde alıcının ülkesi.
+  if (r.country && has("ulke")) out.push({ param: "ulke", label: t("chipUlke", { country: f.countryLabel(r.country) }) });
   if (r.portal === "satinalma") {
     if (r.verifiedOnly && has("dogrulanmis")) out.push({ param: "dogrulanmis", label: t("chipDogrulanmisFirma") });
-    if (r.activity && has("faaliyet")) out.push({ param: "faaliyet", label: companyActivityLabel(r.activity) });
+    if (r.activity && has("faaliyet")) out.push({ param: "faaliyet", label: f.activityLabel(r.activity) });
     if (r.priceMax != null && has("fiyatMax"))
       out.push({
         param: "fiyatMax",
         label: t("chipBirimFiyatMax", {
-          value: `${r.priceMax.toLocaleString("tr-TR")}${r.currency ? ` ${r.currency}` : ""}`,
+          value: r.currency
+            ? affixCurrency(formatNumber(r.priceMax, f.locale), r.currency, f.locale)
+            : formatNumber(r.priceMax, f.locale),
         }),
       });
     if (r.quantity != null && has("moqMax"))
       out.push({
         param: "moqMax",
         label: t("chipMinSiparisMax", {
-          value: `${Math.trunc(r.quantity).toLocaleString("tr-TR")}${r.unit ? ` ${r.unit}` : ""}`,
+          value: r.unit
+            ? f.quantity(Math.trunc(r.quantity), r.unit)
+            : formatNumber(Math.trunc(r.quantity), f.locale),
         }),
       });
   }

@@ -35,11 +35,17 @@ export function stripLocale(pathname: string): string {
   return splitLocale(pathname).path;
 }
 
-/** hreflang haritası: her dilin DIŞ adresi + `x-default` (Türkçe, ön eksiz). Giriş İÇ yol. */
-export function localizedAlternates(path: string): Record<string, string> {
+/**
+ * hreflang haritası: her HAZIR dilin DIŞ adresi + `x-default`. Giriş İÇ yol.
+ * `x-default` hazır İLK dile (LOCALES sırası: tr → en → ru) — çevirisi
+ * gelmemiş/Türkçe olmayan kaynaklı içerikte olmayan (noindex) Türkçe sayfaya
+ * gitmesin (2026-09-27 SEO denetimi). Hazır dil yoksa boş harita.
+ */
+export function localizedAlternates(path: string, locales: readonly Locale[] = LOCALES): Record<string, string> {
+  const ready = LOCALES.filter((l) => locales.includes(l));
   const out: Record<string, string> = {};
-  for (const locale of LOCALES) out[locale] = localizePath(path, locale);
-  out["x-default"] = localizePath(path, DEFAULT_LOCALE);
+  for (const locale of ready) out[locale] = localizePath(path, locale);
+  if (ready.length) out["x-default"] = out[ready.includes(DEFAULT_LOCALE) ? DEFAULT_LOCALE : ready[0]!]!;
   return out;
 }
 

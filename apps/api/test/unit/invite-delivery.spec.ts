@@ -2,8 +2,10 @@ import {
   REFERRAL_TTL_DAYS,
   deliverInvite,
   formatInviteDeadline,
+  formatInvitePlace,
   isReferralExpired,
 } from "../../src/common/company/invite-delivery";
+import { appRoutes } from "../../src/common/company/app-routes";
 import { discoveryLocationLine } from "../../src/modules/ai/supplier-discovery/supplier-discovery.service";
 import { inviteRoleLine } from "../../src/modules/company-users/company-users.service";
 
@@ -66,34 +68,37 @@ describe("formatInviteDeadline — Europe/Istanbul duvar saati", () => {
     expect(en).toContain("October 5, 2026");
     const ru = formatInviteDeadline(d, "ru");
     expect(ru).toContain("5 октября 2026");
+    // Yabancı alıcı hangi saat olduğunu bilsin: saat dilimi ibaresi.
+    expect(en).toContain("GMT+3");
+    expect(ru).toContain("GMT+3");
   });
 });
 
-describe("discoveryLocationLine — web araması talebin ülkesinden", () => {
-  it("hedef ülkeler doluysa yalnız o ülkeler (Türkiye sabiti YOK)", () => {
-    const line = discoveryLocationLine({
-      targetCountries: ["DE", "FR", "DE", "ZZ"],
-      buyerCountry: "TR",
-    });
-    expect(line).toContain("Almanya, Fransa ülkelerinde");
-    expect(line).not.toContain("Türkiye");
+describe("formatInvitePlace — yalnız şehir + ülke, alıcının dilinde", () => {
+  it("Türkiye ili üç dilde; yabancı şehir kayıtlı yazımıyla; ülke dilde", () => {
+    expect(formatInvitePlace("İstanbul", "TR", "tr")).toBe("İstanbul, Türkiye");
+    expect(formatInvitePlace("İstanbul", "TR", "ru")).toBe("Стамбул, Турция");
+    expect(formatInvitePlace("Munich", "DE", "en")).toBe("Munich, Germany");
+    expect(formatInvitePlace("Lefkoşa", "XN", "en")).toBe("Lefkoşa, Northern Cyprus");
   });
 
-  it("tüm ülkeler (boş) → alıcının ülkesi öncelikli, arama sınırlanmaz", () => {
-    const line = discoveryLocationLine({ targetCountries: [], buyerCountry: "AE" });
-    expect(line).toContain("Birleşik Arap Emirlikleri öncelikli");
-    expect(line).toContain("herhangi bir ülkede");
+  it("eksik parça düşer; ikisi de yoksa null (satır çizilmez)", () => {
+    expect(formatInvitePlace(null, "DE", "tr")).toBe("Almanya");
+    expect(formatInvitePlace("Bursa", null, "en")).toBe("Bursa");
+    expect(formatInvitePlace(null, "ZZ", "en")).toBeNull();
+    expect(formatInvitePlace("", "", "tr")).toBeNull();
   });
+});
 
-  it("ülke bilinmiyorsa uluslararası; bölge serbest metni kısaltılıp parantezde", () => {
-    const line = discoveryLocationLine({
-      targetCountries: [],
-      buyerCountry: null,
-      region: `  Ege ${"x".repeat(100)}`,
-    });
-    expect(line.startsWith("Herhangi bir ülkede")).toBe(true);
-    expect(line).toMatch(/\(bölge önceliği: Ege x+\)$/);
-    expect(line.length).toBeLessThan(150);
+describe("appRoutes.signupWithRef — kayıt sonrası dönüş", () => {
+  it("redirect İÇ yol olarak kodlanır, yol parçası alıcının dilinde", () => {
+    expect(appRoutes.signupWithRef("https://x.com", "tok", "tr")).toBe("https://x.com/company/kayit?ref=tok");
+    expect(appRoutes.signupWithRef("https://x.com", "tok", "en", "/company/ilan/l1")).toBe(
+      "https://x.com/en/company/signup?ref=tok&redirect=%2Fcompany%2Filan%2Fl1",
+    );
+    expect(appRoutes.signupWithRef("https://x.com", "tok", "ru", "/company/ilan/l1")).toBe(
+      "https://x.com/ru/kompaniya/registratsiya?ref=tok&redirect=%2Fcompany%2Filan%2Fl1",
+    );
   });
 });
 

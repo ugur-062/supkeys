@@ -7,6 +7,9 @@
  *  - Kayıtlı talepte: talebe özel davet ucu; adres başına GERÇEK sonuç
  *    satırda görünür (gönderilemeyen "Gönderildi" diye işaretlenmez).
  *  - Web araması talebin görünürlük ülkeleriyle çağrılır.
+ *  - DAVET DİLİ satır başına: varsayılanı firmanın ülkesinden (`DE` → English),
+ *    yoksa e-posta uzantısı, yoksa arayüz dili; kullanıcı değiştirebilir ve
+ *    seçim (adres + dil + ülke) taslağa/API'ye taşınır. Ülke şehrin yanında.
  */
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -35,7 +38,7 @@ import { SupplierDiscoveryModal } from "../supplier-discovery-modal";
 beforeEach(() => {
   h.discovery.mockReset().mockResolvedValue([]);
   h.external.mockReset().mockResolvedValue([
-    { name: "Baret A.Ş.", city: "İzmir", website: null, email: "info@baret.com", reason: "Üretici" },
+    { name: "Baret A.Ş.", city: "İzmir", country: "TR", website: null, email: "info@baret.com", reason: "Üretici" },
     { name: "Kask Ltd.", city: null, website: null, email: "satis@kask.com", reason: "Bayi" },
   ]);
   h.sendExternal.mockReset();
@@ -65,7 +68,7 @@ describe("SupplierDiscoveryModal — dış davet", () => {
     expect(h.external.mock.calls[0][0]).toMatchObject({ targetCountries: ["DE"] });
     fireEvent.click(screen.getByLabelText("Baret A.Ş. seç"));
     fireEvent.click(screen.getByRole("button", { name: "Talebe ekle (1)" }));
-    expect(onCollect).toHaveBeenCalledWith(["info@baret.com"]);
+    expect(onCollect).toHaveBeenCalledWith([{ email: "info@baret.com", locale: "tr", country: "TR" }]);
     expect(h.sendExternal).not.toHaveBeenCalled();
   });
 
@@ -81,10 +84,44 @@ describe("SupplierDiscoveryModal — dış davet", () => {
     fireEvent.click(screen.getByLabelText("Kask Ltd. seç"));
     fireEvent.click(screen.getByRole("button", { name: "Davet E-postası Gönder (2)" }));
     await waitFor(() =>
-      expect(h.sendExternal).toHaveBeenCalledWith({ listingId: "l1", emails: ["info@baret.com", "satis@kask.com"] }),
+      expect(h.sendExternal).toHaveBeenCalledWith({
+        listingId: "l1",
+        invites: [
+          { email: "info@baret.com", locale: "tr", country: "TR" },
+          { email: "satis@kask.com", locale: "tr", country: null },
+        ],
+      }),
     );
     expect(await screen.findByText("Gönderildi")).toBeInTheDocument();
     expect(screen.getByText("Adres e-posta almıyor")).toBeInTheDocument();
     expect(h.toast.warning).toHaveBeenCalledWith("satis@kask.com: Adres e-posta almıyor");
+  });
+
+  it("davet dili: ülkeden varsayılan (DE → English, .kz → Русский), ülke şehrin yanında, satırda değiştirilebilir", async () => {
+    h.external.mockResolvedValue([
+      { name: "Rohr GmbH", city: "Munich", country: "DE", website: "rohr.de", email: "info@rohr.de", reason: "Hersteller" },
+      { name: "Truby TOO", city: null, country: null, website: null, email: "sales@truby.kz", reason: "Дилер" },
+    ]);
+    const onCollect = vi.fn();
+    render(
+      <SupplierDiscoveryModal isOpen onClose={() => {}} categoryIds={["39121600"]} onCollect={onCollect} />,
+    );
+    fireEvent.click(screen.getByRole("tab", { name: /Web'de Ara/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Web'de Ara" }));
+    await screen.findByText("Rohr GmbH");
+    expect(screen.getByText("Munich, Almanya")).toBeInTheDocument();
+    const rohrLang = screen.getByLabelText("Rohr GmbH için davet dili") as HTMLSelectElement;
+    const trubyLang = screen.getByLabelText("Truby TOO için davet dili") as HTMLSelectElement;
+    expect(rohrLang.value).toBe("en");
+    expect(trubyLang.value).toBe("ru");
+    // Kullanıcı Alman firmaya Rusça göndermeyi seçer.
+    fireEvent.change(rohrLang, { target: { value: "ru" } });
+    fireEvent.click(screen.getByLabelText("Rohr GmbH seç"));
+    fireEvent.click(screen.getByLabelText("Truby TOO seç"));
+    fireEvent.click(screen.getByRole("button", { name: "Talebe ekle (2)" }));
+    expect(onCollect).toHaveBeenCalledWith([
+      { email: "info@rohr.de", locale: "ru", country: "DE" },
+      { email: "sales@truby.kz", locale: "ru", country: null },
+    ]);
   });
 });

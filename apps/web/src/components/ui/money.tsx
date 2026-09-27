@@ -1,51 +1,91 @@
 "use client";
 
+import type { Locale } from "@rothern/i18n";
+import { useLocale } from "next-intl";
 import { cn } from "@/lib/utils";
+import { intlLocale } from "@/i18n/format";
 // Sembol tablosu TEK KAYNAK: lib/tenders/labels.ts (Dalga B-2) — buradaki
 // kopya CHF/AED'de labels.ts ile ÇELİŞİYORDU (aynı tutar iki ekranda iki sembol).
-import { currencySymbol } from "@/lib/tenders/labels";
+import { affixCurrency, currencySymbol } from "@/lib/tenders/labels";
 
 /**
  * P1 (frontend denetimi §8.1) — TEK para gösterimi. Kurallar:
- *  - Intl tr-TR, kuruş HER YERDE var (gizlenmez; istenirse küçültülür),
- *  - sembol DAİMA sonda, tabular-nums + tabular-nums,
+ *  - sayı ARAYÜZ DİLİNİN biçimiyle (2026-09-27; önce tr-TR sabitti → İngilizce
+ *    arayüzde "1.234,56 $"), kuruş HER YERDE var (gizlenmez; istenirse küçültülür),
+ *  - sembolün YERİ dilden (`affixCurrency`: İngilizcede önde "$1,234.56",
+ *    Türkçe/Rusçada sonda "1.234,56 ₺"; 2026-09-27), tabular-nums,
  *  - 0 değeri nötr gri (sıfıra amber/yeşil boyamak yasak).
  * Görülen 6 farklı format (₺206.000 / 42.119,9 ₺ / 2.231 ₺ / …) bu bileşende
  * teke iner; yeni para gösterimleri BURADAN geçer, elden formatlanmaz.
+ * Bileşende `useFormatMoney()`; dil ZORUNLU parametre (unutulamasın).
  */
 export function formatMoney(
   value: number | string,
-  currency = "TRY",
+  currency: string,
+  locale: Locale | string,
 ): string {
   const n = typeof value === "string" ? Number(value) : value;
   if (!Number.isFinite(n)) return "—";
-  const num = new Intl.NumberFormat("tr-TR", {
+  const num = new Intl.NumberFormat(intlLocale(locale), {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   }).format(n);
-  return `${num} ${currencySymbol(currency)}`;
+  return affixCurrency(num, currency, locale);
 }
 
 /**
- * Faz 4 — KPI kartları için kısaltılmış tutar: "208,2 B ₺", "1,2 Mn ₺".
- * 10.000 altı kısaltılmaz (kuruşsuz tam sayı). Tam değer çağıran tarafta
- * title/tooltip olarak verilir (formatMoney ile).
+ * Faz 4 — KPI kartları için kısaltılmış tutar: TR "208,2 B ₺", EN "₺208.2K",
+ * RU "208,2 тыс. ₺". Kısaltma harfi DİLİN kısaltmasıdır: tr-TR sabitken
+ * İngilizce okur "B"yi billion sanıyordu (Türkçede bin). 10.000 altı
+ * kısaltılmaz (kuruşsuz tam sayı). Tam değer çağıran tarafta title/tooltip
+ * olarak verilir (formatMoney ile).
  */
 export function formatCompactMoney(
   value: number | string,
-  currency = "TRY",
+  currency: string,
+  locale: Locale | string,
 ): string {
   const n = typeof value === "string" ? Number(value) : value;
   if (!Number.isFinite(n)) return "—";
-  const sym = currencySymbol(currency);
+  const intl = intlLocale(locale);
   if (Math.abs(n) < 10_000) {
-    return `${new Intl.NumberFormat("tr-TR", { maximumFractionDigits: 0 }).format(n)} ${sym}`;
+    return affixCurrency(new Intl.NumberFormat(intl, { maximumFractionDigits: 0 }).format(n), currency, locale);
   }
-  const num = new Intl.NumberFormat("tr-TR", {
+  const num = new Intl.NumberFormat(intl, {
     notation: "compact",
     maximumFractionDigits: 1,
   }).format(n);
-  return `${num} ${sym}`;
+  return affixCurrency(num, currency, locale);
+}
+
+/** Arayüz diline bağlı para biçimleyiciler (`formatMoney`/`formatCompactMoney`). */
+export function useFormatMoney(): {
+  money: (value: number | string, currency?: string | null) => string;
+  compact: (value: number | string, currency?: string | null) => string;
+} {
+  const locale = useLocale();
+  return {
+    money: (value, currency) => formatMoney(value, currency ?? "TRY", locale),
+    compact: (value, currency) => formatCompactMoney(value, currency ?? "TRY", locale),
+  };
+}
+
+/**
+ * Tam sayı + ondalık ayracı + kuruş parçaları (dilin ayracıyla). Kuruş ayrı
+ * `<span>`de küçültülebilsin diye; ayraç dilden gelir (EN ".", TR/RU ",").
+ */
+export function moneyParts(n: number, locale: Locale | string): { int: string; decimal: string; frac: string } {
+  const parts = new Intl.NumberFormat(intlLocale(locale), {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  }).formatToParts(n);
+  const at = parts.findIndex((p) => p.type === "decimal");
+  if (at === -1) return { int: parts.map((p) => p.value).join(""), decimal: "", frac: "" };
+  return {
+    int: parts.slice(0, at).map((p) => p.value).join(""),
+    decimal: parts[at]!.value,
+    frac: parts.slice(at + 1).map((p) => p.value).join(""),
+  };
 }
 
 export function Money({
@@ -60,17 +100,17 @@ export function Money({
   className?: string;
   shrinkFraction?: boolean;
 }) {
+  const locale = useLocale();
   const n = typeof value === "string" ? Number(value) : value;
   if (!Number.isFinite(n)) {
     return <span className={cn(" tabular-nums", className)}>—</span>;
   }
-  const [int, frac] = new Intl.NumberFormat("tr-TR", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })
-    .format(n)
-    .split(",");
+  const { int, decimal, frac } = moneyParts(n, locale);
   const sym = currencySymbol(currency);
+  // Sembolün yeri dilden (`affixCurrency` ile aynı kural): İngilizcede önde.
+  const lead = String(locale).startsWith("en");
+  const gap = /^[A-Za-z]+$/.test(sym) ? " " : "";
+  const neg = int.startsWith("-") || int.startsWith("−");
   return (
     <span
       className={cn(
@@ -79,11 +119,13 @@ export function Money({
         className,
       )}
     >
-      {int}
+      {lead ? `${neg ? "-" : ""}${sym}${gap}` : null}
+      {lead && neg ? int.slice(1) : int}
       <span className={shrinkFraction ? "text-[0.72em] text-zinc-400" : undefined}>
-        ,{frac}
-      </span>{" "}
-      {sym}
+        {decimal}
+        {frac}
+      </span>
+      {lead ? null : ` ${sym}`}
     </span>
   );
 }

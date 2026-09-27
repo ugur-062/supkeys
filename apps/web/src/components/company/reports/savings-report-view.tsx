@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
-import { INTL_LOCALE, formatNumber } from "@/i18n/format";
+import { formatNumber, intlLocale } from "@/i18n/format";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
@@ -29,15 +29,15 @@ import { ArrowLeft, ChevronDown, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Fragment, useState } from "react";
 import { toast } from "sonner";
-import { CURRENCIES } from "@/lib/tenders/labels";
+import { CURRENCIES, affixCurrency } from "@/lib/tenders/labels";
 
 // Liste TEK KAYNAK: labels.ts CURRENCIES (tablodan türetilir) — Dalga B-2.
 
-/** TRY toplamı — okuyucunun dilinde, ondalıksız. */
-function tl(n: number | null, locale: Locale) {
+/** Tutar — okuyucunun dilinde, ondalıksız; birim firmanın rapor birimi (`baseCurrency`). */
+function tl(n: number | null, locale: Locale, currency: string) {
   return n == null
     ? "—"
-    : `${n.toLocaleString(INTL_LOCALE[locale] ?? "tr-TR", { maximumFractionDigits: 0 })} ₺`;
+    : affixCurrency(n.toLocaleString(intlLocale(locale), { maximumFractionDigits: 0 }), currency, locale);
 }
 
 /**
@@ -55,7 +55,7 @@ export function SavingsReportView({
   const locale = useLocale() as Locale;
   // Yüzde bir ondalıkla, okuyucunun dilinde (ICU düz argümanı sayı biçimlemez).
   const pct1 = (n: number) =>
-    n.toLocaleString(INTL_LOCALE[locale] ?? "tr-TR", { maximumFractionDigits: 1 });
+    n.toLocaleString(intlLocale(locale), { maximumFractionDigits: 1 });
   const isAlim = type === "ALIM";
   const [rangeStart, setRangeStart] = useState("");
   const [rangeEnd, setRangeEnd] = useState("");
@@ -184,8 +184,8 @@ export function SavingsReportView({
               {(
                 [
                   [t("satinAlmaTalebi"), String(data.summary.totalListings)],
-                  [t("kazananToplam"), tl(data.summary.grandActual, locale)],
-                  [t("toplamTasarruf"), tl(data.summary.grandDelta, locale), true],
+                  [t("kazananToplam"), tl(data.summary.grandActual, locale, data.baseCurrency ?? "TRY")],
+                  [t("toplamTasarruf"), tl(data.summary.grandDelta, locale, data.baseCurrency ?? "TRY"), true],
                   [
                     t("tasarrufYuzde"),
                     t("yuzde", { n: pct1(data.summary.grandDeltaPct) }),
@@ -265,13 +265,13 @@ export function SavingsReportView({
                           {r.bidCount}
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-zinc-600">
-                          {tl(isAlim ? r.highestBid : r.lowestBid, locale)}
+                          {tl(isAlim ? r.highestBid : r.lowestBid, locale, data.baseCurrency ?? "TRY")}
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-zinc-900">
-                          {tl(r.winningTotal, locale)}
+                          {tl(r.winningTotal, locale, data.baseCurrency ?? "TRY")}
                         </TableCell>
                         <TableCell className="text-right font-semibold tabular-nums text-emerald-700">
-                          {tl(r.delta, locale)}
+                          {tl(r.delta, locale, data.baseCurrency ?? "TRY")}
                         </TableCell>
                         <TableCell className="text-right tabular-nums text-zinc-600">
                           {r.deltaPct != null
@@ -383,7 +383,7 @@ export function SavingsReportView({
                         {b.name}
                       </span>
                       <span className=" font-semibold tabular-nums">
-                        {tl(b.awarded, locale)}
+                        {tl(b.awarded, locale, data.baseCurrency ?? "TRY")}
                       </span>
                     </li>
                   ))}
@@ -391,7 +391,7 @@ export function SavingsReportView({
               </div>
             ) : null}
             <Text className="text-xs text-zinc-400">
-              {t("tutarlarTeklifAnindakiTcmbKuruyla")}
+              {t("tutarlarTeklifAnindakiTcmbKuruylaCur", { currency: data.baseCurrency ?? "TRY" })}
             </Text>
           </section>
         )

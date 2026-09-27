@@ -1,9 +1,11 @@
 import { brandOgContent } from "@/lib/seo/og/content";
 import { localeFromParams } from "@/i18n/params";
-import { OG_CONTENT_TYPE, OG_SIZE, renderOgCard } from "@/lib/seo/og/card";
+import { OG_ALT, OG_CONTENT_TYPE, OG_SIZE, renderOgCard } from "@/lib/seo/og/card";
 
 /** Kök OG görseli — kendi görselini tanımlamayan her sayfa bunu alır (Parça 6). */
-export const alt = "Rothern — B2B tedarik pazar yeri";
+/* `alt` statik dışa aktarım (segmentin dilini göremez) → dilden bağımsız
+   `OG_ALT`; sayfanın og:image:alt'ı `buildMetadata`dan, sayfanın dilinde. */
+export const alt = OG_ALT;
 export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 

@@ -1,7 +1,8 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { formatDate } from "@/lib/format-date";
+import { useAiMissingFieldLabel, useFormatDate } from "@/i18n/domain";
+import { upperForText } from "@/i18n/format";
 import { useAiUsage } from "@/hooks/use-ai-usage";
 import {
   useAssistantAction,
@@ -155,7 +156,7 @@ const TOOL_LABEL: Record<string, string> = {
 };
 
 function initials(first?: string, last?: string): string {
-  return `${(first ?? "")[0] ?? ""}${(last ?? "")[0] ?? ""}`.toLocaleUpperCase("tr-TR") || "S";
+  return upperForText(`${(first ?? "")[0] ?? ""}${(last ?? "")[0] ?? ""}`, `${first ?? ""} ${last ?? ""}`) || "S";
 }
 
 /** Faz AI-2/3 — asistan sohbet gövdesi (modern balonlar + belge + taslak kartı). */
@@ -182,6 +183,8 @@ export function AssistantPanel({
   onToggleWide?: () => void;
 }) {
   const tr = useTranslations("web.panel.shell.assistantPanel");
+  const formatDate = useFormatDate();
+  const missingLabel = useAiMissingFieldLabel();
   const { user } = useCompanyAuth();
   const router = useRouter();
   const t = tone(useButtonAccent());
@@ -707,7 +710,7 @@ export function AssistantPanel({
                   </ul>
                   {m.draft.missingRequired.length > 0 ? (
                     <p className="mt-2 rounded-lg bg-warning-50 px-2 py-1.5 text-xs text-warning-600">
-                      {tr("eksik", { join: m.draft.missingRequired.join(", ") })}
+                      {tr("eksik", { join: m.draft.missingRequired.map(missingLabel).join(", ") })}
                     </p>
                   ) : null}
                   <button

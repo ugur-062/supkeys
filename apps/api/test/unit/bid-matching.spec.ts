@@ -1,4 +1,6 @@
 import {
+  dominantScript,
+  isCrossLanguage,
   matchDocRows,
   normalizeCurrency,
   normalizeDeliveryTime,
@@ -89,6 +91,39 @@ describe("matchDocRows — kademeler", () => {
   });
 });
 
+describe("matchDocRows — diller arası (2026-09-27)", () => {
+  it("belge FARKLI DİLDEYSE model ipucu benzerlik eşiği aranmadan medium; ipucusuz satır eşleşmez; gerçek metin eşleşmesi önce", () => {
+    const rows = [
+      row({ text: "Edelstahlrohr 2 Zoll", unitPrice: 200, hintLineNo: 1 }), // ipucu → medium
+      row({ text: "Dichtung Klingerit", unitPrice: 5 }), // ipucu yok → eşleşmez
+      row({ text: "Flanş DN50 PN16", unitPrice: 90, hintLineNo: 3 }), // aynı adla exact
+    ];
+    const cross = matchDocRows(items, rows, { ...OPTS, crossLanguage: true });
+    const by = Object.fromEntries(cross.matches.map((m) => [m.itemId, m]));
+    expect(by.i1).toMatchObject({ confidence: "medium", unitPrice: 200 });
+    expect(by.i3).toMatchObject({ confidence: "exact", unitPrice: 90 });
+    expect(by.i4!.confidence).toBe("none");
+    // Aynı dil denildiyse eski kural: benzerlik < 0.35 ipucu yok sayılır.
+    const same = matchDocRows(items, rows, { ...OPTS, crossLanguage: false });
+    expect(same.matches.find((m) => m.itemId === "i1")!.confidence).toBe("none");
+  });
+
+  it("yazı farkı (Kiril belge ↔ Latin kalem) model söylemese de diller arası sayılır; Kiril metin artık boşa katlanmaz", () => {
+    const rows = [row({ text: "Труба стальная 2 дюйма", unitPrice: 150, hintLineNo: 1 })];
+    const { matches } = matchDocRows(items, rows, OPTS);
+    expect(matches.find((m) => m.itemId === "i1")).toMatchObject({ confidence: "medium", unitPrice: 150 });
+    expect(dominantScript(["Труба стальная"])).toBe("cyrillic");
+    expect(dominantScript(["Çelik boru", "DN50"])).toBe("latin");
+    expect(dominantScript(["不锈钢管"])).toBe("cjk");
+    expect(isCrossLanguage(items, rows)).toBe(true);
+    expect(isCrossLanguage(items, [row({ text: "Boru" })])).toBe(false);
+    // Aynı dilde Kiril eşleşme: harfler korunur (eskiden a-z dışı silinip 0 benzerlik).
+    expect(similarity("Труба стальная", "труба стальная")).toBe(1);
+    const ru: MatchItem[] = [{ id: "r1", lineNo: 1, name: "Труба стальная DN50", quantity: "10", unit: "m", materialCode: null }];
+    expect(matchDocRows(ru, [row({ text: "Труба стальная DN50", unitPrice: 9 })], OPTS).matches[0]).toMatchObject({ confidence: "exact", unitPrice: 9 });
+  });
+});
+
 describe("matchDocRows — sağlık kontrolleri", () => {
   it("yalnız toplam+miktar varsa birim fiyat türetilir ve uyarılır; miktar/birim farkı uyarılır", () => {
     const rows = [row({ text: 'Çelik boru 2" DN50', totalPrice: 22_200, quantity: 120, unit: "metre" })];
@@ -143,6 +178,8 @@ describe("yardımcılar", () => {
     expect(normalizeCurrency(" usd ")).toBe("USD");
     expect(normalizeCurrency("€")).toBe("EUR");
     expect(normalizeCurrency("Dolar")).toBeNull();
+    expect(normalizeCurrency("₽")).toBe("RUB");
+    expect(normalizeCurrency("руб.")).toBe("RUB");
     expect(normalizeCurrency("")).toBeNull();
   });
   it("normalizeDeliveryTime", () => {
@@ -154,5 +191,14 @@ describe("yardımcılar", () => {
     expect(normalizeDeliveryTime("2 ay")).toBe("M2_3");
     expect(normalizeDeliveryTime("6 ay")).toBe("M3_PLUS");
     expect(normalizeDeliveryTime("belirsiz")).toBeNull();
+    // "day" içindeki "ay" artık AY sayılmıyor (eskiden 15 gün → 450 gün).
+    expect(normalizeDeliveryTime("15 days")).toBe("W3_4");
+    // Tedarikçinin dilinde (DE/RU) teslim ifadeleri.
+    expect(normalizeDeliveryTime("3 Wochen")).toBe("W3_4");
+    expect(normalizeDeliveryTime("10 Tage")).toBe("W1_2");
+    expect(normalizeDeliveryTime("2 месяца")).toBe("M2_3");
+    expect(normalizeDeliveryTime("5-7 дней")).toBe("W1_2");
+    expect(normalizeDeliveryTime("auf Lager")).toBe("STOKTAN");
+    expect(normalizeDeliveryTime("в наличии")).toBe("STOKTAN");
   });
 });

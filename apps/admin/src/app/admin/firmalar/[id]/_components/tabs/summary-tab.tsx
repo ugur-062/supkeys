@@ -12,6 +12,44 @@ import { AlertTriangle, Download, MailWarning, Pencil } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import { EditProfileDialog } from "../edit-profile-dialog";
+import { reasonText } from "../verification-reason";
+
+/** Hukuki yapı etiketi (admin Türkçe); OTHER iken yerel ad (GmbH, LLC…) eklenir. */
+const COMPANY_TYPE_LABELS: Record<string, string> = {
+  JOINT_STOCK: "Anonim Şirket",
+  LIMITED: "Limited Şirket",
+  SOLE_PROPRIETOR: "Şahıs Firması",
+  OTHER: "Diğer",
+};
+
+function companyTypeText(data: AdminCompanyDetail): string | null {
+  if (!data.companyType) return null;
+  const label = COMPANY_TYPE_LABELS[data.companyType] ?? data.companyType;
+  return data.companyType === "OTHER" && data.legalFormLocal
+    ? `${label} — ${data.legalFormLocal}`
+    : label;
+}
+
+/**
+ * Son VIES (AB KDV) sorgusunun özeti (2026-09-27). Firma tarafı her sorguyu
+ * audit'e yazar; kayıt yoksa ve ülke AB'deyse "sorgulanmadı" denir.
+ */
+function viesText(data: AdminCompanyDetail): string | null {
+  const v = data.vies;
+  if (!v) return data.viesSupported ? "Sorgulanmadı" : null;
+  const when = safeFormat(v.checkedAt, "d MMM yyyy HH:mm");
+  const number = v.vatNumber ? `${v.countryCode ?? ""}${v.vatNumber}` : null;
+  if (v.unavailable) return ["Servis yanıt vermedi", number, when].filter(Boolean).join(" · ");
+  if (!v.valid) return ["Geçersiz", number, when].filter(Boolean).join(" · ");
+  return [
+    "Geçerli",
+    number,
+    when,
+    v.name ? `VIES'teki ad: ${v.name}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
 
 /** KVKK — veri export (JSON indir) + firma silme/anonimleştirme. */
 function DangerZone({ data }: { data: AdminCompanyDetail }) {
@@ -177,6 +215,7 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
         </div>
         <dl className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-3">
           <Row label="Ünvan" value={data.legalName} />
+          <Row label="Hukuki yapı" value={companyTypeText(data)} />
           <Row label="Vergi No" value={data.taxNumber} />
           <Row label="Vergi Dairesi" value={data.taxOffice} />
           <Row label="MERSİS No" value={data.mersisNo} />
@@ -186,7 +225,16 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
             label="Bölge / Şehir"
             value={[data.stateRegion, data.city].filter(Boolean).join(" / ")}
           />
+          <Row
+            label="İlçe / Mahalle"
+            value={[data.district, data.neighborhood].filter(Boolean).join(" / ")}
+          />
+          <Row label="Posta kodu" value={data.postalCode ?? null} />
           <Row label="Adres" value={data.addressLine} />
+          <Row label="Yetkili kimlik no" value={data.authorizedTckn ?? null} />
+          {data.vies || data.viesSupported ? (
+            <Row label="VIES (AB KDV)" value={viesText(data)} />
+          ) : null}
           <Row label="Sektör" value={data.industry} />
           <Row
             label="Web sitesi"
@@ -236,7 +284,7 @@ export function SummaryTab({ data }: { data: AdminCompanyDetail }) {
         </dl>
         {data.companyRejectionReason ? (
           <p className="mt-4 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
-            Red gerekçesi: {data.companyRejectionReason}
+            Red gerekçesi: {reasonText(data.companyRejectionReason)}
           </p>
         ) : null}
       </section>

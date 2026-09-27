@@ -1,7 +1,7 @@
 {
   "layout": {
-    "copyright": "© 2026 Rothern",
-    "footerNote": "Bu e-postayı rothern.com platformundan aldınız.",
+    "copyright": "© {year} Rothern",
+    "footerNote": "Bu e-postayı {site} platformundan aldınız.",
     "textSignature": "— Rothern"
   },
   "passwordReset": {
@@ -24,9 +24,9 @@
     "textIgnore": "Bu talebi siz yapmadıysanız bu e-postayı yok sayabilirsiniz."
   },
   "referralInvite": {
-    "subject": "🤝 {inviterName} sizi Rothern'e davet etti",
+    "subject": "{inviterName} sizi Rothern'e davet etti",
     "preview": "{inviterName} sizinle Rothern'de bağlantı kurmak istiyor.",
-    "heading": "Rothern'e davet edildiniz 🤝",
+    "heading": "Rothern'e davet edildiniz",
     "greeting": "Merhaba,",
     "intro": "<b>{inviterName}</b>, sizinle Rothern üzerinden tedarik süreçlerini yürütmek için bağlantı kurmak istiyor. Rothern; teklif toplama, açık eksiltme, sipariş ve ödeme takibini tek yerde toplayan bir B2B tedarik platformudur.",
     "autoConnect": "Bu e-posta ile kaydolduğunuzda <b>{inviterName}</b> ile bağlantınız otomatik kurulur — bu bağlantı kalıcıdır, üyelik türünden bağımsız çalışır.",
@@ -46,18 +46,69 @@
     "textOptOut": "Bu tür davetleri kapatmak için: {url}"
   },
   "tenderExternalInvite": {
-    "subject": "📋 {inviterName} sizi \"{tenderTitle}\" satın alma talebine davet etti",
+    "subject": "{inviterName} sizi \"{tenderTitle}\" satın alma talebine davet etti",
     "preview": "{inviterName}, \"{tenderTitle}\" satın alma talebi için sizden teklif almak istiyor.",
-    "heading": "Bir satın alma talebine davet edildiniz 📋",
+    "heading": "Bir satın alma talebine davet edildiniz",
     "greeting": "Merhaba,",
     "intro": "<b>{inviterName}</b>, Rothern B2B tedarik platformunda açtığı satın alma talebi için sizden teklif almak istiyor:",
-    "categoryLine": "Kategori: {categories}",
+    "categoryLine": "{count, plural, one {Kategori} other {Kategoriler}}: {categories}",
     "closesAtLine": "Son teklif tarihi: {closesAt}",
     "howTo": "Teklif verebilmek için ücretsiz firma hesabı oluşturmanız yeterli — kayıt tamamlandığında bu talebe otomatik davet edilirsiniz ve {inviterName} ile bağlantınız kurulur.",
     "cta": "Kaydol ve Teklif Ver",
     "footnote": "Bu e-posta, {inviterName} firmasının Rothern üzerinden gönderdiği tek seferlik bir satın alma talebi davetidir; bir pazarlama listesine eklenmediniz. Bu tür davetleri almak istemiyorsanız <optout>buradan tek tıkla kapatabilirsiniz</optout>.",
     "textIntro": "{inviterName} sizi Rothern'de \"{tenderTitle}\" satın alma talebine davet etti.",
     "textCta": "Kaydol ve teklif ver: {url}",
-    "textOptOut": "Bu tür davetleri kapatmak için: {url}"
+    "textOptOut": "Bu tür davetleri kapatmak için: {url}",
+    "numberLine": "Talep no: {number}",
+    "itemsTitle": "Talep edilen {count, plural, other {# kalem}}:",
+    "itemLine": "{name} — {qty}",
+    "moreItems": "{count, plural, other {+# kalem daha}}",
+    "deliveryLine": "Teslim yeri: {place}",
+    "supplierTypeLine": "Aranan tedarikçi tipi: {types}",
+    "sealedBid": "Teklifiniz kapalı zarftadır — diğer tedarikçiler fiyatınızı göremez.",
+    "freeToQuote": "Kayıt olmak ve teklif vermek ücretsizdir.",
+    "publicLink": "Talebin herkese açık sayfasını <link>buradan inceleyebilirsiniz</link>.",
+    "textPublicLink": "Talebin herkese açık sayfası: {url}"
+  },
+  "domain": {
+    "qty": {
+      "KG": "{n, number} kg",
+      "GRM": "{n, number} g",
+      "TON": "{n, number} ton",
+      "M": "{n, number} m",
+      "CM": "{n, number} cm",
+      "MM": "{n, number} mm",
+      "KM": "{n, number} km",
+      "M2": "{n, number} m²",
+      "M3": "{n, number} m³",
+      "LTR": "{n, number} litre",
+      "ML": "{n, number} ml",
+      "PCE": "{n, number} adet",
+      "PAIR": "{n, number} çift",
+      "SET": "{n, number} set",
+      "DZN": "{n, number} düzine",
+      "PKT": "{n, number} paket",
+      "BOX": "{n, number} kutu",
+      "CRT": "{n, number} koli",
+      "PAL": "{n, number} palet",
+      "ROL": "{n, number} rulo",
+      "BAG": "{n, number} çuval",
+      "DRM": "{n, number} varil",
+      "HUR": "{n, number} saat",
+      "DAY": "{n, number} gün",
+      "MON": "{n, number} ay",
+      "YER": "{n, number} yıl",
+      "SRV": "{n, number} hizmet",
+      "MDY": "{n, number} adam-gün",
+      "TRP": "{n, number} sefer",
+      "other": "{n, number} {unit}"
+    },
+    "activity": {
+      "MANUFACTURER": "Üretici",
+      "DISTRIBUTOR": "Distribütör / Bayi",
+      "SERVICE_PROVIDER": "Hizmet sağlayıcı",
+      "IMPORTER_EXPORTER": "İthalatçı / İhracatçı",
+      "CONTRACT_MANUFACTURER": "Fason imalatçı"
+    }
   }
 }

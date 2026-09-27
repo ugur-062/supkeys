@@ -38,12 +38,41 @@ export interface ReferralInviteData {
   optOutUrl?: string;
 }
 
-/** Faz C — dış ihale daveti (kapalı zarf: yalnız başlık/kategori/kapanış). */
+/** Dış talep davetinde bir kalem satırı ("Çelik boru — 1.200 m"). */
+export interface TenderExternalInviteItem {
+  /** Kalem adı — alıcının dilinde (talep çevirisi hazırsa). */
+  name: string;
+  quantity: number;
+  /** Katalog birim kodu (`PCE`, `KG`…) → etiket alıcının dilinde; yoksa serbest `unit`. */
+  unitCode: string | null;
+  unit: string;
+}
+
+/**
+ * Faz C — dış talep daveti (2026-09-27 zenginleşti, kullanıcı: "kalemler
+ * hakkında bilgi verilmeli ki şirkete cazip gelsin"). Her metin ALICININ
+ * dilinde. Kapalı zarf ve anonimlik: hedef fiyat, marka/MPN/açıklama/
+ * şartname, belgeler, ticari şartlar, tam adres, teklif sayısı ve diğer
+ * davetliler bu yüke HİÇ girmez (alan yok — şablon basamaz).
+ */
 export interface TenderExternalInviteData {
   inviterName: string;
   tenderTitle: string;
-  categories: string;
+  /** Talep numarası (`ROT-000042`); taslakta yok. */
+  tenderNumber?: string | null;
+  /** Kategori adları — alıcının dilinde ("Kategori/Kategoriler" çoğulu sayıdan). */
+  categories: string[];
   closesAt: string | null;
+  /** İlk kalemler (en fazla `INVITE_ITEM_PREVIEW`). */
+  items?: TenderExternalInviteItem[];
+  /** Toplam kalem sayısı — gösterilmeyenler "+N kalem daha". */
+  itemCount?: number;
+  /** Teslim yeri — YALNIZ şehir + ülke, alıcının dilinde. */
+  deliveryPlace?: string | null;
+  /** Aranan tedarikçi tipi (faaliyet kodları: `MANUFACTURER`…). */
+  supplierTypes?: string[];
+  /** Herkese açık talep sayfası (vitrindeyse), alıcının dilindeki adres. */
+  publicUrl?: string | null;
   registerUrl: string;
   optOutUrl: string;
 }

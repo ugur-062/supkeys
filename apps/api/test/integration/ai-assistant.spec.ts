@@ -405,7 +405,9 @@ describe("Faz AI-3 — konuşarak ihale taslağı (BAĞLAYICI DEĞİL)", () => {
     expect(reply.tenderDraft!.draft.items[0]!.name).toBe("Çelik boru DN50");
     expect(reply.tenderDraft!.draft.items[0]!.quantity).toBe(500);
     // Eksik zorunlular sorulacak (teslim/ödeme/kapanış).
-    expect(reply.tenderDraft!.missingRequired.join(" ")).toMatch(/Teslim|Kapanış|Ödeme/i);
+    expect(
+      reply.tenderDraft!.missingRequired.some((m) => m === "deliveryTerm" || m === "bidsCloseAt"),
+    ).toBe(true);
     // İHALE AÇILMADI — hiçbir listing oluşmadı (BAĞLAYICI-YAZMA-YOK).
     expect(await prisma.listing.count()).toBe(0);
     // Taslak oturuma yazıldı (belge + konuşma birleşiminin kaynağı).

@@ -7,7 +7,7 @@ import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import { daysUntil } from "@/lib/tenders/seller-state";
-import { useActivityLabel, useCityLabel, useClosingUrgency, useUnitLabel } from "@/i18n/domain";
+import { useActivityLabel, useCityLabel, useClosingUrgency, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
@@ -34,6 +34,7 @@ const STATE_CLASS: Record<ReturnType<typeof publicState>, string> = {
 export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard }) {
   const t = useTranslations("web.marketplace.card");
   const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
   const ts = useTranslations("web.marketplace.state");
   const locale = useLocale();
   const fmt = useFormatter();
@@ -78,11 +79,16 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
         value: (
           <span className="flex flex-col items-start">
             <span className="flex items-baseline gap-1">
-              <span className="font-semibold tabular-nums text-slate-900">{l.itemSummary.count}</span>
-              <span className="text-[11px] text-slate-500">{t("itemNoun")}</span>
+              <span>
+                {t.rich("itemsCountRich", {
+                  count: l.itemSummary.count,
+                  n: (c) => <span className="font-semibold tabular-nums text-slate-900">{c}</span>,
+                  u: (c) => <span className="text-[11px] text-slate-500">{c}</span>,
+                })}
+              </span>
               {l.itemSummary.totalQuantity && l.itemSummary.unit ? (
                 <span className="ml-1 tabular-nums text-slate-600">
-                  {fmt.number(Number(l.itemSummary.totalQuantity))} {unitLabel(l.itemSummary.unit)}
+                  {quantity(l.itemSummary.totalQuantity, l.itemSummary.unit)}
                 </span>
               ) : null}
             </span>

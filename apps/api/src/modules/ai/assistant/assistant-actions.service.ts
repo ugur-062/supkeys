@@ -1,5 +1,8 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { tApi } from "../../../common/i18n/i18n.service";
+import { formatMoney } from "../../../common/notifications/notification-params";
+import { quantityDisplay } from "../../../common/i18n/unit-label";
+import { currentLocale } from "../../../common/i18n/locale-context";
 import {
   BadRequestException,
   ForbiddenException,
@@ -10,13 +13,14 @@ import {
 import { randomUUID } from "node:crypto";
 import { Prisma } from "@rothern/db";
 import {
-  BID_DELIVERY_TIME_LABELS,
   BID_DELIVERY_TIMES,
   type AiActionResult,
   type AiPendingAction,
   type BidDeliveryTime,
+  normalizeUnit,
 } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../../common/company/category-name";
 import { AuditService } from "../../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { CreateListingDto } from "../../company-listings/dto/create-listing.dto";
@@ -24,6 +28,7 @@ import { PlaceBidDto } from "../../company-listings/dto/place-bid.dto";
 import { CompanyListingsService } from "../../company-listings/services/company-listings.service";
 import { CompanyOrdersService } from "../../company-orders/services/company-orders.service";
 import { sanitizeAiDraft } from "../tender-extract/ai-draft-sanitizer";
+import { missingFieldsForPrompt } from "./assistant.prompts";
 import { validatePendingDto } from "./validate-pending-dto";
 
 /**
@@ -166,7 +171,7 @@ export class AssistantActionsService {
     if (s.missingRequired.length > 0) {
       return {
         ok: false,
-        problem: `Taslakta eksik zorunlu alanlar var: ${s.missingRequired.join(", ")}. Önce bunları tamamlayın.`,
+        problem: `Taslakta eksik zorunlu alanlar var: ${missingFieldsForPrompt(s.missingRequired)}. Önce bunları tamamlayın.`,
       };
     }
     if (s.draft.suggestedCategoryIds.length === 0) {
@@ -176,9 +181,11 @@ export class AssistantActionsService {
     if (typeof dto === "string") return { ok: false, problem: dto };
     dto.invitations = invitees.map((c) => c.rothernId!);
 
+    // Kategori adı onay kartında okuyucunun dilinde (eskiden `nameTr` ham —
+    // EN/RU arayüzde Türkçe kategori adı basıyordu).
     const cats = await this.prisma.category.findMany({
       where: { id: { in: dto.categoryIds ?? [] } },
-      select: { nameTr: true },
+      select: CATEGORY_NAME_SELECT,
     });
     return this.storePending(user, sessionId, {
       type: "publish_tender",
@@ -190,18 +197,17 @@ export class AssistantActionsService {
       // planının ya da şartname metninin kullanıcı görmeden yayınlanması
       // demekti (denetim 2026-08-24 Parça 6).
       summary: [
-        tApi(
-          type === "ALIM"
-            ? "api.ai.assistant.publish.headingAlim"
-            : "api.ai.assistant.publish.headingSatis",
-          { title: dto.title },
-        ),
+        // Satış ilanı kalktı (2026-09-04) — yayın her zaman alım talebi.
+        tApi("api.ai.assistant.publish.headingAlim", { title: dto.title }),
         tApi("api.ai.assistant.publish.items", {
           list: `${(dto.items ?? [])
             .slice(0, 5)
             .map(
               (i) =>
-                `${i.name} — ${i.quantity ?? "?"} ${i.unit ?? ""}`.trim(),
+                // Miktar + birim okuyucunun dilinde, çoğul kuralıyla.
+                i.quantity != null
+                  ? `${i.name} — ${quantityDisplay(i.quantity, normalizeUnit(i.unit), i.unit, currentLocale())}`
+                  : `${i.name} — ? ${i.unit ?? ""}`.trim(),
             )
             .join(" · ")}${(dto.items ?? []).length > 5 ? " …" : ""}`,
           // Sayı DİZE geçilir: ICU sayı biçimlendirmesi binlik ayraç eklerdi
@@ -209,7 +215,7 @@ export class AssistantActionsService {
           count: String((dto.items ?? []).length),
         }),
         tApi("api.ai.assistant.publish.category", {
-          list: cats.map((c) => c.nameTr).join(", ") || "-",
+          list: cats.map((c) => categoryName(c)).join(", ") || "-",
         }),
         tApi("api.ai.assistant.card.invitees", {
           list: invitees.map((c) => c.name).join(", "),
@@ -259,8 +265,7 @@ export class AssistantActionsService {
         }),
         tApi("api.ai.assistant.eliminate.bid", {
           supplier: ref.supplierName,
-          amount: String(ref.bid.amount),
-          currency: ref.bid.currency,
+          amount: formatMoney(String(ref.bid.amount), ref.bid.currency, currentLocale()),
         }),
         ...(reason
           ? [tApi("api.ai.assistant.eliminate.reason", { reason })]
@@ -300,8 +305,7 @@ export class AssistantActionsService {
         }),
         tApi("api.ai.assistant.award.winner", {
           supplier: ref.supplierName,
-          amount: String(ref.bid.amount),
-          currency: ref.bid.currency,
+          amount: formatMoney(String(ref.bid.amount), ref.bid.currency, currentLocale()),
         }),
         tApi("api.ai.assistant.award.irreversible"),
         tApi("api.ai.assistant.award.approvalNote"),
@@ -344,6 +348,7 @@ export class AssistantActionsService {
       name: string;
       quantity: unknown;
       unit: string;
+      unitCode?: string | null;
       questions?: Array<{ required?: boolean }>;
     }>;
     if (items.length === 0) {
@@ -392,7 +397,12 @@ export class AssistantActionsService {
       const qty = new Prisma.Decimal(String(i.quantity ?? 1));
       const sub = qty.mul(new Prisma.Decimal(String(price)));
       amount = amount.add(sub);
-      lines.push(`${i.name}: ${String(i.quantity)} ${i.unit} × ${price} = ${sub.toString()} ${currency}`);
+      // Miktar, birim ve tutarlar okuyucunun dilinde (İngilizce kartta "adet"
+      // ve "500 TRY" basılıyordu); sembolün yeri dilden (`formatMoney`).
+      const loc = currentLocale();
+      lines.push(
+        `${i.name}: ${quantityDisplay(String(i.quantity), i.unitCode ?? normalizeUnit(i.unit), i.unit, loc)} × ${formatMoney(price, currency, loc)} = ${formatMoney(sub.toString(), currency, loc)}`,
+      );
     }
     const note = typeof args.note === "string" ? args.note.slice(0, 1000) : undefined;
     const validityDays =
@@ -418,6 +428,8 @@ export class AssistantActionsService {
       ...(validityDays ? { validityDays } : {}),
     } as PlaceBidDto;
 
+    // Teslim süresi onay kartında okuyucunun dilinde (eskiden Türkçe sözlük sabitti).
+    const deliveryLabel = tApi(`api.ai.assistant.deliveryTime.${deliveryTime as BidDeliveryTime}`);
     return this.storePending(user, sessionId, {
       type: "place_bid",
       severity: "critical",
@@ -437,15 +449,13 @@ export class AssistantActionsService {
           : []),
         validityDays
           ? tApi("api.ai.assistant.placeBid.totalWithValidity", {
-              amount: amount.toString(),
-              currency,
-              delivery: BID_DELIVERY_TIME_LABELS[deliveryTime as BidDeliveryTime],
+              amount: formatMoney(amount.toString(), currency, currentLocale()),
+              delivery: deliveryLabel,
               days: validityDays,
             })
           : tApi("api.ai.assistant.placeBid.total", {
-              amount: amount.toString(),
-              currency,
-              delivery: BID_DELIVERY_TIME_LABELS[deliveryTime as BidDeliveryTime],
+              amount: formatMoney(amount.toString(), currency, currentLocale()),
+              delivery: deliveryLabel,
             }),
         tApi("api.ai.assistant.placeBid.note"),
       ],
@@ -491,8 +501,7 @@ export class AssistantActionsService {
         }),
         tApi("api.ai.assistant.orderReceived.seller", {
           seller: order.seller?.name ?? "-",
-          amount: String(order.amount),
-          currency: order.currency ?? "",
+          amount: formatMoney(String(order.amount), order.currency, currentLocale()),
         }),
         tApi("api.ai.assistant.orderReceived.note"),
       ],

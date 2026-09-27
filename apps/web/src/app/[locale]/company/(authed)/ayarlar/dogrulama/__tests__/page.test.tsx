@@ -109,4 +109,43 @@ describe("DogrulamaPage", () => {
     expect(screen.getByLabelText("Sicil / Kayıt No *")).toBeInTheDocument();
     expect(screen.getByLabelText("Hesap Sahibi *")).toBeInTheDocument();
   });
+
+  // 2026-09-27: red gerekçesi "[KOD] not" biçiminde saklanır; kod firmanın
+  // dilinde katalogdan, not olduğu gibi basılır. Kodsuz eski metin aynen.
+  it("kodlu red gerekçesi katalogdan çevrilir, admin notu eklenir; eski metin aynen", () => {
+    h.data = docs({
+      status: "REJECTED",
+      rejectionReason: "[COUNTRY_CHANGED]",
+      docStatus: { ...docs().docStatus, taxPlate: "REJECTED", tradeRegistry: "REJECTED" },
+      docReason: {
+        ...docs().docReason,
+        taxPlate: "[UNREADABLE] sayfa 2 eksik",
+        tradeRegistry: "Eski serbest metin",
+      },
+    });
+    render(<DogrulamaPage />);
+    expect(screen.getByText(/Kayıt ülkeniz değişti/)).toBeInTheDocument();
+    expect(
+      screen.getByText("Belge okunmuyor ya da bulanık — net bir tarama yükleyin. Not: sayfa 2 eksik"),
+    ).toBeInTheDocument();
+    expect(screen.getByText("Eski serbest metin")).toBeInTheDocument();
+    expect(screen.queryByText(/\[UNREADABLE\]/)).not.toBeInTheDocument();
+  });
+
+  it("yabancı firmada kimlik tek alan: iki yüz tek dosyada ipucu; KKTC Türkçe etiket, CN yerel ad", () => {
+    h.data = docs({ country: "DE", required: ["tradeRegistry", "taxPlate", "idFront"] });
+    const { unmount } = render(<DogrulamaPage />);
+    expect(screen.getByText(/ön ve arka yüzünü tek dosyada/)).toBeInTheDocument();
+    unmount();
+
+    h.data = docs({ country: "XN", required: ["tradeRegistry", "taxPlate", "signatureCircular", "idFront"] });
+    const xn = render(<DogrulamaPage />);
+    expect(screen.getAllByText("Şirket tescil belgesi").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText(/Certificate of Incorporation/)).not.toBeInTheDocument();
+    xn.unmount();
+
+    h.data = docs({ country: "CN", required: ["tradeRegistry", "idFront"] });
+    render(<DogrulamaPage />);
+    expect(screen.getAllByText(/营业执照/).length).toBeGreaterThanOrEqual(1);
+  });
 });

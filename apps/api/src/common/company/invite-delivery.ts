@@ -1,4 +1,5 @@
 import type { Locale } from "@rothern/i18n";
+import { countryName, isValidCountryCode, provinceDisplayName } from "@rothern/shared";
 
 /**
  * DAVET E-POSTASI TESLİM DURUMU — tek kaynak (2026-09-27 davet denetimi).
@@ -91,4 +92,60 @@ export function formatInviteDeadline(d: Date, locale: Locale): string {
     minute: "2-digit",
     timeZoneName: "short",
   }).format(d);
+}
+
+/**
+ * Dış talep davetinde gösterilen kalem sayısı — e-posta cazip olsun ama
+ * talebin tamamını dökmesin; kalanı "+N kalem daha" (2026-09-27).
+ */
+export const INVITE_ITEM_PREVIEW = 6;
+
+/**
+ * Dış davetten önce talep çevirisinin (alıcının dili) en fazla ne kadar
+ * bekleneceği — kullanıcı kararı "~60 sn"; dolarsa özgün metinle gider.
+ */
+export const INVITE_TRANSLATION_WAIT_MS = 60_000;
+
+/** Rus/İngiliz adı ISO'da olmayan kodlar (KKTC) — `Intl` tanımaz. */
+const NON_ISO_COUNTRY: Partial<Record<Locale, Record<string, string>>> = {
+  en: { XN: "Northern Cyprus" },
+  ru: { XN: "Северный Кипр" },
+};
+
+/**
+ * Ülke adı alıcının dilinde: Türkçe paylaşılan statik listeden (web ile
+ * aynı ad), diğer diller `Intl.DisplayNames` (web `countryDisplayName`in
+ * sunucu karşılığı; e-posta sunucuda üretildiği için ICU farkı sorun değil).
+ */
+export function inviteCountryName(code: string, locale: Locale): string {
+  const cc = code.trim().toUpperCase();
+  const override = NON_ISO_COUNTRY[locale]?.[cc];
+  if (override) return override;
+  if (locale !== "tr" && /^[A-Z]{2}$/.test(cc) && cc !== "XN") {
+    try {
+      const name = new Intl.DisplayNames([locale], { type: "region" }).of(cc);
+      if (name && name !== cc) return name;
+    } catch {
+      // eski çalışma zamanı — Türkçe ada düş
+    }
+  }
+  return countryName(cc);
+}
+
+/**
+ * Teslim yeri — YALNIZ şehir + ülke, alıcının dilinde ("Munich, Germany",
+ * "Стамбул, Турция"). Tam adres (sokak, posta kodu, ilçe) davet e-postasına
+ * ASLA girmez: alıcı henüz tanınmayan bir firma ve adres alıcının kimliğini
+ * ele verir (herkese açık talep sayfasıyla aynı ilke — nitelik, kimlik değil).
+ */
+export function formatInvitePlace(
+  city: string | null | undefined,
+  country: string | null | undefined,
+  locale: Locale,
+): string | null {
+  const cityLabel = provinceDisplayName(city, locale);
+  const cc = (country ?? "").trim().toUpperCase();
+  const countryLabel = cc && isValidCountryCode(cc) ? inviteCountryName(cc, locale) : "";
+  const parts = [cityLabel, countryLabel].filter(Boolean);
+  return parts.length > 0 ? parts.join(", ") : null;
 }

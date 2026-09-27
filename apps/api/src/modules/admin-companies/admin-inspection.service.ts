@@ -7,6 +7,8 @@ import {
   Optional,
 } from "@nestjs/common";
 import { Prisma, type CompanyOrderStatus } from "@rothern/db";
+import { encodeSystemText } from "@rothern/shared";
+import { dateParam } from "../../common/notifications/notification-params";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { RealtimeService } from "../realtime/realtime.service";
@@ -241,7 +243,7 @@ export class AdminInspectionService {
       paragraphKeys: [
         "api.notifications.adminInspection.ilanUzatildiGovde",
       ],
-      params: { baslik: l.title, tarih: closesAt.toLocaleString("tr-TR") },
+      params: { baslik: l.title, tarih: dateParam(closesAt, "dateTime") },
     });
     return { ok: true, closesAt };
   }
@@ -298,7 +300,7 @@ export class AdminInspectionService {
       paragraphKeys: [
         "api.notifications.adminInspection.ilanYenidenAcildiGovde",
       ],
-      params: { baslik: l.title, tarih: closesAt.toLocaleString("tr-TR") },
+      params: { baslik: l.title, tarih: dateParam(closesAt, "dateTime") },
     });
     return { ok: true, closesAt };
   }
@@ -489,7 +491,8 @@ export class AdminInspectionService {
         where: { id, status: { in: CANCELABLE } },
         data: {
           status: "CANCELLED",
-          cancelReason: `[Yönetici] ${reason.trim()}`,
+          // Kodlu: firma ekranı "[Yönetici]" önekini okuyucunun dilinde çizer.
+          cancelReason: encodeSystemText("ADMIN", reason),
           cancelledAt: new Date(),
         },
       });

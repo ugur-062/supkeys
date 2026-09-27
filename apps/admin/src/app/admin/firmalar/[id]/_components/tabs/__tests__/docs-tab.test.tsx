@@ -107,7 +107,7 @@ describe("DocsTab — KYC belge inceleme", () => {
     await user.click(screen.getByRole("button", { name: "Hepsini Onayla" }));
     await user.click(screen.getAllByRole("button", { name: "Reddet" })[0]!);
     await user.type(
-      screen.getByLabelText(/Vergi Levhası red gerekçesi/),
+      screen.getByLabelText(/Vergi Levhası red notu/),
       "belge okunmuyor",
     );
     await user.click(screen.getByRole("button", { name: "Kararı Kaydet" }));
@@ -131,47 +131,111 @@ describe("DocsTab — KYC belge inceleme", () => {
     ).toBeGreaterThan(0);
   });
 
-  it("yabancı firma → 3 belgelik set + bilgi bandı", () => {
+  it("yabancı firma → 3 belgelik set + bilgi bandı, belge adları ülkeden bağımsız", () => {
     render(<DocsTab companyId="c1" data={detail({ country: "DE" })} />);
-    expect(screen.getByText(/Yabancı firma \(DE\)/)).toBeInTheDocument();
+    expect(screen.getByText(/Yabancı firma \(Almanya\)/)).toBeInTheDocument();
     // Yalnız 3 zorunlu belge listelenir — İmza Sirküleri görünmez.
-    expect(screen.queryByText("İmza Sirküleri")).not.toBeInTheDocument();
-    expect(screen.getByText("Vergi Levhası")).toBeInTheDocument();
-    expect(screen.getByText("Ticaret Sicil Gazetesi")).toBeInTheDocument();
+    expect(screen.queryByText(/İmza Sirküleri/)).not.toBeInTheDocument();
+    // Türk belge adları ("Vergi Levhası", "Ticaret Sicil Gazetesi") yabancıda YOK.
+    expect(screen.queryByText("Vergi Levhası")).not.toBeInTheDocument();
+    expect(screen.queryByText("Ticaret Sicil Gazetesi")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Kuruluş / Sicil Belgesi (Certificate of Incorporation)"),
+    ).toBeInTheDocument();
+    expect(
+      screen.getByText("Vergi / KDV Kayıt Belgesi (Tax / VAT Certificate)"),
+    ).toBeInTheDocument();
   });
 
   it("zorunlu set API'den gelir (Çin: sicil + kimlik) — admin kendi ikili kuralını uygulamaz", () => {
     render(
       <DocsTab companyId="c1" data={detail({ country: "CN", requiredDocs: ["tradeRegistry", "idFront"] })} />,
     );
-    expect(screen.getByText("Ticaret Sicil Gazetesi")).toBeInTheDocument();
-    // Eski ikili kural Çin'e de 3 belge (vergi levhası dahil) gösteriyordu.
-    expect(screen.queryByText("Vergi Levhası")).not.toBeInTheDocument();
+    expect(
+      screen.getByText("Kuruluş / Sicil Belgesi (Certificate of Incorporation)"),
+    ).toBeInTheDocument();
+    // Eski ikili kural Çin'e de 3 belge (vergi belgesi dahil) gösteriyordu.
+    expect(screen.queryByText(/Tax \/ VAT Certificate/)).not.toBeInTheDocument();
   });
 
-  it("red şablonu chip'i tıklanınca gerekçe input'una dolar", async () => {
+  it("KKTC bilgi bandında ülke adı (harf kodu değil)", () => {
+    render(<DocsTab companyId="c1" data={detail({ country: "XN", requiredDocs: ["tradeRegistry", "taxPlate", "signatureCircular", "idFront"] })} />);
+    expect(screen.getByText(/Yabancı firma \(Kuzey Kıbrıs Türk Cumhuriyeti/)).toBeInTheDocument();
+  });
+
+  /**
+   * KODLU GEREKÇE (2026-09-27): çip KOD seçer (firmanın dilinde çevrilir),
+   * input isteğe bağlı NOT'tur — eskiden Türkçe cümle input'a dolup olduğu
+   * gibi saklanıyordu.
+   */
+  it("gerekçe çipi KOD seçer; not boşsa yalnız kod gönderilir", async () => {
     const user = userEvent.setup();
     render(<DocsTab companyId="c1" data={detail()} />);
     await user.click(screen.getByRole("button", { name: "Hepsini Onayla" }));
     await user.click(screen.getAllByRole("button", { name: "Reddet" })[0]!);
-    await user.click(
-      screen.getByRole("button", { name: "Belge okunmuyor / bulanık" }),
-    );
-    expect(
-      screen.getByLabelText(/Vergi Levhası red gerekçesi/),
-    ).toHaveValue("Belge okunmuyor / bulanık");
+    const chip = screen.getByRole("button", { name: "Belge okunmuyor / bulanık" });
+    await user.click(chip);
+    expect(chip).toHaveAttribute("aria-pressed", "true");
+    // Not input'u doldurulmaz — kod ayrı alan.
+    expect(screen.getByLabelText(/Vergi Levhası red notu/)).toHaveValue("");
     await user.click(screen.getByRole("button", { name: "Kararı Kaydet" }));
     expect(h.reviewMutate).toHaveBeenCalledWith(
       expect.objectContaining({
         decisions: expect.objectContaining({
-          taxPlate: {
-            status: "REJECTED",
-            reason: "Belge okunmuyor / bulanık",
-          },
+          taxPlate: { status: "REJECTED", reasonCode: "UNREADABLE" },
         }),
       }),
       expect.anything(),
     );
+  });
+
+  it("kod + not birlikte gönderilir", async () => {
+    const user = userEvent.setup();
+    render(<DocsTab companyId="c1" data={detail()} />);
+    await user.click(screen.getByRole("button", { name: "Hepsini Onayla" }));
+    await user.click(screen.getAllByRole("button", { name: "Reddet" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Belge güncel değil (son 3 ay)" }));
+    await user.type(screen.getByLabelText(/Vergi Levhası red notu/), "2024 tarihli");
+    await user.click(screen.getByRole("button", { name: "Kararı Kaydet" }));
+    expect(h.reviewMutate).toHaveBeenCalledWith(
+      expect.objectContaining({
+        decisions: expect.objectContaining({
+          taxPlate: { status: "REJECTED", reasonCode: "OUTDATED", reason: "2024 tarihli" },
+        }),
+      }),
+      expect.anything(),
+    );
+  });
+
+  it("kod da not da yoksa kaydetmez", async () => {
+    const user = userEvent.setup();
+    render(<DocsTab companyId="c1" data={detail()} />);
+    await user.click(screen.getByRole("button", { name: "Hepsini Onayla" }));
+    await user.click(screen.getAllByRole("button", { name: "Reddet" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Kararı Kaydet" }));
+    expect(h.toast.error).toHaveBeenCalled();
+    expect(h.reviewMutate).not.toHaveBeenCalled();
+  });
+
+  it("saklanan kodlu gerekçe ön-doldurulur (kod çipi + not); eski serbest metin nota düşer", () => {
+    const { unmount } = render(
+      <DocsTab
+        companyId="c1"
+        data={detail({ docTaxPlateStatus: "REJECTED", docTaxPlateReason: "[MISMATCH] Unvan farklı" })}
+      />,
+    );
+    expect(
+      screen.getByRole("button", { name: "Bilgiler firma bilgileriyle uyuşmuyor" }),
+    ).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByLabelText(/Vergi Levhası red notu/)).toHaveValue("Unvan farklı");
+    unmount();
+    render(
+      <DocsTab
+        companyId="c1"
+        data={detail({ docTaxPlateStatus: "REJECTED", docTaxPlateReason: "kaşe yok" })}
+      />,
+    );
+    expect(screen.getByLabelText(/Vergi Levhası red notu/)).toHaveValue("kaşe yok");
   });
 
   it("Önizle → sayfa içi iframe açılır, tekrar tıklayınca kapanır", async () => {

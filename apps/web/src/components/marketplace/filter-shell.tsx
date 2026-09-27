@@ -276,15 +276,20 @@ const FOUND_KEY = {
   openRequest: "foundOpenRequest",
 } as const satisfies Record<ResultCountKind, string>;
 
+/** "… bulunamadı" da tür başına TAM cümle — isim parçası cümleye eklenmez (RU/EN çekimi tutmaz). */
+const NOT_FOUND_KEY = {
+  product: "notFoundProduct",
+  company: "notFoundCompany",
+  buyingRequest: "notFoundBuyingRequest",
+  openRequest: "notFoundOpenRequest",
+} as const satisfies Record<ResultCountKind, string>;
+
 export function ResultCount({
   kind,
-  noun,
   loading = false,
   quiet = false,
 }: {
   kind: ResultCountKind;
-  /** Yalnız "… bulunamadı" cümlesi için (sayısız). */
-  noun: string;
   loading?: boolean;
   quiet?: boolean;
 }) {
@@ -297,7 +302,7 @@ export function ResultCount({
         ? t("updating")
         : total > 0
           ? t(FOUND_KEY[kind], { total })
-          : t("notFound", { noun })}
+          : t(NOT_FOUND_KEY[kind])}
     </p>
   );
 }

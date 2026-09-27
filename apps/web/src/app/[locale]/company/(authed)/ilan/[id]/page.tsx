@@ -8,12 +8,13 @@ import {
   useNavLabel,
   useOrderStatusLabel,
   useScopeLabel,
-  useUnitLabel,
+  useQuantityLabel, useUnitLabel,
 } from "@/i18n/domain";
 import { AutoTranslatedNote } from "@/components/marketplace/auto-translated-note";
 import { AuctionLiveCard } from "./_components/auction-live-card";
 import { MyBidStatusPanel } from "./_components/my-bid-status-panel";
 import { PRICING_HREF, SilverLockCard } from "@/components/company/silver-lock-card";
+import { CountryNotEligibleCard, countryGateFrom } from "@/components/company/country-not-eligible-card";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { CountdownFull } from "@/components/tenders/countdown-full";
@@ -49,7 +50,7 @@ import {
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useListingDocuments } from "@/hooks/use-listing-documents";
-import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
+import { BUYING_TIER, foldSearchText, tierAtLeast } from "@rothern/shared";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { activePortalFromPath } from "@/lib/company/portals";
 import { usePortalStore } from "@/lib/company/portal-store";
@@ -58,8 +59,9 @@ import { SearchInput } from "@/components/list/search-input";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
 import { subscribeRealtime } from "@/lib/realtime";
-import { CURRENCY_SYMBOL } from "@/lib/tenders/labels";
-import { formatMoney } from "@/components/ui/money";
+import { affixCurrency } from "@/lib/tenders/labels";
+import { useFormatMoney } from "@/components/ui/money";
+import { formatPercent, intlLocale } from "@/i18n/format";
 import { cn } from "@/lib/utils";
 import { ArrowLeftIcon, ArrowRightIcon } from "@heroicons/react/20/solid";
 import { orderStatusMeta } from "@/lib/orders/order-status";
@@ -100,11 +102,13 @@ function itemMatchesSearch(
   q: string,
   it: { name: string; materialCode?: string | null },
 ): boolean {
-  const t = q.trim().toLocaleLowerCase("tr-TR");
+  // Katlanmış karşılaştırma — `tr-TR` küçültme İngilizce "PIPE"ı "pıpe"
+  // yapıp "pipe" aramasını kaçırıyordu.
+  const t = foldSearchText(q);
   if (!t) return true;
   return (
-    it.name.toLocaleLowerCase("tr-TR").includes(t) ||
-    (it.materialCode ?? "").toLocaleLowerCase("tr-TR").includes(t)
+    foldSearchText(it.name).includes(t) ||
+    foldSearchText(it.materialCode ?? "").includes(t)
   );
 }
 
@@ -210,10 +214,13 @@ export default function ListingDetailPage() {
   const tn = useNavLabel();
   const td = useTranslations("web.domain");
   const locale = useLocale();
+  const intl = intlLocale(locale);
+  const { money: fmtMoney } = useFormatMoney();
   const listingStatusLabel = useListingStatusLabel();
   const orderStatusLabel = useOrderStatusLabel();
   const scopeLabel = useScopeLabel();
   const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
   // Faz 2: hook koşulsuz çağrılmalı — erken dönüşlerin ARDINDA çağırmak
   // rules-of-hooks ihlali (render'lar arası hook sırası değişir).
   const saveToCatalog = useImportListingToCatalog();
@@ -231,6 +238,9 @@ export default function ListingDetailPage() {
   const errBody = (error as { response?: { status?: number; data?: { code?: string } } } | null)
     ?.response;
   const tierRequired = errBody?.status === 403 && errBody?.data?.code === "TIER_REQUIRED";
+  // 403 + COUNTRY_NOT_ELIGIBLE = talep yalnız belirli ülkelere açık (2026-09-27):
+  // "ulaşılamıyor" değil kuralın kendisi (hangi ülkeler, davetle aşılır).
+  const countryGate = countryGateFrom(error);
   const confirm = useConfirm();
   const award = useAwardListing(id);
   const awardPreview = useAwardPreview(id);
@@ -561,6 +571,9 @@ export default function ListingDetailPage() {
     );
   }
   if (isError) {
+    if (countryGate) {
+      return <CountryNotEligibleCard targetCountries={countryGate.targetCountries} />;
+    }
     if (tierRequired) {
       return (
         <div className="mx-auto max-w-3xl">
@@ -614,12 +627,10 @@ export default function ListingDetailPage() {
     );
   }
 
-  // Talebin para birimi sembolü (kalem/matris değerleri bununla gösterilir).
-  const sym =
-    CURRENCY_SYMBOL[(l.primaryCurrency as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ??
-    "₺";
-  const symFor = (cur?: string | null) =>
-    CURRENCY_SYMBOL[(cur as keyof typeof CURRENCY_SYMBOL) ?? "TRY"] ?? sym;
+  // Tutar + teklifin KENDİ para birimi (yoksa talebin); sembolün yeri dilden
+  // (`affixCurrency`: İngilizcede önde).
+  const withCur = (formatted: string, cur?: string | null) =>
+    affixCurrency(formatted, cur || l.primaryCurrency || "TRY", intl);
   // Çok para birimli karşılaştırma TRY üzerinden yapılır. TRY teklifte tutar
   // zaten TRY; yabancı teklifte kur snapshot'ından TRY karşılığı kullanılır.
   // Gösterim ise her teklifin KENDİ para birimiyle yapılır.
@@ -702,6 +713,19 @@ export default function ListingDetailPage() {
     const pct = ((bestTotal - itemized) / bestTotal) * 100;
     return { kind: "ok", bestTotal, itemized, pct };
   })();
+  // Şerit TALEBİN biriminde gösterilir (2026-09-27): kıyas TRY karşılığıyla
+  // (teklif damgası) yapılır, tutar talep birimine o birimdeki teklifin
+  // damgasıyla geri çevrilir. Damga yoksa (henüz o birimde teklif yok) TRY
+  // karşılığı kalır — etiket hangisi olduğunu söyler. Eskiden EUR talepte
+  // "₺ (TRY karşılığı)" basılıyordu.
+  const stripRate =
+    !l.primaryCurrency || l.primaryCurrency === "TRY"
+      ? 1
+      : ((l.bids ?? [])
+          .map((b) => (b.currency === l.primaryCurrency ? bidRate(b) : null))
+          .find((r): r is number => r != null && r > 0) ?? null);
+  const stripCurrency = stripRate != null ? (l.primaryCurrency ?? "TRY") : "TRY";
+  const toStrip = (vTry: number) => (stripRate != null ? vTry / stripRate : vTry);
   // Teklif verme / güncelleme / belge ekleme yalnızca ilan AÇIK iken.
   const biddingOpen = l.status === "OPEN";
   // ───────────────────────── Bölümler (sekmelere yerleşir) ─────────────────
@@ -826,11 +850,11 @@ export default function ListingDetailPage() {
                     ) : null}
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-zinc-700">
-                    {Number(it.quantity).toLocaleString("tr-TR")} {unitLabel(it.unit, it.unitCode)}
+                    {quantity(it.quantity, it.unit, it.unitCode)}
                   </TableCell>
                   <TableCell className="text-right tabular-nums text-zinc-700">
                     {it.targetPrice
-                      ? formatMoney(it.targetPrice, l.primaryCurrency ?? "TRY")
+                      ? fmtMoney(it.targetPrice, l.primaryCurrency ?? "TRY")
                       : "—"}
                   </TableCell>
                   {showMyPriceCol ? (
@@ -838,7 +862,7 @@ export default function ListingDetailPage() {
                       {(() => {
                         const bi = myPriceByItem.get(it.id);
                         return bi && Number(bi.unitPrice) > 0
-                          ? formatMoney(
+                          ? fmtMoney(
                               bi.unitPrice,
                               bi.currency ??
                                 l.myBid?.currency ??
@@ -1130,13 +1154,13 @@ export default function ListingDetailPage() {
                       <TableCell className="sticky left-0 z-[1] bg-white whitespace-normal text-zinc-900">
                         {it.name}{" "}
                         <span className="text-xs whitespace-nowrap text-zinc-400">
-                          ({Number(it.quantity).toLocaleString("tr-TR")} {unitLabel(it.unit, it.unitCode)})
+                          ({quantity(it.quantity, it.unit, it.unitCode)})
                         </span>
                       </TableCell>
                       {cells.map((c) => {
                         const priceText =
                           c.price != null
-                            ? `${c.price.toLocaleString("tr-TR")} ${symFor(c.currency)}`
+                            ? withCur(c.price.toLocaleString(intl), c.currency)
                             : "—";
                         const tone =
                           c.priceTry != null && c.priceTry === minTry
@@ -1213,8 +1237,7 @@ export default function ListingDetailPage() {
                             : "font-semibold text-zinc-900",
                         )}
                       >
-                        {Number(b.amount).toLocaleString("tr-TR")}{" "}
-                        {symFor(b.currency)}
+                        {withCur(Number(b.amount).toLocaleString(intl), b.currency)}
                         {isBest ? (
                           <span className="block text-xs font-semibold text-emerald-600">
                             {t("enIyiToplam")}
@@ -1247,13 +1270,11 @@ export default function ListingDetailPage() {
               <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-zinc-500" />
               <p>
                 {t.rich("kalemBazliDagitimEkTasarrufSaglamiyor", {
-                  amount: itemSavings.bestTotal.toLocaleString("tr-TR", {
-                    maximumFractionDigits: 2,
-                  }),
+                  amount: fmtMoney(toStrip(itemSavings.bestTotal), stripCurrency),
                   strong: (c) => <strong>{c}</strong>,
                 })}
                 <span className="ml-1 text-xs text-zinc-500">
-                  {t("tryKarsiligiyla")}
+                  {t("karsiligiylaCur", { currency: stripCurrency })}
                 </span>
               </p>
             </div>
@@ -1262,19 +1283,13 @@ export default function ListingDetailPage() {
               <Wallet className="mt-0.5 h-4 w-4 shrink-0 text-emerald-600" />
               <p>
                 {t.rich("kalemBazliDagitimTasarruf", {
-                  itemized: itemSavings.itemized.toLocaleString("tr-TR", {
-                    maximumFractionDigits: 2,
-                  }),
-                  bestTotal: itemSavings.bestTotal.toLocaleString("tr-TR", {
-                    maximumFractionDigits: 2,
-                  }),
-                  pct: itemSavings.pct.toLocaleString("tr-TR", {
-                    maximumFractionDigits: 1,
-                  }),
+                  itemized: fmtMoney(toStrip(itemSavings.itemized), stripCurrency),
+                  bestTotal: fmtMoney(toStrip(itemSavings.bestTotal), stripCurrency),
+                  pct: formatPercent(itemSavings.pct, locale, { maximumFractionDigits: 1 }),
                   strong: (c) => <strong>{c}</strong>,
                 })}
                 <span className="ml-1 text-xs text-emerald-700/80">
-                  {t("tryKarsiligiyla")}
+                  {t("karsiligiylaCur", { currency: stripCurrency })}
                 </span>
               </p>
             </div>
@@ -1300,7 +1315,7 @@ export default function ListingDetailPage() {
                     <span className="text-sm text-zinc-900">
                       {it.name}
                       <span className="ml-1 text-xs text-zinc-400">
-                        ({Number(it.quantity).toLocaleString("tr-TR")} {unitLabel(it.unit, it.unitCode)})
+                        ({quantity(it.quantity, it.unit, it.unitCode)})
                       </span>
                     </span>
                     <div className="flex items-center gap-2">
@@ -1328,7 +1343,7 @@ export default function ListingDetailPage() {
                           { value: "", label: t("sec") },
                           ...opts.map((o) => ({
                             value: o.bidId,
-                            label: `${o.bidderName} · ${formatMoney(o.price, o.currency ?? "TRY")}`,
+                            label: `${o.bidderName} · ${fmtMoney(o.price, o.currency ?? "TRY")}`,
                           })),
                         ]}
                       />
@@ -1451,10 +1466,10 @@ export default function ListingDetailPage() {
               </div>
               <div className="flex shrink-0 flex-wrap items-center gap-3">
                 <span className="text-base font-bold tabular-nums text-zinc-950">
-                  {formatMoney(b.amount, b.currency ?? "TRY")}
+                  {fmtMoney(b.amount, b.currency ?? "TRY")}
                   {b.currency && b.currency !== "TRY" && b.amountTry ? (
                     <span className="ml-1 text-xs font-normal text-zinc-500">
-                      ≈ {formatMoney(b.amountTry, "TRY")}
+                      ≈ {fmtMoney(b.amountTry, "TRY")}
                       {b.exchangeRateSnapshot
                         ? t("kur", { exchangeRateSnapshot: b.exchangeRateSnapshot })
                         : ""}
@@ -1624,7 +1639,7 @@ export default function ListingDetailPage() {
               <div className="rounded-lg bg-zinc-50 px-3 py-2">
                 <Text className="text-sm">
                   {t.rich("mevcutTeklifin", {
-                    money: formatMoney(l.myBid.amount, l.myBid.currency ?? "TRY"),
+                    money: fmtMoney(l.myBid.amount, l.myBid.currency ?? "TRY"),
                     strong: (c) => <strong>{c}</strong>,
                   })}
                 </Text>
@@ -1791,7 +1806,7 @@ export default function ListingDetailPage() {
               <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
               {biddingOpen && l.closesAt ? (
                 <span className="truncate text-xs text-zinc-500">
-                  {t("kapanis", { formatDateTime: formatDateTime(l.closesAt) })}
+                  {t("kapanis", { formatDateTime: formatDateTime(l.closesAt, locale) })}
                 </span>
               ) : null}
             </div>
@@ -1907,7 +1922,7 @@ export default function ListingDetailPage() {
                 l.closesAt ? (
                   <>
                     <span className="block leading-tight">
-                      {formatDate(l.closesAt)}
+                      {formatDate(l.closesAt, locale)}
                     </span>
                     <span className="block text-xs font-medium leading-tight text-zinc-500">
                       {formatTime(l.closesAt, locale)}
@@ -2048,7 +2063,7 @@ export default function ListingDetailPage() {
               <Badge color={statusMeta.color}>{statusMeta.label}</Badge>
               {biddingOpen && l.closesAt ? (
                 <span className="truncate text-xs text-zinc-500">
-                  {t("kapanis", { formatDateTime: formatDateTime(l.closesAt) })}
+                  {t("kapanis", { formatDateTime: formatDateTime(l.closesAt, locale) })}
                 </span>
               ) : null}
             </div>
@@ -2083,7 +2098,7 @@ export default function ListingDetailPage() {
                   <div className="min-w-0">
                     <p className="text-[11px] font-semibold tracking-wide text-zinc-500 uppercase">{t("kapanmasina")}</p>
                     <CountdownFull deadline={l.closesAt} />
-                    <p className="mt-0.5 text-xs text-zinc-500">{formatDateTime(l.closesAt)}</p>
+                    <p className="mt-0.5 text-xs text-zinc-500">{formatDateTime(l.closesAt, locale)}</p>
                   </div>
                 </div>
                 {/* BUG (2026-09-10, kullanıcı: "talebi görüyorum ama teklif
@@ -2148,7 +2163,7 @@ export default function ListingDetailPage() {
             <MetaItem
               icon={CalendarClock}
               label={t("kapanis2")}
-              value={l.closesAt ? formatDateTime(l.closesAt) : "—"}
+              value={l.closesAt ? formatDateTime(l.closesAt, locale) : "—"}
             />
           </dl>
         </section>

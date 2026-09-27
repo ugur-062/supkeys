@@ -35,6 +35,22 @@ export interface PublicCompanyRef {
   verified: boolean;
 }
 
+/**
+ * İçeriğin DİL DURUMU (2026-09-27 SEO denetimi): kayıt hangi dillerde kendi
+ * dilinde gösterilebilir (`readyLocales`, sitemap ile aynı kural) ve özgün metnin
+ * dili (`sourceLocale`, ISO 639-1; bilinmiyorsa "und"). Sayfa hreflang'ı ve
+ * kaynak dilde basılan bloğun `lang` özniteliği buradan. Eski API'de yok.
+ */
+export interface ContentLocaleState {
+  readyLocales?: string[];
+  sourceLocale?: string;
+}
+
+/** Sitemap satırı: dil başına `lastmod` (varlık ∨ o dilin çevirisi; eski API'de yok). */
+export interface SitemapLastmods {
+  lastmods?: Partial<Record<string, string>>;
+}
+
 export interface PublicCategoryRef {
   id: string;
   name: string;
@@ -69,7 +85,7 @@ export interface PublicListingCard {
   categories: PublicCategoryRef[];
 }
 
-export interface PublicListingDetail extends Omit<PublicListingCard, "excerpt"> {
+export interface PublicListingDetail extends Omit<PublicListingCard, "excerpt">, ContentLocaleState {
   description: string | null;
   format: string | null;
   allowedCurrencies: string[];
@@ -127,7 +143,7 @@ export interface PublicFacets {
   truncated: boolean;
 }
 
-export interface PublicSitemapRow {
+export interface PublicSitemapRow extends SitemapLastmods {
   number: string;
   slug?: string;
   title: string;
@@ -146,12 +162,14 @@ const DEFAULT_REVALIDATE = 60;
  * next-intl'den; istek bağlamı yoksa (sitemap/OG rota işleyicileri) Türkçe.
  * Next veri önbelleği başlığı anahtara katar → diller birbirine karışmaz.
  */
-async function publicHeaders(): Promise<Record<string, string>> {
-  let locale = "tr";
-  try {
-    locale = await getLocale();
-  } catch {
-    /* rota işleyicisi / istek dışı */
+async function publicHeaders(explicit?: string): Promise<Record<string, string>> {
+  let locale = explicit ?? "tr";
+  if (!explicit) {
+    try {
+      locale = await getLocale();
+    } catch {
+      /* rota işleyicisi / istek dışı */
+    }
   }
   return { accept: "application/json", "accept-language": locale };
 }
@@ -168,13 +186,18 @@ async function getJson<T>(
   tags: string[] = [SEO_TAGS.facets],
   /** Sahibin önizlemesi: veri önbelleğini atla (bkz. `fetchCompanyProfile`). */
   fresh = false,
+  /**
+   * İstek dili AÇIKÇA (rota işleyicileri — `/en/llms-full.txt`): next-intl
+   * bağlamı olmayan yerde `getLocale` Türkçeye düşer. Verilmezse sayfanın dili.
+   */
+  locale?: string,
 ): Promise<T> {
   const base = resolveApiBaseUrl();
   if (!base) return fallback;
   try {
     const res = await fetch(`${base}${path}`, {
       ...(fresh ? { cache: "no-store" as const } : { next: { revalidate, tags } }),
-      headers: await publicHeaders(),
+      headers: await publicHeaders(locale),
     });
     if (!res.ok) {
       if (res.status !== 404) {
@@ -320,7 +343,7 @@ export interface PublicProductCard extends ProductPriceFields {
   excerpt: string | null;
 }
 
-export interface PublicProduct extends Omit<PublicProductCard, "excerpt"> {
+export interface PublicProduct extends Omit<PublicProductCard, "excerpt">, ContentLocaleState {
   /** Bu dilde çeviri henüz gelmedi (sayfa kaynak metni gösterir) → `noindex`. */
   translationPending?: boolean;
   description: string | null;
@@ -341,6 +364,12 @@ export interface PublicProduct extends Omit<PublicProductCard, "excerpt"> {
   attributeList: { key: string; label: string; value: string; unit: string | null }[];
   /** Kırıntı için kategori adı. */
   category?: { id: string; name: string; slug?: string } | null;
+  /**
+   * Kategorinin SEGMENTİ (L1) — kırıntı ve JSON-LD bunu segment açılış
+   * sayfasına bağlar (L3 süzgeç adresi `/urunler?kategori=` kanoniği dizine
+   * düştüğü için kırıntı öğesi olamaz). Ad okuyucunun dilinde, slug Türkçe.
+   */
+  segment?: { id: string; name: string; slug?: string } | null;
   publishedAt: string | null;
   updatedAt: string;
 }
@@ -370,7 +399,7 @@ export interface PublicProductCompany {
  * hizmet, sertifika, kuruluş, çalışan, ortalama puan. Rothern ID, iletişim,
  * puan dağılımı, sipariş sayıları, talep/ilan listesi ÜYEYE (API döndürmez).
  */
-export interface PublicProfile {
+export interface PublicProfile extends ContentLocaleState {
   /** Metin istek diline otomatik çevrildiyse kaynağın dili (i18n Faz 1e); çeviri yoksa yok. */
   translatedFrom?: string | null;
   name: string;
@@ -402,6 +431,8 @@ export interface PublicProfile {
   /** Herkese açık (2026-09-09): JSON-LD `sameAs` + profil bağlantıları. */
   website?: string | null;
   linkedinUrl?: string | null;
+  /** Profil güncellenme anı — `ProfilePage.dateModified`. */
+  updatedAt?: string;
 }
 
 /** Firma profili — sayfa VE OG görseli aynı çağrıyı (ve etiketi) kullanır. */
@@ -719,6 +750,12 @@ export interface ProductFacets {
   employees?: { key: number; count: number }[];
   /** Kümülatif MOQ ön ayarı sayaçları — anahtar = tavan ("10" | "100" | "1000"). */
   moq?: Record<string, number>;
+  /**
+   * Histogramın ve fiyat süzgeci sınırlarının PARA BİRİMİ (2026-09-27, "kurla
+   * çevir") — sunucu çözer (istek, yoksa dil ya da firma ülkesi). Eski
+   * önbellek yanıtında yok → çağıran kendi varsayılanına düşer.
+   */
+  currency?: string;
   /** Fiyatı yazılı ürün 2'den azsa `null` — histogram çizilmez. Kovalar LOG
    *  ölçekli; `quantiles` ön ayar aralıklarının sınırı. */
   priceHistogram?: {
@@ -745,6 +782,11 @@ export interface ProductListParams {
   sort?: "relevance" | "newest" | "price" | "price_desc";
   verified?: boolean;
   price?: "has" | "request";
+  /**
+   * Fiyat süzgecinin para birimi (ISO) — `priceMin`/`priceMax` bu birimde;
+   * sunucu TCMB kuruyla ortak tabana çevirip karşılaştırır.
+   */
+  currency?: string;
   priceMin?: number;
   priceMax?: number;
   moqMax?: number;
@@ -799,6 +841,7 @@ export function fetchProducts(
   if (params.sort && params.sort !== "relevance") sp.set("sort", params.sort);
   if (params.verified) sp.set("verified", "1");
   if (params.price) sp.set("price", params.price);
+  if (params.currency) sp.set("currency", params.currency);
   if (params.priceMin != null) sp.set("priceMin", String(params.priceMin));
   if (params.priceMax != null) sp.set("priceMax", String(params.priceMax));
   if (params.moqMax != null) sp.set("moqMax", String(params.moqMax));
@@ -825,15 +868,15 @@ export function fetchProducts(
  * Fiyat aralığı ve MOQ bilerek DIŞARIDA (bugünkü davranış): bu uç kenar
  * önbelleğinde ve sürekli değişen sayısal aralıklar önbellek anahtarını
  * sonsuza açardı. Sonuç: aralık seçiliyken diğer sayaçlar bir tık geniş
- * kalır — bilinen yaklaşıklık.
+ * kalır — bilinen yaklaşıklık. `currency` dar bir liste (histogram birimi).
  */
 export type ProductFacetParams = Pick<
   ProductListParams,
-  "category" | "q" | "city" | "country" | "activity" | "verified" | "price" | "cert" | "employees" | "near" | "radius" | "fastReply"
+  "category" | "q" | "city" | "country" | "activity" | "verified" | "price" | "cert" | "employees" | "near" | "radius" | "fastReply" | "currency"
 >;
 
 /** Facet sayaçları BAĞLAMA DUYARLI: diğer seçimler de gönderilir. */
-export function fetchProductFacets(params: ProductFacetParams = {}): Promise<ProductFacets> {
+export function fetchProductFacets(params: ProductFacetParams = {}, opts: { locale?: string } = {}): Promise<ProductFacets> {
   const sp = new URLSearchParams();
   if (params.category) sp.set("category", params.category);
   if (params.q) sp.set("q", params.q);
@@ -849,8 +892,9 @@ export function fetchProductFacets(params: ProductFacetParams = {}): Promise<Pro
     sp.set("radius", String(params.radius));
   }
   if (params.fastReply) sp.set("fastReply", "1");
+  if (params.currency) sp.set("currency", params.currency);
   const qs = sp.toString();
-  return getJson(`/public/products/facets${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_FACETS, 300);
+  return getJson(`/public/products/facets${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_FACETS, 300, undefined, false, opts.locale);
 }
 
 export function fetchCompanyProducts(
@@ -932,7 +976,7 @@ export async function fetchProduct(
   }
 }
 
-export interface ProductSitemapRow {
+export interface ProductSitemapRow extends SitemapLastmods {
   companySlug: string;
   slug: string;
   name: string;
@@ -991,7 +1035,7 @@ export function fetchSitemapSummary(): Promise<SitemapSummary> {
   );
 }
 
-export function fetchCompanySitemap(page = 0): Promise<{ slug: string; updatedAt: string; locales?: string[] }[]> {
+export function fetchCompanySitemap(page = 0): Promise<({ slug: string; updatedAt: string; locales?: string[] } & SitemapLastmods)[]> {
   return getJson(`/public/sitemap/companies?page=${page}`, [], 900, [SEO_TAGS.sitemap]);
 }
 

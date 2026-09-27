@@ -12,6 +12,12 @@ import { PrismaService } from "../../common/prisma/prisma.service";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
 import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
 import {
+  formatNotificationParams,
+  ListingTitleResolver,
+  type NotificationParams,
+} from "../../common/notifications/notification-params";
+import { ContentTranslationService } from "../content-translation/content-translation.service";
+import {
   hasCompanyPermission,
   type PermissionSubject,
 } from "../company-auth/permissions/company-permissions.constants";
@@ -39,8 +45,12 @@ export interface InAppPayload {
   titleKey?: ApiMessageKey;
   bodyKey?: ApiMessageKey;
   ctaLabelKey?: ApiMessageKey;
-  /** Üç anahtarın ORTAK ICU parametre sözlüğü. */
-  params?: Record<string, string | number>;
+  /**
+   * Üç anahtarın ORTAK ICU parametre sözlüğü. Tarih/tutar/sayı ve talep
+   * başlığı TİPLİ verilir (`notification-params.ts`) — biçim alıcının dilinde
+   * seçilir; önceden "tr-TR" ile biçimlenmiş dize VERME.
+   */
+  params?: NotificationParams;
   /** Tam adres (eski yol) — `ctaPath` verilmişse YOK SAYILIR. */
   ctaUrl?: string | null;
   /**
@@ -102,17 +112,20 @@ export interface RenderedNotification {
 
 /**
  * Payload → o alıcının dilindeki metin (SAF fonksiyon, testlenebilir).
- * Anahtar varsa katalogdan üretir (ICU parametreleri `payload.params`),
+ * Anahtar varsa katalogdan üretir (ICU parametreleri `payload.params`; tipli
+ * tarih/tutar/sayı alıcının dilinde biçimlenir, talep başlığı `titles`ten),
  * yoksa düz metni aynen geçirir; `ctaPath` varsa adresi dile çevirir.
  */
 export function renderPayload(
   p: InAppPayload,
   locale: Locale,
+  titles?: ReadonlyMap<string, string>,
 ): RenderedNotification {
+  const params = formatNotificationParams(p.params, locale, titles);
   const text = (
     key: ApiMessageKey | undefined,
     plain: string | null | undefined,
-  ): string | null => (key ? tApi(key, p.params, locale) : (plain ?? null));
+  ): string | null => (key ? tApi(key, params, locale) : (plain ?? null));
   return {
     title: text(p.titleKey, p.title) ?? "",
     body: text(p.bodyKey, p.body) ?? "",
@@ -279,10 +292,14 @@ function portalReadFilter(
 @Injectable()
 export class NotificationService {
   private readonly logger = new Logger(NotificationService.name);
+  /** Talep başlığı alıcının dilinde (`$listingTitle` parametresi). */
+  private readonly titles = new ListingTitleResolver(() => this.translations);
 
   constructor(
     private readonly prisma: PrismaService,
     @Optional() private readonly realtime?: RealtimeService,
+    /** İçerik çevirisi (global modül) — SONDA ve isteğe bağlı; yoksa kaynak başlık. */
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
   /** Tek firmanın (izinli) aktif kullanıcılarına in-app bildirim. */
@@ -316,7 +333,12 @@ export class NotificationService {
       return 0;
     }
     // Metin ALICININ dilinde üretilir (anahtar verilmediyse düz metin geçer).
-    const text = renderPayload(payload, localeOf(user.locale));
+    const locale = localeOf(user.locale);
+    const text = renderPayload(
+      payload,
+      locale,
+      await this.titles.forParams(payload.params, locale),
+    );
     try {
       await this.prisma.notification.create({
         data: {
@@ -378,18 +400,7 @@ export class NotificationService {
         : Promise.resolve([] as { id: string; ownerUserId: string | null }[]),
     ]);
     const ownerOf = new Map(companies.map((c) => [c.id, c.ownerUserId]));
-    // Metin ALICI BAŞINA, o kişinin diliyle. Dil başına bir kez üretilir
-    // (aynı dildeki 200 kullanıcı için 200 çeviri koşumu gereksizdir).
-    const byLocale = new Map<Locale, RenderedNotification>();
-    const textFor = (locale: Locale): RenderedNotification => {
-      let t = byLocale.get(locale);
-      if (!t) {
-        t = renderPayload(payload, locale);
-        byLocale.set(locale, t);
-      }
-      return t;
-    };
-    const rows = users
+    const recipients = users
       .filter(
         (u) =>
           !required ||
@@ -407,21 +418,35 @@ export class NotificationService {
           u.notificationPrefs as Record<string, boolean> | null,
           payload.type,
         ),
-      )
-      .map((u) => {
-        const text = textFor(localeOf(u.locale));
-        return {
-          companyUserId: u.id,
-          companyId: u.companyId,
-          type: payload.type,
-          portal: payload.portal ?? null,
-          title: text.title,
-          body: text.body,
-          ctaUrl: text.ctaUrl,
-          ctaLabel: text.ctaLabel,
-          listingId: payload.listingId ?? null,
-        };
-      });
+      );
+    // Metin ALICI BAŞINA, o kişinin diliyle. Dil başına bir kez üretilir
+    // (aynı dildeki 200 kullanıcı için 200 çeviri koşumu gereksizdir); talep
+    // başlığı çevirisi de dil başına bir kez okunur.
+    const byLocale = new Map<Locale, RenderedNotification>();
+    for (const locale of new Set(recipients.map((u) => localeOf(u.locale)))) {
+      byLocale.set(
+        locale,
+        renderPayload(
+          payload,
+          locale,
+          await this.titles.forParams(payload.params, locale),
+        ),
+      );
+    }
+    const rows = recipients.map((u) => {
+      const text = byLocale.get(localeOf(u.locale))!;
+      return {
+        companyUserId: u.id,
+        companyId: u.companyId,
+        type: payload.type,
+        portal: payload.portal ?? null,
+        title: text.title,
+        body: text.body,
+        ctaUrl: text.ctaUrl,
+        ctaLabel: text.ctaLabel,
+        listingId: payload.listingId ?? null,
+      };
+    });
     if (rows.length === 0) return 0;
     try {
       await this.prisma.notification.createMany({ data: rows });

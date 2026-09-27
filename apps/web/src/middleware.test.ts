@@ -4,7 +4,8 @@ import { describe, expect, it, vi } from "vitest";
 // `config.matcher` sınanıyor — fabrika sahte.
 vi.mock("next-intl/middleware", () => ({ default: () => () => null }));
 
-const { config, permanentize } = await import("./middleware");
+const { config, permanentize, middleware } = await import("./middleware");
+const { NextRequest } = await import("next/server");
 
 /**
  * i18n Faz 1 (2026-09-23): Türkçe adresler ÖN EKSİZ ve `/tr/...`a yeniden yazımı
@@ -47,5 +48,16 @@ describe("permanentize — next-intl 307'leri 308'e çevirir", () => {
   it("yönlendirme olmayan yanıt olduğu gibi döner", () => {
     const res = { status: 200, headers: new Headers() };
     expect(permanentize(res as never)).toBe(res);
+  });
+});
+
+describe("llms dil sürümleri ve yanıt başlıkları (2026-09-27)", () => {
+  it("`/tr|en|ru/llms(-full).txt` next-intl'e girmez (rota işleyicisine olduğu gibi); hata ayıklama başlığı yok", () => {
+    for (const path of ["/llms.txt", "/tr/llms.txt", "/en/llms-full.txt", "/ru/llms.txt"]) {
+      const res = middleware(new NextRequest(`http://localhost${path}`));
+      expect(res.headers.get("x-middleware-next")).toBe("1");
+      expect(res.headers.get("x-dbg")).toBeNull();
+      expect(res.headers.get("strict-transport-security")).toContain("max-age");
+    }
   });
 });

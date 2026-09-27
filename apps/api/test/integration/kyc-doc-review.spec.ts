@@ -130,6 +130,62 @@ describe("belge bazlı KYC inceleme", () => {
     ).rejects.toThrow(/gerekçe/i);
   });
 
+  it("KODLU GEREKÇE (2026-09-27): kod + not '[KOD] not' olarak, yalnız kod '[KOD]' olarak saklanır", async () => {
+    const admin = adminService();
+    const co = await pendingCompany();
+    await admin.reviewDocuments(
+      co.id,
+      {
+        ...ALL_APPROVED,
+        taxPlate: { status: "REJECTED", reasonCode: "OUTDATED", reason: "2023 tarihli" },
+        idBack: { status: "REJECTED", reasonCode: "UNREADABLE" },
+      },
+      "adm1",
+    );
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: co.id } });
+    expect(c.docTaxPlateReason).toBe("[OUTDATED] 2023 tarihli");
+    expect(c.docIdBackReason).toBe("[UNREADABLE]");
+    expect(c.companyVerificationStatus).toBe("REJECTED");
+  });
+
+  it("admin detayı: son VIES kaydı audit'ten, yetkili kimliği maskeli, hukuki yapı + adres alanları", async () => {
+    const admin = adminService();
+    const co = await makeCompany(prisma, {
+      country: "DE",
+      companyType: "OTHER",
+      legalFormLocal: "GmbH",
+      postalCode: "80331",
+      authorizedTckn: "C01X2Y3Z489",
+    });
+    await prisma.auditLog.createMany({
+      data: [
+        {
+          actorType: "company",
+          action: "company.vies_checked",
+          entityType: "company",
+          entityId: co.id,
+          metadata: { countryCode: "DE", vatNumber: "811569869", valid: false, unavailable: true, name: null, address: null, source: "manual" },
+          createdAt: new Date("2026-09-27T09:00:00Z"),
+        },
+        {
+          actorType: "system",
+          action: "company.vies_checked",
+          entityType: "company",
+          entityId: co.id,
+          metadata: { countryCode: "DE", vatNumber: "811569869", valid: true, unavailable: false, name: "MUSTER GMBH", address: null, source: "onboarding" },
+          createdAt: new Date("2026-09-27T10:00:00Z"),
+        },
+      ],
+    });
+    const d = await admin.detail(co.id);
+    expect(d.vies).toMatchObject({ valid: true, unavailable: false, name: "MUSTER GMBH", source: "onboarding" });
+    expect(d.viesSupported).toBe(true);
+    expect(d.companyType).toBe("OTHER");
+    expect(d.legalFormLocal).toBe("GmbH");
+    expect(d.postalCode).toBe("80331");
+    expect(d.authorizedTckn).toBe("C01******89");
+  });
+
   it("KİLİT: REJECTED durumda reddedilen belge yeniden yüklenebilir → PENDING", async () => {
     const admin = adminService();
     const docs = docsService();

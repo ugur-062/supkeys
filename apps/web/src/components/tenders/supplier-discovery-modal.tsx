@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { recipientLocale, type Locale } from "@rothern/i18n";
 import {
   Dialog,
   DialogBackdrop,
@@ -17,7 +18,10 @@ import {
   type DiscoveryCandidate,
   type ExternalCandidate,
   type ExternalInviteStatus,
+  type ExternalInviteTarget,
 } from "@/hooks/use-supplier-discovery";
+import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
+import { countryDisplayName } from "@/i18n/domain";
 import { useListingDetail } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
@@ -61,16 +65,18 @@ export function SupplierDiscoveryModal({
   targetCountries?: string[];
   /**
    * YAYIN ÖNCESİ TOPLAMA (2026-09-27): talep henüz yoksa e-posta HEMEN
-   * GİTMEZ — seçilen adresler forma eklenir, yayın sonrası talebe özel davet
-   * (`external-tender-invite`) gider. Eskiden bu kipte genel "Rothern'e katıl"
-   * daveti (`invite-by-email/batch`) gidiyordu; talepten habersiz bir e-posta.
+   * GİTMEZ — seçilen alıcılar (adres + dil + ülke) forma eklenir, yayın
+   * sonrası talebe özel davet (`external-tender-invite`) gider. Eskiden bu
+   * kipte genel "Rothern'e katıl" daveti (`invite-by-email/batch`)
+   * gidiyordu; talepten habersiz bir e-posta.
    */
-  onCollect?: (emails: string[]) => void;
+  onCollect?: (invites: ExternalInviteTarget[]) => void;
   /** Forma eklenmiş adresler — satırda "Talebe eklendi" görünür. */
   collected?: string[];
 }) {
   const tr = useTranslations("web.panel.requests.supplierDiscoveryModal");
   const tStatus = useTranslations("web.panel.requests.externalInviteStatus");
+  const uiLocale = useLocale() as Locale;
   const [tab, setTab] = useState<"platform" | "external">("platform");
   // listingId verildiyse (ihale detayından açılış) bağlamı kendisi çeker —
   // çağıranın kategori/kalem taşıması gerekmez.
@@ -99,6 +105,10 @@ export function SupplierDiscoveryModal({
   const [externalResults, setExternalResults] = useState<ExternalCandidate[]>([]);
   const [region, setRegion] = useState("");
   const [emailDrafts, setEmailDrafts] = useState<Record<number, string>>({});
+  // Satır başına davet dili — yalnız kullanıcı DEĞİŞTİRDİYSE burada; yoksa
+  // `rowLocale` firmanın ülkesinden/adresinden türetir (e-posta düzeltilince
+  // varsayılan da güncellensin).
+  const [langDrafts, setLangDrafts] = useState<Record<number, Locale>>({});
   const [selectedExt, setSelectedExt] = useState<Set<number>>(new Set());
   // Adres başına GERÇEK gönderim sonucu (SENT/FAILED/SUPPRESSED/…).
   const [sendStatus, setSendStatus] = useState<Record<string, ExternalInviteStatus>>({});
@@ -111,6 +121,7 @@ export function SupplierDiscoveryModal({
     setExternalResults([]);
     setSelectedExt(new Set());
     setEmailDrafts({});
+    setLangDrafts({});
     setSendStatus({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
@@ -146,6 +157,7 @@ export function SupplierDiscoveryModal({
       setEmailDrafts(
         Object.fromEntries(withEmail.map((c, i) => [i, c.email ?? ""])),
       );
+      setLangDrafts({});
       if (withEmail.length === 0) {
         toast.info(
           res.length === 0
@@ -158,20 +170,42 @@ export function SupplierDiscoveryModal({
     }
   };
 
-  const selectedEmails = () =>
+  /**
+   * Davet dili: kullanıcının seçtiği, yoksa kayıtsız alıcı kuralı (ülke →
+   * e-posta/site uzantısı → arayüz dili). Rusça arayüzlü alıcının Alman
+   * firmaya daveti İngilizce gider — eskiden davet edenin dilindeydi.
+   */
+  const rowLocale = (i: number): Locale => {
+    const c = externalResults[i];
+    return (
+      langDrafts[i] ??
+      recipientLocale({
+        country: c?.country ?? null,
+        email: emailDrafts[i] ?? c?.email ?? null,
+        website: c?.website ?? null,
+        fallback: uiLocale,
+      })
+    );
+  };
+
+  const selectedTargets = (): ExternalInviteTarget[] =>
     [...selectedExt]
-      .map((i) => (emailDrafts[i] ?? "").trim().toLowerCase())
-      .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e));
+      .map((i) => ({
+        email: (emailDrafts[i] ?? "").trim().toLowerCase(),
+        locale: rowLocale(i),
+        country: externalResults[i]?.country ?? null,
+      }))
+      .filter((r) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(r.email));
 
   const sendExternalInvites = async () => {
     if (!listingId || sendExternal.isPending) return;
-    const emails = selectedEmails();
-    if (emails.length === 0) {
+    const invites = selectedTargets();
+    if (invites.length === 0) {
       toast.error(tr("seciliAdaylarinEPostaAdreslerini"));
       return;
     }
     try {
-      const results = await sendExternal.mutateAsync({ listingId, emails });
+      const results = await sendExternal.mutateAsync({ listingId, invites });
       setSendStatus((m) => ({ ...m, ...Object.fromEntries(results.map((r) => [r.email, r.status])) }));
       const sent = results.filter((r) => r.status === "SENT");
       const notSent = results.filter((r) => r.status !== "SENT");
@@ -192,13 +226,13 @@ export function SupplierDiscoveryModal({
   /** Yayın öncesi (talep yok): adresler forma eklenir, e-posta yayında gider. */
   const collectInvites = () => {
     if (!onCollect) return;
-    const emails = selectedEmails().filter((e) => !collectedSet.has(e));
-    if (emails.length === 0) {
+    const invites = selectedTargets().filter((r) => !collectedSet.has(r.email));
+    if (invites.length === 0) {
       toast.error(tr("seciliAdaylarinEPostaAdreslerini"));
       return;
     }
-    onCollect(emails);
-    toast.success(tr("adresTalebeEklendi", { n: emails.length }));
+    onCollect(invites);
+    toast.success(tr("adresTalebeEklendi", { n: invites.length }));
     setSelectedExt(new Set());
   };
 
@@ -295,8 +329,8 @@ export function SupplierDiscoveryModal({
                   {tr("webDeAra")}
                 </Button>
               </div>
-              <p className="mt-2 text-xs text-zinc-400">
-                {tr("aiTalebinizinKategorisineUygunFirmalari")}
+              <p className="mt-2 text-xs text-zinc-500">
+                {tr("aiTalebinizinKategorisineUygunFirmalari")} {tr("davetDiliIpucu")}
               </p>
 
               {external.isPending ? (
@@ -339,10 +373,12 @@ export function SupplierDiscoveryModal({
                               {c.name}
                             </p>
                             <p className="mt-0.5 flex flex-wrap items-center gap-x-2 text-xs text-zinc-500">
-                              {c.city ? (
+                              {c.city || c.country ? (
                                 <span className="inline-flex items-center gap-1">
                                   <MapPin className="h-3 w-3" />
-                                  {c.city}
+                                  {[c.city, c.country ? countryDisplayName(c.country, uiLocale) : null]
+                                    .filter(Boolean)
+                                    .join(", ")}
                                 </span>
                               ) : null}
                               {c.website ? (
@@ -358,7 +394,7 @@ export function SupplierDiscoveryModal({
                               ) : null}
                             </p>
                             <p className="mt-1 text-xs text-zinc-600">{c.reason}</p>
-                            <div className="mt-2 flex items-center gap-2">
+                            <div className="mt-2 flex flex-wrap items-center gap-2">
                               <Mail className="h-3.5 w-3.5 shrink-0 text-zinc-400" />
                               <input
                                 value={emailDrafts[i] ?? ""}
@@ -368,6 +404,12 @@ export function SupplierDiscoveryModal({
                                 disabled={isSent}
                                 placeholder={tr("ePostaAdresiniDogrulayinGirin")}
                                 className="w-full max-w-[300px] rounded-lg border border-surface-border bg-white px-2.5 py-1.5 text-xs shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10 disabled:bg-zinc-50"
+                              />
+                              <InviteLocaleSelect
+                                value={rowLocale(i)}
+                                onChange={(l) => setLangDrafts((d) => ({ ...d, [i]: l }))}
+                                disabled={isSent}
+                                label={tr("davetDiliFirma", { name: c.name })}
                               />
                               {isSent ? (
                                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">

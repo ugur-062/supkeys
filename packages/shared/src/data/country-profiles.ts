@@ -76,10 +76,16 @@ export interface CountryProfile {
   /** AB KDV numarası VIES ile doğrulanabilir mi (Faz 4). */
   viesSupported: boolean;
   /**
-   * Vergi/sicil numarasının o ülkedeki RESMÎ adı — kullanıcı formda ne
-   * gireceğini bilsin ("Vergi No" demek Çinli kullanıcıya yardımcı olmaz).
+   * Vergi/sicil numarasının o ülkedeki RESMÎ adı, YEREL yazımıyla ("ИНН",
+   * "统一社会信用代码", "TRN") — dilden bağımsız veri. Kullanıcıya gösterilen
+   * etiket ve biçim ipucu katalogdadır (`web.domain.taxId.<taxIdLabelKey>`);
+   * bu ad orada parantez içinde basılır.
+   *
+   * 2026-09-27: eskiden burada Türkçe/karışık TAM etiket duruyordu ("БИН (BIN)
+   * — 12 hane") ve olduğu gibi gösterildiği için İngilizce arayüzde "12 hane",
+   * Çince firma için "18 karakter" yazıyordu.
    */
-  taxIdLabel: string;
+  taxIdLocalName?: string;
   /**
    * Ülke IBAN sistemini kullanıyor mu.
    *
@@ -121,7 +127,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     ],
     taxIdRule: "TR_VKN",
     viesSupported: false,
-    taxIdLabel: "Vergi Kimlik No (VKN) / TC Kimlik No",
+    taxIdLocalName: "VKN / TCKN",
     usesIban: true,
   },
   {
@@ -137,7 +143,6 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: ["tradeRegistry", "taxPlate", "signatureCircular", "idFront"],
     taxIdRule: "GENERIC",
     viesSupported: false,
-    taxIdLabel: "Vergi No (KKTC)",
     usesIban: true,
   },
   {
@@ -147,7 +152,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: BASE_FOREIGN,
     taxIdRule: "RU_INN",
     viesSupported: false,
-    taxIdLabel: "ИНН (INN) / ОГРН (OGRN)",
+    taxIdLocalName: "ИНН / ОГРН",
     usesIban: false,
   },
   {
@@ -157,7 +162,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: BASE_FOREIGN,
     taxIdRule: "AZ_TIN",
     viesSupported: false,
-    taxIdLabel: "VÖEN (Vergi Ödəyicisinin Eyniləşdirmə Nömrəsi)",
+    taxIdLocalName: "VÖEN",
     usesIban: true,
   },
   {
@@ -167,7 +172,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: BASE_FOREIGN,
     taxIdRule: "KZ_BIN",
     viesSupported: false,
-    taxIdLabel: "БИН (BIN) — 12 hane",
+    taxIdLocalName: "БИН",
     usesIban: true,
   },
   {
@@ -177,7 +182,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: BASE_FOREIGN,
     taxIdRule: "UZ_INN",
     viesSupported: false,
-    taxIdLabel: "СТИР / ИНН — 9 hane",
+    taxIdLocalName: "СТИР",
     usesIban: false,
   },
   {
@@ -189,7 +194,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: ["tradeRegistry", "idFront"],
     taxIdRule: "CN_USCC",
     viesSupported: false,
-    taxIdLabel: "统一社会信用代码 (USCC) — 18 karakter",
+    taxIdLocalName: "统一社会信用代码",
     usesIban: false,
   },
   {
@@ -201,7 +206,7 @@ export const COUNTRY_PROFILES: readonly CountryProfile[] = [
     requiredDocs: ["tradeRegistry", "idFront"],
     taxIdRule: "AE_TRN",
     viesSupported: false,
-    taxIdLabel: "TRN (Tax Registration Number) — 15 hane",
+    taxIdLocalName: "TRN",
     usesIban: true,
   },
 ] as const;
@@ -212,6 +217,35 @@ const BY_CODE = new Map(COUNTRY_PROFILES.map((p) => [p.code, p]));
 const EXTRA_NAMES: Record<string, string> = {
   XN: "Kuzey Kıbrıs Türk Cumhuriyeti",
 };
+
+/**
+ * Numaranın ÖNÜNE yazılan etiketler ("ИНН 7707083893", "VAT: DE811…",
+ * "TRN 100…"). Kullanıcı belgeden olduğu gibi kopyalıyor; etiket numaranın
+ * parçası değil. Büyük harfle karşılaştırılır; ardından harf gelmemeli
+ * ("VATAN…" gibi bir sicil adı kırpılmasın). Tüketici `normalizeTaxId`
+ * (`helpers/company-identity.ts`); uzun önek kısadan ÖNCE durmalı.
+ */
+export const TAX_ID_LABEL_PREFIXES = [
+  "ИНН", "ИИН", "БИН", "ОГРНИП", "ОГРН", "КПП", "СТИР", "УНП", "ЄДРПОУ",
+  "VÖEN", "VOEN", "TRN", "USCC", "VAT NO", "VAT NUMBER", "VAT ID", "VAT",
+  "TAX ID", "TIN", "UST-IDNR", "UST-ID", "USTIDNR", "N° TVA", "TVA", "IVA",
+  "NIF", "CIF", "BTW", "MOMS", "MWST", "UID", "EIN", "GSTIN", "CNPJ",
+];
+
+/**
+ * Vergi/sicil no ETİKET ANAHTARI — katalog `web.domain.taxId.{label,hint}.<anahtar>`.
+ * Özel kurallı ülkeler kural adıyla, KKTC ve AB üyeleri kendi anahtarıyla,
+ * kalan her ülke GENERIC. Etiketi ve biçim ipucunu arayüz dilinde verir.
+ */
+export type TaxIdLabelKey = TaxIdRule | "XN" | "EU";
+
+export function taxIdLabelKey(code: string | null | undefined): TaxIdLabelKey {
+  const p = getCountryProfile(code);
+  if (!p) return "GENERIC";
+  if (p.code === "XN") return "XN";
+  if (p.taxIdRule !== "GENERIC") return p.taxIdRule;
+  return p.viesSupported ? "EU" : "GENERIC";
+}
 
 /**
  * Profili OLMAYAN geçerli ülke için varsayılan yabancı profil (2026-09-27):
@@ -226,7 +260,6 @@ function defaultProfile(code: string): CountryProfile {
     requiredDocs: BASE_FOREIGN,
     taxIdRule: "GENERIC",
     viesSupported: eu,
-    taxIdLabel: eu ? "VAT No / Tax ID" : "Tax ID / Registration No",
     usesIban: countryHasIban(code),
   };
 }

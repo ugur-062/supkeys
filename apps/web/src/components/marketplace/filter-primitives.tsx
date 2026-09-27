@@ -1,6 +1,6 @@
 "use client";
 
-import { useFormatter, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 
 import { Chip } from "@/components/ui/chip";
 import { useFilterAccent } from "./filter-shell";
@@ -335,15 +335,20 @@ export function PriceHistogram({
   data,
   from,
   to,
+  formatPrice,
   onPick,
 }: {
   data: { min: number; max: number; buckets: { from: number; to: number; count: number }[] };
   from?: number;
   to?: number;
+  /**
+   * Tutar + sembol, dilin yazımıyla (sunucu seçilen birimde kovalar). Sembolün
+   * yeri dilden gelir (İngilizcede önde) — `${sayı} ${sembol}` elle yazılmaz.
+   */
+  formatPrice: (n: number) => string;
   onPick: (from: number, to: number) => void;
 }) {
   const t = useTranslations("web.marketplace.filters");
-  const fmt = useFormatter();
   const peak = Math.max(1, ...data.buckets.map((b) => b.count));
   const selected = (b: { from: number; to: number }) =>
     (from == null || b.to > from) && (to == null || b.from < to);
@@ -356,19 +361,19 @@ export function PriceHistogram({
             key={b.from}
             type="button"
             onClick={() => onPick(b.from, b.to)}
-            title={t("histTitle", { from: fmt.number(b.from), to: fmt.number(b.to), count: b.count })}
+            title={t("histTitle", { from: formatPrice(b.from), to: formatPrice(b.to), count: b.count })}
             className={`flex-1 rounded-t-sm transition hover:bg-zinc-900 ${
               !active || selected(b) ? "bg-zinc-400" : "bg-zinc-200"
             }`}
             style={{ height: `${Math.max(6, (b.count / peak) * 100)}%` }}
           >
-            <span className="sr-only">{t("histSr", { from: b.from, to: b.to, count: b.count })}</span>
+            <span className="sr-only">{t("histSr", { from: formatPrice(b.from), to: formatPrice(b.to), count: b.count })}</span>
           </button>
         ))}
       </div>
       <p className="tnum mt-1 flex justify-between text-[11px] text-zinc-500">
-        <span>{data.min.toLocaleString("tr-TR")} ₺</span>
-        <span>{data.max.toLocaleString("tr-TR")} ₺</span>
+        <span>{formatPrice(data.min)}</span>
+        <span>{formatPrice(data.max)}</span>
       </p>
     </div>
   );

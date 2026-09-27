@@ -11,6 +11,7 @@ import {
   isRegistrationOpen,
   registrationCountries,
   requiredDocsForCountry,
+  taxIdLabelKey,
 } from "@rothern/shared";
 
 /**
@@ -74,7 +75,9 @@ describe("Ülke profilleri", () => {
   });
 
   it("IBAN kullanımı: kayıt listesi + profil ezmesi (RU/UZ/CN hayır; FR toprakları ve KKTC evet)", () => {
-    for (const c of ["TR", "DE", "GB", "AE", "SA", "BR", "XN", "RE", "GP"]) expect(countryUsesIban(c)).toBe(true);
+    for (const c of ["TR", "DE", "GB", "AE", "SA", "XN", "RE", "GP"]) expect(countryUsesIban(c)).toBe(true);
+    // Kısmi IBAN ülkesi (kayıtta var, iç ödemede yerleşmemiş): IBAN zorunlu DEĞİL.
+    for (const c of ["BR", "EG", "CR"]) expect(countryUsesIban(c)).toBe(false);
     for (const c of ["RU", "UZ", "CN", "IN", "JP", "CA", "AU", "MX", "US"]) expect(countryUsesIban(c)).toBe(false);
     expect(countryHasIban("RU")).toBe(true); // kayıtta var ama profil ezer
   });
@@ -140,9 +143,27 @@ describe("Ülke profilleri", () => {
     expect(new Set(codes).size).toBe(codes.length);
   });
 
-  it("her profilde vergi no ETİKETİ var (kullanıcı ne gireceğini bilsin)", () => {
+  /**
+   * 2026-09-27: profildeki etiket karışık dilliydi ("БИН (BIN) — 12 hane") ve
+   * ham basılıyordu. Artık profil yalnız YEREL resmî adı taşır (dilden
+   * bağımsız veri); arayüz metni katalogda `web.domain.taxId.*.<anahtar>`.
+   */
+  it("vergi no etiket anahtarı: özel kural, KKTC, AB, genel", () => {
+    expect(taxIdLabelKey("TR")).toBe("TR_VKN");
+    expect(taxIdLabelKey("XN")).toBe("XN");
+    expect(taxIdLabelKey("RU")).toBe("RU_INN");
+    expect(taxIdLabelKey("KZ")).toBe("KZ_BIN");
+    expect(taxIdLabelKey("CN")).toBe("CN_USCC");
+    expect(taxIdLabelKey("AE")).toBe("AE_TRN");
+    expect(taxIdLabelKey("DE")).toBe("EU");
+    expect(taxIdLabelKey("GR")).toBe("EU");
+    expect(taxIdLabelKey("BR")).toBe("GENERIC");
+    expect(taxIdLabelKey(null)).toBe("GENERIC");
     for (const p of COUNTRY_PROFILES) {
-      expect(p.taxIdLabel.length).toBeGreaterThan(3);
+      if (p.taxIdRule === "GENERIC") continue;
+      // Yerel ad dilden bağımsız: Türkçe cümle/uzunluk bilgisi TAŞIMAZ.
+      expect(p.taxIdLocalName).toBeTruthy();
+      expect(p.taxIdLocalName).not.toMatch(/hane|karakter|digits/i);
     }
   });
 });

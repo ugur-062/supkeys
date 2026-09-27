@@ -258,6 +258,7 @@ export class CompanyItemsController {
     @Query("radius") radius?: string,
     @Query("fastReply") fastReply?: string,
     @Query("pageSize") pageSize?: string,
+    @Query("currency") currency?: string,
   ) {
     const n = Number(page);
     const ps = Number(pageSize);
@@ -273,6 +274,9 @@ export class CompanyItemsController {
       activity: activity?.slice(0, 200) || undefined,
       verified: verified === "1",
       price: price === "has" || price === "request" ? price : undefined,
+      // Fiyat süzgecinin para birimi — tanınmayan kod servis tarafında firma
+      // ülkesinin birimine düşer (`resolveCompanyCurrency`).
+      currency: currency?.slice(0, 3) || undefined,
       priceMin: num(priceMin),
       priceMax: num(priceMax),
       moqMax: num(moqMax),
@@ -306,6 +310,7 @@ export class CompanyItemsController {
     @Query("near") near?: string,
     @Query("radius") radius?: string,
     @Query("fastReply") fastReply?: string,
+    @Query("currency") currency?: string,
   ) {
     const num = (v?: string) => {
       const x = Number(v);
@@ -326,6 +331,7 @@ export class CompanyItemsController {
       near: near?.slice(0, 40) || undefined,
       radius: num(radius),
       fastReply: fastReply === "1",
+      currency: currency?.slice(0, 3) || undefined,
     });
   }
 

@@ -5,6 +5,7 @@ import type { PriceTier } from "@/hooks/use-company-items";
 import { Field } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { PlusIcon, TrashIcon } from "@heroicons/react/20/solid";
+import { CURRENCIES } from "@/lib/tenders/labels";
 
 /**
  * FİYAT MODU — üç seçenekten biri ZORUNLU, hiçbiri yalan gerektirmiyor.
@@ -180,8 +181,8 @@ export function PriceModeField({
   );
 }
 
-const CURRENCIES = ["TRY", "USD", "EUR", "GBP"];
-
+// Tüm desteklenen birimler (eskiden yalnız TRY/USD/EUR/GBP — AZN/SEK/KRW
+// satan firma ürününü kendi biriminde fiyatlayamıyordu). TEK KAYNAK labels.ts.
 function CurrencySelect({
   value,
   onChange,

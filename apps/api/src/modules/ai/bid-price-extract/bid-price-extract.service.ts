@@ -1,6 +1,7 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { tApi } from "../../../common/i18n/i18n.service";
 import { BadRequestException, Inject, Injectable, Logger } from "@nestjs/common";
-import type { BidImportResult } from "@rothern/shared";
+import { isCurrencyCode, type BidImportResult } from "@rothern/shared";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { BidImportService } from "../../company-listings/import/bid-import.service";
 import type { DocRow } from "../../company-listings/import/bid-matching";
@@ -25,7 +26,6 @@ import {
  */
 
 const MAX_DOC_ROWS = 300;
-const CURRENCIES = new Set(["TRY", "USD", "EUR", "GBP", "CHF", "JPY", "AED", "CNY", "RUB"]);
 
 @Injectable()
 export class BidPriceExtractService {
@@ -112,15 +112,25 @@ export class BidPriceExtractService {
     const out = await this.bidImport.fromDocRows(listing, rows, {
       pricesIncludeVat: typeof parsed?.pricesIncludeVat === "boolean" ? parsed.pricesIncludeVat : null,
       docCurrency: typeof parsed?.docCurrency === "string" ? parsed.docCurrency : null,
+      crossLanguage: declaredCrossLanguage(parsed?.docLanguage, parsed?.itemsLanguage),
     });
-    if (salvaged > 0) {
-      out.notices.unshift(
-        `AI çıktısı uzunluk tavanına çarptı — ${salvaged} satır kurtarıldı; belgenin devamı okunmamış olabilir (belgeyi bölerek yeniden deneyin)`,
-      );
-    }
-    if (parsed == null) out.notices.unshift("Belge okunamadı — AI geçerli sonuç döndürmedi; şablonu deneyin");
+    // Uyarılar istek dilinde (önizleme bandında olduğu gibi basılır).
+    if (salvaged > 0) out.notices.unshift(tApi("api.ai.bidPriceSalvaged", { n: salvaged }));
+    if (parsed == null) out.notices.unshift(tApi("api.ai.bidPriceUnreadable"));
     return { ...out, route: routed.route, downgraded: result.downgraded, warned: result.warned };
   }
+}
+
+/**
+ * Model belge ile kalem listesinin dilini ayrı söyler; ikisi de geçerli ve
+ * farklıysa diller arası (ipucu eşiği gevşer — `bid-matching`). Birinin
+ * eksikliği "aynı dil" sayılır; yazı farkını eşleştirme motoru ayrıca yakalar.
+ */
+export function declaredCrossLanguage(doc: unknown, items: unknown): boolean {
+  const code = (v: unknown) => (typeof v === "string" ? v.trim().toLowerCase().slice(0, 2) : "");
+  const a = code(doc);
+  const b = code(items);
+  return /^[a-z]{2}$/.test(a) && /^[a-z]{2}$/.test(b) && a !== b;
 }
 
 function tryParse(text: string): Record<string, unknown> | null {
@@ -237,7 +247,7 @@ export function sanitizeRows(raw: unknown): DocRow[] {
         quantity: num(r.quantity),
         unit: str(r.unit, 20),
         // Sembol/TL gibi değerler normalizeCurrency'de çözülür; burada ham bırak.
-        currency: cur && (CURRENCIES.has(cur) || cur.length <= 3) ? cur : curRaw,
+        currency: cur && (isCurrencyCode(cur) || cur.length <= 3) ? cur : curRaw,
         deliveryText: str(r.deliveryText, 80),
         hintLineNo:
           typeof r.hintLineNo === "number" && Number.isInteger(r.hintLineNo) && r.hintLineNo > 0

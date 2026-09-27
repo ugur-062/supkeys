@@ -1,8 +1,11 @@
 "use client";
 
-import { useTranslations } from "next-intl";
-import { useBidDocKindLabel, useMoneyInputError, useUnitLabel } from "@/i18n/domain";
+import { useLocale, useTranslations } from "next-intl";
+import { intlLocale } from "@/i18n/format";
+import { affixCurrency } from "@/lib/tenders/labels";
+import { useBidDeliveryTimeLabel, useBidDocKindLabel, useMoneyInputError, useSystemText, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 import { PRICING_HREF, SilverLockCard } from "@/components/company/silver-lock-card";
+import { CountryNotEligibleCard, countryGateFrom } from "@/components/company/country-not-eligible-card";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -34,11 +37,7 @@ import {
 } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDateTime, todayLocalISO } from "@/lib/tenders/date";
-import {
-  BID_DELIVERY_TIMES,
-  BID_DELIVERY_TIME_LABELS,
-  bidDeliveryTimeLabel,
-} from "@rothern/shared";
+import { BID_DELIVERY_TIMES } from "@rothern/shared";
 import { subscribeRealtime } from "@/lib/realtime";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
@@ -90,10 +89,9 @@ interface ItemState {
   offeredMpn: string;
 }
 
-function money(v: number, currency: string): string {
-  return `${v.toLocaleString("tr-TR", { maximumFractionDigits: 2 })} ${
-    currency === "TRY" ? "₺" : currency
-  }`;
+/** Tutar — arayüz dilinin sayı biçimiyle (`intl` = BCP-47), sembol tek kaynaktan. */
+function moneyIn(intl: string, v: number, currency: string): string {
+  return affixCurrency(v.toLocaleString(intl, { maximumFractionDigits: 2 }), currency, intl);
 }
 
 function formatBytes(n: number): string {
@@ -169,9 +167,15 @@ function AnswerInput({
 export default function TeklifVerPage() {
   const tr = useTranslations("web.panel.requests.page");
   const docKindLabel = useBidDocKindLabel();
+  const deliveryTimeLabel = useBidDeliveryTimeLabel();
+  const systemText = useSystemText();
   const moneyError = useMoneyInputError();
   const td = useTranslations("web.domain");
   const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
+  const locale = useLocale();
+  const intl = intlLocale(locale);
+  const money = (v: number, currency: string) => moneyIn(intl, v, currency);
   const params = useParams<{ id: string }>();
   const id = params.id;
   const router = useRouter();
@@ -457,6 +461,15 @@ export default function TeklifVerPage() {
     // 403 TIER_REQUIRED (ücretsiz üye, herkese açık talep, 2026-09-06): "bulunamadı"
     // yalan olurdu — talep var, paket yok. Talep sayfasıyla aynı kilit kartı.
     const err = (detail.error as { response?: { status?: number; data?: { code?: string } } } | null)?.response;
+    // 403 COUNTRY_NOT_ELIGIBLE (2026-09-27): talep firmanın ülkesine açık değil.
+    const countryGate = countryGateFrom(detail.error);
+    if (countryGate) {
+      return (
+        <div className="mx-auto max-w-3xl px-4 py-10">
+          <CountryNotEligibleCard targetCountries={countryGate.targetCountries} />
+        </div>
+      );
+    }
     if (err?.status === 403 && err.data?.code === "TIER_REQUIRED") {
       return (
         <div className="mx-auto max-w-3xl px-4 py-10">
@@ -655,7 +668,7 @@ export default function TeklifVerPage() {
         (q) => q.required && !(st?.answers[q.id] ?? "").trim(),
       );
     const note = st?.deliveryTime
-      ? tr("teslim", { value: bidDeliveryTimeLabel(st.deliveryTime) ?? st.deliveryTime })
+      ? tr("teslim", { value: deliveryTimeLabel(st.deliveryTime) ?? st.deliveryTime })
       : null;
     return { requiredMissing, note };
   };
@@ -675,7 +688,7 @@ export default function TeklifVerPage() {
             <option value="">{tr("genelSureGecerli")}</option>
             {BID_DELIVERY_TIMES.map((t) => (
               <option key={t} value={t}>
-                {BID_DELIVERY_TIME_LABELS[t]}
+                {deliveryTimeLabel(t)}
               </option>
             ))}
           </Select>
@@ -999,9 +1012,9 @@ export default function TeklifVerPage() {
           >
             {days !== null && days >= 0
               ? days === 0
-                ? tr("kapanisZamanBugun", { dateTime: formatDateTime(l.closesAt) })
-                : tr("kapanisZamanGun", { dateTime: formatDateTime(l.closesAt), days })
-              : tr("kapanisZaman", { dateTime: formatDateTime(l.closesAt) })}
+                ? tr("kapanisZamanBugun", { dateTime: formatDateTime(l.closesAt, locale) })
+                : tr("kapanisZamanGun", { dateTime: formatDateTime(l.closesAt, locale), days })
+              : tr("kapanisZaman", { dateTime: formatDateTime(l.closesAt, locale) })}
           </span>
         ) : null}
       </div>
@@ -1011,7 +1024,7 @@ export default function TeklifVerPage() {
           <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
           <p>
             <span className="font-semibold">{tr("oncekiTeklifinElemeGerekcesi")}</span>{" "}
-            {l.myBid.eliminationReason}
+            {systemText(l.myBid.eliminationReason)}
           </p>
         </div>
       ) : null}
@@ -1035,7 +1048,7 @@ export default function TeklifVerPage() {
               <div>
                 <dt className="text-xs text-zinc-500">{tr("kapanis")}</dt>
                 <dd className="font-medium text-zinc-900">
-                  {l.closesAt ? formatDateTime(l.closesAt) : "—"}
+                  {l.closesAt ? formatDateTime(l.closesAt, locale) : "—"}
                 </dd>
               </div>
               <div>
@@ -1155,7 +1168,7 @@ export default function TeklifVerPage() {
                             </p>
                           ) : null}
                           <p className="mt-1 text-xs text-zinc-500">
-                            {Number(it.quantity)} {unitLabel(it.unit, it.unitCode)}
+                            {quantity(it.quantity, it.unit, it.unitCode)}
                             {it.materialCode ? ` · ${it.materialCode}` : ""}
                             {it.targetPrice
                               ? tr("hedef", { money: money(Number(it.targetPrice), effectiveCurrency) })
@@ -1225,7 +1238,7 @@ export default function TeklifVerPage() {
                               <option value="">{tr("genelSureGecerli")}</option>
                               {BID_DELIVERY_TIMES.map((t) => (
                                 <option key={t} value={t}>
-                                  {BID_DELIVERY_TIME_LABELS[t]}
+                                  {deliveryTimeLabel(t)}
                                 </option>
                               ))}
                             </Select>
@@ -1333,7 +1346,7 @@ export default function TeklifVerPage() {
                       <option value="">{tr("secin")}</option>
                       {BID_DELIVERY_TIMES.map((t) => (
                         <option key={t} value={t}>
-                          {BID_DELIVERY_TIME_LABELS[t]}
+                          {deliveryTimeLabel(t)}
                         </option>
                       ))}
                     </Select>

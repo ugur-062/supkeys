@@ -5,9 +5,10 @@ import {
   composePhone,
   parseInternationalInput,
   parsePhone,
+  phoneNationalLength,
   stripTrunkPrefix,
 } from "@rothern/shared";
-import { useLocale } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { countryDisplayName } from "@/i18n/domain";
 import { useMemo, useState } from "react";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
@@ -18,15 +19,55 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
  * formatı döndürür. Kayıt, davet-kabul, ayarlar ve adres defterinde ortak.
  *
  * 2026-09-27 (kayıt tüm ülkelere açık): liste tam (245 ülke) ve ekrandaki dile
- * göre sıralı; boş alanda varsayılan ülke firmanın ülkesi (yoksa TR); numara
- * yazılmadan seçilen ülke artık KAYBOLMAZ (boş değer "+90"a dönüyordu); örnek
- * numara yalnız Türkiye'de Türk cep biçiminde.
+ * göre sıralı; numara yazılmadan seçilen ülke artık KAYBOLMAZ (boş değer
+ * "+90"a dönüyordu).
  *
  * Alana "+44 7911 …" / "0049 …" biçiminde TAM numara yazılır ya da yapıştırılırsa
  * seçili kodun önüne eklenmez: numara ayrıştırılır ve ülke ona geçer. Ulusal
- * önek "0" atılır (TR 0532 → +90 532, GB 07911 → +44 7911; İtalya'da 0
- * numaranın parçası, atılmaz). Ortak kodda (+1, +44, +7) seçili ülke korunur.
+ * önek atılır (TR 0532 → +90 532, GB 07911 → +44 7911, RU/KZ "8 916…" → +7 916,
+ * HU "06 30…" → +36 30; İtalya'da 0 numaranın parçası, atılmaz). Ortak kodda
+ * (+1, +44, +7) seçili ülke korunur. Arap-Hint/Farsça rakamlar çevrilir.
  */
+
+/**
+ * Boş alanda seçili gelen ülke: firmanın ülkesi → çağıranın `defaultCountry`'si
+ * → arayüz dili (tr → Türkiye, ru → Rusya). İNGİLİZCEDE VARSAYILAN YOK
+ * (2026-09-27): İngilizce her ülkeden kullanıcının ortak dili; Türkiye'ye
+ * düşmek yabancı kullanıcının numarasını sessizce "+90"la kaydediyordu (Rus
+ * kullanıcı bayrağı değiştirmeden "8 916…" yazınca "+90 89161234567"). Ülke
+ * seçilene ya da "+kod" yazılana dek değer BOŞ kalır → form geçersiz.
+ */
+export function defaultPhoneCountry(opts: {
+  companyCountry?: string | null;
+  defaultCountry?: string | null;
+  locale: string;
+}): string | null {
+  const known = (c: string | null | undefined) =>
+    c && PHONE_COUNTRIES.some((p) => p.code === c) ? c : null;
+  return (
+    known(opts.companyCountry) ??
+    known(opts.defaultCountry) ??
+    (opts.locale === "tr" ? "TR" : opts.locale === "ru" ? "RU" : null)
+  );
+}
+
+/** Ülkenin tipik uzunluğunda "XXX XXX XXXX" yer tutucu (TR'de cep biçimi). */
+function nationalPlaceholder(code: string): string {
+  if (code === "TR") return "5XX XXX XX XX";
+  // Tavan 11: uzun planlarda (DE 13) yer tutucu alana sığsın.
+  const n = Math.min(phoneNationalLength(code).max, 11);
+  if (n <= 4) return "X".repeat(n);
+  if (n === 8) return "XXXX XXXX";
+  const groups: string[] = [];
+  let rest = n;
+  while (rest > 4) {
+    groups.push("XXX");
+    rest -= 3;
+  }
+  groups.push("X".repeat(rest));
+  return groups.join(" ");
+}
+
 export function PhoneInput({
   value,
   onChange,
@@ -35,7 +76,8 @@ export function PhoneInput({
   disabled,
   id,
   invalid,
-  ariaLabel = "Telefon",
+  ariaLabel,
+  defaultCountry,
 }: {
   value: string;
   onChange: (fullValue: string) => void;
@@ -45,18 +87,23 @@ export function PhoneInput({
   id?: string;
   invalid?: boolean;
   ariaLabel?: string;
+  /** Firma ülkesi bilinmiyorsa boş alanda seçili gelecek ülke (ör. kayıtta). */
+  defaultCountry?: string | null;
 }) {
+  const t = useTranslations("web.shared.phoneInput");
   const locale = useLocale();
   const companyCountry = useCompanyAuthStore((st) => st.company?.country);
   const [pendingCode, setPendingCode] = useState<string | null>(null);
   // Uluslararası önek yazılırken henüz bir ülke koduna ulaşmamış ham metin ("+3", "00").
   const [draft, setDraft] = useState<string | null>(null);
-  const fallback = companyCountry && PHONE_COUNTRIES.some((c) => c.code === companyCountry) ? companyCountry : "TR";
+  const fallback = defaultPhoneCountry({ companyCountry, defaultCountry, locale });
   const selected = pendingCode ?? fallback;
   const parsed = useMemo(() => parsePhone(value, selected), [value, selected]);
   const hasNumber = parsed.national.replace(/\D/g, "").length > 0;
-  const code = hasNumber ? parsed.code : selected;
-  const current = PHONE_COUNTRIES.find((c) => c.code === code);
+  // Ülke yok (İngilizce arayüz, seçim yapılmadı) → `null`: numara taslakta
+  // bekler, ülke seçilince ya da "+kod" yazılınca değer oluşur.
+  const code: string | null = hasNumber ? parsed.code : selected;
+  const current = code ? PHONE_COUNTRIES.find((c) => c.code === code) : undefined;
   const options = useMemo(() => {
     const rows = PHONE_COUNTRIES.map((c) => ({ ...c, label: countryDisplayName(c.code, locale) }));
     const tr = rows.filter((r) => r.code === "TR");
@@ -64,9 +111,13 @@ export function PhoneInput({
   }, [locale]);
 
   const setCountry = (next: string) => {
+    if (!next) return;
     setPendingCode(next);
+    // Ülkesiz yazılmış taslak numara seçilen ülkeyle birleşir.
+    const typed = draft && !parseInternationalInput(draft, next) ? draft : null;
     setDraft(null);
-    if (hasNumber) onChange(composePhone(next, parsed.national));
+    if (typed) onChange(composePhone(next, stripTrunkPrefix(next, typed)));
+    else if (hasNumber) onChange(composePhone(next, parsed.national));
   };
   const setNational = (raw: string) => {
     const intl = parseInternationalInput(raw, code);
@@ -74,12 +125,19 @@ export function PhoneInput({
       setDraft(raw);
       return;
     }
-    setDraft(null);
     if (intl) {
+      setDraft(null);
       setPendingCode(intl.code);
       onChange(composePhone(intl.code, intl.national));
       return;
     }
+    if (!code) {
+      // Ülke seçilmeden ulusal numara: tahmin YOK (bkz. defaultPhoneCountry).
+      setDraft(raw);
+      onChange("");
+      return;
+    }
+    setDraft(null);
     onChange(composePhone(code, stripTrunkPrefix(code, raw)));
   };
 
@@ -98,15 +156,20 @@ export function PhoneInput({
           {current?.flag ?? "🏳️"}
         </span>
         <span className="pointer-events-none pl-1.5 text-sm text-zinc-600">
-          +{current?.dialCode ?? "90"}
+          +{current?.dialCode ?? ""}
         </span>
         <select
-          aria-label="Ülke kodu"
-          value={code}
+          aria-label={t("countryCode")}
+          value={code ?? ""}
           disabled={disabled}
           onChange={(e) => setCountry(e.target.value)}
           className="absolute inset-0 h-full w-full cursor-pointer appearance-none bg-transparent pr-6 text-transparent outline-none"
         >
+          {code ? null : (
+            <option value="" disabled className="text-zinc-900">
+              {t("selectCountry")}
+            </option>
+          )}
           {options.map((c) => (
             <option key={c.code} value={c.code} className="text-zinc-900">
               {c.flag} {c.label} (+{c.dialCode})
@@ -132,9 +195,9 @@ export function PhoneInput({
         id={id}
         type="tel"
         inputMode="tel"
-        aria-label={ariaLabel}
+        aria-label={ariaLabel ?? t("label")}
         autoComplete={autoComplete}
-        placeholder={placeholder ?? (code === "TR" ? "5XX XXX XX XX" : undefined)}
+        placeholder={placeholder ?? (code ? nationalPlaceholder(code) : t("placeholderIntl"))}
         disabled={disabled}
         value={draft ?? parsed.national}
         onChange={(e) => setNational(e.target.value)}

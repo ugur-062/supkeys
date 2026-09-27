@@ -2,7 +2,9 @@ import { provinceDisplayName } from "@rothern/shared";
 import { productPrice } from "@/lib/public/product-price";
 import type { PublicListingDetail, PublicProduct, PublicProductCompany, PublicProfile } from "@/lib/public/marketplace-api";
 import { joinParts } from "@/lib/seo/meta";
-import { priceLabelsFor, webTranslator } from "@/i18n/server";
+import { formatDate } from "@/lib/format-date";
+import { priceLabelsFor, seoT, webTranslator } from "@/i18n/server";
+import { quantityWith, unitLabelWith } from "@/lib/seo/entities";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 
 /**
@@ -45,14 +47,16 @@ function clampTitle(s: string): string {
 export function productOgContent(product: PublicProduct, company: PublicProductCompany, locale: Locale = DEFAULT_LOCALE): OgContent {
   const t = webTranslator(locale);
   const labels = priceLabelsFor(locale);
-  const price = productPrice(product, labels);
+  // Birim okuyucunun dilinde (EN kartta "… / adet" basılıyordu, 2026-09-27).
+  const unit = unitLabelWith(seoT(locale), product.unit, product.unitCode);
+  const price = productPrice({ ...product, unit }, labels);
   return {
     eyebrow: product.category?.name ? t("web.seo.og.productWith", { category: product.category.name.toLocaleUpperCase(locale) }) : t("web.seo.og.product"),
     title: clampTitle(product.name),
     subtitle: joinParts([company.name, provinceDisplayName(company.city, locale)], " · ") || null,
     facts: [
       price.hasPrice ? price.headline : labels.onRequest,
-      product.moq ? t("web.seo.og.minOrder", { n: product.moq, unit: product.unit }) : null,
+      product.moq ? t("web.seo.og.minOrder", { qty: quantityWith(seoT(locale), product.moq, product.unit, product.unitCode) }) : null,
       product.brand ? product.brand : null,
     ].filter((f): f is string => !!f),
     image: product.images[0] ?? null,
@@ -82,10 +86,8 @@ export function companyOgContent(p: PublicProfile, locale: Locale = DEFAULT_LOCA
  */
 export function listingOgContent(l: PublicListingDetail, locale: Locale = DEFAULT_LOCALE): OgContent {
   const t = webTranslator(locale);
-  const qty =
-    l.itemSummary.totalQuantity && l.itemSummary.unit
-      ? `${l.itemSummary.totalQuantity} ${l.itemSummary.unit}`
-      : null;
+  const unit = l.itemSummary.unit ? unitLabelWith(seoT(locale), l.itemSummary.unit) : null;
+  const qty = l.itemSummary.totalQuantity && unit ? `${l.itemSummary.totalQuantity} ${unit}` : null;
   const open = l.status === "OPEN";
   return {
     eyebrow: t("web.seo.og.demand", { number: l.number }),
@@ -94,7 +96,7 @@ export function listingOgContent(l: PublicListingDetail, locale: Locale = DEFAUL
     facts: [
       qty ? t("web.seo.qty", { qty }) : null,
       l.itemSummary.count > 1 ? t("web.seo.items", { n: l.itemSummary.count }) : null,
-      l.closesAt && open ? t("web.seo.og.closes", { date: new Date(l.closesAt).toLocaleDateString(locale === "tr" ? "tr-TR" : locale === "ru" ? "ru-RU" : "en-GB") }) : null,
+      l.closesAt && open ? t("web.seo.og.closes", { date: formatDate(l.closesAt, "short", locale) }) : null,
     ].filter((f): f is string => !!f),
     image: l.coverImageUrl ?? null,
     badge: open ? t("web.seo.og.open") : t("web.seo.og.closedBadge"),

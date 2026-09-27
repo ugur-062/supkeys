@@ -2,14 +2,21 @@ import { i18nMessage } from "../../common/i18n/http-i18n";
 import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
 import { resolveCityId } from "../../common/geo/geo-index";
 import {
+  EU_VAT_COUNTRIES,
   PAID_TIERS,
+  PRODUCT_LIMITS,
   countryUsesIban,
+  formatVerificationReason,
+  isRegistrationOpen,
   isValidAccountNumber,
   isValidCountryCode,
   isValidIbanAny,
   isValidSwiftBic,
+  isVerificationReasonCode,
   maskIban,
+  maskNationalId,
   normalizeSwift,
+  type VerificationReasonCode,
 } from "@rothern/shared";
 import { assertBankDetails } from "../../common/company/bank-details";
 import {
@@ -47,6 +54,10 @@ import {
   localeOf,
 } from "../notifications/notification.service";
 import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
+import {
+  formatNotificationParams,
+  type NotificationParams,
+} from "../../common/notifications/notification-params";
 import {
   DEFAULT_LOCALE,
   translateRoutePath,
@@ -123,10 +134,38 @@ export interface AdminNotifyMessage {
   paragraphKeys?: readonly (ApiMessageKey | null | false | undefined)[];
   /** Düz metin İÇERİK paragrafları (selamlama OTOMATİK eklenir). */
   paragraphs?: string[];
-  /** Başlık + gövde + CTA anahtarlarının ORTAK ICU sözlüğü. */
-  params?: Record<string, string | number>;
+  /**
+   * Başlık + gövde + CTA anahtarlarının ORTAK ICU sözlüğü. Tarih/tutar TİPLİ
+   * (`notification-params.ts`) — alıcının dilinde biçimlenir.
+   */
+  params?: NotificationParams;
   /** Eylem düğmesi — `path` İÇ (Türkçe) yoldur, alıcının diline çevrilir. */
   cta?: { labelKey?: ApiMessageKey; label?: string; path: string };
+}
+
+/**
+ * KODLU RED GEREKÇESİ (2026-09-27) — saklanan dize `formatVerificationReason`
+ * ile "[KOD] not". Eskiden admin'in Türkçe serbest metni olduğu gibi yazılıp
+ * firmanın Doğrulama sayfasında basılıyordu (yabancı firma okuyamıyordu); kod
+ * artık firmanın dilinde katalogdan çevrilir, not olduğu gibi gösterilir.
+ *
+ * Kural: red için kod VEYA ≥3 karakterlik not. İkisi de yoksa `null` döner —
+ * çağıran kendi (belge/revizyon/firma) hata mesajını atar. Bilinmeyen kod 400:
+ * belge kararları serbest biçimli nesne olarak geldiği için DTO yakalamaz.
+ */
+function composeRejectReason(
+  reason: string | null | undefined,
+  reasonCode: unknown,
+): string | null {
+  const code = reasonCode == null || reasonCode === "" ? null : reasonCode;
+  if (code !== null && !isVerificationReasonCode(code)) {
+    throw new BadRequestException(
+      i18nMessage("api.adminCompanies.gecersizRedGerekcesiKodu"),
+    );
+  }
+  const note = reason?.trim() ?? "";
+  if (!code && note.length < 3) return null;
+  return formatVerificationReason(code as VerificationReasonCode | null, note);
 }
 
 @Injectable()
@@ -236,7 +275,8 @@ export class AdminCompaniesService {
     // E-POSTA DİLİ: firmanın EN ESKİ aktif üyesinin (pratikte kurucu) dili.
     // Yalnız `billingEmail` taşıyan, aktif üyesi çözülmemiş firmada varsayılan.
     const locale = localeOf(company.users[0]?.locale);
-    const t = (key: ApiMessageKey) => tApi(key, msg.params, locale);
+    const params = formatNotificationParams(msg.params, locale);
+    const t = (key: ApiMessageKey) => tApi(key, params, locale);
     const subject = msg.subjectKey ? t(msg.subjectKey) : (msg.subject ?? "");
     // Selamlama HER İKİ yolda da alıcının dilinde ve otomatik: düz metin yolu
     // (admin duyurusu) yalnız kendi yazdığı gövdeyi verir.
@@ -613,6 +653,14 @@ export class AdminCompaniesService {
         country: true,
         stateRegion: true,
         city: true,
+        // Adresin kalanı + hukuki yapı + yetkili kimliği (2026-09-27): admin
+        // belge incelerken bunları görmüyordu (yabancı firmanın GmbH/LLC'si,
+        // posta kodu, TR ilçe/mahalle).
+        district: true,
+        neighborhood: true,
+        postalCode: true,
+        companyType: true,
+        authorizedTckn: true,
         addressLine: true,
         billingEmail: true,
         tier: true,
@@ -709,11 +757,40 @@ export class AdminCompaniesService {
         url: await this.storage.presignInlinePreview("private", r.key),
       })),
     );
+    // VIES (AB KDV) sonucu — şema değişikliği olmadan audit kaydından
+    // (2026-09-27): firma tarafı her sorguyu `company.vies_checked` olarak
+    // yazar (onboarding düğmesi + kayıt tamamlanınca arka plan); admin en
+    // sonuncuyu görür. Kayıt yoksa `null`.
+    const viesLog = await this.prisma.auditLog.findFirst({
+      where: { action: "company.vies_checked", entityType: "company", entityId: id },
+      orderBy: { createdAt: "desc" },
+      select: { metadata: true, createdAt: true },
+    });
+    const viesMeta = (viesLog?.metadata ?? null) as Record<string, unknown> | null;
+    const vies = viesLog && viesMeta
+      ? {
+          valid: viesMeta.valid === true,
+          unavailable: viesMeta.unavailable === true,
+          name: typeof viesMeta.name === "string" ? viesMeta.name : null,
+          address: typeof viesMeta.address === "string" ? viesMeta.address : null,
+          vatNumber: typeof viesMeta.vatNumber === "string" ? viesMeta.vatNumber : null,
+          countryCode: typeof viesMeta.countryCode === "string" ? viesMeta.countryCode : null,
+          source: typeof viesMeta.source === "string" ? viesMeta.source : null,
+          checkedAt: viesLog.createdAt,
+        }
+      : null;
     // `users` yalnız suppression hesabı için çekildi — detay contract'ına ham
     // liste sızdırma (ayrı users endpoint'i var); yalnız suppressions dön.
-    const { users: _users, ...company } = c;
+    const { users: _users, authorizedTckn, ...company } = c;
     return {
       ...company,
+      // Yetkili kimlik no MASKELİ (KVKK veri-minimizasyonu; firma tarafıyla
+      // aynı `maskNationalId`) — tanımaya yeter, kopyalamaya yetmez.
+      authorizedTckn: authorizedTckn ? maskNationalId(authorizedTckn) : null,
+      vies,
+      // AB üyesi mi (VIES sorgulanabilir) — admin "sorgulanmadı" satırını
+      // yalnız bu ülkelerde çizer; kuralın kopyası admin'de tutulmaz.
+      viesSupported: EU_VAT_COUNTRIES.has((c.country ?? "").toUpperCase()),
       // Ülkenin zorunlu belge seti — admin ekranı kendi kopyasını TUTMAZ
       // (2026-09-27: eskiden "TR 6 / yabancı 3" ikili kuralı KKTC/Çin/BAE'de yanlıştı).
       requiredDocs: requiredKinds(c.country),
@@ -760,6 +837,8 @@ export class AdminCompaniesService {
         | "mersisNo"
         | "tradeRegistryNo"
         | "country"
+        | "companyType"
+        | "legalFormLocal"
         | "stateRegion"
         | "city"
         | "addressLine"
@@ -785,6 +864,8 @@ export class AdminCompaniesService {
         mersisNo: true,
         tradeRegistryNo: true,
         country: true,
+        companyType: true,
+        legalFormLocal: true,
         stateRegion: true,
         city: true,
         addressLine: true,
@@ -821,6 +902,16 @@ export class AdminCompaniesService {
       if (key === "country" && data[key] && !isValidCountryCode(data[key]!)) {
         throw new BadRequestException(i18nMessage("api.adminCompanies.gecersizUlkeKodu"));
       }
+      // Kayda KAPALI ülkeye (ABD + toprakları, kapsamlı yaptırım ülkeleri —
+      // `REGISTRATION_BLOCKED`) admin yolundan da taşınamaz: firma tarafı bu
+      // ülkeleri hiç seçtirmiyor, admin düzeltmesi kapıyı arkadan açıyordu.
+      // Yalnız DEĞİŞİMDE (aynı değer yukarıda atlandı) — zaten kapalı ülkedeki
+      // eski kayıt başka alan düzenlenirken reddedilmez.
+      if (key === "country" && data[key] && !isRegistrationOpen(data[key]!)) {
+        throw new BadRequestException(
+          i18nMessage("api.adminCompanies.buUlkeKaydaKapali"),
+        );
+      }
       // #11 (denetim 2026-08-26 Parça 9): IBAN audit'e DÜZ yazılıyordu —
       // firma tarafı aynı veriyi bilinçli olarak `maskIban` ile yazıyor
       // (company-docs). Alan adının değiştiği bilgisi iz için yeterli.
@@ -840,6 +931,27 @@ export class AdminCompaniesService {
       before.country ??
       "TR"
     ).toUpperCase();
+    // HUKUKİ YAPI (2026-09-27) — onboarding kuralının aynısı: "Diğer" (OTHER)
+    // iken yerel ad (GmbH, LLC, ООО…) ZORUNLU; OTHER değilse yerel ad tutulmaz.
+    if ("companyType" in data || "legalFormLocal" in data) {
+      const type = ("companyType" in data ? data.companyType : before.companyType) ?? null;
+      if (type === "OTHER") {
+        const local = ("legalFormLocal" in data ? data.legalFormLocal : before.legalFormLocal) ?? "";
+        if (local.trim().length < 2) {
+          throw new BadRequestException(
+            i18nMessage("api.adminCompanies.yerelHukukiYapiZorunlu"),
+          );
+        }
+      } else if (before.legalFormLocal || "legalFormLocal" in data) {
+        if (before.legalFormLocal) {
+          changes.legalFormLocal = { from: before.legalFormLocal, to: null };
+          data.legalFormLocal = null;
+        } else {
+          delete data.legalFormLocal;
+          delete changes.legalFormLocal;
+        }
+      }
+    }
     // Ülkeye göre (2026-09-27): IBAN ülkesinde IBAN (TR katı, diğerleri mod-97),
     // IBAN kullanmayan ülkede hesap numarası — firma tarafıyla aynı kural.
     if (typeof data.iban === "string" && data.iban.trim()) {
@@ -918,8 +1030,9 @@ export class AdminCompaniesService {
             data: {
               companyVerificationStatus: "UNVERIFIED",
               companyVerifiedAt: null,
-              companyRejectionReason:
-                "Ülke değişikliği sonrası yeni zorunlu belgeler eksik — lütfen tamamlayıp yeniden gönderin.",
+              // Kodlu gerekçe (2026-09-27): firmanın dilinde katalogdan
+              // çevrilir — eskiden sabit Türkçe cümle yabancı firmaya basılıyordu.
+              companyRejectionReason: formatVerificationReason("COUNTRY_CHANGED"),
             },
           });
           void this.notifyCompany(id, {
@@ -988,6 +1101,7 @@ export class AdminCompaniesService {
     status: "VERIFIED" | "REJECTED",
     adminId: string,
     reason?: string,
+    reasonCode?: VerificationReasonCode | null,
   ) {
     // Denetim 2026-08-26 Parça 9 #1: bu uç eskiden kaynak duruma ve belgelere
     // HİÇ bakmadan karar yazıyor, üstelik `DOC_META`'nın TÜM anahtarlarını
@@ -1019,6 +1133,14 @@ export class AdminCompaniesService {
     });
     if (!c) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
     const required = requiredKinds(c.country);
+    // Kodlu gerekçe (2026-09-27): red için kod VEYA ≥3 karakterlik not.
+    const rejectReason =
+      status === "REJECTED" ? composeRejectReason(reason, reasonCode) : null;
+    if (status === "REJECTED" && !rejectReason) {
+      throw new BadRequestException(
+        i18nMessage("api.dto.adminCompanies.redGerekcesiEnAz3KarakterOlmali"),
+      );
+    }
     if (status === "VERIFIED") {
       for (const k of required) {
         if (!(c as Record<string, unknown>)[DOC_META[k].url]) {
@@ -1030,7 +1152,7 @@ export class AdminCompaniesService {
       this.assertKycIdentityComplete(c);
     }
     const docStatus: KycDocStatus = status === "VERIFIED" ? "APPROVED" : "REJECTED";
-    const docReason = status === "REJECTED" ? (reason?.trim() || null) : null;
+    const docReason = rejectReason;
     // Yalnız ülkeye göre ZORUNLU belgeler damgalanır — yüklenmemiş/opsiyonel
     // kolonlara dokunulmaz (kalıcı kilit üretmesin).
     const docData = Object.fromEntries(
@@ -1051,8 +1173,7 @@ export class AdminCompaniesService {
         companyVerifiedAt:
           status === "VERIFIED" ? (wasSame ? undefined : new Date()) : null,
         // Red gerekçesi firmaya gösterilir; onayda temizlenir.
-        companyRejectionReason:
-          status === "REJECTED" ? (reason?.trim() || null) : null,
+        companyRejectionReason: rejectReason,
         ...docData,
       },
     });
@@ -1113,7 +1234,12 @@ export class AdminCompaniesService {
     decisions: Partial<
       Record<
         DocKind,
-        { status: "APPROVED" | "REJECTED"; reason?: string; key?: string }
+        {
+          status: "APPROVED" | "REJECTED";
+          reason?: string;
+          reasonCode?: VerificationReasonCode | null;
+          key?: string;
+        }
       >
     >,
     adminId: string,
@@ -1160,8 +1286,9 @@ export class AdminCompaniesService {
         throw new BadRequestException(i18nMessage("api.adminCompanies.herZorunluBelgeIcinKararGerekli", { k: k }));
       }
       if (d.status === "REJECTED") {
-        const reason = d.reason?.trim();
-        if (!reason || reason.length < 3) {
+        // Kodlu gerekçe (2026-09-27): kod VEYA ≥3 karakterlik not.
+        const reason = composeRejectReason(d.reason, d.reasonCode);
+        if (!reason) {
           throw new BadRequestException(
             i18nMessage("api.adminCompanies.reddedilenBelgeyeGerekceGerekli", { k: k }),
           );
@@ -1265,7 +1392,11 @@ export class AdminCompaniesService {
   async reviewDocRevision(
     companyId: string,
     revisionId: string,
-    decision: { status: "APPROVED" | "REJECTED"; reason?: string },
+    decision: {
+      status: "APPROVED" | "REJECTED";
+      reason?: string;
+      reasonCode?: VerificationReasonCode | null;
+    },
     adminId: string,
   ) {
     if (decision.status !== "APPROVED" && decision.status !== "REJECTED") {
@@ -1284,8 +1415,12 @@ export class AdminCompaniesService {
       throw new BadRequestException(i18nMessage("api.adminCompanies.gecersizBelgeTuru"));
     }
     const k = rev.kind as DocKind;
-    const reason = decision.reason?.trim();
-    if (decision.status === "REJECTED" && (!reason || reason.length < 3)) {
+    // Kodlu gerekçe (2026-09-27): kod VEYA ≥3 karakterlik not.
+    const reason =
+      decision.status === "REJECTED"
+        ? composeRejectReason(decision.reason, decision.reasonCode)
+        : null;
+    if (decision.status === "REJECTED" && !reason) {
       throw new BadRequestException(i18nMessage("api.adminCompanies.reddedilenRevizyonaGerekceGerekli"));
     }
     // #8 (denetim 2026-08-26 Parça 9): onayda kolon YENİ anahtarla eziliyor,
@@ -1478,7 +1613,8 @@ export class AdminCompaniesService {
             "api.notifications.adminCompanies.paketSonlandirildiKirpilanUrun",
           "api.notifications.adminCompanies.paketSonlandirildiDavetIptal",
         ],
-        params: { adet: trimmed.unpublished },
+        // Ürün tavanı metne SABİT yazılmaz (10 → 50 değişiminde metin bayat kalmıştı).
+        params: { adet: trimmed.unpublished, limit: PRODUCT_LIMITS.STANDART ?? 0 },
       });
     } else if (tier !== "STANDART" && before.tier === "STANDART") {
       void this.notifyCompany(id, {

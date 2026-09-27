@@ -1,6 +1,6 @@
-import { format } from "date-fns";
-import { tr } from "date-fns/locale";
-import { bidDeliveryTimeLabel } from "@rothern/shared";
+import { affixCurrency, bidDeliveryTimeLabel } from "@rothern/shared";
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@rothern/i18n";
+import { formatDate } from "@/lib/format-date";
 
 import { escapeHtml } from "@/lib/escape-html";
 
@@ -13,12 +13,16 @@ export function itemDeliveryLabel(
   orderDate: string | null,
   itemTime: string | null | undefined,
   generalSuffix: string,
+  /** Süre etiketi okuyucunun dilinde (`useBidDeliveryTimeLabel`); verilmezse Türkçe. */
+  deliveryTimeLabel: (code: string | null | undefined) => string | null = bidDeliveryTimeLabel,
+  /** Tarih dili — okuyucunun dili (date-fns `tr` sabitti → İngilizce çıktıda "12 Eki"). */
+  locale: Locale = DEFAULT_LOCALE,
 ): string {
-  const timeLabel = bidDeliveryTimeLabel(itemTime);
+  const timeLabel = deliveryTimeLabel(itemTime);
   if (timeLabel) return timeLabel;
-  if (itemDate) return format(new Date(itemDate), "dd MMM yyyy", { locale: tr });
+  if (itemDate) return formatDate(itemDate, "short", locale);
   if (orderDate)
-    return `${format(new Date(orderDate), "dd MMM yyyy", { locale: tr })} ${generalSuffix}`;
+    return `${formatDate(orderDate, "short", locale)} ${generalSuffix}`;
   return "—";
 }
 
@@ -77,14 +81,21 @@ export function buildOrderPrintHtml(
   o: OrderPrintOrder,
   ctx: {
     isSeller: boolean;
-    curSym: string;
+    /** Siparişin para birimi KODU — sembol ve yeri dilden (`affixCurrency`). */
+    currency: string;
     statusLabel: string;
     labels: OrderPrintLabels;
     /** Sayfa dili (`lang` + sayı biçimi) — çıktı okuyucunun dilinde. */
     locale: string;
+    /** Teslim süresi etiketi okuyucunun dilinde (`useBidDeliveryTimeLabel`). */
+    deliveryTimeLabel?: (code: string | null | undefined) => string | null;
+    /** Miktar + birim okuyucunun dilinde, çoğul kuralıyla (`useQuantityLabel`); verilmezse sayı + kayıtlı ad. */
+    quantityLabel?: (qty: number, unit: string) => string;
   },
 ): string {
-  const { isSeller, curSym, statusLabel, labels, locale } = ctx;
+  const { isSeller, currency, statusLabel, labels, locale, deliveryTimeLabel, quantityLabel } = ctx;
+  const money = (n: number) => affixCurrency(n.toLocaleString(locale), currency, locale);
+  const dateLocale: Locale = isLocale(locale) ? locale : DEFAULT_LOCALE;
   const rows = (o.items ?? [])
     .map((it) => {
       const line = Number(it.quantity) * Number(it.unitPrice);
@@ -93,8 +104,10 @@ export function buildOrderPrintHtml(
         o.expectedDeliveryDate,
         it.deliveryTime,
         labels.general,
+        deliveryTimeLabel,
+        dateLocale,
       );
-      return `<tr><td>${escapeHtml(it.name)}</td><td style="text-align:right">${Number(it.quantity).toLocaleString(locale)} ${escapeHtml(it.unit)}</td><td style="text-align:right">${escapeHtml(dd)}</td><td style="text-align:right">${Number(it.unitPrice).toLocaleString(locale)} ${escapeHtml(curSym)}</td><td style="text-align:right">${line.toLocaleString(locale)} ${escapeHtml(curSym)}</td></tr>`;
+      return `<tr><td>${escapeHtml(it.name)}</td><td style="text-align:right">${escapeHtml(quantityLabel ? quantityLabel(Number(it.quantity), it.unit) : `${Number(it.quantity).toLocaleString(locale)} ${it.unit}`)}</td><td style="text-align:right">${escapeHtml(dd)}</td><td style="text-align:right">${escapeHtml(money(Number(it.unitPrice)))}</td><td style="text-align:right">${escapeHtml(money(line))}</td></tr>`;
     })
     .join("");
   return `<!doctype html><html lang="${escapeHtml(locale)}"><head><meta charset="utf-8"><title>${escapeHtml(o.number ?? labels.order)}</title>
@@ -106,7 +119,7 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
 .meta{margin-top:8px;font-size:13px;line-height:1.7}</style></head>
 <body>
 <h1>${escapeHtml(labels.order)} ${escapeHtml(o.number ?? "")}</h1>
-<div class="muted">Rothern · ${escapeHtml(new Date(o.createdAt).toLocaleString(locale))}</div>
+<div class="muted">Rothern · ${escapeHtml(formatDate(o.createdAt, "datetime", dateLocale))}</div>
 <div class="meta">
 <strong>${escapeHtml(isSeller ? labels.buyer : labels.seller)}:</strong> ${escapeHtml(o.counterparty)}<br>
 <strong>${escapeHtml(labels.request)}:</strong> ${escapeHtml(o.listingTitle ?? "—")} (${escapeHtml(o.listingNumber ?? "—")})<br>
@@ -114,6 +127,6 @@ th,td{padding:8px;border-bottom:1px solid #e4e4e7}th{text-align:left;color:#7171
 </div>
 <table><thead><tr><th>${escapeHtml(labels.item)}</th><th style="text-align:right">${escapeHtml(labels.quantity)}</th><th style="text-align:right">${escapeHtml(labels.delivery)}</th><th style="text-align:right">${escapeHtml(labels.unit)}</th><th style="text-align:right">${escapeHtml(labels.amount)}</th></tr></thead>
 <tbody>${rows || `<tr><td colspan="5" style="text-align:center;color:#a1a1aa">${escapeHtml(labels.noItems)}</td></tr>`}</tbody></table>
-<div class="tot">${escapeHtml(labels.total)}: ${Number(o.amount).toLocaleString(locale)} ${escapeHtml(curSym)}</div>
+<div class="tot">${escapeHtml(labels.total)}: ${escapeHtml(money(Number(o.amount)))}</div>
 </body></html>`;
 }

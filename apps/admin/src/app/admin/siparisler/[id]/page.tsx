@@ -17,6 +17,7 @@ import {
   useCancelOrder,
 } from "@/hooks/use-admin-inspection";
 import { safeFormat } from "@/lib/date";
+import { paymentMethodTr, systemTextTr } from "@/lib/system-text";
 import {
   fmtMoney,
   orderStatusMeta,
@@ -100,7 +101,7 @@ function OrderInspection({ id }: { id: string }) {
           </div>
           {o.cancelReason ? (
             <p className="mt-2 rounded-lg bg-red-50 px-3 py-1.5 text-xs text-red-700">
-              İptal gerekçesi: {o.cancelReason}
+              İptal gerekçesi: {systemTextTr(o.cancelReason)}
             </p>
           ) : null}
         </div>
@@ -222,7 +223,7 @@ function OrderInspection({ id }: { id: string }) {
                       {fmtMoney(p.amount, o.currency)}
                     </TableCell>
                     <TableCell className="text-admin-text-muted text-xs">
-                      {p.method ?? "—"}
+                      {paymentMethodTr(p.method) ?? "—"}
                     </TableCell>
                     <TableCell>
                       <Badge color={pm.color}>{pm.label}</Badge>

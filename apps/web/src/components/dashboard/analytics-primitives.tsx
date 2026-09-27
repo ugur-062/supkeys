@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useFormatPercent } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
 import {
   ArrowDownRight,
@@ -45,6 +46,8 @@ export function TrendBadge({
   periodLabel?: string;
 }) {
   const t = useTranslations("web.panel.shell.analyticsPrimitives");
+  // Görünen rozet arayüz dilinin yüzde biçimiyle (TR "%12", EN "12%", RU "12 %").
+  const formatPct = useFormatPercent();
   if (pct == null) return null;
   const up = pct > 0;
   const flat = pct === 0;
@@ -74,7 +77,8 @@ export function TrendBadge({
       aria-label={t("yuzde", { basis: basis, pctLabel: pctLabel, change: change })}
       title={title}
     >
-      <Icon className="h-3 w-3" aria-hidden />%{pctLabel}
+      <Icon className="h-3 w-3" aria-hidden />
+      {capped ? `>${formatPct(999)}` : formatPct(Math.abs(pct))}
     </span>
   );
 }
@@ -280,6 +284,7 @@ export function FunnelChart({
   formatValue?: (n: number) => string;
 }) {
   const t = useTranslations("web.panel.shell.analyticsPrimitives");
+  const formatPct = useFormatPercent();
   const max = Math.max(1, ...stages.map((s) => s.count));
   const tones = FUNNEL_TONES[accent];
   return (
@@ -303,7 +308,7 @@ export function FunnelChart({
                   {formatValue(s.count)}
                 </strong>
                 {conv != null ? (
-                  <span className="ml-1.5 text-slate-400">%{conv}</span>
+                  <span className="ml-1.5 text-slate-400">{formatPct(conv)}</span>
                 ) : null}
               </span>
             </div>

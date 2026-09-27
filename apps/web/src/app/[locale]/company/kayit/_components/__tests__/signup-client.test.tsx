@@ -15,6 +15,8 @@ const h = vi.hoisted(() => ({
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: h.replace }),
   useSearchParams: () => new URLSearchParams(),
+  // AuthShell'deki dil seçici (2026-09-27) aynı sayfanın adresini okur.
+  usePathname: () => "/company/kayit",
 }));
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/lib/company-auth/store", () => ({
@@ -89,6 +91,32 @@ describe("CompanySignupClient — form aşaması", () => {
     await user.clear(ad);
     await user.type(ad, "   ");
     expect(submit).toBeDisabled();
+  });
+
+  it("telefon ülke uzunluğuna göre: TR'de 11 hane geçersiz, Andorra'da 6 hane geçerli", async () => {
+    const user = userEvent.setup();
+    h.signupAsync.mockResolvedValue({ email: "ada@firma.com" });
+    render(<CompanySignupClient />);
+    await fillValidForm(user);
+    const phone = screen.getByLabelText("Telefon");
+    const submit = screen.getByRole("button", { name: "Hesap Oluştur" });
+    // Rus kullanıcı bayrağı değiştirmeden "8 916…" yazdı → "+90 89161234567" GEÇMEZ.
+    await user.clear(phone);
+    await user.type(phone, "89161234567");
+    await user.tab();
+    expect(submit).toBeDisabled();
+    expect(
+      screen.getByText("Seçili ülke için geçerli bir telefon numarası girin."),
+    ).toBeInTheDocument();
+    // Kısa ama geçerli numara (eskiden "en az 10 hane" kuralı reddediyordu).
+    await user.selectOptions(screen.getByLabelText("Ülke kodu"), "AD");
+    await user.clear(phone);
+    await user.type(phone, "312345");
+    expect(submit).toBeEnabled();
+    await user.click(submit);
+    expect(h.signupAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ phone: "+376 312345" }),
+    );
   });
 
   it("tüm alanlar geçerli + onaylar → buton aktif; submit trimli veri gönderir", async () => {

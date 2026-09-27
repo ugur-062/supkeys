@@ -27,7 +27,8 @@ import {
   XAxis as RXAxis,
   YAxis as RYAxis,
 } from "recharts";
-import { formatCompactMoney, formatMoney } from "@/components/ui/money";
+import { useFormatMoney } from "@/components/ui/money";
+import { useFormatPercent } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
 import { Link } from "@/i18n/navigation";
 
@@ -40,6 +41,8 @@ export function SatisGelirTab({
   loading: boolean;
 }) {
   const t = useTranslations("web.panel.shell.satisChartTabs");
+  const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
+  const { money: formatMoney } = useFormatMoney();
   if (loading || !analytics) {
     return (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden>
@@ -58,8 +61,8 @@ export function SatisGelirTab({
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <ChartCard
         title={t("gelirTrendi")}
-        rangeBadge="son 12 ay"
-        subtitle={t("aylikGelirAlanYilbasindanBeri")}
+        rangeBadge={tRange("son12Ay")}
+        subtitle={t("aylikGelirAlanYilbasindanBeriCur", { currency: analytics.currency ?? "TRY" })}
         ariaLabel={t("aylikGelirTrendi")}
         href="/company/satis/siparisler"
         className="lg:col-span-2"
@@ -73,7 +76,7 @@ export function SatisGelirTab({
                 <RYAxis tickLine={false} axisLine={false} width={56} tick={AXIS} />
                 <RTooltip
                   formatter={(v, n) => [
-                    formatMoney(Number(v ?? 0), "TRY"),
+                    formatMoney(Number(v ?? 0), analytics.currency ?? "TRY"),
                     n === "value" ? t("aylik") : t("kumulatif"),
                   ]}
                 />
@@ -94,7 +97,7 @@ export function SatisGelirTab({
 
       <ChartCard
         title={t("kazanmaKaybetmeDagilimi")}
-        rangeBadge="son 12 ay"
+        rangeBadge={tRange("son12Ay")}
         subtitle={t("aylikKararaBaglananTekliflerKazanildi")}
         ariaLabel={t("aylikKazanmaKaybetmeDagilimi")}
         href="/company/satis/tekliflerim"
@@ -109,7 +112,7 @@ export function SatisGelirTab({
                 <RTooltip
                   formatter={(v, n) => [
                     Number(v ?? 0),
-                    n === "won" ? t("kazanildi") : n === "lost" ? "Kaybedildi" : "Beklemede",
+                    n === "won" ? t("kazanildi") : n === "lost" ? t("kaybedildi") : t("beklemede"),
                   ]}
                 />
                 <RBar dataKey="won" stackId="w" fill="#059669" />
@@ -139,7 +142,7 @@ export function SatisGelirTab({
               key: p.key,
               label:
                 p.amountTry != null
-                  ? `${p.label} (${formatMoney(p.amountTry, "TRY")})`
+                  ? `${p.label} (${formatMoney(p.amountTry, analytics.currency ?? "TRY")})`
                   : p.label,
               count: p.count,
               // Davet → teklif farklı evren (kohort değil) — oran yanıltır
@@ -169,6 +172,9 @@ export function SatisMusteriTab({
   loading: boolean;
 }) {
   const t = useTranslations("web.panel.shell.satisChartTabs");
+  const tRange = useTranslations("web.panel.shell.analyticsPrimitives");
+  const { money: formatMoney } = useFormatMoney();
+  const pct = useFormatPercent();
   if (loading || !analytics) {
     return (
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2" aria-hidden>
@@ -183,8 +189,8 @@ export function SatisMusteriTab({
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
       <ChartCard
         title={t("musteriKonsantrasyonu")}
-        rangeBadge="son 12 ay"
-        subtitle={t("enIyi5MusterininGelir")}
+        rangeBadge={tRange("son12Ay")}
+        subtitle={t("enIyi5MusterininGelirCur", { currency: analytics.currency ?? "TRY" })}
         ariaLabel={t("musteriKonsantrasyonuPareto")}
         right={
           analytics.pareto.concentrationWarning ? (
@@ -213,14 +219,14 @@ export function SatisMusteriTab({
                     {r.name}
                   </span>
                   <span className="tabular-nums text-slate-900">
-                    {formatMoney(r.amount, "TRY")}
+                    {formatMoney(r.amount, analytics.currency ?? "TRY")}
                     <span
                       className={cn(
                         "ml-1.5 font-semibold",
                         r.sharePct > 40 ? "text-amber-600" : "text-slate-400",
                       )}
                     >
-                      %{r.sharePct}
+                      {pct(r.sharePct)}
                     </span>
                   </span>
                 </div>
@@ -246,7 +252,7 @@ export function SatisMusteriTab({
 
       <ChartCard
         title={t("kategoriBazliKazanmaOrani")}
-        rangeBadge="son 12 ay"
+        rangeBadge={tRange("son12Ay")}
         subtitle={t("hangiKategorilerdeGucluyuzKararaBaglanan")}
         ariaLabel={t("kategoriBazliKazanmaOrani2")}
       >
@@ -259,7 +265,7 @@ export function SatisMusteriTab({
                     {c.label}
                   </span>
                   <span className="tabular-nums text-slate-900">
-                    <strong>%{c.winPct}</strong>
+                    <strong>{pct(c.winPct)}</strong>
                     <span className="ml-1 text-slate-400">
                       {t("teklif", { decided: c.decided })}
                     </span>
@@ -284,7 +290,7 @@ export function SatisMusteriTab({
 
       <ChartCard
         title={t("teklifYanitSuresi")}
-        rangeBadge="son 12 ay"
+        rangeBadge={tRange("son12Ay")}
         subtitle={t("davettenTeklifeGecenOrtalamaSure")}
         ariaLabel={t("teklifYanitSuresiTrendi")}
       >
@@ -310,7 +316,7 @@ export function SatisMusteriTab({
 
       <ChartCard
         title={t("kacirilanFirsatlar")}
-        rangeBadge="son 12 ay"
+        rangeBadge={tRange("son12Ay")}
         subtitle={t("teklifVerilmedenSuresiDolanDavetler")}
         ariaLabel={t("kacirilanFirsatlar2")}
         href="/company/satis/acik-talepler"

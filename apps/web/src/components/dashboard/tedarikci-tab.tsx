@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useFormatNumber } from "@/i18n/domain";
 import {
   Table,
   TableBody,
@@ -67,6 +68,7 @@ const MEDAL_BG = ["bg-amber-400", "bg-slate-300", "bg-orange-400"] as const;
 
 export function TedarikciTab({ data }: Props) {
   const t = useTranslations("web.panel.shell.tedarikciTab");
+  const fmtNum = useFormatNumber();
   const [topPeriod, setTopPeriod] = useState<Period>("month");
   const [compPeriod, setCompPeriod] = useState<Period>("month");
 
@@ -135,7 +137,7 @@ export function TedarikciTab({ data }: Props) {
                       {r.tendersBidOn}
                     </TableCell>
                     <TableCell className=" tabular-nums text-zinc-700">
-                      {r.averageRank.toLocaleString("tr-TR", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      {fmtNum(r.averageRank, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </TableCell>
                     <TableCell className=" tabular-nums text-zinc-700">
                       {r.totalBids}
@@ -180,8 +182,8 @@ export function TedarikciTab({ data }: Props) {
                       key={idx}
                       fill={
                         d.highlight
-                          ? t("varColorZinc90018181b")
-                          : t("varColorZinc200E4e4e7")
+                          ? "var(--color-zinc-900, #18181b)"
+                          : "var(--color-zinc-200, #e4e4e7)"
                       }
                     />
                   ))}

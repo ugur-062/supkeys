@@ -6,6 +6,7 @@ import {
   MAX_COMPANY_ACTIVITIES,
 } from "@rothern/shared";
 import { Check } from "lucide-react";
+import { useActivityLabel } from "@/i18n/domain";
 
 interface Props {
   value: string[];
@@ -37,6 +38,10 @@ export function CompanyActivityPicker({
   hint,
 }: Props) {
   const t = useTranslations("web.shared.companyActivityPicker");
+  // Ad ve açıklama arayüz dilinde (2026-09-27; eskiden `nameTr`/`hintTr` —
+  // İngilizce/Rusça kayıt ekranında Türkçe basıyordu).
+  const activityLabel = useActivityLabel();
+  const th = useTranslations("web.domain.activityHint");
   const dolu = value.length >= MAX_COMPANY_ACTIVITIES;
 
   return (
@@ -83,9 +88,11 @@ export function CompanyActivityPicker({
               </span>
               <span>
                 <span className="block text-sm font-medium text-zinc-900">
-                  {a.nameTr}
+                  {activityLabel(a.code)}
                 </span>
-                <span className="block text-xs text-zinc-500">{a.hintTr}</span>
+                <span className="block text-xs text-zinc-500">
+                  {th.has(a.code as never) ? th(a.code as never) : a.hintTr}
+                </span>
               </span>
             </button>
           );

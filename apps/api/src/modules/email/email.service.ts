@@ -11,6 +11,7 @@ import {
 import type { Locale } from "@rothern/i18n";
 import { reportToSentry } from "../../instrument";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { resolveWebUrl } from "../../common/config/web-url";
 import { isCriticalEmailContext } from "./critical-contexts";
 
 // Geriye-dönük uyumluluk: mevcut import'lar (testler dahil) bu sembolü
@@ -203,7 +204,10 @@ export class EmailService implements OnModuleInit {
 
     let rendered;
     try {
-      rendered = await renderEmail(input.templateData, input.locale);
+      // Alt bilgideki alan adı gönderen ortamın web adresinden (staging kendi alanını basar).
+      rendered = await renderEmail(input.templateData, input.locale, {
+        siteUrl: resolveWebUrl(this.config),
+      });
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
       await this.prisma.emailLog.update({

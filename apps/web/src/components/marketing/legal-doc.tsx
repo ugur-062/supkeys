@@ -1,9 +1,10 @@
-import { DEFAULT_LOCALE } from "@rothern/i18n";
+import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { getLocale, getTranslations } from "next-intl/server";
 import { Link } from "@/i18n/navigation";
 import { JsonLd } from "@/components/seo/json-ld";
 import { formatDate } from "@/lib/format-date";
-import { breadcrumbNode, graph } from "@/lib/seo/jsonld";
+import { localizePath } from "@/i18n/href";
+import { SITE_ID, breadcrumbNode, graph } from "@/lib/seo/jsonld";
 import { absoluteUrl } from "@/lib/seo/meta";
 
 export interface LegalSection {
@@ -44,7 +45,17 @@ export async function LegalDoc({
       {path ? (
         <JsonLd
           data={graph([
-            { "@type": "WebPage", "@id": absoluteUrl(path), url: absoluteUrl(path), name: title, inLanguage: "tr-TR" },
+            // Sayfa düğümü BU sayfanın adresi (dilin ön ekiyle; eskiden EN/RU
+            // sayfada Türkçe adres yazıyordu). Gövde Türkçe → `inLanguage`
+            // tr-TR; kanonik ise Türkçe sürüm (`LEGAL_DOC_LOCALES`, metada).
+            {
+              "@type": "WebPage",
+              "@id": absoluteUrl(localizePath(path, locale as Locale)),
+              url: absoluteUrl(localizePath(path, locale as Locale)),
+              name: title,
+              inLanguage: "tr-TR",
+              isPartOf: { "@id": SITE_ID() },
+            },
             breadcrumbNode(
               [
                 { name: tm("breadcrumbHome"), path: "/" },

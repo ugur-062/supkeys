@@ -2,6 +2,8 @@ import { Injectable, Logger } from "@nestjs/common";
 import { hiddenCategoryWhere } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
+import { aiContentLanguageRule } from "../../../common/i18n/ai-language";
+import { currentLocale } from "../../../common/i18n/locale-context";
 import { AiService } from "../ai.service";
 
 /**
@@ -95,6 +97,7 @@ interface FamilyRow {
   id: string;
   code: string;
   nameTr: string;
+  nameEn: string | null;
 }
 
 @Injectable()
@@ -171,7 +174,7 @@ export class CategorySuggestService {
           ...hiddenCategoryWhere(),
         },
         orderBy: { sortOrder: "asc" },
-        select: { id: true, code: true, nameTr: true },
+        select: { id: true, code: true, nameTr: true, nameEn: true },
       });
       if (classes.length === 0) return empty;
       const { ids: classCodes, keywords } = await this.pickCodes(user, {
@@ -179,7 +182,8 @@ export class CategorySuggestService {
         rows: classes,
         ask: [
           `Bu kalemler için kalemlerin tamamını kapsayan EN AZ SAYIDA (tek kategori yeterliyse yalnız 1, en fazla ${MAX_SUGGESTIONS}) DETAY kategori kodunu seç.`,
-          `Ayrıca kalemlerden, satın alma talebi aramasında kullanılacak ${MAX_KEYWORDS} adede kadar kısa Türkçe anahtar kelime üret (ürün/hizmet adları; marka ve genel sözcük yazma).`,
+          `Ayrıca kalemlerden, satın alma talebi aramasında kullanılacak ${MAX_KEYWORDS} adede kadar kısa anahtar kelime üret (ürün/hizmet adları; marka ve genel sözcük yazma).`,
+          aiContentLanguageRule(currentLocale(), "keywords"),
         ].join(" "),
         stage: "class",
         collectKeywords: true,
@@ -210,7 +214,9 @@ export class CategorySuggestService {
     },
   ): Promise<{ ids: string[]; keywords: string[] }> {
     const categoryLines = opts.rows
-      .map((r) => `${r.code} ${r.nameTr}`)
+      // İngilizce ad da verilir: kalemleri Türkçe dışında yazan kullanıcının
+      // eşleşmesi yalnız Türkçe ada bakınca zayıflıyordu (2026-09-27).
+      .map((r) => `${r.code} ${r.nameTr}${r.nameEn && r.nameEn !== r.nameTr ? ` / ${r.nameEn}` : ""}`)
       .join("\n");
     const result = await this.ai.callAi(user, {
       feature: "tender_extract",
@@ -258,7 +264,7 @@ export class CategorySuggestService {
     const rows = await this.prisma.category.findMany({
       where: { level: 2, isActive: true, ...hiddenCategoryWhere() },
       orderBy: { sortOrder: "asc" },
-      select: { id: true, code: true, nameTr: true },
+      select: { id: true, code: true, nameTr: true, nameEn: true },
     });
     this.familyCache = { rows, loadedAt: now };
     return rows;

@@ -115,6 +115,8 @@ export function PanelProductFilters({ idPrefix }: { idPrefix: string }) {
     activity: p.activity,
     verified: p.verified,
     price: p.price,
+    // Histogram birimi — seçilmediyse sunucu firma ülkesinden çözer.
+    currency: p.currency,
   });
   if (!facets.data) return <p className="text-sm text-zinc-500">{t("suzgeclerYukleniyor")}</p>;
   return <ProductFilters facets={facets.data} idPrefix={idPrefix} />;
@@ -145,6 +147,8 @@ function Inner({
     activity: p.activity,
     verified: p.verified,
     price: p.price,
+    // Histogram birimi — seçilmediyse sunucu firma ülkesinden çözer.
+    currency: p.currency,
   });
   const data = result.data;
   const total = data?.total ?? 0;
@@ -188,7 +192,7 @@ function Inner({
         toolbarStart={
           /* Sayı BAŞLIKTA yazılı (MarketHeader `count`); burada yalnız canlı
              bölge ve "Güncelleniyor…" kalır (`quiet`). */
-          <ResultCount kind="product" noun={t("urun2")} loading={result.isLoading} quiet />
+          <ResultCount kind="product" loading={result.isLoading} quiet />
         }
         toolbarEnd={
           <span className="flex items-center gap-2">

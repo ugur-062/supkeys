@@ -1,4 +1,5 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { localizeDefaultAddressTitle } from "../../../common/company/default-address-title";
 import {
   BadRequestException,
   ConflictException,
@@ -68,6 +69,7 @@ import { currentLocale } from "../../../common/i18n/locale-context";
 import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
 import { DEFAULT_LOCALE, translateRoutePath, type Locale } from "@rothern/i18n";
 import { CATEGORY_NAME_SELECT, categoryName } from "../../../common/company/category-name";
+import { geoIndex } from "../../../common/geo/geo-index";
 import { CompanyApprovalsService } from "../../company-approvals/company-approvals.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
@@ -85,6 +87,16 @@ import {
 import { RealtimeService } from "../../realtime/realtime.service";
 import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-category-match.helper";
 import { isNotificationEnabled } from "../../../common/notifications/notification-prefs";
+import {
+  dateParam,
+  formatAmount,
+  formatNotificationParams,
+  listingTitleParam,
+  ListingTitleResolver,
+  listingTitleRefs,
+  moneyParam,
+  type NotificationParams,
+} from "../../../common/notifications/notification-params";
 import { CreateListingDto } from "../dto/create-listing.dto";
 import { NextRoundDto } from "../dto/next-round.dto";
 import { PlaceBidDto } from "../dto/place-bid.dto";
@@ -179,6 +191,22 @@ const LISTING_ACTION_KEYS = {
   inviteSupplier: "api.companyListings.actionInviteSupplier",
 } as const;
 
+/** Bildirim e-postasının içeriği — metin ALICININ dilinde üretilir (`notify`). */
+interface ListingNotifyData {
+  subjectKey: ApiMessageKey;
+  headingKey: ApiMessageKey;
+  bodyKey: ApiMessageKey;
+  /**
+   * Üç anahtarın ORTAK ICU parametre sözlüğü — tarih/tutar/talep başlığı
+   * TİPLİ (`notification-params.ts`), alıcının dilinde biçimlenir.
+   */
+  params?: NotificationParams;
+  ctaLabelKey?: ApiMessageKey;
+  ctaUrl?: (locale: Locale) => string;
+  footerNoteKey?: ApiMessageKey;
+  infoRows?: { label: string; value: string }[];
+}
+
 @Injectable()
 export class CompanyListingsService {
   private readonly logger = new Logger(CompanyListingsService.name);
@@ -210,6 +238,8 @@ export class CompanyListingsService {
     @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
+  /** Bildirimde talep başlığı ALICININ dilinde (`$listingTitle` parametresi). */
+  private readonly listingTitles = new ListingTitleResolver(() => this.translations);
 
   private webUrl(): string {
     return resolveWebUrl(this.config);
@@ -268,24 +298,34 @@ export class CompanyListingsService {
    */
   private notify(
     to: Recipient,
-    data: {
-      subjectKey: ApiMessageKey;
-      headingKey: ApiMessageKey;
-      bodyKey: ApiMessageKey;
-      /** Üç anahtarın ORTAK ICU parametre sözlüğü. */
-      params?: Record<string, string | number>;
-      ctaLabelKey?: ApiMessageKey;
-      ctaUrl?: (locale: Locale) => string;
-      footerNoteKey?: ApiMessageKey;
-      infoRows?: { label: string; value: string }[];
-    },
+    data: ListingNotifyData,
     context?: { type: string; id: string },
   ): void {
     // Alıcının bildirim tercihi bu tipi kapatmışsa gönderme (transactional
     // tipler her zaman gider). billingEmail alıcılarında tercih yok → gider.
     if (context && !isNotificationEnabled(to.prefs, context.type)) return;
+    // Talep başlığı alıcının dilindeki çeviriden okunur (başvuru varsa tek
+    // sorgu, 60 sn önbellekli); başvuru yoksa gönderim EŞZAMANLI kalır.
+    if (listingTitleRefs(data.params).length > 0 && this.translations) {
+      void this.listingTitles
+        .forParams(data.params, to.locale)
+        .catch(() => undefined)
+        .then((titles) => this.sendNotifyEmail(to, data, context, titles))
+        .catch((err) => this.logNotifyEmailError(to.email, err));
+      return;
+    }
+    this.sendNotifyEmail(to, data, context);
+  }
+
+  private sendNotifyEmail(
+    to: Recipient,
+    data: ListingNotifyData,
+    context: { type: string; id: string } | undefined,
+    titles?: ReadonlyMap<string, string>,
+  ): void {
     const locale = to.locale;
-    const t = (key: ApiMessageKey) => tApi(key, data.params, locale);
+    const params = formatNotificationParams(data.params, locale, titles);
+    const t = (key: ApiMessageKey) => tApi(key, params, locale);
     const subject = t(data.subjectKey);
     void this.email
       .send({
@@ -307,13 +347,15 @@ export class CompanyListingsService {
         subject,
         context,
       })
-      .catch((err) =>
-        this.logger.error(
-          `Bildirim e-postası gönderilemedi (${to.email}): ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        ),
-      );
+      .catch((err) => this.logNotifyEmailError(to.email, err));
+  }
+
+  private logNotifyEmailError(email: string, err: unknown): void {
+    this.logger.error(
+      `Bildirim e-postası gönderilemedi (${email}): ${
+        err instanceof Error ? err.message : String(err)
+      }`,
+    );
   }
 
   /**
@@ -339,8 +381,11 @@ export class CompanyListingsService {
     });
     if (!listing) return;
     // Metin ARTIK burada kurulmaz: anahtar + ICU parametresi taşınır, cümle
-    // her alıcının dilinde üretilir (bkz. notify / renderPayload).
+    // her alıcının dilinde üretilir (bkz. notify / renderPayload). Sahip KENDİ
+    // başlığını ham okur; katılımcılar BAŞKA firmadır → başlık onların
+    // dilindeki çeviriden (`$listingTitle`, yoksa kaynak başlık).
     const p = { title: listing.title, number: listing.number ?? "—" };
+    const participantParams = { ...p, title: listingTitleParam(listing.id, listing.title) };
     const ownerPortal = this.ownerPortal(listing.type);
     const bidderPortal = this.bidderPortal(listing.type);
 
@@ -386,7 +431,7 @@ export class CompanyListingsService {
           subjectKey: "api.notifications.listings.closed.subject",
           headingKey: "api.notifications.listings.closed.title",
           bodyKey: "api.notifications.listings.closed.body",
-          params: p,
+          params: participantParams,
           ctaLabelKey: "api.notifications.listings.cta.viewRequest",
           ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
         },
@@ -402,7 +447,7 @@ export class CompanyListingsService {
         titleKey: "api.notifications.listings.closed.title",
         bodyKey: "api.notifications.listings.closed.body",
         ctaLabelKey: "api.notifications.listings.cta.viewRequest",
-        params: p,
+        params: participantParams,
         ctaPath: bidUrl,
         listingId,
       },
@@ -601,32 +646,27 @@ export class CompanyListingsService {
     // ("satın alma talebi" + "Sattığınız" + "teklif vermek") Türkçede yürüyor
     // ama EN/RU'da sözcük sırası ve çekim tutmaz — her yön TAM cümlesini
     // taşır, metin alıcının dilinde üretilir.
-    const K = isBuyDemand
-      ? ({
-          heading: "api.notifications.listings.categoryMatch.buy.heading",
-          openSubject: "api.notifications.listings.categoryMatch.buy.openSubject",
-          openBody: "api.notifications.listings.categoryMatch.buy.openBody",
-          openInAppBody: "api.notifications.listings.categoryMatch.buy.openInAppBody",
-          lockedSubject: "api.notifications.listings.categoryMatch.buy.lockedSubject",
-          lockedBody: "api.notifications.listings.categoryMatch.buy.lockedBody",
-          lockedInAppTitle: "api.notifications.listings.categoryMatch.buy.lockedInAppTitle",
-          lockedInAppBody: "api.notifications.listings.categoryMatch.buy.lockedInAppBody",
-          openCta: "api.notifications.listings.cta.viewOpenRequests",
-        } as const)
-      : ({
-          heading: "api.notifications.listings.categoryMatch.sell.heading",
-          openSubject: "api.notifications.listings.categoryMatch.sell.openSubject",
-          openBody: "api.notifications.listings.categoryMatch.sell.openBody",
-          openInAppBody: "api.notifications.listings.categoryMatch.sell.openInAppBody",
-          lockedSubject: "api.notifications.listings.categoryMatch.sell.lockedSubject",
-          lockedBody: "api.notifications.listings.categoryMatch.sell.lockedBody",
-          lockedInAppTitle: "api.notifications.listings.categoryMatch.sell.lockedInAppTitle",
-          lockedInAppBody: "api.notifications.listings.categoryMatch.sell.lockedInAppBody",
-          openCta: "api.notifications.listings.cta.viewSalesListings",
-        } as const);
+    // Satış ilanı 2026-09-04'te kalktı (ListingType yalnız ALIM) → tek yön:
+    // alım talebi, satıcı firmalara duyurulur.
+    const K = {
+      heading: "api.notifications.listings.categoryMatch.buy.heading",
+      openSubject: "api.notifications.listings.categoryMatch.buy.openSubject",
+      openBody: "api.notifications.listings.categoryMatch.buy.openBody",
+      openInAppBody: "api.notifications.listings.categoryMatch.buy.openInAppBody",
+      lockedSubject: "api.notifications.listings.categoryMatch.buy.lockedSubject",
+      lockedBody: "api.notifications.listings.categoryMatch.buy.lockedBody",
+      lockedInAppTitle: "api.notifications.listings.categoryMatch.buy.lockedInAppTitle",
+      lockedInAppBody: "api.notifications.listings.categoryMatch.buy.lockedInAppBody",
+      openCta: "api.notifications.listings.cta.viewOpenRequests",
+    } as const;
     const FOOTER = "api.notifications.listings.categoryMatch.footerNote" as const;
     const PLANS_CTA = "api.notifications.listings.cta.viewPlans" as const;
-    const p = { title: listing.title, number: listing.number ?? "—" };
+    // Alıcılar BAŞKA firmalardır → başlık onların dilinde. Duyuru yayın anında
+    // gider; içerik çevirisi o an hazır değilse kaynak başlık basılır (bilinçli).
+    const p = {
+      title: listingTitleParam(listing.id, listing.title),
+      number: listing.number ?? "—",
+    };
     // Ücretsiz (efektif STANDART) alıcı: talep ona KİLİTLİ — metin dürüst olsun,
     // CTA paket sayfasına (kilit kartı satış anasayfasında da sayıyı gösterir).
     // Ücretsiz ama alıcıyla GEÇERLİ bağlantısı olan firma talebi görebilir ve
@@ -891,7 +931,11 @@ export class CompanyListingsService {
       targets = targets.filter((id) => !bidderSet.has(id));
     }
     const url = appRoutes.listing(this.webUrl(), listingId);
-    const p = { title: listing.title, number: listing.number ?? "—" };
+    // Davetliler BAŞKA firmadır → başlık onların dilinde (içerik çevirisi).
+    const p = {
+      title: listingTitleParam(listing.id, listing.title),
+      number: listing.number ?? "—",
+    };
     // Mod'a göre ANAHTAR + tip (metin alıcının dilinde üretilir). Yeni tur
     // (`listing_new_round`) tercihte listelenmez → transactional
     // (kapatılamaz): açılan yeni tur mutlaka duyulmalı.
@@ -1481,11 +1525,7 @@ export class CompanyListingsService {
     const type = existing.type;
     let format: ListingFormat | null = null;
     if (!dto.format) {
-      throw new BadRequestException(
-        type === "ALIM"
-          ? i18nMessage("api.companyListings.alimIcinFormatSecin")
-          : i18nMessage("api.companyListings.satisIcinFormatSecin"),
-      );
+      throw new BadRequestException(i18nMessage("api.companyListings.alimIcinFormatSecin"));
     }
     // Düzenlemeyle İngiliz usulüne GEÇİLEMEZ (RFQ taslağı açıp edit'le
     // eksiltmeye çevirme = doğrudan-açma yasağının arka kapısı olurdu).
@@ -2302,7 +2342,7 @@ export class CompanyListingsService {
       createdAt: true,
       companyId: true,
       targetCountries: true,
-      company: { select: { name: true, city: true, country: true } },
+      company: { select: { name: true, city: true, cityId: true, country: true } },
       _count: { select: { items: true } },
       // Kapak: sahibin seçtiği görsel, yoksa ilk kalemin ilk görseli
       // (pazar yerindeki `deriveCover` ile AYNI kural — iki yerde farklı
@@ -2414,6 +2454,18 @@ export class CompanyListingsService {
       myActivities.size > 0 &&
       wanted.some((a) => myActivities.has(a));
 
+    // Sahibin şehri → kalıcı adres anahtarı (`bursa`, `de-munich`) + okuyucunun
+    // dilinde ad; dünya şehir dizini (`geoIndex`) herkese açık facet'le aynı kaynak.
+    const geo = geoIndex();
+    const readerLocale = currentLocale();
+    const ownerCityOf = (cityId: number | null) => {
+      const row = geo.byId(cityId);
+      return {
+        ownerCitySlug: row?.slug ?? null,
+        ownerCityLabel: row ? geo.label(row, readerLocale) : null,
+      };
+    };
+
     const rows = all.map((l) => {
       const connected = connectedIds.includes(l.companyId);
       const invited = invitedSet.has(l.id);
@@ -2446,6 +2498,12 @@ export class CompanyListingsService {
         owner: { id: l.companyId, name: l.company.name },
         // Şehir: teklif verecek tarafın lojistik kararı için (pazar yeriyle aynı çizgi).
         ownerCity: l.company.city,
+        // Şehir süzgeci ANAHTARI + okuyucunun dilinde ad (2026-09-27): ham
+        // metin RU satıcıya "İstanbul" basıyor, farklı ülkelerdeki aynı adlı
+        // şehirleri tek girdide birleştiriyordu. Eşlenmemiş şehirde null →
+        // web ham metne düşer.
+        ownerCityId: l.company.cityId ?? null,
+        ...ownerCityOf(l.company.cityId),
         coverImageUrl:
           l.coverImageUrl ?? l.items.find((i) => i.images.length > 0)?.images[0] ?? null,
         // Kalem adları (ilk 20): satış anasayfası araması "kalem" ile bulsun.
@@ -2814,7 +2872,8 @@ export class CompanyListingsService {
     const serializeAddr = (a: (typeof addrRows)[number] | undefined) =>
       a
         ? {
-            title: a.title,
+            // Kayıtta yazılan varsayılan başlık ("Merkez") okuyucunun dilinde.
+            title: localizeDefaultAddressTitle(a.title),
             addressLine: a.addressLine,
             district: a.district,
             city: a.city,
@@ -3167,8 +3226,12 @@ export class CompanyListingsService {
     if (blockedIds.includes(user.companyId)) {
       throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
-    // Ülke kapsamı (davetli hariç): uluslararası ilan yurtiçi tedarikçiye,
-    // yurtiçi ilan yabancıya görünmez.
+    // Görünürlük ülkesi (davetli hariç): talep yalnız belirli ülkelere açıksa
+    // başka ülkedeki firma İÇERİĞİ göremez. 404 değil 403 (2026-09-27): talep
+    // pazar yerinde zaten herkese açık ("Yalnız … merkezli tedarikçiler teklif
+    // verebilir" notuyla) — kayıt olup derin bağlantıdan gelen yabancı
+    // tedarikçi "bulunamadı" değil nedenini görmeli. Gövde yalnız kod + hedef
+    // ülkeler taşır (sayfadaki notla aynı olgu); başlık/kalem/şart YOK.
     if (
       !isInvited &&
       !this.isCountryEligible(
@@ -3178,7 +3241,11 @@ export class CompanyListingsService {
         listing.targetCountries,
       )
     ) {
-      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
+      throw new ForbiddenException({
+        ...i18nMessage("api.companyListings.talepBaskaUlkelereAcik", undefined, "COUNTRY_NOT_ELIGIBLE"),
+        statusCode: 403,
+        targetCountries: listing.targetCountries,
+      });
     }
 
     // Davetli firma her görünürlükte görür ve teklif verebilir (alıcı onu
@@ -4202,8 +4269,8 @@ export class CompanyListingsService {
       const ownLast: Prisma.Decimal | null =
         existingBid?.status === "SUBMITTED" ? existingBid.amount : null;
       if (ownLast != null) {
-        const fmt = (d: Prisma.Decimal) =>
-          d.toNumber().toLocaleString("tr-TR", { maximumFractionDigits: 2 });
+        // Hata mesajı İSTEĞİN dilinde (teklifçinin kendisi okuyor).
+        const fmt = (d: Prisma.Decimal) => formatAmount(d.toNumber(), currentLocale());
         // Mesajlar teklifçinin KENDİ biriminde konuşur (ilanın değil).
         const bidSym = currency === "TRY" ? "₺" : currency;
         // KIYAS AYNI KALEMLER BAZINDA: önceki teklif kısmi olabilir — yeni
@@ -4934,7 +5001,7 @@ export class CompanyListingsService {
       if (losingBidderIds.length > 0) {
         const lostUrl = appRoutes.listing(this.webUrl(), listingId);
         const lostParams = {
-          title: listing.title,
+          title: listingTitleParam(listingId, listing.title),
           number: listing.number ?? "—",
         };
         const lostRecipients = await this.companyRecipients(
@@ -5708,7 +5775,7 @@ export class CompanyListingsService {
       if (losingBidderIds.length > 0) {
         const lostUrl = appRoutes.listing(this.webUrl(), listingId);
         const lostParams = {
-          title: listing.title,
+          title: listingTitleParam(listingId, listing.title),
           number: listing.number ?? "—",
         };
         const lostRecipients = await this.companyRecipients(losingBidderIds, itemWonPortal);
@@ -6114,20 +6181,17 @@ export class CompanyListingsService {
     // Tur adı ("açık eksiltme turu" ↔ "yeni tur") ve "Açılışa (…) kadar" ↔
     // "Devam etmek için" cümlenin ORTASINDA duruyor: kodda birleştirilirse
     // EN/RU'da sözcük sırası tutmaz. İkisi de katalogda ICU `select` ile.
-    const base = {
-      title: listing.title,
+    // Açılış saati ve tutar TİPLİ: alıcının dilinde, İstanbul duvar saatiyle
+    // biçimlenir (eskiden "tr-TR" ve saat dilimsiz → UTC sunucuda 3 saat kayık).
+    const base: NotificationParams = {
+      title: listingTitleParam(listing.id, listing.title),
       number: listing.number ?? "—",
       round: listing.format === "ENGLISH_AUCTION" ? "auction" : "standard",
       opens:
         opensAt != null && opensAt.getTime() > Date.now() ? "future" : "now",
-      openAt:
-        opensAt?.toLocaleString("tr-TR", {
-          dateStyle: "short",
-          timeStyle: "short",
-        }) ?? "",
+      openAt: opensAt ? dateParam(opensAt, "dateTime") : "",
     };
 
-    const sym = (c: string) => (c === "TRY" ? "₺" : c);
     // Perf (N+1): tüm carried+expired bidder alıcıları TEK batch'te çözülür
     // (eski per-bidder companyRecipient yerine — 630/5373'teki doğru desen).
     const recipients = await this.companyRecipients(
@@ -6136,9 +6200,9 @@ export class CompanyListingsService {
     );
     for (const c of carried) {
       const recipient = recipients.get(c.companyId) ?? null;
-      const p = {
+      const p: NotificationParams = {
         ...base,
-        amount: `${Number(c.amount).toLocaleString("tr-TR")} ${sym(c.currency)}`,
+        amount: moneyParam(c.amount, c.currency),
       };
       if (recipient) {
         this.notify(
@@ -6421,7 +6485,7 @@ export class CompanyListingsService {
         // Aynı cümle `notifyListingInvitees`in "invitation" modunda da
         // kullanılır — anahtarlar ortak, iki yüzey ayrışmaz.
         const p = {
-          title: listing.title,
+          title: listingTitleParam(listingId, listing.title),
           number: listing.number ?? "—",
         };
         for (const cid of toAdd) {
@@ -6571,7 +6635,7 @@ export class CompanyListingsService {
       elimPortal,
     );
     const elimParams = {
-      title: listing.title,
+      title: listingTitleParam(listingId, listing.title),
       number: listing.number ?? "—",
     };
     if (recipient) {
@@ -6698,9 +6762,9 @@ export class CompanyListingsService {
       /**
        * Çağırana özel ICU parametreleri. Talebin başlığı/numarası burada
        * eklenir — çağıran yalnız kendi alanlarını (gerekçe, yeni kapanış…)
-       * verir.
+       * verir. Tarih/tutar TİPLİ (`notification-params.ts`).
        */
-      params?: Record<string, string | number>;
+      params?: NotificationParams;
       type: string;
     },
   ) {
@@ -6715,8 +6779,9 @@ export class CompanyListingsService {
       },
     });
     if (!listing) return;
-    const p = {
-      title: listing.title,
+    // Katılımcılar BAŞKA firmadır → başlık onların dilinde (içerik çevirisi).
+    const p: NotificationParams = {
+      title: listingTitleParam(listing.id, listing.title),
       number: listing.number ?? "—",
       ...(opts.params ?? {}),
     };
@@ -6962,16 +7027,13 @@ export class CompanyListingsService {
         : date.getTime() > extra.closesAt.getTime()
           ? "extended"
           : "advanced";
-    const newClosingLabel = date.toLocaleString("tr-TR", {
-      dateStyle: "long",
-      timeStyle: "short",
-      timeZone: "Europe/Istanbul",
-    });
+    // Yeni kapanış TİPLİ: her katılımcının dilinde biçimlenir (eskiden
+    // "tr-TR" → İngilizce e-postada "27 Eylül 2026").
     void this.notifyListingParticipants(listing.id, {
       subjectKey: "api.notifications.listings.closingChanged.subject",
       headingKey: "api.notifications.listings.closingChanged.title",
       bodyKey: "api.notifications.listings.closingChanged.body",
-      params: { direction, closesAt: newClosingLabel },
+      params: { direction, closesAt: dateParam(date, "dateTime") },
       type: "listing_closing_changed",
     }).catch((err) =>
       this.logger.error(

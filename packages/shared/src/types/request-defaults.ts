@@ -80,8 +80,12 @@ export const REQUEST_DEFAULTS_FALLBACK: RequestDefaults = {
 const EURO_NON_EU = new Set(["AD", "MC", "SM", "VA", "ME", "XK"]);
 
 /**
- * Platformun desteklediği yerel para birimleri (Listing `Currency` enum'u:
- * TRY USD EUR GBP CHF JPY AED CNY RUB). Listede olmayan ülke USD'ye düşer.
+ * Platformun desteklediği yerel para birimleri (`CURRENCY_CODES`,
+ * `constants/currencies.ts`). Listede olmayan ülke USD'ye düşer. Bulgaristan
+ * 2026-01-01'de euroya geçti → AB kuralıyla EUR (BGN yalnız listede, eski
+ * kayıtlar için). Polonya/Çekya/Macaristan'ın para birimi TCMB'de yok → AB
+ * kuralıyla EUR; Kazakistan/Özbekistan → USD (ikinci kur kaynağı gelince
+ * yerel birime geçer).
  */
 const NATIVE_SUPPORTED_CURRENCY: Record<string, string> = {
   TR: "TRY",
@@ -93,6 +97,26 @@ const NATIVE_SUPPORTED_CURRENCY: Record<string, string> = {
   AE: "AED",
   CN: "CNY",
   RU: "RUB",
+  AZ: "AZN",
+  SE: "SEK",
+  NO: "NOK",
+  SJ: "NOK",
+  DK: "DKK",
+  FO: "DKK",
+  GL: "DKK",
+  RO: "RON",
+  KR: "KRW",
+  SA: "SAR",
+  QA: "QAR",
+  KW: "KWD",
+  AU: "AUD",
+  CX: "AUD",
+  CC: "AUD",
+  NF: "AUD",
+  KI: "AUD",
+  NR: "AUD",
+  TV: "AUD",
+  CA: "CAD",
 };
 
 /**

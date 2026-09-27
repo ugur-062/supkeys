@@ -64,7 +64,7 @@ describe("time-zone — girdi ve etiket", () => {
     expect(formatDate(at, "datetime", "tr")).toBe("1 Eki 2026 17:00");
     expect(formatDate(at, "datetime", "en")).toBe("1 Oct 2026 17:00 (GMT+3)");
     expect(formatDate(at, "short", "en")).toBe("1 Oct 2026");
-    expect(formatTime(at)).toBe("17:00");
+    expect(formatTime(at, "tr")).toBe("17:00");
     expect(formatTime(at, "ru")).toBe("17:00 (GMT+3)");
   });
 });

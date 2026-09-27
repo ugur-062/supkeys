@@ -1,7 +1,18 @@
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import { Prisma } from "@rothern/db";
-import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
-import { categoryPrefix, foldSearchText, isCategoryCode, PAID_TIER, stemPrefix, tierAtLeast, tokenizeQuery } from "@rothern/shared";
+import { CATEGORY_NAME_SELECT, categoryName, categorySlug } from "../../common/company/category-name";
+import {
+  categoryPrefix,
+  foldSearchText,
+  isCategoryCode,
+  isHiddenCategory,
+  PAID_TIER,
+  segmentCodeOf,
+  stemPrefix,
+  tierAtLeast,
+  tokenizeQuery,
+} from "@rothern/shared";
+import { DEFAULT_LOCALE, LOCALES } from "@rothern/i18n";
 import {
   PUBLIC_PRODUCT_SELECT,
   toPublicProduct,
@@ -152,11 +163,17 @@ export class PublicProfileService {
         publicProductCount: productCount,
       }),
     };
-    if (!this.translations) return profile;
-    const [localized] = await this.translations.localizeCompanies([profile], [c.id], currentLocale());
-    const out = localized ?? profile;
+    // Dil durumu (i18n SEO, 2026-09-27): web hreflang'i yalnız HAZIR dillere
+    // yazar, kaynak metni gösterdiği dilde `lang={sourceLocale}` basar.
+    if (!this.translations) return { ...profile, readyLocales: [...LOCALES], sourceLocale: DEFAULT_LOCALE as string };
+    const locale = currentLocale();
+    const [[localized], state] = await Promise.all([
+      this.translations.localizeCompanies([profile], [c.id], locale),
+      this.translations.localeState("COMPANY", c.id),
+    ]);
+    const out = { ...(localized ?? profile), ...state };
     // Tanıtım metni bu dilde henüz çevrilmediyse profil indekslenmez (i18n SEO).
-    if (out.indexable && (await this.translations.translationPending("COMPANY", c.id, currentLocale()))) {
+    if (out.indexable && !state.readyLocales.includes(locale)) {
       return { ...out, indexable: false };
     }
     return out;
@@ -342,11 +359,22 @@ export class PublicProfileService {
     // Nitelikler ETİKETLENEREK döner: ziyaretçiye ham anahtar
     // ("koruma_sinifi") göstermek bir hata ekranı gibi okunur. Çözümleyici
     // panelle AYNI kaynak — sorulan alanla gösterilen etiket ayrışamaz.
-    const [attributeDefs, category] = await Promise.all([
+    // Segment (L1) — kırıntı ve JSON-LD kategori halkası segmentin İNİŞ
+    // sayfasına bağlanır (2026-09-27 SEO denetimi): L3/L4 kodun sayfası yok,
+    // süzgeçli dizin adresi (`/urunler?kategori=`) kanoniği `/urunler` olan
+    // bir varyanttı. Gizli segmentin sayfası 404 → halka yazılmaz.
+    const segmentId = segmentCodeOf(row.categoryId);
+    const [attributeDefs, category, segment] = await Promise.all([
       resolveCategoryAttributes(this.prisma, row.categoryId),
       row.categoryId
         ? this.prisma.category.findUnique({
             where: { id: row.categoryId },
+            select: { id: true, ...CATEGORY_NAME_SELECT },
+          })
+        : null,
+      segmentId && !isHiddenCategory(segmentId)
+        ? this.prisma.category.findUnique({
+            where: { id: segmentId },
             select: { id: true, ...CATEGORY_NAME_SELECT },
           })
         : null,
@@ -356,16 +384,21 @@ export class PublicProfileService {
       attributeList: labelAttributes(row.attributes, attributeDefs),
       // Kırıntı için kategori adı (Ana sayfa › Kategori › Firma › Ürün).
       category: category ? { id: category.id, name: categoryName(category) } : null,
+      // Adres parçası Türkçe addan (`categorySlug`, dilden bağımsız), ad okuyucunun dilinde.
+      segment: segment ? { id: segment.id, name: categoryName(segment), slug: categorySlug(segment.nameTr) } : null,
     };
-    const [localizedProduct] = this.translations
-      ? await this.translations.localizeProducts([product], [row.id], currentLocale())
-      : [product];
-    // Bu dilde çeviri henüz gelmediyse sayfa `noindex` basar (i18n SEO).
-    const translationPending = this.translations
-      ? await this.translations.translationPending("PRODUCT", row.id, currentLocale())
-      : false;
+    const locale = currentLocale();
+    const [[localizedProduct], state] = this.translations
+      ? await Promise.all([
+          this.translations.localizeProducts([product], [row.id], locale),
+          this.translations.localeState("PRODUCT", row.id),
+        ])
+      : [[product], { readyLocales: [...LOCALES], sourceLocale: DEFAULT_LOCALE as string }];
+    // Bu dilde çeviri henüz gelmediyse sayfa `noindex` basar (i18n SEO);
+    // `readyLocales`/`sourceLocale` web hreflang'i ve `lang` özniteliği için.
+    const translationPending = !state.readyLocales.includes(locale);
     return {
-      product: { ...(localizedProduct ?? product), translationPending },
+      product: { ...(localizedProduct ?? product), translationPending, ...state },
       company: {
         name: company.name,
         slug: company.slug,

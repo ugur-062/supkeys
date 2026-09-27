@@ -29,7 +29,7 @@
   },
   "business": {
     "notFound": "Запись не найдена",
-    "forbidden": "У вас нет прав для этого действия",
+    "forbidden": "У Вас нет прав для этого действия",
     "conflict": "Такая запись уже существует",
     "invalidStatus": "Это действие недоступно в текущем состоянии",
     "expired": "Срок действия истёк",
@@ -38,22 +38,22 @@
   },
   "companyApprovals": {
     "onayAkisiYalnizcaKazandirmaIcinTanimlanabilir": "Цепочку согласования можно задать только для присуждения",
-    "onaylayiciRoluOnayAkisiniBaslatamaz": "Роль «Утверждающий» не может запустить цепочку согласования",
+    "onaylayiciRoluOnayAkisiniBaslatamaz": "Роль «Согласующий» не может запустить цепочку согласования",
     "adimButceEsikleriArtanSiradaOlmali": "Бюджетные пороги этапов должны идти по возрастанию (каждый этап больше предыдущего или равен ему)",
     "onayAkisiBulunamadi": "Цепочка согласования не найдена",
-    "onayAkisindaSizdenBaskaUygunBir": "В цепочке согласования нет других подходящих утверждающих, кроме вас — добавьте утверждающего в цепочку или обратитесь к владельцу компании.",
+    "onayAkisindaSizdenBaskaUygunBir": "В цепочке согласования нет других подходящих согласующих, кроме Вас — добавьте согласующего в цепочку или обратитесь к владельцу компании.",
     "buIlanIcinZatenBekleyenBir": "По этой заявке на закупку уже есть ожидающий запрос на согласование",
     "onayIstegiBulunamadi": "Запрос на согласование не найден",
     "buIstekBeklemedeDegil": "Этот запрос не находится на рассмотрении",
-    "buAdiminOnaycisiDegilsiniz": "Вы не являетесь утверждающим на этом этапе",
+    "buAdiminOnaycisiDegilsiniz": "Вы не являетесь согласующим на этом этапе",
     "kendiBaslattiginizKazandirmayiOnaylayamazsinizGo": "Вы не можете согласовать присуждение, которое начали сами (разделение обязанностей).",
     "buAdimZatenSonuclandirildi": "Этот этап уже завершён",
     "buIstekArtikBeklemedeDegil": "Этот запрос больше не находится на рассмотрении",
     "kazandirmaUygulanamadiTeklifDurumuDegismisOlabil": "Не удалось выполнить присуждение — статус предложения мог измениться. Пожалуйста, попробуйте ещё раз.",
     "buIstegiYalnizcaBaslatanVeyaYonetici": "Отменить этот запрос может только его инициатор или Руководитель",
     "yalnizcaBekleyenIstekIptalEdilebilir": "Отменить можно только ожидающий запрос",
-    "gecersizVeyaPasifOnayciKullanici": "Недействительный или неактивный пользователь-утверждающий",
-    "onayciOlamazOnaycininOnaylamaYetkisiOlmali": "{firstName} {lastName} не может быть утверждающим — у утверждающего должно быть право «Утверждение»"
+    "gecersizVeyaPasifOnayciKullanici": "Недействительный или неактивный пользователь-согласующий",
+    "onayciOlamazOnaycininOnaylamaYetkisiOlmali": "{firstName} {lastName} не может быть согласующим — у согласующего должно быть право «Согласование»"
   },
   "companyBlocks": {
     "gecersizFirmaKodu": "Недопустимый код компании",
@@ -76,7 +76,7 @@
     "kullaniciGecersiz": "Пользователь недействителен",
     "firmaHesabiPasifVeyaEngellenmis": "Учётная запись компании неактивна или заблокирована",
     "oturumGecersizLutfenYenidenGirisYapin": "Сеанс недействителен — пожалуйста, войдите снова",
-    "buIslemIcinYetkinizYok": "У вас нет прав для этого действия",
+    "buIslemIcinYetkinizYok": "У Вас нет прав для этого действия",
     "buEPostaIleZatenBir": "Учётная запись с этим адресом электронной почты уже существует",
     "kullaniciBulunamadi": "Пользователь не найден",
     "ePostaZatenDogrulanmis": "Адрес электронной почты уже подтверждён",
@@ -95,7 +95,7 @@
     "girisYapmadanOnceEPostaAdresinizi": "Подтвердите адрес электронной почты перед входом.",
     "dogrulamaKoduSuAndaGonderilemediLutfen": "Сейчас не удалось отправить код подтверждения. Пожалуйста, попробуйте ещё раз через несколько минут.",
     "dogrulamaKoduHatali": "Неверный код подтверждения",
-    "premiumSuAnManuelOnaylaVeriliyor": "Премиум сейчас предоставляется по ручному согласованию — самостоятельное повышение тарифа временно отключено",
+    "premiumSuAnManuelOnaylaVeriliyor": "Тарифы сейчас предоставляются по ручному согласованию — самостоятельное повышение тарифа временно недоступно",
     "yalnizcaFirmaSahibiPaketYukseltebilir": "Только владелец компании может повысить тариф",
     "onceSirketBelgeleriniziDogrulatmalisiniz": "Сначала необходимо пройти проверку документов компании",
     "ikiAdimliDogrulamaZatenAcik": "Двухфакторная аутентификация уже включена",
@@ -106,11 +106,17 @@
     "gecersizBildirimTercihi": "Недопустимая настройка уведомлений: {k}",
     "buOzellikGoldPaketGerektirir": "Для этой функции требуется тариф Gold (панель закупок).",
     "buOzellikPaketVeyaUzeriGerektirir": "Для этой функции требуется тариф {tier} или выше.",
-    "buUlkedenYeniKayitAlinmiyor": "Регистрация из этой страны сейчас не принимается. Если вы хотите, чтобы ваша страна была открыта, свяжитесь с нами.",
+    "buUlkedenYeniKayitAlinmiyor": "Регистрация из этой страны сейчас не принимается.",
     "sahisFirmasiIcin11HaneliTckn": "Для индивидуального предпринимателя введите действительный 11-значный турецкий идентификационный номер (TCKN)",
     "tuzelKisiIcin10HaneliVergiNo": "Для юридического лица введите действительный 10-значный налоговый номер",
     "gecerliBirVergiSicilNumarasiGiriniz": "Введите действительный налоговый/регистрационный номер",
-    "yerelHukukiYapiZorunlu": "Если выбрано «Другое», укажите организационно-правовую форму компании (например, GmbH, LLC)"
+    "yerelHukukiYapiZorunlu": "Если выбрано «Другое», укажите организационно-правовую форму компании (например, GmbH, LLC)",
+    "defaults": {
+      "founderTitle": "Основатель",
+      "headOfficeTitle": "Головной офис",
+      "deliverySameTitle": "Доставка (совпадает с адресом для счетов)",
+      "deliveryTitle": "Доставка"
+    }
   },
   "publicProfile": {
     "profilBulunamadi": "Профиль не найден",
@@ -168,14 +174,17 @@
     "gecersizBelgeTuru": "Недопустимый тип документа",
     "reddedilenRevizyonaGerekceGerekli": "Для отклонённого запроса на изменение требуется обоснование",
     "revizyonAzOnceKararaBaglandi": "По запросу на изменение только что принято решение",
-    "firmaninUyeligiAzOnceDegistiSayfayi": "Членство компании только что изменилось — обновите страницу и повторите попытку",
-    "uzatmaYalnizPaketliUyelikteOnceBir": "Продление возможно только при платном членстве — сначала назначьте тариф (Silver/Gold)",
-    "buFirmaninUyeligiSuresizUzatilamazSure": "У этой компании бессрочное членство — продлить его нельзя. Чтобы задать срок, сначала назначьте тариф заново (с датой окончания).",
+    "firmaninUyeligiAzOnceDegistiSayfayi": "Тариф компании только что изменился — обновите страницу и повторите попытку",
+    "uzatmaYalnizPaketliUyelikteOnceBir": "Продление возможно только на платном тарифе — сначала назначьте тариф (Silver/Gold)",
+    "buFirmaninUyeligiSuresizUzatilamazSure": "У этой компании бессрочный тариф — продлить его нельзя. Чтобы задать срок, сначала назначьте тариф заново (с датой окончания).",
     "notEnAz3KarakterOlmali": "Заметка должна содержать не менее 3 символов",
     "notBulunamadi": "Заметка не найдена",
-    "firmaAskiyaAlmaYetkisiYalnizSuper": "Приостановить компанию может только SUPER_ADMIN — вы можете закрыть жалобу без приостановки",
+    "firmaAskiyaAlmaYetkisiYalnizSuper": "Приостановить компанию может только SUPER_ADMIN — Вы можете закрыть жалобу без приостановки",
     "sikayetBulunamadi": "Жалоба не найдена",
-    "buSikayetZatenSonuclanmis": "Эта жалоба уже рассмотрена"
+    "buSikayetZatenSonuclanmis": "Эта жалоба уже рассмотрена",
+    "gecersizRedGerekcesiKodu": "Недопустимый код причины отклонения",
+    "buUlkeKaydaKapali": "Регистрация из этой страны закрыта; компанию нельзя перевести в эту страну",
+    "yerelHukukiYapiZorunlu": "Если выбрана форма «Другое», укажите местное название организационно-правовой формы (например, GmbH, LLC)"
   },
   "categories": {
     "gecersizKategoriId": "Недопустимый ID категории: {join}",
@@ -198,7 +207,7 @@
   },
   "companyListings": {
     "kendiSatinAlmaTalebinizeTeklifVeremezsiniz": "Вы не можете отправить предложение по собственной заявке на закупку",
-    "buSatinAlmaTalebindeKalemListesi": "В этой заявке на закупку нет списка позиций либо у вас нет прав на его просмотр — импорт цен доступен только для заявок с позициями",
+    "buSatinAlmaTalebindeKalemListesi": "В этой заявке на закупку нет списка позиций либо у Вас нет прав на его просмотр — импорт цен доступен только для заявок с позициями",
     "dosyaBos": "Файл пуст",
     "dosyaCokBuyuk5MbSiniri": "Файл слишком большой (лимит 5 МБ)",
     "makroluDosyaXlsmKabulEdilmez": "Файлы с макросами (.xlsm) не принимаются",
@@ -226,11 +235,11 @@
     "gecersizKategoriSecimi": "Недопустимый выбор категории",
     "ozelDavetliIlanEnAzBir": "Частный запрос (по приглашению) можно опубликовать минимум с одной приглашённой компанией",
     "icinGoldPaketSatinalmaPaneliGerekir": "Для действия «{action}» требуется тариф Gold (панель закупок). Вы можете завершить текущие заявки на закупку, но не можете начать новую работу по запросам.",
-    "firmaDogrulamanizTamamlanmadanBelgeleriniziAyarl": "Пока проверка вашей компании не завершена, {action} — загрузите документы в разделе «Настройки → Проверка» и отправьте их на согласование.",
+    "firmaDogrulamanizTamamlanmadanBelgeleriniziAyarl": "Пока проверка Вашей компании не завершена, {action} — загрузите документы в разделе «Настройки → Проверка» и отправьте их на проверку.",
     "satinAlmaTalebiAcmakIcinGold": "Чтобы открыть заявку на закупку, требуется тариф Gold (панель закупок).",
     "talepAcmakIcinTalepAcmaVe": "Чтобы открыть запрос, требуется право «Создание и ведение запросов»",
     "satinAlmaTalebiIcinFormatSecin": "Выберите формат заявки на закупку (Сбор предложений / Переговоры)",
-    "pazarlikDogrudanAcilamazTalebiTeklifToplama": "Переговоры нельзя открыть напрямую — откройте запрос в формате «Сбор предложений», затем переведите его в раунд редукциона кнопкой «Перейти к переговорам»",
+    "pazarlikDogrudanAcilamazTalebiTeklifToplama": "Переговоры нельзя открыть напрямую — откройте запрос в формате «Сбор предложений», затем переведите его в раунд аукциона на понижение кнопкой «Перейти к переговорам»",
     "ilanBulunamadi": "Запрос не найден",
     "sadeceTaslakVeyaHenuzTeklifGelmemis": "Редактировать можно только черновики заявок на закупку или заявки, по которым ещё нет предложений",
     "buSatinAlmaTalebineTeklifVerilmis": "По этой заявке на закупку уже есть предложения; редактирование недоступно",
@@ -242,7 +251,7 @@
     "ozelDavetliIlanYayinlamakIcinEn": "Чтобы опубликовать частный запрос (по приглашению), нужно пригласить хотя бы одну компанию",
     "ilanDurumuDegistiYalnizcaTaslakYayinlanabilir": "Статус запроса изменился; опубликовать можно только черновик",
     "herkeseAcikTalepleriGormekVeTeklif": "Для просмотра публичных запросов и отправки предложений требуется тариф Silver. Запросы, полученные по приглашению контакта, доступны бесплатно.",
-    "icinGuncelTcmbKuruBulunamadiBu": "Актуальный курс TCMB для {cur} не найден — редукцион или аукцион на повышение в этой валюте открыть нельзя",
+    "icinGuncelTcmbKuruBulunamadiBu": "Актуальный курс TCMB для {cur} не найден — аукцион на понижение или повышение в этой валюте открыть нельзя",
     "gecersizTeslimatFaturaAdresi": "Недопустимый адрес доставки или выставления счёта",
     "kendiIlaninizaTeklifVeremezsiniz": "Нельзя отправить предложение на собственный запрос",
     "teklifVermekIcinTeklifVermeYetkisi": "Чтобы отправить предложение, требуется право «Отправка предложений»",
@@ -250,13 +259,13 @@
     "teklifVermeHenuzBaslamadiAcilisSaatini": "Приём предложений ещё не начался (дождитесь времени открытия)",
     "teklifSuresiDoldu": "Срок подачи предложений истёк",
     "geriCekilenTeklifYenidenVerilemez": "Отозванное предложение нельзя отправить повторно",
-    "gonderilmisTeklifDuzenlenemezDegisiklikIcinAlici": "Отправленное предложение изменить нельзя — для изменений свяжитесь с покупателем; если покупатель отклонит ваше предложение, вы сможете отправить новое",
-    "acikEksiltmeArtirmadaGonderilmisTeklifTaslaga": "В редукционе или аукционе на повышение отправленное предложение нельзя вернуть в черновик — отправьте новую сумму напрямую",
+    "gonderilmisTeklifDuzenlenemezDegisiklikIcinAlici": "Отправленное предложение изменить нельзя — для изменений свяжитесь с покупателем; если покупатель отклонит Ваше предложение, Вы сможете отправить новое",
+    "acikEksiltmeArtirmadaGonderilmisTeklifTaslaga": "В аукционе на понижение или повышение отправленное предложение нельзя вернуть в черновик — отправьте новую сумму напрямую",
     "buIlanIcinGecersizParaBirimi": "Недопустимая валюта для этого запроса",
-    "acikEksiltmeArtirmadaParaBirimiDegistirilemez": "В редукционе или аукционе на повышение валюту изменить нельзя — отправьте предложение в валюте {currency}",
+    "acikEksiltmeArtirmadaParaBirimiDegistirilemez": "В аукционе на понижение или повышение валюту изменить нельзя — отправьте предложение в валюте {currency}",
     "buTurdakiTeklifiniziVerdinizIlanSahibi": "Вы отправили предложение в этом раунде — обновить его можно, если владелец запроса откроет новый раунд",
     "teklifGondermekIcinGecerlilikSuresiZorunlu": "Чтобы отправить предложение, необходимо указать срок действия",
-    "teslimSuresiZorunluSureGirmediginizKalemler": "Срок поставки обязателен (для позиций, где вы его не указали)",
+    "teslimSuresiZorunluSureGirmediginizKalemler": "Срок поставки обязателен (для позиций, где Вы его не указали)",
     "teslimTarihiGecmisteOlamaz": "Дата поставки не может быть в прошлом",
     "buSatinAlmaTalebindeTeklifDosyasi": "Для этой заявки на закупку обязателен файл предложения — сначала сохраните черновик, затем прикрепите файл",
     "buSatinAlmaTalebiKalemBazli": "Эта заявка на закупку ведётся по позициям; укажите цену за единицу хотя бы для одной позиции",
@@ -274,35 +283,35 @@
     "gecerliBirTutarGirin": "Укажите корректную сумму",
     "teklifToplamiCokBuyuk": "Итоговая сумма предложения слишком велика",
     "pazarliktaOncedenFiyatladiginizKalemBirakilamazI": "В раунде переговоров нельзя убрать ранее оценённую позицию — введите цену для «{name}»",
-    "pazarlikOncekiTeklifinizinAltindaOlmali": "Переговоры: {scopeNote} должно быть ниже вашего предыдущего предложения ({fmt} {bidSym})",
-    "acikArtirmaOncekiTeklifinizinUzerindeOlmali": "Аукцион на повышение: {scopeNote} должно быть выше вашего предыдущего предложения ({fmt} {bidSym})",
+    "pazarlikOncekiTeklifinizinAltindaOlmali": "Переговоры: {scopeNote} должно быть ниже Вашего предыдущего предложения ({fmt} {bidSym})",
+    "acikArtirmaOncekiTeklifinizinUzerindeOlmali": "Аукцион на повышение: {scopeNote} должно быть выше Вашего предыдущего предложения ({fmt} {bidSym})",
     "ilanBuSiradaGuncellendiDurumTur": "Запрос был обновлён (изменился статус или раунд) — обновите страницу и отправьте предложение ещё раз",
     "ilanKalemleriBuSiradaDegistiSayfayi": "Позиции запроса изменились — обновите страницу и отправьте предложение ещё раз",
     "sadeceIlanSahibiKazandirabilir": "Присудить может только владелец запроса",
     "ilanZatenKazandirilmisVeyaIptal": "Запрос уже присуждён или отменён",
-    "kazandirmaIcinYetkinizYok": "У вас нет прав на присуждение",
+    "kazandirmaIcinYetkinizYok": "У Вас нет прав на присуждение",
     "gecersizTeklif": "Недопустимое предложение",
     "buSatinAlmaTalebiTeklifBelgesi": "Эта заявка на закупку требует документ предложения; у победившего предложения его нет",
     "ilanDurumuDegistiKazandirmayiTekrarDeneyin": "Статус запроса изменился; повторите присуждение",
     "teklifinGecerlilikSuresiDolmusTedarikcidenSure": "Срок действия предложения истёк; запросите продление у поставщика или откройте новый раунд",
-    "teklifArtikGecerliDegilGeriCekilmis": "Предложение больше недействительно (отозвано или отклонено) — присудить его нельзя",
+    "teklifArtikGecerliDegilGeriCekilmis": "Предложение больше недействительно (отозвано или исключено) — присудить его нельзя",
     "siparisTutariTutarsizligiKazandirmaGuvenlikNeden": "Несоответствие суммы заказа — присуждение остановлено в целях безопасности (обратитесь в службу поддержки)",
     "ilanZatenKazandirilmis": "Запрос уже присуждён",
-    "teklifArtikGecerliDegilElenmisVeya": "Предложение больше недействительно (отклонено или отозвано) — присудить его нельзя",
+    "teklifArtikGecerliDegilElenmisVeya": "Предложение больше недействительно (исключено или отозвано) — присудить его нельзя",
     "belgeZorunluKazananTeklifinYukluBelgesi": "Документ обязателен — у победившего предложения нет загруженного документа",
     "buSatinAlmaTalebindeKalemYok": "В этой заявке на закупку нет позиций",
     "enAzBirKalemIcinKazanan": "Выберите победителя хотя бы по одной позиции",
     "birKalemBirdenFazlaKazananaVerilemez": "Одну позицию нельзя присудить нескольким победителям",
     "gecersizKalemTeklif": "Недопустимая позиция или предложение",
     "secilenTeklifinKalemiIcinFiyatiYok": "В выбранном предложении нет цены для позиции «{name}»",
-    "kazananTekliflerdenBiriArtikGecerliDegil": "Одно из победивших предложений больше недействительно (отклонено или отозвано) — присуждение не выполнено",
+    "kazananTekliflerdenBiriArtikGecerliDegil": "Одно из победивших предложений больше недействительно (исключено или отозвано) — присуждение не выполнено",
     "sadeceIlanSahibiYeniTurAcabilir": "Открыть новый раунд может только владелец запроса",
     "buIlanYoneticiTarafindanTeklifeKapatildi": "Этот запрос закрыт для предложений администратором — новый раунд открыть нельзя, обратитесь в поддержку",
     "yeniTurYalnizcaAcikVeyaKapanmis": "Новый раунд можно открыть только по открытому или закрытому запросу",
     "ilanDurumuDegistiYeniTurAcilamadi": "Статус запроса изменился; новый раунд не открыт",
     "buIlanYoneticiTarafindanTeklifeKapatildi2": "Этот запрос закрыт для предложений администратором — срок действия продлить нельзя",
     "satinAlmaTalebiSonuclandiGecerlilikSuresi": "Заявка на закупку завершена — срок действия продлить нельзя",
-    "buIlandaTeklifinizYok": "У вас нет предложения по этому запросу",
+    "buIlandaTeklifinizYok": "У Вас нет предложения по этому запросу",
     "teklifGecerliliginiUzatmakIcinTeklifVerme": "Чтобы продлить срок действия предложения, требуется право «Отправка предложений»",
     "buTeklifinGecerlilikSuresiUzatilamaz": "Срок действия этого предложения продлить нельзя",
     "uzatilacakGonderilmisBirTeklifYokTeklif": "Нет отправленного предложения для продления — воспользуйтесь экраном отправки предложения",
@@ -311,9 +320,9 @@
     "sadeceIlanSahibiDavetEkleyebilir": "Добавлять приглашения может только владелец запроса",
     "buIlanaArtikDavetEklenemez": "К этому запросу больше нельзя добавлять приглашения",
     "kapanisa2DakikadanAzKalaPazarlik": "Менее чем за 2 минуты до закрытия нельзя добавить поставщика в заявку на закупку в формате переговоров",
-    "sadeceIlanSahibiElemeYapabilir": "Отклонять предложения может только владелец запроса",
-    "buDurumdaElemeYapilamaz": "В этом статусе отклонить предложение нельзя",
-    "teklifDurumuDegistiElemeUygulanamadi": "Статус предложения изменился; отклонение не выполнено",
+    "sadeceIlanSahibiElemeYapabilir": "Исключать предложения может только владелец запроса",
+    "buDurumdaElemeYapilamaz": "В этом статусе исключить предложение нельзя",
+    "teklifDurumuDegistiElemeUygulanamadi": "Статус предложения изменился; исключение не выполнено",
     "sadeceIlanSahibiIptalEdebilir": "Отменить может только владелец запроса",
     "sadeceAcikIlanIptalEdilebilir": "Отменить можно только открытый запрос",
     "ilanDurumuDegistiIptalUygulanamadi": "Статус запроса изменился; отмена не выполнена",
@@ -321,17 +330,17 @@
     "yalnizcaAcikSatinAlmaTalebiDegerlendirmeye": "На оценку можно передать только открытую заявку на закупку",
     "ilanDurumuDegistiSayfayiYenileyin": "Статус запроса изменился — обновите страницу",
     "kapanisTarihiAcilisTarihindenSonraOlmali": "Дата закрытия должна быть позже даты открытия",
-    "kapanisa2DakikadanAzKaldiAcik": "До закрытия осталось менее 2 минут — в редукционе или аукционе на повышение время закрытия изменить уже нельзя",
+    "kapanisa2DakikadanAzKaldiAcik": "До закрытия осталось менее 2 минут — в аукционе на понижение или повышение время закрытия изменить уже нельзя",
     "ilanDurumuDegistiKapanisZamaniGuncellenemedi": "Статус запроса изменился; время закрытия не обновлено",
     "buIlanKapatilamaz": "Этот запрос нельзя закрыть",
     "ilanDurumuDegistiKazanansizKapatmaUygulanamadi": "Статус запроса изменился; закрытие без присуждения не выполнено",
     "sadeceAcikIlandaYapilabilir": "Это возможно только для открытого запроса",
-    "buIlaniYonetmeYetkinizYok": "У вас нет прав на управление этим запросом — управлять может только оператор, открывший его",
-    "actionPublish": "вы не можете публиковать запросы",
-    "actionBid": "вы не можете отправлять предложения",
-    "actionAward": "вы не можете присуждать",
-    "oncedenFiyatladiginizKalemlerinToplami": "общее значение по ранее оценённым вами позициям",
-    "yeniTeklifiniz": "ваше новое предложение",
+    "buIlaniYonetmeYetkinizYok": "У Вас нет прав на управление этим запросом — управлять может только оператор, открывший его",
+    "actionPublish": "Вы не можете публиковать запросы",
+    "actionBid": "Вы не можете отправлять предложения",
+    "actionAward": "Вы не можете присуждать",
+    "oncedenFiyatladiginizKalemlerinToplami": "общее значение по ранее оценённым Вами позициям",
+    "yeniTeklifiniz": "Ваше новое предложение",
     "actionPublishWork": "Публикация запроса",
     "actionNewRound": "Открытие нового раунда",
     "actionInviteSupplier": "Приглашение новых поставщиков в заявку на закупку",
@@ -425,13 +434,13 @@
     "senetIcinVadeGunSayisiZorunlu": "Для векселя необходимо указать срок отсрочки в днях",
     "vadeliOdemeIcinGunSayisiZorunlu": "Для оплаты с отсрочкой необходимо указать количество дней",
     "alimIcinFormatSecin": "Выберите формат заявки на закупку (Сбор предложений / Переговоры)",
-    "satisIcinFormatSecin": "Выберите формат объявления о продаже (Сбор предложений / Аукцион на повышение)",
     "ozelTalebeYalnizDavetliFirmalar": "На эту частную заявку на закупку (по приглашению) могут отправлять предложения только приглашённые компании",
-    "tekliIcinPremiumUyelikGerekir": "Чтобы отправить предложение на этот запрос, требуется премиум-подписка",
+    "tekliIcinPremiumUyelikGerekir": "Чтобы отправить предложение на этот запрос, нужен тариф Silver",
     "productMatch": {
       "category": "Ваш товар относится к этой категории: {product}",
       "text": "Совпадает с Вашим товаром: {product}"
-    }
+    },
+    "talepBaskaUlkelereAcik": "Этот запрос открыт только для поставщиков из определённых стран; страны Вашей компании нет в этом списке."
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "Запрос не найден",
@@ -488,14 +497,14 @@
     "mevcutSifreHatali": "Неверный текущий пароль",
     "n2faZatenEtkin": "2FA уже включена",
     "n2faEtkinDegil": "2FA не включена",
-    "buIslemIcinYetkinizYok": "У вас нет прав для этого действия",
+    "buIslemIcinYetkinizYok": "У Вас нет прав для этого действия",
     "ePostaVeyaSifreHatali": "Неверная эл. почта или пароль"
   },
   "companyComplaints": {
     "gecersizFirmaKodu": "Недопустимый код компании",
     "firmaBulunamadi": "Компания не найдена",
     "kendiniziSikayetEdemezsiniz": "Вы не можете подать жалобу на себя",
-    "buFirmaIcinZatenAcikSikayetiniz": "У вас уже есть открытая жалоба на эту компанию"
+    "buFirmaIcinZatenAcikSikayetiniz": "У Вас уже есть открытая жалоба на эту компанию"
   },
   "email": {
     "ePostaKaydiBulunamadi": "Запись письма не найдена",
@@ -550,11 +559,7 @@
     "basTeklif": "Предложение",
     "basYanitYuzde": "Ответы, %",
     "basHedefToplam": "Целевой итог",
-    "basEnDusukTry": "Минимум (TRY)",
-    "basEnYuksekTry": "Максимум (TRY)",
-    "basKazananTry": "Цена победителя (TRY)",
     "basKazananTedarikci": "Поставщик-победитель",
-    "basTasarrufTry": "Экономия (TRY)",
     "basOlusturan": "Создал",
     "basTasarrufYuzde": "Экономия, %",
     "basKazananTedarikciler": "Поставщики-победители",
@@ -582,8 +587,6 @@
     "toplamTeklif": "Всего предложений",
     "yanitOrani": "Доля ответов",
     "ortTeklifSatinAlmaTalebi": "Сред. предложений на заявку",
-    "kazananToplamTry": "Сумма победителя (TRY)",
-    "toplamTasarrufTry": "Общая экономия (TRY)",
     "durumDagilimi": "Распределение по статусам",
     "toplamIkiNokta": "Итого:",
     "ortalamaTasarrufYuzde": "Средняя экономия, %",
@@ -592,12 +595,19 @@
     "tedarikciBazliKazanilanTutar": "Сумма присуждений по поставщикам",
     "genelToplam": "ОБЩИЙ ИТОГ",
     "siraEnUcuz": "МЕСТО (самое дешёвое=1)",
-    "hedefeGoreTasarruf": "Экономия относительно цели",
+    "hedefeGoreTasarruf": "Экономия относительно цели ({currency})",
     "onerilenKazanan": "Рекомендуемый победитель (минимальная цена по позиции)",
     "dosyaGenelRapor": "obshchiy-otchet",
     "dosyaTasarrufRaporu": "otchet-ob-ekonomii",
     "dosyaTeklifKarsilastirma": "sravnenie-predlozheniy",
-    "digerKategoriler": "Прочее"
+    "digerKategoriler": "Прочее",
+    "basEnDusukCur": "Минимум ({currency})",
+    "basEnYuksekCur": "Максимум ({currency})",
+    "basKazananCur": "Цена победителя ({currency})",
+    "basTasarrufCur": "Экономия ({currency})",
+    "hedefToplamCur": "Целевой итог ({currency})",
+    "kazananToplamCur": "Сумма победителя ({currency})",
+    "toplamTasarrufCur": "Общая экономия ({currency})"
   },
   "companyViews": {
     "isAnaliziSilverVeUzeriPaketlerde": "Бизнес-аналитика доступна в тарифах Silver и выше."
@@ -611,7 +621,7 @@
     "gecersizWebhookImzasi": "Недействительная подпись вебхука"
   },
   "companyDashboard": {
-    "buPanoyuGoruntulemeYetkinizYok": "У вас нет прав на просмотр этой панели",
+    "buPanoyuGoruntulemeYetkinizYok": "У Вас нет прав на просмотр этой панели",
     "activity": {
       "invitationSubtitle": "Приглашение к участию в заявке на закупку · {number}",
       "bidSubtitle": "Предложение · {number} · v{version}",
@@ -630,7 +640,8 @@
       "submitted": "Предложение отправлено",
       "evaluating": "На рассмотрении",
       "won": "Выиграно"
-    }
+    },
+    "noData": "Нет данных"
   },
   "companyConnections": {
     "tokenGerekli": "Требуется токен",
@@ -641,14 +652,14 @@
     "buEPostaAdresiDavetAlmak": "Этот адрес электронной почты отказался от получения приглашений",
     "davetGondermekIcinBirPaketSilver": "Для отправки приглашений требуется тариф (Silver+).",
     "satinAlmaTalebiBulunamadi": "Заявка на закупку не найдена",
-    "buSatinAlmaTalebiIcinDis": "У вас нет прав отправлять внешние приглашения по этой заявке на закупку — вы должны быть пользователем, управляющим этой заявкой, и иметь соответствующую роль",
+    "buSatinAlmaTalebiIcinDis": "У Вас нет прав отправлять внешние приглашения по этой заявке на закупку — Вы должны быть пользователем, управляющим этой заявкой, и иметь соответствующую роль",
     "yalnizTaslakAcikSatinAlmaTalebi": "Внешние приглашения можно отправлять только по черновой или открытой заявке на закупку",
     "gecerliEPostaAdresiVerilmedi": "Не указан корректный адрес электронной почты",
     "gecersizBaglanti": "Недопустимый контакт",
     "kendinizeIstekGonderemezsiniz": "Вы не можете отправить запрос самому себе",
     "firmaBulunamadi": "Компания не найдена",
-    "buFirmaylaZatenBaglisiniz": "Вы уже связаны с этой компанией",
-    "buFirmaSizeZatenIstekGondermis": "Эта компания уже отправила вам запрос — примите его в разделе «Входящие запросы»",
+    "buFirmaylaZatenBaglisiniz": "Эта компания уже есть в Ваших контактах",
+    "buFirmaSizeZatenIstekGondermis": "Эта компания уже отправила Вам запрос — примите его в разделе «Входящие запросы»",
     "buFirmayaZatenIstekGonderdiniz": "Вы уже отправили запрос этой компании",
     "davetBulunamadi": "Приглашение не найдено",
     "firmaProfiliBulunamadi": "Профиль компании не найден",
@@ -665,7 +676,7 @@
     "gecersizEPostaAdresi": "Некорректный адрес электронной почты"
   },
   "companySupplierTemplates": {
-    "baglantinizOlmayanFirmaKayit": "Компании, с которыми у вас нет контакта: {length, plural, one {# запись} few {# записи} many {# записей} other {# записи}}",
+    "baglantinizOlmayanFirmaKayit": "Компании, с которыми у Вас нет контакта: {length, plural, one {# запись} few {# записи} many {# записей} other {# записи}}",
     "sablonBulunamadi": "Шаблон не найден"
   },
   "companyUsers": {
@@ -688,27 +699,27 @@
     "kurucuCikarilamazOnceKuruculuguDevredin": "Основателя нельзя удалить — сначала передайте роль Основателя",
     "kendiniziCikaramazsiniz": "Вы не можете удалить себя",
     "enAzBirRolSecin": "Выберите хотя бы одну роль",
-    "kurucuYoneticiOnaylayiciIleBirlestirilemezYetkil": "Основателя нельзя совмещать с Руководителем или Утверждающим (их права уже включены); для операций добавьте Закупщика или Продавца",
-    "kurucuVeYoneticiZatenOnayVerebilir": "Основатель и Руководитель уже могут утверждать; роль Утверждающего дополнительно не нужна.",
+    "kurucuYoneticiOnaylayiciIleBirlestirilemezYetkil": "Основателя нельзя совмещать с Руководителем или Согласующим (их права уже включены); для операций добавьте Закупщика или Продавца",
+    "kurucuVeYoneticiZatenOnayVerebilir": "Основатель и Руководитель уже могут согласовывать; роль Согласующего дополнительно не нужна.",
     "kullaniciBulunamadi": "Пользователь не найден",
     "kendiYetkileriniziDuzenleyemezsinizKurucuVeyaBas": "Вы не можете изменять свои права — это должен сделать Основатель или другой руководитель",
     "kuruculuguYalnizcaMevcutKurucuDevredebilir": "Передать роль Основателя может только действующий Основатель",
     "yoneticiEtiketiniYalnizcaKurucuVerebilir": "Присвоить метку Руководителя может только Основатель",
     "rolAtamayiYalnizcaKurucuVeyaYonetici": "Назначать роли может только Основатель или Руководитель",
     "yoneticiVeyaKurucuRolundekiBirKullanicinin": "Изменять роли пользователя с ролью Руководителя или Основателя может только Основатель или Руководитель",
-    "kuruculuguBirakmadanOnceBaskaBirAktif": "Прежде чем отказаться от роли Основателя, вы должны передать её другому активному пользователю",
+    "kuruculuguBirakmadanOnceBaskaBirAktif": "Прежде чем отказаться от роли Основателя, Вы должны передать её другому активному пользователю",
     "devirdeEskiKurucuTekrarKurucuOlamaz": "При передаче прежний Основатель не может снова стать Основателем",
     "kuruculukYalnizcaAktifBirKullaniciyaDevredilebil": "Роль Основателя можно передать только активному пользователю",
     "firmaBulunamadi": "Компания не найдена",
     "satinalmaYetkisiYalnizGoldPaketteVerilebilir": "Права на закупки можно выдать только в тарифе Gold — создание запросов и присуждение в других тарифах недоступны.",
-    "koltukDoluDavetSuAnKabul": "Все места заняты — приглашение сейчас нельзя принять; обратитесь к руководителю вашей компании",
+    "koltukDoluDavetSuAnKabul": "Все места заняты — приглашение сейчас нельзя принять; обратитесь к руководителю Вашей компании",
     "koltukSeciminiYalnizcaKurucuYapabilir": "Выбор мест может сделать только Основатель",
     "buPaketteKoltukSiniriYok": "В этом тарифе нет лимита мест",
     "secimListesindeKoltukKullanmayanBirKullanici": "В списке выбора есть пользователь, не занимающий место",
     "enFazlaKoltukSecebilirsinizPaketLimiti": "Вы можете выбрать не более {limit, plural, one {# места} few {# мест} many {# мест} other {# мест}} (лимит тарифа)",
     "gecersizIzin": "Некорректное право: {permission}",
     "enAzBirAktifYonetimYetkilisiKalmali": "В компании должен остаться хотя бы один активный администратор (Основатель/Руководитель)",
-    "koltukDoluBekleyenDahil": "Все места заняты ({used} активных + {pending} ожидающих приглашений / {limit}) — чтобы выдать права на операции закупок/продаж, повысьте тариф или освободите место",
+    "koltukDoluBekleyenDahil": "Все места заняты (активных: {used, number}, ожидающих приглашений: {pending, number}, лимит: {limit, number}) — чтобы выдать права на операции закупок/продаж, повысьте тариф или освободите место",
     "koltukDoluIslemYetkisi": "Все места заняты ({used}/{limit}) — чтобы выдать права на операции закупок/продаж, повысьте тариф или освободите место"
   },
   "companyQuestionTemplates": {
@@ -733,8 +744,8 @@
     "gunlukAiProfilOlusturmaLimitineUlasildi": "Достигнут дневной лимит создания профиля с помощью ИИ ({DAILYLIMIT}) — повторите попытку завтра.",
     "aiSuAnYanitVeremediBirkac": "ИИ сейчас не отвечает — повторите попытку через несколько секунд.",
     "aiCiktisiIslenemediLutfenTekrarDeneyin": "Не удалось обработать ответ ИИ — пожалуйста, повторите попытку.",
-    "sitedenYeterliBilgiCikarilamadiProfiliElle": "Не удалось извлечь с сайта достаточно информации — вы можете заполнить профиль вручную.",
-    "neAradiginiziBirkacKelimeyleYazin": "Опишите в нескольких словах, что вы ищете.",
+    "sitedenYeterliBilgiCikarilamadiProfiliElle": "Не удалось извлечь с сайта достаточно информации — Вы можете заполнить профиль вручную.",
+    "neAradiginiziBirkacKelimeyleYazin": "Опишите в нескольких словах, что Вы ищете.",
     "enFazlaKarakter": "Не более {SEARCHINTENTMAXTEXT, plural, one {# символа} few {# символов} many {# символов} other {# символа}}.",
     "aramaYorumlanamadiTekrarDeneyin": "Не удалось разобрать поисковый запрос — повторите попытку.",
     "onaylananIslemDogrulamadanGecmediLutfenIlgili": "Подтверждённое действие не прошло проверку ({detail}) — пожалуйста, повторите попытку на соответствующей странице.",
@@ -777,11 +788,10 @@
         "invitees": "Будут приглашены: {list}"
       },
       "sendInvites": {
-        "note": "Приглашения отправляются только компаниям из ваших контактов; остальные пропускаются."
+        "note": "Приглашения отправляются только компаниям из Ваших контактов; остальные пропускаются."
       },
       "publish": {
         "headingAlim": "Заявка на закупку БУДЕТ ОПУБЛИКОВАНА: {title}",
-        "headingSatis": "Объявление о продаже БУДЕТ ОПУБЛИКОВАНО: {title}",
         "items": "Позиции: {list} ({count, plural, one {# позиция} few {# позиции} many {# позиций} other {# позиции}})",
         "category": "Категория: {list}",
         "closing": "Закрытие: {closesAt} · Валюта: {currency} · Видимость: по приглашению (закрытая)",
@@ -792,26 +802,26 @@
         "sourceWarning": "Тексты описания и спецификации взяты из документа — прочитайте их перед подтверждением."
       },
       "eliminate": {
-        "bid": "Предложение к отклонению: {supplier} — {amount} {currency}",
+        "bid": "Предложение к исключению: {supplier} — {amount}",
         "reason": "Причина: {reason}",
-        "note": "Поставщик получит уведомление об отклонении и при желании сможет отправить новое предложение."
+        "note": "Поставщик получит уведомление об исключении и при желании сможет отправить новое предложение."
       },
       "award": {
         "heading": "Заявка на закупку БУДЕТ ПРИСУЖДЕНА: {title} ({number})",
-        "winner": "Победитель: {supplier} — {amount} {currency} (все позиции)",
+        "winner": "Победитель: {supplier} — {amount} (все позиции)",
         "irreversible": "Это действие НЕЛЬЗЯ ОТМЕНИТЬ: остальные предложения проигрывают, создаётся заказ.",
-        "approvalNote": "Если в вашей компании настроен процесс согласования, действие сначала будет отправлено на согласование."
+        "approvalNote": "Если в Вашей компании настроен процесс согласования, действие сначала будет отправлено на согласование."
       },
       "placeBid": {
         "heading": "ПРЕДЛОЖЕНИЕ БУДЕТ ОТПРАВЛЕНО: {title} ({number})",
         "moreItems": "… и ещё {count, plural, one {# позиция} few {# позиции} many {# позиций} other {# позиции}}",
-        "total": "ИТОГО: {amount} {currency} · Поставка: {delivery}",
-        "totalWithValidity": "ИТОГО: {amount} {currency} · Поставка: {delivery} · Срок действия: {days, plural, one {# день} few {# дня} many {# дней} other {# дня}}",
+        "total": "ИТОГО: {amount} · Поставка: {delivery}",
+        "totalWithValidity": "ИТОГО: {amount} · Поставка: {delivery} · Срок действия: {days, plural, one {# день} few {# дня} many {# дней} other {# дня}}",
         "note": "Отправленное предложение НЕЛЬЗЯ ОТОЗВАТЬ или изменить (принцип закрытого конверта)."
       },
       "orderReceived": {
         "heading": "Заказ будет отмечен как ПОЛУЧЕННЫЙ: {number}",
-        "seller": "Продавец: {seller} · Сумма: {amount} {currency}",
+        "seller": "Продавец: {seller} · Сумма: {amount}",
         "note": "Продавец получит уведомление; при проблемах после поставки можно отдельно сообщить о дефекте."
       },
       "payment": {
@@ -824,21 +834,42 @@
         "truncated": "{text}… ({count, plural, one {# символ} few {# символа} many {# символов} other {# символа}})"
       },
       "result": {
-        "invitesSent": "Приглашения отправлены (только компаниям из ваших контактов).",
-        "bidEliminated": "Предложение отклонено — поставщику отправлено уведомление.",
+        "invitesSent": "Приглашения отправлены (только компаниям из Ваших контактов).",
+        "bidEliminated": "Предложение исключено — поставщику отправлено уведомление.",
         "awarded": "Присуждение завершено — заказ создан.",
-        "awardPending": "Присуждение начато — оно передано в процесс согласования вашей компании.",
+        "awardPending": "Присуждение начато — оно передано в процесс согласования Вашей компании.",
         "bidPlaced": "Ваше предложение отправлено (принцип закрытого конверта — его видит только владелец заявки на закупку).",
         "orderReceived": "Заказ отмечен как полученный — продавцу отправлено уведомление.",
         "published": "Заявка на закупку опубликована — идёт сбор предложений.",
         "rejected": "Действие отменено — ничего не выполнено."
+      },
+      "draftSessionTitle": "Черновик заявки на закупку",
+      "fallbackReply": "Сейчас я не смог подготовить ответ на этот запрос. Не могли бы Вы сформулировать его иначе?",
+      "documentUploaded": "[документ загружен]",
+      "deliveryTime": {
+        "STOKTAN": "Со склада (сразу)",
+        "W1_2": "1–2 недели",
+        "W3_4": "3–4 недели",
+        "W5_8": "5–8 недель",
+        "M2_3": "2–3 месяца",
+        "M3_PLUS": "Более 3 месяцев"
       }
     },
     "saglayiciHataDondurdu": "Провайдер ИИ вернул ошибку — повторите попытку.",
     "asistanYanitVeremediSaglayiciHatasi": "Ассистент сейчас не может ответить (ошибка провайдера {code}{detail}) — повторите попытку через несколько секунд.",
     "asistanYanitVeremedi": "Ассистент сейчас не может ответить — повторите попытку через несколько секунд.",
     "tabloDosyasiOkunamadi": "Не удалось прочитать файл таблицы — пересохраните его в формате .xlsx и повторите попытку",
-    "tabloDosyasiCokBuyuk": "Файл таблицы слишком большой — загрузите нужный лист отдельным файлом меньшего размера"
+    "tabloDosyasiCokBuyuk": "Файл таблицы слишком большой — загрузите нужный лист отдельным файлом меньшего размера",
+    "searchSummaryFallback": "Поиск по запросу «{text}»",
+    "searchDraftTitle": "Закупка: {item}",
+    "budget": {
+      "requestCap": "Этот запрос сам по себе превышает допустимый лимит использования ИИ — попробуйте разделить документ.",
+      "pool": "Месячный бюджет ИИ Вашей компании исчерпан — функции ИИ снова станут доступны в следующем месяце.",
+      "userCap": "Вы достигли личного лимита использования ИИ (50 % от пула компании) — обратитесь к администратору компании.",
+      "dailyCap": "Достигнут дневной лимит использования ИИ — попробуйте снова завтра."
+    },
+    "bidPriceSalvaged": "Ответ ИИ достиг предела длины — {n, plural, one {восстановлена # строка} few {восстановлены # строки} many {восстановлено # строк} other {восстановлено # строки}}; остальная часть документа могла быть не прочитана (разделите документ и попробуйте снова)",
+    "bidPriceUnreadable": "Не удалось прочитать документ — ИИ не вернул корректный результат; попробуйте шаблон"
   },
   "companyOrders": {
     "buIslemiYapamazsiniz": "Вы не можете выполнить это действие",
@@ -849,7 +880,7 @@
     "ayipIhbariBulunanSiparisSevkEdilemez": "Заказ с уведомлением о недостатках нельзя отгрузить — товар уже поставлен; вопрос решается между сторонами",
     "alicininAkreditifiHenuzAcmadiAkreditifAcilip": "Покупатель ещё не открыл аккредитив — заказ нельзя отправить, пока аккредитив не открыт и не принят",
     "akreditifiKabulEtmedenGonderemezsinizAkreditifBo": "Вы не можете отправить заказ, не приняв аккредитив — выполните шаг «Я принял(а) аккредитив» в разделе «Аккредитив»",
-    "buSiparistePesinOdemeSartiVar": "По этому заказу предусмотрена предоплата — для отправки необходимо подтвердить предоплату {toLocaleString} {curSym} (подтверждено: {toLocaleString2} {curSym2})",
+    "buSiparistePesinOdemeSartiVar": "По этому заказу предусмотрена предоплата — для отправки необходимо подтвердить предоплату {toLocaleString} (подтверждено: {toLocaleString2})",
     "alicininOnayBekleyenOdemeKaydiVar": "У покупателя есть платёж, ожидающий подтверждения — подтвердите или отклоните его в разделе «Платежи» перед отправкой заказа",
     "vesaikMukabiliTeslimAlmadanOnceTam": "Платёж против документов: до получения товара должна быть подтверждена полная оплата",
     "iptalGerekcesiEnAz10Karakter": "Причина отмены должна содержать не менее 10 символов",
@@ -877,7 +908,7 @@
     "siparisBulunamadi": "Заказ не найден",
     "odemeyiYalnizcaAliciKaydedebilir": "Записать платёж может только покупатель",
     "tutar0DanBuyukOlmali": "Сумма должна быть больше 0",
-    "kalanOdemeBuTutariAsanOdeme": "Остаток к оплате — {toLocaleString} {curSym}; платёж, превышающий эту сумму, записать нельзя",
+    "kalanOdemeBuTutariAsanOdeme": "Остаток к оплате — {toLocaleString}; платёж, превышающий эту сумму, записать нельзя",
     "odemeyiYalnizcaSaticiOnaylayabilir": "Подтвердить платёж может только продавец",
     "odemeKaydiBulunamadi": "Запись о платеже не найдена",
     "iptalEdilmisSiparisteOdemeOnaylanamaz": "По отменённому заказу нельзя подтвердить платёж",
@@ -923,7 +954,7 @@
     "gecersizBelgeTuru": "Недопустимый тип документа",
     "sadecePdfVeyaGorselYuklenebilir": "Можно загружать только PDF или изображения",
     "gecersizDosyaAnahtari": "Недопустимый ключ файла",
-    "buBelgeOnaylandiDegistirilemez": "Этот документ утверждён; его нельзя изменить",
+    "buBelgeOnaylandiDegistirilemez": "Этот документ одобрен; его нельзя изменить",
     "dogrulamaInceleniyorBelgeDegistirilemez": "Проверка на рассмотрении; документ нельзя изменить",
     "buBelgeIcinBekleyenBirGuncelleme": "Ожидающее обновление этого документа уже на рассмотрении — обновите страницу",
     "eksikBelgeVarTumBelgeleriYukleyin": "Есть недостающие документы ({length}); загрузите все документы",
@@ -953,9 +984,9 @@
     "urunBulunamadi": "Товар не найден",
     "yalnizcaJpegPngVeyaWebpYuklenebilir": "Можно загружать только файлы JPEG, PNG или WebP",
     "yalnizcaPdfYuklenebilir": "Можно загружать только файлы PDF",
-    "buBelgeAnahtarinaErisimYetkinizYok": "У вас нет доступа к этому ключу документа",
+    "buBelgeAnahtarinaErisimYetkinizYok": "У Вас нет доступа к этому ключу документа",
     "belgeYayinlamaYapilandirmasiEksikR2Public": "Отсутствует конфигурация публикации документов (R2_PUBLIC_BASE_URL) — документ не загружен. Пожалуйста, сообщите системному администратору.",
-    "buGorselAnahtarinaErisimYetkinizYok": "У вас нет доступа к этому ключу изображения",
+    "buGorselAnahtarinaErisimYetkinizYok": "У Вас нет доступа к этому ключу изображения",
     "gorselYayinlamaYapilandirmasiEksikR2Public": "Отсутствует конфигурация публикации изображений (R2_PUBLIC_BASE_URL) — изображение не загружено. Пожалуйста, сообщите системному администратору."
   },
   "publicInquiry": {
@@ -1164,7 +1195,7 @@
       "gecersizOlcuBirimi": "Недопустимая единица измерения"
     },
     "adminCompanies": {
-      "redGerekcesiEnAz3KarakterOlmali": "Причина отклонения должна содержать не менее 3 символов"
+      "redGerekcesiEnAz3KarakterOlmali": "Выберите причину отклонения или напишите комментарий не короче 3 символов"
     }
   },
   "companyRequestDefaults": {
@@ -1267,12 +1298,12 @@
       "paymentDue": {
         "subject": "Приближается срок оплаты",
         "heading": "Приближается срок оплаты",
-        "body": "Срок оплаты {hasNumber, select, yes {заказа {number}} other {заказа}} — {dueDate}; остаток к оплате {amount} {currency}."
+        "body": "Срок оплаты {hasNumber, select, yes {заказа {number}} other {заказа}} — {dueDate}; остаток к оплате {amount}."
       },
       "paymentRecorded": {
         "subject": "Новый платёж — ожидается Ваше подтверждение",
         "heading": "Платёж зарегистрирован",
-        "body": "По {hasNumber, select, yes {заказу {number}} other {заказу}} зарегистрирован платёж на сумму {amount} {currency}. Ожидается Ваше подтверждение."
+        "body": "По {hasNumber, select, yes {заказу {number}} other {заказу}} зарегистрирован платёж на сумму {amount}. Ожидается Ваше подтверждение."
       },
       "paymentConfirmed": {
         "subject": "Ваша оплата подтверждена",
@@ -1396,8 +1427,7 @@
         "placeBid": "Отправить предложение",
         "viewOrder": "Открыть заказ",
         "viewPlans": "Посмотреть тарифы",
-        "viewOpenRequests": "Посмотреть открытые заявки на закупку",
-        "viewSalesListings": "Посмотреть объявления о продаже"
+        "viewOpenRequests": "Посмотреть открытые заявки на закупку"
       },
       "closed": {
         "subject": "Приём предложений по заявке на закупку завершён",
@@ -1417,19 +1447,9 @@
           "openBody": "Опубликована новая заявка на закупку по категориям, которые Вы продаёте: «{title}» ({number}). Войдите в Rothern, чтобы ознакомиться с ней и отправить предложение.",
           "openInAppBody": "Новая заявка на закупку по категориям, которые Вы продаёте: «{title}» ({number}).",
           "lockedSubject": "В Вашей категории новая заявка на закупку — доступна с Silver",
-          "lockedBody": "Опубликована новая заявка на закупку по категориям, которые Вы продаёте: «{title}» ({number}). При бесплатном членстве публичные запросы закрыты; чтобы просматривать их и отправлять предложения, перейдите на тариф Silver. Запросы, на которые Вас пригласили контакты, всегда доступны бесплатно.",
+          "lockedBody": "Опубликована новая заявка на закупку по категориям, которые Вы продаёте: «{title}» ({number}). На бесплатном тарифе публичные запросы закрыты; чтобы просматривать их и отправлять предложения, перейдите на тариф Silver. Запросы, на которые Вас пригласили контакты, всегда доступны бесплатно.",
           "lockedInAppTitle": "Новая заявка на закупку в Вашей категории — доступна с Silver",
           "lockedInAppBody": "Опубликована новая заявка на закупку по категориям, которые Вы продаёте: «{title}». Чтобы просмотреть её и отправить предложение, перейдите на тариф Silver."
-        },
-        "sell": {
-          "heading": "Новое объявление о продаже в Вашей категории",
-          "openSubject": "Опубликовано подходящее Вам объявление о продаже",
-          "openBody": "Опубликовано новое объявление о продаже по категориям, которые Вы закупаете: «{title}» ({number}). Войдите в Rothern, чтобы ознакомиться и купить.",
-          "openInAppBody": "Новое объявление о продаже по категориям, которые Вы закупаете: «{title}» ({number}).",
-          "lockedSubject": "В Вашей категории новое объявление о продаже — доступно с Silver",
-          "lockedBody": "Опубликовано новое объявление о продаже по категориям, которые Вы закупаете: «{title}» ({number}). При бесплатном членстве публичные запросы закрыты; чтобы просматривать их и покупать, перейдите на тариф Silver. Запросы, на которые Вас пригласили контакты, всегда доступны бесплатно.",
-          "lockedInAppTitle": "Новое объявление о продаже в Вашей категории — доступно с Silver",
-          "lockedInAppBody": "Опубликовано новое объявление о продаже по категориям, которые Вы закупаете: «{title}». Чтобы просмотреть и купить, перейдите на тариф Silver."
         }
       },
       "invitation": {
@@ -1478,7 +1498,7 @@
       "eliminated": {
         "subject": "Новости по Вашему предложению",
         "title": "Ваше предложение не прошло отбор",
-        "body": "Ваше предложение по заявке на закупку «{title}» ({number}) отклонено в этом раунде. При желании Вы можете обновить его и отправить заново."
+        "body": "Ваше предложение по заявке на закупку «{title}» ({number}) исключено в этом раунде. При желании Вы можете обновить его и отправить заново."
       },
       "cancelled": {
         "title": "Заявка на закупку отменена",
@@ -1504,7 +1524,7 @@
       "ulkeDegistiBaslik": "Смена страны: необходимо обновить документы для проверки",
       "ulkeDegistiGovde": "Поскольку страна Вашей компании изменилась, изменился и перечень обязательных документов для проверки. Загрузите недостающие документы и отправьте проверку повторно.",
       "dogrulamaOnaylandiBaslik": "Проверка Вашей компании одобрена",
-      "dogrulamaOnaylandiGovde": "Документы для проверки Вашей компании рассмотрены и одобрены. Теперь Ваша компания отображается со значком «Проверенная»; Вы можете перейти к действиям, требующим проверки (публикация запросов, предложения по открытым запросам).",
+      "dogrulamaOnaylandiGovde": "Документы для проверки Вашей компании рассмотрены и одобрены. Теперь Ваша компания отображается со значком «Проверенная», и действия, требующие проверки, стали доступны. Для публикации запросов также нужен тариф Gold, а для предложений по открытым запросам — тариф Silver; по запросам, на которые Вас пригласили или которые разместили Ваши контакты, предложения можно подавать без тарифа.",
       "dogrulamaReddedildiBaslik": "Проверка Вашей компании отклонена",
       "dogrulamaReddedildiGovde": "Документы для проверки Вашей компании рассмотрены, но не могут быть одобрены. Пожалуйста, обновите документы и отправьте их повторно.",
       "baziBelgelerReddedildiBaslik": "Некоторые Ваши документы отклонены",
@@ -1513,12 +1533,12 @@
       "belgeGuncellemesiOnaylandiGovde": "Отправленный Вами новый документ проверен и одобрен; теперь он зарегистрирован как действующий.",
       "belgeGuncellemesiReddedildiBaslik": "Обновление Вашего документа отклонено",
       "belgeGuncellemesiReddedildiGovde": "Отправленный Вами новый документ не одобрен; текущий документ остаётся действующим. Вы можете ознакомиться с причиной и загрузить новый документ.",
-      "paketSonlandirildiBaslik": "Ваше членство по тарифу прекращено",
-      "paketSonlandirildiAnaParagraf": "Тариф Вашей компании переведён администратором платформы на членство «Стандарт». При членстве «Стандарт» нельзя открывать новые заявки на закупку и приглашать компании; публичные запросы, а также личность покупателя и возможность ответа по входящим запросам информации доступны в тарифе Silver. Ваш профиль и витрина остаются в каталоге (после компаний с тарифом); на витрине может быть опубликовано не более 10 товаров. Вы можете завершить текущие запросы и отправлять предложения по полученным приглашениям.",
+      "paketSonlandirildiBaslik": "Действие Вашего тарифа прекращено",
+      "paketSonlandirildiAnaParagraf": "Администратор платформы перевёл Вашу компанию на бесплатный тариф Standard. На тарифе Standard нельзя открывать новые заявки на закупку и приглашать компании; публичные запросы, а также данные покупателя и ответы на входящие запросы информации доступны на тарифе Silver. Ваш профиль и витрина остаются в каталоге (после компаний с платным тарифом); на витрине можно опубликовать не более {limit, number} товаров. Вы можете завершить текущие запросы и отправлять предложения по полученным приглашениям.",
       "paketSonlandirildiKirpilanUrun": "Товары сверх лимита ({adet}) переведены в черновики; они не удалены, и Вы сможете опубликовать их снова после возврата на Silver.",
       "paketSonlandirildiDavetIptal": "Отправленные Вами ожидающие приглашения к контакту отменены.",
-      "paketSonlandirildiGovde": "Тариф Вашей компании переведён администратором платформы на членство «Стандарт». При членстве «Стандарт» нельзя открывать новые заявки на закупку и приглашать компании; публичные запросы, а также личность покупателя и возможность ответа по входящим запросам информации доступны в тарифе Silver. Ваш профиль и витрина остаются в каталоге (после компаний с тарифом); на витрине может быть опубликовано не более 10 товаров. Вы можете завершить текущие запросы и отправлять предложения по полученным приглашениям. Отправленные Вами ожидающие приглашения к контакту отменены.",
-      "paketSonlandirildiGovdeKirpildi": "Тариф Вашей компании переведён администратором платформы на членство «Стандарт». При членстве «Стандарт» нельзя открывать новые заявки на закупку и приглашать компании; публичные запросы, а также личность покупателя и возможность ответа по входящим запросам информации доступны в тарифе Silver. Ваш профиль и витрина остаются в каталоге (после компаний с тарифом); на витрине может быть опубликовано не более 10 товаров. Вы можете завершить текущие запросы и отправлять предложения по полученным приглашениям. Товары сверх лимита ({adet}) переведены в черновики; они не удалены, и Вы сможете опубликовать их снова после возврата на Silver. Отправленные Вами ожидающие приглашения к контакту отменены.",
+      "paketSonlandirildiGovde": "Администратор платформы перевёл Вашу компанию на бесплатный тариф Standard. На тарифе Standard нельзя открывать новые заявки на закупку и приглашать компании; публичные запросы, а также данные покупателя и ответы на входящие запросы информации доступны на тарифе Silver. Ваш профиль и витрина остаются в каталоге (после компаний с платным тарифом); на витрине можно опубликовать не более {limit, number} товаров. Вы можете завершить текущие запросы и отправлять предложения по полученным приглашениям. Отправленные Вами ожидающие приглашения к контакту отменены.",
+      "paketSonlandirildiGovdeKirpildi": "Администратор платформы перевёл Вашу компанию на бесплатный тариф Standard. На тарифе Standard нельзя открывать новые заявки на закупку и приглашать компании; публичные запросы, а также данные покупателя и ответы на входящие запросы информации доступны на тарифе Silver. Ваш профиль и витрина остаются в каталоге (после компаний с платным тарифом); на витрине можно опубликовать не более {limit, number} товаров. Вы можете завершить текущие запросы и отправлять предложения по полученным приглашениям. Товары сверх лимита ({adet}) переведены в черновики; они не удалены, и Вы сможете опубликовать их снова после возврата на Silver. Отправленные Вами ожидающие приглашения к контакту отменены.",
       "paketTanimlandiBaslik": "Ваш тариф активирован",
       "paketTanimlandiGovde": "Аккаунту Вашей компании назначен тариф {paket}. Вы можете сразу начать пользоваться его возможностями.",
       "askiyaAlindiBaslik": "Ваш аккаунт заблокирован",
@@ -1586,11 +1606,11 @@
       "hesapAyarlari": "Настройки аккаунта"
     },
     "membership": {
-      "sonaErdiKonu": "Ваше членство Premium завершилось",
-      "sonaErdiAnaParagraf": "Срок Вашего тарифа истёк, и учётная запись переведена на членство «Стандарт». На тарифе «Стандарт» нельзя открывать новые заявки на закупку и приглашать компании; публичные запросы, а также личность покупателя и ответы на входящие запросы информации доступны с тарифом Silver. Ваш профиль и витрина остаются в каталоге (после компаний с тарифом); на витрине можно опубликовать не более 10 товаров. Вы можете завершить текущие запросы и отправлять предложения по полученным приглашениям.",
+      "sonaErdiKonu": "Срок действия Вашего тарифа истёк",
+      "sonaErdiAnaParagraf": "Срок действия Вашего тарифа истёк, и учётная запись переведена на бесплатный тариф Standard. На тарифе Standard нельзя открывать новые заявки на закупку и приглашать компании; публичные запросы, а также данные покупателя и ответы на входящие запросы информации доступны на тарифе Silver. Ваш профиль и витрина остаются в каталоге (после компаний с платным тарифом); на витрине можно опубликовать не более {limit, number} товаров. Вы можете завершить текущие запросы и отправлять предложения по полученным приглашениям.",
       "sonaErdiKirpilanUrun": "{adet, plural, one {# товар} few {# товара} many {# товаров} other {# товара}} сверх лимита переведен{adet, plural, one {} few {ы} many {ы} other {ы}} в черновики; ничего не удалено, при возврате на Silver их можно снова опубликовать.",
       "sonaErdiYukseltme": "Чтобы снова перейти на тариф, оформите повышение в своей учётной записи.",
-      "premiumaGec": "Перейти на Premium"
+      "premiumaGec": "Посмотреть тарифы"
     },
     "ai": {
       "butceUyarisiBaslik": "Предупреждение о бюджете ИИ",
@@ -1600,11 +1620,11 @@
   },
   "permission": {
     "buy_view": "Просмотр закупок",
-    "buy_listing_manage": "Создание запросов и управление ими",
-    "buy_order_manage": "Операции с заказами на закупку",
+    "buy_listing_manage": "Создание и ведение запросов",
+    "buy_order_manage": "Операции по заказам на закупку",
     "sell_view": "Просмотр продаж",
     "sell_bid_submit": "Отправка предложений",
-    "sell_order_manage": "Операции с заказами на продажу"
+    "sell_order_manage": "Операции по заказам на продажу"
   },
   "storage": {
     "r2BucketErisilemiyor": "Бакет R2 недоступен",
@@ -1637,9 +1657,74 @@
     "accountNumberInvalid": "Укажите корректный номер счёта (4–40 символов, буквы и цифры)",
     "swiftRequired": "Укажите код SWIFT/BIC",
     "swiftInvalid": "Укажите корректный код SWIFT/BIC (8 или 11 символов, например DEUTDEFF)",
-    "bankNameRequired": "Укажите название банка"
+    "bankNameRequired": "Укажите название банка",
+    "bankCountryInvalid": "Выберите корректную страну банка",
+    "bankCountryBlocked": "Банковский счёт в этой стране сохранить нельзя"
   },
   "geo": {
     "sehirBulunamadi": "Город не найден"
+  },
+  "units": {
+    "PCE": "шт.",
+    "PAIR": "пара",
+    "SET": "комплект",
+    "DZN": "дюжина",
+    "KG": "кг",
+    "GRM": "г",
+    "TON": "т",
+    "M": "м",
+    "CM": "см",
+    "MM": "мм",
+    "KM": "км",
+    "M2": "м²",
+    "M3": "м³",
+    "LTR": "л",
+    "ML": "мл",
+    "PKT": "упаковка",
+    "BOX": "коробка",
+    "CRT": "короб",
+    "PAL": "паллета",
+    "ROL": "рулон",
+    "BAG": "мешок",
+    "DRM": "бочка",
+    "HUR": "час",
+    "DAY": "день",
+    "MON": "месяц",
+    "YER": "год",
+    "SRV": "услуга",
+    "MDY": "человеко-день",
+    "TRP": "рейс"
+  },
+  "qty": {
+    "KG": "{n, number} кг",
+    "GRM": "{n, number} г",
+    "TON": "{n, number} т",
+    "M": "{n, number} м",
+    "CM": "{n, number} см",
+    "MM": "{n, number} мм",
+    "KM": "{n, number} км",
+    "M2": "{n, number} м²",
+    "M3": "{n, number} м³",
+    "LTR": "{n, number} л",
+    "ML": "{n, number} мл",
+    "PCE": "{n, number} шт.",
+    "PAIR": "{n, plural, one {# пара} few {# пары} many {# пар} other {# пары}}",
+    "SET": "{n, plural, one {# комплект} few {# комплекта} many {# комплектов} other {# комплекта}}",
+    "DZN": "{n, plural, one {# дюжина} few {# дюжины} many {# дюжин} other {# дюжины}}",
+    "PKT": "{n, plural, one {# упаковка} few {# упаковки} many {# упаковок} other {# упаковки}}",
+    "BOX": "{n, plural, one {# коробка} few {# коробки} many {# коробок} other {# коробки}}",
+    "CRT": "{n, plural, one {# короб} few {# короба} many {# коробов} other {# короба}}",
+    "PAL": "{n, plural, one {# паллета} few {# паллеты} many {# паллет} other {# паллеты}}",
+    "ROL": "{n, plural, one {# рулон} few {# рулона} many {# рулонов} other {# рулона}}",
+    "BAG": "{n, plural, one {# мешок} few {# мешка} many {# мешков} other {# мешка}}",
+    "DRM": "{n, plural, one {# бочка} few {# бочки} many {# бочек} other {# бочки}}",
+    "HUR": "{n, plural, one {# час} few {# часа} many {# часов} other {# часа}}",
+    "DAY": "{n, plural, one {# день} few {# дня} many {# дней} other {# дня}}",
+    "MON": "{n, plural, one {# месяц} few {# месяца} many {# месяцев} other {# месяца}}",
+    "YER": "{n, plural, one {# год} few {# года} many {# лет} other {# года}}",
+    "SRV": "{n, plural, one {# услуга} few {# услуги} many {# услуг} other {# услуги}}",
+    "MDY": "{n, plural, one {# человеко-день} few {# человеко-дня} many {# человеко-дней} other {# человеко-дня}}",
+    "TRP": "{n, plural, one {# рейс} few {# рейса} many {# рейсов} other {# рейса}}",
+    "other": "{n, number} {unit}"
   }
 }

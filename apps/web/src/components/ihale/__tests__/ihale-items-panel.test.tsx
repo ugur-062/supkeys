@@ -89,7 +89,8 @@ describe("IhaleItemsPanel", () => {
     expect(screen.getByText("Kalemler (2)")).toBeInTheDocument();
     expect(screen.getByText("DN50 dikişsiz")).toBeInTheDocument();
     expect(screen.getByText("MLZ-42")).toBeInTheDocument();
-    expect(screen.getByText("1.500 metre")).toBeInTheDocument();
+    // Miktar + birim çoğul/simge kuralıyla (`useQuantityLabel`): metre → "m".
+    expect(screen.getByText("1.500 m")).toBeInTheDocument();
     // Hedef fiyat verisi yok (tedarikçi görünümü) → kolon hiç çizilmez.
     expect(screen.queryByText("Hedef Fiyat")).not.toBeInTheDocument();
     expect(screen.queryByText(/daha göster/)).not.toBeInTheDocument();

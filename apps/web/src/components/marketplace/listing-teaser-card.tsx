@@ -6,7 +6,7 @@ import { listingHref, publicState } from "@/lib/public/marketplace";
 import type { PublicListingCard } from "@/lib/public/marketplace-api";
 import { signupHref } from "@/lib/public/visibility";
 import { ClockIcon, GlobeAltIcon, LockClosedIcon, MapPinIcon } from "@heroicons/react/20/solid";
-import { useActivityLabel, useCityLabel, useScopeLabel, useUnitLabel } from "@/i18n/domain";
+import { useActivityLabel, useCityLabel, useQuantityLabel, useScopeLabel } from "@/i18n/domain";
 import { useFormatter, useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 
@@ -35,7 +35,7 @@ function leftTone(left: number): "danger" | "gold" | "neutral" {
 
 export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }) {
   const t = useTranslations("web.marketplace.card");
-  const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
   const fmt = useFormatter();
   const activityLabel = useActivityLabel();
   const cityLabel = useCityLabel();
@@ -47,6 +47,11 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
   const who = [activity ? activityLabel(activity) : null, cityLabel(l.company.city)].filter(Boolean).join(" · ");
   const primaryCategory = l.categories.find((c) => c.level >= 3) ?? l.categories[0];
   const qty = l.itemSummary.totalQuantity && l.itemSummary.unit ? Number(l.itemSummary.totalQuantity) : null;
+  // Büyük sayı + küçük birim ayrı çizilir; birim DİLİN ÇOĞUL KURALIYLA
+  // ("1,200 pieces", "1 200 коробок") — etiket sayıdan sonra bölünür.
+  const qtyNum = qty != null ? fmt.number(qty) : "";
+  const qtyLabel = qty != null ? quantity(qty, l.itemSummary.unit) : "";
+  const qtyUnit = qtyLabel.startsWith(qtyNum) ? qtyLabel.slice(qtyNum.length).trim() : qtyLabel;
 
   return (
     <article className="group relative flex h-full flex-col overflow-hidden rounded-2xl bg-white shadow-sm ring-1 ring-zinc-950/5 transition hover:-translate-y-0.5 hover:shadow-lg hover:ring-zinc-950/10 focus-within:ring-2 focus-within:ring-zinc-950">
@@ -79,8 +84,8 @@ export function ListingTeaserCard({ listing: l }: { listing: PublicListingCard }
         {/* Ölçek — kartın en büyük yazısı; yalnız birimli miktar */}
         {qty ? (
           <p className="mt-3 tnum text-2xl font-semibold tracking-tight text-zinc-950">
-            {fmt.number(qty)}
-            <span className="ml-1 text-base font-medium text-zinc-500">{unitLabel(l.itemSummary.unit)}</span>
+            {qtyNum}
+            <span className="ml-1 text-base font-medium text-zinc-500">{qtyUnit}</span>
           </p>
         ) : null}
         <p className={`text-xs text-zinc-500 tnum ${qty ? "mt-0.5" : "mt-3"}`}>

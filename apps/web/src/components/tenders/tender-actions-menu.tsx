@@ -1,5 +1,6 @@
 "use client";
 
+import { foldSearchText } from "@rothern/shared";
 import { useTranslations } from "next-intl";
 import { Button } from "@/components/catalyst/button";
 import { SelectMenu } from "@/components/ui/select-menu";
@@ -177,9 +178,9 @@ export function TenderActionsMenu({
     const rows = (connections.data ?? [])
       .map((c) => c.company)
       .filter((c) => c.rothernId);
-    const q = inviteSearch.trim().toLocaleLowerCase("tr");
+    const q = foldSearchText(inviteSearch);
     return q
-      ? rows.filter((c) => c.name.toLocaleLowerCase("tr").includes(q))
+      ? rows.filter((c) => foldSearchText(c.name).includes(q))
       : rows;
   }, [connections.data, inviteSearch]);
 

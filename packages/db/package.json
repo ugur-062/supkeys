@@ -40,7 +40,8 @@
     "wipe-companies": "tsx prisma/scripts/wipe-companies.ts",
     "build-geo-cities": "tsx prisma/scripts/build-geo-cities.ts",
     "seed-geo-cities": "tsx prisma/scripts/seed-geo-cities.ts",
-    "backfill-city-ids": "tsx prisma/scripts/backfill-city-ids.ts"
+    "backfill-city-ids": "tsx prisma/scripts/backfill-city-ids.ts",
+    "backfill-price-base": "tsx prisma/scripts/backfill-price-base.ts"
   },
   "dependencies": {
     "@prisma/client": "^6.1.0",

@@ -10,6 +10,7 @@ import {
 } from "class-validator";
 
 import { tApi } from "../../../common/i18n/i18n.service";
+import { IsIntlPhone, NormalizePhone } from "./phone.validator";
 
 export class UpdateMeDto {
   @IsOptional()
@@ -24,9 +25,15 @@ export class UpdateMeDto {
   @MaxLength(80)
   lastName?: string;
 
+  // Boş dize numarayı siler; dolu değer ülke uzunluğuna göre (phone.validator.ts).
   @IsOptional()
+  @NormalizePhone()
   @IsString()
   @MaxLength(30)
+  @IsIntlPhone(
+    { allowEmpty: true },
+    { message: () => tApi("api.dto.companySignup.gecerliBirTelefonGiriniz") },
+  )
   phone?: string;
 
   /** Arayüz dili — desteklenen kodlar @rothern/i18n LOCALES (tr/en/ru). */

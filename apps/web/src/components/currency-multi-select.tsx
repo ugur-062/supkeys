@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
-import { INTL_LOCALE } from "@/i18n/format";
+import { intlLocale } from "@/i18n/format";
 import { useCurrencyName } from "@/i18n/domain";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -48,7 +48,7 @@ export function CurrencyMultiSelect({
 }: Props) {
   const t = useTranslations("web.panel.settings.currencyMultiSelect");
   const locale = useLocale() as Locale;
-  const intl = INTL_LOCALE[locale] ?? "tr-TR";
+  const intl = intlLocale(locale);
   // Para birimi adı Intl'den, dil bilir (Türk lirası / Turkish lira).
   const currencyName = useCurrencyName();
   const ratesQuery = useCurrentExchangeRates();

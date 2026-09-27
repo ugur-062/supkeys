@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 import { formatDate } from "@/lib/format-date";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -21,6 +21,7 @@ import { toast } from "sonner";
  */
 export function OrderDefectPanel({ order }: { order: CompanyOrderDetail }) {
   const t = useTranslations("web.panel.trade.orderDefectPanel");
+  const locale = useLocale();
   const isSeller = order.role === "seller";
   // F7: geri-çekme tarafın işlem rolünü ister (assertOrderRole aynası).
   const { user } = useCompanyAuth();
@@ -31,7 +32,7 @@ export function OrderDefectPanel({ order }: { order: CompanyOrderDetail }) {
   if (!active) return null;
 
   const notifiedAt = order.defectNotifiedAt
-    ? formatDate(order.defectNotifiedAt, "short")
+    ? formatDate(order.defectNotifiedAt, "short", locale)
     : null;
 
   const doWithdraw = async () => {

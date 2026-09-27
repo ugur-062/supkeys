@@ -90,7 +90,8 @@ export class CompanyConnectionsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: ExternalTenderInviteDto,
   ) {
-    return this.service.inviteExternalForListing(user, dto.listingId, dto.emails);
+    // Yeni istemci alıcı başına dil/ülke (`invites`), eski istemci düz adres.
+    return this.service.inviteExternalForListing(user, dto.listingId, dto.invites ?? dto.emails ?? []);
   }
 
   @Post("invite-by-email")
@@ -101,7 +102,7 @@ export class CompanyConnectionsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: InviteByEmailDto,
   ) {
-    return this.service.inviteByEmail(user, dto.email);
+    return this.service.inviteByEmail(user, dto.email, dto.locale);
   }
 
   /** Toplu e-posta daveti — 50'ye kadar; sonuç sınıflandırılmış döner. */
@@ -113,7 +114,7 @@ export class CompanyConnectionsController {
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: InviteByEmailBatchDto,
   ) {
-    return this.service.inviteByEmailBatch(user, dto.emails);
+    return this.service.inviteByEmailBatch(user, dto.invites ?? dto.emails ?? []);
   }
 
   @Post(":id/accept")

@@ -30,8 +30,11 @@ import {
   isValidCountryCode,
   isValidTaxIdForCountry,
   isValidTckn,
-
-  isRegistrationOpen,} from "@rothern/shared";
+  isRegistrationOpen,
+  EU_VAT_COUNTRIES,
+  normalizeDigits,
+  normalizeTaxId,
+} from "@rothern/shared";
 import { ensureUniqueCompanySlug } from "../../../common/company/company-slug";
 import { effectiveTier } from "../../../common/company/effective-tier";
 import { validateCategorySelection } from "../../../common/helpers/category-selection.helper";
@@ -74,14 +77,6 @@ function localizeUrl(base: string, path: string, locale: Locale): string {
   if (locale === DEFAULT_LOCALE) return `${base}${outer}`;
   return `${base}${outer === "/" ? `/${locale}` : `/${locale}${outer}`}`;
 }
-
-const ROLE_LABELS: Record<CompanyRole, string> = {
-  [CompanyRole.SAHIP]: "Kurucu",
-  [CompanyRole.YONETICI]: "Yönetici",
-  [CompanyRole.SATIN_ALMACI]: "Satın Almacı",
-  [CompanyRole.SATISCI]: "Satışçı",
-  [CompanyRole.ONAYLAYICI]: "Onaylayıcı",
-};
 
 type Ctx = { ip?: string; userAgent?: string };
 
@@ -138,12 +133,15 @@ export class CompanyAuthService {
     // 2) Company + ilk CompanyUser (owner). Prisma hatasında auth.users temizle.
     //    Firma adı signup'ta sorulmaz → geçici ad; onboarding'de legalName ile
     //    güncellenir. E-posta doğrulanmadan (emailVerifiedAt=null) login engelli.
+    //    Geçici ad DİLDEN BAĞIMSIZ: kurucunun adı soyadı (2026-09-27; eskiden
+    //    "<Ad> <Soyad> Firması" — Türkçe ek admin listelerinde ve davet eden
+    //    firmaya giden "kabul edildi" e-postasında yabancı kayıtta da görünüyordu).
     let result: { company: Company; user: CompanyUser };
     try {
       result = await runTenantTx(this.bypass, async (tx) => {
         const company = await tx.company.create({
           data: {
-            name: `${dto.firstName.trim()} ${dto.lastName.trim()} Firması`,
+            name: `${dto.firstName.trim()} ${dto.lastName.trim()}`,
             tier: "STANDART",
             rothernId,
           },
@@ -511,7 +509,10 @@ export class CompanyAuthService {
     const cityName = storedCityName(cityId, dto.city) ?? dto.city.trim();
     const deliveryCityId = resolveCityId(country, dto.deliveryCity ?? dto.city, dto.deliveryCityId);
     const isSole = dto.companyType === "SOLE_PROPRIETOR";
-    if (!isValidTaxIdForCountry(dto.taxNumber, country, isSole)) {
+    // Saklanan değer NORMALİZE (etiket/ülke öneki atılmış, rakamlar ASCII) —
+    // web formu aynı fonksiyonla denetler (2026-09-27).
+    const taxNumber = normalizeTaxId(dto.taxNumber, country);
+    if (!isValidTaxIdForCountry(taxNumber, country, isSole)) {
       throw new BadRequestException(
         i18nMessage(
           country === "TR"
@@ -562,6 +563,9 @@ export class CompanyAuthService {
     // yani kullanılabilir olduğu anda, bir koltuk önceden yakmadan.
     const roles: CompanyRole[] = [CompanyRole.SAHIP, CompanyRole.SATISCI];
     const deliverySame = dto.deliverySameAsBilling !== false;
+    // Mahalle ayrı adres kolonu değil (CompanyAddress'te yok, Company'de
+    // gösterilmiyordu) → açık adres satırına katılır; web alanı yalnız TR'de sorar.
+    const billingLine = withNeighborhood(dto.neighborhood, dto.addressLine);
 
     await runTenantTx(this.prisma, async (tx) => {
       await tx.company.update({
@@ -572,7 +576,7 @@ export class CompanyAuthService {
           companyType: dto.companyType,
           legalFormLocal: dto.companyType === "OTHER" ? legalFormLocal : null,
           country,
-          taxNumber: dto.taxNumber.trim(),
+          taxNumber,
           taxOffice: dto.taxOffice?.trim() || null,
           website: normalizeWebsite(dto.website),
           /**
@@ -597,9 +601,12 @@ export class CompanyAuthService {
           stateRegion: dto.stateRegion?.trim() || null,
           neighborhood: dto.neighborhood?.trim() || null,
           postalCode: dto.postalCode?.trim() || null,
-          addressLine: dto.addressLine.trim(),
+          addressLine: billingLine,
           authorizedTckn: dto.authorizedTckn?.trim() || null,
-          authorizedTitle: ROLE_LABELS[CompanyRole.SAHIP],
+          // KULLANICININ DİLİNDE (2026-09-27): eskiden sabit Türkçe "Kurucu"
+          // yazılıp Firma Bilgileri'nde ham basılıyordu; Rus firma "Kurucu"
+          // görüyordu. İstek dili = kayıt ekranının dili.
+          authorizedTitle: tApi("api.companyAuth.defaults.founderTitle"),
           // AYNI LİSTE DÖRT ALANA — bilinçli, kopyala-yapıştır değil.
           //
           // Kayıt ekranı TEK soru sorar ("ne alıp satıyorsunuz"). Yeni kullanıcı
@@ -629,7 +636,9 @@ export class CompanyAuthService {
         data: {
           companyId,
           type: "FATURA",
-          title: "Merkez",
+          // Varsayılan başlıklar kullanıcının dilinde (bkz. authorizedTitle);
+          // eski Türkçe kayıtlar okumada çevrilir (`localizeDefaultAddressTitle`).
+          title: tApi("api.companyAuth.defaults.headOfficeTitle"),
           country,
           // Eyalet/bölge adres defterine de taşınır (2026-09-27) — yoksa TR dışı
           // adresin "state"i sipariş kaydında kayboluyordu.
@@ -638,9 +647,9 @@ export class CompanyAuthService {
           cityId,
           district: dto.district?.trim() || null,
           postalCode: dto.postalCode?.trim() || null,
-          addressLine: dto.addressLine.trim(),
+          addressLine: billingLine,
           taxOffice: dto.taxOffice?.trim() || null,
-          taxNumber: dto.taxNumber.trim(),
+          taxNumber,
           isDefault: true,
         },
       });
@@ -648,7 +657,11 @@ export class CompanyAuthService {
         data: {
           companyId,
           type: "TESLIMAT",
-          title: deliverySame ? "Teslimat (fatura ile aynı)" : "Teslimat",
+          title: tApi(
+            deliverySame
+              ? "api.companyAuth.defaults.deliverySameTitle"
+              : "api.companyAuth.defaults.deliveryTitle",
+          ),
           country,
           stateRegion: (deliverySame ? dto.stateRegion : dto.deliveryStateRegion)?.trim() || null,
           city: deliverySame ? cityName : (storedCityName(deliveryCityId, dto.deliveryCity ?? dto.city) ?? ""),
@@ -658,14 +671,29 @@ export class CompanyAuthService {
           postalCode:
             (deliverySame ? dto.postalCode : dto.deliveryPostalCode)?.trim() ||
             null,
-          addressLine: (deliverySame
-            ? dto.addressLine
-            : dto.deliveryAddressLine ?? dto.addressLine
-          ).trim(),
+          addressLine: deliverySame
+            ? billingLine
+            : withNeighborhood(
+                dto.deliveryNeighborhood,
+                dto.deliveryAddressLine ?? dto.addressLine,
+              ),
           isDefault: true,
         },
       });
     });
+
+    // AB firması: kaydedilen vergi no arka planda VIES'e sorulur (audit izi).
+    this.scheduleOnboardingVies(companyId, userId, country, taxNumber);
+
+    // Bu firmayı davet linkiyle getiren firmalara "davetiniz kabul edildi" —
+    // ancak şimdi, gerçek firma adı belliyken (fire-and-forget).
+    void this.notifyReferralInvitersJoined(companyId).catch((err) =>
+      this.logger.warn(
+        `Davet kabul bildirimi gönderilemedi (${companyId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
 
     return { ok: true as const };
   }
@@ -708,10 +736,6 @@ export class CompanyAuthService {
       .filter((inv) => !isReferralExpired(inv.updatedAt, now))
       .sort((a, b) => Number(b.token === usedToken) - Number(a.token === usedToken));
     if (invites.length === 0) return;
-    const newCompany = await this.bypass.company.findUnique({
-      where: { id: newCompanyId },
-      select: { name: true },
-    });
     for (const inv of invites) {
       if (inv.inviterCompanyId === newCompanyId) continue;
       // BK-CONN-1: rıza yalnız KULLANILAN davet linki için verildi. O token'ın
@@ -792,29 +816,51 @@ export class CompanyAuthService {
           status: isUsed ? "ACTIVE" : "PENDING",
         },
       });
-      // Yalnız KULLANILAN davet (ACTIVE) inviter'a "kabul edildi" e-postası;
-      // PENDING istekler yeni firmanın onayını bekler (listIncoming). in-app kanal
-      // burada döngü nedeniyle yok — NotificationModule bu servise enjekte edilemez.
-      if (isUsed) {
-        const inviterEmail = await this.companyNotifyEmail(inv.inviterCompanyId);
-        if (inviterEmail) {
-          this.sendNotificationEmail(
-            { email: inviterEmail.email, name: inviterEmail.name },
-            inviterEmail.locale,
-            {
-              subjectKey: "api.notifications.companyAuth.davetKabulBaslik",
-              paragraphKeys: newCompany?.name
-                ? ["api.notifications.companyAuth.davetKabulGovde"]
-                : ["api.notifications.companyAuth.davetKabulGovdeIsimsiz"],
-              ctaLabelKey: "api.notifications.companyAuth.baglantilarim",
-              ctaPath: "/company",
-              params: { firma: newCompany?.name ?? "" },
-            },
-            "connection_accepted",
-            inv.id,
-          );
-        }
-      }
+      // "Davetiniz kabul edildi" e-postası BURADA GİTMEZ (2026-09-27): kayıt
+      // anında firmanın adı henüz geçici (kurucunun adı) — davet eden firma
+      // ya yer tutucuyu ya da isimsiz metni görüyordu. E-posta onboarding
+      // tamamlanınca, GERÇEK firma adıyla gider (`notifyReferralInvitersJoined`).
+    }
+  }
+
+  /**
+   * Onboarding tamamlandı → bu firmayı davet linkiyle getiren firmalara
+   * "davetiniz kabul edildi" e-postası (gerçek firma adıyla). Alıcı küme:
+   * kayıtta KULLANILAN davetin kurduğu ACTIVE, davet kökenli bağlantılar
+   * (e-postayla eşleşen diğer davetler PENDING istek kalır, onlara gitmez).
+   * Onboarding tek seferlik olduğu için e-posta da bir kez gider. in-app kanal
+   * yok — NotificationModule bu servise enjekte edilemez (döngü).
+   */
+  private async notifyReferralInvitersJoined(companyId: string): Promise<void> {
+    const [company, conns] = await Promise.all([
+      this.bypass.company.findUnique({
+        where: { id: companyId },
+        select: { name: true },
+      }),
+      this.bypass.companyConnection.findMany({
+        where: { inviteeCompanyId: companyId, status: "ACTIVE", origin: "INVITE" },
+        select: { id: true, inviterCompanyId: true },
+      }),
+    ]);
+    const name = company?.name?.trim() ?? "";
+    for (const conn of conns) {
+      const inviterEmail = await this.companyNotifyEmail(conn.inviterCompanyId);
+      if (!inviterEmail) continue;
+      this.sendNotificationEmail(
+        { email: inviterEmail.email, name: inviterEmail.name },
+        inviterEmail.locale,
+        {
+          subjectKey: "api.notifications.companyAuth.davetKabulBaslik",
+          paragraphKeys: name
+            ? ["api.notifications.companyAuth.davetKabulGovde"]
+            : ["api.notifications.companyAuth.davetKabulGovdeIsimsiz"],
+          ctaLabelKey: "api.notifications.companyAuth.baglantilarim",
+          ctaPath: "/company",
+          params: { firma: name },
+        },
+        "connection_accepted",
+        conn.id,
+      );
     }
   }
 
@@ -927,13 +973,29 @@ export class CompanyAuthService {
   // ============================================================
   // VIES — AB VAT numarası ücretsiz oto-doğrulama (Faz 5)
   // ============================================================
-  async viesCheck(countryCode: string, vatNumber: string) {
+  /**
+   * VIES REST sorgusu. YANIT BİÇİMİ (2026-09-27, canlı uçla doğrulandı):
+   * `{ isValid, userError, name, address, requestDate, … }` — `valid` DEĞİL.
+   * Eskiden `data.valid` okunduğu için HER AB firması "geçersiz" görünüyordu.
+   *  · `userError` "VALID"/"INVALID" dışında (MS_UNAVAILABLE, TIMEOUT,
+   *    SERVICE_UNAVAILABLE, *_MAX_CONCURRENT_REQ…) HTTP 200 ile de gelir →
+   *    bunlar "servis yanıt vermedi"dir, "geçersiz" DEĞİL.
+   *  · Bazı üye ülkeler (DE) adı/adresi paylaşmaz: `name: "---"` → null (yoksa
+   *    onboarding boş unvana "---" kopyalardı).
+   * Sonuç `company.vies_checked` audit kaydına yazılır (şema değişikliği yok) —
+   * admin firma özetinde son sorguyu görür.
+   */
+  async viesCheck(
+    countryCode: string,
+    vatNumber: string,
+    ctx?: { companyId?: string; userId?: string; source?: "manual" | "onboarding" },
+  ) {
     // VIES Yunanistan için ISO "GR" değil "EL" kullanır; numara ülke önekiyle
     // girilmişse ("DE811234567") önek ATILIR — VIES yalnız numarayı ister
     // (2026-09-27: önekli numara her zaman "geçersiz" dönüyordu).
     const iso = countryCode.toUpperCase().trim().replace(/[^A-Z]/g, "");
     const cc = iso === "GR" ? "EL" : iso;
-    let num = vatNumber.replace(/[^A-Za-z0-9]/g, "").toUpperCase();
+    let num = normalizeDigits(vatNumber).replace(/[^A-Za-z0-9]/g, "").toUpperCase();
     for (const prefix of [cc, iso]) {
       if (num.startsWith(prefix)) {
         num = num.slice(prefix.length);
@@ -943,27 +1005,56 @@ export class CompanyAuthService {
     const url = `https://ec.europa.eu/taxation_customs/vies/rest-api/ms/${encodeURIComponent(
       cc,
     )}/vat/${encodeURIComponent(num)}`;
+    let result: { valid: boolean; unavailable?: true; name: string | null; address: string | null };
     try {
       const res = await fetch(url, { signal: AbortSignal.timeout(8000) });
-      if (!res.ok) return { valid: false, unavailable: true as const };
-      const data = (await res.json()) as {
-        valid?: boolean;
-        name?: string;
-        address?: string;
-      };
-      return {
-        valid: !!data.valid,
-        name: data.name?.trim() || null,
-        address: data.address?.trim() || null,
-      };
+      if (!res.ok) {
+        result = { valid: false, unavailable: true, name: null, address: null };
+      } else {
+        result = parseViesResponse(await res.json());
+      }
     } catch (err) {
       this.logger.warn(
         `VIES sorgusu başarısız (${cc}${num}): ${
           err instanceof Error ? err.message : String(err)
         }`,
       );
-      return { valid: false, unavailable: true as const };
+      result = { valid: false, unavailable: true, name: null, address: null };
     }
+    if (ctx?.companyId) {
+      void this.audit.log({
+        action: "company.vies_checked",
+        actorType: ctx.userId ? "company" : "system",
+        actorId: ctx.userId ?? null,
+        entityType: "company",
+        entityId: ctx.companyId,
+        metadata: {
+          countryCode: iso,
+          vatNumber: num,
+          valid: result.valid,
+          unavailable: result.unavailable === true,
+          name: result.name,
+          address: result.address,
+          source: ctx.source ?? "manual",
+        },
+      });
+    }
+    return result;
+  }
+
+  /**
+   * Onboarding tamamlanınca AB firmasının KAYDEDİLEN vergi numarası arka planda
+   * VIES'e sorulur ve sonuç audit'e yazılır — kullanıcı "VIES ile doğrula"ya
+   * basmasa da admin incelemede sonucu görür. Fail-open (kayıt bundan etkilenmez);
+   * test ortamında dış servise gidilmez.
+   */
+  private scheduleOnboardingVies(companyId: string, userId: string, country: string, taxNumber: string) {
+    if (!EU_VAT_COUNTRIES.has(country)) return;
+    const env = this.config.get<string>("NODE_ENV") ?? process.env.NODE_ENV;
+    if (env === "test" || this.config.get<string>("VIES_AUTO_CHECK") === "false") return;
+    void this.viesCheck(country, taxNumber, { companyId, userId, source: "onboarding" }).catch(
+      () => undefined,
+    );
   }
 
   // ============================================================
@@ -1666,9 +1757,70 @@ export class CompanyAuthService {
 }
 
 
+/**
+ * Mahalleyi açık adres satırının başına ekler ("Moda Mah., Bahariye Cd. 5") —
+ * satır zaten içeriyorsa tekrar etmez; DTO tavanı (500) korunur.
+ */
+function withNeighborhood(neighborhood: string | null | undefined, line: string): string {
+  const n = neighborhood?.trim();
+  const l = line.trim();
+  if (!n || l.toLocaleLowerCase("tr-TR").includes(n.toLocaleLowerCase("tr-TR"))) return l;
+  return `${n}, ${l}`.slice(0, 500);
+}
+
 /** Web sitesi normalizasyonu: boş → null; şemasızsa https:// öne eklenir. */
 function normalizeWebsite(raw?: string): string | null {
   const w = (raw ?? "").trim();
   if (!w) return null;
   return /^https?:\/\//i.test(w) ? w.slice(0, 200) : `https://${w}`.slice(0, 200);
 }
+
+/** VIES "hizmet yanıt vermedi" kodları — HTTP 200 ile gelse de "geçersiz" DEĞİL. */
+const VIES_UNAVAILABLE = new Set([
+  "MS_UNAVAILABLE",
+  "TIMEOUT",
+  "SERVICE_UNAVAILABLE",
+  "MS_MAX_CONCURRENT_REQ",
+  "GLOBAL_MAX_CONCURRENT_REQ",
+  "IP_BLOCKED",
+]);
+
+/** VIES'in "paylaşılmadı" yer tutucuları ("---") → null. */
+function viesText(v: unknown): string | null {
+  if (typeof v !== "string") return null;
+  const t = v.trim();
+  return t && !/^-+$/.test(t) ? t : null;
+}
+
+/**
+ * VIES REST yanıtı → sonuç. Canlı biçim `{ isValid, userError, name, address }`;
+ * hata durumunda `{ actionSucceed: false, errorWrappers: [{ error }] }` da gelir.
+ * Eski/yedek biçim `valid` de okunur.
+ */
+export function parseViesResponse(data: unknown): {
+  valid: boolean;
+  unavailable?: true;
+  name: string | null;
+  address: string | null;
+} {
+  const d = (data ?? {}) as {
+    isValid?: boolean;
+    valid?: boolean;
+    userError?: string;
+    actionSucceed?: boolean;
+    errorWrappers?: { error?: string }[];
+    name?: unknown;
+    address?: unknown;
+  };
+  const error = d.userError ?? d.errorWrappers?.[0]?.error;
+  if ((error && VIES_UNAVAILABLE.has(error)) || (d.actionSucceed === false && d.isValid == null)) {
+    return { valid: false, unavailable: true, name: null, address: null };
+  }
+  const valid = d.isValid === true || (d.isValid == null && d.valid === true);
+  return {
+    valid,
+    name: valid ? viesText(d.name) : null,
+    address: valid ? viesText(d.address) : null,
+  };
+}
+

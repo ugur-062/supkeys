@@ -2,7 +2,7 @@
 
 import { countryDisplayName, useActivityLabel, useCityLabel } from "@/i18n/domain";
 import type { Locale } from "@rothern/i18n";
-import { citySlug } from "@rothern/shared";
+import { citySlug, foldSearchText } from "@rothern/shared";
 import { searchGeoCities, type GeoCity } from "@/lib/public/geo-client";
 import { useGeoCityName } from "./use-geo-city-name";
 
@@ -26,6 +26,7 @@ import {
   Globe2,
 } from "lucide-react";
 import { ActivityIcon } from "./activity-icons";
+import { CURRENCIES, affixCurrency, currencySymbol } from "@/lib/tenders/labels";
 import {
   Check,
   FilterChipBar,
@@ -239,7 +240,7 @@ function LocationGroup({
   const t = useTranslations("web.marketplace.filters");
   const [q, setQ] = useState("");
   const cityLabel = useCityLabel();
-  const fold = (v: string) => v.toLocaleLowerCase("tr");
+  const fold = foldSearchText;
   // Dünya şehir listesi (2026-09-27): değer kalıcı adres, ad API'den okuyucunun
   // dilinde (`name`); eski API yanıtında ad yoksa Türk il adı çevrilir.
   const label = (c: ProductFacets["cities"][number]) => c.name ?? cityLabel(c.city);
@@ -446,7 +447,7 @@ function CertificationGroup({
   const t = useTranslations("web.marketplace.filters");
   const [q, setQ] = useState("");
   const all = facets.certifications ?? [];
-  const fold = (v: string) => v.toLocaleLowerCase("tr");
+  const fold = foldSearchText;
   const items = all
     .filter((c) => !q || fold(c.cert).includes(fold(q)) || state.certs.includes(c.cert))
     .map((c) => ({ key: c.cert, label: c.cert, count: c.count }));
@@ -540,8 +541,9 @@ function CategoryGroup({
   const t = useTranslations("web.marketplace.filters");
   const [q, setQ] = useState("");
   const items = useMemo(() => {
-    const t = q.trim().toLocaleLowerCase("tr-TR");
-    return facets.categories.filter((c) => !t || c.name.toLocaleLowerCase("tr-TR").includes(t));
+    // Katlanmış karşılaştırma — `tr-TR` küçültme Latin "I"yı "ı" yapıyordu.
+    const t = foldSearchText(q);
+    return facets.categories.filter((c) => !t || foldSearchText(c.name).includes(t));
   }, [facets.categories, q]);
   // Seçili dalın adı: önce sunucunun `selectedCategory` alanı (ürünü olmayan
   // ya da L1 dışı seçimler de adıyla görünsün), sonra L1 facet listesi.
@@ -604,6 +606,17 @@ function PriceGroup({
   const [min, setMin] = useState(state.priceMin?.toString() ?? "");
   const [max, setMax] = useState(state.priceMax?.toString() ?? "");
   const accent = useFilterAccent();
+  // PARA BİRİMİ (2026-09-27, "kurla çevir"): histogram ve sınırlar bu birimde;
+  // sunucu farklı birimdeki fiyatları TCMB kuruyla ortak tabanda karşılaştırır.
+  // URL'deki seçim önce (yeni facet yanıtı gelmeden seçici geri atlamasın);
+  // yoksa sunucunun çözdüğü varsayılan (dil ya da firma ülkesi).
+  const currency = state.currency ?? facets.currency ?? "TRY";
+  const sym = currencySymbol(currency);
+  const priceLocale = useLocale();
+  const formatPrice = (n: number) => affixCurrency(fmt.number(n), currency, priceLocale);
+  // Aralık yazılırken birim de URL'e AÇIKÇA gider (paylaşılan bağlantı başka
+  // dilde açılınca aralık başka birimde okunmasın).
+  const setRange = (priceMin?: number, priceMax?: number) => update({ priceMin, priceMax, currency });
   useEffect(() => {
     setMin(state.priceMin?.toString() ?? "");
     setMax(state.priceMax?.toString() ?? "");
@@ -614,7 +627,7 @@ function PriceGroup({
       const n = (v: string) => (v.trim() === "" ? undefined : Math.max(0, Math.trunc(Number(v))) || undefined);
       const pm = n(min);
       const px = n(max);
-      if (pm !== state.priceMin || px !== state.priceMax) update({ priceMin: pm, priceMax: px });
+      if (pm !== state.priceMin || px !== state.priceMax) setRange(pm, px);
     }, 400);
     return () => clearTimeout(t);
   }, [min, max]); // eslint-disable-line react-hooks/exhaustive-deps
@@ -629,12 +642,29 @@ function PriceGroup({
       onClear={() => update({ price: undefined, priceMin: undefined, priceMax: undefined, priceUnpriced: false })}
       storageKey="fiyat"
     >
+      {/* Birim değişince aralık SIFIRLANIR: eski sınırlar önceki birimdeydi. */}
+      <label className="mb-2 flex items-center justify-between gap-2 px-2 text-xs text-zinc-600">
+        <span>{t("currency")}</span>
+        <select
+          value={currency}
+          onChange={(e) => update({ currency: e.target.value, priceMin: undefined, priceMax: undefined })}
+          className="h-8 rounded-lg border border-zinc-200 bg-white px-2 text-sm text-zinc-900 outline-none focus:border-zinc-900"
+        >
+          {CURRENCIES.map((c) => (
+            <option key={c} value={c}>
+              {c === currencySymbol(c) ? c : `${c} (${currencySymbol(c)})`}
+            </option>
+          ))}
+        </select>
+      </label>
+
       {hist ? (
         <PriceHistogram
           data={hist}
           from={state.priceMin}
           to={state.priceMax}
-          onPick={(from, to) => update({ priceMin: from, priceMax: to })}
+          formatPrice={formatPrice}
+          onPick={(from, to) => setRange(from, to)}
         />
       ) : null}
 
@@ -642,13 +672,13 @@ function PriceGroup({
           "0-100 / 100-1.000" listesi envanterle ilgisiz kovalar basardı. */}
       {hist ? (
         <div className="mb-2 flex flex-wrap gap-1.5 px-2">
-          {presetRanges(hist, (n) => fmt.number(n)).map((r) => {
+          {presetRanges(hist, formatPrice).map((r) => {
             const on = state.priceMin === r.from && state.priceMax === r.to;
             return (
               <button
                 key={`${r.from}-${r.to}`}
                 type="button"
-                onClick={() => update(on ? { priceMin: undefined, priceMax: undefined } : { priceMin: r.from, priceMax: r.to })}
+                onClick={() => (on ? setRange(undefined, undefined) : setRange(r.from, r.to))}
                 className={`tnum rounded-full px-2.5 py-1 text-xs transition ${
                   on
                     ? accent === "blue"
@@ -666,17 +696,19 @@ function PriceGroup({
 
       <div className="mb-2 grid grid-cols-2 gap-2 px-2">
         <label className="text-xs text-zinc-500">
-          {t("minCurrency")}
+          {t("minCurrency", { currency: sym })}
           <input inputMode="numeric" value={min} onChange={(e) => setMin(e.target.value.replace(/\D/g, ""))} placeholder="0" className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-900" />
         </label>
         <label className="text-xs text-zinc-500">
-          {t("maxCurrency")}
+          {t("maxCurrency", { currency: sym })}
           <input inputMode="numeric" value={max} onChange={(e) => setMax(e.target.value.replace(/\D/g, ""))} placeholder="∞" className="mt-1 h-9 w-full rounded-lg border border-zinc-200 px-2 text-sm tabular-nums text-zinc-900 outline-none focus:border-zinc-900" />
         </label>
       </div>
 
-      {/* Yalnız ARALIK seçiliyken anlamlı: aralık `priceAmount`a bakar,
-          "teklif isteyin" ürünlerinde o alan boş ve hepsi sessizce düşerdi. */}
+      <p className="mb-2 px-2 text-[11px]/4 text-zinc-500">{t("currencyHint")}</p>
+
+      {/* Yalnız ARALIK seçiliyken anlamlı: aralık fiyatın TRY karşılığına
+          bakar, "teklif isteyin" ürünlerinde o alan boş ve hepsi sessizce düşerdi. */}
       {hasRange ? (
         <Check
           id={`${idPrefix}-price-unpriced`}
@@ -704,17 +736,18 @@ function PriceGroup({
  * sayıda ürün taşır. Quantile gelmezse (eski kenar önbelleği) aralık
  * BASILMAZ — yanlış aralık göstermektense hiç göstermemek.
  */
-function presetRanges(hist: {
+export function presetRanges(hist: {
   min: number;
   max: number;
   quantiles?: { p33: number; p66: number };
-}, fmt: (n: number) => string): { from: number; to: number; label: string }[] {
+}, formatPrice: (n: number) => string): { from: number; to: number; label: string }[] {
+  // `formatPrice` sembolü dilin yazımıyla ekler (İngilizcede önde).
   const q = hist.quantiles;
   if (!q || !(q.p33 < q.p66 && q.p66 < hist.max)) return [];
   return [
-    { from: 0, to: q.p33, label: `≤ ${fmt(q.p33)} ₺` },
-    { from: q.p33, to: q.p66, label: `${fmt(q.p33)} – ${fmt(q.p66)} ₺` },
-    { from: q.p66, to: hist.max, label: `${fmt(q.p66)} ₺ +` },
+    { from: 0, to: q.p33, label: `≤ ${formatPrice(q.p33)}` },
+    { from: q.p33, to: q.p66, label: `${formatPrice(q.p33)} – ${formatPrice(q.p66)}` },
+    { from: q.p66, to: hist.max, label: `${formatPrice(q.p66)} +` },
   ];
 }
 
@@ -748,7 +781,15 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
   for (const a of state.activities) chips.push({ key: `a:${a}`, label: activityLabel(a), onRemove: () => update((s) => ({ ...s, activities: s.activities.filter((x) => x !== a) })) });
   if (state.verified) chips.push({ key: "v", label: t("verified"), onRemove: () => update({ verified: false }) });
   if (state.price) chips.push({ key: "p", label: state.price === "var" ? t("priced") : t("onRequest"), onRemove: () => update({ price: undefined }) });
-  if (state.priceMin != null || state.priceMax != null) chips.push({ key: "pr", label: `${state.priceMin ?? 0} – ${state.priceMax ?? "∞"} ₺`, onRemove: () => update({ priceMin: undefined, priceMax: undefined }) });
+  if (state.priceMin != null || state.priceMax != null) {
+    const chipCurrency = state.currency ?? facets.currency ?? "TRY";
+    const price = (n: number) => affixCurrency(fmt.number(n), chipCurrency, chipLocale);
+    chips.push({
+      key: "pr",
+      label: `${price(state.priceMin ?? 0)} – ${state.priceMax != null ? price(state.priceMax) : "∞"}`,
+      onRemove: () => update({ priceMin: undefined, priceMax: undefined }),
+    });
+  }
   if (state.moqMax != null) chips.push({ key: "moq", label: t("moqChip", { n: fmt.number(state.moqMax) }), onRemove: () => update({ moqMax: undefined }) });
   for (const c of state.certs) chips.push({ key: `cert:${c}`, label: c, onRemove: () => update((s) => ({ ...s, certs: s.certs.filter((x) => x !== c) })) });
   if (state.fastReply) chips.push({ key: "fast", label: t("fastReply"), onRemove: () => update({ fastReply: false }) });

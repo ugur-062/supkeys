@@ -17,22 +17,16 @@ import {
 } from "class-validator";
 import {
   BID_DELIVERY_TIMES,
+  CURRENCY_ENUM,
   type BidDeliveryTime,
+  type CurrencyCode,
 } from "@rothern/shared";
 import { MAX_MONEY } from "../../../common/constants/money";
 import { tApi } from "../../../common/i18n/i18n.service";
 
-export enum BidCurrencyDto {
-  TRY = "TRY",
-  USD = "USD",
-  EUR = "EUR",
-  GBP = "GBP",
-  CHF = "CHF",
-  JPY = "JPY",
-  AED = "AED",
-  CNY = "CNY",
-  RUB = "RUB",
-}
+/** Para birimi — TEK KAYNAK `@rothern/shared` `CURRENCY_CODES` (talep DTO'suyla aynı liste). */
+export const BidCurrencyDto = CURRENCY_ENUM;
+export type BidCurrencyDto = CurrencyCode;
 
 export class PlaceBidAnswerDto {
   @IsString()

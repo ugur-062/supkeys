@@ -5,10 +5,11 @@
  */
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyConnectionsService } from "../../src/modules/company-connections/services/company-connections.service";
+import { Prisma } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser, makeListing } from "./factories";
+import { makeCompanyWithUser, makeItem, makeListing } from "./factories";
 
-function makeService() {
+function makeService(translations?: unknown) {
   const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
   const blocks = { blockedCompanyIds: jest.fn().mockResolvedValue([]) } as never;
   const config = { get: jest.fn().mockReturnValue("http://localhost:3000") } as never;
@@ -26,6 +27,8 @@ function makeService() {
     config,
     notifications,
     new AuditService(prisma as never),
+    undefined,
+    translations as never,
   );
   return { service, email };
 }
@@ -194,5 +197,97 @@ describe("inviteExternalForListing", () => {
     expect(res.ok).toBe(true);
     expect(await prisma.referralOptOut.findUnique({ where: { email: "opt@x.com" } })).not.toBeNull();
     await expect(service.markReferralOptOut("yok-token")).rejects.toThrow();
+  });
+
+  it("ALICININ DİLİ + zengin içerik: DE alıcı İngilizce; çeviri BEKLENİR; kayıt dili saklanır (2026-09-27)", async () => {
+    // Çeviri servisi sahtesi: bekleme çağrılır, İngilizce başlık/kalem döner.
+    const translations = {
+      ensureTranslated: jest.fn().mockResolvedValue(true),
+      localizeListings: jest.fn().mockImplementation(
+        async (items: Array<{ title: string; items: Array<{ name: string }> }>, _ids: string[], locale: string) =>
+          locale === "en"
+            ? items.map((i) => ({ ...i, title: "Hard hat purchase", items: i.items.map(() => ({ name: "Hard hat" })) }))
+            : items,
+      ),
+    };
+    const { service, email } = makeService(translations);
+    const owner = await makeCompanyWithUser(prisma);
+    const address = await prisma.companyAddress.create({
+      data: {
+        companyId: owner.company.id,
+        type: "TESLIMAT",
+        title: "Depo",
+        country: "TR",
+        city: "İzmir",
+        district: "Çiğli",
+        addressLine: "Atatürk OSB 10001 Sk. No:5",
+        postalCode: "35620",
+      },
+    });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      title: "Baret alımı",
+      deliveryAddressId: address.id,
+      closesAt: new Date("2030-10-04T22:30:00Z"),
+    });
+    await makeItem(prisma, listing.id, {
+      name: "Baret",
+      quantity: new Prisma.Decimal(1200),
+      unit: "adet",
+      unitCode: "PCE",
+      targetPrice: new Prisma.Decimal(99),
+      specification: "EN 397 GİZLİ ŞARTNAME",
+    });
+
+    const res = await service.inviteExternalForListing(owner.auth, listing.id, [
+      { email: "einkauf@firma.de", country: "DE" },
+      { email: "yerli@firma.com" },
+    ]);
+    expect(res.results.map((r) => r.status)).toEqual(["SENT", "SENT"]);
+    // Gönderimden ÖNCE alıcıların dillerindeki çeviri beklendi (tek çağrı).
+    expect(translations.ensureTranslated).toHaveBeenCalledWith("LISTING", listing.id, ["en", "tr"], 60_000);
+
+    const byTo = new Map(
+      email.send.mock.calls.map((c) => {
+        const a = c[0] as { to: { email: string }; locale: string; templateData: { data: Record<string, unknown> } };
+        return [a.to.email, a];
+      }),
+    );
+    const de = byTo.get("einkauf@firma.de")!;
+    expect(de.locale).toBe("en");
+    expect(de.templateData.data).toMatchObject({
+      tenderTitle: "Hard hat purchase",
+      items: [{ name: "Hard hat", quantity: 1200, unitCode: "PCE", unit: "adet" }],
+      itemCount: 1,
+      deliveryPlace: expect.stringMatching(/^Izmir, /),
+      closesAt: expect.stringContaining("October 5, 2030"),
+    });
+    expect(de.templateData.data.registerUrl).toMatch(
+      new RegExp(`/en/company/signup\\?ref=[^&]+&redirect=%2Fcompany%2Filan%2F${listing.id}$`),
+    );
+    // Kapalı zarf + anonimlik: hedef fiyat, şartname, adres satırı yükte yok.
+    const payload = JSON.stringify(de.templateData.data);
+    expect(payload).not.toContain("GİZLİ ŞARTNAME");
+    expect(payload).not.toContain("targetPrice");
+    expect(payload).not.toContain("10001");
+    expect(payload).not.toContain("Çiğli");
+
+    const tr = byTo.get("yerli@firma.com")!;
+    expect(tr.locale).toBe("tr");
+    expect(tr.templateData.data.tenderTitle).toBe("Baret alımı");
+    expect(tr.templateData.data.deliveryPlace).toBe("İzmir, Türkiye");
+
+    const rows = await prisma.companyReferralInvite.findMany({
+      where: { listingId: listing.id },
+      select: { email: true, locale: true },
+      orderBy: { email: "asc" },
+    });
+    expect(rows).toEqual([
+      { email: "einkauf@firma.de", locale: "en" },
+      { email: "yerli@firma.com", locale: "tr" },
+    ]);
   });
 });

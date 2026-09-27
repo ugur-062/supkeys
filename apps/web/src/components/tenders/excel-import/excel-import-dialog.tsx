@@ -1,7 +1,7 @@
 "use client";
 
 import { useLocale, useTranslations } from "next-intl";
-import { INTL_LOCALE } from "@/i18n/format";
+import { intlLocale } from "@/i18n/format";
 import type { Locale } from "@rothern/i18n";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -225,7 +225,7 @@ export function ExcelImportDialog({
                         <td className="px-3 py-1.5 text-xs text-zinc-500">{r.rowNumber}</td>
                         {visibleColumns.map((k) => (
                           <td key={k} className="max-w-[240px] truncate px-3 py-1.5 text-zinc-800">
-                            {formatCell(k, r.item, INTL_LOCALE[locale] ?? "tr-TR")}
+                            {formatCell(k, r.item, intlLocale(locale))}
                           </td>
                         ))}
                         <td className="px-3 py-1.5">

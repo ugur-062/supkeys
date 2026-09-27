@@ -3,8 +3,10 @@
 // Lojistik İhalesi — taşıma bilgisi görüntüleme bloğu.
 // Alıcı + tedarikçi ihale detayı ve wizard özetinde kullanılır.
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { formatDate } from "@/lib/tenders/date";
+import { intlLocale } from "@/i18n/format";
 import { useTransportModeLabel } from "@/i18n/domain";
 import type { TenderLogisticsDetails } from "@/lib/tenders/types";
 import {
@@ -14,8 +16,8 @@ import {
   Truck,
 } from "lucide-react";
 
-function fmtDate(iso: string | null | undefined): string | null {
-  return iso ? formatDate(iso) : null;
+function fmtDate(iso: string | null | undefined, locale: Locale): string | null {
+  return iso ? formatDate(iso, locale) : null;
 }
 
 function Cell({ label, value }: { label: string; value: React.ReactNode }) {
@@ -35,6 +37,7 @@ export function LogisticsInfoCard({
   className?: string;
 }) {
   const t = useTranslations("web.panel.requests.logisticsInfo");
+  const locale = useLocale();
   const transportModeLabel = useTransportModeLabel();
   const flags = [
     details.hazardous ? t("tehlikeliMaddeAdr") : null,
@@ -50,8 +53,8 @@ export function LogisticsInfoCard({
     .filter(Boolean)
     .join(" / ");
 
-  const loading = fmtDate(details.loadingDate);
-  const delivery = fmtDate(details.deliveryDate);
+  const loading = fmtDate(details.loadingDate, locale);
+  const delivery = fmtDate(details.deliveryDate, locale);
 
   return (
     <section
@@ -94,13 +97,13 @@ export function LogisticsInfoCard({
         {details.weightKg != null ? (
           <Cell
             label={t("agirlik")}
-            value={`${details.weightKg.toLocaleString("tr-TR")} kg`}
+            value={`${details.weightKg.toLocaleString(intlLocale(locale))} kg`}
           />
         ) : null}
         {details.volumeM3 != null ? (
           <Cell
             label={t("hacim")}
-            value={`${details.volumeM3.toLocaleString("tr-TR")} m³`}
+            value={`${details.volumeM3.toLocaleString(intlLocale(locale))} m³`}
           />
         ) : null}
         {details.packageCount != null ? (

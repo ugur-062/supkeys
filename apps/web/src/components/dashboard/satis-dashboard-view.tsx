@@ -9,7 +9,7 @@ import { useSellerTenders } from "@/hooks/use-seller-tenders";
 import { SellerTendersView } from "@/components/company/seller-tenders-view";
 import { AiIntentBand } from "@/components/dashboard/ai-intent-band";
 import { intentToRequestQuery } from "@/lib/company/ai-search";
-import { tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
+import { foldSearchText, tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
 import { useRouter } from "@/i18n/navigation";
 import { PackagePlus } from "lucide-react";
 import { SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
@@ -81,21 +81,23 @@ export function SatisDashboardView() {
   const q = term.trim();
   const suggestions: PanelSuggestGroup[] = useMemo(() => {
     if (q.length < 2) return [];
-    const lower = q.toLocaleLowerCase("tr-TR");
-    const hit = (t: string) => t.toLocaleLowerCase("tr-TR").includes(lower);
+    // Katlanmış sorgu — samanlık (`searchHaystack`) da katlı; `tr-TR` küçültme
+    // "Çelik"i "çelik" bırakıp katlı "celik"te bulamıyordu.
+    const lower = foldSearchText(q);
+    const hit = (t: string) => foldSearchText(t).includes(lower);
     // Talep: başlık · numara · alıcı · KALEM adı · kategori adı (samanlık
     // listeyle AYNI fonksiyondan). Kalemden bulunduysa satır "Kalem: …" der.
     const open = (tenders.data ?? []).filter((t) => t.status === "OPEN");
     const rows = open
       .filter((t) => searchHaystack(t).includes(lower))
       .slice(0, 5)
-      .map((t) => {
-        const item = matchedItemName(t, q);
+      .map((row) => {
+        const item = matchedItemName(row, q);
         return {
-          key: t.id,
-          label: t.title,
-          meta: item ? `Kalem: ${item}` : (t.owner?.name ?? undefined),
-          href: `/company/ilan/${t.id}`,
+          key: row.id,
+          label: row.title,
+          meta: item ? t("kalemMeta", { item }) : (row.owner?.name ?? undefined),
+          href: `/company/ilan/${row.id}`,
         };
       });
     // Alıcı firmalar (açık talep sayısıyla) → listeyi o alıcıya süzer.
@@ -146,7 +148,7 @@ export function SatisDashboardView() {
           action: SELLER_MARKET.companies,
           placeholder: t("firmaAdiSehirYaDa"),
           label: t("firma"),
-          primaryLabel: "Talep",
+          primaryLabel: t("talep"),
           primaryIcon: "clipboard",
         }}
         scope={scope}

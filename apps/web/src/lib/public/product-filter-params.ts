@@ -1,4 +1,4 @@
-import { isCompanyActivity, isEmployeeBucketKey, isRadiusOption } from "@rothern/shared";
+import { isCompanyActivity, isCurrencyCode, isEmployeeBucketKey, isRadiusOption } from "@rothern/shared";
 import type { ProductListParams } from "./marketplace-api";
 import {
   getAllParams as getAll,
@@ -15,7 +15,7 @@ import {
  * ve panel ürün dizini (istemci) AYNI ayrıştırıcıyı okur, AYNI kurucuyu yazar.
  *
  *   ?q=&kategori=42000000&sehir=İstanbul,İzmir&faaliyet=MANUFACTURER,DISTRIBUTOR
- *   &dogrulanmis=1&fiyat=var|teklif&fiyatMin=&fiyatMax=&fiyatsizDahil=1&moqMax=
+ *   &dogrulanmis=1&fiyat=var|teklif&para=EUR&fiyatMin=&fiyatMax=&fiyatsizDahil=1&moqMax=
  *   &sertifika=ISO 9001,CE&calisan=10,50&sirala=yeni|fiyat|fiyat-azalan
  *   &nitelik=anahtar:değer (tekrarlanır)&adet=24|48|96&gorunum=liste&sayfa=2
  *
@@ -32,6 +32,15 @@ export interface ProductFilterState {
   activities: string[];
   verified: boolean;
   price?: "var" | "teklif";
+  /**
+   * Fiyat süzgecinin para birimi (`?para=EUR`, 2026-09-27 "kurla çevir"):
+   * `priceMin`/`priceMax` bu birimde. URL'de yoksa çağıranın varsayılanı
+   * (ziyaretçide arayüz dili, panelde firma ülkesi — sunucu çözer). GÖRÜNÜM
+   * tercihi gibi davranır: aktif süzgeç sayısına girmez, "Tümünü temizle"
+   * onu korur. Aralık seçilince URL'e AÇIKÇA yazılır — paylaşılan bağlantı
+   * başka dilde açılınca aralık başka birimde okunmasın.
+   */
+  currency?: string;
   priceMin?: number;
   priceMax?: number;
   /** Aralık seçiliyken "teklif isteyin" ürünleri de tut. */
@@ -79,6 +88,7 @@ export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string
     activities: list(get(sp, "faaliyet")).filter(isCompanyActivity),
     verified: get(sp, "dogrulanmis") === "1",
     price: price === "var" || price === "teklif" ? price : undefined,
+    currency: isCurrencyCode(get(sp, "para")?.toUpperCase()) ? get(sp, "para")!.toUpperCase() : undefined,
     priceMin: num(get(sp, "fiyatMin")),
     priceMax: num(get(sp, "fiyatMax")),
     priceUnpriced: get(sp, "fiyatsizDahil") === "1",
@@ -99,8 +109,15 @@ export function parseProductFilters(sp: SearchParamsLike, fixedCategory?: string
   };
 }
 
-/** Durum → API parametreleri. */
-export function toProductListParams(f: ProductFilterState): ProductListParams & { page?: number } {
+/**
+ * Durum → API parametreleri. `defaultCurrency`: URL'de `para` yokken
+ * gönderilecek birim (herkese açık sayfa dilden verir; panel vermez, sunucu
+ * firma ülkesinden çözer).
+ */
+export function toProductListParams(
+  f: ProductFilterState,
+  opts: { defaultCurrency?: string } = {},
+): ProductListParams & { page?: number } {
   return {
     q: f.q,
     category: f.category,
@@ -109,6 +126,7 @@ export function toProductListParams(f: ProductFilterState): ProductListParams & 
     activity: f.activities.length ? f.activities.join(",") : undefined,
     verified: f.verified || undefined,
     price: f.price === "var" ? "has" : f.price === "teklif" ? "request" : undefined,
+    currency: f.currency ?? opts.defaultCurrency,
     priceMin: f.priceMin,
     priceMax: f.priceMax,
     priceUnpriced: f.priceUnpriced || undefined,
@@ -135,6 +153,7 @@ export function buildProductFilterQuery(f: ProductFilterState): string {
   if (f.activities.length) sp.set("faaliyet", f.activities.join(","));
   if (f.verified) sp.set("dogrulanmis", "1");
   if (f.price) sp.set("fiyat", f.price);
+  if (f.currency) sp.set("para", f.currency);
   if (f.priceMin != null) sp.set("fiyatMin", String(f.priceMin));
   if (f.priceMax != null) sp.set("fiyatMax", String(f.priceMax));
   if (f.priceUnpriced) sp.set("fiyatsizDahil", "1");
@@ -179,9 +198,9 @@ export const EMPTY_FILTERS: ProductFilterState = {
 
 /**
  * "Tümünü temizle" — süzgeçler gider, ARAMA ve GÖRÜNÜM tercihleri (sıralama,
- * sayfa başına) kalır. Kullanıcı süzgeci temizlerken "96'lık listeye dön"
+ * sayfa başına, fiyat para birimi) kalır. Kullanıcı süzgeci temizlerken "96'lık listeye dön"
  * demiyor; sıralama zaten çipte görünür durumda.
  */
 export function clearProductFilters(f: ProductFilterState): ProductFilterState {
-  return { ...EMPTY_FILTERS, q: f.q, sort: f.sort, perPage: f.perPage, view: f.view };
+  return { ...EMPTY_FILTERS, q: f.q, sort: f.sort, perPage: f.perPage, view: f.view, currency: f.currency };
 }

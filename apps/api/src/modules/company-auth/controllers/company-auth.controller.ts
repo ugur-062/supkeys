@@ -122,8 +122,16 @@ export class CompanyAuthController {
   @UseGuards(CompanyJwtAuthGuard)
   @Throttle({ auth: { limit: 10, ttl: 60_000 } })
   @HttpCode(HttpStatus.OK)
-  viesCheck(@Body() dto: ViesCheckDto) {
-    return this.service.viesCheck(dto.countryCode, dto.vatNumber);
+  viesCheck(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: ViesCheckDto,
+  ) {
+    // Sonuç firmanın audit izine yazılır (admin incelemesi görür).
+    return this.service.viesCheck(dto.countryCode, dto.vatNumber, {
+      companyId: user.companyId,
+      userId: user.userId,
+      source: "manual",
+    });
   }
 
   @Patch("me")

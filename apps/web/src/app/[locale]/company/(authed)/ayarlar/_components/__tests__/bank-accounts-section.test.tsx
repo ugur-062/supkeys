@@ -24,6 +24,7 @@ vi.mock("@/hooks/use-company-bank-accounts", () => ({
   useDeleteBankAccount: () => ({ mutateAsync: h.del, isPending: false }),
 }));
 
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { BankAccountsSection } from "../bank-accounts-section";
 
 // Gerçek geçerli IBAN'lar (mod-97 tutar).
@@ -32,6 +33,7 @@ const DE_OK = "DE89370400440532013000";
 
 describe("BankAccountsSection", () => {
   beforeEach(() => {
+    useCompanyAuthStore.setState({ company: null } as never);
     h.save.mockReset().mockResolvedValue({});
     h.toast.success.mockReset();
     h.toast.error.mockReset();
@@ -75,6 +77,40 @@ describe("BankAccountsSection", () => {
     await user.click(screen.getByRole("button", { name: "Kaydet" }));
     expect(h.save).toHaveBeenCalledWith(expect.objectContaining({ iban: DE_OK, title: "EUR" }));
     expect(h.toast.success).toHaveBeenCalledWith("Hesap eklendi");
+  });
+
+  it("IBAN ülkesinde yer tutucu ülke önekli ve kayıtlı uzunlukta", async () => {
+    await openNew();
+    expect(screen.getByLabelText("IBAN *")).toHaveAttribute("placeholder", "TR00 0000 0000 0000 0000 0000 00");
+  });
+
+  it("kısmi IBAN ülkesi (BR): yerel hesap no + SWIFT + banka adı YA DA IBAN (2026-09-27)", async () => {
+    useCompanyAuthStore.setState({ company: { country: "BR" } } as never);
+    const user = await openNew();
+    expect(screen.getByText(/IBAN ya da yerel hesap numarası/)).toBeInTheDocument();
+    const field = screen.getByLabelText("IBAN ya da hesap numarası *");
+    // Yerel hesap no → SWIFT ve banka adı zorunlu.
+    await user.type(field, "0001 12345-6");
+    expect(screen.getByLabelText("SWIFT / BIC kodu *")).toBeInTheDocument();
+    expect(screen.getByLabelText("Banka adı *")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kaydet" })).toBeDisabled();
+    await user.type(screen.getByLabelText("SWIFT / BIC kodu *"), "BRASBRRJ");
+    await user.type(screen.getByLabelText("Banka adı *"), "Banco do Brasil");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.save).toHaveBeenCalledWith(
+      expect.objectContaining({ bankCountry: "BR", accountNumber: "0001 12345-6", swiftBic: "BRASBRRJ" }),
+    );
+  });
+
+  it("kısmi IBAN ülkesinde geçerli IBAN yazılırsa IBAN gider, SWIFT/banka adı isteğe bağlı", async () => {
+    useCompanyAuthStore.setState({ company: { country: "BR" } } as never);
+    const user = await openNew();
+    await user.type(screen.getByLabelText("IBAN ya da hesap numarası *"), "BR18 0036 0305 0000 1000 9795 493C 1");
+    expect(screen.getByLabelText("SWIFT / BIC kodu (isteğe bağlı)")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.save).toHaveBeenCalledWith(
+      expect.objectContaining({ bankCountry: "BR", iban: "BR1800360305000010009795493C1" }),
+    );
   });
 
   it("canManage=false: Hesap Ekle yok, Kurucu notu var", () => {

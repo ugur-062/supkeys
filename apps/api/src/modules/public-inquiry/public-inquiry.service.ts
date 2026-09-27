@@ -8,7 +8,7 @@ import {
 } from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
-import { appRoutes } from "../../common/company/app-routes";
+import { appRoutes, localizeAppPath } from "../../common/company/app-routes";
 import { hasPublicProfile } from "../../common/company/public-profile-gate";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { PAID_TIER, tierAtLeast } from "@rothern/shared";
@@ -17,7 +17,7 @@ import type { EmailTemplateData } from "@rothern/email";
 import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
 import { currentLocale } from "../../common/i18n/locale-context";
 import { localeOf } from "../notifications/notification.service";
-import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
+import { DEFAULT_LOCALE, isLocale, type Locale } from "@rothern/i18n";
 
 /** `notification` şablonunun veri şekli — paket `NotificationData`yı dışa
  *  aktarmıyor, tip birleşiminden türetiyoruz. */
@@ -90,6 +90,11 @@ export class PublicInquiryService {
     );
 
     const token = randomBytes(32).toString("hex");
+    // DİL: ziyaretçi misafir (hesabı yok) → isteğin dili, yani formu hangi
+    // dilde doldurduysa o (`Accept-Language`). Satıra da yazılır: satıcının
+    // yanıt bildirimi (başka bir istekte, satıcının dilinde doğar) misafire
+    // yine bu dilde gitsin.
+    const locale = currentLocale();
     const inquiry = await this.prisma.publicInquiry.create({
       data: {
         companyId: product.companyId,
@@ -103,6 +108,7 @@ export class PublicInquiryService {
         tokenHash: hashToken(token),
         expiresAt: new Date(Date.now() + PublicInquiryService.TOKEN_TTL_MS),
         createdIp: input.ip ?? null,
+        locale,
       },
       select: { id: true },
     });
@@ -111,9 +117,6 @@ export class PublicInquiryService {
     // ulaşmadığı için hiç doğrulanamaz, ama satır kullanıcının günlük
     // kotasını yer (3/gün → üç başarısız deneme kullanıcıyı bir gün kilitler).
     // Bu yüzden başarısızlıkta satırı SİLİP dürüst hata döndürüyoruz.
-    // DİL: ziyaretçi misafir (hesabı yok) → isteğin dili, yani formu hangi
-    // dilde doldurduysa o (`Accept-Language`).
-    const locale = currentLocale();
     const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
       tApi(key, values, locale);
     const result = await this.email.send({
@@ -131,7 +134,8 @@ export class PublicInquiryService {
             t("api.notifications.publicInquiry.verify.action"),
           ],
           ctaLabel: t("api.notifications.publicInquiry.verify.cta"),
-          ctaUrl: `${webBase()}/talep-onayla?t=${token}`,
+          // Doğrulama sayfası da e-postanın dilinde açılsın.
+          ctaUrl: appRoutes.inquiryVerify(webBase(), token, locale),
           footerNote: t("api.notifications.publicInquiry.verify.footer"),
         },
       },
@@ -234,6 +238,8 @@ export class PublicInquiryService {
         verifiedAt: new Date(),
         claimedCompanyId: input.companyId,
         claimedAt: new Date(),
+        // Yedek dil: yanıt bildirimi önce alıcının KAYITLI dilini okur.
+        locale: currentLocale(),
       },
       select: { id: true, name: true },
     });
@@ -400,6 +406,8 @@ export class PublicInquiryService {
         email: true,
         // Talebi KAYITLI bir alıcı mı gönderdi — bildirimin dili buna bağlı.
         claimedCompanyId: true,
+        // Talebin açıldığı dil (misafirin tek dil bilgisi).
+        locale: true,
         product: { select: { name: true } },
         company: { select: { name: true } },
       },
@@ -421,6 +429,7 @@ export class PublicInquiryService {
       inquiry.product.name,
       inquiry.company.name,
       inquiry.claimedCompanyId,
+      inquiry.locale,
     );
 
     return {
@@ -449,23 +458,27 @@ export class PublicInquiryService {
     productName: string,
     companyName: string,
     claimedCompanyId: string | null,
+    inquiryLocale: string | null,
   ) {
     try {
       const claimed = claimedCompanyId != null;
       // DİL: bildirim SATICININ isteğinde doğar ama ALICIYA gider → istek dili
       // YANLIŞ olurdu. Talep kayıtlı bir alıcıya bağlıysa o kişinin kayıtlı
-      // dilini okuruz (e-posta + firma ile tek satır); misafirde dil bilinmez
-      // (satır dil taşımıyor) → varsayılan.
-      const locale = claimed
-        ? localeOf(
-            (
-              await this.prisma.companyUser.findFirst({
-                where: { companyId: claimedCompanyId, email, deletedAt: null },
-                select: { locale: true },
-              })
-            )?.locale,
-          )
-        : DEFAULT_LOCALE;
+      // dilini okuruz (e-posta + firma ile tek satır); misafirde talebin
+      // AÇILDIĞI dil (satıra yazılır, 2026-09-27 — eskiden hep Türkçeydi).
+      const userLocale = claimed
+        ? (
+            await this.prisma.companyUser.findFirst({
+              where: { companyId: claimedCompanyId, email, deletedAt: null },
+              select: { locale: true },
+            })
+          )?.locale
+        : null;
+      const locale = isLocale(userLocale)
+        ? userLocale
+        : isLocale(inquiryLocale)
+          ? inquiryLocale
+          : DEFAULT_LOCALE;
       const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
         tApi(key, values, locale);
       const res = await this.email.send({
@@ -495,7 +508,10 @@ export class PublicInquiryService {
             ),
             ctaUrl: claimed
               ? appRoutes.inquiriesSent(webBase(), locale)
-              : `${webBase()}/company/kayit?email=${encodeURIComponent(email)}`,
+              : localizeAppPath(
+                  `${webBase()}/company/kayit?email=${encodeURIComponent(email)}`,
+                  locale,
+                ),
           },
         },
         context: { type: "public_inquiry_reply", id: replyId },

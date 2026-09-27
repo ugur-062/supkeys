@@ -1,5 +1,6 @@
 "use client";
 
+import { tRuntime } from "@/i18n/runtime";
 import { companyApi } from "@/lib/company-auth/api";
 import type {
   AiActionResult,
@@ -52,7 +53,7 @@ async function uploadTenderFile(file: File): Promise<string> {
     body: file,
     headers: { "Content-Type": file.type },
   });
-  if (!put.ok) throw new Error("Dosya yüklenemedi — lütfen tekrar deneyin");
+  if (!put.ok) throw new Error(tRuntime("common.errors.uploadFailed"));
   return presigned.key;
 }
 

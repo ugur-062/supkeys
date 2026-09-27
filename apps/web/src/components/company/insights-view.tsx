@@ -2,7 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
-import { INTL_LOCALE, formatNumber } from "@/i18n/format";
+import { formatNumber, intlLocale } from "@/i18n/format";
 import { PeriodSelect } from "@/components/company/period-select";
 import { RatioBar } from "@/components/company/ui/mini-bars";
 import { SectionHead } from "@/components/company/ui/stat-tile";
@@ -83,14 +83,14 @@ export function InsightsView() {
             <RankCard
               title={t("enCokBakilanUrunler")}
               empty={t("buDonemdeUrunGoruntulenmesiYok")}
-              rows={d.topProducts.map((p) => ({ key: p.id, label: p.name, value: p.views, unit: t("goruntulenmeBirim") }))}
+              rows={d.topProducts.map((p) => ({ key: p.id, label: p.name, value: p.views, display: t.rich("goruntulenmeSayisi", { n: p.views, b: rankValue }) }))}
               accent="emerald"
               footer={{ href: "/company/satis/urunlerim", label: t("urunlerim") }}
             />
             <RankCard
               title={t("ziyaretciSehirleri")}
               empty={t("ziyaretcilerinSehirBilgisiYok")}
-              rows={d.viewerCities.map((c) => ({ key: c.city, label: c.city, value: c.count, unit: t("firmaBirim") }))}
+              rows={d.viewerCities.map((c) => ({ key: c.city, label: c.city, value: c.count, display: t.rich("firmaSayisi", { n: c.count, b: rankValue }) }))}
               accent="blue"
               footer={{ href: "/company/sirketim/ziyaretciler", label: t("ziyaretEdenler") }}
             />
@@ -120,8 +120,11 @@ export function InsightsView() {
 }
 
 function fmtDay(iso: string, locale: Locale) {
-  return new Date(`${iso}T00:00:00Z`).toLocaleDateString(INTL_LOCALE[locale] ?? "tr-TR", { day: "numeric", month: "short", timeZone: "UTC" });
+  return new Date(`${iso}T00:00:00Z`).toLocaleDateString(intlLocale(locale), { day: "numeric", month: "short", timeZone: "UTC" });
 }
+
+/** Sıra kartında sayının vurgusu (`t.rich` etiketi `<b>`). */
+const rankValue = (chunks: React.ReactNode) => <span className="font-semibold text-zinc-900">{chunks}</span>;
 
 function RankCard({
   title,
@@ -131,7 +134,8 @@ function RankCard({
   footer,
 }: {
   title: string;
-  rows: { key: string; label: string; value: number; unit: string }[];
+  /** `display` = sayı + birim TEK çoğul mesajdan ("3 views" / "1 view"). */
+  rows: { key: string; label: string; value: number; display: React.ReactNode }[];
   empty: string;
   accent: "blue" | "emerald";
   footer: { href: string; label: string };
@@ -149,9 +153,7 @@ function RankCard({
               <div className="flex items-center gap-3 text-sm">
                 <span className="w-5 shrink-0 text-xs tabular-nums text-zinc-400">{i + 1}</span>
                 <span className="min-w-0 flex-1 truncate text-zinc-900">{r.label}</span>
-                <span className="shrink-0 text-xs text-zinc-500">
-                  <span className="font-semibold text-zinc-900">{r.value}</span> {r.unit}
-                </span>
+                <span className="shrink-0 text-xs text-zinc-500">{r.display}</span>
               </div>
               <div className="mt-1.5 pl-8">
                 <RatioBar value={r.value} max={max} accent={accent} />

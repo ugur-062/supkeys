@@ -1,4 +1,5 @@
 import { Type } from "class-transformer";
+import { LOCALES } from "@rothern/i18n";
 import {
   ArrayMaxSize,
   ArrayMinSize,
@@ -50,6 +51,14 @@ export class InviteCompanyUserDto {
   @IsString({ each: true })
   @MaxLength(60, { each: true })
   permissions?: string[];
+
+  /**
+   * Davet dili (2026-09-27): e-posta, kabul sayfası ve (sayfada değiştirilmezse)
+   * açılacak hesabın dili. Verilmezse davet edenin kayıtlı dili.
+   */
+  @IsOptional()
+  @IsIn(LOCALES)
+  locale?: string;
 }
 
 /** Yetki tablosu (Faz 4): kişinin AÇIK izin listesini olduğu gibi yazar. */

@@ -127,6 +127,8 @@ describe("CompanyUsersSection", () => {
 
     expect(h.invite).toHaveBeenCalledWith({
       email: "yeni@firma.com",
+      // Davet dili varsayılanı arayüz dili (2026-09-27).
+      locale: "tr",
       permissions: expect.arrayContaining(["buy:listing:manage"]),
     });
   });

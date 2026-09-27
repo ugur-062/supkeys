@@ -150,3 +150,52 @@ describe("BK-CONN-1: referral signup token-kapsamlı bağlantı", () => {
     expect(ref.status).toBe("PENDING");
   });
 });
+
+// "DAVETİNİZ KABUL EDİLDİ" (2026-09-27): kayıt anında firmanın adı geçici
+// (kurucunun adı) olduğu için e-posta kayıtta GİTMEZ; onboarding bitince
+// gerçek adla ve davet edenin dilinde gider — yalnız KULLANILAN davetin
+// (ACTIVE) sahibine, PENDING istek sahibine değil.
+describe("davet kabul e-postası onboarding'de, gerçek firma adıyla", () => {
+  it("kayıtta e-posta yok; onboarding sonrası yalnız ACTIVE davet edene, onun dilinde ve firma adıyla", async () => {
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
+    const service = new CompanyAuthService(
+      prisma as never,
+      {} as never,
+      {} as never,
+      { log: jest.fn() } as never,
+      email as never,
+      { get: jest.fn().mockReturnValue("http://localhost:3000") } as never,
+      prisma as never,
+    );
+    const a = await makeCompany(prisma, { tier: "GOLD" });
+    const aUser = await makeUser(prisma, a.id, ["SAHIP"] as never);
+    await prisma.companyUser.update({ where: { id: aUser.id }, data: { locale: "en" } });
+    const b = await makeCompany(prisma, { tier: "GOLD" });
+    const bUser = await makeUser(prisma, b.id, ["SAHIP"] as never);
+    const c = await makeCompany(prisma, { tier: "STANDART" });
+    const EMAIL = "kabul@firma.com";
+    await referral(a.id, aUser.id, EMAIL, "tok-kabul-a");
+    await referral(b.id, bUser.id, EMAIL, "tok-kabul-b");
+
+    await consume(service, EMAIL, c.id, "tok-kabul-a");
+    expect(email.send).not.toHaveBeenCalled();
+
+    // Onboarding firmanın GERÇEK adını yazar, ardından bildirim tetiklenir.
+    await prisma.company.update({ where: { id: c.id }, data: { name: "Yeni Tedarik A.Ş." } });
+    await (
+      service as unknown as { notifyReferralInvitersJoined: (id: string) => Promise<void> }
+    ).notifyReferralInvitersJoined(c.id);
+    await new Promise((r) => setTimeout(r, 20)); // gönderim fire-and-forget
+
+    expect(email.send).toHaveBeenCalledTimes(1);
+    const call = email.send.mock.calls[0][0] as {
+      to: { email: string };
+      locale: string;
+      templateData: { data: { subject: string; paragraphs: string[] } };
+    };
+    expect(call.to.email).toBe(aUser.email);
+    expect(call.locale).toBe("en");
+    expect(call.templateData.data.subject).toBe("Your invitation was accepted");
+    expect(call.templateData.data.paragraphs.join(" ")).toContain("Yeni Tedarik A.Ş.");
+  });
+});

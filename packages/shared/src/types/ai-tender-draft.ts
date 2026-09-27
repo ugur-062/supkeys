@@ -43,7 +43,7 @@ export interface AiTenderDraftItem {
 export interface AiTenderDraft {
   title: string | null;
   description: string | null;
-  /** TRY|USD|EUR|GBP|CHF|JPY|AED|CNY|RUB */
+  /** `CURRENCY_CODES` değerlerinden biri (constants/currencies.ts). */
   primaryCurrency: string | null;
   /** ListingDeliveryTerm enum değeri (DOMESTIC_* | Incoterms). */
   deliveryTerm: string | null;
@@ -73,12 +73,28 @@ export interface AiTenderDraft {
   suggestedCategoryIds: string[];
 }
 
+/**
+ * Eksik zorunlu alan KODU (2026-09-27): eskiden Türkçe etiket dönüyordu ve
+ * EN/RU arayüzde ham basılıyordu; etiket artık istemcide
+ * (`web.domain.aiMissingField.<kod>`), model bağlamında API'de.
+ */
+export const AI_MISSING_FIELDS = [
+  "title",
+  "items",
+  "quantities",
+  "units",
+  "deliveryTerm",
+  "bidsCloseAt",
+  "category",
+] as const;
+export type AiMissingField = (typeof AI_MISSING_FIELDS)[number];
+
 /** Extract/refine endpoint yanıtı (api → web sözleşmesi). */
 export interface AiTenderExtractResult {
   draft: AiTenderDraft;
   flags: AiFieldFlag[];
-  /** Kullanıcının tamamlaması gereken zorunlu alanlar (TR etiketleriyle). */
-  missingRequired: string[];
+  /** Kullanıcının tamamlaması gereken zorunlu alanlar (kod; etiket istemcide). */
+  missingRequired: AiMissingField[];
   route: "text" | "pdf_vision" | "image_vision";
   /** Premium istendi ama alt-bütçe doluydu → ucuz modelle çalışıldı. */
   downgraded: boolean;

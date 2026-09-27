@@ -1,5 +1,6 @@
 "use client";
 
+import { foldSearchText } from "@rothern/shared";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDate } from "@/lib/format-date";
 import { PageHeader } from "@/components/list";
@@ -104,9 +105,10 @@ export function CompanyInboxView() {
       if (b.lastMessageAt) return 1;
       return a.name.localeCompare(b.name, "tr");
     });
-    const q = search.trim().toLocaleLowerCase("tr");
+    // Katlanmış karşılaştırma — `tr` küçültme Latin "I"yı "ı" yapıyordu.
+    const q = foldSearchText(search);
     return q
-      ? all.filter((r) => r.name.toLocaleLowerCase("tr").includes(q))
+      ? all.filter((r) => foldSearchText(r.name).includes(q))
       : all;
   }, [connections.data, threads.data, search]);
 

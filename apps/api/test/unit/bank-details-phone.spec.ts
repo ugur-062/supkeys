@@ -1,11 +1,19 @@
 import {
   bankAccountRef,
   bankDetailsErrors,
+  classifyBankAccountInput,
+  countryIbanMode,
+  ibanLengthForPrefix,
+  ibanPlaceholder,
+  isValidIbanAny,
   isValidSwiftBic,
   parsePhone,
   composePhone,
   parseInternationalInput,
   stripTrunkPrefix,
+  isValidPhoneNumber,
+  normalizeDigits,
+  phoneNationalLength,
 } from "@rothern/shared";
 
 /**
@@ -27,6 +35,58 @@ describe("banka bilgisi kuralı", () => {
     expect(bankDetailsErrors({ country: "IN", accountNumber: "50100123456789", swiftBic: "HDFCINBB", bankName: "HDFC Bank" })).toEqual([]);
     expect(bankDetailsErrors({ country: "IN", accountNumber: "abc", swiftBic: "HDFC", bankName: "X" }).sort()).toEqual(["accountNumberInvalid", "swiftInvalid"].sort());
     expect(bankDetailsErrors({ country: "CN", iban: "DE89370400440532013000" })).toEqual([]);
+    // Tek alanlı formlar (doğrulama, admin) IBAN'ı hesap no alanında gönderir.
+    expect(bankDetailsErrors({ country: "IN", accountNumber: "DE89 3704 0044 0532 0130 00" })).toEqual([]);
+  });
+
+  it("kısmi IBAN ülkesi (BR, EG…): IBAN YA DA hesap no + SWIFT + banka adı", () => {
+    expect(countryIbanMode("BR")).toBe("optional");
+    expect(countryIbanMode("RU")).toBe("optional"); // kayıtta var, profil IBAN'sız
+    expect(countryIbanMode("DE")).toBe("required");
+    expect(countryIbanMode("IN")).toBe("none");
+    // Yerel hesap (agência/conta) + SWIFT + banka adı yeter.
+    expect(
+      bankDetailsErrors({ country: "BR", accountNumber: "0001 12345-6", swiftBic: "BRASBRRJ", bankName: "Banco do Brasil" }),
+    ).toEqual([]);
+    expect(bankDetailsErrors({ country: "BR" }).sort()).toEqual(
+      ["accountNumberRequired", "bankNameRequired", "swiftRequired"].sort(),
+    );
+    // Geçerli Brezilya IBAN'ı (29) da kabul — SWIFT/banka adı istenmez.
+    expect(bankDetailsErrors({ country: "BR", iban: "BR1800360305000010009795493C1" })).toEqual([]);
+    expect(bankDetailsErrors({ country: "BR", accountNumber: "BR18 0036 0305 0000 1000 9795 493C 1" })).toEqual([]);
+    // Doğrulamada SWIFT her ülkede zorunlu kalır.
+    expect(bankDetailsErrors({ country: "BR", iban: "BR1800360305000010009795493C1" }, { requireSwift: true })).toEqual([
+      "swiftRequired",
+    ]);
+  });
+
+  it("IBAN uzunluğu ülke önekinin kayıtlı uzunluğuyla denetlenir (TR katı)", () => {
+    expect(isValidIbanAny("DE89370400440532013000")).toBe(true);
+    // Mod-97'yi tutan ama DE için bir hane eksik/fazla IBAN reddedilir.
+    expect(isValidIbanAny("DE8937040044053201300")).toBe(false);
+    expect(isValidIbanAny("DE893704004405320130000")).toBe(false);
+    expect(isValidIbanAny("TR330006100519786457841326")).toBe(true);
+    expect(isValidIbanAny("TR33000610051978645784132")).toBe(false);
+    expect(bankDetailsErrors({ country: "DE", iban: "DE8937040044053201300" })).toEqual(["ibanInvalid"]);
+    // Kayıtta olmayan önek: yalnız mod-97 (deneysel IBAN ülkeleri).
+    expect(ibanLengthForPrefix("ZZ")).toBeNull();
+  });
+
+  it("IBAN yer tutucusu ülke önekiyle ve kayıtlı uzunlukta", () => {
+    expect(ibanPlaceholder("TR")).toBe("TR00 0000 0000 0000 0000 0000 00");
+    expect(ibanPlaceholder("DE")).toBe("DE00 0000 0000 0000 0000 00");
+    expect(ibanPlaceholder("RE")).toMatch(/^FR00 /); // Fransız toprağı FR IBAN'ı kullanır
+    expect(ibanPlaceholder("IN")).toBeNull();
+  });
+
+  it("tek alana yazılan hesap kimliği: IBAN ülkesinde IBAN, değilse geçerli IBAN ya da hesap no", () => {
+    expect(classifyBankAccountInput("DE", "de89 3704 0044 0532 0130 00")).toEqual({ iban: "DE89370400440532013000", accountNumber: null });
+    expect(classifyBankAccountInput("BR", "0001 12345-6")).toEqual({ iban: null, accountNumber: "0001 12345-6" });
+    expect(classifyBankAccountInput("BR", "BR1800360305000010009795493C1")).toEqual({
+      iban: "BR1800360305000010009795493C1",
+      accountNumber: null,
+    });
+    expect(classifyBankAccountInput("IN", " ")).toEqual({ iban: null, accountNumber: null });
   });
 
   it("SWIFT/BIC biçimi: 8/11 karakter ve geçerli ülke kodu", () => {
@@ -74,5 +134,51 @@ describe("telefon ayrıştırıcı", () => {
     expect(parsePhone("+1268 4601234").code).toBe("AG");
     expect(parsePhone("+94 771234567").code).toBe("LK");
     expect(composePhone("LK", "771234567")).toBe("+94 771234567");
+  });
+  it("ulusal önek '8' (RU/KZ/BY): yalnız tam uzunluğun bir fazlasında düşer", () => {
+    expect(stripTrunkPrefix("RU", "8 916 123-45-67")).toBe("9161234567");
+    // 812 St. Petersburg: 10 haneli numara "8" ile BAŞLAYABİLİR → dokunulmaz.
+    expect(stripTrunkPrefix("RU", "8121234567")).toBe("8121234567");
+    expect(stripTrunkPrefix("RU", "8 812 123 45 67")).toBe("8121234567");
+    expect(stripTrunkPrefix("RU", "8")).toBe("8"); // yazılmaya yeni başlandı
+    expect(stripTrunkPrefix("KZ", "8 701 123 45 67")).toBe("7011234567");
+    expect(stripTrunkPrefix("BY", "8 029 123 45 67")).toBe("291234567");
+    // "+7 8 701 …": önek düşünce ülke yeniden belirlenir (Kazakistan).
+    expect(parseInternationalInput("+7 8 701 123 45 67", "RU")).toEqual({ code: "KZ", national: "7011234567" });
+  });
+  it("Macaristan ulusal öneki '06' üçüncü hanede düşer", () => {
+    expect(stripTrunkPrefix("HU", "06 30 123 4567")).toBe("301234567");
+    expect(stripTrunkPrefix("HU", "06")).toBe("06");
+    expect(stripTrunkPrefix("HU", "063")).toBe("3");
+  });
+  it("Arap-Hint/Farsça rakamlar sessizce düşmez", () => {
+    expect(normalizeDigits("٠٥٣٢ ۱۲۳")).toBe("0532 123");
+    expect(stripTrunkPrefix("TR", "٠٥٣٢١٢٣٤٥٦٧")).toBe("5321234567");
+    expect(composePhone("EG", "١٠٠١٢٣٤٥٦٧")).toBe("+20 1001234567");
+    expect(isValidPhoneNumber("+٢٠ ١٠٠ ١٢٣ ٤٥٦٧")).toBe(true);
+  });
+  it("uzunluk ülkeye göre: TR tam 10; kısa geçerli numaralar (AD, LU, FO, GL, SB) kabul", () => {
+    expect(isValidPhoneNumber("+90 5321234567")).toBe(true);
+    expect(isValidPhoneNumber("+90 89161234567")).toBe(false); // bayrak değişmemiş Rus numarası
+    expect(isValidPhoneNumber("+90 532123456")).toBe(false);
+    expect(isValidPhoneNumber("+7 9161234567")).toBe(true);
+    expect(isValidPhoneNumber("+7 89161234567")).toBe(false);
+    expect(isValidPhoneNumber("+376 312345")).toBe(true);
+    expect(isValidPhoneNumber("+352 4711")).toBe(true);
+    expect(isValidPhoneNumber("+298 123456")).toBe(true);
+    expect(isValidPhoneNumber("+299 123456")).toBe(true);
+    expect(isValidPhoneNumber("+677 12345")).toBe(true);
+    expect(isValidPhoneNumber("+39 0612345678")).toBe(true); // İtalya'da 0 numaranın parçası
+    expect(isValidPhoneNumber("+1268 4601234")).toBe(true); // NANP ada: 7 hane
+    expect(isValidPhoneNumber("+1 2125550100")).toBe(true);
+    // "+"sız eski kayıt Türkiye numarası sayılır (ulusal önek atılarak).
+    expect(isValidPhoneNumber("0532 123 45 67")).toBe(true);
+    expect(isValidPhoneNumber("0049 30 1234567")).toBe(true);
+    expect(isValidPhoneNumber("")).toBe(false);
+    expect(isValidPhoneNumber("+90 532 abc")).toBe(false);
+    // Tabloda olmayan ülke: 6 hane – E.164 tavanı (15 − ülke kodu); NANP ada 7.
+    expect(phoneNationalLength("IO")).toEqual({ min: 6, max: 12 });
+    expect(phoneNationalLength("KY")).toEqual({ min: 7, max: 7 });
+    expect(phoneNationalLength("TR")).toEqual({ min: 10, max: 10 });
   });
 });

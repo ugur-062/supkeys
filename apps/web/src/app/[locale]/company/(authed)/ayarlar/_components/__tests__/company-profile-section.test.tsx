@@ -104,7 +104,7 @@ describe("CompanyProfileSection", () => {
     render(<CompanyProfileSection />);
     expect(screen.getByLabelText("Firma adı")).toBeDisabled();
     expect(screen.getByLabelText("Yasal unvan")).toBeDisabled();
-    expect(screen.getByLabelText("İl / Şehir")).toBeEnabled();
+    expect(screen.getByLabelText("İl")).toBeEnabled();
   });
 
   it("REJECTED: düzeltme için unvan serbest, rozet 'Reddedildi'", () => {
@@ -118,8 +118,8 @@ describe("CompanyProfileSection", () => {
     h.profile = baseProfile({ companyVerificationStatus: "VERIFIED" });
     const user = userEvent.setup();
     render(<CompanyProfileSection />);
-    await user.clear(screen.getByLabelText("İl / Şehir"));
-    await user.type(screen.getByLabelText("İl / Şehir"), "Ankara");
+    await user.clear(screen.getByLabelText("İl"));
+    await user.type(screen.getByLabelText("İl"), "Ankara");
     expect(screen.getByText("Kaydedilmemiş değişiklikler var")).toBeInTheDocument();
     await user.click(saveButton());
     await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
@@ -159,8 +159,34 @@ describe("CompanyProfileSection", () => {
     expect(screen.getByText("Kazakistan")).toBeInTheDocument();
     expect(screen.queryByText("Vergi Dairesi")).not.toBeInTheDocument();
     expect(screen.queryByLabelText("KEP Adresi")).not.toBeInTheDocument();
-    expect(screen.getByText(/BIN/)).toBeInTheDocument();
+    // Etiket arayüz dilinde + resmî yerel ad (katalog; eskiden "БИН (BIN) — 12 hane").
+    expect(screen.getByText("İşletme kimlik no (БИН)")).toBeInTheDocument();
+    expect(screen.queryByText(/12 hane/)).not.toBeInTheDocument();
     expect(screen.getByText("Yetkili Kimlik No")).toBeInTheDocument();
+  });
+
+  it("TR dışı firma: İlçe yerine eyalet/bölge düzenlenir ve yalnız o alan gönderilir", async () => {
+    h.profile = baseProfile({ country: "DE", city: "München", district: null, stateRegion: "Bayern" });
+    const user = userEvent.setup();
+    render(<CompanyProfileSection />);
+    expect(screen.queryByLabelText("İlçe")).not.toBeInTheDocument();
+    expect(screen.getByText("KDV no (VAT) ya da vergi no")).toBeInTheDocument();
+    const state = screen.getByLabelText("Eyalet / bölge");
+    expect(state).toHaveValue("Bayern");
+    await user.clear(state);
+    await user.type(state, "Hessen");
+    await user.click(saveButton());
+    await waitFor(() => expect(h.update).toHaveBeenCalledWith({ stateRegion: "Hessen" }));
+  });
+
+  it("kayıtta yazılan 'Kurucu' unvanı arayüz dilinde; elle girilen unvan olduğu gibi", () => {
+    h.profile = baseProfile({ authorizedTitle: "Основатель" });
+    const { unmount } = render(<CompanyProfileSection />);
+    expect(screen.getByText("Kurucu")).toBeInTheDocument();
+    unmount();
+    h.profile = baseProfile({ authorizedTitle: "Genel Müdür" });
+    render(<CompanyProfileSection />);
+    expect(screen.getByText("Genel Müdür")).toBeInTheDocument();
   });
 
   it("sunucu kilidi (400) toast ile gösterilir", async () => {

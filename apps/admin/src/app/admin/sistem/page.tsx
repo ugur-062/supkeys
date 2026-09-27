@@ -39,6 +39,8 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+// API `FOREIGN_CURRENCY_CODES` (@rothern/shared) ile BİREBİR — admin paketi
+// shared'e bağlı değil; API listede olmayan kodu 400 ile reddeder.
 const MANUAL_CURRENCIES = [
   "USD",
   "EUR",
@@ -48,6 +50,18 @@ const MANUAL_CURRENCIES = [
   "AED",
   "CNY",
   "RUB",
+  "AZN",
+  "SEK",
+  "NOK",
+  "DKK",
+  "BGN",
+  "RON",
+  "KRW",
+  "SAR",
+  "QAR",
+  "KWD",
+  "AUD",
+  "CAD",
 ];
 
 /** Manuel kur formu — TCMB arızası acil durumu (yalnız SUPER_ADMIN, BE guard). */

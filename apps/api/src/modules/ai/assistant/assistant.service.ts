@@ -1,5 +1,6 @@
 import { currentLocale } from "../../../common/i18n/locale-context";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { tApi } from "../../../common/i18n/i18n.service";
 import {
   ForbiddenException,
   Inject,
@@ -35,6 +36,7 @@ import {
   summarySystemPrompt,
   buildDraftContext,
   buildSummaryPrompt,
+  missingFieldsForPrompt,
 } from "./assistant.prompts";
 import {
   TOOL_NAMES,
@@ -104,7 +106,8 @@ export class AssistantService {
           data: {
             companyId: user.companyId,
             userId: user.userId,
-            title: (text || "Satın Alma Talebi taslağı").slice(0, 60),
+            // Belgeyle açılan sohbetin başlığı arayüz dilinde (sohbet listesinde görünür).
+            title: (text || tApi("api.ai.assistant.draftSessionTitle")).slice(0, 60),
           },
         });
 
@@ -253,7 +256,7 @@ export class AssistantService {
             responseParts.push({
               functionResponse: {
                 name: call.name,
-                response: { status: "ok", missingRequired: s.missingRequired },
+                response: { status: "ok", missingRequired: missingFieldsForPrompt(s.missingRequired) },
               },
             });
             continue;
@@ -341,7 +344,7 @@ export class AssistantService {
           ...draft,
           draft: { ...draft.draft, suggestedCategoryIds: ids },
           missingRequired: draft.missingRequired.filter(
-            (m) => !m.startsWith("Kategori"),
+            (m) => m !== "category",
           ),
         };
       }
@@ -349,13 +352,13 @@ export class AssistantService {
 
     const settled = await this.budget.settle(reservation.id, totalUsage);
     if (!reply.trim()) {
-      reply = "Şu an bu isteğe yanıt oluşturamadım. Farklı bir şekilde sorabilir misiniz?";
+      reply = tApi("api.ai.assistant.fallbackReply");
     }
 
     // Mesajları kaydet + pencere taşıyorsa özetle + tur sayacı + AI-3 taslak.
     const nextSeq = stored.length > 0 ? stored[stored.length - 1]!.seq : 0;
     const userContent =
-      text || (dto.fileKeys && dto.fileKeys.length > 0 ? "[belge yüklendi]" : "");
+      text || (dto.fileKeys && dto.fileKeys.length > 0 ? tApi("api.ai.assistant.documentUploaded") : "");
     await this.prisma.$transaction([
       this.prisma.aiChatMessage.create({
         data: { sessionId: session.id, seq: nextSeq + 1, role: "USER", content: userContent },

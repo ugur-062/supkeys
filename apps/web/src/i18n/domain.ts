@@ -1,11 +1,11 @@
 import { closingUrgency as closingUrgencyClass, daysUntil } from "@/lib/tenders/seller-state";
-import { UNITS, companyActivityLabel, countryName as countryNameTr, provinceDisplayName } from "@rothern/shared";
+import { companyActivityLabel, countryName as countryNameTr, parseSystemText, paymentMethodCode, provinceDisplayName } from "@rothern/shared";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
-import { formatDate } from "@/lib/format-date";
+import { formatDate, type DateVariant } from "@/lib/format-date";
 import type { PriceLabels } from "@/lib/public/product-price";
 import type { SeoT } from "@/lib/seo/entities";
-import { INTL_LOCALE } from "./format";
+import { findUnitDef, formatNumber, formatPercent, intlLocale } from "./format";
 import { segmentTaglineKey } from "@/lib/public/segment-taglines";
 import { moneyInputError } from "@/lib/money-input";
 
@@ -99,6 +99,7 @@ export function useRoleLabel(): (code: string) => string {
  */
 export function useRelativeTime(style: "ago" | "short" = "ago"): (iso: string | null | undefined) => string {
   const t = useTranslations("web.domain.relativeTime");
+  const locale = useLocale() as Locale;
   return (iso) => {
     if (!iso) return "";
     const min = Math.floor((Date.now() - new Date(iso).getTime()) / 60000);
@@ -108,8 +109,30 @@ export function useRelativeTime(style: "ago" | "short" = "ago"): (iso: string | 
     if (hr < 24) return t(style === "ago" ? "hoursAgo" : "hours", { n: hr });
     const day = Math.floor(hr / 24);
     if (day < 7) return t(style === "ago" ? "daysAgo" : "days", { n: day });
-    return formatDate(iso, "short");
+    // 7 günden eskisi kısa tarih — OKUYUCUNUN dilinde (Türkçeye düşüyordu).
+    return formatDate(iso, "short", locale);
   };
+}
+
+/**
+ * Tarih biçimleyici — arayüz diline bağlı (`lib/format-date.ts` `formatDate`).
+ * Saatli varyant Türkçe dışında dilim etiketi taşır ("17:00 (GMT+3)").
+ */
+export function useFormatDate(): (value: string | Date | null | undefined, variant?: DateVariant) => string {
+  const locale = useLocale() as Locale;
+  return (value, variant = "short") => formatDate(value, variant, locale);
+}
+
+/** Sayı biçimleyici — arayüz dilinde gruplar/ondalık (`i18n/format.ts` `formatNumber`). */
+export function useFormatNumber(): (n: number | string, opts?: Intl.NumberFormatOptions) => string {
+  const locale = useLocale();
+  return (n, opts) => formatNumber(Number(n), locale, opts);
+}
+
+/** Yüzde biçimleyici — değer yüzde biriminde (12 → TR "%12", EN "12%", RU "12 %"). */
+export function useFormatPercent(): (pct: number, opts?: Parameters<typeof formatPercent>[2]) => string {
+  const locale = useLocale();
+  return (pct, opts) => formatPercent(pct, locale, opts);
 }
 
 export function useActivityLabel(): (code: string) => string {
@@ -151,10 +174,11 @@ export function useClosingUrgency(): (
 export function usePriceLabels(): PriceLabels {
   const t = useTranslations("web.marketplace.price");
   const locale = useLocale();
+  const quantity = useQuantityLabel();
   return {
-    locale: INTL_LOCALE[locale] ?? "tr-TR",
+    locale: intlLocale(locale),
     onRequest: t("onRequest"),
-    fromQty: (qty, unit) => t("fromQty", { qty, unit }),
+    fromQty: (n, unit, code) => t("fromQty", { qty: quantity(n, unit, code) }),
   };
 }
 
@@ -193,9 +217,31 @@ export function useSeoT(): SeoT {
 export function useUnitLabel(): (unit: string | null | undefined, code?: string | null) => string {
   const t = useTranslations("web.domain.unit");
   return (unit, code) => {
-    const known = code ? UNITS.find((u) => u.code === code) : unit ? UNITS.find((u) => u.nameTr === unit || u.symbol === unit || u.code === unit) : undefined;
+    const known = findUnitDef(unit, code);
     if (known && t.has(known.code as never)) return t(known.code as never);
     return unit ?? "";
+  };
+}
+
+/**
+ * Miktar + birim DİLİN ÇOĞUL KURALIYLA (`web.domain.qty.<KOD>`): "100 pieces",
+ * "100 коробок", "100 adet". Tekil etiketi sayının yanına yapıştırmak
+ * (`${n} ${unitLabel(u)}`) EN/RU'da "100 piece" basıyordu — miktar gösteren
+ * her yer bunu kullanır. Sunucu karşılığı `quantityWith` (lib/seo/entities).
+ */
+export function useQuantityLabel(): (
+  qty: number | string,
+  unit: string | null | undefined,
+  code?: string | null,
+) => string {
+  const t = useTranslations("web.domain.qty");
+  const unitLabel = useUnitLabel();
+  return (qty, unit, code) => {
+    const n = Number(qty);
+    if (!Number.isFinite(n)) return [String(qty), unitLabel(unit, code)].filter(Boolean).join(" ");
+    const known = findUnitDef(unit, code);
+    if (known && t.has(known.code as never)) return t(known.code as never, { n } as never);
+    return t("other", { n, unit: unit ?? "" });
   };
 }
 
@@ -227,6 +273,8 @@ export const useOrderStatusLabel = dictHook("web.domain.orderStatus");
 export const useOrderStepLabel = dictHook("web.domain.orderStep");
 /** Tedarikçi gözünden talep durumu (`deriveSellerTenderState().key`). */
 export const useSellerStateLabel = dictHook("web.domain.sellerState");
+/** AI taslağında eksik zorunlu alan (`AiMissingField` kodu → etiket). */
+export const useAiMissingFieldLabel = dictHook("web.domain.aiMissingField");
 
 /** Denetim kaydı eylem adı; bilinmeyen anahtar "Diğer işlem". Nokta → alt çizgi (katalog anahtarı). */
 export function useAuditActionLabel(): (action: string) => string {
@@ -300,6 +348,37 @@ export function useFormatPaymentPlan(): (p: { paymentCategory?: string | null; a
 
 /** Teklif belgesi bölümü (`web.domain.bidDocKind.<KOD>`). */
 export const useBidDocKindLabel = dictHook("web.domain.bidDocKind");
+
+/**
+ * Teklif teslim SÜRESİ (`BidDeliveryTime` kodu → `web.domain.bidDeliveryTime`).
+ * Paylaşılan `BID_DELIVERY_TIME_LABELS` Türkçe KALIR (Excel açılır değerleri
+ * onunla ayrıştırılır); ekran bu hook'u okur. Boş → null (`bidDeliveryTimeLabel` aynası).
+ */
+export function useBidDeliveryTimeLabel(): (code: string | null | undefined) => string | null {
+  const t = useTranslations("web.domain.bidDeliveryTime");
+  return (code) => (!code ? null : t.has(code as never) ? t(code as never) : code);
+}
+
+/**
+ * Sistemin yazdığı gerekçe/not (`@rothern/shared` `parseSystemText`): kodlu ya
+ * da eski Türkçe kayıt okuyucunun dilinde; kullanıcının serbest metni aynen.
+ */
+export function useSystemText(): (raw: string | null | undefined) => string {
+  const t = useTranslations("web.domain.systemText");
+  return (raw) => {
+    const { code, text } = parseSystemText(raw);
+    return code ? t(code, { text, hasText: text ? "yes" : "no" }) : text;
+  };
+}
+
+/** Ödeme yöntemi: akreditif/çek okuyucunun dilinde, serbest metin aynen; boş → null. */
+export function usePaymentMethodLabel(): (raw: string | null | undefined) => string | null {
+  const t = useTranslations("web.domain.paymentMethod");
+  return (raw) => {
+    const code = paymentMethodCode(raw);
+    return code ? t(code) : raw?.trim() || null;
+  };
+}
 
 /**
  * Para girişi hatası — `lib/money-input.ts` React DIŞIDIR ve ANAHTAR döner

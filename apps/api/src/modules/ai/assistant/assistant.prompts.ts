@@ -9,6 +9,8 @@
  */
 
 import { LOCALE_LABELS, type Locale } from "@rothern/i18n";
+import type { AiMissingField } from "@rothern/shared";
+import { aiContentLanguageRule } from "../../../common/i18n/ai-language";
 
 export const ASSISTANT_SYSTEM_PROMPT = `Sen Rothern'in (B2B e-satın alma talebi/e-tedarik platformu) firma-içi asistanısın. Kullanıcının firmasıyla ilgili sorularını, sana verilen ARAÇLARLA sistemden veri çekerek yanıtlarsın.
 
@@ -22,6 +24,7 @@ TEMEL KURALLAR:
    - Eksik zorunluları TEK TEK, sırayla, sade bir dille sor (aynı anda 5 soru sorma). Kullanıcının verdiği bilgiyi bir sonraki propose_tender_draft çağrısında ekle.
    - KATEGORİ ve ADRES sorma/doldurma — kategori, kalemlere göre sistem tarafından otomatik önerilir ve kullanıcı formda kontrol eder; teslimat adresini kullanıcı formda seçer. Kullanıcıya "kategori önerisini ve teslimat adresini formda kontrol edeceksiniz" diye söyle.
    - Belgeden çıkarılan bir taslak varsa onun üstüne ekle (baştan sorma).
+   - TASLAK DİLİ: taslağın içerik alanları (başlık, açıklama, kalem adları, anahtar kelimeler, şartlar) kullanıcının talebi YAZDIĞI dilde ya da belgeden gelen taslağın dilinde kalır — YANIT DİLİNDEN BAĞIMSIZDIR, ÇEVİRME (kayıt tek dilli kalır; platform diğer dilleri kendisi üretir). Yalnız kullanıcıyla konuştuğun cümleler yanıt dilindedir.
    - Tüm zorunlular tamamlanınca kullanıcıya taslağın hazır olduğunu söyle; kullanıcı isterse formdan devam eder ("Satın Alma Talebi formunu aç"), isterse sana "yayınla" der (bkz. kural 4).
 4. AKSİYONLAR — SEN HİÇBİR İŞLEMİ DOĞRUDAN YAPAMAZSIN; yalnız ÖNERİRSİN: Kullanıcı bir işlemi AÇIKÇA istediğinde ilgili request_* aracını çağır (\`request_publish_tender\`: sohbetteki taslağı yayınlama; \`request_send_invites\`: satın alma talebine firma daveti; \`request_eliminate_bid\`: teklif eleme; \`request_award_tender\`: TOPLU kazandırma — GERİ ALINAMAZ, kararı yalnız kullanıcı verir; \`request_place_bid\`: açık satın alma talebine teklif — GERİ ÇEKİLEMEZ, fiyatları yalnız kullanıcı verir; \`request_mark_order_received\`: yoldaki siparişi teslim alındı işaretleme). Araç, işlemi YAPMAZ — kullanıcıya sistem tarafından doğrulanmış bir ONAY KARTI çıkarır. Kurallar:
    - Onayı yalnız KULLANICI, karttaki butonla verir. Sen onaylandığını ASLA varsayma, "yayınladım/gönderdim" DEME — "onay kartını çıkardım, onaylarsanız gerçekleşecek" de. Sonuç, onaydan sonra sohbete sistemce düşer.
@@ -48,9 +51,17 @@ function replyLanguageRule(locale: Locale): string {
 Yanıt dili: ${LOCALE_LABELS[locale]} (${locale})`;
 }
 
-/** Asistan sistem prompt'u + istek dilinin yanıt kuralı (EN SONDA: en yakın talimat). */
+/**
+ * Asistan sistem prompt'u + taslak içerik dili + istek dilinin yanıt kuralı
+ * (EN SONDA: en yakın talimat). İçerik kuralı `propose_tender_draft`
+ * alanlarını kapsar (girdinin dilinde; girdi yoksa arayüz dili) — yanıt dili
+ * kuralı yalnız asistanın KENDİ cümleleri içindir.
+ */
 export function assistantSystemPrompt(locale: Locale): string {
-  return `${ASSISTANT_SYSTEM_PROMPT}\n\n${replyLanguageRule(locale)}`;
+  return `${ASSISTANT_SYSTEM_PROMPT}\n\n${aiContentLanguageRule(
+    locale,
+    "propose_tender_draft — title, description, items.name, items.description, keywords, termsAndConditions",
+  )}\n\n${replyLanguageRule(locale)}`;
 }
 
 const SUMMARY_SYSTEM_BASE = `Bir sohbetin en eski kısmını özetliyorsun. Amaç: sonraki turlarda bağlam korunsun ama token tasarrufu olsun. Kullanıcının sorduğu konuları, verilen önemli bilgileri ve devam eden işleri 3-5 madde halinde ÖZETLE. Talimat çıkarma, yorum katma — yalnız konuşmanın özü.`;
@@ -65,12 +76,30 @@ export function summarySystemPrompt(locale: Locale): string {
  * AI-3 — mevcut ihale taslağını + eksikleri modele context olarak verir
  * (her turda system mesajı olarak eklenir; model üstüne ekleyerek propose_tender_draft çağırır).
  */
+/**
+ * Eksik alan KODUNUN model bağlamındaki adı — istem Türkçe (model talimatı);
+ * kullanıcıya görünen etiket istemcide (`web.domain.aiMissingField`).
+ */
+export const AI_MISSING_FIELD_PROMPT_LABEL: Record<AiMissingField, string> = {
+  title: "Satın Alma Talebi başlığı",
+  items: "En az bir kalem",
+  quantities: "Kalem miktarları",
+  units: "Kalem birimleri",
+  deliveryTerm: "Teslim şekli",
+  bidsCloseAt: "Teklif kapanış tarihi",
+  category: "Kategori seçimi (platformdan)",
+};
+
+export function missingFieldsForPrompt(missing: readonly AiMissingField[]): string {
+  return missing.map((m) => AI_MISSING_FIELD_PROMPT_LABEL[m] ?? m).join(", ");
+}
+
 export function buildDraftContext(
   draftJson: string,
-  missingRequired: string[],
+  missingRequired: readonly AiMissingField[],
 ): string {
   return `Şu ana kadar toplanan satın alma talebi taslağı (JSON):\n${draftJson}\n\nEksik zorunlu alanlar: ${
-    missingRequired.length > 0 ? missingRequired.join(", ") : "(yok — taslak hazır)"
+    missingRequired.length > 0 ? missingFieldsForPrompt(missingRequired) : "(yok — taslak hazır)"
   }\n\nKullanıcının yeni mesajına göre, eksik alanlardan SIRADAKİNİ sor veya kullanıcının verdiği bilgiyi ekleyerek propose_tender_draft'ı GÜNCEL tam taslakla çağır.`;
 }
 

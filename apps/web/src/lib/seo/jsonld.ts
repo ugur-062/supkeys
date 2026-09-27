@@ -90,8 +90,12 @@ export function organizationNode(): JsonLdNode {
   });
 }
 
-/** Site düğümü + arama eylemi (Google "sitelinks search box" ve AI keşfi). */
-export function webSiteNode(): JsonLdNode {
+/**
+ * Site düğümü + arama eylemi (Google "sitelinks search box" ve AI keşfi).
+ * Arama adresi sayfanın DİLİNDE (2026-09-27): EN sayfadan yapılan arama
+ * `/en/products?q=` açsın — Türkçe dizine düşmesin.
+ */
+export function webSiteNode(locale: Locale = DEFAULT_LOCALE): JsonLdNode {
   return compact({
     "@type": "WebSite",
     "@id": SITE_ID(),
@@ -104,16 +108,16 @@ export function webSiteNode(): JsonLdNode {
       "@type": "SearchAction",
       target: {
         "@type": "EntryPoint",
-        urlTemplate: `${absoluteUrl(MARKETPLACE_ROUTES.products)}?q={search_term_string}`,
+        urlTemplate: `${absoluteUrl(localizePath(MARKETPLACE_ROUTES.products, locale))}?q={search_term_string}`,
       },
       "query-input": "required name=search_term_string",
     },
   });
 }
 
-/** Her public sayfanın taşıdığı kimlik grafiği. */
-export function siteGraph(): JsonLdNode {
-  return graph([organizationNode(), webSiteNode()]);
+/** Her public sayfanın taşıdığı kimlik grafiği (arama eylemi sayfanın dilinde). */
+export function siteGraph(locale: Locale = DEFAULT_LOCALE): JsonLdNode {
+  return graph([organizationNode(), webSiteNode(locale)]);
 }
 
 /* ------------------------------------------------------------------ */

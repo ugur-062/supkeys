@@ -85,9 +85,11 @@ companyApi.interceptors.response.use(
     }
 
     if (status === 403) {
-      // Paket kilidi (TIER_REQUIRED): sayfa zaten kilit kartı basıyor — toast
-      // aynı mesajı ikinci kez (ve her odak yenilemesinde) gösterirdi.
-      if ((data as { code?: string } | undefined)?.code !== "TIER_REQUIRED") {
+      // Paket kilidi (TIER_REQUIRED) ve ülke kapısı (COUNTRY_NOT_ELIGIBLE,
+      // 2026-09-27): sayfa zaten kilit kartı basıyor — toast aynı mesajı ikinci
+      // kez (ve her odak yenilemesinde) gösterirdi.
+      const code = (data as { code?: string } | undefined)?.code;
+      if (code !== "TIER_REQUIRED" && code !== "COUNTRY_NOT_ELIGIBLE") {
         toast.error(pickMessage(data, tRuntime("common.errors.forbidden")));
       }
       return Promise.reject(error);

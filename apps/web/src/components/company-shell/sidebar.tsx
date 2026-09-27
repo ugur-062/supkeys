@@ -1,6 +1,7 @@
 "use client";
 
 import { useNavLabel } from "@/i18n/domain";
+import { upperForText } from "@/i18n/format";
 import { useTranslations } from "next-intl";
 import { tierAtLeast } from "@rothern/shared";
 import {
@@ -227,7 +228,7 @@ export function CompanySidebarContent({
               {(company?.name ?? "?")
                 .split(/\s+/)
                 .slice(0, 2)
-                .map((w) => w[0]?.toLocaleUpperCase("tr-TR") ?? "")
+                .map((w) => (w[0] ? upperForText(w[0], w) : ""))
                 .join("")}
             </span>
             {expanded ? (

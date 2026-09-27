@@ -2,7 +2,7 @@ import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import type { Metadata } from "next";
 import { LegalDoc } from "@/components/marketing/legal-doc";
-import { buildMetadata } from "@/lib/seo/meta";
+import { LEGAL_DOC_LOCALES, buildMetadata } from "@/lib/seo/meta";
 import { OPERATOR } from "@/lib/company-info";
 
 /* "— Rothern" YOK: kök şablon (`%s · Rothern`) markayı ekliyor; elle
@@ -12,6 +12,8 @@ export async function generateMetadata({ params }: { params: LocaleParams }): Pr
   const t = await getTranslations({ locale, namespace: "web.marketing.legal.kvkk" });
   return buildMetadata({
     locale,
+    // Hukuki metin yalnız Türkçe: EN/RU sayfanın kanoniği Türkçe adres.
+    locales: LEGAL_DOC_LOCALES,
     title: t("metaTitle"),
     description: t("metaDesc"),
     path: "/sozlesmeler/kvkk",

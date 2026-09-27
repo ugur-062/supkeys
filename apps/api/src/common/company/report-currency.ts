@@ -1,3 +1,6 @@
+import { isCurrencyCode, type CurrencyCode } from "@rothern/shared";
+import { convertAmount, resolveCompanyCurrency } from "../currency/fx-rates";
+
 /**
  * Rapor/pano KALEM hesaplarında TEK BAZ (denetim 2026-08-25 Parça 8, HIGH).
  *
@@ -61,4 +64,43 @@ export function listingAmountTry(
   if (primaryCurrency === "TRY") return n;
   if (rateForListingCurrency == null || rateForListingCurrency <= 0) return null;
   return n * rateForListingCurrency;
+}
+
+/**
+ * İlan biriminin TRY kuru — ilan birimini kullanan kazanan teklifin DAMGASINDAN
+ * (Tasarruf sekmesi ile pano aynı kural). TRY ilanda 1; damga yoksa null →
+ * hedef fiyat kıyası yapılmaz (uydurma tasarruf yok).
+ */
+export function listingRateToTry(l: {
+  primaryCurrency: string;
+  bids: { currency: string; exchangeRateSnapshot: unknown | null }[];
+}): number | null {
+  if (l.primaryCurrency === "TRY") return 1;
+  for (const b of l.bids) {
+    if (b.currency !== l.primaryCurrency) continue;
+    const r = bidRateToTry(b);
+    if (r != null) return r;
+  }
+  return null;
+}
+
+/**
+ * FİRMANIN RAPOR PARA BİRİMİ (2026-09-27, uluslararası tur): pano ve rapor
+ * tutarları bu birimde gösterilir. Talep Şartları'ndaki ana para birimi, yoksa
+ * firmanın ülkesinin birimi (`defaultCurrencyForCountry`). Eskiden taban hep
+ * TRY idi ve TRY dışı sipariş/talepler panodan DIŞLANIYORDU — yalnız EUR
+ * satan Alman satıcı sıfır gelir görüyordu.
+ */
+export function reportCurrencyOf(company: { country?: string | null; requestDefaults?: unknown } | null | undefined): CurrencyCode {
+  const rd = company?.requestDefaults as { primaryCurrency?: unknown } | null | undefined;
+  if (rd && isCurrencyCode(rd.primaryCurrency)) return rd.primaryCurrency;
+  return resolveCompanyCurrency(null, company?.country);
+}
+
+/**
+ * TRY karşılığı → rapor birimi (güncel TCMB kuru, bellek tablosu). Kur yoksa
+ * null. Kaynak tutarın kendi biriminden çevirmek için `convertAmount`.
+ */
+export function tryToCurrency(amountTry: number, currency: string): number | null {
+  return convertAmount(amountTry, "TRY", currency);
 }

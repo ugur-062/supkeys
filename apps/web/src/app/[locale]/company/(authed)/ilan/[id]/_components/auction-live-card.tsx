@@ -1,6 +1,8 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import { intlLocale } from "@/i18n/format";
+import { affixCurrency } from "@/lib/tenders/labels";
 import type { ListingDetail } from "@/hooks/use-company-listings";
 import { convertAuctionAmount } from "@/lib/tenders/auction-currency";
 import { cn } from "@/lib/utils";
@@ -76,6 +78,7 @@ export function AuctionLiveCard({
   bidderCurrency?: string;
 }) {
   const tr = useTranslations("web.panel.requests.auctionLiveCard");
+  const intl = intlLocale(useLocale());
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const t = setInterval(() => setNow(Date.now()), 1000);
@@ -97,12 +100,11 @@ export function AuctionLiveCard({
         : tr("kapandi");
   const visibilityKey = VISIBILITY_KEY[l.bidVisibility ?? ""];
   const view = l.auctionView;
-  const sym = (c: string | null | undefined) =>
-    !c || c === "TRY" ? "₺" : c;
+  // Sembol tek kaynaktan, YERİ dilden (`affixCurrency`); sayı arayüz dilinde.
+  const withSym = (formatted: string, c: string | null | undefined) =>
+    affixCurrency(formatted, c || "TRY", intl);
   const money = (v: string | null | undefined, currency?: string | null) =>
-    v
-      ? `${Number(v).toLocaleString("tr-TR")} ${sym(currency ?? l.primaryCurrency)}`
-      : "—";
+    v ? withSym(Number(v).toLocaleString(intl), currency ?? l.primaryCurrency) : "—";
 
   // Teklifçi en iyi teklifi kendi biriminde görür (açılış günü kur damgası).
   const myCurrency =
@@ -161,9 +163,7 @@ export function AuctionLiveCard({
           value={view?.bestTotal ? money(view.bestTotal, bestCur) : tr("gizli")}
           sub={
             bestInMyCurrency != null
-              ? `≈ ${bestInMyCurrency.toLocaleString("tr-TR", {
-                  maximumFractionDigits: 2,
-                })} ${sym(myCurrency)}`
+              ? `≈ ${withSym(bestInMyCurrency.toLocaleString(intl, { maximumFractionDigits: 2 }), myCurrency)}`
               : undefined
           }
         />

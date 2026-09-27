@@ -153,12 +153,36 @@ export interface AdminCompanyDetail {
   country: string;
   stateRegion: string | null;
   city: string | null;
+  /** TR ilçe / mahalle, posta kodu (2026-09-27 — eskiden detayda yoktu). */
+  district?: string | null;
+  neighborhood?: string | null;
+  postalCode?: string | null;
+  /** Hukuki yapı; OTHER iken yerel adı `legalFormLocal`. */
+  companyType?: CompanyTypeCode | null;
+  /** Yetkili kimlik no — API MASKELİ döner (ilk 3 + son 2). */
+  authorizedTckn?: string | null;
   addressLine: string | null;
   billingEmail: string | null;
   tier: "STANDART" | "SILVER" | "GOLD";
   membershipEndAt: string | null;
   industry: string | null;
   website: string | null;
+  /**
+   * Son VIES (AB KDV) sorgusu — firma tarafının audit kaydından; hiç sorgu
+   * yoksa null (2026-09-27).
+   */
+  vies?: {
+    valid: boolean;
+    unavailable: boolean;
+    name: string | null;
+    address: string | null;
+    vatNumber: string | null;
+    countryCode: string | null;
+    source: string | null;
+    checkedAt: string;
+  } | null;
+  /** Ülke AB üyesi mi (VIES sorgulanabilir) — API'den. */
+  viesSupported?: boolean;
   companyVerificationStatus:
     | "UNVERIFIED"
     | "PENDING"
@@ -234,8 +258,15 @@ export type DocKind =
   | "idFront"
   | "idBack";
 export type DocStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type CompanyTypeCode = "JOINT_STOCK" | "LIMITED" | "SOLE_PROPRIETOR" | "OTHER";
 export interface DocDecision {
   status: "APPROVED" | "REJECTED";
+  /**
+   * Kodlu red gerekçesi (2026-09-27) — firmanın dilinde çevrilir. Red için
+   * kod VEYA ≥3 karakterlik not (`reason`) zorunlu.
+   */
+  reasonCode?: string | null;
+  /** İsteğe bağlı not — firmaya olduğu gibi gösterilir. */
   reason?: string;
   /**
    * İncelenen nesnenin R2 anahtarı (denetim 2026-08-26 Parça 9 #3). Karar bu
@@ -282,15 +313,17 @@ export function useReviewDocRevision() {
       revId,
       status,
       reason,
+      reasonCode,
     }: {
       id: string;
       revId: string;
       status: "APPROVED" | "REJECTED";
       reason?: string;
+      reasonCode?: string;
     }) => {
       const { data } = await api.post<{ ok: boolean; status: string }>(
         `/admin/companies/${id}/doc-revisions/${revId}/review`,
-        { status, reason },
+        { status, reason, reasonCode },
       );
       return data;
     },
@@ -328,6 +361,8 @@ export interface CompanyProfilePatch {
   mersisNo?: string | null;
   tradeRegistryNo?: string | null;
   country?: string;
+  companyType?: CompanyTypeCode;
+  legalFormLocal?: string | null;
   stateRegion?: string | null;
   city?: string | null;
   addressLine?: string | null;

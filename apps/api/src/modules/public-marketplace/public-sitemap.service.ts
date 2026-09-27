@@ -1,4 +1,5 @@
 import { Injectable, Optional } from "@nestjs/common";
+import { Prisma } from "@rothern/db";
 import { LOCALES, type Locale } from "@rothern/i18n";
 import { isHiddenCategory } from "@rothern/shared";
 import { segmentCodeOf } from "@rothern/shared";
@@ -44,6 +45,20 @@ export interface SitemapProductRow {
   images: string[];
   /** Sayfanın kendi dilinde gösterilebildiği diller (çevirisi hazır olanlar). */
   locales: Locale[];
+  /** Dil başına `lastmod` (hazır diller) — bkz. `SitemapLocales`. */
+  lastmods?: Partial<Record<Locale, string>>;
+}
+
+/**
+ * Kaydın sitemap dil girdileri (2026-09-27): `locales` hazır diller;
+ * `lastmods[l]` = max(varlık `updatedAt`, o dilin çeviri zamanı) — EN/RU
+ * sayfası yeniden çevrilince yalnız o dilin `lastmod`u ilerler. Kaynak dilde
+ * çeviri satırı yok → varlığın kendi zamanı. Çeviri tablosu okunamazsa
+ * `lastmods` yazılmaz (web `updatedAt`e düşer).
+ */
+export interface SitemapLocales {
+  locales: Locale[];
+  lastmods?: Partial<Record<Locale, string>>;
 }
 
 export interface SitemapBucket {
@@ -81,18 +96,54 @@ export class PublicSitemapService {
   /**
    * Kayıt başına HAZIR diller — sayfanın `noindex`iyle aynı kural
    * (`readyLocales`): çevirisi gelmemiş dil sitemap'e ve hreflang'e girmez.
+   * Yanında dil başına `lastmod` (bkz. `SitemapLocales`).
    */
-  private async localesOf(type: TranslatableEntityType, ids: string[]): Promise<(id: string) => Locale[]> {
-    const map = this.translations ? await this.translations.readyLocalesFor(type, ids) : null;
-    return (id) => (map ? (map.get(id) ?? [...LOCALES]) : [...LOCALES]);
+  private async localesOf(
+    type: TranslatableEntityType,
+    ids: string[],
+  ): Promise<(id: string, updatedAt: Date) => SitemapLocales> {
+    const map = this.translations ? await this.translations.sitemapLocalesFor(type, ids) : null;
+    return (id, updatedAt) => {
+      const row = map?.get(id);
+      if (!map || !row) return { locales: [...LOCALES] };
+      const lastmods: Partial<Record<Locale, string>> = {};
+      for (const l of row.locales) {
+        const at = row.translatedAt[l];
+        lastmods[l] = (at && at > updatedAt ? at : updatedAt).toISOString();
+      }
+      return { locales: row.locales, lastmods };
+    };
+  }
+
+  /**
+   * Parça `lastmod`u: varlığın en yeni `updatedAt`i ile o türün en yeni
+   * ÇEVİRİSİNDEN büyük olanı — yalnız çeviri güncellenince de (EN/RU girdisinin
+   * `lastmod`u ilerledi) indeks parçayı "değişti" göstersin. Çeviri satırı
+   * görünmeyen bir kayda ait olabilir; bedeli yalnız fazladan bir parça
+   * taraması (tarih uydurulmuyor, gerçek bir yazım zamanı).
+   */
+  private async withTranslations(type: TranslatableEntityType, b: SitemapBucket): Promise<SitemapBucket> {
+    if (!this.translations || b.count === 0) return b;
+    try {
+      const agg = await this.prisma.contentTranslation.aggregate({
+        where: { entityType: type, status: "DONE", fields: { not: Prisma.DbNull } },
+        _max: { updatedAt: true },
+      });
+      const t = agg._max.updatedAt;
+      return t && (!b.lastmod || t.toISOString() > b.lastmod) ? { ...b, lastmod: t.toISOString() } : b;
+    } catch {
+      return b;
+    }
   }
 
   async summary(): Promise<SitemapSummary> {
     const now = new Date();
     const [products, companies, listings, productRows, companyRows] = await Promise.all([
-      this.bucket(this.prisma.companyItem, publicProductWhere()),
-      this.bucket(this.prisma.company, PUBLIC_PROFILE_WHERE),
-      this.bucket(this.prisma.listing, { ...marketplaceIndexableWhere(now), number: { not: null } }),
+      this.bucket(this.prisma.companyItem, publicProductWhere()).then((b) => this.withTranslations("PRODUCT", b)),
+      this.bucket(this.prisma.company, PUBLIC_PROFILE_WHERE).then((b) => this.withTranslations("COMPANY", b)),
+      this.bucket(this.prisma.listing, { ...marketplaceIndexableWhere(now), number: { not: null } }).then((b) =>
+        this.withTranslations("LISTING", b),
+      ),
       this.prisma.companyItem.findMany({
         where: publicProductWhere(),
         select: { categoryId: true, updatedAt: true, company: { select: { cityId: true, country: true } } },
@@ -171,11 +222,11 @@ export class PublicSitemapService {
         name: r.name,
         updatedAt: r.updatedAt.toISOString(),
         images: r.images.slice(0, 3),
-        locales: locales(r.id),
+        ...locales(r.id, r.updatedAt),
       }));
   }
 
-  async companies(page: number): Promise<{ slug: string; updatedAt: string; locales: Locale[] }[]> {
+  async companies(page: number): Promise<({ slug: string; updatedAt: string } & SitemapLocales)[]> {
     const rows = await this.prisma.company.findMany({
       where: PUBLIC_PROFILE_WHERE,
       select: {
@@ -202,10 +253,10 @@ export class PublicSitemapService {
         isProfileIndexable({ aboutText: r.aboutText, logoUrl: r.logoUrl, website: r.website, publicProductCount: r._count.items }),
     );
     const locales = await this.localesOf("COMPANY", indexable.map((r) => r.id));
-    return indexable.map((r) => ({ slug: r.slug as string, updatedAt: r.updatedAt.toISOString(), locales: locales(r.id) }));
+    return indexable.map((r) => ({ slug: r.slug as string, updatedAt: r.updatedAt.toISOString(), ...locales(r.id, r.updatedAt) }));
   }
 
-  async listings(page: number): Promise<{ number: string; title: string; updatedAt: string; locales: Locale[] }[]> {
+  async listings(page: number): Promise<({ number: string; title: string; updatedAt: string } & SitemapLocales)[]> {
     const rows = await this.prisma.listing.findMany({
       where: { ...marketplaceIndexableWhere(new Date()), number: { not: null } },
       select: { id: true, number: true, title: true, updatedAt: true },
@@ -218,7 +269,7 @@ export class PublicSitemapService {
       number: r.number as string,
       title: r.title,
       updatedAt: r.updatedAt.toISOString(),
-      locales: locales(r.id),
+      ...locales(r.id, r.updatedAt),
     }));
   }
 

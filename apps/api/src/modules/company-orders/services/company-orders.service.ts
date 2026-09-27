@@ -1,4 +1,5 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
+import { localizeDefaultAddressTitle } from "../../../common/company/default-address-title";
 import {
   BadRequestException,
   ForbiddenException,
@@ -16,7 +17,9 @@ import {
 import {
   advancePercentFor,
   DUE_DATE_CATEGORIES,
+  encodeSystemText,
   isLetterOfCredit,
+  LC_PAYMENT_METHOD,
   paymentDueDate,
   sellerShipsGoods,
   type PaymentCategory,
@@ -51,6 +54,14 @@ import { resolveWebUrl } from "../../../common/config/web-url";
 import { expectedDeliveryFromTimes } from "../../../common/company/delivery-time";
 import { reportToSentry } from "../../../instrument";
 import { appRoutes } from "../../../common/company/app-routes";
+import { currentLocale } from "../../../common/i18n/locale-context";
+import {
+  dateParam,
+  formatMoney,
+  formatNotificationParams,
+  moneyParam,
+  type NotificationParams,
+} from "../../../common/notifications/notification-params";
 
 /**
  * Sipariş listesi tavanı — client-side işlenen liste (OrdersList) full-set ister.
@@ -127,7 +138,7 @@ export class CompanyOrdersService {
     headingKey: ApiMessageKey,
     bodyKey: ApiMessageKey,
     portal: NotificationPortal,
-    params?: Record<string, string | number>,
+    params?: NotificationParams,
   ): Promise<void> {
     try {
       await this.notifyOrderPartyUnsafe(
@@ -164,7 +175,7 @@ export class CompanyOrdersService {
     headingKey: ApiMessageKey,
     bodyKey: ApiMessageKey,
     portal: NotificationPortal,
-    params?: Record<string, string | number>,
+    params?: NotificationParams,
   ): Promise<void> {
     const ctaKey: ApiMessageKey = "api.notifications.orders.ctaOrder";
     // In-app kanal (order_status_changed transactional → her zaman gider).
@@ -181,9 +192,11 @@ export class CompanyOrdersService {
     const to = await this.companyRecipient(recipientCompanyId, portal);
     if (!to) return;
     const locale = to.locale;
-    const subject = tApi(subjectKey, params, locale);
-    const heading = tApi(headingKey, params, locale);
-    const paragraph = tApi(bodyKey, params, locale);
+    // Tipli tarih/tutar alıcının dilinde biçimlenir (`notification-params.ts`).
+    const text = formatNotificationParams(params, locale);
+    const subject = tApi(subjectKey, text, locale);
+    const heading = tApi(headingKey, text, locale);
+    const paragraph = tApi(bodyKey, text, locale);
     const ctaLabel = tApi(ctaKey, undefined, locale);
     const ctaUrl = appRoutes.order(this.webUrl(), orderId, locale);
     void this.email
@@ -433,7 +446,9 @@ export class CompanyOrdersService {
         data: {
           status: "LOST",
           eliminatedAt: new Date(),
-          eliminationReason: `Sipariş satıcı tarafından reddedildi: ${reason}`.slice(0, 500),
+          // Sistem gerekçesi KOD olarak saklanır; metni okuyucunun dilinde
+          // çizim yeri üretir (`parseSystemText`, eski Türkçe kayıtlar da tanınır).
+          eliminationReason: encodeSystemText("ORDER_REJECTED", reason).slice(0, 500),
         },
       });
       const otherLive = await tx.companyOrder.count({
@@ -521,9 +536,12 @@ export class CompanyOrdersService {
       // INV-MONEY-1: tam Decimal, tolerans yok — eşiğe TAM ulaşma GEÇER,
       // 1 kuruş eksik gönderimi ENGELLER.
       if (confirmed.lt(advanceDue)) {
-        const curSym = await this.orderCurrencySymbol(id);
+        const cur = await this.orderCurrencyCode(id);
         throw new BadRequestException(
-          i18nMessage("api.companyOrders.buSiparistePesinOdemeSartiVar", { toLocaleString: advanceDue.toNumber().toLocaleString("tr-TR"), curSym: curSym, toLocaleString2: confirmed.toNumber().toLocaleString("tr-TR"), curSym2: curSym }),
+          i18nMessage("api.companyOrders.buSiparistePesinOdemeSartiVar", {
+            toLocaleString: formatMoney(advanceDue.toNumber(), cur, currentLocale()),
+            toLocaleString2: formatMoney(confirmed.toNumber(), cur, currentLocale()),
+          }),
         );
       }
     }
@@ -913,7 +931,7 @@ export class CompanyOrdersService {
         status: "CANCELLED",
         cancelledAt: new Date(),
         cancelReason:
-          order.cancelRequestReason ?? "Satıcı iptal talebi onaylandı",
+          order.cancelRequestReason ?? encodeSystemText("CANCEL_REQUEST_APPROVED"),
       },
     });
     if (res.count !== 1) {
@@ -1246,7 +1264,7 @@ export class CompanyOrdersService {
   /**
    * Satıcı: "Ödeme Bankadan Alındı" — akreditif ödemesi banka kanalından geldi.
    * Sistem, siparişin kalanı kadar ONAYLI ödeme kaydı üretir (yöntem
-   * "Akreditif") → mevcut tamamlama/oto-tamamlama kapıları değişmeden çalışır.
+   * `LC_PAYMENT_METHOD`; eski kayıtlarda "Akreditif") → mevcut tamamlama/oto-tamamlama kapıları değişmeden çalışır.
    * DELIVERED ise doğrudan tamamlanır; IN_DELIVERY ise teslim alınınca kapanır.
    */
   async lcMarkPaid(user: AuthenticatedCompanyUser, id: string) {
@@ -1303,8 +1321,8 @@ export class CompanyOrdersService {
           data: {
             orderId: id,
             amount: remaining,
-            method: "Akreditif",
-            note: "Akreditif ödemesi banka kanalından alındı",
+            method: LC_PAYMENT_METHOD,
+            note: encodeSystemText("LC_PAID_VIA_BANK"),
             status: "CONFIRMED",
             confirmedAt: new Date(),
             recordedByCompanyId: order.sellerCompanyId,
@@ -1438,7 +1456,6 @@ export class CompanyOrdersService {
           });
           if (claimed.count !== 1) continue;
           const remaining = Prisma.Decimal.max(0, totalDec.minus(confirmed));
-          const curSym = o.currency && o.currency !== "TRY" ? o.currency : "₺";
           // Bildirim hatası (a) bu siparişin hatırlatmasını kalıcı kaybetmesin
           // (damga geri alınır), (b) taramanın kalanını iptal etmesin
           // (denetim 2026-08-23 Parça 3 #7). `await` korunur — spec'ler
@@ -1451,10 +1468,11 @@ export class CompanyOrdersService {
               "api.notifications.orders.paymentDue.heading",
               "api.notifications.orders.paymentDue.body",
               "satinalma",
+              // Vade günü ve tutar TİPLİ: alıcının dilinde, vade İstanbul
+              // takvim günüyle (eskiden UTC günü → bir gün önce görünebiliyordu).
               this.orderParams(o.number, {
-                dueDate: dueAt!.toLocaleDateString("tr-TR"),
-                amount: remaining.toNumber().toLocaleString("tr-TR"),
-                currency: curSym,
+                dueDate: dateParam(dueAt!, "date"),
+                amount: moneyParam(remaining.toNumber(), o.currency ?? "TRY"),
               }),
             );
             sent++;
@@ -1486,8 +1504,8 @@ export class CompanyOrdersService {
    */
   private orderParams(
     number: string | null,
-    extra?: Record<string, string | number>,
-  ): Record<string, string | number> {
+    extra?: NotificationParams,
+  ): NotificationParams {
     return { hasNumber: number ? "yes" : "no", number: number ?? "", ...extra };
   }
 
@@ -1546,12 +1564,13 @@ export class CompanyOrdersService {
     return agg._sum.amount ?? new Prisma.Decimal(0);
   }
 
-  private async orderCurrencySymbol(id: string): Promise<string> {
+  /** Siparişin para birimi KODU (sembol ve yeri `formatMoney` ile dilden). */
+  private async orderCurrencyCode(id: string): Promise<string> {
     const o = await this.prisma.companyOrder.findUnique({
       where: { id },
       select: { currency: true },
     });
-    return o?.currency && o.currency !== "TRY" ? o.currency : "₺";
+    return o?.currency ?? "TRY";
   }
 
   private async transition(
@@ -1803,9 +1822,10 @@ export class CompanyOrdersService {
       // cap'i 1 kuruş aşan REDDEDİLİR (AWAITING+CONFIRMED toplamı cap'i aşamaz).
       if (recorded.plus(inputDec).gt(cap)) {
         const remaining = Prisma.Decimal.max(0, cap.minus(recorded));
-        const curSym = cur === "TRY" ? "₺" : cur;
         throw new BadRequestException(
-          i18nMessage("api.companyOrders.kalanOdemeBuTutariAsanOdeme", { toLocaleString: remaining.toNumber().toLocaleString("tr-TR"), curSym: curSym }),
+          i18nMessage("api.companyOrders.kalanOdemeBuTutariAsanOdeme", {
+            toLocaleString: formatMoney(remaining.toNumber(), cur, currentLocale()),
+          }),
         );
       }
       const p = await tx.companyOrderPayment.create({
@@ -1826,8 +1846,8 @@ export class CompanyOrdersService {
       });
       return { payment: p, currency: cur };
     });
-    // Bildirim tutarı siparişin para biriminde (USD siparişte "₺" yazıyordu).
-    const curSym = currency === "TRY" ? "₺" : currency;
+    // Bildirim tutarı siparişin para biriminde (USD siparişte "₺" yazıyordu)
+    // ve ALICININ sayı biçiminde (tipli parametre).
     await this.notifyOrderParty(
       id,
       order.sellerCompanyId,
@@ -1836,8 +1856,7 @@ export class CompanyOrdersService {
       "api.notifications.orders.paymentRecorded.body",
       "satis",
       this.orderParams(order.number, {
-        amount: input.amount.toLocaleString("tr-TR"),
-        currency: curSym,
+        amount: moneyParam(input.amount, currency ?? "TRY"),
       }),
     );
     this.realtime?.pingOrder(id, [order.sellerCompanyId, order.buyerCompanyId]);
@@ -2189,10 +2208,10 @@ export class CompanyOrdersService {
       lcAcceptedAt: o.lcAcceptedAt,
       lcPaidAt: o.lcPaidAt,
       // Teslimat adresi snapshot'ı (award anında: ALIM→ilan, SATIS→teklif).
-      deliveryAddress: o.deliveryAddress as Record<
-        string,
-        string | null
-      > | null,
+      // Kayıtta yazılan varsayılan başlık ("Merkez") okuyucunun dilinde.
+      deliveryAddress: localizeSnapshotTitle(
+        o.deliveryAddress as Record<string, string | null> | null,
+      ),
       // Ödeme planı + teslim şekli — award anındaki SNAPSHOT (ilan silinse de
       // kalır). Teminat tetiği bu değil, order.paymentTiming'dir (yukarıda).
       paymentCategory: o.paymentCategory,
@@ -2282,4 +2301,12 @@ export class CompanyOrdersService {
       advancePercent: o.advancePercent ?? null,
     };
   }
+}
+
+/** Sipariş adres snapshot'ındaki varsayılan başlığı okuyucu diline çevirir. */
+function localizeSnapshotTitle(
+  a: Record<string, string | null> | null,
+): Record<string, string | null> | null {
+  if (!a || typeof a.title !== "string") return a;
+  return { ...a, title: localizeDefaultAddressTitle(a.title) };
 }

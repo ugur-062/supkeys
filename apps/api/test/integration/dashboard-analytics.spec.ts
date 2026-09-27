@@ -14,6 +14,7 @@ import {
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeBid, makeCompanyWithUser, makeItem, makeListing } from "./factories";
+import { resetFxRates, setFxRates } from "../../src/common/currency/fx-rates";
 
 describe("analitik saf yardımcılar", () => {
   it("monthWindows 12 ardışık ay üretir", () => {
@@ -153,10 +154,12 @@ describe("DashboardAnalyticsService (DB)", () => {
     }
   });
 
-  it("money bloğu (Faz 4): dönem harcaması + açık taahhüt TRY-only hesaplanır", async () => {
+  it("money bloğu (Faz 4 + 2026-09-27): TÜM siparişler rapor birimine (TR → TRY) çevrilip toplanır", async () => {
+    setFxRates({ USD: 40 });
     const buyer = await makeCompanyWithUser(prisma, {});
     const seller = await makeCompanyWithUser(prisma, {});
-    // Dönem içi TRY sipariş (ödenmemiş) + USD sipariş (money'e girmez).
+    // Dönem içi TRY sipariş (ödenmemiş) + USD sipariş — eskiden USD sipariş
+    // panodan DIŞLANIYORDU; artık güncel kurla TRY karşılığı eklenir.
     await prisma.companyOrder.create({
       data: {
         buyerCompanyId: buyer.company.id,
@@ -177,10 +180,30 @@ describe("DashboardAnalyticsService (DB)", () => {
     });
 
     const sa = await service.satinalma(buyer.company.id, "year");
-    expect(sa.money.periodSpend).toBe(5000);
-    expect(sa.money.openCommitment).toBe(5000); // ödeme yok → tamamı taahhüt
+    expect(sa.currency).toBe("TRY");
+    expect(sa.money.periodSpend).toBe(5000 + 900 * 40);
+    expect(sa.money.openCommitment).toBe(5000 + 900 * 40); // ödeme yok → tamamı taahhüt
     expect(sa.money.dueIn30d).toBe(0); // teslim yok → vade türetilemez
     expect(sa.money.realizedSavings).toBe(0);
+    resetFxRates();
+  });
+
+  it("yabancı satıcı (DE): gelir EUR biriminde ve TRY DIŞI siparişler dahil (eskiden 0 görünüyordu)", async () => {
+    setFxRates({ EUR: 50 });
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, { country: "DE" });
+    await prisma.companyOrder.create({
+      data: { buyerCompanyId: buyer.company.id, sellerCompanyId: seller.company.id, amount: 1200, currency: "EUR", status: "ACCEPTED" },
+    });
+    await prisma.companyOrder.create({
+      data: { buyerCompanyId: buyer.company.id, sellerCompanyId: seller.company.id, amount: 5000, currency: "TRY", status: "ACCEPTED" },
+    });
+    const st = await service.satis(seller.company.id, "year");
+    expect(st.currency).toBe("EUR");
+    const revenue = st.revenueTrend.reduce((n, p) => n + p.value, 0);
+    expect(revenue).toBeCloseTo(1200 + 5000 / 50);
+    expect(st.pareto.totalTry).toBeCloseTo(1300);
+    resetFxRates();
   });
 
   it("custom aralık (Faz 3): funnel yalnız [from,to) içindeki kayıtları sayar", async () => {

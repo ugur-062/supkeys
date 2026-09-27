@@ -1,5 +1,6 @@
-import { useActivityLabel, useCityLabel, usePriceLabels, useSeoT, useUnitLabel } from "@/i18n/domain";
+import { useActivityLabel, useCityLabel, usePriceLabels, useSeoT, useQuantityLabel, useUnitLabel } from "@/i18n/domain";
 import { useFormatter, useLocale, useTranslations } from "next-intl";
+import { foldSearchText } from "@rothern/shared";
 import { PublicLayout } from "./public-layout";
 import { ProductGallery } from "./product-gallery";
 import { Badge } from "@/components/catalyst/badge";
@@ -11,6 +12,8 @@ import { Tabs } from "@/components/ui/tabs";
 import { JsonLd } from "@/components/seo/json-ld";
 import { AutoTranslatedNote } from "./auto-translated-note";
 import { productSeo } from "@/lib/seo/entities";
+import { contentLangOf } from "@/lib/seo/meta";
+import type { Locale } from "@rothern/i18n";
 import { productPrice } from "@/lib/public/product-price";
 import type {
   ProductIndexCard,
@@ -89,8 +92,11 @@ export function ProductDetail({
              iki kez yazılmasın. */
           home={{ href: "/", label: t("home") }}
           trail={[
-            ...(product.category
-              ? [{ label: product.category.name, href: categoryHref(product.category) }]
+            // SEGMENT açılış sayfası (2026-09-27): L3 kodu süzgeç adresine
+            // (`/urunler?kategori=`, kanoniği dizin) gidiyordu — JSON-LD
+            // kırıntısıyla aynı halka.
+            ...(product.segment
+              ? [{ label: product.segment.name, href: categoryHref(product.segment) }]
               : []),
             { label: company.name, href: `/firma/${companySlug}` },
           ]}
@@ -221,7 +227,11 @@ export function ProductDetailBody({
 }) {
   const t = useTranslations("web.marketplace.product");
   const unitLabel = useUnitLabel();
+  const quantity = useQuantityLabel();
   const fmt = useFormatter();
+  // Ürün metni bu dilde hazır değilse (çeviri bekliyor / yabancı kaynak) ad,
+  // açıklama, şartname ve anahtar kelimeler kaynağın `lang`ını taşır.
+  const contentLang = contentLangOf(product, useLocale() as Locale);
   const priceLabels = usePriceLabels();
   const price = productPrice({
     priceMode: product.priceMode,
@@ -277,6 +287,7 @@ export function ProductDetailBody({
           <Heading
             level={1}
             className="mt-2 text-3xl font-semibold tracking-tight text-balance !text-zinc-950 sm:text-4xl"
+            lang={contentLang}
           >
             {product.name}
           </Heading>
@@ -315,7 +326,7 @@ export function ProductDetailBody({
                 {price.hasPrice ? <p className="mt-1 text-xs text-zinc-500">{t("vatExcluded")}</p> : null}
                 {product.moq ? (
                   <p className="tnum mt-2 text-sm text-zinc-500">
-                    {t("minOrder", { n: fmt.number(Number(product.moq)), unit: unitLabel(product.unit, product.unitCode) })}
+                    {t("minOrder", { qty: quantity(product.moq, product.unit, product.unitCode) })}
                   </p>
                 ) : null}
 
@@ -331,7 +342,7 @@ export function ProductDetailBody({
                       {price.tiers.map((tier) => (
                         <tr key={tier.minQty}>
                           <td className="tnum py-1.5 text-zinc-700">
-                            {fmt.number(tier.minQty)}+ {unitLabel(product.unit, product.unitCode)}
+                            ≥ {quantity(tier.minQty, product.unit, product.unitCode)}
                           </td>
                           <td className="tnum py-1.5 text-right font-medium text-zinc-950">
                             {fmt.number(tier.unitPrice)} {product.priceCurrency}
@@ -359,7 +370,7 @@ export function ProductDetailBody({
               için — eskiden başlıkla fiyat arasındaydı ve CTA'yı aşağı
               itiyordu. */}
           {product.keywords.length > 0 ? (
-            <ul className="mt-4 flex flex-wrap gap-1.5">
+            <ul className="mt-4 flex flex-wrap gap-1.5" lang={contentLang}>
               {product.keywords.slice(0, 12).map((k) => (
                 <li key={k} className="rounded-full bg-zinc-100 px-2.5 py-1 text-xs text-zinc-600">
                   {k}
@@ -400,7 +411,7 @@ export function ProductDetailBody({
             content: (
               <div className="max-w-3xl">
                 {product.description ? (
-                  <p className="text-base/7 whitespace-pre-line text-zinc-700">{product.description}</p>
+                  <p className="text-base/7 whitespace-pre-line text-zinc-700" lang={contentLang}>{product.description}</p>
                 ) : null}
               </div>
             ),
@@ -415,7 +426,7 @@ export function ProductDetailBody({
                 {product.specification ? (
                   <section>
                     <h3 className="text-sm font-semibold text-zinc-900">{t("specText")}</h3>
-                    <p className="mt-2 text-sm/7 whitespace-pre-line text-zinc-600">{product.specification}</p>
+                    <p className="mt-2 text-sm/7 whitespace-pre-line text-zinc-600" lang={contentLang}>{product.specification}</p>
                   </section>
                 ) : null}
               </div>
@@ -674,7 +685,7 @@ function RelatedRow({
 
 /** Marka, satıcı firmanın adının parçası mı (ör. "Demo Gold" ⊂ "Demo Gold Makina")? */
 export function brandIsSeller(brand: string, companyName: string): boolean {
-  const b = brand.trim().toLocaleLowerCase("tr");
-  const c = companyName.trim().toLocaleLowerCase("tr");
+  const b = foldSearchText(brand);
+  const c = foldSearchText(companyName);
   return b.length > 0 && (c.includes(b) || b.includes(c));
 }

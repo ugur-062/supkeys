@@ -15,6 +15,7 @@ import type { PrismaBypassService } from "../../src/common/prisma/prisma.service
 import { REDACTED_CONTEXT_TYPES } from "../../src/modules/email/email.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 /** Gönderilen e-postaları yakalayan sahte servis. */
 function makeEmail() {
@@ -828,5 +829,89 @@ describe("ücretsiz satıcı — anonim gelen talep", () => {
     expect(replyGuards).toContain(CompanyPaidTierGuard);
     const readGuards = (Reflect.getMetadata("__guards__", CompanyInquiryController.prototype.received) ?? []) as unknown[];
     expect(readGuards).not.toContain(CompanyPaidTierGuard);
+  });
+});
+
+// DİL (2026-09-27): misafirin dili satıra yazılır. Eskiden doğrulama bağlantısı
+// dilsizdi ve satıcının yanıt bildirimi (satıcının isteğinde doğar) misafire
+// HEP Türkçe gidiyordu; kayıt çağrısı da Türkçe adrese açılıyordu.
+describe("misafir talebi — DİL talebin açıldığı dilde kalır", () => {
+  beforeEach(async () => {
+    await truncateAll();
+  });
+
+  it("İngilizce form: doğrulama bağlantısı /en, satır dili en; Türkçe satıcının yanıtı misafire İngilizce", async () => {
+    const calls: { type: string; locale: string; body: string }[] = [];
+    const mail = {
+      send: jest.fn(async (input: Record<string, unknown>) => {
+        calls.push({
+          type: (input.context as { type: string }).type,
+          locale: input.locale as string,
+          body: JSON.stringify(input.templateData),
+        });
+        return { emailLogId: "x", sent: true };
+      }),
+    };
+    const svc = new PublicInquiryService(prisma as unknown as PrismaBypassService, mail as never);
+    const { company, product } = await seedProduct();
+    const seller = await prisma.companyUser.findFirstOrThrow({
+      where: { companyId: company.id },
+      select: { id: true },
+    });
+
+    await runWithLocale("en", () =>
+      svc.create({
+        companySlug: company.slug as string,
+        productSlug: product.slug as string,
+        ...VALID,
+      }),
+    );
+    const verifyMail = calls.find((c) => c.type === "public_inquiry_verify")!;
+    expect(verifyMail.locale).toBe("en");
+    expect(verifyMail.body).toContain("/en/confirm-inquiry?t=");
+    const row = await prisma.publicInquiry.findFirstOrThrow();
+    expect(row.locale).toBe("en");
+
+    const token = /t=([a-f0-9]{64})/.exec(verifyMail.body)?.[1] as string;
+    await svc.verify(token);
+    // Satıcı Türkçe arayüzden yanıtlar (istek dili tr) — bildirim yine İngilizce.
+    await runWithLocale("tr", () => svc.reply(company.id, seller.id, row.id, "Stokta var."));
+    await new Promise((r) => setTimeout(r, 50)); // bildirim fire-and-forget
+
+    const note = calls.find((c) => c.type === "public_inquiry_reply")!;
+    expect(note.locale).toBe("en");
+    expect(note.body).toContain("/en/company/signup?email=");
+    expect(note.body).not.toContain("/company/kayit");
+  });
+
+  it("dili olmayan eski satır: yanıt bildirimi varsayılan dilde (Türkçe) kalır", async () => {
+    const calls: { type: string; locale: string }[] = [];
+    const mail = {
+      send: jest.fn(async (input: Record<string, unknown>) => {
+        calls.push({ type: (input.context as { type: string }).type, locale: input.locale as string });
+        return { emailLogId: "x", sent: true };
+      }),
+    };
+    const svc = new PublicInquiryService(prisma as unknown as PrismaBypassService, mail as never);
+    const { company, product } = await seedProduct();
+    const seller = await prisma.companyUser.findFirstOrThrow({
+      where: { companyId: company.id },
+      select: { id: true },
+    });
+    const row = await prisma.publicInquiry.create({
+      data: {
+        companyId: company.id,
+        productId: product.id,
+        name: "Eski Misafir",
+        email: "eski@example.com",
+        message: "Eski kayıt — dil sütunu yokken açıldı.",
+        tokenHash: "eski-hash",
+        expiresAt: new Date(),
+        verifiedAt: new Date(),
+      },
+    });
+    await svc.reply(company.id, seller.id, row.id, "Yanıt.");
+    await new Promise((r) => setTimeout(r, 50));
+    expect(calls.find((c) => c.type === "public_inquiry_reply")?.locale).toBe("tr");
   });
 });

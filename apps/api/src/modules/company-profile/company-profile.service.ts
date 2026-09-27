@@ -50,6 +50,7 @@ const SELECT = {
   country: true,
   city: true,
   district: true,
+  stateRegion: true,
   addressLine: true,
   postalCode: true,
   aboutText: true,
@@ -217,6 +218,9 @@ export class CompanyProfileService {
     if (dto.website !== undefined) data.website = dto.website.trim() || null;
     if (dto.city !== undefined) data.city = dto.city.trim() || null;
     if (dto.district !== undefined) data.district = dto.district.trim() || null;
+    // Eyalet/bölge (TR dışı) — kayıtta sorulur, Firma Bilgileri'nden de
+    // düzenlenir (2026-09-27; eskiden kayıttan sonra değiştirilemiyordu).
+    if (dto.stateRegion !== undefined) data.stateRegion = dto.stateRegion.trim() || null;
     if (dto.addressLine !== undefined)
       data.addressLine = dto.addressLine.trim() || null;
     if (dto.postalCode !== undefined)

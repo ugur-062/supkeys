@@ -159,6 +159,8 @@ export function useDiscoverSearch(
       if (params.verified) sp.set("verified", "1");
       if (params.price) sp.set("price", params.price);
       if (params.sort && params.sort !== "relevance") sp.set("sort", params.sort);
+      // Seçilmediyse gönderilmez → sunucu FİRMANIN ülkesinin birimini kullanır.
+      if (params.currency) sp.set("currency", params.currency);
       if (params.priceMin != null) sp.set("priceMin", String(params.priceMin));
       if (params.priceMax != null) sp.set("priceMax", String(params.priceMax));
       if (params.moqMax != null) sp.set("moqMax", String(params.moqMax));
@@ -201,6 +203,7 @@ export function useDiscoverProductFacets(params: ProductFacetParams = {}) {
         sp.set("radius", String(params.radius));
       }
       if (params.fastReply) sp.set("fastReply", "1");
+      if (params.currency) sp.set("currency", params.currency);
       const qs = sp.toString();
       const { data } = await companyApi.get<ProductFacets>(`/company/items/discover/facets${qs ? `?${qs}` : ""}`);
       return data;

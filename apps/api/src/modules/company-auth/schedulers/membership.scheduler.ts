@@ -1,4 +1,4 @@
-import { PAID_TIERS } from "@rothern/shared";
+import { PAID_TIERS, PRODUCT_LIMITS } from "@rothern/shared";
 import { Injectable, Logger, Optional, type OnModuleInit } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { Cron } from "@nestjs/schedule";
@@ -185,7 +185,10 @@ export class MembershipScheduler implements OnModuleInit {
               heading: subject,
               paragraphs: [
                 t("api.notifications.common.greeting"),
-                t("api.notifications.membership.sonaErdiAnaParagraf"),
+                // Ürün tavanı metne SABİT yazılmaz (10 → 50 değişiminde metin bayat kalmıştı).
+                t("api.notifications.membership.sonaErdiAnaParagraf", {
+                  limit: PRODUCT_LIMITS.STANDART ?? 0,
+                }),
                 ...(kirpilan
                   ? [
                       t("api.notifications.membership.sonaErdiKirpilanUrun", {

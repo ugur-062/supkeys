@@ -5,7 +5,14 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
-import { maskIban, normalizeIban, normalizeSwift } from "@rothern/shared";
+import {
+  REGISTRATION_BLOCKED,
+  isValidCountryCode,
+  isValidIbanAny,
+  maskIban,
+  normalizeIban,
+  normalizeSwift,
+} from "@rothern/shared";
 import { assertBankDetails } from "../../common/company/bank-details";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
@@ -157,18 +164,40 @@ export class CompanyBankAccountsService {
    * katı); değilse hesap no + SWIFT/BIC + banka adı — kural tek kaynak
    * `assertBankDetails`. Bankanın ülkesi verilmezse: IBAN varsa IBAN'ın ülkesi,
    * yoksa firmanın ülkesi.
+   *
+   * Bankanın ülkesi geçerli bir kod olmalı ve kayda KAPALI ülke
+   * (`REGISTRATION_BLOCKED`: ABD + toprakları, kapsamlı yaptırım ülkeleri)
+   * OLAMAZ (2026-09-27) — seçici bu ülkeleri zaten göstermiyor; uç doğrudan
+   * çağrılırsa da reddeder (tahsilat hesabı yaptırım ülkesinde olamaz).
    */
   private async resolveDetails(companyId: string, dto: UpsertBankAccountDto) {
-    const iban = normalizeIban(dto.iban?.trim() ?? "");
+    let iban = normalizeIban(dto.iban?.trim() ?? "");
+    let accountNumber = dto.accountNumber?.trim() || null;
     let bankCountry = dto.bankCountry?.trim().toUpperCase() || (iban ? iban.slice(0, 2) : "");
     if (!bankCountry) {
       const c = await this.prisma.company.findUnique({ where: { id: companyId }, select: { country: true } });
       bankCountry = c?.country ?? "TR";
     }
+    if (!isValidCountryCode(bankCountry)) {
+      throw new BadRequestException(
+        i18nMessage("api.bankDetails.bankCountryInvalid", undefined, "BANK_DETAILS_INVALID"),
+      );
+    }
+    if (REGISTRATION_BLOCKED.has(bankCountry)) {
+      throw new BadRequestException(
+        i18nMessage("api.bankDetails.bankCountryBlocked", undefined, "BANK_COUNTRY_BLOCKED"),
+      );
+    }
+    // Hesap no alanına geçerli bir IBAN yazıldıysa IBAN sayılır (IBAN zorunlu
+    // olmayan ülkede tek alanlı form) — kayıt tek kimlik taşır.
+    if (!iban && accountNumber && isValidIbanAny(accountNumber)) {
+      iban = normalizeIban(accountNumber);
+      accountNumber = null;
+    }
     const input = {
       country: bankCountry,
       iban: iban || null,
-      accountNumber: dto.accountNumber?.trim() || null,
+      accountNumber,
       swiftBic: normalizeSwift(dto.swiftBic) || null,
       bankName: dto.bankName?.trim() || null,
     };

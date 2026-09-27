@@ -95,7 +95,7 @@
     "girisYapmadanOnceEPostaAdresinizi": "Giriş yapmadan önce e-posta adresinizi doğrulayın.",
     "dogrulamaKoduSuAndaGonderilemediLutfen": "Doğrulama kodu şu anda gönderilemedi. Lütfen birkaç dakika sonra tekrar deneyin.",
     "dogrulamaKoduHatali": "Doğrulama kodu hatalı",
-    "premiumSuAnManuelOnaylaVeriliyor": "Premium şu an manuel onayla veriliyor — self-servis yükseltme geçici olarak kapalı",
+    "premiumSuAnManuelOnaylaVeriliyor": "Paketler şu an manuel onayla veriliyor — self-servis yükseltme geçici olarak kapalı",
     "yalnizcaFirmaSahibiPaketYukseltebilir": "Yalnızca firma sahibi paket yükseltebilir",
     "onceSirketBelgeleriniziDogrulatmalisiniz": "Önce şirket belgelerinizi doğrulatmalısınız",
     "ikiAdimliDogrulamaZatenAcik": "İki adımlı doğrulama zaten açık",
@@ -106,11 +106,17 @@
     "gecersizBildirimTercihi": "Geçersiz bildirim tercihi: {k}",
     "buOzellikGoldPaketGerektirir": "Bu özellik Gold paket gerektirir (satınalma paneli).",
     "buOzellikPaketVeyaUzeriGerektirir": "Bu özellik {tier} veya üzeri paket gerektirir.",
-    "buUlkedenYeniKayitAlinmiyor": "Şu anda bu ülkeden yeni kayıt alınmıyor. Ülkenizin açılmasını istiyorsanız bizimle iletişime geçin.",
+    "buUlkedenYeniKayitAlinmiyor": "Şu anda bu ülkeden yeni kayıt alınmıyor.",
     "sahisFirmasiIcin11HaneliTckn": "Şahıs firması için 11 haneli geçerli TCKN giriniz",
     "tuzelKisiIcin10HaneliVergiNo": "Tüzel kişi için 10 haneli geçerli vergi numarası giriniz",
     "gecerliBirVergiSicilNumarasiGiriniz": "Geçerli bir vergi/sicil numarası giriniz",
-    "yerelHukukiYapiZorunlu": "\"Diğer\" seçildiğinde firmanızın hukuki yapısını yazın (ör. GmbH, LLC)"
+    "yerelHukukiYapiZorunlu": "\"Diğer\" seçildiğinde firmanızın hukuki yapısını yazın (ör. GmbH, LLC)",
+    "defaults": {
+      "founderTitle": "Kurucu",
+      "headOfficeTitle": "Merkez",
+      "deliverySameTitle": "Teslimat (fatura ile aynı)",
+      "deliveryTitle": "Teslimat"
+    }
   },
   "publicProfile": {
     "profilBulunamadi": "Profil bulunamadı",
@@ -175,7 +181,10 @@
     "notBulunamadi": "Not bulunamadı",
     "firmaAskiyaAlmaYetkisiYalnizSuper": "Firma askıya alma yetkisi yalnız SUPER_ADMIN''dedir — şikayeti askıya almadan sonuçlandırabilirsiniz",
     "sikayetBulunamadi": "Şikayet bulunamadı",
-    "buSikayetZatenSonuclanmis": "Bu şikayet zaten sonuçlanmış"
+    "buSikayetZatenSonuclanmis": "Bu şikayet zaten sonuçlanmış",
+    "gecersizRedGerekcesiKodu": "Geçersiz red gerekçesi kodu",
+    "buUlkeKaydaKapali": "Bu ülke kayda kapalı; firma bu ülkeye taşınamaz",
+    "yerelHukukiYapiZorunlu": "Hukuki yapı \"Diğer\" iken yerel adı zorunlu (ör. GmbH, LLC)"
   },
   "categories": {
     "gecersizKategoriId": "Geçersiz kategori ID: {join}",
@@ -425,13 +434,13 @@
     "senetIcinVadeGunSayisiZorunlu": "Senet için vade gün sayısı zorunlu",
     "vadeliOdemeIcinGunSayisiZorunlu": "Vadeli ödeme için gün sayısı zorunlu",
     "alimIcinFormatSecin": "Alım ilanı için format seçin (Teklif Toplama / Pazarlık)",
-    "satisIcinFormatSecin": "Satış ilanı için format seçin (Teklif Toplama / Açık Artırma)",
     "ozelTalebeYalnizDavetliFirmalar": "Bu özel satın alma talebine yalnızca davetli firmalar teklif verebilir",
-    "tekliIcinPremiumUyelikGerekir": "Bu ilana teklif vermek için premium üyelik gerekir",
+    "tekliIcinPremiumUyelikGerekir": "Bu talebe teklif vermek için Silver paketi gerekir",
     "productMatch": {
       "category": "Ürününüz bu kategoride: {product}",
       "text": "Ürününüzle eşleşiyor: {product}"
-    }
+    },
+    "talepBaskaUlkelereAcik": "Bu talep yalnız belirli ülkelerdeki tedarikçilere açık; firmanızın ülkesi bu listede değil."
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "İlan bulunamadı",
@@ -550,11 +559,7 @@
     "basTeklif": "Teklif",
     "basYanitYuzde": "Yanıt %",
     "basHedefToplam": "Hedef Toplam",
-    "basEnDusukTry": "En Düşük (TRY)",
-    "basEnYuksekTry": "En Yüksek (TRY)",
-    "basKazananTry": "Kazanan (TRY)",
     "basKazananTedarikci": "Kazanan Tedarikçi",
-    "basTasarrufTry": "Tasarruf (TRY)",
     "basOlusturan": "Oluşturan",
     "basTasarrufYuzde": "Tasarruf %",
     "basKazananTedarikciler": "Kazanan Tedarikçiler",
@@ -582,8 +587,6 @@
     "toplamTeklif": "Toplam Teklif",
     "yanitOrani": "Yanıt Oranı",
     "ortTeklifSatinAlmaTalebi": "Ort. Teklif / Satın Alma Talebi",
-    "kazananToplamTry": "Kazanan Toplam (TRY)",
-    "toplamTasarrufTry": "Toplam Tasarruf (TRY)",
     "durumDagilimi": "Durum Dağılımı",
     "toplamIkiNokta": "Toplam:",
     "ortalamaTasarrufYuzde": "Ortalama Tasarruf %",
@@ -592,12 +595,19 @@
     "tedarikciBazliKazanilanTutar": "Tedarikçi Bazlı Kazanılan Tutar",
     "genelToplam": "GENEL TOPLAM",
     "siraEnUcuz": "SIRA (en ucuz=1)",
-    "hedefeGoreTasarruf": "Hedefe Göre Tasarruf",
+    "hedefeGoreTasarruf": "Hedefe Göre Tasarruf ({currency})",
     "onerilenKazanan": "Önerilen Kazanan (kalem bazında en düşük)",
     "dosyaGenelRapor": "genel-rapor",
     "dosyaTasarrufRaporu": "tasarruf-raporu",
     "dosyaTeklifKarsilastirma": "teklif-karsilastirma",
-    "digerKategoriler": "Diğer"
+    "digerKategoriler": "Diğer",
+    "basEnDusukCur": "En Düşük ({currency})",
+    "basEnYuksekCur": "En Yüksek ({currency})",
+    "basKazananCur": "Kazanan ({currency})",
+    "basTasarrufCur": "Tasarruf ({currency})",
+    "hedefToplamCur": "Hedef Toplam ({currency})",
+    "kazananToplamCur": "Kazanan Toplam ({currency})",
+    "toplamTasarrufCur": "Toplam Tasarruf ({currency})"
   },
   "companyViews": {
     "isAnaliziSilverVeUzeriPaketlerde": "İş Analizi Silver ve üzeri paketlerde."
@@ -630,7 +640,8 @@
       "submitted": "Teklif Verildi",
       "evaluating": "Değerlendirmede",
       "won": "Kazanıldı"
-    }
+    },
+    "noData": "Veri yok"
   },
   "companyConnections": {
     "tokenGerekli": "Token gerekli",
@@ -781,7 +792,6 @@
       },
       "publish": {
         "headingAlim": "Alım satın alma talebi YAYINLANACAK: {title}",
-        "headingSatis": "Satış ilanı YAYINLANACAK: {title}",
         "items": "Kalemler: {list} ({count} kalem)",
         "category": "Kategori: {list}",
         "closing": "Kapanış: {closesAt} · Para birimi: {currency} · Görünürlük: Davetli (kapalı)",
@@ -792,26 +802,26 @@
         "sourceWarning": "Açıklama/şartname metinleri belgeden geldi — onaylamadan önce okuyun."
       },
       "eliminate": {
-        "bid": "Elenecek teklif: {supplier} — {amount} {currency}",
+        "bid": "Elenecek teklif: {supplier} — {amount}",
         "reason": "Gerekçe: {reason}",
         "note": "Tedarikçiye eleme bildirimi gider; dilerse yeniden teklif verebilir."
       },
       "award": {
         "heading": "Satın Alma Talebi KAZANDIRILACAK: {title} ({number})",
-        "winner": "Kazanan: {supplier} — {amount} {currency} (tüm kalemler)",
+        "winner": "Kazanan: {supplier} — {amount} (tüm kalemler)",
         "irreversible": "Bu işlem GERİ ALINAMAZ: diğer teklifler kaybeder, sipariş oluşturulur.",
         "approvalNote": "Firmanızda onay akışı tanımlıysa işlem önce şirket onayına düşer."
       },
       "placeBid": {
         "heading": "TEKLİF VERİLECEK: {title} ({number})",
         "moreItems": "… ve {count} kalem daha",
-        "total": "TOPLAM: {amount} {currency} · Teslim: {delivery}",
-        "totalWithValidity": "TOPLAM: {amount} {currency} · Teslim: {delivery} · Geçerlilik: {days} gün",
+        "total": "TOPLAM: {amount} · Teslim: {delivery}",
+        "totalWithValidity": "TOPLAM: {amount} · Teslim: {delivery} · Geçerlilik: {days} gün",
         "note": "Gönderilen teklif GERİ ÇEKİLEMEZ ve değiştirilemez (kapalı zarf)."
       },
       "orderReceived": {
         "heading": "Sipariş TESLİM ALINDI işaretlenecek: {number}",
-        "seller": "Satıcı: {seller} · Tutar: {amount} {currency}",
+        "seller": "Satıcı: {seller} · Tutar: {amount}",
         "note": "Satıcıya bildirim gider; sorun varsa teslim sonrası kusur bildirimi ayrıca yapılabilir."
       },
       "payment": {
@@ -832,13 +842,34 @@
         "orderReceived": "Sipariş teslim alındı olarak işaretlendi — satıcıya bildirim gitti.",
         "published": "Satın Alma Talebi yayınlandı — teklifler artık toplanıyor.",
         "rejected": "İşlem iptal edildi — hiçbir şey yapılmadı."
+      },
+      "draftSessionTitle": "Satın alma talebi taslağı",
+      "fallbackReply": "Şu an bu isteğe yanıt oluşturamadım. Farklı bir şekilde sorabilir misiniz?",
+      "documentUploaded": "[belge yüklendi]",
+      "deliveryTime": {
+        "STOKTAN": "Stoktan (hemen)",
+        "W1_2": "1-2 hafta",
+        "W3_4": "3-4 hafta",
+        "W5_8": "5-8 hafta",
+        "M2_3": "2-3 ay",
+        "M3_PLUS": "3 aydan uzun"
       }
     },
     "saglayiciHataDondurdu": "AI sağlayıcısı hata döndürdü — lütfen tekrar deneyin.",
     "asistanYanitVeremediSaglayiciHatasi": "Asistan şu an yanıt veremedi (sağlayıcı hatası {code}{detail}) — birkaç saniye sonra tekrar deneyin.",
     "asistanYanitVeremedi": "Asistan şu an yanıt veremedi — birkaç saniye sonra tekrar deneyin.",
     "tabloDosyasiOkunamadi": "Tablo dosyası okunamadı — .xlsx olarak yeniden kaydedip deneyin",
-    "tabloDosyasiCokBuyuk": "Tablo dosyası çok büyük — ilgili sayfayı ayrı, küçük bir dosyada yükleyin"
+    "tabloDosyasiCokBuyuk": "Tablo dosyası çok büyük — ilgili sayfayı ayrı, küçük bir dosyada yükleyin",
+    "searchSummaryFallback": "“{text}” için arama",
+    "searchDraftTitle": "{item} alımı",
+    "budget": {
+      "requestCap": "Bu istek tek başına izin verilen AI kullanım sınırını aşıyor — belgeyi bölerek deneyin.",
+      "pool": "Firmanızın aylık AI bütçesi doldu — AI özellikleri gelecek ay yeniden açılır.",
+      "userCap": "Kişisel AI kullanım tavanınıza ulaştınız (firma havuzunun %50'si) — firma yöneticinize başvurun.",
+      "dailyCap": "Günlük AI kullanım tavanına ulaşıldı — yarın tekrar deneyin."
+    },
+    "bidPriceSalvaged": "AI çıktısı uzunluk tavanına çarptı — {n, plural, other {# satır}} kurtarıldı; belgenin devamı okunmamış olabilir (belgeyi bölerek yeniden deneyin)",
+    "bidPriceUnreadable": "Belge okunamadı — AI geçerli sonuç döndürmedi; şablonu deneyin"
   },
   "companyOrders": {
     "buIslemiYapamazsiniz": "Bu işlemi yapamazsınız",
@@ -849,7 +880,7 @@
     "ayipIhbariBulunanSiparisSevkEdilemez": "Ayıp ihbarı bulunan sipariş sevk edilemez — mal zaten teslim edilmiş; çözüm taraflar arasında",
     "alicininAkreditifiHenuzAcmadiAkreditifAcilip": "Alıcının akreditifi henüz açmadı — akreditif açılıp kabul edilmeden gönderilemez",
     "akreditifiKabulEtmedenGonderemezsinizAkreditifBo": "Akreditifi kabul etmeden gönderemezsiniz — Akreditif bölümünden ''Akreditifi Kabul Ettim'' adımını tamamlayın",
-    "buSiparistePesinOdemeSartiVar": "Bu siparişte peşin ödeme şartı var — gönderim için {toLocaleString} {curSym} peşin tahsilat onaylanmalı (onaylı: {toLocaleString2} {curSym2})",
+    "buSiparistePesinOdemeSartiVar": "Bu siparişte peşin ödeme şartı var — gönderim için {toLocaleString} peşin tahsilat onaylanmalı (onaylı: {toLocaleString2})",
     "alicininOnayBekleyenOdemeKaydiVar": "Alıcının onay bekleyen ödeme kaydı var — siparişi göndermeden önce Ödemeler bölümünden onaylayın veya reddedin",
     "vesaikMukabiliTeslimAlmadanOnceTam": "Vesaik mukabili: teslim almadan önce tam ödemenin onaylanması gerekir",
     "iptalGerekcesiEnAz10Karakter": "İptal gerekçesi en az 10 karakter olmalı",
@@ -877,7 +908,7 @@
     "siparisBulunamadi": "Sipariş bulunamadı",
     "odemeyiYalnizcaAliciKaydedebilir": "Ödemeyi yalnızca alıcı kaydedebilir",
     "tutar0DanBuyukOlmali": "Tutar 0''dan büyük olmalı",
-    "kalanOdemeBuTutariAsanOdeme": "Kalan ödeme {toLocaleString} {curSym} — bu tutarı aşan ödeme kaydedilemez",
+    "kalanOdemeBuTutariAsanOdeme": "Kalan ödeme {toLocaleString} — bu tutarı aşan ödeme kaydedilemez",
     "odemeyiYalnizcaSaticiOnaylayabilir": "Ödemeyi yalnızca satıcı onaylayabilir",
     "odemeKaydiBulunamadi": "Ödeme kaydı bulunamadı",
     "iptalEdilmisSiparisteOdemeOnaylanamaz": "İptal edilmiş siparişte ödeme onaylanamaz",
@@ -1164,7 +1195,7 @@
       "gecersizOlcuBirimi": "Geçersiz ölçü birimi"
     },
     "adminCompanies": {
-      "redGerekcesiEnAz3KarakterOlmali": "Red gerekçesi en az 3 karakter olmalı"
+      "redGerekcesiEnAz3KarakterOlmali": "Red için bir gerekçe seçin ya da en az 3 karakterlik not yazın"
     }
   },
   "companyRequestDefaults": {
@@ -1267,12 +1298,12 @@
       "paymentDue": {
         "subject": "Ödeme vadesi yaklaşıyor",
         "heading": "Ödeme vadesi yaklaşıyor",
-        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için ödeme vadesi {dueDate} — kalan tutar {amount} {currency}."
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için ödeme vadesi {dueDate} — kalan tutar {amount}."
       },
       "paymentRecorded": {
         "subject": "Yeni ödeme kaydı — onayınız bekleniyor",
         "heading": "Ödeme kaydedildi",
-        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için {amount} {currency} tutarında ödeme kaydedildi. Onaylamanız bekleniyor."
+        "body": "{hasNumber, select, yes {{number} numaralı} other {İlgili}} sipariş için {amount} tutarında ödeme kaydedildi. Onaylamanız bekleniyor."
       },
       "paymentConfirmed": {
         "subject": "Ödemeniz onaylandı",
@@ -1396,8 +1427,7 @@
         "placeBid": "Teklif Ver",
         "viewOrder": "Siparişi Gör",
         "viewPlans": "Paketleri Gör",
-        "viewOpenRequests": "Açık Satın Alma Taleplerini Gör",
-        "viewSalesListings": "Satış İlanlarını Gör"
+        "viewOpenRequests": "Açık Satın Alma Taleplerini Gör"
       },
       "closed": {
         "subject": "Satın Alma Talebinde teklif alımı kapandı",
@@ -1420,16 +1450,6 @@
           "lockedBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\" ({number}). Ücretsiz üyelikte herkese açık talepler kilitlidir; görmek ve teklif vermek için Silver paketine geçin. Bağlantı davetiyle gelen talepleri her zaman ücretsiz görürsünüz.",
           "lockedInAppTitle": "Kategorinizde yeni bir satın alma talebi — Silver ile açılır",
           "lockedInAppBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\". Görmek ve teklif vermek için Silver paketine geçin."
-        },
-        "sell": {
-          "heading": "Kategorinize uygun yeni satış ilanı",
-          "openSubject": "Size uygun yeni bir satış ilanı yayınlandı",
-          "openBody": "Aldığınız kategorilerle eşleşen yeni bir satış ilanı yayınlandı: \"{title}\" ({number}). İncelemek ve satın almak için Rothern''e giriş yapın.",
-          "openInAppBody": "Aldığınız kategorilerle eşleşen yeni bir satış ilanı: \"{title}\" ({number}).",
-          "lockedSubject": "Kategorinizde yeni bir satış ilanı var — Silver ile açılır",
-          "lockedBody": "Aldığınız kategorilerle eşleşen yeni bir satış ilanı yayınlandı: \"{title}\" ({number}). Ücretsiz üyelikte herkese açık talepler kilitlidir; görmek ve satın almak için Silver paketine geçin. Bağlantı davetiyle gelen talepleri her zaman ücretsiz görürsünüz.",
-          "lockedInAppTitle": "Kategorinizde yeni bir satış ilanı — Silver ile açılır",
-          "lockedInAppBody": "Aldığınız kategorilerle eşleşen yeni bir satış ilanı yayınlandı: \"{title}\". Görmek ve satın almak için Silver paketine geçin."
         }
       },
       "invitation": {
@@ -1504,7 +1524,7 @@
       "ulkeDegistiBaslik": "Ülke değişikliği: doğrulama belgeleriniz güncellenmeli",
       "ulkeDegistiGovde": "Firmanızın ülkesi güncellendiği için zorunlu doğrulama belgeleri değişti. Eksik belgeleri yükleyip doğrulamayı yeniden gönderin.",
       "dogrulamaOnaylandiBaslik": "Firma doğrulamanız onaylandı",
-      "dogrulamaOnaylandiGovde": "Firma doğrulama belgeleriniz incelendi ve onaylandı. Firmanız artık \"Doğrulanmış\" rozetiyle görünür; doğrulama gerektiren adımlara (talep yayınlama, herkese açık taleplere teklif) devam edebilirsiniz.",
+      "dogrulamaOnaylandiGovde": "Firma doğrulama belgeleriniz incelendi ve onaylandı. Firmanız artık \"Doğrulanmış\" rozetiyle görünür ve doğrulama gerektiren adımlar açıldı. Talep yayınlamak için Gold, herkese açık taleplere teklif vermek için Silver paketi de gerekir; davetli olduğunuz ya da bağlantınızın taleplerine paket olmadan teklif verebilirsiniz.",
       "dogrulamaReddedildiBaslik": "Firma doğrulamanız reddedildi",
       "dogrulamaReddedildiGovde": "Firma doğrulama belgeleriniz incelendi ancak onaylanamadı. Lütfen belgelerinizi güncelleyip yeniden gönderin.",
       "baziBelgelerReddedildiBaslik": "Bazı belgeleriniz reddedildi",
@@ -1513,13 +1533,13 @@
       "belgeGuncellemesiOnaylandiGovde": "Gönderdiğiniz yeni belge incelendi ve onaylandı; artık geçerli belgeniz olarak kayıtlıdır.",
       "belgeGuncellemesiReddedildiBaslik": "Belge güncellemeniz reddedildi",
       "belgeGuncellemesiReddedildiGovde": "Gönderdiğiniz yeni belge onaylanmadı; mevcut belgeniz geçerliliğini korumaktadır. Gerekçeyi görüp yeni bir belge yükleyebilirsiniz.",
-      "paketSonlandirildiBaslik": "Paket üyeliğiniz sonlandırıldı",
-      "paketSonlandirildiAnaParagraf": "Firma paketiniz platform yöneticisi tarafından Standart üyeliğe alındı. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
+      "paketSonlandirildiBaslik": "Paketiniz sonlandırıldı",
+      "paketSonlandirildiAnaParagraf": "Firma paketiniz platform yöneticisi tarafından ücretsiz Standart pakete alındı. Standart pakette yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla {limit, number} ürün yayında olabilir. Mevcut taleplerinizi tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
       "paketSonlandirildiKirpilanUrun": "Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz.",
       "paketSonlandirildiDavetIptal": "Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
-      "paketSonlandirildiGovde": "Firma paketiniz platform yöneticisi tarafından Standart üyeliğe alındı. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz. Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
-      "paketSonlandirildiGovdeKirpildi": "Firma paketiniz platform yöneticisi tarafından Standart üyeliğe alındı. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz. Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz. Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
-      "paketTanimlandiBaslik": "Paket üyeliğiniz tanımlandı",
+      "paketSonlandirildiGovde": "Firma paketiniz platform yöneticisi tarafından ücretsiz Standart pakete alındı. Standart pakette yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla {limit, number} ürün yayında olabilir. Mevcut taleplerinizi tamamlayabilir, gelen davetlere teklif verebilirsiniz. Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
+      "paketSonlandirildiGovdeKirpildi": "Firma paketiniz platform yöneticisi tarafından ücretsiz Standart pakete alındı. Standart pakette yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla {limit, number} ürün yayında olabilir. Mevcut taleplerinizi tamamlayabilir, gelen davetlere teklif verebilirsiniz. Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz. Gönderdiğiniz bekleyen bağlantı davetleri iptal edildi.",
+      "paketTanimlandiBaslik": "Paketiniz tanımlandı",
       "paketTanimlandiGovde": "Firma hesabınıza {paket} paketi tanımlandı. Paket haklarınızı hemen kullanmaya başlayabilirsiniz.",
       "askiyaAlindiBaslik": "Hesabınız askıya alındı",
       "askiyaAlindiGerekce": "Firma hesabınız platform yöneticisi tarafından askıya alındı. Gerekçe: {gerekce}",
@@ -1586,11 +1606,11 @@
       "hesapAyarlari": "Hesap Ayarları"
     },
     "membership": {
-      "sonaErdiKonu": "Premium üyeliğiniz sona erdi",
-      "sonaErdiAnaParagraf": "Paket üyeliğinizin süresi doldu ve hesabınız Standart üyeliğe geçirildi. Standart üyelikte yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla 10 ürün yayında olabilir. Mevcut ilanlarınızı tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
+      "sonaErdiKonu": "Paketinizin süresi doldu",
+      "sonaErdiAnaParagraf": "Paketinizin süresi doldu ve hesabınız ücretsiz Standart pakete geçirildi. Standart pakette yeni satın alma talebi açamaz ve firma davet edemezsiniz; herkese açık talepler ile gelen bilgi taleplerinde alıcı kimliği ve yanıt Silver paketiyle açılır. Profiliniz ve vitrininiz dizinde kalır (paketli firmaların ardından sıralanır); vitrinde en fazla {limit, number} ürün yayında olabilir. Mevcut taleplerinizi tamamlayabilir, gelen davetlere teklif verebilirsiniz.",
       "sonaErdiKirpilanUrun": "Tavanı aşan {adet} ürününüz taslağa alındı; silinmedi, Silver'a dönünce yeniden yayımlayabilirsiniz.",
       "sonaErdiYukseltme": "Tekrar pakete geçmek için hesabınızdan yükseltme yapabilirsiniz.",
-      "premiumaGec": "Premium'a Geç"
+      "premiumaGec": "Paketleri Gör"
     },
     "ai": {
       "butceUyarisiBaslik": "AI bütçe uyarısı",
@@ -1637,9 +1657,74 @@
     "accountNumberInvalid": "Geçerli bir hesap numarası giriniz (4-40 karakter, harf ve rakam)",
     "swiftRequired": "SWIFT/BIC kodu zorunlu",
     "swiftInvalid": "Geçerli bir SWIFT/BIC kodu giriniz (8 ya da 11 karakter, ör. DEUTDEFF)",
-    "bankNameRequired": "Banka adı zorunlu"
+    "bankNameRequired": "Banka adı zorunlu",
+    "bankCountryInvalid": "Geçerli bir banka ülkesi seçiniz",
+    "bankCountryBlocked": "Bu ülkedeki bir banka hesabı kaydedilemez"
   },
   "geo": {
     "sehirBulunamadi": "Şehir bulunamadı"
+  },
+  "units": {
+    "PCE": "adet",
+    "PAIR": "çift",
+    "SET": "set",
+    "DZN": "düzine",
+    "KG": "kilogram",
+    "GRM": "gram",
+    "TON": "ton",
+    "M": "metre",
+    "CM": "santimetre",
+    "MM": "milimetre",
+    "KM": "kilometre",
+    "M2": "metrekare",
+    "M3": "metreküp",
+    "LTR": "litre",
+    "ML": "mililitre",
+    "PKT": "paket",
+    "BOX": "kutu",
+    "CRT": "koli",
+    "PAL": "palet",
+    "ROL": "rulo",
+    "BAG": "çuval",
+    "DRM": "varil",
+    "HUR": "saat",
+    "DAY": "gün",
+    "MON": "ay",
+    "YER": "yıl",
+    "SRV": "hizmet",
+    "MDY": "adam-gün",
+    "TRP": "sefer"
+  },
+  "qty": {
+    "KG": "{n, number} kg",
+    "GRM": "{n, number} g",
+    "TON": "{n, number} ton",
+    "M": "{n, number} m",
+    "CM": "{n, number} cm",
+    "MM": "{n, number} mm",
+    "KM": "{n, number} km",
+    "M2": "{n, number} m²",
+    "M3": "{n, number} m³",
+    "LTR": "{n, number} litre",
+    "ML": "{n, number} ml",
+    "PCE": "{n, number} adet",
+    "PAIR": "{n, number} çift",
+    "SET": "{n, number} set",
+    "DZN": "{n, number} düzine",
+    "PKT": "{n, number} paket",
+    "BOX": "{n, number} kutu",
+    "CRT": "{n, number} koli",
+    "PAL": "{n, number} palet",
+    "ROL": "{n, number} rulo",
+    "BAG": "{n, number} çuval",
+    "DRM": "{n, number} varil",
+    "HUR": "{n, number} saat",
+    "DAY": "{n, number} gün",
+    "MON": "{n, number} ay",
+    "YER": "{n, number} yıl",
+    "SRV": "{n, number} hizmet",
+    "MDY": "{n, number} adam-gün",
+    "TRP": "{n, number} sefer",
+    "other": "{n, number} {unit}"
   }
 }

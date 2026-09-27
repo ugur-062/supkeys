@@ -1,10 +1,9 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useNavLabel } from "@/i18n/domain";
+import { useBidDeliveryTimeLabel, useFormatDate, useNavLabel } from "@/i18n/domain";
 import { MODULE_LABELS } from "@/lib/company/portals";
 import { selectActiveOffers, selectWonOffers } from "@/lib/company/kpi-selectors";
-import { formatDate } from "@/lib/format-date";
 import {
   ActiveFilterChips,
   FilterMultiSelect,
@@ -19,8 +18,8 @@ import {
 import { CountdownFull } from "@/components/tenders/countdown-full";
 import { useMyBids, type MyBid } from "@/hooks/use-company-listings";
 import { closingUrgency } from "@/lib/tenders/seller-state";
-import { formatMoney } from "@/components/ui/money";
-import { bidDeliveryTimeLabel } from "@rothern/shared";
+import { useFormatMoney } from "@/components/ui/money";
+import { foldSearchText } from "@rothern/shared";
 import { cn } from "@/lib/utils";
 import {
   ArrowUpDown,
@@ -91,17 +90,21 @@ const RANGE_OPTIONS = [
 
 function matchesSearch(b: MyBid, q: string) {
   if (!q) return true;
-  const needle = q.toLocaleLowerCase("tr");
+  // Katlanmış karşılaştırma — `tr` küçültme Latin "I"yı "ı" yapıyordu.
+  const needle = foldSearchText(q);
   return (
-    b.listing.title.toLocaleLowerCase("tr").includes(needle) ||
-    (b.listing.number ?? "").toLocaleLowerCase("tr").includes(needle) ||
-    b.listing.ownerName.toLocaleLowerCase("tr").includes(needle)
+    foldSearchText(b.listing.title).includes(needle) ||
+    foldSearchText(b.listing.number ?? "").includes(needle) ||
+    foldSearchText(b.listing.ownerName).includes(needle)
   );
 }
 
 /** Teklif kartı — Açık Talepler kart dilinin teklif sürümü. */
 function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
   const t = useTranslations("web.panel.trade.myBidsList");
+  const bidDeliveryTimeLabel = useBidDeliveryTimeLabel();
+  const formatDate = useFormatDate();
+  const { money: formatMoney } = useFormatMoney();
   const st = STATUS[b.status] ?? STATUS_FALLBACK;
   const won = b.status === "WON" || b.status === "AWARDED_PARTIAL";
   const canRebid = b.status === "LOST" && b.listing.status === "OPEN";
