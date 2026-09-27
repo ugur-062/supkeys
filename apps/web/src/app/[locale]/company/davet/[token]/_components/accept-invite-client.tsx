@@ -63,8 +63,8 @@ export function AcceptInviteClient({ token }: { token: string }) {
   const confirmOk =
     form.passwordConfirm.length > 0 && form.password === form.passwordConfirm;
   const formValid =
-    form.firstName.trim().length >= 2 &&
-    form.lastName.trim().length >= 2 &&
+    form.firstName.trim().length >= 1 &&
+    form.lastName.trim().length >= 1 &&
     pwOk &&
     confirmOk &&
     consents.terms &&
@@ -147,7 +147,8 @@ export function AcceptInviteClient({ token }: { token: string }) {
               {preview.companyName}
             </span>
             <span className="flex gap-1">
-              {preview.roles.map((r) => (
+              {/* Yalnız görüntüleme izniyle davet: rol seti boş → "Görüntüleyici". */}
+              {(preview.roles.length ? preview.roles : ["VIEWER"]).map((r) => (
                 <Badge key={r} color="zinc">
                   {roleLabel(r)}
                 </Badge>

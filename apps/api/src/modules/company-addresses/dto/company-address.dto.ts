@@ -41,10 +41,13 @@ export class UpsertAddressDto {
   @MaxLength(2)
   country?: string;
 
-  /** Eyalet/bölge (TR dışı adres; 2026-09-27). */
+  /**
+   * Eyalet/bölge (TR dışı adres; 2026-09-27). Tavan onboarding DTO'suyla AYNI
+   * (100): kayıt fatura adresine kopyalanan değer düzenlemede 400 almasın.
+   */
   @IsOptional()
   @IsString()
-  @MaxLength(80)
+  @MaxLength(100)
   stateRegion?: string;
 
   @IsOptional()
@@ -77,9 +80,10 @@ export class UpsertAddressDto {
   @MaxLength(120)
   taxOffice?: string;
 
+  // Onboarding ile aynı tavan (30) — yabancı vergi kimlikleri 20'yi aşabilir.
   @IsOptional()
   @IsString()
-  @MaxLength(20)
+  @MaxLength(30)
   taxNumber?: string;
 
   @IsOptional()

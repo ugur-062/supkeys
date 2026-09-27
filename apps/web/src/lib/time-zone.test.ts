@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { calendarDaysBetween, toAppWallClock, wallClock } from "./time-zone";
+import { calendarDaysBetween, appZoneLabel, parseAppWallClockInput, toAppWallClock, toAppWallClockInput, wallClock } from "./time-zone";
+import { formatDate } from "./format-date";
+import { formatTime } from "./tenders/date";
+import { closesAtErrorKey } from "./tenders/closes-at";
 
 /**
  * Sunucu (UTC) ile Türkiye'deki tarayıcı 21:00–24:00 UTC arasında farklı
@@ -29,5 +32,39 @@ describe("time-zone", () => {
   it("toAppWallClock yerel Date'e Türkiye duvar saatini taşır", () => {
     const d = toAppWallClock(new Date("2026-09-21T21:30:00Z"));
     expect([d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes()]).toEqual([2026, 9, 22, 0, 30]);
+  });
+});
+
+/**
+ * Yurt dışı kullanıcı (2026-09-27): girdi de gösterim de İstanbul duvar saati;
+ * Türkçe dışı dilde saat metni dilim etiketi taşır.
+ */
+describe("time-zone — girdi ve etiket", () => {
+  it("girdi İstanbul duvar saati sayılır; tarayıcı Tokyo'da olsa da", () => {
+    const prev = process.env.TZ;
+    process.env.TZ = "Asia/Tokyo";
+    try {
+      expect(parseAppWallClockInput("2026-10-01T17:00")?.toISOString()).toBe("2026-10-01T14:00:00.000Z");
+      expect(toAppWallClockInput(new Date("2026-10-01T14:00:00Z"))).toBe("2026-10-01T17:00");
+    } finally {
+      process.env.TZ = prev;
+    }
+  });
+
+  it("dilim taşıyan ISO olduğu gibi okunur; geçersiz → null", () => {
+    expect(parseAppWallClockInput("2026-10-01T14:00:00.000Z")?.toISOString()).toBe("2026-10-01T14:00:00.000Z");
+    expect(parseAppWallClockInput("xx")).toBeNull();
+    expect(parseAppWallClockInput("")).toBeNull();
+    expect(closesAtErrorKey("xx")).toBe("invalid");
+  });
+
+  it("saat metni: TR etiketsiz, EN/RU '(GMT+3)'; yalnız tarih etiketsiz", () => {
+    const at = new Date("2026-10-01T14:00:00Z");
+    expect(appZoneLabel(at)).toBe("GMT+3");
+    expect(formatDate(at, "datetime", "tr")).toBe("1 Eki 2026 17:00");
+    expect(formatDate(at, "datetime", "en")).toBe("1 Oct 2026 17:00 (GMT+3)");
+    expect(formatDate(at, "short", "en")).toBe("1 Oct 2026");
+    expect(formatTime(at)).toBe("17:00");
+    expect(formatTime(at, "ru")).toBe("17:00 (GMT+3)");
   });
 });

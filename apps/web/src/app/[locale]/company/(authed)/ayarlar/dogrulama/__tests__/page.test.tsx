@@ -83,6 +83,15 @@ describe("DogrulamaPage", () => {
     expect(await screen.findByText(/kontrol hanesi tutmuyor/)).toBeInTheDocument();
   });
 
+  it("SWIFT: boşluklu yapıştırma kesilmez, boşluk atılır ve büyük harfe çevrilir", async () => {
+    const user = userEvent.setup();
+    render(<DogrulamaPage />);
+    const box = screen.getByLabelText(/^SWIFT/) as HTMLInputElement;
+    await user.click(box);
+    await user.paste("deut de ff 500");
+    expect(box.value).toBe("DEUTDEFF500");
+  });
+
   it("yabancı firma: MERSİS alanı yok, belge etiketleri Türkçe + İngilizce", () => {
     h.data = docs({
       country: "KZ",

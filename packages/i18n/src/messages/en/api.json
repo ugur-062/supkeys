@@ -154,6 +154,7 @@
     "yalnizBekleyenBaglantiDavetiIptalEdilebilir": "Only a PENDING connection invitation can be cancelled",
     "yalnizBekleyenReferansDavetiIptalEdilebilir": "Only a PENDING referral invitation can be cancelled",
     "firmaAdiBosOlamaz": "Company name cannot be empty",
+    "gecersizUlkeKodu": "Invalid country code",
     "gecerliBirIbanGerekliTr24": "A valid IBAN is required (TR + 24 digits).",
     "dogrulamaIcinEksikKimlikBilgisiFirma": "Identity information required for verification is missing: {join}. The company cannot be approved until these fields are filled in.",
     "eksikBelgeVarKararVerilemez": "Documents are missing; no decision can be made ({k})",
@@ -657,7 +658,11 @@
     "buAdresDavetAlmakIstemiyor": "This address does not want to receive invitations",
     "buAdresZatenRothernDeKayitliDizinden": "This address is already registered on Rothern — send a connection invitation from the directory",
     "buAdreseDahaOnceDavetGonderilmis": "An invitation has already been sent to this address",
-    "gonderilemedi": "Could not be sent"
+    "gonderilemedi": "Could not be sent",
+    "buAdreseSonGunlerdeDavetGonderildi": "An invitation was already sent to this address in the last {days, plural, one {# day} other {# days}}",
+    "gunlukDavetLimitineUlasildi": "The daily invitation limit has been reached ({cap} per day). Please try again tomorrow.",
+    "buAdresEPostaAlamiyor": "This address has previously rejected our emails permanently or reported them as spam; no email was sent",
+    "gecersizEPostaAdresi": "Invalid email address"
   },
   "companySupplierTemplates": {
     "baglantinizOlmayanFirmaKayit": "Companies you are not connected to: {length, plural, one {# record} other {# records}}",
@@ -1001,8 +1006,8 @@
     "companyUser": {
       "gecerliEpostaGirin": "Enter a valid email address",
       "gecersizRol": "Invalid role",
-      "adEnAz2KarakterOlmali": "First name must be at least 2 characters",
-      "soyadEnAz2KarakterOlmali": "Last name must be at least 2 characters",
+      "adBosOlamaz": "First name cannot be empty",
+      "soyadBosOlamaz": "Last name cannot be empty",
       "gecerliBirTelefonGiriniz": "Enter a valid phone number",
       "parolaEnAz10KarakterOlmali": "Password must be at least 10 characters",
       "parolaEnFazla72Karakter": "Password must be at most 72 characters",
@@ -1032,8 +1037,8 @@
       "gecerliBirEpostaAdresiGiriniz": "Enter a valid email address"
     },
     "companySignup": {
-      "adEnAz2KarakterOlmali": "First name must be at least 2 characters",
-      "soyadEnAz2KarakterOlmali": "Last name must be at least 2 characters",
+      "adBosOlamaz": "First name cannot be empty",
+      "soyadBosOlamaz": "Last name cannot be empty",
       "gecerliBirEPostaAdresiGiriniz": "Enter a valid email address",
       "gecerliBirTelefonGiriniz": "Enter a valid phone number",
       "parolaEnAz10KarakterOlmali": "The password must be at least 10 characters",
@@ -1313,7 +1318,8 @@
         "YONETICI": "Manager",
         "SATIN_ALMACI": "Purchaser",
         "SATISCI": "Salesperson",
-        "ONAYLAYICI": "Approver"
+        "ONAYLAYICI": "Approver",
+        "VIEWER": "Viewer"
       },
       "permissionsChanged": {
         "title": "Your permissions have been updated",

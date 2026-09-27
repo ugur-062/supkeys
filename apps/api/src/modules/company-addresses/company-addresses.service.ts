@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { isValidCountryCode } from "@rothern/shared";
-import { resolveCityId } from "../../common/geo/geo-index";
+import { resolveCityId, storedCityName } from "../../common/geo/geo-index";
 import { CompanyAddressType, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
@@ -19,6 +19,11 @@ import { UpsertAddressDto } from "./dto/company-address.dto";
  * (teslimat adresi değişimi sevkiyat-yönlendirme delili); yalnız başarılı
  * mutasyon loglanır, silme-kilidi retleri loglanmaz. log() fail-safe.
  */
+function cityFields(dto: { country?: string; city?: string | null; cityId?: number | null }) {
+  const cityId = resolveCityId(normalizeAddressCountry(dto.country), dto.city, dto.cityId);
+  return { cityId, city: storedCityName(cityId, dto.city) };
+}
+
 @Injectable()
 export class CompanyAddressesService {
   constructor(
@@ -62,9 +67,8 @@ export class CompanyAddressesService {
           phone: dto.phone?.trim() || null,
           country: normalizeAddressCountry(dto.country),
           stateRegion: dto.stateRegion?.trim() || null,
-          city: dto.city?.trim() || null,
-          // Dünya şehir listesi kaydı (2026-09-27).
-          cityId: resolveCityId(normalizeAddressCountry(dto.country), dto.city, dto.cityId),
+          // Dünya şehir listesi kaydı (2026-09-27); eşlendiyse tek biçimli ad (`storedCityName`).
+          ...cityFields(dto),
           district: dto.district?.trim() || null,
           addressLine: dto.addressLine.trim(),
           postalCode: dto.postalCode?.trim() || null,
@@ -147,9 +151,8 @@ export class CompanyAddressesService {
           phone: dto.phone?.trim() || null,
           country: normalizeAddressCountry(dto.country),
           stateRegion: dto.stateRegion?.trim() || null,
-          city: dto.city?.trim() || null,
-          // Dünya şehir listesi kaydı (2026-09-27).
-          cityId: resolveCityId(normalizeAddressCountry(dto.country), dto.city, dto.cityId),
+          // Dünya şehir listesi kaydı (2026-09-27); eşlendiyse tek biçimli ad (`storedCityName`).
+          ...cityFields(dto),
           district: dto.district?.trim() || null,
           addressLine: dto.addressLine.trim(),
           postalCode: dto.postalCode?.trim() || null,

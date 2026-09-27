@@ -32,11 +32,12 @@ export function GET(): Response {
 > Rothern, alıcı ve tedarikçi firmaları TEK hesapta birleştiren bir B2B tedarik pazar yeridir. Firmalar ürün vitrini yayımlar, satın alma talebi açar ve kapalı zarf usulüyle teklif toplar; kazanan teklif siparişe dönüşür.
 
 Rothern'i işleten şirket: ${OPERATOR.legalName} (${OPERATOR.address}).
-İçerik dili Türkçe'dir. Kategori ağacı dört seviyelidir (UNSPSC/Ariba tabanlı).
+Site üç dilde yayımlanır: Türkçe (kaynak dil, ön eksiz adresler), İngilizce (/en ön ekli; ör. ürün dizini /en/products) ve Rusça (/ru ön ekli; ör. /ru/tovary). Her sayfanın dil sürümleri hreflang ile bağlıdır. Firmaların yazdığı içerik (ürün, alım talebi, firma tanıtımı) kaynak dilinden otomatik çevrilir ve sayfada "otomatik çeviri" notuyla işaretlenir; sözleşme metinleri yalnız Türkçedir. Kategori ağacı dört seviyelidir (UNSPSC/Ariba tabanlı).
 
 ## Ana yüzeyler
 
-- [Ürünler](${u(MARKETPLACE_ROUTES.products)}): firmaların herkese açık ürün vitrini; teknik nitelik, minimum sipariş miktarı (MOQ) ve fiyat bilgisiyle. Kategori ve şehre göre süzülür.
+- [Ürünler](${u(MARKETPLACE_ROUTES.products)}): firmaların herkese açık ürün vitrini; teknik nitelik, minimum sipariş miktarı (MOQ) ve fiyat bilgisiyle. Kategori, satıcı ülkesi ve şehre göre süzülür.
+- Ülke ve şehir sayfaları: satıcı ülkesine göre ürünler /urunler/ulke/<ülke-kodu>-<ad> (ör. /urunler/ulke/de-almanya), şehre göre ürünler /urunler/sehir/<şehir> (dünya geneli şehir listesi, GeoNames tabanlı). Tedarikçiler Türkiye ile sınırlı değildir.
 - [Firmalar](${u(MARKETPLACE_ROUTES.companies)}): doğrulanmış alıcı ve tedarikçi firmalardan bir kesit; dizinin tamamı, faaliyet tipi/şehir/kategori süzgeçleri ve iletişim ücretsiz üyelikle açılır. Firma profilleri (/firma/<firma-slug>) herkese açıktır.
 - [Alım Talepleri](${u(MARKETPLACE_ROUTES.demands)}): firmaların yayımladığı açık satın alma talepleri; miktar, kategori, alıcının şehri ve kalan süre görünür.
 - [Nasıl çalışır](${u("/nasil-calisir")}): süreç, paketler ve fiyatlandırma.
@@ -56,7 +57,7 @@ Aşağıdakiler tasarım gereği YAYIMLANMAZ. Sayfada yoksa yoktur; tahmin edile
 
 - **Fiyat üç biçimde olabilir:** sabit fiyat, miktara göre kademeli fiyat ya da "fiyat için teklif isteyin". Üçüncüsü eksik veri değil, satıcının bilinçli tercihidir.
 - **"Doğrulanmış" rozeti** firmanın ticari belgelerinin Rothern tarafından incelendiğini gösterir; ürün ya da hizmet kalitesi hakkında bir beyan değildir.
-- **Fiyatlar KDV hariçtir** ve satıcının beyanıdır; Rothern taraflar arasındaki mal/hizmet bedeline aracılık etmez.
+- **Fiyatlar satıcının beyan ettiği biçimdedir** (para birimi satıcının seçimidir). Vergiler satıcının ülkesindeki kurallara ve taraflar arasındaki anlaşmaya göre belirlenir; bir fiyatın belirli bir ülkenin vergisini (ör. KDV) içerdiği ya da içermediği varsayılmamalıdır. Rothern taraflar arasındaki mal/hizmet bedeline aracılık etmez.
 - **Ürün sayfası firmanın altında yaşar:** /firma/<firma>/urun/<urun>. Bir ürünü kaynak gösterirken firmasıyla birlikte anın.
 
 ## İletişim

@@ -82,6 +82,8 @@ export function OnboardingClient() {
     addressLine: "",
     deliverySameAsBilling: true,
     deliveryCity: "",
+    deliveryCityId: null as number | null,
+    deliveryStateRegion: "",
     deliveryDistrict: "",
     deliveryNeighborhood: "",
     deliveryPostalCode: "",
@@ -123,6 +125,10 @@ export function OnboardingClient() {
   const ilceler = useMemo(
     () => TURKEY_LOCATIONS.find((l) => l.il === f.city)?.ilceler ?? [],
     [f.city],
+  );
+  const deliveryIlceler = useMemo(
+    () => TURKEY_LOCATIONS.find((l) => l.il === f.deliveryCity)?.ilceler ?? [],
+    [f.deliveryCity],
   );
 
   const profile = getCountryProfile(f.country);
@@ -193,6 +199,8 @@ export function OnboardingClient() {
           ? {}
           : {
               deliveryCity: f.deliveryCity.trim(),
+              ...(f.deliveryCityId != null ? { deliveryCityId: f.deliveryCityId } : {}),
+              deliveryStateRegion: f.deliveryStateRegion.trim() || undefined,
               deliveryDistrict: f.deliveryDistrict.trim() || undefined,
               deliveryNeighborhood: f.deliveryNeighborhood.trim() || undefined,
               deliveryPostalCode: f.deliveryPostalCode.trim() || undefined,
@@ -278,6 +286,11 @@ export function OnboardingClient() {
                     taxOffice: "",
                     stateRegion: "",
                     postalCode: "",
+                    deliveryCity: "",
+                    deliveryCityId: null,
+                    deliveryDistrict: "",
+                    deliveryStateRegion: "",
+                    deliveryPostalCode: "",
                   }))
                 }
               />
@@ -415,16 +428,60 @@ export function OnboardingClient() {
             {!f.deliverySameAsBilling && (
               <div className="space-y-3 rounded-lg border border-zinc-200 p-3">
                 <p className="text-sm font-medium text-zinc-700">{t("deliveryAddress")}</p>
-                <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-                  <Field>
-                    <Label>{isTR ? t("deliveryProvince") : t("deliveryCity")}</Label>
-                    <Input value={f.deliveryCity} onChange={(e) => set("deliveryCity")(e.target.value)} />
-                  </Field>
-                  <Field>
-                    <Label>{t("deliveryDistrict")}</Label>
-                    <Input value={f.deliveryDistrict} onChange={(e) => set("deliveryDistrict")(e.target.value)} />
-                  </Field>
-                </div>
+                {/* Fatura adres bloğunun AYNASI (2026-09-27): TR'de il/ilçe
+                    seçici, yurtdışında dünya şehir listesi + eyalet/bölge —
+                    düz metin şehir `cityId` taşımıyor, eyalet hiç sorulmuyordu. */}
+                {isTR ? (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Field>
+                      <Label>{t("deliveryProvince")}</Label>
+                      <Select
+                        value={f.deliveryCity}
+                        onChange={(e) => setF((s) => ({ ...s, deliveryCity: e.target.value, deliveryDistrict: "" }))}
+                      >
+                        <option value="">{t("select")}</option>
+                        {TURKEY_LOCATIONS.map((l) => (
+                          <option key={l.il} value={l.il}>{l.il}</option>
+                        ))}
+                      </Select>
+                    </Field>
+                    <Field>
+                      <Label>{t("deliveryDistrict")}</Label>
+                      <Select
+                        value={f.deliveryDistrict}
+                        disabled={!f.deliveryCity}
+                        onChange={(e) => set("deliveryDistrict")(e.target.value)}
+                      >
+                        <option value="">{t("select")}</option>
+                        {deliveryIlceler.map((d) => (
+                          <option key={d} value={d}>{d}</option>
+                        ))}
+                      </Select>
+                    </Field>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
+                    <Field>
+                      <Label>{t("deliveryCity")}</Label>
+                      <CityCombobox
+                        country={f.country}
+                        value={f.deliveryCity}
+                        ariaLabel={t("deliveryCity")}
+                        onChange={({ city, cityId }) =>
+                          setF((s) => ({ ...s, deliveryCity: city, deliveryCityId: cityId }))
+                        }
+                      />
+                    </Field>
+                    <Field>
+                      <Label>{t("stateRegion")}</Label>
+                      <Input
+                        value={f.deliveryStateRegion}
+                        maxLength={100}
+                        onChange={(e) => set("deliveryStateRegion")(e.target.value)}
+                      />
+                    </Field>
+                  </div>
+                )}
                 <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
                   <Field>
                     <Label>{t("neighborhood")}</Label>
@@ -524,9 +581,18 @@ export function OnboardingClient() {
           <div className="space-y-3">
             <dl className="grid grid-cols-1 gap-x-4 gap-y-2 text-sm sm:grid-cols-2">
               <Summary label={t("sumLegalName")} value={f.legalName} />
-              <Summary label={t("sumCompanyType")} value={companyTypes.find((ct) => ct.value === f.companyType)?.label} />
-              <Summary label={t("sumTax")} value={f.taxNumber} />
-              <Summary label={t("sumTaxOffice")} value={f.taxOffice} />
+              <Summary
+                label={t("sumCompanyType")}
+                value={
+                  f.companyType === "OTHER" && f.legalFormLocal.trim()
+                    ? f.legalFormLocal.trim()
+                    : companyTypes.find((ct) => ct.value === f.companyType)?.label
+                }
+              />
+              {/* Yabancıya "Vergi No / TCKN" ve boş "Vergi dairesi" satırı
+                  gösterilmez — form etiketiyle aynı dil (2026-09-27). */}
+              <Summary label={isTR ? t("sumTax") : t("sumTaxForeign")} value={f.taxNumber} />
+              {isTR ? <Summary label={t("sumTaxOffice")} value={f.taxOffice} /> : null}
               <Summary
                 label={t("sumAddress")}
                 value={`${f.addressLine}, ${[f.district, f.stateRegion, f.city]

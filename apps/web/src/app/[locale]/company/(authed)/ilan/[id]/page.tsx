@@ -1910,7 +1910,7 @@ export default function ListingDetailPage() {
                       {formatDate(l.closesAt)}
                     </span>
                     <span className="block text-xs font-medium leading-tight text-zinc-500">
-                      {formatTime(l.closesAt)}
+                      {formatTime(l.closesAt, locale)}
                     </span>
                   </>
                 ) : (

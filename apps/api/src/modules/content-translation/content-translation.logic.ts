@@ -89,7 +89,21 @@ export interface CompanyTranslation {
 }
 export type TranslationFields = ProductTranslation | ListingTranslation | CompanyTranslation;
 
-export type ModelLocale = Locale | "other";
+/**
+ * Kaynak dil: modelin döndürdüğü ISO 639-1 kodu ("tr", "de", "zh"…) ya da
+ * belirlenemediyse "und" (2026-09-27: kayıt tüm ülkelere açıldı — Almanca,
+ * Çince kaynak artık olağan; not "kaynak: Almanca" diyebilsin diye kod saklanır).
+ * Kayıt sırasında (çeviri gelmeden) sahibin ülkesinden tahmin de yazılır:
+ * Türkiye/KKTC → "tr", diğerleri → "und" (bkz. `readyLocales`).
+ */
+export type ModelLocale = string;
+
+/** Model çıktısındaki kaynak dil → küçük harf ISO kodu; tanınmazsa "und". */
+export function normalizeSourceLocale(raw: unknown): string {
+  const v = typeof raw === "string" ? raw.trim().toLowerCase().split(/[-_]/)[0]! : "";
+  if (v === "iw") return "he";
+  return /^[a-z]{2,3}$/.test(v) && v !== "other" ? v : "und";
+}
 
 export interface ParsedTranslation {
   sourceLocale: ModelLocale;
@@ -119,6 +133,10 @@ function canonical(value: unknown): string {
  * v2 (2026-09-25): sayı biçimi, Rusça birimler, false-friend/sözlük, içerik
  * yasaklı terimleri, çevrilmemiş Türkçe kapısı.
  * v3 (2026-09-26): parça kodu koruması (Latin kod, Kiril benzer harf reddi).
+ * 2026-09-27 (her kaynak dil: ISO kaynak kodu, dile göre sayı biçimi, Türkçe
+ * hedefin denetimi, yazı sistemi kapıları) sürüm ARTIRILMADAN geldi — kullanıcı
+ * kararı: mevcut kayıtlar Türkçe kaynaklı demo verisi, yeniden çeviri maliyetine
+ * değmez; yeni kurallar yeni/değişen her kayda uygulanır.
  * Neden ÖNEK: sürüm yalnız özetin İÇİNDE olsaydı SQL eski sürümlü satırı
  * göremezdi — kapsam denetimi kaydı ancak varlığın kendisi değişince seçiyordu
  * ve v2'ye geçişte staging'deki 459 kaydın hiçbiri yeniden çevrilmemişti.
@@ -142,6 +160,9 @@ export function sourceHash(type: TranslatableEntityType, source: SourceFields): 
  * `noindex` alıyordu (2026-09-26 bulgusu). Sayfanın `noindex`i
  * (`translationPending`) ve sitemap'in dil girdileri AYNI fonksiyondan okur.
  */
+// Kaynak dil platform dili değilse (Almanca, Çince… ya da henüz "und")
+// yalnız çevirisi gelmiş diller hazırdır: yabancı özgün metin Türkçe adreste
+// `lang="tr"` ile İNDEKSLENMEZ (2026-09-27 denetimi).
 export function readyLocales(rows: { locale: string; fields: unknown; sourceLocale: string | null }[]): Locale[] {
   const src = rows.find((r) => r.sourceLocale)?.sourceLocale ?? DEFAULT_LOCALE;
   return LOCALES.filter((l) => l === src || rows.some((r) => r.locale === l && r.fields != null));
@@ -172,11 +193,12 @@ const ENTITY_LABEL: Record<TranslatableEntityType, string> = {
   COMPANY: "a company profile",
 };
 
-export const TRANSLATION_SYSTEM_PROMPT = `You are a professional translator for an industrial B2B sourcing marketplace based in Turkey (buyers and suppliers in Turkey, Russia, Central Asia, China and the UAE). Your readers are procurement professionals and engineers.
-You receive SOURCE fields written by a user and return the SAME fields in Turkish (tr), English (en) and Russian (ru).
+export const TRANSLATION_SYSTEM_PROMPT = `You are a professional translator for an international industrial B2B sourcing marketplace (buyers and suppliers from Turkey, Europe, Russia, Central Asia, China, the Middle East and the rest of the world). Your readers are procurement professionals and engineers.
+You receive SOURCE fields written by a user in ANY language and return the SAME fields in Turkish (tr), English (en) and Russian (ru).
 
 General rules:
-- Detect the source language. For the source language itself return the text UNCHANGED (no edits, no fixes).
+- Detect the source language and report it as an ISO 639-1 code ("tr", "en", "ru", "de", "zh", "ar", "es"…). If it is tr, en or ru, return that language's text UNCHANGED (no edits, no fixes); every other target language is translated.
+- Every target must be fully in its own language and script: never leave Chinese, Japanese, Korean, Arabic or other non-Latin/non-Cyrillic characters in tr/en/ru — translate, or transliterate proper names (pinyin, standard English/Turkish/Russian spelling). Cyrillic appears only in ru (a Russian legal company name may stay as written).
 - Translate by MEANING with the terminology industry buyers actually use and search for — never word by word. Neutral, commercial, concise; no marketing language; never add, invent or drop information.
 - Keep EXACTLY: every number's digits, standards (DIN, ISO, EN, TSE, GOST, AISI, IEC), part/model numbers, brand names, product codes, chemical formulas, currencies, proper names (companies, places, ports) and Turkish registries (ÜTS, TSE).
 - Codes (M6, CF226A, 6205-2RS, S420MC, DN50, 4x16, HP 26A) are copied character by character in LATIN letters — never replace a Latin letter in a code with a Cyrillic look-alike (М, А, С, Е, Н, Р, Т, Х) and never convert a letter inside a code into a unit.
@@ -184,11 +206,12 @@ General rules:
 - Company legal names stay unchanged (e.g. "San. Tic. A.Ş.", "ООО", "LLC").
 - Use ONE target term per source term consistently across name/title, description, keywords, attributes, items, details and questions.
 
-Numbers (critical): in Turkish "." separates THOUSANDS and "," is the DECIMAL mark (2.400 = two thousand four hundred; 0,02 = two hundredths). Re-format numbers for the target language without changing digits: en → 2,400 · 1,200 · 0.02; ru → 2 400 · 1 200 · 0,02. Never write "2.400" in en or ru. Write "15,000 m²", not "15 thousand m²".
+Numbers (critical): read each number in the SOURCE language's convention — in Turkish, German, Russian, French, Spanish etc. "," is the DECIMAL mark and "." or a space groups THOUSANDS (2.400 = 2 400 = two thousand four hundred; 0,02 = two hundredths); in English and Chinese "." is the decimal mark and "," groups thousands. Re-format for each target without changing digits: tr → 2.400 · 1.200,5 · 0,02; en → 2,400 · 1,200.5 · 0.02; ru → 2 400 · 1 200,5 · 0,02. Write magnitudes in digits in every target ("15,000 m²", not "15 thousand m²"; 1万 = 10,000; 15 тыс. = 15,000). Dates may be written the target language's usual way, but the day and year stay the same.
 
-Units: do NOT copy unit words/symbols — write them in the target language's standard symbols: en → mm, cm, m, m², m³, kg, g, t, kW, kV, V, A, W, bar, L (litre), pcs; ru → мм, см, м, м², м³, кг, г, т, кВт, кВ, В, А, Вт, бар, л, шт. Keep °C, %, IP ratings; g/m² → г/м² (ru).
+Units: do NOT copy unit words/symbols — write them in the target language's standard symbols: tr → mm, cm, m, m², m³, kg, g, ton, kW, kV, V, A, W, bar, L (litre), adet; en → mm, cm, m, m², m³, kg, g, t, kW, kV, V, A, W, bar, L (litre), pcs; ru → мм, см, м, м², м³, кг, г, т, кВт, кВ, В, А, Вт, бар, л, шт. Keep °C, %, IP ratings; g/m² → г/м² (ru).
 
 Glossary (mandatory): "satın alma talebi / alım talebi / talep" = "buying request / request" (en), "заявка на закупку / запрос" (ru) — NEVER "tender" / "тендер" / "конкурс". "teklif" = "quote" / "коммерческое предложение". "kapalı zarf" = "sealed bid" / "закрытые предложения". "kazandırma / kazandırmak" = "award / to award" / "присуждение / присудить". "pazarlık" = "negotiation round" / "раунд переговоров". "kalem" = "line item" / "позиция". "vitrin" = "showcase" / "витрина". "tedarikçi" = "supplier" / "поставщик".
+Into Turkish (tr) from any language: request / RFQ / buying request / tender / Ausschreibung / licitación / заявка / тендер / 招标 = "satın alma talebi" or "talep" — NEVER "ihale"; quote / offer / Angebot / предложение = "teklif"; supplier = "tedarikçi"; line item = "kalem"; buyer = "alıcı".
 
 Turkish false friends — translate by meaning, not by the look-alike word:
 - pano (electrical) → switchboard / distribution board — щит (распределительный щит)
@@ -220,7 +243,7 @@ Field rules:
 - Use one attribute value word consistently (e.g. product condition "Sıfır" = "New" / "Новый", never "Brand new").
 
 Output STRICT JSON only (no markdown, no commentary):
-{ "sourceLocale": "tr" | "en" | "ru" | "other", "translations": { "tr": <fields>, "en": <fields>, "ru": <fields> } }
+{ "sourceLocale": "<ISO 639-1 code of the source language>", "translations": { "tr": <fields>, "en": <fields>, "ru": <fields> } }
 where <fields> has exactly the same keys and shapes as SOURCE.`;
 
 export function buildPrompt(type: TranslatableEntityType, source: SourceFields, feedback?: string): string {
@@ -235,27 +258,94 @@ export function buildPrompt(type: TranslatableEntityType, source: SourceFields, 
 /* Çıktı doğrulama                                                     */
 /* ------------------------------------------------------------------ */
 
-/** Boşluk yalnız BİNLİK grubu birleştirir ("2 400"); "25 30" iki ayrı sayıdır. */
-const NUMBER_RE = /\d+(?:[.,]\d+)*(?:\s\d{3}(?!\d))*/g;
-
-/** Metindeki sayı dizileri — binlik/ondalık ayraç ve boşluk normalize (2.400 ≡ 2,400 ≡ 2 400). */
-export function numbersOf(text: string): string[] {
-  const out: string[] = [];
-  for (const m of text.matchAll(NUMBER_RE)) out.push(m[0].replace(/\D/g, ""));
-  return out;
+/**
+ * Arapça-Hint, Farsça, Devanagari ve tam genişlik rakamları ASCII'ye (sayı
+ * kapısı ١٠٠٠ ile 1000'i aynı sayı görsün; aksi hâlde Arapça kaynakta
+ * uydurulmuş sayı hiç denetlenmiyordu). Arapça ondalık/binlik ayraç da.
+ */
+export function normalizeDigits(text: string): string {
+  return text
+    .replace(/[\u0660-\u0669\u06f0-\u06f9\u0966-\u096f\uff10-\uff19]/g, (ch) => {
+      const c = ch.charCodeAt(0);
+      const base = c >= 0xff10 ? 0xff10 : c >= 0x0966 ? 0x0966 : c >= 0x06f0 ? 0x06f0 : 0x0660;
+      return String(c - base);
+    })
+    .replace(/\u066b/g, ",")
+    .replace(/\u066c/g, ".");
 }
 
 /**
- * Kaynaktaki her sayı hedefte de var mı (çoklu küme olarak)? Türkçe "15 bin"
- * / "2 milyon" hedefte rakamla ("15,000") yazılabilir (istem bunu İSTER) →
- * açılmış biçim de kabul edilir.
+ * Sayı dizisi: rakam grupları "." "," "'" ile ya da boşlukla (YALNIZ ardından
+ * tam 3 rakam geliyorsa — "2 400", "1 200,50") birleşir; "25 30" iki ayrı
+ * sayıdır. Karşılaştırma yalnız RAKAMLARLA yapılır: 1.200,50 ≡ 1,200.50 ≡
+ * 1 200,50 (2026-09-27: boşluk grubundan sonraki ondalık ayrı sayı sanılıyor,
+ * doğru Rusça çıktı reddediliyordu).
+ */
+const NUMBER_RE = /\d+(?:(?:[.,'’]|[ \u00a0\u202f](?=\d{3}(?!\d)))\d+)*/g;
+
+/**
+ * Tarih yalnız YIL olarak sayılır: gün/ay hedefte sözcükle yazılabilir
+ * ("01.03.2026" → "1 March 2026"); ay adı rakam taşımaz.
+ */
+const DATE_RES: [RegExp, number][] = [
+  [/(?<!\d)(\d{1,2})[./-](\d{1,2})[./-](\d{4})(?!\d)/g, 3],
+  [/(?<!\d)(\d{4})[./-](\d{1,2})[./-](\d{1,2})(?!\d)/g, 1],
+  [/(\d{4})\s*年\s*(\d{1,2})\s*月(?:\s*(\d{1,2})\s*日)?/g, 1],
+];
+
+function prepNumbers(text: string): string {
+  let out = normalizeDigits(text);
+  for (const [re, yearGroup] of DATE_RES) out = out.replace(re, (...m: string[]) => ` ${m[yearGroup]} `);
+  return out;
+}
+
+/** Metindeki sayı dizileri — ayraç ve boşluk normalize (2.400 ≡ 2,400 ≡ 2 400), tarih yalnız yıl. */
+export function numbersOf(text: string): string[] {
+  const out: string[] = [];
+  for (const m of prepNumbers(text).matchAll(NUMBER_RE)) out.push(m[0].replace(/\D/g, ""));
+  return out;
+}
+
+/*
+ * Büyüklük sözcükleri → rakam ("15 bin" = "15 thousand" = "15 тыс." = 1万5千
+ * değil ama "1,5万" = 15000). İstem hedefte rakam İSTER; kaynak hangi dilde
+ * büyüklük yazdıysa açılmış biçim de kabul edilir (iki yönde: model hedefte
+ * sözcük bıraktıysa da). Yalnız KABUL genişletir, hiçbir şeyi reddettirmez.
+ */
+const MAGNITUDE_WORDS: [RegExp, number][] = [
+  [/^(?:bin|thousand|тыс\.?|тысяч[аи]?|tsd\.?|tausend|mil)$/iu, 1e3],
+  [/^(?:milyon|millions?|млн\.?|миллион(?:а|ов)?|mio\.?|millionen|millones|milhões|millions)$/iu, 1e6],
+  [/^(?:milyar|billions?|млрд\.?|миллиард(?:а|ов)?|mrd\.?|milliarden?)$/iu, 1e9],
+];
+const CJK_MAGNITUDE: Record<string, number> = { 千: 1e3, 천: 1e3, 万: 1e4, 萬: 1e4, 만: 1e4, 亿: 1e8, 億: 1e8 };
+// CJK büyüklüğü ÖNCE: "1万件" harf dizisi olarak ("万件") yutulmasın.
+const MAGNITUDE_RE = /(\d+(?:[.,]\d+)?)(?:\s*([千천万萬만亿億])|([kK])(?![\p{L}\d])|\s*(\p{L}+\.?))/gu;
+
+function magnitudeValue(num: string, mult: number): string {
+  const v = /^\d+[.,]\d{1,2}$/.test(num) ? Number.parseFloat(num.replace(",", ".")) : Number.parseInt(num.replace(/\D/g, ""), 10);
+  return String(Math.round(v * mult));
+}
+
+export function expandMagnitudes(text: string): string {
+  return text.replace(MAGNITUDE_RE, (m, num: string, cjk?: string, k?: string, word?: string) => {
+    if (cjk) return magnitudeValue(num, CJK_MAGNITUDE[cjk]!);
+    if (k) return magnitudeValue(num, 1e3);
+    const mult = MAGNITUDE_WORDS.find(([re]) => re.test(word ?? ""))?.[1];
+    return mult ? magnitudeValue(num, mult) : m;
+  });
+}
+
+/**
+ * Kaynaktaki her sayı hedefte de var mı (çoklu küme olarak)? Büyüklük
+ * sözcükleri (bin, thousand, тыс., 万…) iki tarafta da açılmış biçimiyle
+ * denenir.
  */
 export function numbersPreserved(src: string, dst: string): boolean {
-  if (numbersPreservedExact(src, dst)) return true;
-  const expanded = src
-    .replace(/(\d+)\s*milyon\b/giu, (_m, d: string) => `${d}000000`)
-    .replace(/(\d+)\s*bin\b/giu, (_m, d: string) => `${d}000`);
-  return expanded !== src && numbersPreservedExact(expanded, dst);
+  const s0 = prepNumbers(src);
+  const d0 = prepNumbers(dst);
+  const srcs = [...new Set([s0, expandMagnitudes(s0)])];
+  const dsts = [...new Set([d0, expandMagnitudes(d0)])];
+  return srcs.some((a) => dsts.some((b) => numbersPreservedExact(a, b)));
 }
 
 function numbersPreservedExact(src: string, dst: string): boolean {
@@ -271,36 +361,93 @@ function numbersPreservedExact(src: string, dst: string): boolean {
   return true;
 }
 
+/**
+ * Uzunluk kapısının ölçüsü: CJK/Hangul/kana karakteri ~3 Latin harfi
+ * taşır (226 karakterlik Çince açıklamanın doğru çevirisi 800+ karakter —
+ * düz uzunluk her Çince kaynağı "unreasonably long" diye reddediyordu).
+ */
+const WIDE_CHAR = /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu;
+export function textWeight(text: string): number {
+  return text.length + 2 * (text.match(WIDE_CHAR)?.length ?? 0);
+}
+
 /* ------------------------------------------------------------------ */
 /* Kalite katmanı — kesin son işlem + reddetme kuralları (v2)          */
 /* ------------------------------------------------------------------ */
 
-// Türkçe sayı: "." binlik, "," ondalık. Kaynak Türkçeyken biçim BELİRSİZ DEĞİL
-// → modele bırakılmaz, kodda yeniden biçimlenir (inceleme 2026-09-25: model
-// "1.200 decares" yazıyordu — İngilizcede 1,2 okunur).
-const TR_THOUSANDS = /(?<![\d.,])\d{1,3}(?:\.\d{3})+(?:,\d+)?(?![\d.,]*\d)/g;
-const TR_DECIMAL = /(?<![\d.,])\d+,\d+(?![\d.,]*\d)/g;
+// SAYI BİÇİMİ — kaynak dilin kuralıyla okunur, hedef dilin kuralıyla yazılır.
+// Biçim BELİRSİZ DEĞİL (kaynak dili biliniyor) → modele bırakılmaz, kodda
+// düzeltilir (inceleme 2026-09-25: model "1.200 decares" yazıyordu —
+// İngilizcede 1,2 okunur; 2026-09-27: kaynak artık her dilde olabilir).
 const NBSP = "\u00a0";
+const COMMA_DECIMAL = new Set([
+  "de", "es", "it", "pt", "nl", "id", "da", "ro", "el", "sr", "hr", "sl", "bs", "mk", "az", "vi", "ca", "gl", "eu", "is",
+  "ru", "uk", "be", "kk", "uz", "ky", "tg", "tk", "fr", "pl", "cs", "sk", "sv", "fi", "nb", "no", "nn", "hu", "bg", "lt",
+  "lv", "et", "ka", "hy", "mn", "sq",
+]);
+const DOT_DECIMAL = new Set(["en", "zh", "ja", "ko", "hi", "th", "ms", "he", "ar", "fa", "ur", "bn", "ta", "te", "tl", "fil", "sw", "ne", "si", "my", "km", "lo"]);
+interface NumberConvention {
+  dec: "," | ".";
+  /** Binlik gruplu sayı kalıpları (RegExp kaynağı, ondalık hariç). */
+  grouped: string[];
+}
+// Boşlukla gruplanmış sayı yalnız ilk grup 1-2 haneliyse ("2 400", "12 500"):
+// "100 200 300" gibi ölçü listesi tek sayı sanılıp "100,200,300" yazılmasın.
+const DOT_GROUPED = "\\d{1,3}(?:\\.\\d{3})+";
+const SPACE_GROUPED = "\\d{1,2}(?:[ \\u00a0\\u202f]\\d{3})+";
+const COMMA_GROUPED = "\\d{1,3}(?:,\\d{3})+";
+/** Kaynak dilin sayı kuralı; bilinmeyen dilde null (dokunulmaz). */
+function numberConvention(lang: string): NumberConvention | null {
+  if (lang === "tr") return { dec: ",", grouped: [DOT_GROUPED] };
+  if (COMMA_DECIMAL.has(lang)) return { dec: ",", grouped: [DOT_GROUPED, SPACE_GROUPED] };
+  if (DOT_DECIMAL.has(lang)) return { dec: ".", grouped: [COMMA_GROUPED] };
+  return null;
+}
+const TARGET_NUMBER: Record<Locale, { group: string; dec: string }> = {
+  tr: { group: ".", dec: "," },
+  en: { group: ",", dec: "." },
+  ru: { group: NBSP, dec: "," },
+};
 
 function escapeRe(s: string): string {
   return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-/** Türkçe biçimli sayıyı hedef dile çevirir (rakamlar aynı). */
-export function formatTrNumber(token: string, locale: "en" | "ru"): string {
-  const [int = "", dec] = token.split(",");
-  const intOut = int.includes(".") ? int.split(".").join(locale === "en" ? "," : NBSP) : int;
-  if (dec === undefined) return intOut;
-  return `${intOut}${locale === "en" ? "." : ","}${dec}`;
+function formatNumberToken(token: string, conv: NumberConvention, target: Locale): string {
+  const at = token.lastIndexOf(conv.dec);
+  const intRaw = at >= 0 ? token.slice(0, at) : token;
+  const dec = at >= 0 ? token.slice(at + 1) : undefined;
+  const digits = intRaw.replace(/\D/g, "");
+  const f = TARGET_NUMBER[target];
+  const intOut = digits.length !== intRaw.length ? digits.replace(/\B(?=(\d{3})+(?!\d))/g, f.group) : digits;
+  return dec === undefined ? intOut : `${intOut}${f.dec}${dec}`;
 }
 
-/** Kaynakta Türkçe biçimli olup hedefte AYNEN kopyalanmış sayıları düzeltir. */
-export function localizeNumbers(src: string, dst: string, locale: "en" | "ru"): string {
-  const tokens = new Set([...(src.match(TR_THOUSANDS) ?? []), ...(src.match(TR_DECIMAL) ?? [])]);
+/** Türkçe biçimli sayıyı hedef dile çevirir (rakamlar aynı). */
+export function formatTrNumber(token: string, locale: "en" | "ru"): string {
+  return formatNumberToken(token, numberConvention("tr")!, locale);
+}
+
+/**
+ * Kaynakta biçimli (binlik/ondalık ayraçlı) olup hedefte AYNEN kopyalanmış
+ * sayıları hedef dilin biçimine çevirir. Kaynak dili bilinmiyorsa dokunmaz.
+ */
+export function localizeNumbers(src: string, dst: string, locale: Locale, sourceLang = "tr"): string {
+  const conv = numberConvention(sourceLang);
+  if (!conv || sourceLang === locale) return dst;
+  const dec = escapeRe(conv.dec);
+  const patterns = [...conv.grouped.map((g) => `${g}(?:${dec}\\d+)?`), `\\d+${dec}\\d+`];
+  const tokens = new Set<string>();
+  for (const p of patterns) {
+    const re = new RegExp(`(?<![\\p{L}\\d.,])${p}(?![\\d.,]*\\d)`, "gu");
+    for (const m of src.matchAll(re)) tokens.add(m[0]);
+  }
   let out = dst;
   for (const tok of [...tokens].sort((a, b) => b.length - a.length)) {
-    const re = new RegExp(`(?<![\\d.,])${escapeRe(tok)}(?![\\d.,]*\\d)`, "g");
-    out = out.replace(re, formatTrNumber(tok, locale));
+    const formatted = formatNumberToken(tok, conv, locale);
+    if (formatted === tok) continue;
+    const re = new RegExp(`(?<![\\p{L}\\d.,])${escapeRe(tok)}(?![\\d.,]*\\d)`, "gu");
+    out = out.replace(re, formatted);
   }
   return out;
 }
@@ -343,7 +490,10 @@ export function localizeRuUnits(dst: string): string {
  * rakam içeren sözcük; "400kVAr" gibi SAYI+birim biçimi kod sayılmaz (birim
  * hedef dile çevrilebilir).
  */
-const CODE_TOKEN = /(?<![\p{L}\d])(?=[A-Za-z0-9/-]*[A-Z])(?=[A-Za-z0-9/-]*\d)[A-Za-z0-9]+(?:[-/][A-Za-z0-9]+)*(?![\p{L}\d])/gu;
+// Sınır YALNIZ Latin/Kiril harf ve rakam: Çince metne bitişik kod da
+// ("SUS304不锈钢 M6螺栓") korunur (2026-09-27).
+const CODE_TOKEN =
+  /(?<![\p{Script=Latin}\p{Script=Cyrillic}\d])(?=[A-Za-z0-9/-]*[A-Z])(?=[A-Za-z0-9/-]*\d)[A-Za-z0-9]+(?:[-/][A-Za-z0-9]+)*(?![\p{Script=Latin}\p{Script=Cyrillic}\d])/gu;
 const NUMBER_WITH_UNIT = /^\d+(?:[.,]\d+)?[A-Za-z]{1,4}[²³]?$/;
 
 export function codeTokens(src: string): string[] {
@@ -355,9 +505,18 @@ export function codeTokens(src: string): string[] {
  * "открытые торги" açık eksiltme için meşru). "конкурс" ihale çağrışımı taşır.
  */
 const CONTENT_BANNED: Partial<Record<Locale, RegExp[]>> = {
+  tr: [/(?<!\p{L})[iİ]hale/iu],
   en: [/\btenders?\b/i, /\btendering\b/i],
   ru: [/тендер/i, /конкурс/i],
 };
+/**
+ * Hedefte kalmaması gereken yazı sistemleri (tr/en/ru Latin ya da Kiril):
+ * Çince/Arapça kaynağın çevrilmeden bırakılan kısmı (2026-09-27: "起订量1万件"
+ * İngilizce çıktıda kabul ediliyordu). Yunanca bilinçli DIŞARIDA (Ω, Δp).
+ */
+const FOREIGN_SCRIPT =
+  /[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}\p{Script=Arabic}\p{Script=Hebrew}\p{Script=Thai}\p{Script=Devanagari}\p{Script=Georgian}\p{Script=Armenian}]+/u;
+const CYRILLIC_WORD = /[\p{L}\d]*\p{Script=Cyrillic}[\p{L}\d]*/gu;
 // Sözcük = harf/rakam dizisi; tire ve kesme AYIRIR ("Çerkezköy-based" →
 // "Çerkezköy", "Çerkezköy'de" → "Çerkezköy").
 const TR_LETTER_WORD = /[\p{L}\d]*[çğışöüÇĞİŞÖÜ][\p{L}\d]*/gu;
@@ -370,6 +529,23 @@ export function qualityErrors(field: string, locale: Locale, sourceText: string,
   for (const re of CONTENT_BANNED[locale] ?? []) {
     if (re.test(dst)) errs.push(`${field}: forbidden term (${re.source}) — use the glossary`);
   }
+  const foreign = FOREIGN_SCRIPT.exec(dst);
+  if (foreign) errs.push(`${field}: "${foreign[0]}" is not translated — translate it or transliterate proper names`);
+  // Kiril yalnız ru'da. en/tr'de kaynakta AYNEN geçen birkaç sözcük (Rus
+  // tüzel kişi adı "ООО «Промтех»", çelik sınıfı "12Х18Н10Т") serbest; kaynakta
+  // olmayan ya da metnin önemli kısmını tutan Kiril = çevrilmemiş metin.
+  if (locale !== "ru") {
+    const cyr = dst.match(CYRILLIC_WORD) ?? [];
+    const words = dst.match(/[\p{L}\d]+/gu)?.length ?? 1;
+    const tooMuch = cyr.length > Math.max(3, words * 0.2) || cyr.length / words > 0.5;
+    if (cyr.length && (cyr.some((w) => !sourceText.includes(w)) || tooMuch)) {
+      errs.push(`${field}: Cyrillic text in ${locale === "en" ? "English" : "Turkish"} translation — translate it`);
+    }
+  }
+  // Latin ve Kiril harfi aynı sözcükte (kod Kiril benzer harfle yazılmış: "Мodel", "S420МC").
+  const mixed = dst.match(/[\p{L}\d]*(?:[A-Za-z][\p{L}\d]*\p{Script=Cyrillic}|\p{Script=Cyrillic}[\p{L}\d]*[A-Za-z])[\p{L}\d]*/u);
+  if (mixed) errs.push(`${field}: "${mixed[0]}" mixes Latin and Cyrillic letters — codes stay in Latin`);
+  if (locale === "tr") return errs;
   // Çevrilmemiş Türkçe: KÜÇÜK harfle başlayan Türkçe-harfli sözcük hiçbir
   // zaman özel ad değildir ("montajı") → her zaman hata. Büyük harfle
   // başlayan (yer/marka adı, ÜTS) kaynakta aynen geçiyorsa serbest; tümce
@@ -382,16 +558,32 @@ export function qualityErrors(field: string, locale: Locale, sourceText: string,
       break;
     }
   }
-  if (locale === "en" && /[А-Яа-яЁё]/.test(dst)) errs.push(`${field}: Cyrillic text in English translation`);
-  // Latin ve Kiril harfi aynı sözcükte (kod Kiril benzer harfle yazılmış: "Мodel", "S420МC").
-  const mixed = dst.match(/[\p{L}\d]*(?:[A-Za-z][\p{L}\d]*[А-Яа-яЁё]|[А-Яа-яЁё][\p{L}\d]*[A-Za-z])[\p{L}\d]*/u);
-  if (mixed) errs.push(`${field}: "${mixed[0]}" mixes Latin and Cyrillic letters — codes stay in Latin`);
   return errs;
+}
+
+/**
+ * Hedef, kaynağın AYNISI mı? (Çevrilmeden kopyalanmış cümle — Almanca kaynak
+ * İngilizce alana aynen; Türkçe hedef hiç denetlenmiyordu.) Marka/model adı
+ * ("Bosch GSB 18V-50", "Siemens SIMATIC S7-1200") yanlış reddedilmesin diye
+ * yalnız en az dört sözcüklü ve küçük harfli sözcük taşıyan metinde (Almanca
+ * adlar büyük harfle başlar — "aus", "rostfreiem" yeter).
+ */
+export function isUntranslatedCopy(src: string, dst: string): boolean {
+  const norm = (x: string) => x.replace(/\s+/g, " ").trim().toLowerCase();
+  if (norm(src) !== norm(dst)) return false;
+  const words = src.match(/\p{L}+/gu)?.length ?? 0;
+  return words >= 4 && /(?<!\p{L})\p{Ll}{3,}(?!\p{L})/u.test(src);
 }
 
 /** Alanın kaynak metnindeki kodlar hedefte AYNEN var mı? */
 export function codeErrors(field: string, src: string, dst: string): string[] {
-  const missing = codeTokens(src).filter((c) => !new RegExp(`(?<![\\p{L}\\d])${escapeRe(c)}(?![\\p{L}\\d])`, "u").test(dst));
+  const missing = codeTokens(src).filter(
+    (c) =>
+      !new RegExp(
+        `(?<![\\p{Script=Latin}\\p{Script=Cyrillic}\\d])${escapeRe(c)}(?![\\p{Script=Latin}\\p{Script=Cyrillic}\\d])`,
+        "u",
+      ).test(dst),
+  );
   return missing.length ? [`${field}: codes must stay unchanged in Latin letters: ${missing.slice(0, 4).join(", ")}`] : [];
 }
 
@@ -455,9 +647,10 @@ function sourceTextOf(source: SourceFields): string {
 }
 
 /**
- * Doğrulanmış çeviriye kalite katmanı: (1) kaynak Türkçeyse sayı biçimi,
- * (2) Rusçada birim sembolleri — kesin düzeltme; (3) yasaklı terim,
- * çevrilmemiş Türkçe, İngilizcede Kiril — REDDEDİLİR (geri bildirimle yeniden).
+ * Doğrulanmış çeviriye kalite katmanı: (1) kaynak dilin kuralıyla okunan sayı
+ * hedefin biçimine, (2) Rusçada birim sembolleri — kesin düzeltme; (3) yasaklı
+ * terim, çevrilmemiş sözcük/kopya, yanlış yazı sistemi (Kiril, Çince, Arapça…),
+ * bozulmuş kod — REDDEDİLİR (geri bildirimle yeniden).
  */
 export function polishTranslations(
   type: TranslatableEntityType,
@@ -467,13 +660,15 @@ export function polishTranslations(
   const errors: string[] = [];
   const all = sourceTextOf(source);
   const perLocale = { ...parsed.perLocale };
+  // Kaynak dil dışındaki HER hedef denetlenir — Türkçe dahil (2026-09-27:
+  // kaynak Almanca/Rusça/Çinceyken tr çıktısı hiç denetlenmiyordu).
   for (const locale of LOCALES) {
-    if (locale === parsed.sourceLocale || (locale !== "en" && locale !== "ru")) continue;
+    if (locale === parsed.sourceLocale) continue;
     perLocale[locale] = mapFields(type, source, perLocale[locale], (src, dst, field) => {
-      let out = dst;
-      if (parsed.sourceLocale === "tr") out = localizeNumbers(src, out, locale);
+      let out = localizeNumbers(src, dst, locale, parsed.sourceLocale);
       if (locale === "ru") out = localizeRuUnits(out);
       for (const e of qualityErrors(field, locale, all, out)) errors.push(`${locale}.${e}`);
+      if (isUntranslatedCopy(src, out)) errors.push(`${locale}.${field}: left untranslated (identical to the source)`);
       for (const e of codeErrors(field, src, out)) errors.push(`${locale}.${e}`);
       return out;
     });
@@ -502,7 +697,7 @@ function checkText(field: string, src: string | null, dst: unknown, errors: stri
     return null;
   }
   if (!numbersPreserved(src, d)) errors.push(`${field}: numbers from the source are missing in the translation`);
-  if (d.length > src.length * 3 + 80) errors.push(`${field}: translation is unreasonably long`);
+  if (d.length > textWeight(src) * 3 + 80) errors.push(`${field}: translation is unreasonably long`);
   return d;
 }
 
@@ -581,10 +776,7 @@ export function parseModelOutput(
   } catch {
     return { error: "output is not valid JSON" };
   }
-  const rawSource = asString(json.sourceLocale) ?? "other";
-  const sourceLocale: ModelLocale = (LOCALES as readonly string[]).includes(rawSource)
-    ? (rawSource as Locale)
-    : "other";
+  const sourceLocale: ModelLocale = normalizeSourceLocale(json.sourceLocale);
   const translations = (json.translations ?? {}) as Json;
   const errors: string[] = [];
   const perLocale = {} as Record<Locale, TranslationFields>;
@@ -735,7 +927,7 @@ export function localizeCompany<T extends object>(item: T, t: CompanyTranslation
 /* ------------------------------------------------------------------ */
 
 /** Arama metni tavanı — uzun tanıtım metinleri sütunu şişirmesin. */
-export const SEARCH_TEXT_I18N_MAX = 4000;
+export const SEARCH_TEXT_I18N_MAX = 6000;
 
 /**
  * `searchTextI18n` — KAYNAK metin + her dilin çevirisi, katlanmış tek dize.

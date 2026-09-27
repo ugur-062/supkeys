@@ -118,8 +118,8 @@ export function CompanySignupClient() {
     form.passwordConfirm.length > 0 && form.password === form.passwordConfirm;
   const allConsents = consents.terms && consents.mediation && consents.kvkk;
   const formValid =
-    form.firstName.trim().length >= 2 &&
-    form.lastName.trim().length >= 2 &&
+    form.firstName.trim().length >= 1 &&
+    form.lastName.trim().length >= 1 &&
     /\S+@\S+\.\S+/.test(form.email) &&
     form.phone.replace(/\D/g, "").length >= 10 && // TR (90+10) veya uluslararası
     pwOk &&

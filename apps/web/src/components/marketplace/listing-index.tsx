@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { ListingFilterShell } from "./list-filter-shells";
 import { FilterResults, MobileFilterButton, ResultCount } from "./filter-shell";
 import { ListingActiveChips, ListingFilters, ListingSortBar } from "./listing-filters";
@@ -36,6 +36,7 @@ interface Props {
 
 export async function ListingIndex({ title, lead, searchParams }: Props) {
   const t = await getTranslations("web.marketplace.index");
+  const locale = await getLocale();
   const tl = await getTranslations("web.marketplace.labels");
   const state = parseListingFilters(searchParams);
   const params = toListingListParams(state);
@@ -55,6 +56,7 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
      herkese açık (sahip kimliği DEĞİL). Sıra numarası sayfalamayı yansıtır. */
   const listLd = graph([
     itemListNode({
+      locale,
       name: title,
       path: basePath,
       totalItems: page.total,

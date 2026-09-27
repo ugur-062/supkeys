@@ -37,7 +37,8 @@ export async function GET(): Promise<Response> {
   parts.push("# Rothern — genişletilmiş site kılavuzu");
   parts.push("");
   parts.push(
-    "> B2B tedarik pazar yeri. Bu dosya envanterin güncel özetini ve gezinme adreslerini içerir; kurallar ve alıntı sınırları için /llms.txt.",
+    // Dil sürümleri (i18n Faz 1) aynı satırda: adresler aşağıda Türkçe biçimiyle.
+    "> B2B tedarik pazar yeri. Bu dosya envanterin güncel özetini ve gezinme adreslerini içerir; kurallar ve alıntı sınırları için /llms.txt. Site Türkçe (kaynak, ön eksiz), İngilizce (/en) ve Rusça (/ru) sürümleriyle yayımlanır; aşağıdaki adresler Türkçe sürümdür, İngilizce ve Rusça karşılıkları sayfadaki hreflang bağlantılarındadır.",
   );
   parts.push("");
 

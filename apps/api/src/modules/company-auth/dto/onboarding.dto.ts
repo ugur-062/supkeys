@@ -122,6 +122,12 @@ export class CompleteOnboardingDto {
   @IsInt()
   deliveryCityId?: number;
 
+  /** Ayrı teslimat adresinin eyalet/bölgesi (TR dışı; fatura alanıyla aynı tavan). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(100)
+  deliveryStateRegion?: string;
+
   @IsOptional()
   @IsString()
   @MaxLength(80)

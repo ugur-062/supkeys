@@ -1,6 +1,30 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { sitemapIndexXml, urlsetXml, xmlEscape } from "../sitemap-xml";
-import { indexItems, located, parsePartName, partPath } from "../sitemap-parts";
+import { buildPart, indexItems, located, parsePartName, partPath } from "../sitemap-parts";
+
+/* Parça üreticisi (`buildPart`) API özetini okur — sahte özet. */
+const summary = vi.hoisted(() => ({
+  products: { count: 0, lastmod: null },
+  companies: { count: 0, lastmod: null },
+  listings: { count: 0, lastmod: null },
+  categories: [],
+  productCities: [
+    { city: "istanbul", name: "İstanbul", country: "TR", count: 4, lastmod: "2026-09-20T00:00:00.000Z" },
+    { city: "de-munich", name: "München", country: "DE", count: 2, lastmod: "2026-09-21T00:00:00.000Z" },
+    { city: "fr-lyon", name: "Lyon", country: "FR", count: 0, lastmod: "2026-09-22T00:00:00.000Z" },
+  ],
+  companyCities: [{ city: "Ankara", count: 3, lastmod: "2026-09-26T00:00:00.000Z" }],
+  productCountries: [
+    { country: "DE", count: 2, lastmod: "2026-09-21T00:00:00.000Z" },
+    { country: "TR", count: 4, lastmod: "2026-09-20T00:00:00.000Z" },
+    { country: "FR", count: 0, lastmod: "2026-09-22T00:00:00.000Z" },
+    { country: "xx", count: 1, lastmod: "2026-09-22T00:00:00.000Z" },
+  ],
+}));
+vi.mock("@/lib/public/marketplace-api", async (orig) => ({
+  ...(await orig<Record<string, unknown>>()),
+  fetchSitemapSummary: async () => summary,
+}));
 
 describe("sitemap XML", () => {
   it("URL, lastmod (saniye hassasiyeti), görsel uzantısı ve kaçış", () => {
@@ -114,5 +138,42 @@ describe("sitemap dilleri (i18n SEO 2026-09-26)", () => {
     expect(xml.match(/<url>/g)).toHaveLength(3);
     expect(xml.match(/<xhtml:link /g)).toHaveLength(12);
     expect(xml).toContain(`<loc>${S}/ru/tovary</loc>`);
+  });
+});
+
+describe("şehir ve ülke parçaları (dünya geneli, 2026-09-27)", () => {
+  const S = "http://localhost:3000";
+
+  it("cities: yabancı şehir kalıcı adresiyle ve üç dilde; ürünsüz şehir yok", async () => {
+    const locs = (await buildPart({ kind: "cities", page: 0 })).map((u) => u.loc);
+    expect(locs).toContain(`${S}/urunler/sehir/de-munich`);
+    expect(locs).toContain(`${S}/en/products/city/de-munich`);
+    expect(locs).toContain(`${S}/ru/tovary/gorod/de-munich`);
+    expect(locs).toContain(`${S}/urunler/sehir/istanbul`);
+    expect(locs.some((l) => l.includes("fr-lyon"))).toBe(false);
+    // Firma şehirleri parçaya GİRMEZ (firma şehir sayfaları kalktı).
+    expect(locs.some((l) => l.includes("ankara"))).toBe(false);
+  });
+
+  it("countries: ürünü olan geçerli ülke kodları, üç dilde, hreflang setiyle", async () => {
+    const urls = await buildPart({ kind: "countries", page: 0 });
+    const locs = urls.map((u) => u.loc);
+    expect(locs).toEqual([
+      `${S}/urunler/ulke/de-almanya`,
+      `${S}/en/products/country/de-almanya`,
+      `${S}/ru/tovary/strana/de-almanya`,
+      `${S}/urunler/ulke/tr-turkiye`,
+      `${S}/en/products/country/tr-turkiye`,
+      `${S}/ru/tovary/strana/tr-turkiye`,
+    ]);
+    expect(urls[0]!.alternates?.["x-default"]).toBe(`${S}/urunler/ulke/de-almanya`);
+    expect(urls[0]!.lastmod).toBe("2026-09-21T00:00:00.000Z");
+  });
+
+  it("indeks: countries parçası listelenir; cities lastmod YALNIZ ürün şehirlerinden", () => {
+    const items = indexItems(summary as Parameters<typeof indexItems>[0]);
+    expect(items.find((i) => i.loc.endsWith("/sitemaps/countries.xml"))?.lastmod).toBe("2026-09-22T00:00:00.000Z");
+    // Firma şehri (2026-09-26) daha yeni ama parçada yok → lastmod'u etkilemez.
+    expect(items.find((i) => i.loc.endsWith("/sitemaps/cities.xml"))?.lastmod).toBe("2026-09-22T00:00:00.000Z");
   });
 });

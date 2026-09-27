@@ -75,7 +75,10 @@ export function indexItems(summary: SitemapSummary): SitemapIndexItem[] {
   const items: SitemapIndexItem[] = [{ loc: absoluteUrl(partPath("pages")), lastmod: null }];
   const catLast = maxIso(summary.categories.map((c) => c.lastmod));
   items.push({ loc: absoluteUrl(partPath("categories")), lastmod: catLast });
-  const cityLast = maxIso([...summary.productCities, ...summary.companyCities].map((c) => c.lastmod));
+  // Parça YALNIZ ürün şehirlerini listeler (firma şehir sayfaları 2026-09-22'de
+  // kalktı) → `lastmod` da yalnız onlardan; firma değişikliği parçayı "taze"
+  // göstermesin.
+  const cityLast = maxIso(summary.productCities.map((c) => c.lastmod));
   items.push({ loc: absoluteUrl(partPath("cities")), lastmod: cityLast });
   // Eski API `productCountries` vermez → parça yine listelenir (boş urlset, 404 değil).
   items.push({ loc: absoluteUrl(partPath("countries")), lastmod: maxIso((summary.productCountries ?? []).map((c) => c.lastmod)) });

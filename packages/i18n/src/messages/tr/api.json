@@ -62,7 +62,7 @@
   },
   "supabaseAuth": {
     "girisServisiGeciciOlarakKullanilamiyorLutfen": "Giriş servisi geçici olarak kullanılamıyor — lütfen birazdan tekrar deneyin",
-    "ePostaVeyaParolaHatali": "E-posta veya parola hatalı",
+    "ePostaVeyaParolaHatali": "E-posta veya şifre hatalı",
     "buEPostaIleZatenBir": "Bu e-posta ile zaten bir hesap var",
     "hesapOlusturulamadiLutfenBirazdanTekrarDeneyin": "Hesap oluşturulamadı, lütfen birazdan tekrar deneyin",
     "davetEPostasiGonderilemedi": "Davet e-postası gönderilemedi",
@@ -102,7 +102,7 @@
     "once2faKurulumunuBaslatin": "Önce 2FA kurulumunu başlatın",
     "dogrulamaKoduHataliVeyaSuresiDolmus": "Doğrulama kodu hatalı veya süresi dolmuş",
     "ikiAdimliDogrulamaZatenKapali": "İki adımlı doğrulama zaten kapalı",
-    "mevcutParolaHatali": "Mevcut parola hatalı",
+    "mevcutParolaHatali": "Mevcut şifre hatalı",
     "gecersizBildirimTercihi": "Geçersiz bildirim tercihi: {k}",
     "buOzellikGoldPaketGerektirir": "Bu özellik Gold paket gerektirir (satınalma paneli).",
     "buOzellikPaketVeyaUzeriGerektirir": "Bu özellik {tier} veya üzeri paket gerektirir.",
@@ -154,6 +154,7 @@
     "yalnizBekleyenBaglantiDavetiIptalEdilebilir": "Yalnız BEKLEYEN bağlantı daveti iptal edilebilir",
     "yalnizBekleyenReferansDavetiIptalEdilebilir": "Yalnız BEKLEYEN referans daveti iptal edilebilir",
     "firmaAdiBosOlamaz": "Firma adı boş olamaz",
+    "gecersizUlkeKodu": "Geçersiz ülke kodu",
     "gecerliBirIbanGerekliTr24": "Geçerli bir IBAN gerekli (TR + 24 rakam).",
     "dogrulamaIcinEksikKimlikBilgisiFirma": "Doğrulama için eksik kimlik bilgisi: {join}. Firma bu alanları doldurmadan onaylanamaz.",
     "eksikBelgeVarKararVerilemez": "Eksik belge var; karar verilemez ({k})",
@@ -498,7 +499,7 @@
   },
   "email": {
     "ePostaKaydiBulunamadi": "E-posta kaydı bulunamadı",
-    "buEPostaTekKullanimlikKod": "Bu e-posta tek-kullanımlık kod/token taşıdığı için içeriği saklanmaz — yeniden gönderilemez. Kullanıcı kodu/daveti yeniden talep etmeli (parola sıfırlama, doğrulama kodu veya daveti tekrar gönderme akışı).",
+    "buEPostaTekKullanimlikKod": "Bu e-posta tek-kullanımlık kod/token taşıdığı için içeriği saklanmaz — yeniden gönderilemez. Kullanıcı kodu/daveti yeniden talep etmeli (şifre sıfırlama, doğrulama kodu veya daveti tekrar gönderme akışı).",
     "ePostaLoguBulunamadi": "E-posta logu bulunamadı"
   },
   "companyActivity": {
@@ -657,7 +658,11 @@
     "buAdresDavetAlmakIstemiyor": "Bu adres davet almak istemiyor",
     "buAdresZatenRothernDeKayitliDizinden": "Bu adres zaten Rothern'de kayıtlı — dizinden bağlantı daveti gönderin",
     "buAdreseDahaOnceDavetGonderilmis": "Bu adrese daha önce davet gönderilmiş",
-    "gonderilemedi": "Gönderilemedi"
+    "gonderilemedi": "Gönderilemedi",
+    "buAdreseSonGunlerdeDavetGonderildi": "Bu adrese son {days, number} gün içinde zaten davet gönderildi",
+    "gunlukDavetLimitineUlasildi": "Günlük davet limitine ulaşıldı (günde {cap}). Yarın yeniden deneyin.",
+    "buAdresEPostaAlamiyor": "Bu adres daha önce e-postalarımızı kalıcı olarak geri çevirdi ya da şikâyet etti; e-posta gönderilmedi",
+    "gecersizEPostaAdresi": "Geçersiz e-posta adresi"
   },
   "companySupplierTemplates": {
     "baglantinizOlmayanFirmaKayit": "Bağlantınız olmayan firma: {length} kayıt",
@@ -1001,22 +1006,22 @@
     "companyUser": {
       "gecerliEpostaGirin": "Geçerli e-posta girin",
       "gecersizRol": "Geçersiz rol",
-      "adEnAz2KarakterOlmali": "Ad en az 2 karakter olmalı",
-      "soyadEnAz2KarakterOlmali": "Soyad en az 2 karakter olmalı",
+      "adBosOlamaz": "Ad boş olamaz",
+      "soyadBosOlamaz": "Soyad boş olamaz",
       "gecerliBirTelefonGiriniz": "Geçerli bir telefon giriniz",
-      "parolaEnAz10KarakterOlmali": "Parola en az 10 karakter olmalı",
-      "parolaEnFazla72Karakter": "Parola en fazla 72 karakter",
-      "parolaEnAzBirKucukHarfIcermeli": "Parola en az bir küçük harf içermeli",
-      "parolaEnAzBirBuyukHarfIcermeli": "Parola en az bir büyük harf içermeli",
-      "parolaEnAzBirRakamIcermeli": "Parola en az bir rakam içermeli",
-      "parolaEnAzBirOzelKarakterIcermeli": "Parola en az bir özel karakter içermeli",
+      "parolaEnAz10KarakterOlmali": "Şifre en az 10 karakter olmalı",
+      "parolaEnFazla72Karakter": "Şifre en fazla 72 karakter",
+      "parolaEnAzBirKucukHarfIcermeli": "Şifre en az bir küçük harf içermeli",
+      "parolaEnAzBirBuyukHarfIcermeli": "Şifre en az bir büyük harf içermeli",
+      "parolaEnAzBirRakamIcermeli": "Şifre en az bir rakam içermeli",
+      "parolaEnAzBirOzelKarakterIcermeli": "Şifre en az bir özel karakter içermeli",
       "kullaniciSozlesmesiniKabulEtmelisiniz": "Kullanıcı sözleşmesini kabul etmelisiniz",
       "aracilikVeKullanimSozlesmesiniKabulEtmelisiniz": "Aracılık ve kullanım sözleşmesini kabul etmelisiniz",
       "kvkkAydinlatmaMetniniOnaylamalisiniz": "KVKK aydınlatma metnini onaylamalısınız",
       "enAzBirRolSecin": "En az bir rol seçin"
     },
     "account": {
-      "parolaEnAz8Karakter": "Parola en az 8 karakter",
+      "parolaEnAz8Karakter": "Şifre en az 8 karakter",
       "enAzBirBuyukHarfAZ": "En az bir büyük harf (A-Z)",
       "enAzBirKucukHarfAz": "En az bir küçük harf (a-z)",
       "enAzBirRakam": "En az bir rakam",
@@ -1032,16 +1037,16 @@
       "gecerliBirEpostaAdresiGiriniz": "Geçerli bir e-posta adresi giriniz"
     },
     "companySignup": {
-      "adEnAz2KarakterOlmali": "Ad en az 2 karakter olmalı",
-      "soyadEnAz2KarakterOlmali": "Soyad en az 2 karakter olmalı",
+      "adBosOlamaz": "Ad boş olamaz",
+      "soyadBosOlamaz": "Soyad boş olamaz",
       "gecerliBirEPostaAdresiGiriniz": "Geçerli bir e-posta adresi giriniz",
       "gecerliBirTelefonGiriniz": "Geçerli bir telefon giriniz",
-      "parolaEnAz10KarakterOlmali": "Parola en az 10 karakter olmalı",
-      "parolaEnFazla72Karakter": "Parola en fazla 72 karakter",
-      "parolaEnAzBirKucukHarfIcermeli": "Parola en az bir küçük harf içermeli",
-      "parolaEnAzBirBuyukHarfIcermeli": "Parola en az bir büyük harf içermeli",
-      "parolaEnAzBirRakamIcermeli": "Parola en az bir rakam içermeli",
-      "parolaEnAzBirOzelKarakterIcermeli": "Parola en az bir özel karakter içermeli",
+      "parolaEnAz10KarakterOlmali": "Şifre en az 10 karakter olmalı",
+      "parolaEnFazla72Karakter": "Şifre en fazla 72 karakter",
+      "parolaEnAzBirKucukHarfIcermeli": "Şifre en az bir küçük harf içermeli",
+      "parolaEnAzBirBuyukHarfIcermeli": "Şifre en az bir büyük harf içermeli",
+      "parolaEnAzBirRakamIcermeli": "Şifre en az bir rakam içermeli",
+      "parolaEnAzBirOzelKarakterIcermeli": "Şifre en az bir özel karakter içermeli",
       "kullaniciSozlesmesiniKabulEtmelisiniz": "Kullanıcı sözleşmesini kabul etmelisiniz",
       "aracilikVeKullanimSozlesmesiniKabulEtmelisiniz": "Aracılık ve kullanım sözleşmesini kabul etmelisiniz",
       "kvkkAydinlatmaMetniniOnaylamalisiniz": "KVKK aydınlatma metnini onaylamalısınız",
@@ -1052,10 +1057,10 @@
       "gecersizUlkeKodu": "Geçersiz ülke kodu"
     },
     "confirmPasswordReset": {
-      "parolaEnAz8KarakterOlmali": "Parola en az 8 karakter olmalı",
-      "parolaEnAzBirKucukHarfIcermeli": "Parola en az bir küçük harf içermeli",
-      "parolaEnAzBirBuyukHarfIcermeli": "Parola en az bir büyük harf içermeli",
-      "parolaEnAzBirRakamIcermeli": "Parola en az bir rakam içermeli"
+      "parolaEnAz8KarakterOlmali": "Şifre en az 8 karakter olmalı",
+      "parolaEnAzBirKucukHarfIcermeli": "Şifre en az bir küçük harf içermeli",
+      "parolaEnAzBirBuyukHarfIcermeli": "Şifre en az bir büyük harf içermeli",
+      "parolaEnAzBirRakamIcermeli": "Şifre en az bir rakam içermeli"
     },
     "createInquiry": {
       "gecersizFirmaAdresi": "Geçersiz firma adresi",
@@ -1300,7 +1305,7 @@
         "subject": "{company} sizi ekibine davet ediyor",
         "heading": "Ekip Daveti",
         "intro": "{inviter}, sizi {company} firmasının ekibine katılmaya davet ediyor.",
-        "setOwnPassword": "Daveti kabul ederken adınızı ve parolanızı kendiniz belirlersiniz.",
+        "setOwnPassword": "Daveti kabul ederken adınızı ve şifrenizi kendiniz belirlersiniz.",
         "rowCompany": "Firma",
         "rowRole": "Rol",
         "rowValidity": "Geçerlilik",
@@ -1313,7 +1318,8 @@
         "YONETICI": "Yönetici",
         "SATIN_ALMACI": "Satın Almacı",
         "SATISCI": "Satışçı",
-        "ONAYLAYICI": "Onaylayıcı"
+        "ONAYLAYICI": "Onaylayıcı",
+        "VIEWER": "Görüntüleyici"
       },
       "permissionsChanged": {
         "title": "Yetkileriniz güncellendi",
@@ -1572,11 +1578,11 @@
       "davetKabulGovdeIsimsiz": "Davet ettiğiniz bir firma Rothern'e katıldı ve artık bağlantınız.",
       "baglantilarim": "Bağlantılarım",
       "ikiAdimliAcildiBaslik": "İki adımlı doğrulama açıldı",
-      "ikiAdimliAcildiGovde": "Hesabınızda iki adımlı doğrulama (2FA) etkinleştirildi. Bu işlemi siz yapmadıysanız derhal parolanızı değiştirin ve destekle iletişime geçin.",
+      "ikiAdimliAcildiGovde": "Hesabınızda iki adımlı doğrulama (2FA) etkinleştirildi. Bu işlemi siz yapmadıysanız derhal şifrenizi değiştirin ve destekle iletişime geçin.",
       "ikiAdimliKapatildiBaslik": "İki adımlı doğrulama kapatıldı",
-      "ikiAdimliKapatildiGovde": "Hesabınızda iki adımlı doğrulama (2FA) kapatıldı. Bu işlemi siz yapmadıysanız derhal parolanızı değiştirin ve destekle iletişime geçin.",
-      "parolaDegistiBaslik": "Parolanız değiştirildi",
-      "parolaDegistiGovde": "Hesabınızın parolası değiştirildi. Bu işlemi siz yapmadıysanız derhal parolanızı sıfırlayın ve destekle iletişime geçin.",
+      "ikiAdimliKapatildiGovde": "Hesabınızda iki adımlı doğrulama (2FA) kapatıldı. Bu işlemi siz yapmadıysanız derhal şifrenizi değiştirin ve destekle iletişime geçin.",
+      "parolaDegistiBaslik": "Şifreniz değiştirildi",
+      "parolaDegistiGovde": "Hesabınızın şifresi değiştirildi. Bu işlemi siz yapmadıysanız derhal şifrenizi sıfırlayın ve destekle iletişime geçin.",
       "hesapAyarlari": "Hesap Ayarları"
     },
     "membership": {

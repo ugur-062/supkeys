@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
   saveDefaults: vi.fn(),
   push: vi.fn(),
   connections: [] as unknown[],
+  sendExternal: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
@@ -40,6 +41,9 @@ vi.mock("@/hooks/use-company-listings", () => ({
 vi.mock("@/hooks/use-listing-templates", () => ({ useSaveTemplate: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock("@/hooks/use-ai-search-intent", () => ({ useAiSearchIntent: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock("@/components/tenders/supplier-discovery-modal", () => ({ SupplierDiscoveryModal: () => null }));
+vi.mock("@/hooks/use-supplier-discovery", () => ({
+  useExternalTenderInvite: () => ({ mutateAsync: h.sendExternal, isPending: false }),
+}));
 vi.mock("@/components/tenders/wizard/catalog-picker-dialog", () => ({ CatalogPickerDialog: () => null }));
 vi.mock("@/components/tenders/wizard/staged-documents", () => ({ StagedDocuments: () => <div data-testid="staged-docs" /> }));
 vi.mock("@/hooks/use-listing-documents", () => ({ uploadListingDocument: vi.fn() }));
@@ -175,6 +179,31 @@ describe("QuickRequest", () => {
     } finally {
       h.connections = [];
     }
+  }, 30_000);
+
+  it("AI keşfinden eklenen dış davetler yayından ÖNCE gitmez; yayında talebe özel uçla gider, sonuç panelde", async () => {
+    // Yayın öncesi modal adresleri forma ekler (modal burada sahte) — taslakta
+    // saklanan liste geri yüklenir.
+    sessionStorage.setItem(
+      "quick-request-draft",
+      JSON.stringify({ externalInvites: ["info@baret.com", "satis@kask.com"] }),
+    );
+    h.create.mockResolvedValue({ id: "l3", number: "ROT-000044" });
+    h.sendExternal.mockReset().mockResolvedValue([{ email: "info@baret.com", status: "SENT" }]);
+    wrap(<QuickRequest />);
+    expect(await screen.findByText("Yayında davet gidecek adresler (2)")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "satis@kask.com adresini kaldır" }));
+    expect(screen.getByText("Yayında davet gidecek adresler (1)")).toBeInTheDocument();
+    expect(h.sendExternal).not.toHaveBeenCalled();
+    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+    fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+    await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(h.sendExternal).toHaveBeenCalledWith({ listingId: "l3", emails: ["info@baret.com"] }),
+    );
+    expect(await screen.findByText("Davet e-postaları")).toBeInTheDocument();
+    expect(screen.getByText("1 davet e-postası gönderildi")).toBeInTheDocument();
   }, 30_000);
 
   it("1. bölüm: başlık → 'AI ile başlık ve kategori bul' → kategori (tek sütun); düğme kalemsiz pasif", async () => {

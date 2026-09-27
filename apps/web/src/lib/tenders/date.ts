@@ -1,4 +1,5 @@
-import { formatDate as canonical } from "@/lib/format-date";
+import { formatDate as canonical, zoneSuffix } from "@/lib/format-date";
+import type { Locale } from "@rothern/i18n";
 import { wallClock } from "@/lib/time-zone";
 
 type DateInput = Date | string | number | null | undefined;
@@ -15,19 +16,22 @@ export function formatDate(value: DateInput): string {
 }
 
 /** Tarih + saat — "5 Tem 2026 14:30". Geçersiz/boş girdide "—". */
-export function formatDateTime(value: DateInput): string {
-  return canonical(normalize(value), "datetime");
+export function formatDateTime(value: DateInput, locale?: Locale): string {
+  return canonical(normalize(value), "datetime", locale);
 }
 
-/** Yalnızca saat — "14:30". Geçersiz/boş girdide "—". */
-export function formatTime(value: DateInput): string {
+/**
+ * Yalnızca saat — "14:30". Geçersiz/boş girdide "—". `locale` Türkçe dışıysa
+ * dilim etiketi eklenir ("14:30 (GMT+3)").
+ */
+export function formatTime(value: DateInput, locale?: Locale | string): string {
   const d = normalize(value);
   if (!d) return "—";
   const dd = d instanceof Date ? d : new Date(d);
   if (Number.isNaN(dd.getTime())) return "—";
   // Ürün saat dilimi (2026-09-22) — `getHours` sunucuda UTC basıyordu.
   const w = wallClock(dd);
-  return `${String(w.hour).padStart(2, "0")}:${String(w.minute).padStart(2, "0")}`;
+  return `${String(w.hour).padStart(2, "0")}:${String(w.minute).padStart(2, "0")}${zoneSuffix(locale, dd)}`;
 }
 
 function normalize(value: DateInput): Date | string | null {

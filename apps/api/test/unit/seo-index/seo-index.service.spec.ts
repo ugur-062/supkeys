@@ -43,7 +43,7 @@ describe("SeoIndexService", () => {
     await svc.flush();
   }
 
-  it("yayındaki ürün: ürün + firma + kategori sayfası IndexNow'a, dizin/sitemap web'e", async () => {
+  it("yayındaki ürün: ürün + firma + kategori + şehir + ülke sayfası IndexNow'a, dizin/sitemap web'e", async () => {
     const prisma = makePrisma();
     (prisma.companyItem.findUnique as jest.Mock).mockResolvedValue({
       slug: "celik-boru",
@@ -68,7 +68,10 @@ describe("SeoIndexService", () => {
         "/urunler",
         "/urunler/kategori/39000000-elektrik-malzemeleri",
         "/urunler/sehir/istanbul",
+        "/urunler/ulke/tr-turkiye",
         SITEMAP_PATHS.products,
+        SITEMAP_PATHS.cities,
+        SITEMAP_PATHS.countries,
         SITEMAP_PATHS.index,
       ]),
     );
@@ -106,6 +109,13 @@ describe("SeoIndexService", () => {
       "https://www.rothern.com/urunler/kategori/39000000-elektrik-malzemeleri",
       "https://www.rothern.com/en/products/category/39000000-elektrik-malzemeleri",
       "https://www.rothern.com/ru/tovary/kategoriya/39000000-elektrik-malzemeleri",
+      // Şehir/ülke açılış sayfaları da ürün listesidir (2026-09-27 SEO denetimi).
+      "https://www.rothern.com/urunler/sehir/istanbul",
+      "https://www.rothern.com/en/products/city/istanbul",
+      "https://www.rothern.com/ru/tovary/gorod/istanbul",
+      "https://www.rothern.com/urunler/ulke/tr-turkiye",
+      "https://www.rothern.com/en/products/country/tr-turkiye",
+      "https://www.rothern.com/ru/tovary/strana/tr-turkiye",
     ]);
   });
 
@@ -158,6 +168,36 @@ describe("SeoIndexService", () => {
     ]);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.tags).toEqual(expect.arrayContaining([SEO_TAGS.listing("ROT-000042"), SEO_TAGS.listing("ROT-000043")]));
+  });
+
+  it("yayındaki firma: profil + şehir + ülke sayfası IndexNow'a (üç dilde)", async () => {
+    const prisma = makePrisma();
+    (prisma.company.findUnique as jest.Mock).mockResolvedValue({
+      slug: "acme-metal",
+      cityId: -1035, // İzmir
+      country: "TR",
+      publicEnabled: true,
+      isActive: true,
+      isBlocked: false,
+    });
+    const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
+    svc.companyChanged("c1");
+    await flushSoon(svc);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+    expect(body.paths).toEqual(expect.arrayContaining([SITEMAP_PATHS.cities, SITEMAP_PATHS.countries]));
+    const inBody = JSON.parse(fetchMock.mock.calls[1][1].body);
+    expect(inBody.urlList).toEqual([
+      "https://www.rothern.com/firma/acme-metal",
+      "https://www.rothern.com/en/companies/acme-metal",
+      "https://www.rothern.com/ru/kompanii/acme-metal",
+      "https://www.rothern.com/urunler/sehir/izmir",
+      "https://www.rothern.com/en/products/city/izmir",
+      "https://www.rothern.com/ru/tovary/gorod/izmir",
+      "https://www.rothern.com/urunler/ulke/tr-turkiye",
+      "https://www.rothern.com/en/products/country/tr-turkiye",
+      "https://www.rothern.com/ru/tovary/strana/tr-turkiye",
+    ]);
   });
 
   it("askıya alınan firma: profil IndexNow'a gitmez; ürün sayfaları etiketle tazelenir", async () => {

@@ -155,7 +155,7 @@ describe("CompanyUsersSection", () => {
     expect(screen.queryByText("Çıkar")).not.toBeInTheDocument();
   });
 
-  it("düzenle: değişiklik yokken Kaydet pasif; kısa ad satır içi hata (toast değil)", async () => {
+  it("düzenle: değişiklik yokken Kaydet pasif; boş ad satır içi hata (toast değil), tek harf geçerli", async () => {
     const u = userEvent.setup();
     render(<CompanyUsersSection canManage meId="owner" />);
     const menus = screen.getAllByRole("button", { name: "Aksiyonlar" });
@@ -167,8 +167,12 @@ describe("CompanyUsersSection", () => {
     await u.clear(ad);
     await u.type(ad, "A");
     expect(save).toBeEnabled();
+    // Tek harfli ad meşru (Çin, Kore …) — hata çizilmez.
+    expect(screen.queryByText("Ad boş olamaz")).not.toBeInTheDocument();
+    await u.clear(ad);
+    await u.type(ad, " ");
     await u.click(save);
-    expect(await screen.findByText("Ad en az 2 karakter")).toBeInTheDocument();
+    expect(await screen.findByText("Ad boş olamaz")).toBeInTheDocument();
     expect(h.toast.error).not.toHaveBeenCalled();
   });
 

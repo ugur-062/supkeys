@@ -1,6 +1,12 @@
 "use client";
 
-import { PHONE_COUNTRIES, composePhone, parsePhone } from "@rothern/shared";
+import {
+  PHONE_COUNTRIES,
+  composePhone,
+  parseInternationalInput,
+  parsePhone,
+  stripTrunkPrefix,
+} from "@rothern/shared";
 import { useLocale } from "next-intl";
 import { countryDisplayName } from "@/i18n/domain";
 import { useMemo, useState } from "react";
@@ -15,6 +21,11 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
  * göre sıralı; boş alanda varsayılan ülke firmanın ülkesi (yoksa TR); numara
  * yazılmadan seçilen ülke artık KAYBOLMAZ (boş değer "+90"a dönüyordu); örnek
  * numara yalnız Türkiye'de Türk cep biçiminde.
+ *
+ * Alana "+44 7911 …" / "0049 …" biçiminde TAM numara yazılır ya da yapıştırılırsa
+ * seçili kodun önüne eklenmez: numara ayrıştırılır ve ülke ona geçer. Ulusal
+ * önek "0" atılır (TR 0532 → +90 532, GB 07911 → +44 7911; İtalya'da 0
+ * numaranın parçası, atılmaz). Ortak kodda (+1, +44, +7) seçili ülke korunur.
  */
 export function PhoneInput({
   value,
@@ -37,11 +48,14 @@ export function PhoneInput({
 }) {
   const locale = useLocale();
   const companyCountry = useCompanyAuthStore((st) => st.company?.country);
-  const parsed = useMemo(() => parsePhone(value), [value]);
   const [pendingCode, setPendingCode] = useState<string | null>(null);
-  const hasNumber = parsed.national.replace(/\D/g, "").length > 0;
+  // Uluslararası önek yazılırken henüz bir ülke koduna ulaşmamış ham metin ("+3", "00").
+  const [draft, setDraft] = useState<string | null>(null);
   const fallback = companyCountry && PHONE_COUNTRIES.some((c) => c.code === companyCountry) ? companyCountry : "TR";
-  const code = hasNumber ? parsed.code : (pendingCode ?? fallback);
+  const selected = pendingCode ?? fallback;
+  const parsed = useMemo(() => parsePhone(value, selected), [value, selected]);
+  const hasNumber = parsed.national.replace(/\D/g, "").length > 0;
+  const code = hasNumber ? parsed.code : selected;
   const current = PHONE_COUNTRIES.find((c) => c.code === code);
   const options = useMemo(() => {
     const rows = PHONE_COUNTRIES.map((c) => ({ ...c, label: countryDisplayName(c.code, locale) }));
@@ -51,10 +65,23 @@ export function PhoneInput({
 
   const setCountry = (next: string) => {
     setPendingCode(next);
+    setDraft(null);
     if (hasNumber) onChange(composePhone(next, parsed.national));
   };
-  const setNational = (national: string) =>
-    onChange(composePhone(code, national.replace(/[^\d]/g, "")));
+  const setNational = (raw: string) => {
+    const intl = parseInternationalInput(raw, code);
+    if (intl && "pending" in intl) {
+      setDraft(raw);
+      return;
+    }
+    setDraft(null);
+    if (intl) {
+      setPendingCode(intl.code);
+      onChange(composePhone(intl.code, intl.national));
+      return;
+    }
+    onChange(composePhone(code, stripTrunkPrefix(code, raw)));
+  };
 
   return (
     <div
@@ -109,7 +136,7 @@ export function PhoneInput({
         autoComplete={autoComplete}
         placeholder={placeholder ?? (code === "TR" ? "5XX XXX XX XX" : undefined)}
         disabled={disabled}
-        value={parsed.national}
+        value={draft ?? parsed.national}
         onChange={(e) => setNational(e.target.value)}
         className="w-full bg-transparent px-3 py-2.5 text-base text-zinc-900 outline-none placeholder:text-zinc-400 sm:py-2 sm:text-sm"
       />

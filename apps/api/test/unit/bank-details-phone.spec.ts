@@ -4,6 +4,8 @@ import {
   isValidSwiftBic,
   parsePhone,
   composePhone,
+  parseInternationalInput,
+  stripTrunkPrefix,
 } from "@rothern/shared";
 
 /**
@@ -42,9 +44,26 @@ describe("banka bilgisi kuralı", () => {
 });
 
 describe("telefon ayrıştırıcı", () => {
-  it("ortak kodda birincil ülke: +7 → Rusya (eskiden Kazakistan), +1 → ABD", () => {
+  it("ortak kodda birincil ülke: +7 → Rusya (eskiden Kazakistan), +1 → Kanada (ABD kayda kapalı)", () => {
     expect(parsePhone("+7 495 1234567").code).toBe("RU");
-    expect(parsePhone("+1 212 5550100").code).toBe("US");
+    expect(parsePhone("+1 212 5550100").code).toBe("CA");
+  });
+  it("ortak kodda seçili ülke korunur; ulusal önek kuralı yine önce", () => {
+    expect(parsePhone("+1 212 5550100", "US").code).toBe("US");
+    expect(parsePhone("+44 1534 123456", "JE").code).toBe("JE");
+    expect(parsePhone("+44 1534 123456", "DE").code).toBe("GB");
+    expect(parsePhone("+7 7012345678", "RU").code).toBe("KZ");
+  });
+  it("ulusal önek '0' atılır (İtalya hariç); tam numara girişi ayrıştırılır", () => {
+    expect(stripTrunkPrefix("TR", "05321234567")).toBe("5321234567");
+    expect(stripTrunkPrefix("GB", "07911123456")).toBe("7911123456");
+    expect(stripTrunkPrefix("IT", "0612345678")).toBe("0612345678");
+    expect(stripTrunkPrefix("TR", "0")).toBe("0");
+    expect(stripTrunkPrefix("TR", "00")).toBe("00");
+    expect(parseInternationalInput("+44 07911 123456", "TR")).toEqual({ code: "GB", national: "7911123456" });
+    expect(parseInternationalInput("0049 30 1234567", "TR")).toEqual({ code: "DE", national: "301234567" });
+    expect(parseInternationalInput("+3", "TR")).toEqual({ pending: true });
+    expect(parseInternationalInput("5321234567", "TR")).toBeNull();
   });
   it("ulusal önek ülkeyi ayırır: +7 7xx → Kazakistan, +90 392 → KKTC", () => {
     expect(parsePhone("+7 7012345678").code).toBe("KZ");

@@ -678,10 +678,20 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
     try {
       if (parsed.valid.length === 1) {
         const res = await single.mutateAsync(parsed.valid[0] as string);
+        const addr = res.email ?? parsed.valid[0] ?? "";
+        if (res.kind === "invited" && res.emailSent === false) {
+          // Davet kaydı var ama e-posta gitmedi — "gönderildi" DENMEZ.
+          toast.warning(
+            res.delivery === "SUPPRESSED"
+              ? t("adresEPostaAlmiyor", { email: addr })
+              : t("davetEPostasiGonderilemedi", { email: addr }),
+          );
+          return;
+        }
         toast.success(
           res.kind === "request"
             ? t("zatenKayitliBaglantiIstegiGonderildi", { targetName: res.targetName ?? "" })
-            : t("adresineDavetEPostasiGonderildi", { email: res.email ?? parsed.valid[0] ?? "" }),
+            : t("adresineDavetEPostasiGonderildi", { email: addr }),
         );
         close();
         return;
@@ -694,6 +704,7 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
           ? t("davetGonderildiAtlandi", { n: sent, skipped: res.summary.skipped })
           : t("davetGonderildi", { n: sent }),
       );
+      if (res.summary.failed) toast.warning(t("davetGonderilemediSayisi", { n: res.summary.failed }));
     } catch (err) {
       toast.error(extractErrorMessage(err, t("davetGonderilemedi")));
     }
@@ -705,10 +716,11 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
     onClose();
   };
 
-  const STATUS_PILL: Record<"request" | "invited" | "skipped", { label: string; cls: string }> = {
+  const STATUS_PILL: Record<"request" | "invited" | "skipped" | "failed", { label: string; cls: string }> = {
     request: { label: t("istekGonderildi"), cls: "bg-blue-50 text-blue-700 ring-blue-200" },
     invited: { label: t("davetEPostasiGitti"), cls: "bg-emerald-50 text-emerald-700 ring-emerald-200" },
     skipped: { label: t("atlandi"), cls: "bg-zinc-100 text-zinc-600 ring-zinc-200" },
+    failed: { label: t("gonderilemediDurum"), cls: "bg-red-50 text-red-700 ring-red-200" },
   };
 
   return (

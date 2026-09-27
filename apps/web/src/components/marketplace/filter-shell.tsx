@@ -158,6 +158,8 @@ export function FilterShellCore<S extends { page: number }>({
 export function FilterShell({
   basePath,
   fixedCategory,
+  fixedCity,
+  fixedCountry,
   total,
   drawer,
   drawerHideAt,
@@ -168,6 +170,14 @@ export function FilterShell({
   basePath: string;
   /** Kategori yol sayfasında yoldan gelen kod. */
   fixedCategory?: string;
+  /**
+   * Şehir/ülke açılış sayfasında YOLDAN gelen süzgeç (2026-09-27): durumun
+   * parçası sayılır (sayaç, çip, işaretli kutu) ve sıralama/görünüm/sayfa
+   * boyutu değişince açılış yolunda kalınır; yoldaki değer kaldırılır ya da
+   * başka şehir/ülke eklenirse sorgu şemasına (`/urunler?…`) geçilir.
+   */
+  fixedCity?: string;
+  fixedCountry?: string;
   total: number;
   drawer?: ReactNode;
   /** Bkz. `FilterShellCore` — panel pazarında `xl`. */
@@ -180,15 +190,33 @@ export function FilterShell({
 }) {
   const pathname = usePathname();
   const sp = useSearchParams();
-  const state = parseProductFilters(sp ?? new URLSearchParams(), fixedCategory);
+  const current = new URLSearchParams(sp?.toString() ?? "");
+  if (fixedCity) current.set("sehir", fixedCity);
+  if (fixedCountry) current.set("ulke", fixedCountry);
+  const state = parseProductFilters(current, fixedCategory);
 
+  const only = (list: string[], value: string) => list.length === 1 && list[0] === value;
   const toUrl = (next: ProductFilterState) => {
-    // Kategori yol sayfasındaysak ve kategori değiştiyse/başka süzgeç
-    // eklendiyse sorgu şemasına geç; yoksa mevcut yolda kal (kanonik yol).
-    const onPathPage = !!fixedCategory && pathname !== basePath;
-    const keepPath = onPathPage && next.category === fixedCategory;
+    // Yol sayfasındaysak (kategori/şehir/ülke) ve yoldaki süzgeç AYNEN
+    // duruyorsa mevcut yolda kal (kanonik yol); değiştiyse/genişlediyse
+    // sorgu şemasına geç.
+    const onPathPage = (!!fixedCategory || !!fixedCity || !!fixedCountry) && pathname !== basePath;
+    const keepPath =
+      onPathPage &&
+      (!fixedCategory || next.category === fixedCategory) &&
+      (!fixedCity || only(next.cities, fixedCity)) &&
+      (!fixedCountry || only(next.countries, fixedCountry));
     const target = keepPath ? pathname : basePath;
-    return `${target}${buildProductFilterQuery(keepPath ? { ...next, category: undefined } : next)}`;
+    return `${target}${buildProductFilterQuery(
+      keepPath
+        ? {
+            ...next,
+            category: fixedCategory ? undefined : next.category,
+            cities: fixedCity ? [] : next.cities,
+            countries: fixedCountry ? [] : next.countries,
+          }
+        : next,
+    )}`;
   };
 
   return (

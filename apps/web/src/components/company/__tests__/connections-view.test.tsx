@@ -19,7 +19,7 @@ const h = vi.hoisted(() => ({
   respond: vi.fn(),
   invite: vi.fn(),
   batch: vi.fn(),
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
@@ -174,5 +174,33 @@ describe("ConnectionsView", () => {
     await user.type(box2, "a@b.com, c@d.com");
     await user.click(screen.getByRole("button", { name: "2 adrese davet gönder" }));
     expect(h.batch).toHaveBeenCalledWith(["a@b.com", "c@d.com"]);
+  });
+
+  it("e-posta GİTMEDİYSE 'gönderildi' denmez: tekil uçta uyarı, toplu uçta gönderilemeyen sayısı + satır rozeti", async () => {
+    const user = userEvent.setup();
+    h.toast.success.mockReset();
+    h.toast.warning.mockReset();
+    h.invite.mockResolvedValueOnce({ kind: "invited", email: "x@y.com", delivery: "SUPPRESSED", emailSent: false });
+    render(<ConnectionsView />);
+    await user.click(screen.getByRole("button", { name: /Davet et/ }));
+    await user.type(await screen.findByLabelText("Davet edilecek e-posta adresleri"), "x@y.com");
+    await user.click(screen.getByRole("button", { name: "Davet gönder" }));
+    expect(h.toast.warning).toHaveBeenCalledWith(expect.stringContaining("x@y.com"));
+    expect(h.toast.success).not.toHaveBeenCalled();
+
+    h.batch.mockResolvedValueOnce({
+      summary: { request: 0, invited: 1, skipped: 0, failed: 1 },
+      results: [
+        { email: "a@b.com", status: "invited", code: "SENT" },
+        { email: "c@d.com", status: "failed", code: "FAILED", reason: "Gönderilemedi" },
+      ],
+    });
+    const box = screen.getByLabelText("Davet edilecek e-posta adresleri");
+    await user.clear(box);
+    await user.type(box, "a@b.com, c@d.com");
+    await user.click(screen.getByRole("button", { name: "2 adrese davet gönder" }));
+    expect(h.toast.warning).toHaveBeenLastCalledWith("1 adrese e-posta gönderilemedi");
+    expect(await screen.findByText("c@d.com")).toBeInTheDocument();
+    expect(screen.getAllByText("Gönderilemedi").length).toBeGreaterThan(0);
   });
 });

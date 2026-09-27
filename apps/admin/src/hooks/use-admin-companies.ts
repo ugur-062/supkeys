@@ -173,6 +173,8 @@ export interface AdminCompanyDetail {
   /** SWIFT/BIC + banka adı (2026-09-27; IBAN kullanmayan ülkede banka adı zorunlu). */
   bankSwiftBic?: string | null;
   bankName?: string | null;
+  /** Kayıtlı ülke IBAN kullanıyor mu (API, 2026-09-27) — değilse `iban` = hesap no. */
+  usesIban?: boolean;
   /** `companyType = OTHER` iken yerel hukuki yapı. */
   legalFormLocal?: string | null;
   /** Ülkenin zorunlu belge seti (API — tek kaynak). */
@@ -334,6 +336,8 @@ export interface CompanyProfilePatch {
   industry?: string | null;
   iban?: string | null;
   ibanHolder?: string | null;
+  bankSwiftBic?: string | null;
+  bankName?: string | null;
 }
 
 export function useUpdateCompanyProfile() {

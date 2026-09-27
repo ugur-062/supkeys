@@ -19,6 +19,10 @@ import {
   numbersPreserved,
   parseModelOutput,
   readyLocales,
+  normalizeSourceLocale,
+  isUntranslatedCopy,
+  expandMagnitudes,
+  textWeight,
   SOURCE_HASH_PREFIX,
   TRANSLATION_PROMPT_VERSION,
   sourceHash,
@@ -301,11 +305,11 @@ describe("parseModelOutput", () => {
   it("JSON değilse hata", () => {
     expect(parseModelOutput("PRODUCT", product, "Sure! Here is the translation")).toMatchObject({ error: expect.any(String) });
   });
-  it("bilinmeyen kaynak dil 'other' olur, üç dil de saklanır", () => {
-    const out = goodOutput();
-    out.sourceLocale = "zh";
-    const r = parseModelOutput("PRODUCT", product, JSON.stringify(out));
-    expect(r).toMatchObject({ sourceLocale: "other" });
+  it("kaynak dil ISO koduyla saklanır ('kaynak: Almanca' yazılabilsin); tanınmayan → 'und'", () => {
+    expect(normalizeSourceLocale("DE")).toBe("de");
+    expect(normalizeSourceLocale("zh-CN")).toBe("zh");
+    expect(normalizeSourceLocale("other")).toBe("und");
+    expect(normalizeSourceLocale(42)).toBe("und");
   });
 });
 
@@ -540,5 +544,105 @@ describe("readyLocales — sayfa noindex'i ve sitemap dilleri ortak kural", () =
   });
   it("kaynak İngilizce: Türkçe çeviri gelene dek Türkçe hazır değil", () => {
     expect(readyLocales([row("tr", null, "en"), row("en", null, "en"), row("ru", null, "en")])).toEqual(["en"]);
+  });
+  it("yabancı firmanın kaydı (kaynak 'und' ya da 'de'): çeviri gelmeden HİÇBİR dil hazır değil", () => {
+    expect(readyLocales([row("tr", null, "und"), row("en", null, "und"), row("ru", null, "und")])).toEqual([]);
+    expect(readyLocales([row("tr", { t: 1 }, "de"), row("en", { t: 1 }, "de"), row("ru", { t: 1 }, "de")])).toEqual(["tr", "en", "ru"]);
+  });
+});
+
+/*
+ * TÜRKÇE DIŞI KAYNAK (2026-09-27 denetimi — kayıt tüm ülkelere açıldı):
+ * Almanca/Çince/Rusça/Arapça/İngilizce kaynakta kapılar doğru çıktıyı
+ * reddetmemeli, bozuk çıktıyı kabul etmemeli.
+ */
+describe("kalite kapıları — her kaynak dil", () => {
+  it("sayı kapısı ayraçtan bağımsız: Rusça '1 200,50' = Türkçe '1.200,50'", () => {
+    expect(numbersPreserved("Ağırlık 1.200,50 g", "Масса 1 200,50 г")).toBe(true);
+    expect(numbersPreserved("Gewicht 1.200,50 kg", "Weight 1,200.50 kg")).toBe(true);
+    expect(numbersPreserved("25 30 adet", "25 to 30 pcs")).toBe(true);
+    expect(numbersPreserved("Ağırlık 1.200,50 g", "Масса 1 300,50 г")).toBe(false);
+  });
+  it("büyüklük sözcükleri her dilde rakama açılır", () => {
+    expect(numbersPreserved("起订量1万件", "Minimum order 10,000 pcs")).toBe(true);
+    expect(numbersPreserved("15 thousand m²", "15.000 m²")).toBe(true);
+    expect(numbersPreserved("15 тыс. тонн", "15,000 tonnes")).toBe(true);
+    expect(numbersPreserved("1,5 Mio. Stück", "1,500,000 pcs")).toBe(true);
+    expect(numbersPreserved("起订量1万件", "Minimum order 20,000 pcs")).toBe(false);
+    expect(expandMagnitudes("15k units")).toBe("15000 units");
+  });
+  it("Arapça-Hint ve tam genişlik rakamlar denetlenir", () => {
+    expect(numbersPreserved("١٠٠٠ قطعة", "1,000 pcs")).toBe(true);
+    expect(numbersPreserved("١٠٠٠ قطعة", "5,000 pcs")).toBe(false);
+    expect(numbersPreserved("数量１０００", "Quantity 1,000")).toBe(true);
+  });
+  it("tarihte gün/ay sözcükle yazılabilir, yıl korunur", () => {
+    expect(numbersPreserved("Lieferung bis 01.03.2026", "Delivery by 1 March 2026")).toBe(true);
+    expect(numbersPreserved("交货 2026年3月1日", "Delivery on 1 March 2026")).toBe(true);
+    expect(numbersPreserved("Lieferung bis 01.03.2026", "Delivery by 1 March 2027")).toBe(false);
+  });
+  it("uzunluk kapısı Çince karakteri ~3 Latin harfi sayar", () => {
+    const zh = "高".repeat(226);
+    expect(textWeight(zh)).toBe(678);
+    expect(817 <= textWeight(zh) * 3 + 80).toBe(true);
+  });
+  it("Türkçe hedef de denetlenir: 'ihale' yasak, Kiril/Çince kalamaz", () => {
+    expect(qualityErrors("title", "tr", "Tender for steel pipes", "Çelik boru ihalesi")[0]).toMatch(/forbidden/);
+    expect(qualityErrors("title", "tr", "Стальные трубы", "Стальные трубы")[0]).toMatch(/Cyrillic/);
+    expect(qualityErrors("title", "tr", "Tender for steel pipes", "Çelik boru satın alma talebi")).toEqual([]);
+  });
+  it("Çince/Arapça hedefte bırakılamaz", () => {
+    expect(qualityErrors("description", "en", "起订量1万件", "起订量 10,000 pcs")[0]).toMatch(/not translated/);
+    expect(qualityErrors("description", "ru", "شركة الرياض", "Компания شركة")[0]).toMatch(/not translated/);
+  });
+  it("Rusça kaynakta kaynakta AYNEN geçen tüzel ad / çelik sınıfı İngilizcede serbest; çevrilmemiş metin değil", () => {
+    const src = "ООО «Промтех» поставляет трубы из стали 12Х18Н10Т";
+    expect(qualityErrors("aboutText", "en", src, "ООО «Промтех» supplies 12Х18Н10Т stainless steel pipes")).toEqual([]);
+    expect(qualityErrors("aboutText", "en", src, "ООО «Промтех» поставляет трубы из стали")[0]).toMatch(/Cyrillic/);
+    expect(qualityErrors("aboutText", "en", src, "Трубы supplied")[0]).toMatch(/Cyrillic/);
+  });
+  it("kaynağın aynısı = çevrilmemiş (marka/model adı hariç)", () => {
+    expect(isUntranslatedCopy("Hochwertige Rohre aus rostfreiem Stahl", "Hochwertige Rohre aus rostfreiem Stahl")).toBe(true);
+    expect(isUntranslatedCopy("Bosch GSB 18V-50", "Bosch GSB 18V-50")).toBe(false);
+  });
+  it("sayı biçimi KAYNAK dilin kuralıyla okunur, hedefin kuralıyla yazılır", () => {
+    expect(localizeNumbers("1,200.5 kg", "1,200.5 кг", "ru", "en")).toBe("1\u00a0200,5 кг");
+    expect(localizeNumbers("Gewicht 1.200,50 kg", "Weight 1.200,50 kg", "en", "de")).toBe("Weight 1,200.50 kg");
+    expect(localizeNumbers("Thickness 2.5 mm", "Kalınlık 2.5 mm", "tr", "en")).toBe("Kalınlık 2,5 mm");
+    expect(localizeNumbers("Масса 2 400 кг", "Ağırlık 2 400 kg", "tr", "ru")).toBe("Ağırlık 2.400 kg");
+    // Boşluklu ölçü listesi tek sayı sanılmaz; bilinmeyen dilde dokunulmaz.
+    expect(localizeNumbers("Größen 100 200 300 mm", "Sizes 100 200 300 mm", "en", "de")).toBe("Sizes 100 200 300 mm");
+    expect(localizeNumbers("1.200", "1.200", "en", "und")).toBe("1.200");
+  });
+  it("Çince metne bitişik kod korunur", () => {
+    expect(codeTokens("SUS304不锈钢 M6螺栓")).toEqual(["SUS304", "M6"]);
+    expect(codeErrors("name", "SUS304不锈钢 M6螺栓", "SUS304 stainless steel M6 bolt")).toEqual([]);
+    expect(codeErrors("name", "SUS304不锈钢 M6螺栓", "SUS 304 stainless steel bolt")[0]).toMatch(/SUS304/);
+  });
+  it("Almanca kaynaklı ürün: üç dil de denetlenip kabul edilir, kaynak 'de'", () => {
+    const de: ProductSource = {
+      name: "Edelstahlrohr 12 mm",
+      description: "Nahtloses Edelstahlrohr, Lager 1.200,5 kg, Lieferung bis 01.03.2026.",
+      keywords: ["edelstahlrohr"],
+      attributes: [],
+    };
+    const out = {
+      sourceLocale: "de",
+      translations: {
+        tr: { name: "Paslanmaz çelik boru 12 mm", description: "Dikişsiz paslanmaz çelik boru, stok 1.200,5 kg, teslim 1 Mart 2026.", keywords: ["paslanmaz çelik boru"], attributes: [] },
+        en: { name: "Stainless steel pipe 12 mm", description: "Seamless stainless steel pipe, stock 1.200,5 kg, delivery by 1 March 2026.", keywords: ["stainless steel pipe"], attributes: [] },
+        ru: { name: "Труба из нержавеющей стали 12 мм", description: "Бесшовная труба из нержавеющей стали, на складе 1 200,5 кг, поставка до 1 марта 2026 г.", keywords: ["труба из нержавеющей стали"], attributes: [] },
+      },
+    };
+    const r = parseModelOutput("PRODUCT", de, JSON.stringify(out));
+    expect(r).toMatchObject({ sourceLocale: "de" });
+    if ("error" in r) throw new Error(r.error);
+    // İngilizceye aynen kopyalanan Almanca biçimli sayı düzeltilir.
+    expect((r.perLocale.en as { description: string }).description).toContain("1,200.5 kg");
+    const bad = JSON.parse(JSON.stringify(out));
+    bad.translations.tr.description = "Nahtloses Edelstahlrohr, Lager 1.200,5 kg, Lieferung bis 01.03.2026.";
+    bad.translations.tr.name = "Çelik boru ihalesi 12 mm";
+    const rb = parseModelOutput("PRODUCT", de, JSON.stringify(bad));
+    expect("error" in rb && rb.error).toMatch(/tr\.name: forbidden|tr\.description: left untranslated/);
   });
 });

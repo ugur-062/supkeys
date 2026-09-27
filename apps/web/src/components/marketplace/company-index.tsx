@@ -1,4 +1,4 @@
-import { getTranslations } from "next-intl/server";
+import { getLocale, getTranslations } from "next-intl/server";
 import { CompanyCard } from "@/components/marketplace/company-card";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { PublicSearchTabs } from "@/components/marketplace/public-search-tabs";
@@ -43,6 +43,7 @@ export async function CompanyIndex({
   lead?: string;
 }) {
   const t = await getTranslations("web.marketplace.index");
+  const locale = await getLocale();
   const tl = await getTranslations("web.marketplace.labels");
   const heading = title ?? tl("companies");
   const intro = lead ?? t("companyLead");
@@ -53,6 +54,7 @@ export async function CompanyIndex({
   /* ITEMLIST — yalnız gösterilen kartlar; `totalItems` bilinçli YOK. */
   const listLd = graph([
     itemListNode({
+      locale,
       name: tl("companies"),
       path: base,
       startPosition: 1,

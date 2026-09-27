@@ -9,16 +9,14 @@ import {
 } from "@headlessui/react";
 import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
-import {
-  useInviteByEmailBatch,
-  useInviteConnection,
-} from "@/hooks/use-company-connections";
+import { useInviteConnection } from "@/hooks/use-company-connections";
 import {
   useExternalSupplierDiscovery,
   useExternalTenderInvite,
   useSupplierDiscovery,
   type DiscoveryCandidate,
   type ExternalCandidate,
+  type ExternalInviteStatus,
 } from "@/hooks/use-supplier-discovery";
 import { useListingDetail } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
@@ -48,16 +46,31 @@ export function SupplierDiscoveryModal({
   categoryIds,
   itemNames = [],
   listingId,
+  targetCountries,
+  collected = [],
+  onCollect,
 }: {
   isOpen: boolean;
   onClose: () => void;
   categoryIds: string[];
   /** Faz B — web aramasına bağlam (kalem adları). */
   itemNames?: string[];
-  /** Faz C — dış davet gönderimi bu ihale bağlamıyla yapılır (yoksa pasif). */
+  /** Faz C — dış davet gönderimi bu ihale bağlamıyla yapılır. */
   listingId?: string;
+  /** Yayın öncesi — web aramasının konumu talebin görünürlük ülkelerinden (boş = tüm ülkeler). */
+  targetCountries?: string[];
+  /**
+   * YAYIN ÖNCESİ TOPLAMA (2026-09-27): talep henüz yoksa e-posta HEMEN
+   * GİTMEZ — seçilen adresler forma eklenir, yayın sonrası talebe özel davet
+   * (`external-tender-invite`) gider. Eskiden bu kipte genel "Rothern'e katıl"
+   * daveti (`invite-by-email/batch`) gidiyordu; talepten habersiz bir e-posta.
+   */
+  onCollect?: (emails: string[]) => void;
+  /** Forma eklenmiş adresler — satırda "Talebe eklendi" görünür. */
+  collected?: string[];
 }) {
   const tr = useTranslations("web.panel.requests.supplierDiscoveryModal");
+  const tStatus = useTranslations("web.panel.requests.externalInviteStatus");
   const [tab, setTab] = useState<"platform" | "external">("platform");
   // listingId verildiyse (ihale detayından açılış) bağlamı kendisi çeker —
   // çağıranın kategori/kalem taşıması gerekmez.
@@ -81,14 +94,14 @@ export function SupplierDiscoveryModal({
   // Faz B/C durumları
   const external = useExternalSupplierDiscovery();
   const sendExternal = useExternalTenderInvite();
-  // İhale bağlamı yokken (wizard'dan açılış) genel bağlantı daveti gönderilir
-  // — kullanıcı firmaları seçip butonsuz kalmasın (madde 4 düzeltmesi).
-  const sendGeneric = useInviteByEmailBatch();
+  const collectMode = !listingId && !!onCollect;
+  const collectedSet = new Set(collected);
   const [externalResults, setExternalResults] = useState<ExternalCandidate[]>([]);
   const [region, setRegion] = useState("");
   const [emailDrafts, setEmailDrafts] = useState<Record<number, string>>({});
   const [selectedExt, setSelectedExt] = useState<Set<number>>(new Set());
-  const [sentEmails, setSentEmails] = useState<Set<string>>(new Set());
+  // Adres başına GERÇEK gönderim sonucu (SENT/FAILED/SUPPRESSED/…).
+  const [sendStatus, setSendStatus] = useState<Record<string, ExternalInviteStatus>>({});
 
   useEffect(() => {
     if (!isOpen) return;
@@ -98,7 +111,7 @@ export function SupplierDiscoveryModal({
     setExternalResults([]);
     setSelectedExt(new Set());
     setEmailDrafts({});
-    setSentEmails(new Set());
+    setSendStatus({});
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen]);
 
@@ -122,6 +135,8 @@ export function SupplierDiscoveryModal({
         categoryIds: effCategoryIds,
         itemNames: effItemNames.slice(0, 15),
         region: region.trim() || undefined,
+        // Konum talebin görünürlük ülkesinden: kayıtlı talepte sunucu okur.
+        ...(listingId ? { listingId } : { targetCountries: targetCountries ?? [] }),
       });
       // E-POSTASI OLMAYAN FİRMA LİSTELENMEZ (2026-09-17, kullanıcı kararı):
       // davet gönderilemeyecek satır yalnız gürültüdür.
@@ -143,25 +158,30 @@ export function SupplierDiscoveryModal({
     }
   };
 
-  const sendExternalInvites = async () => {
-    if (!listingId || sendExternal.isPending) return;
-    const emails = [...selectedExt]
+  const selectedEmails = () =>
+    [...selectedExt]
       .map((i) => (emailDrafts[i] ?? "").trim().toLowerCase())
       .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e));
+
+  const sendExternalInvites = async () => {
+    if (!listingId || sendExternal.isPending) return;
+    const emails = selectedEmails();
     if (emails.length === 0) {
       toast.error(tr("seciliAdaylarinEPostaAdreslerini"));
       return;
     }
     try {
       const results = await sendExternal.mutateAsync({ listingId, emails });
+      setSendStatus((m) => ({ ...m, ...Object.fromEntries(results.map((r) => [r.email, r.status])) }));
       const sent = results.filter((r) => r.status === "SENT");
-      const skipped = results.filter((r) => r.status === "SKIPPED");
+      const notSent = results.filter((r) => r.status !== "SENT");
       if (sent.length > 0) {
-        setSentEmails((s) => new Set([...s, ...sent.map((r) => r.email)]));
         toast.success(tr("davetEPostasiGonderildi", { length: sent.length }));
       }
-      for (const s of skipped.slice(0, 3)) {
-        toast.info(tr("atlandiSatiri", { email: s.email, reason: s.reason ?? tr("atlandi") }));
+      for (const s of notSent.slice(0, 3)) {
+        const line = tr("atlandiSatiri", { email: s.email, reason: s.reason ?? tStatus(s.status) });
+        if (s.status === "FAILED" || s.status === "SUPPRESSED") toast.warning(line);
+        else toast.info(line);
       }
       setSelectedExt(new Set());
     } catch (err) {
@@ -169,30 +189,17 @@ export function SupplierDiscoveryModal({
     }
   };
 
-  /** listingId'siz (wizard) gönderim: genel bağlantı/kayıt daveti. */
-  const sendGenericInvites = async () => {
-    if (sendGeneric.isPending) return;
-    const emails = [...selectedExt]
-      .map((i) => (emailDrafts[i] ?? "").trim().toLowerCase())
-      .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e));
+  /** Yayın öncesi (talep yok): adresler forma eklenir, e-posta yayında gider. */
+  const collectInvites = () => {
+    if (!onCollect) return;
+    const emails = selectedEmails().filter((e) => !collectedSet.has(e));
     if (emails.length === 0) {
       toast.error(tr("seciliAdaylarinEPostaAdreslerini"));
       return;
     }
-    try {
-      const { results } = await sendGeneric.mutateAsync(emails);
-      const sent = results.filter((r) => r.status !== "skipped");
-      if (sent.length > 0) {
-        setSentEmails((s) => new Set([...s, ...sent.map((r) => r.email)]));
-        toast.success(tr("davetGonderildi", { length: sent.length }));
-      }
-      for (const s of results.filter((r) => r.status === "skipped").slice(0, 3)) {
-        toast.info(tr("atlandiSatiri", { email: s.email, reason: s.reason ?? tr("atlandi") }));
-      }
-      setSelectedExt(new Set());
-    } catch (err) {
-      toast.error(extractErrorMessage(err, tr("davetlerGonderilemedi")));
-    }
+    onCollect(emails);
+    toast.success(tr("adresTalebeEklendi", { n: emails.length }));
+    setSelectedExt(new Set());
   };
 
   const sendInvite = async (c: DiscoveryCandidate) => {
@@ -301,7 +308,11 @@ export function SupplierDiscoveryModal({
                 <ul className="mt-4 space-y-2">
                   {externalResults.map((c, i) => {
                     const email = (emailDrafts[i] ?? "").trim().toLowerCase();
-                    const isSent = email !== "" && sentEmails.has(email);
+                    const status = email !== "" ? sendStatus[email] : undefined;
+                    const isCollected = collectMode && email !== "" && collectedSet.has(email);
+                    // Gönderildi ya da talebe eklendi → satır kilitli; başarısız
+                    // gönderim yeniden seçilebilir.
+                    const isSent = status === "SENT" || isCollected;
                     return (
                       <li
                         key={`${c.name}-${i}`}
@@ -361,7 +372,18 @@ export function SupplierDiscoveryModal({
                               {isSent ? (
                                 <span className="inline-flex items-center gap-1 text-xs font-semibold text-emerald-700">
                                   <Check className="h-3.5 w-3.5" />
-                                  {tr("gonderildi")}
+                                  {isCollected ? tr("talebeEklendi") : tr("gonderildi")}
+                                </span>
+                              ) : status ? (
+                                <span
+                                  className={cn(
+                                    "text-xs font-semibold",
+                                    status === "FAILED" || status === "SUPPRESSED"
+                                      ? "text-red-700"
+                                      : "text-zinc-600",
+                                  )}
+                                >
+                                  {tStatus(status)}
                                 </span>
                               ) : null}
                             </div>
@@ -383,23 +405,28 @@ export function SupplierDiscoveryModal({
                   <p className="text-xs text-zinc-500">
                     {listingId
                       ? tr("gunlukDisDavetLimitiFirma")
-                      : tr("talepHenuzYayinlanmadigiIcinBaglanti")}
+                      : collectMode
+                        ? tr("yayindaDavetGonderilir")
+                        : tr("onceTalebiKaydedin")}
                   </p>
-                  <Button
-                    onClick={listingId ? sendExternalInvites : sendGenericInvites}
-                    disabled={
-                      selectedExt.size === 0 ||
-                      sendExternal.isPending ||
-                      sendGeneric.isPending
-                    }
-                  >
-                    {sendExternal.isPending || sendGeneric.isPending ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
+                  {listingId ? (
+                    <Button
+                      onClick={sendExternalInvites}
+                      disabled={selectedExt.size === 0 || sendExternal.isPending}
+                    >
+                      {sendExternal.isPending ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Mail className="h-4 w-4" />
+                      )}
+                      {tr("davetEPostasiGonderN", { n: selectedExt.size })}
+                    </Button>
+                  ) : collectMode ? (
+                    <Button onClick={collectInvites} disabled={selectedExt.size === 0}>
                       <Mail className="h-4 w-4" />
-                    )}
-                    {tr("davetEPostasiGonderN", { n: selectedExt.size })}
-                  </Button>
+                      {tr("talebeEkleN", { n: selectedExt.size })}
+                    </Button>
+                  ) : null}
                 </div>
               </div>
             ) : null}

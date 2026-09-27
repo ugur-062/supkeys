@@ -7,13 +7,31 @@ import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { CheckCircleIcon, SparklesIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { useState } from "react";
+import type { ExternalInviteResult } from "@/hooks/use-supplier-discovery";
+import { cn } from "@/lib/utils";
 
 /**
  * YAYIN SONRASI — engel değil öneri (2026-09-09).
  * Tedarikçi önerisi (AI, Silver+) ve talep sayfası; "yeni talep" ile döngü.
  */
-export function PublishedPanel({ listingId, title, categoryIds, itemNames, onNew }: { listingId: string; title: string; categoryIds: string[]; itemNames: string[]; onNew: () => void }) {
+export function PublishedPanel({
+  listingId,
+  title,
+  categoryIds,
+  itemNames,
+  inviteResults = null,
+  onNew,
+}: {
+  listingId: string;
+  title: string;
+  categoryIds: string[];
+  itemNames: string[];
+  /** Yayın öncesi eklenen dış davetlerin GERÇEK sonucu (adres başına); "error" = istek düştü. */
+  inviteResults?: ExternalInviteResult[] | "error" | null;
+  onNew: () => void;
+}) {
   const t = useTranslations("web.panel.requests.publishedPanel");
+  const tStatus = useTranslations("web.panel.requests.externalInviteStatus");
   const [discoveryOpen, setDiscoveryOpen] = useState(false);
   const { company } = useCompanyAuth();
   // API `company/ai/supplier-discovery` @RequireTier("GOLD") — ekran aynı kapı.
@@ -38,6 +56,39 @@ export function PublishedPanel({ listingId, title, categoryIds, itemNames, onNew
           {t("uygunTedarikciOnerVeDavet")}
         </button>
       </div>
+      {inviteResults ? (
+        <div className="mt-6 rounded-xl bg-zinc-100 p-4 text-left ring-1 ring-zinc-950/5">
+          <p className="text-sm font-semibold text-zinc-950">{t("davetEPostalari")}</p>
+          {inviteResults === "error" ? (
+            <p className="mt-1 text-sm text-red-700">{t("davetEPostalariGonderilemedi")}</p>
+          ) : (
+            <>
+              <p className="mt-1 text-sm text-zinc-700">
+                {t("davetGonderildiSayisi", { n: inviteResults.filter((r) => r.status === "SENT").length })}
+              </p>
+              <ul className="mt-2 space-y-1">
+                {inviteResults.map((r) => (
+                  <li key={r.email} className="flex flex-wrap items-center justify-between gap-2 text-xs">
+                    <span className="min-w-0 truncate text-zinc-800">{r.email}</span>
+                    <span
+                      className={cn(
+                        "shrink-0 font-semibold",
+                        r.status === "SENT"
+                          ? "text-emerald-700"
+                          : r.status === "FAILED" || r.status === "SUPPRESSED"
+                            ? "text-red-700"
+                            : "text-zinc-600",
+                      )}
+                    >
+                      {tStatus(r.status)}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </>
+          )}
+        </div>
+      ) : null}
       <button type="button" onClick={onNew} className="mt-4 text-sm font-medium text-zinc-600 hover:text-zinc-900">
         {t("yeniTalepAc")}
       </button>

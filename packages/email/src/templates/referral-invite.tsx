@@ -98,7 +98,21 @@ export function ReferralInviteEmail(props: ReferralInviteData & { locale?: Local
         <Button href={props.registerUrl}>{t("email.referralInvite.cta")}</Button>
       </Section>
 
-      <Section style={warningBox}>{t("email.referralInvite.ignoreNote")}</Section>
+      <Section style={warningBox}>
+        {t("email.referralInvite.ignoreNote")}
+        {props.optOutUrl ? (
+          <>
+            <br />
+            {t.rich("email.referralInvite.optOut", {
+              optout: (chunks: React.ReactNode) => (
+                <a href={props.optOutUrl} style={{ color: COLORS.slate500 }}>
+                  {chunks}
+                </a>
+              ),
+            })}
+          </>
+        ) : null}
+      </Section>
     </Layout>
   );
 }
@@ -123,6 +137,9 @@ export function renderReferralInviteText(
     t("email.referralInvite.textCta", { url: props.registerUrl }),
     "",
     t("email.referralInvite.textIgnore"),
+    ...(props.optOutUrl
+      ? [t("email.referralInvite.textOptOut", { url: props.optOutUrl })]
+      : []),
     "",
     t("email.layout.textSignature"),
   ].join("\n");

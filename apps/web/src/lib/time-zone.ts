@@ -70,3 +70,54 @@ export function calendarDayIndex(date: Date): number {
 export function calendarDaysBetween(from: Date, to: Date): number {
   return calendarDayIndex(to) - calendarDayIndex(from);
 }
+
+const zoneFmt = new Intl.DateTimeFormat("en-US", { timeZone: APP_TIME_ZONE, timeZoneName: "shortOffset" });
+
+/**
+ * Ürün saat diliminin kısa etiketi ("GMT+3") — Türkçe dışı dillerde saat
+ * metninin yanına basılır (2026-09-27, kayıt tüm ülkelere açıldı): Tokyo'daki
+ * alıcı "17:00" kapanışını kendi saati sanmasın. Intl'den türetilir (yaz
+ * saati olsaydı da doğru); sunucu ve istemci aynı değeri üretir.
+ */
+export function appZoneLabel(date: Date = new Date()): string {
+  return zoneFmt.formatToParts(date).find((p) => p.type === "timeZoneName")?.value ?? "GMT+3";
+}
+
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * Tarih-saat GİRDİSİ (`YYYY-MM-DDTHH:mm`) de ürün saat diliminde (2026-09-27).
+ * Eskiden girdi tarayıcının saatiyle yorumlanıyor, gösterim İstanbul'la
+ * yapılıyordu → Tokyo'daki alıcının seçtiği 17:00 ekranda 11:00 görünüyordu.
+ * Türkiye'deki tarayıcıda davranış aynı.
+ */
+export function toAppWallClockInput(date: Date): string {
+  const w = wallClock(date);
+  return `${w.year}-${pad2(w.month)}-${pad2(w.day)}T${pad2(w.hour)}:${pad2(w.minute)}`;
+}
+
+/**
+ * `YYYY-MM-DDTHH:mm(:ss)` girdisini ürün saat diliminin duvar saati sayıp ana
+ * çevirir. Saat dilimi taşıyan ISO değer (`…Z`, `+03:00`) olduğu gibi okunur.
+ * Geçersizse `null`.
+ */
+export function parseAppWallClockInput(value: string | null | undefined): Date | null {
+  if (!value) return null;
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/.exec(value.trim());
+  if (!m) {
+    const d = new Date(value);
+    return Number.isFinite(d.getTime()) ? d : null;
+  }
+  const [y, mo, d, h, mi, s] = m.slice(1).map((x) => Number(x ?? 0));
+  const asUtc = Date.UTC(y!, mo! - 1, d!, h!, mi!, s ?? 0);
+  // Duvar saatini UTC sayıp o andaki dilim farkını düş; yaz saati geçişine
+  // karşı bir kez daha düzelt (bugün İstanbul sabit +3).
+  const offsetAt = (ms: number) => {
+    const w = wallClock(new Date(ms));
+    return Date.UTC(w.year, w.month - 1, w.day, w.hour, w.minute, w.second) - ms;
+  };
+  let t = asUtc - offsetAt(asUtc);
+  t = asUtc - offsetAt(t);
+  const out = new Date(t);
+  return Number.isFinite(out.getTime()) ? out : null;
+}

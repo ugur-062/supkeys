@@ -1,15 +1,15 @@
 import { setRequestLocale, getTranslations } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import type { Locale } from "@rothern/i18n";
-import { provinceDisplayName } from "@rothern/shared";
+import { countryProductPath, provinceDisplayName } from "@rothern/shared";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { CityLinks } from "@/components/marketplace/city-links";
 import { ProductIndex, type ProductSearchParams } from "@/components/marketplace/product-index";
 import { cityFromSlug, cityProductPath, citySlug } from "@/lib/public/city";
-import { fetchGeoCity, fetchProductFacets } from "@/lib/public/marketplace-api";
+import { fetchGeoCity, fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
 import { countryDisplayName } from "@/i18n/domain";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
-import { buildMetadata } from "@/lib/seo/meta";
+import { buildMetadata, ogCardPath } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { permanentRedirect } from "@/i18n/navigation";
@@ -46,16 +46,34 @@ type Params = Promise<{ locale: string; il: string }>;
  * Yabancı şehrin adı ülkesiyle birlikte ("Münih, Almanya") — aynı adlı
  * şehirler (Valencia) karışmasın.
  */
-async function resolveCity(il: string, locale: Locale): Promise<{ slug: string; shown: string } | null> {
+async function resolveCity(
+  il: string,
+  locale: Locale,
+): Promise<{ slug: string; shown: string; name: string; countryCode: string } | null> {
   const geo = await fetchGeoCity(il);
   if (geo) {
     return {
       slug: geo.slug,
       shown: geo.countryCode === "TR" ? geo.name : `${geo.name}, ${countryDisplayName(geo.countryCode, locale)}`,
+      name: geo.name,
+      countryCode: geo.countryCode,
     };
   }
   const tr = cityFromSlug(il);
-  return tr ? { slug: citySlug(tr), shown: provinceDisplayName(tr, locale) } : null;
+  if (!tr) return null;
+  const name = provinceDisplayName(tr, locale);
+  return { slug: citySlug(tr), shown: name, name, countryCode: "TR" };
+}
+
+/**
+ * Şehirdeki ürün SAYISI — liste ucunun `total`ı (2026-09-27 SEO denetimi).
+ * Facet sayacı KULLANILMAZ: facet ucu sırasız ilk 5.000 ürünü tarayıp şehri
+ * bellekte süzüyor; katalog büyüyünce ürünü olan şehir "0" görünüp `noindex`
+ * alıyordu (sitemap onu listelerken). Liste ucu şehri sorguda süzer ve
+ * `ProductIndex`in ilk sayfa isteğiyle AYNI adres → veri önbelleği paylaşır.
+ */
+async function cityProductCount(slug: string): Promise<number> {
+  return (await fetchProducts({ city: slug })).total;
 }
 
 async function cityOr404(il: string, locale: Locale) {
@@ -72,9 +90,10 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const city = await resolveCity(il, locale);
   const t = await getTranslations({ locale, namespace: "web.marketplace.pages" });
   if (!city) return { title: t("cityNotFound"), robots: { index: false } };
-  const facets = await fetchProductFacets({ city: city.slug });
-  const count = facets.cities.find((c) => c.city === city.slug)?.count ?? 0;
+  const count = await cityProductCount(city.slug);
 
+  // Sayfa ≥2 kanoniği açılış sayfasına işaret eder (kategori sayfasıyla aynı
+  // kural: `searchParams` okunmaz, kanonik her zaman yol).
   return buildMetadata({
     title: t("cityTitle", { name: city.shown }),
     description:
@@ -82,6 +101,8 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
         ? t("cityMetaDescHas", { name: city.shown, count })
         : t("cityMetaDescNone", { name: city.shown }),
     path: cityProductPath(city.slug),
+    // Sayfanın kendi kartı (şehir/ülke adı + ürün sayısı), sayfanın dilinde.
+    images: [ogCardPath(cityProductPath(city.slug), locale)],
     // Ürünü olmayan şehir: sayfa DURUR ama indekse girmez (ince içerik).
     noindex: count === 0,
     locale,
@@ -101,8 +122,7 @@ export default async function Page({
   const locale = await localeFromParams(params);
   const city = await cityOr404(il, locale);
   const tp = await getTranslations("web.marketplace.pages");
-  const [sp, facets] = await Promise.all([searchParams, fetchProductFacets({})]);
-  const count = facets.cities.find((c) => c.city === city.slug)?.count ?? 0;
+  const [sp, facets, count] = await Promise.all([searchParams, fetchProductFacets({}), cityProductCount(city.slug)]);
 
   return (
     <PublicLayout className={MARKET_GROUND}>
@@ -111,6 +131,10 @@ export default async function Page({
         lead={count > 0 ? tp("cityLeadHas", { name: city.shown }) : tp("cityLeadNone", { name: city.shown })}
         searchParams={sp}
         fixedCity={city.slug}
+        trail={[
+          { name: countryDisplayName(city.countryCode, locale), path: countryProductPath(city.countryCode) },
+          { name: city.name, path: cityProductPath(city.slug) },
+        ]}
         footer={<CityLinks cities={facets.cities} kind="products" activeCity={city.slug} />}
       />
     </PublicLayout>

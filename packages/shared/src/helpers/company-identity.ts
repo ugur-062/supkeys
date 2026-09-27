@@ -53,9 +53,13 @@ export function isValidTaxId(
  * şirket numarası farklı olduğu için checksum yapılmaz; sadece makul biçim:
  * 3-30 karakter, alfanümerik + yaygın ayraçlar. Asıl doğrulama belge + admin
  * onayı (+ ileride VIES gibi resmi servisler) ile yapılır.
+ *
+ * Harfler Latin alfabesinin TAMAMI (aksanlılar dahil) + "&": Meksika RFC'si
+ * "Ñ" ve "&" taşır ("AÑ&850101AB1"), eskiden reddediliyordu (2026-09-27).
+ * TR kuralı ayrı (`isValidTaxId`) — bu gevşetmeden etkilenmez.
  */
 export function isValidForeignTaxId(value: string): boolean {
-  return /^[A-Za-z0-9][A-Za-z0-9.\- /]{2,29}$/.test(value.trim());
+  return /^[\p{Script=Latin}0-9&][\p{Script=Latin}0-9&.\- /]{2,29}$/u.test(value.trim().normalize("NFC"));
 }
 
 /**

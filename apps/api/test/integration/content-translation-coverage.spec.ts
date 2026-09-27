@@ -150,17 +150,48 @@ describe("içerik çevirisi — kapsam denetimi", () => {
     expect(after.updatedAt.getTime()).toBe(before.updatedAt.getTime());
   });
 
-  it("kalıcı FAILED 6 saat sonra yeniden denenir, taze FAILED beklemede kalır", async () => {
+  it("kalıcı FAILED 6 saat sonra yeniden denenir, taze FAILED beklemede kalır, toplam tavanı dolan DURUR", async () => {
     const { listing } = await seedListing();
     const fresh = await seedListing();
+    const exhausted = await seedListing();
     await service().ensureCoverage();
     await prisma.contentTranslation.updateMany({ where: { entityId: listing.id }, data: { status: "FAILED", attempts: 3 } });
-    await prisma.$executeRaw`UPDATE "content_translations" SET "updatedAt" = now() - interval '7 hours' WHERE "entityId" = ${listing.id}`;
+    await prisma.contentTranslation.updateMany({ where: { entityId: exhausted.listing.id }, data: { status: "FAILED", attempts: 9 } });
+    // Gerçekte satır (markFailed) varlıktan YENİDİR; geri tarihlenen satır varlıktan eski kalırsa kapsam denetimi onu "bayat" sayıp yeniden kuyruğa alırdı.
+    await prisma.$executeRaw`UPDATE "listings" SET "updatedAt" = now() - interval '8 hours' WHERE "id" IN (${listing.id}, ${exhausted.listing.id})`;
+    await prisma.$executeRaw`UPDATE "content_translations" SET "updatedAt" = now() - interval '7 hours' WHERE "entityId" IN (${listing.id}, ${exhausted.listing.id})`;
     await prisma.contentTranslation.updateMany({ where: { entityId: fresh.listing.id }, data: { status: "FAILED", attempts: 3 } });
     const r = await service().ensureCoverage();
+    // Sayaç sıfırlanmaz (birikir); süpürücü 6 saatlik kaydı seçer, tavanı doldurmuşu seçmez.
     expect(r.retried).toBe(3);
-    expect((await rowsFor(listing.id)).every((x) => x.attempts === 0)).toBe(true);
-    expect((await rowsFor(fresh.listing.id)).every((x) => x.attempts === 3)).toBe(true);
+    expect((await rowsFor(listing.id)).every((x) => x.attempts === 3)).toBe(true);
+    const svc = service();
+    const picked: string[] = [];
+    (svc as unknown as { translateEntity: (t: string, id: string) => Promise<string> }).translateEntity = async (_t, id) => {
+      picked.push(id);
+      return "skipped";
+    };
+    Object.defineProperty(svc, "enabled", { get: () => true });
+    await svc.processPending(50);
+    expect(picked).toContain(listing.id);
+    expect(picked).not.toContain(fresh.listing.id);
+    expect(picked).not.toContain(exhausted.listing.id);
+  });
+
+  it("yabancı firmanın içeriği çevrilmeden HİÇBİR dilde indekslenmez (Almanca metin Türkçe adreste değil)", async () => {
+    const { company, listing } = await seedListing();
+    await prisma.company.update({ where: { id: company.id }, data: { country: "DE" } });
+    const svc = service();
+    (svc as unknown as { kick: () => void }).kick = () => {};
+    await svc.enqueue("LISTING", listing.id);
+    expect((await rowsFor(listing.id)).every((x) => x.sourceLocale === "und")).toBe(true);
+    expect(await svc.translationPending("LISTING", listing.id, "tr")).toBe(true);
+    expect(await svc.translationPending("LISTING", listing.id, "en")).toBe(true);
+    // Türk firması: kaynak Türkçe tahmin edilir, Türkçe sayfa beklemez.
+    const tr = await seedListing();
+    await svc.enqueue("LISTING", tr.listing.id);
+    expect((await rowsFor(tr.listing.id)).every((x) => x.sourceLocale === "tr")).toBe(true);
+    expect(await svc.translationPending("LISTING", tr.listing.id, "tr")).toBe(false);
   });
 
   it("translationPending: kaynak dil ve çevirili dil beklemez, çevirisiz dil bekler", async () => {

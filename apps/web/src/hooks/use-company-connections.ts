@@ -82,6 +82,9 @@ export function useInviteByEmail() {
         kind: "request" | "invited";
         targetName?: string;
         email?: string;
+        /** Davet e-postasının GERÇEK sonucu (yalnız `invited`); eski API döndürmez. */
+        delivery?: "SENT" | "FAILED" | "SUPPRESSED";
+        emailSent?: boolean;
       }>("/company/connections/invite-by-email", { email });
       return data;
     },
@@ -93,20 +96,26 @@ export function useInviteByEmail() {
 export interface BatchInviteResult {
   results: {
     email: string;
-    status: "request" | "invited" | "skipped";
+    /** `failed`: kayıt oluştu ama e-posta gitmedi (sağlayıcı hatası ya da adres e-posta almıyor). */
+    status: "request" | "invited" | "skipped" | "failed";
+    /** Makine kodu: SENT · FAILED · SUPPRESSED · ALREADY_INVITED · DAILY_LIMIT · OPTED_OUT · REQUEST */
+    code?: string;
     targetName?: string;
     reason?: string;
   }[];
-  summary: { request: number; invited: number; skipped: number };
+  summary: { request: number; invited: number; skipped: number; failed?: number };
 }
 
 export function useInviteByEmailBatch() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (emails: string[]) => {
+      // Gönderimler artık BEKLENİR (adres başına gerçek sonuç) — 50 adreste
+      // varsayılan 45 sn'yi aşabilir.
       const { data } = await companyApi.post<BatchInviteResult>(
         "/company/connections/invite-by-email/batch",
         { emails },
+        { timeout: 120_000 },
       );
       return data;
     },

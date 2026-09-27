@@ -37,4 +37,19 @@ export function clearSession(key: string): void {
   }
 }
 
-export type QuickDraft = Pick<TenderFormData, "title" | "description" | "items" | "categoryIds" | "keywords" | "deliveryAddressId" | "visibility" | "invitedSupplierIds" | "bidsCloseAt">;
+export type QuickDraft = Pick<TenderFormData, "title" | "description" | "items" | "categoryIds" | "keywords" | "deliveryAddressId" | "visibility" | "invitedSupplierIds" | "bidsCloseAt"> & {
+  /** AI keşfinden eklenen, yayında talebe özel davet gidecek adresler (2026-09-27). */
+  externalInvites?: string[];
+};
+
+/**
+ * Taslak olarak kaydedilen talebin BEKLEYEN dış davet adresleri — taslak
+ * kaydı `QUICK_DRAFT_KEY`i siler ve talep sayfasına gider; düzenleme kartı
+ * (`mode="edit"`) açılınca buradan okur, yayında gönderir.
+ */
+export function pendingInvitesKey(listingId: string): string {
+  return `quick-request-external-invites:${listingId}`;
+}
+
+/** Yayında tek istekte gönderilebilecek dış davet sayısı (API `ExternalTenderInviteDto` üst sınırı). */
+export const MAX_PENDING_EXTERNAL_INVITES = 20;

@@ -248,7 +248,7 @@ describe("changePassword + tokenVersion", () => {
     supabaseAuth.verifyPassword.mockRejectedValueOnce(new Error("bad"));
     await expect(
       service.changePassword(user.id, "yanlis", "Yeni!Parola9"),
-    ).rejects.toThrow(/mevcut parola/i);
+    ).rejects.toThrow(/mevcut şifre/i);
     const db = await prisma.companyUser.findUniqueOrThrow({
       where: { id: user.id },
       select: { tokenVersion: true },

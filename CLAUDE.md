@@ -207,6 +207,30 @@ yalnız sekiz ülke açıktı (`docs/plan-country-registration.md` tarihsel).
 Kapı YALNIZ YENİ KAYDA uygulanır: kapalı ülkedeki mevcut firmanın belge seti
 ve ekranları çalışmaya devam eder.
 
+**YABANCI KAYIT DENETİMİ (2026-09-27, 14 ülke tek tek yürütüldü) — kurallar:**
+- **Slug çeviriyazısı** (`helpers/slug.ts`): Türkçe eşleme ÖNCE (Türkçe slug'lar
+  birebir aynı), sonra Kiril (ru/uk/kk) + ß/ł/ø/æ…; Çince/Arapça boş slug verir →
+  firma `company-<rothernid>`, ürün `product-<id sonu>` (Türkçe "firma-37" DEĞİL);
+  boş sonek tek `IN` sorgusuyla (`pickFreeSlug`). Kiril başlıklı talebin adresi
+  `rot-000007` → `rot-000007-<latin>` (eskisi 308).
+- Ad/soyad tek harf olabilir (王, 李): DTO `@Matches(/\S/)`.
+- Telefon: `+`/`00` ile yazılan tam numara ülkeyi değiştirir; ulusal ön sıfır
+  düşer (IT/SM/VA… hariç); +1 → CA (US kapalı), ortak kodda seçili ülke korunur.
+- Saklanan şehir METNİ tek biçim (`storedCityName`): eşlendiyse TR/XN Türkçe,
+  diğerleri İngilizce yazım — seçici arayüz dilinde verse de ("Мюнхен" → "Munich").
+- Saat: gösterim İstanbul duvar saati KALIR; en/ru'da saat metnine "(GMT+3)"
+  eklenir (`appZoneLabel`), tarih-saat GİRDİSİ de İstanbul duvar saatiyle okunur
+  (`parseAppWallClockInput` — eskiden tarayıcı saatiyle okunup İstanbul'la
+  gösteriliyordu).
+- Yeni talebin para birimi varsayılanı ülkeden (`defaultCurrencyForCountry`: TR/XN
+  TRY, euro ülkeleri EUR, GB/CH/JP/AE/CN/RU kendi, diğerleri USD) — kayıtlı
+  Talep Şartları önce gelir.
+- Admin firma düzenlemesi SWIFT/banka adı yazar (`assertBankDetails`), ülke kodu
+  tam listeden doğrulanır.
+- Bilinçli açık: ülke dışı ziyaretçi (Çince/Arapça) Türkçe varsayılana düşer
+  (`localeDetection: false`); Çince/Arapça şehir adıyla arama yok (GeoNames
+  alternatif adları Latin/Kiril süzülerek alındı).
+
 **DÜNYA ŞEHİRLERİ + ÜLKE SAYFALARI (2026-09-27, kullanıcı: "şehir sayfaları
 türkiye özel olamaz, bu uluslararası bir sistem").** Tablo `geo_cities`
 (migration `20260927150000`): GeoNames `cities15000` (nüfus ≥15.000, TR
@@ -657,6 +681,26 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   S420MC, DN50) her çeviride AYNEN olmalı; Latin+Kiril karışık sözcük ret.
   İstem: kodlar Latin, Istanbul/Izmir yazımı, litre "L", ana/yan sanayi,
   kontrakt mebel, fatura→счёт.
+- **HER KAYNAK DİL (2026-09-27, kayıt tüm ülkelere açıldı; denetimde 16
+  senaryodan 12'si yanlış karar veriyordu):** model kaynak dili ISO 639-1 kodu
+  döner (`normalizeSourceLocale`; not "kaynak: Almanca" basar). `enqueue`
+  çeviri gelmeden kaynak dili TAHMİN eder: sahibi TR/XN → "tr", değilse "und"
+  → `readyLocales` hiçbir dili hazır saymaz (Almanca metin Türkçe adreste
+  `lang="tr"` ile İNDEKSLENMEZ). Kapılar: sayı karşılaştırması yalnız rakamla
+  (Rusça "1 200,50" = "1.200,50"), büyüklük sözcükleri her dilde (bin/thousand/
+  тыс./Mio./万…), Arapça-Hint rakam, tarihte yalnız yıl, uzunlukta CJK ×3.
+  Türkçe HEDEF de denetlenir ("ihale" yasak, kaynağın aynısı = çevrilmemiş).
+  Çince/Arapça vb. yazı hedefte kalamaz; en/tr'de Kiril yalnız kaynakta AYNEN
+  geçen birkaç sözcük (Rus tüzel adı, çelik sınıfı). Sayı biçimi KAYNAK dilin
+  kuralıyla okunup hedefin kuralıyla yazılır (`localizeNumbers(src,dst,hedef,
+  kaynak)`; boşluk grubu yalnız ilk grup 1-2 haneyse). Kod sınırı yalnız
+  Latin/Kiril (Çinceye bitişik "M6" korunur). Çeviri sürerken kaynak değişirse
+  eski çeviri DONE yazılmaz, bitince yeniden (`dirty`). Kalıcı FAILED
+  SIFIRLANMAZ: 6 saatte bir, toplam 9 denemeye dek (eskiden sonsuza dek günde
+  ~24 Pro çağrısı). `TRANSLATION_PROMPT_VERSION` bilinçli ARTIRILMADI
+  (kullanıcı: mevcut kayıtlar Türkçe demo). Sözleşme: `content-translation.spec`
+  "kalite kapıları — her kaynak dil", `content-translation-coverage.spec`
+  "yabancı firmanın içeriği".
 - **ARAYÜZ KATALOĞU TAM İNCELEME (2026-09-26):** 6.961 anahtar × EN/RU, 8
   paralel incelemeci → 70 EN + 226 RU düzeltme (anlam: asistan "öneriyorum"
   kartları RU'da "yaptım" diyordu, paket bitiş bildirimi yanlış kuralı
@@ -1366,6 +1410,26 @@ eksikse "otomatik" değildir:
 
 - **Firma `sameAs`** (web sitesi + LinkedIn) herkese açık projeksiyonda
   (kullanıcı kararı 2026-09-09); Instagram/Rothern ID üyede kalır.
+- **Liste sayfaları (2026-09-27 denetimi):** `itemListNode(…, locale)` liste ve
+  öğe adreslerini o dilin adresiyle yazar (EN/RU'da Türkçe adres veriyordu);
+  şehir/ülke/kategori sayfasında sayfalama İNİŞ adresinde kalır (`?sayfa=N`,
+  kanonik iniş sayfası; kategori sayfalaması 308'de `sayfa`yı düşürüyordu);
+  şehir/ülke sayfasının `noindex`i ve sayacı ürün listesinin `total`ından (facet
+  5.000 tarama tavanlıdır); BreadcrumbList Anasayfa › Ürünler › Ülke (› Şehir).
+  **OG görseli:** `buildMetadata` kendi görselini koyduğu için segment
+  `opengraph-image`leri hiç kullanılmıyordu → `ogCardPath()` (dil öneki + İÇ
+  yol; çevrilmiş yol + `/opengraph-image` 404 verir). IndexNow şehir/ülke
+  adreslerini de bildirir.
+- **Davet e-postaları (2026-09-27 denetimi):** ekip daveti, dış talep daveti ve
+  referans daveti gönderimi BEKLER ve gerçek durumu döner (SENT/FAILED/
+  SUPPRESSED/…; ekran "gönderildi" demeden önce) · hızlı talepte yayından ÖNCE
+  AI ile bulunan adresler forma eklenir, talebe özel davet YAYINDA gider (eskiden
+  talepsiz genel "katıl" e-postası gidiyordu) · referans daveti: çıkış bağlantısı,
+  günde 50/firma, aynı adrese 7 günde bir, son gönderimden 30 gün geçerli, `ref`
+  jetonu farklı e-postayla kayıtta da eşlenir · oturumsuz panel CTA'sı
+  `?next=` ile döner · AI web araması talebin hedef ülkelerine göre (yalnız
+  "Türkiye'de" değil). DTO'ya alan eklendi (`listingId`, `targetCountries`) →
+  API web'den ÖNCE dağıtılmalı.
 - **Canlı denetim:** `pnpm --filter @rothern/web seo:audit` (`SITE=…`) —
   robots/sitemap/llms + her parçadan örnek sayfa: başlık, açıklama, kanonik,
   OG 200, JSON-LD zorunlu alanlar, h1, noindex; sorun → exit 1.

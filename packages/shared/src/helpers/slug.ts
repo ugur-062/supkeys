@@ -17,6 +17,31 @@ const TR_CHAR_MAP: Record<string, string> = {
 };
 
 /**
+ * TÜRKÇE DIŞI HARFLER (2026-09-27, kayıt tüm ülkelere açıldı) — Türkçe
+ * eşlemeden SONRA uygulanır; Türkçe harflerin hiçbiri bu tabloda yok, bu
+ * yüzden Türkçe girdinin slug'ı birebir aynı kalır (mevcut slug'lar donuk).
+ *
+ * Kiril: Rusça/Ukraynaca/Kazakça için yaygın sade çeviriyazı (щ→shch,
+ * ж→zh, х→kh …). Latin genişletilmiş: NFKD ile ayrışmayan harfler (ß, ł, ø,
+ * æ …); kalan aksanlı harfler (é, ñ, å) aşağıdaki NFKD adımında düşer.
+ * Çeviriyazısı olmayan yazılar (Çince, Arapça, İbranice, Tay …) boş slug
+ * üretir — çağıran anlamlı bir yedeğe düşer (bkz. API `company-slug.ts`).
+ */
+const EXTRA_CHAR_MAP: Record<string, string> = {
+  // Kiril (küçük harf — girdi önce küçültülür)
+  а: "a", б: "b", в: "v", г: "g", д: "d", е: "e", ё: "e", ж: "zh", з: "z",
+  и: "i", й: "y", к: "k", л: "l", м: "m", н: "n", о: "o", п: "p", р: "r",
+  с: "s", т: "t", у: "u", ф: "f", х: "kh", ц: "ts", ч: "ch", ш: "sh",
+  щ: "shch", ъ: "", ы: "y", ь: "", э: "e", ю: "yu", я: "ya",
+  // Ukraynaca
+  є: "ye", і: "i", ї: "yi", ґ: "g",
+  // Kazakça
+  ә: "a", ғ: "g", қ: "k", ң: "n", ө: "o", ұ: "u", ү: "u", һ: "h",
+  // Latin genişletilmiş (NFKD ile ayrışmayanlar)
+  ß: "ss", ł: "l", ø: "o", æ: "ae", œ: "oe", đ: "d", ð: "d", þ: "th", ħ: "h", ŀ: "l",
+};
+
+/**
  * Türk şirket suffix'leri — slug'da kaldırılır.
  * Sırayla denenir; en uzun olan önce gelir ki "Ltd. Şti." kısmen kalmasın.
  */
@@ -55,9 +80,10 @@ export function slugifyText(input: string): string {
 
   let s = input.toLowerCase().trim();
 
-  // Türkçe karakter latinize (normalize'dan ÖNCE: "ı"/"İ" NFKD ile düzelmez)
+  // Türkçe karakter latinize (normalize'dan ÖNCE: "ı"/"İ" NFKD ile düzelmez);
+  // ardından Kiril + NFKD'nin ayrıştırmadığı Latin harfler (Türkçe ÖNCE).
   s = Array.from(s)
-    .map((ch) => TR_CHAR_MAP[ch] ?? ch)
+    .map((ch) => TR_CHAR_MAP[ch] ?? EXTRA_CHAR_MAP[ch] ?? ch)
     .join("");
 
   // Diakritik / latin extended → ASCII normalization

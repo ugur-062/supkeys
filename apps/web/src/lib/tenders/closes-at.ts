@@ -1,4 +1,5 @@
 import { MAX_LISTING_HORIZON_MS } from "@rothern/shared";
+import { parseAppWallClockInput } from "../time-zone";
 
 /**
  * Kapanış tarihi doğrulaması — TEK KAYNAK. Backend ile birebir: gelecekte VE
@@ -18,7 +19,8 @@ export type ClosesAtTranslate = (key: ClosesAtErrorKey) => string;
 /** Geçerliyse `null`, değilse mesaj anahtarı. */
 export function closesAtErrorKey(value: string | null | undefined): ClosesAtErrorKey | null {
   if (!value) return "required";
-  const t = new Date(value).getTime();
+  // Form değeri ürün saat diliminin duvar saati (tarayıcı saati değil).
+  const t = parseAppWallClockInput(value)?.getTime() ?? NaN;
   if (!Number.isFinite(t)) return "invalid";
   if (t <= Date.now()) return "mustBeFuture";
   if (t > Date.now() + MAX_LISTING_HORIZON_MS) return "tooFar";

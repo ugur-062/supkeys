@@ -126,6 +126,19 @@ export function cityOgContent(kind: "products" | "companies", city: string, coun
   };
 }
 
+/** Ülke açılış sayfası kartı — `name` okuyucunun dilinde ülke adı (çağıran çözer). */
+export function countryOgContent(name: string, count: number, locale: Locale = DEFAULT_LOCALE): OgContent {
+  const t = webTranslator(locale);
+  return {
+    eyebrow: t("web.seo.og.country"),
+    title: t("web.seo.og.countryProductsTitle", { country: name }),
+    subtitle: t("web.seo.og.cityProductsSub"),
+    facts: count > 0 ? [t("web.seo.og.products", { n: count })] : [],
+    image: null,
+    badge: null,
+  };
+}
+
 export function brandOgContent(locale: Locale = DEFAULT_LOCALE): OgContent {
   const t = webTranslator(locale);
   return {

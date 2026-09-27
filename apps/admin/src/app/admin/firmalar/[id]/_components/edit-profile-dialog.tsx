@@ -43,7 +43,22 @@ const FIELDS: {
   { key: "industry", label: "Sektör", max: 120 },
   { key: "iban", label: "IBAN", max: 40 },
   { key: "ibanHolder", label: "IBAN Sahibi", max: 200 },
+  { key: "bankSwiftBic", label: "SWIFT / BIC", max: 20 },
+  { key: "bankName", label: "Banka adı", max: 200 },
 ];
+
+/**
+ * Banka alanı etiketi ÜLKEYE göre (2026-09-27): IBAN kullanmayan ülkede
+ * `iban` kolonu HESAP NUMARASINI taşır — "IBAN" yazmak yanıltıcıydı. Kural
+ * API'den (`usesIban`, kayıtlı ülkeye göre); ülke kodunu burada değiştirmek
+ * etiketi kayda dek değiştirmez.
+ */
+function fieldLabel(key: keyof CompanyProfilePatch, label: string, usesIban: boolean): string {
+  if (usesIban) return label;
+  if (key === "iban") return "Hesap No";
+  if (key === "ibanHolder") return "Hesap Sahibi";
+  return label;
+}
 
 /**
  * Firma kimlik düzeltme — "yanlış yazdık, düzeltir misiniz" çağrıları.
@@ -70,6 +85,8 @@ export function EditProfileDialog({
   }, [data]);
 
 
+  const usesIban = data.usesIban !== false;
+
   const save = () => {
     // Yalnız değişen alanlar (audit gürültüsü olmasın).
     const patch: CompanyProfilePatch = {};
@@ -88,6 +105,8 @@ export function EditProfileDialog({
       toast.error("Ülke kodu 2 harf olmalı (TR, DE...)");
       return;
     }
+    // SWIFT boşluklu yazılabilir ("DEUT DE FF"); API aynı normalizasyonu uygular.
+    if (patch.bankSwiftBic) patch.bankSwiftBic = patch.bankSwiftBic.replace(/\s+/g, "").toUpperCase();
     update.mutate(
       { id: companyId, patch },
       {
@@ -108,7 +127,7 @@ export function EditProfileDialog({
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           {FIELDS.map((f) => (
             <Field key={f.key} hint={f.hint}>
-              <Label htmlFor={`profile-${f.key}`}>{f.label}</Label>
+              <Label htmlFor={`profile-${f.key}`}>{fieldLabel(f.key, f.label, usesIban)}</Label>
               <Input
                 id={`profile-${f.key}`}
                 value={form[f.key] ?? ""}

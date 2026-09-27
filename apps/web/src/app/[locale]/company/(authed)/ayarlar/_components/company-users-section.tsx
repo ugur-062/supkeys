@@ -68,6 +68,7 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { isValidPhone } from "@/lib/company/phone";
 import { InviteUserDialog } from "./invite-user-dialog";
+import { useInviteDeliveryToast } from "./use-invite-delivery-toast";
 import { PermissionTable } from "@/components/company/permission-table";
 
 export function CompanyUsersSection({
@@ -441,6 +442,7 @@ function PendingInvitations() {
   const { data: invitations } = useCompanyInvitations();
   const cancel = useCancelInvitation();
   const resend = useResendInvitation();
+  const reportDelivery = useInviteDeliveryToast();
 
   if (!invitations || invitations.length === 0) return null;
 
@@ -452,10 +454,10 @@ function PendingInvitations() {
       toast.error(extractErrorMessage(err, t("iptalEdilemedi")));
     }
   };
-  const handleResend = async (id: string) => {
+  const handleResend = async (id: string, email: string) => {
     try {
-      await resend.mutateAsync(id);
-      toast.success(t("davetYenidenGonderildiSureUzatildi"));
+      const res = await resend.mutateAsync(id);
+      reportDelivery(res, { id, email, successMessage: t("davetYenidenGonderildiSureUzatildi") });
     } catch (err) {
       toast.error(extractErrorMessage(err, t("gonderilemedi")));
     }
@@ -482,7 +484,8 @@ function PendingInvitations() {
                   <span className="truncate text-sm font-medium text-zinc-900">
                     {inv.email}
                   </span>
-                  {inv.roles.map((r) => (
+                  {/* Yalnız görüntüleme izniyle davet: rol seti boş → "Görüntüleyici". */}
+                  {(inv.roles.length ? (inv.roles as string[]) : ["VIEWER"]).map((r) => (
                     <Badge key={r} color="zinc">
                       {roleLabel(r)}
                     </Badge>
@@ -503,7 +506,7 @@ function PendingInvitations() {
               <div className="flex shrink-0 items-center gap-1">
                 <Button
                   plain
-                  onClick={() => handleResend(inv.id)}
+                  onClick={() => handleResend(inv.id, inv.email)}
                   disabled={resend.isPending}
                 >
                   {t("yenidenGonder")}
@@ -578,8 +581,8 @@ function EditUserModal({
     phone.trim() !== (user.phone ?? "");
   const dirty = infoChanged || permsChanged;
   // Satır içi hatalar (Ayarlar denetimi 2026-09-10: toast değil, alanda).
-  const firstNameError = firstName.trim().length < 2 ? t("adEnAz2Karakter") : null;
-  const lastNameError = lastName.trim().length < 2 ? t("soyadEnAz2Karakter") : null;
+  const firstNameError = !firstName.trim() ? t("adBosOlamaz") : null; // tek harfli ad meşru
+  const lastNameError = !lastName.trim() ? t("soyadBosOlamaz") : null;
   const phoneError = isValidPhone(phone) ? null : t("gecerliBirTelefonNumarasiGirin");
   const permsError = !user.isOwner && perms.length === 0 ? t("enAzBirYetkiSecin") : null;
   const hasError = Boolean(firstNameError || lastNameError || phoneError || permsError);

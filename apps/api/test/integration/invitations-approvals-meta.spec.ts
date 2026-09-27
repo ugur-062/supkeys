@@ -76,6 +76,28 @@ const ACCEPT_DTO = {
 
 // ════════════════════════════ Davet-kabul akışı ════════════════════════════
 describe("token'lı davet-kabul", () => {
+  it("davet e-postası GİTMEDİYSE yanıt bunu söyler; yalnız görüntüleme izniyle davet rol satırı 'Görüntüleyici'", async () => {
+    const { service, email } = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    email.send.mockResolvedValueOnce({ emailLogId: "t", sent: false });
+    const res = await service.invite(owner.auth, {
+      email: "izleyici@firma.com",
+      permissions: ["buy:view"],
+    } as never);
+    expect(res).toMatchObject({ emailSent: false, emailFailureReason: "suppressed" });
+    const call = email.send.mock.calls.at(-1)?.[0] as {
+      templateData: { data: { infoRows: Array<{ label: string; value: string }> } };
+    };
+    const roleRow = call.templateData.data.infoRows.find((r) => r.label === "Rol");
+    expect(roleRow?.value).toBe("Görüntüleyici");
+
+    email.send.mockRejectedValueOnce(new Error("resend down"));
+    const again = await service.resendInvitation(owner.auth, res.id);
+    expect(again).toMatchObject({ ok: true, emailSent: false, emailFailureReason: "failed" });
+    const ok = await service.resendInvitation(owner.auth, res.id);
+    expect(ok).toMatchObject({ ok: true, emailSent: true });
+  });
+
   it("davet: PENDING kayıt + 7 gün TTL + kabul linkli e-posta; mükerrer/kayıtlı e-posta reddedilir", async () => {
     const { service, email } = makeUsersService();
     const owner = await makeCompanyWithUser(prisma);

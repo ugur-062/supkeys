@@ -6,10 +6,10 @@ import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-lay
 import { CityLinks } from "@/components/marketplace/city-links";
 import { CountryLinks } from "@/components/marketplace/country-links";
 import { ProductIndex, type ProductSearchParams } from "@/components/marketplace/product-index";
-import { fetchProductFacets } from "@/lib/public/marketplace-api";
+import { fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { countryDisplayName } from "@/i18n/domain";
-import { buildMetadata } from "@/lib/seo/meta";
+import { buildMetadata, ogCardPath } from "@/lib/seo/meta";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { permanentRedirect } from "@/i18n/navigation";
@@ -28,6 +28,14 @@ export const revalidate = 600;
 
 type Params = Promise<{ locale: string; ulke: string }>;
 
+/**
+ * Ülkedeki ürün SAYISI — liste ucunun `total`ı (bkz. şehir sayfası
+ * `cityProductCount`: facet sayacı ilk 5.000 ürünle sınırlı, sırasız).
+ */
+async function countryProductCount(cc: string): Promise<number> {
+  return (await fetchProducts({ country: cc })).total;
+}
+
 async function countryOr404(ulke: string, locale: Locale) {
   const cc = countryCodeFromSlug(ulke);
   if (!cc) notFound();
@@ -42,12 +50,13 @@ export async function generateMetadata({ params }: { params: Params }): Promise<
   const cc = countryCodeFromSlug(ulke);
   if (!cc) return { title: t("countryNotFound"), robots: { index: false } };
   const name = countryDisplayName(cc, locale);
-  const facets = await fetchProductFacets({ country: cc });
-  const count = facets.countries?.find((c) => c.country === cc)?.count ?? 0;
+  const count = await countryProductCount(cc);
   return buildMetadata({
     title: t("countryTitle", { name }),
     description: count > 0 ? t("countryMetaDescHas", { name, count }) : t("countryMetaDescNone", { name }),
     path: countryProductPath(cc),
+    // Sayfanın kendi kartı (şehir/ülke adı + ürün sayısı), sayfanın dilinde.
+    images: [ogCardPath(countryProductPath(cc), locale)],
     // Ürünü olmayan ülke: sayfa DURUR ama indekse girmez (ince içerik).
     noindex: count === 0,
     locale,
@@ -68,12 +77,12 @@ export default async function Page({
   const cc = await countryOr404(ulke, locale);
   const tp = await getTranslations("web.marketplace.pages");
   const name = countryDisplayName(cc, locale);
-  const [sp, all, inCountry] = await Promise.all([
+  const [sp, all, inCountry, count] = await Promise.all([
     searchParams,
     fetchProductFacets({}),
     fetchProductFacets({ country: cc }),
+    countryProductCount(cc),
   ]);
-  const count = all.countries?.find((c) => c.country === cc)?.count ?? 0;
 
   return (
     <PublicLayout className={MARKET_GROUND}>
@@ -82,6 +91,7 @@ export default async function Page({
         lead={count > 0 ? tp("countryLeadHas", { name }) : tp("countryLeadNone", { name })}
         searchParams={sp}
         fixedCountry={cc}
+        trail={[{ name, path: countryProductPath(cc) }]}
         footer={
           <>
             {/* Bu ülkenin şehirleri + öteki ülkeler (iç bağlantı ağı). */}

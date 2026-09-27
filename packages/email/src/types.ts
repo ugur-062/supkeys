@@ -30,6 +30,12 @@ export interface ReferralInviteData {
   inviterName: string;
   email: string;
   registerUrl: string;
+  /**
+   * Tek tık "davet almak istemiyorum" (`/davet-kapat?token=`) — dış talep
+   * davetiyle AYNI mekanizma (İYS/ETK hijyeni). Eski çağıranlar için isteğe
+   * bağlı; verilmezse bağlantı satırı çizilmez.
+   */
+  optOutUrl?: string;
 }
 
 /** Faz C — dış ihale daveti (kapalı zarf: yalnız başlık/kategori/kapanış). */

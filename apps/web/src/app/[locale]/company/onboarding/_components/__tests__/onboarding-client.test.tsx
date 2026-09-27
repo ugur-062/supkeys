@@ -45,6 +45,8 @@ vi.mock("@/hooks/use-company-auth", () => ({
   useViesCheck: () => ({ mutateAsync: h.viesAsync, isPending: false }),
 }));
 
+vi.mock("@/lib/public/geo-client", () => ({ searchGeoCities: vi.fn(async () => []) }));
+
 import { OnboardingClient } from "../onboarding-client";
 
 // LIMITED (tüzel) → 10 haneli VKN; TR'de vergi dairesi zorunlu (backend mirror).
@@ -250,4 +252,58 @@ describe("OnboardingClient — VIES (AB ülkeleri)", () => {
     await user.click(screen.getByRole("button", { name: /VIES ile doğrula/i }));
     expect(h.toast.error).toHaveBeenCalled();
   });
+});
+
+/**
+ * Yabancı firma (2026-09-27): ayrı teslimat adresinde dünya şehir seçici +
+ * eyalet/bölge; özet ekranı "TCKN"/"Vergi dairesi" göstermez, "Diğer" hukuki
+ * yapıda yerel adı basar.
+ */
+describe("OnboardingClient — yabancı firma", () => {
+  it("DE: ayrı teslimat eyaleti gönderilir; özet yerel hukuki yapı + yabancı vergi etiketi", async () => {
+    const user = userEvent.setup();
+    h.completeAsync.mockResolvedValue({ ok: true });
+    render(<OnboardingClient />);
+    await pickCountry(user, "Alman", "Almanya");
+    await user.type(screen.getByLabelText("Firma Unvanı *"), "Müller Handel");
+    await user.selectOptions(screen.getByLabelText("Firma Türü *"), "OTHER");
+    await user.type(screen.getByLabelText(/Hukuki yapı \(yerel/i), "GmbH");
+    await user.type(screen.getByLabelText("Vergi / Sicil No *"), "DE811234567");
+    await user.type(screen.getByLabelText("Şehir *"), "München");
+    await user.type(screen.getAllByLabelText("Eyalet / Bölge")[0], "Bayern");
+    await user.type(screen.getByLabelText("Açık Adres *"), "Leopoldstr. 1");
+    await user.click(screen.getByRole("checkbox", { name: /teslimat adresi olarak kullan/i }));
+    const cities = screen.getAllByLabelText("Şehir *");
+    expect(cities).toHaveLength(2);
+    await user.type(cities[1], "Hamburg");
+    const states = screen.getAllByLabelText("Eyalet / Bölge");
+    expect(states).toHaveLength(2);
+    await user.type(states[1], "Hamburg");
+    await user.type(screen.getAllByLabelText("Açık Adres *")[1], "Hafenstr. 2");
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+
+    await user.click(screen.getByRole("button", { name: /Sektör geneli ekle/ }));
+    await user.click(screen.getByRole("option", { name: /Yazılım & IT/ }));
+    await user.click(screen.getByRole("button", { name: /Onayla/ }));
+    await user.click(screen.getByRole("button", { name: "Devam" }));
+
+    expect(screen.getByText("Vergi / Sicil No")).toBeInTheDocument();
+    expect(screen.queryByText("Vergi No / TCKN")).not.toBeInTheDocument();
+    expect(screen.queryByText("Vergi Dairesi")).not.toBeInTheDocument();
+    expect(screen.getByText("GmbH")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: /doğru ve güncel olduğunu beyan/i }));
+    await user.click(screen.getByRole("button", { name: "Tamamla" }));
+    expect(h.completeAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        country: "DE",
+        legalFormLocal: "GmbH",
+        stateRegion: "Bayern",
+        deliverySameAsBilling: false,
+        deliveryCity: "Hamburg",
+        deliveryStateRegion: "Hamburg",
+        deliveryAddressLine: "Hafenstr. 2",
+      }),
+    );
+  }, 40_000); // Dört adımlı tam form + iki birleşik seçici: tam pakette yük altında 15 sn yetmiyor.
 });

@@ -5,22 +5,22 @@
     "textSignature": "— Rothern"
   },
   "passwordReset": {
-    "subject": "🔑 Parola sıfırlama bağlantınız — Rothern",
-    "preview": "Parola sıfırlama talebiniz için bağlantı.",
-    "heading": "Parolanızı sıfırlayın 🔑",
+    "subject": "🔑 Şifre sıfırlama bağlantınız — Rothern",
+    "preview": "Şifre sıfırlama talebiniz için bağlantı.",
+    "heading": "Şifrenizi sıfırlayın 🔑",
     "greeting": "Merhaba {firstName},",
-    "intro": "Rothern hesabınız için bir parola sıfırlama talebinde bulundunuz. Yeni parolanızı belirlemek için aşağıdaki butona tıklayın.",
+    "intro": "Rothern hesabınız için bir şifre sıfırlama talebinde bulundunuz. Yeni şifrenizi belirlemek için aşağıdaki butona tıklayın.",
     "infoTitle": "Bağlantı bilgisi",
     "accountLabel": "Hesap:",
     "validityLabel": "Geçerlilik:",
     "validityValue": "{minutes} dakika",
     "onceOnly": "Bu bağlantı yalnızca bir kez kullanılabilir.",
-    "cta": "Parolayı Sıfırla",
+    "cta": "Şifreyi Sıfırla",
     "ignoreNote": "Bu talebi siz yapmadıysanız bu e-postayı yok sayabilirsiniz — bağlantıyı kullanmazsanız hesabınızda hiçbir şey değişmez.",
-    "textTitle": "Rothern parola sıfırlama",
-    "textIntro": "Hesabınız için bir parola sıfırlama talebinde bulundunuz.",
+    "textTitle": "Rothern şifre sıfırlama",
+    "textIntro": "Hesabınız için bir şifre sıfırlama talebinde bulundunuz.",
     "textValidity": "Bağlantı {minutes} dakika geçerli ve sadece bir kez kullanılabilir.",
-    "textCta": "Parolayı sıfırlamak için: {url}",
+    "textCta": "Şifreyi sıfırlamak için: {url}",
     "textIgnore": "Bu talebi siz yapmadıysanız bu e-postayı yok sayabilirsiniz."
   },
   "referralInvite": {
@@ -41,7 +41,9 @@
     "textAbout": "Rothern; teklif toplama, açık eksiltme, sipariş ve ödeme takibini tek\nyerde toplayan bir B2B tedarik platformudur.",
     "textAutoConnect": "Bu adresle ({email}) kaydolduğunuzda {inviterName} ile bağlantınız otomatik kurulur.",
     "textCta": "Kaydolmak için: {url}",
-    "textIgnore": "Bu daveti beklemiyorduysanız bu e-postayı yok sayabilirsiniz."
+    "textIgnore": "Bu daveti beklemiyorduysanız bu e-postayı yok sayabilirsiniz.",
+    "optOut": "Bu tür davetleri almak istemiyorsanız <optout>buradan tek tıkla kapatabilirsiniz</optout>.",
+    "textOptOut": "Bu tür davetleri kapatmak için: {url}"
   },
   "tenderExternalInvite": {
     "subject": "📋 {inviterName} sizi \"{tenderTitle}\" satın alma talebine davet etti",

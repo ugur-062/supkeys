@@ -89,11 +89,25 @@ function invalidateUserCaches(qc: ReturnType<typeof useQueryClient>) {
   qc.invalidateQueries({ queryKey: ["company-seats"] });
 }
 
+/**
+ * Davet e-postasının GERÇEK teslim sonucu (2026-09-27) — API davet ve
+ * yeniden gönder yanıtlarında döner. `suppressed`: adres daha önce kalıcı
+ * geri döndü/şikâyet etti (yeniden göndermek işe yaramaz); `failed`:
+ * sağlayıcı hatası (yeniden gönder denenebilir). Eski API alanı döndürmez →
+ * `emailSent` yoksa "gönderildi" varsayılır.
+ */
+export interface InvitationEmailResult {
+  emailSent?: boolean;
+  emailFailureReason?: "suppressed" | "failed";
+}
+
 export function useInviteUser() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: InviteUserInput) => {
-      const { data } = await companyApi.post("/company/users", input);
+      const { data } = await companyApi.post<
+        { id: string; email: string; expiresAt: string } & InvitationEmailResult
+      >("/company/users", input);
       return data;
     },
     onSuccess: () => invalidateUserCaches(qc),
@@ -130,7 +144,7 @@ export function useResendInvitation() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data } = await companyApi.post(
+      const { data } = await companyApi.post<{ ok: true } & InvitationEmailResult>(
         `/company/users/invitations/${id}/resend`,
       );
       return data;

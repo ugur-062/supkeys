@@ -20,13 +20,14 @@ import {
   useSeats,
 } from "@/hooks/use-company-users";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { useInviteDeliveryToast } from "./use-invite-delivery-toast";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 /**
  * Token'lı davet — e-posta + YETKİ TABLOSU (Faz 4): davetli hangi tiklerle
  * katılacaksa burada işaretlenir; hazır set çipleri (Satın Almacı varsayılan)
- * tabloyu doldurur. Davetli, e-postadaki linkten adını/parolasını KENDİSİ
+ * tabloyu doldurur. Davetli, e-postadaki linkten adını/şifresini KENDİSİ
  * belirleyip sözleşmeleri onaylayarak katılır.
  */
 export function InviteUserDialog({
@@ -38,6 +39,7 @@ export function InviteUserDialog({
 }) {
   const t = useTranslations("web.panel.settings.inviteUserDialog");
   const invite = useInviteUser();
+  const reportDelivery = useInviteDeliveryToast();
   const { user: viewer } = useCompanyAuth();
   const { data: catalog } = usePermissionCatalog();
   // Faz K: koltuk doluysa işlem tikleri kilitli (UX — asıl kapı backend).
@@ -67,8 +69,13 @@ export function InviteUserDialog({
   const handleSave = async () => {
     if (!canSave) return;
     try {
-      await invite.mutateAsync({ email: email.trim(), permissions: perms });
-      toast.success(t("davetEPostasiGonderildi7"));
+      const res = await invite.mutateAsync({ email: email.trim(), permissions: perms });
+      // E-posta gerçekten gitti mi? Gitmediyse uyarı + yeniden gönder.
+      reportDelivery(res, {
+        id: res.id,
+        email: res.email,
+        successMessage: t("davetEPostasiGonderildi7"),
+      });
       setEmail("");
       setPerms(catalog?.presets.SATIN_ALMACI ?? []);
       onClose();

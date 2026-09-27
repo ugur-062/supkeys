@@ -17,7 +17,8 @@ export const PHONE_DIAL_CODES: Record<string, string> = Object.fromEntries(
  * yani her Rus numarası Kazakistan görünüyordu).
  */
 const PRIMARY_FOR_DIAL: Record<string, string> = {
-  "1": "US",
+  // ABD kayda kapalı (REGISTRATION_BLOCKED, 2026-09-27) → +1'in birincili Kanada.
+  "1": "CA",
   "7": "RU",
   "44": "GB",
   "39": "IT",
@@ -75,10 +76,13 @@ const DIALS_LONGEST_FIRST = [...new Set(Object.values(PHONE_DIAL_CODES))].sort(
   (a, b) => b.length - a.length,
 );
 
-function countryForDial(dial: string, national: string): string {
+function countryForDial(dial: string, national: string, preferred?: string | null): string {
   for (const rule of NATIONAL_PREFIX_COUNTRY) {
     if (rule.dial === dial && rule.prefixes.some((p) => national.startsWith(p))) return rule.code;
   }
+  // Seçili ülke bu kodu paylaşıyorsa (CA/US +1, GB/JE/GG/IM +44 …) o kalır —
+  // saklanan değer yalnız "+1 …" olduğu için ülke başka türlü bilinemez.
+  if (preferred && PHONE_DIAL_CODES[preferred] === dial) return preferred;
   if (PRIMARY_FOR_DIAL[dial]) return PRIMARY_FOR_DIAL[dial]!;
   return PHONE_COUNTRIES.find((c) => c.dialCode === dial)?.code ?? "TR";
 }
@@ -91,6 +95,7 @@ function countryForDial(dial: string, national: string): string {
  */
 export function parsePhone(
   value: string | null | undefined,
+  preferred?: string | null,
 ): { code: string; national: string } {
   const raw = (value ?? "").trim();
   if (!raw.startsWith("+")) {
@@ -100,7 +105,7 @@ export function parsePhone(
   for (const dial of DIALS_LONGEST_FIRST) {
     if (digits.startsWith(dial)) {
       const national = digits.slice(dial.length);
-      return { code: countryForDial(dial, national), national };
+      return { code: countryForDial(dial, national, preferred), national };
     }
   }
   return { code: "TR", national: digits };
@@ -111,4 +116,43 @@ export function composePhone(code: string, national: string): string {
   const dial = PHONE_DIAL_CODES[code] ?? "90";
   const n = (national ?? "").replace(/\D/g, "");
   return n ? `+${dial} ${n}` : "";
+}
+
+/**
+ * Baştaki "0"ın numaranın PARÇASI olduğu ülkeler — ulusal önek (trunk) değil:
+ * İtalya/San Marino/Vatikan sabit hatları (06 …), Fildişi Sahili, Kongo, Gabon,
+ * Benin (yeni 10 haneli planlar). Diğer ülkelerde ya "0" ulusal önektir
+ * (TR 0532, GB 07911, DE 030) ya da numara zaten 0 ile başlamaz → atmak zararsız.
+ */
+const LEADING_ZERO_SIGNIFICANT = new Set(["IT", "SM", "VA", "CI", "CG", "GA", "BJ"]);
+
+/**
+ * Ulusal numaradan TEK baştaki ulusal öneki ("0") atar: "05321234567" (TR) →
+ * "5321234567", "07911123456" (GB) → "7911123456". Tek "0" (yazmaya yeni
+ * başlanmış) ve "00" (uluslararası önek yazılıyor) dokunulmaz.
+ */
+export function stripTrunkPrefix(code: string, national: string): string {
+  const n = national.replace(/\D/g, "");
+  if (LEADING_ZERO_SIGNIFICANT.has(code)) return n;
+  return n.length >= 2 && n[0] === "0" && n[1] !== "0" ? n.slice(1) : n;
+}
+
+/**
+ * Ulusal numara alanına yazılan/yapıştırılan TAM uluslararası numara
+ * ("+44 7911 123456", "0049 30 1234567"): ülke koduyla ayrıştırır ve ulusal
+ * öneki atar. Uluslararası biçim değilse `null`; biçim uluslararası ama henüz
+ * bilinen bir ülke koduna ulaşmadıysa ("+3", "00") `{ pending: true }`.
+ */
+export function parseInternationalInput(
+  raw: string,
+  preferred?: string | null,
+): { code: string; national: string } | { pending: true } | null {
+  const compact = raw.trim().replace(/[\s().-]/g, "");
+  let digits: string;
+  if (compact.startsWith("+")) digits = compact.slice(1).replace(/\D/g, "");
+  else if (compact.startsWith("00")) digits = compact.slice(2).replace(/\D/g, "");
+  else return null;
+  if (!DIALS_LONGEST_FIRST.some((d) => digits.startsWith(d))) return { pending: true };
+  const { code, national } = parsePhone(`+${digits}`, preferred);
+  return { code, national: stripTrunkPrefix(code, national) };
 }

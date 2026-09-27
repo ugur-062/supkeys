@@ -1,4 +1,5 @@
 import type { ListingDetail } from "@/hooks/use-company-listings";
+import { toAppWallClockInput } from "@/lib/time-zone";
 import {
   DEFAULT_FORM_VALUES,
   nowLocalDateTimeValue,
@@ -7,15 +8,16 @@ import {
 
 type Currency = TenderFormData["primaryCurrency"];
 
-/** ISO → datetime-local input ("YYYY-MM-DDTHH:mm", yerel saat). */
+/**
+ * ISO → datetime-local input ("YYYY-MM-DDTHH:mm") — ÜRÜN saat diliminde
+ * (Europe/Istanbul; gösterimle aynı, 2026-09-27). Tarayıcı saatiyle yazılsaydı
+ * yurt dışındaki kullanıcının seçtiği saat ekranda başka görünürdü.
+ */
 export function toLocalInput(iso?: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(
-    d.getDate(),
-  )}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return toAppWallClockInput(d);
 }
 
 /** ISO → date input ("YYYY-MM-DD"). */

@@ -302,7 +302,7 @@ function AddressDialog({
               <Label>{t("eyaletBolge")}</Label>
               <Input
                 value={f.stateRegion}
-                maxLength={80}
+                maxLength={100}
                 onChange={(e) => set({ stateRegion: e.target.value })}
               />
             </Field>
@@ -342,6 +342,7 @@ function AddressDialog({
                 <Label>{isTR ? t("vergiNo") : t("vergiNoYabanci")}</Label>
                 <Input
                   value={f.taxNumber}
+                  maxLength={30}
                   onChange={(e) => set({ taxNumber: e.target.value })}
                 />
               </Field>

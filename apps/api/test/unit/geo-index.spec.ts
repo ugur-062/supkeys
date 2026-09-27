@@ -1,5 +1,5 @@
 import { SPECIAL_GEO_CITIES, foldSearchText } from "@rothern/shared";
-import { GeoIndex, geoIndex, resolveCityId, setGeoIndex, type GeoCityRow } from "../../src/common/geo/geo-index";
+import { GeoIndex, geoIndex, resolveCityId, setGeoIndex, storedCityName, type GeoCityRow } from "../../src/common/geo/geo-index";
 import { cityIdsOf, nearCityIds } from "../../src/common/company/product-index";
 
 /**
@@ -37,6 +37,12 @@ describe("dünya şehir dizini", () => {
     expect(resolveCityId("GB", "x", 2867714)).toBeNull(); // id DE'ye ait
     expect(resolveCityId("TR", "Bursa")).toBe(-1016);
     expect(resolveCityId("DE", "Hamburg")).toBeNull(); // listede yok → metin kalır
+  });
+
+  it("saklanan şehir adı tek biçim: seçici hangi dilde verse de yabancıda İngilizce, Türkiye'de Türkçe", () => {
+    expect(storedCityName(resolveCityId("DE", "Мюнхен", 2867714), "Мюнхен")).toBe("Munich");
+    expect(storedCityName(resolveCityId("TR", "istanbul"), "istanbul")).toBe("İstanbul");
+    expect(storedCityName(resolveCityId("DE", "Hamburg"), " Hamburg ")).toBe("Hamburg");
   });
 
   it("'Yakınımda' dünya geneli: Münih 100 km → Augsburg dahil, Londra değil; yabancı posta kodu Türk ili sanılmaz", () => {

@@ -64,12 +64,13 @@ export class SetUserPermissionsDto {
 /** Davet kabulü (public) — signup ile aynı kişi/parola/sözleşme kuralları. */
 export class AcceptCompanyInvitationDto {
   @IsString()
-  @MinLength(2, { message: () => tApi("api.dto.companyUser.adEnAz2KarakterOlmali") })
+  // Tek harfli ad meşru: yalnız boş olamaz (kayıtla aynı kural).
+  @Matches(/\S/, { message: () => tApi("api.dto.companyUser.adBosOlamaz") })
   @MaxLength(80)
   firstName!: string;
 
   @IsString()
-  @MinLength(2, { message: () => tApi("api.dto.companyUser.soyadEnAz2KarakterOlmali") })
+  @Matches(/\S/, { message: () => tApi("api.dto.companyUser.soyadBosOlamaz") })
   @MaxLength(80)
   lastName!: string;
 
@@ -146,13 +147,13 @@ export class UpdateUserRolesDto {
 export class UpdateUserDto {
   @IsOptional()
   @IsString()
-  @MinLength(2)
+  @Matches(/\S/) // tek harfli ad meşru; yalnız boş olamaz
   @MaxLength(80)
   firstName?: string;
 
   @IsOptional()
   @IsString()
-  @MinLength(2)
+  @Matches(/\S/)
   @MaxLength(80)
   lastName?: string;
 

@@ -1,7 +1,8 @@
 "use client";
 
-import { localizePath } from "@/i18n/href";
+import { localizePath, stripLocale } from "@/i18n/href";
 import { runtimeLocale } from "@/i18n/runtime";
+import { loginHref } from "@/lib/public/visibility";
 
 import { useCompanyMe } from "@/hooks/use-company-auth";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
@@ -26,7 +27,12 @@ export function RequireCompanyAuth({
   useEffect(() => {
     if (!isHydrated || typeof window === "undefined") return;
     if (!user) {
-      window.location.href = localizePath("/company/login", runtimeLocale());
+      // Geri dönüş adresi (2026-09-27): e-postadaki CTA ile panel sayfasına
+      // gelen oturumsuz kullanıcı girişten sonra PANOYA düşüyordu. Bulunulan
+      // İÇ yol (+ sorgu) `?next=` olarak taşınır; giriş sayfası yalnız
+      // `/company/...` göreli yolları kabul eder (açık yönlendirme yok).
+      const here = `${stripLocale(window.location.pathname || "/")}${window.location.search ?? ""}`;
+      window.location.href = localizePath(loginHref(here), runtimeLocale());
       return;
     }
     if (needsOnboarding) {

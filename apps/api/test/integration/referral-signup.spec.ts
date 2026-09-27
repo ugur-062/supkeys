@@ -107,4 +107,46 @@ describe("BK-CONN-1: referral signup token-kapsamlı bağlantı", () => {
     });
     expect(connA.status).toBe("PENDING");
   });
+
+  it("token'la FARKLI e-postayla kayıt (info@ davetli, kişisel adresle kayıt) → davet yine kabul edilir", async () => {
+    const service = svc();
+    const a = await makeCompany(prisma, { tier: "GOLD" });
+    const aUser = await makeUser(prisma, a.id, ["SAHIP"] as never);
+    const c = await makeCompany(prisma, { tier: "GOLD" });
+    await referral(a.id, aUser.id, "info@tedarikci.com", "tok-info");
+
+    await consume(service, "ahmet@tedarikci.com", c.id, "tok-info");
+
+    const conn = await prisma.companyConnection.findFirstOrThrow({
+      where: { inviterCompanyId: a.id, inviteeCompanyId: c.id },
+    });
+    expect(conn.status).toBe("ACTIVE");
+    const ref = await prisma.companyReferralInvite.findFirstOrThrow({
+      where: { token: "tok-info" },
+    });
+    expect(ref.status).toBe("ACCEPTED");
+    expect(ref.acceptedCompanyId).toBe(c.id);
+  });
+
+  it("son gönderimden 30 günü geçmiş davet süresi dolmuş sayılır (bağlantı kurulmaz)", async () => {
+    const service = svc();
+    const a = await makeCompany(prisma, { tier: "GOLD" });
+    const aUser = await makeUser(prisma, a.id, ["SAHIP"] as never);
+    const c = await makeCompany(prisma, { tier: "GOLD" });
+    const EMAIL = "eski@firma.com";
+    const inv = await referral(a.id, aUser.id, EMAIL, "tok-eski");
+    const old = new Date(Date.now() - 31 * 24 * 60 * 60 * 1000);
+    // Ham SQL: Prisma `@updatedAt`i her update'te "şimdi"ye çekebilir.
+    await prisma.$executeRaw`UPDATE company_referral_invites SET "createdAt" = ${old}, "updatedAt" = ${old} WHERE id = ${inv.id}`;
+
+    await consume(service, EMAIL, c.id, "tok-eski");
+
+    expect(
+      await prisma.companyConnection.count({
+        where: { inviterCompanyId: a.id, inviteeCompanyId: c.id },
+      }),
+    ).toBe(0);
+    const ref = await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: inv.id } });
+    expect(ref.status).toBe("PENDING");
+  });
 });

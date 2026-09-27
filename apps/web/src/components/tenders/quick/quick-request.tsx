@@ -37,16 +37,19 @@ import { useRequestDefaults, useSaveRequestDefaults } from "@/hooks/use-request-
 import { formatDate } from "@/lib/format-date";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { DEFAULT_FORM_VALUES, makeTenderFormSchema, type TenderFormData } from "@/lib/tenders/form-schema";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { parseAppWallClockInput } from "@/lib/time-zone";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { mapToInput } from "@/lib/tenders/map-to-input";
 import { applyConnectionsScope } from "@/lib/tenders/connections-scope";
-import { QUICK_DRAFT_KEY, clearSession, readSession, writeSession, type QuickDraft } from "@/lib/tenders/quick-draft";
+import { MAX_PENDING_EXTERNAL_INVITES, QUICK_DRAFT_KEY, clearSession, pendingInvitesKey, readSession, writeSession, type QuickDraft } from "@/lib/tenders/quick-draft";
+import { useExternalTenderInvite, type ExternalInviteResult } from "@/hooks/use-supplier-discovery";
 import { titleFromItems, type TitleTranslate } from "@/lib/tenders/quick-parse";
 import { applyRequestDefaults, closesAtFromDays, defaultsFromForm } from "@/lib/tenders/request-defaults";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
-import { CheckIcon, ExclamationTriangleIcon, GlobeAltIcon, SparklesIcon, UserGroupIcon, UserPlusIcon } from "@heroicons/react/20/solid";
+import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, requestDefaultsFallbackFor, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
+import { CheckIcon, ExclamationTriangleIcon, GlobeAltIcon, SparklesIcon, UserGroupIcon, UserPlusIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import { Sparkles } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -101,6 +104,9 @@ export function QuickRequest({
   const { company } = useCompanyAuth();
   const canManage = useHasCompanyPermission("buy:listing:manage");
   const defaultsQ = useRequestDefaults();
+  // Kayıtlı şart yoksa platform varsayılanı firmanın ülkesine göre (para
+  // birimi: yabancı alıcı TRY ile başlamasın — 2026-09-27).
+  const companyCountry = useCompanyAuthStore((st) => st.company?.country);
   const saveDefaults = useSaveRequestDefaults();
   const addresses = useAddresses();
   const create = useCreateListing();
@@ -108,7 +114,8 @@ export function QuickRequest({
   const publishExisting = usePublishListing(listingId ?? "");
   const saveTemplate = useSaveTemplate();
   const [templateOpen, setTemplateOpen] = useState(false);
-  const busy = create.isPending || update.isPending || publishExisting.isPending;
+  const sendExternal = useExternalTenderInvite();
+  const busy = create.isPending || update.isPending || publishExisting.isPending || sendExternal.isPending;
 
   const [terms, setTerms] = useState<RequestDefaults | null>(null);
   const [setupDone, setSetupDone] = useState(false);
@@ -120,7 +127,10 @@ export function QuickRequest({
   // AI ile başlık + kategori (2026-09-17): kalemlerden; başlık ve kategori
   // ÜZERİNE yazılır (düğmeye bilinçli basıldı), anahtar kelimeler yalnız boşsa.
   const draftSuggest = useAiRequestDraftSuggest();
-  const [published, setPublished] = useState<{ id: string; title: string; categoryIds: string[]; itemNames: string[] } | null>(null);
+  const [published, setPublished] = useState<{ id: string; title: string; categoryIds: string[]; itemNames: string[]; inviteResults: ExternalInviteResult[] | "error" | null } | null>(null);
+  // AI keşfinden eklenen dış davet adresleri — YAYINDA talebe özel davet
+  // (`external-tender-invite`) gider; yayından önce e-posta GİTMEZ (2026-09-27).
+  const [externalInvites, setExternalInvites] = useState<string[]>([]);
   const [stagedDocs, setStagedDocs] = useState<StagedListingDoc[]>([]);
   const [restoredDraft, setRestoredDraft] = useState(false);
   const connections = useConnections();
@@ -158,17 +168,22 @@ export function QuickRequest({
   useEffect(() => {
     if (!defaultsQ.data || appliedRef.current) return;
     appliedRef.current = true;
-    const d = defaultsQ.data.defaults ?? REQUEST_DEFAULTS_FALLBACK;
+    const d = defaultsQ.data.defaults ?? requestDefaultsFallbackFor(companyCountry);
     setTerms(d);
     const draft = initialValues ? null : readSession<QuickDraft>(QUICK_DRAFT_KEY);
     const base = applyRequestDefaults({ ...DEFAULT_FORM_VALUES, ...initialValues }, d);
-    reset(draft ? { ...base, ...draft, bidsCloseAt: base.bidsCloseAt } : base);
+    const { externalInvites: draftInvites, ...draftFields } = draft ?? {};
+    reset(draft ? { ...base, ...draftFields, bidsCloseAt: base.bidsCloseAt } : base);
     if (draft) setRestoredDraft(true);
+    // Bekleyen dış davetler: yeni kartta taslaktan, düzenlemede taslak
+    // kaydında bırakılan listeden.
+    const pending = isEdit && listingId ? readSession<string[]>(pendingInvitesKey(listingId)) : draftInvites;
+    if (pending?.length) setExternalInvites(pending.slice(0, MAX_PENDING_EXTERNAL_INVITES));
     if (!d.deliveryAddressId && addresses.data?.length) {
       const pick = addresses.data.find((a) => a.isDefault && a.type === "TESLIMAT") ?? addresses.data.find((a) => a.type === "TESLIMAT") ?? addresses.data[0];
       if (pick) setValue("deliveryAddressId", pick.id);
     }
-  }, [defaultsQ.data, addresses.data, initialValues, reset, setValue]);
+  }, [defaultsQ.data, addresses.data, initialValues, reset, setValue, isEdit, listingId, companyCountry]);
 
   const closeDays = terms?.closeDays ?? REQUEST_DEFAULTS_FALLBACK.closeDays;
   const updateTerms = (next: RequestDefaults) => {
@@ -196,8 +211,8 @@ export function QuickRequest({
     if (!appliedRef.current || published) return;
     const { title, description, items, categoryIds, keywords, deliveryAddressId, visibility, invitedSupplierIds, bidsCloseAt } = watched;
     if (!title && items.every((i) => !i.name)) return;
-    writeSession(QUICK_DRAFT_KEY, { title, description, items, categoryIds, keywords, deliveryAddressId, visibility, invitedSupplierIds, bidsCloseAt } satisfies QuickDraft);
-  }, [watched, published]);
+    writeSession(QUICK_DRAFT_KEY, { title, description, items, categoryIds, keywords, deliveryAddressId, visibility, invitedSupplierIds, bidsCloseAt, externalInvites } satisfies QuickDraft);
+  }, [watched, published, externalInvites]);
 
   const items = watched.items ?? [];
   const namedItems = items.filter((i) => i.name.trim().length > 0);
@@ -243,7 +258,7 @@ export function QuickRequest({
   const currentCloseDays = useMemo(() => {
     const v = watched.bidsCloseAt;
     if (!v) return closeDays;
-    const d = Math.round((new Date(v).getTime() - Date.now()) / 86_400_000);
+    const d = Math.round(((parseAppWallClockInput(v)?.getTime() ?? NaN) - Date.now()) / 86_400_000);
     return d > 0 ? d : closeDays;
   }, [watched.bidsCloseAt, closeDays]);
 
@@ -276,13 +291,22 @@ export function QuickRequest({
         await uploadStaged(listingId);
         await publishExisting.mutateAsync({});
         toast.success(tr("talepYayimlandi"));
+        const inviteResults = await sendPendingInvites(listingId);
+        clearSession(pendingInvitesKey(listingId));
+        if (inviteResults === "error") toast.warning(tr("disDavetlerGonderilemedi"));
+        else if (inviteResults) {
+          const sent = inviteResults.filter((r) => r.status === "SENT").length;
+          if (sent > 0) toast.success(tr("disDavetGonderildi", { n: sent }));
+          if (sent < inviteResults.length) toast.warning(tr("disDavetGonderilmedi", { n: inviteResults.length - sent }));
+        }
         router.push(`/company/ilan/${listingId}`);
         return;
       }
       const listing = await create.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
       await uploadStaged(listing.id);
+      const inviteResults = await sendPendingInvites(listing.id);
       clearSession(QUICK_DRAFT_KEY);
-      setPublished({ id: listing.id, title: values.title, categoryIds: values.categoryIds, itemNames: values.items.map((i) => i.name) });
+      setPublished({ id: listing.id, title: values.title, categoryIds: values.categoryIds, itemNames: values.items.map((i) => i.name), inviteResults });
       window.scrollTo({ top: 0 });
     } catch (err) {
       toast.error(extractErrorMessage(err, tr("talepYayimlanamadi")));
@@ -290,6 +314,27 @@ export function QuickRequest({
       submitLock.current = false;
     }
   };
+  /**
+   * Bekleyen dış davetler — talep YAYINLANDIKTAN sonra, talebe özel davet
+   * ucuyla (kayıtlı talepteki akışla aynı gövde). Hata yayını geri almaz:
+   * sonuç yayın panelinde (ya da toast'ta) gösterilir.
+   */
+  const sendPendingInvites = async (id: string): Promise<ExternalInviteResult[] | "error" | null> => {
+    if (externalInvites.length === 0) return null;
+    try {
+      const results = await sendExternal.mutateAsync({ listingId: id, emails: externalInvites.slice(0, MAX_PENDING_EXTERNAL_INVITES) });
+      setExternalInvites([]);
+      return results;
+    } catch {
+      return "error";
+    }
+  };
+  const collectExternalInvites = (emails: string[]) => {
+    const merged = [...new Set([...externalInvites, ...emails])];
+    if (merged.length > MAX_PENDING_EXTERNAL_INVITES) toast.info(tr("enFazlaDisDavet", { max: MAX_PENDING_EXTERNAL_INVITES }));
+    setExternalInvites(merged.slice(0, MAX_PENDING_EXTERNAL_INVITES));
+  };
+
   /** Başlık boşsa kalemlerden türet — satırlar elle girildiğinde otomatik başlık yok. */
   const ensureTitle = () => {
     const v = getValues();
@@ -309,12 +354,16 @@ export function QuickRequest({
       if (isEdit && listingId) {
         await update.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
         await uploadStaged(listingId);
+        // Bekleyen dış davetler taslakla birlikte saklanır; yayında gider.
+        if (externalInvites.length) writeSession(pendingInvitesKey(listingId), externalInvites);
+        else clearSession(pendingInvitesKey(listingId));
         toast.success(tr("taslakGuncellendi"));
         router.push(`/company/ilan/${listingId}`);
         return;
       }
       const listing = await create.mutateAsync({ ...mapToInput(applyConnectionsScope(values, connectionIds)), asDraft: true });
       await uploadStaged(listing.id);
+      if (externalInvites.length) writeSession(pendingInvitesKey(listing.id), externalInvites);
       clearSession(QUICK_DRAFT_KEY);
       toast.success(tr("taslakKaydedildi"));
       router.push(`/company/ilan/${listing.id}`);
@@ -412,6 +461,7 @@ export function QuickRequest({
         title={published.title}
         categoryIds={published.categoryIds}
         itemNames={published.itemNames}
+        inviteResults={published.inviteResults}
         onNew={() => {
           setPublished(null);
           appliedRef.current = false;
@@ -427,7 +477,8 @@ export function QuickRequest({
   const verified = company?.companyVerificationStatus === "VERIFIED";
   const visibility = watched.visibility;
   const invited = watched.invitedSupplierIds ?? [];
-  const closeLabel = watched.bidsCloseAt ? formatDate(watched.bidsCloseAt, "datetime", locale) : null;
+  // Form değeri ürün saat diliminin duvar saati → önce ana çevrilir.
+  const closeLabel = watched.bidsCloseAt ? formatDate(parseAppWallClockInput(watched.bidsCloseAt), "datetime", locale) : null;
   const ready = hasItems && (watched.categoryIds?.length ?? 0) > 0 && (watched.title?.trim().length ?? 0) >= 3;
 
   const audience =
@@ -744,6 +795,28 @@ export function QuickRequest({
                 {tr("kesfet")}
               </Button>
             </div>
+            {/* Yayında talebe özel davet gidecek adresler (AI keşfinden). */}
+            {externalInvites.length > 0 ? (
+              <div className="mb-4 rounded-xl border border-blue-200 bg-blue-50/40 p-3">
+                <p className="text-sm font-medium text-zinc-900">{tr("bekleyenDisDavetler", { n: externalInvites.length })}</p>
+                <p className="mt-0.5 text-xs text-zinc-600">{tr("bekleyenDisDavetlerAciklama")}</p>
+                <ul className="mt-2 flex flex-wrap gap-1.5">
+                  {externalInvites.map((email) => (
+                    <li key={email} className="inline-flex max-w-full items-center gap-1 rounded-full bg-white py-1 pr-1 pl-2.5 text-xs text-zinc-800 ring-1 ring-zinc-200">
+                      <span className="truncate">{email}</span>
+                      <button
+                        type="button"
+                        aria-label={tr("disDavetAdresiniKaldir", { email })}
+                        onClick={() => setExternalInvites((cur) => cur.filter((e) => e !== email))}
+                        className="rounded-full p-0.5 text-zinc-500 hover:bg-zinc-100 hover:text-zinc-900"
+                      >
+                        <XMarkIcon aria-hidden className="size-3.5" />
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-3">
               {(
                 [
@@ -797,6 +870,9 @@ export function QuickRequest({
               onClose={() => setDiscoveryOpen(false)}
               categoryIds={watched.categoryIds ?? []}
               itemNames={discoveryItemNames}
+              targetCountries={watched.targetCountries ?? []}
+              collected={externalInvites}
+              onCollect={collectExternalInvites}
             />
           </NumberedSection>
 

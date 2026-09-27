@@ -24,6 +24,7 @@ import {
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { showcaseContentChanged } from "../../common/company/product-content-diff";
 import { effectiveTier } from "../../common/company/effective-tier";
+import { pickFreeSlug } from "../../common/company/company-slug";
 import {
   hasPublicProfile,
   publicProductWhere,
@@ -1166,17 +1167,16 @@ export class CompanyItemsService {
     current: string | null,
   ): Promise<string> {
     if (current) return current;
-    const base = slugifyText(name) || "urun";
-    for (let i = 0; i < 100; i += 1) {
-      const candidate = i === 0 ? base : `${base}-${i + 1}`;
-      const clash = await this.prisma.companyItem.findFirst({
-        where: { companyId, slug: candidate, NOT: { id } },
-        select: { id: true },
+    // Çeviriyazısı olmayan ad (Çince, Arapça …) boş slug üretir → Türkçe
+    // "urun" yerine kayıt kimliğine düş: dilden bağımsız ve zaten tekil.
+    const base = slugifyText(name) || `product-${id.slice(-8).toLowerCase()}`;
+    return pickFreeSlug(base, async (candidates) => {
+      const rows = await this.prisma.companyItem.findMany({
+        where: { companyId, slug: { in: candidates }, NOT: { id } },
+        select: { slug: true },
       });
-      if (!clash) return candidate;
-    }
-    // 100 denemede bulunamadıysa kayıt kimliğine düş — çakışma imkânsız.
-    return `${base}-${id.slice(-6)}`;
+      return rows.map((r) => r.slug).filter((s): s is string => !!s);
+    });
   }
 
   private async normalizeShowcase(

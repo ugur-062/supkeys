@@ -8,6 +8,7 @@ import {
   QUANTITY_DECIMALS,
 } from "@rothern/shared";
 import { closesAtErrorKey } from "./closes-at";
+import { parseAppWallClockInput, toAppWallClockInput } from "../time-zone";
 import { maxDecimals } from "../money-input";
 
 /**
@@ -368,8 +369,9 @@ export function makeTenderFormSchema(t: RequestsTranslate) {
       .refine(
         (d) => {
           if (!d.bidsOpenAt || !d.bidsCloseAt) return true;
-          const open = new Date(d.bidsOpenAt).getTime();
-          const close = new Date(d.bidsCloseAt).getTime();
+          // Girdi ürün saat diliminin duvar saati (lib/time-zone.ts).
+          const open = parseAppWallClockInput(d.bidsOpenAt)?.getTime() ?? NaN;
+          const close = parseAppWallClockInput(d.bidsCloseAt)?.getTime() ?? NaN;
           return Number.isFinite(open) && open < close;
         },
         { message: t("formSchema.opensBeforeCloses"), path: ["bidsOpenAt"] },
@@ -434,15 +436,14 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
 };
 
 /**
- * Yerel "şimdi" — DateTimeInput/datetime-local değeri (YYYY-MM-DDTHH:mm).
+ * "Şimdi" — DateTimeInput/datetime-local değeri (YYYY-MM-DDTHH:mm), ürün saat
+ * diliminin duvar saatiyle (2026-09-27; eskiden tarayıcı saati).
  * Açılış tarihi varsayılanı: form açıldığı an (kullanıcı isteği 2026-08-02 —
  * alan boş gelmesin, o anki zaman yazılı gelsin). Geçmişte kalması sorun
  * değil: backend geçmiş açılışı "açılmış" sayar (embargo yalnız gelecekte).
  */
 export function nowLocalDateTimeValue(): string {
-  return new Date(Date.now() - new Date().getTimezoneOffset() * 60000)
-    .toISOString()
-    .slice(0, 16);
+  return toAppWallClockInput(new Date());
 }
 
 export const DEFAULT_FORM_VALUES: TenderFormData = {

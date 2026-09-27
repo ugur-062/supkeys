@@ -1,7 +1,17 @@
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
 import { resolveCityId } from "../../common/geo/geo-index";
-import { PAID_TIERS, countryUsesIban, isValidAccountNumber, isValidIbanAny, maskIban } from "@rothern/shared";
+import {
+  PAID_TIERS,
+  countryUsesIban,
+  isValidAccountNumber,
+  isValidCountryCode,
+  isValidIbanAny,
+  isValidSwiftBic,
+  maskIban,
+  normalizeSwift,
+} from "@rothern/shared";
+import { assertBankDetails } from "../../common/company/bank-details";
 import {
   BadRequestException,
   ConflictException,
@@ -707,6 +717,9 @@ export class AdminCompaniesService {
       // Ülkenin zorunlu belge seti — admin ekranı kendi kopyasını TUTMAZ
       // (2026-09-27: eskiden "TR 6 / yabancı 3" ikili kuralı KKTC/Çin/BAE'de yanlıştı).
       requiredDocs: requiredKinds(c.country),
+      // IBAN'sız ülkede `iban` kolonu hesap numarasıdır — admin etiketi buradan
+      // (admin uygulaması @rothern/shared'e bağlı değil; kural kopyalanmaz).
+      usesIban: countryUsesIban(c.country),
       docTaxPlateUrl,
       docTradeRegistryUrl,
       docSignatureCircularUrl,
@@ -754,7 +767,9 @@ export class AdminCompaniesService {
         | "website"
         | "industry"
         | "iban"
-        | "ibanHolder",
+        | "ibanHolder"
+        | "bankSwiftBic"
+        | "bankName",
         string | null
       >
     >,
@@ -778,6 +793,8 @@ export class AdminCompaniesService {
         industry: true,
         iban: true,
         ibanHolder: true,
+        bankSwiftBic: true,
+        bankName: true,
       },
     });
     if (!before) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
@@ -794,7 +811,16 @@ export class AdminCompaniesService {
       if (key === "name" && !value) {
         throw new BadRequestException(i18nMessage("api.adminCompanies.firmaAdiBosOlamaz"));
       }
-      data[key] = key === "country" && value ? value.toUpperCase() : value;
+      data[key] =
+        key === "country" && value
+          ? value.toUpperCase()
+          : key === "bankSwiftBic" && value
+            ? normalizeSwift(value)
+            : value;
+      // Ülke tam listeden (2026-09-27): eskiden her 2 harf ("ZZ") yazılıyordu.
+      if (key === "country" && data[key] && !isValidCountryCode(data[key]!)) {
+        throw new BadRequestException(i18nMessage("api.adminCompanies.gecersizUlkeKodu"));
+      }
       // #11 (denetim 2026-08-26 Parça 9): IBAN audit'e DÜZ yazılıyordu —
       // firma tarafı aynı veriyi bilinçli olarak `maskIban` ile yazıyor
       // (company-docs). Alan adının değiştiği bilgisi iz için yeterli.
@@ -831,6 +857,25 @@ export class AdminCompaniesService {
         throw new BadRequestException(i18nMessage("api.bankDetails.accountNumberInvalid"));
       }
       changes.iban = { from: changes.iban?.from ?? null, to: maskIban(data.iban as string) };
+    }
+    // Banka bilgisi değiştiyse birleşik hâl ortak kapıdan (firma tarafıyla aynı
+    // kural): IBAN'sız ülkede hesap no + SWIFT + banka adı; IBAN ülkesinde SWIFT
+    // biçimi. Hesap/IBAN boşaltılıyorsa (bilgi siliniyor) yalnız SWIFT biçimi.
+    if ("iban" in data || "bankSwiftBic" in data || "bankName" in data) {
+      const pick = (k: "iban" | "bankSwiftBic" | "bankName") => (k in data ? data[k] : before[k]) ?? null;
+      const account = pick("iban");
+      if (account) {
+        const usesIban = countryUsesIban(effectiveCountry);
+        assertBankDetails({
+          country: effectiveCountry,
+          iban: usesIban || isValidIbanAny(account) ? account : null,
+          accountNumber: usesIban ? null : account,
+          swiftBic: pick("bankSwiftBic"),
+          bankName: pick("bankName"),
+        });
+      } else if (data.bankSwiftBic && !isValidSwiftBic(data.bankSwiftBic)) {
+        throw new BadRequestException(i18nMessage("api.bankDetails.swiftInvalid", undefined, "BANK_DETAILS_INVALID"));
+      }
     }
     if (Object.keys(data).length === 0) {
       return { ok: true, changed: [] };

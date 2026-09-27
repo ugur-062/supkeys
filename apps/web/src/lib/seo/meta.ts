@@ -64,6 +64,21 @@ export interface PageMetaInput {
   locale?: Locale;
 }
 
+/**
+ * Segmentin KENDİ OG kartının adresi (`<segment>/opengraph-image.tsx`), sayfanın
+ * dilinde. Next'in dosya kuralı kartı og:image'a YAZMIYOR — `buildMetadata`
+ * her zaman `openGraph.images` verdiği için config kazanıyor (2026-09-27 yerel
+ * üretim sunucusunda ölçüldü) → kartı kullanmak isteyen sayfa bu adresi
+ * `images` ile geçer. Biçim: dil ön eki + İÇ yol (`/en/urunler/sehir/x/
+ * opengraph-image`): çevrilmiş yol + `/opengraph-image` bir rota şablonu
+ * değil, next-intl onu 404'e düşürüyor; ön ekli iç yol ise `[locale]`
+ * segmentine olduğu gibi geçiyor (200, ölçüldü).
+ */
+export function ogCardPath(path: string, locale: Locale = DEFAULT_LOCALE): string {
+  const card = `${path === "/" ? "" : path.replace(/\/$/, "")}/opengraph-image`;
+  return locale === DEFAULT_LOCALE ? card : `/${locale}${card}`;
+}
+
 export const OG_LOCALE: Record<Locale, string> = { tr: "tr_TR", en: "en_US", ru: "ru_RU" };
 /** JSON-LD `inLanguage` (BCP 47) — sayfanın dili; sözleşme metinleri istisna (her dilde tr-TR, `LegalDoc`). */
 export const LANG_TAG: Record<Locale, string> = { tr: "tr-TR", en: "en-US", ru: "ru-RU" };
@@ -90,8 +105,11 @@ export function buildMetadata({
   // Varsayılan kart (2026-09-11 canlı denetim): Next'te kök `opengraph-image`
   // yalnız `/` için basılır, alt segmentlere MİRAS GEÇMEZ — /nasil-calisir ve
   // sözleşme sayfaları og:image'sız çıkıyordu. Görsel verilmeyen her sayfa kök
-  // marka kartını alır; varlık sayfaları kendi kartını geçer.
-  const abs = (images && images.length ? images : ["/opengraph-image"]).map((i) =>
+  // marka kartını alır; varlık sayfaları kendi kartını geçer. Kart sayfanın
+  // DİLİNDE (2026-09-27): ön eksiz `/opengraph-image` Türkçe karttır — EN/RU
+  // sayfa `/en/opengraph-image` alır (`[locale]/opengraph-image.tsx`).
+  const fallback = ogCardPath("/", locale);
+  const abs = (images && images.length ? images : [fallback]).map((i) =>
     i.startsWith("http") ? i : absoluteUrl(i),
   );
   return {

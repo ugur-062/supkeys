@@ -75,6 +75,22 @@ describe("CompanySignupClient — form aşaması", () => {
     expect(screen.getByText("Şifreler eşleşmiyor")).toBeInTheDocument();
   });
 
+  it("tek harfli ad/soyad geçerli (Çin, Kore …); yalnız boşluk geçersiz", async () => {
+    const user = userEvent.setup();
+    render(<CompanySignupClient />);
+    await fillValidForm(user);
+    const ad = screen.getByLabelText("Ad");
+    const submit = screen.getByRole("button", { name: "Hesap Oluştur" });
+    await user.clear(ad);
+    await user.type(ad, "Li");
+    await user.clear(screen.getByLabelText("Soyad", { exact: true }));
+    await user.type(screen.getByLabelText("Soyad", { exact: true }), "W");
+    expect(submit).toBeEnabled();
+    await user.clear(ad);
+    await user.type(ad, "   ");
+    expect(submit).toBeDisabled();
+  });
+
   it("tüm alanlar geçerli + onaylar → buton aktif; submit trimli veri gönderir", async () => {
     const user = userEvent.setup();
     h.signupAsync.mockResolvedValue({ email: "ada@firma.com" });

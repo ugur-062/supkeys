@@ -159,6 +159,19 @@ export function setGeoIndex(index: GeoIndex | null): void {
 }
 
 /**
+ * Saklanan şehir METNİ: şehir listeden eşlendiyse TEK biçim — Türkiye/KKTC'de
+ * Türkçe ad ("İstanbul"), diğer ülkelerde İngilizce yazım ("Munich"). Seçici
+ * adı arayüz dilinde verir; eşlemesiz saklansaydı Rusça panelden kayıt olan
+ * firmanın şehri "Мюнхен" olarak herkese görünürdü (2026-09-27 denetimi).
+ * Eşleşmeyen serbest metin olduğu gibi kalır.
+ */
+export function storedCityName(cityId: number | null, text: string | null | undefined): string | null {
+  const row = geoIndex().byId(cityId);
+  if (row) return row.countryCode === "TR" || row.countryCode === "XN" ? row.nameTr || row.name : row.nameEn || row.name;
+  return text?.trim() || null;
+}
+
+/**
  * Yazma yolu: firma/adres şehri → `cityId` (kayıt, profil, adres, admin).
  * İstemci aynı ülkeden geçerli bir id gönderdiyse o; yoksa metinden eşleme;
  * eşleşmezse null (şehir metin olarak yine kaydedilir, yalnız şehir sayfasına

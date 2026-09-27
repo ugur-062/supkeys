@@ -6,7 +6,8 @@ import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useRequestDefaults, useSaveRequestDefaults } from "@/hooks/use-request-defaults";
-import { REQUEST_DEFAULTS_FALLBACK, type RequestDefaults } from "@rothern/shared";
+import { requestDefaultsFallbackFor, type RequestDefaults } from "@rothern/shared";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -21,9 +22,11 @@ export default function TalepSartlariPage() {
   const save = useSaveRequestDefaults();
   const canEdit = useHasCompanyPermission("buy:listing:manage");
   const [draft, setDraft] = useState<RequestDefaults | null>(null);
+  // Kayıt yoksa ülkeye göre yedek (para birimi firmanın doğal birimi).
+  const companyCountry = useCompanyAuthStore((st) => st.company?.country);
   useEffect(() => {
-    if (q.data && !draft) setDraft(q.data.defaults ?? REQUEST_DEFAULTS_FALLBACK);
-  }, [q.data, draft]);
+    if (q.data && !draft) setDraft(q.data.defaults ?? requestDefaultsFallbackFor(companyCountry));
+  }, [q.data, draft, companyCountry]);
 
   const onSave = async () => {
     if (!draft) return;

@@ -24,7 +24,7 @@ import {
 } from "@rothern/shared";
 import { ensureUniqueCompanySlug } from "../../common/company/company-slug";
 import { effectiveTier } from "../../common/company/effective-tier";
-import { resolveCityId } from "../../common/geo/geo-index";
+import { resolveCityId, storedCityName } from "../../common/geo/geo-index";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import {
   assertUploadedObjectValid,
@@ -435,6 +435,7 @@ export class CompanyProfileService {
     // Şehir → dünya şehir listesi kaydı (2026-09-27; şehir sayfası/süzgeç).
     if (dto.city !== undefined || dto.cityId !== undefined) {
       data.cityId = resolveCityId(kycBefore?.country ?? "TR", dto.city ?? null, dto.cityId);
+      if (dto.city !== undefined && dto.city.trim()) data.city = storedCityName(data.cityId as number | null, dto.city);
     }
 
     // Public profil açıksa ve henüz slug yoksa SEO-dostu benzersiz slug üret.

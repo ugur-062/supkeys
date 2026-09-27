@@ -43,6 +43,13 @@ import {
  * maliyet satırda (`costUsd`) izlenir.
  */
 const MAX_ATTEMPTS = 3;
+/**
+ * Toplam deneme tavanı (ilk 3 + 6 saatte bir yeniden). Kalıcı reddedilen
+ * kayıt eskiden her 6 saatte sıfırlanıp SONSUZA DEK Pro çağrısı yakıyordu
+ * (günde ~24 çağrı/kayıt, 2026-09-27 denetimi); tavan dolunca kayıt ancak
+ * kaynağı değişince (enqueue sayacı sıfırlar) yeniden denenir.
+ */
+const MAX_TOTAL_ATTEMPTS = 9;
 /** Kalıcı FAILED kayıt bu süreden sonra yeniden denenir (kapsam denetimi). */
 const FAILED_RETRY_MS = 6 * 60 * 60 * 1000;
 const TIMEOUT_MS = 120_000;
@@ -75,6 +82,8 @@ interface StoredRow {
 export class ContentTranslationService {
   private readonly logger = new Logger(ContentTranslationService.name);
   private readonly inFlight = new Set<string>();
+  /** Çeviri sürerken kaynağı yeniden değişen varlıklar: bitince bir tur daha. */
+  private readonly dirty = new Set<string>();
   private sweeping = false;
   /** 404 ile elenen adaylar ve çalıştığı görülen model (süreç ömrünce). */
   private readonly deadModels = new Set<string>();
@@ -217,10 +226,11 @@ export class ContentTranslationService {
         });
         return false;
       }
+      const guess = await this.guessSourceLocale(type, id);
       for (const locale of LOCALES) {
         await this.prisma.contentTranslation.upsert({
           where: { entityType_entityId_locale: { entityType: type, entityId: id, locale } },
-          create: { entityType: type, entityId: id, locale, sourceHash: hash, status: "PENDING" },
+          create: { entityType: type, entityId: id, locale, sourceHash: hash, status: "PENDING", sourceLocale: guess },
           // Eski `fields` KORUNUR: yeni çeviri gelene dek bayat çeviri boş metinden iyidir.
           update: { sourceHash: hash, status: "PENDING", attempts: 0, error: null },
         });
@@ -237,6 +247,34 @@ export class ContentTranslationService {
       this.logger.warn(`Translation enqueue failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`);
       return false;
     }
+  }
+
+  /**
+   * Kaynak dil TAHMİNİ (çeviri gelmeden): sahibi Türkiye/KKTC firmasıysa
+   * "tr", değilse "und" (belirsiz). `readyLocales` belirsiz kaynakta yalnız
+   * çevirisi gelmiş dilleri hazır sayar → Alman firmanın Almanca metni
+   * Türkçe adreste `lang="tr"` ile indekslenmez (2026-09-27 denetimi).
+   * Model kaynağı saptayınca satırlara gerçek dil yazılır.
+   */
+  private async guessSourceLocale(type: TranslatableEntityType, id: string): Promise<string> {
+    try {
+      return await this.guessSourceLocaleOrThrow(type, id);
+    } catch {
+      return "tr";
+    }
+  }
+
+  private async guessSourceLocaleOrThrow(type: TranslatableEntityType, id: string): Promise<string> {
+    const companyId =
+      type === "COMPANY"
+        ? id
+        : type === "PRODUCT"
+          ? (await this.prisma.companyItem.findUnique({ where: { id }, select: { companyId: true } }))?.companyId
+          : (await this.prisma.listing.findUnique({ where: { id }, select: { companyId: true } }))?.companyId;
+    if (!companyId) return "tr";
+    const company = await this.prisma.company.findUnique({ where: { id: companyId }, select: { country: true } });
+    const country = (company?.country ?? "TR").toUpperCase();
+    return country === "TR" || country === "XN" ? "tr" : "und";
   }
 
   /** Aynı süreçte, istek yanıtını bekletmeden çevir. */
@@ -295,7 +333,14 @@ export class ContentTranslationService {
     this.sweeping = true;
     try {
       const rows = await this.prisma.contentTranslation.findMany({
-        where: { OR: [{ status: "PENDING" }, { status: "FAILED", attempts: { lt: MAX_ATTEMPTS } }] },
+        where: {
+          OR: [
+            { status: "PENDING" },
+            { status: "FAILED", attempts: { lt: MAX_ATTEMPTS } },
+            // Kalıcı FAILED: 6 saatte bir, toplam tavana dek.
+            { status: "FAILED", attempts: { lt: MAX_TOTAL_ATTEMPTS }, updatedAt: { lt: new Date(Date.now() - FAILED_RETRY_MS) } },
+          ],
+        },
         select: { entityType: true, entityId: true },
         distinct: ["entityType", "entityId"],
         orderBy: { updatedAt: "asc" },
@@ -325,7 +370,11 @@ export class ContentTranslationService {
   /** Tek varlığı çevirir: model → doğrulama (bir düzeltme turu) → üç satır. */
   async translateEntity(type: TranslatableEntityType, id: string): Promise<"done" | "skipped" | "failed"> {
     const key = `${type}:${id}`;
-    if (this.inFlight.has(key)) return "skipped";
+    if (this.inFlight.has(key)) {
+      // Sürmekte olan çeviri ESKİ kaynağı yazacak → bitince yeniden çevrilsin.
+      this.dirty.add(key);
+      return "skipped";
+    }
     this.inFlight.add(key);
     try {
       const source = await this.loadSource(type, id);
@@ -404,6 +453,17 @@ export class ContentTranslationService {
         await this.markFailed(type, id, feedback ?? "translation could not be validated", { model, usage, cost });
         return "failed";
       }
+      // Model çalışırken kaynak değiştiyse (enqueue satırlara yeni özeti yazdı)
+      // eski kaynağın çevirisi DONE diye yazılmaz — yoksa yeni metin kapsam
+      // denetiminden de kaçıp bir sonraki düzenlemeye dek eski çeviri kalırdı.
+      const current = await this.prisma.contentTranslation.findMany({
+        where: { entityType: type, entityId: id },
+        select: { sourceHash: true },
+      });
+      if (current.some((r) => r.sourceHash !== hash)) {
+        this.dirty.add(key);
+        return "skipped";
+      }
       const now = new Date();
       for (const locale of LOCALES) {
         const fields =
@@ -437,6 +497,7 @@ export class ContentTranslationService {
       return "done";
     } finally {
       this.inFlight.delete(key);
+      if (this.dirty.delete(key)) this.kick(type, id);
     }
   }
 
@@ -682,14 +743,19 @@ export class ContentTranslationService {
    *     metni var (`hasTranslatableText` ile aynı ≥2 karakter kuralı).
    * Taslak ürün/talep çevrilmez: yalnız sahibi görür, sahibi kendi metnini
    * HAM okur; yayın/onay anında zaten kuyruğa girer.
-   * Kalıcı FAILED (≤3 deneme bitti) 6 saat sonra yeniden denenir.
+   * Kalıcı FAILED (ilk 3 deneme bitti) 6 saatte bir, toplam 9 denemeye dek yeniden denenir.
    * İSTEM SÜRÜMÜ: satırın özeti güncel önekle (`SOURCE_HASH_PREFIX`) başlamıyorsa
    * kayıt bayattır — `TRANSLATION_PROMPT_VERSION` artınca her şey yeniden çevrilir.
    */
   async ensureCoverage(limit = 50): Promise<{ products: number; listings: number; companies: number; retried: number }> {
-    const retry = await this.prisma.contentTranslation.updateMany({
-      where: { status: "FAILED", attempts: { gte: MAX_ATTEMPTS }, updatedAt: { lt: new Date(Date.now() - FAILED_RETRY_MS) } },
-      data: { attempts: 0 },
+    // Kalıcı FAILED sıfırlanmaz: süpürücü onu 6 saatte bir, toplam tavana dek
+    // yeniden seçer (sayaç birikir). Burada yalnız sayılır.
+    const retried = await this.prisma.contentTranslation.count({
+      where: {
+        status: "FAILED",
+        attempts: { gte: MAX_ATTEMPTS, lt: MAX_TOTAL_ATTEMPTS },
+        updatedAt: { lt: new Date(Date.now() - FAILED_RETRY_MS) },
+      },
     });
     const current = `${SOURCE_HASH_PREFIX}%`;
     const products = await this.prisma.$queryRaw<{ id: string }[]>`
@@ -716,7 +782,7 @@ export class ContentTranslationService {
                           WHERE t."entityType"::text = 'COMPANY' AND t."entityId" = e."id" AND t."updatedAt" >= e."updatedAt"
                             AND t."sourceHash" LIKE ${current})
        ORDER BY e."updatedAt" ASC LIMIT ${limit}`;
-    const out = { products: 0, listings: 0, companies: 0, retried: retry.count };
+    const out = { products: 0, listings: 0, companies: 0, retried };
     for (const r of products) if (await this.enqueueQuiet("PRODUCT", r.id)) out.products += 1;
     for (const r of listings) if (await this.enqueueQuiet("LISTING", r.id)) out.listings += 1;
     for (const r of companies) if (await this.enqueueQuiet("COMPANY", r.id)) out.companies += 1;

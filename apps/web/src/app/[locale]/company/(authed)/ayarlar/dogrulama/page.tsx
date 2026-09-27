@@ -297,13 +297,15 @@ export default function DogrulamaPage() {
               </Field>
               <Field>
                 <Label>{t("swiftBic")} *</Label>
+                {/* Boşluklu yapıştırma ("DEUT DE FF 500") eskiden maxLength=11 ile
+                    kesiliyordu → boşluk yazarken atılır, tavan gevşek. */}
                 <Input
                   value={swift}
                   invalid={Boolean(swiftError)}
-                  onChange={(e) => setSwift(e.target.value.toUpperCase())}
+                  onChange={(e) => setSwift(normalizeSwift(e.target.value))}
                   placeholder={t("swiftPlaceholder")}
                   disabled={!canManage || locked}
-                  maxLength={11}
+                  maxLength={20}
                 />
                 {swiftError ? (
                   <ErrorMessage>{swiftError}</ErrorMessage>

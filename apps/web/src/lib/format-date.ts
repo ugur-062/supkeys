@@ -1,7 +1,7 @@
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { enUS, ru, tr } from "date-fns/locale";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
-import { toAppWallClock } from "@/lib/time-zone";
+import { appZoneLabel, toAppWallClock } from "@/lib/time-zone";
 
 /**
  * P1 (frontend denetimi §8.2) — TEK tarih formatlayıcı. Varyantlar:
@@ -16,6 +16,10 @@ import { toAppWallClock } from "@/lib/time-zone";
  * istemci +3'te basınca gece yarısı çevresinde gün değişiyor ve herkese
  * açık sayfalarda hidrasyon uyuşmazlığı doğuyordu. "relative" mesafe
  * hesabıdır, saat diliminden etkilenmez.
+ *
+ * Türkçe dışı dillerde SAAT içeren metin dilim etiketi taşır ("17:00
+ * (GMT+3)", 2026-09-27): yurt dışındaki kullanıcı kapanış saatini kendi
+ * saati sanmasın. Yalnız tarih olan varyantlar etiketsiz.
  */
 export type DateVariant = "long" | "short" | "datetime" | "relative";
 
@@ -37,10 +41,15 @@ export function formatDate(
     case "long":
       return format(d, "d MMMM yyyy", { locale: loc });
     case "datetime":
-      return format(d, "d MMM yyyy HH:mm", { locale: loc });
+      return `${format(d, "d MMM yyyy HH:mm", { locale: loc })}${zoneSuffix(locale, raw)}`;
     case "relative":
       return formatDistanceToNowStrict(d, { addSuffix: true, locale: loc });
     default:
       return format(d, "d MMM yyyy", { locale: loc });
   }
+}
+
+/** Türkçe dışı dillerde saat metnine eklenen dilim etiketi (" (GMT+3)"); TR'de boş. */
+export function zoneSuffix(locale: Locale | string | undefined, at?: Date): string {
+  return !locale || locale === DEFAULT_LOCALE ? "" : ` (${appZoneLabel(at)})`;
 }

@@ -29,7 +29,11 @@ beforeEach(() => {
   h.meData = undefined;
   // jsdom, gerçek navigasyonu desteklemez — yer değiştirilebilir stub.
   delete (window as { location?: unknown }).location;
-  (window as { location: { href: string } }).location = { href: "" };
+  (window as { location: { href: string; pathname: string; search: string } }).location = {
+    href: "",
+    pathname: "/company",
+    search: "",
+  };
 });
 
 afterEach(() => {
@@ -60,7 +64,21 @@ describe("RequireCompanyAuth", () => {
       </RequireCompanyAuth>,
     );
     expect(container).toBeEmptyDOMElement();
-    expect(window.location.href).toBe("/company/login");
+    expect(window.location.href).toBe("/company/login?next=%2Fcompany");
+  });
+
+  it("e-posta CTA'sıyla gelen oturumsuz kullanıcı: bulunulan yol + sorgu `next` olarak taşınır", () => {
+    h.state = { user: null, isHydrated: true };
+    (window.location as { pathname: string; search: string }).pathname = "/company/ilan/abc123";
+    (window.location as { pathname: string; search: string }).search = "?tab=1";
+    render(
+      <RequireCompanyAuth>
+        <Child />
+      </RequireCompanyAuth>,
+    );
+    expect(window.location.href).toBe(
+      `/company/login?next=${encodeURIComponent("/company/ilan/abc123?tab=1")}`,
+    );
   });
 
   it("hydrate + kullanıcı + onboarding tamam → içerik render, yönlendirme yok", () => {

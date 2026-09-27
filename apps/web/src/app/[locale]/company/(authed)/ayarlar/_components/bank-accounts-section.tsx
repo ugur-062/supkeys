@@ -286,9 +286,9 @@ function BankAccountModal({
           <Input
             value={swift}
             invalid={Boolean(swiftError)}
-            onChange={(e) => setSwift(e.target.value.toUpperCase())}
+            onChange={(e) => setSwift(normalizeSwift(e.target.value))}
             placeholder="DEUTDEFF"
-            maxLength={11}
+            maxLength={20}
           />
           {swiftError ? <ErrorMessage>{swiftError}</ErrorMessage> : null}
         </Field>

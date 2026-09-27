@@ -8,6 +8,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -47,8 +49,38 @@ import { visibleOwnerListingWhere } from "../../../common/company/listing-visibi
 import { hasValidConnection } from "../../../common/company/valid-connection";
 import { listingManageDenial } from "../../company-listings/listing-manage-access";
 import { affinityReasonTextThirdParty } from "../../company-affinity/company-affinity.service";
+import {
+  REFERRAL_DAILY_CAP,
+  REFERRAL_RESEND_COOLDOWN_DAYS,
+  deliverInvite,
+  formatInviteDeadline,
+  referralCooldownStart,
+  type InviteDeliveryResult,
+} from "../../../common/company/invite-delivery";
 
 type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
+
+const EXTERNAL_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/**
+ * Dış talep daveti — adres başına GERÇEK sonuç (2026-09-27). Eskiden yalnız
+ * SENT/SKIPPED vardı ve SENT gönderimden ÖNCE yazılıyordu.
+ */
+export type ExternalInviteStatus =
+  | "SENT"
+  | "FAILED"
+  | "SUPPRESSED"
+  | "SKIPPED_REGISTERED"
+  | "ALREADY_INVITED"
+  | "OPTED_OUT"
+  | "DAILY_LIMIT"
+  | "INVALID";
+
+export interface ExternalInviteResult {
+  email: string;
+  status: ExternalInviteStatus;
+  reason?: string;
+}
 
 /** Bağlantı kartı için firma alanları (ihale daveti adımı + bağlantılar). */
 const COMPANY_CARD_SELECT = {
@@ -130,8 +162,40 @@ export class CompanyConnectionsService {
    * E-posta ile davet. Kayıtlıysa doğrudan INVITE bağlantı isteği; değilse
    * ReferralInvite kaydı + davet e-postası. Hedef bu e-posta ile kayıt olunca
    * (signup hook) otomatik INVITE bağlantı kurulur.
+   *
+   * 2026-09-27 davet denetimi: gönderim BEKLENİR ve gerçek sonuç döner
+   * (`delivery`); günlük firma tavanı (REFERRAL_DAILY_CAP, `/batch` ile ORTAK)
+   * ve adres başına 7 günlük tekrar freni (ALREADY_INVITED). Eskiden her
+   * çağrı aynı adrese yeniden e-posta atıyor ve yanıt gönderimden önce
+   * "gitti" diyordu.
    */
   async inviteByEmail(user: AuthenticatedCompanyUser, emailRaw: string) {
+    const prepared = await this.prepareReferralInvite(user, emailRaw);
+    if (prepared.kind === "request") return prepared;
+    const res = await this.sendReferralInvite(prepared);
+    return {
+      kind: "invited" as const,
+      email: prepared.email,
+      delivery: res.delivery,
+      emailSent: res.delivery === "SENT",
+    };
+  }
+
+  /**
+   * Referral daveti ÖN AŞAMASI — kapılar + kayıt; e-posta GÖNDERMEZ.
+   * Kayıtlı adres → bağlantı isteği (gönderilecek e-posta yok). Aksi hâlde
+   * gönderilecek davet döner; kayıt `updatedAt`i ilerletilir (son gönderim
+   * zamanı: tavan sayımı ve 30 günlük token ömrü buradan okur).
+   * Frenler anahtarlı istisna atar (`code`): ALREADY_INVITED, DAILY_LIMIT,
+   * OPTED_OUT — toplu uç bunları adres başına sonuca çevirir.
+   */
+  private async prepareReferralInvite(
+    user: AuthenticatedCompanyUser,
+    emailRaw: string,
+  ): Promise<
+    | { kind: "request"; targetName: string }
+    | { kind: "send"; email: string; inviteId: string; token: string; inviterName: string }
+  > {
     if (!tierAtLeast(user.tier, "SILVER")) {
       throw new ForbiddenException(
         i18nMessage("api.companyConnections.baglantiDavetiGondermekIcinBirPaket"),
@@ -158,7 +222,7 @@ export class CompanyConnectionsService {
         );
       }
       const res = await this.createRequest(user, existing.company, "INVITE");
-      return { kind: "request" as const, targetName: res.targetName };
+      return { kind: "request", targetName: res.targetName };
     }
 
     // Kayıtsız → davet kaydı (varsa koru) + e-posta.
@@ -169,13 +233,81 @@ export class CompanyConnectionsService {
       select: { email: true },
     });
     if (optedOut) {
-      throw new ConflictException(i18nMessage("api.companyConnections.buEPostaAdresiDavetAlmak"));
+      throw new ConflictException(
+        i18nMessage("api.companyConnections.buEPostaAdresiDavetAlmak", undefined, "OPTED_OUT"),
+      );
     }
+
+    const prior = await this.prisma.companyReferralInvite.findUnique({
+      where: { inviterCompanyId_email: { inviterCompanyId: user.companyId, email } },
+      select: { id: true, status: true },
+    });
+    // Kabul edilmiş davet yeniden gönderilmez (adres kayıt olmadan — farklı
+    // e-postayla kayıt — kabul edilmiş olabilir; token zaten kullanıldı).
+    if (prior && prior.status !== "PENDING") {
+      throw new ConflictException(
+        i18nMessage("api.companyConnections.buAdreseDahaOnceDavetGonderilmis", undefined, "ALREADY_INVITED"),
+      );
+    }
+    // 7 günlük tekrar freni: son 7 günde bu kayda (referral ya da dış talep
+    // daveti) TESLİM EDİLMİŞ/yolda bir e-posta varsa yeniden gönderilmez.
+    // Başarısız gönderim freni tetiklemez — kullanıcı yeniden deneyebilir.
+    if (prior) {
+      const recent = await this.prisma.emailLog.findFirst({
+        where: {
+          contextType: { in: ["referral_invite", "tender_external_invite"] },
+          contextId: prior.id,
+          status: { not: "FAILED" },
+          queuedAt: { gte: referralCooldownStart() },
+        },
+        select: { id: true },
+      });
+      if (recent) {
+        throw new ConflictException(
+          i18nMessage(
+            "api.companyConnections.buAdreseSonGunlerdeDavetGonderildi",
+            { days: REFERRAL_RESEND_COOLDOWN_DAYS },
+            "ALREADY_INVITED",
+          ),
+        );
+      }
+    }
+
+    // Günlük firma tavanı (UTC günü; invite-by-email + /batch ORTAK). Sayım
+    // gönderim DENEMESİ üzerinden: bugün dokunulan davet kayıtlarının bugünkü
+    // referral e-posta kayıtları (suppress/başarısız da sayılır — itibar freni).
+    const dayStart = new Date();
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const touchedToday = await this.prisma.companyReferralInvite.findMany({
+      where: { inviterCompanyId: user.companyId, updatedAt: { gte: dayStart } },
+      select: { id: true },
+    });
+    const sentToday =
+      touchedToday.length === 0
+        ? 0
+        : await this.prisma.emailLog.count({
+            where: {
+              contextType: "referral_invite",
+              contextId: { in: touchedToday.map((r) => r.id) },
+              queuedAt: { gte: dayStart },
+            },
+          });
+    if (sentToday >= REFERRAL_DAILY_CAP) {
+      throw new HttpException(
+        i18nMessage(
+          "api.companyConnections.gunlukDavetLimitineUlasildi",
+          { cap: REFERRAL_DAILY_CAP },
+          "DAILY_LIMIT",
+        ),
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+
     const me = await this.prisma.company.findUnique({
       where: { id: user.companyId },
       select: { name: true },
     });
-
+    // `updatedAt` = son gönderim zamanı (tavan sayımı + 30 günlük token ömrü).
     const inv = await this.prisma.companyReferralInvite.upsert({
       where: {
         inviterCompanyId_email: { inviterCompanyId: user.companyId, email },
@@ -185,37 +317,53 @@ export class CompanyConnectionsService {
         email,
         invitedById: user.userId,
       },
-      update: {},
+      update: { updatedAt: new Date() },
+      select: { id: true, token: true },
     });
+    return {
+      kind: "send",
+      email,
+      inviteId: inv.id,
+      token: inv.token,
+      inviterName: this.companyNameOr(me?.name),
+    };
+  }
 
-    const baseUrl =
-      resolveWebUrl(this.config);
-    const registerUrl = appRoutes.signupWithRef(baseUrl, inv.token, currentLocale());
-
-    this.email
-      .send({
-        to: { email },
-        // Alıcı kayıtlı DEĞİL (dili yok) → DAVET EDENİN dili; daveti o yazıyor.
-        locale: currentLocale(),
+  /** Referral davet e-postası — BEKLENİR; sonuç `delivery`. */
+  private async sendReferralInvite(p: {
+    email: string;
+    inviteId: string;
+    token: string;
+    inviterName: string;
+  }): Promise<InviteDeliveryResult> {
+    const baseUrl = resolveWebUrl(this.config);
+    // Alıcı kayıtlı DEĞİL (dili yok) → DAVET EDENİN dili; daveti o yazıyor.
+    const locale = currentLocale();
+    const res = await deliverInvite(() =>
+      this.email.send({
+        to: { email: p.email },
+        locale,
         templateData: {
           template: "referral_invite",
           data: {
-            inviterName: this.companyNameOr(me?.name),
-            email,
-            registerUrl,
+            inviterName: p.inviterName,
+            email: p.email,
+            registerUrl: appRoutes.signupWithRef(baseUrl, p.token, locale),
+            // Tek tık çıkış — dış talep davetiyle AYNI mekanizma (/davet-kapat).
+            optOutUrl: appRoutes.optOut(baseUrl, p.token, locale),
           },
         },
-        context: { type: "referral_invite", id: inv.id },
-      })
-      .catch((err: unknown) =>
-        this.logger.error(
-          `Davet e-postası gönderilemedi (${email}): ${
-            err instanceof Error ? err.message : String(err)
-          }`,
-        ),
+        context: { type: "referral_invite", id: p.inviteId },
+      }),
+    );
+    if (res.delivery !== "SENT") {
+      this.logger.error(
+        `Davet e-postası gönderilemedi (${p.inviteId}): ${res.delivery}${
+          res.timedOut ? " (timeout)" : ""
+        }${res.error ? ` — ${res.error}` : ""}`,
       );
-
-    return { kind: "invited" as const, email };
+    }
+    return res;
   }
 
   /**
@@ -285,12 +433,13 @@ export class CompanyConnectionsService {
       },
     });
 
-    const emails = [...new Set(
-      (emailsRaw ?? [])
-        .map((e) => (e ?? "").trim().toLowerCase())
-        .filter((e) => /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(e)),
-    )].slice(0, DAILY_CAP);
-    if (emails.length === 0) {
+    // Biçimi geçersiz adres SESSİZCE düşmez — sonuçta INVALID olarak görünür.
+    const normalized = [...new Set(
+      (emailsRaw ?? []).map((e) => (e ?? "").trim().toLowerCase()).filter(Boolean),
+    )];
+    const invalid = normalized.filter((e) => !EXTERNAL_EMAIL_RE.test(e));
+    const emails = normalized.filter((e) => EXTERNAL_EMAIL_RE.test(e)).slice(0, DAILY_CAP);
+    if (emails.length === 0 && invalid.length === 0) {
       throw new BadRequestException(i18nMessage("api.companyConnections.gecerliEPostaAdresiVerilmedi"));
     }
 
@@ -321,20 +470,25 @@ export class CompanyConnectionsService {
     const registeredSet = new Set(registered.map((r) => r.email.toLowerCase()));
 
     const baseUrl = resolveWebUrl(this.config);
+    const locale = currentLocale();
     // Kategori adı da davet edenin dilinde (e-posta metniyle aynı dil).
     const categories =
-      cats.map((c) => categoryName(c, currentLocale())).join(", ") || "-";
-    const closesAt = listing.closesAt
-      ? listing.closesAt.toISOString().slice(0, 10)
-      : null;
+      cats.map((c) => categoryName(c, locale)).join(", ") || "-";
+    // Son teklif tarihi İstanbul duvar saatiyle (ham UTC günü 00:00–03:00
+    // arası kapanışta bir gün önceyi gösteriyordu).
+    const closesAt = listing.closesAt ? formatInviteDeadline(listing.closesAt, locale) : null;
 
-    const results: Array<{ email: string; status: "SENT" | "SKIPPED"; reason?: string }> = [];
+    const results: ExternalInviteResult[] = invalid.map((email) => ({
+      email,
+      status: "INVALID",
+      reason: tApi("api.companyConnections.gecersizEPostaAdresi"),
+    }));
     let budget = DAILY_CAP - sentToday;
     for (const email of emails) {
       if (budget <= 0) {
         results.push({
           email,
-          status: "SKIPPED",
+          status: "DAILY_LIMIT",
           reason: tApi("api.companyConnections.gunlukDisDavetLimitineUlasildi", { cap: DAILY_CAP }),
         });
         continue;
@@ -342,7 +496,7 @@ export class CompanyConnectionsService {
       if (optOutSet.has(email)) {
         results.push({
           email,
-          status: "SKIPPED",
+          status: "OPTED_OUT",
           reason: tApi("api.companyConnections.buAdresDavetAlmakIstemiyor"),
         });
         continue;
@@ -350,7 +504,7 @@ export class CompanyConnectionsService {
       if (registeredSet.has(email)) {
         results.push({
           email,
-          status: "SKIPPED",
+          status: "SKIPPED_REGISTERED",
           reason: tApi("api.companyConnections.buAdresZatenRothernDeKayitliDizinden"),
         });
         continue;
@@ -358,7 +512,7 @@ export class CompanyConnectionsService {
       if (existingSet.has(email)) {
         results.push({
           email,
-          status: "SKIPPED",
+          status: "ALREADY_INVITED",
           reason: tApi("api.companyConnections.buAdreseDahaOnceDavetGonderilmis"),
         });
         continue;
@@ -372,11 +526,13 @@ export class CompanyConnectionsService {
         },
       });
       budget--;
-      this.email
-        .send({
+      // Gönderim BEKLENİR (2026-09-27): eskiden ateşle-unut + önceden "SENT"
+      // yazılıyordu. Günlük tavan 20 olduğu için bekleme süresi sınırlı.
+      const out = await deliverInvite(() =>
+        this.email.send({
           to: { email },
           // Alıcı kayıtlı DEĞİL → DAVET EDENİN dili (bkz. referral_invite).
-          locale: currentLocale(),
+          locale,
           templateData: {
             template: "tender_external_invite",
             data: {
@@ -384,18 +540,38 @@ export class CompanyConnectionsService {
               tenderTitle: listing.title,
               categories,
               closesAt,
-              registerUrl: appRoutes.signupWithRef(baseUrl, inv.token, currentLocale()),
-              optOutUrl: appRoutes.optOut(baseUrl, inv.token, currentLocale()),
+              registerUrl: appRoutes.signupWithRef(baseUrl, inv.token, locale),
+              optOutUrl: appRoutes.optOut(baseUrl, inv.token, locale),
             },
           },
           context: { type: "tender_external_invite", id: inv.id },
-        })
-        .catch((err: unknown) =>
-          this.logger.error(
-            `Dış davet e-postası gönderilemedi (${email}): ${err instanceof Error ? err.message : String(err)}`,
-          ),
-        );
-      results.push({ email, status: "SENT" });
+        }),
+      );
+      if (out.delivery === "SENT") {
+        results.push({ email, status: "SENT" });
+        continue;
+      }
+      this.logger.error(
+        `Dış davet e-postası gönderilemedi (${inv.id}): ${out.delivery}${
+          out.timedOut ? " (timeout)" : ""
+        }${out.error ? ` — ${out.error}` : ""}`,
+      );
+      // Kesin başarısızlıkta kayıt geri alınır: "ömür boyu tek davet" freni
+      // gitmemiş bir e-posta yüzünden adresi kalıcı kilitlemesin ve günlük
+      // tavandan düşmesin. Zaman aşımında e-posta yine de gidebilir → token
+      // yaşamalı, kayıt KALIR.
+      if (!out.timedOut) {
+        await this.prisma.companyReferralInvite.delete({ where: { id: inv.id } }).catch(() => undefined);
+        budget++;
+      }
+      results.push({
+        email,
+        status: out.delivery,
+        reason:
+          out.delivery === "SUPPRESSED"
+            ? tApi("api.companyConnections.buAdresEPostaAlamiyor")
+            : tApi("api.companyConnections.gonderilemedi"),
+      });
     }
 
     void this.audit.log({
@@ -408,7 +584,7 @@ export class CompanyConnectionsService {
       entityId: listing.id,
       metadata: {
         sent: results.filter((r) => r.status === "SENT").length,
-        skipped: results.filter((r) => r.status === "SKIPPED").length,
+        skipped: results.filter((r) => r.status !== "SENT").length,
       },
     });
     return { results };
@@ -453,31 +629,52 @@ export class CompanyConnectionsService {
       }
     }
 
-    const results: {
+    type BatchRow = {
       email: string;
-      status: "request" | "invited" | "skipped";
+      status: "request" | "invited" | "skipped" | "failed";
+      /** Makine kodu — ekran ayrımı için (SENT/FAILED/SUPPRESSED/ALREADY_INVITED/DAILY_LIMIT/OPTED_OUT…). */
+      code?: string;
       targetName?: string;
       reason?: string;
-    }[] = [];
+    };
+    const results: BatchRow[] = new Array(unique.length);
+    const sends: Array<{ index: number; p: Parameters<CompanyConnectionsService["sendReferralInvite"]>[0] }> = [];
 
-    for (const email of unique) {
+    // 1) Kapılar + kayıtlar SIRAYLA (tavan sayımı doğru kalsın).
+    for (const [index, email] of unique.entries()) {
       try {
-        const res = await this.inviteByEmail(user, email);
-        results.push(
-          res.kind === "request"
-            ? { email, status: "request", targetName: res.targetName }
-            : { email, status: "invited" },
-        );
+        const prep = await this.prepareReferralInvite(user, email);
+        if (prep.kind === "request") {
+          results[index] = { email, status: "request", code: "REQUEST", targetName: prep.targetName };
+        } else {
+          sends.push({ index, p: prep });
+        }
       } catch (e) {
-        const reason =
-          e instanceof ConflictException ||
-          e instanceof BadRequestException ||
-          e instanceof NotFoundException ||
-          e instanceof ForbiddenException
-            ? ((e.getResponse() as { message?: string }).message ?? e.message)
-            : tApi("api.companyConnections.gonderilemedi");
-        results.push({ email, status: "skipped", reason });
+        results[index] = { email, status: "skipped", ...this.batchSkipReason(e) };
       }
+    }
+
+    // 2) E-postalar sınırlı eşzamanlılıkla BEKLENİR (50 adres × tek tek
+    //    beklemek isteği yarım dakikaya uzatırdı); sonuç adres başına gerçek.
+    const CONCURRENCY = 5;
+    for (let i = 0; i < sends.length; i += CONCURRENCY) {
+      const chunk = sends.slice(i, i + CONCURRENCY);
+      const outs = await Promise.all(chunk.map((s) => this.sendReferralInvite(s.p)));
+      chunk.forEach((s, k) => {
+        const out = outs[k]!;
+        results[s.index] =
+          out.delivery === "SENT"
+            ? { email: s.p.email, status: "invited", code: "SENT" }
+            : {
+                email: s.p.email,
+                status: "failed",
+                code: out.delivery,
+                reason:
+                  out.delivery === "SUPPRESSED"
+                    ? tApi("api.companyConnections.buAdresEPostaAlamiyor")
+                    : tApi("api.companyConnections.gonderilemedi"),
+              };
+      });
     }
 
     return {
@@ -486,8 +683,21 @@ export class CompanyConnectionsService {
         request: results.filter((r) => r.status === "request").length,
         invited: results.filter((r) => r.status === "invited").length,
         skipped: results.filter((r) => r.status === "skipped").length,
+        failed: results.filter((r) => r.status === "failed").length,
       },
     };
+  }
+
+  /** Toplu davette atlanan adresin gerekçesi — anahtarlı istisnadan kod + metin. */
+  private batchSkipReason(e: unknown): { code?: string; reason: string } {
+    if (e instanceof HttpException) {
+      const body = e.getResponse() as { message?: string; code?: string } | string;
+      if (typeof body === "object" && body) {
+        return { code: body.code, reason: body.message ?? e.message };
+      }
+      return { reason: typeof body === "string" ? body : e.message };
+    }
+    return { reason: tApi("api.companyConnections.gonderilemedi") };
   }
 
   /** Gönderdiğim bekleyen e-posta davetleri. */

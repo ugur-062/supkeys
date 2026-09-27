@@ -13,7 +13,7 @@ export function AutoTranslatedNote({ from, className }: { from?: string | null; 
   const t = useTranslations("web.marketplace");
   if (!from || from === locale) return null;
   let lang: string | null = null;
-  if (from !== "other") {
+  if (from !== "other" && from !== "und") {
     try {
       lang = new Intl.DisplayNames([locale], { type: "language" }).of(from) ?? null;
     } catch {

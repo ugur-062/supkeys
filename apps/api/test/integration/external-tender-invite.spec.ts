@@ -67,7 +67,7 @@ describe("inviteExternalForListing", () => {
     );
   });
 
-  it("aynı adrese ikinci davet SKIPPED; opt-out ve kayıtlı adres SKIPPED", async () => {
+  it("aynı adrese ikinci davet ALREADY_INVITED; opt-out OPTED_OUT; kayıtlı adres SKIPPED_REGISTERED; geçersiz INVALID", async () => {
     const { service } = makeService();
     const owner = await makeCompanyWithUser(prisma);
     const registered = await makeCompanyWithUser(prisma);
@@ -84,14 +84,16 @@ describe("inviteExternalForListing", () => {
       "bir@x.com",
       "istemiyor@x.com",
       registered.user.email.toLowerCase(),
+      "bozuk-adres",
     ]);
     const byEmail = Object.fromEntries(res.results.map((r) => [r.email, r]));
-    expect(byEmail["bir@x.com"]!.status).toBe("SKIPPED");
-    expect(byEmail["istemiyor@x.com"]!.status).toBe("SKIPPED");
-    expect(byEmail[registered.user.email.toLowerCase()]!.status).toBe("SKIPPED");
+    expect(byEmail["bir@x.com"]!.status).toBe("ALREADY_INVITED");
+    expect(byEmail["istemiyor@x.com"]!.status).toBe("OPTED_OUT");
+    expect(byEmail[registered.user.email.toLowerCase()]!.status).toBe("SKIPPED_REGISTERED");
+    expect(byEmail["bozuk-adres"]!.status).toBe("INVALID");
   });
 
-  it("günlük tavan 20: 20 gönderim sonrası yenisi SKIPPED", async () => {
+  it("günlük tavan 20: 20 gönderim sonrası yenisi DAILY_LIMIT", async () => {
     const { service } = makeService();
     const owner = await makeCompanyWithUser(prisma);
     const listing = await makeListing(prisma, {
@@ -106,8 +108,49 @@ describe("inviteExternalForListing", () => {
     const r2 = await service.inviteExternalForListing(owner.auth, listing.id, [
       "fazla@cap.com",
     ]);
-    expect(r2.results[0]!.status).toBe("SKIPPED");
+    expect(r2.results[0]!.status).toBe("DAILY_LIMIT");
     expect(r2.results[0]!.reason).toMatch(/limit/i);
+  });
+
+  it("gönderim BEKLENİR: suppress → SUPPRESSED, hata → FAILED; kayıt geri alınır, adres yeniden denenebilir", async () => {
+    const { service, email } = makeService();
+    const owner = await makeCompanyWithUser(prisma);
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+    });
+    email.send
+      .mockResolvedValueOnce({ emailLogId: "t", sent: false })
+      .mockRejectedValueOnce(new Error("resend down"));
+    const res = await service.inviteExternalForListing(owner.auth, listing.id, [
+      "bounce@x.com",
+      "down@x.com",
+    ]);
+    expect(res.results.map((r) => r.status)).toEqual(["SUPPRESSED", "FAILED"]);
+    expect(await prisma.companyReferralInvite.count({ where: { inviterCompanyId: owner.company.id } })).toBe(0);
+    const retry = await service.inviteExternalForListing(owner.auth, listing.id, ["down@x.com"]);
+    expect(retry.results[0]!.status).toBe("SENT");
+  });
+
+  it("son teklif tarihi İstanbul saatiyle (UTC 22:30 → ertesi gün)", async () => {
+    const { service, email } = makeService();
+    const owner = await makeCompanyWithUser(prisma);
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+    });
+    await prisma.listing.update({
+      where: { id: listing.id },
+      data: { closesAt: new Date("2030-10-04T22:30:00Z") },
+    });
+    await service.inviteExternalForListing(owner.auth, listing.id, ["saat@x.com"]);
+    const data = (email.send.mock.calls.at(-1)?.[0] as { templateData: { data: { closesAt: string } } })
+      .templateData.data;
+    expect(data.closesAt).toContain("5 Ekim 2030");
   });
 
   it("başka firmanın ihalesi için 404; kapalı ihale için 400", async () => {

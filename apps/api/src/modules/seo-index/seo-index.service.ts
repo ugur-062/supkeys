@@ -85,6 +85,7 @@ export const SITEMAP_PATHS = {
   listings: "/sitemaps/listings.xml",
   categories: "/sitemaps/categories.xml",
   cities: "/sitemaps/cities.xml",
+  countries: "/sitemaps/countries.xml",
 } as const;
 
 export const SEO_TAGS = {
@@ -159,15 +160,22 @@ export class SeoIndexService {
       // Şehir sayfası dünya şehir listesinden (2026-09-27); firma şehir sayfası
       // (`/firmalar/sehir`) 2026-09-22'de kalktı — 308 döner, bildirilmez.
       const city = geoIndex().byId(row.cityId);
+      // Şehir/ülke açılış sayfaları firmanın ürünlerini listeler: firma
+      // açılınca/kapanınca/taşınınca o sayfaların içeriği değişir → IndexNow'a
+      // da gider (2026-09-27 SEO denetimi; eskiden yalnız tazeleniyordu).
+      const geoPaths = [
+        ...(city ? [cityProductPath(city.slug)] : []),
+        ...(row.country ? [countryProductPath(row.country)] : []),
+      ];
       const paths = [
         companyPath(row.slug),
         PUBLIC_PATHS.companies,
-        ...(city ? [cityProductPath(city.slug)] : []),
-        ...(row.country ? [countryProductPath(row.country)] : []),
+        ...geoPaths,
         SITEMAP_PATHS.index,
         SITEMAP_PATHS.companies,
         SITEMAP_PATHS.products, // ürün sayfaları firma adı/şehri taşır
         SITEMAP_PATHS.cities,
+        SITEMAP_PATHS.countries,
       ];
       this.enqueue({
         paths,
@@ -175,7 +183,7 @@ export class SeoIndexService {
         // (web `fetchProduct` bu etiketi taşır) — ad/şehir/logo değişince
         // ürün sayfasındaki satıcı bloğu bayat kalmasın.
         tags: [SEO_TAGS.company(row.slug), SEO_TAGS.companies, SEO_TAGS.facets, SEO_TAGS.sitemap],
-        indexNow: visible ? [companyPath(row.slug)] : [],
+        indexNow: visible ? [companyPath(row.slug), ...geoPaths] : [],
       });
     });
   }
@@ -227,18 +235,24 @@ export class SeoIndexService {
     const city = geoIndex().byId(cityId);
     const own = productSlug ? productPath(companySlug, productSlug) : null;
     const catPath = segment && cat ? categoryPath(segment, cat.nameTr) : null;
+    // Şehir/ülke açılış sayfaları (dünya geneli, 2026-09-27) kategori sayfası
+    // gibi ürün listesidir → yayında IndexNow'a da gider (üç dilde).
+    const geoPaths = [
+      ...(city ? [cityProductPath(city.slug)] : []),
+      ...(country ? [countryProductPath(country)] : []),
+    ];
     const paths = [
       ...(own ? [own] : []),
       companyPath(companySlug),
       PUBLIC_PATHS.products,
       "/",
       ...(catPath ? [catPath] : []),
-      ...(city ? [cityProductPath(city.slug)] : []),
-      ...(country ? [countryProductPath(country)] : []),
+      ...geoPaths,
       SITEMAP_PATHS.index,
       SITEMAP_PATHS.products,
       SITEMAP_PATHS.categories,
       SITEMAP_PATHS.cities,
+      SITEMAP_PATHS.countries,
       "/llms-full.txt",
     ];
     return {
@@ -250,7 +264,7 @@ export class SeoIndexService {
         SEO_TAGS.facets,
         SEO_TAGS.sitemap,
       ],
-      indexNow: visible && own ? [own, companyPath(companySlug), ...(catPath ? [catPath] : [])] : [],
+      indexNow: visible && own ? [own, companyPath(companySlug), ...(catPath ? [catPath] : []), ...geoPaths] : [],
     };
   }
 

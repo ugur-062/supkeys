@@ -202,6 +202,17 @@ class UpdateCompanyProfileDto {
   @IsString()
   @MaxLength(200)
   ibanHolder?: string | null;
+
+  /** IBAN kullanmayan ülkede zorunlu; doğrulamada her ülkede (2026-09-27). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(20)
+  bankSwiftBic?: string | null;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(200)
+  bankName?: string | null;
 }
 
 class SetTierDto {

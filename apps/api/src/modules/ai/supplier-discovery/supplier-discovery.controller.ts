@@ -7,6 +7,7 @@ import {
   IsIn,
   IsOptional,
   IsString,
+  Matches,
   MaxLength,
 } from "class-validator";
 import {
@@ -41,6 +42,19 @@ class ExternalDiscoveryDto extends DiscoveryDto {
   @IsString()
   @MaxLength(60)
   region?: string;
+
+  /** Kayıtlı talepten açılış — hedef ülkeler talepten okunur (firma kapsamlı). */
+  @IsOptional()
+  @IsString()
+  @MaxLength(40)
+  listingId?: string;
+
+  /** Yayın öncesi form — talebin görünürlük ülkeleri (boş = tüm ülkeler). */
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(60)
+  @Matches(/^[A-Z]{2}$/, { each: true })
+  targetCountries?: string[];
 }
 
 /**

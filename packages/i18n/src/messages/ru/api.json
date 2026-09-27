@@ -154,6 +154,7 @@
     "yalnizBekleyenBaglantiDavetiIptalEdilebilir": "Отменить можно только ОЖИДАЮЩЕЕ приглашение в контакты",
     "yalnizBekleyenReferansDavetiIptalEdilebilir": "Отменить можно только ОЖИДАЮЩЕЕ реферальное приглашение",
     "firmaAdiBosOlamaz": "Название компании не может быть пустым",
+    "gecersizUlkeKodu": "Недопустимый код страны",
     "gecerliBirIbanGerekliTr24": "Требуется действительный IBAN (TR + 24 цифры).",
     "dogrulamaIcinEksikKimlikBilgisiFirma": "Для проверки не хватает идентификационных данных: {join}. Компанию нельзя одобрить, пока эти поля не заполнены.",
     "eksikBelgeVarKararVerilemez": "Не хватает документов; решение принять нельзя ({k})",
@@ -657,7 +658,11 @@
     "buAdresDavetAlmakIstemiyor": "Этот адрес не хочет получать приглашения",
     "buAdresZatenRothernDeKayitliDizinden": "Этот адрес уже зарегистрирован в Rothern — отправьте приглашение в контакты из каталога",
     "buAdreseDahaOnceDavetGonderilmis": "На этот адрес уже было отправлено приглашение",
-    "gonderilemedi": "Не удалось отправить"
+    "gonderilemedi": "Не удалось отправить",
+    "buAdreseSonGunlerdeDavetGonderildi": "На этот адрес уже отправлялось приглашение за {days, plural, one {последний # день} few {последние # дня} many {последние # дней} other {последние # дня}}",
+    "gunlukDavetLimitineUlasildi": "Достигнут дневной лимит приглашений ({cap} в день). Попробуйте ещё раз завтра.",
+    "buAdresEPostaAlamiyor": "Этот адрес ранее безвозвратно отклонял наши письма или пометил их как спам; письмо не отправлено",
+    "gecersizEPostaAdresi": "Некорректный адрес электронной почты"
   },
   "companySupplierTemplates": {
     "baglantinizOlmayanFirmaKayit": "Компании, с которыми у вас нет контакта: {length, plural, one {# запись} few {# записи} many {# записей} other {# записи}}",
@@ -1001,8 +1006,8 @@
     "companyUser": {
       "gecerliEpostaGirin": "Введите корректный адрес электронной почты",
       "gecersizRol": "Недопустимая роль",
-      "adEnAz2KarakterOlmali": "Имя должно содержать не менее 2 символов",
-      "soyadEnAz2KarakterOlmali": "Фамилия должна содержать не менее 2 символов",
+      "adBosOlamaz": "Имя не может быть пустым",
+      "soyadBosOlamaz": "Фамилия не может быть пустой",
       "gecerliBirTelefonGiriniz": "Введите корректный номер телефона",
       "parolaEnAz10KarakterOlmali": "Пароль должен содержать не менее 10 символов",
       "parolaEnFazla72Karakter": "Пароль не должен превышать 72 символа",
@@ -1032,8 +1037,8 @@
       "gecerliBirEpostaAdresiGiriniz": "Введите корректный адрес электронной почты"
     },
     "companySignup": {
-      "adEnAz2KarakterOlmali": "Имя должно содержать не менее 2 символов",
-      "soyadEnAz2KarakterOlmali": "Фамилия должна содержать не менее 2 символов",
+      "adBosOlamaz": "Имя не может быть пустым",
+      "soyadBosOlamaz": "Фамилия не может быть пустой",
       "gecerliBirEPostaAdresiGiriniz": "Введите корректный адрес электронной почты",
       "gecerliBirTelefonGiriniz": "Введите корректный номер телефона",
       "parolaEnAz10KarakterOlmali": "Пароль должен содержать не менее 10 символов",
@@ -1299,7 +1304,7 @@
       "invite": {
         "subject": "{company} приглашает Вас в свою команду",
         "heading": "Приглашение в команду",
-        "intro": "{inviter} приглашает Вас присоединиться к команде компании {company}.",
+        "intro": "{inviter} приглашает Вас присоединиться к команде компании «{company}».",
         "setOwnPassword": "При принятии приглашения Вы сами укажете своё имя и пароль.",
         "rowCompany": "Компания",
         "rowRole": "Роль",
@@ -1313,7 +1318,8 @@
         "YONETICI": "Руководитель",
         "SATIN_ALMACI": "Закупщик",
         "SATISCI": "Продавец",
-        "ONAYLAYICI": "Согласующий"
+        "ONAYLAYICI": "Согласующий",
+        "VIEWER": "Наблюдатель"
       },
       "permissionsChanged": {
         "title": "Ваши права обновлены",

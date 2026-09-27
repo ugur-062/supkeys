@@ -1,12 +1,19 @@
 "use client";
 
+import { DEFAULT_LOCALE } from "@rothern/i18n";
+import { useLocale } from "next-intl";
 import { Input } from "@/components/ui/input";
+import { appZoneLabel } from "@/lib/time-zone";
 
 /**
  * Ayrık tarih + saat seçici — tek `datetime-local` yerine. Kullanıcı yalnız
  * TARİHİ elle seçer; saat girilmezse `defaultTime` uygulanır (kapanışta gün
  * sonu 23:59, açılışta gün başı 00:00). Değer `YYYY-MM-DDTHH:mm` (yerel,
  * datetime-local ile aynı format) ya da boş string.
+ *
+ * SAAT ÜRÜN SAAT DİLİMİNDE (Europe/Istanbul, 2026-09-27): değer gösterimle
+ * aynı duvar saatidir (`parseAppWallClockInput` ile ana çevrilir); Türkçe
+ * dışı dillerde saat kutusunun yanında dilim etiketi ("GMT+3") görünür.
  */
 export function DateTimeInput({
   value,
@@ -31,6 +38,7 @@ export function DateTimeInput({
   dateAriaLabel?: string;
   timeAriaLabel?: string;
 }) {
+  const locale = useLocale();
   const [datePart = "", timePart = ""] = value ? value.split("T") : [];
   return (
     <div className="flex gap-2">
@@ -72,6 +80,9 @@ export function DateTimeInput({
           }}
         />
       </div>
+      {locale !== DEFAULT_LOCALE ? (
+        <span className="self-center text-xs text-zinc-500">{appZoneLabel()}</span>
+      ) : null}
     </div>
   );
 }

@@ -14,13 +14,13 @@ import { tApi } from "../../../common/i18n/i18n.service";
 export class UpdateMeDto {
   @IsOptional()
   @IsString()
-  @MinLength(2)
+  @Matches(/\S/) // tek harfli ad meşru; yalnız boş olamaz
   @MaxLength(80)
   firstName?: string;
 
   @IsOptional()
   @IsString()
-  @MinLength(2)
+  @Matches(/\S/)
   @MaxLength(80)
   lastName?: string;
 

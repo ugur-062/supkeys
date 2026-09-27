@@ -44,6 +44,7 @@ import { EmailService } from "../email/email.service";
 import { NotificationService } from "../notifications/notification.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { resolveWebUrl } from "../../common/config/web-url";
+import { deliverInvite } from "../../common/company/invite-delivery";
 import {
   AcceptCompanyInvitationDto,
   InviteCompanyUserDto,
@@ -82,6 +83,29 @@ const ROLE_LABEL_KEY: Record<CompanyRole, ApiMessageKey> = {
 function roleLabel(role: CompanyRole, locale: Locale): string {
   const key: ApiMessageKey | undefined = ROLE_LABEL_KEY[role];
   return key ? tApi(key, undefined, locale) : String(role);
+}
+
+/**
+ * Davet e-postasının "Rol" satırı. Yalnız görüntüleme/rapor/içgörü izni
+ * verilen davette `rolesFromPermissions` BOŞ döner (hazır setlerin hiçbiri
+ * tutmaz) → satır boş kalıyordu. Boşsa "Görüntüleyici" yazılır.
+ */
+export function inviteRoleLine(roles: readonly CompanyRole[], locale: Locale): string {
+  if (roles.length === 0) {
+    return tApi("api.notifications.companyUsers.role.VIEWER", undefined, locale);
+  }
+  return roles.map((r) => roleLabel(r, locale)).join(" + ");
+}
+
+/**
+ * Davet e-postası sonucu — yanıtta döner, ekran "gönderildi" demeden önce
+ * bakar. `suppressed`: adres daha önce kalıcı geri döndü/şikâyet etti
+ * (yeniden göndermek işe yaramaz); `failed`: sağlayıcı hatası/zaman aşımı
+ * (yeniden gönder denenebilir).
+ */
+export interface InvitationEmailResult {
+  emailSent: boolean;
+  emailFailureReason?: "suppressed" | "failed";
 }
 
 @Injectable()
@@ -154,7 +178,7 @@ export class CompanyUsersService {
 
   // ============================================================
   // DAVET — token'lı davet-kabul akışı. Hesap davetle DEĞİL kabulle açılır:
-  // kullanıcı adını/parolasını kendisi belirler, sözleşmeleri kendisi onaylar.
+  // kullanıcı adını/şifresini kendisi belirler, sözleşmeleri kendisi onaylar.
   // ============================================================
 
   /**
@@ -236,8 +260,8 @@ export class CompanyUsersService {
       critical: true,
       metadata: { roles, permissions },
     });
-    await this.sendInvitationEmail(inv.id);
-    return { id: inv.id, email: inv.email, expiresAt: inv.expiresAt };
+    const mail = await this.sendInvitationEmail(inv.id);
+    return { id: inv.id, email: inv.email, expiresAt: inv.expiresAt, ...mail };
   }
 
   /**
@@ -366,8 +390,8 @@ export class CompanyUsersService {
         ),
       },
     });
-    await this.sendInvitationEmail(inv.id);
-    return { ok: true };
+    const mail = await this.sendInvitationEmail(inv.id);
+    return { ok: true, ...mail };
   }
 
   /** Davet önizleme (public) — kabul sayfası firma+rol gösterir. */
@@ -512,12 +536,14 @@ export class CompanyUsersService {
     return inv;
   }
 
-  private async sendInvitationEmail(invitationId: string) {
+  private async sendInvitationEmail(
+    invitationId: string,
+  ): Promise<InvitationEmailResult> {
     const inv = await this.prisma.companyUserInvitation.findUnique({
       where: { id: invitationId },
       include: { company: { select: { name: true } } },
     });
-    if (!inv) return;
+    if (!inv) return { emailSent: false, emailFailureReason: "failed" };
     const inviter = await this.prisma.companyUser.findUnique({
       where: { id: inv.invitedById },
       select: { firstName: true, lastName: true, locale: true },
@@ -535,8 +561,11 @@ export class CompanyUsersService {
     const acceptUrl = appRoutes.invite(baseUrl, inv.token, locale);
     const t = (key: ApiMessageKey, values?: Record<string, string | number>) =>
       tApi(key, values, locale);
-    try {
-      await this.email.send({
+    // Teslim sonucu BEKLENİR ve yanıta yazılır (2026-09-27): eskiden hata
+    // yutulup `sent:false` (suppress) yok sayılıyordu, ekran her durumda
+    // "gönderildi" diyordu.
+    const res = await deliverInvite(() =>
+      this.email.send({
         to: { email: inv.email },
         locale,
         templateData: {
@@ -560,7 +589,7 @@ export class CompanyUsersService {
               },
               {
                 label: t("api.notifications.companyUsers.invite.rowRole"),
-                value: inv.roles.map((r) => roleLabel(r, locale)).join(" + "),
+                value: inviteRoleLine(inv.roles as CompanyRole[], locale),
               },
               {
                 label: t("api.notifications.companyUsers.invite.rowValidity"),
@@ -575,14 +604,18 @@ export class CompanyUsersService {
           },
         },
         context: { type: "company_user_invitation", id: inv.id },
-      });
-    } catch (err) {
-      this.logger.error(
-        `Davet e-postası gönderilemedi (${inv.email}): ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-      );
-    }
+      }),
+    );
+    if (res.delivery === "SENT") return { emailSent: true };
+    this.logger.error(
+      `Davet e-postası gönderilemedi (${inv.id}): ${res.delivery}${
+        res.timedOut ? " (timeout)" : ""
+      }${res.error ? ` — ${res.error}` : ""}`,
+    );
+    return {
+      emailSent: false,
+      emailFailureReason: res.delivery === "SUPPRESSED" ? "suppressed" : "failed",
+    };
   }
 
   async updateRoles(

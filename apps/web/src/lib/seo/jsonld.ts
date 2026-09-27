@@ -83,7 +83,8 @@ export function organizationNode(): JsonLdNode {
         "@type": "ContactPoint",
         contactType: "customer support",
         email: OPERATOR.supportEmail,
-        availableLanguage: ["tr"],
+        // Destek üç dilde yanıt verir (site TR/EN/RU; i18n Faz 1).
+        availableLanguage: ["tr", "en", "ru"],
       },
     ],
   });
@@ -146,23 +147,32 @@ export function breadcrumbNode(items: Crumb[], locale: Locale = DEFAULT_LOCALE):
  */
 export function itemListNode(input: {
   name: string;
+  /** İÇ (Türkçe) yol — kanonik liste adresi; dil ön eki `locale`den gelir. */
   path: string;
+  /** Öğe yolları da İÇ yol; hepsi sayfanın dilinde yazılır. */
   items: Array<{ name: string; path: string }>;
   startPosition?: number;
   totalItems?: number;
+  /**
+   * Sayfanın dili (2026-09-27 SEO denetimi): verilmezse Türkçe. Eskiden yol
+   * çevrilmeden yazılıyordu → `/en/products` sayfasının ItemList'i ve her öğe
+   * adresi Türkçe sayfayı gösteriyordu (kanonikle çelişen sinyal).
+   */
+  locale?: Locale;
 }): JsonLdNode {
   const start = input.startPosition ?? 1;
+  const locale = input.locale ?? DEFAULT_LOCALE;
   return compact({
     "@type": "ItemList",
     name: input.name,
-    url: absoluteUrl(input.path),
+    url: absoluteUrl(localizePath(input.path, locale)),
     numberOfItems: input.totalItems ?? input.items.length,
     itemListOrder: "https://schema.org/ItemListOrderAscending",
     itemListElement: input.items.map((it, i) => ({
       "@type": "ListItem",
       position: start + i,
       name: it.name,
-      url: absoluteUrl(it.path),
+      url: absoluteUrl(localizePath(it.path, locale)),
     })),
   });
 }

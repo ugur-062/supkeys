@@ -319,6 +319,35 @@ describe("e-posta daveti + referral", () => {
     expect(await service.listReferralInvites(a.company.id)).toHaveLength(0);
   });
 
+  it("aynı adrese 7 gün içinde ikinci referral daveti ALREADY_INVITED; başarısız gönderim freni tetiklemez", async () => {
+    const { service, email } = rig();
+    const { a } = await twoCompanies();
+    email.send.mockRejectedValueOnce(new Error("resend down"));
+    const first = await service.inviteByEmail(a.auth, "tekrar@firma.com");
+    expect(first).toMatchObject({ kind: "invited", delivery: "FAILED", emailSent: false });
+    // Başarısız gönderim (e-posta kaydı yok / FAILED) → yeniden denenebilir.
+    const second = await service.inviteByEmail(a.auth, "tekrar@firma.com");
+    expect(second).toMatchObject({ kind: "invited", delivery: "SENT", emailSent: true });
+    // Gerçek servis e-posta kaydı yazar; sahte gönderimde elle kurulur.
+    const inv = await prisma.companyReferralInvite.findFirstOrThrow({
+      where: { inviterCompanyId: a.company.id, email: "tekrar@firma.com" },
+    });
+    await prisma.emailLog.create({
+      data: {
+        template: "referral_invite",
+        toEmail: "tekrar@firma.com",
+        subject: "x",
+        provider: "resend",
+        status: "SENT",
+        contextType: "referral_invite",
+        contextId: inv.id,
+      },
+    });
+    await expect(service.inviteByEmail(a.auth, "tekrar@firma.com")).rejects.toMatchObject({
+      response: { code: "ALREADY_INVITED" },
+    });
+  });
+
   it("pasif firmanın kullanıcı e-postası → anlamlı hata (boşa referral maili gitmez)", async () => {
     const { service, email } = rig();
     const { a, b } = await twoCompanies();
@@ -359,7 +388,7 @@ describe("toplu e-posta daveti", () => {
       c.user.email, // zaten bağlı → atlanır
     ]);
 
-    expect(res.summary).toEqual({ request: 1, invited: 1, skipped: 2 });
+    expect(res.summary).toEqual({ request: 1, invited: 1, skipped: 2, failed: 0 });
     const byEmail = new Map(res.results.map((r) => [r.email, r]));
     expect(byEmail.get(b.user.email)?.status).toBe("request");
     expect(byEmail.get("yeni@firma.com")?.status).toBe("invited");

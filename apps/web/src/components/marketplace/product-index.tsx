@@ -14,6 +14,7 @@ import { CountryLinks } from "./country-links";
 import { JsonLd } from "@/components/seo/json-ld";
 import { breadcrumbNode, graph, itemListNode } from "@/lib/seo/jsonld";
 import { categoryHref } from "@/lib/public/marketplace";
+import { cityProductPath, countryProductPath } from "@rothern/shared";
 import {
   buildProductFilterQuery,
   parseProductFilters,
@@ -47,12 +48,18 @@ interface Props {
   fixedCity?: string;
   /** Ülke sayfası (2026-09-27): satıcı ülkesi YOLDAN gelir. */
   fixedCountry?: string;
+  /**
+   * Şehir/ülke açılış sayfasının kırıntı zinciri ("Ürünler"den SONRAKİ
+   * halkalar; İÇ yol + okuyucunun dilinde ad): ülke sayfası [Almanya], şehir
+   * sayfası [Almanya, Münih]. Hem görünür kırıntı hem `BreadcrumbList`.
+   */
+  trail?: Array<{ name: string; path: string }>;
   /** Listenin ÜSTÜNDE görünen giriş metni (GEO: alıntılanabilir tanım). */
   /** Listenin ALTINDA görünen bağlantı şeridi (iç bağlantı ağı). */
   footer?: ReactNode;
 }
 
-export async function ProductIndex({ title, lead, searchParams, category, image, fixedCity, fixedCountry, footer }: Props) {
+export async function ProductIndex({ title, lead, searchParams, category, image, fixedCity, fixedCountry, trail, footer }: Props) {
   const t = await getTranslations("web.marketplace.index");
   const tl = await getTranslations("web.marketplace.labels");
   const tt = await getTranslations("web.marketplace.typeahead");
@@ -91,6 +98,27 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
     // (yalnız arama varken istek atılır).
     crossCounts(state.q, "products"),
   ]);
+  /* AÇILIŞ SAYFASI YOLU (2026-09-27 SEO denetimi): kategori/şehir/ülke
+     sayfasının kanonik İÇ yolu. Sayfalama ve JSON-LD buradan okur — eskiden
+     şehir sayfasının 2. sayfası `/urunler?sehir=…&sayfa=2` idi (kanoniği
+     `/urunler`), ItemList adresi de `/urunler` yazıyordu. Yoldan gelen süzgeç
+     sorguya YAZILMAZ (yol zaten taşıyor). */
+  const landingPath = category
+    ? categoryHref(category)
+    : fixedCity
+      ? cityProductPath(fixedCity)
+      : fixedCountry
+        ? countryProductPath(fixedCountry)
+        : basePath;
+  const landingQuery = (p: number) =>
+    buildProductFilterQuery({
+      ...state,
+      category: category ? undefined : state.category,
+      cities: fixedCity ? state.cities.filter((c) => c !== fixedCity) : state.cities,
+      countries: fixedCountry ? state.countries.filter((c) => c !== fixedCountry) : state.countries,
+      page: p,
+    });
+  const crumbs = category ? [{ name: category.name, path: landingPath }] : (trail ?? []);
   const hasFilter = buildProductFilterQuery({ ...state, q: undefined, sort: undefined, page: 1 }) !== "";
   const talepHref = signupHref("talep", state.q ? `/company/satinalma/taleplerim/yeni?q=${encodeURIComponent(state.q)}` : undefined);
 
@@ -98,13 +126,14 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
      "bir sürü bağlantı"dır — ne listelediğini söylemez. Sıra numarası
      SAYFALAMAYI yansıtır (2. sayfa 13'ten devam eder), yoksa her sayfa
      "1..12" der ve aynı sıralı liste tekrarlanmış görünür.
-     Kanonik yol kategori sayfasında kategoriye, dizinde köke işaret eder —
-     süzgeçli varyantlar kendi kanoniğini zaten `/urunler` olarak bildiriyor. */
-  const listPath = category ? categoryHref(category) : basePath;
+     Kanonik yol açılış sayfasında (kategori/şehir/ülke) o sayfaya, dizinde
+     köke işaret eder — süzgeçli varyantlar kanoniğini `/urunler` bildiriyor.
+     Adresler sayfanın dilinde (`locale`). */
   const listLd = graph([
     itemListNode({
+      locale,
       name: title,
-      path: listPath,
+      path: landingPath,
       totalItems: page.total,
       startPosition: (page.page - 1) * page.pageSize + 1,
       items: page.items.map((p) => ({
@@ -112,13 +141,13 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         path: `/firma/${p.company.slug}/urun/${p.slug}`,
       })),
     }),
-    ...(category
+    ...(crumbs.length
       ? [
           breadcrumbNode(
             [
               { name: tm("breadcrumbHome"), path: "/" },
               { name: tl("products"), path: basePath },
-              { name: category.name, path: listPath },
+              ...crumbs,
             ],
             locale,
           ),
@@ -133,7 +162,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         kullanıcı: "rothern header alt kısmındaki bilgiyi kaldır, diğer tüm
         dillerde de". Özet cümle JSON-LD `ItemList` ve meta açıklamasında
         yaşamaya devam eder; sayfada tekrar çizilmez. */}
-    <FilterShell basePath={basePath} fixedCategory={category?.id} total={page.total} pushFilters drawer={<ProductFilters facets={facets} idPrefix="m" />}>
+    <FilterShell basePath={basePath} fixedCategory={category?.id} fixedCity={fixedCity} fixedCountry={fixedCountry} total={page.total} pushFilters drawer={<ProductFilters facets={facets} idPrefix="m" />}>
       <PublicListPage
           tabs={
             <PublicSearchTabs active="products" q={state.q} counts={{ ...otherCounts, products: page.total }} />
@@ -142,11 +171,19 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         lead={lead}
         image={image}
         breadcrumb={
-          category ? (
+          crumbs.length ? (
             <nav aria-label={t("breadcrumb")} className="mb-3 text-sm text-zinc-500">
               <Link href={basePath} className="hover:text-zinc-900">{tl("products")}</Link>
-              <span aria-hidden className="mx-2">/</span>
-              <span className="text-zinc-900">{category.name}</span>
+              {crumbs.map((c, i) => (
+                <span key={c.path}>
+                  <span aria-hidden className="mx-2">/</span>
+                  {i === crumbs.length - 1 ? (
+                    <span className="text-zinc-900">{c.name}</span>
+                  ) : (
+                    <Link href={c.path} className="hover:text-zinc-900">{c.name}</Link>
+                  )}
+                </span>
+              ))}
             </nav>
           ) : undefined
         }
@@ -154,7 +191,8 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
           action: basePath,
           defaultValue: state.q,
           hidden: {
-            kategori: state.category, sehir: state.cities.join(",") || undefined, faaliyet: state.activities.join(",") || undefined,
+            kategori: state.category, sehir: state.cities.join(",") || undefined,
+            ulke: state.countries.join(",") || undefined, faaliyet: state.activities.join(",") || undefined,
             dogrulanmis: state.verified ? "1" : undefined, fiyat: state.price, sirala: state.sort,
             gorunum: state.view,
           },
@@ -211,15 +249,12 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
           total={page.total}
           pageSize={page.pageSize}
           className="mt-10 border-t border-zinc-950/5 pt-6"
-          // Kategori yol sayfasında yol korunur, sorgu `kategori` taşımaz; 7 yuva,
-          // gerçek bağlantılar (bot izler, rel=prev/next).
-          hrefBuilder={(p) =>
-            `${category ? `/urunler/kategori/${category.id}` : basePath}${buildProductFilterQuery({
-              ...state,
-              category: category ? undefined : state.category,
-              page: p,
-            })}`
-          }
+          // Açılış sayfasında (kategori/şehir/ülke) KANONİK yol korunur, sorgu
+          // yoldaki süzgeci taşımaz (`landingQuery`); 7 yuva, gerçek bağlantılar
+          // (bot izler, rel=prev/next). Kategoride eskiden çıplak kod
+          // (`/urunler/kategori/<kod>`) yazılıyordu → sayfa kanoniğe 308'leyip
+          // `?sayfa=` düşürüyordu (2. sayfa 1. sayfayı açıyordu).
+          hrefBuilder={(p) => `${landingPath}${landingQuery(p)}`}
         />
         {/* Yüzen "Talep aç" — listeyi gezen alıcı için; hero'lu sayfa değil. */}
         <Link

@@ -40,6 +40,8 @@ import {
 import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { closesAtError } from "@/lib/tenders/closes-at";
+import { toLocalInput } from "@/lib/tenders/map-detail-to-form";
+import { parseAppWallClockInput } from "@/lib/time-zone";
 import { useRouter } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -61,15 +63,6 @@ interface Props {
   carryableBidCount?: number;
 }
 
-function toLocalInput(iso: string | null): string {
-  if (!iso) return "";
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(
-    d.getHours(),
-  )}:${pad(d.getMinutes())}`;
-}
 
 /** Alıcının ihale karar menüsü (üç-nokta) — eski header-card aksiyonları. */
 export function TenderActionsMenu({
@@ -206,7 +199,7 @@ export function TenderActionsMenu({
         // Madde 13: teklifler her zaman otomatik taşınır (süresiz geçerlilik).
         carryBids: "AUTO",
         eliminateNonBidders: nrEliminate,
-        closesAt: new Date(nrClosing).toISOString(),
+        closesAt: parseAppWallClockInput(nrClosing)!.toISOString(),
         ...(isAuc
           ? {
               bidVisibility: vis,
@@ -290,7 +283,7 @@ export function TenderActionsMenu({
       return;
     }
     try {
-      await changeClosing.mutateAsync(new Date(newClosing).toISOString());
+      await changeClosing.mutateAsync(parseAppWallClockInput(newClosing)!.toISOString());
       toast.success(t("kapanisZamaniGuncellendi"));
       setClosingOpen(false);
     } catch (err) {

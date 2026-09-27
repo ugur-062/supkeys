@@ -7,7 +7,7 @@ import {
 import { tApi, type ApiMessageKey } from "../../../common/i18n/i18n.service";
 import { localeOf } from "../../notifications/notification.service";
 import { currentLocale } from "../../../common/i18n/locale-context";
-import { resolveCityId } from "../../../common/geo/geo-index";
+import { resolveCityId, storedCityName } from "../../../common/geo/geo-index";
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   BadRequestException,
@@ -54,6 +54,7 @@ import {
 } from "../permissions/company-permissions.constants";
 import type { CompanyJwtPayload } from "../strategies/company-jwt.strategy";
 import { resolveWebUrl } from "../../../common/config/web-url";
+import { isReferralExpired } from "../../../common/company/invite-delivery";
 import {
   decryptTotpSecret,
   encryptTotpSecret,
@@ -507,6 +508,8 @@ export class CompanyAuthService {
     }
     // Dünya şehir listesi kaydı (2026-09-27): şehir sayfası/süzgeç/"Yakınımda".
     const cityId = resolveCityId(country, dto.city, dto.cityId);
+    const cityName = storedCityName(cityId, dto.city) ?? dto.city.trim();
+    const deliveryCityId = resolveCityId(country, dto.deliveryCity ?? dto.city, dto.deliveryCityId);
     const isSole = dto.companyType === "SOLE_PROPRIETOR";
     if (!isValidTaxIdForCountry(dto.taxNumber, country, isSole)) {
       throw new BadRequestException(
@@ -588,7 +591,7 @@ export class CompanyAuthService {
            */
           publicEnabled: true,
           slug: await ensureUniqueCompanySlug(tx, dto.legalName.trim(), companyId),
-          city: dto.city.trim(),
+          city: cityName,
           cityId,
           district: dto.district?.trim() || null,
           stateRegion: dto.stateRegion?.trim() || null,
@@ -631,7 +634,7 @@ export class CompanyAuthService {
           // Eyalet/bölge adres defterine de taşınır (2026-09-27) — yoksa TR dışı
           // adresin "state"i sipariş kaydında kayboluyordu.
           stateRegion: dto.stateRegion?.trim() || null,
-          city: dto.city.trim(),
+          city: cityName,
           cityId,
           district: dto.district?.trim() || null,
           postalCode: dto.postalCode?.trim() || null,
@@ -647,11 +650,9 @@ export class CompanyAuthService {
           type: "TESLIMAT",
           title: deliverySame ? "Teslimat (fatura ile aynı)" : "Teslimat",
           country,
-          stateRegion: deliverySame ? dto.stateRegion?.trim() || null : null,
-          city: (deliverySame ? dto.city : dto.deliveryCity ?? dto.city).trim(),
-          cityId: deliverySame
-            ? cityId
-            : resolveCityId(country, dto.deliveryCity ?? dto.city, dto.deliveryCityId),
+          stateRegion: (deliverySame ? dto.stateRegion : dto.deliveryStateRegion)?.trim() || null,
+          city: deliverySame ? cityName : (storedCityName(deliveryCityId, dto.deliveryCity ?? dto.city) ?? ""),
+          cityId: deliverySame ? cityId : deliveryCityId,
           district:
             (deliverySame ? dto.district : dto.deliveryDistrict)?.trim() || null,
           postalCode:
@@ -678,16 +679,34 @@ export class CompanyAuthService {
     newCompanyId: string,
     usedToken?: string,
   ): Promise<void> {
-    const invites = await this.bypass.companyReferralInvite.findMany({
-      where: { email, status: "PENDING" },
+    // 2026-09-27 davet denetimi: (1) KULLANILAN token'ın daveti, kayıt
+    // e-postası davet adresinden FARKLI olsa da eşleşir — AI keşfinin bulduğu
+    // adresler çoğu kez info@ kutusudur, tedarikçi kişisel adresiyle kaydolunca
+    // davet (ve talep bağlamı) kayboluyordu. Rıza zaten linke tıklamakla
+    // verildi. (2) Son gönderimden 30 günü geçmiş davet SÜRESİ DOLMUŞ sayılır
+    // (`isReferralExpired`; şema değişikliği yok, `updatedAt` her gönderimde
+    // ilerletilir).
+    const found = await this.bypass.companyReferralInvite.findMany({
+      where: {
+        status: "PENDING",
+        OR: [{ email }, ...(usedToken ? [{ token: usedToken }] : [])],
+      },
       select: {
         id: true,
         inviterCompanyId: true,
         invitedById: true,
         token: true,
         listingId: true,
+        updatedAt: true,
       },
     });
+    const now = new Date();
+    // Kullanılan token ÖNCE işlenir: aynı firmanın e-postayla eşleşen ikinci
+    // daveti bağlantıyı önce PENDING yaratırsa (upsert update:{}) ACTIVE
+    // hiç yazılmazdı.
+    const invites = found
+      .filter((inv) => !isReferralExpired(inv.updatedAt, now))
+      .sort((a, b) => Number(b.token === usedToken) - Number(a.token === usedToken));
     if (invites.length === 0) return;
     const newCompany = await this.bypass.company.findUnique({
       where: { id: newCompanyId },

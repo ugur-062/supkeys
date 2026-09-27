@@ -20,12 +20,13 @@ import { tApi } from "../../../common/i18n/i18n.service";
  */
 export class CompanySignupDto {
   @IsString()
-  @MinLength(2, { message: () => tApi("api.dto.companySignup.adEnAz2KarakterOlmali") })
+  // Tek harfli ad meşru (Çin, Kore, Vietnam …): yalnız boş olamaz.
+  @Matches(/\S/, { message: () => tApi("api.dto.companySignup.adBosOlamaz") })
   @MaxLength(80)
   firstName!: string;
 
   @IsString()
-  @MinLength(2, { message: () => tApi("api.dto.companySignup.soyadEnAz2KarakterOlmali") })
+  @Matches(/\S/, { message: () => tApi("api.dto.companySignup.soyadBosOlamaz") })
   @MaxLength(80)
   lastName!: string;
 

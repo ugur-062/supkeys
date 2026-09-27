@@ -5,6 +5,7 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { AiService } from "../ai.service";
 import { anyPackageWhere } from "../../../common/company/effective-tier";
+import { countryName, isValidCountryCode } from "@rothern/shared";
 
 const MAX_CANDIDATES = 12;
 const MAX_EXTERNAL = 10;
@@ -41,6 +42,42 @@ const EXTERNAL_SCHEMA = {
 } as const;
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+
+/**
+ * Web aramasının KONUM + ROL cümlesi — talebin görünürlük ülkesinden
+ * (2026-09-27). Eskiden istem "Türkiye'de" diye SABİTTİ: yalnız Almanya'ya
+ * açık bir talep için de Türk firmaları aranıyordu. Kural (`listing-scope.ts`
+ * ile aynı):
+ *  - `targetCountries` dolu → yalnız o ülkeler;
+ *  - boş (tüm ülkeler) → alıcının ülkesi ÖNCELİKLİ pazar, ama arama o ülkeyle
+ *    SINIRLANMAZ (uluslararası tedarikçiler de uygun).
+ * Ülke adları koddan (kapalı liste) gelir — kullanıcı serbest metni DEĞİL;
+ * serbest metin olan `region` yalnız kısaltılıp parantez içinde geçer (eski
+ * davranış). Cümle "… tedarikçi/üretici" ile biter; çağıran "firmaları web'de
+ * araştır" diye tamamlar.
+ */
+export function discoveryLocationLine(input: {
+  targetCountries: readonly string[];
+  buyerCountry: string | null;
+  region?: string;
+}): string {
+  const names = [...new Set(input.targetCountries)]
+    .filter((c) => isValidCountryCode(c))
+    .slice(0, 12)
+    .map((c) => countryName(c));
+  const buyer =
+    input.buyerCountry && isValidCountryCode(input.buyerCountry)
+      ? countryName(input.buyerCountry)
+      : null;
+  const scope =
+    names.length > 0
+      ? `${names.join(", ")} ülkelerinde faaliyet gösteren ve bu ülkelere tedarik yapabilen tedarikçi/üretici`
+      : buyer
+        ? `${buyer} öncelikli olmak üzere herhangi bir ülkede faaliyet gösteren (uluslararası tedarik yapabilenler de uygundur) tedarikçi/üretici`
+        : "Herhangi bir ülkede faaliyet gösteren tedarikçi/üretici";
+  const region = (input.region ?? "").trim().slice(0, 60);
+  return region ? `${scope} (bölge önceliği: ${region})` : scope;
+}
 
 export interface DiscoveryCandidate {
   companyId: string;
@@ -84,9 +121,26 @@ export class SupplierDiscoveryService {
       categoryIds: string[];
       itemNames?: string[];
       region?: string;
+      /** Kayıtlı talepten açılışta — hedef ülkeler talepten okunur (firma kapsamlı). */
+      listingId?: string;
+      /** Yayın öncesi formdan — talebin görünürlük ülkeleri (boş = tüm ülkeler). */
+      targetCountries?: string[];
     },
   ): Promise<{ companies: ExternalCandidate[] }> {
     this.ai.assertAiAccess(user);
+    const [listing, buyer] = await Promise.all([
+      input.listingId
+        ? this.prisma.listing.findFirst({
+            where: { id: input.listingId, companyId: user.companyId },
+            select: { targetCountries: true },
+          })
+        : Promise.resolve(null),
+      this.prisma.company.findUnique({
+        where: { id: user.companyId },
+        select: { country: true },
+      }),
+    ]);
+    const targetCountries = listing?.targetCountries ?? input.targetCountries ?? [];
     const catNames = (
       await this.prisma.category.findMany({
         where: { id: { in: input.categoryIds.slice(0, 10) } },
@@ -95,8 +149,6 @@ export class SupplierDiscoveryService {
     ).map((c) => c.nameTr);
     if (catNames.length === 0) return { companies: [] };
     const items = (input.itemNames ?? []).filter(Boolean).slice(0, 15);
-    const role = "tedarikçi/üretici";
-    const region = (input.region ?? "").trim().slice(0, 60);
 
     const research = await this.ai.callAi(user, {
       feature: "supplier_discovery",
@@ -104,11 +156,11 @@ export class SupplierDiscoveryService {
       system:
         "Bir B2B tedarik platformu için firma araştırması yaparsın. YALNIZ web aramasında gerçekten bulduğun firmaları listelersin; e-posta adresini yalnız sitede/aramada AÇIKÇA görünüyorsa yazarsın, asla tahmin etmezsin.",
       prompt: [
-        `Türkiye'de${region ? ` (öncelik: ${region})` : ""} şu alanda faaliyet gösteren ${role} firmaları web'de araştır:`,
+        `${discoveryLocationLine({ targetCountries, buyerCountry: buyer?.country ?? null, region: input.region })} firmaları web'de araştır:`,
         `Kategoriler: ${catNames.join(", ")}`,
         ...(items.length > 0 ? [`İlgili ürün/kalemler: ${items.join(", ")}`] : []),
         "",
-        `En fazla ${MAX_EXTERNAL} gerçek firma bul. Her biri için şu bilgileri yaz: firma adı, şehir, web sitesi, (varsa açıkça yayınlanmış iletişim e-postası), bu satın alma talebi için neden uygun olduğuna dair TEK cümle.`,
+        `En fazla ${MAX_EXTERNAL} gerçek firma bul. Her biri için şu bilgileri yaz: firma adı, şehir (ve ülke), web sitesi, (varsa açıkça yayınlanmış iletişim e-postası), bu satın alma talebi için neden uygun olduğuna dair TEK cümle.`,
       ].join("\n"),
       metadata: { route: "external_discovery", stage: "research" },
     });
