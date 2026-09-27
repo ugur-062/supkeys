@@ -1427,7 +1427,8 @@
         "placeBid": "Teklif Ver",
         "viewOrder": "Siparişi Gör",
         "viewPlans": "Paketleri Gör",
-        "viewOpenRequests": "Açık Satın Alma Taleplerini Gör"
+        "viewOpenRequests": "Açık Satın Alma Taleplerini Gör",
+        "upgradeSilver": "Silver'a Geç"
       },
       "closed": {
         "subject": "Satın Alma Talebinde teklif alımı kapandı",
@@ -1444,18 +1445,18 @@
         "buy": {
           "heading": "Kategorinize uygun yeni satın alma talebi",
           "openSubject": "Size uygun yeni bir satın alma talebi yayınlandı",
-          "openBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\" ({number}). İncelemek ve teklif vermek için Rothern''e giriş yapın.",
+          "openBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\" ({number}). Talep edilen kalemleri aşağıda görebilirsiniz; talebi açıp hemen teklif verin.",
           "openInAppBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi: \"{title}\" ({number}).",
-          "lockedSubject": "Kategorinizde yeni bir satın alma talebi var — Silver ile açılır",
-          "lockedBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\" ({number}). Ücretsiz üyelikte herkese açık talepler kilitlidir; görmek ve teklif vermek için Silver paketine geçin. Bağlantı davetiyle gelen talepleri her zaman ücretsiz görürsünüz.",
-          "lockedInAppTitle": "Kategorinizde yeni bir satın alma talebi — Silver ile açılır",
-          "lockedInAppBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\". Görmek ve teklif vermek için Silver paketine geçin."
+          "lockedSubject": "Kategorinizde yeni bir alıcı var — teklif vermek için Silver'a geçin",
+          "lockedBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\" ({number}). Neler istendiğini aşağıda görebilirsiniz. Ücretsiz üyelikte herkese açık taleplere teklif verilemez; Silver pakete geçerek bu talebe ve kategorinizdeki diğer açık taleplere teklif verebilir, firma dizininde öne çıkabilirsiniz. Bağlantılarınızın sizi davet ettiği talepler her zaman ücretsizdir.",
+          "lockedInAppTitle": "Kategorinizde yeni bir alıcı — teklif vermek için Silver'a geçin",
+          "lockedInAppBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\". Bu talebe teklif vermek için Silver pakete geçin."
         }
       },
       "invitation": {
         "subject": "Bir satın alma talebine davet edildiniz",
         "title": "Satın Alma Talebi daveti",
-        "body": "\"{title}\" ({number}) satın alma talebine davet edildiniz. Detayları görmek ve teklif vermek için giriş yapın.",
+        "body": "\"{title}\" ({number}) satın alma talebine davet edildiniz. Talep edilen kalemleri aşağıda görebilirsiniz; detaylar ve teklif için talebi açın.",
         "inAppBody": "\"{title}\" ({number}) satın alma talebine davet edildiniz."
       },
       "reminder": {
@@ -1518,6 +1519,12 @@
         "subject": "Değerlendirmedeki satın alma talebinde teklif geçerlilikleri doluyor",
         "title": "Teklif geçerlilikleri dolmak üzere",
         "body": "\"{title}\" ({number}) satın alma talebi değerlendirmede ve {count} teklifin geçerlilik süresi dolmak üzere (ya da doldu). Kararınızı verin ya da tedarikçilerden geçerlilik uzatması isteyin."
+      },
+      "preview": {
+        "items": "Kalemler ({count, number})",
+        "more": "{n, plural, other {+# kalem daha}}",
+        "closesAt": "Son teklif tarihi",
+        "place": "Teslim yeri"
       }
     },
     "adminCompanies": {

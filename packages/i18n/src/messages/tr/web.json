@@ -3475,7 +3475,7 @@
         "visibility": {
           "PUBLIC": {
             "label": "Herkese açık",
-            "hint": "Pazar yerinde listelenir; kayıtlı her tedarikçi teklif verebilir."
+            "hint": "Pazar yerinde listelenir. Bağlantılarınız otomatik davet edilir; kategorisi uyan tedarikçilere de duyurulur."
           },
           "CONNECTIONS": {
             "label": "Bağlantılarım",

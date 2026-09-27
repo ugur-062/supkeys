@@ -1824,6 +1824,22 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   (aynı gün, kullanıcı: "sağına değil altına"). Sözleşme:
   `supplier-picker.test` "Bağlantılarım kipi", `quick-request.test`
   "görünürlük listesi", `connections-scope.test`.
+- **HERKESE AÇIK TALEP = BAĞLANTILAR OTOMATİK DAVETLİ (2026-09-27, kullanıcı
+  kararı: "herkese açık paylaşılsa bile mutlaka bağlantılarına davet gitsin;
+  kategori uyumu olanlara da gitsin; ücretsizse Silver'a teşvik edelim").**
+  Yayın duyurusunda (`announceListingOpen` "invitation", embargoluda cron
+  açılışında) `autoInviteConnections` alıcının GEÇERLİ bağlantılarının tamamını
+  kategoriden bağımsız davetli yapar (`invitedById` = talebi açan; engelli/
+  askıdaki/pasif ve görünürlük ülkesi DIŞINDAKİ bağlantı hariç — elle davet
+  ülkeyi aşar, otomatik davet aşmaz; yalnız PUBLIC + ilk açılış). Kategori
+  duyurusu davetlileri DIŞLAR (tek e-posta). Kategorisi uyan bağlantısız firma:
+  ücretli → e-posta doğrudan talebe (`/company/ilan/<id>`); ücretsiz → Silver
+  teşviki, CTA panelin Paketler sayfası (`/company/premium`), talep bağlantısı
+  YOK; kategori uyanlar DAVETLİ YAPILMAZ (ücretsiz firma Silver'sız teklif
+  verirdi). Davet ve duyuru e-postaları alıcının dilinde talep önizlemesi taşır
+  (`common/company/listing-email-preview.ts`: ilk 6 kalem + miktar, kapanış,
+  teslim yeri; alıcı kimliği yok; gönderimden önce çeviri ≤60 sn beklenir).
+  Sözleşme: `public-listing-auto-invite.spec`, `category-match.spec`.
 - **Kalem araç çubuğu (2026-09-19):** "Katalogdan Ekle" ve "Excel ile İçe
   Aktar" listenin SAĞ ÜSTÜNDE, "Yeni Kalem Ekle" altta kalır. Aranan tedarikçi
   tipi çipleri: "Fark etmez" → **"Hepsi dahil"**, seçili çip mavi (siyah değil).

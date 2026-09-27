@@ -103,6 +103,8 @@ import { PlaceBidDto } from "../dto/place-bid.dto";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { hasReadContext } from "../../../common/company/full-read-context";
 import { isConnectionValid } from "../../../common/company/valid-connection";
+import { listingPreviewRowsByLocale, type PreviewRow } from "../../../common/company/listing-email-preview";
+import { INVITE_ITEM_PREVIEW, INVITE_TRANSLATION_WAIT_MS } from "../../../common/company/invite-delivery";
 import { reportToSentry } from "../../../instrument";
 import {
   getTenantStore,
@@ -205,6 +207,8 @@ interface ListingNotifyData {
   ctaUrl?: (locale: Locale) => string;
   footerNoteKey?: ApiMessageKey;
   infoRows?: { label: string; value: string }[];
+  /** Alıcının dilinde bilgi satırları (talep önizlemesi — `listing-email-preview.ts`). */
+  infoRowsFor?: (locale: Locale) => { label: string; value: string }[] | undefined;
 }
 
 @Injectable()
@@ -338,7 +342,9 @@ export class CompanyListingsService {
             subject,
             heading: t(data.headingKey),
             paragraphs: [tApi(GREETING, undefined, locale), t(data.bodyKey)],
-            ...(data.infoRows ? { infoRows: data.infoRows } : {}),
+            ...((data.infoRowsFor?.(locale) ?? data.infoRows)?.length
+              ? { infoRows: data.infoRowsFor?.(locale) ?? data.infoRows }
+              : {}),
             ...(data.ctaLabelKey ? { ctaLabel: t(data.ctaLabelKey) } : {}),
             ...(data.ctaUrl ? { ctaUrl: data.ctaUrl(locale) } : {}),
             ...(data.footerNoteKey ? { footerNote: t(data.footerNoteKey) } : {}),
@@ -355,6 +361,122 @@ export class CompanyListingsService {
       `Bildirim e-postası gönderilemedi (${email}): ${
         err instanceof Error ? err.message : String(err)
       }`,
+    );
+  }
+
+  /**
+   * HERKESE AÇIK TALEPTE BAĞLANTILAR OTOMATİK DAVETLİ (2026-09-27, kullanıcı
+   * kararı: "herkese açık paylaşılsa bile mutlaka bağlantılarına davet gitsin").
+   *
+   * Eskiden PUBLIC talepte bağlantılar yalnız kategorileri uyuyorsa kategori
+   * duyurusu alıyordu; gerçek davet yalnız formda seçilenlere gidiyordu.
+   * Artık alıcının GEÇERLİ bağlantılarının tamamı davetli olur (kategoriden
+   * bağımsız) — davetli firma talebi pakete bakmadan görür ve teklif verir
+   * (bağlantı = tanışıklık; KYC tablosundaki "davetli/bağlantılı" satırı).
+   *
+   * Hariç: engellenen/askıdaki/pasif firma ve talebin GÖRÜNÜRLÜK ÜLKESİ
+   * dışındaki bağlantı — elle davet ülke kısıtını aşar (alıcının bilinçli
+   * seçimi), otomatik davet aşmaz. Yalnız ilk açılışta (yeni tur mevcut
+   * davetlileri kullanır). BYPASS: embargolu talepte açılış cron'dan gelir
+   * (tenant bağlamı yok); bağlantı tablosu RLS'li.
+   */
+  private async autoInviteConnections(listingId: string): Promise<number> {
+    const listing = await this.bypass.listing.findUnique({
+      where: { id: listingId },
+      select: { companyId: true, visibility: true, type: true, createdById: true, targetCountries: true },
+    });
+    if (!listing || listing.visibility !== "PUBLIC" || listing.type !== "ALIM") return 0;
+    const rows = await this.bypass.companyConnection.findMany({
+      where: {
+        status: "ACTIVE",
+        OR: [{ inviterCompanyId: listing.companyId }, { inviteeCompanyId: listing.companyId }],
+      },
+      select: {
+        inviterCompanyId: true,
+        inviteeCompanyId: true,
+        origin: true,
+        inviter: { select: { tier: true, membershipEndAt: true } },
+      },
+    });
+    const connected = rows
+      .filter((r) => isConnectionValid(r))
+      .map((r) => (r.inviterCompanyId === listing.companyId ? r.inviteeCompanyId : r.inviterCompanyId));
+    if (connected.length === 0) return 0;
+    const blocked = new Set(await this.blocks.blockedCompanyIds(listing.companyId));
+    const eligible = await this.bypass.company.findMany({
+      where: {
+        id: { in: connected.filter((id) => !blocked.has(id) && id !== listing.companyId) },
+        isActive: true,
+        isBlocked: false,
+        ...(listing.targetCountries.length > 0 ? { country: { in: listing.targetCountries } } : {}),
+      },
+      select: { id: true },
+    });
+    if (eligible.length === 0) return 0;
+    const created = await this.bypass.listingInvitation.createMany({
+      data: eligible.map((c) => ({
+        listingId,
+        invitedCompanyId: c.id,
+        invitedById: listing.createdById,
+      })),
+      skipDuplicates: true,
+    });
+    if (created.count > 0) {
+      this.logger.log(`Public listing ${listingId}: auto-invited ${created.count} connection(s)`);
+    }
+    return created.count;
+  }
+
+  /**
+   * Talep önizlemesinin kaynağı (kalemler, kapanış, teslim yeri) + alıcı
+   * dillerinde çevirinin beklenmesi. Duyurular arka planda gittiği için
+   * bekleme kullanıcıyı bekletmez (dış davetle aynı ~60 sn kuralı).
+   */
+  private async listingPreviewFor(
+    listingId: string,
+    locales: Iterable<Locale>,
+  ): Promise<Map<Locale, PreviewRow[]>> {
+    const l = await this.bypass.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        title: true,
+        closesAt: true,
+        deliveryAddressId: true,
+        companyId: true,
+        items: {
+          select: { name: true, quantity: true, unit: true, unitCode: true },
+          orderBy: { lineNo: "asc" },
+          take: INVITE_ITEM_PREVIEW,
+        },
+        _count: { select: { items: true } },
+      },
+    });
+    if (!l) return new Map();
+    const address = l.deliveryAddressId
+      ? await this.bypass.companyAddress.findFirst({
+          where: { id: l.deliveryAddressId, companyId: l.companyId },
+          select: { city: true, country: true },
+        })
+      : null;
+    const wanted = [...new Set(locales)];
+    if (this.translations && wanted.length > 0) {
+      await this.translations
+        .ensureTranslated("LISTING", l.id, wanted, INVITE_TRANSLATION_WAIT_MS)
+        .catch(() => false);
+    }
+    const tr = this.translations;
+    return listingPreviewRowsByLocale(
+      {
+        id: l.id,
+        title: l.title,
+        closesAt: l.closesAt,
+        items: l.items,
+        itemCount: l._count.items,
+        place: address,
+      },
+      wanted,
+      tr ? async (base, id, locale) => (await tr.localizeListings([base], [id], locale))[0] : undefined,
     );
   }
 
@@ -554,11 +676,18 @@ export class CompanyListingsService {
         ];
 
     const blocked = await this.blocks.blockedCompanyIds(listing.companyId);
+    // DAVETLİLER HARİÇ (2026-09-27): herkese açık talepte bağlantılar artık
+    // otomatik davetli (`autoInviteConnections`) ve davet e-postası alıyor;
+    // kategorisi de uyan davetliye ikinci bir duyuru gitmesin.
+    const invited = await this.bypass.listingInvitation.findMany({
+      where: { listingId },
+      select: { invitedCompanyId: true },
+    });
     const candidates = await this.prisma.company.findMany({
       where: {
-        id: { notIn: [listing.companyId, ...blocked] },
+        id: { notIn: [listing.companyId, ...blocked, ...invited.map((i) => i.invitedCompanyId)] },
         // Paket şartı YOK (2026-09-06): ücretsiz firma da haber alır — talep ona
-        // kilitli, duyuru "Silver ile açılır" der (dönüşüm tetiği: gerçek bir
+        // kilitli, duyuru Silver'a geçmeye çağırır (dönüşüm tetiği: gerçek bir
         // talep, kendi kategorisinde, göremiyor). Efektif kademe aşağıda metni seçer.
         isActive: true,
         // Denetim 2026-08-24 Parça 7: admin tarafından ASKIYA ALINMIŞ firma
@@ -639,9 +768,11 @@ export class CompanyListingsService {
       sirali.map((c) => c.id),
       matchPortal,
     );
-    // Açık talepler satış ANASAYFASINDA (2026-09-05); satın-al sayfası yok.
-    const url = `${this.webUrl()}/company/satis#acik-talepler`;
-    const pricingUrl = `${this.webUrl()}/nasil-calisir#fiyatlar`;
+    // Ücretli alıcı DOĞRUDAN talebe gider (2026-09-27; eskiden Açık Talepler
+    // listesine düşüp talebi aramak zorundaydı). Ücretsiz alıcı panelin
+    // Paketler sayfasına (herkese açık fiyat sayfası paneli terk ettiriyordu).
+    const url = appRoutes.listing(this.webUrl(), listing.id);
+    const pricingUrl = `${this.webUrl()}/company/premium`;
     // YÖN'e göre AYRI anahtar kümesi (i18n Faz 3). Cümleyi parçadan kurmak
     // ("satın alma talebi" + "Sattığınız" + "teklif vermek") Türkçede yürüyor
     // ama EN/RU'da sözcük sırası ve çekim tutmaz — her yön TAM cümlesini
@@ -657,10 +788,10 @@ export class CompanyListingsService {
       lockedBody: "api.notifications.listings.categoryMatch.buy.lockedBody",
       lockedInAppTitle: "api.notifications.listings.categoryMatch.buy.lockedInAppTitle",
       lockedInAppBody: "api.notifications.listings.categoryMatch.buy.lockedInAppBody",
-      openCta: "api.notifications.listings.cta.viewOpenRequests",
+      openCta: "api.notifications.listings.cta.viewRequest",
     } as const;
     const FOOTER = "api.notifications.listings.categoryMatch.footerNote" as const;
-    const PLANS_CTA = "api.notifications.listings.cta.viewPlans" as const;
+    const PLANS_CTA = "api.notifications.listings.cta.upgradeSilver" as const;
     // Alıcılar BAŞKA firmalardır → başlık onların dilinde. Duyuru yayın anında
     // gider; içerik çevirisi o an hazır değilse kaynak başlık basılır (bilinçli).
     const p = {
@@ -681,6 +812,13 @@ export class CompanyListingsService {
           ] as const,
       ),
     );
+    // Talep önizlemesi alıcının dilinde — ücretsiz firma kilitli talebin NE
+    // olduğunu görsün (Silver'a geçiş için somut gerekçe), ücretli firma
+    // talebi açmadan uygunluğunu tartsın. Alıcı kimliği YOK (anonim).
+    const preview = await this.listingPreviewFor(
+      listing.id,
+      [...recipients.values()].map((r) => r.locale),
+    ).catch(() => new Map<Locale, PreviewRow[]>());
     let sent = 0;
     for (const c of sirali) {
       const to = recipients.get(c.id);
@@ -696,6 +834,7 @@ export class CompanyListingsService {
               ctaLabelKey: PLANS_CTA,
               ctaUrl: (l) => localizeAppPath(pricingUrl, l),
               footerNoteKey: FOOTER,
+              infoRowsFor: (l) => preview.get(l),
             }
           : {
               subjectKey: K.openSubject,
@@ -703,8 +842,9 @@ export class CompanyListingsService {
               bodyKey: K.openBody,
               params: p,
               ctaLabelKey: K.openCta,
-              ctaUrl: (l) => localizeAppPath(url, l),
+              ctaUrl: (l) => appRoutes.listing(this.webUrl(), listing.id, l),
               footerNoteKey: FOOTER,
+              infoRowsFor: (l) => preview.get(l),
             },
         { type: "listing_category_match", id: listingId },
       );
@@ -858,6 +998,18 @@ export class CompanyListingsService {
         }`,
       );
     }
+    // HERKESE AÇIK TALEPTE BAĞLANTILAR OTOMATİK DAVETLİ (2026-09-27) — davet
+    // bildiriminden ÖNCE (aynı duyuruya girsinler) ve kategori duyurusundan
+    // önce (davetliye ikinci e-posta gitmesin). Hata duyuruyu durdurmaz.
+    if (kind === "invitation") {
+      await this.autoInviteConnections(listingId).catch((err) =>
+        this.logger.warn(
+          `Auto-invite of connections failed (${listingId}): ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        ),
+      );
+    }
     // Fire-and-forget: reddi (DB flake vb.) UNHANDLED rejection'a düşmesin →
     // prod'da süreç çökme riski (kardeşi 563 gibi .catch — notifyListingInvitees
     // iç try/catch taşımaz, çağıran korur).
@@ -968,6 +1120,16 @@ export class CompanyListingsService {
     } as const)[mode];
 
     const recipients = await this.companyRecipients(targets, invitePortal);
+    // Davette talep ÖNİZLEMESİ (ilk kalemler + miktar, kapanış, teslim yeri)
+    // alıcının dilinde — yalnız başlık alan davetli neyin istendiğini görmeden
+    // giriş yapmıyordu (2026-09-27). Hatırlatma/yeni turda kısa kalır.
+    const preview =
+      mode === "invitation"
+        ? await this.listingPreviewFor(
+            listingId,
+            [...recipients.values()].map((r) => r.locale),
+          ).catch(() => new Map<Locale, PreviewRow[]>())
+        : new Map<Locale, PreviewRow[]>();
     for (const invitedCompanyId of targets) {
       const r = recipients.get(invitedCompanyId);
       if (!r) continue;
@@ -980,6 +1142,7 @@ export class CompanyListingsService {
           params: p,
           ctaLabelKey: content.ctaKey,
           ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
+          infoRowsFor: (l) => preview.get(l),
         },
         { type: content.type, id: listingId },
       );

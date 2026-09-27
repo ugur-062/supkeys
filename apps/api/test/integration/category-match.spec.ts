@@ -136,14 +136,15 @@ describe("notifyCategoryMatchedCompanies — ALIM → satıcılar", () => {
     });
     const matched = await service.notifyCategoryMatchedCompanies(listing.id);
     // Ham tier PAKET görünse de efektif STANDART → aday AMA metin kilitli:
-    // talep ona görünmez, e-posta "Silver ile açılır" der, CTA paket sayfası
+    // talep ona görünmez, e-posta Silver'a geçmeye çağırır, CTA panelin Paketler sayfası
     // (talep bağlantısı VERİLMEZ — 403 alırdı).
     expect(matched.map((c: { id: string }) => c.id)).toEqual([seller.company.id]);
     expect(email.send).toHaveBeenCalledTimes(1);
     const sent = (email.send as jest.Mock).mock.calls[0][0] as { subject: string; templateData: unknown };
-    expect(sent.subject).toMatch(/Silver ile açılır/);
+    // Silver teşviki (2026-09-27): CTA panelin Paketler sayfası.
+    expect(sent.subject).toMatch(/Silver'a geçin/);
     const payload = JSON.stringify(sent.templateData);
-    expect(payload).toContain("/nasil-calisir#fiyatlar");
+    expect(payload).toContain("/company/premium");
     expect(payload).not.toContain("/company/ilan/");
   });
 
@@ -175,8 +176,9 @@ describe("notifyCategoryMatchedCompanies — ALIM → satıcılar", () => {
     await service.notifyCategoryMatchedCompanies(listing.id);
     expect(email.send).toHaveBeenCalledTimes(1);
     const sent = (email.send as jest.Mock).mock.calls[0][0] as { subject: string; templateData: unknown };
-    expect(sent.subject).not.toMatch(/Silver ile açılır/);
-    expect(JSON.stringify(sent.templateData)).toContain("/company/satis");
+    expect(sent.subject).not.toMatch(/Silver/);
+    // Açık metin doğrudan talebe götürür (eskiden Açık Talepler listesine).
+    expect(JSON.stringify(sent.templateData)).toContain(`/company/ilan/${listing.id}`);
   });
 
   it("F1 kontrol: GELECEK bitişli PAKET satıcı duyuru ALIR (efektif PAKET)", async () => {

@@ -3475,7 +3475,7 @@
         "visibility": {
           "PUBLIC": {
             "label": "Public",
-            "hint": "Listed on the marketplace; any registered supplier can submit a quote."
+            "hint": "Listed on the marketplace. Your connections are invited automatically, and suppliers in matching categories are notified too."
           },
           "CONNECTIONS": {
             "label": "My connections",

@@ -1427,7 +1427,8 @@
         "placeBid": "Submit quote",
         "viewOrder": "View order",
         "viewPlans": "View plans",
-        "viewOpenRequests": "View open buying requests"
+        "viewOpenRequests": "View open buying requests",
+        "upgradeSilver": "Upgrade to Silver"
       },
       "closed": {
         "subject": "Quote submission closed for a buying request",
@@ -1444,18 +1445,18 @@
         "buy": {
           "heading": "New buying request in your category",
           "openSubject": "A new buying request that fits you was published",
-          "openBody": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). Log in to Rothern to review it and submit a quote.",
+          "openBody": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). You can see the requested line items below — open the request and submit your quote.",
           "openInAppBody": "New buying request matching the categories you sell: \"{title}\" ({number}).",
-          "lockedSubject": "There is a new buying request in your category — unlocks with Silver",
-          "lockedBody": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). Public requests are locked on the free plan; upgrade to the Silver plan to view them and submit quotes. You can always view requests you are invited to through a connection for free.",
-          "lockedInAppTitle": "New buying request in your category — unlocks with Silver",
-          "lockedInAppBody": "A new buying request matching the categories you sell was published: \"{title}\". Upgrade to the Silver plan to view it and submit a quote."
+          "lockedSubject": "A new buyer in your category — upgrade to Silver to quote",
+          "lockedBody": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). You can see what is requested below. On the free plan you cannot quote on public requests; upgrade to Silver to quote on this request and on other open requests in your category, and to stand out in the company directory. Requests your connections invite you to are always free.",
+          "lockedInAppTitle": "A new buyer in your category — upgrade to Silver to quote",
+          "lockedInAppBody": "A new buying request matching the categories you sell was published: \"{title}\". Upgrade to Silver to quote on it."
         }
       },
       "invitation": {
         "subject": "You have been invited to a buying request",
         "title": "Buying request invitation",
-        "body": "You have been invited to the buying request \"{title}\" ({number}). Log in to view the details and submit a quote.",
+        "body": "You have been invited to the buying request \"{title}\" ({number}). You can see the requested line items below — open the request for details and to submit a quote.",
         "inAppBody": "You have been invited to the buying request \"{title}\" ({number})."
       },
       "reminder": {
@@ -1518,6 +1519,12 @@
         "subject": "Quote validity is expiring on a buying request under evaluation",
         "title": "Quote validity is about to expire",
         "body": "The buying request \"{title}\" ({number}) is under evaluation and {count, plural, one {# quote is} other {# quotes are}} about to expire (or already expired). Make your decision or ask suppliers to extend validity."
+      },
+      "preview": {
+        "items": "Line items ({count, number})",
+        "more": "{n, plural, one {+# more line item} other {+# more line items}}",
+        "closesAt": "Quote deadline",
+        "place": "Delivery location"
       }
     },
     "adminCompanies": {
