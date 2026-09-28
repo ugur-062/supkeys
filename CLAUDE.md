@@ -2270,9 +2270,12 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 
 ## Migration ve Dağıtım
 
-> ⚠️ **`render.yaml` `autoDeploy: true`** — main'e push edilen API kodu prod'a
-> KENDİLİĞİNDEN gider. Şema kullanan değişikliği push ettiysen migration'ı
-> AYNI turda uygula, yoksa canlı kod olmayan kolonu okur ve uç 500 döner.
+> ⚠️ **API KONTEYNERİ AÇILIŞTA `migrate deploy` KOŞAR** (`apps/api/docker-entrypoint.sh`).
+> Canlı Render servisi `production` dalını izler (`render.yaml` `branch:
+> production`, `autoDeploy: true`); main → staging (api-staging, blueprint
+> dışı). Yani `production`a birleşen şema değişikliği canlı API açılırken
+> KENDİLİĞİNDEN uygulanır → birleştirmeden ÖNCE canlı yedeği al
+> (`docs/backup-restore-drill.md`). Elle uygulamak gerekirse:
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
@@ -2485,8 +2488,8 @@ pnpm --filter @rothern/api test:db:down
 
 ### Zamanlanmış işler (cron) — çift tetikleme kilidi
 
-15 `@Cron` işi var ve hepsi tek ortak sarmalayıcıdan geçer
-(`trackCronRun`). 2026-09-12'de **advisory lock** eklendi: ikinci bir API
+19 `@Cron` işi var (2026-09-28 sayımı) ve hepsi tek ortak sarmalayıcıdan
+geçmeli (`trackCronRun`). 2026-09-12'de **advisory lock** eklendi: ikinci bir API
 örneği açıldığı gün her iş iki kez koşacaktı (çift hatırlatma, çift özet,
 çift temizlik). Kilit `CronLockService`'te, `trackCronRun` onu
 `CronRegistryService.lock` üzerinden okur → **scheduler'ların hiçbiri
