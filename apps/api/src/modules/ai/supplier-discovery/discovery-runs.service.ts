@@ -228,8 +228,16 @@ export class DiscoveryRunsService {
       if (!this.ai.isEnabled) webError = "ai_disabled";
       else if ((await this.spentTodayUsd(now)) >= this.dailyBudgetUsd()) webError = "platform_daily_budget";
       else {
+        // Harcama çağrı başına toplanır: geçiş ortasında düşen turun ödenmiş
+        // çağrıları da günlük tavana yazılsın (yayın denetimi 2026-09-28 B5-14 —
+        // eskiden hata dalında costUsd null kalıyor, tavan saymıyordu).
+        let spent = 0;
         try {
-          const runner: DiscoveryAiRunner = async ({ stage: _stage, ...opts }) => this.ai.callAiSystem(opts);
+          const runner: DiscoveryAiRunner = async ({ stage: _stage, ...opts }) => {
+            const res = await this.ai.callAiSystem(opts);
+            spent += res.costUsd ?? 0;
+            return res;
+          };
           const found = await this.discovery.searchWeb(
             {
               buyerCountry: owner?.country ?? null,
@@ -246,6 +254,7 @@ export class DiscoveryRunsService {
           web = await this.discovery.annotate(run.companyId, run.listingId, found.companies, now);
         } catch (err) {
           webError = err instanceof Error ? err.message : String(err);
+          costUsd = spent > 0 ? spent : null;
           this.logger.warn(`discovery run ${runId} web pass failed: ${webError}`);
         }
       }

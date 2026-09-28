@@ -122,6 +122,23 @@ describe("DiscoveryRunsService", () => {
     expect(ai.callAiSystem).toHaveBeenCalledTimes(4);
   });
 
+  it("geçiş ortasında düşen turun ödenmiş çağrıları da tavana yazılır (B5-14)", async () => {
+    const ai = fakeAi([]);
+    ai.callAiSystem.mockImplementation(async (o: { responseSchema?: object }) => {
+      if (!o.responseSchema) return { text: "research", costUsd: 0.05, downgraded: false, warned: false };
+      return { text: "not json", costUsd: 0.01, downgraded: false, warned: false };
+    });
+    const { runs } = makeRuns({ ai });
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const l = await openListing(owner.company.id, owner.user.id);
+    const runId = await runs.enqueue(l.id, "PUBLISH");
+    await runs.process(runId!);
+    const run = await prisma.supplierDiscoveryRun.findUniqueOrThrow({ where: { id: runId! } });
+    expect(run.state).toBe("FAILED");
+    expect(run.finishedAt).not.toBeNull();
+    expect(Number(run.costUsd)).toBeGreaterThanOrEqual(0.06);
+  });
+
   it("günlük platform tavanı dolduysa tur KOŞMAZ (FAILED platform_daily_budget)", async () => {
     const ai = fakeAi([]);
     const { runs } = makeRuns({ ai, config: { AI_DISCOVERY_DAILY_USD: "1" } });
