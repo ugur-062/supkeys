@@ -239,3 +239,70 @@ denenmeden değiştirmek canlı derlemeyi kırabilir). **DÜŞÜK, kapandı.**
 |---|---|---|---|
 | B2-1 | YÜKSEK | `lib/tenders/__tests__/request-defaults.test.ts` tarihi ofsetsiz kuruyordu (`new Date("2026-09-09T10:00:00")`); kod İstanbul duvar saatiyle yazdığı için **UTC'de kırmızı** → CI çalıştırıcısı UTC olduğundan `production` PR'ı kırmızı olurdu | ✅ `+03:00` ofset; UTC / İstanbul / New York'ta yeşil (b4079ecb) |
 | B2-2 | DÜŞÜK | Web paketi bu makinede tam paralel koşumda 15 sn zaman aşımına düşüyor (formlu testler) | bilinen; CI'da sorun yok |
+
+---
+
+## Bölüm 4 — Yetki, firma yalıtımı, gizlilik (⏳ RLS taraması sürüyor)
+
+Yöntem: üç paralel inceleme (4A uç yetkileri · 4B RLS/bypass · 4C veri
+sızıntısı) + her bulgu kodda elle doğrulandı. Ayrıntılı raporlar oturum
+çalışma alanında (`part4a-authz.md`, `part4b-rls.md`, `part4c-exposure.md`).
+`company-permission-drift.spec` 217/217 (yeni `DiscoveryRunsController` dahil).
+
+### Düzeltilenler (b0fff87f)
+
+| # | Önem | Bulgu | Düzeltme |
+|---|---|---|---|
+| B4-1 | YÜKSEK | `POST company/ai/supplier-discovery` + başka firmanın talep id'si → `alreadyInvited` o talebin davetlilerini sızdırıyordu (kapalı zarf / rekabet istihbaratı). Talep id'leri Açık Talepler'de görünür. | davetli kümesi yalnız sahiplik süzgecinden geçen talepte okunur + entegrasyon testi |
+| B4-2 | ORTA | Günlük 60 davet tavanı tek yönlü ortaktı (önce 60 üye, sonra 60 e-posta = 120) | e-posta yolu AI üye davetlerini de sayar + ters yön testi |
+| B4-3 | ORTA | Askıya alınan firmanın kuyruktaki davetleri "X (Rothern üzerinden)" adıyla gitmeye devam ediyordu | gönderici `sendableListingWhere`: sahip etkin ∧ askısız; iptal değil bekletme + test |
+| B4-4 | ORTA | E-posta regex'i ikinci dereceden (20 bin karakter 0,18 sn; 1 MB ≈ dakikalar; gövde sınırı 5 MB) — dış davet `emails[]` sınırsızdı; aynı kalıp AI keşfi (model çıktısı), admin e-posta değişikliği ve `isValidEmailLike`da | `EMAIL_MAX_LENGTH` ön koşulu (shared) + DTO `@MaxLength(200, each)` + `listingId` 40 + birim testi |
+| B4-5 | ORTA | Embargolu (`bidsOpenAt` gelecekte) talebin kalemleri dış davetle açılıştan önce gidiyordu | gönderici ve hatırlatma embargoyu bekler + test |
+| B4-6 | ORTA | Davet önizlemesi (`public/invite-preview`): jeton davet eden × adres için ortak → aynı jetonla KUYRUKTAKİ (henüz gitmemiş) davetin talebi, embargolu talep, moderasyonla kapatılmış (CLOSED) / iptal / onay bekleyen talep okunabiliyordu | yalnız `state=SENT` ∧ vitrin durumu (`MARKETPLACE_STATUSES`) ∧ embargo geçmiş + test |
+| B4-7 | ORTA | `?ref=` davet jetonu API erişim günlüğüne ve web Sentry olaylarına düz metin | `maskSensitiveUrl` + `scrubUrl` listelerine `ref` + testler |
+| B4-8 | ORTA | Tek tık çıkış (RFC 8058) web rotasından Vercel IP'siyle gelir → tüm çıkışlar tek 30/dk kovası; toplu gönderim sonrası/selde meşru çıkış 429 (Gmail/Yahoo kuralı) | çıkış uçları 600/dk (jeton AES-GCM, kaba kuvvet riski yok) |
+| B4-9 | DÜŞÜK | Herkese açık sözleşme testinin yasaklı anahtarlarında sahip kimliği/davet ayarları yoktu | `companyId`, `rothernId`, `inviteShowName`, `aiDiscovery`, `company.id` eklendi |
+
+### Değerlendirilip kapatılanlar (değişiklik yok)
+
+- `IN_APPROVAL` talebe davet (4C kapsam dışı notu): yayın onayı akışı
+  (`LISTING_PUBLISH`) artık ÜRETİLMİYOR, yalnız eski kayıtlara geriye uyum →
+  pratikte oluşmaz. Geçici değişiklik geri alındı.
+- İçerik çevirisi `status` uçları SUPPORT'a açık: dekoratörde bilinçli, yalnız sayı döner.
+- Unsubscribe jetonu (AES-256-GCM, alan ayrımlı anahtar, rastgele IV), GET
+  salt-okur, jetonsuz POST red — doğru. `referral-visit` yalnız jetonun gittiği
+  adresin kendi bilgisini döner. Herkese açık talepte alıcı kimliği yok; kilitli
+  AI e-postasında kimlik/bağlantı yok; `aiReason` yalnız davetlinin kendi ürün adı.
+
+### Açık kalan DÜŞÜK maddeler (backlog, gerekçeli)
+
+| # | Bulgu | Neden şimdi değil |
+|---|---|---|
+| B4-10 | Günlük tavan sayımı ile yazma arasında kilit yok (paralel istekle 60 birkaç aşılabilir) | tavan kötüye kullanım freni; platform soğuk davet tavanı ayrıca korur |
+| B4-11 | `invite-members` keşif sonucundan gelmeyen firma id'sini de kabul eder | sunucu uygunluğu (Silver+ ∧ doğrulanmış ∧ ülke ∧ engel) yeniden denetliyor; etki = Gold alıcının uygun firmayı bağlantısız davet etmesi |
+| B4-12 | Dış davette `source` istemciden; MANUAL işaretlenen AI adresi DE/CA onay kapısını ve 7 gün frenini atlar | web doğru gönderiyor; kötü niyetli istemci senaryosu → Bölüm 13 hukuk notu |
+| B4-13 | `recentlyInvited` bayrağı alıcıya adresin son 7 günde başka alıcıdan davet aldığını söyler | kimlik yok, zayıf sinyal |
+| B4-14 | Kayıtta talep davetleri e-posta doğrulanmadan hesaba bağlanır (adres işgali) | doğrulanmamış hesap giriş yapamaz |
+| B4-15 | Davet jetonları `cuid()` (kriptografik değil, ~41 bit rastgele) | çevrim içi tahmin hız sınırıyla pratik değil |
+| B4-16 | AI'ın web'den bulduğu üçüncü kişi e-postaları süresiz saklanıyor | Bölüm 13 (KVKK saklama süresi) |
+| B4-17 | Özel talepte otomatik keşif kapalı kuralı sunucuda zorlanmıyor | etki yalnız alıcının kendisine öneri |
+| B4-18 | Davet önizlemesinde 30 günlük ömür yok | jeton zaten kayıtta bağlantı verir (daha güçlü yetki) |
+
+### RLS — canlıda var olan hata sınıfı (tarama sürüyor)
+
+4B, RLS açıkken (canlı 2026-09-17'den beri) firma bağlamlı istemcinin başka
+firmanın satırını GÖREMEDİĞİ yerler buldu — hepsi doğrulandı (politikalar
+staging `pg_policies`ten okundu: 29 tablo kısıtlı, 5 açık):
+
+| # | Önem | Belirti | Yer |
+|---|---|---|---|
+| R-1 | YÜKSEK | Pazarlıkta teklifçi yalnız kendi teklifini görür: "en iyi fiyat" kendi fiyatı, sırası hep 1 | `company-listings.service.ts` `computeAuctionView` (`listing_bids`) |
+| R-2 | YÜKSEK | Teklif verebilen tedarikçi talebin teslim adresini boş görür | `company-listings.service.ts` teklifçi detayı (`company_addresses`) |
+| R-3 | YÜKSEK | Panelde başka firmanın profil sayfasında ürün ızgarası boş, sayaç 0 | `company-connections.service.ts` `getProfile` (`company_items`) |
+| R-4 | ORTA | Cron yollarında `blockedCompanyIds` boş döner → engellenen firmaya kategori duyurusu/hatırlatma gider | `company_blocks` |
+| R-5 | ORTA | Çeviri bitince/admin onayında ürün SEO bildirimi (IndexNow + tazeleme) gitmez | `seo-index.service.ts` `productChanged` (`company_items`, bağlamsız) |
+
+Canlıda firma olmadığı için henüz kimse etkilenmedi. Bu sınıfın TAMAMI için
+tüm API'de sistematik tarama başlatıldı (3 paralel tarama: talep/sipariş ·
+admin/sistem · bağlantı/pazar yeri); sonuçlar gelince hepsi birlikte
+düzeltilecek.
