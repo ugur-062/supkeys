@@ -174,6 +174,33 @@ async function publicHeaders(explicit?: string): Promise<Record<string, string>>
   return { accept: "application/json", "accept-language": locale };
 }
 
+/**
+ * API KESİNTİSİ "BOŞ VERİ" DEĞİLDİR (yayın denetimi 2026-09-28 B1-1). Ağ hatası,
+ * 5xx ya da 429'da ANA veri çağrıları çalışma anında HATA atar: Next ISR
+ * yenilemesi hata görünce son iyi sürümü sunmaya devam eder (eskiden boş
+ * sürüm / `notFound()` 404 önbelleğe girip `revalidate` süresince kalıyordu —
+ * Googlebot için dolu sayfa 404 oluyordu). İlk çizimde hata sayfası (500,
+ * önbelleğe girmez). `next build` sırasında atılmaz: API kapalıyken (Render
+ * askısı) derleme boş sürümle çıkar, ilk ISR yenilemesi onarır. 404 ve diğer
+ * 4xx gerçek "yok"tur → yedek / `null`. İkincil bloklar (facet, öne çıkan,
+ * ilişkili, sayaç) yedekle kalır — tek uçtaki arıza sayfayı düşürmesin.
+ */
+export class PublicApiUnavailableError extends Error {
+  constructor(path: string, detail: string) {
+    super(`[pazar-yeri] ${path} → ${detail}`);
+    this.name = "PublicApiUnavailableError";
+  }
+}
+
+const isBuildPhase = () => process.env.NEXT_PHASE === "phase-production-build";
+const upstreamDown = (status: number) => status >= 500 || status === 429;
+
+/** Kesinti: çalışma anında at (son iyi sürüm kalsın), derlemede yedeğe düş. */
+function unavailable(path: string, detail: string, err?: unknown): void {
+  console.error(`[pazar-yeri] ${path} → ${detail}`, err ?? "");
+  if (!isBuildPhase()) throw new PublicApiUnavailableError(path, detail);
+}
+
 async function getJson<T>(
   path: string,
   fallback: T,
@@ -191,25 +218,49 @@ async function getJson<T>(
    * bağlamı olmayan yerde `getLocale` Türkçeye düşer. Verilmezse sayfanın dili.
    */
   locale?: string,
+  /** ANA veri: kesintide çalışma anında hata at (bkz. `PublicApiUnavailableError`). */
+  critical = false,
 ): Promise<T> {
   const base = resolveApiBaseUrl();
   if (!base) return fallback;
+  let res: Response;
   try {
-    const res = await fetch(`${base}${path}`, {
+    res = await fetch(`${base}${path}`, {
       ...(fresh ? { cache: "no-store" as const } : { next: { revalidate, tags } }),
       headers: await publicHeaders(locale),
     });
-    if (!res.ok) {
-      if (res.status !== 404) {
-        console.error(`[pazar-yeri] ${path} → HTTP ${res.status}`);
-      }
-      return fallback;
-    }
-    return (await res.json()) as T;
   } catch (err) {
-    console.error(`[pazar-yeri] ${path} çağrısı başarısız`, err);
+    if (critical) unavailable(path, "ağ hatası", err);
+    else console.error(`[pazar-yeri] ${path} çağrısı başarısız`, err);
     return fallback;
   }
+  if (!res.ok) {
+    if (critical && upstreamDown(res.status)) unavailable(path, `HTTP ${res.status}`);
+    else if (res.status !== 404) console.error(`[pazar-yeri] ${path} → HTTP ${res.status}`);
+    return fallback;
+  }
+  return (await res.json()) as T;
+}
+
+/**
+ * Tekil kayıt çağrısı: 404/4xx → `null` (sayfa `notFound()`), kesinti → hata
+ * (çalışma anında) — detay sayfası API kesintisinde 404'e dönmesin.
+ */
+async function getDetail<T>(path: string, init: RequestInit & { next?: { revalidate: number; tags?: string[] } }): Promise<T | null> {
+  const base = resolveApiBaseUrl();
+  if (!base) return null;
+  let res: Response;
+  try {
+    res = await fetch(`${base}${path}`, init);
+  } catch (err) {
+    unavailable(path, "ağ hatası", err);
+    return null;
+  }
+  if (!res.ok) {
+    if (upstreamDown(res.status)) unavailable(path, `HTTP ${res.status}`);
+    return null;
+  }
+  return (await res.json()) as T;
 }
 
 const EMPTY_PAGE: PublicListPage = {
@@ -250,7 +301,7 @@ function toQuery(params: ListParams): string {
 }
 
 export function fetchListings(params: ListParams = {}): Promise<PublicListPage> {
-  return getJson(`/public/listings${toQuery(params)}`, EMPTY_PAGE);
+  return getJson(`/public/listings${toQuery(params)}`, EMPTY_PAGE, undefined, undefined, false, undefined, /* critical */ true);
 }
 
 /**
@@ -261,22 +312,10 @@ export function fetchListings(params: ListParams = {}): Promise<PublicListPage> 
 export async function fetchListing(
   number: string,
 ): Promise<PublicListingDetail | null> {
-  const base = resolveApiBaseUrl();
-  if (!base) return null;
-  try {
-    const res = await fetch(
-      `${base}/public/listings/${encodeURIComponent(number)}`,
-      {
-        next: { revalidate: 120, tags: [SEO_TAGS.listing(number), SEO_TAGS.listings] },
-        headers: await publicHeaders(),
-      },
-    );
-    if (!res.ok) return null;
-    return (await res.json()) as PublicListingDetail;
-  } catch (err) {
-    console.error(`[pazar-yeri] ilan ${number} çağrısı başarısız`, err);
-    return null;
-  }
+  return getDetail<PublicListingDetail>(`/public/listings/${encodeURIComponent(number)}`, {
+    next: { revalidate: 120, tags: [SEO_TAGS.listing(number), SEO_TAGS.listings] },
+    headers: await publicHeaders(),
+  });
 }
 
 const EMPTY_FACETS: PublicFacets = {
@@ -303,7 +342,7 @@ export function fetchFacets(
 }
 
 export function fetchListingSitemap(page = 0): Promise<PublicSitemapRow[]> {
-  return getJson<PublicSitemapRow[]>(`/public/sitemap/listings?page=${page}`, [], 900, [SEO_TAGS.sitemap]);
+  return getJson<PublicSitemapRow[]>(`/public/sitemap/listings?page=${page}`, [], 900, [SEO_TAGS.sitemap], false, undefined, /* critical */ true);
 }
 
 /* ------------------------------------------------------------------ */
@@ -440,11 +479,8 @@ export async function fetchCompanyProfile(
   slug: string,
   opts: { fresh?: boolean } = {},
 ): Promise<PublicProfile | null> {
-  const base = resolveApiBaseUrl();
-  if (!base) return null;
-  try {
-    const res = await fetch(
-      `${base}/public/companies/${encodeURIComponent(slug)}`,
+  return getDetail<PublicProfile>(
+      `/public/companies/${encodeURIComponent(slug)}`,
       // SAHİBİN ÖNİZLEMESİ ÖNBELLEĞİ ATLAR (2026-09-17, kullanıcı: "kapak
       // fotoğrafı ekleyince önizlemede gözükmüyor"): sayfa ISR'ı 5 dk +
       // etiketle tazeleme; tazeleme kanalı (API → /api/seo/revalidate) sır
@@ -456,12 +492,7 @@ export async function fetchCompanyProfile(
           : { next: { revalidate: 300, tags: [SEO_TAGS.company(slug), SEO_TAGS.companies] } }),
         headers: await publicHeaders(),
       },
-    );
-    if (!res.ok) return null;
-    return (await res.json()) as PublicProfile;
-  } catch {
-    return null;
-  }
+  );
 }
 
 export interface PublicProductPage {
@@ -680,6 +711,10 @@ export function fetchPublicDirectory(params: PublicDirectoryParams = {}): Promis
     `/public/companies/directory${qs ? `?${qs}` : ""}`,
     { items: [], total: 0, page: 1, pageSize: 20 },
     300,
+    undefined,
+    false,
+    undefined,
+    /* critical */ true,
   );
 }
 
@@ -859,7 +894,7 @@ export function fetchProducts(
   if (params.page && params.page > 1) sp.set("page", String(params.page));
   const qs = sp.toString();
   // Ürün kalıcı içerik — ilandan uzun önbellek (uçtaki `s-maxage` ile aynı).
-  return getJson(`/public/products${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_INDEX, 300);
+  return getJson(`/public/products${qs ? `?${qs}` : ""}`, EMPTY_PRODUCT_INDEX, 300, undefined, false, undefined, /* critical */ true);
 }
 
 /**
@@ -912,6 +947,8 @@ export function fetchCompanyProducts(
     300,
     undefined,
     params.fresh,
+    undefined,
+    /* critical */ true,
   );
 }
 
@@ -950,11 +987,8 @@ export async function fetchProduct(
   companySlug: string,
   productSlug: string,
 ): Promise<{ product: PublicProduct; company: PublicProductCompany } | null> {
-  const base = resolveApiBaseUrl();
-  if (!base) return null;
-  try {
-    const res = await fetch(
-      `${base}/public/companies/${encodeURIComponent(companySlug)}/products/${encodeURIComponent(productSlug)}`,
+  return getDetail<{ product: PublicProduct; company: PublicProductCompany }>(
+      `/public/companies/${encodeURIComponent(companySlug)}/products/${encodeURIComponent(productSlug)}`,
       {
         // `company:<slug>` de var: firma adı/şehri/logosu değişince satıcı
         // bloğu bayat kalmasın (API firma değişiminde bu etiketi vurur).
@@ -964,16 +998,7 @@ export async function fetchProduct(
         },
         headers: await publicHeaders(),
       },
-    );
-    if (!res.ok) return null;
-    return (await res.json()) as {
-      product: PublicProduct;
-      company: PublicProductCompany;
-    };
-  } catch (err) {
-    console.error(`[urun] ${companySlug}/${productSlug} çağrısı başarısız`, err);
-    return null;
-  }
+  );
 }
 
 export interface ProductSitemapRow extends SitemapLastmods {
@@ -1013,17 +1038,10 @@ const EMPTY_BUCKET: SitemapBucket = { count: 0, lastmod: null };
  * önbellek. Bulunamazsa null → sayfa `notFound()`.
  */
 export async function fetchGeoCity(slug: string): Promise<GeoCity | null> {
-  const base = resolveApiBaseUrl();
-  if (!base) return null;
-  try {
-    const res = await fetch(`${base}/public/geo/cities/${encodeURIComponent(slug)}`, {
-      next: { revalidate: 86400 },
-      headers: await publicHeaders(),
-    });
-    return res.ok ? ((await res.json()) as GeoCity) : null;
-  } catch {
-    return null;
-  }
+  return getDetail<GeoCity>(`/public/geo/cities/${encodeURIComponent(slug)}`, {
+    next: { revalidate: 86400 },
+    headers: await publicHeaders(),
+  });
 }
 
 export function fetchSitemapSummary(): Promise<SitemapSummary> {
@@ -1032,13 +1050,16 @@ export function fetchSitemapSummary(): Promise<SitemapSummary> {
     { products: EMPTY_BUCKET, companies: EMPTY_BUCKET, listings: EMPTY_BUCKET, categories: [], productCities: [], companyCities: [], productCountries: [] },
     900,
     [SEO_TAGS.sitemap],
+    false,
+    undefined,
+    /* critical */ true,
   );
 }
 
 export function fetchCompanySitemap(page = 0): Promise<({ slug: string; updatedAt: string; locales?: string[] } & SitemapLastmods)[]> {
-  return getJson(`/public/sitemap/companies?page=${page}`, [], 900, [SEO_TAGS.sitemap]);
+  return getJson(`/public/sitemap/companies?page=${page}`, [], 900, [SEO_TAGS.sitemap], false, undefined, /* critical */ true);
 }
 
 export function fetchProductSitemap(page = 0): Promise<ProductSitemapRow[]> {
-  return getJson<ProductSitemapRow[]>(`/public/sitemap/products?page=${page}`, [], 900, [SEO_TAGS.sitemap]);
+  return getJson<ProductSitemapRow[]>(`/public/sitemap/products?page=${page}`, [], 900, [SEO_TAGS.sitemap], false, undefined, /* critical */ true);
 }
