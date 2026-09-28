@@ -1679,7 +1679,22 @@
       "weekly": {
         "subject": "Your company was viewed {n, plural, one {# time} other {# times}} this week",
         "body": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. See who looked on the Visitors page.",
-        "cta": "See visitors"
+        "cta": "See visitors",
+        "bodyFree": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days, {members, plural, one {# of them} other {# of them}} by Rothern member companies. Silver shows you which companies looked; with Silver you can also quote on public requests and appear in buyers' AI supplier suggestions.",
+        "bodyFreeAnon": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. With Silver, you see the names of companies that viewed your profile, quote on public requests and appear in buyers' AI supplier suggestions.",
+        "ctaFree": "Explore Silver",
+        "bodyUnverified": "Your profile and products were viewed {n, plural, one {# time} other {# times}} in the last 7 days. Verified companies stand out in buyers' lists, and only verified Silver and Gold companies appear in AI supplier suggestions. Verification is free and takes a few minutes.",
+        "ctaUnverified": "Get verified for free"
+      },
+      "verify_again": {
+        "subject": "Unverified companies don't appear in buyers' AI suggestions",
+        "body": "Buyers use AI supplier suggestions when they create requests, and only verified Silver and Gold companies are included. When you submit a quote, the buyer also sees you as an \"Unverified company\". Verification is free, uploading the documents takes a few minutes, and it's the only requirement for upgrading to Silver.",
+        "cta": "Get verified for free"
+      },
+      "silver": {
+        "subject": "Your company is verified — now get in front of buyers",
+        "body": "With Silver, you see and quote on public buying requests, appear in buyers' AI supplier suggestions and see the names of companies that viewed your profile.",
+        "cta": "Explore Silver"
       }
     },
     "zeroBid": {

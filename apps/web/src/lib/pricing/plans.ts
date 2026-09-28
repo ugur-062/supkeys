@@ -62,6 +62,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
       "“Doğrulanmış” rozeti ve dizinde öncelikli sıra",
       "Sınırsız ürün, ürün belgesi (PDF) ve video",
       "Herkese açık satın alma taleplerine sınırsız teklif",
+      "Alıcıların AI tedarikçi önerilerinde çıkma ve doğrudan talebe davet",
       "Bağlantı daveti gönderme ve bilgi taleplerinde alıcı kimliği",
       "Ziyaret Edenler ve İş Analizi",
       "Yapay zekâ: belgeden fiyatlama, AI ile talep arama",

@@ -1638,7 +1638,8 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   - **Platform keşfi** (`discoverRegistered`) yayın bildirimiyle AYNI eşleştirici
     (satış ana segment + `sellerSubCategoryIds`; eskiden alt kodu ana alanda
     arıyordu) + vitrinde kalemi SATAN firma (`productSearchClauses`, kalem başına)
-    + talebin görünürlük ülkesi. Kullanıcısız çekirdek `discoverRegisteredFor`
+    + talebin görünürlük ülkesi + YALNIZ Silver+ ∧ doğrulanmış (`ai-recommendable.ts`,
+    2026-09-28). Kullanıcısız çekirdek `discoverRegisteredFor`
     (yayın sonrası tur da çağırır; `country` + `alreadyInvited` döner).
   - **ÜYEYE DOĞRUDAN TALEP DAVETİ (2026-09-28, kullanıcı: "sistemimize
     kayıtlıysa ayrıca gösterelim, kategori veya kalem eşleşmesi var diye;
@@ -1662,8 +1663,20 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     INVITATION`, bağlam `listing_invitation_digest`, kategori özetinden AYRI
     e-posta); bu talep için zaten e-posta almış adrese (kategori duyurusu/davet)
     ikincisi GİTMEZ ve bekleyen CATEGORY_MATCH özet satırı düşer; uygulama içi
-    bildirim her zaman. Ücretsiz (STANDART) üye de davet edilebilir ve davetli
-    olduğu için Silver'sız teklif verir (davetli talep kuralı). Keşif turu
+    bildirim her zaman.
+  - **AI ÖNERİSİNE YALNIZ SILVER+ ∧ DOĞRULANMIŞ ÜYE (2026-09-28, kullanıcı:
+    "ücretsizleri Silver'a çekecek şeyler olmalı; gidip ücretsizi bedavaya davet
+    edip talebe sokmak saçma, doğrulanmamış firma; firma kendisi davet ederse
+    ayrı").** Tek kaynak `common/company/ai-recommendable.ts`
+    (`aiRecommendableWhere`/`isAiRecommendable`: efektif SILVER+ ∧ VERIFIED ∧
+    aktif ∧ askıda değil). Platform keşfi yalnız bunları önerir (eskiden
+    vitrini açık ücretsiz firma da adaydı); web'de adresi/sitesi eşleşen üye
+    bağlantılı değilse ve kurala uymuyorsa listeden DÜŞER (e-posta daveti de
+    gitmez); `inviteDiscoveredMembers` sunucuda aynı kuralla NOT_ELIGIBLE döner.
+    Bağlantılı firma kurala girmez (alıcı tanıyor); alıcının elle daveti
+    (bağlantı seçicisi, `addInvitations`) etkilenmez. Karşılığı Silver paket
+    kartında madde (`web.pricing.plans.silver.f4` "AI tedarikçi önerilerinde
+    çıkma ve doğrudan talebe davet"). Keşif turu
     (`DiscoveryRunsService.process`) platform üyelerini de önerir — model çağrısı
     YOK, AI kapalıyken/bütçe dolmuşken de (web yolu düşüp üye bulunduysa tur DONE
     + `error`); aday `status = MEMBER`, `memberCompanyId`, `matchedCategories`,
@@ -1718,13 +1731,25 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     fazlası `INVITATION` özeti).
   - **Karşılama serisi** (LIFECYCLE akışı, `lifecycle_<adım>`, tercih
     `lifecycle` — `prefKeyForType` `lifecycle_*` önekini eşler): profil (gün 1)
-    → ilk ürün (3) → doğrulama (7) → pazar (14, kategorisinde talep varsa);
+    → ilk ürün (3) → doğrulama (7) → pazar (14, kategorisinde talep varsa)
+    → ikinci doğrulama hatırlatması (21, hâlâ doğrulanmamışa; "AI önerilerine
+    yalnız doğrulanmış Silver/Gold girer, teklifte 'Doğrulanmamış firma'")
+    → Silver (24, YALNIZ doğrulanmış ücretsize — paket alımı doğrulama ister;
+    ücretliye gitmez; 2026-09-28);
     DAVRANIŞA BAĞLI (tamamlanan adım atlanır), firma başına günde bir, sahibe,
     yerel 10:00; 180 gündür giriş yoksa gitmez. Hizmet kullanımı iletisi
     (pazarlama izni aranmaz; çıkış her e-postada).
   - **Haftalık görünürlük özeti** (`lifecycle_weekly`): pazartesi yerel 10:00,
     son 7 günde görüntülenme varsa; son giriş 30+ gün → iki haftada bir,
-    90+ → dört haftada bir, 180+ → hiç.
+    90+ → dört haftada bir, 180+ → hiç. Üç sürüm (2026-09-28): ücretli →
+    Ziyaret Edenler; ücretsiz + doğrulanmamış (UNVERIFIED/REJECTED) → önce
+    ücretsiz doğrulama; ücretsiz + doğrulanmış/incelemede → "N görüntülemenin
+    M'i Rothern üyesi firmalardan, hangileri olduğunu Silver'da görün" (M =
+    kimlikli panel görüntülemesi) + Paketler.
+  - **Teklif anında doğrulama teşviki** (`components/company/verify-nudge.tsx`,
+    2026-09-28): doğrulanmamış/reddedilmiş firma teklif formunda ve talep
+    detayının teklif bölümünde "Teklifiniz alıcıya 'Doğrulanmamış firma' olarak
+    görünür" + "Ücretsiz doğrulan"; doğrulanmış/incelemedekine çizilmez.
   - **Teklifsiz talep** (`listing_zero_bid`, tercih `reminder`): kapanışa 12-72
     saat, hiç teklif yok → talebi AÇANA e-posta + uygulama içi, her biri BİR kez
     (bağlantı `?ai-davet=1` otomatik arama açıksa).

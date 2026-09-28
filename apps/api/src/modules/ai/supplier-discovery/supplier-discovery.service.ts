@@ -4,7 +4,12 @@ import { deriveCategoryMatchCandidates } from "../../../common/helpers/tender-ca
 import { PrismaBypassService, PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { AiService } from "../ai.service";
-import { anyPackageWhere } from "../../../common/company/effective-tier";
+import {
+  AI_RECOMMENDABLE_SELECT,
+  aiRecommendableWhere,
+  isAiRecommendable,
+} from "../../../common/company/ai-recommendable";
+import { isConnectionValid } from "../../../common/company/valid-connection";
 import { CATEGORY_NAME_SELECT, categoryName } from "../../../common/company/category-name";
 import { currentLocale } from "../../../common/i18n/locale-context";
 import { aiUiLanguageRule } from "../../../common/i18n/ai-language";
@@ -460,16 +465,50 @@ export class SupplierDiscoveryService {
     }
     const mxOk = new Map(mx);
     // Eşleşen üye bu talebe zaten davetliyse (bağlantı ya da AI yolu) işaretlenir.
-    const memberIds = [...new Set([...memberByEmail.values(), ...memberByHost.values()])];
-    const invitedMembers = new Set(
-      listingId && memberIds.length > 0
-        ? (
-            await db.listingInvitation.findMany({
-              where: { listingId, invitedCompanyId: { in: memberIds } },
-              select: { invitedCompanyId: true },
-            })
-          ).map((i) => i.invitedCompanyId)
-        : [],
+    const memberIds = [...new Set([...memberByEmail.values(), ...memberByHost.values()])].filter(
+      (id) => id !== companyId,
+    );
+    const [invitedRows, memberRows, memberConns] =
+      memberIds.length > 0
+        ? await Promise.all([
+            listingId
+              ? db.listingInvitation.findMany({
+                  where: { listingId, invitedCompanyId: { in: memberIds } },
+                  select: { invitedCompanyId: true },
+                })
+              : Promise.resolve([] as Array<{ invitedCompanyId: string }>),
+            db.company.findMany({
+              where: { id: { in: memberIds } },
+              select: { id: true, ...AI_RECOMMENDABLE_SELECT },
+            }),
+            db.companyConnection.findMany({
+              where: {
+                status: "ACTIVE",
+                OR: [
+                  { inviterCompanyId: companyId, inviteeCompanyId: { in: memberIds } },
+                  { inviteeCompanyId: companyId, inviterCompanyId: { in: memberIds } },
+                ],
+              },
+              select: {
+                inviterCompanyId: true,
+                inviteeCompanyId: true,
+                origin: true,
+                inviter: { select: { tier: true, membershipEndAt: true } },
+              },
+            }),
+          ])
+        : [[], [], []];
+    const invitedMembers = new Set(invitedRows.map((i) => i.invitedCompanyId));
+    // AI önerisine girebilen üye: bağlantılı ya da SILVER+ ∧ doğrulanmış
+    // (`ai-recommendable.ts`). Ücretsiz/doğrulanmamış bağlantısız üye listeden
+    // DÜŞER — kayıtlı olduğu için ona e-posta daveti de gitmez.
+    const connectedMembers = new Set(
+      memberConns
+        .filter((c) => isConnectionValid(c))
+        .map((c) => (c.inviterCompanyId === companyId ? c.inviteeCompanyId : c.inviterCompanyId)),
+    );
+    const recommendable = new Set(
+      memberRows.filter((r) => connectedMembers.has(r.id) || isAiRecommendable(r)).map((r) => r.id),
     );
 
     const out: AnnotatedCandidate[] = [];
@@ -486,6 +525,7 @@ export class SupplierDiscoveryService {
         memberByEmail.get(c.email) ?? (host ? memberByHost.get(host) : undefined) ?? null;
       // Platform üyesi kendi firmamız olamaz (kendi sitemizi bulduysa düşer).
       if (member === companyId) continue;
+      if (member && !recommendable.has(member)) continue;
       const status: CandidateStatus = member
         ? invitedMembers.has(member)
           ? "ALREADY_INVITED"
@@ -623,13 +663,11 @@ export class SupplierDiscoveryService {
     const rows = await this.reader.company.findMany({
       where: {
         id: { notIn: [...excluded] },
-        isActive: true,
-        isBlocked: false,
-        // Dalga B (P3/P4/P7'de üç kez kayıtlı INV-TIER-1 driftı): ham `tier`
-        // filtresi üyelik süresi DOLMUŞ firmayı da aday çıkarıyordu. TEK
-        // KAYNAK: anyPackageWhere (membershipEndAt farkında). 2026-09-06:
-        // profilini yayınlamış ÜCRETSİZ firma da aday.
-        AND: [{ OR: [anyPackageWhere(), { publicEnabled: true }] }],
+        // YALNIZ efektif SILVER+ ∧ doğrulanmış (2026-09-28, kullanıcı: "ücretsizi
+        // bedavaya davet edip talebe sokmak saçma, doğrulanmamış firma").
+        // Eskiden profilini yayınlamış ücretsiz firma da adaydı (2026-09-06).
+        // Bağlantılar zaten dışlı (yukarıda) — onlar talebi bağlantı yoluyla görür.
+        AND: [aiRecommendableWhere()],
         ...(targetCountries.length > 0 ? { country: { in: targetCountries } } : {}),
         OR: catOr,
       },

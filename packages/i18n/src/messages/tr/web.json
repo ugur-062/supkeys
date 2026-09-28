@@ -1788,10 +1788,11 @@
         "f1": "“Doğrulanmış” rozeti ve dizinde öncelikli sıra",
         "f2": "Sınırsız ürün, ürün belgesi (PDF) ve video",
         "f3": "Herkese açık satın alma taleplerine sınırsız teklif",
-        "f4": "Bağlantı daveti gönderme ve bilgi taleplerinde alıcı kimliği",
-        "f5": "Ziyaret Edenler ve İş Analizi",
-        "f6": "Yapay zekâ: belgeden fiyatlama, AI ile talep arama",
-        "f7": "4 satış koltuğu"
+        "f4": "Alıcıların AI tedarikçi önerilerinde çıkma ve doğrudan talebe davet",
+        "f5": "Bağlantı daveti gönderme ve bilgi taleplerinde alıcı kimliği",
+        "f6": "Ziyaret Edenler ve İş Analizi",
+        "f7": "Yapay zekâ: belgeden fiyatlama, AI ile talep arama",
+        "f8": "4 satış koltuğu"
       },
       "gold": {
         "name": "Gold",
@@ -4109,7 +4110,7 @@
         "summaryInSection1": "AI'ın bulduğu firmalar 1. bölümdeki listede.",
         "goToList": "Listeye git",
         "groupMembers": "Rothern'de kayıtlı",
-        "groupMembersLead": "Doğrudan talebinize davet edilir; uygulamada ve e-postayla haberdar olurlar. Bağlantınız olmaları gerekmez.",
+        "groupMembersLead": "Doğrulanmış Silver ve Gold üyeler. Doğrudan talebinize davet edilir; uygulamada ve e-postayla haberdar olurlar. Bağlantınız olmaları gerekmez.",
         "memberItems": "Kalem eşleşmesi: {items}",
         "memberCategories": "Kategori eşleşmesi: {categories}",
         "memberAlsoWeb": "Web'de de bulundu",
@@ -6795,6 +6796,11 @@
         "dun": "Dün {time}",
         "mesajGondermekRoluGerektirir": "Mesaj göndermek {role} rolü gerektirir — konuşmayı görüntülüyorsunuz."
       }
+    },
+    "verifyNudge": {
+      "title": "Teklifiniz alıcıya “Doğrulanmamış firma” olarak görünür",
+      "body": "Doğrulanmış firmalar alıcıların gözünde güven kazanır ve listelerde öne çıkar. Doğrulama ücretsizdir, birkaç dakika sürer ve Silver pakete geçmenin de tek şartıdır.",
+      "cta": "Ücretsiz doğrulan"
     }
   },
   "shared": {

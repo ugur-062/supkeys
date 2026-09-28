@@ -183,6 +183,48 @@ describe("haftalık görünürlük özeti", () => {
   });
 });
 
+describe("haftalık özet — ücretsiz firmaya Silver / doğrulama çağrısı (2026-09-28)", () => {
+  const monday = new Date("2026-10-05T07:10:00Z");
+  async function firm(tier: "STANDART" | "GOLD", status: "VERIFIED" | "UNVERIFIED", memberViews: number) {
+    const c = await makeCompanyWithUser(prisma, { country: "TR", tier, companyVerificationStatus: status });
+    await prisma.company.update({ where: { id: c.company.id }, data: { ownerUserId: c.user.id } });
+    await prisma.companyUser.update({ where: { id: c.user.id }, data: { lastLoginAt: new Date(monday.getTime() - DAY) } });
+    const viewer = await makeCompanyWithUser(prisma);
+    for (let i = 0; i < 3; i++) {
+      await prisma.companyView.create({
+        data: {
+          targetCompanyId: c.company.id,
+          viewerCompanyId: i < memberViews ? viewer.company.id : null,
+          surface: i < memberViews ? "PANEL" : "PUBLIC",
+          dedupeKey: `k${i}`,
+          viewedAt: new Date(monday.getTime() - (i + 1) * DAY),
+        },
+      });
+    }
+    return c;
+  }
+  const sentFor = (email: { send: jest.Mock }, to: string) =>
+    (email.send.mock.calls.map((c) => c[0]) as Array<{ to: { email: string }; templateData: { data: { paragraphs: string[]; ctaUrl: string } } }>).find(
+      (a) => a.to.email === to,
+    )!.templateData.data;
+
+  it("ücretli → ziyaretçiler; ücretsiz doğrulanmış → üye sayısı + Silver; ücretsiz doğrulanmamış → önce doğrulama", async () => {
+    const email = loggingEmail({ now: monday });
+    const svc = new EmailProgramsService(prisma as never, email as never, { get: () => "http://localhost:3000" } as never);
+    const paid = await firm("GOLD", "VERIFIED", 2);
+    const free = await firm("STANDART", "VERIFIED", 2);
+    const unverified = await firm("STANDART", "UNVERIFIED", 0);
+    expect(await svc.sendWeeklySummaries(monday)).toBe(3);
+    expect(sentFor(email, paid.user.email).ctaUrl).toBe("http://localhost:3000/company/sirketim/ziyaretciler");
+    const f = sentFor(email, free.user.email);
+    expect(f.ctaUrl).toBe("http://localhost:3000/company/premium");
+    expect(f.paragraphs[1]).toContain("2 tanesi Rothern üyesi firmalardan");
+    const u = sentFor(email, unverified.user.email);
+    expect(u.ctaUrl).toBe("http://localhost:3000/company/ayarlar/dogrulama");
+    expect(u.paragraphs[1]).toContain("yalnız doğrulanmış Silver ve Gold");
+  });
+});
+
 describe("teklifsiz talep hatırlatması", () => {
   it("kapanışa 12-72 saat + teklif yok → talebi açana e-posta + bildirim, BİR kez", async () => {
     const email = loggingEmail();

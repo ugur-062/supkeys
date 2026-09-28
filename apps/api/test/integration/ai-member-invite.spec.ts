@@ -149,6 +149,32 @@ describe("CompanyListingsService.inviteDiscoveredMembers", () => {
     expect(await prisma.listingInvitation.count({ where: { listingId: listing.id } })).toBe(1);
   });
 
+  it("ücretsiz ya da doğrulanmamış BAĞLANTISIZ üye AI yoluyla davet edilemez; bağlantılı ücretsiz üye edilir (2026-09-28)", async () => {
+    const { service } = makeService();
+    const { owner, listing } = await setup();
+    const free = await categorySeller("Ücretsiz AŞ");
+    await prisma.company.update({ where: { id: free.company.id }, data: { tier: "STANDART" } });
+    const unverified = await categorySeller("Belgesiz AŞ");
+    await prisma.company.update({ where: { id: unverified.company.id }, data: { companyVerificationStatus: "UNVERIFIED" } });
+    const connectedFree = await categorySeller("Bağlı Ücretsiz AŞ");
+    await prisma.company.update({ where: { id: connectedFree.company.id }, data: { tier: "STANDART" } });
+    await prisma.companyConnection.create({
+      data: {
+        inviterCompanyId: owner.company.id,
+        inviteeCompanyId: connectedFree.company.id,
+        status: "ACTIVE",
+        invitedById: owner.user.id,
+      },
+    });
+    const { results } = await service.inviteDiscoveredMembers(owner.auth, listing.id, [
+      free.company.id,
+      unverified.company.id,
+      connectedFree.company.id,
+    ]);
+    expect(results.map((r) => r.status)).toEqual(["NOT_ELIGIBLE", "NOT_ELIGIBLE", "INVITED"]);
+    expect(await prisma.listingInvitation.count({ where: { listingId: listing.id } })).toBe(1);
+  });
+
   it("günlük tavan e-posta davetleriyle ORTAK: 59 dış davet + 2 üye → 1 INVITED, 1 DAILY_LIMIT", async () => {
     const { service } = makeService();
     const { owner, listing } = await setup();

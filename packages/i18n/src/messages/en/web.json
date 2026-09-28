@@ -1788,10 +1788,11 @@
         "f1": "“Verified” badge and priority ranking in the directory",
         "f2": "Unlimited products, product documents (PDF) and video",
         "f3": "Unlimited quotes on public buying requests",
-        "f4": "Sending connection invitations and seeing the buyer's identity in inquiries",
-        "f5": "Visitors and Business Insights",
-        "f6": "AI: pricing from documents, AI request search",
-        "f7": "4 sales seats"
+        "f4": "Appear in buyers' AI supplier suggestions and get invited straight to requests",
+        "f5": "Sending connection invitations and seeing the buyer's identity in inquiries",
+        "f6": "Visitors and Business Insights",
+        "f7": "AI: pricing from documents, AI request search",
+        "f8": "4 sales seats"
       },
       "gold": {
         "name": "Gold",
@@ -4109,7 +4110,7 @@
         "summaryInSection1": "The companies AI found are in the list in section 1.",
         "goToList": "Go to list",
         "groupMembers": "Registered on Rothern",
-        "groupMembersLead": "They're invited straight to your request and notified in the app and by email. They don't need to be your contacts.",
+        "groupMembersLead": "Verified Silver and Gold members. They're invited straight to your request and notified in the app and by email. They don't need to be your contacts.",
         "memberItems": "Matches line items: {items}",
         "memberCategories": "Matches category: {categories}",
         "memberAlsoWeb": "Also found on the web",
@@ -6795,6 +6796,11 @@
         "dun": "Yesterday {time}",
         "mesajGondermekRoluGerektirir": "Sending messages requires the {role} role — you are only viewing this conversation."
       }
+    },
+    "verifyNudge": {
+      "title": "Buyers will see your quote as coming from an “Unverified company”",
+      "body": "Verified companies earn buyers' trust and stand out in their lists. Verification is free, takes a few minutes and is the only requirement for upgrading to Silver.",
+      "cta": "Get verified for free"
     }
   },
   "shared": {

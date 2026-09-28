@@ -23,6 +23,7 @@ import { GeneralInfoTab } from "@/components/tenders/general-info-tab";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import { TenderActionsMenu } from "@/components/tenders/tender-actions-menu";
 import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
+import { VerifyNudge } from "@/components/company/verify-nudge";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import {
   Table,
@@ -1603,6 +1604,8 @@ export default function ListingDetailPage() {
 
   const sellerBidSection = (
     <section className="space-y-3">
+      {/* Doğrulama teşviki (2026-09-28) — teklif verebilen doğrulanmamış firma. */}
+      {l.canBid && l.roleAllowsBid !== false && biddingOpen ? <VerifyNudge /> : null}
       {!l.canBid ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50 p-5">
           <Text className="text-sm text-amber-800">

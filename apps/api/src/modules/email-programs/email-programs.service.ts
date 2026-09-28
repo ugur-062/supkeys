@@ -8,7 +8,8 @@ import { resolveWebUrl } from "../../common/config/web-url";
 import { formatInviteDeadline } from "../../common/company/invite-delivery";
 import { listingTitleParam } from "../../common/notifications/notification-params";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
-import { looksLikeProse } from "@rothern/shared";
+import { looksLikeProse, tierAtLeast } from "@rothern/shared";
+import { effectiveTier } from "../../common/company/effective-tier";
 import { timeZoneForCountry } from "../../common/time/country-time-zone";
 import {
   digestDue,
@@ -229,6 +230,7 @@ export class EmailProgramsService {
         country: true,
         aboutText: true,
         tier: true,
+        membershipEndAt: true,
         companyVerificationStatus: true,
         onboardingCompletedAt: true,
         ownerUserId: true,
@@ -258,9 +260,11 @@ export class EmailProgramsService {
           distinct: ["listingId"],
         }),
       ]);
+      const free = !tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "SILVER");
       const step = nextLifecycleStep(
         {
           onboardedAt: c.onboardingCompletedAt,
+          paid: !free,
           hasProfileText: !!c.aboutText && looksLikeProse(c.aboutText),
           productCount,
           verification: c.companyVerificationStatus,
@@ -270,7 +274,6 @@ export class EmailProgramsService {
         now,
       );
       if (!step) continue;
-      const free = c.tier === "STANDART";
       if (await this.sendLifecycleEmail(c.id, owner, step, { matches: matches.length, free })) sent++;
     }
     return sent;
@@ -289,6 +292,8 @@ export class EmailProgramsService {
       first_product: { cta: "/company/satis/urunlerim?yeni=1" },
       verify: { cta: "/company/ayarlar/dogrulama" },
       market: { cta: p.free ? "/company/premium" : "/company/satis" },
+      verify_again: { cta: "/company/ayarlar/dogrulama" },
+      silver: { cta: "/company/premium" },
     }[step];
     const base = `api.notifications.lifecycle.${step}` as const;
     const bodyKey = (step === "market" && p.free ? `${base}.bodyLocked` : `${base}.body`) as ApiMessageKey;
@@ -327,9 +332,17 @@ export class EmailProgramsService {
     });
     if (views.length === 0) return 0;
     const countOf = new Map(views.map((v) => [v.targetCompanyId, v._count._all]));
+    // Üye firmaların (kimlikli, panel) görüntülemeleri — ücretsize "hangi
+    // firmalar olduğunu Silver'da görün" çağrısı için.
+    const memberViews = await this.prisma.companyView.groupBy({
+      by: ["targetCompanyId"],
+      where: { viewedAt: { gte: new Date(now.getTime() - 7 * DAY_MS) }, viewerCompanyId: { not: null } },
+      _count: { _all: true },
+    });
+    const membersOf = new Map(memberViews.map((v) => [v.targetCompanyId, v._count._all]));
     const companies = await this.prisma.company.findMany({
       where: { id: { in: [...countOf.keys()] }, isActive: true, isBlocked: false, ownerUserId: { not: null } },
-      select: { id: true, country: true, ownerUserId: true },
+      select: { id: true, country: true, ownerUserId: true, tier: true, membershipEndAt: true, companyVerificationStatus: true },
     });
     const week = weekIndexOf(now);
     let sent = 0;
@@ -350,8 +363,31 @@ export class EmailProgramsService {
       if (!owner || !this.lifecycleOn(owner) || !weeklySummaryAllowed(owner.lastLoginAt, now, week)) continue;
       const locale: Locale = isLocale(owner.locale) ? owner.locale : "tr";
       const n = countOf.get(c.id) ?? 0;
-      const t = (key: ApiMessageKey) => tApi(key, { n }, locale);
+      const members = membersOf.get(c.id) ?? 0;
+      const t = (key: ApiMessageKey) => tApi(key, { n, members }, locale);
       const subject = t("api.notifications.lifecycle.weekly.subject");
+      // Ücretli: ziyaretçi listesi. Ücretsiz + doğrulanmamış: önce doğrulama
+      // (paket alımının tek şartı). Ücretsiz + doğrulanmış/incelemede: Silver.
+      const free = !tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), "SILVER");
+      const unverified = c.companyVerificationStatus !== "VERIFIED" && c.companyVerificationStatus !== "PENDING";
+      const variant = !free ? "paid" : unverified ? "unverified" : "free";
+      const W = {
+        paid: {
+          body: "api.notifications.lifecycle.weekly.body",
+          cta: "api.notifications.lifecycle.weekly.cta",
+          path: "/company/sirketim/ziyaretciler",
+        },
+        free: {
+          body: members > 0 ? "api.notifications.lifecycle.weekly.bodyFree" : "api.notifications.lifecycle.weekly.bodyFreeAnon",
+          cta: "api.notifications.lifecycle.weekly.ctaFree",
+          path: "/company/premium",
+        },
+        unverified: {
+          body: "api.notifications.lifecycle.weekly.bodyUnverified",
+          cta: "api.notifications.lifecycle.weekly.ctaUnverified",
+          path: "/company/ayarlar/dogrulama",
+        },
+      }[variant] as { body: ApiMessageKey; cta: ApiMessageKey; path: string };
       try {
         const res = await this.email.send({
           to: { email: owner.email, name: owner.firstName },
@@ -362,9 +398,9 @@ export class EmailProgramsService {
             data: {
               subject,
               heading: subject,
-              paragraphs: [tApi(GREETING, undefined, locale), t("api.notifications.lifecycle.weekly.body")],
-              ctaLabel: t("api.notifications.lifecycle.weekly.cta"),
-              ctaUrl: `${this.web}${localizeAppPath("/company/sirketim/ziyaretciler", locale)}`,
+              paragraphs: [tApi(GREETING, undefined, locale), t(W.body)],
+              ctaLabel: t(W.cta),
+              ctaUrl: `${this.web}${localizeAppPath(W.path, locale)}`,
             },
           },
           context: { type: LIFECYCLE_WEEKLY_CONTEXT, id: c.id },

@@ -46,7 +46,7 @@ export function inLifecycleWindow(now: Date, timeZone: string): boolean {
   return zonedParts(now, timeZone).hour === LIFECYCLE_LOCAL_HOUR;
 }
 
-export type LifecycleStep = "profile" | "first_product" | "verify" | "market";
+export type LifecycleStep = "profile" | "first_product" | "verify" | "market" | "verify_again" | "silver";
 
 export interface LifecycleState {
   /** Onboarding bitiş anı (yoksa seri başlamaz). */
@@ -56,6 +56,8 @@ export interface LifecycleState {
   verification: "UNVERIFIED" | "PENDING" | "VERIFIED" | "REJECTED" | string;
   /** Son 14 günde kategorisine düşen talep sayısı (pazar adımı için). */
   recentMatches: number;
+  /** Efektif SILVER+ (Silver adımı ücretliye gitmez). */
+  paid: boolean;
   /** Daha önce gönderilmiş adımlar. */
   sent: ReadonlySet<LifecycleStep>;
 }
@@ -66,7 +68,14 @@ export const LIFECYCLE_DAYS: Record<LifecycleStep, number> = {
   first_product: 3,
   verify: 7,
   market: 14,
+  // 2026-09-28 (kullanıcı: "ücretsizleri Silver'a çekecek şeyler; doğrulamaya
+  // da teşvik"): hâlâ doğrulanmamışa ikinci hatırlatma, doğrulanmış ücretsize
+  // Silver'ın ne kazandırdığı. Seri 30 günlük pencerede.
+  verify_again: 21,
+  silver: 24,
 };
+
+const ORDER: readonly LifecycleStep[] = ["profile", "first_product", "verify", "market", "verify_again", "silver"];
 
 /**
  * Sıradaki karşılama e-postası — DAVRANIŞA BAĞLI: adım zaten tamamlandıysa
@@ -76,13 +85,18 @@ export const LIFECYCLE_DAYS: Record<LifecycleStep, number> = {
 export function nextLifecycleStep(s: LifecycleState, now: Date): LifecycleStep | null {
   if (!s.onboardedAt) return null;
   const days = (now.getTime() - s.onboardedAt.getTime()) / DAY_MS;
+  const verified = s.verification === "PENDING" || s.verification === "VERIFIED";
   const done: Record<LifecycleStep, boolean> = {
     profile: s.hasProfileText,
     first_product: s.productCount > 0,
-    verify: s.verification === "PENDING" || s.verification === "VERIFIED",
+    verify: verified,
     market: s.recentMatches === 0,
+    verify_again: verified,
+    // Paket alımı doğrulama ister → doğrulanmamışa Silver adımı henüz gitmez
+    // (doğrulanınca pencere içinde gider); ücretliye hiç gitmez.
+    silver: s.paid || s.verification !== "VERIFIED",
   };
-  for (const step of ["profile", "first_product", "verify", "market"] as const) {
+  for (const step of ORDER) {
     if (s.sent.has(step) || done[step]) continue;
     if (days >= LIFECYCLE_DAYS[step]) return step;
   }

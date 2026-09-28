@@ -31,6 +31,10 @@ function rig(opts: {
   invitedMembers?: string[];
   recent?: string[];
   hostCompanies?: Array<{ id: string; website: string }>;
+  /** AI önerisine giremeyen (ücretsiz/doğrulanmamış) üyeler; diğerleri SILVER + doğrulanmış. */
+  freeMembers?: string[];
+  /** Alıcının ACTIVE bağlantıları (firma kimliği). */
+  connectedTo?: string[];
   noMx?: string[];
 }) {
   const prisma = {
@@ -39,7 +43,29 @@ function rig(opts: {
     },
     company: {
       findUnique: jest.fn().mockResolvedValue({ country: "TR" }),
-      findMany: jest.fn().mockResolvedValue(opts.hostCompanies ?? []),
+      // İki çağrı: web sitesi eşleşmesi (hostCompanies) ve üyelerin AI önerisi
+      // kolonları (`AI_RECOMMENDABLE_SELECT`).
+      findMany: jest.fn(async (args: { select?: Record<string, unknown>; where?: { id?: { in?: string[] } } }) => {
+        if (!args?.select?.tier) return opts.hostCompanies ?? [];
+        return (args.where?.id?.in ?? []).map((id) => ({
+          id,
+          tier: opts.freeMembers?.includes(id) ? "STANDART" : "SILVER",
+          membershipEndAt: null,
+          companyVerificationStatus: opts.freeMembers?.includes(id) ? "UNVERIFIED" : "VERIFIED",
+          isActive: true,
+          isBlocked: false,
+        }));
+      }),
+    },
+    companyConnection: {
+      findMany: jest.fn().mockResolvedValue(
+        (opts.connectedTo ?? []).map((id) => ({
+          inviterCompanyId: "c1",
+          inviteeCompanyId: id,
+          origin: null,
+          inviter: { tier: "GOLD", membershipEndAt: null },
+        })),
+      ),
     },
     category: {
       findMany: jest.fn().mockResolvedValue([
@@ -200,6 +226,27 @@ describe("SupplierDiscoveryService.annotate — mükerrer davet koruması", () =
       ["Site üye", "MEMBER", false],
       ["A info", "SUGGESTED", false],
       ["Davetli üye", "ALREADY_INVITED", false],
+    ]);
+  });
+
+  it("ücretsiz/doğrulanmamış bağlantısız üye listeden DÜŞER (e-posta daveti de gitmez); bağlantılı ise üye olarak kalır", async () => {
+    const { service } = rig({
+      parsed: { companies: [] },
+      users: [
+        { email: "ucretsiz@x.com", companyId: "c5" },
+        { email: "bagli@x.com", companyId: "c6" },
+      ],
+      freeMembers: ["c5", "c6"],
+      connectedTo: ["c6"],
+    });
+    const out = await service.annotate("c1", "l1", [
+      { ...base, name: "Ücretsiz", email: "ucretsiz@x.com", website: null, country: "TR" },
+      { ...base, name: "Bağlı ücretsiz", email: "bagli@x.com", website: null, country: "TR" },
+      { ...base, name: "Kayıtsız", email: "yeni@firma.com", website: null, country: "TR" },
+    ]);
+    expect(out.map((c) => [c.name, c.status, c.memberCompanyId])).toEqual([
+      ["Bağlı ücretsiz", "MEMBER", "c6"],
+      ["Kayıtsız", "SUGGESTED", null],
     ]);
   });
 

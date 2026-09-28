@@ -56,6 +56,7 @@ import {
 } from "lucide-react";
 import { BidImportDialog, type BidImportApplyRow, type BidImportVariant } from "@/components/bids/bid-import-dialog";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { VerifyNudge } from "@/components/company/verify-nudge";
 import { tierAtLeast } from "@rothern/shared";
 import { Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
@@ -1018,6 +1019,10 @@ export default function TeklifVerPage() {
           </span>
         ) : null}
       </div>
+
+      {/* Doğrulama teşviki (2026-09-28): belgesiz firma teklif verirken alıcının
+          onu "Doğrulanmamış firma" olarak göreceğini öğrenir. */}
+      <VerifyNudge />
 
       {isRebidAfterLoss && l.myBid?.eliminationReason ? (
         <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">

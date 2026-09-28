@@ -36,8 +36,8 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
       where: { id: seg.company.id },
       data: { sellerCategoryIds: ["30000000"] },
     });
-    // STANDART ve profilini YAYINLAMAMIŞ (dizinde görünmez) — dönmemeli.
-    // (Profilini yayınlamış ücretsiz firma 2026-09-06'dan beri ADAY — aşağıdaki test.)
+    // STANDART — dönmemeli (2026-09-28: AI önerisine yalnız SILVER+ ∧ doğrulanmış
+    // üye girer; profilini yayınlamış ücretsiz firma da ARTIK aday değil).
     const std = await makeCompanyWithUser(prisma, { name: "Paketsiz", tier: "STANDART" });
     await prisma.company.update({
       where: { id: std.company.id },
@@ -150,5 +150,24 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
       targetCountries: ["DE"],
     });
     expect(onlyDe.candidates.map((c) => c.name)).toEqual(["DE GmbH"]);
+  });
+
+  it("AI önerisine YALNIZ SILVER+ ∧ doğrulanmış üye girer: vitrini açık ücretsiz firma ve doğrulanmamış Silver önerilmez (2026-09-28)", async () => {
+    const buyer = await makeCompanyWithUser(prisma);
+    const ok = await makeCompanyWithUser(prisma, { name: "Doğrulanmış Silver", tier: "SILVER" });
+    const free = await makeCompanyWithUser(prisma, { name: "Ücretsiz Vitrin", tier: "STANDART" });
+    const unverified = await makeCompanyWithUser(prisma, {
+      name: "Doğrulanmamış Silver",
+      tier: "SILVER",
+      companyVerificationStatus: "UNVERIFIED",
+    });
+    for (const c of [ok, free, unverified]) {
+      await prisma.company.update({
+        where: { id: c.company.id },
+        data: { sellerCategoryIds: ["30000000"], publicEnabled: true, slug: `s-${c.company.id}` },
+      });
+    }
+    const res = await svc().discoverRegistered(buyer.auth, { type: "ALIM", categoryIds: ["30991500"] });
+    expect(res.candidates.map((c) => c.name)).toEqual(["Doğrulanmış Silver"]);
   });
 });

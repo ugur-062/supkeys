@@ -5599,6 +5599,36 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "api.notifications.lifecycle.silver.body": {
+    "hash": "52398cf496",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "api.notifications.lifecycle.silver.cta": {
+    "hash": "fd38aa999b",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "api.notifications.lifecycle.silver.subject": {
+    "hash": "5180013b59",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "api.notifications.lifecycle.verify_again.body": {
+    "hash": "53485f0fbd",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "api.notifications.lifecycle.verify_again.cta": {
+    "hash": "4f3a0d82c1",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "api.notifications.lifecycle.verify_again.subject": {
+    "hash": "e4755724ee",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
   "api.notifications.lifecycle.verify.body": {
     "hash": "26d1d0cad9",
     "status": "reviewed",
@@ -5619,10 +5649,35 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "api.notifications.lifecycle.weekly.bodyFree": {
+    "hash": "d1014d7504",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "api.notifications.lifecycle.weekly.bodyFreeAnon": {
+    "hash": "23c891f2ce",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "api.notifications.lifecycle.weekly.bodyUnverified": {
+    "hash": "b352643572",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
   "api.notifications.lifecycle.weekly.cta": {
     "hash": "413c701de7",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "api.notifications.lifecycle.weekly.ctaFree": {
+    "hash": "fd38aa999b",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "api.notifications.lifecycle.weekly.ctaUnverified": {
+    "hash": "4f3a0d82c1",
+    "status": "reviewed",
+    "at": "2026-09-28"
   },
   "api.notifications.lifecycle.weekly.subject": {
     "hash": "a9b3238e53",
@@ -20084,26 +20139,6 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
-  "web.panel.requests.aiSuppliers.connect": {
-    "hash": "86c1fb8be9",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
-  "web.panel.requests.aiSuppliers.connectFailed": {
-    "hash": "348e389453",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
-  "web.panel.requests.aiSuppliers.connectSent": {
-    "hash": "98e9289b53",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
-  "web.panel.requests.aiSuppliers.connectSentToast": {
-    "hash": "af6697fe08",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
   "web.panel.requests.aiSuppliers.dismiss": {
     "hash": "3c92047542",
     "status": "reviewed",
@@ -20145,9 +20180,9 @@
     "at": "2026-09-27"
   },
   "web.panel.requests.aiSuppliers.groupMembersLead": {
-    "hash": "8959094b39",
+    "hash": "aa8017769e",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "web.panel.requests.aiSuppliers.groupOther": {
     "hash": "861fed125c",
@@ -20156,11 +20191,6 @@
   },
   "web.panel.requests.aiSuppliers.hideList": {
     "hash": "6ba483cf22",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
-  "web.panel.requests.aiSuppliers.inCatalog": {
-    "hash": "5ebff4ccf3",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -20206,16 +20236,6 @@
   },
   "web.panel.requests.aiSuppliers.memberItems": {
     "hash": "dd3edaf30c",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
-  "web.panel.requests.aiSuppliers.membersLead": {
-    "hash": "5da87f697f",
-    "status": "reviewed",
-    "at": "2026-09-27"
-  },
-  "web.panel.requests.aiSuppliers.membersTitle": {
-    "hash": "071c850c76",
     "status": "reviewed",
     "at": "2026-09-27"
   },
@@ -36694,6 +36714,21 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.verifyNudge.body": {
+    "hash": "05c4c99499",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "web.panel.verifyNudge.cta": {
+    "hash": "4f3a0d82c1",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "web.panel.verifyNudge.title": {
+    "hash": "2a51bb4fcb",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
   "web.pricing.note": {
     "hash": "94247f4fbf",
     "status": "reviewed",
@@ -36765,24 +36800,29 @@
     "at": "2026-09-23"
   },
   "web.pricing.plans.silver.f4": {
-    "hash": "7a993afef2",
+    "hash": "76c07cc8fe",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-28"
   },
   "web.pricing.plans.silver.f5": {
-    "hash": "6d7b1b5a93",
+    "hash": "7a993afef2",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "web.pricing.plans.silver.f6": {
-    "hash": "ea7a0e6f0b",
+    "hash": "6d7b1b5a93",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-28"
   },
   "web.pricing.plans.silver.f7": {
+    "hash": "ea7a0e6f0b",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "web.pricing.plans.silver.f8": {
     "hash": "5f22bebf66",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "web.pricing.plans.silver.name": {
     "hash": "8697f43205",

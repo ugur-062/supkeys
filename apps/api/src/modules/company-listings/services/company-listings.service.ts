@@ -109,6 +109,7 @@ import { PlaceBidDto } from "../dto/place-bid.dto";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { hasReadContext } from "../../../common/company/full-read-context";
 import { isConnectionValid } from "../../../common/company/valid-connection";
+import { AI_RECOMMENDABLE_SELECT, isAiRecommendable } from "../../../common/company/ai-recommendable";
 import { listingPreviewRowsByLocale, type PreviewRow } from "../../../common/company/listing-email-preview";
 import { INVITE_ITEM_PREVIEW, INVITE_TRANSLATION_WAIT_MS } from "../../../common/company/invite-delivery";
 import { reportToSentry } from "../../../instrument";
@@ -6826,11 +6827,17 @@ export class CompanyListingsService {
 
     const ids = [...new Set(companyIdsRaw)].filter((id) => id && id !== user.companyId).slice(0, COMPANY_DAILY_INVITE_CAP);
     const dayStart = utcDayStart(new Date());
-    const [blockedList, companies, existing, externalToday, memberToday] = await Promise.all([
+    const [blockedList, companies, existing, externalToday, memberToday, conns] = await Promise.all([
       this.blocks.blockedCompanyIds(user.companyId),
       this.bypass.company.findMany({
         where: { id: { in: ids }, isActive: true, isBlocked: false },
-        select: { id: true, country: true, sellerCategoryIds: true, sellerSubCategoryIds: true },
+        select: {
+          id: true,
+          country: true,
+          sellerCategoryIds: true,
+          sellerSubCategoryIds: true,
+          ...AI_RECOMMENDABLE_SELECT,
+        },
       }),
       this.bypass.listingInvitation.findMany({
         where: { listingId, invitedCompanyId: { in: ids } },
@@ -6840,8 +6847,29 @@ export class CompanyListingsService {
       this.bypass.listingInvitation.count({
         where: { origin: "AI", listing: { companyId: user.companyId }, createdAt: { gte: dayStart } },
       }),
+      this.bypass.companyConnection.findMany({
+        where: {
+          status: "ACTIVE",
+          OR: [
+            { inviterCompanyId: user.companyId, inviteeCompanyId: { in: ids } },
+            { inviteeCompanyId: user.companyId, inviterCompanyId: { in: ids } },
+          ],
+        },
+        select: {
+          inviterCompanyId: true,
+          inviteeCompanyId: true,
+          origin: true,
+          inviter: { select: { tier: true, membershipEndAt: true } },
+        },
+      }),
     ]);
     const blocked = new Set(blockedList);
+    // Bağlantısız üye yalnız SILVER+ ∧ doğrulanmışsa (`ai-recommendable.ts`).
+    const connected = new Set(
+      conns
+        .filter((c) => isConnectionValid(c))
+        .map((c) => (c.inviterCompanyId === user.companyId ? c.inviteeCompanyId : c.inviterCompanyId)),
+    );
     const byId = new Map(companies.map((c) => [c.id, c]));
     const already = new Set(existing.map((e) => e.invitedCompanyId));
     let budget = COMPANY_DAILY_INVITE_CAP - externalToday - memberToday;
@@ -6852,7 +6880,12 @@ export class CompanyListingsService {
     for (const id of ids) {
       const c = byId.get(id);
       if (already.has(id)) results.push({ companyId: id, status: "ALREADY_INVITED" });
-      else if (!c || blocked.has(id) || !countryCanSee(listing.targetCountries, c.country)) {
+      else if (
+        !c ||
+        blocked.has(id) ||
+        !countryCanSee(listing.targetCountries, c.country) ||
+        !(connected.has(id) || isAiRecommendable(c))
+      ) {
         results.push({ companyId: id, status: "NOT_ELIGIBLE" });
       } else if (budget <= 0) results.push({ companyId: id, status: "DAILY_LIMIT" });
       else {

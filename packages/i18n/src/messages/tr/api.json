@@ -1679,7 +1679,22 @@
       "weekly": {
         "subject": "Bu hafta firmanız {n, plural, other {# kez}} görüntülendi",
         "body": "Profiliniz ve ürünleriniz son 7 günde {n, plural, other {# kez}} görüntülendi. Kimlerin baktığını Ziyaret Edenler sayfasında görebilirsiniz.",
-        "cta": "Ziyaretçileri gör"
+        "cta": "Ziyaretçileri gör",
+        "bodyFree": "Profiliniz ve ürünleriniz son 7 günde {n, plural, other {# kez}} görüntülendi; bunların {members, number} tanesi Rothern üyesi firmalardan. Hangi firmaların baktığını Silver pakette görürsünüz; Silver'la herkese açık taleplere teklif verir ve alıcıların AI tedarikçi önerilerinde çıkarsınız.",
+        "bodyFreeAnon": "Profiliniz ve ürünleriniz son 7 günde {n, plural, other {# kez}} görüntülendi. Silver pakette profilinize bakan firmaların adlarını görür, herkese açık taleplere teklif verir ve alıcıların AI tedarikçi önerilerinde çıkarsınız.",
+        "ctaFree": "Silver'ı incele",
+        "bodyUnverified": "Profiliniz ve ürünleriniz son 7 günde {n, plural, other {# kez}} görüntülendi. Doğrulanmış firmalar alıcıların listelerinde öne çıkar; AI tedarikçi önerilerinde yalnız doğrulanmış Silver ve Gold firmalar yer alır. Doğrulama ücretsizdir ve birkaç dakika sürer.",
+        "ctaUnverified": "Ücretsiz doğrulan"
+      },
+      "verify_again": {
+        "subject": "Doğrulanmamış firmalar alıcıların AI önerilerinde çıkmıyor",
+        "body": "Alıcılar talep açarken AI tedarikçi önerilerini kullanıyor; bu önerilerde yalnız doğrulanmış Silver ve Gold firmalar yer alır. Teklif verdiğinizde de alıcı sizi \"Doğrulanmamış firma\" olarak görür. Doğrulama ücretsizdir, belgeleri yüklemek birkaç dakika sürer ve Silver pakete geçmenin de tek şartıdır.",
+        "cta": "Ücretsiz doğrulan"
+      },
+      "silver": {
+        "subject": "Firmanız doğrulandı — şimdi alıcıların önüne çıkın",
+        "body": "Silver pakette herkese açık alım taleplerini görür ve teklif verirsiniz, alıcıların AI tedarikçi önerilerinde çıkarsınız ve profilinize bakan firmaların adlarını görürsünüz.",
+        "cta": "Silver'ı incele"
       }
     },
     "zeroBid": {
