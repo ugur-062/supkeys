@@ -22,7 +22,7 @@
 | 2 | Otomatik testler | ✅ bitti |
 | 3 | Veritabanı ve migration'lar | ✅ bitti |
 | 4 | Yetki ve firma yalıtımı | ✅ bitti |
-| 5 | Uygulama güvenliği | ⏳ |
+| 5 | Uygulama güvenliği | ✅ bitti |
 | 6 | Çekirdek akışlar uçtan uca | ⏳ |
 | 7 | Zamanlanmış işler ve e-posta | ⏳ |
 | 8 | AI katmanı | ⏳ |
@@ -375,3 +375,42 @@ Açık kalan DÜŞÜK (backlog):
 - R-10: teklifçi bağlamında `blockedCompanyIds(sahip)` ve `inOwnerContext`
   bugün doğru ama kırılgan (bypass'a geçti; `inOwnerContext` çağıranı
   teklifçi olursa sessizce teklifçi bağlamında okur).
+
+---
+
+## Bölüm 5 — Uygulama güvenliği (✅ 2026-09-28)
+
+Yöntem: canlıya giden fark (`origin/production...HEAD`, 76 commit) yedi
+mercekle tarandı (enjeksiyon/toplu atama · SSRF/yönlendirme · XSS/başlık ·
+herkese açık uç ve kota kötüye kullanımı · kripto/yapılandırma/günlük · AI
+güven sınırı · istemci tarafı); her bulgu iki bağımsız şüpheciyle (kod gerçeği
++ sömürülebilirlik) doğrulandı, tamamlayıcı tur alt ajan sınırına takıldı.
+Doğrulayıcısı sınıra takılan 7 bulgu elle doğrulandı. Ham sonuç:
+`~/rothern-audit-2026-09-28/part5-appsec.{json,md}`. Her düzeltme testli;
+kırmızı/yeşil duyarlılığı eski koda karşı sınandı.
+
+| # | Önem | Bulgu | Düzeltme |
+|---|---|---|---|
+| B5-1 | YÜKSEK | Davet DTO'larında `ValidateIf` koşulları birbirine `=== undefined` ile bakıyordu: `{ emails: [...], invites: null }` iki alanın TÜM doğrulamasını atlatıyor, tek istek on binlerce adrese Rothern daveti attırabiliyordu; toplu davet gönderimi hazırlıktan SONRA olduğu için günlük 50 tavanı parti içinde sayılmıyordu (49 + 50 = 99) | gönderilen alan (null dahil) her zaman doğrulanır; serviste DTO'dan bağımsız 50 parti tavanı + parti içi rezervasyon (b448f201) |
+| B5-2 | YÜKSEK | İçerik çevirisi platformun Pro anahtarıyla, firma bütçesi/günlük tavan/eşzamanlılık sınırı olmadan koşuyordu; ücretsiz hesap ürün yayınla/geri çek döngüsüyle, profil kaydıyla ya da 5 MB'lık nitelik değeriyle sınırsız çağrı yaktırabiliyordu; aynı kaynakta başarısız çeviri her kayıtta sıfırlanıp yeniden deneniyordu | kaynak > 24.000 karakterde model çağrılmaz; firma başına 150 iş/gün + platform 20 USD/gün (env, 0 = durur); aynı kaynakta sayaç sıfırlanmaz; 4 eşzamanlı; nitelik değeri metin ≤200 / liste ≤50 (bb2cdf56) |
+| B5-3 | YÜKSEK | Ekip daveti: görüntüleme izinli davet koltuk tüketmez, yeniden gönderim beklemesiz → ücretsiz hesap rastgele adreslere (konuda kendi seçtiği firma adıyla) sınırsız e-posta, üstelik doğrulama kodu/şifre sıfırlama ile AYNI işlem göndereninden | firma başına günde 20 davet e-postası, aynı davete 10 dk'da bir; sayım e-posta kayıtlarından (3220c020) |
+| B5-4 | ORTA | Referral davet iptali satırı SİLİYORDU → günlük dış/referral tavanı, 7 günlük fren ve (cascade) gönderilmiş talep davetleri sıfırlanıyordu; sil-yeniden-gönder döngüsü | enum `CANCELLED` (migration `20260928170000`, eklemeli); iptal kuyruğu düşürür, jeton önizleme açmaz, yeniden davet aynı satırla (a6a31dbd) |
+| B5-5 | ORTA | Kayıt sonrası açık yönlendirme: `?redirect=/\evil.com` (ve sekme/satır sonlu yollar) `//` denetimini geçiyordu | `safeRedirect` sıkılaştı, kayıt niyetinin kopyası tek kaynağa bağlandı (b448f201) |
+| B5-6 | ORTA | Dış site çekimi (profil AI doldurma, marka bilgisi, görsel): zamanlayıcı gövde okunmadan temizleniyor, gövde tamamen belleğe alınıyordu; SSRF kapısı host metnine kalıpla bakıyordu (`[::ffff:127.0.0.1]`, `[::]`, `localhost.`, özel IP'ye çözülen alan adı geçiyordu) | akışlı okuma + bayt tavanı + süre; IP-literal normalizasyonu + her adımda DNS çözümlemesi (66e7628c). DNS rebinding'i tam kapatmak özel HTTP ajanı ister — bilinçli sınır |
+| B5-7 | ORTA | B4-7 eksikti: pino serileştiricisi `query`yi de yazıyor, API Sentry'si `query_string`/`url`i maskesiz gönderiyordu → `?ref=`/`?t=` jetonları günlükte/Sentry'de | aynı jeton kuralı sorgu nesnesi ve ham sorgu dizesine (a2b16b18) |
+| B5-8 | ORTA | Herkese açık uçlar `s-maxage` taşıyor, yanıt `Accept-Language`a göre değişiyor, `Vary` yalnız geo ucundaydı | `LocaleMiddleware` her yanıta `Vary: Accept-Language` (344bf634). **Operatör (Bölüm 14):** Cloudflare `Vary`'yi anahtara katmaz — `api.rothern.com/api/public/*` için önbellek kuralı OLMADIĞI teyit edilmeli |
+| B5-9 | DÜŞÜK | Web: Rusça davet yolu (`/ru/kompaniya/priglashenie/<jeton>`) Sentry'den süzülmüyordu; `/api/client-error` tavanı istemcinin gönderdiği `cf-connecting-ip` ile atlatılabiliyordu; çıkış hızlı talep taslağını / AI'ın bulduğu adresleri / davet ön doldurmayı silmiyordu (ortak bilgisayarda sonraki hesaba) | yerelleştirilmiş yollar süzülür, sunucu da süzer; IP Vercel başlığından + toplam tavan; çıkış ve kullanıcı değişiminde firma verisi silinir (1343f135) |
+| B5-10 | DÜŞÜK | Sitemap'te XML'de yasak karakter tüm parçayı bozuyordu; OG kartı dış görsel adresini sunucudan çekiyordu; soğuk davet env'inde `0` yok sayılıyordu | (51d1359b) |
+
+### Açık kalan (backlog, gerekçeli)
+
+| # | Bulgu | Neden şimdi değil / sahibi |
+|---|---|---|
+| B5-11 (ORTA→Bölüm 8) | AI keşfi üye eşleşmesi üyenin DÜZENLENEBİLİR `website`ına bakıyor: Silver+ doğrulanmış bir üye sitesini rakibin alan adına çevirirse AI'ın bulduğu rakip adayı "Rothern'de kayıtlı: <saldırgan>" olur ve davet saldırgana gider (tek doğrulayıcı onayı) | alıcı adı görüyor; kalıcı çözüm alan adı sahipliği doğrulaması — Bölüm 8'de karar |
+| B5-12 (Bölüm 8/13) | DE/CA önceden onay kapısı modelin `country` etiketine dayanıyor (etiket yoksa geçiyor) | hukuk görüşü bekleniyor; e-posta uzantısı yedeği Bölüm 13 ile |
+| B5-13 | Çeviri istemi içerik için "veri, talimat değil" çerçevesi taşımıyor; model kaynak dili yanlış bildirirse TR sayfada moderasyondan geçmemiş çeviri görünebilir | moderatör gözden kaçırması gerekir; istem sürümü artırılmadan Bölüm 8'de ele alınacak |
+| B5-14 | Keşif günlük USD tavanı başarısız/süren turları saymıyor; soğuk davet ısınması takvim haftasıyla ikiye katlanıyor (gönderilen hacimle değil) | tavan zaten 15 USD; hacim Bölüm 7 ölçümünde |
+| B5-15 | E-posta adres normalizasyonu harfi harfine (`+etiket`, Gmail noktası) — çıkış/fren adres bazlı | alıcı kendi eşdeğer adresine yeniden çıkış verebilir; Bölüm 7 |
+| B5-16 (Bölüm 14) | `EMAIL_FROM_ADDRESS_INVITE` boşsa soğuk davet işlem göndereninden gider; çıkış jetonu anahtarı `JWT_SECRET`ten türer (döndürülürse gönderilmiş çıkış bağlantıları kırılır) | operatör env matrisi |
+| B5-17 (Bölüm 13) | Soğuk davet/bastırma günlük satırları üçüncü kişi adresini yazıyor | KVKK saklama kararıyla birlikte |
+| — | `source` istemciden (B4-12), bağlantıyı açan adresin fren muafiyeti | bilinen tasarım kararları (Bölüm 4) |
