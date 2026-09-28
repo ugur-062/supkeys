@@ -24,7 +24,7 @@
 | 4 | Yetki ve firma yalıtımı | ✅ bitti |
 | 5 | Uygulama güvenliği | ✅ bitti |
 | 6 | Çekirdek akışlar uçtan uca | ✅ bitti |
-| 7 | Zamanlanmış işler ve e-posta | ⏳ |
+| 7 | Zamanlanmış işler ve e-posta | ✅ bitti |
 | 8 | AI katmanı | ⏳ |
 | 9 | Çok dillilik | ⏳ |
 | 10 | SEO/GEO | ⏳ |
@@ -188,7 +188,7 @@ lockfile'dan sapabilir → Bölüm 1'de değerlendirilecek.
 | B0-1 | ENGEL | Canlı + staging API askıda (503) | operatör — Render faturası (1 Ekim) |
 | B0-2 | ORTA | CLAUDE.md "main → canlı" ve "15 cron" bayat | ✅ düzeltildi |
 | B0-3 | bilgi | Migration'lar API açılışında otomatik → yedek birleştirmeden önce | Bölüm 15 runbook |
-| B0-4 | DÜŞÜK | `company-views` 2 cron sarmalayıcısız | Bölüm 7 |
+| B0-4 | DÜŞÜK | `company-views` 2 cron sarmalayıcısız | ✅ Bölüm 7 (4b8d56cb) |
 | B0-5 | DÜŞÜK | Vercel kurulumu frozen değil | Bölüm 1 |
 | B0-6 | DÜŞÜK | Staging admin `NEXT_PUBLIC_WEB_URL` yok | operatör (Vercel preview env) |
 
@@ -451,3 +451,32 @@ yönlendirildi; yerel yığın betikleri `~/rothern-audit-2026-09-28/e2e-local/`
 
 Not: e-posta içerik e2e'si (`staging-email-content`) gerçek Resend teslimatı
 ölçtüğü için yerelde koşulmadı; performans e2e'si Bölüm 11'de.
+
+---
+
+## Bölüm 7 — Zamanlanmış işler ve e-posta (✅ 2026-09-29)
+
+Kanıt: Bölüm 6'nın yerel canlı-kablolu yığını **~10 saat kesintisiz** koştu
+(RLS açık, staging kopyası). Cron kaydı (`GET admin/system`) ve API günlüğü
+tarandı; sahte Resend'e düşen **206 e-posta** tek tek ayrıştırıldı.
+
+| Kontrol | Sonuç |
+|---|---|
+| Cron sağlığı | ✅ 15 kayıtlı işte **0 hata**; dakikalık işler 340 koşum, `emailPrograms.tick` 22, `ai.reapStaleReservations` 68 (beklenen tempolar). Kayıtta görünmeyenler: günlük işler (henüz tetik saati gelmedi), çeviri süpürücüsü (AI kapalı), `company-views` ×2 (B0-4 — düzeltildi) |
+| 19 `@Cron` işinin hepsi `trackCronRun`dan | ✅ (B0-4 sonrası) — kilit + kayıt + Sentry |
+| E-posta içerik taraması (206) | ✅ çözülmemiş anahtar / `{yer tutucu}` / `undefined`·`NaN`·`null` / `[object Object]` **0**; EN e-postalardaki Türkçe sözcükler yalnız alıcının KENDİ talep başlığı (kural gereği ham) |
+| Şablon kataloğu × 3 dil | ✅ 5 şablon (+ hatırlatma sürümü) TR/EN/RU çizildi: 18 çizimde anahtar/yer tutucu/Türkçe kalıntı 0. Bildirim metinleri API kataloğunda → i18n kapısı (EN/RU %100, yer tutucu paritesi) |
+| Akış ↔ çıkış başlığı | ✅ işlem e-postalarında (doğrulama kodu, sipariş/ödeme, kazanma, moderasyon/doğrulama kararı) `List-Unsubscribe` YOK; kapatılabilir bildirimlerde (kapanış, davet, kategori eşleşmesi, akşam özeti, teklifsiz talep, AI önerisi) VAR + One-Click |
+| Günlük program | ✅ akşam kategori özeti ("Bugün kategorinizde N talep daha açıldı"), teklifsiz talep hatırlatması, AI öneri e-postası (10 dk) yerel saatte üretildi |
+| Uyarılar | yalnız 2 tür: KYC belgesi silinemedi (kova nesne kilidi → Bölüm 13) ve TCMB'de BGN yok (B7-2) |
+
+### Bölüm 7 bulguları
+
+| # | Önem | Bulgu | Durum |
+|---|---|---|---|
+| B7-1 | ORTA (test altyapısı) | Staging e2e tavan-yarışı temizliği her koşumda ~50 ürünü tek tek "düzeltmeye gönderiyordu" → **koşum başına 50 e-posta**, staging Resend kotasının (günde 100) yarısı. Ücretsiz tavan 10→50 çıkınca yorumdaki "normalde 1" varsayımı bayatlamıştı | ✅ toplu onay (firma başına tek bildirim) + vitrinden çekme → koşum başına 1 e-posta (a737ea0b) |
+| B7-2 | ORTA | **BGN**: Bulgaristan 2026-01-01'de avroya geçti, TCMB BGN yayınlamıyor → gösterim bayat yedek kurla (18,9) %34 düşük çeviriyor, para yolu taze kur bulamayıp BGN teklifini reddediyordu | ✅ TCMB vermezse BGN = EUR / 1,95583 (sabit kur) (792654fc) |
+| B7-3 | DÜŞÜK | Yedek kur tablosu "USD≈34" ölçeğinde, ~%30 bayat — canlı DB boş açıldığında ilk kur çekimine dek gösterim bunlarla | ✅ 2026-09-28 TCMB değerleri (792654fc) |
+| B0-4 | DÜŞÜK | `company-views` `purge` + `replyTimes` sarmalayıcısız | ✅ (4b8d56cb) |
+| B7-4 (Bölüm 13) | bilgi | Staging R2 kovasında nesne kilidi: yenilenen KYC belgesinin eskisi silinemiyor ("locked by the bucket policy") — bilinçli yasal saklama mı, canlıda da aynı mı? | hukuk/KVKK saklama kararıyla |
+| B6-4 → Bölüm 9 | karar | "Satın alma talebi" ifadesi API kataloğunda ~80 yerde (satış tarafı bildirimleri, dış davet e-postaları, hata mesajları) — CLAUDE.md "satış tarafına talep" kuralıyla çelişiyor; tek tek kusur değil, ürün dili kararı | kullanıcıya sorulacak (Bölüm 9) |
