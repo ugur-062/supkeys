@@ -21,7 +21,7 @@
 | 1 | Derleme ve statik kapılar | ✅ bitti |
 | 2 | Otomatik testler | ✅ bitti |
 | 3 | Veritabanı ve migration'lar | ✅ bitti |
-| 4 | Yetki ve firma yalıtımı | ⏳ |
+| 4 | Yetki ve firma yalıtımı | ✅ bitti |
 | 5 | Uygulama güvenliği | ⏳ |
 | 6 | Çekirdek akışlar uçtan uca | ⏳ |
 | 7 | Zamanlanmış işler ve e-posta | ⏳ |
@@ -273,7 +273,7 @@ staging yedeği: `~/rothern-backups/staging-before-launch-migrations-20260928.du
 
 ---
 
-## Bölüm 4 — Yetki, firma yalıtımı, gizlilik (⏳ RLS taraması sürüyor)
+## Bölüm 4 — Yetki, firma yalıtımı, gizlilik (✅ 2026-09-28)
 
 Yöntem: üç paralel inceleme (4A uç yetkileri · 4B RLS/bypass · 4C veri
 sızıntısı) + her bulgu kodda elle doğrulandı. Ayrıntılı raporlar oturum
@@ -345,8 +345,22 @@ Admin servislerinin tamamı zaten bypass kullanıyor — admin paneli temiz.
 | R-7 | DÜŞÜK | Cron yollarında bağlantı listesi boş (bugün başka süzgeçler örtüyor) | `connectedCompanyIds` bypass |
 | R-8 | DÜŞÜK | Bağlantı kartı ürün önizlemesi hep boş (web çizmiyor, asistan görüyor) | bypass |
 
-Birim paketi yeniden: 97 dosya / 979 test yeşil. **Açık:** kısıtlı rolle
-koşan regresyon testi (bu sekiz belirti için) Docker gelince yazılıp koşulacak.
+Birim paketi yeniden: 97 dosya / 979 test yeşil.
+
+**Regresyon testleri (✅):** `test/integration/rls-regression-{listings,profile,system}.spec.ts`
+— 33 test, servisler CANLI kablolamayla kurulur (PrismaService yuvasında kısıtlı
+`rothern_app` + RLS uzantısı, bypass yuvasında sahip istemci; `@Optional`
+bypass'lı servisler ve `SeoIndexService` gerçek `PrismaModule` DI'ıyla). Her
+test kanıt çifti: canlı kablolama doğru sonucu, iki yuvada kısıtlı istemci
+düzeltme öncesi belirtiyi (kendi fiyatı/sıra 1, boş adres, 500, boş ızgara,
+PENDING'de takılı onay, engelliye giden e-posta, hiç gitmeyen IndexNow)
+üretir. Görünürlük kapıları (auctionView, canBid, fatura adresi/vergi no,
+başka firmanın adres id'si, vitrini kapalı firma) SIZDIRMAZLIK testiyle
+kilitli. **Duyarlılık kanıtı:** b9ef1089'un 11 düzeltme noktası TEK TEK geri
+alındı → her birinde ilgili testler kırmızı (1–6 test), geri yüklenince 33/33
+yeşil. Tek istisna niteliğinde nokta: açık eksiltme özeti okuması (`englishAgg`)
+kullanıcıya görünür belirti üretmez (teklifçide `auctionView`dan ezilir, sahip
+politikanın sahip koluyla görür) → kablolama testiyle korunur.
 
 Açık kalan DÜŞÜK (backlog):
 - R-9: firma bağlamında `this.prisma.$transaction(async tx => …)` içindeki
