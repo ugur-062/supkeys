@@ -26,7 +26,7 @@
 | 6 | Çekirdek akışlar uçtan uca | ✅ bitti |
 | 7 | Zamanlanmış işler ve e-posta | ✅ bitti |
 | 8 | AI katmanı | ✅ bitti |
-| 9 | Çok dillilik | ⏳ |
+| 9 | Çok dillilik | ✅ bitti (1 ürün dili kararı bekliyor: B6-4) |
 | 10 | SEO/GEO | ⏳ |
 | 11 | Performans ve kapasite | ⏳ |
 | 12 | Arayüz ve erişilebilirlik | ⏳ |
@@ -511,4 +511,38 @@ staging Gemini anahtarıyla (Generative Language API) koşuldu.
 | B5-14 | DÜŞÜK | Keşif turu geçiş ortasında düşünce (ör. ayrıştırma) ödenmiş araştırma çağrısının maliyeti kayboluyor, günlük tavan saymıyordu | ✅ maliyet çağrı başına toplanır, hata dalında da tura yazılır (0338ae56). Süren tur sorunu yok (tek örnek, sıralı, cron kilidi). Isınmanın takvimle ikiye katlanması → Bölüm 11 |
 | B8-1 (Bölüm 14) | operatör | Model adları: varsayılanlar `gemini-flash-latest` / `gemini-pro-latest` Generative Language API'de çalışır, **Vertex'te `-latest` takma adları 404** (CLAUDE.md tuzağı). Canlı Vertex hizmet hesabıyla koşuyorsa `AI_MODEL_DEFAULT` / `AI_MODEL_VISION` / `AI_MODEL_PREMIUM` Vertex'in tanıdığı adlar olmalı (çeviri aday listesiyle kendini kurtarır, diğer özellikler kurtaramaz) | env matrisi (Bölüm 14) |
 | B8-2 (Bölüm 13) | hukuk | Model çağrıları Google'a gidiyor (Vertex `GEMINI_VERTEX_LOCATION` varsayılanı `global`): firma metinleri, yüklenen belgeler, asistan sohbeti yurt dışına aktarılıyor. Gizlilik politikası/aydınlatma metninde veri işleyen + yurt dışı aktarım olarak geçmeli; AB'de tutmak istenirse `europe-west*` konumu | Bölüm 13 |
+
+---
+
+## Bölüm 9 — Çok dillilik (✅ 2026-09-29)
+
+Kapsam: bu sürümle canlıya ilk kez çıkan i18n (Faz 0-4) — katalog kapısı,
+26 Eylül tam incelemesinden SONRA eklenen/değişen **1.231 anahtar** (web 794 ·
+api 339 · e-posta 91 · common 7) × EN/RU, ve yerel canlı-kablolu yığında
+EN/RU sayfa taraması (Playwright; 101 sayfa: herkese açık + arayüzden girişle
+40 panel sayfası × 2 dil; metin düğümleri + placeholder/aria-label/title/alt +
+`<title>`/meta, `lang="tr"` bloklar hariç).
+
+| Kontrol | Sonuç |
+|---|---|
+| `i18n:check` | ✅ EN %100 · RU %100 (eksik/bayat 0), yer tutucu paritesi, yasaklı terim, cırcır yeşil |
+| Sözlük kuralları (otomatik: EN quote/buying request/log in/Industry/ABD yazımı; RU ИИ/«Вы»/тариф/контакт; TR şifre/talebi) | ✅ yalnız aşağıdaki RU tutarsızlıkları; "tender" eşleşmeleri yer tutucu adı |
+| Çevrilmemiş metin sezgiseli (EN'de Türkçe harf, RU'da İngilizce sözcük, EN=TR) | ✅ yalnız özel adlar / bilinçli parantez içi belge adları |
+| Yeni e-posta + bildirim dizeleri (200) ve herkese açık dizeler (398) elle okundu | ✅ anlam/ton doğru; bulgular aşağıda |
+| Sayfa taraması — herkese açık EN/RU | ✅ Türkçe kalan yalnız VERİ: firma/ürün adları, çevirisi olmayan QA/demo kayıtları, işletmecinin künyesi, "Türkiye" (güncel İngilizce ad), "Tekirdağ" (EN'de Türkçe imla kuralı) — bir istisna B9-5 |
+| Sayfa taraması — panel EN/RU (arayüzden giriş) | ✅ Türkçe kalan: QA kullanıcı adları ("Kurucu Alıcı"), adresler, vergi dairesi, mesaj içerikleri, firmanın KENDİ profili (kural: kendi verisi ham). Bildirimler sayfası: bkz. bilinçli sınır |
+| i18n sözleşme testleri (web 11 dosya, i18n paketi 8 dosya) | ✅ |
+
+### Bölüm 9 bulguları
+
+| # | Önem | Bulgu | Durum |
+|---|---|---|---|
+| B9-1 | ORTA | RU'da sözlüğe aykırı "запрос на закупку" (12 dize: AI üye daveti e-postası, paylaşım, davet önizlemesi, e-posta tercihleri, Silver karşılama) — sözlük "satın alma talebi = заявка на закупку"; aynı e-posta/sayfada заявка/запрос karışıyordu. Rozet adı 5 yerde «Проверенная», kartlarda «Проверено». "Açık talepleri gör" CTA'sı "Открыть запросы" (fiil gibi okunuyor) | ✅ 23 RU dizesi (db38b598, ca740564: teklif ELEME "исключит") |
+| B9-2 | ORTA | Şifre politikası iki kural: kayıt/davet 10 karakter + özel karakter; şifre DEĞİŞTİRME/SIFIRLAMA 8 karakter, özel karaktersiz → kayıtta konan kural sıfırlamayla zayıflatılabiliyordu (Ayarlar'da ayrı kopya kontrol listesi de 8 diyordu) | ✅ dört DTO aynı kural (`password-policy-parity.spec`), web tek kaynak `usePasswordRules` / `PASSWORD_MIN_LENGTH` (9b15bb23). Mevcut şifreler etkilenmez |
+| B9-3 | DÜŞÜK | AI keşif penceresi "firma başına günde 20; aynı adrese bir kez gönderilir" diyordu — tavan 60, adres birden çok talebe davet edilebilir, haftada en fazla bir e-posta (özet) | ✅ metin gerçek kural + sayı sabitten `{limit}` (bf18d344) |
+| B9-4 | DÜŞÜK | Pazarlık hata mesajı `({fmt} {bidSym})` — CLAUDE.md'nin yasakladığı `{amount} {currency}` kalıbı (EN'de sembol sonda, TRY dışında ISO kodu) | ✅ `formatMoney` tek `{amount}` (ca740564) |
+| B9-5 | ORTA | **Başka firmanın sektörü çevrilmiyordu:** EN/RU ürün sayfasının satıcı kartı "Makine ve proses ekipmanı" basıyordu — firmanın EN çevirisi DONE iken. Aynı açık panel ürün detayı, bağlantı listesi, bağlantı önerileri ve sipariş karşı taraf profilinde (CLAUDE.md: çapraz-firma okuma = `localize*`) | ✅ `localizeIndustry` beş uca (1554a535; `cross-company-industry-locale.spec`, kırmızı/yeşil sınandı) |
+| B9-6 (Bölüm 13) | hukuk | KVKK onay satırı yurt dışı işleyen olarak yalnız "Supabase/Vercel/Resend" sayıyor — Google (AI/Vertex), Cloudflare (R2 depolama, CDN), Sentry, Render da kişisel veri işliyor (B8-2 ile birlikte) | Bölüm 13 |
+| bilinçli sınır | bilgi | Uygulama içi bildirim oluşturulduğu anda ALICININ o anki dilinde METİN olarak saklanır (`notifications.title/body`); kullanıcı dilini değiştirince eski bildirimler eski dilde kalır, yenileri yeni dilde gelir. Yeniden çizim için anahtar+parametre saklamak şema değişikliği ister — değer düşük | kayıt |
+| B6-4 | **karar** | Tedarikçiye giden bildirim/e-postalarda "satın alma talebi" (TR ~60 dize; EN "buying request", RU "заявка на закупку" zaten tutarlı). CLAUDE.md kuralı ("satış tarafına satın alma talebi demek TERSTİR") satış PORTALI etiketleri için yazılmış; bildirimde alıcının talebini anlatmak doğal Türkçe. Seçenekler: (a) olduğu gibi bırak · (b) tedarikçiye giden metinlerde ziyaretçi çerçevesi "alım talebi" · (c) düz "talep" | **kullanıcı kararı** — yalnız katalog, sonradan ucuz |
 
