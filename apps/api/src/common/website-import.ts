@@ -1,5 +1,7 @@
 import { i18nMessage } from "./i18n/http-i18n";
 import { BadRequestException } from "@nestjs/common";
+import { lookup } from "node:dns/promises";
+import { isIP } from "node:net";
 
 /**
  * Web sitesinden marka bilgisi çekme (OG meta + favicon) — SSRF korumalı.
@@ -23,6 +25,47 @@ export interface SiteMeta {
   text: string;
 }
 
+/**
+ * Özel/ayrılmış IP mi (IPv4 ya da IPv6; IPv4-eşlemeli IPv6 IPv4 gibi okunur).
+ * Yayın denetimi 2026-09-28 Bölüm 5: host metni kalıpla bakılıyordu —
+ * `[::ffff:127.0.0.1]`, `[::]`, `localhost.` ve özel IP'ye çözülen alan adları
+ * kapıdan geçiyordu.
+ */
+export function isPrivateAddress(ipRaw: string): boolean {
+  const ip = ipRaw.replace(/^\[|\]$/g, "").toLowerCase();
+  const v = isIP(ip);
+  if (v === 4) {
+    const [a, b] = ip.split(".").map(Number) as [number, number];
+    return (
+      a === 0 || a === 10 || a === 127 || a >= 224 ||
+      (a === 100 && b >= 64 && b <= 127) || // CGNAT
+      (a === 169 && b === 254) ||
+      (a === 172 && b >= 16 && b <= 31) ||
+      (a === 192 && b === 168) ||
+      (a === 192 && b === 0) ||
+      (a === 198 && (b === 18 || b === 19))
+    );
+  }
+  if (v === 6) {
+    const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(ip)?.[1];
+    if (mapped) return isPrivateAddress(mapped);
+    const hex = /^::ffff:([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(ip);
+    if (hex) {
+      const hi = parseInt(hex[1]!, 16);
+      const lo = parseInt(hex[2]!, 16);
+      return isPrivateAddress(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+    }
+    return (
+      ip === "::" || ip === "::1" ||
+      /^f[cd]/.test(ip) || // ULA fc00::/7
+      /^fe[89ab]/.test(ip) || // link-local fe80::/10
+      /^ff/.test(ip) || // multicast
+      ip.startsWith("64:ff9b:") // NAT64 → iç IPv4'e çevrilebilir
+    );
+  }
+  return false;
+}
+
 /** SSRF guard — sadece http(s), private/loopback host'lar bloklu. */
 export function assertPublicHttpUrl(raw: string): URL {
   let url: URL;
@@ -34,9 +77,12 @@ export function assertPublicHttpUrl(raw: string): URL {
   if (url.protocol !== "http:" && url.protocol !== "https:") {
     throw new BadRequestException(i18nMessage("api.common.sadeceHttpHttpsAdresleriDesteklenir"));
   }
-  const host = url.hostname.toLowerCase();
+  // Sondaki nokta (`localhost.`) çözümlemede aynı ada gider.
+  const host = url.hostname.toLowerCase().replace(/\.+$/, "");
   const blocked =
+    isPrivateAddress(host) ||
     host === "localhost" ||
+    host.endsWith(".localhost") ||
     host === "0.0.0.0" ||
     host.endsWith(".local") ||
     host.endsWith(".internal") ||
@@ -52,6 +98,71 @@ export function assertPublicHttpUrl(raw: string): URL {
     throw new BadRequestException(i18nMessage("api.common.buAdresCekilemez"));
   }
   return url;
+}
+
+/**
+ * Host bir alan adıysa çözümlenir; herhangi bir adresi özel ağdaysa ret.
+ * Çözümleme ile bağlantı arasında adres değişebilir (DNS rebinding) — tam
+ * kapatmak özel bir HTTP ajanı ister; bu kontrol dolaysız yolu kapatır.
+ */
+async function resolvesToPublic(url: URL): Promise<boolean> {
+  const host = url.hostname.replace(/^\[|\]$/g, "");
+  if (isIP(host)) return !isPrivateAddress(host);
+  try {
+    const addrs = await lookup(host, { all: true, verbatim: true });
+    return addrs.length > 0 && addrs.every((a) => !isPrivateAddress(a.address));
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Yanıt gövdesini bayt TAVANI ve toplam SÜRE sınırıyla okur (yayın denetimi
+ * 2026-09-28 Bölüm 5): `fetchPublicUrl` zamanlayıcısı gövde okunmadan
+ * temizleniyordu ve `arrayBuffer()` gövdeyi tamamen belleğe alıyordu — yavaş
+ * akan ya da dev bir sayfa isteği süresiz tutup belleği şişirebiliyordu.
+ * Tavan aşılırsa `truncate` ise ilk `maxBytes` döner, değilse `null`;
+ * süre dolarsa `null`.
+ */
+export async function readBodyCapped(
+  res: Response,
+  maxBytes: number,
+  opts: { timeoutMs?: number; truncate?: boolean } = {},
+): Promise<Buffer | null> {
+  const { timeoutMs = FETCH_TIMEOUT_MS, truncate = false } = opts;
+  const reader = res.body?.getReader();
+  if (!reader) return Buffer.alloc(0);
+  const chunks: Buffer[] = [];
+  let total = 0;
+  let timer: NodeJS.Timeout | undefined;
+  const deadline = new Promise<"timeout">((resolve) => {
+    timer = setTimeout(() => resolve("timeout"), timeoutMs);
+  });
+  try {
+    for (;;) {
+      const step = await Promise.race([reader.read(), deadline]);
+      if (step === "timeout") {
+        void reader.cancel().catch(() => undefined);
+        return null;
+      }
+      if (step.done) break;
+      const chunk = Buffer.from(step.value);
+      if (total + chunk.byteLength > maxBytes) {
+        void reader.cancel().catch(() => undefined);
+        if (!truncate) return null;
+        chunks.push(chunk.subarray(0, maxBytes - total));
+        total = maxBytes;
+        break;
+      }
+      chunks.push(chunk);
+      total += chunk.byteLength;
+    }
+    return Buffer.concat(chunks, total);
+  } catch {
+    return null;
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
@@ -85,6 +196,7 @@ export async function fetchPublicUrl(
   const t = setTimeout(() => ctrl.abort(), timeoutMs);
   try {
     for (let hop = 0; hop <= maxRedirects; hop++) {
+      if (!(await resolvesToPublic(url))) return null;
       const res = await fetch(url, {
         signal: ctrl.signal,
         redirect: "manual",
@@ -245,9 +357,9 @@ export async function fetchSiteMeta(website: string): Promise<SiteMeta> {
   if (len && len > MAX_HTML_BYTES) {
     throw new BadRequestException(i18nMessage("api.common.webSayfasiCokBuyuk"));
   }
-  const buf = Buffer.from(await res.arrayBuffer());
-  const html = buf.subarray(0, MAX_HTML_BYTES).toString("utf8");
-  return parseSiteMeta(html, url);
+  const buf = await readBodyCapped(res, MAX_HTML_BYTES, { truncate: true });
+  if (!buf) throw new BadRequestException(i18nMessage("api.common.webSitesineUlasilamadi"));
+  return parseSiteMeta(buf.toString("utf8"), url);
 }
 
 /** Görseli indir (SSRF + tip/boyut kontrolü). jpeg/png/webp dışını reddeder. */
@@ -266,8 +378,8 @@ export async function downloadImageBuffer(
   if (!ALLOWED_IMG.has(ct)) return null;
   const len = Number(res.headers.get("content-length") ?? "0");
   if (len && len > MAX_IMAGE_BYTES) return null;
-  const buffer = Buffer.from(await res.arrayBuffer());
-  if (buffer.byteLength === 0 || buffer.byteLength > MAX_IMAGE_BYTES) return null;
+  const buffer = await readBodyCapped(res, MAX_IMAGE_BYTES);
+  if (!buffer || buffer.byteLength === 0) return null;
   return { buffer, contentType: ct };
 }
 

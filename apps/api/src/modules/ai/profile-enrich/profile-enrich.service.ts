@@ -14,7 +14,7 @@ import { aiUiLanguageRule } from "../../../common/i18n/ai-language";
 import { currentLocale } from "../../../common/i18n/locale-context";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
-import { fetchPublicUrl } from "../../../common/website-import";
+import { fetchPublicUrl, readBodyCapped } from "../../../common/website-import";
 import { AuditService } from "../../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { AI_CONFIG, AI_PROVIDER_TOKEN, type AiConfig } from "../ai.config";
@@ -298,8 +298,10 @@ export class ProfileEnrichService {
         userAgent: "RothernBot/1.0 (+https://www.rothern.com)",
       });
       if (!res || !res.ok) return null;
-      const buf = Buffer.from(await res.arrayBuffer());
-      const html = buf.subarray(0, MAX_HTML_BYTES).toString("utf8");
+      // Gövde bayt tavanı + süre sınırıyla (yayın denetimi 2026-09-28 Bölüm 5).
+      const buf = await readBodyCapped(res, MAX_HTML_BYTES, { timeoutMs: FETCH_TIMEOUT_MS, truncate: true });
+      if (!buf) return null;
+      const html = buf.toString("utf8");
       const ogImage =
         /<meta[^>]+property=["']og:image["'][^>]+content=["']([^"']+)["']/i.exec(
           html,
