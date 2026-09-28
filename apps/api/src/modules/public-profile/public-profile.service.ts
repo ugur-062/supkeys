@@ -397,9 +397,7 @@ export class PublicProfileService {
     // Bu dilde çeviri henüz gelmediyse sayfa `noindex` basar (i18n SEO);
     // `readyLocales`/`sourceLocale` web hreflang'i ve `lang` özniteliği için.
     const translationPending = !state.readyLocales.includes(locale);
-    return {
-      product: { ...(localizedProduct ?? product), translationPending, ...state },
-      company: {
+    const sellerCard = {
         name: company.name,
         slug: company.slug,
         city: company.city,
@@ -416,7 +414,13 @@ export class PublicProfileService {
         foundedYear: company.foundedYear,
         employeeCount: company.employeeCount,
         certifications: company.certifications.slice(0, 4),
-      },
+    };
+    const [seller] = this.translations
+      ? await this.translations.localizeIndustry([sellerCard], [company.id], locale)
+      : [sellerCard];
+    return {
+      product: { ...(localizedProduct ?? product), translationPending, ...state },
+      company: seller,
     };
   }
 

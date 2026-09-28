@@ -1174,7 +1174,7 @@ export class CompanyConnectionsService {
       if (e.thumbnails.length < 3 && p.images[0]) e.thumbnails.push(p.images[0]);
       preview.set(p.companyId, e);
     }
-    return rows
+    const listed = rows
       .filter(
         // Bağlantı, onu KURAN (davet eden) taraf PAKET kaldığı sürece aktif —
         // hem PREMIUM hem INVITE için (ADMIN hariç: platform kararı, hep açık).
@@ -1219,6 +1219,14 @@ export class CompanyConnectionsService {
           decidedAt: r.decidedAt,
         };
       });
+    // Karşı firmanın sektörü okuyucunun dilinde (çapraz-firma okuma = localize*).
+    if (!this.translations) return listed;
+    const companies = await this.translations.localizeIndustry(
+      listed.map((l) => l.company),
+      listed.map((l) => l.company.id),
+      currentLocale(),
+    );
+    return listed.map((l, n) => ({ ...l, company: companies[n]! }));
   }
 
   /**
@@ -1368,7 +1376,10 @@ export class CompanyConnectionsService {
       ({ createdAt, ...rest }) => rest,
     );
 
-    return { locked: false as const, companies: scored };
+    const localized = this.translations
+      ? await this.translations.localizeIndustry(scored, scored.map((c) => c.id), currentLocale())
+      : scored;
+    return { locked: false as const, companies: localized };
   }
 
   /** Firma id'leri için bağlantı durumu haritası (kart/profil için). */

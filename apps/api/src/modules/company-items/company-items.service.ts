@@ -801,9 +801,7 @@ export class CompanyItemsService {
     const [localizedProduct] = this.translations
       ? await this.translations.localizeProducts([product], [row.id], currentLocale())
       : [product];
-    return {
-      product: localizedProduct,
-      company: {
+    const sellerCard = {
         name: company.name,
         slug: company.slug,
         city: company.city,
@@ -821,8 +819,11 @@ export class CompanyItemsService {
         certifications: company.certifications.slice(0, 4),
         // Üye katmanı: web sitesi bağlantısı (public sayfada kapılı).
         website: company.website,
-      },
     };
+    const [seller] = this.translations
+      ? await this.translations.localizeIndustry([sellerCard], [company.id], currentLocale())
+      : [sellerCard];
+    return { product: localizedProduct, company: seller };
   }
 
   /**

@@ -849,6 +849,26 @@ export class ContentTranslationService {
   }
 
   /**
+   * Başka firmanın SEKTÖRÜ (`industry`, serbest metin) okuyucunun dilinde —
+   * yalnız o alan değişir, yanıt şekli aynı kalır (`translatedFrom` eklenmez).
+   * Ürün sayfasının satıcı kartı, bağlantı listesi/önerileri ve sipariş karşı
+   * taraf profili kullanır (yayın denetimi 2026-09-28 Bölüm 9: EN sayfada
+   * sektör Türkçe kalıyordu, firmanın EN çevirisi hazır olduğu hâlde).
+   */
+  async localizeIndustry<T extends { industry?: string | null }>(
+    items: T[],
+    companyIds: (string | null | undefined)[],
+    locale: Locale,
+  ): Promise<T[]> {
+    const map = await this.safeMap<CompanyTranslation>("COMPANY", companyIds, locale);
+    return items.map((item, i) => {
+      const id = companyIds[i];
+      const t = id ? map.get(id) : undefined;
+      return t?.industry && item.industry ? { ...item, industry: t.industry } : item;
+    });
+  }
+
+  /**
    * Talep kartı/detayındaki alıcı firma SEKTÖRÜ (`company.industry`, serbest metin)
    * o firmanın kendi çevirisinden (COMPANY → `industry`) okunur; firma kimliği
    * yanıta girmez, yalnız arama anahtarıdır. Çeviri yoksa özgün kalır.

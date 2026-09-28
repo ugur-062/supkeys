@@ -55,6 +55,7 @@ import { expectedDeliveryFromTimes } from "../../../common/company/delivery-time
 import { reportToSentry } from "../../../instrument";
 import { appRoutes } from "../../../common/company/app-routes";
 import { currentLocale } from "../../../common/i18n/locale-context";
+import { ContentTranslationService } from "../../content-translation/content-translation.service";
 import {
   dateParam,
   formatMoney,
@@ -91,6 +92,7 @@ export class CompanyOrdersService {
     // işlemleri (accept/ship/complete/...) this.prisma (RLS-korumalı) kalır.
     private readonly bypass: PrismaBypassService,
     @Optional() private readonly realtime?: RealtimeService,
+    @Optional() private readonly translations?: ContentTranslationService,
   ) {}
 
   private webUrl(): string {
@@ -2134,6 +2136,10 @@ export class CompanyOrdersService {
     // Faz O — dar-bağlam okuma kapısı (listing getOne ile simetrik).
     await this.assertOrderReadContext(user, o);
     const other = o.sellerCompanyId === user.companyId ? o.buyer : o.seller;
+    const otherId = o.sellerCompanyId === user.companyId ? o.buyerCompanyId : o.sellerCompanyId;
+    const [{ industry: otherIndustry }] = this.translations
+      ? await this.translations.localizeIndustry([{ industry: other.industry }], [otherId], currentLocale())
+      : [{ industry: other.industry }];
 
     // S3: gösterim toplamları tek-kaynak reducer'dan (eskiden inline döngü
     // confirmedPaymentSum'ı re-derive ediyordu). Gösterim sınırında (.toFixed(2))
@@ -2150,7 +2156,8 @@ export class CompanyOrdersService {
       ...this.serialize(o, user.companyId),
       counterpartyProfile: {
         city: other.city,
-        industry: other.industry,
+        // Karşı firmanın sektörü okuyucunun dilinde (çapraz-firma okuma = localize*).
+        industry: otherIndustry,
         email: other.billingEmail,
         phone: other.billingPhone,
         rothernId: other.rothernId,
