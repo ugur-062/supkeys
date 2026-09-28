@@ -426,8 +426,8 @@ DB = migration'lı staging kopyası (Bölüm 3, 5440) · Auth = staging Supabase
 pazar yeri açık) · e-posta sahte Resend'e (`RESEND_BASE_URL`, gövdeler JSONL'de
 denetlendi) · AI kapalı (maliyet yok) · cron'lar çalışır. Staging e2e paketi
 (`e2e/staging-*.spec.ts`) `E2E_API_URL`/`PLAYWRIGHT_BASE_URL` ile bu yığına
-yönlendirildi; yerel koşu betiği `~/rothern-audit-2026-09-28/`… (oturum
-scratchpad'inde `run-e2e-local.sh`).
+yönlendirildi; yerel yığın betikleri `~/rothern-audit-2026-09-28/e2e-local/`
+(`start-api.sh`, `run-e2e-local.sh`, `mock-resend.mjs`, `walk-growth.mjs`).
 
 | Kapsam | Sonuç |
 |---|---|
