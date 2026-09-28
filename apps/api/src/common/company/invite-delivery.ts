@@ -54,6 +54,8 @@ export async function deliverInvite(
  * liste gönderebilir, ikincisi ertesi güne kalır (gönderen itibarı).
  */
 export const REFERRAL_DAILY_CAP = 50;
+/** Tek toplu davet isteğinde en fazla adres (DTO `@ArrayMaxSize` ile aynı; serviste de zorlanır). */
+export const REFERRAL_BATCH_MAX = 50;
 /** Aynı firmadan aynı adrese bu süre içinde ikinci davet GİTMEZ (ALREADY_INVITED). */
 export const REFERRAL_RESEND_COOLDOWN_DAYS = 7;
 /**

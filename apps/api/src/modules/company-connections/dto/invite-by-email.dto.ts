@@ -47,9 +47,14 @@ export class ReferralInviteTargetDto {
  * `invites` gönderir (API ÖNCE dağıtılır — `forbidNonWhitelisted`). İkisinden
  * biri ŞART (`ValidateIf`): boş gövde eskisi gibi doğrulamada 400 alır —
  * rol matrisi e2e'si yetkili rolde 400 bekler, servis kapısına (403) düşmez.
+ *
+ * Koşul "alan GÖNDERİLDİYSE (null dahil) ya da öteki yoksa doğrula"dır —
+ * yayın denetimi 2026-09-28 Bölüm 5: eski koşullar birbirine `=== undefined`
+ * ile bakıyordu; `{ emails: [...], invites: null }` iki alanın da TÜM
+ * doğrulamasını atlatıyor, 50 tavanı ve adres biçimi hiç çalışmıyordu.
  */
 export class InviteByEmailBatchDto {
-  @ValidateIf((o: InviteByEmailBatchDto) => o.invites === undefined)
+  @ValidateIf((o: InviteByEmailBatchDto) => o.emails !== undefined || o.invites == null)
   @IsArray()
   @ArrayMinSize(1, { message: () => tApi("api.dto.inviteByEmail.enAzBirEPostaGirin") })
   @ArrayMaxSize(50, { message: () => tApi("api.dto.inviteByEmail.tekSeferdeEnFazla50EPosta") })
@@ -57,7 +62,7 @@ export class InviteByEmailBatchDto {
   @MaxLength(200, { each: true })
   emails?: string[];
 
-  @ValidateIf((o: InviteByEmailBatchDto) => o.emails === undefined)
+  @ValidateIf((o: InviteByEmailBatchDto) => o.invites !== undefined || o.emails == null)
   @IsArray()
   @ArrayMinSize(1, { message: () => tApi("api.dto.inviteByEmail.enAzBirEPostaGirin") })
   @ArrayMaxSize(50, { message: () => tApi("api.dto.inviteByEmail.tekSeferdeEnFazla50EPosta") })
@@ -91,21 +96,22 @@ export class ExternalInviteRecipientDto {
  * Geriye uyumlu: eski istemci `emails`, yeni istemci alıcı başına dil/ülke
  * taşıyan `invites`; ikisinden biri şart. `source`: adres elle mi yazıldı
  * (hemen gider) yoksa AI keşfinden mi seçildi (alıcının mesai saatinde,
- * sıklık freniyle) — verilmezse MANUAL.
+ * sıklık freniyle) — verilmezse MANUAL. `ValidateIf` koşulu toplu davetteki
+ * gibi (null dahil gönderilen alan her zaman doğrulanır).
  */
 export class ExternalTenderInviteDto {
   @IsString()
   @MaxLength(40)
   listingId!: string;
 
-  @ValidateIf((o: ExternalTenderInviteDto) => o.invites === undefined)
+  @ValidateIf((o: ExternalTenderInviteDto) => o.emails !== undefined || o.invites == null)
   @IsArray()
   @ArrayMaxSize(60)
   @IsString({ each: true })
   @MaxLength(200, { each: true })
   emails?: string[];
 
-  @ValidateIf((o: ExternalTenderInviteDto) => o.emails === undefined)
+  @ValidateIf((o: ExternalTenderInviteDto) => o.invites !== undefined || o.emails == null)
   @IsArray()
   @ArrayMaxSize(60)
   @ValidateNested({ each: true })

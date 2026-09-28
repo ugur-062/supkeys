@@ -852,3 +852,55 @@ describe("F-CONN-1: getProfile ihale görünürlüğü — PRIVATE yalnız davet
     expect(prof.listings.map((l) => l.id)).toEqual([pub.id]);
   });
 });
+
+/**
+ * Yayın denetimi 2026-09-28 Bölüm 5: günlük referral tavanı (50) gönderim
+ * DENEMESİNDEN sayılır ama toplu davet önce tüm adresleri hazırlayıp SONRA
+ * gönderiyordu → hazırlık anında hiçbiri sayılmıyordu (49 + 50 = 99). DTO
+ * doğrulaması atlatıldığında da parti tavanı yoktu. İkisi serviste kapandı.
+ */
+describe("toplu e-posta daveti — günlük tavan ve parti tavanı (serviste)", () => {
+  async function seedSentToday(inviterCompanyId: string, invitedById: string, n: number) {
+    for (let i = 0; i < n; i++) {
+      const inv = await prisma.companyReferralInvite.create({
+        data: { inviterCompanyId, invitedById, email: `onceki${i}@firma.com` },
+      });
+      await prisma.emailLog.create({
+        data: {
+          template: "referral_invite",
+          toEmail: inv.email,
+          subject: "davet",
+          provider: "test",
+          status: "SENT",
+          contextType: "referral_invite",
+          contextId: inv.id,
+        },
+      });
+    }
+  }
+
+  it("bugün 49 davet gitmişse partideki 3 adresten YALNIZ 1'i gönderilir, kalanı DAILY_LIMIT", async () => {
+    const { service, email } = rig();
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await seedSentToday(a.company.id, a.user.id, 49);
+
+    const res = await service.inviteByEmailBatch(a.auth, ["y1@firma.com", "y2@firma.com", "y3@firma.com"]);
+
+    expect(res.results.map((r) => r.code)).toEqual(["SENT", "DAILY_LIMIT", "DAILY_LIMIT"]);
+    expect(res.summary.invited).toBe(1);
+    const referralSends = email.send.mock.calls.filter(
+      (c) => (c[0] as { templateData?: { template?: string } })?.templateData?.template === "referral_invite",
+    );
+    expect(referralSends).toHaveLength(1);
+  });
+
+  it("DTO atlatılsa bile tek istekte 50'den fazla adres reddedilir; hiçbir davet kaydı ya da e-posta oluşmaz", async () => {
+    const { service, email } = rig();
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const many = Array.from({ length: 51 }, (_, i) => `toplu${i}@firma.com`);
+
+    await expect(service.inviteByEmailBatch(a.auth, many)).rejects.toThrow(/50/);
+    expect(await prisma.companyReferralInvite.count({ where: { inviterCompanyId: a.company.id } })).toBe(0);
+    expect(email.send).not.toHaveBeenCalled();
+  });
+});

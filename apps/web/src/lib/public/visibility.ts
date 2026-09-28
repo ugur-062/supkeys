@@ -87,9 +87,16 @@ export function canSee<E extends Entity>(viewer: Viewer, entity: E, field: Field
   return RANK[viewer] >= RANK[need];
 }
 
-/** Yalnız site içi yol; açık yönlendirme yok. */
+/**
+ * Yalnız site içi yol; açık yönlendirme yok. Tarayıcılar yolda `\`'ı `/` sayar
+ * ve sekme/satır sonunu atar → `/\evil.com`, `/\t/evil.com` protokolsüz
+ * başka köke gider (yayın denetimi 2026-09-28 Bölüm 5: kayıt sonrası `/company`
+ * kökü böyle bir `?redirect=` ile siteden çıkarıyordu).
+ */
 export function safeRedirect(redirect?: string | null): string | null {
-  return redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : null;
+  if (!redirect || !redirect.startsWith("/") || redirect.startsWith("//")) return null;
+  // eslint-disable-next-line no-control-regex
+  return /[\\\u0000-\u001f\u007f]/.test(redirect) ? null : redirect;
 }
 
 /** Giriş bağlantısı — giriş sayfası `?next=` okur. */

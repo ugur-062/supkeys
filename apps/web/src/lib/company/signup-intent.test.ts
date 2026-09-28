@@ -25,6 +25,16 @@ describe("kayıt niyeti", () => {
     rememberSignupIntent("teklif", "https://kotu.example");
     expect(consumeSignupIntent()).toBe(SIGNUP_INTENTS.teklif.href);
   });
+  it("ters bölü / kontrol karakterli redirect siteden çıkaramaz (yayın denetimi 2026-09-28)", () => {
+    rememberSignupIntent("teklif", "/\\evil.com");
+    expect(consumeSignupIntent()).toBe("/company/satis#acik-talepler");
+    rememberSignupIntent("teklif", "/\t/evil.com");
+    expect(consumeSignupIntent()).toBe("/company/satis#acik-talepler");
+    // Depoya başka yoldan yazılmış değer de okunurken süzülür.
+    sessionStorage.setItem("rothern.signup-redirect", "/\\evil.com");
+    expect(consumeSignupIntent()).toBeNull();
+  });
+
   it("'ikisi de' hedef üretmez — panel varsayılanı", () => {
     rememberSignupIntent("ikisi");
     expect(consumeSignupIntent()).toBeNull();

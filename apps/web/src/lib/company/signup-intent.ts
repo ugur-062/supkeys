@@ -1,3 +1,5 @@
+import { safeRedirect } from "@/lib/public/visibility";
+
 /**
  * KAYIT NİYETİ — anasayfa CTA'sı ile kayıt sonrası ilk sayfa arasındaki köprü
  * (2026-09-04).
@@ -49,10 +51,8 @@ export function parseSignupIntent(raw: string | null | undefined): SignupIntent 
   return raw && raw in SIGNUP_INTENTS ? (raw as SignupIntent) : null;
 }
 
-/** Yalnız site içi yol; açık yönlendirme yok (visibility.ts ile aynı kural). */
-function safe(redirect?: string | null): string | null {
-  return redirect && redirect.startsWith("/") && !redirect.startsWith("//") ? redirect : null;
-}
+/** Yalnız site içi yol; açık yönlendirme yok — tek kural `safeRedirect`. */
+const safe = safeRedirect;
 
 export function rememberSignupIntent(intent: SignupIntent, redirect?: string | null) {
   try {

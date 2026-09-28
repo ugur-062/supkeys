@@ -50,6 +50,7 @@ import { hasValidConnection } from "../../../common/company/valid-connection";
 import { listingManageDenial } from "../../company-listings/listing-manage-access";
 import { affinityReasonTextThirdParty } from "../../company-affinity/company-affinity.service";
 import {
+  REFERRAL_BATCH_MAX,
   REFERRAL_DAILY_CAP,
   REFERRAL_RESEND_COOLDOWN_DAYS,
   deliverInvite,
@@ -243,6 +244,12 @@ export class CompanyConnectionsService {
     user: AuthenticatedCompanyUser,
     emailRaw: string,
     localeRaw?: string | null,
+    /**
+     * Aynı toplu istekte bu adresten ÖNCE gönderime ayrılmış davet sayısı.
+     * Gönderimler 2. aşamada yapıldığı için e-posta kaydı henüz yok; sayılmazsa
+     * gün içinde 49 davet atmış firma tek partide 50 daha atabiliyordu.
+     */
+    reservedInBatch = 0,
   ): Promise<
     | { kind: "request"; targetName: string }
     | { kind: "send"; email: string; inviteId: string; token: string; inviterName: string; locale: Locale }
@@ -343,7 +350,7 @@ export class CompanyConnectionsService {
               queuedAt: { gte: dayStart },
             },
           });
-    if (sentToday >= REFERRAL_DAILY_CAP) {
+    if (sentToday + reservedInBatch >= REFERRAL_DAILY_CAP) {
       throw new HttpException(
         i18nMessage(
           "api.companyConnections.gunlukDavetLimitineUlasildi",
@@ -788,6 +795,14 @@ export class CompanyConnectionsService {
     if (unique.length === 0) {
       throw new BadRequestException(i18nMessage("api.companyConnections.gecerliEPostaAdresiVerilmedi"));
     }
+    // DTO'dan BAĞIMSIZ parti tavanı (yayın denetimi 2026-09-28 Bölüm 5): DTO
+    // doğrulaması bir kez atlatılabildi ve tek istek on binlerce adrese
+    // e-posta attırabiliyordu. Tavan burada da durur.
+    if (unique.length > REFERRAL_BATCH_MAX) {
+      throw new BadRequestException(
+        i18nMessage("api.dto.inviteByEmail.tekSeferdeEnFazla50EPosta"),
+      );
+    }
 
     type BatchRow = {
       email: string;
@@ -803,7 +818,7 @@ export class CompanyConnectionsService {
     // 1) Kapılar + kayıtlar SIRAYLA (tavan sayımı doğru kalsın).
     for (const [index, email] of unique.entries()) {
       try {
-        const prep = await this.prepareReferralInvite(user, email, localeFor.get(email));
+        const prep = await this.prepareReferralInvite(user, email, localeFor.get(email), sends.length);
         if (prep.kind === "request") {
           results[index] = { email, status: "request", code: "REQUEST", targetName: prep.targetName };
         } else {

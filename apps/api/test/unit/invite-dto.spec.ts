@@ -61,3 +61,43 @@ describe("ExternalTenderInviteDto", () => {
     ).toContain("country");
   });
 });
+
+/**
+ * Yayın denetimi 2026-09-28 Bölüm 5: iki alanın `ValidateIf` koşulu birbirine
+ * `=== undefined` ile bakıyordu → `{ emails: [...], invites: null }` iki alanın
+ * da TÜM doğrulamasını atlatıyor, tek istek sınırsız adrese e-posta attırıyordu.
+ * Kural: GÖNDERİLEN alan (null dahil) her zaman doğrulanır.
+ */
+describe("davet DTO'ları — ValidateIf atlatması", () => {
+  const many = (n: number) => Array.from({ length: n }, (_, i) => `a${i}@x.com`);
+
+  it("toplu davet: `invites: null` emails doğrulamasını KAPATMAZ (tavan + biçim)", async () => {
+    expect(await errorsOf(InviteByEmailBatchDto, { emails: many(51), invites: null })).not.toHaveLength(0);
+    expect(await errorsOf(InviteByEmailBatchDto, { emails: ["adres-degil"], invites: null })).not.toHaveLength(0);
+    expect(await errorsOf(InviteByEmailBatchDto, { emails: many(20000), invites: null })).toContain("emails");
+  });
+
+  it("toplu davet: `emails: null` invites doğrulamasını KAPATMAZ; iki alan birden gönderilirse ikisi de doğrulanır", async () => {
+    expect(
+      await errorsOf(InviteByEmailBatchDto, { invites: many(51).map((email) => ({ email })), emails: null }),
+    ).not.toHaveLength(0);
+    expect(
+      await errorsOf(InviteByEmailBatchDto, { emails: [], invites: many(60).map((email) => ({ email })) }),
+    ).not.toHaveLength(0);
+    expect(await errorsOf(InviteByEmailBatchDto, { emails: ["a@b.com"], invites: [{ email: "x" }] })).not.toHaveLength(0);
+  });
+
+  it("toplu davet: yalnız null gövdeler reddedilir, geçerli tek alan yine geçer", async () => {
+    expect(await errorsOf(InviteByEmailBatchDto, { emails: null, invites: null })).not.toHaveLength(0);
+    expect(await errorsOf(InviteByEmailBatchDto, { emails: many(50) })).toEqual([]);
+    expect(await errorsOf(InviteByEmailBatchDto, { invites: many(50).map((email) => ({ email })) })).toEqual([]);
+  });
+
+  it("dış talep daveti: `invites: null` 60 tavanını ve tip denetimini KAPATMAZ", async () => {
+    expect(await errorsOf(ExternalTenderInviteDto, { listingId: "l1", emails: many(61), invites: null })).not.toHaveLength(0);
+    expect(await errorsOf(ExternalTenderInviteDto, { listingId: "l1", emails: [42], invites: null })).not.toHaveLength(0);
+    expect(
+      await errorsOf(ExternalTenderInviteDto, { listingId: "l1", invites: [{ email: "a@b.de", country: "germany" }], emails: null }),
+    ).not.toHaveLength(0);
+  });
+});
