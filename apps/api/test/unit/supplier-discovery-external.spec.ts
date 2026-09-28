@@ -1,6 +1,7 @@
 import {
   discoveryPasses,
   SupplierDiscoveryService,
+  emailOnDomain,
   websiteHost,
 } from "../../src/modules/ai/supplier-discovery/supplier-discovery.service";
 
@@ -196,7 +197,12 @@ describe("SupplierDiscoveryService.annotate — mükerrer davet koruması", () =
     const { service } = rig({
       parsed: { companies: [] },
       optOuts: ["cikti@x.com"],
-      users: [{ email: "uye@x.com", companyId: "c9" }],
+      users: [
+        { email: "uye@x.com", companyId: "c9" },
+        // Site eşleşmesi alan adı sahipliği ister: üyenin o alan adında kullanıcısı var.
+        { email: "satis@kayitli-firma.com", companyId: "c8" },
+        { email: "ali@davetli-uye.com", companyId: "c7" },
+      ],
       invited: ["davetli@x.com"],
       recent: ["yeni@x.com"],
       hostCompanies: [
@@ -248,6 +254,28 @@ describe("SupplierDiscoveryService.annotate — mükerrer davet koruması", () =
       ["Bağlı ücretsiz", "MEMBER", "c6"],
       ["Kayıtsız", "SUGGESTED", null],
     ]);
+  });
+
+  // Yayın denetimi 2026-09-28 B5-11: `website` üyenin serbest alanı — rakibin
+  // alan adını yazan üye, AI'ın bulduğu rakibin davetini kendine çekemez.
+  it("site eşleşmesi alan adı sahipliği ister: o alan adında kullanıcısı olmayan üye MEMBER sayılmaz", async () => {
+    const { service } = rig({
+      parsed: { companies: [] },
+      users: [{ email: "sahte@gmail.com", companyId: "c4" }],
+      hostCompanies: [{ id: "c4", website: "https://rakip-firma.com" }],
+    });
+    const out = await service.annotate("c1", "l1", [
+      { city: null, reason: "r", matchedItems: [], scope: null, name: "Rakip", email: "info@rakip-firma.com", website: "rakip-firma.com", country: "TR" },
+    ]);
+    expect(out.map((c) => [c.name, c.status])).toEqual([["Rakip", "SUGGESTED"]]);
+  });
+
+  it("emailOnDomain: aynı alan adı ve alt alan adları eşleşir, benzer ad eşleşmez", () => {
+    expect(emailOnDomain("a@firma.com", "firma.com")).toBe(true);
+    expect(emailOnDomain("a@mail.firma.com", "firma.com")).toBe(true);
+    expect(emailOnDomain("a@firma.com", "shop.firma.com")).toBe(true);
+    expect(emailOnDomain("a@firma.com.tr", "firma.com")).toBe(false);
+    expect(emailOnDomain("a@kotufirma.com", "firma.com")).toBe(false);
   });
 
   it("websiteHost: şema/www/yol temizlenir", () => {

@@ -186,6 +186,14 @@ export function websiteHost(url: string | null | undefined): string | null {
   }
 }
 
+/** E-posta alan adı, site alan adıyla aynı mı (alt alan adı her iki yönde de sayılır). */
+export function emailOnDomain(email: string, host: string): boolean {
+  const domain = email.split("@")[1]?.toLowerCase().trim();
+  const h = host.toLowerCase();
+  if (!domain) return false;
+  return domain === h || domain.endsWith(`.${h}`) || h.endsWith(`.${domain}`);
+}
+
 /** Tek AI çağrısı yürütücüsü — kullanıcı bütçesi (`callAi`) ya da platform (`callAiSystem`). */
 export type DiscoveryAiRunner = (opts: {
   system: string;
@@ -458,10 +466,27 @@ export class SupplierDiscoveryService {
     const memberByEmail = new Map(users.map((u) => [u.email.toLowerCase(), u.companyId]));
     const invitedSet = new Set(invited.map((i) => i.email));
     const recentSet = new Set(recent.map((r) => r.toEmail));
-    const memberByHost = new Map<string, string>();
-    for (const c of hostCompanies) {
+    // Site eşleşmesi ALAN ADI SAHİPLİĞİ ister (yayın denetimi 2026-09-28 Bölüm 5
+    // B5-11): `website` üyenin serbestçe düzenlediği alan — doğrulanmış bir üye
+    // sitesini rakibin alan adına çevirirse AI'ın bulduğu rakip "Rothern'de
+    // kayıtlı: <o üye>" olur ve davet ona giderdi. Üyenin o alan adında (ya da
+    // alt alan adında) e-postası olan etkin bir kullanıcısı varsa eşleşir;
+    // yoksa aday dış davet adayı olarak kalır.
+    const hostMatched = hostCompanies.filter((c) => {
       const h = websiteHost(c.website);
-      if (h && hosts.includes(h)) memberByHost.set(h, c.id);
+      return !!h && hosts.includes(h);
+    });
+    const domainUsers =
+      hostMatched.length > 0
+        ? await db.companyUser.findMany({
+            where: { companyId: { in: hostMatched.map((c) => c.id) }, deletedAt: null, isActive: true },
+            select: { companyId: true, email: true },
+          })
+        : [];
+    const memberByHost = new Map<string, string>();
+    for (const c of hostMatched) {
+      const h = websiteHost(c.website)!;
+      if (domainUsers.some((u) => u.companyId === c.id && emailOnDomain(u.email, h))) memberByHost.set(h, c.id);
     }
     const mxOk = new Map(mx);
     // Eşleşen üye bu talebe zaten davetliyse (bağlantı ya da AI yolu) işaretlenir.
