@@ -27,7 +27,7 @@
 | 7 | Zamanlanmış işler ve e-posta | ✅ bitti |
 | 8 | AI katmanı | ✅ bitti |
 | 9 | Çok dillilik | ✅ bitti (1 ürün dili kararı bekliyor: B6-4) |
-| 10 | SEO/GEO | ⏳ |
+| 10 | SEO/GEO | ✅ bitti |
 | 11 | Performans ve kapasite | ⏳ |
 | 12 | Arayüz ve erişilebilirlik | ⏳ |
 | 13 | Hukuk ve uyum | ⏳ |
@@ -218,7 +218,7 @@ denenmeden değiştirmek canlı derlemeyi kırabilir). **DÜŞÜK, kapandı.**
 
 | # | Önem | Bulgu | Durum |
 |---|---|---|---|
-| B1-1 | ORTA | **Veri katmanı API kesintisini "boş veri" sayıyor.** `lib/public/marketplace-api.ts` `getJson` ağ hatası/5xx'te boş yedek döner; `fetchProduct/fetchCompanyProfile/fetchListing` `null` → sayfa `notFound()`. ISR yenilemesi API kesintisine denk gelirse dolu sayfa BOŞ sürümle ya da **404** ile değişir ve `revalidate` süresince (60 sn – sitemap 1 saat) öyle kalır. Next, yenileme sırasında HATA atılırsa son iyi sürümü sunmaya devam eder — doğru davranış bu. Derleme sırasında API kapalıysa (Render askısı!) canlı derleme boş sayfalarla çıkar. | Bölüm 10'da düzeltilecek (yerel yığında API kapatılarak sınanacak) |
+| ~~B1-1~~ ✅ Bölüm 10 (da480ce2) | ORTA | **Veri katmanı API kesintisini "boş veri" sayıyor.** `lib/public/marketplace-api.ts` `getJson` ağ hatası/5xx'te boş yedek döner; `fetchProduct/fetchCompanyProfile/fetchListing` `null` → sayfa `notFound()`. ISR yenilemesi API kesintisine denk gelirse dolu sayfa BOŞ sürümle ya da **404** ile değişir ve `revalidate` süresince (60 sn – sitemap 1 saat) öyle kalır. Next, yenileme sırasında HATA atılırsa son iyi sürümü sunmaya devam eder — doğru davranış bu. Derleme sırasında API kapalıysa (Render askısı!) canlı derleme boş sayfalarla çıkar. | Bölüm 10'da düzeltilecek (yerel yığında API kapatılarak sınanacak) |
 | B1-2 | DÜŞÜK | 28 lint uyarısı (ölü importlar; ör. `company-profile.service.ts` artık `public-image-upload.ts` doğrulamasını kullanıyor, eski `assertUploadedObjectValid` importu kalmış — güvenlik açığı DEĞİL) | backlog |
 
 ---
@@ -545,4 +545,31 @@ EN/RU sayfa taraması (Playwright; 101 sayfa: herkese açık + arayüzden giriş
 | B9-6 (Bölüm 13) | hukuk | KVKK onay satırı yurt dışı işleyen olarak yalnız "Supabase/Vercel/Resend" sayıyor — Google (AI/Vertex), Cloudflare (R2 depolama, CDN), Sentry, Render da kişisel veri işliyor (B8-2 ile birlikte) | Bölüm 13 |
 | bilinçli sınır | bilgi | Uygulama içi bildirim oluşturulduğu anda ALICININ o anki dilinde METİN olarak saklanır (`notifications.title/body`); kullanıcı dilini değiştirince eski bildirimler eski dilde kalır, yenileri yeni dilde gelir. Yeniden çizim için anahtar+parametre saklamak şema değişikliği ister — değer düşük | kayıt |
 | B6-4 | **karar** | Tedarikçiye giden bildirim/e-postalarda "satın alma talebi" (TR ~60 dize; EN "buying request", RU "заявка на закупку" zaten tutarlı). CLAUDE.md kuralı ("satış tarafına satın alma talebi demek TERSTİR") satış PORTALI etiketleri için yazılmış; bildirimde alıcının talebini anlatmak doğal Türkçe. Seçenekler: (a) olduğu gibi bırak · (b) tedarikçiye giden metinlerde ziyaretçi çerçevesi "alım talebi" · (c) düz "talep" | **kullanıcı kararı** — yalnız katalog, sonradan ucuz |
+
+---
+
+## Bölüm 10 — SEO/GEO (✅ 2026-09-29)
+
+Yöntem: bugünkü kodla yerel **üretim derlemesi** (`next build` + `next start`,
+pazar yeri açık, API = staging kopyası) üzerinde `seo:audit` (her sitemap
+parçasından dil başına 2 örnek), durum kodu betiği ve elle kanonik/robots
+kontrolü; B1-1 için API gerçekten kapatılarak.
+
+| Kontrol | Sonuç |
+|---|---|
+| `seo:audit` | ✅ 54/56: sitemap indeksi + 7 parça (ürün 332 adres = tr 112 · en 110 · ru 110; firma 69; talep 50), 6 llms dosyası 200, 45 örnek sayfada başlık/açıklama/kanonik/OG görseli 200/JSON-LD/h1/html lang/og:locale/hreflang + x-default/inLanguage ✓. Kalan 2 = robots.txt: yerel adres kanonik değil → `Disallow: /` (tasarım: yalnız www.rothern.com açılır) |
+| Gerçek 404 (yumuşak 404 yok) | ✅ 9/9: olmayan firma, ürün, talep, kategori, şehir, ülke, EN kategori, RU firma, rastgele yol → 404. `loading.tsx` yalnız kendi dizin sayfasını sarar; o sayfaların `notFound()`u derleme sabiti (pazar yeri anahtarı) |
+| Eski rotalar | ✅ 10/10 → 308 doğru hedefe (`/tedarikciler`, `/firmalar/sehir/*`, `/satilik`, `/ilan/*`, `/giris`, onay akışları, detaylı sihirbaz, `/en/urunler`, `/ru/company/login` → `/ru/kompaniya/vhod`, `/alim-talepleri/rot-*`) |
+| Kanonik | ✅ `?sayfa=N` kendi kanoniği; süzgeçli varyant (`?kategori=`) tabana; kategori sayfalaması iniş adresinde |
+| Kök `llms.txt` İngilizce | ✅ |
+| **B1-1 canlı sınama (API kapatıldı)** | ✅ önbellekteki firma/ürün/talep dizini sayfaları 200 ve DOLU; hiç çizilmemiş detay sayfaları **500** (404 değil — Googlebot yeniden dener, düşürmez); `revalidate` (60 sn) geçtikten sonra arka plan yenilemeleri 14 kez hata verdi, dizin sayfası 12 talebiyle sunulmaya devam etti |
+
+### Bölüm 10 bulguları
+
+| # | Önem | Bulgu | Durum |
+|---|---|---|---|
+| B1-1 | ORTA | Veri katmanı API kesintisini "boş veri" sayıyordu (bkz. Bölüm 1) | ✅ ana veri çağrıları (dizinler, firma ürünleri, sitemap özeti/parçaları, talep/ürün/firma/şehir detayı) ağ hatası/5xx/429'da çalışma anında `PublicApiUnavailableError`; 404/4xx gerçek "yok"; `next build` sırasında atılmaz (Render askısında derleme kırılmaz); facet/öne çıkan/ilişkili/sayaç yedekle kalır (da480ce2; `api-outage.test`) |
+| B10-1 | DÜŞÜK | Akış başladıktan sonra atılan hata (loading.tsx altındaki dizinde kesinti) 200 ile hata sayfası basar — indekslenebilirdi | ✅ segment hata sınırı + global-error `robots noindex` (da2d1d8b) |
+| B10-2 (Bölüm 14) | operatör | Arama kanalı env'leri: `INDEXNOW_KEY` + `SEO_REVALIDATE_SECRET` Render VE Vercel'de AYNI değer, Render `WEB_URL=https://www.rothern.com`; yoksa yayın anı bildirimi KAPALI (yalnız yavaş). Site doğrulama `NEXT_PUBLIC_{GOOGLE,BING,YANDEX}_SITE_VERIFICATION` + GSC/Bing'e sitemap gönderimi — kullanıcı kararıyla EN SON | env matrisi / yayın günü (Bölüm 15) |
+| B9-5 canlı | bilgi | Yeniden derlenen API ile EN ürün sayfası satıcı sektörü "Machinery and process equipment" — doğrulandı | kayıt |
 
