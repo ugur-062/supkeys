@@ -134,7 +134,8 @@ export class ExternalInviteDispatcher {
     if (remaining <= 0) return report;
 
     const due = (await this.prisma.externalListingInvite.findMany({
-      where: { state: "QUEUED", sendAfter: { lte: now }, listing: sendableListingWhere(now) },
+      // İptal edilmiş bağlantı jetonunun kuyruğu gitmez (iptal kuyruğu da düşürür; yarışa karşı).
+      where: { state: "QUEUED", sendAfter: { lte: now }, listing: sendableListingWhere(now), referralInvite: { status: { not: "CANCELLED" } } },
       orderBy: { sendAfter: "asc" },
       take: DUE_BATCH,
       select: DUE_SELECT,

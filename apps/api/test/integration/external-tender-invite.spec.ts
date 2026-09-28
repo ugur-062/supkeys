@@ -528,3 +528,89 @@ describe("Faz 3 — kayıtsız önizleme + önceden doldurma", () => {
     expect(await service.markReferralVisited("yok")).toEqual({ email: null, companyName: null, website: null, country: null, city: null });
   });
 });
+
+/**
+ * Yayın denetimi 2026-09-28 Bölüm 5: referral davet iptali satırı SİLİYORDU →
+ * günlük dış davet tavanı (bugün açılan talep davetleri, cascade ile gidiyordu),
+ * günlük referral tavanı ve 7 günlük fren sıfırlanıyordu. İptal artık CANCELLED.
+ */
+describe("referral davet iptali — satır silinmez, tavan ve fren korunur", () => {
+  it("iptal: satır CANCELLED kalır, kuyruktaki talep davetleri düşer, dağıtıcı göndermez, jeton önizlemede geçersiz", async () => {
+    const service = makeService();
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const listing = await openListing(owner.company.id, owner.user.id);
+    await service.inviteExternalForListing(owner.auth, listing.id, ["iptal@firma.com", "gonderildi@firma.com"]);
+    const [queued, sent] = await Promise.all(
+      ["iptal@firma.com", "gonderildi@firma.com"].map((email) => prisma.companyReferralInvite.findFirstOrThrow({ where: { email } })),
+    );
+    await prisma.externalListingInvite.updateMany({ where: { email: "gonderildi@firma.com" }, data: { state: "SENT", sentAt: new Date() } });
+
+    await service.cancelReferralInvite(owner.auth, queued!.id);
+    await service.cancelReferralInvite(owner.auth, sent!.id);
+
+    expect((await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: queued!.id } })).status).toBe("CANCELLED");
+    expect(await prisma.externalListingInvite.findFirstOrThrow({ where: { email: "iptal@firma.com" } })).toMatchObject({
+      state: "CANCELLED",
+      cancelReason: "REFERRAL_CANCELLED",
+    });
+    // Gönderilmiş talep daveti SİLİNMEZ (günlük tavan onu sayar) ama jetonu artık önizleme açmaz.
+    expect((await prisma.externalListingInvite.findFirstOrThrow({ where: { email: "gonderildi@firma.com" } })).state).toBe("SENT");
+    await expect(service.invitePreview(sent!.token)).rejects.toMatchObject({ status: 404 });
+    expect(await service.listReferralInvites(owner.company.id)).toHaveLength(0);
+
+    // Dağıtıcı iptal edilmiş jetonun (yarışta kuyrukta kalmış) davetini göndermez.
+    await prisma.externalListingInvite.updateMany({ where: { email: "iptal@firma.com" }, data: { state: "QUEUED" } });
+    await makeDue();
+    const { d, email } = makeDispatcher();
+    await d.dispatch();
+    expect(email.send).not.toHaveBeenCalled();
+  });
+
+  it("günlük 60 tavanı: 60 davet + hepsinin iptali sonrası yeni adres yine DAILY_LIMIT", async () => {
+    const service = makeService();
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const listing = await openListing(owner.company.id, owner.user.id);
+    const first = Array.from({ length: 60 }, (_, i) => `ilk${i}@firma.com`);
+    await service.inviteExternalForListing(owner.auth, listing.id, first);
+    for (const r of await prisma.companyReferralInvite.findMany({ where: { inviterCompanyId: owner.company.id } })) {
+      await service.cancelReferralInvite(owner.auth, r.id);
+    }
+
+    const again = await service.inviteExternalForListing(owner.auth, listing.id, ["yeni@firma.com"]);
+    expect(again.results[0]!.status).toBe("DAILY_LIMIT");
+  });
+
+  it("referral: iptal edilen adrese 7 gün içinde yeniden davet ALREADY_INVITED; süre geçince AYNI satırla PENDING'e döner", async () => {
+    const { service } = (() => {
+      const blocks = { blockedCompanyIds: jest.fn().mockResolvedValue([]) } as never;
+      const notifications = { notify: jest.fn(), pushToCompany: jest.fn(), pushToUser: jest.fn() } as never;
+      return {
+        service: new CompanyConnectionsService(
+          prisma as never,
+          prisma as never,
+          blocks,
+          makeEmail() as never,
+          makeConfig() as never,
+          notifications,
+          new AuditService(prisma as never),
+        ),
+      };
+    })();
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await service.inviteByEmail(owner.auth, "tekrar@firma.com");
+    const inv = await prisma.companyReferralInvite.findFirstOrThrow({ where: { email: "tekrar@firma.com" } });
+    await prisma.emailLog.create({
+      data: { template: "referral_invite", toEmail: inv.email, subject: "d", provider: "test", status: "SENT", contextType: "referral_invite", contextId: inv.id },
+    });
+    await service.cancelReferralInvite(owner.auth, inv.id);
+
+    await expect(service.inviteByEmail(owner.auth, "tekrar@firma.com")).rejects.toMatchObject({
+      response: expect.objectContaining({ code: "ALREADY_INVITED" }),
+    });
+
+    await prisma.emailLog.updateMany({ where: { contextId: inv.id }, data: { queuedAt: new Date(Date.now() - 8 * 24 * 3_600_000) } });
+    await expect(service.inviteByEmail(owner.auth, "tekrar@firma.com")).resolves.toMatchObject({ kind: "invited" });
+    const after = await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: inv.id } });
+    expect(after.status).toBe("PENDING");
+  });
+});

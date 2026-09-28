@@ -962,6 +962,7 @@ model CompanyConnection {
 enum ReferralInviteStatus {
   PENDING // davet gönderildi, hedef henüz kayıt olmadı
   ACCEPTED // hedef kayıt oldu → INVITE bağlantısı kuruldu
+  CANCELLED // davet eden iptal etti — satır SİLİNMEZ (tavan/fren sayımı ona dayanır)
 }
 
 /**

@@ -2279,7 +2279,9 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Son migration `20260928090000_ai_member_invites` (+
+- Son migration `20260928170000_referral_invite_cancelled` (enum `ADD VALUE`; referral
+  davet iptali satırı silmez, CANCELLED — yayın denetimi Bölüm 5). Öncesi
+  `20260928090000_ai_member_invites` (+
   `20260927235000_email_digest_items`, `20260927230000_supplier_discovery_runs`,
   `20260927220000_external_listing_invites`, `20260927210000_email_opt_outs`;
   eklemeli, e-posta Faz 0-2 + üyeye doğrudan davet; staging VE canlıda BEKLİYOR).

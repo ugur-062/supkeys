@@ -82,9 +82,10 @@ bulduğu üyeye doğrudan davet · Silver/doğrulama teşvikleri.
 | `20260927230000_supplier_discovery_runs` | ⏳ | ⏳ |
 | `20260927235000_email_digest_items` | ⏳ | ⏳ |
 | `20260928090000_ai_member_invites` | ⏳ | ⏳ |
+| `20260928170000_referral_invite_cancelled` (Bölüm 5, enum `ADD VALUE`) | ⏳ | ⏳ |
 
 (Kanıt: iki veritabanında `_prisma_migrations` salt-okunur sorgusu.)
-Bekleyen 9 migration'ın hepsi YEREL commit'lerde → staging de onları push
+Bekleyen 10 migration'ın (9 + Bölüm 5'te eklenen referral iptali) hepsi YEREL commit'lerde → staging de onları push
 sonrası ilk açılışta alır.
 
 **Uygulama yolu:** API konteyneri açılışta `migrate deploy` koşar

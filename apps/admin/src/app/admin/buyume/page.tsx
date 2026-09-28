@@ -21,6 +21,7 @@ const CANCEL_LABEL: Record<string, string> = {
   PAUSED: "3 yanıtsız e-posta (durduruldu)",
   FREQUENCY: "7 gün kuralı — kapanıştan önce sıra gelmedi",
   SUPPRESSED: "Adres e-posta almıyor",
+  REFERRAL_CANCELLED: "Davet eden iptal etti",
   OTHER: "Diğer",
 };
 const SOURCE_LABEL: Record<string, string> = { MANUAL: "Elle yazılan", AI_FORM: "AI (talep formu)", AI_AUTO: "AI (yayın sonrası)" };

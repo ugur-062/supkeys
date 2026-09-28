@@ -302,7 +302,9 @@ export class CompanyConnectionsService {
     });
     // Kabul edilmiş davet yeniden gönderilmez (adres kayıt olmadan — farklı
     // e-postayla kayıt — kabul edilmiş olabilir; token zaten kullanıldı).
-    if (prior && prior.status !== "PENDING") {
+    // İptal edilmiş (CANCELLED) davet AYNI satırla yeniden açılır → 7 günlük
+    // fren ve günlük tavan satır kimliğine bağlı kalır.
+    if (prior?.status === "ACCEPTED") {
       throw new ConflictException(
         i18nMessage("api.companyConnections.buAdreseDahaOnceDavetGonderilmis", undefined, "ALREADY_INVITED"),
       );
@@ -381,7 +383,7 @@ export class CompanyConnectionsService {
         invitedById: user.userId,
         locale,
       },
-      update: { updatedAt: new Date(), locale },
+      update: { updatedAt: new Date(), locale, status: "PENDING" },
       select: { id: true, token: true },
     });
     return {
@@ -607,8 +609,13 @@ export class CompanyConnectionsService {
         where: { inviterCompanyId_email: { inviterCompanyId: user.companyId, email } },
         create: { inviterCompanyId: user.companyId, email, invitedById: user.userId, listingId: listing.id, locale },
         update: {},
-        select: { id: true },
+        select: { id: true, status: true },
       });
+      // Daha önce iptal edilmiş bağlantı jetonu yeni davetle canlanır (kayıtta
+      // eşleşme yalnız PENDING okur).
+      if (referral.status === "CANCELLED") {
+        await this.prisma.companyReferralInvite.update({ where: { id: referral.id }, data: { status: "PENDING" } });
+      }
       // Elle yazılan adres hemen; AI'ın bulduğu adres alıcının mesai saatinde
       // (aynı ana yığılmasın diye 0-45 dk dağıtılır).
       const sendAfter =
@@ -709,7 +716,7 @@ export class CompanyConnectionsService {
       where: { token },
       select: { id: true, status: true },
     });
-    const pick = inv
+    const pick = inv && inv.status !== "CANCELLED"
       ? await this.bypass.externalListingInvite.findFirst({
           where: {
             referralInviteId: inv.id,
@@ -1087,12 +1094,23 @@ export class CompanyConnectionsService {
     }));
   }
 
-  /** Bekleyen e-posta davetini iptal et (kayıt olunca bağ kurulmaz). */
+  /**
+   * Bekleyen e-posta davetini iptal et (kayıt olunca bağ kurulmaz). Satır
+   * SİLİNMEZ, CANCELLED olur (yayın denetimi 2026-09-28 Bölüm 5): silme günlük
+   * tavanı, 7 günlük freni ve — cascade ile — gönderilmiş dış talep davetlerini
+   * sıfırlıyordu; sil-yeniden-gönder döngüsü sınırsız davet e-postası demekti.
+   * Kuyruktaki (henüz gitmemiş) talep davetleri de iptal edilir.
+   */
   async cancelReferralInvite(user: AuthenticatedCompanyUser, id: string) {
-    const res = await this.prisma.companyReferralInvite.deleteMany({
+    const res = await this.prisma.companyReferralInvite.updateMany({
       where: { id, inviterCompanyId: user.companyId, status: "PENDING" },
+      data: { status: "CANCELLED" },
     });
     if (res.count === 0) throw new NotFoundException(i18nMessage("api.companyConnections.davetBulunamadi"));
+    await this.prisma.externalListingInvite.updateMany({
+      where: { referralInviteId: id, inviterCompanyId: user.companyId, state: "QUEUED" },
+      data: { state: "CANCELLED", cancelReason: "REFERRAL_CANCELLED" },
+    });
     return { ok: true };
   }
 
