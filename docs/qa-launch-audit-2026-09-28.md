@@ -288,21 +288,44 @@ sızıntısı) + her bulgu kodda elle doğrulandı. Ayrıntılı raporlar oturum
 | B4-17 | Özel talepte otomatik keşif kapalı kuralı sunucuda zorlanmıyor | etki yalnız alıcının kendisine öneri |
 | B4-18 | Davet önizlemesinde 30 günlük ömür yok | jeton zaten kayıtta bağlantı verir (daha güçlü yetki) |
 
-### RLS — canlıda var olan hata sınıfı (tarama sürüyor)
+### RLS — canlıda var olan hata sınıfı (✅ tarandı, düzeltildi — b9ef1089)
 
-4B, RLS açıkken (canlı 2026-09-17'den beri) firma bağlamlı istemcinin başka
-firmanın satırını GÖREMEDİĞİ yerler buldu — hepsi doğrulandı (politikalar
-staging `pg_policies`ten okundu: 29 tablo kısıtlı, 5 açık):
+Kök: canlıda RLS 2026-09-17'den beri açık. `PrismaService` kısıtlı
+`rothern_app` rolüyle bağlanır; firma bağlamında yalnız çağıranın görebildiği
+satırlar döner, bağlamsız işlerde (cron, admin, herkese açık uç) 29 kısıtlı
+tablonun HİÇBİR satırı görünmez (politikalar staging `pg_policies`ten okundu:
+29 kısıtlı, 5 açık — companies, company_users, company_user_invitations,
+listings, notifications). E2e paketi bunları yakalamadı: testler tek aktörlü
+ekranlara ya da sahip görünümüne bakıyordu.
 
-| # | Önem | Belirti | Yer |
+Yöntem: tüm API üç parçada tarandı (talep/sipariş · admin/sistem ·
+bağlantı/pazar yeri); kısıtlı tabloya giden her kiracı-istemci işlemi bağlamı
+ve hükmüyle sınıflandırıldı (yalnız talep/sipariş parçasında 174 işlem).
+Admin servislerinin tamamı zaten bypass kullanıyor — admin paneli temiz.
+
+| # | Önem | Belirti (canlıda olacaktı) | Düzeltme |
 |---|---|---|---|
-| R-1 | YÜKSEK | Pazarlıkta teklifçi yalnız kendi teklifini görür: "en iyi fiyat" kendi fiyatı, sırası hep 1 | `company-listings.service.ts` `computeAuctionView` (`listing_bids`) |
-| R-2 | YÜKSEK | Teklif verebilen tedarikçi talebin teslim adresini boş görür | `company-listings.service.ts` teklifçi detayı (`company_addresses`) |
-| R-3 | YÜKSEK | Panelde başka firmanın profil sayfasında ürün ızgarası boş, sayaç 0 | `company-connections.service.ts` `getProfile` (`company_items`) |
-| R-4 | ORTA | Cron yollarında `blockedCompanyIds` boş döner → engellenen firmaya kategori duyurusu/hatırlatma gider | `company_blocks` |
-| R-5 | ORTA | Çeviri bitince/admin onayında ürün SEO bildirimi (IndexNow + tazeleme) gitmez | `seo-index.service.ts` `productChanged` (`company_items`, bağlamsız) |
+| R-1 | YÜKSEK | Pazarlıkta teklifçi yalnız kendi teklifini görüyor: "en iyi fiyat" kendi fiyatı, sırası hep 1 | `computeAuctionView` + açık eksiltme özeti bypass (teklifçiye dönen alanlar görünürlük kapısından geçmeye devam eder) |
+| R-2 | YÜKSEK | Panelde başka firmanın profili, firma üçüncü firmadan değerlendirme aldıysa **500** (zorunlu `order` ilişkisi görünmez → Prisma istisnası); ürün ızgarası boş, sayaç 0 | `getProfile` değerlendirme + ürün okumaları bypass; `reviews.listForCompany` de |
+| R-3 | YÜKSEK | Teklif verebilen tedarikçi teslim adresini hep boş görüyor | adres okuması bypass (yanıta yalnız `canBid` iken) |
+| R-4 | YÜKSEK | Admin onayladığında ürün IndexNow'a ve web tazelemesine hiç girmiyor; çeviri bitince EN/RU sayfaları tazelenmiyor; reddedilen ürün süre dolana dek yayında | `SeoIndexService` bypass istemcisiyle |
+| R-5 | ORTA | Onaylayıcı kalmayınca otomatik ret cron'da 0 satır günceller → istek PENDING, talep kazandırma onayında takılı | `rejectForNoApprover` bypass |
+| R-6 | ORTA | Cron yollarında engel listesi boş → engellenen firmaya kapanış, hatırlatma, davet, kategori duyurusu, "bir alıcı arıyor" e-postası | `blockedCompanyIds` bypass |
+| R-7 | DÜŞÜK | Cron yollarında bağlantı listesi boş (bugün başka süzgeçler örtüyor) | `connectedCompanyIds` bypass |
+| R-8 | DÜŞÜK | Bağlantı kartı ürün önizlemesi hep boş (web çizmiyor, asistan görüyor) | bypass |
 
-Canlıda firma olmadığı için henüz kimse etkilenmedi. Bu sınıfın TAMAMI için
-tüm API'de sistematik tarama başlatıldı (3 paralel tarama: talep/sipariş ·
-admin/sistem · bağlantı/pazar yeri); sonuçlar gelince hepsi birlikte
-düzeltilecek.
+Birim paketi yeniden: 97 dosya / 979 test yeşil. **Açık:** kısıtlı rolle
+koşan regresyon testi (bu sekiz belirti için) Docker gelince yazılıp koşulacak.
+
+Açık kalan DÜŞÜK (backlog):
+- R-9: firma bağlamında `this.prisma.$transaction(async tx => …)` içindeki
+  model işlemleri RLS uzantısı yüzünden etkileşimli işlemden kaçıp ayrı
+  işlemlerde koşuyor (atomiklik yok; ürün yayın tavanındaki advisory lock
+  etkisiz — CLAUDE.md'deki "publish tavanı TOCTOU" notunun kökü). Yerler:
+  `company-items.service.ts` `publish`, `assistant.service.ts` dizi
+  `$transaction`. Kural `docs/rls-plan.md` 1c-2: firma bağlamında `runTenantTx`.
+  Bölüm 14: Render `DATABASE_URL` havuzu (`connection_limit`) ≥ 5 olmalı —
+  1 olursa bu yollar havuzu kilitler.
+- R-10: teklifçi bağlamında `blockedCompanyIds(sahip)` ve `inOwnerContext`
+  bugün doğru ama kırılgan (bypass'a geçti; `inOwnerContext` çağıranı
+  teklifçi olursa sessizce teklifçi bağlamında okur).
