@@ -55,7 +55,7 @@ export function CompanyDetailView({
   companyId: string;
   initialTab?: string;
 }) {
-  const { data, isLoading, isError, refetch } = useCompanyDetail(companyId);
+  const { data, isLoading, isError, error, refetch } = useCompanyDetail(companyId);
   const [tab, setTab] = useState<TabKey>(
     TABS.some((t) => t.key === initialTab) ? (initialTab as TabKey) : "ozet",
   );
@@ -73,6 +73,16 @@ export function CompanyDetailView({
     return (
       <div className="flex items-center justify-center py-24">
         <Loader2 className="text-admin-text-muted h-6 w-6 animate-spin" />
+      </div>
+    );
+  }
+  // Yetki hatası "yeniden dene" ile düzelmez (yayın denetimi 2026-09-28
+  // Bölüm 6: Destek rolü firma detayında genel hata + "Tekrar dene" görüyordu).
+  if (isError && (error as { response?: { status?: number } } | null)?.response?.status === 403) {
+    return (
+      <div className="space-y-2 py-16 text-center">
+        <p className="text-admin-text text-sm font-medium">Bu firmanın ayrıntılarını görüntüleme yetkiniz yok.</p>
+        <p className="text-admin-text-muted text-sm">Firma ayrıntıları Süper Admin ve Satış rollerine açık.</p>
       </div>
     );
   }

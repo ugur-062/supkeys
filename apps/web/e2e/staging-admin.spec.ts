@@ -65,6 +65,8 @@ test.describe("firma doğrulama", () => {
       tradeRegistryNo: `QA-${stamp}`,
       iban: "TR330006100519786457841326",
       ibanHolder: "QA Ücretsiz Firma",
+      // 2026-09-27: firma doğrulamasında SWIFT/BIC her ülkede ZORUNLU (TR dahil).
+      bankSwiftBic: "TGBATRIS",
     });
     expect(submit.status, JSON.stringify(submit.body)).toBeLessThan(300);
     const docs = await apiGet(free, "/company/docs");
