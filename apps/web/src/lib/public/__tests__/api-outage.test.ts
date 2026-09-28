@@ -67,3 +67,15 @@ describe("liste ve sitemap — ana veri", () => {
     expect(facets.categories).toEqual([]);
   });
 });
+
+describe("web sunucusu → API hız sınırı muafiyeti başlığı", () => {
+  it("sır tanımlıysa x-rothern-ssr gönderilir, değilse gönderilmez", async () => {
+    respond(200, { items: [], total: 0, page: 1, pageSize: 24 });
+    await fetchListings({});
+    expect((fetchMock.mock.calls[0][1] as { headers: Record<string, string> }).headers["x-rothern-ssr"]).toBeUndefined();
+    vi.stubEnv("SEO_REVALIDATE_SECRET", "k".repeat(32));
+    await fetchListings({});
+    expect((fetchMock.mock.calls[1][1] as { headers: Record<string, string> }).headers["x-rothern-ssr"]).toBe("k".repeat(32));
+  });
+});
+

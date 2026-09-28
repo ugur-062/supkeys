@@ -171,7 +171,15 @@ async function publicHeaders(explicit?: string): Promise<Record<string, string>>
       /* rota işleyicisi / istek dışı */
     }
   }
-  return { accept: "application/json", "accept-language": locale };
+  // Web sunucusu → API hız sınırı muafiyeti (yalnız GET /public/*; API
+  // `isTrustedSsrRequest`). Sır sunucu env'inde — istemci paketine girmez
+  // (NEXT_PUBLIC değil; bu modül istemcide yalnız tip olarak içe aktarılır).
+  const ssrKey = process.env.SEO_REVALIDATE_SECRET;
+  return {
+    accept: "application/json",
+    "accept-language": locale,
+    ...(ssrKey ? { "x-rothern-ssr": ssrKey } : {}),
+  };
 }
 
 /**
