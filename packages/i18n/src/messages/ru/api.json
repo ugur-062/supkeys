@@ -722,7 +722,8 @@
     "gecersizIzin": "Некорректное право: {permission}",
     "enAzBirAktifYonetimYetkilisiKalmali": "В компании должен остаться хотя бы один активный администратор (Основатель/Руководитель)",
     "koltukDoluBekleyenDahil": "Все места заняты (активных: {used, number}, ожидающих приглашений: {pending, number}, лимит: {limit, number}) — чтобы выдать права на операции закупок/продаж, повысьте тариф или освободите место",
-    "koltukDoluIslemYetkisi": "Все места заняты ({used}/{limit}) — чтобы выдать права на операции закупок/продаж, повысьте тариф или освободите место"
+    "koltukDoluIslemYetkisi": "Все места заняты ({used}/{limit}) — чтобы выдать права на операции закупок/продаж, повысьте тариф или освободите место",
+    "davetYenidenGonderimBekleyin": "Это приглашение только что отправлено. Повторно его можно отправить через {minutes, plural, one {# минуту} few {# минуты} many {# минут} other {# минуты}}."
   },
   "companyQuestionTemplates": {
     "sablonBulunamadi": "Шаблон не найден",

@@ -559,3 +559,64 @@ describe("onay motoru meta (APR no, not, etiket, Tüm Süreçler, iptal)", () =>
     ).toBe(false);
   });
 });
+
+/**
+ * Yayın denetimi 2026-09-28 Bölüm 5: görüntüleme izinli davet koltuk
+ * tüketmediği ve yeniden gönderim beklemesiz olduğu için ücretsiz hesap
+ * rastgele adreslere sınırsız davet e-postası attırabiliyordu (işlem
+ * göndereninden). Firma başına günde 20 davet e-postası, aynı davete 10 dk'da bir.
+ */
+describe("ekip daveti e-posta freni", () => {
+  async function logSend(invitationId: string, minutesAgo = 0) {
+    await prisma.emailLog.create({
+      data: {
+        template: "notification",
+        toEmail: "x@firma.com",
+        subject: "davet",
+        provider: "test",
+        status: "SENT",
+        contextType: "company_user_invitation",
+        contextId: invitationId,
+        queuedAt: new Date(Date.now() - minutesAgo * 60_000),
+      },
+    });
+  }
+
+  it("günde 20 davet e-postası gitmişse yeni davet 429 DAILY_LIMIT; kayıt açılmaz, e-posta gitmez — iptal etmek sayacı SIFIRLAMAZ", async () => {
+    const { service, email } = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    for (let i = 0; i < 20; i++) {
+      const res = await service.invite(owner.auth, { email: `izleyici${i}@firma.com`, permissions: ["buy:view"] } as never);
+      await logSend(res.id);
+      await service.cancelInvitation(owner.auth, res.id);
+    }
+    email.send.mockClear();
+
+    await expect(
+      service.invite(owner.auth, { email: "fazla@firma.com", permissions: ["buy:view"] } as never),
+    ).rejects.toMatchObject({ status: 429, response: expect.objectContaining({ code: "DAILY_LIMIT" }) });
+    expect(await prisma.companyUserInvitation.count({ where: { email: "fazla@firma.com" } })).toBe(0);
+    expect(email.send).not.toHaveBeenCalled();
+
+    // Başka firmanın tavanı ayrı.
+    const other = await makeCompanyWithUser(prisma);
+    await expect(
+      service.invite(other.auth, { email: "fazla@firma.com", permissions: ["buy:view"] } as never),
+    ).resolves.toMatchObject({ emailSent: true });
+  });
+
+  it("aynı davet 10 dk içinde yeniden gönderilemez (429 RESEND_COOLDOWN); süre geçince gönderilir", async () => {
+    const { service } = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma);
+    const res = await service.invite(owner.auth, { email: "yeniden@firma.com", permissions: ["buy:view"] } as never);
+    await logSend(res.id, 2);
+
+    await expect(service.resendInvitation(owner.auth, res.id)).rejects.toMatchObject({
+      status: 429,
+      response: expect.objectContaining({ code: "RESEND_COOLDOWN" }),
+    });
+
+    await prisma.emailLog.updateMany({ where: { contextId: res.id }, data: { queuedAt: new Date(Date.now() - 11 * 60_000) } });
+    await expect(service.resendInvitation(owner.auth, res.id)).resolves.toMatchObject({ ok: true, emailSent: true });
+  });
+});

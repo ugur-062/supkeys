@@ -722,7 +722,8 @@
     "gecersizIzin": "Invalid permission: {permission}",
     "enAzBirAktifYonetimYetkilisiKalmali": "The company must keep at least one active administrator (Founder/Manager)",
     "koltukDoluBekleyenDahil": "All seats are taken ({used, number} active + {pending, plural, one {# pending invitation} other {# pending invitations}} / {limit, number}) — upgrade your plan or free up a seat to grant purchasing/sales transaction permissions",
-    "koltukDoluIslemYetkisi": "All seats are taken ({used}/{limit}) — upgrade your plan or free up a seat to grant buying/sales transaction permissions"
+    "koltukDoluIslemYetkisi": "All seats are taken ({used}/{limit}) — upgrade your plan or free up a seat to grant buying/sales transaction permissions",
+    "davetYenidenGonderimBekleyin": "This invitation was just sent. Wait {minutes, plural, one {# minute} other {# minutes}} before resending it."
   },
   "companyQuestionTemplates": {
     "sablonBulunamadi": "Template not found",

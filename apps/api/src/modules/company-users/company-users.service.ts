@@ -4,6 +4,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   NotFoundException,
@@ -54,6 +56,17 @@ import {
 
 /** Davet linki geçerlilik süresi (eski sistemle aynı). */
 const INVITATION_TTL_DAYS = 7;
+/**
+ * EKİP DAVETİ E-POSTA FRENİ (yayın denetimi 2026-09-28 Bölüm 5). Görüntüleme
+ * izinli davet koltuk tüketmez → koltuk kapısı sınır DEĞİLDİ; yeniden gönderim
+ * beklemesizdi. Ücretsiz bir hesap rastgele adreslere (konuda kendi seçtiği
+ * firma adıyla) sınırsız e-posta attırabiliyor ve bunu doğrulama kodu/şifre
+ * sıfırlama ile AYNI işlem göndereninden yapıyordu. Firma başına günde
+ * TEAM_INVITE_DAILY_CAP davet e-postası (ilk gönderim + yeniden gönderim),
+ * aynı davete TEAM_INVITE_RESEND_COOLDOWN_MIN dakikada bir.
+ */
+export const TEAM_INVITE_DAILY_CAP = 20;
+export const TEAM_INVITE_RESEND_COOLDOWN_MIN = 10;
 
 /**
  * INV-AUDIT-1 (denial): son-yönetici garantisi tetiklendiğinde fırlatılır.
@@ -233,6 +246,7 @@ export class CompanyUsersService {
         i18nMessage("api.companyUsers.buEPostayaBekleyenBirDavet"),
       );
     }
+    await this.assertInvitationMailBudget(actor.companyId);
 
     const inv = await this.prisma.companyUserInvitation.create({
       data: {
@@ -382,6 +396,7 @@ export class CompanyUsersService {
       includePending: true,
       context: "invite",
     });
+    await this.assertInvitationMailBudget(actor.companyId, inv.id);
     await this.prisma.companyUserInvitation.update({
       where: { id: inv.id },
       data: {
@@ -394,6 +409,62 @@ export class CompanyUsersService {
     });
     const mail = await this.sendInvitationEmail(inv.id);
     return { ok: true, ...mail };
+  }
+
+  /**
+   * Ekip daveti e-posta freni (bkz. TEAM_INVITE_DAILY_CAP). Sayım gönderim
+   * DENEMESİ üzerinden (e-posta kaydı; suppress/başarısız da sayılır —
+   * itibar freni). Davet satırı silinmez (iptal = CANCELLED), bu yüzden
+   * bugün dokunulan davetlerin kayıtları sayacı güvenilir kılar.
+   */
+  private async assertInvitationMailBudget(companyId: string, resendOf?: string): Promise<void> {
+    if (resendOf) {
+      const recent = await this.prisma.emailLog.findFirst({
+        where: {
+          contextType: "company_user_invitation",
+          contextId: resendOf,
+          status: { not: "FAILED" },
+          queuedAt: { gte: new Date(Date.now() - TEAM_INVITE_RESEND_COOLDOWN_MIN * 60_000) },
+        },
+        select: { id: true },
+      });
+      if (recent) {
+        throw new HttpException(
+          i18nMessage(
+            "api.companyUsers.davetYenidenGonderimBekleyin",
+            { minutes: TEAM_INVITE_RESEND_COOLDOWN_MIN },
+            "RESEND_COOLDOWN",
+          ),
+          HttpStatus.TOO_MANY_REQUESTS,
+        );
+      }
+    }
+    const dayStart = new Date();
+    dayStart.setUTCHours(0, 0, 0, 0);
+    const touchedToday = await this.prisma.companyUserInvitation.findMany({
+      where: { companyId, updatedAt: { gte: dayStart } },
+      select: { id: true },
+    });
+    const sentToday =
+      touchedToday.length === 0
+        ? 0
+        : await this.prisma.emailLog.count({
+            where: {
+              contextType: "company_user_invitation",
+              contextId: { in: touchedToday.map((r) => r.id) },
+              queuedAt: { gte: dayStart },
+            },
+          });
+    if (sentToday >= TEAM_INVITE_DAILY_CAP) {
+      throw new HttpException(
+        i18nMessage(
+          "api.companyConnections.gunlukDavetLimitineUlasildi",
+          { cap: TEAM_INVITE_DAILY_CAP },
+          "DAILY_LIMIT",
+        ),
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
   }
 
   /** Davet önizleme (public) — kabul sayfası firma+rol gösterir. */
