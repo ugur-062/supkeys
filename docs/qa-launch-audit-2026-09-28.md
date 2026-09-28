@@ -18,7 +18,7 @@
 | # | Bölüm | Durum |
 |---|---|---|
 | 0 | Sürüm envanteri | ✅ bitti |
-| 1 | Derleme ve statik kapılar | ⏳ |
+| 1 | Derleme ve statik kapılar | ✅ bitti |
 | 2 | Otomatik testler | ⏳ |
 | 3 | Veritabanı ve migration'lar | ⏳ |
 | 4 | Yetki ve firma yalıtımı | ⏳ |
@@ -190,3 +190,52 @@ lockfile'dan sapabilir → Bölüm 1'de değerlendirilecek.
 | B0-4 | DÜŞÜK | `company-views` 2 cron sarmalayıcısız | Bölüm 7 |
 | B0-5 | DÜŞÜK | Vercel kurulumu frozen değil | Bölüm 1 |
 | B0-6 | DÜŞÜK | Staging admin `NEXT_PUBLIC_WEB_URL` yok | operatör (Vercel preview env) |
+
+---
+
+## Bölüm 1 — Derleme ve statik kapılar (✅ 2026-09-28)
+
+| Kontrol | Sonuç | Kanıt |
+|---|---|---|
+| Tip denetimi (turbo, 10 görev: api · web · admin · db · shared · email · i18n) | ✅ | `pnpm typecheck` EXIT 0; `@rothern/i18n typecheck` ayrıca 0 |
+| Lint (api · web · admin) | ✅ 0 hata · 28 uyarı (kullanılmayan import/değişken, 1 `<img>`) | `pnpm lint` EXIT 0 |
+| i18n kapısı | ✅ 7.578 anahtar; EN %100 · RU %100 (eksik/bayat 0); cırcır 102 dosya / 865 literal = taban | `pnpm i18n:check` |
+| Bağımlılık denetimi (üretim, yüksek+) | ✅ 0 kritik · 0 yüksek (6 orta · 3 düşük — 22 Eylül'le aynı, bilinçli ertelenen ana sürüm göçleri) | `pnpm audit --prod --audit-level high` EXIT 0 |
+| Sır taraması (tüm geçmiş) | ✅ 1.905 commit, sızıntı yok | `gitleaks git` |
+| Depoda sır dosyası | ✅ yalnız `*.example` + `apps/api/.env.test` (yerel test fikstürü); `.env`, `.env.prod.local`, `.env.staging`, `render.staging.env`, `CLAUDE.md.local` gitignore'da | `git ls-files` + `git check-ignore` |
+| Admin üretim derlemesi | ✅ | `next build` EXIT 0 |
+| Web üretim derlemesi (pazar yeri açık, API ERİŞİLEMEZ) | ✅ EXIT 0 — ama bkz. B1-1 | `next build` |
+| API Docker imajı | ✅ tüm derleme adımları (shared → i18n → email → prisma → api `tsc`) + dışa aktarım tamam; ardından Docker Desktop WSL bağlantısı çöktü (SIGBUS, makine tarafı) | `docker build -f apps/api/Dockerfile` |
+| CI kapıları | ✅ `test.yml` her PR'da: frozen lockfile, typecheck, lint, audit, şema drift, i18n, web+admin test, build, API test | `.github/workflows/test.yml` |
+
+B0-5 değerlendirmesi: Vercel `--no-frozen-lockfile` ile kurar ama `production`a
+giden her PR CI'da `--frozen-lockfile` + derlemeden geçmek zorunda → lockfile
+sapması CI'da yakalanır. Değiştirilmedi (Vercel'in pnpm sürümüyle frozen kurulum
+denenmeden değiştirmek canlı derlemeyi kırabilir). **DÜŞÜK, kapandı.**
+
+### Bölüm 1 bulguları
+
+| # | Önem | Bulgu | Durum |
+|---|---|---|---|
+| B1-1 | ORTA | **Veri katmanı API kesintisini "boş veri" sayıyor.** `lib/public/marketplace-api.ts` `getJson` ağ hatası/5xx'te boş yedek döner; `fetchProduct/fetchCompanyProfile/fetchListing` `null` → sayfa `notFound()`. ISR yenilemesi API kesintisine denk gelirse dolu sayfa BOŞ sürümle ya da **404** ile değişir ve `revalidate` süresince (60 sn – sitemap 1 saat) öyle kalır. Next, yenileme sırasında HATA atılırsa son iyi sürümü sunmaya devam eder — doğru davranış bu. Derleme sırasında API kapalıysa (Render askısı!) canlı derleme boş sayfalarla çıkar. | Bölüm 10'da düzeltilecek (yerel yığında API kapatılarak sınanacak) |
+| B1-2 | DÜŞÜK | 28 lint uyarısı (ölü importlar; ör. `company-profile.service.ts` artık `public-image-upload.ts` doğrulamasını kullanıyor, eski `assertUploadedObjectValid` importu kalmış — güvenlik açığı DEĞİL) | backlog |
+
+---
+
+## Bölüm 2 — Otomatik testler (⏳ API entegrasyon paketi Docker bekliyor)
+
+| Paket | Sonuç | Not |
+|---|---|---|
+| Web (vitest) — TZ=UTC | 175 dosya / 1.039 test; ilk koşumda 17 kırmızı → tek başına yeniden koşumda **1 gerçek hata** (aşağıda B2-1, düzeltildi), 16'sı yük kaynaklı 15 sn zaman aşımı | admin testleriyle eşzamanlı koşuldu |
+| Web (vitest) — TZ=Europe/Istanbul | 174/175 dosya, 1.038/1.039 — tek kırmızı `signup-client` zaman aşımı; tek başına 3/3 yeşil, test 1,7 sn | makine yükü (WSL 6,7 GB) |
+| Admin (vitest) | ✅ 19 dosya / 98 test | |
+| i18n | ✅ 8 dosya / 39 test | |
+| API birim (`test/unit`, DB'siz) | ✅ 96 dosya / 976 test | `--globalSetup` boş |
+| API entegrasyon (`test/integration`, 137 dosya) | ⏳ | yerel test Postgres'i Docker ister — Docker Desktop çöktü |
+
+### Bölüm 2 bulguları
+
+| # | Önem | Bulgu | Durum |
+|---|---|---|---|
+| B2-1 | YÜKSEK | `lib/tenders/__tests__/request-defaults.test.ts` tarihi ofsetsiz kuruyordu (`new Date("2026-09-09T10:00:00")`); kod İstanbul duvar saatiyle yazdığı için **UTC'de kırmızı** → CI çalıştırıcısı UTC olduğundan `production` PR'ı kırmızı olurdu | ✅ `+03:00` ofset; UTC / İstanbul / New York'ta yeşil (b4079ecb) |
+| B2-2 | DÜŞÜK | Web paketi bu makinede tam paralel koşumda 15 sn zaman aşımına düşüyor (formlu testler) | bilinen; CI'da sorun yok |
