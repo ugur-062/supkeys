@@ -34,14 +34,19 @@ test("BAE'deki tedarikçi: tüm-ülkeler ve yalnız-AE talebini görür, yalnız
   });
   await kayitFormu(page, { email: EMAIL, sifre: PASSWORD, ad: "Omar", soyad: `Gulf ${stamp}` });
   await dogrulamaKodu(page, EMAIL);
-  await expect(page.getByText("Şirket Bilgileri")).toBeVisible({ timeout: 60_000 });
-  // Kayıt kapısı 8 ülke (AB kapalı): Birleşik Arap Emirlikleri'ni taşıyan ilk native select.
-  const ulke = page.locator("select").filter({ has: page.locator('option[value="AE"]') }).first();
-  await ulke.selectOption("AE");
+  // Onboarding başlığı "Şirket bilgileri" (2026-09-27); adım etiketi ve açıklama da
+  // aynı sözcükleri taşır → düz metin 4 öğe bulur, başlık rolüyle aranır.
+  await expect(page.getByRole("heading", { name: "Şirket bilgileri" })).toBeVisible({ timeout: 60_000 });
+  // Ülke seçici 2026-09-27'den beri aranabilir birleşik kutu (`CountryCombobox`, tam liste).
+  const ulke = page.getByRole("combobox", { name: /^Ülke/ }).first();
+  await ulke.click();
+  await ulke.fill("Birleşik Arap");
+  await page.getByRole("option", { name: /Birleşik Arap Emirlikleri/ }).first().click();
   await page.waitForTimeout(300);
   await page.getByLabel(/Firma Unvanı/).fill(`QA Gulf Supplier ${stamp} LLC`);
   await page.getByLabel(/Firma Türü/).selectOption({ index: 1 });
-  await page.getByLabel(/Vergi \/ Sicil No/).first().fill("TRN-100234567890003");
+  // Vergi kimliği etiketi ülke profilinden (BAE: "TRN ya da ticaret ruhsatı no").
+  await page.getByLabel(/TRN|Vergi|Sicil/).first().fill("100234567890003");
   const sehir = page.getByLabel(/^Şehir \*/).first();
   const tag = await sehir.evaluate((el) => el.tagName);
   if (tag === "SELECT") await sehir.selectOption({ index: 1 });
@@ -111,6 +116,9 @@ test("BAE'deki tedarikçi: tüm-ülkeler ve yalnız-AE talebini görür, yalnız
   await expect(page.getByRole("heading", { name: `${stamp} Tüm ülkeler cıvata` })).toBeVisible({ timeout: 30_000 });
 
   await gotoRetry(page, `/company/ilan/${trId}`);
-  await expect(page.getByText(/bulunamadı|erişim|yetki/i).first(), "yalnız-TR talebi BAE firmasına kapalı").toBeVisible({ timeout: 30_000 });
+  // 2026-09-27 kuralı: görünürlük kapısından geçen ama ülkesi uymayan firmaya 404
+  // değil 403 COUNTRY_NOT_ELIGIBLE — "ülkenize açık değil" kartı, içerik YOK.
+  await expect(page.getByText(/ülkesine açık değil/i).first(), "yalnız-TR talebi BAE firmasına kapalı").toBeVisible({ timeout: 30_000 });
+  await expect(page.getByText(`${stamp} Yalnız Türkiye`, { exact: false })).toHaveCount(0);
   await page.screenshot({ path: "test-results/scope-foreign-tr-kapali.png" });
 });

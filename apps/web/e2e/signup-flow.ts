@@ -85,7 +85,9 @@ export async function dogrulamaKodu(page: Page, email: string): Promise<string> 
 /** Üç adımlı onboarding; sonunda panele düşer. */
 export async function onboarding(page: Page, firmaUnvani: string): Promise<void> {
   // 1 — Şirket Bilgileri
-  await expect(page.getByText("Şirket Bilgileri")).toBeVisible({ timeout: 60_000 });
+  // Onboarding başlığı "Şirket bilgileri" (2026-09-27); adım etiketi ve açıklama da
+  // aynı sözcükleri taşır → düz metin 4 öğe bulur, başlık rolüyle aranır.
+  await expect(page.getByRole("heading", { name: "Şirket bilgileri" })).toBeVisible({ timeout: 60_000 });
   await page.getByLabel(/Firma Unvanı/).fill(firmaUnvani);
   await page.getByLabel(/Firma Türü/).selectOption({ index: 1 });
   await page.getByLabel(/Vergi No|Vergi \/ Sicil No/).first().fill(gecerliVergiNo());
