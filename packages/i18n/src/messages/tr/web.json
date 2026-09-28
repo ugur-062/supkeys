@@ -4742,7 +4742,6 @@
         "duzeltmeIstenenUrunGerekcesiyleBurada": "Düzeltme istenen ürün gerekçesiyle burada listelenir; düzenleyip yeniden gönderebilirsiniz.",
         "vitrininizeEklediginizUrunlerFirmaSayfanizda": "Vitrininize eklediğiniz ürünler firma sayfanızda görünür ve açık talep eşleşmesini besler.",
         "yeniUrunEkle": "Yeni ürün ekle",
-        "sonuclarKirpildiAramayiDaraltin": "Sonuçlar kırpıldı — aramayı daraltın.",
         "urun": "Ürün",
         "durum": "Durum",
         "kategori": "Kategori",
@@ -4763,7 +4762,8 @@
         "firmaProfilinizHenuzHerkeseAcikDegil": "Firma profiliniz henüz herkese açık değil: ürünleriniz profil yayınlanana kadar dizinde ve firma sayfanızda görünmez. <link>Profili yayınla</link>.",
         "ucretsizPaketteEnFazlaUrun": "Ücretsiz pakette en fazla {limit} ürün yayında ya da onayda olabilir ({occupied}/{limit} kullanıldı). Taslak sınırsız. <link>Silver ile sınırsız ürün, belge ve video</link>.",
         "fiyatBirim": "{amount} / {unit}",
-        "fiyatBirimKademeli": "{amount} / {unit} (kademeli)"
+        "fiyatBirimKademeli": "{amount} / {unit} (kademeli)",
+        "dahaFazlaYukle": "Daha fazla yükle"
       },
       "editorRail": {
         "tamamlanma": "Tamamlanma",

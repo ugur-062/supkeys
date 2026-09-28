@@ -126,10 +126,19 @@ function wrap(ui: React.ReactElement) {
   return render(<QueryClientProvider client={qc}>{ui}</QueryClientProvider>);
 }
 
+/** API `SHOWCASE_STATUS_WHERE` aynası — web `productStatusKey` ile birebir. */
+function statusMatches(i: { isPublic: boolean; reviewStatus: string }, status?: string): boolean {
+  if (!status) return true;
+  if (status === "published") return i.isPublic;
+  if (status === "pending") return !i.isPublic && i.reviewStatus === "PENDING";
+  if (status === "rejected") return i.reviewStatus === "REJECTED";
+  return !i.isPublic && i.reviewStatus !== "PENDING" && i.reviewStatus !== "REJECTED";
+}
+
 beforeEach(() => {
   h.get.mockReset();
   h.patch.mockReset();
-  h.get.mockImplementation((url: string) => {
+  h.get.mockImplementation((url: string, config?: { params?: Record<string, unknown> }) => {
     // Vitrin okuma (`GET :id/showcase`) — düzenleyici/önizleme açılışı.
     const m = url.match(/\/company\/items\/(p\d)\/showcase$/);
     if (m) {
@@ -149,8 +158,10 @@ beforeEach(() => {
         data: [{ id: "39121600", code: "39121600", nameTr: "Dağıtım panoları", level: 3, breadcrumb: "" }],
       });
     }
+    // Sunucu süzgecinin aynası (API `SHOWCASE_STATUS_WHERE`): sekme SUNUCUDA süzülür.
+    const items = ITEMS.filter((i) => statusMatches(i, config?.params?.status as string | undefined));
     return Promise.resolve({
-      data: { items: ITEMS, total: 4, truncated: false, counts: { published: 1, draft: 1, pending: 1, rejected: 1 } },
+      data: { items, total: items.length, truncated: false, counts: { published: 1, draft: 1, pending: 1, rejected: 1, publishedInReview: 0 } },
     });
   });
 });
@@ -243,11 +254,15 @@ describe("ProductsView", () => {
 
   it("durum kutuları MECE: yayındayken yeniden incelenen ürün YALNIZ Yayında'da sayılır ve listelenir; boş kutu 0 gösterir", async () => {
     const user = userEvent.setup();
-    h.get.mockImplementation((url: string) => {
+    h.get.mockImplementation((url: string, config?: { params?: Record<string, unknown> }) => {
       if (url.includes("/categories/by-ids")) return Promise.resolve({ data: [] });
-      // 1 ürün: yayında + yeniden incelemede → sunucu published 1, pending 1 sayar.
+      // 1 ürün: yayında + yeniden incelemede → sunucu published 1, pending 1,
+      // publishedInReview 1 sayar; "Onay bekliyor" sekmesi sunucuda boş döner.
       const item = { ...ITEMS[0], reviewStatus: "PENDING" };
-      return Promise.resolve({ data: { items: [item], total: 1, truncated: false, counts: { published: 1, draft: 0, pending: 1, rejected: 0 } } });
+      const items = statusMatches(item, config?.params?.status as string | undefined) ? [item] : [];
+      return Promise.resolve({
+        data: { items, total: items.length, truncated: false, counts: { published: 1, draft: 0, pending: 1, rejected: 0, publishedInReview: 1 } },
+      });
     });
     wrap(<ProductsView />);
     await screen.findByText("Dağıtım panosu");
@@ -260,6 +275,29 @@ describe("ProductsView", () => {
     await user.click(within(tabs).getByRole("tab", { name: /Onay bekliyor\s*0$/ }));
     expect(screen.queryByText("Dağıtım panosu")).toBeNull();
     expect(screen.getByText("Onay bekleyen ürün yok.")).toBeInTheDocument();
+  });
+
+  it("liste SUNUCUDAN en yeni üstte ve sekme parametresiyle istenir; devamı 'Daha fazla yükle' ile (yayın denetimi 2026-09-28)", async () => {
+    const user = userEvent.setup();
+    h.get.mockImplementation((url: string, config?: { params?: Record<string, unknown> }) => {
+      if (url.includes("/categories/by-ids")) return Promise.resolve({ data: [] });
+      const page = config?.params?.skip ? [ITEMS[1]] : [ITEMS[0]];
+      return Promise.resolve({
+        data: { items: page, total: 2, truncated: !config?.params?.skip, counts: { published: 1, draft: 1, pending: 0, rejected: 0 } },
+      });
+    });
+    wrap(<ProductsView />);
+    expect(await screen.findByText("Dağıtım panosu")).toBeTruthy();
+    const listCalls = () => h.get.mock.calls.filter(([u]) => u === "/company/items");
+    expect(listCalls()[0]![1]).toMatchObject({ params: { sort: "recent", take: 50, skip: 0 } });
+    await user.click(screen.getByRole("button", { name: "Daha fazla yükle" }));
+    expect(await screen.findByText("Kablo kanalı")).toBeTruthy();
+    expect(screen.getByText("Dağıtım panosu")).toBeTruthy();
+    expect(listCalls().at(-1)![1]).toMatchObject({ params: { skip: 1 } });
+    expect(screen.queryByRole("button", { name: "Daha fazla yükle" })).toBeNull();
+    // Sekme değişince sunucuya `status` gider.
+    await user.click(within(screen.getByRole("tablist")).getByRole("tab", { name: /Yayında/ }));
+    expect(listCalls().some(([, c]) => (c as { params?: { status?: string } })?.params?.status === "published")).toBe(true);
   });
 
   it("başlıkta TEK eylem 'Yeni ürün'; toplu ekleme KALDIRILDI (2026-09-15)", async () => {

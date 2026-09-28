@@ -35,7 +35,7 @@ import { RequireTier } from "../company-auth/decorators/require-tier.decorator";
 import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.guard";
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
-import { CompanyItemsService } from "./company-items.service";
+import { CompanyItemsService, SHOWCASE_LIST_STATUSES, type ShowcaseListStatus } from "./company-items.service";
 
 const UNIT_CODES = UNITS.map((u) => u.code);
 // Para birimi TEK KAYNAK: Prisma `Currency` enum'ı. Elle liste yazmak
@@ -179,12 +179,16 @@ export class CompanyItemsController {
     @Query("take") take?: string,
     @Query("skip") skip?: string,
     @Query("archived") archived?: string,
+    @Query("status") status?: string,
+    @Query("sort") sort?: string,
   ) {
     return this.service.list(user.companyId, {
       q,
       categoryId,
       tier: user.tier,
       archived: archived === "1" || archived === "true",
+      status: SHOWCASE_LIST_STATUSES.includes(status as ShowcaseListStatus) ? (status as ShowcaseListStatus) : undefined,
+      sort: sort === "recent" ? "recent" : "usage",
       take: take ? Number.parseInt(take, 10) || undefined : undefined,
       skip: skip ? Number.parseInt(skip, 10) || undefined : undefined,
     });

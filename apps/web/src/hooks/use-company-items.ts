@@ -1,7 +1,7 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useTranslations } from "next-intl";
 
 export interface CatalogItem {
@@ -43,6 +43,8 @@ export interface CatalogCounts {
   /** Onay bekleyen — yayında olup yeniden incelenenler DAHİL. */
   pending: number;
   rejected: number;
+  /** Yayındayken yeniden incelenen (ücretsiz tavan göstergesi iki kez saymasın). */
+  publishedInReview?: number;
 }
 
 export interface CatalogListResult {
@@ -70,6 +72,39 @@ export function useCatalogItems(q: string, enabled = true) {
     },
     enabled,
     // Yazarken önceki sonuçlar ekranda kalsın (skeleton'a flaş atmasın).
+    placeholderData: (prev) => prev,
+  });
+}
+
+/** Ürünlerim sekmesi — "all" dışındakiler SUNUCUDA süzülür (API `status`). */
+export type ShowcaseListTab = "all" | "published" | "pending" | "rejected" | "draft";
+const SHOWCASE_PAGE = 50;
+
+/**
+ * ÜRÜNLERİM LİSTESİ (yayın denetimi 2026-09-28 Bölüm 6): sekme süzgeci ve "en
+ * yeni üstte" SUNUCUDA, 50'şer sayfa. Eskiden katalog seçicisiyle aynı çağrı
+ * (ilk 50, kullanım sıklığı) istemcide süzülüyordu → 50'den fazla ürünü olan
+ * firmada "Onay bekliyor (1)" boş, yeni eklenen ürün görünmüyordu. Katalog
+ * seçicisi (`useCatalogItems`) kullanım sıralamasında kalır.
+ */
+export function useShowcaseItems(q: string, tab: ShowcaseListTab) {
+  return useInfiniteQuery<CatalogListResult>({
+    queryKey: [...CATALOG_KEY, "showcase", q, tab],
+    initialPageParam: 0,
+    queryFn: async ({ pageParam }) => {
+      const { data } = await companyApi.get<CatalogListResult>("/company/items", {
+        params: {
+          sort: "recent",
+          take: SHOWCASE_PAGE,
+          skip: pageParam,
+          ...(q ? { q } : {}),
+          ...(tab !== "all" ? { status: tab } : {}),
+        },
+      });
+      return data;
+    },
+    getNextPageParam: (last, all) =>
+      last.truncated ? all.reduce((n, p) => n + p.items.length, 0) : undefined,
     placeholderData: (prev) => prev,
   });
 }

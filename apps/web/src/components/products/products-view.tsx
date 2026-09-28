@@ -17,7 +17,7 @@ import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
 import {
   fetchProductShowcase,
-  useCatalogItems,
+  useShowcaseItems,
   type CatalogItem,
   type ProductShowcase,
 } from "@/hooks/use-company-items";
@@ -28,6 +28,7 @@ import { EmptyState } from "@/components/list";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { formatDate } from "@/lib/format-date";
 import { productStatusKey } from "@/lib/company/product-status";
+import { Button } from "@/components/ui/button";
 import { ArrowLeftIcon, EllipsisVerticalIcon, EyeIcon, MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import { Thumb } from "@/components/ui/thumb";
 import { affixCurrency } from "@/lib/tenders/labels";
@@ -109,28 +110,18 @@ export function ProductsView() {
     item: CatalogItem;
     showcase: ProductShowcase;
   } | null>(null);
-  const { data, isLoading } = useCatalogItems(q);
-  const items = useMemo(() => data?.items ?? [], [data]);
+  // Sekme süzgeci ve "en yeni üstte" SUNUCUDA, 50'şer sayfa (yayın denetimi
+  // 2026-09-28 Bölüm 6); sayaçlar ilk sayfada ve firma geneli.
+  const showcase = useShowcaseItems(q, tab);
+  const { isLoading } = showcase;
+  const data = showcase.data?.pages[0];
+  const items = useMemo(() => showcase.data?.pages.flatMap((p) => p.items) ?? [], [showcase.data]);
   // Sekme süzgeci istemcide (liste zaten geldi); SAYAÇLAR sunucudan ve firma
   // geneli — arama daraltınca sekme sayısı değişmez, panoyla aynı sayı.
   // Hook'lar erken dönüşlerden (yeni/düzenle görünümleri) ÖNCE.
-  const visible = useMemo(
-    () =>
-      tab === "all"
-        ? items
-        : items.filter((i) => {
-            const k = productStatusKey(i);
-            // MECE (2026-09-10, kullanıcı: "Tümü 1 · Yayında 1 · Onay bekliyor 1"
-            // tutmuyordu): yayındayken yeniden incelenen ürün YALNIZ Yayında'da
-            // (rozeti "Yayında · incelemede"); Onay bekliyor = henüz vitrine
-            // çıkmamış olanlar. Sekme sayaçları toplamı = Tümü.
-            if (tab === "published") return k === "published" || k === "published_pending";
-            if (tab === "pending") return k === "pending";
-            if (tab === "rejected") return k === "rejected";
-            return k === "draft";
-          }),
-    [items, tab],
-  );
+  // Sekme SUNUCUDA süzülür; MECE kuralı API'de (yayındayken yeniden incelenen
+  // yalnız "Yayında"da — `SHOWCASE_STATUS_WHERE`, web `productStatusKey` aynası).
+  const visible = items;
 
   /**
    * Vitrin alanları liste yanıtında YOK (kalem listesi dar tutuldu); açılışta
@@ -159,7 +150,7 @@ export function ProductsView() {
   const publishedCount = data?.counts.published ?? 0;
   // Tavan yayında + (yayında olmayan) onay bekleyen — API ile aynı sayım:
   // kuyruktakiler de yer tutar; yayındayken yeniden incelenen iki kez sayılmaz.
-  const pendingPublished = items.filter((i) => i.isPublic && i.reviewStatus === "PENDING").length;
+  const pendingPublished = data?.counts.publishedInReview ?? 0;
   const occupied = publishedCount + Math.max(0, (data?.counts.pending ?? 0) - pendingPublished);
   const publishLimitReached = productLimit != null && occupied >= productLimit;
   // Vitrin kapısı profil yayınına bağlı (`publicProductWhere`): profil yayında
@@ -424,10 +415,12 @@ export function ProductsView() {
         <ProductRows items={visible} onOpen={(item) => void openEditor(item)} />
       )}
 
-      {data?.truncated ? (
-        <p className="mt-4 text-xs text-zinc-500">
-          {tr("sonuclarKirpildiAramayiDaraltin")}
-        </p>
+      {showcase.hasNextPage ? (
+        <div className="mt-4 flex justify-center">
+          <Button variant="secondary" onClick={() => void showcase.fetchNextPage()} disabled={showcase.isFetchingNextPage}>
+            {tr("dahaFazlaYukle")}
+          </Button>
+        </div>
       ) : null}
     </PageContainer>
   );

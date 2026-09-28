@@ -35184,6 +35184,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.productsView.dahaFazlaYukle": {
+    "hash": "776858bd10",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
   "web.panel.trade.productsView.durum": {
     "hash": "1f8de55f0c",
     "status": "reviewed",
@@ -35301,11 +35306,6 @@
   },
   "web.panel.trade.productsView.priceMode.TIERED": {
     "hash": "a3a09b18c4",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.trade.productsView.sonuclarKirpildiAramayiDaraltin": {
-    "hash": "4a74e430ec",
     "status": "reviewed",
     "at": "2026-09-24"
   },

@@ -4742,7 +4742,6 @@
         "duzeltmeIstenenUrunGerekcesiyleBurada": "Товары, возвращённые на исправление, перечислены здесь вместе с причиной; Вы можете отредактировать их и отправить повторно.",
         "vitrininizeEklediginizUrunlerFirmaSayfanizda": "Товары, добавленные на витрину, отображаются на странице компании и участвуют в подборе по открытым запросам.",
         "yeniUrunEkle": "Добавить новый товар",
-        "sonuclarKirpildiAramayiDaraltin": "Результаты усечены — уточните поиск.",
         "urun": "Товар",
         "durum": "Статус",
         "kategori": "Категория",
@@ -4763,7 +4762,8 @@
         "firmaProfilinizHenuzHerkeseAcikDegil": "Профиль Вашей компании ещё не открыт для всех: пока он не опубликован, Ваши товары не отображаются в каталоге и на странице компании. <link>Опубликовать профиль</link>.",
         "ucretsizPaketteEnFazlaUrun": "На бесплатном тарифе не более {limit} товаров могут быть опубликованы или находиться на проверке (использовано {occupied}/{limit}). Черновики без ограничений. <link>Silver: товары, документы и видео без ограничений</link>.",
         "fiyatBirim": "{amount} / {unit}",
-        "fiyatBirimKademeli": "{amount} / {unit} (ступенчатая)"
+        "fiyatBirimKademeli": "{amount} / {unit} (ступенчатая)",
+        "dahaFazlaYukle": "Показать ещё"
       },
       "editorRail": {
         "tamamlanma": "Заполненность",

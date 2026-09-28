@@ -380,3 +380,41 @@ describe("ürün oluşturma — TEK ÇAĞRI (ilan sihirbazı değil)", () => {
     expect(row.searchText).toContain("boru");
   });
 });
+
+/**
+ * Yayın denetimi 2026-09-28 Bölüm 6 (yerel uçtan uca koşuda yakalandı): Ürünlerim
+ * ilk 50 satırı KULLANIM sıklığıyla alıp sekmeleri istemcide süzüyordu → 50'den
+ * fazla ürünü olan firmada "Onay bekliyor (1)" boş, az önce eklenen ürün görünmez.
+ * Sekme ve "en yeni üstte" sunucuda.
+ */
+describe("Ürünlerim listesi — sunucu süzgeci ve en yeni üstte", () => {
+  it("55 ürünlü firmada: sekme süzgeci sunucuda, recent sıralamada en yeni ilk, publishedInReview sayılır", async () => {
+    const { company, user } = await makeCompanyWithUser(prisma);
+    const base = Date.now() - 60 * 86_400_000;
+    for (let i = 0; i < 52; i++) {
+      await makeProduct(company.id, user.id, { name: `Eski ${String(i).padStart(2, "0")}`, usageCount: 5, createdAt: new Date(base + i * 1000) });
+    }
+    await makeProduct(company.id, user.id, { name: "Yayında incelemede", isPublic: true, reviewStatus: "PENDING", createdAt: new Date(base + 60_000) });
+    await makeProduct(company.id, user.id, { name: "Düzeltme istendi", reviewStatus: "REJECTED", createdAt: new Date(base + 61_000) });
+    const newest = await makeProduct(company.id, user.id, { name: "Çelik boru yeni", reviewStatus: "PENDING", isPublic: false });
+
+    const pending = await service().list(company.id, { status: "pending", sort: "recent" });
+    expect(pending.items.map((i) => i.name)).toEqual(["Çelik boru yeni"]);
+
+    const published = await service().list(company.id, { status: "published", sort: "recent" });
+    expect(published.items.map((i) => i.name)).toEqual(["Yayında incelemede"]);
+
+    const rejected = await service().list(company.id, { status: "rejected" });
+    expect(rejected.items.map((i) => i.name)).toEqual(["Düzeltme istendi"]);
+
+    const recent = await service().list(company.id, { sort: "recent" });
+    expect(recent.items[0]!.id).toBe(newest.id);
+    expect(recent.total).toBe(55);
+    expect(recent.truncated).toBe(true);
+    expect(recent.counts).toMatchObject({ published: 1, pending: 2, rejected: 1, publishedInReview: 1 });
+
+    // Katalog seçicisi (varsayılan) kullanım sıklığıyla kalır: yeni ürün ilk sayfada değil.
+    const usage = await service().list(company.id, {});
+    expect(usage.items.some((i) => i.id === newest.id)).toBe(false);
+  });
+});

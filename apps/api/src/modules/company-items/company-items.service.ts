@@ -194,6 +194,16 @@ export interface DiscoverProductRow {
   };
 }
 
+/** Ürünlerim sekmeleri (web `ProductTab`, "all" hariç). */
+export type ShowcaseListStatus = "published" | "pending" | "rejected" | "draft";
+export const SHOWCASE_LIST_STATUSES: readonly ShowcaseListStatus[] = ["published", "pending", "rejected", "draft"];
+const SHOWCASE_STATUS_WHERE: Record<ShowcaseListStatus, Prisma.CompanyItemWhereInput> = {
+  published: { isPublic: true },
+  pending: { isPublic: false, reviewStatus: "PENDING" },
+  rejected: { reviewStatus: "REJECTED" },
+  draft: { isPublic: false, reviewStatus: { notIn: ["PENDING", "REJECTED"] } },
+};
+
 @Injectable()
 export class CompanyItemsService {
   // DİKKAT (rig stub gotcha, CLAUDE.md): `storage` SONA eklendi. Araya
@@ -238,6 +248,15 @@ export class CompanyItemsService {
       archived?: boolean;
       /** Efektif paket — yayında ürün tavanını (`PRODUCT_LIMITS`) yanıta koymak için. */
       tier?: string;
+      /**
+       * Ürünlerim sekmesi — SUNUCUDA süzülür (yayın denetimi 2026-09-28 Bölüm 6):
+       * eskiden web ilk 50 satırı alıp istemcide süzüyordu; 50'den fazla ürünü
+       * olan firmada "Onay bekliyor (1)" sekmesi boş liste gösteriyordu.
+       * Anlam web `productStatusKey` ile birebir (yayında+incelemede → published).
+       */
+      status?: ShowcaseListStatus;
+      /** `recent` = en yeni üstte (Ürünlerim); varsayılan kullanım sıklığı (katalog seçici). */
+      sort?: "usage" | "recent";
     } = {},
   ) {
     const take = Math.min(Math.max(opts.take ?? 50, 1), 200);
@@ -249,6 +268,7 @@ export class CompanyItemsService {
       companyId,
       isActive: !opts.archived,
       ...(opts.categoryId ? { categoryId: opts.categoryId } : {}),
+      ...(opts.status ? SHOWCASE_STATUS_WHERE[opts.status] : {}),
       ...(folded
         ? {
             OR: [
@@ -260,15 +280,18 @@ export class CompanyItemsService {
           }
         : {}),
     };
-    const [rows, total, published, draft, pending, rejected] = await Promise.all([
+    const [rows, total, published, draft, pending, rejected, publishedInReview] = await Promise.all([
       this.prisma.companyItem.findMany({
         where,
-        orderBy: [
-          { usageCount: "desc" },
-          { lastUsedAt: { sort: "desc", nulls: "last" } },
-          { name: "asc" },
-          { id: "asc" }, // tie-break — sayfalar arası kayma olmasın
-        ],
+        orderBy:
+          opts.sort === "recent"
+            ? [{ createdAt: "desc" }, { id: "asc" }]
+            : [
+                { usageCount: "desc" },
+                { lastUsedAt: { sort: "desc", nulls: "last" } },
+                { name: "asc" },
+                { id: "asc" }, // tie-break — sayfalar arası kayma olmasın
+              ],
         take,
         skip,
         // Ürünlerim tablosu (2026-09-18): görüntülenme sütunu — kayıtlı
@@ -292,6 +315,11 @@ export class CompanyItemsService {
       this.prisma.companyItem.count({
         where: { companyId, isActive: true, isPublic: false, reviewStatus: "REJECTED" },
       }),
+      // Yayındayken yeniden incelenen — ücretsiz tavan göstergesi bunu iki kez
+      // saymamak için ister (eskiden web kesik listeden sayıyordu).
+      this.prisma.companyItem.count({
+        where: { companyId, isActive: true, isPublic: true, reviewStatus: "PENDING" },
+      }),
     ]);
     return {
       items: rows.map((r) => this.serialize(r)),
@@ -299,7 +327,7 @@ export class CompanyItemsService {
       // Sessiz tavan yok: kullanıcı kesildiğini görür.
       truncated: skip + rows.length < total,
       // `pending` yayında olup yeniden incelenenleri DE sayar (kuyrukta).
-      counts: { published, draft, pending, rejected },
+      counts: { published, draft, pending, rejected, publishedInReview },
       // Ücretsiz pakette yayında ürün tavanı (null = limitsiz) — Ürünlerim
       // "N/10 yayında" ve formdaki "Kaydet ve yayınla" kilidi buradan okur.
       productLimit: opts.tier ? (PRODUCT_LIMITS[opts.tier as TierName] ?? null) : null,

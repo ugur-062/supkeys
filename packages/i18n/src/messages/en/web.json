@@ -4742,7 +4742,6 @@
         "duzeltmeIstenenUrunGerekcesiyleBurada": "Products with a correction request are listed here with the reason; you can edit and resubmit them.",
         "vitrininizeEklediginizUrunlerFirmaSayfanizda": "Products you add to your showcase appear on your company page and feed open request matching.",
         "yeniUrunEkle": "Add new product",
-        "sonuclarKirpildiAramayiDaraltin": "Results were truncated — narrow your search.",
         "urun": "Product",
         "durum": "Status",
         "kategori": "Category",
@@ -4763,7 +4762,8 @@
         "firmaProfilinizHenuzHerkeseAcikDegil": "Your company profile is not public yet: your products will not appear in the directory or on your company page until the profile is published. <link>Publish profile</link>.",
         "ucretsizPaketteEnFazlaUrun": "On the free plan, up to {limit} products can be published or under review ({occupied}/{limit} used). Drafts are unlimited. <link>Unlimited products, documents and video with Silver</link>.",
         "fiyatBirim": "{amount} / {unit}",
-        "fiyatBirimKademeli": "{amount} / {unit} (tiered)"
+        "fiyatBirimKademeli": "{amount} / {unit} (tiered)",
+        "dahaFazlaYukle": "Load more"
       },
       "editorRail": {
         "tamamlanma": "Completion",
