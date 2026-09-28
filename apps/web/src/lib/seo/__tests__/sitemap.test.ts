@@ -203,3 +203,13 @@ describe("sabit sayfalar parçası — sözleşme metinleri (2026-09-27)", () =>
     expect(locs).toContain(`${S}/ru/faq`);
   });
 });
+
+// Yayın denetimi 2026-09-28 Bölüm 5: XML 1.0'da yasak karakter tek bir ürün
+// adında bile bütün sitemap parçasını geçersiz kılardı.
+describe("sitemap XML kaçışı — yasak karakterler", () => {
+  it("C0 denetim karakterleri ve U+FFFE atılır; özel karakterler varlığa çevrilir", () => {
+    expect(xmlEscape("Pano\u0000\u0008\u000B￾ <A&B>")).toBe("Pano &lt;A&amp;B&gt;");
+    expect(xmlEscape("Satır\tsekme\nyeni")).toBe("Satır\tsekme\nyeni");
+    expect(xmlEscape("Çelik 😀 boru")).toBe("Çelik 😀 boru");
+  });
+});

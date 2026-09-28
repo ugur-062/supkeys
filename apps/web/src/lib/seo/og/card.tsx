@@ -58,11 +58,12 @@ function loadFonts() {
 async function embedImage(src: string | null): Promise<string | null> {
   if (!src) return null;
   const site = resolveSiteUrl();
-  // Optimize edici yalnız `remotePatterns`taki host'u kabul eder; dış host'ta
-  // ham adres denenir (JPEG/PNG ise Satori okur).
-  const url = optimizable(src) || src.startsWith("/")
-    ? `${site}/_next/image?url=${encodeURIComponent(src)}&w=640&q=80`
-    : src;
+  // Yalnız kendi CDN'imiz (`remotePatterns`) ve site içi görsel gömülür.
+  // Dış adres sunucudan ÇEKİLMEZ (yayın denetimi 2026-09-28 Bölüm 5): ürün
+  // görseli alanı her adresi kabul ettiği için OG uç noktası rastgele bir
+  // adresi sunucu tarafında indiren bir araca dönüşüyordu. Görselsiz kart çizilir.
+  if (!optimizable(src) && !src.startsWith("/")) return null;
+  const url = `${site}/_next/image?url=${encodeURIComponent(src)}&w=640&q=80`;
   try {
     // Accept başlığı bilinçli YOK: optimize edici WebP/AVIF sunmaz, JPEG döner.
     const res = await fetch(url, { signal: AbortSignal.timeout(4000), next: { revalidate: 3600 } });

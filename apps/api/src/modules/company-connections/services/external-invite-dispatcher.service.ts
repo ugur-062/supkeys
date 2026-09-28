@@ -193,9 +193,14 @@ export class ExternalInviteDispatcher {
         where: { ...base, status: { not: "FAILED" }, queuedAt: { gte: yesterday, lt: dayStart } },
       }),
     ]);
+    // Tanımsız/boş → varsayılan; 0 GEÇERLİ (soğuk daveti durdurma anahtarı).
+    // Eskiden `v > 0` 0'ı yok sayıp varsayılana düşüyordu (yayın denetimi
+    // 2026-09-28 Bölüm 5).
     const num = (key: string) => {
-      const v = Number(this.config.get<string>(key));
-      return Number.isFinite(v) && v > 0 ? v : undefined;
+      const raw = this.config.get<string>(key)?.toString().trim();
+      if (!raw) return undefined;
+      const v = Number(raw);
+      return Number.isFinite(v) && v >= 0 ? v : undefined;
     };
     return coldInviteDailyCap(
       { firstSentAt: first?.queuedAt ?? null, sent7d, complaints7d, hardBounces7d, sentYesterday },

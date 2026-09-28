@@ -21,6 +21,11 @@ const DAY = 24 * 3_600_000;
 const NOW = new Date("2026-10-07T10:00:00Z"); // Çarşamba
 
 describe("coldInviteDailyCap", () => {
+  it("0 = durdurma anahtarı: taban ya da tavan 0 ise günlük tavan 0 (yayın denetimi 2026-09-28)", () => {
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: null }, NOW, { max: 0 }).cap).toBe(0);
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: null }, NOW, { base: 0 }).cap).toBe(0);
+  });
+
   const quiet = { sent7d: 0, complaints7d: 0, hardBounces7d: 0, sentYesterday: 0 };
   it("ilk hafta taban; sorunsuz her hafta iki katı; tavan max", () => {
     expect(coldInviteDailyCap({ ...quiet, firstSentAt: null }, NOW).cap).toBe(150);

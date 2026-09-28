@@ -36,8 +36,18 @@ export interface SitemapIndexItem {
 /** Dosya başına sınır — protokol 50.000; başlık+görselle boyut da düşünülerek. */
 export const SITEMAP_URL_LIMIT = 50_000;
 
+/**
+ * XML 1.0'da YASAK karakterler (C0 denetim karakterleri, eşleşmemiş vekil,
+ * U+FFFE/FFFF) varlık olarak bile yazılamaz — tek bir satıcının ürün adındaki
+ * görünmez karakter bütün sitemap parçasını geçersiz kılardı (yayın denetimi
+ * 2026-09-28 Bölüm 5). Atılır.
+ */
+// eslint-disable-next-line no-control-regex
+const XML_ILLEGAL = /[^\u0009\u000A\u000D\u0020-\uD7FF\uE000-\uFFFD\u{10000}-\u{10FFFF}]/gu;
+
 export function xmlEscape(s: string): string {
   return s
+    .replace(XML_ILLEGAL, "")
     .replace(/&/g, "&amp;")
     .replace(/</g, "&lt;")
     .replace(/>/g, "&gt;")

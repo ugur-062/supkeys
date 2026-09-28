@@ -70,6 +70,10 @@ export function coldInviteDailyCap(
   now: Date,
   cfg: { base?: number; max?: number } = {},
 ): ColdInviteCap {
+  // `COLD_INVITE_MAX_DAILY=0` (ya da taban 0) = soğuk daveti DURDUR anahtarı —
+  // eskiden `Math.max(1, …)` 0'ı yutup varsayılan tavanla göndermeye devam
+  // ediyordu (yayın denetimi 2026-09-28 Bölüm 5).
+  if (cfg.max === 0 || cfg.base === 0) return { cap: 0, braked: null };
   const base = Math.max(1, cfg.base ?? DEFAULT_COLD_INVITE_BASE_DAILY);
   const max = Math.max(base, cfg.max ?? DEFAULT_COLD_INVITE_MAX_DAILY);
   const weeks = stats.firstSentAt ? Math.max(0, Math.floor((now.getTime() - stats.firstSentAt.getTime()) / (7 * DAY_MS))) : 0;
