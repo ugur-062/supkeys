@@ -23,7 +23,7 @@
 | 3 | Veritabanı ve migration'lar | ✅ bitti |
 | 4 | Yetki ve firma yalıtımı | ✅ bitti |
 | 5 | Uygulama güvenliği | ✅ bitti |
-| 6 | Çekirdek akışlar uçtan uca | ⏳ |
+| 6 | Çekirdek akışlar uçtan uca | ✅ bitti |
 | 7 | Zamanlanmış işler ve e-posta | ⏳ |
 | 8 | AI katmanı | ⏳ |
 | 9 | Çok dillilik | ⏳ |
@@ -414,3 +414,40 @@ kırmızı/yeşil duyarlılığı eski koda karşı sınandı.
 | B5-16 (Bölüm 14) | `EMAIL_FROM_ADDRESS_INVITE` boşsa soğuk davet işlem göndereninden gider; çıkış jetonu anahtarı `JWT_SECRET`ten türer (döndürülürse gönderilmiş çıkış bağlantıları kırılır) | operatör env matrisi |
 | B5-17 (Bölüm 13) | Soğuk davet/bastırma günlük satırları üçüncü kişi adresini yazıyor | KVKK saklama kararıyla birlikte |
 | — | `source` istemciden (B4-12), bağlantıyı açan adresin fren muafiyeti | bilinen tasarım kararları (Bölüm 4) |
+
+---
+
+## Bölüm 6 — Çekirdek akışlar uçtan uca (✅ 2026-09-28)
+
+Ortam (staging API Render askısında olduğu için yerel, canlı kablolamasıyla):
+API `node dist/main.js` · **RLS açık**, kısıtlı `rothern_app` + sahip bypass ·
+DB = migration'lı staging kopyası (Bölüm 3, 5440) · Auth = staging Supabase
+(QA hesapları) · web + admin **üretim derlemesi** (`next build && next start`,
+pazar yeri açık) · e-posta sahte Resend'e (`RESEND_BASE_URL`, gövdeler JSONL'de
+denetlendi) · AI kapalı (maliyet yok) · cron'lar çalışır. Staging e2e paketi
+(`e2e/staging-*.spec.ts`) `E2E_API_URL`/`PLAYWRIGHT_BASE_URL` ile bu yığına
+yönlendirildi; yerel koşu betiği `~/rothern-audit-2026-09-28/`… (oturum
+scratchpad'inde `run-e2e-local.sh`).
+
+| Kapsam | Sonuç |
+|---|---|
+| Staging e2e — yönetici gerektirmeyen 21 dosya | ✅ 79 test (ilk koşuda 5 kırmızı: hepsi bayat test/ortam yapıntısı, düzeltildi — 31647de8) |
+| Staging e2e — yönetici gerektiren 3 dosya (satış zinciri + ürün onayı, firma doğrulama, Destek rolü, eşzamanlılık) | ✅ 8 test (ilk koşuda 3 kırmızı: 2 ürün kusuru B6-2/B6-3 + 1 bayat test) |
+| Herkese açık yollar (TR/EN/RU, ülke sayfası, sitemap, robots, llms, bilinmeyen sayfa 404) | ✅ |
+| Dış talep daveti → kuyruk → dakikalık dağıtıcı → e-posta (beyaz liste: kalem var; şartname, hedef fiyat, kimlik YOK; gönderen "Firma (Rothern üzerinden)"; List-Unsubscribe + One-Click) → kayıtsız önizleme (API + tarayıcıda sayfa) → referral ziyareti → tek tık çıkış (GET yazmaz/303, POST yazar) → çıkış yapan adrese yeni davet `OPTED_OUT` | ✅ (B6-1 düzeltmesiyle) |
+| Yayın sonrası AI keşif turu model OLMADAN (AI kapalı) → 3 platform üyesi `MEMBER` + gerekçe → tek tık üye daveti → 3 davet + 3 bildirim + 3 e-posta; alıcıya "3 tedarikçi bulundu" | ✅ |
+| Kapanış/hatırlatma cron'ları, akşam kategori özeti | ✅ (e-posta akışları ve başlıkları doğru) |
+| Dünya şehirleri (Münih önerisi), EN ülke sayfası | ✅ |
+
+### Bölüm 6 bulguları
+
+| # | Önem | Bulgu | Durum |
+|---|---|---|---|
+| B6-1 | DÜŞÜK | AI kapalıyken (anahtar yok/düşmüş) dış talep daveti hiç gelmeyecek çeviriyi 10 dk bekliyordu — kaynak dildeki (TR→TR) davet dahil (`ensureTranslated` kapalı serviste kaynak dili denetlemeden `false`) | ✅ çeviri servisi kapalıysa ilk turda özgün metin (1f8dcf85) |
+| B6-2 | ORTA | **Ürünlerim** ilk 50 satırı KULLANIM sıklığıyla alıp sekmeleri istemcide süzüyordu: 50'den fazla ürünü olan firmada "Onay bekliyor (1)" boş, az önce eklenen ürün ilk sayfada yok (alfabetik ortaya düşüyor), ücretsiz tavan göstergesi kesik listeden | ✅ sekme süzgeci + "en yeni üstte" sunucuda, 50'şer sayfa "Daha fazla yükle"; `publishedInReview` sayacı (126b5042) |
+| B6-3 | DÜŞÜK | Yönetici: Destek rolü firma detayında 403'te "Firma yüklenemedi" + işe yaramayan "Tekrar dene" | ✅ yetki mesajı (432495cf) |
+| B6-4 (Bölüm 9) | DÜŞÜK | Tedarikçiye giden e-posta konuları "Satın Alma Talebinde teklif alımı kapandı", "sizi bir satın alma talebine davet etti" — CLAUDE.md "satış tarafına talep" kuralıyla çelişiyor; kapanış konusunda talep adı/numarası yok | Bölüm 7/9 |
+| B6-5 (Bölüm 14) | bilgi | Yerel `.env` ve `render.staging.env` kopyasında staging göndereni `staging@rothern.com`; CLAUDE.md kararı `staging@supkeys.com` (rothern.com itibarı staging'den etkilenmesin) | operatör — Render panelindeki gerçek değer |
+
+Not: e-posta içerik e2e'si (`staging-email-content`) gerçek Resend teslimatı
+ölçtüğü için yerelde koşulmadı; performans e2e'si Bölüm 11'de.
