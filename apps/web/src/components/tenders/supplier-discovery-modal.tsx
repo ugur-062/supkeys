@@ -12,6 +12,7 @@ import { Button } from "@/components/ui/button";
 import { IconButton } from "@/components/ui/icon-button";
 import { useInviteConnection } from "@/hooks/use-company-connections";
 import { isInviteAccepted } from "@/lib/tenders/external-invite-status";
+import { MAX_PENDING_EXTERNAL_INVITES } from "@/lib/tenders/quick-draft";
 import {
   useExternalSupplierDiscovery,
   useExternalTenderInvite,
@@ -483,9 +484,9 @@ export function SupplierDiscoveryModal({
                 <div className="flex flex-wrap items-center justify-between gap-3">
                   <p className="text-xs text-zinc-500">
                     {listingId
-                      ? tr("gunlukDisDavetLimitiFirma")
+                      ? tr("gunlukDisDavetLimitiFirma", { limit: MAX_PENDING_EXTERNAL_INVITES })
                       : collectMode
-                        ? tr("yayindaDavetGonderilir")
+                        ? tr("yayindaDavetGonderilir", { limit: MAX_PENDING_EXTERNAL_INVITES })
                         : tr("onceTalebiKaydedin")}
                   </p>
                   {listingId ? (
