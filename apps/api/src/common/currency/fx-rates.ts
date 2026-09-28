@@ -21,30 +21,33 @@ import {
  */
 
 /**
- * TCMB erişilemezken / tablo boşken kullanılan koruma kurları (1 birim = X TRY;
- * 2026 ortalama tahminleri, USD≈34 ölçeğinde). İlk kur çekimi üzerine yazar.
+ * TCMB erişilemezken / tablo boşken kullanılan koruma kurları (1 birim = X TRY).
+ * TCMB 2026-09-28 döviz satış kurlarından (yayın denetimi Bölüm 7: tablo
+ * "USD≈34" ölçeğinde kalmıştı, ~%30 bayattı — canlı DB boş açıldığında ilk kur
+ * çekimine dek gösterim bunlarla yapılır). BGN = EUR / 1,95583 (sabit kur,
+ * Bulgaristan 2026-01-01'de avroya geçti). İlk kur çekimi üzerine yazar.
  */
 export const FALLBACK_RATES: Record<Exclude<CurrencyCode, "TRY">, number> = {
-  USD: 34,
-  EUR: 37,
-  GBP: 43,
-  CHF: 38,
-  JPY: 0.23,
-  AED: 9.25,
-  CNY: 4.75,
-  RUB: 0.6,
-  AZN: 20,
-  SEK: 3.2,
-  NOK: 3.1,
-  DKK: 5,
-  BGN: 18.9,
-  RON: 7.4,
-  KRW: 0.025,
-  SAR: 9.07,
-  QAR: 9.34,
-  KWD: 111,
-  AUD: 22,
-  CAD: 24.6,
+  USD: 48.99,
+  EUR: 55.73,
+  GBP: 65.06,
+  CHF: 59.08,
+  JPY: 0.3126,
+  AED: 13.41,
+  CNY: 7.339,
+  RUB: 0.5837,
+  AZN: 28.98,
+  SEK: 4.944,
+  NOK: 5.165,
+  DKK: 7.467,
+  BGN: 28.49,
+  RON: 10.62,
+  KRW: 0.0362,
+  SAR: 13.05,
+  QAR: 13.52,
+  KWD: 160.1,
+  AUD: 34.46,
+  CAD: 34.64,
 };
 
 let loaded: Partial<Record<string, number>> = {};

@@ -19,6 +19,16 @@ export interface TcmbRates {
 const TRACKED_CURRENCIES = FOREIGN_CURRENCY_CODES;
 
 /**
+ * Avroya SABİT kurla bağlanmış (ya da avroya geçmiş) birimler: TCMB yayınlamazsa
+ * EUR kurundan türetilir. Bulgaristan 2026-01-01'de avroya 1 EUR = 1,95583 BGN
+ * ile geçti; TCMB BGN yayınlamayı bıraktı (yayın denetimi 2026-09-28 Bölüm 7:
+ * her gün "eksik kur: BGN" uyarısı; gösterim bayat yedek kurla %34 düşük
+ * çeviriyordu, para yolu taze kur bulamayıp BGN teklifi reddediyordu).
+ * BGN listede eski kayıtlar için duruyor (`defaultCurrencyForCountry` BG → EUR).
+ */
+export const EUR_PEGGED: Readonly<Record<string, number>> = { BGN: 1.95583 };
+
+/**
  * V2-3 — TCMB günlük gösterge kurları XML feed'i.
  * Hafta içi 15:30 civarı yayınlanır; cron 16:00 İstanbul saatinde çağırır.
  * Kullandığımız değer: ForexSelling (Döviz Satış) — alıcı için en muhafazakâr.
@@ -85,6 +95,13 @@ export class TcmbService {
         const unit = unitStr ? parseInt(unitStr, 10) : 1;
         const safeUnit = Number.isFinite(unit) && unit > 0 ? unit : 1;
         rates[code] = value / safeUnit;
+      }
+
+      const eur = rates.EUR;
+      if (eur) {
+        for (const [code, perEur] of Object.entries(EUR_PEGGED)) {
+          if (!(code in rates) && tracked.has(code)) rates[code] = eur / perEur;
+        }
       }
 
       const missing = TRACKED_CURRENCIES.filter((c) => !(c in rates));
