@@ -1924,6 +1924,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyItems.nitelikDegeriGecersiz": {
+    "hash": "302cc67f5c",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
   "api.companyItems.onayaGonderilemedi": {
     "hash": "ce2e37842b",
     "status": "reviewed",

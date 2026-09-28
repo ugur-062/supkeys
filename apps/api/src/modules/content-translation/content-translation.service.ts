@@ -57,6 +57,33 @@ const FAILED_RETRY_MS = 6 * 60 * 60 * 1000;
 const TIMEOUT_MS = 120_000;
 const MAX_OUTPUT_TOKENS = 8192;
 
+/*
+ * MALİYET FRENLERİ (yayın denetimi 2026-09-28 Bölüm 5). Çeviri platformun
+ * anahtarıyla koşar ve firma bütçesine yazılmaz; frensiz hâliyle ücretsiz bir
+ * hesap ürün yayınla/geri çek döngüsüyle ya da sınırsız nitelik değeriyle
+ * sınırsız Pro çağrısı yaktırabiliyordu.
+ */
+/**
+ * İstemdeki kaynak JSON'u bu uzunluğu aşarsa model ÇAĞRILMAZ: çıktı tavanı
+ * (8.192 token, iki hedef dil) böyle bir kaynakta zaten kesik JSON üretir ve
+ * her deneme boşa iki Pro çağrısı olurdu. Kayıt özgün dilinde kalır.
+ */
+export const MAX_SOURCE_CHARS = 24_000;
+/** Aynı anda en fazla bu kadar çeviri işi modelde (sağlayıcı kotası paylaşılır). */
+const MAX_CONCURRENT_JOBS = 4;
+/** Platform geneli günlük çeviri harcaması tavanı (USD) — `CONTENT_TRANSLATION_DAILY_USD`. */
+const DEFAULT_DAILY_USD = 20;
+/** Firma başına günlük çeviri işi tavanı — `CONTENT_TRANSLATION_COMPANY_DAILY_JOBS`. */
+const DEFAULT_COMPANY_DAILY_JOBS = 150;
+
+/** Sayısal env: tanımsız/boş → varsayılan; 0 geçerli (freni tümüyle kapatır). */
+function envNumber(name: string, fallback: number): number {
+  const raw = process.env[name]?.trim();
+  if (!raw) return fallback;
+  const v = Number(raw);
+  return Number.isFinite(v) && v >= 0 ? v : fallback;
+}
+
 /**
  * MODEL ADAYLARI — sırayla denenir, "model bulunamadı" (404) alan aday
  * atlanır ve çalışan ad süreç ömrünce hatırlanır. Neden: Vertex AI
@@ -90,6 +117,15 @@ export class ContentTranslationService {
   /** 404 ile elenen adaylar ve çalıştığı görülen model (süreç ömrünce). */
   private readonly deadModels = new Set<string>();
   private resolvedModel: string | null = null;
+  /**
+   * Günlük fren sayaçları (UTC günü, SÜREÇ İÇİ): tek API örneği koşar; yeniden
+   * başlatma sayacı sıfırlar — fren muhasebe değil, kaçak harcama kesicisidir.
+   */
+  private budgetDay = "";
+  private spentTodayUsd = 0;
+  private readonly jobsToday = new Map<string, number>();
+  private running = 0;
+  private readonly waiting: Array<() => void> = [];
 
   /** Deneme sırası: env → premium → bilinen Pro sürümleri (elenenler hariç). */
   modelCandidates(): string[] {
@@ -228,6 +264,21 @@ export class ContentTranslationService {
         });
         return false;
       }
+      // Kaynak AYNI ve çeviri başarısız: sayaç SIFIRLANMAZ, yeniden denemeyi
+      // süpürücü kendi temposunda yapar. Eskiden her kayıt/yayın satırı
+      // attempts=0'la yeniden kuyruğa alıp hemen iki Pro çağrısı yakıyordu.
+      // Damga, kapsam denetiminin varlığı her turda yeniden seçmesini önler.
+      const sameSourceFailed =
+        existing.length === LOCALES.length &&
+        existing.every((r) => r.sourceHash === hash) &&
+        existing.some((r) => r.status === "FAILED");
+      if (sameSourceFailed) {
+        await this.prisma.contentTranslation.updateMany({
+          where: { entityType: type, entityId: id },
+          data: { updatedAt: new Date() },
+        });
+        return false;
+      }
       const guess = await this.guessSourceLocale(type, id);
       for (const locale of LOCALES) {
         await this.prisma.contentTranslation.upsert({
@@ -266,13 +317,18 @@ export class ContentTranslationService {
     }
   }
 
+  /** Varlığın sahibi firma (COMPANY için kendisi). */
+  private async ownerCompanyId(type: TranslatableEntityType, id: string): Promise<string | null> {
+    if (type === "COMPANY") return id;
+    const row =
+      type === "PRODUCT"
+        ? await this.prisma.companyItem.findUnique({ where: { id }, select: { companyId: true } })
+        : await this.prisma.listing.findUnique({ where: { id }, select: { companyId: true } });
+    return row?.companyId ?? null;
+  }
+
   private async guessSourceLocaleOrThrow(type: TranslatableEntityType, id: string): Promise<string> {
-    const companyId =
-      type === "COMPANY"
-        ? id
-        : type === "PRODUCT"
-          ? (await this.prisma.companyItem.findUnique({ where: { id }, select: { companyId: true } }))?.companyId
-          : (await this.prisma.listing.findUnique({ where: { id }, select: { companyId: true } }))?.companyId;
+    const companyId = await this.ownerCompanyId(type, id);
     if (!companyId) return "tr";
     const company = await this.prisma.company.findUnique({ where: { id: companyId }, select: { country: true } });
     const country = (company?.country ?? "TR").toUpperCase();
@@ -445,6 +501,7 @@ export class ContentTranslationService {
       return "skipped";
     }
     this.inFlight.add(key);
+    let slotHeld = false;
     try {
       const source = await this.loadSource(type, id);
       if (!source || !hasTranslatableText(source)) {
@@ -463,6 +520,22 @@ export class ContentTranslationService {
         await this.markFailed(type, id, "AI provider not configured");
         return "failed";
       }
+      if (JSON.stringify(source).length > MAX_SOURCE_CHARS) {
+        // Kalıcı: kaynak değişene dek yeniden denenmez (enqueue sayacı ancak
+        // yeni kaynakta sıfırlar).
+        await this.markDeferred(type, id, `source too large (> ${MAX_SOURCE_CHARS} chars)`, MAX_TOTAL_ATTEMPTS);
+        return "failed";
+      }
+      const owner = await this.ownerCompanyId(type, id);
+      const denial = this.quotaDenial(owner);
+      if (denial) {
+        // Süpürücü 6 saat sonra yeniden dener (FAILED_RETRY_MS); kuyruğun başını tıkamaz.
+        await this.markDeferred(type, id, denial, MAX_ATTEMPTS);
+        return "failed";
+      }
+      if (owner) this.jobsToday.set(owner, (this.jobsToday.get(owner) ?? 0) + 1);
+      await this.acquireSlot();
+      slotHeld = true;
       const usage: AiTokenUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
       let cost = 0;
       let parsed: ParsedTranslation | null = null;
@@ -510,7 +583,12 @@ export class ContentTranslationService {
         usage.inputTokens += result.usage.inputTokens;
         usage.outputTokens += result.usage.outputTokens;
         usage.cacheReadTokens += result.usage.cacheReadTokens;
-        if (pricing) cost += Number(costFromUsage(result.usage, pricing));
+        if (pricing) {
+          const callCost = Number(costFromUsage(result.usage, pricing));
+          cost += callCost;
+          this.rollBudgetDay();
+          this.spentTodayUsd += callCost;
+        }
         const p = parseModelOutput(type, source, result.text);
         if ("error" in p) {
           feedback = p.error;
@@ -565,9 +643,50 @@ export class ContentTranslationService {
       this.notifySeo(type, id);
       return "done";
     } finally {
+      if (slotHeld) this.releaseSlot();
       this.inFlight.delete(key);
       if (this.dirty.delete(key)) this.kick(type, id);
     }
+  }
+
+  /* ---------------------------------------------------------------- */
+  /* Maliyet frenleri                                                  */
+  /* ---------------------------------------------------------------- */
+
+  private rollBudgetDay(): void {
+    const day = new Date().toISOString().slice(0, 10);
+    if (day === this.budgetDay) return;
+    this.budgetDay = day;
+    this.spentTodayUsd = 0;
+    this.jobsToday.clear();
+  }
+
+  /** null = model çağrılabilir; aksi hâlde satıra yazılacak neden. */
+  private quotaDenial(companyId: string | null): string | null {
+    this.rollBudgetDay();
+    if (this.spentTodayUsd >= envNumber("CONTENT_TRANSLATION_DAILY_USD", DEFAULT_DAILY_USD)) {
+      return "quota: platform daily translation budget reached";
+    }
+    const jobs = companyId ? (this.jobsToday.get(companyId) ?? 0) : 0;
+    if (jobs >= envNumber("CONTENT_TRANSLATION_COMPANY_DAILY_JOBS", DEFAULT_COMPANY_DAILY_JOBS)) {
+      return "quota: company daily translation limit reached";
+    }
+    return null;
+  }
+
+  private async acquireSlot(): Promise<void> {
+    if (this.running < MAX_CONCURRENT_JOBS) {
+      this.running += 1;
+      return;
+    }
+    // Boşalan yuva doğrudan sıradakine devredilir (`running` azalmaz).
+    await new Promise<void>((resolve) => this.waiting.push(resolve));
+  }
+
+  private releaseSlot(): void {
+    const next = this.waiting.shift();
+    if (next) next();
+    else this.running -= 1;
   }
 
   /* ---------------------------------------------------------------- */
@@ -633,6 +752,14 @@ export class ContentTranslationService {
     } catch (err) {
       this.logger.warn(`Search text write failed (${type} ${id}): ${err instanceof Error ? err.message : String(err)}`);
     }
+  }
+
+  /** Model çağrılmadan ertelenen kayıt: deneme sayacı `attempts`e ÇEKİLİR (artmaz). */
+  private async markDeferred(type: TranslatableEntityType, id: string, error: string, attempts: number): Promise<void> {
+    await this.prisma.contentTranslation.updateMany({
+      where: { entityType: type, entityId: id },
+      data: { status: "FAILED", attempts, error: error.slice(0, 500) },
+    });
   }
 
   private async markFailed(

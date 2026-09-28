@@ -236,6 +236,18 @@ describe("yayımlama akışı", () => {
     expect(r.attributes).toEqual({ gerilim: "AG" });
   });
 
+  // Yayın denetimi 2026-09-28 Bölüm 5: DTO alanı `@IsObject` olduğu için değer
+  // doğrulanmıyordu; MB'lık tek değer içerik çevirisinin Pro istemine giriyordu.
+  it("nitelik DEĞERİ sınırlı: dev metin, uzun liste ve nesne 400; metin/liste/sayı geçer", async () => {
+    const { company, user, auth } = await makeCompanyWithUser(prisma);
+    const item = await makeProduct(company.id, user.id);
+    for (const bad of ["x".repeat(201), Array.from({ length: 51 }, () => "AG"), { nested: "AG" }, ["AG", { x: 1 }]]) {
+      await expect(service().updateShowcase(auth, item.id, { attributes: { gerilim: bad } })).rejects.toThrow(/Nitelik değeri geçersiz/);
+    }
+    const ok = await service().updateShowcase(auth, item.id, { attributes: { gerilim: "AG", ip: ["IP54", "IP65"], dolap: 3 } });
+    expect(ok.attributes).toEqual({ gerilim: "AG", ip: ["IP54", "IP65"], dolap: 3 });
+  });
+
   it("başka firmanın ürününe dokunamaz", async () => {
     const a = await makeCompanyWithUser(prisma);
     const b = await makeCompanyWithUser(prisma);

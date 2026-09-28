@@ -25,7 +25,12 @@ import {
   isCurrencyCode,
   productPriceBase } from "@rothern/shared";
 import { fxRate, resolveCompanyCurrency } from "../../common/currency/fx-rates";
-import { resolveCategoryAttributes } from "../../common/company/category-attributes";
+import {
+  ATTRIBUTE_LIST_MAX_ITEMS,
+  ATTRIBUTE_VALUE_MAX_CHARS,
+  isValidAttributeValue,
+  resolveCategoryAttributes,
+} from "../../common/company/category-attributes";
 import { showcaseContentChanged } from "../../common/company/product-content-diff";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { pickFreeSlug } from "../../common/company/company-slug";
@@ -1211,7 +1216,16 @@ export class CompanyItemsService {
     const allowed = new Set(defs.map((d) => d.key));
     const attributes: Record<string, unknown> = {};
     for (const [k, v] of Object.entries(input.attributes ?? {})) {
-      if (allowed.has(k) && v != null && v !== "") attributes[k] = v;
+      if (!allowed.has(k) || v == null || v === "") continue;
+      if (!isValidAttributeValue(v)) {
+        throw new BadRequestException(
+          i18nMessage("api.companyItems.nitelikDegeriGecersiz", {
+            max: ATTRIBUTE_VALUE_MAX_CHARS,
+            items: ATTRIBUTE_LIST_MAX_ITEMS,
+          }),
+        );
+      }
+      attributes[k] = v;
     }
 
     // AD ve AÇIKLAMA da bu yoldan yazılır (2026-09-03). Eskiden ürün formunda

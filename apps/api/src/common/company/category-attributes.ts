@@ -17,6 +17,27 @@ import { currentLocale } from "../i18n/locale-context";
  * aile, segmentin niteliğini daraltabilsin diye (ör. segmentte "IP sınıfı"
  * iki seçenek, pano ailesinde üç seçenek).
  */
+/**
+ * NİTELİK DEĞERİ SINIRI (yayın denetimi 2026-09-28 Bölüm 5). DTO alanı
+ * `@IsObject` olduğu için değerler hiç doğrulanmıyordu; 5 MB'lık tek değer
+ * içerik çevirisinin Pro istemine olduğu gibi giriyordu. Web formu metin ya da
+ * metin listesi gönderir (metin alanı `maxLength=200`); sayı ve mantıksal değer
+ * eski/iç yollar için kabul edilir.
+ */
+export const ATTRIBUTE_VALUE_MAX_CHARS = 200;
+export const ATTRIBUTE_LIST_MAX_ITEMS = 50;
+
+const isScalarAttribute = (v: unknown): boolean =>
+  (typeof v === "string" && v.length <= ATTRIBUTE_VALUE_MAX_CHARS) ||
+  (typeof v === "number" && Number.isFinite(v)) ||
+  typeof v === "boolean";
+
+/** Değer saklanabilir mi: sınırlı metin/sayı/mantıksal ya da onların sınırlı listesi. */
+export function isValidAttributeValue(v: unknown): boolean {
+  if (Array.isArray(v)) return v.length <= ATTRIBUTE_LIST_MAX_ITEMS && v.every(isScalarAttribute);
+  return isScalarAttribute(v);
+}
+
 export interface ResolvedAttribute {
   key: string;
   /** GÖSTERİM etiketi — okuyucunun dilinde (i18n Faz 4b); alan adı geriye dönük. */

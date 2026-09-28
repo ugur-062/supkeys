@@ -938,7 +938,8 @@
       "images": "At least 1 image must be added",
       "keywords": "At least 1 keyword must be added",
       "price": "Fill in the fields of the selected price mode"
-    }
+    },
+    "nitelikDegeriGecersiz": "Invalid attribute value: only text, a number or a list is allowed; text can be up to {max, plural, one {# character} other {# characters}} and a list up to {items, plural, one {# item} other {# items}}."
   },
   "guards": {
     "yetkisiz": "Unauthorized",

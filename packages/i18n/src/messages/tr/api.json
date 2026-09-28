@@ -938,7 +938,8 @@
       "images": "En az 1 görsel eklenmeli",
       "keywords": "En az 1 anahtar kelime eklenmeli",
       "price": "Seçilen fiyat modunun alanları doldurulmalı"
-    }
+    },
+    "nitelikDegeriGecersiz": "Nitelik değeri geçersiz: yalnız metin, sayı ya da liste olabilir; metin en fazla {max, number} karakter, liste en fazla {items, number} öğe."
   },
   "guards": {
     "yetkisiz": "Yetkisiz",
