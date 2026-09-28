@@ -109,19 +109,19 @@ test("ücretsiz paket ürün tavanı: aynı anda gönderilen istekler tavanı A�
     }
   };
   /**
-   * TEMİZLİK E-POSTA ÜRETİR: "düzeltmeye gönder" kararı firmaya bildirim
-   * yollar. İlk sürümde her koşum 10 ürünü reddediyordu ve staging'in Resend
-   * günlük kotası doldu (2026-09-13 CI koşumu). Artık: bekleyen KAÇ TANE varsa
-   * o kadar karar verilir (yarış sonrası normalde 1), gerisi sessizce
-   * arşivlenir ve ürünler koşumlar arasında YENİDEN KULLANILIR.
+   * TEMİZLİK E-POSTA ÜRETİR: admin kararı firmaya bildirim yollar. Ücretsiz
+   * tavan 50 olunca her koşum ~50 ürünü onaya bırakıyor; tek tek "düzeltmeye
+   * gönder" 50 e-posta demekti (staging Resend kotası günde 100 — yayın
+   * denetimi 2026-09-28 Bölüm 7'de yerel koşuda ölçüldü). Artık bekleyenler
+   * TOPLU ONAYLA kapatılır (bildirim FİRMA başına tek e-posta,
+   * `approveMany`), sonra sahibi vitrinden çeker (e-posta yok). Ürünler
+   * koşumlar arasında YENİDEN KULLANILIR.
    */
   const temizle = async () => {
-    for (const r of await listele()) {
-      if (r.reviewStatus === "PENDING") {
-        await apiPost(admin, `/admin/products/${r.id}/reject`, {
-          reason: "QA otomasyon temizliği — tavan yarışı testinin bıraktığı kayıt.",
-        });
-      }
+    const bekleyen = (await listele()).filter((r) => r.reviewStatus === "PENDING").map((r) => r.id);
+    for (let i = 0; i < bekleyen.length; i += 100) {
+      const res = await apiPost(admin, "/admin/products/bulk-approve", { ids: bekleyen.slice(i, i + 100) });
+      expect(res.status, `toplu onay: ${JSON.stringify(res.body)}`).toBeLessThan(300);
     }
     for (const r of await listele()) {
       if (r.isPublic) await apiPost(free, `/company/items/${r.id}/unpublish`);
