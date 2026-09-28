@@ -70,6 +70,10 @@ function rig(opts: {
       findMany: jest.fn().mockResolvedValue([]),
       create: jest.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: `eli${++seq}`, ...data })),
     },
+    // Günlük tavan AI üye davetiyle ortak (yayın denetimi 2026-09-28).
+    listingInvitation: {
+      count: jest.fn().mockResolvedValue(0),
+    },
     companyUser: {
       findMany: jest.fn().mockResolvedValue([]),
       findUnique: jest.fn().mockResolvedValue(null),
