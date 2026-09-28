@@ -5479,6 +5479,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "api.notifications.digest.bodyLockedUnverified": {
+    "hash": "7e63ad2e04",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
   "api.notifications.digest.closesRow": {
     "hash": "b143d84518",
     "status": "reviewed",
@@ -5714,6 +5719,36 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "api.notifications.listings.aiMatchLocked.bodySilver": {
+    "hash": "b16ff998ca",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "api.notifications.listings.aiMatchLocked.bodyVerify": {
+    "hash": "a827696ad2",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "api.notifications.listings.aiMatchLocked.footer": {
+    "hash": "158249e162",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "api.notifications.listings.aiMatchLocked.inAppBodySilver": {
+    "hash": "9985ec4977",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "api.notifications.listings.aiMatchLocked.inAppBodyVerify": {
+    "hash": "3cffd8e265",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "api.notifications.listings.aiMatchLocked.subject": {
+    "hash": "4d90633df1",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
   "api.notifications.listings.awarded.body": {
     "hash": "3d668ef68f",
     "status": "reviewed",
@@ -5764,10 +5799,20 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "api.notifications.listings.categoryMatch.buy.lockedBodyUnverified": {
+    "hash": "99ddc53dcc",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
   "api.notifications.listings.categoryMatch.buy.lockedInAppBody": {
     "hash": "0ef62f30c3",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "api.notifications.listings.categoryMatch.buy.lockedInAppBodyUnverified": {
+    "hash": "0a393d5b8a",
+    "status": "reviewed",
+    "at": "2026-09-28"
   },
   "api.notifications.listings.categoryMatch.buy.lockedInAppTitle": {
     "hash": "203fca1c2e",
@@ -5873,6 +5918,11 @@
     "hash": "3026c9865d",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "api.notifications.listings.cta.verifyFree": {
+    "hash": "9141036837",
+    "status": "reviewed",
+    "at": "2026-09-28"
   },
   "api.notifications.listings.cta.viewOpenRequests": {
     "hash": "7b8d8ac7c7",
@@ -35623,6 +35673,21 @@
     "hash": "51eabe43a8",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.silverLockCard.onceDogrulanNot": {
+    "hash": "d1f85028b9",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "web.panel.trade.silverLockCard.onceUcretsizDogrulan": {
+    "hash": "d2acf441bb",
+    "status": "reviewed",
+    "at": "2026-09-28"
+  },
+  "web.panel.trade.silverLockCard.paketleriGor": {
+    "hash": "36474a4f25",
+    "status": "reviewed",
+    "at": "2026-09-28"
   },
   "web.panel.trade.silverLockCard.silverPaketineGec": {
     "hash": "6c89b0d350",

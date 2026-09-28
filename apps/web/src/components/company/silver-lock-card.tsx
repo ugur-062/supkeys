@@ -3,7 +3,11 @@
 import { useTranslations } from "next-intl";
 import { Lock } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import type { ReactNode } from "react";
+
+/** Doğrulama sayfası — paket satın almanın tek şartı. */
+const VERIFY_HREF = "/company/ayarlar/dogrulama";
 
 /**
  * PAKET SAYFASININ ADRESİ — PANEL İÇİNDE KALIR (tek kaynak).
@@ -24,6 +28,10 @@ export const PRICING_HREF = "/company/premium";
  * çarptığı her kilit aynı dili konuşur — açık talepler, talep detayı, bilgi
  * talebinde alıcı kimliği. Uydurma veri yok: `meta` ve `children` çağıranın
  * GERÇEK sayıları/örnekleridir. Tek CTA: paket sayfası.
+ *
+ * DOĞRULAMA ÖNCE (2026-09-28, kullanıcı: "Silver'a veya doğrulamaya
+ * yönlendirme"): paket alımı doğrulama ister; doğrulanmamış/reddedilmiş firmada
+ * birincil eylem "Önce ücretsiz doğrulan", paket bağlantısı ikincil kalır.
  */
 export function SilverLockCard({
   title,
@@ -43,6 +51,8 @@ export function SilverLockCard({
   className?: string;
 }) {
   const t = useTranslations("web.panel.trade.silverLockCard");
+  const status = useCompanyAuthStore((s) => s.company?.companyVerificationStatus);
+  const verifyFirst = !!status && status !== "VERIFIED" && status !== "PENDING";
   return (
     <section
       aria-label={title}
@@ -59,13 +69,28 @@ export function SilverLockCard({
         </div>
       </div>
       {children}
+      {verifyFirst ? <p className="mt-3 text-sm text-zinc-700">{t("onceDogrulanNot")}</p> : null}
       <div className="mt-4 flex flex-wrap items-center gap-3">
-        <Link
-          href={PRICING_HREF}
-          className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
-        >
-          {ctaLabel ?? t("silverPaketineGec")}
-        </Link>
+        {verifyFirst ? (
+          <>
+            <Link
+              href={VERIFY_HREF}
+              className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+            >
+              {t("onceUcretsizDogrulan")}
+            </Link>
+            <Link href={PRICING_HREF} className="text-sm font-medium text-zinc-700 underline-offset-2 hover:underline">
+              {t("paketleriGor")}
+            </Link>
+          </>
+        ) : (
+          <Link
+            href={PRICING_HREF}
+            className="inline-flex items-center rounded-full bg-zinc-950 px-4 py-2 text-sm font-semibold text-white transition hover:bg-zinc-800"
+          >
+            {ctaLabel ?? t("silverPaketineGec")}
+          </Link>
+        )}
         <span className="text-xs text-zinc-500">
           {t("baglantiDavetiyleGelenTalepleriUcretsiz")}
         </span>

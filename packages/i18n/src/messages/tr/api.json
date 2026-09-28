@@ -1430,7 +1430,8 @@
         "viewOrder": "Siparişi Gör",
         "viewPlans": "Paketleri Gör",
         "viewOpenRequests": "Açık Satın Alma Taleplerini Gör",
-        "upgradeSilver": "Silver'a Geç"
+        "upgradeSilver": "Silver'a Geç",
+        "verifyFree": "Ücretsiz Doğrulan"
       },
       "closed": {
         "subject": "Satın Alma Talebinde teklif alımı kapandı",
@@ -1452,7 +1453,9 @@
           "lockedSubject": "Kategorinizde yeni bir alıcı var — teklif vermek için Silver'a geçin",
           "lockedBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\" ({number}). Neler istendiğini aşağıda görebilirsiniz. Ücretsiz üyelikte herkese açık taleplere teklif verilemez; Silver pakete geçerek bu talebe ve kategorinizdeki diğer açık taleplere teklif verebilir, firma dizininde öne çıkabilirsiniz. Bağlantılarınızın sizi davet ettiği talepler her zaman ücretsizdir.",
           "lockedInAppTitle": "Kategorinizde yeni bir alıcı — teklif vermek için Silver'a geçin",
-          "lockedInAppBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\". Bu talebe teklif vermek için Silver pakete geçin."
+          "lockedInAppBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\". Bu talebe teklif vermek için Silver pakete geçin.",
+          "lockedBodyUnverified": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\" ({number}). Neler istendiğini aşağıda görebilirsiniz. Ücretsiz üyelikte herkese açık taleplere teklif verilemez; Silver pakete geçmenin tek şartı firmanızı ücretsiz doğrulamaktır. Önce doğrulanın, sonra Silver'la bu talebe ve kategorinizdeki diğer açık taleplere teklif verin. Bağlantılarınızın sizi davet ettiği talepler her zaman ücretsizdir.",
+          "lockedInAppBodyUnverified": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\". Teklif vermek için önce firmanızı ücretsiz doğrulayın, sonra Silver'a geçin."
         }
       },
       "invitation": {
@@ -1535,6 +1538,14 @@
         "bodyProduct": "\"{title}\" ({number}) satın alma talebine davet edildiniz. Sizi vitrininizdeki \"{product}\" ürünü nedeniyle önerdik; talep edilen kalemler aşağıda.",
         "bodyCategory": "\"{title}\" ({number}) satın alma talebine davet edildiniz. Talep, sattığınız kategoriyle eşleşiyor; talep edilen kalemler aşağıda.",
         "footer": "Bu davet, Rothern'in tedarikçi önerisiyle gönderildi. Talep davetlerini Ayarlar › Bildirimler'den kapatabilirsiniz."
+      },
+      "aiMatchLocked": {
+        "subject": "Bir alıcı sattığınız ürünleri arıyor",
+        "bodySilver": "Bir alıcının AI tedarikçi araması, \"{title}\" ({number}) satın alma talebi için firmanızı uygun buldu; talep edilen kalemler aşağıda. Ücretsiz pakette olduğunuz için alıcıya önerilmediniz ve talebi göremiyorsunuz. Silver pakette bu talebi görür ve teklif verirsiniz; alıcıların AI tedarikçi önerilerinde de çıkarsınız.",
+        "bodyVerify": "Bir alıcının AI tedarikçi araması, \"{title}\" ({number}) satın alma talebi için firmanızı uygun buldu; talep edilen kalemler aşağıda. Firmanız doğrulanmamış ve ücretsiz pakette olduğu için alıcıya önerilmediniz ve talebi göremiyorsunuz. Önce firmanızı ücretsiz doğrulayın — Silver pakete geçmenin tek şartı budur; Silver'la bu talebe teklif verir ve alıcıların AI tedarikçi önerilerinde çıkarsınız.",
+        "inAppBodySilver": "\"{title}\" talebi için AI firmanızı uygun buldu. Talebi görmek ve teklif vermek için Silver'a geçin.",
+        "inAppBodyVerify": "\"{title}\" talebi için AI firmanızı uygun buldu. Önce firmanızı ücretsiz doğrulayın, sonra Silver ile teklif verin.",
+        "footer": "Bu bildirimi vitrininiz ve kategorileriniz bir alıcının aramasıyla eşleştiği için alıyorsunuz. Kategori bildirimlerini Ayarlar › Bildirimler'den kapatabilirsiniz."
       }
     },
     "adminCompanies": {
@@ -1652,7 +1663,8 @@
       "footer": "Kategori e-postalarının hepsini anında almak için Ayarlar › Bildirimler'den \"Hepsi anında\" seçeneğini açabilirsiniz.",
       "invitationSubject": "Bugün {n, plural, other {# talebe}} daha davet edildiniz",
       "invitationBody": "Günlük anlık bildirim sınırına ulaşıldığı için bugünkü diğer talep davetlerini tek e-postada topladık:",
-      "invitationCta": "Davetleri gör"
+      "invitationCta": "Davetleri gör",
+      "bodyLockedUnverified": "Kategorinizde bugün açılan diğer talepler aşağıda. Bu talepleri görmek ve teklif vermek için Silver gerekir; Silver'a geçmenin tek şartı firmanızı ücretsiz doğrulamaktır."
     },
     "lifecycle": {
       "profile": {

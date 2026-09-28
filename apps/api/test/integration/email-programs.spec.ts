@@ -95,6 +95,22 @@ describe("akşam özeti", () => {
   });
 });
 
+describe("kilitli özet — doğrulanmamış ücretsiz firma (2026-09-28)", () => {
+  it("hepsi kilitli ve firma doğrulanmamış → önce ücretsiz doğrulama", async () => {
+    const { svc, email } = makeService();
+    const seller = await makeCompanyWithUser(prisma, { tier: "STANDART", companyVerificationStatus: "UNVERIFIED" });
+    const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const l = await makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN" });
+    await prisma.emailDigestItem.create({
+      data: { email: "u@x.com", locale: "tr", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: l.id, locked: true, createdAt: new Date(Date.now() - 25 * HOUR) },
+    });
+    await svc.sendDigests(new Date());
+    const data = (email.send.mock.calls[0][0] as { templateData: { data: { ctaUrl: string; ctaLabel: string } } }).templateData.data;
+    expect(data.ctaUrl).toBe("http://localhost:3000/company/ayarlar/dogrulama");
+    expect(data.ctaLabel).toBe("Ücretsiz Doğrulan");
+  });
+});
+
 describe("davet özeti (AI üye davetleri, 2026-09-28)", () => {
   it("INVITATION öğeleri kategori özetinden AYRI e-postada gider (davet konusu, davet bağlamı)", async () => {
     const { svc, email } = makeService();

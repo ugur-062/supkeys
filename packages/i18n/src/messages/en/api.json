@@ -1430,7 +1430,8 @@
         "viewOrder": "View order",
         "viewPlans": "View plans",
         "viewOpenRequests": "View open buying requests",
-        "upgradeSilver": "Upgrade to Silver"
+        "upgradeSilver": "Upgrade to Silver",
+        "verifyFree": "Get Verified for Free"
       },
       "closed": {
         "subject": "Quote submission closed for a buying request",
@@ -1452,7 +1453,9 @@
           "lockedSubject": "A new buyer in your category — upgrade to Silver to quote",
           "lockedBody": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). You can see what is requested below. On the free plan you cannot quote on public requests; upgrade to Silver to quote on this request and on other open requests in your category, and to stand out in the company directory. Requests your connections invite you to are always free.",
           "lockedInAppTitle": "A new buyer in your category — upgrade to Silver to quote",
-          "lockedInAppBody": "A new buying request matching the categories you sell was published: \"{title}\". Upgrade to Silver to quote on it."
+          "lockedInAppBody": "A new buying request matching the categories you sell was published: \"{title}\". Upgrade to Silver to quote on it.",
+          "lockedBodyUnverified": "A new buying request matching the categories you sell was published: \"{title}\" ({number}). You can see what is requested below. On the free plan you cannot quote on public requests, and the only requirement for upgrading to Silver is verifying your company for free. Get verified first, then quote on this request and other open requests in your category with Silver. Requests your connections invite you to are always free.",
+          "lockedInAppBodyUnverified": "A new buying request matching the categories you sell was published: \"{title}\". To quote, verify your company for free first, then upgrade to Silver."
         }
       },
       "invitation": {
@@ -1535,6 +1538,14 @@
         "bodyProduct": "You've been invited to the buying request \"{title}\" ({number}). We suggested you because of \"{product}\" in your showcase; the requested line items are below.",
         "bodyCategory": "You've been invited to the buying request \"{title}\" ({number}). The request matches the category you sell in; the requested line items are below.",
         "footer": "This invitation was sent based on Rothern's supplier suggestions. You can turn off request invitations in Settings › Notifications."
+      },
+      "aiMatchLocked": {
+        "subject": "A buyer is looking for what you sell",
+        "bodySilver": "A buyer's AI supplier search found your company a good fit for the buying request \"{title}\" ({number}); the requested line items are below. Because you're on the free plan, you weren't suggested to the buyer and can't see the request. With Silver, you see this request and quote on it, and you appear in buyers' AI supplier suggestions.",
+        "bodyVerify": "A buyer's AI supplier search found your company a good fit for the buying request \"{title}\" ({number}); the requested line items are below. Because your company is unverified and on the free plan, you weren't suggested to the buyer and can't see the request. Verify your company for free first — it's the only requirement for upgrading to Silver; with Silver you can quote on this request and appear in buyers' AI supplier suggestions.",
+        "inAppBodySilver": "AI found your company a good fit for the request \"{title}\". Upgrade to Silver to see it and submit a quote.",
+        "inAppBodyVerify": "AI found your company a good fit for the request \"{title}\". Verify your company for free first, then quote with Silver.",
+        "footer": "You're receiving this because your showcase and categories matched a buyer's search. You can turn off category notifications in Settings › Notifications."
       }
     },
     "adminCompanies": {
@@ -1652,7 +1663,8 @@
       "footer": "To get every category email instantly, turn on \"All instantly\" in Settings › Notifications.",
       "invitationSubject": "You were invited to {n, plural, one {# more request} other {# more requests}} today",
       "invitationBody": "You reached today's limit for instant alerts, so we've collected today's other request invitations in one email:",
-      "invitationCta": "View invitations"
+      "invitationCta": "View invitations",
+      "bodyLockedUnverified": "Here are the other requests opened in your categories today. You need Silver to view them and submit quotes, and the only requirement for Silver is verifying your company for free."
     },
     "lifecycle": {
       "profile": {

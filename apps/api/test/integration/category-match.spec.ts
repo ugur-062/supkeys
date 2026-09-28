@@ -148,6 +148,29 @@ describe("notifyCategoryMatchedCompanies — ALIM → satıcılar", () => {
     expect(payload).not.toContain("/company/ilan/");
   });
 
+  it("ücretsiz ve DOĞRULANMAMIŞ satıcıya önce ücretsiz doğrulama çağrısı (Silver'ın tek şartı; 2026-09-28)", async () => {
+    const { service, email } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const seller = await makeCompanyWithUser(prisma, { country: "TR", tier: "STANDART", companyVerificationStatus: "UNVERIFIED" });
+    await prisma.company.update({
+      where: { id: seller.company.id },
+      data: { sellerCategoryIds: [SEG], billingEmail: "belgesiz@firma.com" },
+    });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      visibility: "PUBLIC",
+      categoryIds: [CLASS],
+    });
+    await service.notifyCategoryMatchedCompanies(listing.id);
+    expect(email.send).toHaveBeenCalledTimes(1);
+    const payload = JSON.stringify((email.send as jest.Mock).mock.calls[0][0].templateData);
+    expect(payload).toContain("/company/ayarlar/dogrulama");
+    expect(payload).toContain("Ücretsiz Doğrulan");
+    expect(payload).not.toContain("/company/ilan/");
+  });
+
   it("ücretsiz ama alıcıyla GEÇERLİ bağlantılı satıcı AÇIK metni alır (talebi görebilir) — denetim #5", async () => {
     const { service, email } = makeService();
     const owner = await makeCompanyWithUser(prisma, { country: "TR", tier: "GOLD" });

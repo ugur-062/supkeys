@@ -4178,7 +4178,10 @@
       },
       "silverLockCard": {
         "baglantiDavetiyleGelenTalepleriUcretsiz": "Bağlantı davetiyle gelen talepleri ücretsiz görürsünüz.",
-        "silverPaketineGec": "Silver paketine geç"
+        "silverPaketineGec": "Silver paketine geç",
+        "onceDogrulanNot": "Silver pakete geçmenin tek şartı firmanızı doğrulamaktır. Doğrulama ücretsizdir ve birkaç dakika sürer.",
+        "onceUcretsizDogrulan": "Önce ücretsiz doğrulan",
+        "paketleriGor": "Paketleri gör"
       },
       "visitsVisibilityCard": {
         "ziyaretlerinizArtikAdinizlaGorunur": "Ziyaretleriniz artık adınızla görünür",

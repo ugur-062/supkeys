@@ -4178,7 +4178,10 @@
       },
       "silverLockCard": {
         "baglantiDavetiyleGelenTalepleriUcretsiz": "Запросы, поступающие по приглашению от контактов, Вы видите бесплатно.",
-        "silverPaketineGec": "Перейти на тариф Silver"
+        "silverPaketineGec": "Перейти на тариф Silver",
+        "onceDogrulanNot": "Единственное условие для перехода на Silver — проверка компании. Проверка бесплатная и занимает несколько минут.",
+        "onceUcretsizDogrulan": "Сначала пройдите бесплатную проверку",
+        "paketleriGor": "Посмотреть тарифы"
       },
       "visitsVisibilityCard": {
         "ziyaretlerinizArtikAdinizlaGorunur": "Ваши визиты теперь отображаются с названием Вашей компании",

@@ -1676,7 +1676,25 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     Bağlantılı firma kurala girmez (alıcı tanıyor); alıcının elle daveti
     (bağlantı seçicisi, `addInvitations`) etkilenmez. Karşılığı Silver paket
     kartında madde (`web.pricing.plans.silver.f4` "AI tedarikçi önerilerinde
-    çıkma ve doğrudan talebe davet"). Keşif turu
+    çıkma ve doğrudan talebe davet").
+  - **GÖSTERİLMEYEN ÜCRETSİZ FİRMAYA SILVER/DOĞRULAMA ÇAĞRISI (2026-09-28,
+    kullanıcı: "ücretsiz firma alıcı talep açarken görünmesin; AI ile
+    bulunduğunda oradan Silver'a veya doğrulamaya yönlendirelim").** Yayın
+    sonrası tur (`DiscoveryRunsService.process`) aynı eşleştiriciyi
+    `pool: "hidden"` ile de koşar (Silver+ ∧ doğrulanmış OLMAYAN, aktif,
+    bağlantısız) ve GÜÇLÜ eşleşmeleri (alt kategori ya da vitrinde kalem)
+    `CompanyListingsService.notifyHiddenAiMatches`e verir: YALNIZ herkese açık
+    ∧ açık ∧ embargosuz talepte (özelde Silver alsa da göremezdi); davetli,
+    bağlantılı, engelli ve bu talep için e-posta almış/özette bekleyen adres
+    atlanır. E-posta `listing_ai_match_locked` (tercih `categoryMatch`,
+    kategori eşleşmesiyle AYNI yerel günde-3 sınırı, fazlası KİLİTLİ özet
+    satırı): "Bir alıcı sattığınız ürünleri arıyor" + kalem önizlemesi, alıcı
+    kimliği ve talep bağlantısı YOK; doğrulanmamışa "Ücretsiz Doğrulan"
+    (`/company/ayarlar/dogrulama`), doğrulanmış/incelemedekine "Silver'a Geç".
+  - **DOĞRULAMA ÖNCE (aynı gün):** kategori duyurusunun kilitli sürümü, kilitli
+    akşam özeti ve panelin `SilverLockCard`ı doğrulanmamış (UNVERIFIED/
+    REJECTED) ücretsiz firmada birincil eylemi doğrulamaya çevirir ("Silver'a
+    geçmenin tek şartı ücretsiz doğrulama"; paketler ikincil). Keşif turu
     (`DiscoveryRunsService.process`) platform üyelerini de önerir — model çağrısı
     YOK, AI kapalıyken/bütçe dolmuşken de (web yolu düşüp üye bulunduysa tur DONE
     + `error`); aday `status = MEMBER`, `memberCompanyId`, `matchedCategories`,

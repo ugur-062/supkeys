@@ -240,6 +240,67 @@ describe("CompanyListingsService.inviteDiscoveredMembers", () => {
   });
 });
 
+describe("CompanyListingsService.notifyHiddenAiMatches — alıcıya gösterilmeyen ücretsiz firmaya çağrı", () => {
+  async function freeSeller(name: string, status: "VERIFIED" | "UNVERIFIED") {
+    const s = await makeCompanyWithUser(prisma, { tier: "STANDART", name, companyVerificationStatus: status });
+    await prisma.company.update({
+      where: { id: s.company.id },
+      data: { sellerCategoryIds: ["31000000"], sellerSubCategoryIds: ["31161600"] },
+    });
+    return s;
+  }
+
+  it("herkese açık talep: doğrulanmamışa doğrulama, doğrulanmışa Silver; alıcı kimliği ve talep bağlantısı yok", async () => {
+    const { service, email } = makeService();
+    const { listing } = await setup({ visibility: "PUBLIC" });
+    const unverified = await freeSeller("Belgesiz AŞ", "UNVERIFIED");
+    const verified = await freeSeller("Doğrulanmış Ücretsiz AŞ", "VERIFIED");
+    const paid = await categorySeller("Silver AŞ");
+
+    const sent = await service.notifyHiddenAiMatches(listing.id, [
+      unverified.company.id,
+      verified.company.id,
+      paid.company.id,
+    ]);
+    expect(sent).toBe(2);
+    await settle(() => email.send.mock.calls.length >= 2);
+    const byTo = new Map(email.send.mock.calls.map((c) => [c[0].to.email, c[0]]));
+    const u = JSON.stringify(byTo.get(unverified.user.email).templateData);
+    expect(byTo.get(unverified.user.email).context).toEqual({ type: "listing_ai_match_locked", id: listing.id });
+    expect(u).toContain("/company/ayarlar/dogrulama");
+    const v = JSON.stringify(byTo.get(verified.user.email).templateData);
+    expect(v).toContain("/company/premium");
+    for (const body of [u, v]) {
+      expect(body).not.toContain("/company/ilan/");
+      expect(body).not.toContain("Alıcı Makina AŞ");
+    }
+    expect(byTo.has(paid.user.email)).toBe(false);
+    expect(await prisma.notification.count({ where: { type: "listing_ai_match_locked" } })).toBeGreaterThanOrEqual(2);
+  });
+
+  it("özel talepte gitmez; bu talep için kategori duyurusu almış adrese ikinci e-posta gitmez", async () => {
+    const { service, email } = makeService();
+    const { listing: priv } = await setup();
+    const a = await freeSeller("A AŞ", "VERIFIED");
+    expect(await service.notifyHiddenAiMatches(priv.id, [a.company.id])).toBe(0);
+
+    const { listing: pub } = await setup({ visibility: "PUBLIC" });
+    await prisma.emailLog.create({
+      data: {
+        template: "notification",
+        toEmail: a.user.email,
+        subject: "s",
+        provider: "test",
+        status: "SENT",
+        contextType: "listing_category_match",
+        contextId: pub.id,
+      },
+    });
+    expect(await service.notifyHiddenAiMatches(pub.id, [a.company.id])).toBe(0);
+    expect(email.send).not.toHaveBeenCalled();
+  });
+});
+
 describe("DiscoveryRunsService — platform üyeleri", () => {
   function makeRuns(batches: Array<Array<Record<string, unknown>>>) {
     let parse = 0;

@@ -106,13 +106,16 @@ export class EmailProgramsService {
       const k = `${it.kind}|${it.email}`;
       byEmail.set(k, [...(byEmail.get(k) ?? []), it]);
     }
-    const countryOf = new Map(
-      (
-        await this.prisma.company.findMany({
-          where: { id: { in: [...new Set(items.map((i) => i.companyId))] } },
-          select: { id: true, country: true },
-        })
-      ).map((c) => [c.id, c.country]),
+    const companyRows = await this.prisma.company.findMany({
+      where: { id: { in: [...new Set(items.map((i) => i.companyId))] } },
+      select: { id: true, country: true, companyVerificationStatus: true },
+    });
+    const countryOf = new Map(companyRows.map((c) => [c.id, c.country]));
+    // Kilitli özette doğrulanmamış firmaya önce ücretsiz doğrulama (2026-09-28).
+    const unverifiedIds = new Set(
+      companyRows
+        .filter((c) => c.companyVerificationStatus !== "VERIFIED" && c.companyVerificationStatus !== "PENDING")
+        .map((c) => c.id),
     );
 
     let sent = 0;
@@ -140,6 +143,7 @@ export class EmailProgramsService {
             .catch(() => shown.map((l) => ({ title: l.title })))
         : shown.map((l) => ({ title: l.title }));
       const allLocked = !isInvite && group.every((g) => g.locked);
+      const verifyFirst = allLocked && unverifiedIds.has(group[0]!.companyId);
       const t = (key: ApiMessageKey, p?: Record<string, string | number>) => tApi(key, p, locale);
       const subject = t(isInvite ? "api.notifications.digest.invitationSubject" : "api.notifications.digest.subject", {
         n: listings.length,
@@ -159,9 +163,11 @@ export class EmailProgramsService {
                 t(
                   isInvite
                     ? "api.notifications.digest.invitationBody"
-                    : allLocked
-                      ? "api.notifications.digest.bodyLocked"
-                      : "api.notifications.digest.body",
+                    : verifyFirst
+                      ? "api.notifications.digest.bodyLockedUnverified"
+                      : allLocked
+                        ? "api.notifications.digest.bodyLocked"
+                        : "api.notifications.digest.body",
                 ),
               ],
               infoRows: shown.map((l, i) => ({
@@ -173,11 +179,16 @@ export class EmailProgramsService {
               ctaLabel: t(
                 isInvite
                   ? "api.notifications.digest.invitationCta"
-                  : allLocked
-                    ? "api.notifications.listings.cta.upgradeSilver"
-                    : "api.notifications.digest.cta",
+                  : verifyFirst
+                    ? "api.notifications.listings.cta.verifyFree"
+                    : allLocked
+                      ? "api.notifications.listings.cta.upgradeSilver"
+                      : "api.notifications.digest.cta",
               ),
-              ctaUrl: `${this.web}${localizeAppPath(allLocked ? "/company/premium" : "/company/satis", locale)}`,
+              ctaUrl: `${this.web}${localizeAppPath(
+                verifyFirst ? "/company/ayarlar/dogrulama" : allLocked ? "/company/premium" : "/company/satis",
+                locale,
+              )}`,
               footerNote: t("api.notifications.digest.footer"),
             },
           },

@@ -218,6 +218,9 @@ interface ListingNotifyData {
   infoRowsFor?: (locale: Locale) => { label: string; value: string }[] | undefined;
 }
 
+/** AI'ın bulduğu ama alıcıya gösterilmeyen ücretsiz firmaya Silver/doğrulama çağrısı. */
+export const AI_MATCH_LOCKED_CONTEXT = "listing_ai_match_locked";
+
 @Injectable()
 export class CompanyListingsService {
   private readonly logger = new Logger(CompanyListingsService.name);
@@ -714,7 +717,14 @@ export class CompanyListingsService {
         },
         OR: catOr,
       },
-      select: { id: true, tier: true, membershipEndAt: true, activities: true, country: true },
+      select: {
+        id: true,
+        tier: true,
+        membershipEndAt: true,
+        activities: true,
+        country: true,
+        companyVerificationStatus: true,
+      },
       // Flood-guard (bilinçli). `orderBy` OLMADAN kesme, 300'ü aşan segmentte
       // "kim haber alır"ı tarama sırasına bırakıyordu; en YENİ firmalar hiç
       // haber alamayabiliyordu. Deterministik sıra + sessiz kesmeyi loglama.
@@ -780,6 +790,9 @@ export class CompanyListingsService {
     // Paketler sayfasına (herkese açık fiyat sayfası paneli terk ettiriyordu).
     const url = appRoutes.listing(this.webUrl(), listing.id);
     const pricingUrl = `${this.webUrl()}/company/premium`;
+    // Doğrulanmamış ücretsiz firmaya önce ücretsiz doğrulama (paket alımının
+    // tek şartı; 2026-09-28, kullanıcı: "Silver'a veya doğrulamaya yönlendirme").
+    const verifyUrl = `${this.webUrl()}/company/ayarlar/dogrulama`;
     // YÖN'e göre AYRI anahtar kümesi (i18n Faz 3). Cümleyi parçadan kurmak
     // ("satın alma talebi" + "Sattığınız" + "teklif vermek") Türkçede yürüyor
     // ama EN/RU'da sözcük sırası ve çekim tutmaz — her yön TAM cümlesini
@@ -795,8 +808,11 @@ export class CompanyListingsService {
       lockedBody: "api.notifications.listings.categoryMatch.buy.lockedBody",
       lockedInAppTitle: "api.notifications.listings.categoryMatch.buy.lockedInAppTitle",
       lockedInAppBody: "api.notifications.listings.categoryMatch.buy.lockedInAppBody",
+      lockedBodyUnverified: "api.notifications.listings.categoryMatch.buy.lockedBodyUnverified",
+      lockedInAppBodyUnverified: "api.notifications.listings.categoryMatch.buy.lockedInAppBodyUnverified",
       openCta: "api.notifications.listings.cta.viewRequest",
     } as const;
+    const VERIFY_CTA = "api.notifications.listings.cta.verifyFree" as const;
     const FOOTER = "api.notifications.listings.categoryMatch.footerNote" as const;
     const PLANS_CTA = "api.notifications.listings.cta.upgradeSilver" as const;
     // Alıcılar BAŞKA firmalardır → başlık onların dilinde. Duyuru yayın anında
@@ -818,6 +834,16 @@ export class CompanyListingsService {
             !tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), PAID_TIER) && !ownerConnected.has(c.id),
           ] as const,
       ),
+    );
+    const needsVerify = new Set(
+      candidates
+        .filter(
+          (c) =>
+            isFree.get(c.id) &&
+            c.companyVerificationStatus !== "VERIFIED" &&
+            c.companyVerificationStatus !== "PENDING",
+        )
+        .map((c) => c.id),
     );
     // Talep önizlemesi alıcının dilinde — ücretsiz firma kilitli talebin NE
     // olduğunu görsün (Silver'a geçiş için somut gerekçe), ücretli firma
@@ -886,10 +912,10 @@ export class CompanyListingsService {
           ? {
               subjectKey: K.lockedSubject,
               headingKey: K.heading,
-              bodyKey: K.lockedBody,
+              bodyKey: needsVerify.has(c.id) ? K.lockedBodyUnverified : K.lockedBody,
               params: p,
-              ctaLabelKey: PLANS_CTA,
-              ctaUrl: (l) => localizeAppPath(pricingUrl, l),
+              ctaLabelKey: needsVerify.has(c.id) ? VERIFY_CTA : PLANS_CTA,
+              ctaUrl: (l) => localizeAppPath(needsVerify.has(c.id) ? verifyUrl : pricingUrl, l),
               footerNoteKey: FOOTER,
               infoRowsFor: (l) => preview.get(l),
             }
@@ -912,7 +938,8 @@ export class CompanyListingsService {
     // verilmezse bildirim iki panelde de görünürdü (ör. satın almacıya "sattığınız
     // kategoriye uygun ihale" düşerdi) — matchPortal ile doğru panele sınırlanır.
     const paidIds = sirali.map((c) => c.id).filter((id) => !isFree.get(id));
-    const freeIds = sirali.map((c) => c.id).filter((id) => isFree.get(id));
+    const freeIds = sirali.map((c) => c.id).filter((id) => isFree.get(id) && !needsVerify.has(id));
+    const verifyIds = sirali.map((c) => c.id).filter((id) => needsVerify.has(id));
     if (paidIds.length > 0) {
       await this.notifications.pushToCompanies(paidIds, {
         type: "listing_category_match",
@@ -935,6 +962,17 @@ export class CompanyListingsService {
         ctaLabelKey: PLANS_CTA,
         params: p,
         ctaPath: pricingUrl,
+        portal: matchPortal,
+      });
+    }
+    if (verifyIds.length > 0) {
+      await this.notifications.pushToCompanies(verifyIds, {
+        type: "listing_category_match",
+        titleKey: K.lockedInAppTitle,
+        bodyKey: K.lockedInAppBodyUnverified,
+        ctaLabelKey: VERIFY_CTA,
+        params: p,
+        ctaPath: verifyUrl,
         portal: matchPortal,
       });
     }
@@ -7050,6 +7088,165 @@ export class CompanyListingsService {
       ctaPath: appRoutes.listing(this.webUrl(), listing.id),
       listingId: listing.id,
     });
+  }
+
+  /**
+   * AI'IN BULDUĞU AMA ALICIYA GÖSTERİLMEYEN ÜCRETSİZ FİRMALARA SILVER /
+   * DOĞRULAMA ÇAĞRISI (2026-09-28, kullanıcı: "ücretsiz firma alıcı talep
+   * açarken görünmesin; ama AI ile bulunduğunda oradan Silver'a veya
+   * doğrulamaya yönlendirelim").
+   *
+   * Yalnız HERKESE AÇIK ∧ açık ∧ embargosuz talepte: Silver'a geçen firma talebi
+   * görür (özel/bağlantılara açık talepte göremezdi — yanıltıcı olurdu). Davetli,
+   * bu talep için zaten e-posta almış (kategori duyurusu/davet) ya da akşam
+   * özetinde bekleyen adres atlanır. Alıcının kimliği yazılmaz (herkese açık
+   * talep anonim); kalem önizlemesi alıcının dilinde. Doğrulanmamış firmaya
+   * önce ücretsiz doğrulama (paket alımının tek şartı), doğrulanmış/incelemede
+   * olana Silver. Kategori eşleşmesiyle AYNI günlük sınır (yerel günde 3,
+   * fazlası kilitli özet satırı).
+   */
+  async notifyHiddenAiMatches(listingId: string, companyIdsRaw: string[]): Promise<number> {
+    const ids = [...new Set(companyIdsRaw)];
+    if (ids.length === 0) return 0;
+    const listing = await this.bypass.listing.findUnique({
+      where: { id: listingId },
+      select: {
+        id: true,
+        companyId: true,
+        title: true,
+        number: true,
+        type: true,
+        status: true,
+        visibility: true,
+        publishedAt: true,
+        bidsOpenAt: true,
+        targetCountries: true,
+      },
+    });
+    const now = new Date();
+    if (
+      !listing ||
+      listing.visibility !== "PUBLIC" ||
+      listing.status !== "OPEN" ||
+      !listing.publishedAt ||
+      (listing.bidsOpenAt && listing.bidsOpenAt.getTime() > now.getTime())
+    ) {
+      return 0;
+    }
+    const [invited, blockedList, companies, connected] = await Promise.all([
+      this.bypass.listingInvitation.findMany({ where: { listingId, invitedCompanyId: { in: ids } }, select: { invitedCompanyId: true } }),
+      this.blocks.blockedCompanyIds(listing.companyId),
+      this.bypass.company.findMany({
+        where: { id: { in: ids }, isActive: true, isBlocked: false },
+        select: { id: true, country: true, ...AI_RECOMMENDABLE_SELECT },
+      }),
+      this.connectedCompanyIds(listing.companyId),
+    ]);
+    const skip = new Set([...invited.map((i) => i.invitedCompanyId), ...blockedList, ...connected, listing.companyId]);
+    // Yeniden denetim: yalnız alıcıya gösterilmeyen (ücretsiz/doğrulanmamış) firmalar.
+    const targets = companies.filter(
+      (c) => !skip.has(c.id) && !isAiRecommendable(c) && countryCanSee(listing.targetCountries, c.country),
+    );
+    if (targets.length === 0) return 0;
+    const portal = this.bidderPortal(listing.type);
+    const recipients = await this.companyRecipients(targets.map((c) => c.id), portal);
+    const emails = [...recipients.values()].map((r) => r.email);
+    const [mailed, pending, recent, preview] = await Promise.all([
+      this.bypass.emailLog.findMany({
+        where: {
+          toEmail: { in: emails },
+          contextId: listing.id,
+          contextType: { in: ["listing_category_match", "listing_invitation", "listing_invitation_ai", AI_MATCH_LOCKED_CONTEXT] },
+          status: { not: "FAILED" },
+        },
+        select: { toEmail: true },
+      }),
+      this.bypass.emailDigestItem.findMany({
+        where: { email: { in: emails }, listingId: listing.id },
+        select: { email: true },
+      }),
+      this.bypass.emailLog.findMany({
+        where: {
+          toEmail: { in: emails },
+          contextType: { in: ["listing_category_match", AI_MATCH_LOCKED_CONTEXT] },
+          status: { not: "FAILED" },
+          queuedAt: { gte: new Date(now.getTime() - 36 * 3_600_000) },
+        },
+        select: { toEmail: true, queuedAt: true },
+      }),
+      this.listingPreviewFor(listing.id, [...recipients.values()].map((r) => r.locale)).catch(
+        () => new Map<Locale, PreviewRow[]>(),
+      ),
+    ]);
+    const already = new Set([...mailed.map((m) => m.toEmail), ...pending.map((p) => p.email)]);
+    const p = { title: listingTitleParam(listing.id, listing.title), number: listing.number ?? "—" };
+    const pricingUrl = `${this.webUrl()}/company/premium`;
+    const verifyUrl = `${this.webUrl()}/company/ayarlar/dogrulama`;
+    const K = "api.notifications.listings.aiMatchLocked" as const;
+    const sentInCall = new Map<string, number>();
+    const silverIds: string[] = [];
+    const verifyIds: string[] = [];
+    let sent = 0;
+    for (const c of targets) {
+      const to = recipients.get(c.id);
+      if (!to || already.has(to.email)) continue;
+      const needsVerify = c.companyVerificationStatus !== "VERIFIED" && c.companyVerificationStatus !== "PENDING";
+      (needsVerify ? verifyIds : silverIds).push(c.id);
+      if (!isNotificationEnabled(to.prefs, AI_MATCH_LOCKED_CONTEXT)) continue;
+      const dayStart = localDayStart(now, timeZoneForCountry(c.country));
+      const sentToday =
+        recent.filter((r) => r.toEmail === to.email && r.queuedAt >= dayStart).length + (sentInCall.get(to.email) ?? 0);
+      if (!categoryMatchInstantAllowed({ sentTodayLocal: sentToday, allInstant: to.prefs?.categoryMatchInstant === true })) {
+        await this.bypass.emailDigestItem
+          .upsert({
+            where: { email_kind_listingId: { email: to.email, kind: "CATEGORY_MATCH", listingId: listing.id } },
+            create: { email: to.email, locale: to.locale, companyId: c.id, kind: "CATEGORY_MATCH", listingId: listing.id, locked: true },
+            update: {},
+          })
+          .catch(() => undefined);
+        continue;
+      }
+      sentInCall.set(to.email, (sentInCall.get(to.email) ?? 0) + 1);
+      this.notify(
+        to,
+        {
+          subjectKey: `${K}.subject`,
+          headingKey: `${K}.subject`,
+          bodyKey: needsVerify ? `${K}.bodyVerify` : `${K}.bodySilver`,
+          params: p,
+          ctaLabelKey: needsVerify ? "api.notifications.listings.cta.verifyFree" : "api.notifications.listings.cta.upgradeSilver",
+          ctaUrl: (l) => localizeAppPath(needsVerify ? verifyUrl : pricingUrl, l),
+          footerNoteKey: `${K}.footer`,
+          infoRowsFor: (l) => preview.get(l),
+        },
+        { type: AI_MATCH_LOCKED_CONTEXT, id: listing.id },
+      );
+      sent++;
+    }
+    // Uygulama içi: talep bağlantısı VERİLMEZ (403 alırdı); CTA doğrulama ya da paketler.
+    if (silverIds.length > 0) {
+      await this.notifications.pushToCompanies(silverIds, {
+        type: AI_MATCH_LOCKED_CONTEXT,
+        portal,
+        titleKey: `${K}.subject`,
+        bodyKey: `${K}.inAppBodySilver`,
+        ctaLabelKey: "api.notifications.listings.cta.upgradeSilver",
+        params: p,
+        ctaPath: pricingUrl,
+      });
+    }
+    if (verifyIds.length > 0) {
+      await this.notifications.pushToCompanies(verifyIds, {
+        type: AI_MATCH_LOCKED_CONTEXT,
+        portal,
+        titleKey: `${K}.subject`,
+        bodyKey: `${K}.inAppBodyVerify`,
+        ctaLabelKey: "api.notifications.listings.cta.verifyFree",
+        params: p,
+        ctaPath: verifyUrl,
+      });
+    }
+    return sent;
   }
 
   /**

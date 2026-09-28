@@ -563,6 +563,12 @@ export class SupplierDiscoveryService {
   /**
    * Kullanıcısız çekirdek (yayın sonrası tur da çağırır). `listingId` verilirse
    * ülke kısıtı talepten okunur (firma kapsamlı) ve davetliler işaretlenir.
+   *
+   * `pool` (2026-09-28): "recommendable" (varsayılan) alıcıya önerilebilen
+   * Silver+ ∧ doğrulanmış üyeler; "hidden" aynı eşleştiricinin bulduğu ama
+   * alıcıya GÖSTERİLMEYEN ücretsiz/doğrulanmamış üyeler — alıcı bunları hiç
+   * görmez, platform onlara Silver/doğrulama çağrısı gönderir
+   * (`CompanyListingsService.notifyHiddenAiMatches`).
    */
   async discoverRegisteredFor(
     companyId: string,
@@ -572,6 +578,7 @@ export class SupplierDiscoveryService {
       listingId?: string;
       targetCountries?: string[];
       locale?: Locale;
+      pool?: "recommendable" | "hidden";
     },
   ): Promise<{ candidates: DiscoveryCandidate[] }> {
     const user = { companyId };
@@ -667,7 +674,10 @@ export class SupplierDiscoveryService {
         // bedavaya davet edip talebe sokmak saçma, doğrulanmamış firma").
         // Eskiden profilini yayınlamış ücretsiz firma da adaydı (2026-09-06).
         // Bağlantılar zaten dışlı (yukarıda) — onlar talebi bağlantı yoluyla görür.
-        AND: [aiRecommendableWhere()],
+        AND:
+          input.pool === "hidden"
+            ? [{ isActive: true, isBlocked: false }, { NOT: aiRecommendableWhere() }]
+            : [aiRecommendableWhere()],
         ...(targetCountries.length > 0 ? { country: { in: targetCountries } } : {}),
         OR: catOr,
       },

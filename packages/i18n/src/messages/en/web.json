@@ -4178,7 +4178,10 @@
       },
       "silverLockCard": {
         "baglantiDavetiyleGelenTalepleriUcretsiz": "Requests that come through a connection invitation are visible free of charge.",
-        "silverPaketineGec": "Upgrade to Silver"
+        "silverPaketineGec": "Upgrade to Silver",
+        "onceDogrulanNot": "The only requirement for upgrading to Silver is verifying your company. Verification is free and takes a few minutes.",
+        "onceUcretsizDogrulan": "Get verified for free first",
+        "paketleriGor": "See plans"
       },
       "visitsVisibilityCard": {
         "ziyaretlerinizArtikAdinizlaGorunur": "Your visits are now shown with your name",

@@ -157,6 +157,7 @@ export class DiscoveryRunsService {
         listing: {
           select: {
             status: true,
+            visibility: true,
             categoryIds: true,
             createdById: true,
             items: { select: { name: true }, orderBy: { lineNo: "asc" }, take: 15 },
@@ -194,6 +195,31 @@ export class DiscoveryRunsService {
           this.logger.warn(`discovery run ${runId} platform pass failed: ${err instanceof Error ? err.message : String(err)}`);
           return [] as DiscoveryCandidate[];
         });
+
+      // 1b) Alıcıya GÖSTERİLMEYEN ücretsiz/doğrulanmamış eşleşmeler (2026-09-28):
+      // alıcı onları görmez; platform onlara Silver/doğrulama çağrısı gönderir.
+      // Yalnız herkese açık talep (Silver'a geçen talebi görebilsin) ve güçlü
+      // eşleşme (alt kategori ya da vitrinde kalem) — segment düzeyi zaten
+      // kategori duyurusunun işi.
+      if (run.listing.visibility === "PUBLIC" && this.listings) {
+        await this.discovery
+          .discoverRegisteredFor(run.companyId, {
+            categoryIds: run.listing.categoryIds,
+            itemNames,
+            listingId: run.listingId,
+            locale,
+            pool: "hidden",
+          })
+          .then((r) =>
+            this.listings!.notifyHiddenAiMatches(
+              run.listingId!,
+              r.candidates.filter((c) => c.strongMatch && !c.alreadyInvited).map((c) => c.companyId),
+            ),
+          )
+          .catch((err) =>
+            this.logger.warn(`discovery run ${runId} hidden notify failed: ${err instanceof Error ? err.message : String(err)}`),
+          );
+      }
 
       // 2) Web araması — AI açık ve platform bütçesi yetiyorsa.
       let web: AnnotatedCandidate[] = [];
