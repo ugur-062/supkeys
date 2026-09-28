@@ -46,12 +46,16 @@ export class ChangePasswordDto {
   @IsString()
   currentPassword!: string;
 
+  // Politika kayıt/davet DTO'suyla AYNI (yayın denetimi 2026-09-28 Bölüm 9):
+  // değiştirme ve sıfırlama 8 karakter + özel karaktersiz kabul ediyordu —
+  // kayıtta konan kural sıfırlamayla zayıflatılabiliyordu.
   @IsString()
-  @MinLength(8, { message: () => tApi("api.dto.account.parolaEnAz8Karakter") })
+  @MinLength(10, { message: () => tApi("api.dto.companySignup.parolaEnAz10KarakterOlmali") })
   @MaxLength(72)
   @Matches(/[A-Z]/, { message: () => tApi("api.dto.account.enAzBirBuyukHarfAZ") })
   @Matches(/[a-z]/, { message: () => tApi("api.dto.account.enAzBirKucukHarfAz") })
   @Matches(/[0-9]/, { message: () => tApi("api.dto.account.enAzBirRakam") })
+  @Matches(/[^a-zA-Z0-9]/, { message: () => tApi("api.dto.companySignup.parolaEnAzBirOzelKarakterIcermeli") })
   newPassword!: string;
 }
 

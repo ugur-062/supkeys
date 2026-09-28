@@ -1056,7 +1056,6 @@
       "enAzBirRolSecin": "Select at least one role"
     },
     "account": {
-      "parolaEnAz8Karakter": "Password must be at least 8 characters",
       "enAzBirBuyukHarfAZ": "At least one uppercase letter (A-Z)",
       "enAzBirKucukHarfAz": "At least one lowercase letter (a-z)",
       "enAzBirRakam": "At least one digit",
@@ -1092,7 +1091,6 @@
       "gecersizUlkeKodu": "Invalid country code"
     },
     "confirmPasswordReset": {
-      "parolaEnAz8KarakterOlmali": "Password must be at least 8 characters",
       "parolaEnAzBirKucukHarfIcermeli": "Password must contain at least one lowercase letter",
       "parolaEnAzBirBuyukHarfIcermeli": "Password must contain at least one uppercase letter",
       "parolaEnAzBirRakamIcermeli": "Password must contain at least one digit"

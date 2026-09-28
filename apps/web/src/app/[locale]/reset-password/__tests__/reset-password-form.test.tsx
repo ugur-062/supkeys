@@ -52,10 +52,24 @@ describe("ResetPasswordForm", () => {
     expect(h.post).not.toHaveBeenCalled();
   });
 
+  it("politika kayıtla AYNI: özel karaktersiz ve 10 karakterden kısa şifre reddedilir (yayın denetimi Bölüm 9)", async () => {
+    const user = userEvent.setup();
+    render(<ResetPasswordForm />);
+    await user.type(screen.getByLabelText("Yeni Şifre"), "GucluParola12");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "GucluParola12");
+    await user.click(screen.getByRole("button", { name: "Şifreyi Değiştir" }));
+    expect(screen.getByText("En az bir özel karakter içermeli")).toBeInTheDocument();
+    await user.clear(screen.getByLabelText("Yeni Şifre"));
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Parola12!");
+    await user.click(screen.getByRole("button", { name: "Şifreyi Değiştir" }));
+    expect(screen.getByText("En az 10 karakter")).toBeInTheDocument();
+    expect(h.post).not.toHaveBeenCalled();
+  });
+
   it("eşleşmeyen parolalar reddedilir", async () => {
     const user = userEvent.setup();
     render(<ResetPasswordForm />);
-    await user.type(screen.getByLabelText("Yeni Şifre"), "GucluParola1");
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Guclu!Parola1");
     await user.type(screen.getByLabelText("Şifreyi Tekrar"), "Farkli1234");
     await user.click(
       screen.getByRole("button", { name: "Şifreyi Değiştir" }),
@@ -68,15 +82,15 @@ describe("ResetPasswordForm", () => {
     const user = userEvent.setup();
     h.post.mockResolvedValue({ data: { success: true } });
     render(<ResetPasswordForm />);
-    await user.type(screen.getByLabelText("Yeni Şifre"), "GucluParola1");
-    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "GucluParola1");
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Guclu!Parola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "Guclu!Parola1");
     await user.click(
       screen.getByRole("button", { name: "Şifreyi Değiştir" }),
     );
 
     expect(h.post).toHaveBeenCalledWith("/auth/password-reset/confirm", {
       token: "a".repeat(64),
-      newPassword: "GucluParola1",
+      newPassword: "Guclu!Parola1",
     });
     expect(screen.getByRole("status")).toHaveTextContent(
       "Şifreniz değiştirildi",
@@ -92,8 +106,8 @@ describe("ResetPasswordForm", () => {
       response: { data: { message: "Bağlantının süresi dolmuş" } },
     });
     render(<ResetPasswordForm />);
-    await user.type(screen.getByLabelText("Yeni Şifre"), "GucluParola1");
-    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "GucluParola1");
+    await user.type(screen.getByLabelText("Yeni Şifre"), "Guclu!Parola1");
+    await user.type(screen.getByLabelText("Şifreyi Tekrar"), "Guclu!Parola1");
     await user.click(
       screen.getByRole("button", { name: "Şifreyi Değiştir" }),
     );

@@ -1823,17 +1823,18 @@
       "toastChanged": "Password changed",
       "errFallback": "The link is invalid or has expired",
       "newPassword": "New password",
-      "newPasswordPlaceholder": "At least 8 characters — upper/lower case + a digit",
+      "newPasswordPlaceholder": "At least 10 characters — upper/lower case, a digit and a special character",
       "confirmPassword": "Repeat password",
       "changing": "Changing…",
       "change": "Change password"
     },
     "password": {
-      "min": "At least 8 characters",
+      "min": "At least 10 characters",
       "max": "At most 72 characters",
       "lower": "Must contain a lowercase letter",
       "upper": "Must contain an uppercase letter",
       "digit": "Must contain a digit",
+      "special": "Must contain a special character",
       "mismatch": "Passwords don't match",
       "repeatShort": "repeat"
     },
@@ -5332,12 +5333,6 @@
         "adBosOlamaz": "First name cannot be empty",
         "soyadBosOlamaz": "Last name cannot be empty",
         "gecerliBirTelefonNumarasiGirin": "Enter a valid phone number",
-        "pwReq": {
-          "min": "At least 8 characters",
-          "upper": "At least 1 uppercase letter (A-Z)",
-          "lower": "At least 1 lowercase letter (a-z)",
-          "digit": "At least 1 digit"
-        },
         "pwStrength": {
           "zayif": "Weak",
           "orta": "Medium",

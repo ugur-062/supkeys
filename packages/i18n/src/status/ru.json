@@ -4164,11 +4164,6 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "api.dto.account.parolaEnAz8Karakter": {
-    "hash": "da8d0298a9",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "api.dto.adminCompanies.redGerekcesiEnAz3KarakterOlmali": {
     "hash": "15ea3f681b",
     "status": "reviewed",
@@ -4353,11 +4348,6 @@
     "hash": "326013560d",
     "status": "reviewed",
     "at": "2026-09-27"
-  },
-  "api.dto.confirmPasswordReset.parolaEnAz8KarakterOlmali": {
-    "hash": "2c56f7aa02",
-    "status": "reviewed",
-    "at": "2026-09-24"
   },
   "api.dto.confirmPasswordReset.parolaEnAzBirBuyukHarfIcermeli": {
     "hash": "cb626143ca",
@@ -8640,9 +8630,9 @@
     "at": "2026-09-23"
   },
   "web.auth.password.min": {
-    "hash": "297c04416d",
+    "hash": "63390715fe",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-28"
   },
   "web.auth.password.mismatch": {
     "hash": "5dec303776",
@@ -8653,6 +8643,11 @@
     "hash": "ee4a2482a2",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.auth.password.special": {
+    "hash": "cc1ee6ff73",
+    "status": "reviewed",
+    "at": "2026-09-28"
   },
   "web.auth.password.upper": {
     "hash": "9f42259526",
@@ -8745,9 +8740,9 @@
     "at": "2026-09-23"
   },
   "web.auth.reset.newPasswordPlaceholder": {
-    "hash": "4e2e75422b",
+    "hash": "ad70789dcd",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-28"
   },
   "web.auth.reset.remembered": {
     "hash": "a2eccd1208",
@@ -27041,26 +27036,6 @@
   },
   "web.panel.settings.accountSettingsSection.notificationPref.reminder": {
     "hash": "ace04eb45c",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.settings.accountSettingsSection.pwReq.digit": {
-    "hash": "7299c9639d",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.settings.accountSettingsSection.pwReq.lower": {
-    "hash": "f271cdb551",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.settings.accountSettingsSection.pwReq.min": {
-    "hash": "297c04416d",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.settings.accountSettingsSection.pwReq.upper": {
-    "hash": "47da8a0bc6",
     "status": "reviewed",
     "at": "2026-09-24"
   },

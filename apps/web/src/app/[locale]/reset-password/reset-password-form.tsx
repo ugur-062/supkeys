@@ -4,6 +4,7 @@ import { Button } from "@/components/catalyst/button";
 import { PasswordInput } from "@/components/ui/password-input";
 import { Field, Label } from "@/components/catalyst/fieldset";
 import { companyApi } from "@/lib/company-auth/api";
+import { PASSWORD_MIN_LENGTH, PASSWORD_SPECIAL_RE } from "@/lib/company-auth/password-rules";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { AlertCircle, Check } from "lucide-react";
@@ -19,16 +20,17 @@ import { z } from "zod";
 // Politika backend ConfirmPasswordResetDto ile BİREBİR aynı — kullanıcı
 // frontend'in kabul ettiği şifreyi backend'de reddedilmiş görmesin.
 // Mesajlar katalogdan (`web.auth.password.*`, kayıt formuyla ortak).
-function makeSchema(tp: (key: "min" | "max" | "lower" | "upper" | "digit" | "mismatch") => string) {
+function makeSchema(tp: (key: "min" | "max" | "lower" | "upper" | "digit" | "special" | "mismatch") => string) {
   return z
     .object({
       newPassword: z
         .string()
-        .min(8, tp("min"))
+        .min(PASSWORD_MIN_LENGTH, tp("min"))
         .max(72, tp("max"))
         .regex(/[a-z]/, tp("lower"))
         .regex(/[A-Z]/, tp("upper"))
-        .regex(/\d/, tp("digit")),
+        .regex(/\d/, tp("digit"))
+        .regex(PASSWORD_SPECIAL_RE, tp("special")),
       confirmPassword: z.string(),
     })
     .refine((d) => d.newPassword === d.confirmPassword, {

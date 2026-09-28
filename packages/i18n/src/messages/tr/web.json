@@ -1823,17 +1823,18 @@
       "toastChanged": "Şifre değiştirildi",
       "errFallback": "Bağlantı geçersiz veya süresi dolmuş",
       "newPassword": "Yeni Şifre",
-      "newPasswordPlaceholder": "En az 8 karakter — büyük/küçük harf + rakam",
+      "newPasswordPlaceholder": "En az 10 karakter — büyük/küçük harf, rakam ve özel karakter",
       "confirmPassword": "Şifreyi Tekrar",
       "changing": "Değiştiriliyor…",
       "change": "Şifreyi Değiştir"
     },
     "password": {
-      "min": "En az 8 karakter",
+      "min": "En az 10 karakter",
       "max": "En fazla 72 karakter",
       "lower": "En az bir küçük harf içermeli",
       "upper": "En az bir büyük harf içermeli",
       "digit": "En az bir rakam içermeli",
+      "special": "En az bir özel karakter içermeli",
       "mismatch": "Şifreler eşleşmiyor",
       "repeatShort": "tekrar"
     },
@@ -5332,12 +5333,6 @@
         "adBosOlamaz": "Ad boş olamaz",
         "soyadBosOlamaz": "Soyad boş olamaz",
         "gecerliBirTelefonNumarasiGirin": "Geçerli bir telefon numarası girin",
-        "pwReq": {
-          "min": "En az 8 karakter",
-          "upper": "En az 1 büyük harf (A-Z)",
-          "lower": "En az 1 küçük harf (a-z)",
-          "digit": "En az 1 rakam"
-        },
         "pwStrength": {
           "zayif": "Zayıf",
           "orta": "Orta",

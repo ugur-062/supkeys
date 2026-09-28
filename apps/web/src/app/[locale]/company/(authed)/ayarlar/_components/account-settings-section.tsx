@@ -29,6 +29,7 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import { isValidPhone } from "@/lib/company/phone";
+import { PASSWORD_MIN_LENGTH, usePasswordRules } from "@/lib/company-auth/password-rules";
 
 const card = "rounded-xl border border-zinc-950/10 bg-white p-5";
 
@@ -226,13 +227,9 @@ function ReadRow({
   );
 }
 
-/** Şifre gereksinimleri — etiket `pwReq.<key>` katalog anahtarı, çizim yerinde çevrilir. */
-const PW_REQUIREMENTS: { key: "min" | "upper" | "lower" | "digit"; test: (p: string) => boolean }[] = [
-  { key: "min", test: (p) => p.length >= 8 },
-  { key: "upper", test: (p) => /[A-Z]/.test(p) },
-  { key: "lower", test: (p) => /[a-z]/.test(p) },
-  { key: "digit", test: (p) => /\d/.test(p) },
-];
+// Şifre gereksinimleri kayıt/davetle ORTAK kaynaktan (`usePasswordRules`) —
+// buradaki ayrı kopya 8 karakter + özel karaktersiz kabul ediyordu (yayın
+// denetimi 2026-09-28 Bölüm 9).
 
 /** Güç etiketi `pwStrength.<label>` katalog anahtarı; boş şifrede etiket yok ("—"). */
 type PwStrengthKey = "zayif" | "orta" | "iyi" | "guclu";
@@ -240,8 +237,8 @@ type PwStrengthKey = "zayif" | "orta" | "iyi" | "guclu";
 function pwStrength(p: string): { score: number; label: PwStrengthKey | null; color: string } {
   if (!p) return { score: 0, label: null, color: "bg-zinc-200" };
   let s = 0;
-  if (p.length >= 8) s++;
-  if (p.length >= 12) s++;
+  if (p.length >= PASSWORD_MIN_LENGTH) s++;
+  if (p.length >= PASSWORD_MIN_LENGTH + 4) s++;
   if (/[A-Z]/.test(p) && /[a-z]/.test(p)) s++;
   if (/\d/.test(p) && /[^A-Za-z0-9]/.test(p)) s++;
   s = Math.min(4, s);
@@ -258,8 +255,9 @@ export function PasswordSection() {
   const [pw, setPw] = useState({ current: "", next: "", confirm: "" });
   const [show, setShow] = useState({ current: false, next: false, confirm: false });
 
+  const { rules: pwRules } = usePasswordRules();
   const strength = pwStrength(pw.next);
-  const allMet = PW_REQUIREMENTS.every((r) => r.test(pw.next));
+  const allMet = pwRules.every((r) => r.test(pw.next));
   // Alan hataları SATIR İÇİ (gereksinim listesi zaten görünür; toast tekrar etmez).
   const [errors, setErrors] = useState<{ current?: string; next?: string; confirm?: string }>({});
 
@@ -340,7 +338,7 @@ export function PasswordSection() {
                   </span>
                 </div>
                 <ul className="grid grid-cols-1 gap-1 sm:grid-cols-2">
-                  {PW_REQUIREMENTS.map((req) => {
+                  {pwRules.map((req) => {
                     const ok = req.test(pw.next);
                     return (
                       <li key={req.key} className="flex items-center gap-2 text-xs">
@@ -350,7 +348,7 @@ export function PasswordSection() {
                           <X className="h-3.5 w-3.5 text-zinc-300" />
                         )}
                         <span className={ok ? "text-zinc-700" : "text-zinc-500"}>
-                          {t(`pwReq.${req.key}` as never)}
+                          {req.label}
                         </span>
                       </li>
                     );

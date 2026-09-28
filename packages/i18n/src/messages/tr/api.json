@@ -1056,7 +1056,6 @@
       "enAzBirRolSecin": "En az bir rol seçin"
     },
     "account": {
-      "parolaEnAz8Karakter": "Şifre en az 8 karakter",
       "enAzBirBuyukHarfAZ": "En az bir büyük harf (A-Z)",
       "enAzBirKucukHarfAz": "En az bir küçük harf (a-z)",
       "enAzBirRakam": "En az bir rakam",
@@ -1092,7 +1091,6 @@
       "gecersizUlkeKodu": "Geçersiz ülke kodu"
     },
     "confirmPasswordReset": {
-      "parolaEnAz8KarakterOlmali": "Şifre en az 8 karakter olmalı",
       "parolaEnAzBirKucukHarfIcermeli": "Şifre en az bir küçük harf içermeli",
       "parolaEnAzBirBuyukHarfIcermeli": "Şifre en az bir büyük harf içermeli",
       "parolaEnAzBirRakamIcermeli": "Şifre en az bir rakam içermeli"
