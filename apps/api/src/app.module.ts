@@ -9,7 +9,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { throttleMessage } from "./common/http/throttle-message";
 import { ClientIpThrottlerGuard } from "./common/http/client-ip-throttler.guard";
-import { maskSensitiveUrl } from "./common/logging/mask-sensitive-url";
+import { maskSensitiveQuery, maskSensitiveUrl } from "./common/logging/mask-sensitive-url";
 import { LoggerModule } from "nestjs-pino";
 import { AuthCookieInterceptor } from "./common/auth/auth-cookie.interceptor";
 import { CsrfGuard } from "./common/auth/csrf.guard";
@@ -102,6 +102,8 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
           req: (req: Record<string, unknown>) => ({
             ...req,
             url: maskSensitiveUrl(req.url as string | undefined),
+            // Serileştirici `query`yi de yazar (yayın denetimi 2026-09-28 Bölüm 5).
+            ...("query" in req ? { query: maskSensitiveQuery(req.query) } : {}),
           }),
         },
         redact: {
