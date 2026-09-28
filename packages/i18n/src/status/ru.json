@@ -4902,7 +4902,7 @@
   "api.notifications.adminCompanies.dogrulamaOnaylandiGovde": {
     "hash": "df1acf20db",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "api.notifications.adminCompanies.dogrulamaReddedildiBaslik": {
     "hash": "e47c9a7602",
@@ -5502,7 +5502,7 @@
   "api.notifications.digest.cta": {
     "hash": "cb6d5170c7",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "api.notifications.digest.footer": {
     "hash": "e5234e0669",
@@ -5592,7 +5592,7 @@
   "api.notifications.lifecycle.market.cta": {
     "hash": "cb6d5170c7",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "api.notifications.lifecycle.market.subject": {
     "hash": "2a9da1f3d4",
@@ -5702,17 +5702,17 @@
   "api.notifications.listings.aiInvitation.body": {
     "hash": "b6dc71585e",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "api.notifications.listings.aiInvitation.bodyCategory": {
     "hash": "2e28802ac7",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "api.notifications.listings.aiInvitation.bodyProduct": {
     "hash": "bbf20ab55d",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "api.notifications.listings.aiInvitation.footer": {
     "hash": "e0a43f7884",
@@ -5722,12 +5722,12 @@
   "api.notifications.listings.aiInvitation.subject": {
     "hash": "6b9ed8652c",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "api.notifications.listings.aiInvitation.subjectAnon": {
     "hash": "2e97795386",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "api.notifications.listings.aiMatchLocked.bodySilver": {
     "hash": "b16ff998ca",
@@ -7762,7 +7762,7 @@
   "email.tenderExternalInvite.previewLink": {
     "hash": "b657092867",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "email.tenderExternalInvite.publicLink": {
     "hash": "46b7b2f59f",
@@ -7827,7 +7827,7 @@
   "email.tenderExternalInvite.textPreviewLink": {
     "hash": "39b4602f96",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "email.tenderExternalInvite.textPublicLink": {
     "hash": "229eedc14e",
@@ -11232,7 +11232,7 @@
   "web.marketing.emailPrefs.scope.invite": {
     "hash": "bf3249f7da",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "web.marketing.emailPrefs.scope.lifecycle": {
     "hash": "9bfcb66367",
@@ -11337,7 +11337,7 @@
   "web.marketing.faq.g3.a1": {
     "hash": "32893f8703",
     "status": "reviewed",
-    "at": "2026-09-25"
+    "at": "2026-09-28"
   },
   "web.marketing.faq.g3.a2": {
     "hash": "6d31a4faa6",
@@ -11607,7 +11607,7 @@
   "web.marketing.heroDecor.seller.open.hint": {
     "hash": "bc608f34e1",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "web.marketing.heroDecor.seller.open.title": {
     "hash": "6b2936b227",
@@ -12947,12 +12947,12 @@
   "web.marketing.invitePreview.lead": {
     "hash": "c346617d16",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "web.marketing.invitePreview.loading": {
     "hash": "79de3572bb",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "web.marketing.invitePreview.loginCta": {
     "hash": "689027a5bc",
@@ -12962,7 +12962,7 @@
   "web.marketing.invitePreview.metaTitle": {
     "hash": "e0ad102901",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "web.marketing.invitePreview.moreItems": {
     "hash": "3c5409c083",
@@ -12972,7 +12972,7 @@
   "web.marketing.invitePreview.number": {
     "hash": "f716307f82",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "web.marketing.invitePreview.optOut": {
     "hash": "87ce86196c",
@@ -17982,7 +17982,7 @@
   "web.panel.company.profileEditor.profilinizdeDogrulanmisRozetiGorunurVe": {
     "hash": "54c01028ef",
     "status": "reviewed",
-    "at": "2026-09-25"
+    "at": "2026-09-28"
   },
   "web.panel.company.profileEditor.profilKaydedildi": {
     "hash": "5b2bd8a18a",
@@ -25642,7 +25642,7 @@
   "web.panel.requests.share.emailSubject": {
     "hash": "8be824085b",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "web.panel.requests.share.lead": {
     "hash": "4d5290f8c6",
@@ -25657,7 +25657,7 @@
   "web.panel.requests.share.text": {
     "hash": "985de5236c",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "web.panel.requests.share.title": {
     "hash": "b802c54f83",
@@ -27802,7 +27802,7 @@
   "web.panel.settings.ayarlarDogrulamaPage.dogrulamaUcretsizVePaketGerektirmez": {
     "hash": "d68dcb9948",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "web.panel.settings.ayarlarDogrulamaPage.dogrulamayaGonder": {
     "hash": "d59fa6bfd4",
@@ -29367,7 +29367,7 @@
   "web.panel.settings.settingsPages.dogrulama.description": {
     "hash": "38128be09c",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "web.panel.settings.settingsPages.dogrulama.title": {
     "hash": "cd0549839c",

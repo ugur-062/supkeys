@@ -27,7 +27,7 @@
   "apps/api/src/modules/ai/seo-enrich/seo-enrich.prompts.ts": 9,
   "apps/api/src/modules/ai/supplier-discovery/supplier-discovery.service.ts": 15,
   "apps/api/src/modules/ai/tender-extract/ai-extract-router.ts": 1,
-  "apps/api/src/modules/ai/tender-extract/category-suggest.service.ts": 14,
+  "apps/api/src/modules/ai/tender-extract/category-suggest.service.ts": 15,
   "apps/api/src/modules/ai/tender-extract/tender-extract.prompts.ts": 7,
   "apps/api/src/modules/ai/tender-extract/title-suggest.ts": 7,
   "apps/api/src/modules/audit/audit.service.ts": 3,
