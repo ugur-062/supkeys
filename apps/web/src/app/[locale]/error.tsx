@@ -24,6 +24,10 @@ export default function AppError({
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-zinc-50 p-6">
+      {/* Akış başladıktan sonra atılan hata (ör. API kesintisi, B1-1) 200
+          durum koduyla gelir — hata sayfası indekslenmesin (React 19 <meta>'yı
+          <head>'e taşır). */}
+      <meta name="robots" content="noindex" />
       <ErrorState onRetry={reset} className="max-w-md" />
     </div>
   );
