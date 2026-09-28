@@ -13,7 +13,7 @@ import {
 import { LOCALES } from "@rothern/i18n";
 import { localizeAppPath } from "../../common/company/app-routes";
 import { resolveWebUrl } from "../../common/config/web-url";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { geoIndex } from "../../common/geo/geo-index";
 
 /**
@@ -119,8 +119,16 @@ export class SeoIndexService {
   private timer: NodeJS.Timeout | null = null;
   private warnedMissing = new Set<string>();
 
+  /**
+   * BYPASS istemcisi (yayın denetimi 2026-09-28): çağıranların çoğu firma
+   * bağlamı OLMADAN koşar — admin ürün onayı/reddi, çeviri süpürücüsü (cron),
+   * admin backfill. RLS açıkken kısıtlı istemci `company_items`i bağlamsız
+   * göremez, satır null döner ve bildirim sessizce gitmezdi: onaylanan ürün
+   * IndexNow'a ve web tazelemesine hiç girmiyordu. Okumalar yalnız kimlikle,
+   * sonuç kullanıcıya dönmez.
+   */
   constructor(
-    private readonly prisma: PrismaService,
+    private readonly prisma: PrismaBypassService,
     private readonly config: ConfigService,
   ) {}
 

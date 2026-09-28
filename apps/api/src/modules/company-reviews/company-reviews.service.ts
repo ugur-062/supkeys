@@ -5,8 +5,9 @@ import {
   ForbiddenException,
   Injectable,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService, PrismaService } from "../../common/prisma/prisma.service";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
@@ -17,7 +18,10 @@ import {
 
 @Injectable()
 export class CompanyReviewsService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Optional() private readonly bypass?: PrismaBypassService,
+  ) {}
 
   /**
    * Tamamlanmış siparişte karşı tarafı puanla — ÇİFT YÖNLÜ: alıcı satıcıyı,
@@ -162,7 +166,10 @@ export class CompanyReviewsService {
         throw new NotFoundException(i18nMessage("api.companyReviews.firmaProfiliBulunamadi"));
       }
     }
-    const rows = await this.prisma.companyReview.findMany({
+    // BYPASS (yayın denetimi 2026-09-28, RLS): özet seçimindeki zorunlu
+    // `order` ilişkisi (`company_orders`, kısıtlı) başka firmanın siparişinde
+    // izleyene görünmez → Prisma İSTİSNA atar (500). Süzgeç hedef firmada.
+    const rows = await (this.bypass ?? this.prisma).companyReview.findMany({
       where: { targetCompanyId: companyId },
       select: REVIEW_SUMMARY_SELECT,
       orderBy: { createdAt: "desc" },

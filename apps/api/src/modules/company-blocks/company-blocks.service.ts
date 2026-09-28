@@ -3,10 +3,11 @@ import {
   BadRequestException,
   Injectable,
   NotFoundException,
+  Optional,
 } from "@nestjs/common";
 import { Prisma } from "@rothern/db";
 import { normalizeShortCode, validateShortCode } from "@rothern/shared";
-import { PrismaService } from "../../common/prisma/prisma.service";
+import { PrismaBypassService, PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
 import { AuditService } from "../audit/audit.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
@@ -16,11 +17,20 @@ export class CompanyBlocksService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly audit: AuditService,
+    @Optional() private readonly bypass?: PrismaBypassService,
   ) {}
 
-  /** Karşılıklı görünmezlik: ben engelledim VEYA beni engelledi → tüm id'ler. */
+  /**
+   * Karşılıklı görünmezlik: ben engelledim VEYA beni engelledi → tüm id'ler.
+   *
+   * BYPASS istemcisi (yayın denetimi 2026-09-28): cron yolları (kapanış,
+   * hatırlatma, embargolu talebin açılış duyurusu, kategori duyurusu, gizli AI
+   * eşleşmesi) firma bağlamı olmadan çağırır; RLS açıkken kısıtlı istemci
+   * `company_blocks`u göremez, liste BOŞ döner ve engellenen firmaya e-posta
+   * gider. `where` iki yönde zaten daraltılmış; sonuç yalnız id kümesi.
+   */
   async blockedCompanyIds(companyId: string): Promise<string[]> {
-    const rows = await this.prisma.companyBlock.findMany({
+    const rows = await (this.bypass ?? this.prisma).companyBlock.findMany({
       where: {
         OR: [
           { blockerCompanyId: companyId },

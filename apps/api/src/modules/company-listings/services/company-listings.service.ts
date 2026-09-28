@@ -3123,16 +3123,24 @@ export class CompanyListingsService {
       (x): x is string => !!x,
     );
     const [addrRows, englishAgg, items, connectedIds] = await Promise.all([
+      // BYPASS (yayın denetimi 2026-09-28, RLS): teklifçi bağlamında kısıtlı
+      // istemci sahibin `company_addresses` satırını göremez → teklif
+      // verebilen tedarikçi teslim adresini hep boş görüyordu. Kapsam
+      // `companyId: listing.companyId` ile sahipte; teklifçiye yalnız
+      // `canBid` iken döner (aşağıda).
       addrIds.length
-        ? this.prisma.companyAddress.findMany({
+        ? this.bypass.companyAddress.findMany({
             // Yalnızca ilan sahibinin adresleri — başka firmanın PII'si sızmaz.
             where: { id: { in: addrIds }, companyId: listing.companyId },
           })
         : Promise.resolve([] as Awaited<
             ReturnType<typeof this.prisma.companyAddress.findMany>
           >),
+      // BYPASS (RLS): teklifçi bağlamında yalnız kendi teklifi görünürdü.
+      // Teklifçiye dönen en iyi fiyat/sayı `auctionView`dan (görünürlük
+      // kapılı) ezilir — sızıntı yüzeyi yok.
       listing.format === "ENGLISH_AUCTION"
-        ? this.prisma.listingBid.findMany({
+        ? this.bypass.listingBid.findMany({
             where: { listingId: id, status: "SUBMITTED" },
             select: {
               // INV-FX-1 (X6): id + submittedAt tie-break için (rankAuctionBids).
@@ -3837,7 +3845,11 @@ export class CompanyListingsService {
   } | null> {
     if (visibility === "OWN_ONLY") return null;
 
-    const rows = await this.prisma.listingBid.findMany({
+    // BYPASS (yayın denetimi 2026-09-28, RLS): bu görünüm TEKLİFÇİYE hesaplanır;
+    // kısıtlı istemci teklifçi bağlamında yalnız kendi teklifini gösterir →
+    // "en iyi fiyat" kendi fiyatı, sırası hep 1'di. Rakip tutarları yanıta
+    // yalnız `visibility` izin verdiği ölçüde çıkar (aşağıda).
+    const rows = await this.bypass.listingBid.findMany({
       where: { listingId, status: "SUBMITTED" },
       select: {
         // INV-FX-1 (X6): id + submittedAt tie-break için (rankAuctionBids).
@@ -8111,7 +8123,11 @@ export class CompanyListingsService {
   }
 
   private async connectedCompanyIds(companyId: string): Promise<string[]> {
-    const rows = await this.prisma.companyConnection.findMany({
+    // BYPASS (yayın denetimi 2026-09-28, RLS): cron yolları (embargolu talebin
+    // açılış duyurusu, gizli AI eşleşmesi) firma bağlamı olmadan çağırır →
+    // kısıtlı istemci `company_connections`ı göremez, liste boş dönerdi.
+    // Süzgeç verilen firmanın kendi bağlantıları; istek yollarında sonuç aynı.
+    const rows = await this.bypass.companyConnection.findMany({
       where: {
         status: "ACTIVE",
         OR: [

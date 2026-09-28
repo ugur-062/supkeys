@@ -1125,8 +1125,10 @@ export class CompanyConnectionsService {
     const otherIds = rows.map((r) =>
       r.inviterCompanyId === companyId ? r.inviteeCompanyId : r.inviterCompanyId,
     );
+    // Karşı firmaların ürünleri → BYPASS (RLS: kısıtlı istemci başka firmanın
+    // `company_items`ını göremez, önizleme hep boştu). Kapı sorguda.
     const products = otherIds.length
-      ? await this.prisma.companyItem.findMany({
+      ? await this.bypass.companyItem.findMany({
           where: { ...publicProductWhere(), companyId: { in: otherIds } },
           select: { companyId: true, images: true },
           orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
@@ -1631,7 +1633,12 @@ export class CompanyConnectionsService {
       }),
       // 2026-08-22: firma bazında gruplu özet — platform içi: ad yalnız
       // değerlendirenin opt-in'iyle (showName), aksi "Doğrulanmış alıcı/tedarikçi".
-      this.prisma.companyReview.findMany({
+      // BAŞKA firmanın verisi → BYPASS (yayın denetimi 2026-09-28, RLS):
+      // özet seçimindeki zorunlu `order` ilişkisi (`company_orders`, kısıtlı)
+      // izleyene görünmez → Prisma null değil İSTİSNA atar ve profil sayfası
+      // 500 döner; ürünler (`company_items`, kısıtlı) boş dönerdi. Süzgeçler
+      // (`targetCompanyId`, `publicProductWhere`) kapsamı zaten daraltıyor.
+      this.bypass.companyReview.findMany({
         where: { targetCompanyId: c.id },
         select: REVIEW_SUMMARY_SELECT,
         orderBy: { createdAt: "desc" },
@@ -1639,13 +1646,13 @@ export class CompanyConnectionsService {
       }),
       // ÜRÜNLER — herkese açık profildeki ızgarayla AYNI kapı ve sıra
       // (`publicProductWhere`); üye katmanı fiyatı da görür.
-      this.prisma.companyItem.findMany({
+      this.bypass.companyItem.findMany({
         where: { ...publicProductWhere(), companyId: c.id },
         select: PRODUCT_INDEX_SELECT,
         orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
         take: 24,
       }),
-      this.prisma.companyItem.count({ where: { ...publicProductWhere(), companyId: c.id } }),
+      this.bypass.companyItem.count({ where: { ...publicProductWhere(), companyId: c.id } }),
       this.prisma.category.findMany({
         where: { id: { in: [...c.sellerCategoryIds, ...c.buyerCategoryIds].filter(isCategoryCode).slice(0, 12) } },
         select: { id: true, ...CATEGORY_NAME_SELECT },

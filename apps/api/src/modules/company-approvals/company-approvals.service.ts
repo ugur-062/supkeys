@@ -1404,12 +1404,16 @@ export class CompanyApprovalsService {
     payload: unknown;
     createdById: string;
   }): Promise<void> {
-    const done = await this.prisma.approvalRequest.updateMany({
+    // BYPASS (yayın denetimi 2026-09-28, RLS): tek çağıran dakikalık cron
+    // (`fallbackInactiveApprovers`) — firma bağlamı yok; kısıtlı istemcide
+    // `updateMany` 0 satır döner, istek PENDING'de ve talep kazandırma
+    // onayında TAKILI kalırdı. Metodun geri kalanı zaten bypass kullanıyor.
+    const done = await this.bypass.approvalRequest.updateMany({
       where: { id: req.id, status: "PENDING" },
       data: { status: "REJECTED", decidedAt: new Date() },
     });
     if (done.count !== 1) return; // yarış: başka worker/karar sonuçlandırdı
-    await this.prisma.approvalRequestStep.updateMany({
+    await this.bypass.approvalRequestStep.updateMany({
       where: { requestId: req.id, status: { in: ["PENDING", "WAITING"] } },
       data: { status: "REJECTED", decidedAt: new Date() },
     });
