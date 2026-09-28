@@ -8,7 +8,7 @@ const post = async (body: unknown, headers: Record<string, string> = {}) => {
   return POST(
     new Request("https://www.rothern.com/api/client-error", {
       method: "POST",
-      headers: { "Content-Type": "application/json", "cf-connecting-ip": headers.ip ?? `1.2.3.${Math.random()}`, ...headers },
+      headers: { "Content-Type": "application/json", "x-real-ip": headers.ip ?? `1.2.3.${Math.random()}`, ...headers },
       body: typeof body === "string" ? body : JSON.stringify(body),
     }),
   );
@@ -39,10 +39,31 @@ describe("/api/client-error", () => {
     expect((await post({ message: "a", stack: "x".repeat(20_000) })).status).toBe(413);
   });
 
+  // Yayın denetimi 2026-09-28 Bölüm 5: web Cloudflare arkasında değil; istemcinin
+  // gönderdiği `cf-connecting-ip` her istekte değişip tavanı atlatıyordu.
+  it("istemcinin gönderdiği cf-connecting-ip tavanı ATLATAMAZ (Vercel'in x-real-ip'i esas)", async () => {
+    let last = 204;
+    for (let i = 0; i < 40; i++) last = (await post({ message: `c${i}` }, { ip: "8.8.4.4", "cf-connecting-ip": `10.0.0.${i}` })).status;
+    expect(last).toBe(429);
+  });
+
+  it("sunucu da adresi süzer — Rusça davet yolundaki jeton Sentry'e gitmez", async () => {
+    await post({ message: "boom", url: "https://www.rothern.com/ru/kompaniya/priglashenie/0123456789abcdef0123" });
+    const [, ctx] = captureException.mock.calls[0] as [Error, { extra: { url: string } }];
+    expect(ctx.extra.url).not.toContain("0123456789abcdef0123");
+    expect(ctx.extra.url).toContain("/priglashenie/[gizlendi]");
+  });
+
   it("aynı IP'den seli keser", async () => {
     const ip = "9.9.9.9";
     let last = 204;
     for (let i = 0; i < 40; i++) last = (await post({ message: `m${i}` }, { ip })).status;
+    expect(last).toBe(429);
+  });
+
+  it("çok kaynaklı sele karşı süreç başına toplam tavan (Sentry kotası)", async () => {
+    let last = 204;
+    for (let i = 0; i < 700 && last !== 429; i++) last = (await post({ message: `g${i}` }, { ip: `5.6.${Math.floor(i / 250)}.${i % 250}` })).status;
     expect(last).toBe(429);
   });
 });

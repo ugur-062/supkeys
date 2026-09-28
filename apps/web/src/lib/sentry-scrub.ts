@@ -15,9 +15,11 @@ export function scrubUrl(raw: string): string {
   try {
     const u = new URL(raw, "https://placeholder.local");
     for (const k of SECRET_QUERY_KEYS) if (u.searchParams.has(k)) u.searchParams.set(k, "[gizlendi]");
-    // Yol parçasındaki jeton: /company/davet/<token>, /reset-password/<token>
+    // Yol parçasındaki jeton: /company/davet/<token>, /reset-password/<token>;
+    // davet yolu dile göre (`ROUTE_PATHNAMES`): en `invite`, ru `priglashenie`
+    // (yayın denetimi 2026-09-28 Bölüm 5 — Rusça yol süzülmüyordu).
     u.pathname = u.pathname.replace(
-      /\/(davet|invite|reset-password|dogrula)\/[^/]+/gi,
+      /\/(davet|invite|priglashenie|reset-password|dogrula)\/[^/]+/gi,
       (_m, seg: string) => `/${seg}/[gizlendi]`,
     );
     return raw.startsWith("http") ? u.toString() : u.pathname + u.search;

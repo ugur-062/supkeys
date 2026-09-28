@@ -10,6 +10,13 @@ describe("Sentry temizleyici", () => {
     expect(scrubUrl("https://www.rothern.com/talep-davet?ref=ckref123&l=lst1")).toContain("l=lst1");
   });
 
+  it("Rusça ve İngilizce davet yolundaki jetonu da gizler (yayın denetimi 2026-09-28)", () => {
+    expect(scrubUrl("https://www.rothern.com/ru/kompaniya/priglashenie/tok0123456789abcdef")).toBe(
+      "https://www.rothern.com/ru/kompaniya/priglashenie/[gizlendi]",
+    );
+    expect(scrubUrl("/en/company/invite/tok0123456789abcdef")).toBe("/en/company/invite/[gizlendi]");
+  });
+
   it("yoldaki davet jetonunu gizler", () => {
     const out = scrubUrl("https://www.rothern.com/company/davet/eyJhbGciOi.JIUzI1NiJ9");
     expect(out).toContain("/davet/[gizlendi]");

@@ -7,6 +7,7 @@ import { runtimeLocale } from "@/i18n/runtime";
 
 import { companyApi } from "@/lib/company-auth/api";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { bindSessionOwner, clearTenantSessionData } from "@/lib/company-auth/tenant-storage";
 import type {
   CompanyLoginResponse,
   CompanyMeResponse,
@@ -78,6 +79,8 @@ export function useCompanyLogin() {
       if ("user" in data && pickLocale(data.user?.locale) !== uiLocale) {
         await companyApi.patch("/company-auth/me", { locale: uiLocale }).catch(() => undefined);
       }
+      // Aynı sekmede önceki (başka) hesabın taslakları yeni hesaba geri yüklenmesin.
+      if ("user" in data && data.user?.id) bindSessionOwner(data.user.id);
       queryClient.clear();
     },
   });
@@ -243,7 +246,9 @@ export function useCompanyMe(enabled = true) {
   // Store senkronu render sonrası yan-etkiyle (queryFn içinde değil — StrictMode
   // çift-fetch veya cache okumasında setMe atlanmasını önler).
   useEffect(() => {
-    if (query.data) setMe(query.data);
+    if (!query.data) return;
+    bindSessionOwner(query.data.user.id);
+    setMe(query.data);
   }, [query.data, setMe]);
   return query;
 }
@@ -256,6 +261,8 @@ export function useCompanyLogout() {
     void companyApi.post("/company-auth/logout").catch(() => undefined);
     clear();
     queryClient.clear();
+    // Taslaklar, AI'ın bulduğu tedarikçi adresleri, davet ön doldurma, son aramalar.
+    clearTenantSessionData();
     if (typeof window !== "undefined") {
       window.location.href = localizePath("/company/login", runtimeLocale());
     }
