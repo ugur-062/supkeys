@@ -24,7 +24,7 @@ const SAVED: RequestDefaults = {
 
 describe("talep şartları ↔ form", () => {
   it("profil → form → profil gidiş-dönüşü kayıpsız", () => {
-    const now = new Date("2026-09-09T10:00:00");
+    const now = new Date("2026-09-09T10:00:00+03:00");
     const form = applyRequestDefaults(DEFAULT_FORM_VALUES, SAVED, now);
     expect(form.deliveryTerm).toBe("FOB");
     expect(form.bidsCloseAt).toBe(closesAtFromDays(14, now));
@@ -32,7 +32,7 @@ describe("talep şartları ↔ form", () => {
   });
 
   it("profil yoksa platform varsayılanı (tüm ülkeler, adrese teslim, kapalı zarf, TRY, 7 gün)", () => {
-    const form = applyRequestDefaults(DEFAULT_FORM_VALUES, null, new Date("2026-09-09T10:00:00"));
+    const form = applyRequestDefaults(DEFAULT_FORM_VALUES, null, new Date("2026-09-09T10:00:00+03:00"));
     expect(form.targetCountries).toEqual([]);
     expect(form.deliveryTerm).toBe("DOMESTIC_DELIVERED");
     expect(form.primaryCurrency).toBe("TRY");
