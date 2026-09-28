@@ -2045,9 +2045,9 @@
     "at": "2026-09-24"
   },
   "api.companyListings.acikArtirmaOncekiTeklifinizinUzerindeOlmali": {
-    "hash": "8c9d7467ab",
+    "hash": "a299c4f067",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "api.companyListings.acikEksiltmeArtirmadaGonderilmisTeklifTaslaga": {
     "hash": "1784aea1cf",
@@ -2507,7 +2507,7 @@
   "api.companyListings.gonderilmisTeklifDuzenlenemezDegisiklikIcinAlici": {
     "hash": "9165f51600",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "api.companyListings.guncelKurBilgisiYokTcmbKalem": {
     "hash": "494fc04383",
@@ -2895,9 +2895,9 @@
     "at": "2026-09-27"
   },
   "api.companyListings.pazarlikOncekiTeklifinizinAltindaOlmali": {
-    "hash": "840c6e991f",
+    "hash": "bc35e9941a",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-28"
   },
   "api.companyListings.pazarliktaOncedenFiyatladiginizKalemBirakilamazI": {
     "hash": "1f6b9986fe",

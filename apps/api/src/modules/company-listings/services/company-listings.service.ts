@@ -96,6 +96,7 @@ import { isNotificationEnabled } from "../../../common/notifications/notificatio
 import {
   dateParam,
   formatAmount,
+  formatMoney,
   formatNotificationParams,
   listingTitleParam,
   ListingTitleResolver,
@@ -4580,10 +4581,10 @@ export class CompanyListingsService {
       const ownLast: Prisma.Decimal | null =
         existingBid?.status === "SUBMITTED" ? existingBid.amount : null;
       if (ownLast != null) {
-        // Hata mesajı İSTEĞİN dilinde (teklifçinin kendisi okuyor).
-        const fmt = (d: Prisma.Decimal) => formatAmount(d.toNumber(), currentLocale());
-        // Mesajlar teklifçinin KENDİ biriminde konuşur (ilanın değil).
-        const bidSym = currency === "TRY" ? "₺" : currency;
+        // Hata mesajı İSTEĞİN dilinde (teklifçinin kendisi okuyor), tutar
+        // teklifçinin KENDİ biriminde; sembolün yeri dilden (`formatMoney` —
+        // eski "{fmt} {bidSym}" İngilizcede sembolü sona koyuyordu).
+        const prevAmount = formatMoney(ownLast.toNumber(), currency, currentLocale());
         // KIYAS AYNI KALEMLER BAZINDA: önceki teklif kısmi olabilir — yeni
         // teklif kapsam GENİŞLETEBİLİR (yeni kalem ilk-teklif muamelesi,
         // toplam artabilir). Kural: (a) önceden fiyatlanmış kalem
@@ -4627,12 +4628,12 @@ export class CompanyListingsService {
         );
         if (!isAscending && comparable.gte(ownLast)) {
           throw new BadRequestException(
-            i18nMessage("api.companyListings.pazarlikOncekiTeklifinizinAltindaOlmali", { scopeNote: scopeNote, fmt: fmt(ownLast), bidSym: bidSym }),
+            i18nMessage("api.companyListings.pazarlikOncekiTeklifinizinAltindaOlmali", { scopeNote: scopeNote, amount: prevAmount }),
           );
         }
         if (isAscending && comparable.lte(ownLast)) {
           throw new BadRequestException(
-            i18nMessage("api.companyListings.acikArtirmaOncekiTeklifinizinUzerindeOlmali", { scopeNote: scopeNote, fmt: fmt(ownLast), bidSym: bidSym }),
+            i18nMessage("api.companyListings.acikArtirmaOncekiTeklifinizinUzerindeOlmali", { scopeNote: scopeNote, amount: prevAmount }),
           );
         }
       }

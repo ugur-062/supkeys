@@ -95,6 +95,10 @@ describe("İngiliz usulü — fiyat monotonluğu", () => {
     await expect(
       service.placeBid(seller.auth, l.id, { amount: 600, ...bidBase } as never),
     ).rejects.toThrow(/önceki teklifinizin/);
+    // Tutar tek `{amount}` — sembolün yeri dilden (tr sonda); eski "{fmt} {bidSym}" değil.
+    await expect(
+      service.placeBid(seller.auth, l.id, { amount: 600, ...bidBase } as never),
+    ).rejects.toThrow(/\(500 ₺\)/);
   });
 });
 
