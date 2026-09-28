@@ -209,10 +209,11 @@ describe("inviteExternalForListing — kuyruğa alma", () => {
     const ai = await service.inviteExternalForListing(
       owner.auth,
       listing.id,
-      [{ email: "einkauf@firma.de", country: "DE" }, { email: "sales@firm.ca" }],
+      [{ email: "einkauf@firma.de", country: "DE" }, { email: "sales@firm.ca" }, { email: "vertrieb@rohr.de", country: "AT" }],
       "AI_FORM",
     );
-    expect(ai.results.map((r) => r.status)).toEqual(["CONSENT_REQUIRED", "CONSENT_REQUIRED"]);
+    // Yanlış etiket ("AT") e-posta uzantısını ezmez (B5-12).
+    expect(ai.results.map((r) => r.status)).toEqual(["CONSENT_REQUIRED", "CONSENT_REQUIRED", "CONSENT_REQUIRED"]);
     const manual = await service.inviteExternalForListing(owner.auth, listing.id, [{ email: "einkauf@firma.de", country: "DE" }]);
     expect(manual.results[0]!.status).toBe("QUEUED");
   });

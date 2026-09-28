@@ -15,8 +15,13 @@ import { currentLocale } from "../../../common/i18n/locale-context";
 import { aiUiLanguageRule } from "../../../common/i18n/ai-language";
 import { productSearchClauses } from "../../../common/company/product-index";
 import { publicProductWhere } from "../../../common/company/public-profile-gate";
-import { COLD_INVITE_CONSENT_COUNTRIES, INVITE_HOLD_DAYS } from "../../../common/company/external-invite-policy";
+import {
+  COLD_INVITE_CONSENT_COUNTRIES,
+  INVITE_HOLD_DAYS,
+  isConsentCountry,
+} from "../../../common/company/external-invite-policy";
 import { hasMailExchanger, type MxChecker } from "../../../common/net/mx-check";
+import { countryFromEmailDomain, countryFromHost } from "../../../common/time/country-time-zone";
 import { countryName, EMAIL_MAX_LENGTH, isValidCountryCode } from "@rothern/shared";
 import type { Locale } from "@rothern/i18n";
 
@@ -557,7 +562,7 @@ export class SupplierDiscoveryService {
           : "MEMBER"
         : invitedSet.has(c.email)
           ? "ALREADY_INVITED"
-          : c.country && COLD_INVITE_CONSENT_COUNTRIES.has(c.country)
+          : isConsentCountry(c.country, countryFromEmailDomain(c.email), countryFromHost(host))
             ? "CONSENT_REQUIRED"
             : "SUGGESTED";
       out.push({ ...c, status, recentlyInvited: recentSet.has(c.email), memberCompanyId: member });

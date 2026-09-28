@@ -128,6 +128,24 @@ describe("SupplierDiscoveryService.discoverExternal", () => {
     expect(companies[1]!.status).toBe("SUGGESTED");
   });
 
+  it("onay kapısı temkinli: etiket yok ya da yanlışsa e-posta/site uzantısı DE/CA gösteriyorsa CONSENT_REQUIRED (B5-12)", async () => {
+    const { service } = rig({
+      parsed: {
+        companies: [
+          co("Rohr GmbH", "einkauf@rohr.de", { country: "AT" }),
+          co("Maple Pipes", "sales@maplepipes.com", { website: "https://www.maplepipes.ca" }),
+          co("Wien Rohr", "office@wienrohr.at", { country: "AT" }),
+        ],
+      },
+    });
+    const { companies } = await service.discoverExternal(user, { type: "ALIM", categoryIds: ["40141700"], listingId: "l1" });
+    expect(companies.map((c) => [c.name, c.status])).toEqual([
+      ["Rohr GmbH", "CONSENT_REQUIRED"],
+      ["Maple Pipes", "CONSENT_REQUIRED"],
+      ["Wien Rohr", "SUGGESTED"],
+    ]);
+  });
+
   it("tüm ülkelere açık talep: yurt içi + yurt dışı İKİ geçiş; aynı firma tekilleşir; kapsam etiketi", async () => {
     const { service, ai } = rig({
       parsed: [

@@ -589,7 +589,7 @@ export class CompanyConnectionsService {
         continue;
       }
       const country = r.country?.trim().toUpperCase() || countryFromEmailDomain(email);
-      if (coldInviteBlockedByCountry(source, country)) {
+      if (coldInviteBlockedByCountry(source, r.country, countryFromEmailDomain(email))) {
         results.push({
           email,
           status: "CONSENT_REQUIRED",

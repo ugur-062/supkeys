@@ -156,7 +156,12 @@ const GENERIC_CC_TLDS = new Set(["CO", "ME", "TV", "IO", "AI", "CC", "WS", "FM",
  * Genel kullanılan uzantılar ve bilinmeyenler `null` (saat dilimi varsayılana düşer).
  */
 export function countryFromEmailDomain(email: string | null | undefined): string | null {
-  const host = (email ?? "").split("@")[1]?.trim().toLowerCase() ?? "";
+  return countryFromHost((email ?? "").split("@")[1]);
+}
+
+/** Alan adının ülke uzantısı (`firma.de` → DE); kural `countryFromEmailDomain` ile aynı. */
+export function countryFromHost(hostRaw: string | null | undefined): string | null {
+  const host = (hostRaw ?? "").trim().toLowerCase().replace(/\.$/, "");
   const tld = host.split(".").pop()?.toUpperCase() ?? "";
   if (!/^[A-Z]{2}$/.test(tld) || GENERIC_CC_TLDS.has(tld)) return null;
   const cc = tld === "UK" ? "GB" : tld;

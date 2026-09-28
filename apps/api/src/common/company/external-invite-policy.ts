@@ -25,8 +25,21 @@ export const INVITE_HOLD_DAYS = 7;
  */
 export const COLD_INVITE_CONSENT_COUNTRIES: ReadonlySet<string> = new Set(["DE", "CA"]);
 
-export function coldInviteBlockedByCountry(source: InviteSourceKind, country: string | null | undefined): boolean {
-  return source !== "MANUAL" && !!country && COLD_INVITE_CONSENT_COUNTRIES.has(country.toUpperCase());
+/**
+ * Hukuki kapı TEMKİNLİ okunur (yayın denetimi 2026-09-28 B5-12): ülke ipuçlarından
+ * HERHANGİ biri (modelin etiketi, e-posta ya da site uzantısı) onay isteyen
+ * ülkeyi gösteriyorsa davet gitmez. Eskiden yalnız etikete bakılıyordu —
+ * etiketsiz ya da yanlış etiketli ("AT") `einkauf@firma.de` geçiyordu.
+ */
+export function coldInviteBlockedByCountry(
+  source: InviteSourceKind,
+  ...countryHints: ReadonlyArray<string | null | undefined>
+): boolean {
+  return source !== "MANUAL" && isConsentCountry(...countryHints);
+}
+
+export function isConsentCountry(...countryHints: ReadonlyArray<string | null | undefined>): boolean {
+  return countryHints.some((c) => !!c && COLD_INVITE_CONSENT_COUNTRIES.has(c.trim().toUpperCase()));
 }
 export const INVITE_PAUSE_WINDOW_DAYS = 90;
 export const INVITE_PAUSE_AFTER_SENDS = 3;
