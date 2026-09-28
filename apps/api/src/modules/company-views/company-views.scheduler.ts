@@ -21,13 +21,13 @@ export class CompanyViewsScheduler implements OnModuleInit {
   onModuleInit(): void {
     this.cronRegistry?.register(
       "views.purge",
-      `Görüntülenme kayıtlarını ${VIEW_RETENTION_DAYS} gün sonra siler`,
-      "her gece 04:20 (İstanbul)",
+      `Deletes profile/product view records after ${VIEW_RETENTION_DAYS} days`,
+      "nightly 04:20 (Istanbul)",
     );
     this.cronRegistry?.register(
       "views.replyTimes",
-      "Firmaların ortanca ilk yanıt süresini yeniden hesaplar (\"hızlı yanıt veren\")",
-      "her gece 04:35 (İstanbul)",
+      "Recomputes each company's median first-reply time (\"fast responder\")",
+      "nightly 04:35 (Istanbul)",
     );
   }
 
