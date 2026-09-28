@@ -290,13 +290,18 @@ export class ExternalInviteDispatcher {
     }
     if (sendable.length === 0) return out;
 
-    // Alıcının dilinde çeviri: gelmediyse (10 dk'ya dek) kısa erteleme.
+    // Alıcının dilinde çeviri: gelmediyse (10 dk'ya dek) kısa erteleme. AI
+    // kapalıysa çeviri HİÇ gelmez → beklenmez, özgün metin hemen gider
+    // (yayın denetimi 2026-09-28 Bölüm 6: kaynak dildeki davetler de 10 dk
+    // bekliyordu — `ensureTranslated` kapalı serviste kaynak dili denetlemeden
+    // `false` döner).
     const ready: DueInvite[] = [];
     for (const inv of sendable) {
       const locale = (isLocale(inv.locale) ? inv.locale : "tr") as Locale;
-      const translated = this.translations
-        ? await this.translations.ensureTranslated("LISTING", inv.listingId, [locale], 1_500).catch(() => false)
-        : true;
+      const translated =
+        this.translations && this.translations.enabled !== false
+          ? await this.translations.ensureTranslated("LISTING", inv.listingId, [locale], 1_500).catch(() => false)
+          : true;
       if (!translated && now.getTime() - inv.createdAt.getTime() < TRANSLATION_GRACE_MS) {
         await this.prisma.externalListingInvite.update({
           where: { id: inv.id },

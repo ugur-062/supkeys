@@ -614,3 +614,29 @@ describe("referral davet iptali — satır silinmez, tavan ve fren korunur", () 
     expect(after.status).toBe("PENDING");
   });
 });
+
+// Yayın denetimi 2026-09-28 Bölüm 6 (yerel uçtan uca koşuda yakalandı): AI
+// kapalıyken çeviri hiç gelmez; dağıtıcı yine de 10 dk boyunca 2'şer dk
+// erteliyordu — kaynak dildeki (TR→TR) davet dahil.
+describe("ExternalInviteDispatcher — AI kapalı", () => {
+  it("çeviri servisi kapalıysa beklemez: davet ilk turda özgün metinle gider", async () => {
+    const translations = {
+      enabled: false,
+      ensureTranslated: jest.fn().mockResolvedValue(false),
+      localizeListings: jest.fn(async (items: unknown[]) => items),
+    };
+    const service = makeService();
+    const { d, email } = makeDispatcher({ translations });
+    const owner = await makeCompanyWithUser(prisma);
+    const listing = await openListing(owner.company.id, owner.user.id, { title: "Somun alımı" });
+    await makeItem(prisma, listing.id, { name: "M8 somun" });
+    await service.inviteExternalForListing(owner.auth, listing.id, [{ email: "satinalma@ornek.com.tr", country: "TR" }]);
+    await makeDue();
+
+    await d.dispatch();
+
+    expect(translations.ensureTranslated).not.toHaveBeenCalled();
+    expect(email.send).toHaveBeenCalledTimes(1);
+    expect((await prisma.externalListingInvite.findFirstOrThrow({ where: { email: "satinalma@ornek.com.tr" } })).state).toBe("SENT");
+  });
+});
