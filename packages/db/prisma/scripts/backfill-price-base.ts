@@ -17,14 +17,18 @@
  *   pnpm --filter @rothern/db backfill-price-base -- --dry        # kök .env (staging), yazmaz
  *   ENV_FILE=../../.env.prod.local pnpm --filter @rothern/db backfill-price-base -- --dry
  */
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { resolve } from "node:path";
 
 const envFile = process.env.ENV_FILE
   ? resolve(process.cwd(), process.env.ENV_FILE)
   : resolve(__dirname, "../../.env");
 const override = !!process.env.ENV_FILE;
-for (const line of readFileSync(envFile, "utf8").split("\n")) {
+// Varsayılan dosya yoksa (API konteyneri/Render kabuğu: yalnız ortam
+// değişkenleri) atla; açıkça verilen ENV_FILE yoksa readFileSync düşer
+// (yayın denetimi 2026-09-28 Bölüm 3: konteynerde ENOENT ile çöküyordu).
+const envLines = override || existsSync(envFile) ? readFileSync(envFile, "utf8").split("\n") : [];
+for (const line of envLines) {
   const i = line.indexOf("=");
   if (i > 0 && !line.trimStart().startsWith("#")) {
     const k = line.slice(0, i).trim();

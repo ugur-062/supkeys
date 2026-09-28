@@ -19,8 +19,8 @@
 |---|---|---|
 | 0 | Sürüm envanteri | ✅ bitti |
 | 1 | Derleme ve statik kapılar | ✅ bitti |
-| 2 | Otomatik testler | ⏳ |
-| 3 | Veritabanı ve migration'lar | ⏳ |
+| 2 | Otomatik testler | ✅ bitti |
+| 3 | Veritabanı ve migration'lar | ✅ bitti |
 | 4 | Yetki ve firma yalıtımı | ⏳ |
 | 5 | Uygulama güvenliği | ⏳ |
 | 6 | Çekirdek akışlar uçtan uca | ⏳ |
@@ -222,7 +222,7 @@ denenmeden değiştirmek canlı derlemeyi kırabilir). **DÜŞÜK, kapandı.**
 
 ---
 
-## Bölüm 2 — Otomatik testler (⏳ API entegrasyon paketi Docker bekliyor)
+## Bölüm 2 — Otomatik testler (✅ 2026-09-28)
 
 | Paket | Sonuç | Not |
 |---|---|---|
@@ -231,7 +231,7 @@ denenmeden değiştirmek canlı derlemeyi kırabilir). **DÜŞÜK, kapandı.**
 | Admin (vitest) | ✅ 19 dosya / 98 test | |
 | i18n | ✅ 8 dosya / 39 test | |
 | API birim (`test/unit`, DB'siz) | ✅ 96 dosya / 976 test | `--globalSetup` boş |
-| API entegrasyon (`test/integration`, 137 dosya) | ⏳ | yerel test Postgres'i Docker ister — Docker Desktop çöktü |
+| API entegrasyon (`test/integration`, 137 dosya) | ✅ 135 dosya / 1.429 test; 2 dosya atlandı (`ai-assistant-live`, `ai-live-smoke` — gerçek AI anahtarı ister, bilinçli) | yerel Docker PG 17; 10'arlık `--runInBand` parçalar; Bölüm 4 düzeltmeleri (b0fff87f, b9ef1089) ve yeni testleri dahil, sıfır kırmızı |
 
 ### Bölüm 2 bulguları
 
@@ -239,6 +239,37 @@ denenmeden değiştirmek canlı derlemeyi kırabilir). **DÜŞÜK, kapandı.**
 |---|---|---|---|
 | B2-1 | YÜKSEK | `lib/tenders/__tests__/request-defaults.test.ts` tarihi ofsetsiz kuruyordu (`new Date("2026-09-09T10:00:00")`); kod İstanbul duvar saatiyle yazdığı için **UTC'de kırmızı** → CI çalıştırıcısı UTC olduğundan `production` PR'ı kırmızı olurdu | ✅ `+03:00` ofset; UTC / İstanbul / New York'ta yeşil (b4079ecb) |
 | B2-2 | DÜŞÜK | Web paketi bu makinede tam paralel koşumda 15 sn zaman aşımına düşüyor (formlu testler) | bilinen; CI'da sorun yok |
+
+---
+
+## Bölüm 3 — Veritabanı ve migration'lar (✅ 2026-09-28)
+
+Yöntem: staging `public` şeması **salt-okunur** `pg_dump` ile alındı
+(`default_transaction_read_only=on`; 5,9 MB — aynı zamanda migration öncesi
+staging yedeği: `~/rothern-backups/staging-before-launch-migrations-20260928.dump`)
+→ yerel PG 17 kopyasına yüklendi (staging'deki gibi sahip `postgres`; roller
+`anon`/`authenticated`/`service_role`/`supabase_admin`/`rothern_app`;
+`pg_trgm` `public`te) → migration'lar Render'ın koşacağı yolla, yani
+**`rothern-api:audit` imajının kendi entrypoint'iyle** uygulandı. Canlı DB boş
+(0 firma) olduğu için dolu staging kopyası daha sert prova.
+
+| Kontrol | Sonuç | Kanıt |
+|---|---|---|
+| Kopya | 60 tablo · 34 RLS politikası · 29 firma · 158.018 kategori · son migration `20260924200000_search_text_i18n` | tek hata beklenen "schema public already exists" |
+| 9 migration, gerçek entrypoint | ✅ dokuzu da uygulandı, `_prisma_migrations`ta yarım/geri alınmış 0; nöbetçi `ALLOW_REMOTE_MIGRATION=1` ile geçti; entrypoint API açılışına ilerledi (yalnız `JWT_SECRET` eksik → beklenen) | konteyner günlüğü |
+| `rothern_app` yetkileri | ✅ 7 yeni tablonun hepsinde SELECT/INSERT/UPDATE/DELETE; staging'de 60/60 tablo + 2 dizi (`anon` ile birebir; fark yalnız `supabase_admin` varsayılan yetkileri) | `has_table_privilege` |
+| `seed-geo-cities` | ✅ 33.804 şehir (87 özel), ~10 sn; ikinci koşum idempotent (listeden düşen 0) | |
+| `backfill-city-ids` | ✅ `--dry` 27/27 firma · 306/306 adres → uygulandı → ikinci `--dry` 0/0 | |
+| `backfill-price-base` | ✅ (B3-2 ile) `--dry` 71 değişen → uygulandı → ikinci `--dry` 0; kur tablosunda 8 birim (2026-09-25) | |
+| Şema ≡ veritabanı | ✅ (B3-1 ile) migration'lı staging kopyası ↔ `schema.prisma` fark yok; CI drift kapısı `exit 0` | `prisma migrate diff --exit-code` |
+
+### Bölüm 3 bulguları
+
+| # | Önem | Bulgu | Durum |
+|---|---|---|---|
+| B3-1 | YÜKSEK | **CI drift kapısı kırmızıydı (`exit 2`):** `geo_cities_searchText_trgm_idx` migration'da ham SQL, `schema.prisma`da beyan yok. Kapı `Test (api + typecheck)` işinde = `production` dal korumasının zorunlu kontrolü → yayın PR'ı birleştirilemezdi (bekleyen commit'ler henüz push edilmediği için CI görmemişti). Ayrıca ilk `migrate dev` indeksi silen migration üretirdi. | ✅ `GeoCity`e `@@index(… gin_trgm_ops, map: "geo_cities_searchText_trgm_idx")` (diğer trigram indeksleriyle aynı kalıp); CI kapısı ve staging kopyası `exit 0` |
+| B3-2 | DÜŞÜK | `backfill-price-base` env dosyasını ZORUNLU okuyordu → API konteynerinde/Render kabuğunda `ENOENT` ile çöküyordu (yerelden `ENV_FILE=../../.env.prod.local` yolu çalışıyordu) | ✅ varsayılan dosya yoksa ortam değişkenleriyle çalışır; açıkça verilen `ENV_FILE` yoksa yine düşer (konteynerde iki durum da sınandı) |
+| B3-3 | DÜŞÜK | Yeni firma verisi tabloları (`external_listing_invites`, `supplier_discovery_runs/_candidates`, `email_digest_items`) RLS'siz — yalıtım yalnız servis süzgeçlerinde (CLAUDE.md mimari kural 2). | backlog: politika eklemek bu turda düzeltilen hata sınıfını (bağlamsız cron'da 0 satır) yeni tablolarda yeniden üretir; yayından sonra `rls-regression-*` kalıbıyla birlikte ele alınmalı |
 
 ---
 
