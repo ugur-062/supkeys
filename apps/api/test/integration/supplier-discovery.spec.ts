@@ -6,7 +6,7 @@
 import { SupplierDiscoveryService } from "../../src/modules/ai/supplier-discovery/supplier-discovery.service";
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser } from "./factories";
+import { invite, makeCompanyWithUser, makeListing } from "./factories";
 import { foldSearchText } from "@rothern/shared";
 
 const svc = () => new SupplierDiscoveryService(prisma as unknown as PrismaService);
@@ -105,6 +105,36 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
     });
     expect(res.candidates).toHaveLength(1);
     expect(res.candidates[0]!.connectionStatus).toBe("PENDING");
+  });
+
+  it("GÜVENLİK: başka firmanın talep id'si verilirse davetli listesi sızmaz (alreadyInvited hep false)", async () => {
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const attacker = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const rival = await makeCompanyWithUser(prisma, { name: "Rakip AŞ", tier: "SILVER" });
+    await prisma.company.update({
+      where: { id: rival.company.id },
+      data: { sellerCategoryIds: ["30000000"] },
+    });
+    const listing = await makeListing(prisma, { companyId: owner.company.id, createdById: owner.user.id });
+    await invite(prisma, listing.id, rival.company.id, owner.user.id);
+
+    // Sahip kendi talebinde davetliyi görür…
+    const own = await svc().discoverRegistered(owner.auth, {
+      type: "ALIM",
+      categoryIds: ["30991500"],
+      listingId: listing.id,
+    });
+    expect(own.candidates.find((c) => c.name === "Rakip AŞ")?.alreadyInvited).toBe(true);
+
+    // …başka firma aynı id ile soramaz.
+    const res = await svc().discoverRegistered(attacker.auth, {
+      type: "ALIM",
+      categoryIds: ["30991500"],
+      listingId: listing.id,
+    });
+    const rivalRow = res.candidates.find((c) => c.name === "Rakip AŞ");
+    expect(rivalRow).toBeDefined();
+    expect(rivalRow!.alreadyInvited).toBe(false);
   });
 
   it("vitrinde kalemi SATAN firma kategori beyanı uymasa da önerilir; hangi kalem olduğu işaretlenir (2026-09-27)", async () => {

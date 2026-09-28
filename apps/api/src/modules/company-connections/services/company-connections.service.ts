@@ -16,7 +16,7 @@ import {
   Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode, PAID_TIER } from "@rothern/shared";
+import { EMAIL_MAX_LENGTH, isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode, PAID_TIER } from "@rothern/shared";
 import { publicProductWhere } from "../../../common/company/public-profile-gate";
 import { buildDirectory, directoryFacets, type DirectoryParams, type DirectoryScope } from "../../../common/company/company-directory";
 import { PRODUCT_INDEX_SELECT, toProductIndexCard } from "../../public-marketplace/dto/public-product-index.projection";
@@ -45,7 +45,7 @@ import {
   effectiveTier,
   anyPackageWhere,
 } from "../../../common/company/effective-tier";
-import { visibleOwnerListingWhere } from "../../../common/company/listing-visibility";
+import { MARKETPLACE_STATUSES, visibleOwnerListingWhere } from "../../../common/company/listing-visibility";
 import { hasValidConnection } from "../../../common/company/valid-connection";
 import { listingManageDenial } from "../../company-listings/listing-manage-access";
 import { affinityReasonTextThirdParty } from "../../company-affinity/company-affinity.service";
@@ -77,6 +77,8 @@ import {
 type ConnectionOrigin = "INVITE" | "PREMIUM" | "ADMIN";
 
 const EXTERNAL_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
+/** Uzunluk ÖNCE (ReDoS — bkz. `EMAIL_MAX_LENGTH`). */
+const isExternalEmail = (e: string) => e.length <= EMAIL_MAX_LENGTH && EXTERNAL_EMAIL_RE.test(e);
 /** Kayıtsız önizlemede gösterilen en fazla kalem (e-postada 10). */
 const PREVIEW_ITEM_LIMIT = 100;
 
@@ -501,17 +503,23 @@ export class CompanyConnectionsService {
       if (email && !byEmail.has(email)) byEmail.set(email, { ...r, email });
     }
     const normalized = [...byEmail.values()];
-    const invalid = normalized.filter((r) => !EXTERNAL_EMAIL_RE.test(r.email)).map((r) => r.email);
-    const recipients = normalized.filter((r) => EXTERNAL_EMAIL_RE.test(r.email)).slice(0, COMPANY_DAILY_INVITE_CAP);
+    const invalid = normalized.filter((r) => !isExternalEmail(r.email)).map((r) => r.email);
+    const recipients = normalized.filter((r) => isExternalEmail(r.email)).slice(0, COMPANY_DAILY_INVITE_CAP);
     const emails = recipients.map((r) => r.email);
     if (emails.length === 0 && invalid.length === 0) {
       throw new BadRequestException(i18nMessage("api.companyConnections.gecerliEPostaAdresiVerilmedi"));
     }
 
     const now = new Date();
-    const [createdToday, optOuts, registered, alreadyForListing, referrals] = await Promise.all([
+    const [externalToday, memberToday, optOuts, registered, alreadyForListing, referrals] = await Promise.all([
       this.prisma.externalListingInvite.count({
         where: { inviterCompanyId: user.companyId, createdAt: { gte: utcDayStart(now) } },
+      }),
+      // Tavan AI'ın önerdiği üyeye doğrudan davetle ORTAK (iki yönde de —
+      // `inviteDiscoveredMembers` da dış davetleri sayar; tek yönlüyken önce
+      // 60 üye sonra 60 e-posta daveti = günde 120 geçiyordu).
+      this.bypass.listingInvitation.count({
+        where: { origin: "AI", listing: { companyId: user.companyId }, createdAt: { gte: utcDayStart(now) } },
       }),
       this.prisma.referralOptOut.findMany({ where: { email: { in: emails } }, select: { email: true } }),
       // Kayıtlı kullanıcı başka firmanın kiracısı → bypass (RLS açıkken ana
@@ -537,7 +545,7 @@ export class CompanyConnectionsService {
       status: "INVALID",
       reason: tApi("api.companyConnections.gecersizEPostaAdresi"),
     }));
-    let budget = COMPANY_DAILY_INVITE_CAP - createdToday;
+    let budget = COMPANY_DAILY_INVITE_CAP - externalToday - memberToday;
     let queued = 0;
     for (const r of recipients) {
       const email = r.email;
@@ -699,7 +707,16 @@ export class CompanyConnectionsService {
           where: {
             referralInviteId: inv.id,
             ...(listingId ? { listingId } : {}),
-            listing: { status: { not: "DRAFT" } },
+            // Yalnız bu adrese GERÇEKTEN gitmiş davet (jeton davet eden × adres
+            // için ortaktır; kuyruktaki davetin talebi e-postadan önce
+            // okunamasın) ve vitrinde gösterilebilir, embargosu geçmiş talep —
+            // taslak/onay bekleyen/iptal/moderasyonla kapatılmış (CLOSED)
+            // talebin içeriği dönmez (yayın denetimi 2026-09-28).
+            state: "SENT",
+            listing: {
+              status: { in: [...MARKETPLACE_STATUSES] },
+              OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: new Date() } }],
+            },
           },
           orderBy: { createdAt: "desc" },
           select: { listingId: true },

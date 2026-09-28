@@ -17,7 +17,7 @@ import { productSearchClauses } from "../../../common/company/product-index";
 import { publicProductWhere } from "../../../common/company/public-profile-gate";
 import { COLD_INVITE_CONSENT_COUNTRIES, INVITE_HOLD_DAYS } from "../../../common/company/external-invite-policy";
 import { hasMailExchanger, type MxChecker } from "../../../common/net/mx-check";
-import { countryName, isValidCountryCode } from "@rothern/shared";
+import { countryName, EMAIL_MAX_LENGTH, isValidCountryCode } from "@rothern/shared";
 import type { Locale } from "@rothern/i18n";
 
 const MAX_CANDIDATES = 12;
@@ -377,7 +377,7 @@ export class SupplierDiscoveryService {
             city: typeof c.city === "string" && c.city.trim() ? c.city.trim().slice(0, 60) : null,
             country,
             website: website ? website.slice(0, 200) : null,
-            email: EMAIL_RE.test(email) ? email : null,
+            email: email.length <= EMAIL_MAX_LENGTH && EMAIL_RE.test(email) ? email : null,
             reason: String(c.reason ?? "").slice(0, 200),
             matchedItems: matched.sort((a, b) => a - b),
             scope:
@@ -619,9 +619,12 @@ export class SupplierDiscoveryService {
     }
     const pendingWith = new Set<string>();
     // Bu talepte BAĞLANTI yolundan zaten görünür olanlar dışlanır; davetliler
-    // işaretlenir (listede kilitli "zaten davetli" görünsün).
+    // işaretlenir (listede kilitli "zaten davetli" görünsün). YALNIZ çağıranın
+    // KENDİ talebi (`listing` sahiplik süzgecinden geçti): başka firmanın talep
+    // id'si verilirse davetli listesi okunmaz — okunsaydı `alreadyInvited`
+    // alıcının hangi tedarikçileri davet ettiğini sızdırırdı (kapalı zarf).
     const invitedSet = new Set(
-      input.listingId
+      input.listingId && listing
         ? (
             await this.reader.listingInvitation.findMany({
               where: { listingId: input.listingId },

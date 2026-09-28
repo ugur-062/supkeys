@@ -9,7 +9,10 @@
  * Saf fonksiyon — test edilebilir; hata durumunda girdiyi olduğu gibi döner.
  */
 // `t`: e-posta çıkış jetonu ve misafir bilgi talebi doğrulama jetonu.
-const TOKEN_PARAMS = /([?&](?:token|code|key|secret|signature|sig|t)=)[^&#]*/gi;
+// `ref`: davet (referral) jetonu — `public/invite-preview?ref=`; kayıtta
+// davet edenle bağlantı ve o davet edenin talep davetlerini verir (yayın
+// denetimi 2026-09-28).
+const TOKEN_PARAMS = /([?&](?:token|code|key|secret|signature|sig|t|ref)=)[^&#]*/gi;
 const TOKEN_SEGMENT =
   /(\/(?:invitations?|davet|referral(?:-optout)?|reset-password|verify(?:-email)?|accept|unsubscribe|optout|confirm)\/)([A-Za-z0-9._~-]{16,})(?=\/|\?|#|$)/gi;
 

@@ -95,12 +95,14 @@ export class ExternalInviteRecipientDto {
  */
 export class ExternalTenderInviteDto {
   @IsString()
+  @MaxLength(40)
   listingId!: string;
 
   @ValidateIf((o: ExternalTenderInviteDto) => o.invites === undefined)
   @IsArray()
   @ArrayMaxSize(60)
   @IsString({ each: true })
+  @MaxLength(200, { each: true })
   emails?: string[];
 
   @ValidateIf((o: ExternalTenderInviteDto) => o.emails === undefined)

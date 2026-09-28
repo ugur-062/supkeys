@@ -8,7 +8,7 @@ import {
 } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
 import type { CompanyRole } from "@rothern/db";
-import { SEAT_LIMITS, SEAT_ROLES, countSeats, permissionsForRoles } from "@rothern/shared";
+import { SEAT_LIMITS, SEAT_ROLES, countSeats, isValidEmailLike, permissionsForRoles } from "@rothern/shared";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
@@ -147,7 +147,7 @@ export class AdminCompanyUsersService {
   ) {
     const user = await this.requireMember(companyId, userId);
     const email = rawEmail.trim().toLowerCase();
-    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    if (!isValidEmailLike(email)) {
       throw new BadRequestException(i18nMessage("api.adminCompanies.gecerliBirEPostaGirin"));
     }
     if (email === user.email) {

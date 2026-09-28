@@ -103,7 +103,7 @@ export function visibleOwnerListingWhere(
  */
 
 /** Yayımlanmış ve pazar yerinde gösterilebilir durumlar. */
-const MARKETPLACE_STATUSES = [
+export const MARKETPLACE_STATUSES = [
   "OPEN",
   "IN_AWARD",
   "IN_AWARD_APPROVAL",

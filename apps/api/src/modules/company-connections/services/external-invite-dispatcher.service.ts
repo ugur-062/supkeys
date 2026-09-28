@@ -1,5 +1,6 @@
 import { Injectable, Logger, Optional } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
+import type { Prisma } from "@rothern/db";
 import { inviteFromName, type TenderInviteDigestEntry } from "@rothern/email";
 import { isLocale, type Locale } from "@rothern/i18n";
 import { PrismaBypassService } from "../../../common/prisma/prisma.service";
@@ -38,6 +39,22 @@ const DAY_MS = 24 * HOUR_MS;
 const TRANSLATION_GRACE_MS = 10 * 60_000;
 /** Bir turda bakılan en fazla sırası gelmiş davet. */
 const DUE_BATCH = 300;
+
+/**
+ * Davet e-postası gidebilecek talep: yayında (OPEN), açılış embargosu geçmiş
+ * (`bidsOpenAt` boş ya da geçmişte — embargolu talebin kalemleri açılıştan
+ * önce dışarı çıkmasın) ve sahibi etkin/askısız (askıya alınan firmanın
+ * adıyla "X (Rothern üzerinden)" e-postası gitmesin). Uymayan davet İPTAL
+ * EDİLMEZ, bekler: embargo/askı kalkınca gider; talep kapanınca iptal olur.
+ * (Yayın denetimi 2026-09-28, B4-3/B4-8.)
+ */
+function sendableListingWhere(now: Date): Prisma.ListingWhereInput {
+  return {
+    status: "OPEN",
+    OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }],
+    company: { isActive: true, isBlocked: false },
+  };
+}
 
 const DUE_SELECT = {
   id: true,
@@ -117,7 +134,7 @@ export class ExternalInviteDispatcher {
     if (remaining <= 0) return report;
 
     const due = (await this.prisma.externalListingInvite.findMany({
-      where: { state: "QUEUED", sendAfter: { lte: now }, listing: { status: "OPEN" } },
+      where: { state: "QUEUED", sendAfter: { lte: now }, listing: sendableListingWhere(now) },
       orderBy: { sendAfter: "asc" },
       take: DUE_BATCH,
       select: DUE_SELECT,
@@ -398,7 +415,7 @@ export class ExternalInviteDispatcher {
         reminderSentAt: null,
         sentAt: { lte: new Date(now.getTime() - DAY_MS) },
         listing: {
-          status: "OPEN",
+          ...sendableListingWhere(now),
           closesAt: {
             gt: new Date(now.getTime() + REMINDER_MIN_LEFT_HOURS * HOUR_MS),
             lte: new Date(now.getTime() + REMINDER_BEFORE_CLOSE_HOURS * HOUR_MS),

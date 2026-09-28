@@ -164,6 +164,20 @@ describe("inviteExternalForListing — kuyruğa alma", () => {
     expect(r2.results[0]!.status).toBe("DAILY_LIMIT");
   });
 
+  it("günlük tavan AI üye davetiyle ORTAK (ters yön): 59 üye daveti + 2 adres → 1 QUEUED, 1 DAILY_LIMIT", async () => {
+    const service = makeService();
+    const owner = await makeCompanyWithUser(prisma);
+    const listing = await openListing(owner.company.id, owner.user.id);
+    for (let i = 0; i < 59; i++) {
+      const member = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+      await prisma.listingInvitation.create({
+        data: { listingId: listing.id, invitedCompanyId: member.company.id, invitedById: owner.user.id, origin: "AI" },
+      });
+    }
+    const r = await service.inviteExternalForListing(owner.auth, listing.id, ["a@ortak.com", "b@ortak.com"]);
+    expect(r.results.map((x) => x.status)).toEqual(["QUEUED", "DAILY_LIMIT"]);
+  });
+
   it("AI'ın bulduğu adres alıcının ülkesinde mesai saatine planlanır (Fransa: hafta içi 09-16 Paris)", async () => {
     const service = makeService();
     const owner = await makeCompanyWithUser(prisma);
@@ -290,6 +304,31 @@ describe("ExternalInviteDispatcher — gönderim", () => {
     expect(await prisma.externalListingInvite.findFirstOrThrow({ where: { email: "einkauf@firma.de" } })).toMatchObject({
       state: "SENT",
     });
+  });
+
+  it("EMBARGOLU talebin ve ASKIYA alınmış sahibin daveti beklenir (iptal edilmez); kalkınca gider", async () => {
+    const service = makeService();
+    const { d, email } = makeDispatcher();
+    const owner = await makeCompanyWithUser(prisma);
+    const embargoed = await openListing(owner.company.id, owner.user.id, {
+      bidsOpenAt: new Date(Date.now() + 2 * 24 * 3_600_000),
+    });
+    const suspended = await makeCompanyWithUser(prisma);
+    const theirs = await openListing(suspended.company.id, suspended.user.id);
+    await service.inviteExternalForListing(owner.auth, embargoed.id, ["embargo@x.com"]);
+    await service.inviteExternalForListing(suspended.auth, theirs.id, ["askida@x.com"]);
+    await prisma.company.update({ where: { id: suspended.company.id }, data: { isBlocked: true } });
+    await makeDue();
+
+    await d.dispatch();
+    expect(email.send).not.toHaveBeenCalled();
+    const states = await prisma.externalListingInvite.findMany({ select: { state: true } });
+    expect(states.every((s) => s.state === "QUEUED")).toBe(true);
+
+    await prisma.listing.update({ where: { id: embargoed.id }, data: { bidsOpenAt: new Date(Date.now() - 60_000) } });
+    await prisma.company.update({ where: { id: suspended.company.id }, data: { isBlocked: false } });
+    await d.dispatch();
+    expect(email.send).toHaveBeenCalledTimes(2);
   });
 
   it("TASLAK talebin daveti beklenir, yayınlanınca gider; kapanan talebinki düşer", async () => {
@@ -430,6 +469,9 @@ describe("Faz 3 — kayıtsız önizleme + önceden doldurma", () => {
     const other = await openListing(owner.company.id, owner.user.id);
     await service.inviteExternalForListing(owner.auth, listing.id, ["dis@firma.com"]);
     const token = (await prisma.companyReferralInvite.findFirstOrThrow({ where: { email: "dis@firma.com" } })).token;
+    // Kuyruktaki (henüz gitmemiş) davetin talebi okunamaz.
+    await expect(service.invitePreview(token)).rejects.toMatchObject({ status: 404 });
+    await prisma.externalListingInvite.updateMany({ data: { state: "SENT", sentAt: new Date() } });
 
     const p = await service.invitePreview(token);
     expect(p).toMatchObject({ listingId: listing.id, inviterName: "ABC İnşaat", tenderTitle: "Bağlantı elemanları", itemCount: 14, closed: false, accepted: false });
@@ -440,6 +482,29 @@ describe("Faz 3 — kayıtsız önizleme + önceden doldurma", () => {
     expect(json).not.toContain("showName");
     await expect(service.invitePreview(token, other.id)).rejects.toMatchObject({ status: 404 });
     await expect(service.invitePreview("yok")).rejects.toMatchObject({ status: 404 });
+  });
+
+  it("GÜVENLİK: aynı jetonla kuyruktaki, embargolu ve moderasyonla kapatılmış talep okunamaz (yayın denetimi 2026-09-28)", async () => {
+    const service = makeService();
+    const owner = await makeCompanyWithUser(prisma);
+    const sent = await openListing(owner.company.id, owner.user.id);
+    const queued = await openListing(owner.company.id, owner.user.id);
+    const embargoed = await openListing(owner.company.id, owner.user.id, { bidsOpenAt: new Date(Date.now() + 86_400_000) });
+    const moderated = await openListing(owner.company.id, owner.user.id);
+    for (const l of [sent, embargoed, moderated]) {
+      await service.inviteExternalForListing(owner.auth, l.id, ["hedef@firma.com"]);
+    }
+    await prisma.externalListingInvite.updateMany({ data: { state: "SENT", sentAt: new Date() } });
+    await service.inviteExternalForListing(owner.auth, queued.id, ["hedef@firma.com"]);
+    await prisma.listing.update({ where: { id: moderated.id }, data: { status: "CLOSED" } });
+    const token = (await prisma.companyReferralInvite.findFirstOrThrow({ where: { email: "hedef@firma.com" } })).token;
+
+    expect((await service.invitePreview(token, sent.id)).listingId).toBe(sent.id);
+    for (const l of [queued, embargoed, moderated]) {
+      await expect(service.invitePreview(token, l.id)).rejects.toMatchObject({ status: 404 });
+    }
+    // `l` verilmezse en yeni GÖNDERİLMİŞ ve görünür talep döner.
+    expect((await service.invitePreview(token)).listingId).toBe(sent.id);
   });
 
   it("ziyaret: ilgi damgası + adresin KENDİ firma bilgisi (AI keşfinden); geçersiz jetonda boş", async () => {

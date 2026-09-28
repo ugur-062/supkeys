@@ -5,6 +5,9 @@ describe("Sentry temizleyici", () => {
   it("sorgudaki jetonu gizler", () => {
     expect(scrubUrl("https://www.rothern.com/reset-password?token=abc123&x=1")).toContain("token=%5Bgizlendi%5D");
     expect(scrubUrl("https://www.rothern.com/reset-password?token=abc123")).not.toContain("abc123");
+    // Davet jetonu (talep önizlemesi / kayıt) — kayıtta bağlantı verir.
+    expect(scrubUrl("https://www.rothern.com/talep-davet?ref=ckref123&l=lst1")).not.toContain("ckref123");
+    expect(scrubUrl("https://www.rothern.com/talep-davet?ref=ckref123&l=lst1")).toContain("l=lst1");
   });
 
   it("yoldaki davet jetonunu gizler", () => {

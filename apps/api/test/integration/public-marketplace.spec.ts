@@ -65,6 +65,11 @@ const FORBIDDEN_KEYS = [
   "taxNumber",
   "email",
   "phone",
+  // Yayın denetimi 2026-09-28: sahibi bağlayan kimlik + davet/keşif ayarları.
+  "companyId",
+  "rothernId",
+  "inviteShowName",
+  "aiDiscovery",
 ];
 
 /** Yanıt ağacındaki TÜM anahtarları (iç içe dahil) toplar. */
@@ -88,7 +93,7 @@ function allKeys(value: unknown, out = new Set<string>()): Set<string> {
  * "name yasak" desem kalem adları da kırardı — kontrol company nesnesine
  * özel olmalı.
  */
-const FORBIDDEN_COMPANY_KEYS = ["name", "slug", "logoUrl", "hasPublicProfile"];
+const FORBIDDEN_COMPANY_KEYS = ["id", "name", "slug", "logoUrl", "hasPublicProfile"];
 
 function expectNoForbidden(payload: unknown) {
   const keys = allKeys(payload);

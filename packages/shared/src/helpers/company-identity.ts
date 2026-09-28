@@ -237,9 +237,18 @@ export function maskNationalId(value: string): string {
   return v.slice(0, 3) + "*".repeat(v.length - 5) + v.slice(-2);
 }
 
+/**
+ * E-posta adresinin üst sınırı (RFC 5321). Biçim regex'lerinden ÖNCE
+ * denetlenir: `[^\s@]+@[^\s@]+\.[^\s@]+` kalıbı ikinci dereceden geri izler
+ * (20.000 karakter ≈ 0,2 sn, 1 MB ≈ dakikalar — gövde sınırı 5 MB). Sınır,
+ * geri izlemeyi de sınırlar (ReDoS).
+ */
+export const EMAIL_MAX_LENGTH = 254;
+
 /** KEP / e-posta — basit e-posta format kontrolü. */
 export function isValidEmailLike(value: string): boolean {
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value.trim());
+  const v = value.trim();
+  return v.length <= EMAIL_MAX_LENGTH && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
 }
 
 /** Faaliyet sektörü seçimi — min 1, max 3 (ilk = ana sektör). */
