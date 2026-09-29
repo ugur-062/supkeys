@@ -383,7 +383,10 @@ export default function OrderDetailPage() {
   ) : isSeller &&
     isLc &&
     !o.lcAcceptedAt &&
-    (o.status === "ACCEPTED" || o.status === "CREATED") ? (
+    (o.status === "ACCEPTED" ||
+      o.status === "CREATED" ||
+      // A1-DISPUTED: LC adımları panelde açık, sevk kabulden sonra açılır.
+      (o.status === "DISPUTED" && !defectDisputed)) ? (
     <Text className="text-sm text-zinc-500">
       {t("akreditifAdimlariSoldaKabulEdildikten")}
     </Text>

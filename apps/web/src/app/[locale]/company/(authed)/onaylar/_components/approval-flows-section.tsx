@@ -22,6 +22,7 @@ import { Text } from "@/components/catalyst/text";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import {
   useApprovalFlows,
+  useApproverCandidates,
   useCreateApprovalFlow,
   useDeleteApprovalFlow,
   useDuplicateApprovalFlow,
@@ -32,7 +33,6 @@ import {
   type CreateApprovalFlowInput,
 } from "@/hooks/use-company-approvals";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
-import { useCompanyUsers } from "@/hooks/use-company-users";
 import type { CompanyRole } from "@/lib/company-auth/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
@@ -116,7 +116,9 @@ export function ApprovalFlowsSection({
 }) {
   const t = useTranslations("web.panel.approvals.approvalFlowsSection");
   const { data: flows, isLoading, isError, refetch } = useApprovalFlows();
-  const { data: users } = useCompanyUsers();
+  // Onaycı adayları approvals:manage ile açık uçtan (GET company/users
+  // users:manage ister; yalnız akış yetkili üyede seçici boş kalıyordu).
+  const { data: candidates } = useApproverCandidates(canManage);
   const [wizard, setWizard] = useState<ApprovalFlow | "new" | null>(null);
 
   // Dışarıdan (üst buton) "yeni" tetikleyicisi — yalnız intent geldiğinde açar,
@@ -129,21 +131,16 @@ export function ApprovalFlowsSection({
     }
   }, [openNew, onConsumeOpenNew]);
 
-  // Onaycı = AKTİF ve "Onaylama" (approval:act) izni taşıyan (backend de zorlar).
+  // Onaycı = AKTİF ve "Onaylama" (approval:act) izni taşıyan — sunucu süzer
+  // (createFlow'daki assertApproversValid ile aynı kural).
   const approvers: ApproverOption[] = useMemo(
     () =>
-      (users ?? [])
-        .filter(
-          (u) =>
-            u.isActive &&
-            (u.isOwner || userHasPermission(u, "approval:act")),
-        )
-        .map((u) => ({
-          id: u.id,
-          name: `${u.firstName} ${u.lastName}`,
-          roles: u.roles,
-        })),
-    [users],
+      (candidates ?? []).map((u) => ({
+        id: u.id,
+        name: `${u.firstName} ${u.lastName}`,
+        roles: u.roles,
+      })),
+    [candidates],
   );
 
   if (!canManage) {
@@ -931,6 +928,20 @@ function StepEditorDialog({
   const [approverUserId, setApproverUserId] = useState(
     initial?.approverUserId ?? approvers[0]?.id ?? "",
   );
+  // Ayarlar › Kullanıcılar yalnız users:manage'e açık — akış yetkili ama
+  // kullanıcı yönetimi olmayan üyeye kapalı sayfaya link verilmez.
+  const canManageUsers = userHasPermission(user, "users:manage");
+  const usersLink = (className: string) => {
+    const UsersLink = (chunks: React.ReactNode) =>
+      canManageUsers ? (
+        <Link href="/company/ayarlar/kullanicilar" className={className}>
+          {chunks}
+        </Link>
+      ) : (
+        <strong>{chunks}</strong>
+      );
+    return UsersLink;
+  };
   // "Görünen etiket" alanı KALDIRILDI (2026-09-10, kullanıcı: "gerek yok");
   // eski kayıtlardaki etiket korunur (düzenlemede aynen geri yazılır).
   const displayLabel = initial?.displayLabel ?? "";
@@ -966,11 +977,7 @@ function StepEditorDialog({
               <span>
                 {t.rich("onayciYokAyarlardanRolVerin", {
                   strong,
-                  link: (chunks) => (
-                    <Link href="/company/ayarlar/kullanicilar" className="font-semibold underline">
-                      {chunks}
-                    </Link>
-                  ),
+                  link: usersLink("font-semibold underline"),
                 })}
               </span>
             </div>
@@ -990,11 +997,7 @@ function StepEditorDialog({
           <Text className="mt-1 text-xs text-zinc-500">
             {t.rich("buKisiSirasiGeldigindeKazandirmayi", {
               strong,
-              link: (chunks) => (
-                <Link href="/company/ayarlar/kullanicilar" className="underline hover:text-zinc-600">
-                  {chunks}
-                </Link>
-              ),
+              link: usersLink("underline hover:text-zinc-600"),
             })}
           </Text>
           {isSelfApprover ? (

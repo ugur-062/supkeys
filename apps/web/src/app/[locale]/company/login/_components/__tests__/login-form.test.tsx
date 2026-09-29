@@ -113,6 +113,32 @@ describe("CompanyLoginForm", () => {
     expect(h.replace).toHaveBeenCalledWith("/company");
   });
 
+  it("doğrulama yolu 'Oturumumu açık bırak' tercihini API'ye taşır (derin denetim MU-23)", async () => {
+    const user = userEvent.setup();
+    h.loginAsync.mockRejectedValue(unverifiedError());
+    h.resendAsync.mockResolvedValue({ success: true });
+    h.verifyAsync.mockResolvedValue({
+      token: "jwt",
+      user: { id: "u1" },
+      company: { id: "c1" },
+    });
+    render(<CompanyLoginForm nextPath="/company" />);
+    await user.click(screen.getByRole("checkbox"));
+    await login(user);
+    await screen.findByText(/gönderilen 6 haneli kodu girin/i);
+
+    await user.type(screen.getByLabelText("Doğrulama kodu"), "123456");
+    await user.click(
+      screen.getByRole("button", { name: "Doğrula ve Giriş Yap" }),
+    );
+
+    expect(h.verifyAsync).toHaveBeenCalledWith({
+      email: "ada@firma.com",
+      code: "123456",
+      rememberMe: false,
+    });
+  });
+
   it("GÜVENLİK: doğrulama modunda alreadyVerified → token yok, giriş formuna döner", async () => {
     const user = userEvent.setup();
     h.loginAsync.mockRejectedValue(unverifiedError());

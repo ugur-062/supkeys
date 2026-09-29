@@ -50,6 +50,7 @@ export function BidImportDialog({
   variant,
   listingId,
   currencyLabel,
+  itemCurrencyAllowed,
   onApply,
 }: {
   open: boolean;
@@ -58,6 +59,12 @@ export function BidImportDialog({
   listingId: string;
   /** Teklifin ana para birimi (null currency satırlarında gösterilir). */
   currencyLabel: string;
+  /**
+   * Kalem bazlı para birimi yazılabilir mi (teklif sayfasındaki
+   * `canItemCurrency`). Kapalıyken ana birimden farklı birimli satır
+   * uygulanmaz — fiyat sessizce ana birim sayılırdı (derin denetim MU-23).
+   */
+  itemCurrencyAllowed: boolean;
   onApply: (rows: BidImportApplyRow[]) => void;
 }) {
   const t = useTranslations("web.panel.trade.bidImportDialog");
@@ -97,13 +104,16 @@ export function BidImportDialog({
   };
 
   // Satırın efektif değeri: elle eşleme (override) > motor eşleşmesi.
-  const effective = useMemo(() => {
+  // Elle seçilen belge satırının uyarıları o satırdan gelir (sunucu eşleşmeyen
+  // satırı da aynı fiyat/birim kurallarından geçirir); kalemin otomatik
+  // eşleşme uyarıları elle seçimde gösterilmez.
+  const effective = useMemo((): EffectiveRow[] => {
     if (!result) return [];
     const byDoc = new Map(result.unmatchedDocRows.map((d) => [d.id, d] as const));
-    return result.matches.map((m) => {
+    const rows = result.matches.map((m) => {
       const ov = overrides[m.itemId];
-      if (ov === undefined) return { m, unitPrice: m.unitPrice, currency: m.currency, deliveryTime: m.deliveryTime, source: m.source, confidence: m.confidence, manual: false };
-      if (ov === "") return { m, unitPrice: null, currency: null, deliveryTime: null, source: null, confidence: "none" as BidImportConfidence, manual: true };
+      if (ov === undefined) return { m, unitPrice: m.unitPrice, currency: m.currency, deliveryTime: m.deliveryTime, source: m.source, confidence: m.confidence, manual: false, warnings: m.warnings, errors: m.errors };
+      if (ov === "") return { m, unitPrice: null, currency: null, deliveryTime: null, source: null, confidence: "none" as BidImportConfidence, manual: true, warnings: [], errors: [] };
       const d = byDoc.get(ov);
       return {
         m,
@@ -113,12 +123,31 @@ export function BidImportDialog({
         source: d?.text ?? null,
         confidence: "exact" as BidImportConfidence, // kullanıcı elle seçti
         manual: true,
+        warnings: d?.warnings ?? [],
+        errors: m.errors,
       };
     });
-  }, [result, overrides]);
+    // Kalem bazlı birim kapalıyken (tek birimli / açık eksiltme) ana birimden
+    // farklı birimli fiyat uygulanamaz: form birimi yazmaz, fiyat ana birim
+    // sayılırdı. Satır hata olarak işaretlenir, kullanıcı elle çevirir.
+    return rows.map((e) =>
+      e.unitPrice != null &&
+      e.currency &&
+      e.currency !== currencyLabel &&
+      !itemCurrencyAllowed
+        ? {
+            ...e,
+            errors: [
+              ...e.errors,
+              t("kalemBirimiKullanilamaz", { currency: e.currency, main: currencyLabel }),
+            ],
+          }
+        : e,
+    );
+  }, [result, overrides, currencyLabel, itemCurrencyAllowed, t]);
 
   const applicable = effective.filter(
-    (e) => e.unitPrice != null && e.m.errors.length === 0 && !excluded.has(e.m.itemId),
+    (e) => e.unitPrice != null && e.errors.length === 0 && !excluded.has(e.m.itemId),
   );
 
   const apply = () => {
@@ -230,6 +259,10 @@ type EffectiveRow = {
   source: string | null;
   confidence: BidImportConfidence;
   manual: boolean;
+  /** Efektif satırın uyarıları (elle seçimde belge satırının). */
+  warnings: string[];
+  /** Efektif satırın hataları — varsa satır uygulanmaz. */
+  errors: string[];
 };
 
 function Preview({
@@ -257,7 +290,7 @@ function Preview({
   const bidDeliveryTimeLabel = useBidDeliveryTimeLabel();
   const fmtNum = useFormatNumber();
   const fmt = (n: number) => fmtNum(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const priced = effective.filter((e) => e.unitPrice != null && e.m.errors.length === 0).length;
+  const priced = effective.filter((e) => e.unitPrice != null && e.errors.length === 0).length;
   const hasDocRows = result.unmatchedDocRows.length > 0;
   const toggleExclude = (id: string) => {
     const n = new Set(excluded);
@@ -316,7 +349,7 @@ function Preview({
           </thead>
           <tbody className="divide-y divide-zinc-100">
             {effective.map((e) => {
-              const bad = e.m.errors.length > 0;
+              const bad = e.errors.length > 0;
               const medium = e.confidence === "medium";
               const none = e.unitPrice == null;
               const off = excluded.has(e.m.itemId);
@@ -341,9 +374,9 @@ function Preview({
                     <div className="text-xs text-zinc-500">
                       {e.m.itemQuantity} {e.m.itemUnit}
                     </div>
-                    {bad ? <div className="text-xs text-red-700">{e.m.errors.join(" · ")}</div> : null}
-                    {e.m.warnings.length > 0 && !bad ? (
-                      <div className="text-xs text-amber-700">{e.m.warnings.join(" · ")}</div>
+                    {bad ? <div className="text-xs text-red-700">{e.errors.join(" · ")}</div> : null}
+                    {e.warnings.length > 0 && !bad ? (
+                      <div className="text-xs text-amber-700">{e.warnings.join(" · ")}</div>
                     ) : null}
                   </td>
                   <td className="max-w-[260px] px-3 py-1.5">

@@ -124,7 +124,13 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
   const submitVerify = async () => {
     setFormError(null);
     try {
-      const res = await verify.mutateAsync({ email: verifyEmail, code: verifyCode });
+      // "Oturumumu açık bırak" tercihi doğrulama yolunda da API'ye gider —
+      // yoksa çerez varsayılan kalıcı basılıyordu (derin denetim MU-23).
+      const res = await verify.mutateAsync({
+        email: verifyEmail,
+        code: verifyCode,
+        rememberMe: remember,
+      });
       // Güvenlik: zaten doğrulanmışsa token dönmez → giriş formuna geri dön.
       if ("alreadyVerified" in res) {
         toast.info(tc("alreadyVerifiedLogin"));

@@ -83,7 +83,7 @@ describe("BidImportDialog — Excel şablonu", () => {
   it("şablon indir butonu + AI kullanılmaz metni; yüklenince önizleme: hatalı satır uygulanmaz, 'none' kalem boş; Uygula yalnız geçerli fiyatları verir", async () => {
     const onApply = vi.fn();
     render(
-      <BidImportDialog open variant="excel" listingId="L1" currencyLabel="TRY" onClose={() => {}} onApply={onApply} />,
+      <BidImportDialog open variant="excel" listingId="L1" currencyLabel="TRY" itemCurrencyAllowed onClose={() => {}} onApply={onApply} />,
     );
     expect(screen.getByText(/AI kullanılmaz/)).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Şablonu indir" }));
@@ -105,7 +105,7 @@ describe("BidImportDialog — Excel şablonu", () => {
   it("uygula kutusu kaldırılan kalem listeden düşer", async () => {
     const onApply = vi.fn();
     render(
-      <BidImportDialog open variant="excel" listingId="L1" currencyLabel="TRY" onClose={() => {}} onApply={onApply} />,
+      <BidImportDialog open variant="excel" listingId="L1" currencyLabel="TRY" itemCurrencyAllowed onClose={() => {}} onApply={onApply} />,
     );
     pickFiles(["teklif.xlsx"]);
     await screen.findByText("1 / 3 kalem fiyatlandı");
@@ -122,7 +122,7 @@ describe("BidImportDialog — Belgeden Fiyatla (AI)", () => {
 
   it("AI önizlemesi: KDV uyarısı, güven rozetleri, düşük güven uyarısı; eşleşmeyen kalem belge satırından ELLE seçilir ve uygulanır", async () => {
     const onApply = vi.fn();
-    render(<BidImportDialog open variant="ai" listingId="L1" currencyLabel="TRY" onClose={() => {}} onApply={onApply} />);
+    render(<BidImportDialog open variant="ai" listingId="L1" currencyLabel="TRY" itemCurrencyAllowed onClose={() => {}} onApply={onApply} />);
     pickFiles(["fiyat-listesi.pdf"]);
     await waitFor(() => expect(h.ai).toHaveBeenCalledTimes(1));
     expect(h.ai.mock.calls[0]![0]).toHaveLength(1);
@@ -146,5 +146,55 @@ describe("BidImportDialog — Belgeden Fiyatla (AI)", () => {
       ["i2", 40],
       ["i3", 90],
     ]);
+  });
+
+  it("elle seçilen satır: uyarısı gösterilir; kalem bazlı birim kapalıyken farklı birimli fiyat uygulanmaz (derin denetim MU-23)", async () => {
+    h.ai.mockResolvedValue({
+      ...AI_RESULT,
+      unmatchedDocRows: [
+        { id: "doc-5", text: "Flanş DN50 galvaniz", unitPrice: 185, currency: "USD", deliveryTime: null, warnings: [] },
+        { id: "doc-6", text: "Flanş kaplamasız", unitPrice: 90, currency: null, deliveryTime: null, warnings: ["Satır para birimi (GBP) kabul edilmiyor"] },
+      ],
+    });
+    const onApply = vi.fn();
+    render(
+      <BidImportDialog open variant="ai" listingId="L1" currencyLabel="TRY" itemCurrencyAllowed={false} onClose={() => {}} onApply={onApply} />,
+    );
+    pickFiles(["fiyat-listesi.pdf"]);
+    await screen.findByText("2 / 3 kalem fiyatlandı");
+    const sel = screen.getByLabelText("Flanş için belge satırı seç") as HTMLSelectElement;
+
+    // USD satır: form birimi yazamaz → 185 TRY sanılmasın, satır uygulanmaz.
+    fireEvent.change(sel, { target: { value: "doc-5" } });
+    expect(await screen.findByText(/USD; bu teklifte kalem bazında farklı para birimi kullanılamaz/)).toBeInTheDocument();
+    expect(screen.getByText("2 / 3 kalem fiyatlandı")).toBeInTheDocument();
+    expect(screen.getByLabelText("Flanş uygula")).toBeDisabled();
+
+    // Sunucu uyarılı satır: uyarı elle seçimde görünür, kalemin eski uyarısı değil.
+    fireEvent.change(sel, { target: { value: "doc-6" } });
+    expect(await screen.findByText(/GBP\) kabul edilmiyor/)).toBeInTheDocument();
+    await screen.findByText("3 / 3 kalem fiyatlandı");
+    fireEvent.click(screen.getByRole("button", { name: "3 kalemin fiyatını uygula" }));
+    const rows = onApply.mock.calls[0]![0] as { itemId: string; unitPrice: number; currency: string | null }[];
+    expect(rows.find((r) => r.itemId === "i3")).toMatchObject({ unitPrice: 90, currency: null });
+  });
+
+  it("kalem bazlı birim açıkken farklı birimli elle seçim uygulanır (birimiyle)", async () => {
+    h.ai.mockResolvedValue({
+      ...AI_RESULT,
+      unmatchedDocRows: [
+        { id: "doc-5", text: "Flanş DN50 galvaniz", unitPrice: 185, currency: "USD", deliveryTime: null, warnings: [] },
+      ],
+    });
+    const onApply = vi.fn();
+    render(<BidImportDialog open variant="ai" listingId="L1" currencyLabel="TRY" itemCurrencyAllowed onClose={() => {}} onApply={onApply} />);
+    pickFiles(["fiyat-listesi.pdf"]);
+    await screen.findByText("2 / 3 kalem fiyatlandı");
+    fireEvent.change(screen.getByLabelText("Flanş için belge satırı seç"), { target: { value: "doc-5" } });
+    await screen.findByText("3 / 3 kalem fiyatlandı");
+    expect(screen.getByText("185,00 USD")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "3 kalemin fiyatını uygula" }));
+    const rows = onApply.mock.calls[0]![0] as { itemId: string; currency: string | null }[];
+    expect(rows.find((r) => r.itemId === "i3")).toMatchObject({ currency: "USD" });
   });
 });

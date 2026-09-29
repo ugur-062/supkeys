@@ -307,3 +307,50 @@ describe("OrderDetailPage — F7 rol kapısı (etiket-only salt-okunur)", () => 
     ).not.toBeInTheDocument();
   });
 });
+
+describe("OrderDetailPage — A1-DISPUTED akreditif (derin denetim MU-23)", () => {
+  const lc = { paymentCategory: "LETTER_OF_CREDIT" } as Partial<CompanyOrderDetail>;
+
+  it("alıcı: akreditif açılmamışken 'Akreditif Açıldı' görünür", () => {
+    h.order = order("DISPUTED", "buyer", { ...lc, defectNotifiedAt: null });
+    render(<OrderDetailPage />);
+    expect(
+      screen.getByRole("button", { name: "Akreditif Açıldı" }),
+    ).toBeInTheDocument();
+  });
+
+  it("satıcı: açılmış akreditifi kabul edebilir; kabul sonrası 'Siparişi Tamamla' (sevk çıkışı)", () => {
+    h.order = order("DISPUTED", "seller", {
+      ...lc,
+      defectNotifiedAt: null,
+      lcOpenedAt: new Date().toISOString(),
+    } as Partial<CompanyOrderDetail>);
+    const { unmount } = render(<OrderDetailPage />);
+    expect(
+      screen.getByRole("button", { name: "Akreditifi Kabul Ettim" }),
+    ).toBeInTheDocument();
+    unmount();
+
+    h.order = order("DISPUTED", "seller", {
+      ...lc,
+      defectNotifiedAt: null,
+      lcOpenedAt: new Date().toISOString(),
+      lcAcceptedAt: new Date().toISOString(),
+    } as Partial<CompanyOrderDetail>);
+    render(<OrderDetailPage />);
+    expect(
+      screen.getAllByRole("button", { name: "Siparişi Tamamla" })[0],
+    ).toBeInTheDocument();
+  });
+
+  it("ayıp ihbarlı DISPUTED: LC açılış/kabul adımı sunulmaz", () => {
+    h.order = order("DISPUTED", "buyer", {
+      ...lc,
+      defectNotifiedAt: new Date().toISOString(),
+    });
+    render(<OrderDetailPage />);
+    expect(
+      screen.queryByRole("button", { name: "Akreditif Açıldı" }),
+    ).not.toBeInTheDocument();
+  });
+});

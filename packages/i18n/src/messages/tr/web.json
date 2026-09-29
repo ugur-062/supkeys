@@ -5033,7 +5033,8 @@
         "eminMisiniz": "Emin misiniz?",
         "eslesmedi": "Eşleşmedi",
         "sablonuIndirinAdim": "<strong>1.</strong> Bu talebin teklif şablonunu indirin (kalemler hazır; siz fiyat/teslim doldurursunuz)",
-        "uygulaAria": "{itemName} uygula"
+        "uygulaAria": "{itemName} uygula",
+        "kalemBirimiKullanilamaz": "Satırın para birimi {currency}; bu teklifte kalem bazında farklı para birimi kullanılamaz ({main}). Fiyatı {main} karşılığına çevirip elle girin."
       },
       "siparisIdPage": {
         "siparisBulunamadi": "Sipariş bulunamadı.",

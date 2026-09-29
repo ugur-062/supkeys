@@ -5033,7 +5033,8 @@
         "eminMisiniz": "Are you sure?",
         "eslesmedi": "Not matched",
         "sablonuIndirinAdim": "<strong>1.</strong> Download the quote template for this request (line items are prefilled; you fill in price/delivery)",
-        "uygulaAria": "Apply {itemName}"
+        "uygulaAria": "Apply {itemName}",
+        "kalemBirimiKullanilamaz": "The row is priced in {currency}; this bid cannot use a different currency per item ({main}). Convert the price to {main} and enter it manually."
       },
       "siparisIdPage": {
         "siparisBulunamadi": "Order not found.",

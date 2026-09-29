@@ -154,6 +154,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.adminCompanies.firmaninUrunTavaniDolu": {
+    "hash": "14c06d3b21",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.adminCompanies.firmaninUyeligiAzOnceDegistiSayfayi": {
     "hash": "6843670c3d",
     "status": "reviewed",
@@ -18209,13 +18214,13 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.inbox.bildirimlerPage.dahaFazlaYukle": {
-    "hash": "776858bd10",
+  "web.panel.inbox.bildirimlerPage.buFiltredeYukluBildirimYok": {
+    "hash": "5ad0305cd8",
     "status": "reviewed",
     "at": "2026-09-29"
   },
-  "web.panel.inbox.bildirimlerPage.buFiltredeYukluBildirimYok": {
-    "hash": "5ad0305cd8",
+  "web.panel.inbox.bildirimlerPage.dahaFazlaYukle": {
+    "hash": "776858bd10",
     "status": "reviewed",
     "at": "2026-09-29"
   },
@@ -32183,6 +32188,11 @@
     "hash": "7a6267c497",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.bidImportDialog.kalemBirimiKullanilamaz": {
+    "hash": "5f2c1fcf0e",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.trade.bidImportDialog.kalemFiyatlandi": {
     "hash": "6f73185c0c",

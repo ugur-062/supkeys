@@ -1133,6 +1133,7 @@ export default function TeklifVerPage() {
               variant={bidImport}
               listingId={l.id}
               currencyLabel={effectiveCurrency}
+              itemCurrencyAllowed={canItemCurrency}
               onClose={() => setBidImport(null)}
               onApply={applyImportedPrices}
             />

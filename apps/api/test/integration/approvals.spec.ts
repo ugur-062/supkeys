@@ -145,6 +145,47 @@ describe("Akış doğrulama (eski sistem kuralları)", () => {
   });
 });
 
+describe("Onaycı adayları (derin denetim MU-23)", () => {
+  it("yalnız aktif + approval:act taşıyanlar; e-posta/izin sızmaz; controller approvals:manage ister", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyerOnly = await addUser(owner.company.id, "TR", ["SATIN_ALMACI"]);
+    const approver = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const passive = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    await prisma.companyUser.update({
+      where: { id: passive.user.id },
+      data: { isActive: false },
+    });
+    const other = await makeCompanyWithUser(prisma, { country: "TR" });
+    await addUser(other.company.id, "TR", ["ONAYLAYICI"]);
+
+    const rows = await approvals.listApproverCandidates(owner.company.id);
+    const ids = rows.map((r) => r.id).sort();
+    // Kurucu (isOwner -> approval:act) + Onaylayici; SA-only, pasif ve
+    // baska firmanin kullanicisi yok.
+    expect(ids).toEqual([owner.user.id, approver.user.id].sort());
+    expect(ids).not.toContain(buyerOnly.user.id);
+    for (const r of rows) {
+      expect(Object.keys(r).sort()).toEqual(
+        ["firstName", "id", "lastName", "roles"],
+      );
+    }
+
+    // Uc users:manage DEGIL approvals:manage ister (yalniz akis yetkili uye).
+    const { CompanyApprovalsController } = await import(
+      "../../src/modules/company-approvals/company-approvals.controller"
+    );
+    const { COMPANY_PERMISSION_KEY } = await import(
+      "../../src/modules/company-auth/decorators/require-company-permission.decorator"
+    );
+    const perm = Reflect.getMetadata(
+      COMPANY_PERMISSION_KEY,
+      CompanyApprovalsController.prototype.listApproverCandidates,
+    );
+    expect([perm].flat()).toEqual(["approvals:manage"]);
+  });
+});
+
 describe("Kazandırma onayı — uçtan uca", () => {
   it("aktif akış: award → IN_AWARD_APPROVAL isteği; yanlış onaycı reddedilir; zincir onaylanınca award.approved event'i", async () => {
     const { approvals, awardApproved } = makeApprovalRig();

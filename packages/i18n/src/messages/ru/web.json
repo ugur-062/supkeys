@@ -5033,7 +5033,8 @@
         "eminMisiniz": "Вы уверены?",
         "eslesmedi": "Не сопоставлено",
         "sablonuIndirinAdim": "<strong>1.</strong> Скачайте шаблон предложения для этого запроса (позиции уже заполнены; Вы указываете цену и условия поставки)",
-        "uygulaAria": "Применить {itemName}"
+        "uygulaAria": "Применить {itemName}",
+        "kalemBirimiKullanilamaz": "Цена в строке указана в {currency}; в этом предложении нельзя указывать отдельную валюту для позиции ({main}). Пересчитайте цену в {main} и введите её вручную."
       },
       "siparisIdPage": {
         "siparisBulunamadi": "Заказ не найден.",

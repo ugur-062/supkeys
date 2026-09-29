@@ -126,9 +126,13 @@ export interface BidImportMatch {
 export interface BidImportDocRow {
   id: string;
   text: string;
+  /** Otomatik eşleşmeyle AYNI kurallardan geçmiş fiyat (yuvarlanmış + sınır içinde). */
   unitPrice: number | null;
+  /** İzinli birim süzgecinden geçmiş kod; null = teklifin ana birimi / kabul edilmeyen. */
   currency: string | null;
   deliveryTime: string | null;
+  /** Satırın sağlık uyarıları (kabul edilmeyen birim, toplamdan türetildi…). */
+  warnings?: string[];
 }
 
 export interface BidImportResult {

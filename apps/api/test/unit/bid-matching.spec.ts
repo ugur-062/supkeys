@@ -171,6 +171,35 @@ describe("matchDocRows — sağlık kontrolleri", () => {
   });
 });
 
+describe("matchDocRows — eşleşmeyen satırlar da aynı kurallardan geçer (derin denetim MU-23)", () => {
+  it("izinsiz birim null + uyarı; ana birim null; izinli farklı kod; fiyat yuvarlanır; geçersiz fiyat düşer", () => {
+    const rows = [
+      row({ text: "Kırtasiye A", unitPrice: 185, currency: "GBP" }),
+      row({ text: "Kırtasiye B", unitPrice: 12.345, currency: "TRY" }),
+      row({ text: "Kırtasiye C", unitPrice: 7, currency: "usd" }),
+      row({ text: "Kırtasiye D", unitPrice: 0 }),
+      row({ text: "Kırtasiye E", totalPrice: 100, quantity: 3 }),
+    ];
+    const { unmatched } = matchDocRows(items, rows, OPTS);
+    const by = Object.fromEntries(unmatched.map((u) => [u.text, u]));
+    expect(by["Kırtasiye A"]).toMatchObject({ unitPrice: 185, currency: null });
+    expect(by["Kırtasiye A"]!.warnings!.join()).toMatch(/GBP.*kabul edilmiyor/);
+    expect(by["Kırtasiye B"]).toMatchObject({ unitPrice: 12.35, currency: null, warnings: [] });
+    expect(by["Kırtasiye C"]).toMatchObject({ unitPrice: 7, currency: "USD", warnings: [] });
+    expect(by["Kırtasiye D"]!.unitPrice).toBeNull();
+    expect(by["Kırtasiye D"]!.warnings!.join()).toMatch(/0,01/);
+    expect(by["Kırtasiye E"]!.unitPrice).toBe(33.33);
+    expect(by["Kırtasiye E"]!.warnings).toHaveLength(1);
+  });
+
+  it("tek birimli talep: belgedeki USD satır kabul edilmez (sessizce TRY sayılmaz, uyarı taşır)", () => {
+    const rows = [row({ text: "Kırtasiye A", unitPrice: 185, currency: "USD" })];
+    const { unmatched } = matchDocRows(items, rows, { allowedCurrencies: ["TRY"], primaryCurrency: "TRY" });
+    expect(unmatched[0]!.currency).toBeNull();
+    expect(unmatched[0]!.warnings!.join()).toMatch(/USD.*kabul edilmiyor/);
+  });
+});
+
 describe("yardımcılar", () => {
   it("normalizeCurrency", () => {
     expect(normalizeCurrency("₺")).toBe("TRY");

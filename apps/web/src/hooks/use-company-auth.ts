@@ -111,13 +111,31 @@ export type VerifyEmailResult =
   | { alreadyVerified: true };
 
 export function useVerifyEmail() {
+  const queryClient = useQueryClient();
+  const uiLocale = useLocale();
   return useMutation({
-    mutationFn: async (input: { email: string; code: string }) => {
+    mutationFn: async (input: {
+      email: string;
+      code: string;
+      // Giriş ekranındaki "Oturumumu açık bırak" — verilmezse (kayıt akışı)
+      // API varsayılanı (kalıcı). false → oturum çerezi (derin denetim MU-23).
+      rememberMe?: boolean;
+    }) => {
       const { data } = await companyApi.post<VerifyEmailResult>(
         "/company-auth/verify-email",
         input,
       );
       return data;
+    },
+    // İlk doğrulama oturum açar → girişle aynı hijyen: dil eşitleme, sekme
+    // sahibi bağlama, önceki hesabın önbelleğini temizleme.
+    onSuccess: async (data) => {
+      if (!("user" in data)) return;
+      if (pickLocale(data.user?.locale) !== uiLocale) {
+        await companyApi.patch("/company-auth/me", { locale: uiLocale }).catch(() => undefined);
+      }
+      if (data.user?.id) bindSessionOwner(data.user.id);
+      queryClient.clear();
     },
   });
 }

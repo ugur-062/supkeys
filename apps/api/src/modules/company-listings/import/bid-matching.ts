@@ -321,16 +321,26 @@ export function matchDocRows(
     return out;
   });
 
+  // Eşleşmeyen satırlar da otomatik eşleşmeyle AYNI fiyat/birim kurallarından
+  // geçer: kullanıcı önizlemede elle bir kaleme bağladığında ham belge değeri
+  // (yuvarlanmamış fiyat, izinsiz birim) forma sızmasın (derin denetim MU-23).
   const unmatched: BidImportDocRow[] = rows
     .map((r, j) => ({ r, j }))
     .filter(({ j }) => !usedRow.has(j))
-    .map(({ r, j }) => ({
-      id: `doc-${j}`,
-      text: r.text,
-      unitPrice: derivedUnitPrice(r).value,
-      currency: normalizeCurrency(r.currency),
-      deliveryTime: normalizeDeliveryTime(r.deliveryText),
-    }));
+    .map(({ r, j }) => {
+      const warnings: string[] = [];
+      const price = docRowPrice(r, warnings);
+      const currency = docRowCurrency(r, opts, warnings);
+      const deliveryTime = normalizeDeliveryTime(r.deliveryText);
+      return {
+        id: `doc-${j}`,
+        text: r.text,
+        unitPrice: price,
+        currency,
+        deliveryTime,
+        warnings,
+      };
+    });
 
   return { matches, unmatched };
 }
@@ -343,6 +353,42 @@ function derivedUnitPrice(r: DocRow): { value: number | null; derived: boolean }
   return { value: null, derived: false };
 }
 
+/**
+ * Belge satırı fiyatı: toplam÷miktar türetme, MONEY_DECIMALS yuvarlama, sınır
+ * denetimi (+ uyarılar). Eşleşen ve eşleşmeyen satır AYNI kuraldan geçer.
+ */
+function docRowPrice(r: DocRow, warnings: string[]): number | null {
+  const d = derivedUnitPrice(r);
+  const v = validUnitPrice(d.value == null ? null : Math.round(d.value * 10 ** MONEY_DECIMALS) / 10 ** MONEY_DECIMALS);
+  if (v.error) warnings.push(v.error);
+  if (d.derived && v.value != null) warnings.push(tApi("api.companyListings.bidImport.toplamdanTuretildi"));
+  if (r.unitPrice != null && r.totalPrice != null && r.quantity != null && r.quantity > 0) {
+    const calc = r.unitPrice * r.quantity;
+    if (Math.abs(calc - r.totalPrice) / Math.max(r.totalPrice, 1) > 0.02) {
+      warnings.push(tApi("api.companyListings.bidImport.toplamUyusmuyor"));
+    }
+  }
+  return v.value;
+}
+
+/**
+ * Belge satırı para birimi: izinli listede değilse null + uyarı; ana birimle
+ * aynıysa null (= teklifin ana birimi).
+ */
+function docRowCurrency(
+  r: DocRow,
+  opts: { allowedCurrencies: string[]; primaryCurrency: string | null },
+  warnings: string[],
+): string | null {
+  const cur = normalizeCurrency(r.currency);
+  if (!cur) return null;
+  if (opts.allowedCurrencies.length === 0 || opts.allowedCurrencies.includes(cur)) {
+    return cur === opts.primaryCurrency ? null : cur;
+  }
+  warnings.push(tApi("api.companyListings.bidImport.satirParaBirimiKabulEdilmiyor", { currency: cur }));
+  return null;
+}
+
 /** Belge satırının değerlerini eşleşen kaleme yazar + sağlık uyarıları. */
 export function applyDocRowValues(
   m: BidImportMatch,
@@ -350,17 +396,7 @@ export function applyDocRowValues(
   it: MatchItem,
   opts: { allowedCurrencies: string[]; primaryCurrency: string | null },
 ): void {
-  const d = derivedUnitPrice(r);
-  const v = validUnitPrice(d.value == null ? null : Math.round(d.value * 10 ** MONEY_DECIMALS) / 10 ** MONEY_DECIMALS);
-  m.unitPrice = v.value;
-  if (v.error) m.warnings.push(v.error);
-  if (d.derived && v.value != null) m.warnings.push(tApi("api.companyListings.bidImport.toplamdanTuretildi"));
-  if (r.unitPrice != null && r.totalPrice != null && r.quantity != null && r.quantity > 0) {
-    const calc = r.unitPrice * r.quantity;
-    if (Math.abs(calc - r.totalPrice) / Math.max(r.totalPrice, 1) > 0.02) {
-      m.warnings.push(tApi("api.companyListings.bidImport.toplamUyusmuyor"));
-    }
-  }
+  m.unitPrice = docRowPrice(r, m.warnings);
   if (r.quantity != null && Number.isFinite(r.quantity)) {
     const q = Number(it.quantity);
     if (Number.isFinite(q) && q > 0 && Math.abs(q - r.quantity) / q > 0.001) {
@@ -377,15 +413,7 @@ export function applyDocRowValues(
       tApi("api.companyListings.bidImport.birimFarkli", { docUnit: r.unit, itemUnit: it.unit }),
     );
   }
-  const cur = normalizeCurrency(r.currency);
-  if (cur) {
-    if (opts.allowedCurrencies.length === 0 || opts.allowedCurrencies.includes(cur)) {
-      // Ana birimle aynıysa null bırak (= teklifin ana birimi).
-      m.currency = cur === opts.primaryCurrency ? null : cur;
-    } else {
-      m.warnings.push(tApi("api.companyListings.bidImport.satirParaBirimiKabulEdilmiyor", { currency: cur }));
-    }
-  }
+  m.currency = docRowCurrency(r, opts, m.warnings);
   m.deliveryTime = normalizeDeliveryTime(r.deliveryText);
   if (r.deliveryText && !m.deliveryTime) m.warnings.push(tApi("api.companyListings.bidImport.teslimAnlasilamadi", { text: r.deliveryText }));
 }

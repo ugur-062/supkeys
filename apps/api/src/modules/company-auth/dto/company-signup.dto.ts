@@ -93,6 +93,13 @@ export class VerifyEmailDto {
   @IsString()
   @Matches(/^[0-9]{6}$/, { message: () => tApi("api.dto.companySignup.altiHaneliKodGiriniz") })
   code!: string;
+
+  // Giriş ekranından doğrulama: "Oturumumu açık bırak" tercihi. false ise
+  // AuthCookieInterceptor oturum çerezi basar; verilmezse (kayıt akışı)
+  // varsayılan kalıcı (derin denetim MU-23).
+  @IsOptional()
+  @IsBoolean()
+  rememberMe?: boolean;
 }
 
 /** Doğrulama kodunu yeniden gönder. */

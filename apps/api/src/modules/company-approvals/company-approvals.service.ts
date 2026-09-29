@@ -390,6 +390,50 @@ export class CompanyApprovalsService {
     }));
   }
 
+  /**
+   * Onaycı adayları — akış sihirbazının seçicisi. `GET company/users`
+   * users:manage ister; yalnız approvals:manage taşıyan üye de akış
+   * kurabilmeli, bu yüzden hafif ayrı uç: yalnız AKTİF ve approval:act
+   * taşıyanların id/ad/rolü (assertApproversValid ile aynı kural; e-posta,
+   * telefon ve izin listesi sızmaz).
+   */
+  async listApproverCandidates(companyId: string) {
+    const [rows, company] = await Promise.all([
+      this.prisma.companyUser.findMany({
+        where: { companyId, deletedAt: null, isActive: true },
+        select: {
+          id: true,
+          firstName: true,
+          lastName: true,
+          roles: true,
+          permissions: true,
+        },
+        orderBy: [{ firstName: "asc" }, { lastName: "asc" }],
+      }),
+      this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { ownerUserId: true },
+      }),
+    ]);
+    return rows
+      .filter((u) =>
+        hasCompanyPermission(
+          {
+            isOwner: company?.ownerUserId === u.id,
+            permissions: u.permissions,
+            roles: u.roles,
+          },
+          "approval:act",
+        ),
+      )
+      .map((u) => ({
+        id: u.id,
+        firstName: u.firstName,
+        lastName: u.lastName,
+        roles: u.roles,
+      }));
+  }
+
   async createFlow(user: AuthenticatedCompanyUser, dto: CreateApprovalFlowDto) {
     this.validateFlowInput(dto);
     await this.assertApproversValid(user.companyId, dto.steps.map((s) => s.approverUserId));

@@ -38,6 +38,17 @@ export class CompanyApprovalsController {
     return this.service.listFlows(user.companyId);
   }
 
+  /**
+   * Onaycı adayları (akış sihirbazı seçicisi) — approvals:manage yeter;
+   * `GET company/users` users:manage istediği için yalnız akış yetkisi olan
+   * üyede seçici boş kalıyordu (derin denetim MU-23).
+   */
+  @Get("approver-candidates")
+  @RequireCompanyPermission("approvals:manage")
+  listApproverCandidates(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
+    return this.service.listApproverCandidates(user.companyId);
+  }
+
   @Post("flows")
   @RequireTier("GOLD")
   // Faz T: YENİ akış kurma Silver+ (mevcut akışları yönetme/karar tier'sız —

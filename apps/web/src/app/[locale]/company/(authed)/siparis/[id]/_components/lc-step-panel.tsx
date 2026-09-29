@@ -54,8 +54,12 @@ export function LcStepPanel({ order }: { order: CompanyOrderDetail }) {
   };
 
   const step = (() => {
-    // ACCEPTED evresi — açılış + kabul.
-    if (order.status === "ACCEPTED") {
+    // ACCEPTED evresi — açılış + kabul. A1-DISPUTED (satıcının iptal talebi
+    // reddedildi, ayıp ihbarı yok) da dahil: API lcMarkOpened/lcMarkAccepted'ı
+    // orada da kabul eder (isA1Dispute) ve bunlar satıcının "mal bulundu →
+    // sevk" çıkışının ön koşuludur (invariants §A1).
+    const a1Dispute = order.status === "DISPUTED" && !order.defectNotifiedAt;
+    if (order.status === "ACCEPTED" || a1Dispute) {
       if (!order.lcOpenedAt) {
         return isSeller
           ? {
