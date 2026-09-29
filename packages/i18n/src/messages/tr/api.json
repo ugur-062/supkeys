@@ -144,6 +144,7 @@
     "yalnizOnayBekleyenUrunOnaylanabilir": "Yalnız onay bekleyen ürün onaylanabilir",
     "urununUrlParcasiSlugYokFirma": "Ürünün URL parçası (slug) yok — firma yeniden göndermeli",
     "urunDurumuDegistiSayfayiYenileyin": "Ürün durumu değişti — sayfayı yenileyin",
+    "firmaninUrunTavaniDolu": "Firmanın paketindeki yayında ürün tavanı dolu ({limit}) — ürün onaylanamaz",
     "urunSecilmedi": "Ürün seçilmedi",
     "tekSeferdeEnFazlaUrunOnaylanabilir": "Tek seferde en fazla {BULKAPPROVEMAX} ürün onaylanabilir",
     "yalnizOnayBekleyenUrunReddedilebilir": "Yalnız onay bekleyen ürün reddedilebilir",
@@ -1580,6 +1581,8 @@
       "askiyaAlindiGerekce": "Firma hesabınız platform yöneticisi tarafından askıya alındı. Gerekçe: {gerekce}",
       "askiyaAlindiItiraz": "İtiraz veya bilgi için destek ekibimizle iletişime geçebilirsiniz.",
       "askiyaAlindiGovde": "Firma hesabınız platform yöneticisi tarafından askıya alındı. Gerekçe: {gerekce} İtiraz veya bilgi için destek ekibimizle iletişime geçebilirsiniz.",
+      "sikayetUzerineAskiyaAlindiGerekce": "Firma hesabınız, hakkında yapılan bir şikayetin incelenmesi sonucunda platform yöneticisi tarafından askıya alındı.",
+      "sikayetUzerineAskiyaAlindiGovde": "Firma hesabınız, hakkında yapılan bir şikayetin incelenmesi sonucunda platform yöneticisi tarafından askıya alındı. İtiraz veya bilgi için destek ekibimizle iletişime geçebilirsiniz.",
       "askiKaldirildiBaslik": "Hesabınızın askısı kaldırıldı",
       "askiKaldirildiGovde": "Firma hesabınızın askısı kaldırıldı; platformu yeniden kullanabilirsiniz."
     },

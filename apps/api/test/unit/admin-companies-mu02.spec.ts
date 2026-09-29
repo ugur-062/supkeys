@@ -116,7 +116,7 @@ describe("resolveComplaint — askida ic not firmaya gitmez", () => {
     return { svc, prisma, seo, notify };
   }
 
-  it("suspendReason yoksa adminNote DEGIL sabit metin gerekce olur; SEO tazelenir", async () => {
+  it("suspendReason yoksa adminNote DEGIL dile gore cozulen sabit gerekce anahtari gider; SEO tazelenir", async () => {
     const { svc, prisma, seo, notify } = rig();
     await svc.resolveComplaint(
       "k1",
@@ -126,8 +126,16 @@ describe("resolveComplaint — askida ic not firmaya gitmez", () => {
     );
     const data = (prisma.company.update.mock.calls[0] as unknown as [{ data: { blockedReason: string } }])[0].data;
     expect(data.blockedReason).not.toContain("ABC Ltd");
-    const params = (notify.mock.calls[0] as unknown as [string, { params: { gerekce: string } }])[1].params;
-    expect(params.gerekce).not.toContain("ABC Ltd");
+    const msg = (notify.mock.calls[0] as unknown as [string, Record<string, unknown>])[1];
+    expect(JSON.stringify(msg)).not.toContain("ABC Ltd");
+    // Gerekce yoksa TR sabit metin EN/RU sablona `{gerekce}` olarak girmez:
+    // alicinin dilinde cozulen parametresiz katalog anahtari gider.
+    expect(msg.params).toBeUndefined();
+    expect(msg.bodyKey).toBe("api.notifications.adminCompanies.sikayetUzerineAskiyaAlindiGovde");
+    expect(msg.paragraphKeys).toEqual([
+      "api.notifications.adminCompanies.sikayetUzerineAskiyaAlindiGerekce",
+      "api.notifications.adminCompanies.askiyaAlindiItiraz",
+    ]);
     expect(seo.companyChanged).toHaveBeenCalledWith("c2");
   });
 
@@ -144,7 +152,10 @@ describe("resolveComplaint — askida ic not firmaya gitmez", () => {
     );
     expect(notify).toHaveBeenCalledWith(
       "c2",
-      expect.objectContaining({ params: { gerekce: "Tekrarlanan ihlal" } }),
+      expect.objectContaining({
+        bodyKey: "api.notifications.adminCompanies.askiyaAlindiGovde",
+        params: { gerekce: "Tekrarlanan ihlal" },
+      }),
     );
   });
 });

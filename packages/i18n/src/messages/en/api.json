@@ -144,6 +144,7 @@
     "yalnizOnayBekleyenUrunOnaylanabilir": "Only a product awaiting approval can be approved",
     "urununUrlParcasiSlugYokFirma": "The product has no URL segment (slug) — the company must submit it again",
     "urunDurumuDegistiSayfayiYenileyin": "The product status changed — refresh the page",
+    "firmaninUrunTavaniDolu": "The company's plan limit for published products is reached ({limit}) — the product cannot be approved",
     "urunSecilmedi": "No product selected",
     "tekSeferdeEnFazlaUrunOnaylanabilir": "At most {BULKAPPROVEMAX, plural, one {# product} other {# products}} can be approved at once",
     "yalnizOnayBekleyenUrunReddedilebilir": "Only a product awaiting approval can be rejected",
@@ -1580,6 +1581,8 @@
       "askiyaAlindiGerekce": "Your company account has been suspended by a platform administrator. Reason: {gerekce}",
       "askiyaAlindiItiraz": "To appeal or for more information, please contact our support team.",
       "askiyaAlindiGovde": "Your company account has been suspended by a platform administrator. Reason: {gerekce} To appeal or for more information, please contact our support team.",
+      "sikayetUzerineAskiyaAlindiGerekce": "Your company account has been suspended by a platform administrator following the review of a complaint about your company.",
+      "sikayetUzerineAskiyaAlindiGovde": "Your company account has been suspended by a platform administrator following the review of a complaint about your company. To appeal or for more information, please contact our support team.",
       "askiKaldirildiBaslik": "Your account suspension has been lifted",
       "askiKaldirildiGovde": "Your company account suspension has been lifted; you can use the platform again."
     },

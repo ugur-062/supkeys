@@ -2385,9 +2385,12 @@ export class AdminCompaniesService {
       // `adminNote` IC nottur (sikayetciye bile gosterilmez; icinde sikayetci
       // firmanin adi olabilir) — askiya alinan firmaya giden gerekceye DUSMEZ.
       // Firmaya yalniz acikca "firmaya iletilir" diye sorulan `suspendReason`
-      // gider, yoksa sabit metin (derin denetim MU-02).
-      const blockedReason =
-        input.suspendReason?.trim() || "Şikayet üzerine askıya alındı";
+      // gider (derin denetim MU-02).
+      const suspendReason = input.suspendReason?.trim() || null;
+      // blockedReason yalniz admin panelinde gorunen TR ic kayittir; firmaya
+      // giden bildirimde gerekce yoksa sabit metin DEGIL alicinin dilinde
+      // cozulen katalog anahtari kullanilir (EN/RU sablona TR metin girmesin).
+      const blockedReason = suspendReason ?? "Şikayet üzerine askıya alındı";
       await this.prisma.company.update({
         where: { id: c.againstCompanyId },
         data: {
@@ -2413,12 +2416,22 @@ export class AdminCompaniesService {
         type: "admin_company_suspended",
         subjectKey: "api.notifications.adminCompanies.askiyaAlindiBaslik",
         // İki paragraf → in-app satırı birleşmiş metni taşır.
-        bodyKey: "api.notifications.adminCompanies.askiyaAlindiGovde",
-        paragraphKeys: [
-          "api.notifications.adminCompanies.askiyaAlindiGerekce",
-          "api.notifications.adminCompanies.askiyaAlindiItiraz",
-        ],
-        params: { gerekce: blockedReason },
+        ...(suspendReason
+          ? {
+              bodyKey: "api.notifications.adminCompanies.askiyaAlindiGovde",
+              paragraphKeys: [
+                "api.notifications.adminCompanies.askiyaAlindiGerekce",
+                "api.notifications.adminCompanies.askiyaAlindiItiraz",
+              ],
+              params: { gerekce: suspendReason },
+            }
+          : {
+              bodyKey: "api.notifications.adminCompanies.sikayetUzerineAskiyaAlindiGovde",
+              paragraphKeys: [
+                "api.notifications.adminCompanies.sikayetUzerineAskiyaAlindiGerekce",
+                "api.notifications.adminCompanies.askiyaAlindiItiraz",
+              ],
+            }),
       });
     }
     return { ok: true };
