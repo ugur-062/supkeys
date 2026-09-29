@@ -190,22 +190,29 @@ export class PublicMarketplaceService {
       ...(gate.company as Prisma.CompanyWhereInput),
       ...(cityValues.length ? { cityId: { in: cityIdsOf(q.city) } } : {}),
     };
-    const where: Prisma.ListingWhereInput = {
-      ...gate,
-      company,
-      ...(q.type ? { type: q.type } : {}),
+    // Süzgeçler kapıya SPREAD ile değil `AND` dizisiyle katılır (derin denetim
+    // Y-10): kapı embargoyu üst düzey `OR` anahtarında taşır; ülke süzgeci de
+    // bir `OR` olduğundan eskiden aynı anahtarı ezip embargoyu düşürüyordu →
+    // `?country=TR` ile açılışı gelecekteki talepler listede görünüyordu.
+    // Kapı kendi nesnesinde kalır, her süzgeç ayrı AND terimi olur; hiçbir
+    // süzgeç kapının bir anahtarını ezemez.
+    const filters: Prisma.ListingWhereInput[] = [
+      ...(q.type ? [{ type: q.type }] : []),
       // Varsayılan: yalnız teklife AÇIK olanlar. Kapanmışlar `state=all` ile
       // istenirse gelir (arşiv sayfaları) — ama asla varsayılan değildir,
       // ziyaretçiye ölü ilan göstermek en kötü ilk izlenim.
-      ...(q.state === "all" ? {} : { status: "OPEN" }),
-      ...(await this.listingCategoryWhere(q.category)),
+      ...(q.state === "all" ? [] : [{ status: "OPEN" as const }]),
+      await this.listingCategoryWhere(q.category),
       ...(q.country
-        ? { OR: [{ targetCountries: { isEmpty: true } }, { targetCountries: { has: q.country.toUpperCase() } }] }
-        : {}),
+        ? [{ OR: [{ targetCountries: { isEmpty: true } }, { targetCountries: { has: q.country.toUpperCase() } }] }]
+        : []),
       ...(q.closesWithin
-        ? { closesAt: { gte: now, lte: new Date(now.getTime() + Number(q.closesWithin) * 86_400_000) } }
-        : {}),
-      ...this.searchWhere(q.q),
+        ? [{ closesAt: { gte: now, lte: new Date(now.getTime() + Number(q.closesWithin) * 86_400_000) } }]
+        : []),
+      this.searchWhere(q.q),
+    ].filter((f) => Object.keys(f).length > 0);
+    const where: Prisma.ListingWhereInput = {
+      AND: [{ ...gate, company }, ...filters],
     };
 
     const [total, rows] = await Promise.all([

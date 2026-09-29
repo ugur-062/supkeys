@@ -285,6 +285,28 @@ describe("pazar yeri — vitrin kapısı", () => {
     expect((await service().list({})).items).toHaveLength(0);
   });
 
+  it("embargo süzgeçlerle EZİLMEZ — ülke/arama/süre süzgeci verilse de görünmez (derin denetim Y-10)", async () => {
+    // Regresyon: ülke süzgeci üst düzey `OR` olarak kapının embargo `OR`'unu
+    // eziyordu → `?country=TR` ile açılışı gelecekteki talep listede çıkıyordu.
+    const future = new Date(Date.now() + 86_400_000);
+    await seedPublicListing({ bidsOpenAt: future, targetCountries: [] });
+    await seedPublicListing({ bidsOpenAt: future, targetCountries: ["TR"], title: "Kablo alımı" });
+    for (const q of [
+      { country: "TR" },
+      { country: "de" },
+      { country: "TR", q: "boru" },
+      { country: "TR", closesWithin: "30" as const, state: "all" as const },
+    ]) {
+      const res = await service().list(q);
+      expect(res.items).toHaveLength(0);
+      expect(res.total).toBe(0);
+    }
+    // Embargo bitmiş aynı talepler ülke süzgeciyle normal görünür.
+    await prisma.listing.updateMany({ data: { bidsOpenAt: new Date(Date.now() - 60_000) } });
+    expect((await service().list({ country: "TR" })).total).toBe(2);
+    expect((await service().list({ country: "DE" })).total).toBe(1);
+  });
+
   it("bidsOpenAt NULL olan ilan görünür (NOT(gt) NULL tuzağı)", async () => {
     await seedPublicListing({ bidsOpenAt: null });
     expect((await service().list({})).items).toHaveLength(1);

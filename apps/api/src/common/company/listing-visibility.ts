@@ -125,6 +125,9 @@ export function marketplaceListingWhere(now: Date): Prisma.ListingWhereInput {
     // Açılış embargosu: gelecek tarihli açılışta ilanı sahibi dışında kimse
     // göremez (bkz. bidsOpenAt). NOT(gt) NULL tuzağı: `bidsOpenAt: { lte: now }`
     // yazmak NULL satırları da ELERDİ — bu yüzden açık OR.
+    // DİKKAT: bu üst düzey `OR` anahtarı kapıya aittir. Çağıran kendi OR/AND
+    // koşulunu kapının YANINA spread ile yazarsa embargoyu sessizce ezer
+    // (derin denetim Y-10) — süzgeçleri `AND: [kapı, ...süzgeçler]` ile katın.
     OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }],
     company: {
       publicListingsEnabled: true,
