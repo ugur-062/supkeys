@@ -181,6 +181,13 @@ export interface SendEmailInput {
    * (RFC 8058 tek tık çıkış; Gmail/Yahoo/Outlook toplu gönderici kuralı).
    */
   headers?: Record<string, string>;
+  /**
+   * Sağlayıcı tarafı tekilleştirme anahtarı (Resend `Idempotency-Key`, 24 sa).
+   * Aynı anahtarla yinelenen istek İKİNCİ e-posta göndermez, ilk yanıtı
+   * döndürür — yeniden denemeler bu sayede çift e-posta üretmez
+   * (derin denetim Y-08 gözden geçirme).
+   */
+  idempotencyKey?: string;
 }
 
 export interface SendEmailResult {

@@ -150,21 +150,37 @@ export class EmailSendThrottle {
 }
 
 /**
- * Sağlayıcı hatası yeniden denenmeli mi? Yalnız isteğin GİTMEDİĞİ ya da
- * sağlayıcının geçici olarak reddettiği durumlar: 429 (`rate_limit_exceeded`)
- * ve 5xx (`application_error` / `internal_server_error` — SDK ağ hatasını da
- * `application_error` olarak döndürür). Zaman aşımı DENENMEZ: istek sağlayıcıya
- * ulaşıp kabul edilmiş olabilir → çift e-posta riski. 4xx (adres/parametre
- * hatası) kalıcıdır.
+ * Sağlayıcı hatası yeniden denenmeli mi? Yalnız sağlayıcının geçici olarak
+ * reddettiği ya da isteğin sonucunun bilinmediği durumlar: 429
+ * (`rate_limit_exceeded`), 5xx (`application_error` / `internal_server_error`)
+ * ve 409 `concurrent_idempotent_requests` (aynı anahtarlı ilk istek hâlâ
+ * işleniyor — biraz sonra aynı anahtar ilk yanıtı döndürür).
+ *
+ * ÇİFT E-POSTA: SDK, fetch reddini ve okunamayan yanıtı da `application_error`
+ * olarak döndürür — istek Resend'e ULAŞMIŞ olabilir. Bu yüzden yeniden deneme
+ * GÜVENLİ olmak için her denemede aynı `Idempotency-Key` gönderilir
+ * (`emailIdempotencyKey`, EmailService.sendWithRetry); Resend 24 saat içinde
+ * aynı anahtarlı ikinci isteği göndermeden ilk sonucu döndürür. Zaman aşımı
+ * yine DENENMEZ: asılı ilk istek sürerken yeniden deneme 409 alıp başarıyla
+ * giden e-postayı FAILED gösterirdi. 4xx (adres/parametre hatası,
+ * `invalid_idempotent_request`) kalıcıdır.
  *
  * `ResendProvider` hatayı `[resend] <name>: <message>` biçiminde fırlatır
  * (packages/email/src/providers/resend.ts).
  */
 export function isRetryableEmailError(err: unknown): boolean {
   const msg = err instanceof Error ? err.message : String(err);
-  return /\[resend\] (rate_limit_exceeded|application_error|internal_server_error)\b/.test(
+  return /\[resend\] (rate_limit_exceeded|application_error|internal_server_error|concurrent_idempotent_requests)\b/.test(
     msg,
   );
+}
+
+/**
+ * EmailLog satırı başına sağlayıcı tekilleştirme anahtarı — aynı gönderimin
+ * tüm denemeleri aynı anahtarı taşır (Resend sınırı 256 karakter).
+ */
+export function emailIdempotencyKey(emailLogId: string): string {
+  return `email-log/${emailLogId}`;
 }
 
 /** Deneme `attempt` (1'den) başarısız olduktan sonra beklenecek süre. */

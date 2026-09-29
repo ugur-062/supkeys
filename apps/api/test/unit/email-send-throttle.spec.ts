@@ -11,6 +11,7 @@ jest.mock("@rothern/email", () => ({
 
 import {
   EmailSendThrottle,
+  emailIdempotencyKey,
   isRetryableEmailError,
   retryDelayMs,
 } from "../../src/modules/email/email-send-throttle";
@@ -18,6 +19,7 @@ import {
   EMAIL_SEND_MAX_ATTEMPTS,
   EmailService,
 } from "../../src/modules/email/email.service";
+import { ResendProvider } from "../../../../packages/email/src/providers/resend";
 
 /**
  * Derin denetim 2026-09-29 Y-08: toplu bildirim/duyuru e-postaları sınırsız
@@ -116,6 +118,8 @@ describe("EmailSendThrottle", () => {
     expect(isRetryableEmailError(new Error("[resend] rate_limit_exceeded: Too many requests"))).toBe(true);
     expect(isRetryableEmailError(new Error("[resend] application_error: Unable to fetch data"))).toBe(true);
     expect(isRetryableEmailError(new Error("[resend] internal_server_error: boom"))).toBe(true);
+    expect(isRetryableEmailError(new Error("[resend] concurrent_idempotent_requests: in progress"))).toBe(true);
+    expect(isRetryableEmailError(new Error("[resend] invalid_idempotent_request: payload differs"))).toBe(false);
     expect(isRetryableEmailError(new Error("[resend] validation_error: bad to"))).toBe(false);
     expect(isRetryableEmailError(new Error("[resend] istek zaman aşımına uğradı (10000ms)"))).toBe(false);
     expect(isRetryableEmailError(new Error("resend down"))).toBe(false);
@@ -184,6 +188,21 @@ describe("EmailService — hız sınırı ve 429 yeniden deneme (Y-08)", () => {
         data: expect.objectContaining({ status: "SENT", attemptCount: 3 }),
       }),
     );
+  });
+
+  it("ağ hatası (application_error) yeniden denenir ama her denemede AYNI Idempotency-Key gider (çift e-posta yok)", async () => {
+    const send = jest
+      .fn()
+      .mockRejectedValueOnce(
+        new Error("[resend] application_error: Unable to fetch data. The request could not be resolved."),
+      )
+      .mockResolvedValue({ providerMessageId: "m1" });
+    const { svc } = makeService(send);
+    await expect(svc.send(email())).resolves.toEqual({ emailLogId: "log1", sent: true });
+    expect(send).toHaveBeenCalledTimes(2);
+    const keys = send.mock.calls.map((c) => (c[0] as { idempotencyKey?: string }).idempotencyKey);
+    expect(keys[0]).toBe(emailIdempotencyKey("log1"));
+    expect(keys[1]).toBe(keys[0]);
   });
 
   it("429 hiç geçmezse EMAIL_SEND_MAX_ATTEMPTS denemeden sonra FAILED + throw", async () => {
@@ -275,5 +294,36 @@ describe("EmailService — hız sınırı ve 429 yeniden deneme (Y-08)", () => {
       "bulk1@x.com",
       "bulk2@x.com",
     ]);
+  });
+});
+
+describe("ResendProvider — Idempotency-Key iletimi (Y-08 gözden geçirme)", () => {
+  const input = (idempotencyKey?: string) => ({
+    to: { email: "u@x.com" },
+    from: { email: "noreply@rothern.com" },
+    rendered: { subject: "S", html: "<p>p</p>", text: "p" },
+    ...(idempotencyKey ? { idempotencyKey } : {}),
+  });
+
+  const withMockClient = () => {
+    const p = new ResendProvider("re_test_dummy");
+    const send = jest.fn().mockResolvedValue({ data: { id: "m1" }, error: null });
+    (p as unknown as { client: unknown }).client = { emails: { send } };
+    return { p, send };
+  };
+
+  it("anahtar SDK'ya istek seçeneği olarak geçer, gövdeye sızmaz", async () => {
+    const { p, send } = withMockClient();
+    await expect(p.send(input("email-log/abc"))).resolves.toEqual({ providerMessageId: "m1" });
+    expect(send).toHaveBeenCalledWith(
+      expect.not.objectContaining({ idempotencyKey: expect.anything() }),
+      { idempotencyKey: "email-log/abc" },
+    );
+  });
+
+  it("anahtar yoksa seçenek gönderilmez", async () => {
+    const { p, send } = withMockClient();
+    await p.send(input());
+    expect(send.mock.calls[0]![1]).toBeUndefined();
   });
 });

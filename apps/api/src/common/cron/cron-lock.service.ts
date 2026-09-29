@@ -21,12 +21,21 @@ import { PrismaClient } from "@rothern/db";
  *     hatası) iş ATLANMAZ, koşar. Aksi hâlde tek bir yapılandırma hatası tüm
  *     zamanlanmış işleri sessizce durdururdu — kilidin önlediği zarardan çok
  *     daha büyük bir zarar.
+ *  3. **AYNI SÜREÇTE ÜST ÜSTE BİNME** (derin denetim Y-08 gözden geçirme):
+ *     `pg_try_advisory_lock` aynı oturumda YENİDEN alınabilir (sayaçlı) ve
+ *     kilit istemcisi tek bağlantılıdır → önceki koşu bitmeden gelen ikinci
+ *     tetik (ör. e-posta hız sınırı yüzünden 15 dk'yı aşan `emailPrograms.tick`)
+ *     kilidi "alıp" aynı özet e-postalarını ikinci kez gönderiyordu. Bu yüzden
+ *     DB kilidinden ÖNCE süreç içi bir koşu kümesi bakılır; bu koruma
+ *     fail-open yolunda da geçerlidir.
  */
 @Injectable()
 export class CronLockService implements OnModuleDestroy {
   private readonly logger = new Logger(CronLockService.name);
   private client: PrismaClient | null = null;
   private disabled = false;
+  /** Bu süreçte şu an koşan işler — aynı işin üst üste binmesini engeller. */
+  private readonly running = new Set<string>();
 
   private lockClient(): PrismaClient | null {
     if (this.disabled) return null;
@@ -63,9 +72,23 @@ export class CronLockService implements OnModuleDestroy {
 
   /**
    * Kilidi alabilirse `fn`i koşar. Başka örnek tutuyorsa ATLAR ve false döner.
-   * Kilit altyapısı yoksa fail-open: `fn` yine koşar.
+   * Aynı iş bu süreçte hâlâ koşuyorsa da ATLAR. Kilit altyapısı yoksa
+   * fail-open: `fn` yine koşar.
    */
   async runExclusive(name: string, fn: () => Promise<void>): Promise<boolean> {
+    if (this.running.has(name)) {
+      this.logger.warn(`cron atlandı (önceki koşu hâlâ sürüyor): ${name}`);
+      return false;
+    }
+    this.running.add(name);
+    try {
+      return await this.runWithDbLock(name, fn);
+    } finally {
+      this.running.delete(name);
+    }
+  }
+
+  private async runWithDbLock(name: string, fn: () => Promise<void>): Promise<boolean> {
     const db = this.lockClient();
     if (!db) {
       await fn();

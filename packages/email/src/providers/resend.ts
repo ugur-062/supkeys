@@ -74,7 +74,9 @@ export class ResendProvider extends BaseEmailProvider {
       replyTo: input.replyTo,
       ...(input.headers && Object.keys(input.headers).length > 0 ? { headers: input.headers } : {}),
       ...(attachments && attachments.length > 0 ? { attachments } : {}),
-      }),
+      },
+      // Yeniden denemede aynı anahtar → Resend ikinci e-postayı göndermez.
+      input.idempotencyKey ? { idempotencyKey: input.idempotencyKey } : undefined),
     );
 
     if (error) {

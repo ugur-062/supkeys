@@ -24,6 +24,7 @@ import { signUnsubscribeToken } from "./unsubscribe-token";
 import { maskEmail } from "../../common/logging/mask-email";
 import {
   EmailSendThrottle,
+  emailIdempotencyKey,
   isRetryableEmailError,
   retryDelayMs,
   type EmailSendPriority,
@@ -221,10 +222,14 @@ export class EmailService implements OnModuleInit {
     payload: Parameters<EmailClient["send"]>[0],
     logId: string,
   ): Promise<{ result: Awaited<ReturnType<EmailClient["send"]>>; attempts: number }> {
+    // Her denemede AYNI anahtar (EmailLog satırı başına bir): bağlantı Resend
+    // isteği aldıktan sonra koparsa (`application_error`) yeniden deneme
+    // sağlayıcı tarafında tekilleşir, ikinci e-posta gitmez.
+    const keyed = { ...payload, idempotencyKey: emailIdempotencyKey(logId) };
     for (let attempt = 1; ; attempt++) {
       await this.throttle.acquireToken();
       try {
-        const result = await this.client.send(payload);
+        const result = await this.client.send(keyed);
         return { result, attempts: attempt };
       } catch (err) {
         if (attempt >= EMAIL_SEND_MAX_ATTEMPTS || !isRetryableEmailError(err)) {
