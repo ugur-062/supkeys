@@ -2414,8 +2414,8 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 
 ## Test & Kalite
 
-- API **177 dosya** (parçalı koşum, 2026-09-12 yeşil; i18n birimi 2026-09-23)
-  · web **146 / 824** (2026-09-23, Faz 1e kapanış) · admin **17 / 84** · i18n **6 / 22**.
+- API **247 dosya** · web **180 / 1.070** · admin **20 / 100** · i18n **8 / 39**
+  (yayın denetimi 2026-09-29 tam regresyonu; API 10'luk `--runInBand` partiler).
 - **Bağımlılık kapısı (2026-09-12):** CI'da `pnpm audit --prod --audit-level high`.
   Tarama yokken üretim bağımlılıklarında 2 kritik + 20 yüksek birikmişti
   (Next 15.5.18 RCE uyarısı dahil) → Next 15.5.25 + hedefli `pnpm.overrides`
@@ -2617,6 +2617,40 @@ Faz 1'de. **Boot kapısı (2026-09-22):** `RLS_ENABLED=true` iken
 istemcisi sessizce kısıtlı role düşüp sağlık/giriş/cron'u bozamaz.
 
 ---
+
+## YAYIN DENETİMİ 2026-09-28/29 — kalıcı kurallar
+
+Tek kayıt `docs/qa-launch-audit-2026-09-28.md` (16 bölüm, bulgular + operatör
+matrisi + runbook). Bir daha bozulmasın diye:
+- **Kesinti ≠ boş veri (web):** `lib/public/marketplace-api.ts` ana veri
+  çağrıları (`getJson(..., critical=true)`, `getDetail`) ağ hatası/5xx/429'da
+  çalışma anında `PublicApiUnavailableError` atar (ISR son iyi sürümü korur);
+  404/4xx = gerçek yok; `next build`de atılmaz. İkincil bloklar yedekle kalır.
+  Hata sınırları `robots noindex` taşır.
+- **SSR hız sınırı muafiyeti:** web sunucusu `SEO_REVALIDATE_SECRET`i
+  `x-rothern-ssr` başlığında yollar; API yalnız GET ∧ `/api/public/*` için
+  atlar (`isTrustedSsrRequest`). Sır Render + Vercel'de AYNI ve ≥16 karakter.
+- **Başka firmanın sektörü** `localizeIndustry` (ürün satıcı kartı, bağlantılar,
+  sipariş karşı tarafı) — çapraz-firma okumada serbest metin çevrilmeden basılmaz.
+- **Şifre politikası tek:** kayıt, davet kabulü, değiştirme, sıfırlama = 10
+  karakter + küçük/büyük harf + rakam + özel (`password-policy-parity.spec`;
+  web `usePasswordRules` / `PASSWORD_MIN_LENGTH`).
+- **E-posta:** işlem dışı her e-postada alıcının dilinde KVKK aydınlatma
+  bağlantısı (`privacyNoticeUrl`); günlükte adres maskeli (`maskEmail`).
+- **Kayıtsız adrese davet SİLİNMEZ**, iptal edilir (kullanıcı iptali ve paket
+  düşüşü — `cancelOutgoingReferralInvites`): silmek talep davetlerini cascade ile
+  ve adres freni geçmişini götürür.
+- **AI:** çeviri çıktısı kaynakta olmayan bağlantı/e-posta/telefon içeremez
+  (`injectedContactErrors`); önceden onay ülkesi ipuçlarından HERHANGİ biriyle
+  (`isConsentCountry`: etiket · e-posta · site uzantısı); site ile üye eşleşmesi
+  alan adında e-postalı etkin kullanıcı ister.
+- **Soğuk davet ısınması hacme bağlı:** tavan ≤ 2 × son 7 günün en yoğun günü.
+- **Durdurma anahtarları `0`:** `COLD_INVITE_MAX_DAILY`, `CONTENT_TRANSLATION_
+  DAILY_USD`, `AI_DISCOVERY_DAILY_USD` (0 = durdur; tanımsız = varsayılan).
+- **Mobil:** `flex` satırında `shrink-0` uzun metin 375 px'te sayfayı genişletir
+  (hızlı talep 502 px'e çıkmıştı); `role="table"` yalnız gerçek tabloda.
+- **Pazarlama rızası (`marketingConsent`) HİÇBİR gönderimde okunmuyor** —
+  karar bekliyor (denetim H-2); teşvik e-postası eklerken bunu hatırla.
 
 ## Bekleyen / Yapılacaklar
 
