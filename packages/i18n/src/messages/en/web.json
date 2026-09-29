@@ -880,6 +880,7 @@
       "location": "Location",
       "citySearch": "Search cities",
       "noCity": "No matching city",
+      "noCountry": "No matching country",
       "nearMe": "Near me",
       "nearPlaceholder": "City name or Turkish postal code",
       "nearAria": "Near me — city name or Turkish postal code",
@@ -1892,7 +1893,8 @@
       "remembered": "Remembered it?",
       "sent": "If this email is registered, a password reset link has been sent. Check your inbox (and spam folder). The link is valid for 1 hour.",
       "sending": "Sending…",
-      "submit": "Send reset link"
+      "submit": "Send reset link",
+      "failed": "Couldn't send the link. Please try again."
     },
     "signup": {
       "metaTitle": "Sign up",
@@ -1910,7 +1912,13 @@
       "codeSent": "The verification code has been sent to your email",
       "failed": "Sign-up failed",
       "alreadyVerified": "Your email is already verified. Please log in.",
-      "phoneInvalid": "Enter a valid phone number for the selected country."
+      "phoneInvalid": "Enter a valid phone number for the selected country.",
+      "changeEmailTitle": "Correct your email address",
+      "changeEmailSubtitle": "We'll send the verification code to the new address. Your account and details are kept.",
+      "newEmail": "New email address",
+      "sendToNewEmail": "Send code to new address",
+      "cancelChangeEmail": "Cancel",
+      "changeEmailFailed": "Couldn't change the email address"
     },
     "consents": {
       "termsAria": "I accept the user agreement",
@@ -6350,7 +6358,8 @@
         "satinalmaAnasayfasi": "Buying home",
         "urunAra": "Product search",
         "firmaninWebSitesi": "Company website",
-        "bilgiIste": "Request info"
+        "bilgiIste": "Request info",
+        "bilgiIstemekIcinYetki": "Requesting information requires the Purchaser role."
       },
       "marketBand": {
         "sonucTuru": "Result type",

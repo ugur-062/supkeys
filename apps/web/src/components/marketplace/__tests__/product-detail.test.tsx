@@ -225,4 +225,12 @@ describe("brandIsSeller", () => {
     expect(brandIsSeller("Siemens", "Demo Gold Makina")).toBe(false);
     expect(brandIsSeller("", "Demo Gold Makina")).toBe(false);
   });
+
+  it("kelime sınırında karşılaştırır — firma adının içinde harf dizisi olarak geçen kısa marka gizlenmez", () => {
+    expect(brandIsSeller("LG", "Algı Elektrik")).toBe(false);
+    expect(brandIsSeller("ABB", "Kabbani Ltd")).toBe(false);
+    expect(brandIsSeller("3M", "Demo 3M-Tedarik")).toBe(true);
+    expect(brandIsSeller("Demo Gold Makina A.Ş.", "Demo Gold Makina")).toBe(true);
+    expect(brandIsSeller("Siemens", "")).toBe(false);
+  });
 });

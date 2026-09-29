@@ -20,6 +20,7 @@ import { categoryHref } from "@/lib/public/marketplace";
 import { cityProductPath, countryProductPath, currencyForLocale } from "@rothern/shared";
 import {
   buildProductFilterQuery,
+  productSearchCarry,
   parseProductFilters,
   toProductListParams,
   type SearchParamsLike,
@@ -207,13 +208,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
         search={{
           action: basePath,
           defaultValue: state.q,
-          hidden: {
-            kategori: state.category, sehir: state.cities.join(",") || undefined,
-            ulke: state.countries.join(",") || undefined, faaliyet: state.activities.join(",") || undefined,
-            dogrulanmis: state.verified ? "1" : undefined, fiyat: state.price, sirala: state.sort,
-            gorunum: state.view,
-          },
-          hiddenList: { nitelik: state.attrs },
+          hiddenList: productSearchCarry(state),
           placeholder: tt("productsPlaceholder"),
         }}
         chips={[]}

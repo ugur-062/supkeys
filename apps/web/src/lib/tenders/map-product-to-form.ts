@@ -49,5 +49,22 @@ export function mapProductToForm(seed: ProductSeed): TenderFormData {
   };
 }
 
+/**
+ * ARAMA TERİMİ → TALEP TOHUMU. Ürün sayfası/dizini "Talep aç" CTA'ları
+ * `?q=` ile gelir (ürün adı ya da arama terimi); serbest metin kutusu
+ * kalktığından (2026-09-10) okunmuyordu ve form boş açılıyordu (derin
+ * denetim S078). Terim ilk kalemin adı ve başlık olur; miktar/birim alıcının.
+ */
+export function mapSearchTermToForm(term: string): TenderFormData | null {
+  const name = term.trim();
+  if (!name) return null;
+  const base = DEFAULT_FORM_VALUES;
+  return {
+    ...base,
+    title: name.slice(0, 120),
+    items: [{ ...base.items[0]!, name: name.slice(0, 200) }],
+  };
+}
+
 /** Wizard'a taşıma anahtarı — AI taslağının anahtarından AYRI. */
 export const PRODUCT_SEED_KEY = "tender-product-seed";

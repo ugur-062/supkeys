@@ -81,6 +81,32 @@ describe("fiyat süzgeci — para birimi", () => {
     expect(url).toContain("fiyatMax=20");
   });
 
+  it("ilk ön ayar alt sınırsızdır: seçili görünür, debounce ikinci yönlendirme yapmaz, tekrar tıklamak kaldırır", () => {
+    vi.useFakeTimers();
+    try {
+      expect(presetRanges({ min: 10, max: 450, quantiles: { p33: 20, p66: 100 } }, String)[0]!.from).toBeUndefined();
+      nav.search = "para=EUR&fiyatMax=20";
+      render(
+        <FilterShell basePath="/urunler" total={0}>
+          <ProductFilters facets={facets()} idPrefix="t" />
+        </FilterShell>,
+      );
+      const chip = screen.getByRole("button", { name: "≤ 20 €" });
+      expect(chip.getAttribute("aria-pressed")).toBe("true");
+      act(() => {
+        vi.advanceTimersByTime(500);
+      });
+      expect(nav.push).not.toHaveBeenCalled();
+      expect(nav.replace).not.toHaveBeenCalled();
+      act(() => {
+        fireEvent.click(chip);
+      });
+      expect(lastUrl()).not.toContain("fiyatMax");
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
   it("birim değişince aralık sıfırlanır ve yeni birim URL'e yazılır", () => {
     nav.search = "para=EUR&fiyatMin=100&fiyatMax=500";
     render(

@@ -8219,6 +8219,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.auth.forgot.failed": {
+    "hash": "d40fbcc57e",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.auth.forgot.metaTitle": {
     "hash": "0634f43bbc",
     "status": "reviewed",
@@ -8969,10 +8974,30 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.auth.signup.cancelChangeEmail": {
+    "hash": "14d2482077",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.auth.signup.changeEmail": {
     "hash": "7d4b6ae4af",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.auth.signup.changeEmailFailed": {
+    "hash": "8ee9b735dc",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.auth.signup.changeEmailSubtitle": {
+    "hash": "ef70258ae0",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.auth.signup.changeEmailTitle": {
+    "hash": "cb8e2fd643",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.auth.signup.codeNotReceived": {
     "hash": "8901d5e768",
@@ -9009,6 +9034,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.auth.signup.newEmail": {
+    "hash": "669fac88b7",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.auth.signup.passwordRepeat": {
     "hash": "055dc9db96",
     "status": "reviewed",
@@ -9018,6 +9048,11 @@
     "hash": "e7141659ee",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.auth.signup.sendToNewEmail": {
+    "hash": "3864245c19",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.auth.signup.submit": {
     "hash": "c46a72d30f",
@@ -14599,6 +14634,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketplace.filters.noCountry": {
+    "hash": "b0e8344bfa",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.marketplace.filters.noOptions": {
     "hash": "d38b51d5a8",
     "status": "reviewed",
@@ -18578,6 +18618,11 @@
     "hash": "ba5b09c6bc",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.market.firmaslugUrunSlugPage.bilgiIstemekIcinYetki": {
+    "hash": "41c2e0d997",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.market.firmaslugUrunSlugPage.firmaninWebSitesi": {
     "hash": "11ac342be1",
@@ -31569,16 +31614,6 @@
     "status": "reviewed",
     "at": "2026-09-30"
   },
-  "web.panel.shell.satisChartTabs.saatKisa": {
-    "hash": "437480817a",
-    "status": "reviewed",
-    "at": "2026-09-30"
-  },
-  "web.panel.shell.satisChartTabs.ortalama": {
-    "hash": "f07b0f2de8",
-    "status": "reviewed",
-    "at": "2026-09-30"
-  },
   "web.panel.shell.satisChartTabs.davetAlipTeklifVerdikceAsamalar": {
     "hash": "1049849c86",
     "status": "reviewed",
@@ -31698,6 +31733,16 @@
     "hash": "07553ca7bb",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.shell.satisChartTabs.ortalama": {
+    "hash": "f07b0f2de8",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "web.panel.shell.satisChartTabs.saatKisa": {
+    "hash": "437480817a",
+    "status": "reviewed",
+    "at": "2026-09-30"
   },
   "web.panel.shell.satisChartTabs.satisHunisi": {
     "hash": "7ab59c8c3c",

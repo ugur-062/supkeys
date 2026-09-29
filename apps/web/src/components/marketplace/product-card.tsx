@@ -13,6 +13,7 @@ import { productPrice } from "@/lib/public/product-price";
 import { countryFlag } from "@rothern/shared";
 import type { ProductPriceFields, PublicProductCard } from "@/lib/public/marketplace-api";
 import { cn } from "@/lib/utils";
+import { useHydrated } from "@/hooks/use-hydrated";
 import { ChevronRightIcon, MapPinIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { useState, type ReactNode } from "react";
@@ -178,6 +179,7 @@ export function ProductCard({
   const quantity = useQuantityLabel();
   const fmt = useFormatter();
   const priceLabels = usePriceLabels();
+  const hydrated = useHydrated();
   const target = href ?? (companySlug ? `/firma/${companySlug}/urun/${product.slug}` : undefined);
   const firm: ProductCardCompany | undefined =
     company ?? (companyName ? { name: companyName, city: companyCity } : undefined);
@@ -232,7 +234,10 @@ export function ProductCard({
       ? "bg-blue-600 text-white hover:bg-blue-700 group-hover:bg-blue-700 focus-visible:ring-blue-600"
       : "bg-blue-600 text-white hover:bg-blue-700 group-hover:bg-blue-700 focus-visible:ring-blue-600";
   const bullets = compact ? [] : (features ?? []).filter(Boolean).slice(0, 3);
-  const fresh = showNew && isNew(product.publishedAt);
+  // "Yeni" (≤ 7 gün) "şimdi"ye bağlı: ISR sayfalarında bayat HTML ile
+  // istemci eşiği farklı tarafında kalırsa #418 (derin denetim X13) —
+  // rozet yalnız hidrasyondan sonra (`hydrated` bileşen başında).
+  const fresh = showNew && hydrated && isNew(product.publishedAt);
 
   if (variant === "wide") {
     return (

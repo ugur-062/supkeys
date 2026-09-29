@@ -10,7 +10,7 @@ import { AI_TENDER_DRAFT_KEY } from "@/lib/company/ai-search";
 import { DEFAULT_FORM_VALUES, type TenderFormData } from "@/lib/tenders/form-schema";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { mapDetailToForm } from "@/lib/tenders/map-detail-to-form";
-import { PRODUCT_SEED_KEY, mapProductToForm, type ProductSeed } from "@/lib/tenders/map-product-to-form";
+import { PRODUCT_SEED_KEY, mapProductToForm, mapSearchTermToForm, type ProductSeed } from "@/lib/tenders/map-product-to-form";
 import type { AiTenderExtractResult } from "@rothern/shared";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
@@ -20,7 +20,8 @@ import { useEffect, useMemo, useState } from "react";
  * sihirbazı kaldır, sistemde görünmesin"). Eskiden kopya (`?from=`), AI belge
  * (`?ai=1`) ve şablon (`?template=`) girişleri ayrı bir sihirbaza yönlenirdi;
  * artık üçü de hızlı kartı DOLU açar. Ürün sayfasından "talebime ekle"
- * (`?urun=1`) yine kalem olarak düşer.
+ * (`?urun=1`) yine kalem olarak düşer; "Talep aç" CTA'larının `?q=` terimi
+ * de ilk kalem adı olur.
  */
 export default function YeniTalepPage() {
   const tr = useTranslations("web.panel.requests.page");
@@ -29,6 +30,8 @@ export default function YeniTalepPage() {
   const fromAi = params.get("ai") === "1";
   const templateId = params.get("template") ?? "";
   const fromProduct = params.get("urun") === "1";
+  // Ürün sayfası / dizin "Talep aç" CTA'sı: `?q=` ilk kalem adı olur.
+  const searchTerm = (params.get("q") ?? "").trim();
 
   const source = useListingDetail(fromId);
   const templates = useListingTemplates();
@@ -83,12 +86,24 @@ export default function YeniTalepPage() {
     return mapDetailToForm(source.data, { forCopy: true });
   }, [fromId, source.data]);
 
+  const termSeed = useMemo(() => mapSearchTermToForm(searchTerm), [searchTerm]);
+
   const waiting =
     (fromId && source.isLoading) || (templateId && templates.isLoading) || sessionSeed === undefined;
   if (waiting) return null;
 
-  const seed = copySeed ?? templateSeed ?? sessionSeed ?? undefined;
-  const key = fromId ? `copy-${fromId}` : templateId ? `tpl-${templateId}` : fromAi ? "ai" : fromProduct ? "product" : "blank";
+  const seed = copySeed ?? templateSeed ?? sessionSeed ?? termSeed ?? undefined;
+  const key = fromId
+    ? `copy-${fromId}`
+    : templateId
+      ? `tpl-${templateId}`
+      : fromAi
+        ? "ai"
+        : fromProduct
+          ? "product"
+          : termSeed
+            ? `q-${searchTerm}`
+            : "blank";
 
   return (
     <PageContainer>

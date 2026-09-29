@@ -11,6 +11,7 @@ import { useActivityLabel, useCityLabel, useClosingUrgency, useQuantityLabel, us
 import { useFormatter, useLocale, useTranslations } from "next-intl";
 import { cn } from "@/lib/utils";
 import { ScopeChip } from "@/components/tenders/scope-chip";
+import { useHydrated } from "@/hooks/use-hydrated";
 
 const STATE_CLASS: Record<ReturnType<typeof publicState>, string> = {
   open: "border-emerald-200 bg-emerald-50 text-emerald-700",
@@ -43,6 +44,12 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
   const closingUrgency = useClosingUrgency();
   const href = listingHref(l);
   const state = publicState(l.status);
+  // Kalan gün "şimdi"ye bağlı: anasayfa/dizin ISR (revalidate=60) — gece
+  // yarısından önce üretilen HTML sonra servis edilince sunucu ile istemci
+  // bir gün farklı sayar (#418, derin denetim X13). Metin ve renk yalnız
+  // hidrasyondan SONRA; öncesinde aynı yükseklikte görünmez yer tutucu
+  // (`urgency`nin varlığı durum + closesAt'e bağlı, saatten bağımsız).
+  const hydrated = useHydrated();
   const urgency = closingUrgency(l.status, l.closesAt);
   const days = daysUntil(l.closesAt) ?? 99;
   const activity = l.company.activities[0];
@@ -111,7 +118,7 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
         icon: "closing",
         value: (
           <span title={formatDate(l.closesAt, "datetime", locale)}>
-            <span className={cn("font-semibold", urgency && days <= 3 ? urgency.className : "text-slate-900")}>
+            <span className={cn("font-semibold", hydrated && urgency && days <= 3 ? urgency.className : "text-slate-900")}>
               {formatDate(l.closesAt, "short", locale) || "—"}
             </span>
             {/* Kalan süre ALT SATIRDA (2026-09-13, kullanıcı kararı): rozet
@@ -123,10 +130,10 @@ export function ListingTeaserRow({ listing: l }: { listing: PublicListingCard })
                 <span
                   className={cn(
                     "inline-flex rounded px-1.5 py-0.5 text-[11px] font-semibold ring-1",
-                    days <= 1 ? "bg-rose-50 text-rose-700 ring-rose-200" : days <= 3 ? "bg-amber-50 text-amber-700 ring-amber-200" : "bg-slate-50 text-slate-600 ring-slate-200",
+                    !hydrated ? "invisible ring-transparent" : days <= 1 ? "bg-rose-50 text-rose-700 ring-rose-200" : days <= 3 ? "bg-amber-50 text-amber-700 ring-amber-200" : "bg-slate-50 text-slate-600 ring-slate-200",
                   )}
                 >
-                  {urgency.text}
+                  {hydrated ? urgency.text : "\u00a0"}
                 </span>
               </span>
             ) : null}

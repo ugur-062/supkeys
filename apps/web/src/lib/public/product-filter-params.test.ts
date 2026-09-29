@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { activeFilterCount, buildProductFilterQuery, clearProductFilters, parseProductFilters, toProductListParams } from "./product-filter-params";
+import { activeFilterCount, buildProductFilterQuery, clearProductFilters, parseProductFilters, productSearchCarry, toProductListParams } from "./product-filter-params";
 
 describe("ürün süzgeç URL şeması", () => {
   it("Türkçe sorguyu ayrıştırır: çoklu şehir/faaliyet, aralık, sıralama", () => {
@@ -9,6 +9,17 @@ describe("ürün süzgeç URL şeması", () => {
   });
   it("yoldan gelen kategori sorgudakini ezer; eski `il` parametresi okunur", () => {
     expect(parseProductFilters({ kategori: "11000000", il: "Bursa" }, "39000000")).toMatchObject({ category: "39000000", cities: ["Bursa"] });
+  });
+  it("arama formu tüm süzgeçleri taşır, arama terimini ve sayfayı taşımaz", () => {
+    const f = parseProductFilters({ q: "pano", sehir: "Bursa", para: "EUR", fiyatMin: "500", fiyatMax: "2000", fiyatsizDahil: "1", moqMax: "10", sertifika: "ISO 9001", calisan: "11-50", hizli: "1", yakin: "bursa", mesafe: "100", adet: "48", nitelik: ["a:b", "c:d"], sayfa: "3" });
+    const carry = productSearchCarry(f);
+    expect(carry).toMatchObject({ para: ["EUR"], fiyatMin: ["500"], fiyatMax: ["2000"], fiyatsizDahil: ["1"], moqMax: ["10"], yakin: ["bursa"], mesafe: ["100"], adet: ["48"], nitelik: ["a:b", "c:d"] });
+    expect(carry.q).toBeUndefined();
+    expect(carry.sayfa).toBeUndefined();
+    // Taşınan alanlar + yeni terim, eski durumu (terim ve sayfa hariç) geri üretir.
+    const sp = new URLSearchParams();
+    for (const [k, vs] of Object.entries(carry)) for (const v of vs) sp.append(k, v);
+    expect(parseProductFilters(sp)).toEqual({ ...f, q: undefined, page: 1 });
   });
   it("kurucu ↔ ayrıştırıcı gidiş-dönüş kararlı", () => {
     const f = parseProductFilters({ sehir: "İzmir", sirala: "yeni", nitelik: "a:b", sayfa: "2" });

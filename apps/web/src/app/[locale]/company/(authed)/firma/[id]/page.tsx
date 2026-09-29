@@ -302,6 +302,7 @@ export default function CompanyProfilePage() {
               facts: [
                 {
                   label: t("format"),
+                  icon: "info",
                   value: (
                     <span className="font-medium text-slate-800">
                       {l.format === "ENGLISH_AUCTION" ? t("pazarlikEksiltme") : t("teklifToplama")}
@@ -310,6 +311,7 @@ export default function CompanyProfilePage() {
                 },
                 {
                   label: t("kalem"),
+                  icon: "items",
                   value:
                     typeof l.itemCount === "number" ? (
                       <span className="flex items-baseline gap-1">
@@ -325,10 +327,12 @@ export default function CompanyProfilePage() {
                 },
                 {
                   label: t("gorunurluk"),
+                  icon: "scope",
                   value: <ScopeChip targetCountries={l.targetCountries} />,
                 },
                 {
                   label: t("kapanis"),
+                  icon: "closing",
                   value: (
                     <span title={l.closesAt ? formatDate(l.closesAt, "datetime", locale) : undefined}>
                       <span className={cn("font-semibold", urgency && days <= 3 ? urgency.className : "text-slate-900")}>

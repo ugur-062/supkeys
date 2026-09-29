@@ -880,6 +880,7 @@
       "location": "Konum",
       "citySearch": "Şehir ara",
       "noCity": "Eşleşen şehir yok",
+      "noCountry": "Eşleşen ülke yok",
       "nearMe": "Yakınımda",
       "nearPlaceholder": "Şehir adı ya da Türk posta kodu",
       "nearAria": "Yakınımda — şehir adı ya da Türk posta kodu",
@@ -1892,7 +1893,8 @@
       "remembered": "Hatırladın mı?",
       "sent": "Eğer bu e-posta kayıtlıysa, şifre sıfırlama bağlantısı gönderildi. Gelen kutunu (ve spam klasörünü) kontrol et. Bağlantı 1 saat geçerli.",
       "sending": "Gönderiliyor…",
-      "submit": "Sıfırlama bağlantısı gönder"
+      "submit": "Sıfırlama bağlantısı gönder",
+      "failed": "Bağlantı gönderilemedi. Lütfen tekrar deneyin."
     },
     "signup": {
       "metaTitle": "Kaydol",
@@ -1910,7 +1912,13 @@
       "codeSent": "Doğrulama kodu e-postanıza gönderildi",
       "failed": "Kayıt başarısız",
       "alreadyVerified": "E-postanız zaten doğrulanmış. Lütfen giriş yapın.",
-      "phoneInvalid": "Seçili ülke için geçerli bir telefon numarası girin."
+      "phoneInvalid": "Seçili ülke için geçerli bir telefon numarası girin.",
+      "changeEmailTitle": "E-posta adresini düzelt",
+      "changeEmailSubtitle": "Doğrulama kodunu yeni adrese göndereceğiz. Hesabınız ve bilgileriniz korunur.",
+      "newEmail": "Yeni e-posta adresi",
+      "sendToNewEmail": "Kodu yeni adrese gönder",
+      "cancelChangeEmail": "Vazgeç",
+      "changeEmailFailed": "E-posta adresi değiştirilemedi"
     },
     "consents": {
       "termsAria": "Kullanıcı sözleşmesini kabul ediyorum",
@@ -6350,7 +6358,8 @@
         "satinalmaAnasayfasi": "Satınalma anasayfası",
         "urunAra": "Ürün Ara",
         "firmaninWebSitesi": "Firmanın web sitesi",
-        "bilgiIste": "Bilgi iste"
+        "bilgiIste": "Bilgi iste",
+        "bilgiIstemekIcinYetki": "Bilgi istemek için Satın Almacı yetkisi gerekir."
       },
       "marketBand": {
         "sonucTuru": "Sonuç türü",

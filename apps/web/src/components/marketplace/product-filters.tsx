@@ -52,7 +52,7 @@ import {
  */
 const MOQ_PRESETS = [10, 100, 1000] as const;
 import { useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 /**
  * ÜRÜN SÜZGEÇLERİ — istemci, checkbox tabanlı, ÇOKLU seçim (süzgeç v3).
@@ -284,8 +284,16 @@ function NearbyControls({
   const [text, setText] = useState("");
   const [options, setOptions] = useState<GeoCity[]>([]);
   const [open, setOpen] = useState(false);
+  // Kullanıcı seçili şehri düzenlerken süzgeci kendisi kaldırdı mı? O zaman
+  // near'ın düşmesi DIŞ değişim değildir — kutudaki metin silinmez (derin
+  // denetim S078: "Bursa" → "Burs" yazınca kutu boşalıyordu).
+  const clearedByTypingRef = useRef(false);
   // Durumdan kutuya: yalnız dışarıdan gelen değişimde (bağlantı, çip kaldırma).
   useEffect(() => {
+    if (!state.near && clearedByTypingRef.current) {
+      clearedByTypingRef.current = false;
+      return;
+    }
     setText(state.near ? currentName : "");
   }, [state.near, currentName]);
   // Öneri: yazılan metin seçili adla aynı değilse (250 ms gecikmeyle).
@@ -307,6 +315,7 @@ function NearbyControls({
   const radius = state.radius ?? 100;
   const accent = useFilterAccent();
   const choose = (slug: string) => {
+    clearedByTypingRef.current = false;
     setOpen(false);
     setOptions([]);
     update({ near: slug, radius });
@@ -326,6 +335,7 @@ function NearbyControls({
           if (/^\d{5}$/.test(e.target.value.trim()) && resolveProvince(e.target.value)) {
             choose(citySlug(resolveProvince(e.target.value)!.name));
           } else if (state.near && e.target.value !== currentName) {
+            clearedByTypingRef.current = true;
             update({ near: undefined, radius: undefined });
           }
         }}
@@ -419,7 +429,7 @@ function CountryGroup({
         selected={state.countries}
         idPrefix={`${idPrefix}-country`}
         onToggle={(k, on) => update((s) => ({ ...s, countries: on ? [...s.countries, k] : s.countries.filter((x) => x !== k) }))}
-        emptyText={t("noCity")}
+        emptyText={t("noCountry")}
       />
     </Group>
   );
@@ -676,8 +686,9 @@ function PriceGroup({
             const on = state.priceMin === r.from && state.priceMax === r.to;
             return (
               <button
-                key={`${r.from}-${r.to}`}
+                key={`${r.from ?? 0}-${r.to}`}
                 type="button"
+                aria-pressed={on}
                 onClick={() => (on ? setRange(undefined, undefined) : setRange(r.from, r.to))}
                 className={`tnum rounded-full px-2.5 py-1 text-xs transition ${
                   on
@@ -740,12 +751,15 @@ export function presetRanges(hist: {
   min: number;
   max: number;
   quantiles?: { p33: number; p66: number };
-}, formatPrice: (n: number) => string): { from: number; to: number; label: string }[] {
+}, formatPrice: (n: number) => string): { from: number | undefined; to: number; label: string }[] {
   // `formatPrice` sembolü dilin yazımıyla ekler (İngilizcede önde).
+  // İlk aralığın alt sınırı YOK (`undefined`, 0 değil): `fiyatMin=0` min
+  // kutusuna "0" yazıyor, debounce 0'ı boş sayıp 400 ms sonra ikinci bir
+  // yönlendirmeyle siliyordu — çip hiç seçili görünmüyordu (derin denetim S078).
   const q = hist.quantiles;
   if (!q || !(q.p33 < q.p66 && q.p66 < hist.max)) return [];
   return [
-    { from: 0, to: q.p33, label: `≤ ${formatPrice(q.p33)}` },
+    { from: undefined, to: q.p33, label: `≤ ${formatPrice(q.p33)}` },
     { from: q.p33, to: q.p66, label: `${formatPrice(q.p33)} – ${formatPrice(q.p66)}` },
     { from: q.p66, to: hist.max, label: `${formatPrice(q.p66)} +` },
   ];
@@ -801,7 +815,15 @@ export function ActiveFilterChips({ facets }: { facets: ProductFacets }) {
     });
   }
   for (const e of state.employees) chips.push({ key: `emp:${e}`, label: t("employeesChip", { bucket: employeeBucketLabel(e) }), onRemove: () => update((s) => ({ ...s, employees: s.employees.filter((x) => x !== e) })) });
-  for (const a of state.attrs) chips.push({ key: `attr:${a}`, label: a.slice(a.indexOf(":") + 1), onRemove: () => update((s) => ({ ...s, attrs: s.attrs.filter((x) => x !== a) })) });
+  // Çip, kenar çubuğuyla aynı etiketi basar: URL'deki değer kanonik
+  // (Türkçe), okuyucunun dilindeki ad facet'in `label`ında (derin denetim S078).
+  const attrLabel = (a: string) => {
+    const i = a.indexOf(":");
+    const key = a.slice(0, i);
+    const value = a.slice(i + 1);
+    return facets.attributes.find((f) => f.key === key)?.values.find((v) => v.value === value)?.label ?? value;
+  };
+  for (const a of state.attrs) chips.push({ key: `attr:${a}`, label: attrLabel(a), onRemove: () => update((s) => ({ ...s, attrs: s.attrs.filter((x) => x !== a) })) });
   return <FilterChipBar chips={chips} activeCount={activeFilterCount(state)} onClearAll={clear} />;
 }
 

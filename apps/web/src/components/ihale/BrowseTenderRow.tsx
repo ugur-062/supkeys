@@ -86,6 +86,7 @@ export function BrowseTenderRow({
 
   const firma = {
     label: tr("firma"),
+    icon: "company" as const,
     value: t.owner ? (
       <span className="flex min-w-0 items-center gap-1.5">
         <span className="flex size-5 shrink-0 items-center justify-center rounded-md bg-emerald-50">
@@ -107,6 +108,7 @@ export function BrowseTenderRow({
   };
   const kapanis = {
     label: tr("kapanis"),
+    icon: "closing" as const,
     value: (
       <span title={fullDate(t.closesAt)}>
         <span
@@ -125,6 +127,7 @@ export function BrowseTenderRow({
   };
   const kalem = {
     label: tr("kalem"),
+    icon: "items" as const,
     value: (
       <span className="flex items-baseline gap-1">
         <span className="font-semibold tabular-nums text-slate-900">{t.itemCount}</span>
@@ -137,6 +140,7 @@ export function BrowseTenderRow({
   };
   const kapsam = {
     label: tr("gorunurluk"),
+    icon: "scope" as const,
     value: (
       <span className="flex flex-col items-start gap-1">
         <ScopeChip targetCountries={t.targetCountries} />
@@ -150,6 +154,7 @@ export function BrowseTenderRow({
   };
   const kategori = {
     label: tr("kategori"),
+    icon: "category" as const,
     value:
       t.categories.length > 0 ? (
         <span title={t.categories.map((c) => c.name).join(", ")}>

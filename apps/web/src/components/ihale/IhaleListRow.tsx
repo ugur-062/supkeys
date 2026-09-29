@@ -205,6 +205,7 @@ export function IhaleListRow({
     facts: [
       {
         label: te("ownerColumn"),
+        icon: "info",
         value: (
           <span
             className="block truncate font-semibold text-slate-900"
@@ -219,6 +220,7 @@ export function IhaleListRow({
       // sayı gelen teklif sayısıdır.
       {
         label: tr("teklifler"),
+        icon: "people",
         value:
           t.bidCount > 0 ? (
             <Link
@@ -234,6 +236,7 @@ export function IhaleListRow({
       },
       {
         label: tr("gorunurluk"),
+        icon: "scope",
         value: (
           <span className="flex flex-col items-start gap-1">
             <ScopeChip targetCountries={t.targetCountries} />
@@ -247,6 +250,7 @@ export function IhaleListRow({
       },
       {
         label: tr("yayin"),
+        icon: "info",
         value: (
           <span className="text-slate-500" title={fullDate(t.publishedAt ?? t.createdAt)}>
             {shortDate(t.publishedAt ?? t.createdAt)}
@@ -255,6 +259,7 @@ export function IhaleListRow({
       },
       {
         label: tr("kapanis"),
+        icon: "closing",
         value: (
           <span title={fullDate(t.bidsCloseAt)}>
             <span className={cn("font-semibold", closeSoon ? "text-rose-600" : "text-slate-900")}>
@@ -268,6 +273,7 @@ export function IhaleListRow({
       },
       {
         label: tr("kategori"),
+        icon: "category",
         value:
           t.categories.length > 0 ? (
             <span title={t.categories.map((c) => c.name).join(", ")}>

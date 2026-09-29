@@ -683,9 +683,16 @@ function RelatedRow({
   );
 }
 
-/** Marka, satıcı firmanın adının parçası mı (ör. "Demo Gold" ⊂ "Demo Gold Makina")? */
+/**
+ * Marka, satıcı firmanın adının parçası mı (ör. "Demo Gold" ⊂ "Demo Gold Makina")?
+ * KELİME sınırında karşılaştırılır (derin denetim S077): düz alt dize
+ * "Algı Elektrik" içinde "LG"yi, "Kabbani Ltd" içinde "ABB"yi bulup gerçek
+ * markanın çipini gizliyordu.
+ */
 export function brandIsSeller(brand: string, companyName: string): boolean {
-  const b = foldSearchText(brand);
-  const c = foldSearchText(companyName);
-  return b.length > 0 && (c.includes(b) || b.includes(c));
+  const words = (s: string) => foldSearchText(s).split(/[^\p{L}\p{N}]+/u).filter(Boolean).join(" ");
+  const b = words(brand);
+  const c = words(companyName);
+  if (!b || !c) return false;
+  return ` ${c} `.includes(` ${b} `) || ` ${b} `.includes(` ${c} `);
 }

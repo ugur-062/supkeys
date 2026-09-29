@@ -174,6 +174,21 @@ export function buildProductFilterQuery(f: ProductFilterState): string {
   return s ? `?${s}` : "";
 }
 
+/**
+ * Arama formunun gizli alanları: yeni aramada TÜM mevcut süzgeçler korunur
+ * (fiyat aralığı, para, MOQ, sertifika, çalışan, hızlı yanıt, Yakınımda,
+ * adet dahil). URL şemasının TEK kaynağından (`buildProductFilterQuery`)
+ * türetilir — elle yazılan liste yeni anahtarları sessizce düşürüyordu
+ * (derin denetim S078). Arama terimi ve sayfa taşınmaz.
+ */
+export function productSearchCarry(f: ProductFilterState): Record<string, string[]> {
+  const out: Record<string, string[]> = {};
+  new URLSearchParams(buildProductFilterQuery({ ...f, q: undefined, page: 1 })).forEach((v, k) => {
+    (out[k] ??= []).push(v);
+  });
+  return out;
+}
+
 /** Aktif süzgeç sayısı (arama, sıralama ve sayfa hariç) — "Filtrele (3)". */
 export function activeFilterCount(f: ProductFilterState): number {
   return (
