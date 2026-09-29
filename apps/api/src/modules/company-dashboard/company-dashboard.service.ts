@@ -124,13 +124,15 @@ export class CompanyDashboardService {
       bidsPrev30,
       buyersActive,
     ] = await Promise.all([
-      // Henüz teklif verilmemiş açık ALIM davetleri.
+      // Henüz teklif verilmemiş açık ALIM davetleri. Sahibi askıdaki/pasif
+      // talep sayılmaz — tıklanınca 404 döner (derin denetim MU-20).
       this.prisma.listingInvitation.count({
         where: {
           invitedCompanyId: companyId,
           listing: {
             status: "OPEN",
             type: "ALIM",
+            company: { isActive: true, isBlocked: false },
             bids: {
               none: {
                 bidderCompanyId: companyId,

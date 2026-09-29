@@ -1,8 +1,10 @@
 /**
  * Derin denetim 2026-09-29 MU-20 — talep yaşam döngüsü:
  *  - doğrudan yayın (create asDraft:false) `company.listing.published` izi yazar;
- *  - düzenleme davetleri FARK olarak uygular: AI davetleri silinmez, yeni
- *    davetliye bildirim gider;
+ *  - düzenleme davetleri FARK olarak uygular: formda kalan davet (AI dahil)
+ *    yeniden yazılmaz, formdan çıkarılan (AI dahil) silinir, yeni davetliye
+ *    bildirim gider; pano davet sayacı askıdaki sahibin talebini saymaz;
+ *  - geçiş backfill'i o turda gönderilmiş RFQ teklifini taşınmış saymaz;
  *  - askıdaki firmanın talebi akıştan düşer / teklif almaz, askıdaki teklifçi
  *    kazandırılamaz;
  *  - RFQ "Yeni Tur" AUTO taşınan teklif turda bir kez revize edilebilir;
@@ -10,7 +12,11 @@
  *  - açan kullanıcı çıkarılınca/pasifleşince yaşayan talepler devredilir.
  */
 import { CompanyRole } from "@rothern/db";
+import { readFileSync } from "node:fs";
+import { join } from "node:path";
 import { CompanyUsersService } from "../../src/modules/company-users/company-users.service";
+import { ActionCenterService } from "../../src/modules/company-dashboard/action-center.service";
+import { CompanyDashboardService } from "../../src/modules/company-dashboard/company-dashboard.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { prisma, truncateAll } from "./test-db";
@@ -131,12 +137,10 @@ describe("düzenleme davetleri fark olarak uygular (S030)", () => {
     return { service, owner, aiMember, kept, added, listing, aiInv, keptInv, dto };
   }
 
-  it("bağlantısız AI davetlisi (formda olsa da olmasa da) korunur; mevcut satır yeniden yazılmaz", async () => {
+  it("formda kalan bağlantısız AI davetlisi korunur; mevcut satır yeniden yazılmaz", async () => {
     const { service, owner, aiMember, kept, listing, aiInv, keptInv, dto } = await setup();
     // Form AI davetlisini geri gönderiyor (map-detail-to-form) — bağlantı şartına takılmaz.
     await service.updateListing(owner.auth, listing.id, dto(["AAAA-1111", "KKKK-2222"]));
-    // Form AI davetlisini hiç göndermiyor — yine silinmez.
-    await service.updateListing(owner.auth, listing.id, dto(["KKKK-2222"]));
     const rows = await prisma.listingInvitation.findMany({
       where: { listingId: listing.id },
       select: { id: true, invitedCompanyId: true, origin: true, aiReason: true },
@@ -148,9 +152,24 @@ describe("düzenleme davetleri fark olarak uygular (S030)", () => {
     await expect(service.getOne(aiMember.auth, listing.id)).resolves.toBeTruthy();
   });
 
+  it("alıcının formdan çıkardığı AI davetlisi (seçicide görünen bağlantılı firma) silinir, erişimi biter", async () => {
+    const { service, owner, aiMember, kept, listing, dto } = await setup();
+    // Bağlantılı firma da AI keşfiyle davet edilebilir → SupplierPicker'da seçili görünür.
+    await connect(prisma, owner.company.id, aiMember.company.id, owner.user.id);
+    await expect(service.getOne(aiMember.auth, listing.id)).resolves.toBeTruthy();
+    await service.updateListing(owner.auth, listing.id, dto(["KKKK-2222"]));
+    const rows = await prisma.listingInvitation.findMany({
+      where: { listingId: listing.id },
+      select: { invitedCompanyId: true },
+    });
+    expect(rows.map((r) => r.invitedCompanyId)).toEqual([kept.company.id]);
+    // PRIVATE talep: bağlantı yetmez, davet gider → talep artık görünmez.
+    await expect(service.getOne(aiMember.auth, listing.id)).rejects.toThrow(/bulunamadı/);
+  });
+
   it("formdan çıkarılan elle davet silinir; yalnız AI davetlisi kalan özel talep düzenlenebilir", async () => {
     const { service, owner, aiMember, listing, dto } = await setup();
-    await service.updateListing(owner.auth, listing.id, dto([]));
+    await service.updateListing(owner.auth, listing.id, dto(["AAAA-1111"]));
     const rows = await prisma.listingInvitation.findMany({
       where: { listingId: listing.id },
       select: { invitedCompanyId: true },
@@ -232,6 +251,50 @@ describe("askıdaki firma (X11)", () => {
       service.onAwardApproved({ listingId: listing.id, payload: { kind: "full", bidId: bid.id } }),
     ).rejects.toThrow(/askıda/);
     expect(await prisma.companyOrder.count({ where: { listingId: listing.id } })).toBe(0);
+  });
+});
+
+describe("pano davet sayacı askıdaki sahibi saymaz (X11)", () => {
+  it("askıdaki/pasif alıcının açık talebine gelen davet Aksiyon Merkezi ve sayaçta görünmez", async () => {
+    const owner = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      status: "OPEN",
+      type: "ALIM",
+      format: "RFQ",
+      visibility: "PRIVATE",
+      publishedAt: new Date(),
+      closesAt: FUTURE,
+    });
+    await prisma.listingInvitation.create({
+      data: { listingId: listing.id, invitedCompanyId: seller.company.id, invitedById: owner.user.id },
+    });
+    const actionCenter = new ActionCenterService(prisma as never);
+    const dashboard = new CompanyDashboardService(
+      prisma as never,
+      { getRateOnDate: jest.fn().mockResolvedValue(1) } as never,
+    );
+    const invites = async () =>
+      (await actionCenter.satis(seller.company.id)).rows.find((r) => r.key === "unansweredInvites")
+        ?.count ?? 0;
+    const active = async () =>
+      ((await dashboard.satisStats(seller.auth)) as { invitations: { active: number } }).invitations
+        .active;
+    expect(await invites()).toBe(1);
+    expect(await active()).toBe(1);
+
+    await prisma.company.update({ where: { id: owner.company.id }, data: { isBlocked: true } });
+    expect(await invites()).toBe(0);
+    expect(await active()).toBe(0);
+
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: { isBlocked: false, isActive: false },
+    });
+    expect(await invites()).toBe(0);
+    expect(await active()).toBe(0);
   });
 });
 
@@ -341,6 +404,83 @@ describe("RFQ yeni turunda taşınan teklif (X11)", () => {
       myBid: { canReviseCarried: boolean };
     };
     expect(after.myBid.canReviseCarried).toBe(false);
+  });
+});
+
+describe("RFQ activeBidRound geçiş backfill'i (X11)", () => {
+  const sql = readFileSync(
+    join(
+      __dirname,
+      "../../../../packages/db/prisma/migrations/20260929230000_rfq_active_bid_round_backfill/migration.sql",
+    ),
+    "utf8",
+  );
+
+  it("o turda sıfırdan gönderilmiş legacy RFQ teklifi kilitlenir; taşınan teklif revize hakkını korur", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, {});
+    const carriedSeller = await makeCompanyWithUser(prisma, {});
+    const freshSeller = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      status: "OPEN",
+      format: "RFQ",
+      visibility: "PUBLIC",
+      publishedAt: new Date(),
+      closesAt: FUTURE,
+      currentRound: 2,
+    });
+    const item = await makeItem(prisma, listing.id);
+    const roundStart = new Date(Date.now() - DAY);
+    // Tur 1 → 2 geçişinde createNextRound'un yazdığı damga.
+    await prisma.listingRoundSnapshot.create({
+      data: {
+        listingId: listing.id,
+        round: 1,
+        bidderName: "Taşınan",
+        amount: 1000,
+        createdAt: roundStart,
+      },
+    });
+    // Legacy durum (kural öncesi): iki teklifin de activeBidRound'u NULL.
+    const carried = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: carriedSeller.company.id,
+      createdById: carriedSeller.user.id,
+      status: "SUBMITTED",
+      amount: 1000,
+      round: 2,
+      submittedAt: new Date(roundStart.getTime() - DAY),
+      items: [{ itemId: item.id, unitPrice: 1000 }],
+    });
+    const fresh = await makeBid(prisma, {
+      listingId: listing.id,
+      bidderCompanyId: freshSeller.company.id,
+      createdById: freshSeller.user.id,
+      status: "SUBMITTED",
+      amount: 900,
+      round: 2,
+      submittedAt: new Date(roundStart.getTime() + 3_600_000),
+      items: [{ itemId: item.id, unitPrice: 900 }],
+    });
+    const canRevise = async (auth: typeof owner.auth) =>
+      ((await service.getOne(auth, listing.id)) as { myBid: { canReviseCarried: boolean } }).myBid
+        .canReviseCarried;
+    // Backfill öncesi: sıfırdan gönderilen de "taşınmış" sanılıyor (açık).
+    expect(await canRevise(freshSeller.auth)).toBe(true);
+
+    await prisma.$executeRawUnsafe(sql);
+    await prisma.$executeRawUnsafe(sql); // idempotent
+
+    const rows = await prisma.listingBid.findMany({
+      where: { id: { in: [carried.id, fresh.id] } },
+      select: { id: true, activeBidRound: true },
+    });
+    expect(rows.find((r) => r.id === fresh.id)?.activeBidRound).toBe(2);
+    expect(rows.find((r) => r.id === carried.id)?.activeBidRound).toBeNull();
+    expect(await canRevise(freshSeller.auth)).toBe(false);
+    expect(await canRevise(carriedSeller.auth)).toBe(true);
   });
 });
 

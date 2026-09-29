@@ -272,8 +272,13 @@ export class ActionCenterService {
 
     const [invitations, myBids, submittedBids, orders, inquiries] = await Promise.all([
       // Açık davetler (teklif verilmemişleri frontend değil BURADA süzüyoruz).
+      // Sahibi askıdaki/pasif talep panelde görünmez (sellerVisibleWhere,
+      // getOne 404) — davet de sayılmaz (derin denetim MU-20).
       this.prisma.listingInvitation.findMany({
-        where: { invitedCompanyId: companyId, listing: { status: "OPEN" } },
+        where: {
+          invitedCompanyId: companyId,
+          listing: { status: "OPEN", company: { isActive: true, isBlocked: false } },
+        },
         select: {
           listingId: true,
           listing: { select: { closesAt: true } },

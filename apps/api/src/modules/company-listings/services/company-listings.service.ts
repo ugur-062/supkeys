@@ -1897,17 +1897,18 @@ export class CompanyListingsService {
     // Davet edilecek firmaları çöz. Davetler FARK olarak uygulanır (derin
     // denetim MU-20): bağlantı şartı yalnız YENİ eklenen firmaya aranır —
     // mevcut davetli (bağlantısı sonradan düşmüş ya da AI keşfinden bağlantısız
-    // davet edilmiş) formda kaldığı sürece korunur. AI kaynaklı davetler
-    // (`origin:"AI"`) düzenleme formundan yönetilmez: davet e-postası gitmiş,
-    // origin/aiReason taşıyan satır düzenlemeyle SİLİNMEZ.
+    // davet edilmiş) formda kaldığı sürece korunur; formda kalan satır yeniden
+    // yazılmaz (AI davetinin origin/aiReason'ı durur). Form TÜM davetlileri
+    // geri gönderir (map-detail-to-form; seçicide görünmeyen bağlantısız AI
+    // davetlisi değerde gizli kalır) → formda OLMAYAN davetli, kaynağı ne
+    // olursa olsun alıcının çıkardığı davetlidir ve silinir. AI satırını
+    // koşulsuz korumak, seçicide görünen bağlantılı AI davetlisini "çıkarılmış
+    // gibi görünüp erişimi süren" hâle sokuyordu.
     const priorInvites = await this.prisma.listingInvitation.findMany({
       where: { listingId },
-      select: { invitedCompanyId: true, origin: true },
+      select: { invitedCompanyId: true },
     });
     const priorInvited = new Set(priorInvites.map((i) => i.invitedCompanyId));
-    const aiInvited = priorInvites
-      .filter((i) => i.origin === "AI")
-      .map((i) => i.invitedCompanyId);
     let inviteCompanyIds: string[] = [];
     if (dto.invitations?.length) {
       const connectedIds = await this.connectedCompanyIds(user.companyId);
@@ -1926,7 +1927,7 @@ export class CompanyListingsService {
             (connectedIds.includes(id) || priorInvited.has(id)),
         );
     }
-    const finalInvitedCount = new Set([...inviteCompanyIds, ...aiInvited]).size;
+    const finalInvitedCount = new Set(inviteCompanyIds).size;
 
     await this.validateListingBusinessRules(dto, {
       format,
@@ -2084,15 +2085,11 @@ export class CompanyListingsService {
         }
       }
 
-      // Davetleri FARK olarak uygula: formdan çıkarılan elle davetler silinir,
-      // AI davetleri korunur, yalnız yeni firmalar eklenir (mevcut satır
-      // yeniden yazılmaz → yeni davetli kümesi doğru hesaplanır).
+      // Davetleri FARK olarak uygula: formdan çıkarılan davetler silinir,
+      // formda kalanlar (AI dahil) dokunulmadan kalır, yalnız yeni firmalar
+      // eklenir (mevcut satır yeniden yazılmaz → yeni davetli kümesi doğru).
       await tx.listingInvitation.deleteMany({
-        where: {
-          listingId,
-          invitedCompanyId: { notIn: inviteCompanyIds },
-          OR: [{ origin: null }, { origin: { not: "AI" } }],
-        },
+        where: { listingId, invitedCompanyId: { notIn: inviteCompanyIds } },
       });
       const stillInvited = new Set(
         (

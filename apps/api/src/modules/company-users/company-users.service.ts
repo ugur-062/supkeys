@@ -1898,11 +1898,6 @@ export class CompanyUsersService {
   }
 
   /**
-   * lockedAdminTx'i son-yönetici denial audit'iyle sarmalar: tx içinde atılan
-   * LastActiveAdminError abort'tan SONRA iz bırakır, sonra aynen yukarı fırlar
-   * (davranış değişmez — hâlâ 400 + aynı mesaj).
-   */
-  /**
    * TALEP SORUMLULUĞU DEVRİ (derin denetim MU-20): talep yönetimi yalnız ilanı
    * AÇANA açık (`listingManageDenial`, SAHİP istisnası yok). Açan kişi
    * çıkarılınca/pasifleşince yaşayan talepleri (taslak → değerlendirme,
@@ -1933,6 +1928,11 @@ export class CompanyUsersService {
     return { transferred: res.count, toUserId: res.count > 0 ? toUserId : null };
   }
 
+  /**
+   * lockedAdminTx'i son-yönetici denial audit'iyle sarmalar: tx içinde atılan
+   * LastActiveAdminError abort'tan SONRA iz bırakır, sonra aynen yukarı fırlar
+   * (davranış değişmez — hâlâ 400 + aynı mesaj).
+   */
   private async lockedAdminTxAudited<T>(
     actor: AuthenticatedCompanyUser,
     targetId: string,
