@@ -173,6 +173,101 @@ describe("CompanyInboxView — ?with= derin linki", () => {
     expect(screen.getByTestId("thread")).toHaveTextContent("satis|buyerA|Alıcı A");
   });
 
+  // Gözden geçirme R-4: kalıcı oturum anlık görüntüsünde izinler bayat/eksik
+  // olabilir (/me gelince düzelir). Sabitleme effect'i o aralıkta fallback
+  // "satinalma"yı state'e yazıp açık ?portal=satis değerini kalıcı eziyordu.
+  describe("bayat izin anlık görüntüsü (/me sonradan düzeltir)", () => {
+    const BOTH = ["buy:view", "sell:view", "sell:bid:submit"];
+    const satisThread = {
+      portal: "satis",
+      threadId: "t1",
+      otherPartyId: "buyerA",
+      otherPartyName: "Alıcı A",
+      lastMessagePreview: "Merhaba",
+      lastMessageAt: "2026-09-29T08:00:00.000Z",
+      unread: true,
+    };
+    // Devre dışı sorgu (izin yok): data yok, isLoading=false.
+    const disabled = {
+      data: undefined as unknown as unknown[],
+      isLoading: false,
+    };
+
+    it("izin yokken açık ?portal=satis ezilmez", () => {
+      h.permissions = [];
+      h.search = "with=buyerA&portal=satis";
+      h.threads = disabled;
+      const { rerender } = render(<CompanyInboxView />);
+      expect(screen.queryByTestId("thread")).not.toBeInTheDocument();
+
+      h.permissions = BOTH;
+      h.threads = { isLoading: false, data: [satisThread] };
+      rerender(<CompanyInboxView />);
+      expect(screen.getByTestId("thread")).toHaveTextContent(
+        "satis|buyerA|Alıcı A",
+      );
+    });
+
+    it("izin yokken portalsız link yönü /me sonrası konuşmalardan çözülür", () => {
+      h.permissions = [];
+      h.search = "with=buyerA";
+      h.threads = disabled;
+      const { rerender } = render(<CompanyInboxView />);
+
+      h.permissions = BOTH;
+      h.threads = { isLoading: false, data: [satisThread] };
+      rerender(<CompanyInboxView />);
+      expect(screen.getByTestId("thread")).toHaveTextContent(
+        "satis|buyerA|Alıcı A",
+      );
+    });
+
+    it("tek taraf izinliyken açık ?portal=satis, ikinci taraf gelince açılır", () => {
+      h.permissions = ["buy:view"];
+      h.search = "with=buyerA&portal=satis";
+      h.threads = { isLoading: false, data: [] };
+      h.threadRes = (_portal, id) => ({
+        data: { otherParty: { id, name: "Alıcı A" }, messages: [] },
+        isLoading: false,
+        isError: false,
+      });
+      const { rerender } = render(<CompanyInboxView />);
+      // Rol olan tek taraf gösterilir ama seçim yazılmaz.
+      expect(screen.getByTestId("thread")).toHaveTextContent(
+        "satinalma|buyerA|Alıcı A",
+      );
+
+      h.permissions = BOTH;
+      h.threads = { isLoading: false, data: [satisThread] };
+      rerender(<CompanyInboxView />);
+      expect(screen.getByTestId("thread")).toHaveTextContent(
+        "satis|buyerA|Alıcı A",
+      );
+    });
+
+    it("tek taraf izinliyken portalsız link, ikinci taraf gelince var olan konuşmaya çözülür", () => {
+      h.permissions = ["buy:view"];
+      h.search = "with=buyerA";
+      h.threads = { isLoading: false, data: [] };
+      h.threadRes = (_portal, id) => ({
+        data: { otherParty: { id, name: "Alıcı A" }, messages: [] },
+        isLoading: false,
+        isError: false,
+      });
+      const { rerender } = render(<CompanyInboxView />);
+      expect(screen.getByTestId("thread")).toHaveTextContent(
+        "satinalma|buyerA|Alıcı A",
+      );
+
+      h.permissions = BOTH;
+      h.threads = { isLoading: false, data: [satisThread] };
+      rerender(<CompanyInboxView />);
+      expect(screen.getByTestId("thread")).toHaveTextContent(
+        "satis|buyerA|Alıcı A",
+      );
+    });
+  });
+
   it("portalsız link, konuşmalar yüklenirken yön seçilmez (iskelet)", () => {
     h.permissions = ["buy:view", "sell:view"];
     h.search = "with=buyerA";

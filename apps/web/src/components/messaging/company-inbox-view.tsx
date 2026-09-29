@@ -155,11 +155,24 @@ export function CompanyInboxView() {
   // yeniden hesaplansaydı, LIVE yoklamada okunmamış bayrağı düşünce ya da
   // öbür yönde yeni okunmamış gelince seçim diğer konuşmaya kayar, sohbet
   // yeniden bağlanıp taslak silinirdi.
+  // Gözden geçirme R-4: YALNIZ yönü belirsiz (portalsız) seçim ve YALNIZ yön
+  // gerçekten çözüldüğünde yazılır. Açık `?portal=` / kullanıcı seçimi asla
+  // ezilmez: kalıcı oturum anlık görüntüsünde izinler bayat/eksikken
+  // (myPortals boş ya da tek taraf) fallback "satinalma" state'e yazılıyor,
+  // /me doğru izinleri getirince ters yöndeki boş konuşma kilitleniyordu.
+  // Tek taraflı kullanıcıda yön zaten belirlenimci (tek seçenek), kayma
+  // yok — sabitlenmez; ikinci taraf sonradan verilirse taze veriyle çözülür.
+  const pinReady =
+    allowed &&
+    myPortals.length > 1 &&
+    !threads.isLoading &&
+    threads.data !== undefined;
   useEffect(() => {
-    if (selected && activePortal && selected.portal !== activePortal) {
-      setSelected({ id: selected.id, portal: activePortal });
+    if (!pinReady || !selected || selected.portal !== null || !activePortal) {
+      return;
     }
-  }, [selected, activePortal]);
+    setSelected({ id: selected.id, portal: activePortal });
+  }, [pinReady, selected, activePortal]);
 
   const knownName =
     rows.find((r) => r.id === selected?.id)?.name ??
