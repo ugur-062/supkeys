@@ -44,7 +44,7 @@ vi.mock("@/hooks/use-ai-assistant", () => ({
   useAssistantSessions: () => ({ data: h.sessions }),
   useAssistantSession: (id: string | null) => (id ? h.loaded : { data: undefined, isFetching: false }),
   useSendAssistantMessage: () => ({ isPending: false, mutateAsync: h.send }),
-  useDeleteAssistantSession: () => ({ isPending: false, mutate: h.del }),
+  useDeleteAssistantSession: () => ({ isPending: false, mutateAsync: h.del }),
   useAssistantAction: () => ({ isPending: false, mutateAsync: h.action }),
 }));
 
@@ -130,16 +130,62 @@ describe("AssistantPanel — sohbet akışı (S071)", () => {
   it("aktif sohbeti silmek yalnız başarıda sohbeti temizler", async () => {
     h.sessions = [{ id: "S", title: "Sohbetim", lastMessageAt: "2026-09-30T10:00:00+03:00", turnCount: 1 }];
     h.send.mockResolvedValueOnce({ sessionId: "S", reply: "Merhaba", toolsUsed: [], suggestNewChat: false });
+    const d = deferred<void>();
+    h.del.mockReturnValueOnce(d.promise);
     render(<AssistantPanel />);
     await sendText("Selam");
     await screen.findByText("Merhaba");
 
     fireEvent.click(screen.getByRole("button", { name: "Geçmiş sohbetler" }));
     fireEvent.click(screen.getByRole("button", { name: "Sil" }));
-    expect(h.del).toHaveBeenCalledWith("S", expect.objectContaining({ onSuccess: expect.any(Function) }));
+    expect(h.del).toHaveBeenCalledWith("S");
     // Sonuç gelmeden temizlenmez.
     expect(screen.getByText("Selam")).toBeInTheDocument();
-    act(() => h.del.mock.calls[0]![1].onSuccess());
+    await act(async () => {
+      d.resolve();
+      await d.promise;
+    });
+    expect(screen.queryByText("Selam")).toBeNull();
+  });
+
+  it("aktif sohbet silinemezse sohbet yerinde kalır", async () => {
+    h.sessions = [{ id: "S", title: "Sohbetim", lastMessageAt: "2026-09-30T10:00:00+03:00", turnCount: 1 }];
+    h.send.mockResolvedValueOnce({ sessionId: "S", reply: "Merhaba", toolsUsed: [], suggestNewChat: false });
+    h.del.mockRejectedValueOnce(new Error("500"));
+    render(<AssistantPanel />);
+    await sendText("Selam");
+    await screen.findByText("Merhaba");
+
+    fireEvent.click(screen.getByRole("button", { name: "Geçmiş sohbetler" }));
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Sil" }));
+    });
+    expect(screen.getByText("Selam")).toBeInTheDocument();
+  });
+
+  it("aktif sohbet silinirken başka sohbet silinse de aktif sohbet başarıda temizlenir", async () => {
+    h.sessions = [
+      { id: "S", title: "Sohbetim", lastMessageAt: "2026-09-30T10:00:00+03:00", turnCount: 1 },
+      { id: "T", title: "Diğeri", lastMessageAt: "2026-09-29T10:00:00+03:00", turnCount: 1 },
+    ];
+    h.send.mockResolvedValueOnce({ sessionId: "S", reply: "Merhaba", toolsUsed: [], suggestNewChat: false });
+    const dS = deferred<void>();
+    const dT = deferred<void>();
+    h.del.mockReturnValueOnce(dS.promise).mockReturnValueOnce(dT.promise);
+    render(<AssistantPanel />);
+    await sendText("Selam");
+    await screen.findByText("Merhaba");
+
+    fireEvent.click(screen.getByRole("button", { name: "Geçmiş sohbetler" }));
+    const [delS, delT] = screen.getAllByRole("button", { name: "Sil" });
+    fireEvent.click(delS!);
+    fireEvent.click(delT!);
+    expect(h.del.mock.calls.map((c) => c[0])).toEqual(["S", "T"]);
+    await act(async () => {
+      dT.resolve();
+      dS.resolve();
+      await Promise.all([dS.promise, dT.promise]);
+    });
     expect(screen.queryByText("Selam")).toBeNull();
   });
 

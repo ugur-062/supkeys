@@ -555,11 +555,16 @@ export function AssistantPanel({
                       // `void mutateAsync` reddi unhandled rejection'dı ve
                       // aktif sohbet silme başarısızken de temizleniyordu.
                       // Hata toast'ını companyApi interceptor'ı gösterir.
-                      del.mutate(s.id, {
-                        onSuccess: () => {
+                      // Çağrı başına promise: `mutate(id, { onSuccess })`
+                      // geri çağrıları TanStack v5'te yalnız SON mutate için
+                      // çalışır; A'yı silerken B silinirse A'nın temizliği
+                      // kaçardı (gözden geçirme).
+                      del
+                        .mutateAsync(s.id)
+                        .then(() => {
                           if (sessionIdRef.current === s.id) startNew();
-                        },
-                      })
+                        })
+                        .catch(() => {})
                     }
                     className="text-zinc-400 opacity-0 transition-opacity hover:text-danger-500 focus-visible:opacity-100 group-hover:opacity-100"
                   >
