@@ -39,6 +39,18 @@ async function signupVerified() {
   return { ...rig, dto, user };
 }
 
+/**
+ * Kurulum kodunun adımı saklanır (tekrar kullanım engeli, derin denetim
+ * LU-33) → aynı 30 sn'lik adımda giriş kodu reddedilir. Girişi sınayan
+ * testler kurulumu bir önceki adımda yapılmış sayar.
+ */
+async function ageTotpStep(userId: string) {
+  await prisma.companyUser.update({
+    where: { id: userId },
+    data: { twoFactorLastTotpStep: { decrement: 1 } },
+  });
+}
+
 afterAll(async () => {
   await truncateAll();
   await prisma.$disconnect();
@@ -105,6 +117,7 @@ describe("2FA yaşam döngüsü", () => {
     const { service, user, dto } = await signupVerified();
     const { secret } = await service.setupTwoFactor(user.id);
     await service.enableTwoFactor(user.id, authenticator.generate(secret));
+    await ageTotpStep(user.id);
 
     const noCode = (await service.login({
       email: dto.email,
@@ -511,6 +524,7 @@ describe("2FA hesap bazlı deneme freni + TOTP tekrar kullanım engeli (derin de
     const rig = await signupVerified();
     const { secret } = await rig.service.setupTwoFactor(rig.user.id);
     await rig.service.enableTwoFactor(rig.user.id, authenticator.generate(secret));
+    await ageTotpStep(rig.user.id);
     const login = (code: string) =>
       rig.service.login({ email: rig.dto.email, password: rig.dto.password, code } as never);
     return { ...rig, secret, login };
@@ -572,5 +586,27 @@ describe("2FA hesap bazlı deneme freni + TOTP tekrar kullanım engeli (derin de
     const ok = (await login(code)) as { token?: string };
     expect(ok.token).toBeTruthy();
     await expect(login(code)).rejects.toThrow(/kodu hatalı/i);
+  });
+
+  it("kurulumda girilen TOTP kodu girişte tekrar kabul edilmez; yeniden açınca da (derin denetim LU-33)", async () => {
+    const { service, user, dto } = await signupVerified();
+    const login = (code: string) =>
+      service.login({ email: dto.email, password: dto.password, code } as never);
+    const first = await service.setupTwoFactor(user.id);
+    const setupCode = authenticator.generate(first.secret);
+    const { recoveryCodes } = await service.enableTwoFactor(user.id, setupCode);
+    await expect(login(setupCode)).rejects.toThrow(/kodu hatalı/i);
+
+    // Kapat (adım null'a çekilir) → yeniden kur: kurulum kodu yine saklanır.
+    await service.disableTwoFactor(user.id, recoveryCodes[0]!);
+    const second = await service.setupTwoFactor(user.id);
+    const secondCode = authenticator.generate(second.secret);
+    await service.enableTwoFactor(user.id, secondCode);
+    const db = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: user.id },
+      select: { twoFactorLastTotpStep: true },
+    });
+    expect(db.twoFactorLastTotpStep).not.toBeNull();
+    await expect(login(secondCode)).rejects.toThrow(/kodu hatalı/i);
   });
 });

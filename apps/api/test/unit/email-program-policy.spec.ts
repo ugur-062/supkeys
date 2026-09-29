@@ -63,6 +63,24 @@ describe("kategori eşleşmesi: günde 3 anında, fazlası akşam özeti", () =>
       digestDue({ now: new Date(lateItem.getTime() + DAY), timeZone: tz, oldestItemAt: lateItem, lastDigestAt: new Date(lateItem.getTime() + DAY - 3_600_000) }),
     ).toBe(true);
   });
+
+  it("sabah telafisi aynı günün 18:00 özetini engellemez; özet akşama geri döner (derin denetim LU-33)", () => {
+    const tz = "Europe/Istanbul";
+    // 07 Ekim akşam özeti kaçtı → 08 Ekim 10:00 telafi özeti gitti.
+    const catchUp = new Date("2026-10-08T07:00:00Z"); // İstanbul 10:00
+    const noonItem = new Date("2026-10-08T11:00:00Z"); // İstanbul 14:00
+    // Öğlen gelen kalem akşama dek bekler...
+    expect(digestDue({ now: new Date("2026-10-08T13:00:00Z"), timeZone: tz, oldestItemAt: noonItem, lastDigestAt: catchUp })).toBe(false);
+    // ...ve 18:00'de gider (eskiden sabah damgası akşamı kapatıyordu).
+    const evening = new Date("2026-10-08T15:00:00Z"); // İstanbul 18:00
+    expect(digestDue({ now: evening, timeZone: tz, oldestItemAt: noonItem, lastDigestAt: catchUp })).toBe(true);
+    // Akşam özeti gittikten sonra o gün ikincisi yine gitmez.
+    const lateItem = new Date("2026-10-08T16:00:00Z");
+    expect(digestDue({ now: new Date("2026-10-08T18:00:00Z"), timeZone: tz, oldestItemAt: lateItem, lastDigestAt: evening })).toBe(false);
+    // Öğlen 24 saat tavanıyla giden özet de akşamı engellemez.
+    const capDigest = new Date("2026-10-08T10:00:00Z"); // İstanbul 13:00
+    expect(digestDue({ now: evening, timeZone: tz, oldestItemAt: noonItem, lastDigestAt: capDigest })).toBe(true);
+  });
 });
 
 describe("karşılama serisi (davranışa bağlı)", () => {

@@ -2922,8 +2922,10 @@ export class CompanyListingsService {
       };
     };
 
+    // Bağlantılar bir kez Set'e: ilan × bağlantı karesel taraması yok.
+    const connectedSet = new Set(connectedIds);
     const rows = all.map((l) => {
-      const connected = connectedIds.includes(l.companyId);
+      const connected = connectedSet.has(l.companyId);
       const invited = invitedSet.has(l.id);
       const bid = bidByListing.get(l.id);
       const pm = productMatcher.match(

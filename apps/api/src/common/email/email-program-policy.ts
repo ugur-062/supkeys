@@ -36,23 +36,32 @@ export function categoryMatchInstantAllowed(p: { sentTodayLocal: number; allInst
  * Akşam özeti gönderilme zamanı geldi mi?
  *
  * GÜNDE TEK ÖZET (derin denetim MU-14): `lastDigestAt` bu adres × türe son
- * gönderilen özetin anı. Alıcının yerel gününde zaten özet gittiyse o gün
- * ikincisi GİTMEZ; 18:00 özetinden sonra düşen kalemler ertesi günün
- * 18:00'ini bekler (eskiden gece yarısına dek her 15 dk'da ayrı "özet"
- * gidiyordu). "Dünden kalan kalem sabah da gider" kuralı yalnız o günün
- * özeti KAÇTIYSA geçerli; 24 saati aşan kalem her zaman gider.
+ * gönderilen özetin anı. Alıcının yerel gününde zaten AKŞAM özeti (yerel
+ * 18:00 ve sonrası) gittiyse o gün ikincisi GİTMEZ; 18:00 özetinden sonra
+ * düşen kalemler ertesi günün 18:00'ini bekler (eskiden gece yarısına dek her
+ * 15 dk'da ayrı "özet" gidiyordu). "Dünden kalan kalem sabah da gider" kuralı
+ * yalnız o günün akşam özeti KAÇTIYSA geçerli; 24 saati aşan kalem her zaman
+ * gider.
+ *
+ * Sabah telafisi ya da 24 saat tavanıyla 18:00'den ÖNCE giden özet o günün
+ * akşam özetini ENGELLEMEZ (derin denetim LU-33): eskiden sabah damgası
+ * `last >= dayStart` ile akşamı kapatıyor, sonraki kalemler 24 saat tavanına
+ * kalıyor ve özet kalıcı olarak sabah/öğlen saatine kayıyordu.
  */
 export function digestDue(p: { now: Date; timeZone: string; oldestItemAt: Date; lastDigestAt?: Date | null }): boolean {
   if (p.now.getTime() - p.oldestItemAt.getTime() >= DIGEST_MAX_WAIT_MS) return true;
   const dayStart = localDayStart(p.now, p.timeZone);
   const last = p.lastDigestAt ?? null;
-  if (last && last >= dayStart) return false;
+  // `since` gününden bu yana yerel 18:00 ve sonrasında özet gitti mi?
+  const eveningDigestSince = (since: Date): boolean =>
+    !!last && last >= since && zonedParts(last, p.timeZone).hour >= DIGEST_LOCAL_HOUR;
+  if (eveningDigestSince(dayStart)) return false;
   const local = zonedParts(p.now, p.timeZone);
   if (local.hour >= DIGEST_LOCAL_HOUR) return true;
   // Öğeler bugün eklendiyse akşam 18:00'i bekler. Dünden kalan öğe sabah da
-  // gider — ama yalnız öğenin günündeki özet kaçtıysa (o gün hiç özet yoksa).
+  // gider — ama yalnız öğenin günündeki akşam özeti kaçtıysa.
   if (p.oldestItemAt >= dayStart) return false;
-  return !last || last < localDayStart(p.oldestItemAt, p.timeZone);
+  return !eveningDigestSince(localDayStart(p.oldestItemAt, p.timeZone));
 }
 
 /** Yerel saat ipucu/özet penceresinde mi (10:00-10:59)? */

@@ -55,6 +55,16 @@ const MAX_IMAGE_PIXELS = 60_000_000;
  * "HEIF Max" `gorselCozunurluguCokYuksek` 400 alır. Ek olarak süreç genelinde
  * aynı anda TEK HEIC çözülür (bkz. acquireHeicDecodeSlot) — eşzamanlı istekler
  * tepe belleği üst üste bindiremez.
+ *
+ * KALAN RİSK (derin denetim LU-33) — bu tavan OOM'a karşı KESİN koruma DEĞİL:
+ * aynı hesapla 25 MP ≈ 250 MB tepe; ~405 MB sürekli RSS'in üstüne 512 MB'ı
+ * yine aşabilir ve küçülmeyen WASM yığını tek bir 24 MP çözmeden sonra RSS'i
+ * kalıcı olarak ~5,5N (≈135 MB) büyütür. (405 MB ölçümü büyük makinede
+ * alındı; V8 512 MB'ta daha sıkı GC yapar, gerçek pay belirsiz.) Tek yuva
+ * yalnız tepeyi TEK çözmeyle sınırlar. Risk O-8 ile izlenir (Render bellek
+ * izleme, gerekirse Standard plan). Kalıcı çözüm: HEIC çözmeyi `resourceLimits`
+ * verilmiş bir worker_thread'e taşımak — WASM yığını her çözmeden sonra
+ * worker'la birlikte serbest kalır.
  */
 export const MAX_HEIC_PIXELS = 25_000_000;
 /** HEIC çözme sırasında en uzun bekleme; aşılırsa 429 (tekrar denenebilir). */

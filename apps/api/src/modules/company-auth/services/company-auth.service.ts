@@ -1451,6 +1451,19 @@ export class CompanyAuthService {
     }
   }
 
+  /**
+   * TOTP kodunu doğrular; geçerliyse kabul edilen zaman adımını döndürür
+   * (tekrar kullanım engeli için saklanır), değilse null. Adım hesabı ile
+   * doğrulama AYNI ana sabitlenir (adım sınırında kayma olmasın).
+   */
+  private totpStep(code: string, encryptedSecret: string): number | null {
+    const totp = authenticator.clone({ epoch: Date.now() });
+    const delta = totp.checkDelta(code, this.decryptSecret(encryptedSecret));
+    if (delta === null) return null;
+    const { epoch, step: period } = totp.allOptions();
+    return Math.floor(epoch / 1000 / period) + delta;
+  }
+
   private async checkTwoFactorCode(
     userId: string,
     user: {
@@ -1466,15 +1479,11 @@ export class CompanyAuthService {
         return { ok: true, usedRecovery: false };
       }
     } else if (user.twoFactorSecret) {
-      // Adım hesabı ile doğrulama AYNI ana sabitlenir (adım sınırında kayma olmasın).
-      const totp = authenticator.clone({ epoch: Date.now() });
-      const delta = totp.checkDelta(trimmed, this.decryptSecret(user.twoFactorSecret));
-      if (delta !== null) {
+      const step = this.totpStep(trimmed, user.twoFactorSecret);
+      if (step !== null) {
         // TEKRAR KULLANIM ENGELİ: kabul edilen adım saklanır; aynı (ya da daha
         // eski) adımın kodu ikinci kez geçmez. Koşullu yazım → eşzamanlı iki
         // istekte yalnız biri geçer.
-        const { epoch, step: period } = totp.allOptions();
-        const step = Math.floor(epoch / 1000 / period) + delta;
         const { count } = await this.bypass.companyUser.updateMany({
           where: {
             id: userId,
@@ -1624,12 +1633,11 @@ export class CompanyAuthService {
     if (!user?.twoFactorSecret) {
       throw new BadRequestException(i18nMessage("api.companyAuth.once2faKurulumunuBaslatin"));
     }
-    if (
-      !authenticator.verify({
-        token: code.trim(),
-        secret: this.decryptSecret(user.twoFactorSecret),
-      })
-    ) {
+    // Kurulumda girilen kodun adımı da saklanır (derin denetim LU-33): eskiden
+    // yalnız doğrulanıyordu; kapatma alanı null'a çektiği için yeniden açtıktan
+    // sonra aynı kod aynı adım penceresinde girişte bir kez daha geçiyordu.
+    const step = this.totpStep(code.trim(), user.twoFactorSecret);
+    if (step === null) {
       throw new BadRequestException(i18nMessage("api.companyAuth.dogrulamaKoduHatali"));
     }
     const recoveryCodes = this.generateRecoveryCodes();
@@ -1639,6 +1647,7 @@ export class CompanyAuthService {
         twoFactorEnabled: true,
         twoFactorEnabledAt: new Date(),
         twoFactorMethod: "AUTHENTICATOR",
+        twoFactorLastTotpStep: step,
         twoFactorRecoveryCodes: recoveryCodes.map((c) =>
           this.hashRecoveryCode(c),
         ),
