@@ -6,7 +6,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
-import type { AdminRole } from "@rothern/db";
+import type { AdminRole, Prisma } from "@rothern/db";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
@@ -108,16 +108,9 @@ export class AdminStaffService {
     if (target.role === "SUPER_ADMIN" && role !== "SUPER_ADMIN") {
       // Dalga B: sayım + yazım ayrıydı — eşzamanlı iki düşürme ikisi de
       // "benden başka biri var" görüp sistemi 0 SUPER_ADMIN'le bırakabiliyordu.
-      // Sayım ve yazım tek transaction'da serileşir.
+      // Sayım ve yazım kilit altında tek transaction'da (bkz. guardLastSuperAdmin).
       await this.prisma.$transaction(async (tx) => {
-        const others = await tx.platformAdmin.count({
-          where: { role: "SUPER_ADMIN", isActive: true, id: { not: id } },
-        });
-        if (others === 0) {
-          throw new BadRequestException(
-            i18nMessage("api.adminAuth.sonAktifSuperAdminDusurulemezPasiflestirilemez"),
-          );
-        }
+        await this.guardLastSuperAdmin(tx, id);
         await tx.platformAdmin.update({ where: { id }, data: { role } });
       });
     } else {
@@ -141,27 +134,20 @@ export class AdminStaffService {
     if (id === actorId && !active) {
       throw new BadRequestException(i18nMessage("api.adminAuth.kendiniziPasiflestiremezsiniz"));
     }
+    // Derin denetim LU-02: pasifleştirme oturumları da iptal eder (firma
+    // tarafıyla aynı) — aksi halde yeniden aktifleştirmede süresi dolmamış
+    // eski JWT'ler (tv hâlâ eşleşir) tekrar geçerli olurdu.
+    const data = active
+      ? { isActive: true }
+      : { isActive: false, tokenVersion: { increment: 1 } };
     if (target.role === "SUPER_ADMIN" && !active) {
-      // Dalga B: bkz. setRole — sayım + yazım tek transaction'da.
+      // Dalga B: bkz. setRole — sayım + yazım kilit altında tek transaction'da.
       await this.prisma.$transaction(async (tx) => {
-        const others = await tx.platformAdmin.count({
-          where: { role: "SUPER_ADMIN", isActive: true, id: { not: id } },
-        });
-        if (others === 0) {
-          throw new BadRequestException(
-            i18nMessage("api.adminAuth.sonAktifSuperAdminDusurulemezPasiflestirilemez"),
-          );
-        }
-        await tx.platformAdmin.update({
-          where: { id },
-          data: { isActive: false },
-        });
+        await this.guardLastSuperAdmin(tx, id);
+        await tx.platformAdmin.update({ where: { id }, data });
       });
     } else {
-      await this.prisma.platformAdmin.update({
-        where: { id },
-        data: { isActive: active },
-      });
+      await this.prisma.platformAdmin.update({ where: { id }, data });
     }
     await this.audit.log({
       action: active ? "admin.staff.activated" : "admin.staff.deactivated",
@@ -205,6 +191,26 @@ export class AdminStaffService {
       critical: true,
     });
     return { ok: true, tempPassword: password };
+  }
+
+  /**
+   * Son aktif SUPER_ADMIN kapısı — çağıran transaction içinde. Derin denetim
+   * LU-02: READ COMMITTED'da düz `count` satır kilitlemez; A↔B'yi aynı anda
+   * düşüren iki tx ikisi de "benden başka 1 var" görüp 0 SUPER_ADMIN
+   * bırakıyordu (write-skew). Önce tüm SUPER_ADMIN satırları FOR UPDATE ile
+   * kilitlenir → ikinci tx birinci commit edene kadar bekler; sonraki `count`
+   * yeni snapshot'la birincinin yazımını görür ve reddeder.
+   */
+  private async guardLastSuperAdmin(tx: Prisma.TransactionClient, id: string) {
+    await tx.$queryRaw`SELECT id FROM platform_admins WHERE role = 'SUPER_ADMIN' FOR UPDATE`;
+    const others = await tx.platformAdmin.count({
+      where: { role: "SUPER_ADMIN", isActive: true, id: { not: id } },
+    });
+    if (others === 0) {
+      throw new BadRequestException(
+        i18nMessage("api.adminAuth.sonAktifSuperAdminDusurulemezPasiflestirilemez"),
+      );
+    }
   }
 
   private async requireStaff(id: string) {
