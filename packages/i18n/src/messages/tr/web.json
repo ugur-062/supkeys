@@ -2036,6 +2036,13 @@
     }
   },
   "panel": {
+    "termsGate": {
+      "title": "Sözleşmeleri onaylayın",
+      "description": "Hesabınız firmanızın talebi üzerine Rothern ekibi tarafından açıldı. Platformu kullanmaya devam etmek için aşağıdaki sözleşmeleri okuyup onaylamanız gerekiyor.",
+      "submit": "Onayla ve devam et",
+      "logout": "Çıkış yap",
+      "failed": "Onay kaydedilemedi. Lütfen tekrar deneyin."
+    },
     "shell": {
       "assistantLauncher": {
         "karsilamaMesajiniKapat": "Karşılama mesajını kapat",

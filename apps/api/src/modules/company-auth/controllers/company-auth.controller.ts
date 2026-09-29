@@ -20,6 +20,7 @@ import {
   type AuthenticatedCompanyUser,
 } from "../decorators/current-company-user.decorator";
 import {
+  AcceptTermsDto,
   ChangePasswordDto,
   TwoFactorCodeDto,
   UpdateMeDto,
@@ -141,6 +142,17 @@ export class CompanyAuthController {
     @Body() dto: UpdateMeDto,
   ) {
     return this.service.updateMe(user.userId, dto);
+  }
+
+  /** Sözleşme onayı — onay izi olmayan hesabın ilk girişteki kapısı (MU-04). */
+  @Post("accept-terms")
+  @UseGuards(CompanyJwtAuthGuard)
+  @HttpCode(HttpStatus.OK)
+  acceptTerms(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Body() dto: AcceptTermsDto,
+  ) {
+    return this.service.acceptTerms(user.userId, dto);
   }
 
   @Patch("me/notifications")

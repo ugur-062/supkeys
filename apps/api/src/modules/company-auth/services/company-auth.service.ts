@@ -1516,6 +1516,58 @@ export class CompanyAuthService {
     };
   }
 
+  /**
+   * Sözleşme onayı (derin denetim 2026-09-29 MU-04) — admin eliyle açılan
+   * hesap kullanıcı sözleşmesi / aracılık sözleşmesi / KVKK onayı izi olmadan
+   * doğuyordu. `/me` `needsTermsAcceptance` döner, panel kapısı onayı
+   * kullanıcının KENDİSİNDEN alır. Yalnız boş alan yazılır (kayıt/davet
+   * kabulündeki ilk onay tarihi ezilmez); isteğe bağlı rızalar yalnız ilk
+   * onayda (Ayarlar'daki tercih ekranının yerine geçmez).
+   */
+  async acceptTerms(
+    userId: string,
+    dto: {
+      marketingConsent?: boolean;
+      profileImprovementConsent?: boolean;
+    },
+  ) {
+    const user = await this.prisma.companyUser.findUnique({
+      where: { id: userId },
+      select: {
+        email: true,
+        termsAcceptedAt: true,
+        mediationAcceptedAt: true,
+        kvkkAcceptedAt: true,
+      },
+    });
+    if (!user) throw new UnauthorizedException();
+    const needed = needsTermsAcceptance(user);
+    if (needed) {
+      const now = new Date();
+      await this.prisma.companyUser.update({
+        where: { id: userId },
+        data: {
+          ...(user.termsAcceptedAt ? {} : { termsAcceptedAt: now }),
+          ...(user.mediationAcceptedAt ? {} : { mediationAcceptedAt: now }),
+          ...(user.kvkkAcceptedAt ? {} : { kvkkAcceptedAt: now }),
+          ...(dto.marketingConsent !== undefined
+            ? { marketingConsent: dto.marketingConsent }
+            : {}),
+          ...(dto.profileImprovementConsent !== undefined
+            ? { profileImprovementConsent: dto.profileImprovementConsent }
+            : {}),
+        },
+      });
+      void this.audit.log({
+        action: "company.user.terms_accepted",
+        actorType: "company",
+        actorId: userId,
+        actorEmail: user.email,
+      });
+    }
+    return this.getMe(userId);
+  }
+
   // ============================================================
   // HESAP AYARLARI (eski ayarlar — kişisel)
   // ============================================================
@@ -1730,6 +1782,8 @@ export class CompanyAuthService {
         (user.notificationPrefs as Record<string, boolean> | null) ?? null,
       lastLoginAt: user.lastLoginAt,
       locale: user.locale,
+      // Onay izi eksik (admin eliyle açılan hesap) → panel onay kapısı.
+      needsTermsAcceptance: needsTermsAcceptance(user),
     };
   }
 
@@ -1841,3 +1895,15 @@ export function parseViesResponse(data: unknown): {
   };
 }
 
+
+/**
+ * Kişi bazlı sözleşme onayı eksik mi — üç zorunlu onaydan biri bile yoksa true
+ * (derin denetim 2026-09-29 MU-04; kayıt ve davet kabulü üçünü birden yazar).
+ */
+export function needsTermsAcceptance(user: {
+  termsAcceptedAt: Date | null;
+  mediationAcceptedAt: Date | null;
+  kvkkAcceptedAt: Date | null;
+}): boolean {
+  return !user.termsAcceptedAt || !user.mediationAcceptedAt || !user.kvkkAcceptedAt;
+}

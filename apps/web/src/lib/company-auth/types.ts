@@ -32,6 +32,11 @@ export interface CompanyUserDto {
   lastLoginAt: string | null;
   /** Arayüz dili (tr/en/ru) — @rothern/i18n LOCALES; eski anlık görüntüde olmayabilir. */
   locale?: Locale;
+  /**
+   * Sözleşme/KVKK onay izi eksik (admin eliyle açılan hesap) → panel onay
+   * kapısı (`TermsAcceptanceGate`). Eski anlık görüntüde olmayabilir.
+   */
+  needsTermsAcceptance?: boolean;
 }
 
 export interface CompanyProfile {

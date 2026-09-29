@@ -5729,6 +5729,36 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "api.notifications.listings.adminClosed.body": {
+    "hash": "0a823bd820",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "api.notifications.listings.adminClosed.subject": {
+    "hash": "84f6321cf7",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "api.notifications.listings.adminClosed.title": {
+    "hash": "e14d3965ca",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "api.notifications.listings.adminReopened.body": {
+    "hash": "323f5259c9",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "api.notifications.listings.adminReopened.subject": {
+    "hash": "74f57cc663",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "api.notifications.listings.adminReopened.title": {
+    "hash": "74f57cc663",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.notifications.listings.aiInvitation.body": {
     "hash": "815dd3280e",
     "status": "reviewed",
@@ -31883,6 +31913,31 @@
     "hash": "8681449c24",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.termsGate.description": {
+    "hash": "8805a8add8",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.termsGate.failed": {
+    "hash": "fc251857aa",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.termsGate.logout": {
+    "hash": "8d1ab12a49",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.termsGate.submit": {
+    "hash": "b272eb96a0",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.termsGate.title": {
+    "hash": "170e666edd",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.trade.approvalDetailPanel.birimFiyat": {
     "hash": "2e173f3d50",

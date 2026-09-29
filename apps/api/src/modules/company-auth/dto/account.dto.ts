@@ -1,5 +1,7 @@
 import { LOCALES } from "@rothern/i18n";
 import {
+  Equals,
+  IsBoolean,
   IsIn,
   IsObject,
   IsOptional,
@@ -69,4 +71,31 @@ export class TwoFactorCodeDto {
   @MinLength(6, { message: () => tApi("api.dto.account.altiHaneliKodGirin") })
   @MaxLength(10)
   code!: string;
+}
+
+/**
+ * Sözleşme onayı — onay izi olmayan hesabın (admin eliyle açılan üye) ilk
+ * girişte kendisinin verdiği onay (derin denetim 2026-09-29 MU-04). Kayıt ve
+ * davet kabulündeki üç zorunlu onayın aynısı.
+ */
+export class AcceptTermsDto {
+  @IsBoolean()
+  @Equals(true, { message: () => tApi("api.dto.companyUser.kullaniciSozlesmesiniKabulEtmelisiniz") })
+  termsAccepted!: boolean;
+
+  @IsBoolean()
+  @Equals(true, { message: () => tApi("api.dto.companyUser.aracilikVeKullanimSozlesmesiniKabulEtmelisiniz") })
+  mediationAccepted!: boolean;
+
+  @IsBoolean()
+  @Equals(true, { message: () => tApi("api.dto.companyUser.kvkkAydinlatmaMetniniOnaylamalisiniz") })
+  kvkkAccepted!: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  marketingConsent?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  profileImprovementConsent?: boolean;
 }

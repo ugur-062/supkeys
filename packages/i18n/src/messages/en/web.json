@@ -2036,6 +2036,13 @@
     }
   },
   "panel": {
+    "termsGate": {
+      "title": "Accept the agreements",
+      "description": "Your account was created by the Rothern team at your company's request. To keep using the platform, please read and accept the agreements below.",
+      "submit": "Accept and continue",
+      "logout": "Log out",
+      "failed": "Your acceptance could not be saved. Please try again."
+    },
     "shell": {
       "assistantLauncher": {
         "karsilamaMesajiniKapat": "Dismiss welcome message",
