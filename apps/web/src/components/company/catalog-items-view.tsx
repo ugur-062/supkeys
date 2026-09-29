@@ -11,6 +11,8 @@ import { Button } from "@/components/ui/button";
 import { Heading, Subheading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
 import { SearchInput } from "@/components/list";
+import { ErrorState } from "@/components/ui/error-state";
+import { Skeleton } from "@/components/ui/skeleton";
 import { useDebouncedValue } from "@/hooks/use-debounced-value";
 import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useUnitLabel } from "@/i18n/domain";
@@ -75,8 +77,13 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
     onError: (err) => toast.error(extractErrorMessage(err, t("islemBasarisiz"))),
   });
 
-  const list = showArchived ? archived.data : active.data;
+  const current = showArchived ? archived : active;
+  const list = current.data;
   const items = list?.items ?? [];
+  // Yükleme/hata "boş katalog" sanılmasın (derin denetim S066): boş durum
+  // yalnız BAŞARILI ve boş yanıtta çizilir.
+  const listLoading = current.isLoading && !list;
+  const listError = current.isError && !list;
 
   return (
     <div className="space-y-6">
@@ -114,7 +121,24 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
         </Button>
       </div>
 
-      {items.length === 0 ? (
+      {listLoading ? (
+        <div
+          aria-busy="true"
+          className="divide-y divide-zinc-950/5 rounded-xl border border-zinc-950/10 bg-white"
+        >
+          {Array.from({ length: 4 }, (_, i) => (
+            <div key={i} className="space-y-2 px-4 py-3">
+              <Skeleton className="h-4 w-1/2" />
+              <Skeleton className="h-3 w-1/3" />
+            </div>
+          ))}
+        </div>
+      ) : listError ? (
+        <ErrorState
+          message={t("katalogYuklenemedi")}
+          onRetry={() => void current.refetch()}
+        />
+      ) : items.length === 0 ? (
         <div className="rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-10 text-center">
           <PackageSearch className="mx-auto h-6 w-6 text-zinc-400" aria-hidden />
           <Subheading className="mt-2">

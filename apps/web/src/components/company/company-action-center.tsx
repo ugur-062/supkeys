@@ -7,6 +7,7 @@ import { useActionCenter, type ActionCenterApiRow, type ActionSeverity } from "@
 import { useUnreadMessages } from "@/hooks/use-company-messages";
 import type { PortalKey } from "@/lib/company/portals";
 import { ACTION_ROWS } from "@/lib/dashboard/strings";
+import { calendarDaysBetween } from "@/lib/time-zone";
 import { cn } from "@/lib/utils";
 import { AlertTriangle, CheckCircle2, ChevronRight, Clock3, Info, type LucideIcon } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -18,7 +19,6 @@ import { Link } from "@/i18n/navigation";
  * öncelik sunucuda (`action-center?portal=`), metin haritası `ACTION_ROWS`.
  * Hiç iş yoksa tek satır; hata dalı KORUNUR (boş liste sanılmasın).
  */
-const DAY_MS = 86_400_000;
 type Group = "overdue" | "today" | "week" | "waiting";
 // Grup/önem etiketleri katalog anahtarı — çizim yerinde `t(key)`.
 const GROUP_KEY: Record<Group, string> = { overdue: "group.overdue", today: "group.today", week: "group.week", waiting: "group.waiting" };
@@ -37,10 +37,10 @@ export interface CompanyActionItem extends ActionCenterApiRow {
   href: string;
 }
 
+/** Vadeye kalan TAKVİM günü — Europe/Istanbul (derin denetim S066); tarayıcı
+ *  saat dilimi kullanılmaz, talep ekranlarındaki tarihle aynı güne düşer. */
 function daysUntil(dueAt: string): number {
-  const start = new Date();
-  start.setHours(0, 0, 0, 0);
-  return Math.floor((new Date(dueAt).getTime() - start.getTime()) / DAY_MS);
+  return calendarDaysBetween(new Date(), new Date(dueAt));
 }
 
 export function groupOf(r: ActionCenterApiRow): Group {

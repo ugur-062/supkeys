@@ -2080,6 +2080,7 @@
         "satinAlmaTalebiFormunuAc": "Открыть форму заявки на закупку",
         "onaylandiVeGerceklestirildi": "✓ Подтверждено и выполнено",
         "iptalEdildi": "Отменено",
+        "sonucDogrulanamadi": "Действие не выполнено или его результат не удалось подтвердить; проверьте соответствующую страницу.",
         "yurutuluyor": "Выполняется…",
         "onayla": "Подтвердить",
         "vazgec": "Отмена",
@@ -4017,6 +4018,7 @@
         "sen": "(Вы)",
         "tedarikci": "Поставщик",
         "kapandi": "Закрыто",
+        "teklifAlimiKapandi": "Приём предложений закрыт",
         "gunSaatGeriSayim": "{d}д {time}",
         "rakipBilgisiKapaliYalnizcaKendi": "Информация о конкурентах скрыта — Вы видите только своё предложение",
         "enIyiTeklifHerkeseGorunur": "Лучшее предложение видно всем",
@@ -4560,6 +4562,7 @@
         }
       },
       "catalogItemsView": {
+        "katalogYuklenemedi": "Не удалось загрузить каталог. Попробуйте ещё раз.",
         "kalemGeriAlindi": "Позиция восстановлена",
         "kalemArsivlendi": "Позиция архивирована",
         "islemBasarisiz": "Не удалось выполнить действие",
@@ -5629,6 +5632,7 @@
         "telefon": "Телефон",
         "yetkiler": "Права",
         "kendiYetkileriniziDuzenleyemezsinizKurucuVey": "Вы не можете изменять свои права — это должен сделать Основатель или другой руководитель.",
+        "kurucununYetkileriniYalnizKurucuDuzenler": "Права Основателя может изменять только сам Основатель.",
         "kullaniciHakkiDoluYeniKoltuk": "Лимит пользователей исчерпан — новое место выдать нельзя.",
         "satinalmaSatisIslemTikleriKoltuk": "Отметки действий по закупкам/продажам занимают место.",
         "kurucu2": "Основатель",
@@ -5796,6 +5800,12 @@
         "siparis": "заказ {n}",
         "alanlar": "поля: {list}",
         "yeniRoller": "новые роли: {list}",
+        "reason": {
+          "not_admin_grant": "Попытка назначить роль без прав руководителя",
+          "not_admin": "Попытка без прав изменить роль руководителя",
+          "missing_permission": "Нет необходимого права",
+          "not_creator": "Не является автором заявки"
+        },
         "sistem": "система",
         "sayfaKayit": "Страница {page}/{totalPages} — {total, plural, one {# запись} few {# записи} many {# записей} other {# записи}}"
       },
@@ -6034,6 +6044,7 @@
         "istekGonderildi": "Запрос отправлен",
         "sizeIstekGonderdiYanitla": "Вам отправлен запрос — Ответить",
         "baglantiIstegiGonder": "Отправить запрос на контакт",
+        "baglantiIcinSilver": "Для запроса на контакт нужен Silver",
         "dahaFazla": "Ещё",
         "baglantiyiKaldir": "Удалить контакт",
         "engelle": "Заблокировать",

@@ -5,7 +5,7 @@
  * izniyle arşivlenir. Düğme eskiden yalnız `templates:manage`'e bakıyordu ve
  * uç `sell:product:manage` istediği için Satın Almacı her tıklamada 403 alıyordu.
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { CatalogItem } from "@/hooks/use-company-items";
@@ -13,6 +13,8 @@ import type { CatalogItem } from "@/hooks/use-company-items";
 const h = vi.hoisted(() => ({
   perms: [] as string[],
   items: [] as unknown[],
+  status: "success" as "success" | "loading" | "error",
+  refetch: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
@@ -26,7 +28,10 @@ vi.mock("@/hooks/use-company-items", async (orig) => {
   const real = await orig<typeof import("@/hooks/use-company-items")>();
   return {
     ...real,
-    useCatalogItems: () => ({ data: { items: h.items, total: h.items.length } }),
+    useCatalogItems: () =>
+      h.status === "success"
+        ? { data: { items: h.items, total: h.items.length }, isLoading: false, isError: false, refetch: h.refetch }
+        : { data: undefined, isLoading: h.status === "loading", isError: h.status === "error", refetch: h.refetch },
   };
 });
 
@@ -68,6 +73,8 @@ function renderView() {
 }
 
 beforeEach(() => {
+  h.status = "success";
+  h.refetch.mockReset();
   h.perms = [];
   h.items = [
     item({ id: "a", name: "Katalog kalemi" }),
@@ -91,5 +98,28 @@ describe("CatalogItemsView — arşivle izni", () => {
   it("iki izin de yoksa düğme yok", () => {
     renderView();
     expect(screen.queryByRole("button", { name: /Arşivle/ })).not.toBeInTheDocument();
+  });
+});
+
+describe("CatalogItemsView — yükleme/hata boş katalog sanılmaz (derin denetim S066)", () => {
+  it("yüklenirken 'Katalog henüz boş' çizilmez", () => {
+    h.status = "loading";
+    renderView();
+    expect(screen.queryByText(/Katalog henüz boş/)).toBeNull();
+  });
+
+  it("hata verince yeniden dene seçeneği çizilir, boş durum çizilmez", () => {
+    h.status = "error";
+    renderView();
+    expect(screen.queryByText(/Katalog henüz boş/)).toBeNull();
+    expect(screen.getByRole("alert")).toHaveTextContent("Katalog yüklenemedi");
+    fireEvent.click(screen.getByRole("button", { name: /Tekrar dene/i }));
+    expect(h.refetch).toHaveBeenCalled();
+  });
+
+  it("başarılı ve boş yanıtta boş durum çizilir", () => {
+    h.items = [];
+    renderView();
+    expect(screen.getByText(/Katalog henüz boş/)).toBeInTheDocument();
   });
 });

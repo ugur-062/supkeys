@@ -192,7 +192,7 @@ export function CompanyOverview() {
               {ihale.data ? (
                 <>
                   <KpiCard label={t("acikTaleplerim")} value={ihale.data.openCount} href="/company/satinalma/taleplerim?status=OPEN" accent="blue" />
-                  <KpiCard label={t("gelenTeklifler")} value={ihale.data.bidsReceived} href="/company/satinalma/taleplerim?status=IN_AWARD" accent="blue" />
+                  <KpiCard label={t("gelenTeklifler")} value={ihale.data.bidsReceived} href="/company/satinalma/taleplerim?status=OPEN" accent="blue" />
                   <KpiCard label={t("kazandirilan")} value={ihale.data.awarded} href="/company/satinalma/taleplerim?status=AWARDED" accent="blue" />
                   <KpiCard label={t("devamEdenSiparis")} value={ihale.data.ongoingOrders} href="/company/satinalma/siparisler" accent="blue" />
                   <KpiCard

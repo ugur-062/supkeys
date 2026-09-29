@@ -54,8 +54,10 @@ interface LocalMsg {
   draft?: AiTenderExtractResult;
   /** AI-4 — onay bekleyen aksiyon kartı (backend'in doğrulanmış özeti). */
   pending?: AiPendingAction;
-  /** Kart karara bağlandı: executed/rejected — butonlar gizlenir. */
-  pendingResolved?: "executed" | "rejected";
+  /** Kart karara bağlandı — butonlar gizlenir. `failed`: onay isteği hata
+   *  verdi (zaman aşımı/ağ/iş hatası); sunucu aksiyonu yürütmeden önce
+   *  tükettiği için sonuç istemcide bilinmez — "İptal edildi" DENMEZ. */
+  pendingResolved?: "executed" | "rejected" | "failed";
   /** Canlı gelen yanıt — daktilo efektiyle yazılır (geçmişten yüklenen yazılmaz). */
   typed?: boolean;
   /** Kullanıcının bu mesajla gönderdiği belge adları — balonda chip olarak kalır. */
@@ -210,6 +212,15 @@ export function AssistantPanel({
   const del = useDeleteAssistantSession();
   const usage = useAiUsage();
   const endRef = useRef<HTMLDivElement>(null);
+  // SOHBET KİMLİĞİ (derin denetim S071): "Yeni sohbet"/geçmiş seçimi her
+  // seferinde artırır. Geç gelen yanıt/aksiyon sonucu, istek atıldığındaki
+  // sohbet artık ekranda değilse state'e YAZILMAZ — aksi halde A'nın yanıtı
+  // yeni sohbete düşüyor ve sessionId sessizce A'ya dönüyordu.
+  const convRef = useRef(0);
+  const sessionIdRef = useRef<string | null>(null);
+  useEffect(() => {
+    sessionIdRef.current = sessionId;
+  }, [sessionId]);
   const fileRef = useRef<HTMLInputElement>(null);
   const inputRef = useRef<HTMLTextAreaElement>(null);
 
@@ -235,7 +246,9 @@ export function AssistantPanel({
   }, []);
 
   useEffect(() => {
-    if (loaded.data && loaded.data.id === loadHistoryId) {
+    // Arka plan tazelemesi bitmeden yazma: önbellekteki eski kopya son
+    // mesajları eksik gösteriyordu (derin denetim S071).
+    if (loaded.data && loaded.data.id === loadHistoryId && !loaded.isFetching) {
       setSessionId(loaded.data.id);
       setMessages(
         loaded.data.messages.map((m: AiChatMessageDto) => ({
@@ -247,7 +260,7 @@ export function AssistantPanel({
       );
       setLoadHistoryId(null); // yüklendi — bir daha ezme
     }
-  }, [loaded.data, loadHistoryId]);
+  }, [loaded.data, loaded.isFetching, loadHistoryId]);
 
   useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -259,11 +272,13 @@ export function AssistantPanel({
     usage.data?.enabled === false ? false : (usage.data?.percentUsed ?? 0) >= 100;
 
   const openHistory = (id: string) => {
+    convRef.current += 1;
     setLoadHistoryId(id);
     setShowHistory(false);
   };
 
   const startNew = () => {
+    convRef.current += 1;
     setSessionId(null);
     setLoadHistoryId(null);
     setMessages([]);
@@ -275,6 +290,7 @@ export function AssistantPanel({
   const submit = async (preset?: string) => {
     const text = (preset ?? input).trim();
     if ((!text && files.length === 0) || send.isPending) return;
+    const conv = convRef.current;
     setInput("");
     const sentFiles = files;
     setFiles([]);
@@ -296,6 +312,7 @@ export function AssistantPanel({
         message: text,
         files: sentFiles.length > 0 ? sentFiles : undefined,
       });
+      if (conv !== convRef.current) return; // sohbet değişti — yanıt geçmişte
       setSessionId(reply.sessionId);
       setSuggestNew(reply.suggestNewChat);
       setMessages((m) => [
@@ -311,6 +328,7 @@ export function AssistantPanel({
         },
       ]);
     } catch (err) {
+      if (conv !== convRef.current) return;
       setMessages((m) => [
         ...m,
         {
@@ -331,12 +349,14 @@ export function AssistantPanel({
     decision: "confirm" | "reject",
   ) => {
     if (!sessionId || action.isPending) return;
+    const conv = convRef.current;
     try {
       const result = await action.mutateAsync({
         sessionId,
         actionId: pending.id,
         decision,
       });
+      if (conv !== convRef.current) return;
       setMessages((m) => [
         ...m.map((x) =>
           x.id === msgId ? { ...x, pendingResolved: result.status } : x,
@@ -349,9 +369,14 @@ export function AssistantPanel({
         },
       ]);
     } catch (err) {
+      if (conv !== convRef.current) return;
+      // Onay hatası "İptal edildi" değildir: sunucu aksiyonu yürütmeden önce
+      // tükettiği için (zaman aşımında) işlem tamamlanmış olabilir.
+      const resolved: LocalMsg["pendingResolved"] =
+        decision === "reject" ? "rejected" : "failed";
       setMessages((m) => [
         ...m.map((x) =>
-          x.id === msgId ? { ...x, pendingResolved: "rejected" as const } : x,
+          x.id === msgId ? { ...x, pendingResolved: resolved } : x,
         ),
         {
           id: `act-err-${m.length}`,
@@ -411,7 +436,8 @@ export function AssistantPanel({
           <button
             type="button"
             onClick={startNew}
-            className="flex items-center gap-1 rounded-full border border-zinc-950/10 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
+            disabled={send.isPending}
+            className="flex items-center gap-1 disabled:opacity-50 rounded-full border border-zinc-950/10 bg-white px-2.5 py-1.5 text-xs font-medium text-zinc-700 shadow-sm transition-colors hover:border-zinc-300 hover:bg-zinc-50 hover:text-zinc-900"
           >
             <Plus className="h-3.5 w-3.5" /> {tr("yeniSohbet")}
           </button>
@@ -502,7 +528,8 @@ export function AssistantPanel({
                   <button
                     type="button"
                     onClick={() => openHistory(s.id)}
-                    className="min-w-0 flex-1 text-left"
+                    disabled={send.isPending}
+                    className="min-w-0 flex-1 text-left disabled:opacity-60"
                   >
                     <p
                       className={cn(
@@ -523,10 +550,17 @@ export function AssistantPanel({
                   <button
                     type="button"
                     aria-label={tr("sil")}
-                    onClick={() => {
-                      void del.mutateAsync(s.id);
-                      if (sessionId === s.id) startNew();
-                    }}
+                    onClick={() =>
+                      // Sonuç beklenir, hata yutulur (derin denetim S071):
+                      // `void mutateAsync` reddi unhandled rejection'dı ve
+                      // aktif sohbet silme başarısızken de temizleniyordu.
+                      // Hata toast'ını companyApi interceptor'ı gösterir.
+                      del.mutate(s.id, {
+                        onSuccess: () => {
+                          if (sessionIdRef.current === s.id) startNew();
+                        },
+                      })
+                    }
                     className="text-zinc-400 opacity-0 transition-opacity hover:text-danger-500 focus-visible:opacity-100 group-hover:opacity-100"
                   >
                     <Trash2 className="h-4 w-4" />
@@ -768,7 +802,9 @@ export function AssistantPanel({
                     <p className="mt-3 rounded-lg bg-surface-subtle px-2 py-1.5 text-xs text-zinc-500">
                       {m.pendingResolved === "executed"
                         ? tr("onaylandiVeGerceklestirildi")
-                        : tr("iptalEdildi")}
+                        : m.pendingResolved === "failed"
+                          ? tr("sonucDogrulanamadi")
+                          : tr("iptalEdildi")}
                     </p>
                   ) : (
                     <div className="mt-3 flex gap-2">

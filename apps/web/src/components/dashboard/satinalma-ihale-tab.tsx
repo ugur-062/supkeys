@@ -148,7 +148,9 @@ export function SatinalmaIhaleTab({
         <KpiCard
           label={t("gelenTeklifler")}
           value={data.bidsReceived}
-          href="/company/satinalma/taleplerim?status=IN_AWARD"
+          // Sayım yalnız AÇIK taleplere gelen teklifler — hedef liste aynı küme
+          // (derin denetim S066; eskiden IN_AWARD'a gidip boş liste açıyordu).
+          href="/company/satinalma/taleplerim?status=OPEN"
           accent="blue"
           attention={(analytics?.actions.awaitingDecision ?? 0) > 0}
           hint={

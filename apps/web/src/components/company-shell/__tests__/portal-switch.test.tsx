@@ -90,6 +90,8 @@ describe("PortalSwitch", () => {
     // Gizlenmez: kullanıcı neyi kaçırdığını görmeli.
     expect(screen.getByLabelText("Paketle açılır")).toBeInTheDocument();
     expect(screen.getByText(/Gold paketiyle açılır/)).toBeInTheDocument();
+    // İki cümle boşlukla ayrılır (derin denetim S071: "kazandırırsınız.Gold").
+    expect(screen.getByText(/Gold paketiyle açılır/).textContent).toMatch(/\. Gold paketiyle açılır\.$/);
     // Bağlantı yine portalın kendi yoluna gider — `PortalGuard` orada karşılar.
     const satinalma = screen.getByText(/Talep açar/).closest("a");
     expect(satinalma).toHaveAttribute("href", "/company/satinalma");

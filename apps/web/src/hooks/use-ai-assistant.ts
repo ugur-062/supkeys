@@ -39,6 +39,11 @@ export function useAssistantSession(sessionId: string | null) {
       return data;
     },
     enabled: !!sessionId,
+    // Geçmişten yükleme TEK SEFERLİK okumadır; mesaj gönderimi bu anahtarı
+    // tazelemediği için önbellekteki kopya son turları eksik gösteriyordu
+    // (derin denetim S071). Her açılışta sunucudan taze okunur.
+    staleTime: 0,
+    gcTime: 0,
   });
 }
 

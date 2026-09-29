@@ -205,7 +205,8 @@ export function PortalSwitch({
                       </span>
                       <span className="mt-0.5 block text-xs text-zinc-600">
                         {t(NE_YAPAR[p] as never)}
-                        {!acik ? t("goldPaketiyleAcilir") : ""}
+                        {/* JSX satır sonu boşluk üretmez — cümleler bitişmesin. */}
+                        {!acik ? ` ${t("goldPaketiyleAcilir")}` : ""}
                       </span>
                     </span>
                   </Link>

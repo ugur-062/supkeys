@@ -30624,6 +30624,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.shell.assistantPanel.sonucDogrulanamadi": {
+    "hash": "e433b396c3",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.shell.assistantPanel.suAnYanitVeremedimLutfen": {
     "hash": "5d80dc7ac3",
     "status": "reviewed",
@@ -32568,6 +32573,11 @@
     "hash": "445588023a",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.catalogItemsView.katalogYuklenemedi": {
+    "hash": "6221620f70",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.trade.catalogItemsView.kezKullanildi": {
     "hash": "4ead1b2083",

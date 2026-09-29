@@ -2080,6 +2080,7 @@
         "satinAlmaTalebiFormunuAc": "Open buying request form",
         "onaylandiVeGerceklestirildi": "✓ Confirmed and completed",
         "iptalEdildi": "Canceled",
+        "sonucDogrulanamadi": "The action could not be completed or its result could not be confirmed; check the related page.",
         "yurutuluyor": "Running…",
         "onayla": "Confirm",
         "vazgec": "Cancel",
@@ -4017,6 +4018,7 @@
         "sen": "(You)",
         "tedarikci": "Supplier",
         "kapandi": "Closed",
+        "teklifAlimiKapandi": "Bidding closed",
         "gunSaatGeriSayim": "{d}d {time}",
         "rakipBilgisiKapaliYalnizcaKendi": "Competitor information is hidden — you only see your own quote",
         "enIyiTeklifHerkeseGorunur": "The best quote is visible to everyone",
@@ -4560,6 +4562,7 @@
         }
       },
       "catalogItemsView": {
+        "katalogYuklenemedi": "The catalog could not be loaded. Please try again.",
         "kalemGeriAlindi": "Line item restored",
         "kalemArsivlendi": "Line item archived",
         "islemBasarisiz": "Action failed",
@@ -5629,6 +5632,7 @@
         "telefon": "Phone",
         "yetkiler": "Permissions",
         "kendiYetkileriniziDuzenleyemezsinizKurucuVey": "You cannot edit your own permissions — the Founder or another manager has to do it.",
+        "kurucununYetkileriniYalnizKurucuDuzenler": "Only the Founder can edit the Founder's permissions.",
         "kullaniciHakkiDoluYeniKoltuk": "The user allowance is full — no new seat can be granted.",
         "satinalmaSatisIslemTikleriKoltuk": "Buying/sales action ticks use a seat.",
         "kurucu2": "Founder",
@@ -5796,6 +5800,12 @@
         "siparis": "order {n}",
         "alanlar": "fields: {list}",
         "yeniRoller": "new roles: {list}",
+        "reason": {
+          "not_admin_grant": "Role assignment attempted without manager permission",
+          "not_admin": "Unauthorized attempt to change a manager's role",
+          "missing_permission": "Required permission missing",
+          "not_creator": "Not the person who created the request"
+        },
         "sistem": "system",
         "sayfaKayit": "Page {page}/{totalPages} — {total, plural, one {# record} other {# records}}"
       },
@@ -6034,6 +6044,7 @@
         "istekGonderildi": "Request sent",
         "sizeIstekGonderdiYanitla": "Sent you a request — Reply",
         "baglantiIstegiGonder": "Send connection request",
+        "baglantiIcinSilver": "Upgrade to Silver to connect",
         "dahaFazla": "More",
         "baglantiyiKaldir": "Remove connection",
         "engelle": "Block",

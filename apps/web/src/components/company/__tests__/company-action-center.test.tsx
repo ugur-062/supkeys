@@ -50,6 +50,25 @@ describe("buildCompanyActions / groupOf", () => {
   });
 });
 
+describe("groupOf — takvim günü Europe/Istanbul (derin denetim S066)", () => {
+  it("UTC+5 tarayıcıda İstanbul'da aynı gün 22:30 vadeli iş 'Bugün'de kalır", () => {
+    const prevTz = process.env.TZ;
+    process.env.TZ = "Asia/Almaty";
+    vi.useFakeTimers({ toFake: ["Date"] });
+    try {
+      vi.setSystemTime(new Date("2026-10-01T10:00:00+03:00"));
+      // Almatı'da yerel saatle ertesi gün 00:30 — eski yerel gece yarısı
+      // hesabı bunu "Yarın" (week) grubuna atıyordu.
+      expect(groupOf(row({ dueAt: "2026-10-01T22:30:00+03:00" }))).toBe("today");
+      expect(groupOf(row({ dueAt: "2026-10-02T00:30:00+03:00" }))).toBe("week");
+    } finally {
+      vi.useRealTimers();
+      if (prevTz === undefined) delete process.env.TZ;
+      else process.env.TZ = prevTz;
+    }
+  });
+});
+
 describe("CompanyActionCenter", () => {
   it("iki portal birleşik, grup başlıkları ve portal rozetleri; toplam sayı başlıkta", () => {
     h.sa.data = { rows: [row({ key: "overduePayments", severity: "critical", count: 1, overdueDays: 3 })] };
