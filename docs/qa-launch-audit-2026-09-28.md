@@ -32,7 +32,7 @@
 | 12 | Arayüz ve erişilebilirlik | ✅ bitti |
 | 13 | Hukuk ve uyum | ✅ bitti (hukuk kararları listede) |
 | 14 | Altyapı ve operasyon | ✅ bitti (operatör matrisi) |
-| 15 | Yayın günü ve geri dönüş | ⏳ |
+| 15 | Yayın günü ve geri dönüş | ✅ bitti (runbook) |
 
 ---
 
@@ -719,4 +719,48 @@ Web production: `NEXT_PUBLIC_{API_URL,SITE_URL,CDN_URL,MARKETPLACE_LIVE}` ·
 PROJECT,URL,AUTH_TOKEN}` ✅. Admin production: `NEXT_PUBLIC_API_URL` ·
 `SENTRY_*` ✅ (`NEXT_PUBLIC_WEB_URL` yok → kod varsayılanı canlı için doğru).
 Bölge `fra1` koda bağlı (`vercel.json`), Node 22.
+
+---
+
+## Bölüm 15 — Yayın günü ve geri dönüş (runbook)
+
+Durum (2026-09-29): canlı DB'de 23–24 Eylül i18n migration'ları UYGULANMIŞ
+(salt-okunur `_prisma_migrations` sorgusuyla doğrulandı); `production`a giden
+fark **10 migration** (hepsi eklemeli — DROP/tip değişikliği/NOT NULL yok) +
+Bölüm 0–15 düzeltmeleri. Canlı DB boş (0 firma) → geçiş penceresinin kullanıcı
+etkisi yok denecek kadar az.
+
+### 15.1 Ön koşullar (hepsi ✓ olmadan başlanmaz)
+
+1. O-1 Render askısı kalktı (canlı + staging API `/api/health` 200).
+2. Kullanıcı kararları: B6-4 (ürün dili), H-2 (pazarlama rızası) — bekleyen karar yayını ENGELLEMEZ, sonradan katalog/koşul değişikliği.
+3. Yerel tam regresyon yeşil (API parçalı jest, web vitest, admin vitest, i18n, `next lint`, typecheck) — push'tan hemen önce.
+4. O-2 (SEO_REVALIDATE_SECRET ≥16, INDEXNOW_KEY, WEB_URL) ve O-3 (MARKETPLACE_LIVE) Render panelinde teyitli.
+
+### 15.2 Sıra
+
+| Adım | Ne | Doğrulama |
+|---|---|---|
+| 1 | `main`e **tek push** → staging: Vercel web/admin önizleme + Render api-staging (açılışta staging DB'ye `migrate deploy`) | Vercel derlemeleri yeşil; staging `/api/health` 200 |
+| 2 | Staging kurulum: `seed-geo-cities` → `backfill-city-ids` → `backfill-price-base` (her biri önce `--dry`) | `/urunler/sehir/de-munich` 200 |
+| 3 | Staging doğrulama: `pnpm --filter @rothern/web e2e:staging` + `SITE=https://staging.supkeys.com VERCEL_BYPASS=… seo:audit` | e2e yeşil (429 bekleme kuralıyla); SEO yalnız robots satırları (staging kanonik değil) |
+| 4 | **Canlı DB yedeği** (`docs/backup-restore-drill.md`) — API açılışta migrate koşar | yedek dosyası + boyut |
+| 5 | `gh pr create --base production --head main` → `gh pr merge --merge`; hemen `git checkout main` | CI yeşil |
+| 6 | Render canlı API dağıtımı (10 migration açılışta) — **API ÖNCE**: Vercel production derlemesi daha kısa sürerse birkaç dakika yeni web eski API'ye yeni parametre gönderir (400) — canlı boş olduğu için kabul; istenirse Vercel'de otomatik alan adı atamasını kapatıp API sağlıklıyken "Promote" | `/api/health` 200; Render günlüğünde "All migrations have been successfully applied" |
+| 7 | Canlı kurulum: O-11 (geo → city-ids → price-base, `ENV_FILE=../../.env.prod.local`, kabukta `source` ETME) | şehir sayfası 200 |
+| 8 | Canlı duman: anasayfa TR/EN/RU, `/urunler`, giriş, kayıt (e-posta kodu), `/sitemap.xml`, `/llms.txt`, bir herkese açık firma/ürün sayfası | 200 + içerik |
+| 9 | İzleme ilk 24 saat: Sentry (3 proje), Render bellek (O-8), Resend teslim/şikâyet, `admin/system` cron kaydı (hata 0), `/admin/buyume` soğuk davet sağlığı | — |
+| 10 | EN SON (O-16): GSC/Bing/Yandex doğrulama + sitemap gönderimi + canlı `seo:audit` | yeşil |
+
+### 15.3 Geri dönüş
+
+| Ne bozuldu | Hamle | Not |
+|---|---|---|
+| Web | Vercel → önceki production dağıtımına **Instant Rollback** | saniyeler |
+| API | Render → önceki dağıtıma rollback | migration'lar eklemeli → eski API yeni şemayla çalışır. **Uyarı:** enum `ADD VALUE` geri alınmaz; geri dönüşten önce yeni değerli satır (ör. referral `CANCELLED`, yeni para birimleri) oluştuysa eski Prisma istemcisi o satırı okurken hata verir — canlı boşken risk yok |
+| RLS kaynaklı erişim sorunu | `RLS_ENABLED=false` **ve** `DATABASE_URL` sahip role (İKİSİ BİRLİKTE) | CLAUDE.md kill-switch |
+| Pazar yeri | API `MARKETPLACE_LIVE=false` (anında) + web `NEXT_PUBLIC_MARKETPLACE_LIVE=false` (yeniden dağıtım) | ikisi de fail-closed |
+| Soğuk davet / itibar | `COLD_INVITE_MAX_DAILY=0` | anında durur (Bölüm 5) |
+| AI harcaması | `CONTENT_TRANSLATION_DAILY_USD=0` (çeviri), `AI_DISCOVERY_DAILY_USD=0` (keşif web araması — c89a0130), tümü: `GEMINI_API_KEY`/`GEMINI_SERVICE_ACCOUNT_JSON` boş | AI kapalıyken sayfalar kırılmaz (Bölüm 8) |
+| Veri kaybı | 4. adımdaki yedekten geri yükleme | son çare |
 
