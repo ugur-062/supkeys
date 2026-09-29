@@ -58,6 +58,9 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, "admin-jwt") {
       firstName: admin.firstName,
       lastName: admin.lastName,
       role: admin.role,
+      // AdminRolesGuard 2FA zorunluluğu için (MU-01) — her istekte DB'den taze.
+      // Login'in kod istediği koşulla AYNI (etkin + sır var).
+      twoFactorEnabled: admin.twoFactorEnabled && !!admin.twoFactorSecret,
     };
   }
 }

@@ -10,6 +10,10 @@ import { authenticator } from "otplib";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import {
+  admin2faRequiredRolesFromConfig,
+  isAdmin2faSetupRequired,
+} from "../../common/config/admin-2fa";
+import {
   decryptTotpSecret,
   encryptTotpSecret,
   totpEncKey,
@@ -95,12 +99,20 @@ export class AdminAuthService {
       tv: admin.tokenVersion,
     };
 
+    // 2FA zorunlu rolde 2FA kapalıysa giriş YİNE verilir (kilitlenme yok) ama
+    // AdminRolesGuard yalnız kurulum uçlarını açar; panel Ayarlar'a yönlendirir.
+    const twoFactorSetupRequired = this.twoFactorSetupRequired(admin);
+
     void this.audit.log({
       action: "auth.login",
       actorType: "admin",
       actorId: admin.id,
       actorEmail: admin.email,
-      metadata: { portal: "admin", role: admin.role },
+      metadata: {
+        portal: "admin",
+        role: admin.role,
+        ...(twoFactorSetupRequired ? { twoFactorSetupRequired: true } : {}),
+      },
       ip: ctx?.ip,
       userAgent: ctx?.userAgent,
     });
@@ -113,8 +125,23 @@ export class AdminAuthService {
         firstName: admin.firstName,
         lastName: admin.lastName,
         role: admin.role,
+        twoFactorEnabled: admin.twoFactorEnabled,
+        twoFactorSetupRequired,
       },
     };
+  }
+
+  /** Rol ADMIN_2FA_REQUIRED_ROLES'ta ve 2FA kapalı mı (MU-01). */
+  private twoFactorSetupRequired(admin: {
+    role: string;
+    twoFactorEnabled: boolean;
+    twoFactorSecret: string | null;
+  }): boolean {
+    // Login'in kod istediği koşulla AYNI (etkin + sır var) — strateji de böyle.
+    return isAdmin2faSetupRequired(admin2faRequiredRolesFromConfig(this.config), {
+      role: admin.role,
+      twoFactorEnabled: admin.twoFactorEnabled && !!admin.twoFactorSecret,
+    });
   }
 
   async getMe(adminId: string) {
@@ -131,6 +158,7 @@ export class AdminAuthService {
       lastName: admin.lastName,
       role: admin.role,
       twoFactorEnabled: admin.twoFactorEnabled,
+      twoFactorSetupRequired: this.twoFactorSetupRequired(admin),
     };
   }
 

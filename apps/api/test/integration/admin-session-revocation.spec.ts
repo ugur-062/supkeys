@@ -20,7 +20,7 @@ const config = {
   },
 };
 
-function makeService() {
+function makeService(cfg: typeof config = config) {
   const supabaseAuth = {
     verifyPassword: jest.fn(async () => ({ authId: "auth-admin-1", email: "admin@test.local" })),
     updatePassword: jest.fn(async () => undefined),
@@ -31,9 +31,9 @@ function makeService() {
     jwt,
     supabaseAuth as never,
     audit as never,
-    config as never,
+    cfg as never,
   );
-  const strategy = new AdminJwtStrategy(config as never, prisma as never);
+  const strategy = new AdminJwtStrategy(cfg as never, prisma as never);
   return { svc, strategy, supabaseAuth };
 }
 
@@ -103,5 +103,45 @@ describe("admin oturum iptali (tokenVersion)", () => {
     const after = await prisma.platformAdmin.findUniqueOrThrow({ where: { id: admin.id } });
     expect(after.twoFactorEnabled).toBe(false);
     expect(after.tokenVersion).toBe(2);
+  });
+});
+
+describe("admin 2FA zorunlulugu (derin denetim MU-01)", () => {
+  const enforced = {
+    ...config,
+    get: (key: string) =>
+      key === "JWT_SECRET" ? SECRET : key === "ADMIN_2FA_REQUIRED_ROLES" ? "SUPER_ADMIN" : undefined,
+  };
+
+  it("2FA'siz SUPER_ADMIN kilitlenmez: login token verir + twoFactorSetupRequired; enable sonrasi bayrak kalkar", async () => {
+    const { svc, strategy } = makeService(enforced);
+    const admin = await makeAdmin();
+
+    const login = await svc.login({ email: admin.email, password: "x" } as never);
+    expect(typeof login.token).toBe("string");
+    expect(login.admin).toMatchObject({ twoFactorEnabled: false, twoFactorSetupRequired: true });
+    // Strateji guard'a DB'den taze 2FA durumunu verir.
+    await expect(strategy.validate(jwt.verify(login.token) as never)).resolves.toMatchObject({
+      id: admin.id,
+      twoFactorEnabled: false,
+    });
+    await expect(svc.getMe(admin.id)).resolves.toMatchObject({ twoFactorSetupRequired: true });
+
+    const { secret } = await svc.setupTwoFactor(admin.id);
+    const en = await svc.enableTwoFactor(admin.id, secret, authenticator.generate(secret));
+    await expect(strategy.validate(jwt.verify(en.token) as never)).resolves.toMatchObject({
+      twoFactorEnabled: true,
+    });
+    await expect(svc.getMe(admin.id)).resolves.toMatchObject({
+      twoFactorEnabled: true,
+      twoFactorSetupRequired: false,
+    });
+  });
+
+  it("zorunluluk kapaliyken (varsayilan test ortami) bayrak false", async () => {
+    const { svc } = makeService();
+    const admin = await makeAdmin();
+    const login = await svc.login({ email: admin.email, password: "x" } as never);
+    expect(login.admin.twoFactorSetupRequired).toBe(false);
   });
 });

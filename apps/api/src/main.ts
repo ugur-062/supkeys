@@ -19,6 +19,7 @@ import { isCorsOriginAllowed } from "./common/cors-origin";
 import { checkJwtSecret } from "./common/config/jwt-secret";
 import { assertProdWebUrl } from "./common/config/web-url";
 import { assertProdConfigSanity } from "./common/config/prod-config-sanity";
+import { assertAdmin2faConfig } from "./common/config/admin-2fa";
 import { assertProdEmailSender, assertProdStreamSenders } from "./common/config/email-sender";
 import { checkAiKey } from "./common/config/ai-config";
 import { reportToSentry } from "./instrument";
@@ -89,6 +90,14 @@ async function bootstrap() {
   // frontend rk_csrf'i okuyamaz → mutasyonlar 403. Sessiz runtime 403 yerine
   // boot'ta yakala (bkz. common/config/prod-config-sanity.ts).
   assertProdConfigSanity(config);
+
+  // Admin 2FA zorunlulugu (derin denetim MU-01): ADMIN_2FA_REQUIRED_ROLES
+  // gecersizse THROW; prod'da bilincli kapatildiysa gurultulu uyari.
+  const admin2faWarning = assertAdmin2faConfig(config);
+  if (admin2faWarning) {
+    new Logger("Bootstrap").warn(admin2faWarning);
+    reportToSentry(admin2faWarning, "warning");
+  }
 
   // Gönderen adresi (fail-closed): canlı posta YALNIZ rothern.com alan adından
   // çıkabilir. 2026-09-13'te canlı `onboarding@resend.dev` kullanıyordu —
