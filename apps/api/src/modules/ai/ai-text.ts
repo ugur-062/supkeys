@@ -61,3 +61,47 @@ export function clampSentences(s: string, max: number): string {
 export function unitCodeListForPrompt(): string {
   return UNITS.map((u) => `${u.code} (${u.nameTr})`).join(", ");
 }
+
+/**
+ * Metin olarak gelen MODEL sayisini okur (Excel/CSV hucresi DEGIL) — iki
+ * ayrac birlikte gelince SONDAKI ondaliktir ("1,500.50" → 1500.5,
+ * "1.500,50" → 1500.5); ayni ayrac birden cok kez ve 3'er haneli gruplarla
+ * gelirse binliktir ("1,500,000" / "1.500.000"). Tek ayrac + tam 3 hane
+ * ("1,500") belirsizdir: cagiran dil bilgisine gore `commaThousands` /
+ * `dotThousands` ile binlik okur, yoksa ondalik ("1,500" → 1.5). Sifirla
+ * baslayan grup ("0,125") hep ondaliktir. Para sembolu/birim/bosluk atilir;
+ * tanimsiz bicim null (derin denetim 2026-09-29 MU-08).
+ */
+export function parseSeparatedNumber(
+  raw: string,
+  opts: { commaThousands?: boolean; dotThousands?: boolean } = {},
+): number | null {
+  const cleaned = raw.trim().replace(/[^\d.,-]/g, "");
+  const negative = cleaned.startsWith("-");
+  const s = cleaned.replace(/-/g, "");
+  if (!/\d/.test(s)) return null;
+  const count = (sep: string) => s.split(sep).length - 1;
+  const dots = count(".");
+  const commas = count(",");
+  let normalized = s;
+  if (dots > 0 && commas > 0) {
+    const decimal = s.lastIndexOf(".") > s.lastIndexOf(",") ? "." : ",";
+    const group = decimal === "." ? "," : ".";
+    if (count(decimal) > 1) return null;
+    normalized = s.split(group).join("").replace(decimal, ".");
+  } else if (dots > 0 || commas > 0) {
+    const sep = commas > 0 ? "," : ".";
+    const grouped = new RegExp(`^[1-9]\\d{0,2}(\\${sep}\\d{3})+$`).test(s);
+    if (commas + dots > 1) {
+      if (!grouped) return null;
+      normalized = s.split(sep).join("");
+    } else if (grouped && (sep === "," ? opts.commaThousands : opts.dotThousands)) {
+      normalized = s.replace(sep, "");
+    } else {
+      normalized = s.replace(sep, ".");
+    }
+  }
+  const n = Number(normalized);
+  if (!Number.isFinite(n)) return null;
+  return negative ? -n : n;
+}

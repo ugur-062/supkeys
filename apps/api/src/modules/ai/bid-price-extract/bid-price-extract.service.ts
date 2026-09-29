@@ -7,6 +7,7 @@ import { BidImportService } from "../../company-listings/import/bid-import.servi
 import type { DocRow } from "../../company-listings/import/bid-matching";
 import { StorageService } from "../../storage/storage.service";
 import { AI_CONFIG, type AiConfig } from "../ai.config";
+import { parseSeparatedNumber } from "../ai-text";
 import { AiService, type AiCallResult } from "../ai.service";
 import { routeExtractInput, type RoutedInput } from "../tender-extract/ai-extract-router";
 import { isOwnAiExtractKey } from "../tender-extract/ai-extract-keys";
@@ -108,7 +109,10 @@ export class BidPriceExtractService {
       parsed = tryParse(result.text);
     }
 
-    const rows = sanitizeRows(parsed?.rows);
+    const rows = sanitizeRows(
+      parsed?.rows,
+      typeof parsed?.docLanguage === "string" ? parsed.docLanguage : null,
+    );
     const out = await this.bidImport.fromDocRows(listing, rows, {
       pricesIncludeVat: typeof parsed?.pricesIncludeVat === "boolean" ? parsed.pricesIncludeVat : null,
       docCurrency: typeof parsed?.docCurrency === "string" ? parsed.docCurrency : null,
@@ -190,43 +194,34 @@ export function salvageRows(text: string): Record<string, unknown>[] {
  * MODEL çıktısındaki sayıyı okur (Excel/CSV hücresi DEĞİL).
  *
  * Sözleşme: binlik ayracı yok, ondalık NOKTA. Bu yüzden "1.875" = 1,875 —
- * `parseLocaleNumber`'ın TR sezgisiyle 1875 DEĞİL. Sözleşme dışına çıkan bir
- * model çıktısı için tek tolerans: yalnız virgül içeren değer (TR ondalık)
- * noktaya çevrilir; her iki ayraç birlikte gelirse (ör. "1.234,56") TR biçimi
- * kabul edilir.
+ * `parseLocaleNumber`'ın TR sezgisiyle 1875 DEĞİL. Sözleşme dışı çıktı
+ * (model belgedekini aynen kopyalar) `parseSeparatedNumber` ile okunur: iki
+ * ayraç birlikte gelirse SONDAKİ ondalıktır ("1.234,56" TR, "1,500.50" EN —
+ * eskiden hep TR sayılıp 1.5005 okunuyordu, 1000x düşük fiyat); tekrarlı
+ * gruplar binliktir ("1,500,000"). Tek virgül + tam 3 hane ("1,500") yalnız
+ * belge dili virgülü binlik kullanan bir dilse (EN/CJK…) binlik okunur,
+ * aksi hâlde sözleşmedeki TR ondalık ("1500,50" gibi) sayılır.
  */
-export function parseModelNumber(raw: string): number | null {
-  // Para sembolü/birim/boşluk gibi süsler atılır; rakam, ayraç ve işaret kalır
-  // ("185,50 ₺" → "185,50").
-  const s = raw.trim().replace(/[^\d.,-]/g, "");
-  if (!s) return null;
-  const hasDot = s.includes(".");
-  const hasComma = s.includes(",");
-  let normalized = s;
-  if (hasDot && hasComma) {
-    // "1.234,56" → TR: nokta binlik, virgül ondalık.
-    normalized = s.replace(/\./g, "").replace(",", ".");
-  } else if (hasComma) {
-    normalized = s.replace(",", ".");
-  }
-  const n = Number(normalized);
-  return Number.isFinite(n) ? n : null;
+const COMMA_THOUSANDS_LANGS = new Set(["en", "zh", "ja", "ko", "th", "he", "hi"]);
+
+export function parseModelNumber(raw: string, docLanguage?: string | null): number | null {
+  const lang = typeof docLanguage === "string" ? docLanguage.trim().toLowerCase().slice(0, 2) : "";
+  return parseSeparatedNumber(raw, { commaThousands: COMMA_THOUSANDS_LANGS.has(lang) });
 }
 
-export function sanitizeRows(raw: unknown): DocRow[] {
+export function sanitizeRows(raw: unknown, docLanguage?: string | null): DocRow[] {
   if (!Array.isArray(raw)) return [];
   const num = (v: unknown): number | null => {
     // MODEL ÇIKTISI sözleşmesi (bid-price-extract.prompts.ts): binlik ayracı
     // YASAK, ondalık ayırıcı NOKTA, 3 ondalığa kadar. Excel/CSV hücreleri için
     // yazılmış TR sezgisi (`parseLocaleNumber`: "tam 3 hane = binlik") buraya
     // uygulanınca "1.875" → 1875 oluyordu, yani 1000× fiyat (denetim 2026-08-24
-    // Parça 6). Model çıktısı sade `Number()` ile okunur; TR biçimli bir değer
-    // gelirse (sözleşme dışı) yalnız virgül-ondalık toleransı uygulanır.
+    // Parça 6). Sözleşme dışı ayraçlar `parseModelNumber` kuralıyla okunur.
     const n =
       typeof v === "number"
         ? v
         : typeof v === "string"
-          ? parseModelNumber(v.slice(0, 40))
+          ? parseModelNumber(v.slice(0, 40), docLanguage)
           : null;
     return n != null && Number.isFinite(n) && n >= 0 && n < 1e15 ? n : null;
   };

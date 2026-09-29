@@ -26,7 +26,7 @@ import { CompanyListingsService } from "../../company-listings/services/company-
 import { AiService, type AiCallResult } from "../ai.service";
 import { resolveCategoryHints, type ResolvedCategory } from "../category-hint-resolver";
 import { canonicalUnitName } from "../tender-extract/ai-draft-sanitizer";
-import { lowerCaseWords } from "../ai-text";
+import { lowerCaseWords, parseSeparatedNumber } from "../ai-text";
 import {
   SEARCH_INTENT_RESPONSE_SCHEMA,
   buildSearchIntentPrompt,
@@ -87,7 +87,7 @@ export class SearchIntentService {
       throw new ServiceUnavailableException(i18nMessage("api.ai.aramaYorumlanamadiTekrarDeneyin"));
     }
 
-    const s = sanitizeIntent(parsed, text);
+    const s = sanitizeIntent(parsed, text, locale);
     const resolved = s.categoryHint
       ? await resolveCategoryHints(this.prisma, [s.categoryHint], { discoveryOnly: portal === "satinalma" })
       : new Map<string, ResolvedCategory>();
@@ -356,24 +356,32 @@ const str = (v: unknown, max: number): string | null => {
   return t ? t.slice(0, max) : null;
 };
 
-/** "1.500,50" → 1500.5 · "1500,5" → 1500.5 · "1500.5" → 1500.5 · "12 adet" → 12. */
-export function parseModelNumber(v: unknown, max: number): number | null {
+/**
+ * "1.500,50" → 1500.5 · "1500,5" → 1500.5 · "1500.5" → 1500.5 · "12 adet" → 12 ·
+ * "1,500.50" → 1500.5 · "10,000" (en) → 10000.
+ *
+ * Tek ayraç + tam 3 hane belirsiz: kullanıcının dili karar verir — EN'de
+ * virgül binliktir ("$1,500" → 1500; eskiden 1.5 okunup fiyat tavanı/kalem
+ * miktarı 1000 kat küçülüyordu), TR/RU'da nokta ("1.500" → 1500).
+ */
+export function parseModelNumber(v: unknown, max: number, locale: Locale = currentLocale()): number | null {
   if (v == null) return null;
-  let t = String(v).trim().replace(/\s/g, "");
+  const t = String(v).trim().replace(/\s/g, "");
   // Eksi işaretli değer "uydurulmuş" sayılır — tavan/adet negatif olamaz.
   if (t.startsWith("-")) return null;
-  if (/^\d{1,3}(\.\d{3})+(,\d+)?$/.test(t)) t = t.replace(/\./g, "").replace(",", ".");
-  else if (/^\d+,\d+$/.test(t)) t = t.replace(",", ".");
-  else t = t.replace(/[^0-9.]/g, "");
-  const n = Number(t);
-  if (!Number.isFinite(n) || n <= 0 || n > max) return null;
+  const n = parseSeparatedNumber(t, { commaThousands: locale === "en", dotThousands: locale !== "en" });
+  if (n == null || !Number.isFinite(n) || n <= 0 || n > max) return null;
   return Math.round(n * 1000) / 1000;
 }
 
 /** Eski istemin sabit öneki — bant artık kendi başlığını basıyor. */
 const LEGACY_SUMMARY_PREFIX = /^anlad[ıi]ğ[ıi]m\s*:\s*/i;
 
-export function sanitizeIntent(raw: Record<string, unknown>, text: string): SanitizedIntent {
+export function sanitizeIntent(
+  raw: Record<string, unknown>,
+  text: string,
+  locale: Locale = currentLocale(),
+): SanitizedIntent {
   const cat = str(raw.categoryHint, 80);
   const cur = str(raw.currency, 3)?.toUpperCase() ?? null;
   const cc = str(raw.country, 2)?.toUpperCase() ?? null;
@@ -394,9 +402,9 @@ export function sanitizeIntent(raw: Record<string, unknown>, text: string): Sani
     country: cc && isValidCountryCode(cc) ? cc : null,
     verifiedOnly: raw.verifiedOnly === true,
     activity: act && isCompanyActivity(act) ? act : null,
-    priceMax: parseModelNumber(raw.priceMax, 1e12),
+    priceMax: parseModelNumber(raw.priceMax, 1e12, locale),
     currency: isCurrencyCode(cur) ? cur : null,
-    quantity: parseModelNumber(raw.quantity, 1e9),
+    quantity: parseModelNumber(raw.quantity, 1e9, locale),
     // Birim: tanınan birim (kod "PCE", "pcs", "adet"…) formun sakladığı
     // Türkçe ada ("adet") — web `useUnitLabel` okuyucunun dilinde basar;
     // tanınmayan serbest metin olduğu gibi (tender-extract sanitizer ile aynı).
