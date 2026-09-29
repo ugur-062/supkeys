@@ -17,6 +17,7 @@ import type {
   AiTenderDraft,
   AiTenderExtractResult,
 } from "@rothern/shared";
+import { tierAtLeast } from "@rothern/shared";
 import { PrismaService } from "../../../common/prisma/prisma.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { CompanyConnectionsService } from "../../company-connections/services/company-connections.service";
@@ -100,6 +101,21 @@ export class AssistantService {
       throw new ForbiddenException(i18nMessage("api.ai.mesajBosOlamaz"));
     }
 
+    // Belge eki kapıları oturum AÇILMADAN önce (derin denetim A4): reddedilen
+    // istek geride boş "taslak" başlıklı öksüz oturum bırakmasın. Belge →
+    // talep taslağı yalnız satın alma portalı + GOLD (extract kendi kapısını
+    // da korur; burası erken ret).
+    const hasFiles = !!(dto.fileKeys && dto.fileKeys.length > 0);
+    if (hasFiles) {
+      // Yalnız satın alma talebi çıkarılır (satış ilanı kaldırıldı 2026-09-04).
+      if (!allowedPortals(user).has("satinalma")) {
+        throw new ForbiddenException(i18nMessage("api.ai.belgedenTalepTaslagiYalnizSatinAlma"));
+      }
+      if (!tierAtLeast(user.tier, "GOLD")) {
+        throw new ForbiddenException(i18nMessage("api.companyAuth.buOzellikGoldPaketGerektirir"));
+      }
+    }
+
     const session = dto.sessionId
       ? await this.loadOwnSession(user, dto.sessionId)
       : await this.prisma.aiChatSession.create({
@@ -116,13 +132,9 @@ export class AssistantService {
     let draftTouched = false;
 
     // Belge yüklendiyse ihale çıkarımı yap, mevcut taslakla birleştir.
-    if (dto.fileKeys && dto.fileKeys.length > 0) {
-      // Yalnız satın alma talebi çıkarılır (satış ilanı kaldırıldı 2026-09-04).
-      if (!allowedPortals(user).has("satinalma")) {
-        throw new ForbiddenException(i18nMessage("api.ai.belgedenTalepTaslagiYalnizSatinAlma"));
-      }
+    if (hasFiles) {
       const extracted = await this.tenderExtract.extract(user, {
-        fileKeys: dto.fileKeys,
+        fileKeys: dto.fileKeys!,
         listingType: "ALIM",
       });
       draft = draft ? this.mergeDrafts(draft, extracted) : extracted;

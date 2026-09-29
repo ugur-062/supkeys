@@ -7,7 +7,7 @@
  */
 import "reflect-metadata";
 import { CompanyRole, Prisma } from "@rothern/db";
-import { NotFoundException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException } from "@nestjs/common";
 import { AiBudgetService, AiBudgetExceededException } from "../../src/modules/ai/ai-budget.service";
 import { AiService } from "../../src/modules/ai/ai.service";
 import type { AiConfig } from "../../src/modules/ai/ai.config";
@@ -190,6 +190,24 @@ describe("Faz AI-2 — erişim (AI-0 kapısı)", () => {
       svc.message(silver, { message: "", fileKeys: [`ai-extract/${co.company.id}/x.pdf`] }),
     ).rejects.toThrow(/Gold paket/);
     expect(provider.calls).toHaveLength(0);
+    // Ret oturum açılmadan önce: geride boş "taslak" oturum kalmaz (A4 gözden geçirme).
+    expect(await prisma.aiChatSession.count({ where: { companyId: co.company.id } })).toBe(0);
+  });
+
+  it("satış koltuğu + belge eki: oturum açılmadan reddedilir (A4 gözden geçirme)", async () => {
+    const provider = new FakeProvider();
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "GOLD",
+      roles: [CompanyRole.SATISCI],
+    });
+    const seller = authFor(co.user, co.company.id, [CompanyRole.SATISCI]);
+
+    await expect(
+      svc.message(seller, { message: "", fileKeys: [`ai-extract/${co.company.id}/x.pdf`] }),
+    ).rejects.toThrow(ForbiddenException);
+    expect(provider.calls).toHaveLength(0);
+    expect(await prisma.aiChatSession.count({ where: { companyId: co.company.id } })).toBe(0);
   });
 
   it("bütçe dolu → çağrı öncesi reddedilir (feature=assistant)", async () => {
