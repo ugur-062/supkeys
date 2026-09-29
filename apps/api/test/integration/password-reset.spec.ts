@@ -72,6 +72,12 @@ describe("PasswordResetService", () => {
       }),
     ).toBe(1);
     expect(email.send).toHaveBeenCalled();
+    // Derin denetim X09: bağlam kimliği adres değil kullanıcı id'si (EmailLog +
+    // kritik alarmda Sentry extra.contextId'e düşer).
+    expect(email.send.mock.calls[0]![0].context).toEqual({
+      type: "password_reset",
+      id: owner.user.id,
+    });
   });
 
   it("request: YOK olan e-posta → success ama token/e-posta YOK (enumeration-safe)", async () => {

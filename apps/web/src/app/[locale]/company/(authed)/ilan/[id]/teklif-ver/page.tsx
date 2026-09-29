@@ -38,7 +38,7 @@ import {
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDateTime, todayLocalISO } from "@/lib/tenders/date";
 import { YES_NO_STORED } from "@/lib/tenders/yes-no-answer";
-import { BID_DELIVERY_TIMES } from "@rothern/shared";
+import { BID_DELIVERY_TIMES, MONEY_DECIMALS } from "@rothern/shared";
 import { subscribeRealtime } from "@/lib/realtime";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { cn } from "@/lib/utils";
@@ -397,7 +397,9 @@ export default function TeklifVerPage() {
   // Decimal doğrulamasıyla çelişmesin).
   const isAuction = !!l?.english?.isEnglishAuction;
   const auctionItemsMode = isAuction && hasItems;
-  const decimals = l?.decimalPlaces ?? 2;
+  // Teklif DTO'su ve DB 2 ondalık saklar — eski talepteki 3-4 hane masada
+  // gönderilemeyecek fiyat üretmesin (derin denetim S028).
+  const decimals = Math.min(l?.decimalPlaces ?? 2, MONEY_DECIMALS);
   // Kendi son toplam — birim kilidi gereği hep teklifçinin kendi biriminde;
   // kilit yokken (ilk teklif) zaten null.
   const ownLastTotal =

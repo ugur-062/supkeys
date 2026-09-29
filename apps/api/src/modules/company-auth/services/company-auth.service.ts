@@ -65,6 +65,7 @@ import {
   encryptTotpSecret,
   totpEncKey,
 } from "../../../common/auth/totp-secret-cipher";
+import { maskEmail } from "../../../common/logging/mask-email";
 
 /** Her bildirim e-postasının ilk paragrafı (alıcının dilinde). */
 const NOTIFY_GREETING_KEY = "api.notifications.common.greeting" as ApiMessageKey;
@@ -243,7 +244,7 @@ export class CompanyAuthService {
       dto.referralToken,
     ).catch((err) =>
       this.logger.error(
-        `Referans daveti bağlama hatası (${email}): ${
+        `Referans daveti bağlama hatası (${maskEmail(email)}): ${
           err instanceof Error ? err.message : String(err)
         }`,
       ),
@@ -354,7 +355,7 @@ export class CompanyAuthService {
       return { sent: res.sent };
     } catch (err) {
       this.logger.error(
-        `Doğrulama kodu e-postası gönderilemedi (${email}): ${
+        `Doğrulama kodu e-postası gönderilemedi (${maskEmail(email)}): ${
           err instanceof Error ? err.message : String(err)
         }`,
       );

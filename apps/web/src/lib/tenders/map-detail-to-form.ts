@@ -1,4 +1,5 @@
 import type { ListingDetail } from "@/hooks/use-company-listings";
+import { MONEY_DECIMALS } from "@rothern/shared";
 import { toAppWallClockInput } from "@/lib/time-zone";
 import {
   DEFAULT_FORM_VALUES,
@@ -119,7 +120,8 @@ export function mapDetailToForm(
     bidsOpenAt: forCopy ? nowLocalDateTimeValue() : toLocalInput(l.bidsOpenAt),
     bidVisibility:
       (l.bidVisibility as TenderFormData["bidVisibility"]) ?? "OWN_ONLY",
-    decimalPlaces: l.decimalPlaces ?? 2,
+    // Eski (API ile açılmış) talepte 3-4 olabilir; tavan teklif/DB ölçeği.
+    decimalPlaces: Math.min(l.decimalPlaces ?? 2, MONEY_DECIMALS),
     autoExtendOnLateBid: l.autoExtendOnLateBid ?? true,
     autoExtendThresholdMin: l.autoExtendThresholdMin ?? undefined,
     autoExtendByMinutes: l.autoExtendByMinutes ?? undefined,

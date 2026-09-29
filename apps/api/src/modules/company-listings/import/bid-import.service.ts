@@ -16,7 +16,6 @@ import {
   type BidImportResult,
 } from "@rothern/shared";
 import ExcelJS from "exceljs";
-import { Readable } from "stream";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { CompanyListingsService } from "../services/company-listings.service";
 import {
@@ -28,7 +27,7 @@ import {
   type MatchItem,
 } from "./bid-matching";
 import { XLSX_LOAD_OPTIONS } from "../../../common/files/zip-inspect";
-import { csvReadOptions } from "../../../common/files/spreadsheet-reader";
+import { readCsvInto } from "../../../common/files/spreadsheet-reader";
 import { assertXlsxSafe, cellText, parseLocaleNumber } from "./listing-item-import.service";
 
 /**
@@ -245,7 +244,7 @@ export class BidImportService {
         );
       }
       // MU-19 S029: TR ";" ayraci + ham metin (fiyat "1.500" 1.5'e donmez).
-      await wb.csv.read(Readable.from(buffer), csvReadOptions(buffer)).catch(() => {
+      await readCsvInto(wb, buffer).catch(() => {
         throw new BadRequestException(i18nMessage("api.companyListings.csvDosyasiOkunamadi"));
       });
     } else {

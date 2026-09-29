@@ -283,7 +283,7 @@ function makeBaseTenderSchema(t: RequestsTranslate) {
       .number({ invalid_type_error: t("formSchema.invalidDecimalPlaces") })
       .int()
       .min(0)
-      .max(4),
+      .max(MONEY_DECIMALS),
     autoExtendOnLateBid: z.boolean(),
     autoExtendThresholdMin: z
       .number({ invalid_type_error: t("formSchema.invalidValue") })

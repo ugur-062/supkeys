@@ -7,6 +7,16 @@ import {
   parseWorksheet,
 } from "../../src/modules/company-listings/import/listing-item-import.service";
 import { runWithLocale } from "../../src/common/i18n/locale-context";
+import { csvAsUtf8 } from "../../src/common/files/spreadsheet-reader";
+
+/** Windows-1254 (Turkce Windows Excel'in klasik CSV'si) baytlari — test yardimcisi. */
+const CP1254: Record<string, number> = {
+  "\u00c7": 0xc7, "\u00e7": 0xe7, "\u011e": 0xd0, "\u011f": 0xf0, "\u0130": 0xdd, "\u0131": 0xfd,
+  "\u00d6": 0xd6, "\u00f6": 0xf6, "\u015e": 0xde, "\u015f": 0xfe, "\u00dc": 0xdc, "\u00fc": 0xfc,
+};
+function cp1254(text: string): Buffer {
+  return Buffer.from([...text].map((ch) => CP1254[ch] ?? ch.charCodeAt(0)));
+}
 
 /**
  * Kalem Excel şablonu — şablon ↔ parser ROUND-TRIP + satır-hata matrisi.
@@ -192,6 +202,19 @@ describe("round-trip: doldurulmuş şablon → parse", () => {
     expect(res.rows[2]!.item).toMatchObject({ name: "Somun", quantity: 7 });
   });
 
+  it("derin denetim S029: Windows-1254 CSV (TR Excel varsayılanı) başlık ve kalem adıyla bozulmadan okunur", async () => {
+    const csv = cp1254("Kalem Adı;Miktar;Birim\nÇelik boru;10;m\nŞiş dirsek;5;adet\n");
+    const res = await svc.parse({
+      fileName: "kalemler.csv",
+      mimeType: "text/csv",
+      dataBase64: csv.toString("base64"),
+      listingType: "ALIM",
+    });
+    expect(res.validCount).toBe(2);
+    expect(res.rows[0]!.item).toMatchObject({ name: "Çelik boru", quantity: 10 });
+    expect(res.rows[1]!.item).toMatchObject({ name: "Şiş dirsek", quantity: 5 });
+  });
+
   it("zorunlu başlıklar yoksa şablon-dışı hatası; xlsm ve bilinmeyen dosya reddedilir", async () => {
     const wb = new ExcelJS.Workbook();
     wb.addWorksheet("S").addRow(["Foo", "Bar"]);
@@ -274,5 +297,22 @@ describe("yardımcılar", () => {
     expect(parseImportDate("31.02.2026").invalid).toBe(true);
     expect(parseImportDate("")).toEqual({ iso: null, invalid: false });
     expect(parseImportDate(new Date(Date.UTC(2026, 0, 5)))).toEqual({ iso: "2026-01-05", invalid: false });
+  });
+});
+
+describe("csvAsUtf8 (derin denetim S029)", () => {
+  it("geçerli UTF-8 (BOM'lu/BOM'suz) aynı tampon döner", () => {
+    const plain = Buffer.from("Kalem Adı;Miktar\n", "utf8");
+    expect(csvAsUtf8(plain, "tr")).toBe(plain);
+    const bom = Buffer.concat([Buffer.from([0xef, 0xbb, 0xbf]), plain]);
+    expect(csvAsUtf8(bom, "tr")).toBe(bom);
+  });
+
+  it("geçersiz UTF-8: TR/EN'de Windows-1254, RU'da Windows-1251 çözülür", () => {
+    expect(csvAsUtf8(cp1254("Kalem Adı;Şç"), "tr").toString("utf8")).toBe("Kalem Adı;Şç");
+    expect(csvAsUtf8(cp1254("ığü"), "en").toString("utf8")).toBe("ığü");
+    // "Труба" Windows-1251'de
+    const cp1251 = Buffer.from([0xd2, 0xf0, 0xf3, 0xe1, 0xe0]);
+    expect(csvAsUtf8(cp1251, "ru").toString("utf8")).toBe("Труба");
   });
 });

@@ -127,6 +127,7 @@ import {
   affinityReasonText,
   type AffinityReasons,
 } from "../../company-affinity/company-affinity.service";
+import { maskEmail } from "../../../common/logging/mask-email";
 
 /**
  * Bildirim alıcısı — e-posta/isim + kullanıcı bildirim tercihleri + DİL.
@@ -390,7 +391,7 @@ export class CompanyListingsService {
 
   private logNotifyEmailError(email: string, err: unknown): void {
     this.logger.error(
-      `Bildirim e-postası gönderilemedi (${email}): ${
+      `Bildirim e-postası gönderilemedi (${maskEmail(email)}): ${
         err instanceof Error ? err.message : String(err)
       }`,
     );
@@ -1107,13 +1108,20 @@ export class CompanyListingsService {
     // İLK çağrı damgayı basar ve duyuruyu atar; yarışan ikinci çağrı (cron
     // overlap / publish+cron) count=0 alıp sessizce döner — çift bildirim yok.
     // Embargo (bidsOpenAt gelecekte) koşulu sağlamaz → damga basılmaz, cron
-    // açılış anında yeniden dener.
+    // açılış anında yeniden dener. Kapanış saati geçmiş talep duyurulmaz
+    // (derin denetim 2026-09-29 X08): kesinti hem açılışı hem kapanışı
+    // kapsadıysa davetliler teklif veremeyecekleri talebe davet edilmesin,
+    // AI keşfi kapalı talebe tur açmasın — closeExpired zaten kapatır.
+    const now = new Date();
     const claimed = await this.bypass.listing.updateMany({
       where: {
         id: listingId,
         status: "OPEN",
         openNotifiedAt: null,
-        OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: new Date() } }],
+        AND: [
+          { OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }] },
+          { OR: [{ closesAt: null }, { closesAt: { gt: now } }] },
+        ],
       },
       data: { openNotifiedAt: new Date() },
     });

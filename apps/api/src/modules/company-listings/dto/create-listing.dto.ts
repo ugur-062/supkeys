@@ -18,7 +18,7 @@ import {
   ValidateIf,
   ValidateNested,
 } from "class-validator";
-import { MAX_MONEY } from "../../../common/constants/money";
+import { MAX_MONEY, MONEY_DECIMALS } from "../../../common/constants/money";
 import {
   COMPANY_ACTIVITY_CODES,
   CURRENCY_ENUM,
@@ -539,10 +539,13 @@ export class CreateListingDto {
   @IsEnum(BidVisibilityDto)
   bidVisibility?: BidVisibilityDto;
 
+  // Birim fiyat hane sayısı — teklif DTO'su (`maxDecimalPlaces: 2`) ve DB
+  // (`Decimal(18,2)`) ile AYNI tavan (derin denetim 2026-09-29 S028): 3-4 kabul
+  // edilince pazarlık masası 4 haneli fiyat üretip gönderimde 400 alıyordu.
   @IsOptional()
   @IsInt()
   @Min(0)
-  @Max(4)
+  @Max(MONEY_DECIMALS)
   decimalPlaces?: number;
 
   // Kapanış hatırlatması artık her ilanda otomatik — client kontrol etmez.

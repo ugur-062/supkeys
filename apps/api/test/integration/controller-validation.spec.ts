@@ -71,6 +71,15 @@ describe("DTO doğrulama (global ValidationPipe)", () => {
       ).rejects.toBeDefined();
     });
 
+    it("decimalPlaces teklif/DB ölçeğini (2) aşamaz (derin denetim S028)", async () => {
+      await expect(
+        validate(CreateListingDto, { type: "ALIM", title: "Test ihale", decimalPlaces: 2 }),
+      ).resolves.toBeDefined();
+      await expect(
+        validate(CreateListingDto, { type: "ALIM", title: "Test ihale", decimalPlaces: 4 }),
+      ).rejects.toBeDefined();
+    });
+
     it("ADVANCE'ta advancePercent ZORUNLU (eski sessiz %100 kalktı)", async () => {
       // Peşin kategorisi seçilip yüzde verilmezse reddedilir.
       await expect(

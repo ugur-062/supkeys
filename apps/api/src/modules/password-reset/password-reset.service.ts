@@ -9,6 +9,7 @@ import { PrismaService } from "../../common/prisma/prisma.service";
 import { EmailService } from "../email/email.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { resolveWebUrl } from "../../common/config/web-url";
+import { maskEmail } from "../../common/logging/mask-email";
 
 const PASSWORD_RESET_TTL_MINUTES = 60;
 
@@ -166,11 +167,14 @@ export class PasswordResetService {
             expiresInMinutes: PASSWORD_RESET_TTL_MINUTES,
           },
         },
-        context: { type: "password_reset", id: email },
+        // Kimlik = kullanıcı id'si, adres DEĞİL: bağlam kimliği EmailLog'a ve
+        // kritik gönderim/bastırma alarmında Sentry `extra.contextId`e düşer
+        // (derin denetim 2026-09-29 X09 — "PII yok" sözü).
+        context: { type: "password_reset", id: owner.companyUserId },
       });
     } catch (err) {
       this.logger.error(
-        `Parola sıfırlama e-postası gönderilemedi (${email}): ${
+        `Parola sıfırlama e-postası gönderilemedi (${maskEmail(email)}): ${
           err instanceof Error ? err.message : String(err)
         }`,
       );

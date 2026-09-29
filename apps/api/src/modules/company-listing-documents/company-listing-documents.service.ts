@@ -92,12 +92,17 @@ export class CompanyListingDocumentsService {
     if (listing.status === "DRAFT") {
       throw new NotFoundException(i18nMessage("api.companyListingDocuments.ilanBulunamadi"));
     }
+    // İzleyenin bu talepte (herhangi durumda) teklifi — getOne'daki iki istisnanın
+    // ortak girdisi: embargo ve ücretsiz-üye gizliliği (`hasBid`, derin denetim
+    // 2026-09-29 S027). Eskiden yalnız embargo dalında sayılıyordu; bağlıyken
+    // teklif vermiş STANDART firmanın bağlantısı düşünce getOne talebi açarken
+    // bu uç 404 veriyordu.
+    const myBid = await this.prisma.listingBid.count({
+      where: { listingId: listing.id, bidderCompanyId: user.companyId },
+    });
     if (listing.bidsOpenAt && listing.bidsOpenAt.getTime() > Date.now()) {
       // getOne istisnası: ilanda TEKLİFİ olan firma (önceki tur katılımcısı)
       // açılıştan önce de görür.
-      const myBid = await this.prisma.listingBid.count({
-        where: { listingId: listing.id, bidderCompanyId: user.companyId },
-      });
       if (myBid === 0) throw new NotFoundException(i18nMessage("api.companyListingDocuments.ilanBulunamadi"));
     }
 
@@ -137,6 +142,7 @@ export class CompanyListingDocumentsService {
         isInvited,
         connectedToOwner: connected,
         viewerTier: user.tier,
+        hasBid: myBid > 0,
       }).hidden;
 
     // Görünürlük ülkesi (2026-09-21): boş = herkes; dolu = izleyen listede.

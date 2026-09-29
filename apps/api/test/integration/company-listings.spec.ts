@@ -318,6 +318,19 @@ describe("açılış embargosu — gelecek tarihli bidsOpenAt", () => {
     );
   });
 
+  it("derin denetim X08: kapanış saati geçmiş talep duyurulmaz (kesinti sonrası)", async () => {
+    const { service, listing } = await setupAlim({
+      bidsOpenAt: new Date(Date.now() - 2 * 3600_000),
+      closesAt: new Date(Date.now() - 3600_000),
+    });
+    await service.announceListingOpen(listing.id, "invitation");
+    const db = await prisma.listing.findUniqueOrThrow({
+      where: { id: listing.id },
+      select: { openNotifiedAt: true },
+    });
+    expect(db.openNotifiedAt).toBeNull();
+  });
+
   it("embargolu ilanda duyuru ERTELENİR — damga basılmaz (cron açılışta gönderir)", async () => {
     const { service, listing } = await setupAlim({ bidsOpenAt: OPEN_LATER });
     await service.announceListingOpen(listing.id, "invitation");

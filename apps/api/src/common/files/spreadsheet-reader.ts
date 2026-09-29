@@ -1,4 +1,5 @@
 import { i18nMessage } from "../i18n/http-i18n";
+import { currentLocale } from "../i18n/locale-context";
 import { BadRequestException } from "@nestjs/common";
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
@@ -76,6 +77,40 @@ export function csvReadOptions(buffer: Buffer): Partial<ExcelJS.CsvReadOptions> 
   };
 }
 
+/**
+ * CSV kodlamasi (derin denetim 2026-09-29 S029): Turkce Windows Excel'in
+ * klasik "CSV (virgulle ayrilmis)" ciktisi UTF-8 degil Windows-1254 yazar;
+ * UTF-8 okununca i/s/g baytlari U+FFFD'ye donuyor, "Kalem Adi" basligi
+ * eslesmiyor ya da kalem adlari bozuk kaydediliyordu. Gecerli UTF-8 (BOM'lu
+ * ya da BOM'suz) oldugu gibi kalir; degilse tek baytli ANSI kod sayfasindan
+ * UTF-8'e cevrilir: RU arayuzde Windows-1251, digerlerinde Windows-1254
+ * (Bati Avrupa 1252 ile alti harf disinda ayni). Cozucu yoksa girdi aynen.
+ */
+export function csvAsUtf8(buffer: Buffer, locale: string = currentLocale()): Buffer {
+  try {
+    new TextDecoder("utf-8", { fatal: true }).decode(buffer);
+    return buffer;
+  } catch {
+    /* gecerli UTF-8 degil -> ANSI kod sayfasi */
+  }
+  try {
+    const legacy = locale === "ru" ? "windows-1251" : "windows-1254";
+    return Buffer.from(new TextDecoder(legacy).decode(buffer), "utf8");
+  } catch {
+    return buffer;
+  }
+}
+
+/**
+ * Yuklenen CSV'yi calisma kitabina okur — TUM CSV yollari (ilan kalemi, teklif
+ * fiyati, AI tablo girdisi) bunu kullanir: kodlama duzeltmesi + ayrac/ham
+ * metin secenekleri tek yerde.
+ */
+export async function readCsvInto(wb: ExcelJS.Workbook, buffer: Buffer): Promise<ExcelJS.Worksheet> {
+  const utf8 = csvAsUtf8(buffer);
+  return wb.csv.read(Readable.from(utf8), csvReadOptions(utf8));
+}
+
 export async function readUploadedWorksheet(input: {
   buffer: Buffer;
   fileName: string;
@@ -118,7 +153,7 @@ export async function readUploadedWorksheet(input: {
       );
     }
     try {
-      await wb.csv.read(Readable.from(buffer), csvReadOptions(buffer));
+      await readCsvInto(wb, buffer);
     } catch {
       throw new BadRequestException(i18nMessage("api.files.csvDosyasiOkunamadi"));
     }

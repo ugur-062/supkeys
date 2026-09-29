@@ -15,7 +15,7 @@ import type { ValidationError } from "class-validator";
 import helmet from "helmet";
 import { Logger as PinoLogger } from "nestjs-pino";
 import { AppModule } from "./app.module";
-import { isCorsOriginAllowed } from "./common/cors-origin";
+import { CORS_EXPOSED_HEADERS, isCorsOriginAllowed } from "./common/cors-origin";
 import { checkJwtSecret } from "./common/config/jwt-secret";
 import { assertProdWebUrl } from "./common/config/web-url";
 import { assertProdConfigSanity } from "./common/config/prod-config-sanity";
@@ -242,9 +242,9 @@ async function bootstrap() {
     origin: (origin, cb) =>
       cb(null, isCorsOriginAllowed(origin, { corsOrigins, allowVercel })),
     credentials: true,
-    // Correlation-id: api ve app AYRI origin'de → tarayıcı istemci response
-    // header'ını ancak expose edilirse okuyabilir (destek ekibine iletmek için).
-    exposedHeaders: ["x-request-id"],
+    // api ve app AYRI origin'de → tarayıcı response header'ını ancak expose
+    // edilirse okuyabilir (x-request-id + indirme dosya adı; bkz. cors-origin.ts).
+    exposedHeaders: CORS_EXPOSED_HEADERS,
   });
 
   // Graceful shutdown — Nest lifecycle hooks tetiklenir (Prisma bağlantısı

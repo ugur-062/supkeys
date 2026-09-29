@@ -27,9 +27,8 @@ import {
   isQuantityValidForUnit,
   getUnit,} from "@rothern/shared";
 import ExcelJS from "exceljs";
-import { Readable } from "stream";
 import { assertZipWithinLimits, XLSX_LOAD_OPTIONS, ZipInspectError } from "../../../common/files/zip-inspect";
-import { csvReadOptions } from "../../../common/files/spreadsheet-reader";
+import { readCsvInto } from "../../../common/files/spreadsheet-reader";
 
 /**
  * Kalem Excel şablonu — ÜRET + OKU (2026-08-22). AI YOK: deterministik,
@@ -234,7 +233,7 @@ export class ListingItemImportService {
         );
       }
       try {
-        await wb.csv.read(Readable.from(buffer), csvReadOptions(buffer));
+        await readCsvInto(wb, buffer);
       } catch {
         throw new BadRequestException(i18nMessage("api.companyListings.csvDosyasiOkunamadi"));
       }

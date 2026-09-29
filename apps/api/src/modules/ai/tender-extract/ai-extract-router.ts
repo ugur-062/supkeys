@@ -2,9 +2,8 @@ import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { BadRequestException, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import { PDFParse } from "pdf-parse";
 import ExcelJS from "exceljs";
-import { Readable } from "stream";
 import { assertZipWithinLimits, XLSX_LOAD_OPTIONS, ZipInspectError } from "../../../common/files/zip-inspect";
-import { csvReadOptions } from "../../../common/files/spreadsheet-reader";
+import { readCsvInto } from "../../../common/files/spreadsheet-reader";
 import sharp from "sharp";
 import heicConvert from "heic-convert";
 import type { AiInlinePart } from "../providers/ai-provider.interface";
@@ -559,7 +558,7 @@ async function routeSpreadsheet(
     // "2,5;120,5" hucreleri ondalik virgulden bolunuyordu (MU-08 S016).
     // MU-19 S029: ham metin korunur ("1.500" 1.5'e, "05-09-2026" ABD tarihine
     // donusmeden modele gider).
-    else await wb.csv.read(Readable.from(buffer), csvReadOptions(buffer));
+    else await readCsvInto(wb, buffer);
   } catch {
     throw new BadRequestException(i18nMessage("api.ai.tabloDosyasiOkunamadiXlsxVeyaCsv"));
   }

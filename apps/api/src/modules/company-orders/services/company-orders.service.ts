@@ -63,6 +63,7 @@ import {
   moneyParam,
   type NotificationParams,
 } from "../../../common/notifications/notification-params";
+import { maskEmail } from "../../../common/logging/mask-email";
 
 /**
  * Sipariş listesi tavanı — client-side işlenen liste (OrdersList) full-set ister.
@@ -223,7 +224,7 @@ export class CompanyOrdersService {
       })
       .catch((err) =>
         this.logger.error(
-          `Sipariş bildirimi gönderilemedi (${to.email}): ${
+          `Sipariş bildirimi gönderilemedi (${maskEmail(to.email)}): ${
             err instanceof Error ? err.message : String(err)
           }`,
         ),

@@ -69,6 +69,13 @@ describe("toLocalInput / toDateInput", () => {
 });
 
 describe("mapDetailToForm", () => {
+  it("derin denetim S028: eski talepteki 3-4 ondalık teklif/DB ölçeğine (2) indirilir", () => {
+    const legacy = { ...detail, decimalPlaces: 4 } as unknown as ListingDetail;
+    expect(mapDetailToForm(legacy, { forCopy: true }).decimalPlaces).toBe(2);
+    const zero = { ...detail, decimalPlaces: 0 } as unknown as ListingDetail;
+    expect(mapDetailToForm(zero).decimalPlaces).toBe(0);
+  });
+
   it("düzenleme: alanlar detaydan gelir", () => {
     const f = mapDetailToForm(detail);
     expect(f.title).toBe("Çelik alımı");

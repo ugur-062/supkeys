@@ -498,6 +498,46 @@ describe("scheduler — closeExpired", () => {
     ).toBe("OPEN");
   });
 
+  it("derin denetim X14/S029: aday seçildikten sonra kapanışı ileri alınan ilan KAPANMAZ", async () => {
+    const { service } = makeService();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const extended = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      closesAt: PAST,
+    });
+    // Yarış: cron adayları okuduktan hemen sonra sahip/auto-extend kapanışı
+    // ileri alır; claim bu değişikliği görmeli.
+    const listingDelegate = prisma.listing;
+    const racyListing = new Proxy(listingDelegate, {
+      get(target, key) {
+        if (key === "findMany") {
+          return async (args: unknown) => {
+            const rows = await target.findMany(args as never);
+            await target.update({ where: { id: extended.id }, data: { closesAt: FUTURE } });
+            return rows;
+          };
+        }
+        const v = (target as unknown as Record<string | symbol, unknown>)[key];
+        return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+      },
+    });
+    const racyPrisma = new Proxy(prisma, {
+      get(target, key) {
+        if (key === "listing") return racyListing;
+        const v = (target as unknown as Record<string | symbol, unknown>)[key];
+        return typeof v === "function" ? (v as (...a: unknown[]) => unknown).bind(target) : v;
+      },
+    });
+    const scheduler = new ListingScheduler(racyPrisma as never, service as never);
+    await scheduler.closeExpired();
+    const after = await prisma.listing.findUniqueOrThrow({ where: { id: extended.id } });
+    expect(after.status).toBe("OPEN");
+    expect(after.closesAt?.getTime()).toBe(FUTURE.getTime());
+  });
+
   it("A5: tam closesAt anında da kapatır (sınır DAHİL, lte)", async () => {
     const T = new Date("2026-09-01T12:00:00.000Z");
     const { service } = makeService();

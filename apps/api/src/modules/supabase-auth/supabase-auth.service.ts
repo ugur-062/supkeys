@@ -272,7 +272,7 @@ export class SupabaseAuthService {
         );
       }
       this.logger.debug(
-        `signInWithPassword failed for ${email}: ${error.message}`,
+        `signInWithPassword failed for ${maskEmail(email)}: ${error.message}`,
       );
       throw new UnauthorizedException(i18nMessage("api.supabaseAuth.ePostaVeyaParolaHatali"));
     }
@@ -398,7 +398,7 @@ export class SupabaseAuthService {
     );
     if (error) {
       this.logger.warn(
-        `sendPasswordResetEmail failed for ${email}: ${error.message}`,
+        `sendPasswordResetEmail failed for ${maskEmail(email)}: ${error.message}`,
       );
       // Existence sızdırmamak için sessizce geçeriz (caller her durumda
       // generic "e-posta gönderildi" döner)

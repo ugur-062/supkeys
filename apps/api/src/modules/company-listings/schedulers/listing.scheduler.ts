@@ -80,7 +80,11 @@ export class ListingScheduler implements OnModuleInit {
     let closed = 0;
     for (const l of due) {
       const claimed = await this.prisma.listing.updateMany({
-        where: { id: l.id, status: "OPEN" },
+        // closesAt claim anında YENİDEN denetlenir (derin denetim 2026-09-29
+        // X14/S029): findMany ile claim arasında kapanış ileri alındıysa
+        // (placeBid auto-extend, changeClosingTime) ilan uzatılmış hâliyle açık
+        // kalır — "uzatıldı" bildiriminden hemen sonra kapanmaz.
+        where: { id: l.id, status: "OPEN", closesAt: { not: null, lte: new Date() } },
         // Yeni değerlendirme penceresi → geçerlilik hatırlatması yeniden kurulur.
         data: { status: "IN_AWARD", evaluationReminderSentAt: null },
       });
@@ -267,6 +271,9 @@ export class ListingScheduler implements OnModuleInit {
         status: "OPEN",
         openNotifiedAt: null,
         bidsOpenAt: { not: null, lte: new Date() },
+        // Kapanışı geçmiş talep duyurulmaz (claim aynı kuralı uygular, X08);
+        // burada da süzülür ki take penceresini doldurmasın.
+        OR: [{ closesAt: null }, { closesAt: { gt: new Date() } }],
       },
       select: { id: true, currentRound: true },
       take: 100,
