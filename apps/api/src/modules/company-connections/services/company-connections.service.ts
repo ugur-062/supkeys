@@ -34,6 +34,7 @@ import { AuditService } from "../../audit/audit.service";
 import { CompanyBlocksService } from "../../company-blocks/company-blocks.service";
 import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/company-jwt.strategy";
 import { EmailService } from "../../email/email.service";
+import { maskEmail } from "../../email/email-unsubscribe.service";
 import {
   NotificationService,
   localeOf,
@@ -757,7 +758,28 @@ export class CompanyConnectionsService {
     };
   }
 
-  /** Opt-out (public): davet token'ındaki adrese bir daha davet gönderilmez. */
+  /**
+   * Opt-out sayfası açılışı (public, SALT OKUR — derin denetim MU-17): jeton
+   * geçerli mi, maskeli adres ve adres zaten çıkmış mı. Kurumsal e-posta
+   * güvenlik tarayıcıları bağlantıyı JS'li tarayıcıda açar; açılışta yazılsaydı
+   * adres kimse istemeden TÜM davetlerden kalıcı düşerdi — yazma düğmeyle
+   * (`markReferralOptOut`, POST). Geçersiz jeton 404.
+   */
+  async describeReferralOptOut(token: string) {
+    // BYPASS: public uç, tenant bağlamı yok (bkz. `markReferralOptOut`).
+    const inv = await this.bypass.companyReferralInvite.findUnique({
+      where: { token },
+      select: { email: true },
+    });
+    if (!inv) throw new NotFoundException(i18nMessage("api.companyConnections.gecersizBaglanti"));
+    const optedOut = await this.prisma.referralOptOut.findUnique({
+      where: { email: inv.email },
+      select: { email: true },
+    });
+    return { email: maskEmail(inv.email), optedOut: optedOut != null };
+  }
+
+  /** Opt-out (public, POST — düğmeyle): davet token'ındaki adrese bir daha davet gönderilmez. */
   async markReferralOptOut(token: string) {
     // RLS aktivasyon hazırlığı (denetim 2026-08-28 Parça 12 #5): BYPASS client.
     // Bu uç PUBLIC ve guard'sız (e-postadaki tek-tık "davet almak istemiyorum"

@@ -14,6 +14,9 @@
  */
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { CompanyConnectionsService } from "../../src/modules/company-connections/services/company-connections.service";
+import { ReferralOptOutController } from "../../src/modules/company-connections/controllers/referral-optout.controller";
+import { RequestMethod } from "@nestjs/common";
+import { METHOD_METADATA } from "@nestjs/common/constants";
 import { ExternalInviteDispatcher } from "../../src/modules/company-connections/services/external-invite-dispatcher.service";
 import { Prisma } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
@@ -234,9 +237,21 @@ describe("inviteExternalForListing — kuyruğa alma", () => {
     const listing = await openListing(owner.company.id, owner.user.id);
     await service.inviteExternalForListing(owner.auth, listing.id, ["opt@x.com"]);
     const inv = await prisma.companyReferralInvite.findFirstOrThrow({ where: { email: "opt@x.com" } });
+    // Sayfa açılışı (GET) SALT OKUR: maskeli adres döner, hiçbir şey yazmaz
+    // (güvenlik tarayıcıları bağlantıyı açar — derin denetim MU-17).
+    expect(await service.describeReferralOptOut(inv.token)).toEqual({ email: "op•••@x.com", optedOut: false });
+    expect(await prisma.referralOptOut.findUnique({ where: { email: "opt@x.com" } })).toBeNull();
     expect((await service.markReferralOptOut(inv.token)).ok).toBe(true);
     expect(await prisma.referralOptOut.findUnique({ where: { email: "opt@x.com" } })).not.toBeNull();
+    expect(await service.describeReferralOptOut(inv.token)).toEqual({ email: "op•••@x.com", optedOut: true });
     await expect(service.markReferralOptOut("yok-token")).rejects.toThrow();
+    await expect(service.describeReferralOptOut("yok-token")).rejects.toThrow();
+  });
+
+  it("opt-out ucu: GET okur, yazma yalnız POST (düğme) — derin denetim MU-17", () => {
+    const proto = ReferralOptOutController.prototype;
+    expect(Reflect.getMetadata(METHOD_METADATA, proto.describe)).toBe(RequestMethod.GET);
+    expect(Reflect.getMetadata(METHOD_METADATA, proto.optOut)).toBe(RequestMethod.POST);
   });
 });
 
