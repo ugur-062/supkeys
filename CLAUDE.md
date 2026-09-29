@@ -103,6 +103,13 @@ E-postalar Resend test domain'inden GERÇEKTEN gönderilir → kayıtlı gerçek
    **Geçerliliği dolmuş teklif KAZANDIRILAMAZ (2026-09-19):** `award`/
    `awardByItem` `bidValidUntilMs` ile 400 döner, ekranda Kazandır pasif +
    ipucu (uzatma iste / yeni tur). Pazarlıkta geçerlilik süresiz → etkilenmez.
+   Kazandırma UYGULANDIĞI an (onay sonrası `onAwardApproved` dahil)
+   `assertWinningBidsAwardable` geçerliliği ve teklifçiyi (askı/pasif → 400) yeniden
+   denetler. **RFQ istisnası (derin denetim 2026-09-29 MU-20):** "Yeni Tur"da AUTO
+   taşınan SUBMITTED teklif turda BİR KEZ yeniden gönderilebilir (`carriedBidRevisable`:
+   ENGLISH_AUCTION değil ∧ currentRound>1 ∧ bid.round=currentRound ∧ activeBidRound≠
+   currentRound), taslağa çekilemez; her gönderim `activeBidRound` yazar (eski satırlar
+   migration `20260929230000`); web `myBid.canReviseCarried` okur.
 7. **Kazandırma kalıcı:** toplu veya kalem bazlı → Tender AWARDED + Order
    (`ORD-YYYY-NNNN`). Geri alma (un-award) YOK. **TEK İSTİSNA (2026-09-19
    inceleme İ-1, kullanıcı kararı):** satıcı siparişi REDDEDİNCE
@@ -191,6 +198,20 @@ yalnız sekiz ülke açıktı (`docs/plan-country-registration.md` tarihsel).
   `swiftBic`, `bankCountry`); sipariş kabulü hesap no/SWIFT/banka adını da
   kaydeder. Eskiden IBAN'sız ülkenin satıcısı hesap kaydedemediği için SİPARİŞ
   KABUL EDEMİYORDU. SWIFT de KYC kilidinde (IBAN gibi).
+  **Yaptırım kapısı üç izden (derin denetim 2026-09-29 MU-17):** banka ülkesi
+  (servis) + IBAN öneki (hesap no alanındaki geçerli IBAN dahil) + SWIFT 5-6.
+  karakter; son ikisi `bankDetailsErrors` içinde (`ibanCountryBlocked`/
+  `swiftCountryBlocked`, erken döner) → API `BANK_COUNTRY_BLOCKED`. Belirli kodlara
+  bakan her kapı (admin `assertKycIdentityComplete` dahil) bu iki kodu açıkça işler;
+  admin onayı banka eksiğini elle değil `bankDetailsErrors(requireSwift)` ile ölçer
+  (`*Required` eksik, `*Invalid` kilitlemez — MU-02).
+- **Kapalı ülke keşifte aranmaz, davet almaz (MU-09):** tek kaynak
+  `external-invite-policy.ts` `registrationBlockedCountry(etiket, e-posta uzantısı,
+  site uzantısı)` (herhangi bir ipucu yeter; uzantı tanınsın diye ülke
+  `country-time-zone.ts`te olmalı, `.as` genel ek `GENERIC_CC_TLDS`). Davet kuyruğa
+  alınırken VE dağıtıcının gönderim anında denetlenir (MANUAL dahil `COUNTRY_BLOCKED`);
+  talep `targetCountries`inde 400 `TARGET_COUNTRY_BLOCKED` (sessiz süzme yok); Talep
+  Şartları normalize kapalı ülkeyi süzer, liste boşalırsa firma ülkesine daralır.
 - **Hukuki yapı `OTHER`** + `Company.legalFormLocal` (GmbH, LLC, ООО,
   kooperatif…); "Diğer" seçilince yerel ad zorunlu.
 - **Adres:** `CompanyAddress.stateRegion`; ülke tam listeye göre doğrulanır;
@@ -329,6 +350,12 @@ davette kalemler olsun ki cazip gelsin, dil kusursuz, filtreler dahil tüm
   `lib/tenders/bid-item-price.ts` (`bidItemUnitPriceTry`/`rankBidsForItem`) — TRY
   çevrimsiz, ana birimle aynı × teklif kuru, farklı × `fxToBase` × teklif kuru;
   damgasız = null → kıyas dışı, ön-seçilmez. Karşılaştırma raporunda genel toplam `totalTry`.
+  **Kazandırılmış kalem fiyatı `awardedBidForItem`** (derin denetim 2026-09-29 MU-18;
+  kalem↔kazanan ilişkisi saklanmaz): tek fiyatlayan kazanan → kazandırma siparişinde
+  (sellerCompanyId = teklifçi) ad + birim fiyat eşleşmesi → en az tasarruflu fiyat
+  ("kazananlar arasında en düşük" YANLIŞ). Tasarruf/hacim `awardedSavingsVolumeTry`
+  (pano Tasarruf + analitik; teklif kalemleri doğrudan toplanmaz); kategori kırılımı
+  segment koduna yuvarlanır, `categoryName()` ile, tutar yüzdeyle aynı `byKey` satırından.
 - **WEB BİÇİM:** para/sayı/yüzde/tarih HER ZAMAN arayüz diliyle
   (`useFormatMoney`, `useFormatDate`, `formatPercent`, `intlLocale`); `formatDate`
   dilde ZORUNLU parametre. `"tr-TR"` literali ve `toLocale{Lower,Upper}Case("tr")`
@@ -342,6 +369,14 @@ davette kalemler olsun ki cazip gelsin, dil kusursuz, filtreler dahil tüm
   YASAK (EN/RU "100 piece" basıyordu, herkese açık ürün sayfasında da); mesaj
   tek `{qty}` alır. Tekil etiket yalnız birim TEK BAŞINA ("₺50 / piece",
   sütun başlığı) gösterilirken.
+- **GÜN/SAAT (derin denetim 2026-09-29 MU-07/MU-25/MU-27):** tarih seçicisinden gelen
+  gün aralığı API'ye YALNIZ `appDayRangeIso(start, end)` (`lib/time-zone.ts`: İstanbul
+  00:00 → günün son ms'si); `new Date("YYYY-MM-DD")` (UTC gece yarısı = TR 03:00) ve
+  `new Date("…T23:59:59")` (tarayıcı saati) YASAK. Tarih-only form alanı UTC gece yarısı
+  yazılır, `getUTC*` ile okunur. AI kapanışı `parseClosingInstant` (yalnız gün → 23:59
+  İstanbul, ofsetsiz → İstanbul duvar saati); asistan istemine her turda
+  `assistantClockContext()`, onay kartında `formatNotificationDate(…, "dateTime")` —
+  ham ISO basılmaz.
 - **AI ÇIKTI DİLİ** (`common/i18n/ai-language.ts`, kural satırı istemin SONUNDA):
   İÇERİK alanları (başlık, açıklama, anahtar kelime, kalem, tanıtım) GİRDİNİN
   dilinde — çevrilmez (karışık dilli kayıt çeviriyi FAILED'e düşürüp kaydı
@@ -858,6 +893,12 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   biçimlenmiş sayı DİZESİ çoğul mesaja verilmez (≥1000'de "NaN products"
   basıyordu — SEO başlıkları/OG). `ResultCount kind=…`, `CategoryTile`
   sayacı, aksiyon merkezi satırları bu kalıpla.
+  ICU çoğula `n` her zaman SAYI verilir (derin denetim 2026-09-29 MU-24); aralık/metin
+  değer (`employeeCount` "10-49", "250+") çoğula verilmez, düz `{range}` (MU-27); `{n}`
+  içeren mesaj değersiz çağrılmaz — prod ham ICU basar, eksen birimi gibi yerde
+  parametresiz ayrı anahtar (MU-18). Nitelik seçenek METNİ `optionLabels?.[o] ?? o`,
+  DEĞER kanonik TR (MU-25). İstemcideki çıplak `fetch` (public/*) sayfa dilini
+  `accept-language` ile açıkça yollar; dile bağlı istemci önbelleği dil başına (MU-27).
 - **ÇOK DİLLİ ARAMA (2026-09-24):** `company_items`/`listings`/`companies`
   `searchTextI18n` (migration `20260924200000`, trigram GIN) = katlanmış KAYNAK
   + DONE EN/RU çeviriler (ürün ad+anahtar kelime — açıklama DEĞİL, talep
@@ -986,11 +1027,22 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 | Faz O dar-bağlam | `common/company/full-read-context.ts` |
 | Web derin bağlantıları (CTA) | `common/company/app-routes.ts` |
 | Public görsel yükleme · metin kalitesi | `common/company/{public-image-upload,public-text-quality}.ts` |
-| Yüklenen tablo dosyası okuma · ZIP/xlsx açılım kapısı | `common/files/spreadsheet-reader.ts` · `common/files/zip-inspect.ts` (`assertZipWithinLimits`, `XLSX_LOAD_OPTIONS`) |
+| Yüklenen tablo dosyası okuma · CSV seçenekleri · ZIP/xlsx açılım kapısı | `common/files/spreadsheet-reader.ts` (`csvReadOptions`, `detectCsvDelimiter`) · `common/files/zip-inspect.ts` (`assertZipWithinLimits`, `XLSX_LOAD_OPTIONS`) |
 | Şahıs firması vergi no (TCKN) görünürlüğü | `common/company/visible-tax-number.ts` (`visibleTaxNumber`) |
 | Kalem fiyatının TRY karşılığı (çok-birimli teklif) | API `common/company/report-currency.ts` `itemUnitPriceTry` ⇔ web `lib/tenders/bid-item-price.ts` |
 | E-posta gönderim kısıcısı | `modules/email/email-send-throttle.ts` |
 | Veri betiği ENV_FILE / hedef DB | `packages/db/prisma/scripts/lib/script-env.ts` (`prepareScriptDatabase`) |
+| Koltuk kapısı (firma + admin) | `common/company/seat-gate.ts` (`readSeatUsage`, `assertSeatAvailable`, `lockCompanyRow`) — derin denetim MU-04 |
+| Admin 2FA zorunlu rolleri | `common/config/admin-2fa.ts` (`ADMIN_2FA_REQUIRED_ROLES`) — MU-01 |
+| Onaycı uygunluğu | `modules/company-approvals/company-approvals.service.ts` `canActOnApprovals` — MU-15 |
+| Kazandırılmış kalemin kazananı · tasarruf/hacim | `common/company/report-currency.ts` `awardedBidForItem` · `awardedSavingsVolumeTry` — MU-18 |
+| AI model çıktısında sayı · AI kapanış tarihi | `modules/ai/ai-text.ts` `parseSeparatedNumber` · `ai/tender-extract/ai-draft-sanitizer.ts` `parseClosingInstant` — MU-07/08 |
+| Kayda kapalı ülke ipucu (keşif/davet) | `common/company/external-invite-policy.ts` `registrationBlockedCountry` — MU-09 |
+| API erişim günlüğü başlıkları | `common/logging/request-log-serializer.ts` `LOGGED_REQUEST_HEADERS` — MU-12 |
+| Talep davet tavanı · firma hizmet çipi uzunluğu | `@rothern/shared` `constants/limits.ts` `MAX_LISTING_INVITATIONS` · `COMPANY_SERVICE_MAX_LENGTH` — MU-26/24 |
+| Web hazır set / davet varsayılanı | `components/company/permission-presets.ts` (`gatePreset`, `defaultInvitePermissions`) — MU-13 |
+| Şikayet gövdesi (reason/detail bölmesi) · rapor gün aralığı (web) | `lib/company/complaint-payload.ts` · `lib/time-zone.ts` `appDayRangeIso` — MU-11/25 |
+| Admin hata toast'ı | admin `lib/api.ts` `toastApiError` — MU-21 |
 | İçe aktarma sütun/limit (talep kalemi · teklif) | `@rothern/shared` `item-import.ts` / `bid-import.ts` |
 | IBAN (TR + yabancı mod-97) | `@rothern/shared` `ibanChecksumOk` / `isValidIbanTr` |
 | Ölçü birimi · faaliyet tipi · kayıt ülkesi | `@rothern/shared` `constants/{units,company-activities}.ts`, `data/country-profiles.ts` |
@@ -1350,6 +1402,12 @@ sıralama önceliği, ürün tavanı (`PRODUCT_LIMITS`, publish anında 403) ve
 belge/video (`PRODUCT_MEDIA_TIER`). Kademe düşünce `enforceProductLimit` fazla
 ürünü taslağa çeker (silmez). "Doğrulanmamış" etiketi yalnız PROFİLDE.
 
+**Tavan sayımı publish kapısıyla AYNI (derin denetim 2026-09-29 MU-13):**
+`enforceProductLimit` yayında + PENDING sayar, yayındakiler önce tutulur, tavan dışı
+PENDING DRAFT'a düşer (submittedAt null). Admin approve/approveMany efektif kademeyle
+publish ile aynı advisory kilit (`hashtext(companyId)`) altında sayar; tavan doluysa
+ürün PENDING kalır (tekli 400, toplu atlanır).
+
 **PUBLIC talep kilidi:** `listingBidEligibility` → `{canBid, hidden}`;
 `hidden` = PUBLIC ∧ bağsız ∧ davetsiz ∧ STANDART → satır sorguya HİÇ girmez,
 `getOne` **403 `{code:"TIER_REQUIRED"}`** (404 değil — pazar yerinde teaser
@@ -1438,6 +1496,15 @@ açıkça yazılır. Geçiş emniyeti: liste boş + roller dolu → rol hazır s
   "all"a düşer). Onay akışları sekme değil, başlıktaki düğme → `?tab=flows`
   (`ApprovalFlowsSection` aynen). Kartta Alış/Satış rozeti YOK (satış ilanı
   kalktı), adımlar `<details>` ile katlı. Sözleşme `onaylar/__tests__/page.test`.
+- **Onaycı uygunluğu TEK kural (derin denetim 2026-09-29 MU-15/MU-23):**
+  `company-approvals.service.ts` `canActOnApprovals` = `hasCompanyPermission(approval:act)`
+  ile ownerUserId (Kurucu örtük); rol ETİKETİNE bakılmaz (users:manage taşıyan kişi
+  approval:act olmadan da YONETICI etiketi alır). Fallback cron'u, `findEligibleApprover`,
+  `assertApproversValid`, `listApproverCandidates`, `requestApproval` ilk adım ikamesi ve
+  sihirbazın seçicisi (`GET company/approvals/approver-candidates`, approvals:manage,
+  yalnız id/ad/rol; `company/users` OKUNMAZ) aynı kural. Detayın rekabet özeti yalnız
+  eliminatedAt boş ve KAZANAN teklifin `round`undaki teklifleri sayar (sonuçlanmış
+  istekte ilanın currentRound'u güvenilmez); kalem kazanan toplamı teklif + birim başına.
 - Yetki tablosu ekranı: `components/company/permission-table.tsx` (hazır set
   çipleri + 4 grup tik tablosu); yazma `PUT company/users/:id/permissions`.
 
@@ -1446,6 +1513,17 @@ Satınalmada bir işlem izni 1, satışta 1; aynı kişide ikisi 2. Görüntüle
 onay/yönetim tüketmez. `seatGroupsOf` + `countSeats` (shared); kapı
 `assertSeatAvailable` (davet/kabul/atama/reaktivasyon aynı kapı, bekleyen
 davetler grup bazında rezerve). Düşüşte `POST company/users/seat-selection`.
+
+**Kapı tek dosyada (derin denetim 2026-09-29 MU-04):** `common/company/seat-gate.ts`
+(`readSeatUsage`/`assertSeatAvailable`/`lockCompanyRow`); `CompanyUsersService` yalnız
+delege eder. Koltuk tüketen her yazım — admin "Aktifleştir"/"Kullanıcı Ekle" dahil (admin
+bekleyen davetleri de sayar) — firma satırını FOR UPDATE kilitli tx içinde bu kapıdan
+geçirir. **Kuruculuk devri (MU-13):** eski Kurucunun yeni rolü de kapıdan geçer (hedefin
+kapısı `resolveOwnership`ten SONRA); devralanın işlem izinleri korunur
+(`transferTargetGrant`, roller = SAHİP + işlem rolü). Web hazır set ve davet varsayılanı
+tek kaynak `components/company/permission-presets.ts` (`gatePreset`: Gold dışı buy izni
+ve koltuk doluyken yeni grup düşer; `defaultInvitePermissions`: Gold → Satın Almacı,
+değilse Satışçı, koltuk dolu → Görüntüleyici).
 
 **SATINALMA YETKİSİ YALNIZ GOLD'DA VERİLEBİLİR (2026-09-14, kullanıcı kararı).**
 `assertSeatAvailable` artık `need: number` değil `groups: Set<"buy"|"sell">`
@@ -1644,6 +1722,15 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   Yazım: kullanıcıda `notificationPrefs[kapsam]=false`, kullanıcı olmayan
   adreste (`billingEmail`) `email_opt_outs`, davet kapsamında
   `referral_opt_outs`; Ayarlar'da yeniden açmak adres kaydını siler.
+  **Kayıtlı kullanıcıda da tür başına `email_opt_outs` satırı yazılır (derin denetim
+  2026-09-29 MU-05):** adres aynı zamanda tercihsiz giden bir `billingEmail` olabilir;
+  "Tümü" `all` değil anahtar başına satır (bir türü yeniden açmak diğerlerini açmaz).
+  Davet opt-out'u da aynı kuralda (MU-17): `GET public/referral-optout` salt okur, yazma
+  yalnız düğmeden `POST { token }`; `/davet-kapat` açılışta yazmaz. **`EmailLog.locale`**
+  (migration `20260929150000_email_log_locale`, NULL = eski/TR): admin "Yeniden gönder"
+  locale + `{contextType, contextId}`i geri geçirir, `sent:false` başarı sayılmaz. Yeni
+  gönderim yolu locale ve context'i MUTLAKA geçirir (yoksa TRANSACTIONAL sayılır, çıkış
+  başlığı düşer).
 - **DAVET KUYRUĞU** (`external_listing_invites`, talep × adres): eskiden davet
   `CompanyReferralInvite`in kendisiydi ve (davet eden × adres) BENZERSİZ olduğu
   için alıcı aynı tedarikçiyi yalnız İLK talebine davet edebiliyordu. Artık
@@ -1774,6 +1861,11 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     tercih `aiSuggestions`; bağlantı `?ai-davet=1` listeyi açık getirir, gönderim
     uygulama içinde). Süre yarılandı + teklif < 3 → İKİNCİ TUR (önceki adaylar
     hariç; talep başına en fazla 2 otomatik tur). Eylem merkezi satırı `aiSuggestions`.
+    PUBLISH turu `announceListingOpen` claim'ine bağlı KALMAZ (derin denetim 2026-09-29
+    MU-09): düzenlemede sonradan açılan keşif (`enqueueDiscoveryAfterEdit`) ve
+    `DiscoveryRunsService.tick` `catchUpPublishRuns` (duyurulmuş ≥2 dk, embargosuz,
+    aiDiscovery açık, PUBLISH/SECOND_ROUND turu olmayan OPEN talep) turu yazar. Web boş
+    tur yoklaması `EMPTY_RUN_POLL_MAX` ile sınırlı, embargoda (`startsAt`) yoklamaz.
   - Uçlar: `POST company/ai/supplier-discovery` (+`/external`; DTO kategori
     isteğe bağlı, `itemNames`/`listingId`/`targetCountries`), `GET/POST company/
     ai/supplier-discovery/listings/:id{,/invite,/invite-members,/dismiss}` (GOLD +
@@ -1819,6 +1911,14 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     saat, hiç teklif yok → talebi AÇANA e-posta + uygulama içi, her biri BİR kez
     (bağlantı `?ai-davet=1` otomatik arama açıksa).
   - Kayıtlı kullanıcının tek tık çıkışı `lifecycle` dahil tercih JSON'una yazılır.
+  - **Akşam özeti adres × tür başına alıcının yerel gününde TEK (derin denetim
+    2026-09-29 MU-14):** `digestDue` son özetin EmailLog zamanını (`lastDigestAt`) alır;
+    18:00 sonrası kalem ertesi 18:00'i bekler, sabah gönderimi yalnız o günün özeti
+    kaçtıysa. Özet/kuyruk gönderimi tercihi GÖNDERİM anında da okur (kullanıcı yok/pasif/
+    silinmiş ya da tercih kapalı → kalemler düşer). Dış davet dağıtıcısı satırı göndermeden
+    sahiplenir (`updateMany state=QUEUED ∧ sendAfter<=now` + 10 dk kira); hatırlatma yalnız
+    `referralInvite.status=PENDING`; kayıtta iptal edilmiş referral ve REFERRAL_CANCELLED/
+    INVITER_DOWNGRADED satırı bağlanmaz (MU-16).
   - Migration `20260927235000_email_digest_items` (eklemeli). Sözleşmeler:
     `email-program-policy.spec`, `email-programs.spec`, `category-match.spec`
     "GÜNDE 3 ANINDA".
@@ -2075,6 +2175,19 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   kapsam-ödeme tutarlılığı sihirbaz kurallarıyla aynı). Ayar sayfası
   Şablonlar › Talep Şartları; form `components/tenders/request-defaults-form`.
   Profil↔form köprüsü `lib/tenders/request-defaults.ts` (gidiş-dönüş testli).
+  **Şema `buildPaymentPlan`ın aynası (derin denetim 2026-09-29 MU-10):** yayında 400
+  alacak her ödeme şartı profilde de reddedilir (ADVANCE→advancePercent, LC USANCE→
+  paymentDays, CUSTOM kaydedilemez — profilde/hızlı kartta not alanı yok).
+- **Hızlı kart kuralları (MU-26/MU-07):** davet listesi tavanı tek kaynak
+  `@rothern/shared` `MAX_LISTING_INVITATIONS` (5000; API DTO + web şema). "Bağlantılarım"
+  listesi TEK gövdede gider — kayıttan sonra ayrı davet çağrısıyla parça göndermek YASAK
+  (gövdede olmayan davet düzenlemede silinir, eklenen her kayıtta "yeni" sayılıp yeniden
+  e-posta/push alır). AI panel seçim anahtarı her yerde `selectionKey` (üye
+  `m:<companyId>`). UnitSelect "Listede yok" bileşen durumudur; bilinen birim yalnız onBlur
+  ve tam eşleşmede kodlanır. Varsayılan teslimat adresi şart efektinden AYRI efektte seçilir,
+  FATURA seçilmez; asistan da aynı sırayı izler (profil adresi → varsayılan TESLİMAT →
+  TESLİMAT → İLETİŞİM, kartta görünür). "Yeni talep aç" `initialRequestFormValues("blank",
+  profil)`. Katalog seçici seçimi aramalar arasında `Record<id,{item,qty}>`te tutar.
 - **Hızlı talep (varsayılan giriş `taleplerim/yeni`):**
   `components/tenders/quick/*` — **kalemler sihirbazla AYNI bileşen**
   (`wizard/step-2-items` `Step2Items`: Kalem Adı · Miktar · Birim · Stok
@@ -2174,6 +2287,16 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   (teklifsiz OPEN) düzenlemede "Değişiklikleri kaydet" = PATCH + bekleyen davetler
   hemen, `publish` ÇAĞRILMAZ; DRAFT kaydı `asDraft: true`; düzenlemede
   `QUICK_DRAFT_KEY` yazılmaz. Sözleşme `request-defaults.test`, `quick-request.test`.
+- **Talep yaşam döngüsü (derin denetim 2026-09-29 MU-20):** `updateListing` davetleri
+  FARK olarak uygular — formda kalan satır yeniden yazılmaz (origin/aiReason korunur),
+  formda olmayan (AI dahil) silinir, bağlantı şartı yalnız yeni davetliye; duyurusu
+  yapılmış OPEN talepte yenilere `notifyAddedInvitees`. `create(asDraft:false)` de
+  `company.listing.published` yazar. Talep yönetimi yalnız açana açık (SAHİP istisnası
+  yok; `docs/invariants.md` INV-AZ-1'deki "VEYA user.isOwner" bayat); açan çıkarılınca/
+  pasifleşince `handOverLiveListings` yaşayan talepleri işlemi yapana (buy:listing:manage)
+  ya da Kurucu'ya devreder. Askıdaki/pasif firma: `sellerVisibleWhere` süzer, `getOne`
+  (teklifsiz)/`placeBid` 404, kazandırma 400; satıcıda davet sayan her yüzey (pano sayacı,
+  Aksiyon Merkezi) aynı süzgeci uygular.
 
 **TALEP DETAYI DÜZENİ (2026-09-17, kullanıcı kararı):** `/company/ilan/[id]`
 iki görünümde de sekme sayısı İKİ — `Kalemler` (kalemler + Genel Bilgi
@@ -2206,6 +2329,15 @@ taslaktan sonra yükleme düşerse form bekleyen dosyalarla geri gelir. Dosyalı
 gönderimde taslak adımı teklif yokken VE LOST iken çalışır (sunucu belgeyi yalnız
 DRAFT teklife ekler/siler); pazarlığın yeni turunda (SUBMITTED) dosya alanı kapalı.
 Web `BID_DOC_MIME_TYPES` ⇔ API `company-bid-documents.service.ts` `ALLOWED_MIME` birebir.
+
+**SAHİP EKRANI (derin denetim 2026-09-29 MU-22):** Yayınla / Onayı İptal Et başlık
+kartında da çizilir (şerit, başlık görünürken invisible). Taslakta bekleyen davetler talep
+yayına nereden alınırsa alınsın `usePendingListingInvites().flush()` ile gider. Kazandır
+olan HER yüzey `isBidExpired` + önce `award/preview` (fail-closed) → onaya takılırsa not
+diyaloğu, değilse "GERİ ALINAMAZ" onayı. Bildirimler sayfası `useNotificationFeed`
+(`before` imleci); istemci süzgeçli imleçli listede `items.length === 0 && hasNextPage`
+boş ekran bırakmaz, açıklama gösterir. Talep belgeleri listesi `getOne` ile aynı Faz O
+taraf kapısı (sahip üye buy:view, sahip olmayan sell:view — MU-19).
 
 **MUADİL SİMETRİSİ (Y-16):** tedarikçinin muadil beyanı alıcıya tek kaynaktan
 çizilir — `components/tenders/alternative-offer-note.tsx` (teklif detayı, ilan
@@ -2333,6 +2465,13 @@ misafir tavanı uygulanmaz (frenler: aynı ürüne 24 saatte tek talep + firma b
 30/gün). Yanıt bildirimi kayıtlı/misafire göre AYRIŞIR. Ücretsiz satıcıda gelen
 talep ANONİMLEŞTİRİLİR (mesaj/adet/ürün/şehir kalır), yanıt Silver+.
 
+**Sayfalı ve kurallar (derin denetim 2026-09-29 MU-25/MU-10):** `GET company/inquiries/
+{received,sent}?page=` → `{items,total,openCount,page,pageSize}` (20'şer); web
+`usePagedInquiries`, sayaçlar sunucu toplamından (`sent` ?page= olmadan eski istemciye en
+yeni 50 düz dizi). Kayıtlı alıcının bilgi talebi iki yönlü `CompanyBlock`a uyar (404).
+Satıcı e-postası sell:view izinli üyelere (Kurucu örtük), en eski önce, en fazla 5. Anonim
+`fetch` ile atılan herkese açık istek `Accept-Language: useLocale()` koyar (misafir dili).
+
 **Ürün → talep köprüsü:** "Bu ürünü satın alma talebime ekle" ürünü sihirbaza
 İLK KALEM olarak taşır; miktar ve fiyat TAŞINMAZ (MOQ satıcının tabanı, vitrin
 fiyatı müzakereyi çıpalar). `sessionStorage` anahtarı AI taslağından AYRI.
@@ -2366,7 +2505,12 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- Son migration `20260928170000_referral_invite_cancelled` (enum `ADD VALUE`; referral
+- **Son üç migration derin denetim ORTA turundan (2026-09-29), staging VE canlıda
+  BEKLİYOR (O-32):** `20260929230000_rfq_active_bid_round_backfill` (salt DML, idempotent —
+  MU-20), `20260929160000_company_user_2fa_attempts` (NOT NULL DEFAULT 0 + iki nullable,
+  metadata-only; yeni API'nin firma 2FA girişi bunsuz ÇALIŞMAZ — MU-16),
+  `20260929150000_email_log_locale` (nullable TEXT — MU-05). Bekleyen toplam 13.
+- Öncesi `20260928170000_referral_invite_cancelled` (enum `ADD VALUE`; referral
   davet iptali satırı silmez, CANCELLED — yayın denetimi Bölüm 5). Öncesi
   `20260928090000_ai_member_invites` (+
   `20260927235000_email_digest_items`, `20260927230000_supplier_discovery_runs`,
@@ -2408,6 +2552,24 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 - **Prisma `.env` symlink:** `packages/db/.env` → `../../.env`.
 - **gitleaks pre-commit:** klonladıktan sonra `git config core.hooksPath .githooks`.
   Binary yoksa fail-closed engeller; acil atlama `SKIP_GITLEAKS=1`.
+- **İçe aktarma (derin denetim 2026-09-29 MU-19/MU-23):** her `wb.csv.read`
+  `common/files/spreadsheet-reader.ts` `csvReadOptions(buffer)` ile (ayraç tespiti
+  `detectCsvDelimiter` + ham metin map + `dateFormats: []`; ExcelJS varsayılanı "1.500"ü
+  1.5'e, GG-AA-YYYY'yi ABD sırasına çevirir). Teklif fiyatında kabul edilmeyen para birimi
+  (satır ya da belge) her iki yolda errors[] — asla uyarı + teklif birimi değil; şablonda
+  birim hücresi boş = teklif birimi; sunucu izinli kodu ana birim dahil AÇIKÇA döner, null
+  = "birim yok" → istemci teklif birimi (effectiveCurrency) sayar.
+- **KYC revizyonu (MU-19):** firma/admin yazması her zaman status=PENDING CAS'ıyla
+  (`updateMany` + count); R2 silme yalnız CAS başarılıysa ve ezilen key'de; admin onayı tx
+  içinde CAS sonrası yeniden okunan key'i yazar.
+- **Katalog/profil (MU-24):** Kalem Kataloğu arşivle ucu any-of [templates:manage,
+  sell:product:manage]; vitrine girmiş ürün (isPublic ∨ reviewStatus≠DRAFT) yalnız
+  sell:product:manage ile. Hizmet çipi uzunluğu `COMPANY_SERVICE_MAX_LENGTH` (60) — DTO,
+  `aiDraftServices`, ChipEditor aynı sabit.
+- **Sürekli mounted diyalog (MU-13):** veriye bağlı varsayılan tek seferlik ref ile
+  kilitlenmez; `open` + sorgu verisine bağlı efektle, kullanıcı elle düzenlemediyse yeniden
+  hesaplanır — ve içerik değişmedikçe state yeniden YAZILMAZ (9aee3158: davet diyaloğu
+  sonsuz render döngüsü).
 - **Yol adına göre RENDER DALLANMASI yapma.** `usePathname()` statik/ISR
   üretimde "/" DÖNMÜYOR → hydration #418. "Şu an neredeyim" bilgisini istemci
   efektinden al. (Teşhis: JS'siz DOM ile hydration sonrası DOM'u ÖZNİTELİK
@@ -2506,9 +2668,9 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 
 ## Test & Kalite
 
-- API **254 dosya / 2.656 test** · web **191 / 1.138** · admin **21 / 105** · i18n **8 / 39**
-  (derin denetim 2026-09-29 düzeltme turu tam regresyonu, HEAD a6d09191; API
-  10'luk `--runInBand` partiler). `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
+- API **266 dosya / 2.920 test** (2 LIVE spec atlanır) · web **215 / 1.257** · admin
+  **27 / 135** · i18n **8 / 39** — toplam 516 dosya / 4.351 test (derin denetim
+  2026-09-29 ORTA turu tam regresyonu, HEAD 9aee3158; API 10'luk `--runInBand` partiler). `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
   kırmızı (servisin `end = new Date()` ↔ `createdAt @default(now())` yarışı) —
   yeniden koşuda yeşil, gerileme sayılmaz.
 - **Bağımlılık kapısı (2026-09-12):** CI'da `pnpm audit --prod --audit-level high`.
@@ -2606,6 +2768,14 @@ durdururdu); (3) advisory lock aynı oturumda YENİDEN ALINABİLİR → aynı ö
 içi koşu kümesine bakar, hâlâ süren işin yeni tetiği atlanır (fail-open yolunda
 da; derin denetim 2026-09-29 Y-08). Sözleşme: `test/unit/cron-lock.spec.ts`.
 
+**Tarama ve yazma kuralları (derin denetim 2026-09-29 MU-14/MU-10):** sırasız `take` +
+JS süzgeci YASAK — uygunluk sorguya, `orderBy id` + imleçle tüm adaylar (`scanAll`).
+Company üzerinde türetilmiş kolon yazan cron (`medianReplyHours` vb.) HAM SQL ile ve yalnız
+değişeni yazar (@updatedAt ilerlemesin). Content-translation `enqueue(type,id,{kick:false})`
+— kick kararı çağrı başına, paylaşılan `this.kick` geçici ezilmez. Prisma where'de birden
+çok `OR` üreten süzgeç spread edilmez, `AND: [...]` (bildirim `before` imleci portal
+süzgecini eziyordu).
+
 ### Sürüm akışı — dal koruması BYPASS EDİLEBİLİYOR
 
 `production` dalında "PR şart + Test kontrolü" kuralı var ama depo sahibi admin
@@ -2644,6 +2814,39 @@ olur. `prod-config-sanity.ts` bunu boot'ta fail-closed yakalar (`main.ts:89`).
 · Pino redact + Sentry (kritik-audit ve webhook imza hataları `reportToSentry()`)
 · `resolveClientIp` (`TRUST_CF_CONNECTING_IP=true` prod) · admin `tokenVersion`
 + şifreli TOTP sırrı · Supabase Auth hata sınıfları (aşağıda).
+
+**ADMIN 2FA ZORUNLULUĞU (derin denetim 2026-09-29 MU-01).** Tek kaynak
+`common/config/admin-2fa.ts`; env `ADMIN_2FA_REQUIRED_ROLES` (tanımsız → prod'da
+SUPER_ADMIN, diğer ortamlarda boş; `none` → kapalı + boot/Sentry uyarısı; bilinmeyen rol →
+boot durur; render.yaml'da YOK, acil anahtar dashboard'dan — O-27). `AdminJwtStrategy` her
+istekte `twoFactorEnabled` (etkin ∧ sır) döner; `AdminRolesGuard` zorunlu roldeki 2FA'sız
+admini yalnız `@AllowWithoutAdmin2fa` uçlarına bırakır (YALNIZ me, 2fa/setup, 2fa/enable —
+başka uca EKLENMEZ, `admin-2fa-enforcement.spec` kaynak ağacını tarar), gerisi 403
+`ADMIN_2FA_SETUP_REQUIRED`. Login kilitlemez; login ve /me `twoFactorSetupRequired` döner,
+panelde `RequireAdminAuth` yalnız `/admin/settings`i açar. Staging `NODE_ENV=production` →
+staging'de de zorunlu. Personel servisinde kendine yıkıcı işlem (rol düşürme, pasifleştirme,
+şifre sıfırlama) actorId ile reddedilir (MU-21).
+
+**FİRMA 2FA FRENİ + E-POSTA KODU (MU-16).** `CompanyUser.twoFactorFailedAttempts/
+twoFactorWindowStartedAt`: 15 dk'da 5 deneme (TOTP, kurtarma, e-posta; doğrulamadan ÖNCE
+koşullu ayrılır, başarıda sıfırlanır), kilitte 429 `TWO_FACTOR_LOCKED` + sahibine tek
+e-posta; `twoFactorLastTotpStep` aynı kodun tekrarını reddeder (`enableTwoFactor` adımı
+kaydetmez; migration `20260929160000_company_user_2fa_attempts`). Doğrulanan
+`EmailVerificationCode` SİLİNİR (koşullu, count === 1); `usedAt` yalnız "yeni kod üretilince
+kapatıldı"; saatlik tavan (`EMAIL_CODE_MAX_PER_HOUR`) yalnız doğrulanmamış kodu sayar; tavan
+dolu + geçerli kod → `twoFactorRequired`, yoksa 429 `EMAIL_CODE_CAPPED` (503 yalnız gönderim
+hatası). KVKK dökümünün CompanyUser `omit` listesi her yeni auth/güvenlik iç kolonuyla
+birlikte güncellenir. Onboarding'de başka firmaya kayıtlı vergi no 409 `TAX_NUMBER_TAKEN`
+(taxNumber hâlâ global @unique). Token dönen her akış `rememberMe`yi gövdede taşır
+(verify-email dahil — MU-23), taşımayanda interceptor kalıcı çerez basar.
+
+**API ERİŞİM GÜNLÜĞÜ İZİNLİ LİSTEYLE (MU-12).** `common/logging/request-log-serializer.ts`
+`LOGGED_REQUEST_HEADERS` (host, user-agent, referer maskeli, origin, content-type/length,
+accept, accept-language, x-request-id): sır taşıyan yeni başlık redact'e eklenmeden de
+düşmez; başlık açmak = listeye ekleme + gerekçe (`x-rothern-ssr` = SEO_REVALIDATE_SECRET her
+SSR satırına düşüyordu). Web/admin Sentry `scrubEvent` request.url, breadcrumb url/from/to/
+http.query, `request.query_string`, `contexts.nextjs.request_path` ve transaction'ı süzer;
+URL taşıyan yeni Sentry alanı buraya eklenir.
 
 **SUPABASE GİRİŞLERİ İSTEMCİ IP'SİYLE (derin denetim 2026-09-29 Y-11).** Girişler
 Supabase'e API sunucusundan gider; IP başına giriş kotası tek IP'de paylaşılırsa
@@ -2778,9 +2981,18 @@ matrisi + runbook); derin denetim ve düzeltme durumu
   çalışma anında `PublicApiUnavailableError` atar (ISR son iyi sürümü korur);
   404/4xx = gerçek yok; `next build`de atılmaz. İkincil bloklar yedekle kalır.
   Hata sınırları `robots noindex` taşır.
-- **SSR hız sınırı muafiyeti:** web sunucusu `SEO_REVALIDATE_SECRET`i
-  `x-rothern-ssr` başlığında yollar; API yalnız GET ∧ `/api/public/*` için
-  atlar (`isTrustedSsrRequest`). Sır Render + Vercel'de AYNI ve ≥16 karakter.
+- **SSR kovaları (derin denetim 2026-09-29 MU-12; eski "muafiyet" KALKTI):** web
+  sunucusu `SEO_REVALIDATE_SECRET`i `x-rothern-ssr`de yollar; API yalnız GET ∧
+  `/api/public/*` için kabul eder (`isTrustedSsrRequest`) ve sınırı ATLAMAZ. Arama
+  parametreli dinamik çizimde web Vercel'in `x-real-ip`sini `x-rothern-client-ip` ile
+  iletir (`lib/public/ssr-visitor.ts` `attributeSsrToVisitor(sp)`; ürün/talep dizini,
+  firma sayfası) → ziyaretçi kovası (`ssr-bucket:default:ip:<ip>`, `THROTTLE_PUBLIC_LIMIT`
+  600/dk). İlişkilendirilmemiş SSR/ISR tek ortak kova (`THROTTLE_SSR_LIMIT` 5000/dk, örnek
+  başına bellek içi, blok 60 sn — blockDuration KISALTILMAZ: blok bitince sayaç sıfırlanır,
+  fiili tavan limit/blok olur). IP ve auth kovalarını tüketmezler. Kanonik (parametresiz)
+  çizime IP EKLENMEZ (başlık Next veri önbelleği anahtarına girer); `x-rothern-client-ip`
+  sırsız yok sayılır. Sır Render + Vercel'de AYNI ve ≥16 karakter. Rastgele yol parçası
+  kalıntısı Vercel Firewall'da (O-31). Sözleşme `ssr-throttle-bypass.spec`, `ssr-visitor.test`.
 - **Başka firmanın sektörü** `localizeIndustry` (ürün satıcı kartı, bağlantılar,
   sipariş karşı tarafı) — çapraz-firma okumada serbest metin çevrilmeden basılmaz.
 - **Şifre politikası tek:** kayıt, davet kabulü, değiştirme, sıfırlama = 10
@@ -2805,6 +3017,39 @@ matrisi + runbook); derin denetim ve düzeltme durumu
   hizmet iletisi; İYS avukat görüşü (H-3) aksi derse teşvik adımları ona bağlanır.
 - **Tedarikçiye giden bildirim/e-posta "alım talebi"** (kullanıcı kararı
   2026-09-29, B6-4); alıcıya giden (kendi talebi) "satın alma talebi" kalır.
+- **KVKK sil/anonimleştir (derin denetim 2026-09-29 MU-03/MU-02):** Company'ye Cascade ile
+  bağlı ve karşı tarafın kaydını taşıyan her yeni ilişki sert silme kapısının
+  `retentionCounts` listesine eklenir (şu an: sipariş, teklif, ilan, gönderilen mesaj,
+  thread alıcı/satıcı, talep daveti, claimedCompanyId'li bilgi talebi, değerlendirme,
+  şikayet, üyelik olayı). Kişisel veri taşıyan her yeni firma tablosu/kolonu anonimleştirme
+  tx'inde temizlenir (cascade çalışmaz; şu an banka hesabı, kullanıcı daveti, COMPANY
+  çevirisi, adres kişi/vergi alanları, slug, searchTextI18n). `exportData`
+  `complaintsReceived` yalnız id/reason/status/createdAt/resolvedAt. Firma görünürlüğünü
+  değiştiren her yol (askı/kaldırma, şikayetten askı, anonimleştirme, sert silme — slug
+  önceden okunup `companyChanged(id, removed)`) `seo.companyChanged` çağırır.
+- **Admin işlemleri (MU-02/MU-04/MU-21):** şikayet `adminNote` İÇ nottur, askı gerekçesine
+  düşmez; isteğe bağlı gerekçe boşken şablonun `{gerekce}`sine sabit TR metin konmaz →
+  alıcının dilinde parametresiz ayrı anahtar. `billingEmail` `@IsEmail`, küçük harf. Admin
+  talep müdahaleleri (kapat/uzat/yeniden aç) katılımcılara `notifyListingParticipants` ile
+  bildirir (gerekçe gitmez; ping/bildirim best-effort, yanıtı düşürmez); admin referans
+  daveti iptali de SİLMEZ. Admin eliyle açılan üye onayı kendisi verir: onay alanları boş
+  hesap `/me`de `needsTermsAcceptance` → `TermsAcceptanceGate` (`POST company-auth/
+  accept-terms`; admin kimse adına onay yazmaz, API sert kapısı yok); seed/demo betikleri
+  yeni companyUser'a üç onay damgasını yazar. Admin panelinde hata toast'ı her zaman
+  `toastApiError(e, fallback)` (`e instanceof Error ? e.message` ve düz `toast.error` YASAK;
+  `no-raw-error-toast.test` zorlar); serbest metin gerekçe `PromptDialog`
+  `minLength`/`maxLength` = DTO; rol-kapılı yeni admin GET yüzeyi `admin-permissions`
+  matrisine ve `admin-action-roles-drift.spec`e birlikte girer; logout hook'ları isteği
+  (3 sn tavan) bekleyip yönlendirir.
+- **Herkese açık arama girdisi (MU-11):** q 80-120 karaktere kırpılır; `tokenizeQuery` ile
+  AND listesi kuran sorgu token'ları katlanmış biçimle tekilleştirip sayıca sınırlar
+  (kategori `CATEGORY_SEARCH_MAX_LENGTH`=120, `CATEGORY_SEARCH_MAX_TOKENS`=8).
+  `ReasonDialog` `maxLength` = gerekçeyi alan DTO'nun @MaxLength'i; şikayet
+  `lib/company/complaint-payload.ts` (reason ≤120 + detail ≤2000), engelleme ≤500.
+- **Oturum deposu ve metin kalitesi (MU-27):** firma verisi taşıyan her yeni sessionStorage
+  anahtarının öneki `tenant-storage.ts` `TENANT_SESSION_PREFIXES`e eklenir (çıkışta
+  silinir). `looksLikeProse` yazı sistemine duyarlı (Latin/Kiril/Yunan sesli harf, diğer
+  yazılar muaf, boşluksuz CJK/Tay'da sözcük kuralları atlanır).
 
 ## Bekleyen / Yapılacaklar
 
@@ -2843,9 +3088,15 @@ matrisi + runbook); derin denetim ve düzeltme durumu
   Vertex'in tanıdığı Pro adı (yapıldı) → admin backfill (canlı boş, gerekmez).
 
 **Teknik borç**
-- **Tablo okuma tek kaynağı yarım:** `listing-item-import.service.ts` hâlâ
-  `spreadsheet-reader.ts`'in KENDİ kopyasını taşıyor — güvenlik düzeltmesi İKİ
-  dosyaya da uygulanmalı (ya da o yol tek kaynağa taşınmalı).
+- **Tablo okuma tek kaynağı yarım:** CSV okuma seçenekleri artık ortak
+  (`csvReadOptions`, derin denetim 2026-09-29 MU-08/MU-19), ama
+  `listing-item-import.service.ts` xlsx yükleme/ayrıştırma yolunun KENDİ kopyasını
+  taşıyor — güvenlik düzeltmesi İKİ dosyaya da uygulanmalı (ya da o yol tek kaynağa
+  taşınmalı).
+- **Derin denetim ORTA turu artıkları:** `docs/invariants.md` INV-AZ-1 bayat (MU-20);
+  create/updateListing davet süzgeci `connectedIds.includes` O(n×m) → `Set` (MU-26);
+  kurulumda girilen TOTP adımı kaydedilmiyor (MU-16). Ayrıntı ve karar listesi
+  `docs/qa-launch-audit-2026-09-29-derin.md` "ORTA düzeltme durumu".
 - `Supplier.sectors` deprecated kolon kaldırılmalı (migration).
 - `@rothern/email` build'i CI'da otomatikleşmeli.
 - Ürün dizini sırası ham `tier` okur (cron'a dek 1 gün sapma); publish tavanı
@@ -2861,8 +3112,15 @@ matrisi + runbook); derin denetim ve düzeltme durumu
 **PROFİL AI'ı ÜCRETSİZDE DE AÇIK — FİRMA BAŞINA BİR KEZ (2026-09-14, kullanıcı
 kararı).** `profile-enrich` tek AI özelliği olarak `minTier: "STANDART"` geçer;
 merkezi kapı (`assertAiAccess`) varsayılanı SILVER ve öyle KALIR. Adet kapısı
-ömürlük: `AiUsage` içinde `feature="profile_enrich"` sayılır (aylık bütçe değil
-— bu tekrarlayan bir özellik değil, bir kerelik kurulum adımı). STANDART'a
+ömürlük ve BAŞARIYA bağlı (derin denetim 2026-09-29 MU-06): başarılı dönüşün
+`company.profile_enriched` audit kaydı sayılır (başarısız/boş deneme hak yakmaz; kayıt
+await'li + critical) + ömürlük ücretli çağrı tavanı (costUsd>0 `profile_enrich` satırı
+≤ 6); ikisi firma satırının FOR UPDATE kilidi altında, günlük deneme sayacıyla aynı tx'te
+(aylık bütçe değil — bir kerelik kurulum adımı). STANDART paylarını
+`caps.requestShareByTier` 0,2 ve `caps.dailyShareByTier` 0,5 ezer (genel %5'e grounded
+çağrı ~0,056 USD sığmıyordu); bağlı iki aşamalı akışta ilk çağrı `followUpInputChars`
+verir (takip çağrısına havuz/kullanıcı/gün tavanında yer yoksa ücretli ilk çağrı başlamaz).
+Profil ucu `callAi`'nin HttpException'larını 503'e çevirmez. STANDART'a
 0,5 USD aylık havuz açıldı; diğer AI özelliklerine ULAŞMAZ çünkü hepsi merkezi
 SILVER kapısının arkasında. Gerekçe: dolu profil = indekslenen sayfa = organik
 büyüme; tek çağrılık maliyet bilinen en ucuz müşteri edinme. Sözleşme:
@@ -2880,6 +3138,16 @@ injection zinciri yapısal kırık. Yetki = kullanıcının yetkisi. Onay kartı
 içeriği backend özetidir, model metni değil. Bütçe/tavanlar `callAi` kapısından.
 **GOTCHA:** Gemini 3 function-calling'de `thoughtSignature` geri beslemede
 korunmazsa 400; fnResponse turundan sonra boş user turu EKLEME.
+
+**AI çıktısı okuma (derin denetim 2026-09-29 MU-08/MU-07):** sayı metni tek kaynak
+`modules/ai/ai-text.ts` `parseSeparatedNumber` (iki ayraçta sondaki ondalık, tekrarlanan
+3'lü grup binlik, tek ayraç + 3 hane kararını çağıranın dil bayrağı verir; yalnız baştaki
+`-` işarettir, ortadaki aralık → null) — yeni AI sayı ayrıştırıcısı elle yazılmaz.
+Yapılandırılmış çıktı şemasında okuma üstbilgisi (docLanguage/docCurrency) büyük dizilerden
+ÖNCE (`propertyOrdering`), MAX_TOKENS kurtarması dili kaybetmesin. AI yükleme presign'ı MIME'ı
+`resolveAiUploadMime` ile kanonikleştirir (Windows .csv = application/vnd.ms-excel, codec'siz
+HEIC = ""); DTO'lar servisin kırptığı sınırları doğrulama kuralı yapmaz (SeoEnrichDto).
+Asistan kalemli teklifte amount göndermez, PlaceBidDto kuralları propose aşamasında denetlenir.
 
 ---
 
