@@ -643,6 +643,7 @@ export function ProductShowcaseForm({
                       id="urun-moq"
                       type="number"
                       min={0}
+                      max={1_000_000_000}
                       step="0.001"
                       value={moq}
                       onChange={(e) => setMoq(e.target.value)}

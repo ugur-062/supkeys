@@ -273,6 +273,11 @@ export class CompanyItemsService {
       ...(folded
         ? {
             OR: [
+              // Katlanmış kol (derin denetim LU-08): ILIKE Postgres `lower()`
+              // ile küçültür, 'ışık' 'Işık Direği'ni bulmazdı. `searchText`
+              // ad/marka/MPN'den katlanır; ham kollar kod araması ve
+              // searchText'i henüz dolmamış eski kayıtlar için kalır.
+              { searchText: { contains: folded } },
               { name: { contains: q!, mode: "insensitive" } },
               { code: { contains: q!, mode: "insensitive" } },
               { brand: { contains: q!, mode: "insensitive" } },
@@ -307,8 +312,12 @@ export class CompanyItemsService {
       this.prisma.companyItem.count({
         where: { companyId, isActive: true, isPublic: true },
       }),
+      // Taslak sayacı liste süzgeciyle AYNI koşul (derin denetim LU-08): paket
+      // düşüşünde `enforceProductLimit` ürünü yalnız isPublic=false yapar
+      // (reviewStatus APPROVED kalır); Taslak sekmesi onu listeliyor, eski
+      // `reviewStatus: DRAFT` sayacı saymıyordu.
       this.prisma.companyItem.count({
-        where: { companyId, isActive: true, isPublic: false, reviewStatus: { in: ["DRAFT"] } },
+        where: { companyId, isActive: true, ...SHOWCASE_STATUS_WHERE.draft },
       }),
       this.prisma.companyItem.count({
         where: { companyId, isActive: true, reviewStatus: "PENDING" },
@@ -338,9 +347,14 @@ export class CompanyItemsService {
   async create(user: AuthenticatedCompanyUser, input: CatalogItemInput) {
     await this.assertCapacity(user.companyId, 1);
     const data = this.normalize(input);
+    // Arama metni `update` ile AYNI formül — yoksa katlanmış arama yeni kalemi
+    // ilk düzenlemeye kadar bulamazdı (derin denetim LU-08).
+    const searchText = foldSearchText(
+      [data.name, data.brand, data.mpn].filter(Boolean).join(" "),
+    );
     const row = await this.prisma.companyItem
       .create({
-        data: { ...data, companyId: user.companyId, createdById: user.userId },
+        data: { ...data, searchText, companyId: user.companyId, createdById: user.userId },
       })
       .catch((e: unknown) => {
         throw this.mapDuplicate(e, data.code);
@@ -523,6 +537,8 @@ export class CompanyItemsService {
         createdById: user.userId,
         code,
         name: it.name,
+        // Katlanmış arama metni (ad) — `create` ile aynı gerekçe.
+        searchText: nameKey,
         description: it.description,
         unit: it.unit,
         // Tanınmazsa NULL — "PCE" varsaymak sessizce YANLIŞ birim üretirdi
@@ -793,6 +809,21 @@ export class CompanyItemsService {
     });
     if (!company || !hasPublicProfile(company)) {
       throw new NotFoundException(i18nMessage("api.companyItems.urunBulunamadi"));
+    }
+    // Engel karşılıklı görünmezliktir — panel firma profiliyle (`getProfile`)
+    // AYNI kural: engel ilişkisindeki firmanın ürün sayfası panelde 404
+    // (derin denetim LU-08; eskiden açılıp kimlikli ziyaret de yazıyordu).
+    if (company.id !== user.companyId) {
+      const block = await this.crossTenant.companyBlock.findFirst({
+        where: {
+          OR: [
+            { blockerCompanyId: user.companyId, blockedCompanyId: company.id },
+            { blockerCompanyId: company.id, blockedCompanyId: user.companyId },
+          ],
+        },
+        select: { id: true },
+      });
+      if (block) throw new NotFoundException(i18nMessage("api.companyItems.urunBulunamadi"));
     }
     const row = await this.crossTenant.companyItem.findFirst({
       where: {

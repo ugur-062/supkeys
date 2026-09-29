@@ -1222,7 +1222,8 @@
       "gecersizAdresTipi": "Недопустимый тип адреса"
     },
     "companyItems": {
-      "gecersizOlcuBirimi": "Недопустимая единица измерения"
+      "gecersizOlcuBirimi": "Недопустимая единица измерения",
+      "fiyatSifirdanBuyukOlmali": "Цена должна быть больше 0"
     },
     "adminCompanies": {
       "redGerekcesiEnAz3KarakterOlmali": "Выберите причину отклонения или напишите комментарий не короче 3 символов"

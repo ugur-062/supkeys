@@ -166,10 +166,13 @@ function offerNode(
   const moq = pr.moq
     ? { eligibleQuantity: { "@type": "QuantitativeValue", minValue: Number(pr.moq) || undefined, unitText: unit } }
     : {};
-  if (pr.priceMode === "FIXED" && pr.priceAmount) {
+  // 0 fiyat "gerçek fiyat" değildir (derin denetim LU-08): API artık 0'ı
+  // reddediyor ama eski kayıtta "0" string'i truthy olduğundan Google'a
+  // ücretsiz ürün olarak Offer price=0 yazılıyordu.
+  if (pr.priceMode === "FIXED" && Number(pr.priceAmount) > 0) {
     return compact({ "@type": "Offer", url, price: pr.priceAmount, priceCurrency: pr.priceCurrency, ...moq, seller });
   }
-  if (pr.priceMode === "TIERED" && pr.priceTiers?.length) {
+  if (pr.priceMode === "TIERED" && pr.priceTiers?.length && pr.priceTiers.every((t) => Number(t.unitPrice) > 0)) {
     const prices = pr.priceTiers.map((t) => t.unitPrice);
     return compact({
       "@type": "AggregateOffer",

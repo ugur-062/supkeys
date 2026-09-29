@@ -1222,7 +1222,8 @@
       "gecersizAdresTipi": "Geçersiz adres tipi"
     },
     "companyItems": {
-      "gecersizOlcuBirimi": "Geçersiz ölçü birimi"
+      "gecersizOlcuBirimi": "Geçersiz ölçü birimi",
+      "fiyatSifirdanBuyukOlmali": "Fiyat 0''dan büyük olmalı"
     },
     "adminCompanies": {
       "redGerekcesiEnAz3KarakterOlmali": "Red için bir gerekçe seçin ya da en az 3 karakterlik not yazın"

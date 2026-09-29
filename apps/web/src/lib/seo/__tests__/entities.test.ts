@@ -94,6 +94,23 @@ describe("productSeo", () => {
     expect(JSON.stringify(onRequest.jsonLd)).not.toContain("InStock");
     expect(onRequest.summary).toContain("teklif isteyin");
   });
+
+  it("0 fiyatlı eski kayıtta Offer price=0 yazılmaz (derin denetim LU-08)", () => {
+    const zero = productSeo({
+      companySlug: "x",
+      product: { ...product, priceMode: "FIXED", priceAmount: "0" },
+      company,
+      indexable: true,
+    });
+    expect((zero.jsonLd["@graph"] as Record<string, unknown>[])[0]).not.toHaveProperty("offers");
+    const zeroTier = productSeo({
+      companySlug: "x",
+      product: { ...product, priceMode: "TIERED", priceAmount: null, priceTiers: [{ minQty: 1, unitPrice: 0 }] },
+      company,
+      indexable: true,
+    });
+    expect((zeroTier.jsonLd["@graph"] as Record<string, unknown>[])[0]).not.toHaveProperty("offers");
+  });
 });
 
 describe("companySeo", () => {

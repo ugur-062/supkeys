@@ -83,7 +83,7 @@ export function PriceModeField({
               id="fiyat-birim"
               type="number"
               inputMode="decimal"
-              min={0}
+              min={0.01}
               step="0.01"
               value={amount}
               onChange={(e) => onChange({ amount: e.target.value })}
@@ -127,7 +127,7 @@ export function PriceModeField({
                 <input
                   aria-label={tr("kademeBirimFiyat", { n: i + 1 })}
                   type="number"
-                  min={0}
+                  min={0.01}
                   step="0.01"
                   value={t.unitPrice}
                   onChange={(e) => {

@@ -25,7 +25,7 @@ import {
   ValidateNested,
 } from "class-validator";
 import { Type } from "class-transformer";
-import { MAX_MONEY, UNITS, PRODUCT_MEDIA_TIER } from "@rothern/shared";
+import { MAX_MONEY, MIN_MONEY, UNITS, PRODUCT_MEDIA_TIER } from "@rothern/shared";
 import { Currency } from "@rothern/db";
 import { Trim } from "../../common/decorators/trim.decorator";
 import { CurrentCompanyUser } from "../company-auth/decorators/current-company-user.decorator";
@@ -61,7 +61,11 @@ class CatalogItemDto {
 /** Kademeli fiyat satırı — miktar arttıkça birim fiyat düşer. */
 class PriceTierDto {
   @IsNumber() @Min(1) @Max(1_000_000_000) minQty!: number;
-  @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(MAX_MONEY) unitPrice!: number;
+  // 0 fiyat YOK (derin denetim LU-08): "0 ₺ / adet" başlığı ve JSON-LD
+  // Offer price=0 üretiyordu; fiyat vermek istemeyen ON_REQUEST seçer.
+  @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(MIN_MONEY, { message: () => tApi("api.dto.companyItems.fiyatSifirdanBuyukOlmali") })
+  @Max(MAX_MONEY) unitPrice!: number;
 }
 
 class ProductDocDto {
@@ -119,7 +123,10 @@ class ShowcaseDto {
   @IsOptional() @IsIn(["FIXED", "TIERED", "ON_REQUEST"])
   priceMode?: "FIXED" | "TIERED" | "ON_REQUEST";
 
-  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 }) @Min(0) @Max(MAX_MONEY)
+  /** 0 kabul edilmez — PriceTierDto.unitPrice ile aynı gerekçe. */
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 2 })
+  @Min(MIN_MONEY, { message: () => tApi("api.dto.companyItems.fiyatSifirdanBuyukOlmali") })
+  @Max(MAX_MONEY)
   priceAmount?: number;
 
   @IsOptional() @IsArray() @ArrayMaxSize(10)
@@ -128,7 +135,8 @@ class ShowcaseDto {
 
   @IsOptional() @IsIn(CURRENCY_CODES) priceCurrency?: string;
 
-  @IsOptional() @IsNumber({ maxDecimalPlaces: 3 }) @Min(0) moq?: number;
+  /** Tavan minQty/`moqMax` ile aynı — Decimal(18,3) taşması 500 veriyordu (LU-08). */
+  @IsOptional() @IsNumber({ maxDecimalPlaces: 3 }) @Min(0) @Max(1_000_000_000) moq?: number;
 }
 
 /** Yeni ürün — vitrin alanları (birim ShowcaseDto'da). */

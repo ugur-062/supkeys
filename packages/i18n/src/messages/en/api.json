@@ -1222,7 +1222,8 @@
       "gecersizAdresTipi": "Invalid address type"
     },
     "companyItems": {
-      "gecersizOlcuBirimi": "Invalid unit of measure"
+      "gecersizOlcuBirimi": "Invalid unit of measure",
+      "fiyatSifirdanBuyukOlmali": "Price must be greater than 0"
     },
     "adminCompanies": {
       "redGerekcesiEnAz3KarakterOlmali": "Select a rejection reason or write a note of at least 3 characters"

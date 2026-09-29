@@ -4329,6 +4329,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.dto.companyItems.fiyatSifirdanBuyukOlmali": {
+    "hash": "82d5add215",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.dto.companyItems.gecersizOlcuBirimi": {
     "hash": "f574e3e7e3",
     "status": "reviewed",
