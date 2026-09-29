@@ -3278,6 +3278,8 @@
         "teklifDosyasiSec": "Select quote file",
         "desteklenmeyenDosyaTuru": "{join}: unsupported file type — only PDF, images (PNG, JPG, WEBP) or Excel files can be added",
         "pazarliktaGonderilmisTeklifinBelgeleriDegismez": "Documents of a quote already submitted in a negotiation cannot be changed; your earlier documents remain valid.",
+        "tasinanTeklifinBelgeleriDegismez": "Documents of a quote carried over to the new round cannot be changed in this round; your earlier documents remain valid.",
+        "tasinanTeklifBirKezRevize": "Your quote was carried over to the new round. You can revise your price once in this round; once you submit, the quote is locked again.",
         "elenmisTeklifBelgeKaldirmakIcinTaslak": "To remove one of your earlier documents, save the quote as a draft first.",
         "henuzDosyaEklenmedi": "No files added yet.",
         "yuklendi": "Uploaded",

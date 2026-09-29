@@ -301,6 +301,7 @@
     "buSatinAlmaTalebiTeklifBelgesi": "Эта заявка на закупку требует документ предложения; у победившего предложения его нет",
     "ilanDurumuDegistiKazandirmayiTekrarDeneyin": "Статус запроса изменился; повторите присуждение",
     "teklifinGecerlilikSuresiDolmusTedarikcidenSure": "Срок действия предложения истёк; запросите продление у поставщика или откройте новый раунд",
+    "teklifVerenFirmaAskidaKazandirilamaz": "Аккаунт компании-участника приостановлен или неактивен; это предложение нельзя выбрать для присуждения",
     "teklifArtikGecerliDegilGeriCekilmis": "Предложение больше недействительно (отозвано или исключено) — присудить его нельзя",
     "siparisTutariTutarsizligiKazandirmaGuvenlikNeden": "Несоответствие суммы заказа — присуждение остановлено в целях безопасности (обратитесь в службу поддержки)",
     "ilanZatenKazandirilmis": "Запрос уже присуждён",

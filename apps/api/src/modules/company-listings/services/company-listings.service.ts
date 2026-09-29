@@ -222,6 +222,26 @@ interface ListingNotifyData {
 /** AI'ın bulduğu ama alıcıya gösterilmeyen ücretsiz firmaya Silver/doğrulama çağrısı. */
 export const AI_MATCH_LOCKED_CONTEXT = "listing_ai_match_locked";
 
+/**
+ * RFQ'da "Yeni Tur" AUTO taşımasıyla bu tura SUBMITTED gelmiş ve bu turda henüz
+ * yeniden gönderilmemiş teklif mi? (derin denetim MU-20). Taşıma `round`u yeni
+ * tura yazar, `activeBidRound`a dokunmaz; her gönderim `activeBidRound`u güncel
+ * tura çeker → turda tek revizyon. Pazarlık kendi kuralını (`canBidThisRound`)
+ * uygular; ilk tur ve taslak/elenmiş teklif kapsam dışı.
+ */
+export function carriedBidRevisable(
+  bid: { status: string; round: number; activeBidRound: number | null },
+  listing: { format: string | null; currentRound: number },
+): boolean {
+  return (
+    listing.format !== "ENGLISH_AUCTION" &&
+    listing.currentRound > 1 &&
+    bid.status === "SUBMITTED" &&
+    bid.round === listing.currentRound &&
+    bid.activeBidRound !== listing.currentRound
+  );
+}
+
 @Injectable()
 export class CompanyListingsService {
   private readonly logger = new Logger(CompanyListingsService.name);
@@ -1750,6 +1770,25 @@ export class CompanyListingsService {
     // Doğrudan yayınlandıysa: davet + kategori duyurusu (embargo-farkında —
     // açılış gelecekteyse cron açılışta gönderir).
     if (!dto.asDraft) {
+      // INV-AUDIT-1: doğrudan yayın da bir durum geçişi (yok → OPEN) —
+      // publishListing ile aynı iz; commit SONRASI, duyurudan önce (derin
+      // denetim MU-20: hızlı talep kartı yayınları audit'te görünmüyordu).
+      await this.audit.log({
+        action: "company.listing.published",
+        actorType: "company",
+        actorId: user.userId,
+        actorEmail: user.email,
+        tenantId: user.companyId,
+        entityType: "listing",
+        entityId: listing.id,
+        critical: true,
+        metadata: {
+          listingType: listing.type,
+          from: null,
+          to: "OPEN",
+          visibility: listing.visibility,
+        },
+      });
       void this.announceListingOpen(listing.id, "invitation").catch((err) =>
         this.logger.warn(
           `Yayın duyurusu başarısız (${listing.id}): ${
@@ -1772,8 +1811,8 @@ export class CompanyListingsService {
    * İlanı düzenle (eski sistemdeki updateDraft kuralı): ilanı açan doğru-taraf
    * operatörü (Satın Almacı) veya firma sahibi; talep
    * AÇIK/TASLAK ve henüz SUBMITTED teklif gelmemişken. İlk teklif gelince
-   * kilitlenir. Tür değiştirilemez (mevcut tür korunur). Kalemler ve davetler
-   * tamamen yeniden yazılır (sil-ve-oluştur).
+   * kilitlenir. Tür değiştirilemez (mevcut tür korunur). Kalemler tamamen
+   * yeniden yazılır (sil-ve-oluştur); davetler FARK olarak uygulanır.
    */
   async updateListing(
     user: AuthenticatedCompanyUser,
@@ -1855,7 +1894,20 @@ export class CompanyListingsService {
     }
     format = dto.format as ListingFormat;
 
-    // Davet edilecek firmaları çöz (create ile aynı kural).
+    // Davet edilecek firmaları çöz. Davetler FARK olarak uygulanır (derin
+    // denetim MU-20): bağlantı şartı yalnız YENİ eklenen firmaya aranır —
+    // mevcut davetli (bağlantısı sonradan düşmüş ya da AI keşfinden bağlantısız
+    // davet edilmiş) formda kaldığı sürece korunur. AI kaynaklı davetler
+    // (`origin:"AI"`) düzenleme formundan yönetilmez: davet e-postası gitmiş,
+    // origin/aiReason taşıyan satır düzenlemeyle SİLİNMEZ.
+    const priorInvites = await this.prisma.listingInvitation.findMany({
+      where: { listingId },
+      select: { invitedCompanyId: true, origin: true },
+    });
+    const priorInvited = new Set(priorInvites.map((i) => i.invitedCompanyId));
+    const aiInvited = priorInvites
+      .filter((i) => i.origin === "AI")
+      .map((i) => i.invitedCompanyId);
     let inviteCompanyIds: string[] = [];
     if (dto.invitations?.length) {
       const connectedIds = await this.connectedCompanyIds(user.companyId);
@@ -1868,12 +1920,17 @@ export class CompanyListingsService {
       });
       inviteCompanyIds = targets
         .map((t) => t.id)
-        .filter((id) => id !== user.companyId && connectedIds.includes(id));
+        .filter(
+          (id) =>
+            id !== user.companyId &&
+            (connectedIds.includes(id) || priorInvited.has(id)),
+        );
     }
+    const finalInvitedCount = new Set([...inviteCompanyIds, ...aiInvited]).size;
 
     await this.validateListingBusinessRules(dto, {
       format,
-      inviteCount: inviteCompanyIds.length,
+      inviteCount: finalInvitedCount,
     });
     await this.assertListingAddressesOwned(
       user.companyId,
@@ -1891,6 +1948,7 @@ export class CompanyListingsService {
           )
         : null;
 
+    const addedInvitees: string[] = [];
     const updated = await runTenantTx(this.prisma, async (tx) => {
       // Denetim 2026-08-23 P2 #6 (TOCTOU): ilan satırını kilitle ve teklif
       // kontrolünü TX İÇİNDE yinele — eşzamanlı placeBid (aynı kilidi bekler)
@@ -2026,11 +2084,28 @@ export class CompanyListingsService {
         }
       }
 
-      // Davetleri yeniden yaz.
-      await tx.listingInvitation.deleteMany({ where: { listingId } });
-      if (inviteCompanyIds.length) {
+      // Davetleri FARK olarak uygula: formdan çıkarılan elle davetler silinir,
+      // AI davetleri korunur, yalnız yeni firmalar eklenir (mevcut satır
+      // yeniden yazılmaz → yeni davetli kümesi doğru hesaplanır).
+      await tx.listingInvitation.deleteMany({
+        where: {
+          listingId,
+          invitedCompanyId: { notIn: inviteCompanyIds },
+          OR: [{ origin: null }, { origin: { not: "AI" } }],
+        },
+      });
+      const stillInvited = new Set(
+        (
+          await tx.listingInvitation.findMany({
+            where: { listingId },
+            select: { invitedCompanyId: true },
+          })
+        ).map((i) => i.invitedCompanyId),
+      );
+      const toAdd = inviteCompanyIds.filter((cid) => !stillInvited.has(cid));
+      if (toAdd.length) {
         await tx.listingInvitation.createMany({
-          data: inviteCompanyIds.map((cid) => ({
+          data: toAdd.map((cid) => ({
             listingId,
             invitedCompanyId: cid,
             invitedById: user.userId,
@@ -2038,6 +2113,7 @@ export class CompanyListingsService {
           skipDuplicates: true,
         });
       }
+      addedInvitees.push(...toAdd);
       return l;
     });
     // Açılış tarihi düzenlemeyle geçmişe/boşa çekilmiş olabilir — duyuru henüz
@@ -2050,6 +2126,20 @@ export class CompanyListingsService {
           }`,
         ),
       );
+      // Açılış duyurusu ÇOKTAN yapıldıysa yukarıdaki claim alınamaz → düzenlemede
+      // eklenen davetliler `addInvitations` ile aynı yoldan haberdar edilir
+      // (derin denetim MU-20). Duyuru henüz yapılmadıysa onları da duyuru kapsar.
+      const embargoed =
+        updated.bidsOpenAt && updated.bidsOpenAt.getTime() > Date.now();
+      if (existing.openNotifiedAt && addedInvitees.length > 0 && !embargoed) {
+        void this.notifyAddedInvitees(updated, addedInvitees).catch((err) =>
+          this.logger.warn(
+            `Invitation notify after edit failed (${listingId}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
+      }
       // Duyuru ÇOKTAN yapıldıysa (claim alınamaz) sonradan açılan otomatik AI
       // keşfi turu buradan kuyruğa girer (derin denetim 2026-09-29 S090) —
       // yoksa talep sayfası süresiz "aranıyor" derdi. Duyuru henüz yapılmadıysa
@@ -2543,6 +2633,11 @@ export class CompanyListingsService {
     return {
       type: o.type,
       companyId: { notIn: [o.companyId, ...o.blockedIds] },
+      // Admin askısı / pasif firma: talepleri akıştan düşer (vitrin
+      // `marketplaceListingWhere` ve kategori duyurusuyla aynı kural; derin
+      // denetim MU-20 — askıdaki firmanın açık talebi teklif toplamaya
+      // devam ediyordu). Firmalar arası engel `blockedIds` ayrıdır.
+      company: { isActive: true, isBlocked: false },
       status: "OPEN",
       AND: [
         // Açılış embargosu: açılış tarihi GELECEKTE olan ilan, sahibi dışında
@@ -3150,7 +3245,11 @@ export class CompanyListingsService {
   ) {
     const listing = await this.prisma.listing.findUnique({
       where: { id },
-      include: { company: { select: { name: true, country: true } } },
+      include: {
+        company: {
+          select: { name: true, country: true, isActive: true, isBlocked: true },
+        },
+      },
     });
     if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
 
@@ -3575,6 +3674,13 @@ export class CompanyListingsService {
     if (blockedIds.includes(user.companyId)) {
       throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
+    // Askıdaki / pasif firmanın talebi akıştan düşer (`sellerVisibleWhere` ile
+    // aynı kural; derin denetim MU-20). İSTİSNA: talepte teklifi olan firma
+    // kendi teklifinin geçmişini görmeye devam eder — teklif verme yine kapalı
+    // (placeBid aynı kapıyı uygular).
+    if ((!listing.company.isActive || listing.company.isBlocked) && !myBid) {
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
+    }
     // Görünürlük ülkesi (davetli hariç): talep yalnız belirli ülkelere açıksa
     // başka ülkedeki firma İÇERİĞİ göremez. 404 değil 403 (2026-09-27): talep
     // pazar yerinde zaten herkese açık ("Yalnız … merkezli tedarikçiler teklif
@@ -3694,6 +3800,9 @@ export class CompanyListingsService {
             validityDays: myBid.validityDays,
             deliveryAddressId: myBid.deliveryAddressId,
             currency: myBid.currency,
+            // Yeni tura taşınmış RFQ teklifi bu turda bir kez revize edilebilir
+            // (placeBid ile aynı kural — `carriedBidRevisable`).
+            canReviseCarried: carriedBidRevisable(myBid, listing),
             items: myBid.items.map((bi) => ({
               itemId: bi.itemId,
               unitPrice: bi.unitPrice.toString(),
@@ -4068,12 +4177,17 @@ export class CompanyListingsService {
         autoExtendOnLateBid: true,
         autoExtendThresholdMin: true,
         autoExtendByMinutes: true,
-        company: { select: { country: true } },
+        company: { select: { country: true, isActive: true, isBlocked: true } },
       },
     });
     if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     if (listing.companyId === user.companyId) {
       throw new BadRequestException(i18nMessage("api.companyListings.kendiIlaninizaTeklifVeremezsiniz"));
+    }
+    // Askıdaki / pasif firmanın talebi teklif almaz (akıştan da düşer —
+    // `sellerVisibleWhere`; derin denetim MU-20). 404: varlık sızdırılmaz.
+    if (!listing.company.isActive || listing.company.isBlocked) {
+      throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
     // ── ERİŞİM kontrolleri ÖNCE (404/403) — durum/para birimi 400'leri gizli
     // ilanın varlığını/ayarlarını sızdırmasın (info-leak: davetsiz PRIVATE
@@ -4096,6 +4210,7 @@ export class CompanyListingsService {
             status: true,
             amount: true,
             currency: true,
+            round: true,
             activeBidRound: true,
             // Pazarlık rebid'inde teslim bilgisi taşınan tekliften KORUNUR
             // (madde 14) — yeniden sorulmaz, gönderilmezse eski değer kalır.
@@ -4182,16 +4297,23 @@ export class CompanyListingsService {
         i18nMessage("api.companyListings.geriCekilenTeklifYenidenVerilemez"),
       );
     }
+    const isDraft = dto.asDraft === true;
+    // YENİ TURA TAŞINAN RFQ TEKLİFİ (derin denetim MU-20): "Yeni Tur" AUTO
+    // taşıması teklifi SUBMITTED olarak yeni tura yazar; tedarikçiye "dilerseniz
+    // fiyatınızı düşürebilirsiniz" denir → turda BİR KEZ yeniden gönderim
+    // serbest (taşıma tur hakkını yakmaz — pazarlıktaki `activeBidRound`
+    // kuralının RFQ karşılığı). Taslağa çekilemez (yumuşak geri çekme olurdu).
+    const carriedRevision =
+      !!existingBid && !isDraft && carriedBidRevisable(existingBid, listing);
     if (
       existingBid?.status === "SUBMITTED" &&
-      listing.format !== "ENGLISH_AUCTION"
+      listing.format !== "ENGLISH_AUCTION" &&
+      !carriedRevision
     ) {
       throw new BadRequestException(
         i18nMessage("api.companyListings.gonderilmisTeklifDuzenlenemezDegisiklikIcinAlici"),
       );
     }
-
-    const isDraft = dto.asDraft === true;
     // INV-KYC-1 (2026-09-01 revizyonu): doğrulama, PLATFORMUN KEFİL OLDUĞU
     // yerde istenir — tanıştıran platform mu, yoksa taraflar birbirini zaten
     // tanıyor mu?
@@ -4736,11 +4858,10 @@ export class CompanyListingsService {
           status,
           submittedAt: isDraft ? null : new Date(),
           round: listing.currentRound,
-          // Pazarlıkta gönderim tur hakkını kullanır (taslak kullanmaz).
-          activeBidRound:
-            !isDraft && listing.format === "ENGLISH_AUCTION"
-              ? listing.currentRound
-              : null,
+          // Gönderim tur hakkını kullanır (taslak kullanmaz) — pazarlıkta
+          // "turda tek gönderim", RFQ'da "taşınan teklif turda bir kez
+          // revize" kuralı bunu sayar (MU-20).
+          activeBidRound: !isDraft ? listing.currentRound : null,
         },
         update: {
           amount,
@@ -4765,9 +4886,7 @@ export class CompanyListingsService {
           round: listing.currentRound,
           // Tur hakkı yalnız GÖNDERİMDE işlenir; taslak güncellemesi mevcut
           // hakkı (varsa) silmez.
-          ...(!isDraft && listing.format === "ENGLISH_AUCTION"
-            ? { activeBidRound: listing.currentRound }
-            : {}),
+          ...(!isDraft ? { activeBidRound: listing.currentRound } : {}),
         },
       });
       if (listingItems.length > 0) {
@@ -4937,12 +5056,16 @@ export class CompanyListingsService {
         status: true,
         submittedAt: true,
         validityDays: true,
+        bidderCompany: { select: { isActive: true, isBlocked: true } },
         items: { select: { itemId: true, unitPrice: true } },
       },
     });
     if (!bid || bid.listingId !== listingId || bid.status !== "SUBMITTED") {
       throw new BadRequestException(i18nMessage("api.companyListings.gecersizTeklif"));
     }
+    // Askıdaki / pasif teklifçiye sipariş yazılmaz (giriş yapamaz, sipariş
+    // PENDING'de takılırdı — derin denetim MU-20).
+    this.assertBidderAwardable(bid.bidderCompany);
     // Geçerliliği dolmuş teklif kazandırılamaz (2026-09-19 inceleme): ekran
     // "Geçerlilik doldu" rozeti basıyor ama sunucu kabul ediyordu → tedarikçinin
     // artık bağlı olmadığı fiyata sipariş doğuyordu. Pazarlıkta geçerlilik
@@ -5013,6 +5136,42 @@ export class CompanyListingsService {
       throw new BadRequestException(
         i18nMessage("api.companyListings.teklifinGecerlilikSuresiDolmusTedarikcidenSure"),
       );
+    }
+  }
+
+  /** Askıdaki (admin) ya da pasif teklifçi firmaya kazandırma yapılmaz. */
+  private assertBidderAwardable(
+    company: { isActive: boolean; isBlocked: boolean } | null | undefined,
+  ): void {
+    if (!company || !company.isActive || company.isBlocked) {
+      throw new BadRequestException(
+        i18nMessage("api.companyListings.teklifVerenFirmaAskidaKazandirilamaz"),
+      );
+    }
+  }
+
+  /**
+   * Kazandırmanın UYGULANDIĞI an (doğrudan ya da onay sonrası — `onAwardApproved`)
+   * kazanan tekliflerin hâlâ kazandırılabilir olduğunu doğrular: geçerlilik
+   * süresi dolmamış (Mimari Karar 6) ve teklifçi askıda/pasif değil. Onay
+   * günler sürebilir; talep anındaki kontrol yetmez (derin denetim MU-20).
+   * Hata `decide()`in fail-closed geri almasıyla onaycıya döner.
+   */
+  private async assertWinningBidsAwardable(
+    listingId: string,
+    bidIds: string[],
+  ): Promise<void> {
+    const rows = await this.prisma.listingBid.findMany({
+      where: { id: { in: [...new Set(bidIds)] }, listingId },
+      select: {
+        submittedAt: true,
+        validityDays: true,
+        bidderCompany: { select: { isActive: true, isBlocked: true } },
+      },
+    });
+    for (const r of rows) {
+      this.assertBidValidityAlive(r);
+      this.assertBidderAwardable(r.bidderCompany);
     }
   }
 
@@ -5090,6 +5249,8 @@ export class CompanyListingsService {
         i18nMessage("api.companyListings.teklifArtikGecerliDegilGeriCekilmis"),
       );
     }
+    // Onay yolunda da geçerlilik + teklifçi durumu (MU-20).
+    await this.assertWinningBidsAwardable(listingId, [bidId]);
 
     const listingItems = await this.prisma.listingItem.findMany({
       where: { listingId },
@@ -5449,11 +5610,7 @@ export class CompanyListingsService {
     // Geçerliliği dolmuş teklif kalem bazında da kazandırılamaz (award ile simetri).
     {
       const ids = [...new Set(itemAwards.map((a) => a.bidId))];
-      const rows = await this.prisma.listingBid.findMany({
-        where: { id: { in: ids }, listingId },
-        select: { submittedAt: true, validityDays: true },
-      });
-      for (const r of rows) this.assertBidValidityAlive(r);
+      await this.assertWinningBidsAwardable(listingId, ids);
     }
     // Belge zorunluysa her kazanan teklifin en az 1 belgesi olmalı (tam-kazandırma
     // ile aynı kural — item-award baypasını kapatır).
@@ -5877,6 +6034,12 @@ export class CompanyListingsService {
     const { groups, itemQty } = await this.buildItemGroups(
       listingId,
       itemAwards,
+    );
+    // Onay yolunda da geçerlilik + teklifçi durumu (MU-20) — buildItemGroups
+    // tekliflerin bu ilana ait + SUBMITTED olduğunu zaten doğruladı.
+    await this.assertWinningBidsAwardable(
+      listingId,
+      itemAwards.map((a) => a.bidId),
     );
     // Madde 9: grup = (firma, para birimi) — groupArr artık grup nesneleri
     // (bidderCompanyId grup içinde taşınır).
@@ -6832,44 +6995,59 @@ export class CompanyListingsService {
       const embargoed =
         listing.bidsOpenAt && listing.bidsOpenAt.getTime() > Date.now();
       if (listing.status === "OPEN" && !embargoed) {
-        const url = appRoutes.listing(this.webUrl(), listingId);
-        const addPortal = this.bidderPortal(listing.type);
-        const addRecipients = await this.companyRecipients(toAdd, addPortal);
-        // Aynı cümle `notifyListingInvitees`in "invitation" modunda da
-        // kullanılır — anahtarlar ortak, iki yüzey ayrışmaz.
-        const p = {
-          title: listingTitleParam(listingId, listing.title),
-          number: listing.number ?? "—",
-        };
-        for (const cid of toAdd) {
-          const r = addRecipients.get(cid);
-          if (!r) continue;
-          this.notify(
-            r,
-            {
-              subjectKey: "api.notifications.listings.invitation.subject",
-              headingKey: "api.notifications.listings.invitation.title",
-              bodyKey: "api.notifications.listings.invitation.body",
-              params: p,
-              ctaLabelKey: "api.notifications.listings.cta.viewRequest",
-              ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
-            },
-            { type: "listing_invitation", id: listingId },
-          );
-        }
-        await this.notifications.pushToCompanies(toAdd, {
-          type: "listing_invitation",
-          portal: addPortal,
-          titleKey: "api.notifications.listings.invitation.title",
-          bodyKey: "api.notifications.listings.invitation.inAppBody",
-          ctaLabelKey: "api.notifications.listings.cta.viewRequest",
-          params: p,
-          ctaPath: url,
-          listingId,
-        });
+        await this.notifyAddedInvitees(listing, toAdd);
       }
     }
     return { added: toAdd.length, skipped: wanted.length - toAdd.length };
+  }
+
+  /**
+   * Yayındaki (OPEN, embargosuz) talebe SONRADAN eklenen davetlilere davet
+   * e-postası + zil. Tek kaynak: `addInvitations` ve `updateListing` (düzenleme
+   * ekranında eklenen davetli — açılış duyurusu çoktan yapıldığı için
+   * `announceListingOpen` claim'i alamaz; derin denetim MU-20).
+   */
+  private async notifyAddedInvitees(
+    listing: { id: string; title: string; number: string | null; type: ListingType },
+    companyIds: string[],
+  ): Promise<void> {
+    if (companyIds.length === 0) return;
+    const listingId = listing.id;
+    const url = appRoutes.listing(this.webUrl(), listingId);
+    const addPortal = this.bidderPortal(listing.type);
+    const addRecipients = await this.companyRecipients(companyIds, addPortal);
+    // Aynı cümle `notifyListingInvitees`in "invitation" modunda da
+    // kullanılır — anahtarlar ortak, iki yüzey ayrışmaz.
+    const p = {
+      title: listingTitleParam(listingId, listing.title),
+      number: listing.number ?? "—",
+    };
+    for (const cid of companyIds) {
+      const r = addRecipients.get(cid);
+      if (!r) continue;
+      this.notify(
+        r,
+        {
+          subjectKey: "api.notifications.listings.invitation.subject",
+          headingKey: "api.notifications.listings.invitation.title",
+          bodyKey: "api.notifications.listings.invitation.body",
+          params: p,
+          ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+          ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
+        },
+        { type: "listing_invitation", id: listingId },
+      );
+    }
+    await this.notifications.pushToCompanies(companyIds, {
+      type: "listing_invitation",
+      portal: addPortal,
+      titleKey: "api.notifications.listings.invitation.title",
+      bodyKey: "api.notifications.listings.invitation.inAppBody",
+      ctaLabelKey: "api.notifications.listings.cta.viewRequest",
+      params: p,
+      ctaPath: url,
+      listingId,
+    });
   }
 
   /**
@@ -7947,7 +8125,8 @@ export class CompanyListingsService {
    *  (b) ilanı bu kişi açmış (createdById === userId).
    * SAHİP İSTİSNASI YOK: Kurucu ihaleler üzerinde salt-gözlemcidir (ürün
    * kararı, 2026-07-23); op-rol taşısa bile yalnız KENDİ açtığı ilanı yönetir.
-   * Oluşturanı ayrılan ilan için destek kanalı (admin) devreye girer.
+   * Oluşturan çıkarılınca/pasifleşince yaşayan talepler işlemi yapana (izni
+   * varsa) ya da Kurucu'ya devredilir (`CompanyUsersService.handOverLiveListings`).
    */
   /**
    * Faz O — owner-dal OKUMA kapısı (INV-VIS ailesi): FULL_READ (etiketler +

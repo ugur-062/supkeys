@@ -409,6 +409,8 @@ export interface ListingDetail {
     deliveryTime?: string | null;
     validityDays?: number | null;
     currency?: string | null;
+    /** Yeni tura taşınmış RFQ teklifi bu turda bir kez revize edilebilir (sunucu kuralı). */
+    canReviseCarried?: boolean;
     items?: ListingBidItemRow[];
     answers?: { questionId: string; value: string }[];
   } | null;

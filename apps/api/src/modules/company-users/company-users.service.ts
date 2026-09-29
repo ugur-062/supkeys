@@ -33,6 +33,7 @@ import type { AuthenticatedCompanyUser } from "../company-auth/strategies/compan
 import {
   ALL_COMPANY_PERMISSIONS,
   effectivePermissions,
+  hasCompanyPermission,
   hasManagementRole,
   normalizePermissions,
   permissionsForRoles,
@@ -57,6 +58,20 @@ import {
 
 /** Davet linki geçerlilik süresi (eski sistemle aynı). */
 const INVITATION_TTL_DAYS = 7;
+/**
+ * Açan kişi ayrılınca sorumluluğu devredilen talep durumları — hâlâ yönetim
+ * aksiyonu alabilen her durum (kazandırılmış/iptal = geçmiş kaydı, devredilmez).
+ */
+const HANDOVER_LISTING_STATUSES = [
+  "DRAFT",
+  "IN_APPROVAL",
+  "OPEN",
+  "CLOSED",
+  "IN_AWARD",
+  "IN_AWARD_APPROVAL",
+  "CLOSED_NO_AWARD",
+] as const;
+type ListingHandover = { transferred: number; toUserId: string | null };
 /**
  * EKİP DAVETİ E-POSTA FRENİ (yayın denetimi 2026-09-28 Bölüm 5). Görüntüleme
  * izinli davet koltuk tüketmez → koltuk kapısı sınır DEĞİLDİ; yeniden gönderim
@@ -1078,6 +1093,7 @@ export class CompanyUsersService {
     if (targetId === actor.userId) {
       throw new BadRequestException(i18nMessage("api.companyUsers.kendiniziPasiflestiremezsiniz"));
     }
+    let handover: ListingHandover | null = null;
     if (!active) {
       // Denetim 2026-08-23 LOW: #8 düşürme koruması burada da uygulanır —
       // users:manage override'lı op-rollü kullanıcı YONETICI'yi pasifleştiremesin
@@ -1087,12 +1103,13 @@ export class CompanyUsersService {
         { id: target.id, roles: target.roles as CompanyRole[] },
         company?.ownerUserId ?? null,
       );
-      await this.lockedAdminTxAudited(actor, targetId, [], async (tx) => {
+      handover = await this.lockedAdminTxAudited(actor, targetId, [], async (tx) => {
         await this.assertNotLastAdmin(tx, actor.companyId, targetId, []);
         await tx.companyUser.update({
           where: { id: targetId },
           data: { isActive: false },
         });
+        return this.handOverLiveListings(tx, actor, targetId, company?.ownerUserId ?? null);
       });
     } else if (
       seatGroupsOf({ permissions: target.permissions, roles: target.roles }).size > 0
@@ -1125,7 +1142,12 @@ export class CompanyUsersService {
       entityType: "company_user",
       entityId: targetId,
       critical: true,
-      metadata: { active },
+      metadata: {
+        active,
+        ...(handover?.transferred
+          ? { listingsTransferred: handover.transferred, listingsTransferredTo: handover.toUserId }
+          : {}),
+      },
     });
     return { ok: true };
   }
@@ -1249,7 +1271,7 @@ export class CompanyUsersService {
       { id: target.id, roles: target.roles as CompanyRole[] },
       company?.ownerUserId ?? null,
     );
-    await this.lockedAdminTxAudited(actor, targetId, [], async (tx) => {
+    const handover = await this.lockedAdminTxAudited(actor, targetId, [], async (tx) => {
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, []);
       await tx.companyUser.update({
         where: { id: targetId },
@@ -1262,6 +1284,7 @@ export class CompanyUsersService {
           email: `deleted-${targetId}@deleted.rothern`,
         },
       });
+      return this.handOverLiveListings(tx, actor, targetId, company?.ownerUserId ?? null);
     });
     // INV-AUDIT-1: iş çıkışı (soft-delete) = tüm erişimin iptali — yetki tarafı.
     // Hedef e-postası metadata'ya YAZILMAZ (PII); yalnız entityId.
@@ -1274,7 +1297,12 @@ export class CompanyUsersService {
       entityType: "company_user",
       entityId: targetId,
       critical: true,
-      metadata: { previousRoles: target.roles },
+      metadata: {
+        previousRoles: target.roles,
+        ...(handover.transferred
+          ? { listingsTransferred: handover.transferred, listingsTransferredTo: handover.toUserId }
+          : {}),
+      },
     });
     // Supabase auth kaydını da temizle → giriş imkânsız + e-posta orada da serbest.
     if (target.authId) {
@@ -1874,6 +1902,37 @@ export class CompanyUsersService {
    * LastActiveAdminError abort'tan SONRA iz bırakır, sonra aynen yukarı fırlar
    * (davranış değişmez — hâlâ 400 + aynı mesaj).
    */
+  /**
+   * TALEP SORUMLULUĞU DEVRİ (derin denetim MU-20): talep yönetimi yalnız ilanı
+   * AÇANA açık (`listingManageDenial`, SAHİP istisnası yok). Açan kişi
+   * çıkarılınca/pasifleşince yaşayan talepleri (taslak → değerlendirme,
+   * kazanansız kapanan dahil) kimse kazandıramıyor, iptal edemiyor, yeni tura
+   * alamıyordu. Aynı tx'te devredilir: işlemi yapan kişi "Talep açma ve
+   * yönetme" iznini taşıyorsa ona, değilse Kurucu'ya (izni yoksa kendine
+   * verebilir). Kazandırılmış/iptal talepler geçmiş kaydıdır, devredilmez.
+   * Çıkarmayı ENGELLEMEZ — erişim iptali (güvenlik) talep yönetiminden önce gelir.
+   */
+  private async handOverLiveListings(
+    tx: Prisma.TransactionClient,
+    actor: AuthenticatedCompanyUser,
+    targetId: string,
+    ownerUserId: string | null,
+  ): Promise<ListingHandover> {
+    const toUserId = hasCompanyPermission(actor, "buy:listing:manage")
+      ? actor.userId
+      : ownerUserId;
+    if (!toUserId || toUserId === targetId) return { transferred: 0, toUserId: null };
+    const res = await tx.listing.updateMany({
+      where: {
+        companyId: actor.companyId,
+        createdById: targetId,
+        status: { in: [...HANDOVER_LISTING_STATUSES] },
+      },
+      data: { createdById: toUserId },
+    });
+    return { transferred: res.count, toUserId: res.count > 0 ? toUserId : null };
+  }
+
   private async lockedAdminTxAudited<T>(
     actor: AuthenticatedCompanyUser,
     targetId: string,

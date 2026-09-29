@@ -141,6 +141,28 @@ describe("TeklifVerPage — kapılar", () => {
     ).toBeInTheDocument();
   });
 
+  it("yeni tura taşınan RFQ teklifi (canReviseCarried) → form açık, bir kez revize notu; taslak ve dosya alanı kapalı (MU-20)", () => {
+    h.detail = baseDetail({
+      myBid: {
+        amount: "1000",
+        status: "SUBMITTED",
+        version: 1,
+        note: null,
+        canReviseCarried: true,
+        items: [{ itemId: "i1", unitPrice: "100" }],
+      },
+    } as Partial<ListingDetail>);
+    render(<TeklifVerPage />);
+    expect(screen.queryByText(/Teklif zaten verildi/)).toBeNull();
+    expect(screen.getByText(/Bu turda fiyatınızı bir kez revize edebilirsiniz/)).toBeInTheDocument();
+    expect(screen.getAllByText("Yeni Teklif Ver").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("button", { name: /taslak olarak kaydet/i })).toBeNull();
+    expect(screen.queryByLabelText("Teklif dosyası seç")).toBeNull();
+    expect(
+      screen.getByText(/Yeni tura taşınan teklifinizin belgeleri bu turda değiştirilemez/),
+    ).toBeInTheDocument();
+  });
+
   it("herkese açık talep ücretsiz üyeye 403 TIER_REQUIRED → 'bulunamadı' DEĞİL Silver kilit kartı", () => {
     h.detail = undefined;
     h.error = { response: { status: 403, data: { code: "TIER_REQUIRED", minTier: "SILVER" } } };

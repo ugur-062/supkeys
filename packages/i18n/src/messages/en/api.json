@@ -301,6 +301,7 @@
     "buSatinAlmaTalebiTeklifBelgesi": "This buying request requires a quote document; the winning quote has none",
     "ilanDurumuDegistiKazandirmayiTekrarDeneyin": "The request status changed; try the award again",
     "teklifinGecerlilikSuresiDolmusTedarikcidenSure": "The validity period of the quote has expired; ask the supplier for an extension or open a new round",
+    "teklifVerenFirmaAskidaKazandirilamaz": "The bidding company's account is suspended or inactive; this quote cannot be awarded",
     "teklifArtikGecerliDegilGeriCekilmis": "The quote is no longer valid (withdrawn or eliminated) — it cannot be awarded",
     "siparisTutariTutarsizligiKazandirmaGuvenlikNeden": "Order amount mismatch — the award was stopped for safety reasons (please contact the support team)",
     "ilanZatenKazandirilmis": "The request has already been awarded",

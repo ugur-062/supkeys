@@ -1611,6 +1611,9 @@ export default function ListingDetailPage() {
       return { label: t("yenidenTeklifVer"), href: bidHref };
     if (st === "SUBMITTED" && l.english?.isEnglishAuction)
       return { label: t("yeniTeklifVer"), href: bidHref };
+    // Yeni tura taşınmış RFQ teklifi: turda bir kez revize (sunucu kuralı).
+    if (st === "SUBMITTED" && l.myBid.canReviseCarried)
+      return { label: t("yeniTeklifVer"), href: bidHref };
     return null; // SUBMITTED RFQ (değişiklik yok) / WITHDRAWN
   })();
   // Pazarlıkta tur hakkı kullanıldıysa CTA pasif — yeni tur garanti değil.
@@ -1658,7 +1661,9 @@ export default function ListingDetailPage() {
           !l.english?.isEnglishAuction ? (
             <>
               <Text className="text-xs text-zinc-500">
-                {t("gonderilmisTeklifGeriCekilemez")}
+                {l.myBid.canReviseCarried
+                  ? t("tasinanTeklifBirKezRevize")
+                  : t("gonderilmisTeklifGeriCekilemez")}
               </Text>
               <div className="rounded-lg bg-zinc-50 px-3 py-2">
                 <Text className="text-sm">

@@ -3129,6 +3129,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyListings.teklifVerenFirmaAskidaKazandirilamaz": {
+    "hash": "5f5c638a71",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.companyListings.teklifVermeHenuzBaslamadiAcilisSaatini": {
     "hash": "3169f90e20",
     "status": "reviewed",
@@ -24348,6 +24353,16 @@
     "hash": "b02d17c561",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.page.tasinanTeklifBirKezRevize": {
+    "hash": "280b2fde40",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.requests.page.tasinanTeklifinBelgeleriDegismez": {
+    "hash": "da2cdcb18c",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.taslagaDevamEt": {
     "hash": "ac1dc7da52",

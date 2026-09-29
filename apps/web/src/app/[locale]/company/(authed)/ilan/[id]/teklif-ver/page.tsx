@@ -579,7 +579,13 @@ export default function TeklifVerPage() {
       />
     );
   }
-  if (l.myBid?.status === "SUBMITTED" && !l.english?.isEnglishAuction) {
+  // Yeni tura taşınmış RFQ teklifi turda bir kez revize edilebilir (sunucu
+  // `canReviseCarried` ile söyler); diğer gönderilmiş RFQ teklifleri kilitli.
+  if (
+    l.myBid?.status === "SUBMITTED" &&
+    !l.english?.isEnglishAuction &&
+    !l.myBid.canReviseCarried
+  ) {
     return (
       <Blocked
         title={tr("teklifZatenVerildiDegisiklikIcin")}
@@ -605,7 +611,14 @@ export default function TeklifVerPage() {
   const isRebidAfterLoss = l.myBid?.status === "LOST";
   const isAuctionRebid =
     l.myBid?.status === "SUBMITTED" && !!l.english?.isEnglishAuction;
-  const pageTitle = isAuctionRebid
+  // Taşınan RFQ teklifinin revizyonu: gönderilmiş teklif taslağa çekilemez →
+  // taslak düğmesi ve dosya alanı kapalı (pazarlık yeniden teklifiyle aynı).
+  const isCarriedRevision =
+    l.myBid?.status === "SUBMITTED" &&
+    !l.english?.isEnglishAuction &&
+    !!l.myBid.canReviseCarried;
+  const isSubmittedRevision = isAuctionRebid || isCarriedRevision;
+  const pageTitle = isSubmittedRevision
     ? tr("yeniTeklifVer")
     : isRebidAfterLoss
       ? tr("yenidenTeklifVer")
@@ -1091,6 +1104,12 @@ export default function TeklifVerPage() {
         </div>
       ) : null}
 
+      {isCarriedRevision ? (
+        <div className="rounded-xl border border-blue-200 bg-blue-50 px-4 py-3 text-sm text-blue-800">
+          {tr("tasinanTeklifBirKezRevize")}
+        </div>
+      ) : null}
+
       {l.english?.isEnglishAuction ? (
         <AuctionLiveCard l={l} bidderCurrency={effectiveCurrency} />
       ) : null}
@@ -1453,9 +1472,11 @@ export default function TeklifVerPage() {
               {/* Sürükle-bırak alanı. Pazarlıkta gönderilmiş teklifin belgeleri
                   değiştirilemez (sunucu yalnız DRAFT teklife belge ekletir,
                   gönderilmiş teklif de taslağa çekilemez) — alan yerine not. */}
-              {isAuctionRebid ? (
+              {isSubmittedRevision ? (
                 <p className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
-                  {tr("pazarliktaGonderilmisTeklifinBelgeleriDegismez")}
+                  {isAuctionRebid
+                    ? tr("pazarliktaGonderilmisTeklifinBelgeleriDegismez")
+                    : tr("tasinanTeklifinBelgeleriDegismez")}
                 </p>
               ) : (
                 <label
@@ -1670,7 +1691,7 @@ export default function TeklifVerPage() {
             </Button>
             {/* Auction'da GÖNDERİLMİŞ teklif taslağa çekilemez (yarıştan
                 düşürürdü) — rebid'de taslak butonu gizli; backend de reddeder. */}
-            {!isAuctionRebid ? (
+            {!isSubmittedRevision ? (
               <Button
                 outline
                 className="w-full"
@@ -1761,7 +1782,7 @@ export default function TeklifVerPage() {
       {/* Gönderim onayı */}
       <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)}>
         <DialogTitle>
-          {isAuctionRebid || isRebidAfterLoss
+          {isSubmittedRevision || isRebidAfterLoss
             ? tr("teklifiRevizeEt")
             : tr("teklifGonder")}
         </DialogTitle>

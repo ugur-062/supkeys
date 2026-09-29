@@ -3278,6 +3278,8 @@
         "teklifDosyasiSec": "Teklif dosyası seç",
         "desteklenmeyenDosyaTuru": "{join}: desteklenmeyen dosya türü — yalnız PDF, görsel (PNG, JPG, WEBP) veya Excel eklenebilir",
         "pazarliktaGonderilmisTeklifinBelgeleriDegismez": "Pazarlıkta gönderilmiş teklifin belgeleri değiştirilemez; önceki belgeleriniz geçerli kalır.",
+        "tasinanTeklifinBelgeleriDegismez": "Yeni tura taşınan teklifinizin belgeleri bu turda değiştirilemez; önceki belgeleriniz geçerli kalır.",
+        "tasinanTeklifBirKezRevize": "Teklifiniz yeni tura taşındı. Bu turda fiyatınızı bir kez revize edebilirsiniz; gönderdikten sonra teklif yeniden kilitlenir.",
         "elenmisTeklifBelgeKaldirmakIcinTaslak": "Önceki belgelerden birini kaldırmak için teklifi önce taslak olarak kaydedin.",
         "henuzDosyaEklenmedi": "Henüz dosya eklenmedi.",
         "yuklendi": "Yüklendi",
