@@ -573,38 +573,58 @@ export class PublicInquiryService {
    * aynı kutuya gelen 6 haneli kod girildi. Doğrulanmamış e-postayla login
    * zaten engelli, yani bu sayfaya ulaşan herkes adresini kanıtlamıştır.
    */
-  async listClaimed(companyId: string, email: string) {
+  async listClaimed(companyId: string, email: string, page = 1) {
     await this.claimForCompany(companyId, email);
-    const rows = await this.prisma.publicInquiry.findMany({
-      where: { claimedCompanyId: companyId },
-      select: {
-        id: true,
-        message: true,
-        quantity: true,
-        verifiedAt: true,
-        company: { select: { name: true, slug: true } },
-        product: { select: { name: true, slug: true } },
-        replies: {
-          select: { id: true, body: true, createdAt: true },
-          orderBy: { createdAt: "asc" },
+    // SAYFALI (listForCompany ile aynı desen): eskiden `take: 50` ile sessizce
+    // kırpılıyordu — 50'den fazla talep gönderen alıcı en eskilerini ve
+    // onlara gelen yanıtları hiç göremiyordu. `openCount` = yanıt bekleyen
+    // TOPLAM (web süzgeç sayacı sayfadan bağımsız).
+    const pageSize = 20;
+    const current = Math.max(1, page);
+    const where = { claimedCompanyId: companyId };
+    const [total, openCount, rows] = await Promise.all([
+      this.prisma.publicInquiry.count({ where }),
+      this.prisma.publicInquiry.count({ where: { ...where, replies: { none: {} } } }),
+      this.prisma.publicInquiry.findMany({
+        where,
+        select: {
+          id: true,
+          message: true,
+          quantity: true,
+          verifiedAt: true,
+          company: { select: { name: true, slug: true } },
+          product: { select: { name: true, slug: true } },
+          replies: {
+            select: { id: true, body: true, createdAt: true },
+            orderBy: { createdAt: "asc" },
+          },
         },
-      },
-      orderBy: { verifiedAt: "desc" },
-      take: 50,
-    });
-    return rows.map((r) => ({
-      id: r.id,
-      message: r.message,
-      quantity: r.quantity,
-      sentAt: r.verifiedAt?.toISOString() ?? null,
-      seller: r.company,
-      product: r.product,
-      replies: r.replies.map((x) => ({
-        id: x.id,
-        body: x.body,
-        createdAt: x.createdAt.toISOString(),
+        // `id` ikincil anahtar: aynı verifiedAt'li satırlar sayfa sınırında
+        // kararlı sıralansın (atlama/çift gelme olmasın).
+        orderBy: [{ verifiedAt: "desc" }, { id: "desc" }],
+        skip: (current - 1) * pageSize,
+        take: pageSize,
+      }),
+    ]);
+    return {
+      items: rows.map((r) => ({
+        id: r.id,
+        message: r.message,
+        quantity: r.quantity,
+        sentAt: r.verifiedAt?.toISOString() ?? null,
+        seller: r.company,
+        product: r.product,
+        replies: r.replies.map((x) => ({
+          id: x.id,
+          body: x.body,
+          createdAt: x.createdAt.toISOString(),
+        })),
       })),
-    }));
+      total,
+      openCount,
+      page: current,
+      pageSize,
+    };
   }
 
   /**

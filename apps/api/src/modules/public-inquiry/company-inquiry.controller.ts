@@ -73,8 +73,12 @@ export class CompanyInquiryController {
    */
   @Get("sent")
   @RequireCompanyPermission("buy:view")
-  sent(@CurrentCompanyUser() user: AuthenticatedCompanyUser) {
-    return this.service.listClaimed(user.companyId, user.email);
+  sent(
+    @CurrentCompanyUser() user: AuthenticatedCompanyUser,
+    @Query("page") page?: string,
+  ) {
+    const n = Number.parseInt(page ?? "1", 10);
+    return this.service.listClaimed(user.companyId, user.email, Number.isFinite(n) ? n : 1);
   }
 
   /**

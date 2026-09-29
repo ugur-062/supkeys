@@ -521,7 +521,7 @@ describe("KAYITLI alıcı talebi — doğrulama adımı YOK", () => {
 
     // Alıcı da GÖRÜR — satır claimedCompanyId ile DOĞDU, kayıt sonrası
     // tembel bağlamayı beklemedi.
-    const sent = await svc.listClaimed(b.company.id, b.user.email);
+    const { items: sent } = await svc.listClaimed(b.company.id, b.user.email);
     expect(sent).toHaveLength(1);
     expect(sent[0].quantity).toBe("500 adet");
 
@@ -581,7 +581,7 @@ describe("KAYITLI alıcı talebi — doğrulama adımı YOK", () => {
         message: `Dördüncüsü de geçmeli — talep ${i}.`,
       });
     }
-    const sent = await svc.listClaimed(b.company.id, b.user.email);
+    const { items: sent } = await svc.listClaimed(b.company.id, b.user.email);
     expect(sent).toHaveLength(4);
   });
 
@@ -689,7 +689,7 @@ describe("hesaba bağlama — TEMBEL ve idempotent", () => {
 
     // Ziyaretçi şimdi kaydoluyor.
     const visitor = await makeCompanyWithUser(prisma);
-    const sent = await svc.listClaimed(visitor.company.id, VALID.email);
+    const { items: sent } = await svc.listClaimed(visitor.company.id, VALID.email);
     expect(sent).toHaveLength(1);
     expect(sent[0].seller.name).toBe(company.name);
     expect(sent[0].replies[0].body).toBe("Fiyat teklifimiz ektedir.");
@@ -709,8 +709,8 @@ describe("hesaba bağlama — TEMBEL ve idempotent", () => {
     });
     await svc.verify(/t=([a-f0-9]{64})/.exec(mail.sent[0].body)?.[1] as string);
     const visitor = await makeCompanyWithUser(prisma);
-    expect(await svc.listClaimed(visitor.company.id, VALID.email)).toHaveLength(1);
-    expect(await svc.listClaimed(visitor.company.id, VALID.email)).toHaveLength(1);
+    expect((await svc.listClaimed(visitor.company.id, VALID.email)).items).toHaveLength(1);
+    expect((await svc.listClaimed(visitor.company.id, VALID.email)).items).toHaveLength(1);
   });
 
   it("BAŞKA e-postayla kaydolan kullanıcı talebi göremez", async () => {
@@ -727,7 +727,7 @@ describe("hesaba bağlama — TEMBEL ve idempotent", () => {
     });
     await svc.verify(/t=([a-f0-9]{64})/.exec(mail.sent[0].body)?.[1] as string);
     const other = await makeCompanyWithUser(prisma);
-    expect(await svc.listClaimed(other.company.id, "baska@example.com")).toEqual([]);
+    expect((await svc.listClaimed(other.company.id, "baska@example.com")).items).toEqual([]);
   });
 
   it("DOĞRULANMAMIŞ talep hesaba bağlanmaz", async () => {
@@ -744,7 +744,54 @@ describe("hesaba bağlama — TEMBEL ve idempotent", () => {
       ...VALID,
     });
     const visitor = await makeCompanyWithUser(prisma);
-    expect(await svc.listClaimed(visitor.company.id, VALID.email)).toEqual([]);
+    expect((await svc.listClaimed(visitor.company.id, VALID.email)).items).toEqual([]);
+  });
+
+  it("gonderilenler SAYFALI: 50'den fazlasi kirpilmaz, en eski talep ve yaniti ?page ile gelir; openCount toplam", async () => {
+    // Eskiden `take: 50` sessizce kirpiyordu: 51. (en eski) talep ve ona
+    // gelen yanit alicinin panelinde hic gorunmuyordu.
+    const svc = new PublicInquiryService(
+      prisma as unknown as PrismaBypassService,
+      makeEmail() as never,
+    );
+    const { company, product } = await seedProduct();
+    const b = await makeCompanyWithUser(prisma);
+    const base = Date.now() - 2 * 60 * 60_000;
+    for (let i = 0; i < 55; i += 1) {
+      await prisma.publicInquiry.create({
+        data: {
+          companyId: company.id,
+          productId: product.id,
+          name: "Ayse Demir",
+          email: b.user.email,
+          message: `Soru ${i}`,
+          tokenHash: `sent-page-${b.company.id}-${i}`,
+          expiresAt: new Date(base + 86_400_000),
+          verifiedAt: new Date(base + i * 1000),
+          claimedCompanyId: b.company.id,
+          claimedAt: new Date(),
+        },
+      });
+    }
+    const oldest = await prisma.publicInquiry.findFirstOrThrow({
+      where: { claimedCompanyId: b.company.id },
+      orderBy: { verifiedAt: "asc" },
+    });
+    await prisma.publicInquiryReply.create({
+      data: { inquiryId: oldest.id, authorId: "u", body: "Eski yanit" },
+    });
+
+    const pages = [];
+    for (let p = 1; p <= 3; p += 1) pages.push(await svc.listClaimed(b.company.id, b.user.email, p));
+    expect(pages.map((p) => p.items.length)).toEqual([20, 20, 15]);
+    expect(pages[0].total).toBe(55);
+    const all = pages.flatMap((p) => p.items);
+    expect(new Set(all.map((x) => x.id)).size).toBe(55);
+    const last = all.find((x) => x.id === oldest.id);
+    expect(last?.replies[0]?.body).toBe("Eski yanit");
+    // Yanit bekleyen TOPLAM 54 — yanitli kayit son sayfada olsa da.
+    expect(pages[0].openCount).toBe(54);
+    expect(pages[2].openCount).toBe(54);
   });
 });
 

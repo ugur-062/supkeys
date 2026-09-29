@@ -72,7 +72,7 @@ export function InquiriesView({
         raw: i,
       }));
     }
-    return (sent.data ?? []).map((i) => ({
+    return (sent.data?.items ?? []).map((i) => ({
       id: i.id,
       kind: "sent" as const,
       title: i.seller.name,
@@ -86,15 +86,16 @@ export function InquiriesView({
     }));
   }, [isSeller, received.data, sent.data, tr]);
 
-  // Satıcı sayaçları SUNUCU TOPLAMINDAN (liste sayfalı; yüklü satırlar
-  // toplamın yalnız bir kısmı olabilir). Alıcı listesi tek parça.
-  const totalCount = isSeller ? (received.data?.total ?? threads.length) : threads.length;
+  // Sayaçlar SUNUCU TOPLAMINDAN (iki yön de sayfalı; yüklü satırlar
+  // toplamın yalnız bir kısmı olabilir).
+  const paged = isSeller ? received : sent;
+  const totalCount = paged.data?.total ?? threads.length;
   const openCount =
-    isSeller && received.data?.openCount != null
-      ? received.data.openCount
+    paged.data?.openCount != null
+      ? paged.data.openCount
       : threads.filter((t) => t.replies.length === 0).length;
   const answeredCount = Math.max(0, totalCount - openCount);
-  const canLoadMore = isSeller && !!received.hasNextPage;
+  const canLoadMore = !!paged.hasNextPage;
   // Katlanmış karşılaştırma — `tr` küçültme Latin "I"yı "ı" yapıyordu.
   const term = foldSearchText(q);
   const visible = threads.filter((t) => {
@@ -116,7 +117,7 @@ export function InquiriesView({
   }, [visible, selectedId]);
   const selected = visible.find((t) => t.id === selectedId) ?? null;
 
-  const loading = isSeller ? received.isLoading : sent.isLoading;
+  const loading = paged.isLoading;
   const locked = isSeller && !!received.data?.locked;
 
   return (
@@ -233,11 +234,11 @@ export function InquiriesView({
                 <div className="border-t border-zinc-950/5 p-3 text-center">
                   <button
                     type="button"
-                    onClick={() => void received.fetchNextPage()}
-                    disabled={received.isFetchingNextPage}
+                    onClick={() => void paged.fetchNextPage()}
+                    disabled={paged.isFetchingNextPage}
                     className="rounded-full px-4 py-1.5 text-sm font-semibold text-zinc-700 ring-1 ring-zinc-300 transition hover:bg-zinc-50 disabled:opacity-50"
                   >
-                    {received.isFetchingNextPage
+                    {paged.isFetchingNextPage
                       ? tr("yukleniyor")
                       : tr("dahaEskiTalepleriYukle", { loaded: threads.length, total: totalCount })}
                   </button>

@@ -1,7 +1,7 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
 
 /**
@@ -50,9 +50,9 @@ export interface SentInquiry {
 
 export const INQUIRY_KEY = ["company-inquiries"] as const;
 
-/** `GET /company/inquiries/received?page=` — sunucu 20'şer sayfalar. */
-interface ReceivedInquiriesPage {
-  items: ReceivedInquiry[];
+/** `GET /company/inquiries/{received|sent}?page=` — sunucu 20'şer sayfalar. */
+interface InquiriesPage<T> {
+  items: T[];
   total: number;
   /** Yanıt bekleyen TOPLAM (sayfadan bağımsız; eski yanıtta yok). */
   openCount?: number;
@@ -60,26 +60,27 @@ interface ReceivedInquiriesPage {
 }
 
 /**
- * Gelen talepler — SAYFALI (`?page=`, "daha fazla yükle"). Eskiden tek
- * parametresiz çağrıydı: sunucu ilk 20'yi döndürüyor, 21. ve daha eski
- * talepler panelde hiç görünmüyor ve yanıtlanamıyordu; sayaçlar da yalnız
- * bu 20 satırdan hesaplanıyordu. `data` yüklü sayfaların birleşimidir
- * (yeni talep sayfaları kaydırırsa aynı kayıt iki kez gelmez); `total`/
- * `openCount` sunucunun toplamıdır.
+ * İki yönün ortak SAYFALI sorgusu (`?page=`, "daha fazla yükle"). `data`
+ * yüklü sayfaların birleşimidir (yeni talep sayfaları kaydırırsa aynı kayıt
+ * iki kez gelmez); `total`/`openCount` sunucunun toplamıdır.
  *
- * `enabled=false` → karşı portalda gereksiz istek atılmaz.
+ * Eski sunucu (`sent` ucu düz dizi döndürürdü) tek sayfa olarak okunur —
+ * web/API sürüm kayması listeyi boşaltmasın.
  */
-export function useReceivedInquiries(enabled = true) {
-  const q = useInfiniteQuery<ReceivedInquiriesPage>({
+function usePagedInquiries<T extends { id: string }>(
+  direction: "received" | "sent",
+  enabled: boolean,
+) {
+  const q = useInfiniteQuery<InquiriesPage<T>>({
     enabled,
-    queryKey: [...INQUIRY_KEY, "received"],
+    queryKey: [...INQUIRY_KEY, direction],
     initialPageParam: 1,
     queryFn: async ({ pageParam }) => {
-      const { data } = await companyApi.get<ReceivedInquiriesPage>(
-        "/company/inquiries/received",
+      const { data } = await companyApi.get<InquiriesPage<T> | T[]>(
+        `/company/inquiries/${direction}`,
         { params: { page: pageParam } },
       );
-      return data;
+      return Array.isArray(data) ? { items: data, total: data.length } : data;
     },
     getNextPageParam: (last, all) => {
       const loaded = all.reduce((n, p) => n + p.items.length, 0);
@@ -90,7 +91,7 @@ export function useReceivedInquiries(enabled = true) {
   const data = useMemo(() => {
     if (!pages?.length) return undefined;
     const seen = new Set<string>();
-    const items: ReceivedInquiry[] = [];
+    const items: T[] = [];
     for (const p of pages) {
       for (const it of p.items) {
         if (seen.has(it.id)) continue;
@@ -115,17 +116,24 @@ export function useReceivedInquiries(enabled = true) {
   };
 }
 
+/**
+ * Gelen talepler — SAYFALI. Eskiden tek parametresiz çağrıydı: sunucu ilk
+ * 20'yi döndürüyor, 21. ve daha eski talepler panelde hiç görünmüyor ve
+ * yanıtlanamıyordu; sayaçlar da yalnız bu 20 satırdan hesaplanıyordu.
+ *
+ * `enabled=false` → karşı portalda gereksiz istek atılmaz.
+ */
+export function useReceivedInquiries(enabled = true) {
+  return usePagedInquiries<ReceivedInquiry>("received", enabled);
+}
+
+/**
+ * Gönderilen talepler — SAYFALI (gelenle aynı desen). Eskiden sunucu
+ * `take: 50` ile sessizce kırpıyordu: 50'den fazla talep gönderen alıcı en
+ * eskilerini ve onlara gelen yanıtları göremiyordu.
+ */
 export function useSentInquiries(enabled = true) {
-  return useQuery<SentInquiry[]>({
-    enabled,
-    queryKey: [...INQUIRY_KEY, "sent"],
-    queryFn: async () => {
-      const { data } = await companyApi.get<SentInquiry[]>(
-        "/company/inquiries/sent",
-      );
-      return data;
-    },
-  });
+  return usePagedInquiries<SentInquiry>("sent", enabled);
 }
 
 export function useReplyInquiry() {

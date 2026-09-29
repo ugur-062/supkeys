@@ -196,6 +196,39 @@ describe("InquiriesView — gelen talepler sayfalı (derin denetim MU-25)", () =
   });
 });
 
+describe("InquiriesView — gonderilen talepler sayfali (derin denetim MU-25, gozden gecirme)", () => {
+  it("alici: 21. talep 'daha eski talepleri yukle' ile gelir; sayaclar sunucu toplamindan", async () => {
+    const mk = (n: number) => ({ ...SENT[0], id: `s${n}`, message: `Gonderilen ${n}` });
+    h.get.mockImplementation((url: string, cfg?: { params?: { page?: number } }) => {
+      if (!url.includes("sent")) return Promise.resolve({ data: RECEIVED });
+      const page = cfg?.params?.page ?? 1;
+      return Promise.resolve({
+        data:
+          page === 1
+            ? { total: 21, openCount: 15, items: Array.from({ length: 20 }, (_, i) => mk(i + 1)) }
+            : { total: 21, openCount: 15, items: [mk(21)] },
+      });
+    });
+    const user = userEvent.setup();
+    wrap(<InquiriesView portal="satinalma" />);
+    expect(await screen.findByText("Siz: Gonderilen 1")).toBeInTheDocument();
+    expect(screen.queryByText("Siz: Gonderilen 21")).toBeNull();
+    expect(screen.getByRole("tab", { name: /Tümü/ })).toHaveTextContent("21");
+    expect(screen.getByRole("tab", { name: /Yanıt bekleniyor/ })).toHaveTextContent("15");
+    expect(screen.getByRole("tab", { name: /Yanıt gelen/ })).toHaveTextContent("6");
+
+    await user.click(screen.getByRole("button", { name: /Daha eski talepleri yükle/ }));
+    expect(await screen.findByText("Siz: Gonderilen 21")).toBeInTheDocument();
+    const pages = h.get.mock.calls
+      .filter((c) => String(c[0]).includes("sent"))
+      .map((c) => (c[1] as { params?: { page?: number } } | undefined)?.params?.page);
+    expect(pages).toEqual([1, 2]);
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /Daha eski talepleri yükle/ })).toBeNull(),
+    );
+  });
+});
+
 describe("PanelInquiryDialog", () => {
   const seed = {
     productName: "Dağıtım Panosu",
