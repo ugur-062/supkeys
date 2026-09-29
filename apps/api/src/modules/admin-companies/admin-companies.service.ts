@@ -2497,6 +2497,11 @@ export class AdminCompaniesService {
             twoFactorRecoveryCodes: true,
             authId: true,
             tokenVersion: true,
+            // 2FA deneme freni sayaclari (derin denetim MU-16): hesap
+            // guvenligi ic durumu, dokum kapsami disinda.
+            twoFactorFailedAttempts: true,
+            twoFactorWindowStartedAt: true,
+            twoFactorLastTotpStep: true,
           },
         }),
       ),

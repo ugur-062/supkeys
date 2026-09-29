@@ -286,6 +286,10 @@ export class CompanyAuthService {
     // Hesap-bazlı üretim tavanı (son 60 dk). Aşıldıysa yeni kod ÜRETİLMEZ ve
     // e-posta gitmez; mevcut kod (varsa) geçerli kalır. Çağıran generic yanıt
     // döner (kayıt/yeniden gönder akışında enumeration sızdırmaz).
+    // Sayıma yalnız DOĞRULANMAMIŞ kodlar girer: başarıyla doğrulanan kod satırı
+    // tüketimde SİLİNİR (consumeEmailCode/verifyEmail). Eskiden tüketilen kodlar
+    // da sayılıyor, saatte 5 başarılı e-posta 2FA girişinden sonra 6. giriş ~1
+    // saat kilitleniyordu (derin denetim MU-16, gözden geçirme).
     const recent = await this.bypass.emailVerificationCode.count({
       where: { companyUserId: userId, createdAt: { gte: new Date(Date.now() - 60 * 60_000) } },
     });
@@ -404,11 +408,13 @@ export class CompanyAuthService {
       await this.bumpCodeAttempt(record.id);
       return false;
     }
-    await this.bypass.emailVerificationCode.update({
-      where: { id: record.id },
-      data: { usedAt: new Date() },
+    // Başarılı tüketim satırı SİLER (üretim tavanına sayılmasın). KOŞULLU
+    // silme (usedAt null) → aynı kodla eşzamanlı iki istekten yalnız biri geçer;
+    // arada yeni kod üretilip bu kod kapatıldıysa da geçmez.
+    const { count } = await this.bypass.emailVerificationCode.deleteMany({
+      where: { id: record.id, usedAt: null },
     });
-    return true;
+    return count === 1;
   }
 
   /**
@@ -452,10 +458,11 @@ export class CompanyAuthService {
       await this.bumpCodeAttempt(record.id);
       throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
     }
+    // Doğrulanan kod satırı SİLİNİR: üretim tavanına sayılmaz (consumeEmailCode
+    // ile aynı kural, derin denetim MU-16 gözden geçirme).
     const [, updatedUser] = await this.bypass.$transaction([
-      this.bypass.emailVerificationCode.update({
+      this.bypass.emailVerificationCode.deleteMany({
         where: { id: record.id },
-        data: { usedAt: new Date() },
       }),
       this.bypass.companyUser.update({
         where: { id: user.id },

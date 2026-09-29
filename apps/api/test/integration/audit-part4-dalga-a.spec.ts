@@ -200,6 +200,10 @@ describe("#5 — KVKK dökümü: audit izi + kimlik-doğrulama iç durumu kapsam
     expect(users[0]).not.toHaveProperty("twoFactorSecret");
     expect(users[0]).not.toHaveProperty("authId");
     expect(users[0]).not.toHaveProperty("tokenVersion");
+    // 2FA deneme freni sayaclari da hesap guvenligi ic durumu (derin denetim MU-16)
+    expect(users[0]).not.toHaveProperty("twoFactorFailedAttempts");
+    expect(users[0]).not.toHaveProperty("twoFactorWindowStartedAt");
+    expect(users[0]).not.toHaveProperty("twoFactorLastTotpStep");
     expect(out.company).not.toHaveProperty("adminNotes");
 
     let log: { action: string } | null = null;

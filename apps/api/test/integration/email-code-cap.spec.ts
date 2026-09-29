@@ -83,10 +83,37 @@ describe("e-posta 2FA girişinde kod tavanı (derin denetim MU-16)", () => {
     return { ...rig, login };
   }
 
+  it("başarıyla doğrulanan kodlar tavana sayılmaz: 5 başarılı e-posta 2FA girişinden sonra 6. giriş kod alır", async () => {
+    const { email, login } = await emailTwoFactorUser();
+    for (let i = 0; i < 5; i++) {
+      await expect(login()).resolves.toEqual({ twoFactorRequired: true, method: "email" });
+      const ok = (await login(extractCode(email))) as { token?: string };
+      expect(ok.token).toBeTruthy();
+    }
+    const sentBefore = email.send.mock.calls.length;
+    await expect(login()).resolves.toEqual({ twoFactorRequired: true, method: "email" });
+    expect(email.send.mock.calls.length).toBe(sentBefore + 1); // yeni kod gitti
+    const ok = (await login(extractCode(email))) as { token?: string };
+    expect(ok.token).toBeTruthy();
+  });
+
+  it("tüketilen kod ikinci kez geçmez (eşzamanlı iki istekten yalnız biri)", async () => {
+    const { email, login } = await emailTwoFactorUser();
+    await login();
+    const code = extractCode(email);
+    const results = await Promise.allSettled([login(code), login(code)]);
+    const passed = results.filter(
+      (r) => r.status === "fulfilled" && (r.value as { token?: string }).token,
+    );
+    expect(passed).toHaveLength(1);
+    const again = await login(code).catch((e: unknown) => e);
+    expect((again as { token?: string }).token).toBeUndefined();
+  });
+
   it("tavan dolunca 503 DEĞİL: geçerli son kod varsa kod ekranına geçilir, o kodla giriş yapılır", async () => {
     const { email, login } = await emailTwoFactorUser();
-    // signup kodu (1) + 4 giriş = saatte 5 kod → tavan doldu.
-    for (let i = 0; i < 4; i++) await login();
+    // Doğrulanan signup kodu silinir → 5 doğrulanmamış giriş kodu = tavan doldu.
+    for (let i = 0; i < 5; i++) await login();
     const lastCode = extractCode(email);
     const sentBefore = email.send.mock.calls.length;
 
@@ -99,7 +126,7 @@ describe("e-posta 2FA girişinde kod tavanı (derin denetim MU-16)", () => {
 
   it("tavan dolu VE geçerli kod yoksa 429 (gönderim hatası 503'ü değil)", async () => {
     const { user, login } = await emailTwoFactorUser();
-    for (let i = 0; i < 4; i++) await login();
+    for (let i = 0; i < 5; i++) await login();
     await prisma.emailVerificationCode.updateMany({
       where: { companyUserId: user.id, usedAt: null },
       data: { expiresAt: new Date(Date.now() - 1000) },
