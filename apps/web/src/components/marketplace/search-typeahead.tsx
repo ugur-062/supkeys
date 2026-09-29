@@ -1,6 +1,7 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 
 import { useCityLabel } from "@/i18n/domain";
 import { Avatar } from "@/components/ui/avatar";
@@ -18,6 +19,7 @@ import { cn } from "@/lib/utils";
 import { ChevronDownIcon, ClockIcon, MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
+import { localizePath } from "@/i18n/href";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 
 /**
@@ -119,6 +121,7 @@ export function SearchTypeahead({
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const t = useTranslations("web.marketplace.typeahead");
   const tl = useTranslations("web.marketplace.labels");
+  const locale = useLocale() as Locale;
   const cityLabel = useCityLabel();
   // Kapsam etiketleri/yer tutucuları dil bilen katalogdan; SEARCH_SCOPES yalnız anahtar + hedef.
   const scopeText = (k: SuggestScope): { label: string; placeholder: string } =>
@@ -219,8 +222,11 @@ export function SearchTypeahead({
         </div>
       ) : null}
 
+      {/* `opt.action` İÇ yol; düz GET formu next-intl'den geçmez → aktif
+          dilin DIŞ yolu basılır, yoksa EN/RU arama Türkçe siteye düşerdi
+          (derin denetim Y-17). */}
       <form
-        action={opt.action}
+        action={localizePath(opt.action, locale)}
         method="get"
         role="search"
         className="relative w-full"

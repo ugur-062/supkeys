@@ -1,7 +1,8 @@
 "use client";
 
 import { useAiSearchIntent } from "@/hooks/use-ai-search-intent";
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
+import type { Locale } from "@rothern/i18n";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import type { AiSearchIntentResult, AiSearchPortal } from "@rothern/shared";
 import { ArrowRightIcon, MagnifyingGlassIcon, SparklesIcon } from "@heroicons/react/20/solid";
@@ -11,6 +12,7 @@ import Image from "next/image";
 import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { usePathname, useRouter } from "@/i18n/navigation";
+import { localizePath } from "@/i18n/href";
 import { useState, type FormEvent, type KeyboardEvent } from "react";
 import { toast } from "sonner";
 import { rememberSearch } from "@/lib/company/recent-searches";
@@ -292,6 +294,7 @@ export function PanelHeroSearch({
   const chipsLabel = chipsLabelProp ?? t("populer");
   const router = useRouter();
   const pathname = usePathname();
+  const locale = useLocale() as Locale;
   const sp = useSearchParams();
   const [q, setQ] = useState("");
   const [open, setOpen] = useState(false);
@@ -488,10 +491,13 @@ export function PanelHeroSearch({
         ) : null}
 
         {/* `data-hero-search`: üst çubuk araması bu kutuyu gözler — kutu
-            görünümdeyken gizli, kaydırınca ve diğer sayfalarda görünür. */}
+            görünümdeyken gizli, kaydırınca ve diğer sayfalarda görünür.
+            `action` yalnız hidrasyon öncesi düz gönderimin hedefi (sonra
+            `onSubmit` router'la gider) — o da aktif dilin DIŞ yolu olmalı
+            (derin denetim Y-17). */}
         <form
           data-hero-search
-          action={targetAction}
+          action={localizePath(targetAction, locale)}
           method="get"
           role="search"
           onSubmit={onSubmit}

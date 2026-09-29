@@ -1,9 +1,11 @@
-import { getFormatter, getTranslations } from "next-intl/server";
+import { getFormatter, getLocale, getTranslations } from "next-intl/server";
+import type { Locale } from "@rothern/i18n";
 import { ProductCard } from "./product-card";
 import { Pagination } from "@/components/ui/pagination";
 import { fetchCompanyProducts, type PublicProductPage } from "@/lib/public/marketplace-api";
 import { MagnifyingGlassIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
+import { localizePath } from "@/i18n/href";
 
 /**
  * Firma profilindeki ÜRÜN PORTFÖYÜ — sunucu bileşeni.
@@ -29,6 +31,7 @@ export async function CompanyProducts({
   const t = await getTranslations("web.marketplace.companyProducts");
   const ti = await getTranslations("web.marketplace.index");
   const fmt = await getFormatter();
+  const locale = (await getLocale()) as Locale;
   // Görünürlük pazar yeri anahtarına BAĞLI DEĞİL (2026-09-03): ürünler
   // firmanın zaten açık olan profilinin parçası. İndekslenme ayrı kapı
   // (sayfa `noindex` + sitemap anahtara bağlı).
@@ -47,8 +50,12 @@ export async function CompanyProducts({
         </h2>
         {/* FİRMA İÇİ ARAMA (spec §7): derin kataloglu firmada ziyaretçi
             aradığını 40 kartın içinde gözle bulmak zorunda kalmasın. Düz
-            GET formu — JS'siz de çalışır, sonuç aynı sayfada. */}
-        <form method="get" action={`/firma/${companySlug}`} className="flex items-center gap-2">
+            GET formu — JS'siz de çalışır, sonuç aynı sayfada. Düz form
+            next-intl'den geçmediği için hedef aktif dilin DIŞ yolu
+            (`/en/companies/<slug>`); ön eksiz Türkçe yol EN/RU ziyaretçiyi
+            Türkçe sayfaya atıyordu (derin denetim Y-17). `#urunler` GET
+            gönderiminde korunur — sonuç portföy bölümünde açılır. */}
+        <form method="get" action={`${localizePath(`/firma/${companySlug}`, locale)}#urunler`} className="flex items-center gap-2">
           <label htmlFor="firma-urun-ara" className="sr-only">
             {t("searchLabel")}
           </label>
