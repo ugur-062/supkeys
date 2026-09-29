@@ -88,12 +88,28 @@ export function profileEnrichStructureSystemPrompt(locale: Locale): string {
 ${aiUiLanguageRule(locale, "aboutText, services")}`;
 }
 
+/** Grounded yolun serbest metnini semaya ceviren ikinci cagrinin istemi. */
+function structurePrompt(text: string): string {
+  return `<metin>\n${text}\n</metin>`;
+}
+
 /** `AiUsage.feature` anahtarı (bütçe/kullanım ekranı). */
 const PROFILE_ENRICH_FEATURE = "profile_enrich";
 /** Başarılı taslak dönüşünün audit izi — ücretsiz ömürlük hak bunu sayar. */
 const PROFILE_ENRICHED_ACTION = "company.profile_enriched";
 /** Ücretsiz pakette ÖMÜR BOYU BAŞARILI taslak hakkı (bir kerelik kurulum adımı). */
 const FREE_TIER_ENRICH_LIMIT = 1;
+/**
+ * Ucretsiz pakette OMUR BOYU UCRETLI cagri tavani (derin denetim MU-06 gozden
+ * gecirme): hak yalniz basariyla tukendigi icin taslak DONMEYEN ama token
+ * harcayan cagrilar (bos aboutText, parse hatasi, zaman asimi) sinirsizdi.
+ * Maliyet olusturan (costUsd > 0) `profile_enrich` satirlari sayilir; para
+ * harcamayan saglayici hatalari (costUsd=0) hakki yakmaz. 6 cagri ~= 3 grounded
+ * akis; en kotu toplam ~0,33 USD < STANDART havuzu.
+ */
+const FREE_TIER_PAID_CALL_LIMIT = 6;
+/** Grounded yoldaki ikinci (semaya cevirme) cagrisinin girdi metni tavani. */
+const STRUCTURE_INPUT_MAX_CHARS = 10_000;
 
 @Injectable()
 export class ProfileEnrichService {
@@ -156,7 +172,18 @@ export class ProfileEnrichService {
         const basarili = await tx.auditLog.count({
           where: { tenantId: user.companyId, action: PROFILE_ENRICHED_ACTION },
         });
-        if (basarili >= FREE_TIER_ENRICH_LIMIT) {
+        // Basarisiz ama ucretli denemelerin de omurluk bir tavani var.
+        const ucretliCagri = await tx.aiUsage.count({
+          where: {
+            companyId: user.companyId,
+            feature: PROFILE_ENRICH_FEATURE,
+            costUsd: { gt: 0 },
+          },
+        });
+        if (
+          basarili >= FREE_TIER_ENRICH_LIMIT ||
+          ucretliCagri >= FREE_TIER_PAID_CALL_LIMIT
+        ) {
           throw new ForbiddenException(
             i18nMessage("api.ai.ucretsizPaketteProfilAiIleBir"),
           );
@@ -215,7 +242,15 @@ export class ProfileEnrichService {
         system,
         prompt: ask,
         ...(usingSearch
-          ? { webSearch: true }
+          ? {
+              webSearch: true,
+              // Ikinci (sema) cagrisina butcede yer yoksa ucretli grounded
+              // cagri hic baslamaz — para bosa yanip taslak donmemesin.
+              followUpInputChars:
+                STRUCTURE_INPUT_MAX_CHARS +
+                structurePrompt("").length +
+                profileEnrichStructureSystemPrompt(locale).length,
+            }
           : { responseSchema: DRAFT_SCHEMA as unknown as object }),
       })
       .catch((err: unknown) => {
@@ -243,7 +278,7 @@ export class ProfileEnrichService {
         // Ücretsiz pakete açık; adet kapısı yukarıda (firma başına bir kez).
         minTier: "STANDART",
         system: profileEnrichStructureSystemPrompt(locale),
-        prompt: `<metin>\n${result.text.slice(0, 10_000)}\n</metin>`,
+        prompt: structurePrompt(result.text.slice(0, STRUCTURE_INPUT_MAX_CHARS)),
         responseSchema: DRAFT_SCHEMA as unknown as object,
       });
       jsonText = parsed.text;

@@ -83,6 +83,13 @@ export interface AiConfig {
      * S013/X21) — sitesi okunamayan ücretsiz firma hiç taslak alamıyordu.
      */
     requestShareByTier?: Partial<Record<TierName, number>>;
+    /**
+     * Paket bazında günlük tavan (yoksa `dailyShare`). STANDART'ta genel %25
+     * (0,125 USD) grounded profil akışını (~0,056 + ~0,022) ancak o gün önceki
+     * iz yoksa taşıyordu: zaman aşımı tahmini KORUR, ikinci denemede şema
+     * çağrısı günlük tavana takılıyordu (derin denetim MU-06 gözden geçirme).
+     */
+    dailyShareByTier?: Partial<Record<TierName, number>>;
     /** Premium alt-bütçesi: havuzun payı. */
     premiumShare: number;
     /** Uyarı eşiği (havuz doluluk oranı). */
@@ -202,6 +209,10 @@ export function loadAiConfig(env: AiEnvSource): AiConfig {
       // 0,5 × 0,2 = 0,10 USD. Günlük tavan (0,125) ve ömürlük tek başarılı
       // hak yine frenler; havuz diğer özelliklere ulaşmaz (SILVER kapısı).
       requestShareByTier: { STANDART: 0.2 },
+      // STANDART: günün 3 denemesinin en kötü hâli (her biri grounded + şema
+      // ≈ 0,077 USD, zaman aşımı tahmini tutar) sığsın → 0,5 × 0,5 = 0,25 USD.
+      // Toplam maliyeti ömürlük ücretli çağrı tavanı sınırlar (profile-enrich).
+      dailyShareByTier: { STANDART: 0.5 },
       premiumShare: 0.2,
       warnShare: 0.8,
     },

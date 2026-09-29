@@ -42,6 +42,14 @@ export interface ReserveCandidate {
   model: string;
   estimatedCostUsd: Prisma.Decimal;
   isPremium: boolean;
+  /**
+   * Bu cagriya BAGLI takip cagrisinin tahmini (orn. grounded profil metnini
+   * semaya ceviren ikinci cagri). Havuz/kullanici/gun tavanlarinda tahmine
+   * EKLENEREK kontrol edilir ama REZERVE EDILMEZ (satir yalniz kendi
+   * tahminini tutar). Amac: ilk cagri ucretliyken ikincinin tavana takilip
+   * parayi bosa yakmasi yapisal olarak kapansin (derin denetim MU-06).
+   */
+  followUpCostUsd?: Prisma.Decimal;
 }
 
 export interface ReserveResult {
@@ -117,11 +125,11 @@ export class AiBudgetService {
     return (await this.limitsFor(companyId, db)).pool;
   }
 
-  /** Havuz + istek başı pay (paket bazında override: `caps.requestShareByTier`). */
+  /** Havuz + istek başı/günlük pay (paket bazında override: `caps.*ByTier`). */
   private async limitsFor(
     companyId: string,
     db: Prisma.TransactionClient | PrismaService,
-  ): Promise<{ pool: number | null; requestShare: number }> {
+  ): Promise<{ pool: number | null; requestShare: number; dailyShare: number }> {
     const company = await db.company.findUnique({
       where: { id: companyId },
       select: { tier: true, membershipEndAt: true },
@@ -133,6 +141,8 @@ export class AiBudgetService {
       pool: pool != null && pool > 0 ? pool : null,
       requestShare:
         this.config.caps.requestShareByTier?.[tier] ?? this.config.caps.requestShare,
+      dailyShare:
+        this.config.caps.dailyShareByTier?.[tier] ?? this.config.caps.dailyShare,
     };
   }
 
@@ -172,7 +182,7 @@ export class AiBudgetService {
       // penceresi firma bazında serileşir (TOCTOU kapalı).
       await tx.$queryRaw`SELECT id FROM companies WHERE id = ${args.companyId} FOR UPDATE`;
 
-      const { pool, requestShare } = await this.limitsFor(args.companyId, tx);
+      const { pool, requestShare, dailyShare } = await this.limitsFor(args.companyId, tx);
       if (pool == null) {
         throw new ForbiddenException(
           i18nMessage("api.ai.paketinizAiOzellikleriniIcermiyorSilverVeya"),
@@ -194,14 +204,17 @@ export class AiBudgetService {
       for (let i = 0; i < args.candidates.length; i++) {
         const cand = args.candidates[i]!;
         const est = cand.estimatedCostUsd;
+        // Istek tavani yalniz BU cagri icindir; birikimli tavanlar bagli
+        // takip cagrisina da yer kalmasini ister (`followUpCostUsd`).
+        const need = cand.followUpCostUsd ? est.add(cand.followUpCostUsd) : est;
         const denial: BudgetDenial | null =
           est.gt(poolD.mul(requestShare))
             ? "request_cap"
-            : monthSpend.add(est).gt(poolD)
+            : monthSpend.add(need).gt(poolD)
               ? "pool"
-              : userSpend.add(est).gt(poolD.mul(caps.userShare))
+              : userSpend.add(need).gt(poolD.mul(caps.userShare))
                 ? "user_cap"
-                : daySpend.add(est).gt(poolD.mul(caps.dailyShare))
+                : daySpend.add(need).gt(poolD.mul(dailyShare))
                   ? "daily_cap"
                   : cand.isPremium &&
                       premiumSpend.add(est).gt(poolD.mul(caps.premiumShare))

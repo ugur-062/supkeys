@@ -301,6 +301,76 @@ describe("Faz AI-0 — bütçe tavanları (çağrıdan ÖNCE reddedilir)", () =>
     ).rejects.toThrow(AiBudgetExceededException);
   });
 
+  it("bağlı takip çağrısına bütçede yer yoksa ücretli ilk çağrı HİÇ başlamaz; aynı gün timeout sonrası tam akış sığar (MU-06 gözden geçirme)", async () => {
+    // Profil grounded akışı: 1) grounded çağrı ~0,056  2) şema çağrısı ~0,021.
+    // Önceki timeout FAILED satırı tahmini (0,056) KORUR. Eski günlük tavan
+    // (0,5 × %25 = 0,125): grounded 0,112 ile geçiyor, şema çağrısı daily_cap
+    // ile düşüyordu — grounded ücreti boşa, kullanıcıya taslak yok.
+    const GROUNDED: AiCallOptions = {
+      feature: "profile_enrich",
+      prompt: "x".repeat(800),
+      minTier: "STANDART",
+      webSearch: true,
+      followUpInputChars: 10_500,
+    };
+    const SEMA: AiCallOptions = {
+      feature: "profile_enrich",
+      prompt: "x".repeat(10_000),
+      minTier: "STANDART",
+    };
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const auth = authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], {
+      tier: "STANDART",
+      isOwner: true,
+    });
+    await seedSpend(co.company.id, co.user.id, "0.056", {
+      feature: "profile_enrich",
+      status: "FAILED",
+      errorCode: "timeout",
+    });
+
+    // Eski günlük tavan: takip çağrısına yer yok → grounded çağrı sağlayıcıya
+    // GİTMEDEN reddedilir (para yanmaz, rezervasyon satırı açılmaz).
+    const eski = new FakeProvider();
+    const aiEski = makeAi(
+      makeCfg({
+        budgets: { STANDART: 0.5 },
+        maxOutputTokens: 8192,
+        caps: { requestShareByTier: { STANDART: 0.2 } },
+      }),
+      eski,
+    );
+    await expect(aiEski.callAi(auth, GROUNDED)).rejects.toThrow(AiBudgetExceededException);
+    expect(eski.calls).toHaveLength(0);
+    // Takip bildirimi olmadan grounded geçerdi (0,112 ≤ 0,125) — boşa harcama yolu.
+    expect(
+      await prisma.aiUsage.count({ where: { companyId: co.company.id, status: "RESERVED" } }),
+    ).toBe(0);
+
+    // STANDART günlük payı 0,5 (0,25 USD): timeout sonrası tam akış sığar.
+    const yeni = new FakeProvider();
+    yeni.usage = { inputTokens: 300, outputTokens: 4000, cacheReadTokens: 0, cacheWriteTokens: 0 };
+    const aiYeni = makeAi(
+      makeCfg({
+        budgets: { STANDART: 0.5 },
+        maxOutputTokens: 8192,
+        caps: { requestShareByTier: { STANDART: 0.2 }, dailyShareByTier: { STANDART: 0.5 } },
+      }),
+      yeni,
+    );
+    await expect(aiYeni.callAi(auth, GROUNDED)).resolves.toMatchObject({ text: "cevap" });
+    await expect(aiYeni.callAi(auth, SEMA)).resolves.toMatchObject({ text: "cevap" });
+    expect(yeni.calls).toHaveLength(2);
+
+    // Takip tahmini REZERVE EDİLMEZ: satır yalnız kendi maliyetini tutar.
+    const rows = await prisma.aiUsage.findMany({
+      where: { companyId: co.company.id, status: "SETTLED" },
+      orderBy: { createdAt: "asc" },
+    });
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.costUsd.toNumber()).toBeLessThan(0.05);
+  });
+
   it("YARIŞ: kalan bütçeye tek istek sığarken 2 eşzamanlı istek → TAM 1 başarılı", async () => {
     const provider = new FakeProvider();
     provider.delayMs = 50;

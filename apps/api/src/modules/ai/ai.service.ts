@@ -59,6 +59,14 @@ export interface AiCallOptions {
    * Bütçe rezervasyonu ve premium eşiği doğru çalışsın diye tahmine eklenir.
    */
   extraInputTokenEstimate?: number;
+  /**
+   * Bu cagridan SONRA ayni ozellikte yapilacak bagli metin cagrisinin
+   * (varsayilan model, grounding yok) prompt+system karakter ust siniri.
+   * Rezervasyon, birikimli tavanlarda (havuz/kullanici/gun) o cagriya da yer
+   * kaldigini dogrular; yer yoksa ILK cagri para harcamadan reddedilir
+   * (profil zenginlestirme grounded yolu, derin denetim MU-06).
+   */
+  followUpInputChars?: number;
   /** AiUsage.metadata'ya yazılacak özellik bağlamı (route, sayfa sayısı vb.). */
   metadata?: Record<string, unknown>;
   /**
@@ -178,6 +186,21 @@ export class AiService {
         { grounded: options.webSearch === true },
       );
 
+    // Bagli takip cagrisi: varsayilan (ucuz) modelle, cikti tavaniyla —
+    // takip cagrisinin premium adayi dusse de bu fallback tahmini sigar.
+    const followUpCostUsd =
+      options.followUpInputChars != null
+        ? costFromUsage(
+            {
+              inputTokens: Math.ceil(options.followUpInputChars / 4),
+              outputTokens: this.config.maxOutputTokens,
+              cacheReadTokens: 0,
+              cacheWriteTokens: 0,
+            },
+            this.config.pricing[models.default]!,
+          )
+        : undefined;
+
     // Premium alt-bütçesi doluysa reserve() fallback'e (ucuz model) düşer —
     // premium'a yükseltme YAPILMAZ, Flash'la devam edilir.
     const candidates = premiumWanted
@@ -186,11 +209,13 @@ export class AiService {
             model: models.premium,
             estimatedCostUsd: estimateFor(models.premium),
             isPremium: true,
+            followUpCostUsd,
           },
           {
             model: baseModel,
             estimatedCostUsd: estimateFor(baseModel),
             isPremium: false,
+            followUpCostUsd,
           },
         ]
       : [
@@ -198,6 +223,7 @@ export class AiService {
             model: baseModel,
             estimatedCostUsd: estimateFor(baseModel),
             isPremium: false,
+            followUpCostUsd,
           },
         ];
 

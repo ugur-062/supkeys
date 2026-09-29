@@ -63,10 +63,20 @@ describe("loadAiConfig", () => {
     );
     const share = cfg.caps.requestShareByTier?.STANDART ?? cfg.caps.requestShare;
     expect(est.toNumber()).toBeLessThanOrEqual(cfg.monthlyBudgetUsd.STANDART! * share);
-    // Grounded + yapılandırma çağrısı günlük tavana da sığmalı.
-    expect(est.toNumber() * 2).toBeLessThanOrEqual(cfg.monthlyBudgetUsd.STANDART! * cfg.caps.dailyShare);
+    // Günün 3 denemesinin EN KÖTÜ hâli (her biri grounded + şema çağrısı,
+    // zaman aşımı tahmini tutar) STANDART günlük tavanına sığmalı: önceki
+    // iz varken şema çağrısı tavana takılıp grounded ücreti boşa gidiyordu
+    // (MU-06 gözden geçirme).
+    const sema = costFromUsage(
+      { inputTokens: 2_800, outputTokens: cfg.maxOutputTokens, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      cfg.pricing[cfg.models.default]!,
+    );
+    const daily = cfg.caps.dailyShareByTier?.STANDART ?? cfg.caps.dailyShare;
+    expect(est.add(sema).toNumber() * 3).toBeLessThanOrEqual(cfg.monthlyBudgetUsd.STANDART! * daily);
     expect(cfg.caps.requestShareByTier?.SILVER).toBeUndefined();
     expect(cfg.caps.requestShareByTier?.GOLD).toBeUndefined();
+    expect(cfg.caps.dailyShareByTier?.SILVER).toBeUndefined();
+    expect(cfg.caps.dailyShareByTier?.GOLD).toBeUndefined();
   });
 
   it("fiyat tanımı olmayan model → fail-closed (throw)", () => {
