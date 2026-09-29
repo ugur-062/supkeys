@@ -24,6 +24,7 @@ import {
 } from "@rothern/shared";
 import { ensureUniqueCompanySlug } from "../../common/company/company-slug";
 import { effectiveTier } from "../../common/company/effective-tier";
+import { visibleTaxNumber } from "../../common/company/visible-tax-number";
 import { resolveCityId, storedCityName } from "../../common/geo/geo-index";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import {
@@ -151,8 +152,7 @@ export class CompanyProfileService {
         billingPhone: null,
         // Şahıs firmasında taxNumber = 11 haneli TCKN (kişisel veri) → onu da
         // maskele. Tüzel kişide (JOINT_STOCK/LIMITED) vergi no kamuya açıktır.
-        taxNumber:
-          c.companyType === "SOLE_PROPRIETOR" ? null : c.taxNumber,
+        taxNumber: visibleTaxNumber(c),
       };
     }
     return base;

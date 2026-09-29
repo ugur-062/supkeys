@@ -47,6 +47,7 @@ import {
 } from "../../../common/company/effective-tier";
 import { MARKETPLACE_STATUSES, visibleOwnerListingWhere } from "../../../common/company/listing-visibility";
 import { hasValidConnection } from "../../../common/company/valid-connection";
+import { visibleTaxNumber } from "../../../common/company/visible-tax-number";
 import { listingManageDenial } from "../../company-listings/listing-manage-access";
 import { affinityReasonTextThirdParty } from "../../company-affinity/company-affinity.service";
 import {
@@ -134,7 +135,8 @@ const COMPANY_CARD_SELECT = {
   rothernId: true,
   tier: true,
   membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için
-  taxNumber: true,
+  // taxNumber BİLEREK YOK (derin denetim Y-06): şahıs firmasında vergi no =
+  // sahibin TCKN'si; kart onu hiç kullanmıyor → karşı firmaya taşınmaz.
   city: true,
   country: true,
   industry: true,
@@ -1202,7 +1204,6 @@ export class CompanyConnectionsService {
             // INV-TIER-1: gösterilen tier rozeti efektif (süresi-dolmuş PAKET
             // paketli göstermesin).
             tier: effectiveTier(other.tier, other.membershipEndAt),
-            taxNumber: other.taxNumber,
             city: other.city,
             country: other.country,
             industry: other.industry,
@@ -1543,9 +1544,12 @@ export class CompanyConnectionsService {
       buyerCategoryIds: true,
       companyVerificationStatus: true,
       membershipEndAt: true, // INV-TIER-1: effectiveTier hesabı için
-      // Kamuya açık ticari sicil bilgileri (tüzel kişi verisi — KVKK dışı).
-      // IBAN / yetkili TCKN / fatura iletişimi ASLA buraya girmez.
+      // Ticari sicil bilgileri. Tüzel kişide kamuya açık; ŞAHIS firmasında
+      // taxNumber = sahibin TCKN'si (kişisel veri) → yanıtta `visibleTaxNumber`
+      // ile gizlenir (derin denetim Y-06). IBAN / yetkili TCKN / fatura
+      // iletişimi ASLA buraya girmez.
       legalName: true,
+      companyType: true,
       taxNumber: true,
       taxOffice: true,
       mersisNo: true,
@@ -1739,7 +1743,9 @@ export class CompanyConnectionsService {
         reviewSummary,
         trade: {
           legalName: c.legalName,
-          taxNumber: c.taxNumber,
+          // Kendi profilini gören üye de panelde TCKN'yi görmez; tam değer
+          // yalnız Ayarlar > Firma Bilgileri'nde (company:manage) — tek kural.
+          taxNumber: visibleTaxNumber(c),
           taxOffice: c.taxOffice,
           mersisNo: c.mersisNo,
           tradeRegistryNo: c.tradeRegistryNo,

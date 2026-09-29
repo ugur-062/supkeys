@@ -564,6 +564,51 @@ describe("firma profili — adres biçimi", () => {
   });
 });
 
+describe("KVKK: şahıs firmasının vergi no'su (=TCKN) karşı firmaya açılmaz (derin denetim Y-06)", () => {
+  const TCKN = "10000000146";
+
+  it("panel profili: SOLE_PROPRIETOR'da trade.taxNumber null (başkası da kendisi de); tüzel kişide açık", async () => {
+    const { service } = rig();
+    const { a, b, aCode, bCode } = await twoCompanies();
+    await prisma.company.update({
+      where: { id: b.company.id },
+      data: { companyType: "SOLE_PROPRIETOR", taxNumber: TCKN, publicEnabled: true },
+    });
+    await prisma.company.update({
+      where: { id: a.company.id },
+      data: { companyType: "LIMITED", taxNumber: "1234567890", publicEnabled: true },
+    });
+
+    const foreign = await service.getProfile(a.auth, bCode);
+    expect(foreign.profile.trade.taxNumber).toBeNull();
+    expect(JSON.stringify(foreign)).not.toContain(TCKN);
+    // Kendi panel profili de TCKN basmaz — tam değer yalnız Ayarlar'da
+    // (company:manage); burası o kapıyı delmemeli.
+    const self = await service.getProfile(b.auth, bCode);
+    expect(self.profile.trade.taxNumber).toBeNull();
+
+    // Tüzel kişinin vergi no'su ticari sicil verisi: açık kalır.
+    const legal = await service.getProfile(b.auth, aCode);
+    expect(legal.profile.trade.taxNumber).toBe("1234567890");
+  });
+
+  it("bağlantı kartı (list) vergi no taşımaz", async () => {
+    const { service } = rig();
+    const { a, b, bCode } = await twoCompanies();
+    await prisma.company.update({
+      where: { id: b.company.id },
+      data: { companyType: "SOLE_PROPRIETOR", taxNumber: TCKN },
+    });
+    const inv = await service.invite(a.auth, bCode);
+    await service.accept(b.auth, inv.id);
+
+    const listed = await service.list(a.company.id);
+    expect(listed).toHaveLength(1);
+    expect(listed[0]!.company).not.toHaveProperty("taxNumber");
+    expect(JSON.stringify(listed)).not.toContain(TCKN);
+  });
+});
+
 describe("STANDARD premium kapıları — davet + dizin", () => {
   it("STANDARD e-posta ile davet gönderemez (tekli + toplu)", async () => {
     const { service } = rig();
