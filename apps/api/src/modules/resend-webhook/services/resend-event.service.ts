@@ -17,8 +17,15 @@ export interface ResendWebhookEvent {
     from?: string;
     to?: string[] | string;
     subject?: string;
+    /**
+     * Resend (SES terminolojisi): `{ type: "Permanent" | "Transient" |
+     * "Undetermined", subType: "General" | "Suppressed" | ..., message }`.
+     * Ham değer EmailEvent.payload'da kalır; bounceType kolonlarına
+     * `normalizeBounceType` ile "hard" | "soft" | "undetermined" yazılır.
+     */
     bounce?: {
-      type?: "hard" | "soft" | "undetermined";
+      type?: string | null;
+      subType?: string | null;
       reason?: string | null;
       message?: string | null;
     };
@@ -29,6 +36,27 @@ export interface ResendWebhookEvent {
       userAgent?: string;
     };
   };
+}
+
+export type NormalizedBounceType = "hard" | "soft" | "undetermined";
+
+/**
+ * Derin denetim Y-09 — Resend `bounce.type` SES terimleriyle gelir
+ * ("Permanent"/"Transient"/"Undetermined"); tüm tüketiciler (gönderim öncesi
+ * bastırma, admin bastırma listesi, soğuk davet bounce freni, growth metriği,
+ * kritik bounce alarmı) `bounceType: "hard"` sorgular. Büyük/küçük harf
+ * duyarsız eşleme: Permanent|hard → hard, Transient|soft → soft, diğer dolu
+ * değerler → undetermined. Tip yoksa null (kolon yazılmaz).
+ */
+export function normalizeBounceType(
+  raw: string | null | undefined,
+): NormalizedBounceType | null {
+  if (typeof raw !== "string") return null;
+  const v = raw.trim().toLowerCase();
+  if (!v) return null;
+  if (v === "permanent" || v === "hard") return "hard";
+  if (v === "transient" || v === "soft") return "soft";
+  return "undetermined";
 }
 
 export type HandleEventResult =
@@ -84,6 +112,8 @@ export class ResendEventService {
       return { status: "skipped", reason: "unknown_type", eventId };
     }
 
+    const bounceType = normalizeBounceType(event.data.bounce?.type);
+
     // 4) Atomic — EmailEvent + EmailLog update
     const result = await this.prisma.$transaction<HandleEventResult>(
       async (tx) => {
@@ -95,9 +125,8 @@ export class ResendEventService {
             occurredAt: new Date(event.created_at),
             payload: event as unknown as Prisma.InputJsonValue,
             clickedUrl: event.data.click?.link ?? null,
-            bounceType: event.data.bounce?.type ?? null,
-            bounceReason:
-              event.data.bounce?.reason ?? event.data.bounce?.message ?? null,
+            bounceType,
+            bounceReason: this.bounceReason(event),
           },
         });
 
@@ -107,6 +136,7 @@ export class ResendEventService {
           new Date(event.created_at),
           event,
           emailLog,
+          bounceType,
         );
 
         if (Object.keys(updates).length > 0) {
@@ -133,7 +163,7 @@ export class ResendEventService {
     // haberdar değil. Typo'lu/şikayetçi adres = kullanıcı kalıcı mahsur (kod/
     // reset gitmiyor) → ops alarmı. Duplicate event (adım 1) erken döndüğü için
     // çift alarm olmaz. PII yok: yalnız log-id + context + bounceType.
-    this.maybeAlertCriticalBounce(eventType, event, emailLog);
+    this.maybeAlertCriticalBounce(eventType, bounceType, event, emailLog);
 
     return result;
   }
@@ -145,11 +175,11 @@ export class ResendEventService {
    */
   private maybeAlertCriticalBounce(
     eventType: EmailEventType,
+    bounceType: NormalizedBounceType | null,
     event: ResendWebhookEvent,
     emailLog: { id: string; contextType: string | null; contextId: string | null },
   ): void {
-    const isHardBounce =
-      eventType === "BOUNCED" && event.data.bounce?.type === "hard";
+    const isHardBounce = eventType === "BOUNCED" && bounceType === "hard";
     const isComplaint = eventType === "COMPLAINED";
     if (!isHardBounce && !isComplaint) return;
     if (!isCriticalEmailContext(emailLog.contextType ?? undefined)) return;
@@ -163,10 +193,17 @@ export class ResendEventService {
         emailLogId: emailLog.id,
         contextType: emailLog.contextType,
         contextId: emailLog.contextId,
-        bounceType: event.data.bounce?.type ?? null,
+        bounceType,
+        bounceSubType: event.data.bounce?.subType ?? null,
         providerMessageId: event.data.email_id,
       },
     });
+  }
+
+  /** Resend `reason` göndermez; `message` → yoksa `subType` (ör. "Suppressed"). */
+  private bounceReason(event: ResendWebhookEvent): string | null {
+    const b = event.data.bounce;
+    return b?.reason || b?.message || b?.subType || null;
   }
 
   private mapEventType(resendType: string): EmailEventType | null {
@@ -214,6 +251,7 @@ export class ResendEventService {
     occurredAt: Date,
     event: ResendWebhookEvent,
     emailLog: { openedAt: Date | null; clickedAt: Date | null },
+    bounceType: NormalizedBounceType | null,
   ): Prisma.EmailLogUpdateInput {
     const updates: Prisma.EmailLogUpdateInput = {};
 
@@ -241,10 +279,11 @@ export class ResendEventService {
         // Bounce daha "ağır" — her zaman geçer
         updates.status = "BOUNCED";
         updates.bouncedAt = occurredAt;
-        if (event.data.bounce?.type) updates.bounceType = event.data.bounce.type;
-        if (event.data.bounce?.reason || event.data.bounce?.message)
-          updates.bounceReason =
-            event.data.bounce.reason ?? event.data.bounce.message ?? null;
+        if (bounceType) updates.bounceType = bounceType;
+        {
+          const reason = this.bounceReason(event);
+          if (reason) updates.bounceReason = reason;
+        }
         break;
       case "COMPLAINED":
         updates.status = "COMPLAINED";

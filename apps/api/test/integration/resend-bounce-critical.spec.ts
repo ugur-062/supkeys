@@ -1,7 +1,11 @@
 jest.mock("../../src/instrument", () => ({ reportToSentry: jest.fn() }));
 
 import { reportToSentry } from "../../src/instrument";
-import { ResendEventService } from "../../src/modules/resend-webhook/services/resend-event.service";
+import { EmailSuppressionService } from "../../src/modules/email/email-suppression.service";
+import {
+  ResendEventService,
+  normalizeBounceType,
+} from "../../src/modules/resend-webhook/services/resend-event.service";
 import type { ResendWebhookEvent } from "../../src/modules/resend-webhook/services/resend-event.service";
 import { prisma, truncateAll } from "./test-db";
 
@@ -32,10 +36,16 @@ async function makeLog(contextType: string | null): Promise<string> {
   return providerMessageId;
 }
 
+/**
+ * Resend'in GERÇEK email.bounced yükü (SES terminolojisi):
+ * `bounce: { type: "Permanent" | "Transient" | "Undetermined", subType, message }`
+ * — "hard"/"soft" hiç gelmez (derin denetim Y-09).
+ */
 function event(
   providerMessageId: string,
   type: "email.bounced" | "email.complained",
-  bounceType?: "hard" | "soft" | "undetermined",
+  bounceType?: string,
+  subType = "General",
 ): ResendWebhookEvent {
   return {
     type,
@@ -44,7 +54,13 @@ function event(
       email_id: providerMessageId,
       to: ["typo@exampl.com"],
       ...(type === "email.bounced"
-        ? { bounce: { type: bounceType, reason: "mailbox not found" } }
+        ? {
+            bounce: {
+              type: bounceType,
+              subType,
+              message: "The recipient's email address does not exist.",
+            },
+          }
         : {}),
     },
   };
@@ -60,9 +76,9 @@ afterAll(async () => {
 });
 
 describe("webhook — kritik-context bounce/complaint alarmı", () => {
-  it("hard-bounce + kritik context (password_reset) → reportToSentry", async () => {
+  it("Permanent-bounce + kritik context (password_reset) → reportToSentry", async () => {
     const pmid = await makeLog("password_reset");
-    await svc.handleEvent(event(pmid, "email.bounced", "hard"), "evt-1");
+    await svc.handleEvent(event(pmid, "email.bounced", "Permanent"), "evt-1");
 
     expect(mockSentry).toHaveBeenCalledTimes(1);
     const [msg, level, ctx] = mockSentry.mock.calls[0];
@@ -85,28 +101,89 @@ describe("webhook — kritik-context bounce/complaint alarmı", () => {
     expect(mockSentry.mock.calls[0][2].tags.email).toBe("critical-complaint");
   });
 
-  it("soft-bounce + kritik context → alarm YOK (geçici)", async () => {
+  it("Transient-bounce + kritik context → alarm YOK (geçici)", async () => {
     const pmid = await makeLog("email_verify");
-    await svc.handleEvent(event(pmid, "email.bounced", "soft"), "evt-3");
+    await svc.handleEvent(event(pmid, "email.bounced", "Transient"), "evt-3");
     expect(mockSentry).not.toHaveBeenCalled();
   });
 
   it("hard-bounce + NON-kritik context → alarm YOK", async () => {
     const pmid = await makeLog("order_status_changed");
-    await svc.handleEvent(event(pmid, "email.bounced", "hard"), "evt-4");
+    await svc.handleEvent(event(pmid, "email.bounced", "Permanent"), "evt-4");
     expect(mockSentry).not.toHaveBeenCalled();
   });
 
   it("context'siz (contextType null) hard-bounce → alarm YOK", async () => {
     const pmid = await makeLog(null);
-    await svc.handleEvent(event(pmid, "email.bounced", "hard"), "evt-5");
+    await svc.handleEvent(event(pmid, "email.bounced", "Permanent"), "evt-5");
     expect(mockSentry).not.toHaveBeenCalled();
   });
 
   it("duplicate event → çift alarm YOK (idempotency erken döner)", async () => {
     const pmid = await makeLog("password_reset");
-    await svc.handleEvent(event(pmid, "email.bounced", "hard"), "evt-dup");
-    await svc.handleEvent(event(pmid, "email.bounced", "hard"), "evt-dup");
+    await svc.handleEvent(event(pmid, "email.bounced", "Permanent"), "evt-dup");
+    await svc.handleEvent(event(pmid, "email.bounced", "Permanent"), "evt-dup");
     expect(mockSentry).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("normalizeBounceType — Resend SES terimleri → hard/soft/undetermined", () => {
+  it.each([
+    ["Permanent", "hard"],
+    ["permanent", "hard"],
+    ["PERMANENT", "hard"],
+    ["hard", "hard"],
+    ["Transient", "soft"],
+    ["soft", "soft"],
+    ["Undetermined", "undetermined"],
+    ["undetermined", "undetermined"],
+    ["SomethingNew", "undetermined"],
+  ])("%s → %s", (raw, expected) => {
+    expect(normalizeBounceType(raw)).toBe(expected);
+  });
+
+  it.each([[undefined], [null], [""], ["  "]])("%p → null", (raw) => {
+    expect(normalizeBounceType(raw as string | null | undefined)).toBeNull();
+  });
+});
+
+describe("webhook — bounceType normalize yazılır (gönderim bastırma/fren tüketicileri 'hard' sorgular)", () => {
+  it("Permanent → EmailLog + EmailEvent bounceType='hard', ham tip payload'da kalır, adres suppress", async () => {
+    const pmid = await makeLog("order_status_changed");
+    await svc.handleEvent(event(pmid, "email.bounced", "Permanent", "Suppressed"), "evt-perm");
+
+    const log = await prisma.emailLog.findUniqueOrThrow({ where: { providerMessageId: pmid } });
+    expect(log.status).toBe("BOUNCED");
+    expect(log.bounceType).toBe("hard");
+    expect(log.bounceReason).toBe("The recipient's email address does not exist.");
+
+    const ev = await prisma.emailEvent.findUniqueOrThrow({ where: { eventId: "evt-perm" } });
+    expect(ev.bounceType).toBe("hard");
+    expect((ev.payload as { data: { bounce: { type: string; subType: string } } }).data.bounce)
+      .toMatchObject({ type: "Permanent", subType: "Suppressed" });
+
+    // Tüketici: gönderim öncesi / admin bastırma sorgusu ("BOUNCED"+"hard").
+    const suppression = new EmailSuppressionService(prisma as never);
+    const map = await suppression.getSuppressionStatus(["typo@exampl.com"]);
+    expect(map.get("typo@exampl.com")?.status).toBe("BOUNCED");
+  });
+
+  it("Transient → bounceType='soft', adres suppress EDİLMEZ", async () => {
+    const pmid = await makeLog(null);
+    await svc.handleEvent(event(pmid, "email.bounced", "Transient", "MailboxFull"), "evt-trans");
+
+    const log = await prisma.emailLog.findUniqueOrThrow({ where: { providerMessageId: pmid } });
+    expect(log.bounceType).toBe("soft");
+    const suppression = new EmailSuppressionService(prisma as never);
+    expect((await suppression.getSuppressionStatus(["typo@exampl.com"])).size).toBe(0);
+  });
+
+  it("Undetermined → bounceType='undetermined', alarm YOK", async () => {
+    const pmid = await makeLog("email_verify");
+    await svc.handleEvent(event(pmid, "email.bounced", "Undetermined"), "evt-und");
+
+    const log = await prisma.emailLog.findUniqueOrThrow({ where: { providerMessageId: pmid } });
+    expect(log.bounceType).toBe("undetermined");
+    expect(mockSentry).not.toHaveBeenCalled();
   });
 });
