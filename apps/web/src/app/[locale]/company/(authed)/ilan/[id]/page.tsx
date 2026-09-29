@@ -21,6 +21,7 @@ import { CountdownFull } from "@/components/tenders/countdown-full";
 import { FilesTab } from "@/components/tenders/files-tab";
 import { GeneralInfoTab } from "@/components/tenders/general-info-tab";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
+import { AlternativeOfferNote } from "@/components/tenders/alternative-offer-note";
 import { TenderActionsMenu } from "@/components/tenders/tender-actions-menu";
 import { SupplierDiscoveryModal } from "@/components/tenders/supplier-discovery-modal";
 import { VerifyNudge } from "@/components/company/verify-nudge";
@@ -42,6 +43,7 @@ import {
   useEliminateBid,
   useListingDetail,
   usePublishListing,
+  type ListingBidItemRow,
 } from "@/hooks/use-company-listings";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { useCancelApproval } from "@/hooks/use-company-approvals";
@@ -933,17 +935,22 @@ export default function ListingDetailPage() {
   const priceMap = new Map<string, Map<string, number>>();
   const priceTryMap = new Map<string, Map<string, number>>();
   const bidCurrencyById = new Map<string, string | undefined>();
+  //  - altMap: yalnız MUADİL beyanlı kalemler (derin denetim Y-16).
+  const altMap = new Map<string, Map<string, ListingBidItemRow>>();
   for (const b of allBids) {
     const rate = bidRate(b);
     const inner = new Map<string, number>();
     const innerTry = new Map<string, number>();
+    const innerAlt = new Map<string, ListingBidItemRow>();
     for (const bi of b.items ?? []) {
       const unit = Number(bi.unitPrice);
       inner.set(bi.itemId, unit);
       if (rate != null) innerTry.set(bi.itemId, unit * rate);
+      if (bi.isAlternative) innerAlt.set(bi.itemId, bi);
     }
     priceMap.set(b.id, inner);
     priceTryMap.set(b.id, innerTry);
+    altMap.set(b.id, innerAlt);
     bidCurrencyById.set(b.id, b.currency);
   }
   const cmpItems = (l.items ?? []).filter((it) =>
@@ -1146,6 +1153,9 @@ export default function ListingDetailPage() {
                       price: v != null ? v : null,
                       priceTry: vTry != null ? vTry : null,
                       currency: bidCurrencyById.get(b.id),
+                      // Muadil beyanı (derin denetim Y-16): fiyat aynı
+                      // ürüne ait değilse alıcı hücrede görmeli.
+                      bidItem: altMap.get(b.id)?.get(it.id),
                     };
                   });
                   // En iyi TRY karşılığı vurgulanır (birimler arası adil):
@@ -1212,6 +1222,7 @@ export default function ListingDetailPage() {
                             ) : (
                               priceText
                             )}
+                            <AlternativeOfferNote bidItem={c.bidItem} compact />
                           </TableCell>
                         );
                       })}
@@ -1466,6 +1477,13 @@ export default function ListingDetailPage() {
                 !cmpFullCovered(b.id) ? (
                   <Badge color="amber">
                     {t("kalemOrani", { priced: pricedCountById.get(b.id) ?? 0, total: bidItemCount })}
+                  </Badge>
+                ) : null}
+                {/* Muadil beyanlı kalem sayısı (derin denetim Y-16) — ayrıntı
+                    karşılaştırma tablosunda ve teklif detayında. */}
+                {(altMap.get(b.id)?.size ?? 0) > 0 ? (
+                  <Badge color="amber" title={t("muadilRozetAciklama")}>
+                    {t("muadilKalemSayisi", { count: altMap.get(b.id)?.size ?? 0 })}
                   </Badge>
                 ) : null}
               </div>

@@ -695,8 +695,8 @@ export default function TeklifVerPage() {
       else n.add(itemId);
       return n;
     });
-  // Tablo satırının genişleyen ek alanları — kart görünümüyle aynı bileşenler
-  // (teslim tarihi + kalem soruları), tek kaynak.
+  // Tablo satırının genişleyen ek alanları — kart görünümü de AYNI fonksiyonu
+  // çağırır (teslim + para birimi + muadil + kalem soruları), tek kaynak.
   // Çalışma masası satır durumu: fiyatlanmış kalemde CEVAPSIZ zorunlu soru
   // (amber rozet + satır açık gelir) + girilmiş kalem teslim tarihi özeti —
   // ikisi de chevron arkasında gizli kalıp gözden kaçmasın.
@@ -1282,61 +1282,13 @@ export default function TeklifVerPage() {
                       </div>
 
                       {!optedOut ? (
-                        <div className="mt-3 grid grid-cols-1 gap-3 border-t border-zinc-50 pt-3 sm:grid-cols-2">
-                          {isAuctionRebid ? null : (
-                          <Field>
-                            <Label>{tr("kalemTeslimSuresiOpsiyonel")}</Label>
-                            <Select
-                              aria-label={tr("teslimSuresi", { name: it.name })}
-                              value={st?.deliveryTime ?? ""}
-                              onChange={(e) =>
-                                setItem(it.id, { deliveryTime: e.target.value })
-                              }
-                            >
-                              <option value="">{tr("genelSureGecerli")}</option>
-                              {BID_DELIVERY_TIMES.map((t) => (
-                                <option key={t} value={t}>
-                                  {deliveryTimeLabel(t)}
-                                </option>
-                              ))}
-                            </Select>
-                          </Field>
-                          )}
-                          {canItemCurrency ? (
-                            <Field>
-                              <Label>{tr("kalemParaBirimi")}</Label>
-                              <Select
-                                aria-label={tr("paraBirimiAria", { name: it.name })}
-                                value={st?.currency ?? ""}
-                                onChange={(e) =>
-                                  setItem(it.id, { currency: e.target.value })
-                                }
-                              >
-                                <option value="">
-                                  {tr("anaBirim", { effectiveCurrency: effectiveCurrency })}
-                                </option>
-                                {(l.allowedCurrencies ?? [])
-                                  .filter((c) => c !== effectiveCurrency)
-                                  .map((c) => (
-                                    <option key={c} value={c}>
-                                      {c}
-                                    </option>
-                                  ))}
-                              </Select>
-                            </Field>
-                          ) : null}
-                          {(it.questions ?? []).map((q) => (
-                            <AnswerInput
-                              key={q.id}
-                              q={q}
-                              value={st?.answers[q.id] ?? ""}
-                              onChange={(v) =>
-                                setItem(it.id, {
-                                  answers: { ...(st?.answers ?? {}), [q.id]: v },
-                                })
-                              }
-                            />
-                          ))}
+                        // Ek alanlar (teslim / kalem para birimi / MUADİL
+                        // beyanı / sorular) çalışma masasıyla TEK kaynaktan
+                        // çizilir. Eskiden burada elle kopyalanmıştı ve muadil
+                        // bloğu atlanmıştı → kapalı zarf RFQ'da tedarikçi
+                        // muadil beyan edemiyordu (derin denetim Y-16).
+                        <div className="mt-3 border-t border-zinc-50 pt-3">
+                          {renderItemExtras(it)}
                         </div>
                       ) : (
                         <p className="mt-2 text-xs text-zinc-400 italic">

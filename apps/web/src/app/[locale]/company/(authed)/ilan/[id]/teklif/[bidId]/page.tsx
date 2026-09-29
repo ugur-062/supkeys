@@ -17,6 +17,7 @@ import {
 import { Text } from "@/components/catalyst/text";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
+import { AlternativeOfferNote } from "@/components/tenders/alternative-offer-note";
 import {
   BID_DOC_KINDS,
   useBidDocuments,
@@ -265,6 +266,9 @@ export default function BidDetailPage() {
                     <TableRow key={it.id}>
                       <TableCell className="text-zinc-900">
                         {it.name}
+                        {/* Muadil beyanı — alıcı kazandırmadan ÖNCE görmeli
+                            (derin denetim Y-16). */}
+                        <AlternativeOfferNote bidItem={bi} item={it} />
                         {bi?.deliveryTime || bi?.deliveryDate ? (
                           <span className="block text-xs text-zinc-500">
                             {t("kalemTeslimi", {

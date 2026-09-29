@@ -278,6 +278,54 @@ describe("TeklifVerPage — form", () => {
     expect(h.push).toHaveBeenCalledWith("/company/ilan/l1");
   });
 
+  it("kapalı zarf RFQ kart görünümü: muadil beyanı yapılabilir, payload'a gider (derin denetim Y-16)", async () => {
+    const user = userEvent.setup();
+    h.mutateAsync.mockResolvedValue({ status: "DRAFT" });
+    render(<TeklifVerPage />);
+
+    // Alıcı muadile izin verdi (alternativeAllowed varsayılanı true) →
+    // kart görünümünde de onay kutusu çıkar (eskiden yalnız pazarlık
+    // çalışma masasında vardı).
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /Muadil \(eşdeğer\) ürün teklif ediyorum/,
+      }),
+    );
+    await user.type(screen.getByLabelText("Çelik Boru teklif edilen marka"), "FAG");
+    await user.type(
+      screen.getByLabelText("Çelik Boru teklif edilen parça no"),
+      "6204-C",
+    );
+    await user.type(screen.getByLabelText("Birim Fiyat"), "90");
+    await user.click(
+      screen.getByRole("button", { name: "Taslak Olarak Kaydet" }),
+    );
+    expect(h.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({
+        items: [
+          expect.objectContaining({
+            itemId: "i1",
+            isAlternative: true,
+            offeredBrand: "FAG",
+            offeredMpn: "6204-C",
+          }),
+        ],
+      }),
+    );
+  });
+
+  it("alıcı muadile izin vermediyse kart görünümünde muadil alanı çıkmaz", () => {
+    const base = baseDetail();
+    h.detail = {
+      ...base,
+      items: base.items!.map((it) => ({ ...it, alternativeAllowed: false })),
+    };
+    render(<TeklifVerPage />);
+    expect(
+      screen.queryByRole("checkbox", { name: /Muadil \(eşdeğer\)/ }),
+    ).toBeNull();
+  });
+
   it("taslak kaydet doğrulamasız çalışır", async () => {
     const user = userEvent.setup();
     h.mutateAsync.mockResolvedValue({ status: "DRAFT" });

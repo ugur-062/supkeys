@@ -72,6 +72,11 @@ export function Step2Items() {
       materialCode: it.materialCode ?? "",
       requiredByDate: it.requiredByDate ?? "",
       targetUnitPrice: it.targetUnitPrice ?? undefined,
+      // Muadil varsayılanı AÇIK (ilk satır, map-detail-to-form ve backend
+      // `?? true` ile aynı). Alan yazılmazsa RHF kapalı <details> içindeki
+      // işaretsiz checkbox'tan `false` okur → kalem sessizce "yalnız
+      // belirtilen marka" olurdu (derin denetim Y-16).
+      alternativeAllowed: true,
       customQuestion: "",
       questions: [],
     }));
@@ -126,6 +131,8 @@ export function Step2Items() {
       materialCode: "",
       requiredByDate: "",
       targetUnitPrice: undefined,
+      // Bkz. applyImported: muadil varsayılanı açık (derin denetim Y-16).
+      alternativeAllowed: true,
       customQuestion: "",
       questions: [],
     });
