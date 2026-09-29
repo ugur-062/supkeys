@@ -31,7 +31,7 @@
 | 11 | Performans ve kapasite | ✅ bitti |
 | 12 | Arayüz ve erişilebilirlik | ✅ bitti |
 | 13 | Hukuk ve uyum | ✅ bitti (hukuk kararları listede) |
-| 14 | Altyapı ve operasyon | ⏳ |
+| 14 | Altyapı ve operasyon | ✅ bitti (operatör matrisi) |
 | 15 | Yayın günü ve geri dönüş | ⏳ |
 
 ---
@@ -670,4 +670,53 @@ kırmızı, `color-contrast` K-2 kararıyla UYARI), yatay taşma
 | H-7 | Saklama süreleri: `email_logs` (alıcı adresi, süresiz), `external_listing_invites`, çıkış kayıtları (çıkışa saygı için tutulmalı), denetim kayıtları; KYC belgeleri ve R2 **nesne kilidi** (B7-4: yenilenen belgenin eskisi silinemiyor — bilinçli yasal saklama mı, canlıda da aynı mı) | avukat + operatör; süre belirlenince temizlik cron'u |
 | H-8 | Künye telefonu (Mesafeli Sözleşmeler Yönetmeliği) | numara kullanıcıda — gelince `OPERATOR.phone` üç yere |
 | H-9 | ETBİS (çevrimiçi paket satışı başlayınca) ve VERBİS (eşik/istisna) | avukat/operatör |
+
+---
+
+## Bölüm 14 — Altyapı ve operasyon (✅ 2026-09-29 — operatör matrisi)
+
+Kaynak: kodun okuduğu env'ler (API 90+, web 19, admin 10), açılış kapıları
+(`prod-config-sanity`, `checkJwtSecret`, `assertProdWebUrl`, `requireEnv`),
+`render.yaml` (48 anahtar), `vercel env ls` (web + admin; yalnız ADLAR) ve
+önceki bölümlerin operatör maddeleri. Render API env'i askı nedeniyle
+OKUNAMADI — aşağıdaki "teyit" satırları panelden bakılacak.
+
+### 14.1 Açılışta zorunlu (yoksa API AÇILMAZ — fail-closed)
+
+`DATABASE_URL` (kısıtlı `rothern_app`, canlı pooler **aws-1**-eu-central-1,
+`pgbouncer=true&connection_limit≥5`) · `DATABASE_URL_BYPASS` (RLS açıkken şart)
+· `DIRECT_URL` · `JWT_SECRET` (örnek değer reddedilir) · `WEB_URL` (canlıda
+https + rothern.com) · `COOKIE_SAMESITE=lax` + `COOKIE_DOMAIN=.rothern.com`
+(çift) · `SUPABASE_{URL,SERVICE_ROLE_KEY,ANON_KEY}` · `R2_*` · `RESEND_API_KEY`
+· `EMAIL_FROM_ADDRESS`. Açılış bunları kendisi doğrular → yanlışsa dağıtım
+KIRMIZI olur (sessiz bozulma yok).
+
+### 14.2 Operatör eylem listesi
+
+| # | Nerede | Ne | Neden / kaynak | Doğrulama |
+|---|---|---|---|---|
+| O-1 | Render | **Askıyı kaldır (fatura, 1 Ekim)** — canlı + staging API 503 | B0-1 ENGEL | `/api/health` 200 |
+| O-2 | Render (canlı API) | `SEO_REVALIDATE_SECRET` = Vercel web production değeri, **≥16 karakter**; `INDEXNOW_KEY` = Vercel ile aynı; `WEB_URL=https://www.rothern.com` | yayın anı IndexNow + ISR tazeleme (B10-2) **ve SSR hız sınırı muafiyeti** (B11-1 — sır yoksa ya da kısaysa SSR yine IP başına 100/dk'ya takılır) | API günlüğünde "web önbellek tazeleme KAPALI" uyarısı OLMAMALI |
+| O-3 | Render | `MARKETPLACE_LIVE=true` (render.yaml'da yok, panelde) | kapalıysa `/public/listings*`, dizin 404 | `/api/public/listings` 200 |
+| O-4 | Render | Vertex kullanılıyorsa `AI_MODEL_DEFAULT/VISION/PREMIUM` Vertex'in tanıdığı adlar (`-latest` DEĞİL) | B8-1 — `-latest` Vertex'te 404 | admin AI kullanım ekranı / belge→talep çağrısı |
+| O-5 | Resend + DNS | `EMAIL_FROM_ADDRESS_INVITE` (öneri `davet@invite.rothern.com`) + `_NOTIFICATION` / `_LIFECYCLE`; alt alan adlarında SPF/DKIM | B5-16 — boşsa soğuk davet işlem göndereninden (şifre/kod) çıkar, şikâyet itibarı ortak | Resend alan adı "verified" |
+| O-6 | Cloudflare | `api.rothern.com/api/public/*` için önbellek kuralı OLMAMALI | B5-8 — CF `Vary: Accept-Language`i anahtara katmaz; ilk dil herkese gider | CF Cache Rules listesi |
+| O-7 | Render | `DATABASE_URL` `connection_limit` ≥ 5 | Bölüm 4 R-9 — 1 ise firma bağlamı işlemleri havuzu kilitler | env değeri |
+| O-8 | Render | `plan: starter` (512 MB) — ilk günlerde bellek grafiği; yeniden başlatma görülürse Standard | B11-5 (yerel sürekli ~405 MB) | Render Metrics |
+| O-9 | Render | Artık okunmayan `ANTHROPIC_API_KEY` silinebilir; `ALLOW_INSECURE_WEBHOOK` YOK, `CORS_ALLOW_VERCEL` boş, `PREMIUM_SELF_UPGRADE_ENABLED` boş olmalı | Bölüm 0.8 | env listesi |
+| O-10 | Canlı DB | **Birleştirmeden ÖNCE yedek** — API açılışta `migrate deploy` koşar (10 bekleyen migration) | B0-3 | `docs/backup-restore-drill.md` |
+| O-11 | Canlı DB | Birleştirme sonrası sırayla: `seed-geo-cities` → `backfill-city-ids --dry`/gerçek → `backfill-price-base --dry`/gerçek | CLAUDE.md "Kurulum sırası" | şehir sayfası `/urunler/sehir/de-munich` 200 |
+| O-12 | Staging | Staging göndereni `staging@supkeys.com` mu (yerel kopyada `staging@rothern.com`) | B6-5 | Render staging env |
+| O-13 | Vercel (admin preview) | `NEXT_PUBLIC_WEB_URL=https://staging.supkeys.com` | B0-6 — staging admin ürün bağlantısı canlıya gidiyor | — |
+| O-14 | R2 | KYC kovasında nesne kilidi politikası — bilinçli mi, canlıda aynı mı | B7-4 / H-7 | R2 bucket ayarları |
+| O-15 | E-posta itibarı | Google Postmaster, Microsoft SNDS, Yandex, Mail.ru; DMARC `rua` izlenip `p=quarantine`e geçiş | CLAUDE.md "Sizde" | — |
+| O-16 | EN SON | GSC + Bing (+Yandex) doğrulama env'leri → Vercel → yeniden dağıtım → sitemap gönderimi; ardından `seo:audit` | kullanıcı kararı (en son) | `seo:audit` yeşil |
+
+### 14.3 Vercel (ölçüldü)
+
+Web production: `NEXT_PUBLIC_{API_URL,SITE_URL,CDN_URL,MARKETPLACE_LIVE}` ·
+`SEO_REVALIDATE_SECRET` · `INDEXNOW_KEY` · `SENTRY_{DSN,ENVIRONMENT,ORG,
+PROJECT,URL,AUTH_TOKEN}` ✅. Admin production: `NEXT_PUBLIC_API_URL` ·
+`SENTRY_*` ✅ (`NEXT_PUBLIC_WEB_URL` yok → kod varsayılanı canlı için doğru).
+Bölge `fra1` koda bağlı (`vercel.json`), Node 22.
 
