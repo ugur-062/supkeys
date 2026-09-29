@@ -34,10 +34,10 @@ function storageMock() {
   };
 }
 
-function docsService() {
+function docsService(storage = storageMock()) {
   return new CompanyDocsService(
     prisma as never,
-    storageMock() as never,
+    storage as never,
     new AuditService(prisma as never),
   );
 }
@@ -195,6 +195,38 @@ describe("A-modeli — firma tarafı (VERIFIED'da onaysız alan → revizyon)", 
     expect(rows).toHaveLength(1);
     expect(rows[0]!.id).toBe(first.id);
     expect(rows[0]!.key).toBe(`company-docs/${co.id}/v2.pdf`);
+  });
+
+  it("MU-19 (S026): ezilen bekleyen revizyonun eski nesnesi R2'dan silinir (öksüz kalmaz)", async () => {
+    const storage = storageMock();
+    const docs = docsService(storage);
+    const co = await verifiedForeignCompany();
+
+    await docs.commit(co.id, "signatureCircular", `company-docs/${co.id}/v1.pdf`);
+    expect(storage.deleteObject).not.toHaveBeenCalled();
+    await docs.commit(co.id, "signatureCircular", `company-docs/${co.id}/v2.pdf`);
+
+    expect(storage.deleteObject).toHaveBeenCalledTimes(1);
+    expect(storage.deleteObject).toHaveBeenCalledWith(
+      "private",
+      `company-docs/${co.id}/v1.pdf`,
+    );
+  });
+
+  it("MU-19 (S026): eski nesne silinemezse yükleme yine başarılı (best-effort)", async () => {
+    const storage = storageMock();
+    storage.deleteObject.mockRejectedValue(new Error("r2 down"));
+    const docs = docsService(storage);
+    const co = await verifiedForeignCompany();
+
+    await docs.commit(co.id, "signatureCircular", `company-docs/${co.id}/v1.pdf`);
+    await expect(
+      docs.commit(co.id, "signatureCircular", `company-docs/${co.id}/v2.pdf`),
+    ).resolves.toMatchObject({ ok: true, revision: true });
+    const row = await prisma.companyKycRevision.findFirstOrThrow({
+      where: { companyId: co.id, kind: "signatureCircular", status: "PENDING" },
+    });
+    expect(row.key).toBe(`company-docs/${co.id}/v2.pdf`);
   });
 
   it("get(): kind başına SON revizyon döner (status + presigned url)", async () => {

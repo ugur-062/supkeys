@@ -360,4 +360,41 @@ describe("taslak/embargolu ilanın belgeleri indirilemez (getOne aynası)", () =
     });
     await expect(svc().list(other.auth, listing.id)).resolves.toEqual([]);
   });
+
+  // Denetim MU-19 (S027): Faz O taraf kapısı — getOne ile birebir.
+  it("sahip firmada yalnız sell:view taşıyan Satışçı talep belgelerini göremez (404)", async () => {
+    const { owner, listing } = await setup({ status: "OPEN" });
+    const satisci = {
+      ...owner.auth,
+      isOwner: false,
+      roles: ["SATISCI"],
+      permissions: ["sell:view", "sell:bid:submit"],
+    } as never;
+    await expect(svc().list(satisci, listing.id)).rejects.toThrow(/İlan bulunamadı/);
+    const satinAlmaci = {
+      ...owner.auth,
+      isOwner: false,
+      roles: ["SATIN_ALMACI"],
+      permissions: ["buy:view", "buy:listing:manage"],
+    } as never;
+    await expect(svc().list(satinAlmaci, listing.id)).resolves.toEqual([]);
+  });
+
+  it("başka firmada yalnız buy:view taşıyan Satın Almacı açık talebin belgelerini göremez (404)", async () => {
+    const { other, listing } = await setup({ status: "OPEN" });
+    const satinAlmaci = {
+      ...other.auth,
+      isOwner: false,
+      roles: ["SATIN_ALMACI"],
+      permissions: ["buy:view", "buy:listing:manage"],
+    } as never;
+    await expect(svc().list(satinAlmaci, listing.id)).rejects.toThrow(/İlan bulunamadı/);
+    const satisci = {
+      ...other.auth,
+      isOwner: false,
+      roles: ["SATISCI"],
+      permissions: ["sell:view", "sell:bid:submit"],
+    } as never;
+    await expect(svc().list(satisci, listing.id)).resolves.toEqual([]);
+  });
 });

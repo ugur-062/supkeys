@@ -334,7 +334,10 @@ export class CompanyDocsService {
     );
     const pending = await this.prisma.companyKycRevision.findFirst({
       where: { companyId, kind, status: "PENDING" },
-      select: { id: true },
+      // Denetim MU-19 (S026): ezilecek bekleyen revizyonun eski anahtari da
+      // okunur; aksi halde nesne hicbir satirda referanssiz kalir ve KVKK
+      // purge'u (yalniz guncel anahtarlari toplar) onu silemez.
+      select: { id: true, key: true },
     });
     try {
       if (pending) {
@@ -360,6 +363,18 @@ export class CompanyDocsService {
         );
       }
       throw e;
+    }
+    // #8 deseni: ezilen bekleyen revizyon nesnesini best-effort sil.
+    if (pending?.key && pending.key !== key) {
+      await this.storage
+        .deleteObject("private", pending.key)
+        .catch((err: unknown) =>
+          this.logger.warn(
+            `Old pending KYC revision object could not be deleted (${companyId}/${kind}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
     }
     // INV-AUDIT-1: revizyon gönderimi iz bırakır (tür adı; key yazılmaz).
     await this.audit.log({

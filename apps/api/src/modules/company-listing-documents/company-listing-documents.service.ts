@@ -1,5 +1,6 @@
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import { hasValidConnection } from "../../common/company/valid-connection";
+import { hasReadContext } from "../../common/company/full-read-context";
 import { countryCanSee } from "@rothern/shared";
 import { isListingVisibleToViewer, listingBidEligibility } from "../../common/company/listing-visibility";
 import {
@@ -68,7 +69,20 @@ export class CompanyListingDocumentsService {
       company: { country: string };
     },
   ) {
-    if (listing.companyId === user.companyId) return; // sahip
+    // Faz O taraf kapısı (denetim MU-19 S027) — getOne ile BİREBİR: sahip
+    // firmanın üyesi talebi `buy:view` ile, başka firmanın üyesi (davetli
+    // dahil) `sell:view` ile okur. Controller any-of [buy:view, sell:view]
+    // kabul ettiği için bu ayrım yalnız burada uygulanabilir; yoksa detayda
+    // 404 alan üye şartname/çizimleri presigned URL ile indirebiliyordu.
+    if (listing.companyId === user.companyId) {
+      if (!hasReadContext(user, "buy")) {
+        throw new NotFoundException(i18nMessage("api.companyListingDocuments.ilanBulunamadi"));
+      }
+      return; // sahip
+    }
+    if (!hasReadContext(user, "sell")) {
+      throw new NotFoundException(i18nMessage("api.companyListingDocuments.ilanBulunamadi"));
+    }
 
     // YAYIN + EMBARGO KAPISI (2026-07-28) — getOne'daki iki kuralın aynası.
     // Bu servis eskiden yalnız görünürlük/bağlantı/ülke bakıyordu: ilan
