@@ -66,6 +66,18 @@ export const requestDefaultsSchema = z
     if (d.paymentCategory === "LETTER_OF_CREDIT" && !d.lcType) {
       ctx.addIssue({ code: "custom", path: ["lcType"], message: tApi("api.companyRequestDefaults.akreditifAltTipiniSecin") });
     }
+    // buildPaymentPlan aynası (derin denetim MU-10): yayında 400 alacak her
+    // şart burada reddedilir. CUSTOM not ister; profilde not alanı, hızlı
+    // kartta not girişi yok → Talep Şartları'na kaydedilemez.
+    if (d.paymentCategory === "ADVANCE" && d.advancePercent == null) {
+      ctx.addIssue({ code: "custom", path: ["advancePercent"], message: tApi("api.companyRequestDefaults.pesinYuzdesiZorunlu") });
+    }
+    if (d.paymentCategory === "LETTER_OF_CREDIT" && d.lcType === "USANCE" && !d.paymentDays) {
+      ctx.addIssue({ code: "custom", path: ["paymentDays"], message: tApi("api.companyRequestDefaults.usanceVadeGunZorunlu") });
+    }
+    if (d.paymentCategory === "CUSTOM") {
+      ctx.addIssue({ code: "custom", path: ["paymentCategory"], message: tApi("api.companyRequestDefaults.ozelOdemeKaydedilemez") });
+    }
   });
 
 @Injectable()

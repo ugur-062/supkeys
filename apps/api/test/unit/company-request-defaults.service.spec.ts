@@ -89,7 +89,7 @@ describe("CompanyRequestDefaultsService", () => {
       deliveryTerm: "FOB",
       paymentCategory: "ADVANCE",
       paymentDays: null,
-      advancePercent: null,
+      advancePercent: 100,
       lcType: null,
       primaryCurrency: "USD",
       allowedCurrencies: ["USD"],
@@ -119,5 +119,19 @@ describe("CompanyRequestDefaultsService", () => {
     await expect(svc.save(user, { ...VALID, paymentCategory: "LETTER_OF_CREDIT" })).rejects.toBeInstanceOf(BadRequestException);
     await expect(svc.save(user, { ...VALID, allowedCurrencies: ["USD"] })).rejects.toThrow(/Ana para birimi/);
     expect(requestDefaultsSchema.safeParse({ ...VALID, closeDays: 0 }).success).toBe(false);
+  });
+
+  it("şema buildPaymentPlan aynası: yüzdesiz peşin, vadesiz usance ve CUSTOM reddedilir (MU-10)", async () => {
+    const ok = (patch: Record<string, unknown>) => requestDefaultsSchema.safeParse({ ...VALID, ...patch }).success;
+    expect(ok({ paymentCategory: "ADVANCE", paymentDays: null, advancePercent: null })).toBe(false);
+    expect(ok({ paymentCategory: "ADVANCE", paymentDays: null, advancePercent: 30 })).toBe(true);
+    expect(ok({ paymentCategory: "LETTER_OF_CREDIT", lcType: "USANCE", paymentDays: null })).toBe(false);
+    expect(ok({ paymentCategory: "LETTER_OF_CREDIT", lcType: "USANCE", paymentDays: 90 })).toBe(true);
+    expect(ok({ paymentCategory: "LETTER_OF_CREDIT", lcType: "SIGHT", paymentDays: null })).toBe(true);
+    expect(ok({ paymentCategory: "CUSTOM", paymentDays: null })).toBe(false);
+    const { svc } = rig();
+    await expect(svc.save(user, { ...VALID, paymentCategory: "CUSTOM", paymentDays: null })).rejects.toBeInstanceOf(BadRequestException);
+    // Kaydedilmiş eski CUSTOM profil hızlı kartı kilitlemez: yedeğe düşer.
+    expect((await rig({ saved: { ...VALID, paymentCategory: "CUSTOM" } }).svc.get("c1")).source).toBe("none");
   });
 });

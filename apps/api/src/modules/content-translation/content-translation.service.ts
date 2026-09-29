@@ -234,8 +234,13 @@ export class ContentTranslationService {
   /**
    * Kaynak değiştiyse (ya da hiç çevrilmediyse) üç dil için PENDING satır
    * açar ve aynı süreçte çeviriyi başlatır. Fail-open: hata yalnız günlüğe.
+   *
+   * `opts.kick=false`: yalnız satır aç, çeviriyi süpürücüye bırak (toplu
+   * kapsam/backfill). Karar ÇAĞRI BAŞINA — paylaşılan `this.kick` ezilmez
+   * (eşzamanlı iki toplu döngü onu kalıcı no-op bırakıyordu; derin denetim MU-10).
    */
-  async enqueue(type: TranslatableEntityType, id: string): Promise<boolean> {
+  async enqueue(type: TranslatableEntityType, id: string, opts: { kick?: boolean } = {}): Promise<boolean> {
+    const shouldKick = opts.kick !== false;
     try {
       const source = await this.loadSource(type, id);
       if (!source || !hasTranslatableText(source)) {
@@ -288,12 +293,12 @@ export class ContentTranslationService {
           update: { sourceHash: hash, status: "PENDING", attempts: 0, error: null },
         });
       }
-      this.kick(type, id);
+      if (shouldKick) this.kick(type, id);
       // Talep sahibinin firması: sektörü herkese açık talep sayfasında görünür → o firma
       // herkese açık profilli olmasa da çevrilir (2026-09-23 tarama: "Makine İmalatı").
       if (type === "LISTING") {
         const owner = await this.prisma.listing.findUnique({ where: { id }, select: { companyId: true } });
-        if (owner?.companyId) void this.enqueue("COMPANY", owner.companyId).catch(() => undefined);
+        if (owner?.companyId) void this.enqueue("COMPANY", owner.companyId, opts).catch(() => undefined);
       }
       return true;
     } catch (err) {
@@ -1057,14 +1062,8 @@ export class ContentTranslationService {
     return counts;
   }
 
-  private async enqueueQuiet(type: TranslatableEntityType, id: string): Promise<boolean> {
-    const kick = this.kick;
-    this.kick = () => {};
-    try {
-      return await this.enqueue(type, id);
-    } finally {
-      this.kick = kick;
-    }
+  private enqueueQuiet(type: TranslatableEntityType, id: string): Promise<boolean> {
+    return this.enqueue(type, id, { kick: false });
   }
 
   /** Arka planda kuyruk boşalana dek süpür (yönetici tetikler). */

@@ -145,6 +145,13 @@ describe("tenderFormSchema", () => {
     expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "ADVANCE", advancePercent: 100, targetCountries: ["DE", "TR"] })).success).toBe(true);
   });
 
+  it("peşinde yüzde zorunlu — boş kutu API 400'üne değil form hatasına düşer (MU-10)", () => {
+    const r = tenderFormSchema.safeParse(validForm({ paymentCategory: "ADVANCE", advancePercent: undefined }));
+    expect(r.success).toBe(false);
+    expect(r.error?.issues[0]?.path).toEqual(["advancePercent"]);
+    expect(r.error?.issues[0]?.message).toBe("Peşin yüzdesi (%1-100) zorunlu");
+  });
+
   it("akreditif: alt tip zorunlu; Usance vade ister; açık hesap da her talepte", () => {
     expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "LETTER_OF_CREDIT", lcType: "SIGHT" })).success).toBe(true);
     expect(tenderFormSchema.safeParse(validForm({ paymentCategory: "LETTER_OF_CREDIT", lcType: undefined })).success).toBe(false);

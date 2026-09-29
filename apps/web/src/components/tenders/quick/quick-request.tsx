@@ -359,7 +359,7 @@ export function QuickRequest({
       if (!ok) {
         const errs = form.formState.errors;
         const first = Object.keys(errs)[0];
-        if (first === "deliveryTerm" || first === "paymentCategory" || first === "paymentDays") {
+        if (["deliveryTerm", "paymentCategory", "paymentDays", "advancePercent", "lcType", "paymentNote"].includes(first)) {
           toast.error(tr("sagdakiTicariSartlarPanelindeTeslim"));
           document.getElementById("sartlar-baslik")?.scrollIntoView({ behavior: "smooth", block: "center" });
           return;

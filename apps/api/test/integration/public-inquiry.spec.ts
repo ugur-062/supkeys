@@ -14,7 +14,8 @@ import { PublicInquiryService } from "../../src/modules/public-inquiry/public-in
 import type { PrismaBypassService } from "../../src/common/prisma/prisma.service";
 import { REDACTED_CONTEXT_TYPES } from "../../src/modules/email/email.service";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser } from "./factories";
+import { makeCompanyWithUser, makeUser } from "./factories";
+import { CompanyRole } from "@rothern/db";
 import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 /** Gönderilen e-postaları yakalayan sahte servis. */
@@ -528,6 +529,57 @@ describe("KAYITLI alıcı talebi — doğrulama adımı YOK", () => {
     // Ziyaretçiye "önce doğrula" e-postası GİTMEZ; yalnız satıcı bildirimi.
     expect(mail.sent.some((m) => m.type === "public_inquiry_verify")).toBe(false);
     expect(mail.sent.some((m) => m.type === "public_inquiry_received")).toBe(true);
+  });
+
+  it("engel iki yönlü: engellenen/engelleyen firma bilgi talebi açamaz (404), satıcıya e-posta gitmez (MU-10)", async () => {
+    const { svc, mail } = svcWith();
+    const { company, product } = await seedProduct();
+    const b = await buyer();
+    const payload = {
+      companyId: b.company.id,
+      email: b.user.email,
+      fullName: "Ayşe Demir",
+      companySlug: company.slug as string,
+      productSlug: product.slug as string,
+      message: "Fiyat ve teslim süresi bilgisi rica ederim.",
+    };
+    await prisma.companyBlock.create({ data: { blockerCompanyId: company.id, blockedCompanyId: b.company.id } });
+    await expect(svc.createAsCompany(payload)).rejects.toThrow(NotFoundException);
+    await prisma.companyBlock.deleteMany({});
+    await prisma.companyBlock.create({ data: { blockerCompanyId: b.company.id, blockedCompanyId: company.id } });
+    await expect(svc.createAsCompany(payload)).rejects.toThrow(NotFoundException);
+    expect(await prisma.publicInquiry.count()).toBe(0);
+    expect(mail.sent).toHaveLength(0);
+    // Engel kalkınca talep geçer.
+    await prisma.companyBlock.deleteMany({});
+    await expect(svc.createAsCompany(payload)).resolves.toHaveProperty("id");
+  });
+
+  it("satıcı e-postası yalnız sell:view taşıyan üyelere, en eski önce, en fazla 5 (MU-10)", async () => {
+    const { svc, mail } = svcWith();
+    const { company, product, sellerEmail } = await seedProduct();
+    const at = (m: number) => ({ createdAt: new Date(Date.UTC(2026, 0, 1, 0, m)) });
+    // Kurucu en eski; ardından 5 satın almacı/onaylayıcı (izinsiz), sonra 6 satışçı.
+    await prisma.companyUser.updateMany({ where: { email: sellerEmail }, data: at(0) });
+    const buyersOnly = [];
+    for (let i = 1; i <= 5; i++) buyersOnly.push(await makeUser(prisma, company.id, [CompanyRole.SATIN_ALMACI], at(i)));
+    const approver = await makeUser(prisma, company.id, [], { ...at(6), permissions: ["approval:act"] });
+    const sellers = [];
+    for (let i = 10; i < 16; i++) sellers.push(await makeUser(prisma, company.id, [CompanyRole.SATISCI], at(i)));
+    const gone = await makeUser(prisma, company.id, [CompanyRole.SATISCI], { ...at(7), isActive: false });
+    const b = await buyer();
+    await svc.createAsCompany({
+      companyId: b.company.id,
+      email: b.user.email,
+      fullName: "Ayşe Demir",
+      companySlug: company.slug as string,
+      productSlug: product.slug as string,
+      message: "Fiyat ve teslim süresi bilgisi rica ederim.",
+    });
+    await new Promise((r) => setTimeout(r, 50));
+    const to = mail.sent.filter((m) => m.type === "public_inquiry_received").map((m) => m.to);
+    expect(to).toEqual([sellerEmail, ...sellers.slice(0, 4).map((u) => u.email)]);
+    for (const u of [...buyersOnly, approver, gone]) expect(to).not.toContain(u.email);
   });
 
   it("kendi ürününe talep gönderilemez", async () => {

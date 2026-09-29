@@ -387,18 +387,20 @@ export class CompanyViewsService {
     }
     const now = new Date();
     let updated = 0;
-    // Ölçüsü DEĞİŞEN firmayı yaz; pencereden düşenleri de temizle.
-    const stale = await this.prisma.company.findMany({
-      where: { medianReplyHours: { not: null } },
-      select: { id: true },
+    // Yalnız ölçüsü DEĞİŞEN firmayı yaz; pencereden düşenleri de temizle.
+    // Yazım HAM SQL (derin denetim MU-10): Prisma `update` `@updatedAt`'i
+    // ilerletir → sitemap lastmod her gece "değişti" der, çeviri kapsam
+    // süpürücüsü (`t.updatedAt >= e.updatedAt`) firmayı her gece yeniden
+    // kuyruğa alırdı. Yanıt süresi ne profil içeriği ne çevrilecek metin.
+    // `medianReplyComputedAt` = değerin son DEĞİŞTİĞİ an.
+    const current = await this.prisma.company.findMany({
+      where: { OR: [{ medianReplyHours: { not: null } }, { id: { in: [...byCompany.keys()] } }] },
+      select: { id: true, medianReplyHours: true },
     });
-    const ids = new Set([...byCompany.keys(), ...stale.map((c) => c.id)]);
-    for (const id of ids) {
-      const value = roundReplyHours(medianFirstReplyHours(byCompany.get(id) ?? []));
-      await this.prisma.company.update({
-        where: { id },
-        data: { medianReplyHours: value, medianReplyComputedAt: now },
-      });
+    for (const c of current) {
+      const value = roundReplyHours(medianFirstReplyHours(byCompany.get(c.id) ?? []));
+      if (value === c.medianReplyHours) continue;
+      await this.prisma.$executeRaw`UPDATE "companies" SET "medianReplyHours" = ${value}, "medianReplyComputedAt" = ${now} WHERE "id" = ${c.id}`;
       updated++;
     }
     return { scanned: rows.length, updated };

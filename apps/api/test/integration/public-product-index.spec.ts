@@ -310,6 +310,21 @@ describe("ürün dizini — kapı", () => {
     expect(f.cities.find((c) => c.city === "bursa")).toMatchObject({ name: "Bursa", country: "TR", count: 1 });
     expect(f.truncated).toBe(false);
   });
+
+  it("satıcı ülkesi sayaçları yanıtta; ülke seçiliyken de diğer ülkeler sayılır (MU-10)", async () => {
+    await seedProduct();
+    await seedProduct();
+    await seedProduct({ country: "DE" });
+    await seedProduct({ country: "DE", publicEnabled: false });
+    expect((await service().productFacets({})).countries).toEqual([
+      { country: "TR", count: 2 },
+      { country: "DE", count: 1 },
+    ]);
+    expect((await service().productFacets({ country: "DE" })).countries).toEqual([
+      { country: "TR", count: 2 },
+      { country: "DE", count: 1 },
+    ]);
+  });
 });
 
 /** v2 uçları: seçki, ilişkili bloklar, öneri, sayı şeridi. */

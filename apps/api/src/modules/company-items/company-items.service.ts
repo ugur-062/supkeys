@@ -736,6 +736,8 @@ export class CompanyItemsService {
         ? { id: selected.id, name: categoryName(selected), level: selected.level }
         : null,
       cities: ctx.cities,
+      // Satıcı ülkesi sayaçları (derin denetim MU-10: hesaplanıp düşüyordu).
+      countries: ctx.countries,
       activities: ctx.activities,
       verified: ctx.verified,
       fastReply: ctx.fastReply,

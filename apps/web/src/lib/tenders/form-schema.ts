@@ -348,6 +348,11 @@ export function makeTenderFormSchema(t: RequestsTranslate) {
           path: ["paymentDays"],
         },
       )
+      // buildPaymentPlan aynası: peşinde yüzde zorunlu (API 400 yerine formda).
+      .refine(
+        (d) => d.paymentCategory !== "ADVANCE" || (typeof d.advancePercent === "number" && d.advancePercent > 0),
+        { message: t("formSchema.advancePercentRequired"), path: ["advancePercent"] },
+      )
       .refine(
         (d) => d.paymentCategory !== "CUSTOM" || !!d.paymentNote?.trim(),
         {

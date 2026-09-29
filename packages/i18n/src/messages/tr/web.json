@@ -4076,6 +4076,7 @@
         "paymentDaysRequired": "Vade gün sayısı zorunlu",
         "lcTypeRequired": "Akreditif alt tipini seçin",
         "lcUsanceDaysRequired": "Vadeli (Usance) akreditif için vade gün sayısı zorunlu",
+        "advancePercentRequired": "Peşin yüzdesi (%1-100) zorunlu",
         "paymentNoteRequired": "Özel ödeme şeklinde ödeme koşulu notu zorunlu",
         "closesAtRequired": "Kapanış tarihi seçin",
         "opensBeforeCloses": "Açılış tarihi kapanıştan önce olmalı",

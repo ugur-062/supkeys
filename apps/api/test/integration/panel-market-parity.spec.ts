@@ -109,6 +109,20 @@ describe("panel pazar katmanı — parite", () => {
     expect(facets.attributes[0].values).toEqual([{ value: "IP65", count: 1 }]);
   });
 
+  it("panel facet'i satıcı ülkesi sayaçlarını da döner (MU-10)", async () => {
+    await seedSeller();
+    await seedSeller({ country: "DE" });
+    const buyer = await makeCompanyWithUser(prisma);
+    const facets = await items().discoverFacets(
+      { companyId: buyer.company.id, userId: buyer.user.id } as never,
+      {},
+    );
+    expect([...facets.countries].sort((a, b) => a.country.localeCompare(b.country))).toEqual([
+      { country: "DE", count: 1 },
+      { country: "TR", count: 1 },
+    ]);
+  });
+
   it("kategori seçilince ALT KIRILIM sayacı döner (kategori sayfasının çipleri)", async () => {
     await seedSeller();
     const buyer = await makeCompanyWithUser(prisma);

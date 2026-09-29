@@ -493,18 +493,24 @@ export class NotificationService {
       where: {
         companyUserId: userId,
         ...(opts.unreadOnly ? { readAt: null } : {}),
-        ...portalReadFilter(viewer, opts.portal),
-        ...(opts.before
-          ? {
-              OR: [
-                { createdAt: { lt: opts.before.createdAt } },
+        // Portal süzgeci de imleç de `OR` taşır → AYNI nesneye yayılırsa
+        // imleç portal/izin süzgecini ezer (derin denetim MU-10). `AND` ile.
+        AND: [
+          portalReadFilter(viewer, opts.portal),
+          ...(opts.before
+            ? [
                 {
-                  createdAt: opts.before.createdAt,
-                  id: { lt: opts.before.id },
+                  OR: [
+                    { createdAt: { lt: opts.before.createdAt } },
+                    {
+                      createdAt: opts.before.createdAt,
+                      id: { lt: opts.before.id },
+                    },
+                  ],
                 },
-              ],
-            }
-          : {}),
+              ]
+            : []),
+        ],
       },
       orderBy: [{ createdAt: "desc" }, { id: "desc" }],
       take,

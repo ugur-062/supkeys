@@ -178,6 +178,36 @@ describe("içerik çevirisi — kapsam denetimi", () => {
     expect(picked).not.toContain(exhausted.listing.id);
   });
 
+  it("eşzamanlı iki toplu döngü (cron kapsamı + backfill) kick'i kalıcı susturmaz; toplu yol kick etmez (MU-10)", async () => {
+    const { company, user } = await makeCompanyWithUser(prisma);
+    for (let i = 0; i < 4; i++) await seedProduct(company.id, user.id, { name: `Pano ${i}`, isPublic: true, reviewStatus: "APPROVED" });
+    for (let i = 0; i < 3; i++) await seedListing({ title: `Boru alımı ${i}` });
+    const svc = service();
+    const kick = jest.spyOn(svc, "kick").mockImplementation(() => undefined);
+    // Toplu döngünün bir kaydı işlenirken (sessiz pencere AÇIKKEN) kullanıcı
+    // kaydı gelir: onun kick'i yutulmamalı. Eskiden `this.kick` o an no-op'tu.
+    const userItem = await seedProduct(company.id, user.id, { name: "Kullanıcı panosu" });
+    const internals = svc as unknown as { guessSourceLocale: (t: string, id: string) => Promise<string> };
+    const guess = internals.guessSourceLocale.bind(svc);
+    let injected = false;
+    internals.guessSourceLocale = async (t, id) => {
+      if (!injected && id !== userItem.id) {
+        injected = true;
+        expect(await svc.enqueue("PRODUCT", userItem.id)).toBe(true);
+      }
+      return guess(t, id);
+    };
+    await Promise.all([
+      svc.ensureCoverage(),
+      svc.enqueueAllPublic({ products: { companyId: company.id }, listings: { publishedAt: { not: null } }, companies: { id: company.id } }),
+    ]);
+    expect(injected).toBe(true);
+    expect(kick.mock.calls).toEqual([["PRODUCT", userItem.id]]);
+    const fresh = await seedProduct(company.id, user.id, { name: "Yeni pano", isPublic: true, reviewStatus: "APPROVED" });
+    expect(await svc.enqueue("PRODUCT", fresh.id)).toBe(true);
+    expect(kick).toHaveBeenLastCalledWith("PRODUCT", fresh.id);
+  });
+
   it("yabancı firmanın içeriği çevrilmeden HİÇBİR dilde indekslenmez (Almanca metin Türkçe adreste değil)", async () => {
     const { company, listing } = await seedListing();
     await prisma.company.update({ where: { id: company.id }, data: { country: "DE" } });

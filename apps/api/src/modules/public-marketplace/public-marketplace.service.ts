@@ -721,6 +721,8 @@ export class PublicMarketplaceService {
     /** Seçili kategorinin adı — ürünü olmasa da (çip/başlık için). */
     selectedCategory: { id: string; name: string; level: number } | null;
     cities: { city: string; count: number }[];
+    /** Satıcı ülkesi sayaçları (`?ulke=`) — web süzgeç grubu + ülke şeridi. */
+    countries: { country: string; count: number }[];
     activities: { activity: string; count: number }[];
     verified: number;
     fastReply: number;
@@ -818,6 +820,8 @@ export class PublicMarketplaceService {
       /** Seçili kategorinin kendisi (ürünü olmasa da). */
       selectedCategory: selected ?? null,
       cities: ctx.cities,
+      // Hesaplanıyordu ama yanıta bağlanmamıştı (derin denetim MU-10).
+      countries: ctx.countries,
       activities: ctx.activities,
       verified: ctx.verified,
       fastReply: ctx.fastReply,

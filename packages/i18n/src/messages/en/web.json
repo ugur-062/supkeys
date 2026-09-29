@@ -4076,6 +4076,7 @@
         "paymentDaysRequired": "Number of payment days is required",
         "lcTypeRequired": "Select the letter of credit subtype",
         "lcUsanceDaysRequired": "Number of days is required for a usance letter of credit",
+        "advancePercentRequired": "Advance percentage (1-100%) is required",
         "paymentNoteRequired": "A payment condition note is required for the custom payment term",
         "closesAtRequired": "Select a closing date",
         "opensBeforeCloses": "Opening date must be before the closing date",

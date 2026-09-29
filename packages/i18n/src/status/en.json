@@ -3949,10 +3949,25 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyRequestDefaults.ozelOdemeKaydedilemez": {
+    "hash": "e000990cc0",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "api.companyRequestDefaults.pesinYuzdesiZorunlu": {
+    "hash": "aaf82ffdfe",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.companyRequestDefaults.talepSartlariGecersiz": {
     "hash": "6d79b79333",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.companyRequestDefaults.usanceVadeGunZorunlu": {
+    "hash": "625eee8496",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "api.companyRequestDefaults.vadeGunSayisiZorunlu": {
     "hash": "05c84f05e7",
@@ -21598,6 +21613,11 @@
     "hash": "1e784757cc",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.formSchema.advancePercentRequired": {
+    "hash": "aaf82ffdfe",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.requests.formSchema.amountTooLarge": {
     "hash": "7fb55d8288",

@@ -195,7 +195,10 @@ export function RequestDefaultsForm({
             }}
             className={INPUT}
           >
-            {PAYMENT_CATEGORIES.map((c) => (
+            {/* CUSTOM not ister; profilde/hızlı kartta not alanı yok → yalnız
+                zaten CUSTOM olan (eski talep düzenlemesi) değer için listede
+                kalır. API de Talep Şartları'nda reddeder (derin denetim MU-10). */}
+            {PAYMENT_CATEGORIES.filter((c) => c !== "CUSTOM" || value.paymentCategory === "CUSTOM").map((c) => (
               <option key={c} value={c}>
                 {paymentCategoryLabel(c)}
               </option>
@@ -205,7 +208,7 @@ export function RequestDefaultsForm({
             {value.paymentCategory === "ADVANCE" ? (
               <Field hint={tr("n100TamPesinAltiKismi")}>
                 <Label htmlFor="tsart-pesin">{tr("pesinYuzdesi")}</Label>
-                <input id="tsart-pesin" type="number" min={1} max={100} value={value.advancePercent ?? 100} onChange={(e) => set({ advancePercent: Number(e.target.value) || null })} className={INPUT} />
+                <input id="tsart-pesin" type="number" min={1} max={100} value={value.advancePercent ?? ""} onChange={(e) => set({ advancePercent: Number(e.target.value) || null })} className={INPUT} />
               </Field>
             ) : null}
             {value.paymentCategory === "LETTER_OF_CREDIT" ? (

@@ -16,7 +16,8 @@ import { EmailService } from "../email/email.service";
 import type { EmailTemplateData } from "@rothern/email";
 import { tApi, type ApiMessageKey } from "../../common/i18n/i18n.service";
 import { currentLocale } from "../../common/i18n/locale-context";
-import { localeOf } from "../notifications/notification.service";
+import { localeOf, viewPermissionForPortal } from "../notifications/notification.service";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@rothern/i18n";
 
 /** `notification` şablonunun veri şekli — paket `NotificationData`yı dışa
@@ -59,6 +60,8 @@ export class PublicInquiryService {
   private static readonly MAX_PER_EMAIL_DAY = 3;
   /** Kayıtlı firmadan günlük tavan — misafir tavanı burada geçersiz. */
   private static readonly MAX_PER_COMPANY_DAY = 30;
+  /** Satıcı bildirimi en fazla bu kadar yetkili üyeye (e-posta fırtınası olmasın). */
+  private static readonly MAX_SELLER_RECIPIENTS = 5;
 
   async create(input: {
     companySlug: string;
@@ -214,6 +217,15 @@ export class PublicInquiryService {
       );
     }
 
+    // Engel (iki yönlü): bilgi talebi mesaj sınıfından bir eylem —
+    // mesajlaşmadaki gibi 404 (engel varlığı sızmasın). Eskiden engellenen
+    // firma satıcının her ürününe talep açıp e-posta yağdırabiliyordu
+    // (derin denetim MU-10). `CompanyBlocksService.blockedCompanyIds` ile aynı
+    // iki yönlü kural; tablo RLS'li olduğu için bypass istemcisiyle okunur.
+    if (await this.isBlockedBetween(input.companyId, product.companyId)) {
+      throw new NotFoundException(i18nMessage("api.publicInquiry.urunBulunamadi"));
+    }
+
     await this.assertCompanyWithinLimits(input.companyId, product.id);
 
     // Alıcı firma adı OTURUMDAN değil VERİTABANINDAN: JWT'de yok ve olsaydı
@@ -251,6 +263,18 @@ export class PublicInquiryService {
     });
 
     return { id: inquiry.id };
+  }
+
+  private async isBlockedBetween(a: string, b: string): Promise<boolean> {
+    const n = await this.prisma.companyBlock.count({
+      where: {
+        OR: [
+          { blockerCompanyId: a, blockedCompanyId: b },
+          { blockerCompanyId: b, blockedCompanyId: a },
+        ],
+      },
+    });
+    return n > 0;
   }
 
   /**
@@ -707,17 +731,30 @@ export class PublicInquiryService {
     visitorName: string,
     extra: { quantity?: string | null } = {},
   ) {
-    const [users, seller] = await Promise.all([
+    // Alıcılar İZİNDEN (derin denetim MU-10): talebi görmek `sell:view`
+    // ister (panel ucu da öyle) — satın almacı/onaylayıcı-only üye ziyaretçi
+    // adını almaz. Sıra sabit (en eski üye önce), kurucu örtük izinli.
+    // Eskiden izinsiz, sırasız ilk 5 aktif kullanıcıya gidiyordu.
+    const [candidates, seller] = await Promise.all([
       this.prisma.companyUser.findMany({
-        where: { companyId, isActive: true },
-        select: { email: true, firstName: true, locale: true },
-        take: 5,
+        where: { companyId, isActive: true, deletedAt: null },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, email: true, firstName: true, locale: true, permissions: true, roles: true },
       }),
       this.prisma.company.findUnique({
         where: { id: companyId },
-        select: { tier: true, membershipEndAt: true },
+        select: { tier: true, membershipEndAt: true, ownerUserId: true },
       }),
     ]);
+    const required = [viewPermissionForPortal("satis")];
+    const users = candidates
+      .filter((u) =>
+        hasCompanyPermission(
+          { isOwner: seller?.ownerUserId === u.id, permissions: u.permissions, roles: u.roles },
+          required,
+        ),
+      )
+      .slice(0, PublicInquiryService.MAX_SELLER_RECIPIENTS);
     const sellerPaid = seller
       ? tierAtLeast(effectiveTier(seller.tier, seller.membershipEndAt), PAID_TIER)
       : true;
