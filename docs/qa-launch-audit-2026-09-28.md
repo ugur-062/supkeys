@@ -764,3 +764,23 @@ etkisi yok denecek kadar az.
 | AI harcaması | `CONTENT_TRANSLATION_DAILY_USD=0` (çeviri), `AI_DISCOVERY_DAILY_USD=0` (keşif web araması — c89a0130), tümü: `GEMINI_API_KEY`/`GEMINI_SERVICE_ACCOUNT_JSON` boş | AI kapalıyken sayfalar kırılmaz (Bölüm 8) |
 | Veri kaybı | 4. adımdaki yedekten geri yükleme | son çare |
 
+---
+
+## Kapanış — tam regresyon (2026-09-29 03:47)
+
+| Kapı | Sonuç |
+|---|---|
+| Tip denetimi (7 paket, tek tek) | ✅ shared · i18n · email · db · api · web · admin |
+| Lint | ✅ 0 hata (api 27 · web 67 uyarı — B1-2 backlog); `next lint` web/admin 0 hata |
+| i18n kapısı | ✅ EN/RU %100, cırcır yeşil |
+| API jest (247 dosya, 25 parti `--runInBand`) | ✅ **2.520 test** — 1 bayat beklenti (`publishedInReview`, B6-2 sonrası) düzeltildi (00ef7670) → 2.518 geçti · 2 atlandı (canlı model testleri, `AI_LIVE_SMOKE`) |
+| Web vitest | ✅ 180 dosya / 1.070 test |
+| Admin vitest | ✅ 20 / 100 |
+| i18n vitest | ✅ 8 / 39 |
+| Web üretim derlemesi (bugünkü kod) | ✅ + yerel üretim yığınında SEO, UI/a11y, B1-1 kesinti sınaması |
+
+**Yayın kararı (Claude):** kod tarafında ENGEL yok. Yayını bloke eden tek
+madde operatör: **O-1 Render askısı** (1 Ekim). Bekleyen kullanıcı kararları
+(B6-4 ürün dili, H-2 pazarlama rızası) ve hukuk maddeleri (H-1…H-9) yayını
+engellemez; runbook Bölüm 15.
+
