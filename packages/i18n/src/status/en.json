@@ -1889,6 +1889,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyDocs.bekleyenGuncellemeAzOnceIncelendi": {
+    "hash": "04f47e3ba9",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.companyDocs.buBelgeIcinBekleyenBirGuncelleme": {
     "hash": "a87a4a8679",
     "status": "reviewed",

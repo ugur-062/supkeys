@@ -976,6 +976,7 @@
     "buBelgeOnaylandiDegistirilemez": "Этот документ одобрен; его нельзя изменить",
     "dogrulamaInceleniyorBelgeDegistirilemez": "Проверка на рассмотрении; документ нельзя изменить",
     "buBelgeIcinBekleyenBirGuncelleme": "Ожидающее обновление этого документа уже на рассмотрении — обновите страницу",
+    "bekleyenGuncellemeAzOnceIncelendi": "Ожидающее обновление этого документа только что было рассмотрено — обновите страницу и повторите попытку",
     "eksikBelgeVarTumBelgeleriYukleyin": "Есть недостающие документы ({length}); загрузите все документы",
     "firmaZatenDogrulanmis": "Компания уже проверена",
     "dogrulamaZatenInceleniyor": "Проверка уже на рассмотрении",

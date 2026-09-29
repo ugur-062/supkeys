@@ -339,12 +339,26 @@ export class CompanyDocsService {
       // purge'u (yalniz guncel anahtarlari toplar) onu silemez.
       select: { id: true, key: true },
     });
+    // Gozden gecirme (MU-19): bekleyen satir CAS ile guncellenir. findFirst
+    // ile update arasinda admin revizyonu karara baglarsa (onay: company
+    // kolonu pending.key'i gosterir) satir artik PENDING degildir; kosulsuz
+    // update onayli satirin key'ini ezip asagidaki silme de CANLI belgeyi
+    // R2'dan silerdi. count === 0 ise eski nesneye dokunulmaz ve 409 donulur:
+    // onaylandiysa belge artik kalicidir (yeni revizyon acilmamali), reddedildiyse
+    // firma sayfayi yenileyip yeniden yukler.
+    let replacedKey: string | null = null;
     try {
       if (pending) {
-        await this.prisma.companyKycRevision.update({
-          where: { id: pending.id },
+        const updated = await this.prisma.companyKycRevision.updateMany({
+          where: { id: pending.id, status: "PENDING" },
           data: { key, submittedById: actor?.userId ?? null },
         });
+        if (updated.count === 0) {
+          throw new ConflictException(
+            i18nMessage("api.companyDocs.bekleyenGuncellemeAzOnceIncelendi"),
+          );
+        }
+        replacedKey = pending.key;
       } else {
         await this.prisma.companyKycRevision.create({
           data: {
@@ -365,9 +379,9 @@ export class CompanyDocsService {
       throw e;
     }
     // #8 deseni: ezilen bekleyen revizyon nesnesini best-effort sil.
-    if (pending?.key && pending.key !== key) {
+    if (replacedKey && replacedKey !== key) {
       await this.storage
-        .deleteObject("private", pending.key)
+        .deleteObject("private", replacedKey)
         .catch((err: unknown) =>
           this.logger.warn(
             `Old pending KYC revision object could not be deleted (${companyId}/${kind}): ${

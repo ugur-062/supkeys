@@ -976,6 +976,7 @@
     "buBelgeOnaylandiDegistirilemez": "Bu belge onaylandı; değiştirilemez",
     "dogrulamaInceleniyorBelgeDegistirilemez": "Doğrulama inceleniyor; belge değiştirilemez",
     "buBelgeIcinBekleyenBirGuncelleme": "Bu belge için bekleyen bir güncelleme zaten incelemede — sayfayı yenileyin",
+    "bekleyenGuncellemeAzOnceIncelendi": "Bu belgenin bekleyen güncellemesi az önce incelendi — sayfayı yenileyip yeniden deneyin",
     "eksikBelgeVarTumBelgeleriYukleyin": "Eksik belge var ({length}); tüm belgeleri yükleyin",
     "firmaZatenDogrulanmis": "Firma zaten doğrulanmış",
     "dogrulamaZatenInceleniyor": "Doğrulama zaten inceleniyor",

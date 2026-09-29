@@ -1497,6 +1497,14 @@ export class AdminCompaniesService {
         throw new BadRequestException(i18nMessage("api.adminCompanies.revizyonAzOnceKararaBaglandi"));
       }
       if (decision.status === "APPROVED") {
+        // Gozden gecirme (MU-19): firma, bizim ilk okumamizla CAS arasinda
+        // bekleyen revizyonun dosyasini degistirmis olabilir (eski nesne o
+        // yolda silinir). CAS satiri kilitledigi icin burada okunan key
+        // kesinlesmis olandir; bayat rev.key kolona yazilmaz.
+        const fresh = await tx.companyKycRevision.findUniqueOrThrow({
+          where: { id: revisionId },
+          select: { key: true },
+        });
         const prev = await tx.company.findUnique({
           where: { id: companyId },
           select: { [DOC_META[k].url]: true } as Record<string, true>,
@@ -1504,13 +1512,13 @@ export class AdminCompaniesService {
         const prevKey = (prev as Record<string, unknown> | null)?.[
           DOC_META[k].url
         ];
-        if (typeof prevKey === "string" && prevKey && prevKey !== rev.key) {
+        if (typeof prevKey === "string" && prevKey && prevKey !== fresh.key) {
           supersededKey = prevKey;
         }
         await tx.company.update({
           where: { id: companyId },
           data: {
-            [DOC_META[k].url]: rev.key,
+            [DOC_META[k].url]: fresh.key,
             [DOC_META[k].status]: "APPROVED" as KycDocStatus,
             [DOC_META[k].reason]: null,
           },

@@ -976,6 +976,7 @@
     "buBelgeOnaylandiDegistirilemez": "This document has been approved; it cannot be changed",
     "dogrulamaInceleniyorBelgeDegistirilemez": "Verification is under review; the document cannot be changed",
     "buBelgeIcinBekleyenBirGuncelleme": "A pending update for this document is already under review — refresh the page",
+    "bekleyenGuncellemeAzOnceIncelendi": "The pending update for this document was just reviewed — refresh the page and try again",
     "eksikBelgeVarTumBelgeleriYukleyin": "Documents are missing ({length}); upload all documents",
     "firmaZatenDogrulanmis": "The company is already verified",
     "dogrulamaZatenInceleniyor": "Verification is already under review",
