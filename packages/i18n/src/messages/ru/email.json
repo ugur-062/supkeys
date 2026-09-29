@@ -5,8 +5,10 @@
     "textSignature": "— Rothern",
     "unsubscribe": "Не хотите получать такие письма? <unsub>Отпишитесь</unsub>.",
     "unsubscribeWithPrefs": "Не хотите получать такие письма? <unsub>Отпишитесь</unsub> или <prefs>настройте уведомления по электронной почте</prefs>.",
+    "privacy": "Об обработке персональных данных: <privacy>Уведомление о конфиденциальности</privacy>.",
     "textUnsubscribe": "Отписаться: {url}",
-    "textPreferences": "Настройки писем: {url}"
+    "textPreferences": "Настройки писем: {url}",
+    "textPrivacy": "Уведомление о конфиденциальности: {url}"
   },
   "passwordReset": {
     "subject": "🔑 Ссылка для сброса пароля — Rothern",

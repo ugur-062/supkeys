@@ -26,7 +26,7 @@ import {
   NotificationEmail,
   renderNotificationText,
 } from "./templates/notification";
-import { EmailEnvContext, type EmailEnv } from "./templates/_components/email-env";
+import { EmailEnvContext, privacyNoticeUrl, type EmailEnv } from "./templates/_components/email-env";
 import type { EmailTemplateData, RenderedEmail } from "./types";
 
 /** Şablonu gönderim ortamı bağlamıyla sarar (alt bilgi alan adı + yıl). */
@@ -54,6 +54,7 @@ export async function renderEmail(
   const lines = [
     t("email.layout.textUnsubscribe", { url: env.unsubscribeUrl }),
     ...(env.preferencesUrl ? [t("email.layout.textPreferences", { url: env.preferencesUrl })] : []),
+    t("email.layout.textPrivacy", { url: privacyNoticeUrl(env.siteUrl, locale) }),
   ];
   return { ...rendered, text: `${rendered.text}\n\n${lines.join("\n")}` };
 }

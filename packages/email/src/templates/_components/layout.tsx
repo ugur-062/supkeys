@@ -12,7 +12,7 @@ import {
 import * as React from "react";
 import { LOGO_CID } from "../../assets/logo";
 import { DEFAULT_LOCALE, emailT, type Locale } from "../../i18n";
-import { EmailEnvContext, siteHost } from "./email-env";
+import { EmailEnvContext, privacyNoticeUrl, siteHost } from "./email-env";
 import { COLORS, FONTS } from "./tokens";
 
 interface LayoutProps {
@@ -132,6 +132,14 @@ export function Layout({ preview, locale = DEFAULT_LOCALE, children }: LayoutPro
                       ),
                     },
                   )}
+                  <br />
+                  {t.rich("email.layout.privacy", {
+                    privacy: (chunks: React.ReactNode) => (
+                      <a href={privacyNoticeUrl(env.siteUrl, locale)} style={footerLink}>
+                        {chunks}
+                      </a>
+                    ),
+                  })}
                 </>
               ) : null}
             </Text>

@@ -5,8 +5,10 @@
     "textSignature": "— Rothern",
     "unsubscribe": "Bu tür e-postaları almak istemiyorsanız <unsub>abonelikten çıkın</unsub>.",
     "unsubscribeWithPrefs": "Bu tür e-postaları almak istemiyorsanız <unsub>abonelikten çıkın</unsub> ya da <prefs>e-posta tercihlerinizi yönetin</prefs>.",
+    "privacy": "Kişisel verilerinizin işlenmesine ilişkin bilgi: <privacy>Aydınlatma Metni</privacy>.",
     "textUnsubscribe": "Abonelikten çıkmak için: {url}",
-    "textPreferences": "E-posta tercihleri: {url}"
+    "textPreferences": "E-posta tercihleri: {url}",
+    "textPrivacy": "Kişisel verilerin işlenmesi (Aydınlatma Metni): {url}"
   },
   "passwordReset": {
     "subject": "🔑 Şifre sıfırlama bağlantınız — Rothern",

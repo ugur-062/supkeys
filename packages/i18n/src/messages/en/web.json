@@ -1914,7 +1914,7 @@
       "mediation": "I accept the <a>platform intermediation and use agreement</a>",
       "kvkkAria": "I have read the KVKK privacy notice",
       "kvkk": "I have read the <a>KVKK privacy notice</a>",
-      "kvkkProviders": "(processors outside Türkiye: Supabase/Vercel/Resend)",
+      "kvkkProviders": "(processors outside Türkiye: Supabase, Vercel, Render, Cloudflare, Resend, Google, Sentry)",
       "profile": "Profile and service improvement (optional)",
       "marketing": "Marketing and analytics / commercial messages (optional)"
     },

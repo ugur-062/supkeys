@@ -1914,7 +1914,7 @@
       "mediation": "<a>Platform aracılık ve kullanım sözleşmesini</a> kabul ediyorum",
       "kvkkAria": "KVKK Aydınlatma Metni bilgilendirmesini okudum",
       "kvkk": "<a>KVKK Aydınlatma Metni</a> bilgilendirmesini okudum",
-      "kvkkProviders": "(yurt dışı sağlayıcılar: Supabase/Vercel/Resend)",
+      "kvkkProviders": "(yurt dışı sağlayıcılar: Supabase, Vercel, Render, Cloudflare, Resend, Google, Sentry)",
       "profile": "Profil ve hizmet iyileştirme (opsiyonel)",
       "marketing": "Pazarlama ve analitik / ticari ileti (opsiyonel)"
     },

@@ -145,6 +145,25 @@ describe("tender_external_invite — üç dilde zengin davet", () => {
   });
 });
 
+describe("aydınlatma metni bağlantısı (yayın denetimi 2026-09-28 Bölüm 13, KVKK m. 10)", () => {
+  const referral = { template: "referral_invite" as const, data: { inviterName: "Acme", email: "a@b.kz", registerUrl: "https://x/y", optOutUrl: "https://x/z" } };
+  it("işlem dışı e-posta (davet) HTML ve düz metinde alıcının dilindeki aydınlatma metnine bağlanır", async () => {
+    const env = { siteUrl: "https://www.rothern.com", unsubscribeUrl: "https://www.rothern.com/u?t=1" };
+    const en = await renderEmail(referral, "en", env);
+    expect(en.html).toContain("https://www.rothern.com/en/legal/personal-data");
+    expect(en.text).toContain("https://www.rothern.com/en/legal/personal-data");
+    const tr = await renderEmail(referral, "tr", env);
+    expect(tr.html).toContain("https://www.rothern.com/sozlesmeler/kvkk");
+    expect(visible(tr.html)).toContain("Aydınlatma Metni");
+    const ru = await renderEmail(referral, "ru", { ...env, siteUrl: "https://staging.supkeys.com" });
+    expect(ru.text).toContain("https://staging.supkeys.com/ru/dokumenty/personalnye-dannye");
+  });
+  it("işlem e-postası (çıkış bağlamı yok) alt bilgisi değişmez", async () => {
+    const out = await renderEmail(referral, "tr", { siteUrl: "https://www.rothern.com" });
+    expect(out.html).not.toContain("/sozlesmeler/kvkk");
+  });
+});
+
 describe("hatırlatma + özet e-postası + gönderen adı (2026-09-27, Faz 0b)", () => {
   it("hatırlatma sürümü: konu ve giriş hatırlatma, içerik aynı", async () => {
     const out = await render("en", { reminder: true });

@@ -5,8 +5,10 @@
     "textSignature": "— Rothern",
     "unsubscribe": "Don't want these emails? <unsub>Unsubscribe</unsub>.",
     "unsubscribeWithPrefs": "Don't want these emails? <unsub>Unsubscribe</unsub> or <prefs>manage your email preferences</prefs>.",
+    "privacy": "How we process personal data: <privacy>Privacy notice</privacy>.",
     "textUnsubscribe": "Unsubscribe: {url}",
-    "textPreferences": "Email preferences: {url}"
+    "textPreferences": "Email preferences: {url}",
+    "textPrivacy": "Privacy notice: {url}"
   },
   "passwordReset": {
     "subject": "🔑 Your password reset link — Rothern",

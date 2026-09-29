@@ -7459,10 +7459,20 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "email.layout.privacy": {
+    "hash": "c4de442580",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "email.layout.textPreferences": {
     "hash": "da74054150",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "email.layout.textPrivacy": {
+    "hash": "d44b9e11d0",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "email.layout.textSignature": {
     "hash": "785db4a777",
@@ -7990,9 +8000,9 @@
     "at": "2026-09-23"
   },
   "web.auth.consents.kvkkProviders": {
-    "hash": "97d09772b9",
+    "hash": "cc7d068719",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-29"
   },
   "web.auth.consents.marketing": {
     "hash": "4eb38daf6b",

@@ -1,4 +1,5 @@
 import * as React from "react";
+import { DEFAULT_LOCALE, translateRoutePath, type Locale } from "@rothern/i18n";
 
 /**
  * Gönderim ORTAMI — şablon verisinden bağımsız, her e-postada aynı (2026-09-27).
@@ -33,4 +34,16 @@ export function siteHost(siteUrl?: string): string {
   } catch {
     return "rothern.com";
   }
+}
+
+/**
+ * KVKK aydınlatma metninin alıcının dilindeki adresi (yayın denetimi 2026-09-28
+ * Bölüm 13): işlem dışı her e-posta — özellikle ÜYE OLMAYAN adrese giden talep
+ * daveti — veri sorumlusunun aydınlatma metnine bağlanır (KVKK m. 10: veri
+ * ilgilisinden toplanmayan veride ilk iletişimde aydınlatma).
+ */
+export function privacyNoticeUrl(siteUrl: string | undefined, locale: Locale): string {
+  const base = (siteUrl || "https://www.rothern.com").replace(/\/$/, "");
+  const prefix = locale === DEFAULT_LOCALE ? "" : `/${locale}`;
+  return `${base}${prefix}${translateRoutePath("/sozlesmeler/kvkk", locale)}`;
 }

@@ -26,7 +26,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
     <LegalDoc
       path="/sozlesmeler/kvkk"
       title="Kişisel Verilerin Korunması Hakkında Aydınlatma Metni"
-      updatedAt="2026-07-26"
+      updatedAt="2026-09-29"
       sections={[
         {
           paragraphs: [
@@ -71,8 +71,8 @@ export default async function Page({ params }: { params: LocaleParams }) {
             "Vercel (web uygulaması barındırma)",
             "Render (API sunucusu barındırma)",
             "Cloudflare (R2 dosya depolama — yüklenen belge ve görseller)",
-            "Resend (işlemsel e-posta gönderimi)",
-            "Google (yapay zekâ özellikleri — belge çıkarımı ve asistan kullanımında işlenen içerikler)",
+            "Resend (e-posta gönderimi — işlem, bildirim ve davet e-postaları)",
+            "Google (yapay zekâ özellikleri — belge çıkarımı, asistan, tedarikçi araması ve ürün/talep/firma metinlerinin otomatik çevirisinde işlenen içerikler)",
             "Sentry (hata izleme — kişisel veri içermeyecek şekilde maskeleme uygulanır)",
           ],
         },
@@ -85,7 +85,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
         {
           heading: "6. Çerezler",
           paragraphs: [
-            "Platform, yalnızca hizmetin çalışması için zorunlu çerezleri kullanır: oturum kimliğini taşıyan httpOnly çerezler ile güvenlik amaçlı CSRF çerezleri. Üçüncü taraf reklam veya izleme çerezi kullanılmaz. Zorunlu çerezler engellendiğinde platforma giriş yapılamaz.",
+            "Platform, yalnızca hizmetin çalışması için zorunlu çerezleri kullanır: oturum kimliğini taşıyan httpOnly çerezler, güvenlik amaçlı CSRF çerezleri ve seçtiğiniz dili hatırlayan dil tercihi çerezi. Üçüncü taraf reklam veya izleme çerezi kullanılmaz. Zorunlu çerezler engellendiğinde platforma giriş yapılamaz.",
           ],
         },
         {
