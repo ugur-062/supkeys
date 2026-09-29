@@ -106,27 +106,109 @@ export function tryToCurrency(amountTry: number, currency: string): number | nul
 }
 
 /**
+ * Kazandırmanın açtığı siparişin kalem özeti — kalemin FİİLEN hangi kazanan
+ * teklife verildiğini çözmek için (`awardedBidForItem`). ALIM'da satıcı =
+ * teklifçi; sipariş kalemi kazandırma anında ilan kalemi adı + kazanan teklifin
+ * kalem birim fiyatıyla (ikisi de Decimal(18,2)) yazılır.
+ */
+export interface AwardOrderSnapshot {
+  sellerCompanyId: string;
+  items: { name: string; unitPrice: unknown }[];
+}
+
+const sameMoney = (a: unknown, b: unknown): boolean => {
+  const x = Number(a);
+  const y = Number(b);
+  return Number.isFinite(x) && Number.isFinite(y) && Math.round(x * 100) === Math.round(y * 100);
+};
+
+/**
+ * Bir ilan kalemini FİİLEN kazanan teklif + TRY birim fiyatı. Modelde kalem →
+ * kazanan teklif ilişkisi saklanmaz (`ListingItem.awardedQuantity` yalnız
+ * miktar); kalem-bazlı kazandırmada AWARDED_PARTIAL / WON teklifler
+ * kazanmadıkları kalemlerin fiyatını da taşır. Derin denetim 2026-09-29
+ * (MU-18 gözden geçirme): eskiden kazananlar arasındaki EN DÜŞÜK fiyat
+ * alınıyordu → kalem en ucuz olmayan kazanana verildiğinde tasarruf fazla,
+ * raporda kazanan adı yanlış çıkıyordu.
+ *
+ * Çözüm sırası:
+ *  1. Kalemi fiyatlayan tek kazanan varsa o.
+ *  2. Birden çoksa kazandırmanın siparişleri: teklifçinin (satıcı) siparişinde
+ *     AYNI ad + AYNI birim fiyatlı kalem olan aday. Tek eşleşme → o.
+ *  3. Çözülemezse (sipariş yok / birden çok eşleşme) adaylar arasındaki EN
+ *     YÜKSEK TRY fiyatı — en az tasarruf; uydurma tasarruf yok (fail-closed).
+ * Seçilen teklifin fiyatı damgasızsa (TRY'ye çevrilemez) null → kalem hesaba
+ * KATILMAZ; başka bir teklifin fiyatına düşülmez.
+ */
+export function awardedBidForItem<
+  B extends {
+    bidderCompanyId?: string;
+    currency: string;
+    exchangeRateSnapshot: unknown | null;
+    items: { itemId: string; unitPrice: unknown; currency?: string | null; fxToBase?: unknown }[];
+  },
+>(
+  item: { id: string; name?: string | null },
+  winners: B[],
+  orders?: AwardOrderSnapshot[] | null,
+): { bid: B; unitPriceTry: number } | null {
+  const candidates = winners.flatMap((bid) => {
+    const bi = bid.items.find((x) => x.itemId === item.id);
+    return bi ? [{ bid, bi, up: itemUnitPriceTry(bid, bi) }] : [];
+  });
+  if (candidates.length === 0) return null;
+  let pool = candidates;
+  if (candidates.length > 1 && orders && orders.length > 0 && item.name != null) {
+    const matched = candidates.filter(
+      (c) =>
+        c.bid.bidderCompanyId != null &&
+        orders.some(
+          (o) =>
+            o.sellerCompanyId === c.bid.bidderCompanyId &&
+            o.items.some((oi) => oi.name === item.name && sameMoney(oi.unitPrice, c.bi.unitPrice)),
+        ),
+    );
+    if (matched.length > 0) pool = matched;
+  }
+  if (pool.length === 1) {
+    const only = pool[0]!;
+    return only.up == null ? null : { bid: only.bid, unitPriceTry: only.up };
+  }
+  let pick: { bid: B; unitPriceTry: number } | null = null;
+  for (const c of pool) {
+    if (c.up == null) continue;
+    if (pick == null || c.up > pick.unitPriceTry) pick = { bid: c.bid, unitPriceTry: c.up };
+  }
+  return pick;
+}
+
+/**
  * Kazandırılmış talebin TASARRUF + HACİM hesabı (TRY) — TEK KAYNAK: Tasarruf
  * sekmesi (`satinalmaTasarruf`) ve pano analitiği aynı fonksiyonu kullanır
  * (derin denetim 2026-09-29: analitik her kazanan teklifin TÜM kalemlerini tam
  * `quantity` ile topluyordu — kalem-bazlı kazandırmada AWARDED_PARTIAL teklif
  * kazanmadığı kalemleri de taşır, aynı kalem iki kazanan teklifte sayılıyordu).
  *
- * Kural: yalnız WON / AWARDED_PARTIAL teklifler; kalem başına kazanan teklifler
- * arasındaki EN İYİ (ALIM → en düşük) TRY birim fiyatı, miktar
- * `awardedQuantity > 0 ? awardedQuantity : quantity`. Damgası olmayan fiyat
- * hesaba KATILMAZ; ilan biriminin kuru kazanan teklif damgasından
- * (`listingRateToTry`). Tasarruf yalnız hedefin altındaki farktır (aşım 0).
+ * Kural: yalnız WON / AWARDED_PARTIAL teklifler; kalem başına FİİLEN kazanan
+ * teklifin TRY birim fiyatı (`awardedBidForItem` — siparişlerden çözülür;
+ * `orders` + kalem `name` + teklif `bidderCompanyId` verilmezse kalemi tek
+ * kazanan fiyatlamadıkça en az tasarruflu fiyata düşer), miktar
+ * `awardedQuantity > 0 ? awardedQuantity : quantity` (bir kalem tek kazanana
+ * verilir — bölünmüş kalem yok). Damgası olmayan fiyat hesaba KATILMAZ; ilan
+ * biriminin kuru kazanan teklif damgasından (`listingRateToTry`). Tasarruf
+ * yalnız hedefin altındaki farktır (aşım 0).
  */
 export function awardedSavingsVolumeTry(l: {
   primaryCurrency: string;
-  items: { id: string; quantity: unknown; targetPrice: unknown; awardedQuantity?: unknown }[];
+  items: { id: string; name?: string | null; quantity: unknown; targetPrice: unknown; awardedQuantity?: unknown }[];
   bids: {
     status?: string;
+    bidderCompanyId?: string;
     currency: string;
     exchangeRateSnapshot: unknown | null;
     items: { itemId: string; unitPrice: unknown; currency?: string | null; fxToBase?: unknown }[];
   }[];
+  orders?: AwardOrderSnapshot[] | null;
 }): { savings: number; volume: number } {
   const winners = l.bids.filter(
     (b) => b.status == null || b.status === "WON" || b.status === "AWARDED_PARTIAL",
@@ -135,20 +217,14 @@ export function awardedSavingsVolumeTry(l: {
   let savings = 0;
   let volume = 0;
   for (const it of l.items) {
-    let best: number | null = null;
-    for (const b of winners) {
-      const bi = b.items.find((x) => x.itemId === it.id);
-      if (!bi) continue;
-      const up = itemUnitPriceTry(b, bi);
-      if (up == null) continue;
-      if (best == null || up < best) best = up;
-    }
-    if (best == null) continue;
+    const win = awardedBidForItem(it, winners, l.orders);
+    if (win == null) continue;
+    const price = win.unitPriceTry;
     const awarded = it.awardedQuantity != null ? Number(it.awardedQuantity) : NaN;
     const qty = Number.isFinite(awarded) && awarded > 0 ? awarded : Number(it.quantity);
-    volume += best * qty;
+    volume += price * qty;
     const ref = listingAmountTry(l.primaryCurrency, it.targetPrice, listingRate);
-    if (ref != null && ref > best) savings += (ref - best) * qty;
+    if (ref != null && ref > price) savings += (ref - price) * qty;
   }
   return { savings, volume };
 }

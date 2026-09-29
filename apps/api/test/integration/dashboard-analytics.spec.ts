@@ -46,6 +46,21 @@ describe("DashboardAnalyticsService (DB)", () => {
     prisma as unknown as PrismaService,
   );
 
+  /** Kalem-bazlı kazandırmanın açtığı sipariş (ALIM: teklifçi = satıcı). */
+  const awardOrder = (
+    buyerCompanyId: string,
+    sellerCompanyId: string,
+    listingId: string,
+    items: { name: string; unitPrice: number }[],
+  ) =>
+    prisma.companyOrder.create({
+      data: {
+        buyerCompanyId, sellerCompanyId, listingId, currency: "TRY", status: "PENDING",
+        amount: items.reduce((n, it) => n + it.unitPrice, 0),
+        items: { create: items.map((it) => ({ ...it, quantity: 1, unit: "adet" })) },
+      },
+    });
+
   beforeEach(async () => {
     await truncateAll();
   });
@@ -233,11 +248,48 @@ describe("DashboardAnalyticsService (DB)", () => {
       amount: 175, currency: "TRY", status: "AWARDED_PARTIAL",
       items: [{ itemId: a.id, unitPrice: 95 }, { itemId: b.id, unitPrice: 80 }],
     });
+    // Kazandırmanın açtığı siparişler (awardByItem: satıcı başına, kalem adı +
+    // kazanan birim fiyat) — kalemin kime verildiği buradan çözülür.
+    await awardOrder(buyer.company.id, x.company.id, listing.id, [{ name: a.name, unitPrice: 90 }]);
+    await awardOrder(buyer.company.id, y.company.id, listing.id, [{ name: b.name, unitPrice: 80 }]);
 
     const sa = await service.satinalma(buyer.company.id, "year");
     expect(sa.money.realizedSavings).toBeCloseTo(30, 5);
     expect(sa.topSavings[0]!.amount).toBeCloseTo(30, 5);
     expect(sa.savingsTrend.reduce((n, p) => n + p.value, 0)).toBeCloseTo(30, 5);
+  });
+
+  it("kalem en ucuz olmayan kazanana verildiyse tasarruf o teklifin fiyatıyla (MU-18 gözden geçirme)", async () => {
+    // X: A=90,B=100; Y: A=95,B=80. Kazandırma A→Y, B→X (alıcı en ucuzu seçmedi).
+    // Doğru: A (100-95)=5, B (100-100)=0 → 5. Eski (en düşük fiyat): 10+20=30.
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const x = await makeCompanyWithUser(prisma, {});
+    const y = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "AWARDED",
+      primaryCurrency: "TRY",
+      awardedAt: new Date(),
+    });
+    const a = await makeItem(prisma, listing.id, { lineNo: 1, targetPrice: new Prisma.Decimal(100) });
+    const b = await makeItem(prisma, listing.id, { lineNo: 2, targetPrice: new Prisma.Decimal(100) });
+    await makeBid(prisma, {
+      listingId: listing.id, bidderCompanyId: x.company.id, createdById: x.user.id,
+      amount: 190, currency: "TRY", status: "AWARDED_PARTIAL",
+      items: [{ itemId: a.id, unitPrice: 90 }, { itemId: b.id, unitPrice: 100 }],
+    });
+    await makeBid(prisma, {
+      listingId: listing.id, bidderCompanyId: y.company.id, createdById: y.user.id,
+      amount: 175, currency: "TRY", status: "AWARDED_PARTIAL",
+      items: [{ itemId: a.id, unitPrice: 95 }, { itemId: b.id, unitPrice: 80 }],
+    });
+    await awardOrder(buyer.company.id, y.company.id, listing.id, [{ name: a.name, unitPrice: 95 }]);
+    await awardOrder(buyer.company.id, x.company.id, listing.id, [{ name: b.name, unitPrice: 100 }]);
+
+    const sa = await service.satinalma(buyer.company.id, "year");
+    expect(sa.money.realizedSavings).toBeCloseTo(5, 5);
+    expect(sa.topSavings[0]!.amount).toBeCloseTo(5, 5);
   });
 
   it("awardedQuantity varsa analitik de onu çarpar (Tasarruf sekmesiyle aynı)", async () => {

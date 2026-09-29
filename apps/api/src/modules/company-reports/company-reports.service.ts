@@ -9,6 +9,7 @@ import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/categor
 import { shortMonthLabel, tApi } from "../../common/i18n/i18n.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import {
+  awardedBidForItem,
   itemUnitPriceTry,
   listingAmountTry,
   listingRateToTry,
@@ -420,6 +421,13 @@ export class CompanyReportsService {
             awardedQuantity: true,
           },
         },
+        // Kalemin FİİLEN kime verildiği siparişlerden çözülür (awardedBidForItem).
+        orders: {
+          select: {
+            sellerCompanyId: true,
+            items: { select: { name: true, unitPrice: true } },
+          },
+        },
         bids: {
           where: { status: { in: [...REAL_BID] } },
           select: {
@@ -456,10 +464,12 @@ export class CompanyReportsService {
       const awarded = l.bids.filter(
         (b) => b.status === "WON" || b.status === "AWARDED_PARTIAL",
       );
-      // Kalem kazananı: WON teklif varsa onun kalemi; kalem-bazlı (PARTIAL)
-      // kazandırmada aynı kalemi fiyatlayan kazananlar arasından EN İYİ fiyat
-      // (kazandırmanın olağan seçimi) — modelde kalem-başına kazanan ayrıca
-      // saklanmadığından en-iyi-fiyat yaklaşımı kullanılır.
+      // Kalem kazananı: kalemi FİİLEN kazanan teklif (`awardedBidForItem` —
+      // tek fiyatlayan kazanan, değilse kazandırmanın siparişlerinden ad +
+      // birim fiyat eşleşmesi). Derin denetim 2026-09-29 (MU-18 gözden
+      // geçirme): eskiden kazananlar arasındaki EN DÜŞÜK fiyat seçiliyordu →
+      // kalem en ucuz olmayan kazanana verildiğinde tasarruf fazla ve kazanan
+      // adı yanlıştı. Pano/Tasarruf sekmesiyle AYNI çözücü.
       // P8 HIGH: kıyas ve toplama TRY bazında. Kur damgası yoksa satır hesaba
       // KATILMAZ (fail-closed) — "0 TL kazanan" uydurma tasarruf üretmesin.
       const winningByItem = new Map<
@@ -467,17 +477,13 @@ export class CompanyReportsService {
         { bidderName: string; unitPrice: number }
       >();
       for (const it of l.items) {
-        let best: { bidderName: string; unitPrice: number } | null = null;
-        for (const b of awarded) {
-          const bi = b.items.find((x) => x.itemId === it.id);
-          if (!bi) continue;
-          const up = itemUnitPriceTry(b, bi);
-          if (up == null) continue; // damga yok → kıyas dışı
-          if (!best || up < best.unitPrice) {
-            best = { bidderName: b.bidderCompany.name, unitPrice: up };
-          }
+        const win = awardedBidForItem(it, awarded, l.orders);
+        if (win) {
+          winningByItem.set(it.id, {
+            bidderName: win.bid.bidderCompany.name,
+            unitPrice: win.unitPriceTry,
+          });
         }
-        if (best) winningByItem.set(it.id, best);
       }
       // İlan birimindeki referansı (hedef) TRY'ye çevirmek için oran:
       // TRY ilanda 1; aksi halde kazanan tekliflerin damgasından türetilir

@@ -404,14 +404,24 @@ export class CompanyDashboardService {
         items: {
           select: {
             id: true,
+            name: true,
             quantity: true,
             targetPrice: true,
             awardedQuantity: true,
           },
         },
+        // Kalemin FİİLEN kime verildiği siparişlerden çözülür
+        // (`awardedBidForItem`; teklifçi = satıcı, ad + birim fiyat).
+        orders: {
+          select: {
+            sellerCompanyId: true,
+            items: { select: { name: true, unitPrice: true } },
+          },
+        },
         bids: {
           where: { status: { in: ["WON", "AWARDED_PARTIAL"] } },
           select: {
+            bidderCompanyId: true,
             currency: true,
             exchangeRateSnapshot: true,
             items: {
@@ -455,7 +465,7 @@ export class CompanyDashboardService {
         const awardedAt = l.awardedAt ?? l.createdAt;
         // Hedef fiyat İLANIN birimindedir, kazanan birim fiyatı ise TEKLİFİN
         // (hatta KALEMİN) biriminde — ikisi ayrı ayrı TRY'ye çevrilir. Kalem
-        // başına EN İYİ kazanan fiyat × awardedQuantity; damgasız satır kıyas
+        // başına FİİLEN kazanan fiyat × awardedQuantity; damgasız satır kıyas
         // dışı. TEK KAYNAK: report-currency.ts `awardedSavingsVolumeTry` (pano
         // analitiği de aynı fonksiyonu kullanır).
         const { savings, volume } = awardedSavingsVolumeTry(l);

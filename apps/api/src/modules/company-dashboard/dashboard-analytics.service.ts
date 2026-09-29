@@ -201,11 +201,13 @@ export class DashboardAnalyticsService {
             id: true, number: true, title: true, status: true,
             createdAt: true, closesAt: true, awardedAt: true,
             categoryIds: true, primaryCurrency: true,
-            items: { select: { id: true, quantity: true, targetPrice: true, awardedQuantity: true } },
+            items: { select: { id: true, name: true, quantity: true, targetPrice: true, awardedQuantity: true } },
+            // Kalemin FİİLEN kime verildiği siparişlerden çözülür (awardedBidForItem).
+            orders: { select: { sellerCompanyId: true, items: { select: { name: true, unitPrice: true } } } },
             bids: {
               where: { status: { in: ["SUBMITTED", "WON", "AWARDED_PARTIAL", "LOST"] } },
               select: {
-                status: true, currency: true, submittedAt: true, createdAt: true,
+                status: true, bidderCompanyId: true, currency: true, submittedAt: true, createdAt: true,
                 exchangeRateSnapshot: true,
                 bidderCompany: { select: { name: true } },
                 items: { select: { itemId: true, unitPrice: true, currency: true, fxToBase: true } },
@@ -372,7 +374,7 @@ export class DashboardAnalyticsService {
       //    olmayan satır hesaba KATILMAZ (fail-closed; uydurma tasarruf yok).
       //    Eskiden TRY dışı talep tümüyle 0 sayılıyordu. ──
       //    Kalem-bazlı kazandırmada AWARDED_PARTIAL teklif kazanmadığı kalemleri
-      //    de taşır → kalem başına TEK (en iyi kazanan) fiyat × awardedQuantity;
+      //    de taşır → kalem başına TEK (fiilen kazanan) fiyat × awardedQuantity;
       //    Tasarruf sekmesiyle aynı fonksiyon (derin denetim 2026-09-29).
       const savingsVolumeOf = (l: (typeof listings)[number]): { savings: number; volume: number } => {
         const { savings: s, volume: v } = awardedSavingsVolumeTry(l);
