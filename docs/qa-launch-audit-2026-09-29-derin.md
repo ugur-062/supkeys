@@ -17,6 +17,74 @@
 
 **Yayın kararı:** kod tarafında ENGEL yok; kapılar yeşil. **21 YÜKSEK bulgu yayından önce düzeltilmeli** — çoğu dünkü bölüm denetiminin göremediği sınıftan: EN/RU kullanıcıya özgü yollar (bildirim bağlantısı 404, arama formu dili düşürüyor), Silver'a satılan özelliğin kırık olması, düzenlemede talep şartlarının ezilmesi, kaynak tüketim saldırıları (zip bombası, seyrek xlsx, file-type CVE), CDN'de kalıcı HTML barındırma, şahıs firması TCKN'sinin ifşası, e-posta teslim zinciri (Resend hız sınırı, bounce tipi), web/admin Sentry'nin hiç başlamaması ve runbook'taki tohum betiğinin staging'e yazması.
 
+## Düzeltme durumu (2026-09-29)
+
+21 YÜKSEK bulgu 19 düzeltme birimiyle (U-A1…U-W8) ele alındı. Her birim bağımsız gözden geçirildi; bulgu çıkanlar onarıldı (ikinci gözden geçirme), kalan dört bulgu ikinci turda (R-1…R-4) kapatıldı ve üçüncü gözden geçirmeden "ok" aldı. Commit'ler `git log --oneline 19f2a1ce..HEAD`; push yapılmadı. Operatör adımları `docs/qa-launch-audit-2026-09-28.md` §14.2 O-17…O-26.
+
+| Y | Konu | Durum | Commit (ilk tur · onarım · 2. tur) | Not |
+|---|---|---|---|---|
+| Y-01 | Public kovaya imzasız presigned PUT | ✅ düzeltildi | 73d31761 | Public kovada presigned PUT Content-Type'ı imzalıyor; HEAD MIME kontrolü ikinci hat; silme hatası loglanıyor. CDN başlık kuralı, eski nesne taraması ve staging yükleme denemesi operatörde (O-21, O-22, O-23). |
+| Y-02 | Zip bombası kapısı başlık beyanına güveniyor | ✅ düzeltildi | **5507c878** (kod) · a6978058 (boş kayıt) · 9a276af3 · a6d09191 · dcf23e01 | Her giriş tavanlı olarak gerçekten açılıyor; CEN/EOCD birebir tutarlı olmalı; EOCD'nin altı alanında ZIP64 reddi (9a276af3). Birleşme ve tanımlı ad maliyeti ExcelJS Range/CellMatrix semantiğiyle birebir; sütunsuz uçlu aralıkla atlatma kapandı (R-1). |
+| Y-03 | Seyrek xlsx ile milyonlarca Row/Cell (OOM) | ✅ düzeltildi | **5507c878** (kod) · a6978058 (boş kayıt) · 9a276af3 · dcf23e01 | İçe aktarma `eachRow({includeEmpty:false})` + `findCell` kullanıyor. `wb.xlsx.load` sırasındaki mergeCells/definedName açılımı 9a276af3 + dcf23e01 ile bütçeleniyor, `dataValidations` ayrıştırılmıyor. |
+| Y-04 | file-type@16 ASF sonsuz döngü (CVE) | ✅ düzeltildi | 07a719ba · f13dc504 · f77e81af | file-type bağımlılığı kaldırıldı, tür imza baytlarından tanınıyor. HEIC piksel kapısı çözmeden önce, grid/iovl tuvalini de sayıyor (f13dc504). Tavan 25 MP, süreç genelinde tek çözme yuvası var, sıra 30 sn'de dolarsa 429 (R-2). Kalan risk: 25 MP 512 MB konteynerde OOM'a karşı kesin güvence değil (O-8 izleniyor). R-2 gözden geçirmesinin tek düşük bulgusu olan `ai-extract-router.ts` yorum düzeltmesi yapılmadı. Yeni i18n anahtarlarının en/ru durum kayıtları 4672f6b4'e karıştı. |
+| Y-05 | AI yükleme ucu GOLD kilitli | ✅ düzeltildi | c0b92091 · 234459ae | `company/ai/uploads/url` SILVER oldu; belge → talep GOLD kapısı servise taşındı; asistan eki kapıları oturum açılmadan önce çalışıyor. |
+| Y-06 | Şahıs firması TCKN'si başka firmalara açık | ✅ düzeltildi | 968a1df6 | Görünürlük tek kaynaktan: `visibleTaxNumber`. |
+| Y-07 | PATCH company/items/:id moderasyonsuz | ✅ düzeltildi | 2a5f7cc7 | İçerik değişince PENDING'e düşüyor, vitrinde kalıyor. Şartname/marka/MPN'nin de içerik sayılması ürün kararı bekliyor. |
+| Y-08 | Toplu e-posta sınırsız eşzamanlı | ✅ düzeltildi | 2171890b · da98caca | Süreç içi kısıcı (öncelik + jeton kovası), 429/5xx yeniden denemesi Idempotency-Key ile, cron'lar aynı süreçte üst üste binmiyor. Resend limiti operatörde (O-20). |
+| Y-09 | Bounce tipi Resend ile eşleşmiyor | ✅ düzeltildi | b80fa7dc | `normalizeBounceType` → hard/soft/undetermined. Gerçek yük staging'de doğrulanacak (O-24). |
+| Y-10 | Ülke süzgeci embargo OR'unu eziyor | ✅ düzeltildi | 5942081f | Süzgeçler `AND: [kapı, ...]` ile katılıyor; regresyon testi var. |
+| Y-11 | Tüm girişler tek sunucu IP'sinden | ⚠️ kısmi | de6e1538 · cb056e89 · d341c4c5 | Kod tamam: `sb_secret_` anahtarıyla istemci IP'si `Sb-Forwarded-For` ile iletiliyor, hata sınıfları ayrıldı, tanınmayan anahtar yok sayılıyor (R-3). Asıl koruma, operatör anahtarı girip kotayı yükseltene kadar devreye girmiyor (O-17…O-19). Sb-Forwarded-For davranışı Supabase belgelerine dayanıyor, staging'de doğrulanmadı. |
+| Y-12 | Web/admin sunucu Sentry'si başlamıyor | ✅ düzeltildi | 13260228 | `src/instrumentation.ts`; son kapıda `.next/server/instrumentation.js` web ve admin'de üretiliyor. Olay düşmesi staging'de doğrulanacak (O-25). |
+| Y-13 | EN/RU'da bildirim CTA'sı 404 | ✅ düzeltildi | **5507c878** | `notificationHref` ile iç yola indiriliyor. Commit karışması için aşağıdaki nota bakın. |
+| Y-14 | Kalem kıyası kalem para birimini yok sayıyor | ✅ düzeltildi | 806c0e77 | Kalem fiyatı kendi biriminde gösteriliyor, TRY karşılığı API ve web'de aynı formülle hesaplanıyor. Rapor genel toplamı `totalTry`; bu yorum ürün onayı bekliyor. |
+| Y-15 | Dosyalı teklifte "gönderildi"de takılma | ✅ düzeltildi | 43cf21c9 · c0089921 | Durum ekranı `submitPhase`'e bağlandı; LOST teklife dosyalı yeniden teklif açıldı. c0089921 yalnız testi düzeltiyor (sonner `info` sahtesi). |
+| Y-16 | Muadil beyanı alıcıya görünmüyor | ✅ düzeltildi | f5792147 | `AlternativeOfferNote`; RFQ kart görünümü `renderItemExtras`; yeni kalemlerde `alternativeAllowed: true`. |
+| Y-17 | Arama formları dil önekini düşürüyor | ✅ düzeltildi | a66b02bb | Dizin SearchForm, typeahead, firma içi ürün araması ve PanelHeroSearch `localizePath` kullanıyor. |
+| Y-18 | Bağlantısız firmayla ilk sohbet derin linki | ✅ düzeltildi | c139c861 · dea36793 · b9111210 | Panel her zaman çiziliyor, e-posta CTA'sı `&portal=` taşıyor. Portalsız linkte yön bir kez sabitleniyor (dea36793); sabitleme yalnız portal=null + iki taraf izinli + konuşmalar yüklüyken yapılıyor, bayat izinde açık `?portal` ezilmiyor (R-4). |
+| Y-19 | Düzenleme/kopya/şablonda şartlar eziliyor | ✅ düzeltildi | 4672f6b4 | `initialRequestFormValues(kind)`. Kopyada görünürlüğün de tohumdan gelmesi ürün kararı bekliyor. |
+| Y-20 | Yayındaki talebi düzenlerken Yayınla 400 | ✅ düzeltildi | 4672f6b4 | OPEN talepte "Değişiklikleri kaydet" (PATCH + davetler hemen); `publish` çağrılmıyor. |
+| Y-21 | Geo betikleri ENV_FILE okumuyor | ✅ düzeltildi | b3dd5bc8 | Paylaşılan `script-env.ts` ilk satırda hedef host/ref'i basıyor. Şehir dizini boşken 5 dk'da bir yeniden deniyor, yani seed sonrası yeniden başlatma gerekmiyor. Runbook §15.2 adım 2 ve 7 güncellendi (O-26). |
+
+**Commit karışması:** 5507c878 ("fix(web): bildirim CTA'sı … Y-13") paylaşılan git index'i yüzünden iki düzeltmeyi birlikte taşıyor. Birincisi Y-13 web düzeltmesi (7 `apps/web` dosyası). İkincisi Y-02/Y-03 API kodu: `zip-inspect.ts`, `bid-import.service.ts`, `listing-item-import.service.ts` ve `zip-inspect.spec.ts`, `listing-item-import.spec.ts`, `bid-import.spec.ts`. a6978058 yalnız Y-02/Y-03 mesajını taşıyan BOŞ bir kayıt commit'i. **5507c878'i geri almak Y-13 ile birlikte Y-02/Y-03 güvenlik düzeltmesini de geri alır**; bisect'te atlanırsa ikisi birlikte atlanır. Benzer bir durum 4672f6b4'te (Y-19/Y-20) var: Y-04'ün iki i18n durum kaydını da taşıyor (`api.ai.gorselCozunurluguCokYuksek`, `api.ai.gorselOkunamadiDosyaBozukOlabilir`, en/ru; katalog satırları 07a719ba'da). Bu commit tek başına geri alınırsa bu iki kayıt da gider. Geçmiş yeniden yazılmadı (bkz. karar 2).
+
+**Birimler içinde kapanan yakın ORTA bulgular** (M numaraları kararlı olmadığından başlıkla anılıyor):
+- "HEIC çözme piksel sınırı olmadan yapılıyor; görsel bombası sharp'ın 60MP kapısından önce belleği tüketiyor": 07a719ba · f13dc504 · f77e81af (Y-04 ile).
+- Bozuk ya da 60 MP üstü görsel ve bozuk HEIC'te sharp/heic-convert hatasının 500 dönmesi: artık 400 dönüyor (07a719ba). Doğrulama kimliği S016; raporda ayrı başlığı yok.
+- "Advisory lock aynı oturumda yeniden girişli: aynı örnekte üst üste binen cron koşuları engellenmiyor (dış davet çift gönderimi)": `runExclusive` süreç içi koşu kümesi (da98caca).
+- "Şehir dizini yalnız açılışta yükleniyor, runbook tohumlamayı API açıldıktan sonra yapıyor": b3dd5bc8.
+- "Supabase zayıf/sızmış parola reddi 503 'birazdan tekrar deneyin' olarak dönüyor": artık 400 `WEAK_PASSWORD` (de6e1538).
+- "Portal parametresiz e-posta linki mesajı yanlış yönde (boş konuşma) açıyor": c139c861 · dea36793 · b9111210.
+- "Düzenlenen talebin içeriği yeni talep formuna 'taslak' olarak sızıyor": düzenleme kipinde otomatik taslak yazılmıyor (4672f6b4).
+- "Elendikten sonra yeniden teklifte yeni dosya eklenirse gönderim çıkmaza giriyor": 43cf21c9.
+- "Ana akış (kapalı zarf RFQ) kart görünümünde muadil beyanı alanları hiç çizilmiyor": f5792147 (yeni/Excel/katalog kalemlerinde eksik `alternativeAllowed` de burada düzeldi).
+- "Tedarikçinin kendi teklif özetinde kalem fiyatları teklifin ana birimiyle etiketleniyor", "Teklif karşılaştırma matrisinde farklı para birimleri etiketsiz yan yana basılıyor" ve "Tur geçmişi penceresi her teklifi ilanın birimiyle gösteriyor (teklif birimi yok sayılıyor)": üçü de 806c0e77'de.
+- YÜKSEK maddelere "Aynı kök" olarak taşınan üç ORTA da kapandı: admin e-postalı duyurusu (Y-08, 2171890b), kritik bounce alarmı (Y-09, b80fa7dc) ve firma içi ürün arama formu (Y-17, a66b02bb).
+
+### Kullanıcı kararı bekleyenler
+
+Her maddede Claude'un uyguladığı varsayılan yazılı; karar farklıysa küçük bir takip işi gerekir.
+
+1. **xlsx açılım tavanları:** `XLSX_LIMITS` hâlâ 60 MB toplam / 40 MB tek giriş açılmış boyuta izin veriyor. Bu sınır zip bombasını kesiyor. Ancak yoğun 40 MB sheet XML'i (~2M hücre) 512 MB instance'ı zorlayabilir. *Varsayılan:* değiştirilmedi. Düşürmek (ör. 20/16 MB) AI tablo çıkarımında büyük dosya kabulünü etkiler.
+2. **5507c878 ikiye bölünsün mü** (push öncesi, rebase gerektirir)? *Varsayılan:* bölünmedi; boş kayıt commit'i a6978058 ve yukarıdaki not yeterli sayıldı. Bölmek için çalışma ağacı temizken `git rebase -i 5507c878~1` çalıştırılır: 5507c878 `edit`, a6978058 `drop` yapılır. Ardından 7 web dosyası Y-13 mesajıyla, 6 API dosyası a6978058'in mesajıyla ayrı ayrı commit edilir.
+3. **Asistan belge eki Silver'da:** *Varsayılan:* GOLD'da kaldı (talep AI'ı). Silver'da sunucu 403 dönüyor, ataç gizli. Silver'da başka amaçla (ör. belgeden fiyatlama) istenirse ayrı ürün işi gerekir.
+4. **Asistan boş durum metni** tüm paketlerde "belge yükleyin" diyor. *Varsayılan:* dokunulmadı; Silver'da ataç olmadığı hâlde metin aynı kaldı.
+5. **Duyuru e-postası sonucu admin arayüzünde gösterilsin mi?** *Varsayılan:* e-postalar bulk kuyruğuna alınıyor, HTTP isteğinde beklenmiyor. Yanıt `emailQueued` dönüyor, sonuç `admin.announcement.email_completed` audit'ine yazılıyor; arayüz bunları göstermiyor.
+6. **Web'de 400 `WEAK_PASSWORD`:** API yerelleştirilmiş mesaj dönüyor. *Varsayılan:* kayıt, sıfırlama ve davet formlarının bu mesajı gösterip göstermediği denetlenmedi (web'e dokunulmadı).
+7. **Katalog kaleminde şartname/marka/MPN içerik sayılsın mı** (Y-07)? *Varsayılan:* sayılıyor, değişince yeniden incelemeye düşüyor (üçü de herkese açık sayfada görünüyor). CLAUDE.md'deki eski içerik listesi bu üçünü saymıyordu.
+8. **Kopya ve şablonda görünürlük** (Y-19)? *Varsayılan:* tohumun ticari şartları görünürlük dahil korunuyor; PRIVATE talebin kopyası PRIVATE açılıyor. Aksi istenirse yalnız visibility profilden alınabilir.
+9. **OPEN talep düzenleme ekranındaki davet açıklaması:** metin hâlâ "Talep yayınlanınca … gider" diyor, oysa davetler artık kaydet anında gidiyor. *Varsayılan:* metin değişmedi (yeni i18n anahtarı gerekir).
+10. **LOST teklife dosyalı yeniden teklif** (Y-15): teklif önce DRAFT'a çekiliyor. Yükleme düşer ve tedarikçi sayfayı terk ederse teklif DRAFT kalıyor, eleme gerekçesi son gönderime kadar duruyor. *Varsayılan:* bu davranış kabul edildi. Alternatif: sunucu LOST teklife de belge eklemeye izin verir.
+11. **Teklif karşılaştırma raporunda "Genel toplam"** (Y-14): *Varsayılan:* rapor biriminde (`totalTry`). Ham tutar yalnız "Teklif para birimlerini göster" açıkken ikinci satırda çıkıyor; `showBidCurrencies`'in anlamı değişti.
+
+Karara dönüşmeyip operatöre taşınan sorular (Resend limiti, Supabase kota değeri, Sb-Forwarded-For'un staging'de doğrulanması) O-17…O-20'de. U-A2'nin HEIC tavanı sorusu (50 MP mı, 25 MP mı) R-2'de 25 MP ile kapandı.
+
+### Regresyon
+
+- **İlk kapı (HEAD 806c0e77):** 7 kapının 6'sı yeşil. `i18n:check` cırcırı 5 API dosyasında tabanı aştı: yeni Türkçe günlük ve iç hata literalleri (2171890b, da98caca, 73d31761, 9a276af3, 5507c878). a6d09191 bu metinleri İngilizce ASCII'ye çevirdi; cırcır yeşile döndü.
+- **Son kapı (HEAD a6d09191), 11/11 yeşil:** typecheck 7/7 paket temiz. Lint 0 hata (uyarılar: api 27, web 66, admin 7). `i18n:check` yeşil: tr 7.599 anahtar, en/ru %100, cırcır 101 dosya / 860 literal. **API jest 254 dosya / 2.656 test**, 2 suite LIVE bayrağı yokken tasarım gereği atlanıyor. **Web vitest 191 dosya / 1.138 test**, **admin 21 / 105**, **i18n 8 / 39**. api, web ve admin derlemeleri geçti; `.next/server/instrumentation.js` web ve admin'de var. `git status` temiz.
+- **Önceden var olan kararsız test:** `test/integration/dashboard-analytics.spec.ts` "DashboardAnalyticsService (DB) › dolu senaryo" ilk koşuda bir kez düştü (pipeline `submitted` 1 beklenirken 0). Üç yeniden koşuda geçti: tek başına 9/9, parti iki kez 80/80. Olası neden servisteki `end = new Date()` ile DB'deki `createdAt @default(now())` arasındaki zaman yarışı. Düzeltme commit'lerinin hiçbiri bu dosyalara dokunmuyor; son dokunan f1737115.
+- **İkinci tur (R-1…R-4: dcf23e01, f77e81af, d341c4c5, b9111210) son kapıdan SONRA geldi.** Her biri kendi hedefli testleriyle doğrulandı ve gözden geçirmeden "ok" aldı. Tam kapı bu dört commit'le yeniden koşulmadı; yukarıdaki toplamlar onların eklediği testleri içermiyor. Push'tan hemen önce tam regresyon (runbook §15.1 madde 3) bu yüzden şart.
+
 ## Kapılar (hepsi yerel, 2026-09-29)
 
 | Kapı | Durum | Özet |
