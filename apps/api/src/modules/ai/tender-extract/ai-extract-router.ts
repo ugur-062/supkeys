@@ -231,6 +231,14 @@ function zipHasXlEntry(buf: Buffer): boolean {
  * ileriye doğru gezilir, her `meta` kutusunun içindeki TÜM `ispe`
  * kayıtlarının en büyüğü alınır (döşeme/küçük resim de sayılır — üst sınır,
  * fail-closed). `meta`/`ispe` yoksa ya da kutu yapısı bozuksa `null`.
+ *
+ * TÜRETİLMİŞ GÖRÜNTÜLER (gözden geçirme, X15): libheif `grid`/`iovl`
+ * öğesinin tuvalini ispe'den DEĞİL, öğe verisindeki (çoğu zaman `idat`)
+ * output_width/output_height alanından ayırır → ispe'si 1000×1000 olup
+ * grid tanımında 20000×20000 beyan eden (tüm döşemeleri aynı küçük HEVC
+ * verisine işaret eden) dosya yalnız-ispe kapısını geçiyordu. Bu öğelerin
+ * tuvali iinf/iloc/idat'tan okunup maksimuma katılır; öğe var ama verisi
+ * okunamıyorsa `null` (fail-closed).
  */
 export function heifMaxDeclaredPixels(buf: Buffer): number | null {
   let max: number | null = null;
@@ -261,10 +269,236 @@ export function heifMaxDeclaredPixels(buf: Buffer): number | null {
         }
         q += 4;
       }
+      // meta bir FullBox: çocuklar 4 bayt sürüm/bayraktan sonra başlar.
+      const canvas = heifDerivedCanvasPixels(buf, p + header + 4, end);
+      if (canvas == null) return null;
+      if (canvas > 0 && (max == null || canvas > max)) max = canvas;
     }
     p += size;
   }
   return max;
+}
+
+/** Tuvali öğe verisinde beyan edilen türetilmiş HEIF öğeleri (ISO 23008-12). */
+const HEIF_DERIVED_CANVAS_TYPES = new Set(["grid", "iovl"]);
+/** Tuval boyutu için okunan en fazla öğe verisi (grid ≤ 12, iovl ≤ 18 bayt). */
+const HEIF_CANVAS_HEADER_BYTES = 18;
+/** Bir grid/iovl öğesinin kabul edilen en fazla iloc kapsamı (gerçekte 1). */
+const MAX_DERIVED_ITEM_EXTENTS = 16;
+
+interface HeifBox {
+  type: string;
+  /** Başlıktan sonraki ilk bayt. */
+  body: number;
+  end: number;
+}
+
+/**
+ * [start, end) aralığındaki ardışık kutular — yalnız ileri gider; kutu
+ * boyutu başlıktan küçükse ya da aralığı aşıyorsa `null`.
+ */
+function heifChildBoxes(buf: Buffer, start: number, end: number): HeifBox[] | null {
+  const boxes: HeifBox[] = [];
+  let p = start;
+  while (p + 8 <= end) {
+    let size = buf.readUInt32BE(p);
+    let header = 8;
+    if (size === 1) {
+      if (p + 16 > end) return null;
+      const large = buf.readBigUInt64BE(p + 8);
+      if (large > BigInt(end - p)) return null;
+      size = Number(large);
+      header = 16;
+    } else if (size === 0) {
+      size = end - p;
+    }
+    if (size < header || p + size > end) return null;
+    boxes.push({ type: buf.toString("latin1", p + 4, p + 8), body: p + header, end: p + size });
+    p += size;
+  }
+  return p === end ? boxes : null;
+}
+
+/**
+ * meta çocuklarındaki grid/iovl öğelerinin en büyük tuval alanı (piksel).
+ * Böyle öğe yoksa 0; öğe var ama iinf/iloc/idat ya da öğe verisi
+ * okunamıyorsa `null`. Okumalar kutu sınırlarında kalır, döngüler ileri gider
+ * ve kapsam sayısı sınırlıdır (sıfır genişlikli iloc alanlarıyla CPU
+ * tüketilemez).
+ */
+function heifDerivedCanvasPixels(buf: Buffer, start: number, end: number): number | null {
+  try {
+    const children = heifChildBoxes(buf, start, end);
+    if (children == null) return null;
+    const iinf = children.find((b) => b.type === "iinf");
+    if (!iinf) return 0;
+
+    // iinf/infe → türetilmiş öğe kimlikleri.
+    const derived = new Map<number, string>();
+    const iinfEntries = iinf.body + 4 + (buf[iinf.body] === 0 ? 2 : 4);
+    const infes = heifChildBoxes(buf, iinfEntries, iinf.end);
+    if (infes == null) return null;
+    for (const infe of infes) {
+      if (infe.type !== "infe") continue;
+      const version = buf[infe.body]!;
+      if (version < 2) continue; // v0/v1'de item_type yok (grid olamaz).
+      const idAt = infe.body + 4;
+      const typeAt = idAt + (version === 2 ? 2 : 4) + 2;
+      if (typeAt + 4 > infe.end) return null;
+      const itemType = buf.toString("latin1", typeAt, typeAt + 4);
+      if (!HEIF_DERIVED_CANVAS_TYPES.has(itemType)) continue;
+      derived.set(version === 2 ? buf.readUInt16BE(idAt) : buf.readUInt32BE(idAt), itemType);
+    }
+    if (derived.size === 0) return 0;
+
+    const iloc = children.find((b) => b.type === "iloc");
+    if (!iloc) return null;
+    const locations = parseIlocForItems(buf, iloc, new Set(derived.keys()));
+    if (locations == null) return null;
+    const idat = children.find((b) => b.type === "idat");
+
+    let max = 0;
+    for (const [id, itemType] of derived) {
+      const loc = locations.get(id);
+      if (!loc) return null;
+      const data = readItemPrefix(buf, loc, idat, HEIF_CANVAS_HEADER_BYTES);
+      if (data == null) return null;
+      const pixels = derivedCanvasPixels(data, itemType);
+      if (pixels == null) return null;
+      if (pixels > max) max = pixels;
+    }
+    return max;
+  } catch {
+    // Buffer okuması sınır dışı (RangeError) → bozuk yapı.
+    return null;
+  }
+}
+
+interface IlocLocation {
+  method: number;
+  extents: { offset: number; length: number }[];
+}
+
+/** iloc kutusundan yalnız istenen öğelerin konumları (ISO 14496-12 §8.11.3). */
+function parseIlocForItems(
+  buf: Buffer,
+  iloc: HeifBox,
+  wanted: Set<number>,
+): Map<number, IlocLocation> | null {
+  const version = buf[iloc.body]!;
+  if (version > 2) return null;
+  let o = iloc.body + 4;
+  const offsetSize = buf[o]! >> 4;
+  const lengthSize = buf[o]! & 0x0f;
+  const baseOffsetSize = buf[o + 1]! >> 4;
+  const indexSize = version >= 1 ? buf[o + 1]! & 0x0f : 0;
+  o += 2;
+  const validSize = (n: number) => n === 0 || n === 4 || n === 8;
+  if (![offsetSize, lengthSize, baseOffsetSize, indexSize].every(validSize)) return null;
+  /** 0/2/4/8 baytlık işaretsiz alan; kutu sınırını aşarsa `null`. */
+  const readN = (n: number): number | null => {
+    if (o + n > iloc.end) return null;
+    let v: number;
+    if (n === 0) v = 0;
+    else if (n === 2) v = buf.readUInt16BE(o);
+    else if (n === 4) v = buf.readUInt32BE(o);
+    else {
+      const big = buf.readBigUInt64BE(o);
+      if (big > BigInt(Number.MAX_SAFE_INTEGER)) return null;
+      v = Number(big);
+    }
+    o += n;
+    return v;
+  };
+  const idSize = version < 2 ? 2 : 4;
+  const count = readN(idSize);
+  if (count == null) return null;
+
+  const result = new Map<number, IlocLocation>();
+  const extentStride = indexSize + offsetSize + lengthSize;
+  for (let i = 0; i < count; i++) {
+    const id = readN(idSize);
+    if (id == null) return null;
+    let method = 0;
+    if (version >= 1) {
+      const m = readN(2);
+      if (m == null) return null;
+      method = m & 0x0f;
+    }
+    if (readN(2) == null) return null; // data_reference_index
+    const base = readN(baseOffsetSize);
+    const extentCount = readN(2);
+    if (base == null || extentCount == null) return null;
+    if (!wanted.has(id)) {
+      // İlgisiz öğe: kapsamları tek adımda atla (sıfır genişlikte döngü yok).
+      o += extentCount * extentStride;
+      if (o > iloc.end) return null;
+      continue;
+    }
+    if (extentCount === 0 || extentCount > MAX_DERIVED_ITEM_EXTENTS) return null;
+    const extents: { offset: number; length: number }[] = [];
+    for (let e = 0; e < extentCount; e++) {
+      if (readN(indexSize) == null) return null;
+      const offset = readN(offsetSize);
+      const length = readN(lengthSize);
+      if (offset == null || length == null) return null;
+      extents.push({ offset: base + offset, length });
+    }
+    result.set(id, { method, extents });
+  }
+  return result;
+}
+
+/**
+ * Öğe verisinin ilk `limit` baytı (kapsamlar birleştirilerek). Yöntem 0 dosya
+ * ofseti, 1 `idat` içi ofset; 2 (öğe ofseti) ve sınır dışı kapsam → `null`.
+ */
+function readItemPrefix(
+  buf: Buffer,
+  loc: IlocLocation,
+  idat: HeifBox | undefined,
+  limit: number,
+): Buffer | null {
+  let sourceStart: number;
+  let sourceEnd: number;
+  if (loc.method === 0) {
+    sourceStart = 0;
+    sourceEnd = buf.length;
+  } else if (loc.method === 1 && idat) {
+    sourceStart = idat.body;
+    sourceEnd = idat.end;
+  } else {
+    return null;
+  }
+  const chunks: Buffer[] = [];
+  let total = 0;
+  for (const ext of loc.extents) {
+    if (total >= limit) break;
+    const from = sourceStart + ext.offset;
+    // length 0 = kaynağın sonuna kadar (ISO 14496-12).
+    const to = ext.length === 0 ? sourceEnd : from + ext.length;
+    if (from > sourceEnd || to > sourceEnd || to < from) return null;
+    const take = Math.min(to - from, limit - total);
+    chunks.push(buf.subarray(from, from + take));
+    total += take;
+  }
+  return Buffer.concat(chunks);
+}
+
+/**
+ * grid: sürüm, bayrak, rows-1, cols-1, output_width/height (bayrak&1 → 32,
+ * değilse 16 bit). iovl: sürüm, bayrak, 4×u16 dolgu rengi, ardından aynı
+ * genişlikte output_width/height. Veri kısaysa `null`.
+ */
+function derivedCanvasPixels(data: Buffer, itemType: string): number | null {
+  if (data.length < 2) return null;
+  const wide = (data[1]! & 1) === 1;
+  const at = itemType === "grid" ? 4 : 10;
+  const field = wide ? 4 : 2;
+  if (data.length < at + 2 * field) return null;
+  const width = wide ? data.readUInt32BE(at) : data.readUInt16BE(at);
+  const height = wide ? data.readUInt32BE(at + field) : data.readUInt16BE(at + field);
+  return width * height;
 }
 
 function isLikelyCsv(key: string, buffer: Buffer): boolean {

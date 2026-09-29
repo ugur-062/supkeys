@@ -52,6 +52,85 @@ function heif(brand: string, sizes: [number, number][]): Buffer {
   return Buffer.concat([ftyp, meta, box("mdat", Buffer.alloc(64, 7))]);
 }
 
+function u16(n: number): Buffer {
+  const b = Buffer.alloc(2);
+  b.writeUInt16BE(n, 0);
+  return b;
+}
+
+function u32(n: number): Buffer {
+  const b = Buffer.alloc(4);
+  b.writeUInt32BE(n, 0);
+  return b;
+}
+
+function versionedBox(type: string, version: number, payload: Buffer): Buffer {
+  return box(type, Buffer.concat([Buffer.from([version, 0, 0, 0]), payload]));
+}
+
+/** grid öğe verisi: rows-1, cols-1, output_width/height (wide → 32 bit). */
+function gridData(rows: number, cols: number, width: number, height: number, wide = true): Buffer {
+  const dims = wide ? Buffer.concat([u32(width), u32(height)]) : Buffer.concat([u16(width), u16(height)]);
+  return Buffer.concat([Buffer.from([0, wide ? 1 : 0, rows - 1, cols - 1]), dims]);
+}
+
+/** iovl öğe verisi: 4×u16 dolgu + output_width/height (wide → 32 bit). */
+function iovlData(width: number, height: number, wide = true): Buffer {
+  const dims = wide ? Buffer.concat([u32(width), u32(height)]) : Buffer.concat([u16(width), u16(height)]);
+  return Buffer.concat([Buffer.from([0, wide ? 1 : 0]), Buffer.alloc(8), dims, Buffer.alloc(8)]);
+}
+
+/**
+ * Birincil öğesi türetilmiş (grid/iovl) olan HEIF: ispe'ler küçük, tuval
+ * boyutu öğe verisinde. method 1 → veri idat'ta; method 0 → dosya sonundaki
+ * mdat'ta (mutlak ofset). `omitIloc` / `method: 2` bozuk yapı senaryoları.
+ */
+function derivedHeif(opts: {
+  itemType: "grid" | "iovl";
+  data: Buffer;
+  ispes: [number, number][];
+  method?: 0 | 1 | 2;
+  omitIloc?: boolean;
+  extentLength?: number;
+}): Buffer {
+  const method = opts.method ?? 1;
+  const ftyp = box("ftyp", Buffer.concat([Buffer.from("heic", "latin1"), Buffer.alloc(4), Buffer.from("mif1heic", "latin1")]));
+  const infe = (id: number, type: string) =>
+    versionedBox("infe", 2, Buffer.concat([u16(id), u16(0), Buffer.from(type, "latin1"), Buffer.from([0])]));
+  const iinf = versionedBox("iinf", 0, Buffer.concat([u16(2), infe(1, opts.itemType), infe(2, "hvc1")]));
+  const ipco = box("ipco", Buffer.concat(opts.ispes.map(([w, h]) => ispe(w, h))));
+  const idat = method === 1 ? box("idat", opts.data) : Buffer.alloc(0);
+  const buildMeta = (dataOffset: number) => {
+    // iloc v1: offset/length/base 4 bayt, index 0; iki öğe (grid + tek döşeme).
+    const entry = (id: number, m: number, offset: number, length: number) =>
+      Buffer.concat([u16(id), u16(m), u16(0), u32(0), u16(1), u32(offset), u32(length)]);
+    const iloc = versionedBox(
+      "iloc",
+      1,
+      Buffer.concat([
+        Buffer.from([0x44, 0x40]),
+        u16(2),
+        entry(1, method, dataOffset, opts.extentLength ?? opts.data.length),
+        entry(2, 0, 0, 16),
+      ]),
+    );
+    const parts = [
+      versionedBox("pitm", 0, u16(1)),
+      iinf,
+      ...(opts.omitIloc ? [] : [iloc]),
+      box("iprp", ipco),
+      idat,
+    ];
+    return versionedBox("meta", 0, Buffer.concat(parts));
+  };
+  if (method === 1 || method === 2) {
+    return Buffer.concat([ftyp, buildMeta(0), box("mdat", Buffer.alloc(64, 7))]);
+  }
+  const probe = buildMeta(0);
+  const dataOffset = ftyp.length + probe.length + 8;
+  return Buffer.concat([ftyp, buildMeta(dataOffset), box("mdat", Buffer.concat([opts.data, Buffer.alloc(64, 7)]))]);
+}
+
 async function expectBadRequest(p: Promise<unknown>, i18nKey: string): Promise<void> {
   const err = await p.then(
     () => null,
@@ -129,6 +208,53 @@ describe("heifMaxDeclaredPixels", () => {
   });
 });
 
+describe("heifMaxDeclaredPixels — grid/iovl tuvali (X15, gözden geçirme)", () => {
+  it("ispe küçük ama grid tanımı 20000×20000 → tuval alanı döner (idat)", () => {
+    const buf = derivedHeif({ itemType: "grid", data: gridData(40, 40, 20000, 20000), ispes: [[1000, 1000], [512, 512]] });
+    expect(heifMaxDeclaredPixels(buf)).toBe(400_000_000);
+  });
+
+  it("16 bitlik grid tanımı dosya ofsetinden (mdat) okunur", () => {
+    const buf = derivedHeif({ itemType: "grid", data: gridData(6, 8, 4032, 3024, false), ispes: [[4032, 3024], [512, 512]], method: 0 });
+    expect(heifMaxDeclaredPixels(buf)).toBe(4032 * 3024);
+    // ispe tuvalden büyükse ispe esas (en büyük değer).
+    const small = derivedHeif({ itemType: "grid", data: gridData(1, 1, 100, 100, false), ispes: [[4032, 3024]], method: 0 });
+    expect(heifMaxDeclaredPixels(small)).toBe(4032 * 3024);
+  });
+
+  it("iovl tuval boyutu da sayılır", () => {
+    const buf = derivedHeif({ itemType: "iovl", data: iovlData(30000, 30000), ispes: [[800, 600]] });
+    expect(heifMaxDeclaredPixels(buf)).toBe(900_000_000);
+    const narrow = derivedHeif({ itemType: "iovl", data: iovlData(3000, 2000, false), ispes: [[800, 600]] });
+    expect(heifMaxDeclaredPixels(narrow)).toBe(6_000_000);
+  });
+
+  it("grid verisi okunamıyorsa null (fail-closed)", () => {
+    const base = { itemType: "grid" as const, data: gridData(40, 40, 20000, 20000), ispes: [[1000, 1000]] as [number, number][] };
+    expect(heifMaxDeclaredPixels(derivedHeif({ ...base, omitIloc: true }))).toBeNull();
+    expect(heifMaxDeclaredPixels(derivedHeif({ ...base, method: 2 }))).toBeNull();
+    // Kesik tanım (32 bit bayrak ama 6 bayt veri).
+    expect(heifMaxDeclaredPixels(derivedHeif({ ...base, data: gridData(40, 40, 20000, 20000).subarray(0, 6) }))).toBeNull();
+    // Kapsam idat dışına taşıyor.
+    expect(heifMaxDeclaredPixels(derivedHeif({ ...base, extentLength: 4096 }))).toBeNull();
+  });
+
+  it("sıfır genişlikli iloc kapsamlarıyla CPU tüketilemez", () => {
+    const ftyp = box("ftyp", Buffer.from("heic\0\0\0\0", "latin1"));
+    const infe = versionedBox("infe", 2, Buffer.concat([u16(1), u16(0), Buffer.from("grid", "latin1"), Buffer.from([0])]));
+    const iinf = versionedBox("iinf", 0, Buffer.concat([u16(1), infe]));
+    // iloc v1, tüm alan genişlikleri 0; 65535 öğe × 65535 kapsam beyanı.
+    const entries = Buffer.concat(
+      Array.from({ length: 2000 }, (_, i) => Buffer.concat([u16(i + 2), u16(0), u16(0), u16(0xffff)])),
+    );
+    const iloc = versionedBox("iloc", 1, Buffer.concat([Buffer.from([0, 0]), u16(0xffff), entries]));
+    const meta = versionedBox("meta", 0, Buffer.concat([iinf, iloc, box("iprp", box("ipco", ispe(10, 10)))]));
+    const started = Date.now();
+    expect(heifMaxDeclaredPixels(Buffer.concat([ftyp, meta]))).toBeNull();
+    expect(Date.now() - started).toBeLessThan(1000);
+  });
+});
+
 describe("routeExtractInput — görsel çözme kapıları", () => {
   beforeEach(() => heicConvertMock.mockReset());
 
@@ -138,6 +264,34 @@ describe("routeExtractInput — görsel çözme kapıları", () => {
       "api.ai.gorselCozunurluguCokYuksek",
     );
     expect(heicConvertMock).not.toHaveBeenCalled();
+  });
+
+  it("küçük ispe + 20000×20000 grid tanımlı HEIC çözülmeden 400 alır (X15)", async () => {
+    const buf = derivedHeif({ itemType: "grid", data: gridData(40, 40, 20000, 20000), ispes: [[1000, 1000], [512, 512]] });
+    await expectBadRequest(
+      routeExtractInput([{ key: "ai-extract/c/a.heic", buffer: buf }], 10),
+      "api.ai.gorselCozunurluguCokYuksek",
+    );
+    expect(heicConvertMock).not.toHaveBeenCalled();
+  });
+
+  it("grid tanımı okunamayan HEIC çözülmeden 400 alır", async () => {
+    const buf = derivedHeif({ itemType: "grid", data: gridData(40, 40, 20000, 20000), ispes: [[1000, 1000]], omitIloc: true });
+    await expectBadRequest(
+      routeExtractInput([{ key: "ai-extract/c/a.heic", buffer: buf }], 10),
+      "api.ai.gorselOkunamadiDosyaBozukOlabilir",
+    );
+    expect(heicConvertMock).not.toHaveBeenCalled();
+  });
+
+  it("makul grid'li HEIC (iPhone 12 MP) çözmeye geçer", async () => {
+    heicConvertMock.mockRejectedValue(new Error("HEIF processing error"));
+    const buf = derivedHeif({ itemType: "grid", data: gridData(6, 8, 4032, 3024, false), ispes: [[4032, 3024], [512, 512]] });
+    await expectBadRequest(
+      routeExtractInput([{ key: "ai-extract/c/a.heic", buffer: buf }], 10),
+      "api.ai.gorselOkunamadiDosyaBozukOlabilir",
+    );
+    expect(heicConvertMock).toHaveBeenCalledTimes(1);
   });
 
   it("ispe'siz HEIC çözülmeden 400 alır", async () => {
