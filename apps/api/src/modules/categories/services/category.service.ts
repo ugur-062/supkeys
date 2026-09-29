@@ -32,6 +32,11 @@ import { PrismaService } from "../../../common/prisma/prisma.service";
  * Render free planının 512 MB'ını zorlardı. Silindi; breadcrumb'lar
  * `getByIds`'te hedefli sorguyla çıkarılıyor (yalnız seçili kodlar).
  */
+/** Public kategori arama sorgusunun en fazla uzunluğu (karakter). */
+export const CATEGORY_SEARCH_MAX_LENGTH = 120;
+/** Arama sorgusunda AND'lenen en fazla (tekil) kelime sayısı. */
+export const CATEGORY_SEARCH_MAX_TOKENS = 8;
+
 @Injectable()
 export class CategoryService {
   private readonly logger = new Logger(CategoryService.name);
@@ -192,7 +197,11 @@ export class CategoryService {
     /** 200 sonuç tavanına takıldı — kullanıcıya "aramayı daraltın" gösterilir. */
     truncated: boolean;
   }> {
-    const q = query?.trim() ?? "";
+    // Kimliksiz uç: sorgu uzunluğu ve token sayısı SINIRLI. Sınırsızken
+    // ~16 KB'lık "er er er ..." tek istekte ~10.000 ILIKE yüklemli sorgu
+    // üretiyordu (derin denetim MU-11). Diğer public arama uçları da q'yu
+    // 80-120 karaktere kırpıyor.
+    const q = (query ?? "").trim().slice(0, CATEGORY_SEARCH_MAX_LENGTH).trim();
     if (q.length < 2) return { segments: [], truncated: false };
 
     // TR-katlanmış arama: 'İ' (PG lower → i+combining dot) ve aksansız yazım
@@ -207,7 +216,17 @@ export class CategoryService {
     // sözlüğünün (keywords) değerini çarpar — kullanıcı ürün adıyla marka/
     // özellik kelimesini aynı sorguda karıştırdığında da eşleşir.
     const folded = foldSearchText(q);
-    const tokens = tokenizeQuery(q);
+    // Tekrarlanan kelime (katlanmış biçimiyle) AND listesine bir şey katmaz,
+    // yalnız yüklem çoğaltır — tekilleştirilip ilk N kelimeyle sınırlanır.
+    const seenTokens = new Set<string>();
+    const tokens = tokenizeQuery(q)
+      .filter((t) => {
+        const key = foldSearchText(t);
+        if (seenTokens.has(key)) return false;
+        seenTokens.add(key);
+        return true;
+      })
+      .slice(0, CATEGORY_SEARCH_MAX_TOKENS);
     const nameFilter = tokens.length
       ? {
           AND: tokens.map((t) => ({

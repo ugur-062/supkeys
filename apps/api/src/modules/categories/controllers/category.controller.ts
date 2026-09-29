@@ -1,6 +1,9 @@
 import { Controller, Get, Header, Query } from "@nestjs/common";
 import { parseCategoryCatalog } from "@rothern/shared";
-import { CategoryService } from "../services/category.service";
+import {
+  CATEGORY_SEARCH_MAX_LENGTH,
+  CategoryService,
+} from "../services/category.service";
 
 /**
  * V2-6 — Public kategori endpoint'leri (auth gerekmez).
@@ -62,11 +65,15 @@ export class CategoryController {
   @Get("search-tree")
   @Header("Cache-Control", "no-cache")
   searchTree(
-    @Query("q") query?: string,
+    @Query("q") query?: unknown,
     @Query("catalog") catalog?: string,
   ): Promise<unknown> {
+    // Uzunluk kapısı serviste de var (CATEGORY_SEARCH_MAX_LENGTH); burada
+    // kırpmak dev bir q'nun servise hiç taşınmamasını sağlar. `?q=a&q=b`
+    // dizi olarak gelir — string değilse boş sorgu (500 yerine boş sonuç).
+    const q = typeof query === "string" ? query : "";
     return this.service.searchHierarchical(
-      query ?? "",
+      q.slice(0, CATEGORY_SEARCH_MAX_LENGTH),
       parseCategoryCatalog(catalog),
     );
   }
