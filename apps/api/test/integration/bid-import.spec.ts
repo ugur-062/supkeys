@@ -153,7 +153,10 @@ describe("teklif şablonu — üretim", () => {
     expect(r2.getCell(7).protection?.locked).toBe(false); // Birim Fiyat açık
     // exceljs kilitli (varsayılan) hücrede protection'ı yazmayabilir → "false değil" yeterli.
     expect(r2.getCell(2).protection?.locked ?? true).toBe(true); // Kalem kilitli
-    expect(r2.getCell(8).value).toBe("TRY"); // para birimi ön-dolu
+    // Para birimi BOŞ gelir = teklifin para birimi (derin denetim MU-19):
+    // talebin ana birimi ön-dolu olunca USD teklif veren TRY sayılıyordu.
+    expect(r2.getCell(8).value ?? "").toBe("");
+    expect(r2.getCell(8).dataValidation?.formulae).toEqual(['"TRY,USD"']);
   });
 
   it("sahip kendi ihalesi için şablon alamaz", async () => {
@@ -168,6 +171,7 @@ describe("teklif şablonu — doldur → parse (YAZMAZ)", () => {
     const { buffer } = await svc.buildTemplate(bidder.auth, listing.id);
     const b64 = await fill(buffer, (ws) => {
       ws.getRow(2).getCell(7).value = "185,50";
+      ws.getRow(2).getCell(8).value = "TRY";
       ws.getRow(2).getCell(9).value = "1-2 hafta";
       ws.getRow(2).getCell(10).value = "Dikişsiz, ST37";
       ws.getRow(3).getCell(7).value = 42.5;
@@ -194,6 +198,17 @@ describe("teklif şablonu — doldur → parse (YAZMAZ)", () => {
     expect(by[i3.id]).toMatchObject({ unitPrice: null, confidence: "none" });
     // Hiçbir teklif yazılmadı.
     expect(await prisma.listingBid.count()).toBe(0);
+  });
+
+  it("MU-19 (S028): para birimi boş satır null döner (= teklifin para birimi), ana birime zorlanmaz", async () => {
+    const { bidder, listing, i1, svc } = await setup();
+    const { buffer } = await svc.buildTemplate(bidder.auth, listing.id);
+    const b64 = await fill(buffer, (ws) => {
+      ws.getRow(2).getCell(7).value = 1500;
+    });
+    const res = await svc.parseTemplate(bidder.auth, listing.id, { fileName: "t.xlsx", mimeType: "x", dataBase64: b64 });
+    const by = Object.fromEntries(res.matches.map((m) => [m.itemId, m]));
+    expect(by[i1.id]).toMatchObject({ unitPrice: 1500, currency: null, errors: [] });
   });
 
   it("bozuk değerler satır hatası (fiyat sayı değil, izinsiz para birimi, tanınmayan teslim); yabancı ItemId atlanır + notice", async () => {

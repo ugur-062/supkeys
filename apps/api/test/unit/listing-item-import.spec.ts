@@ -176,6 +176,22 @@ describe("round-trip: doldurulmuş şablon → parse", () => {
     expect(res.rows[1]!.item).toMatchObject({ name: "Dirsek", quantity: 5, unit: "adet" });
   });
 
+  it("MU-19 (S029): CSV'de TR binlik ve GG-AA-YYYY tarih xlsx metin hücresiyle AYNI ayrışır (ExcelJS varsayılan map'i devrede değil)", async () => {
+    const csv =
+      "Kalem Adı;Miktar;Birim;Teslim Tarihi\nÇelik sac;1.500;kg;05-11-2099\nVida;2,5;m;2099-10-01\nSomun;007;adet;\n";
+    const res = await svc.parse({
+      fileName: "kalemler.csv",
+      mimeType: "text/csv",
+      dataBase64: Buffer.from(csv, "utf8").toString("base64"),
+      listingType: "ALIM",
+    });
+    expect(res.rows.map((r) => r.errors)).toEqual([[], [], []]);
+    expect(res.validCount).toBe(3);
+    expect(res.rows[0]!.item).toMatchObject({ name: "Çelik sac", quantity: 1500, requiredByDate: "2099-11-05" });
+    expect(res.rows[1]!.item).toMatchObject({ name: "Vida", quantity: 2.5, requiredByDate: "2099-10-01" });
+    expect(res.rows[2]!.item).toMatchObject({ name: "Somun", quantity: 7 });
+  });
+
   it("zorunlu başlıklar yoksa şablon-dışı hatası; xlsm ve bilinmeyen dosya reddedilir", async () => {
     const wb = new ExcelJS.Workbook();
     wb.addWorksheet("S").addRow(["Foo", "Bar"]);

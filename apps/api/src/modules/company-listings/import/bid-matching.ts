@@ -335,8 +335,9 @@ export function matchDocRows(
     .filter(({ j }) => !usedRow.has(j))
     .map(({ r, j }) => {
       const warnings: string[] = [];
+      const errors: string[] = [];
       const price = docRowPrice(r, warnings);
-      const currency = docRowCurrency(r, opts, warnings);
+      const currency = docRowCurrency(r, opts, errors);
       const deliveryTime = normalizeDeliveryTime(r.deliveryText);
       return {
         id: `doc-${j}`,
@@ -345,6 +346,7 @@ export function matchDocRows(
         currency,
         deliveryTime,
         warnings,
+        errors,
       };
     });
 
@@ -379,25 +381,26 @@ function docRowPrice(r: DocRow, warnings: string[]): number | null {
 
 /**
  * Belge satırı para birimi: izinli kod AÇIKÇA döner (talebin ana birimi
- * dahil); null YALNIZ satırda birim yoksa / kabul edilmiyorsa (+ uyarı) ve
- * istemci bunu teklif birimi sayar. Eskiden ana birim null'a çevriliyordu;
- * tedarikçi teklif birimini ana birimden farklı seçince "185 TRY" satırı
- * 185 USD olarak forma yazılıyordu (derin denetim MU-23 gözden geçirme).
- * Satırda birim yoksa belgenin baskın birimi (izinliyse) kullanılır.
+ * dahil); null YALNIZ satırda da belgede de birim yoksa ve istemci bunu
+ * teklif birimi sayar. Eskiden ana birim null'a çevriliyordu; tedarikçi
+ * teklif birimini ana birimden farklı seçince "185 TRY" satırı 185 USD olarak
+ * forma yazılıyordu (derin denetim MU-23 gözden geçirme).
+ * Satırda birim yoksa belgenin baskın birimi kullanılır.
+ * Kabul edilmeyen birim (satırın ya da belgenin) HATADIR (derin denetim MU-19
+ * S028): eskiden yalnız uyarıydı, fiyat dolu + birim null kalıyor ve "185 EUR"
+ * teklif birimiyle (ör. 185 TRY) forma yazılıyordu. Şablon yolu aynı durumu
+ * zaten errors[] ile engelliyor — iki yol artık tutarlı.
  */
 function docRowCurrency(
   r: DocRow,
   opts: { allowedCurrencies: string[]; docCurrency?: string | null },
-  warnings: string[],
+  errors: string[],
 ): string | null {
   const allowed = (c: string) => opts.allowedCurrencies.length === 0 || opts.allowedCurrencies.includes(c);
-  const cur = normalizeCurrency(r.currency);
-  if (!cur) {
-    const docCur = normalizeCurrency(opts.docCurrency ?? null);
-    return docCur && allowed(docCur) ? docCur : null;
-  }
+  const cur = normalizeCurrency(r.currency) ?? normalizeCurrency(opts.docCurrency ?? null);
+  if (!cur) return null;
   if (allowed(cur)) return cur;
-  warnings.push(tApi("api.companyListings.bidImport.satirParaBirimiKabulEdilmiyor", { currency: cur }));
+  errors.push(tApi("api.companyListings.bidImport.satirParaBirimiKabulEdilmiyor", { currency: cur }));
   return null;
 }
 
@@ -425,7 +428,7 @@ export function applyDocRowValues(
       tApi("api.companyListings.bidImport.birimFarkli", { docUnit: r.unit, itemUnit: it.unit }),
     );
   }
-  m.currency = docRowCurrency(r, opts, m.warnings);
+  m.currency = docRowCurrency(r, opts, m.errors);
   m.deliveryTime = normalizeDeliveryTime(r.deliveryText);
   if (r.deliveryText && !m.deliveryTime) m.warnings.push(tApi("api.companyListings.bidImport.teslimAnlasilamadi", { text: r.deliveryText }));
 }

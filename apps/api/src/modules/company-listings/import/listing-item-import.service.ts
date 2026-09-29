@@ -29,7 +29,7 @@ import {
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
 import { assertZipWithinLimits, XLSX_LOAD_OPTIONS, ZipInspectError } from "../../../common/files/zip-inspect";
-import { detectCsvDelimiter } from "../../../common/files/spreadsheet-reader";
+import { csvReadOptions } from "../../../common/files/spreadsheet-reader";
 
 /**
  * Kalem Excel şablonu — ÜRET + OKU (2026-08-22). AI YOK: deterministik,
@@ -234,9 +234,7 @@ export class ListingItemImportService {
         );
       }
       try {
-        await wb.csv.read(Readable.from(buffer), {
-          parserOptions: { delimiter: detectCsvDelimiter(buffer) },
-        });
+        await wb.csv.read(Readable.from(buffer), csvReadOptions(buffer));
       } catch {
         throw new BadRequestException(i18nMessage("api.companyListings.csvDosyasiOkunamadi"));
       }

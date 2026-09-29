@@ -420,7 +420,7 @@
       "toplamUyusmuyor": "In the document, unit price × quantity does not match the total",
       "miktarFarkli": "The quantity in the document ({docQuantity}) differs from the one in the buying request ({itemQuantity})",
       "birimFarkli": "The unit in the document ({docUnit}) differs from the one in the buying request ({itemUnit})",
-      "satirParaBirimiKabulEdilmiyor": "The currency in the document ({currency}) is not accepted in this buying request — the quote currency will be used",
+      "satirParaBirimiKabulEdilmiyor": "The currency in the document ({currency}) is not accepted in this buying request — convert the price to an accepted currency and enter it manually",
       "teslimAnlasilamadi": "Could not interpret the delivery time: \"{text}\"",
       "template": {
         "currencyTitle": "Currency",
@@ -429,7 +429,7 @@
         "deliveryError": "Select from the list",
         "helpTitle": "Quote template — {title}",
         "helpSheet": "The gray columns on the \"{sheet}\" sheet are the buying request’s line items — DO NOT CHANGE THEM (do not add or delete rows).",
-        "helpFill": "Fill in the white columns: \"Birim Fiyat\" (unit price, EXCLUDING VAT, required), \"Para Birimi\" (currency, from the list), \"Teslim Süresi\" (delivery time, from the list), \"Not\" (note).",
+        "helpFill": "Fill in the white columns: \"Birim Fiyat\" (unit price, EXCLUDING VAT, required), \"Para Birimi\" (currency, from the list; if left blank, your bid currency is used), \"Teslim Süresi\" (delivery time, from the list), \"Not\" (note).",
         "helpSkip": "Leave the \"Birim Fiyat\" (unit price) cell EMPTY for any line item you do not want to quote on (if the buying request requires all line items, the app will warn you).",
         "helpDecimal": "The decimal separator can be a comma or a period (185,50 or 185.50).",
         "helpUpload": "Save the file and upload it with “Price with Excel template” on the quote page — you will see a preview first; it does not submit the quote.",
@@ -1219,7 +1219,10 @@
     "talepSartlariGecersiz": "Request terms are invalid: {issues}",
     "anaParaBirimiIzinVerilenlerde": "The main currency must be among the allowed currencies",
     "vadeGunSayisiZorunlu": "Number of payment term days is required",
-    "akreditifAltTipiniSecin": "Select the letter of credit subtype"
+    "akreditifAltTipiniSecin": "Select the letter of credit subtype",
+    "pesinYuzdesiZorunlu": "Advance percentage (1-100%) is required",
+    "usanceVadeGunZorunlu": "Number of days is required for a usance letter of credit",
+    "ozelOdemeKaydedilemez": "The custom payment term cannot be saved in Request Terms; choose another payment term"
   },
   "notifications": {
     "common": {

@@ -153,7 +153,8 @@ describe("BidImportDialog — Belgeden Fiyatla (AI)", () => {
       ...AI_RESULT,
       unmatchedDocRows: [
         { id: "doc-5", text: "Flanş DN50 galvaniz", unitPrice: 185, currency: "USD", deliveryTime: null, warnings: [] },
-        { id: "doc-6", text: "Flanş kaplamasız", unitPrice: 90, currency: null, deliveryTime: null, warnings: ["Satır para birimi (GBP) kabul edilmiyor"] },
+        { id: "doc-6", text: "Flanş kaplamasız", unitPrice: 185, currency: null, deliveryTime: null, warnings: [], errors: ["Satır para birimi (GBP) kabul edilmiyor"] },
+        { id: "doc-7", text: "Flanş toplamdan", unitPrice: 90, currency: null, deliveryTime: null, warnings: ["Birim fiyat toplam ÷ miktardan türetildi"] },
       ],
     });
     const onApply = vi.fn();
@@ -170,9 +171,16 @@ describe("BidImportDialog — Belgeden Fiyatla (AI)", () => {
     expect(screen.getByText("2 / 3 kalem fiyatlandı")).toBeInTheDocument();
     expect(screen.getByLabelText("Flanş uygula")).toBeDisabled();
 
-    // Sunucu uyarılı satır: uyarı elle seçimde görünür, kalemin eski uyarısı değil.
+    // Kabul edilmeyen para birimi HATADIR (derin denetim MU-19): 185 GBP
+    // teklif birimiyle (185 TRY) forma yazılmasın.
     fireEvent.change(sel, { target: { value: "doc-6" } });
     expect(await screen.findByText(/GBP\) kabul edilmiyor/)).toBeInTheDocument();
+    expect(screen.getByText("2 / 3 kalem fiyatlandı")).toBeInTheDocument();
+    expect(screen.getByLabelText("Flanş uygula")).toBeDisabled();
+
+    // Sunucu uyarılı satır: uyarı elle seçimde görünür, kalemin eski uyarısı değil.
+    fireEvent.change(sel, { target: { value: "doc-7" } });
+    expect(await screen.findByText(/toplam ÷ miktardan/)).toBeInTheDocument();
     await screen.findByText("3 / 3 kalem fiyatlandı");
     fireEvent.click(screen.getByRole("button", { name: "3 kalemin fiyatını uygula" }));
     const rows = onApply.mock.calls[0]![0] as { itemId: string; unitPrice: number; currency: string | null }[];

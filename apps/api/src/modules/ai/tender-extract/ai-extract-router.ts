@@ -4,7 +4,7 @@ import { PDFParse } from "pdf-parse";
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
 import { assertZipWithinLimits, XLSX_LOAD_OPTIONS, ZipInspectError } from "../../../common/files/zip-inspect";
-import { detectCsvDelimiter } from "../../../common/files/spreadsheet-reader";
+import { csvReadOptions } from "../../../common/files/spreadsheet-reader";
 import sharp from "sharp";
 import heicConvert from "heic-convert";
 import type { AiInlinePart } from "../providers/ai-provider.interface";
@@ -557,7 +557,9 @@ async function routeSpreadsheet(
     if (isXlsx) await wb.xlsx.load(buffer as unknown as ArrayBuffer, XLSX_LOAD_OPTIONS);
     // TR Excel CSV'si ";" ayracli ve ondalik "," — varsayilan "," ile okununca
     // "2,5;120,5" hucreleri ondalik virgulden bolunuyordu (MU-08 S016).
-    else await wb.csv.read(Readable.from(buffer), { parserOptions: { delimiter: detectCsvDelimiter(buffer) } });
+    // MU-19 S029: ham metin korunur ("1.500" 1.5'e, "05-09-2026" ABD tarihine
+    // donusmeden modele gider).
+    else await wb.csv.read(Readable.from(buffer), csvReadOptions(buffer));
   } catch {
     throw new BadRequestException(i18nMessage("api.ai.tabloDosyasiOkunamadiXlsxVeyaCsv"));
   }

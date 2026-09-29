@@ -128,7 +128,10 @@ export function BidImportDialog({
         confidence: "exact" as BidImportConfidence, // kullanıcı elle seçti
         manual: true,
         warnings: d?.warnings ?? [],
-        errors: m.errors,
+        // Elle seçilen belge satırının hataları o satırdan gelir (kabul
+        // edilmeyen para birimi — derin denetim MU-19); kalemin otomatik
+        // eşleşme hataları elle seçimi bloklamaz.
+        errors: d?.errors ?? [],
       };
     });
     // Satır birimi teklif birimine göre normalize edilir: teklif birimiyle

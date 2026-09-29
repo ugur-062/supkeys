@@ -28,6 +28,7 @@ import {
   type MatchItem,
 } from "./bid-matching";
 import { XLSX_LOAD_OPTIONS } from "../../../common/files/zip-inspect";
+import { csvReadOptions } from "../../../common/files/spreadsheet-reader";
 import { assertXlsxSafe, cellText, parseLocaleNumber } from "./listing-item-import.service";
 
 /**
@@ -134,7 +135,11 @@ export class BidImportService {
         materialCode: it.materialCode ?? "",
         itemId: it.id,
         unitPrice: null,
-        currency: l.primaryCurrency ?? "",
+        // Boş = teklifin para birimi (derin denetim MU-19 S028): eskiden
+        // talebin ana birimi ön-dolu geliyordu; teklif birimini USD seçen
+        // tedarikçi USD fiyatları hücreye dokunmadan girince satırlar TRY
+        // sayılıyordu. Açıkça seçilen kod yine açık kodla döner.
+        currency: "",
         deliveryTime: "",
         note: "",
       });
@@ -239,7 +244,8 @@ export class BidImportService {
           i18nMessage("api.companyListings.csvDosyasiCokBuyukSablonuXlsx"),
         );
       }
-      await wb.csv.read(Readable.from(buffer)).catch(() => {
+      // MU-19 S029: TR ";" ayraci + ham metin (fiyat "1.500" 1.5'e donmez).
+      await wb.csv.read(Readable.from(buffer), csvReadOptions(buffer)).catch(() => {
         throw new BadRequestException(i18nMessage("api.companyListings.csvDosyasiOkunamadi"));
       });
     } else {
@@ -289,8 +295,8 @@ export class BidImportService {
       };
       const itemId = String(get("itemId") ?? "").trim();
       const priceRaw = get("unitPrice");
-      // Doldurulmuş sayılma: fiyat / teslim / not. Para birimi şablonda ÖN-DOLU
-      // geldiği için tek başına "doldurulmuş" sayılmaz (yoksa her kalem exact
+      // Doldurulmuş sayılma: fiyat / teslim / not. Para birimi (eski
+      // şablonlarda ÖN-DOLU gelir) tek başına "doldurulmuş" sayılmaz (yoksa her kalem exact
       // ama fiyatsız görünürdü).
       const anyFill = [priceRaw, get("deliveryTime"), get("note")].some(
         (v) => v != null && String(v).trim() !== "",

@@ -2250,9 +2250,9 @@
     "at": "2026-09-24"
   },
   "api.companyListings.bidImport.satirParaBirimiKabulEdilmiyor": {
-    "hash": "6afa3d0ed5",
+    "hash": "e9eb16b050",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "api.companyListings.bidImport.template.currencyError": {
     "hash": "d1a0454707",
@@ -2290,9 +2290,9 @@
     "at": "2026-09-24"
   },
   "api.companyListings.bidImport.template.helpFill": {
-    "hash": "57bcba9334",
+    "hash": "33e2253df4",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "api.companyListings.bidImport.template.helpSheet": {
     "hash": "cd6441f0a4",

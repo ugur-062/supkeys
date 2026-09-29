@@ -484,6 +484,12 @@ describe("routeExtractInput — CSV ayraci (derin denetim MU-08 S016)", () => {
     expect(out.documentText).toContain("| Priz | 40 | adet |");
   });
 
+  it("MU-19 S029: CSV hucreleri ham metin kalir (binlik/tarih ExcelJS'te donusmez)", async () => {
+    const csv = "Kalem;Miktar;Termin\nSac;1.500;05-09-2026\n";
+    const out = await routeExtractInput([{ key: "ai-extract/c/u-k.csv", buffer: Buffer.from(csv, "utf8") }], 10);
+    expect(out.documentText).toContain("| Sac | 1.500 | 05-09-2026 |");
+  });
+
   it("',' ayracli CSV eskisi gibi okunur", async () => {
     const csv = "Item,Qty,Unit\nCable NYA 2.5 mm2,120.5,m\n";
     const out = await routeExtractInput([{ key: "ai-extract/c/u-items.csv", buffer: Buffer.from(csv, "utf8") }], 10);

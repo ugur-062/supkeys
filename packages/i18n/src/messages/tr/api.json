@@ -420,7 +420,7 @@
       "toplamUyusmuyor": "Belgede birim × miktar toplamla uyuşmuyor",
       "miktarFarkli": "Belgedeki miktar ({docQuantity}) satın alma talebindekinden ({itemQuantity}) farklı",
       "birimFarkli": "Belgedeki birim ({docUnit}) satın alma talebindekinden ({itemUnit}) farklı",
-      "satirParaBirimiKabulEdilmiyor": "Belgedeki para birimi ({currency}) bu satın alma talebinde kabul edilmiyor — teklif birimi kullanılacak",
+      "satirParaBirimiKabulEdilmiyor": "Belgedeki para birimi ({currency}) bu satın alma talebinde kabul edilmiyor — fiyatı kabul edilen bir para birimine çevirip elle girin",
       "teslimAnlasilamadi": "Teslim süresi anlaşılamadı: \"{text}\"",
       "template": {
         "currencyTitle": "Para birimi",
@@ -429,7 +429,7 @@
         "deliveryError": "Listeden seçin",
         "helpTitle": "Teklif şablonu — {title}",
         "helpSheet": "\"{sheet}\" sayfasındaki gri sütunlar satın alma talebinin kalemleridir, DEĞİŞTİRMEYİN (satır eklemeyin/silmeyin).",
-        "helpFill": "Beyaz sütunları doldurun: Birim Fiyat (KDV HARİÇ, zorunlu), Para Birimi (listeden), Teslim Süresi (listeden), Not.",
+        "helpFill": "Beyaz sütunları doldurun: Birim Fiyat (KDV HARİÇ, zorunlu), Para Birimi (listeden; boş bırakırsanız teklifinizin para birimi sayılır), Teslim Süresi (listeden), Not.",
         "helpSkip": "Teklif vermek istemediğiniz kalemin Birim Fiyat hücresini BOŞ bırakın (satın alma talebi tüm kalemleri zorunlu kılıyorsa uygulamada uyarılırsınız).",
         "helpDecimal": "Ondalık ayracı virgül veya nokta olabilir (185,50 ya da 185.50).",
         "helpUpload": "Dosyayı kaydedip teklif sayfasındaki ''Excel Şablonu ile Fiyatla'' ile yükleyin — önce önizleme görürsünüz, teklif göndermez.",
@@ -1219,7 +1219,10 @@
     "talepSartlariGecersiz": "Talep şartları geçersiz: {issues}",
     "anaParaBirimiIzinVerilenlerde": "Ana para birimi izin verilenler arasında olmalı",
     "vadeGunSayisiZorunlu": "Vade gün sayısı zorunlu",
-    "akreditifAltTipiniSecin": "Akreditif alt tipini seçin"
+    "akreditifAltTipiniSecin": "Akreditif alt tipini seçin",
+    "pesinYuzdesiZorunlu": "Peşin yüzdesi (%1-100) zorunlu",
+    "usanceVadeGunZorunlu": "Vadeli (Usance) akreditif için vade gün sayısı zorunlu",
+    "ozelOdemeKaydedilemez": "Özel ödeme koşulu Talep Şartları'na kaydedilemez; başka bir ödeme koşulu seçin"
   },
   "notifications": {
     "common": {

@@ -131,11 +131,13 @@ export interface BidImportDocRow {
   text: string;
   /** Otomatik eşleşmeyle AYNI kurallardan geçmiş fiyat (yuvarlanmış + sınır içinde). */
   unitPrice: number | null;
-  /** İzinli birim süzgecinden geçmiş kod (ana birim dahil); null = birim yok / kabul edilmeyen → teklif birimi. */
+  /** İzinli birim süzgecinden geçmiş kod (ana birim dahil); null = satırda/belgede birim yok → teklif birimi. */
   currency: string | null;
   deliveryTime: string | null;
-  /** Satırın sağlık uyarıları (kabul edilmeyen birim, toplamdan türetildi…). */
+  /** Satırın sağlık uyarıları (toplamdan türetildi…). */
   warnings?: string[];
+  /** Satırı uygulanamaz kılan hatalar (kabul edilmeyen para birimi — derin denetim MU-19). */
+  errors?: string[];
 }
 
 export interface BidImportResult {

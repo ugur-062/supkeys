@@ -59,6 +59,23 @@ export function detectCsvDelimiter(buffer: Buffer): string {
   return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]![0];
 }
 
+/**
+ * Tum CSV okumalari icin ExcelJS secenekleri — TEK KAYNAK (derin denetim
+ * MU-19 S029). ExcelJS'in varsayilan `map`i her hucreye once `Number(datum)`
+ * ve katı 'MM-DD-YYYY' tarih kalibi uyguluyor: TR binlik "1.500" 1.5'e,
+ * GG-AA-YYYY "05-09-2026" 9 Mayis'a donusuyor ve yerel ayristiricilar
+ * (parseLocaleNumber/parseImportDate) hic calismiyordu. Ham metin korunur
+ * (bos hucre null); sayi/tarih yorumu yalniz yerel ayristiricida, xlsx metin
+ * hucresiyle AYNI kuralla yapilir.
+ */
+export function csvReadOptions(buffer: Buffer): Partial<ExcelJS.CsvReadOptions> {
+  return {
+    parserOptions: { delimiter: detectCsvDelimiter(buffer) },
+    dateFormats: [],
+    map: (datum: unknown) => (datum === "" ? null : datum),
+  };
+}
+
 export async function readUploadedWorksheet(input: {
   buffer: Buffer;
   fileName: string;
@@ -101,9 +118,7 @@ export async function readUploadedWorksheet(input: {
       );
     }
     try {
-      await wb.csv.read(Readable.from(buffer), {
-        parserOptions: { delimiter: detectCsvDelimiter(buffer) },
-      });
+      await wb.csv.read(Readable.from(buffer), csvReadOptions(buffer));
     } catch {
       throw new BadRequestException(i18nMessage("api.files.csvDosyasiOkunamadi"));
     }
