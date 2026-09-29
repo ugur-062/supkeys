@@ -2718,6 +2718,18 @@ export class AdminCompaniesService {
             complaintsMade: true,
             complaintsReceived: true,
             membershipEvents: true,
+            // Derin denetim MU-03 (S010/X18): karsi tarafin yazdigi ama bu
+            // firmanin hic yanitlamadigi thread'ler (messagesSent=0), baska
+            // firmalarin taleplerindeki davet kayitlari ve kayitli alicilarin
+            // bu firmanin urunlerine actigi bilgi talepleri de Company'ye
+            // `onDelete: Cascade` bagli — sert silme karsi tarafin gelen
+            // kutusunu / davetli listesini / "Bilgi taleplerim"ini siliyordu.
+            threadsAsBuyer: true,
+            threadsAsSeller: true,
+            listingInvitations: true,
+            // Anonim ziyaretci talebi (claimedCompanyId yok) platformda kimsenin
+            // kaydi degil; yalniz kayitli aliciya baglananlar tutar.
+            publicInquiries: { where: { claimedCompanyId: { not: null } } },
           },
         },
         // KVKK imhası için nesne anahtarları (aşağıda R2'dan silinir).
@@ -2754,6 +2766,10 @@ export class AdminCompaniesService {
       complaintsMade: c.complaintsMade,
       complaintsReceived: c.complaintsReceived,
       membershipEvents: c.membershipEvents,
+      threadsAsBuyer: c.threadsAsBuyer,
+      threadsAsSeller: c.threadsAsSeller,
+      listingInvitations: c.listingInvitations,
+      publicInquiries: c.publicInquiries,
     };
     const hasRetainedHistory = Object.values(retentionCounts).some(
       (n) => n > 0,
@@ -2871,10 +2887,47 @@ export class AdminCompaniesService {
           certificateImages: [],
           aboutText: null,
           publicEnabled: false,
+          // Derin denetim MU-03 (X07/X18/S010): kalan kimlik/iletisim izleri.
+          // slug firma adindan turetilir; searchTextI18n about + ceviri
+          // katlamasidir. Eski slug SEO tazelemesi icin yukarida okundu.
+          slug: null,
+          legalFormLocal: null,
+          bankSwiftBic: null,
+          bankName: null,
+          linkedinUrl: null,
+          instagramUrl: null,
+          services: [],
+          searchTextI18n: "",
         },
       }),
       // KYC revizyon kayıtları da (R2 anahtarı taşır) silinir.
       this.prisma.companyKycRevision.deleteMany({ where: { companyId: id } }),
+      // Derin denetim MU-03: iliskili tablolar cascade'e yalniz SERT silmede
+      // girer; anonimlestirmede elle temizlenir.
+      //  - Banka hesaplari (hesap sahibi adi + IBAN/hesap no): siparisler banka
+      //    bilgisini kendi anlik goruntusunde tutar, satir gerekmez.
+      //  - Bekleyen kullanici davetleri (davetli e-postasi + gecerli token).
+      //  - Firma tanitim cevirileri (aboutText/services EN/RU).
+      //  - Adres defteri: satirlar SILINMEZ (ilan/teklif FK'siz ya da SetNull
+      //    ile bu satirlara bakar), kisi/vergi alanlari ve acik adres
+      //    karartilir; ulke/sehir gibi kaba konum kalir.
+      this.prisma.companyBankAccount.deleteMany({ where: { companyId: id } }),
+      this.prisma.companyUserInvitation.deleteMany({ where: { companyId: id } }),
+      this.prisma.contentTranslation.deleteMany({
+        where: { entityType: "COMPANY", entityId: id },
+      }),
+      this.prisma.companyAddress.updateMany({
+        where: { companyId: id },
+        data: {
+          contactName: null,
+          phone: null,
+          addressLine: "",
+          district: null,
+          postalCode: null,
+          taxOffice: null,
+          taxNumber: null,
+        },
+      }),
       // Kullanıcılar: soft-delete + e-posta karartma (unique korunur) +
       // oturum düşürme. İsimler de anonimleşir.
       ...company.users.map((u, i) =>
@@ -2894,8 +2947,13 @@ export class AdminCompaniesService {
       ),
     ]);
     // Anonim firma gorunmez (publicEnabled=false, isBlocked) — eski ad/logo
-    // ISR onbelleginden servis edilmesin (derin denetim MU-02).
-    this.seo?.companyChanged(id);
+    // ISR onbelleginden servis edilmesin (derin denetim MU-02). slug artik
+    // null (MU-03): eski profil yolu, once okunan anlik goruntuyle tazelenir.
+    this.seo?.companyChanged(id, {
+      slug: company.slug,
+      cityId: company.cityId,
+      country: company.country,
+    });
     await this.audit.log({
       action: "admin.company.anonymized",
       actorType: "admin",

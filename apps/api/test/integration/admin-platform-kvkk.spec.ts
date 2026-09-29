@@ -143,6 +143,234 @@ describe("KVKK — export + silme/anonimleştirme", () => {
     expect(log).not.toBeNull();
   });
 
+  // Derin denetim MU-03 (S010/X18): karsi tarafin kaydini cascade ile silen
+  // ama eskiden sayilmayan izler — her biri tek basina sert silmeyi durdurur.
+  describe("MU-03 — karsi tarafin kaydi sert silmeyi durdurur", () => {
+    async function expectAnonymized(targetId: string) {
+      const { service } = rig();
+      const res = await service.deleteOrAnonymize(
+        targetId,
+        "admin-1",
+        jest.fn().mockResolvedValue(undefined),
+      );
+      expect(res.mode).toBe("anonymized");
+      expect(
+        await prisma.company.findUnique({ where: { id: targetId } }),
+      ).not.toBeNull();
+    }
+
+    it("alicinin yazip tedarikcinin hic yanitlamadigi thread + mesajlar korunur", async () => {
+      const buyer = await makeCompanyWithUser(prisma, {});
+      const seller = await makeCompanyWithUser(prisma, {});
+      const thread = await prisma.messageThread.create({
+        data: {
+          buyerCompanyId: buyer.company.id,
+          sellerCompanyId: seller.company.id,
+          lastMessageAt: new Date(),
+          messages: {
+            create: [
+              {
+                senderCompanyId: buyer.company.id,
+                senderUserId: buyer.user.id,
+                senderName: "Buyer",
+                body: "hello",
+              },
+            ],
+          },
+        },
+      });
+      await expectAnonymized(seller.company.id);
+      expect(
+        await prisma.message.count({ where: { threadId: thread.id } }),
+      ).toBe(1);
+    });
+
+    it("baska firmanin talebindeki davet kaydi korunur", async () => {
+      const buyer = await makeCompanyWithUser(prisma, {});
+      const seller = await makeCompanyWithUser(prisma, {});
+      const listing = await makeListing(prisma, {
+        companyId: buyer.company.id,
+        createdById: buyer.user.id,
+        type: "ALIM",
+        status: "OPEN",
+      });
+      const inv = await invite(prisma, listing.id, seller.company.id, buyer.user.id);
+      await expectAnonymized(seller.company.id);
+      expect(
+        await prisma.listingInvitation.findUnique({ where: { id: inv.id } }),
+      ).not.toBeNull();
+    });
+
+    it("kayitli alicinin bilgi talebi korunur; anonim ziyaretci talebi tek basina tutmaz", async () => {
+      const buyer = await makeCompanyWithUser(prisma, {});
+      const seller = await makeCompanyWithUser(prisma, {});
+      const product = await prisma.companyItem.create({
+        data: {
+          companyId: seller.company.id,
+          createdById: seller.user.id,
+          name: "Panel",
+          unit: "adet",
+          slug: "panel-mu03",
+        },
+      });
+      const mk = (tokenHash: string, claimedCompanyId: string | null) =>
+        prisma.publicInquiry.create({
+          data: {
+            companyId: seller.company.id,
+            productId: product.id,
+            name: "Visitor",
+            email: `${tokenHash}@example.com`,
+            message: "price?",
+            tokenHash,
+            expiresAt: new Date(),
+            verifiedAt: new Date(),
+            claimedCompanyId,
+          },
+        });
+      // Yalniz anonim talep: sert silme serbest.
+      await mk("mu03-anon", null);
+      const { service } = rig();
+      const other = await makeCompanyWithUser(prisma, {});
+      const otherItem = await prisma.companyItem.create({
+        data: {
+          companyId: other.company.id,
+          createdById: other.user.id,
+          name: "Panel",
+          unit: "adet",
+          slug: "panel-mu03-b",
+        },
+      });
+      await prisma.publicInquiry.create({
+        data: {
+          companyId: other.company.id,
+          productId: otherItem.id,
+          name: "Visitor",
+          email: "anon2@example.com",
+          message: "price?",
+          tokenHash: "mu03-anon-2",
+          expiresAt: new Date(),
+        },
+      });
+      const del = await service.deleteOrAnonymize(
+        other.company.id,
+        "admin-1",
+        jest.fn().mockResolvedValue(undefined),
+      );
+      expect(del.mode).toBe("deleted");
+      // Kayitli aliciya bagli talep: anonimlestirme.
+      const claimed = await mk("mu03-claimed", buyer.company.id);
+      await expectAnonymized(seller.company.id);
+      expect(
+        await prisma.publicInquiry.findUnique({ where: { id: claimed.id } }),
+      ).not.toBeNull();
+    });
+  });
+
+  it("anonimleştirme banka hesaplarını, davetleri, çevirileri siler; adres kişisini karartır (MU-03)", async () => {
+    const { service } = rig();
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    await prisma.companyOrder.create({
+      data: {
+        buyerCompanyId: buyer.company.id,
+        sellerCompanyId: seller.company.id,
+        amount: 500,
+        currency: "TRY",
+        status: "COMPLETED",
+      },
+    });
+    const id = buyer.company.id;
+    await prisma.company.update({
+      where: { id },
+      data: {
+        slug: "person-trade-mu03",
+        linkedinUrl: "https://linkedin.com/in/person",
+        instagramUrl: "https://instagram.com/person",
+        bankName: "Bank",
+        bankSwiftBic: "TGBATRIS",
+        legalFormLocal: "Sole",
+        services: ["consulting"],
+        searchTextI18n: "person trade",
+      },
+    });
+    await prisma.companyBankAccount.create({
+      data: {
+        companyId: id,
+        title: "TRY",
+        accountHolder: "Person Name",
+        iban: "TR330006100519786457841326",
+      },
+    });
+    await prisma.companyUserInvitation.create({
+      data: {
+        companyId: id,
+        email: "invitee@example.com",
+        token: "mu03-invite-token",
+        expiresAt: new Date(Date.now() + 86_400_000),
+        invitedById: buyer.user.id,
+      },
+    });
+    await prisma.contentTranslation.create({
+      data: {
+        entityType: "COMPANY",
+        entityId: id,
+        locale: "en",
+        sourceHash: "h",
+        fields: { aboutText: "About person" },
+        status: "DONE",
+      },
+    });
+    const addr = await prisma.companyAddress.create({
+      data: {
+        companyId: id,
+        type: "FATURA",
+        title: "HQ",
+        contactName: "Person Name",
+        phone: "+905320000000",
+        city: "Istanbul",
+        district: "Kadikoy",
+        addressLine: "Home street 1",
+        postalCode: "34000",
+        taxOffice: "Kadikoy",
+        taxNumber: "12345678901",
+      },
+    });
+
+    const res = await service.deleteOrAnonymize(
+      id,
+      "admin-1",
+      jest.fn().mockResolvedValue(undefined),
+    );
+    expect(res.mode).toBe("anonymized");
+    const after = await prisma.company.findUniqueOrThrow({ where: { id } });
+    expect(after).toMatchObject({
+      slug: null,
+      linkedinUrl: null,
+      instagramUrl: null,
+      bankName: null,
+      bankSwiftBic: null,
+      legalFormLocal: null,
+      services: [],
+      searchTextI18n: "",
+    });
+    expect(await prisma.companyBankAccount.count({ where: { companyId: id } })).toBe(0);
+    expect(await prisma.companyUserInvitation.count({ where: { companyId: id } })).toBe(0);
+    expect(
+      await prisma.contentTranslation.count({ where: { entityType: "COMPANY", entityId: id } }),
+    ).toBe(0);
+    const a = await prisma.companyAddress.findUniqueOrThrow({ where: { id: addr.id } });
+    expect(a).toMatchObject({
+      contactName: null,
+      phone: null,
+      addressLine: "",
+      district: null,
+      postalCode: null,
+      taxOffice: null,
+      taxNumber: null,
+      city: "Istanbul",
+    });
+  });
+
   it("siparişli firma ANONİMLEŞTİRİLİR — sipariş korunur, PII gider", async () => {
     const { service } = rig();
     const buyer = await makeCompanyWithUser(prisma, {});

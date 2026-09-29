@@ -220,6 +220,10 @@ describe("deleteOrAnonymize — SEO tazelemesi", () => {
         complaintsMade: 0,
         complaintsReceived: 0,
         membershipEvents: 0,
+        threadsAsBuyer: 0,
+        threadsAsSeller: 0,
+        listingInvitations: 0,
+        publicInquiries: 0,
         ...counts,
       },
       kycRevisions: [],
@@ -231,6 +235,10 @@ describe("deleteOrAnonymize — SEO tazelemesi", () => {
         update: jest.fn(async () => ({})),
       },
       companyKycRevision: { deleteMany: jest.fn(async () => ({})) },
+      companyBankAccount: { deleteMany: jest.fn(async () => ({})) },
+      companyUserInvitation: { deleteMany: jest.fn(async () => ({})) },
+      contentTranslation: { deleteMany: jest.fn(async () => ({})) },
+      companyAddress: { updateMany: jest.fn(async () => ({})) },
       companyUser: { update: jest.fn(async () => ({})) },
       aiChatSession: { deleteMany: jest.fn(async () => ({})) },
       $transaction: jest.fn(async () => []),
@@ -249,12 +257,12 @@ describe("deleteOrAnonymize — SEO tazelemesi", () => {
     expect(seo.companyChanged).toHaveBeenCalledWith("c1", { slug: "acme", cityId: 5, country: "TR" });
   });
 
-  it("anonimlestirmede tazelenir", async () => {
+  it("anonimlestirmede slug null'lanir; eski slug anlik goruntusuyle tazelenir", async () => {
     const { svc, seo } = rig({ ordersAsBuyer: 1 });
     await expect(svc.deleteOrAnonymize("c1", "a1", async () => undefined)).resolves.toMatchObject({
       mode: "anonymized",
     });
-    expect(seo.companyChanged).toHaveBeenCalledWith("c1");
+    expect(seo.companyChanged).toHaveBeenCalledWith("c1", { slug: "acme", cityId: 5, country: "TR" });
   });
 });
 
