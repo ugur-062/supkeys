@@ -19,7 +19,7 @@ import {
   useQuestionTemplates,
   useSaveQuestionTemplate,
 } from "@/hooks/use-templates";
-import { ANSWER_TYPE_VALUES, type TenderFormData } from "@/lib/tenders/form-schema";
+import { ANSWER_TYPE_VALUES, MAX_ITEM_QUESTIONS, type TenderFormData } from "@/lib/tenders/form-schema";
 import { cn } from "@/lib/utils";
 import { ChevronDown, HelpCircle, Info, LayoutTemplate, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
@@ -119,12 +119,23 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
   const templates = useQuestionTemplates();
   const tplDetail = useQuestionTemplate(pickerOpen ? tplId : null);
 
-  const addBlank = () =>
+  // Tavan (derin denetim S085): eskiden ekleme sınırsızdı; 20'yi aşan dizi
+  // yayında yalnız genel "eksik" uyarısı veriyor, şablon kaydı 400 alıyordu.
+  const remaining = Math.max(0, MAX_ITEM_QUESTIONS - fields.length);
+  const full = remaining === 0;
+
+  const addBlank = () => {
+    if (full) return;
     append({ id: newId(), text: "", answerType: "TEXT", required: true });
+  };
 
   const addSelectedFromTemplate = () => {
     if (!tplDetail.data) return;
-    const toAdd = tplDetail.data.items.filter((q) => selected.has(q.id));
+    const picked = tplDetail.data.items.filter((q) => selected.has(q.id));
+    const toAdd = picked.slice(0, remaining);
+    if (toAdd.length < picked.length) {
+      toast.warning(tr("soruTavaniEklenmedi", { dropped: picked.length - toAdd.length, max: MAX_ITEM_QUESTIONS }));
+    }
     for (const q of toAdd) {
       append({
         id: newId(),
@@ -239,7 +250,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
                         variant="secondary"
                         size="sm"
                         onClick={addSelectedFromTemplate}
-                        disabled={selected.size === 0}
+                        disabled={selected.size === 0 || full}
                       >
                         <Plus className="w-4 h-4" />
                         {tr("secilenleriEkle", { size: selected.size })}
@@ -323,10 +334,13 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
           </div>
         )}
 
-        <UiButton type="button" variant="ghost" size="sm" onClick={addBlank}>
+        <UiButton type="button" variant="ghost" size="sm" onClick={addBlank} disabled={full}>
           <Plus className="w-4 h-4" />
           {tr("soruEkle")}
         </UiButton>
+        {full ? (
+          <p className="text-xs text-zinc-500">{tr("soruTavani", { max: MAX_ITEM_QUESTIONS })}</p>
+        ) : null}
       </DialogBody>
 
       <DialogActions>

@@ -24,6 +24,9 @@ interface Props {
   defaultName?: string;
 }
 
+/** Şablon adı tavanı — API `SaveTemplateDto.name` 120; arayüz 100 ile kalır. */
+const TEMPLATE_NAME_MAX = 100;
+
 /**
  * Madde 34 — Mevcut ihale formunu isimli şablon olarak kaydetme dialog'u.
  * Kapanış tarihi + davetli tedarikçiler şablona girmez (kaydederken çıkarılır).
@@ -37,11 +40,15 @@ export function SaveTemplateDialog({
 }: Props) {
   const t = useTranslations("web.panel.requests.saveTemplateDialog");
   const L = useEntityLabels();
-  const [name, setName] = useState(defaultName ?? "");
+  // Varsayılan ad talep başlığıdır (200 karaktere kadar); `maxLength` yalnız
+  // klavyeyi sınırlar → programatik değer burada kırpılır, aksi hâlde uzun
+  // başlıkta doğrudan "Kaydet" API'de 400 alıyordu (derin denetim S085).
+  const initialName = (defaultName ?? "").trim().slice(0, TEMPLATE_NAME_MAX);
+  const [name, setName] = useState(initialName);
   // Dialog hep mount olduğundan ilk-state bayatlar: açılışta güncel başlıkla doldur.
   useEffect(() => {
-    if (open) setName(defaultName ?? "");
-  }, [open, defaultName]);
+    if (open) setName(initialName);
+  }, [open, initialName]);
   const trimmed = name.trim();
   const canSave = trimmed.length >= 2;
 
@@ -72,7 +79,7 @@ export function SaveTemplateDialog({
             autoFocus
             value={name}
             onChange={(e) => setName(e.target.value)}
-            maxLength={100}
+            maxLength={TEMPLATE_NAME_MAX}
             placeholder={t("orAylikOfisMalzemesi")}
             onKeyDown={(e) => {
               if (e.key === "Enter" && canSave && !isSaving) onSave(trimmed);

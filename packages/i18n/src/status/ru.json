@@ -2949,6 +2949,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyListings.muadilTeklifteMarkaVeyaParcaNoZorunlu": {
+    "hash": "bfc39fbedb",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.companyListings.oncedenFiyatladiginizKalemlerinToplami": {
     "hash": "0ff84fab40",
     "status": "reviewed",
@@ -3128,6 +3133,11 @@
     "hash": "62f4702ccc",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.companyListings.teklifinizBuSiradaDegistiSayfayi": {
+    "hash": "539ae2916e",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "api.companyListings.teklifSuresiDoldu": {
     "hash": "0edecad764",
@@ -22719,6 +22729,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.itemQuestionModal.soruTavani": {
+    "hash": "dcb490870e",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.requests.itemQuestionModal.soruTavaniEklenmedi": {
+    "hash": "151eef6423",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.requests.itemQuestionModal.soruyuKaldir": {
     "hash": "bc3268cec6",
     "status": "reviewed",
@@ -24181,6 +24201,11 @@
   },
   "web.panel.requests.page.muadilMarkaBelirtilmedi": {
     "hash": "690f254df2",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.requests.page.muadilMarkaVeyaParcaNoGirin": {
+    "hash": "7847c799b5",
     "status": "reviewed",
     "at": "2026-09-29"
   },
@@ -25878,6 +25903,11 @@
     "hash": "10764ebc8e",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.requestDefaultsForm.sonUlkeCikarilamaz": {
+    "hash": "ae449b318f",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.requests.requestDefaultsForm.talebiHangiUlkelerdekiTedarikcilerGorsun": {
     "hash": "b5c0170ad3",
@@ -38453,6 +38483,11 @@
     "hash": "174e79e435",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.shared.ui.missing": {
+    "hash": "ef6093568a",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.shared.ui.nextPage": {
     "hash": "d82b57e879",

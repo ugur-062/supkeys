@@ -33,6 +33,9 @@ const money = (t: RequestsTranslate, schema: z.ZodNumber) =>
  *  birebir. Sınırsız DEĞİL: teklif karşılaştırma matrisi (kalem × teklifçi),
  *  sihirbaz form dizisi ve rapor/PDF üretimi makul bir tavan ister. */
 export const MAX_LISTING_ITEMS = 500;
+/** Kalem başına soru tavanı — backend kalem sorusu ve soru şablonu
+ *  `@ArrayMaxSize(20)` ile birebir; soru modalı da bu tavanda ekleme kapatır. */
+export const MAX_ITEM_QUESTIONS = 20;
 /**
  * Talep gövdesindeki davet listesi tavanı — API `CreateListingDto.invitations`
  * ile TEK KAYNAK (`@rothern/shared`). "Bağlantılarım" kipinde liste tüm
@@ -180,7 +183,7 @@ export function makeTenderItemSchema(t: RequestsTranslate) {
       z.number({ invalid_type_error: t("formSchema.invalidPrice") }).min(0),
     ).optional(),
     customQuestion: z.string().max(500, maxChars(500)).optional(),
-    questions: z.array(makeTenderItemQuestionSchema(t)).max(20).optional(),
+    questions: z.array(makeTenderItemQuestionSchema(t)).max(MAX_ITEM_QUESTIONS).optional(),
   });
 }
 

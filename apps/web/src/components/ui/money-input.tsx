@@ -166,12 +166,23 @@ type NumberProps = Omit<Props, "value" | "onChange"> & {
  * çevrilirken kaybolmasın; dışarıdan değer değişirse (reset/prefill) taslak
  * tazelenir.
  */
+/**
+ * Ham taslak → sayı. Sayıya çevrilemeyen ara durum (başta yazılan ondalık
+ * ayraç → ".") `undefined`dır, NaN değil: NaN forma yazılınca aşağıdaki
+ * eşitleme taslağı siliyor, ",5" yazan 5 kaydediyordu (derin denetim S086).
+ */
+function draftToNumber(raw: string): number | undefined {
+  if (raw === "") return undefined;
+  const n = Number(raw);
+  return Number.isNaN(n) ? undefined : n;
+}
+
 export function MoneyInputNumber({ value, onChange, ...props }: NumberProps) {
   const [draft, setDraft] = useState<string>(
     value == null || Number.isNaN(value) ? "" : String(value),
   );
   useEffect(() => {
-    const cur = draft === "" ? undefined : Number(draft);
+    const cur = draftToNumber(draft);
     const ext = value == null || Number.isNaN(value) ? undefined : value;
     if (cur !== ext) setDraft(ext == null ? "" : String(ext));
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -182,7 +193,7 @@ export function MoneyInputNumber({ value, onChange, ...props }: NumberProps) {
       value={draft}
       onChange={(raw) => {
         setDraft(raw);
-        onChange(raw === "" ? undefined : Number(raw));
+        onChange(draftToNumber(raw));
       }}
     />
   );

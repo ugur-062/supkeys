@@ -164,7 +164,11 @@ export function QuickRequest({
   const [templateOpen, setTemplateOpen] = useState(false);
   const sendExternal = useExternalTenderInvite();
   const sendMembers = useInviteDiscoveredMembers();
-  const busy = create.isPending || update.isPending || publishExisting.isPending || sendExternal.isPending || sendMembers.isPending;
+  // Yayın/taslak akışı mutation'lar ARASINDA da sürer (belge yükleme düz
+  // async) → `submitting` tüm akışı kapsar; yalnız pending'e bakınca yükleme
+  // sırasında "Taslak kaydet" açılıyor, her tık yeni talep açıyordu (derin denetim S083).
+  const [submitting, setSubmitting] = useState(false);
+  const busy = submitting || create.isPending || update.isPending || publishExisting.isPending || sendExternal.isPending || sendMembers.isPending;
 
   const [terms, setTerms] = useState<RequestDefaults | null>(null);
   const [setupDone, setSetupDone] = useState(false);
@@ -353,6 +357,7 @@ export function QuickRequest({
   const publish = async () => {
     if (submitLock.current) return;
     submitLock.current = true;
+    setSubmitting(true);
     try {
       ensureTitle();
       const ok = await form.trigger();
@@ -421,6 +426,7 @@ export function QuickRequest({
       toast.error(extractErrorMessage(err, isLiveEdit ? tr("degisikliklerKaydedilemedi") : tr("talepYayimlanamadi")));
     } finally {
       submitLock.current = false;
+      setSubmitting(false);
     }
   };
   /**
@@ -467,12 +473,16 @@ export function QuickRequest({
     }
   };
   const saveDraft = async () => {
+    // Yayınla ile AYNI kilit: biri sürerken öteki yeni kayıt açamaz.
+    if (submitLock.current) return;
     ensureTitle();
     const values = getValues();
     if (values.title.trim().length < 3) {
       toast.error(tr("taslakIcinEnAzBir"));
       return;
     }
+    submitLock.current = true;
+    setSubmitting(true);
     try {
       if (isEdit && listingId) {
         // Taslak kaydı taslak kurallarıyla (kapanış/davetli yayında denetlenir;
@@ -500,6 +510,9 @@ export function QuickRequest({
       router.push(`/company/ilan/${listing.id}`);
     } catch (err) {
       toast.error(extractErrorMessage(err, tr("taslakKaydedilemedi")));
+    } finally {
+      submitLock.current = false;
+      setSubmitting(false);
     }
   };
   /** Şartname/teknik resim: kayıt oluşunca sırayla yüklenir (sihirbazla aynı). */

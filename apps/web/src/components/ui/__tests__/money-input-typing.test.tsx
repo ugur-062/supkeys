@@ -9,7 +9,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 let currentLocale = "tr";
 vi.mock("next-intl", () => ({ useLocale: () => currentLocale }));
 
-import { MoneyInput } from "../money-input";
+import { MoneyInput, MoneyInputNumber } from "../money-input";
 
 let last = "";
 function Harness({ initial = "" }: { initial?: string }) {
@@ -111,5 +111,39 @@ describe("MoneyInput — tuş tuş yazım, arayüz diline göre", () => {
     await typeIn("1a2b");
     expect(last).toBe("12");
     expect(box().value).toBe("12");
+  });
+});
+
+/**
+ * Sayı sarmalayıcı (RHF Controller alanları): başta yazılan ondalık ayraç
+ * NaN olarak forma yazılınca eşitleme taslağı siliyor, ",5" 5 kaydediliyordu
+ * (derin denetim S086).
+ */
+describe("MoneyInputNumber — başta ondalık ayraç", () => {
+  let lastNum: number | undefined | "unset" = "unset";
+  function NumHarness() {
+    const [v, setV] = useState<number | undefined>(undefined);
+    return (
+      <MoneyInputNumber
+        aria-label="Tutar"
+        value={v}
+        onChange={(next) => {
+          lastNum = next;
+          setV(next);
+        }}
+      />
+    );
+  }
+
+  it("TR: ,5 yazmak 0,5'tir; ayraç ekrandan silinmez (REGRESYON: 5)", async () => {
+    const user = userEvent.setup();
+    render(<NumHarness />);
+    await user.click(box());
+    await user.keyboard(",");
+    expect(box().value).toBe(",");
+    expect(lastNum).toBeUndefined();
+    await user.keyboard("5");
+    expect(lastNum).toBe(0.5);
+    expect(box().value).toBe(",5");
   });
 });

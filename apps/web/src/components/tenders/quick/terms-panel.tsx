@@ -19,6 +19,7 @@ import {
 import { useState } from "react";
 
 type Section = "scope" | "delivery" | "payment" | "currency" | "bids" | "rules";
+const ALL_SECTIONS: Section[] = ["scope", "delivery", "payment", "currency", "bids", "rules"];
 
 /**
  * TİCARİ ŞARTLAR PANELİ — sağ rayda, gözden kaçmayacak (2026-09-09 v3).
@@ -115,7 +116,10 @@ export function TermsPanel({
 
       {open === "all" ? (
         <div className="border-b border-zinc-950/5 bg-zinc-50 p-4">
-          <RequestDefaultsForm value={value} onChange={onChange} compact />
+          {/* Yalnız talebe uygulanan şartlar (derin denetim S083): görünürlük,
+              kapanış süresi ve adres talepte kendi bölümlerinde seçilir —
+              burada değiştirilince forma yansımıyor, panel yanlış gösteriyordu. */}
+          <RequestDefaultsForm value={value} onChange={onChange} compact only={ALL_SECTIONS} />
         </div>
       ) : (
         // Etiket/değer çifti görsel olarak dl gibi ama ikon + düğme aynı satırda:

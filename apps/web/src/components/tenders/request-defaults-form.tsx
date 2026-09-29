@@ -117,11 +117,16 @@ export function RequestDefaultsForm({
                 {countries.map((c) => (
                   <li key={c} className="inline-flex items-center gap-1 rounded-full bg-blue-50 px-2.5 py-1 text-xs font-medium text-blue-700 ring-1 ring-blue-600/20">
                     {countryDisplayName(c, locale)}
+                    {/* Son ülke çıkarılamaz (derin denetim S084): boş liste "tüm
+                        ülkeler" demektir → kip sessizce genişliyordu. Değiştirmek
+                        için önce yenisi eklenir; tümüne açmak "Tüm ülkeler"le. */}
                     <button
                       type="button"
                       aria-label={tr("ulkesiniCikar", { countryName: countryDisplayName(c, locale) })}
+                      title={countries.length === 1 ? tr("sonUlkeCikarilamaz") : undefined}
+                      disabled={countries.length === 1}
                       onClick={() => set({ targetCountries: countries.filter((x) => x !== c) })}
-                      className="text-blue-400 hover:text-blue-700"
+                      className="text-blue-400 hover:text-blue-700 disabled:cursor-not-allowed disabled:opacity-40 disabled:hover:text-blue-400"
                     >
                       ×
                     </button>
@@ -145,7 +150,6 @@ export function RequestDefaultsForm({
                   </option>
                 ))}
               </select>
-              {countries.length === 0 ? <p className="text-xs text-red-700">{tr("enAzBirUlkeSecin")}</p> : null}
             </div>
           ) : null}
         </Block>

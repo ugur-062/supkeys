@@ -22,6 +22,7 @@ const h = vi.hoisted(() => ({
   update: vi.fn(),
   publish: vi.fn(),
   addresses: undefined as unknown,
+  upload: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
@@ -62,8 +63,16 @@ vi.mock("@/hooks/use-supplier-discovery", () => ({
   useDismissListingDiscovery: () => ({ mutate: vi.fn(), isPending: false }),
 }));
 vi.mock("@/components/tenders/wizard/catalog-picker-dialog", () => ({ CatalogPickerDialog: () => null }));
-vi.mock("@/components/tenders/wizard/staged-documents", () => ({ StagedDocuments: () => <div data-testid="staged-docs" /> }));
-vi.mock("@/hooks/use-listing-documents", () => ({ uploadListingDocument: vi.fn() }));
+vi.mock("@/components/tenders/wizard/staged-documents", () => ({
+  StagedDocuments: ({ onChange }: { onChange: (docs: { file: File; kind: string }[]) => void }) => (
+    <div data-testid="staged-docs">
+      <button type="button" onClick={() => onChange([{ file: new File(["x"], "sartname.pdf", { type: "application/pdf" }), kind: "SPECIFICATION" }])}>
+        Test belgesi ekle
+      </button>
+    </div>
+  ),
+}));
+vi.mock("@/hooks/use-listing-documents", () => ({ uploadListingDocument: h.upload }));
 vi.mock("@/hooks/use-company-tenders", () => ({ useTenders: () => ({ data: [{ id: "t9", title: "Geçen ayki kablo alımı", status: "AWARDED" }] }) }));
 vi.mock("@/hooks/use-company-directory", () => ({ useCompanySearch: () => ({ data: { items: [], total: 12 } }) }));
 vi.mock("@/hooks/use-ai-seo-enrich", () => ({ useAiSeoEnrich: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
@@ -429,6 +438,35 @@ describe("QuickRequest", () => {
     expect(h.saveDefaults.mock.calls[0][0]).toMatchObject({ deliveryTerm: "DOMESTIC_PICKUP", targetCountries: [] });
     expect(screen.queryByText("İlk talebiniz — üç kısa soru")).toBeNull();
   });
+
+  it("S083: belge yüklemesi sürerken 'Taslak kaydet' ve 'Talebi yayınla' kilitli — ikinci tık mükerrer talep açmaz", async () => {
+    h.create.mockResolvedValue({ id: "l20", number: "ROT-000060" });
+    let finishUpload: () => void = () => {};
+    h.upload.mockReset().mockImplementation(() => new Promise<void>((r) => (finishUpload = r)));
+    wrap(<QuickRequest />);
+    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+    fireEvent.click(screen.getByRole("button", { name: "Test belgesi ekle" }));
+    const draftBtn = screen.getByRole("button", { name: "Taslak kaydet" });
+    fireEvent.click(draftBtn);
+    await waitFor(() => expect(h.upload).toHaveBeenCalledTimes(1));
+    // create çözüldü, yükleme sürüyor: düğmeler kapalı, tık yeni kayıt açmaz.
+    expect(draftBtn).toBeDisabled();
+    fireEvent.click(draftBtn);
+    fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla|Kaydediliyor/ })[0]);
+    expect(h.create).toHaveBeenCalledTimes(1);
+    finishUpload();
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/company/ilan/l20"));
+    expect(h.create).toHaveBeenCalledTimes(1);
+  }, 30_000);
+
+  it("S083: 'Tümünü düzenle' yalnız talebe uygulanan şartları açar (görünürlük/kapanış/adres talebin kendi bölümünde)", async () => {
+    wrap(<QuickRequest />);
+    await screen.findByLabelText(/^Kalem Adı/);
+    const panel = screen.getByRole("region", { name: "Ticari şartlar" });
+    fireEvent.click(within(panel).getByRole("button", { name: /Tümünü düzenle/ }));
+    expect(within(panel).getByLabelText("Teslim şekli")).toBeInTheDocument();
+    expect(within(panel).queryByText("Kimler görsün")).toBeNull();
+  }, 30_000);
 
   describe("düzenleme (derin denetim Y-19 / Y-20)", () => {
     // Talebin kendi şartları firma varsayılanından (SAVED: bağlantılarım, TRY,
