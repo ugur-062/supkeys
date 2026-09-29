@@ -3947,6 +3947,7 @@
         "birimFiyat": "Цена за единицу",
         "teslim": "Поставка",
         "satirToplami": "Сумма строки",
+        "toplamAnaBirimeCevrildi": "Цены позиций пересчитаны в основную валюту предложения ({currency}) и суммированы.",
         "genelNot": "Общее примечание",
         "satislarimiGoruntule": "Посмотреть мои продажи",
         "buSatinAlmaTalebineTeklif": "Вы не отправили предложение по этой заявке на закупку.",

@@ -251,9 +251,7 @@ export function BidComparisonView({
                       </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-500">
-                      {it.referenceUnitPrice != null
-                        ? formatNumber(it.referenceUnitPrice, locale)
-                        : "—"}
+                      {money(it.referenceUnitPrice, sym, locale)}
                     </TableCell>
                     {data.parties.map((p) => {
                       const ip = p.itemPrices.find((x) => x.itemId === it.id);
@@ -270,9 +268,14 @@ export function BidComparisonView({
                         >
                           {data.includePrice ? (
                             <span className="block">
-                              {ip?.unitPrice != null
-                                ? formatNumber(ip.unitPrice, locale)
-                                : "—"}
+                              {/* Ham fiyat KALEMİN biriminde — birim HER ZAMAN
+                                  yazılır (çok-birimli teklifte etiketsiz ham
+                                  sayılar kıyaslanamaz; derin denetim Y-14). */}
+                              {money(
+                                ip?.unitPrice ?? null,
+                                currencySymbol(ip?.currency ?? data.baseCurrency ?? "TRY"),
+                                locale,
+                              )}
                               {ip?.deltaVsReferencePct != null ? (
                                 <span className="ml-1 text-xs text-zinc-400">
                                   {tr("yuzdeFark", {
@@ -301,7 +304,7 @@ export function BidComparisonView({
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-zinc-500">
                         {data.listing.referenceTotal > 0
-                          ? formatNumber(data.listing.referenceTotal, locale)
+                          ? money(data.listing.referenceTotal, sym, locale)
                           : "—"}
                       </TableCell>
                       {data.parties.map((p) => (
@@ -309,12 +312,27 @@ export function BidComparisonView({
                           key={p.companyId}
                           className="bg-zinc-50 text-right font-semibold tabular-nums text-zinc-900"
                         >
-                          {p.totalAmount != null
-                            ? formatNumber(p.totalAmount, locale)
-                            : "—"}
-                          {p.bidCurrency ? (
-                            <span className="ml-1 text-xs text-zinc-400">
-                              {p.bidCurrency}
+                          {/* Kıyaslanabilir toplam RAPOR biriminde (hedef ve
+                              sıra ile aynı baz); ham tutar yalnız "teklif
+                              para birimlerini göster" açıkken, birimiyle. */}
+                          {p.totalTry != null
+                            ? money(p.totalTry, sym, locale)
+                            : // Kur damgası yoksa (çevrilemedi) ham tutar
+                              // KENDİ birimiyle — asla birimsiz değil.
+                              money(
+                                p.totalAmount,
+                                currencySymbol(
+                                  p.totalCurrency ?? p.bidCurrency ?? data.baseCurrency ?? "TRY",
+                                ),
+                                locale,
+                              )}
+                          {p.totalTry != null && p.bidCurrency && p.totalAmount != null ? (
+                            <span className="block text-xs font-normal text-zinc-400">
+                              {money(
+                                p.totalAmount,
+                                currencySymbol(p.totalCurrency ?? p.bidCurrency),
+                                locale,
+                              )}
                             </span>
                           ) : null}
                         </TableCell>
@@ -344,9 +362,7 @@ export function BidComparisonView({
                           key={p.companyId}
                           className="text-right tabular-nums text-emerald-700"
                         >
-                          {p.deltaVsReference != null
-                            ? formatNumber(p.deltaVsReference, locale)
-                            : "—"}
+                          {money(p.deltaVsReference, sym, locale)}
                         </TableCell>
                       ))}
                     </TableRow>

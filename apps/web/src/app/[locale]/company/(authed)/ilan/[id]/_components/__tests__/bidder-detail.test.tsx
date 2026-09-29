@@ -256,4 +256,49 @@ describe("BidSummaryCard", () => {
     expect(screen.getByText("Fiyatlandırılan Kalemler (1)")).toBeInTheDocument();
     expect(screen.getByText("Hızlı teslimat yapılır")).toBeInTheDocument();
   });
+
+  it("çok-birimli teklif: kalem satırı KALEMİN biriminde, toplam ana birimde + çevrim notu (derin denetim Y-14)", () => {
+    render(
+      <BidSummaryCard
+        l={detail({
+          myBid: {
+            amount: "1000",
+            status: "SUBMITTED",
+            version: 1,
+            note: null,
+            currency: "EUR",
+            items: [{ itemId: "i1", unitPrice: "5000", currency: "TRY" }],
+          },
+        })}
+      />,
+    );
+    // Eskiden "5.000 €" / "50.000 €" basılıyordu.
+    expect(screen.getByText("5.000 ₺")).toBeInTheDocument();
+    expect(screen.getByText("50.000 ₺")).toBeInTheDocument();
+    expect(screen.queryByText("5.000 €")).not.toBeInTheDocument();
+    expect(screen.queryByText("50.000 €")).not.toBeInTheDocument();
+    expect(
+      screen.getByText(
+        "Kalem fiyatları teklifin ana birimine (EUR) çevrilerek toplandı.",
+      ),
+    ).toBeInTheDocument();
+  });
+
+  it("tek birimli teklifte çevrim notu görünmez", () => {
+    render(
+      <BidSummaryCard
+        l={detail({
+          myBid: {
+            amount: "1500",
+            status: "SUBMITTED",
+            version: 1,
+            note: null,
+            currency: "TRY",
+            items: [{ itemId: "i1", unitPrice: "150", currency: null }],
+          },
+        })}
+      />,
+    );
+    expect(screen.queryByText(/ana birimine/)).not.toBeInTheDocument();
+  });
 });

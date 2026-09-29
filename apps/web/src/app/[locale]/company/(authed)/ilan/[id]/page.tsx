@@ -58,6 +58,11 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { activePortalFromPath } from "@/lib/company/portals";
 import { usePortalStore } from "@/lib/company/portal-store";
 import { canManageListing } from "@/lib/tenders/can-manage-listing";
+import {
+  bidItemCurrency,
+  bidItemUnitPriceTry,
+  rankBidsForItem,
+} from "@/lib/tenders/bid-item-price";
 import { SearchInput } from "@/components/list/search-input";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDate, formatDateTime, formatTime } from "@/lib/tenders/date";
@@ -442,31 +447,13 @@ export default function ListingDetailPage() {
   };
 
   // Kalem-bazlı: bir kalem için fiyat veren teklifler (TRY normalize; artan —
-  // en düşük önde/ön-seçili).
-  // Karşılaştırma TRY üzerinden; gösterim her teklifin kendi birimiyle.
+  // en düşük önde/ön-seçili). Karşılaştırma TRY üzerinden; gösterim KALEMİN
+  // birimiyle (madde 9: kalem teklifin ana biriminden farklı birimde
+  // fiyatlanabilir — derin denetim Y-14; eskiden ana birim + ana birim kuru
+  // kullanılıyordu → 100 USD'lik kalem "100 ₺" görünüp ön-seçiliyordu).
+  // Kur'suz (null) satırlar kıyaslanamaz → listenin SONUNA (ön-seçilmez).
   const bidsForItem = (itemId: string) =>
-    (l?.bids ?? [])
-      .filter((b) => b.status === "SUBMITTED")
-      .map((b) => {
-        const unit = Number(
-          b.items?.find((x) => x.itemId === itemId)?.unitPrice ?? 0,
-        );
-        const rate = bidRate(b);
-        return {
-          bidId: b.id,
-          bidderName: b.bidderName,
-          price: unit,
-          currency: b.currency,
-          priceTry: rate != null ? unit * rate : null,
-        };
-      })
-      .filter((o) => o.price > 0)
-      // Kur'suz (null) satırlar kıyaslanamaz → listenin SONUNA (ön-seçilmez).
-      .sort(
-        (a, b) =>
-          (a.priceTry ?? Number.MAX_SAFE_INTEGER) -
-          (b.priceTry ?? Number.MAX_SAFE_INTEGER),
-      );
+    rankBidsForItem(l?.bids ?? [], itemId);
 
   const startItemAward = () => {
     const winners: Record<string, string> = {};
@@ -930,28 +917,31 @@ export default function ListingDetailPage() {
   const incompleteCount = Math.max(0, bidderCount - completeCount);
   // Kalem karşılaştırma için fiyat haritaları (bidId → itemId → fiyat). Hücre
   // başına .find yerine tek seferde kurup O(1) erişim (matris perf).
-  //  - priceMap: teklifin KENDİ birimindeki birim fiyat (gösterim).
-  //  - priceTryMap: TRY karşılığı (satır içi min karşılaştırması — çok birim).
+  //  - priceMap: KALEMİN kendi birimindeki birim fiyat (gösterim).
+  //  - priceTryMap: TRY karşılığı (satır içi min karşılaştırması — çok birim;
+  //    kalem birimi ana birimden farklıysa fxToBase damgasıyla — Y-14).
+  //  - currencyMap: kalemin birimi (null = teklifin ana birimi).
   const priceMap = new Map<string, Map<string, number>>();
   const priceTryMap = new Map<string, Map<string, number>>();
-  const bidCurrencyById = new Map<string, string | undefined>();
+  const currencyMap = new Map<string, Map<string, string>>();
   //  - altMap: yalnız MUADİL beyanlı kalemler (derin denetim Y-16).
   const altMap = new Map<string, Map<string, ListingBidItemRow>>();
   for (const b of allBids) {
-    const rate = bidRate(b);
     const inner = new Map<string, number>();
     const innerTry = new Map<string, number>();
+    const innerCur = new Map<string, string>();
     const innerAlt = new Map<string, ListingBidItemRow>();
     for (const bi of b.items ?? []) {
-      const unit = Number(bi.unitPrice);
-      inner.set(bi.itemId, unit);
-      if (rate != null) innerTry.set(bi.itemId, unit * rate);
+      inner.set(bi.itemId, Number(bi.unitPrice));
+      const vTry = bidItemUnitPriceTry(b, bi);
+      if (vTry != null) innerTry.set(bi.itemId, vTry);
+      innerCur.set(bi.itemId, bidItemCurrency(b, bi));
       if (bi.isAlternative) innerAlt.set(bi.itemId, bi);
     }
     priceMap.set(b.id, inner);
     priceTryMap.set(b.id, innerTry);
+    currencyMap.set(b.id, innerCur);
     altMap.set(b.id, innerAlt);
-    bidCurrencyById.set(b.id, b.currency);
   }
   const cmpItems = (l.items ?? []).filter((it) =>
     itemMatchesSearch(cmpSearch, it),
@@ -1152,7 +1142,8 @@ export default function ListingDetailPage() {
                       submitted: b.status === "SUBMITTED",
                       price: v != null ? v : null,
                       priceTry: vTry != null ? vTry : null,
-                      currency: bidCurrencyById.get(b.id),
+                      currency:
+                        currencyMap.get(b.id)?.get(it.id) ?? b.currency,
                       // Muadil beyanı (derin denetim Y-16): fiyat aynı
                       // ürüne ait değilse alıcı hücrede görmeli.
                       bidItem: altMap.get(b.id)?.get(it.id),

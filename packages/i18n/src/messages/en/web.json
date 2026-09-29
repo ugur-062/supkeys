@@ -3947,6 +3947,7 @@
         "birimFiyat": "Unit price",
         "teslim": "Delivery",
         "satirToplami": "Line total",
+        "toplamAnaBirimeCevrildi": "Line prices were converted to the quote's base currency ({currency}) and summed.",
         "genelNot": "General note",
         "satislarimiGoruntule": "View my sales",
         "buSatinAlmaTalebineTeklif": "You have not submitted a quote for this buying request.",

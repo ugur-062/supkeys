@@ -22824,6 +22824,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.myBidStatusPanel.toplamAnaBirimeCevrildi": {
+    "hash": "b8cb7577db",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.requests.myBidStatusPanel.uzatincaTeklifinizAyniFiyatlaYeniden": {
     "hash": "3dd5025c46",
     "status": "reviewed",

@@ -6,6 +6,12 @@
  * (sipariş tutarı KENDİ biriminde, çevrimsiz kesin Σ); (3) yalnız kapalı zarf
  * ALIM — açık eksiltme reddeder; (4) kur alınamazsa fail-closed.
  */
+import ExcelJS from "exceljs";
+import { CompanyReportsService } from "../../src/modules/company-reports/company-reports.service";
+import {
+  ReportsExcelService,
+  currencyNumFmt,
+} from "../../src/modules/company-reports/reports-excel.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeItem, makeListing } from "./factories";
 import { makeService } from "./make-service";
@@ -166,5 +172,70 @@ describe("kalem bazlı para birimi — award: para birimi başına AYRI sipariş
     });
     expect(b.status).toBe("WON");
     if (res.orders) expect(res.orders).toHaveLength(2);
+  });
+});
+
+describe("kalem bazlı para birimi — sahip kıyası/rapor kalem birimini taşır (derin denetim Y-14)", () => {
+  async function mixedBid() {
+    const ctx = await setup();
+    ctx.mocks.exchangeRates.getFreshRate.mockImplementation(
+      async (c: string) => (c === "EUR" ? 48 : 34),
+    );
+    await ctx.service.placeBid(ctx.bidder.auth, ctx.listing.id, {
+      ...bidBase,
+      items: [
+        { itemId: ctx.item1.id, unitPrice: 100 },
+        { itemId: ctx.item2.id, unitPrice: 10, currency: "EUR" },
+      ],
+    } as never);
+    return ctx;
+  }
+
+  it("sahip detayı kalem currency + fxToBase döner (TRY karşılığı istemcide hesaplanabilsin)", async () => {
+    const { service, owner, listing, item1, item2 } = await mixedBid();
+    const res = (await service.getOne(owner.auth, listing.id)) as {
+      bids: {
+        currency: string;
+        items: { itemId: string; currency: string | null; fxToBase: string | null }[];
+      }[];
+    };
+    expect(res.bids).toHaveLength(1);
+    const b = res.bids[0]!;
+    expect(b.currency).toBe("TRY");
+    const eur = b.items.find((i) => i.itemId === item2.id)!;
+    expect(eur.currency).toBe("EUR");
+    expect(Number(eur.fxToBase)).toBe(48);
+    const tr = b.items.find((i) => i.itemId === item1.id)!;
+    expect(tr.currency).toBeNull();
+    expect(tr.fxToBase).toBeNull();
+  });
+
+  it("teklif karşılaştırma raporu: itemPrices kalemin birimini, totalCurrency ana birimi taşır; Excel hücresi birimle biçimlenir", async () => {
+    const { owner, listing, item1, item2 } = await mixedBid();
+    const reports = new CompanyReportsService(prisma as never);
+    const r = await reports.bidComparison(owner.company.id, {
+      listingId: listing.id,
+      criteria: "PRICE",
+    });
+    const p = r.parties[0]!;
+    expect(p.totalCurrency).toBe("TRY");
+    const ip2 = p.itemPrices.find((x) => x.itemId === item2.id)!;
+    expect(ip2.unitPrice).toBe(10);
+    expect(ip2.currency).toBe("EUR");
+    const ip1 = p.itemPrices.find((x) => x.itemId === item1.id)!;
+    expect(ip1.currency).toBe("TRY");
+
+    const buf = await new ReportsExcelService().bidComparison(r);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf as never);
+    const ws = wb.worksheets[0]!;
+    const fmts: string[] = [];
+    ws.eachRow((row) =>
+      row.eachCell((cell) => {
+        if (typeof cell.value === "number" && cell.numFmt) fmts.push(cell.numFmt);
+      }),
+    );
+    expect(fmts).toContain(currencyNumFmt("EUR"));
+    expect(fmts).toContain(currencyNumFmt("TRY"));
   });
 });

@@ -82,7 +82,13 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
   // Dalga B-2: elle sembol türetme kaldırıldı (USD "$" yerine "USD" gösteriyordu).
   // Sembolün yeri dilden (`affixCurrency`): İngilizcede önde.
   const cur = bid.currency ?? "TRY";
-  const withSym = (formatted: string) => affixCurrency(formatted, cur, intl);
+  // Kalem satırları KALEMİN birimiyle (madde 9 çok-birimli teklif; derin
+  // denetim Y-14) — `bi.currency` null ise teklifin ana birimi.
+  const withSym = (formatted: string, c: string = cur) =>
+    affixCurrency(formatted, c, intl);
+  const mixedItemCurrency = (bid.items ?? []).some(
+    (bi) => !!bi.currency && bi.currency !== cur,
+  );
   const itemName = new Map(
     (l.items ?? []).map((it) => [it.id, it] as const),
   );
@@ -329,7 +335,10 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                             : "—"}
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
-                          {withSym(Number(bi.unitPrice).toLocaleString(intl))}
+                          {withSym(
+                            Number(bi.unitPrice).toLocaleString(intl),
+                            bi.currency || cur,
+                          )}
                         </TableCell>
                         {hasDelivery ? (
                           <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
@@ -343,6 +352,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                           {item
                             ? withSym(
                                 (Number(bi.unitPrice) * Number(item.quantity)).toLocaleString(intl),
+                                bi.currency || cur,
                               )
                             : "—"}
                         </TableCell>
@@ -358,6 +368,11 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                     {hasDelivery ? <TableCell /> : null}
                     <TableCell className="text-right font-bold whitespace-nowrap text-zinc-950 tabular-nums">
                       {withSym(Number(bid.amount).toLocaleString(intl))}
+                      {mixedItemCurrency ? (
+                        <div className="text-xs font-normal whitespace-normal text-zinc-500">
+                          {t("toplamAnaBirimeCevrildi", { currency: cur })}
+                        </div>
+                      ) : null}
                     </TableCell>
                   </TableRow>
                 </TableBody>

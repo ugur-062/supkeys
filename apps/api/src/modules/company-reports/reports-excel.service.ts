@@ -31,6 +31,16 @@ const INK_LIGHT = "F4F4F5"; // zinc-100
 const GOOD = "166534"; // emerald-800 (en iyi hücre vurgusu)
 const GOOD_LIGHT = "DCFCE7";
 
+/**
+ * Sayı hücresini birim koduyla etiketleyen Excel biçimi — değer sayı kalır
+ * (toplanabilir), görünümde "1.234,50 USD" (derin denetim Y-14). Kod enum
+ * değeridir (TRY/USD/…); tırnak dışı karakter kaçışı gerekmez, yine de
+ * yalnız harf bırakılır.
+ */
+export function currencyNumFmt(currency: string): string {
+  return `#,##0.00 "${currency.replace(/[^A-Za-z]/g, "")}"`;
+}
+
 const STATUS_KEYS: Record<string, MsgKey> = {
   DRAFT: "api.companyReports.durumTaslak",
   IN_APPROVAL: "api.companyReports.durumOnayBekliyor",
@@ -398,6 +408,9 @@ export class ReportsExcelService {
         item.referenceUnitPrice ?? "-",
       ];
       const bestCols: number[] = [];
+      // Ham kalem fiyatı KENDİ biriminde — hücre sayı kalır, birim biçimle
+      // etiketlenir (madde 9 çok-birimli teklif; derin denetim Y-14).
+      const curCols: { col: number; currency: string }[] = [];
       let col = 4;
       data.parties.forEach((p) => {
         if (data.includePrice) {
@@ -405,8 +418,12 @@ export class ReportsExcelService {
           row.push(ip?.unitPrice ?? "-");
           col++;
           if (ip?.isBest) bestCols.push(col);
+          if (ip?.currency && ip.unitPrice != null)
+            curCols.push({ col, currency: ip.currency });
           row.push(ip?.totalPrice ?? "-");
           col++;
+          if (ip?.currency && ip.totalPrice != null)
+            curCols.push({ col, currency: ip.currency });
         }
         if (data.includeAnswers) {
           const ia = p.itemAnswers.find((x) => x.itemId === item.id);
@@ -415,6 +432,9 @@ export class ReportsExcelService {
         }
       });
       const added = ws.addRow(row);
+      curCols.forEach(({ col: c, currency }) => {
+        added.getCell(c).numFmt = currencyNumFmt(currency);
+      });
       bestCols.forEach((c) => {
         const cell = added.getCell(c);
         cell.font = { bold: true, color: { argb: GOOD } };
@@ -446,8 +466,11 @@ export class ReportsExcelService {
         "",
         "",
       ];
+      const totalCurCols: { col: number; currency: string }[] = [];
       data.parties.forEach((p) => {
         totalRow.push(p.totalAmount ?? "-");
+        if (p.totalAmount != null && p.totalCurrency)
+          totalCurCols.push({ col: totalRow.length, currency: p.totalCurrency });
         totalRow.push(p.bidCurrency ?? "");
         rankRow.push(p.rank ?? "-");
         rankRow.push("");
@@ -461,6 +484,9 @@ export class ReportsExcelService {
       });
       const r = ws.addRow(totalRow);
       r.font = { bold: true };
+      totalCurCols.forEach(({ col: c, currency }) => {
+        r.getCell(c).numFmt = currencyNumFmt(currency);
+      });
       r.eachCell((cell) => {
         cell.fill = {
           type: "pattern",

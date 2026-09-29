@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useFormatNumber } from "@/i18n/domain";
+import { useFormatMoney } from "@/components/ui/money";
 import { Button } from "@/components/catalyst/button";
 import {
   Dialog,
@@ -32,10 +32,11 @@ export function RoundHistoryDialog({
   currency?: string;
 }) {
   const t = useTranslations("web.panel.requests.roundHistoryDialog");
-  const fmtNum = useFormatNumber();
+  const { money } = useFormatMoney();
   const history = useRoundHistory(id, open);
   const rounds = history.data ?? [];
-  const sym = !currency || currency === "TRY" ? "₺" : currency;
+  // Her satır teklifin KENDİ birimiyle (çok-birimli pazarlıkta USD teklif
+  // TRY gibi görünmesin — derin denetim Y-14); ilan birimi yalnız yedek.
 
   return (
     <Dialog open={open} onClose={onClose} size="2xl">
@@ -83,7 +84,7 @@ export function RoundHistoryDialog({
                               : "text-zinc-700"
                           }`}
                         >
-                          {fmtNum(b.amount)} {sym}
+                          {money(b.amount, b.currency || currency || "TRY")}
                         </TableCell>
                       </TableRow>
                     ))}

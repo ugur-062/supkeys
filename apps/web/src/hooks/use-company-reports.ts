@@ -151,6 +151,8 @@ export interface ComparisonParty {
   submitted: boolean;
   status: string;
   totalAmount: number | null;
+  /** Ham `totalAmount`'un birimi (teklifin ana birimi). */
+  totalCurrency?: string | null;
   totalTry: number | null;
   bidCurrency: string | null;
   rank: number | null;
@@ -158,6 +160,8 @@ export interface ComparisonParty {
   itemPrices: {
     itemId: string;
     unitPrice: number | null;
+    /** Ham kalem fiyatının birimi (madde 9: teklifin ana biriminden farklı olabilir). */
+    currency?: string | null;
     totalPrice: number | null;
     isBest: boolean;
     deltaVsReferencePct: number | null;

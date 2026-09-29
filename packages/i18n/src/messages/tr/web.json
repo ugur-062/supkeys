@@ -3947,6 +3947,7 @@
         "birimFiyat": "Birim Fiyat",
         "teslim": "Teslim",
         "satirToplami": "Satır Toplamı",
+        "toplamAnaBirimeCevrildi": "Kalem fiyatları teklifin ana birimine ({currency}) çevrilerek toplandı.",
         "genelNot": "Genel Not",
         "satislarimiGoruntule": "Satışlarımı Görüntüle",
         "buSatinAlmaTalebineTeklif": "Bu satın alma talebine teklif vermediniz.",

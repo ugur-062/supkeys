@@ -746,6 +746,9 @@ export class CompanyReportsService {
         submitted: !!bid,
         status: bid?.status ?? "NO_BID",
         totalAmount: includePrice && bid ? Number(bid.amount) : null,
+        // Ham `totalAmount`'un birimi (seçenekten bağımsız — birimsiz ham
+        // tutar kıyasta yanıltıyordu; derin denetim Y-14).
+        totalCurrency: includePrice && bid ? bid.currency : null,
         totalTry,
         bidCurrency: dto.showBidCurrencies ? (bid?.currency ?? null) : null,
         rank: null as number | null,
@@ -766,6 +769,10 @@ export class CompanyReportsService {
                 return {
                   itemId: it.id,
                   unitPrice,
+                  // Ham kalem fiyatının birimi: madde 9 çok-birimli teklifte
+                  // kalem, teklifin ana biriminden farklı olabilir (Y-14 —
+                  // eskiden ham fiyat teklif birimi etiketiyle veriliyordu).
+                  currency: bi != null ? (bi.currency ?? bid.currency) : null,
                   totalPrice:
                     unitPrice != null ? unitPrice * it.quantity : null,
                   isBest:
@@ -852,7 +859,8 @@ export class CompanyReportsService {
         : [];
 
     // Kıyas TRY'de yapıldı; ÇIKTI firmanın rapor biriminde (alan adı
-    // `totalTry` geriye dönük). Ham birim fiyat/toplam teklifin biriminde kalır.
+    // `totalTry` geriye dönük). Ham birim fiyat/toplam KENDİ biriminde kalır
+    // (`itemPrices[].currency` / `totalCurrency`).
     const reportCur = await this.reportCurrency(companyId);
     const conv = (v: number | null) => (v == null ? null : round2(tryToCurrency(v, reportCur) ?? 0));
     return {

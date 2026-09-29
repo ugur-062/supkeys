@@ -247,6 +247,12 @@ export interface ListingBidItemRow {
   deliveryTime?: string | null;
   /** Kalem para birimi (madde 9; null = teklifin ana birimi). */
   currency?: string | null;
+  /**
+   * Kalem birimi → teklifin ana birimi çevrim damgası (yalnız sahip
+   * projeksiyonu; null = aynı birim). Kalem kıyasının TRY karşılığı için
+   * (derin denetim Y-14).
+   */
+  fxToBase?: string | null;
   // Faz 3 — MUADİL beyanı: alıcı izin verdiyse tedarikçi NE teklif ettiğini
   // söyler; olmadan alıcı tekliflerin aynı ürüne mi ait olduğunu göremez.
   isAlternative?: boolean;
@@ -543,7 +549,8 @@ export function useCancelListing(id: string) {
 
 export interface RoundHistoryEntry {
   round: number;
-  bids: Array<{ bidderName: string; amount: string }>;
+  /** `currency`: teklifin kendi birimi (çok-birimli pazarlıkta farklı olabilir). */
+  bids: Array<{ bidderName: string; amount: string; currency?: string | null }>;
 }
 
 /** İngiliz Usulü tur geçmişi (sahip). */

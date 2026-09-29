@@ -3439,6 +3439,9 @@ export class CompanyListingsService {
             deliveryTime: bi.deliveryTime,
             // Madde 9 — kalem para birimi (null = teklifin ana birimi).
             currency: bi.currency,
+            // Kalem→ana birim çevrim damgası: sahip kalem kıyası/kalem
+            // kazandırma ön-seçimi TRY karşılığını bununla hesaplar (Y-14).
+            fxToBase: bi.fxToBase != null ? bi.fxToBase.toString() : null,
           })),
           answers: b.answers.map((a) => ({
             questionId: a.questionId,
