@@ -50,6 +50,16 @@ const ACTION_LABELS: Record<string, string> = {
   "admin.product.rejected": "Admin: ürün reddedildi",
   "admin.user.deactivated": "Admin: kullanıcı pasifleştirildi",
   "admin.user.activated": "Admin: kullanıcı aktifleştirildi",
+  "admin.user.password_reset_sent": "Admin: şifre sıfırlama bağlantısı gönderildi",
+  "admin.staff.created": "Admin: personel eklendi",
+  "admin.staff.role_set": "Admin: personel rolü değişti",
+  "admin.staff.deactivated": "Admin: personel pasifleştirildi",
+  "admin.staff.activated": "Admin: personel aktifleştirildi",
+  "admin.staff.password_reset": "Admin: personel şifresi sıfırlandı",
+  "admin.announcement.sent": "Admin: duyuru gönderildi",
+  "admin.complaint.resolved": "Admin: şikayet sonuçlandırıldı",
+  "auth.password_changed": "Şifre değiştirildi",
+  "email.resent": "E-posta yeniden gönderildi",
   "supplier.updated": "Tedarikçi güncellendi",
   "supplier.blocked": "Tedarikçi engellendi",
   "supplier.unblocked": "Tedarikçi engeli kaldırıldı",
@@ -92,6 +102,9 @@ const ACTION_FILTERS: { value: string; label: string }[] = [
   { value: "admin.listing.", label: "Admin: ilanlar" },
   { value: "admin.order.", label: "Admin: siparişler" },
   { value: "admin.system.", label: "Admin: sistem" },
+  { value: "admin.announcement.", label: "Admin: duyurular" },
+  { value: "admin.complaint.", label: "Admin: şikayetler" },
+  { value: "email.resent", label: "E-posta yeniden gönderimi" },
 ];
 
 const ACTOR_META: Record<

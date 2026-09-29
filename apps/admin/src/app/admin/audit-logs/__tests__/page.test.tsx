@@ -87,6 +87,9 @@ describe("AuditLogsPage", () => {
     // Eylem süzgeci önek grupları (API startsWith) — eski supplier.* adları yok.
     expect(options).toContain("company.listing");
     expect(options.some((v) => v.startsWith("supplier."))).toBe(false);
+    // LU-11: duyuru ve e-posta yeniden gönderimi de süzülebilir.
+    expect(options).toContain("admin.announcement.");
+    expect(options).toContain("email.resent");
     const row = screen.getByText("firma@ornek.com").closest("tr") as HTMLElement;
     expect(within(row).getByText("Firma")).toBeInTheDocument();
     expect(within(row).getByText("İlan yayınlandı")).toBeInTheDocument();
