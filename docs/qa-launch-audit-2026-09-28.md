@@ -30,7 +30,7 @@
 | 10 | SEO/GEO | ✅ bitti |
 | 11 | Performans ve kapasite | ✅ bitti |
 | 12 | Arayüz ve erişilebilirlik | ✅ bitti |
-| 13 | Hukuk ve uyum | ⏳ |
+| 13 | Hukuk ve uyum | ✅ bitti (hukuk kararları listede) |
 | 14 | Altyapı ve operasyon | ⏳ |
 | 15 | Yayın günü ve geri dönüş | ⏳ |
 
@@ -412,7 +412,7 @@ kırmızı/yeşil duyarlılığı eski koda karşı sınandı.
 | ~~B5-14~~ ✅ (USD: Bölüm 8 0338ae56 · ısınma: Bölüm 11 828b5026) | Keşif günlük USD tavanı başarısız/süren turları saymıyor; soğuk davet ısınması takvim haftasıyla ikiye katlanıyor (gönderilen hacimle değil) | tavan zaten 15 USD; hacim Bölüm 7 ölçümünde |
 | B5-15 | E-posta adres normalizasyonu harfi harfine (`+etiket`, Gmail noktası) — çıkış/fren adres bazlı | alıcı kendi eşdeğer adresine yeniden çıkış verebilir; Bölüm 7 |
 | B5-16 (Bölüm 14) | `EMAIL_FROM_ADDRESS_INVITE` boşsa soğuk davet işlem göndereninden gider; çıkış jetonu anahtarı `JWT_SECRET`ten türer (döndürülürse gönderilmiş çıkış bağlantıları kırılır) | operatör env matrisi |
-| B5-17 (Bölüm 13) | Soğuk davet/bastırma günlük satırları üçüncü kişi adresini yazıyor | KVKK saklama kararıyla birlikte |
+| ~~B5-17~~ ✅ Bölüm 13 (962e2b42) | Soğuk davet/bastırma günlük satırları üçüncü kişi adresini yazıyor | KVKK saklama kararıyla birlikte |
 | — | `source` istemciden (B4-12), bağlantıyı açan adresin fren muafiyeti | bilinen tasarım kararları (Bölüm 4) |
 
 ---
@@ -630,4 +630,44 @@ kırmızı, `color-contrast` K-2 kararıyla UYARI), yatay taşma
 | B12-2 | ORTA | Hızlı talep 375 px'te sayfayı **502 px**'e genişletiyordu: bölüm başlığı durum rozeti (adres · gün · ödeme özeti) `shrink-0`; üst çubuk sağdan kesiliyordu. Aynı sayfada "Belgeden otomatik doldur" kartında açıklama ~50 px'lik sütuna sıkışıyordu | ✅ başlık satırı sarılır, rozet kısalır; kartta düğme dar ekranda alta, tam genişlik (131f8d37) |
 | B12-3 | DÜŞÜK | Panel ürün keşfi alt şeridi: `max-w-[22rem]` kategori çipi + sayaç 375 px'i aşıyordu | ✅ çip kapsayıcıya sığar (131f8d37) |
 | B12-4 | DÜŞÜK | Adres defteri: örtük grid sütunu içeriğe göre büyüyüp kartları 6 px taşırıyordu | ✅ `grid-cols-1` + `min-w-0` (131f8d37) |
+
+---
+
+## Bölüm 13 — Hukuk ve uyum (✅ 2026-09-29 — teknik taraf; hukuki kararlar aşağıda)
+
+| Kontrol | Sonuç |
+|---|---|
+| Sözleşme sayfaları | ✅ 6 metin (`/sozlesmeler/{kullanici,aracilik,kvkk,gizlilik,mesafeli-satis,iade}`) yayında, üç dilde erişilir (gövde bilinçli TÜRKÇE, "Türkçe metin esastır") |
+| Künye | ✅ unvan, adres, vergi dairesi/no, MERSİS; ❌ telefon yok (Mesafeli Sözleşmeler Yönetmeliği) — numara kullanıcıda (CLAUDE.md bekleyen) |
+| Çerez | ✅ analitik/izleme/reklam betiği YOK; çerezler oturum + CSRF + dil tercihi (zorunlu/işlevsel) → rıza bandı gerekmez; ziyaret sayacı çerezsiz. Aydınlatma metnine dil çerezi eklendi |
+| Kayıt rızaları | ✅ kullanıcı sözleşmesi · aracılık · KVKK bilgilendirmesi zaman damgalı (`termsAcceptedAt`, `mediationAcceptedAt`, `kvkkAcceptedAt`); pazarlama ve profil iyileştirme isteğe bağlı bayrak — bkz. H-2 |
+| Yurt dışı işleyenler | ✅ aydınlatma metni yedi sağlayıcıyı sayıyordu (Supabase, Vercel, Render, Cloudflare, Resend, Google, Sentry); amaç açıklamaları güncellendi (Resend davet/bildirim, Google çeviri + tedarikçi araması); kayıt onay satırı yalnız üçünü sayıyordu → yediye hizalandı (2158e87e) |
+| Üye olmayana e-posta (soğuk davet) | ✅ tek tık çıkış (RFC 8058) + "pazarlama listesine eklenmediniz"; **yeni:** işlem dışı her e-postada alıcının dilinde aydınlatma metni bağlantısı (KVKK m. 10) (2158e87e) |
+| Silme hakkı | self-servis hesap silme YOK; başvuru `kvkk@` → yönetici silme (`admin/companies/:id` DELETE) — KVKK başvuru usulüne uygun (30 gün) |
+| Yaptırım / ABD | ✅ kayıt kapalı listesi (ABD + toprakları, İran, K. Kore, Suriye, Küba) — Bölüm 0'da doğrulandı |
+| Günlükte kişisel veri | ✅ e-posta adresleri maskeli (962e2b42); pino/Sentry jeton maskelemesi (B5-7) |
+| Çıkış kaydı normalizasyonu (B5-15) | ✅ adres kırpılır + küçük harf; `+etiket`/Gmail noktası BİLİNÇLİ katlanmaz (sağlayıcıya özgü — başka sağlayıcıda farklı iki kutuyu birleştirirdi); çıkış, e-postanın gittiği adrese uygulanır (RFC 8058'in hedefi). Kapandı |
+
+### Bölüm 13 bulguları (teknik — düzeltildi)
+
+| # | Önem | Bulgu | Durum |
+|---|---|---|---|
+| B13-1 | ORTA | Üye olmayana giden davet e-postalarında veri sorumlusu aydınlatmasına bağlantı yoktu | ✅ alt bilgide alıcının dilinde aydınlatma metni (HTML + düz metin), işlem e-postaları değişmedi (2158e87e) |
+| B13-2 | ORTA | Kayıt onay satırı yurt dışı işleyen olarak 3 sağlayıcı sayıyordu (gerçekte 7); aydınlatma metninde Resend "işlemsel", Google yalnız "belge çıkarımı ve asistan" | ✅ olgusal düzeltme; aydınlatma metni tarihi 2026-09-29 (2158e87e) — avukat gözden geçirmesi H-1 |
+| B13-3 | ORTA | Paket düşünce (cron + admin) kayıtsız adrese davetler SİLİNİYORDU → cascade ile talep davetleri ve adres freni/geçmişi gidiyordu (B5-4'ün eşi) | ✅ iptal (CANCELLED), kuyruk da iptal (55e14e71) |
+| B5-17 | DÜŞÜK | Gönderim/atlama günlüğü alıcının tam adresini yazıyordu | ✅ maskeli (962e2b42) |
+
+### Hukuk / ürün kararları (kullanıcı + avukat)
+
+| # | Konu | Durum / öneri |
+|---|---|---|
+| H-1 | Değişen hukuki metinlerin gözden geçirilmesi (aydınlatma metni amaç açıklamaları + çerez, kayıt onay satırı, e-posta alt bilgisi aydınlatma cümlesi) | olgusal düzeltme yapıldı; avukat onayı |
+| H-2 | **Pazarlama rızası hiç okunmuyor:** kayıttaki "Pazarlama ve analitik / ticari ileti (opsiyonel)" (`marketingConsent`) hiçbir gönderimde denetlenmiyor; karşılama serisi Silver teşvik e-postaları (gün 24 "Silver'ı incele", haftalık özet Silver sürümü, pazar adımının kilitli sürümü) rızası HAYIR olana da gidiyor. 6563 s. Kanun'da tacire önceden onay şartı olmasa da kullanıcının açık seçimine aykırı → şikâyet riski | **öneri:** teşvik içerikli karşılama adımları `marketingConsent`e bağlansın (hizmet kullanımı ipuçları — profil, ürün, doğrulama — kalsın). Karar gelince tek koşul |
+| H-3 | İYS (İleti Yönetim Sistemi) kaydı: karşılama/özet e-postaları ve TR adreslere soğuk davet "ticari elektronik ileti" sayılır mı, İYS kaydı ve ret yönetimi gerekir mi | avukat |
+| H-4 | AB/EEA alıcılarına AI'ın bulduğu adrese soğuk davet: GDPR meşru menfaat değerlendirmesi + m. 14 bilgilendirme; DE/CA önceden onay listesi (B5-12 teknik kısmı kapandı) | avukat |
+| H-5 | Aydınlatma metni yalnız TÜRKÇE — EN/RU alıcı (yabancı tedarikçi) Türkçe metne yönleniyor; GDPR "anlaşılır dil" | avukat: çevrilmiş özet/sürüm gerekir mi |
+| H-6 | Davet e-postasında veri KAYNAĞI cümlesi ("adresiniz web'de yayımlanmış iletişim bilginizden bulundu" / "X firması tarafından girildi") | metin avukattan; teknik olarak kaynak (`source` MANUAL/AI_*) biliniyor |
+| H-7 | Saklama süreleri: `email_logs` (alıcı adresi, süresiz), `external_listing_invites`, çıkış kayıtları (çıkışa saygı için tutulmalı), denetim kayıtları; KYC belgeleri ve R2 **nesne kilidi** (B7-4: yenilenen belgenin eskisi silinemiyor — bilinçli yasal saklama mı, canlıda da aynı mı) | avukat + operatör; süre belirlenince temizlik cron'u |
+| H-8 | Künye telefonu (Mesafeli Sözleşmeler Yönetmeliği) | numara kullanıcıda — gelince `OPERATOR.phone` üç yere |
+| H-9 | ETBİS (çevrimiçi paket satışı başlayınca) ve VERBİS (eşik/istisna) | avukat/operatör |
 
