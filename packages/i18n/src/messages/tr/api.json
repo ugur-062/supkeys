@@ -1424,19 +1424,19 @@
     },
     "listings": {
       "cta": {
-        "viewRequest": "Satın Alma Talebini Gör",
+        "viewRequest": "Alım Talebini Gör",
         "reviewBids": "Teklifleri İncele",
         "placeBid": "Teklif Ver",
         "viewOrder": "Siparişi Gör",
         "viewPlans": "Paketleri Gör",
-        "viewOpenRequests": "Açık Satın Alma Taleplerini Gör",
+        "viewOpenRequests": "Açık Alım Taleplerini Gör",
         "upgradeSilver": "Silver'a Geç",
         "verifyFree": "Ücretsiz Doğrulan"
       },
       "closed": {
-        "subject": "Satın Alma Talebinde teklif alımı kapandı",
-        "title": "Satın Alma Talebi değerlendirme aşamasında",
-        "body": "\"{title}\" ({number}) satın alma talebinde teklif alımı kapandı; satın alma talebi değerlendirme aşamasına geçti. Sonuç açıklandığında bilgilendirileceksiniz."
+        "subject": "Alım Talebinde teklif alımı kapandı",
+        "title": "Alım Talebi değerlendirme aşamasında",
+        "body": "\"{title}\" ({number}) alım talebinde teklif alımı kapandı; alım talebi değerlendirme aşamasına geçti. Sonuç açıklandığında bilgilendirileceksiniz."
       },
       "closedOwner": {
         "subject": "Satın Alma Talebiniz kapandı — kazandırma kararı bekleniyor",
@@ -1446,34 +1446,34 @@
       "categoryMatch": {
         "footerNote": "Bu bildirimi kategori tercihlerinize göre alıyorsunuz.",
         "buy": {
-          "heading": "Kategorinize uygun yeni satın alma talebi",
-          "openSubject": "Size uygun yeni bir satın alma talebi yayınlandı",
-          "openBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\" ({number}). Talep edilen kalemleri aşağıda görebilirsiniz; talebi açıp hemen teklif verin.",
-          "openInAppBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi: \"{title}\" ({number}).",
+          "heading": "Kategorinize uygun yeni alım talebi",
+          "openSubject": "Size uygun yeni bir alım talebi yayınlandı",
+          "openBody": "Sattığınız kategorilerle eşleşen yeni bir alım talebi yayınlandı: \"{title}\" ({number}). Talep edilen kalemleri aşağıda görebilirsiniz; talebi açıp hemen teklif verin.",
+          "openInAppBody": "Sattığınız kategorilerle eşleşen yeni bir alım talebi: \"{title}\" ({number}).",
           "lockedSubject": "Kategorinizde yeni bir alıcı var — teklif vermek için Silver'a geçin",
-          "lockedBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\" ({number}). Neler istendiğini aşağıda görebilirsiniz. Ücretsiz üyelikte herkese açık taleplere teklif verilemez; Silver pakete geçerek bu talebe ve kategorinizdeki diğer açık taleplere teklif verebilir, firma dizininde öne çıkabilirsiniz. Bağlantılarınızın sizi davet ettiği talepler her zaman ücretsizdir.",
+          "lockedBody": "Sattığınız kategorilerle eşleşen yeni bir alım talebi yayınlandı: \"{title}\" ({number}). Neler istendiğini aşağıda görebilirsiniz. Ücretsiz üyelikte herkese açık taleplere teklif verilemez; Silver pakete geçerek bu talebe ve kategorinizdeki diğer açık taleplere teklif verebilir, firma dizininde öne çıkabilirsiniz. Bağlantılarınızın sizi davet ettiği talepler her zaman ücretsizdir.",
           "lockedInAppTitle": "Kategorinizde yeni bir alıcı — teklif vermek için Silver'a geçin",
-          "lockedInAppBody": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\". Bu talebe teklif vermek için Silver pakete geçin.",
-          "lockedBodyUnverified": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\" ({number}). Neler istendiğini aşağıda görebilirsiniz. Ücretsiz üyelikte herkese açık taleplere teklif verilemez; Silver pakete geçmenin tek şartı firmanızı ücretsiz doğrulamaktır. Önce doğrulanın, sonra Silver'la bu talebe ve kategorinizdeki diğer açık taleplere teklif verin. Bağlantılarınızın sizi davet ettiği talepler her zaman ücretsizdir.",
-          "lockedInAppBodyUnverified": "Sattığınız kategorilerle eşleşen yeni bir satın alma talebi yayınlandı: \"{title}\". Teklif vermek için önce firmanızı ücretsiz doğrulayın, sonra Silver'a geçin."
+          "lockedInAppBody": "Sattığınız kategorilerle eşleşen yeni bir alım talebi yayınlandı: \"{title}\". Bu talebe teklif vermek için Silver pakete geçin.",
+          "lockedBodyUnverified": "Sattığınız kategorilerle eşleşen yeni bir alım talebi yayınlandı: \"{title}\" ({number}). Neler istendiğini aşağıda görebilirsiniz. Ücretsiz üyelikte herkese açık taleplere teklif verilemez; Silver pakete geçmenin tek şartı firmanızı ücretsiz doğrulamaktır. Önce doğrulanın, sonra Silver'la bu talebe ve kategorinizdeki diğer açık taleplere teklif verin. Bağlantılarınızın sizi davet ettiği talepler her zaman ücretsizdir.",
+          "lockedInAppBodyUnverified": "Sattığınız kategorilerle eşleşen yeni bir alım talebi yayınlandı: \"{title}\". Teklif vermek için önce firmanızı ücretsiz doğrulayın, sonra Silver'a geçin."
         }
       },
       "invitation": {
-        "subject": "Bir satın alma talebine davet edildiniz",
-        "title": "Satın Alma Talebi daveti",
-        "body": "\"{title}\" ({number}) satın alma talebine davet edildiniz. Talep edilen kalemleri aşağıda görebilirsiniz; detaylar ve teklif için talebi açın.",
-        "inAppBody": "\"{title}\" ({number}) satın alma talebine davet edildiniz."
+        "subject": "Bir alım talebine davet edildiniz",
+        "title": "Alım Talebi daveti",
+        "body": "\"{title}\" ({number}) alım talebine davet edildiniz. Talep edilen kalemleri aşağıda görebilirsiniz; detaylar ve teklif için talebi açın.",
+        "inAppBody": "\"{title}\" ({number}) alım talebine davet edildiniz."
       },
       "reminder": {
-        "subject": "Satın Alma Talebi kapanışı yaklaşıyor",
+        "subject": "Alım Talebi kapanışı yaklaşıyor",
         "title": "Kapanış hatırlatması",
-        "body": "\"{title}\" ({number}) satın alma talebinin kapanışı yaklaşıyor. Teklif vermek için son şansınız."
+        "body": "\"{title}\" ({number}) alım talebinin kapanışı yaklaşıyor. Teklif vermek için son şansınız."
       },
       "newRound": {
-        "subject": "Satın Alma Talebinde yeni tur başladı",
+        "subject": "Alım Talebinde yeni tur başladı",
         "title": "Yeni tur açıldı",
-        "body": "\"{title}\" ({number}) satın alma talebinde yeni bir tur açıldı. Güncel teklifinizi vermek için giriş yapın.",
-        "inAppBody": "\"{title}\" ({number}) satın alma talebinde yeni tur açıldı — güncel teklifinizi verin."
+        "body": "\"{title}\" ({number}) alım talebinde yeni bir tur açıldı. Güncel teklifinizi vermek için giriş yapın.",
+        "inAppBody": "\"{title}\" ({number}) alım talebinde yeni tur açıldı — güncel teklifinizi verin."
       },
       "bidReceived": {
         "title": "Yeni teklif geldi",
@@ -1482,43 +1482,43 @@
       "awarded": {
         "subject": "Tebrikler — teklifiniz kazandı",
         "title": "Teklifiniz kazandı",
-        "body": "Bir satın alma talebinde teklifiniz kazandı ve {orderNumbers} numaralı {count, plural, one {sipariş} other {siparişler}} oluştu. Sipariş detaylarını ve sonraki adımları Rothern''den takip edebilirsiniz.",
-        "bodyShort": "Bir satın alma talebinde teklifiniz kazandı ve {orderNumbers} numaralı {count, plural, one {sipariş} other {siparişler}} oluştu."
+        "body": "Bir alım talebinde teklifiniz kazandı ve {orderNumbers} numaralı {count, plural, one {sipariş} other {siparişler}} oluştu. Sipariş detaylarını ve sonraki adımları Rothern''den takip edebilirsiniz.",
+        "bodyShort": "Bir alım talebinde teklifiniz kazandı ve {orderNumbers} numaralı {count, plural, one {sipariş} other {siparişler}} oluştu."
       },
       "lost": {
-        "title": "Satın Alma Talebi sonuçlandı",
-        "body": "\"{title}\" ({number}) satın alma talebi sonuçlandı; bu turda teklifiniz kazanmadı.",
-        "emailBody": "\"{title}\" ({number}) satın alma talebi sonuçlandı; bu turda teklifiniz kazanmadı. Yeni fırsatlar için Rothern''i takip edebilirsiniz."
+        "title": "Alım Talebi sonuçlandı",
+        "body": "\"{title}\" ({number}) alım talebi sonuçlandı; bu turda teklifiniz kazanmadı.",
+        "emailBody": "\"{title}\" ({number}) alım talebi sonuçlandı; bu turda teklifiniz kazanmadı. Yeni fırsatlar için Rothern''i takip edebilirsiniz."
       },
       "nextRoundCarried": {
         "subject": "Yeni tur açıldı — teklifiniz taşındı",
         "heading": "Teklifiniz yeni tura taşındı",
         "inAppTitle": "Yeni tur — teklifiniz taşındı",
-        "body": "\"{title}\" ({number}) satın alma talebinde {round, select, auction {açık eksiltme turu} other {yeni tur}} açıldı. {amount} teklifiniz geçerlilik süresi devam ettiği için aynen taşındı — dilerseniz fiyatınızı düşürebilirsiniz."
+        "body": "\"{title}\" ({number}) alım talebinde {round, select, auction {açık eksiltme turu} other {yeni tur}} açıldı. {amount} teklifiniz geçerlilik süresi devam ettiği için aynen taşındı — dilerseniz fiyatınızı düşürebilirsiniz."
       },
       "nextRoundExpired": {
         "subject": "Teklifinizin geçerlilik süresi doldu — işlem gerekli",
         "title": "Teklifinizin geçerliliği doldu",
-        "body": "\"{title}\" ({number}) satın alma talebinde {round, select, auction {açık eksiltme turu} other {yeni tur}} açıldı ancak önceki teklifinizin geçerlilik süresi dolduğu için teklifiniz taşınamadı. {opens, select, future {Açılışa ({openAt}) kadar} other {Devam etmek için}} yeni fiyat verin ya da mevcut teklifinizin geçerlilik süresini uzatın."
+        "body": "\"{title}\" ({number}) alım talebinde {round, select, auction {açık eksiltme turu} other {yeni tur}} açıldı ancak önceki teklifinizin geçerlilik süresi dolduğu için teklifiniz taşınamadı. {opens, select, future {Açılışa ({openAt}) kadar} other {Devam etmek için}} yeni fiyat verin ya da mevcut teklifinizin geçerlilik süresini uzatın."
       },
       "eliminated": {
         "subject": "Teklifiniz hakkında güncelleme",
         "title": "Teklifiniz değerlendirme dışı kaldı",
-        "body": "\"{title}\" ({number}) satın alma talebinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz."
+        "body": "\"{title}\" ({number}) alım talebinde teklifiniz bu turda elendi. Dilerseniz güncelleyip yeniden teklif verebilirsiniz."
       },
       "cancelled": {
-        "title": "Satın Alma Talebi iptal edildi",
-        "body": "\"{title}\" ({number}) satın alma talebi ilan sahibi tarafından iptal edildi.{hasReason, select, yes { Gerekçe: {reason}} other {}}"
+        "title": "Alım Talebi iptal edildi",
+        "body": "\"{title}\" ({number}) alım talebi ilan sahibi tarafından iptal edildi.{hasReason, select, yes { Gerekçe: {reason}} other {}}"
       },
       "closedNoAward": {
-        "subject": "Satın Alma Talebi kazanan olmadan kapatıldı",
-        "title": "Satın Alma Talebi sonuçlanmadan kapatıldı",
-        "body": "\"{title}\" ({number}) satın alma talebi kazanan seçilmeden kapatıldı.{hasReason, select, yes { Gerekçe: {reason}} other {}}"
+        "subject": "Alım Talebi kazanan olmadan kapatıldı",
+        "title": "Alım Talebi sonuçlanmadan kapatıldı",
+        "body": "\"{title}\" ({number}) alım talebi kazanan seçilmeden kapatıldı.{hasReason, select, yes { Gerekçe: {reason}} other {}}"
       },
       "closingChanged": {
-        "subject": "Satın Alma Talebi kapanış zamanı değişti",
+        "subject": "Alım Talebi kapanış zamanı değişti",
         "title": "Kapanış zamanı değişti",
-        "body": "\"{title}\" ({number}) satın alma talebinin kapanış zamanı {direction, select, extended {uzatıldı} advanced {öne çekildi} other {güncellendi}}. Yeni kapanış: {closesAt}."
+        "body": "\"{title}\" ({number}) alım talebinin kapanış zamanı {direction, select, extended {uzatıldı} advanced {öne çekildi} other {güncellendi}}. Yeni kapanış: {closesAt}."
       },
       "evaluationReminder": {
         "subject": "Değerlendirmedeki satın alma talebinde teklif geçerlilikleri doluyor",
@@ -1532,17 +1532,17 @@
         "place": "Teslim yeri"
       },
       "aiInvitation": {
-        "subject": "{inviter} sizi bir satın alma talebine davet etti",
-        "subjectAnon": "Sattıklarınıza uygun bir satın alma talebine davet edildiniz",
-        "body": "\"{title}\" ({number}) satın alma talebine davet edildiniz. Talep edilen kalemleri aşağıda görebilirsiniz; ayrıntılar ve teklif için talebi açın.",
-        "bodyProduct": "\"{title}\" ({number}) satın alma talebine davet edildiniz. Sizi vitrininizdeki \"{product}\" ürünü nedeniyle önerdik; talep edilen kalemler aşağıda.",
-        "bodyCategory": "\"{title}\" ({number}) satın alma talebine davet edildiniz. Talep, sattığınız kategoriyle eşleşiyor; talep edilen kalemler aşağıda.",
+        "subject": "{inviter} sizi bir alım talebine davet etti",
+        "subjectAnon": "Sattıklarınıza uygun bir alım talebine davet edildiniz",
+        "body": "\"{title}\" ({number}) alım talebine davet edildiniz. Talep edilen kalemleri aşağıda görebilirsiniz; ayrıntılar ve teklif için talebi açın.",
+        "bodyProduct": "\"{title}\" ({number}) alım talebine davet edildiniz. Sizi vitrininizdeki \"{product}\" ürünü nedeniyle önerdik; talep edilen kalemler aşağıda.",
+        "bodyCategory": "\"{title}\" ({number}) alım talebine davet edildiniz. Talep, sattığınız kategoriyle eşleşiyor; talep edilen kalemler aşağıda.",
         "footer": "Bu davet, Rothern'in tedarikçi önerisiyle gönderildi. Talep davetlerini Ayarlar › Bildirimler'den kapatabilirsiniz."
       },
       "aiMatchLocked": {
         "subject": "Bir alıcı sattığınız ürünleri arıyor",
-        "bodySilver": "Bir alıcının AI tedarikçi araması, \"{title}\" ({number}) satın alma talebi için firmanızı uygun buldu; talep edilen kalemler aşağıda. Ücretsiz pakette olduğunuz için alıcıya önerilmediniz ve talebi göremiyorsunuz. Silver pakette bu talebi görür ve teklif verirsiniz; alıcıların AI tedarikçi önerilerinde de çıkarsınız.",
-        "bodyVerify": "Bir alıcının AI tedarikçi araması, \"{title}\" ({number}) satın alma talebi için firmanızı uygun buldu; talep edilen kalemler aşağıda. Firmanız doğrulanmamış ve ücretsiz pakette olduğu için alıcıya önerilmediniz ve talebi göremiyorsunuz. Önce firmanızı ücretsiz doğrulayın — Silver pakete geçmenin tek şartı budur; Silver'la bu talebe teklif verir ve alıcıların AI tedarikçi önerilerinde çıkarsınız.",
+        "bodySilver": "Bir alıcının AI tedarikçi araması, \"{title}\" ({number}) alım talebi için firmanızı uygun buldu; talep edilen kalemler aşağıda. Ücretsiz pakette olduğunuz için alıcıya önerilmediniz ve talebi göremiyorsunuz. Silver pakette bu talebi görür ve teklif verirsiniz; alıcıların AI tedarikçi önerilerinde de çıkarsınız.",
+        "bodyVerify": "Bir alıcının AI tedarikçi araması, \"{title}\" ({number}) alım talebi için firmanızı uygun buldu; talep edilen kalemler aşağıda. Firmanız doğrulanmamış ve ücretsiz pakette olduğu için alıcıya önerilmediniz ve talebi göremiyorsunuz. Önce firmanızı ücretsiz doğrulayın — Silver pakete geçmenin tek şartı budur; Silver'la bu talebe teklif verir ve alıcıların AI tedarikçi önerilerinde çıkarsınız.",
         "inAppBodySilver": "\"{title}\" talebi için AI firmanızı uygun buldu. Talebi görmek ve teklif vermek için Silver'a geçin.",
         "inAppBodyVerify": "\"{title}\" talebi için AI firmanızı uygun buldu. Önce firmanızı ücretsiz doğrulayın, sonra Silver ile teklif verin.",
         "footer": "Bu bildirimi vitrininiz ve kategorileriniz bir alıcının aramasıyla eşleştiği için alıyorsunuz. Kategori bildirimlerini Ayarlar › Bildirimler'den kapatabilirsiniz."

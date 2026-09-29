@@ -91,12 +91,12 @@ describe("herkese açık talep — bağlantılar otomatik davetli + kategori duy
     const byTo = (e: string) => sends.find((s) => s.to.email === e)!;
 
     const inv = byTo("bagli@a.com");
-    expect(inv.subject).toBe("Bir satın alma talebine davet edildiniz");
+    expect(inv.subject).toBe("Bir alım talebine davet edildiniz");
     const invRows = JSON.stringify(inv.templateData.data.infoRows);
     expect(invRows).toContain("Kalemler (1)");
     expect(invRows).toContain("Paslanmaz boru DN50 — 1.200 m");
     expect(invRows).toContain("Son teklif tarihi");
-    expect(byTo("bagli-kat@b.com").subject).toBe("Bir satın alma talebine davet edildiniz");
+    expect(byTo("bagli-kat@b.com").subject).toBe("Bir alım talebine davet edildiniz");
 
     const free = byTo("ucretsiz@c.com");
     expect(free.subject).toMatch(/Silver'a geçin/);
