@@ -2,6 +2,7 @@ import {
   coldInviteDailyCap,
   inviteHoldUntil,
   invitePaused,
+  registrationBlockedCountry,
   reminderDue,
 } from "../../src/common/company/external-invite-policy";
 import {
@@ -131,5 +132,16 @@ describe("alıcının mesai saati", () => {
     expect(zonedTimeToUtc(2026, 10, 26, 9, 0, "Europe/Berlin").toISOString()).toBe("2026-10-26T08:00:00.000Z");
     // Yaz saatinde (UTC+2): 09:00 yerel = 07:00Z
     expect(zonedTimeToUtc(2026, 10, 20, 9, 0, "Europe/Berlin").toISOString()).toBe("2026-10-20T07:00:00.000Z");
+  });
+});
+
+describe("kayda kapalı ülke (X24)", () => {
+  it("ipuçlarından HERHANGİ biri REGISTRATION_BLOCKED ise kapanır; uzantı da tanınır", () => {
+    expect(registrationBlockedCountry("US")).toBe(true);
+    expect(registrationBlockedCountry(" ir ")).toBe(true);
+    expect(registrationBlockedCountry("DE", countryFromEmailDomain("sales@pipes.us"))).toBe(true);
+    expect(countryFromEmailDomain("info@tehransteel.ir")).toBe("IR");
+    expect(registrationBlockedCountry(null, countryFromEmailDomain("a@firma.com"))).toBe(false);
+    expect(registrationBlockedCountry("CA", "DE", null)).toBe(false);
   });
 });

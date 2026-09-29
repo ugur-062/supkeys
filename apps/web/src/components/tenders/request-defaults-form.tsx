@@ -16,7 +16,7 @@ import {
 import { CURRENCIES, DELIVERY_TERMS } from "@/lib/tenders/labels";
 import type { LcSubType } from "@/lib/tenders/types";
 import { cn } from "@/lib/utils";
-import { COUNTRIES, PAYMENT_CATEGORIES, REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
+import { COUNTRIES, isRegistrationOpen, PAYMENT_CATEGORIES, REQUEST_CLOSE_DAY_OPTIONS, REQUEST_CLOSE_DAYS_MAX, sellerDoorPriceWarning, type RequestDefaults } from "@rothern/shared";
 import { Globe, MapPin } from "lucide-react";
 import { createContext, useContext } from "react";
 
@@ -138,7 +138,8 @@ export function RequestDefaultsForm({
                 className={INPUT}
               >
                 <option value="">{tr("ulkeEkle2")}</option>
-                {COUNTRIES.filter((c) => !countries.includes(c.code)).map((c) => (
+                {/* Kayda kapalı ülke hedeflenemez (API de reddeder; derin denetim X24). */}
+                {COUNTRIES.filter((c) => isRegistrationOpen(c.code) && !countries.includes(c.code)).map((c) => (
                   <option key={c.code} value={c.code}>
                     {countryDisplayName(c.code, locale)}
                   </option>

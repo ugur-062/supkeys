@@ -98,6 +98,10 @@ export function ListingSuggestions({
 
   if (!q.data) return null;
   if (runs.length === 0 && !(q.data.aiDiscovery && q.data.listingStatus === "OPEN")) return null;
+  // Tur hiç gelmedi (yoklama tavanı doldu) → süresiz "aranıyor" bandı çizilmez.
+  if (runs.length === 0 && q.emptyPollExhausted) return null;
+  // Embargolu talep: tur açılışta yazılır — "aranıyor" değil bekleme metni.
+  const awaitingOpen = runs.length === 0 && !!q.data.startsAt;
   if (variant === "band" && (dismissed || (!searching && open_.length === 0))) return null;
 
   const chosen = [...selected].filter((k) => open_.some((r) => r.key === k));
@@ -130,7 +134,9 @@ export function ListingSuggestions({
           <Sparkles className="h-4 w-4" aria-hidden />
         </div>
         <div className="min-w-0 flex-1">
-          {searching || runs.length === 0 ? (
+          {awaitingOpen ? (
+            <p className="text-sm font-medium text-zinc-900">{t("bandAwaitingOpen")}</p>
+          ) : searching || runs.length === 0 ? (
             <p className="flex items-center gap-2 text-sm font-medium text-zinc-900">
               <Loader2 className="h-4 w-4 animate-spin" aria-hidden />
               {t("bandSearching")}

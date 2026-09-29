@@ -238,6 +238,7 @@
     "ozelOdemeSeklindeOdemeKosuluNotu": "Özel ödeme şeklinde ödeme koşulu notu zorunlu",
     "izinVerilenParaBirimleriIlaninAna": "İzin verilen para birimleri ilanın ana birimini içermeli",
     "gecersizHedefUlkeKodu": "Geçersiz hedef ülke kodu: {c}",
+    "hedefUlkeKayitKapali": "Kayda kapalı ülke hedeflenemez: {c}. Rothern bu ülkeden firma kaydı almıyor; ülkeyi görünürlük listesinden çıkarın.",
     "gecersizKategoriSecimi": "Geçersiz kategori seçimi",
     "ozelDavetliIlanEnAzBir": "Özel (davetli) ilan en az bir davetli firma ile yayınlanabilir",
     "icinGoldPaketSatinalmaPaneliGerekir": "{action} için Gold paket (satınalma paneli) gerekir. Mevcut satın alma taleplerinizi tamamlayabilirsiniz ancak yeni ilan işi başlatamazsınız.",
@@ -649,7 +650,8 @@
       "evaluating": "Değerlendirmede",
       "won": "Kazanıldı"
     },
-    "noData": "Veri yok"
+    "noData": "Veri yok",
+    "uncategorized": "Kategorisiz"
   },
   "companyConnections": {
     "tokenGerekli": "Token gerekli",
@@ -683,6 +685,7 @@
     "buAdresEPostaAlamiyor": "Bu adres daha önce e-postalarımızı kalıcı olarak geri çevirdi ya da şikâyet etti; e-posta gönderilmedi",
     "gecersizEPostaAdresi": "Geçersiz e-posta adresi",
     "onayGerekenUlke": "Bu ülkedeki firmalara önceden onay alınmadan davet gönderilmiyor. Firmayı tanıyorsanız adresi elle ekleyin.",
+    "kayitKapaliUlke": "Bu ülkeden firmalar Rothern'e kayıt olamadığı için davet gönderilmiyor.",
     "anonymousBuyer": "Bir alıcı firma"
   },
   "companySupplierTemplates": {

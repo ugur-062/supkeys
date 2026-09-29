@@ -19,10 +19,11 @@ import {
   COLD_INVITE_CONSENT_COUNTRIES,
   INVITE_HOLD_DAYS,
   isConsentCountry,
+  registrationBlockedCountry,
 } from "../../../common/company/external-invite-policy";
 import { hasMailExchanger, type MxChecker } from "../../../common/net/mx-check";
 import { countryFromEmailDomain, countryFromHost } from "../../../common/time/country-time-zone";
-import { countryName, EMAIL_MAX_LENGTH, isValidCountryCode } from "@rothern/shared";
+import { countryName, EMAIL_MAX_LENGTH, isRegistrationOpen, isValidCountryCode, REGISTRATION_BLOCKED } from "@rothern/shared";
 import type { Locale } from "@rothern/i18n";
 
 const MAX_CANDIDATES = 12;
@@ -137,6 +138,12 @@ export function discoveryLocationLine(input: {
  *  - tüm ülkelere açıksa İKİ geçiş: alıcının ülkesi (LOCAL) + yurt dışı
  *    (ABROAD: model bu kalemlerde güçlü üretici/ihracatçı en fazla 5 ülke
  *    seçer; önceden onay isteyen ülkeler hariç tutulur — oraya davet gitmez).
+ *
+ * KAYDA KAPALI ÜLKELER (`REGISTRATION_BLOCKED`) HİÇ ARANMAZ (derin denetim
+ * 2026-09-29 X24): hedef listesinden düşer, ABROAD istemindeki HARİÇ listesine
+ * girer; talep YALNIZ kapalı ülkelere açıksa geçiş yok (eski kayıt — yeni talep
+ * bu ülkeleri hedefleyemez). Kapalı ülkedeki (mevcut) alıcının kendi ülkesi de
+ * yurt içi geçişi açmaz.
  */
 export interface SearchPass {
   scope: "LOCAL" | "ABROAD" | null;
@@ -148,8 +155,10 @@ export function discoveryPasses(input: {
   buyerCountry: string | null;
   region?: string;
 }): SearchPass[] {
-  const targets = [...new Set(input.targetCountries)].filter((c) => isValidCountryCode(c));
-  const buyer = input.buyerCountry && isValidCountryCode(input.buyerCountry) ? input.buyerCountry : null;
+  const valid = [...new Set(input.targetCountries)].filter((c) => isValidCountryCode(c));
+  const targets = valid.filter((c) => isRegistrationOpen(c));
+  if (valid.length > 0 && targets.length === 0) return [];
+  const buyer = input.buyerCountry && isRegistrationOpen(input.buyerCountry) ? input.buyerCountry : null;
   if (targets.length > 0) {
     return [
       {
@@ -161,7 +170,9 @@ export function discoveryPasses(input: {
   if (!buyer) {
     return [{ scope: null, locationLine: discoveryLocationLine({ targetCountries: [], buyerCountry: null, region: input.region }) }];
   }
-  const excluded = [...COLD_INVITE_CONSENT_COUNTRIES].map((c) => countryName(c)).join(", ");
+  const excluded = [...new Set([...COLD_INVITE_CONSENT_COUNTRIES, ...REGISTRATION_BLOCKED])]
+    .map((c) => countryName(c))
+    .join(", ");
   const region = (input.region ?? "").trim().slice(0, 60);
   return [
     {
@@ -401,7 +412,17 @@ export class SupplierDiscoveryService {
         .filter((c) => c.name)
         // Talep yalnız belirli ülkelere açıksa DIŞINDAKİ ülkenin firması
         // düşer (davet edilse talebi göremezdi). Ülkesi bilinmeyen kalır.
-        .filter((c) => targetSet.size === 0 || !c.country || targetSet.has(c.country));
+        .filter((c) => targetSet.size === 0 || !c.country || targetSet.has(c.country))
+        // Kayda kapalı ülke (etiket, e-posta ya da site uzantısı) düşer —
+        // davet gidemez, davetli kayıt olamaz (X24; `annotate` ikinci hat).
+        .filter(
+          (c) =>
+            !registrationBlockedCountry(
+              c.country,
+              countryFromEmailDomain(c.email),
+              countryFromHost(websiteHost(c.website)),
+            ),
+        );
       return { companies, cost };
     };
 
@@ -546,6 +567,9 @@ export class SupplierDiscoveryService {
     for (const c of withEmail) {
       if (optOut.has(c.email) || mxOk.get(c.email) === false) continue;
       const host = websiteHost(c.website);
+      // Kayda kapalı ülke (REGISTRATION_BLOCKED) — ipuçlarından HERHANGİ biri
+      // yeter; aday listeye girmez, davet e-postası hiç gitmez (X24).
+      if (registrationBlockedCountry(c.country, countryFromEmailDomain(c.email), countryFromHost(host))) continue;
       // Aynı firmanın ikinci adresi (info@ + satis@) — talep başına tek adres.
       if (host) {
         if (seenHosts.has(host)) continue;

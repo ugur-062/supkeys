@@ -238,6 +238,7 @@
     "ozelOdemeSeklindeOdemeKosuluNotu": "A payment condition note is required for a custom payment term",
     "izinVerilenParaBirimleriIlaninAna": "The allowed currencies must include the main currency of the request",
     "gecersizHedefUlkeKodu": "Invalid target country code: {c}",
+    "hedefUlkeKayitKapali": "This country can't be targeted because registration is closed there: {c}. Rothern doesn't accept companies from this country; remove it from the visibility list.",
     "gecersizKategoriSecimi": "Invalid category selection",
     "ozelDavetliIlanEnAzBir": "A private (invite-only) request can be published with at least one invited company",
     "icinGoldPaketSatinalmaPaneliGerekir": "{action} requires a Gold plan (buying panel). You can complete your existing buying requests, but you cannot start new request work.",
@@ -649,7 +650,8 @@
       "evaluating": "Under evaluation",
       "won": "Won"
     },
-    "noData": "No data"
+    "noData": "No data",
+    "uncategorized": "Uncategorized"
   },
   "companyConnections": {
     "tokenGerekli": "Token is required",
@@ -683,6 +685,7 @@
     "buAdresEPostaAlamiyor": "This address has previously rejected our emails permanently or reported them as spam; no email was sent",
     "gecersizEPostaAdresi": "Invalid email address",
     "onayGerekenUlke": "Invitations aren't sent to companies in this country without prior consent. If you know the company, add the address manually.",
+    "kayitKapaliUlke": "Invitations aren't sent because companies from this country can't register on Rothern.",
     "anonymousBuyer": "A buyer"
   },
   "companySupplierTemplates": {

@@ -33,7 +33,7 @@ import {
 } from "@rothern/db";
 import { OnEvent } from "@nestjs/event-emitter";
 import { buildProductMatcher, productMatchReason } from "../../../common/company/product-request-match";
-import { derivePaymentTiming, countryCanSee, deriveIsInternational, normalizeTargetCountries, isValidCountryCode, normalizeShortCode, tierAtLeast, BUYING_TIER, PAID_TIER, validateShortCode ,
+import { derivePaymentTiming, countryCanSee, deriveIsInternational, normalizeTargetCountries, isRegistrationOpen, isValidCountryCode, normalizeShortCode, tierAtLeast, BUYING_TIER, PAID_TIER, validateShortCode ,
   normalizeUnit,} from "@rothern/shared";
 import { PrismaService, PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { bidderPermission } from "../bidder-op-role";
@@ -1063,6 +1063,21 @@ export class CompanyListingsService {
     });
   }
 
+  /**
+   * Yayındaki (duyurusu yapılmış) talep düzenlendi: otomatik AI keşfi açık,
+   * talep hâlâ OPEN ve teklife açıksa (embargo bitmiş) tur yoksa yazılır.
+   * `enqueueDiscoveryRun` idempotent (açık değilse ya da tur varsa döner).
+   */
+  private async enqueueDiscoveryAfterEdit(listingId: string): Promise<void> {
+    const l = await this.bypass.listing.findUnique({
+      where: { id: listingId },
+      select: { status: true, bidsOpenAt: true },
+    });
+    if (!l || l.status !== "OPEN") return;
+    if (l.bidsOpenAt && l.bidsOpenAt > new Date()) return;
+    await this.enqueueDiscoveryRun(listingId);
+  }
+
   async announceListingOpen(
     listingId: string,
     kind: "invitation" | "newRound",
@@ -1459,6 +1474,14 @@ export class CompanyListingsService {
       if (!isValidCountryCode(c)) {
         throw new BadRequestException(i18nMessage("api.companyListings.gecersizHedefUlkeKodu", { c: c }));
       }
+      // Kayda kapalı ülke (`REGISTRATION_BLOCKED`) hedeflenemez: oradan firma
+      // kayıt olamaz, davet gidemez (derin denetim 2026-09-29 X24). Sessizce
+      // süzülmez — yalnız o ülkeyi hedefleyen talep "tüm ülkeler"e genişlerdi.
+      if (!isRegistrationOpen(c)) {
+        throw new BadRequestException(
+          i18nMessage("api.companyListings.hedefUlkeKayitKapali", { c: c }, "TARGET_COUNTRY_BLOCKED"),
+        );
+      }
     }
     // Kategori kodları taksonomide var olmalı (ihale için level ≥ 3).
     //
@@ -1766,6 +1789,7 @@ export class CompanyListingsService {
         type: true,
         format: true,
         createdById: true,
+        openNotifiedAt: true,
       },
     });
     // Faz 3 — tx İÇİNDE toplanır, commit'ten SONRA R2'dan silinir (tx geri
@@ -2026,6 +2050,20 @@ export class CompanyListingsService {
           }`,
         ),
       );
+      // Duyuru ÇOKTAN yapıldıysa (claim alınamaz) sonradan açılan otomatik AI
+      // keşfi turu buradan kuyruğa girer (derin denetim 2026-09-29 S090) —
+      // yoksa talep sayfası süresiz "aranıyor" derdi. Duyuru henüz yapılmadıysa
+      // turu `announceListingOpen` yazar (çift tur olmasın diye burada değil);
+      // embargo sürüyorsa açılış duyurusu yazar.
+      if (existing.openNotifiedAt) {
+        await this.enqueueDiscoveryAfterEdit(listingId).catch((err) =>
+          this.logger.warn(
+            `AI discovery enqueue after edit failed (${listingId}): ${
+              err instanceof Error ? err.message : String(err)
+            }`,
+          ),
+        );
+      }
     }
     // Faz 3 — yetim R2 nesnelerini en-iyi-çaba temizle. Başarısızlık akışı
     // KIRMAZ (kullanıcının düzenlemesi tamamlandı) ama loglanır; bucket

@@ -11,13 +11,14 @@ import { ListingSuggestions } from "../listing-suggestions";
  */
 const h = vi.hoisted(() => ({
   data: undefined as unknown,
+  exhausted: false,
   invite: vi.fn(),
   dismiss: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
 }));
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/hooks/use-supplier-discovery", () => ({
-  useListingDiscovery: () => ({ data: h.data }),
+  useListingDiscovery: () => ({ data: h.data, emptyPollExhausted: h.exhausted }),
   useInviteDiscoveryCandidates: () => ({ mutateAsync: h.invite, isPending: false }),
   useDismissListingDiscovery: () => ({ mutate: h.dismiss, isPending: false }),
 }));
@@ -50,6 +51,7 @@ beforeEach(() => {
   });
   h.dismiss.mockReset();
   h.toast.success.mockReset();
+  h.exhausted = false;
 });
 
 describe("ListingSuggestions", () => {
@@ -126,6 +128,23 @@ describe("ListingSuggestions", () => {
     expect(screen.getByText(/AI talebiniz için yurt içinde ve yurt dışında tedarikçi arıyor/)).toBeInTheDocument();
     h.data = { aiDiscovery: false, listingStatus: "OPEN", runs: [] };
     const { container } = render(<ListingSuggestions listingId="l2" itemNames={[]} buyerCountry="TR" variant="panel" />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("embargolu talepte tur yokken 'aranıyor' değil 'açılınca başlar' der (S090)", () => {
+    h.data = { aiDiscovery: true, listingStatus: "OPEN", startsAt: "2099-01-01T09:00:00.000Z", runs: [] };
+    render(<ListingSuggestions listingId="l1" itemNames={[]} buyerCountry="TR" variant="panel" />);
+    expect(screen.getByText("AI tedarikçi araması talep teklife açılınca başlar.")).toBeInTheDocument();
+    expect(screen.queryByText(/tedarikçi arıyor/)).not.toBeInTheDocument();
+  });
+
+  it("tur hiç gelmediyse (yoklama tavanı doldu) süresiz 'aranıyor' bandı çizilmez (S090)", () => {
+    h.data = { aiDiscovery: true, listingStatus: "OPEN", startsAt: null, runs: [] };
+    const { unmount } = render(<ListingSuggestions listingId="l1" itemNames={[]} buyerCountry="TR" variant="panel" />);
+    expect(screen.getByText(/tedarikçi arıyor/)).toBeInTheDocument();
+    unmount();
+    h.exhausted = true;
+    const { container } = render(<ListingSuggestions listingId="l1" itemNames={[]} buyerCountry="TR" variant="panel" />);
     expect(container).toBeEmptyDOMElement();
   });
 });

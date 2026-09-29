@@ -88,6 +88,7 @@ export type ExternalInviteStatus =
   | "OPTED_OUT"
   | "DAILY_LIMIT"
   | "CONSENT_REQUIRED"
+  | "COUNTRY_BLOCKED"
   | "INVALID";
 
 export interface ExternalInviteResult {
@@ -184,7 +185,21 @@ export interface DiscoveryRun {
 export interface ListingDiscovery {
   aiDiscovery: boolean;
   listingStatus: string;
+  /** Embargolu talebin açılış anı (ISO) — tur açılışta yazılır; açıksa/eski API'de yok. */
+  startsAt?: string | null;
   runs: DiscoveryRun[];
+}
+
+/**
+ * Tur henüz yazılmamışken (yayın/düzenleme anı) yoklama TAVANI: 5 sn × 36 ≈ 3 dk.
+ * Tur normalde saniyeler içinde yazılır; tavan, hiç gelmeyecek tur için sekmenin
+ * süresiz yoklamasını keser (derin denetim 2026-09-29 S090).
+ */
+export const EMPTY_RUN_POLL_MAX = 36;
+
+/** Tur bekleniyor mu (otomatik arama açık, talep açık, embargo yok, tur yok)? */
+export function awaitingFirstRun(d: ListingDiscovery): boolean {
+  return d.aiDiscovery && d.runs.length === 0 && d.listingStatus === "OPEN" && !d.startsAt;
 }
 
 const listingDiscoveryKey = (listingId: string) => ["listing-discovery", listingId] as const;
@@ -194,7 +209,8 @@ const listingDiscoveryKey = (listingId: string) => ["listing-discovery", listing
  * yoklanır (web araması ~1 dk), bitince durur.
  */
 export function useListingDiscovery(listingId: string | null | undefined, enabled = true) {
-  return useQuery({
+  const qc = useQueryClient();
+  const query = useQuery({
     queryKey: listingDiscoveryKey(listingId ?? ""),
     enabled: !!listingId && enabled,
     queryFn: async () => {
@@ -202,14 +218,29 @@ export function useListingDiscovery(listingId: string | null | undefined, enable
       return data;
     },
     // Tur sürerken ya da yayın anındaki tur henüz yazılmamışken (otomatik
-    // arama açık, talep açık) 5 sn'de bir yoklanır; arka plandaki sekmede durur.
+    // arama açık, talep açık, embargo yok) 5 sn'de bir yoklanır — ikincisi
+    // `EMPTY_RUN_POLL_MAX` tavanlı; embargoda yoklanmaz; arka plandaki sekmede durur.
     refetchInterval: (q) => {
       const d = q.state.data;
       if (!d) return false;
       if (d.runs.some((r) => r.state === "PENDING" || r.state === "RUNNING")) return 5_000;
-      return d.aiDiscovery && d.runs.length === 0 && d.listingStatus === "OPEN" ? 5_000 : false;
+      return awaitingFirstRun(d) && q.state.dataUpdateCount < EMPTY_RUN_POLL_MAX ? 5_000 : false;
     },
   });
+  // Tavan doldu ve tur hâlâ yok → ekran "aranıyor" demeyi bırakır.
+  const updates = qc.getQueryState(listingDiscoveryKey(listingId ?? ""))?.dataUpdateCount ?? 0;
+  const emptyPollExhausted = !!query.data && awaitingFirstRun(query.data) && updates >= EMPTY_RUN_POLL_MAX;
+  // Sonuç nesnesi YAYILMAZ: TanStack izleme vekilinde `promise` okunursa
+  // (experimental_prefetchInRender kapalı) bekleyen thenable reddedilir.
+  // `dataUpdatedAt` okunur ki veri aynı kalsa da her yoklamada yeniden çizilsin
+  // (tavan dolduğu an görünsün).
+  return {
+    data: query.data,
+    dataUpdatedAt: query.dataUpdatedAt,
+    isLoading: query.isLoading,
+    isError: query.isError,
+    emptyPollExhausted,
+  };
 }
 
 /** Üyeye doğrudan talep daveti sonucu (API `inviteDiscoveredMembers`). */

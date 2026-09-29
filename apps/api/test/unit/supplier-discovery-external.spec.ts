@@ -171,7 +171,48 @@ describe("SupplierDiscoveryService.discoverExternal", () => {
       .map((o) => o.prompt);
     expect(prompts[0]).toContain("Türkiye ülkesinde faaliyet gösteren");
     expect(prompts[1]).toContain("Türkiye DIŞINDA");
-    expect(prompts[1]).toMatch(/Almanya, Kanada HARİÇ/);
+    expect(prompts[1]).toMatch(/\(Almanya, Kanada, .* HARİÇ\)/);
+    // Kayda kapalı ülkeler de yurt dışı geçişinde aranmaz (X24).
+    for (const name of ["Amerika Birleşik Devletleri", "İran", "Kuzey Kore", "Suriye", "Küba"]) {
+      expect(prompts[1]).toContain(name);
+    }
+  });
+
+  it("kayda kapalı ülke (ABD, İran…) adayı düşer — etiket, e-posta ya da site uzantısı yeter (X24)", async () => {
+    const { service } = rig({
+      parsed: [
+        { companies: [co("Boru A.Ş.", "x@boru.com", { country: "TR" })] },
+        {
+          companies: [
+            co("US Pipe Inc", "sales@uspipe.com", { country: "US" }),
+            co("Tehran Steel", "info@tehransteel.ir"),
+            co("Havana Tubos", "ventas@tubos.com", { website: "https://tubos.cu" }),
+            co("San Juan Pipes", "a@sjpipes.com", { country: "PR" }),
+            co("Tubi Srl", "info@tubi.it", { country: "IT" }),
+          ],
+        },
+      ],
+    });
+    const { companies } = await service.discoverExternal(user, { type: "ALIM", categoryIds: ["40141700"] });
+    expect(companies.map((c) => c.name)).toEqual(["Boru A.Ş.", "Tubi Srl"]);
+  });
+
+  it("annotate de kapalı ülke adayını düşürür (ikinci hat — kayıtlı tur adayları)", async () => {
+    const { service } = rig({ parsed: { companies: [] } });
+    const out = await service.annotate("c1", null, [
+      { name: "US Pipe Inc", city: null, country: "US", website: null, email: "sales@uspipe.com", reason: "r", matchedItems: [], scope: "ABROAD" },
+      { name: "Syria Co", city: null, country: null, website: "https://pipes.sy", email: "a@pipes.com", reason: "r", matchedItems: [], scope: "ABROAD" },
+      { name: "Tubi Srl", city: null, country: "IT", website: null, email: "info@tubi.it", reason: "r", matchedItems: [], scope: "ABROAD" },
+    ]);
+    expect(out.map((c) => [c.name, c.status])).toEqual([["Tubi Srl", "SUGGESTED"]]);
+  });
+
+  it("talep yalnız kayda kapalı ülkelere açıksa AI hiç çağrılmaz (eski kayıt)", async () => {
+    const { service, ai } = rig({ targetCountries: ["US", "IR"], parsed: { companies: [co("US Pipe Inc", "a@uspipe.com", { country: "US" })] } });
+    const { companies, searchedScopes } = await service.discoverExternal(user, { type: "ALIM", categoryIds: ["40141700"], listingId: "l1" });
+    expect(companies).toEqual([]);
+    expect(searchedScopes).toEqual([]);
+    expect(ai.callAi).not.toHaveBeenCalled();
   });
 
   it("istem: İngilizce kategori + numaralı kalemler; kategori yoksa kalemlerle aranır; kalem eşleşmesi taşınır", async () => {
@@ -308,5 +349,14 @@ describe("discoveryPasses", () => {
     expect(discoveryPasses({ targetCountries: [], buyerCountry: null }).map((p) => p.scope)).toEqual([null]);
     expect(discoveryPasses({ targetCountries: ["TR"], buyerCountry: "TR" }).map((p) => p.scope)).toEqual(["LOCAL"]);
     expect(discoveryPasses({ targetCountries: ["TR", "AZ"], buyerCountry: "TR" }).map((p) => p.scope)).toEqual([null]);
+  });
+
+  it("kayda kapalı ülke hedeften düşer; yalnız kapalı ülkeler → geçiş yok; kapalı ülkedeki alıcı yurt içi geçişi açmaz (X24)", () => {
+    const mixed = discoveryPasses({ targetCountries: ["US", "DE"], buyerCountry: "TR" });
+    expect(mixed).toHaveLength(1);
+    expect(mixed[0]!.locationLine).toContain("Almanya");
+    expect(mixed[0]!.locationLine).not.toContain("Amerika");
+    expect(discoveryPasses({ targetCountries: ["US", "IR"], buyerCountry: "TR" })).toEqual([]);
+    expect(discoveryPasses({ targetCountries: [], buyerCountry: "US" }).map((p) => p.scope)).toEqual([null]);
   });
 });

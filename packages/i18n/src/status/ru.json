@@ -1774,6 +1774,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "api.companyConnections.kayitKapaliUlke": {
+    "hash": "12a657103a",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.companyConnections.kendinizeIstekGonderemezsiniz": {
     "hash": "7f533871d7",
     "status": "reviewed",
@@ -2563,6 +2568,11 @@
     "hash": "494fc04383",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.companyListings.hedefUlkeKayitKapali": {
+    "hash": "271926a24f",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "api.companyListings.herkeseAcikTalepleriGormekVeTeklif": {
     "hash": "115afb1104",
@@ -20329,6 +20339,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.aiSuppliers.bandAwaitingOpen": {
+    "hash": "bded33af36",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.requests.aiSuppliers.bandLead": {
     "hash": "6b349466f9",
     "status": "reviewed",
@@ -21403,6 +21418,11 @@
     "hash": "6e1fd8e9a8",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.requests.externalInviteStatus.COUNTRY_BLOCKED": {
+    "hash": "c7d69539a9",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.requests.externalInviteStatus.DAILY_LIMIT": {
     "hash": "6343afa0c1",

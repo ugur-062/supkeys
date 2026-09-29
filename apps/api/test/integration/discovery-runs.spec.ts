@@ -101,6 +101,47 @@ describe("DiscoveryRunsService", () => {
     expect(runs).toEqual([{ listingId: on.id, trigger: "PUBLISH", state: "PENDING" }]);
   });
 
+  it("yayındaki talepte SONRADAN açılan otomatik arama tur üretir (duyuru çoktan yapılmış); ikinci düzenleme çift tur yazmaz (S090)", async () => {
+    const { service } = makeListingsService();
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD", country: "TR" });
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      format: "RFQ",
+      visibility: "PUBLIC",
+      aiDiscovery: false,
+      publishedAt: new Date(),
+      openNotifiedAt: new Date(Date.now() - DAY),
+      closesAt: new Date(Date.now() + 7 * DAY),
+    });
+    const dto = {
+      type: "ALIM",
+      format: "RFQ",
+      visibility: "PUBLIC",
+      title: "Cıvata alımı",
+      closesAt: new Date(Date.now() + 7 * DAY).toISOString(),
+      items: [{ name: "M6 cıvata", quantity: 100, unit: "adet" }],
+      aiDiscovery: true,
+    };
+    await service.updateListing(owner.auth, listing.id, dto as never);
+    const runs = await prisma.supplierDiscoveryRun.findMany({ where: { listingId: listing.id }, select: { trigger: true, state: true } });
+    expect(runs).toEqual([{ trigger: "PUBLISH", state: "PENDING" }]);
+    await service.updateListing(owner.auth, listing.id, dto as never);
+    expect(await prisma.supplierDiscoveryRun.count({ where: { listingId: listing.id } })).toBe(1);
+  });
+
+  it("forListing: embargolu talepte `startsAt` döner (ekran 'aranıyor' demez), açık talepte null (S090)", async () => {
+    const { runs } = makeRuns({ ai: fakeAi([]) });
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const bidsOpenAt = new Date(Date.now() + 2 * DAY);
+    const embargoed = await openListing(owner.company.id, owner.user.id, { bidsOpenAt });
+    const open = await openListing(owner.company.id, owner.user.id);
+    expect((await runs.forListing(owner.auth, embargoed.id)).startsAt).toBe(bidsOpenAt.toISOString());
+    expect((await runs.forListing(owner.auth, open.id)).startsAt).toBeNull();
+  });
+
   it("tur platform bütçesiyle koşar: yurt içi + yurt dışı, adaylar kaydedilir, maliyet tura yazılır", async () => {
     const ai = fakeAi([
       [{ name: "Cıvata AŞ", email: "satis@civata.com.tr", country: "TR", reason: "r", items: [1] }],

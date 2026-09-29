@@ -1,3 +1,5 @@
+import { REGISTRATION_BLOCKED } from "@rothern/shared";
+
 /**
  * KAYITSIZ ADRESE DAVET POLİTİKASI — tek kaynak, saf fonksiyonlar (2026-09-27).
  *
@@ -40,6 +42,17 @@ export function coldInviteBlockedByCountry(
 
 export function isConsentCountry(...countryHints: ReadonlyArray<string | null | undefined>): boolean {
   return countryHints.some((c) => !!c && COLD_INVITE_CONSENT_COUNTRIES.has(c.trim().toUpperCase()));
+}
+/**
+ * KAYDA KAPALI ÜLKE (`REGISTRATION_BLOCKED`: ABD + toprakları, İran, K. Kore,
+ * Suriye, Küba) — davet e-postası HİÇBİR kaynaktan gitmez, AI keşfi bu
+ * ülkelerde aramaz (derin denetim 2026-09-29 X24). Davetli kayıt olamaz
+ * (onboarding ülkeyi reddeder) ve yasak gerekçesi (ABD'li e-posta/altyapı
+ * sağlayıcılarının koşulları) tam da bu e-postaları kapsar. Onay kapısı gibi
+ * TEMKİNLİ: ipuçlarından HERHANGİ biri kapalı ülkeyi gösteriyorsa kapanır.
+ */
+export function registrationBlockedCountry(...countryHints: ReadonlyArray<string | null | undefined>): boolean {
+  return countryHints.some((c) => !!c && REGISTRATION_BLOCKED.has(c.trim().toUpperCase()));
 }
 export const INVITE_PAUSE_WINDOW_DAYS = 90;
 export const INVITE_PAUSE_AFTER_SENDS = 3;

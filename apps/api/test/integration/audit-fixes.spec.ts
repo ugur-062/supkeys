@@ -218,6 +218,13 @@ describe("create/update iş kuralı doğrulamaları", () => {
         baseDto({ isInternational: true, targetCountries: ["XX"] }) as never,
       ),
     ).rejects.toThrow(/Geçersiz hedef ülke/);
+    // Kayda kapalı ülke (ABD, İran…) hedeflenemez — sessizce süzülmez (X24).
+    await expect(
+      service.create(buyer.auth, baseDto({ targetCountries: ["DE", "US"] }) as never),
+    ).rejects.toThrow(/Kayda kapalı ülke hedeflenemez: US/);
+    await expect(
+      service.create(buyer.auth, baseDto({ targetCountries: ["IR"] }) as never),
+    ).rejects.toMatchObject({ response: { code: "TARGET_COUNTRY_BLOCKED" } });
     await expect(
       service.create(
         buyer.auth,

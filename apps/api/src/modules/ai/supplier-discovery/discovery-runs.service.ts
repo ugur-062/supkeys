@@ -415,7 +415,7 @@ export class DiscoveryRunsService {
   private async ownListing(user: AuthenticatedCompanyUser, listingId: string) {
     const listing = await this.prisma.listing.findFirst({
       where: { id: listingId, companyId: user.companyId },
-      select: { id: true, type: true, createdById: true, status: true, aiDiscovery: true },
+      select: { id: true, type: true, createdById: true, status: true, aiDiscovery: true, bidsOpenAt: true },
     });
     if (!listing) throw new NotFoundException(i18nMessage("api.companyConnections.satinAlmaTalebiBulunamadi"));
     if (listingManageDenial(user, listing)) {
@@ -477,6 +477,9 @@ export class DiscoveryRunsService {
     return {
       aiDiscovery: listing.aiDiscovery,
       listingStatus: listing.status,
+      // Embargolu talep: otomatik tur açılışta yazılır — ekran "aranıyor" değil
+      // "açılınca başlar" der ve boşuna yoklamaz (derin denetim 2026-09-29 S090).
+      startsAt: listing.bidsOpenAt && listing.bidsOpenAt > new Date() ? listing.bidsOpenAt.toISOString() : null,
       runs: runs.map((r) => ({
         ...r,
         candidates: r.candidates.map((c) => ({

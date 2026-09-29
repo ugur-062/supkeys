@@ -50,6 +50,11 @@ const COUNTRY_TIME_ZONE: Record<string, string> = {
   PY: "America/Asuncion", BO: "America/La_Paz", VE: "America/Caracas",
   PA: "America/Panama", CR: "America/Costa_Rica", DO: "America/Santo_Domingo",
   GT: "America/Guatemala",
+  // Kayda kapalı ülkeler (`REGISTRATION_BLOCKED`) — davet gitmez; burada yalnız
+  // e-posta/site uzantısı ipucu tanınsın diye (derin denetim 2026-09-29 X24).
+  US: "America/New_York", PR: "America/Puerto_Rico", GU: "Pacific/Guam",
+  VI: "America/St_Thomas", AS: "Pacific/Pago_Pago", MP: "Pacific/Saipan",
+  CU: "America/Havana", IR: "Asia/Tehran", SY: "Asia/Damascus", KP: "Asia/Pyongyang",
   // Sahra altı Afrika
   ZA: "Africa/Johannesburg", NG: "Africa/Lagos", KE: "Africa/Nairobi", GH: "Africa/Accra",
   ET: "Africa/Addis_Ababa", TZ: "Africa/Dar_es_Salaam", UG: "Africa/Kampala",
