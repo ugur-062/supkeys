@@ -17,29 +17,13 @@
  *   pnpm --filter @rothern/db backfill-price-base -- --dry        # kök .env (staging), yazmaz
  *   ENV_FILE=../../.env.prod.local pnpm --filter @rothern/db backfill-price-base -- --dry
  */
-import { existsSync, readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-const envFile = process.env.ENV_FILE
-  ? resolve(process.cwd(), process.env.ENV_FILE)
-  : resolve(__dirname, "../../.env");
-const override = !!process.env.ENV_FILE;
-// Varsayılan dosya yoksa (API konteyneri/Render kabuğu: yalnız ortam
-// değişkenleri) atla; açıkça verilen ENV_FILE yoksa readFileSync düşer
-// (yayın denetimi 2026-09-28 Bölüm 3: konteynerde ENOENT ile çöküyordu).
-const envLines = override || existsSync(envFile) ? readFileSync(envFile, "utf8").split("\n") : [];
-for (const line of envLines) {
-  const i = line.indexOf("=");
-  if (i > 0 && !line.trimStart().startsWith("#")) {
-    const k = line.slice(0, i).trim();
-    if (override || !process.env[k]) process.env[k] = line.slice(i + 1).trim().replace(/^"|"$/g, "");
-  }
-}
-
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { productPriceBase } from "@rothern/shared";
 
-const prisma = new PrismaClient({ datasourceUrl: process.env.DIRECT_URL || process.env.DATABASE_URL });
+// ENV_FILE yükleyicisi `lib/script-env` (seed-geo-cities / backfill-city-ids ile
+// ortak; konteynerde varsayılan dosya yoksa atlanır — 2026-09-28 Bölüm 3).
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("backfill-price-base") });
 const BATCH = 500;
 
 async function main() {

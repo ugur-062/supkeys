@@ -4,7 +4,7 @@ import { Throttle } from "@nestjs/throttler";
 import { currentLocale } from "../../common/i18n/locale-context";
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import { geoIndex } from "../../common/geo/geo-index";
-import { GeoCityService } from "./geo-city.service";
+import { GEO_FALLBACK_CACHE_CONTROL, GeoCityService } from "./geo-city.service";
 
 /**
  * Dünya şehir listesi (2026-09-27) — herkese açık başvuru verisi (GeoNames).
@@ -13,6 +13,11 @@ import { GeoCityService } from "./geo-city.service";
  * Yanıt okuyucunun dilinde (ad `Accept-Language`tan) ve CDN'de önbelleğe
  * alınıyor → `Vary: Accept-Language` ŞART; yoksa ilk isteğin dili herkese
  * dağıtılır. `res.vary` EKLER (CORS'un `Vary: Origin`ini ezmez).
+ *
+ * Tam liste henüz yüklenmemişken (TR+KKTC yedeği; seed API açıldıktan sonra
+ * koşulur) önbellek KISA: yedeğin boş yabancı araması / 404'ü CDN'de 24 saat
+ * kalmasın. Nest `@Header`ı işleyiciden ÖNCE yazar; burada ezilir (atılan
+ * 404'te de geçerli).
  */
 @Controller("public/geo")
 @Throttle({ default: { limit: 120, ttl: 60_000 } })
@@ -29,6 +34,7 @@ export class GeoController {
     @Query("limit") limit?: string,
   ) {
     res.vary("Accept-Language");
+    this.shortCacheOnFallback(res);
     const n = Math.min(Math.max(Number(limit) || 10, 1), 20);
     const cc = country && /^[A-Za-z]{2}$/.test(country) ? country.toUpperCase() : null;
     return geoIndex()
@@ -41,8 +47,13 @@ export class GeoController {
   @Header("Cache-Control", "public, max-age=3600, s-maxage=86400")
   bySlug(@Res({ passthrough: true }) res: Response, @Param("slug") slug: string) {
     res.vary("Accept-Language");
+    this.shortCacheOnFallback(res);
     const row = geoIndex().resolveParam(slug.slice(0, 120));
     if (!row) throw new NotFoundException(i18nMessage("api.geo.sehirBulunamadi"));
     return this.geo.toDto(row, currentLocale());
+  }
+
+  private shortCacheOnFallback(res: Response): void {
+    if (!this.geo.fullListLoaded) res.setHeader("Cache-Control", GEO_FALLBACK_CACHE_CONTROL);
   }
 }

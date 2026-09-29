@@ -9,9 +9,13 @@
  *   pnpm --filter @rothern/db backfill-city-ids -- --dry
  */
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { pickGeoCity, type GeoCityCandidate } from "@rothern/shared";
 
-const prisma = new PrismaClient({ datasourceUrl: process.env.DIRECT_URL || process.env.DATABASE_URL });
+// ENV_FILE'ı BETİK okur ve PrismaClient'tan ÖNCE uygular; hedef host başta
+// basılır (derin denetim 2026-09-29 Y-21: runbook'un canlı çağrısı staging'e
+// yazıyordu).
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("backfill-city-ids") });
 
 async function main() {
   const dry = process.argv.includes("--dry");
