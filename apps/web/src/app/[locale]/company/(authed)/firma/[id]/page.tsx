@@ -27,6 +27,11 @@ import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
 import {
+  BLOCK_REASON_MAX,
+  COMPLAINT_DETAIL_MAX,
+  complaintPayload,
+} from "@/lib/company/complaint-payload";
+import {
   useBlockCompany,
   useDisconnect,
   useInviteConnection,
@@ -129,7 +134,7 @@ export default function CompanyProfilePage() {
     try {
       await complaint.mutateAsync({
         rothernId: p.rothernId,
-        reason: reason.trim(),
+        ...complaintPayload(reason),
       });
       toast.success(t("sikayetGonderildi"));
       setComplaintOpen(false);
@@ -368,6 +373,7 @@ export default function CompanyProfilePage() {
         title={t("firmayiEngelle")}
         description={t("siziGoremezVeSizinleIslem", { name: p.name })}
         confirmLabel={t("engelle")}
+        maxLength={BLOCK_REASON_MAX}
         destructive
         pending={block.isPending}
       />
@@ -379,6 +385,7 @@ export default function CompanyProfilePage() {
         description={t("hakkindakiSikayetinizPlatformYonetimineIleti", { name: p.name })}
         confirmLabel={t("sikayetiGonder")}
         minLength={3}
+        maxLength={COMPLAINT_DETAIL_MAX}
         destructive
         pending={complaint.isPending}
       />

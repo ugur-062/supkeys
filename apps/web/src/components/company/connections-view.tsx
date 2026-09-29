@@ -48,6 +48,7 @@ import { useFileComplaint } from "@/hooks/use-company-complaints";
 import { ListSkeleton } from "@/components/list";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
+import { COMPLAINT_DETAIL_MAX, complaintPayload } from "@/lib/company/complaint-payload";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { accentForPortal } from "@/components/ui/button-accent";
@@ -524,7 +525,7 @@ function ConnectionTableRow({
   const submitComplaint = async (reason: string) => {
     if (!c.rothernId || reason.trim().length < 3) return;
     try {
-      await complaint.mutateAsync({ rothernId: c.rothernId, reason: reason.trim() });
+      await complaint.mutateAsync({ rothernId: c.rothernId, ...complaintPayload(reason) });
       toast.success(t("sikayetGonderildi"));
       setComplaintOpen(false);
     } catch (err) {
@@ -621,6 +622,7 @@ function ConnectionTableRow({
             description={t("hakkindakiSikayetinizPlatformYonetimineIleti", { name: c.name })}
             confirmLabel={t("sikayetiGonder")}
             minLength={3}
+            maxLength={COMPLAINT_DETAIL_MAX}
             destructive
             pending={complaint.isPending}
           />

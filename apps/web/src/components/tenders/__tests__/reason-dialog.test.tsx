@@ -109,4 +109,14 @@ describe("ReasonDialog", () => {
     );
     expect(screen.getByRole("textbox")).toHaveValue("");
   });
+
+  it("maxLength defaults to 1000 and follows the prop (API DTO limit)", () => {
+    const { unmount } = render(
+      <ReasonDialog open onClose={vi.fn()} onSubmit={vi.fn()} title="T" confirmLabel="OK" />,
+    );
+    expect(screen.getByRole("textbox")).toHaveAttribute("maxLength", "1000");
+    unmount();
+    setup({ maxLength: 500 });
+    expect(screen.getByRole("textbox")).toHaveAttribute("maxLength", "500");
+  });
 });

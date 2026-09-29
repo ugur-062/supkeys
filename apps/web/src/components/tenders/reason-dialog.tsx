@@ -15,7 +15,8 @@ import { useEffect, useState } from "react";
 
 /**
  * Gerekçe girişli onay diyaloğu (window.prompt yerine — inline doğrulama,
- * yeniden-yazma yok). minLength=0 → opsiyonel gerekçe.
+ * yeniden-yazma yok). minLength=0 → opsiyonel gerekçe. maxLength, gerekçeyi
+ * alan API DTO'sunun sınırıyla eşleşmeli (aşan metin 400 ile reddedilir).
  */
 export function ReasonDialog({
   open,
@@ -25,6 +26,7 @@ export function ReasonDialog({
   description,
   confirmLabel,
   minLength = 0,
+  maxLength = 1000,
   pending,
   destructive,
 }: {
@@ -35,6 +37,7 @@ export function ReasonDialog({
   description?: string;
   confirmLabel: string;
   minLength?: number;
+  maxLength?: number;
   pending?: boolean;
   destructive?: boolean;
 }) {
@@ -65,7 +68,7 @@ export function ReasonDialog({
           </Label>
           <Textarea
             rows={3}
-            maxLength={1000}
+            maxLength={maxLength}
             value={reason}
             onChange={(e) => setReason(e.target.value)}
             placeholder={
