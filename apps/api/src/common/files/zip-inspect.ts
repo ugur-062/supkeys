@@ -294,7 +294,8 @@ function decodeAddress(value: string): { col: number; row: number } {
     }
   }
   if (hasCol && col > 16384) throw new RangeError("column out of range");
-  // Tanımsız sütun/satır ExcelJS'te undefined → Math.min/max NaN → döngü dönmez.
+  // Tanımsız sütun/satır ExcelJS'te undefined → Math.min/max NaN. Döngüye etkisi
+  // tüketiciye göre değişir: Range getter'ı NaN'ı 1'e çevirir, CellMatrix çevirmez.
   return { col: hasCol ? col : NaN, row: hasRow ? row : NaN };
 }
 
@@ -337,28 +338,62 @@ function decodeEx(value: string): { rect: Rect; range: boolean } | null {
 }
 
 /**
- * ExcelJS'in `for (i = top; i <= bottom; i++) for (j = left; j <= right; j++)`
- * döngüsünün adım sayısı. NaN sınırda döngü hiç dönmez (0). Güvenli tamsayı
- * olmayan sınırda (satır numarası 2^53 üstü ya da Infinity) `i++` ilerlemez →
- * ExcelJS SONSUZ döngüye girer → Infinity.
+ * `for (i = top; i <= bottom; i++) { for (j = left; j <= right; j++) ... }`
+ * döngüsünün İŞ miktarı: dış tur x max(1, iç tur). İç döngü hiç dönmese de
+ * dış döngünün her turu zaman harcar (CellMatrix'te NaN sütunlu aralık 1e14
+ * boş tur = olay döngüsü kilitli). NaN sınırda `<=` false → döngü dönmez (0).
+ * Döngü dönecekken sınır güvenli tamsayı değilse (2^53 üstü / Infinity)
+ * `i++` ilerlemez → ExcelJS SONSUZ döngüye girer → Infinity (fail-closed).
  */
-function rectCells(r: Rect): number {
-  const bounds = [r.top, r.left, r.bottom, r.right];
-  if (bounds.some((v) => Number.isNaN(v))) return 0;
-  if (bounds.some((v) => !Number.isSafeInteger(v))) return Number.POSITIVE_INFINITY;
-  const rows = r.bottom - r.top + 1;
-  const cols = r.right - r.left + 1;
-  return rows > 0 && cols > 0 ? rows * cols : 0;
+function loopSteps(top: number, bottom: number, left: number, right: number): number {
+  if (!(top <= bottom)) return 0;
+  if (!Number.isSafeInteger(top) || !Number.isSafeInteger(bottom)) return Number.POSITIVE_INFINITY;
+  let cols = 0;
+  if (left <= right) {
+    if (!Number.isSafeInteger(left) || !Number.isSafeInteger(right)) return Number.POSITIVE_INFINITY;
+    cols = right - left + 1;
+  }
+  return (bottom - top + 1) * Math.max(1, cols);
 }
 
-/** mergeCellsWithoutStyle(ref) → Range → decodeEx; bozuk ref yüklemeyi zaten düşürür (0). */
-function mergeCells(ref: string): number {
+/**
+ * Birleşme maliyeti — doc/range.js + worksheet._mergeCellsInternal birebir:
+ * mergeCellsWithoutStyle(ref) → new Range([ref]) → decodeEx. Range.decode
+ * aralık yoluna YALNIZ `tlbr.top` doluysa girer; değilse model tlbr.row/col
+ * olur (aralıkta ve `#REF!`'te undefined). Sınırlar getter'dan okunur:
+ * `this.model.x || 1` → NaN/0/undefined 1'e döner. Yani "A1:100000000"
+ * (sütunsuz uç) top=1, left=1, bottom=1e8, right=1 → 1e8 hücre; 0 DEĞİL.
+ * Bozuk ref (sütun > 16384) ExcelJS'te de fırlatır → yükleme düşer (0).
+ * Diferansiyel test: zip-inspect.spec "Range/CellMatrix diferansiyel".
+ */
+export function mergeRefCells(ref: string): number {
+  let d: ReturnType<typeof decodeEx>;
   try {
-    const d = decodeEx(ref);
-    return d ? rectCells(d.rect) : 0;
+    d = decodeEx(ref);
   } catch {
     return 0;
   }
+  const m = d && (!d.range || d.rect.top) ? d.rect : null;
+  return loopSteps(m?.top || 1, m?.bottom || 1, m?.left || 1, m?.right || 1);
+}
+
+/**
+ * Tanımlı ad aralığı maliyeti — utils/cell-matrix.js addCellEx birebir:
+ * decodeEx sonucunda `top` doluysa HAM sınırlarla (getter YOK) satır dışta,
+ * sütun içte döngü; NaN sütunda iç döngü dönmez ama dış döngü satır sayısı
+ * kadar döner ("Sheet1!$A$1:99999999999999" → 1e14 tur). `top` yoksa
+ * (tek hücre / `#REF!`) findCellEx → 1 hücre. Range'ten AYRI tutulur:
+ * Range NaN'ı 1'e çevirir, CellMatrix çevirmez.
+ */
+export function definedNameRangeCells(range: string): number {
+  let d: ReturnType<typeof decodeEx>;
+  try {
+    d = decodeEx(range);
+  } catch {
+    return 0; // ExcelJS'te de fırlatır → yükleme düşer.
+  }
+  if (d && d.range && d.rect.top) return loopSteps(d.rect.top, d.rect.bottom, d.rect.left, d.rect.right);
+  return 1;
 }
 
 function isValidRange(range: string): boolean {
@@ -407,13 +442,7 @@ function definedNameCells(text: string): number {
   let total = 0;
   for (const range of extractRanges(text)) {
     if (!DEFINED_NAME_RANGE.test(range.split("!").pop() || "")) continue;
-    try {
-      // CellMatrix.addCellEx yalnız `address.top` doluysa aralığı döner.
-      const d = decodeEx(range);
-      if (d && d.range && d.rect.top) total += rectCells(d.rect);
-    } catch {
-      // ExcelJS'te de fırlatır → yükleme düşer.
-    }
+    total += definedNameRangeCells(range);
   }
   return total;
 }
@@ -552,7 +581,7 @@ function scanSpreadsheetXml(
         }
         const ref = tag.attrs.get("ref");
         if (ref !== undefined) {
-          acc.cells += mergeCells(ref);
+          acc.cells += mergeRefCells(ref);
           if (acc.cells > lim.maxExpandedCells) throw tooMany();
         }
       } else if (tag.name === "col") {

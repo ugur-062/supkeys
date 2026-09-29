@@ -2,7 +2,9 @@ import ExcelJS from "exceljs";
 import * as zlib from "node:zlib";
 import {
   assertZipWithinLimits,
+  definedNameRangeCells,
   inspectZip,
+  mergeRefCells,
   XLSX_LIMITS,
   XLSX_LOAD_OPTIONS,
   ZipInspectError,
@@ -330,5 +332,100 @@ describe("gözden geçirme A1 — EOCD disk alanları ve ExcelJS hücre açılı
     };
     walk(root);
     expect(offenders).toEqual([]);
+  });
+});
+
+describe("gözden geçirme R-1 — kapının maliyet modeli ExcelJS Range/CellMatrix ile birebir", () => {
+  type Bounds = { top: number; left: number; bottom: number; right: number };
+  // ExcelJS'in KENDİ ayrıştırıcıları: kapının kopyası bunlardan ayrışırsa (exceljs yükseltmesi dahil) test kırılır.
+  const Range = require("exceljs/lib/doc/range") as new (args: string[]) => Bounds;
+  const colCache = require("exceljs/lib/utils/col-cache") as { decodeEx(v: string): Partial<Bounds> };
+
+  /** Bağımsız yazılmış başvuru: `for (i=t; i<=b; i++) for (j=l; j<=r; j++)` iş miktarı. */
+  const steps = (t: number, b: number, l: number, r: number): number => {
+    if (!(t <= b)) return 0;
+    if (!Number.isSafeInteger(t) || !Number.isSafeInteger(b)) return Number.POSITIVE_INFINITY;
+    const cols = l <= r ? r - l + 1 : 0;
+    return (b - t + 1) * Math.max(1, cols);
+  };
+  /** worksheet._mergeCellsInternal: sınırlar Range getter'larından. */
+  const excelMergeSteps = (ref: string): number => {
+    const g = new Range([ref]);
+    return steps(g.top, g.bottom, g.left, g.right);
+  };
+  /** CellMatrix.addCellEx: `top` doluysa ham sınırlarla döngü, değilse tek hücre. */
+  const excelMatrixSteps = (ref: string): number => {
+    const d = colCache.decodeEx(ref);
+    return d.top ? steps(d.top, d.bottom!, d.left!, d.right!) : 1;
+  };
+
+  const CASES = [
+    "A1:100000000", // NaN sütun (sütunsuz uç)
+    "1:5000000", // iki uç da sütunsuz
+    "A:C", // NaN satır
+    "A0:B5", // 0 satır
+    "B5:A1", // ters sıralı
+    "A1", // tek hücre
+    "A1:A1048576", // tam sütun
+    "A1:XFD1", // tam satır
+    "1:1",
+    "#REF!",
+    "Sheet1!$A$1:99999999999999",
+    "'Sayfa 1'!$B$2:$D$4",
+    "A99999999999999999999", // tek hücre, güvenli tamsayı üstü satır
+    "A1:A99999999999999999999",
+  ];
+
+  it.each(CASES)("birleşme %s: kapı sayısı = ExcelJS Range sınırlarından hesaplanan", (ref) => {
+    expect(mergeRefCells(ref)).toBe(excelMergeSteps(ref));
+  });
+
+  it.each(CASES)("tanımlı ad %s: kapı sayısı = ExcelJS CellMatrix tur sayısı", (ref) => {
+    expect(definedNameRangeCells(ref)).toBe(excelMatrixSteps(ref));
+  });
+
+  it("küçük sınır durumlarında birleşme GERÇEKTEN çalıştırılır; üretilen hücre sayısı kapınınkiyle aynı", () => {
+    const wb = new ExcelJS.Workbook();
+    for (const [i, ref] of ["A1:5", "1:3", "B5:A1", "A0:B5", "A:C", "#REF!", "A1", "C3:C3"].entries()) {
+      const ws = wb.addWorksheet(`s${i}`);
+      ws.mergeCellsWithoutStyle(ref);
+      const internal = ws as unknown as { _rows: ({ _cells: unknown[] } | undefined)[] };
+      const cells = internal._rows.reduce((n, row) => n + (row ? row._cells.filter(Boolean).length : 0), 0);
+      expect({ ref, cells: mergeRefCells(ref) }).toEqual({ ref, cells });
+    }
+  });
+
+  const sheet = (inner: string) =>
+    Buffer.from(`<?xml version="1.0"?><worksheet><sheetData/>${inner}</worksheet>`);
+  const reasonOf = (zip: Buffer): string | undefined => {
+    try {
+      assertZipWithinLimits(zip);
+      return undefined;
+    } catch (e) {
+      return (e as ZipInspectError).reason;
+    }
+  };
+
+  it.each(["A1:100000000", "1:5000000", "A1:99999999999999999999"])(
+    "sütunsuz uçlu birleşme %s → 'size' (Range NaN sütunu 1'e çevirir, satır kadar Row/Cell üretir)",
+    (ref) => {
+      const zip = buildZip([
+        { name: "xl/worksheets/sheet1.xml", data: sheet(`<mergeCells><mergeCell ref="${ref}"/></mergeCells>`) },
+      ]);
+      expect(reasonOf(zip)).toBe("size");
+    },
+  );
+
+  it("sütunsuz uçlu tanımlı ad → 'size' (CellMatrix dış döngüsü satır kadar döner); küçük ad geçer", () => {
+    const wbXml = (inner: string) => Buffer.from(`<workbook><definedNames>${inner}</definedNames></workbook>`);
+    for (const text of ["Sheet1!$A$1:99999999999999", `Sheet1!$A$1:${"9".repeat(20)}`]) {
+      const zip = buildZip([{ name: "xl/workbook.xml", data: wbXml(`<definedName name="x">${text}</definedName>`) }]);
+      expect(reasonOf(zip)).toBe("size");
+      expect(() => assertXlsxSafe(zip)).toThrow(/çok büyük/);
+    }
+    const ok = buildZip([
+      { name: "xl/workbook.xml", data: wbXml('<definedName name="x">Sheet1!$A$1:$C$20</definedName>') },
+    ]);
+    expect(reasonOf(ok)).toBeUndefined();
   });
 });
