@@ -21,12 +21,12 @@ import { CompanyPaidTierGuard } from "../company-auth/guards/company-paid-tier.g
 import { CompanyPermissionsGuard } from "../company-auth/guards/company-permissions.guard";
 import { RequireCompanyPermission } from "../company-auth/decorators/require-company-permission.decorator";
 import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
+import { CompanyReportsService } from "./company-reports.service";
 import {
-  CompanyReportsService,
-  type BidComparisonInput,
-  type GeneralReportInput,
-  type SavingsReportInput,
-} from "./company-reports.service";
+  BidComparisonDto,
+  GeneralReportDto,
+  SavingsReportDto,
+} from "./dto/report-input.dto";
 import { ReportsExcelService } from "./reports-excel.service";
 
 /**
@@ -114,7 +114,7 @@ export class CompanyReportsController {
   @Post("general")
   general(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: GeneralReportInput,
+    @Body() body: GeneralReportDto,
   ) {
     assertAllowed(user);
     return this.service.general(user.companyId, body);
@@ -123,7 +123,7 @@ export class CompanyReportsController {
   @Post("general/download")
   async generalDownload(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: GeneralReportInput,
+    @Body() body: GeneralReportDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     assertAllowed(user);
@@ -135,7 +135,7 @@ export class CompanyReportsController {
   @Post("savings")
   savings(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: SavingsReportInput,
+    @Body() body: SavingsReportDto,
   ) {
     assertAllowed(user);
     return this.service.savings(user.companyId, body);
@@ -144,7 +144,7 @@ export class CompanyReportsController {
   @Post("savings/download")
   async savingsDownload(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: SavingsReportInput,
+    @Body() body: SavingsReportDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     assertAllowed(user);
@@ -156,7 +156,7 @@ export class CompanyReportsController {
   @Post("bid-comparison")
   bidComparison(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: BidComparisonInput,
+    @Body() body: BidComparisonDto,
   ) {
     assertAllowed(user);
     return this.service.bidComparison(user.companyId, body);
@@ -165,7 +165,7 @@ export class CompanyReportsController {
   @Post("bid-comparison/download")
   async bidComparisonDownload(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
-    @Body() body: BidComparisonInput,
+    @Body() body: BidComparisonDto,
     @Res({ passthrough: true }) res: Response,
   ) {
     assertAllowed(user);

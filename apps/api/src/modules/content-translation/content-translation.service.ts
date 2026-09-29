@@ -4,7 +4,7 @@ import { DEFAULT_LOCALE, LOCALES, type Locale } from "@rothern/i18n";
 import { foldSearchText } from "@rothern/shared";
 import { labelAttributes, resolveCategoryAttributes } from "../../common/company/category-attributes";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
-import { AI_CONFIG, AI_PROVIDER_TOKEN, type AiConfig } from "../ai/ai.config";
+import { AI_CONFIG, AI_PROVIDER_TOKEN, type AiConfig, type AiModelPricing } from "../ai/ai.config";
 import { costFromUsage } from "../ai/ai-budget.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
 import type { AiTokenUsage, BaseAiProvider } from "../ai/providers/ai-provider.interface";
@@ -90,7 +90,7 @@ function envNumber(name: string, fallback: number): number {
  * `gemini-pro-latest` alias'ını TANIMAZ (2026-09-23 staging: 504 satır 404
  * ile düştü); Generative Language API tanır. `CONTENT_TRANSLATION_MODEL`
  * env'i listenin başına geçer; sonra `AI_MODEL_PREMIUM`, sonra bilinen Pro
- * sürümleri (fiyat tablosunda olanlar).
+ * sürümleri (fiyat tablosunda olanlar; fiyatsız ad premium fiyatıyla sayılır — `pricingFor`).
  */
 const PRO_FALLBACKS = ["gemini-3.1-pro", "gemini-3.1-pro-preview", "gemini-2.5-pro"];
 
@@ -124,6 +124,8 @@ export class ContentTranslationService {
   private budgetDay = "";
   private spentTodayUsd = 0;
   private readonly jobsToday = new Map<string, number>();
+  /** Fiyatsız model uyarısı süreç başına bir kez. */
+  private readonly unpricedWarned = new Set<string>();
   private running = 0;
   private readonly waiting: Array<() => void> = [];
 
@@ -441,7 +443,7 @@ export class ContentTranslationService {
           this.resolvedModel = candidate;
           this.logger.log(`Content translation model: ${candidate}`);
         }
-        const pricing = this.cfg.pricing[candidate];
+        const pricing = this.pricingFor(candidate);
         const cost = pricing ? Number(costFromUsage(result.usage, pricing)) : 0;
         return { text: result.text, model: candidate, cost };
       } catch (err) {
@@ -541,6 +543,15 @@ export class ContentTranslationService {
       if (owner) this.jobsToday.set(owner, (this.jobsToday.get(owner) ?? 0) + 1);
       await this.acquireSlot();
       slotHeld = true;
+      // Yuva beklerken kuyruktaki işler tavanı doldurmuş olabilir: harcama
+      // ancak çağrı bitince eklendiği için ilk denetim yetmez (derin denetim
+      // LU-17 — dolu yuvada bekleyen işler tavan sorulmadan Pro çağırıyordu).
+      const late = this.platformBudgetDenial();
+      if (late) {
+        if (owner) this.jobsToday.set(owner, Math.max(0, (this.jobsToday.get(owner) ?? 1) - 1));
+        await this.markDeferred(type, id, late, MAX_ATTEMPTS);
+        return "failed";
+      }
       const usage: AiTokenUsage = { inputTokens: 0, outputTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 };
       let cost = 0;
       let parsed: ParsedTranslation | null = null;
@@ -584,7 +595,7 @@ export class ContentTranslationService {
           await this.markFailed(type, id, "translation model not found (CONTENT_TRANSLATION_MODEL / AI_MODEL_PREMIUM unknown to the provider)", { model, usage, cost });
           return "failed";
         }
-        const pricing = this.cfg.pricing[model];
+        const pricing = this.pricingFor(model);
         usage.inputTokens += result.usage.inputTokens;
         usage.outputTokens += result.usage.outputTokens;
         usage.cacheReadTokens += result.usage.cacheReadTokens;
@@ -666,12 +677,36 @@ export class ContentTranslationService {
     this.jobsToday.clear();
   }
 
-  /** null = model çağrılabilir; aksi hâlde satıra yazılacak neden. */
-  private quotaDenial(companyId: string | null): string | null {
+  /** Platform günlük USD tavanı — null = altında. */
+  private platformBudgetDenial(): string | null {
     this.rollBudgetDay();
     if (this.spentTodayUsd >= envNumber("CONTENT_TRANSLATION_DAILY_USD", DEFAULT_DAILY_USD)) {
       return "quota: platform daily translation budget reached";
     }
+    return null;
+  }
+
+  /**
+   * Modelin fiyatı; tabloda yoksa FAIL-CLOSED premium fiyatı (boot'ta
+   * doğrulanır). Eskiden fiyatsız aday (env'deki Vertex adı, zincirin sonu)
+   * 0 USD sayılıyor, günlük USD freni hiç tetiklenmiyordu (derin denetim LU-17).
+   */
+  private pricingFor(model: string): AiModelPricing | undefined {
+    if (!this.cfg) return undefined;
+    const own = this.cfg.pricing[model];
+    if (own) return own;
+    const fallback = this.cfg.pricing[this.cfg.models.premium];
+    if (!this.unpricedWarned.has(model)) {
+      this.unpricedWarned.add(model);
+      this.logger.warn(`Translation model has no pricing row, counting at premium price: ${model}`);
+    }
+    return fallback;
+  }
+
+  /** null = model çağrılabilir; aksi hâlde satıra yazılacak neden. */
+  private quotaDenial(companyId: string | null): string | null {
+    const budget = this.platformBudgetDenial();
+    if (budget) return budget;
     const jobs = companyId ? (this.jobsToday.get(companyId) ?? 0) : 0;
     if (jobs >= envNumber("CONTENT_TRANSLATION_COMPANY_DAILY_JOBS", DEFAULT_COMPANY_DAILY_JOBS)) {
       return "quota: company daily translation limit reached";

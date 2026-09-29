@@ -125,6 +125,21 @@ export class CompanySupplierTemplatesService {
     };
   }
 
+  /**
+   * Gizli şablon yazma yollarında da yalnız oluşturanına açılır (list/findOne
+   * ile AYNI kural). Eskiden update/remove yalnız `companyId` süzüyordu →
+   * id'yi önceden (şablon herkese açıkken) görmüş başka bir üye gizlenmiş
+   * şablonu değiştirebiliyor, açabiliyor ya da silebiliyordu (derin denetim
+   * LU-17). Başkası için 404.
+   */
+  private visibleWhere(user: AuthenticatedCompanyUser, id: string) {
+    return {
+      id,
+      companyId: user.companyId,
+      OR: [{ isPublic: true }, { createdById: user.userId }],
+    };
+  }
+
   async create(
     user: AuthenticatedCompanyUser,
     dto: { name: string; isPublic?: boolean; memberCompanyIds: string[] },
@@ -148,7 +163,7 @@ export class CompanySupplierTemplatesService {
     dto: { name?: string; isPublic?: boolean; memberCompanyIds?: string[] },
   ) {
     const tpl = await this.prisma.supplierTemplate.findFirst({
-      where: { id, companyId: user.companyId },
+      where: this.visibleWhere(user, id),
       select: { id: true },
     });
     if (!tpl) throw new NotFoundException(i18nMessage("api.companySupplierTemplates.sablonBulunamadi"));
@@ -170,7 +185,7 @@ export class CompanySupplierTemplatesService {
 
   async remove(user: AuthenticatedCompanyUser, id: string) {
     const tpl = await this.prisma.supplierTemplate.findFirst({
-      where: { id, companyId: user.companyId },
+      where: this.visibleWhere(user, id),
       select: { id: true },
     });
     if (!tpl) throw new NotFoundException(i18nMessage("api.companySupplierTemplates.sablonBulunamadi"));

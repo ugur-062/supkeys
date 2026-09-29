@@ -743,6 +743,29 @@ export class CompanyReportsService {
       0,
     );
 
+    // Hedefe göre fark YALNIZ hem hedefi girilmiş HEM teklifin fiyatladığı
+    // kalemler üzerinden (Σ hedef×miktar − Σ teklif×miktar, TRY bazında).
+    // Eskiden kısmi hedef toplamı teklifin TAM toplamıyla kıyaslanıyordu →
+    // kısmi hedefli talepte her teklif büyük "aşım", kısmi kapsamlı teklif
+    // uydurma "tasarruf" gösteriyordu (derin denetim LU-17).
+    const deltaVsReferenceTry = (
+      bid: (typeof l.bids)[number],
+    ): number | null => {
+      let ref = 0;
+      let offered = 0;
+      let matched = 0;
+      for (const it of itemMeta) {
+        if (it.referenceUnitPrice == null || it.referenceUnitPrice <= 0) continue;
+        const bi = bid.items.find((x) => x.itemId === it.id);
+        const unitTry = bi != null ? itemUnitPriceTry(bid, bi) : null;
+        if (unitTry == null || unitTry <= 0) continue;
+        ref += it.referenceUnitPrice * it.quantity;
+        offered += unitTry * it.quantity;
+        matched += 1;
+      }
+      return matched > 0 ? ref - offered : null;
+    };
+
     const questionText = new Map(
       l.items.flatMap((it) => it.questions.map((q) => [q.id, q.text] as const)),
     );
@@ -782,9 +805,7 @@ export class CompanyReportsService {
         bidCurrency: dto.showBidCurrencies ? (bid?.currency ?? null) : null,
         rank: null as number | null,
         deltaVsReference:
-          totalTry != null && referenceTotal > 0
-            ? referenceTotal - totalTry
-            : null,
+          includePrice && bid ? deltaVsReferenceTry(bid) : null,
         itemPrices:
           includePrice && bid
             ? itemMeta.map((it) => {

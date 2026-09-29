@@ -169,6 +169,10 @@ export const ACTION_LABELS: Record<string, string> = {
   "admin.system.category_miss_resolved": "Admin: kategori eşleşmeme kaydı çözüldü",
   "admin.system.time_savings_config_updated":
     "Admin: zaman tasarrufu ayarları güncellendi",
+  "admin.system.translation_backfill": "Admin: içerik çevirisi toplu kuyruğa alındı",
+  "admin.system.search_text_rebuilt": "Admin: çok dilli arama metni yeniden kuruldu",
+  "admin.system.category_translation_backfill": "Admin: kategori adı toplu çevirisi başlatıldı",
+  "admin.system.attribute_translation_backfill": "Admin: nitelik etiketi toplu çevirisi başlatıldı",
 
   // Admin: duyuru, şikayet, e-posta
   "admin.announcement.sent": "Admin: duyuru gönderildi",

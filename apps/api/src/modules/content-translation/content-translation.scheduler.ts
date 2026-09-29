@@ -1,4 +1,4 @@
-import { Injectable, Logger, Optional } from "@nestjs/common";
+import { Injectable, Logger, Optional, type OnModuleInit } from "@nestjs/common";
 import { Cron } from "@nestjs/schedule";
 import { CronRegistryService, trackCronRun } from "../../common/cron/cron-registry.service";
 import { ContentTranslationService } from "./content-translation.service";
@@ -10,13 +10,26 @@ import { ContentTranslationService } from "./content-translation.service";
  * hatalarını toplar. Çok örnekli koşumda advisory lock (trackCronRun).
  */
 @Injectable()
-export class ContentTranslationScheduler {
+export class ContentTranslationScheduler implements OnModuleInit {
   private readonly logger = new Logger(ContentTranslationScheduler.name);
 
   constructor(
     private readonly translations: ContentTranslationService,
     @Optional() private readonly cronRegistry?: CronRegistryService,
   ) {}
+
+  /**
+   * Kayıtsız anahtarı `recordRun` sessizce yok sayar → süpürücünün son
+   * koşusu/hatası Sistem Sağlığı'nda hiç görünmüyordu (derin denetim LU-17).
+   * AI kapalıyken de koşar (arama metni + bekleyen kuyruk).
+   */
+  onModuleInit(): void {
+    this.cronRegistry?.register(
+      "contentTranslation.sweep",
+      "Content translation sweep (coverage check, pending/failed retries, search text)",
+      "5 dakikada bir",
+    );
+  }
 
   /** Açılıştan sonraki ilk süpürmede arama metni mevcut çevirilerden kurulur (model çağrısı yok). */
   private searchTextsRebuilt = false;

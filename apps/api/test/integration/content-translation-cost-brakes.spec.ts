@@ -18,7 +18,7 @@ import { ContentTranslationService, MAX_SOURCE_CHARS } from "../../src/modules/c
 import { makeCompanyWithUser } from "./factories";
 import { prisma, truncateAll } from "./test-db";
 
-const ENV_KEYS = ["CONTENT_TRANSLATION_DAILY_USD", "CONTENT_TRANSLATION_COMPANY_DAILY_JOBS"] as const;
+const ENV_KEYS = ["CONTENT_TRANSLATION_DAILY_USD", "CONTENT_TRANSLATION_COMPANY_DAILY_JOBS", "CONTENT_TRANSLATION_MODEL"] as const;
 const prevEnv = Object.fromEntries(ENV_KEYS.map((k) => [k, process.env[k]]));
 
 afterEach(() => {
@@ -169,5 +169,42 @@ describe("içerik çevirisi — maliyet frenleri", () => {
     expect(complete).toHaveBeenCalledTimes(16);
     expect(maxActive()).toBeLessThanOrEqual(4);
     expect(maxActive()).toBeGreaterThan(1);
+  });
+
+  it("yuva bekleyen iş tavanı YENİDEN sorar: ilk dört iş tavanı doldurunca kuyruktakiler modele gitmez (derin denetim LU-17)", async () => {
+    // Her iş 2 çağrı × 0,002 USD; tavan 0,003 → ilk dalga (4 iş) tavanı aşar.
+    process.env.CONTENT_TRANSLATION_DAILY_USD = "0.003";
+    const { svc, complete } = rig({ delayMs: 40 });
+    const { company, user } = await makeCompanyWithUser(prisma);
+    const ps = await Promise.all(Array.from({ length: 8 }, (_, i) => product(company.id, user.id, { name: `Pano ${i}` })));
+    for (const p of ps) await svc.enqueue("PRODUCT", p.id);
+
+    await Promise.all(ps.map((p) => svc.translateEntity("PRODUCT", p.id)));
+
+    // Eskiden 16: dördü kuyrukta beklerken ilk denetimden geçmişti.
+    expect(complete).toHaveBeenCalledTimes(8);
+    const deferred = await prisma.contentTranslation.findMany({
+      where: { entityId: { in: ps.map((p) => p.id) }, error: { contains: "platform daily" } },
+      select: { entityId: true },
+    });
+    expect(new Set(deferred.map((r) => r.entityId)).size).toBe(4);
+  });
+
+  it("fiyat tablosunda olmayan model premium fiyatıyla sayılır — günlük USD freni devrede kalır (derin denetim LU-17)", async () => {
+    process.env.CONTENT_TRANSLATION_MODEL = "vertex-pro-unpriced";
+    process.env.CONTENT_TRANSLATION_DAILY_USD = "0.003";
+    const { svc, complete } = rig();
+    const { company, user } = await makeCompanyWithUser(prisma);
+    const p1 = await product(company.id, user.id, { name: "Pano 1" });
+    const p2 = await product(company.id, user.id, { name: "Pano 2" });
+    for (const p of [p1, p2]) await svc.enqueue("PRODUCT", p.id);
+    await svc.translateEntity("PRODUCT", p1.id);
+    await svc.translateEntity("PRODUCT", p2.id);
+
+    expect(complete).toHaveBeenCalledTimes(2);
+    expect((complete.mock.calls[0] as unknown as [{ model: string }])[0].model).toBe("vertex-pro-unpriced");
+    // Eskiden fiyatsız model 0 USD sayılıyor, ikinci iş de modele gidiyordu.
+    expect((await rowsOf(p1.id)).every((r) => Number(r.costUsd) > 0)).toBe(true);
+    expect((await rowsOf(p2.id)).every((r) => /platform daily/.test(r.error ?? ""))).toBe(true);
   });
 });
