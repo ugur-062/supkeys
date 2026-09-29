@@ -3600,7 +3600,6 @@
         "disDavetDili": "Invitation language for {email}",
         "disDavetSirayaAlindi": "{n, plural, one {# invitation} other {# invitations}} queued; emails are sent during business hours in the recipient's country.",
         "uyeDavetleriGonderilemedi": "Member invitations couldn't be sent. Try again from the request page.",
-        "baglantiDavetleriGonderilemedi": "Invitations couldn't be sent to {n, plural, one {# connection} other {# connections}}. You can invite them again from the request page.",
         "uyeDavetEdildi": "{n, plural, one {# Rothern member} other {# Rothern members}} invited to the request",
         "bekleyenUyeDavetleri": "Rothern members to invite straight to the request ({n, number})",
         "bekleyenUyeDavetleriAciklama": "Once the request is published, these companies are invited to it and notified in the app and by email. They don't need to be your contacts.",
@@ -3631,7 +3630,8 @@
         "DAILY_LIMIT": "Daily limit reached",
         "INVALID": "Invalid address",
         "QUEUED": "Queued",
-        "CONSENT_REQUIRED": "No unsolicited invitations to this country"
+        "CONSENT_REQUIRED": "No unsolicited invitations to this country",
+        "COUNTRY_BLOCKED": "No invitations to this country"
       },
       "setupCard": {
         "ilkTalebinizUcKisaSoru": "Your first request — three quick questions",
@@ -4126,6 +4126,7 @@
         "bandAbroad": "({n, number} abroad)",
         "bandLead": "They're all pre-selected; remove the ones you don't want and invite the rest with one click. Invitations go out in each company's own language, during business hours in its country.",
         "bandSearching": "AI is searching for suppliers for your request at home and abroad…",
+        "bandAwaitingOpen": "The AI supplier search starts when the request opens for quotes.",
         "inviteButton": "Invite {n, plural, one {# company} other {# companies}}",
         "invitedToast": "{n, plural, one {# invitation} other {# invitations}} queued; emails are sent during business hours in the recipient's country.",
         "inviteFailed": "The invitations couldn't be sent. Please try again.",

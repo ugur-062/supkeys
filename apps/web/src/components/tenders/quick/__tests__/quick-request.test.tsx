@@ -21,7 +21,6 @@ const h = vi.hoisted(() => ({
   inviteMembers: vi.fn(),
   update: vi.fn(),
   publish: vi.fn(),
-  addInvitations: vi.fn(),
   addresses: undefined as unknown,
 }));
 
@@ -47,8 +46,6 @@ vi.mock("@/hooks/use-company-listings", () => ({
   // Düzenleme modu (2026-09-19, sihirbaz kaldırıldı) — derin denetim Y-19/Y-20 testleri.
   useUpdateListing: () => ({ mutateAsync: h.update, isPending: false }),
   usePublishListing: () => ({ mutateAsync: h.publish, isPending: false }),
-  // 200'ü aşan bağlantı davetleri kayıttan sonra davet ucuyla (derin denetim S083/S095).
-  useAddListingInvitations: () => ({ mutateAsync: h.addInvitations, isPending: false }),
   // Yayın paneli paylaş düğmesi için talep detayını okur (vitrindeyse).
   useListingDetail: () => ({ data: undefined }),
 }));
@@ -117,7 +114,6 @@ beforeEach(() => {
   h.publish.mockReset().mockResolvedValue({ id: "e1" });
   h.push.mockReset();
   h.saveDefaults.mockReset();
-  h.addInvitations.mockReset().mockResolvedValue({ added: 0 });
   h.addresses = [{ id: "addr1", type: "TESLIMAT", title: "Depo", city: "İzmir", isDefault: true }];
   sessionStorage.clear();
   h.defaults = { data: { defaults: SAVED, source: "saved" }, isLoading: false };
@@ -209,7 +205,7 @@ describe("QuickRequest", () => {
     }
   }, 30_000);
 
-  it("S083/S095: 50'den (ve 200'den) fazla bağlantı Bağlantılarım ile yayınlanır; ilk 200 gövdede, kalanı davet ucuyla", async () => {
+  it("S083/S095: 50'den (ve 200'den) fazla bağlantı Bağlantılarım ile yayınlanır; tüm liste TEK gövdede", async () => {
     h.create.mockResolvedValue({ id: "l9", number: "ROT-000049" });
     h.connections = Array.from({ length: 260 }, (_, i) => ({
       connectionId: `c${i}`,
@@ -226,12 +222,7 @@ describe("QuickRequest", () => {
       await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
       const body = h.create.mock.calls[0][0];
       expect(body.visibility).toBe("CONNECTIONS");
-      expect(body.invitations).toHaveLength(200);
-      await waitFor(() => expect(h.addInvitations).toHaveBeenCalledTimes(1));
-      const { id, rothernIds } = h.addInvitations.mock.calls[0][0];
-      expect(id).toBe("l9");
-      expect(rothernIds).toHaveLength(60);
-      expect(new Set([...body.invitations, ...rothernIds]).size).toBe(260);
+      expect(new Set(body.invitations).size).toBe(260);
     } finally {
       h.connections = [];
     }
@@ -504,6 +495,30 @@ describe("QuickRequest", () => {
       expect(h.publish).not.toHaveBeenCalled();
       await waitFor(() => expect(h.push).toHaveBeenCalledWith("/company/ilan/e1"));
       expect(sessionStorage.getItem("quick-request-external-invites:e1")).toBeNull();
+    }, 30_000);
+
+    it("MU-26 gözden geçirme: yayındaki Bağlantılarım talebi 260 bağlantıyla kaydedilir — tüm liste güncelleme gövdesinde, ayrı davet çağrısı yok", async () => {
+      // Sunucu güncellemede davetleri gövdeden yeniden yazar; gövdeye sığmayan
+      // kısmı ayrı davet ucuyla göndermek o firmaları her kayıtta "yeni
+      // davetli" sayıp yeniden e-posta attırıyordu.
+      h.connections = Array.from({ length: 260 }, (_, i) => ({
+        connectionId: `c${i}`,
+        origin: "SENT",
+        decidedAt: null,
+        company: { id: `${i}`, name: `Firma ${i}`, rothernId: `F${String(i).padStart(3, "0")}-0001`, city: "İzmir", industry: "Makine" },
+      }));
+      const ids = (h.connections as { company: { rothernId: string } }[]).map((c) => c.company.rothernId);
+      try {
+        wrap(<QuickRequest mode="edit" listingId="e1" listingStatus="OPEN" initialValues={{ ...listing(), visibility: "CONNECTIONS", invitedSupplierIds: ids }} />);
+        fireEvent.click(await screen.findByRole("button", { name: "Değişiklikleri kaydet" }));
+        await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+        const body = h.update.mock.calls[0][0];
+        expect(body.visibility).toBe("CONNECTIONS");
+        expect(new Set(body.invitations)).toEqual(new Set(ids));
+        await waitFor(() => expect(h.push).toHaveBeenCalledWith("/company/ilan/e1"));
+      } finally {
+        h.connections = [];
+      }
     }, 30_000);
 
     it("taslak düzenlemede 'Talebi yayınla' önce günceller sonra yayınlar", async () => {

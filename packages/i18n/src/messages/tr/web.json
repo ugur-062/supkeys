@@ -3600,7 +3600,6 @@
         "disDavetDili": "{email} için davet dili",
         "disDavetSirayaAlindi": "{n, plural, other {# davet}} sıraya alındı; e-postalar alıcının ülkesinde mesai saatinde gönderilir.",
         "uyeDavetleriGonderilemedi": "Üye davetleri gönderilemedi. Talep sayfasından yeniden deneyin.",
-        "baglantiDavetleriGonderilemedi": "Bağlantılarınızdan {n, number} firmaya davet gönderilemedi. Talep sayfasından yeniden davet edebilirsiniz.",
         "uyeDavetEdildi": "{n, plural, other {# Rothern üyesi}} talebe davet edildi",
         "bekleyenUyeDavetleri": "Talebe doğrudan davet edilecek Rothern üyeleri ({n, number})",
         "bekleyenUyeDavetleriAciklama": "Talep yayınlanınca bu firmalar talebinize davetli olur ve uygulamada ve e-postayla haberdar edilir. Bağlantınız olmaları gerekmez.",
@@ -3631,7 +3630,8 @@
         "DAILY_LIMIT": "Günlük limit doldu",
         "INVALID": "Geçersiz adres",
         "QUEUED": "Sıraya alındı",
-        "CONSENT_REQUIRED": "Bu ülkeye izinsiz davet gönderilmiyor"
+        "CONSENT_REQUIRED": "Bu ülkeye izinsiz davet gönderilmiyor",
+        "COUNTRY_BLOCKED": "Bu ülkeye davet gönderilmiyor"
       },
       "setupCard": {
         "ilkTalebinizUcKisaSoru": "İlk talebiniz — üç kısa soru",
@@ -4126,6 +4126,7 @@
         "bandAbroad": "(yurt dışından: {n, number})",
         "bandLead": "Hepsi seçili geldi; istemediklerinizi çıkarın ve tek tıkla davet edin. Davetler her firmanın kendi dilinde ve kendi ülkesinde mesai saatinde gider.",
         "bandSearching": "AI talebiniz için yurt içinde ve yurt dışında tedarikçi arıyor…",
+        "bandAwaitingOpen": "AI tedarikçi araması talep teklife açılınca başlar.",
         "inviteButton": "{n, plural, other {# firmaya}} davet gönder",
         "invitedToast": "{n, plural, other {# davet}} sıraya alındı; e-postalar alıcının ülkesinde mesai saatinde gönderilir.",
         "inviteFailed": "Davetler gönderilemedi. Yeniden deneyin.",

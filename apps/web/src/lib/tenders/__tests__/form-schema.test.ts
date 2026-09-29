@@ -3,6 +3,7 @@ import { createTranslator } from "use-intl/core";
 import { WEB_NAMESPACES, messagesFor } from "@rothern/i18n/messages";
 import {
   DEFAULT_FORM_VALUES,
+  MAX_LISTING_INVITATIONS,
   makeTenderFormSchema,
   type TenderFormData,
 } from "../form-schema";
@@ -32,16 +33,17 @@ function validForm(over: Partial<TenderFormData> = {}): TenderFormData {
 }
 
 describe("tenderFormSchema", () => {
-  it("S083/S095: davet tavanı API ile aynı (200); Bağlantılarım kipinde tavan yok", () => {
+  it("S083/S095: davet tavanı API ile ortak sabit; Bağlantılarım listesi tek gövdede (260 bağlantı geçer)", () => {
     const ids = (n: number) => Array.from({ length: n }, (_, i) => `R${i}`);
-    // 50'yi aşan bağlantı listesi artık yayını engellemez.
-    expect(tenderFormSchema.safeParse(validForm({ visibility: "CONNECTIONS", invitedSupplierIds: ids(60) })).success).toBe(true);
+    // 50'yi (ve eski 200'lük tavanı) aşan bağlantı listesi yayını engellemez.
+    expect(MAX_LISTING_INVITATIONS).toBeGreaterThanOrEqual(1000);
     expect(tenderFormSchema.safeParse(validForm({ visibility: "CONNECTIONS", invitedSupplierIds: ids(260) })).success).toBe(true);
-    expect(tenderFormSchema.safeParse(validForm({ visibility: "PRIVATE", invitedSupplierIds: ids(200) })).success).toBe(true);
-    const over = tenderFormSchema.safeParse(validForm({ visibility: "PRIVATE", invitedSupplierIds: ids(201) }));
-    expect(over.success).toBe(false);
-    expect(over.error?.issues[0]?.path).toEqual(["invitedSupplierIds"]);
-    expect(over.error?.issues[0]?.message).toContain("200");
+    expect(tenderFormSchema.safeParse(validForm({ visibility: "PRIVATE", invitedSupplierIds: ids(260) })).success).toBe(true);
+    for (const visibility of ["PRIVATE", "CONNECTIONS"] as const) {
+      const over = tenderFormSchema.safeParse(validForm({ visibility, invitedSupplierIds: ids(MAX_LISTING_INVITATIONS + 1) }));
+      expect(over.success).toBe(false);
+      expect(over.error?.issues[0]?.path).toEqual(["invitedSupplierIds"]);
+    }
   });
 
   it("geçerli form parse edilir", () => {

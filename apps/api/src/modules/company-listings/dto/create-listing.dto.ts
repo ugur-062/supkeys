@@ -23,6 +23,7 @@ import {
   COMPANY_ACTIVITY_CODES,
   CURRENCY_ENUM,
   MAX_COMPANY_ACTIVITIES,
+  MAX_LISTING_INVITATIONS,
   UNITS,
   type CurrencyCode,
 } from "@rothern/shared";
@@ -405,7 +406,9 @@ export class CreateListingDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  @ArrayMaxSize(200)
+  // Web formuyla tek kaynak: "Bağlantılarım" kipinde tüm bağlantılar tek
+  // gövdede gelir (derin denetim S083/S095, MU-26 gözden geçirme).
+  @ArrayMaxSize(MAX_LISTING_INVITATIONS)
   invitations?: string[];
 
   // İhale kategorisi ana konuyu tanımlar (detay kalemlerde) — AI önerisi

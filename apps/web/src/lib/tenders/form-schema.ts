@@ -2,6 +2,7 @@ import { z } from "zod";
 import {
   CURRENCY_CODES,
   MAX_COMPANY_ACTIVITIES,
+  MAX_LISTING_INVITATIONS,
   MAX_MONEY,
   MAX_QUANTITY,
   MIN_QUANTITY,
@@ -34,12 +35,12 @@ const money = (t: RequestsTranslate, schema: z.ZodNumber) =>
 export const MAX_LISTING_ITEMS = 500;
 /**
  * Talep gövdesindeki davet listesi tavanı — API `CreateListingDto.invitations`
- * `@ArrayMaxSize(200)` ile birebir (eskiden web 50 diyordu; derin denetim S083/S095).
- * "Bağlantılarım" kipinde liste bir GÖRÜNÜRLÜK listesidir (tüm bağlantılar
- * otomatik işaretli) ve bu tavana tabi değildir: taşan kısım yayından sonra
- * davet ucuyla gönderilir (`splitInvitations`).
+ * ile TEK KAYNAK (`@rothern/shared`). "Bağlantılarım" kipinde liste tüm
+ * bağlantılardır ve tek gövdede gider (derin denetim S083/S095; kayıt sonrası
+ * ayrı davet çağrısı canlı düzenlemede taşan firmalara her kayıtta yeniden
+ * davet e-postası attırıyordu — MU-26 gözden geçirme).
  */
-export const MAX_LISTING_INVITATIONS = 200;
+export { MAX_LISTING_INVITATIONS };
 
 // Para birimi TEK KAYNAK `@rothern/shared` `CURRENCY_CODES` (elle liste
 // enum büyüdüğünde sessizce eskirdi — 2026-09-27'de 12 birim eklendi).
@@ -354,10 +355,10 @@ export function makeTenderFormSchema(t: RequestsTranslate) {
           path: ["paymentNote"],
         },
       )
-      // Davet listesi tavanı yalnız elle kurulan listede (Özel/Herkese açık);
-      // "Bağlantılarım" kipinde liste tüm bağlantılarla otomatik dolar.
+      // Davet listesi tavanı API ile aynı; "Bağlantılarım" kipinde de geçerli
+      // (liste tek gövdede gider — tavan tüm bağlantıları taşıyacak genişlikte).
       .refine(
-        (d) => d.visibility === "CONNECTIONS" || (d.invitedSupplierIds ?? []).length <= MAX_LISTING_INVITATIONS,
+        (d) => (d.invitedSupplierIds ?? []).length <= MAX_LISTING_INVITATIONS,
         { message: t("formSchema.invitedMax", { n: MAX_LISTING_INVITATIONS }), path: ["invitedSupplierIds"] },
       )
       // F2: kapanış gelecekte + en fazla 2 yıl (backend birebir) — tek kaynak helper.

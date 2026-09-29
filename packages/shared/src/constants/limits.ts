@@ -43,3 +43,14 @@ export const MAX_LISTING_HORIZON_MS = 2 * 365 * 24 * 60 * 60 * 1000;
  * S069: AI 80'e kırpıp DTO 60'ta reddedince Kaydet 400 düşüyordu).
  */
 export const COMPANY_SERVICE_MAX_LENGTH = 60;
+
+/**
+ * Talep gövdesindeki davet listesi tavanı — API `CreateListingDto.invitations`
+ * ve web talep formu aynı sabiti okur. "Bağlantılarım" kipinde liste alıcının
+ * TÜM bağlantılarıdır; tavan bu listeyi tek gövdede taşıyacak kadar geniş
+ * tutulur (derin denetim S083/S095: 200'lük tavan taşan bağlantıları kayıt
+ * sonrası ayrı davet çağrısına itiyordu — canlı düzenlemede sunucu davetleri
+ * yeniden yazdığı için taşan firmalar her kayıtta yeniden davet e-postası
+ * alıyordu). 5000 × kısa kod ≈ 60 KB — 5 MB gövde sınırının çok altında.
+ */
+export const MAX_LISTING_INVITATIONS = 5000;

@@ -30,7 +30,7 @@ import { useAiMissingFieldLabel, useCityLabel, useFormatPaymentPlan, usePaymentC
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { useAddresses, type CompanyAddress } from "@/hooks/use-company-addresses";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
-import { useAddListingInvitations, useCreateListing, usePublishListing, useUpdateListing } from "@/hooks/use-company-listings";
+import { useCreateListing, usePublishListing, useUpdateListing } from "@/hooks/use-company-listings";
 import { useSaveTemplate } from "@/hooks/use-listing-templates";
 import { SaveTemplateDialog } from "@/components/tenders/wizard/save-template-dialog";
 import { useRequestDefaults, useSaveRequestDefaults } from "@/hooks/use-request-defaults";
@@ -41,7 +41,7 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { parseAppWallClockInput } from "@/lib/time-zone";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { mapToInput } from "@/lib/tenders/map-to-input";
-import { applyConnectionsScope, splitInvitations } from "@/lib/tenders/connections-scope";
+import { applyConnectionsScope } from "@/lib/tenders/connections-scope";
 import {
   MAX_PENDING_EXTERNAL_INVITES,
   QUICK_DRAFT_KEY,
@@ -160,12 +160,11 @@ export function QuickRequest({
   const create = useCreateListing();
   const update = useUpdateListing(listingId ?? "");
   const publishExisting = usePublishListing(listingId ?? "");
-  const addInvitations = useAddListingInvitations();
   const saveTemplate = useSaveTemplate();
   const [templateOpen, setTemplateOpen] = useState(false);
   const sendExternal = useExternalTenderInvite();
   const sendMembers = useInviteDiscoveredMembers();
-  const busy = create.isPending || update.isPending || publishExisting.isPending || addInvitations.isPending || sendExternal.isPending || sendMembers.isPending;
+  const busy = create.isPending || update.isPending || publishExisting.isPending || sendExternal.isPending || sendMembers.isPending;
 
   const [terms, setTerms] = useState<RequestDefaults | null>(null);
   const [setupDone, setSetupDone] = useState(false);
@@ -343,23 +342,13 @@ export function QuickRequest({
 
   /* --- Yayın / taslak / detaylı */
   /**
-   * Gövde + gövdeye sığmayan davetler: "Bağlantılarım" kipinde liste tüm
-   * bağlantılardır ve API'nin 200'lük tavanını aşabilir (derin denetim
-   * S083/S095) — taşan kısım kayıttan sonra davet ucuyla gider.
+   * Gövde TEK çağrıda tüm davet listesini taşır ("Bağlantılarım" kipinde tüm
+   * bağlantılar; tavan `MAX_LISTING_INVITATIONS`, API ile ortak). Kayıt
+   * sonrası ayrı davet çağrısı YAPILMAZ: sunucu düzenlemede davetleri gövdeden
+   * yeniden yazar, ayrı çağrı taşan firmaları her kayıtta "yeni davetli"
+   * sayıp yeniden e-posta attırıyordu (derin denetim MU-26 gözden geçirme).
    */
-  const buildInput = (values: TenderFormData) => {
-    const { values: body, overflow } = splitInvitations(applyConnectionsScope(values, connectionIds));
-    return { input: mapToInput(body), overflow };
-  };
-  const sendOverflowInvitations = async (id: string, overflow: string[]) => {
-    if (!overflow.length) return;
-    // Talep kaydedildi — hata yayını geri almaz (yeniden yayın çift talep açardı).
-    try {
-      await addInvitations.mutateAsync({ id, rothernIds: overflow });
-    } catch {
-      toast.warning(tr("baglantiDavetleriGonderilemedi", { n: overflow.length }));
-    }
-  };
+  const buildInput = (values: TenderFormData) => mapToInput(applyConnectionsScope(values, connectionIds));
   const submitLock = useRef(false);
   const publish = async () => {
     if (submitLock.current) return;
@@ -385,9 +374,8 @@ export function QuickRequest({
       if (isEdit && listingId) {
         // Düzenleme: önce içerik güncellenir; TASLAK ise sonra yayına alınır.
         // Yayındaki talep zaten açık — yayın ucu yalnız taslağı kabul eder.
-        const { input, overflow } = buildInput(values);
+        const input = buildInput(values);
         await update.mutateAsync(input);
-        await sendOverflowInvitations(listingId, overflow);
         await uploadStaged(listingId);
         if (isLiveEdit) {
           toast.success(tr("degisikliklerKaydedildi"));
@@ -413,9 +401,8 @@ export function QuickRequest({
         router.push(`/company/ilan/${listingId}`);
         return;
       }
-      const { input, overflow } = buildInput(values);
+      const input = buildInput(values);
       const listing = await create.mutateAsync(input);
-      await sendOverflowInvitations(listing.id, overflow);
       await uploadStaged(listing.id);
       const memberResults = await sendPendingMembers(listing.id);
       const inviteResults = await sendPendingInvites(listing.id);
@@ -490,9 +477,8 @@ export function QuickRequest({
       if (isEdit && listingId) {
         // Taslak kaydı taslak kurallarıyla (kapanış/davetli yayında denetlenir;
         // yeni taslak yoluyla aynı). Yayındaki talepte bu düğme çizilmez.
-        const { input, overflow } = buildInput(values);
+        const input = buildInput(values);
         await update.mutateAsync({ ...input, asDraft: true });
-        await sendOverflowInvitations(listingId, overflow);
         await uploadStaged(listingId);
         // Bekleyen dış davetler taslakla birlikte saklanır; yayında gider.
         if (externalInvites.length) writeSession(pendingInvitesKey(listingId), externalInvites);
@@ -503,9 +489,8 @@ export function QuickRequest({
         router.push(`/company/ilan/${listingId}`);
         return;
       }
-      const { input, overflow } = buildInput(values);
+      const input = buildInput(values);
       const listing = await create.mutateAsync({ ...input, asDraft: true });
-      await sendOverflowInvitations(listing.id, overflow);
       await uploadStaged(listing.id);
       if (externalInvites.length) writeSession(pendingInvitesKey(listing.id), externalInvites);
       if (memberInvites.length) writeSession(pendingMemberInvitesKey(listing.id), memberInvites);
