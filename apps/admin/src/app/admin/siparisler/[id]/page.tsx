@@ -33,6 +33,8 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/api";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -49,6 +51,9 @@ function OrderInspection({ id }: { id: string }) {
   const { data: o, isLoading, isError, refetch } = useAdminOrderDetail(id);
   const cancel = useCancelOrder(id);
   const [dialog, setDialog] = useState(false);
+  // İptal SUPER_ADMIN+SALES; sayfa SUPPORT'a da açık (okuma).
+  const { admin } = useAdminAuth();
+  const canCancel = canAdminDo(admin?.role, "cancelOrder");
 
   if (isLoading) {
     return (
@@ -72,6 +77,9 @@ function OrderInspection({ id }: { id: string }) {
   // F5: onaylı toplam backend'in DECIMAL değerinden (INV-MONEY-1) — float re-sum
   // yerine tek kaynak (kuruş sapması yok).
   const confirmed = Number(o.paymentConfirmed);
+  // Backend onaylı (CONFIRMED) ödemesi olan siparişi her durumda reddeder →
+  // düğme yerine not gösterilir; iade ayrı yürütülür (derin denetim LU-12).
+  const hasConfirmedPayment = o.payments.some((p) => p.status === "CONFIRMED");
 
   return (
     <div className="max-w-[1100px] space-y-6">
@@ -106,10 +114,17 @@ function OrderInspection({ id }: { id: string }) {
             </p>
           ) : null}
         </div>
-        {CANCELABLE.has(o.status) ? (
-          <Button variant="danger" size="sm" onClick={() => setDialog(true)}>
-            Siparişi İptal Et
-          </Button>
+        {canCancel && CANCELABLE.has(o.status) ? (
+          hasConfirmedPayment ? (
+            <p className="max-w-xs rounded-lg bg-amber-50 px-3 py-1.5 text-xs text-amber-800">
+              Onaylı ödeme var — sipariş iptal edilemez, iade süreci ayrı
+              yürütülür.
+            </p>
+          ) : (
+            <Button variant="danger" size="sm" onClick={() => setDialog(true)}>
+              Siparişi İptal Et
+            </Button>
+          )
         ) : null}
       </div>
 
@@ -281,11 +296,6 @@ function OrderInspection({ id }: { id: string }) {
       <PromptDialog
         open={dialog}
         title="Siparişi İptal Et (yönetici)"
-        description={
-          confirmed > 0
-            ? `DİKKAT: Bu siparişte ${fmtMoney(confirmed, o.currency)} onaylı ödeme var — iptal sonrası iade süreci gerekebilir.`
-            : undefined
-        }
         label="Gerekçe (en az 10 karakter — iki tarafa da bildirilir)"
         placeholder="Örn. taraflar anlaşamadı, destek talebi #123"
         required

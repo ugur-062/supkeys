@@ -91,7 +91,15 @@ export function PromptDialog({
     minLength !== undefined &&
     (required || trimmed !== "") &&
     trimmed.length < minLength;
-  const invalid = (required && trimmed === "") || tooShort;
+  // datetime-local: tarayıcı `min`'i yalnız seçicide uygular, elle yazılan
+  // değer geçebilir. Alt sınırdan önceki tarih gönderilmesin (derin denetim
+  // LU-12) — aynı "yyyy-MM-dd'T'HH:mm" biçiminde sözlük sırası = zaman sırası.
+  const beforeMin =
+    type === "datetime-local" &&
+    !!minDateTime &&
+    trimmed !== "" &&
+    trimmed < minDateTime;
+  const invalid = (required && trimmed === "") || tooShort || beforeMin;
 
   const submit = () => {
     if (invalid) return;
@@ -108,7 +116,9 @@ export function PromptDialog({
           error={
             tooShort && trimmed !== ""
               ? `En az ${minLength} karakter (${trimmed.length}/${minLength})`
-              : undefined
+              : beforeMin
+                ? "Seçilen tarih izin verilen en erken tarihten önce"
+                : undefined
           }
         >
           <Label htmlFor="prompt-dialog-input" required={required}>

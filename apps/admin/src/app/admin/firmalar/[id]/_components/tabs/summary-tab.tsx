@@ -8,6 +8,7 @@ import { api, toastApiError } from "@/lib/api";
 import { countryLabel } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { AlertTriangle, Download, MailWarning, Pencil } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -54,6 +55,7 @@ function viesText(data: AdminCompanyDetail): string | null {
 /** KVKK — veri export (JSON indir) + firma silme/anonimleştirme. */
 function DangerZone({ data }: { data: AdminCompanyDetail }) {
   const router = useRouter();
+  const qc = useQueryClient();
   const [confirmText, setConfirmText] = useState("");
   const [busy, setBusy] = useState(false);
   const expected = data.rothernId ?? data.id.slice(0, 8);
@@ -92,6 +94,11 @@ function DangerZone({ data }: { data: AdminCompanyDetail }) {
           ? "Firma kalıcı olarak silindi"
           : "Firma anonimleştirildi (siparişli — finansal kayıt korundu)",
       );
+      // Liste/KPI önbelleği (staleTime 60 sn) silinen firmayı eski adıyla
+      // göstermesin; detay önbelleği de atılır (derin denetim LU-12).
+      qc.removeQueries({ queryKey: ["admin-company-detail", data.id] });
+      void qc.invalidateQueries({ queryKey: ["admin-companies"] });
+      void qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
       router.push("/admin/firmalar");
     } catch (e) {
       toastApiError(e);

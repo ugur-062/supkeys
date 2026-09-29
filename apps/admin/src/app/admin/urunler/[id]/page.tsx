@@ -13,6 +13,8 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/api";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 
 const WEB = process.env.NEXT_PUBLIC_WEB_URL ?? "https://www.rothern.com";
 
@@ -30,6 +32,9 @@ function ProductReview({ id }: { id: string }) {
   const act = useProductReview(id);
   const [rejectOpen, setRejectOpen] = useState(false);
   const err = (e: unknown) => toastApiError(e);
+  // Ürün kararı SUPER_ADMIN+SUPPORT; SALES kuyruğu yalnız okur.
+  const { admin } = useAdminAuth();
+  const canReview = canAdminDo(admin?.role, "reviewProduct");
 
   if (isLoading) {
     return (
@@ -78,7 +83,7 @@ function ProductReview({ id }: { id: string }) {
               <ExternalLink className="h-4 w-4" /> Sitede aç
             </a>
           ) : null}
-          {pending ? (
+          {pending && canReview ? (
             <>
               <Button variant="danger" disabled={act.isPending} onClick={() => setRejectOpen(true)}>
                 <X className="h-4 w-4" /> Düzeltmeye gönder

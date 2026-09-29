@@ -1,17 +1,23 @@
 // @vitest-environment jsdom
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   bulkApprove: vi.fn(async () => ({ approved: 0, skipped: [] as { id: string; reason: string }[] })),
   products: { data: undefined as unknown, isLoading: false, isError: false },
   lastParams: undefined as unknown,
+  role: "SUPPORT" as string,
+  toastApiError: vi.fn(),
 }));
 
 vi.mock("@/components/layout/admin-shell", () => ({
   AdminShell: ({ children }: { children: React.ReactNode }) => children,
 }));
 vi.mock("next/navigation", () => ({ useSearchParams: () => new URLSearchParams() }));
+vi.mock("@/hooks/use-admin-auth", () => ({
+  useAdminAuth: () => ({ admin: { role: h.role } }),
+}));
+vi.mock("@/lib/api", () => ({ toastApiError: h.toastApiError }));
 vi.mock("@/hooks/use-admin-products", () => ({
   useAdminProducts: (params: unknown) => {
     h.lastParams = params;
@@ -46,6 +52,10 @@ function row(id: string, over: Record<string, unknown> = {}) {
 
 describe("/admin/urunler — ürün onay kuyruğu", () => {
   beforeEach(() => {
+    h.role = "SUPPORT";
+    h.bulkApprove.mockReset();
+    h.bulkApprove.mockResolvedValue({ approved: 0, skipped: [] });
+    h.toastApiError.mockReset();
     h.products = { data: { items: [row("1"), row("2", { isPublic: true })], total: 2, page: 1, pageSize: 25 }, isLoading: false, isError: false };
   });
 
@@ -69,5 +79,24 @@ describe("/admin/urunler — ürün onay kuyruğu", () => {
     h.products = { data: { items: [], total: 0, page: 1, pageSize: 25 }, isLoading: false, isError: false };
     render(<AdminUrunlerPage />);
     expect(screen.getByText(/Kuyruk boş/)).toBeInTheDocument();
+  });
+
+  // Derin denetim LU-12: ürün kararı SUPER_ADMIN+SUPPORT (API 403 verir);
+  // SALES kuyruğu yalnız okur.
+  it("SALES seçim kutusu ve toplu onay görmez", () => {
+    h.role = "SALES";
+    render(<AdminUrunlerPage />);
+    expect(screen.queryAllByRole("checkbox")).toHaveLength(0);
+    expect(screen.queryByText("Seçilenleri onayla")).not.toBeInTheDocument();
+  });
+
+  it("toplu onay reddedilince hata toast'ı basılır, seçim korunur (unhandled rejection yok)", async () => {
+    h.bulkApprove.mockRejectedValue(new Error("403"));
+    render(<AdminUrunlerPage />);
+    fireEvent.click(screen.getByRole("checkbox", { name: "Ürün 1 seç" }));
+    fireEvent.click(screen.getByText("Seçilenleri onayla"));
+    await waitFor(() => expect(h.toastApiError).toHaveBeenCalled());
+    expect(h.bulkApprove).toHaveBeenCalledWith(["1"]);
+    expect(screen.getByText("1 ürün seçildi")).toBeInTheDocument();
   });
 });

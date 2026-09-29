@@ -58,6 +58,8 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
               <TableStateRow
                 colSpan={5}
                 loading={query.isLoading}
+                error={query.isError}
+                onRetry={() => void query.refetch()}
                 empty="Bağlantı yok"
               />
             ) : (
@@ -134,6 +136,8 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
               <TableStateRow
                 colSpan={4}
                 loading={query.isLoading}
+                error={query.isError}
+                onRetry={() => void query.refetch()}
                 empty="Referans daveti yok"
               />
             ) : (

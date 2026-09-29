@@ -260,6 +260,8 @@ export function MembershipTab({
               <TableStateRow
                 colSpan={6}
                 loading={history.isLoading}
+                error={history.isError}
+                onRetry={() => void history.refetch()}
                 empty="Üyelik hareketi yok"
               />
             ) : (

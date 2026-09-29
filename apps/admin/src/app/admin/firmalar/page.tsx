@@ -132,6 +132,27 @@ function FirmalarView() {
   const page = query.data?.page ?? filters.page ?? 1;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // CSV dışa aktarımı sürerken buton kilitli (çift tık paralel dizi başlatıp
+  // birden çok dosya indirmesin); hata yakalanır (derin denetim LU-12).
+  const [exporting, setExporting] = useState(false);
+  const runExport = async () => {
+    setExporting(true);
+    try {
+      const n = await exportCsv({
+        status: filters.status || undefined,
+        country: filters.country || undefined,
+        tier: filters.tier || undefined,
+        blocked: filters.blocked || undefined,
+        q: filters.search?.trim() || undefined,
+      });
+      toast.success(`${n} firma CSV'ye aktarıldı`);
+    } catch (e) {
+      toastApiError(e, "CSV alınamadı");
+    } finally {
+      setExporting(false);
+    }
+  };
+
   const [prompt, setPrompt] = useState<
     | { kind: "tierMonths"; id: string; tier: "SILVER" | "GOLD" }
     | { kind: "suspendReason"; id: string }
@@ -238,16 +259,9 @@ function FirmalarView() {
         <Button
           variant="secondary"
           size="sm"
-          disabled={total === 0}
-          onClick={() => {
-            void exportCsv({
-              status: filters.status || undefined,
-              country: filters.country || undefined,
-              tier: filters.tier || undefined,
-              blocked: filters.blocked || undefined,
-              q: filters.search?.trim() || undefined,
-            }).then((n) => toast.success(`${n} firma CSV'ye aktarıldı`));
-          }}
+          disabled={total === 0 || exporting}
+          loading={exporting}
+          onClick={() => void runExport()}
         >
           <Download className="mr-1.5 h-3.5 w-3.5" /> CSV
         </Button>

@@ -163,4 +163,52 @@ describe("PromptDialog minLength (derin denetim MU-21)", () => {
     await user.click(screen.getByRole("button", { name: "Onayla" }));
     expect(onConfirm).toHaveBeenCalledWith("şikayet var");
   });
+
+  // Derin denetim LU-12: tarayıcı `min`'i yalnız seçicide uygular; elle
+  // yazılan alt sınırdan önceki tarih gönderilmez.
+  it("datetime-local: alt sınırdan önceki değer onaylanamaz", () => {
+    render(
+      <PromptDialog
+        open
+        title="Süre Uzat"
+        label="Yeni kapanış"
+        type="datetime-local"
+        minDateTime="2026-10-01T18:00"
+        defaultValue="2026-10-01T17:00"
+        required
+        confirmLabel="Uzat"
+        onConfirm={onConfirm}
+        onClose={onClose}
+      />,
+    );
+    expect(screen.getByLabelText(/Yeni kapanış/)).toHaveAttribute(
+      "min",
+      "2026-10-01T18:00",
+    );
+    expect(screen.getByRole("button", { name: "Uzat" })).toBeDisabled();
+    expect(
+      screen.getByText("Seçilen tarih izin verilen en erken tarihten önce"),
+    ).toBeInTheDocument();
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it("datetime-local: alt sınır ve sonrası onaylanır", async () => {
+    const user = userEvent.setup();
+    render(
+      <PromptDialog
+        open
+        title="Süre Uzat"
+        label="Yeni kapanış"
+        type="datetime-local"
+        minDateTime="2026-10-01T18:00"
+        defaultValue="2026-10-02T09:30"
+        required
+        confirmLabel="Uzat"
+        onConfirm={onConfirm}
+        onClose={onClose}
+      />,
+    );
+    await user.click(screen.getByRole("button", { name: "Uzat" }));
+    expect(onConfirm).toHaveBeenCalledWith("2026-10-02T09:30");
+  });
 });

@@ -16,6 +16,9 @@ import { PRODUCT_REVIEW_STATUS } from "@/lib/status-labels";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
+import { toastApiError } from "@/lib/api";
 
 const PAGE_SIZE = 25;
 type Tab = "PENDING" | "REJECTED" | "APPROVED" | "ALL";
@@ -58,15 +61,28 @@ function UrunlerView() {
   const total = query.data?.total ?? 0;
   const totalPages = Math.max(1, Math.ceil(total / PAGE_SIZE));
 
+  // Ürün kararı SUPER_ADMIN+SUPPORT; SALES kuyruğu yalnız okur (seçim/toplu
+  // onay çizilmez — API 403 dönerdi; derin denetim LU-12).
+  const { admin } = useAdminAuth();
+  const canReview = canAdminDo(admin?.role, "reviewProduct");
   // Seçim yalnız ONAY BEKLEYENDE anlamlı — yayındaki ürün yeniden onaylanmaz.
-  const secilebilir = items.filter((p) => p.reviewStatus === "PENDING").map((p) => p.id);
+  const secilebilir = canReview
+    ? items.filter((p) => p.reviewStatus === "PENDING").map((p) => p.id)
+    : [];
   const seciliGecerli = secili.filter((id) => secilebilir.includes(id));
   const hepsiSecili = secilebilir.length > 0 && seciliGecerli.length === secilebilir.length;
   const sifirla = () => setSecili([]);
 
   const topluOnayla = async () => {
     if (seciliGecerli.length === 0) return;
-    const r = await toplu.mutateAsync(seciliGecerli);
+    let r: Awaited<ReturnType<typeof toplu.mutateAsync>>;
+    try {
+      r = await toplu.mutateAsync(seciliGecerli);
+    } catch (e) {
+      // Red yakalanmazsa unhandled rejection; seçim korunur, yeniden denenebilir.
+      toastApiError(e, "Toplu onay başarısız");
+      return;
+    }
     sifirla();
     if (r.skipped.length > 0) {
       // Atlananları SESSİZCE yutmak, admin'in onayladığını sandığı ürünün
@@ -192,7 +208,7 @@ function UrunlerView() {
                 return (
                   <TableRow key={p.id}>
                     <TableCell>
-                      {p.reviewStatus === "PENDING" ? (
+                      {canReview && p.reviewStatus === "PENDING" ? (
                         <input
                           type="checkbox"
                           aria-label={`${p.name} seç`}

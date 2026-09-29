@@ -39,11 +39,19 @@ export type AdminAction =
   | "listSuppressions" // companies/:id/users/:userId/{password-reset,resend,drop-sessions} — @AllowAnyAdminRole
   | "resolveCategoryMiss" // POST admin/system/category-misses/:id/resolve
   | "globalSearch" // GET admin/search (üst çubuk global arama)
-  | "listCompanies"; // GET admin/companies (firma listesi + detay; KYC PII, SUPPORT'a kapalı)
+  | "listCompanies" // GET admin/companies (firma listesi + detay; KYC PII, SUPPORT'a kapalı)
+  // Derin denetim LU-12: inceleme sayfaları (ilan/sipariş/ürün) ve Sistem
+  // sayfası bu aksiyonları rol kapısız çiziyordu → izinsiz role 403 toast'ı.
+  | "listingIntervention" // POST admin/listings/:id/{close,extend,reopen}
+  | "cancelOrder" // POST admin/orders/:id/cancel
+  | "reviewProduct" // POST admin/products/:id/{approve,reject} + bulk-approve
+  | "refreshRates"; // POST admin/system/refresh-rates
 
 const SUPER: AdminRole[] = ["SUPER_ADMIN"];
 const KYC: AdminRole[] = ["SUPER_ADMIN", "SALES"];
 const ANY: AdminRole[] = ["SUPER_ADMIN", "SALES", "SUPPORT"];
+// Ürün kararı katalog kalitesi işidir → SUPPORT'a açık, SALES yalnız okur.
+const PRODUCT_REVIEW: AdminRole[] = ["SUPER_ADMIN", "SUPPORT"];
 
 export const ADMIN_ACTION_ROLES: Record<AdminAction, AdminRole[]> = {
   setTier: SUPER,
@@ -71,6 +79,10 @@ export const ADMIN_ACTION_ROLES: Record<AdminAction, AdminRole[]> = {
   resolveCategoryMiss: KYC,
   globalSearch: KYC,
   listCompanies: KYC,
+  listingIntervention: KYC,
+  cancelOrder: KYC,
+  reviewProduct: PRODUCT_REVIEW,
+  refreshRates: KYC,
 };
 
 /** Rol bu aksiyonu yapabilir mi? (frontend buton kapısı — backend otorite kalır) */

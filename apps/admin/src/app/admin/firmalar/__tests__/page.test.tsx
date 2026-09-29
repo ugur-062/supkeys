@@ -12,7 +12,16 @@ const h = vi.hoisted(() => ({
   replace: vi.fn(),
   // Rol-tabanlı buton kapısı (canAdminDo): tier/suspend yalnız SUPER_ADMIN'e görünür.
   admin: { role: "SUPER_ADMIN" } as { role: string } | null,
+  apiGet: vi.fn(),
+  toastApiError: vi.fn(),
+  downloadCsv: vi.fn(),
 }));
+
+vi.mock("@/lib/api", () => ({
+  api: { get: h.apiGet },
+  toastApiError: h.toastApiError,
+}));
+vi.mock("@/lib/csv", () => ({ downloadCsv: h.downloadCsv }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/hooks/use-admin-auth", () => ({
@@ -264,5 +273,37 @@ describe("FirmalarView — ülke filtresi (derin denetim LU-11)", () => {
       .map((o) => (o as HTMLOptionElement).value);
     expect(values).toContain("KZ");
     expect(values).toHaveLength(13); // "Tüm ülkeler" + 12
+  });
+});
+
+describe("CSV dışa aktarımı (derin denetim LU-12)", () => {
+  it("istek sürerken düğme kilitli; hata yakalanır ve toast'lanır, dosya inmez", async () => {
+    const user = userEvent.setup();
+    let reject!: (e: unknown) => void;
+    h.apiGet.mockReturnValueOnce(
+      new Promise((_res, rej) => {
+        reject = rej;
+      }),
+    );
+    render(<AdminFirmalarPage />);
+    const btn = screen.getByRole("button", { name: /CSV/ });
+    await user.click(btn);
+    expect(btn).toBeDisabled();
+    await user.click(btn); // kilitliyken ikinci dizi başlamaz
+    expect(h.apiGet).toHaveBeenCalledTimes(1);
+    reject(new Error("502"));
+    await vi.waitFor(() => expect(h.toastApiError).toHaveBeenCalled());
+    expect(h.downloadCsv).not.toHaveBeenCalled();
+    expect(h.toast.success).not.toHaveBeenCalled();
+    await vi.waitFor(() => expect(btn).not.toBeDisabled());
+  });
+
+  it("başarıda dosya iner ve sayı toast'ı basılır", async () => {
+    const user = userEvent.setup();
+    h.apiGet.mockResolvedValueOnce({ data: { items: [row()], total: 1 } });
+    render(<AdminFirmalarPage />);
+    await user.click(screen.getByRole("button", { name: /CSV/ }));
+    await vi.waitFor(() => expect(h.downloadCsv).toHaveBeenCalledTimes(1));
+    expect(h.toast.success).toHaveBeenCalledWith("1 firma CSV'ye aktarıldı");
   });
 });

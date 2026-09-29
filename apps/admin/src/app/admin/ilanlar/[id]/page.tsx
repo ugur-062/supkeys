@@ -16,7 +16,7 @@ import {
   useAdminListingDetail,
   useListingIntervention,
 } from "@/hooks/use-admin-inspection";
-import { safeFormat } from "@/lib/date";
+import { safeFormat, toDateTimeLocal } from "@/lib/date";
 import { systemTextTr } from "@/lib/system-text";
 import {
   BID_STATUS,
@@ -30,6 +30,8 @@ import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/api";
+import { useAdminAuth } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 
 function ListingInspection({ id }: { id: string }) {
   const { data: l, isLoading, isError, refetch } = useAdminListingDetail(id);
@@ -39,6 +41,9 @@ function ListingInspection({ id }: { id: string }) {
   );
 
   const err = (e: unknown) => toastApiError(e);
+  // Kapat/uzat/yeniden aç SUPER_ADMIN+SALES; sayfa SUPPORT'a da açık (okuma).
+  const { admin } = useAdminAuth();
+  const canIntervene = canAdminDo(admin?.role, "listingIntervention");
 
   if (isLoading) {
     return (
@@ -65,6 +70,7 @@ function ListingInspection({ id }: { id: string }) {
   // Moderasyon kapatması (CLOSED) veya yanlış "Değerlendirmeye Al" (IN_AWARD,
   // sahip tarafında geri alınamaz — destek kanalı burası).
   const canReopen =
+    canIntervene &&
     (l.status === "CLOSED" || l.status === "IN_AWARD") &&
     !l.awardedAt &&
     l.orders.length === 0;
@@ -103,7 +109,7 @@ function ListingInspection({ id }: { id: string }) {
           ) : null}
         </div>
         <div className="flex items-center gap-2">
-          {l.status === "OPEN" ? (
+          {canIntervene && l.status === "OPEN" ? (
             <>
               <Button
                 variant="secondary"
@@ -324,7 +330,7 @@ function ListingInspection({ id }: { id: string }) {
         title="Süre Uzat"
         label="Yeni kapanış (yalnız uzatma — kısaltma yapılamaz)"
         type="datetime-local"
-        minDateTime={(l.closesAt ?? new Date().toISOString()).slice(0, 16)}
+        minDateTime={toDateTimeLocal(l.closesAt)}
         required
         confirmLabel="Uzat"
         onConfirm={(v) => {
@@ -345,7 +351,7 @@ function ListingInspection({ id }: { id: string }) {
         title="İlanı Yeniden Aç"
         label="Yeni kapanış tarihi"
         type="datetime-local"
-        minDateTime={new Date().toISOString().slice(0, 16)}
+        minDateTime={toDateTimeLocal()}
         required
         confirmLabel="Yeniden Aç"
         onConfirm={(v) => {

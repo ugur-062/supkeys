@@ -130,7 +130,7 @@ function ManualRateForm() {
 }
 
 /** E-posta itibar — suppress edilmiş adresler + aklama. */
-function SuppressionsSection() {
+function SuppressionsSection({ canClear }: { canClear: boolean }) {
   const list = useSuppressions();
   const clear = useClearSuppression();
   const rows = list.data ?? [];
@@ -164,22 +164,26 @@ function SuppressionsSection() {
                   {safeFormat(r.at, "d MMM yyyy")}
                 </p>
               </div>
-              <Button
-                variant="secondary"
-                size="sm"
-                disabled={clear.isPending}
-                onClick={() =>
-                  clear.mutate(
-                    { email: r.email },
-                    {
-                      onSuccess: () => toast.success("Engel kaldırıldı"),
-                      onError: (e: unknown) => toastApiError(e),
-                    },
-                  )
-                }
-              >
-                Engeli Kaldır
-              </Button>
+              {/* Liste SUPER_ADMIN+SALES; engel kaldırma yalnız SUPER_ADMIN
+                  (clearSuppression) — SALES'e 403 düğmesi çizilmez (LU-12). */}
+              {canClear ? (
+                <Button
+                  variant="secondary"
+                  size="sm"
+                  disabled={clear.isPending}
+                  onClick={() =>
+                    clear.mutate(
+                      { email: r.email },
+                      {
+                        onSuccess: () => toast.success("Engel kaldırıldı"),
+                        onError: (e: unknown) => toastApiError(e),
+                      },
+                    )
+                  }
+                >
+                  Engeli Kaldır
+                </Button>
+              ) : null}
             </div>
           ))
         )}
@@ -198,6 +202,9 @@ function SistemView() {
   const { admin } = useAdminAuth();
   const canManualRate = canAdminDo(admin?.role, "manualRate");
   const canListSuppressions = canAdminDo(admin?.role, "listSuppressions");
+  const canClearSuppression = canAdminDo(admin?.role, "clearSuppression");
+  // Kur yenileme SUPER_ADMIN+SALES; Sistem sayfası SUPPORT'a da açık (LU-12).
+  const canRefreshRates = canAdminDo(admin?.role, "refreshRates");
   const canTimeSavings = canAdminDo(admin?.role, "timeSavingsConfig");
 
   return (
@@ -264,21 +271,23 @@ function SistemView() {
               </span>
             </div>
           </div>
-          <Button
-            size="sm"
-            loading={refresh.isPending}
-            onClick={() =>
-              refresh.mutate(undefined, {
-                onSuccess: (r) =>
-                  r.success
-                    ? toast.success(`Kurlar yenilendi (${r.date})`)
-                    : toast.error(`TCMB alınamadı: ${r.reason ?? "bilinmiyor"}`),
-                onError: (e: unknown) => toastApiError(e),
-              })
-            }
-          >
-            <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Kurları Şimdi Yenile
-          </Button>
+          {canRefreshRates ? (
+            <Button
+              size="sm"
+              loading={refresh.isPending}
+              onClick={() =>
+                refresh.mutate(undefined, {
+                  onSuccess: (r) =>
+                    r.success
+                      ? toast.success(`Kurlar yenilendi (${r.date})`)
+                      : toast.error(`TCMB alınamadı: ${r.reason ?? "bilinmiyor"}`),
+                  onError: (e: unknown) => toastApiError(e),
+                })
+              }
+            >
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5" /> Kurları Şimdi Yenile
+            </Button>
+          ) : null}
         </div>
         {s?.exchangeRates.rates ? (
           <div className="mt-4 flex flex-wrap gap-2">
@@ -305,7 +314,7 @@ function SistemView() {
         {canManualRate ? <ManualRateForm /> : null}
       </section>
 
-      {canListSuppressions ? <SuppressionsSection /> : null}
+      {canListSuppressions ? <SuppressionsSection canClear={canClearSuppression} /> : null}
       {canTimeSavings ? <TimeSavingsConfigSection /> : null}
 
       {/* Cron işleri */}

@@ -72,7 +72,21 @@ export function NotesTab({ companyId }: { companyId: string }) {
       </section>
 
       <section className="space-y-2">
-        {(notes.data ?? []).length === 0 ? (
+        {notes.isError && (notes.data ?? []).length === 0 ? (
+          // Hata "Henüz not yok" gibi görünmesin — admin geçmiş görüşmeleri
+          // bilmeden aynı teklifi yinelemesin (derin denetim LU-12).
+          <div className="admin-card text-admin-text-muted flex flex-col items-center gap-2 px-6 py-12 text-center text-sm">
+            <StickyNote className="h-6 w-6" aria-hidden="true" />
+            <span>Notlar alınamadı — lütfen tekrar deneyin</span>
+            <Button
+              variant="secondary"
+              size="sm"
+              onClick={() => void notes.refetch()}
+            >
+              Tekrar dene
+            </Button>
+          </div>
+        ) : (notes.data ?? []).length === 0 ? (
           <div className="admin-card text-admin-text-muted flex flex-col items-center gap-2 px-6 py-12 text-center text-sm">
             <StickyNote className="h-6 w-6" aria-hidden="true" />
             {notes.isLoading ? "Yükleniyor..." : "Henüz not yok"}

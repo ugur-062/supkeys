@@ -34,3 +34,13 @@ export function safeFormatDistance(
     ? formatDistanceToNow(d, { locale: tr, addSuffix: opts?.addSuffix })
     : fallback;
 }
+
+/**
+ * `<input type="datetime-local">` değeri/alt sınırı — YEREL saatle
+ * ("yyyy-MM-dd'T'HH:mm"). UTC ISO'yu `slice(0, 16)` ile kesmek TR'de (UTC+3)
+ * sınırı 3 saat geriye kaydırıyordu (derin denetim LU-12). Geçersiz girdide
+ * şimdiki an kullanılır.
+ */
+export function toDateTimeLocal(value?: DateInput): string {
+  return format(toValidDate(value) ?? new Date(), "yyyy-MM-dd'T'HH:mm");
+}
