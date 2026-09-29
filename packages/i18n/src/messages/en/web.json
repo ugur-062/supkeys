@@ -265,12 +265,17 @@
       "backToMarket": "Back to the marketplace"
     },
     "optOut": {
-      "metaTitle": "Turning off invitations",
+      "metaTitle": "Turn off invitation emails",
       "processing": "Processing…",
       "doneTitle": "Invitations turned off",
       "doneBody": "No more buying request invitations will be sent to this email address via Rothern.",
       "invalidTitle": "Invalid link",
-      "invalidBody": "The link may have expired or be incorrect."
+      "invalidBody": "The link may have expired or be incorrect.",
+      "title": "Turn off invitation emails",
+      "forAddress": "Address: {email}",
+      "question": "Stop sending buying request invitations to this address via Rothern?",
+      "confirm": "I don't want invitations",
+      "error": "Something went wrong. Please try again."
     },
     "taglines": {
       "fallback": "Get quotes from verified suppliers.",
@@ -3595,6 +3600,7 @@
         "disDavetDili": "Invitation language for {email}",
         "disDavetSirayaAlindi": "{n, plural, one {# invitation} other {# invitations}} queued; emails are sent during business hours in the recipient's country.",
         "uyeDavetleriGonderilemedi": "Member invitations couldn't be sent. Try again from the request page.",
+        "baglantiDavetleriGonderilemedi": "Invitations couldn't be sent to {n, plural, one {# connection} other {# connections}}. You can invite them again from the request page.",
         "uyeDavetEdildi": "{n, plural, one {# Rothern member} other {# Rothern members}} invited to the request",
         "bekleyenUyeDavetleri": "Rothern members to invite straight to the request ({n, number})",
         "bekleyenUyeDavetleriAciklama": "Once the request is published, these companies are invited to it and notified in the app and by email. They don't need to be your contacts.",
@@ -4061,7 +4067,7 @@
         "invalidDecimalPlaces": "Invalid number of decimal places",
         "itemsMin": "Add at least 1 line item",
         "itemsMax": "Maximum {n, plural, one {# line item} other {# line items}}",
-        "invitedMax": "Maximum 50 suppliers",
+        "invitedMax": "You can invite up to {n, plural, one {# supplier} other {# suppliers}}",
         "deliveryTermRequired": "Select a delivery term",
         "billingAddressRequired": "Select a billing address",
         "paymentDaysRequired": "Number of payment days is required",
@@ -5484,7 +5490,8 @@
         "accountNumberInvalid": "Enter a valid account number (4–40 characters)",
         "swiftInvalid": "Enter a valid SWIFT/BIC code (8 or 11 characters)",
         "ibanOrAccountNumber": "IBAN or account number",
-        "optionalIbanHint": "In this country you can use an IBAN or a local account number. With an account number, the SWIFT/BIC code and bank name are also required."
+        "optionalIbanHint": "In this country you can use an IBAN or a local account number. With an account number, the SWIFT/BIC code and bank name are also required.",
+        "bankCountryBlocked": "This account belongs to a bank in a country we cannot accept; it cannot be saved"
       },
       "companyProfileSection": {
         "firmaAdiEnAz2": "The company name must be at least 2 characters",
@@ -5851,7 +5858,8 @@
         "swiftInvalid": "Enter a valid SWIFT/BIC code (8 or 11 characters)",
         "bankName": "Bank name",
         "accountNumberInvalid": "Enter a valid account number (4–40 characters)",
-        "idBothSidesHint": "If it is an ID card, upload the front and back in a single file (a PDF or a combined image)."
+        "idBothSidesHint": "If it is an ID card, upload the front and back in a single file (a PDF or a combined image).",
+        "bankCountryBlocked": "This account belongs to a bank in a country we cannot accept; it cannot be saved"
       },
       "ayarlarFirmaLayout": {
         "firmaBilgileriYetkiGerektirir": "Company details require permission",

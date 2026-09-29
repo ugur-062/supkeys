@@ -740,6 +740,32 @@ export function useAddInvitations(id: string) {
   });
 }
 
+/**
+ * Talep gövdesinin 200'lük davet tavanını aşan liste ("Bağlantılarım" kipinde
+ * tüm bağlantılar) — talep kaydedildikten sonra davet ucuyla, 500'lük
+ * parçalarla (API `AddInvitationsDto` tavanı). Derin denetim S083/S095.
+ */
+export function useAddListingInvitations() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ id, rothernIds }: { id: string; rothernIds: string[] }) => {
+      let added = 0;
+      for (let i = 0; i < rothernIds.length; i += 500) {
+        const { data } = await companyApi.post<{ added: number; skipped: number }>(
+          `/company/listings/${id}/invitations`,
+          { rothernIds: rothernIds.slice(i, i + 500) },
+        );
+        added += data?.added ?? 0;
+      }
+      return { added };
+    },
+    onSuccess: (_d, { id }) => {
+      qc.invalidateQueries({ queryKey: ["company-listings", "detail", id] });
+      invalidateListingCaches(qc);
+    },
+  });
+}
+
 export function useEliminateBid(id: string) {
   const qc = useQueryClient();
   return useMutation({

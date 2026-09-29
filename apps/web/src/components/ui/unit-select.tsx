@@ -1,7 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   COMMON_UNIT_CODES,
   UNITS,
@@ -31,6 +31,10 @@ import { useUnitLabel } from "@/i18n/domain";
  *    gösterilir (raporda gruplanamaz).
  *  · Eski kayıtlar serbest metin taşıyor; `normalizeUnit` ile tanınırsa liste
  *    otomatik o birimi seçili gösterir, tanınmazsa "listede yok" moduna düşer.
+ *  · "Listede yok" modu bileşenin KENDİ durumudur (derin denetim S086): yazarken
+ *    kod VERİLMEZ (`unitCode: null`) — "teneke"nin ilk harfi "t" TON takma adına
+ *    eşleşip kutuyu kapatıyordu. Bilinen birim eşlemesi yalnız alandan çıkınca
+ *    ve metnin TAMAMI bir birim adıyla eşleşirse yapılır ("kg" → Kilogram).
  */
 const OTHER = "__other__";
 
@@ -59,7 +63,22 @@ export function UnitSelect({
   const unitLabel = useUnitLabel();
   const resolved = unitCode ?? normalizeUnit(value);
   const [freeText, setFreeText] = useState(resolved ? "" : value);
-  const isOther = !resolved;
+  const [otherMode, setOtherMode] = useState(!resolved);
+  const isOther = otherMode || !resolved;
+  // Dışarıdan gelen değişiklik (satır sıfırlama, katalogdan kalem) modu yeniden
+  // türetir; bileşenin kendi yazdığı değer türetmez (yoksa ilk harf yine kilitler).
+  const emitted = useRef<string | null>(value);
+  useEffect(() => {
+    if (value === emitted.current) return;
+    emitted.current = value;
+    const r = unitCode ?? normalizeUnit(value);
+    setOtherMode(!r);
+    setFreeText(r ? "" : value);
+  }, [value, unitCode]);
+  const emit = (next: { unit: string; unitCode: string | null }) => {
+    emitted.current = next.unit;
+    onChange(next);
+  };
 
   const grouped = useMemo(() => {
     const commons = COMMON_UNIT_CODES.map((c) => getUnit(c)!).filter(Boolean);
@@ -83,13 +102,15 @@ export function UnitSelect({
         onChange={(e) => {
           const v = e.target.value;
           if (v === OTHER) {
-            onChange({ unit: freeText || "", unitCode: null });
+            setOtherMode(true);
+            emit({ unit: freeText || "", unitCode: null });
             return;
           }
           const u = getUnit(v);
+          setOtherMode(false);
           // Serbest metin alanı da katalog adıyla senkron kalır: kayıt hem
           // koda hem okunur metne sahip olur (expand→contract gereği).
-          onChange({ unit: u?.nameTr ?? v, unitCode: v });
+          emit({ unit: u?.nameTr ?? v, unitCode: v });
         }}
       >
         <optgroup label={t("sikKullanilan")}>
@@ -125,9 +146,18 @@ export function UnitSelect({
             onChange={(e) => {
               const t = e.target.value;
               setFreeText(t);
-              // Kullanıcı bilinen bir birim yazarsa sessizce kodla — "kg"
-              // yazan kişi listeden seçmiş gibi davransın.
-              onChange({ unit: t, unitCode: normalizeUnit(t) });
+              // Yazarken kodlama YOK — ilk harf ("t", "g", "л") bir birimin
+              // takma adına eşleşip kutuyu kapatıyordu.
+              emit({ unit: t, unitCode: null });
+            }}
+            onBlur={() => {
+              // Bilinen bir birim TAM yazıldıysa ("kg") listeden seçilmiş gibi kodla.
+              const code = normalizeUnit(freeText);
+              const u = code ? getUnit(code) : null;
+              if (!u) return;
+              setOtherMode(false);
+              setFreeText("");
+              emit({ unit: u.nameTr, unitCode: u.code });
             }}
           />
           <p className={cn("text-xs", "text-amber-700")}>

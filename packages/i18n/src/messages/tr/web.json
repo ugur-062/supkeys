@@ -265,12 +265,17 @@
       "backToMarket": "Pazar yerine dön"
     },
     "optOut": {
-      "metaTitle": "Davetler kapatılıyor",
+      "metaTitle": "Davet e-postalarını kapat",
       "processing": "İşleniyor…",
       "doneTitle": "Davetler kapatıldı",
       "doneBody": "Bu e-posta adresine Rothern üzerinden bir daha satın alma talebi daveti gönderilmeyecek.",
       "invalidTitle": "Bağlantı geçersiz",
-      "invalidBody": "Bağlantı süresi dolmuş veya hatalı olabilir."
+      "invalidBody": "Bağlantı süresi dolmuş veya hatalı olabilir.",
+      "title": "Davet e-postalarını kapat",
+      "forAddress": "Adres: {email}",
+      "question": "Rothern üzerinden bu adrese bir daha satın alma talebi daveti gönderilmesin mi?",
+      "confirm": "Davet almak istemiyorum",
+      "error": "İşlem tamamlanamadı. Lütfen yeniden deneyin."
     },
     "taglines": {
       "fallback": "Doğrulanmış tedarikçilerden teklif alın.",
@@ -3595,6 +3600,7 @@
         "disDavetDili": "{email} için davet dili",
         "disDavetSirayaAlindi": "{n, plural, other {# davet}} sıraya alındı; e-postalar alıcının ülkesinde mesai saatinde gönderilir.",
         "uyeDavetleriGonderilemedi": "Üye davetleri gönderilemedi. Talep sayfasından yeniden deneyin.",
+        "baglantiDavetleriGonderilemedi": "Bağlantılarınızdan {n, number} firmaya davet gönderilemedi. Talep sayfasından yeniden davet edebilirsiniz.",
         "uyeDavetEdildi": "{n, plural, other {# Rothern üyesi}} talebe davet edildi",
         "bekleyenUyeDavetleri": "Talebe doğrudan davet edilecek Rothern üyeleri ({n, number})",
         "bekleyenUyeDavetleriAciklama": "Talep yayınlanınca bu firmalar talebinize davetli olur ve uygulamada ve e-postayla haberdar edilir. Bağlantınız olmaları gerekmez.",
@@ -4061,7 +4067,7 @@
         "invalidDecimalPlaces": "Geçersiz ondalık basamak",
         "itemsMin": "En az 1 kalem ekleyin",
         "itemsMax": "Maksimum {n} kalem",
-        "invitedMax": "Maksimum 50 tedarikçi",
+        "invitedMax": "En fazla {n, number} tedarikçi davet edilebilir",
         "deliveryTermRequired": "Teslim şekli seçin",
         "billingAddressRequired": "Fatura adresi seçin",
         "paymentDaysRequired": "Vade gün sayısı zorunlu",
@@ -5484,7 +5490,8 @@
         "accountNumberInvalid": "Geçerli bir hesap numarası girin (4-40 karakter)",
         "swiftInvalid": "Geçerli bir SWIFT/BIC kodu girin (8 ya da 11 karakter)",
         "ibanOrAccountNumber": "IBAN ya da hesap numarası",
-        "optionalIbanHint": "Bu ülkede IBAN ya da yerel hesap numarası kullanılabilir. Hesap numarasıyla birlikte SWIFT/BIC kodu ve banka adı da gerekli."
+        "optionalIbanHint": "Bu ülkede IBAN ya da yerel hesap numarası kullanılabilir. Hesap numarasıyla birlikte SWIFT/BIC kodu ve banka adı da gerekli.",
+        "bankCountryBlocked": "Bu hesap kayda kapalı bir ülkedeki bankaya ait; kaydedilemez"
       },
       "companyProfileSection": {
         "firmaAdiEnAz2": "Firma adı en az 2 karakter olmalı",
@@ -5851,7 +5858,8 @@
         "swiftInvalid": "Geçerli bir SWIFT/BIC kodu girin (8 ya da 11 karakter)",
         "bankName": "Banka adı",
         "accountNumberInvalid": "Geçerli bir hesap numarası girin (4-40 karakter)",
-        "idBothSidesHint": "Kimlik kartıysa ön ve arka yüzünü tek dosyada (PDF ya da birleştirilmiş görsel) yükleyin."
+        "idBothSidesHint": "Kimlik kartıysa ön ve arka yüzünü tek dosyada (PDF ya da birleştirilmiş görsel) yükleyin.",
+        "bankCountryBlocked": "Bu hesap kayda kapalı bir ülkedeki bankaya ait; kaydedilemez"
       },
       "ayarlarFirmaLayout": {
         "firmaBilgileriYetkiGerektirir": "Firma Bilgileri yetki gerektirir",

@@ -64,7 +64,10 @@ export function CatalogPickerDialog({
   // Modal kapalıyken ağ isteği atma.
   const list = useCatalogItems(debouncedQ, open);
   const markUsed = useMarkCatalogUsed();
-  const [selected, setSelected] = useState<Record<string, number>>({});
+  // Seçim kalemin KENDİSİNİ taşır: arama değişince liste değişse de önceki
+  // aramada işaretlenen kalem eklenir (derin denetim S084 — eskiden yalnız o
+  // anki sonuç süzülüyor, önceki seçimler sessizce düşüyordu).
+  const [selected, setSelected] = useState<Record<string, { item: CatalogItem; qty: number }>>({});
 
   const items = list.data?.items ?? [];
   const selectedCount = useMemo(
@@ -76,24 +79,22 @@ export function CatalogPickerDialog({
     setSelected((prev) => {
       const next = { ...prev };
       if (next[it.id] != null) delete next[it.id];
-      else next[it.id] = 1;
+      else next[it.id] = { item: it, qty: 1 };
       return next;
     });
 
   const apply = () => {
-    const picked: PickedCatalogItem[] = items
-      .filter((it) => selected[it.id] != null)
-      .map((it) => ({
-        catalogId: it.id,
-        name: it.name,
-        description: it.description,
-        unit: it.unit,
-        unitCode: it.unitCode,
-        materialCode: it.code,
-        quantity: selected[it.id] ?? 1,
-        targetPrice: it.targetPrice == null ? null : Number(it.targetPrice),
-        images: it.thumbnailUrl ? [it.thumbnailUrl] : [],
-      }));
+    const picked: PickedCatalogItem[] = Object.values(selected).map(({ item: it, qty }) => ({
+      catalogId: it.id,
+      name: it.name,
+      description: it.description,
+      unit: it.unit,
+      unitCode: it.unitCode,
+      materialCode: it.code,
+      quantity: qty,
+      targetPrice: it.targetPrice == null ? null : Number(it.targetPrice),
+      images: it.thumbnailUrl ? [it.thumbnailUrl] : [],
+    }));
     if (picked.length > 0) {
       onPick(picked);
       // Sıralama sinyali — en-iyi-çaba, başarısızlığı akışı kırmaz.
@@ -165,11 +166,11 @@ export function CatalogPickerDialog({
                         step="any"
                         className="!w-28"
                         aria-label={t("miktari", { name: it.name })}
-                        value={selected[it.id]}
+                        value={selected[it.id]?.qty}
                         onChange={(e) =>
                           setSelected((prev) => ({
                             ...prev,
-                            [it.id]: Number(e.target.value) || 0,
+                            [it.id]: { item: it, qty: Number(e.target.value) || 0 },
                           }))
                         }
                       />

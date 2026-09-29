@@ -13479,35 +13479,60 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketing.optOut.confirm": {
+    "hash": "87ce86196c",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.marketing.optOut.doneBody": {
     "hash": "5ae01fddf6",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-29"
   },
   "web.marketing.optOut.doneTitle": {
     "hash": "17a484756c",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-29"
+  },
+  "web.marketing.optOut.error": {
+    "hash": "729aa09ceb",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.marketing.optOut.forAddress": {
+    "hash": "835890ed2c",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.marketing.optOut.invalidBody": {
     "hash": "65b4ba150a",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-29"
   },
   "web.marketing.optOut.invalidTitle": {
     "hash": "0429402e53",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-29"
   },
   "web.marketing.optOut.metaTitle": {
-    "hash": "ce617c5ab8",
+    "hash": "355ef89dd1",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-29"
   },
   "web.marketing.optOut.processing": {
     "hash": "33889c985a",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-29"
+  },
+  "web.marketing.optOut.question": {
+    "hash": "a7225ad51d",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.marketing.optOut.title": {
+    "hash": "355ef89dd1",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.marketing.rfq.cta": {
     "hash": "197481b915",
@@ -21630,9 +21655,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.formSchema.invitedMax": {
-    "hash": "5a946bd41f",
+    "hash": "d018874405",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.requests.formSchema.itemNameRequired": {
     "hash": "0539f62179",
@@ -24834,6 +24859,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.quickRequest.baglantiDavetleriGonderilemedi": {
+    "hash": "75c84f0927",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.requests.quickRequest.baglantinizdanFirmaGorecekCikardiginiz": {
     "hash": "f2881b1c6c",
     "status": "reviewed",
@@ -27934,6 +27964,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.ayarlarDogrulamaPage.bankCountryBlocked": {
+    "hash": "bb4bb3e5ca",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.settings.ayarlarDogrulamaPage.bankName": {
     "hash": "44fa0ed78d",
     "status": "reviewed",
@@ -28308,6 +28343,11 @@
     "hash": "6a88bfae3f",
     "status": "reviewed",
     "at": "2026-09-26"
+  },
+  "web.panel.settings.bankAccountsSection.bankCountryBlocked": {
+    "hash": "bb4bb3e5ca",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.settings.bankAccountsSection.bankNameRequired": {
     "hash": "44fa0ed78d",

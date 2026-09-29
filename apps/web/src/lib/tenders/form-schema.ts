@@ -32,6 +32,14 @@ const money = (t: RequestsTranslate, schema: z.ZodNumber) =>
  *  birebir. Sınırsız DEĞİL: teklif karşılaştırma matrisi (kalem × teklifçi),
  *  sihirbaz form dizisi ve rapor/PDF üretimi makul bir tavan ister. */
 export const MAX_LISTING_ITEMS = 500;
+/**
+ * Talep gövdesindeki davet listesi tavanı — API `CreateListingDto.invitations`
+ * `@ArrayMaxSize(200)` ile birebir (eskiden web 50 diyordu; derin denetim S083/S095).
+ * "Bağlantılarım" kipinde liste bir GÖRÜNÜRLÜK listesidir (tüm bağlantılar
+ * otomatik işaretli) ve bu tavana tabi değildir: taşan kısım yayından sonra
+ * davet ucuyla gönderilir (`splitInvitations`).
+ */
+export const MAX_LISTING_INVITATIONS = 200;
 
 // Para birimi TEK KAYNAK `@rothern/shared` `CURRENCY_CODES` (elle liste
 // enum büyüdüğünde sessizce eskirdi — 2026-09-27'de 12 birim eklendi).
@@ -296,7 +304,7 @@ function makeBaseTenderSchema(t: RequestsTranslate) {
       .max(MAX_LISTING_ITEMS, t("formSchema.itemsMax", { n: MAX_LISTING_ITEMS })),
 
     // Adım 3
-    invitedSupplierIds: z.array(z.string()).max(50, t("formSchema.invitedMax")),
+    invitedSupplierIds: z.array(z.string()),
   });
 }
 
@@ -345,6 +353,12 @@ export function makeTenderFormSchema(t: RequestsTranslate) {
           message: t("formSchema.paymentNoteRequired"),
           path: ["paymentNote"],
         },
+      )
+      // Davet listesi tavanı yalnız elle kurulan listede (Özel/Herkese açık);
+      // "Bağlantılarım" kipinde liste tüm bağlantılarla otomatik dolar.
+      .refine(
+        (d) => d.visibility === "CONNECTIONS" || (d.invitedSupplierIds ?? []).length <= MAX_LISTING_INVITATIONS,
+        { message: t("formSchema.invitedMax", { n: MAX_LISTING_INVITATIONS }), path: ["invitedSupplierIds"] },
       )
       // F2: kapanış gelecekte + en fazla 2 yıl (backend birebir) — tek kaynak helper.
       .superRefine((d, ctx) => {

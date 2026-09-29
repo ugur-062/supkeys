@@ -28,9 +28,9 @@ import { TermsPanel } from "./terms-panel";
 import { RequestDefaultsForm, useVisibilityLabels } from "@/components/tenders/request-defaults-form";
 import { useAiMissingFieldLabel, useCityLabel, useFormatPaymentPlan, usePaymentCategoryLabel } from "@/i18n/domain";
 import { useCategoriesByIds } from "@/hooks/use-categories";
-import { useAddresses } from "@/hooks/use-company-addresses";
+import { useAddresses, type CompanyAddress } from "@/hooks/use-company-addresses";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
-import { useCreateListing, usePublishListing, useUpdateListing } from "@/hooks/use-company-listings";
+import { useAddListingInvitations, useCreateListing, usePublishListing, useUpdateListing } from "@/hooks/use-company-listings";
 import { useSaveTemplate } from "@/hooks/use-listing-templates";
 import { SaveTemplateDialog } from "@/components/tenders/wizard/save-template-dialog";
 import { useRequestDefaults, useSaveRequestDefaults } from "@/hooks/use-request-defaults";
@@ -41,7 +41,7 @@ import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { parseAppWallClockInput } from "@/lib/time-zone";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { mapToInput } from "@/lib/tenders/map-to-input";
-import { applyConnectionsScope } from "@/lib/tenders/connections-scope";
+import { applyConnectionsScope, splitInvitations } from "@/lib/tenders/connections-scope";
 import {
   MAX_PENDING_EXTERNAL_INVITES,
   QUICK_DRAFT_KEY,
@@ -99,6 +99,15 @@ export type NamedMemberResult = MemberInviteResult & { name: string };
  * Form modeli ve doğrulama SİHİRBAZLA AYNI (`tenderFormSchema`), gövde AYNI
  * (`mapToInput`); yeni backend akışı yok. Renk satınalma: mavi.
  */
+/** Varsayılan teslimat adresi: varsayılan TESLİMAT → ilk TESLİMAT → FATURA dışı ilk adres. */
+function pickDeliveryAddress(list: CompanyAddress[]): CompanyAddress | undefined {
+  return (
+    list.find((a) => a.isDefault && a.type === "TESLIMAT") ??
+    list.find((a) => a.type === "TESLIMAT") ??
+    list.find((a) => a.type !== "FATURA")
+  );
+}
+
 export function QuickRequest({
   initialValues,
   mode = "new",
@@ -151,11 +160,12 @@ export function QuickRequest({
   const create = useCreateListing();
   const update = useUpdateListing(listingId ?? "");
   const publishExisting = usePublishListing(listingId ?? "");
+  const addInvitations = useAddListingInvitations();
   const saveTemplate = useSaveTemplate();
   const [templateOpen, setTemplateOpen] = useState(false);
   const sendExternal = useExternalTenderInvite();
   const sendMembers = useInviteDiscoveredMembers();
-  const busy = create.isPending || update.isPending || publishExisting.isPending || sendExternal.isPending || sendMembers.isPending;
+  const busy = create.isPending || update.isPending || publishExisting.isPending || addInvitations.isPending || sendExternal.isPending || sendMembers.isPending;
 
   const [terms, setTerms] = useState<RequestDefaults | null>(null);
   const [setupDone, setSetupDone] = useState(false);
@@ -236,12 +246,21 @@ export function QuickRequest({
       isEdit && listingId ? readSession<unknown>(pendingMemberInvitesKey(listingId)) : draftMembers,
     );
     if (pendingMembers.length) setMemberInvites(pendingMembers.slice(0, MAX_PENDING_EXTERNAL_INVITES));
-    // Adres yalnız formda adres YOKSA seçilir (düzenlenen talebin adresi ezilmez).
-    if (!base.deliveryAddressId && addresses.data?.length) {
-      const pick = addresses.data.find((a) => a.isDefault && a.type === "TESLIMAT") ?? addresses.data.find((a) => a.type === "TESLIMAT") ?? addresses.data[0];
-      if (pick) setValue("deliveryAddressId", pick.id);
-    }
-  }, [defaultsQ.data, addresses.data, initialValues, reset, setValue, isEdit, listingId, companyCountry, locale, seedKind]);
+  }, [defaultsQ.data, initialValues, reset, isEdit, listingId, companyCountry, locale, seedKind]);
+
+  /* Varsayılan teslimat adresi — şartlar uygulandıktan SONRA ve adresler
+     yüklenince, formda adres YOKSA bir kez (düzenlenen talebin adresi ezilmez).
+     Ayrı efekt: sorgular hangi sırayla dönerse dönsün seçilir (derin denetim
+     S083; eskiden şartlar önce gelirse hiç seçilmiyordu). FATURA adresi
+     teslimat seçicisinde görünmez → geri düşüşte de seçilmez. */
+  const addressPickedRef = useRef(false);
+  useEffect(() => {
+    if (!appliedRef.current || addressPickedRef.current || !addresses.data) return;
+    addressPickedRef.current = true;
+    if (getValues("deliveryAddressId")) return;
+    const pick = pickDeliveryAddress(addresses.data);
+    if (pick) setValue("deliveryAddressId", pick.id);
+  }, [defaultsQ.data, addresses.data, getValues, setValue]);
 
   const closeDays = terms?.closeDays ?? REQUEST_DEFAULTS_FALLBACK.closeDays;
   const updateTerms = (next: RequestDefaults) => {
@@ -323,6 +342,24 @@ export function QuickRequest({
   }, [watched.bidsCloseAt, closeDays]);
 
   /* --- Yayın / taslak / detaylı */
+  /**
+   * Gövde + gövdeye sığmayan davetler: "Bağlantılarım" kipinde liste tüm
+   * bağlantılardır ve API'nin 200'lük tavanını aşabilir (derin denetim
+   * S083/S095) — taşan kısım kayıttan sonra davet ucuyla gider.
+   */
+  const buildInput = (values: TenderFormData) => {
+    const { values: body, overflow } = splitInvitations(applyConnectionsScope(values, connectionIds));
+    return { input: mapToInput(body), overflow };
+  };
+  const sendOverflowInvitations = async (id: string, overflow: string[]) => {
+    if (!overflow.length) return;
+    // Talep kaydedildi — hata yayını geri almaz (yeniden yayın çift talep açardı).
+    try {
+      await addInvitations.mutateAsync({ id, rothernIds: overflow });
+    } catch {
+      toast.warning(tr("baglantiDavetleriGonderilemedi", { n: overflow.length }));
+    }
+  };
   const submitLock = useRef(false);
   const publish = async () => {
     if (submitLock.current) return;
@@ -348,7 +385,9 @@ export function QuickRequest({
       if (isEdit && listingId) {
         // Düzenleme: önce içerik güncellenir; TASLAK ise sonra yayına alınır.
         // Yayındaki talep zaten açık — yayın ucu yalnız taslağı kabul eder.
-        await update.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
+        const { input, overflow } = buildInput(values);
+        await update.mutateAsync(input);
+        await sendOverflowInvitations(listingId, overflow);
         await uploadStaged(listingId);
         if (isLiveEdit) {
           toast.success(tr("degisikliklerKaydedildi"));
@@ -374,7 +413,9 @@ export function QuickRequest({
         router.push(`/company/ilan/${listingId}`);
         return;
       }
-      const listing = await create.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
+      const { input, overflow } = buildInput(values);
+      const listing = await create.mutateAsync(input);
+      await sendOverflowInvitations(listing.id, overflow);
       await uploadStaged(listing.id);
       const memberResults = await sendPendingMembers(listing.id);
       const inviteResults = await sendPendingInvites(listing.id);
@@ -449,7 +490,9 @@ export function QuickRequest({
       if (isEdit && listingId) {
         // Taslak kaydı taslak kurallarıyla (kapanış/davetli yayında denetlenir;
         // yeni taslak yoluyla aynı). Yayındaki talepte bu düğme çizilmez.
-        await update.mutateAsync({ ...mapToInput(applyConnectionsScope(values, connectionIds)), asDraft: true });
+        const { input, overflow } = buildInput(values);
+        await update.mutateAsync({ ...input, asDraft: true });
+        await sendOverflowInvitations(listingId, overflow);
         await uploadStaged(listingId);
         // Bekleyen dış davetler taslakla birlikte saklanır; yayında gider.
         if (externalInvites.length) writeSession(pendingInvitesKey(listingId), externalInvites);
@@ -460,7 +503,9 @@ export function QuickRequest({
         router.push(`/company/ilan/${listingId}`);
         return;
       }
-      const listing = await create.mutateAsync({ ...mapToInput(applyConnectionsScope(values, connectionIds)), asDraft: true });
+      const { input, overflow } = buildInput(values);
+      const listing = await create.mutateAsync({ ...input, asDraft: true });
+      await sendOverflowInvitations(listing.id, overflow);
       await uploadStaged(listing.id);
       if (externalInvites.length) writeSession(pendingInvitesKey(listing.id), externalInvites);
       if (memberInvites.length) writeSession(pendingMemberInvitesKey(listing.id), memberInvites);
@@ -565,9 +610,20 @@ export function QuickRequest({
         inviteResults={published.inviteResults}
         memberResults={published.memberResults}
         onNew={() => {
+          // Yeni boş talep: profil şartları + varsayılan adres yeniden uygulanır
+          // (derin denetim S083 — eskiden çıplak varsayılanlarla açılıyor, şartsız
+          // yayın hatası veriyor ve taslak saklama duruyordu).
+          const d = defaultsQ.data?.defaults ?? requestDefaultsFallbackFor(companyCountry);
+          const base = initialRequestFormValues("blank", undefined, d);
+          const pick = base.deliveryAddressId ? null : pickDeliveryAddress(addresses.data ?? []);
+          setTerms(d);
+          setExternalInvites([]);
+          setMemberInvites([]);
+          setStagedDocs([]);
+          setRestoredDraft(false);
+          autoFilled.current = false;
+          reset(pick ? { ...base, deliveryAddressId: pick.id } : base);
           setPublished(null);
-          appliedRef.current = false;
-          reset({ ...DEFAULT_FORM_VALUES });
         }}
       />
     );

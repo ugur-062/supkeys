@@ -21,6 +21,8 @@ const h = vi.hoisted(() => ({
   inviteMembers: vi.fn(),
   update: vi.fn(),
   publish: vi.fn(),
+  addInvitations: vi.fn(),
+  addresses: undefined as unknown,
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
@@ -33,7 +35,7 @@ vi.mock("@/hooks/use-request-defaults", () => ({
   useSaveRequestDefaults: () => ({ mutateAsync: h.saveDefaults, isPending: false }),
 }));
 vi.mock("@/hooks/use-company-addresses", () => ({
-  useAddresses: () => ({ data: [{ id: "addr1", type: "TESLIMAT", title: "Depo", city: "İzmir", isDefault: true }], isLoading: false }),
+  useAddresses: () => ({ data: h.addresses, isLoading: false }),
   useSaveAddress: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 vi.mock("@/hooks/use-company-connections", () => ({
@@ -45,6 +47,8 @@ vi.mock("@/hooks/use-company-listings", () => ({
   // Düzenleme modu (2026-09-19, sihirbaz kaldırıldı) — derin denetim Y-19/Y-20 testleri.
   useUpdateListing: () => ({ mutateAsync: h.update, isPending: false }),
   usePublishListing: () => ({ mutateAsync: h.publish, isPending: false }),
+  // 200'ü aşan bağlantı davetleri kayıttan sonra davet ucuyla (derin denetim S083/S095).
+  useAddListingInvitations: () => ({ mutateAsync: h.addInvitations, isPending: false }),
   // Yayın paneli paylaş düğmesi için talep detayını okur (vitrindeyse).
   useListingDetail: () => ({ data: undefined }),
 }));
@@ -113,6 +117,8 @@ beforeEach(() => {
   h.publish.mockReset().mockResolvedValue({ id: "e1" });
   h.push.mockReset();
   h.saveDefaults.mockReset();
+  h.addInvitations.mockReset().mockResolvedValue({ added: 0 });
+  h.addresses = [{ id: "addr1", type: "TESLIMAT", title: "Depo", city: "İzmir", isDefault: true }];
   sessionStorage.clear();
   h.defaults = { data: { defaults: SAVED, source: "saved" }, isLoading: false };
 });
@@ -201,6 +207,75 @@ describe("QuickRequest", () => {
     } finally {
       h.connections = [];
     }
+  }, 30_000);
+
+  it("S083/S095: 50'den (ve 200'den) fazla bağlantı Bağlantılarım ile yayınlanır; ilk 200 gövdede, kalanı davet ucuyla", async () => {
+    h.create.mockResolvedValue({ id: "l9", number: "ROT-000049" });
+    h.connections = Array.from({ length: 260 }, (_, i) => ({
+      connectionId: `c${i}`,
+      origin: "SENT",
+      decidedAt: null,
+      company: { id: `${i}`, name: `Firma ${i}`, rothernId: `F${String(i).padStart(3, "0")}-0001`, city: "İzmir", industry: "Makine" },
+    }));
+    try {
+      wrap(<QuickRequest />);
+      fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+      await waitFor(() => expect(screen.getByText(/260 bağlantınızın tamamı görecek/)).toBeInTheDocument());
+      fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
+      fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+      await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
+      const body = h.create.mock.calls[0][0];
+      expect(body.visibility).toBe("CONNECTIONS");
+      expect(body.invitations).toHaveLength(200);
+      await waitFor(() => expect(h.addInvitations).toHaveBeenCalledTimes(1));
+      const { id, rothernIds } = h.addInvitations.mock.calls[0][0];
+      expect(id).toBe("l9");
+      expect(rothernIds).toHaveLength(60);
+      expect(new Set([...body.invitations, ...rothernIds]).size).toBe(260);
+    } finally {
+      h.connections = [];
+    }
+  }, 30_000);
+
+  it("S083: varsayılan TESLİMAT adresi şartlardan SONRA gelen adreslerle de seçilir; FATURA adresi seçilmez", async () => {
+    h.create.mockResolvedValue({ id: "l10", number: "ROT-000050" });
+    h.defaults = { data: { defaults: { ...SAVED, deliveryAddressId: null }, source: "saved" }, isLoading: false };
+    h.addresses = undefined;
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    const { rerender } = render(<QueryClientProvider client={qc}><QuickRequest /></QueryClientProvider>);
+    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+    // Adresler şartlardan sonra döner (soğuk açılış yarışı); FATURA önce sıralı.
+    h.addresses = [
+      { id: "bill", type: "FATURA", title: "Merkez", city: "İstanbul", isDefault: true },
+      { id: "depo", type: "TESLIMAT", title: "Depo", city: "İzmir", isDefault: false },
+    ];
+    rerender(<QueryClientProvider client={qc}><QuickRequest /></QueryClientProvider>);
+    fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+    await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
+    expect(h.create.mock.calls[0][0].deliveryAddressId).toBe("depo");
+  }, 30_000);
+
+  it("S083: 'Yeni talep aç' formu profil şartları ve varsayılan adresle açar; ikinci talep yayınlanır", async () => {
+    h.create.mockResolvedValueOnce({ id: "l11", number: "ROT-000051" }).mockResolvedValueOnce({ id: "l12", number: "ROT-000052" });
+    wrap(<QuickRequest />);
+    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+    fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+    fireEvent.click(await screen.findByRole("button", { name: "Yeni talep aç" }));
+    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "vida M8" } });
+    fireEvent.click(await screen.findByRole("button", { name: /Kategori seç/ }));
+    // Taslak saklama yeniden çalışır (yenilemede girilenler kaybolmaz).
+    await waitFor(() => expect(sessionStorage.getItem("quick-request-draft") ?? "").toContain("vida M8"));
+    fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+    await waitFor(() => expect(h.create).toHaveBeenCalledTimes(2));
+    expect(h.create.mock.calls[1][0]).toMatchObject({
+      deliveryTerm: "DOMESTIC_DELIVERED",
+      paymentCategory: "DEFERRED",
+      paymentDays: 45,
+      deliveryAddressId: "addr1",
+    });
+    expect(h.create.mock.calls[1][0].items[0]).toMatchObject({ name: "vida M8" });
   }, 30_000);
 
   it("AI keşfinden eklenen dış davetler yayından ÖNCE gitmez; yayında talebe özel uçla ALICININ diliyle gider, sonuç panelde", async () => {

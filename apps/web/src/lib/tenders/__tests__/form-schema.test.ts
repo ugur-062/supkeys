@@ -32,6 +32,18 @@ function validForm(over: Partial<TenderFormData> = {}): TenderFormData {
 }
 
 describe("tenderFormSchema", () => {
+  it("S083/S095: davet tavanı API ile aynı (200); Bağlantılarım kipinde tavan yok", () => {
+    const ids = (n: number) => Array.from({ length: n }, (_, i) => `R${i}`);
+    // 50'yi aşan bağlantı listesi artık yayını engellemez.
+    expect(tenderFormSchema.safeParse(validForm({ visibility: "CONNECTIONS", invitedSupplierIds: ids(60) })).success).toBe(true);
+    expect(tenderFormSchema.safeParse(validForm({ visibility: "CONNECTIONS", invitedSupplierIds: ids(260) })).success).toBe(true);
+    expect(tenderFormSchema.safeParse(validForm({ visibility: "PRIVATE", invitedSupplierIds: ids(200) })).success).toBe(true);
+    const over = tenderFormSchema.safeParse(validForm({ visibility: "PRIVATE", invitedSupplierIds: ids(201) }));
+    expect(over.success).toBe(false);
+    expect(over.error?.issues[0]?.path).toEqual(["invitedSupplierIds"]);
+    expect(over.error?.issues[0]?.message).toContain("200");
+  });
+
   it("geçerli form parse edilir", () => {
     expect(tenderFormSchema.safeParse(validForm()).success).toBe(true);
   });

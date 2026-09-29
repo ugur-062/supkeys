@@ -101,6 +101,15 @@ export function combineRows(platform: DiscoveryCandidate[], web: CandidateRow[])
   return [...members, ...external];
 }
 
+/**
+ * Seçim/çıkarma anahtarı: üye satırı panelde `m:<companyId>` ile seçilir
+ * (combineRows), web sonucu ise e-posta anahtarıyla gelir. Bilerek çıkarılan
+ * üye web araması dönünce yeniden seçilmesin diye eleme bu anahtarla yapılır.
+ */
+export function selectionKey(r: CandidateRow): string {
+  return r.memberCompanyId && r.status !== "CONSENT_REQUIRED" ? memberKey(r.memberCompanyId) : r.key;
+}
+
 function toRow(c: ExternalCandidate): CandidateRow {
   return {
     key: (c.email ?? c.name).toLowerCase(),
@@ -218,7 +227,7 @@ export function FormSupplierPanel({
   const preselect = (found: CandidateRow[]) => {
     const cur = valueRef.current;
     const have = new Set(cur.map((v) => v.email.toLowerCase()));
-    const fresh = found.filter((r) => isSelectable(r) && !deselectedRef.current.has(r.key));
+    const fresh = found.filter((r) => isSelectable(r) && !deselectedRef.current.has(selectionKey(r)));
     const add = fresh.filter((r) => !r.memberCompanyId && !have.has(r.key)).map(targetOf);
     if (add.length > 0) emit([...cur, ...add]);
     const curM = memberRef.current;
