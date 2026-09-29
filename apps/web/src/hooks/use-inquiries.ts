@@ -1,7 +1,8 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 
 /**
  * BİLGİ TALEPLERİ — iki yön, aynı tablo.
@@ -49,16 +50,69 @@ export interface SentInquiry {
 
 export const INQUIRY_KEY = ["company-inquiries"] as const;
 
-/** `enabled=false` → karşı portalda gereksiz istek atılmaz. */
+/** `GET /company/inquiries/received?page=` — sunucu 20'şer sayfalar. */
+interface ReceivedInquiriesPage {
+  items: ReceivedInquiry[];
+  total: number;
+  /** Yanıt bekleyen TOPLAM (sayfadan bağımsız; eski yanıtta yok). */
+  openCount?: number;
+  locked?: boolean;
+}
+
+/**
+ * Gelen talepler — SAYFALI (`?page=`, "daha fazla yükle"). Eskiden tek
+ * parametresiz çağrıydı: sunucu ilk 20'yi döndürüyor, 21. ve daha eski
+ * talepler panelde hiç görünmüyor ve yanıtlanamıyordu; sayaçlar da yalnız
+ * bu 20 satırdan hesaplanıyordu. `data` yüklü sayfaların birleşimidir
+ * (yeni talep sayfaları kaydırırsa aynı kayıt iki kez gelmez); `total`/
+ * `openCount` sunucunun toplamıdır.
+ *
+ * `enabled=false` → karşı portalda gereksiz istek atılmaz.
+ */
 export function useReceivedInquiries(enabled = true) {
-  return useQuery<{ items: ReceivedInquiry[]; total: number; locked?: boolean }>({
+  const q = useInfiniteQuery<ReceivedInquiriesPage>({
     enabled,
     queryKey: [...INQUIRY_KEY, "received"],
-    queryFn: async () => {
-      const { data } = await companyApi.get("/company/inquiries/received");
+    initialPageParam: 1,
+    queryFn: async ({ pageParam }) => {
+      const { data } = await companyApi.get<ReceivedInquiriesPage>(
+        "/company/inquiries/received",
+        { params: { page: pageParam } },
+      );
       return data;
     },
+    getNextPageParam: (last, all) => {
+      const loaded = all.reduce((n, p) => n + p.items.length, 0);
+      return last.items.length > 0 && loaded < last.total ? all.length + 1 : undefined;
+    },
   });
+  const pages = q.data?.pages;
+  const data = useMemo(() => {
+    if (!pages?.length) return undefined;
+    const seen = new Set<string>();
+    const items: ReceivedInquiry[] = [];
+    for (const p of pages) {
+      for (const it of p.items) {
+        if (seen.has(it.id)) continue;
+        seen.add(it.id);
+        items.push(it);
+      }
+    }
+    const last = pages[pages.length - 1]!;
+    return {
+      items,
+      total: Math.max(last.total, items.length),
+      openCount: last.openCount,
+      locked: last.locked,
+    };
+  }, [pages]);
+  return {
+    data,
+    isLoading: q.isLoading,
+    hasNextPage: q.hasNextPage,
+    fetchNextPage: q.fetchNextPage,
+    isFetchingNextPage: q.isFetchingNextPage,
+  };
 }
 
 export function useSentInquiries(enabled = true) {

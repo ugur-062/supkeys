@@ -287,7 +287,8 @@ export function ProductShowcaseForm({
     );
     const facts = attributeEntries.map(([k, v]) => {
       const def = attributeDefs.find((d) => d.key === k);
-      return `${def?.nameTr ?? k}: ${Array.isArray(v) ? v.join(", ") : v}`;
+      const show = (x: string) => def?.optionLabels?.[x] ?? x;
+      return `${def?.nameTr ?? k}: ${Array.isArray(v) ? v.map(show).join(", ") : show(v)}`;
     });
     return { readiness, snippet, facts };
   }, [patch, images, keywords, attributes, attributeDefs, priceMode, priceTiers, priceCurrency, unitLabel, categoryId, categoryName, company, profileQ.data, product.slug, locale, seoT, t]);
@@ -351,9 +352,9 @@ export function ProductShowcaseForm({
         ? await create.mutateAsync({ ...patch, unit })
         : await save.mutateAsync({ id: product.id, patch });
       initial.current = JSON.stringify(patch);
-      if (isNew) onCreated?.(saved);
-      else if (!thenSubmit) onSaved?.(saved);
       if (!thenSubmit) {
+        if (isNew) onCreated?.(saved);
+        else onSaved?.(saved);
         toast.success(
           isNew
             ? t("urunTaslakOlarakEklendi")
@@ -363,11 +364,23 @@ export function ProductShowcaseForm({
         );
         return;
       }
+      // Yeni üründe "Onaya gönder": düzenleme moduna (onCreated) YALNIZ gönderim
+      // olmazsa geçilir — kayıt taslak kaldı, ikinci kaydetme güncelleme olsun.
+      // Gönderim başarılıysa doğrudan listeye dönülür. Eskiden onCreated önce
+      // çağrılıyordu: üst bileşen TASLAK kopyayla düzenleme formu açıyor, sonraki
+      // onClose (create modunun kapanışı) boşa düşüyor ve kullanıcı PENDING
+      // ürünün bayat "Taslak" formunda kalıyordu (tekrar gönderim → 409).
       if (saved.publishBlockers.length > 0) {
+        if (isNew) onCreated?.(saved);
         toast.error(t("onayaGonderilemedi", { reasons: saved.publishBlockers.join(", ") }));
         return;
       }
-      await publish.mutateAsync({ id: saved.id, publish: true });
+      try {
+        await publish.mutateAsync({ id: saved.id, publish: true });
+      } catch (err) {
+        if (isNew) onCreated?.(saved);
+        throw err;
+      }
       toast.success(t("onayaGonderildiIncelemeBiteneKadar"));
       onClose();
     } catch (err) {

@@ -544,6 +544,10 @@ export class CompanyDashboardService {
       return Array.from(map.entries())
         .map(([label, v]) => ({
           label,
+          // Tutar yüzdeyle AYNI pencereden (ay/yıl) — web satırın yanına
+          // analytics'in seçili-dönem tutarını eşliyordu; çeyrek/özel aralıkta
+          // yıl yüzdesiyle çeyrek tutarı yan yana basılıyordu.
+          amount: v.savings,
           percent:
             v.volume > 0
               ? Number(((v.savings / v.volume) * 100).toFixed(2))

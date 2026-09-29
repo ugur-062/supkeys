@@ -317,8 +317,11 @@ export class PublicInquiryService {
     const viewerPaid = opts.viewerPaid ?? true;
     const pageSize = 20;
     const where = { companyId, verifiedAt: { not: null } } as const;
-    const [total, rows] = await Promise.all([
+    // `openCount` = yanıt bekleyen TOPLAM (sayfadan bağımsız): web süzgeç
+    // sayacı eskiden yalnız yüklü 20 satırdan hesaplanıyordu.
+    const [total, openCount, rows] = await Promise.all([
       this.prisma.publicInquiry.count({ where }),
+      this.prisma.publicInquiry.count({ where: { ...where, replies: { none: {} } } }),
       this.prisma.publicInquiry.findMany({
         where,
         select: {
@@ -379,6 +382,7 @@ export class PublicInquiryService {
         };
       }),
       total,
+      openCount,
       page: Math.max(1, page),
       pageSize,
     };

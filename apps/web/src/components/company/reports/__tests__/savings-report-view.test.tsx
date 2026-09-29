@@ -120,7 +120,9 @@ describe("SavingsReportView", () => {
     expect(h.reportMutate).toHaveBeenCalledTimes(1);
     const payload = h.reportMutate.mock.calls[0][0];
     expect(payload.type).toBe("ALIM");
-    expect(payload.rangeStart).toContain("2026-01-01");
+    // Günler İstanbul tam günü: 01.01 00:00 TR = 31.12 21:00Z; 30.06 sonu = 20:59:59.999Z.
+    expect(payload.rangeStart).toBe("2025-12-31T21:00:00.000Z");
+    expect(payload.rangeEnd).toBe("2026-06-30T20:59:59.999Z");
   });
 
   it("sonuç satırları + özet + karşı taraf kırılımı render edilir", () => {

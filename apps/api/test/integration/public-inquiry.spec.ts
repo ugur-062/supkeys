@@ -386,6 +386,43 @@ describe("satıcı tarafı — okuma, yanıtlama, hesaba bağlama", () => {
     expect((await svc.listForCompany(other.company.id)).total).toBe(0);
   });
 
+  it("sayfalı liste: 20'den sonrası ?page=2 ile gelir; openCount sayfadan bağımsız toplam", async () => {
+    const { svc, company, product } = await verifiedInquiry();
+    // 24 doğrulanmış talep daha (toplam 25), en eskisi yanıtlı.
+    const base = Date.now() - 60 * 60_000;
+    for (let i = 0; i < 24; i += 1) {
+      await prisma.publicInquiry.create({
+        data: {
+          companyId: company.id,
+          productId: product.id,
+          name: `Ziyaretci ${i}`,
+          email: `z${i}@example.com`,
+          message: "Fiyat bilgisi rica ederim.",
+          tokenHash: `page-test-${company.id}-${i}`,
+          expiresAt: new Date(base + 86_400_000),
+          verifiedAt: new Date(base + i * 1000),
+        },
+      });
+    }
+    const oldest = await prisma.publicInquiry.findFirstOrThrow({
+      where: { companyId: company.id },
+      orderBy: { verifiedAt: "asc" },
+    });
+    await prisma.publicInquiryReply.create({
+      data: { inquiryId: oldest.id, authorId: "u", body: "Yanit" },
+    });
+    const p1 = await svc.listForCompany(company.id, 1);
+    const p2 = await svc.listForCompany(company.id, 2);
+    expect(p1.total).toBe(25);
+    expect(p1.items).toHaveLength(20);
+    expect(p2.items).toHaveLength(5);
+    expect(p2.items.map((x) => x.id)).toContain(oldest.id);
+    expect(new Set([...p1.items, ...p2.items].map((x) => x.id)).size).toBe(25);
+    // Yanıt bekleyen TOPLAM 24 — yanıtlı kayıt 2. sayfada olsa da.
+    expect(p1.openCount).toBe(24);
+    expect(p2.openCount).toBe(24);
+  });
+
   it("yanıt kaydedilir ve bildirim İÇERİK TAŞIMAZ", async () => {
     const { svc, mail, company } = await verifiedInquiry();
     const list = await svc.listForCompany(company.id);

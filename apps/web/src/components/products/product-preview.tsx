@@ -35,12 +35,18 @@ export function useShowcaseView(
     const defs = new Map(product.attributeDefs.map((d) => [d.key, d]));
     const attributeList = Object.entries(product.attributes ?? {})
       .filter(([k, v]) => defs.has(k) && (Array.isArray(v) ? v.length > 0 : v !== ""))
-      .map(([k, v]) => ({
-        key: k,
-        label: defs.get(k)!.nameTr,
-        value: Array.isArray(v) ? v.join(", ") : String(v),
-        unit: defs.get(k)!.unit,
-      }));
+      .map(([k, v]) => {
+        // Seçenek değeri okuyucunun dilindeki etiketle — yayınlanmış sayfa
+        // (API `labelAttributes`) ile aynı; ham kanonik Türkçe basılıyordu.
+        const d = defs.get(k)!;
+        const show = (x: unknown) => d.optionLabels?.[String(x)] ?? String(x);
+        return {
+          key: k,
+          label: d.nameTr,
+          value: Array.isArray(v) ? v.map(show).join(", ") : show(v),
+          unit: d.unit,
+        };
+      });
     const cat = cats.data?.find((c) => c.id === product.categoryId);
     return {
       slug: product.slug ?? product.id,

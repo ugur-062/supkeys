@@ -39,6 +39,8 @@ export interface CategoryBreakdownRow {
   label: string;
   /** Yüzde 0..100 */
   percent: number;
+  /** Tasarruf tutarı (rapor biriminde) — yüzdeyle AYNI pencereden. */
+  amount?: number;
 }
 
 export interface CurrencyBreakdownRow {
@@ -65,7 +67,7 @@ interface Props {
   data: TasarrufTabData;
   /** Global dönem — sayfa başındaki TEK seçici (kart içi seçiciler kalktı). */
   period: Period;
-  /** Trend + tutarlı kategori kırılımı (analytics ucu). */
+  /** Tasarruf trendi (analytics ucu). Kategori tutarı `data` satırından gelir. */
   analytics?: SatinalmaAnalytics;
 }
 
@@ -254,16 +256,14 @@ export function TasarrufTab({ data, period, analytics }: Props) {
         <BreakdownCard
           title={t("anaKategoriBazliTasarrufum")}
           tooltip={t("tooltipCategory")}
-          rows={categoryRows.map((r) => {
-            const amt = analytics?.categorySavings.find(
-              (c) => c.label === r.label,
-            )?.amount;
-            return {
-              label: r.label,
-              percent: r.percent,
-              amountLabel: amt != null ? formatTRY(amt) : undefined,
-            };
-          })}
+          // Tutar yüzdeyle aynı satırdan (aynı dönem penceresi). Eskiden
+          // analytics'in seçili-dönem tutarı eşleniyordu → çeyrek/özel aralıkta
+          // yıl yüzdesinin yanında çeyrek tutarı çıkıyordu.
+          rows={categoryRows.map((r) => ({
+            label: r.label,
+            percent: r.percent,
+            amountLabel: r.amount != null ? formatTRY(r.amount) : undefined,
+          }))}
           color="brand"
         />
         <BreakdownCard

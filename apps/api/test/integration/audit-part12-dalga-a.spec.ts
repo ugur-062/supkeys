@@ -159,6 +159,10 @@ describe("Denetim P12 Dalga A", () => {
       // hedef 100 − kazanan 80 = 20/adet × 10 adet
       expect(res.year.totalSavings).toBeCloseTo(200, 5);
       expect(res.year.totalVolume).toBeCloseTo(800, 5);
+      // Kategori satırı tutarı yüzdeyle aynı pencereden (yıl) gelir.
+      expect(res.categoryYear).toHaveLength(1);
+      expect(res.categoryYear[0]!.amount).toBeCloseTo(200, 5);
+      expect(res.categoryYear[0]!.percent).toBeCloseTo(25, 5);
     });
 
     it("kur DAMGASI yoksa satırı hesaba KATMAZ (fail-closed — uydurma kura düşmez)", async () => {

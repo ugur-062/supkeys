@@ -168,6 +168,9 @@ export interface AttributeDef {
   nameTr: string;
   type: "SINGLE_SELECT" | "MULTI_SELECT" | "NUMBER" | "TEXT";
   options: string[];
+  /** Seçenek GÖSTERİMİ okuyucunun dilinde (kanonik değer → etiket; tr'de yok).
+   *  Kaydedilen değer her zaman kanonik `options` öğesidir. */
+  optionLabels?: Record<string, string>;
   unit: string | null;
   isRequired: boolean;
   /** Hangi kategori düğümünden MİRAS alındı (formda rozet olarak gösterilir). */

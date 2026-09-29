@@ -86,8 +86,15 @@ export function InquiriesView({
     }));
   }, [isSeller, received.data, sent.data, tr]);
 
-  const openCount = threads.filter((t) => t.replies.length === 0).length;
-  const answeredCount = threads.length - openCount;
+  // Satıcı sayaçları SUNUCU TOPLAMINDAN (liste sayfalı; yüklü satırlar
+  // toplamın yalnız bir kısmı olabilir). Alıcı listesi tek parça.
+  const totalCount = isSeller ? (received.data?.total ?? threads.length) : threads.length;
+  const openCount =
+    isSeller && received.data?.openCount != null
+      ? received.data.openCount
+      : threads.filter((t) => t.replies.length === 0).length;
+  const answeredCount = Math.max(0, totalCount - openCount);
+  const canLoadMore = isSeller && !!received.hasNextPage;
   // Katlanmış karşılaştırma — `tr` küçültme Latin "I"yı "ı" yapıyordu.
   const term = foldSearchText(q);
   const visible = threads.filter((t) => {
@@ -138,8 +145,8 @@ export function InquiriesView({
         <div className="mt-6">
           <SilverLockCard
             title={
-              threads.length > 0
-                ? tr("bilgiTalebiKimSorduguVe", { count: threads.length })
+              totalCount > 0
+                ? tr("bilgiTalebiKimSorduguVe", { count: totalCount })
                 : tr("gelenSorulariGorursunuzKimSordugu")
             }
             description={tr("ucretsizUyelikteAlicininSorusunuAdedini")}
@@ -167,7 +174,7 @@ export function InquiriesView({
             <div className="inline-flex gap-1 rounded-xl bg-zinc-100 p-1" role="tablist" aria-label={tr("suzgec")}>
               {(
                 [
-                  { key: "all", label: tr("tumu"), count: threads.length },
+                  { key: "all", label: tr("tumu"), count: totalCount },
                   { key: "open", label: isSeller ? tr("yanitBekleyen") : tr("yanitBekleniyor"), count: openCount },
                   { key: "answered", label: isSeller ? tr("yanitlanan") : tr("yanitGelen"), count: answeredCount },
                 ] as const
@@ -222,6 +229,20 @@ export function InquiriesView({
                   ))}
                 </ul>
               )}
+              {canLoadMore ? (
+                <div className="border-t border-zinc-950/5 p-3 text-center">
+                  <button
+                    type="button"
+                    onClick={() => void received.fetchNextPage()}
+                    disabled={received.isFetchingNextPage}
+                    className="rounded-full px-4 py-1.5 text-sm font-semibold text-zinc-700 ring-1 ring-zinc-300 transition hover:bg-zinc-50 disabled:opacity-50"
+                  >
+                    {received.isFetchingNextPage
+                      ? tr("yukleniyor")
+                      : tr("dahaEskiTalepleriYukle", { loaded: threads.length, total: totalCount })}
+                  </button>
+                </div>
+              ) : null}
             </div>
             <div className={cn("min-w-0", mobileOpen ? "block" : "hidden lg:block")}>
               {selected ? (

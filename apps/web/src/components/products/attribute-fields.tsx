@@ -16,6 +16,9 @@ import { Label } from "@/components/ui/label";
  * Nitelik tanımı OLMAYAN kategoride bileşen hiç basılmaz — matris o segmente
  * henüz yazılmadıysa form yine çalışmalı (158 bin kategorinin hepsi
  * doldurulamaz, gerekçe `CategoryAttribute` şemasında).
+ *
+ * Seçenek METNİ okuyucunun dilinde (`optionLabels`, API EN/RU'da döner);
+ * DEĞER kanonik Türkçe kalır — kayıt ve alıcı tarafı eşlemesi ona bakar.
  */
 export function AttributeFields({
   defs,
@@ -76,7 +79,7 @@ export function AttributeFields({
                 <option value="">{t("seciniz")}</option>
                 {d.options.map((o) => (
                   <option key={o} value={o}>
-                    {o}
+                    {d.optionLabels?.[o] ?? o}
                   </option>
                 ))}
               </select>
@@ -101,7 +104,7 @@ export function AttributeFields({
                           : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200"
                       }`}
                     >
-                      {o}
+                      {d.optionLabels?.[o] ?? o}
                     </button>
                   );
                 })}

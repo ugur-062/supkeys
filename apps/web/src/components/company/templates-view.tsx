@@ -120,14 +120,21 @@ function GroupTemplateDialog({
   const [name, setName] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [seeded, setSeeded] = useState(false);
+  const [droppedCount, setDroppedCount] = useState(0);
 
-  // Düzenlemede mevcut ad + üyelerle tohumla (bir kez).
+  // Düzenlemede mevcut ad + üyelerle tohumla (bir kez). Üyeler yalnız aktif
+  // bağlantılarla kesiştirilir: bağlantısı kopan (ya da tier kapısından düşen)
+  // üye listede çizilmediği için seçimden çıkarılamaz; seçili kalsa her kayıt
+  // API'nin bağlantı kontrolünde reddedilir ve grup düzenlenemez olurdu.
   useEffect(() => {
-    if (!editId || !detail.data || seeded) return;
+    if (!editId || !detail.data || !connections.data || seeded) return;
     setSeeded(true);
     setName(detail.data.name);
-    setSelected(new Set(detail.data.members.map((m) => m.id)));
-  }, [editId, detail.data, seeded]);
+    const connectedIds = new Set(connections.data.map((c) => c.company.id));
+    const kept = detail.data.members.filter((m) => connectedIds.has(m.id));
+    setSelected(new Set(kept.map((m) => m.id)));
+    setDroppedCount(detail.data.members.length - kept.length);
+  }, [editId, detail.data, connections.data, seeded]);
 
   const toggle = (id: string) =>
     setSelected((s) => {
@@ -190,6 +197,11 @@ function GroupTemplateDialog({
               {t("baglantilarinizdanSecili", { size: selected.size })}
             </span>
           </p>
+          {droppedCount > 0 && (
+            <p className="mb-2 rounded-lg bg-amber-50 px-3 py-2 text-xs text-amber-800">
+              {t("baglantisiKopanUyelerCikarildi", { count: droppedCount })}
+            </p>
+          )}
           {connections.isLoading ? (
             <ListSkeleton rows={3} />
           ) : rows.length === 0 ? (

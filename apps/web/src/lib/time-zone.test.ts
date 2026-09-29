@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { calendarDaysBetween, appZoneLabel, parseAppWallClockInput, toAppWallClock, toAppWallClockInput, wallClock } from "./time-zone";
+import { appDayRangeIso, calendarDaysBetween, appZoneLabel, parseAppWallClockInput, toAppWallClock, toAppWallClockInput, wallClock } from "./time-zone";
 import { formatDate } from "./format-date";
 import { formatTime } from "./tenders/date";
 import { closesAtErrorKey } from "./tenders/closes-at";
@@ -66,5 +66,28 @@ describe("time-zone — girdi ve etiket", () => {
     expect(formatDate(at, "short", "en")).toBe("1 Oct 2026");
     expect(formatTime(at, "tr")).toBe("17:00");
     expect(formatTime(at, "ru")).toBe("17:00 (GMT+3)");
+  });
+});
+
+describe("appDayRangeIso — rapor gün aralığı İstanbul tam günleri", () => {
+  it("başlangıç günün 00:00'ı, bitiş günün son milisaniyesi (tarayıcı saatinden bağımsız)", () => {
+    expect(appDayRangeIso("2026-09-01", "2026-09-30")).toEqual({
+      rangeStart: "2026-08-31T21:00:00.000Z",
+      rangeEnd: "2026-09-30T20:59:59.999Z",
+    });
+  });
+
+  it("ay/yıl sonu devri doğru; 01:30 TR'de açılan kayıt aralığa girer", () => {
+    const r = appDayRangeIso("2026-12-31", "2026-12-31")!;
+    expect(r.rangeStart).toBe("2026-12-30T21:00:00.000Z");
+    expect(r.rangeEnd).toBe("2026-12-31T20:59:59.999Z");
+    const r2 = appDayRangeIso("2026-09-01", "2026-09-01")!;
+    const at0130 = new Date("2026-08-31T22:30:00.000Z").toISOString();
+    expect(at0130 >= r2.rangeStart && at0130 <= r2.rangeEnd).toBe(true);
+  });
+
+  it("geçersiz girdide null", () => {
+    expect(appDayRangeIso("", "2026-09-30")).toBeNull();
+    expect(appDayRangeIso("2026-09-01", "30.09.2026")).toBeNull();
   });
 });

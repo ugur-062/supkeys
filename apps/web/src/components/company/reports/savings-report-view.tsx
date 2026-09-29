@@ -25,6 +25,7 @@ import {
   type SavingsPayload,
 } from "@/hooks/use-company-reports";
 import { extractErrorMessage } from "@/lib/tenders/error";
+import { appDayRangeIso } from "@/lib/time-zone";
 import { ArrowLeft, ChevronDown, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { Fragment, useState } from "react";
@@ -66,23 +67,27 @@ export function SavingsReportView({
   const download = useDownloadSavingsReport();
   const canSubmit = rangeStart.length > 0 && rangeEnd.length > 0;
 
-  const payload = (): SavingsPayload => ({
-    type,
-    rangeStart: new Date(rangeStart).toISOString(),
-    rangeEnd: new Date(`${rangeEnd}T23:59:59`).toISOString(),
-    currency: currency || undefined,
-  });
+  // Günler ürün saat diliminde (İstanbul) tam gün olarak okunur.
+  const payload = (): SavingsPayload | null => {
+    const range = appDayRangeIso(rangeStart, rangeEnd);
+    if (!range) return null;
+    return { type, ...range, currency: currency || undefined };
+  };
 
   const run = async () => {
+    const p = payload();
+    if (!p) return;
     try {
-      await report.mutateAsync(payload());
+      await report.mutateAsync(p);
     } catch (err) {
       toast.error(extractErrorMessage(err, t("raporOlusturulamadi")));
     }
   };
   const runDownload = async () => {
+    const p = payload();
+    if (!p) return;
     try {
-      const { filename } = await download.mutateAsync(payload());
+      const { filename } = await download.mutateAsync(p);
       toast.success(t("indiriliyor", { file: filename }));
     } catch (err) {
       toast.error(extractErrorMessage(err, t("indirmeBasarisiz")));

@@ -157,6 +157,45 @@ describe("InquiriesView — gelen kutusu düzeni (2026-09-09)", () => {
   });
 });
 
+describe("InquiriesView — gelen talepler sayfalı (derin denetim MU-25)", () => {
+  it("21. talep 'daha eski talepleri yükle' ile gelir; sayaçlar sunucu toplamından", async () => {
+    const mk = (n: number) => ({
+      ...RECEIVED.items[0],
+      id: `r${n}`,
+      message: `Soru ${n}`,
+    });
+    h.get.mockImplementation((url: string, cfg?: { params?: { page?: number } }) => {
+      if (!url.includes("received")) return Promise.resolve({ data: SENT });
+      const page = cfg?.params?.page ?? 1;
+      return Promise.resolve({
+        data:
+          page === 1
+            ? { total: 21, openCount: 18, items: Array.from({ length: 20 }, (_, i) => mk(i + 1)) }
+            : { total: 21, openCount: 18, items: [mk(21)] },
+      });
+    });
+    const user = userEvent.setup();
+    wrap(<InquiriesView portal="satis" />);
+    expect(await screen.findByText("Ayşe Demir: Soru 1")).toBeInTheDocument();
+    expect(screen.queryByText("Ayşe Demir: Soru 21")).toBeNull();
+    // Sayaçlar yüklü 20 satırdan değil sunucu toplamından.
+    expect(screen.getByRole("tab", { name: /Tümü/ })).toHaveTextContent("21");
+    expect(screen.getByRole("tab", { name: /Yanıt bekleyen/ })).toHaveTextContent("18");
+    expect(screen.getByRole("tab", { name: /Yanıtlanan/ })).toHaveTextContent("3");
+
+    await user.click(screen.getByRole("button", { name: /Daha eski talepleri yükle/ }));
+    expect(await screen.findByText("Ayşe Demir: Soru 21")).toBeInTheDocument();
+    const pages = h.get.mock.calls
+      .filter((c) => String(c[0]).includes("received"))
+      .map((c) => (c[1] as { params?: { page?: number } } | undefined)?.params?.page);
+    expect(pages).toEqual([1, 2]);
+    // Hepsi yüklendi → düğme kalkar.
+    await waitFor(() =>
+      expect(screen.queryByRole("button", { name: /Daha eski talepleri yükle/ })).toBeNull(),
+    );
+  });
+});
+
 describe("PanelInquiryDialog", () => {
   const seed = {
     productName: "Dağıtım Panosu",

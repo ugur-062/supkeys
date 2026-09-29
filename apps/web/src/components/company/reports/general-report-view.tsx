@@ -5,6 +5,7 @@ import type { Locale } from "@rothern/i18n";
 import { useListingStatusLabel } from "@/i18n/domain";
 import { intlLocale } from "@/i18n/format";
 import { formatDate } from "@/lib/format-date";
+import { appDayRangeIso } from "@/lib/time-zone";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
@@ -94,11 +95,14 @@ export function GeneralReportView({
       return { type, mode: "SINGLE", listingId: listingId.trim() };
     }
     if (mode === "RANGE") {
+      // Günler ürün saat diliminde (İstanbul) tam gün olarak okunur.
+      const range = appDayRangeIso(rangeStart, rangeEnd);
+      if (!range) return null;
       return {
         type,
         mode: "RANGE",
-        rangeStart: new Date(rangeStart).toISOString(),
-        rangeEnd: new Date(`${rangeEnd}T23:59:59`).toISOString(),
+        rangeStart: range.rangeStart,
+        rangeEnd: range.rangeEnd,
         format: fmt || undefined,
         status: status || undefined,
         currency: currency || undefined,

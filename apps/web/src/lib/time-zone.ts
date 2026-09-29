@@ -121,3 +121,30 @@ export function parseAppWallClockInput(value: string | null | undefined): Date |
   const out = new Date(t);
   return Number.isFinite(out.getTime()) ? out : null;
 }
+
+/**
+ * Tarih seçicisinden (`type="date"`, `YYYY-MM-DD`) gelen gün aralığını ürün
+ * saat diliminin tam günleri olarak ISO'ya çevirir: başlangıç günün 00:00'ı,
+ * bitiş günün son milisaniyesi (ertesi gün 00:00 − 1 ms). Eskiden başlangıç
+ * `new Date("YYYY-MM-DD")` ile UTC gece yarısı (TR'de 03:00), bitiş tarayıcı
+ * saatiyle okunuyordu → başlangıç gününün ilk 3 saati rapordan düşüyordu.
+ * Geçersiz girdide `null`.
+ */
+export function appDayRangeIso(
+  startDay: string,
+  endDay: string,
+): { rangeStart: string; rangeEnd: string } | null {
+  const day = /^(\d{4})-(\d{2})-(\d{2})$/;
+  const s = day.exec(startDay.trim());
+  const e = day.exec(endDay.trim());
+  if (!s || !e) return null;
+  const start = parseAppWallClockInput(`${s[1]}-${s[2]}-${s[3]}T00:00`);
+  const next = new Date(Date.UTC(Number(e[1]), Number(e[2]) - 1, Number(e[3]) + 1));
+  const nextDay = `${next.getUTCFullYear()}-${pad2(next.getUTCMonth() + 1)}-${pad2(next.getUTCDate())}`;
+  const endExclusive = parseAppWallClockInput(`${nextDay}T00:00`);
+  if (!start || !endExclusive) return null;
+  return {
+    rangeStart: start.toISOString(),
+    rangeEnd: new Date(endExclusive.getTime() - 1).toISOString(),
+  };
+}

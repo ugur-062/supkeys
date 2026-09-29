@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
 import { Dialog, DialogPanel, DialogTitle } from "@headlessui/react";
@@ -37,6 +37,11 @@ export function InquiryDialog({
   companyName: string;
 }) {
   const t = useTranslations("web.marketplace.inquiry");
+  // Talebin dili = SAYFA dili: API bunu `PublicInquiry.locale` olarak yazar,
+  // doğrulama e-postası/bağlantısı ve satıcı yanıt bildirimi bu dilde gider.
+  // Başlık konmazsa tarayıcının kendi Accept-Language'i gidiyordu (zh-CN
+  // tarayıcıyla /en sayfası → Türkçe doğrulama e-postası).
+  const locale = useLocale();
   const openedAt = useRef<number>(Date.now());
   const [sent, setSent] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -58,7 +63,7 @@ export function InquiryDialog({
     try {
       const res = await fetch(`${resolveApiBaseUrl()}/public/inquiries`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: { "Content-Type": "application/json", "Accept-Language": locale },
         body: JSON.stringify({
           companySlug,
           productSlug,

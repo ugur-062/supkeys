@@ -124,6 +124,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "api.adminCompanies.buVergiNumarasiBaskaFirmada": {
+    "hash": "fec9305570",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.adminCompanies.dogrulamaIcinEksikKimlikBilgisiFirma": {
     "hash": "c399ea642e",
     "status": "reviewed",
@@ -1319,10 +1324,25 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "api.companyAuth.buVergiNumarasiIleKayitliFirmaVar": {
+    "hash": "6ba993b785",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "api.companyAuth.cokFazlaHatali2faDenemesi": {
+    "hash": "78905a3b7e",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.companyAuth.cokFazlaHataliDenemeYeniKod": {
     "hash": "0c0abeb216",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.companyAuth.cokFazlaKodIstendi": {
+    "hash": "70410ec48c",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "api.companyAuth.defaults.deliverySameTitle": {
     "hash": "103781f160",
@@ -5318,6 +5338,16 @@
     "hash": "39a2d548cf",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.notifications.companyAuth.ikiAdimliKilitBaslik": {
+    "hash": "25a0ef5018",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "api.notifications.companyAuth.ikiAdimliKilitGovde": {
+    "hash": "c3226ab746",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "api.notifications.companyAuth.kodGecerlilik": {
     "hash": "32de1fd547",
@@ -32774,6 +32804,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.inquiriesView.dahaEskiTalepleriYukle": {
+    "hash": "bd6c6d315d",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.trade.inquiriesView.firmaUrunYaDaMesaj": {
     "hash": "9cbf64acde",
     "status": "reviewed",
@@ -36513,6 +36548,11 @@
     "hash": "2ed361ffd6",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.templatesView.baglantisiKopanUyelerCikarildi": {
+    "hash": "cfe752daf3",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.trade.templatesView.birlikteDavetEttiginizFirmalariGruplayin": {
     "hash": "688a4f909c",
