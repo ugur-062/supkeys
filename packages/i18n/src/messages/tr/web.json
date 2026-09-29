@@ -6783,7 +6783,9 @@
         "rozetAlicisiniz": "Alıcısınız",
         "rozetSaticisiniz": "Satıcısınız",
         "buKonusmadaAlicisiniz": "Bu konuşmada <strong>alıcısınız</strong> — {name} size satış yapıyor.",
-        "buKonusmadaSaticisiniz": "Bu konuşmada <strong>satıcısınız</strong> — {name} sizden alım yapıyor."
+        "buKonusmadaSaticisiniz": "Bu konuşmada <strong>satıcısınız</strong> — {name} sizden alım yapıyor.",
+        "sohbetAcilamadi": "Sohbet açılamadı",
+        "sohbetAcilamadiAciklama": "Firma bulunamadı ya da bu konuşmayı görüntüleme yetkiniz yok. Soldan başka bir firma seçebilirsiniz."
       },
       "companyMessageThread": {
         "mesajGonderilemedi": "Mesaj gönderilemedi",

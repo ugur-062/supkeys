@@ -9,8 +9,10 @@ import { CompanyMessageThread } from "@/components/messaging/company-message-thr
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { useConnections } from "@/hooks/use-company-connections";
 import {
+  useThreadMessages,
   useThreads,
   type MessagePortal,
+  type ThreadSummary,
 } from "@/hooks/use-company-messages";
 import { canUseMessaging, PORTAL_ORDER } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
@@ -45,6 +47,28 @@ const ROLE_CHIP: Record<MessagePortal, { label: "rozetAlicisiniz" | "rozetSatici
   satis: { label: "rozetSaticisiniz", cls: "bg-emerald-50 text-emerald-700" },
 };
 
+/**
+ * Portalsız derin link (`?with=` — yeni mesaj e-postası eski biçimi) için yön:
+ * bu firmayla VAR OLAN konuşmanın portalı (okunmamış olan, yoksa en yenisi).
+ * Konuşma yoksa null → çağıran rolüm olan ilk tarafa düşer.
+ */
+function pickDeepLinkPortal(
+  threads: ThreadSummary[],
+  otherPartyId: string,
+  myPortals: MessagePortal[],
+): MessagePortal | null {
+  const mine = threads.filter(
+    (th) => th.otherPartyId === otherPartyId && myPortals.includes(th.portal),
+  );
+  if (mine.length === 0) return null;
+  const unread = mine.find((th) => th.unread);
+  if (unread) return unread.portal;
+  const byRecent = [...mine].sort((a, b) =>
+    (b.lastMessageAt ?? "").localeCompare(a.lastMessageAt ?? ""),
+  );
+  return byRecent[0]!.portal;
+}
+
 export function CompanyInboxView() {
   const t = useTranslations("web.panel.inbox.companyInboxView");
   const locale = useLocale();
@@ -60,14 +84,15 @@ export function CompanyInboxView() {
   const paramPortal = searchParams.get("portal");
   const [selected, setSelected] = useState<{
     id: string;
-    portal: MessagePortal;
+    /** null = derin linkte yön yok; konuşmalar yüklenince çözülür. */
+    portal: MessagePortal | null;
   } | null>(() => {
     const withId = searchParams.get("with");
     if (!withId) return null;
-    const portal: MessagePortal =
+    const portal: MessagePortal | null =
       paramPortal === "satis" || paramPortal === "satinalma"
         ? paramPortal
-        : (myPortals[0] ?? "satinalma");
+        : null;
     return { id: withId, portal };
   });
   const [search, setSearch] = useState("");
@@ -112,11 +137,35 @@ export function CompanyInboxView() {
       : all;
   }, [connections.data, threads.data, search]);
 
-  const selectedRowName =
+  // Seçili sohbetin yönü. Açık portal (rolüm varsa) aynen; yoksa (portalsız
+  // e-posta linki, derin denetim Y-18) bu firmayla var olan konuşmanın yönü —
+  // eskiden iki izinli kullanıcıda hep "satinalma" seçilip satıcı tarafa ters
+  // yöndeki BOŞ konuşma açılıyordu. Konuşmalar yüklenirken null (iskelet).
+  const activePortal: MessagePortal | null = !selected
+    ? null
+    : selected.portal && myPortals.includes(selected.portal)
+      ? selected.portal
+      : threads.isLoading
+        ? null
+        : (pickDeepLinkPortal(threads.data ?? [], selected.id, myPortals) ??
+          myPortals[0] ??
+          "satinalma");
+
+  const knownName =
     rows.find((r) => r.id === selected?.id)?.name ??
     (threads.data ?? []).find((th) => th.otherPartyId === selected?.id)
       ?.otherPartyName ??
     null;
+  // Derin denetim Y-18: ad yalnız konuşmalar + AKTİF bağlantılardan
+  // çözülüyordu; bağlantısız teklif veren / sipariş karşı tarafıyla ilk
+  // temasta (backend D1 kararıyla serbest) panel hiç çizilmiyordu. Ad yoksa
+  // sohbet ucunun `otherParty.name`i kullanılır — sohbet bileşeniyle AYNI
+  // sorgu anahtarı, yani ek istek yok.
+  const nameQuery = useThreadMessages(
+    activePortal ?? "satinalma",
+    selected && activePortal && !knownName ? selected.id : undefined,
+  );
+  const selectedName = knownName ?? nameQuery.data?.otherParty.name ?? null;
 
   if (!allowed) {
     return (
@@ -185,7 +234,7 @@ export function CompanyInboxView() {
               rows.map((r) => {
                 const isActive =
                   selected?.id === r.id &&
-                  (r.portal === undefined || selected?.portal === r.portal);
+                  (r.portal === undefined || activePortal === r.portal);
                 return (
                   <button
                     key={r.key}
@@ -249,8 +298,9 @@ export function CompanyInboxView() {
         <div
           className={`min-h-0 sm:order-2 ${selected ? "flex" : "hidden sm:flex"} flex-col`}
         >
-          {selected && selectedRowName ? (
+          {selected ? (
             <>
+              {/* Mobil geri — ad çözülmese de her zaman (çıkmaz ekran olmasın). */}
               <button
                 type="button"
                 onClick={() => setSelected(null)}
@@ -258,49 +308,73 @@ export function CompanyInboxView() {
               >
                 {t("kisiler")}
               </button>
-              {/* Bağlam şeridi — bu konuşmada hangi taraftayım? İki rolü olan
-                  kullanıcı yönü buradan değiştirebilir (yeni sohbet yönü). */}
-              <div className="flex flex-wrap items-center gap-2 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2">
-                <span className="text-xs text-zinc-600">
-                  {t.rich(selected.portal === "satinalma" ? "buKonusmadaAlicisiniz" : "buKonusmadaSaticisiniz", {
-                    name: selectedRowName,
-                    strong: (chunks) => <strong>{chunks}</strong>,
-                  })}
-                </span>
-                {myPortals.length === 2 ? (
-                  <div className="ml-auto flex gap-1 rounded-lg bg-zinc-100 p-0.5">
-                    {PORTAL_ORDER.map((p) => (
-                      <button
-                        key={p}
-                        type="button"
-                        onClick={() =>
-                          setSelected({ id: selected.id, portal: p })
-                        }
-                        className={cn(
-                          "rounded-md px-2 py-0.5 text-xs font-semibold transition",
-                          selected.portal === p
-                            ? "bg-white shadow-sm " +
-                                (p === "satinalma"
-                                  ? "text-blue-700"
-                                  : "text-emerald-700")
-                            : "text-zinc-500 hover:text-zinc-800",
-                        )}
-                      >
-                        {p === "satinalma" ? t("aliciOlarak") : t("saticiOlarak")}
-                      </button>
-                    ))}
+              {activePortal && selectedName ? (
+                <>
+                  {/* Bağlam şeridi — bu konuşmada hangi taraftayım? İki rolü olan
+                      kullanıcı yönü buradan değiştirebilir (yeni sohbet yönü). */}
+                  <div className="flex flex-wrap items-center gap-2 border-b border-zinc-950/5 bg-zinc-50/60 px-4 py-2">
+                    <span className="text-xs text-zinc-600">
+                      {t.rich(activePortal === "satinalma" ? "buKonusmadaAlicisiniz" : "buKonusmadaSaticisiniz", {
+                        name: selectedName,
+                        strong: (chunks) => <strong>{chunks}</strong>,
+                      })}
+                    </span>
+                    {myPortals.length === 2 ? (
+                      <div className="ml-auto flex gap-1 rounded-lg bg-zinc-100 p-0.5">
+                        {PORTAL_ORDER.map((p) => (
+                          <button
+                            key={p}
+                            type="button"
+                            onClick={() =>
+                              setSelected({ id: selected.id, portal: p })
+                            }
+                            className={cn(
+                              "rounded-md px-2 py-0.5 text-xs font-semibold transition",
+                              activePortal === p
+                                ? "bg-white shadow-sm " +
+                                    (p === "satinalma"
+                                      ? "text-blue-700"
+                                      : "text-emerald-700")
+                                : "text-zinc-500 hover:text-zinc-800",
+                            )}
+                          >
+                            {p === "satinalma" ? t("aliciOlarak") : t("saticiOlarak")}
+                          </button>
+                        ))}
+                      </div>
+                    ) : null}
                   </div>
-                ) : null}
-              </div>
-              <div className="min-h-0 flex-1">
-                <CompanyMessageThread
-                  key={`${selected.portal}:${selected.id}`}
-                  portal={selected.portal}
-                  otherPartyId={selected.id}
-                  otherPartyName={selectedRowName}
-                  bare
-                />
-              </div>
+                  <div className="min-h-0 flex-1">
+                    <CompanyMessageThread
+                      key={`${activePortal}:${selected.id}`}
+                      portal={activePortal}
+                      otherPartyId={selected.id}
+                      otherPartyName={selectedName}
+                      bare
+                    />
+                  </div>
+                </>
+              ) : nameQuery.isError ? (
+                <div className="flex flex-1 flex-col items-center justify-center bg-zinc-50 px-6 text-center">
+                  <MessageSquare className="mb-3 h-10 w-10 text-zinc-300" />
+                  <p className="text-sm font-medium text-zinc-600">
+                    {t("sohbetAcilamadi")}
+                  </p>
+                  <p className="mt-1 max-w-sm text-xs text-zinc-400">
+                    {t("sohbetAcilamadiAciklama")}
+                  </p>
+                </div>
+              ) : (
+                <div
+                  className="flex-1 space-y-3 p-4"
+                  aria-hidden
+                  data-testid="inbox-thread-skeleton"
+                >
+                  <div className="h-10 w-1/2 animate-pulse rounded-lg bg-zinc-100" />
+                  <div className="h-16 animate-pulse rounded-lg bg-zinc-100" />
+                  <div className="h-16 w-2/3 animate-pulse rounded-lg bg-zinc-100" />
+                </div>
+              )}
             </>
           ) : (
             <div className="flex h-full flex-col items-center justify-center bg-zinc-50 text-center">

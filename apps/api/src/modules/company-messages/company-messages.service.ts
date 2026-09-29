@@ -98,8 +98,16 @@ export class CompanyMessagesService {
             // çifti). Alıcıda o portal yoksa (ör. SILVER-altı tedarikçi için
             // satınalma portalı) link Premium/erişim ekranına düşüyordu.
             // Birleşik gelen kutusu (2026-08-02) portal-bağımsız → doğrudan ona
-            // gideriz; sohbet `with` parametresiyle açılır.
-            ctaUrl: appRoutes.messagesWith(baseUrl, senderCompanyId, locale),
+            // gideriz; sohbet `with` parametresiyle açılır. Yön (portal)
+            // AÇIKÇA geçilir (derin denetim Y-18): verilmezse iki izinli
+            // kullanıcıda gelen kutusu "satinalma"yı seçip satıcı tarafa ters
+            // yöndeki BOŞ konuşmayı açıyordu.
+            ctaUrl: appRoutes.messagesWith(
+              baseUrl,
+              senderCompanyId,
+              locale,
+              recipientSide === "sell" ? "satis" : "satinalma",
+            ),
           },
         },
         context: { type: "message_received", id: companyId },

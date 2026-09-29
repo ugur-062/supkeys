@@ -6783,7 +6783,9 @@
         "rozetAlicisiniz": "Вы покупатель",
         "rozetSaticisiniz": "Вы продавец",
         "buKonusmadaAlicisiniz": "В этой переписке Вы <strong>покупатель</strong> — {name} продаёт Вам.",
-        "buKonusmadaSaticisiniz": "В этой переписке Вы <strong>продавец</strong> — {name} покупает у Вас."
+        "buKonusmadaSaticisiniz": "В этой переписке Вы <strong>продавец</strong> — {name} покупает у Вас.",
+        "sohbetAcilamadi": "Не удалось открыть переписку",
+        "sohbetAcilamadiAciklama": "Компания не найдена или у Вас нет прав на просмотр этой переписки. Вы можете выбрать другую компанию слева."
       },
       "companyMessageThread": {
         "mesajGonderilemedi": "Не удалось отправить сообщение",

@@ -54,11 +54,22 @@ export const appRoutes = {
     `${base}${localize("/company/onaylar", locale)}`,
   premium: (base: string, locale: Locale = DEFAULT_LOCALE) =>
     `${base}${localize("/company/premium", locale)}`,
+  /**
+   * Gelen kutusunda bir firmayla sohbet. `portal` konuşmanın bağlantıyı AÇAN firma gözündeki
+   * yönüdür (satinalma = ben alıcıyım, satis = ben satıcıyım); verilmezse
+   * gelen kutusu iki yönlü kullanıcıda ilk portalı seçer ve ters yöndeki boş
+   * konuşmayı açabilir (derin denetim Y-18) — e-posta CTA'ları geçmeli.
+   */
   messagesWith: (
     base: string,
     companyId: string,
     locale: Locale = DEFAULT_LOCALE,
-  ) => `${base}${localize(`/company/mesajlar?with=${companyId}`, locale)}`,
+    portal?: "satinalma" | "satis",
+  ) =>
+    `${base}${localize(
+      `/company/mesajlar?with=${companyId}${portal ? `&portal=${portal}` : ""}`,
+      locale,
+    )}`,
   /** Ürünlerime GELEN bilgi talepleri (satıcı gözü). */
   inquiriesReceived: (base: string, locale: Locale = DEFAULT_LOCALE) =>
     `${base}${localize("/company/satis/bilgi-talepleri", locale)}`,

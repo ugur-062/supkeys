@@ -6783,7 +6783,9 @@
         "rozetAlicisiniz": "You are the buyer",
         "rozetSaticisiniz": "You are the seller",
         "buKonusmadaAlicisiniz": "In this conversation you are the <strong>buyer</strong> — {name} is selling to you.",
-        "buKonusmadaSaticisiniz": "In this conversation you are the <strong>seller</strong> — {name} is buying from you."
+        "buKonusmadaSaticisiniz": "In this conversation you are the <strong>seller</strong> — {name} is buying from you.",
+        "sohbetAcilamadi": "Could not open the conversation",
+        "sohbetAcilamadiAciklama": "The company was not found or you do not have permission to view this conversation. You can pick another company on the left."
       },
       "companyMessageThread": {
         "mesajGonderilemedi": "Message could not be sent",

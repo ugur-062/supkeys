@@ -18274,6 +18274,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.inbox.companyInboxView.sohbetAcilamadi": {
+    "hash": "751381e4b6",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.inbox.companyInboxView.sohbetAcilamadiAciklama": {
+    "hash": "20814f8fe9",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.inbox.companyInboxView.soldanBirFirmaSecerekSohbete": {
     "hash": "618e0d3634",
     "status": "reviewed",
