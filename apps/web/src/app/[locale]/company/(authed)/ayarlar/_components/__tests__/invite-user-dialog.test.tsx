@@ -114,6 +114,24 @@ describe("InviteUserDialog", () => {
     expect(h.invite.mock.calls[0][0].permissions).toEqual(["buy:view", "sell:view"]);
   });
 
+  it("davet sonrası taze koltuk verisi varsayılanı günceller — bekleyen davet koltuğu doldurduysa Görüntüleyici (MU-13 gözden geçirme)", async () => {
+    h.seats = { limit: 2, used: 1, pendingSeatInvites: 0, usedBuy: 0, usedSell: 1, tier: "STANDART" };
+    const { rerender } = render(<InviteUserDialog open onClose={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText("kisi@firma.com"), { target: { value: "ali@firma.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Davet Gönder" }));
+    await waitFor(() => expect(h.invite).toHaveBeenCalledTimes(1));
+    expect(h.invite.mock.calls[0][0].permissions).toEqual(["sell:view", "sell:bid:submit"]);
+    await waitFor(() => expect(h.toast.success).toHaveBeenCalled());
+
+    // Davet `company-seats`'i yeniden çeker: bekleyen davet son koltuğu doldurdu.
+    h.seats = { limit: 2, used: 1, pendingSeatInvites: 1, usedBuy: 0, usedSell: 1, tier: "STANDART" };
+    rerender(<InviteUserDialog open onClose={() => {}} />);
+    fireEvent.change(screen.getByPlaceholderText("kisi@firma.com"), { target: { value: "veli@firma.com" } });
+    fireEvent.click(screen.getByRole("button", { name: "Davet Gönder" }));
+    await waitFor(() => expect(h.invite).toHaveBeenCalledTimes(2));
+    expect(h.invite.mock.calls[1][0].permissions).toEqual(["buy:view", "sell:view"]);
+  });
+
   it("suppress edilmiş adres: uyarı, yeniden gönder eylemi YOK (aynı adrese yine gitmez)", async () => {
     h.invite.mockResolvedValue({ id: "inv1", email: "ali@firma.com", emailSent: false, emailFailureReason: "suppressed" });
     await submitValid();

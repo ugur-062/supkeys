@@ -72,15 +72,23 @@ export function InviteUserDialog({
   // Koşulsuz Satın Almacı, ücretsiz/Silver firmanın "yalnız e-postayı yaz,
   // gönder" davetini satınalma paket kapısında 400'e düşürüyordu. Koltuk
   // bilgisi gelmeden varsayılan uygulanmaz (paket bilinmeden seçilemez).
+  // Kullanıcı tabloya dokunmadığı sürece varsayılan TAZE koltuk verisiyle
+  // yeniden hesaplanır: diyalog sayfada sürekli mounted; davet sonrası
+  // yeniden çekilen `seats` (bekleyen davet koltuğu doldurmuş olabilir)
+  // ve her açılış varsayılanı günceller — bayat Satışçı seti bir sonraki
+  // davette "koltuk dolu" 400'üne düşmez.
   const defaultPerms = () =>
     catalog && seats ? defaultInvitePermissions(catalog, { canGrantBuy, freeSeats }) : [];
-  const defaulted = useRef(false);
+  const userEdited = useRef(false);
   useEffect(() => {
-    if (defaulted.current || !catalog || !seats) return;
-    defaulted.current = true;
-    if (perms.length === 0) setPerms(defaultPerms());
+    if (!open || userEdited.current || !catalog || !seats) return;
+    setPerms(defaultPerms());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalog, seats]);
+  }, [open, catalog, seats]);
+  const handlePermsChange = (next: string[]) => {
+    userEdited.current = true;
+    setPerms(next);
+  };
 
   const canSave = emailValid && perms.length > 0;
 
@@ -99,6 +107,8 @@ export function InviteUserDialog({
         successMessage: t("davetEPostasiGonderildi7"),
       });
       setEmail("");
+      // Varsayılana dön; taze `seats` gelince efekt yeniden hesaplar.
+      userEdited.current = false;
       setPerms(defaultPerms());
       setInviteLocale(uiLocale);
       onClose();
@@ -158,7 +168,7 @@ export function InviteUserDialog({
               <PermissionTable
                 catalog={catalog}
                 value={perms}
-                onChange={setPerms}
+                onChange={handlePermsChange}
                 viewerIsOwner={!!viewer?.isOwner}
                 freeSeats={freeSeats}
                 canGrantBuy={canGrantBuy}
