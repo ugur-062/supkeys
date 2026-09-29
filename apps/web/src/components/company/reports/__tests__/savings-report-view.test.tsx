@@ -145,6 +145,17 @@ describe("SavingsReportView", () => {
     expect(screen.getByText(/Profil/)).toBeInTheDocument();
   });
 
+  it("kalem detayında miktar okuyucunun dilinde biçimlenir (derin denetim LU-28)", async () => {
+    const user = userEvent.setup();
+    const r = row();
+    r.items[0] = { ...r.items[0], awardedQuantity: 1500.5 };
+    h.reportData = result([r]);
+    render(<SavingsReportView {...base} />);
+    await user.click(screen.getByRole("button", { name: "Kalem detayı" }));
+    expect(screen.getByText("1.500,5")).toBeInTheDocument();
+    expect(screen.getByText("(adet)")).toBeInTheDocument();
+  });
+
   it("boş sonuç → 'kazandırılmış satın alma talebi yok' mesajı", () => {
     h.reportData = result([]);
     render(<SavingsReportView {...base} />);

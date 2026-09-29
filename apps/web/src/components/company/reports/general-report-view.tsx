@@ -36,16 +36,19 @@ import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { CURRENCIES, affixCurrency } from "@/lib/tenders/labels";
 
-// Durum etiketi katalogdan (`useListingStatusLabel`); burada yalnız süzgeç sırası.
+// Durum etiketi katalogdan (`useListingStatusLabel`); burada yalnız süzgeç sırası
+// (yaşam döngüsü sırası). Normal kapanış doğrudan IN_AWARD'a gider; CLOSED
+// yalnız admin moderasyon kapatması — sona yakın durur (derin denetim LU-28).
 const STATUS_OPTIONS = [
   "DRAFT",
   "IN_APPROVAL",
   "OPEN",
-  "CLOSED",
+  "IN_AWARD",
   "IN_AWARD_APPROVAL",
   "AWARDED",
-  "CANCELLED",
   "CLOSED_NO_AWARD",
+  "CANCELLED",
+  "CLOSED",
 ] as const;
 // Liste TEK KAYNAK: labels.ts CURRENCIES (tablodan türetilir) — Dalga B-2.
 

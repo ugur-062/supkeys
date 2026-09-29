@@ -31,16 +31,19 @@ import {
 } from "@/hooks/use-company-reports";
 import { useTenders } from "@/hooks/use-company-tenders";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { currencySymbol } from "@/lib/tenders/labels";
+import { affixCurrency } from "@/lib/tenders/labels";
 import { cn } from "@/lib/utils";
 import { ArrowLeft, FileSpreadsheet, Loader2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 
-/** Tutar + sembol — sayı okuyucunun dilinde. */
-function money(n: number | null, sym: string, locale: Locale) {
-  return n == null ? "—" : `${formatNumber(n, locale)} ${sym}`;
+/**
+ * Tutar + sembol — sayı okuyucunun dilinde; sembolün YERİ de dilden
+ * (`affixCurrency`: İngilizcede önde "$1,200", TR/RU'da sonda "1.200 $").
+ */
+function money(n: number | null, currency: string, locale: Locale) {
+  return n == null ? "—" : affixCurrency(formatNumber(n, locale), currency, locale);
 }
 
 /**
@@ -98,7 +101,7 @@ export function BidComparisonView({
   const data = report.data;
   // Referans/önerilen birim fiyatlar firmanın RAPOR BİRİMİNDE (sunucu çevirir,
   // `baseCurrency`); tur geçmişi satırı kendi birimini taşır.
-  const sym = currencySymbol(data?.baseCurrency ?? "TRY");
+  const baseCurrency = data?.baseCurrency ?? "TRY";
 
   return (
     <div className="space-y-5">
@@ -216,7 +219,7 @@ export function BidComparisonView({
             <Badge color="zinc">{tr("tur", { round: data.listing.round })}</Badge>
             {data.includePrice && data.listing.referenceTotal > 0 ? (
               <Badge color="zinc">
-                {tr("hedefToplam", { total: money(data.listing.referenceTotal, sym, locale) })}
+                {tr("hedefToplam", { total: money(data.listing.referenceTotal, baseCurrency, locale) })}
               </Badge>
             ) : null}
           </div>
@@ -251,7 +254,7 @@ export function BidComparisonView({
                       </span>
                     </TableCell>
                     <TableCell className="text-right tabular-nums text-zinc-500">
-                      {money(it.referenceUnitPrice, sym, locale)}
+                      {money(it.referenceUnitPrice, baseCurrency, locale)}
                     </TableCell>
                     {data.parties.map((p) => {
                       const ip = p.itemPrices.find((x) => x.itemId === it.id);
@@ -273,7 +276,7 @@ export function BidComparisonView({
                                   sayılar kıyaslanamaz; derin denetim Y-14). */}
                               {money(
                                 ip?.unitPrice ?? null,
-                                currencySymbol(ip?.currency ?? data.baseCurrency ?? "TRY"),
+                                ip?.currency ?? data.baseCurrency ?? "TRY",
                                 locale,
                               )}
                               {ip?.deltaVsReferencePct != null ? (
@@ -304,7 +307,7 @@ export function BidComparisonView({
                       </TableCell>
                       <TableCell className="text-right tabular-nums text-zinc-500">
                         {data.listing.referenceTotal > 0
-                          ? money(data.listing.referenceTotal, sym, locale)
+                          ? money(data.listing.referenceTotal, baseCurrency, locale)
                           : "—"}
                       </TableCell>
                       {data.parties.map((p) => (
@@ -316,21 +319,19 @@ export function BidComparisonView({
                               sıra ile aynı baz); ham tutar yalnız "teklif
                               para birimlerini göster" açıkken, birimiyle. */}
                           {p.totalTry != null
-                            ? money(p.totalTry, sym, locale)
+                            ? money(p.totalTry, baseCurrency, locale)
                             : // Kur damgası yoksa (çevrilemedi) ham tutar
                               // KENDİ birimiyle — asla birimsiz değil.
                               money(
                                 p.totalAmount,
-                                currencySymbol(
-                                  p.totalCurrency ?? p.bidCurrency ?? data.baseCurrency ?? "TRY",
-                                ),
+                                p.totalCurrency ?? p.bidCurrency ?? data.baseCurrency ?? "TRY",
                                 locale,
                               )}
                           {p.totalTry != null && p.bidCurrency && p.totalAmount != null ? (
                             <span className="block text-xs font-normal text-zinc-400">
                               {money(
                                 p.totalAmount,
-                                currencySymbol(p.totalCurrency ?? p.bidCurrency),
+                                p.totalCurrency ?? p.bidCurrency,
                                 locale,
                               )}
                             </span>
@@ -362,7 +363,7 @@ export function BidComparisonView({
                           key={p.companyId}
                           className="text-right tabular-nums text-emerald-700"
                         >
-                          {money(p.deltaVsReference, sym, locale)}
+                          {money(p.deltaVsReference, baseCurrency, locale)}
                         </TableCell>
                       ))}
                     </TableRow>
@@ -393,7 +394,7 @@ export function BidComparisonView({
                         {ra.companyName}
                       </span>
                       <span className=" font-semibold tabular-nums">
-                        {money(ra.unitPrice, sym, locale)}
+                        {money(ra.unitPrice, baseCurrency, locale)}
                       </span>
                     </span>
                   </li>
@@ -422,7 +423,7 @@ export function BidComparisonView({
                         {h.bidderName}
                       </TableCell>
                       <TableCell className="text-right tabular-nums">
-                        {money(h.amount, h.currency ? currencySymbol(h.currency) : sym, locale)}
+                        {money(h.amount, h.currency || baseCurrency, locale)}
                       </TableCell>
                     </TableRow>
                   ))}

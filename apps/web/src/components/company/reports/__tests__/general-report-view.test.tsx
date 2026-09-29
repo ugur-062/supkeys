@@ -112,6 +112,14 @@ describe("GeneralReportView", () => {
     expect(screen.getByRole("button", { name: /Raporu Oluştur/ })).toBeDisabled();
   });
 
+  it("RANGE mod durum süzgecinde 'Değerlendirmede' (IN_AWARD) var (derin denetim LU-28)", async () => {
+    const user = userEvent.setup();
+    render(<GeneralReportView {...base} />);
+    await user.click(screen.getAllByRole("radio")[1]); // RANGE
+    const option = screen.getByRole("option", { name: "Değerlendirmede" });
+    expect(option).toHaveAttribute("value", "IN_AWARD");
+  });
+
   it("SINGLE mod: satın alma talebi seçince Raporu Oluştur mutasyonu tetikler", async () => {
     const user = userEvent.setup();
     h.reportMutate.mockResolvedValue(result());

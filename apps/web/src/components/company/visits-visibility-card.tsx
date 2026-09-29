@@ -1,6 +1,7 @@
 "use client";
 
 import { useTranslations } from "next-intl";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useCompanyProfile, useUpdateCompanyProfile } from "@/hooks/use-company-profile";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
@@ -20,6 +21,10 @@ export function VisitsVisibilityCard({ className }: { className?: string }) {
   const update = useUpdateCompanyProfile();
   const on = profile.data?.visitsVisible ?? true;
   const busy = profile.isLoading || update.isPending;
+  // Sayfa `insights:view` ile açılır (SATISCI dahil) ama ayar PATCH
+  // /company/profile'a gider (`company:manage`) — yetkisi olmayana anahtar
+  // salt-okunur gösterilir, 403'e tıklatılmaz (derin denetim LU-28).
+  const canManage = useHasCompanyPermission("company:manage");
 
   const toggle = async () => {
     try {
@@ -40,13 +45,16 @@ export function VisitsVisibilityCard({ className }: { className?: string }) {
         <p className="text-xs/5 text-zinc-500">
           {t("incelediginizFirmalarKendiZiyaretEdenler")}
         </p>
+        {!canManage ? (
+          <p className="mt-1 text-xs/5 text-zinc-400">{t("yalnizYetkiliDegistirebilir")}</p>
+        ) : null}
       </div>
       <button
         type="button"
         role="switch"
         aria-checked={on}
         aria-label={t("ziyaretlerimKarsiTarafaGorunsun")}
-        disabled={busy}
+        disabled={busy || !canManage}
         onClick={() => void toggle()}
         className={cn(
           "relative inline-flex h-6 w-11 shrink-0 items-center rounded-full transition disabled:opacity-50",

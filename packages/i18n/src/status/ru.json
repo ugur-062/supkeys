@@ -3689,6 +3689,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyReports.cevapEvet": {
+    "hash": "d157d3a685",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "api.companyReports.cevapHayir": {
+    "hash": "b861f134f8",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.companyReports.digerKategoriler": {
     "hash": "861fed125c",
     "status": "reviewed",
@@ -3883,6 +3893,11 @@
     "hash": "f6234b0d4d",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.companyReports.soru": {
+    "hash": "42c0f36571",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "api.companyReports.tarihAraligiZorunlu": {
     "hash": "1ab027439c",
@@ -16569,6 +16584,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.approvals.approvalFlowsSection.paketleriIncele": {
+    "hash": "ea6ae0c3af",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.approvals.approvalFlowsSection.pasif": {
     "hash": "3de48344fb",
     "status": "reviewed",
@@ -16643,6 +16663,11 @@
     "hash": "2c9b0364d7",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.approvals.approvalFlowsSection.yeniAkisGoldPakette": {
+    "hash": "ee1588ad02",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.approvals.approvalFlowsSection.yenidenDene": {
     "hash": "74786ca1ea",
@@ -22764,6 +22789,11 @@
     "status": "reviewed",
     "at": "2026-09-25"
   },
+  "web.panel.requests.myBidStatusPanel.alimTalebiHenuzSonuclanmadi": {
+    "hash": "b9ac9a7f94",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.requests.myBidStatusPanel.birimFiyat": {
     "hash": "a600d5be39",
     "status": "reviewed",
@@ -22994,6 +23024,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.myBidStatusPanel.teklifinizElendi": {
+    "hash": "09e91a94b7",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.requests.myBidStatusPanel.teklifiniziGeriCektiniz": {
     "hash": "23eec24f78",
     "status": "reviewed",
@@ -23103,6 +23138,16 @@
     "hash": "4461a794ca",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.page.alimTalebi": {
+    "hash": "d3f2cd81f4",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.requests.page.alimTalebiBulunamadi": {
+    "hash": "e699785c63",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.anaBirim": {
     "hash": "61982530a3",
@@ -23240,29 +23285,29 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.buSatinAlmaTalebindeTeklif": {
-    "hash": "e2e1faba2b",
+    "hash": "a540745e32",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.buSatinAlmaTalebindeTeklif2": {
-    "hash": "5dbf8a94a2",
+    "hash": "8cab52a4b5",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.buSatinAlmaTalebindeTum": {
-    "hash": "0d42227881",
+    "hash": "d5804e148f",
     "status": "reviewed",
-    "at": "2026-09-25"
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.buSatinAlmaTalebindeTumKalemlereTeklifZorunlu": {
-    "hash": "cc37418dad",
+    "hash": "43dba9a3a7",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.buSatinAlmaTalebineArtik": {
-    "hash": "8c6a8e99d6",
+    "hash": "c891bc09f0",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.buSatinAlmaTalebineTeklif": {
     "hash": "c3aaa6944f",
@@ -23575,14 +23620,14 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.herkeseAcikSatinAlmaTaleplerine": {
-    "hash": "76ac4799ac",
+    "hash": "3490d5825a",
     "status": "reviewed",
-    "at": "2026-09-25"
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.herkeseAcikSatinAlmaTaleplerini": {
-    "hash": "313c3469ab",
+    "hash": "832b62aaa6",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.herkeseAcikSatinAlmaTaleplerini2": {
     "hash": "4752cd68ec",
@@ -24225,9 +24270,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.satinAlmaTalebiDetayinaDon": {
-    "hash": "239310662d",
+    "hash": "3ac44b2ceb",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.satinAlmaTalebiDetaySekmeleri": {
     "hash": "686b999688",
@@ -24535,9 +24580,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.teklifinGonderildiSatinAlmaTalebi": {
-    "hash": "a22fab1b27",
+    "hash": "389531813c",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.teklifinGonderiliyor": {
     "hash": "c42a70dd2c",
@@ -37198,6 +37243,11 @@
     "hash": "af05395a3a",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.visitsVisibilityCard.yalnizYetkiliDegistirebilir": {
+    "hash": "2289f35c86",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.trade.visitsVisibilityCard.ziyaretlerimKarsiTarafaGorunsun": {
     "hash": "4a37374a8c",

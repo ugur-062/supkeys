@@ -3198,6 +3198,7 @@
         "sartlariKaydet": "Save terms",
         "duzenlemekIcinTalepYonetimiYetkisi": "Editing requires the request management permission.",
         "satinAlmaTalebiBulunamadi": "Buying request not found",
+        "alimTalebiBulunamadi": "Buying request not found",
         "buSatinAlmaTalebiniDuzenleme": "You do not have permission to edit this buying request.",
         "duzenlenemez": "Cannot be edited",
         "buSatinAlmaTalebineTeklif": "This buying request has received quotes or is closed; its content cannot be changed.",
@@ -3250,6 +3251,7 @@
         "teklifinizGonderildi": "Your quote has been submitted",
         "teklifGonderilemedi": "Quote could not be submitted",
         "satinAlmaTalebi": "Buying request",
+        "alimTalebi": "Buying request",
         "oncekiTeklifinElemeGerekcesi": "Reason your previous quote was eliminated:",
         "alici": "Buyer",
         "paraBirimiAliciTarafindanBelirlendi": "The currency was set by the buyer.",
@@ -3979,6 +3981,8 @@
         "tebriklerTeklifinKazandi": "Congratulations — your quote won!",
         "tebriklerBaziKalemleriKazandiniz": "Congratulations — you won some of the line items!",
         "teklifinizBuTurdaElendi": "Your quote was eliminated in this round",
+        "teklifinizElendi": "Your quote was eliminated",
+        "alimTalebiHenuzSonuclanmadi": "The buying request has not been concluded yet — the buyer is still evaluating.",
         "gerekce2": "Reason:",
         "satinAlmaTalebiHalaAcik": "The buying request is still open — you can update your quote and submit it again.",
         "satinAlmaTalebiSonuclandiTeklifiniz": "The buying request has been concluded — your quote was not successful.",
@@ -4229,7 +4233,8 @@
         "ziyaretlerinizArtikYalnizSayiOlarak": "Your visits are now shown only as a count",
         "ziyaretlerimKarsiTarafaGorunsun": "Show my visits to the other party",
         "incelediginizFirmalarKendiZiyaretEdenler": "Companies you view will see your company by name in their own Visitors list. If you turn this off, your visit is counted only as a number.",
-        "ayarKaydedilemedi": "Setting could not be saved"
+        "ayarKaydedilemedi": "Setting could not be saved",
+        "yalnizYetkiliDegistirebilir": "Only users allowed to manage the company profile can change this setting."
       },
       "sellerTendersView": {
         "bagliOldugunuzAlicilarinTalepleriHerkese": "Requests from buyers you are connected with — all public requests are unlocked with the Silver plan.",
@@ -6673,7 +6678,9 @@
         "herTutar": "any amount",
         "onayciYokAyarlardanRolVerin": "There is no active user who can be an approver. Grant a user the <strong>Approver</strong> role under <link>Settings → Users</link>.",
         "buKisiSirasiGeldigindeKazandirmayi": "When their turn comes, this person approves or rejects the award from the Approvals page. Only active users with the <strong>Founder, Manager or Approver</strong> role are listed; to add someone else, grant them the Approver role under <link>Settings → Users</link>.",
-        "kendiniziOnayciSectiniz": "You selected yourself as the approver. For separation of duties, this step is assigned to another approver whenever <strong>you started the award yourself</strong>; if no suitable person is available, the award is rejected."
+        "kendiniziOnayciSectiniz": "You selected yourself as the approver. For separation of duties, this step is assigned to another approver whenever <strong>you started the award yourself</strong>; if no suitable person is available, the award is rejected.",
+        "yeniAkisGoldPakette": "Creating new approval flows and copying flows comes with Gold. You can still edit, deactivate or delete your existing flows.",
+        "paketleriIncele": "View plans"
       },
       "onaylarPage": {
         "onayladi": "approved",

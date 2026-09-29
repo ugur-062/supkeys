@@ -3,6 +3,7 @@
 import { useLocale, useTranslations } from "next-intl";
 import type { Locale } from "@rothern/i18n";
 import { formatNumber, intlLocale } from "@/i18n/format";
+import { useUnitLabel } from "@/i18n/domain";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Field, Label } from "@/components/catalyst/fieldset";
@@ -54,6 +55,8 @@ export function SavingsReportView({
 }) {
   const t = useTranslations("web.panel.reports.savingsReportView");
   const locale = useLocale() as Locale;
+  // Birim Türkçe ad olarak saklanır ("adet") — EN/RU'da katalogdan çevrilir.
+  const unitLabel = useUnitLabel();
   // Yüzde bir ondalıkla, okuyucunun dilinde (ICU düz argümanı sayı biçimlemez).
   const pct1 = (n: number) =>
     n.toLocaleString(intlLocale(locale), { maximumFractionDigits: 1 });
@@ -334,11 +337,11 @@ export function SavingsReportView({
                                       <TableCell className="text-zinc-900">
                                         {it.name}{" "}
                                         <span className="text-xs text-zinc-400">
-                                          ({it.unit})
+                                          ({unitLabel(it.unit)})
                                         </span>
                                       </TableCell>
                                       <TableCell className="text-right tabular-nums">
-                                        {it.awardedQuantity ?? it.quantity}
+                                        {formatNumber(it.awardedQuantity ?? it.quantity, locale)}
                                       </TableCell>
                                       <TableCell className="text-right tabular-nums text-zinc-600">
                                         {it.referenceUnitPrice != null
