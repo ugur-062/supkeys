@@ -250,6 +250,57 @@ describe("Faz AI-0 — bütçe tavanları (çağrıdan ÖNCE reddedilir)", () =>
     expect(provider.calls).toHaveLength(0);
   });
 
+  it("paket bazında istek tavanı: STANDART'ta grounded profil çağrısı sığar, diğer paketler %5'te kalır (derin denetim S013/X21)", async () => {
+    // Gerçek sayılar: STANDART havuzu 0,5 USD, çıktı tavanı 8192 token.
+    // Grounded tahmin = 0,035 (istek ücreti) + 8192×2,5/1M ≈ 0,056 USD;
+    // genel %5 pay 0,025 USD tavan verir → her seferinde request_cap idi.
+    const GROUNDED: AiCallOptions = {
+      feature: "profile_enrich",
+      prompt: "x".repeat(800),
+      minTier: "STANDART",
+      webSearch: true,
+    };
+    const co = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const auth = authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], {
+      tier: "STANDART",
+      isOwner: true,
+    });
+
+    const eski = new FakeProvider();
+    const aiEski = makeAi(
+      makeCfg({ budgets: { STANDART: 0.5 }, maxOutputTokens: 8192 }),
+      eski,
+    );
+    await expect(aiEski.callAi(auth, GROUNDED)).rejects.toThrow(AiBudgetExceededException);
+    expect(eski.calls).toHaveLength(0);
+
+    const yeni = new FakeProvider();
+    const aiYeni = makeAi(
+      makeCfg({
+        budgets: { STANDART: 0.5 },
+        maxOutputTokens: 8192,
+        caps: { requestShareByTier: { STANDART: 0.2 } },
+      }),
+      yeni,
+    );
+    await expect(aiYeni.callAi(auth, GROUNDED)).resolves.toMatchObject({ text: "cevap" });
+    expect(yeni.calls).toHaveLength(1);
+
+    // Override yalnız STANDART'a: GOLD havuzu 0,5 olsaydı %5 tavanı sürerdi.
+    const gold = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const goldAi = makeAi(
+      makeCfg({
+        budgets: { GOLD: 0.5 },
+        maxOutputTokens: 8192,
+        caps: { requestShareByTier: { STANDART: 0.2 } },
+      }),
+      new FakeProvider(),
+    );
+    await expect(
+      goldAi.callAi(gold.auth, { feature: "profile_enrich", prompt: "x".repeat(800), webSearch: true }),
+    ).rejects.toThrow(AiBudgetExceededException);
+  });
+
   it("YARIŞ: kalan bütçeye tek istek sığarken 2 eşzamanlı istek → TAM 1 başarılı", async () => {
     const provider = new FakeProvider();
     provider.delayMs = 50;

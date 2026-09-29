@@ -75,6 +75,14 @@ export interface AiConfig {
     dailyShare: number;
     /** İstek başı tavan (tek dev belge bütçeyi yakmasın). */
     requestShare: number;
+    /**
+     * Paket bazında istek başı tavan (yoksa `requestShare`). STANDART havuzu
+     * (0,5 USD) yalnız profil zenginleştirmeye açık; genel %5 pay 0,025 USD
+     * tavan verir ve Google Search'lü (grounded) tek çağrının tahmini (istek
+     * ücreti 0,035 + çıktı tavanı) bunu HER ZAMAN aşıyordu (derin denetim
+     * S013/X21) — sitesi okunamayan ücretsiz firma hiç taslak alamıyordu.
+     */
+    requestShareByTier?: Partial<Record<TierName, number>>;
     /** Premium alt-bütçesi: havuzun payı. */
     premiumShare: number;
     /** Uyarı eşiği (havuz doluluk oranı). */
@@ -190,6 +198,10 @@ export function loadAiConfig(env: AiEnvSource): AiConfig {
       userShare: 0.5,
       dailyShare: 0.25,
       requestShare: 0.05,
+      // STANDART: tek grounded profil çağrısı (~0,056 USD tahmin) sığsın →
+      // 0,5 × 0,2 = 0,10 USD. Günlük tavan (0,125) ve ömürlük tek başarılı
+      // hak yine frenler; havuz diğer özelliklere ulaşmaz (SILVER kapısı).
+      requestShareByTier: { STANDART: 0.2 },
       premiumShare: 0.2,
       warnShare: 0.8,
     },

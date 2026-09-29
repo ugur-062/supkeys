@@ -114,16 +114,26 @@ export class AiBudgetService {
     companyId: string,
     db: Prisma.TransactionClient | PrismaService = this.prisma,
   ): Promise<number | null> {
+    return (await this.limitsFor(companyId, db)).pool;
+  }
+
+  /** Havuz + istek başı pay (paket bazında override: `caps.requestShareByTier`). */
+  private async limitsFor(
+    companyId: string,
+    db: Prisma.TransactionClient | PrismaService,
+  ): Promise<{ pool: number | null; requestShare: number }> {
     const company = await db.company.findUnique({
       where: { id: companyId },
       select: { tier: true, membershipEndAt: true },
     });
     if (!company) throw new NotFoundException(i18nMessage("api.ai.firmaBulunamadi"));
-    const pool =
-      this.config.monthlyBudgetUsd[
-        effectiveTier(company.tier, company.membershipEndAt)
-      ];
-    return pool != null && pool > 0 ? pool : null;
+    const tier = effectiveTier(company.tier, company.membershipEndAt);
+    const pool = this.config.monthlyBudgetUsd[tier];
+    return {
+      pool: pool != null && pool > 0 ? pool : null,
+      requestShare:
+        this.config.caps.requestShareByTier?.[tier] ?? this.config.caps.requestShare,
+    };
   }
 
   private async sumCost(
@@ -162,7 +172,7 @@ export class AiBudgetService {
       // penceresi firma bazında serileşir (TOCTOU kapalı).
       await tx.$queryRaw`SELECT id FROM companies WHERE id = ${args.companyId} FOR UPDATE`;
 
-      const pool = await this.poolFor(args.companyId, tx);
+      const { pool, requestShare } = await this.limitsFor(args.companyId, tx);
       if (pool == null) {
         throw new ForbiddenException(
           i18nMessage("api.ai.paketinizAiOzellikleriniIcermiyorSilverVeya"),
@@ -185,7 +195,7 @@ export class AiBudgetService {
         const cand = args.candidates[i]!;
         const est = cand.estimatedCostUsd;
         const denial: BudgetDenial | null =
-          est.gt(poolD.mul(caps.requestShare))
+          est.gt(poolD.mul(requestShare))
             ? "request_cap"
             : monthSpend.add(est).gt(poolD)
               ? "pool"

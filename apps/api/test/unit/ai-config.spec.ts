@@ -5,6 +5,7 @@
  */
 import { checkAiKey } from "../../src/common/config/ai-config";
 import { loadAiConfig } from "../../src/modules/ai/ai.config";
+import { costFromUsage } from "../../src/modules/ai/ai-budget.service";
 
 function envSource(vars: Record<string, string | undefined>) {
   return { get: (k: string) => vars[k] };
@@ -50,6 +51,22 @@ describe("loadAiConfig", () => {
     const def = loadAiConfig(envSource({ GEMINI_API_KEY: "test-gecerli-uzun-anahtar-fixture" }));
     expect(def.models.default).toBe("gemini-flash-latest");
     expect(def.models.premium).toBe("gemini-pro-latest");
+  });
+
+  it("STANDART istek tavanı Google Search'lü tek profil çağrısını karşılar; diğer paketler %5 (derin denetim S013/X21)", () => {
+    const cfg = loadAiConfig(envSource({ GEMINI_API_KEY: "test-gecerli-uzun-anahtar-fixture" }));
+    // Profil zenginleştirme grounded çağrısının rezervasyon tahmini (girdi ~1k token).
+    const est = costFromUsage(
+      { inputTokens: 1000, outputTokens: cfg.maxOutputTokens, cacheReadTokens: 0, cacheWriteTokens: 0 },
+      cfg.pricing[cfg.models.default]!,
+      { grounded: true },
+    );
+    const share = cfg.caps.requestShareByTier?.STANDART ?? cfg.caps.requestShare;
+    expect(est.toNumber()).toBeLessThanOrEqual(cfg.monthlyBudgetUsd.STANDART! * share);
+    // Grounded + yapılandırma çağrısı günlük tavana da sığmalı.
+    expect(est.toNumber() * 2).toBeLessThanOrEqual(cfg.monthlyBudgetUsd.STANDART! * cfg.caps.dailyShare);
+    expect(cfg.caps.requestShareByTier?.SILVER).toBeUndefined();
+    expect(cfg.caps.requestShareByTier?.GOLD).toBeUndefined();
   });
 
   it("fiyat tanımı olmayan model → fail-closed (throw)", () => {

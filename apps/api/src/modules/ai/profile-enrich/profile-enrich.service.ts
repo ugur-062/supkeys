@@ -2,6 +2,7 @@ import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ForbiddenException,
+  HttpException,
   Inject,
   Injectable,
   Logger,
@@ -87,9 +88,11 @@ export function profileEnrichStructureSystemPrompt(locale: Locale): string {
 ${aiUiLanguageRule(locale, "aboutText, services")}`;
 }
 
-/** `AiUsage.feature` anahtarı — ömürlük sayaç bu değeri sayar. */
+/** `AiUsage.feature` anahtarı (bütçe/kullanım ekranı). */
 const PROFILE_ENRICH_FEATURE = "profile_enrich";
-/** Ücretsiz pakette ÖMÜR BOYU çağrı hakkı (bir kerelik kurulum adımı). */
+/** Başarılı taslak dönüşünün audit izi — ücretsiz ömürlük hak bunu sayar. */
+const PROFILE_ENRICHED_ACTION = "company.profile_enriched";
+/** Ücretsiz pakette ÖMÜR BOYU BAŞARILI taslak hakkı (bir kerelik kurulum adımı). */
 const FREE_TIER_ENRICH_LIMIT = 1;
 
 @Injectable()
@@ -114,16 +117,6 @@ export class ProfileEnrichService {
     // müşteri edinme. Tekrarlayan bir özellik değil, bir kerelik kurulum adımı;
     // o yüzden aylık bütçeye değil ÖMÜRLÜK sayaca bağlı.
     const ucretsiz = !tierAtLeast(user.tier, "SILVER");
-    if (ucretsiz) {
-      const kullanim = await this.prisma.aiUsage.count({
-        where: { companyId: user.companyId, feature: PROFILE_ENRICH_FEATURE },
-      });
-      if (kullanim >= FREE_TIER_ENRICH_LIMIT) {
-        throw new ForbiddenException(
-          i18nMessage("api.ai.ucretsizPaketteProfilAiIleBir"),
-        );
-      }
-    }
     if (!this.config.enabled || !this.provider) {
       throw new ServiceUnavailableException(
         i18nMessage("api.ai.aiOzelligiSuAndaKullanilamiyor"),
@@ -153,6 +146,22 @@ export class ProfileEnrichService {
     dayStart.setUTCHours(0, 0, 0, 0);
     await runTenantTx(this.prisma, async (tx) => {
       await tx.$queryRaw`SELECT id FROM companies WHERE id = ${user.companyId} FOR UPDATE`;
+      // ÖMÜRLÜK HAK (ücretsiz) — BAŞARILI dönüşler sayılır (derin denetim
+      // S014): eskiden `aiUsage` satırları durum filtresiz sayılıyordu; FAILED
+      // rezervasyon (sağlayıcı 503'ü, zaman aşımı) ya da JSON/boş metin gibi
+      // taslak DÖNMEYEN denemeler de tek hakkı kalıcı yakıyordu. Başarılı
+      // dönüşün izi `company.profile_enriched` kaydıdır (aşağıda await'li).
+      // Sayım firma kilidinin İÇİNDE: kontrol ve deneme kaydı serileşir.
+      if (ucretsiz) {
+        const basarili = await tx.auditLog.count({
+          where: { tenantId: user.companyId, action: PROFILE_ENRICHED_ACTION },
+        });
+        if (basarili >= FREE_TIER_ENRICH_LIMIT) {
+          throw new ForbiddenException(
+            i18nMessage("api.ai.ucretsizPaketteProfilAiIleBir"),
+          );
+        }
+      }
       const attempts = await tx.auditLog.count({
         where: {
           tenantId: user.companyId,
@@ -210,6 +219,11 @@ export class ProfileEnrichService {
           : { responseSchema: DRAFT_SCHEMA as unknown as object }),
       })
       .catch((err: unknown) => {
+        // Kapı/bütçe/sağlayıcı hataları (`callAi`) kendi i18n mesajlarıyla
+        // gelir — olduğu gibi iletilir. Eskiden hepsi "birkaç dakika sonra
+        // deneyin" 503'üne çevriliyordu; bütçe reddi (X21) ya da yetki reddi
+        // beklemekle düzelmez.
+        if (err instanceof HttpException) throw err;
         this.logger.warn(
           `Profil zenginleştirme sağlayıcı hatası: ${err instanceof Error ? err.message : String(err)}`,
         );
@@ -266,8 +280,11 @@ export class ProfileEnrichService {
       );
     }
 
-    void this.audit.log({
-      action: "company.profile_enriched",
+    // Ücretsiz paketin ömürlük hakkı bu kayıttan sayılır → await'li ve
+    // kritik (yazım kaybı işaretli loglanır; `log` hiçbir zaman fırlatmaz).
+    await this.audit.log({
+      action: PROFILE_ENRICHED_ACTION,
+      critical: true,
       actorType: "company",
       actorId: user.userId,
       actorEmail: user.email,
