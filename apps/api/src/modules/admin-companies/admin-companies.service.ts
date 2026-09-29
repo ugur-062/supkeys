@@ -1127,6 +1127,16 @@ export class AdminCompaniesService {
       },
       { requireSwift: true },
     );
+    // Yaptirim ulkesi (IBAN oneki / SWIFT ulkesi) onayda da kapali: firma
+    // kapisi `assertBankDetails` ile ayni hata. `bankDetailsErrors` bu durumda
+    // erken doner (eksik alan kodlari gelmez) — kontrol edilmezse bu fixten
+    // once PENDING'e gecmis IR IBAN'li eski kayit onaydan gecerdi (derin
+    // denetim MU-17, gozden gecirme).
+    if (bankErrors.includes("ibanCountryBlocked") || bankErrors.includes("swiftCountryBlocked")) {
+      throw new BadRequestException(
+        i18nMessage("api.bankDetails.bankCountryBlocked", undefined, "BANK_COUNTRY_BLOCKED"),
+      );
+    }
     if (bankErrors.includes("ibanRequired")) missing.push("IBAN");
     if (bankErrors.includes("accountNumberRequired")) missing.push("banka hesap numarası");
     if (!c.ibanHolder?.trim()) missing.push("hesap sahibi");

@@ -98,6 +98,25 @@ describe("assertKycIdentityComplete — banka kurali bankDetailsErrors ile ayni"
     expect(gate({ iban: "BR1800360305000010009795493C1", bankSwiftBic: null })).toThrow(/SWIFT/);
     expect(gate({ country: "DE", iban: null })).toThrow(/IBAN/);
   });
+
+  // Derin denetim MU-17 (gozden gecirme): yaptirim ulkesi IBAN'i / SWIFT'i
+  // olan eski PENDING kayit onaydan gecmez (eksik SWIFT olsa bile).
+  it("yaptirim ulkesi IBAN oneki ya da SWIFT ulkesi onayi BANK_COUNTRY_BLOCKED ile keser", () => {
+    const code = (c: Record<string, unknown>) => {
+      try {
+        gate(c)();
+      } catch (e) {
+        return JSON.stringify((e as { getResponse: () => unknown }).getResponse());
+      }
+      return "no-throw";
+    };
+    const IR_IBAN = "IR270170000000100324200001";
+    expect(code({ country: "DE", iban: IR_IBAN, bankSwiftBic: null })).toContain("BANK_COUNTRY_BLOCKED");
+    expect(code({ country: "DE", iban: IR_IBAN, bankSwiftBic: "DEUTDEFF" })).toContain("BANK_COUNTRY_BLOCKED");
+    expect(code({ country: "JP", iban: "50100123456789", bankSwiftBic: "MELIIRTH", bankName: "Bank" })).toContain(
+      "BANK_COUNTRY_BLOCKED",
+    );
+  });
 });
 
 describe("resolveComplaint — askida ic not firmaya gitmez", () => {
