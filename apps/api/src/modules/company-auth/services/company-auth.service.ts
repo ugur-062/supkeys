@@ -47,7 +47,7 @@ import {
 import { runTenantTx } from "../../../common/prisma/tenant-tx";
 import { AuditService } from "../../audit/audit.service";
 import { EmailService } from "../../email/email.service";
-import { SupabaseAuthService } from "../../supabase-auth/supabase-auth.service";
+import { SupabaseAuthService, isSupabaseAuthAccessError } from "../../supabase-auth/supabase-auth.service";
 import { CompanyLoginDto } from "../dto/company-login.dto";
 import { CompanySignupDto } from "../dto/company-signup.dto";
 import { CompleteOnboardingDto } from "../dto/onboarding.dto";
@@ -891,7 +891,7 @@ export class CompanyAuthService {
     } catch (err) {
       // Supabase erişim/kesinti hatası (503) parola hatası DEĞİLDİR — aynen
       // geçir (denetim 2026-08-23 #10: yanlış audit + kullanıcıya yanlış mesaj).
-      if (err instanceof ServiceUnavailableException) throw err;
+      if (isSupabaseAuthAccessError(err)) throw err;
       auditFail("bad_credentials");
       throw new UnauthorizedException(i18nMessage("api.companyAuth.ePostaVeyaSifreHatali"));
     }
@@ -1563,7 +1563,7 @@ export class CompanyAuthService {
     try {
       await this.supabaseAuth.verifyPassword(user.email, currentPassword, clientIp);
     } catch (err) {
-      if (err instanceof ServiceUnavailableException) throw err;
+      if (isSupabaseAuthAccessError(err)) throw err;
       throw new ForbiddenException(i18nMessage("api.companyAuth.mevcutParolaHatali"));
     }
     await this.supabaseAuth.updatePassword(user.authId, newPassword);

@@ -3,7 +3,6 @@ import {
   BadRequestException,
   Injectable,
   UnauthorizedException,
-  ServiceUnavailableException,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
@@ -15,7 +14,7 @@ import {
   encryptTotpSecret,
   totpEncKey,
 } from "../../common/auth/totp-secret-cipher";
-import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
+import { SupabaseAuthService, isSupabaseAuthAccessError } from "../supabase-auth/supabase-auth.service";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import type { AdminJwtPayload } from "./strategies/admin-jwt.strategy";
 
@@ -53,7 +52,7 @@ export class AdminAuthService {
       const result = await this.supabaseAuth.verifyPassword(email, dto.password, ctx?.ip);
       authId = result.authId;
     } catch (err) {
-      if (err instanceof ServiceUnavailableException) throw err; // kesinti ≠ parola hatası
+      if (isSupabaseAuthAccessError(err)) throw err; // kesinti / istemci kotası (429) ≠ parola hatası
       auditFail("bad_credentials");
       throw new UnauthorizedException(i18nMessage(INVALID_CREDENTIALS_KEY));
     }
@@ -146,7 +145,7 @@ export class AdminAuthService {
     try {
       await this.supabaseAuth.verifyPassword(admin.email, current, clientIp);
     } catch (err) {
-      if (err instanceof ServiceUnavailableException) throw err;
+      if (isSupabaseAuthAccessError(err)) throw err;
       throw new BadRequestException(i18nMessage("api.adminAuth.mevcutSifreHatali"));
     }
     if (!admin.authId) {

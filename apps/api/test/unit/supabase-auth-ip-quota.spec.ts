@@ -14,12 +14,17 @@ jest.mock("../../src/instrument", () => ({ reportToSentry: jest.fn() }));
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
   ServiceUnavailableException,
   UnauthorizedException,
 } from "@nestjs/common";
 import type { ConfigService } from "@nestjs/config";
 import { reportToSentry } from "../../src/instrument";
-import { SupabaseAuthService } from "../../src/modules/supabase-auth/supabase-auth.service";
+import { AdminAuthService } from "../../src/modules/admin-auth/admin-auth.service";
+import {
+  SupabaseAuthService,
+  isSupabaseAuthAccessError,
+} from "../../src/modules/supabase-auth/supabase-auth.service";
 
 const URL_ = "https://proj.supabase.co";
 const ANON = "anon-jwt";
@@ -136,16 +141,43 @@ describe("Y-11 verifyPassword — istemci IP'si Supabase'e iletilir", () => {
 });
 
 describe("Y-11 verifyPassword — 429 ayrı alarm etiketiyle raporlanır", () => {
-  it("429 → 503 + Sentry tag supabase=auth_rate_limited", async () => {
+  const rateLimit = () =>
+    json(429, { code: 429, error_code: "over_request_rate_limit", msg: "Request rate limit reached" });
+
+  it("IP iletilirken 429 = yalnız o istemcinin kotası → 429 'çok fazla deneme' + Sentry warning (error alarmı YOK)", async () => {
     const svc = makeService({ SUPABASE_SECRET_KEY: SECRET });
-    nextResponse = () =>
-      json(429, { code: 429, error_code: "over_request_rate_limit", msg: "Request rate limit reached" });
-    await expect(svc.verifyPassword("e@x.com", "p", "203.0.113.7")).rejects.toBeInstanceOf(
+    nextResponse = rateLimit;
+    const err = await svc.verifyPassword("e@x.com", "p", "203.0.113.7").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(HttpException);
+    expect(err).not.toBeInstanceOf(ServiceUnavailableException);
+    expect((err as HttpException).getStatus()).toBe(429);
+    expect(((err as HttpException).getResponse() as { i18nKey: string }).i18nKey).toBe("api.http.cokFazlaDeneme");
+    expect(reportToSentry).toHaveBeenCalledTimes(1);
+    const [, level, ctx] = (reportToSentry as jest.Mock).mock.calls[0];
+    expect(level).toBe("warning");
+    expect(ctx.tags).toMatchObject({ supabase: "auth_client_rate_limited", supabase_ip_forwarding: "true" });
+  });
+
+  it("IP iletilmiyorsa 429 = sunucu IP'sinin PAYLAŞILAN kotası → 503 + Sentry error supabase=auth_rate_limited", async () => {
+    // Secret anahtar yok (eski davranış).
+    const legacy = makeService();
+    nextResponse = rateLimit;
+    await expect(legacy.verifyPassword("e@x.com", "p", "203.0.113.7")).rejects.toBeInstanceOf(
       ServiceUnavailableException,
     );
-    expect(reportToSentry).toHaveBeenCalledTimes(1);
-    const [, , ctx] = (reportToSentry as jest.Mock).mock.calls[0];
-    expect(ctx.tags).toMatchObject({ supabase: "auth_rate_limited", supabase_ip_forwarding: "true" });
+    let [, level, ctx] = (reportToSentry as jest.Mock).mock.calls[0];
+    expect(level).toBe("error");
+    expect(ctx.tags).toMatchObject({ supabase: "auth_rate_limited", supabase_ip_forwarding: "false" });
+
+    // Secret anahtar var ama istemci IP'si çözülemedi → istek sunucu IP'siyle gitti.
+    (reportToSentry as jest.Mock).mockClear();
+    const svc = makeService({ SUPABASE_SECRET_KEY: SECRET });
+    await expect(svc.verifyPassword("e@x.com", "p", "unknown")).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+    [, level, ctx] = (reportToSentry as jest.Mock).mock.calls[0];
+    expect(level).toBe("error");
+    expect(ctx.tags).toMatchObject({ supabase: "auth_rate_limited" });
   });
 
   it("5xx → 503 + Sentry tag supabase=auth_unavailable (429'dan ayrı)", async () => {
@@ -164,6 +196,76 @@ describe("Y-11 verifyPassword — 429 ayrı alarm etiketiyle raporlanır", () =>
       UnauthorizedException,
     );
     expect(reportToSentry).not.toHaveBeenCalled();
+  });
+});
+
+describe("B3 gözden geçirme — geçersiz API anahtarı kimlik hatası sayılmaz", () => {
+  it("secret anahtar geçersiz/iptal (ağ geçidi 401 'Invalid API key') → 503 + Sentry supabase=auth_misconfigured", async () => {
+    const svc = makeService({ SUPABASE_SECRET_KEY: SECRET });
+    nextResponse = () =>
+      json(401, { message: "Invalid API key", hint: "Double check your Supabase `anon` or `service_role` API key." });
+    await expect(svc.verifyPassword("e@x.com", "p", "203.0.113.7")).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+    expect(reportToSentry).toHaveBeenCalledTimes(1);
+    const [, level, ctx] = (reportToSentry as jest.Mock).mock.calls[0];
+    expect(level).toBe("error");
+    expect(ctx.tags).toMatchObject({ supabase: "auth_misconfigured", supabase_ip_forwarding: "true" });
+  });
+
+  it("secret anahtarla gelen kodsuz 401 (ör. 'Unregistered API key' değişkeni) da yanlış yapılandırmadır", async () => {
+    const svc = makeService({ SUPABASE_SECRET_KEY: SECRET });
+    nextResponse = () => json(401, { error: "unauthorized" });
+    await expect(svc.verifyPassword("e@x.com", "p", "203.0.113.7")).rejects.toBeInstanceOf(
+      ServiceUnavailableException,
+    );
+    expect((reportToSentry as jest.Mock).mock.calls[0][2].tags.supabase).toBe("auth_misconfigured");
+  });
+
+  it("anon anahtar geçersizken de ('Invalid API key') kesinti görünür olur", async () => {
+    const svc = makeService();
+    nextResponse = () => json(401, { message: "Invalid API key" });
+    await expect(svc.verifyPassword("e@x.com", "p")).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect((reportToSentry as jest.Mock).mock.calls[0][2].tags.supabase).toBe("auth_misconfigured");
+  });
+
+  it("GoTrue'nun kodlu 401'i hâlâ kimlik hatası (401), Sentry'e gitmez", async () => {
+    const svc = makeService({ SUPABASE_SECRET_KEY: SECRET });
+    nextResponse = () => json(401, { code: 401, error_code: "invalid_credentials", msg: "Invalid login credentials" });
+    await expect(svc.verifyPassword("e@x.com", "p", "203.0.113.7")).rejects.toBeInstanceOf(
+      UnauthorizedException,
+    );
+    expect(reportToSentry).not.toHaveBeenCalled();
+  });
+});
+
+describe("B3 gözden geçirme — çağıranlar 429'u parola hatasına çevirmez", () => {
+  it("isSupabaseAuthAccessError: 503 ve 429 erişim hatası; 401/403/400 değil", () => {
+    expect(isSupabaseAuthAccessError(new ServiceUnavailableException())).toBe(true);
+    expect(isSupabaseAuthAccessError(new HttpException("x", 429))).toBe(true);
+    expect(isSupabaseAuthAccessError(new UnauthorizedException())).toBe(false);
+    expect(isSupabaseAuthAccessError(new BadRequestException())).toBe(false);
+    expect(isSupabaseAuthAccessError(new Error("x"))).toBe(false);
+  });
+
+  it("admin girişi: istemci kotası (429) aynen geçer, audit'e bad_credentials YAZILMAZ", async () => {
+    const audit = { log: jest.fn() };
+    const supabase = {
+      verifyPassword: jest.fn().mockRejectedValue(new HttpException("çok fazla deneme", 429)),
+    };
+    const svc = new AdminAuthService(
+      {} as never,
+      {} as never,
+      supabase as never,
+      audit as never,
+      {} as never,
+    );
+    const err = await svc
+      .login({ email: "a@x.com", password: "p" } as never, { ip: "203.0.113.7" })
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(HttpException);
+    expect((err as HttpException).getStatus()).toBe(429);
+    expect(audit.log).not.toHaveBeenCalled();
   });
 });
 

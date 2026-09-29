@@ -4,6 +4,8 @@ import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
   BadRequestException,
   ConflictException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -60,6 +62,18 @@ type AuthErrorLike = {
 function isWeakPasswordError(error: AuthErrorLike | null | undefined): boolean {
   if (!error) return false;
   return error.code === "weak_password" || error.name === "AuthWeakPasswordError";
+}
+
+/**
+ * `verifyPassword` hatası kimlik hatası DEĞİL mi? (Kesinti/yanlış yapılandırma
+ * → 503, istemci IP'sinin Supabase kotası → 429.) Çağıranlar bunları audit'e
+ * `bad_credentials` yazmadan ve "parola hatalı"ya çevirmeden aynen geçirir.
+ */
+export function isSupabaseAuthAccessError(err: unknown): boolean {
+  return (
+    err instanceof ServiceUnavailableException ||
+    (err instanceof HttpException && err.getStatus() === HttpStatus.TOO_MANY_REQUESTS)
+  );
 }
 
 @Injectable()
@@ -159,12 +173,14 @@ export class SupabaseAuthService {
     clientIp?: string,
   ): Promise<{ authId: string; email: string }> {
     const ip = clientIp?.trim();
+    // Bu çağrıda istemci IP'si gerçekten iletiliyor mu? (Geçersiz/eksik IP'de
+    // istek sunucu IP'siyle gider → kota yine paylaşılan kotadır.)
+    const forwarded = this.forwardsClientIp && !!ip && isIP(ip) !== 0;
     const signIn = () =>
       this.passwordClient.auth.signInWithPassword({ email, password });
-    const { data, error } =
-      this.forwardsClientIp && ip && isIP(ip)
-        ? await this.forwardedFor.run(ip, signIn)
-        : await signIn();
+    const { data, error } = forwarded
+      ? await this.forwardedFor.run(ip, signIn)
+      : await signIn();
 
     if (error) {
       // Denetim 2026-08-23 #10: kimlik hatası (400/401/403/422 — parola yanlış,
@@ -172,11 +188,52 @@ export class SupabaseAuthService {
       // Eskiden hepsi "parola hatalı" → kesintide yanlış audit + kullanıcıya
       // yanlış mesaj + Sentry'e hiçbir şey. Supabase mesajı yine sızdırılmaz.
       const status = (error as { status?: number }).status ?? 0;
+      const code = (error as AuthErrorLike).code;
+      const extra = { status, name: error.name, code };
+
+      // B3 gözden geçirme: geçersiz / iptal edilmiş / başka projeye ait API
+      // anahtarında Supabase ağ geçidi 401 "Invalid API key" döner (GoTrue'ya
+      // hiç ulaşmaz → hata kodu yok). Bu kimlik hatası sayılırsa HERKESİN
+      // girişi "parola hatalı" ile düşer ve kesinti görünmez olur. GoTrue'nun
+      // kendi kimlik hataları her zaman `code` taşır.
+      const misconfigured =
+        status === 401 &&
+        (/api key/i.test(error.message ?? "") || (this.forwardsClientIp && !code));
+      if (misconfigured) {
+        this.logger.error(
+          `Supabase Auth rejected the API key (401, secretKey=${this.forwardsClientIp}): ${error.message}`,
+        );
+        reportToSentry("Supabase Auth API key rejected (signInWithPassword 401)", "error", {
+          tags: {
+            supabase: "auth_misconfigured",
+            supabase_ip_forwarding: String(this.forwardsClientIp),
+          },
+          extra,
+        });
+        throw new ServiceUnavailableException(
+          i18nMessage("api.supabaseAuth.girisServisiGeciciOlarakKullanilamiyorLutfen"),
+        );
+      }
+
+      // B3 gözden geçirme: IP iletilirken 429 = YALNIZ bu istemci IP'sinin
+      // kotası doldu (platform kesintisi değil) → kullanıcıya "çok fazla
+      // deneme" (429); Sentry'e `warning` (saldırgan IP'si error alarmı
+      // üretmesin). IP iletilmiyorsa kota sunucu IP'sinde paylaşılır → aşağıda
+      // 503 + error (herkes etkilenir).
+      if (status === 429 && forwarded) {
+        this.logger.warn(`Supabase Auth per-client sign-in rate limit hit (429): ${error.message}`);
+        reportToSentry("Supabase Auth per-client sign-in rate limit (signInWithPassword 429)", "warning", {
+          tags: { supabase: "auth_client_rate_limited", supabase_ip_forwarding: "true" },
+          extra,
+        });
+        throw new HttpException(i18nMessage("api.http.cokFazlaDeneme"), HttpStatus.TOO_MANY_REQUESTS);
+      }
+
       const credentialFailure = status === 400 || status === 401 || status === 403 || status === 422;
       if (!credentialFailure) {
-        // Y-11: 429 = Supabase giriş kotası doldu. Kesintiden AYRI etiketle
-        // raporlanır (alarm kuralı `supabase:auth_rate_limited`); IP iletimi
-        // kapalıysa kota sunucu IP'sinde paylaşılır → herkes etkilenir.
+        // Y-11: 429 = Supabase giriş kotası doldu (IP iletilmediği için sunucu
+        // IP'sinin paylaşılan kotası → herkes etkilenir). Kesintiden AYRI
+        // etiketle raporlanır (alarm kuralı `supabase:auth_rate_limited`).
         const rateLimited = status === 429;
         this.logger.error(
           rateLimited
@@ -193,7 +250,7 @@ export class SupabaseAuthService {
               supabase: rateLimited ? "auth_rate_limited" : "auth_unavailable",
               supabase_ip_forwarding: String(this.forwardsClientIp),
             },
-            extra: { status, name: error.name, code: (error as AuthErrorLike).code },
+            extra,
           },
         );
         throw new ServiceUnavailableException(
