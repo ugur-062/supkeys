@@ -67,6 +67,7 @@ import {
 } from "../../../common/company/bid-items";
 import {
   isListingClosedAt,
+  isListingEmbargoed,
   bidValidUntilMs,
 } from "../../../common/company/listing-timing";
 import { AuditService } from "../../audit/audit.service";
@@ -532,6 +533,7 @@ export class CompanyListingsService {
         number: true,
         companyId: true,
         type: true,
+        bidsOpenAt: true,
       },
     });
     if (!listing) return;
@@ -546,12 +548,18 @@ export class CompanyListingsService {
 
     // Davetliler + teklif verenler (PUBLIC ilanda davetsiz teklifçi olabilir)
     // birleşik kümesine kapanış bildirimi.
+    // Açılış embargosu sürüyorsa (Değerlendirmeye Al açılıştan önce) davetliler
+    // talebi GÖREMEZ (getOne 404) ve açılış duyurusu da onlara hiç gitmedi →
+    // yalnız teklif sahipleri bilgilendirilir (derin denetim LU-16).
+    const embargoed = isListingEmbargoed(listing.bidsOpenAt);
     const [invs, bids] = await this.inOwnerContext(listing.companyId, () =>
       Promise.all([
-        this.bypass.listingInvitation.findMany({
-          where: { listingId },
-          select: { invitedCompanyId: true },
-        }),
+        embargoed
+          ? Promise.resolve([] as { invitedCompanyId: string }[])
+          : this.bypass.listingInvitation.findMany({
+              where: { listingId },
+              select: { invitedCompanyId: true },
+            }),
         this.bypass.listingBid.findMany({
           where: { listingId },
           select: { bidderCompanyId: true },
@@ -7080,6 +7088,28 @@ export class CompanyListingsService {
    * İngiliz Usulü + OPEN + kapanışa <2 dk kala eklenemez (eski sistemle aynı).
    * OPEN ilanda yeni davetlilere anında davet e-postası gider.
    */
+  /**
+   * Son saniye koruması: açık İngiliz usulü eksiltmeye kapanışa 2 dakikadan az
+   * kala yeni davetli eklenemez. Davet ekleyen HER yol (elle davet, AI üye
+   * daveti) bu tek kapıdan geçer (derin denetim LU-16).
+   */
+  private assertInviteWindowOpen(listing: {
+    format: string | null;
+    status: string;
+    closesAt: Date | null;
+  }) {
+    if (
+      listing.format === "ENGLISH_AUCTION" &&
+      listing.status === "OPEN" &&
+      listing.closesAt &&
+      listing.closesAt.getTime() - Date.now() < 2 * 60_000
+    ) {
+      throw new BadRequestException(
+        i18nMessage("api.companyListings.kapanisa2DakikadanAzKalaPazarlik"),
+      );
+    }
+  }
+
   async addInvitations(
     user: AuthenticatedCompanyUser,
     listingId: string,
@@ -7109,16 +7139,7 @@ export class CompanyListingsService {
     if (listing.status !== "DRAFT" && listing.status !== "OPEN") {
       throw new BadRequestException(i18nMessage("api.companyListings.buIlanaArtikDavetEklenemez"));
     }
-    if (
-      listing.format === "ENGLISH_AUCTION" &&
-      listing.status === "OPEN" &&
-      listing.closesAt &&
-      listing.closesAt.getTime() - Date.now() < 2 * 60_000
-    ) {
-      throw new BadRequestException(
-        i18nMessage("api.companyListings.kapanisa2DakikadanAzKalaPazarlik"),
-      );
-    }
+    this.assertInviteWindowOpen(listing);
 
     const connected = new Set(await this.connectedCompanyIds(user.companyId));
     const codes = (rothernIds ?? [])
@@ -7254,6 +7275,7 @@ export class CompanyListingsService {
     if (listing.status !== "DRAFT" && listing.status !== "OPEN") {
       throw new BadRequestException(i18nMessage("api.companyListings.buIlanaArtikDavetEklenemez"));
     }
+    this.assertInviteWindowOpen(listing);
 
     const ids = [...new Set(companyIdsRaw)].filter((id) => id && id !== user.companyId).slice(0, COMPANY_DAILY_INVITE_CAP);
     const dayStart = utcDayStart(new Date());
@@ -7899,6 +7921,7 @@ export class CompanyListingsService {
         number: true,
         type: true,
         companyId: true,
+        bidsOpenAt: true,
       },
     });
     if (!listing) return;
@@ -7908,12 +7931,18 @@ export class CompanyListingsService {
       number: listing.number ?? "—",
       ...(opts.params ?? {}),
     };
+    // Açılış embargosunda davetliler talebi göremez (getOne 404) ve açılış
+    // duyurusu onlara henüz gitmedi → iptal/kapanış değişikliği yalnız teklif
+    // sahiplerine (önceki tur katılımcısı) gider (derin denetim LU-16).
+    const embargoed = isListingEmbargoed(listing.bidsOpenAt);
     const [invs, bids] = await this.inOwnerContext(listing.companyId, () =>
       Promise.all([
-        this.prisma.listingInvitation.findMany({
-          where: { listingId },
-          select: { invitedCompanyId: true },
-        }),
+        embargoed
+          ? Promise.resolve([] as { invitedCompanyId: string }[])
+          : this.prisma.listingInvitation.findMany({
+              where: { listingId },
+              select: { invitedCompanyId: true },
+            }),
         this.prisma.listingBid.findMany({
           where: { listingId },
           select: { bidderCompanyId: true },

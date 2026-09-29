@@ -470,6 +470,7 @@
   },
   "companyProfile": {
     "firmaBulunamadi": "Company not found",
+    "firmaAdiEnAz2Karakter": "Company name must be at least 2 characters",
     "enFazlaUrunHizmetSecebilirsiniz": "You can select up to {MAXCOMPANYSUBPICKS, plural, one {# product/service} other {# products/services}}",
     "enAzBirAnaKategoriSecili": "At least one main category must stay selected — request notifications cannot be sent to a company without a category.",
     "gecerliBirKepAdresiGiriniz": "Enter a valid KEP address",

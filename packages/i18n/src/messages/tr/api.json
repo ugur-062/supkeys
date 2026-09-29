@@ -470,6 +470,7 @@
   },
   "companyProfile": {
     "firmaBulunamadi": "Firma bulunamadı",
+    "firmaAdiEnAz2Karakter": "Firma adı en az 2 karakter olmalı",
     "enFazlaUrunHizmetSecebilirsiniz": "En fazla {MAXCOMPANYSUBPICKS} ürün/hizmet seçebilirsiniz",
     "enAzBirAnaKategoriSecili": "En az bir ana kategori seçili kalmalı — kategorisi olmayan firmaya talep bildirimi gönderilemez.",
     "gecerliBirKepAdresiGiriniz": "Geçerli bir KEP adresi giriniz",

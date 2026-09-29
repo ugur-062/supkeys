@@ -168,6 +168,11 @@ export class CompanyProfileService {
     dto: UpdateCompanyProfileDto,
     actor?: AuthenticatedCompanyUser,
   ) {
+    // DTO `@Length(2, 200)` KIRPILMAMIŞ değere bakar; kayıt kırpılmış değeri
+    // yazar → "   " boş ad olarak saklanıyordu (derin denetim LU-16).
+    if (dto.name !== undefined && dto.name.trim().length < 2) {
+      throw new BadRequestException(i18nMessage("api.companyProfile.firmaAdiEnAz2Karakter"));
+    }
     // Fix1: SAKLANAN görsel URL'leri kendi R2 tenant-profile deposundan olmalı —
     // harici/data: URL PATCH'i public profilde <img src> olarak render edilir.
     // GRANDFATHER: yalnız DEĞİŞEN/YENİ değeri doğrula (mevcut değer dokunulmuyorsa

@@ -3509,6 +3509,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyProfile.firmaAdiEnAz2Karakter": {
+    "hash": "9432be3aaf",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.companyProfile.firmaBulunamadi": {
     "hash": "c51edb123b",
     "status": "reviewed",

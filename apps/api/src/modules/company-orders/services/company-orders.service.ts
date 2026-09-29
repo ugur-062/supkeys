@@ -370,7 +370,15 @@ export class CompanyOrdersService {
       // Gerekçe geçişle AYNI yazmada — ikinci update yarıda kalırsa
       // gerekçesiz REJECTED kalmasın.
       data: { rejectedReason: reason!.trim(), rejectedAt: new Date() },
+      // İ-1 (2026-09-19 inceleme, kullanıcı kararı): ret alıcıyı çıkmazda
+      // bırakmasın — talep değerlendirmeye döner, diğer teklifler yeniden
+      // açılır. Geçişle AYNI transaction (derin denetim LU-16): eskiden ret
+      // ayrı commit ediliyor, geri alma ayrı tx'te düşerse sipariş REJECTED
+      // ama teklif WON / talep AWARDED kalıyor, yeniden deneme de "geçersiz
+      // geçiş" diyordu — onaracak yol yoktu.
+      inTx: (tx, order) => this.revertAwardInTx(tx, order, reason!.trim()),
     });
+    const revert = res.extra ?? null;
     // INV-AUDIT-1: durum geçişi (sipariş reddi) — commit SONRASI, bildirimden önce.
     await this.audit.log({
       action: "company.order.rejected",
@@ -388,13 +396,24 @@ export class CompanyOrdersService {
         reason: reason!.trim(),
       },
     });
-    // İ-1 (2026-09-19 inceleme, kullanıcı kararı): ret alıcıyı çıkmazda
-    // bırakmasın — talep değerlendirmeye döner, diğer teklifler yeniden açılır.
-    const revert = await this.revertAwardAfterRejection(
-      user,
-      res.order,
-      reason!.trim(),
-    );
+    if (revert && res.order.listingId) {
+      await this.audit.log({
+        action: "company.listing.award_reverted_on_rejection",
+        actorType: "company",
+        actorId: user.userId,
+        actorEmail: user.email,
+        tenantId: res.order.buyerCompanyId,
+        entityType: "listing",
+        entityId: res.order.listingId,
+        critical: true,
+        metadata: {
+          orderId: res.order.id,
+          orderNumber: res.order.number,
+          sellerCompanyId: res.order.sellerCompanyId,
+          ...revert,
+        },
+      });
+    }
     await this.notifyOrderParty(
       id,
       res.order.buyerCompanyId,
@@ -428,73 +447,67 @@ export class CompanyOrdersService {
    *    kalır (öteki tedarikçilerin siparişleri sürüyor).
    *
    * Satıcı bağlamında alıcının talep/teklif satırlarına yazar → RLS'li client
-   * boş dönerdi; bypass client bilinçli (çapraz-firma yazma, koşullar açık).
+   * boş dönerdi; `reject` bunu ret geçişiyle AYNI bypass transaction'ında
+   * çağırır (çapraz-firma yazma, koşullar açık; tek commit — derin denetim LU-16).
    * Geri alınan teklifin geçerliliği dolmuş olabilir — kazandırma kapısı
    * (`assertBidValidityAlive`) o anda uyarır.
    */
-  private async revertAwardAfterRejection(
-    user: AuthenticatedCompanyUser,
-    order: { id: string; number: string | null; listingId: string | null; sellerCompanyId: string; buyerCompanyId: string },
+  private async revertAwardInTx(
+    tx: Prisma.TransactionClient,
+    order: { id: string; listingId: string | null; sellerCompanyId: string },
     reason: string,
   ): Promise<{ reopened: boolean; lost: number; restored: number } | null> {
     const listingId = order.listingId;
     if (!listingId) return null;
-    const result = await this.bypass.$transaction(async (tx) => {
-      const lost = await tx.listingBid.updateMany({
-        where: {
-          listingId,
-          bidderCompanyId: order.sellerCompanyId,
-          status: { in: ["WON", "AWARDED_PARTIAL"] },
-        },
-        data: {
-          status: "LOST",
-          eliminatedAt: new Date(),
-          // Sistem gerekçesi KOD olarak saklanır; metni okuyucunun dilinde
-          // çizim yeri üretir (`parseSystemText`, eski Türkçe kayıtlar da tanınır).
-          eliminationReason: encodeSystemText("ORDER_REJECTED", reason).slice(0, 500),
-        },
-      });
-      const otherLive = await tx.companyOrder.count({
-        where: {
-          listingId,
-          id: { not: order.id },
-          status: { notIn: ["REJECTED", "CANCELLED"] },
-        },
-      });
-      if (otherLive > 0) return { reopened: false, lost: lost.count, restored: 0 };
-      const listing = await tx.listing.findUnique({
-        where: { id: listingId },
-        select: { currentRound: true },
-      });
-      const reopened = await tx.listing.updateMany({
-        where: { id: listingId, status: "AWARDED" },
-        data: { status: "IN_AWARD", awardedAt: null },
-      });
-      if (reopened.count !== 1) return { reopened: false, lost: lost.count, restored: 0 };
-      const restored = await tx.listingBid.updateMany({
-        where: {
-          listingId,
-          status: "LOST",
-          eliminatedAt: null,
-          round: listing?.currentRound ?? 1,
-          bidderCompanyId: { not: order.sellerCompanyId },
-        },
-        data: { status: "SUBMITTED" },
-      });
-      return { reopened: true, lost: lost.count, restored: restored.count };
+    const lost = await tx.listingBid.updateMany({
+      where: {
+        listingId,
+        bidderCompanyId: order.sellerCompanyId,
+        status: { in: ["WON", "AWARDED_PARTIAL"] },
+      },
+      data: {
+        status: "LOST",
+        eliminatedAt: new Date(),
+        // Sistem gerekçesi KOD olarak saklanır; metni okuyucunun dilinde
+        // çizim yeri üretir (`parseSystemText`, eski Türkçe kayıtlar da tanınır).
+        eliminationReason: encodeSystemText("ORDER_REJECTED", reason).slice(0, 500),
+      },
     });
-    await this.audit.log({
-      action: "company.listing.award_reverted_on_rejection",
-      actorType: "company",
-      actorId: user.userId,
-      actorEmail: user.email,
-      tenantId: order.buyerCompanyId,
-      entityType: "listing",
-      entityId: listingId,
-      critical: true,
-      metadata: { orderId: order.id, orderNumber: order.number, sellerCompanyId: order.sellerCompanyId, ...result },
+    const otherLive = await tx.companyOrder.count({
+      where: {
+        listingId,
+        id: { not: order.id },
+        status: { notIn: ["REJECTED", "CANCELLED"] },
+      },
     });
-    return result;
+    if (otherLive > 0) return { reopened: false, lost: lost.count, restored: 0 };
+    const listing = await tx.listing.findUnique({
+      where: { id: listingId },
+      select: { currentRound: true },
+    });
+    const reopened = await tx.listing.updateMany({
+      where: { id: listingId, status: "AWARDED" },
+      data: { status: "IN_AWARD", awardedAt: null },
+    });
+    if (reopened.count !== 1) return { reopened: false, lost: lost.count, restored: 0 };
+    // Kalem bazlı kazandırmanın yazdığı kısmi miktar da düşer: yeniden
+    // kazandırma (özellikle tam kazandırma, bu kolonu yazmaz) eski kısmi
+    // miktarla raporlanmasın (`awardedQuantity ?? quantity`; derin denetim LU-16).
+    await tx.listingItem.updateMany({
+      where: { listingId },
+      data: { awardedQuantity: null },
+    });
+    const restored = await tx.listingBid.updateMany({
+      where: {
+        listingId,
+        status: "LOST",
+        eliminatedAt: null,
+        round: listing?.currentRound ?? 1,
+        bidderCompanyId: { not: order.sellerCompanyId },
+      },
+      data: { status: "SUBMITTED" },
+    });
+    return { reopened: true, lost: lost.count, restored: restored.count };
   }
 
   /** Satıcı siparişi gönderir: ACCEPTED → IN_DELIVERY (+ fatura no zorunlu).
@@ -1400,6 +1413,11 @@ export class CompanyOrdersService {
           deliveredAt: { not: null },
           paymentDays: { not: null },
           paymentCategory: { in: [...DUE_DATE_CATEGORIES] },
+          // KEYSET sayfalama (derin denetim LU-16): Prisma `cursor + skip:1`
+          // imleç satırını filtresiz bulur; batch'in son adayı aşağıda
+          // damgalanınca filtreden düşüyor ve OFFSET 1 bir sonraki UYGUN
+          // satırı atlıyordu (hatırlatması bir saat gecikiyordu).
+          ...(cursor ? { id: { gt: cursor } } : {}),
         },
         select: {
           id: true,
@@ -1414,7 +1432,6 @@ export class CompanyOrdersService {
         },
         orderBy: { id: "asc" },
         take: BATCH,
-        ...(cursor ? { skip: 1, cursor: { id: cursor } } : {}),
       });
       if (candidates.length === 0) break;
       cursor = candidates[candidates.length - 1]!.id;
@@ -1463,8 +1480,11 @@ export class CompanyOrdersService {
           // (damga geri alınır), (b) taramanın kalanını iptal etmesin
           // (denetim 2026-08-23 Parça 3 #7). `await` korunur — spec'ler
           // sendDuePaymentReminders sonrası bildirimi senkron sayıyor.
+          // UNSAFE varyant bilinçli (derin denetim LU-16): `notifyOrderParty`
+          // hatayı yutar → catch ölü koddu, damga kalıyor ve hatırlatma kalıcı
+          // kayboluyordu. Burada hata fırlamalı ki damga geri alınsın.
           try {
-            await this.notifyOrderParty(
+            await this.notifyOrderPartyUnsafe(
               o.id,
               o.buyerCompanyId,
               "api.notifications.orders.paymentDue.subject",
@@ -1486,11 +1506,12 @@ export class CompanyOrdersService {
                 data: { paymentDueReminderSentAt: null },
               })
               .catch(() => undefined);
-            this.logger.error(
-              `Vade hatırlatması gönderilemedi (${o.id}): ${
-                err instanceof Error ? err.message : String(err)
-              }`,
-            );
+            const reason = err instanceof Error ? err.message : String(err);
+            this.logger.error(`Payment due reminder failed (${o.id}): ${reason}`);
+            reportToSentry("order-notify-failed", "error", {
+              tags: { module: "orders" },
+              extra: { orderId: o.id, recipientCompanyId: o.buyerCompanyId, reason },
+            });
           }
         }
       }
@@ -1576,7 +1597,7 @@ export class CompanyOrdersService {
     return o?.currency ?? "TRY";
   }
 
-  private async transition(
+  private async transition<R = undefined>(
     user: AuthenticatedCompanyUser,
     id: string,
     rule: {
@@ -1584,8 +1605,23 @@ export class CompanyOrdersService {
       from: CompanyOrderStatus | CompanyOrderStatus[];
       to: CompanyOrderStatus;
       data?: Prisma.CompanyOrderUpdateInput;
+      /**
+       * Geçişle AYNI transaction'da çalışacak yan yazma (ör. ret → kazandırmayı
+       * geri al). Verilirse geçiş + yan yazma tek commit: yan yazma düşerse
+       * durum da geri alınır, kullanıcı aynı işlemi yeniden deneyebilir.
+       * Çapraz-firma yazma içerebildiği için bypass client transaction'ı.
+       */
+      inTx?: (
+        tx: Prisma.TransactionClient,
+        order: Awaited<ReturnType<CompanyOrdersService["loadParticipant"]>>,
+      ) => Promise<R>;
     },
-  ) {
+  ): Promise<{
+    ok: true;
+    status: CompanyOrderStatus;
+    order: Awaited<ReturnType<CompanyOrdersService["loadParticipant"]>>;
+    extra: R | undefined;
+  }> {
     const order = await this.loadParticipant(user, id);
     const isSeller = order.sellerCompanyId === user.companyId;
     const allowed = rule.side === "seller" ? isSeller : !isSeller;
@@ -1600,21 +1636,33 @@ export class CompanyOrdersService {
     // ATOMİK geçiş: durum koşulu yazma anında da doğrulanır — eşzamanlı iki
     // aksiyonda (ör. alıcı iptal ederken satıcı kargoya verirse) son yazan
     // iptali ezemez; kaybeden taraf anlaşılır hata alır.
-    const res = await this.prisma.companyOrder.updateMany({
-      where: { id, status: { in: fromList } },
-      data: { status: rule.to, ...(rule.data as Prisma.CompanyOrderUpdateManyMutationInput) },
-    });
-    if (res.count !== 1) {
-      throw new BadRequestException(
-        i18nMessage("api.companyOrders.siparisDurumuAzOnceDegistiSayfayi"),
-      );
+    const write = async (client: Prisma.TransactionClient | PrismaService) => {
+      const res = await client.companyOrder.updateMany({
+        where: { id, status: { in: fromList } },
+        data: { status: rule.to, ...(rule.data as Prisma.CompanyOrderUpdateManyMutationInput) },
+      });
+      if (res.count !== 1) {
+        throw new BadRequestException(
+          i18nMessage("api.companyOrders.siparisDurumuAzOnceDegistiSayfayi"),
+        );
+      }
+    };
+    let extra: R | undefined;
+    if (rule.inTx) {
+      const inTx = rule.inTx;
+      extra = await this.bypass.$transaction(async (tx) => {
+        await write(tx);
+        return inTx(tx, order);
+      });
+    } else {
+      await write(this.prisma);
     }
     // WS: iki tarafın sipariş listesi + açık detayları anında güncellensin.
     this.realtime?.pingOrder(id, [
       order.sellerCompanyId,
       order.buyerCompanyId,
     ]);
-    return { ok: true, status: rule.to, order };
+    return { ok: true, status: rule.to, order, extra };
   }
 
   /**
@@ -2068,11 +2116,29 @@ export class CompanyOrdersService {
         advancePercent: true,
         seller: { select: { name: true } },
         buyer: { select: { name: true } },
-        listing: { select: { title: true, type: true, number: true } },
+        listing: { select: { title: true, type: true, number: true, companyId: true } },
       },
       orderBy: { createdAt: "desc" },
       take: ORDERS_LIST_CAP,
     });
+    // Karşı firmanın talebinin başlığı okuyucunun dilinde (çapraz-firma okuma =
+    // localize*; derin denetim LU-16). Kendi talebi ham kalır.
+    const foreignListings = new Map<string, string>();
+    for (const r of rows) {
+      if (r.listingId && r.listing && r.listing.companyId !== companyId) {
+        foreignListings.set(r.listingId, r.listing.title);
+      }
+    }
+    const localizedTitles = new Map<string, string>();
+    if (this.translations && foreignListings.size > 0) {
+      const lids = [...foreignListings.keys()];
+      const loc = await this.translations.localizeListings(
+        lids.map((lid) => ({ title: foreignListings.get(lid)! })),
+        lids,
+        currentLocale(),
+      );
+      lids.forEach((lid, i) => localizedTitles.set(lid, loc[i]!.title));
+    }
     // YAŞAM DÖNGÜSÜ AYRIMI: ödeme durumu türetilir (yeni alan yok). Sayfa
     // siparişleri için TEK groupBy (cron deseni; N+1 yok) → paymentSettled +
     // paymentDueDate. Liste rozeti/KPI status yerine bunu kullanır.
@@ -2095,8 +2161,11 @@ export class CompanyOrdersService {
         o.paymentDays,
         o.deliveredAt,
       );
+      const base = this.serialize(o, companyId);
       return {
-        ...this.serialize(o, companyId),
+        ...base,
+        listingTitle:
+          (o.listingId ? localizedTitles.get(o.listingId) : undefined) ?? base.listingTitle,
         paymentSettled: this.isFullyPaid(new Prisma.Decimal(o.amount), confirmed),
         paymentDueDate: due ? due.toISOString() : null,
       };
@@ -2121,7 +2190,7 @@ export class CompanyOrdersService {
         seller: { select: CompanyOrdersService.COUNTERPARTY_SELECT },
         buyer: { select: CompanyOrdersService.COUNTERPARTY_SELECT },
         listing: {
-          select: { title: true, type: true, number: true },
+          select: { title: true, type: true, number: true, companyId: true },
         },
         items: true,
         payments: { orderBy: { createdAt: "desc" } },
@@ -2141,6 +2210,21 @@ export class CompanyOrdersService {
     const [{ industry: otherIndustry }] = this.translations
       ? await this.translations.localizeIndustry([{ industry: other.industry }], [otherId], currentLocale())
       : [{ industry: other.industry }];
+    // Karşı firmanın talep başlığı + kalem adları okuyucunun dilinde (çapraz-
+    // firma okuma = localize*; derin denetim LU-16). Kalem adları talebin
+    // çeviri satırındaki kaynak→çeviri eşlemesinden; eşleşmeyen ad ham kalır.
+    // Kendi talebini gören taraf ham okur.
+    let listingTitle = o.listing?.title ?? null;
+    let itemNames = o.items.map((it) => it.name);
+    if (this.translations && o.listingId && o.listing && o.listing.companyId !== user.companyId) {
+      const [loc] = await this.translations.localizeListings(
+        [{ title: o.listing.title, items: itemNames.map((name) => ({ name })) }],
+        [o.listingId],
+        currentLocale(),
+      );
+      listingTitle = loc!.title;
+      itemNames = loc!.items.map((it) => it.name);
+    }
 
     // S3: gösterim toplamları tek-kaynak reducer'dan (eskiden inline döngü
     // confirmedPaymentSum'ı re-derive ediyordu). Gösterim sınırında (.toFixed(2))
@@ -2155,6 +2239,7 @@ export class CompanyOrdersService {
 
     return {
       ...this.serialize(o, user.companyId),
+      listingTitle,
       counterpartyProfile: {
         city: other.city,
         // Karşı firmanın sektörü okuyucunun dilinde (çapraz-firma okuma = localize*).
@@ -2249,9 +2334,9 @@ export class CompanyOrdersService {
       cancelledAt: o.cancelledAt,
       cancelReason: o.cancelReason,
       payments: o.payments.map((p) => this.serializePayment(p)),
-      items: o.items.map((it) => ({
+      items: o.items.map((it, i) => ({
         id: it.id,
-        name: it.name,
+        name: itemNames[i] ?? it.name,
         quantity: it.quantity.toString(),
         unit: it.unit,
         unitPrice: it.unitPrice.toString(),

@@ -470,6 +470,7 @@
   },
   "companyProfile": {
     "firmaBulunamadi": "Компания не найдена",
+    "firmaAdiEnAz2Karakter": "Название компании должно содержать не менее 2 символов",
     "enFazlaUrunHizmetSecebilirsiniz": "Вы можете выбрать не более {MAXCOMPANYSUBPICKS, plural, one {# товара/услуги} few {# товаров/услуг} many {# товаров/услуг} other {# товаров/услуг}}",
     "enAzBirAnaKategoriSecili": "Должна остаться выбранной хотя бы одна основная категория — компании без категории нельзя отправлять уведомления о запросах.",
     "gecerliBirKepAdresiGiriniz": "Введите корректный адрес KEP",
