@@ -34,6 +34,15 @@ describe("coldInviteDailyCap", () => {
     expect(coldInviteDailyCap({ ...quiet, firstSentAt: new Date(NOW.getTime() - 400 * DAY) }, NOW).cap).toBe(5000);
   });
 
+  it("ısınma hacme bağlı: tavan en fazla son 7 günün en yoğun gününün 2 katı, tabanın altına inmez (B5-14)", () => {
+    const old = new Date(NOW.getTime() - 60 * DAY); // takvime göre 5000'e ulaşmış
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: old, peakDay7d: 40 }, NOW).cap).toBe(150);
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: old, peakDay7d: 400 }, NOW).cap).toBe(800);
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: old, peakDay7d: 4000 }, NOW).cap).toBe(5000);
+    // Takvim hâlâ sınırlar: ilk hafta 150, yoğun gün ne olursa olsun.
+    expect(coldInviteDailyCap({ ...quiet, firstSentAt: null, peakDay7d: 150 }, NOW).cap).toBe(150);
+  });
+
   it("şikâyet oranı %0,1'i aşarsa FREN: dünün yarısı", () => {
     const r = coldInviteDailyCap(
       { firstSentAt: new Date(NOW.getTime() - 30 * DAY), sent7d: 2000, complaints7d: 5, hardBounces7d: 0, sentYesterday: 900 },

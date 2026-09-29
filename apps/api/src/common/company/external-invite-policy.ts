@@ -68,6 +68,11 @@ export interface ColdInviteStats {
   hardBounces7d: number;
   /** Dün (UTC) gönderilen davet e-postası. */
   sentYesterday: number;
+  /**
+   * Son 7 günün EN YOĞUN tek (UTC) günündeki gönderim. Verilirse tavan gerçek
+   * hacme bağlanır: en fazla bunun 2 katı (tabanın altına inmez).
+   */
+  peakDay7d?: number;
 }
 
 export interface ColdInviteCap {
@@ -90,7 +95,13 @@ export function coldInviteDailyCap(
   const base = Math.max(1, cfg.base ?? DEFAULT_COLD_INVITE_BASE_DAILY);
   const max = Math.max(base, cfg.max ?? DEFAULT_COLD_INVITE_MAX_DAILY);
   const weeks = stats.firstSentAt ? Math.max(0, Math.floor((now.getTime() - stats.firstSentAt.getTime()) / (7 * DAY_MS))) : 0;
-  const nominal = Math.min(max, base * 2 ** Math.min(weeks, 20));
+  // ISINMA HACME BAĞLI (yayın denetimi 2026-09-28 B5-14): takvim tek başına
+  // yetmez — haftalarca az gönderen platformun tavanı yine ikiye katlanıp bir
+  // günde binlere sıçrayabiliyordu (alıcı sağlayıcılar ani hacim artışını
+  // itibar sinyali sayar). Tavan en fazla son 7 günün en yoğun gününün 2 katı.
+  const byCalendar = Math.min(max, base * 2 ** Math.min(weeks, 20));
+  const nominal =
+    stats.peakDay7d == null ? byCalendar : Math.min(byCalendar, Math.max(base, 2 * stats.peakDay7d));
 
   const complaintsHigh =
     stats.sent7d >= MIN_SAMPLE ? stats.complaints7d / stats.sent7d > 0.001 : stats.complaints7d >= 2;

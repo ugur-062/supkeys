@@ -180,7 +180,7 @@ export class ExternalInviteDispatcher {
     const dayStart = utcDayStart(now);
     const yesterday = new Date(dayStart.getTime() - DAY_MS);
     const base = { contextType: INVITE_CONTEXT };
-    const [first, sent7d, complaints7d, hardBounces7d, sentYesterday] = await Promise.all([
+    const [first, sent7d, complaints7d, hardBounces7d, sentYesterday, peak] = await Promise.all([
       this.prisma.emailLog.findFirst({
         where: { ...base, status: { not: "FAILED" } },
         orderBy: { queuedAt: "asc" },
@@ -192,7 +192,15 @@ export class ExternalInviteDispatcher {
       this.prisma.emailLog.count({
         where: { ...base, status: { not: "FAILED" }, queuedAt: { gte: yesterday, lt: dayStart } },
       }),
+      // Son 7 günün en yoğun UTC günü (ısınma gerçek hacme bağlı — B5-14).
+      this.prisma.$queryRaw<{ peak: number | bigint | null }[]>`
+        SELECT MAX(c) AS peak FROM (
+          SELECT COUNT(*) AS c FROM "email_logs"
+          WHERE "contextType" = ${INVITE_CONTEXT} AND "status" <> 'FAILED' AND "queuedAt" >= ${weekAgo}
+          GROUP BY date_trunc('day', "queuedAt" AT TIME ZONE 'UTC')
+        ) t`,
     ]);
+    const peakDay7d = Number(peak[0]?.peak ?? 0);
     // Tanımsız/boş → varsayılan; 0 GEÇERLİ (soğuk daveti durdurma anahtarı).
     // Eskiden `v > 0` 0'ı yok sayıp varsayılana düşüyordu (yayın denetimi
     // 2026-09-28 Bölüm 5).
@@ -203,7 +211,7 @@ export class ExternalInviteDispatcher {
       return Number.isFinite(v) && v >= 0 ? v : undefined;
     };
     return coldInviteDailyCap(
-      { firstSentAt: first?.queuedAt ?? null, sent7d, complaints7d, hardBounces7d, sentYesterday },
+      { firstSentAt: first?.queuedAt ?? null, sent7d, complaints7d, hardBounces7d, sentYesterday, peakDay7d },
       now,
       { base: num("COLD_INVITE_BASE_DAILY"), max: num("COLD_INVITE_MAX_DAILY") },
     );
