@@ -3,7 +3,7 @@
 import { Badge } from "@/components/catalyst/badge";
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader, SearchInput } from "@/components/list";
-import { api } from "@/lib/api";
+import { api, toastApiError } from "@/lib/api";
 import { canAdminDo } from "@/lib/admin-permissions";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -59,7 +59,7 @@ function CurationQueue() {
       toast.success("Ele alındı olarak işaretlendi");
       void qc.invalidateQueries({ queryKey: ["admin-category-misses"] });
     },
-    onError: () => toast.error("İşaretlenemedi"),
+    onError: (e: unknown) => toastApiError(e, "İşaretlenemedi"),
   });
 
   const rows = misses.data ?? [];
