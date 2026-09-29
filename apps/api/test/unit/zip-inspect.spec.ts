@@ -4,6 +4,7 @@ import {
   assertZipWithinLimits,
   inspectZip,
   XLSX_LIMITS,
+  XLSX_LOAD_OPTIONS,
   ZipInspectError,
 } from "../../src/common/files/zip-inspect";
 import { assertXlsxSafe } from "../../src/modules/company-listings/import/listing-item-import.service";
@@ -198,5 +199,136 @@ describe("beyana güvenilmez — gerçek açılım (derin denetim 2026-09-29 Y-0
     const back = new ExcelJS.Workbook();
     await back.xlsx.load(buf as unknown as ArrayBuffer);
     expect(back.getWorksheet("Kalemler")!.actualRowCount).toBe(200);
+  });
+});
+
+describe("gözden geçirme A1 — EOCD disk alanları ve ExcelJS hücre açılımı", () => {
+  function patchEocdField(zip: Buffer, offset: number, value: number): Buffer {
+    const out = Buffer.from(zip);
+    out.writeUInt16LE(value, out.length - 22 + offset);
+    return out;
+  }
+
+  it("EOCD disk alanlarından biri 0xFFFF → ZIP64 sayılır ve reddedilir (JSZip farklı dizin okurdu)", () => {
+    const zip = buildZip([{ name: "a.xml", data: Buffer.from("merhaba") }]);
+    for (const off of [4, 6, 8]) {
+      expect(() => inspectZip(patchEocdField(zip, off, 0xffff))).toThrow(/ZIP64/);
+    }
+  });
+
+  it("çok diskli / bu diskteki kayıt sayısı tutarsız EOCD → bozuk", () => {
+    const zip = buildZip([{ name: "a.xml", data: Buffer.from("merhaba") }]);
+    expect(() => inspectZip(patchEocdField(zip, 4, 1))).toThrow(/bozuk/);
+    expect(() => inspectZip(patchEocdField(zip, 6, 1))).toThrow(/bozuk/);
+    expect(() => inspectZip(patchEocdField(zip, 8, 2))).toThrow(/bozuk/);
+  });
+
+  const sheet = (inner: string) =>
+    Buffer.from(`<?xml version="1.0"?><worksheet><sheetData/>${inner}</worksheet>`);
+  const reasonOf = (zip: Buffer): string | undefined => {
+    try {
+      assertZipWithinLimits(zip);
+      return undefined;
+    } catch (e) {
+      return (e as ZipInspectError).reason;
+    }
+  };
+
+  it("tek büyük mergeCell aralığı → 'size' ile reddedilir (ExcelJS her hücreye Cell üretirdi)", () => {
+    const zip = buildZip([
+      { name: "xl/worksheets/sheet1.xml", data: sheet('<mergeCells count="1"><mergeCell ref="A1:Z1048576"/></mergeCells>') },
+    ]);
+    expect(reasonOf(zip)).toBe("size");
+    expect(() => assertXlsxSafe(zip)).toThrow(/çok büyük/);
+  });
+
+  it("varlıkla yazılmış aralık ayracı da çözülür; küçük başlık birleşmesi geçer", () => {
+    const encoded = buildZip([
+      { name: "xl/worksheets/sheet1.xml", data: sheet('<mergeCells><mergeCell ref="A1&#58;Z1048576"/></mergeCells>') },
+    ]);
+    expect(reasonOf(encoded)).toBe("size");
+    const ok = buildZip([
+      { name: "xl/worksheets/sheet1.xml", data: sheet('<mergeCells><mergeCell ref="A1:H1"/></mergeCells>') },
+    ]);
+    expect(reasonOf(ok)).toBeUndefined();
+  });
+
+  it("yorum içindeki birleşme sayılmaz, ama yorumdan sonra gelen gerçek birleşme sayılır", () => {
+    const zip = buildZip([
+      {
+        name: "xl/worksheets/sheet1.xml",
+        data: sheet('<!-- <mergeCell ref="A1:B2"/> --><mergeCells><mergeCell ref="A1:Z1048576"/></mergeCells>'),
+      },
+    ]);
+    expect(reasonOf(zip)).toBe("size");
+  });
+
+  it("birleşme SAYISI tavanı (kesişim denetimi O(n²)) ayrıca uygulanır", () => {
+    const merges = Array.from({ length: 5_001 }, (_, i) => `<mergeCell ref="A${i + 1}"/>`).join("");
+    const zip = buildZip([{ name: "xl/worksheets/sheet1.xml", data: sheet(`<mergeCells>${merges}</mergeCells>`) }]);
+    expect(reasonOf(zip)).toBe("size");
+  });
+
+  it("aşırı büyük satır numaralı birleşme (ExcelJS döngüsü ilerleyemez) reddedilir", () => {
+    const zip = buildZip([
+      { name: "xl/worksheets/sheet1.xml", data: sheet(`<mergeCells><mergeCell ref="A${"9".repeat(20)}"/></mergeCells>`) },
+    ]);
+    expect(reasonOf(zip)).toBe("size");
+  });
+
+  it("tanımlı ad aralığı büyükse reddedilir; yazdırma alanı açılmadığı için sayılmaz", () => {
+    const wbXml = (inner: string) => Buffer.from(`<workbook><definedNames>${inner}</definedNames></workbook>`);
+    const big = buildZip([
+      { name: "xl/workbook.xml", data: wbXml('<definedName name="x">Sheet1!$A$1:$XFD$1048576</definedName>') },
+    ]);
+    expect(reasonOf(big)).toBe("size");
+    const print = buildZip([
+      {
+        name: "xl/workbook.xml",
+        data: wbXml('<definedName name="_xlnm.Print_Area" localSheetId="0">Sheet1!$A$1:$Z$50000</definedName>'),
+      },
+    ]);
+    expect(reasonOf(print)).toBeUndefined();
+  });
+
+  it("<col max> Excel'in son sütununu aşarsa reddedilir; 16384 geçer", () => {
+    const bad = buildZip([{ name: "xl/worksheets/sheet1.xml", data: sheet('<cols><col min="1" max="100000000"/></cols>') }]);
+    expect(reasonOf(bad)).toBe("size");
+    const ok = buildZip([{ name: "xl/worksheets/sheet1.xml", data: sheet('<cols><col min="1" max="16384"/></cols>') }]);
+    expect(reasonOf(ok)).toBeUndefined();
+  });
+
+  it("dataValidation kapıda reddedilmez; ExcelJS'e XLSX_LOAD_OPTIONS ile HİÇ ayrıştırılmaz", async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Kalemler");
+    ws.addRow(["Kalem", 1, "adet"]);
+    ws.getCell("C1").dataValidation = { type: "list", allowBlank: true, formulae: ['"adet,kg"'] };
+    const raw = Buffer.from((await wb.xlsx.writeBuffer()) as ArrayBuffer);
+    expect(() => assertZipWithinLimits(raw)).not.toThrow();
+    const back = new ExcelJS.Workbook();
+    await back.xlsx.load(raw as unknown as ArrayBuffer, XLSX_LOAD_OPTIONS);
+    const dv = back.getWorksheet("Kalemler")!.dataValidations as unknown as { model: Record<string, unknown> };
+    expect(Object.keys(dv.model)).toHaveLength(0);
+    expect(back.getWorksheet("Kalemler")!.getCell("A1").value).toBe("Kalem");
+  });
+
+  it("kaynakta HER xlsx.load çağrısı XLSX_LOAD_OPTIONS taşır", () => {
+    const fs = require("node:fs") as typeof import("node:fs");
+    const path = require("node:path") as typeof import("node:path");
+    const root = path.join(__dirname, "../../src");
+    const offenders: string[] = [];
+    const walk = (dir: string) => {
+      for (const ent of fs.readdirSync(dir, { withFileTypes: true })) {
+        const p = path.join(dir, ent.name);
+        if (ent.isDirectory()) walk(p);
+        else if (p.endsWith(".ts")) {
+          for (const m of fs.readFileSync(p, "utf8").matchAll(/xlsx\.load\(([^)]*)\)/g)) {
+            if (!m[1]!.includes("XLSX_LOAD_OPTIONS")) offenders.push(path.relative(root, p));
+          }
+        }
+      }
+    };
+    walk(root);
+    expect(offenders).toEqual([]);
   });
 });

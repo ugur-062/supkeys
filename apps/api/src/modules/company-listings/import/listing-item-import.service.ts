@@ -28,7 +28,7 @@ import {
   getUnit,} from "@rothern/shared";
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
-import { assertZipWithinLimits, ZipInspectError } from "../../../common/files/zip-inspect";
+import { assertZipWithinLimits, XLSX_LOAD_OPTIONS, ZipInspectError } from "../../../common/files/zip-inspect";
 
 /**
  * Kalem Excel şablonu — ÜRET + OKU (2026-08-22). AI YOK: deterministik,
@@ -220,7 +220,7 @@ export class ListingItemImportService {
       // yüklemeden ÖNCE (ExcelJS tüm XML'i belleğe açar).
       assertXlsxSafe(buffer);
       try {
-        await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+        await wb.xlsx.load(buffer as unknown as ArrayBuffer, XLSX_LOAD_OPTIONS);
       } catch {
         throw new BadRequestException(i18nMessage("api.companyListings.excelDosyasiOkunamadiXlsxOlarakYeniden"));
       }

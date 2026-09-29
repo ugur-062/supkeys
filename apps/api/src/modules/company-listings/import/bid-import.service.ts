@@ -27,6 +27,7 @@ import {
   type DocRow,
   type MatchItem,
 } from "./bid-matching";
+import { XLSX_LOAD_OPTIONS } from "../../../common/files/zip-inspect";
 import { assertXlsxSafe, cellText, parseLocaleNumber } from "./listing-item-import.service";
 
 /**
@@ -227,7 +228,7 @@ export class BidImportService {
       if (/\.xlsm$/i.test(input.fileName)) throw new BadRequestException(i18nMessage("api.companyListings.makroluDosyaXlsmKabulEdilmez"));
       assertXlsxSafe(buffer); // zip bombası koruması (denetim 2026-08-23)
       try {
-        await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+        await wb.xlsx.load(buffer as unknown as ArrayBuffer, XLSX_LOAD_OPTIONS);
       } catch {
         throw new BadRequestException(i18nMessage("api.companyListings.excelDosyasiOkunamadiXlsxOlarakKaydedip"));
       }

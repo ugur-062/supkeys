@@ -2,7 +2,7 @@ import { i18nMessage } from "../i18n/http-i18n";
 import { BadRequestException } from "@nestjs/common";
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
-import { assertZipWithinLimits, ZipInspectError } from "./zip-inspect";
+import { assertZipWithinLimits, XLSX_LOAD_OPTIONS, ZipInspectError } from "./zip-inspect";
 
 /**
  * YÜKLENEN TABLO DOSYASINI OKUMA — TEK KAYNAK.
@@ -87,7 +87,7 @@ export async function readUploadedWorksheet(input: {
     }
     assertXlsxSafe(buffer);
     try {
-      await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+      await wb.xlsx.load(buffer as unknown as ArrayBuffer, XLSX_LOAD_OPTIONS);
     } catch {
       throw new BadRequestException(
         i18nMessage("api.files.excelDosyasiOkunamadiXlsxOlarakYeniden"),

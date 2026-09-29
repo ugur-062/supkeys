@@ -4,7 +4,7 @@ import { fromBuffer as fileTypeFromBuffer } from "file-type";
 import { PDFParse } from "pdf-parse";
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
-import { assertZipWithinLimits, ZipInspectError } from "../../../common/files/zip-inspect";
+import { assertZipWithinLimits, XLSX_LOAD_OPTIONS, ZipInspectError } from "../../../common/files/zip-inspect";
 import sharp from "sharp";
 import heicConvert from "heic-convert";
 import type { AiInlinePart } from "../providers/ai-provider.interface";
@@ -201,7 +201,7 @@ async function routeSpreadsheet(
     }
   }
   try {
-    if (isXlsx) await wb.xlsx.load(buffer as unknown as ArrayBuffer);
+    if (isXlsx) await wb.xlsx.load(buffer as unknown as ArrayBuffer, XLSX_LOAD_OPTIONS);
     else await wb.csv.read(Readable.from(buffer));
   } catch {
     throw new BadRequestException(i18nMessage("api.ai.tabloDosyasiOkunamadiXlsxVeyaCsv"));
