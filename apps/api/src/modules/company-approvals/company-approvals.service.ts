@@ -1945,8 +1945,17 @@ export class CompanyApprovalsService {
     // bayat teklif ve bunlar "Geçerli teklif", en düşük ve kazanan sırasına
     // giriyordu. Kazandırma sonrası kaybeden teklifler (LOST, eleme damgasız,
     // aynı tur) sayılmaya devam eder → sonuçlanmış isteğin özeti değişmez.
+    // Referans tur KAZANAN tekliften türetilir (MU-15 gözden geçirme):
+    // ApprovalRequest tur saklamaz; reddedilen/iptal edilen istekten sonra
+    // ilan yeni tura geçerse (carryBids=NONE) eski istek yeni turun tekliflerini
+    // gösteriyordu. Kazanan teklif görünmüyorsa (ör. LAZY'de DRAFT) ilanın
+    // güncel turuna dönülür.
+    const refRound =
+      winnerBidIds
+        .map((id) => bidById.get(id)?.round)
+        .find((round) => round != null) ?? r.listing.currentRound;
     const validBids = bids.filter(
-      (b) => b.eliminatedAt == null && b.round === r.listing.currentRound,
+      (b) => b.eliminatedAt == null && b.round === refRound,
     );
     // Kazananla AYNI para birimindeki teklifler sıralanır (kur çevirisi
     // yapılmaz; karışıksa dürüstçe işaretlenir).

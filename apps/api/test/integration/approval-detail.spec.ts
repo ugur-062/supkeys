@@ -263,6 +263,48 @@ describe("approvals.getDetail — karar bağlamı", () => {
     });
   });
 
+  it("rekabet özeti (derin denetim MU-15, gözden geçirme): reddedilen istekten sonra ilan yeni tura geçse de özet kazananın turuna göre kalır", async () => {
+    const svc = approvalsService();
+    const sc = await scenario();
+    const req = await prisma.approvalRequest.create({
+      data: {
+        companyId: sc.co.company.id,
+        listingId: sc.listing.id,
+        type: "LISTING_AWARD",
+        status: "REJECTED",
+        amount: 2000,
+        currency: "TRY",
+        payload: { kind: "full", bidId: sc.b1.id },
+        createdById: sc.co.user.id,
+        decidedAt: new Date(),
+        steps: { create: [{ approverUserId: sc.approver.id, order: 1, status: "REJECTED" }] },
+      },
+    });
+    // Ret sonrası carryBids=NONE ile 2. tur: tur 1 teklifleri LOST (eleme
+    // damgasız) kalır; 2. turda tek yeni teklif gelir.
+    await prisma.listingBid.updateMany({
+      where: { id: { in: [sc.b1.id, sc.b2.id, sc.b3.id] } },
+      data: { status: "LOST" },
+    });
+    await prisma.listing.update({ where: { id: sc.listing.id }, data: { currentRound: 2 } });
+    const s7 = await makeCompanyWithUser(prisma, { country: "TR", name: "Yeni Tur Ltd" });
+    const fresh = await bid(sc.listing.id, s7, [
+      { itemId: sc.i1.id, unitPrice: 5, quantity: 100 },
+      { itemId: sc.i2.id, unitPrice: 5, quantity: 50 },
+    ]); // 750
+    await prisma.listingBid.update({ where: { id: fresh.id }, data: { round: 2 } });
+
+    const d = await svc.getDetail(sc.approverAuth, req.id);
+    expect(d.competition).toEqual({
+      validBidCount: 3,
+      currency: "TRY",
+      currencyMixed: false,
+      lowestTotal: 1850,
+      secondLowestTotal: 2000,
+      winnerRank: 2,
+    });
+  });
+
   it("kalem-bazlı (derin denetim MU-15): aynı teklifin farklı para birimli kalemleri tek toplamda birleşmez", async () => {
     const svc = approvalsService();
     const sc = await scenario();
