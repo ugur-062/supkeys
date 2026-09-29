@@ -1,8 +1,7 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useNavLabel } from "@/i18n/domain";
-import { formatNumber } from "@/i18n/format";
 import { FilterShell, ResultCount, useFilters } from "@/components/marketplace/filter-shell";
 import { ProductCard } from "@/components/marketplace/product-card";
 import {
@@ -137,7 +136,6 @@ function Inner({
 }) {
   const t = useTranslations("web.panel.market.panelProductIndex");
   const tn = useNavLabel();
-  const locale = useLocale();
   const { update } = useFilters<ProductFilterState>();
   const p = toProductListParams(state);
   const facets = useDiscoverProductFacets({
@@ -169,7 +167,7 @@ function Inner({
         <MarketHeader
           breadcrumb={[{ label: tn("portal.satinalma"), href: PANEL_MARKET.home }, { label: tn("satinalma.urunler") }]}
           title={tn("satinalma.urunler")}
-          count={data ? t("urun", { n: formatNumber(total, locale) }) : undefined}
+          count={data ? t("urun", { n: total }) : undefined}
           tabs={
             <MarketTabs
               active="products"

@@ -18550,9 +18550,9 @@
     "at": "2026-09-24"
   },
   "web.panel.market.panelCompanyIndex.firma": {
-    "hash": "8d4569addc",
+    "hash": "694f9416ce",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.market.panelCompanyIndex.iletisimeGecin": {
     "hash": "68ea0654d6",
@@ -18605,9 +18605,9 @@
     "at": "2026-09-24"
   },
   "web.panel.market.panelProductIndex.urun": {
-    "hash": "9ef4aae1f8",
+    "hash": "ac90b52c41",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.market.satinalmaPage.aradiginizUrunuBulamadinizMi": {
     "hash": "2b4900b483",
@@ -25233,6 +25233,11 @@
     "hash": "9e52556a61",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.requests.quickRequest.talepKategorisiAciklama": {
+    "hash": "f9aac2058a",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.requests.quickRequest.talepSartlariKaydedildiSonrakiTaleplerde": {
     "hash": "b59f6933e5",
@@ -34139,6 +34144,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.ordersList.siparisIhtilafliSurecSuruyor": {
+    "hash": "4a2fcf6313",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.trade.ordersList.siparisIptalEdildi": {
     "hash": "40088e8ffd",
     "status": "reviewed",
@@ -35268,6 +35278,11 @@
     "hash": "3b66ccdcb5",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.productShowcaseForm.urunKategorisiAciklama": {
+    "hash": "c665e4ea56",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.trade.productShowcaseForm.urunKategorisiniSecin": {
     "hash": "133c0b751b",

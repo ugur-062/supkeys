@@ -73,8 +73,8 @@ vi.mock("@/hooks/use-categories", () => ({
   useCategorySearchTree: () => ({ data: { segments: [{ id: "40000000", code: "40000000", nameTr: "Boru", level: 1, segmentLetter: null, families: [{ id: "40170000", code: "40170000", nameTr: "Borular", level: 2, classes: [{ id: "40171500", code: "40171500", nameTr: "Çelik borular", level: 3, isMatch: true, commodities: [] }] }] }] } }),
 }));
 vi.mock("@/components/categories/category-selector-button", () => ({
-  CategorySelectorButton: ({ value, onChange }: { value: string[]; onChange: (ids: string[]) => void }) => (
-    <button type="button" onClick={() => onChange(["39121600"])}>{value.length ? `Kategori: ${value[0]}` : "Kategori seç"}</button>
+  CategorySelectorButton: ({ value, onChange, modalDescription }: { value: string[]; onChange: (ids: string[]) => void; modalDescription?: string }) => (
+    <button type="button" data-description={modalDescription} onClick={() => onChange(["39121600"])}>{value.length ? `Kategori: ${value[0]}` : "Kategori seç"}</button>
   ),
 }));
 
@@ -334,6 +334,9 @@ describe("QuickRequest", () => {
     expect(title.compareDocumentPosition(ai) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(ai.compareDocumentPosition(category) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(ai).toBeDisabled();
+    // Modal açıklaması ALICIYA yazılmış olmalı (derin denetim S065) — modalın
+    // mod bazlı varsayılanı tedarikçiye "davet alırsınız" diyordu.
+    expect(category.getAttribute("data-description")).toMatch(/^Talebinizin kategorilerini/);
     // Kalem girilince düğme açılır.
     fireEvent.change(screen.getAllByPlaceholderText("Örn. A4 fotokopi kağıdı")[0], { target: { value: "Perçin M6" } });
     await waitFor(() => expect(ai).toBeEnabled());

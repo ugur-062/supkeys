@@ -479,9 +479,13 @@ export class CompanyItemsController {
     return this.service.update(user, id, dto);
   }
 
-  /** Silme YOK — arşivle/geri al. */
+  /**
+   * Silme YOK — arşivle/geri al. Satinalma portalindaki Kalem Katalogu
+   * `templates:manage` ile yonetir; vitrin urunu icin servis ayrica
+   * `sell:product:manage` ister (derin denetim S066).
+   */
   @Patch(":id/active")
-  @RequireCompanyPermission("sell:product:manage")
+  @RequireCompanyPermission(["sell:product:manage", "templates:manage"])
   setActive(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Param("id") id: string,

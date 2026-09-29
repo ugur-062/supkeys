@@ -7,7 +7,7 @@ import {
   Logger,
   ServiceUnavailableException,
 } from "@nestjs/common";
-import { tierAtLeast } from "@rothern/shared";
+import { COMPANY_SERVICE_MAX_LENGTH, tierAtLeast } from "@rothern/shared";
 import type { Locale } from "@rothern/i18n";
 import { resolveCityId, storedCityName } from "../../../common/geo/geo-index";
 import { aiUiLanguageRule } from "../../../common/i18n/ai-language";
@@ -240,12 +240,7 @@ export class ProfileEnrichService {
       const j = JSON.parse(jsonText) as Record<string, unknown>;
       draft = {
         aboutText: String(j.aboutText ?? "").slice(0, 2000).trim(),
-        services: Array.isArray(j.services)
-          ? j.services
-              .filter((x): x is string => typeof x === "string" && !!x.trim())
-              .map((x) => x.trim().slice(0, 80))
-              .slice(0, 12)
-          : [],
+        services: aiDraftServices(j.services),
         // Şehir serbest metin ("Muenchen", "Мюнхен") → firmanın ülkesinde
         // dünya şehir listesinden tek biçim (`storedCityName`: TR/KKTC Türkçe,
         // diğerleri İngilizce yazım); eşleşmezse model metni olduğu gibi.
@@ -333,6 +328,19 @@ export class ProfileEnrichService {
       return null;
     }
   }
+}
+
+/**
+ * AI hizmet listesi -> profil taslagi. Kirpma PATCH /company/profile DTO'su
+ * ile AYNI sabitten (`COMPANY_SERVICE_MAX_LENGTH`): eskiden 80'e kirpiliyor,
+ * DTO 60'ta reddettigi icin Kaydet 400 dusuyordu (derin denetim S069).
+ */
+export function aiDraftServices(raw: unknown): string[] {
+  if (!Array.isArray(raw)) return [];
+  return raw
+    .filter((x): x is string => typeof x === "string" && !!x.trim())
+    .map((x) => x.trim().slice(0, COMPANY_SERVICE_MAX_LENGTH).trim())
+    .slice(0, 12);
 }
 
 /** Taslak şehri — firmanın ülkesinde kanonik yazım; eşleşmezse ham metin (≤60). */

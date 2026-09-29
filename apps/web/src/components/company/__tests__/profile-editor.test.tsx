@@ -239,6 +239,31 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.getByText(/En az 1 kategori/)).toBeInTheDocument();
   });
 
+  it("hizmet çipi kayıt DTO'sunun uzunluk tavanını aşamaz (derin denetim S069)", () => {
+    render(<ProfileEditor profile={PROFILE} canEdit />);
+    const input = screen.getByLabelText("Hizmet ekle");
+    expect(input).toHaveAttribute("maxLength", "60");
+    const long = "x".repeat(61);
+    fireEvent.change(input, { target: { value: long } });
+    fireEvent.keyDown(input, { key: "Enter" });
+    expect(screen.queryByText(long)).not.toBeInTheDocument();
+  });
+
+  it("doğrulama çağrısı yalnız düzenleyebilene çizilir, bağlantısıyla (derin denetim S069)", () => {
+    const unverified = { ...PROFILE, companyVerificationStatus: "UNVERIFIED" };
+    const { unmount } = render(<ProfileEditor profile={unverified} canEdit />);
+    expect(screen.getByText("Ücretsiz doğrulanın")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Belgeleri yükle" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
+    unmount();
+    // Salt-okunur kullanıcı: bağlantı `company:manage` kapılı — kart çizilmez.
+    render(<ProfileEditor profile={unverified} canEdit={false} />);
+    expect(screen.queryByText("Ücretsiz doğrulanın")).not.toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Belgeleri yükle" })).not.toBeInTheDocument();
+  });
+
   it("yetkisiz kullanıcı: salt görünüm, düzenleme kontrolü yok", () => {
     render(<ProfileEditor profile={PROFILE} canEdit={false} />);
     expect(screen.getByText("Demo Firma A.Ş.")).toBeInTheDocument();

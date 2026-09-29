@@ -760,7 +760,7 @@ export function QuickRequest({
                         control={form.control}
                         name="categoryIds"
                         render={({ field }) => (
-                          <CategorySelectorButton value={field.value} onChange={(ids) => field.onChange(ids.slice(0, 3))} mode="multi" maxSelection={3} catalog="discovery" placeholder={tr("kategoriSecinEnFazla3")} modalTitle={tr("talepKategorisi")} />
+                          <CategorySelectorButton value={field.value} onChange={(ids) => field.onChange(ids.slice(0, 3))} mode="multi" maxSelection={3} catalog="discovery" placeholder={tr("kategoriSecinEnFazla3")} modalTitle={tr("talepKategorisi")} modalDescription={tr("talepKategorisiAciklama")} />
                         )}
                       />
                       {form.formState.errors.categoryIds ? (

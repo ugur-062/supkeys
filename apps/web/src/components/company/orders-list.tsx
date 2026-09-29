@@ -36,6 +36,7 @@ import { useFormatMoney } from "@/components/ui/money";
 import { StatusBadge } from "@/components/ui/status-badge";
 import { orderStageIndex, orderStatusMeta, orderSteps } from "@/lib/orders/order-status";
 import {
+  AlertTriangle,
   ArrowUpDown,
   Building2,
   CalendarRange,
@@ -300,6 +301,13 @@ function OrderRow({ o, role }: { o: CompanyOrder; role: "buyer" | "seller" }) {
       <div className="border-t border-zinc-950/5 px-4 py-3 sm:px-5">
         {!isTerminated ? (
           <StageStepper done={done} current={current} sellerShips={sellerShips} />
+        ) : o.status === "DISPUTED" ? (
+          // DISPUTED canlı ve geri dönebilir (A1: satıcı sevk edebilir; ayıp
+          // ihbarı geri alınabilir) — "iptal edildi" demek yanlıştı (derin denetim S068).
+          <p className="flex items-center gap-2 text-xs font-medium text-amber-700">
+            <AlertTriangle className="size-4 shrink-0" aria-hidden />
+            {t("siparisIhtilafliSurecSuruyor")}
+          </p>
         ) : (
           <p
             className={cn(

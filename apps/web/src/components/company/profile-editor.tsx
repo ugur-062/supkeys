@@ -13,7 +13,7 @@ import { companySeo } from "@/lib/seo/entities";
 import { snippetFromMetadata } from "@/lib/seo/snippet";
 import { cityDisplayName, countryDisplayName, useActivityLabel, useSeoT } from "@/i18n/domain";
 import { useLocale, useTranslations } from "next-intl";
-import { companySeoReadiness, generateSlug, tierAtLeast } from "@rothern/shared";
+import { COMPANY_SERVICE_MAX_LENGTH, companySeoReadiness, generateSlug, tierAtLeast } from "@rothern/shared";
 import { Link } from "@/i18n/navigation";
 import { Button } from "@/components/catalyst/button";
 import { Input } from "@/components/catalyst/input";
@@ -230,31 +230,6 @@ export function ProfileEditor({
           </div>
           <aside className={RAIL}>
             <StatusCard pct={completeness.pct} missingKeys={completeness.missingKeys} findability={findability} />
-
-          {/* ÜCRETSİZ DOĞRULAMA ÇAĞRISI (2026-09-15, kullanıcı kararı):
-              doğrulamaya paket satarak değil ROZETLE teşvik ediyoruz — rozet
-              `companyVerificationStatus`tan gelir ve ücretsiz pakette de
-              görünür. Doğrulanmış firmada bu kart hiç çizilmez. */}
-          {profile.companyVerificationStatus !== "VERIFIED" ? (
-            <div className="rounded-xl border border-zinc-200 bg-white p-4">
-              <p className="text-sm font-semibold text-zinc-950">
-                {t("ucretsizDogrulanin")}
-              </p>
-              <p className="mt-1 text-xs text-zinc-600">
-                {profile.companyVerificationStatus === "PENDING"
-                  ? t("belgelerinizInceleniyorSonucBildirilecek")
-                  : t("profilinizdeDogrulanmisRozetiGorunurVe")}
-              </p>
-              {profile.companyVerificationStatus !== "PENDING" ? (
-                <Link
-                  href="/company/ayarlar/dogrulama"
-                  className="mt-2 inline-flex text-sm font-semibold text-zinc-900 underline underline-offset-2"
-                >
-                  {t("belgeleriYukle")}
-                </Link>
-              ) : null}
-            </div>
-          ) : null}
             <MyProductsCard />
           </aside>
         </div>
@@ -372,6 +347,7 @@ export function ProfileEditor({
         placeholder={t("hizmetEkleEnterABas")}
         empty={t("henuzHizmetEklenmediNeYaptiginizi")}
         onChange={(services) => set({ services })}
+        maxLength={COMPANY_SERVICE_MAX_LENGTH}
       />
     ),
     // Galeri/Fotoğraflar slotu KALDIRILDI (2026-09-10, kullanıcı kararı).
@@ -397,6 +373,15 @@ export function ProfileEditor({
 
         <aside className={RAIL}>
           <StatusCard pct={completeness.pct} missingKeys={completeness.missingKeys} findability={findability} />
+
+          {/* ÜCRETSİZ DOĞRULAMA ÇAĞRISI (2026-09-15, kullanıcı kararı):
+              doğrulamaya paket satarak değil ROZETLE teşvik ediyoruz — rozet
+              `companyVerificationStatus`tan gelir ve ücretsiz pakette de
+              görünür. Doğrulanmış firmada bu kart hiç çizilmez. Yalnız
+              DÜZENLEME dalında: bağlantı (`/company/ayarlar/dogrulama`) da
+              `company:manage` kapılı; salt-okunur kullanıcıya çizmek onu
+              yetki ekranına düşürürdü (derin denetim S069). */}
+          <VerificationCallout status={profile.companyVerificationStatus} />
 
           {/* ARAMA GÖRÜNÜRLÜĞÜ (SEO Parça 8) — parçacık `companySeo` şablonundan. */}
           <SearchVisibilityCard
@@ -562,6 +547,32 @@ function EditorHeader({
  * backend'de içerik kapısı yok (yayın her pakete açık); olmayan bir kapıyı
  * "yayınlamak için" diye yazmak yalan olurdu.
  */
+/** Ücretsiz doğrulama çağrısı — yalnız `company:manage`li düzenleme dalında çizilir. */
+function VerificationCallout({ status }: { status: string }) {
+  const t = useTranslations("web.panel.company.profileEditor");
+  if (status === "VERIFIED") return null;
+  return (
+    <div className="rounded-xl border border-zinc-200 bg-white p-4">
+      <p className="text-sm font-semibold text-zinc-950">
+        {t("ucretsizDogrulanin")}
+      </p>
+      <p className="mt-1 text-xs text-zinc-600">
+        {status === "PENDING"
+          ? t("belgelerinizInceleniyorSonucBildirilecek")
+          : t("profilinizdeDogrulanmisRozetiGorunurVe")}
+      </p>
+      {status !== "PENDING" ? (
+        <Link
+          href="/company/ayarlar/dogrulama"
+          className="mt-2 inline-flex text-sm font-semibold text-zinc-900 underline underline-offset-2"
+        >
+          {t("belgeleriYukle")}
+        </Link>
+      ) : null}
+    </div>
+  );
+}
+
 function StatusCard({
   pct,
   missingKeys,
@@ -956,6 +967,7 @@ function ChipEditor({
   empty,
   onChange,
   variant = "chips",
+  maxLength,
 }: {
   ariaLabel: string;
   values: string[];
@@ -963,12 +975,15 @@ function ChipEditor({
   empty: string;
   onChange: (v: string[]) => void;
   variant?: "chips" | "list";
+  /** Çip başına karakter tavanı — kayıt DTO'suyla aynı sabit (derin denetim S069). */
+  maxLength?: number;
 }) {
   const t = useTranslations("web.panel.company.profileEditor");
   const [draft, setDraft] = useState("");
   const add = () => {
     const v = draft.trim();
     if (!v || values.includes(v) || values.length >= MAX_CHIPS) return;
+    if (maxLength != null && v.length > maxLength) return;
     onChange([...values, v]);
     setDraft("");
   };
@@ -1005,6 +1020,7 @@ function ChipEditor({
           aria-label={t("etiketEkle", { label: ariaLabel })}
           value={draft}
           placeholder={placeholder}
+          maxLength={maxLength}
           onChange={(e) => setDraft(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === "Enter") {

@@ -1,5 +1,6 @@
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import { tApi } from "../../common/i18n/i18n.service";
+import { hasCompanyPermission } from "../company-auth/permissions/company-permissions.constants";
 import {
   BadRequestException,
   ConflictException,
@@ -417,6 +418,14 @@ export class CompanyItemsService {
    */
   async setActive(user: AuthenticatedCompanyUser, id: string, isActive: boolean) {
     const before = await this.requireOwn(user.companyId, id, { anyState: true });
+    // Uc `templates:manage` (satinalma Kalem Katalogu) VEYA `sell:product:manage`
+    // kabul eder (derin denetim S066). Vitrine dokunmus bir urun (yayinda /
+    // onayda / onayli / reddedilmis) yalniz satis izniyle arsivlenir: satinalma
+    // tarafi katalogu temizlerken yayindaki vitrini dusurmemeli.
+    const isShowcaseProduct = before.isPublic || before.reviewStatus !== "DRAFT";
+    if (isShowcaseProduct && !hasCompanyPermission(user, "sell:product:manage")) {
+      throw new ForbiddenException(i18nMessage("api.business.forbidden"));
+    }
     // Ücretsiz paket tavanı ARŞİVDEN GERİ ALMADA da geçerli (denetim 2026-09-06
     // #2): arşivlenen ürün isPublic'i korur; tavan yalnız publish'te olsaydı
     // "10 yayımla → arşivle → 10 daha → geri al" 20 yayında ürün üretirdi.

@@ -1,5 +1,6 @@
 import {
   COMPANY_ACTIVITY_CODES,
+  COMPANY_SERVICE_MAX_LENGTH,
   MAX_COMPANY_ACTIVITIES,
   MAX_COMPANY_MAIN_CATEGORIES,
   MAX_COMPANY_SUB_CATEGORIES,
@@ -174,7 +175,7 @@ export class UpdateCompanyProfileDto {
   @IsArray()
   @ArrayMaxSize(20)
   @IsString({ each: true })
-  @MaxLength(60, { each: true })
+  @MaxLength(COMPANY_SERVICE_MAX_LENGTH, { each: true })
   services?: string[];
 
   @IsOptional()

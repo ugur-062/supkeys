@@ -36,3 +36,10 @@ export const MIN_QUANTITY = 0.001;
  * yaşam döngüsü kırılır. bidsOpenAt zaten closesAt'ten önce zorunlu → transitif.
  */
 export const MAX_LISTING_HORIZON_MS = 2 * 365 * 24 * 60 * 60 * 1000;
+
+/**
+ * Firma profili hizmet çipi uzunluk tavanı — PATCH /company/profile DTO'su,
+ * AI profil doldurma kırpması ve web ChipEditor aynı sabiti okur (derin denetim
+ * S069: AI 80'e kırpıp DTO 60'ta reddedince Kaydet 400 düşüyordu).
+ */
+export const COMPANY_SERVICE_MAX_LENGTH = 60;

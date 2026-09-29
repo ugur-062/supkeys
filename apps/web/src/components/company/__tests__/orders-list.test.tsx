@@ -221,3 +221,20 @@ describe("OrdersList — rol ayrımı + filtreleme", () => {
     expect(screen.getByText("Bekleyen B")).toBeInTheDocument();
   });
 });
+
+describe("OrdersList — son durum notu (derin denetim S068)", () => {
+  it("DISPUTED kart 'iptal edildi' DEMEZ — ihtilaf sürüyor; CANCELLED iptal der", () => {
+    h.orders = {
+      data: [
+        order({ status: "DISPUTED", listingTitle: "İhtilaflı iş" }),
+        order({ status: "CANCELLED", listingTitle: "İptal iş" }),
+      ],
+      isLoading: false,
+      isError: false,
+      refetch: vi.fn(),
+    };
+    render(<OrdersList role="buyer" />);
+    expect(screen.getByText("Sipariş ihtilaflı — süreç sürüyor")).toBeInTheDocument();
+    expect(screen.getAllByText("Sipariş iptal edildi")).toHaveLength(1);
+  });
+});

@@ -38,7 +38,13 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
   const [q, setQ] = useState("");
   const [showArchived, setShowArchived] = useState(false);
   const debouncedQ = useDebouncedValue(q, 300);
-  const canManage = useHasCompanyPermission("templates:manage");
+  // Uç `templates:manage` VEYA `sell:product:manage` kabul eder; vitrine
+  // dokunmuş ürün yalnız satış izniyle arşivlenir (derin denetim S066).
+  const canManageTemplates = useHasCompanyPermission("templates:manage");
+  const canManageProducts = useHasCompanyPermission("sell:product:manage");
+  const canManageItem = (it: CatalogItem) =>
+    canManageProducts ||
+    (canManageTemplates && !it.isPublic && it.reviewStatus === "DRAFT");
   const qc = useQueryClient();
 
   const active = useCatalogItems(debouncedQ, !showArchived);
@@ -139,7 +145,7 @@ export function CatalogItemsView({ basePath }: { basePath: string }) {
                     .join(" · ")}
                 </p>
               </div>
-              {canManage ? (
+              {canManageItem(it) ? (
                 <Button
                   variant="ghost"
                   size="sm"

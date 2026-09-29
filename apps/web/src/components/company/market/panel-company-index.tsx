@@ -1,8 +1,7 @@
 "use client";
 
-import { useLocale, useTranslations } from "next-intl";
+import { useTranslations } from "next-intl";
 import { useNavLabel } from "@/i18n/domain";
-import { formatNumber } from "@/i18n/format";
 import { FilterShellCore, ResultCount, useFilters } from "@/components/marketplace/filter-shell";
 import { CompanyActiveChips, CompanyFilters, CompanySortBar } from "@/components/marketplace/company-filters";
 import { CompanyCard } from "@/components/marketplace/company-card";
@@ -109,7 +108,6 @@ function Inner({
 }) {
   const t = useTranslations("web.panel.market.panelCompanyIndex");
   const tn = useNavLabel();
-  const locale = useLocale();
   const { update } = useFilters<CompanyFilterState>();
   const facets = useCompanySearchFacets(toPanelDirectoryParams(state));
   const data = result.data;
@@ -141,7 +139,7 @@ function Inner({
         }
         title={tn("common.companies")}
         lead={isSatis ? t("aliciOlabilecekFirmalariBulunBaglanti") : undefined}
-        count={data ? t("firma", { n: formatNumber(total, locale) }) : undefined}
+        count={data ? t("firma", { n: total }) : undefined}
         tabs={
           isSatis ? undefined : (
             <MarketTabs

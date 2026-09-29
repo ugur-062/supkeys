@@ -457,6 +457,7 @@ export function ProductShowcaseForm({
                   onChange={(ids) => setCategoryId(ids[0] ?? "")}
                   mode="single"
                   modalTitle={t("urunKategorisi")}
+                  modalDescription={t("urunKategorisiAciklama")}
                   placeholder={t("urunKategorisiniSecin")}
                 />
               </Field>

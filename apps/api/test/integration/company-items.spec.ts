@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { ForbiddenException } from "@nestjs/common";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing, makeItem } from "./factories";
 import { CompanyItemsService } from "../../src/modules/company-items/company-items.service";
@@ -231,5 +232,40 @@ describe("arşiv görünümü", () => {
     // Bayrak desteklenmeseydi burası da aktifleri döndürür ve arşiv ekranı
     // sessizce YANLIŞ liste gösterirdi.
     expect(arch.items.map((i) => i.id)).toEqual([b.id]);
+  });
+});
+
+describe("arşivle/geri al izni (derin denetim S066)", () => {
+  // Satınalma portalındaki Kalem Kataloğu `templates:manage` ile yönetilir;
+  // uç eskiden yalnız `sell:product:manage` istediği için Satın Almacı her
+  // tıklamada 403 alıyordu. Vitrine dokunmuş ürün ise yalnız satış izniyle.
+  const make = () =>
+    new CompanyItemsService(
+      prisma as never,
+      { log: jest.fn() } as never,
+      {} as never,
+    );
+
+  it("templates:manage'li (satış izni olmayan) kullanıcı katalog kalemini arşivler", async () => {
+    const { auth } = await makeCompanyWithUser(prisma);
+    const svc = make();
+    const r = await svc.create(auth, { name: "Conta", unit: "adet" });
+    const buyer = { ...auth, isOwner: false, roles: ["SATIN_ALMACI"] } as typeof auth;
+    await expect(svc.setActive(buyer, r.id, false)).resolves.toMatchObject({ isActive: false });
+    await expect(svc.setActive(buyer, r.id, true)).resolves.toMatchObject({ isActive: true });
+  });
+
+  it("yayındaki vitrin ürününü satış izni olmayan kullanıcı arşivleyemez", async () => {
+    const { auth } = await makeCompanyWithUser(prisma);
+    const svc = make();
+    const r = await svc.create(auth, { name: "Vitrin ürünü", unit: "adet" });
+    await prisma.companyItem.update({
+      where: { id: r.id },
+      data: { isPublic: true, reviewStatus: "APPROVED", publishedAt: new Date(), slug: "vitrin-urunu" },
+    });
+    const buyer = { ...auth, isOwner: false, roles: ["SATIN_ALMACI"] } as typeof auth;
+    await expect(svc.setActive(buyer, r.id, false)).rejects.toBeInstanceOf(ForbiddenException);
+    // Satış izni olan kullanıcı arşivleyebilir.
+    await expect(svc.setActive(auth, r.id, false)).resolves.toMatchObject({ isActive: false });
   });
 });
