@@ -21,9 +21,22 @@ export function cancelOutgoingReferralInvites(
       where: { inviterCompanyId: { in: companyIds }, status: "PENDING" },
       data: { status: "CANCELLED" },
     }),
-    prisma.externalListingInvite.updateMany({
-      where: { inviterCompanyId: { in: companyIds }, state: "QUEUED" },
-      data: { state: "CANCELLED", cancelReason: "INVITER_DOWNGRADED" },
-    }),
+    cancelQueuedListingInvites(prisma, companyIds),
   ] as const;
+}
+
+/**
+ * Kuyrukta bekleyen DIŞ TALEP davetleri — talebe tedarikçi çağırmak satınalma
+ * işi (BUYING_TIER, GOLD). GOLD'dan SILVER'a inen firmanın referral/bağlantı
+ * davetleri geçerli kalır (SILVER onları gönderebilir) ama kuyruktaki talep
+ * davetleri gitmemeli (derin denetim LU-07). STANDART'a inişte de çağrılır.
+ */
+export function cancelQueuedListingInvites(
+  prisma: Pick<PrismaClient, "externalListingInvite">,
+  companyIds: string[],
+) {
+  return prisma.externalListingInvite.updateMany({
+    where: { inviterCompanyId: { in: companyIds }, state: "QUEUED" },
+    data: { state: "CANCELLED", cancelReason: "INVITER_DOWNGRADED" },
+  });
 }

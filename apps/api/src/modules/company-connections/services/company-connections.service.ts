@@ -16,7 +16,7 @@ import {
   Optional,
 } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
-import { EMAIL_MAX_LENGTH, isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode, PAID_TIER } from "@rothern/shared";
+import { BUYING_TIER, EMAIL_MAX_LENGTH, isCategoryCode, looksLikeProse, normalizeShortCode, tierAtLeast, validateShortCode, PAID_TIER } from "@rothern/shared";
 import { publicProductWhere } from "../../../common/company/public-profile-gate";
 import { buildDirectory, directoryFacets, type DirectoryParams, type DirectoryScope } from "../../../common/company/company-directory";
 import { PRODUCT_INDEX_SELECT, toProductIndexCard } from "../../public-marketplace/dto/public-product-index.projection";
@@ -85,6 +85,8 @@ const EXTERNAL_EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const isExternalEmail = (e: string) => e.length <= EMAIL_MAX_LENGTH && EXTERNAL_EMAIL_RE.test(e);
 /** Kayıtsız önizlemede gösterilen en fazla kalem (e-postada 10). */
 const PREVIEW_ITEM_LIMIT = 100;
+/** Bağlantı kartı küçük resim sorgularında aynı anda en fazla bu kadar firma. */
+const PREVIEW_THUMB_CONCURRENCY = 8;
 
 /**
  * Dış talep daveti — adres başına GERÇEK sonuç (2026-09-27). Eskiden yalnız
@@ -317,16 +319,34 @@ export class CompanyConnectionsService {
     // 7 günlük tekrar freni: son 7 günde bu kayda (referral ya da dış talep
     // daveti) TESLİM EDİLMİŞ/yolda bir e-posta varsa yeniden gönderilmez.
     // Başarısız gönderim freni tetiklemez — kullanıcı yeniden deneyebilir.
+    // Dış talep daveti e-postası `ExternalListingInvite` kimliğiyle loglanır
+    // (dispatcher `context.id = first.id`; özet e-postada başka davet edenin
+    // satırı bile olabilir) — referral satırının kimliğiyle DEĞİL. Eskiden
+    // `contextId: prior.id` ile arandığı için dış davet freni hiç tetiklemiyordu
+    // (derin denetim LU-07). Talep davetinin gidişi kendi satırından okunur:
+    // `sentAt` yalnız başarılı gönderimde, `reminderSentAt` hatırlatma
+    // denemesinde (başarısızsa yazılmaz) damgalanır.
     if (prior) {
-      const recent = await this.prisma.emailLog.findFirst({
-        where: {
-          contextType: { in: ["referral_invite", "tender_external_invite"] },
-          contextId: prior.id,
-          status: { not: "FAILED" },
-          queuedAt: { gte: referralCooldownStart() },
-        },
-        select: { id: true },
-      });
+      const since = referralCooldownStart();
+      const [recentReferral, recentTender] = await Promise.all([
+        this.prisma.emailLog.findFirst({
+          where: {
+            contextType: "referral_invite",
+            contextId: prior.id,
+            status: { not: "FAILED" },
+            queuedAt: { gte: since },
+          },
+          select: { id: true },
+        }),
+        this.prisma.externalListingInvite.findFirst({
+          where: {
+            referralInviteId: prior.id,
+            OR: [{ sentAt: { gte: since } }, { reminderSentAt: { gte: since } }],
+          },
+          select: { id: true },
+        }),
+      ]);
+      const recent = recentReferral ?? recentTender;
       if (recent) {
         throw new ConflictException(
           i18nMessage(
@@ -475,9 +495,15 @@ export class CompanyConnectionsService {
     recipientsRaw: ReadonlyArray<string | ExternalInviteRecipient>,
     source: InviteSourceKind = "MANUAL",
   ) {
-    if (!tierAtLeast(user.tier, "SILVER")) {
+    // Talebe yeni tedarikçi çağırmak satınalma işi: iç davetle (addInvitations
+    // → `assertPaidForNewListingWork`) AYNI kapı, BUYING_TIER (GOLD). SILVER
+    // satış paketi — GOLD'dan düşürülen firma iç davet atamayıp dış adreslere
+    // talep daveti kuyruğa alabiliyordu (derin denetim LU-07).
+    if (!tierAtLeast(user.tier, BUYING_TIER)) {
       throw new ForbiddenException(
-        i18nMessage("api.companyConnections.davetGondermekIcinBirPaketSilver"),
+        i18nMessage("api.companyListings.icinGoldPaketSatinalmaPaneliGerekir", {
+          action: tApi("api.companyListings.actionInviteSupplier"),
+        }),
       );
     }
     const listing = await this.prisma.listing.findFirst({
@@ -741,11 +767,14 @@ export class CompanyConnectionsService {
             // için ortaktır; kuyruktaki davetin talebi e-postadan önce
             // okunamasın) ve vitrinde gösterilebilir, embargosu geçmiş talep —
             // taslak/onay bekleyen/iptal/moderasyonla kapatılmış (CLOSED)
-            // talebin içeriği dönmez (yayın denetimi 2026-09-28).
+            // talebin içeriği dönmez (yayın denetimi 2026-09-28). Sahibi
+            // askıdaki/pasif firmanın talebi de dönmez — dispatcher onun
+            // davetini göndermiyor, vitrin de göstermiyor (derin denetim LU-07).
             state: "SENT",
             listing: {
               status: { in: [...MARKETPLACE_STATUSES] },
               OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: new Date() } }],
+              company: { isActive: true, isBlocked: false },
             },
           },
           orderBy: { createdAt: "desc" },
@@ -1190,26 +1219,43 @@ export class CompanyConnectionsService {
       orderBy: { decidedAt: "desc" },
     });
     // Kart zenginleştirme (v2 6f): yayındaki ürünlerden ilk 3 küçük resim +
-    // toplam — TEK sorgu, firma başına gruplanır (N+1 yok). Kapı vitrinle
-    // aynı (`publicProductWhere`): profilde görünmeyen ürün kartta da yok.
+    // toplam. Kapı vitrinle aynı (`publicProductWhere`): profilde görünmeyen
+    // ürün kartta da yok. Toplam DB'de sayılır, küçük resim firma başına en
+    // fazla 3 satır — eskiden bağlantıların TÜM yayındaki ürünleri görsel
+    // dizileriyle çekilip bellekte kırpılıyordu (derin denetim LU-07).
     const otherIds = rows.map((r) =>
       r.inviterCompanyId === companyId ? r.inviteeCompanyId : r.inviterCompanyId,
     );
     // Karşı firmaların ürünleri → BYPASS (RLS: kısıtlı istemci başka firmanın
     // `company_items`ını göremez, önizleme hep boştu). Kapı sorguda.
-    const products = otherIds.length
-      ? await this.bypass.companyItem.findMany({
-          where: { ...publicProductWhere(), companyId: { in: otherIds } },
-          select: { companyId: true, images: true },
-          orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
-        })
-      : [];
     const preview = new Map<string, { thumbnails: string[]; total: number }>();
-    for (const p of products) {
-      const e = preview.get(p.companyId) ?? { thumbnails: [], total: 0 };
-      e.total += 1;
-      if (e.thumbnails.length < 3 && p.images[0]) e.thumbnails.push(p.images[0]);
-      preview.set(p.companyId, e);
+    if (otherIds.length > 0) {
+      const counts = await this.bypass.companyItem.groupBy({
+        by: ["companyId"],
+        where: { ...publicProductWhere(), companyId: { in: otherIds } },
+        _count: { _all: true },
+      });
+      const withProducts = counts.filter((c) => c._count._all > 0);
+      // Havuzu tek istekte doldurmamak için küçük gruplar hâlinde.
+      for (let i = 0; i < withProducts.length; i += PREVIEW_THUMB_CONCURRENCY) {
+        const chunk = withProducts.slice(i, i + PREVIEW_THUMB_CONCURRENCY);
+        const thumbs = await Promise.all(
+          chunk.map((c) =>
+            this.bypass.companyItem.findMany({
+              where: { ...publicProductWhere(), companyId: c.companyId, images: { isEmpty: false } },
+              select: { images: true },
+              orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
+              take: 3,
+            }),
+          ),
+        );
+        chunk.forEach((c, n) =>
+          preview.set(c.companyId, {
+            total: c._count._all,
+            thumbnails: thumbs[n]!.map((p) => p.images[0]).filter((u): u is string => !!u),
+          }),
+        );
+      }
     }
     const listed = rows
       .filter(

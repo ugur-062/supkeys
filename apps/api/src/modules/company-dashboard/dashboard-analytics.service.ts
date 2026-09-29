@@ -3,6 +3,7 @@ import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/categor
 import { shortMonthLabel, tApi } from "../../common/i18n/i18n.service";
 import { currentLocale } from "../../common/i18n/locale-context";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { appDay, appMonth } from "../../common/time/app-calendar";
 import { convertAmount } from "../../common/currency/fx-rates";
 import {
   awardedSavingsVolumeTry,
@@ -38,15 +39,10 @@ export interface MonthPoint {
 /** Son 12 ayın başlangıçları (eskiden yeniye). */
 export function monthWindows(now: Date): { start: Date; end: Date; key: string; label: string }[] {
   const out: { start: Date; end: Date; key: string; label: string }[] = [];
+  // İstanbul takvim ayları (sunucu UTC; bkz. `app-calendar`).
   for (let i = 11; i >= 0; i--) {
-    const start = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const end = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-    out.push({
-      start,
-      end,
-      key: `${start.getFullYear()}-${String(start.getMonth() + 1).padStart(2, "0")}`,
-      label: shortMonthLabel(start),
-    });
+    const m = appMonth(now, -i);
+    out.push({ start: m.start, end: m.end, key: m.key, label: shortMonthLabel(m.labelDate) });
   }
   return out;
 }
@@ -72,7 +68,7 @@ export function previousWindow(
 ): { start: Date; end: Date } {
   const end = periodStart(period, now);
   const months = period === "month" ? 1 : period === "quarter" ? 3 : 12;
-  const start = new Date(end.getFullYear(), end.getMonth() - months, 1);
+  const start = appMonth(end, -months).start;
   return { start, end };
 }
 
@@ -495,9 +491,10 @@ export class DashboardAnalyticsService {
       const weeks: { start: Date; label: string; amount: number }[] = [];
       for (let i = 0; i < 5; i++) {
         const ws = new Date(now.getTime() + i * 7 * 86_400_000);
+        const wd = appDay(ws);
         weeks.push({
           start: ws,
-          label: `${ws.getDate()} ${shortMonthLabel(ws)}`,
+          label: `${wd.day} ${shortMonthLabel(wd.labelDate)}`,
           amount: 0,
         });
       }

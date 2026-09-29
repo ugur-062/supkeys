@@ -68,6 +68,8 @@ function rig(opts: {
     externalListingInvite: {
       count: jest.fn().mockResolvedValue(0),
       findMany: jest.fn().mockResolvedValue([]),
+      // Referral 7 gün freni: bu kayda bağlı gönderilmiş talep daveti (derin denetim LU-07).
+      findFirst: jest.fn().mockResolvedValue(null),
       create: jest.fn().mockImplementation(async ({ data }: { data: Record<string, unknown> }) => ({ id: `eli${++seq}`, ...data })),
     },
     // Günlük tavan AI üye davetiyle ortak (yayın denetimi 2026-09-28).

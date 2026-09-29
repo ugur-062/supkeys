@@ -68,7 +68,7 @@ import {
   type Locale,
 } from "@rothern/i18n";
 import { resolveWebUrl } from "../../common/config/web-url";
-import { cancelOutgoingReferralInvites } from "../../common/company/downgrade-invites";
+import { cancelOutgoingReferralInvites, cancelQueuedListingInvites } from "../../common/company/downgrade-invites";
 
 /**
  * Tek duyuruda ulaşılacak azami firma (Dalga B). Aşılırsa gönderim yapılır ama
@@ -1696,6 +1696,11 @@ export class AdminCompaniesService {
       // #10: para/yetki aksiyonu — audit yazımı düşerse alarm.
       critical: true,
     });
+    // GOLD → SILVER: satınalma paneli kapandı; kuyruktaki dış talep davetleri
+    // (BUYING_TIER işi) iptal (derin denetim LU-07) — bağlantı/referral davetleri SILVER'da geçerli.
+    if (tier === "SILVER" && before.tier === "GOLD") {
+      await cancelQueuedListingInvites(this.prisma, [id]);
+    }
     // #6: elle REVOKE, otomatik süre-dolma yolunun (membership.scheduler)
     // temizliğini yapmıyordu. STANDART davet gönderemez; firmanın GÖNDERDİĞİ
     // bekleyen davetler kalırsa karşı taraf kabul ettiğinde `isConnectionValid`

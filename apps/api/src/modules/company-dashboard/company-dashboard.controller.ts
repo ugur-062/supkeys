@@ -7,6 +7,7 @@ import {
   UseGuards,
 } from "@nestjs/common";
 import { hasReadContext } from "../../common/company/full-read-context";
+import { appDayStart, appNextDayStart } from "../../common/time/app-calendar";
 import {
   CurrentCompanyUser,
   type AuthenticatedCompanyUser,
@@ -30,7 +31,8 @@ const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 /**
  * Dönem paramı çözümü (Faz 3): month|quarter|year veya custom+from&to.
  * Geçersiz/yarım custom sessizce year'a düşer (yarım aralıkla hesap yok).
- * `to` gün SONU dahil olsun diye +1 gün HARİÇ üst sınıra çevrilir.
+ * `to` gün SONU dahil olsun diye ertesi günün 00:00'ı (İstanbul) HARİÇ üst
+ * sınır olur.
  */
 function resolvePeriod(
   period?: string,
@@ -44,14 +46,11 @@ function resolvePeriod(
     DATE_RE.test(from) && DATE_RE.test(to) &&
     from <= to
   ) {
-    const f = new Date(`${from}T00:00:00`);
-    const t = new Date(`${to}T00:00:00`);
-    if (!Number.isNaN(+f) && !Number.isNaN(+t)) {
-      return {
-        p: "year",
-        range: { from: f, to: new Date(t.getTime() + 86_400_000) },
-      };
-    }
+    // Gün sınırları İstanbul duvar saatiyle (sunucu UTC; eskiden seçilen ilk
+    // günün ilk 3 saati dışarıda kalıyordu — derin denetim LU-07).
+    const f = appDayStart(from);
+    const t = appNextDayStart(to);
+    if (f && t) return { p: "year", range: { from: f, to: t } };
   }
   return { p: "year" };
 }

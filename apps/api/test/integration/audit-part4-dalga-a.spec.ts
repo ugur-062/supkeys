@@ -248,6 +248,8 @@ describe("#6 — pano geliri siparişin KENDİ para biriminden çevrilir", () =>
     );
     const exchangeRate = {
       getRateOnDate: jest.fn().mockResolvedValue(40),
+      // Gelir kurları birim başına toplu (derin denetim LU-07).
+      getRatesOnDates: jest.fn(async (_c: string, ds: Date[]) => ds.map(() => 40)),
       getFreshRate: jest.fn().mockResolvedValue(40),
       getCurrentRate: jest.fn().mockResolvedValue(40),
     };
@@ -260,9 +262,9 @@ describe("#6 — pano geliri siparişin KENDİ para biriminden çevrilir", () =>
     };
     // 100 USD × 40 = 4000 ₺ (ilan TRY olduğu için eskiden 100 ₺ sayılıyordu).
     expect(res.revenue.total).toBe(4000);
-    expect(exchangeRate.getRateOnDate).toHaveBeenCalledWith(
+    expect(exchangeRate.getRatesOnDates).toHaveBeenCalledWith(
       "USD",
-      expect.any(Date),
+      [expect.any(Date)],
     );
   });
 });

@@ -1,6 +1,7 @@
 import { Injectable } from "@nestjs/common";
-import type { Currency } from "@rothern/db";
+import type { Currency, ListingStatus, Prisma } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { appMonth, appYearStart } from "../../common/time/app-calendar";
 import { tApi } from "../../common/i18n/i18n.service";
 import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
@@ -133,6 +134,8 @@ export class CompanyDashboardService {
             status: "OPEN",
             type: "ALIM",
             company: { isActive: true, isBlocked: false },
+            // Açılış embargosundaki talep davetliye de görünmez (derin denetim LU-07).
+            OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }],
             bids: {
               none: {
                 bidderCompanyId: companyId,
@@ -205,28 +208,35 @@ export class CompanyDashboardService {
       select: { country: true, requestDefaults: true },
     });
     const reportCur = reportCurrencyOf(company) as Currency;
-    const rateCache = new Map<string, number>();
-    const getRate = async (c: Currency, d: Date): Promise<number> => {
-      if (c === "TRY") return 1;
-      const k = `${c}|${d.toISOString().slice(0, 10)}`;
-      const cached = rateCache.get(k);
-      if (cached !== undefined) return cached;
-      const r = await this.exchangeRate.getRateOnDate(c, d);
-      rateCache.set(k, r);
-      return r;
-    };
+    // Kurlar birim başına TOPLU çekilir (`getRatesOnDates`: birim başına iki
+    // sorgu). Eskiden her (birim, gün) çifti için sıralı `getRateOnDate`
+    // çağrılıyordu — yıl boyu USD/EUR satan satıcıda istek başına yüzlerce
+    // sıralı sorgu (derin denetim LU-07).
+    const dates = revenueOrders.map((o) => o.createdAt);
+    const needed = new Set<Currency>();
+    for (const o of revenueOrders) {
+      const cur = (o.currency ?? "TRY") as Currency;
+      if (cur !== reportCur && cur !== "TRY") needed.add(cur);
+    }
+    if (reportCur !== "TRY" && revenueOrders.some((o) => (o.currency ?? "TRY") !== reportCur)) {
+      needed.add(reportCur);
+    }
+    const ratesBy = new Map<Currency, number[]>(
+      await Promise.all(
+        [...needed].map(async (c) => [c, await this.exchangeRate.getRatesOnDates(c, dates)] as const),
+      ),
+    );
+    const rateAt = (c: Currency, i: number) => (c === "TRY" ? 1 : ratesBy.get(c)![i]!);
     let revenueTotal = 0;
     let revenueLast30 = 0;
     let revenuePrev30 = 0;
-    for (const o of revenueOrders) {
+    revenueOrders.forEach((o, i) => {
       const cur = (o.currency ?? "TRY") as Currency;
-      const rate = await getRate(cur, o.createdAt);
-      const baseRate = await getRate(reportCur, o.createdAt);
-      const v = cur === reportCur ? Number(o.amount) : (Number(o.amount) * rate) / baseRate;
+      const v = cur === reportCur ? Number(o.amount) : (Number(o.amount) * rateAt(cur, i)) / rateAt(reportCur, i);
       revenueTotal += v;
       if (o.createdAt >= d30) revenueLast30 += v;
       else if (o.createdAt >= d60) revenuePrev30 += v;
-    }
+    });
 
     return {
       invitations: { active: activeInvitations },
@@ -262,10 +272,21 @@ export class CompanyDashboardService {
     // kaynaktan gelebilir → her kaynaktan o kadar çekmek zorundayız.
     const take = Math.min(offset + pageSize, MAX_FEED);
 
+    // Davet satırı talep TASLAKKEN de oluşur; yayımlanmamış (taslak/onay
+    // bekleyen) ya da açılış embargosundaki talebin başlığı/numarası davetliye
+    // sızmasın — embargolu talebi yalnız sahibi görür (derin denetim LU-07).
+    const now = new Date();
+    const visibleInvitationWhere = {
+      invitedCompanyId: companyId,
+      listing: {
+        status: { notIn: ["DRAFT", "IN_APPROVAL"] as ListingStatus[] },
+        OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }],
+      },
+    } satisfies Prisma.ListingInvitationWhereInput;
     const [invitations, bids, orders, invCount, bidCount, orderCount] =
       await Promise.all([
         this.prisma.listingInvitation.findMany({
-          where: { invitedCompanyId: companyId },
+          where: visibleInvitationWhere,
           orderBy: { createdAt: "desc" },
           take,
           select: {
@@ -296,7 +317,7 @@ export class CompanyDashboardService {
           },
         }),
         this.prisma.listingInvitation.count({
-          where: { invitedCompanyId: companyId },
+          where: visibleInvitationWhere,
         }),
         this.prisma.listingBid.count({
           where: { bidderCompanyId: companyId },
@@ -380,8 +401,9 @@ export class CompanyDashboardService {
         select: { country: true, requestDefaults: true },
       }),
     );
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const yearStart = new Date(now.getFullYear(), 0, 1);
+    // İstanbul takvimi (sunucu UTC; bkz. `app-calendar`).
+    const monthStart = appMonth(now).start;
+    const yearStart = appYearStart(now);
 
     const listings = await this.prisma.listing.findMany({
       where: {
@@ -560,8 +582,9 @@ export class CompanyDashboardService {
    */
   async satinalmaTedarikci(user: AuthenticatedCompanyUser) {
     const now = new Date();
-    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
-    const yearStart = new Date(now.getFullYear(), 0, 1);
+    // İstanbul takvimi (sunucu UTC; bkz. `app-calendar`).
+    const monthStart = appMonth(now).start;
+    const yearStart = appYearStart(now);
 
     const bids = await this.prisma.listingBid.findMany({
       where: {

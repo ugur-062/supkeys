@@ -237,7 +237,15 @@ export class ExternalInviteDispatcher {
       this.prisma.referralOptOut.findUnique({ where: { email }, select: { email: true } }),
       this.prisma.companyUser.findFirst({ where: { email, deletedAt: null }, select: { id: true } }),
       this.prisma.emailLog.findMany({
-        where: { toEmail: email, contextType: INVITE_CONTEXT, status: { not: "FAILED" }, queuedAt: { gte: since } },
+        // Adrese giden referral (bağlantı daveti) e-postası da davet
+        // geçmişidir — yalnız talep davetleri sayılınca aynı adrese referral
+        // ertesi gün AI talep daveti gidebiliyordu (derin denetim LU-07).
+        where: {
+          toEmail: email,
+          contextType: { in: [INVITE_CONTEXT, "referral_invite"] },
+          status: { not: "FAILED" },
+          queuedAt: { gte: since },
+        },
         orderBy: { queuedAt: "desc" },
         select: { queuedAt: true },
       }),

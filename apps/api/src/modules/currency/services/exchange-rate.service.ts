@@ -202,6 +202,60 @@ export class ExchangeRateService implements OnApplicationBootstrap {
     return Number(row.rate);
   }
 
+  /**
+   * Çok tarihli `getRateOnDate` — birim başına SABİT iki sorgu (tarih başına
+   * bir sorgu yerine; pano geliri her farklı gün için sıralı sorgu atıyordu,
+   * derin denetim LU-07). Anlam birebir: her tarih için `rateDate <= tarih`
+   * olan en güncel kur, yoksa uyarı + FALLBACK. Sonuç `dates` sırasıyla.
+   */
+  async getRatesOnDates(currency: Currency, dates: readonly Date[]): Promise<number[]> {
+    if (currency === "TRY" || dates.length === 0) return dates.map(() => 1);
+    let min = dates[0]!;
+    let max = dates[0]!;
+    for (const d of dates) {
+      if (d < min) min = d;
+      if (d > max) max = d;
+    }
+    const [floor, inRange] = await Promise.all([
+      this.prisma.exchangeRate.findFirst({
+        where: { currency, rateDate: { lte: min } },
+        orderBy: { rateDate: "desc" },
+        select: { rateDate: true, rate: true },
+      }),
+      this.prisma.exchangeRate.findMany({
+        where: { currency, rateDate: { gt: min, lte: max } },
+        orderBy: { rateDate: "asc" },
+        select: { rateDate: true, rate: true },
+      }),
+    ]);
+    const rows = (floor ? [floor, ...inRange] : inRange).map((r) => ({ at: r.rateDate.getTime(), rate: Number(r.rate) }));
+    let missing: Date | null = null;
+    const out = dates.map((d) => {
+      // Son `at <= d` satırı (ikili arama; rows artan sırada).
+      const t = d.getTime();
+      let lo = 0;
+      let hi = rows.length - 1;
+      let hit = -1;
+      while (lo <= hi) {
+        const mid = (lo + hi) >> 1;
+        if (rows[mid]!.at <= t) {
+          hit = mid;
+          lo = mid + 1;
+        } else hi = mid - 1;
+      }
+      if (hit >= 0) return rows[hit]!.rate;
+      missing ??= d;
+      return FALLBACK_RATES[currency] ?? 1;
+    });
+    if (missing) {
+      this.warnThrottled(
+        `rateOnDate:${currency}`,
+        `No rate found (${currency} @ ${(missing as Date).toISOString().slice(0, 10)}) -> using FALLBACK; money figures may be approximate.`,
+      );
+    }
+    return out;
+  }
+
   /** Public endpoint için { TRY: 1, USD: ..., EUR: ..., GBP: ..., ... } shape'i */
   async getCurrentRates(): Promise<Record<Currency, number>> {
     const values = await Promise.all(

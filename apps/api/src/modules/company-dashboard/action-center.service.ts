@@ -277,7 +277,12 @@ export class ActionCenterService {
       this.prisma.listingInvitation.findMany({
         where: {
           invitedCompanyId: companyId,
-          listing: { status: "OPEN", company: { isActive: true, isBlocked: false } },
+          // Açılış embargosundaki talep davetliye de görünmez (derin denetim LU-07).
+          listing: {
+            status: "OPEN",
+            company: { isActive: true, isBlocked: false },
+            OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }],
+          },
         },
         select: {
           listingId: true,

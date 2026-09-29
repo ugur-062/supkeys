@@ -66,6 +66,14 @@ export const DOC_META = {
 } as const;
 export type DocKind = keyof typeof DOC_META;
 const KINDS = Object.keys(DOC_META) as DocKind[];
+/**
+ * Belge türü doğrulaması — `kind in DOC_META` prototip zincirini de kabul
+ * ediyordu ("constructor"/"toString" geçip Prisma'da 500 üretiyordu; derin
+ * denetim LU-07). Yalnız KENDİ anahtarları geçerli.
+ */
+export function isDocKind(kind: string): kind is DocKind {
+  return Object.prototype.hasOwnProperty.call(DOC_META, kind);
+}
 /** Geriye dönük: türe göre yalnız URL alanı. */
 export const DOC_FIELDS = Object.fromEntries(
   KINDS.map((k) => [k, DOC_META[k].url]),
@@ -206,7 +214,7 @@ export class CompanyDocsService {
     mimeType: string,
     fileSize?: number,
   ) {
-    if (!(kind in DOC_FIELDS)) throw new BadRequestException(i18nMessage("api.companyDocs.gecersizBelgeTuru"));
+    if (!isDocKind(kind)) throw new BadRequestException(i18nMessage("api.companyDocs.gecersizBelgeTuru"));
     if (!ALLOWED_MIME.includes(mimeType)) {
       throw new BadRequestException(i18nMessage("api.companyDocs.sadecePdfVeyaGorselYuklenebilir"));
     }
@@ -224,7 +232,7 @@ export class CompanyDocsService {
     key: string,
     actor?: AuthenticatedCompanyUser,
   ) {
-    if (!(kind in DOC_META)) throw new BadRequestException(i18nMessage("api.companyDocs.gecersizBelgeTuru"));
+    if (!isDocKind(kind)) throw new BadRequestException(i18nMessage("api.companyDocs.gecersizBelgeTuru"));
     const k = kind as DocKind;
     // GÜVENLİK: key yalnız BU firmanın klasörüne işaret edebilir; aksi halde
     // başka firmanın/rastgele bir nesnenin URL'i kaydedilebilirdi.

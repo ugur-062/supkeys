@@ -19,11 +19,21 @@ import { resetFxRates, setFxRates } from "../../src/common/currency/fx-rates";
 
 describe("analitik saf yardımcılar", () => {
   it("monthWindows 12 ardışık ay üretir", () => {
-    const w = monthWindows(new Date(2026, 7, 3));
+    const w = monthWindows(new Date("2026-08-03T09:00:00Z"));
     expect(w).toHaveLength(12);
     expect(w[0]!.key).toBe("2025-09");
     expect(w[11]!.key).toBe("2026-08");
     expect(+w[1]!.start).toBe(+w[0]!.end);
+  });
+
+  it("monthWindows ay sınırı İstanbul duvar saatiyle: 1 Eki 01:00 (TR) Ekim'e düşer (derin denetim LU-07)", () => {
+    // 30 Eyl 22:00Z = 1 Eki 01:00 TR (UTC+3).
+    const now = new Date("2026-09-30T22:00:00Z");
+    const w = monthWindows(now);
+    expect(w[11]!.key).toBe("2026-10");
+    expect(w[11]!.start.toISOString()).toBe("2026-09-30T21:00:00.000Z");
+    expect(w[10]!.key).toBe("2026-09");
+    expect(w[10]!.start.toISOString()).toBe("2026-08-31T21:00:00.000Z");
   });
 
   it("deltaPct: önceki 0 → null; şimdiki 0 → null ('0 ↘ %100' yok); artış/azalış yüzdesi", () => {
@@ -34,10 +44,11 @@ describe("analitik saf yardımcılar", () => {
   });
 
   it("previousWindow dönem uzunluğunu korur", () => {
-    const now = new Date(2026, 7, 3);
+    const now = new Date("2026-08-03T09:00:00Z");
     const q = previousWindow("quarter", now);
-    expect(q.start.getMonth()).toBe(3); // Nis (Tem çeyreği öncesi)
-    expect(q.end.getMonth()).toBe(6);
+    // Nis (Tem çeyreği öncesi) → Tem; İstanbul 00:00 = 21:00Z önceki gün.
+    expect(q.start.toISOString()).toBe("2026-03-31T21:00:00.000Z");
+    expect(q.end.toISOString()).toBe("2026-06-30T21:00:00.000Z");
   });
 });
 

@@ -218,6 +218,15 @@ describe("belge bazlı KYC inceleme", () => {
     ).rejects.toThrow(/onaylandı|değiştirilemez/i);
   });
 
+  it("prototip anahtarı ('constructor'/'toString') belge türü sayılmaz: 400 (derin denetim LU-07)", async () => {
+    const docs = docsService();
+    const co = await pendingCompany();
+    for (const kind of ["constructor", "toString", "__proto__", "hasOwnProperty"]) {
+      await expect(docs.commit(co.id, kind, `company-docs/${co.id}/x.pdf`)).rejects.toMatchObject({ status: 400 });
+      await expect(docs.uploadUrl(co.id, kind, "x.pdf", "application/pdf")).rejects.toMatchObject({ status: 400 });
+    }
+  });
+
   it("KİLİT: PENDING (inceleme sürerken) belge değiştirilemez", async () => {
     const docs = docsService();
     const co = await pendingCompany();
