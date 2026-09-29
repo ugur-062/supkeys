@@ -4,7 +4,7 @@ import { Input, InputGroup } from "@/components/catalyst/input";
 import { cn } from "@/lib/utils";
 import { MagnifyingGlassIcon } from "@heroicons/react/16/solid";
 import { X } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useDebouncedCallback } from "use-debounce";
 
 interface Props {
@@ -26,14 +26,28 @@ export function SearchInput({
   debounceMs = 300,
 }: Props) {
   const [local, setLocal] = useState(value);
-
-  useEffect(() => {
-    setLocal(value);
-  }, [value]);
+  // Gönderilip henüz dışarıdan (URL/state) geri gelmemiş değerler, sırayla.
+  const sent = useRef<string[]>([]);
 
   const debounced = useDebouncedCallback((v: string) => {
+    sent.current.push(v);
     onChange(v);
   }, debounceMs);
+
+  // Dış `value` yerel metni YALNIZ gerçek bir dış değişiklikte (filtre
+  // temizleme, geri/ileri) ezer. URL'e bağlı listelerde (router.replace →
+  // useSearchParams) kendi gönderdiğimiz değer bir sunucu turu sonra geri
+  // gelir; o arada yazılan karakterler siliniyordu (derin denetim LU-13).
+  useEffect(() => {
+    if (debounced.isPending()) return; // kullanıcı yazıyor; son hali gönderilecek
+    const i = sent.current.indexOf(value);
+    if (i !== -1) {
+      sent.current.splice(0, i + 1); // kendi yankımız (ara değerler dahil)
+      return;
+    }
+    sent.current = [];
+    setLocal(value);
+  }, [value]);
 
   const handleChange = (v: string) => {
     setLocal(v);
@@ -43,6 +57,7 @@ export function SearchInput({
   const handleClear = () => {
     setLocal("");
     debounced.cancel();
+    sent.current.push("");
     onChange("");
   };
 

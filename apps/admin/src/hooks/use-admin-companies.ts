@@ -600,6 +600,10 @@ export function useResolveComplaint() {
       qc.invalidateQueries({ queryKey: ["admin-companies"] });
       // Dashboard "Açık Şikayet" KPI'sı da bu veriden — bayat kalmasın.
       qc.invalidateQueries({ queryKey: ["admin-company-stats"] });
+      // `suspend: true` firmayı askıya alır; şikayet id'si firma id'si değil →
+      // tüm firma detayları düşer. Yoksa 60 sn staleTime boyunca detay firmayı
+      // aktif gösterip "Askıya al" sunuyordu (derin denetim LU-13).
+      qc.invalidateQueries({ queryKey: ["admin-company-detail"] });
     },
   });
 }

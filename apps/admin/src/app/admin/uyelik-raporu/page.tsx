@@ -20,7 +20,7 @@ import {
   type MembershipReportRow,
 } from "@/hooks/use-admin-companies";
 import { downloadCsv } from "@/lib/csv";
-import { safeFormat } from "@/lib/date";
+import { safeFormat, toDateInput } from "@/lib/date";
 import { Download } from "lucide-react";
 import { useState } from "react";
 
@@ -87,8 +87,8 @@ function RaporView() {
               range: () => {
                 const n = new Date();
                 return [
-                  `${n.getFullYear()}-${String(n.getMonth() + 1).padStart(2, "0")}-01`,
-                  n.toISOString().slice(0, 10),
+                  toDateInput(new Date(n.getFullYear(), n.getMonth(), 1)),
+                  toDateInput(n),
                 ];
               },
             },
@@ -98,26 +98,21 @@ function RaporView() {
                 const n = new Date();
                 const first = new Date(n.getFullYear(), n.getMonth() - 1, 1);
                 const last = new Date(n.getFullYear(), n.getMonth(), 0);
-                return [
-                  `${first.getFullYear()}-${String(first.getMonth() + 1).padStart(2, "0")}-01`,
-                  `${last.getFullYear()}-${String(last.getMonth() + 1).padStart(2, "0")}-${String(last.getDate()).padStart(2, "0")}`,
-                ];
+                return [toDateInput(first), toDateInput(last)];
               },
             },
             {
               label: "Son 30 Gün",
               range: () => [
-                new Date(Date.now() - 30 * 86_400_000)
-                  .toISOString()
-                  .slice(0, 10),
-                new Date().toISOString().slice(0, 10),
+                toDateInput(Date.now() - 30 * 86_400_000),
+                toDateInput(),
               ],
             },
             {
               label: "Bu Yıl",
               range: () => [
                 `${new Date().getFullYear()}-01-01`,
-                new Date().toISOString().slice(0, 10),
+                toDateInput(),
               ],
             },
           ] as const

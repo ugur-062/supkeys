@@ -56,3 +56,14 @@ export function nextDateTimeLocal(value?: DateInput): string {
   const base = toValidDate(value) ?? new Date();
   return format(addMinutes(startOfMinute(base), 1), "yyyy-MM-dd'T'HH:mm");
 }
+
+/**
+ * `<input type="date">` / rapor aralığı değeri — YEREL takvim günü
+ * ("yyyy-MM-dd"). `toISOString().slice(0, 10)` UTC gününü verir; TR'de
+ * 00:00-03:00 arası "bugün" bir önceki gün sayılıyor, ayın 1'i gecesi "Bu Ay"
+ * aralığı ters kurulup rapor boş dönüyordu (derin denetim LU-13). Geçersiz
+ * girdide bugün kullanılır.
+ */
+export function toDateInput(value?: DateInput): string {
+  return format(toValidDate(value) ?? new Date(), "yyyy-MM-dd");
+}

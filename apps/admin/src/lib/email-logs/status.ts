@@ -111,9 +111,19 @@ export const EMAIL_EVENT_META: Record<
   },
 };
 
+/**
+ * EmailLog.template değerleri → etiket. Kaynak: packages/email `EmailTemplateData`
+ * birliği + API'nin iç `suppression_clear` işareti. Eski harita yalnız artık
+ * üretilmeyen demo şablonlarını içeriyordu; filtre hep boş dönüyordu (derin
+ * denetim LU-13). Yeni şablon eklenince BURAYA da eklenmeli.
+ */
 export const EMAIL_TEMPLATE_LABELS: Record<string, string> = {
-  demo_request_received: "Demo talep — kullanıcı teşekkür",
-  demo_request_admin_alert: "Demo talep — admin bildirim",
+  notification: "Bildirim",
+  password_reset: "Şifre sıfırlama",
+  referral_invite: "Davet (kayıtsız firma)",
+  tender_external_invite: "Alım talebi — dış tedarikçi daveti",
+  tender_invite_digest: "Alım talebi — davet özeti",
+  suppression_clear: "Engel kaldırma (iç kayıt)",
 };
 
 export function getTemplateLabel(template: string): string {

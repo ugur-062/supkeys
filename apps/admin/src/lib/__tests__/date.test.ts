@@ -3,6 +3,7 @@ import {
   nextDateTimeLocal,
   safeFormat,
   safeFormatDistance,
+  toDateInput,
   toDateTimeLocal,
 } from "../date";
 
@@ -68,5 +69,25 @@ describe("nextDateTimeLocal (derin denetim LU-12, gözden geçirme — alt sın�
   it("boş girdide şimdiden sonraki dakikayı verir", () => {
     const now = Date.now();
     expect(new Date(nextDateTimeLocal()).getTime()).toBeGreaterThan(now);
+  });
+});
+
+describe("toDateInput (derin denetim LU-13 — rapor aralığı yerel takvim günü)", () => {
+  const pad = (n: number) => String(n).padStart(2, "0");
+  const localDay = (d: Date) => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+
+  it("yerel günü verir (UTC günü değil)", () => {
+    // TR 1 Ekim 01:30 = UTC 30 Eylül 22:30; eski `toISOString().slice` 30 Eylül derdi.
+    const d = new Date("2026-09-30T22:30:00.000Z");
+    expect(toDateInput(d)).toBe(localDay(d));
+  });
+
+  it("yerel bileşenlerle kurulan ayın ilk günü kaymaz", () => {
+    expect(toDateInput(new Date(2026, 9, 1))).toBe("2026-10-01");
+  });
+
+  it("boş/geçersiz girdide bugünü verir", () => {
+    expect(toDateInput()).toBe(localDay(new Date()));
+    expect(toDateInput("bozuk")).toMatch(/^\d{4}-\d{2}-\d{2}$/);
   });
 });

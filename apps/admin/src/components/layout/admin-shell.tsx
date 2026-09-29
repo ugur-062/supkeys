@@ -133,6 +133,9 @@ const NAV_SECTIONS: NavSection[] = [
         href: "/admin/email-logs",
         icon: Mail,
         activeMatch: "/admin/email-logs",
+        // Backend `@RequireAdminRole("SUPER_ADMIN","SALES")` — SUPPORT'a
+        // gösterilince 5 sn'de bir 403 toast'ı yağıyordu (derin denetim LU-13).
+        roles: ["SUPER_ADMIN", "SALES"],
       },
       {
         label: "Denetim Kaydı",
