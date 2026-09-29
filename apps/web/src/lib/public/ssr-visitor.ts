@@ -1,23 +1,26 @@
 import { cache } from "react";
 
 /**
- * SSR ZİYARETÇİ İLİŞKİLENDİRMESİ (derin denetim MU-12, gözden geçirme).
+ * SSR ZİYARETÇİ İLİŞKİLENDİRMESİ (derin denetim MU-12, RM-12).
  *
  * API, `x-rothern-ssr` taşıyan istekleri IP kovası yerine SSR kovasına sayar.
- * Tek ortak kova, süzgeçli/önizleme URL'lerini (`/urunler?q=<rastgele>`,
- * `?onizleme=1`: her biri veri önbelleğini ıskalar) basan TEK bir ziyaretçinin
- * kovayı doldurup herkesin SSR'ını 429'a düşürmesine izin veriyordu. Bu yüzden
- * ARAMA PARAMETRESİ taşıyan dinamik çizimde gerçek ziyaretçi IP'si
- * `x-rothern-client-ip` ile iletilir; API bunu yalnız sır doğrulanınca kabul
- * eder ve ziyaretçi başına kovaya sayar.
+ * Tek ortak kova, önbelleği ıskalayan URL'leri (`/urunler?q=<rastgele>`,
+ * `?onizleme=1`, `/firma/<rastgele>`) basan TEK bir ziyaretçinin kovayı
+ * doldurup herkesin SSR'ını 429'a düşürmesine izin veriyordu. Bu yüzden
+ * DİNAMİK çizimde gerçek ziyaretçi IP'si `x-rothern-client-ip` ile iletilir;
+ * API bunu yalnız sır doğrulanınca kabul eder ve ziyaretçi başına kovaya sayar.
  *
- * Neden yalnız parametreli çizim: başlık Next veri önbelleği anahtarına girer
- * (`generateCacheKey` başlıkları katar). Kanonik URL'de (parametresiz) IP
- * eklemek paylaşılan önbelleği ziyaretçi başına böler; ISR/statik çizimde
- * `headers()` okumak sayfayı dinamiğe çevirir. Parametreli çizim zaten dinamik
- * ve uzun kuyruk — önbelleği bölmenin bedeli yok denecek kadar az.
+ * Önbellek bölünmez: `marketplace-api` önbelleği `unstable_cache` ile (URL, dil)
+ * anahtarında tutar; IP yalnız gerçek ıskalamada API'ye gider, anahtara girmez
+ * (eskiden `fetch` başlıkları anahtara katıyordu → yalnız parametreli çizim
+ * ilişkilendiriliyor, rastgele yol parçası ortak kovaya düşüyordu).
  *
- * Akış: sayfa `searchParams`ı çözdükten hemen sonra `attributeSsrToVisitor(sp)`
+ * YALNIZ ZATEN DİNAMİK çizimde çağır (sayfa `searchParams` okuyor): `headers()`
+ * ISR/statik sayfayı dinamiğe çevirir. ISR rotaları (`/talep/[slug]`,
+ * `/firma/[slug]/urun/[urunSlug]`) ilişkilendirilemez → rastgele yol kalıntısı
+ * Vercel Firewall'daki IP başına kuralda.
+ *
+ * Akış: dinamik sayfa/metadata veri çekmeden önce `attributeSsrToVisitor()`
  * çağırır; aynı istekteki (React `cache` = istek kapsamı) sonraki pazar yeri
  * çağrıları `ssrVisitorIp()` ile başlığı ekler. İstek dışı (rota işleyicisi,
  * sitemap, OG) `cache` ezberlemez → her zaman boş.
@@ -25,17 +28,6 @@ import { cache } from "react";
 export const SSR_CLIENT_IP_HEADER = "x-rothern-client-ip";
 
 const slot = cache((): { ip?: string } => ({}));
-
-type SearchParamsLike = Record<string, string | string[] | undefined> | URLSearchParams | null | undefined;
-
-/** En az bir boş olmayan arama parametresi var mı? */
-export function hasSearchParams(sp: SearchParamsLike): boolean {
-  if (!sp) return false;
-  const values = sp instanceof URLSearchParams ? [...sp.values()] : Object.values(sp);
-  return values.some((v) =>
-    Array.isArray(v) ? v.some((x) => x.trim() !== "") : typeof v === "string" && v.trim() !== "",
-  );
-}
 
 /**
  * Vercel'in yazdığı başlıklardan ziyaretçi IP'si (istemcininkini ezer; web
@@ -46,9 +38,8 @@ export function visitorIpFrom(h: { get(name: string): string | null }): string |
   return ip && ip.length <= 64 ? ip : undefined;
 }
 
-/** Parametreli dinamik çizimi ziyaretçiye bağla (parametresizse hiçbir şey yapmaz). */
-export async function attributeSsrToVisitor(sp: SearchParamsLike): Promise<void> {
-  if (!hasSearchParams(sp)) return;
+/** Bu (zaten dinamik) çizimi ziyaretçiye bağla; istek bağlamı yoksa hiçbir şey yapmaz. */
+export async function attributeSsrToVisitor(): Promise<void> {
   let ip: string | undefined;
   try {
     // Dinamik import: `marketplace-api` (istemcide tip olarak da içe aktarılır)

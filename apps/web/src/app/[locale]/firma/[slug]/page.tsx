@@ -24,6 +24,9 @@ export async function generateMetadata({
 }): Promise<Metadata> {
   const { slug } = await params;
   const locale = await localeFromParams(params);
+  // Metadata sayfadan ÖNCE çekiyor: rastgele slug burada da ziyaretçiye bağlı
+  // gitsin, ortak SSR kovasına düşmesin (sayfa zaten dinamik — RM-12).
+  await attributeSsrToVisitor();
   const p = await fetchCompanyProfile(slug);
   if (!p) return { title: (await getTranslations({ locale, namespace: "web.marketplace.pages" }))("companyNotFound"), robots: { index: false } };
   /* TEK KAYNAK (`lib/seo/entities.ts`): başlık/açıklama/kanonik/OG ile
@@ -88,9 +91,10 @@ export default async function PublicCompanyProfile({
   // sahibi az önce kaydettiğini görsün diye veri önbelleği atlanır (ISR
   // kopyası 5 dk bayat kalabiliyordu). Sayfa içeriği ve şablon AYNI.
   const fresh = sp?.onizleme === "1";
-  // Önizleme/ürün araması veri önbelleğini ıskalar → API'de ziyaretçi başına
-  // SSR kovasına sayılsın (derin denetim MU-12; `ssr-visitor.ts`).
-  await attributeSsrToVisitor(sp);
+  // Sayfa `searchParams` okuduğu için dinamik: önbelleği ıskalayan çağrı
+  // (önizleme, ürün araması, rastgele slug) API'de ziyaretçi başına SSR
+  // kovasına sayılsın (derin denetim MU-12/RM-12; `ssr-visitor.ts`).
+  await attributeSsrToVisitor();
   const [p, products] = await Promise.all([
     fetchCompanyProfile(slug, { fresh }),
     fetchCompanyProducts(slug, { q: productQuery, page: productPage, fresh }),

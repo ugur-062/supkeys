@@ -48,14 +48,23 @@ export function isTrustedSsrRequest(
  * unique query string (`/urunler?q=<random>`) or `?onizleme=1` (no-store)
  * misses the web data cache and reaches the API with the secret header.
  *
- * - Attributed (web sent a valid `x-rothern-client-ip`, i.e. a dynamic render
- *   with search params): per-visitor bucket, shared across all public
- *   endpoints, `THROTTLE_PUBLIC_LIMIT` (same ceiling a visitor gets calling
- *   the public API directly). It does NOT touch the global SSR bucket, so one
- *   visitor flooding filtered/preview URLs cannot lock every other visitor out.
- * - Unattributed (ISR / static renders, canonical dynamic URLs served from the
- *   shared data cache): ONE global bucket, `THROTTLE_SSR_LIMIT`. High enough
- *   for a cold ISR cache after deploy; a 429 here keeps the last good ISR copy.
+ * - Attributed (web sent a valid `x-rothern-client-ip`, i.e. any dynamic
+ *   render: indexes, `/firma/<slug>`, city pages; RM-12): per-visitor bucket,
+ *   shared across all public endpoints, `THROTTLE_PUBLIC_LIMIT` (same ceiling
+ *   a visitor gets calling the public API directly). It does NOT touch the
+ *   global SSR bucket, so one visitor flooding filtered/preview/random-slug
+ *   URLs cannot lock every other visitor out. The web keeps its data cache in
+ *   `unstable_cache` keyed on (url, locale), so the IP only reaches the API on
+ *   a real cache miss and never splits the shared cache.
+ * - Unattributed (ISR renders, route handlers, OG images): ONE global bucket,
+ *   `THROTTLE_SSR_LIMIT`. High enough for a cold ISR cache after deploy; a 429
+ *   here keeps the last good ISR copy.
+ *
+ * Residual risk: ISR routes cannot read request headers without turning
+ * dynamic, so random path segments there (`/talep/<random>`,
+ * `/firma/<slug>/urun/<random>`, `.../opengraph-image`) still count against
+ * the global bucket. Mitigation lives at the edge: a per-IP rate rule in
+ * Vercel Firewall for `/talep/*`, `/firma/*`, `/urunler/*`.
  *
  * Per 60 s window, per API instance (in-memory storage).
  */

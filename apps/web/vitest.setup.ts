@@ -123,3 +123,15 @@ vi.mock("@/i18n/navigation", async () => {
 // `server-only` paketi RSC dışında import edilince fırlatır; sunucu yardımcıları
 // (lib/seo/entities, og/content) testlerde de çalışsın.
 vi.mock("server-only", () => ({}));
+
+// `unstable_cache` Next çalışma zamanı dışında (artımlı önbellek yok) fırlatır;
+// pazar yeri veri katmanı (`loadPublicJson`) onunla sarılı. Testte önbelleksiz
+// geçiş: fonksiyon her çağrıda koşar. Dosya kendi `vi.mock("next/cache")`ını
+// tanımlarsa o geçerli (ör. `seo/revalidate` rota testi).
+vi.mock("next/cache", async (orig) => ({
+  ...(await orig<typeof import("next/cache")>()),
+  unstable_cache:
+    <A extends unknown[], R>(fn: (...args: A) => Promise<R>) =>
+    (...args: A) =>
+      fn(...args),
+}));

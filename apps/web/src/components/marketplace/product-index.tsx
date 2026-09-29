@@ -86,9 +86,9 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
   const params = toProductListParams(state, { defaultCurrency: currencyForLocale(locale) });
   const basePath = MARKETPLACE_ROUTES.products;
 
-  // Süzgeçli/aramalı çizim veri önbelleğini ıskalar → API'de ziyaretçi başına
-  // SSR kovasına sayılsın (derin denetim MU-12; `ssr-visitor.ts`).
-  await attributeSsrToVisitor(searchParams);
+  // Dinamik çizim (sayfa `searchParams` okuyor): önbelleği ıskalayan çağrı API'de
+  // ziyaretçi başına SSR kovasına sayılsın (derin denetim MU-12/RM-12; `ssr-visitor.ts`).
+  await attributeSsrToVisitor();
   const [page, facets, otherCounts] = await Promise.all([
     fetchProducts(params),
     // Facet sayımı listeyle AYNI süzgeçleri görür (2026-09-27: ülke, "Yakınımda",

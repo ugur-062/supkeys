@@ -6,6 +6,7 @@ import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-lay
 import { CityLinks } from "@/components/marketplace/city-links";
 import { ProductIndex, type ProductSearchParams } from "@/components/marketplace/product-index";
 import { cityFromSlug, cityProductPath, citySlug } from "@/lib/public/city";
+import { attributeSsrToVisitor } from "@/lib/public/ssr-visitor";
 import { fetchGeoCity, fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
 import { countryDisplayName } from "@/i18n/domain";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
@@ -53,6 +54,9 @@ async function resolveCity(
   il: string,
   locale: Locale,
 ): Promise<{ slug: string; shown: string; name: string; countryCode: string } | null> {
+  // Sayfa ve metadata `searchParams` okuduğu için dinamik: rastgele şehir
+  // adresi ortak SSR kovasına değil ziyaretçi kovasına sayılsın (RM-12).
+  await attributeSsrToVisitor();
   const geo = await fetchGeoCity(il);
   if (geo) {
     return {

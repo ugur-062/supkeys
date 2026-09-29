@@ -44,9 +44,9 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
   const params = toListingListParams(state);
   const basePath = MARKETPLACE_ROUTES.demands;
 
-  // Süzgeçli/aramalı çizim veri önbelleğini ıskalar → API'de ziyaretçi başına
-  // SSR kovasına sayılsın (derin denetim MU-12; `ssr-visitor.ts`).
-  await attributeSsrToVisitor(searchParams);
+  // Dinamik çizim (sayfa `searchParams` okuyor): önbelleği ıskalayan çağrı API'de
+  // ziyaretçi başına SSR kovasına sayılsın (derin denetim MU-12/RM-12; `ssr-visitor.ts`).
+  await attributeSsrToVisitor();
   const [page, facets, otherCounts] = await Promise.all([
     fetchListings(params),
     fetchFacets({ q: params.q, category: params.category, city: params.city, country: params.country, closesWithin: params.closesWithin }),

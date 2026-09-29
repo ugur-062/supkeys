@@ -1,6 +1,7 @@
 import type { GeoCity } from "./geo-client";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
 import { getLocale } from "next-intl/server";
+import { unstable_cache } from "next/cache";
 import { SEO_TAGS } from "@/lib/seo/tags";
 import type { PublicListingType } from "./marketplace";
 import { SSR_CLIENT_IP_HEADER, ssrVisitorIp } from "./ssr-visitor";
@@ -161,7 +162,7 @@ const DEFAULT_REVALIDATE = 60;
  * İSTEK DİLİ (i18n Faz 1e): herkese açık API ürün/talep/firma metnini
  * `Accept-Language`a göre çevrilmiş döner (çeviri yoksa özgün). Sayfa dili
  * next-intl'den; istek bağlamı yoksa (sitemap/OG rota işleyicileri) Türkçe.
- * Next veri önbelleği başlığı anahtara katar → diller birbirine karışmaz.
+ * Dil veri önbelleği anahtarında (`loadPublicJson`) → diller birbirine karışmaz.
  */
 async function publicHeaders(explicit?: string): Promise<Record<string, string>> {
   let locale = explicit ?? "tr";
@@ -176,8 +177,10 @@ async function publicHeaders(explicit?: string): Promise<Record<string, string>>
   // /public/*; API `isTrustedSsrRequest`, derin denetim MU-12). API günlüğü bu
   // başlığı yazmaz (izinli başlık listesi). Sır sunucu env'inde — istemci paketine girmez
   // (NEXT_PUBLIC değil; bu modül istemcide yalnız tip olarak içe aktarılır).
-  // Parametreli dinamik çizimde ziyaretçi IP'si de gider → API ziyaretçi başına
+  // Ziyaretçiye bağlanmış dinamik çizimde IP de gider → API ziyaretçi başına
   // kovaya sayar; tek ziyaretçi ortak kovayı dolduramaz (`ssr-visitor.ts`).
+  // Başlık veri önbelleği anahtarına GİRMEZ: önbellek `loadPublicJson`da
+  // (URL, dil) anahtarlı; IP yalnız gerçek ıskalamada API'ye ulaşır.
   const ssrKey = process.env.SEO_REVALIDATE_SECRET;
   const visitorIp = ssrKey ? ssrVisitorIp() : undefined;
   return {
@@ -215,6 +218,49 @@ function unavailable(path: string, detail: string, err?: unknown): void {
   if (!isBuildPhase()) throw new PublicApiUnavailableError(path, detail);
 }
 
+/** API 2xx dışı yanıt — `loadPublicJson` içinden atılır (veri önbelleğine girmesin). */
+class UpstreamHttpError extends Error {
+  constructor(readonly status: number) {
+    super(`HTTP ${status}`);
+    this.name = "UpstreamHttpError";
+  }
+}
+
+/** Tek API okuması (her zaman no-store): 2xx dışı → `UpstreamHttpError`, ağ hatası aynen. */
+async function fetchPublicJson<T>(url: string, headers: Record<string, string>): Promise<T> {
+  const res = await fetch(url, { cache: "no-store", headers });
+  if (!res.ok) throw new UpstreamHttpError(res.status);
+  return (await res.json()) as T;
+}
+
+/**
+ * VERİ ÖNBELLEĞİ ZİYARETÇİ BAŞLIĞINDAN BAĞIMSIZ (derin denetim RM-12).
+ *
+ * Eskiden `fetch(..., { next: { revalidate, tags } })` kullanılıyordu; Next veri
+ * önbelleği anahtarı BAŞLIKLARI da katar (`generateCacheKey`). Ziyaretçiye bağlı
+ * çizimde eklenen `x-rothern-client-ip` her kanonik çağrıyı (ör. `?sayfa=2`deki
+ * `crossCounts` → `fetchListings({})`, `/firma/x?urun=y`deki profil) ziyaretçi
+ * başına ayrı girdiye bölüyordu. Artık önbellek `unstable_cache` ile yalnız
+ * (URL, dil) anahtarında tutulur, aynı `revalidate`/`tags` ile: `revalidateTag`,
+ * `revalidatePath` (örtük yol etiketleri) ve ISR sayfasına etiket/süre aktarımı
+ * `fetch` ile aynı. İçerideki çağrı no-store; ziyaretçi IP'si yalnız GERÇEK
+ * ıskalamada API'ye gider ve anahtara hiç girmez. 2xx dışı yanıt ATILIR →
+ * önbelleğe girmez (`fetch` önbelleği de yalnız 200 yazıyordu); yedek/hata kararı
+ * çağırana kalır. `fresh` (sahibin önizlemesi) önbelleği tamamen atlar.
+ */
+async function loadPublicJson<T>(
+  path: string,
+  opts: { revalidate?: number; tags?: string[]; fresh?: boolean; locale?: string },
+): Promise<T> {
+  const url = `${resolveApiBaseUrl()}${path}`;
+  const headers = await publicHeaders(opts.locale);
+  if (opts.fresh) return fetchPublicJson<T>(url, headers);
+  return unstable_cache(() => fetchPublicJson<T>(url, headers), ["pazar-yeri", url, headers["accept-language"]], {
+    revalidate: opts.revalidate,
+    tags: opts.tags,
+  })();
+}
+
 async function getJson<T>(
   path: string,
   fallback: T,
@@ -235,46 +281,40 @@ async function getJson<T>(
   /** ANA veri: kesintide çalışma anında hata at (bkz. `PublicApiUnavailableError`). */
   critical = false,
 ): Promise<T> {
-  const base = resolveApiBaseUrl();
-  if (!base) return fallback;
-  let res: Response;
+  if (!resolveApiBaseUrl()) return fallback;
   try {
-    res = await fetch(`${base}${path}`, {
-      ...(fresh ? { cache: "no-store" as const } : { next: { revalidate, tags } }),
-      headers: await publicHeaders(locale),
-    });
+    return await loadPublicJson<T>(path, { revalidate, tags, fresh, locale });
   } catch (err) {
+    if (err instanceof UpstreamHttpError) {
+      if (critical && upstreamDown(err.status)) unavailable(path, `HTTP ${err.status}`);
+      else if (err.status !== 404) console.error(`[pazar-yeri] ${path} → HTTP ${err.status}`);
+      return fallback;
+    }
     if (critical) unavailable(path, "ağ hatası", err);
     else console.error(`[pazar-yeri] ${path} çağrısı başarısız`, err);
     return fallback;
   }
-  if (!res.ok) {
-    if (critical && upstreamDown(res.status)) unavailable(path, `HTTP ${res.status}`);
-    else if (res.status !== 404) console.error(`[pazar-yeri] ${path} → HTTP ${res.status}`);
-    return fallback;
-  }
-  return (await res.json()) as T;
 }
 
 /**
  * Tekil kayıt çağrısı: 404/4xx → `null` (sayfa `notFound()`), kesinti → hata
  * (çalışma anında) — detay sayfası API kesintisinde 404'e dönmesin.
  */
-async function getDetail<T>(path: string, init: RequestInit & { next?: { revalidate: number; tags?: string[] } }): Promise<T | null> {
-  const base = resolveApiBaseUrl();
-  if (!base) return null;
-  let res: Response;
+async function getDetail<T>(
+  path: string,
+  opts: { revalidate?: number; tags?: string[]; fresh?: boolean },
+): Promise<T | null> {
+  if (!resolveApiBaseUrl()) return null;
   try {
-    res = await fetch(`${base}${path}`, init);
+    return await loadPublicJson<T>(path, opts);
   } catch (err) {
+    if (err instanceof UpstreamHttpError) {
+      if (upstreamDown(err.status)) unavailable(path, `HTTP ${err.status}`);
+      return null;
+    }
     unavailable(path, "ağ hatası", err);
     return null;
   }
-  if (!res.ok) {
-    if (upstreamDown(res.status)) unavailable(path, `HTTP ${res.status}`);
-    return null;
-  }
-  return (await res.json()) as T;
 }
 
 const EMPTY_PAGE: PublicListPage = {
@@ -327,8 +367,8 @@ export async function fetchListing(
   number: string,
 ): Promise<PublicListingDetail | null> {
   return getDetail<PublicListingDetail>(`/public/listings/${encodeURIComponent(number)}`, {
-    next: { revalidate: 120, tags: [SEO_TAGS.listing(number), SEO_TAGS.listings] },
-    headers: await publicHeaders(),
+    revalidate: 120,
+    tags: [SEO_TAGS.listing(number), SEO_TAGS.listings],
   });
 }
 
@@ -500,12 +540,7 @@ export async function fetchCompanyProfile(
       // etiketle tazeleme; tazeleme kanalı (API → /api/seo/revalidate) sır
       // tanımlı değilse hiç çalışmaz ve sahibi az önce yüklediği kapağı
       // göremez. `?onizleme=1` ile gelen istek veriyi doğrudan API'den çeker.
-      {
-        ...(opts.fresh
-          ? { cache: "no-store" as const }
-          : { next: { revalidate: 300, tags: [SEO_TAGS.company(slug), SEO_TAGS.companies] } }),
-        headers: await publicHeaders(),
-      },
+      { fresh: opts.fresh, revalidate: 300, tags: [SEO_TAGS.company(slug), SEO_TAGS.companies] },
   );
 }
 
@@ -1006,11 +1041,8 @@ export async function fetchProduct(
       {
         // `company:<slug>` de var: firma adı/şehri/logosu değişince satıcı
         // bloğu bayat kalmasın (API firma değişiminde bu etiketi vurur).
-        next: {
-          revalidate: 300,
-          tags: [SEO_TAGS.product(companySlug, productSlug), SEO_TAGS.company(companySlug), SEO_TAGS.products],
-        },
-        headers: await publicHeaders(),
+        revalidate: 300,
+        tags: [SEO_TAGS.product(companySlug, productSlug), SEO_TAGS.company(companySlug), SEO_TAGS.products],
       },
   );
 }
@@ -1053,8 +1085,7 @@ const EMPTY_BUCKET: SitemapBucket = { count: 0, lastmod: null };
  */
 export async function fetchGeoCity(slug: string): Promise<GeoCity | null> {
   return getDetail<GeoCity>(`/public/geo/cities/${encodeURIComponent(slug)}`, {
-    next: { revalidate: 86400 },
-    headers: await publicHeaders(),
+    revalidate: 86400,
   });
 }
 
