@@ -1,9 +1,10 @@
 import ExcelJS from "exceljs";
-import { ITEM_IMPORT_SHEET, matchImportColumn } from "@rothern/shared";
+import { ITEM_IMPORT_SHEET, itemImportColumnsFor, matchImportColumn } from "@rothern/shared";
 import {
   ListingItemImportService,
   parseLocaleNumber,
   parseImportDate,
+  parseWorksheet,
 } from "../../src/modules/company-listings/import/listing-item-import.service";
 import { runWithLocale } from "../../src/common/i18n/locale-context";
 
@@ -193,6 +194,48 @@ describe("round-trip: doldurulmuş şablon → parse", () => {
         listingType: "ALIM",
       }),
     ).rejects.toThrow(/Desteklenmeyen dosya/);
+  });
+});
+
+describe("seyrek satır (derin denetim 2026-09-29 Y-03)", () => {
+  // Başlık + 1 satır + çok uzaktaki TEK hücre: dosya birkaç KB; eski döngü
+  // 1..rowCount arasındaki HER satırı/hücreyi getRow/getCell ile OLUŞTURUYORDU
+  // (gerçek saldırıda r=1048576 → ~1M Row + milyonlarca Cell → OOM).
+  const FAR = 200_000;
+  async function sparseXlsx(): Promise<Buffer> {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet(ITEM_IMPORT_SHEET);
+    ws.addRow(["Kalem Adı", "Miktar", "Birim"]);
+    ws.addRow(["Boru", 10, "m"]);
+    ws.getCell(`A${FAR}`).value = "Uzak kalem";
+    ws.getCell(`B${FAR}`).value = 3;
+    ws.getCell(`C${FAR}`).value = "adet";
+    return Buffer.from((await wb.xlsx.writeBuffer()) as ArrayBuffer);
+  }
+
+  it("yalnız VAR OLAN satırlar gezilir; aradaki boş satırlar/hücreler yaratılmaz", async () => {
+    const buf = await sparseXlsx();
+    expect(buf.length).toBeLessThan(20 * 1024);
+    const wb = new ExcelJS.Workbook();
+    await wb.xlsx.load(buf as unknown as ArrayBuffer);
+    const ws = wb.getWorksheet(ITEM_IMPORT_SHEET)!;
+    expect(ws.rowCount).toBe(FAR); // rowCount = son satır NUMARASI
+
+    const res = parseWorksheet(ws, itemImportColumnsFor());
+    expect(res.rows.map((r) => r.rowNumber)).toEqual([2, FAR]);
+    expect(res.validCount).toBe(2);
+    expect(res.rows[1]!.item).toMatchObject({ name: "Uzak kalem", quantity: 3, unit: "adet" });
+    // Okuma çalışma sayfasını büyütmemeli: ara satırlar hâlâ yok.
+    expect(ws.findRow(3)).toBeUndefined();
+    expect(ws.findRow(FAR / 2)).toBeUndefined();
+    expect(ws.findRow(FAR - 1)).toBeUndefined();
+  });
+
+  it("servis yolu (parse) seyrek dosyayı aynı şekilde okur", async () => {
+    const b64 = (await sparseXlsx()).toString("base64");
+    const res = await svc.parse({ fileName: "seyrek.xlsx", mimeType: "x", dataBase64: b64, listingType: "ALIM" });
+    expect(res.rows.map((r) => r.rowNumber)).toEqual([2, FAR]);
+    expect(res.truncated).toBe(0);
   });
 });
 

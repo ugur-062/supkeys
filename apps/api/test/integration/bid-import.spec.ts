@@ -216,6 +216,28 @@ describe("teklif şablonu — doldur → parse (YAZMAZ)", () => {
     expect(res.matchedCount).toBe(0);
   });
 
+  it("seyrek satır (derin denetim Y-03): çok uzaktaki tek satır okunur, aradaki satırlar gezilmez/yaratılmaz", async () => {
+    const { bidder, listing, i3, svc } = await setup();
+    const { buffer } = await svc.buildTemplate(bidder.auth, listing.id);
+    const FAR = 200_000;
+    const b64 = await fill(buffer, (ws) => {
+      ws.getCell(FAR, 6).value = i3.id;
+      ws.getCell(FAR, 7).value = 7;
+    });
+    // getRow eksik satırı OLUŞTURUR; eski döngü 1..rowCount her satır için çağırıyordu.
+    const wsProto = Object.getPrototypeOf(new ExcelJS.Workbook().addWorksheet("p")) as ExcelJS.Worksheet;
+    const spy = jest.spyOn(wsProto, "getRow");
+    try {
+      const res = await svc.parseTemplate(bidder.auth, listing.id, { fileName: "t.xlsx", mimeType: "x", dataBase64: b64 });
+      const by = Object.fromEntries(res.matches.map((m) => [m.itemId, m]));
+      expect(by[i3.id]).toMatchObject({ unitPrice: 7, confidence: "exact", errors: [] });
+      expect(by[i3.id]!.source).toContain(String(FAR));
+      expect(spy.mock.calls.length).toBeLessThan(50);
+    } finally {
+      spy.mockRestore();
+    }
+  });
+
   it("şablon olmayan dosya (ItemId sütunu yok) reddedilir", async () => {
     const { bidder, listing, svc } = await setup();
     const wb = new ExcelJS.Workbook();

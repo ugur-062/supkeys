@@ -14,6 +14,7 @@ import { Bell } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
+import { notificationHref } from "@/i18n/href";
 import { useState } from "react";
 
 /** Panel rozeti — birleşik listede bildirim hangi şapkayla ilgili? Etiket katalog anahtarı (`web.panel.inbox.bildirimlerPage.*`). */
@@ -63,8 +64,7 @@ export default function BildirimlerPage() {
   const open = (n: AppNotification) => {
     if (!n.readAt) markRead.mutate([n.id]);
     if (n.ctaUrl) {
-      const path = n.ctaUrl.replace(/^https?:\/\/[^/]+/, "");
-      router.push(path || "/company");
+      router.push(notificationHref(n.ctaUrl, "/company"));
     }
   };
 

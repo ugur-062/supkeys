@@ -77,6 +77,32 @@ describe("NotificationBell", () => {
     expect(h.push).toHaveBeenCalledWith("/company/satis/acik-talepler");
   });
 
+  it.each([
+    ["en", "https://www.rothern.com/en/company/request/abc"],
+    ["ru", "https://www.rothern.com/ru/kompaniya/zayavka/abc"],
+  ])("%s dilinde saklı CTA İÇ yola indirilir — çift dil ön eki (404) yok (Y-13)", async (_l, ctaUrl) => {
+    const user = userEvent.setup();
+    h.unread = 1;
+    h.items = [
+      {
+        id: "n2",
+        type: "bid_received",
+        title: "New quote received",
+        body: "body",
+        ctaUrl,
+        ctaLabel: null,
+        listingId: "abc",
+        readAt: null,
+        createdAt: new Date().toISOString(),
+      },
+    ];
+    render(<NotificationBell />);
+    await user.click(screen.getByRole("button", { name: /Bildirimler/ }));
+    await user.click(await screen.findByText("New quote received"));
+    // Router İÇ yol bekler; dil ön ekini next-intl kendisi ekler.
+    expect(h.push).toHaveBeenCalledWith("/company/ilan/abc");
+  });
+
   it("boşken 'bildiriminiz yok' mesajı", async () => {
     const user = userEvent.setup();
     render(<NotificationBell />);

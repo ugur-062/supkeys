@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { ReactElement } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -134,6 +135,19 @@ describe("LiveToasts", () => {
       id: "live-notif-yeni",
       position: "bottom-right",
     });
+  });
+
+  it("EN dilinde saklı CTA'lı karta tıklama İÇ yola gider — çift dil ön eki (404) yok (Y-13)", async () => {
+    await renderSeeded();
+    h.notifs = [
+      { ...notif("en1"), ctaUrl: "https://www.rothern.com/en/company/request/abc" },
+    ];
+    h.handlers["notification.new"]();
+    await waitFor(() => expect(h.toastCustom).toHaveBeenCalledTimes(1));
+    const renderCard = h.toastCustom.mock.calls[0][0] as (id: string) => ReactElement;
+    render(renderCard("t1"));
+    fireEvent.click(screen.getByText("Bildirim en1"));
+    expect(h.push).toHaveBeenCalledWith("/company/ilan/abc");
   });
 
   it("okunmuş veya daha önce görülen bildirim yeniden toast'lanmaz", async () => {

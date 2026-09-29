@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { localizePath, localizedAlternates, splitLocale, stripLocale } from "../href";
+import { localizePath, localizedAlternates, notificationHref, splitLocale, stripLocale } from "../href";
 
 describe("href — yol parçaları dile göre (2026-09-24)", () => {
   it("localizePath: iç yol → ön ekli dış yol; Türkçe ön eksiz ve değişmez", () => {
@@ -20,6 +20,15 @@ describe("href — yol parçaları dile göre (2026-09-24)", () => {
     expect(splitLocale("/en")).toEqual({ locale: "en", path: "/" });
     expect(stripLocale("/en/companies/acme")).toBe("/firma/acme");
     expect(stripLocale("/company/mesajlar")).toBe("/company/mesajlar");
+  });
+
+  it("notificationHref: alıcı dilinde saklı mutlak CTA → İÇ yol (derin denetim Y-13, çift ön ek 404'ü)", () => {
+    expect(notificationHref("https://www.rothern.com/en/company/request/abc", "/company")).toBe("/company/ilan/abc");
+    expect(notificationHref("https://www.rothern.com/ru/kompaniya/zayavka/abc/predlozhenie", "/company")).toBe("/company/ilan/abc/teklif-ver");
+    expect(notificationHref("https://www.rothern.com/company/ilan/abc?tab=bids", "/company")).toBe("/company/ilan/abc?tab=bids");
+    expect(notificationHref("/en/company/request/abc", "/company")).toBe("/company/ilan/abc");
+    expect(notificationHref("https://www.rothern.com", "/company")).toBe("/company");
+    expect(notificationHref(null, "/company/bildirimler")).toBe("/company/bildirimler");
   });
 
   it("localizedAlternates: hreflang her dilin kendi dış adresi, x-default Türkçe", () => {

@@ -18,6 +18,7 @@ import {
 import { Bell } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
+import { notificationHref } from "@/i18n/href";
 
 
 /** Panel rozeti — birleşik kutuda bildirim hangi şapkayla ilgili? */
@@ -51,8 +52,7 @@ function BellPanelContent({
   const onItemClick = (n: AppNotification) => {
     if (!n.readAt) markRead.mutate([n.id]);
     if (n.ctaUrl) {
-      const path = n.ctaUrl.replace(/^https?:\/\/[^/]+/, "");
-      router.push(path || "/company");
+      router.push(notificationHref(n.ctaUrl, "/company"));
     }
   };
 

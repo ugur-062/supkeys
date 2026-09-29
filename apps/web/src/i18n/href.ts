@@ -36,6 +36,19 @@ export function stripLocale(pathname: string): string {
 }
 
 /**
+ * Bildirim CTA'sı → `@/i18n/navigation` router'ının beklediği İÇ yol.
+ * API `ctaUrl`'i ALICININ dilinde mutlak + ön ekli DIŞ adres olarak saklar
+ * (`https://…/en/company/request/abc`); yalnız kökeni kırpıp push etmek
+ * next-intl'in ön eki bir kez daha eklemesine yol açıyordu (`/en/en/…` → 404,
+ * derin denetim Y-13). Köken kırpılır, dil ön eki + çevrili parçalar İÇ yola
+ * indirilir; boşsa `fallback`.
+ */
+export function notificationHref(ctaUrl: string | null | undefined, fallback: string): string {
+  const path = (ctaUrl ?? "").replace(/^https?:\/\/[^/?#]+/, "");
+  return path ? stripLocale(path) : fallback;
+}
+
+/**
  * hreflang haritası: her HAZIR dilin DIŞ adresi + `x-default`. Giriş İÇ yol.
  * `x-default` hazır İLK dile (LOCALES sırası: tr → en → ru) — çevirisi
  * gelmemiş/Türkçe olmayan kaynaklı içerikte olmayan (noindex) Türkçe sayfaya

@@ -385,7 +385,8 @@ export function locateHeader(
   let best: { headerRow: number; map: Map<number, ItemImportColumnKey> } | null = null;
   const limit = Math.min(ws.rowCount, 15);
   for (let r = 1; r <= limit; r++) {
-    const row = ws.getRow(r);
+    const row = ws.findRow(r); // getRow eksik satırı OLUŞTURUR — okurken findRow
+    if (!row) continue;
     const map = new Map<number, ItemImportColumnKey>();
     row.eachCell({ includeEmpty: false }, (cell, col) => {
       const key = matchImportColumn(cellText(cell.value));
@@ -411,22 +412,27 @@ export function parseWorksheet(
   const rows: ItemImportRow[] = [];
   let truncated = 0;
 
-  for (let r = headerRow + 1; r <= ws.rowCount; r++) {
-    const row = ws.getRow(r);
+  // Yalnız VAR OLAN satırlar gezilir (derin denetim 2026-09-29 Y-03):
+  // `ws.rowCount` son satırın NUMARASIDIR; `<row r="1048576">` taşıyan 10 KB'lık
+  // bir xlsx'te `getRow`/`getCell` döngüsü ~1M Row + milyonlarca Cell nesnesi
+  // OLUŞTURUP süreci OOM'a sokuyordu. eachRow seyrek diziyi atlar, findCell
+  // eksik hücreyi yaratmaz.
+  ws.eachRow({ includeEmpty: false }, (row, r) => {
+    if (r <= headerRow) return;
     const raw: Partial<Record<ItemImportColumnKey, unknown>> = {};
     let any = false;
     for (const [col, key] of map) {
-      const v = cellText(row.getCell(col).value);
+      const v = cellText(row.findCell(col)?.value ?? null);
       if (v != null && String(v).trim() !== "") any = true;
       raw[key] = v;
     }
-    if (!any) continue; // boş satır
+    if (!any) return; // boş satır
     if (rows.length >= ITEM_IMPORT_MAX_ROWS) {
       truncated++;
-      continue;
+      return;
     }
     rows.push(validateRow(r, raw, allowed));
-  }
+  });
 
   const validCount = rows.filter((x) => x.errors.length === 0).length;
   return {

@@ -3,6 +3,7 @@ import * as zlib from "node:zlib";
 import {
   assertZipWithinLimits,
   inspectZip,
+  XLSX_LIMITS,
   ZipInspectError,
 } from "../../src/common/files/zip-inspect";
 import { assertXlsxSafe } from "../../src/modules/company-listings/import/listing-item-import.service";
@@ -115,5 +116,87 @@ describe("inspectZip / assertZipWithinLimits", () => {
     const zip64 = buildZip([{ name: "a", data: small, fakeUncompressed: 0xffffffff }]);
     expect(() => inspectZip(zip64)).toThrow(/ZIP64/);
     expect(() => inspectZip(Buffer.from("PK\x03\x04 bozuk"))).toThrow(/bulunamadı|bozuk/);
+  });
+});
+
+/** EOCD alanlarını yerinde değiştirir (yorumsuz zip: EOCD son 22 bayt). */
+function patchEocd(zip: Buffer, patch: { entries?: number; cenOffset?: number }): Buffer {
+  const out = Buffer.from(zip);
+  const eocd = out.length - 22;
+  if (patch.entries != null) {
+    out.writeUInt16LE(patch.entries, eocd + 8);
+    out.writeUInt16LE(patch.entries, eocd + 10);
+  }
+  if (patch.cenOffset != null) out.writeUInt32LE(patch.cenOffset, eocd + 16);
+  return out;
+}
+
+describe("beyana güvenilmez — gerçek açılım (derin denetim 2026-09-29 Y-02)", () => {
+  it("CEN'de küçük beyan, gerçekte tavan üstü açılan giriş: GERÇEK açılımla reddedilir (ExcelJS'e ulaşmaz)", () => {
+    // 45 MB sıfır ~45 KB'a sıkışır; CEN/yerel başlık "1024 bayt" diye yalan söyler.
+    const bomb = buildZip([
+      { name: "xl/worksheets/sheet1.xml", data: Buffer.alloc(45 * 1024 * 1024, 0), fakeUncompressed: 1024 },
+    ]);
+    expect(bomb.length).toBeLessThan(200 * 1024);
+    // Beyan tavanın altında görünür — eski kapı buna güveniyordu.
+    expect(inspectZip(bomb).uncompressedBytes).toBe(1024);
+    expect(() => assertZipWithinLimits(bomb)).toThrow(/Tek giriş.*gerçek açılım/);
+    expect(() => assertXlsxSafe(bomb)).toThrow(/çok büyük/);
+  });
+
+  it("girişler tek tek tavan altında ama gerçek TOPLAM tavanı aşıyor → açma bütçe sınırında kesilir", () => {
+    // 25 MB dürüst + 38 MB (< 40 MB tek giriş tavanı) "10 bayt" yalanı: beyan
+    // toplamı ~25 MB görünür; gerçek toplam 63 MB > 60 MB.
+    const zip = buildZip([
+      { name: "xl/worksheets/sheet1.xml", data: Buffer.alloc(25 * 1024 * 1024, 0) },
+      { name: "xl/worksheets/sheet2.xml", data: Buffer.alloc(38 * 1024 * 1024, 0), fakeUncompressed: 10 },
+    ]);
+    expect(inspectZip(zip).uncompressedBytes).toBeLessThan(XLSX_LIMITS.maxUncompressedBytes);
+    let err: unknown;
+    try {
+      assertZipWithinLimits(zip);
+    } catch (e) {
+      err = e;
+    }
+    expect(err).toBeInstanceOf(ZipInspectError);
+    expect((err as ZipInspectError).reason).toBe("size");
+  });
+
+  it("beyan ≠ gerçek boyut (tavan altında da olsa) → bozuk sayılır", () => {
+    const zip = buildZip([{ name: "a.xml", data: Buffer.from("x".repeat(500)), fakeUncompressed: 100 }]);
+    expect(() => assertZipWithinLimits(zip)).toThrow(/beyan edilen boyutla uyuşmuyor/);
+    expect(() => assertXlsxSafe(zip)).toThrow(/okunamadı/);
+  });
+
+  it("EOCD giriş sayısı 0 yazılmış ama CEN kaydı var → bozuk (JSZip sayıya bakmadan okurdu)", () => {
+    const zip = patchEocd(
+      buildZip([{ name: "xl/worksheets/sheet1.xml", data: Buffer.alloc(1024 * 1024, 0) }]),
+      { entries: 0 },
+    );
+    expect(() => inspectZip(zip)).toThrow(ZipInspectError);
+    expect(() => inspectZip(zip)).toThrow(/tutarsız/);
+  });
+
+  it("CEN EOCD'nin hemen önünde bitmiyor (kaydırılmış ofset / başa eklenmiş bayt) → bozuk", () => {
+    const zip = buildZip([{ name: "a.xml", data: Buffer.from("merhaba") }]);
+    const eocd = zip.length - 22;
+    const cenOffset = zip.readUInt32LE(eocd + 16);
+    expect(() => inspectZip(patchEocd(zip, { cenOffset: cenOffset - 1 }))).toThrow(/bozuk/);
+    const prefixed = Buffer.concat([Buffer.alloc(16, 0x20), zip]);
+    expect(() => inspectZip(prefixed)).toThrow(/bozuk/);
+  });
+
+  it("gerçek xlsx gerçek açılımla da geçer; dönen boyutlar GERÇEK boyutlardır", async () => {
+    const wb = new ExcelJS.Workbook();
+    const ws = wb.addWorksheet("Kalemler");
+    for (let i = 0; i < 200; i++) ws.addRow([`Kalem ${i}`, i, "adet", "açıklama ğüşıöç"]);
+    const buf = Buffer.from((await wb.xlsx.writeBuffer()) as ArrayBuffer);
+    const declared = inspectZip(buf);
+    const real = assertZipWithinLimits(buf);
+    expect(real.entries).toBe(declared.entries);
+    expect(real.uncompressedBytes).toBe(declared.uncompressedBytes);
+    const back = new ExcelJS.Workbook();
+    await back.xlsx.load(buf as unknown as ArrayBuffer);
+    expect(back.getWorksheet("Kalemler")!.actualRowCount).toBe(200);
   });
 });

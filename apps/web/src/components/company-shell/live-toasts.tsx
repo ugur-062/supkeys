@@ -2,7 +2,7 @@
 
 import { useNavLabel } from "@/i18n/domain";
 import { useTranslations } from "next-intl";
-import { stripLocale } from "@/i18n/href";
+import { notificationHref, stripLocale } from "@/i18n/href";
 
 import type { AppNotification } from "@/hooks/use-notifications";
 import type { ThreadSummary } from "@/hooks/use-company-messages";
@@ -59,10 +59,9 @@ function storeFor(userId: string): SeenStore {
   return store;
 }
 
-/** ctaUrl mutlak gelebilir — path'e indir (zil ile aynı davranış). */
+/** ctaUrl mutlak + dil ön ekli gelebilir — İÇ yola indir (zil ile aynı davranış). */
 function toPath(ctaUrl: string | null): string {
-  const path = (ctaUrl ?? "").replace(/^https?:\/\/[^/]+/, "");
-  return path || "/company/bildirimler";
+  return notificationHref(ctaUrl, "/company/bildirimler");
 }
 
 /** Kullanıcı şu an bu konuşmanın içinde mi? (birleşik kutu:

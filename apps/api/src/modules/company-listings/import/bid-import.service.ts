@@ -252,7 +252,7 @@ export class BidImportService {
     let map = new Map<number, BidImportColumnKey>();
     for (let r = 1; r <= Math.min(ws.rowCount, 10); r++) {
       const m = new Map<number, BidImportColumnKey>();
-      ws.getRow(r).eachCell({ includeEmpty: false }, (cell, col) => {
+      ws.findRow(r)?.eachCell({ includeEmpty: false }, (cell, col) => {
         const k = matchBidImportColumn(cellText(cell.value));
         if (k && ![...m.values()].includes(k)) m.set(col, k);
       });
@@ -274,11 +274,17 @@ export class BidImportService {
     const notices: string[] = [];
     let unknownRows = 0;
 
-    for (let r = headerRow + 1; r <= ws.rowCount; r++) {
-      const row = ws.getRow(r);
+    // Yalnız VAR OLAN satırlar (derin denetim 2026-09-29 Y-03): `ws.rowCount`
+    // son satırın NUMARASI; seyrek `<row r="1048576">` ile getRow/getCell
+    // döngüsü milyonlarca Row/Cell nesnesi OLUŞTURUP OOM'a yol açıyordu.
+    const dataRows: { row: ExcelJS.Row; r: number }[] = [];
+    ws.eachRow({ includeEmpty: false }, (row, r) => {
+      if (r > headerRow) dataRows.push({ row, r });
+    });
+    for (const { row, r } of dataRows) {
       const get = (k: BidImportColumnKey) => {
         const c = colOf(k);
-        return c ? cellText(row.getCell(c).value) : null;
+        return c ? cellText(row.findCell(c)?.value ?? null) : null;
       };
       const itemId = String(get("itemId") ?? "").trim();
       const priceRaw = get("unitPrice");
