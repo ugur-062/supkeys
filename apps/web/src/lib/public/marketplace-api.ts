@@ -171,8 +171,9 @@ async function publicHeaders(explicit?: string): Promise<Record<string, string>>
       /* rota işleyicisi / istek dışı */
     }
   }
-  // Web sunucusu → API hız sınırı muafiyeti (yalnız GET /public/*; API
-  // `isTrustedSsrRequest`). Sır sunucu env'inde — istemci paketine girmez
+  // Web sunucusu → API: IP kovası yerine ortak, sonlu SSR kovası (yalnız GET
+  // /public/*; API `isTrustedSsrRequest`, derin denetim MU-12). API günlüğü bu
+  // başlığı yazmaz (izinli başlık listesi). Sır sunucu env'inde — istemci paketine girmez
   // (NEXT_PUBLIC değil; bu modül istemcide yalnız tip olarak içe aktarılır).
   const ssrKey = process.env.SEO_REVALIDATE_SECRET;
   return {

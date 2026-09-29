@@ -9,7 +9,7 @@ import { ScheduleModule } from "@nestjs/schedule";
 import { ThrottlerModule } from "@nestjs/throttler";
 import { throttleMessage } from "./common/http/throttle-message";
 import { ClientIpThrottlerGuard } from "./common/http/client-ip-throttler.guard";
-import { maskSensitiveQuery, maskSensitiveUrl } from "./common/logging/mask-sensitive-url";
+import { serializeRequestForLog } from "./common/logging/request-log-serializer";
 import { LoggerModule } from "nestjs-pino";
 import { AuthCookieInterceptor } from "./common/auth/auth-cookie.interceptor";
 import { CsrfGuard } from "./common/auth/csrf.guard";
@@ -98,19 +98,22 @@ import { SupabaseAuthModule } from "./modules/supabase-auth/supabase-auth.module
             : undefined,
         // Denetim 2026-08-23 #6: path/query'de taşınan davet/referral/sıfırlama
         // token'ları access-log'a düşmesin — url maskelenir (saf fonksiyon).
+        // Derin denetim MU-12: başlıklar izinli listeyle yazılır — x-rothern-ssr
+        // (SEO_REVALIDATE_SECRET) her SSR satırına düz metin düşüyordu.
         serializers: {
-          req: (req: Record<string, unknown>) => ({
-            ...req,
-            url: maskSensitiveUrl(req.url as string | undefined),
-            // Serileştirici `query`yi de yazar (yayın denetimi 2026-09-28 Bölüm 5).
-            ...("query" in req ? { query: maskSensitiveQuery(req.query) } : {}),
-          }),
+          req: serializeRequestForLog,
         },
         redact: {
           paths: [
             "req.headers.authorization",
             "req.headers.cookie",
             "req.headers[\"cf-connecting-ip\"]",
+            'req.headers["x-rothern-ssr"]',
+            'req.headers["x-csrf-token"]',
+            'req.headers["svix-signature"]',
+            'req.headers["x-forwarded-for"]',
+            'req.headers["true-client-ip"]',
+            'req.headers["x-real-ip"]',
             'res.headers["set-cookie"]',
             "req.body.password",
             "req.body.currentPassword",
