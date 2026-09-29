@@ -25,6 +25,15 @@ vi.mock("@/hooks/use-company-addresses", () => ({
   useDeleteAddress: () => ({ mutateAsync: h.del, isPending: false }),
 }));
 
+// Ülke seçici: gerçek combobox yerine ülkeyi doğrudan değiştiren düğme.
+vi.mock("@/components/ui/country-combobox", () => ({
+  CountryCombobox: ({ onChange }: { onChange: (c: string) => void }) => (
+    <button type="button" onClick={() => onChange("DE")}>
+      set-country-DE
+    </button>
+  ),
+}));
+
 import { AddressBookSection } from "../address-book-section";
 
 function addr(over: Record<string, unknown> = {}) {
@@ -122,6 +131,21 @@ describe("AddressBookSection", () => {
     await user.click(screen.getByRole("button", { name: "Düzenle" }));
     expect(await screen.findByText("Adresi Düzenle")).toBeInTheDocument();
     expect(screen.getByLabelText("Başlık")).toHaveValue("Merkez Depo");
+  });
+
+  it("TR adresi yabancı ülkeye geçince gizlenen İlçe değeri temizlenir (kayda sızmaz)", async () => {
+    const user = userEvent.setup();
+    h.addresses = [addr({ district: "Kadıköy" })];
+    h.save.mockResolvedValue({});
+    render(<AddressBookSection canManage />);
+    await user.click(screen.getByRole("button", { name: "Düzenle" }));
+    await screen.findByText("Adresi Düzenle");
+    await user.click(screen.getByRole("button", { name: "set-country-DE" }));
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.save).toHaveBeenCalledTimes(1);
+    const payload = h.save.mock.calls[0][0];
+    expect(payload.country).toBe("DE");
+    expect(payload.district).toBe("");
   });
 
   it("sil: onay verilince useDeleteAddress çağrılır", async () => {

@@ -7284,10 +7284,20 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "api.validation.mustBeInteger": {
+    "hash": "1908448cfa",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.validation.mustBeNumber": {
     "hash": "b30cd0bfc8",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "api.validation.mustBePositive": {
+    "hash": "7f489da345",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "api.validation.mustBeString": {
     "hash": "d3ab4e2abe",
@@ -17619,6 +17629,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.company.firmaIdPage.baglantiIcinSilver": {
+    "hash": "5c4df70620",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.company.firmaIdPage.baglantiIstegiGonder": {
     "hash": "296b991930",
     "status": "reviewed",
@@ -20939,6 +20954,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.auctionLiveCard.teklifAlimiKapandi": {
+    "hash": "880eb89204",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.requests.auctionLiveCard.teklifiniz": {
     "hash": "42d0a70180",
     "status": "reviewed",
@@ -22750,9 +22770,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.myBidStatusPanel.buSatinAlmaTalebineTeklif": {
-    "hash": "bca78307d7",
+    "hash": "a56dfbafe5",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.requests.myBidStatusPanel.buSureYetmiyorSonGecerlilik": {
     "hash": "96b141efa2",
@@ -22875,24 +22895,24 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.myBidStatusPanel.satinAlmaTalebiHalaAcik": {
-    "hash": "11b34b56b1",
+    "hash": "b54a67124b",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.requests.myBidStatusPanel.satinAlmaTalebiIlanSahibi": {
-    "hash": "0af24bba6f",
+    "hash": "f798591f86",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-29"
   },
   "web.panel.requests.myBidStatusPanel.satinAlmaTalebiKapandiTaslak": {
-    "hash": "724f1ee1a0",
+    "hash": "fdbfe034dc",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.requests.myBidStatusPanel.satinAlmaTalebiSonuclandiTeklifiniz": {
-    "hash": "c069a21ff0",
+    "hash": "48a32f8b3d",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-29"
   },
   "web.panel.requests.myBidStatusPanel.satirToplami": {
     "hash": "7a0029b84a",
@@ -27949,6 +27969,26 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.ayarlarAktivitePage.reason.missing_permission": {
+    "hash": "c35ebeb651",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.settings.ayarlarAktivitePage.reason.not_admin": {
+    "hash": "aa7361ea4a",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.settings.ayarlarAktivitePage.reason.not_admin_grant": {
+    "hash": "79267ddb54",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.settings.ayarlarAktivitePage.reason.not_creator": {
+    "hash": "9fdc3f0871",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.settings.ayarlarAktivitePage.sayfaKayit": {
     "hash": "e67e2f5984",
     "status": "reviewed",
@@ -29283,6 +29323,11 @@
     "hash": "100160161a",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.settings.companyUsersSection.kurucununYetkileriniYalnizKurucuDuzenler": {
+    "hash": "35f65b1e3c",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.settings.companyUsersSection.ozel": {
     "hash": "4aaa9f3d32",

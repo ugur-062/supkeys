@@ -246,6 +246,21 @@ describe("CompanyUsersSection", () => {
     expect(boxes.every((b) => (b as HTMLInputElement).disabled || b.getAttribute("aria-disabled") === "true")).toBe(true);
   });
 
+  it("Kurucu olmayan yönetici Kurucunun yetki tablosunu düzenleyemez (backend setPermissions aynası, derin denetim LU-20)", async () => {
+    h.users = [
+      user({ id: "owner", email: "sahip@firma.com", firstName: "Umut", isOwner: true, roles: ["SAHIP"], permissions: ["sell:bid:submit"] }),
+      user({ id: "yon", email: "yon@firma.com", firstName: "Yön", roles: ["YONETICI"], permissions: ["users:manage"] }),
+    ];
+    const u = userEvent.setup();
+    render(<CompanyUsersSection canManage meId="yon" />);
+    const menus = screen.getAllByRole("button", { name: "Aksiyonlar" });
+    await u.click(menus[0]);
+    await u.click(await screen.findByText("Düzenle"));
+    expect(await screen.findByText("Kurucunun yetkilerini yalnız Kurucu düzenleyebilir.")).toBeInTheDocument();
+    const boxes = screen.getAllByRole("checkbox");
+    expect(boxes.every((b) => (b as HTMLInputElement).disabled || b.getAttribute("aria-disabled") === "true")).toBe(true);
+  });
+
   it("bekleyen davetler render edilir (canManage)", () => {
     h.invitations = [
       {

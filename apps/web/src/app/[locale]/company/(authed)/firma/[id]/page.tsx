@@ -2,7 +2,9 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { ScopeChip } from "@/components/tenders/scope-chip";
-import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { tierAtLeast } from "@rothern/shared";
+import { PRICING_HREF } from "@/components/company/silver-lock-card";
 import { usePortalStore } from "@/lib/company/portal-store";
 import { useRouter } from "@/i18n/navigation";
 import { formatDate } from "@/lib/format-date";
@@ -64,6 +66,11 @@ export default function CompanyProfilePage() {
   const lastPortal = usePortalStore((st) => st.lastPortal);
   // Bağlantı/engelleme/şikayet = "Bağlantılar" yetkisi (API aynası; Bağlantılar sayfasıyla aynı kural).
   const canManageConn = useHasCompanyPermission("connections:manage");
+  // Bağlantı daveti Silver+ (API invite aynası; connections-view `isPaid` ile
+  // aynı kural) — ücretsiz pakette düğme yerine Paketler'e giden kilitli CTA.
+  const { company: myCompany } = useCompanyAuth();
+  const isPaid = tierAtLeast(myCompany?.tier ?? "STANDART", "SILVER");
+  const router = useRouter();
 
   if (isLoading) {
     return (
@@ -107,6 +114,10 @@ export default function CompanyProfilePage() {
       });
       toast.success(t("firmaEngellendi"));
       setBlockOpen(false);
+      // Engellenen firmanın profili artık 404 döner; react-query hata alan
+      // yeniden çekimde eski veriyi koruduğu için sayfa profil + eylemlerle
+      // kalıyordu → Bağlantılar'a çık.
+      router.replace(connectionsPathFor(lastPortal));
     } catch (err) {
       toast.error(extractErrorMessage(err, t("engellenemedi")));
     }
@@ -154,11 +165,18 @@ export default function CompanyProfilePage() {
           {t("sizeIstekGonderdiYanitla")}
         </Button>
       ) : connectionStatus === "none" && canManageConn ? (
-        /* MAVİ: bu sayfaya satınalma pazarından geliniyor ve orada birincil
-           eylem rengi mavi (kullanıcı kuralı: satınalmada siyah yok). */
-        <Button color="blue" onClick={handleConnect} disabled={invite.isPending}>
-          {t("baglantiIstegiGonder")}
-        </Button>
+        isPaid ? (
+          /* MAVİ: bu sayfaya satınalma pazarından geliniyor ve orada birincil
+             eylem rengi mavi (kullanıcı kuralı: satınalmada siyah yok). */
+          <Button color="blue" onClick={handleConnect} disabled={invite.isPending}>
+            {t("baglantiIstegiGonder")}
+          </Button>
+        ) : (
+          <Button outline href={PRICING_HREF}>
+            <Lock data-slot="icon" />
+            {t("baglantiIcinSilver")}
+          </Button>
+        )
       ) : null}
 
       {connectionStatus !== "self" && canManageConn ? (
@@ -337,7 +355,8 @@ export default function CompanyProfilePage() {
                 },
               ],
               action:
-                activePortal === "satis" && state === "open"
+                // Kendi profilinde kendi talebine teklif verilmez.
+                activePortal === "satis" && state === "open" && connectionStatus !== "self"
                   ? { label: t("teklifVer"), href }
                   : null,
             };

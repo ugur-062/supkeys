@@ -278,7 +278,7 @@ function AddressDialog({
             <CountryCombobox
               value={f.country}
               ariaLabel={t("ulke")}
-              onChange={(country) => set(country === "TR" ? { country, stateRegion: "", city: "", cityId: null } : { country, taxOffice: "", city: "", cityId: null })}
+              onChange={(country) => set(country === "TR" ? { country, stateRegion: "", city: "", cityId: null } : { country, taxOffice: "", district: "", city: "", cityId: null })}
             />
           </Field>
           <Field>

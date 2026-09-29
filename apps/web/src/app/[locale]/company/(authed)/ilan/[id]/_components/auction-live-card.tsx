@@ -111,7 +111,11 @@ export function AuctionLiveCard({
     bidderCurrency ?? l.myBid?.currency ?? l.primaryCurrency ?? "TRY";
   const rates = l.english?.rateSnapshot ?? null;
   // Turda tek aktif gönderim hakkı (taşınan teklif yakmaz) — sunucudan.
-  const canBidThisRound = l.nextBidConstraint?.canBidThisRound ?? true;
+  // Sunucu kısıtı yalnız OPEN + teklif izni varken doldurur; null = bu
+  // izleyici için tur hakkı YOK (kapanmış talep / izinsiz üye) — "hakkın
+  // var" sayılmaz.
+  const roundConstraint = l.nextBidConstraint ?? null;
+  const canBidThisRound = roundConstraint?.canBidThisRound ?? false;
 
   // Kısmi teklif (kalemli ilanda tüm kalemler fiyatlanmadı): toplamı
   // diğerleriyle kıyaslanamaz — sunucu sıralamaya almaz; "Gizli" yerine
@@ -184,14 +188,20 @@ export function AuctionLiveCard({
         />
         <Tile
           label={tr("turHakkin")}
-          value={canBidThisRound ? tr("birTeklif") : tr("kullanildi")}
-          sub={
-            canBidThisRound
-              ? tr("oncekindenDusukOlmali")
-              : // Yeni tur garanti değil — söz vermeden anlat.
-                tr("buTurdakiTeklifinizKesinAlici")
+          value={
+            !roundConstraint ? "—" : canBidThisRound ? tr("birTeklif") : tr("kullanildi")
           }
-          highlight={!canBidThisRound}
+          sub={
+            !roundConstraint
+              ? l.status !== "OPEN"
+                ? tr("teklifAlimiKapandi")
+                : undefined
+              : canBidThisRound
+                ? tr("oncekindenDusukOlmali")
+                : // Yeni tur garanti değil — söz vermeden anlat.
+                  tr("buTurdakiTeklifinizKesinAlici")
+          }
+          highlight={!!roundConstraint && !canBidThisRound}
         />
       </div>
 

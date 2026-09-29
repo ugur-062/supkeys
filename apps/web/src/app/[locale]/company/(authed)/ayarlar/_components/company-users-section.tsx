@@ -573,7 +573,12 @@ function EditUserModal({
     perms.length !== initialPerms.length ||
     perms.some((k) => !initialPerms.includes(k));
   // Kendi yetkisini düzenleyemez — Kurucu hariç (o yalnız işlem tiklerini).
-  const permsLocked = isSelf && !user.isOwner;
+  const selfLocked = isSelf && !user.isOwner;
+  // Kurucunun işlem tiklerini yalnız Kurucu düzenler (backend setPermissions
+  // `targetIsOwner && !actor.isOwner` → 400 aynası). Kilitsiz kalsaydı bilgi
+  // güncellemesi kaydedilip yetki isteği reddedilir, yarım kayıt oluşurdu.
+  const ownerLocked = user.isOwner && !viewerIsOwner;
+  const permsLocked = selfLocked || ownerLocked;
   const [touched, setTouched] = useState(false);
   const infoChanged =
     firstName.trim() !== user.firstName ||
@@ -678,9 +683,13 @@ function EditUserModal({
         <div>
           <div className="flex items-baseline justify-between gap-2">
             <p className="text-sm font-semibold text-zinc-900">{t("yetkiler")}</p>
-            {permsLocked ? (
+            {selfLocked ? (
               <p className="text-xs text-zinc-500">
                 {t("kendiYetkileriniziDuzenleyemezsinizKurucuVey")}
+              </p>
+            ) : ownerLocked ? (
+              <p className="text-xs text-zinc-500">
+                {t("kurucununYetkileriniYalnizKurucuDuzenler")}
               </p>
             ) : seatsFull ? (
               <p className="text-xs text-amber-700">

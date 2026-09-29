@@ -27,6 +27,7 @@ import {
   type ListingDetail,
 } from "@/hooks/use-company-listings";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { userHasPermission } from "@/lib/company/permissions";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDateTime } from "@/lib/tenders/date";
 import { cn } from "@/lib/utils";
@@ -112,16 +113,19 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
       : null;
   // Uzatma backend'le aynı pencerede serbest: OPEN (kapanış geçmemişse) +
   // değerlendirme aşamaları — alıcı karar veremezken teklifin dolmaması
-  // tam da bu akışın amacı (extendBidValidity ile birebir). Rol kapısı da
-  // birebir: teklif-yanı op-rol şart (Satışçı); SAHIP muafiyeti yok — Kurucu
-  // talepte salt-gözlemci.
+  // tam da bu akışın amacı (extendBidValidity aynası). CLOSED = yönetici
+  // moderasyonu: backend 400 ile reddeder, düğme çizilmez. İzin kapısı da
+  // birebir: `sell:bid:submit` (BIDDER_PERMISSION) — SATISCI etiketi her
+  // satış işlem izninden türer (yalnız ürün yönetimi olan üye de taşır),
+  // kapı olarak kullanılamaz. SAHIP muafiyeti yok — Kurucu talepte
+  // salt-gözlemci.
   const canExtend =
-    (user?.roles ?? []).includes("SATISCI") &&
+    userHasPermission(user, "sell:bid:submit") &&
     validUntil != null &&
     (bid.status === "SUBMITTED" || bid.status === "DRAFT") &&
     (l.status === "OPEN"
       ? !l.closesAt || new Date(l.closesAt).getTime() > Date.now()
-      : ["CLOSED", "IN_AWARD", "IN_AWARD_APPROVAL"].includes(l.status));
+      : ["IN_AWARD", "IN_AWARD_APPROVAL"].includes(l.status));
 
   // Uzatma mevcut bitişin ÜZERİNE eklenir (backend: validityDays += gün).
   const extendDaysNum = Number(extendDays);

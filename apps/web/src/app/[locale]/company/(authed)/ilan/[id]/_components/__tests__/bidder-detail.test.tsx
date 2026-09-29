@@ -2,7 +2,8 @@
 import type { ListingDetail } from "@/hooks/use-company-listings";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { render as rtlRender, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it } from "vitest";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { AuctionLiveCard } from "../auction-live-card";
 import { BidSummaryCard, MyBidStatusPanel } from "../my-bid-status-panel";
 
@@ -99,6 +100,24 @@ describe("AuctionLiveCard", () => {
     expect(
       screen.getByText(/yeni tur açarsa güncelleyebilirsin/),
     ).toBeInTheDocument();
+  });
+
+  it("kapanmış pazarlıkta (sunucu kısıtı null) tur hakkı '—' + 'Teklif alımı kapandı' (derin denetim LU-20)", () => {
+    render(
+      <AuctionLiveCard
+        l={detail({
+          status: "IN_AWARD",
+          english,
+          auctionView: null,
+          bidVisibility: "OWN_ONLY",
+          myBid: { amount: "1000", status: "SUBMITTED", version: 2, note: null },
+          nextBidConstraint: null,
+        })}
+      />,
+    );
+    expect(screen.getByText("Teklif alımı kapandı")).toBeInTheDocument();
+    expect(screen.queryByText("1 teklif")).not.toBeInTheDocument();
+    expect(screen.queryByText("Öncekinden düşük olmalı")).not.toBeInTheDocument();
   });
 
   it("OWN_ONLY: rakip bilgileri 'Gizli'", () => {
@@ -225,12 +244,51 @@ describe("MyBidStatusPanel — durum makinesi", () => {
 
     render(<MyBidStatusPanel l={detail({ status: "AWARDED", myBid: null })} />);
     expect(
-      screen.getByText("Bu satın alma talebine teklif vermediniz."),
+      screen.getByText("Bu alım talebine teklif vermediniz."),
     ).toBeInTheDocument();
   });
 });
 
 describe("BidSummaryCard", () => {
+  afterEach(() => {
+    useCompanyAuthStore.setState({ user: null } as never);
+  });
+
+  const submittedBid = {
+    amount: "1500",
+    status: "SUBMITTED" as const,
+    version: 1,
+    note: null,
+    currency: "TRY",
+    submittedAt: new Date(Date.now() - 86_400_000).toISOString(),
+    validityDays: 30,
+    items: [{ itemId: "i1", unitPrice: "150" }],
+  };
+
+  it("'Geçerliliği Uzat': sell:bid:submit izniyle IN_AWARD'da görünür (derin denetim LU-20)", () => {
+    useCompanyAuthStore.setState({
+      user: { isOwner: false, roles: ["SATISCI"], permissions: ["sell:view", "sell:bid:submit"] },
+    } as never);
+    render(<BidSummaryCard l={detail({ status: "IN_AWARD", myBid: submittedBid })} />);
+    expect(screen.getByRole("button", { name: "Geçerliliği Uzat" })).toBeInTheDocument();
+  });
+
+  it("'Geçerliliği Uzat': CLOSED (yönetici moderasyonu) talepte çizilmez", () => {
+    useCompanyAuthStore.setState({
+      user: { isOwner: false, roles: ["SATISCI"], permissions: ["sell:view", "sell:bid:submit"] },
+    } as never);
+    render(<BidSummaryCard l={detail({ status: "CLOSED", myBid: submittedBid })} />);
+    expect(screen.queryByRole("button", { name: "Geçerliliği Uzat" })).not.toBeInTheDocument();
+  });
+
+  it("'Geçerliliği Uzat': SATISCI etiketi olup teklif izni olmayan üyeye çizilmez", () => {
+    useCompanyAuthStore.setState({
+      user: { isOwner: false, roles: ["SATISCI"], permissions: ["sell:view", "sell:product:manage"] },
+    } as never);
+    render(<BidSummaryCard l={detail({ status: "IN_AWARD", myBid: submittedBid })} />);
+    expect(screen.queryByRole("button", { name: "Geçerliliği Uzat" })).not.toBeInTheDocument();
+  });
+
   it("statü/versiyon/toplam + kalem satırı + not", () => {
     render(
       <BidSummaryCard

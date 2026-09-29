@@ -23,6 +23,18 @@ import { SettingsShell } from "../_components/settings-shell";
 import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 import { formatDate } from "@/lib/format-date";
 import { useAuditActionLabel, useRoleLabel } from "@/i18n/domain";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { useDocLabels, type DocKind } from "@/hooks/use-company-docs";
+
+/** `company.docs.*` kayıtlarındaki `kind` — bilinen belge anahtarları (API DOC_META). */
+const DOC_KINDS: readonly DocKind[] = [
+  "taxPlate",
+  "tradeRegistry",
+  "signatureCircular",
+  "activityCert",
+  "idFront",
+  "idBack",
+];
 
 /** Modül filtresi — backend whitelist ile birebir; etiket `module.<key>` katalog anahtarı. */
 const MODULES: { value: string; key: string }[] = [
@@ -46,6 +58,8 @@ export default function AktivitePage() {
   const locale = useLocale() as Locale;
   const auditAction = useAuditActionLabel();
   const roleLabel = useRoleLabel();
+  const docLabels = useDocLabels();
+  const { company } = useCompanyAuth();
   const [page, setPage] = useState(1);
   const [module, setModule] = useState("");
   const { data, isLoading, isError, error, refetch } = useActivityLog(page, module || undefined);
@@ -68,12 +82,19 @@ export default function AktivitePage() {
       parts.push(t("alanlar", { list: (m.changedFields as string[]).join(", ") }));
     }
     if (typeof m.ibanMasked === "string") parts.push(m.ibanMasked);
-    if (typeof m.kind === "string") parts.push(String(m.kind));
+    // Belge türü iç anahtardır ("taxPlate") — firmanın ülkesine göre katalog etiketi.
+    if (typeof m.kind === "string" && (DOC_KINDS as readonly string[]).includes(m.kind))
+      parts.push(docLabels(company?.country, [m.kind as DocKind])[0].label);
     if (Array.isArray(m.after))
       parts.push(
         t("yeniRoller", { list: (m.after as string[]).map(roleLabel).join(", ") || "—" }),
       );
-    if (typeof m.reason === "string") parts.push(m.reason);
+    // Red kayıtlarının `reason`'ı makine kodudur ("not_admin_grant") → katalog
+    // etiketi; katalogda yoksa serbest metindir (ör. sipariş iptal gerekçesi).
+    if (typeof m.reason === "string") {
+      const reasonKey = `reason.${m.reason}`;
+      parts.push(t.has(reasonKey as never) ? t(reasonKey as never) : m.reason);
+    }
     return parts.join(" · ");
   };
 
