@@ -132,6 +132,29 @@ describe("DiscoveryRunsService", () => {
     expect(await prisma.supplierDiscoveryRun.count({ where: { listingId: listing.id } })).toBe(1);
   });
 
+  it("duyurusu yapılmış talepte açılış ileri alınıp otomatik arama açıldıysa tur embargo bitince dakikalık işte yazılır (S090)", async () => {
+    const { runs } = makeRuns({ ai: fakeAi([]) });
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const bidsOpenAt = new Date(Date.now() + 60 * 60_000);
+    const l = await openListing(owner.company.id, owner.user.id, {
+      openNotifiedAt: new Date(Date.now() - DAY),
+      bidsOpenAt,
+    });
+    // Duyurusu yapılmamış talep: turu duyuru yazar, telafi dokunmaz.
+    const fresh = await openListing(owner.company.id, owner.user.id);
+    // Embargo sürerken tur yazılmaz.
+    expect((await runs.tick(new Date())).caughtUp).toBe(0);
+    expect(await prisma.supplierDiscoveryRun.count()).toBe(0);
+    // Embargo bitti (claim çoktan alınmış): telafi turu yazar, bir kez.
+    await prisma.listing.update({ where: { id: l.id }, data: { bidsOpenAt: new Date(Date.now() - 60_000) } });
+    await prisma.listing.update({ where: { id: fresh.id }, data: { aiDiscovery: true } });
+    expect((await runs.tick(new Date())).caughtUp).toBe(1);
+    const all = await prisma.supplierDiscoveryRun.findMany({ select: { listingId: true, trigger: true } });
+    expect(all).toEqual([{ listingId: l.id, trigger: "PUBLISH" }]);
+    expect((await runs.tick(new Date())).caughtUp).toBe(0);
+    expect(await prisma.supplierDiscoveryRun.count({ where: { listingId: l.id } })).toBe(1);
+  });
+
   it("forListing: embargolu talepte `startsAt` döner (ekran 'aranıyor' demez), açık talepte null (S090)", async () => {
     const { runs } = makeRuns({ ai: fakeAi([]) });
     const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });

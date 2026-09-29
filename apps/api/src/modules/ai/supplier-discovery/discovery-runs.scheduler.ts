@@ -28,8 +28,10 @@ export class DiscoveryRunsScheduler implements OnModuleInit {
   async tick(): Promise<void> {
     return trackCronRun(this.cronRegistry, "discovery.runs", async () => {
       const r = await this.runs.tick();
-      if (r.processed || r.notified || r.secondRounds) {
-        this.logger.log(`discovery: processed=${r.processed} notified=${r.notified} secondRounds=${r.secondRounds}`);
+      if (r.processed || r.notified || r.secondRounds || r.caughtUp) {
+        this.logger.log(
+          `discovery: processed=${r.processed} notified=${r.notified} secondRounds=${r.secondRounds} caughtUp=${r.caughtUp}`,
+        );
       }
     });
   }

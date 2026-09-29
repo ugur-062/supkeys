@@ -153,8 +153,13 @@ export function nextBusinessWindow(from: Date, timeZone: string, jitterMinutes =
   return from;
 }
 
-/** Ülke kodu gibi görünen ama genel kullanılan uzantılar — ülke saymayız. */
-const GENERIC_CC_TLDS = new Set(["CO", "ME", "TV", "IO", "AI", "CC", "WS", "FM", "AM", "LY", "TO", "NU", "GG"]);
+/**
+ * Ülke kodu gibi görünen ama genel kullanılan uzantılar — ülke saymayız.
+ * `AS` (Amerikan Samoası) Norveç/Danimarka "AS" şirketlerinin genel eki olarak
+ * yaygın: uzantı kapalı ülke sayılsaydı `firma.as` adayı/daveti yanlışlıkla
+ * düşerdi; `AS` etiketi yine `registrationBlockedCountry`'ye takılır.
+ */
+const GENERIC_CC_TLDS = new Set(["CO", "ME", "TV", "IO", "AI", "CC", "WS", "FM", "AM", "LY", "TO", "NU", "GG", "AS"]);
 
 /**
  * E-posta alan adının ülke uzantısı (`satis@firma.de` → DE; `.co.uk` → GB).

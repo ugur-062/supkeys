@@ -1,10 +1,12 @@
 import { BadRequestException } from "@nestjs/common";
 import { CompanyRequestDefaultsService, requestDefaultsSchema } from "../../src/modules/company-request-defaults/company-request-defaults.service";
 
-function rig(opts: { saved?: unknown; last?: Record<string, unknown> | null; address?: boolean } = {}) {
+function rig(
+  opts: { saved?: unknown; last?: Record<string, unknown> | null; address?: boolean; country?: string | null } = {},
+) {
   const prisma = {
     company: {
-      findUnique: jest.fn().mockResolvedValue({ requestDefaults: opts.saved ?? null }),
+      findUnique: jest.fn().mockResolvedValue({ requestDefaults: opts.saved ?? null, country: opts.country ?? null }),
       update: jest.fn().mockResolvedValue({}),
     },
     listing: { findFirst: jest.fn().mockResolvedValue(opts.last ?? null) },
@@ -73,6 +75,39 @@ describe("CompanyRequestDefaultsService", () => {
     expect((await rig().svc.get("c1")).source).toBe("none");
     const bad = rig({ last: { isInternational: false, visibility: "PUBLIC", deliveryTerm: null, paymentCategory: "LETTER_OF_CREDIT", paymentDays: null, advancePercent: null, lcType: null, primaryCurrency: "TRY", allowedCurrencies: ["TRY"], isSealedBid: true, bidVisibility: "OWN_RANK", requireAllItems: false, requireBidDocument: false, publishedAt: new Date(), closesAt: new Date(), deliveryAddressId: null, billingAddressId: null } });
     expect((await bad.svc.get("c1")).source).toBe("none");
+  });
+
+  it("kayda kapalı ülke (US/IR) şartta kalmaz; liste boşalırsa firma ülkesine daralır (MU-09)", async () => {
+    const saved = { ...VALID, isInternational: undefined, targetCountries: ["DE", "US"] };
+    expect((await rig({ saved, country: "TR" }).svc.get("c1")).defaults?.targetCountries).toEqual(["DE"]);
+    const onlyBlocked = { ...VALID, isInternational: undefined, targetCountries: ["us", "IR"] };
+    expect((await rig({ saved: onlyBlocked, country: "TR" }).svc.get("c1")).defaults?.targetCountries).toEqual(["TR"]);
+    expect((await rig({ saved: onlyBlocked }).svc.get("c1")).defaults?.targetCountries).toEqual([]);
+    const last = {
+      targetCountries: ["US"],
+      visibility: "PUBLIC",
+      deliveryTerm: "FOB",
+      paymentCategory: "ADVANCE",
+      paymentDays: null,
+      advancePercent: null,
+      lcType: null,
+      primaryCurrency: "USD",
+      allowedCurrencies: ["USD"],
+      isSealedBid: true,
+      bidVisibility: "OWN_ONLY",
+      requireAllItems: false,
+      requireBidDocument: false,
+      publishedAt: new Date("2026-09-01T00:00:00Z"),
+      closesAt: new Date("2026-09-11T00:00:00Z"),
+      deliveryAddressId: null,
+      billingAddressId: null,
+    };
+    const derived = await rig({ last, country: "TR" }).svc.get("c1");
+    expect(derived.source).toBe("last_listing");
+    expect(derived.defaults?.targetCountries).toEqual(["TR"]);
+    const { svc, prisma } = rig();
+    await svc.save({ ...(user as object), country: "TR" } as never, { ...VALID, targetCountries: ["SY", "IT"] });
+    expect(prisma.company.update.mock.calls[0][0].data.requestDefaults.targetCountries).toEqual(["IT"]);
   });
 
   it("save: şema doğrular (kapsam-ödeme tutarlılığı), audit yazar", async () => {

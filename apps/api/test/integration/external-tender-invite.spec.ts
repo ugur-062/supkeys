@@ -453,6 +453,28 @@ describe("ExternalInviteDispatcher — gönderim", () => {
     expect(reasons).toEqual(["OPTED_OUT", "REGISTERED"]);
   });
 
+  it("kapıdan önce kuyruğa girmiş kayda kapalı ülke daveti gönderim anında düşer (MU-09)", async () => {
+    const service = makeService();
+    const { d, email } = makeDispatcher();
+    const owner = await makeCompanyWithUser(prisma);
+    const listing = await openListing(owner.company.id, owner.user.id);
+    await service.inviteExternalForListing(owner.auth, listing.id, ["ok@x.com", "a@x.com", "b@x.com"]);
+    // Eski (düzeltme öncesi) satırlar: e-posta uzantısı ya da etiket kapalı ülke.
+    await prisma.externalListingInvite.updateMany({ where: { email: "a@x.com" }, data: { email: "sales@pipes.us" } });
+    await prisma.externalListingInvite.updateMany({ where: { email: "b@x.com" }, data: { country: "IR" } });
+    await makeDue();
+
+    await d.dispatch();
+    expect(email.send).toHaveBeenCalledTimes(1);
+    expect(lastSend(email).to.email).toBe("ok@x.com");
+    const rows = await prisma.externalListingInvite.findMany({ orderBy: { email: "asc" }, select: { email: true, state: true, cancelReason: true } });
+    expect(rows).toEqual([
+      { email: "b@x.com", state: "CANCELLED", cancelReason: "COUNTRY_BLOCKED" },
+      { email: "ok@x.com", state: "SENT", cancelReason: null },
+      { email: "sales@pipes.us", state: "CANCELLED", cancelReason: "COUNTRY_BLOCKED" },
+    ]);
+  });
+
   it("platform günlük tavanı: taban 1 iken turda tek e-posta", async () => {
     const service = makeService();
     const { d, email } = makeDispatcher({ config: { COLD_INVITE_BASE_DAILY: "1" } });

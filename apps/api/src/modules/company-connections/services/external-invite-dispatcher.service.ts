@@ -21,12 +21,17 @@ import {
   invitePaused,
   REMINDER_BEFORE_CLOSE_HOURS,
   REMINDER_MIN_LEFT_HOURS,
+  registrationBlockedCountry,
   reminderDue,
   utcDayStart,
   type ColdInviteCap,
   type InviteSourceKind,
 } from "../../../common/company/external-invite-policy";
-import { nextBusinessWindow, timeZoneForCountry } from "../../../common/time/country-time-zone";
+import {
+  countryFromEmailDomain,
+  nextBusinessWindow,
+  timeZoneForCountry,
+} from "../../../common/time/country-time-zone";
 import { EmailService } from "../../email/email.service";
 import { ContentTranslationService } from "../../content-translation/content-translation.service";
 
@@ -283,7 +288,15 @@ export class ExternalInviteDispatcher {
     builder: InviteContentBuilder,
   ): Promise<{ sent: boolean; deferred: number; cancelled: number }> {
     const out = { sent: false, deferred: 0, cancelled: 0 };
-    const group = await this.claim(due, now);
+    const claimed = await this.claim(due, now);
+    if (claimed.length === 0) return out;
+    // KAYDA KAPALI ÜLKE gönderim anında da denetlenir (derin denetim
+    // 2026-09-29 MU-09, gözden geçirme): kuyruğa alma kapısından önce yazılmış
+    // (ya da başka yoldan gelmiş) ABD/İran/... satırı bekleme süresi dolunca
+    // yine giderdi; yasak gerekçesi tam bu gönderimleri kapsar.
+    const blocked = claimed.filter((inv) => registrationBlockedCountry(inv.country, countryFromEmailDomain(email)));
+    if (blocked.length > 0) out.cancelled += await this.cancel(blocked.map((b) => b.id), "COUNTRY_BLOCKED");
+    const group = claimed.filter((inv) => !blocked.includes(inv));
     if (group.length === 0) return out;
     const state = await this.addressState(email, now);
     if (state.optedOut) {
@@ -494,6 +507,7 @@ export class ExternalInviteDispatcher {
       if (!reminderDue({ closesAt: inv.listing.closesAt, sentAt: inv.sentAt, reminderSentAt: inv.reminderSentAt, now })) {
         continue;
       }
+      if (registrationBlockedCountry(inv.country, countryFromEmailDomain(inv.email))) continue;
       const st = await this.addressState(inv.email, now);
       if (st.optedOut || st.registered) continue;
       if (st.lastInviteEmailAt && now.getTime() - st.lastInviteEmailAt.getTime() < 2 * DAY_MS) continue;

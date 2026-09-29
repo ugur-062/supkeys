@@ -100,11 +100,14 @@ export class DiscoveryRunsService {
 
   // ------------------------------------------------------------------ iş
 
-  async tick(now: Date = new Date()): Promise<{ processed: number; notified: number; secondRounds: number }> {
+  async tick(
+    now: Date = new Date(),
+  ): Promise<{ processed: number; notified: number; secondRounds: number; caughtUp: number }> {
     await this.bypass.supplierDiscoveryRun.updateMany({
       where: { state: "RUNNING", startedAt: { lt: new Date(now.getTime() - STUCK_AFTER_MS) } },
       data: { state: "FAILED", error: "stuck", finishedAt: now },
     });
+    const caughtUp = await this.catchUpPublishRuns(now);
     const secondRounds = await this.scheduleSecondRounds(now);
     const pending = await this.bypass.supplierDiscoveryRun.findMany({
       where: { state: "PENDING" },
@@ -117,7 +120,40 @@ export class DiscoveryRunsService {
       if (await this.process(r.id, now)) processed++;
     }
     const notified = await this.notifyReady(now);
-    return { processed, notified, secondRounds };
+    return { processed, notified, secondRounds, caughtUp };
+  }
+
+  /**
+   * YAYIN TURU TELAFİSİ (derin denetim 2026-09-29 MU-09 S090, gözden geçirme):
+   * yayın turu normalde `announceListingOpen` claim'inde (ya da düzenlemede
+   * duyuru çoktan yapıldıysa `updateListing`'de) yazılır. Claim tek seferlik:
+   * duyurusu yapılmış talebin açılışı düzenlemeyle ileri alınıp aynı anda
+   * otomatik arama açılırsa embargo bitince claim alınamaz ve tur HİÇ
+   * yazılmazdı (ekran "açılınca başlar" der, söz tutulmazdı). Burada duyurusu
+   * yapılmış (`openNotifiedAt` dolu — duyurusu yapılmamış talebin turunu
+   * duyuru yazar), teklife açık, otomatik araması açık ve yayın/ikinci tur
+   * satırı olmayan talepler kuyruğa alınır. Duyuru ile yarışmasın diye damga
+   * en az 2 dk eski olmalı.
+   */
+  private async catchUpPublishRuns(now: Date): Promise<number> {
+    const rows = await this.bypass.listing.findMany({
+      where: {
+        status: "OPEN",
+        aiDiscovery: true,
+        openNotifiedAt: { lte: new Date(now.getTime() - 2 * MINUTE_MS) },
+        OR: [{ bidsOpenAt: null }, { bidsOpenAt: { lte: now } }],
+        closesAt: { gt: now },
+        discoveryRuns: { none: { trigger: { in: ["PUBLISH", "SECOND_ROUND"] } } },
+      },
+      orderBy: { openNotifiedAt: "asc" },
+      select: { id: true },
+      take: 50,
+    });
+    let n = 0;
+    for (const l of rows) {
+      if (await this.enqueue(l.id, "PUBLISH")) n++;
+    }
+    return n;
   }
 
   private async spentTodayUsd(now: Date): Promise<number> {

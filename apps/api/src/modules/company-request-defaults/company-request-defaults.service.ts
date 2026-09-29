@@ -13,6 +13,7 @@ import {
 import {
   REQUEST_CLOSE_DAYS_MAX,
   closeDaysBetween,
+  REGISTRATION_BLOCKED,
   type RequestDefaults,
   type RequestDefaultsResponse,
 } from "@rothern/shared";
@@ -131,7 +132,9 @@ export class CompanyRequestDefaultsService {
     // Türetilen şart da tutarlı olmalı (eski ilan kuralı bozmuş olabilir).
     const ok = requestDefaultsSchema.safeParse(derived);
     return {
-      defaults: ok.success ? await this.withValidAddress(companyId, this.normalize(ok.data, null)) : null,
+      defaults: ok.success
+        ? await this.withValidAddress(companyId, this.normalize(ok.data, company?.country ?? null))
+        : null,
       source: ok.success ? "last_listing" : "none",
     };
   }
@@ -169,15 +172,28 @@ export class CompanyRequestDefaultsService {
    * Eski profil → yeni sözleşme: `isInternational` alanı kalktı (2026-09-21).
    * Saklı JSON'da hâlâ varsa ve `targetCountries` yoksa: yurtiçi → [firma
    * ülkesi], uluslararası → tüm ülkeler. Çıktı her zaman `targetCountries` taşır.
+   *
+   * Kayda kapalı ülke (`REGISTRATION_BLOCKED`) şartta KALMAZ (derin denetim
+   * 2026-09-29 MU-09, gözden geçirme): talep yayını o ülkeyi 400
+   * TARGET_COUNTRY_BLOCKED ile reddeder; eski talepten/saklı şarttan gelen ülke
+   * formu önceden doldurup kullanıcının yaratmadığı bir hataya götürürdü.
+   * Süzme listeyi boşaltırsa "tüm ülkeler"e GENİŞLEMEZ — firma ülkesine
+   * (yurtiçi) daralır; firma ülkesi bilinmiyorsa boş (tüm ülkeler) kalır.
    */
   private normalize(d: z.infer<typeof requestDefaultsSchema>, country: string | null): RequestDefaults {
     const { isInternational, targetCountries, ...rest } = d;
-    const tc =
+    const blocked = (c: string) => REGISTRATION_BLOCKED.has(c.trim().toUpperCase());
+    const home = country && !blocked(country) ? country : null;
+    let tc =
       targetCountries !== undefined
         ? targetCountries
-        : isInternational === false && country
-          ? [country]
+        : isInternational === false && home
+          ? [home]
           : [];
+    if (tc.length > 0) {
+      const open = tc.filter((c) => !blocked(c));
+      tc = open.length > 0 ? open : home ? [home] : [];
+    }
     return { ...rest, targetCountries: tc };
   }
 

@@ -144,4 +144,11 @@ describe("kayda kapalı ülke (X24)", () => {
     expect(registrationBlockedCountry(null, countryFromEmailDomain("a@firma.com"))).toBe(false);
     expect(registrationBlockedCountry("CA", "DE", null)).toBe(false);
   });
+
+  it(".as uzantısı genel ek sayılır (Norveç/Danimarka AS şirketleri); AS etiketi yine kapanır", () => {
+    expect(countryFromEmailDomain("post@firma.as")).toBeNull();
+    expect(registrationBlockedCountry("NO", countryFromEmailDomain("post@firma.as"))).toBe(false);
+    expect(registrationBlockedCountry("AS")).toBe(true);
+    expect(timeZoneForCountry("AS")).toBe("Pacific/Pago_Pago");
+  });
 });
