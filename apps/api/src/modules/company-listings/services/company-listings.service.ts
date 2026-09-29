@@ -37,6 +37,7 @@ import { derivePaymentTiming, countryCanSee, deriveIsInternational, normalizeTar
   normalizeUnit,} from "@rothern/shared";
 import { PrismaService, PrismaBypassService } from "../../../common/prisma/prisma.service";
 import { bidderPermission } from "../bidder-op-role";
+import { connectedInvitees } from "../listing-invitees";
 import {
   LISTING_MANAGE_DENY_KEY,
   listingManageDenial,
@@ -1623,7 +1624,7 @@ export class CompanyListingsService {
     // Davet edilecek firmaları çöz: rothernId → companyId, bağlı olmalı.
     let inviteCompanyIds: string[] = [];
     if (dto.invitations?.length) {
-      const connectedIds = await this.connectedCompanyIds(user.companyId);
+      const connected = new Set(await this.connectedCompanyIds(user.companyId));
       const codes = dto.invitations
         .map((c) => normalizeShortCode(c))
         .filter((c) => validateShortCode(c));
@@ -1631,9 +1632,10 @@ export class CompanyListingsService {
         where: { rothernId: { in: codes } },
         select: { id: true },
       });
-      inviteCompanyIds = targets
-        .map((t) => t.id)
-        .filter((id) => id !== user.companyId && connectedIds.includes(id));
+      inviteCompanyIds = connectedInvitees(
+        targets.map((t) => t.id),
+        { selfCompanyId: user.companyId, connected },
+      );
     }
 
     await this.validateListingBusinessRules(dto, {
@@ -1911,7 +1913,7 @@ export class CompanyListingsService {
     const priorInvited = new Set(priorInvites.map((i) => i.invitedCompanyId));
     let inviteCompanyIds: string[] = [];
     if (dto.invitations?.length) {
-      const connectedIds = await this.connectedCompanyIds(user.companyId);
+      const connected = new Set(await this.connectedCompanyIds(user.companyId));
       const codes = dto.invitations
         .map((c) => normalizeShortCode(c))
         .filter((c) => validateShortCode(c));
@@ -1919,13 +1921,10 @@ export class CompanyListingsService {
         where: { rothernId: { in: codes } },
         select: { id: true },
       });
-      inviteCompanyIds = targets
-        .map((t) => t.id)
-        .filter(
-          (id) =>
-            id !== user.companyId &&
-            (connectedIds.includes(id) || priorInvited.has(id)),
-        );
+      inviteCompanyIds = connectedInvitees(
+        targets.map((t) => t.id),
+        { selfCompanyId: user.companyId, connected, alsoAllowed: priorInvited },
+      );
     }
     const finalInvitedCount = new Set(inviteCompanyIds).size;
 
@@ -6958,7 +6957,7 @@ export class CompanyListingsService {
       );
     }
 
-    const connectedIds = await this.connectedCompanyIds(user.companyId);
+    const connected = new Set(await this.connectedCompanyIds(user.companyId));
     const codes = (rothernIds ?? [])
       .map((c) => normalizeShortCode(c))
       .filter((c) => validateShortCode(c));
@@ -6966,9 +6965,10 @@ export class CompanyListingsService {
       where: { rothernId: { in: codes } },
       select: { id: true },
     });
-    const wanted = targets
-      .map((t) => t.id)
-      .filter((id) => id !== user.companyId && connectedIds.includes(id));
+    const wanted = connectedInvitees(
+      targets.map((t) => t.id),
+      { selfCompanyId: user.companyId, connected },
+    );
 
     const existing = await this.prisma.listingInvitation.findMany({
       where: { listingId, invitedCompanyId: { in: wanted } },
