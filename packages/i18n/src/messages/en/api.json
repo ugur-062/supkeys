@@ -768,6 +768,7 @@
     "pdfOkunamadiDosyaBozukVeyaSifreli": "The PDF could not be read — the file may be corrupted or password-protected",
     "gorselOkunamadiDosyaBozukOlabilir": "The image could not be read — the file may be corrupt or incompletely uploaded",
     "gorselCozunurluguCokYuksek": "The image resolution is too high (max {maxMegapixels} MP) — save it at a lower resolution and try again",
+    "gorselIslemeYogunBirazSonraDeneyin": "Photo processing is busy right now — please try again in a few seconds",
     "belgeCokUzunSayfaEnFazla2": "The document is too long ({pages, plural, one {# page} other {# pages}}, at most {maxPages}) — select the relevant section",
     "buOnayZatenKullanilmis": "This confirmation has already been used.",
     "bilinmeyenAksiyonTipi": "Unknown action type.",

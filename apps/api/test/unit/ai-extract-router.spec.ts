@@ -1,4 +1,4 @@
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, HttpException, HttpStatus } from "@nestjs/common";
 import ExcelJS from "exceljs";
 import * as fs from "node:fs";
 import * as path from "node:path";
@@ -6,7 +6,9 @@ import sharp from "sharp";
 import heicConvert from "heic-convert";
 import {
   detectAiInputMime,
+  HEIC_DECODE_QUEUE_TIMEOUT_MS,
   heifMaxDeclaredPixels,
+  MAX_HEIC_PIXELS,
   routeExtractInput,
 } from "../../src/modules/ai/tender-extract/ai-extract-router";
 
@@ -294,6 +296,33 @@ describe("routeExtractInput — görsel çözme kapıları", () => {
     expect(heicConvertMock).toHaveBeenCalledTimes(1);
   });
 
+  it("HEIC tavanı 512 MB konteynere göre 25 MP (R-2)", () => {
+    expect(MAX_HEIC_PIXELS).toBe(25_000_000);
+  });
+
+  it("varsayılan 24 MP iPhone grid'li HEIC (5712×4284) çözmeye geçer (R-2)", async () => {
+    heicConvertMock.mockRejectedValue(new Error("HEIF processing error"));
+    const buf = derivedHeif({ itemType: "grid", data: gridData(9, 12, 5712, 4284, false), ispes: [[5712, 4284], [512, 512]] });
+    await expectBadRequest(
+      routeExtractInput([{ key: "ai-extract/c/a.heic", buffer: buf }], 10),
+      "api.ai.gorselOkunamadiDosyaBozukOlabilir",
+    );
+    expect(heicConvertMock).toHaveBeenCalledTimes(1);
+  });
+
+  it("48 MP \"HEIF Max\" grid'li HEIC (8064×6048) çözülmeden 400 alır (R-2)", async () => {
+    const buf = derivedHeif({ itemType: "grid", data: gridData(12, 16, 8064, 6048, false), ispes: [[8064, 6048], [512, 512]] });
+    const err = await routeExtractInput([{ key: "ai-extract/c/a.heic", buffer: buf }], 10).then(
+      () => null,
+      (e: unknown) => e,
+    );
+    expect(err).toBeInstanceOf(BadRequestException);
+    const res = (err as BadRequestException).getResponse() as { i18nKey: string; message: string };
+    expect(res.i18nKey).toBe("api.ai.gorselCozunurluguCokYuksek");
+    expect(res.message).toContain("25");
+    expect(heicConvertMock).not.toHaveBeenCalled();
+  });
+
   it("ispe'siz HEIC çözülmeden 400 alır", async () => {
     await expectBadRequest(
       routeExtractInput([{ key: "ai-extract/c/a.heic", buffer: heif("mif1", []) }], 10),
@@ -342,5 +371,106 @@ describe("routeExtractInput — görsel çözme kapıları", () => {
     expect(routed.route).toBe("image_vision");
     expect(routed.parts).toHaveLength(1);
     expect(routed.parts![0]!.mimeType).toBe("image/jpeg");
+  });
+});
+
+/** Dışarıdan çözülebilen söz — çözme süresini testte elle yönetmek için. */
+function deferred<T>(): { promise: Promise<T>; resolve: (v: T) => void; reject: (e: unknown) => void } {
+  let resolve!: (v: T) => void;
+  let reject!: (e: unknown) => void;
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res;
+    reject = rej;
+  });
+  return { promise, resolve, reject };
+}
+
+async function flushMicrotasks(): Promise<void> {
+  for (let i = 0; i < 20; i++) await Promise.resolve();
+}
+
+function settle(p: Promise<unknown>): Promise<unknown> {
+  return p.then(
+    () => null,
+    (e: unknown) => e,
+  );
+}
+
+describe("routeExtractInput — süreç genelinde tek HEIC çözme (R-2)", () => {
+  const heicFile = () => [{ key: "ai-extract/c/a.heic", buffer: heif("heic", [[4032, 3024]]) }];
+
+  beforeEach(() => heicConvertMock.mockReset());
+  afterEach(() => jest.useRealTimers());
+
+  it("eşzamanlı ikinci istek birincinin çözmesi bitene kadar sırada bekler", async () => {
+    const first = deferred<ArrayBuffer>();
+    const second = deferred<ArrayBuffer>();
+    heicConvertMock.mockImplementationOnce(() => first.promise).mockImplementationOnce(() => second.promise);
+
+    const a = settle(routeExtractInput(heicFile(), 10));
+    const b = settle(routeExtractInput(heicFile(), 10));
+    await flushMicrotasks();
+    expect(heicConvertMock).toHaveBeenCalledTimes(1);
+
+    first.reject(new Error("HEIF processing error"));
+    const errA = await a;
+    expect(errA).toBeInstanceOf(BadRequestException);
+    await flushMicrotasks();
+    // Yuva hatada da serbest kalır ve sıradakine devredilir.
+    expect(heicConvertMock).toHaveBeenCalledTimes(2);
+
+    second.reject(new Error("HEIF processing error"));
+    expect(await b).toBeInstanceOf(BadRequestException);
+
+    // Yuva sızmadı: sonraki istek beklemeden çözmeye girer.
+    heicConvertMock.mockRejectedValueOnce(new Error("HEIF processing error"));
+    expect(await settle(routeExtractInput(heicFile(), 10))).toBeInstanceOf(BadRequestException);
+    expect(heicConvertMock).toHaveBeenCalledTimes(3);
+  });
+
+  it("sırada uzun bekleyen istek 429 alır, çözmeye girmez; yuva sızmaz", async () => {
+    jest.useFakeTimers({ doNotFake: ["nextTick", "setImmediate", "queueMicrotask"] });
+    const first = deferred<ArrayBuffer>();
+    heicConvertMock.mockImplementationOnce(() => first.promise);
+
+    const a = settle(routeExtractInput(heicFile(), 10));
+    const b = settle(routeExtractInput(heicFile(), 10));
+    await flushMicrotasks();
+    expect(heicConvertMock).toHaveBeenCalledTimes(1);
+
+    jest.advanceTimersByTime(HEIC_DECODE_QUEUE_TIMEOUT_MS);
+    const errB = await b;
+    // 5xx değil: web her 5xx'i genel toast'a çevirir, Sentry filtresi raporlar.
+    expect(errB).toBeInstanceOf(HttpException);
+    expect((errB as HttpException).getStatus()).toBe(HttpStatus.TOO_MANY_REQUESTS);
+    expect((errB as HttpException).getResponse()).toMatchObject({
+      i18nKey: "api.ai.gorselIslemeYogunBirazSonraDeneyin",
+      code: "HEIC_DECODE_BUSY",
+    });
+    expect(heicConvertMock).toHaveBeenCalledTimes(1);
+
+    first.reject(new Error("HEIF processing error"));
+    expect(await a).toBeInstanceOf(BadRequestException);
+
+    // Zaman aşımına uğrayan bekleyen sıradan çıkarıldı: yuva boşaldı.
+    heicConvertMock.mockRejectedValueOnce(new Error("HEIF processing error"));
+    expect(await settle(routeExtractInput(heicFile(), 10))).toBeInstanceOf(BadRequestException);
+    expect(heicConvertMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("piksel tavanını aşan HEIC sıraya hiç girmez (yuva doluyken de hemen 400)", async () => {
+    const first = deferred<ArrayBuffer>();
+    heicConvertMock.mockImplementationOnce(() => first.promise);
+    const a = settle(routeExtractInput(heicFile(), 10));
+    await flushMicrotasks();
+
+    await expectBadRequest(
+      routeExtractInput([{ key: "ai-extract/c/b.heic", buffer: heif("heic", [[8064, 6048]]) }], 10),
+      "api.ai.gorselCozunurluguCokYuksek",
+    );
+    expect(heicConvertMock).toHaveBeenCalledTimes(1);
+
+    first.reject(new Error("HEIF processing error"));
+    expect(await a).toBeInstanceOf(BadRequestException);
   });
 });

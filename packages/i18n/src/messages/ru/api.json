@@ -768,6 +768,7 @@
     "pdfOkunamadiDosyaBozukVeyaSifreli": "Не удалось прочитать PDF — файл может быть повреждён или защищён паролем",
     "gorselOkunamadiDosyaBozukOlabilir": "Не удалось прочитать изображение — файл может быть повреждён или загружен не полностью",
     "gorselCozunurluguCokYuksek": "Слишком высокое разрешение изображения (не более {maxMegapixels} Мп) — сохраните его в меньшем разрешении и повторите попытку",
+    "gorselIslemeYogunBirazSonraDeneyin": "Обработка фотографий сейчас перегружена — повторите попытку через несколько секунд",
     "belgeCokUzunSayfaEnFazla2": "Документ слишком длинный ({pages, plural, one {# страница} few {# страницы} many {# страниц} other {# страницы}}, не более {maxPages}) — выберите нужный раздел",
     "buOnayZatenKullanilmis": "Это подтверждение уже использовано.",
     "bilinmeyenAksiyonTipi": "Неизвестный тип действия.",

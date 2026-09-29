@@ -768,6 +768,7 @@
     "pdfOkunamadiDosyaBozukVeyaSifreli": "PDF okunamadı — dosya bozuk veya şifreli olabilir",
     "gorselOkunamadiDosyaBozukOlabilir": "Görsel okunamadı — dosya bozuk veya eksik yüklenmiş olabilir",
     "gorselCozunurluguCokYuksek": "Görselin çözünürlüğü çok yüksek (en fazla {maxMegapixels} MP) — daha düşük çözünürlükte kaydedip deneyin",
+    "gorselIslemeYogunBirazSonraDeneyin": "Fotoğraf işleme şu an yoğun — birkaç saniye sonra tekrar deneyin",
     "belgeCokUzunSayfaEnFazla2": "Belge çok uzun ({pages} sayfa, en fazla {maxPages}) — ilgili bölümü seçin",
     "buOnayZatenKullanilmis": "Bu onay zaten kullanılmış.",
     "bilinmeyenAksiyonTipi": "Bilinmeyen aksiyon tipi.",

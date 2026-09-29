@@ -1,5 +1,5 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
-import { BadRequestException, Logger } from "@nestjs/common";
+import { BadRequestException, HttpException, HttpStatus, Logger } from "@nestjs/common";
 import { PDFParse } from "pdf-parse";
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
@@ -45,11 +45,20 @@ const MAX_IMAGE_WIDTH = 1500;
 /** Çözülmüş piksel tavanı (sharp varsayılanı 268 MP — görsel bombasına açık). */
 const MAX_IMAGE_PIXELS = 60_000_000;
 /**
- * HEIC tavanı daha düşük: heic-decode saf JS'te RGBA (4 bayt/piksel) ayırır,
- * libheif WASM yığınında ayrıca çözülmüş kopya tutar ve jpeg-js yeniden
- * kodlar — 50 MP (iPhone 48 MP "HEIF Max" dahil) ≈ 200 MB RGBA.
+ * HEIC tavanı çok daha düşük (derin denetim R-2): N piksel için libheif WASM
+ * yığınında çözülmüş YUV (~1,5N) + RGBA dönüşümü (4N, grid'de tuval de orada)
+ * ve heic-decode JS tarafında ayrıca `Uint8ClampedArray(N×4)` tutar; jpeg-js
+ * saf JS'te yeniden kodlar → tepe ≈ 10N bayt. WASM yığını tekil modüle ait ve
+ * büyüdükten sonra KÜÇÜLMEZ. 512 MB'lık Render konteynerinde (~405 MB sürekli
+ * RSS) eski 50 MP tavanı (≈ 500 MB tepe) tek istekle OOM'a götürebiliyordu.
+ * 25 MP: varsayılan 24 MP iPhone fotoğrafı (5712×4284) geçer; 48 MP
+ * "HEIF Max" `gorselCozunurluguCokYuksek` 400 alır. Ek olarak süreç genelinde
+ * aynı anda TEK HEIC çözülür (bkz. acquireHeicDecodeSlot) — eşzamanlı istekler
+ * tepe belleği üst üste bindiremez.
  */
-const MAX_HEIC_PIXELS = 50_000_000;
+export const MAX_HEIC_PIXELS = 25_000_000;
+/** HEIC çözme sırasında en uzun bekleme; aşılırsa 429 (tekrar denenebilir). */
+export const HEIC_DECODE_QUEUE_TIMEOUT_MS = 30_000;
 const JPEG_QUALITY = 80;
 /**
  * Gemini inline istek pratiği + base64 şişmesi: dosya başına ham tavan.
@@ -691,6 +700,9 @@ async function toResizedJpegPart(
         }),
       );
     }
+    // Tek yuva (R-2): sıra beklemesi zaman aşımına uğrarsa 429 — çözme
+    // hatasına (400) ÇEVRİLMEZ, bu yüzden try'ın dışında alınır.
+    const release = await acquireHeicDecodeSlot();
     try {
       // sharp'ın prebuilt binary'si HEIC decode etmez (patent) — WASM decoder.
       const converted = await heicConvert({
@@ -701,6 +713,8 @@ async function toResizedJpegPart(
       input = Buffer.from(converted);
     } catch (err) {
       throw imageDecodeError(err, "HEIC");
+    } finally {
+      release();
     }
   }
   // `limitInputPixels`: sharp varsayılanı 268 MP — "görsel bombası" (küçük
@@ -717,6 +731,57 @@ async function toResizedJpegPart(
     throw imageDecodeError(err, "sharp");
   }
   return { mimeType: "image/jpeg", data: resized.toString("base64") };
+}
+
+/**
+ * SÜREÇ GENELİNDE TEK HEIC ÇÖZME YUVASI (derin denetim R-2). heic-decode
+ * zincirinde await'ler var (libheif.ready, display sözü) → iki istek aynı
+ * anda çözerse WASM yığını ve JS RGBA dizileri üst üste biner. Yuva boşsa
+ * hemen alınır; doluysa FIFO sırada beklenir ve `release` yuvayı doğrudan
+ * sıradakine devreder. `timeoutMs` içinde sıra gelmezse bekleyen sıradan
+ * çıkarılır ve 429 atılır (yuva sızmaz, sıra bozulmaz). 503 DEĞİL: web
+ * interceptor'ı her 5xx'i genel "sunucu hatası" toast'ına çevirir ve
+ * ServerErrorSentryFilter 5xx HttpException'ı Sentry'ye yazar — geçici
+ * yoğunlukta kullanıcı i18n mesajını görmeli, Sentry gürültülenmemeli.
+ */
+let heicDecodeBusy = false;
+const heicDecodeWaiters: (() => void)[] = [];
+
+function acquireHeicDecodeSlot(
+  timeoutMs: number = HEIC_DECODE_QUEUE_TIMEOUT_MS,
+): Promise<() => void> {
+  let released = false;
+  const release = () => {
+    if (released) return;
+    released = true;
+    const next = heicDecodeWaiters.shift();
+    if (next) next();
+    else heicDecodeBusy = false;
+  };
+  if (!heicDecodeBusy) {
+    heicDecodeBusy = true;
+    return Promise.resolve(release);
+  }
+  return new Promise((resolve, reject) => {
+    const timer = setTimeout(() => {
+      const i = heicDecodeWaiters.indexOf(grant);
+      if (i >= 0) heicDecodeWaiters.splice(i, 1);
+      new Logger("AiExtractRouter").warn(
+        `HEIC decode queue wait exceeded ${timeoutMs} ms (waiting: ${heicDecodeWaiters.length})`,
+      );
+      reject(
+        new HttpException(
+          i18nMessage("api.ai.gorselIslemeYogunBirazSonraDeneyin", undefined, "HEIC_DECODE_BUSY"),
+          HttpStatus.TOO_MANY_REQUESTS,
+        ),
+      );
+    }, timeoutMs);
+    const grant = () => {
+      clearTimeout(timer);
+      resolve(release);
+    };
+    heicDecodeWaiters.push(grant);
+  });
 }
 
 /**
