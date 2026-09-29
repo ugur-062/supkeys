@@ -104,3 +104,51 @@ export function reportCurrencyOf(company: { country?: string | null; requestDefa
 export function tryToCurrency(amountTry: number, currency: string): number | null {
   return convertAmount(amountTry, "TRY", currency);
 }
+
+/**
+ * Kazandırılmış talebin TASARRUF + HACİM hesabı (TRY) — TEK KAYNAK: Tasarruf
+ * sekmesi (`satinalmaTasarruf`) ve pano analitiği aynı fonksiyonu kullanır
+ * (derin denetim 2026-09-29: analitik her kazanan teklifin TÜM kalemlerini tam
+ * `quantity` ile topluyordu — kalem-bazlı kazandırmada AWARDED_PARTIAL teklif
+ * kazanmadığı kalemleri de taşır, aynı kalem iki kazanan teklifte sayılıyordu).
+ *
+ * Kural: yalnız WON / AWARDED_PARTIAL teklifler; kalem başına kazanan teklifler
+ * arasındaki EN İYİ (ALIM → en düşük) TRY birim fiyatı, miktar
+ * `awardedQuantity > 0 ? awardedQuantity : quantity`. Damgası olmayan fiyat
+ * hesaba KATILMAZ; ilan biriminin kuru kazanan teklif damgasından
+ * (`listingRateToTry`). Tasarruf yalnız hedefin altındaki farktır (aşım 0).
+ */
+export function awardedSavingsVolumeTry(l: {
+  primaryCurrency: string;
+  items: { id: string; quantity: unknown; targetPrice: unknown; awardedQuantity?: unknown }[];
+  bids: {
+    status?: string;
+    currency: string;
+    exchangeRateSnapshot: unknown | null;
+    items: { itemId: string; unitPrice: unknown; currency?: string | null; fxToBase?: unknown }[];
+  }[];
+}): { savings: number; volume: number } {
+  const winners = l.bids.filter(
+    (b) => b.status == null || b.status === "WON" || b.status === "AWARDED_PARTIAL",
+  );
+  const listingRate = listingRateToTry({ primaryCurrency: l.primaryCurrency, bids: winners });
+  let savings = 0;
+  let volume = 0;
+  for (const it of l.items) {
+    let best: number | null = null;
+    for (const b of winners) {
+      const bi = b.items.find((x) => x.itemId === it.id);
+      if (!bi) continue;
+      const up = itemUnitPriceTry(b, bi);
+      if (up == null) continue;
+      if (best == null || up < best) best = up;
+    }
+    if (best == null) continue;
+    const awarded = it.awardedQuantity != null ? Number(it.awardedQuantity) : NaN;
+    const qty = Number.isFinite(awarded) && awarded > 0 ? awarded : Number(it.quantity);
+    volume += best * qty;
+    const ref = listingAmountTry(l.primaryCurrency, it.targetPrice, listingRate);
+    if (ref != null && ref > best) savings += (ref - best) * qty;
+  }
+  return { savings, volume };
+}

@@ -326,6 +326,8 @@ export class CompanyReportsService {
       createdBy,
       invitedCount,
       submittedBidCount: realBids.length,
+      // Özetteki genel yanıt oranının payı (davetli yanıtları) — satırla aynı taban.
+      invitedResponses,
       responseRate,
       estimatedTotal,
       highestTotal,
@@ -348,6 +350,10 @@ export class CompanyReportsService {
       (s, r) => s + r.submittedBidCount,
       0,
     );
+    // Derin denetim 2026-09-29 S035: genel oran da satır gibi yalnız DAVETLİ
+    // yanıtlarını pay alır — davetsiz (PUBLIC/CONNECTIONS) teklifler ve davetsiz
+    // taleplerin teklifleri %100'ü aşan oran üretiyordu (1 davet / 6 teklif → %600).
+    const totalInvitedResponses = rows.reduce((s, r) => s + r.invitedResponses, 0);
     return {
       totalListings: rows.length,
       awardedListings: rows.filter((r) => r.status === "AWARDED").length,
@@ -357,7 +363,7 @@ export class CompanyReportsService {
       totalSubmittedBids,
       overallResponseRate:
         totalInvited > 0
-          ? Math.round((totalSubmittedBids / totalInvited) * 1000) / 10
+          ? Math.round((totalInvitedResponses / totalInvited) * 1000) / 10
           : 0,
       avgBidsPerListing:
         rows.length > 0

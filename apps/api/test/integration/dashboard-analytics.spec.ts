@@ -5,6 +5,7 @@
  *    dolu senaryo (1 ihale + 1 teklif + kazandırma → funnel/winloss doğru).
  */
 import "reflect-metadata";
+import { Prisma } from "@prisma/client";
 import {
   DashboardAnalyticsService,
   deltaPct,
@@ -204,6 +205,92 @@ describe("DashboardAnalyticsService (DB)", () => {
     expect(revenue).toBeCloseTo(1200 + 5000 / 50);
     expect(st.pareto.totalTry).toBeCloseTo(1300);
     resetFxRates();
+  });
+
+  it("kalem-bazlı kazandırma: tasarruf/hacim kalem başına TEK kazanan fiyatla, çift sayım yok (derin denetim 2026-09-29)", async () => {
+    // Talep: A ve B, hedef 100/100. X: A=90,B=100; Y: A=95,B=80.
+    // Kazandırma A→X, B→Y (ikisi de AWARDED_PARTIAL).
+    // Doğru: tasarruf 10+20=30, hacim 90+80=170. Eski: tasarruf 35, hacim 365.
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const x = await makeCompanyWithUser(prisma, {});
+    const y = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "AWARDED",
+      primaryCurrency: "TRY",
+      awardedAt: new Date(),
+    });
+    const a = await makeItem(prisma, listing.id, { lineNo: 1, targetPrice: new Prisma.Decimal(100) });
+    const b = await makeItem(prisma, listing.id, { lineNo: 2, targetPrice: new Prisma.Decimal(100) });
+    await makeBid(prisma, {
+      listingId: listing.id, bidderCompanyId: x.company.id, createdById: x.user.id,
+      amount: 190, currency: "TRY", status: "AWARDED_PARTIAL",
+      items: [{ itemId: a.id, unitPrice: 90 }, { itemId: b.id, unitPrice: 100 }],
+    });
+    await makeBid(prisma, {
+      listingId: listing.id, bidderCompanyId: y.company.id, createdById: y.user.id,
+      amount: 175, currency: "TRY", status: "AWARDED_PARTIAL",
+      items: [{ itemId: a.id, unitPrice: 95 }, { itemId: b.id, unitPrice: 80 }],
+    });
+
+    const sa = await service.satinalma(buyer.company.id, "year");
+    expect(sa.money.realizedSavings).toBeCloseTo(30, 5);
+    expect(sa.topSavings[0]!.amount).toBeCloseTo(30, 5);
+    expect(sa.savingsTrend.reduce((n, p) => n + p.value, 0)).toBeCloseTo(30, 5);
+  });
+
+  it("awardedQuantity varsa analitik de onu çarpar (Tasarruf sekmesiyle aynı)", async () => {
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "AWARDED",
+      primaryCurrency: "TRY",
+      awardedAt: new Date(),
+    });
+    const it1 = await makeItem(prisma, listing.id, {
+      quantity: new Prisma.Decimal(10),
+      targetPrice: new Prisma.Decimal(100),
+      awardedQuantity: new Prisma.Decimal(4),
+    });
+    await makeBid(prisma, {
+      listingId: listing.id, bidderCompanyId: seller.company.id, createdById: seller.user.id,
+      amount: 800, currency: "TRY", status: "WON",
+      items: [{ itemId: it1.id, unitPrice: 80 }],
+    });
+    const sa = await service.satinalma(buyer.company.id, "year");
+    expect(sa.money.realizedSavings).toBeCloseTo(80, 5); // 20 × 4 (eski: 20 × 10)
+  });
+
+  it("satış pipeline 'kazanıldı' tutarı kısmi kazanılan teklifte teklifin tamamını değil kazanılan payı (sipariş) sayar", async () => {
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const seller = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "AWARDED",
+      awardedAt: new Date(),
+    });
+    await makeBid(prisma, {
+      listingId: listing.id, bidderCompanyId: seller.company.id, createdById: seller.user.id,
+      amount: 1000, currency: "TRY", status: "AWARDED_PARTIAL",
+    });
+    await prisma.companyOrder.create({
+      data: {
+        listingId: listing.id,
+        buyerCompanyId: buyer.company.id,
+        sellerCompanyId: seller.company.id,
+        amount: 300,
+        currency: "TRY",
+        status: "PENDING",
+      },
+    });
+    const st = await service.satis(seller.company.id, "year");
+    const won = st.pipeline.find((p) => p.key === "won")!;
+    expect(won.count).toBe(1);
+    expect(won.amountTry).toBeCloseTo(300, 5); // eski: 1000
   });
 
   it("custom aralık (Faz 3): funnel yalnız [from,to) içindeki kayıtları sayar", async () => {

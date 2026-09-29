@@ -949,3 +949,75 @@ describe("toplu e-posta daveti — günlük tavan ve parti tavanı (serviste)", 
     expect(email.send).not.toHaveBeenCalled();
   });
 });
+
+describe("panel profil — başka firmanın ürün/talep içeriği okuyucunun dilinde (derin denetim S025)", () => {
+  it("başka firmanın profilinde ürün adları ve talep başlıkları localize edilir; kendi profili ham kalır", async () => {
+    const { service: base } = rig();
+    const translations = {
+      localizeCompanies: jest.fn(async (items: object[]) => items),
+      localizeListings: jest.fn(async (items: { title: string }[], ids: string[]) =>
+        items.map((it, i) => ({ ...it, title: `EN:${ids[i]}`, translatedFrom: "tr" })),
+      ),
+      localizeProducts: jest.fn(async (items: { name: string }[], ids: string[]) =>
+        items.map((it, i) => ({ ...it, name: `EN:${ids[i]}`, translatedFrom: "tr" })),
+      ),
+    };
+    const b0 = base as unknown as Record<string, unknown>;
+    const service = new CompanyConnectionsService(
+      b0.prisma as never,
+      b0.bypass as never,
+      b0.blocks as never,
+      b0.email as never,
+      b0.config as never,
+      b0.notifications as never,
+      b0.audit as never,
+      undefined,
+      translations as never,
+    );
+    const { a, b, bCode } = await twoCompanies();
+    await prisma.company.update({
+      where: { id: b.company.id },
+      data: { publicEnabled: true, slug: `s025-${b.company.id.slice(0, 8)}` },
+    });
+    const listing = await makeListing(prisma, {
+      companyId: b.company.id,
+      createdById: b.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      visibility: "PUBLIC",
+      title: "Çelik boru alımı",
+    });
+    const product = await prisma.companyItem.create({
+      data: {
+        companyId: b.company.id,
+        createdById: b.user.id,
+        name: "M6 Cıvata Paslanmaz",
+        unit: "adet",
+        isActive: true,
+        isPublic: true,
+        reviewStatus: "APPROVED",
+        slug: `m6-civata-${b.company.id.slice(0, 8)}`,
+        publishedAt: new Date(),
+      },
+    });
+
+    const foreign = (await service.getProfile(a.auth, bCode)) as {
+      listings: { id: string; title: string }[];
+      products: { slug: string; name: string }[];
+    };
+    expect(foreign.listings.find((l) => l.id === listing.id)?.title).toBe(`EN:${listing.id}`);
+    // Kart iç kimliği taşımaz — eşleme slug ile, çeviri anahtarı ürün id'si.
+    expect(foreign.products.find((p) => p.slug === product.slug)?.name).toBe(`EN:${product.id}`);
+
+    translations.localizeListings.mockClear();
+    translations.localizeProducts.mockClear();
+    const self = (await service.getProfile(b.auth, bCode)) as {
+      listings: { id: string; title: string }[];
+      products: { slug: string; name: string }[];
+    };
+    expect(self.listings.find((l) => l.id === listing.id)?.title).toBe("Çelik boru alımı");
+    expect(self.products.find((p) => p.slug === product.slug)?.name).toBe("M6 Cıvata Paslanmaz");
+    expect(translations.localizeListings).not.toHaveBeenCalled();
+    expect(translations.localizeProducts).not.toHaveBeenCalled();
+  });
+});

@@ -503,7 +503,8 @@ function DaysLeftBadge({ closesAt }: { closesAt: string }) {
  *    çevrilir,
  *  - null aylar çizgiyle BAĞLANMAZ (connectNulls yok) — izole ay dot kalır.
  *  Hedef verisi platformda YOK (TODO: firma hedefi girilirse ReferenceLine). */
-function CycleTrendChart({
+/** Test için dışa açık (döngü süresi grafiği i18n sözleşmesi). */
+export function CycleTrendChart({
   points,
 }: {
   points?: { key: string; label: string; value: number | null }[];
@@ -548,7 +549,12 @@ function CycleTrendChart({
         p.value == null ? p : { ...p, value: Math.round(p.value * 24) },
       )
     : points;
-  const unit = useHours ? "saat" : t("gun");
+  // Eksen birimi parametresiz anahtardan; tooltip değeri çoğul biçimli
+  // `saat`/`gun` ile (derin denetim 2026-09-29: `t("gun")` değersiz çağrılınca
+  // prod'da ham ICU metni basılıyordu, "saat"/"Ortalama" sabit Türkçeydi).
+  const unit = useHours ? t("birimSaat") : t("birimGun");
+  const formatValue = (v: unknown) =>
+    useHours ? t("saat", { n: Number(v ?? 0) }) : t("gun", { n: Number(v ?? 0) });
 
   return (
     <div>
@@ -564,7 +570,7 @@ function CycleTrendChart({
               tick={{ fontSize: 11, fill: "#94a3b8" }}
               allowDecimals={false}
             />
-            <Tooltip formatter={(v) => [`${Number(v ?? 0)} ${unit}`, "Ortalama"]} />
+            <Tooltip formatter={(v) => [formatValue(v), t("ortalama")]} />
             <Line
               type="monotone" dataKey="value" stroke="#2563eb" strokeWidth={1.5}
               dot={{ r: 3 }} isAnimationActive={false}

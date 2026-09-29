@@ -2,12 +2,11 @@ import { Injectable } from "@nestjs/common";
 import type { Currency } from "@rothern/db";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { tApi } from "../../common/i18n/i18n.service";
+import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
 import { ExchangeRateService } from "../currency/services/exchange-rate.service";
 import type { AuthenticatedCompanyUser } from "../company-auth/strategies/company-jwt.strategy";
 import {
-  itemUnitPriceTry,
-  listingAmountTry,
-  listingRateToTry,
+  awardedSavingsVolumeTry,
   reportCurrencyOf,
   tryToCurrency,
 } from "../../common/company/report-currency";
@@ -429,12 +428,18 @@ export class CompanyDashboardService {
     });
 
     // Kategori etiketleri — ilk categoryId kodunu segment (level 1) adına çöz.
-    const firstCodes = [
+    // Derin denetim 2026-09-29 S026: kod segmente YUVARLANIR (analitiğin
+    // `categorySavings`'i ile aynı anahtar) ve ad okuyucunun dilinde üretilir;
+    // eskiden talebin L3/L4 kodunun Türkçe adı basılıyordu.
+    const segmentOf = (code: string | undefined): string | null =>
+      code ? `${code.slice(0, 2)}000000` : null;
+    const segCodes = [
       ...new Set(
-        listings.map((l) => l.categoryIds[0]).filter((c): c is string => !!c),
+        listings.map((l) => segmentOf(l.categoryIds[0])).filter((c): c is string => !!c),
       ),
     ];
-    const catLabel = await this.resolveCategoryLabels(firstCodes);
+    const catLabel = await this.resolveCategoryLabels(segCodes);
+    const uncategorized = tApi("api.companyDashboard.uncategorized");
 
     interface Agg {
       number: string;
@@ -449,46 +454,11 @@ export class CompanyDashboardService {
     const aggregates: Agg[] = listings.map((l) => {
         const awardedAt = l.awardedAt ?? l.createdAt;
         // Hedef fiyat İLANIN birimindedir, kazanan birim fiyatı ise TEKLİFİN
-        // (hatta KALEMİN) biriminde — ikisi ayrı ayrı TRY'ye çevrilir.
-        // TEK KAYNAK: report-currency.ts (rapordaki blokla birebir aynı).
-        // İlan birimi TRY değilse oran, ilan birimini kullanan kazanan teklifin
-        // DAMGASINDAN türetilir; damga yoksa referans yok → o satır kıyas dışı.
-        const listingRate = listingRateToTry(l);
-
-        // Kalem başına EN İYİ (ALIM → en düşük) TRY birim fiyatı. Aynı kalemi
-        // birden çok kazanan teklif içerebilir (kalem-bazlı kazandırma).
-        const winningByItem = new Map<string, number>();
-        for (const it of l.items) {
-          let best: number | null = null;
-          for (const b of l.bids) {
-            const bi = b.items.find((x) => x.itemId === it.id);
-            if (!bi) continue;
-            const up = itemUnitPriceTry(b, bi);
-            if (up == null) continue; // damga yok → hesaba KATILMAZ
-            if (best == null || up < best) best = up;
-          }
-          if (best != null) winningByItem.set(it.id, best);
-        }
-
-        let savings = 0;
-        let volume = 0;
-        for (const it of l.items) {
-          const winUnit = winningByItem.get(it.id);
-          if (winUnit == null) continue;
-          const qty =
-            it.awardedQuantity != null && Number(it.awardedQuantity) > 0
-              ? Number(it.awardedQuantity)
-              : Number(it.quantity);
-          const refUnit = listingAmountTry(
-            l.primaryCurrency,
-            it.targetPrice,
-            listingRate,
-          );
-          volume += winUnit * qty;
-          if (refUnit != null && refUnit > winUnit) {
-            savings += (refUnit - winUnit) * qty;
-          }
-        }
+        // (hatta KALEMİN) biriminde — ikisi ayrı ayrı TRY'ye çevrilir. Kalem
+        // başına EN İYİ kazanan fiyat × awardedQuantity; damgasız satır kıyas
+        // dışı. TEK KAYNAK: report-currency.ts `awardedSavingsVolumeTry` (pano
+        // analitiği de aynı fonksiyonu kullanır).
+        const { savings, volume } = awardedSavingsVolumeTry(l);
         return {
           number: l.number ?? "—",
           title: l.title,
@@ -501,8 +471,7 @@ export class CompanyDashboardService {
           savings: tryToCurrency(savings, reportCur) ?? 0,
           volume: tryToCurrency(volume, reportCur) ?? 0,
           categoryLabel:
-            (l.categoryIds[0] && catLabel.get(l.categoryIds[0])) ||
-            "Kategorisiz",
+            catLabel.get(segmentOf(l.categoryIds[0]) ?? "") ?? uncategorized,
         };
     });
 
@@ -719,7 +688,7 @@ export class CompanyDashboardService {
     };
   }
 
-  /** UNSPSC kategori kodlarını segment (level 1) adına çözer. */
+  /** UNSPSC segment kodlarını (level 1) okuyucunun dilindeki ada çözer. */
   private async resolveCategoryLabels(
     codes: string[],
   ): Promise<Map<string, string>> {
@@ -727,9 +696,9 @@ export class CompanyDashboardService {
     if (codes.length === 0) return out;
     const cats = await this.prisma.category.findMany({
       where: { code: { in: codes } },
-      select: { code: true, nameTr: true },
+      select: { code: true, ...CATEGORY_NAME_SELECT },
     });
-    for (const c of cats) out.set(c.code, c.nameTr);
+    for (const c of cats) out.set(c.code, categoryName(c));
     return out;
   }
 }

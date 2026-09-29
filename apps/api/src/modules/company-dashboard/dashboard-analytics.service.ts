@@ -5,9 +5,7 @@ import { currentLocale } from "../../common/i18n/locale-context";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { convertAmount } from "../../common/currency/fx-rates";
 import {
-  itemUnitPriceTry,
-  listingAmountTry,
-  listingRateToTry,
+  awardedSavingsVolumeTry,
   reportCurrencyOf,
   tryToCurrency,
 } from "../../common/company/report-currency";
@@ -203,7 +201,7 @@ export class DashboardAnalyticsService {
             id: true, number: true, title: true, status: true,
             createdAt: true, closesAt: true, awardedAt: true,
             categoryIds: true, primaryCurrency: true,
-            items: { select: { id: true, quantity: true, targetPrice: true } },
+            items: { select: { id: true, quantity: true, targetPrice: true, awardedQuantity: true } },
             bids: {
               where: { status: { in: ["SUBMITTED", "WON", "AWARDED_PARTIAL", "LOST"] } },
               select: {
@@ -373,25 +371,11 @@ export class DashboardAnalyticsService {
       //    DAMGAYLA TRY'ye (`report-currency.ts`), fark rapor birimine. Damgası
       //    olmayan satır hesaba KATILMAZ (fail-closed; uydurma tasarruf yok).
       //    Eskiden TRY dışı talep tümüyle 0 sayılıyordu. ──
+      //    Kalem-bazlı kazandırmada AWARDED_PARTIAL teklif kazanmadığı kalemleri
+      //    de taşır → kalem başına TEK (en iyi kazanan) fiyat × awardedQuantity;
+      //    Tasarruf sekmesiyle aynı fonksiyon (derin denetim 2026-09-29).
       const savingsVolumeOf = (l: (typeof listings)[number]): { savings: number; volume: number } => {
-        const itemMap = new Map(l.items.map((i) => [i.id, i]));
-        const listingRate = listingRateToTry(l);
-        let s = 0;
-        let v = 0;
-        for (const b of l.bids) {
-          if (b.status !== "WON" && b.status !== "AWARDED_PARTIAL") continue;
-          for (const bi of b.items) {
-            const it = itemMap.get(bi.itemId);
-            if (!it) continue;
-            const winTry = itemUnitPriceTry(b, bi);
-            if (winTry == null) continue;
-            v += winTry * Number(it.quantity);
-            const refTry = listingAmountTry(l.primaryCurrency, it.targetPrice, listingRate);
-            if (refTry == null) continue;
-            const diff = (refTry - winTry) * Number(it.quantity);
-            if (diff > 0) s += diff;
-          }
-        }
+        const { savings: s, volume: v } = awardedSavingsVolumeTry(l);
         return { savings: tryToCurrency(s, reportCur) ?? 0, volume: tryToCurrency(v, reportCur) ?? 0 };
       };
       const savingsOf = (l: (typeof listings)[number]): number => savingsVolumeOf(l).savings;
@@ -641,7 +625,7 @@ export class DashboardAnalyticsService {
             createdAt: { gte: from },
           },
           select: {
-            createdAt: true, amount: true, currency: true,
+            createdAt: true, amount: true, currency: true, listingId: true,
             buyerCompanyId: true, expectedDeliveryDate: true, status: true,
             buyer: { select: { name: true } },
           },
@@ -710,6 +694,24 @@ export class DashboardAnalyticsService {
         (b) => b.status === "SUBMITTED" && ["IN_AWARD", "IN_AWARD_APPROVAL"].includes(b.listing.status),
       );
       const wonBids = pBids.filter((b) => b.status === "WON" || b.status === "AWARDED_PARTIAL");
+      // Kısmi kazanılan teklifin TAM tutarı kazanılmayan kalemleri de içerir
+      // (derin denetim 2026-09-29) — kazanılan pay, kazandırmanın bu talepte
+      // satıcıya açtığı siparişlerin tutarıdır.
+      const orderAmtByListing = new Map<string, number>();
+      for (const o of orders) {
+        if (!o.listingId) continue;
+        orderAmtByListing.set(o.listingId, (orderAmtByListing.get(o.listingId) ?? 0) + revenueOf(o));
+      }
+      const wonAmt = round2(
+        wonBids.reduce(
+          (s, b) =>
+            s +
+            (b.status === "AWARDED_PARTIAL"
+              ? (orderAmtByListing.get(b.listingId) ?? 0)
+              : toCur(b.amount, b.currency)),
+          0,
+        ),
+      );
       const pipeline = [
         {
           key: "invites", label: tApi("api.companyDashboard.pipeline.invites"),
@@ -720,7 +722,7 @@ export class DashboardAnalyticsService {
         },
         { key: "submitted", label: tApi("api.companyDashboard.pipeline.submitted"), count: submitted.length, amountTry: tryAmt(submitted) },
         { key: "evaluating", label: tApi("api.companyDashboard.pipeline.evaluating"), count: evaluating.length, amountTry: tryAmt(evaluating) },
-        { key: "won", label: tApi("api.companyDashboard.pipeline.won"), count: wonBids.length, amountTry: tryAmt(wonBids) },
+        { key: "won", label: tApi("api.companyDashboard.pipeline.won"), count: wonBids.length, amountTry: wonAmt },
       ];
 
       // ── Müşteri Pareto (12 ay gelir, rapor biriminde) ──

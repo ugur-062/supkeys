@@ -7,6 +7,7 @@ import {
   expectedDeliveryFromTimes,
 } from "../../src/common/company/delivery-time";
 import { AUTH_COMPANY_SELECT } from "../../src/common/company/auth-company-select";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 /**
  * Denetim 2026-08-28 Parça 12 Dalga A — sözleşme testleri.
@@ -106,6 +107,7 @@ describe("Denetim P12 Dalga A", () => {
       snapshot: number | null;
       awardedAt: Date | null;
       awardedQuantity?: number;
+      categoryIds?: string[];
     }) {
       const buyer = await makeCompanyWithUser(prisma);
       const seller = await makeCompanyWithUser(prisma);
@@ -116,6 +118,7 @@ describe("Denetim P12 Dalga A", () => {
         status: "AWARDED",
         primaryCurrency: "TRY",
         awardedAt: opts.awardedAt,
+        ...(opts.categoryIds ? { categoryIds: opts.categoryIds } : {}),
       });
       const item = await makeItem(prisma, listing.id, {
         quantity: new Prisma.Decimal(10),
@@ -193,6 +196,49 @@ describe("Denetim P12 Dalga A", () => {
       } as never);
       expect(res.year.totalSavings).toBeCloseTo(80, 5); // 20 × 4
       expect(res.year.totalVolume).toBeCloseTo(320, 5); // 80 × 4
+    });
+
+    it("kategori kırılımı SEGMENT adıyla ve okuyucunun dilinde; kategorisiz satır katalogdan (derin denetim S026)", async () => {
+      await prisma.category.create({
+        data: {
+          id: "31000000", code: "31000000", nameTr: "Üretim bileşenleri", nameEn: "Manufacturing components",
+          nameRu: "Производственные компоненты", keywords: "", searchText: "uretim bilesenleri",
+          level: 1, parentId: null, isActive: true, sortOrder: 0,
+        },
+      });
+      const buyer = await scenario({
+        bidStatus: "WON",
+        bidCurrency: "TRY",
+        snapshot: null,
+        awardedAt: new Date(),
+        // L4 kodu — eskiden bu kodun adı aranıyordu (segmente yuvarlanmadan).
+        categoryIds: ["31161501"],
+      });
+      // Aynı alıcının kategorisiz ikinci kazandırılmış talebi.
+      const other = await makeListing(prisma, {
+        companyId: buyer.company.id,
+        createdById: buyer.user.id,
+        type: "ALIM",
+        status: "AWARDED",
+        primaryCurrency: "TRY",
+        awardedAt: new Date(),
+      });
+      await makeItem(prisma, other.id, { quantity: new Prisma.Decimal(1), targetPrice: new Prisma.Decimal(10) });
+
+      const en = await runWithLocale("en", () =>
+        makeDashboard().satinalmaTasarruf({ companyId: buyer.company.id } as never),
+      );
+      const labels = en.categoryYear.map((r) => r.label);
+      expect(labels).toContain("Manufacturing components");
+      expect(labels).toContain("Uncategorized");
+      expect(labels).not.toContain("Kategorisiz");
+
+      const tr = await runWithLocale("tr", () =>
+        makeDashboard().satinalmaTasarruf({ companyId: buyer.company.id } as never),
+      );
+      expect(tr.categoryYear.map((r) => r.label)).toEqual(
+        expect.arrayContaining(["Üretim bileşenleri", "Kategorisiz"]),
+      );
     });
 
     it("aralık awardedAt'e uygulanır — updatedAt ileri itilse bile eski kazandırma dışarıda kalır", async () => {

@@ -1776,17 +1776,27 @@ export class CompanyConnectionsService {
     };
     // i18n Faz 1e: BAŞKASININ profili okuyucunun dilinde (tanıtım, hizmetler, sektör);
     // kendi profili ham kalır — sahibi düzenler.
-    const [localizedProfile] =
-      this.translations && !isSelf
-        ? await this.translations.localizeCompanies([profile], [c.id], currentLocale())
-        : [profile];
+    // Ürün adları/özetleri ve talep başlıkları da aynı kural (derin denetim
+    // 2026-09-29 S025): herkese açık profil ızgarası ürünleri çeviriyordu, üye
+    // panelde Türkçe görüyordu — üye, ziyaretçinin gördüğü her şeyi görür.
+    const listingRows = listings.map(({ _count, ...l }) => ({ ...l, itemCount: _count.items }));
+    const productCards = products.map(toProductIndexCard);
+    const locale = currentLocale();
+    const translate = this.translations && !isSelf ? this.translations : null;
+    const [[localizedProfile], localizedListings, localizedProducts] = translate
+      ? await Promise.all([
+          translate.localizeCompanies([profile], [c.id], locale),
+          translate.localizeListings(listingRows, listings.map((l) => l.id), locale),
+          translate.localizeProducts(productCards, products.map((p) => p.id), locale),
+        ])
+      : [[profile], listingRows, productCards];
     return {
       profile: localizedProfile,
       connectionStatus,
       connectionId,
       connected,
-      listings: listings.map(({ _count, ...l }) => ({ ...l, itemCount: _count.items })),
-      products: products.map(toProductIndexCard),
+      listings: localizedListings,
+      products: localizedProducts,
       productCount,
     };
   }

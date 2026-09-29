@@ -1879,6 +1879,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyDashboard.uncategorized": {
+    "hash": "040073eec1",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.companyDocs.bankaHesapNumarasiGerekli": {
     "hash": "1a84163ae9",
     "status": "reviewed",
@@ -31114,6 +31119,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.shell.satinalmaIhaleTab.birimGun": {
+    "hash": "c3b672612c",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.shell.satinalmaIhaleTab.birimSaat": {
+    "hash": "7d472b4735",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.shell.satinalmaIhaleTab.bugun": {
     "hash": "ee77ad58ef",
     "status": "reviewed",
@@ -31273,6 +31288,11 @@
     "hash": "6acb3956bc",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.shell.satinalmaIhaleTab.ortalama": {
+    "hash": "f07b0f2de8",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.shell.satinalmaIhaleTab.ortalamaOncekiDonem": {
     "hash": "44f17c2ad6",
