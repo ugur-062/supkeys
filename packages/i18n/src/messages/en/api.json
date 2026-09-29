@@ -488,6 +488,7 @@
     "kendiRolunuzuDusuremezsiniz": "You cannot lower your own role",
     "sonAktifSuperAdminDusurulemezPasiflestirilemez": "The last active SUPER_ADMIN cannot be demoted or deactivated",
     "kendiniziPasiflestiremezsiniz": "You cannot deactivate yourself",
+    "kendiSifreniziSifirlayamazsiniz": "You cannot reset your own password here — use Settings → Change Password",
     "hesapSupabaseKoprusuneBagliDegil": "The account is not linked to the Supabase bridge",
     "yoneticiBulunamadi": "Administrator not found",
     "gecersizTokenTipi": "Invalid token type",
@@ -499,6 +500,7 @@
     "mevcutSifreHatali": "Current password is incorrect",
     "n2faZatenEtkin": "2FA is already enabled",
     "n2faEtkinDegil": "2FA is not enabled",
+    "n2faKurulumuZorunlu": "Two-factor authentication (2FA) is required for this account. Set up 2FA on the Settings page to continue.",
     "buIslemIcinYetkinizYok": "You do not have permission for this action",
     "ePostaVeyaSifreHatali": "Email or password is incorrect"
   },

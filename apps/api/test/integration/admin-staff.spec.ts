@@ -141,6 +141,23 @@ describe("personel yönetimi", () => {
     expect(after?.twoFactorEnabled).toBe(false);
     expect(after?.twoFactorSecret).toBeNull();
   });
+
+  it("resetPassword: kendi hesabını sıfırlama reddedilir (derin denetim MU-21 — tek SUPER_ADMIN kilitlenmesin)", async () => {
+    const { service, supabase } = staffRig();
+    const solo = await makeAdmin("SUPER_ADMIN", {
+      twoFactorEnabled: true,
+      twoFactorSecret: "SECRET",
+    });
+    await expect(service.resetPassword(solo.id, solo.id)).rejects.toThrow(
+      /Kendi şifrenizi/,
+    );
+    expect(supabase.updatePassword).not.toHaveBeenCalled();
+    const after = await prisma.platformAdmin.findUnique({
+      where: { id: solo.id },
+    });
+    expect(after?.twoFactorEnabled).toBe(true);
+    expect(after?.tokenVersion).toBe(solo.tokenVersion);
+  });
 });
 
 describe("admin 2FA + login", () => {

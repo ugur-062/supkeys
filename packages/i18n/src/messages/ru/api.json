@@ -488,6 +488,7 @@
     "kendiRolunuzuDusuremezsiniz": "Вы не можете понизить собственную роль",
     "sonAktifSuperAdminDusurulemezPasiflestirilemez": "Последнего активного SUPER_ADMIN нельзя понизить или деактивировать",
     "kendiniziPasiflestiremezsiniz": "Вы не можете деактивировать себя",
+    "kendiSifreniziSifirlayamazsiniz": "Здесь нельзя сбросить собственный пароль — используйте «Настройки → Сменить пароль»",
     "hesapSupabaseKoprusuneBagliDegil": "Учётная запись не привязана к мосту Supabase",
     "yoneticiBulunamadi": "Администратор не найден",
     "gecersizTokenTipi": "Недопустимый тип токена",
@@ -499,6 +500,7 @@
     "mevcutSifreHatali": "Неверный текущий пароль",
     "n2faZatenEtkin": "2FA уже включена",
     "n2faEtkinDegil": "2FA не включена",
+    "n2faKurulumuZorunlu": "Для этой учётной записи обязательна двухфакторная аутентификация (2FA). Чтобы продолжить, настройте 2FA на странице «Настройки».",
     "buIslemIcinYetkinizYok": "У Вас нет прав для этого действия",
     "ePostaVeyaSifreHatali": "Неверная эл. почта или пароль"
   },

@@ -176,6 +176,12 @@ export class AdminStaffService {
 
   /** Personel şifresini sıfırla — yeni geçici parola bir kez gösterilir. */
   async resetPassword(id: string, actorId: string) {
+    // Derin denetim MU-21: kendi hesabını sıfırlamak parolayı bilinmeyen bir
+    // değere çevirip 2FA'yı siler ve oturumu düşürür — tek SUPER_ADMIN panele
+    // geri dönemez. Kendi şifresi için change-password akışı var.
+    if (id === actorId) {
+      throw new BadRequestException(i18nMessage("api.adminAuth.kendiSifreniziSifirlayamazsiniz"));
+    }
     const target = await this.requireStaff(id);
     if (!target.authId) {
       throw new BadRequestException(i18nMessage("api.adminAuth.hesapSupabaseKoprusuneBagliDegil"));

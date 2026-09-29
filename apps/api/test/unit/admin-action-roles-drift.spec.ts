@@ -58,6 +58,9 @@ const EXPECTED: Record<string, Spec> = {
   timeSavingsConfig: { kind: "method", ctrl: AdminSystemController, method: "updateTimeSavingsConfig", roles: SUPER },
   listSuppressions: { kind: "method", ctrl: AdminSystemController, method: "listSuppressions", roles: KYC },
   resolveCategoryMiss: { kind: "method", ctrl: AdminSystemController, method: "resolveCategoryMiss", roles: KYC },
+  // Derin denetim MU-21: üst çubuktaki global arama SUPPORT'a da çiziliyordu,
+  // her tuşta 403 toast'ı. GET admin/search kapısı matrisle eşlenir.
+  globalSearch: { kind: "method", ctrl: AdminCompaniesController, method: "search", roles: KYC },
 };
 
 describe("admin-action-roles DRIFT NÖBETÇİSİ (matris ↔ backend @RequireAdminRole)", () => {

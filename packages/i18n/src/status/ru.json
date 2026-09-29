@@ -44,6 +44,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.adminAuth.kendiSifreniziSifirlayamazsiniz": {
+    "hash": "ddc26dada0",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.adminAuth.mevcutSifreHatali": {
     "hash": "f3d9b1a941",
     "status": "reviewed",
@@ -53,6 +58,11 @@
     "hash": "11602b8166",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.adminAuth.n2faKurulumuZorunlu": {
+    "hash": "a0645d6e9e",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "api.adminAuth.n2faRequired": {
     "hash": "062dbc58a5",

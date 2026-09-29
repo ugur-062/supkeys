@@ -488,6 +488,7 @@
     "kendiRolunuzuDusuremezsiniz": "Kendi rolünüzü düşüremezsiniz",
     "sonAktifSuperAdminDusurulemezPasiflestirilemez": "Son aktif SUPER_ADMIN düşürülemez/pasifleştirilemez",
     "kendiniziPasiflestiremezsiniz": "Kendinizi pasifleştiremezsiniz",
+    "kendiSifreniziSifirlayamazsiniz": "Kendi şifrenizi buradan sıfırlayamazsınız — Ayarlar → Şifre Değiştir bölümünü kullanın",
     "hesapSupabaseKoprusuneBagliDegil": "Hesap Supabase köprüsüne bağlı değil",
     "yoneticiBulunamadi": "Yönetici bulunamadı",
     "gecersizTokenTipi": "Geçersiz token tipi",
@@ -499,6 +500,7 @@
     "mevcutSifreHatali": "Mevcut şifre hatalı",
     "n2faZatenEtkin": "2FA zaten etkin",
     "n2faEtkinDegil": "2FA etkin değil",
+    "n2faKurulumuZorunlu": "Bu hesap için iki adımlı doğrulama (2FA) zorunlu. Devam etmek için Ayarlar sayfasından 2FA'yı kurun.",
     "buIslemIcinYetkinizYok": "Bu işlem için yetkiniz yok",
     "ePostaVeyaSifreHatali": "E-posta veya şifre hatalı"
   },
