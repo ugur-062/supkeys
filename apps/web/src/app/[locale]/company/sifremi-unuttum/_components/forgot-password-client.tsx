@@ -5,6 +5,7 @@ import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { AuthShell } from "@/components/marketing/auth-shell";
 import { companyApi } from "@/lib/company-auth/api";
+import { extractErrorMessage } from "@/lib/tenders/error";
 import { Link } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useState } from "react";
@@ -15,20 +16,25 @@ export function CompanyForgotPasswordClient() {
   const [email, setEmail] = useState("");
   const [sent, setSent] = useState(false);
   const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const onSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.includes("@")) return;
     setPending(true);
+    setError(null);
     try {
       await companyApi.post("/company-auth/forgot-password", {
         email: email.trim().toLowerCase(),
       });
-    } catch {
-      // Backend var/yok ayrımı sızdırmaz, her zaman success döner; buraya
-      // yalnızca ağ hatasında düşeriz — yine de generic mesaj göster.
-    } finally {
+      // Backend hesap var/yok ayrımı sızdırmaz: kayıtlı olsun olmasın 200.
       setSent(true);
+    } catch (err) {
+      // Hata yanıtı hesabın varlığına bağlı DEĞİL (hız sınırı 429, geçersiz
+      // adres 400, ağ/sunucu hatası) → "gönderildi" demek yalan olurdu; kullanıcı
+      // gelmeyen e-postayı bekliyordu (derin denetim LU-22).
+      setError(extractErrorMessage(err, t("failed")));
+    } finally {
       setPending(false);
     }
   };
@@ -67,6 +73,11 @@ export function CompanyForgotPasswordClient() {
               onChange={(e) => setEmail(e.target.value)}
             />
           </Field>
+          {error ? (
+            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          ) : null}
           <Button
             type="submit"
             className="w-full"

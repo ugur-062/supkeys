@@ -36,6 +36,7 @@ import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
 import { affixCurrency } from "@/lib/tenders/labels";
+import { lineAmount, MONEY_FRACTION } from "@/lib/line-amount";
 
 type Tone = "success" | "info" | "warning" | "danger";
 
@@ -174,7 +175,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
             {t("toplam")}
           </p>
           <p className="mt-1 text-sm font-bold text-zinc-950 tabular-nums">
-            {withSym(Number(bid.amount).toLocaleString(intl))}
+            {withSym(Number(bid.amount).toLocaleString(intl, MONEY_FRACTION))}
           </p>
         </div>
       </div>
@@ -340,7 +341,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                         </TableCell>
                         <TableCell className="text-right whitespace-nowrap text-zinc-600 tabular-nums">
                           {withSym(
-                            Number(bi.unitPrice).toLocaleString(intl),
+                            Number(bi.unitPrice).toLocaleString(intl, MONEY_FRACTION),
                             bi.currency || cur,
                           )}
                         </TableCell>
@@ -355,7 +356,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                         <TableCell className="text-right font-medium whitespace-nowrap text-zinc-900 tabular-nums">
                           {item
                             ? withSym(
-                                (Number(bi.unitPrice) * Number(item.quantity)).toLocaleString(intl),
+                                lineAmount(Number(item.quantity), Number(bi.unitPrice)).toLocaleString(intl, MONEY_FRACTION),
                                 bi.currency || cur,
                               )
                             : "—"}
@@ -371,7 +372,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
                     <TableCell />
                     {hasDelivery ? <TableCell /> : null}
                     <TableCell className="text-right font-bold whitespace-nowrap text-zinc-950 tabular-nums">
-                      {withSym(Number(bid.amount).toLocaleString(intl))}
+                      {withSym(Number(bid.amount).toLocaleString(intl, MONEY_FRACTION))}
                       {mixedItemCurrency ? (
                         <div className="text-xs font-normal whitespace-normal text-zinc-500">
                           {t("toplamAnaBirimeCevrildi", { currency: cur })}

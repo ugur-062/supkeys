@@ -73,3 +73,26 @@ describe("buildOrderPrintHtml — stored XSS escape", () => {
     expect(html).not.toContain("<script");
   });
 });
+
+describe("buildOrderPrintHtml — para 2 ondalık (derin denetim LU-22)", () => {
+  it("birim fiyat ve toplam her zaman kuruşlu; satır tutarı kuruşa yuvarlanır", () => {
+    const html = buildOrderPrintHtml(
+      {
+        ...baseOrder,
+        amount: 5,
+        items: [{ name: "Boru", unit: "kg", quantity: 1.5, unitPrice: 3.33, deliveryDate: null }],
+      },
+      ctx,
+    );
+    expect(html).toContain("3,33 ₺");
+    // 1,5 × 3,33 = 4,995 → 5,00 (ROUND_HALF_UP), "4,995" basılmaz.
+    expect(html).not.toContain("4,995");
+    expect(html).toContain("5,00 ₺");
+  });
+
+  it("tam sayı tutar da kuruşla basılır (1.000 ₺ değil 1.000,00 ₺)", () => {
+    const html = buildOrderPrintHtml(baseOrder, ctx);
+    expect(html).toContain("200,00 ₺");
+    expect(html).toContain("1.000,00 ₺");
+  });
+});

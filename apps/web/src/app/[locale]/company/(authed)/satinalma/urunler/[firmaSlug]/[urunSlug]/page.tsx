@@ -10,6 +10,8 @@ import {
 import { PanelInquiryDialog } from "@/components/inquiries/panel-inquiry-dialog";
 import { RfqBanner } from "@/components/marketplace/rfq-banner";
 import { useRelatedProducts, usePublicProduct } from "@/hooks/use-portal-discovery";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { safeExternalUrl } from "@/lib/safe-url";
 import { ArrowTopRightOnSquareIcon, DocumentTextIcon } from "@heroicons/react/20/solid";
 import { ArrowLeft } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -33,6 +35,10 @@ export default function PanelProductPage() {
   const t = useTranslations("web.panel.market.firmaslugUrunSlugPage");
   const params = useParams<{ firmaSlug: string; urunSlug: string }>();
   const [inquiryOpen, setInquiryOpen] = useState(false);
+  // POST /company/inquiries `buy:inquiry:send` ister (yalnız Satın Almacı
+  // koltuğu). buy:view ile giren Yönetici/görüntüleyici formu doldurup 403
+  // almasın: düğme yerine gereken yetkiyi söyleyen not (derin denetim LU-22).
+  const canInquire = useHasCompanyPermission("buy:inquiry:send");
   const firmaSlug = params?.firmaSlug ?? "";
   const urunSlug = params?.urunSlug ?? "";
   const { data, isLoading, isError } = usePublicProduct(firmaSlug, urunSlug);
@@ -70,6 +76,10 @@ export default function PanelProductPage() {
   // Firma sayfası panelin KENDİ dizin sayfasıdır (bağlantı kur / mesaj gönder
   // eylemleri orada). Uç artık slug'ı da çözüyor, rothernId aramaya gerek yok.
   const companyHref = `/company/firma/${firmaSlug}`;
+  // Web sitesi ham kaydedilir (admin düzenlemesi yalnız trim'ler): şemasız
+  // "www.firma.com" href'te göreli bağlantı olur. Render sınırında normalize
+  // edilir; güvensiz/geçersizse bağlantı hiç basılmaz (derin denetim LU-22).
+  const sellerWebsite = safeExternalUrl(company.website);
 
   return (
     <PageContainer>
@@ -97,9 +107,9 @@ export default function PanelProductPage() {
         hrefFor={(c) => `/company/satinalma/urunler/${c.company.slug}/${c.slug}`}
         accent="blue"
         sellerSite={
-          company.website ? (
+          sellerWebsite ? (
             <a
-              href={company.website}
+              href={sellerWebsite}
               target="_blank"
               rel="noopener noreferrer nofollow"
               className="inline-flex items-center gap-1 text-sm font-medium text-zinc-700 hover:text-zinc-950"
@@ -116,19 +126,25 @@ export default function PanelProductPage() {
              kartın altında ikinci bir düğme olarak değil.
              Kimlik SORULMAZ: kullanıcı zaten giriş yapmış; misafir formu
              burada yanlış olurdu (o uç `MARKETPLACE_LIVE` kapalıyken 404). */
-          <button
-            type="button"
-            onClick={() => setInquiryOpen(true)}
-            className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
-          >
-            <DocumentTextIcon aria-hidden className="size-5" />
-            {t("bilgiIste")}
-          </button>
+          canInquire ? (
+            <button
+              type="button"
+              onClick={() => setInquiryOpen(true)}
+              className="inline-flex w-full items-center justify-center gap-2 rounded-lg bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
+            >
+              <DocumentTextIcon aria-hidden className="size-5" />
+              {t("bilgiIste")}
+            </button>
+          ) : (
+            <p className="rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-500">
+              {t("bilgiIstemekIcinYetki")}
+            </p>
+          )
         }
       />
 
       <PanelInquiryDialog
-        open={inquiryOpen}
+        open={canInquire && inquiryOpen}
         onClose={() => setInquiryOpen(false)}
         companySlug={firmaSlug}
         productSlug={urunSlug}

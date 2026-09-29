@@ -15,6 +15,7 @@ import { ArrowTopRightOnSquareIcon, LockClosedIcon, PencilSquareIcon } from "@he
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { productPath } from "@rothern/shared";
 import { cn } from "@/lib/utils";
+import { Link } from "@/i18n/navigation";
 import { useMemo } from "react";
 import { toast } from "sonner";
 
@@ -160,7 +161,9 @@ export function ProductPreview({
           </div>
           <div className="flex shrink-0 flex-wrap items-center gap-2">
             {publicHref ? (
-              <a
+              // Dil farkında Link (ham <a> EN/RU'da Türkçe sayfayı açıyordu;
+              // derin denetim LU-22).
+              <Link
                 href={publicHref}
                 target="_blank"
                 rel="noopener"
@@ -168,7 +171,7 @@ export function ProductPreview({
               >
                 {t("herkeseAcikSayfayiAc")}
                 <ArrowTopRightOnSquareIcon aria-hidden className="size-4" />
-              </a>
+              </Link>
             ) : null}
             {canManage ? (
               <>

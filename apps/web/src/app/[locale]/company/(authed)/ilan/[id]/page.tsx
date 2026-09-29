@@ -90,6 +90,7 @@ import {
   Sparkles,
   Wallet, PackagePlus, FileText, Clock, ChevronRight, Share2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { MONEY_FRACTION } from "@/lib/line-amount";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useScrolledPast } from "@/hooks/use-scrolled-past";
@@ -1192,7 +1193,7 @@ export default function ListingDetailPage() {
                       {cells.map((c) => {
                         const priceText =
                           c.price != null
-                            ? withCur(c.price.toLocaleString(intl), c.currency)
+                            ? withCur(c.price.toLocaleString(intl, MONEY_FRACTION), c.currency)
                             : "—";
                         const tone =
                           c.priceTry != null && c.priceTry === minTry
@@ -1270,7 +1271,7 @@ export default function ListingDetailPage() {
                             : "font-semibold text-zinc-900",
                         )}
                       >
-                        {withCur(Number(b.amount).toLocaleString(intl), b.currency)}
+                        {withCur(Number(b.amount).toLocaleString(intl, MONEY_FRACTION), b.currency)}
                         {isBest ? (
                           <span className="block text-xs font-semibold text-emerald-600">
                             {t("enIyiToplam")}

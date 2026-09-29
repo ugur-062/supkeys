@@ -12,6 +12,7 @@ import { JsonLd } from "@/components/seo/json-ld";
 import { companySeo } from "@/lib/seo/entities";
 import { contentLangOf } from "@/lib/seo/meta";
 import { PANEL_TARGET, loginHref } from "@/lib/public/visibility";
+import { Link } from "@/i18n/navigation";
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 
@@ -154,12 +155,14 @@ export default async function PublicCompanyProfile({
             // yüküne düşerdi.
           }}
           actions={
-            <a
+            // Dil farkında Link: ham <a> dil önekini eklemiyor, EN/RU ziyaretçi
+            // Türkçe giriş sayfasına düşüyordu (derin denetim LU-22).
+            <Link
               href={loginHref(panelHref)}
               className="rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
               {t("connectCta")}
-            </a>
+            </Link>
           }
           gate={{
             stats: <GatedField label={t("gateStats")} redirect={panelHref} />,

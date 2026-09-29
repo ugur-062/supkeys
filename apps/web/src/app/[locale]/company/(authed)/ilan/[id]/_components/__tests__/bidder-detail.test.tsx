@@ -343,7 +343,7 @@ describe("BidSummaryCard", () => {
     expect(screen.queryByText("v1")).not.toBeInTheDocument();
     // "1.500 ₺" üst Toplam + kalem satır toplamı (10×150) + tablo dipnotu
     // Toplam satırında geçer.
-    expect(screen.getAllByText("1.500 ₺")).toHaveLength(3);
+    expect(screen.getAllByText("1.500,00 ₺")).toHaveLength(3);
     expect(screen.getByText(/Çelik Boru/)).toBeInTheDocument();
     expect(screen.getByText("Fiyatlandırılan Kalemler (1)")).toBeInTheDocument();
     expect(screen.getByText("Hızlı teslimat yapılır")).toBeInTheDocument();
@@ -365,8 +365,8 @@ describe("BidSummaryCard", () => {
       />,
     );
     // Eskiden "5.000 €" / "50.000 €" basılıyordu.
-    expect(screen.getByText("5.000 ₺")).toBeInTheDocument();
-    expect(screen.getByText("50.000 ₺")).toBeInTheDocument();
+    expect(screen.getByText("5.000,00 ₺")).toBeInTheDocument();
+    expect(screen.getByText("50.000,00 ₺")).toBeInTheDocument();
     expect(screen.queryByText("5.000 €")).not.toBeInTheDocument();
     expect(screen.queryByText("50.000 €")).not.toBeInTheDocument();
     expect(

@@ -77,7 +77,7 @@ companyApi.interceptors.response.use(
     // gösterir → interceptor toast atmasın (çift gösterimi önle).
     const reqUrl = error.config?.url ?? "";
     if (
-      /\/company-auth\/(login|signup|verify-email|resend-email-code|onboarding|upgrade-premium|vies-check)/.test(
+      /\/company-auth\/(login|signup|verify-email|resend-email-code|forgot-password|onboarding|upgrade-premium|vies-check)/.test(
         reqUrl,
       )
     ) {

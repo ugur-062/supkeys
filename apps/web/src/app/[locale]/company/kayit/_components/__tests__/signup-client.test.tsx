@@ -7,6 +7,8 @@ const h = vi.hoisted(() => ({
   signupAsync: vi.fn(),
   verifyAsync: vi.fn(),
   resendAsync: vi.fn(),
+  changeEmailAsync: vi.fn(),
+  search: "",
   setAuth: vi.fn(),
   replace: vi.fn(),
   toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() },
@@ -14,7 +16,7 @@ const h = vi.hoisted(() => ({
 
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ replace: h.replace }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(h.search),
   // AuthShell'deki dil seçici (2026-09-27) aynı sayfanın adresini okur.
   usePathname: () => "/company/kayit",
 }));
@@ -27,6 +29,7 @@ vi.mock("@/hooks/use-company-auth", () => ({
   useCompanySignup: () => ({ mutateAsync: h.signupAsync, isPending: false }),
   useVerifyEmail: () => ({ mutateAsync: h.verifyAsync, isPending: false }),
   useResendEmailCode: () => ({ mutateAsync: h.resendAsync, isPending: false }),
+  useChangeSignupEmail: () => ({ mutateAsync: h.changeEmailAsync, isPending: false }),
   useSetCompanyAuth: () => h.setAuth,
 }));
 
@@ -56,12 +59,19 @@ async function fillValidForm(user: ReturnType<typeof userEvent.setup>) {
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.search = "";
 });
 afterEach(() => {
   vi.useRealTimers();
 });
 
 describe("CompanySignupClient — form aşaması", () => {
+  it("?email= bağlantısı e-posta alanını doldurur (misafir talebi aynı adresle bağlanır)", () => {
+    h.search = "email=misafir%40firma.com";
+    render(<CompanySignupClient />);
+    expect(screen.getByLabelText("Kurumsal e-posta")).toHaveValue("misafir@firma.com");
+  });
+
   it("zorunlu alanlar/onaylar eksikken 'Hesap Oluştur' devre dışı", () => {
     render(<CompanySignupClient />);
     expect(
@@ -220,14 +230,26 @@ describe("CompanySignupClient — doğrulama aşaması", () => {
     ).toBeEnabled();
   });
 
-  it("e-posta değiştir → forma döner", async () => {
+  it("e-posta değiştir → yeni kayıt AÇILMAZ; aynı hesabın adresi değişir, kod yeni adrese gider", async () => {
     const user = userEvent.setup();
+    h.changeEmailAsync.mockResolvedValue({ email: "ada@firma.com.tr", emailSent: true });
     await reachVerify(user);
     await user.click(
       screen.getByRole("button", { name: "← E-posta adresini değiştir" }),
     );
-    expect(
-      screen.getByRole("button", { name: "Hesap Oluştur" }),
-    ).toBeInTheDocument();
+    const input = screen.getByLabelText("Yeni e-posta adresi");
+    await user.clear(input);
+    await user.type(input, "ada@firma.com.tr");
+    await user.click(screen.getByRole("button", { name: "Kodu yeni adrese gönder" }));
+
+    expect(h.changeEmailAsync).toHaveBeenCalledWith({
+      email: "ada@firma.com",
+      password: "Guclu!Parola9",
+      newEmail: "ada@firma.com.tr",
+    });
+    expect(h.signupAsync).toHaveBeenCalledTimes(1);
+    // Kod adımına yeni adresle döner.
+    expect(await screen.findByText("E-postanı doğrula")).toBeInTheDocument();
+    expect(screen.getByText(/ada@firma\.com\.tr/)).toBeInTheDocument();
   });
 });

@@ -152,6 +152,23 @@ export function useResendEmailCode() {
   });
 }
 
+/**
+ * Doğrulanmamış kaydın e-postasını düzelt — aynı hesabın adresi değişir, kod
+ * yeni adrese gider (yeni kayıt açılmaz; derin denetim LU-22).
+ */
+export function useChangeSignupEmail() {
+  return useMutation({
+    mutationFn: async (input: { email: string; password: string; newEmail: string }) => {
+      const { data } = await companyApi.post<{
+        email: string;
+        verificationRequired: true;
+        emailSent?: boolean;
+      }>("/company-auth/signup/change-email", input);
+      return data;
+    },
+  });
+}
+
 export function useSetCompanyAuth() {
   return useCompanyAuthStore((s) => s.setAuth);
 }

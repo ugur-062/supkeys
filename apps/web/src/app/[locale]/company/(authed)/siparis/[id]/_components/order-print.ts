@@ -1,6 +1,8 @@
 import { affixCurrency, bidDeliveryTimeLabel } from "@rothern/shared";
 import { DEFAULT_LOCALE, isLocale, type Locale } from "@rothern/i18n";
 import { formatDate } from "@/lib/format-date";
+import { intlLocale } from "@/i18n/format";
+import { lineAmount, MONEY_FRACTION } from "@/lib/line-amount";
 
 import { escapeHtml } from "@/lib/escape-html";
 
@@ -94,11 +96,14 @@ export function buildOrderPrintHtml(
   },
 ): string {
   const { isSeller, currency, statusLabel, labels, locale, deliveryTimeLabel, quantityLabel } = ctx;
-  const money = (n: number) => affixCurrency(n.toLocaleString(locale), currency, locale);
+  // Para HER ZAMAN 2 ondalık (ekrandaki `formatMoney` ile aynı kural): seçeneksiz
+  // toLocaleString 0-3 ondalık basıyordu ("12,5 ₺", "1.000 ₺").
+  const moneyFmt = new Intl.NumberFormat(intlLocale(locale), MONEY_FRACTION);
+  const money = (n: number) => affixCurrency(moneyFmt.format(n), currency, locale);
   const dateLocale: Locale = isLocale(locale) ? locale : DEFAULT_LOCALE;
   const rows = (o.items ?? [])
     .map((it) => {
-      const line = Number(it.quantity) * Number(it.unitPrice);
+      const line = lineAmount(Number(it.quantity), Number(it.unitPrice));
       const dd = itemDeliveryLabel(
         it.deliveryDate,
         o.expectedDeliveryDate,

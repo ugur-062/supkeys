@@ -15,6 +15,7 @@ import { ErrorMessage, Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { PhoneInput } from "@/components/ui/phone-input";
 import {
+  useChangeSignupEmail,
   useCompanySignup,
   useResendEmailCode,
   useSetCompanyAuth,
@@ -65,16 +66,21 @@ export function CompanySignupClient() {
   const signup = useCompanySignup();
   const verify = useVerifyEmail();
   const resend = useResendEmailCode();
+  const changeEmail = useChangeSignupEmail();
   const setAuth = useSetCompanyAuth();
 
-  const [form, setForm] = useState({
+  // Misafir bilgi talebi bağlantıları (`talep-onayla`, yanıt e-postası CTA'sı)
+  // kaydı `?email=` ile açar: talepler hesaba E-POSTA eşleşmesiyle bağlanır,
+  // alan boş gelirse başka adresle kaydolup yanıtı kaybediyordu (derin
+  // denetim LU-22). Kullanıcı yine değiştirebilir.
+  const [form, setForm] = useState(() => ({
     firstName: "",
     lastName: "",
-    email: "",
+    email: (searchParams.get("email") ?? "").trim().slice(0, 254),
     phone: "",
     password: "",
     passwordConfirm: "",
-  });
+  }));
   // Davetle gelen firma: e-posta hazır gelir, firma bilgileri onboarding'e
   // saklanır (2026-09-27, Faz 3 — adresin kendi firması, AI keşfinin bulduğu).
   useEffect(() => {
@@ -99,6 +105,10 @@ export function CompanySignupClient() {
   const [phoneTouched, setPhoneTouched] = useState(false);
   const [step, setStep] = useState<"form" | "verify">("form");
   const [code, setCode] = useState("");
+  // Kod adımında e-posta düzeltme (null = kapalı). Forma dönüp YENİDEN kayıt
+  // açmak ikinci firma + yetim hesap bırakıyordu; artık aynı hesabın adresi
+  // değişir (derin denetim LU-22).
+  const [newEmail, setNewEmail] = useState<string | null>(null);
   const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
@@ -196,6 +206,80 @@ export function CompanySignupClient() {
     }
   };
 
+  const submitNewEmail = async () => {
+    if (newEmail == null || changeEmail.isPending) return;
+    setError(null);
+    try {
+      const res = await changeEmail.mutateAsync({
+        email: form.email.trim(),
+        password: form.password,
+        newEmail: newEmail.trim(),
+      });
+      setForm((f) => ({ ...f, email: res.email }));
+      setNewEmail(null);
+      setCode("");
+      if (res.emailSent === false) {
+        setCooldown(0);
+        setError(t("codeNotSent"));
+      } else {
+        setCooldown(60);
+        toast.success(t("codeSent"));
+      }
+    } catch (err) {
+      setError(extractErrorMessage(err, t("changeEmailFailed")));
+    }
+  };
+
+  if (step === "verify" && newEmail != null) {
+    return (
+      <AuthShell title={t("changeEmailTitle")} subtitle={t("changeEmailSubtitle")} footer={null}>
+        <form
+          className="space-y-4"
+          onSubmit={(e) => {
+            e.preventDefault();
+            void submitNewEmail();
+          }}
+        >
+          <Field>
+            <Label>{t("newEmail")}</Label>
+            <Input
+              type="email"
+              autoComplete="email"
+              value={newEmail}
+              onChange={(e) => setNewEmail(e.target.value)}
+            />
+          </Field>
+          {error ? (
+            <div role="alert" className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {error}
+            </div>
+          ) : null}
+          <Button
+            type="submit"
+            className="w-full"
+            disabled={
+              changeEmail.isPending ||
+              !/\S+@\S+\.\S+/.test(newEmail) ||
+              newEmail.trim().toLowerCase() === form.email.trim().toLowerCase()
+            }
+          >
+            {changeEmail.isPending ? tc("sending") : t("sendToNewEmail")}
+          </Button>
+          <button
+            type="button"
+            onClick={() => {
+              setNewEmail(null);
+              setError(null);
+            }}
+            className="w-full text-center text-xs text-zinc-400 hover:text-zinc-600"
+          >
+            {t("cancelChangeEmail")}
+          </button>
+        </form>
+      </AuthShell>
+    );
+  }
+
   if (step === "verify") {
     return (
       <AuthShell
@@ -242,8 +326,7 @@ export function CompanySignupClient() {
           <button
             type="button"
             onClick={() => {
-              setStep("form");
-              setCode("");
+              setNewEmail(form.email);
               setError(null);
             }}
             className="w-full text-center text-xs text-zinc-400 hover:text-zinc-600"

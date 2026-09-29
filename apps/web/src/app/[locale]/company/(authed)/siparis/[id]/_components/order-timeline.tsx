@@ -22,6 +22,8 @@ type Event = {
   tone: string;
   title: string;
   at: string;
+  /** Ham damga (ms) — liste bununla kronolojik dizilir. */
+  ts: number;
   actor: string;
   lines: string[];
 };
@@ -40,6 +42,10 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
   const t = useTranslations("web.panel.trade.orderTimeline");
   const locale = useLocale();
   const fmt = (v: string | null) => fmtAt(v, locale);
+  const when = (v: string | null) => {
+    const ms = v ? Date.parse(v) : Number.NaN;
+    return { at: fmt(v), ts: Number.isFinite(ms) ? ms : 0 };
+  };
   // İptal gerekçesi sistem kodu taşıyabilir (yönetici iptali, onaylanan iptal talebi).
   const systemText = useSystemText();
   const sellerLabel = o.role === "seller" ? t("sizSatici") : t("satici");
@@ -50,7 +56,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
     icon: Plus,
     tone: "text-zinc-400",
     title: t("siparisOlusturuldu"),
-    at: fmt(o.createdAt),
+    ...when(o.createdAt),
     actor: t("sistem"),
     lines: [],
   });
@@ -69,7 +75,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       icon: ThumbsUp,
       tone: "text-emerald-500",
       title: t("siparisOnaylandi"),
-      at: fmt(o.acceptedAt),
+      ...when(o.acceptedAt),
       actor: sellerLabel,
       lines,
     });
@@ -79,7 +85,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       icon: XCircle,
       tone: "text-red-500",
       title: t("siparisReddedildi"),
-      at: fmt(o.rejectedAt),
+      ...when(o.rejectedAt),
       actor: sellerLabel,
       lines: o.rejectedReason ? [t("sebep", { reason: o.rejectedReason })] : [],
     });
@@ -91,7 +97,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       icon: Landmark,
       tone: "text-zinc-400",
       title: t("akreditifAcildi"),
-      at: fmt(o.lcOpenedAt),
+      ...when(o.lcOpenedAt),
       actor: buyerLabel,
       lines: [],
     });
@@ -101,7 +107,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       icon: Landmark,
       tone: "text-emerald-500",
       title: t("akreditifKabulEdildi"),
-      at: fmt(o.lcAcceptedAt),
+      ...when(o.lcAcceptedAt),
       actor: sellerLabel,
       lines: [],
     });
@@ -117,7 +123,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       title: sellerShipsGoods(o.deliveryTerm)
         ? t("siparisGonderildi")
         : t("teslimeHazirlandi"),
-      at: fmt(o.deliveryStartedAt),
+      ...when(o.deliveryStartedAt),
       actor: sellerLabel,
       lines,
     });
@@ -127,7 +133,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       icon: CheckCircle2,
       tone: "text-emerald-500",
       title: t("teslimAlindi"),
-      at: fmt(o.deliveredAt),
+      ...when(o.deliveredAt),
       actor: buyerLabel,
       lines: [],
     });
@@ -137,7 +143,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       icon: Landmark,
       tone: "text-emerald-500",
       title: t("akreditifOdemesiAlindi"),
-      at: fmt(o.lcPaidAt),
+      ...when(o.lcPaidAt),
       actor: sellerLabel,
       lines: [],
     });
@@ -147,7 +153,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       icon: CheckCircle2,
       tone: "text-emerald-500",
       title: t("siparisTamamlandi"),
-      at: fmt(o.completedAt),
+      ...when(o.completedAt),
       actor: buyerLabel,
       lines: o.completedNote ? [o.completedNote] : [],
     });
@@ -158,7 +164,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       icon: AlertTriangle,
       tone: "text-zinc-500",
       title: t("saticiIptalTalepEtti"),
-      at: fmt(o.cancelRequestedAt),
+      ...when(o.cancelRequestedAt),
       actor: sellerLabel,
       lines: o.cancelRequestReason ? [t("gerekce", { cancelRequestReason: o.cancelRequestReason })] : [],
     });
@@ -170,7 +176,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       icon: AlertTriangle,
       tone: "text-amber-600",
       title: t("ayipIhbariTtk23"),
-      at: fmt(o.defectNotifiedAt),
+      ...when(o.defectNotifiedAt),
       actor: buyerLabel,
       lines: o.defectReason ? [t("gerekce2", { defectReason: o.defectReason })] : [],
     });
@@ -179,7 +185,7 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       icon: AlertTriangle,
       tone: "text-amber-600",
       title: t("siparisIhtilafli"),
-      at: fmt(o.disputedAt),
+      ...when(o.disputedAt),
       actor: buyerLabel,
       lines: [t("iptalTalebiReddedildiIkiYonlu")],
     });
@@ -189,11 +195,17 @@ export function OrderTimeline({ order: o }: { order: CompanyOrderDetail }) {
       icon: Ban,
       tone: "text-red-500",
       title: t("siparisIptalEdildi"),
-      at: fmt(o.cancelledAt),
+      ...when(o.cancelledAt),
       actor: buyerLabel,
       lines: o.cancelReason ? [t("sebep", { reason: systemText(o.cancelReason) })] : [],
     });
   }
+
+  // KRONOLOJİK SIRA (derin denetim LU-22): olaylar sabit sırayla eklenir ama
+  // gerçek sıra her zaman o değil — A1'de satıcı DISPUTED'dan sevk edebilir ve
+  // iptal talebi/ihtilaf damgaları silinmez; sabit sırada "ihtilaf" tamamlanmadan
+  // SONRA görünüyordu. Sıralama kararlı: aynı damgada ekleme sırası korunur.
+  events.sort((a, b) => a.ts - b.ts);
 
   return (
     <section className="card p-5">
