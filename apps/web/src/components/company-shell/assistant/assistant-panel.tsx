@@ -15,10 +15,11 @@ import { useCompanyAuth } from "@/hooks/use-company-auth";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import { useButtonAccent, type ButtonAccent } from "@/components/ui/button-accent";
-import type {
-  AiChatMessageDto,
-  AiPendingAction,
-  AiTenderExtractResult,
+import {
+  tierAtLeast,
+  type AiChatMessageDto,
+  type AiPendingAction,
+  type AiTenderExtractResult,
 } from "@rothern/shared";
 import {
   AlertTriangle,
@@ -185,7 +186,10 @@ export function AssistantPanel({
   const tr = useTranslations("web.panel.shell.assistantPanel");
   const formatDate = useFormatDate();
   const missingLabel = useAiMissingFieldLabel();
-  const { user } = useCompanyAuth();
+  const { user, company } = useCompanyAuth();
+  // Belge eki = belgeden satın alma talebi taslağı (talep AI'ı, GOLD). Sunucu
+  // da TenderExtractService.extract'te GOLD ister; alt pakete ataç çizilmez.
+  const canAttachDoc = tierAtLeast(company?.tier ?? "STANDART", "GOLD");
   const router = useRouter();
   const t = tone(useButtonAccent());
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -838,27 +842,31 @@ export function AssistantPanel({
               </div>
             ) : null}
             <div className="flex items-end gap-1 rounded-2xl border border-zinc-950/10 bg-surface-subtle p-1.5 transition-colors focus-within:border-brand-400 focus-within:bg-white focus-within:ring-1 focus-within:ring-brand-400">
-              <input
-                ref={fileRef}
-                type="file"
-                accept=".pdf,.jpg,.jpeg,.png,.webp,.heic"
-                multiple
-                hidden
-                onChange={(e) => {
-                  addFiles(e.target.files);
-                  e.target.value = "";
-                }}
-              />
-              <button
-                type="button"
-                onClick={() => fileRef.current?.click()}
-                disabled={send.isPending}
-                aria-label={tr("belgeEkle")}
-                title={tr("satinAlmaTalebiBelgesiEkle")}
-                className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-800 disabled:opacity-40"
-              >
-                <Paperclip className="h-4 w-4" />
-              </button>
+              {canAttachDoc ? (
+                <>
+                  <input
+                    ref={fileRef}
+                    type="file"
+                    accept=".pdf,.jpg,.jpeg,.png,.webp,.heic"
+                    multiple
+                    hidden
+                    onChange={(e) => {
+                      addFiles(e.target.files);
+                      e.target.value = "";
+                    }}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => fileRef.current?.click()}
+                    disabled={send.isPending}
+                    aria-label={tr("belgeEkle")}
+                    title={tr("satinAlmaTalebiBelgesiEkle")}
+                    className="flex h-8 w-8 shrink-0 items-center justify-center rounded-xl text-zinc-500 transition-colors hover:bg-zinc-200/60 hover:text-zinc-800 disabled:opacity-40"
+                  >
+                    <Paperclip className="h-4 w-4" />
+                  </button>
+                </>
+              ) : null}
               <textarea
                 ref={inputRef}
                 value={input}

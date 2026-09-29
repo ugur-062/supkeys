@@ -324,6 +324,30 @@ describe("Faz AI-1 — bütçe + erişim (AI-0 kapıları)", () => {
     expect(provider.calls).toHaveLength(0);
   });
 
+  it("Silver (derin denetim Y-05): ortak yükleme presign'ı açık (satış AI'ı), belge → talep çıkarımı GOLD ister", async () => {
+    const provider = new FakeProvider();
+    const storage = new FakeStorage();
+    const svc = makeService(makeCfg(), provider, storage);
+    const co = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    const silver = authFor(co.user, co.company.id, co.auth.roles as CompanyRole[], {
+      tier: "SILVER",
+    });
+
+    // "Belgeden Fiyatla (AI)" + asistan dosyaları bu presign'dan geçer.
+    const up = await svc.uploadUrl(silver, {
+      fileName: "proforma.pdf",
+      mimeType: "application/pdf",
+    });
+    expect(up.key.startsWith(`ai-extract/${co.company.id}/`)).toBe(true);
+
+    // Talep AI'ı (GOLD) — asistan yolu da extract'ten geçtiği için kapı serviste.
+    storage.files.set(up.key, makeSimplePdf([LONG_TEXT]));
+    await expect(
+      svc.extract(silver, { fileKeys: [up.key], listingType: "ALIM" }),
+    ).rejects.toThrow(/Gold paket/);
+    expect(provider.calls).toHaveLength(0);
+  });
+
   it("IDOR: başka firmanın ai-extract anahtarı reddedilir", async () => {
     const provider = new FakeProvider();
     const storage = new FakeStorage();

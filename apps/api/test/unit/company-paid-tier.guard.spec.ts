@@ -45,3 +45,51 @@ describe("CompanyPaidTierGuard", () => {
     expect(() => guard.canActivate(ctx(undefined))).toThrow(ForbiddenException);
   });
 });
+
+/**
+ * Derin denetim Y-05: ortak AI yükleme presign'ı (`POST company/ai/uploads/url`)
+ * GOLD sınıflı TenderExtractController içinde yaşıyor ama Silver+ satış AI'ı
+ * ("Belgeden Fiyatla", bid-price-extract) dosyalarını ondan alır. Gerçek
+ * controller metadata'sıyla: uploads/url SILVER'a açık, talep AI'ı GOLD kalır.
+ */
+describe("CompanyPaidTierGuard — AI uçları gerçek metadata", () => {
+  const guard = new CompanyPaidTierGuard(new Reflector());
+  function route(cls: abstract new (...args: never[]) => unknown, method: string, tier: string) {
+    const handler = (cls.prototype as Record<string, unknown>)[method];
+    expect(typeof handler).toBe("function");
+    return {
+      getHandler: () => handler,
+      getClass: () => cls,
+      switchToHttp: () => ({ getRequest: () => ({ user: { tier } }) }),
+    } as unknown as ExecutionContext;
+  }
+
+  it("uploads/url: Silver geçer (Belgeden Fiyatla), Standart 403", async () => {
+    const { TenderExtractController } = await import(
+      "../../src/modules/ai/tender-extract/tender-extract.controller"
+    );
+    expect(guard.canActivate(route(TenderExtractController, "uploadUrl", "SILVER"))).toBe(true);
+    expect(() =>
+      guard.canActivate(route(TenderExtractController, "uploadUrl", "STANDART")),
+    ).toThrow(ForbiddenException);
+  });
+
+  it("talep AI'ı (tender-extract/refine/öneriler) GOLD kalır", async () => {
+    const { TenderExtractController } = await import(
+      "../../src/modules/ai/tender-extract/tender-extract.controller"
+    );
+    for (const m of ["extract", "refine", "categorySuggestForItems", "titleSuggestForItems"]) {
+      expect(() => guard.canActivate(route(TenderExtractController, m, "SILVER"))).toThrow(
+        /Gold paket/,
+      );
+      expect(guard.canActivate(route(TenderExtractController, m, "GOLD"))).toBe(true);
+    }
+  });
+
+  it("bid-price-extract Silver'a açık (aynı presign anahtarlarını tüketir)", async () => {
+    const { BidPriceExtractController } = await import(
+      "../../src/modules/ai/bid-price-extract/bid-price-extract.controller"
+    );
+    expect(guard.canActivate(route(BidPriceExtractController, "extract", "SILVER"))).toBe(true);
+  });
+});

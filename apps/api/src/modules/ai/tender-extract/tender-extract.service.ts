@@ -2,11 +2,12 @@ import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { currentLocale } from "../../../common/i18n/locale-context";
 import {
   BadRequestException,
+  ForbiddenException,
   Inject,
   Injectable,
   Logger,
 } from "@nestjs/common";
-import type { AiTenderExtractResult } from "@rothern/shared";
+import { tierAtLeast, type AiTenderExtractResult } from "@rothern/shared";
 import {
   assertReportedSize,
   assertSafeFileName,
@@ -110,6 +111,14 @@ export class TenderExtractService {
   ): Promise<AiTenderExtractResult> {
     // Erişim kapısı EN BAŞTA — yetkisiz istek için dosya işlemeyiz bile.
     this.ai.assertAiAccess(user);
+    // Belge → talep taslağı = talep AI'ı (GOLD). Controller'ın GOLD kapısı
+    // asistan yolunu (fileKeys → extract) KAPSAMAZ ve ortak yükleme presign'ı
+    // Silver'a açık (satış AI'ı "Belgeden Fiyatla" onu kullanır) — kapı burada.
+    if (!tierAtLeast(user.tier, "GOLD")) {
+      throw new ForbiddenException(
+        i18nMessage("api.companyAuth.buOzellikGoldPaketGerektirir"),
+      );
+    }
 
     // IDOR: anahtarlar yalnız BU firmanın ai-extract klasöründen olabilir.
     for (const key of dto.fileKeys) {

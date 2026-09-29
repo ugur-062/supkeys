@@ -175,6 +175,23 @@ describe("Faz AI-2 — erişim (AI-0 kapısı)", () => {
     expect(provider.calls).toHaveLength(0);
   });
 
+  it("Silver + belge eki (derin denetim Y-05): belge → talep taslağı GOLD ister, sağlayıcıya gitmez", async () => {
+    const provider = new FakeProvider();
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "SILVER",
+      roles: [CompanyRole.SATIN_ALMACI],
+    });
+    const silver = authFor(co.user, co.company.id, [CompanyRole.SATIN_ALMACI], {
+      tier: "SILVER",
+    });
+
+    await expect(
+      svc.message(silver, { message: "", fileKeys: [`ai-extract/${co.company.id}/x.pdf`] }),
+    ).rejects.toThrow(/Gold paket/);
+    expect(provider.calls).toHaveLength(0);
+  });
+
   it("bütçe dolu → çağrı öncesi reddedilir (feature=assistant)", async () => {
     const provider = new FakeProvider();
     const { svc } = build(makeCfg(), provider);
