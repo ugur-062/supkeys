@@ -64,3 +64,26 @@ export function showcaseContentChanged(before: Loose, patch: Loose): boolean {
     (k) => k in patch && canon(k, patch[k]) !== canon(k, before[k]),
   );
 }
+
+/**
+ * KATALOG KALEMİ YAMASI (`PATCH company/items/:id`, derin denetim Y-07,
+ * 2026-09-29): bu uç ad/açıklama/kategoriye EK OLARAK teknik şartname, marka ve
+ * MPN'i de yazar — üçü de herkese açık ürün sayfasında görünür
+ * (`public-product.projection.ts`). Vitrin yolu bu alanlara dokunmadığı için
+ * `PRODUCT_CONTENT_FIELDS`'a eklenmedi; burada ayrıca karşılaştırılır.
+ */
+export const CATALOG_EXTRA_CONTENT_FIELDS = ["specification", "brand", "mpn"] as const;
+
+function canonText(raw: unknown): string {
+  const v = jsonish(raw);
+  return typeof v === "string" ? v.trim() : "";
+}
+
+export function catalogContentChanged(before: Loose, patch: Loose): boolean {
+  return (
+    showcaseContentChanged(before, patch) ||
+    CATALOG_EXTRA_CONTENT_FIELDS.some(
+      (k) => k in patch && canonText(patch[k]) !== canonText(before[k]),
+    )
+  );
+}

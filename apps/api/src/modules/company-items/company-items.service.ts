@@ -31,7 +31,7 @@ import {
   isValidAttributeValue,
   resolveCategoryAttributes,
 } from "../../common/company/category-attributes";
-import { showcaseContentChanged } from "../../common/company/product-content-diff";
+import { catalogContentChanged, showcaseContentChanged } from "../../common/company/product-content-diff";
 import { effectiveTier } from "../../common/company/effective-tier";
 import { pickFreeSlug } from "../../common/company/company-slug";
 import {
@@ -365,8 +365,32 @@ export class CompanyItemsService {
     const before = await this.requireOwn(user.companyId, id);
     this.assertNotInReview(before);
     const patch = this.normalize({ ...this.toInput(before), ...input });
+    // MODERASYON (derin denetim Y-07, 2026-09-29): bu uç eskiden yalnız PENDING
+    // kilidine bakıp yayındaki (APPROVED) ürünün adını/açıklamasını/kategorisini
+    // admin görmeden değiştiriyordu — vitrin yolunu (`updateShowcase`) atlatmanın
+    // arka kapısıydı. Artık AYNI kural: içerik değişince yeniden PENDING (vitrinde
+    // kalır, red çeker). Şartname/marka/MPN de herkese açık sayfada göründüğü için
+    // içerik sayılır (`catalogContentChanged`). Kod/birim/hedef fiyat içerik değil.
+    const contentChanged =
+      before.reviewStatus === "APPROVED" && catalogContentChanged(before, patch);
+    // Arama metni ad/marka/mpn/etiketlerden türetilir (`normalizeShowcase` ile
+    // aynı formül) — yenilenmezse ürün eski adıyla aranmaya devam ederdi.
+    const searchText = foldSearchText(
+      [patch.name, patch.brand, patch.mpn, ...(before.keywords ?? [])]
+        .filter(Boolean)
+        .join(" "),
+    );
     const row = await this.prisma.companyItem
-      .update({ where: { id }, data: patch })
+      .update({
+        where: { id },
+        data: {
+          ...patch,
+          searchText,
+          ...(contentChanged
+            ? { reviewStatus: "PENDING" as const, submittedAt: new Date(), rejectReason: null }
+            : {}),
+        },
+      })
       .catch((e: unknown) => {
         throw this.mapDuplicate(e, patch.code);
       });
@@ -378,9 +402,12 @@ export class CompanyItemsService {
       tenantId: user.companyId,
       entityType: "company_item",
       entityId: id,
-      metadata: { name: row.name },
+      metadata: { name: row.name, isPublic: row.isPublic, reReview: contentChanged },
     });
     if (row.isPublic) this.seo?.productChanged(id);
+    // Vitrindeki ya da onay bekleyen ürünün metni değişti → yeniden çeviri
+    // (kaynak aynıysa işlem yok) — `updateShowcase` ile aynı kural.
+    if (row.isPublic || row.reviewStatus === "PENDING") void this.translations?.enqueue("PRODUCT", id);
     return this.serialize(row);
   }
 

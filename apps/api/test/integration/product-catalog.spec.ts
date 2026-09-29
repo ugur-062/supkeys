@@ -313,6 +313,88 @@ describe("yayımlama akışı", () => {
     expect(off.isPublic).toBe(false);
     expect(off.reviewStatus).toBe("DRAFT");
   });
+
+  /* Derin denetim Y-07 (2026-09-29): katalog kalemi ucu (`PATCH company/items/:id`)
+     vitrin yolunun moderasyon kuralını ATLATMAMALI. */
+  describe("katalog kalemi yaması (update) — yayındaki üründe moderasyon", () => {
+    const translations = { enqueue: jest.fn() };
+    const seo = { productChanged: jest.fn() };
+    const svcWithHooks = () =>
+      new CompanyItemsService(
+        prisma as unknown as PrismaService,
+        audit as never,
+        {} as never,
+        undefined,
+        seo as never,
+        undefined,
+        translations as never,
+      );
+    const approved = (companyId: string, userId: string) =>
+      makeProduct(companyId, userId, {
+        description: "x".repeat(120), images: ["a.webp"], keywords: ["pano"],
+        reviewStatus: "APPROVED", isPublic: true, publishedAt: new Date(), slug: "dagitim-panosu-400a",
+        searchText: "dagitim panosu 400a pano",
+      });
+
+    beforeEach(() => {
+      translations.enqueue.mockClear();
+      seo.productChanged.mockClear();
+    });
+
+    it("APPROVED üründe ad/açıklama değişince PENDING'e düşer, vitrinde kalır; arama metni ve çeviri yenilenir", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await approved(company.id, user.id);
+      const r = await svcWithHooks().update(auth, item.id, {
+        name: "Yeni pano adı", unit: "adet", description: "WhatsApp +90 555 000 00 00",
+      });
+      expect(r.reviewStatus).toBe("PENDING");
+      expect(r.isPublic).toBe(true);
+      const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: item.id } });
+      expect(row.reviewStatus).toBe("PENDING");
+      expect(row.submittedAt).not.toBeNull();
+      expect(row.rejectReason).toBeNull();
+      expect(row.searchText).toContain("yeni pano");
+      expect(row.searchText).toContain("pano");
+      expect(translations.enqueue).toHaveBeenCalledWith("PRODUCT", item.id);
+      expect(seo.productChanged).toHaveBeenCalledWith(item.id);
+      // İnceleme kilidi artık bu uçta da devrede.
+      await expect(svcWithHooks().update(auth, item.id, { name: "Bir daha", unit: "adet" })).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it("şartname/marka/MPN de herkese açık içerik sayılır → PENDING", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await approved(company.id, user.id);
+      const r = await svcWithHooks().update(auth, item.id, { name: "Dağıtım panosu 400A", unit: "adet", specification: "spam metni" });
+      expect(r.reviewStatus).toBe("PENDING");
+      const item2 = await makeProduct(company.id, user.id, {
+        name: "Başka pano", reviewStatus: "APPROVED", isPublic: true, slug: "baska-pano",
+      });
+      const r2 = await svcWithHooks().update(auth, item2.id, { name: "Başka pano", unit: "adet", brand: "Marka X" });
+      expect(r2.reviewStatus).toBe("PENDING");
+      const row2 = await prisma.companyItem.findUniqueOrThrow({ where: { id: item2.id } });
+      expect(row2.searchText).toContain("marka x");
+    });
+
+    it("içerik dışı alan (stok kodu/birim/hedef fiyat) ya da değişmeyen kayıt APPROVED kalır", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await approved(company.id, user.id);
+      const r = await svcWithHooks().update(auth, item.id, {
+        name: "  Dağıtım panosu 400A ", unit: "kg", code: "PNO-400", targetPrice: 1200,
+      });
+      expect(r.reviewStatus).toBe("APPROVED");
+      expect(r.isPublic).toBe(true);
+      expect(r.code).toBe("PNO-400");
+    });
+
+    it("taslak (DRAFT) üründe düzenleme serbest, incelemeye düşmez ve çevrilmez", async () => {
+      const { company, user, auth } = await makeCompanyWithUser(prisma);
+      const item = await makeProduct(company.id, user.id);
+      const r = await svcWithHooks().update(auth, item.id, { name: "Taslak yeni ad", unit: "adet" });
+      expect(r.reviewStatus).toBe("DRAFT");
+      expect(r.name).toBe("Taslak yeni ad");
+      expect(translations.enqueue).not.toHaveBeenCalled();
+    });
+  });
 });
 
 describe("ürün oluşturma — TEK ÇAĞRI (ilan sihirbazı değil)", () => {
