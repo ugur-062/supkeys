@@ -362,12 +362,24 @@ export default function OnaylarPage() {
   // Onay isteğini iptal: başlatan VEYA "Onay akışı tanımlama" yetkisi (API aynası).
   const isManager = !!user && (user.isOwner || userHasPermission(user, "approvals:manage"));
   const canManageFlows = useHasCompanyPermission("approvals:manage");
+  // "Sıra sizde" (GET pending) yalnız approval:act'e açık; kapı ise
+  // approval:act ∨ approvals:manage. Yalnız akış yetkilisinde sorgu 403
+  // dönüp "yüklenemedi" gösteriyordu → sekme gizlenir, varsayılan "Tüm
+  // istekler". Yetkisiz ?tab=flows da varsayılana düşer (boş sayfa yerine;
+  // derin denetim LU-21). Etkin görünüm render'da türetilir — izin kümesi
+  // geç yüklense de doğru sekme seçilir.
+  const canAct = useHasCompanyPermission("approval:act");
+  const defaultView: View = canAct ? "pending" : "all";
+  const effectiveView: View =
+    (view === "flows" && !canManageFlows) || (view === "pending" && !canAct)
+      ? defaultView
+      : view;
   // Talep detayı bağlantısı yalnız satınalma görüntüleme izni olana; onaycı
   // kararını kart içindeki onay detayından verir (yetki tablosu Faz 2).
   const canOpenListing = userHasPermission(user, "buy:view");
   const [openDetailId, setOpenDetailId] = useState<string | null>(null);
 
-  const { data: pending, isLoading: pendingLoading, isError: pendingError, refetch: refetchPending } = usePendingApprovals();
+  const { data: pending, isLoading: pendingLoading, isError: pendingError, refetch: refetchPending } = usePendingApprovals({ enabled: canAct });
 
   const [chip, setChip] = useState<Chip>("all");
   // Arama debounce'u SearchInput'un içinde.
@@ -449,13 +461,13 @@ export default function OnaylarPage() {
     }
   };
 
-  if (view === "flows" && canManageFlows) {
+  if (effectiveView === "flows") {
     return (
       <div className="space-y-6">
         <div>
           <button
             type="button"
-            onClick={() => setView("pending")}
+            onClick={() => setView(defaultView)}
             className="mb-3 inline-flex items-center gap-1 text-sm font-medium text-zinc-500 hover:text-zinc-900"
           >
             <ArrowLeft aria-hidden className="size-4" />
@@ -472,7 +484,9 @@ export default function OnaylarPage() {
   }
 
   const tabs: { key: "pending" | "all"; label: string; count?: number }[] = [
-    { key: "pending", label: tr("siraSizde"), count: pending?.length ?? 0 },
+    ...(canAct
+      ? [{ key: "pending" as const, label: tr("siraSizde"), count: pending?.length ?? 0 }]
+      : []),
     { key: "all", label: tr("tumIstekler"), count: all?.length ?? 0 },
   ];
   // Sekme vurgusu portal renginde (2026-09-19 mockup): satınalma mavi, satış emerald.
@@ -505,12 +519,12 @@ export default function OnaylarPage() {
             type="button"
             role="tab"
             id={`onaylar-tab-${t.key}`}
-            aria-selected={view === t.key}
+            aria-selected={effectiveView === t.key}
             aria-controls={`onaylar-panel-${t.key}`}
             onClick={() => setView(t.key)}
             className={cn(
               "-mb-px inline-flex items-center gap-2 whitespace-nowrap border-b-2 px-4 py-2.5 text-sm font-semibold transition-colors",
-              view === t.key ? tabTone.on : "border-transparent text-zinc-500 hover:text-zinc-800",
+              effectiveView === t.key ? tabTone.on : "border-transparent text-zinc-500 hover:text-zinc-800",
             )}
           >
             {t.label}
@@ -518,7 +532,7 @@ export default function OnaylarPage() {
               <span
                 className={cn(
                   "rounded-full px-2 py-0.5 text-xs font-semibold tabular-nums",
-                  view === t.key ? tabTone.badge : t.count > 0 && t.key === "pending" ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-500",
+                  effectiveView === t.key ? tabTone.badge : t.count > 0 && t.key === "pending" ? "bg-amber-100 text-amber-800" : "bg-zinc-100 text-zinc-500",
                 )}
               >
                 {t.count}
@@ -528,7 +542,7 @@ export default function OnaylarPage() {
         ))}
       </div>
 
-      {view === "pending" ? (
+      {effectiveView === "pending" ? (
         <div role="tabpanel" id="onaylar-panel-pending" aria-labelledby="onaylar-tab-pending">
           {pendingLoading ? (
             <div className="overflow-hidden card">
@@ -560,7 +574,7 @@ export default function OnaylarPage() {
         </div>
       ) : null}
 
-      {view === "all" ? (
+      {effectiveView === "all" ? (
         <div role="tabpanel" id="onaylar-panel-all" aria-labelledby="onaylar-tab-all" className="space-y-4">
           <div className="flex flex-wrap items-center gap-2">
             <div className="flex flex-wrap gap-1.5" role="group" aria-label={tr("istekSuzgeci")}>

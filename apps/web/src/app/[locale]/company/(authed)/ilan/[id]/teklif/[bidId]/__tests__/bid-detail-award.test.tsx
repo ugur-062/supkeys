@@ -15,6 +15,7 @@ const h = vi.hoisted(() => ({
   award: vi.fn(),
   preview: vi.fn(),
   confirm: vi.fn(),
+  perms: ["buy:listing:manage", "buy:award"] as string[],
 }));
 
 vi.mock("next/navigation", () => ({
@@ -27,7 +28,7 @@ vi.mock("@/components/providers/confirm-dialog", () => ({
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
   useCompanyAuth: () => ({ user: { id: "u1" }, company: null }),
-  useHasCompanyPermission: () => true,
+  useHasCompanyPermission: (p: string) => h.perms.includes(p),
 }));
 vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
   const mod = await importOriginal<Record<string, unknown>>();
@@ -82,6 +83,7 @@ const DAY = 86_400_000;
 
 beforeEach(() => {
   vi.clearAllMocks();
+  h.perms = ["buy:listing:manage", "buy:award"];
   h.award.mockResolvedValue({ pendingApproval: false, number: "ORD-2026-0001" });
   h.preview.mockResolvedValue({ requiresApproval: false });
   h.confirm.mockResolvedValue(true);
@@ -136,5 +138,13 @@ describe("Teklif detayı — Kazandır korumaları (S060)", () => {
     await userEvent.setup().click(screen.getByRole("button", { name: "Kazandır" }));
     await waitFor(() => expect(h.preview).toHaveBeenCalled());
     expect(h.award).not.toHaveBeenCalled();
+  });
+
+  it("buy:award izni yoksa Kazandır gösterilmez, Ele kalır (derin denetim LU-21)", () => {
+    h.perms = ["buy:listing:manage"];
+    h.detail = detail();
+    render(<BidDetailPage />);
+    expect(screen.queryByRole("button", { name: "Kazandır" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Ele" })).toBeInTheDocument();
   });
 });

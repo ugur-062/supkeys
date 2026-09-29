@@ -42,6 +42,7 @@ import {
   useHasCompanyPermission,
 } from "@/hooks/use-company-auth";
 import { canManageListing } from "@/lib/tenders/can-manage-listing";
+import { yesNoAnswerLabel } from "@/lib/tenders/yes-no-answer";
 import { toast } from "sonner";
 
 export default function BidDetailPage() {
@@ -67,6 +68,10 @@ export default function BidDetailPage() {
   // aynası) — hook'lar koşulsuz çağrılmalı, bu yüzden erken dönüşlerden ÖNCE.
   const { user } = useCompanyAuth();
   const hasManagePermission = useHasCompanyPermission("buy:listing:manage");
+  // Kazandırma ayrı izin (API award uçları `buy:award` ister) — yetki
+  // tablosunda "Kazandırma" verilmemiş üyeye düğme gösterilmez (derin
+  // denetim LU-21). Ele düğmesi buy:listing:manage ile kalır.
+  const hasAwardPermission = useHasCompanyPermission("buy:award");
   const canManage = canManageListing({
     hasManagePermission,
     createdById: l?.createdById,
@@ -246,19 +251,21 @@ export default function BidDetailPage() {
               >
                 {t("ele")}
               </Button>
-              <Button
-                onClick={handleAward}
-                disabled={award.isPending || awardPreview.isPending || bidExpired}
-                title={
-                  bidExpired
-                    ? t("teklifinGecerlilikSuresiDolmusTedarikciden")
-                    : undefined
-                }
-              >
-                {t("kazandir")}
-              </Button>
+              {hasAwardPermission ? (
+                <Button
+                  onClick={handleAward}
+                  disabled={award.isPending || awardPreview.isPending || bidExpired}
+                  title={
+                    bidExpired
+                      ? t("teklifinGecerlilikSuresiDolmusTedarikciden")
+                      : undefined
+                  }
+                >
+                  {t("kazandir")}
+                </Button>
+              ) : null}
             </div>
-            {bidExpired ? (
+            {bidExpired && hasAwardPermission ? (
               <Text className="text-right text-xs text-amber-700">
                 {t("teklifinGecerlilikSuresiDolmusTedarikciden")}
               </Text>
@@ -340,7 +347,12 @@ export default function BidDetailPage() {
                             key={q.id}
                             className="block text-xs text-zinc-500"
                           >
-                            {q.text}: <strong>{value}</strong>
+                            {q.text}:{" "}
+                            <strong>
+                              {q.answerType === "YES_NO" && value
+                                ? yesNoAnswerLabel(value, { yes: t("evet"), no: t("hayir") })
+                                : value}
+                            </strong>
                           </span>
                         ))}
                       </TableCell>

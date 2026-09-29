@@ -13,6 +13,8 @@ const h = vi.hoisted(() => ({
   cancel: vi.fn(),
   history: vi.fn(),
   tab: null as string | null,
+  perms: [] as string[],
+  pendingOpts: [] as unknown[],
 }));
 
 vi.mock("next/navigation", () => ({
@@ -22,7 +24,7 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/components/providers/confirm-dialog", () => ({ useConfirm: () => async () => true }));
 vi.mock("@/hooks/use-company-auth", () => ({
   useCompanyAuth: () => ({ user: { id: "u1", isOwner: false, roles: [], permissions: ["approval:act", "approvals:manage", "buy:view"] } }),
-  useHasCompanyPermission: () => true,
+  useHasCompanyPermission: (p: string) => h.perms.includes(p),
 }));
 vi.mock("@/components/company/approval-detail-panel", () => ({ ApprovalDetailPanel: ({ id }: { id: string }) => <div data-testid="detail">detay {id}</div> }));
 vi.mock("@/app/[locale]/company/(authed)/onaylar/_components/approval-flows-section", () => ({ ApprovalFlowsSection: () => <div data-testid="flows" /> }));
@@ -53,7 +55,10 @@ const ALL = [
 ];
 
 vi.mock("@/hooks/use-company-approvals", () => ({
-  usePendingApprovals: () => ({ data: PENDING, isLoading: false, isError: false, refetch: vi.fn() }),
+  usePendingApprovals: (opts: unknown) => {
+    h.pendingOpts.push(opts);
+    return { data: PENDING, isLoading: false, isError: false, refetch: vi.fn() };
+  },
   useAllApprovals: () => ({ data: ALL, isLoading: false, isError: false, refetch: vi.fn() }),
   useApprovalHistory: h.history,
   useDecideApproval: () => ({ mutateAsync: h.decide, isPending: false }),
@@ -67,6 +72,8 @@ beforeEach(() => {
   h.cancel.mockReset().mockResolvedValue({});
   h.history.mockReset();
   h.tab = null;
+  h.perms = ["approval:act", "approvals:manage", "buy:view"];
+  h.pendingOpts = [];
 });
 
 describe("OnaylarPage", () => {
@@ -131,5 +138,24 @@ describe("OnaylarPage", () => {
     expect(screen.queryByRole("tablist")).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: /Onaylara dön/ }));
     expect(screen.getByRole("tablist")).toBeInTheDocument();
+  });
+
+  it("yalnız approvals:manage: 'Sıra sizde' sekmesi yok, sorgu kapalı, varsayılan Tüm istekler (derin denetim LU-21)", () => {
+    h.perms = ["approvals:manage", "buy:view"];
+    render(<OnaylarPage />);
+    const tabs = within(screen.getByRole("tablist"));
+    expect(tabs.getAllByRole("tab")).toHaveLength(1);
+    expect(tabs.getByRole("tab", { name: /Tüm istekler/ })).toHaveAttribute("aria-selected", "true");
+    expect(tabs.queryByRole("tab", { name: /Sıra sizde/ })).toBeNull();
+    expect(h.pendingOpts.every((o) => (o as { enabled?: boolean }).enabled === false)).toBe(true);
+  });
+
+  it("approvals:manage yokken ?tab=flows boş sayfa değil, varsayılan sekmeye düşer (derin denetim LU-21)", () => {
+    h.perms = ["approval:act", "buy:view"];
+    h.tab = "flows";
+    render(<OnaylarPage />);
+    expect(screen.queryByTestId("flows")).toBeNull();
+    expect(screen.getByRole("tab", { name: /Sıra sizde/ })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tabpanel")).toBeInTheDocument();
   });
 });

@@ -37,6 +37,7 @@ import {
 } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { formatDateTime, todayLocalISO } from "@/lib/tenders/date";
+import { YES_NO_STORED } from "@/lib/tenders/yes-no-answer";
 import { BID_DELIVERY_TIMES } from "@rothern/shared";
 import { subscribeRealtime } from "@/lib/realtime";
 import { daysUntil } from "@/lib/tenders/seller-state";
@@ -155,10 +156,11 @@ function AnswerInput({
         {label}
         <Select value={value} onChange={(e) => onChange(e.target.value)}>
           <option value="">{t("secin")}</option>
-          {/* Değerler VERİ (cevap olarak saklanır ve alıcıya gösterilir) —
-              çevrilmez; yalnız görünen etiket katalogdan. */}
-          <option value="Evet">{t("evet")}</option>
-          <option value="Hayır">{t("hayir")}</option>
+          {/* Değerler VERİ (cevap olarak saklanır) — dilden bağımsız sabit;
+              görünen etiket katalogdan, alıcı tarafı `yesNoAnswerLabel` ile
+              kendi diline çevirir. */}
+          <option value={YES_NO_STORED.yes}>{t("evet")}</option>
+          <option value={YES_NO_STORED.no}>{t("hayir")}</option>
         </Select>
       </Field>
     );
@@ -520,7 +522,7 @@ export default function TeklifVerPage() {
       );
     }
     // Talep yüklenemedi — nötr hedef.
-    return <Blocked title={tr("satinAlmaTalebiBulunamadi")} detailHref="/company" />;
+    return <Blocked title={tr("alimTalebiBulunamadi")} detailHref="/company" />;
   }
 
   // ── Kapılar ──
@@ -1069,7 +1071,7 @@ export default function TeklifVerPage() {
         className="inline-flex items-center gap-1 text-sm text-zinc-500 hover:text-zinc-700"
       >
         <ArrowLeftIcon className="h-4 w-4" aria-hidden="true" />
-        {l.number ?? tr("satinAlmaTalebi")}
+        {l.number ?? tr("alimTalebi")}
       </Link>
 
       <div className="flex flex-wrap items-center justify-between gap-3">

@@ -170,8 +170,10 @@ export function useDuplicateApprovalFlow() {
   });
 }
 
-export function usePendingApprovals() {
+/** `enabled`: uç yalnız approval:act'e açık — izin yoksa sorgu atılmaz (derin denetim LU-21). */
+export function usePendingApprovals(opts: { enabled?: boolean } = {}) {
   return useQuery({
+    enabled: opts.enabled ?? true,
     queryKey: ["company-approvals", "pending"],
     queryFn: async () => {
       const { data } = await companyApi.get<PendingApproval[]>(

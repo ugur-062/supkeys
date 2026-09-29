@@ -195,11 +195,11 @@ describe("TeklifVerPage — kapılar", () => {
     expect(screen.getByText(/Teklif için Silver paketi gerekir/)).toBeInTheDocument();
   });
 
-  it("kapalı satın alma talebi → engellenir", () => {
+  it("kapalı alım talebi → engellenir", () => {
     h.detail = baseDetail({ status: "CLOSED" });
     render(<TeklifVerPage />);
     expect(
-      screen.getByText("Bu satın alma talebine artık teklif verilemez"),
+      screen.getByText("Bu alım talebine artık teklif verilemez"),
     ).toBeInTheDocument();
   });
 });

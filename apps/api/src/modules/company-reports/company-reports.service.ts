@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import type { Prisma } from "@rothern/db";
+import { YES_NO_ANSWER_VALUES } from "@rothern/shared";
 import { CATEGORY_NAME_SELECT, categoryName } from "../../common/company/category-name";
 import { shortMonthLabel, tApi } from "../../common/i18n/i18n.service";
 import { PrismaService } from "../../common/prisma/prisma.service";
@@ -645,7 +646,7 @@ export class CompanyReportsService {
             unit: true,
             quantity: true,
             targetPrice: true,
-            questions: { select: { id: true, text: true } },
+            questions: { select: { id: true, text: true, answerType: true } },
           },
         },
         invitations: {
@@ -745,6 +746,22 @@ export class CompanyReportsService {
     const questionText = new Map(
       l.items.flatMap((it) => it.questions.map((q) => [q.id, q.text] as const)),
     );
+    const yesNoQuestionIds = new Set(
+      l.items.flatMap((it) =>
+        it.questions.filter((q) => q.answerType === "YES_NO").map((q) => q.id),
+      ),
+    );
+    // YES_NO cevabı dilden bağımsız sabit değerle saklanır
+    // (`YES_NO_ANSWER_VALUES`) — rapor/Excel istek dilinde gösterir (derin
+    // denetim LU-21).
+    const answerLabel = (questionId: string, value: string): string =>
+      !yesNoQuestionIds.has(questionId)
+        ? value
+        : value === YES_NO_ANSWER_VALUES.yes
+          ? tApi("api.companyReports.cevapEvet")
+          : value === YES_NO_ANSWER_VALUES.no
+            ? tApi("api.companyReports.cevapHayir")
+            : value;
     const questionsByItem = new Map(
       l.items.map((it) => [it.id, it.questions.map((q) => q.id)] as const),
     );
@@ -819,7 +836,7 @@ export class CompanyReportsService {
                       ? answers
                           .map(
                             (a) =>
-                              `${questionText.get(a.questionId) ?? "Soru"}: ${a.value}`,
+                              `${questionText.get(a.questionId) ?? tApi("api.companyReports.soru")}: ${answerLabel(a.questionId, a.value)}`,
                           )
                           .join(" | ")
                       : null,

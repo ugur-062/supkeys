@@ -291,6 +291,10 @@ export default function ListingDetailPage() {
     if (portal) setLastPortal(portal);
   }, [fromHref, l, setLastPortal]);
   const hasManagePermission = useHasCompanyPermission("buy:listing:manage");
+  // Kazandırma ayrı izin (API award uçları `buy:award` ister) — yetki
+  // tablosunda "Kazandırma" verilmemiş üyeye Kazandır / Kalem bazlı
+  // kazandır sunulmaz (derin denetim LU-21). Ele buy:listing:manage ile kalır.
+  const hasAwardPermission = useHasCompanyPermission("buy:award");
   const [itemAwardMode, setItemAwardMode] = useState(false);
   const [itemWinners, setItemWinners] = useState<Record<string, string>>({});
   const [itemQty, setItemQty] = useState<Record<string, string>>({});
@@ -1107,6 +1111,13 @@ export default function ListingDetailPage() {
                         className="sticky top-0 z-10 bg-white text-right whitespace-normal shadow-table-top"
                       >
                         {b.bidderName}
+                        {/* Elenmiş teklif sütunu işaretli (derin denetim
+                            LU-21) — fiyatları kıyasa girmez. */}
+                        {b.status === "LOST" ? (
+                          <span className="block text-xs font-medium text-zinc-500">
+                            {t("elendi")}
+                          </span>
+                        ) : null}
                         {/* 2026-09-01: davetli/bağlantılı firma BELGESİZ
                             teklif verebiliyor. Alıcı bunu KAZANDIRMADAN ÖNCE
                             görmeli — aksi hâlde sipariş doğduktan sonra
@@ -1162,8 +1173,11 @@ export default function ListingDetailPage() {
                     };
                   });
                   // En iyi TRY karşılığı vurgulanır (birimler arası adil):
-                  // en düşük.
-                  const validTry = cells
+                  // en düşük. Karar aşamasında yalnız canlı (SUBMITTED)
+                  // teklifler kıyaslanır — elenmiş teklif "en iyi" diye
+                  // boyanmaz; toplam satırı / "En iyi" rozetiyle tutarlı
+                  // (derin denetim LU-21).
+                  const validTry = (canDecide ? cells.filter((c) => c.submitted) : cells)
                     .map((c) => c.priceTry)
                     .filter((p): p is number => p != null && p > 0);
                   const minTry = validTry.length ? Math.min(...validTry) : null;
@@ -1380,11 +1394,11 @@ export default function ListingDetailPage() {
               </Button>
             </div>
           </div>
-          ) : (
+          ) : hasAwardPermission ? (
             <Button outline onClick={startItemAward}>
               {t("kalemBazliKazandir2")}
             </Button>
-          )}
+          ) : null}
         </div>
       ) : null}
 
@@ -1521,17 +1535,19 @@ export default function ListingDetailPage() {
                     >
                       {t("ele")}
                     </Button>
-                    <Button
-                      onClick={() => handleAward(b.id, b.bidderName)}
-                      disabled={award.isPending || bidExpired}
-                      title={
-                        bidExpired
-                          ? t("teklifinGecerlilikSuresiDolmusTedarikciden")
-                          : undefined
-                      }
-                    >
-                      {t("kazandir")}
-                    </Button>
+                    {hasAwardPermission ? (
+                      <Button
+                        onClick={() => handleAward(b.id, b.bidderName)}
+                        disabled={award.isPending || bidExpired}
+                        title={
+                          bidExpired
+                            ? t("teklifinGecerlilikSuresiDolmusTedarikciden")
+                            : undefined
+                        }
+                      >
+                        {t("kazandir")}
+                      </Button>
+                    ) : null}
                   </>
                 ) : null}
               </div>
@@ -2238,14 +2254,16 @@ export default function ListingDetailPage() {
               <p className="text-sm font-semibold text-zinc-950">{t("kapaliZarfDigerTekliflerinTutarini")}</p>
               <p className="text-xs text-zinc-500">{t("tekliflerKapanisTarihindenSonraAlici")}</p>
             </div>
-            <a
+            {/* Dil farkında Link — ham <a> EN/RU'da Türkçe sayfayı açıyordu
+                (derin denetim LU-21). */}
+            <Link
               href="/nasil-calisir#nasil"
               target="_blank"
               rel="noopener"
               className="inline-flex shrink-0 items-center text-sm font-medium text-blue-700 hover:text-blue-800"
             >
               {t("nasilCalisir")}
-            </a>
+            </Link>
           </div>
         ) : null}
 

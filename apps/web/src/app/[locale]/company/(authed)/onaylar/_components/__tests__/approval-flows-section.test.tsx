@@ -7,6 +7,7 @@ const h = vi.hoisted(() => ({
   flows: [] as unknown[],
   me: { id: "me", roles: ["YONETICI"] } as Record<string, unknown>,
   companyUsersCalled: false,
+  tier: "GOLD",
 }));
 
 vi.mock("@/hooks/use-company-approvals", () => ({
@@ -29,7 +30,7 @@ vi.mock("@/hooks/use-company-users", () => ({
 vi.mock("@/hooks/use-company-auth", () => ({
   useCompanyAuth: () => ({
     user: h.me,
-    company: { tier: "GOLD" },
+    company: { tier: h.tier },
   }),
 }));
 vi.mock("@/components/providers/confirm-dialog", () => ({
@@ -60,6 +61,7 @@ beforeEach(() => {
   h.flows = [];
   h.me = { id: "me", roles: ["YONETICI"] };
   h.companyUsersCalled = false;
+  h.tier = "GOLD";
 });
 
 describe("ApprovalFlowsSection — onaycı seçici keşfedilebilirlik", () => {
@@ -141,5 +143,44 @@ describe("ApprovalFlowsSection — onaycı seçici keşfedilebilirlik", () => {
     expect(
       document.querySelector('a[href*="ayarlar/kullanicilar"]'),
     ).not.toBeNull();
+  });
+});
+
+describe("ApprovalFlowsSection — Gold kapısı (derin denetim LU-21)", () => {
+  const flow = {
+    id: "f1",
+    name: "Büyük alımlar",
+    type: "LISTING_AWARD",
+    listingType: null,
+    status: "ACTIVE",
+    initiatorRoles: [],
+    steps: [],
+    createdAt: "2026-09-01T00:00:00.000Z",
+  };
+
+  it("Gold altı: yeni akış / kopyala yok, paket notu var; düzenle ve sil kalır; openNew sihirbazı açmaz", () => {
+    h.tier = "SILVER";
+    h.flows = [flow];
+    render(<ApprovalFlowsSection canManage openNew />);
+    expect(screen.queryByRole("button", { name: /Yeni Onay Akışı/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Kopyala" })).toBeNull();
+    expect(screen.getByText(/Gold paketle gelir/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Düzenle/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Devam: Onay Adımları/ })).toBeNull();
+  });
+
+  it("Gold altı boş liste: 'İlk akışı oluştur' yok", () => {
+    h.tier = "STANDART";
+    render(<ApprovalFlowsSection canManage />);
+    expect(screen.queryByRole("button", { name: /İlk/i })).toBeNull();
+    expect(screen.getByText(/Gold paketle gelir/)).toBeInTheDocument();
+  });
+
+  it("Gold: yeni akış ve kopyala görünür", () => {
+    h.flows = [flow];
+    render(<ApprovalFlowsSection canManage />);
+    expect(screen.getByRole("button", { name: /Yeni Onay Akışı/i })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kopyala" })).toBeInTheDocument();
+    expect(screen.queryByText(/Gold paketle gelir/)).toBeNull();
   });
 });

@@ -22,6 +22,7 @@ export * from "./data/country-profiles";
 export * from "./data/phone-codes";
 export * from "./data/iban-countries";
 export * from "./data/geo-special-cities";
+export * from "./data/yes-no-answer";
 export * from "./helpers/tier";
 export * from "./helpers/search-fold";
 export * from "./types/ai-tender-draft";

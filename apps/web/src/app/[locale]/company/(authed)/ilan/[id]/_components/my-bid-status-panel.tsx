@@ -480,9 +480,33 @@ export function MyBidStatusPanel({ l }: { l: ListingDetail }) {
         </p>
       </StatusAlert>,
     );
+  } else if (
+    bid.status === "LOST" &&
+    bid.eliminatedAt &&
+    (l.status === "IN_AWARD" || l.status === "IN_AWARD_APPROVAL")
+  ) {
+    // Alıcı değerlendirme aşamasında da eleyebilir (backend OPEN|IN_AWARD).
+    // Talep henüz sonuçlanmadı (yeni tur açılabilir) — "sonuçlandı" demek
+    // yanlış olur; gerekçe de burada görünmeli (derin denetim LU-21).
+    alerts.push(
+      <StatusAlert key="lost-review" tone="warning" title={t("teklifinizElendi")}>
+        {bid.eliminationReason ? (
+          <p>
+            <span className="font-medium">{t("gerekce2")}</span> {systemText(bid.eliminationReason)}
+          </p>
+        ) : null}
+        <p className="mt-1">{t("alimTalebiHenuzSonuclanmadi")}</p>
+      </StatusAlert>,
+    );
   } else if (bid.status === "LOST") {
     alerts.push(
-      <StatusAlert key="lost" tone="info" title={t("satinAlmaTalebiSonuclandiTeklifiniz")} />,
+      <StatusAlert key="lost" tone="info" title={t("satinAlmaTalebiSonuclandiTeklifiniz")}>
+        {bid.eliminatedAt && bid.eliminationReason ? (
+          <p>
+            <span className="font-medium">{t("gerekce2")}</span> {systemText(bid.eliminationReason)}
+          </p>
+        ) : null}
+      </StatusAlert>,
     );
   } else if (bid.status === "WITHDRAWN") {
     alerts.push(

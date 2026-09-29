@@ -5,6 +5,8 @@
  */
 import { CompanyReportsService } from "../../src/modules/company-reports/company-reports.service";
 import { ReportsExcelService } from "../../src/modules/company-reports/reports-excel.service";
+import { YES_NO_ANSWER_VALUES } from "@rothern/shared";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 import { prisma, truncateAll } from "./test-db";
 import { makeBid, makeCompanyWithUser, makeItem, makeListing } from "./factories";
 
@@ -193,6 +195,41 @@ describe("Teklif Karşılaştırma raporu", () => {
     expect(noBid.submitted).toBe(false);
     expect(noBid.status).toBe("NO_BID");
     void item;
+  });
+
+  it("YES_NO cevabı istek dilinde gösterilir (saklanan sabit değer çevrilir; derin denetim LU-21)", async () => {
+    const service = svc();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const { listing, item } = await awardedAlim(owner);
+    const q = await prisma.listingItemQuestion.create({
+      data: { itemId: item.id, text: "CE certified?", answerType: "YES_NO" },
+    });
+    const qText = await prisma.listingItemQuestion.create({
+      data: { itemId: item.id, text: "Brand", answerType: "TEXT" },
+    });
+    const bids = await prisma.listingBid.findMany({
+      where: { listingId: listing.id },
+      orderBy: { amount: "asc" },
+    });
+    await prisma.listingBidAnswer.createMany({
+      data: [
+        { bidId: bids[0]!.id, questionId: q.id, value: YES_NO_ANSWER_VALUES.yes },
+        { bidId: bids[0]!.id, questionId: qText.id, value: "Evet" },
+        { bidId: bids[1]!.id, questionId: q.id, value: YES_NO_ANSWER_VALUES.no },
+      ],
+    });
+    const r = await runWithLocale("en", () =>
+      service.bidComparison(owner.company.id, {
+        listingId: listing.id,
+        criteria: "ANSWERS",
+        includeNonBidders: false,
+      }),
+    );
+    const answers = r.parties
+      .map((p) => (p.itemAnswers[0]?.answer ?? "").split(" | ").sort().join(" | "))
+      .sort();
+    // TEXT sorusunun serbest cevabı aynen kalır; yalnız YES_NO çevrilir.
+    expect(answers).toEqual(["Brand: Evet | CE certified?: Yes", "CE certified?: No"]);
   });
 
   it("Excel çıktıları üç rapor için de üretilir (buffer)", async () => {

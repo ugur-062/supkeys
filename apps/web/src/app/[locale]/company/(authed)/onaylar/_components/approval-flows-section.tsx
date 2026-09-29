@@ -33,6 +33,7 @@ import {
   type CreateApprovalFlowInput,
 } from "@/hooks/use-company-approvals";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { tierAtLeast } from "@rothern/shared";
 import type { CompanyRole } from "@/lib/company-auth/types";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
@@ -120,16 +121,22 @@ export function ApprovalFlowsSection({
   // users:manage ister; yalnız akış yetkili üyede seçici boş kalıyordu).
   const { data: candidates } = useApproverCandidates(canManage);
   const [wizard, setWizard] = useState<ApprovalFlow | "new" | null>(null);
+  // YENİ akış kurma / kopyalama Gold ister (API POST flows + duplicate
+  // @RequireTier GOLD); mevcut akışı düzenleme/pasife alma/silme kademesiz —
+  // pakete düşen firma açık süreçlerini yönetebilir (Faz T). Firma bilgisi
+  // yüklenmediyse açık (PremiumOnly ile aynı; derin denetim LU-21).
+  const { company } = useCompanyAuth();
+  const canCreate = !company || tierAtLeast(company.tier, "GOLD");
 
   // Dışarıdan (üst buton) "yeni" tetikleyicisi — yalnız intent geldiğinde açar,
   // sonra tüketir. Bu sayede sekmeye tekrar girince (remount) kendiliğinden
   // açılmaz; intent parent'ta false'a döner.
   useEffect(() => {
     if (openNew) {
-      setWizard("new");
+      if (canCreate) setWizard("new");
       onConsumeOpenNew?.();
     }
-  }, [openNew, onConsumeOpenNew]);
+  }, [openNew, onConsumeOpenNew, canCreate]);
 
   // Onaycı = AKTİF ve "Onaylama" (approval:act) izni taşıyan — sunucu süzer
   // (createFlow'daki assertApproversValid ile aynı kural).
@@ -169,6 +176,7 @@ export function ApprovalFlowsSection({
       isLoading={isLoading}
       isError={isError}
       onRetry={() => refetch()}
+      canCreate={canCreate}
       onNew={() => setWizard("new")}
       onEdit={(f) => setWizard(f)}
     />
@@ -182,6 +190,7 @@ function FlowList({
   isLoading,
   isError,
   onRetry,
+  canCreate,
   onNew,
   onEdit,
 }: {
@@ -189,6 +198,7 @@ function FlowList({
   isLoading: boolean;
   isError: boolean;
   onRetry: () => void;
+  canCreate: boolean;
   onNew: () => void;
   onEdit: (f: ApprovalFlow) => void;
 }) {
@@ -247,12 +257,24 @@ function FlowList({
         </p>
       </InfoNote>
 
+      {!canCreate ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-amber-200 bg-amber-50/70 p-3.5 text-sm text-amber-900">
+          <p>{t("yeniAkisGoldPakette")}</p>
+          <Link
+            href="/company/premium"
+            className="shrink-0 font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950"
+          >
+            {t("paketleriIncele")}
+          </Link>
+        </div>
+      ) : null}
+
       <div className="flex items-center justify-between">
         <h3 className="text-sm font-semibold text-zinc-900">
           {t("tanimliAkislar")}
         </h3>
         {/* Boş durumda CTA boş durumun İÇİNDE (§9) — burada yinelenmez. */}
-        {flows && flows.length > 0 ? (
+        {canCreate && flows && flows.length > 0 ? (
           <Button onClick={onNew}>
             <Plus className="size-4" />
             {t("yeniOnayAkisi")}
@@ -286,10 +308,12 @@ function FlowList({
           <p className="mx-auto mt-1 max-w-md text-sm text-zinc-500">
             {t("akisTanimlanmadigiIcinTumKazandirmalar")}
           </p>
-          <Button className="mt-4" onClick={onNew}>
-            <Plus className="size-4" />
-            {t("ilkAkisiOlustur")}
-          </Button>
+          {canCreate ? (
+            <Button className="mt-4" onClick={onNew}>
+              <Plus className="size-4" />
+              {t("ilkAkisiOlustur")}
+            </Button>
+          ) : null}
         </div>
       ) : (
         <div className="space-y-3">
@@ -349,13 +373,15 @@ function FlowList({
                     <Pencil className="size-4" aria-hidden />
                     {t("duzenle")}
                   </Button>
-                  <Button
-                    plain
-                    onClick={() => handleDuplicate(f)}
-                    disabled={duplicate.isPending}
-                  >
-                    {t("kopyala")}
-                  </Button>
+                  {canCreate ? (
+                    <Button
+                      plain
+                      onClick={() => handleDuplicate(f)}
+                      disabled={duplicate.isPending}
+                    >
+                      {t("kopyala")}
+                    </Button>
+                  ) : null}
                   <Button
                     plain
                     onClick={() => handleDelete(f)}

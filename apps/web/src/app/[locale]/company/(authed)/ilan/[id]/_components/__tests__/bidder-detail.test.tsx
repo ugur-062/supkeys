@@ -211,6 +211,40 @@ describe("MyBidStatusPanel — durum makinesi", () => {
     expect(screen.getByText(/yeniden verebilirsiniz/)).toBeInTheDocument();
   });
 
+  it("LOST + değerlendirmede (IN_AWARD) elenen → 'elendi' + gerekçe, 'sonuçlandı' denmez (derin denetim LU-21)", () => {
+    render(
+      <MyBidStatusPanel
+        l={detail({
+          status: "IN_AWARD",
+          myBid: {
+            amount: "1000",
+            status: "LOST",
+            version: 1,
+            note: null,
+            eliminationReason: "Teknik şartname uyumsuz",
+            eliminatedAt: new Date().toISOString(),
+          },
+        })}
+      />,
+    );
+    expect(screen.getByText("Teklifiniz elendi")).toBeInTheDocument();
+    expect(screen.getByText("Teknik şartname uyumsuz")).toBeInTheDocument();
+    expect(screen.getByText(/henüz sonuçlanmadı/)).toBeInTheDocument();
+    expect(screen.queryByText(/sonuçlandı —/)).not.toBeInTheDocument();
+  });
+
+  it("LOST + sonuçlanmış (AWARDED), kazandırmayla kaybeden → 'sonuçlandı', gerekçe yok", () => {
+    render(
+      <MyBidStatusPanel
+        l={detail({
+          status: "AWARDED",
+          myBid: { amount: "1000", status: "LOST", version: 1, note: null },
+        })}
+      />,
+    );
+    expect(screen.getByText(/Alım talebi sonuçlandı/)).toBeInTheDocument();
+  });
+
   it("SUBMITTED + açık → 'Teklifiniz alındı' (versiyon v1 gösterilmez)", () => {
     render(
       <MyBidStatusPanel
