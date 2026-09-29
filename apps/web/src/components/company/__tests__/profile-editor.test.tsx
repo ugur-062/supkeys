@@ -239,6 +239,38 @@ describe("ProfileEditor — yerinde düzenleme", () => {
     expect(screen.getByText(/En az 1 kategori/)).toBeInTheDocument();
   });
 
+  it("Ürünlerim kartı yayındakileri SUNUCU süzgeciyle ister (kullanım sıralı ilk 50 değil — derin denetim LU-27)", async () => {
+    render(<ProfileEditor profile={PROFILE} canEdit />);
+    await screen.findByRole("region", { name: "Ürünlerim" });
+    await waitFor(() =>
+      expect(h.get).toHaveBeenCalledWith(
+        "/company/items",
+        expect.objectContaining({ params: expect.objectContaining({ status: "published", sort: "recent" }) }),
+      ),
+    );
+  });
+
+  it("kuruluş yılı silinip kaydedilince PATCH `foundedYear: null` taşır (derin denetim LU-27)", async () => {
+    render(<ProfileEditor profile={PROFILE} canEdit />);
+    fireEvent.change(screen.getByLabelText("Kuruluş yılı"), { target: { value: "" } });
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet" }));
+    await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+    const body = h.update.mock.calls[0]![0] as Record<string, unknown>;
+    expect(body).toHaveProperty("foundedYear", null);
+  });
+
+  it("faaliyet kategorileri sayısı yalnız kullanıcının seçtiklerini sayar, türetilmiş ataları değil (derin denetim LU-27)", () => {
+    // Tek L4 yaprak seçimi depoda segment + L2 + L3 + L4 olarak durur; ayrıca
+    // altında yaprağı olmayan ("Sektör geneli") bir segment var.
+    const profile = {
+      ...PROFILE,
+      sellerCategoryIds: ["39000000", "40000000"],
+      sellerSubCategoryIds: ["39120000", "39121600", "39121601"],
+    };
+    render(<ProfileEditor profile={profile} canEdit />);
+    expect(screen.getByText("Faaliyet kategorileri (2)")).toBeInTheDocument();
+  });
+
   it("hizmet çipi kayıt DTO'sunun uzunluk tavanını aşamaz (derin denetim S069)", () => {
     render(<ProfileEditor profile={PROFILE} canEdit />);
     const input = screen.getByLabelText("Hizmet ekle");

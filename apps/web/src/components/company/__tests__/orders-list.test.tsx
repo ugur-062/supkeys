@@ -21,7 +21,7 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 
-import { OrdersList } from "../orders-list";
+import { OrdersList, byCurrencyThenAmount } from "../orders-list";
 
 let seq = 0;
 function order(over: Partial<CompanyOrder> = {}): CompanyOrder {
@@ -236,5 +236,22 @@ describe("OrdersList — son durum notu (derin denetim S068)", () => {
     render(<OrdersList role="buyer" />);
     expect(screen.getByText("Sipariş ihtilaflı — süreç sürüyor")).toBeInTheDocument();
     expect(screen.getAllByText("Sipariş iptal edildi")).toHaveLength(1);
+  });
+});
+
+describe("byCurrencyThenAmount — tutar sıralaması para birimini yok saymaz (derin denetim LU-27)", () => {
+  const rows = [
+    { amount: "5000", currency: "EUR" },
+    { amount: "50000", currency: "RUB" },
+    { amount: "7000", currency: "EUR" },
+    { amount: "100", currency: "RUB" },
+  ];
+  it("yüksek→düşük: birim grupları ayrı, her grup kendi içinde azalan", () => {
+    const out = [...rows].sort((a, b) => byCurrencyThenAmount(a, b, -1));
+    expect(out.map((r) => `${r.amount} ${r.currency}`)).toEqual(["7000 EUR", "5000 EUR", "50000 RUB", "100 RUB"]);
+  });
+  it("düşük→yüksek: grup içinde artan", () => {
+    const out = [...rows].sort((a, b) => byCurrencyThenAmount(a, b, 1));
+    expect(out.map((r) => `${r.amount} ${r.currency}`)).toEqual(["5000 EUR", "7000 EUR", "100 RUB", "50000 RUB"]);
   });
 });

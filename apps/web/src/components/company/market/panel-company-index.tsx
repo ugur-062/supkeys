@@ -116,8 +116,12 @@ function Inner({
   const isSatis = portal === "satis";
   const base = marketCompaniesPath(portal);
   // Sekme rozeti: aynı arama/kategoriyle kaç ÜRÜN var (tek satır yeter).
-  // Satışta ürün dizini yok → sekme çizilmez, sayı sorulmaz.
-  const products = useDiscoverSearch({ q: state.q, category: state.categories[0], pageSize: 1 }, { enabled: !isSatis });
+  // Satışta ürün dizini yok → sekme çizilmez, sayı sorulmaz. Kategori
+  // `productsHref` ile AYNI kuralla taşınır (yalnız tek kategori seçiliyken):
+  // çoklu seçimde ilk kategoriye göre sayılsaydı rozet, tıklayınca açılan
+  // kategorisiz listeyle çelişirdi.
+  const productsCategory = state.categories.length === 1 ? state.categories[0] : undefined;
+  const products = useDiscoverSearch({ q: state.q, category: productsCategory, pageSize: 1 }, { enabled: !isSatis });
 
   return (
     <div className="space-y-8">

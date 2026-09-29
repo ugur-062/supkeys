@@ -35,6 +35,7 @@ import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
 
 const PAGE_SIZE = 10;
 
@@ -269,13 +270,24 @@ function MyBidCard({ b, fromHref }: { b: MyBid; fromHref: string }) {
   );
 }
 
+/** `?status=` değerinden başlangıç süzgeci; bilinmeyen kodlar atılır. */
+export function parseStatusParam(raw: string | null): string[] {
+  const picked = (raw ?? "").split(",").filter((v) => STATUS_FILTER_OPTIONS.some((o) => o.value === v));
+  if (picked.includes("WON") && !picked.includes("AWARDED_PARTIAL")) picked.push("AWARDED_PARTIAL");
+  return [...new Set(picked)];
+}
+
 /** Firmanın açık taleplere verdiği teklifler (satış paneli). */
 export function MyBidsList() {
 const t = useTranslations("web.panel.trade.myBidsList");
 const tn = useNavLabel();
   const accent = useButtonAccent();
   const [search, setSearch] = useState("");
-  const [status, setStatus] = useState<string[]>([]);
+  // KPI drill-down (İş Analizi / Genel Bakış "Kazanılan"): `?status=WON` ya da
+  // virgüllü çoklu seçim — orders-list ile aynı sözleşme. "Kazanılan" sayısı
+  // kısmi kazanımı da içerdiği için WON verildiğinde AWARDED_PARTIAL da seçilir.
+  const urlStatus = useSearchParams().get("status");
+  const [status, setStatus] = useState<string[]>(() => parseStatusParam(urlStatus));
   const [sort, setSort] = useState("newest");
   const [range, setRange] = useState("all");
   const [page, setPage] = useState(1);

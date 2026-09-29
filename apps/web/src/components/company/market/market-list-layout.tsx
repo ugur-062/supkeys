@@ -55,6 +55,7 @@ export function MarketListLayout({
   perPage?: PerPage;
 }) {
   const t = useTranslations("web.panel.market.marketListLayout");
+  const showPerPage = onPerPage != null && perPage != null && total > PER_PAGE_OPTIONS[0];
   return (
     <div className="grid grid-cols-1 gap-8 xl:grid-cols-[16rem_1fr]">
       <aside
@@ -72,10 +73,13 @@ export function MarketListLayout({
           {toolbarEnd}
         </div>
         <FilterResults>{children}</FilterResults>
-        {total > pageSize ? (
+        {/* Seçici sayfalamadan BAĞIMSIZ: büyük boyut seçilince sonuçlar tek
+            sayfaya sığıp sayfalama kaybolsa da küçük boyuta dönüş yolu kalır
+            (eskiden ikisi birlikte `total > pageSize` iken çiziliyordu). */}
+        {total > pageSize || showPerPage ? (
           <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-zinc-200 pt-6">
-            <Pagination page={page} total={total} pageSize={pageSize} onChange={onPage} />
-            {onPerPage && perPage != null ? <PerPageSelect value={perPage} onChange={onPerPage} /> : null}
+            {total > pageSize ? <Pagination page={page} total={total} pageSize={pageSize} onChange={onPage} /> : null}
+            {showPerPage ? <PerPageSelect value={perPage} onChange={onPerPage} /> : null}
           </div>
         ) : null}
       </div>
@@ -87,7 +91,7 @@ export function MarketListLayout({
 function PerPageSelect({ value, onChange }: { value: PerPage; onChange: (n: PerPage) => void }) {
   const t = useTranslations("web.panel.market.marketListLayout");
   return (
-    <label className="flex items-center gap-2 text-xs text-zinc-500">
+    <label className="ml-auto flex items-center gap-2 text-xs text-zinc-500">
       {t("sayfaBasina")}
       <select
         value={value}

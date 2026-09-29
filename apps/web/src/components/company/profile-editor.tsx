@@ -3,8 +3,8 @@
 import { MissingFields } from "@/components/ui/missing-fields";
 import { ImageCropDialog } from "@/components/ui/image-crop-dialog";
 import { Thumb } from "@/components/ui/thumb";
-import { useCatalogItems } from "@/hooks/use-company-items";
-import { EMPLOYEE_BUCKET_LABELS } from "@rothern/shared";
+import { useShowcaseItems } from "@/hooks/use-company-items";
+import { EMPLOYEE_BUCKET_LABELS, categorySegment, deepestCategoryPicks } from "@rothern/shared";
 import { useCategoriesByIds } from "@/hooks/use-categories";
 import { profileCompleteness, type ProfileCompletenessKey } from "@/lib/company/profile-completeness";
 import { SearchVisibilityCard } from "@/components/seo/search-visibility-card";
@@ -154,7 +154,9 @@ export function ProfileEditor({
         linkedinUrl: normLinkedin,
         instagramUrl: normInstagram,
         employeeCount: draft.employeeCount,
-        foundedYear: year ? Number(year) : undefined,
+        // Boş yıl `null` (temizle): `undefined` JSON'dan düşüyor, servis
+        // alanı hiç yazmıyor ve refetch eski yılı geri getiriyordu.
+        foundedYear: year ? Number(year) : null,
         services: draft.services,
       });
       // Başarıda taslak = kayıtlı (çubuk hemen kapanır; refetch gelince de aynı kalır).
@@ -1161,9 +1163,14 @@ function completenessOf(d: Draft, p: CompanyProfile) {
  */
 function MyProductsCard() {
   const t = useTranslations("web.panel.company.profileEditor");
-  const { data, isLoading } = useCatalogItems("");
-  const published = (data?.items ?? []).filter((i) => i.isPublic).slice(0, 3);
-  const n = data?.counts?.published ?? published.length;
+  // Süzgeç ve "en yeni üstte" SUNUCUDA (Ürünlerim "Yayında" sekmesiyle aynı
+  // sorgu): katalog ucunun varsayılanı kullanım sıralı ilk 50 satırdı; talep
+  // kalemi çok olan firmada vitrin ürünleri o 50'ye girmiyor, başlık "(5)"
+  // derken gövde "Yayında ürün yok" diyordu.
+  const { data, isLoading } = useShowcaseItems("", "published");
+  const first = data?.pages[0];
+  const published = (first?.items ?? []).filter((i) => i.isPublic).slice(0, 3);
+  const n = first?.counts?.published ?? published.length;
   return (
     <section className="card p-6" aria-label={t("urunlerim")}>
       <div className="flex items-center justify-between gap-3">
@@ -1205,7 +1212,16 @@ function MyProductsCard() {
 function ClassificationSummary({ profile }: { profile: CompanyProfile }) {
   const t = useTranslations("web.panel.company.profileEditor");
   const activityLabel = useActivityLabel();
-  const ids = [...(profile.sellerCategoryIds ?? []), ...(profile.sellerSubCategoryIds ?? [])];
+  // Yalnız KULLANICININ SEÇTİKLERİ (CLAUDE.md kategori gösterim kuralı):
+  // depoda ata zinciri de duruyor (segment + L2/L3); hepsi çip olsaydı tek
+  // yaprak "(4)" ve dört çip görünürdü. Altında yaprağı olmayan ("Sektör
+  // geneli") segmentler ayrıca eklenir.
+  const ids = useMemo(() => {
+    const leaves = deepestCategoryPicks(profile.sellerSubCategoryIds ?? []);
+    const covered = new Set(leaves.map((id) => categorySegment(id)));
+    const bareSegments = (profile.sellerCategoryIds ?? []).filter((id) => !covered.has(id));
+    return [...bareSegments, ...leaves];
+  }, [profile.sellerCategoryIds, profile.sellerSubCategoryIds]);
   const cats = useCategoriesByIds(ids);
   const names = ids
     .map((id) => cats.data?.find((c) => c.id === id)?.nameTr)

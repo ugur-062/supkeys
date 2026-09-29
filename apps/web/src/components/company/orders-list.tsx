@@ -145,6 +145,21 @@ function StageStepper({
 }
 
 // `labelKey` katalog anahtarı — seçenek listeleri bileşende `t(labelKey)` ile çizilir.
+/**
+ * Tutar sıralaması — önce PARA BİRİMİ, sonra birim İÇİNDE tutar. Sipariş
+ * ucu TRY karşılığı (`amountTry`) dönmüyor (business-rules F6); ham tutarları
+ * birimler arası kıyaslamak 50.000 RUB'u 5.000 EUR'nun üstüne koyuyordu.
+ * Tek birimli listede davranış değişmez.
+ */
+export function byCurrencyThenAmount(
+  a: Pick<CompanyOrder, "amount" | "currency">,
+  b: Pick<CompanyOrder, "amount" | "currency">,
+  dir: 1 | -1,
+): number {
+  if (a.currency !== b.currency) return a.currency.localeCompare(b.currency);
+  return dir * (Number(a.amount) - Number(b.amount));
+}
+
 const SORT_OPTIONS = [
   { value: "newest", labelKey: "sort.newest" },
   { value: "oldest", labelKey: "sort.oldest" },
@@ -402,9 +417,9 @@ export function OrdersList({ role }: { role: "buyer" | "seller" }) {
     if (sort === "oldest") {
       out.sort((a, b) => a.createdAt.localeCompare(b.createdAt));
     } else if (sort === "amount_desc") {
-      out.sort((a, b) => Number(b.amount) - Number(a.amount));
+      out.sort((a, b) => byCurrencyThenAmount(a, b, -1));
     } else if (sort === "amount_asc") {
-      out.sort((a, b) => Number(a.amount) - Number(b.amount));
+      out.sort((a, b) => byCurrencyThenAmount(a, b, 1));
     } else {
       out.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
     }

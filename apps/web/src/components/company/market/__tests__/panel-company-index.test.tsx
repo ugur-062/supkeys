@@ -10,6 +10,7 @@ const h = vi.hoisted(() => ({
   result: { data: undefined as unknown, isLoading: false },
   lastSearchParams: undefined as unknown,
   lastFacetParams: undefined as unknown,
+  lastDiscoverParams: undefined as unknown,
 }));
 
 vi.mock("next/navigation", () => ({
@@ -19,7 +20,10 @@ vi.mock("next/navigation", () => ({
 }));
 // Ürün sayacı (sekme rozeti) — dizin sayfası ürün dizinine de soruyor.
 vi.mock("@/hooks/use-portal-discovery", () => ({
-  useDiscoverSearch: () => ({ data: { items: [], total: 56, page: 1, pageSize: 1 }, isLoading: false }),
+  useDiscoverSearch: (params: unknown) => {
+    h.lastDiscoverParams = params;
+    return { data: { items: [], total: 56, page: 1, pageSize: 1 }, isLoading: false };
+  },
 }));
 // Kategori adı çözümleyici (facet dışı seçili kod) — bu rig QueryClient taşımaz.
 vi.mock("@/hooks/use-categories", () => ({ useCategoriesByIds: () => ({ data: [] }) }));
@@ -162,6 +166,27 @@ describe("PanelCompanyIndex — pazar bölgesinin firma dizini", () => {
     expect(screen.getByRole("link", { name: /Kablo kanalı/ })).toHaveAttribute(
       "href",
       "/company/satinalma/urunler/firma-2/kablo",
+    );
+  });
+
+  it("ürün sekmesi rozeti ve bağlantısı AYNI kategori kuralını izler (çoklu seçimde kategorisiz)", () => {
+    // Derin denetim LU-27: rozet ilk kategoriye göre sayılıyor, bağlantı
+    // ise kategorisiz ürün dizinine gidiyordu — sayı ile liste çelişiyordu.
+    h.search = "kategori=39000000,40000000";
+    render(<PanelCompanyIndex />);
+    expect(h.lastDiscoverParams).toMatchObject({ category: undefined });
+    const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
+    expect(within(tabs).getByRole("link", { name: /Ürünler ve hizmetler/ })).toHaveAttribute("href", "/company/satinalma/urunler");
+  });
+
+  it("tek kategori seçiliyken rozet sayısı da bağlantı da o kategoriyi taşır", () => {
+    h.search = "kategori=39000000";
+    render(<PanelCompanyIndex />);
+    expect(h.lastDiscoverParams).toMatchObject({ category: "39000000" });
+    const tabs = screen.getByRole("navigation", { name: "Sonuç türü" });
+    expect(within(tabs).getByRole("link", { name: /Ürünler ve hizmetler/ })).toHaveAttribute(
+      "href",
+      "/company/satinalma/urunler?kategori=39000000",
     );
   });
 

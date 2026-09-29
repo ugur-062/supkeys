@@ -179,6 +179,15 @@ describe("PanelProductIndex — pazar bölgesinin ürün dizini", () => {
     expect(h.push).toHaveBeenLastCalledWith("/company/satinalma/urunler?adet=48", { scroll: false });
   });
 
+  it("büyük sayfa boyutu seçilip sonuçlar tek sayfaya sığınca da seçici kalır (küçük boyuta dönüş yolu)", () => {
+    // Derin denetim LU-27: seçici sayfalamayla birlikte yalnız
+    // `total > pageSize` iken çiziliyordu; 30 sonuçta 48 seçilince kayboluyordu.
+    h.search = "adet=48";
+    h.result = { ...h.result, data: { ...(h.result.data as object), total: 30, pageSize: 48 } };
+    render(<PanelProductIndex />);
+    expect(screen.getByLabelText("Sayfa başına")).toHaveValue("48");
+  });
+
   it("İLK YÜKLEMEDE 'bulunamadı' yazmaz — iskelet dönerken sayfa boş ilan edilmez", () => {
     h.result = { data: undefined, isLoading: true };
     render(<PanelProductIndex />);
