@@ -9,25 +9,28 @@ import {
   Matches,
   MaxLength,
   MinLength,
+  ValidateIf,
 } from "class-validator";
 
 import { tApi } from "../../../common/i18n/i18n.service";
 import { IsIntlPhone, NormalizePhone } from "./phone.validator";
 
 export class UpdateMeDto {
-  @IsOptional()
+  // @IsOptional null'ı da geçirirdi → serviste null.trim() 500 (derin denetim
+  // LU-06). Ad/soyad silinemez: yalnız ALAN YOKSA atlanır, null 400 alır.
+  @ValidateIf((_o, v) => v !== undefined)
   @IsString()
   @Matches(/\S/) // tek harfli ad meşru; yalnız boş olamaz
   @MaxLength(80)
   firstName?: string;
 
-  @IsOptional()
+  @ValidateIf((_o, v) => v !== undefined)
   @IsString()
   @Matches(/\S/)
   @MaxLength(80)
   lastName?: string;
 
-  // Boş dize numarayı siler; dolu değer ülke uzunluğuna göre (phone.validator.ts).
+  // Boş dize (ya da null) numarayı siler; dolu değer ülke uzunluğuna göre (phone.validator.ts).
   @IsOptional()
   @NormalizePhone()
   @IsString()
@@ -36,7 +39,7 @@ export class UpdateMeDto {
     { allowEmpty: true },
     { message: () => tApi("api.dto.companySignup.gecerliBirTelefonGiriniz") },
   )
-  phone?: string;
+  phone?: string | null;
 
   /** Arayüz dili — desteklenen kodlar @rothern/i18n LOCALES (tr/en/ru). */
   @IsOptional()

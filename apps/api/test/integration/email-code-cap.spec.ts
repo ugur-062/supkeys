@@ -136,3 +136,54 @@ describe("e-posta 2FA girişinde kod tavanı (derin denetim MU-16)", () => {
     expect((err as Error).message).toMatch(/çok fazla doğrulama kodu/i);
   });
 });
+
+describe("derin denetim LU-06", () => {
+  it("eşzamanlı yanlış tahminler: deneme hakkı karşılaştırmadan ÖNCE ayrılır → en fazla 5 tahmin denenir", async () => {
+    const { service, mail } = await signupUser();
+    const hashSpy = jest.spyOn(service as never as { hashCode: (c: string) => string }, "hashCode");
+    await Promise.all(
+      Array.from({ length: 12 }, () => service.verifyEmail(mail, "000000").catch(() => undefined)),
+    );
+    expect(hashSpy.mock.calls.length).toBeLessThanOrEqual(5);
+    hashSpy.mockRestore();
+  });
+
+  it("5 hatalı denemeden sonra doğru kod da reddedilir; 5. deneme doğruysa geçer", async () => {
+    const { service, email, mail } = await signupUser();
+    const code = extractCode(email);
+    for (let i = 0; i < 4; i++) await service.verifyEmail(mail, "000000").catch(() => undefined);
+    const ok = (await service.verifyEmail(mail, code)) as { token?: string };
+    expect(ok.token).toBeTruthy();
+  });
+
+  it("2FA kurulum kodu: gönderim başarısızsa 503, tavan dolu + geçerli kod yoksa 429, geçerli kod varsa sent:false", async () => {
+    const { service, email, user } = await signupUser();
+    await expect(service.sendEmailTwoFactorCode(user.id)).resolves.toEqual({ sent: true });
+
+    email.send.mockResolvedValueOnce({ emailLogId: "t", sent: false });
+    const failed = await service.sendEmailTwoFactorCode(user.id).catch((e: unknown) => e);
+    expect((failed as { getStatus: () => number }).getStatus()).toBe(503);
+
+    // signup + 2 kod (biri gönderilemedi ama üretildi) → 2 kod daha = tavan.
+    await service.sendEmailTwoFactorCode(user.id);
+    await service.sendEmailTwoFactorCode(user.id);
+    await expect(service.sendEmailTwoFactorCode(user.id)).resolves.toEqual({
+      sent: false,
+      capped: true,
+    });
+
+    await prisma.emailVerificationCode.updateMany({
+      where: { companyUserId: user.id, usedAt: null },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    const capped = await service.sendEmailTwoFactorCode(user.id).catch((e: unknown) => e);
+    expect((capped as { getStatus: () => number }).getStatus()).toBe(429);
+  });
+
+  it("updateMe: phone null numarayı siler (500 değil)", async () => {
+    const { service, user } = await signupUser();
+    await service.updateMe(user.id, { phone: null });
+    const after = await prisma.companyUser.findUniqueOrThrow({ where: { id: user.id } });
+    expect(after.phone).toBeNull();
+  });
+});

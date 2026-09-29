@@ -131,4 +131,54 @@ describe("MembershipScheduler.downgradeExpired", () => {
         .tier,
     ).toBe("GOLD");
   });
+
+  it("okuma ile claim arasında uzatılan firma DÜŞÜRÜLMEZ (derin denetim LU-06)", async () => {
+    const email = { send: jest.fn().mockResolvedValue({ emailLogId: "t", sent: true }) };
+    const config = { get: jest.fn().mockReturnValue("http://localhost:3000") };
+    const a = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await prisma.company.update({
+      where: { id: a.company.id },
+      data: { membershipEndAt: new Date(Date.now() - 86_400_000) },
+    });
+    const extendedTo = new Date(Date.now() + 365 * 86_400_000);
+    // findMany süresi dolmuş firmayı döndürdükten HEMEN sonra admin uzatması
+    // yazılır (yarış penceresinin deterministik taklidi).
+    const bind = (o: object, k: string | symbol) => {
+      const v = Reflect.get(o, k);
+      return typeof v === "function" ? v.bind(o) : v;
+    };
+    const racing = new Proxy(prisma, {
+      get(target, key) {
+        if (key !== "company") return bind(target, key);
+        return new Proxy(target.company, {
+          get(ct, ck) {
+            if (ck !== "findMany") return bind(ct, ck);
+            return async (args: never) => {
+              const rows = await ct.findMany(args);
+              await target.company.update({
+                where: { id: a.company.id },
+                data: { membershipEndAt: extendedTo },
+              });
+              return rows;
+            };
+          },
+        });
+      },
+    });
+    const scheduler = new MembershipScheduler(
+      racing as never,
+      email as never,
+      config as never,
+    );
+    await scheduler.downgradeExpired();
+    const after = await prisma.company.findUniqueOrThrow({ where: { id: a.company.id } });
+    expect(after.tier).toBe("GOLD");
+    expect(after.membershipEndAt?.getTime()).toBe(extendedTo.getTime());
+    expect(email.send).not.toHaveBeenCalled();
+    expect(
+      await prisma.companyMembershipEvent.count({
+        where: { companyId: a.company.id, action: "EXPIRE" },
+      }),
+    ).toBe(0);
+  });
 });

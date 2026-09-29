@@ -98,7 +98,15 @@ export class MembershipScheduler implements OnModuleInit {
     const downgraded: typeof expired = [];
     for (const c of expired) {
       const claimed = await this.prisma.company.updateMany({
-        where: { id: c.id, tier: { in: [...PAID_TIERS] } },
+        // Süre dolumu claim anında YENİDEN denetlenir (derin denetim LU-06):
+        // findMany ile claim arasında admin uzatması/paket ataması ya da
+        // upgradeToPremium başarılı olduysa firma düşürülmez, yeni bitiş
+        // tarihi ezilmez.
+        where: {
+          id: c.id,
+          tier: { in: [...PAID_TIERS] },
+          membershipEndAt: { not: null, lt: new Date() },
+        },
         // Y3: membershipEndAt'i TEMİZLE — bayat geçmiş tarih kalırsa sonraki
         // cron bu firmayı yeniden eşleştirir + gelecekteki re-grant/upgrade bayat
         // tarihe takılır. Geçmiş EXPIRE event'inde (endBefore) korunur.

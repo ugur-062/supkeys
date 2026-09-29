@@ -13,6 +13,7 @@ import { NotificationService } from "../../src/modules/notifications/notificatio
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeListing, makeUser } from "./factories";
 import { makeService } from "./make-service";
+import { runWithLocale } from "../../src/common/i18n/locale-context";
 
 const future = (days: number) => new Date(Date.now() + days * 86_400_000);
 
@@ -921,5 +922,58 @@ describe("X-CF-3 — ilan+tip başına tek bekleyen istek (kısmi unique index)"
       where: { listingId: listing.id, type: "LISTING_AWARD", status: "PENDING" },
     });
     expect(n).toBe(1);
+  });
+});
+
+describe("Derin denetim LU-06", () => {
+  it("pasifleştirilmiş başlatana onay sonucu e-postası GİTMEZ", async () => {
+    const { approvals, flush, email } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(owner.auth, flowInput([a1.user.id]) as never);
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { res: started } = await startAward(
+      approvals,
+      owner.auth,
+      owner.company.id,
+      owner.user.id,
+    );
+    // Başlatan istek bekliyorken pasifleştirilir (işten ayrıldı).
+    await prisma.companyUser.update({
+      where: { id: owner.user.id },
+      data: { isActive: false },
+    });
+    await approvals.decide(a1.auth, started.requestId!, "reject", {
+      note: "gizli not",
+    } as never);
+    await flush();
+    await new Promise((r) => setTimeout(r, 300));
+    const toOwner = email.send.mock.calls.filter(
+      (c) => (c[0] as { to: { email: string } }).to.email === owner.user.email,
+    );
+    expect(toOwner).toHaveLength(0);
+  });
+
+  it("akış çoğaltma soneki istek dilinde; üç dilin soneki taban addan ayıklanır", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(
+      owner.auth,
+      flowInput([a1.user.id], { name: "Purchase approval" }) as never,
+    );
+    const nameOf = async (id: string) =>
+      (await prisma.approvalFlow.findUniqueOrThrow({ where: { id } })).name;
+
+    const c1 = await runWithLocale("en", () => approvals.duplicateFlow(owner.auth, flow.id));
+    expect(await nameOf(c1.id)).toBe("Purchase approval — Copy");
+    // Kopyanın kopyası "— Copy — Copy" birikmez → numaralanır.
+    const c2 = await runWithLocale("en", () => approvals.duplicateFlow(owner.auth, c1.id));
+    expect(await nameOf(c2.id)).toBe("Purchase approval — Copy 2");
+    // Başka dilde (TR) çoğaltma, EN sonekini de taban addan ayıklar.
+    const c3 = await runWithLocale("tr", () => approvals.duplicateFlow(owner.auth, c2.id));
+    expect(await nameOf(c3.id)).toBe("Purchase approval — Kopya");
+    const c4 = await runWithLocale("ru", () => approvals.duplicateFlow(owner.auth, c3.id));
+    expect(await nameOf(c4.id)).toBe("Purchase approval — Копия");
   });
 });

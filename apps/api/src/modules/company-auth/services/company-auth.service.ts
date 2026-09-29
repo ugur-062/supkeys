@@ -405,10 +405,9 @@ export class CompanyAuthService {
     });
     if (!record || record.expiresAt < new Date()) return false;
     if (record.attempts >= EMAIL_CODE_MAX_ATTEMPTS) return false;
-    if (record.codeHash !== this.hashCode(code.trim())) {
-      await this.bumpCodeAttempt(record.id);
-      return false;
-    }
+    // Deneme hakkı karşılaştırmadan ÖNCE atomik tüketilir (derin denetim LU-06).
+    if (!(await this.claimCodeAttempt(record.id))) return false;
+    if (record.codeHash !== this.hashCode(code.trim())) return false;
     // Başarılı tüketim satırı SİLER (üretim tavanına sayılmasın). KOŞULLU
     // silme (usedAt null) → aynı kodla eşzamanlı iki istekten yalnız biri geçer;
     // arada yeni kod üretilip bu kod kapatıldıysa da geçmez.
@@ -419,14 +418,23 @@ export class CompanyAuthService {
   }
 
   /**
-   * Hatalı deneme sayacı — KOŞULLU artış (attempts < MAX): eşzamanlı burst
-   * tavanı aşamaz (denetim 2026-08-23 #9, check-then-act yarışı kapatıldı).
+   * Deneme hakkını hash karşılaştırmasından ÖNCE atomik ayırır — KOŞULLU artış
+   * (attempts < MAX, kullanılmamış). Yalnız hakkı alan istek tahminini dener:
+   * eşzamanlı burst ne sayacı ne de denenen tahmin sayısını tavanın üstüne
+   * çıkarabilir (denetim 2026-08-23 #9; derin denetim LU-06 — eskiden sayaç
+   * okunup karşılaştırma sonra artırılıyordu, paralel istekler aynı "0"
+   * değerini görüp tahminlerini deniyordu). Doğru kod satırı zaten silinir.
    */
-  private async bumpCodeAttempt(recordId: string): Promise<void> {
-    await this.bypass.emailVerificationCode.updateMany({
-      where: { id: recordId, attempts: { lt: EMAIL_CODE_MAX_ATTEMPTS } },
+  private async claimCodeAttempt(recordId: string): Promise<boolean> {
+    const { count } = await this.bypass.emailVerificationCode.updateMany({
+      where: {
+        id: recordId,
+        usedAt: null,
+        attempts: { lt: EMAIL_CODE_MAX_ATTEMPTS },
+      },
       data: { attempts: { increment: 1 } },
     });
+    return count === 1;
   }
 
   /** Kodu doğrula → emailVerifiedAt set + otomatik login (token). */
@@ -450,13 +458,16 @@ export class CompanyAuthService {
     if (!record || record.expiresAt < new Date()) {
       throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
     }
-    if (record.attempts >= EMAIL_CODE_MAX_ATTEMPTS) {
+    // Deneme hakkı karşılaştırmadan ÖNCE atomik ayrılır (derin denetim LU-06).
+    if (
+      record.attempts >= EMAIL_CODE_MAX_ATTEMPTS ||
+      !(await this.claimCodeAttempt(record.id))
+    ) {
       throw new BadRequestException(
         i18nMessage("api.companyAuth.cokFazlaHataliDenemeYeniKod"),
       );
     }
     if (record.codeHash !== this.hashCode(code)) {
-      await this.bumpCodeAttempt(record.id);
       throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
     }
     // Doğrulanan kod satırı SİLİNİR: üretim tavanına sayılmaz (consumeEmailCode
@@ -1644,14 +1655,39 @@ export class CompanyAuthService {
       select: { email: true, firstName: true, locale: true },
     });
     if (!user) throw new UnauthorizedException();
-    await this.issueEmailCode(
+    const { sent, capped } = await this.issueEmailCode(
       userId,
       user.email,
       user.firstName,
       "login",
       localeOf(user.locale),
     );
-    return { sent: true };
+    // Giriş yoluyla aynı failure-aware kural (derin denetim LU-06: eskiden
+    // sonuç yok sayılıp her durumda {sent:true} dönüyordu). Tavan dolu ama
+    // gelen kutusundaki son kod hâlâ geçerliyse kod alanı açılabilsin; yoksa
+    // dürüst 429. Gönderim hatası 503.
+    if (!sent && capped) {
+      const active = await this.bypass.emailVerificationCode.findFirst({
+        where: {
+          companyUserId: userId,
+          usedAt: null,
+          expiresAt: { gt: new Date() },
+          attempts: { lt: EMAIL_CODE_MAX_ATTEMPTS },
+        },
+        select: { id: true },
+      });
+      if (active) return { sent: false as const, capped: true as const };
+      throw new HttpException(
+        i18nMessage("api.companyAuth.cokFazlaKodIstendi", undefined, "EMAIL_CODE_CAPPED"),
+        HttpStatus.TOO_MANY_REQUESTS,
+      );
+    }
+    if (!sent) {
+      throw new ServiceUnavailableException(
+        i18nMessage("api.companyAuth.dogrulamaKoduSuAndaGonderilemediLutfen"),
+      );
+    }
+    return { sent: true as const };
   }
 
   /** E-postaya gelen kodu doğrulayıp E-POSTA 2FA'yı aç (kurtarma kodları üret). */
@@ -1832,7 +1868,12 @@ export class CompanyAuthService {
   /** Kendi profilini güncelle (ad/soyad/telefon/dil). */
   async updateMe(
     userId: string,
-    dto: { firstName?: string; lastName?: string; phone?: string; locale?: string },
+    dto: {
+      firstName?: string;
+      lastName?: string;
+      phone?: string | null;
+      locale?: string;
+    },
   ) {
     if (dto.locale !== undefined && !isLocale(dto.locale)) {
       throw new BadRequestException(i18nMessage("api.validation.localeUnsupported"));
@@ -1846,7 +1887,10 @@ export class CompanyAuthService {
         ...(dto.lastName !== undefined
           ? { lastName: dto.lastName.trim() }
           : {}),
-        ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
+        // null da numarayı siler (derin denetim LU-06: null.trim() 500 veriyordu).
+        ...(dto.phone !== undefined
+          ? { phone: (dto.phone ?? "").trim() || null }
+          : {}),
         ...(dto.locale !== undefined ? { locale: dto.locale } : {}),
       },
     });

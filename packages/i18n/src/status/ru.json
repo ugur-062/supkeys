@@ -1264,6 +1264,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyApprovals.copySuffix": {
+    "hash": "607f176bad",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.companyApprovals.gecersizVeyaPasifOnayciKullanici": {
     "hash": "a5b6542fec",
     "status": "reviewed",

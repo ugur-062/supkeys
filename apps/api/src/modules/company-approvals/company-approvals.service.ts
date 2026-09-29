@@ -10,6 +10,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { EventEmitter2 } from "@nestjs/event-emitter";
 import { CompanyRole, Prisma } from "@rothern/db";
+import { LOCALES } from "@rothern/i18n";
 import { isNotificationEnabled } from "../../common/notifications/notification-prefs";
 import { PrismaService, PrismaBypassService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
@@ -37,6 +38,10 @@ import {
 import { appRoutes } from "../../common/company/app-routes";
 
 type ApprovalType = "LISTING_PUBLISH" | "LISTING_AWARD";
+
+function escapeRegExp(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
 
 /** type → event-bus kök adı. */
 function eventBase(type: ApprovalType): string {
@@ -261,6 +266,11 @@ export class CompanyApprovalsService {
           firstName: true,
           lastName: true,
           locale: true,
+          // INV-SD-1 (derin denetim LU-06): notifyApproverInner ile aynı
+          // kapı — pasifleştirilmiş/silinmiş başlatana sonuç e-postası
+          // (talep başlığı + karar notu) gitmez.
+          isActive: true,
+          deletedAt: true,
         },
       }),
       this.prisma.listing.findUnique({
@@ -268,7 +278,7 @@ export class CompanyApprovalsService {
         select: { title: true, number: true },
       }),
     ]);
-    if (!creator) return;
+    if (!creator || !creator.isActive || creator.deletedAt) return;
     const approved = decision === "APPROVED";
     const webUrl =
       resolveWebUrl(this.config);
@@ -651,16 +661,27 @@ export class CompanyApprovalsService {
       include: { steps: { orderBy: { order: "asc" } } },
     });
     if (!src) throw new NotFoundException(i18nMessage("api.companyApprovals.onayAkisiBulunamadi"));
-    // §10.7: "(kopya) (kopya)" birikmez — taban ad + "— Kopya N" numaralanır.
-    const base = src.name.replace(/\s*(\(kopya\)|— Kopya( \d+)?)\s*$/i, "").trim();
+    // §10.7: "(kopya) (kopya)" birikmez — taban ad + "— <sonek> N" numaralanır.
+    // Sonek istek dilinde (derin denetim LU-06: eskiden sabit TR yazılıyordu);
+    // taban ad ayıklaması üç dilin sonekini + eski "(kopya)" biçimini tanır.
+    const suffix = tApi("api.companyApprovals.copySuffix");
+    const suffixAlternation = LOCALES.map((l) =>
+      escapeRegExp(tApi("api.companyApprovals.copySuffix", undefined, l)),
+    ).join("|");
+    const base = src.name
+      .replace(
+        new RegExp(`\\s*(\\(kopya\\)|— (${suffixAlternation})( \\d+)?)\\s*$`, "iu"),
+        "",
+      )
+      .trim();
     const siblings = await this.prisma.approvalFlow.findMany({
       where: { companyId: user.companyId, name: { startsWith: base } },
       select: { name: true },
     });
     const taken = new Set(siblings.map((f) => f.name));
-    let copyName = `${base} — Kopya`;
+    let copyName = `${base} — ${suffix}`;
     for (let n = 2; taken.has(copyName); n += 1)
-      copyName = `${base} — Kopya ${n}`;
+      copyName = `${base} — ${suffix} ${n}`;
     const copy = await this.prisma.approvalFlow.create({
       data: {
         companyId: user.companyId,
