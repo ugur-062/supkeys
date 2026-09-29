@@ -21,9 +21,35 @@ import { safeFormat } from "@/lib/date";
 import { ENTITY_TYPE_LABEL } from "@/lib/terms";
 import { useState } from "react";
 
+/**
+ * Satırda gösterilen eylem etiketi (tam ad). Bilinmeyen eylem ham adıyla
+ * görünür. Eski `supplier.*` / `tenant.*` etiketleri geçmiş satırlar için
+ * duruyor; bugünkü yazım noktaları `company.*` ve `admin.*` kullanır.
+ */
 const ACTION_LABELS: Record<string, string> = {
   "auth.login": "Giriş",
   "auth.login_failed": "Başarısız giriş",
+  "company.signup": "Firma kaydı",
+  "company.profile.updated": "Firma profili güncellendi",
+  "company.user.invited": "Kullanıcı davet edildi",
+  "company.user.removed": "Kullanıcı çıkarıldı",
+  "company.user.roles_changed": "Kullanıcı rolleri değişti",
+  "company.ownership.transferred": "Firma sahipliği devredildi",
+  "company.listing.published": "İlan yayınlandı",
+  "company.listing.awarded": "İlan kazandırıldı",
+  "company.listing.cancelled": "İlan iptal edildi",
+  "company.bid.submitted": "Teklif verildi",
+  "company.order.accepted": "Sipariş kabul edildi",
+  "company.order.completed": "Sipariş tamamlandı",
+  "company.order.cancelled": "Sipariş iptal edildi",
+  "admin.company.suspended": "Admin: firma askıya alındı",
+  "admin.company.unsuspended": "Admin: firma askısı kaldırıldı",
+  "admin.company.tier_set": "Admin: paket değişti",
+  "admin.company.verification_set": "Admin: doğrulama değişti",
+  "admin.product.approved": "Admin: ürün onaylandı",
+  "admin.product.rejected": "Admin: ürün reddedildi",
+  "admin.user.deactivated": "Admin: kullanıcı pasifleştirildi",
+  "admin.user.activated": "Admin: kullanıcı aktifleştirildi",
   "supplier.updated": "Tedarikçi güncellendi",
   "supplier.blocked": "Tedarikçi engellendi",
   "supplier.unblocked": "Tedarikçi engeli kaldırıldı",
@@ -42,11 +68,39 @@ const ACTION_LABELS: Record<string, string> = {
   "demo.invite_revoked": "Demo davet iptal",
 };
 
+/**
+ * Eylem süzgeci — ÖNEK grupları (API `action` alanını `startsWith` ile
+ * süzer). Eskiden tam eylem adları listeleniyordu ve hepsi artık yazılmayan
+ * `supplier.*` / `tenant.*` adlarıydı: her seçim 0 kayıt dönüyordu.
+ */
+const ACTION_FILTERS: { value: string; label: string }[] = [
+  { value: "auth.", label: "Giriş olayları" },
+  { value: "company.user.", label: "Firma: kullanıcı ve rol" },
+  { value: "company.profile", label: "Firma: profil" },
+  { value: "company.listing", label: "Firma: ilanlar" },
+  { value: "company.bid", label: "Firma: teklifler" },
+  { value: "company.order.", label: "Firma: siparişler" },
+  { value: "company.product.", label: "Firma: ürünler" },
+  { value: "company.connection.", label: "Firma: bağlantılar" },
+  { value: "company.approval", label: "Firma: onay akışları" },
+  { value: "company.docs.", label: "Firma: belgeler" },
+  { value: "company.bank_account.", label: "Firma: banka hesapları" },
+  { value: "admin.company.", label: "Admin: firma işlemleri" },
+  { value: "admin.user.", label: "Admin: kullanıcı işlemleri" },
+  { value: "admin.staff.", label: "Admin: personel" },
+  { value: "admin.product.", label: "Admin: ürün onayı" },
+  { value: "admin.listing.", label: "Admin: ilanlar" },
+  { value: "admin.order.", label: "Admin: siparişler" },
+  { value: "admin.system.", label: "Admin: sistem" },
+];
+
 const ACTOR_META: Record<
   string,
   { label: string; color: "zinc" | "blue" | "amber" | "green" }
 > = {
   admin: { label: "Admin", color: "blue" },
+  company: { label: "Firma", color: "green" },
+  // Eski aktör tipleri — yalnız geçmiş satırlar; süzgeçte sunulmaz.
   tenant: { label: "Alıcı", color: "green" },
   supplier: { label: "Tedarikçi", color: "amber" },
   system: { label: "Sistem", color: "zinc" },
@@ -87,9 +141,8 @@ function AuditView() {
           }}
           options={[
             { value: "", label: "Tüm aktörler" },
+            { value: "company", label: "Firma" },
             { value: "admin", label: "Admin" },
-            { value: "tenant", label: "Alıcı" },
-            { value: "supplier", label: "Tedarikçi" },
             { value: "system", label: "Sistem" },
           ]}
         />
@@ -103,10 +156,7 @@ function AuditView() {
           }}
           options={[
             { value: "", label: "Tüm eylemler" },
-            ...Object.entries(ACTION_LABELS).map(([value, label]) => ({
-              value,
-              label,
-            })),
+            ...ACTION_FILTERS,
           ]}
         />
         <SearchInput

@@ -1519,7 +1519,10 @@ export class CompanyConnectionsService {
   ): Promise<DirectoryScope> {
     const blockedIds = await this.blocks.blockedCompanyIds(companyId);
     const excludeIds = [companyId, ...blockedIds];
-    if (!connection) return { excludeIds };
+    // Rothern ID ile arama YALNIZ panelde (üye): public dizinde kimlik→firma
+    // kâhini olurdu (derin denetim LU-01).
+    const matchRothernId = true;
+    if (!connection) return { excludeIds, matchRothernId };
     const connected = await this.prisma.companyConnection.findMany({
       where: {
         status: "ACTIVE",
@@ -1529,8 +1532,8 @@ export class CompanyConnectionsService {
     });
     const ids = connected.map((c) => (c.inviterCompanyId === companyId ? c.inviteeCompanyId : c.inviterCompanyId));
     return connection === "connected"
-      ? { excludeIds, restrictIds: ids }
-      : { excludeIds: [...excludeIds, ...ids] };
+      ? { excludeIds, restrictIds: ids, matchRothernId }
+      : { excludeIds: [...excludeIds, ...ids], matchRothernId };
   }
 
   /**

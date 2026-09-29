@@ -56,6 +56,42 @@ describe("AuditLogsPage", () => {
     expect(within(row).getByText(/ip: 1.2.3.4/)).toBeInTheDocument();
   });
 
+  it("firma aktörü: süzgeçte 'Firma' var, ölü tenant/supplier seçenekleri yok; satır rozeti 'Firma'", () => {
+    h.query = {
+      data: {
+        items: [
+          {
+            id: "c1",
+            tenantId: null,
+            actorType: "company",
+            actorId: "u1",
+            actorEmail: "firma@ornek.com",
+            action: "company.listing.published",
+            entityType: null,
+            entityId: null,
+            metadata: null,
+            ip: null,
+            createdAt: "2026-01-15T10:00:00.000Z",
+          },
+        ],
+        pagination: { page: 1, pageSize: 20, total: 1, totalPages: 1 },
+      },
+      isError: false,
+      isLoading: false,
+    };
+    render(<AuditLogsPage />);
+    const options = screen.getAllByRole("option").map((o) => (o as HTMLOptionElement).value);
+    expect(options).toContain("company");
+    expect(options).not.toContain("tenant");
+    expect(options).not.toContain("supplier");
+    // Eylem süzgeci önek grupları (API startsWith) — eski supplier.* adları yok.
+    expect(options).toContain("company.listing");
+    expect(options.some((v) => v.startsWith("supplier."))).toBe(false);
+    const row = screen.getByText("firma@ornek.com").closest("tr") as HTMLElement;
+    expect(within(row).getByText("Firma")).toBeInTheDocument();
+    expect(within(row).getByText("İlan yayınlandı")).toBeInTheDocument();
+  });
+
   it("yükleniyor durumu → 'Yükleniyor...'", () => {
     h.query = { data: undefined, isError: false, isLoading: true };
     render(<AuditLogsPage />);

@@ -26,7 +26,10 @@ type Db = Pick<PrismaClient, "companyItem">;
  */
 export async function relatedProducts(prisma: Db, companySlug: string, productSlug: string) {
   const base = await prisma.companyItem.findFirst({
-    where: { ...publicProductWhere(), slug: productSlug, company: { slug: companySlug } },
+    // Firma slug'ı AND ile eklenir: `company` anahtarını düz yazmak
+    // `publicProductWhere()`in profil kapısını (publicEnabled/aktif/bloksuz)
+    // ezer ve engelli firmanın ürünü için 404 yerine 200 dönerdi.
+    where: { AND: [publicProductWhere(), { slug: productSlug, company: { slug: companySlug } }] },
     select: { id: true, companyId: true, categoryId: true },
   });
   if (!base) throw new NotFoundException(i18nMessage("api.company.urunBulunamadi"));

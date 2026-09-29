@@ -13,6 +13,8 @@
     "dateFuture": "Date must be in the future",
     "mustBeString": "Must be valid text",
     "mustBeNumber": "Must be a valid number",
+    "mustBeInteger": "Must be a whole number",
+    "mustBePositive": "Must be greater than zero",
     "mustBeBoolean": "Must be a valid value",
     "mustBeArray": "Must be a valid list",
     "stringMin": "{n, plural, one {Must be at least # character} other {Must be at least # characters}}",

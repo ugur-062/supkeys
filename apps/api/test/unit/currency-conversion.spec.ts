@@ -177,6 +177,12 @@ describe("ürün dizini — kurla çevrilmiş süzgeç/sıralama/histogram", () 
     expect(productIndexOrderBy("price_desc")[0]).toEqual({ priceAmountBase: { sort: "desc", nulls: "last" } });
   });
 
+  it("her sıralama benzersiz `id` ile biter (skip/take sayfalarında tekrar/kayıp yok)", () => {
+    for (const sort of [undefined, "newest", "price", "price_desc"] as const) {
+      expect(productIndexOrderBy(sort).at(-1)).toEqual({ id: "asc" });
+    }
+  });
+
   it("histogram seçilen birimde (TRY tabanı ÷ kur)", () => {
     setFxRates({ EUR: 50 });
     const row = (base: number): ProductFacetRow => ({

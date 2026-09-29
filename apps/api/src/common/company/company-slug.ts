@@ -27,9 +27,26 @@ export async function ensureUniqueCompanySlug(
       where: { slug: { in: candidates }, id: { not: selfId } },
       select: { slug: true },
     });
-    return rows.map((r) => r.slug).filter((s): s is string => !!s);
+    return [
+      ...rows.map((r) => r.slug).filter((s): s is string => !!s),
+      ...candidates.filter((c) => RESERVED_COMPANY_SLUGS.has(c)),
+    ];
   });
 }
+
+/**
+ * `public/companies` altında `:slug`dan ÖNCE tanımlı statik rotalar. Bu
+ * slug'ı alan firmanın profili gölgelenir ("Summary Ltd." → `summary` →
+ * `GET /public/companies/summary` dizin özetini döner, profil hiç açılmaz).
+ * Dolu sayılır, `summary-2`ye düşülür. Controller'a yeni statik rota
+ * eklenirse buraya da eklenmeli.
+ */
+export const RESERVED_COMPANY_SLUGS: ReadonlySet<string> = new Set([
+  "sitemap",
+  "directory",
+  "summary",
+  "products",
+]);
 
 /** Kesimden sonra uçta kalan tireyi atar ("abc-" → "abc"). */
 function trimSlug(s: string): string {

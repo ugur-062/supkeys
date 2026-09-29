@@ -44,6 +44,13 @@ export interface DirectoryScope {
    * Verilmezse özgün ad. Ürün `id`si yalnız arama anahtarıdır, yanıta yazılmaz.
    */
   localizeProducts?: <T extends { name: string }>(items: T[], ids: string[]) => Promise<T[]>;
+  /**
+   * Aramada Rothern ID eşleşmesi — YALNIZ giriş yapmış panel dizini açar.
+   * Public dizin kartından Rothern ID düşüyor ("üyede kalır"); arama dalı
+   * açık kalsaydı anonim `?q=<ID>` tek kartla ID'nin hangi firmaya ait
+   * olduğunu söylerdi (kimlik kâhini — derin denetim LU-01).
+   */
+  matchRothernId?: boolean;
 }
 
 /** Sayfa başına 20 firma kartı (PROMPT 4; eskiden 24). */
@@ -111,7 +118,7 @@ export async function directoryRows(
             ]
           : []),
         // ARAMA İKİ DALLI: firmanın KENDİ metni (ad/sektör/hakkında/hizmet/
-        // Rothern ID) ya da SATTIĞI ÜRÜN. Tek dallıyken "kompanzasyon"
+        // Rothern ID — yalnız panelde, `matchRothernId`) ya da SATTIĞI ÜRÜN. Tek dallıyken "kompanzasyon"
         // araması ürün sekmesinde 12, firma sekmesinde 0 sonuç veriyordu —
         // oysa o 12 ürünün satıcıları tam olarak aranan firmalar. Ürün dalı
         // firma adını aramaz (`includeCompanyName: false`): ada uyan firmanın
@@ -127,7 +134,7 @@ export async function directoryRows(
                         { industry: { contains: t, mode: "insensitive" as const } },
                         { aboutText: { contains: t, mode: "insensitive" as const } },
                         { services: { has: t } },
-                        { rothernId: { contains: t.toUpperCase() } },
+                        ...(opts.matchRothernId ? [{ rothernId: { contains: t.toUpperCase() } }] : []),
                         // Katlanmış kaynak + EN/RU çeviri (sektör/hizmet/tanıtım).
                         { searchTextI18n: { contains: stemPrefix(foldSearchText(t)) } },
                       ],

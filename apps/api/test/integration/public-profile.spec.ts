@@ -6,6 +6,7 @@
 import { prisma, truncateAll } from "./test-db";
 import { makeCompany } from "./factories";
 import { PublicProfileService } from "../../src/modules/public-profile/public-profile.service";
+import { buildDirectory } from "../../src/common/company/company-directory";
 
 const svc = new PublicProfileService(prisma as never);
 
@@ -151,6 +152,27 @@ describe("PublicProfile publicDirectory — listelenme koşulu", () => {
     });
     // 11 alanın 6'sı dolu (Hakkında sayılmadı) → %55 < 60 → listelenmez.
     expect((await svc.publicDirectory({})).total).toBe(0);
+  });
+
+  it("Rothern ID ile arama public dizinde eşleşmez (kimlik kâhini yok), panelde eşleşir", async () => {
+    await publicCompany({
+      name: "Kimlik Firma",
+      rothernId: "QZX-4821",
+      aboutText: PROSE,
+      logoUrl: "l.png",
+      coverImageUrl: "c.png",
+      services: ["Montaj"],
+      photos: ["p.png"],
+      foundedYear: 1998,
+      employeeCount: "10-50",
+      city: "İzmir",
+      industry: "Elektrik",
+    });
+    expect((await svc.publicDirectory({ q: "QZX-4821" })).total).toBe(0);
+    expect((await svc.publicDirectoryFacets({ q: "QZX-4821" })).total).toBe(0);
+    expect((await svc.publicDirectory({ q: "Kimlik" })).total).toBe(1);
+    const panel = await buildDirectory(prisma as never, { q: "QZX-4821" }, { matchRothernId: true });
+    expect(panel.items.map((i) => i.name)).toEqual(["Kimlik Firma"]);
   });
 });
 

@@ -18,6 +18,10 @@ export function translateValidatorMessage(msg: string, locale?: Locale): string 
   if (/must be (?:a|an) (?:valid )?email/i.test(msg)) return t("api.validation.emailInvalid");
   if (/should not be empty/i.test(msg) || /must not be empty/i.test(msg)) return t("api.validation.required");
   if (/must be a string/i.test(msg)) return t("api.validation.mustBeString");
+  // `@IsInt()` "must be an integer number" der — "must be a number" desenine
+  // uymaz ve ham İngilizce (alan adıyla) dönerdi; `@IsPositive()` da öyle.
+  if (/must be an integer number/i.test(msg)) return t("api.validation.mustBeInteger");
+  if (/must be a positive number/i.test(msg)) return t("api.validation.mustBePositive");
   if (/must be a number/i.test(msg)) return t("api.validation.mustBeNumber");
   if (/must be a boolean/i.test(msg)) return t("api.validation.mustBeBoolean");
   if (/must be an array/i.test(msg)) return t("api.validation.mustBeArray");
@@ -40,6 +44,8 @@ export function translateValidatorMessage(msg: string, locale?: Locale): string 
 
   if (/must be one of the following values/i.test(msg)) return t("api.validation.inValues");
   if (/property .+ should not exist/i.test(msg)) return t("api.validation.notAccepted");
+  // `@Matches(re)` varsayılanı regex'i kullanıcıya gösterirdi.
+  if (/must match .+ regular expression/i.test(msg)) return t("api.validation.invalid");
 
   // Bilinmeyen — DTO'dan gelen elle yazılmış mesaj olabilir, dokunma.
   return msg;

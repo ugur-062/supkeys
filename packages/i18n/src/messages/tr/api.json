@@ -13,6 +13,8 @@
     "dateFuture": "Tarih gelecekte olmalı",
     "mustBeString": "Geçerli bir metin olmalı",
     "mustBeNumber": "Geçerli bir sayı olmalı",
+    "mustBeInteger": "Geçerli bir tam sayı olmalı",
+    "mustBePositive": "Sıfırdan büyük bir sayı olmalı",
     "mustBeBoolean": "Geçerli bir değer olmalı",
     "mustBeArray": "Geçerli bir liste olmalı",
     "stringMin": "En az {n} karakter olmalı",

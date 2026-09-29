@@ -87,6 +87,17 @@ describe("doğrulama mesajları dil farkında", () => {
     );
     expect(translateValidatorMessage("Şifre en az 8 karakter")).toBe("Şifre en az 8 karakter");
   });
+
+  it("IsInt / IsPositive / Matches varsayılanları çevrilir (ham İngilizce + regex sızmaz)", () => {
+    expect(translateValidatorMessage("validityDays must be an integer number")).toBe("Geçerli bir tam sayı olmalı");
+    expect(translateValidatorMessage("validityDays must be an integer number", "en")).toBe("Must be a whole number");
+    expect(translateValidatorMessage("amount must be a positive number", "ru")).toBe("Значение должно быть больше нуля");
+    expect(translateValidatorMessage("firstName must match /\\S/ regular expression")).toBe("Geçersiz değer");
+    // IsNumber hâlâ genel sayı mesajına düşer.
+    expect(translateValidatorMessage("x must be a number conforming to the specified constraints")).toBe(
+      "Geçerli bir sayı olmalı",
+    );
+  });
 });
 
 describe("tApi / I18nService / i18nMessage", () => {

@@ -374,6 +374,13 @@ describe("v2 — seçki / ilişkili / öneri / sayılar", () => {
     await expect(service().relatedProducts("yok", "yok")).rejects.toThrow(/bulunamadı/);
   });
 
+  it("ilişkili: engelli firmanın ürünü 404 (firma slug'ı profil kapısını ezmez)", async () => {
+    const { company, product } = await seedProduct({}, { slug: "engelli-urun" });
+    await expect(service().relatedProducts(company.slug as string, product.slug as string)).resolves.toBeTruthy();
+    await prisma.company.update({ where: { id: company.id }, data: { isBlocked: true } });
+    await expect(service().relatedProducts(company.slug as string, product.slug as string)).rejects.toThrow(/bulunamadı/);
+  });
+
   it("öneri: ürün + firma; kısa sorgu boş", async () => {
     await seedProduct({ name: "Pano Sanayi" }, { name: "Dağıtım panosu", searchText: "dagitim panosu" });
     const s = await service().suggest("pano");

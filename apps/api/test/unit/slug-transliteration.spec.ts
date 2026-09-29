@@ -79,4 +79,11 @@ describe("ensureUniqueCompanySlug — Latin olmayan ad", () => {
     const d = db(null);
     await expect(ensureUniqueCompanySlug(d as never, "مرحبا", "clabcdefgh12345678")).resolves.toBe("company-12345678");
   });
+
+  it("public rotayı gölgeleyen slug (summary/sitemap/directory/products) dolu sayılır", async () => {
+    await expect(ensureUniqueCompanySlug(db("X") as never, "Summary Ltd.", "c1")).resolves.toBe("summary-2");
+    await expect(ensureUniqueCompanySlug(db("X") as never, "Sitemap A.Ş.", "c1")).resolves.toBe("sitemap-2");
+    await expect(ensureUniqueCompanySlug(db("X", ["directory-2"]) as never, "Directory", "c1")).resolves.toBe("directory-3");
+    await expect(ensureUniqueCompanySlug(db("X") as never, "Directory GmbH", "c1")).resolves.toBe("directory-gmbh");
+  });
 });

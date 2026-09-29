@@ -13,6 +13,8 @@
     "dateFuture": "Дата должна быть в будущем",
     "mustBeString": "Должно быть текстом",
     "mustBeNumber": "Должно быть числом",
+    "mustBeInteger": "Должно быть целым числом",
+    "mustBePositive": "Значение должно быть больше нуля",
     "mustBeBoolean": "Недопустимое значение",
     "mustBeArray": "Должно быть списком",
     "stringMin": "{n, plural, one {Не менее # символа} other {Не менее # символов}}",

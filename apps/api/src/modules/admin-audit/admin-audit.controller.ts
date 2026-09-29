@@ -18,8 +18,8 @@ export class AdminAuditController {
       actorType: q.actorType,
       action: q.action,
       search: q.search,
-      page: q.page ? Number(q.page) : undefined,
-      pageSize: q.pageSize ? Number(q.pageSize) : undefined,
+      page: q.page,
+      pageSize: q.pageSize,
     });
   }
 }

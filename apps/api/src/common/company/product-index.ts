@@ -344,12 +344,17 @@ export function productIndexOrderBy(
   sort?: ProductIndexParams["sort"],
 ): Prisma.CompanyItemOrderByWithRelationInput[] {
   const paidFirst = { company: { tier: "desc" as const } };
-  if (sort === "newest") return [paidFirst, { publishedAt: "desc" }, { completionScore: "desc" }];
+  // Benzersiz son anahtar (`id`): liste skip/take ile sayfalanıyor; eşit
+  // satırlarda (fiyatsız ürünler aynı completionScore, toplu onayın aynı
+  // publishedAt'i) Postgres sıra garanti etmez → ürün sayfalar arasında
+  // tekrar eder ya da hiç görünmez.
+  const tie = { id: "asc" as const };
+  if (sort === "newest") return [paidFirst, { publishedAt: "desc" }, { completionScore: "desc" }, tie];
   // Fiyat sırası TRY karşılığından (`priceAmountBase`): ham tutarla
   // sıralanınca JPY/KRW ürünleri (büyük sayı) en pahalı, KWD en ucuz görünürdü.
-  if (sort === "price") return [{ priceAmountBase: { sort: "asc", nulls: "last" } }, { completionScore: "desc" }];
-  if (sort === "price_desc") return [{ priceAmountBase: { sort: "desc", nulls: "last" } }, { completionScore: "desc" }];
-  return [paidFirst, { completionScore: "desc" }, { publishedAt: "desc" }];
+  if (sort === "price") return [{ priceAmountBase: { sort: "asc", nulls: "last" } }, { completionScore: "desc" }, tie];
+  if (sort === "price_desc") return [{ priceAmountBase: { sort: "desc", nulls: "last" } }, { completionScore: "desc" }, tie];
+  return [paidFirst, { completionScore: "desc" }, { publishedAt: "desc" }, tie];
 }
 
 export interface ProductFacetRow {
