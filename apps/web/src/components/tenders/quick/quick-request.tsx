@@ -65,7 +65,7 @@ import {
 import { isInviteAccepted } from "@/lib/tenders/external-invite-status";
 import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
 import { titleFromItems, type TitleTranslate } from "@/lib/tenders/quick-parse";
-import { applyRequestDefaults, closesAtFromDays, defaultsFromForm } from "@/lib/tenders/request-defaults";
+import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, initialRequestFormValues, type QuickSeedKind } from "@/lib/tenders/request-defaults";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, requestDefaultsFallbackFor, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
@@ -103,11 +103,21 @@ export function QuickRequest({
   initialValues,
   mode = "new",
   listingId,
+  listingStatus,
+  seedTerms = false,
 }: {
   initialValues?: Partial<TenderFormData>;
-  /** `edit`: mevcut TASLAĞI günceller (2026-09-19: detaylı sihirbaz kaldırıldı, düzenleme de bu kart). */
+  /** `edit`: mevcut talebi günceller (2026-09-19: detaylı sihirbaz kaldırıldı, düzenleme de bu kart). */
   mode?: "new" | "edit";
   listingId?: string;
+  /**
+   * Düzenlenen talebin durumu. DRAFT dışı (teklifsiz OPEN) talepte birincil
+   * düğme "Değişiklikleri kaydet" olur ve yayın ucu ÇAĞRILMAZ (derin denetim
+   * Y-20: `publish` yalnız taslağı kabul eder, 400 dönüyordu).
+   */
+  listingStatus?: string;
+  /** Tohum (kopya/şablon) kendi ticari şartlarını taşır — profil varsayılanı onları EZMEZ. */
+  seedTerms?: boolean;
 }) {
   const tr = useTranslations("web.panel.requests.quickRequest");
   // Şema mesajları (`formSchema.*`, `closesAt.*`) ve üretilen başlık sözcükleri
@@ -125,6 +135,10 @@ export function QuickRequest({
   const titleT: TitleTranslate = (key, values) => tReq(`quickParse.${key}` as never, values as never);
   const makeTitle = (items: { name: string }[]) => titleFromItems(items, titleT, locale);
   const isEdit = mode === "edit" && !!listingId;
+  // Yayındaki (teklifsiz) talebi düzenleme: kaydet = PATCH + bekleyen davetler.
+  const isLiveEdit = isEdit && !!listingStatus && listingStatus !== "DRAFT";
+  // Düzenleme/kopya/şablon talebin KENDİ şartlarıyla açılır (derin denetim Y-19).
+  const seedKind: QuickSeedKind = isEdit ? "edit" : seedTerms && initialValues ? "seed" : "blank";
   const router = useRouter();
   const { company } = useCompanyAuth();
   const canManage = useHasCompanyPermission("buy:listing:manage");
@@ -202,9 +216,11 @@ export function QuickRequest({
     if (!defaultsQ.data || appliedRef.current) return;
     appliedRef.current = true;
     const d = defaultsQ.data.defaults ?? requestDefaultsFallbackFor(companyCountry);
-    setTerms(d);
     const draft = initialValues ? null : readSession<QuickDraft>(QUICK_DRAFT_KEY);
-    const base = applyRequestDefaults({ ...DEFAULT_FORM_VALUES, ...initialValues }, d);
+    const base = initialRequestFormValues(seedKind, initialValues, d);
+    // Şartlar paneli formdaki şartları gösterir: düzenleme/kopya/şablonda
+    // talebin kendisi, boş kartta profil.
+    setTerms(seedKind === "blank" ? d : defaultsFromForm(base, d.closeDays));
     const { externalInvites: draftInvites, memberInvites: draftMembers, ...draftFields } = draft ?? {};
     reset(draft ? { ...base, ...draftFields, bidsCloseAt: base.bidsCloseAt } : base);
     if (draft) setRestoredDraft(true);
@@ -220,11 +236,12 @@ export function QuickRequest({
       isEdit && listingId ? readSession<unknown>(pendingMemberInvitesKey(listingId)) : draftMembers,
     );
     if (pendingMembers.length) setMemberInvites(pendingMembers.slice(0, MAX_PENDING_EXTERNAL_INVITES));
-    if (!d.deliveryAddressId && addresses.data?.length) {
+    // Adres yalnız formda adres YOKSA seçilir (düzenlenen talebin adresi ezilmez).
+    if (!base.deliveryAddressId && addresses.data?.length) {
       const pick = addresses.data.find((a) => a.isDefault && a.type === "TESLIMAT") ?? addresses.data.find((a) => a.type === "TESLIMAT") ?? addresses.data[0];
       if (pick) setValue("deliveryAddressId", pick.id);
     }
-  }, [defaultsQ.data, addresses.data, initialValues, reset, setValue, isEdit, listingId, companyCountry, locale]);
+  }, [defaultsQ.data, addresses.data, initialValues, reset, setValue, isEdit, listingId, companyCountry, locale, seedKind]);
 
   const closeDays = terms?.closeDays ?? REQUEST_DEFAULTS_FALLBACK.closeDays;
   const updateTerms = (next: RequestDefaults) => {
@@ -246,14 +263,16 @@ export function QuickRequest({
     );
   };
 
-  /* Taslak otomatik saklama (niyet alanları). */
+  /* Taslak otomatik saklama (niyet alanları). Düzenlemede YAZILMAZ: yeni
+     talep taslağıdır; düzenlenen talebin içeriği sonraki boş "Yeni talep"
+     formuna sızıyordu (bekleyen davetler düzenlemede kendi anahtarında). */
   const watched = watch();
   useEffect(() => {
-    if (!appliedRef.current || published) return;
+    if (isEdit || !appliedRef.current || published) return;
     const { title, description, items, categoryIds, keywords, deliveryAddressId, visibility, invitedSupplierIds, bidsCloseAt } = watched;
     if (!title && items.every((i) => !i.name)) return;
     writeSession(QUICK_DRAFT_KEY, { title, description, items, categoryIds, keywords, deliveryAddressId, visibility, invitedSupplierIds, bidsCloseAt, externalInvites, memberInvites } satisfies QuickDraft);
-  }, [watched, published, externalInvites, memberInvites]);
+  }, [watched, published, externalInvites, memberInvites, isEdit]);
 
   const items = watched.items ?? [];
   const namedItems = items.filter((i) => i.name.trim().length > 0);
@@ -327,11 +346,16 @@ export function QuickRequest({
       }
       const values = getValues();
       if (isEdit && listingId) {
-        // Düzenleme: önce içerik güncellenir, sonra taslak yayına alınır.
+        // Düzenleme: önce içerik güncellenir; TASLAK ise sonra yayına alınır.
+        // Yayındaki talep zaten açık — yayın ucu yalnız taslağı kabul eder.
         await update.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
         await uploadStaged(listingId);
-        await publishExisting.mutateAsync({});
-        toast.success(tr("talepYayimlandi"));
+        if (isLiveEdit) {
+          toast.success(tr("degisikliklerKaydedildi"));
+        } else {
+          await publishExisting.mutateAsync({});
+          toast.success(tr("talepYayimlandi"));
+        }
         const memberResults = await sendPendingMembers(listingId);
         const inviteResults = await sendPendingInvites(listingId);
         clearSession(pendingInvitesKey(listingId));
@@ -366,7 +390,7 @@ export function QuickRequest({
       });
       window.scrollTo({ top: 0 });
     } catch (err) {
-      toast.error(extractErrorMessage(err, tr("talepYayimlanamadi")));
+      toast.error(extractErrorMessage(err, isLiveEdit ? tr("degisikliklerKaydedilemedi") : tr("talepYayimlanamadi")));
     } finally {
       submitLock.current = false;
     }
@@ -423,7 +447,9 @@ export function QuickRequest({
     }
     try {
       if (isEdit && listingId) {
-        await update.mutateAsync(mapToInput(applyConnectionsScope(values, connectionIds)));
+        // Taslak kaydı taslak kurallarıyla (kapanış/davetli yayında denetlenir;
+        // yeni taslak yoluyla aynı). Yayındaki talepte bu düğme çizilmez.
+        await update.mutateAsync({ ...mapToInput(applyConnectionsScope(values, connectionIds)), asDraft: true });
         await uploadStaged(listingId);
         // Bekleyen dış davetler taslakla birlikte saklanır; yayında gider.
         if (externalInvites.length) writeSession(pendingInvitesKey(listingId), externalInvites);
@@ -549,7 +575,8 @@ export function QuickRequest({
 
   if (defaultsQ.isLoading || !terms) return <Skeleton />;
 
-  const showSetup = defaultsQ.data?.source === "none" && !setupDone;
+  // Kurulum kartı yalnız boş kartta — düzenleme/kopya/şablon kendi şartlarını taşır.
+  const showSetup = seedKind === "blank" && defaultsQ.data?.source === "none" && !setupDone;
   const verified = company?.companyVerificationStatus === "VERIFIED";
   const visibility = watched.visibility;
   const invited = watched.invitedSupplierIds ?? [];
@@ -1045,7 +1072,7 @@ export function QuickRequest({
 
         {/* SAĞ RAY */}
         <aside className="space-y-4 lg:sticky lg:top-24 lg:self-start">
-          <TermsPanel value={terms} onChange={updateTerms} onSaveDefaults={() => void persistDefaults(terms)} saving={saveDefaults.isPending} canSave={canManage} source={defaultsQ.data?.source ?? "none"} />
+          <TermsPanel value={terms} onChange={updateTerms} onSaveDefaults={() => void persistDefaults(terms)} saving={saveDefaults.isPending} canSave={canManage} source={seedKind === "edit" ? "listing" : seedKind === "seed" ? "seed" : (defaultsQ.data?.source ?? "none")} />
 
           <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5">
             <div className="flex items-baseline justify-between">
@@ -1096,12 +1123,14 @@ export function QuickRequest({
             {canManage ? (
               <div className="mt-4 space-y-2">
                 <button type="button" id="talep-yayinla" onClick={() => void publish()} disabled={busy || !hasItems || !verified} className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50">
-                  {busy ? tr("kaydediliyor") : tr("talebiYayinla")}
+                  {busy ? tr("kaydediliyor") : isLiveEdit ? tr("degisiklikleriKaydet") : tr("talebiYayinla")}
                 </button>
                 {!ready && hasItems ? <p className="text-center text-[11px] text-zinc-500">{tr("yayinIcinBaslikVeKategori")}</p> : null}
-                <button type="button" onClick={() => void saveDraft()} disabled={busy} className="w-full rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50">
-                  {isEdit ? tr("taslagiKaydet") : tr("taslakKaydet")}
-                </button>
+                {isLiveEdit ? null : (
+                  <button type="button" onClick={() => void saveDraft()} disabled={busy} className="w-full rounded-full border border-zinc-300 px-4 py-2 text-sm font-semibold text-zinc-800 transition hover:bg-zinc-50 disabled:opacity-50">
+                    {isEdit ? tr("taslagiKaydet") : tr("taslakKaydet")}
+                  </button>
+                )}
                 <button type="button" onClick={() => setTemplateOpen(true)} className="w-full rounded-full px-4 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900">
                   {tr("sablonOlarakKaydet")}
                 </button>
@@ -1118,8 +1147,8 @@ export function QuickRequest({
         <div className="fixed inset-x-0 bottom-0 z-20 border-t border-zinc-950/10 bg-white/95 px-4 py-3 backdrop-blur lg:hidden">
           <div className="flex items-center gap-3">
             <p className="min-w-0 flex-1 truncate text-xs text-zinc-600">{[summary.what, summary.when].filter(Boolean).join(" · ") || tr("kalemEkleyin")}</p>
-            <button type="button" onClick={() => void publish()} disabled={busy || !hasItems || !verified} aria-label={tr("talebiYayinlaMobil")} className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
-              {tr("yayinla")}
+            <button type="button" onClick={() => void publish()} disabled={busy || !hasItems || !verified} aria-label={isLiveEdit ? tr("degisiklikleriKaydetMobil") : tr("talebiYayinlaMobil")} className="shrink-0 rounded-full bg-blue-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-50">
+              {isLiveEdit ? tr("kaydet") : tr("yayinla")}
             </button>
           </div>
         </div>

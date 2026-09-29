@@ -1,6 +1,6 @@
 import { PAYMENT_CATEGORIES, REQUEST_DEFAULTS_FALLBACK, type RequestDefaults } from "@rothern/shared";
 import { toLocalInput } from "./map-detail-to-form";
-import type { TenderFormData } from "./form-schema";
+import { DEFAULT_FORM_VALUES, type TenderFormData } from "./form-schema";
 
 /**
  * TALEP ŞARTLARI ↔ FORM köprüsü (2026-09-09, hızlı talep).
@@ -51,6 +51,43 @@ export function applyRequestDefaults(base: TenderFormData, d: RequestDefaults | 
     deliveryAddressId: r.deliveryAddressId ?? base.deliveryAddressId ?? "",
     billingSameAsDelivery: r.billingSameAsDelivery,
   };
+}
+
+/**
+ * Hızlı kartın AÇILIŞ değerleri — tohumun türüne göre (derin denetim Y-19).
+ *
+ * - `blank`: boş kart / AI belge / ürün tohumu — şartlar profilden
+ *   (`applyRequestDefaults`); bu tohumlar ticari şart TAŞIMAZ.
+ * - `edit`: mevcut talebin kendi değerleri AYNEN (görünürlük, para birimi,
+ *   ödeme, kapanış…). Profil varsayılanı UYGULANMAZ — eskiden uygulanıyordu ve
+ *   yalnız başlığı düzeltilen özel/USD/akreditifli talep kaydedilince herkese
+ *   açık/TRY/açık hesap oluyor, kapanışı bugün+N güne kayıyordu.
+ * - `seed`: kopya (`?from=`) ve şablon (`?template=`) — tohumun şartları
+ *   korunur; tohumda HİÇ OLMAYAN alan (eski/kısmi şablon) profilden dolar.
+ *   Kapanış ve teslim adresi tohumda boşsa profilden. Ödeme alanları grup:
+ *   tohum ödeme şeklini taşıyorsa vade/peşin/akreditif de tohumdan gelir
+ *   (profilin vadesi başka bir ödeme şekline karışmasın).
+ */
+export type QuickSeedKind = "blank" | "edit" | "seed";
+
+const PAYMENT_DETAIL_KEYS = ["paymentDays", "advancePercent", "lcType"] as const;
+
+export function initialRequestFormValues(
+  kind: QuickSeedKind,
+  seed: Partial<TenderFormData> | undefined,
+  d: RequestDefaults | null,
+  now = new Date(),
+): TenderFormData {
+  if (kind === "edit") return { ...DEFAULT_FORM_VALUES, ...seed };
+  const withDefaults = applyRequestDefaults({ ...DEFAULT_FORM_VALUES, ...seed }, d, now);
+  if (kind === "blank" || !seed) return withDefaults;
+  const out: TenderFormData = { ...withDefaults, ...seed };
+  if ("paymentCategory" in seed) {
+    for (const k of PAYMENT_DETAIL_KEYS) (out as Record<string, unknown>)[k] = seed[k];
+  }
+  out.bidsCloseAt = seed.bidsCloseAt || withDefaults.bidsCloseAt;
+  out.deliveryAddressId = seed.deliveryAddressId || withDefaults.deliveryAddressId;
+  return out;
 }
 
 export function defaultsFromForm(f: TenderFormData, closeDays: number): RequestDefaults {

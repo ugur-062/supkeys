@@ -41,7 +41,8 @@ export function TermsPanel({
   onSaveDefaults: () => void;
   saving: boolean;
   canSave: boolean;
-  source: "saved" | "last_listing" | "none";
+  /** `listing`: düzenlenen talebin kendi şartları · `seed`: kopya/şablon. */
+  source: "saved" | "last_listing" | "none" | "listing" | "seed";
 }) {
   const t = useTranslations("web.panel.requests.termsPanel");
   const deliveryTermLabel = useDeliveryTermLabel();
@@ -155,11 +156,19 @@ export function TermsPanel({
       ) : null}
       <div className="flex items-center justify-between gap-2 border-t border-zinc-950/5 bg-zinc-50 px-5 py-3">
         <span className="text-[11px] text-zinc-500">
-          {source === "saved" ? t("kaynakTalepSartlariniz") : source === "last_listing" ? t("kaynakSonTalebiniz") : t("kaynakPlatformVarsayilani")}
+          {source === "saved"
+            ? t("kaynakTalepSartlariniz")
+            : source === "last_listing"
+              ? t("kaynakSonTalebiniz")
+              : source === "listing"
+                ? t("kaynakBuTalep")
+                : source === "seed"
+                  ? t("kaynakKopyaSablon")
+                  : t("kaynakPlatformVarsayilani")}
         </span>
         {canSave ? (
           <button type="button" onClick={onSaveDefaults} disabled={saving || !!missing} className="rounded-full bg-blue-600 px-3 py-1.5 text-[11px] font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
-            {saving ? t("kaydediliyor") : source === "saved" ? t("varsayilanYap") : t("sartlariKaydet")}
+            {saving ? t("kaydediliyor") : source === "saved" || source === "listing" || source === "seed" ? t("varsayilanYap") : t("sartlariKaydet")}
           </button>
         ) : null}
       </div>

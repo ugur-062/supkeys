@@ -37,7 +37,8 @@ export default function EditTenderPage() {
   }
 
   // Düzenleme de HIZLI KARTLA (2026-09-19: detaylı sihirbaz kaldırıldı).
-  return <QuickRequest key={id} mode="edit" listingId={id} initialValues={mapDetailToForm(l)} />;
+  // Durum geçer: teklifsiz OPEN talepte kaydet yayın ucunu çağırmaz (Y-20).
+  return <QuickRequest key={id} mode="edit" listingId={id} listingStatus={l.status} initialValues={mapDetailToForm(l)} />;
 }
 
 function Notice({

@@ -97,7 +97,8 @@ export default function YeniTalepPage() {
         description={tr("neLazimNereyeNeZamana")}
       />
       <div className="mt-6">
-        <QuickRequest key={key} initialValues={seed} />
+        {/* Kopya ve şablon kendi ticari şartlarını taşır — profil onları ezmez (Y-19). */}
+        <QuickRequest key={key} initialValues={seed} seedTerms={!!(copySeed ?? templateSeed)} />
       </div>
     </PageContainer>
   );

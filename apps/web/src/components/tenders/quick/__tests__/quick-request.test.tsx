@@ -19,6 +19,8 @@ const h = vi.hoisted(() => ({
   externalSearch: vi.fn().mockResolvedValue([]),
   platformSearch: vi.fn().mockResolvedValue([]),
   inviteMembers: vi.fn(),
+  update: vi.fn(),
+  publish: vi.fn(),
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
@@ -40,9 +42,9 @@ vi.mock("@/hooks/use-company-connections", () => ({
 }));
 vi.mock("@/hooks/use-company-listings", () => ({
   useCreateListing: () => ({ mutateAsync: h.create, isPending: false }),
-  // Düzenleme modu (2026-09-19, sihirbaz kaldırıldı) — burada yeni kart sınanır.
-  useUpdateListing: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  usePublishListing: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  // Düzenleme modu (2026-09-19, sihirbaz kaldırıldı) — derin denetim Y-19/Y-20 testleri.
+  useUpdateListing: () => ({ mutateAsync: h.update, isPending: false }),
+  usePublishListing: () => ({ mutateAsync: h.publish, isPending: false }),
   // Yayın paneli paylaş düğmesi için talep detayını okur (vitrindeyse).
   useListingDetail: () => ({ data: undefined }),
 }));
@@ -77,6 +79,9 @@ vi.mock("@/components/categories/category-selector-button", () => ({
 }));
 
 import { QuickRequest } from "../quick-request";
+import { DEFAULT_FORM_VALUES, type TenderFormData } from "@/lib/tenders/form-schema";
+import { closesAtFromDays } from "@/lib/tenders/request-defaults";
+import { parseAppWallClockInput } from "@/lib/time-zone";
 
 const SAVED = {
   targetCountries: [] as string[],
@@ -104,6 +109,9 @@ function wrap(ui: React.ReactElement) {
 
 beforeEach(() => {
   h.create.mockReset();
+  h.update.mockReset().mockResolvedValue({ id: "e1" });
+  h.publish.mockReset().mockResolvedValue({ id: "e1" });
+  h.push.mockReset();
   h.saveDefaults.mockReset();
   sessionStorage.clear();
   h.defaults = { data: { defaults: SAVED, source: "saved" }, isLoading: false };
@@ -351,5 +359,92 @@ describe("QuickRequest", () => {
     await waitFor(() => expect(h.saveDefaults).toHaveBeenCalledTimes(1));
     expect(h.saveDefaults.mock.calls[0][0]).toMatchObject({ deliveryTerm: "DOMESTIC_PICKUP", targetCountries: [] });
     expect(screen.queryByText("İlk talebiniz — üç kısa soru")).toBeNull();
+  });
+
+  describe("düzenleme (derin denetim Y-19 / Y-20)", () => {
+    // Talebin kendi şartları firma varsayılanından (SAVED: bağlantılarım, TRY,
+    // vadeli 45 gün, 7 gün) FARKLI: özel, USD, akreditif, kapanış 20 gün sonra.
+    const closesAt = closesAtFromDays(20);
+    const listing = (): TenderFormData => ({
+      ...DEFAULT_FORM_VALUES,
+      title: "Çelik boru alımı",
+      categoryIds: ["39121600"],
+      visibility: "PRIVATE",
+      invitedSupplierIds: ["BETA-0001"],
+      deliveryTerm: "FOB",
+      paymentCategory: "LETTER_OF_CREDIT",
+      lcType: "SIGHT",
+      paymentDays: undefined,
+      primaryCurrency: "USD",
+      allowedCurrencies: ["USD"],
+      isSealedBid: false,
+      bidVisibility: "OWN_ONLY",
+      bidsCloseAt: closesAt,
+      deliveryAddressId: "addr1",
+      items: [{ ...DEFAULT_FORM_VALUES.items[0]!, name: "çelik boru", quantity: 10, unit: "adet" }],
+    });
+
+    it("taslak düzenlemede talebin şartları profil varsayılanıyla EZİLMEZ; taslak kaydı asDraft ile gider; yeni talep taslağına sızmaz", async () => {
+      wrap(<QuickRequest mode="edit" listingId="e1" listingStatus="DRAFT" initialValues={listing()} />);
+      // Şartlar paneli talebin kendisini gösterir.
+      expect(await screen.findByText("Kaynak: bu talebin şartları")).toBeInTheDocument();
+      fireEvent.click(screen.getByRole("button", { name: "Taslağı kaydet" }));
+      await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+      const body = h.update.mock.calls[0][0];
+      expect(body).toMatchObject({
+        visibility: "PRIVATE",
+        invitations: ["BETA-0001"],
+        deliveryTerm: "FOB",
+        paymentCategory: "LETTER_OF_CREDIT",
+        lcType: "SIGHT",
+        primaryCurrency: "USD",
+        allowedCurrencies: ["USD"],
+        isSealedBid: false,
+        asDraft: true,
+      });
+      expect(body.closesAt).toBe(parseAppWallClockInput(closesAt)?.toISOString());
+      expect(h.publish).not.toHaveBeenCalled();
+      // Düzenlenen talep yeni talep taslağı anahtarına YAZILMAZ.
+      expect(sessionStorage.getItem("quick-request-draft")).toBeNull();
+    }, 30_000);
+
+    it("yayındaki (teklifsiz) talepte birincil düğme 'Değişiklikleri kaydet': yayın ucu ÇAĞRILMAZ, bekleyen davetler hemen gider", async () => {
+      sessionStorage.setItem("quick-request-external-invites:e1", JSON.stringify([{ email: "info@viti.it", locale: "en", country: "IT" }]));
+      h.sendExternal.mockReset().mockResolvedValue([{ email: "info@viti.it", status: "QUEUED" }]);
+      wrap(<QuickRequest mode="edit" listingId="e1" listingStatus="OPEN" initialValues={listing()} />);
+      const save = await screen.findByRole("button", { name: "Değişiklikleri kaydet" });
+      // Yayındaki talep taslak değil — taslak düğmesi ve "Talebi yayınla" yok.
+      expect(screen.queryByRole("button", { name: "Taslağı kaydet" })).toBeNull();
+      expect(screen.queryByRole("button", { name: /Talebi yayınla/ })).toBeNull();
+      fireEvent.click(save);
+      await waitFor(() => expect(h.update).toHaveBeenCalledTimes(1));
+      expect(h.update.mock.calls[0][0]).toMatchObject({ visibility: "PRIVATE", primaryCurrency: "USD", paymentCategory: "LETTER_OF_CREDIT" });
+      expect(h.update.mock.calls[0][0].asDraft).toBeUndefined();
+      await waitFor(() =>
+        expect(h.sendExternal).toHaveBeenCalledWith({ listingId: "e1", invites: [{ email: "info@viti.it", locale: "en", country: "IT" }], source: "AI_FORM" }),
+      );
+      expect(h.publish).not.toHaveBeenCalled();
+      await waitFor(() => expect(h.push).toHaveBeenCalledWith("/company/ilan/e1"));
+      expect(sessionStorage.getItem("quick-request-external-invites:e1")).toBeNull();
+    }, 30_000);
+
+    it("taslak düzenlemede 'Talebi yayınla' önce günceller sonra yayınlar", async () => {
+      wrap(<QuickRequest mode="edit" listingId="e1" listingStatus="DRAFT" initialValues={listing()} />);
+      fireEvent.click((await screen.findAllByRole("button", { name: /Talebi yayınla/ }))[0]);
+      await waitFor(() => expect(h.publish).toHaveBeenCalledTimes(1));
+      expect(h.update).toHaveBeenCalledTimes(1);
+      expect(h.update.mock.calls[0][0]).toMatchObject({ visibility: "PRIVATE", primaryCurrency: "USD" });
+    }, 30_000);
+
+    it("kopya/şablon tohumu (seedTerms) kendi şartlarıyla açılır; kapanış boşsa profilden dolar", async () => {
+      h.create.mockResolvedValue({ id: "l9", number: "ROT-000090" });
+      wrap(<QuickRequest seedTerms initialValues={{ ...listing(), title: "Çelik boru alımı (2)", bidsCloseAt: "" }} />);
+      expect(await screen.findByText("Kaynak: kopyalanan talep veya şablon")).toBeInTheDocument();
+      fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+      await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
+      const body = h.create.mock.calls[0][0];
+      expect(body).toMatchObject({ visibility: "PRIVATE", primaryCurrency: "USD", paymentCategory: "LETTER_OF_CREDIT", lcType: "SIGHT", deliveryTerm: "FOB" });
+      expect(body.closesAt).toBeTruthy();
+    }, 30_000);
   });
 });

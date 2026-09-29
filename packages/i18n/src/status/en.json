@@ -809,6 +809,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.ai.gorselCozunurluguCokYuksek": {
+    "hash": "351d37a13d",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "api.ai.gorselOkunamadiDosyaBozukOlabilir": {
+    "hash": "176b01b612",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.ai.gunlukAiProfilOlusturmaLimitineUlasildi": {
     "hash": "81c5cc3ad8",
     "status": "reviewed",
@@ -24754,6 +24764,26 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.quickRequest.degisiklikleriKaydet": {
+    "hash": "922350df4e",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.requests.quickRequest.degisiklikleriKaydetMobil": {
+    "hash": "e677f8ca53",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.requests.quickRequest.degisikliklerKaydedildi": {
+    "hash": "3a5e1064d0",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.requests.quickRequest.degisikliklerKaydedilemedi": {
+    "hash": "846ff5dfcd",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.requests.quickRequest.disDavetAdresiniKaldir": {
     "hash": "1bf1e75fd7",
     "status": "reviewed",
@@ -24938,6 +24968,11 @@
     "hash": "4422d3482b",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.requests.quickRequest.kaydet": {
+    "hash": "b809440772",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.requests.quickRequest.kesfet": {
     "hash": "62f645991e",
@@ -26793,6 +26828,16 @@
     "hash": "4422d3482b",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.termsPanel.kaynakBuTalep": {
+    "hash": "f0ad0ad417",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.panel.requests.termsPanel.kaynakKopyaSablon": {
+    "hash": "48476e932f",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.requests.termsPanel.kaynakPlatformVarsayilani": {
     "hash": "f9775b3e41",
