@@ -1,6 +1,5 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { BadRequestException, Logger } from "@nestjs/common";
-import { fromBuffer as fileTypeFromBuffer } from "file-type";
 import { PDFParse } from "pdf-parse";
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
@@ -45,6 +44,12 @@ const MIN_TEXT_CHARS_PER_PAGE = 100;
 const MAX_IMAGE_WIDTH = 1500;
 /** Çözülmüş piksel tavanı (sharp varsayılanı 268 MP — görsel bombasına açık). */
 const MAX_IMAGE_PIXELS = 60_000_000;
+/**
+ * HEIC tavanı daha düşük: heic-decode saf JS'te RGBA (4 bayt/piksel) ayırır,
+ * libheif WASM yığınında ayrıca çözülmüş kopya tutar ve jpeg-js yeniden
+ * kodlar — 50 MP (iPhone 48 MP "HEIF Max" dahil) ≈ 200 MB RGBA.
+ */
+const MAX_HEIC_PIXELS = 50_000_000;
 const JPEG_QUALITY = 80;
 /**
  * Gemini inline istek pratiği + base64 şişmesi: dosya başına ham tavan.
@@ -70,6 +75,9 @@ const MAX_CSV_BYTES = 2 * 1024 * 1024;
 const MAX_SHEET_ROWS = 500;
 const MAX_SHEET_COLS = 30;
 const MAX_CELL_CHARS = 200;
+const PNG_SIGNATURE = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+const ZIP_LOCAL_SIGNATURE = Buffer.from([0x50, 0x4b, 0x03, 0x04]);
+const ISPE_TYPE = Buffer.from("ispe", "latin1");
 const IMAGE_MIMES = new Set([
   "image/jpeg",
   "image/png",
@@ -101,17 +109,13 @@ export async function routeExtractInput(
     );
   }
 
-  // Magic-bytes: istemci MIME'ına güvenilmez — içerik imzasından tespit.
-  const typed = await Promise.all(
-    files.map(async (f) => ({
-      ...f,
-      mime: (await fileTypeFromBuffer(f.buffer))?.mime ?? null,
-    })),
-  );
+  // Magic-bytes: istemci MIME'ına güvenilmez — içerik imzasından tespit
+  // (yalnız bu yolun kabul ettiği türler; bkz. detectAiInputMime).
+  const typed = files.map((f) => ({ ...f, mime: detectAiInputMime(f.buffer) }));
 
   const pdfs = typed.filter((f) => f.mime === PDF_MIME);
   const images = typed.filter((f) => f.mime != null && IMAGE_MIMES.has(f.mime));
-  // Tablo: xlsx (zip imzası file-type ile) veya csv (file-type metni tanımaz →
+  // Tablo: xlsx (zip imzası + "xl/" girdisi) veya csv (metnin imzası yok →
   // anahtar uzantısı + null-byte yokluğu).
   const sheets = typed.filter(
     (f) => f.mime === XLSX_MIME || (f.mime == null && isLikelyCsv(f.key, f.buffer)),
@@ -156,6 +160,111 @@ export async function routeExtractInput(
     scanPages: images.length,
     extraInputTokenEstimate: images.length * IMAGE_TOKEN_ESTIMATE,
   };
+}
+
+/**
+ * İÇERİK İMZASINDAN TÜR TESPİTİ — BAĞIMLILIKSIZ (derin denetim 2026-09-29 Y-04):
+ * Eskiden `file-type@16` kullanılıyordu; onun ASF ayrıştırıcısı boyutu 0 olan
+ * bir alt başlıkta konumu GERİ sarıp mikro-görev kuyruğunda sonsuza dek
+ * dönüyordu (GHSA-5v7r-6r5c-r473) → ASF GUID'iyle başlayan ~100 baytlık tek
+ * dosya event loop'u kilitleyip tek süreçli API'yi TÜM kiracılar için
+ * durduruyordu. Bu yol yalnız birkaç tür kabul ettiği için imzalar elle
+ * tanınır; hiçbir okuma geri gitmez, döngüler hep ileri ilerler. Tanınmayan
+ * her şey `null` (→ CSV sezgisi ya da "desteklenmeyen tür" reddi).
+ * `file-type` (ESM-only 21.x) geri getirilmeyecek — kural: bu dosyaya
+ * `ai-extract-router.spec` kaynak koruması bakar.
+ */
+export function detectAiInputMime(buf: Buffer): string | null {
+  if (buf.length >= 4 && buf.toString("latin1", 0, 4) === "%PDF") return PDF_MIME;
+  if (buf.length >= 3 && buf[0] === 0xff && buf[1] === 0xd8 && buf[2] === 0xff) {
+    return "image/jpeg";
+  }
+  if (buf.length >= 8 && buf.subarray(0, 8).equals(PNG_SIGNATURE)) return "image/png";
+  if (
+    buf.length >= 12 &&
+    buf.toString("latin1", 0, 4) === "RIFF" &&
+    buf.toString("latin1", 8, 12) === "WEBP"
+  ) {
+    return "image/webp";
+  }
+  // ISO-BMFF `ftyp` ana markası (file-type ile aynı eşleme; dizi/sekans
+  // markaları — msf1/hevc — kabul edilmez).
+  if (buf.length >= 12 && buf.toString("latin1", 4, 8) === "ftyp") {
+    const brand = buf.toString("latin1", 8, 12).replace("\0", " ").trim();
+    if (brand === "heic" || brand === "heix") return "image/heic";
+    if (brand === "mif1") return "image/heif";
+    return null;
+  }
+  if (buf.length >= 4 && buf.subarray(0, 4).equals(ZIP_LOCAL_SIGNATURE)) {
+    return zipHasXlEntry(buf) ? XLSX_MIME : null;
+  }
+  return null;
+}
+
+/**
+ * Yerel dosya başlıklarında "xl/" ile başlayan bir girdi adı var mı (xlsx).
+ * Beyan edilen sıkıştırılmış boyuta güvenilmez: bir sonraki "PK\x03\x04"
+ * imzası ileriye doğru aranır — konum her adımda en az 30 bayt artar, toplam
+ * iş O(n). Yanlış pozitif zararsızdır: zip kapısı + ExcelJS yine reddeder.
+ */
+function zipHasXlEntry(buf: Buffer): boolean {
+  let p = 0;
+  while (p + 30 <= buf.length) {
+    p = buf.indexOf(ZIP_LOCAL_SIGNATURE, p);
+    if (p < 0 || p + 30 > buf.length) return false;
+    const nameLen = buf.readUInt16LE(p + 26);
+    const name = buf.toString("utf8", p + 30, Math.min(buf.length, p + 30 + nameLen));
+    if (name.startsWith("xl/")) return true;
+    p += 30 + nameLen;
+  }
+  return false;
+}
+
+/**
+ * HEIF'in beyan ettiği en büyük görüntü alanı (piksel) — ÇÖZMEDEN
+ * (derin denetim 2026-09-29 X15). heic-decode, libheif'in bildirdiği
+ * genişlik×yükseklik kadar RGBA dizisini hiçbir tavan olmadan ayırıyor ve
+ * sharp'ın `limitInputPixels` kapısı ancak bundan SONRA çalışıyordu → birkaç
+ * MB'lık, 20000×20000 beyan eden bir HEIC süreci OOM'a sokabiliyordu.
+ * libheif her görüntü öğesi için `ispe` özelliğini ZORUNLU tutar ve onu
+ * üst düzey `meta` kutusunda (iprp/ipco) arar; burada üst düzey kutular
+ * ileriye doğru gezilir, her `meta` kutusunun içindeki TÜM `ispe`
+ * kayıtlarının en büyüğü alınır (döşeme/küçük resim de sayılır — üst sınır,
+ * fail-closed). `meta`/`ispe` yoksa ya da kutu yapısı bozuksa `null`.
+ */
+export function heifMaxDeclaredPixels(buf: Buffer): number | null {
+  let max: number | null = null;
+  let p = 0;
+  while (p + 8 <= buf.length) {
+    let size = buf.readUInt32BE(p);
+    const type = buf.toString("latin1", p + 4, p + 8);
+    let header = 8;
+    if (size === 1) {
+      if (p + 16 > buf.length) return null;
+      const large = buf.readBigUInt64BE(p + 8);
+      size = large > BigInt(buf.length) ? buf.length + 1 : Number(large);
+      header = 16;
+    } else if (size === 0) {
+      size = buf.length - p;
+    }
+    if (size < header) return null;
+    if (type === "meta") {
+      const end = Math.min(buf.length, p + size);
+      let q = p + header;
+      while (q < end) {
+        q = buf.indexOf(ISPE_TYPE, q);
+        if (q < 0 || q >= end) break;
+        // ispe: tip + 4 bayt sürüm/bayrak + u32 genişlik + u32 yükseklik.
+        if (q + 16 <= end) {
+          const pixels = buf.readUInt32BE(q + 8) * buf.readUInt32BE(q + 12);
+          if (max == null || pixels > max) max = pixels;
+        }
+        q += 4;
+      }
+    }
+    p += size;
+  }
+  return max;
 }
 
 function isLikelyCsv(key: string, buffer: Buffer): boolean {
@@ -335,21 +444,61 @@ async function toResizedJpegPart(
 ): Promise<AiInlinePart> {
   let input = buffer;
   if (mime === "image/heic" || mime === "image/heif") {
-    // sharp'ın prebuilt binary'si HEIC decode etmez (patent) — WASM decoder.
-    const converted = await heicConvert({
-      buffer,
-      format: "JPEG",
-      quality: 0.9,
-    });
-    input = Buffer.from(converted);
+    // Piksel tavanı ÇÖZMEDEN ÖNCE (X15): heicConvert beyan edilen boyut kadar
+    // belleği tavansız ayırır; sharp'ın tavanı ancak ondan sonra çalışır.
+    const declared = heifMaxDeclaredPixels(buffer);
+    if (declared == null) {
+      throw new BadRequestException(i18nMessage("api.ai.gorselOkunamadiDosyaBozukOlabilir"));
+    }
+    if (declared > MAX_HEIC_PIXELS) {
+      throw new BadRequestException(
+        i18nMessage("api.ai.gorselCozunurluguCokYuksek", {
+          maxMegapixels: MAX_HEIC_PIXELS / 1_000_000,
+        }),
+      );
+    }
+    try {
+      // sharp'ın prebuilt binary'si HEIC decode etmez (patent) — WASM decoder.
+      const converted = await heicConvert({
+        buffer,
+        format: "JPEG",
+        quality: 0.9,
+      });
+      input = Buffer.from(converted);
+    } catch (err) {
+      throw imageDecodeError(err, "HEIC");
+    }
   }
   // `limitInputPixels`: sharp varsayılanı 268 MP — "görsel bombası" (küçük
   // dosya, devasa çözülmüş piksel) ile bellek/CPU tüketilebiliyordu. Belge
   // fotoğrafı için 60 MP fazlasıyla yeterli (denetim 2026-08-24 Parça 6).
-  const resized = await sharp(input, { limitInputPixels: MAX_IMAGE_PIXELS })
-    .rotate() // EXIF yönelimi (telefon fotoğrafı yan gelmesin)
-    .resize({ width: MAX_IMAGE_WIDTH, withoutEnlargement: true })
-    .jpeg({ quality: JPEG_QUALITY })
-    .toBuffer();
+  let resized: Buffer;
+  try {
+    resized = await sharp(input, { limitInputPixels: MAX_IMAGE_PIXELS })
+      .rotate() // EXIF yönelimi (telefon fotoğrafı yan gelmesin)
+      .resize({ width: MAX_IMAGE_WIDTH, withoutEnlargement: true })
+      .jpeg({ quality: JPEG_QUALITY })
+      .toBuffer();
+  } catch (err) {
+    throw imageDecodeError(err, "sharp");
+  }
   return { mimeType: "image/jpeg", data: resized.toString("base64") };
+}
+
+/**
+ * Bozuk/kesik görsel ya da piksel tavanı aşımı kullanıcıya anlamlı 400 döner
+ * (eskiden yakalanmıyor → 500 + Sentry; derin denetim 2026-09-29 S016).
+ * Gerçek sebep yalnız loglanır.
+ */
+function imageDecodeError(err: unknown, stage: string): BadRequestException {
+  const message = err instanceof Error ? err.message : String(err);
+  new Logger("AiExtractRouter").warn(`Image decode failed (${stage}): ${message}`);
+  if (/pixel limit/i.test(message)) {
+    return new BadRequestException(
+      i18nMessage("api.ai.gorselCozunurluguCokYuksek", {
+        maxMegapixels: MAX_IMAGE_PIXELS / 1_000_000,
+      }),
+    );
+  }
+  return new BadRequestException(i18nMessage("api.ai.gorselOkunamadiDosyaBozukOlabilir"));
 }

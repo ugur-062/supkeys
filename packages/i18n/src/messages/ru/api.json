@@ -766,6 +766,8 @@
     "belgeCokUzunEnFazlaSayfa": "Документ слишком длинный (не более {maxPages, plural, one {# страницы} few {# страниц} many {# страниц} other {# страницы}}) — загрузите нужные страницы отдельным файлом",
     "belgeCokUzunSayfaEnFazla": "Документ слишком длинный ({total, plural, one {# страница} few {# страницы} many {# страниц} other {# страницы}}, не более {maxPages}) — выберите нужный раздел",
     "pdfOkunamadiDosyaBozukVeyaSifreli": "Не удалось прочитать PDF — файл может быть повреждён или защищён паролем",
+    "gorselOkunamadiDosyaBozukOlabilir": "Не удалось прочитать изображение — файл может быть повреждён или загружен не полностью",
+    "gorselCozunurluguCokYuksek": "Слишком высокое разрешение изображения (не более {maxMegapixels} Мп) — сохраните его в меньшем разрешении и повторите попытку",
     "belgeCokUzunSayfaEnFazla2": "Документ слишком длинный ({pages, plural, one {# страница} few {# страницы} many {# страниц} other {# страницы}}, не более {maxPages}) — выберите нужный раздел",
     "buOnayZatenKullanilmis": "Это подтверждение уже использовано.",
     "bilinmeyenAksiyonTipi": "Неизвестный тип действия.",

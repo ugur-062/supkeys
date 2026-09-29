@@ -43,7 +43,6 @@
     "class-validator": "^0.14.1",
     "date-fns": "^4.1.0",
     "exceljs": "^4.4.0",
-    "file-type": "^16.5.4",
     "heic-convert": "^2.1.0",
     "helmet": "^8.1.0",
     "nestjs-pino": "^4.6.1",

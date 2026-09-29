@@ -766,6 +766,8 @@
     "belgeCokUzunEnFazlaSayfa": "Belge çok uzun (en fazla {maxPages} sayfa) — ilgili sayfaları ayrı dosyada yükleyin",
     "belgeCokUzunSayfaEnFazla": "Belge çok uzun ({total} sayfa, en fazla {maxPages}) — ilgili bölümü seçin",
     "pdfOkunamadiDosyaBozukVeyaSifreli": "PDF okunamadı — dosya bozuk veya şifreli olabilir",
+    "gorselOkunamadiDosyaBozukOlabilir": "Görsel okunamadı — dosya bozuk veya eksik yüklenmiş olabilir",
+    "gorselCozunurluguCokYuksek": "Görselin çözünürlüğü çok yüksek (en fazla {maxMegapixels} MP) — daha düşük çözünürlükte kaydedip deneyin",
     "belgeCokUzunSayfaEnFazla2": "Belge çok uzun ({pages} sayfa, en fazla {maxPages}) — ilgili bölümü seçin",
     "buOnayZatenKullanilmis": "Bu onay zaten kullanılmış.",
     "bilinmeyenAksiyonTipi": "Bilinmeyen aksiyon tipi.",
