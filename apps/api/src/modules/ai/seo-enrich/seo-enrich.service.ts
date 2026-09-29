@@ -9,6 +9,13 @@ import { SEO_ENRICH_RESPONSE_SCHEMA, buildSeoEnrichPrompt, seoEnrichSystemPrompt
 
 export const SEO_ENRICH_MAX_DESCRIPTION = 5000;
 export const SEO_ENRICH_MAX_FACTS = 40;
+/** Vitrin etiketi tavanı (ShowcaseDto `keywords` @MaxLength(50)) — kayıtlı etiket kırpılmaz. */
+const KEYWORD_MAX_LEN = 50;
+/** Isteme giden mevcut etiket sayisi (eski DTO tavani). */
+const KEYWORD_INPUT_MAX = 20;
+/** DTO güvenlik tavanı (kırpma aşağıda): hızlı talep 500 kalem, kalem metni ~2300 kr. */
+export const SEO_ENRICH_INPUT_MAX_ITEMS = 500;
+export const SEO_ENRICH_INPUT_ITEM_MAX_LEN = 5000;
 const DESC_MIN = 120;
 const DESC_MAX = 900;
 /** CJK yazıda karakter başına bilgi ~3 kat — sınırlar ÷3 (içerik çevirisindeki kural). */
@@ -35,7 +42,7 @@ export class SeoEnrichService {
       description: (input.description ?? "").slice(0, SEO_ENRICH_MAX_DESCRIPTION) || null,
       categoryName: input.categoryName?.slice(0, 200) ?? null,
       facts: (input.facts ?? []).map((f) => f.replace(/\s+/g, " ").trim().slice(0, 200)).filter(Boolean).slice(0, SEO_ENRICH_MAX_FACTS),
-      keywords: normalizeKeywords(input.keywords ?? []),
+      keywords: normalizeKeywords(input.keywords ?? []).slice(0, KEYWORD_INPUT_MAX),
       brand: input.brand?.slice(0, 100) ?? null,
       city: input.city?.slice(0, 100) ?? null,
       industry: input.industry?.slice(0, 100) ?? null,
@@ -102,7 +109,7 @@ function tryParse(text: string): (Raw & { description?: string; keywords?: strin
 function normalizeKeywords(list: string[]): string[] {
   const out: string[] = [];
   for (const k of list) {
-    const v = lowerCaseWords((k ?? "").replace(/\s+/g, " ").trim()).slice(0, 40);
+    const v = lowerCaseWords((k ?? "").replace(/\s+/g, " ").trim()).slice(0, KEYWORD_MAX_LEN);
     if (v.length >= 2 && !out.includes(v)) out.push(v);
   }
   return out;

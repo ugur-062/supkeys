@@ -474,3 +474,19 @@ describe("routeExtractInput — süreç genelinde tek HEIC çözme (R-2)", () =>
     expect(await a).toBeInstanceOf(BadRequestException);
   });
 });
+
+describe("routeExtractInput — CSV ayraci (derin denetim MU-08 S016)", () => {
+  it("TR Excel'in ';' ayracli CSV'si ondalik virgulden bolunmez", async () => {
+    const csv = "Kalem;Miktar;Birim\nKablo NYA 2,5 mm2;120,5;metre\nPriz;40;adet\n";
+    const out = await routeExtractInput([{ key: "ai-extract/c/u-kalemler.csv", buffer: Buffer.from(csv, "utf8") }], 10);
+    expect(out.route).toBe("text");
+    expect(out.documentText).toContain("| Kablo NYA 2,5 mm2 | 120,5 | metre |");
+    expect(out.documentText).toContain("| Priz | 40 | adet |");
+  });
+
+  it("',' ayracli CSV eskisi gibi okunur", async () => {
+    const csv = "Item,Qty,Unit\nCable NYA 2.5 mm2,120.5,m\n";
+    const out = await routeExtractInput([{ key: "ai-extract/c/u-items.csv", buffer: Buffer.from(csv, "utf8") }], 10);
+    expect(out.documentText).toContain("| Cable NYA 2.5 mm2 | 120.5 | m |");
+  });
+});

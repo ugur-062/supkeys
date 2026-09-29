@@ -58,6 +58,46 @@ const ALLOWED_UPLOAD_MIMES = [
   "text/csv",
 ];
 
+const XLSX_MIME = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
+/** Uzantidan kanonik tip — istemci tipi bos/genel geldiginde. */
+const MIME_BY_EXT: Record<string, string> = {
+  pdf: "application/pdf",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  png: "image/png",
+  webp: "image/webp",
+  heic: "image/heic",
+  heif: "image/heif",
+  xlsx: XLSX_MIME,
+  csv: "text/csv",
+};
+/** Tarayicinin tip bilmedigi durum (HEIC codec'i yok, bilinmeyen uzanti). */
+const GENERIC_MIMES = new Set(["", "application/octet-stream"]);
+/** Excel kurulu Windows .csv'yi "application/vnd.ms-excel" bildirir; digerleri yaygin CSV takma adlari. */
+const CSV_ALIAS_MIMES = new Set([
+  "application/vnd.ms-excel",
+  "application/csv",
+  "text/x-csv",
+  "text/comma-separated-values",
+]);
+
+/**
+ * Yukleme presign'i icin kabul edilen tip (derin denetim MU-08 S016). Istemci
+ * tipi yalniz ON ELEME — otoritatif tur indirildikten sonra imzadan
+ * (`routeExtractInput`) cikarilir. Bu yuzden kati esitlik Windows'taki CSV'yi
+ * ("application/vnd.ms-excel") ve codec'siz HEIC'i ("") 400'le reddediyordu:
+ * genel/bos tip uzantidan, CSV takma adi yalniz .csv uzantisiyla kanonik
+ * tipe cevrilir. Kabul edilmeyen → null.
+ */
+export function resolveAiUploadMime(fileName: string, mimeType: string): string | null {
+  const m = (mimeType ?? "").trim().toLowerCase();
+  if (ALLOWED_UPLOAD_MIMES.includes(m)) return m;
+  const ext = /\.([a-z0-9]+)$/i.exec(fileName ?? "")?.[1]?.toLowerCase() ?? "";
+  if (CSV_ALIAS_MIMES.has(m)) return ext === "csv" ? "text/csv" : null;
+  if (GENERIC_MIMES.has(m)) return MIME_BY_EXT[ext] ?? null;
+  return null;
+}
+
 @Injectable()
 export class TenderExtractService {
   private readonly logger = new Logger(TenderExtractService.name);
@@ -93,7 +133,8 @@ export class TenderExtractService {
     dto: { fileName: string; mimeType: string; fileSize?: number },
   ) {
     this.ai.assertAiAccess(user);
-    if (!ALLOWED_UPLOAD_MIMES.includes(dto.mimeType)) {
+    const mimeType = resolveAiUploadMime(dto.fileName, dto.mimeType);
+    if (!mimeType) {
       throw new BadRequestException(
         i18nMessage("api.ai.sadecePdfVeyaFotografJpgPng"),
       );
@@ -101,7 +142,7 @@ export class TenderExtractService {
     assertSafeFileName(dto.fileName);
     assertReportedSize(dto.fileSize);
     const key = buildAiExtractKey(user.companyId, dto.fileName);
-    const url = await this.storage.generatePresignedPut("private", key, dto.mimeType);
+    const url = await this.storage.generatePresignedPut("private", key, mimeType);
     return { url, key };
   }
 

@@ -51,7 +51,8 @@ export function assertXlsxSafe(buffer: Buffer): void {
   }
 }
 
-function detectCsvDelimiter(buffer: Buffer): string {
+/** CSV ayraci ilk satirdan: TR Excel ";" (ondalik ","), digerleri "," ya da TAB. Tum CSV yollari bunu kullanir. */
+export function detectCsvDelimiter(buffer: Buffer): string {
   const head = buffer.subarray(0, 4096).toString("utf8").split(/\r?\n/)[0] ?? "";
   const counts: Record<string, number> = { ";": 0, ",": 0, "\t": 0 };
   for (const ch of head) if (ch in counts) counts[ch]!++;

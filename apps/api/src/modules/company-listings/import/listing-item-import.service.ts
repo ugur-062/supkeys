@@ -29,6 +29,7 @@ import {
 import ExcelJS from "exceljs";
 import { Readable } from "stream";
 import { assertZipWithinLimits, XLSX_LOAD_OPTIONS, ZipInspectError } from "../../../common/files/zip-inspect";
+import { detectCsvDelimiter } from "../../../common/files/spreadsheet-reader";
 
 /**
  * Kalem Excel şablonu — ÜRET + OKU (2026-08-22). AI YOK: deterministik,
@@ -275,13 +276,6 @@ function decodeBase64Strict(s: string): Buffer {
     throw new BadRequestException(i18nMessage("api.companyListings.dosyaVerisiGecersiz"));
   }
   return Buffer.from(clean, "base64");
-}
-
-function detectCsvDelimiter(buffer: Buffer): string {
-  const head = buffer.subarray(0, 4096).toString("utf8").split(/\r?\n/)[0] ?? "";
-  const counts: Record<string, number> = { ";": 0, ",": 0, "\t": 0 };
-  for (const ch of head) if (ch in counts) counts[ch]!++;
-  return Object.entries(counts).sort((a, b) => b[1] - a[1])[0]![0];
 }
 
 /** exceljs hücre değerini düz metne indirger (richText/formül/hyperlink/Date dahil). */
