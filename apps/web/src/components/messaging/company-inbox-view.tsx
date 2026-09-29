@@ -19,7 +19,7 @@ import { cn } from "@/lib/utils";
 import { format, isToday } from "date-fns";
 import { MessageSquare, Search } from "lucide-react";
 import { useSearchParams } from "next/navigation";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 
 /**
  * BİRLEŞİK gelen kutusu (kullanıcı isteği 2026-08-02): Satınalma + Satış
@@ -150,6 +150,16 @@ export function CompanyInboxView() {
         : (pickDeepLinkPortal(threads.data ?? [], selected.id, myPortals) ??
           myPortals[0] ??
           "satinalma");
+
+  // Çözülen yön BİR KEZ sabitlenir (gözden geçirme W4): her render'da
+  // yeniden hesaplansaydı, LIVE yoklamada okunmamış bayrağı düşünce ya da
+  // öbür yönde yeni okunmamış gelince seçim diğer konuşmaya kayar, sohbet
+  // yeniden bağlanıp taslak silinirdi.
+  useEffect(() => {
+    if (selected && activePortal && selected.portal !== activePortal) {
+      setSelected({ id: selected.id, portal: activePortal });
+    }
+  }, [selected, activePortal]);
 
   const knownName =
     rows.find((r) => r.id === selected?.id)?.name ??

@@ -121,6 +121,58 @@ describe("CompanyInboxView — ?with= derin linki", () => {
     expect(screen.getByTestId("thread")).toHaveTextContent("satis|buyerA|Alıcı A");
   });
 
+  // Gözden geçirme W4: çözülen yön sabitlenmeliydi — LIVE yoklamada
+  // okunmamış bayrağı düşünce seçim daha yeni öbür konuşmaya kayıyor, sohbet
+  // yeniden bağlanıp taslak siliniyordu.
+  it("portalsız link: çözülen yön sonraki yoklamalarda kaymaz", () => {
+    h.permissions = ["buy:view", "sell:view", "sell:bid:submit"];
+    h.search = "with=buyerA";
+    const thread = (
+      portal: Portal,
+      lastMessageAt: string,
+      unread: boolean,
+    ) => ({
+      portal,
+      threadId: `t-${portal}`,
+      otherPartyId: "buyerA",
+      otherPartyName: "Alıcı A",
+      lastMessagePreview: "Merhaba",
+      lastMessageAt,
+      unread,
+    });
+    h.threads = {
+      isLoading: false,
+      data: [
+        thread("satis", "2026-09-29T08:00:00.000Z", true),
+        thread("satinalma", "2026-09-29T09:00:00.000Z", false),
+      ],
+    };
+    const { rerender } = render(<CompanyInboxView />);
+    expect(screen.getByTestId("thread")).toHaveTextContent("satis|buyerA|Alıcı A");
+
+    // Yoklama: okundu işaretlendi, daha yeni konuşma 'satinalma'.
+    h.threads = {
+      isLoading: false,
+      data: [
+        thread("satis", "2026-09-29T08:00:00.000Z", false),
+        thread("satinalma", "2026-09-29T09:00:00.000Z", false),
+      ],
+    };
+    rerender(<CompanyInboxView />);
+    expect(screen.getByTestId("thread")).toHaveTextContent("satis|buyerA|Alıcı A");
+
+    // Öbür yönde yeni okunmamış mesaj gelse de seçim yerinde kalır.
+    h.threads = {
+      isLoading: false,
+      data: [
+        thread("satis", "2026-09-29T08:00:00.000Z", false),
+        thread("satinalma", "2026-09-29T10:00:00.000Z", true),
+      ],
+    };
+    rerender(<CompanyInboxView />);
+    expect(screen.getByTestId("thread")).toHaveTextContent("satis|buyerA|Alıcı A");
+  });
+
   it("portalsız link, konuşmalar yüklenirken yön seçilmez (iskelet)", () => {
     h.permissions = ["buy:view", "sell:view"];
     h.search = "with=buyerA";
