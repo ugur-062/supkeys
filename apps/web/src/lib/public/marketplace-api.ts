@@ -243,9 +243,13 @@ const isNotFoundMark = (v: unknown): v is NotFoundMark =>
  * Tek API okuması (her zaman no-store): 404 → `NotFoundMark` (değer), diğer 2xx
  * dışı → `UpstreamHttpError`, ağ hatası aynen.
  */
-async function fetchPublicJson<T>(url: string, headers: Record<string, string>): Promise<T | NotFoundMark> {
+async function fetchPublicJson<T>(
+  url: string,
+  headers: Record<string, string>,
+  notFoundAsValue = true,
+): Promise<T | NotFoundMark> {
   const res = await fetch(url, { cache: "no-store", headers });
-  if (res.status === 404) return { [NOT_FOUND_KEY]: true };
+  if (res.status === 404 && notFoundAsValue) return { [NOT_FOUND_KEY]: true };
   if (!res.ok) throw new UpstreamHttpError(res.status);
   return (await res.json()) as T;
 }
@@ -276,16 +280,23 @@ async function fetchPublicJson<T>(url: string, headers: Record<string, string>):
  * bayat girdi (son iyi kopya) kalır (B1-1). Bedel: var olmayan slug'lar da
  * (URL, dil) başına küçük bir negatif girdi yazar. Keyfi `q` içeren liste
  * çağrıları zaten sınırsız anahtar üretiyordu, yeni bir sınıf açılmaz.
+ *
+ * `notFoundAsValue: false` (derin denetim RM-12 son gözden geçirme): 404'ü
+ * atar, önbelleğe YAZMAZ. Geçici 404 üretebilen başvuru verisi için — şehir
+ * dizini API'de yedek moddayken (tablo okunamadı, seed penceresi) yabancı şehre
+ * 5 dk'lık 404 döner; değer olarak yazılsaydı etiketsiz 24 saatlik girdi hem
+ * yeni şehri hem ömrü dolmuş geçerli şehri o süre boyunca 404'te tutardı.
  */
 async function loadPublicJson<T>(
   path: string,
-  opts: { revalidate?: number; tags?: string[]; fresh?: boolean; locale?: string },
+  opts: { revalidate?: number; tags?: string[]; fresh?: boolean; locale?: string; notFoundAsValue?: boolean },
 ): Promise<T> {
   const url = `${resolveApiBaseUrl()}${path}`;
   const headers = await publicHeaders(opts.locale);
+  const notFoundAsValue = opts.notFoundAsValue ?? true;
   const value = opts.fresh
-    ? await fetchPublicJson<T>(url, headers)
-    : await unstable_cache(() => fetchPublicJson<T>(url, headers), ["pazar-yeri", url, headers["accept-language"]], {
+    ? await fetchPublicJson<T>(url, headers, notFoundAsValue)
+    : await unstable_cache(() => fetchPublicJson<T>(url, headers, notFoundAsValue), ["pazar-yeri", url, headers["accept-language"]], {
         revalidate: opts.revalidate,
         tags: opts.tags,
       })();
@@ -334,7 +345,7 @@ async function getJson<T>(
  */
 async function getDetail<T>(
   path: string,
-  opts: { revalidate?: number; tags?: string[]; fresh?: boolean },
+  opts: { revalidate?: number; tags?: string[]; fresh?: boolean; notFoundAsValue?: boolean },
 ): Promise<T | null> {
   if (!resolveApiBaseUrl()) return null;
   try {
@@ -1113,11 +1124,14 @@ const EMPTY_BUCKET: SitemapBucket = { count: 0, lastmod: null };
 /**
  * Şehir sayfası (2026-09-27, dünya şehir listesi): kalıcı adres → şehir. Eski
  * ham il adı da çözülür (sayfa 308 ile kanoniğe atar). Başvuru verisi → uzun
- * önbellek. Bulunamazsa null → sayfa `notFound()`.
+ * önbellek. Bulunamazsa null → sayfa `notFound()`. 404 önbelleğe YAZILMAZ
+ * (`notFoundAsValue: false`): API'nin yedek modundaki geçici 404'ü 24 saat
+ * kalmasın, bayat geçerli şehir girdisi korunsun.
  */
 export async function fetchGeoCity(slug: string): Promise<GeoCity | null> {
   return getDetail<GeoCity>(`/public/geo/cities/${encodeURIComponent(slug)}`, {
     revalidate: 86400,
+    notFoundAsValue: false,
   });
 }
 

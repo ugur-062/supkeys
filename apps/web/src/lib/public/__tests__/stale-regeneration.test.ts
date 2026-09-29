@@ -108,3 +108,33 @@ describe("bayat girdi + ISR yenilemesi", () => {
     expect(await fetchCompanyProfile("yok", { fresh: true })).toBeNull();
   });
 });
+
+/**
+ * ŞEHİR 404'Ü ÖNBELLEĞE YAZILMAZ (derin denetim RM-12 son gözden geçirme).
+ * API şehir dizini yedek moddayken (tablo okunamadı / seed penceresi) yabancı
+ * şehre 5 dk'lık 404 döner. Etiketsiz 24 saatlik girdiye yazılsaydı API
+ * düzeldikten sonra da şehir sayfası bir gün 404 kalırdı.
+ */
+describe("şehir sayfası — geçici 404 negatif önbelleğe girmez", () => {
+  it("yedek moddaki 404 yazılmaz: API düzelince hemen gerçek şehir döner", async () => {
+    const { fetchGeoCity } = await import("../marketplace-api");
+    respond(404);
+    expect(await fetchGeoCity("de-munich")).toBeNull();
+    expect(store.size).toBe(0);
+    respond(200, { slug: "de-munich", name: "Munich", country: "DE" });
+    expect(await fetchGeoCity("de-munich")).toMatchObject({ slug: "de-munich" });
+  });
+
+  it("bayat geçerli şehir + yedek moddaki 404 → bayat girdi korunur (404 ile ezilmez)", async () => {
+    const { fetchGeoCity } = await import("../marketplace-api");
+    respond(200, { slug: "de-munich", name: "Munich", country: "DE" });
+    expect(await fetchGeoCity("de-munich")).toMatchObject({ name: "Munich" });
+    markAllStale();
+    next.isRevalidate = true;
+    respond(404);
+    expect(await fetchGeoCity("de-munich")).toMatchObject({ name: "Munich" });
+    next.isRevalidate = false;
+    fetchMock.mockClear();
+    expect(await fetchGeoCity("de-munich")).toMatchObject({ name: "Munich" });
+  });
+});
