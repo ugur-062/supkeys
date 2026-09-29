@@ -10,7 +10,9 @@ import { Prisma, type CompanyOrderStatus } from "@rothern/db";
 import { encodeSystemText } from "@rothern/shared";
 import { dateParam } from "../../common/notifications/notification-params";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
+import { MAX_LISTING_HORIZON_MS } from "../../common/constants/money";
 import { AuditService } from "../audit/audit.service";
+import { SeoIndexService } from "../seo-index/seo-index.service";
 import { CompanyListingsService } from "../company-listings/services/company-listings.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { AdminCompaniesService } from "./admin-companies.service";
@@ -33,7 +35,32 @@ export class AdminInspectionService {
     // Katılımcı (davetli + teklifçi) bildirimi — firma tarafının tek yolu.
     // @Optional yalnız elle kurulan test rig'leri için; Nest her zaman enjekte eder.
     @Optional() private readonly listings?: CompanyListingsService,
+    // Herkese açık talep sayfası/sitemap/IndexNow tazelemesi — durum ya da
+    // kapanış değiştiren diğer tüm yollar (cron, sahip kapanış değişikliği,
+    // iptal) çağırıyor; admin müdahalesi de (derin denetim LU-03).
+    @Optional() private readonly seo?: SeoIndexService,
   ) {}
+
+  /** İnceleme listelerinin satır tavanı; aşılırsa `truncated` döner. */
+  private static readonly LIST_CAP = 100;
+
+  /**
+   * Admin kapanış tarihi üst sınırı + yayın açılışı kuralı — sahip tarafındaki
+   * `changeClosingTime` ile AYNI (derin denetim LU-03): IsISO8601 "2062-10-05"
+   * gibi bir yazım hatasını kabul ediyordu, talep onlarca yıl OPEN kalıyordu;
+   * embargolu (bidsOpenAt gelecekte) talep açılıştan önceki bir kapanışla
+   * yeniden açılabiliyordu.
+   */
+  private assertClosesAtBounds(closesAt: Date, bidsOpenAt: Date | null) {
+    if (closesAt.getTime() > Date.now() + MAX_LISTING_HORIZON_MS) {
+      throw new BadRequestException(i18nMessage("api.companyListings.kapanisTarihiCokIleriEnFazla"));
+    }
+    if (bidsOpenAt && closesAt.getTime() <= bidsOpenAt.getTime()) {
+      throw new BadRequestException(
+        i18nMessage("api.companyListings.kapanisTarihiAcilisTarihindenSonraOlmali"),
+      );
+    }
+  }
 
   /**
    * Admin müdahalesi talep sahibinin YANINDA davetli ve teklif veren firmalara
@@ -107,9 +134,11 @@ export class AdminInspectionService {
         _count: { select: { bids: true, invitations: true } },
       },
       orderBy: { createdAt: "desc" },
-      take: 100,
+      // Tavan + 1: sessiz kesme yerine `truncated` bayrağı (derin denetim LU-03).
+      take: AdminInspectionService.LIST_CAP + 1,
     });
-    return rows.map((l) => ({
+    const truncated = rows.length > AdminInspectionService.LIST_CAP;
+    const items = rows.slice(0, AdminInspectionService.LIST_CAP).map((l) => ({
       id: l.id,
       number: l.number,
       title: l.title,
@@ -123,6 +152,7 @@ export class AdminInspectionService {
       invitationCount: l._count.invitations,
       createdAt: l.createdAt,
     }));
+    return { items, truncated };
   }
 
   /** Tam ilan görünümü — kalemler, davetliler, TÜM teklifler, siparişler. */
@@ -250,6 +280,7 @@ export class AdminInspectionService {
       entityId: id,
       metadata: { reason },
     });
+    this.seo?.listingChanged(id);
     await this.pingListingParties(id, l.companyId);
     // Katılımcılara gerekçe GİTMEZ (şikayet/moderasyon ayrıntısı iç bilgi).
     this.notifyParticipants(id, {
@@ -288,10 +319,17 @@ export class AdminInspectionService {
         i18nMessage("api.adminCompanies.yalnizUzatmaYapilabilirKisaltmaTeklifVerenlere"),
       );
     }
-    await this.prisma.listing.update({
-      where: { id },
+    this.assertClosesAtBounds(closesAt, l.bidsOpenAt);
+    // Koşullu-atomik (sahip tarafındaki F2 ile simetrik): okuma ile yazma
+    // arasında cron talebi değerlendirmeye alırsa kapanış artık-OPEN-olmayan
+    // talebe yazılmaz, sahibe yanlış "süre uzatıldı" bildirimi gitmez.
+    const done = await this.prisma.listing.updateMany({
+      where: { id, status: "OPEN" },
       data: { closesAt, closingReminderSentAt: null },
     });
+    if (done.count !== 1) {
+      throw new BadRequestException(i18nMessage("api.adminCompanies.yalnizAcikIlaninSuresiUzatilabilir"));
+    }
     await this.audit.log({
       action: "admin.listing.extended",
       actorType: "admin",
@@ -300,6 +338,7 @@ export class AdminInspectionService {
       entityId: id,
       metadata: { from: l.closesAt, to: closesAt },
     });
+    this.seo?.listingChanged(id); // validThrough değişti
     await this.pingListingParties(id, l.companyId);
     this.notifyParticipants(id, {
       subjectKey: "api.notifications.listings.closingChanged.subject",
@@ -334,6 +373,7 @@ export class AdminInspectionService {
         title: true,
         status: true,
         awardedAt: true,
+        bidsOpenAt: true,
         _count: { select: { orders: true } },
       },
     });
@@ -347,6 +387,7 @@ export class AdminInspectionService {
     if (Number.isNaN(closesAt.getTime()) || closesAt <= new Date()) {
       throw new BadRequestException(i18nMessage("api.adminCompanies.kapanisGelecekteOlmali"));
     }
+    this.assertClosesAtBounds(closesAt, l.bidsOpenAt);
     const done = await this.prisma.listing.updateMany({
       where: { id, status: { in: ["CLOSED", "IN_AWARD"] } },
       data: { status: "OPEN", closesAt, closingReminderSentAt: null },
@@ -364,6 +405,7 @@ export class AdminInspectionService {
       entityId: id,
       metadata: { closesAt },
     });
+    this.seo?.listingChanged(id);
     await this.pingListingParties(id, l.companyId);
     this.notifyParticipants(id, {
       subjectKey: "api.notifications.listings.adminReopened.subject",
@@ -404,9 +446,11 @@ export class AdminInspectionService {
         seller: { select: { name: true } },
       },
       orderBy: { createdAt: "desc" },
-      take: 100,
+      // Tavan + 1: sessiz kesme yerine `truncated` bayrağı (derin denetim LU-03).
+      take: AdminInspectionService.LIST_CAP + 1,
     });
-    return rows.map((o) => ({
+    const truncated = rows.length > AdminInspectionService.LIST_CAP;
+    const items = rows.slice(0, AdminInspectionService.LIST_CAP).map((o) => ({
       id: o.id,
       number: o.number,
       status: o.status,
@@ -420,6 +464,7 @@ export class AdminInspectionService {
       // Durum etiketi teslim şekline göre ("Gönderildi"/"Teslime Hazır").
       deliveryTerm: o.deliveryTerm,
     }));
+    return { items, truncated };
   }
 
   /** Tam sipariş görünümü — kalemler + ödemeler + belgeler + zaman çizgisi. */
@@ -747,7 +792,14 @@ export class AdminInspectionService {
   private async requireListing(id: string) {
     const l = await this.prisma.listing.findUnique({
       where: { id },
-      select: { id: true, companyId: true, title: true, status: true, closesAt: true },
+      select: {
+        id: true,
+        companyId: true,
+        title: true,
+        status: true,
+        closesAt: true,
+        bidsOpenAt: true,
+      },
     });
     if (!l) throw new NotFoundException(i18nMessage("api.adminCompanies.ilanBulunamadi"));
     return l;

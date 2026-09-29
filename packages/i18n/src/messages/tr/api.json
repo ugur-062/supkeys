@@ -619,7 +619,10 @@
     "basTasarrufCur": "Tasarruf ({currency})",
     "hedefToplamCur": "Hedef Toplam ({currency})",
     "kazananToplamCur": "Kazanan Toplam ({currency})",
-    "toplamTasarrufCur": "Toplam Tasarruf ({currency})"
+    "toplamTasarrufCur": "Toplam Tasarruf ({currency})",
+    "cevapEvet": "Evet",
+    "cevapHayir": "Hayır",
+    "soru": "Soru"
   },
   "companyViews": {
     "isAnaliziSilverVeUzeriPaketlerde": "İş Analizi Silver ve üzeri paketlerde."
@@ -1607,6 +1610,8 @@
       "askiyaAlindiGovde": "Firma hesabınız platform yöneticisi tarafından askıya alındı. Gerekçe: {gerekce} İtiraz veya bilgi için destek ekibimizle iletişime geçebilirsiniz.",
       "sikayetUzerineAskiyaAlindiGerekce": "Firma hesabınız, hakkında yapılan bir şikayetin incelenmesi sonucunda platform yöneticisi tarafından askıya alındı.",
       "sikayetUzerineAskiyaAlindiGovde": "Firma hesabınız, hakkında yapılan bir şikayetin incelenmesi sonucunda platform yöneticisi tarafından askıya alındı. İtiraz veya bilgi için destek ekibimizle iletişime geçebilirsiniz.",
+      "askiyaAlindiGerekcesiz": "Firma hesabınız platform yöneticisi tarafından askıya alındı.",
+      "askiyaAlindiGerekcesizGovde": "Firma hesabınız platform yöneticisi tarafından askıya alındı. İtiraz veya bilgi için destek ekibimizle iletişime geçebilirsiniz.",
       "askiKaldirildiBaslik": "Hesabınızın askısı kaldırıldı",
       "askiKaldirildiGovde": "Firma hesabınızın askısı kaldırıldı; platformu yeniden kullanabilirsiniz."
     },

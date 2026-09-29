@@ -619,7 +619,10 @@
     "basTasarrufCur": "Savings ({currency})",
     "hedefToplamCur": "Target total ({currency})",
     "kazananToplamCur": "Winning total ({currency})",
-    "toplamTasarrufCur": "Total savings ({currency})"
+    "toplamTasarrufCur": "Total savings ({currency})",
+    "cevapEvet": "Yes",
+    "cevapHayir": "No",
+    "soru": "Question"
   },
   "companyViews": {
     "isAnaliziSilverVeUzeriPaketlerde": "Business Insights is available on Silver and higher plans."
@@ -1607,6 +1610,8 @@
       "askiyaAlindiGovde": "Your company account has been suspended by a platform administrator. Reason: {gerekce} To appeal or for more information, please contact our support team.",
       "sikayetUzerineAskiyaAlindiGerekce": "Your company account has been suspended by a platform administrator following the review of a complaint about your company.",
       "sikayetUzerineAskiyaAlindiGovde": "Your company account has been suspended by a platform administrator following the review of a complaint about your company. To appeal or for more information, please contact our support team.",
+      "askiyaAlindiGerekcesiz": "Your company account has been suspended by a platform administrator.",
+      "askiyaAlindiGerekcesizGovde": "Your company account has been suspended by a platform administrator. To appeal or for more information, please contact our support team.",
       "askiKaldirildiBaslik": "Your account suspension has been lifted",
       "askiKaldirildiGovde": "Your company account suspension has been lifted; you can use the platform again."
     },

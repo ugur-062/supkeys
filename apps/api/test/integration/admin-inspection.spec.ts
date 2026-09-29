@@ -24,14 +24,16 @@ function rig() {
     notifyListingParticipants: jest.fn().mockResolvedValue(undefined),
   };
   const realtime = { pingListing: jest.fn(), pingOrder: jest.fn() };
+  const seo = { listingChanged: jest.fn() };
   const service = new AdminInspectionService(
     prisma as never,
     audit,
     companies as never,
     realtime as never,
     listings as never,
+    seo as never,
   );
-  return { service, companies, listings, realtime };
+  return { service, companies, listings, realtime, seo };
 }
 
 async function makeOrder(
@@ -216,6 +218,118 @@ describe("ilan müdahaleleri", () => {
   });
 });
 
+describe("derin denetim LU-03 — admin kapanış kuralları, SEO, kesme bayrağı", () => {
+  it("extend/reopen: 2 yıllık üst sınır ve bidsOpenAt kuralı sahip tarafıyla aynı", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const tooFar = new Date(Date.now() + 3 * 365 * 86_400_000).toISOString();
+    const open = await makeListing(prisma, {
+      companyId: co.company.id,
+      createdById: co.user.id,
+      closesAt: FUTURE,
+    });
+    await expect(service.extendListing(open.id, tooFar, "admin-1")).rejects.toThrow(/çok ileri/);
+
+    // Embargolu talep: açılış FURTHER'dan sonra; açılıştan önceki kapanışla
+    // yeniden açılamaz.
+    const embargoed = await makeListing(prisma, {
+      companyId: co.company.id,
+      createdById: co.user.id,
+      status: "CLOSED",
+      closesAt: FUTURE,
+    });
+    await prisma.listing.update({
+      where: { id: embargoed.id },
+      data: { bidsOpenAt: new Date(FURTHER.getTime() + 86_400_000) },
+    });
+    await expect(
+      service.reopenListing(embargoed.id, FURTHER.toISOString(), "admin-1"),
+    ).rejects.toThrow(/açılış tarihinden sonra/);
+    await expect(service.reopenListing(embargoed.id, tooFar, "admin-1")).rejects.toThrow(/çok ileri/);
+    const still = await prisma.listing.findUniqueOrThrow({ where: { id: embargoed.id } });
+    expect(still.status).toBe("CLOSED");
+  });
+
+  it("extend koşullu-atomik: okuma sonrası OPEN'dan çıkan talebe kapanış yazılmaz, bildirim gitmez", async () => {
+    const { service, companies } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const l = await makeListing(prisma, {
+      companyId: co.company.id,
+      createdById: co.user.id,
+      closesAt: FUTURE,
+    });
+    // Yarışı taklit: requireListing OPEN okur, yazımdan önce cron IN_AWARD'a alır.
+    const svc = service as unknown as { requireListing: (id: string) => Promise<unknown> };
+    const orig = svc.requireListing.bind(service);
+    svc.requireListing = async (id: string) => {
+      const row = await orig(id);
+      await prisma.listing.update({ where: { id }, data: { status: "IN_AWARD" } });
+      return row;
+    };
+    await expect(service.extendListing(l.id, FURTHER.toISOString(), "admin-1")).rejects.toThrow(
+      /AÇIK ilan/,
+    );
+    const after = await prisma.listing.findUniqueOrThrow({ where: { id: l.id } });
+    expect(after.closesAt!.getTime()).toBe(FUTURE.getTime());
+    expect(companies.notifyCompany).not.toHaveBeenCalled();
+  });
+
+  it("kapat/uzat/yeniden aç herkese açık talep önbelleğini tazeler (seo.listingChanged)", async () => {
+    const { service, seo } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const l = await makeListing(prisma, {
+      companyId: co.company.id,
+      createdById: co.user.id,
+      closesAt: FUTURE,
+    });
+    await service.extendListing(l.id, FURTHER.toISOString(), "admin-1");
+    await service.closeListing(l.id, "moderasyon", "admin-1");
+    await service.reopenListing(l.id, FURTHER.toISOString(), "admin-1");
+    expect(seo.listingChanged).toHaveBeenCalledTimes(3);
+    expect(seo.listingChanged).toHaveBeenCalledWith(l.id);
+  });
+
+  it("ilan/sipariş listesi 100'ü aşınca sessiz kesilmez: truncated bayrağı döner", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const other = await makeCompanyWithUser(prisma, {});
+    const base = await makeListing(prisma, {
+      companyId: co.company.id,
+      createdById: co.user.id,
+      closesAt: FUTURE,
+    });
+    const src = await prisma.listing.findUniqueOrThrow({ where: { id: base.id } });
+    await prisma.listing.createMany({
+      data: Array.from({ length: 100 }, (_, i) => ({
+        companyId: co.company.id,
+        createdById: co.user.id,
+        type: src.type,
+        title: `Talep ${i}`,
+        status: src.status,
+        closesAt: FUTURE,
+      })),
+    });
+    const listings = await service.listListings(co.company.id);
+    expect(listings.items).toHaveLength(100);
+    expect(listings.truncated).toBe(true);
+
+    await prisma.companyOrder.createMany({
+      data: Array.from({ length: 100 }, () => ({
+        buyerCompanyId: co.company.id,
+        sellerCompanyId: other.company.id,
+        amount: 10,
+        currency: "TRY" as const,
+        status: "PENDING" as const,
+      })),
+    });
+    const orders = await service.listOrders(co.company.id);
+    expect(orders.items).toHaveLength(100);
+    expect(orders.truncated).toBe(false);
+    await makeOrder(co.company.id, other.company.id);
+    expect((await service.listOrders(co.company.id)).truncated).toBe(true);
+  });
+});
+
 describe("sipariş iptali", () => {
   it("PENDING sipariş iptal edilir; iki tarafa bildirim + audit", async () => {
     const { service, companies } = rig();
@@ -390,7 +504,8 @@ describe("davet iptalleri", () => {
       },
     });
     const listings = await service.listListings(a.company.id);
-    expect(listings[0]!.bidCount).toBe(1);
+    expect(listings.items[0]!.bidCount).toBe(1);
+    expect(listings.truncated).toBe(false);
     const detail = await service.listingDetail(l.id);
     const bids = detail.bids as { amount: unknown; bidderCompany: { id: string } }[];
     expect(bids).toHaveLength(1);

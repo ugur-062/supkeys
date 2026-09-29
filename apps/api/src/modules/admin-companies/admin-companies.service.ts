@@ -13,10 +13,12 @@ import {
   isValidCountryCode,
   isValidIbanAny,
   isValidSwiftBic,
+  isValidTaxIdForCountry,
   isVerificationReasonCode,
   maskIban,
   maskNationalId,
   normalizeSwift,
+  normalizeTaxId,
   type VerificationReasonCode,
 } from "@rothern/shared";
 import { assertBankDetails } from "../../common/company/bank-details";
@@ -551,19 +553,31 @@ export class AdminCompaniesService {
         },
       }),
     ]);
-    // Kuyruğa giriş anı: PENDING firmaların `company.docs.submitted` izlerinin
-    // EN ESKİSİ (bkz. yukarıdaki not). Hiç iz yoksa en eski `updatedAt`.
+    // Kuyruğa giriş anı: firma başına EN SON `company.docs.submitted` izi
+    // (bkz. yukarıdaki not); iz yoksa (legacy) o firmanın `updatedAt`'i. Kuyruk
+    // yaşı bu firma bazlı girişlerin en eskisidir. Eskiden tüm gönderimlerin
+    // en eskisi alınıyordu: reddedilip aylar sonra yeniden gönderen firmada
+    // ilk başvuru tarihi raporlanıyor, SLA göstergesi şişiyordu (derin denetim
+    // LU-03).
     let oldestPendingSince: Date | null = null;
     if (oldestPending.length > 0) {
-      const submitted = await this.prisma.auditLog.findFirst({
+      const lastSubmits = await this.prisma.auditLog.groupBy({
+        by: ["entityId"],
         where: {
           action: "company.docs.submitted",
           entityId: { in: oldestPending.map((c) => c.id) },
         },
-        select: { createdAt: true },
-        orderBy: { createdAt: "asc" },
+        _max: { createdAt: true },
       });
-      oldestPendingSince = submitted?.createdAt ?? oldestPending[0]!.updatedAt;
+      const lastByCompany = new Map(
+        lastSubmits.map((g) => [g.entityId, g._max.createdAt]),
+      );
+      for (const c of oldestPending) {
+        const since = lastByCompany.get(c.id) ?? c.updatedAt;
+        if (!oldestPendingSince || since < oldestPendingSince) {
+          oldestPendingSince = since;
+        }
+      }
     }
     const vmap = new Map(
       byVerification.map((g) => [g.companyVerificationStatus, g._count]),
@@ -972,6 +986,35 @@ export class AdminCompaniesService {
           delete data.legalFormLocal;
           delete changes.legalFormLocal;
         }
+      }
+    }
+    // Vergi no onboarding ile AYNI biçimde saklanır ve doğrulanır (derin
+    // denetim LU-03): `normalizeTaxId` (etiket/ülke öneki atılır, rakamlar
+    // ASCII) + `isValidTaxIdForCountry`. Eskiden admin yolu ham değeri
+    // yazıyordu; "DE 811569869" normalize "811569869" kaydıyla tekillik
+    // kısıtına takılmadan yan yana durabiliyordu. Yalnız değişen değer
+    // denetlenir (ülke değişimi mevcut numarayı yeniden doğrulamaz).
+    if (typeof data.taxNumber === "string") {
+      const taxNumber = normalizeTaxId(data.taxNumber, effectiveCountry);
+      const type = ("companyType" in data ? data.companyType : before.companyType) ?? null;
+      const isSole = type === "SOLE_PROPRIETOR";
+      if (!taxNumber || !isValidTaxIdForCountry(taxNumber, effectiveCountry, isSole)) {
+        throw new BadRequestException(
+          i18nMessage(
+            effectiveCountry === "TR"
+              ? isSole
+                ? "api.companyAuth.sahisFirmasiIcin11HaneliTckn"
+                : "api.companyAuth.tuzelKisiIcin10HaneliVergiNo"
+              : "api.companyAuth.gecerliBirVergiSicilNumarasiGiriniz",
+          ),
+        );
+      }
+      if (taxNumber === before.taxNumber) {
+        delete data.taxNumber;
+        delete changes.taxNumber;
+      } else {
+        data.taxNumber = taxNumber;
+        changes.taxNumber = { from: before.taxNumber, to: taxNumber };
       }
     }
     // Ülkeye göre (2026-09-27): IBAN ülkesinde IBAN (TR katı, diğerleri mod-97),
@@ -1885,7 +1928,12 @@ export class AdminCompaniesService {
 
   async suspend(id: string, reason: string, adminId?: string) {
     await this.requireCompany(id);
-    const blockedReason = reason?.trim() || "Yönetici tarafından askıya alındı";
+    // blockedReason yalnız admin panelinde görünen TR iç kayıttır. Firmaya
+    // giden bildirimde gerekçe YOKSA bu sabit metin `{gerekce}` olarak EN/RU
+    // şablona girmez; alıcının dilinde çözülen parametresiz anahtar gider
+    // (şikayet yolundaki `resolveComplaint` ile aynı desen — derin denetim LU-03).
+    const adminReason = reason?.trim() || null;
+    const blockedReason = adminReason ?? "Yönetici tarafından askıya alındı";
     await this.prisma.company.update({
       where: { id },
       data: { isBlocked: true, blockedReason, blockedAt: new Date() },
@@ -1909,12 +1957,22 @@ export class AdminCompaniesService {
       type: "admin_company_suspended",
       subjectKey: "api.notifications.adminCompanies.askiyaAlindiBaslik",
       // İki paragraf → in-app satırı birleşmiş metni taşır.
-      bodyKey: "api.notifications.adminCompanies.askiyaAlindiGovde",
-      paragraphKeys: [
-        "api.notifications.adminCompanies.askiyaAlindiGerekce",
-        "api.notifications.adminCompanies.askiyaAlindiItiraz",
-      ],
-      params: { gerekce: blockedReason },
+      ...(adminReason
+        ? {
+            bodyKey: "api.notifications.adminCompanies.askiyaAlindiGovde",
+            paragraphKeys: [
+              "api.notifications.adminCompanies.askiyaAlindiGerekce",
+              "api.notifications.adminCompanies.askiyaAlindiItiraz",
+            ],
+            params: { gerekce: adminReason },
+          }
+        : {
+            bodyKey: "api.notifications.adminCompanies.askiyaAlindiGerekcesizGovde",
+            paragraphKeys: [
+              "api.notifications.adminCompanies.askiyaAlindiGerekcesiz",
+              "api.notifications.adminCompanies.askiyaAlindiItiraz",
+            ],
+          }),
     });
     return { ok: true };
   }
@@ -1974,8 +2032,10 @@ export class AdminCompaniesService {
         },
       ];
     }
-    const p = Math.max(1, page ?? 1);
-    const ps = Math.min(100, Math.max(1, pageSize ?? 25));
+    // DTO zaten tam sayı garanti eder; servis doğrudan çağrılırsa NaN/ondalık
+    // `skip`/`take` olarak Prisma'ya gitmesin (derin denetim LU-03).
+    const p = Number.isInteger(page) ? Math.max(1, page!) : 1;
+    const ps = Number.isInteger(pageSize) ? Math.min(100, Math.max(1, pageSize!)) : 25;
     const [total, rows] = await this.prisma.$transaction([
       this.prisma.companyComplaint.count({ where }),
       this.prisma.companyComplaint.findMany({

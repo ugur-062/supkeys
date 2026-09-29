@@ -14,11 +14,13 @@ import {
   IsEmail,
   IsIn,
   IsInt,
+  IsISO8601,
   IsObject,
   IsOptional,
   IsString,
   Length,
   Max,
+  Matches,
   MaxLength,
   Min,
   ValidateIf,
@@ -290,17 +292,58 @@ class ExtendMembershipDto {
   reason?: string;
 }
 
-class MembershipReportDto {
+/**
+ * Tarih biçimi DTO'da (derin denetim LU-03): eskiden yalnız `@IsString
+ * @MaxLength(10)` vardı; "2026-13-01" / "abc" servis içinde Invalid Date
+ * üretip Prisma'ya gidiyor, 400 yerine 500 dönüyordu. `strict` ISO 8601 ay/gün
+ * geçerliliğini de denetler (13. ay, 30 Şubat red).
+ */
+export class MembershipReportDto {
   /** ISO tarih (YYYY-MM-DD) — aralık başı. */
   @IsOptional()
-  @IsString()
-  @MaxLength(10)
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsISO8601({ strict: true })
   from?: string;
 
   @IsOptional()
-  @IsString()
-  @MaxLength(10)
+  @Matches(/^\d{4}-\d{2}-\d{2}$/)
+  @IsISO8601({ strict: true })
   to?: string;
+}
+
+/**
+ * Şikayet listesi sorgusu (derin denetim LU-03): parametreler eskiden ham
+ * `@Query` string'i idi — `status=open` doğrulanmadan Prisma enum süzgecine,
+ * `page=abc` `parseInt` ile NaN olarak `skip`'e gidiyor, 400 yerine 500
+ * dönüyordu.
+ */
+export class ListComplaintsDto {
+  @IsOptional()
+  @IsIn(["OPEN", "RESOLVED", "DISMISSED"])
+  status?: "OPEN" | "RESOLVED" | "DISMISSED";
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(64)
+  companyId?: string;
+
+  @IsOptional()
+  @IsString()
+  @MaxLength(120)
+  q?: string;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  page?: number;
+
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  @Max(100)
+  pageSize?: number;
 }
 
 class AddNoteDto {
@@ -531,19 +574,13 @@ export class AdminCompaniesController {
 
   @Get("complaints")
   @AllowAnyAdminRole() // SUPPORT şikayet triyajı yapabilir; resolve gated kalır
-  complaints(
-    @Query("status") status?: string,
-    @Query("companyId") companyId?: string,
-    @Query("q") q?: string,
-    @Query("page") page?: string,
-    @Query("pageSize") pageSize?: string,
-  ) {
+  complaints(@Query() query: ListComplaintsDto) {
     return this.service.listComplaints(
-      status,
-      companyId,
-      q,
-      page ? parseInt(page, 10) : undefined,
-      pageSize ? parseInt(pageSize, 10) : undefined,
+      query.status,
+      query.companyId,
+      query.q,
+      query.page,
+      query.pageSize,
     );
   }
 

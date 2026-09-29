@@ -20,14 +20,28 @@ export interface AdminListingRow {
   createdAt: string;
 }
 
+/**
+ * Firma inceleme listeleri API'de 100 satırla sınırlı; aşılırsa `truncated`
+ * gelir ve sekme bunu açıkça söyler (sessiz kesme yok — derin denetim LU-03).
+ */
+export interface CappedList<T> {
+  items: T[];
+  truncated: boolean;
+}
+
+/** Eski API (düz dizi) ile dağıtım arası uyum: dizi gelirse kesilmemiş say. */
+function toCappedList<T>(data: CappedList<T> | T[]): CappedList<T> {
+  return Array.isArray(data) ? { items: data, truncated: false } : data;
+}
+
 export function useAdminCompanyListings(companyId: string) {
   return useQuery({
     queryKey: ["admin-company-listings", companyId],
     queryFn: async () => {
-      const { data } = await api.get<AdminListingRow[]>(
+      const { data } = await api.get<CappedList<AdminListingRow> | AdminListingRow[]>(
         `/admin/companies/${companyId}/listings`,
       );
-      return data;
+      return toCappedList(data);
     },
   });
 }
@@ -135,10 +149,10 @@ export function useAdminCompanyOrders(companyId: string) {
   return useQuery({
     queryKey: ["admin-company-orders", companyId],
     queryFn: async () => {
-      const { data } = await api.get<AdminOrderRow[]>(
+      const { data } = await api.get<CappedList<AdminOrderRow> | AdminOrderRow[]>(
         `/admin/companies/${companyId}/orders`,
       );
-      return data;
+      return toCappedList(data);
     },
   });
 }
