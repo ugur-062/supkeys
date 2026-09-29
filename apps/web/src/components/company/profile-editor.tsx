@@ -541,12 +541,6 @@ function EditorHeader({
   );
 }
 
-/**
- * PROFİL DURUMU — sağ rayın ilk kartı: tamamlanma yüzdesi + çubuk, eksik
- * alan çipleri, "alıcıların sizi bulması için" rehberi. Kapı DEĞİL rehber:
- * backend'de içerik kapısı yok (yayın her pakete açık); olmayan bir kapıyı
- * "yayınlamak için" diye yazmak yalan olurdu.
- */
 /** Ücretsiz doğrulama çağrısı — yalnız `company:manage`li düzenleme dalında çizilir. */
 function VerificationCallout({ status }: { status: string }) {
   const t = useTranslations("web.panel.company.profileEditor");
@@ -573,6 +567,12 @@ function VerificationCallout({ status }: { status: string }) {
   );
 }
 
+/**
+ * PROFİL DURUMU — sağ rayın ilk kartı: tamamlanma yüzdesi + çubuk, eksik
+ * alan çipleri, "alıcıların sizi bulması için" rehberi. Kapı DEĞİL rehber:
+ * backend'de içerik kapısı yok (yayın her pakete açık); olmayan bir kapıyı
+ * "yayınlamak için" diye yazmak yalan olurdu.
+ */
 function StatusCard({
   pct,
   missingKeys,
