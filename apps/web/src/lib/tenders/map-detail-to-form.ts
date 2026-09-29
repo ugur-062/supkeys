@@ -20,13 +20,20 @@ export function toLocalInput(iso?: string | null): string {
   return toAppWallClockInput(d);
 }
 
-/** ISO → date input ("YYYY-MM-DD"). */
+/**
+ * ISO → date input ("YYYY-MM-DD") — TARİH-ONLY, saat dilimi dönüşümü YOK.
+ * Kayıt tarafı (`map-to-input` `new Date("YYYY-MM-DD").toISOString()`) günü
+ * UTC gece yarısı yazar; burada da UTC alanlarıyla okunur ki simetrik olsun.
+ * Tarayıcının yerel alanlarıyla okumak UTC'nin batısında (Amerika) günü bir
+ * geri gösteriyor, her Düzenle/Kopyala kaydında bir gün daha kaydırıyordu
+ * (derin denetim S095).
+ */
 export function toDateInput(iso?: string | null): string {
   if (!iso) return "";
   const d = new Date(iso);
   if (!Number.isFinite(d.getTime())) return "";
   const pad = (n: number) => String(n).padStart(2, "0");
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
+  return `${d.getUTCFullYear()}-${pad(d.getUTCMonth() + 1)}-${pad(d.getUTCDate())}`;
 }
 
 /**

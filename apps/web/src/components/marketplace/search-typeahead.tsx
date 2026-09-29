@@ -151,7 +151,7 @@ export function SearchTypeahead({
       return;
     }
     timer.current = setTimeout(() => {
-      void fetchSuggest(term, scope).then((r) => {
+      void fetchSuggest(term, scope, locale).then((r) => {
         setSug(r);
         setActive(-1);
         setOpen(true);
@@ -160,7 +160,7 @@ export function SearchTypeahead({
     return () => {
       if (timer.current) clearTimeout(timer.current);
     };
-  }, [q, scope]);
+  }, [q, scope, locale]);
 
   const rows = useMemo(() => rowsFrom(sug, groups, cityLabel), [sug, groups, cityLabel]);
   const showRecent = q.trim().length < 2 && recent.length > 0;

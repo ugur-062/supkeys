@@ -40,6 +40,7 @@ import { CandidateList, isSelectable, type CandidateRow } from "./candidate-list
  *   oluşur, listenin EN ÜSTÜNDE ve SEÇİLİ gelir; seçim `members`a yazılır,
  *   yayında talebe DOĞRUDAN davet edilir (bağlantı şartı yok).
  */
+// Firma verisi: önek tenant-storage.ts TENANT_SESSION_PREFIXES'te — çıkışta silinir.
 const RESULTS_KEY = "rothern:quick-ai-suppliers";
 const AUTO_KEY = "rothern:quick-ai-suppliers:auto";
 const AUTO_DELAY_MS = 5_000;

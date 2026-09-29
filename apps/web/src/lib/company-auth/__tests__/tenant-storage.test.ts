@@ -11,6 +11,8 @@ describe("tarayıcıdaki firma verisi", () => {
     sessionStorage.setItem("quick-request-member-invites:lst1", "[]");
     sessionStorage.setItem("rothern:invite-prefill", '{"email":"x@y.com"}');
     sessionStorage.setItem("ai-tender-draft", "{}");
+    sessionStorage.setItem("rothern:quick-ai-suppliers", '{"rows":[{"email":"a@b.com"}]}');
+    sessionStorage.setItem("rothern:quick-ai-suppliers:auto", "k");
     sessionStorage.setItem("rothern.hero-scope:buy", "products"); // firma verisi değil
     localStorage.setItem("rothern.panel.recent-searches", "{}");
     localStorage.setItem("rothern.market.view", "grid"); // görünüm tercihi, kalır
@@ -22,6 +24,9 @@ describe("tarayıcıdaki firma verisi", () => {
     expect(sessionStorage.getItem("quick-request-member-invites:lst1")).toBeNull();
     expect(sessionStorage.getItem("rothern:invite-prefill")).toBeNull();
     expect(sessionStorage.getItem("ai-tender-draft")).toBeNull();
+    // Derin denetim S092: AI tedarikçi keşfi sonuçları da firma verisidir.
+    expect(sessionStorage.getItem("rothern:quick-ai-suppliers")).toBeNull();
+    expect(sessionStorage.getItem("rothern:quick-ai-suppliers:auto")).toBeNull();
     expect(localStorage.getItem("rothern.panel.recent-searches")).toBeNull();
     expect(sessionStorage.getItem("rothern.hero-scope:buy")).toBe("products");
     expect(localStorage.getItem("rothern.market.view")).toBe("grid");

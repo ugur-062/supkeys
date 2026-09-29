@@ -53,7 +53,7 @@ describe("SearchTypeahead", () => {
     await u.selectOptions(screen.getByLabelText("Arama kapsamı"), "listings");
     expect(container.querySelector("form")?.getAttribute("action")).toBe("/alim-talepleri");
     await u.type(screen.getByRole("combobox", { name: /içinde ara/ }), "boru");
-    await waitFor(() => expect(h.suggest).toHaveBeenCalledWith("boru", "listings"));
+    await waitFor(() => expect(h.suggest).toHaveBeenCalledWith("boru", "listings", "tr"));
   });
 
   it("öneri grupları: kategori · ürün (firma adıyla) · firma", async () => {

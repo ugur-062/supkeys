@@ -18,6 +18,9 @@ const TENANT_SESSION_PREFIXES = [
   "ai-tender-draft",
   "ai-search-intent",
   "rothern:invite-prefill",
+  // Hızlı talep AI tedarikçi keşfi sonuçları (dış adresler + eşleşen üyeler)
+  // ve `:auto` bayrağı — form-supplier-panel.tsx RESULTS_KEY / AUTO_KEY.
+  "rothern:quick-ai-suppliers",
 ];
 const TENANT_LOCAL_KEYS = ["rothern.panel.recent-searches"];
 const OWNER_KEY = "rothern.session-owner";

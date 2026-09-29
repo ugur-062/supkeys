@@ -576,7 +576,10 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
   const url = absoluteUrl(localizePath(path, locale));
   const cat = l.categories[0]?.name ?? null;
   const unit = l.itemSummary.unit ? unitLabelWith(ts, l.itemSummary.unit) : null;
-  const qty = l.itemSummary.totalQuantity && unit ? `${l.itemSummary.totalQuantity} ${unit}` : null;
+  // Çoğul kuralı + sayı biçimi (derin denetim S094): tekil etiketi yapıştırmak
+  // EN/RU'da "1500 piece" basıyordu. JSON-LD `unitText` tekil etiket kalır.
+  const qty =
+    l.itemSummary.totalQuantity && unit ? quantityWith(ts, l.itemSummary.totalQuantity, l.itemSummary.unit) : null;
 
   const summary = joinParts(
     [

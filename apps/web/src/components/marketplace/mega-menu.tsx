@@ -1,6 +1,6 @@
 "use client";
 
-import { useTranslations } from "next-intl";
+import { useLocale, useTranslations } from "next-intl";
 
 import { categoryHref } from "@/lib/public/marketplace";
 import type { CategoryMenuNode } from "@/lib/public/marketplace-api";
@@ -28,6 +28,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
  */
 export function MegaMenu({ label }: { label?: string } = {}) {
   const t = useTranslations("web.marketplace.megaMenu");
+  const locale = useLocale();
   const buttonLabel = label ?? t("label");
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState<CategoryMenuNode[]>([]);
@@ -41,11 +42,18 @@ export function MegaMenu({ label }: { label?: string } = {}) {
 
   const load = useCallback(() => {
     if (items.length > 0) return;
-    void fetchCategoryMenu().then((rows) => {
+    void fetchCategoryMenu(locale).then((rows) => {
       setItems(rows);
       setActiveId((a) => a ?? rows[0]?.id ?? null);
     });
-  }, [items.length]);
+  }, [items.length, locale]);
+
+  // Dil değişince (istemci tarafı gezinme) eski dilin ağacı atılır; sonraki
+  // açılış yeni dilde çeker.
+  useEffect(() => {
+    setItems([]);
+    setActiveId(null);
+  }, [locale]);
 
   useEffect(() => {
     if (!open) return;

@@ -1748,7 +1748,7 @@
       "verifiedSupplier": "Verified supplier",
       "company": "COMPANY",
       "since": "Since {year}",
-      "employees": "{n, plural, one {# employee} other {# employees}}",
+      "employees": "Employees: {range}",
       "verifiedCompany": "Verified company",
       "demand": "BUYING REQUEST · {number}",
       "closes": "Quote deadline: {date}",

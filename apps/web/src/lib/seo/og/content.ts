@@ -73,7 +73,9 @@ export function companyOgContent(p: PublicProfile, locale: Locale = DEFAULT_LOCA
     facts: [
       p.productCount > 0 ? t("web.seo.productsInShowcase", { n: p.productCount }) : null,
       p.foundedYear ? t("web.seo.og.since", { year: p.foundedYear }) : null,
-      p.employeeCount ? t("web.seo.og.employees", { n: p.employeeCount }) : null,
+      // Aralık METNİ ("10-49", "250+") — çoğul mesaja sayı diye verilince
+      // EN/RU'da "NaN employees" basıyordu (derin denetim S094).
+      p.employeeCount ? t("web.seo.og.employees", { range: p.employeeCount }) : null,
     ].filter((f): f is string => !!f),
     image: p.coverImageUrl ?? p.logoUrl ?? null,
     badge: p.verified ? t("web.seo.og.verifiedCompany") : null,
@@ -86,8 +88,11 @@ export function companyOgContent(p: PublicProfile, locale: Locale = DEFAULT_LOCA
  */
 export function listingOgContent(l: PublicListingDetail, locale: Locale = DEFAULT_LOCALE): OgContent {
   const t = webTranslator(locale);
-  const unit = l.itemSummary.unit ? unitLabelWith(seoT(locale), l.itemSummary.unit) : null;
-  const qty = l.itemSummary.totalQuantity && unit ? `${l.itemSummary.totalQuantity} ${unit}` : null;
+  // Çoğul kuralı + sayı biçimi (derin denetim S094) — "1500 piece" değil "1,500 pieces".
+  const qty =
+    l.itemSummary.totalQuantity && l.itemSummary.unit
+      ? quantityWith(seoT(locale), l.itemSummary.totalQuantity, l.itemSummary.unit)
+      : null;
   const open = l.status === "OPEN";
   return {
     eyebrow: t("web.seo.og.demand", { number: l.number }),

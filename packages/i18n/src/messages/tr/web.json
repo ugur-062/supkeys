@@ -1748,7 +1748,7 @@
       "verifiedSupplier": "Doğrulanmış tedarikçi",
       "company": "FİRMA",
       "since": "{year}'den beri",
-      "employees": "{n} çalışan",
+      "employees": "{range} çalışan",
       "verifiedCompany": "Doğrulanmış firma",
       "demand": "ALIM TALEBİ · {number}",
       "closes": "Son teklif: {date}",

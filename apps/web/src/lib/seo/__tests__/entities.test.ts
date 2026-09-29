@@ -331,5 +331,7 @@ describe("çok dilli graf (2026-09-27 SEO denetimi)", () => {
     expect(g.find((n) => n["@type"] === "ItemPage")?.inLanguage).toBe("tr");
     expect(seo.metadata.openGraph?.images).toEqual([expect.objectContaining({ url: `${S}/en/talep/rot-000159-karton-koli/opengraph-image` })]);
     expect(JSON.stringify(g[0])).toContain("piece");
+    // Derin denetim S094: meta açıklaması çoğul kuralla ("10 pieces", "10 piece" değil).
+    expect(String(seo.metadata.description)).toContain("Quantity: 10 pieces");
   });
 });

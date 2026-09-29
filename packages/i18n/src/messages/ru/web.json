@@ -1748,7 +1748,7 @@
       "verifiedSupplier": "Проверенный поставщик",
       "company": "КОМПАНИЯ",
       "since": "С {year} года",
-      "employees": "{n, plural, one {# сотрудник} few {# сотрудника} many {# сотрудников} other {# сотрудника}}",
+      "employees": "Сотрудников: {range}",
       "verifiedCompany": "Проверенная компания",
       "demand": "ЗАЯВКА НА ЗАКУПКУ · {number}",
       "closes": "Срок подачи: {date}",
