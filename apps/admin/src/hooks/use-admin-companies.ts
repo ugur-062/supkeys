@@ -576,6 +576,8 @@ export function useResolveComplaint() {
       status: "RESOLVED" | "DISMISSED";
       adminNote?: string;
       suspend?: boolean;
+      /** Askıya alınan firmaya iletilen gerekçe (adminNote İÇ nottur, gitmez). */
+      suspendReason?: string;
     }) => {
       const { id, ...body } = input;
       await api.post(`/admin/complaints/${id}/resolve`, body);

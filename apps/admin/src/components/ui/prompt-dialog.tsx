@@ -36,7 +36,18 @@ interface PromptDialogProps {
   minLength?: number;
   /** datetime-local için alt sınır (geçmiş tarih seçilemesin). */
   minDateTime?: string;
-  onConfirm: (value: string) => void;
+  /**
+   * İsteğe bağlı İKİNCİ metin alanı (opsiyonel, boş olabilir) — ör. şikayet
+   * çözümünde iç "yönetici notu" + firmaya giden "askı gerekçesi" ayrı
+   * sorulur (derin denetim MU-02). Değeri `onConfirm`'un 2. argümanıdır.
+   */
+  secondary?: {
+    label: string;
+    hint?: string;
+    placeholder?: string;
+    maxLength?: number;
+  };
+  onConfirm: (value: string, secondaryValue?: string) => void;
   onClose: () => void;
 }
 
@@ -59,14 +70,19 @@ export function PromptDialog({
   maxLength,
   minLength,
   minDateTime,
+  secondary,
   onConfirm,
   onClose,
 }: PromptDialogProps) {
   const [value, setValue] = useState(defaultValue);
+  const [secondaryValue, setSecondaryValue] = useState("");
 
   // Her açılışta varsayılana dön (önceki değer sızmasın).
   useEffect(() => {
-    if (open) setValue(defaultValue);
+    if (open) {
+      setValue(defaultValue);
+      setSecondaryValue("");
+    }
   }, [open, defaultValue]);
 
   const trimmed = value.trim();
@@ -79,7 +95,8 @@ export function PromptDialog({
 
   const submit = () => {
     if (invalid) return;
-    onConfirm(trimmed);
+    if (secondary) onConfirm(trimmed, secondaryValue.trim());
+    else onConfirm(trimmed);
   };
 
   return (
@@ -113,6 +130,22 @@ export function PromptDialog({
             }}
           />
         </Field>
+        {secondary ? (
+          <Field hint={secondary.hint} className="mt-4">
+            <Label htmlFor="prompt-dialog-secondary">{secondary.label}</Label>
+            <Input
+              id="prompt-dialog-secondary"
+              type="text"
+              maxLength={secondary.maxLength}
+              value={secondaryValue}
+              placeholder={secondary.placeholder}
+              onChange={(e) => setSecondaryValue(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") submit();
+              }}
+            />
+          </Field>
+        ) : null}
       </DialogBody>
       <DialogActions>
         <Button type="button" variant="ghost" onClick={onClose}>

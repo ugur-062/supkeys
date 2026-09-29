@@ -113,10 +113,18 @@ function SikayetlerView() {
       reason: c.reason,
     });
 
-  const runResolve = (adminNote?: string) => {
+  // Derin denetim MU-02: yönetici notu İÇ nottur; askı gerekçesi ayrı alandan
+  // `suspendReason` olarak gider (API artık notu firmaya gerekçe yapmaz).
+  const runResolve = (adminNote?: string, suspendReason?: string) => {
     if (!prompt) return;
     resolve.mutate(
-      { id: prompt.id, status: prompt.status, adminNote, suspend: prompt.suspend },
+      {
+        id: prompt.id,
+        status: prompt.status,
+        adminNote,
+        suspend: prompt.suspend,
+        ...(prompt.suspend && suspendReason ? { suspendReason } : {}),
+      },
       {
         onSuccess: () => toast.success(prompt.msg),
         onError: (e: unknown) => toastApiError(e),
@@ -301,11 +309,21 @@ function SikayetlerView() {
               }`
             : undefined
         }
-        label="Yönetici notu (opsiyonel)"
+        label="Yönetici notu (opsiyonel, iç not — firmalara gösterilmez)"
         placeholder="Karar gerekçesi"
         maxLength={2000}
+        secondary={
+          prompt?.suspend
+            ? {
+                label: "Askı gerekçesi (opsiyonel — askıya alınan firmaya iletilir)",
+                hint: "E-posta ve bildirimle firmaya gider; şikayetçinin adını yazmayın. Boşsa genel \"Şikayet üzerine askıya alındı\" metni gider.",
+                placeholder: "Örn. tekrarlanan teslimat ihlali",
+                maxLength: 500,
+              }
+            : undefined
+        }
         confirmLabel={prompt?.actionLabel ?? "Onayla"}
-        onConfirm={(v) => runResolve(v || undefined)}
+        onConfirm={(v, reason) => runResolve(v || undefined, reason || undefined)}
         onClose={() => setPrompt(null)}
       />
     </div>

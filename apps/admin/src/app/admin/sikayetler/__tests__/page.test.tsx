@@ -146,4 +146,38 @@ describe("SikayetlerView — çözüm aksiyonları (PromptDialog)", () => {
       expect.anything(),
     );
   });
+
+  /**
+   * Derin denetim MU-02: yönetici notu İÇ nottur; askıya alınan firmaya giden
+   * gerekçe ayrı alandan `suspendReason` olarak gider.
+   */
+  it("Çöz & Askıya Al → iç not ile firmaya giden askı gerekçesi ayrı gönderilir", async () => {
+    const user = userEvent.setup();
+    render(<AdminSikayetlerPage />);
+    await user.click(screen.getByRole("button", { name: "Çöz & Askıya Al" }));
+    const dialog = await screen.findByRole("dialog");
+    await user.type(screen.getByLabelText(/Yönetici notu/), "şikayetçi X, iç inceleme");
+    await user.type(screen.getByLabelText(/Askı gerekçesi/), "Tekrarlanan ihlal");
+    await user.click(
+      within(dialog).getByRole("button", { name: "Çöz & Askıya Al" }),
+    );
+    expect(h.resolveMutate).toHaveBeenCalledWith(
+      {
+        id: "k1",
+        status: "RESOLVED",
+        adminNote: "şikayetçi X, iç inceleme",
+        suspend: true,
+        suspendReason: "Tekrarlanan ihlal",
+      },
+      expect.anything(),
+    );
+  });
+
+  it("askısız Çöz'de askı gerekçesi alanı görünmez", async () => {
+    const user = userEvent.setup();
+    render(<AdminSikayetlerPage />);
+    await user.click(screen.getByRole("button", { name: "Çöz" }));
+    await screen.findByRole("dialog");
+    expect(screen.queryByLabelText(/Askı gerekçesi/)).not.toBeInTheDocument();
+  });
 });

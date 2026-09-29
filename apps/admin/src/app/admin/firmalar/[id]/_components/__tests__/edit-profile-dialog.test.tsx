@@ -56,6 +56,29 @@ describe("EditProfileDialog", () => {
   });
 
   /**
+   * Derin denetim MU-02: fatura e-postası doluysa firmanın TÜM e-postaları
+   * oraya gider — biçim hatası kaydedilmez; küçük harfle gönderilir.
+   */
+  it("fatura e-postası: geçersiz biçim reddedilir, geçerli adres küçük harfle gider", async () => {
+    const user = userEvent.setup();
+    render(<EditProfileDialog companyId="c1" data={data()} onClose={() => {}} />);
+    const input = screen.getByLabelText("Fatura e-postası");
+    expect(input).toHaveAttribute("type", "email");
+    await user.type(input, "muhasebe@firma,com");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).not.toHaveBeenCalled();
+    expect(h.toast.error).toHaveBeenCalled();
+
+    await user.clear(input);
+    await user.type(input, "Muhasebe@Firma.com");
+    await user.click(screen.getByRole("button", { name: "Kaydet" }));
+    expect(h.mutate).toHaveBeenCalledWith(
+      { id: "c1", patch: { billingEmail: "muhasebe@firma.com" } },
+      expect.anything(),
+    );
+  });
+
+  /**
    * Hukuki yapı (2026-09-27): yabancı firmanın GmbH/LLC'si admin'den
    * düzeltilemiyordu. "Diğer" iken yerel ad zorunlu (API ile aynı kural).
    */

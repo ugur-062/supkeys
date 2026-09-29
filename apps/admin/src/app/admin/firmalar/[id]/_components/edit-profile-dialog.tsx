@@ -30,6 +30,7 @@ const FIELDS: {
   label: string;
   hint?: string;
   max: number;
+  type?: "email";
 }[] = [
   { key: "name", label: "Firma adı (görünen)", max: 200 },
   { key: "legalName", label: "Ünvan", max: 300 },
@@ -41,7 +42,16 @@ const FIELDS: {
   { key: "stateRegion", label: "Eyalet / Bölge", max: 120 },
   { key: "city", label: "Şehir", max: 120 },
   { key: "addressLine", label: "Adres", max: 400 },
-  { key: "billingEmail", label: "Fatura e-postası", max: 200 },
+  {
+    key: "billingEmail",
+    label: "Fatura e-postası",
+    // Doluysa firma düzeyindeki TÜM e-postalar kullanıcılar yerine buraya
+    // gider (notifyCompanyEmail, pickCompanyRecipients, üyelik, sipariş) —
+    // yazım hatası firmanın e-posta akışını keser (derin denetim MU-02).
+    hint: "Doluysa firmaya giden tüm e-postalar (sipariş, doğrulama, üyelik, bildirim) kullanıcılar yerine bu adrese gider.",
+    max: 200,
+    type: "email",
+  },
   { key: "website", label: "Web sitesi", max: 300 },
   { key: "industry", label: "Sektör", max: 120 },
   { key: "iban", label: "IBAN", max: 40 },
@@ -134,6 +144,15 @@ export function EditProfileDialog({
       toast.error("Ülke kodu 2 harf olmalı (TR, DE...)");
       return;
     }
+    // Fatura e-postası (derin denetim MU-02): API @IsEmail ile reddeder; burada
+    // erken uyarı + küçük harf (API aynı normalizasyonu uygular). Boş = temizle.
+    if (patch.billingEmail) {
+      patch.billingEmail = patch.billingEmail.toLowerCase();
+      if (!/^[^\s@,;]+@[^\s@,;]+\.[^\s@,;]+$/.test(patch.billingEmail)) {
+        toast.error("Fatura e-postası geçerli bir e-posta adresi olmalı");
+        return;
+      }
+    }
     // SWIFT boşluklu yazılabilir ("DEUT DE FF"); API aynı normalizasyonu uygular.
     if (patch.bankSwiftBic) patch.bankSwiftBic = patch.bankSwiftBic.replace(/\s+/g, "").toUpperCase();
     update.mutate(
@@ -185,6 +204,7 @@ export function EditProfileDialog({
               <Label htmlFor={`profile-${f.key}`}>{fieldLabel(f.key, f.label, usesIban)}</Label>
               <Input
                 id={`profile-${f.key}`}
+                type={f.type}
                 value={form[f.key] ?? ""}
                 maxLength={f.max}
                 onChange={(e) =>
