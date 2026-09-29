@@ -685,7 +685,7 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   mapper'lar yanıta YAZMAZ (anonimlik sözleşmesi korunur); `relatedProducts`
   `ids` döner, herkese açık uç soyar. Web `marketplace-api.ts` her isteğe
   `accept-language` (next-intl `getLocale`, rota işleyicisinde tr) koyar —
-  Next veri önbelleği başlığı anahtara katar. Arama v1'de ÖZGÜN metinde
+  dil `loadPublicJson`un `unstable_cache` anahtarında AÇIKÇA yer alır (RM-12). Arama v1'de ÖZGÜN metinde
   (İngilizce sorgu Türkçe adı bulmaz — sonraki adım). Firma bütçesine
   yazılmaz; maliyet satırda (`costUsd`). **Ölçüldü (staging backfill
   2026-09-23, 168 kayıt, Vertex `gemini-3.1-pro-preview`):** toplam 8,16 USD;
@@ -2179,7 +2179,10 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   alacak her ödeme şartı profilde de reddedilir (ADVANCE→advancePercent, LC USANCE→
   paymentDays, CUSTOM kaydedilemez — profilde/hızlı kartta not alanı yok).
 - **Hızlı kart kuralları (MU-26/MU-07):** davet listesi tavanı tek kaynak
-  `@rothern/shared` `MAX_LISTING_INVITATIONS` (5000; API DTO + web şema). "Bağlantılarım"
+  `@rothern/shared` `MAX_LISTING_INVITATIONS` (5000; API DTO + web şema). Davet hedefi
+  süzgeci tek kaynak `company-listings/listing-invitees.ts` `connectedInvitees`
+  (create/updateListing/addInvitations; bağlantılar `Set` olarak verilir, `includes`
+  YASAK — RM-26; sözleşme `test/unit/listing-invitees-filter.spec.ts`). "Bağlantılarım"
   listesi TEK gövdede gider — kayıttan sonra ayrı davet çağrısıyla parça göndermek YASAK
   (gövdede olmayan davet düzenlemede silinir, eklenen her kayıtta "yeni" sayılıp yeniden
   e-posta/push alır). AI panel seçim anahtarı her yerde `selectionKey` (üye
@@ -2557,7 +2560,7 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   `detectCsvDelimiter` + ham metin map + `dateFormats: []`; ExcelJS varsayılanı "1.500"ü
   1.5'e, GG-AA-YYYY'yi ABD sırasına çevirir). Teklif fiyatında kabul edilmeyen para birimi
   (satır ya da belge) her iki yolda errors[] — asla uyarı + teklif birimi değil; şablonda
-  birim hücresi boş = teklif birimi; sunucu izinli kodu ana birim dahil AÇIKÇA döner, null
+  birim hücresi boş gelir (yalnız izinli liste doğrulaması) = teklif birimi; sunucu izinli kodu ana birim dahil AÇIKÇA döner, null
   = "birim yok" → istemci teklif birimi (effectiveCurrency) sayar.
 - **KYC revizyonu (MU-19):** firma/admin yazması her zaman status=PENDING CAS'ıyla
   (`updateMany` + count); R2 silme yalnız CAS başarılıysa ve ezilen key'de; admin onayı tx
@@ -2668,9 +2671,11 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 
 ## Test & Kalite
 
-- API **266 dosya / 2.920 test** (2 LIVE spec atlanır) · web **215 / 1.257** · admin
-  **27 / 135** · i18n **8 / 39** — toplam 516 dosya / 4.351 test (derin denetim
-  2026-09-29 ORTA turu tam regresyonu, HEAD 9aee3158; API 10'luk `--runInBand` partiler). `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
+- API **267 dosya / 2.924 test** (2 LIVE spec atlanır) · web **216 / 1.265** · admin
+  **27 / 135** · i18n **8 / 39** — toplam 518 dosya / 4.363 test (derin denetim
+  2026-09-29 son onarım turu tam regresyonu, HEAD e4c674e2; API 10'luk `--runInBand` partiler).
+  Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
+  1 sn) — dosyayı tek başına yeniden koş, gerileme sayılmaz. `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
   kırmızı (servisin `end = new Date()` ↔ `createdAt @default(now())` yarışı) —
   yeniden koşuda yeşil, gerileme sayılmaz.
 - **Bağımlılık kapısı (2026-09-12):** CI'da `pnpm audit --prod --audit-level high`.
@@ -2983,16 +2988,26 @@ matrisi + runbook); derin denetim ve düzeltme durumu
   Hata sınırları `robots noindex` taşır.
 - **SSR kovaları (derin denetim 2026-09-29 MU-12; eski "muafiyet" KALKTI):** web
   sunucusu `SEO_REVALIDATE_SECRET`i `x-rothern-ssr`de yollar; API yalnız GET ∧
-  `/api/public/*` için kabul eder (`isTrustedSsrRequest`) ve sınırı ATLAMAZ. Arama
-  parametreli dinamik çizimde web Vercel'in `x-real-ip`sini `x-rothern-client-ip` ile
-  iletir (`lib/public/ssr-visitor.ts` `attributeSsrToVisitor(sp)`; ürün/talep dizini,
-  firma sayfası) → ziyaretçi kovası (`ssr-bucket:default:ip:<ip>`, `THROTTLE_PUBLIC_LIMIT`
+  `/api/public/*` için kabul eder (`isTrustedSsrRequest`) ve sınırı ATLAMAZ. Pazar yeri
+  veri önbelleği `lib/public/marketplace-api.ts` `loadPublicJson` içinde (url, dil)
+  anahtarlı `unstable_cache` (revalidate + etiketler aynı; RM-12); içerideki fetch
+  no-store, 5xx/429/ağ hatası içeride atılır (önbelleğe girmez, bayat = son iyi kopya
+  kalır), **404 ise `{ __rothernPublicNotFound: true }` DEĞER olarak önbelleğe yazılır**
+  (atılırsa Next ISR yenilemesinde hatayı yutup bayat gövdeyi döner → gizlenen kayıt
+  çizilmeye devam eder). Yeni pazar yeri okuması `getJson`/`getDetail`'den geçer;
+  `fetch(..., { next: { revalidate } })` doğrudan YAZILMAZ (IP başlığı önbelleği ziyaretçi
+  başına böler). Ziyaretçi IP'si yalnız gerçek ıskalamada API'ye gider, anahtara girmez:
+  web Vercel'in `x-real-ip`sini `x-rothern-client-ip` ile iletir
+  (`lib/public/ssr-visitor.ts` `attributeSsrToVisitor()` — argümansız, YALNIZ zaten dinamik
+  çizimde (sayfa searchParams okuyor) çağrılır: ürün/talep dizini, firma sayfası ve
+  generateMetadata'sı, şehir sayfası `resolveCity`) → ziyaretçi kovası (`ssr-bucket:default:ip:<ip>`, `THROTTLE_PUBLIC_LIMIT`
   600/dk). İlişkilendirilmemiş SSR/ISR tek ortak kova (`THROTTLE_SSR_LIMIT` 5000/dk, örnek
   başına bellek içi, blok 60 sn — blockDuration KISALTILMAZ: blok bitince sayaç sıfırlanır,
-  fiili tavan limit/blok olur). IP ve auth kovalarını tüketmezler. Kanonik (parametresiz)
-  çizime IP EKLENMEZ (başlık Next veri önbelleği anahtarına girer); `x-rothern-client-ip`
-  sırsız yok sayılır. Sır Render + Vercel'de AYNI ve ≥16 karakter. Rastgele yol parçası
-  kalıntısı Vercel Firewall'da (O-31). Sözleşme `ssr-throttle-bypass.spec`, `ssr-visitor.test`.
+  fiili tavan limit/blok olur). IP ve auth kovalarını tüketmezler. `x-rothern-client-ip`
+  sırsız yok sayılır. Sır Render + Vercel'de AYNI ve ≥16 karakter. ISR rotalarında (talep,
+  ürün detayı, OG) rastgele yol kalıntısı Vercel Firewall'da (O-31). Web vitest
+  `vitest.setup.ts` `unstable_cache`'i önbelleksiz geçirir. Sözleşme
+  `ssr-throttle-bypass.spec`, `ssr-visitor.test`.
 - **Başka firmanın sektörü** `localizeIndustry` (ürün satıcı kartı, bağlantılar,
   sipariş karşı tarafı) — çapraz-firma okumada serbest metin çevrilmeden basılmaz.
 - **Şifre politikası tek:** kayıt, davet kabulü, değiştirme, sıfırlama = 10
@@ -3094,7 +3109,8 @@ matrisi + runbook); derin denetim ve düzeltme durumu
   taşıyor — güvenlik düzeltmesi İKİ dosyaya da uygulanmalı (ya da o yol tek kaynağa
   taşınmalı).
 - **Derin denetim ORTA turu artıkları:** `docs/invariants.md` INV-AZ-1 bayat (MU-20);
-  create/updateListing davet süzgeci `connectedIds.includes` O(n×m) → `Set` (MU-26);
+  akış sorgusunda `all.map` içinde `connectedIds.includes(l.companyId)` ilan × bağlantı
+  (RM-26 kapsamı dışı);
   kurulumda girilen TOTP adımı kaydedilmiyor (MU-16). Ayrıntı ve karar listesi
   `docs/qa-launch-audit-2026-09-29-derin.md` "ORTA düzeltme durumu".
 - `Supplier.sectors` deprecated kolon kaldırılmalı (migration).

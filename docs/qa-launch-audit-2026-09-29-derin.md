@@ -1,5 +1,9 @@
 # Derin Yayın Denetimi — 2026-09-29
 
+> **Güncel durum (kod HEAD e4c674e2):** ENGEL 0 · YÜKSEK 21/21 düzeltildi (Y-11'in koruması operatör adımıyla açılır, O-17…O-19) · ORTA 131/131 düzeltildi (167 ham kaydın 165'i düzeltildi, 2'si zaten düzelmişti; kısmi kalan yok, MU-12'nin ISR rastgele yol kalıntısı Vercel Firewall'da, O-31) · DÜŞÜK 248 backlog.
+> **Son regresyon:** 12/12 kapı yeşil. 518 test dosyası / 4.363 test (4.361 geçti, 2 LIVE atlandı, 0 kırmızı); typecheck 7/7, lint 0 hata, i18n en/ru %100, api/web/admin derlemeleri geçti.
+> **Push yapılmadı.** Operatör adımları `docs/qa-launch-audit-2026-09-28.md` §14.2 O-17…O-36.
+
 > Kullanıcı: "Sistemi baştan aşağı hiçbir şey atlamadan en ince ayrıntısına kadar parça parça kontrol etmelisin. Canlıya çıkacağız, her şeyi kontrol et."
 >
 > Yöntem: 2026-09-28 bölüm denetiminden BAĞIMSIZ, dosya odaklı tarama. Git'te izlenen testler hariç **1.447 kaynak dosya / 216.030 satır** 97 dilime bölündü; her dilim bir ajana verildi ve her satırı okundu (kapsam mekanik olarak doğrulandı: 1.453 girdi, eksik 0). Üstüne 24 kesitsel tarama (yetki matrisi, yalıtım/RLS/GRANT, sırlar, bağımlılıklar, web↔API sözleşmesi, i18n, şema↔migration, cron, e-posta, bağlantılar, iş kuralları, para, saat, yarış, realtime/yükleme, açık yüzey, oturum, admin, gözlemlenebilirlik, altyapı, AI, uçtan uca yolculuklar, paket kuralları, kayıt/banka/KYC) ve tam kapı koşumu. Her bulgu bağımsız doğrulandı: YÜKSEK 3 mercek (erişilebilirlik · çürütme · etki), ORTA 1 (+2 yükselirse), DÜŞÜK toplu. Toplam 537 ajan. Salt okunur: kod değişikliği, push, canlı/staging erişimi yok.
@@ -105,7 +109,7 @@ Karara dönüşmeyip operatöre taşınan sorular (Resend limiti, Supabase kota 
 34. **Ortak SSR kovası tavanı** (MU-12): *Varsayılan:* `THROTTLE_SSR_LIMIT` 5000/dk (tüm public uçlar, 60 sn, API örneği başına). Dolarsa ISR sayfaları son iyi sürümle sunulur, önbelleksizler 500 verir. Gerçek trafikle ayarlanmalı (O-30).
 35. **`?onizleme=1` (no-store) herkese açık** (MU-12): *Varsayılan:* davranış değişmedi, SSR kovasıyla sınırlı. Seçenekler: fresh istekte sır başlığını göndermemek ya da parametreyi kaldırmak.
 36. **Ziyaretçi başına SSR kovası için ayrı env** (MU-12): *Varsayılan:* `THROTTLE_PUBLIC_LIMIT` (600/dk), yani sayfa başına 3-4 çağrıyla dakikada ~150-200 süzgeçli sayfa. NAT arkası ofisler için `THROTTLE_SSR_CLIENT_LIMIT` istenirse eklenir.
-37. **Parametresiz rastgele yol parçası** (MU-12 kalıntısı): *Varsayılan:* Vercel Firewall IP kuralı (O-31). Kod çözümü (`getJson` → `unstable_cache`, IP anahtar dışında) daha büyük bir refaktör olduğu için yapılmadı.
+37. **Parametresiz rastgele yol parçası** (MU-12 kalıntısı): ~~Kod çözümü yapılmadı~~ RM-12'de yapıldı (`loadPublicJson` → `unstable_cache`, IP anahtar dışında; 53eb626f · 70fb3a02). Kalan tek kısım ISR rotalarındaki rastgele yol parçası (`/talep/<rastgele>`, `/firma/<slug>/urun/<rastgele>`, opengraph-image): *Varsayılan:* Vercel Firewall IP kuralı (O-31).
 38. **Paket düşünce tavan dışı kalan onay bekleyen ürünler** (MU-13): *Varsayılan:* reddedilmiyor, sessizce DRAFT'a çekiliyor ve admin kuyruğundan düşüyor. Mevcut "N ürününüz taslağa alındı" e-postası bunları da sayıyor.
 39. **Admin onayında tavan dolu** (MU-13): *Varsayılan:* ürün PENDING kalır (tekli 400 + TR gerekçe, toplu onayda atlanır); cron ya da `setTier` sonradan DRAFT'a çeker. Otomatik "düzeltmeye gönder" seçilmedi.
 40. **Akşam özetinden sonra düşen kalemler** (MU-14): *Varsayılan:* ertesi 18:00'i bekler, ek sabah özeti yok. Sabah gönderimi yalnız o günün özeti kaçtıysa yapılıyor.
@@ -130,6 +134,7 @@ Karara dönüşmeyip operatöre taşınan sorular (Resend limiti, Supabase kota 
 59. **Salt-okunur kullanıcıda doğrulama kartı** (MU-24): *Varsayılan:* tamamen gizli. Alternatif, bağlantısız "firma yöneticinizden isteyin" notu (yeni i18n anahtarı).
 60. **Talep başına davet tavanı** (MU-26): *Varsayılan:* 5000 (`MAX_LISTING_INVITATIONS`); fazlası formda uyarı alır. Daha yüksek tavan ya da CONNECTIONS'ta sunucunun tüm bağlantıları kendisinin davet etmesi (`autoInviteConnections` genişletmesi) ülke süzgecini ve bildirim davranışını değiştirir.
 61. **Boşluksuz yazılarda metin kalite kontrolü** (MU-27, Çince/Japonca/Tay): *Varsayılan:* yalnız 40 karakter kuralı uygulanıyor, ek çöp metin sezgisi yok.
+62. **Ziyaretçi kovası kanonik dinamik çizimleri de sayıyor** (RM-12; karar 36'nın devamı): `/urunler`, `/alim-talepleri` ve `/firma/<slug>` parametresiz de ziyaretçi başına kovaya giriyor, ama yalnız gerçek önbellek ıskalamaları sayıldığı için ziyaretçi başı yük düşük olmalı. *Varsayılan:* ayrı env yok, `THROTTLE_PUBLIC_LIMIT` 600/dk korunuyor. NAT arkası kalabalık ağlar tavana yaklaşırsa `THROTTLE_SSR_CLIENT_LIMIT` eklenir.
 
 ### Regresyon
 
@@ -140,7 +145,7 @@ Karara dönüşmeyip operatöre taşınan sorular (Resend limiti, Supabase kota 
 
 ## ORTA düzeltme durumu (2026-09-29)
 
-ORTA bulgular 27 düzeltme biriminde (MU-01…MU-27) ele alındı: 167 ham bulgu kaydı (aynı kök nedenli kopyalar dahil), **165'i düzeltildi, 2'si MU-07'de zaten düzelmişti**. Ertelenen ya da "hata değil" sayılan bulgu yok. Her birim bağımsız gözden geçirildi. Bulgu çıkan birimlerden 19'u onarıldı; MU-01 ve MU-10'da yalnız commit hijyeni notu vardı. Onarılanlardan dördü (MU-12, MU-16, MU-23, MU-26) ikinci kez gözden geçirildi. Commit'ler `git log --oneline 9c8aed5d..9aee3158` (61 commit); push yapılmadı. Operatör adımları `docs/qa-launch-audit-2026-09-28.md` §14.2 O-27…O-35.
+ORTA bulgular 27 düzeltme biriminde (MU-01…MU-27) ele alındı: 167 ham bulgu kaydı (aynı kök nedenli kopyalar dahil), **165'i düzeltildi, 2'si MU-07'de zaten düzelmişti**. Ertelenen ya da "hata değil" sayılan bulgu yok. Her birim bağımsız gözden geçirildi. Bulgu çıkan birimlerden 19'u onarıldı; MU-01 ve MU-10'da yalnız commit hijyeni notu vardı. Onarılanlardan dördü (MU-12, MU-16, MU-23, MU-26) ikinci kez gözden geçirildi; kalan bulgular son onarım turunda (RM-12, RM-23, RM-26) kapandı. Commit'ler `git log --oneline 9c8aed5d..e4c674e2` (65 commit); push yapılmadı. Operatör adımları `docs/qa-launch-audit-2026-09-28.md` §14.2 O-27…O-36.
 
 | MU | Konu | Durum | Commit (ilk tur · onarım) | Bulgu sonuçları |
 |---|---|---|---|---|
@@ -155,7 +160,7 @@ ORTA bulgular 27 düzeltme biriminde (MU-01…MU-27) ele alındı: 167 ham bulgu
 | MU-09 | AI keşfi kapalı ülkeler, sonradan açılan keşif | ✅ | de3f6eff · 92ed448f · 209f7bf4 | 2/2 düzeltildi: `registrationBlockedCountry` keşif, davet (MANUAL dahil) ve hedef ülkede (X24); düzenlemede açılan keşif tur üretir, web embargoda yoklamaz (S090). Onarım: `catchUpPublishRuns`, gönderim anında ülke denetimi, Talep Şartları süzgeci, `.as` genel ek. |
 | MU-10 | Talep şartları şeması, cron updatedAt, enqueueQuiet, bildirim imleci, engel, bilgi talebi e-postası, facet | ✅ | b07390e8 | 7/7 düzeltildi: ADVANCE/USANCE/CUSTOM kuralları (S035); gece cron ham SQL (S037); `enqueue(…,{kick:false})` (S037); imleç `AND` ile (S039/X09); engelli firma bilgi talebi 404 (S039); satıcı e-postası sell:view'lı en eski 5 üyeye (S039/X09); facet `countries` (S019). |
 | MU-11 | Kategori arama ağacı, şikayet metni 120 | ✅ | fa6972bb · beb4af0b | 3/3 düzeltildi: q ≤120, token ≤8 (X01); şikayet reason ≤120 + detail ≤2000, engelleme ≤500 (X05/S057). |
-| MU-12 | SSR sırrı günlükte, SSR hız sınırı muafiyeti, Sentry süzgeci | ⚠️ kısmi | c88e8b1e · ca5fb885 · 6485a136 | 7/7 düzeltildi: izinli başlık listeli günlük serileştirici (X03/X16/X19/S041); muafiyet kalktı, SSR sonlu kovaya sayılır (X16); Sentry `request_path`/`query_string`/`http.query`/transaction süzülür (X19/S091). Onarım: arama parametreli çizim ziyaretçi başına kovada. **Kalan (2. gözden geçirme):** parametresiz rastgele yol parçası (`/firma/<rastgele>`) hâlâ ortak kovayı doldurabilir (ORTA, operatörde O-31); ziyaretçi başlığı aynı istekteki kanonik fetch'lerin önbellek anahtarına da giriyor (DÜŞÜK). |
+| MU-12 | SSR sırrı günlükte, SSR hız sınırı muafiyeti, Sentry süzgeci | ✅ | c88e8b1e · ca5fb885 · 6485a136 · 53eb626f · 70fb3a02 | 7/7 düzeltildi: izinli başlık listeli günlük serileştirici (X03/X16/X19/S041); muafiyet kalktı, SSR sonlu kovaya sayılır (X16); Sentry `request_path`/`query_string`/`http.query`/transaction süzülür (X19/S091). Onarım: arama parametreli çizim ziyaretçi başına kovada. 2. gözden geçirmenin iki kalıntısı RM-12'de kapandı: pazar yeri okumaları (url, dil) anahtarlı `unstable_cache`'te, IP anahtara girmez; tüm dinamik çizim ziyaretçiye bağlı. Yalnız ISR rotalarındaki rastgele yol parçası operatörde (O-31). |
 | MU-13 | Ürün tavanı onay kuyruğu, kuruculuk devri, davet ve hazır set | ✅ | c3eef1cd · 1d12a3cc · 3547f714 | 7/7 düzeltildi: `enforceProductLimit` yayında + PENDING sayar, admin onayı tavanı kilit altında denetler (X23/S019); eski Kurucunun yeni rolü koltuk/Gold kapısından geçer (X23); devralanın işlem izinleri korunur (S055); devirde `/me` tazelenir (S055); davet varsayılanı pakete uyar (S056); hazır set `gatePreset`ten geçer (S068). Onarım: varsayılan taze koltuk verisiyle yeniden hesaplanır (bunun yol açtığı sonsuz render döngüsü 9aee3158'de kapandı). |
 | MU-14 | Cron ve e-posta programları | ✅ | 9aac3c73 | 14/14 düzeltildi: dış davet atomik sahiplenme (X08/X14/X09; süreç içi kilit Y-08'de); akşam özeti günde tek (X08/X09/S020/S038); iptal edilen davete hatırlatma yok (S025/X02); geçerlilik hatırlatması imleçli (X08/X11); özet gönderimde tercihi okur (X09); karşılama serisi ve teklifsiz talep tam tarama (X13/X08). |
 | MU-15 | Onay akışı uygunluğu, rekabet özeti, karışık birim toplamı | ✅ | 9e8e25f5 · cc6b775c | 5/5 düzeltildi: `canActOnApprovals` izne bakar, Kurucu dahil (X11/S022/S022); LOST teklif özetten çıktı (S022); kazanan toplamı birim başına (X12). Onarım: özet kazananın turuna göre. |
@@ -166,15 +171,14 @@ ORTA bulgular 27 düzeltme biriminde (MU-01…MU-27) ele alındı: 167 ham bulgu
 | MU-20 | Talep yaşam döngüsü | ✅ | 6fec2415 · b59fc3fd | 8/8 düzeltildi: açan ayrılınca `handOverLiveListings` (X11; SAHİP istisnası geri gelmedi); doğrudan yayın audit'i (S030); düzenlemede davet farkı (S030); yeni davetliye bildirim (S030); askıdaki firma süzülür (X11); taşınan RFQ teklifi turda bir kez revize (X11); onayla kazandırmada geçerlilik (X11/S032). Onarım: çıkarılan AI davetlisi silinir, `activeBidRound` backfill migration'ı, pano askıdaki sahibi saymaz. |
 | MU-21 | Admin toast'ları, kendini kilitleme, SUPPORT araması, çıkış çerezi | ✅ | d7e3f660 · 3448a176 · 7072a6f9 | 4/4 düzeltildi: `toastApiError` (S004, 28 kullanım); kendi şifresini sıfırlama reddi (S004); SUPPORT'a arama çizilmez (S006); logout 3 sn beklenir (S007, web firma çıkışı dahil). Onarım: kalan ham toast + statik test. |
 | MU-22 | Talep detayı sahip ekranı | ✅ | e132f6d4 · eb6d9bbb | 5/5 düzeltildi: KYC alanları refetch'te korunur (S056); bildirimler imleçle sayfalı (S057); detaydan yayında bekleyen davetler gider (X22); Yayınla başlıkta (S059); teklif detayında Kazandır korumaları (S060). Onarım: süzgeçli boş sayfa açıklaması. |
-| MU-23 | Onaycı adayları, DISPUTED akreditif, oturumu açık bırak, gizlilik metni, eşleşmeyen satır | ✅ | ecf9dfcc · 1de849b3 · 8548de17 | 6/6 düzeltildi: `approver-candidates` ucu (S061); A1-DISPUTED'da LC adımları (S062); verify-email `rememberMe` (S063/X17); gizlilik politikası madde 3 gerçeğe uyduruldu, avukat teyidi bekliyor (S096); eşleşmeyen satıra aynı fiyat/birim kuralları (S063). Onarım: ana birim açık kodla döner. 2. gözden geçirmenin iki ORTA bulgusu (kabul edilmeyen birimin uyarı olması, şablonun ana birimi ön-doldurması) MU-19 68870bfc'de kapandı. |
+| MU-23 | Onaycı adayları, DISPUTED akreditif, oturumu açık bırak, gizlilik metni, eşleşmeyen satır | ✅ | ecf9dfcc · 1de849b3 · 8548de17 | 6/6 düzeltildi: `approver-candidates` ucu (S061); A1-DISPUTED'da LC adımları (S062); verify-email `rememberMe` (S063/X17); gizlilik politikası madde 3 gerçeğe uyduruldu, avukat teyidi bekliyor (S096); eşleşmeyen satıra aynı fiyat/birim kuralları (S063). Onarım: ana birim açık kodla döner. 2. gözden geçirmenin iki ORTA bulgusu (kabul edilmeyen birimin uyarı olması, şablonun ana birimi ön-doldurması) MU-19 68870bfc'de kapandı; RM-23 bunu doğruladı, kod değişikliği gerekmedi. |
 | MU-24 | Panel bileşenleri | ✅ | e233fc35 · 6fddc0fe | 6/6 düzeltildi: kategori modal metni (S065); katalog arşiv izni any-of (S066); ICU `n` sayı (S067); DISPUTED kartı (S068); doğrulama kartı düzenleme rayında (S069); hizmet uzunluğu tek sabit (S069). Onarım: JSDoc yeri. |
 | MU-25 | Raporlar ve listeler | ✅ | a6dd7bf5 · 01a91e4b · 594aaa1b | 10/10 düzeltildi: `appDayRangeIso` (X13/S069); kopan üyeli grup düzenlenir (S070); tasarruf tutarı aynı dönemden (S073); gelen bilgi talepleri sayfalı (S074/X05/X22); misafir talep dili sayfadan (X06); nitelik seçenek çevirisi (S081); yeni ürün gönderimi listeye döner (S081). Onarım: gönderilen talepler de sayfalı (eski istemciye düz dizi), web testi. |
-| MU-26 | Hızlı talep formu | ✅ | a5836861 · 4a43fb2a | 7/7 düzeltildi: çıkarılan üye geri seçilmez (S082); 50+ bağlantı yayınlanır (S083/S095); varsayılan adres yarışı, FATURA seçilmez (S083); "Yeni talep aç" şartlarla (S083); katalog seçimi aramalar arası korunur (S084); serbest birim kilitlenmez (S086). Onarım: davet listesi tek gövdede, tavan 5000 (`MAX_LISTING_INVITATIONS`), parçalı gönderim kaldırıldı. |
+| MU-26 | Hızlı talep formu | ✅ | a5836861 · 4a43fb2a · e4c674e2 | 7/7 düzeltildi: çıkarılan üye geri seçilmez (S082); 50+ bağlantı yayınlanır (S083/S095); varsayılan adres yarışı, FATURA seçilmez (S083); "Yeni talep aç" şartlarla (S083); katalog seçimi aramalar arası korunur (S084); serbest birim kilitlenmez (S086). Onarım: davet listesi tek gövdede, tavan 5000 (`MAX_LISTING_INVITATIONS`), parçalı gönderim kaldırıldı. RM-26: davet süzgeci `Set` ile (`connectedInvitees`). |
 | MU-27 | Çıkışta AI verisi, öneri/menü dili, SEO miktarı, OG NaN, kalem tarihi, Kiril kalite kontrolü | ✅ | 2d38db33 · 2cfe2cfb | 8/8 düzeltildi: `rothern:quick-ai-suppliers` çıkışta silinir (S092); öneri ve mega menü sayfa diliyle, dil başına önbellek (X05/S093/X06); SEO/OG miktarı çoğullu (S094); OG `{range}` (S094); kalem tarihi `getUTC*` (S095); `looksLikeProse` yazı sistemine duyarlı (S053). |
 
 **Onarılmadan kalan düşük gözden geçirme bulguları** (yayını engellemez):
-- MU-12: yukarıdaki iki kalıntı. Kalıcı çözüm `getJson`'un `unstable_cache`'e taşınıp IP'nin önbellek anahtarı dışında gönderilmesi (karar 37).
-- MU-26: create/updateListing davetleri `connectedIds.includes` ile süzüyor. 5000 davet × 5000 bağlantıda O(n×m); `Set` ile düzeltilmeli.
+- MU-26 kapsamı dışı: akış sorgusunda `all.map` içinde `connectedIds.includes(l.companyId)` ilan sayısı × bağlantı maliyetinde (davet tavanıyla ilgisiz).
 - MU-16: `enableTwoFactor` kurulumda girilen kodun adımını kaydetmiyor. Açılıştan hemen sonra aynı 30 sn'lik adımda aynı kod bir kez daha girişte kullanılabilir.
 - MU-14: kilidin fail-open olduğu çok örnekli koşumda iki tur aynı adresin satırlarını bölüşebilir (o turda iki davet e-postası). Kaçan 18:00 özetinden sonraki gün kalemleri 24 saat tavanıyla ertesi sabaha kayabilir.
 - MU-06: STANDART günlük payında zaman aşımıyla FAILED satırın tahmini maliyeti gün içi ikinci denemeyi daraltıyor (onarımda pay 0,5'e çıktı, izlenmeli).
@@ -192,19 +196,28 @@ Geçmiş yeniden yazılmadı.
 
 **Bayat belge (bu commit'in dışında):** `docs/invariants.md` INV-AZ-1'deki "VEYA user.isOwner" ifadesi artık geçerli değil. Talep yönetiminde SAHİP istisnası yok (MU-20); satır güncellenmeli.
 
+### Son onarım turu (RM-12, RM-23, RM-26)
+
+İkinci gözden geçirmeden kalan bulgular üç birimde ele alındı; push yapılmadı.
+- **RM-12 (53eb626f · 70fb3a02):** kalıcı yol seçildi. `marketplace-api.ts` `loadPublicJson`, pazar yeri okumasını (url, dil) anahtarlı `unstable_cache`'e sarar: revalidate ve etiketler aynı, içerideki fetch no-store, ziyaretçi IP'si yalnız gerçek ıskalamada API'ye gider ve anahtara girmez. `attributeSsrToVisitor()` argümansız oldu, zaten dinamik tüm çizimlerde çağrılır (dizinler, firma sayfası ve metadata'sı, şehir sayfası). Gözden geçirme bir ORTA bulgu çıkardı: 404 içeride atıldığında Next 15.5.25 ISR yenilemesinde hatayı yutup bayat gövdeyi döndürüyordu, yani gizlenen ya da silinen ilan/ürün SEO etiket kancası kaçarsa çizilmeye devam ediyordu. 70fb3a02'de 404 değer olarak (işaret nesnesi) önbelleğe yazılıyor; 5xx/429/ağ hatası atılmaya devam ediyor, son iyi kopya korunuyor. Bedeli: var olmayan slug başına küçük bir negatif girdi. Kalan risk: ISR rotalarındaki rastgele yol parçası (O-31); ilk dağıtımda veri önbelleği soğuk başlar (O-36).
+- **RM-23 (commit yok):** iki ORTA bulgu 68870bfc (MU-19) ile zaten kapanmıştı; testlerle doğrulandı (bid-matching 16/16, bid-import entegrasyon 9/9, bid-import-dialog 7/7).
+- **RM-26 (e4c674e2):** create, updateListing ve addInvitations davet hedeflerini tek kaynaktan (`listing-invitees.ts` `connectedInvitees`) `Set.has` ile süzüyor; 5000 × 5000'lik karesel tarama kalktı, davranış ve sıra aynı. Gözden geçirme "ok".
+
 ### ORTA regresyon
 
-**Son kapı HEAD 9aee3158, 14/14 yeşil.** Önce i18n + email derlemeleri, ardından typecheck (7/7 paket) koşuldu. Lint 0 hata verdi (uyarı: api 28, web 67, admin 7). `i18n:check` yeşil: tr 7.654 anahtar, en/ru %100, cırcır 101 dosya / 860 literal (taban).
+**Son kapı HEAD e4c674e2 (son onarım turu sonrası), 12/12 yeşil.** Önce i18n + email derlemeleri, ardından typecheck (7/7 paket) koşuldu. Lint 0 hata verdi (uyarı: api 28, web 67, admin 7). `i18n:check` yeşil: tr 7.654 anahtar, en/ru %100, cırcır 101 dosya / 860 literal (taban).
 
 | Paket | Dosya | Test |
 |---|---|---|
-| API jest (27 parti × 10, `--runInBand`) | 266 (264 geçti + 2 LIVE atlandı) | 2.920 (2.918 geçti + 2 atlandı) |
-| Web vitest | 215 | 1.257 |
+| API jest (27 parti × 10, `--runInBand`) | 267 (265 geçti + 2 LIVE atlandı) | 2.924 (2.922 geçti + 2 atlandı) |
+| Web vitest | 216 | 1.265 |
 | Admin vitest | 27 | 135 |
 | i18n vitest | 8 | 39 |
-| **Toplam** | **516** | **4.351** (4.349 geçti, 2 atlandı, 0 kırmızı) |
+| **Toplam** | **518** | **4.363** (4.361 geçti, 2 atlandı, 0 kırmızı) |
 
-api, web (`NEXT_PUBLIC_MARKETPLACE_LIVE=true`) ve admin derlemeleri geçti; `git status` temiz. Kararsız `dashboard-analytics` "dolu senaryo" testi bu koşumda yeşildi. ORTA regresyon koşumunda bulunan tek gerileme 9aee3158'de kapandı: MU-13 onarımının yol açtığı davet diyaloğu sonsuz render döngüsü.
+api, web (239 sayfa) ve admin (3 sayfa) derlemeleri geçti; `git status` temiz. Web vitest'in ilk tam koşusunda 5 dosyada 15 test yük kaynaklı zaman aşımıyla kırmızıydı (6 GB RAM'li WSL; bank-accounts-section, signup-client, onboarding-client, group-template-dialog, quick-request). Beşi tek başına yeniden koşuldu, 52/52 yeşil; gerileme sayılmadı. Kararsız `dashboard-analytics` "dolu senaryo" testi bu koşumda yeşildi.
+
+Önceki ORTA kapısı (HEAD 9aee3158, 14/14 yeşil): 516 dosya / 4.351 test. O koşumda bulunan tek gerileme 9aee3158'de kapandı: MU-13 onarımının yol açtığı davet diyaloğu sonsuz render döngüsü.
 
 ## Kapılar (hepsi yerel, 2026-09-29)
 
