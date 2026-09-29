@@ -32,13 +32,27 @@ export function categoryMatchInstantAllowed(p: { sentTodayLocal: number; allInst
   return p.allInstant || p.sentTodayLocal < CATEGORY_MATCH_INSTANT_PER_DAY;
 }
 
-/** Akşam özeti gönderilme zamanı geldi mi? */
-export function digestDue(p: { now: Date; timeZone: string; oldestItemAt: Date }): boolean {
+/**
+ * Akşam özeti gönderilme zamanı geldi mi?
+ *
+ * GÜNDE TEK ÖZET (derin denetim MU-14): `lastDigestAt` bu adres × türe son
+ * gönderilen özetin anı. Alıcının yerel gününde zaten özet gittiyse o gün
+ * ikincisi GİTMEZ; 18:00 özetinden sonra düşen kalemler ertesi günün
+ * 18:00'ini bekler (eskiden gece yarısına dek her 15 dk'da ayrı "özet"
+ * gidiyordu). "Dünden kalan kalem sabah da gider" kuralı yalnız o günün
+ * özeti KAÇTIYSA geçerli; 24 saati aşan kalem her zaman gider.
+ */
+export function digestDue(p: { now: Date; timeZone: string; oldestItemAt: Date; lastDigestAt?: Date | null }): boolean {
   if (p.now.getTime() - p.oldestItemAt.getTime() >= DIGEST_MAX_WAIT_MS) return true;
-  const local = zonedParts(p.now, p.timeZone);
-  // Öğeler bugün eklendiyse akşam 18:00'den sonra; dünden kalan öğe sabah da gider.
   const dayStart = localDayStart(p.now, p.timeZone);
-  return local.hour >= DIGEST_LOCAL_HOUR || p.oldestItemAt < dayStart;
+  const last = p.lastDigestAt ?? null;
+  if (last && last >= dayStart) return false;
+  const local = zonedParts(p.now, p.timeZone);
+  if (local.hour >= DIGEST_LOCAL_HOUR) return true;
+  // Öğeler bugün eklendiyse akşam 18:00'i bekler. Dünden kalan öğe sabah da
+  // gider — ama yalnız öğenin günündeki özet kaçtıysa (o gün hiç özet yoksa).
+  if (p.oldestItemAt >= dayStart) return false;
+  return !last || last < localDayStart(p.oldestItemAt, p.timeZone);
 }
 
 /** Yerel saat ipucu/özet penceresinde mi (10:00-10:59)? */

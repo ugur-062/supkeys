@@ -190,20 +190,43 @@ export class ListingScheduler implements OnModuleInit {
     );
   }
 
+  /** Geçerlilik hatırlatması taramasında sayfa boyu (testte küçültülür). */
+  private readonly validityReminderPageSize = 200;
+
   private async doEvaluationValidityReminders(): Promise<void> {
     const HORIZON_MS = 3 * 86_400_000;
     const now = Date.now();
-    const candidates = await this.prisma.listing.findMany({
-      where: { status: "IN_AWARD", evaluationReminderSentAt: null },
-      select: {
-        id: true,
-        bids: {
-          where: { status: "SUBMITTED" },
-          select: { submittedAt: true, validityDays: true },
+    // Derin denetim MU-14: eskiden sırasız `take: 200` + JS süzgeci vardı;
+    // hatırlatmaya hiç uymayan (teklifsiz / geçerlilik süresiz) IN_AWARD
+    // ilanlar damgalanmadan pencereyi dolduruyor, 200'ü aşınca yenilere hiç
+    // sıra gelmiyordu. Uygunluk sorguda süzülür ve TÜM adaylar imleçle gezilir.
+    const candidates: Array<{
+      id: string;
+      bids: Array<{ submittedAt: Date | null; validityDays: number | null }>;
+    }> = [];
+    let cursor: string | undefined;
+    for (;;) {
+      const page = await this.prisma.listing.findMany({
+        where: {
+          status: "IN_AWARD",
+          evaluationReminderSentAt: null,
+          bids: { some: { status: "SUBMITTED", submittedAt: { not: null }, validityDays: { not: null } } },
         },
-      },
-      take: 200,
-    });
+        select: {
+          id: true,
+          bids: {
+            where: { status: "SUBMITTED" },
+            select: { submittedAt: true, validityDays: true },
+          },
+        },
+        orderBy: { id: "asc" },
+        take: this.validityReminderPageSize,
+        ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}),
+      });
+      candidates.push(...page);
+      if (page.length < this.validityReminderPageSize) break;
+      cursor = page[page.length - 1]!.id;
+    }
     let sent = 0;
     for (const l of candidates) {
       const expiring = l.bids.filter(

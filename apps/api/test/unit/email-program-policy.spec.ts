@@ -42,6 +42,27 @@ describe("kategori eşleşmesi: günde 3 anında, fazlası akşam özeti", () =>
     expect(digestDue({ now: morning, timeZone: tz, oldestItemAt: new Date("2026-10-06T19:00:00Z") })).toBe(true);
     expect(digestDue({ now: morning, timeZone: tz, oldestItemAt: new Date(morning.getTime() - DAY) })).toBe(true);
   });
+
+  it("günde TEK özet: bugün özet gittiyse 18:00 sonrası kalem ertesi 18:00'i bekler (derin denetim MU-14)", () => {
+    const tz = "Europe/Istanbul";
+    const digestAt = new Date("2026-10-07T15:00:00Z"); // İstanbul 18:00 — bugünün özeti
+    const lateItem = new Date("2026-10-07T15:40:00Z"); // İstanbul 18:40
+    const lateEvening = new Date("2026-10-07T19:00:00Z"); // İstanbul 22:00
+    expect(digestDue({ now: lateEvening, timeZone: tz, oldestItemAt: lateItem, lastDigestAt: digestAt })).toBe(false);
+    // Ertesi sabah: o günün özeti KAÇMADI → "dünden kalan" sabah gönderimi yok.
+    const nextMorning = new Date("2026-10-08T07:00:00Z");
+    expect(digestDue({ now: nextMorning, timeZone: tz, oldestItemAt: lateItem, lastDigestAt: digestAt })).toBe(false);
+    // Ertesi akşam 18:00'de gider.
+    const nextEvening = new Date("2026-10-08T15:00:00Z");
+    expect(digestDue({ now: nextEvening, timeZone: tz, oldestItemAt: lateItem, lastDigestAt: digestAt })).toBe(true);
+    // Öğenin günü özetsiz geçtiyse (kaçan özet) sabah gider.
+    const oldDigest = new Date("2026-10-05T15:00:00Z");
+    expect(digestDue({ now: nextMorning, timeZone: tz, oldestItemAt: lateItem, lastDigestAt: oldDigest })).toBe(true);
+    // 24 saati aşan kalem her durumda gider.
+    expect(
+      digestDue({ now: new Date(lateItem.getTime() + DAY), timeZone: tz, oldestItemAt: lateItem, lastDigestAt: new Date(lateItem.getTime() + DAY - 3_600_000) }),
+    ).toBe(true);
+  });
 });
 
 describe("karşılama serisi (davranışa bağlı)", () => {

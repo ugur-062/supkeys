@@ -345,7 +345,13 @@ export class DiscoveryRunsService {
     });
     let n = 0;
     for (const run of runs) {
-      await this.bypass.supplierDiscoveryRun.update({ where: { id: run.id }, data: { notifiedAt: now } });
+      // Atomik sahiplenme: aynı anda koşan ikinci tur (kilit fail-open / çok
+      // örnek) aynı koşu için ikinci bildirimi üretmesin (derin denetim MU-14).
+      const claimed = await this.bypass.supplierDiscoveryRun.updateMany({
+        where: { id: run.id, notifiedAt: null },
+        data: { notifiedAt: now },
+      });
+      if (claimed.count !== 1) continue;
       const open = run.candidates.filter((c) => c.status === "SUGGESTED" || c.status === "MEMBER");
       if (!run.listing || !run.listingId || open.length === 0) continue;
       const abroad = open.filter((c) => c.scope === "ABROAD").length;

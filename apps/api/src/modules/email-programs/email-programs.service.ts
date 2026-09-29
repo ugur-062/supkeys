@@ -118,14 +118,51 @@ export class EmailProgramsService {
         .map((c) => c.id),
     );
 
+    const emails = [...new Set(items.map((i) => i.email))];
+    // Günde TEK özet (derin denetim MU-14): adres × tür başına son gönderilen
+    // özet. Eskiden 18:00 özetinden sonra düşen her kalem sonraki 15 dk'lık
+    // turda ayrı bir "özet" olarak gidiyordu.
+    const lastDigests = await this.prisma.emailLog.groupBy({
+      by: ["toEmail", "contextType"],
+      where: {
+        toEmail: { in: emails },
+        contextType: { in: [CATEGORY_DIGEST_CONTEXT, INVITATION_DIGEST_CONTEXT] },
+        status: { not: "FAILED" },
+        queuedAt: { gte: new Date(now.getTime() - 2 * DAY_MS) },
+      },
+      _max: { queuedAt: true },
+    });
+    const lastDigestOf = new Map(lastDigests.map((r) => [`${r.contextType}|${r.toEmail}`, r._max.queuedAt]));
+    // Tercih ve tek tık çıkış GÖNDERİM anında da uygulanır: kayıtlı kullanıcının
+    // çıkışı yalnız `notificationPrefs`e yazılır, EmailService kapısı ona bakmaz;
+    // kuyruğa alındıktan sonra kapatılan tercih yok sayılıyordu (MU-14).
+    const users = await this.prisma.companyUser.findMany({
+      where: { email: { in: emails } },
+      select: { email: true, isActive: true, deletedAt: true, notificationPrefs: true },
+    });
+    const userOf = new Map(users.map((u) => [u.email, u]));
+
     let sent = 0;
     for (const [, group] of byEmail) {
       const email = group[0]!.email;
       const isInvite = group[0]!.kind === "INVITATION";
+      const context = isInvite ? INVITATION_DIGEST_CONTEXT : CATEGORY_DIGEST_CONTEXT;
       const tz = timeZoneForCountry(countryOf.get(group[0]!.companyId));
-      if (!digestDue({ now, timeZone: tz, oldestItemAt: group[0]!.createdAt })) continue;
+      const lastDigestAt = lastDigestOf.get(`${context}|${email}`) ?? null;
+      if (!digestDue({ now, timeZone: tz, oldestItemAt: group[0]!.createdAt, lastDigestAt })) continue;
       const markSent = () =>
         this.prisma.emailDigestItem.updateMany({ where: { id: { in: group.map((g) => g.id) } }, data: { sentAt: now } });
+      const user = userOf.get(email);
+      if (
+        !user ||
+        !user.isActive ||
+        user.deletedAt ||
+        !isNotificationEnabled(user.notificationPrefs as Record<string, boolean> | null, context)
+      ) {
+        // Alıcı yok / pasif / tercihi kapalı → özet gitmez, kalemler düşer.
+        await markSent();
+        continue;
+      }
       const listings = await this.prisma.listing.findMany({
         where: { id: { in: group.map((g) => g.listingId) }, status: "OPEN" },
         select: { id: true, title: true, number: true, closesAt: true },
@@ -192,7 +229,7 @@ export class EmailProgramsService {
               footerNote: t("api.notifications.digest.footer"),
             },
           },
-          context: { type: isInvite ? INVITATION_DIGEST_CONTEXT : CATEGORY_DIGEST_CONTEXT, id: group[0]!.id },
+          context: { type: context, id: group[0]!.id },
         });
         await markSent();
         sent++;
@@ -228,26 +265,51 @@ export class EmailProgramsService {
     return isNotificationEnabled(owner.notificationPrefs as Record<string, boolean> | null, "lifecycle_profile");
   }
 
+  /** Karşılama serisi / teklifsiz talep taramasında sayfa boyu (testte küçültülür). */
+  private readonly scanPageSize = 500;
+
+  /**
+   * Tüm adayları `id` imleciyle sayfa sayfa gezer. Eskiden sırasız tek
+   * `take` vardı; saat dilimi / "bugün gönderildi" süzgeçleri kesimden SONRA
+   * uygulandığı için tavanın üstündeki firmalara/taleplere hiç sıra gelmiyordu
+   * (derin denetim MU-14).
+   */
+  private async scanAll<T extends { id: string }>(
+    fetch: (page: { take: number; cursor?: { id: string }; skip?: number }) => Promise<T[]>,
+  ): Promise<T[]> {
+    const all: T[] = [];
+    let cursor: string | undefined;
+    for (;;) {
+      const page = await fetch({ take: this.scanPageSize, ...(cursor ? { cursor: { id: cursor }, skip: 1 } : {}) });
+      all.push(...page);
+      if (page.length < this.scanPageSize) return all;
+      cursor = page[page.length - 1]!.id;
+    }
+  }
+
   async sendLifecycle(now: Date): Promise<number> {
-    const companies = await this.prisma.company.findMany({
-      where: {
-        isActive: true,
-        isBlocked: false,
-        onboardingCompletedAt: { gte: new Date(now.getTime() - 30 * DAY_MS), lte: new Date(now.getTime() - DAY_MS) },
-        ownerUserId: { not: null },
-      },
-      select: {
-        id: true,
-        country: true,
-        aboutText: true,
-        tier: true,
-        membershipEndAt: true,
-        companyVerificationStatus: true,
-        onboardingCompletedAt: true,
-        ownerUserId: true,
-      },
-      take: 500,
-    });
+    const companies = await this.scanAll((page) =>
+      this.prisma.company.findMany({
+        where: {
+          isActive: true,
+          isBlocked: false,
+          onboardingCompletedAt: { gte: new Date(now.getTime() - 30 * DAY_MS), lte: new Date(now.getTime() - DAY_MS) },
+          ownerUserId: { not: null },
+        },
+        select: {
+          id: true,
+          country: true,
+          aboutText: true,
+          tier: true,
+          membershipEndAt: true,
+          companyVerificationStatus: true,
+          onboardingCompletedAt: true,
+          ownerUserId: true,
+        },
+        orderBy: { id: "asc" },
+        ...page,
+      }),
+    );
     let sent = 0;
     for (const c of companies) {
       const tz = timeZoneForCountry(c.country);
@@ -427,16 +489,19 @@ export class EmailProgramsService {
   // ------------------------------------------------------------ teklifsiz talep
 
   async sendZeroBidReminders(now: Date): Promise<number> {
-    const listings = await this.prisma.listing.findMany({
-      where: {
-        status: "OPEN",
-        publishedAt: { not: null },
-        closesAt: { gt: new Date(now.getTime() + 12 * HOUR_MS), lte: new Date(now.getTime() + 72 * HOUR_MS) },
-        bids: { none: { status: { not: "DRAFT" } } },
-      },
-      select: { id: true, title: true, number: true, closesAt: true, createdById: true, aiDiscovery: true },
-      take: 200,
-    });
+    const listings = await this.scanAll((page) =>
+      this.prisma.listing.findMany({
+        where: {
+          status: "OPEN",
+          publishedAt: { not: null },
+          closesAt: { gt: new Date(now.getTime() + 12 * HOUR_MS), lte: new Date(now.getTime() + 72 * HOUR_MS) },
+          bids: { none: { status: { not: "DRAFT" } } },
+        },
+        select: { id: true, title: true, number: true, closesAt: true, createdById: true, aiDiscovery: true },
+        orderBy: { id: "asc" },
+        ...page,
+      }),
+    );
     let sent = 0;
     for (const l of listings) {
       // Tekillik iki kanaldan ayrı ayrı: e-posta EmailLog'dan, uygulama içi

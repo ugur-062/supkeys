@@ -451,6 +451,60 @@ describe("ExternalInviteDispatcher — gönderim", () => {
   });
 });
 
+describe("ExternalInviteDispatcher — üst üste binen tur ve iptal (derin denetim MU-14)", () => {
+  it("aynı anda koşan iki tur aynı daveti İKİ kez göndermez (atomik sahiplenme)", async () => {
+    const service = makeService();
+    const owner = await makeCompanyWithUser(prisma);
+    const listing = await openListing(owner.company.id, owner.user.id);
+    await service.inviteExternalForListing(owner.auth, listing.id, ["cift@firma.com"]);
+    await makeDue();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    let entered!: () => void;
+    const inside = new Promise<void>((r) => (entered = r));
+    const passthrough = { localizeListings: jest.fn(async (items: unknown[]) => items) };
+    const slow = makeDispatcher({
+      translations: {
+        ...passthrough,
+        ensureTranslated: jest.fn(async () => {
+          entered();
+          await gate;
+          return true;
+        }),
+      },
+    });
+    const fast = makeDispatcher({ translations: { ...passthrough, ensureTranslated: jest.fn().mockResolvedValue(true) } });
+    const first = slow.d.dispatch();
+    await inside; // ilk tur adresi aldı, çeviri bekliyor
+    await fast.d.dispatch();
+    release();
+    await first;
+    expect(slow.email.send.mock.calls.length + fast.email.send.mock.calls.length).toBe(1);
+    expect((await prisma.externalListingInvite.findFirstOrThrow({ where: { email: "cift@firma.com" } })).state).toBe("SENT");
+  });
+
+  it("iptal edilmiş referral davetinin kapanış hatırlatması GİTMEZ", async () => {
+    const service = makeService();
+    const { d, email } = makeDispatcher();
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const listing = await openListing(owner.company.id, owner.user.id, {
+      closesAt: new Date(Date.now() + 30 * 3_600_000),
+    });
+    await service.inviteExternalForListing(owner.auth, listing.id, ["vazgecildi@x.com"]);
+    const threeDaysAgo = new Date(Date.now() - 3 * 24 * 3_600_000);
+    await prisma.externalListingInvite.updateMany({ data: { state: "SENT", sentAt: threeDaysAgo } });
+    await prisma.emailLog.create({
+      data: { template: "tender_external_invite", toEmail: "vazgecildi@x.com", subject: "s", provider: "test", status: "SENT", contextType: "tender_external_invite", contextId: "ilk", queuedAt: threeDaysAgo },
+    });
+    const ref = await prisma.companyReferralInvite.findFirstOrThrow({ where: { email: "vazgecildi@x.com" } });
+    await service.cancelReferralInvite(owner.auth, ref.id);
+
+    const r = await d.dispatch();
+    expect(r.reminders).toBe(0);
+    expect(email.send).not.toHaveBeenCalled();
+  });
+});
+
 describe("Faz 3 — kayıtsız önizleme + önceden doldurma", () => {
   it("davet jetonuyla talebin TÜM kalemleri beyaz listeyle görünür; başka talep ve geçersiz jeton 404", async () => {
     const service = makeService();

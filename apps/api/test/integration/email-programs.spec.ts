@@ -65,7 +65,7 @@ describe("akşam özeti", () => {
     const created = new Date("2026-10-07T06:00:00Z"); // İstanbul 09:00
     for (const l of [open1, open2, closed]) {
       await prisma.emailDigestItem.create({
-        data: { email: "satis@firma.com", locale: "tr", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: l.id, createdAt: created },
+        data: { email: seller.user.email, locale: "tr", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: l.id, createdAt: created },
       });
     }
     expect(await svc.sendDigests(new Date("2026-10-07T12:00:00Z"))).toBe(0); // İstanbul 15:00
@@ -87,11 +87,72 @@ describe("akşam özeti", () => {
     const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const l = await makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN" });
     await prisma.emailDigestItem.create({
-      data: { email: "u@x.com", locale: "en", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: l.id, locked: true, createdAt: new Date(Date.now() - 25 * HOUR) },
+      data: { email: seller.user.email, locale: "en", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: l.id, locked: true, createdAt: new Date(Date.now() - 25 * HOUR) },
     });
     await svc.sendDigests(new Date());
     const data = (email.send.mock.calls[0][0] as { templateData: { data: { ctaUrl: string } } }).templateData.data;
     expect(data.ctaUrl).toBe("http://localhost:3000/en/company/plans");
+  });
+});
+
+describe("akşam özeti — günde TEK özet ve gönderim anında tercih (derin denetim MU-14)", () => {
+  it("18:00 özetinden sonra düşen kalem aynı akşam ayrı özet olarak GİTMEZ; ertesi sabah da gitmez, ertesi 18:00'de gider", async () => {
+    const clock = { now: null as Date | null };
+    const email = loggingEmail(clock);
+    const svc = new EmailProgramsService(prisma as never, email as never, { get: () => "http://localhost:3000" } as never);
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const [a, b, c] = await Promise.all(
+      ["Cıvata", "Rulman", "Somun"].map((title) =>
+        makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN", title, closesAt: new Date(Date.now() + 9 * DAY) }),
+      ),
+    );
+    const item = (listingId: string, createdAt: Date) =>
+      prisma.emailDigestItem.create({
+        data: { email: seller.user.email, locale: "tr", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId, createdAt },
+      });
+    await item(a!.id, new Date("2026-10-07T06:00:00Z")); // İstanbul 09:00
+    clock.now = new Date("2026-10-07T15:00:00Z"); // İstanbul 18:00
+    expect(await svc.sendDigests(clock.now)).toBe(1);
+
+    await item(b!.id, new Date("2026-10-07T15:40:00Z")); // İstanbul 18:40
+    clock.now = new Date("2026-10-07T15:45:00Z");
+    expect(await svc.sendDigests(clock.now)).toBe(0);
+    clock.now = new Date("2026-10-07T19:00:00Z"); // İstanbul 22:00
+    expect(await svc.sendDigests(clock.now)).toBe(0);
+    // Ertesi sabah: dünün özeti gitmişti → "dünden kalan" kuralı tetiklenmez.
+    clock.now = new Date("2026-10-08T07:00:00Z"); // İstanbul 10:00
+    expect(await svc.sendDigests(clock.now)).toBe(0);
+    await item(c!.id, new Date("2026-10-08T08:00:00Z"));
+    clock.now = new Date("2026-10-08T15:00:00Z"); // İstanbul 18:00
+    expect(await svc.sendDigests(clock.now)).toBe(1);
+    expect(email.send).toHaveBeenCalledTimes(2);
+    const rows = (email.send.mock.calls[1]![0] as unknown as { templateData: { data: { infoRows: Array<{ label: string }> } } })
+      .templateData.data.infoRows.map((r) => r.label.split(" (")[0]);
+    expect(rows.sort()).toEqual(["Rulman", "Somun"]);
+    expect(await prisma.emailDigestItem.count({ where: { sentAt: null } })).toBe(0);
+  });
+
+  it("kuyruğa alındıktan sonra tercih kapatıldıysa (tek tık çıkış) özet gitmez, kalemler düşer", async () => {
+    const { svc, email } = makeService();
+    const seller = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const a = await makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN" });
+    const b = await makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN" });
+    const created = new Date("2026-10-07T06:00:00Z");
+    await prisma.emailDigestItem.create({
+      data: { email: seller.user.email, locale: "tr", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: a.id, createdAt: created },
+    });
+    await prisma.emailDigestItem.create({
+      data: { email: seller.user.email, locale: "tr", companyId: seller.company.id, kind: "INVITATION", listingId: b.id, createdAt: created },
+    });
+    await prisma.companyUser.update({
+      where: { id: seller.user.id },
+      data: { notificationPrefs: { categoryMatch: false, invitation: false } },
+    });
+    expect(await svc.sendDigests(new Date("2026-10-07T15:30:00Z"))).toBe(0);
+    expect(email.send).not.toHaveBeenCalled();
+    expect(await prisma.emailDigestItem.count({ where: { sentAt: null } })).toBe(0);
   });
 });
 
@@ -102,7 +163,7 @@ describe("kilitli özet — doğrulanmamış ücretsiz firma (2026-09-28)", () =
     const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
     const l = await makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN" });
     await prisma.emailDigestItem.create({
-      data: { email: "u@x.com", locale: "tr", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: l.id, locked: true, createdAt: new Date(Date.now() - 25 * HOUR) },
+      data: { email: seller.user.email, locale: "tr", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: l.id, locked: true, createdAt: new Date(Date.now() - 25 * HOUR) },
     });
     await svc.sendDigests(new Date());
     const data = (email.send.mock.calls[0][0] as { templateData: { data: { ctaUrl: string; ctaLabel: string } } }).templateData.data;
@@ -120,10 +181,10 @@ describe("davet özeti (AI üye davetleri, 2026-09-28)", () => {
     const b = await makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN", title: "Rulman" });
     const created = new Date("2026-10-07T06:00:00Z");
     await prisma.emailDigestItem.create({
-      data: { email: "satis@firma.com", locale: "tr", companyId: seller.company.id, kind: "INVITATION", listingId: a.id, createdAt: created },
+      data: { email: seller.user.email, locale: "tr", companyId: seller.company.id, kind: "INVITATION", listingId: a.id, createdAt: created },
     });
     await prisma.emailDigestItem.create({
-      data: { email: "satis@firma.com", locale: "tr", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: b.id, createdAt: created },
+      data: { email: seller.user.email, locale: "tr", companyId: seller.company.id, kind: "CATEGORY_MATCH", listingId: b.id, createdAt: created },
     });
     expect(await svc.sendDigests(new Date("2026-10-07T15:30:00Z"))).toBe(2);
     const calls = email.send.mock.calls.map((c) => c[0] as { subject: string; context: { type: string } });
@@ -174,6 +235,23 @@ describe("karşılama serisi", () => {
     });
     expect(await svc.sendLifecycle(new Date("2026-10-07T07:15:00Z"))).toBe(0);
     expect(email.send).not.toHaveBeenCalled();
+  });
+});
+
+describe("karşılama serisi — tavansız tarama (derin denetim MU-14)", () => {
+  it("aday sayısı sayfa boyunu aşsa da tüm firmalar işlenir (sıralı imleç)", async () => {
+    const { svc, email } = makeService();
+    (svc as unknown as { scanPageSize: number }).scanPageSize = 1;
+    for (let i = 0; i < 3; i++) {
+      const c = await makeCompanyWithUser(prisma, { country: "TR" });
+      await prisma.company.update({
+        where: { id: c.company.id },
+        data: { onboardingCompletedAt: new Date("2026-10-05T07:00:00Z"), ownerUserId: c.user.id, aboutText: null },
+      });
+      await prisma.companyUser.update({ where: { id: c.user.id }, data: { lastLoginAt: new Date("2026-10-06T07:00:00Z") } });
+    }
+    expect(await svc.sendLifecycle(new Date("2026-10-07T07:15:00Z"))).toBe(3);
+    expect(email.send).toHaveBeenCalledTimes(3);
   });
 });
 

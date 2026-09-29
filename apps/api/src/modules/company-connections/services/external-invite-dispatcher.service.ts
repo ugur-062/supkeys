@@ -39,6 +39,14 @@ const DAY_MS = 24 * HOUR_MS;
 const TRANSLATION_GRACE_MS = 10 * 60_000;
 /** Bir turda bakılan en fazla sırası gelmiş davet. */
 const DUE_BATCH = 300;
+/**
+ * Sahiplenme kirası: adresin davetleri işlenmeden önce `sendAfter` bu kadar
+ * ileri itilir (atomik, `state=QUEUED ∧ sendAfter<=now` koşuluyla). Aynı
+ * anda koşan ikinci bir tur (kilit fail-open, çok örnek) aynı satırı alamaz;
+ * süreç gönderim ortasında ölürse satır kira bitince yeniden denenir.
+ * (Derin denetim MU-14.)
+ */
+const CLAIM_LEASE_MS = 10 * 60_000;
 
 /**
  * Davet e-postası gidebilecek talep: yayında (OPEN), açılış embargosu geçmiş
@@ -251,13 +259,32 @@ export class ExternalInviteDispatcher {
     return r.count;
   }
 
+  /**
+   * Satırları tek tek atomik sahiplenir; başka bir turun o an işlediği (kirası
+   * süren) ya da artık QUEUED olmayan satır düşer.
+   */
+  private async claim(group: DueInvite[], now: Date): Promise<DueInvite[]> {
+    const lease = new Date(now.getTime() + CLAIM_LEASE_MS);
+    const claimed: DueInvite[] = [];
+    for (const inv of group) {
+      const r = await this.prisma.externalListingInvite.updateMany({
+        where: { id: inv.id, state: "QUEUED", sendAfter: { lte: now } },
+        data: { sendAfter: lease },
+      });
+      if (r.count === 1) claimed.push(inv);
+    }
+    return claimed;
+  }
+
   private async processAddress(
     email: string,
-    group: DueInvite[],
+    due: DueInvite[],
     now: Date,
     builder: InviteContentBuilder,
   ): Promise<{ sent: boolean; deferred: number; cancelled: number }> {
     const out = { sent: false, deferred: 0, cancelled: 0 };
+    const group = await this.claim(due, now);
+    if (group.length === 0) return out;
     const state = await this.addressState(email, now);
     if (state.optedOut) {
       out.cancelled += await this.cancel(group.map((g) => g.id), "OPTED_OUT");
@@ -323,6 +350,14 @@ export class ExternalInviteDispatcher {
     if (ready.length === 0) return out;
 
     const batch = ready.slice(0, INVITE_DIGEST_MAX);
+    const rest = ready.slice(INVITE_DIGEST_MAX);
+    if (rest.length > 0) {
+      // Özete sığmayanlar kirada beklemesin: sonraki turda sıradalar.
+      await this.prisma.externalListingInvite.updateMany({
+        where: { id: { in: rest.map((r) => r.id) }, state: "QUEUED" },
+        data: { sendAfter: now },
+      });
+    }
     const sent = await this.sendBatch(email, batch, builder, false);
     if (sent === "SENT") {
       out.sent = true;
@@ -433,6 +468,10 @@ export class ExternalInviteDispatcher {
         state: "SENT",
         reminderSentAt: null,
         sentAt: { lte: new Date(now.getTime() - DAY_MS) },
+        // İptal edilmiş (davet eden vazgeçti / paketi düştü) ya da kabul
+        // edilmiş jetonun hatırlatması gitmez — iptal SENT satırı SENT bırakır
+        // ve bağlantı önizlemede 404 açardı (derin denetim MU-14).
+        referralInvite: { status: "PENDING" },
         listing: {
           ...sendableListingWhere(now),
           closesAt: {
