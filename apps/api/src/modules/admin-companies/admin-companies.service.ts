@@ -238,7 +238,7 @@ export class AdminCompaniesService {
         },
       });
       if (!c) return;
-      this.notifyCompanyEmail(c, msg);
+      void this.notifyCompanyEmail(c, msg);
     } catch (err) {
       this.logger.warn(
         `Admin bildirimi e-posta hazırlanamadı (${companyId}): ${
@@ -252,6 +252,10 @@ export class AdminCompaniesService {
    * notifyCompany'nin E-POSTA yarısı — alıcı satırı ÖNCEDEN çekilmiş olarak alır
    * (announce toplu gönderiminde per-firma findUnique N+1'ini önlemek için).
    * Push (in-app) çağıranda; bu yalnız e-posta gönderir.
+   *
+   * Hata FIRLATMAZ (reddi kendisi yutar/loglar); sonucu döner — toplu duyuru
+   * gönderilen/başarısız sayısını buradan toplar (derin denetim Y-08/X18).
+   * `priority: "bulk"` duyuru kuyruğunun diğer e-postaları bekletmemesi için.
    */
   private notifyCompanyEmail(
     company: {
@@ -266,9 +270,10 @@ export class AdminCompaniesService {
       }[];
     },
     msg: AdminNotifyMessage,
-  ) {
+    opts?: { priority?: "bulk" },
+  ): Promise<"sent" | "skipped" | "failed"> {
     const email = company.billingEmail || company.users[0]?.email;
-    if (!email) return;
+    if (!email) return Promise.resolve("skipped");
     const name = company.users[0]
       ? `${company.users[0].firstName} ${company.users[0].lastName}`.trim() ||
         company.name
@@ -295,7 +300,7 @@ export class AdminCompaniesService {
       msg.cta?.path ?? "/company",
       locale,
     );
-    void this.email
+    return this.email
       .send({
         to: { email, name },
         subject,
@@ -305,14 +310,17 @@ export class AdminCompaniesService {
           data: { subject, heading: subject, paragraphs, ctaLabel, ctaUrl },
         },
         context: { type: msg.type, id: company.id },
+        ...(opts?.priority ? { priority: opts.priority } : {}),
       })
-      .catch((err: unknown) =>
+      .then((r): "sent" | "skipped" => (r.sent ? "sent" : "skipped"))
+      .catch((err: unknown): "failed" => {
         this.logger.warn(
           `Admin e-postası gönderilemedi (${company.id}): ${
             err instanceof Error ? err.message : String(err)
           }`,
-        ),
-      );
+        );
+        return "failed";
+      });
   }
 
   /**
@@ -2168,6 +2176,14 @@ export class AdminCompaniesService {
     };
     const CHUNK = 25;
     let delivered = 0;
+    // E-POSTA (derin denetim Y-08/X18): eskiden `void email.send` ile 5000'e
+    // kadar gönderim aynı anda uçuyor, Resend 429'unda FAILED kalıyor ve DB
+    // havuzunu tüketiyordu. Artık her gönderim EmailService kuyruğundan
+    // (`bulk` öncelik, saniyelik hız + sınırlı eşzamanlılık + 429 yeniden
+    // deneme) geçer. İstek e-postaları BEKLEMEZ — hesabın saniyelik limitiyle
+    // 1000 e-posta dakikalar sürer, HTTP isteği zaman aşımına düşerdi; sonuç
+    // sayıları bitince ayrı audit satırına yazılır.
+    const emailJobs: Promise<"sent" | "skipped" | "failed">[] = [];
     for (let i = 0; i < targets.length; i += CHUNK) {
       const results = await Promise.allSettled(
         targets.slice(i, i + CHUNK).map(async (t) => {
@@ -2196,12 +2212,18 @@ export class AdminCompaniesService {
                 "admin_announcement",
               );
             if (emailAllowed) {
-              this.notifyCompanyEmail(t, {
-                type: "admin_announcement",
-                subject,
-                body: message,
-                paragraphs: [message],
-              });
+              emailJobs.push(
+                this.notifyCompanyEmail(
+                  t,
+                  {
+                    type: "admin_announcement",
+                    subject,
+                    body: message,
+                    paragraphs: [message],
+                  },
+                  { priority: "bulk" },
+                ),
+              );
             }
           } else {
             await this.notifications.pushToCompany(t.id, pushPayload);
@@ -2232,9 +2254,58 @@ export class AdminCompaniesService {
         targets: targets.length,
         delivered,
         truncated,
+        ...(input.sendEmail ? { emailQueued: emailJobs.length } : {}),
       },
     });
-    return { ok: true, targets: targets.length, delivered, truncated };
+    if (emailJobs.length > 0) {
+      void this.recordAnnouncementEmailResult(emailJobs, {
+        adminId,
+        subject: input.subject,
+      });
+    }
+    return {
+      ok: true,
+      targets: targets.length,
+      delivered,
+      truncated,
+      ...(input.sendEmail ? { emailQueued: emailJobs.length } : {}),
+    };
+  }
+
+  /**
+   * Duyuru e-postaları kuyrukta bitince gerçek sonucu audit'e yazar
+   * (`delivered` yalnız in-app push'u sayar; e-posta kaybı görünmüyordu).
+   * Fail-safe: audit hatası yalnız loglanır.
+   */
+  private async recordAnnouncementEmailResult(
+    jobs: Promise<"sent" | "skipped" | "failed">[],
+    meta: { adminId: string; subject: string },
+  ): Promise<{ sent: number; skipped: number; failed: number }> {
+    const results = await Promise.all(jobs);
+    const counts = { sent: 0, skipped: 0, failed: 0 };
+    for (const r of results) counts[r]++;
+    if (counts.failed > 0) {
+      this.logger.warn(
+        `Duyuru e-postaları: ${counts.sent} gönderildi, ${counts.failed} başarısız, ${counts.skipped} atlandı`,
+      );
+    }
+    try {
+      await this.audit.log({
+        action: "admin.announcement.email_completed",
+        actorType: "admin",
+        actorId: meta.adminId,
+        entityType: "announcement",
+        entityId: null,
+        metadata: { subject: meta.subject, ...counts },
+      });
+    } catch (err) {
+      this.logger.warn(
+        `Duyuru e-posta sonucu audit'e yazılamadı: ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
+    return counts;
   }
 
   async resolveComplaint(

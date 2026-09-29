@@ -22,6 +22,12 @@ import {
 } from "./email-streams";
 import { signUnsubscribeToken } from "./unsubscribe-token";
 import { maskEmail } from "../../common/logging/mask-email";
+import {
+  EmailSendThrottle,
+  isRetryableEmailError,
+  retryDelayMs,
+  type EmailSendPriority,
+} from "./email-send-throttle";
 
 // Geriye-dönük uyumluluk: mevcut import'lar (testler dahil) bu sembolü
 // email.service'ten çeker. Tek kaynak critical-contexts.ts; burada re-export.
@@ -44,6 +50,28 @@ export interface SendEmailInput {
    * "ABC İnşaat (Rothern üzerinden)". Verilmezse `EMAIL_FROM_NAME`.
    */
   fromName?: string;
+  /**
+   * Gönderim kuyruğundaki öncelik (bkz. email-send-throttle). Verilmezse
+   * akıştan türer: işlem e-postası `high`, diğerleri `normal`. Toplu yönetici
+   * duyurusu `bulk` geçer — diğer e-postaları arkasında bekletmesin. Kritik
+   * (kod/şifre/2FA) e-posta her zaman `high`.
+   */
+  priority?: EmailSendPriority;
+}
+
+/** Sağlayıcı çağrısı için en fazla deneme (ilk + 2 yeniden deneme). */
+export const EMAIL_SEND_MAX_ATTEMPTS = 3;
+/**
+ * Varsayılan hız — Resend'in varsayılan takım limiti saniyede 2 istek.
+ * Hesap limiti yükseltildiyse `EMAIL_SEND_RATE_PER_SEC` ile artırılır.
+ */
+const DEFAULT_EMAIL_SEND_RATE_PER_SEC = 2;
+/** Aynı anda koşan gönderim hattı (DB sorguları + render + sağlayıcı). */
+const DEFAULT_EMAIL_SEND_CONCURRENCY = 4;
+
+function positiveNumber(v: unknown, fallback: number): number {
+  const n = typeof v === "number" ? v : Number(v);
+  return Number.isFinite(n) && n > 0 ? n : fallback;
 }
 
 /**
@@ -94,7 +122,14 @@ export const REDACTED_CONTEXT_TYPES = new Set([
  *   4. EmailLog UPDATE (SENT veya FAILED)
  *
  * Caller pattern: fire-and-forget — `emailService.send({...}).catch(logger.error)`.
- * Resend kendi retry mantığına sahip, dahili olarak idempotent.
+ *
+ * Resend SDK'sı (v4) 429/5xx'te YENİDEN DENEMEZ; toplu bildirimler aynı anda
+ * ateşlenince hesabın saniyelik limiti aşılıp e-postalar sessizce FAILED
+ * kalıyordu (derin denetim 2026-09-29 Y-08). Bu yüzden her gönderim süreç içi
+ * `EmailSendThrottle`dan geçer (sınırlı eşzamanlılık + öncelik + jeton kovası)
+ * ve 429/5xx üstel geri çekilmeyle `EMAIL_SEND_MAX_ATTEMPTS` kez denenir.
+ * Kuyruk bellektedir: süreç yeniden başlarsa henüz hat almamış gönderimler
+ * kaybolur (EmailLog satırı da henüz yazılmamıştır).
  */
 @Injectable()
 export class EmailService implements OnModuleInit {
@@ -103,11 +138,24 @@ export class EmailService implements OnModuleInit {
   private providerName!: EmailProviderName;
   /** Akış başına gönderen (boş akış varsayılana düşer — bkz. email-streams). */
   private senders!: Record<EmailStream, { email: string; name?: string }>;
+  private throttle: EmailSendThrottle;
 
   constructor(
     private readonly config: ConfigService,
     private readonly prisma: PrismaService,
-  ) {}
+  ) {
+    // Kurucuda (onModuleInit'te değil): birim testleri servisi elle kurar.
+    this.throttle = new EmailSendThrottle({
+      ratePerSec: positiveNumber(
+        this.config.get<string>("EMAIL_SEND_RATE_PER_SEC"),
+        DEFAULT_EMAIL_SEND_RATE_PER_SEC,
+      ),
+      maxConcurrent: positiveNumber(
+        this.config.get<string>("EMAIL_SEND_CONCURRENCY"),
+        DEFAULT_EMAIL_SEND_CONCURRENCY,
+      ),
+    });
+  }
 
   onModuleInit() {
     const provider = (this.config.get<string>("EMAIL_PROVIDER") ??
@@ -153,6 +201,49 @@ export class EmailService implements OnModuleInit {
    * dürüst-sinyal (`emailSent` / 2FA 503) bu yolda devre dışı kalıyordu.
    */
   async send(
+    input: SendEmailInput,
+  ): Promise<{ emailLogId: string; sent: boolean }> {
+    return this.throttle.run(this.priorityFor(input), () => this.sendNow(input));
+  }
+
+  private priorityFor(input: SendEmailInput): EmailSendPriority {
+    if (isCriticalEmailContext(input.context?.type)) return "high";
+    if (input.priority) return input.priority;
+    return streamForContext(input.context?.type) === "TRANSACTIONAL" ? "high" : "normal";
+  }
+
+  /**
+   * Sağlayıcı çağrısı — her deneme hız jetonu alır; 429/5xx'te üstel geri
+   * çekilmeyle yeniden dener. Başarısız son denemenin hatası `attempts` ile
+   * fırlatılır.
+   */
+  private async sendWithRetry(
+    payload: Parameters<EmailClient["send"]>[0],
+    logId: string,
+  ): Promise<{ result: Awaited<ReturnType<EmailClient["send"]>>; attempts: number }> {
+    for (let attempt = 1; ; attempt++) {
+      await this.throttle.acquireToken();
+      try {
+        const result = await this.client.send(payload);
+        return { result, attempts: attempt };
+      } catch (err) {
+        if (attempt >= EMAIL_SEND_MAX_ATTEMPTS || !isRetryableEmailError(err)) {
+          throw Object.assign(err instanceof Error ? err : new Error(String(err)), {
+            emailAttempts: attempt,
+          });
+        }
+        const delay = retryDelayMs(attempt);
+        this.logger.warn(
+          `Email ${logId} geçici hata (deneme ${attempt}/${EMAIL_SEND_MAX_ATTEMPTS}), ${delay} ms sonra yeniden: ${
+            err instanceof Error ? err.message : String(err)
+          }`,
+        );
+        await this.throttle.wait(delay);
+      }
+    }
+  }
+
+  private async sendNow(
     input: SendEmailInput,
   ): Promise<{ emailLogId: string; sent: boolean }> {
     // G-M2 suppression: kalıcı-bounce (hard) veya şikayet (complaint) almış
@@ -290,12 +381,15 @@ export class EmailService implements OnModuleInit {
       // Elle kurulan servis (birim testleri onModuleInit'i koşmaz) istemcinin
       // varsayılan göndericisine düşer.
       const sender = this.senders?.[stream];
-      const result = await this.client.send({
-        to: input.to,
-        rendered,
-        ...(sender ? { from: { email: sender.email, name: input.fromName ?? sender.name } } : {}),
-        ...(unsubscribe ? { headers: unsubscribe.headers } : {}),
-      });
+      const { result, attempts } = await this.sendWithRetry(
+        {
+          to: input.to,
+          rendered,
+          ...(sender ? { from: { email: sender.email, name: input.fromName ?? sender.name } } : {}),
+          ...(unsubscribe ? { headers: unsubscribe.headers } : {}),
+        },
+        log.id,
+      );
 
       await this.prisma.emailLog.update({
         where: { id: log.id },
@@ -305,6 +399,7 @@ export class EmailService implements OnModuleInit {
           providerMessageId: result.providerMessageId,
           sentAt: new Date(),
           errorMessage: null,
+          ...(attempts > 1 ? { attemptCount: attempts } : {}),
         },
       });
 
@@ -314,6 +409,7 @@ export class EmailService implements OnModuleInit {
       return { emailLogId: log.id, sent: true };
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : String(err);
+      const attempts = (err as { emailAttempts?: number } | null)?.emailAttempts;
       await this.prisma.emailLog.update({
         where: { id: log.id },
         data: {
@@ -321,6 +417,7 @@ export class EmailService implements OnModuleInit {
           subject: rendered.subject,
           errorMessage,
           failedAt: new Date(),
+          ...(attempts && attempts > 1 ? { attemptCount: attempts } : {}),
         },
       });
       this.logger.error(`Email ${log.id} send failed: ${errorMessage}`);

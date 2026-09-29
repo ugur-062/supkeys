@@ -382,6 +382,35 @@ describe("announce — toplu duyuru (batch + paralel, per-firma findUnique yok)"
     expect((log.metadata as { delivered: number }).delivered).toBe(3);
   });
 
+  it("Y-08: e-postalar `bulk` öncelikle kuyruğa gider; yanıt emailQueued, bitince sent/failed audit'e yazılır", async () => {
+    const { service, email } = announceRig();
+    for (let i = 0; i < 3; i++) await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    // Biri başarısız, biri suppress (sent:false), biri gönderildi.
+    email.send
+      .mockRejectedValueOnce(new Error("[resend] rate_limit_exceeded: x"))
+      .mockResolvedValueOnce({ emailLogId: "s", sent: false })
+      .mockResolvedValueOnce({ emailLogId: "t", sent: true });
+
+    const res = await service.announce(
+      { subject: "Duyuru", message: "Merhaba", sendEmail: true },
+      "admin-1",
+    );
+    expect(res).toMatchObject({ targets: 3, delivered: 3, emailQueued: 3 });
+    // Duyuru kuyruğu diğer e-postaları bekletmesin: bulk öncelik.
+    for (const call of email.send.mock.calls) {
+      expect(call[0]).toMatchObject({ priority: "bulk" });
+    }
+    // E-posta sonucu arka planda yazılır.
+    let done = null as Awaited<ReturnType<typeof prisma.auditLog.findFirst>>;
+    for (let i = 0; i < 50 && !done; i++) {
+      await new Promise((r) => setTimeout(r, 20));
+      done = await prisma.auditLog.findFirst({
+        where: { action: "admin.announcement.email_completed" },
+      });
+    }
+    expect(done?.metadata).toMatchObject({ sent: 1, skipped: 1, failed: 1 });
+  });
+
   it("sendEmail=false: yalnız in-app push, e-posta yok", async () => {
     const { service, email, notifications } = announceRig();
     await makeCompanyWithUser(prisma, { tier: "GOLD" });
