@@ -130,9 +130,17 @@ export class DiscoveryRunsService {
     return Number(agg._sum.costUsd ?? 0);
   }
 
+  /**
+   * Günlük platform tavanı. `0` = DURDUR anahtarı (web araması koşmaz; platform
+   * üyesi önerileri model istemediği için sürer) — `CONTENT_TRANSLATION_DAILY_USD`
+   * ve `COLD_INVITE_MAX_DAILY` ile aynı kural (yayın denetimi 2026-09-28 Bölüm 15;
+   * eskiden 0 varsayılan 15 USD'ye düşüyordu). Tanımsız/boş/geçersiz → varsayılan.
+   */
   private dailyBudgetUsd(): number {
-    const v = Number(this.config.get<string>("AI_DISCOVERY_DAILY_USD"));
-    return Number.isFinite(v) && v > 0 ? v : DEFAULT_DAILY_USD;
+    const raw = this.config.get<string>("AI_DISCOVERY_DAILY_USD")?.toString().trim();
+    if (!raw) return DEFAULT_DAILY_USD;
+    const v = Number(raw);
+    return Number.isFinite(v) && v >= 0 ? v : DEFAULT_DAILY_USD;
   }
 
   /** Tek turu işler; atomik sahiplenme (iki örnek aynı turu koşmaz). */

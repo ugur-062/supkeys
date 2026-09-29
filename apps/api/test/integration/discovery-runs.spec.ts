@@ -139,6 +139,17 @@ describe("DiscoveryRunsService", () => {
     expect(Number(run.costUsd)).toBeGreaterThanOrEqual(0.06);
   });
 
+  it("AI_DISCOVERY_DAILY_USD=0 durdurma anahtarı: web araması koşmaz (Bölüm 15)", async () => {
+    const ai = fakeAi([]);
+    const { runs } = makeRuns({ ai, config: { AI_DISCOVERY_DAILY_USD: "0" } });
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const l = await openListing(owner.company.id, owner.user.id);
+    const runId = await runs.enqueue(l.id, "PUBLISH");
+    await runs.process(runId!);
+    expect((await prisma.supplierDiscoveryRun.findUniqueOrThrow({ where: { id: runId! } })).error).toBe("platform_daily_budget");
+    expect(ai.callAiSystem).not.toHaveBeenCalled();
+  });
+
   it("günlük platform tavanı dolduysa tur KOŞMAZ (FAILED platform_daily_budget)", async () => {
     const ai = fakeAi([]);
     const { runs } = makeRuns({ ai, config: { AI_DISCOVERY_DAILY_USD: "1" } });
