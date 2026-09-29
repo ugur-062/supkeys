@@ -4,17 +4,22 @@ on:
   # Full-suite lokal + CI'da yeşil (74 suite / 788 test, 0 deadlock). Testler lokal
   # Postgres service container'a koşar (aşağıda), remote Supabase'e DEĞİL; deadlock
   # fix connection_limit=1 kodda (ortamdan bağımsız aktif). Doc-only değişiklik CI
-  # yakmaz (paths-ignore, billing — private repo).
+  # yakmaz (billing — private repo): push'ta paths-ignore, PR'da `changes` işi.
   push:
     branches: [main, production]
     paths-ignore:
       - '**.md'
       - 'docs/**'
+  # PR'da paths-ignore YOK (derin denetim LU-01): `production`da zorunlu
+  # "Test (api + typecheck)" kontrolü için eskiden `test-docs-only.yml` aynı
+  # adlı, anında yeşil biten sahte bir iş üretiyordu. `paths` süzgecine TEK
+  # .md dosyası yetiyordu → kod+belge içeren yayın PR'ında iki aynı adlı
+  # kontrol oluşuyor, sahte olan zorunlu kontrolü gerçek testler bitmeden
+  # karşılayabiliyordu. Artık tek iş, tek ad: yalnız belge içeren PR'da
+  # `test` işi `if:` ile ATLANIR (atlanan iş zorunlu kontrolü başarılı sayar),
+  # kod varsa her zaman koşar.
   pull_request:
     branches: [main, production]
-    paths-ignore:
-      - '**.md'
-      - 'docs/**'
   workflow_dispatch:
 
 # Çakışan pipeline'ları iptal et — sadece son commit kalır
@@ -23,8 +28,40 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Yalnız-belge PR tespiti. Hata olursa `code=true` — şüphede testler koşar.
+  changes:
+    name: Değişiklik türü
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      code: ${{ steps.f.outputs.code }}
+    steps:
+      - id: f
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EVENT: ${{ github.event_name }}
+          PR: ${{ github.event.pull_request.number }}
+          REPO: ${{ github.repository }}
+        run: |
+          code=true
+          if [ "$EVENT" = "pull_request" ]; then
+            if files=$(gh api "repos/$REPO/pulls/$PR/files" --paginate --jq '.[].filename') && [ -n "$files" ]; then
+              if ! printf '%s\n' "$files" | grep -Ev '(\.md$|^docs/)' | grep -q .; then
+                code=false
+              fi
+            fi
+          fi
+          echo "code=$code" >> "$GITHUB_OUTPUT"
+          echo "code=$code"
+
   test:
     name: Test (api + typecheck)
+    needs: changes
+    # `!cancelled()`: `changes` düşse bile (çıktı boş → != 'false') testler koşar.
+    if: ${{ !cancelled() && needs.changes.outputs.code != 'false' }}
     runs-on: ubuntu-latest
     timeout-minutes: 45  # lint + 3 app build + ön yüz testleri eklendi (P11 #8)
 
