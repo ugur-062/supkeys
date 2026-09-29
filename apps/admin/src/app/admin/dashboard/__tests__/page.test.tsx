@@ -6,13 +6,22 @@ const h = vi.hoisted(() => ({
   companies: { data: undefined as unknown, isLoading: false },
   complaints: { data: undefined as unknown, isLoading: false },
   stats: { data: undefined as unknown, isLoading: false },
+  admin: { role: "SUPER_ADMIN" } as { role: string } | null,
+  companiesOpts: [] as unknown[],
+}));
+
+vi.mock("@/hooks/use-admin-auth", () => ({
+  useAdminAuth: () => ({ admin: h.admin }),
 }));
 
 vi.mock("@/hooks/use-admin-products", () => ({
   useAdminProductStats: () => ({ data: { pending: 2, rejected: 0, oldestPendingSince: null }, isLoading: false }),
 }));
 vi.mock("@/hooks/use-admin-companies", () => ({
-  useAdminCompanies: () => h.companies,
+  useAdminCompanies: (_p: unknown, opts?: unknown) => {
+    h.companiesOpts.push(opts);
+    return h.companies;
+  },
   useAdminComplaints: () => h.complaints,
   useAdminCompanyStats: () => h.stats,
 }));
@@ -59,6 +68,8 @@ beforeEach(() => {
   h.companies = { data: undefined, isLoading: false };
   h.complaints = { data: undefined, isLoading: false };
   h.stats = { data: undefined, isLoading: false };
+  h.admin = { role: "SUPER_ADMIN" };
+  h.companiesOpts = [];
 });
 
 describe("AdminDashboardPage — DashboardContent", () => {
@@ -160,5 +171,49 @@ describe("AdminDashboardPage — DashboardContent", () => {
 
     // 4 panel: üyelikler, ülke dağılımı, son firmalar, açık şikayetler.
     expect(screen.getAllByText("Yükleniyor…")).toHaveLength(4);
+  });
+
+  it("İnceleme Bekleyen kartı Başvurular kuyruğuna gider (queue=kyc evreni) — LU-11", () => {
+    h.stats = { data: statsFixture(), isLoading: false };
+    h.companies = { data: { items: [], total: 0 }, isLoading: false };
+    h.complaints = { data: { items: [], total: 0 }, isLoading: false };
+    render(<AdminDashboardPage />);
+    const card = screen.getByText("İnceleme Bekleyen").closest("a");
+    expect(card).toHaveAttribute("href", "/admin/basvurular");
+    expect(h.companiesOpts.at(-1)).toEqual({ enabled: true });
+  });
+
+  it("SUPPORT: firma listesi istenmez, Son Firmalar gizli, 403 veren sayfalara bağlantı yok — LU-11", () => {
+    h.admin = { role: "SUPPORT" };
+    h.stats = { data: statsFixture(), isLoading: false };
+    h.companies = { data: undefined, isLoading: false };
+    h.complaints = {
+      data: {
+        items: [
+          {
+            id: "x1",
+            against: { id: "a1", name: "Kötü Firma" },
+            reason: "spam",
+            complainant: { name: "Şikayetçi" },
+          },
+        ],
+        total: 1,
+      },
+      isLoading: false,
+    };
+    render(<AdminDashboardPage />);
+
+    expect(h.companiesOpts.at(-1)).toEqual({ enabled: false });
+    expect(screen.queryByText("Son Firmalar")).not.toBeInTheDocument();
+    expect(screen.queryByText("Firma yok")).not.toBeInTheDocument();
+    expect(screen.getByText("Toplam Firma").closest("a")).toBeNull();
+    expect(screen.getByText("İnceleme Bekleyen").closest("a")).toBeNull();
+    for (const a of screen.getAllByRole("link")) {
+      expect(a.getAttribute("href") ?? "").not.toMatch(/^\/admin\/(firmalar|basvurular)/);
+    }
+    expect(screen.getByText("Kötü Firma").closest("a")).toHaveAttribute(
+      "href",
+      "/admin/sikayetler",
+    );
   });
 });

@@ -38,7 +38,8 @@ export type AdminAction =
   | "timeSavingsConfig" // POST admin/system/time-savings-config
   | "listSuppressions" // companies/:id/users/:userId/{password-reset,resend,drop-sessions} — @AllowAnyAdminRole
   | "resolveCategoryMiss" // POST admin/system/category-misses/:id/resolve
-  | "globalSearch"; // GET admin/search (üst çubuk global arama)
+  | "globalSearch" // GET admin/search (üst çubuk global arama)
+  | "listCompanies"; // GET admin/companies (firma listesi + detay; KYC PII, SUPPORT'a kapalı)
 
 const SUPER: AdminRole[] = ["SUPER_ADMIN"];
 const KYC: AdminRole[] = ["SUPER_ADMIN", "SALES"];
@@ -69,6 +70,7 @@ export const ADMIN_ACTION_ROLES: Record<AdminAction, AdminRole[]> = {
   listSuppressions: KYC,
   resolveCategoryMiss: KYC,
   globalSearch: KYC,
+  listCompanies: KYC,
 };
 
 /** Rol bu aksiyonu yapabilir mi? (frontend buton kapısı — backend otorite kalır) */

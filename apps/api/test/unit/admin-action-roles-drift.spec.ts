@@ -61,6 +61,9 @@ const EXPECTED: Record<string, Spec> = {
   // Derin denetim MU-21: üst çubuktaki global arama SUPPORT'a da çiziliyordu,
   // her tuşta 403 toast'ı. GET admin/search kapısı matrisle eşlenir.
   globalSearch: { kind: "method", ctrl: AdminCompaniesController, method: "search", roles: KYC },
+  // Derin denetim LU-11: Genel Bakış "Son Firmalar" paneli SUPPORT'ta da
+  // GET admin/companies çağırıp her açılışta 403 toast'ı basıyordu.
+  listCompanies: { kind: "method", ctrl: AdminCompaniesController, method: "list", roles: KYC },
 };
 
 describe("admin-action-roles DRIFT NÖBETÇİSİ (matris ↔ backend @RequireAdminRole)", () => {

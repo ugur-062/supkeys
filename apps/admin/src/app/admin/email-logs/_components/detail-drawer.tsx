@@ -43,8 +43,17 @@ function formatRelative(date: string | null) {
 }
 
 export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
-  // Yeniden gönderim gerçek dış etki — iki adımlı onay.
-  const [confirmResend, setConfirmResend] = useState(false);
+  // Yeniden gönderim gerçek dış etki — iki adımlı onay. Onay açıldığı KAYDA
+  // bağlı tutulur (derin denetim LU-11): çekmece hep mount olduğundan düz bir
+  // boolean A'da açılan "emin misiniz?" satırını B'ye taşırdı → B tek tıkla
+  // gönderilirdi. Kapatınca da sıfırlanır.
+  const [confirmFor, setConfirmFor] = useState<string | null>(null);
+  const confirmResend = !!id && confirmFor === id;
+  const setConfirmResend = (v: boolean) => setConfirmFor(v ? id : null);
+  const handleClose = () => {
+    setConfirmFor(null);
+    onClose();
+  };
   const open = !!id;
   const detail = useEmailLogDetail(id);
   const item = detail.data;
@@ -66,7 +75,7 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
   };
 
   return (
-    <Dialog open={open} onClose={onClose} className="relative z-50">
+    <Dialog open={open} onClose={handleClose} className="relative z-50">
       <DialogBackdrop
         transition
         className="fixed inset-0 bg-zinc-950/30 backdrop-blur-sm transition-opacity duration-300 data-closed:opacity-0"
@@ -83,7 +92,7 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
               </DialogTitle>
               <button
                 type="button"
-                onClick={onClose}
+                onClick={handleClose}
                 aria-label="Kapat"
                 className="p-1.5 rounded-lg hover:bg-surface-muted text-admin-text-muted hover:text-admin-text transition-colors"
               >

@@ -50,7 +50,9 @@ function DuyuruView() {
     if (!d) return null;
     if (form.country) {
       return (
-        d.countryBreakdown.find((c) => c.country === form.country)?.count ?? 0
+        (d.countryOptions ?? d.countryBreakdown).find(
+          (c) => c.country === form.country,
+        )?.count ?? 0
       );
     }
     if (form.tier) {
@@ -150,7 +152,11 @@ function DuyuruView() {
               onChange={(e) => set("country", e.target.value)}
             >
               <option value="">Tüm ülkeler</option>
-              {(stats.data?.countryBreakdown ?? []).map((c) => (
+              {(
+                stats.data?.countryOptions ??
+                stats.data?.countryBreakdown ??
+                []
+              ).map((c) => (
                 <option key={c.country} value={c.country}>
                   {countryFlag(c.country)} {countryName(c.country)} ({c.count})
                 </option>

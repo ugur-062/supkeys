@@ -484,11 +484,14 @@ export class AdminCompaniesService {
         _count: true,
       }),
       this.prisma.company.groupBy({ by: ["tier"], _count: true }),
+      // Sınırsız: farklı ülke sayısı ISO listesiyle sınırlı (~250 satır).
+      // Eskiden `take: 10` idi → duyuru/firma listesi ülke seçimi 11. ve
+      // sonraki ülkeleri hiç sunamıyordu (derin denetim LU-11). Pano yine
+      // ilk 10'u (`countryBreakdown`) gösterir; tam liste `countryOptions`.
       this.prisma.company.groupBy({
         by: ["country"],
         _count: true,
         orderBy: { _count: { country: "desc" } },
-        take: 10,
       }),
       this.prisma.companyComplaint.count({ where: { status: "OPEN" } }),
       this.prisma.company.count({ where: { createdAt: { gte: d30 } } }),
@@ -584,7 +587,13 @@ export class AdminCompaniesService {
         SILVER: tmap.get("SILVER") ?? 0,
         GOLD: tmap.get("GOLD") ?? 0,
       },
-      countryBreakdown: byCountry.map((g) => ({
+      /** Pano için en kalabalık 10 ülke. */
+      countryBreakdown: byCountry.slice(0, 10).map((g) => ({
+        country: g.country,
+        count: g._count,
+      })),
+      /** Firması olan TÜM ülkeler (çoktan aza) — segment/filtre seçimleri için. */
+      countryOptions: byCountry.map((g) => ({
         country: g.country,
         count: g._count,
       })),

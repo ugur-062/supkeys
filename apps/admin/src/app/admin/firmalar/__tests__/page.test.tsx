@@ -244,3 +244,25 @@ describe("FirmalarView — askıya alma", () => {
     );
   });
 });
+
+describe("FirmalarView — ülke filtresi (derin denetim LU-11)", () => {
+  it("ülke seçenekleri ilk 10 ile sınırlı değil: countryOptions'taki tüm ülkeler listelenir", () => {
+    const top10 = ["TR", "DE", "FR", "IT", "ES", "NL", "PL", "GB", "US", "AZ"].map(
+      (country, i) => ({ country, count: 20 - i }),
+    );
+    h.stats = {
+      data: {
+        countryBreakdown: top10,
+        countryOptions: [...top10, { country: "GE", count: 2 }, { country: "KZ", count: 1 }],
+      },
+      isLoading: false,
+    };
+    render(<AdminFirmalarPage />);
+    const select = screen.getByRole("combobox", { name: "Ülke" });
+    const values = within(select)
+      .getAllByRole("option")
+      .map((o) => (o as HTMLOptionElement).value);
+    expect(values).toContain("KZ");
+    expect(values).toHaveLength(13); // "Tüm ülkeler" + 12
+  });
+});

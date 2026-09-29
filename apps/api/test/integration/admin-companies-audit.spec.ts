@@ -339,6 +339,22 @@ describe("list — sayfalama + kuyruk sıralaması (Faz 1-2)", () => {
     expect(stats.funnel).toHaveProperty("kycSubmitted");
     expect(stats.funnel).toHaveProperty("verified");
   });
+
+  it("stats ülke seçenekleri ilk 10 ile sınırlı değil (derin denetim LU-11)", async () => {
+    const { service } = rig();
+    const countries = ["TR", "DE", "FR", "IT", "ES", "NL", "PL", "GB", "US", "AZ", "GE", "KZ"];
+    for (const country of countries) {
+      await makeCompanyWithUser(prisma, { country });
+    }
+    await makeCompanyWithUser(prisma, { country: "TR" });
+    const stats = await service.stats();
+    // Pano yine en kalabalık 10 ülkeyi gösterir…
+    expect(stats.countryBreakdown).toHaveLength(10);
+    expect(stats.countryBreakdown[0]).toEqual({ country: "TR", count: 2 });
+    // …ama duyuru segmenti / firma filtresi tüm ülkeleri alır.
+    expect(stats.countryOptions).toHaveLength(12);
+    expect(stats.countryOptions.map((c) => c.country).sort()).toEqual([...countries].sort());
+  });
 });
 
 describe("announce — toplu duyuru (batch + paralel, per-firma findUnique yok)", () => {

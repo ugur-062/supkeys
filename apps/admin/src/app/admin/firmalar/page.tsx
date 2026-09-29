@@ -123,7 +123,7 @@ function FirmalarView() {
     page: filters.page ?? 1,
     pageSize: PAGE_SIZE,
   });
-  // Ülke filtresi seçenekleri gerçek veriden (stats countryBreakdown).
+  // Ülke filtresi seçenekleri gerçek veriden (stats countryOptions — tüm ülkeler).
   const stats = useAdminCompanyStats();
   const act = useCompanyAction();
   const tierAct = useSetCompanyTier();
@@ -198,7 +198,11 @@ function FirmalarView() {
           onChange={(v) => setFilters({ country: v })}
           options={[
             { value: "", label: "Tüm ülkeler" },
-            ...(stats.data?.countryBreakdown ?? []).map((c) => ({
+            ...(
+              stats.data?.countryOptions ??
+              stats.data?.countryBreakdown ??
+              []
+            ).map((c) => ({
               value: c.country,
               label: `${countryFlag(c.country)} ${countryName(c.country)} (${c.count})`,
             })),

@@ -45,9 +45,15 @@ export interface AdminCompanyListParams {
 }
 
 /** Sayfalı firma listesi — eski 200 kayıt tavanı kalktı. */
-export function useAdminCompanies(params: AdminCompanyListParams) {
+export function useAdminCompanies(
+  params: AdminCompanyListParams,
+  opts: { enabled?: boolean } = {},
+) {
   return useQuery({
     queryKey: ["admin-companies", params],
+    // Rol kapısı: GET admin/companies SUPPORT'a kapalı — izinsiz rolde hiç
+    // istenmez (403 toast'ı yok).
+    enabled: opts.enabled ?? true,
     queryFn: async () => {
       const { data } = await api.get<AdminCompanyListResponse>(
         "/admin/companies",
@@ -67,7 +73,14 @@ export interface AdminCompanyStats {
   rejected: number;
   openComplaints: number;
   tierBreakdown: { STANDART: number; SILVER: number; GOLD: number };
+  /** Pano için en kalabalık 10 ülke. */
   countryBreakdown: { country: string; count: number }[];
+  /**
+   * Firması olan TÜM ülkeler — duyuru segmenti / firma listesi filtresi
+   * bundan beslenir (derin denetim LU-11: ilk 10 ile sınırlıydı). Eski API
+   * yanıtında yoksa çağıran `countryBreakdown`'a düşer.
+   */
+  countryOptions?: { country: string; count: number }[];
   last30Days: {
     newCompanies: number;
     newListings: number;

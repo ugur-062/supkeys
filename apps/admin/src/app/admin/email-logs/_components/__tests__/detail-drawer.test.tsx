@@ -79,3 +79,31 @@ describe("DetailDrawer — yeniden gönderim sonucu (derin denetim MU-05)", () =
     expect(h.toast.warning).toHaveBeenCalledWith(expect.stringMatching(/^Gönderilmedi/));
   });
 });
+
+describe("DetailDrawer — onay satırı kayda bağlı (derin denetim LU-11)", () => {
+  it("A'da açılan onay, çekmece B kaydına geçince taşınmaz", async () => {
+    const uev = userEvent.setup();
+    const { rerender } = render(<DetailDrawer id="log1" onClose={() => {}} />);
+    await uev.click(await screen.findByRole("button", { name: "Yeniden Gönder" }));
+    expect(screen.getByRole("button", { name: "Evet, Gönder" })).toBeInTheDocument();
+
+    rerender(<DetailDrawer id={null} onClose={() => {}} />);
+    rerender(<DetailDrawer id="log2" onClose={() => {}} />);
+    expect(await screen.findByRole("button", { name: "Yeniden Gönder" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Evet, Gönder" })).not.toBeInTheDocument();
+  });
+
+  it("X ile kapatınca onay sıfırlanır; aynı kayıt yeniden açılınca ilk adımdan başlar", async () => {
+    const uev = userEvent.setup();
+    const onClose = vi.fn();
+    const { rerender } = render(<DetailDrawer id="log1" onClose={onClose} />);
+    await uev.click(await screen.findByRole("button", { name: "Yeniden Gönder" }));
+    await uev.click(screen.getByRole("button", { name: "Kapat" }));
+    expect(onClose).toHaveBeenCalled();
+
+    rerender(<DetailDrawer id={null} onClose={onClose} />);
+    rerender(<DetailDrawer id="log1" onClose={onClose} />);
+    expect(await screen.findByRole("button", { name: "Yeniden Gönder" })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Evet, Gönder" })).not.toBeInTheDocument();
+  });
+});
