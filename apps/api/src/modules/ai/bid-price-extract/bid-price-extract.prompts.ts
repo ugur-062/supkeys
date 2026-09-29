@@ -25,6 +25,10 @@ KURALLAR:
 export const BID_PRICE_RESPONSE_SCHEMA = {
   type: "OBJECT",
   properties: {
+    pricesIncludeVat: { type: "BOOLEAN", nullable: true },
+    docCurrency: { type: "STRING", nullable: true },
+    docLanguage: { type: "STRING", nullable: true },
+    itemsLanguage: { type: "STRING", nullable: true },
     rows: {
       type: "ARRAY",
       items: {
@@ -45,11 +49,11 @@ export const BID_PRICE_RESPONSE_SCHEMA = {
         required: ["text"],
       },
     },
-    pricesIncludeVat: { type: "BOOLEAN", nullable: true },
-    docCurrency: { type: "STRING", nullable: true },
-    docLanguage: { type: "STRING", nullable: true },
-    itemsLanguage: { type: "STRING", nullable: true },
   },
+  // Belge ustbilgisi rows'tan ONCE yazilir: MAX_TOKENS kesiminde rows kurtarilir
+  // (salvageRows) ama sonda gelen docLanguage kayboluyor, EN "1,500" yine 1.5
+  // okunuyordu (derin denetim MU-08).
+  propertyOrdering: ["pricesIncludeVat", "docCurrency", "docLanguage", "itemsLanguage", "rows"],
   required: ["rows"],
 };
 

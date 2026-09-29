@@ -90,7 +90,7 @@ export class BidPriceExtractService {
       // TAMAMLANMIŞ satırları kurtar; premium retry'a (10+ sn, 4× maliyet) gitme.
       const rows = salvageRows(result.text);
       if (rows.length > 0) {
-        parsed = { rows };
+        parsed = { ...salvageHeader(result.text), rows };
         salvaged = rows.length;
         this.logger.warn(
           `bid_price_extract: MAX_TOKENS — kesik çıktıdan ${rows.length} satır kurtarıldı (outTok=${result.outputTokens ?? "?"})`,
@@ -144,6 +144,26 @@ function tryParse(text: string): Record<string, unknown> | null {
   } catch {
     return null;
   }
+}
+
+/**
+ * Kesik (MAX_TOKENS) JSON'dan belge ustbilgisini (docLanguage, docCurrency,
+ * itemsLanguage, pricesIncludeVat) okur. Sema bunlari rows'tan once yazdirir;
+ * yalniz `rows` dizisinden ONCEKI kisma bakilir (satir metnine gomulu bir
+ * "docLanguage" dizgisi ustbilgi sayilmaz). docLanguage olmadan EN "1,500"
+ * binlik okunamiyordu (derin denetim MU-08).
+ */
+export function salvageHeader(text: string): Record<string, unknown> {
+  const rowsAt = text.search(/"rows"\s*:\s*\[/);
+  const head = rowsAt === -1 ? text : text.slice(0, rowsAt);
+  const out: Record<string, unknown> = {};
+  for (const key of ["docLanguage", "docCurrency", "itemsLanguage"]) {
+    const m = new RegExp(`"${key}"\\s*:\\s*"([^"\\\\]{1,16})"`).exec(head);
+    if (m) out[key] = m[1];
+  }
+  const vat = /"pricesIncludeVat"\s*:\s*(true|false)/.exec(head);
+  if (vat) out.pricesIncludeVat = vat[1] === "true";
+  return out;
 }
 
 /**

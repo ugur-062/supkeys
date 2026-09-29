@@ -2,7 +2,13 @@ import "reflect-metadata";
 import { plainToInstance } from "class-transformer";
 import { validate } from "class-validator";
 import { parseSeparatedNumber } from "../../src/modules/ai/ai-text";
-import { parseModelNumber as parseBidNumber, sanitizeRows } from "../../src/modules/ai/bid-price-extract/bid-price-extract.service";
+import {
+  parseModelNumber as parseBidNumber,
+  salvageHeader,
+  salvageRows,
+  sanitizeRows,
+} from "../../src/modules/ai/bid-price-extract/bid-price-extract.service";
+import { BID_PRICE_RESPONSE_SCHEMA } from "../../src/modules/ai/bid-price-extract/bid-price-extract.prompts";
 import { parseModelNumber as parseIntentNumber, sanitizeIntent } from "../../src/modules/ai/search-intent/search-intent.service";
 import { searchIntentSystemPrompt } from "../../src/modules/ai/search-intent/search-intent.prompts";
 import { SeoEnrichDto } from "../../src/modules/ai/seo-enrich/seo-enrich.controller";
@@ -47,6 +53,14 @@ describe("parseSeparatedNumber", () => {
     expect(parseSeparatedNumber("abc")).toBeNull();
     expect(parseSeparatedNumber("")).toBeNull();
   });
+
+  it("ortadaki '-' aralık/ek bilgidir: rakamlar birleştirilmez, null", () => {
+    expect(parseSeparatedNumber("10-20")).toBeNull();
+    expect(parseSeparatedNumber("185,50-18")).toBeNull();
+    expect(parseSeparatedNumber("185,50 - %18 KDV")).toBeNull();
+    expect(parseSeparatedNumber("-5-")).toBeNull();
+    expect(parseSeparatedNumber("-1,500.50")).toBe(-1500.5);
+  });
 });
 
 describe("bid-price-extract parseModelNumber (S014)", () => {
@@ -75,6 +89,31 @@ describe("bid-price-extract parseModelNumber (S014)", () => {
     const rows = sanitizeRows([{ text: "Valve", unitPrice: "1,500.50", quantity: "1,200", totalPrice: "1,800,600" }], "en");
     expect(rows[0]).toMatchObject({ unitPrice: 1500.5, quantity: 1200, totalPrice: 1800600 });
     expect(sanitizeRows([{ text: "Vana", quantity: "1,200" }], "tr")[0]!.quantity).toBe(1.2);
+  });
+
+  it("fiyat aralığı / KDV eki tek sayıya dönüşmez (boş kalır, önizlemede işaretlenir)", () => {
+    expect(parseBidNumber("10-20")).toBeNull();
+    expect(parseBidNumber("185,50 - %18 KDV")).toBeNull();
+    expect(sanitizeRows([{ text: "Vana", unitPrice: "10-20" }])[0]!.unitPrice).toBeNull();
+  });
+
+  it("MAX_TOKENS kurtarmasında belge dili korunur: EN '1,500' binlik okunur", () => {
+    const props = Object.keys(BID_PRICE_RESPONSE_SCHEMA.properties);
+    expect(BID_PRICE_RESPONSE_SCHEMA.propertyOrdering).toEqual(props);
+    expect(props.indexOf("docLanguage")).toBeLessThan(props.indexOf("rows"));
+    const truncated =
+      '{ "pricesIncludeVat": false, "docCurrency": "USD", "docLanguage": "en", "itemsLanguage": "tr", ' +
+      '"rows": [ { "text": "Valve DN50", "unitPrice": "1,500" }, { "text": "Flange", "unitPrice": "1,5';
+    const header = salvageHeader(truncated);
+    expect(header).toEqual({ pricesIncludeVat: false, docCurrency: "USD", docLanguage: "en", itemsLanguage: "tr" });
+    const rows = sanitizeRows(salvageRows(truncated), header.docLanguage as string);
+    expect(rows.map((r) => r.unitPrice)).toEqual([1500]);
+  });
+
+  it("salvageHeader yalnız rows öncesine bakar; satır metnindeki dizge üstbilgi sayılmaz", () => {
+    const t = '{ "rows": [ { "text": "note \\"docLanguage\\": \\"en\\"" }, { "docLanguage": "en", "text": "x" ';
+    expect(salvageHeader(t)).toEqual({});
+    expect(salvageHeader('{ "docLang')).toEqual({});
   });
 });
 

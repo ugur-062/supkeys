@@ -70,7 +70,8 @@ export function unitCodeListForPrompt(): string {
  * ("1,500") belirsizdir: cagiran dil bilgisine gore `commaThousands` /
  * `dotThousands` ile binlik okur, yoksa ondalik ("1,500" → 1.5). Sifirla
  * baslayan grup ("0,125") hep ondaliktir. Para sembolu/birim/bosluk atilir;
- * tanimsiz bicim null (derin denetim 2026-09-29 MU-08).
+ * yalniz bastaki "-" isarettir; tanimsiz bicim null (derin denetim 2026-09-29
+ * MU-08).
  */
 export function parseSeparatedNumber(
   raw: string,
@@ -78,7 +79,10 @@ export function parseSeparatedNumber(
 ): number | null {
   const cleaned = raw.trim().replace(/[^\d.,-]/g, "");
   const negative = cleaned.startsWith("-");
-  const s = cleaned.replace(/-/g, "");
+  const s = negative ? cleaned.slice(1) : cleaned;
+  // Ortadaki "-" aralik/ek bilgidir ("10-20", "185,50 - %18 KDV"): rakamlari
+  // birlestirip belgede olmayan sayi (1020, 185.5018) uretmek yerine null.
+  if (s.includes("-")) return null;
   if (!/\d/.test(s)) return null;
   const count = (sep: string) => s.split(sep).length - 1;
   const dots = count(".");
