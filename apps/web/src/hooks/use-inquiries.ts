@@ -110,6 +110,9 @@ function usePagedInquiries<T extends { id: string }>(
   return {
     data,
     isLoading: q.isLoading,
+    // Hata dalı: görünüm hatayı "henüz talep yok" boş durumundan ayırır.
+    isError: q.isError,
+    refetch: q.refetch,
     hasNextPage: q.hasNextPage,
     fetchNextPage: q.fetchNextPage,
     isFetchingNextPage: q.isFetchingNextPage,

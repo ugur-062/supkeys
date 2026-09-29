@@ -47,6 +47,9 @@ export function PanelRecommendations({ mode }: { mode: "match" | "fresh" }) {
     mode === "fresh"
       ? { pageSize: LIMIT, sort: "newest" }
       : { pageSize: LIMIT, ...(term ? { q: term } : {}) },
+    // Geçmiş okunana dek sorgu KAPALI: aksi hâlde ilk render `q`siz bir
+    // istek atıp sonucu hiç kullanılmadan `q`li ikinci isteğe geçiyordu.
+    { enabled: ready },
   );
   const items = data?.items ?? [];
   // Geçmiş okunmadan istek atılmasın: `q`siz sonuç gelip sonra `q`li sonuçla

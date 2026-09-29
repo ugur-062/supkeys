@@ -322,7 +322,7 @@ export function IhaleListRow({
               </div>
             ))}
           </dl>
-          <IhaleItemsPanel listingId={t.id} detailHref={detailHref} itemsTab={2} />
+          <IhaleItemsPanel listingId={t.id} detailHref={detailHref} />
           <Link
             href={detailHref}
             className={cn(

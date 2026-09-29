@@ -276,6 +276,9 @@ export function CompanyOverview() {
                     tasarruf.data ? <TasarrufTab data={tasarruf.data} period={period === "custom" ? "year" : period} analytics={saAnalytics.data} /> : tasarruf.isError ? <ErrorState title={t("veriAlinamadi")} onRetry={() => void tasarruf.refetch()} /> : <TabLoading />
                   ) : item.value === "tedarikci" ? (
                     tedarikci.data ? <TedarikciTab data={tedarikci.data} /> : tedarikci.isError ? <ErrorState title={t("veriAlinamadi")} onRetry={() => void tedarikci.refetch()} /> : <TabLoading />
+                  ) : !stAnalytics.data && stAnalytics.isError ? (
+                    // Gelir/Müşteri: hata dalı yoktu, sekme sonsuz iskelette kalıyordu (derin denetim LU-29).
+                    <ErrorState title={t("veriAlinamadi")} onRetry={() => void stAnalytics.refetch()} />
                   ) : item.value === "gelir" ? (
                     <SatisGelirTab analytics={stAnalytics.data} loading={stAnalytics.isLoading} />
                   ) : (

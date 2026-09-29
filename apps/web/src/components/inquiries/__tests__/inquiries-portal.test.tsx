@@ -293,3 +293,29 @@ describe("PanelInquiryDialog", () => {
     );
   });
 });
+
+describe("InquiriesView — hata ve çift gönderim (derin denetim LU-29)", () => {
+  it("sorgu hata verince boş durum değil hata kutusu + Tekrar dene basılır", async () => {
+    const user = userEvent.setup();
+    h.get.mockRejectedValueOnce(new Error("500"));
+    wrap(<InquiriesView portal="satis" />);
+    expect(await screen.findByRole("alert")).toBeInTheDocument();
+    expect(screen.queryByText("Henüz bilgi talebi yok")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Tekrar dene" }));
+    expect(await screen.findByText("Stok var mı?")).toBeInTheDocument();
+  });
+
+  it("Ctrl+Enter art arda basılsa da istek dönmeden ikinci yanıt gitmez", async () => {
+    const user = userEvent.setup();
+    let resolve!: (v: unknown) => void;
+    h.post.mockImplementation(() => new Promise((r) => (resolve = r)));
+    wrap(<InquiriesView portal="satis" />);
+    const box = await screen.findByPlaceholderText("Yanıtınızı yazın…");
+    await user.type(box, "Stok var, teslim 3 gün.");
+    await user.keyboard("{Control>}{Enter}{Enter}{Enter}{/Control}");
+    expect(h.post).toHaveBeenCalledTimes(1);
+    resolve({ data: { id: "rp1", body: "x", createdAt: new Date().toISOString() } });
+    await waitFor(() => expect(box).toHaveValue(""));
+    expect(h.post).toHaveBeenCalledTimes(1);
+  });
+});

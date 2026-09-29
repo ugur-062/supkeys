@@ -31564,10 +31564,20 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
-  "web.panel.shell.satisChartTabs.davetAdetSonrakiAsamalarTl": {
-    "hash": "a226066e0f",
+  "web.panel.shell.satisChartTabs.davetAdetSonrakiAsamalarCur": {
+    "hash": "c4692d54c8",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
+  },
+  "web.panel.shell.satisChartTabs.saatKisa": {
+    "hash": "437480817a",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "web.panel.shell.satisChartTabs.ortalama": {
+    "hash": "f07b0f2de8",
+    "status": "reviewed",
+    "at": "2026-09-30"
   },
   "web.panel.shell.satisChartTabs.davetAlipTeklifVerdikceAsamalar": {
     "hash": "1049849c86",

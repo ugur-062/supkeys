@@ -52,7 +52,6 @@ function renderPanel(
       <IhaleItemsPanel
         listingId="l1"
         detailHref="/company/ilan/l1?from=x"
-        itemsTab={1}
         {...props}
       />
     </QueryClientProvider>,
@@ -142,13 +141,14 @@ describe("IhaleItemsPanel", () => {
         ),
       ),
     });
-    renderPanel(undefined, { itemsTab: 2 });
+    renderPanel();
 
     expect(await screen.findByText("Kalem 1")).toBeInTheDocument();
     expect(screen.queryByText("Kalem 6")).not.toBeInTheDocument();
     expect(screen.queryByText(/daha göster/)).not.toBeInTheDocument();
     const link = screen.getByRole("link", { name: "Tüm 25 kalemi detayda gör →" });
-    expect(link).toHaveAttribute("href", "/company/ilan/l1?from=x&tab=2");
+    // Kalemler detayın varsayılan sekmesi: `tab` eklenmez (`tab=1` = Dosyalar).
+    expect(link).toHaveAttribute("href", "/company/ilan/l1?from=x");
   });
 
   it("kalem yoksa boş durum metni", async () => {

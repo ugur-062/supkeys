@@ -37,6 +37,7 @@ import { FileX2 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useState } from "react";
 import { formatDate } from "@/lib/format-date";
+import { calendarDaysBetween } from "@/lib/time-zone";
 
 type SubTab = "own" | "company";
 
@@ -476,12 +477,14 @@ function CompetitionCell({
 }
 
 /** Kapanışa kalan gün rozeti: ≤3 kırmızı, ≤7 amber, aksi nötr. */
-function DaysLeftBadge({ closesAt }: { closesAt: string }) {
+export function DaysLeftBadge({ closesAt }: { closesAt: string }) {
   const t = useTranslations("web.panel.shell.satinalmaIhaleTab");
-  const days = Math.ceil(
-    (new Date(closesAt).getTime() - Date.now()) / 86_400_000,
-  );
-  if (days < 0)
+  // Takvim günü farkı (APP_TIME_ZONE): `Math.ceil(ms/gün)` aynı gün kapanan
+  // talebe "1 gün kaldı" diyordu, "Bugün" dalı ölüydü (derin denetim LU-29).
+  const closes = new Date(closesAt);
+  const now = new Date();
+  const days = calendarDaysBetween(now, closes);
+  if (closes.getTime() <= now.getTime())
     return <span className="text-xs text-zinc-400">{t("kapandi")}</span>;
   const cls =
     days <= 3

@@ -7,6 +7,7 @@ import { SilverLockCard } from "@/components/company/silver-lock-card";
 import { useActivityLabel, useCityLabel, useFormatDate } from "@/i18n/domain";
 import { upperForText } from "@/i18n/format";
 import { EmptyState } from "@/components/list";
+import { ErrorState } from "@/components/ui/error-state";
 import { PageContainer } from "@/components/list/page-container";
 import { PageHeader } from "@/components/list/page-header";
 import { Badge } from "@/components/catalyst/badge";
@@ -22,7 +23,7 @@ import {
 import { ArrowLeftIcon, MagnifyingGlassIcon, PaperAirplaneIcon } from "@heroicons/react/20/solid";
 import { Inbox, Send } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 /**
@@ -157,6 +158,9 @@ export function InquiriesView({
 
       {loading ? (
         <p className="mt-8 text-sm text-zinc-500">{tr("yukleniyor")}</p>
+      ) : !paged.data && paged.isError ? (
+        // Hata "henüz talep yok" boş durumu gibi görünmesin (derin denetim LU-29).
+        <ErrorState className="mt-8" onRetry={() => void paged.refetch()} />
       ) : threads.length === 0 ? (
         <EmptyState
           className="mt-8"
@@ -473,6 +477,10 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
   // Yanıt = "Bilgi taleplerini yanıtlama" işlem izni (API aynası); izinsiz okur.
   const canReply = useHasCompanyPermission("sell:inquiry:reply");
   const reply = useReplyInquiry();
+  // Eşzamanlı gönderim kilidi: Ctrl+Enter düğmenin `disabled`ını atlıyordu,
+  // hızlı ikinci basış aynı yanıtı iki kez yollayıp alıcıya iki e-posta
+  // düşürüyordu (derin denetim LU-29). Ref, render beklemeden kilitler.
+  const sendingRef = useRef(false);
 
   if (inquiry.anonymous) {
     return (
@@ -484,13 +492,16 @@ function Composer({ inquiry, accent }: { inquiry: ReceivedInquiry; accent: "zinc
   if (!canReply) return null;
 
   const send = async () => {
-    if (body.trim().length < 2) return;
+    if (body.trim().length < 2 || sendingRef.current) return;
+    sendingRef.current = true;
     try {
       await reply.mutateAsync({ id: inquiry.id, body });
       setBody("");
       toast.success(t("yanitinizGonderildi"));
     } catch {
       toast.error(t("yanitGonderilemedi"));
+    } finally {
+      sendingRef.current = false;
     }
   };
 

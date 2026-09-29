@@ -309,7 +309,6 @@ export function BrowseTenderRow({
               <IhaleItemsPanel
                 listingId={t.id}
                 detailHref={detailHref}
-                itemsTab={1}
                 initialCount={t.itemCount}
               />
               <Link

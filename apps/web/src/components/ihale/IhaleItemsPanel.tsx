@@ -43,14 +43,16 @@ function useLazyListingItems(listingId: string) {
 export function IhaleItemsPanel({
   listingId,
   detailHref,
-  itemsTab,
   initialCount,
 }: {
   listingId: string;
-  /** "Tüm N kalemi detayda gör" hedefi — satırın mevcut detay linkiyle aynı. */
+  /**
+   * "Tüm N kalemi detayda gör" hedefi — satırın mevcut detay linkiyle aynı.
+   * Kalemler detayın VARSAYILAN sekmesi (0; iki görünümde Kalemler · Dosyalar),
+   * `tab` parametresi eklenmez — eski `itemsTab={1}` tedarikçiyi Dosyalar'a
+   * götürüyordu (derin denetim LU-29).
+   */
   detailHref: string;
-  /** Detay sayfasında Kalemler sekmesinin indeksi (sahip: 2, sahip-değil: 1). */
-  itemsTab: number;
   /** Liste verisinde kalem sayısı varsa başlık fetch beklemeden dolar. */
   initialCount?: number;
 }) {
@@ -129,7 +131,7 @@ export function IhaleItemsPanel({
   // "tedarikçiler görsün" dediyse (aksi halde alan null → kolon hiç çizilmez).
   const showTarget = visible.some((it) => it.targetPrice != null);
   const currency = data.primaryCurrency ?? "TRY";
-  const allItemsHref = `${detailHref}&tab=${itemsTab}`;
+  const allItemsHref = detailHref;
 
   return (
     <div className={frame}>

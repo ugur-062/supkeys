@@ -3,7 +3,7 @@
 import { useTranslations } from "next-intl";
 import type { DashPeriod } from "@/hooks/use-dashboard-params";
 import { cn } from "@/lib/utils";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 /**
  * Pano başlığı dönem kontrolleri (Faz 3): Bu Ay / Bu Çeyrek / Bu Yıl / Özel
@@ -38,13 +38,34 @@ export function PeriodControls({
   // Taslak tarihler — yalnız "Uygula" URL'e yazar (yarım aralık gezinmez).
   const [draftFrom, setDraftFrom] = useState(from ?? "");
   const [draftTo, setDraftTo] = useState(to ?? "");
-  const [customOpen, setCustomOpen] = useState(period === "custom");
+  // Panel sayfa açılışında KAPALI başlar: `?period=custom` bağlantısıyla
+  // açılışta KPI kartlarının üstünü örten, kapatılamayan popover kusuruydu
+  // (derin denetim LU-29). Aralık zaten URL'de, "Özel" düğmesi aktif görünür.
+  const [customOpen, setCustomOpen] = useState(false);
+  const rootRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!customOpen) return;
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key === "Escape") setCustomOpen(false);
+    };
+    const onDown = (e: MouseEvent) => {
+      if (rootRef.current && !rootRef.current.contains(e.target as Node)) {
+        setCustomOpen(false);
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    document.addEventListener("mousedown", onDown);
+    return () => {
+      document.removeEventListener("keydown", onKey);
+      document.removeEventListener("mousedown", onDown);
+    };
+  }, [customOpen]);
   const draftValid =
     draftFrom.length > 0 && draftTo.length > 0 && draftFrom <= draftTo;
 
   return (
     // C45: özel-aralık paneli ARTIK akışta yer kaplamıyor (absolute popover).
-    <div className="relative flex flex-col items-end gap-2">
+    <div ref={rootRef} className="relative flex flex-col items-end gap-2">
       <div className="flex flex-wrap items-center gap-3">
         <div
           // Dalga B-4 (denetim P10): `role="tablist"` YANLIŞTI — bu bir sekme
@@ -69,6 +90,11 @@ export function PeriodControls({
                 aria-pressed={active}
                 onClick={() => {
                   if (opt.value === "custom") {
+                    // Aç/kapa: açık panel "Özel"e yeniden basınca kapanır.
+                    if (customOpen) {
+                      setCustomOpen(false);
+                      return;
+                    }
                     setCustomOpen(true);
                     // Aralık zaten geçerliyse anında geç; değilse form bekler.
                     if (from && to) onChange({ period: "custom", from, to });

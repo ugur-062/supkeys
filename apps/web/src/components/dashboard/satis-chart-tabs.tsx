@@ -132,7 +132,7 @@ export function SatisGelirTab({
       {/* Faz 7.2: "Pipeline" → Satış Hunisi (tek dil). */}
       <ChartCard
         title={t("satisHunisi")}
-        subtitle={t("davetAdetSonrakiAsamalarTl")}
+        subtitle={t("davetAdetSonrakiAsamalarCur", { currency: analytics.currency ?? "TRY" })}
         ariaLabel={t("satisHunisi2")}
       >
         {analytics.pipeline.some((p) => p.count > 0) ? (
@@ -301,7 +301,7 @@ export function SatisMusteriTab({
                 <CartesianGrid vertical={false} stroke="#e2e8f0" />
                 <RXAxis dataKey="label" tickLine={false} axisLine={false} tick={AXIS} />
                 <RYAxis tickLine={false} axisLine={false} width={34} tick={AXIS} />
-                <RTooltip formatter={(v) => [`${Number(v ?? 0)} sa`, "Ortalama"]} />
+                <RTooltip formatter={(v) => [t("saatKisa", { n: Number(v ?? 0) }), t("ortalama")]} />
                 <Area type="monotone" dataKey="value" stroke="#059669" strokeWidth={1.5} fill="#059669" fillOpacity={0.1} connectNulls isAnimationActive={false} />
               </AreaChart>
             </RContainer>
