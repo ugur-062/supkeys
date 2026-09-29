@@ -156,13 +156,22 @@ export default function DogrulamaPage() {
     },
     { requireSwift: true },
   );
+  // Yaptırım ülkesi (IBAN öneki / SWIFT ülkesi kayda kapalı — derin denetim MU-17).
   const ibanError =
-    iban.trim() && bankErrors.includes("ibanInvalid")
-      ? t("gecerliBirIbanGirinKontrol")
-      : iban.trim() && bankErrors.includes("accountNumberInvalid")
-        ? t("accountNumberInvalid")
+    iban.trim() && bankErrors.includes("ibanCountryBlocked")
+      ? t("bankCountryBlocked")
+      : iban.trim() && bankErrors.includes("ibanInvalid")
+        ? t("gecerliBirIbanGirinKontrol")
+        : iban.trim() && bankErrors.includes("accountNumberInvalid")
+          ? t("accountNumberInvalid")
+          : null;
+  const swiftError = !swift.trim()
+    ? null
+    : bankErrors.includes("swiftCountryBlocked")
+      ? t("bankCountryBlocked")
+      : bankErrors.includes("swiftInvalid")
+        ? t("swiftInvalid")
         : null;
-  const swiftError = swift.trim() && bankErrors.includes("swiftInvalid") ? t("swiftInvalid") : null;
   const missing: string[] = [
     ...labels.filter((d) => data && !data.docs[d.key]).map((d) => d.label),
     // MERSİS yalnız TR — başka ülkede karşılığı yok.

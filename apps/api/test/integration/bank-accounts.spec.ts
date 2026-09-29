@@ -150,6 +150,24 @@ describe("banka hesabı defteri — CRUD", () => {
     expect(await prisma.companyBankAccount.count({ where: { companyId: c.company.id } })).toBe(0);
   });
 
+  it("yaptırım kapısı hesabın KENDİ ülke izine de bakar: IR IBAN'ı (IBAN ya da hesap no alanında) ve IR SWIFT'i reddedilir (derin denetim MU-17)", async () => {
+    const svc = makeBankService();
+    const c = await makeCompanyWithUser(prisma, { country: "TR" });
+    const IR_IBAN = "IR270170000000100324200001"; // mod-97 tutar
+    const blocked = { status: 400, response: expect.objectContaining({ code: "BANK_COUNTRY_BLOCKED" }) };
+    // Banka ülkesi DE seçilip IR IBAN'ı girilir.
+    await expect(svc.create(c.auth, { title: "EUR", accountHolder: "Firma A.Ş.", bankCountry: "DE", iban: IR_IBAN })).rejects.toMatchObject(blocked);
+    // IBAN'sız ülkede hesap no alanına IR IBAN'ı yazılır (IBAN'a çevrilir).
+    await expect(
+      svc.create(c.auth, { title: "JPY", accountHolder: "Firma A.Ş.", bankCountry: "JP", accountNumber: IR_IBAN, swiftBic: "MUFGJPJT", bankName: "MUFG" }),
+    ).rejects.toMatchObject(blocked);
+    // IBAN'sız ülke + İran SWIFT'i.
+    await expect(
+      svc.create(c.auth, { title: "JPY", accountHolder: "Firma A.Ş.", bankCountry: "JP", accountNumber: "1234567", swiftBic: "MELIIRTH", bankName: "Melli" }),
+    ).rejects.toMatchObject(blocked);
+    expect(await prisma.companyBankAccount.count({ where: { companyId: c.company.id } })).toBe(0);
+  });
+
   it("geçersiz TR IBAN reddedilir; başka firmanın hesabı 404 (IDOR)", async () => {
     const svc = makeBankService();
     const a = await makeCompanyWithUser(prisma, { country: "TR" });

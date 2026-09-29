@@ -72,6 +72,25 @@ describe("banka bilgisi kuralı", () => {
     expect(ibanLengthForPrefix("ZZ")).toBeNull();
   });
 
+  it("yaptırım ülkesi: IBAN öneki ve SWIFT ülkesi REGISTRATION_BLOCKED'a karşı denetlenir (derin denetim MU-17)", () => {
+    const IR_IBAN = "IR270170000000100324200001"; // mod-97 tutar, IR kayıtlı uzunluk tablosunda yok
+    expect(bankDetailsErrors({ country: "DE", iban: IR_IBAN })).toEqual(["ibanCountryBlocked"]);
+    expect(bankDetailsErrors({ country: "AE", iban: IR_IBAN })).toEqual(["ibanCountryBlocked"]);
+    // IBAN'sız ülke: hesap no alanına yazılmış IR IBAN'ı ve İran SWIFT'i.
+    expect(bankDetailsErrors({ country: "JP", accountNumber: IR_IBAN })).toEqual(["ibanCountryBlocked"]);
+    expect(
+      bankDetailsErrors({ country: "JP", accountNumber: "1234567", swiftBic: "MELIIRTH", bankName: "Melli" }),
+    ).toEqual(["swiftCountryBlocked"]);
+    expect(bankDetailsErrors({ country: "TR", iban: "TR330006100519786457841326", swiftBic: "BPPRPRSJ" })).toEqual([
+      "swiftCountryBlocked",
+    ]);
+    // Açık ülkeler etkilenmez.
+    expect(bankDetailsErrors({ country: "JP", accountNumber: "1234567", swiftBic: "MUFGJPJT", bankName: "MUFG" })).toEqual([]);
+    // Önek geçerli bir ülke kodu değilse mod-97 tutsa da IBAN değil.
+    expect(isValidIbanAny("XX0912345678901234567890")).toBe(false);
+    expect(isValidIbanAny("XK051212012345678906")).toBe(true);
+  });
+
   it("IBAN yer tutucusu ülke önekiyle ve kayıtlı uzunlukta", () => {
     expect(ibanPlaceholder("TR")).toBe("TR00 0000 0000 0000 0000 0000 00");
     expect(ibanPlaceholder("DE")).toBe("DE00 0000 0000 0000 0000 00");

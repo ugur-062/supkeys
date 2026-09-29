@@ -169,6 +169,9 @@ export class CompanyBankAccountsService {
    * (`REGISTRATION_BLOCKED`: ABD + toprakları, kapsamlı yaptırım ülkeleri)
    * OLAMAZ (2026-09-27) — seçici bu ülkeleri zaten göstermiyor; uç doğrudan
    * çağrılırsa da reddeder (tahsilat hesabı yaptırım ülkesinde olamaz).
+   * Formdaki ülke tek başına yetmez: IBAN öneki ve SWIFT ülkesi de aynı listeye
+   * karşı `assertBankDetails` içinde denetlenir (hesap no alanından çevrilen
+   * IBAN dahil — derin denetim MU-17).
    */
   private async resolveDetails(companyId: string, dto: UpsertBankAccountDto) {
     let iban = normalizeIban(dto.iban?.trim() ?? "");

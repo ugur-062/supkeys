@@ -113,6 +113,20 @@ describe("BankAccountsSection", () => {
     );
   });
 
+  it("yaptırım ülkesi: IR IBAN'ı ve İran SWIFT'i satır içi hata, Kaydet pasif (derin denetim MU-17)", async () => {
+    const user = await openNew();
+    // Banka ülkesi TR iken mod-97'si tutan İran IBAN'ı.
+    await user.type(screen.getByLabelText("IBAN *"), "IR270170000000100324200001");
+    expect(await screen.findByText(/kayda kapalı bir ülkedeki bankaya ait/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kaydet" })).toBeDisabled();
+    await user.clear(screen.getByLabelText("IBAN *"));
+    await user.type(screen.getByLabelText("IBAN *"), TR_OK);
+    await user.type(screen.getByLabelText("SWIFT / BIC kodu (isteğe bağlı)"), "MELIIRTH");
+    expect(await screen.findByText(/kayda kapalı bir ülkedeki bankaya ait/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kaydet" })).toBeDisabled();
+    expect(h.save).not.toHaveBeenCalled();
+  });
+
   it("canManage=false: Hesap Ekle yok, Kurucu notu var", () => {
     render(<BankAccountsSection canManage={false} />);
     expect(screen.queryByRole("button", { name: "Hesap Ekle" })).not.toBeInTheDocument();

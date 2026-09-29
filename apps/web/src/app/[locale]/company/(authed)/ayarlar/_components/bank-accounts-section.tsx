@@ -200,14 +200,25 @@ function BankAccountModal({
     swiftBic: swift,
     bankName,
   });
+  // Yaptırım ülkesi (IBAN öneki / SWIFT ülkesi kayda kapalı — derin denetim
+  // MU-17): Kaydet pasif kalır, neden alanın altında görünür.
+  const refBlocked = accountRef.trim() && errors.includes("ibanCountryBlocked") ? t("bankCountryBlocked") : null;
   const ibanError =
-    usesIban && ref.iban && errors.includes("ibanInvalid")
+    refBlocked ??
+    (usesIban && ref.iban && errors.includes("ibanInvalid")
       ? ref.iban.startsWith("TR")
         ? t("gecerliBirTrIbanGirin")
         : t("gecerliBirIbanGirinKontrol")
-      : null;
-  const accountError = !usesIban && ref.accountNumber && errors.includes("accountNumberInvalid") ? t("accountNumberInvalid") : null;
-  const swiftError = swift.trim() && errors.includes("swiftInvalid") ? t("swiftInvalid") : null;
+      : null);
+  const accountError =
+    refBlocked ?? (!usesIban && ref.accountNumber && errors.includes("accountNumberInvalid") ? t("accountNumberInvalid") : null);
+  const swiftError = !swift.trim()
+    ? null
+    : errors.includes("swiftCountryBlocked")
+      ? t("bankCountryBlocked")
+      : errors.includes("swiftInvalid")
+        ? t("swiftInvalid")
+        : null;
 
   const submit = async () => {
     try {

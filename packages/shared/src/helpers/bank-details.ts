@@ -1,4 +1,4 @@
-import { countryUsesIban } from "../data/country-profiles";
+import { countryUsesIban, REGISTRATION_BLOCKED } from "../data/country-profiles";
 import { isValidCountryCode } from "../data/countries";
 import { countryInIbanRegistry, ibanLengthForPrefix } from "../data/iban-countries";
 import { ibanChecksumOk, isValidIbanTr, normalizeIban } from "./company-identity";
@@ -33,7 +33,9 @@ export type BankDetailsError =
   | "accountNumberInvalid"
   | "swiftRequired"
   | "swiftInvalid"
-  | "bankNameRequired";
+  | "bankNameRequired"
+  | "ibanCountryBlocked"
+  | "swiftCountryBlocked";
 
 export function normalizeSwift(value: string | null | undefined): string {
   return (value ?? "").replace(/\s+/g, "").toUpperCase();
@@ -64,12 +66,14 @@ export interface BankDetailsInput {
 /**
  * IBAN geçerli mi: TR katı biçim; diğerleri ülke önekinin KAYITLI uzunluğu
  * (`IBAN_LENGTHS`; eskiden hiç bakılmıyordu — mod-97'yi tesadüfen tutturan
- * eksik/fazla haneli IBAN geçiyordu) + mod-97. Önek kayıtta yoksa yalnız mod-97.
+ * eksik/fazla haneli IBAN geçiyordu) + mod-97. Önek kayıtta yoksa yalnız mod-97
+ * — ama önek GEÇERLİ bir ülke kodu olmalı ("XX…" mod-97 tutsa da IBAN değil).
  */
 export function isValidIbanAny(value: string | null | undefined): boolean {
   const v = normalizeIban(value ?? "");
   if (!v) return false;
   if (v.startsWith("TR")) return isValidIbanTr(v);
+  if (!isValidCountryCode(v.slice(0, 2))) return false;
   const len = ibanLengthForPrefix(v.slice(0, 2));
   if (len != null && v.length !== len) return false;
   return ibanChecksumOk(v);
@@ -106,12 +110,34 @@ export function classifyBankAccountInput(
   return { iban: null, accountNumber: raw };
 }
 
+/**
+ * YAPTIRIM ÜLKESİ KAPISI (derin denetim MU-17): tahsilat hesabı kayda KAPALI
+ * ülkede (`REGISTRATION_BLOCKED` — ABD + toprakları, İran, K. Kore, Suriye,
+ * Küba) olamaz. Eskiden yalnız formdaki banka ülkesine bakılıyordu → banka
+ * ülkesi DE seçilip mod-97'si tutan bir "IR…" IBAN'ı (IR kayıtlı uzunluk
+ * tablosunda yok, yalnız mod-97 denetleniyordu) ya da IBAN'sız ülkede İran
+ * SWIFT'i ("MELIIRTH") kaydedilebiliyordu. Artık hesabın KENDİ ülke izi de
+ * denetlenir: IBAN öneki (hesap no alanına yazılmış geçerli IBAN dahil) ve
+ * SWIFT/BIC'in 5-6. karakterleri.
+ */
+function blockedCountryErrors(iban: string, input: BankDetailsInput): BankDetailsError[] {
+  const errors: BankDetailsError[] = [];
+  const acct = normalizeIban(input.accountNumber ?? "");
+  const ibanLike = iban || (isValidIbanAny(acct) ? acct : "");
+  if (ibanLike && REGISTRATION_BLOCKED.has(ibanLike.slice(0, 2))) errors.push("ibanCountryBlocked");
+  const sw = normalizeSwift(input.swiftBic);
+  if (isValidSwiftBic(sw) && REGISTRATION_BLOCKED.has(sw.slice(4, 6))) errors.push("swiftCountryBlocked");
+  return errors;
+}
+
 /** Banka bilgisinin eksik/hatalı alanları (boş dizi = geçerli). */
 export function bankDetailsErrors(
   input: BankDetailsInput,
   opts: { requireSwift?: boolean } = {},
 ): BankDetailsError[] {
   const iban = normalizeIban(input.iban ?? "");
+  const blocked = blockedCountryErrors(iban, input);
+  if (blocked.length > 0) return blocked;
   const swiftErrors = (): BankDetailsError[] => {
     const sw = normalizeSwift(input.swiftBic);
     if (!sw) return opts.requireSwift ? ["swiftRequired"] : [];
