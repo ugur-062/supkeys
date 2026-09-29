@@ -9,6 +9,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { reportToSentry } from "../../instrument";
 import { createClient, type SupabaseClient } from "@supabase/supabase-js";
+import { maskEmail } from "../../common/logging/mask-email";
 
 /**
  * Supabase Auth bridge.
@@ -134,7 +135,7 @@ export class SupabaseAuthService {
       user_metadata: metadata,
     });
     if (error || !data.user) {
-      this.logger.error(`createUser failed for ${email}: ${error?.message}`);
+      this.logger.error(`createUser failed for ${maskEmail(email)}: ${error?.message}`);
       // Supabase e-posta çakışmasında "already been registered" benzeri döner —
       // kullanıcıya teknik detay değil, dostane çakışma mesajı göster.
       if (error && /registered|exists|taken|already/i.test(error.message)) {
@@ -164,7 +165,7 @@ export class SupabaseAuthService {
       },
     );
     if (error || !data.user) {
-      this.logger.error(`inviteByEmail failed for ${email}: ${error?.message}`);
+      this.logger.error(`inviteByEmail failed for ${maskEmail(email)}: ${error?.message}`);
       throw new ServiceUnavailableException(i18nMessage("api.supabaseAuth.davetEPostasiGonderilemedi"));
     }
     return { authId: data.user.id };

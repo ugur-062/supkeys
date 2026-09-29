@@ -21,6 +21,7 @@ import {
   type EmailStream,
 } from "./email-streams";
 import { signUnsubscribeToken } from "./unsubscribe-token";
+import { maskEmail } from "../../common/logging/mask-email";
 
 // Geriye-dönük uyumluluk: mevcut import'lar (testler dahil) bu sembolü
 // email.service'ten çeker. Tek kaynak critical-contexts.ts; burada re-export.
@@ -180,7 +181,7 @@ export class EmailService implements OnModuleInit {
     });
     if (suppressed) {
       this.logger.warn(
-        `Gönderim atlandı — adres ${suppressed.status} (${input.to.email}); ${input.templateData.template}`,
+        `Gönderim atlandı — adres ${suppressed.status} (${maskEmail(input.to.email)}); ${input.templateData.template}`,
       );
       const skipped = await this.prisma.emailLog.create({
         data: {
@@ -308,7 +309,7 @@ export class EmailService implements OnModuleInit {
       });
 
       this.logger.log(
-        `Sent email ${log.id} (${input.templateData.template}) → ${input.to.email} via ${this.providerName}`,
+        `Sent email ${log.id} (${input.templateData.template}) → ${maskEmail(input.to.email)} via ${this.providerName}`,
       );
       return { emailLogId: log.id, sent: true };
     } catch (err) {
