@@ -1,4 +1,4 @@
-import { format, formatDistanceToNow } from "date-fns";
+import { addMinutes, format, formatDistanceToNow, startOfMinute } from "date-fns";
 import { tr } from "date-fns/locale";
 
 type DateInput = Date | string | number | null | undefined;
@@ -43,4 +43,16 @@ export function safeFormatDistance(
  */
 export function toDateTimeLocal(value?: DateInput): string {
   return format(toValidDate(value) ?? new Date(), "yyyy-MM-dd'T'HH:mm");
+}
+
+/**
+ * `value`'dan (boş/geçersizse şimdiki andan) KESİN SONRAKİ ilk tam dakika,
+ * datetime-local biçiminde. Backend uzatma/yeniden açmada `closesAt <= eski
+ * kapanış` ve `closesAt <= şimdi` değerlerini reddeder. Alt sınır dakikaya
+ * aşağı yuvarlanmış an olursa seçicideki en erken değer (ve saniyeli
+ * kapanışın aynı dakikası) 400 alıyordu (derin denetim LU-12, gözden geçirme).
+ */
+export function nextDateTimeLocal(value?: DateInput): string {
+  const base = toValidDate(value) ?? new Date();
+  return format(addMinutes(startOfMinute(base), 1), "yyyy-MM-dd'T'HH:mm");
 }

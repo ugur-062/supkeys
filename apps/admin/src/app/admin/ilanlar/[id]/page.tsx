@@ -16,7 +16,7 @@ import {
   useAdminListingDetail,
   useListingIntervention,
 } from "@/hooks/use-admin-inspection";
-import { safeFormat, toDateTimeLocal } from "@/lib/date";
+import { nextDateTimeLocal, safeFormat } from "@/lib/date";
 import { systemTextTr } from "@/lib/system-text";
 import {
   BID_STATUS,
@@ -330,7 +330,7 @@ function ListingInspection({ id }: { id: string }) {
         title="Süre Uzat"
         label="Yeni kapanış (yalnız uzatma — kısaltma yapılamaz)"
         type="datetime-local"
-        minDateTime={toDateTimeLocal(l.closesAt)}
+        minDateTime={nextDateTimeLocal(l.closesAt)}
         required
         confirmLabel="Uzat"
         onConfirm={(v) => {
@@ -351,7 +351,7 @@ function ListingInspection({ id }: { id: string }) {
         title="İlanı Yeniden Aç"
         label="Yeni kapanış tarihi"
         type="datetime-local"
-        minDateTime={toDateTimeLocal()}
+        minDateTime={nextDateTimeLocal()}
         required
         confirmLabel="Yeniden Aç"
         onConfirm={(v) => {
