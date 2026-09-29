@@ -1523,6 +1523,16 @@
         "title": "Buying request closed without an award",
         "body": "The buying request \"{title}\" ({number}) was closed without selecting a winner.{hasReason, select, yes { Reason: {reason}} other {}}"
       },
+      "adminClosed": {
+        "subject": "Buying request closed to offers by the platform team",
+        "title": "Buying request closed to offers",
+        "body": "The buying request \"{title}\" ({number}) has been closed to offers by the platform team. You will be notified separately if it is reopened after review."
+      },
+      "adminReopened": {
+        "subject": "Buying request reopened for offers",
+        "title": "Buying request reopened for offers",
+        "body": "The buying request \"{title}\" ({number}) has been reopened for offers by the platform team. New closing time: {closesAt}."
+      },
       "closingChanged": {
         "subject": "Buying request closing time changed",
         "title": "Closing time changed",

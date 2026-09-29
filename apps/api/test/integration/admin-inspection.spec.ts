@@ -20,13 +20,18 @@ function rig() {
   // (PrismaBypassService, RLS'siz owner rol). Testte owner test-db prisma =
   // bypass eşdeğeri → cross-tenant okumalar RLS-DOĞRU (admin bypass'a tabi, RLS
   // kısıtlamasına DEĞİL). Domain servisleri (listing/order/bid) asla bypass DEĞİL.
+  const listings = {
+    notifyListingParticipants: jest.fn().mockResolvedValue(undefined),
+  };
+  const realtime = { pingListing: jest.fn(), pingOrder: jest.fn() };
   const service = new AdminInspectionService(
     prisma as never,
     audit,
     companies as never,
-    undefined, // realtime optional
+    realtime as never,
+    listings as never,
   );
-  return { service, companies };
+  return { service, companies, listings, realtime };
 }
 
 async function makeOrder(
@@ -108,6 +113,56 @@ describe("ilan müdahaleleri", () => {
     });
     expect(after.closesAt!.getTime()).toBe(FURTHER.getTime());
     expect(after.closingReminderSentAt).toBeNull();
+  });
+
+  it("müdahaleler davetli + teklifçilere de bildirilir; gerekçe katılımcıya gitmez (derin denetim MU-04)", async () => {
+    const { service, listings, realtime } = rig();
+    const co = await makeCompanyWithUser(prisma, {});
+    const invited = await makeCompanyWithUser(prisma, {});
+    const l = await makeListing(prisma, {
+      companyId: co.company.id,
+      createdById: co.user.id,
+      closesAt: FUTURE,
+    });
+    await prisma.listingInvitation.create({
+      data: {
+        listingId: l.id,
+        invitedCompanyId: invited.company.id,
+        invitedById: co.user.id,
+      },
+    });
+
+    await service.extendListing(l.id, FURTHER.toISOString(), "admin-1");
+    expect(listings.notifyListingParticipants).toHaveBeenLastCalledWith(
+      l.id,
+      expect.objectContaining({
+        bodyKey: "api.notifications.listings.closingChanged.body",
+        params: expect.objectContaining({ direction: "extended" }),
+        type: "listing_closing_changed",
+      }),
+    );
+    // Realtime ping davetli firmanın odasına da gider.
+    expect(realtime.pingListing).toHaveBeenLastCalledWith(
+      l.id,
+      expect.arrayContaining([co.company.id, invited.company.id]),
+    );
+
+    await service.closeListing(l.id, "şikayet: gizli ayrıntı", "admin-1");
+    const closeCall = listings.notifyListingParticipants.mock.calls.at(-1)!;
+    expect(closeCall[1].bodyKey).toBe(
+      "api.notifications.listings.adminClosed.body",
+    );
+    expect(JSON.stringify(closeCall[1])).not.toContain("gizli");
+
+    await service.reopenListing(l.id, FURTHER.toISOString(), "admin-1");
+    expect(listings.notifyListingParticipants).toHaveBeenLastCalledWith(
+      l.id,
+      expect.objectContaining({
+        bodyKey: "api.notifications.listings.adminReopened.body",
+        params: expect.objectContaining({ closesAt: expect.anything() }),
+      }),
+    );
+    expect(listings.notifyListingParticipants).toHaveBeenCalledTimes(3);
   });
 
   it("reopen: CLOSED+kazandırılmamış → OPEN; kazandırılmış reddedilir", async () => {
@@ -214,6 +269,63 @@ describe("davet iptalleri", () => {
     await expect(
       service.revokeConnectionInvite(active.id, "admin-1"),
     ).rejects.toThrow(/BEKLEYEN/);
+  });
+
+  it("referans daveti SİLİNMEZ, CANCELLED olur; kuyruktaki talep davetleri iptal, gönderilmişler kalır (derin denetim MU-04)", async () => {
+    const { service } = rig();
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      closesAt: FUTURE,
+    });
+    const ref = await prisma.companyReferralInvite.create({
+      data: {
+        inviterCompanyId: buyer.company.id,
+        email: "dis@tedarikci.com",
+        invitedById: buyer.user.id,
+      },
+    });
+    // Talep × adres tekil → gönderilmiş ve kuyruktaki davet AYRI taleplerde.
+    const listing2 = await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      closesAt: FUTURE,
+    });
+    const mkExt = (state: "SENT" | "QUEUED", listingId: string) =>
+      prisma.externalListingInvite.create({
+        data: {
+          listingId,
+          inviterCompanyId: buyer.company.id,
+          referralInviteId: ref.id,
+          email: "dis@tedarikci.com",
+          locale: "tr",
+          source: "MANUAL",
+          state,
+        },
+      });
+    const sent = await mkExt("SENT", listing.id);
+    const queued = await mkExt("QUEUED", listing2.id);
+
+    await service.revokeReferralInvite(ref.id, "admin-1");
+
+    const after = await prisma.companyReferralInvite.findUnique({
+      where: { id: ref.id },
+    });
+    expect(after?.status).toBe("CANCELLED");
+    const s = await prisma.externalListingInvite.findUniqueOrThrow({
+      where: { id: sent.id },
+    });
+    expect(s.state).toBe("SENT");
+    const q = await prisma.externalListingInvite.findUniqueOrThrow({
+      where: { id: queued.id },
+    });
+    expect(q.state).toBe("CANCELLED");
+    expect(q.cancelReason).toBe("REFERRAL_CANCELLED");
+    // İkinci iptal: artık PENDING değil → reddedilir.
+    await expect(
+      service.revokeReferralInvite(ref.id, "admin-1"),
+    ).rejects.toThrow(/BEKLEYEN|bekleyen/i);
   });
 
   it("listConnections yön + karşı-taraf doğru; inceleme listeleri döner", async () => {

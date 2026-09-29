@@ -234,7 +234,16 @@ export function CompanyDetailView({
       {tab === "ozet" ? <SummaryTab data={data} /> : null}
       {tab === "belgeler" ? <DocsTab companyId={companyId} data={data} /> : null}
       {tab === "uyelik" ? <MembershipTab companyId={companyId} data={data} /> : null}
-      {tab === "kullanicilar" ? <UsersTab companyId={companyId} /> : null}
+      {tab === "kullanicilar" ? <UsersTab
+          companyId={companyId}
+          // Satınalma yetkisi yalnız efektif GOLD'da (süresi geçmiş GOLD = STANDART);
+          // API aynı kapıyı uygular, burada seçenek baştan kilitlenir.
+          canGrantBuy={
+            data.tier === "GOLD" &&
+            (!data.membershipEndAt ||
+              new Date(data.membershipEndAt).getTime() >= Date.now())
+          }
+        /> : null}
       {tab === "ilanlar" ? <ListingsTab companyId={companyId} /> : null}
       {tab === "siparisler" ? <OrdersTab companyId={companyId} /> : null}
       {tab === "baglantilar" ? (

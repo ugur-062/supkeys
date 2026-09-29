@@ -7,9 +7,9 @@ import {
   NotFoundException,
 } from "@nestjs/common";
 import { randomBytes } from "node:crypto";
-import type { CompanyRole } from "@rothern/db";
-import { SEAT_LIMITS, SEAT_ROLES, countSeats, isValidEmailLike, permissionsForRoles } from "@rothern/shared";
-import { effectiveTier } from "../../common/company/effective-tier";
+import type { CompanyRole, Prisma } from "@rothern/db";
+import { isValidEmailLike, permissionsForRoles, seatGroupsOf } from "@rothern/shared";
+import { assertSeatAvailable, lockCompanyRow } from "../../common/company/seat-gate";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import { CompanyAuthService } from "../company-auth/services/company-auth.service";
@@ -108,13 +108,36 @@ export class AdminCompanyUsersService {
         i18nMessage("api.adminCompanies.firmaSahibiDevreDisiBirakilamazOnce"),
       );
     }
-    await this.prisma.companyUser.update({
-      where: { id: userId },
-      data: {
-        isActive: active,
-        ...(active ? {} : { tokenVersion: { increment: 1 } }),
-      },
+    // Derin denetim MU-04: koltuk taşıyan pasif kişinin reaktivasyonu koltuğunu
+    // yeniden tüketir — firma panelindeki reaktivasyonla AYNI kapı (paket limiti
+    // + satınalma yalnız GOLD), firma satırı kilitli tx'te. Eskiden admin
+    // "Aktifleştir" 4/4 dolu firmada 5/4 açabiliyordu.
+    const seatGroups = seatGroupsOf({
+      isOwner: user.isOwner,
+      permissions: user.permissions,
+      roles: user.roles,
     });
+    if (active && !user.isActive && !user.deletedAt && seatGroups.size > 0) {
+      await this.prisma.$transaction(async (tx) => {
+        await lockCompanyRow(tx, companyId);
+        await assertSeatAvailable(tx, companyId, {
+          groups: seatGroups,
+          context: "assign",
+        });
+        await tx.companyUser.update({
+          where: { id: userId },
+          data: { isActive: true },
+        });
+      });
+    } else {
+      await this.prisma.companyUser.update({
+        where: { id: userId },
+        data: {
+          isActive: active,
+          ...(active ? {} : { tokenVersion: { increment: 1 } }),
+        },
+      });
+    }
     await this.log(
       active ? "admin.user.activated" : "admin.user.deactivated",
       userId,
@@ -195,32 +218,27 @@ export class AdminCompanyUsersService {
   ) {
     const company = await this.prisma.company.findUnique({
       where: { id: companyId },
-      select: { id: true, tier: true, membershipEndAt: true },
+      select: { id: true },
     });
     if (!company) throw new NotFoundException(i18nMessage("api.adminCompanies.firmaBulunamadi"));
     const email = input.email.trim().toLowerCase();
     if (!ASSIGNABLE_ROLES.includes(input.role as CompanyRole)) {
       throw new BadRequestException(i18nMessage("api.adminCompanies.gecersizRol"));
     }
-    // Yetki tablosu (Faz 4): admin eliyle açılan koltuk da paket kapısından
-    // geçer — eskiden admin limitin üstüne SA/ST ekleyebiliyordu.
-    if ((SEAT_ROLES as readonly string[]).includes(input.role)) {
-      const limit =
-        SEAT_LIMITS[effectiveTier(company.tier, company.membershipEndAt)];
-      if (limit != null) {
-        // Faz 5: koltuk = (kişi, grup) — grup bazında sayım (tek kaynak countSeats).
-        const rows = await this.prisma.companyUser.findMany({
-          where: { companyId, deletedAt: null, isActive: true },
-          select: { roles: true, permissions: true },
-        });
-        const used = countSeats(rows).total;
-        if (used + 1 > limit) {
-          throw new BadRequestException(
-            i18nMessage("api.adminCompanies.koltukDoluBuRolIcinFirmanin", { used: used, limit: limit }),
-          );
-        }
-      }
-    }
+    const permissions = permissionsForRoles([input.role]);
+    // Yetki tablosu (Faz 4) + derin denetim MU-04: admin eliyle açılan koltuk
+    // firma panelindeki kapının AYNISINDAN geçer — (kişi, grup) sayımı, bekleyen
+    // koltuk davetleri dahil (aksi halde onlar kabulde "koltuk dolu" kalır) ve
+    // SATINALMA YALNIZ GOLD (2026-09-14). Burada kilitsiz ön kontrol (Supabase
+    // hesabı boşuna açılmasın); asıl kapı aşağıda kilitli tx'te tekrar koşar.
+    const seatGroups = seatGroupsOf({ permissions });
+    const seatGate = (db: Prisma.TransactionClient) =>
+      assertSeatAvailable(db, companyId, {
+        groups: seatGroups,
+        includePending: true,
+        context: "assign",
+      });
+    await seatGate(this.prisma);
     const clash = await this.prisma.companyUser.findUnique({
       where: { email },
       select: { id: true },
@@ -235,22 +253,37 @@ export class AdminCompanyUsersService {
       randomBytes(24).toString("base64url"),
       { role: "company_user" },
     );
-    const user = await this.prisma.companyUser.create({
-      data: {
-        email,
-        authId,
-        firstName: input.firstName.trim(),
-        lastName: input.lastName.trim(),
-        roles: [input.role as CompanyRole],
-        // Yetki tablosu: rol etiketinin hazır seti açık liste olarak yazılır.
-        permissions: permissionsForRoles([input.role]),
-        companyId,
-        // Admin eliyle açıldı — doğrulama adımı atlanır (kimlik telefonda).
-        emailVerifiedAt: new Date(),
-        invitedAt: new Date(),
-      },
-      select: { id: true, email: true },
-    });
+    let user: { id: string; email: string };
+    try {
+      user = await this.prisma.$transaction(async (tx) => {
+        await lockCompanyRow(tx, companyId);
+        await seatGate(tx);
+        return tx.companyUser.create({
+          data: {
+            email,
+            authId,
+            firstName: input.firstName.trim(),
+            lastName: input.lastName.trim(),
+            roles: [input.role as CompanyRole],
+            // Yetki tablosu: rol etiketinin hazır seti açık liste olarak yazılır.
+            permissions,
+            companyId,
+            // Admin eliyle açıldı — doğrulama adımı atlanır (kimlik telefonda).
+            emailVerifiedAt: new Date(),
+            invitedAt: new Date(),
+          },
+          select: { id: true, email: true },
+        });
+      });
+    } catch (err) {
+      // Kilitli kapı (yarış) ya da yazım düştü — yetim Supabase hesabı kalmasın.
+      await this.supabase.deleteUser(authId).catch((e: unknown) => {
+        this.logger.warn(
+          `addUser rollback: orphan auth user could not be deleted (${authId}): ${String(e)}`,
+        );
+      });
+      throw err;
+    }
     await this.passwordReset.requestForCompany(email);
     await this.log("admin.user.created", user.id, adminId, {
       email,
@@ -269,6 +302,9 @@ export class AdminCompanyUsersService {
         authId: true,
         isActive: true,
         emailVerifiedAt: true,
+        deletedAt: true,
+        roles: true,
+        permissions: true,
         company: { select: { ownerUserId: true } },
       },
     });

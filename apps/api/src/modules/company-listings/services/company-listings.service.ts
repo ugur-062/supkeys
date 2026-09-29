@@ -7496,9 +7496,10 @@ export class CompanyListingsService {
 
   /**
    * İptal / kazansız-kapatma bildirimi — davetliler + teklif verenler birleşik
-   * kümesine e-posta + in-app.
+   * kümesine e-posta + in-app. Public: admin müdahaleleri (kapat/uzat/yeniden
+   * aç) de katılımcılara bu tek yoldan bildirir (derin denetim MU-04).
    */
-  private async notifyListingParticipants(
+  async notifyListingParticipants(
     listingId: string,
     opts: {
       subjectKey: ApiMessageKey;

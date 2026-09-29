@@ -133,6 +133,25 @@ describe("UsersTab — kullanıcı kurtarma", () => {
     );
   });
 
+  it("Gold olmayan firmada Satın Almacı seçeneği kilitli (derin denetim MU-04)", async () => {
+    const uev = userEvent.setup();
+    render(<UsersTab companyId="c1" canGrantBuy={false} />);
+    await uev.click(screen.getByRole("button", { name: /Kullanıcı Ekle/ }));
+    const dialog = await screen.findByRole("dialog");
+    const buyer = within(dialog).getByRole("option", {
+      name: /Satın Almacı/,
+    }) as HTMLOptionElement;
+    expect(buyer.disabled).toBe(true);
+    expect(buyer.textContent).toMatch(/yalnız Gold/);
+    expect(
+      within(dialog).getByText(/yalnız Gold pakette verilebilir/),
+    ).toBeInTheDocument();
+    const seller = within(dialog).getByRole("option", {
+      name: "Satışçı",
+    }) as HTMLOptionElement;
+    expect(seller.disabled).toBe(false);
+  });
+
   it("E-posta → prompt → changeEmail mutate", async () => {
     const uev = userEvent.setup();
     render(<UsersTab companyId="c1" />);

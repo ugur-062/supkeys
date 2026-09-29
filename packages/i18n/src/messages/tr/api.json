@@ -1523,6 +1523,16 @@
         "title": "Alım Talebi sonuçlanmadan kapatıldı",
         "body": "\"{title}\" ({number}) alım talebi kazanan seçilmeden kapatıldı.{hasReason, select, yes { Gerekçe: {reason}} other {}}"
       },
+      "adminClosed": {
+        "subject": "Alım Talebi platform yönetimince teklife kapatıldı",
+        "title": "Alım Talebi teklife kapatıldı",
+        "body": "\"{title}\" ({number}) alım talebi platform yönetimi tarafından teklife kapatıldı. İnceleme sonrası yeniden açılırsa ayrıca bilgilendirileceksiniz."
+      },
+      "adminReopened": {
+        "subject": "Alım Talebi yeniden teklife açıldı",
+        "title": "Alım Talebi yeniden teklife açıldı",
+        "body": "\"{title}\" ({number}) alım talebi platform yönetimi tarafından yeniden teklife açıldı. Yeni kapanış: {closesAt}."
+      },
       "closingChanged": {
         "subject": "Alım Talebi kapanış zamanı değişti",
         "title": "Kapanış zamanı değişti",

@@ -7,6 +7,7 @@ import { AdminCompanyUsersService } from "../../src/modules/admin-companies/admi
 import { AuditService } from "../../src/modules/audit/audit.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeUser } from "./factories";
+import { permissionsForRoles } from "@rothern/shared";
 
 function rig() {
   const passwordReset = {
@@ -18,6 +19,7 @@ function rig() {
   const supabase = {
     updateEmail: jest.fn().mockResolvedValue(undefined),
     createUser: jest.fn().mockResolvedValue({ authId: "auth-new-1" }),
+    deleteUser: jest.fn().mockResolvedValue(undefined),
   };
   const audit = new AuditService(prisma as never);
   const service = new AdminCompanyUsersService(
@@ -207,6 +209,109 @@ describe("e-posta değiştirme + doğrudan ekleme", () => {
         "admin-1",
       ),
     ).rejects.toThrow(/Geçersiz rol/);
+  });
+});
+
+describe("koltuk kapısı admin yolunda da (derin denetim MU-04)", () => {
+  it("Aktifleştir: dolu firmada koltuk taşıyan pasif kişi geri açılamaz; koltuksuz kişi açılır", async () => {
+    const { service } = rig();
+    // SILVER limit 4: Kurucu SA+ST (2) + iki satışçı (2) = 4/4.
+    const co = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    await prisma.company.update({
+      where: { id: co.company.id },
+      data: { membershipEndAt: new Date(Date.now() + 30 * 86400_000) },
+    });
+    await makeUser(prisma, co.company.id, ["SATISCI"]);
+    await makeUser(prisma, co.company.id, ["SATISCI"]);
+    const passive = await makeUser(prisma, co.company.id, ["SATISCI"], {
+      isActive: false,
+    });
+    await expect(
+      service.setActive(co.company.id, passive.id, true, "admin-1"),
+    ).rejects.toThrow(/Koltuk dolu \(4\/4\)/);
+    const still = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: passive.id },
+      select: { isActive: true },
+    });
+    expect(still.isActive).toBe(false);
+    // Koltuksuz (yalnız onaylayıcı) kişi koltuk tüketmez → açılır.
+    const approver = await makeUser(prisma, co.company.id, ["ONAYLAYICI"], {
+      isActive: false,
+    });
+    await service.setActive(co.company.id, approver.id, true, "admin-1");
+    const re = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: approver.id },
+      select: { isActive: true },
+    });
+    expect(re.isActive).toBe(true);
+  });
+
+  it("Aktifleştir: Gold olmayan firmada satın almacı geri açılamaz (paket kapısı)", async () => {
+    const { service } = rig();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"],
+    });
+    const buyer = await makeUser(prisma, co.company.id, ["SATIN_ALMACI"], {
+      isActive: false,
+    });
+    await expect(
+      service.setActive(co.company.id, buyer.id, true, "admin-1"),
+    ).rejects.toThrow(/yalnız Gold/);
+  });
+
+  it("addUser: Gold olmayan firmaya Satın Almacı eklenemez; Supabase hesabı açılmaz", async () => {
+    const { service, supabase } = rig();
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"],
+    });
+    await expect(
+      service.addUser(
+        co.company.id,
+        { email: "alici@firma.com", firstName: "A", lastName: "B", role: "SATIN_ALMACI" },
+        "admin-1",
+      ),
+    ).rejects.toThrow(/yalnız Gold/);
+    expect(supabase.createUser).not.toHaveBeenCalled();
+    expect(
+      await prisma.companyUser.count({ where: { email: "alici@firma.com" } }),
+    ).toBe(0);
+  });
+
+  it("addUser: bekleyen koltuk daveti koltuk sayımına girer", async () => {
+    const { service, supabase } = rig();
+    // STANDART limit 2: Kurucu satış koltuğu (1) + bekleyen satışçı daveti (1).
+    const co = await makeCompanyWithUser(prisma, {
+      tier: "STANDART",
+      roles: ["SAHIP", "SATISCI"],
+    });
+    await prisma.companyUserInvitation.create({
+      data: {
+        companyId: co.company.id,
+        email: "davetli@firma.com",
+        roles: ["SATISCI"],
+        permissions: permissionsForRoles(["SATISCI"]),
+        token: "tok-mu04-" + Date.now(),
+        invitedById: co.user.id,
+        expiresAt: new Date(Date.now() + 86400_000),
+      },
+    });
+    await expect(
+      service.addUser(
+        co.company.id,
+        { email: "satis@firma.com", firstName: "S", lastName: "T", role: "SATISCI" },
+        "admin-1",
+      ),
+    ).rejects.toThrow(/bekleyen davet/);
+    expect(supabase.createUser).not.toHaveBeenCalled();
+    // Koltuksuz rol (Onaylayıcı) kapıya takılmaz.
+    await service.addUser(
+      co.company.id,
+      { email: "onay@firma.com", firstName: "O", lastName: "N", role: "ONAYLAYICI" },
+      "admin-1",
+    );
+    expect(supabase.createUser).toHaveBeenCalledTimes(1);
   });
 });
 

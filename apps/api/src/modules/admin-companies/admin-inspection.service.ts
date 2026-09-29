@@ -11,6 +11,7 @@ import { encodeSystemText } from "@rothern/shared";
 import { dateParam } from "../../common/notifications/notification-params";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
+import { CompanyListingsService } from "../company-listings/services/company-listings.service";
 import { RealtimeService } from "../realtime/realtime.service";
 import { AdminCompaniesService } from "./admin-companies.service";
 
@@ -29,7 +30,50 @@ export class AdminInspectionService {
     private readonly audit: AuditService,
     private readonly companies: AdminCompaniesService,
     @Optional() private readonly realtime?: RealtimeService,
+    // Katılımcı (davetli + teklifçi) bildirimi — firma tarafının tek yolu.
+    // @Optional yalnız elle kurulan test rig'leri için; Nest her zaman enjekte eder.
+    @Optional() private readonly listings?: CompanyListingsService,
   ) {}
+
+  /**
+   * Admin müdahalesi talep sahibinin YANINDA davetli ve teklif veren firmalara
+   * da bildirilir (derin denetim MU-04): yeniden açılan / uzatılan talebi
+   * öğrenmeyen tedarikçi teklif veremez. Best-effort — müdahale yanıtını
+   * bekletmez, hata yalnız loglanır.
+   */
+  private notifyParticipants(
+    listingId: string,
+    opts: Parameters<CompanyListingsService["notifyListingParticipants"]>[1],
+  ) {
+    if (!this.listings) return;
+    void this.listings.notifyListingParticipants(listingId, opts).catch((err) =>
+      this.logger.error(
+        `admin intervention participant notification failed (${listingId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      ),
+    );
+  }
+
+  /** Talep odası + sahip + davetli/teklifçi firma odalarına realtime ping. */
+  private async pingListingParties(listingId: string, ownerCompanyId: string) {
+    if (!this.realtime) return;
+    const [invs, bids] = await Promise.all([
+      this.prisma.listingInvitation.findMany({
+        where: { listingId },
+        select: { invitedCompanyId: true },
+      }),
+      this.prisma.listingBid.findMany({
+        where: { listingId },
+        select: { bidderCompanyId: true },
+      }),
+    ]);
+    this.realtime.pingListing(listingId, [
+      ownerCompanyId,
+      ...invs.map((i) => i.invitedCompanyId),
+      ...bids.map((b) => b.bidderCompanyId),
+    ]);
+  }
 
   // ── İLANLAR ────────────────────────────────────────────────
 
@@ -193,7 +237,14 @@ export class AdminInspectionService {
       entityId: id,
       metadata: { reason },
     });
-    this.realtime?.pingListing(id, [l.companyId]);
+    await this.pingListingParties(id, l.companyId);
+    // Katılımcılara gerekçe GİTMEZ (şikayet/moderasyon ayrıntısı iç bilgi).
+    this.notifyParticipants(id, {
+      subjectKey: "api.notifications.listings.adminClosed.subject",
+      headingKey: "api.notifications.listings.adminClosed.title",
+      bodyKey: "api.notifications.listings.adminClosed.body",
+      type: "listing_closed",
+    });
     void this.companies.notifyCompany(l.companyId, {
       type: "admin_listing_closed",
       subjectKey: "api.notifications.adminInspection.ilanKapatildiBaslik",
@@ -236,7 +287,14 @@ export class AdminInspectionService {
       entityId: id,
       metadata: { from: l.closesAt, to: closesAt },
     });
-    this.realtime?.pingListing(id, [l.companyId]);
+    await this.pingListingParties(id, l.companyId);
+    this.notifyParticipants(id, {
+      subjectKey: "api.notifications.listings.closingChanged.subject",
+      headingKey: "api.notifications.listings.closingChanged.title",
+      bodyKey: "api.notifications.listings.closingChanged.body",
+      params: { direction: "extended", closesAt: dateParam(closesAt, "dateTime") },
+      type: "listing_closing_changed",
+    });
     void this.companies.notifyCompany(l.companyId, {
       type: "admin_listing_extended",
       subjectKey: "api.notifications.adminInspection.ilanUzatildiBaslik",
@@ -293,7 +351,15 @@ export class AdminInspectionService {
       entityId: id,
       metadata: { closesAt },
     });
-    this.realtime?.pingListing(id, [l.companyId]);
+    await this.pingListingParties(id, l.companyId);
+    this.notifyParticipants(id, {
+      subjectKey: "api.notifications.listings.adminReopened.subject",
+      headingKey: "api.notifications.listings.adminReopened.title",
+      bodyKey: "api.notifications.listings.adminReopened.body",
+      params: { closesAt: dateParam(closesAt, "dateTime") },
+      // Kapanış ailesi (tercih `listingClosed`) — yeni kapanışla yeniden açılış.
+      type: "listing_closing_changed",
+    });
     void this.companies.notifyCompany(l.companyId, {
       type: "admin_listing_reopened",
       subjectKey: "api.notifications.adminInspection.ilanYenidenAcildiBaslik",
@@ -632,9 +698,24 @@ export class AdminInspectionService {
 
   /** Bekleyen referans (e-posta) davetini iptal et. */
   async revokeReferralInvite(id: string, adminId: string) {
-    const done = await this.prisma.companyReferralInvite.deleteMany({
-      where: { id, status: "PENDING" },
-    });
+    // Derin denetim MU-04: satır SİLİNMEZ, CANCELLED olur — firma panelindeki
+    // iptal (B5-4) ve paket düşüşüyle aynı kural. Silme, cascade ile gönderilmiş
+    // dış talep davetlerini ve adres başına 7 gün freni / günlük tavan
+    // geçmişini de götürüyordu. Kuyruktaki talep davetleri de iptal edilir.
+    const [done] = await this.prisma.$transaction([
+      this.prisma.companyReferralInvite.updateMany({
+        where: { id, status: "PENDING" },
+        data: { status: "CANCELLED" },
+      }),
+      this.prisma.externalListingInvite.updateMany({
+        where: {
+          referralInviteId: id,
+          state: "QUEUED",
+          referralInvite: { status: "CANCELLED" },
+        },
+        data: { state: "CANCELLED", cancelReason: "REFERRAL_CANCELLED" },
+      }),
+    ]);
     if (done.count !== 1) {
       throw new BadRequestException(
         i18nMessage("api.adminCompanies.yalnizBekleyenReferansDavetiIptalEdilebilir"),

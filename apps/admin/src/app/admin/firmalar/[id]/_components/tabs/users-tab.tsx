@@ -68,6 +68,7 @@ function AddUserDialog({
   onConfirm,
   onClose,
   pending,
+  canGrantBuy,
 }: {
   onConfirm: (v: {
     email: string;
@@ -77,6 +78,8 @@ function AddUserDialog({
   }) => void;
   onClose: () => void;
   pending: boolean;
+  /** Firma efektif GOLD mu — değilse Satın Almacı rolü verilemez (API kapısıyla aynı). */
+  canGrantBuy: boolean;
 }) {
   const [form, setForm] = useState({
     email: "",
@@ -134,13 +137,22 @@ function AddUserDialog({
               value={form.role}
               onChange={(e) => set("role", e.target.value)}
             >
-              {ADDABLE_ROLES.map((r) => (
-                <option key={r.value} value={r.value}>
-                  {r.label}
-                </option>
-              ))}
+              {ADDABLE_ROLES.map((r) => {
+                const locked = r.value === "SATIN_ALMACI" && !canGrantBuy;
+                return (
+                  <option key={r.value} value={r.value} disabled={locked}>
+                    {locked ? `${r.label} (yalnız Gold)` : r.label}
+                  </option>
+                );
+              })}
             </Select>
           </label>
+          {!canGrantBuy ? (
+            <p className="text-admin-text-muted text-xs">
+              Satınalma yetkisi yalnız Gold pakette verilebilir — talep açma ve
+              kazandırma diğer paketlerde kapalı.
+            </p>
+          ) : null}
           <p className="text-admin-text-muted text-xs">
             Kullanıcıya şifre belirleme e-postası gönderilir; e-posta
             doğrulama adımı atlanır (kimliği telefonda doğruladınız).
@@ -177,7 +189,14 @@ function AddUserDialog({
 }
 
 /** Kullanıcılar — üye listesi + kurtarma aksiyonları (Faz 4). */
-export function UsersTab({ companyId }: { companyId: string }) {
+export function UsersTab({
+  companyId,
+  canGrantBuy = true,
+}: {
+  companyId: string;
+  /** Firma efektif GOLD mu (satınalma yetkisi verilebilir mi). */
+  canGrantBuy?: boolean;
+}) {
   const query = useAdminCompanyUsers(companyId);
   const recovery = useUserRecoveryAction(companyId);
   const setActive = useSetUserActive(companyId);
@@ -393,6 +412,7 @@ export function UsersTab({ companyId }: { companyId: string }) {
       {dialog?.kind === "add" ? (
         <AddUserDialog
           pending={addUser.isPending}
+          canGrantBuy={canGrantBuy}
           onConfirm={(v) =>
             addUser.mutate(v, {
               onSuccess: () => {
