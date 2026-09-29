@@ -71,14 +71,26 @@ export class PasswordResetService {
     // Token'ı ATOMİK tüket (tek-kullanım yarış koruması) — parolayı GÜNCELLEMEDEN
     // önce. İki eşzamanlı confirm'de yalnız biri count=1 alır; diğeri count=0 →
     // "zaten kullanılmış". Böylece parola ikinci kez (farklı değerle) set edilemez.
+    const claimedAt = new Date();
     const claimed = await this.prisma.passwordResetToken.updateMany({
       where: { id: record.id, usedAt: null },
-      data: { usedAt: new Date() },
+      data: { usedAt: claimedAt },
     });
     if (claimed.count === 0) {
       throw new ForbiddenException(i18nMessage("api.passwordReset.buBaglantiZatenKullanilmis"));
     }
-    await this.supabaseAuth.updatePassword(target.authId, newPassword);
+    try {
+      await this.supabaseAuth.updatePassword(target.authId, newPassword);
+    } catch (err) {
+      // Derin denetim X17: parola güncellenemediyse (zayıf/sızmış parola 400,
+      // Supabase kesintisi 503) bağlantı YANMAZ — kullanıcı aynı linkle başka
+      // bir parola deneyebilir. Yalnız bu çağrının koyduğu damga geri alınır.
+      await this.prisma.passwordResetToken.updateMany({
+        where: { id: record.id, usedAt: claimedAt },
+        data: { usedAt: null },
+      });
+      throw err;
+    }
     // Tüm mevcut oturumlar geçersizleşir (tokenVersion) — parola sıfırlama
     // genelde hesabın ele geçirilme şüphesinde yapılır.
     await this.prisma.companyUser.update({

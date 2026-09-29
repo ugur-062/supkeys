@@ -50,7 +50,7 @@ export class AdminAuthService {
     // Supabase Auth source-of-truth. verifyPassword başarısızsa generic 401.
     let authId: string;
     try {
-      const result = await this.supabaseAuth.verifyPassword(email, dto.password);
+      const result = await this.supabaseAuth.verifyPassword(email, dto.password, ctx?.ip);
       authId = result.authId;
     } catch (err) {
       if (err instanceof ServiceUnavailableException) throw err; // kesinti ≠ parola hatası
@@ -138,13 +138,13 @@ export class AdminAuthService {
   // ── Hesap güvenliği (Faz 7) ─────────────────────────────────
 
   /** Şifre değiştir — mevcut şifre Supabase'te doğrulanır. */
-  async changePassword(adminId: string, current: string, next: string) {
+  async changePassword(adminId: string, current: string, next: string, clientIp?: string) {
     const admin = await this.requireAdmin(adminId);
     if (next.length < 12) {
       throw new BadRequestException(i18nMessage("api.adminAuth.yeniSifreEnAz12Karakter"));
     }
     try {
-      await this.supabaseAuth.verifyPassword(admin.email, current);
+      await this.supabaseAuth.verifyPassword(admin.email, current, clientIp);
     } catch (err) {
       if (err instanceof ServiceUnavailableException) throw err;
       throw new BadRequestException(i18nMessage("api.adminAuth.mevcutSifreHatali"));

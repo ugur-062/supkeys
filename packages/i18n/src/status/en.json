@@ -6934,6 +6934,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.supabaseAuth.sifreSizintiListelerindeGeciyor": {
+    "hash": "dab36557ea",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "api.supabaseAuth.sifreYeterinceGucluDegil": {
+    "hash": "949a75d12d",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.units.BAG": {
     "hash": "1d98b40012",
     "status": "reviewed",

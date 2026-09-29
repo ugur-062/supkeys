@@ -97,8 +97,9 @@ export class AdminAuthController {
   changePassword(
     @CurrentAdmin() admin: AuthenticatedAdmin,
     @Body() dto: ChangePasswordDto,
+    @ClientIp() ip: string,
   ) {
-    return this.adminAuthService.changePassword(admin.id, dto.current, dto.next);
+    return this.adminAuthService.changePassword(admin.id, dto.current, dto.next, ip);
   }
 
   @Post("2fa/setup")

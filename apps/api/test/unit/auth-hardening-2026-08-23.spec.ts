@@ -175,7 +175,8 @@ describe("#10 SupabaseAuthService.verifyPassword hata sınıfı", () => {
   function svcWith(error: { status?: number; message: string; name?: string } | null) {
     const s = Object.create(SupabaseAuthService.prototype) as SupabaseAuthService;
     (s as unknown as { logger: { debug: () => void; error: () => void } }).logger = { debug: () => undefined, error: () => undefined };
-    (s as unknown as { publicClient: unknown }).publicClient = {
+    // Y-11: parola doğrulama `passwordClient` üzerinden (secret anahtar yoksa publicClient'ın kendisi).
+    (s as unknown as { passwordClient: unknown }).passwordClient = {
       auth: { signInWithPassword: async () => ({ data: { user: error ? null : { id: "auth-1", email: "e@x" } }, error }) },
     };
     return s;

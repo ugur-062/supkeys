@@ -68,7 +68,9 @@
     "davetEPostasiGonderilemedi": "The invitation email could not be sent",
     "sifreDegistirilemedi": "The password could not be changed",
     "buEPostaBaskaBirHesapta": "This email address is registered to another account",
-    "ePostaDegistirilemedi": "The email address could not be changed"
+    "ePostaDegistirilemedi": "The email address could not be changed",
+    "sifreSizintiListelerindeGeciyor": "This password has appeared in known data breaches — please choose a different password",
+    "sifreYeterinceGucluDegil": "This password does not meet the security requirements — please choose a stronger password"
   },
   "companyAuth": {
     "yetkisiz": "Unauthorized",

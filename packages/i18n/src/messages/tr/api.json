@@ -68,7 +68,9 @@
     "davetEPostasiGonderilemedi": "Davet e-postası gönderilemedi",
     "sifreDegistirilemedi": "Şifre değiştirilemedi",
     "buEPostaBaskaBirHesapta": "Bu e-posta başka bir hesapta kayıtlı",
-    "ePostaDegistirilemedi": "E-posta değiştirilemedi"
+    "ePostaDegistirilemedi": "E-posta değiştirilemedi",
+    "sifreSizintiListelerindeGeciyor": "Bu şifre bilinen veri sızıntılarında geçiyor — lütfen başka bir şifre seçin",
+    "sifreYeterinceGucluDegil": "Bu şifre güvenlik gereksinimlerini karşılamıyor — lütfen daha güçlü bir şifre seçin"
   },
   "companyAuth": {
     "yetkisiz": "Yetkisiz",

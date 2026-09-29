@@ -159,11 +159,13 @@ export class CompanyAuthController {
   changePassword(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Body() dto: ChangePasswordDto,
+    @ClientIp() ip: string,
   ) {
     return this.service.changePassword(
       user.userId,
       dto.currentPassword,
       dto.newPassword,
+      ip,
     );
   }
 

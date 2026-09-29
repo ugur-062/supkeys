@@ -1,5 +1,8 @@
+import { AsyncLocalStorage } from "node:async_hooks";
+import { isIP } from "node:net";
 import { i18nMessage } from "../../common/i18n/http-i18n";
 import {
+  BadRequestException,
   ConflictException,
   Injectable,
   Logger,
@@ -27,16 +30,59 @@ import { maskEmail } from "../../common/logging/mask-email";
 /** Supabase Auth çağrıları için üst sınır (denetim P11 #9). */
 const SUPABASE_TIMEOUT_MS = 10_000;
 
+/**
+ * Derin denetim 2026-09-29 Y-11: hosted Supabase Auth, parola girişlerini
+ * (sign-ups and sign-ins kotası) İSTEK IP'si başına sayar. Tüm girişler API
+ * sunucusundan gittiği için eskiden HERKES Render'ın tek çıkış IP'sini
+ * paylaşıyordu → tek saldırgan (ya da lansman trafiği) kotayı doldurunca
+ * bütün platformda giriş 503. Supabase, SECRET API anahtarıyla (`sb_secret_…`)
+ * gelen isteklerde gerçek son kullanıcı IP'sini bu başlıktan alır ve kotayı
+ * o IP'ye uygular. Başlık yalnız secret anahtar yapılandırılmışsa gönderilir
+ * (eski anon/service_role JWT'leriyle desteklenmez).
+ */
+export const SB_FORWARDED_FOR_HEADER = "Sb-Forwarded-For";
+
+/** Supabase Auth hata gövdesinden okunan alanlar (auth-js AuthError alt kümesi). */
+type AuthErrorLike = {
+  status?: number;
+  code?: string;
+  name?: string;
+  message?: string;
+  reasons?: string[];
+};
+
+/**
+ * Supabase "zayıf parola" reddi mi? (Derin denetim X17.) Sızmış parola
+ * koruması iki projede AÇIK: admin createUser / updateUserById HIBP'de geçen
+ * parolayı 422 `weak_password` ile reddeder. Yalnız 422'ye bakılmaz —
+ * `email_exists` gibi başka 422'ler de var.
+ */
+function isWeakPasswordError(error: AuthErrorLike | null | undefined): boolean {
+  if (!error) return false;
+  return error.code === "weak_password" || error.name === "AuthWeakPasswordError";
+}
+
 @Injectable()
 export class SupabaseAuthService {
   private readonly logger = new Logger(SupabaseAuthService.name);
   private readonly admin: SupabaseClient;
   private readonly publicClient: SupabaseClient;
+  /**
+   * Parola doğrulama istemcisi (Y-11). `SUPABASE_SECRET_KEY` varsa o anahtarla
+   * kurulur ve her isteğe istemci IP'sini `Sb-Forwarded-For` ile ekler; yoksa
+   * `publicClient`'ın kendisidir (eski davranış, IP iletilmez).
+   */
+  private readonly passwordClient: SupabaseClient;
+  /** true → `Sb-Forwarded-For` iletiliyor (secret anahtar yapılandırılmış). */
+  private readonly forwardsClientIp: boolean;
+  /** Çağrı bazında iletilecek istemci IP'si (fetch sarmalayıcısı okur). */
+  private readonly forwardedFor = new AsyncLocalStorage<string>();
 
   constructor(private readonly config: ConfigService) {
     const url = this.requireEnv("SUPABASE_URL");
     const serviceRoleKey = this.requireEnv("SUPABASE_SERVICE_ROLE_KEY");
     const anonKey = this.requireEnv("SUPABASE_ANON_KEY");
+    const secretKey = this.config.get<string>("SUPABASE_SECRET_KEY")?.trim();
 
     /**
      * Denetim 2026-08-27 Parça 11 #9: `auth-js`'e özel `fetch` verilmediğinde
@@ -62,6 +108,34 @@ export class SupabaseAuthService {
       auth: { autoRefreshToken: false, persistSession: false },
       global: { fetch: timeoutFetch },
     });
+
+    if (secretKey) {
+      if (!secretKey.startsWith("sb_secret_")) {
+        this.logger.warn(
+          "SUPABASE_SECRET_KEY does not start with 'sb_secret_' — Supabase honours Sb-Forwarded-For only with a secret API key.",
+        );
+      }
+      const forwardingFetch: typeof fetch = (input, init) => {
+        const ip = this.forwardedFor.getStore();
+        if (!ip) return timeoutFetch(input, init);
+        const headers = new Headers(init?.headers);
+        headers.set(SB_FORWARDED_FOR_HEADER, ip);
+        return timeoutFetch(input, { ...init, headers });
+      };
+      this.passwordClient = createClient(url, secretKey, {
+        auth: { autoRefreshToken: false, persistSession: false },
+        global: { fetch: forwardingFetch },
+      });
+      this.forwardsClientIp = true;
+    } else {
+      this.passwordClient = this.publicClient;
+      this.forwardsClientIp = false;
+      if (this.config.get<string>("NODE_ENV") === "production") {
+        this.logger.warn(
+          "SUPABASE_SECRET_KEY is not set — every sign-in reaches Supabase from the server IP; the per-IP sign-in quota can lock out all users (audit Y-11).",
+        );
+      }
+    }
   }
 
   // ============================================================
@@ -74,15 +148,23 @@ export class SupabaseAuthService {
    *
    * Bu metod SADECE auth.users tarafında kimlik doğrular — domain
    * kullanıcısı (User/SupplierUser/PlatformAdmin) lookup'ını çağıran yapar.
+   *
+   * `clientIp` (Y-11): isteği yapan son kullanıcının IP'si (`resolveClientIp`).
+   * Secret anahtar yapılandırılmışsa Supabase'e `Sb-Forwarded-For` ile iletilir;
+   * Supabase'in IP başına giriş kotası sunucu IP'si yerine bu IP'ye uygulanır.
    */
   async verifyPassword(
     email: string,
     password: string,
+    clientIp?: string,
   ): Promise<{ authId: string; email: string }> {
-    const { data, error } = await this.publicClient.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const ip = clientIp?.trim();
+    const signIn = () =>
+      this.passwordClient.auth.signInWithPassword({ email, password });
+    const { data, error } =
+      this.forwardsClientIp && ip && isIP(ip)
+        ? await this.forwardedFor.run(ip, signIn)
+        : await signIn();
 
     if (error) {
       // Denetim 2026-08-23 #10: kimlik hatası (400/401/403/422 — parola yanlış,
@@ -92,13 +174,28 @@ export class SupabaseAuthService {
       const status = (error as { status?: number }).status ?? 0;
       const credentialFailure = status === 400 || status === 401 || status === 403 || status === 422;
       if (!credentialFailure) {
+        // Y-11: 429 = Supabase giriş kotası doldu. Kesintiden AYRI etiketle
+        // raporlanır (alarm kuralı `supabase:auth_rate_limited`); IP iletimi
+        // kapalıysa kota sunucu IP'sinde paylaşılır → herkes etkilenir.
+        const rateLimited = status === 429;
         this.logger.error(
-          `Supabase Auth erişilemiyor (status=${status}): ${error.name ?? "error"} ${error.message}`,
+          rateLimited
+            ? `Supabase Auth sign-in rate limit hit (429, ipForwarding=${this.forwardsClientIp}): ${error.message}`
+            : `Supabase Auth erişilemiyor (status=${status}): ${error.name ?? "error"} ${error.message}`,
         );
-        reportToSentry("Supabase Auth erişilemiyor (signInWithPassword)", "error", {
-          tags: { supabase: "auth_unavailable" },
-          extra: { status, name: error.name },
-        });
+        reportToSentry(
+          rateLimited
+            ? "Supabase Auth sign-in rate limit hit (signInWithPassword 429)"
+            : "Supabase Auth erişilemiyor (signInWithPassword)",
+          "error",
+          {
+            tags: {
+              supabase: rateLimited ? "auth_rate_limited" : "auth_unavailable",
+              supabase_ip_forwarding: String(this.forwardsClientIp),
+            },
+            extra: { status, name: error.name, code: (error as AuthErrorLike).code },
+          },
+        );
         throw new ServiceUnavailableException(
           i18nMessage("api.supabaseAuth.girisServisiGeciciOlarakKullanilamiyorLutfen"),
         );
@@ -141,6 +238,9 @@ export class SupabaseAuthService {
       if (error && /registered|exists|taken|already/i.test(error.message)) {
         throw new ConflictException(i18nMessage("api.supabaseAuth.buEPostaIleZatenBir"));
       }
+      // X17: zayıf/sızmış parola kullanıcı hatasıdır — "birazdan tekrar
+      // deneyin" (503) değil; aynı parolayla tekrar denemek hep başarısız olur.
+      this.throwIfWeakPassword(error);
       throw new ServiceUnavailableException(
         i18nMessage("api.supabaseAuth.hesapOlusturulamadiLutfenBirazdanTekrarDeneyin"),
       );
@@ -187,6 +287,7 @@ export class SupabaseAuthService {
     });
     if (error) {
       this.logger.error(`updatePassword failed for ${authId}: ${error.message}`);
+      this.throwIfWeakPassword(error);
       throw new ServiceUnavailableException(i18nMessage("api.supabaseAuth.sifreDegistirilemedi"));
     }
   }
@@ -236,6 +337,24 @@ export class SupabaseAuthService {
   // ============================================================
   // HELPERS
   // ============================================================
+
+  /**
+   * Supabase `weak_password` reddini 400'e çevirir (X17). Sızıntı listesinde
+   * geçen parola (`reasons` içinde `pwned`) ayrı mesaj alır.
+   */
+  private throwIfWeakPassword(error: AuthErrorLike | null | undefined): void {
+    if (!isWeakPasswordError(error)) return;
+    const pwned = error?.reasons?.includes("pwned") ?? false;
+    throw new BadRequestException(
+      i18nMessage(
+        pwned
+          ? "api.supabaseAuth.sifreSizintiListelerindeGeciyor"
+          : "api.supabaseAuth.sifreYeterinceGucluDegil",
+        undefined,
+        "WEAK_PASSWORD",
+      ),
+    );
+  }
 
   private requireEnv(key: string): string {
     const v = this.config.get<string>(key);

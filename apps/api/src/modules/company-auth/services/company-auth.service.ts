@@ -885,7 +885,8 @@ export class CompanyAuthService {
 
     let authId: string;
     try {
-      const r = await this.supabaseAuth.verifyPassword(email, dto.password);
+      // Y-11: istemci IP'si Supabase'e iletilir (IP başına giriş kotası).
+      const r = await this.supabaseAuth.verifyPassword(email, dto.password, ctx?.ip);
       authId = r.authId;
     } catch (err) {
       // Supabase erişim/kesinti hatası (503) parola hatası DEĞİLDİR — aynen
@@ -1552,6 +1553,7 @@ export class CompanyAuthService {
     userId: string,
     currentPassword: string,
     newPassword: string,
+    clientIp?: string,
   ) {
     const user = await this.prisma.companyUser.findUnique({
       where: { id: userId },
@@ -1559,7 +1561,7 @@ export class CompanyAuthService {
     });
     if (!user || !user.authId) throw new UnauthorizedException();
     try {
-      await this.supabaseAuth.verifyPassword(user.email, currentPassword);
+      await this.supabaseAuth.verifyPassword(user.email, currentPassword, clientIp);
     } catch (err) {
       if (err instanceof ServiceUnavailableException) throw err;
       throw new ForbiddenException(i18nMessage("api.companyAuth.mevcutParolaHatali"));
