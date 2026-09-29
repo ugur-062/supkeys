@@ -336,6 +336,24 @@ describe("TeklifVerPage — form", () => {
     );
   });
 
+  it("muadil işaretli ama marka ve parça no boş → gönderim engellenir (derin denetim LU-15)", async () => {
+    const user = userEvent.setup();
+    render(<TeklifVerPage />);
+    await user.type(screen.getByLabelText("Birim Fiyat"), "90");
+    await user.click(
+      screen.getByRole("checkbox", {
+        name: /Muadil \(eşdeğer\) ürün teklif ediyorum/,
+      }),
+    );
+    expect(
+      screen.getByText(/muadil ürün teklif ediyorsanız marka veya parça numarası girin/),
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Çelik Boru teklif edilen marka"), "FAG");
+    expect(
+      screen.queryByText(/muadil ürün teklif ediyorsanız marka veya parça numarası girin/),
+    ).toBeNull();
+  });
+
   it("alıcı muadile izin vermediyse kart görünümünde muadil alanı çıkmaz", () => {
     const base = baseDetail();
     h.detail = {

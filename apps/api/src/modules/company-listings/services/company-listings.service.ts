@@ -1655,6 +1655,7 @@ export class CompanyListingsService {
       dto.deliveryAddressId,
       dto.billingAddressId,
     );
+    await this.assertListingItemImagesOwned(user.companyId, dto.items);
 
     const listing = await runTenantTx(this.prisma, async (tx) => {
       const l = await tx.listing.create({
@@ -1945,6 +1946,20 @@ export class CompanyListingsService {
       dto.deliveryAddressId,
       dto.billingAddressId,
     );
+    // Kalemler sil-yaz ile yeniden yazılır: ilanda ZATEN kayıtlı görsel
+    // (eski kayıt / katalog kopyası) yeniden doğrulanmaz, yalnız yeni adres.
+    await this.assertListingItemImagesOwned(
+      user.companyId,
+      dto.items,
+      new Set(
+        (
+          await this.prisma.listingItem.findMany({
+            where: { listingId },
+            select: { images: true },
+          })
+        ).flatMap((i) => i.images),
+      ),
+    );
 
     // Açık eksiltme (legacy taslak) düzenleniyorsa kur damgası tazelenir —
     // izinli birimler değişmiş olabilir; kuru olmayan birim burada reddedilir.
@@ -2234,6 +2249,7 @@ export class CompanyListingsService {
         visibility: true,
         type: true,
         createdById: true,
+        bidsOpenAt: true,
         // X-CF-2: açık eksiltmede açılış kur damgası yayında SENKRON kurulur.
         format: true,
         allowedCurrencies: true,
@@ -2257,6 +2273,16 @@ export class CompanyListingsService {
         i18nMessage("api.companyListings.yayinIcinGecerliBirKapanisTarihi"),
       );
     }
+    // create'in non-draft kurallarının GERİ KALANI da (2 yıl tavanı,
+    // açılış < kapanış): taslak `validateListingDates`'i tamamen atladığından
+    // taslak+yayınla yolu `closesAt=9999` (cron hiç kapatmaz) ya da
+    // `bidsOpenAt > closesAt` (teklif alamadan kapanan talep) yayınlayabiliyordu
+    // (derin denetim LU-15).
+    this.validateListingDates({
+      asDraft: false,
+      closesAt: listing.closesAt.toISOString(),
+      bidsOpenAt: listing.bidsOpenAt?.toISOString(),
+    } as CreateListingDto);
     if (listing.visibility === "PRIVATE") {
       const inviteCount = await this.prisma.listingInvitation.count({
         where: { listingId },
@@ -3159,6 +3185,10 @@ export class CompanyListingsService {
       approval._count._all,
       approval._max.updatedAt?.getTime() ?? 0,
       addrs._max.updatedAt?.getTime() ?? 0,
+      // Payload okuyucunun DİLİNE bağlı alan taşır (varsayılan adres başlığı
+      // `localizeDefaultAddressTitle`); dil değişince aynı veri farklı yanıt
+      // demektir → 304 eski dildeki başlığı bırakmasın (derin denetim LU-15).
+      currentLocale(),
     ].join("-");
     return `W/"${createHash("sha1").update(parts).digest("base64url")}"`;
   }
@@ -4083,6 +4113,51 @@ export class CompanyListingsService {
     ]);
 
   /**
+   * Kalem görselleri herkese açık yüzeylere düşer (pazar yeri kapağı
+   * `deriveCover`, talep sayfası og:image) → profil görselleriyle AYNI kural:
+   * yalnız firmanın kendi public deposu (`assertOwnPublicImageUrl`). Aksi hâlde
+   * API'ye doğrudan harici/`data:` adres yazılıp moderasyonsuz üçüncü taraf
+   * görseli Rothern sayfasında yayınlanabiliyordu (derin denetim LU-15).
+   *
+   * Muaf: `known` (düzenlemede ilanda zaten kayıtlı görseller) ve firmanın
+   * KENDİ kataloğundaki ürün görselleri — sihirbaz katalogdan eklenen ürünün
+   * kapağını taşır; o adres zaten ürün sayfasında yayında, bu yol yeni bir
+   * harici adres açmaz. Storage yoksa (elle kurulan test rig'i) atlanır.
+   */
+  private async assertListingItemImagesOwned(
+    companyId: string,
+    items: { images?: string[] }[] | undefined,
+    known: ReadonlySet<string> = new Set(),
+  ): Promise<void> {
+    const storage = this.storage;
+    if (!storage) return;
+    const urls = [
+      ...new Set(
+        (items ?? []).flatMap((it) =>
+          (it.images ?? []).map((u) => u.trim()).filter(Boolean),
+        ),
+      ),
+    ].filter((u) => !known.has(u));
+    const foreign = new Map<string, unknown>();
+    for (const u of urls) {
+      try {
+        storage.assertOwnPublicImageUrl(u, companyId);
+      } catch (err) {
+        foreign.set(u, err);
+      }
+    }
+    if (foreign.size === 0) return;
+    const catalog = await this.prisma.companyItem.findMany({
+      where: { companyId, images: { hasSome: [...foreign.keys()] } },
+      select: { images: true },
+    });
+    const catalogImages = new Set(catalog.flatMap((c) => c.images));
+    for (const [u, err] of foreign) {
+      if (!catalogImages.has(u)) throw err;
+    }
+  }
+
+  /**
    * İlana yazılan teslimat/fatura adres id'leri istek sahibinin KENDİ adres
    * defterinden olmalı. Aksi halde yabancı bir CompanyAddress'in id'si ilana
    * yazılıp award'da orderDeliverySnapshot ile siparişin deliveryAddress JSON'una
@@ -4216,6 +4291,8 @@ export class CompanyListingsService {
             currency: true,
             round: true,
             activeBidRound: true,
+            // Tx içindeki yeniden okuma kıyası (eşzamanlı gönderim yarışı).
+            version: true,
             // Pazarlık rebid'inde teslim bilgisi taşınan tekliften KORUNUR
             // (madde 14) — yeniden sorulmaz, gönderilmezse eski değer kalır.
             deliveryTime: true,
@@ -4619,6 +4696,21 @@ export class CompanyListingsService {
           fxToBase: c !== currency ? (fxByCurrency.get(c) ?? null) : null,
         };
       });
+      // Muadil beyanı en az marka VEYA parça no ister (place-bid.dto sözleşmesi):
+      // boş muadil satırı alıcıya "neyin muadili?" sorusunu cevapsız bırakır,
+      // teklifler aynı ürün üzerinden kıyaslanamaz. Taslakta serbest.
+      if (!isDraft) {
+        const bare = bidItemsData.find(
+          (bi) => bi.isAlternative && !bi.offeredBrand && !bi.offeredMpn,
+        );
+        if (bare) {
+          throw new BadRequestException(
+            i18nMessage("api.companyListings.muadilTeklifteMarkaVeyaParcaNoZorunlu", {
+              name: itemById.get(bare.itemId)?.name ?? "",
+            }),
+          );
+        }
+      }
 
       // Kalem soruları: cevaplar yalnız FİYATLANAN kalemin sorularına verilebilir;
       // gönderimde fiyatlanan kalemlerin ZORUNLU soruları cevaplanmış olmalı.
@@ -4785,7 +4877,11 @@ export class CompanyListingsService {
               new Prisma.Decimal(up).mul(qtyById.get(pid) ?? 0),
             );
           }
-          comparable = sub;
+          // Kayıtlı `ownLast` 2 haneye yuvarlanmış tutar (sumLineTotals →
+          // roundMoney); ham ara toplamla kıyas kesirli miktarda AYNI fiyatı
+          // "daha düşük" sayıyordu (1,5 × 10,33 = 15,495 < 15,50) — derin
+          // denetim LU-15. Kıyas, yazılacak tutarla aynı yuvarlamada.
+          comparable = roundMoney(sub);
           scopeExpanded = bidItemsData.length > prevIds.size;
         }
         const scopeNote = tApi(
@@ -4828,6 +4924,29 @@ export class CompanyListingsService {
       if (!row || row.status !== "OPEN" || row.currentRound !== listing.currentRound) {
         throw new ConflictException(
           i18nMessage("api.companyListings.ilanBuSiradaGuncellendiDurumTur"),
+        );
+      }
+      // Teklif satırı da ilan kilidi ALTINDA yeniden okunur: turda-tek-gönderim,
+      // SUBMITTED-düzenlenemez ve monotonluk kapıları tx dışındaki
+      // `existingBid` okumasına dayanıyor. Aynı firmadan eşzamanlı iki POST
+      // ikisi de kapıları geçip ikincisi birincinin yazdığını kural denetimi
+      // olmadan eziyordu (turda iki gönderim / fiyatı geri çekme — derin
+      // denetim LU-15). Okunan anlık görüntüden sapma → Conflict, istemci
+      // yenileyip yeniden dener.
+      const liveBid = await tx.$queryRaw<
+        { status: string; activeBidRound: number | null; amount: Prisma.Decimal; version: number }[]
+      >`SELECT status, "activeBidRound", amount, version FROM listing_bids WHERE "listingId" = ${id} AND "bidderCompanyId" = ${user.companyId} FOR UPDATE`;
+      const lb = liveBid[0] ?? null;
+      const bidChanged = existingBid
+        ? !lb ||
+          lb.status !== existingBid.status ||
+          lb.version !== existingBid.version ||
+          lb.activeBidRound !== existingBid.activeBidRound ||
+          !new Prisma.Decimal(lb.amount).equals(existingBid.amount)
+        : lb != null;
+      if (bidChanged) {
+        throw new ConflictException(
+          i18nMessage("api.companyListings.teklifinizBuSiradaDegistiSayfayi"),
         );
       }
       if (listingItems.length > 0) {
@@ -5223,6 +5342,8 @@ export class CompanyListingsService {
         id: true,
         listingId: true,
         status: true,
+        // Kazanan guard'ı: tx dışı okunan tutar/kalemlerin hâlâ geçerli olduğu.
+        version: true,
         bidderCompanyId: true,
         amount: true,
         currency: true,
@@ -5363,8 +5484,12 @@ export class CompanyListingsService {
       // ile bu tx arasındaki pencerede bid elenirse (SUBMITTED→LOST) `where
       // status:SUBMITTED` 0 satır alır → throw → tx ROLLBACK: elenmiş/çekilmiş
       // teklife sipariş yazılmaz (LOST↔sipariş tutarlılığı korunur).
+      // `version` da koşulda (derin denetim LU-15): OPEN açık eksiltmede teklif
+      // sahibi bu pencerede yeniden gönderirse (placeBid version++) tutar ve
+      // kalemler tx dışında okunan anlık görüntüden sapar → bayat tutarla
+      // sipariş yazılmaz, count=0 → Conflict.
       const won = await tx.listingBid.updateMany({
-        where: { id: bidId, status: "SUBMITTED" },
+        where: { id: bidId, status: "SUBMITTED", version: bid.version },
         data: { status: "WON" },
       });
       if (won.count !== 1) {
@@ -5837,6 +5962,8 @@ export class CompanyListingsService {
       where: { id: { in: bidIds }, listingId, status: "SUBMITTED" },
       select: {
         id: true,
+        // runItemAward kazanan guard'ı (runFullAward simetrisi, LU-15).
+        version: true,
         bidderCompanyId: true,
         currency: true,
         // X-CF-1: teklifin kur damgası — onay eşiği TRY çevriminde `award` ile
@@ -5950,7 +6077,8 @@ export class CompanyListingsService {
     // yuvarlanıp hesapla ıraksıyordu; tek kaynak `roundMoney` ile hizalanır
     // (denetim 2026-08-23).
     for (const g of groups.values()) g.amount = roundMoney(g.amount);
-    return { groups, itemQty };
+    const bidVersions = new Map(bids.map((b) => [b.id, b.version] as const));
+    return { groups, itemQty, bidVersions };
   }
 
   /**
@@ -6035,7 +6163,7 @@ export class CompanyListingsService {
       },
     });
     if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
-    const { groups, itemQty } = await this.buildItemGroups(
+    const { groups, itemQty, bidVersions } = await this.buildItemGroups(
       listingId,
       itemAwards,
     );
@@ -6137,18 +6265,20 @@ export class CompanyListingsService {
       // elenirse `where status:SUBMITTED` o satırı atlar → güncellenen kazanan
       // sayısı düşer → throw → tx ROLLBACK: aşağıdaki sipariş döngüsü (groupArr)
       // elenmiş teklife sipariş YAZMAZ (WON'suz sipariş sızıntısı kapanır).
+      // `version` koşulu (LU-15): grup fiyatları tx dışında okundu; bu
+      // pencerede yeniden gönderilen teklife bayat fiyatla sipariş yazılmaz.
       let awardedWinners = 0;
-      if (fullWinners.length > 0) {
+      for (const winnerId of winningBidIds) {
         const r = await tx.listingBid.updateMany({
-          where: { listingId, id: { in: fullWinners }, status: "SUBMITTED" },
-          data: { status: "WON" },
-        });
-        awardedWinners += r.count;
-      }
-      if (partialWinners.length > 0) {
-        const r = await tx.listingBid.updateMany({
-          where: { listingId, id: { in: partialWinners }, status: "SUBMITTED" },
-          data: { status: "AWARDED_PARTIAL" },
+          where: {
+            listingId,
+            id: winnerId,
+            status: "SUBMITTED",
+            version: bidVersions.get(winnerId) ?? -1,
+          },
+          data: {
+            status: partialWinners.includes(winnerId) ? "AWARDED_PARTIAL" : "WON",
+          },
         });
         awardedWinners += r.count;
       }
@@ -6333,9 +6463,15 @@ export class CompanyListingsService {
       ]);
       this.seo?.listingChanged(listingId);
       void this.translations?.enqueue("LISTING", listingId);
-      for (const o of created) {
-        this.realtime?.pingOrder(o.id, [listing.companyId]);
-      }
+      // Sipariş sinyali İKİ tarafa (runFullAward `awardParties` simetrisi):
+      // kazanan teklifçinin Siparişler listesi de anında tazelensin (LU-15).
+      created.forEach((o, i) => {
+        const bidderCompanyId = groupArr[i]?.bidderCompanyId;
+        this.realtime?.pingOrder(o.id, [
+          listing.companyId,
+          ...(bidderCompanyId ? [bidderCompanyId] : []),
+        ]);
+      });
     } catch (err) {
       this.logger.warn(
         `Kalem-bazlı kazandırma sonrası bildirim başarısız (${listingId}): ${
@@ -6799,6 +6935,7 @@ export class CompanyListingsService {
         number: true,
         status: true,
         closesAt: true,
+        bidsOpenAt: true,
         currentRound: true,
       },
     });
@@ -6877,6 +7014,22 @@ export class CompanyListingsService {
     }
     const validUntil = new Date(validUntilMs);
     const revived = bid.status === "DRAFT";
+    // Canlandırma fiilen yeniden GÖNDERİMDİR → placeBid'in zaman kapıları
+    // (derin denetim LU-15): yalnız teklif alımı açıkken (OPEN, kapanış
+    // gelecekte — yukarıda) ve açılış embargosu bittiyse. Aksi hâlde LAZY
+    // taşınan taslak, kapanıştan sonra (IN_AWARD) ya da embargoda "geç
+    // teklif" olarak canlanıyordu. Salt SUBMITTED uzatması değerlendirmede
+    // serbest kalır.
+    if (revived) {
+      if (listing.status !== "OPEN") {
+        throw new BadRequestException(i18nMessage("api.companyListings.ilanTeklifeKapali"));
+      }
+      if (listing.bidsOpenAt && Date.now() < listing.bidsOpenAt.getTime()) {
+        throw new BadRequestException(
+          i18nMessage("api.companyListings.teklifVermeHenuzBaslamadiAcilisSaatini"),
+        );
+      }
+    }
     // Denetim 2026-08-23 P2 #2: canlandırma = yeniden GÖNDERİM; en azından KYC
     // kapısı placeBid ile aynı (içerik kapıları: placeBid taslak güncellemesi
     // artık submittedAt'ı sıfırlar → yalnız taşınan, içeriği değişmemiş taslak

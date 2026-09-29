@@ -4,6 +4,7 @@ import {
   cmpDecimal,
   distributeToTarget,
   exactTotal,
+  roundMoney,
   type DistributeItem,
 } from "../distribute";
 
@@ -157,5 +158,18 @@ describe("applyPercentToItems", () => {
     const items: DistributeItem[] = [{ id: "a", quantity: 1, unitPrice: "100" }];
     const out = applyPercentToItems({ items, percent: 2.5 });
     expect(out["a"]).toBe("97.5");
+  });
+});
+
+describe("roundMoney (sunucu roundMoney aynası — derin denetim LU-15)", () => {
+  it("2 haneye ROUND_HALF_UP: 1,5 × 10,33 = 15,495 → 15,5", () => {
+    expect(roundMoney(exactTotal([{ quantity: "1.5", unitPrice: "10.33" }]))).toBe("15.5");
+    expect(roundMoney("15.494")).toBe("15.49");
+    expect(roundMoney("100")).toBe("100");
+    expect(roundMoney("-0.005")).toBe("-0.01");
+  });
+  it("yuvarlanmış ara toplam kayıtlı tutardan 'düşük' sayılmaz", () => {
+    const comparable = roundMoney(exactTotal([{ quantity: "1.5", unitPrice: "10.33" }]));
+    expect(cmpDecimal(comparable, "15.50")).toBe(0);
   });
 });

@@ -120,13 +120,22 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
   // satış işlem izninden türer (yalnız ürün yönetimi olan üye de taşır),
   // kapı olarak kullanılamaz. SAHIP muafiyeti yok — Kurucu talepte
   // salt-gözlemci.
+  // TASLAK canlandırma fiilen yeniden gönderimdir → yalnız teklif alımı
+  // açıkken (OPEN, kapanış gelecekte, açılış embargosu bitmiş); değerlendirme
+  // aşamasında yalnız SUBMITTED teklif uzatılır (extendBidValidity aynası).
+  const biddingOpen =
+    l.status === "OPEN" &&
+    (!l.closesAt || new Date(l.closesAt).getTime() > Date.now()) &&
+    (!l.bidsOpenAt || new Date(l.bidsOpenAt).getTime() <= Date.now());
   const canExtend =
     userHasPermission(user, "sell:bid:submit") &&
     validUntil != null &&
-    (bid.status === "SUBMITTED" || bid.status === "DRAFT") &&
-    (l.status === "OPEN"
-      ? !l.closesAt || new Date(l.closesAt).getTime() > Date.now()
-      : ["IN_AWARD", "IN_AWARD_APPROVAL"].includes(l.status));
+    (bid.status === "DRAFT"
+      ? biddingOpen
+      : bid.status === "SUBMITTED" &&
+        (l.status === "OPEN"
+          ? !l.closesAt || new Date(l.closesAt).getTime() > Date.now()
+          : ["IN_AWARD", "IN_AWARD_APPROVAL"].includes(l.status)));
 
   // Uzatma mevcut bitişin ÜZERİNE eklenir (backend: validityDays += gün).
   const extendDaysNum = Number(extendDays);

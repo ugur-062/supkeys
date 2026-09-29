@@ -165,6 +165,14 @@ describe("AUTO taşıma — madde 13: koşulsuz canlı + süresiz", () => {
   });
 });
 
+/** Taslak canlandırma testleri için talebi teklif alımına açık hâle getirir. */
+async function reopenForBids(listingId: string) {
+  await prisma.listing.update({
+    where: { id: listingId },
+    data: { status: "OPEN", closesAt: FUTURE },
+  });
+}
+
 describe("Geçerlilik uzatma (extendBidValidity)", () => {
   it("SUBMITTED teklif: validityDays artar (tur açılmadan — değerlendirme evresi)", async () => {
     const { service, valid, listing } = await closedRfq();
@@ -180,6 +188,9 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
       where: { listingId: listing.id, bidderCompanyId: expired.company.id },
       data: { status: "DRAFT" },
     });
+    // Canlandırma = yeniden gönderim → yalnız teklif alımı açıkken (derin
+    // denetim LU-15; IN_AWARD'da reddi derin-denetim-lu15.spec'te).
+    await reopenForBids(listing.id);
     // 10 gün geçerliydi, 30 gün önce verildi → 20 gün geride. +60 gün → ileride.
     const res = await service.extendBidValidity(expired.auth, listing.id, 60);
     expect(res).toMatchObject({ ok: true, validityDays: 70, revived: true });
@@ -234,6 +245,7 @@ describe("Geçerlilik uzatma (extendBidValidity)", () => {
       where: { listingId: listing.id, bidderCompanyId: expired.company.id },
       data: { status: "DRAFT" },
     });
+    await reopenForBids(listing.id);
     await service.extendBidValidity(expired.auth, listing.id, 60);
     const revive = await prisma.auditLog.findFirst({
       where: {

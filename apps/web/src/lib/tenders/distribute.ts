@@ -40,6 +40,19 @@ export function cmpDecimal(a: string | number, b: string | number): -1 | 0 | 1 {
   return d < 0n ? -1 : d > 0n ? 1 : 0;
 }
 
+/**
+ * Para yuvarlaması — sunucu `roundMoney` (Decimal(18,2), ROUND_HALF_UP) ile
+ * birebir. Kayıtlı teklif tutarı 2 haneye yuvarlanmış olduğundan kıyaslar da
+ * bu yuvarlamada yapılmalı (1,5 × 10,33 = 15,495 → 15,50).
+ */
+export function roundMoney(v: string | number): string {
+  const n = parseDec(v);
+  const unit = 10n ** BigInt(S - 2);
+  const abs = n < 0n ? -n : n;
+  const rounded = ((abs + unit / 2n) / unit) * unit;
+  return formatDec(n < 0n ? -rounded : rounded);
+}
+
 /** Kesin ondalık toplama (string döner). */
 export function decAdd(a: string | number, b: string | number): string {
   return formatDec(parseDec(a) + parseDec(b));

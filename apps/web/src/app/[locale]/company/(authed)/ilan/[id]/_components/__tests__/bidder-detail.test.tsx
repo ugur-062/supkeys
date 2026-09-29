@@ -323,6 +323,31 @@ describe("BidSummaryCard", () => {
     expect(screen.queryByRole("button", { name: "Geçerliliği Uzat" })).not.toBeInTheDocument();
   });
 
+  it("'Geçerliliği Uzat': TASLAK teklif yalnız teklif alımı açıkken (IN_AWARD ve embargoda çizilmez — derin denetim LU-15)", () => {
+    useCompanyAuthStore.setState({
+      user: { isOwner: false, roles: ["SATISCI"], permissions: ["sell:view", "sell:bid:submit"] },
+    } as never);
+    const draftBid = { ...submittedBid, status: "DRAFT" as const };
+    const { unmount } = render(
+      <BidSummaryCard l={detail({ status: "IN_AWARD", myBid: draftBid })} />,
+    );
+    expect(screen.queryByRole("button", { name: "Geçerliliği Uzat" })).not.toBeInTheDocument();
+    unmount();
+    const embargo = render(
+      <BidSummaryCard
+        l={detail({
+          status: "OPEN",
+          bidsOpenAt: new Date(Date.now() + 3600_000).toISOString(),
+          myBid: draftBid,
+        })}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Geçerliliği Uzat" })).not.toBeInTheDocument();
+    embargo.unmount();
+    render(<BidSummaryCard l={detail({ status: "OPEN", myBid: draftBid })} />);
+    expect(screen.getByRole("button", { name: "Geçerliliği Uzat" })).toBeInTheDocument();
+  });
+
   it("statü/versiyon/toplam + kalem satırı + not", () => {
     render(
       <BidSummaryCard

@@ -74,6 +74,7 @@ import {
   cmpDecimal,
   decSub,
   exactTotal,
+  roundMoney,
   unitStep,
 } from "@/lib/tenders/distribute";
 
@@ -443,9 +444,11 @@ export default function TeklifVerPage() {
         .map((x) => x.itemId),
     );
   }, [isAuction, l?.myBid]);
+  // Sunucu kıyası kayıtlı (2 haneye yuvarlanmış) tutarla ve yuvarlanmış ara
+  // toplamla yapar (roundMoney) — istemci ön-kontrolü de aynı yuvarlamada.
   const comparableTotalStr = useMemo(() => {
-    if (!hasItems || prevPricedIds.size === 0) return exactTotalStr;
-    return exactTotal(
+    if (!hasItems || prevPricedIds.size === 0) return roundMoney(exactTotalStr);
+    return roundMoney(exactTotal(
       items
         .filter((it) => prevPricedIds.has(it.id))
         .map((it) => {
@@ -455,7 +458,7 @@ export default function TeklifVerPage() {
             unitPrice: p && Number(p) > 0 ? p : "0",
           };
         }),
-    );
+    ));
   }, [hasItems, prevPricedIds, exactTotalStr, items, itemState]);
   // Kapsam genişledi mi (yeni kalem fiyatlandı) — mesaj dili buna göre.
   const scopeExpanded =
@@ -867,6 +870,19 @@ export default function TeklifVerPage() {
             problems.push(tr("kalemiIcinZorunluSoruCevaplanmadi", { name: it.name }));
             break;
           }
+        }
+      }
+      // Muadil beyanı en az marka VEYA parça no ister (sunucu da reddeder).
+      for (const it of pricedItems) {
+        const st = itemState[it.id];
+        if (
+          it.alternativeAllowed !== false &&
+          st?.isAlternative &&
+          !st.offeredBrand.trim() &&
+          !st.offeredMpn.trim()
+        ) {
+          problems.push(tr("muadilMarkaVeyaParcaNoGirin", { name: it.name }));
+          break;
         }
       }
       // F4: fiyatlanan her kalem >0 + 2 ondalık + MAX_MONEY (backend unitPrice birebir).
