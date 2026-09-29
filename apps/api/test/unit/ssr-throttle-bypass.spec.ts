@@ -2,10 +2,14 @@ import { Reflector } from "@nestjs/core";
 import { ThrottlerException, ThrottlerStorageService } from "@nestjs/throttler";
 import {
   ClientIpThrottlerGuard,
+  DEFAULT_SSR_CLIENT_LIMIT,
   DEFAULT_SSR_LIMIT,
+  SSR_CLIENT_IP_HEADER,
   SSR_KEY_HEADER,
   isTrustedSsrRequest,
   ssrBucketLimit,
+  ssrClientIp,
+  ssrClientLimit,
 } from "../../src/common/http/client-ip-throttler.guard";
 
 /**
@@ -104,6 +108,55 @@ describe("ClientIpThrottlerGuard — SSR bucket", () => {
     for (let i = 0; i < 100; i++) await guard.canActivate(ctx(anon, ProductsCtrl.prototype.list));
     await expect(guard.canActivate(ctx(anon, ProductsCtrl.prototype.list))).rejects.toBeInstanceOf(ThrottlerException);
     storage.onApplicationShutdown();
+  });
+
+  /**
+   * Review follow-up: the global bucket alone let ONE visitor flooding
+   * `/urunler?q=<random>` / `?onizleme=1` exhaust it and 429 every other
+   * visitor's SSR. Attributed requests (dynamic renders) get their own bucket.
+   */
+  it("attributed SSR request uses a per-visitor bucket and never drains the global one", async () => {
+    process.env.SEO_REVALIDATE_SECRET = SECRET;
+    process.env.THROTTLE_SSR_LIMIT = "3";
+    process.env.THROTTLE_PUBLIC_LIMIT = "5";
+    const { guard, storage } = await makeGuard();
+    const attacker = { ...req({ headers: { [SSR_KEY_HEADER]: SECRET, [SSR_CLIENT_IP_HEADER]: "9.9.9.9" } }), ip: "1.2.3.4" };
+    for (let i = 0; i < 5; i++) {
+      await expect(
+        guard.canActivate(ctx(attacker, i % 2 ? ProductsCtrl.prototype.facets : ProductsCtrl.prototype.list)),
+      ).resolves.toBe(true);
+    }
+    // 6th call from the same visitor (any public endpoint) → 429.
+    await expect(guard.canActivate(ctx(attacker, ProductsCtrl.prototype.list))).rejects.toBeInstanceOf(ThrottlerException);
+    // Another visitor and ISR renders are unaffected.
+    const other = { ...req({ headers: { [SSR_KEY_HEADER]: SECRET, [SSR_CLIENT_IP_HEADER]: "8.8.8.8" } }), ip: "1.2.3.4" };
+    await expect(guard.canActivate(ctx(other, ProductsCtrl.prototype.list))).resolves.toBe(true);
+    const isr = { ...req(), ip: "1.2.3.4" };
+    for (let i = 0; i < 3; i++) await expect(guard.canActivate(ctx(isr, ProductsCtrl.prototype.list))).resolves.toBe(true);
+    storage.onApplicationShutdown();
+  });
+
+  it("client IP header without a valid secret is ignored (plain per-IP bucket)", async () => {
+    process.env.SEO_REVALIDATE_SECRET = SECRET;
+    const { guard, storage } = await makeGuard();
+    for (let i = 0; i < 100; i++) {
+      const spoof = { ...req({ headers: { [SSR_CLIENT_IP_HEADER]: `10.0.0.${i}` } }), ip: "1.2.3.4" };
+      await guard.canActivate(ctx(spoof, ProductsCtrl.prototype.list));
+    }
+    const next = { ...req({ headers: { [SSR_CLIENT_IP_HEADER]: "10.0.1.1" } }), ip: "1.2.3.4" };
+    await expect(guard.canActivate(ctx(next, ProductsCtrl.prototype.list))).rejects.toBeInstanceOf(ThrottlerException);
+    storage.onApplicationShutdown();
+  });
+
+  it("ssrClientIp: only literal IPs; ssrClientLimit: env override, invalid → default", () => {
+    expect(ssrClientIp({ headers: { [SSR_CLIENT_IP_HEADER]: " 203.0.113.7 " } })).toBe("203.0.113.7");
+    expect(ssrClientIp({ headers: { [SSR_CLIENT_IP_HEADER]: ["2001:db8::1"] } })).toBe("2001:db8::1");
+    expect(ssrClientIp({ headers: { [SSR_CLIENT_IP_HEADER]: "not-an-ip" } })).toBeUndefined();
+    expect(ssrClientIp({ headers: { [SSR_CLIENT_IP_HEADER]: "1.2.3.4, 5.6.7.8" } })).toBeUndefined();
+    expect(ssrClientIp({ headers: {} })).toBeUndefined();
+    expect(ssrClientLimit(undefined)).toBe(DEFAULT_SSR_CLIENT_LIMIT);
+    expect(ssrClientLimit("-1")).toBe(DEFAULT_SSR_CLIENT_LIMIT);
+    expect(ssrClientLimit("900")).toBe(900);
   });
 
   it("ssrBucketLimit: env override, invalid → default", () => {

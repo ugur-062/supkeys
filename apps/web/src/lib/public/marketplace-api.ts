@@ -3,6 +3,7 @@ import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
 import { getLocale } from "next-intl/server";
 import { SEO_TAGS } from "@/lib/seo/tags";
 import type { PublicListingType } from "./marketplace";
+import { SSR_CLIENT_IP_HEADER, ssrVisitorIp } from "./ssr-visitor";
 
 /**
  * Pazar yeri veri katmanı — SUNUCU tarafında çalışır.
@@ -171,15 +172,19 @@ async function publicHeaders(explicit?: string): Promise<Record<string, string>>
       /* rota işleyicisi / istek dışı */
     }
   }
-  // Web sunucusu → API: IP kovası yerine ortak, sonlu SSR kovası (yalnız GET
+  // Web sunucusu → API: IP kovası yerine sonlu SSR kovası (yalnız GET
   // /public/*; API `isTrustedSsrRequest`, derin denetim MU-12). API günlüğü bu
   // başlığı yazmaz (izinli başlık listesi). Sır sunucu env'inde — istemci paketine girmez
   // (NEXT_PUBLIC değil; bu modül istemcide yalnız tip olarak içe aktarılır).
+  // Parametreli dinamik çizimde ziyaretçi IP'si de gider → API ziyaretçi başına
+  // kovaya sayar; tek ziyaretçi ortak kovayı dolduramaz (`ssr-visitor.ts`).
   const ssrKey = process.env.SEO_REVALIDATE_SECRET;
+  const visitorIp = ssrKey ? ssrVisitorIp() : undefined;
   return {
     accept: "application/json",
     "accept-language": locale,
     ...(ssrKey ? { "x-rothern-ssr": ssrKey } : {}),
+    ...(visitorIp ? { [SSR_CLIENT_IP_HEADER]: visitorIp } : {}),
   };
 }
 

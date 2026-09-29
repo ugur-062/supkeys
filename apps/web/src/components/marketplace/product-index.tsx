@@ -7,6 +7,7 @@ import { PublicEmptyState } from "./public-empty-state";
 import { PublicListPage, ResultGrid } from "./public-list-page";
 import { PublicSearchTabs } from "./public-search-tabs";
 import { crossCounts } from "@/lib/public/cross-counts";
+import { attributeSsrToVisitor } from "@/lib/public/ssr-visitor";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
 import { CityLinks } from "./city-links";
@@ -85,6 +86,9 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
   const params = toProductListParams(state, { defaultCurrency: currencyForLocale(locale) });
   const basePath = MARKETPLACE_ROUTES.products;
 
+  // Süzgeçli/aramalı çizim veri önbelleğini ıskalar → API'de ziyaretçi başına
+  // SSR kovasına sayılsın (derin denetim MU-12; `ssr-visitor.ts`).
+  await attributeSsrToVisitor(searchParams);
   const [page, facets, otherCounts] = await Promise.all([
     fetchProducts(params),
     // Facet sayımı listeyle AYNI süzgeçleri görür (2026-09-27: ülke, "Yakınımda",

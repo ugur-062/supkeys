@@ -7,6 +7,7 @@ import { PublicEmptyState } from "./public-empty-state";
 import { PublicListPage, ResultGrid } from "./public-list-page";
 import { PublicSearchTabs } from "./public-search-tabs";
 import { crossCounts } from "@/lib/public/cross-counts";
+import { attributeSsrToVisitor } from "@/lib/public/ssr-visitor";
 import { Pagination } from "@/components/ui/pagination";
 import {
   activeListingFilterCount,
@@ -43,6 +44,9 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
   const params = toListingListParams(state);
   const basePath = MARKETPLACE_ROUTES.demands;
 
+  // Süzgeçli/aramalı çizim veri önbelleğini ıskalar → API'de ziyaretçi başına
+  // SSR kovasına sayılsın (derin denetim MU-12; `ssr-visitor.ts`).
+  await attributeSsrToVisitor(searchParams);
   const [page, facets, otherCounts] = await Promise.all([
     fetchListings(params),
     fetchFacets({ q: params.q, category: params.category, city: params.city, country: params.country, closesWithin: params.closesWithin }),

@@ -5,6 +5,7 @@ import { ViewBeacon } from "@/components/marketplace/view-beacon";
 import { CompanyProfileView } from "@/components/company/company-profile-view";
 import { CompanyProducts } from "@/components/marketplace/company-products";
 import { fetchCompanyProducts, fetchCompanyProfile, type PublicProfile } from "@/lib/public/marketplace-api";
+import { attributeSsrToVisitor } from "@/lib/public/ssr-visitor";
 import { GatedField } from "@/components/marketplace/gated-field";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { JsonLd } from "@/components/seo/json-ld";
@@ -87,6 +88,9 @@ export default async function PublicCompanyProfile({
   // sahibi az önce kaydettiğini görsün diye veri önbelleği atlanır (ISR
   // kopyası 5 dk bayat kalabiliyordu). Sayfa içeriği ve şablon AYNI.
   const fresh = sp?.onizleme === "1";
+  // Önizleme/ürün araması veri önbelleğini ıskalar → API'de ziyaretçi başına
+  // SSR kovasına sayılsın (derin denetim MU-12; `ssr-visitor.ts`).
+  await attributeSsrToVisitor(sp);
   const [p, products] = await Promise.all([
     fetchCompanyProfile(slug, { fresh }),
     fetchCompanyProducts(slug, { q: productQuery, page: productPage, fresh }),
