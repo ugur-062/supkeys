@@ -74,6 +74,7 @@ export function BidImportDialog({
   onApply: (rows: BidImportApplyRow[]) => void;
 }) {
   const t = useTranslations("web.panel.trade.bidImportDialog");
+  const fmtNum = useFormatNumber();
   const [files, setFiles] = useState<File[]>([]);
   const [result, setResult] = useState<BidImportResult | null>(null);
   /** Kalem → seçilen belge satırı id'si (elle eşleme) veya "" (boş bırak). */
@@ -234,9 +235,9 @@ export function BidImportDialog({
                   if (f.size > cap) {
                     toast.error(
                       t("dosyaCokBuyukIcinSinir", {
-                        mb: (f.size / 1024 / 1024).toFixed(1),
+                        mb: fmtNum(f.size / 1024 / 1024, { minimumFractionDigits: 1, maximumFractionDigits: 1 }),
                         kind: isCsv ? "CSV" : "Excel",
-                        cap: String(Math.round((cap / 1024 / 1024) * 10) / 10),
+                        cap: fmtNum(cap / 1024 / 1024, { maximumFractionDigits: 1 }),
                       }),
                     );
                     return;

@@ -134,10 +134,10 @@ describe("BidImportDialog — Excel şablonu: boyut kapısı ve miktar etiketi",
     );
     pickFiles(["teklif.xlsx"], 4 * 1024 * 1024);
     expect(h.parse).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenLastCalledWith("Dosya çok büyük (4.0 MB) — Excel için sınır 3.5 MB");
+    expect(toast.error).toHaveBeenLastCalledWith("Dosya çok büyük (4,0 MB) — Excel için sınır 3,5 MB");
     pickFiles(["teklif.csv"], 2 * 1024 * 1024);
     expect(h.parse).not.toHaveBeenCalled();
-    expect(toast.error).toHaveBeenLastCalledWith("Dosya çok büyük (2.0 MB) — CSV için sınır 1 MB");
+    expect(toast.error).toHaveBeenLastCalledWith("Dosya çok büyük (2,0 MB) — CSV için sınır 1 MB");
   });
 
   it("sınırın altındaki dosya yüklenir; önizleme miktarı birim etiketiyle biçimler", async () => {
