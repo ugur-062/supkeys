@@ -8,6 +8,8 @@ import { renderEmail } from "@rothern/email";
 import { EmailService } from "../../src/modules/email/email.service";
 import { EmailUnsubscribeService } from "../../src/modules/email/email-unsubscribe.service";
 import { signUnsubscribeToken } from "../../src/modules/email/unsubscribe-token";
+import { AdminEmailLogsService } from "../../src/modules/email/admin-email-logs.service";
+import { NOTIFICATION_PREF_KEYS } from "../../src/common/notifications/notification-prefs";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
 
@@ -27,7 +29,8 @@ const config = {
 };
 
 function makeEmail() {
-  const send = jest.fn().mockResolvedValue({ providerMessageId: "m1" });
+  let seq = 0;
+  const send = jest.fn().mockImplementation(async () => ({ providerMessageId: `m${++seq}` }));
   const svc = new EmailService(config as never, prisma as never);
   (svc as unknown as { client: unknown }).client = { send };
   (svc as unknown as { providerName: string }).providerName = "resend";
@@ -107,7 +110,22 @@ describe("EmailUnsubscribeService", () => {
     await unsub().unsubscribe(token);
     const row = await prisma.companyUser.findUniqueOrThrow({ where: { id: user.id }, select: { notificationPrefs: true } });
     expect(row.notificationPrefs).toMatchObject({ reminder: false });
-    expect(await prisma.emailOptOut.count()).toBe(0);
+    // Derin denetim MU-05: adres kaydı da yazılır (billingEmail dalı tercihsiz gider).
+    const rows = await prisma.emailOptOut.findMany({ select: { email: true, scope: true } });
+    expect(rows).toEqual([{ email: user.email.toLowerCase(), scope: "reminder" }]);
+  });
+
+  it("MU-05: kullanıcının adresi firmanın billingEmail'i de olsa tek tık çıkış o dalda da İŞLER", async () => {
+    const { user } = await makeCompanyWithUser(prisma);
+    const { svc, send } = makeEmail();
+    const token = signUnsubscribeToken({ email: user.email, scope: "categoryMatch", locale: "tr" }, SECRET);
+    await unsub().unsubscribe(token);
+    // Fatura dalı tercihsiz (prefs: null) gönderir → yalnız EmailService kapısı korur.
+    const blocked = await svc.send(mail(user.email, "listing_category_match"));
+    expect(blocked.sent).toBe(false);
+    const other = await svc.send(mail(user.email, "listing_invitation"));
+    expect(other.sent).toBe(true);
+    expect(send).toHaveBeenCalledTimes(1);
   });
 
   it("'tümü' → kullanıcının bütün tercihleri kapanır (karşılama serisi `lifecycle` dahil — Ayarlar aynı değeri gösterir)", async () => {
@@ -116,7 +134,11 @@ describe("EmailUnsubscribeService", () => {
     await unsub().unsubscribe(token, true);
     const row = await prisma.companyUser.findUniqueOrThrow({ where: { id: user.id }, select: { notificationPrefs: true } });
     expect(row.notificationPrefs).toMatchObject({ categoryMatch: false, invitation: false, announcement: false, lifecycle: false });
-    expect(await prisma.emailOptOut.count()).toBe(0);
+    // Tür başına adres kaydı ("all" değil): Ayarlar'da tek türü yeniden açmak
+    // yalnız o satırı siler, diğerleri kapalı kalır.
+    const scopes = (await prisma.emailOptOut.findMany({ select: { scope: true } })).map((r) => r.scope).sort();
+    expect(scopes).toEqual([...NOTIFICATION_PREF_KEYS].sort());
+    expect(scopes).not.toContain("all");
   });
 
   it("davet kapsamı → referral_opt_outs (mevcut davet frenleri aynı tabloyu okur)", async () => {
@@ -130,5 +152,63 @@ describe("EmailUnsubscribeService", () => {
   it("geçersiz jeton → 400", async () => {
     await expect(unsub().unsubscribe("bozuk")).rejects.toMatchObject({ status: 400 });
     await expect(unsub().describe(undefined)).rejects.toMatchObject({ status: 400 });
+  });
+});
+
+describe("AdminEmailLogsService.resend — dil ve bağlam korunur (derin denetim MU-05)", () => {
+  const audit = { log: jest.fn().mockResolvedValue(undefined) };
+  const admin = (svc: EmailService) => new AdminEmailLogsService(prisma as never, svc, audit as never);
+
+  it("orijinal gönderimin dili ve bağlamı log'a yazılır, yeniden gönderim aynı dil + çıkış başlığıyla gider", async () => {
+    const { svc, send } = makeEmail();
+    const first = await svc.send({ ...(mail("ru@firma.com", "listing_category_match") as object), locale: "ru" } as never);
+    const orig = await prisma.emailLog.findUniqueOrThrow({ where: { id: first.emailLogId } });
+    expect(orig.locale).toBe("ru");
+    expect(orig.contextType).toBe("listing_category_match");
+    (renderEmail as jest.Mock).mockClear();
+    send.mockClear();
+
+    const res = await admin(svc).resend(first.emailLogId, "admin1");
+    expect(res.sent).toBe(true);
+    // Dil geri geçirildi (eskiden varsayılan tr ile çiziliyordu).
+    expect((renderEmail as jest.Mock).mock.calls[0][1]).toBe("ru");
+    // Bağlam geri geçirildi → NOTIFICATION akışı: RFC 8058 başlığı + çıkış bağlantısı.
+    const headers = send.mock.calls[0][0].headers as Record<string, string>;
+    expect(headers["List-Unsubscribe-Post"]).toBe("List-Unsubscribe=One-Click");
+    expect((renderEmail as jest.Mock).mock.calls[0][2].unsubscribeUrl).toMatch(/\/ru\//);
+    const copy = await prisma.emailLog.findUniqueOrThrow({ where: { id: res.emailLogId } });
+    expect(copy).toMatchObject({ contextType: "listing_category_match", contextId: "ctx1", locale: "ru" });
+  });
+
+  it("alıcı o türden çıkmışsa yeniden gönderim GİTMEZ (sent:false, opted_out log satırı)", async () => {
+    const { svc, send } = makeEmail();
+    const first = await svc.send(mail("muhasebe@firma.com", "listing_category_match"));
+    const token = signUnsubscribeToken({ email: "muhasebe@firma.com", scope: "categoryMatch", locale: "tr" }, SECRET);
+    await unsub().unsubscribe(token);
+    send.mockClear();
+
+    const res = await admin(svc).resend(first.emailLogId, "admin1");
+    expect(res.sent).toBe(false);
+    expect(send).not.toHaveBeenCalled();
+    const copy = await prisma.emailLog.findUniqueOrThrow({ where: { id: res.emailLogId } });
+    expect(copy.errorMessage).toBe("opted_out: categoryMatch");
+  });
+
+  it("eski satır (locale NULL) Türkçe varsayılana düşer, bağlamsız işlem e-postası çıkış başlığı taşımaz", async () => {
+    const { svc, send } = makeEmail();
+    const legacy = await prisma.emailLog.create({
+      data: {
+        template: "notification",
+        toEmail: "eski@firma.com",
+        subject: "S",
+        provider: "resend",
+        status: "FAILED",
+        payload: { subject: "S", heading: "H", paragraphs: ["p"] },
+      },
+    });
+    const res = await admin(svc).resend(legacy.id, "admin1");
+    expect(res.sent).toBe(true);
+    expect((renderEmail as jest.Mock).mock.calls[0][1]).toBeUndefined();
+    expect(send.mock.calls[0][0].headers).toBeUndefined();
   });
 });

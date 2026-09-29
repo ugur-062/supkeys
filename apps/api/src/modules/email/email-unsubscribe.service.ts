@@ -18,9 +18,11 @@ export function maskEmail(email: string): string {
  * TEK TIK ÇIKIŞ (2026-09-27) — e-postadaki bağlantı ve RFC 8058 başlığı.
  *
  * Kural: kayıtlı KULLANICININ bildirim türleri `notificationPrefs`e yazılır
- * (Ayarlar › Bildirimler aynı değeri gösterir ve geri açabilir); kullanıcı
- * olmayan adres (firma `billingEmail`i) `email_opt_outs`a, davet kapsamı
- * mevcut `referral_opt_outs`a yazılır. Gönderim servisi üçüne de bakar.
+ * (Ayarlar › Bildirimler aynı değeri gösterir ve geri açabilir) VE ayrıca tür
+ * başına `email_opt_outs`a (adres aynı zamanda firma `billingEmail`i olabilir —
+ * o dal tercihsiz gider); kullanıcı olmayan adres (firma `billingEmail`i)
+ * yalnız `email_opt_outs`a, davet kapsamı mevcut `referral_opt_outs`a yazılır.
+ * Gönderim servisi üçüne de bakar.
  *
  * Uç guard'sız ve herkese açık: jeton imzalı (adres + kapsam), tahmin edilemez;
  * GET yalnız OKUR (güvenlik tarayıcıları bağlantıyı açtığında abonelik
@@ -84,6 +86,16 @@ export class EmailUnsubscribeService {
       const keys = scope === "all" ? NOTIFICATION_PREF_KEYS : [scope];
       for (const k of keys) prefs[k] = false;
       await this.bypass.companyUser.update({ where: { id: user.id }, data: { notificationPrefs: prefs } });
+      // Derin denetim MU-05: ayni adres bir firmanin `billingEmail`i de
+      // olabilir; o dal tercihsiz gider (pickCompanyRecipients `prefs: null`)
+      // ve EmailService yalniz email_opt_outs'a bakar. Adres kaydini da yaz ki
+      // RFC 8058 cikisi her dalda islesin. Tur basina satir ("all" yerine):
+      // Ayarlar'da bir turu yeniden acmak yalniz o satiri (ve varsa "all"u)
+      // siler, digerleri kapali kalir (company-auth updateNotificationPrefs).
+      await this.prisma.emailOptOut.createMany({
+        data: keys.map((k) => ({ email, scope: k })),
+        skipDuplicates: true,
+      });
       return;
     }
     await this.optOut(email, scope);

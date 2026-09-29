@@ -53,7 +53,14 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
   const onResend = () => {
     if (!id) return;
     resend.mutate(id, {
-      onSuccess: () => toast.success("E-posta yeniden gönderildi"),
+      // `sent: false`: alıcı bu türden çıkmış ya da adres bastırılmış — yeni
+      // kayıt FAILED + nedeniyle yazıldı; başarı gibi gösterme.
+      onSuccess: (res) =>
+        res?.sent === false
+          ? toast.warning(
+              "Gönderilmedi — alıcı bu e-posta türünden çıkmış ya da adres bastırılmış. Ayrıntı yeni kayıtta.",
+            )
+          : toast.success("E-posta yeniden gönderildi"),
       onError: (e: unknown) => toastApiError(e, "Gönderilemedi"),
     });
   };

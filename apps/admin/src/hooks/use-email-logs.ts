@@ -57,7 +57,7 @@ export function useResendEmail() {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: async (id: string) => {
-      const { data } = await api.post<{ success: boolean; emailLogId: string }>(
+      const { data } = await api.post<{ success: boolean; emailLogId: string; sent?: boolean }>(
         `/admin/email-logs/${id}/resend`,
       );
       return data;

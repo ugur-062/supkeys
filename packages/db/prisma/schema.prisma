@@ -107,6 +107,9 @@ model EmailLog {
 
   contextType String?
   contextId   String?
+  // Gönderim dili (tr/en/ru; NULL = eski satır, Türkçe varsayılır). Admin
+  // "Yeniden gönder" aynı dille çizsin diye yazılır (derin denetim MU-05).
+  locale      String?
 
   @@index([status])
   @@index([toEmail])
