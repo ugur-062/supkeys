@@ -140,7 +140,13 @@ export default function BildirimlerPage() {
             }
           />
         </div>
-      ) : items.length === 0 ? null : (
+      ) : items.length === 0 ? (
+        // Filtre (Satınalma/Satış) yüklü sayfalarda eşleşme bulamadı ama
+        // sunucuda daha eski sayfa var: boş ekran yerine nedenini söyle.
+        <div className="card px-5 py-8 text-center text-sm text-zinc-500">
+          {t("buFiltredeYukluBildirimYok")}
+        </div>
+      ) : (
         <ul className="overflow-hidden card">
           {items.map((n) => (
             <li key={n.id} className="border-b border-zinc-50 last:border-0">

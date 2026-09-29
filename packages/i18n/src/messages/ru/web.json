@@ -6778,7 +6778,8 @@
         "tumu": "Все",
         "satinalma": "Закупки",
         "satis": "Продажи",
-        "dahaFazlaYukle": "Показать ещё"
+        "dahaFazlaYukle": "Показать ещё",
+        "buFiltredeYukluBildirimYok": "Среди загруженных уведомлений нет подходящих под этот фильтр. Нажмите «Показать ещё», чтобы увидеть более ранние."
       },
       "mesajlarLayout": {
         "mesajlarYetkiGerektirir": "Для сообщений нужны права",

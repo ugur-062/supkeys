@@ -86,6 +86,18 @@ describe("BildirimlerPage", () => {
     expect(h.fetchNextPage).toHaveBeenCalled();
   });
 
+  it("filtre yüklü sayfalarda eşleşme bulamazsa ama eski sayfa varsa açıklama görünür", async () => {
+    h.pages = [[{ ...n("a"), portal: "satis" }]];
+    h.hasNextPage = true;
+    render(<BildirimlerPage />);
+    await userEvent.setup().click(screen.getByRole("button", { name: "Satınalma" }));
+    expect(screen.queryByText("Bildirim a")).toBeNull();
+    expect(
+      screen.getByText(/Yüklenen bildirimler arasında bu filtreye uyan yok/),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Daha fazla yükle" })).toBeInTheDocument();
+  });
+
   it("son sayfadaysa 'Daha fazla yükle' yok", () => {
     h.pages = [[n("a")]];
     render(<BildirimlerPage />);

@@ -6778,7 +6778,8 @@
         "tumu": "Tümü",
         "satinalma": "Satınalma",
         "satis": "Satış",
-        "dahaFazlaYukle": "Daha fazla yükle"
+        "dahaFazlaYukle": "Daha fazla yükle",
+        "buFiltredeYukluBildirimYok": "Yüklenen bildirimler arasında bu filtreye uyan yok. Daha eskilerini görmek için “Daha fazla yükle”yi kullanın."
       },
       "mesajlarLayout": {
         "mesajlarYetkiGerektirir": "Mesajlar yetki gerektirir",

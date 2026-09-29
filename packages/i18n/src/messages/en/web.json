@@ -6778,7 +6778,8 @@
         "tumu": "All",
         "satinalma": "Buying",
         "satis": "Sales",
-        "dahaFazlaYukle": "Load more"
+        "dahaFazlaYukle": "Load more",
+        "buFiltredeYukluBildirimYok": "None of the loaded notifications match this filter. Use “Load more” to see older ones."
       },
       "mesajlarLayout": {
         "mesajlarYetkiGerektirir": "Messages require permission",
