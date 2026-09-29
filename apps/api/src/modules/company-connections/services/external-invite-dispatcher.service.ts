@@ -273,20 +273,26 @@ export class ExternalInviteDispatcher {
   }
 
   /**
-   * Satırları tek tek atomik sahiplenir; başka bir turun o an işlediği (kirası
-   * süren) ya da artık QUEUED olmayan satır düşer.
+   * Adresin satırlarını TEK ifadede atomik sahiplenir; başka bir turun o an
+   * işlediği (kirası süren) ya da artık QUEUED olmayan satır düşer. Grup bu
+   * çağrının döndürdüğü satırlardan oluşur (derin denetim LU-33): eskiden
+   * satırlar tek tek sahipleniyordu; kilidin fail-open olduğu çok örnekli
+   * koşumda aynı anlık görüntüyü okuyan iki tur bir adresin satırlarını
+   * bölüşüp o adrese aynı turda İKİ e-posta gönderebiliyordu. Tek UPDATE'te
+   * ikinci tur satır kilidini bekler, koşulu yeniden değerlendirir ve kirası
+   * süren satırları almaz.
    */
   private async claim(group: DueInvite[], now: Date): Promise<DueInvite[]> {
+    if (group.length === 0) return [];
     const lease = new Date(now.getTime() + CLAIM_LEASE_MS);
-    const claimed: DueInvite[] = [];
-    for (const inv of group) {
-      const r = await this.prisma.externalListingInvite.updateMany({
-        where: { id: inv.id, state: "QUEUED", sendAfter: { lte: now } },
-        data: { sendAfter: lease },
-      });
-      if (r.count === 1) claimed.push(inv);
-    }
-    return claimed;
+    const ids = group.map((g) => g.id);
+    const rows = await this.prisma.$queryRaw<{ id: string }[]>`
+      UPDATE "external_listing_invites"
+      SET "sendAfter" = ${lease}, "updatedAt" = ${new Date()}
+      WHERE "id" = ANY(${ids}) AND "state" = 'QUEUED' AND "sendAfter" <= ${now}
+      RETURNING "id"`;
+    const won = new Set(rows.map((r) => r.id));
+    return group.filter((g) => won.has(g.id));
   }
 
   private async processAddress(

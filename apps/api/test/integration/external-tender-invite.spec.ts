@@ -541,6 +541,24 @@ describe("ExternalInviteDispatcher — üst üste binen tur ve iptal (derin dene
     expect((await prisma.externalListingInvite.findFirstOrThrow({ where: { email: "cift@firma.com" } })).state).toBe("SENT");
   });
 
+  it("aynı anda koşan iki tur bir adresin satırlarını BÖLÜŞMEZ: adrese tek e-posta, iki kart (derin denetim LU-33)", async () => {
+    const service = makeService();
+    const a = await makeCompanyWithUser(prisma);
+    const b = await makeCompanyWithUser(prisma);
+    const la = await openListing(a.company.id, a.user.id);
+    const lb = await openListing(b.company.id, b.user.id);
+    await service.inviteExternalForListing(a.auth, la.id, ["bolunmez@x.com"], "AI_FORM");
+    await service.inviteExternalForListing(b.auth, lb.id, ["bolunmez@x.com"], "AI_FORM");
+    await makeDue();
+    const one = makeDispatcher();
+    const two = makeDispatcher();
+    await Promise.all([one.d.dispatch(), two.d.dispatch()]);
+    const sends = [...one.email.send.mock.calls, ...two.email.send.mock.calls];
+    expect(sends).toHaveLength(1);
+    expect(((sends[0]![0] as SendArg).templateData.data.invites as unknown[]).length).toBe(2);
+    expect(await prisma.externalListingInvite.count({ where: { state: "SENT" } })).toBe(2);
+  });
+
   it("iptal edilmiş referral davetinin kapanış hatırlatması GİTMEZ", async () => {
     const service = makeService();
     const { d, email } = makeDispatcher();
