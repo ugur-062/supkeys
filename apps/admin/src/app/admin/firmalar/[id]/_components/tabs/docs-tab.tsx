@@ -20,6 +20,7 @@ import {
   hasRejectReason,
   parseReason,
 } from "../verification-reason";
+import { toastApiError } from "@/lib/api";
 
 // Belge türü → etiket + Company alanları (url/status/reason).
 //
@@ -219,8 +220,7 @@ export function DocsTab({
           );
           if (fromQueue) router.push("/admin/basvurular");
         },
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Hata"),
+        onError: (e: unknown) => toastApiError(e),
       },
     );
   };
@@ -417,8 +417,7 @@ function RevisionRow({
               ? `${label} güncellemesi onaylandı — yeni belge geçerli`
               : `${label} güncellemesi reddedildi — eski belge geçerli`,
           ),
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Hata"),
+        onError: (e: unknown) => toastApiError(e),
       },
     );
   };

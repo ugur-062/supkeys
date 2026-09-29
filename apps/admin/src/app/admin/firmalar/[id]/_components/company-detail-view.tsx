@@ -28,6 +28,7 @@ import { SummaryTab } from "./tabs/summary-tab";
 import { UsersTab } from "./tabs/users-tab";
 
 import { TIER_COLOR, TIER_LABEL, VERIFY_META } from "@/lib/terms";
+import { toastApiError } from "@/lib/api";
 
 const TABS = [
   { key: "ozet", label: "Özet" },
@@ -171,8 +172,7 @@ export function CompanyDetailView({
                         { id: companyId, action: "unsuspend" },
                         {
                           onSuccess: () => toast.success("Askı kaldırıldı"),
-                          onError: (e: unknown) =>
-                            toast.error(e instanceof Error ? e.message : "Hata"),
+                          onError: (e: unknown) => toastApiError(e),
                         },
                       )
                     }
@@ -259,8 +259,7 @@ export function CompanyDetailView({
             { id: companyId, action: "suspend", reason: v || undefined },
             {
               onSuccess: () => toast.success("Askıya alındı"),
-              onError: (e: unknown) =>
-                toast.error(e instanceof Error ? e.message : "Hata"),
+              onError: (e: unknown) => toastApiError(e),
             },
           );
           setPrompt(null);

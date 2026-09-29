@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { StatCard } from "@/components/ui/stat-card";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import type { AdminCompanyDetail } from "@/hooks/use-admin-companies";
-import { api } from "@/lib/api";
+import { api, toastApiError } from "@/lib/api";
 import { countryLabel } from "@/lib/country";
 import { safeFormat } from "@/lib/date";
 import { useRouter } from "next/navigation";
@@ -75,7 +75,7 @@ function DangerZone({ data }: { data: AdminCompanyDetail }) {
       URL.revokeObjectURL(url);
       toast.success("Veri export'u indirildi");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Hata");
+      toastApiError(e);
     } finally {
       setBusy(false);
     }
@@ -94,7 +94,7 @@ function DangerZone({ data }: { data: AdminCompanyDetail }) {
       );
       router.push("/admin/firmalar");
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : "Hata");
+      toastApiError(e);
       setBusy(false);
     }
   };

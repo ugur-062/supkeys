@@ -46,6 +46,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 const ROLE_LABELS: Record<string, string> = {
   SAHIP: "Kurucu",
@@ -188,8 +189,7 @@ export function UsersTab({ companyId }: { companyId: string }) {
     | null
   >(null);
 
-  const err = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
   const users = query.data ?? [];
 
   const runRecovery = (

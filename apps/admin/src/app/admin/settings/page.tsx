@@ -10,6 +10,7 @@ import { useChangePassword, useTwoFactor } from "@/hooks/use-admin-staff";
 import { Copy, KeyRound, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 function PasswordSection() {
   const change = useChangePassword();
@@ -69,8 +70,7 @@ function PasswordSection() {
                     toast.success("Şifre değiştirildi");
                     setForm({ current: "", next: "", confirm: "" });
                   },
-                  onError: (e: unknown) =>
-                    toast.error(e instanceof Error ? e.message : "Hata"),
+                  onError: (e: unknown) => toastApiError(e),
                 },
               )
             }
@@ -98,8 +98,7 @@ function TwoFactorSection() {
   const [code, setCode] = useState("");
   const enabled = me.data?.twoFactorEnabled ?? false;
 
-  const err = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
 
   return (
     <section className="admin-card px-5 py-4">

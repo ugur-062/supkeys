@@ -13,6 +13,7 @@ import { canAdminDo } from "@/lib/admin-permissions";
 import { StickyNote, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 /** Dahili notlar — "aradı, X sözü verildi" kayıtları. Müşteri ASLA görmez. */
 export function NotesTab({ companyId }: { companyId: string }) {
@@ -26,8 +27,7 @@ export function NotesTab({ companyId }: { companyId: string }) {
   // Silme kurumsal hafızayı yok eder — iki adımlı onay (id bazlı).
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
 
-  const err = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
 
   return (
     <div className="space-y-4">

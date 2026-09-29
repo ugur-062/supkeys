@@ -12,6 +12,7 @@ import { countryFlag, countryName } from "@/lib/country";
 import { Megaphone } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 /**
  * Platform duyurusu — tüm firmalara veya segmente (üyelik/ülke) toplu
@@ -89,7 +90,7 @@ function DuyuruView() {
           setConfirming(false);
         },
         onError: (e: unknown) => {
-          toast.error(e instanceof Error ? e.message : "Hata");
+          toastApiError(e);
           setConfirming(false);
         },
       },

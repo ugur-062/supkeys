@@ -24,6 +24,7 @@ import {
   metaOf,
   REFERRAL_STATUS_META,
 } from "@/lib/terms";
+import { toastApiError } from "@/lib/api";
 
 /** Bağlantılar + referans davetleri — bekleyen davetler iptal edilebilir. */
 export function ConnectionsTab({ companyId }: { companyId: string }) {
@@ -32,8 +33,7 @@ export function ConnectionsTab({ companyId }: { companyId: string }) {
   const connections = query.data?.connections ?? [];
   const referrals = query.data?.referralInvites ?? [];
 
-  const err = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
 
   return (
     <div className="space-y-4">

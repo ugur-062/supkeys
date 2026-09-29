@@ -84,6 +84,11 @@ export function GlobalSearch() {
             <p className="text-admin-text-muted px-4 py-3 text-sm">
               Aranıyor...
             </p>
+          ) : results.isError ? (
+            // Hata "Sonuç yok" gibi görünmesin (403/500/ağ).
+            <p className="text-admin-text-muted px-4 py-3 text-sm">
+              Arama yapılamadı — lütfen tekrar deneyin
+            </p>
           ) : companies.length === 0 && users.length === 0 ? (
             <p className="text-admin-text-muted px-4 py-3 text-sm">
               Sonuç yok

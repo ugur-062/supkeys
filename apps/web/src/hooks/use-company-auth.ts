@@ -253,18 +253,31 @@ export function useCompanyMe(enabled = true) {
   return query;
 }
 
+/** Çıkış isteğinin en uzun bekleneceği süre (ms). */
+export const LOGOUT_WAIT_MS = 3000;
+
 export function useCompanyLogout() {
   const clear = useCompanyAuthStore((s) => s.clear);
   const queryClient = useQueryClient();
-  return () => {
-    // Backend httpOnly cookie'yi temizler; sonucu beklemeden UI'ı boşalt.
-    void companyApi.post("/company-auth/logout").catch(() => undefined);
-    clear();
-    queryClient.clear();
-    // Taslaklar, AI'ın bulduğu tedarikçi adresleri, davet ön doldurma, son aramalar.
-    clearTenantSessionData();
-    if (typeof window !== "undefined") {
-      window.location.href = localizePath("/company/login", runtimeLocale());
+  return async () => {
+    // Derin denetim MU-21: istek beklenmeden yönlendirilince tarayıcı bekleyen
+    // logout isteğini iptal edebiliyordu → httpOnly oturum çerezi silinmeden
+    // kalıyordu. Yanıt beklenir; API askıda kalırsa en çok LOGOUT_WAIT_MS.
+    try {
+      await Promise.race([
+        companyApi.post("/company-auth/logout"),
+        new Promise((resolve) => setTimeout(resolve, LOGOUT_WAIT_MS)),
+      ]);
+    } catch {
+      // Ağ/401 — istemci tarafı yine de temizlenir.
+    } finally {
+      clear();
+      queryClient.clear();
+      // Taslaklar, AI'ın bulduğu tedarikçi adresleri, davet ön doldurma, son aramalar.
+      clearTenantSessionData();
+      if (typeof window !== "undefined") {
+        window.location.href = localizePath("/company/login", runtimeLocale());
+      }
     }
   };
 }

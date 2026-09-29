@@ -46,3 +46,11 @@ describe("canAdminDo (F7: backend @RequireAdminRole ile birebir)", () => {
     }
   });
 });
+
+describe("globalSearch (derin denetim MU-21 — GET admin/search SUPER_ADMIN+SALES)", () => {
+  it("SUPPORT üst çubuk aramasını görmez (her tuşta 403 toast'ı üretiyordu)", () => {
+    expect(canAdminDo("SUPER_ADMIN", "globalSearch")).toBe(true);
+    expect(canAdminDo("SALES", "globalSearch")).toBe(true);
+    expect(canAdminDo("SUPPORT", "globalSearch")).toBe(false);
+  });
+});

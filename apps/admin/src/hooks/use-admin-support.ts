@@ -1,6 +1,7 @@
 "use client";
 
 import { api } from "@/lib/api";
+import axios from "axios";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 // ── Dahili notlar ────────────────────────────────────────────
@@ -77,6 +78,14 @@ export function useGlobalSearch(q: string) {
       return data;
     },
     staleTime: 10_000,
+    // 4xx (ör. 403) tekrar denenmez — interceptor toast'ı ikilenmesin.
+    retry: (count, e) =>
+      count < 1 &&
+      !(
+        axios.isAxiosError(e) &&
+        (e.response?.status ?? 0) >= 400 &&
+        (e.response?.status ?? 0) < 500
+      ),
   });
 }
 

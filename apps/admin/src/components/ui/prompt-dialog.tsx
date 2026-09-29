@@ -29,6 +29,11 @@ interface PromptDialogProps {
   max?: number;
   /** text tipinde karakter sınırı (backend @MaxLength ile birebir). */
   maxLength?: number;
+  /**
+   * text tipinde en az karakter (backend @MinLength ile birebir). Altındaki
+   * değerde Onayla kapalı ve dialog açık kalır — yazılan metin kaybolmaz.
+   */
+  minLength?: number;
   /** datetime-local için alt sınır (geçmiş tarih seçilemesin). */
   minDateTime?: string;
   onConfirm: (value: string) => void;
@@ -52,6 +57,7 @@ export function PromptDialog({
   min,
   max,
   maxLength,
+  minLength,
   minDateTime,
   onConfirm,
   onClose,
@@ -63,18 +69,31 @@ export function PromptDialog({
     if (open) setValue(defaultValue);
   }, [open, defaultValue]);
 
-  const invalid = required && value.trim() === "";
+  const trimmed = value.trim();
+  const tooShort =
+    type === "text" &&
+    minLength !== undefined &&
+    (required || trimmed !== "") &&
+    trimmed.length < minLength;
+  const invalid = (required && trimmed === "") || tooShort;
 
   const submit = () => {
     if (invalid) return;
-    onConfirm(value.trim());
+    onConfirm(trimmed);
   };
 
   return (
     <Dialog open={open} onClose={onClose} size="sm">
       <DialogTitle>{title}</DialogTitle>
       <DialogBody>
-        <Field hint={description}>
+        <Field
+          hint={description}
+          error={
+            tooShort && trimmed !== ""
+              ? `En az ${minLength} karakter (${trimmed.length}/${minLength})`
+              : undefined
+          }
+        >
           <Label htmlFor="prompt-dialog-input" required={required}>
             {label}
           </Label>

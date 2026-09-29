@@ -217,7 +217,7 @@ export function CompanyTopbar({
                 <DropdownLabel>{t("ayarlar")}</DropdownLabel>
               </DropdownItem>
               <DropdownDivider />
-              <DropdownItem onClick={() => logout()}>
+              <DropdownItem onClick={() => void logout()}>
                 <ArrowRightStartOnRectangleIcon data-slot="icon" />
                 <DropdownLabel>{t("cikisYap")}</DropdownLabel>
               </DropdownItem>

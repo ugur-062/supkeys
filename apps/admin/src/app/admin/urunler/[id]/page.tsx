@@ -12,6 +12,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 const WEB = process.env.NEXT_PUBLIC_WEB_URL ?? "https://www.rothern.com";
 
@@ -28,7 +29,7 @@ function ProductReview({ id }: { id: string }) {
   const { data: p, isLoading, isError, refetch } = useAdminProductDetail(id);
   const act = useProductReview(id);
   const [rejectOpen, setRejectOpen] = useState(false);
-  const err = (e: unknown) => toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
 
   if (isLoading) {
     return (
@@ -176,6 +177,7 @@ function ProductReview({ id }: { id: string }) {
         placeholder="Örn. görseller ürüne ait değil; açıklama fiyat/iletişim bilgisi içeriyor…"
         confirmLabel="Düzeltmeye gönder"
         required
+        minLength={10}
         maxLength={500}
         onConfirm={(reason) => {
           setRejectOpen(false);

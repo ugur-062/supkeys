@@ -132,3 +132,35 @@ describe("PromptDialog", () => {
     expect(reopened.value).toBe("A");
   });
 });
+
+describe("PromptDialog minLength (derin denetim MU-21)", () => {
+  it("backend @MinLength altında Onayla kapalı; dialog açık kalır, metin kaybolmaz", async () => {
+    const user = userEvent.setup();
+    render(
+      <PromptDialog
+        open
+        title="İlanı Kapat"
+        label="Gerekçe"
+        required
+        minLength={10}
+        maxLength={500}
+        onConfirm={onConfirm}
+        onClose={onClose}
+      />,
+    );
+    const input = screen.getByLabelText(/Gerekçe/);
+    await user.type(input, "şikayet var");
+    // 11 karakter → geçerli; 9 karaktere düşür.
+    await user.clear(input);
+    await user.type(input, "şikayet v");
+    expect(screen.getByRole("button", { name: "Onayla" })).toBeDisabled();
+    expect(screen.getByText(/En az 10 karakter \(9\/10\)/)).toBeInTheDocument();
+    await user.type(input, "{Enter}");
+    expect(onConfirm).not.toHaveBeenCalled();
+    expect(input).toHaveValue("şikayet v");
+
+    await user.type(input, "ar");
+    await user.click(screen.getByRole("button", { name: "Onayla" }));
+    expect(onConfirm).toHaveBeenCalledWith("şikayet var");
+  });
+});

@@ -19,6 +19,7 @@ import {
 } from "@/hooks/use-admin-companies";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 /**
  * Düzenlenebilir alanlar — sıra formda görünen sıradır. `max` backend
@@ -142,8 +143,7 @@ export function EditProfileDialog({
           toast.success(`Güncellendi (${r.changed.length} alan)`);
           onClose();
         },
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Hata"),
+        onError: (e: unknown) => toastApiError(e),
       },
     );
   };

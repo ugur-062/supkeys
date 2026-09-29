@@ -32,6 +32,7 @@ import { Download } from "lucide-react";
 import Link from "next/link";
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 const STATUS_META: Record<
   string,
@@ -118,8 +119,7 @@ function SikayetlerView() {
       { id: prompt.id, status: prompt.status, adminNote, suspend: prompt.suspend },
       {
         onSuccess: () => toast.success(prompt.msg),
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Hata"),
+        onError: (e: unknown) => toastApiError(e),
       },
     );
     setPrompt(null);

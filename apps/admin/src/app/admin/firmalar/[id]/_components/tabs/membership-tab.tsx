@@ -38,6 +38,7 @@ import {
 import { canAdminDo } from "@/lib/admin-permissions";
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 const ACTION_META: Record<
   MembershipEvent["action"],
@@ -163,8 +164,7 @@ export function MembershipTab({
       )
     : null;
 
-  const err = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
 
   return (
     <div className="space-y-4">

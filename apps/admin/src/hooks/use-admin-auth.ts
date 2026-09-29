@@ -64,15 +64,30 @@ export function useAdminMe() {
   });
 }
 
+/** Çıkış isteğinin en uzun bekleneceği süre (ms). */
+export const LOGOUT_WAIT_MS = 3000;
+
 export function useAdminLogout() {
   const clear = useAdminAuthStore((s) => s.clear);
   const queryClient = useQueryClient();
 
-  return () => {
-    // Backend httpOnly cookie'yi temizler; sonucu beklemeden UI'ı boşalt.
-    void api.post("/admin/auth/logout").catch(() => undefined);
-    clear();
-    queryClient.clear();
-    window.location.href = "/admin/login";
+  return async () => {
+    // Derin denetim MU-21: istek BEKLENMEDEN yönlendirilince yeni belge eski
+    // belgenin bekleyen preflight/POST'unu iptal ediyordu → httpOnly `rk_admin`
+    // çerezi silinmeden kalabiliyordu (ortak bilgisayarda oturum açık kalır).
+    // Yanıt (Set-Cookie temizliği) beklenir; API askıda kalırsa en çok
+    // LOGOUT_WAIT_MS sonra yine de çıkılır.
+    try {
+      await Promise.race([
+        api.post("/admin/auth/logout"),
+        new Promise((resolve) => setTimeout(resolve, LOGOUT_WAIT_MS)),
+      ]);
+    } catch {
+      // Ağ/401 — istemci tarafı yine de temizlenir.
+    } finally {
+      clear();
+      queryClient.clear();
+      window.location.href = "/admin/login";
+    }
   };
 }

@@ -34,6 +34,7 @@ import { safeFormat } from "@/lib/date";
 import { Copy, UserPlus, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 const ROLE_META: Record<
   AdminRole,
@@ -205,9 +206,13 @@ function PersonelView() {
     from: AdminRole;
     to: AdminRole;
   } | null>(null);
+  // Şifre sıfırlama da geri alınamaz (parola + 2FA + oturumlar düşer) → onay.
+  const [resetPrompt, setResetPrompt] = useState<{
+    id: string;
+    email: string;
+  } | null>(null);
 
-  const err = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
   const rows = staff.data ?? [];
 
   // F7: personel yönetimi yalnız SUPER_ADMIN (manageStaff). SALES/SUPPORT
@@ -322,25 +327,22 @@ function PersonelView() {
                     </TableCell>
                     <TableCell>
                       <div className="flex items-center justify-end gap-1.5">
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          disabled={act.isPending}
-                          onClick={() =>
-                            act.mutate(
-                              { id: s.id, action: "reset-password" },
-                              {
-                                onSuccess: (r) => {
-                                  if (r.tempPassword) setTempPw(r.tempPassword);
-                                  toast.success("Şifre sıfırlandı");
-                                },
-                                onError: err,
-                              },
-                            )
-                          }
-                        >
-                          Şifre Sıfırla
-                        </Button>
+                        {/* Kendi satırında YOK (derin denetim MU-21): kendi
+                            şifresini sıfırlayan tek Süper Admin parolasız,
+                            2FA'sız ve oturumsuz kalıp panele dönemiyordu.
+                            Kendi şifresi → Ayarlar → Şifre Değiştir. */}
+                        {isSelf ? null : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            disabled={act.isPending}
+                            onClick={() =>
+                              setResetPrompt({ id: s.id, email: s.email })
+                            }
+                          >
+                            Şifre Sıfırla
+                          </Button>
+                        )}
                         {isSelf ? null : s.isActive ? (
                           <Button
                             variant="danger"
@@ -435,6 +437,50 @@ function PersonelView() {
               }
             >
               Onayla
+            </Button>
+          </DialogActions>
+        </Dialog>
+      ) : null}
+
+      {resetPrompt ? (
+        <Dialog
+          open
+          onClose={() => setResetPrompt(null)}
+          size="sm"
+          aria-label="Şifre sıfırlama onayı"
+        >
+          <DialogTitle>Şifre Sıfırla</DialogTitle>
+          <DialogBody>
+            <p className="text-admin-text text-sm">
+              <strong>{resetPrompt.email}</strong> için yeni geçici şifre
+              üretilecek. Mevcut şifre ve 2FA kaldırılır, açık oturumları
+              kapanır.
+            </p>
+          </DialogBody>
+          <DialogActions>
+            <Button variant="ghost" onClick={() => setResetPrompt(null)}>
+              Vazgeç
+            </Button>
+            <Button
+              loading={act.isPending}
+              onClick={() =>
+                act.mutate(
+                  { id: resetPrompt.id, action: "reset-password" },
+                  {
+                    onSuccess: (r) => {
+                      if (r.tempPassword) setTempPw(r.tempPassword);
+                      toast.success("Şifre sıfırlandı");
+                      setResetPrompt(null);
+                    },
+                    onError: (e: unknown) => {
+                      err(e);
+                      setResetPrompt(null);
+                    },
+                  },
+                )
+              }
+            >
+              Sıfırla
             </Button>
           </DialogActions>
         </Dialog>

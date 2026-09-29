@@ -35,7 +35,7 @@ import {
   type AdminCompanyListResponse,
   type AdminCompanyRow,
 } from "@/hooks/use-admin-companies";
-import { api } from "@/lib/api";
+import { api, toastApiError } from "@/lib/api";
 import { downloadCsv } from "@/lib/csv";
 import { Download, EllipsisVertical } from "lucide-react";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
@@ -152,8 +152,7 @@ function FirmalarView() {
               ? `${TIER_LABEL[tier]} paketi tanımlandı`
               : "Paket kaldırıldı (Standart)",
           ),
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Hata"),
+        onError: (e: unknown) => toastApiError(e),
       },
     );
 
@@ -167,8 +166,7 @@ function FirmalarView() {
       { id, action, reason },
       {
         onSuccess: () => toast.success(msg),
-        onError: (e: unknown) =>
-          toast.error(e instanceof Error ? e.message : "Hata"),
+        onError: (e: unknown) => toastApiError(e),
       },
     );
 

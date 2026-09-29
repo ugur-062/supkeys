@@ -12,6 +12,7 @@ import {
 } from "@/components/catalyst/dropdown";
 import { GlobalSearch } from "@/components/layout/global-search";
 import { useAdminAuth, useAdminLogout } from "@/hooks/use-admin-auth";
+import { canAdminDo } from "@/lib/admin-permissions";
 import type { AdminRole } from "@/lib/auth/types";
 import { ADMIN_ROLE_LABEL } from "@/lib/terms";
 import { cn } from "@/lib/utils";
@@ -366,9 +367,11 @@ function AdminTopbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
         </div>
       ) : null}
 
-      {/* Orta: global arama */}
+      {/* Orta: global arama — GET admin/search yalnız SUPER_ADMIN/SALES
+          (derin denetim MU-21: SUPPORT'ta her tuş 403 toast'ı üretiyordu).
+          Kutu gizlense de flex alanı kalır (hesap menüsü sağda kalsın). */}
       <div className="flex flex-1 justify-center px-2">
-        <GlobalSearch />
+        {canAdminDo(admin?.role, "globalSearch") ? <GlobalSearch /> : null}
       </div>
 
       {/* Sağ: hesap */}
@@ -407,7 +410,7 @@ function AdminTopbar({ onOpenMobileNav }: { onOpenMobileNav: () => void }) {
                 <DropdownLabel>Ayarlar</DropdownLabel>
               </DropdownItem>
               <DropdownDivider />
-              <DropdownItem onClick={() => logout()}>
+              <DropdownItem onClick={() => void logout()}>
                 <ArrowRightStartOnRectangleIcon data-slot="icon" />
                 <DropdownLabel>Çıkış Yap</DropdownLabel>
               </DropdownItem>

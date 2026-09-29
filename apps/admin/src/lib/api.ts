@@ -42,6 +42,59 @@ function pickMessage(
   return fallback;
 }
 
+/**
+ * Interceptor'ın zaten toast bastığı hatayı işaretler (derin denetim MU-21):
+ * sayfalar `toastApiError` ile ikinci (ham İngilizce) toast basmasın.
+ */
+const TOASTED = Symbol.for("rothern.admin.apiErrorToasted");
+
+function markHandled(error: AxiosError<ApiErrorPayload>) {
+  (error as unknown as Record<symbol, boolean>)[TOASTED] = true;
+}
+
+function toastOnce(error: AxiosError<ApiErrorPayload>, message: string) {
+  markHandled(error);
+  toast.error(message);
+}
+
+function wasToasted(e: unknown): boolean {
+  return (
+    typeof e === "object" &&
+    e !== null &&
+    (e as Record<symbol, unknown>)[TOASTED] === true
+  );
+}
+
+/**
+ * Kullanıcıya gösterilecek hata metni. AxiosError'ın `message`'ı ("Request
+ * failed with status code 400") ASLA gösterilmez: önce doğrulama `errors`
+ * haritasındaki ilk alan mesajı, sonra sunucu `message`'ı, en son `fallback`.
+ */
+export function apiErrorMessage(e: unknown, fallback = "İşlem başarısız"): string {
+  if (axios.isAxiosError(e)) {
+    const data = e.response?.data as ApiErrorPayload | undefined;
+    if (data?.errors && typeof data.errors === "object") {
+      for (const v of Object.values(data.errors)) {
+        const first = Array.isArray(v) ? v[0] : v;
+        if (typeof first === "string" && first.trim()) return first;
+      }
+    }
+    return pickMessage(data, fallback);
+  }
+  // Uygulama içi (axios dışı) hata — mesajı bilinçli yazılmıştır.
+  if (e instanceof Error && e.message) return e.message;
+  return fallback;
+}
+
+/**
+ * Mutasyon `onError` için tek kapı: interceptor bu hatayı zaten toast'ladıysa
+ * sessiz kalır (çift toast yok); aksi hâlde `apiErrorMessage` gösterir.
+ */
+export function toastApiError(e: unknown, fallback = "İşlem başarısız"): void {
+  if (wasToasted(e)) return;
+  toast.error(apiErrorMessage(e, fallback));
+}
+
 // Polish-3 — global toast handler. Web tarafıyla aynı kurallar.
 api.interceptors.response.use(
   (response) => response,
@@ -56,6 +109,8 @@ api.interceptors.response.use(
       // Oturum sinyali artık `admin` (cookie geçersizse /me 401 verir).
       const { admin, clear } = useAdminAuthStore.getState();
       if (admin) {
+        // Oturum düştü → login'e gidiliyor; sayfa ayrıca toast basmasın.
+        markHandled(error);
         clear();
         const onLogin = window.location.pathname === "/admin/login";
         if (!onLogin) {
@@ -66,7 +121,7 @@ api.interceptors.response.use(
     }
 
     if (status === 403) {
-      toast.error(pickMessage(data, "Bu işlem için yetkiniz yok"));
+      toastOnce(error, pickMessage(data, "Bu işlem için yetkiniz yok"));
       return Promise.reject(error);
     }
 
@@ -74,7 +129,7 @@ api.interceptors.response.use(
       const url = error.config?.url ?? "";
       const isDetailEndpoint = /\/[^/?]+\/[^/?]+(?:\?|$)/.test(url);
       if (isDetailEndpoint) {
-        toast.error(pickMessage(data, "Kayıt bulunamadı"));
+        toastOnce(error, pickMessage(data, "Kayıt bulunamadı"));
       }
       return Promise.reject(error);
     }
@@ -83,27 +138,27 @@ api.interceptors.response.use(
       if (data?.errors && Object.keys(data.errors).length > 0) {
         return Promise.reject(error);
       }
-      toast.error(pickMessage(data, "Geçersiz istek"));
+      toastOnce(error, pickMessage(data, "Geçersiz istek"));
       return Promise.reject(error);
     }
 
     if (status === 409) {
-      toast.error(pickMessage(data, "Bu işlem mevcut durumda yapılamaz"));
+      toastOnce(error, pickMessage(data, "Bu işlem mevcut durumda yapılamaz"));
       return Promise.reject(error);
     }
 
     if (status === 422) {
-      toast.error(pickMessage(data, "Geçersiz veri"));
+      toastOnce(error, pickMessage(data, "Geçersiz veri"));
       return Promise.reject(error);
     }
 
     if (status && status >= 500) {
-      toast.error("Sunucu hatası, lütfen tekrar deneyin");
+      toastOnce(error, "Sunucu hatası, lütfen tekrar deneyin");
       return Promise.reject(error);
     }
 
     if (!error.response) {
-      toast.error("Bağlantı hatası, internet bağlantınızı kontrol edin");
+      toastOnce(error, "Bağlantı hatası, internet bağlantınızı kontrol edin");
       return Promise.reject(error);
     }
 

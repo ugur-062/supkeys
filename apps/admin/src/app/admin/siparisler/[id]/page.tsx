@@ -32,6 +32,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 function Row({ label, value }: { label: string; value: React.ReactNode }) {
   return (
@@ -288,14 +289,15 @@ function OrderInspection({ id }: { id: string }) {
         label="Gerekçe (en az 10 karakter — iki tarafa da bildirilir)"
         placeholder="Örn. taraflar anlaşamadı, destek talebi #123"
         required
+        minLength={10}
+        maxLength={500}
         confirmLabel="İptal Et"
         onConfirm={(v) => {
           cancel.mutate(
             { reason: (v || "").trim() },
             {
               onSuccess: () => toast.success("Sipariş iptal edildi"),
-              onError: (e: unknown) =>
-                toast.error(e instanceof Error ? e.message : "Hata"),
+              onError: (e: unknown) => toastApiError(e),
             },
           );
           setDialog(false);

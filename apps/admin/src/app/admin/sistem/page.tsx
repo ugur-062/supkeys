@@ -38,6 +38,7 @@ import {
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 // API `FOREIGN_CURRENCY_CODES` (@rothern/shared) ile BİREBİR — admin paketi
 // shared'e bağlı değil; API listede olmayan kodu 400 ile reddeder.
@@ -113,8 +114,7 @@ function ManualRateForm() {
                 toast.success(`${currency} manuel kuru kaydedildi`);
                 setRate("");
               },
-              onError: (e: unknown) =>
-                toast.error(e instanceof Error ? e.message : "Hata"),
+              onError: (e: unknown) => toastApiError(e),
             },
           )
         }
@@ -173,8 +173,7 @@ function SuppressionsSection() {
                     { email: r.email },
                     {
                       onSuccess: () => toast.success("Engel kaldırıldı"),
-                      onError: (e: unknown) =>
-                        toast.error(e instanceof Error ? e.message : "Hata"),
+                      onError: (e: unknown) => toastApiError(e),
                     },
                   )
                 }
@@ -274,8 +273,7 @@ function SistemView() {
                   r.success
                     ? toast.success(`Kurlar yenilendi (${r.date})`)
                     : toast.error(`TCMB alınamadı: ${r.reason ?? "bilinmiyor"}`),
-                onError: (e: unknown) =>
-                  toast.error(e instanceof Error ? e.message : "Hata"),
+                onError: (e: unknown) => toastApiError(e),
               })
             }
           >
@@ -481,8 +479,7 @@ function TimeSavingsConfigSection() {
             }
             update.mutate(payload, {
               onSuccess: () => toast.success("Parametreler kaydedildi"),
-              onError: (e: unknown) =>
-                toast.error(e instanceof Error ? e.message : "Kaydedilemedi"),
+              onError: (e: unknown) => toastApiError(e, "Kaydedilemedi"),
             });
           }}
         >

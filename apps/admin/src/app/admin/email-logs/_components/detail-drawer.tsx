@@ -27,6 +27,7 @@ import {
   X,
   type LucideIcon,
 } from "lucide-react";
+import { toastApiError } from "@/lib/api";
 
 interface DetailDrawerProps {
   id: string | null;
@@ -53,8 +54,7 @@ export function DetailDrawer({ id, onClose }: DetailDrawerProps) {
     if (!id) return;
     resend.mutate(id, {
       onSuccess: () => toast.success("E-posta yeniden gönderildi"),
-      onError: (e: unknown) =>
-        toast.error(e instanceof Error ? e.message : "Gönderilemedi"),
+      onError: (e: unknown) => toastApiError(e, "Gönderilemedi"),
     });
   };
 

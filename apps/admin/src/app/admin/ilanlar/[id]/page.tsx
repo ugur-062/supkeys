@@ -29,6 +29,7 @@ import Link from "next/link";
 import { useParams } from "next/navigation";
 import { useState } from "react";
 import { toast } from "sonner";
+import { toastApiError } from "@/lib/api";
 
 function ListingInspection({ id }: { id: string }) {
   const { data: l, isLoading, isError, refetch } = useAdminListingDetail(id);
@@ -37,8 +38,7 @@ function ListingInspection({ id }: { id: string }) {
     null,
   );
 
-  const err = (e: unknown) =>
-    toast.error(e instanceof Error ? e.message : "Hata");
+  const err = (e: unknown) => toastApiError(e);
 
   if (isLoading) {
     return (
@@ -304,6 +304,8 @@ function ListingInspection({ id }: { id: string }) {
         label="Gerekçe (en az 10 karakter — ilan sahibine bildirilir)"
         placeholder="Örn. şikayet üzerine incelemeye alındı"
         required
+        minLength={10}
+        maxLength={500}
         confirmLabel="Kapat"
         onConfirm={(v) => {
           act.mutate(
