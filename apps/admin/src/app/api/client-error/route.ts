@@ -60,8 +60,10 @@ export async function POST(req: Request): Promise<Response> {
       userAgent: str(req.headers.get("user-agent"), 200),
     },
   });
-  // DSN yoksa Sentry no-op → en azından sunucu günlüğüne yaz.
-  if (!process.env.SENTRY_DSN && !process.env.NEXT_PUBLIC_SENTRY_DSN) {
+  // Sentry istemcisi başlamadıysa (DSN yok ya da kanca çalışmadı) capture
+  // no-op → en azından sunucu günlüğüne yaz. DSN'e bakmak yetmez: DSN tanımlıyken
+  // `register()` hiç çağrılmayınca hatalar iz bırakmadan kayboluyordu (Y-12).
+  if (!Sentry.getClient()) {
     console.error("[istemci-hatası]", err.name, message, str(body.url, 200));
   }
   return new Response(null, { status: 204 });

@@ -1,7 +1,11 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const captureException = vi.fn();
-vi.mock("@sentry/nextjs", () => ({ captureException: (...a: unknown[]) => captureException(...a) }));
+let sentryClient: object | undefined = { name: "başlatılmış" };
+vi.mock("@sentry/nextjs", () => ({
+  captureException: (...a: unknown[]) => captureException(...a),
+  getClient: () => sentryClient,
+}));
 
 const post = async (body: unknown, headers: Record<string, string> = {}) => {
   const { POST } = await import("../route");
@@ -15,7 +19,10 @@ const post = async (body: unknown, headers: Record<string, string> = {}) => {
 };
 
 describe("/api/client-error", () => {
-  beforeEach(() => captureException.mockClear());
+  beforeEach(() => {
+    captureException.mockClear();
+    sentryClient = { name: "başlatılmış" };
+  });
 
   it("geçerli bildirimi Sentry'e yazar", async () => {
     const res = await post({ name: "TypeError", message: "x is not a function", stack: "TypeError: x\n at a.js:1", url: "https://www.rothern.com/urunler", kind: "boundary" });
@@ -24,6 +31,32 @@ describe("/api/client-error", () => {
     const [err, ctx] = captureException.mock.calls[0] as [Error, { tags: Record<string, string> }];
     expect(err.message).toBe("x is not a function");
     expect(ctx.tags.source).toBe("browser");
+  });
+
+  // Derin denetim Y-12: DSN tanımlıyken Sentry hiç başlamadıysa (instrumentation
+  // kancası çalışmadı) bildirim iz bırakmadan kayboluyordu; yedek günlük artık
+  // DSN'e değil, gerçekten başlamış bir Sentry istemcisine bakar.
+  it("Sentry başlamadıysa DSN tanımlı olsa bile sunucu günlüğüne yazar", async () => {
+    vi.stubEnv("SENTRY_DSN", "https://k@o0.ingest.sentry.io/1");
+    sentryClient = undefined;
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect((await post({ message: "kayıp olmasın" })).status).toBe(204);
+      expect(log).toHaveBeenCalledWith("[istemci-hatası]", "ClientError", "kayıp olmasın", undefined);
+    } finally {
+      log.mockRestore();
+      vi.unstubAllEnvs();
+    }
+  });
+
+  it("Sentry başlamışsa ayrıca günlüğe yazmaz", async () => {
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      expect((await post({ message: "sentry'e gider" })).status).toBe(204);
+      expect(log).not.toHaveBeenCalled();
+    } finally {
+      log.mockRestore();
+    }
   });
 
   it("mesajsız gövdeyi reddeder", async () => {

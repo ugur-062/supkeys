@@ -1,4 +1,11 @@
-/** Sunucu ve edge çalışma zamanı için Sentry (DSN yoksa NO-OP). */
+/**
+ * Sunucu ve edge çalışma zamanı için Sentry (DSN yoksa NO-OP).
+ *
+ * KONUM ÖNEMLİ (derin denetim Y-12): uygulama `src/app` düzeninde olduğu için
+ * Next bu kancayı YALNIZ `src/instrumentation.ts` olarak arar (appDir'in bir
+ * üstü). Uygulama kökünde dururken `register()` hiç çağrılmıyor, Sentry hiç
+ * başlamıyordu. Taşımayın — `src/instrumentation.test.ts` konumu korur.
+ */
 import * as Sentry from "@sentry/nextjs";
 import { scrubEvent } from "@/lib/sentry-scrub";
 
