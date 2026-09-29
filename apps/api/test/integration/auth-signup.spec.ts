@@ -63,6 +63,71 @@ describe("signup", () => {
   });
 });
 
+describe("changeSignupEmail (derin denetim LU-22)", () => {
+  it("doğrulanmamış hesabın adresi değişir; ikinci firma açılmaz, kod yeni adrese gider", async () => {
+    const { service, email, supabaseAuth } = makeAuthService();
+    const dto = validSignup();
+    await service.signup(dto as never);
+    const newEmail = `yeni-${Date.now()}@test.local`;
+    const oldCode = extractCode(email);
+
+    const res = await service.changeSignupEmail({
+      email: dto.email,
+      password: dto.password,
+      newEmail: newEmail.toUpperCase(),
+    });
+    expect(res).toMatchObject({ email: newEmail, verificationRequired: true });
+    expect(supabaseAuth.updateEmail).toHaveBeenCalledWith(expect.any(String), newEmail);
+    expect(await prisma.company.count()).toBe(1);
+    expect(await prisma.companyUser.findUnique({ where: { email: dto.email } })).toBeNull();
+    const call = email.send.mock.calls.at(-1)?.[0] as { to: { email: string } };
+    expect(call.to.email).toBe(newEmail);
+
+    // Eski kod geçersiz; yeni adres yeni kodla doğrulanır.
+    const newCode = extractCode(email);
+    if (oldCode !== newCode) {
+      await expect(service.verifyEmail(newEmail, oldCode)).rejects.toThrow();
+    }
+    const verified = (await service.verifyEmail(newEmail, newCode)) as { token?: string };
+    expect(verified.token).toBeTruthy();
+  });
+
+  it("yanlış parola → aynı generic hata, adres değişmez", async () => {
+    const { service, supabaseAuth } = makeAuthService();
+    const dto = validSignup();
+    await service.signup(dto as never);
+    supabaseAuth.verifyPassword.mockRejectedValueOnce(new Error("bad credentials"));
+    await expect(
+      service.changeSignupEmail({ email: dto.email, password: "Yanlis!Parola9", newEmail: "x@test.local" }),
+    ).rejects.toThrow("E-posta veya şifre hatalı");
+    expect(supabaseAuth.updateEmail).not.toHaveBeenCalled();
+    expect(await prisma.companyUser.findUnique({ where: { email: dto.email } })).not.toBeNull();
+  });
+
+  it("GÜVENLİK: doğrulanmış hesabın adresi bu uçtan değişmez", async () => {
+    const { service, email, supabaseAuth } = makeAuthService();
+    const dto = validSignup();
+    await service.signup(dto as never);
+    await service.verifyEmail(dto.email, extractCode(email));
+    await expect(
+      service.changeSignupEmail({ email: dto.email, password: dto.password, newEmail: "x@test.local" }),
+    ).rejects.toThrow("E-posta veya şifre hatalı");
+    expect(supabaseAuth.updateEmail).not.toHaveBeenCalled();
+  });
+
+  it("yeni adres başka hesapta → çakışma, adres değişmez", async () => {
+    const { service, supabaseAuth } = makeAuthService();
+    const a = validSignup();
+    const b = validSignup();
+    await service.signup(a as never);
+    await service.signup(b as never);
+    await expect(
+      service.changeSignupEmail({ email: a.email, password: a.password, newEmail: b.email }),
+    ).rejects.toThrow("Bu e-posta ile zaten bir hesap var");
+    expect(supabaseAuth.updateEmail).not.toHaveBeenCalled();
+  });
+});
+
 describe("verifyEmail", () => {
   it("yanlış kod reddedilir, doğru kod token + emailVerifiedAt verir", async () => {
     const { service, email } = makeAuthService();

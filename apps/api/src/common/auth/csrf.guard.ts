@@ -53,6 +53,7 @@ export class CsrfGuard implements CanActivate {
       "/signup",
       "/verify-email",
       "/resend-email-code",
+      "/signup/change-email",
       "/forgot-password",
     ];
     if (

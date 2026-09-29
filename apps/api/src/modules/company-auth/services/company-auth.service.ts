@@ -51,7 +51,7 @@ import { AuditService } from "../../audit/audit.service";
 import { EmailService } from "../../email/email.service";
 import { SupabaseAuthService, isSupabaseAuthAccessError } from "../../supabase-auth/supabase-auth.service";
 import { CompanyLoginDto } from "../dto/company-login.dto";
-import { CompanySignupDto } from "../dto/company-signup.dto";
+import { ChangeSignupEmailDto, CompanySignupDto } from "../dto/company-signup.dto";
 import { CompleteOnboardingDto } from "../dto/onboarding.dto";
 import {
   effectivePermissions,
@@ -495,6 +495,81 @@ export class CompanyAuthService {
       );
     }
     return { success: true as const };
+  }
+
+  /**
+   * Doğrulanmamış kaydın e-postasını düzeltir (kod adımındaki "E-posta adresini
+   * değiştir"). Eskiden istemci forma dönüp YENİ bir kayıt açıyordu: yanlış
+   * adresteki hesap + geçici firma yetim kalıyor, gerçek adres sahibi kayıtta
+   * 409 alıyordu (derin denetim LU-22). Artık aynı hesabın adresi değişir ve
+   * kod yeni adrese gider.
+   *
+   * Kimlik: eski adres + kayıtta belirlenen parola (bu adımda token yok).
+   * Doğrulanmış hesap, bulunamayan hesap ve yanlış parola AYNI hatayı alır
+   * (hesap varlığı sızdırılmaz); doğrulanmış hesabın adresi buradan değişmez.
+   */
+  async changeSignupEmail(dto: ChangeSignupEmailDto, ctx?: Ctx) {
+    const email = dto.email.toLowerCase().trim();
+    const newEmail = dto.newEmail.toLowerCase().trim();
+    const invalid = () =>
+      new UnauthorizedException(i18nMessage("api.companyAuth.ePostaVeyaSifreHatali"));
+
+    let authId: string;
+    try {
+      authId = (await this.supabaseAuth.verifyPassword(email, dto.password, ctx?.ip)).authId;
+    } catch (err) {
+      if (isSupabaseAuthAccessError(err)) throw err;
+      throw invalid();
+    }
+    const user = await this.bypass.companyUser.findUnique({
+      where: { authId },
+      select: { id: true, email: true, firstName: true, emailVerifiedAt: true, deletedAt: true },
+    });
+    if (!user || user.email !== email || user.emailVerifiedAt || user.deletedAt) {
+      throw invalid();
+    }
+
+    if (newEmail !== email) {
+      const clash = await this.bypass.companyUser.findUnique({
+        where: { email: newEmail },
+        select: { id: true },
+      });
+      if (clash) {
+        throw new ConflictException(i18nMessage("api.companyAuth.buEPostaIleZatenBir"));
+      }
+      // Önce Supabase (giriş kaynağı); domain güncellemesi düşerse geri alınır.
+      await this.supabaseAuth.updateEmail(authId, newEmail);
+      try {
+        await this.bypass.companyUser.update({
+          where: { id: user.id },
+          data: { email: newEmail },
+        });
+      } catch (e) {
+        await this.supabaseAuth.updateEmail(authId, email).catch((rollbackErr: unknown) =>
+          this.logger.error(
+            `Signup email change rollback failed (user=${user.id}): ${
+              rollbackErr instanceof Error ? rollbackErr.message : String(rollbackErr)
+            }`,
+          ),
+        );
+        if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+          throw new ConflictException(i18nMessage("api.companyAuth.buEPostaIleZatenBir"));
+        }
+        throw e;
+      }
+      void this.audit.log({
+        action: "company.signup_email_changed",
+        actorType: "company",
+        actorId: user.id,
+        actorEmail: newEmail,
+        metadata: { from: email, to: newEmail, portal: "company" },
+        ip: ctx?.ip,
+      });
+    }
+
+    // Eski adrese giden kod geçersiz olur (issueEmailCode eskileri kapatır).
+    const { sent } = await this.issueEmailCode(user.id, newEmail, user.firstName);
+    return { email: newEmail, verificationRequired: true as const, emailSent: sent };
   }
 
   // ============================================================

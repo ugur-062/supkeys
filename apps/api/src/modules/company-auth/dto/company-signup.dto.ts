@@ -107,3 +107,19 @@ export class ResendEmailCodeDto {
   @IsEmail({}, { message: () => tApi("api.dto.companySignup.gecerliBirEPostaAdresiGiriniz") })
   email!: string;
 }
+
+/**
+ * Doğrulanmamış kayıtta e-postayı düzelt ("E-posta adresini değiştir").
+ * Kimlik = mevcut adres + kayıtta belirlenen parola (kayıt adımında token yok).
+ */
+export class ChangeSignupEmailDto {
+  @IsEmail({}, { message: () => tApi("api.dto.companySignup.gecerliBirEPostaAdresiGiriniz") })
+  email!: string;
+
+  @IsString()
+  @MaxLength(72)
+  password!: string;
+
+  @IsEmail({}, { message: () => tApi("api.dto.companySignup.gecerliBirEPostaAdresiGiriniz") })
+  newEmail!: string;
+}

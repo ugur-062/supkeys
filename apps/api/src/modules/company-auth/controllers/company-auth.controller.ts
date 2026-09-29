@@ -28,6 +28,7 @@ import {
 } from "../dto/account.dto";
 import { CompanyLoginDto } from "../dto/company-login.dto";
 import {
+  ChangeSignupEmailDto,
   CompanySignupDto,
   ResendEmailCodeDto,
   VerifyEmailDto,
@@ -83,6 +84,15 @@ export class CompanyAuthController {
   @HttpCode(HttpStatus.OK)
   resendEmailCode(@Body() dto: ResendEmailCodeDto) {
     return this.service.resendEmailCode(dto.email);
+  }
+
+  // Doğrulanmamış kaydın e-postasını düzelt — ikinci firma + yetim hesap
+  // açılmasın (derin denetim LU-22). Parola doğrulaması içerir → sıkı kota.
+  @Post("signup/change-email")
+  @Throttle({ auth: { limit: 5, ttl: 60_000 } })
+  @HttpCode(HttpStatus.OK)
+  changeSignupEmail(@Body() dto: ChangeSignupEmailDto, @ClientIp() ip: string) {
+    return this.service.changeSignupEmail(dto, { ip });
   }
 
   @Post("login")
