@@ -289,12 +289,16 @@ function NearbyControls({
   // denetim S078: "Bursa" → "Burs" yazınca kutu boşalıyordu).
   const clearedByTypingRef = useRef(false);
   // Durumdan kutuya: yalnız dışarıdan gelen değişimde (bağlantı, çip kaldırma).
+  // İşaret near yeniden dolana dek kalır: `useGeoCityName` adı kendi durumunda
+  // tuttuğundan near düştükten bir render SONRA '' olur; ilk atlamada işareti
+  // sıfırlamak bu ikinci geçişte kutuyu yine boşaltıyordu.
   useEffect(() => {
-    if (!state.near && clearedByTypingRef.current) {
-      clearedByTypingRef.current = false;
+    if (!state.near) {
+      if (!clearedByTypingRef.current) setText("");
       return;
     }
-    setText(state.near ? currentName : "");
+    clearedByTypingRef.current = false;
+    setText(currentName);
   }, [state.near, currentName]);
   // Öneri: yazılan metin seçili adla aynı değilse (250 ms gecikmeyle).
   useEffect(() => {
