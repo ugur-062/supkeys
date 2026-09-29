@@ -246,7 +246,23 @@ export class StorageService implements OnModuleInit {
       Key: key,
       ContentType: mimeType,
     });
-    return getSignedUrl(this.client, command, { expiresIn: PUT_TTL_SECONDS });
+    // PUBLIC kova: içerik tipi İMZAYA BAĞLANIR. SDK varsayılanı
+    // (`prepareRequest` → `unsignableHeaders.add("content-type")`) tipi
+    // imzalamaz; istemci allowlist'teki "image/png"yi beyan edip nesneyi
+    // `text/html`/`image/svg+xml` olarak PUT edebiliyordu. Public nesne PUT
+    // biter bitmez cdn.rothern.com'da yayında olduğundan, istemci resolve/commit
+    // çağırmazsa yükleme sonrası MIME kontrolü hiç çalışmıyordu → marka alan
+    // adında kalıcı HTML/XSS (derin denetim Y-01). `signableHeaders` bu
+    // varsayılanı ezer (X-Amz-SignedHeaders=content-type;host): başka bir
+    // Content-Type ile yapılan PUT imza hatasıyla reddedilir. Private kova
+    // değişmedi — oradaki nesneler yalnız sunucunun sabitlediği tiple
+    // (octet-stream/uzantı beyaz listesi) servis edilir.
+    return getSignedUrl(this.client, command, {
+      expiresIn: PUT_TTL_SECONDS,
+      ...(bucket === "public"
+        ? { signableHeaders: new Set(["content-type"]) }
+        : {}),
+    });
   }
 
   /** Sunucu tarafı upload — buffer'ı doğrudan R2'ya yazar. */
@@ -346,11 +362,12 @@ export class StorageService implements OnModuleInit {
       const result = await this.client.send(
         new HeadObjectCommand({ Bucket: this.bucketName(bucket), Key: key }),
       );
-      // contentType ZORUNLU: presigned PUT içerik tipini İMZALAMAZ (AWS SDK
-      // `prepareRequest` → `unsignableHeaders.add("content-type")`), yani
-      // istemci "image/png" beyan edip nesneyi text/html olarak yükleyebilir.
-      // Tek otoritatif kaynak, yüklemeden SONRA okunan bu HEAD değeridir
-      // (denetim 2026-08-24 Parça 5, HIGH).
+      // contentType ZORUNLU: private kovada presigned PUT içerik tipini
+      // İMZALAMAZ (AWS SDK `prepareRequest` → `unsignableHeaders.add(
+      // "content-type")`), yani istemci "image/png" beyan edip nesneyi
+      // text/html olarak yükleyebilir. Public kovada tip artık imzalı
+      // (generatePresignedPut, derin denetim Y-01) ama bu HEAD kontrolü ikinci
+      // savunma hattı olarak kalır (denetim 2026-08-24 Parça 5, HIGH).
       return {
         exists: true,
         size: result.ContentLength,

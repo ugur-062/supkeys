@@ -25,10 +25,15 @@ import {
  *    DEĞİŞTİRİLEMİYOR, canlıda görüldü) ve CDN önbelleğinde eski görsel kalıyor.
  *  · IDOR — istemcinin verdiği anahtar YALNIZ kendi firmasının prefix'inde
  *    olabilir; aksi hâlde aynı kovadaki başka firmanın nesnesine URL üretilir.
- *  · OTORİTATİF DOĞRULAMA — presigned PUT ne boyutu ne içerik tipini
- *    imzalayamaz. Yükleme bittikten SONRA nesne gerçekten okunup boyut ve
- *    GERÇEK MIME kontrol edilir; public kovadaki bir HTML/SVG,
+ *  · İÇERİK TİPİ İMZALI — public kova için presigned PUT, Content-Type'ı
+ *    imzaya bağlar (`StorageService.generatePresignedPut`, derin denetim
+ *    Y-01): istemci yalnız burada allowlist'ten geçen MIME ile PUT edebilir.
+ *    Nesne PUT biter bitmez CDN'de yayında olduğundan bu kontrol, istemcinin
+ *    resolve/commit çağırmasına BAĞLI OLAMAZ; public kovadaki bir HTML/SVG,
  *    cdn.rothern.com'da barındırılan XSS demektir.
+ *  · OTORİTATİF DOĞRULAMA — presigned PUT boyutu imzalayamaz. Yükleme
+ *    bittikten SONRA nesne gerçekten okunup boyut ve GERÇEK MIME kontrol
+ *    edilir (ikinci savunma hattı).
  *  · CDN YOKSA FAIL-CLOSED — presigned GET 15 dakikada ölür; onu kalıcı alana
  *    yazmak görselin çeyrek saat sonra ölmesi demek. CDN tabanı yoksa hata.
  */

@@ -1,9 +1,34 @@
 import { i18nMessage } from "../i18n/http-i18n";
-import { BadRequestException } from "@nestjs/common";
+import { BadRequestException, Logger } from "@nestjs/common";
 import type {
   BucketKind,
   StorageService,
 } from "../../modules/storage/storage.service";
+
+const logger = new Logger("UploadValidation");
+
+/**
+ * Doğrulamadan geçemeyen nesneyi silmeyi dener. Hata YUTULMAZ-SESSİZCE:
+ * public kovadaki R2 nesne kilidi DeleteObject'i reddedebilir; bu durumda
+ * nesne kovada (ve CDN'de) kalır, operasyonun elle temizleyebilmesi için
+ * anahtar uyarı olarak loglanır (derin denetim Y-01). İstek yine reddedilir.
+ */
+async function deleteRejectedObject(
+  storage: StorageService,
+  bucket: BucketKind,
+  key: string,
+  reason: string,
+): Promise<void> {
+  try {
+    await storage.deleteObject(bucket, key);
+  } catch (err) {
+    logger.warn(
+      `Reddedilen yükleme silinemedi (${bucket}, ${reason}): ${key} — ${
+        (err as Error)?.message ?? String(err)
+      }. Elle temizlenmeli.`,
+    );
+  }
+}
 
 /** Yükleme başına azami boyut (eski sistem paritesi: 50 MB). */
 export const MAX_UPLOAD_BYTES = 50 * 1024 * 1024;
@@ -61,8 +86,9 @@ export async function assertUploadedObjectValid(
   key: string,
   maxBytes: number = MAX_UPLOAD_BYTES,
   /**
-   * İzinli GERÇEK içerik tipleri. Presigned PUT içerik tipini İMZALAMAZ (AWS
-   * SDK `prepareRequest` → `unsignableHeaders.add("content-type")`): istemci
+   * İzinli GERÇEK içerik tipleri. Private kovada presigned PUT içerik tipini
+   * İMZALAMAZ (AWS SDK `prepareRequest` → `unsignableHeaders.add(
+   * "content-type")`; public kovada Y-01'den beri imzalı): istemci
    * "image/png" beyan edip nesneyi `text/html` olarak yükleyebilir. Public
    * kovadaki nesneler kalıcı ve kimliksiz erişilebilir olduğundan bu, marka
    * alan adında (cdn.rothern.com) DEPOLANMIŞ XSS demekti — çerez alanı
@@ -82,7 +108,7 @@ export async function assertUploadedObjectValid(
   }
   if (head.size != null && head.size > maxBytes) {
     // Yetim (limit aşan) nesneyi temizle ki bucket şişmesin.
-    await storage.deleteObject(bucket, key).catch(() => undefined);
+    await deleteRejectedObject(storage, bucket, key, "boyut");
     throw new BadRequestException(
       i18nMessage("api.helpers.dosyaBoyutuMbSiniriniAsiyor", { round: Math.round(maxBytes / 1024 / 1024) }),
     );
@@ -90,7 +116,7 @@ export async function assertUploadedObjectValid(
   if (allowedContentTypes && allowedContentTypes.length > 0) {
     const actual = (head.contentType ?? "").split(";")[0]!.trim().toLowerCase();
     if (!allowedContentTypes.includes(actual)) {
-      await storage.deleteObject(bucket, key).catch(() => undefined);
+      await deleteRejectedObject(storage, bucket, key, `tip=${actual}`);
       throw new BadRequestException(
         i18nMessage("api.helpers.yuklenenDosyaninTuruKabulEdilmiyorDosyayi"),
       );
