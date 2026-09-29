@@ -270,21 +270,32 @@ export class CompanyAddressesService {
         ? "api.companyAddresses.silinemez"
         : "api.companyAddresses.adresBilgileriDegistirilemez",
     );
+    const usedBy = { OR: [{ deliveryAddressId: id }, { billingAddressId: id }] };
     const activeUse = await this.prisma.listing.count({
       where: {
         companyId,
-        // CLOSED = yalnız admin moderasyon kapatması; admin yeniden açınca
-        // SUBMITTED teklifleriyle OPEN'a döner → adres kilitli kalır (derin
-        // denetim S021; eskiden arada silinip ilan adressiz yeniden açılıyordu).
         status: {
-          in: ["DRAFT", "IN_APPROVAL", "OPEN", "CLOSED", "IN_AWARD", "IN_AWARD_APPROVAL"],
+          in: ["DRAFT", "IN_APPROVAL", "OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"],
         },
-        OR: [{ deliveryAddressId: id }, { billingAddressId: id }],
+        ...usedBy,
       },
     });
     if (activeUse > 0) {
       throw new BadRequestException(
         i18nMessage("api.companyAddresses.buAdresAktifIlandaKullaniliyorOnce", { activeUse: activeUse, what: whatText }),
+      );
+    }
+    // CLOSED = yalnız admin moderasyon kapatması; admin yeniden açınca
+    // SUBMITTED teklifleriyle OPEN'a döner → adres kilitli kalır (derin
+    // denetim S021; eskiden arada silinip ilan adressiz yeniden açılıyordu).
+    // Sahip CLOSED ilanda adresi değiştiremez → ayrı metin desteğe yönlendirir
+    // ("önce ilandaki adresi değiştirin" uygulanamaz bir yönlendirmeydi).
+    const closedUse = await this.prisma.listing.count({
+      where: { companyId, status: "CLOSED", ...usedBy },
+    });
+    if (closedUse > 0) {
+      throw new BadRequestException(
+        i18nMessage("api.companyAddresses.buAdresYoneticiKapattigiIlandaKullaniliyor", { closedUse: closedUse, what: whatText }),
       );
     }
     const bidUse = await this.prisma.listingBid.count({

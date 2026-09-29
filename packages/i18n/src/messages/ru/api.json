@@ -131,6 +131,7 @@
   },
   "companyAddresses": {
     "buAdresAktifIlandaKullaniliyorOnce": "Этот адрес используется в {activeUse, plural, one {# активном запросе} few {# активных запросах} many {# активных запросах} other {# активных запросах}} — {what}; сначала измените адрес в этих запросах",
+    "buAdresYoneticiKapattigiIlandaKullaniliyor": "Этот адрес используется в {closedUse, plural, one {# запросе, закрытом администратором} few {# запросах, закрытых администратором} many {# запросах, закрытых администратором} other {# запросах, закрытых администратором}} — {what}; пожалуйста, обратитесь в службу поддержки",
     "buAdresGonderilmisTeklifteKullaniliyorTeklif": "Этот адрес используется в {bidUse, plural, one {# отправленном предложении} few {# отправленных предложениях} many {# отправленных предложениях} other {# отправленных предложениях}} — {what}, пока предложение не будет завершено",
     "adresBulunamadi": "Адрес не найден",
     "silinemez": "его нельзя удалить",

@@ -142,8 +142,24 @@ describe("adres CRUD — audit izi (INV-AUDIT-1)", () => {
 
   it("moderasyonla kapatılmış (CLOSED) ilanın adresi SİLİNEMEZ — admin yeniden açınca ilan adressiz kalmasın (derin denetim S021)", async () => {
     const { owner, addr } = await listingAddress("CLOSED");
-    await expect(svc.remove(owner.auth, addr.id)).rejects.toThrow(/aktif ilanda/i);
+    // Sahip CLOSED ilanda adresi değiştiremez → "önce ilandaki adresi
+    // değiştirin" değil, desteğe yönlendiren ayrı metin (LU-05 gözden geçirme).
+    await expect(svc.remove(owner.auth, addr.id)).rejects.toThrow(/yönetici tarafından kapatılmış 1 ilanda.*destek/i);
     expect(await prisma.companyAddress.count({ where: { id: addr.id } })).toBe(1);
+  });
+
+  it("CLOSED ilandaki adresin YERİ de değiştirilemez; aktif ilan metni değil destek metni döner", async () => {
+    const { owner, addr } = await listingAddress("CLOSED");
+    await expect(
+      svc.update(owner.auth, addr.id, {
+        type: "TESLIMAT",
+        title: "Depo",
+        addressLine: "Örnek mah. No:1",
+        city: "Ankara",
+      } as never),
+    ).rejects.toThrow(/yönetici tarafından kapatılmış.*adres bilgileri değiştirilemez.*destek/i);
+    const row = await prisma.companyAddress.findUniqueOrThrow({ where: { id: addr.id } });
+    expect(row.city).toBe("İstanbul");
   });
 
   it("şehir kilidi cityId ile ATLATILAMAZ: eski şehir metni + başka şehrin id'si REDDEDİLİR (derin denetim S021)", async () => {

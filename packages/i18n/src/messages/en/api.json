@@ -131,6 +131,7 @@
   },
   "companyAddresses": {
     "buAdresAktifIlandaKullaniliyorOnce": "This address is used in {activeUse, plural, one {# active request} other {# active requests}} — {what}; change the address on those requests first",
+    "buAdresYoneticiKapattigiIlandaKullaniliyor": "This address is used in {closedUse, plural, one {# request closed by an administrator} other {# requests closed by an administrator}} — {what}; please contact support",
     "buAdresGonderilmisTeklifteKullaniliyorTeklif": "This address is used in {bidUse, plural, one {# submitted quote} other {# submitted quotes}} — {what} until the quote is finalized",
     "adresBulunamadi": "Address not found",
     "silinemez": "it cannot be deleted",

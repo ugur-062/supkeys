@@ -131,6 +131,7 @@
   },
   "companyAddresses": {
     "buAdresAktifIlandaKullaniliyorOnce": "Bu adres {activeUse} aktif ilanda kullanılıyor — {what}; önce ilanlardaki adresi değiştirin",
+    "buAdresYoneticiKapattigiIlandaKullaniliyor": "Bu adres yönetici tarafından kapatılmış {closedUse} ilanda kullanılıyor — {what}; destek ekibiyle iletişime geçin",
     "buAdresGonderilmisTeklifteKullaniliyorTeklif": "Bu adres {bidUse} gönderilmiş teklifte kullanılıyor — teklif sonuçlanana kadar {what}",
     "adresBulunamadi": "Adres bulunamadı",
     "silinemez": "silinemez",
