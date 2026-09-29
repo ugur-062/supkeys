@@ -8,9 +8,10 @@ import {
   Query,
   UseGuards,
 } from "@nestjs/common";
-import { Type } from "class-transformer";
+import { Transform, Type } from "class-transformer";
 import {
   IsBoolean,
+  IsEmail,
   IsIn,
   IsInt,
   IsObject,
@@ -20,6 +21,7 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateIf,
 } from "class-validator";
 import {
   VERIFICATION_REASON_CODES,
@@ -149,7 +151,7 @@ class ReviewDocRevisionDto {
 }
 
 /** Firma kimlik düzeltme — yalnız gönderilen alanlar değişir. */
-class UpdateCompanyProfileDto {
+export class UpdateCompanyProfileDto {
   @IsOptional()
   @IsString()
   @MaxLength(200)
@@ -211,8 +213,20 @@ class UpdateCompanyProfileDto {
   @MaxLength(400)
   addressLine?: string | null;
 
+  /**
+   * Doluysa firmanin TUM firma-duzeyi e-postalari (siparis, dogrulama, uyelik,
+   * baglanti) kullanicilar yerine bu adrese gider — bicim hatasi firmanin
+   * butun e-posta akisini sessizce keser (derin denetim MU-02). Bos string
+   * alani temizler (serviste null'a normalize edilir); dolu deger e-posta
+   * olmali, kucuk harfe cevrilip saklanir.
+   */
   @IsOptional()
+  @Transform(({ value }) =>
+    typeof value === "string" ? value.trim().toLowerCase() : value,
+  )
+  @ValidateIf((o: { billingEmail?: unknown }) => o.billingEmail !== "")
   @IsString()
+  @IsEmail()
   @MaxLength(200)
   billingEmail?: string | null;
 

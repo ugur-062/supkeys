@@ -156,13 +156,22 @@ export class SeoIndexService {
     });
   }
 
-  /** Firma profili açıldı/kapandı/değişti; askıya alındı. */
-  companyChanged(companyId: string): void {
+  /**
+   * Firma profili açıldı/kapandı/değişti; askıya alındı.
+   * `removed`: satır SERT SİLİNDİ (KVKK) — okuma artık boş döner, bu yüzden
+   * çağıran silmeden önce okuduğu slug/şehir/ülkeyi verir; görünmez sayılır.
+   */
+  companyChanged(
+    companyId: string,
+    removed?: { slug: string | null; cityId: number | null; country: string | null },
+  ): void {
     void this.safely("firma", async () => {
-      const row = await this.prisma.company.findUnique({
-        where: { id: companyId },
-        select: { slug: true, cityId: true, country: true, publicEnabled: true, isActive: true, isBlocked: true },
-      });
+      const row = removed
+        ? { ...removed, publicEnabled: false, isActive: false, isBlocked: true }
+        : await this.prisma.company.findUnique({
+            where: { id: companyId },
+            select: { slug: true, cityId: true, country: true, publicEnabled: true, isActive: true, isBlocked: true },
+          });
       if (!row?.slug) return;
       const visible = row.publicEnabled && row.isActive && !row.isBlocked;
       // Şehir sayfası dünya şehir listesinden (2026-09-27); firma şehir sayfası

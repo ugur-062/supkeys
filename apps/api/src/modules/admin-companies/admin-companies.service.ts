@@ -5,6 +5,7 @@ import {
   EU_VAT_COUNTRIES,
   PAID_TIERS,
   PRODUCT_LIMITS,
+  bankDetailsErrors,
   countryUsesIban,
   formatVerificationReason,
   isRegistrationOpen,
@@ -906,7 +907,9 @@ export class AdminCompaniesService {
           ? value.toUpperCase()
           : key === "bankSwiftBic" && value
             ? normalizeSwift(value)
-            : value;
+            : key === "billingEmail" && value
+              ? value.toLowerCase()
+              : value;
       // Ülke tam listeden (2026-09-27): eskiden her 2 harf ("ZZ") yazılıyordu.
       if (key === "country" && data[key] && !isValidCountryCode(data[key]!)) {
         throw new BadRequestException(i18nMessage("api.adminCompanies.gecersizUlkeKodu"));
@@ -1094,10 +1097,26 @@ export class AdminCompaniesService {
     const missing: string[] = [];
     if (country === "TR" && !c.mersisNo?.trim()) missing.push("MERSİS numarası");
     if (!c.tradeRegistryNo?.trim()) missing.push("ticari sicil numarası");
-    if (!c.iban?.trim()) missing.push(usesIban ? "IBAN" : "banka hesap numarası");
+    // Banka alanlari TEK KAYNAKTAN (`bankDetailsErrors`, firma `submit()` ile
+    // ayni cagri): IBAN'siz ulkede gecerli IBAN verilmisse banka adi ISTENMEZ.
+    // Eskiden burada elle yazilmis `!usesIban && !bankName` kurali vardi —
+    // firma kapisindan PENDING'e gecen basvuru admin onayinda 400 aliyordu
+    // (derin denetim MU-02). Yalniz EKSIKLIK kapisi: bicim hatasi (eski kayit)
+    // onayi burada kilitlemez, davranis oncekiyle ayni.
+    const bankErrors = bankDetailsErrors(
+      {
+        country,
+        ...(usesIban ? { iban: c.iban } : { accountNumber: c.iban }),
+        swiftBic: c.bankSwiftBic,
+        bankName: c.bankName,
+      },
+      { requireSwift: true },
+    );
+    if (bankErrors.includes("ibanRequired")) missing.push("IBAN");
+    if (bankErrors.includes("accountNumberRequired")) missing.push("banka hesap numarası");
     if (!c.ibanHolder?.trim()) missing.push("hesap sahibi");
-    if (!c.bankSwiftBic?.trim()) missing.push("SWIFT/BIC");
-    if (!usesIban && !c.bankName?.trim()) missing.push("banka adı");
+    if (bankErrors.includes("swiftRequired")) missing.push("SWIFT/BIC");
+    if (bankErrors.includes("bankNameRequired")) missing.push("banka adı");
     if (missing.length > 0) {
       throw new BadRequestException(
         i18nMessage("api.adminCompanies.dogrulamaIcinEksikKimlikBilgisiFirma", { join: missing.join(", ") }),
@@ -2363,10 +2382,12 @@ export class AdminCompaniesService {
       metadata: { status: input.status, suspend: !!input.suspend },
     });
     if (input.suspend) {
+      // `adminNote` IC nottur (sikayetciye bile gosterilmez; icinde sikayetci
+      // firmanin adi olabilir) — askiya alinan firmaya giden gerekceye DUSMEZ.
+      // Firmaya yalniz acikca "firmaya iletilir" diye sorulan `suspendReason`
+      // gider, yoksa sabit metin (derin denetim MU-02).
       const blockedReason =
-        input.suspendReason?.trim() ||
-        input.adminNote?.trim() ||
-        "Şikayet üzerine askıya alındı";
+        input.suspendReason?.trim() || "Şikayet üzerine askıya alındı";
       await this.prisma.company.update({
         where: { id: c.againstCompanyId },
         data: {
@@ -2375,6 +2396,8 @@ export class AdminCompaniesService {
           blockedAt: new Date(),
         },
       });
+      // suspend() ile ayni: herkese acik profil/urun/sitemap onbellegi tazelenir.
+      this.seo?.companyChanged(c.againstCompanyId);
       await this.audit.log({
         action: "admin.company.suspended",
         actorType: "admin",
@@ -2467,8 +2490,29 @@ export class AdminCompaniesService {
       this.pageRelation((a) => root().connectionsInitiated(a)),
       this.pageRelation((a) => root().connectionsReceived(a)),
       this.pageRelation((a) => root().referralInvitesSent(a)),
-      this.pageRelation((a) => root().complaintsMade(a)),
-      this.pageRelation((a) => root().complaintsReceived(a)),
+      // Sikayetler (derin denetim MU-02): urun sikayet edilen firmaya
+      // sikayetci kimligini hic gostermez — dokum de gostermez. Hakkindaki
+      // sikayetlerde yalniz konu/durum/tarih; sikayetci firma/kullanici,
+      // detay metni (sikayetcinin yazdigi), ic admin notu ve karar veren admin
+      // YOK. Kendi actiklarinda da ic not ve admin kimligi yok (listMine gibi).
+      this.pageRelation((a) =>
+        root().complaintsMade({
+          ...a,
+          omit: { adminNote: true, resolvedByAdminId: true },
+        }),
+      ),
+      this.pageRelation((a) =>
+        root().complaintsReceived({
+          ...a,
+          select: {
+            id: true,
+            reason: true,
+            status: true,
+            createdAt: true,
+            resolvedAt: true,
+          },
+        }),
+      ),
       this.pageRelation((a) => root().membershipEvents(a)),
       this.pageRelation((a) => root().adminNotes(a)),
       this.pageRelation((a) => root().addresses(a)),
@@ -2629,6 +2673,10 @@ export class AdminCompaniesService {
         id: true,
         name: true,
         rothernId: true,
+        // SEO tazelemesi için (sert silmeden sonra satır okunamaz).
+        slug: true,
+        cityId: true,
+        country: true,
         users: { select: { id: true, authId: true } },
         // Dalga A2 (denetim P12 #1/#2): SERT SİLME kapısı eskiden YALNIZ
         // siparişe bakıyordu. Sipariş FK'ları `Restrict` (doğru), ama iki
@@ -2737,6 +2785,13 @@ export class AdminCompaniesService {
 
     if (!hasRetainedHistory) {
       await this.prisma.company.delete({ where: { id } });
+      // Herkese acik profil/urun/sitemap onbellegi dussun (derin denetim
+      // MU-02); satir artik yok, slug silmeden once okundu.
+      this.seo?.companyChanged(id, {
+        slug: company.slug,
+        cityId: company.cityId,
+        country: company.country,
+      });
       await this.audit.log({
         action: "admin.company.deleted",
         actorType: "admin",
@@ -2825,6 +2880,9 @@ export class AdminCompaniesService {
         }),
       ),
     ]);
+    // Anonim firma gorunmez (publicEnabled=false, isBlocked) — eski ad/logo
+    // ISR onbelleginden servis edilmesin (derin denetim MU-02).
+    this.seo?.companyChanged(id);
     await this.audit.log({
       action: "admin.company.anonymized",
       actorType: "admin",
