@@ -2615,7 +2615,6 @@
         "ulkesiniCikar": "{countryName} ülkesini çıkar",
         "ulkeEkle": "Ülke ekle",
         "ulkeEkle2": "+ Ülke ekle",
-        "enAzBirUlkeSecin": "En az bir ülke seçin; yoksa talebi kimse görmez.",
         "teslimSekli": "Teslim şekli",
         "secin": "— Seçin —",
         "adreseYurticiTeslim": "Adrese / yurtiçi teslim",
@@ -2669,7 +2668,8 @@
             "label": "Seçtiklerim",
             "hint": "Yalnız davet ettiğiniz firmalar görür."
           }
-        }
+        },
+        "sonUlkeCikarilamaz": "Son ülke çıkarılamaz: önce başka bir ülke ekleyin ya da “Tüm ülkeler”i seçin."
       },
       "ihalelerView": {
         "tedarikSurecleriniziYonetinAcinDavet": "Tedarik süreçlerinizi yönetin — açın, davet gönderin, kazandırın.",
@@ -3256,6 +3256,7 @@
         "buSatinAlmaTalebindeTum": "Bu alım talebinde tüm kalemlere teklif vermelisiniz.",
         "gecerliBirTutarGirin": "Geçerli bir tutar girin.",
         "kalemiIcinZorunluSoruCevaplanmadi": "\"{name}\" kalemi için zorunlu soru cevaplanmadı.",
+        "muadilMarkaVeyaParcaNoGirin": "\"{name}\" kalemine muadil ürün teklif ediyorsanız marka veya parça numarası girin.",
         "kalemiBirimFiyati": "\"{name}\" kalemi birim fiyatı: {e}.",
         "teslimSuresiZorunluSureGirmediginiz": "Teslim süresi zorunlu (süre girmediğiniz kalemler için).",
         "gecerlilikSuresiZorunlu": "Geçerlilik süresi zorunlu.",
@@ -3797,7 +3798,9 @@
         },
         "kalemSorulari": "Kalem {n} Soruları",
         "cevapTuruDeger": "Cevap türü: {label}",
-        "soruN": "Soru {n}"
+        "soruN": "Soru {n}",
+        "soruTavani": "Bir kaleme en fazla {max} soru eklenebilir.",
+        "soruTavaniEklenmedi": "{dropped} soru eklenmedi: bir kaleme en fazla {max} soru eklenebilir."
       },
       "aiFlagsBanner": {
         "taslakGuncellendiAlanlariKontrolEdin": "Taslak güncellendi — alanları kontrol edin",
@@ -5049,6 +5052,7 @@
       },
       "bidImportDialog": {
         "belgeIslenemedi": "Belge işlenemedi",
+        "dosyaCokBuyukIcinSinir": "Dosya çok büyük ({mb} MB) — {kind} için sınır {cap} MB",
         "dosyaOkunamadi": "Dosya okunamadı",
         "belgedenFiyatlaAi": "Belgeden Fiyatla (AI)",
         "excelSablonuIleFiyatla": "Excel Şablonu ile Fiyatla",
@@ -7067,7 +7071,8 @@
       "home": "Anasayfa",
       "close": "Kapat",
       "remove": "Kaldır",
-      "selectPlaceholder": "— seç —"
+      "selectPlaceholder": "— seç —",
+      "missing": "Eksik"
     },
     "phoneInput": {
       "label": "Telefon",

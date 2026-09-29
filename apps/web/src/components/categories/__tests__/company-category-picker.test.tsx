@@ -37,17 +37,37 @@ vi.mock("@/hooks/use-categories", () => ({
 
 // İki modal da ağır (biri 1000+ satır, ikisi de katalog uçlarına gider).
 // Burada sınanan şey seçim ARAYÜZÜ değil, onaydan SONRAKİ türetme.
-vi.mock("@/components/categories/category-selector-modal", () => ({
-  CategorySelectorModal: ({
-    onConfirm,
-  }: {
-    onConfirm: (ids: string[]) => void;
-  }) => (
-    <button type="button" onClick={() => onConfirm(h.altSecim)}>
-      alt-onayla
-    </button>
-  ),
-}));
+// Sahte modal, gerçeğin onay sözleşmesini taklit eder: önce `validate`,
+// reddederse onaylamaz ve metni modal İÇİNDE gösterir (modal açık kalır).
+vi.mock("@/components/categories/category-selector-modal", async () => {
+  const { useState } = await import("react");
+  return {
+    CategorySelectorModal: function SahteModal({
+      onConfirm,
+      validate,
+    }: {
+      onConfirm: (ids: string[]) => void;
+      validate?: (ids: string[]) => string | null;
+    }) {
+      const [hata, setHata] = useState<string | null>(null);
+      return (
+        <div data-testid="alt-modal">
+          <button
+            type="button"
+            onClick={() => {
+              const e = validate?.(h.altSecim) ?? null;
+              if (e) setHata(e);
+              else onConfirm(h.altSecim);
+            }}
+          >
+            alt-onayla
+          </button>
+          {hata ? <p data-testid="modal-hata">{hata}</p> : null}
+        </div>
+      );
+    },
+  };
+});
 vi.mock("@/components/categories/segment-only-picker", () => ({
   SegmentOnlyModal: ({
     onConfirm,
@@ -134,7 +154,10 @@ describe("CompanyCategoryPicker — segment türetme", () => {
 
     // Sessizce kırpmak, kullanıcının beyanını haberi olmadan eksiltirdi.
     expect(h.sonDeger).toBeNull();
-    expect(screen.getByRole("alert")).toHaveTextContent(/6 ayrı sektöre/);
+    // Red onaydan ÖNCE, modal içinde: modal açık kalır, taslak kaybolmaz
+    // (derin denetim 2026-09-29 — eskiden modal kapanıyor, taslak gidiyordu).
+    expect(screen.getByTestId("alt-modal")).toBeInTheDocument();
+    expect(screen.getByTestId("modal-hata")).toHaveTextContent(/6 ayrı sektöre/);
   });
 
   it("segment silinince ALTINDAKİ yapraklar da gider (zincirleme)", async () => {

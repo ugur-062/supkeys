@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { appDayRangeIso, calendarDaysBetween, appZoneLabel, parseAppWallClockInput, toAppWallClock, toAppWallClockInput, wallClock } from "./time-zone";
+import { appDayRangeIso, calendarDaysBetween, appZoneLabel, parseAppWallClockInput, toAppCalendarDate, toAppWallClockInput, wallClock } from "./time-zone";
 import { formatDate } from "./format-date";
 import { formatTime } from "./tenders/date";
 import { closesAtErrorKey } from "./tenders/closes-at";
@@ -29,9 +29,21 @@ describe("time-zone", () => {
     expect(calendarDaysBetween(new Date("2026-09-22T05:00:00Z"), new Date("2026-09-22T21:00:00Z"))).toBe(1);
   });
 
-  it("toAppWallClock yerel Date'e Türkiye duvar saatini taşır", () => {
-    const d = toAppWallClock(new Date("2026-09-21T21:30:00Z"));
-    expect([d.getFullYear(), d.getMonth() + 1, d.getDate(), d.getHours(), d.getMinutes()]).toEqual([2026, 9, 22, 0, 30]);
+  it("toAppCalendarDate yerel Date'e Türkiye takvim gününü taşır", () => {
+    const d = toAppCalendarDate(new Date("2026-09-21T21:30:00Z"));
+    expect([d.getFullYear(), d.getMonth() + 1, d.getDate()]).toEqual([2026, 9, 22]);
+  });
+
+  it("datetime: tarayıcının yaz saati boşluğu saati kaydırmaz (Berlin, 28 Mar 2027 02:30 TR)", () => {
+    const prev = process.env.TZ;
+    process.env.TZ = "Europe/Berlin";
+    try {
+      // 2027-03-27T23:30Z = İstanbul 28 Mart 02:30; Berlin'de 02:00–02:59 yok.
+      expect(formatDate("2027-03-27T23:30:00Z", "datetime", "en")).toBe("28 Mar 2027 02:30 (GMT+3)");
+      expect(formatDate("2027-03-27T23:30:00Z", "datetime", "tr")).toBe("28 Mar 2027 02:30");
+    } finally {
+      process.env.TZ = prev;
+    }
   });
 });
 

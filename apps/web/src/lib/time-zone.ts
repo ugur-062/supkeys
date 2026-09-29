@@ -51,13 +51,20 @@ export function wallClock(date: Date): WallClock {
 }
 
 /**
- * Ürün saat diliminin duvar saatini taşıyan YEREL `Date` — date-fns `format`
- * yerel saatle yazdığı için, biçimlendirmeden önce buradan geçirilir.
- * Yalnız gösterim için; hesaplamada kullanılmaz.
+ * Ürün saat dilimindeki TAKVİM GÜNÜNÜ taşıyan YEREL `Date` (yerel öğle 12:00)
+ * — date-fns `format` yerel saatle yazdığı için gün/ay/yıl metni buradan
+ * biçimlenir. Yalnız gösterim için; hesaplamada kullanılmaz.
+ *
+ * Saat bilerek TAŞINMAZ (derin denetim 2026-09-29): İstanbul duvar saatini
+ * yerel `new Date(y, m, d, h, mi)` ile kurmak, tarayıcı yaz saati uygulayan
+ * bir dilimdeyse ileri alma boşluğunda (ör. Berlin, Mart'ın son pazarı
+ * 02:00–02:59) saati bir saat kaydırıyordu. Öğle vakti hiçbir dilimde geçiş
+ * boşluğuna düşmez; saat:dakika `wallClock` parçalarından yazılır
+ * (`formatDate`).
  */
-export function toAppWallClock(date: Date): Date {
+export function toAppCalendarDate(date: Date): Date {
   const w = wallClock(date);
-  return new Date(w.year, w.month - 1, w.day, w.hour, w.minute, w.second);
+  return new Date(w.year, w.month - 1, w.day, 12, 0, 0);
 }
 
 /** Ürün saat diliminde takvim günü indeksi (1970-01-01'den bu yana gün). */

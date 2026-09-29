@@ -2,6 +2,7 @@
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import type { BidImportResult } from "@rothern/shared";
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { toast } from "sonner";
 
 const h = vi.hoisted(() => ({
   parse: vi.fn(),
@@ -67,9 +68,13 @@ const AI_RESULT: BidImportResult = {
   matchedCount: 2,
 };
 
-function pickFiles(names: string[]) {
+function pickFiles(names: string[], size?: number) {
   const input = document.querySelector('input[type="file"]') as HTMLInputElement;
-  const files = names.map((n) => new File(["x"], n, { type: "application/octet-stream" }));
+  const files = names.map((n) => {
+    const f = new File(["x"], n, { type: "application/octet-stream" });
+    if (size != null) Object.defineProperty(f, "size", { value: size });
+    return f;
+  });
   fireEvent.change(input, { target: { files } });
 }
 
@@ -111,6 +116,41 @@ describe("BidImportDialog — Excel şablonu", () => {
     await screen.findByText("1 / 3 kalem fiyatlandı");
     fireEvent.click(screen.getByLabelText("Çelik boru uygula"));
     expect(screen.getByRole("button", { name: "0 kalemin fiyatını uygula" })).toBeDisabled();
+  });
+});
+
+// Derin denetim 2026-09-29: şablon base64 JSON gövdesiyle gider (5 MB gövde
+// sınırı) — istemci kapısı yoktu, ~3,75 MB üstü açıklamasız 413 alıyordu.
+// Önizlemede miktar+birim ham yapıştırılıyordu ("1500 m").
+describe("BidImportDialog — Excel şablonu: boyut kapısı ve miktar etiketi", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    h.parse.mockResolvedValue(TEMPLATE_RESULT);
+  });
+
+  it("3,5 MB üstü .xlsx ve 1 MB üstü .csv yüklenmeden reddedilir", () => {
+    render(
+      <BidImportDialog open variant="excel" listingId="L1" currencyLabel="TRY" itemCurrencyAllowed onClose={() => {}} onApply={() => {}} />,
+    );
+    pickFiles(["teklif.xlsx"], 4 * 1024 * 1024);
+    expect(h.parse).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenLastCalledWith("Dosya çok büyük (4.0 MB) — Excel için sınır 3.5 MB");
+    pickFiles(["teklif.csv"], 2 * 1024 * 1024);
+    expect(h.parse).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenLastCalledWith("Dosya çok büyük (2.0 MB) — CSV için sınır 1 MB");
+  });
+
+  it("sınırın altındaki dosya yüklenir; önizleme miktarı birim etiketiyle biçimler", async () => {
+    h.parse.mockResolvedValue({
+      ...TEMPLATE_RESULT,
+      matches: [base({ itemId: "i1", itemName: "Çelik boru", itemQuantity: "1500", itemUnit: "m", unitPrice: 10, confidence: "exact" })],
+    });
+    render(
+      <BidImportDialog open variant="excel" listingId="L1" currencyLabel="TRY" itemCurrencyAllowed onClose={() => {}} onApply={() => {}} />,
+    );
+    pickFiles(["teklif.xlsx"], 3 * 1024 * 1024);
+    await waitFor(() => expect(h.parse).toHaveBeenCalledTimes(1));
+    expect(await screen.findByText("1.500 m")).toBeInTheDocument();
   });
 });
 

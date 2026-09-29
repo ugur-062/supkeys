@@ -66,6 +66,13 @@ interface Props {
    * Yalnız L4 yaprakta ayrışıyorlar; segment/aile/sınıf ikisinde de aynı.
    */
   catalog?: CategoryCatalog;
+  /**
+   * Onay öncesi doğrulama: metin dönerse modal KAPANMAZ, taslak korunur ve
+   * metin modal içinde gösterilir (ör. firma seçiminde sektör tavanı — onay
+   * sonrası reddedilince kullanıcının tüm taslağı kayboluyordu, derin denetim
+   * 2026-09-29). `null` → onaylanır.
+   */
+  validate?: (ids: string[]) => string | null;
 }
 
 /**
@@ -85,12 +92,15 @@ export function CategorySelectorModal({
   title,
   description,
   catalog = "full",
+  validate,
 }: Props) {
   const tr = useTranslations("web.shared.categorySelectorModal");
   const [draftIds, setDraftIds] = useState<string[]>(value);
   const [search, setSearch] = useState("");
   const debouncedSearch = useDebouncedValue(search, 300);
   const [warningMsg, setWarningMsg] = useState<string | null>(null);
+  /** `validate` reddi — kendiliğinden kaybolmaz; seçim değişince silinir. */
+  const [confirmError, setConfirmError] = useState<string | null>(null);
 
   const [expandedSegments, setExpandedSegments] = useState<Set<string>>(
     new Set(),
@@ -106,7 +116,10 @@ export function CategorySelectorModal({
   const { data: searchTree, isLoading: searchLoading } =
     useCategorySearchTree(debouncedSearch, catalog);
   // Seçilen kategorilerin breadcrumb'larını getir — header chip listesi için.
-  const { data: selectedInfo } = useCategoriesByIds(draftIds);
+  // `isPlaceholderData`: yeni seçim eklenince sorgu anahtarı değişir ve cevap
+  // gelene kadar ÖNCEKİ liste döner — o sırada listede olmayan id "silinmiş"
+  // değil, henüz yükleniyor.
+  const { data: selectedInfo, isPlaceholderData } = useCategoriesByIds(draftIds);
   // O(1) lookup için Map'e dönüştür — N seçimde linear .find() yerine.
   const selectedInfoMap = useMemo(() => {
     if (!selectedInfo) return null;
@@ -124,7 +137,12 @@ export function CategorySelectorModal({
     setExpandedFamilies(new Set());
     setExpandedClasses(new Set());
     setWarningMsg(null);
+    setConfirmError(null);
   }, [isOpen, value]);
+
+  useEffect(() => {
+    setConfirmError(null);
+  }, [draftIds]);
 
   useEffect(() => {
     if (!warningMsg) return;
@@ -161,9 +179,20 @@ export function CategorySelectorModal({
   };
 
   const handleConfirm = () => {
+    const err = validate?.(draftIds) ?? null;
+    if (err) {
+      setConfirmError(err);
+      return;
+    }
     onConfirm(draftIds);
     onClose();
   };
+
+  // Single mod: başlık seçili id'nin KENDİ kaydını gösterir — placeholder
+  // (önceki seçim) listesinin ilk elemanı değil.
+  const singleInfo =
+    mode === "single" ? selectedInfo?.find((c) => c.id === draftIds[0]) : undefined;
+  const singleLoading = selectedInfo === undefined || (isPlaceholderData && !singleInfo);
 
   const defaultDescription =
     mode === "single"
@@ -243,8 +272,8 @@ export function CategorySelectorModal({
                 <ul className="flex flex-wrap gap-2">
                   {draftIds.map((id) => {
                     const info = selectedInfoMap?.get(id);
-                    const loading = selectedInfoMap === null;
-                    const missing = selectedInfoMap !== null && !info;
+                    const loading = selectedInfoMap === null || (isPlaceholderData && !info);
+                    const missing = !loading && !info;
                     return (
                       <li key={id}>
                         <Badge
@@ -276,22 +305,25 @@ export function CategorySelectorModal({
               <span className="block text-xs font-semibold text-zinc-700">
                 {tr("secili", {
                   name:
-                    selectedInfo?.[0]?.nameTr ??
-                    (selectedInfo === undefined ? "…" : tr("silinmisKategori")),
+                    singleInfo?.nameTr ??
+                    (singleLoading ? "…" : tr("silinmisKategori")),
                 })}
               </span>
               {/* Tam yol — "Aksesuarlar" gibi bağlamsız yaprak adları için. */}
-              {selectedInfo?.[0]?.breadcrumb ? (
+              {singleInfo?.breadcrumb ? (
                 <span className="mt-0.5 block truncate text-xs text-zinc-500">
-                  {selectedInfo[0].breadcrumb}
+                  {singleInfo.breadcrumb}
                 </span>
               ) : null}
             </div>
           ) : null}
 
-          {warningMsg ? (
-            <div className="border-b border-amber-200 bg-amber-50 px-6 py-2.5 text-xs font-medium text-amber-800">
-              ⚠️ {warningMsg}
+          {(confirmError ?? warningMsg) ? (
+            <div
+              role={confirmError ? "alert" : undefined}
+              className="border-b border-amber-200 bg-amber-50 px-6 py-2.5 text-xs font-medium text-amber-800"
+            >
+              ⚠️ {confirmError ?? warningMsg}
             </div>
           ) : null}
 

@@ -32549,6 +32549,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.bidImportDialog.dosyaCokBuyukIcinSinir": {
+    "hash": "823c0447e6",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.trade.bidImportDialog.dosyaOkunamadi": {
     "hash": "dd74786f28",
     "status": "reviewed",

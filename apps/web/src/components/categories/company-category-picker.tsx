@@ -159,28 +159,41 @@ export function CompanyCategoryPicker({
    * ve firma geniş eksene düşerdi — yani daralttığını sanırken segmentin
    * tamamından bildirim alırdı.
    */
-  const altOnayla = (ids: string[]) => {
-    if (ids.length > MAX_COMPANY_SUB_PICKS) {
-      setUyari(t("enFazlaUrunHizmetSecebilirsiniz", { max: MAX_COMPANY_SUB_PICKS }));
-      return;
-    }
-    const { mainIds, subIds } = expandCompanyCategorySelection(
+  const altGenislet = (ids: string[]) =>
+    expandCompanyCategorySelection(
       ids,
       // "Sektör geneli" ile eklenmiş, altında seçim olmayan segmentler korunur.
       value.mainIds.filter(
         (m) => !value.subIds.some((s) => categorySegment(s) === m),
       ),
     );
+
+  /**
+   * Tavan denetimi — modal `validate` olarak da çağırır: reddedilirse modal
+   * AÇIK kalır, taslak kaybolmaz (eskiden modal kapanıyor, açınca taslak eski
+   * değere sıfırlanıyordu — derin denetim 2026-09-29).
+   */
+  const altDogrula = (ids: string[]): string | null => {
+    if (ids.length > MAX_COMPANY_SUB_PICKS) {
+      return t("enFazlaUrunHizmetSecebilirsiniz", { max: MAX_COMPANY_SUB_PICKS });
+    }
+    const { mainIds } = altGenislet(ids);
     if (mainIds.length > MAX_COMPANY_MAIN_CATEGORIES) {
       // Sessizce kırpmak yerine söylüyoruz: hangi seçimin düştüğünü kullanıcı
       // göremezse beyanı eksik kalır ve bunu asla fark etmez.
-      setUyari(
-        t("secimlerinizAyriSektoreYayiliyorEn", { n: mainIds.length, max: MAX_COMPANY_MAIN_CATEGORIES }),
-      );
+      return t("secimlerinizAyriSektoreYayiliyorEn", { n: mainIds.length, max: MAX_COMPANY_MAIN_CATEGORIES });
+    }
+    return null;
+  };
+
+  const altOnayla = (ids: string[]) => {
+    const hata = altDogrula(ids);
+    if (hata) {
+      setUyari(hata);
       return;
     }
     setUyari(null);
-    onChange({ mainIds, subIds });
+    onChange(altGenislet(ids));
   };
 
   /**
@@ -363,6 +376,7 @@ export function CompanyCategoryPicker({
           onClose={() => setSubOpen(false)}
           value={secilenler}
           onConfirm={altOnayla}
+          validate={altDogrula}
           mode="multi"
           maxSelection={MAX_COMPANY_SUB_PICKS}
           title={modalTitle}

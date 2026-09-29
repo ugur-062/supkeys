@@ -11,6 +11,7 @@ import { countryProductPath } from "@rothern/shared";
 import { LOCALES, type Locale } from "@rothern/i18n";
 import { localizedAlternates } from "@/i18n/href";
 import { landingIndexable } from "@/lib/seo/landing";
+import { dizinBos, type DizinTuru } from "@/lib/seo/empty-index-guard";
 import { absoluteUrl, LEGAL_DOC_LOCALES } from "@/lib/seo/meta";
 import type { SitemapIndexItem, SitemapUrl } from "@/lib/seo/sitemap-xml";
 
@@ -106,11 +107,16 @@ function maxIso(values: (string | null | undefined)[]): string | null {
 /* Parçalar                                                            */
 /* ------------------------------------------------------------------ */
 
-const STATIC_PAGES: SitemapUrl[] = [
+/**
+ * `dizin` taşıyan girdi, o dizin BOŞKEN listelenmez: sayfa o durumda `noindex`
+ * basar (`dizinBos`, aynı fonksiyon — sayım hatasında indekslenebilir kalır).
+ * Sitemap'te olup `noindex` taşıyan adres üretmeyiz (derin denetim 2026-09-29).
+ */
+const STATIC_PAGES: (SitemapUrl & { dizin?: DizinTuru })[] = [
   { loc: "/", changefreq: "hourly", priority: 1.0 },
-  { loc: MARKETPLACE_ROUTES.products, changefreq: "daily", priority: 0.9 },
-  { loc: MARKETPLACE_ROUTES.demands, changefreq: "hourly", priority: 0.9 },
-  { loc: MARKETPLACE_ROUTES.companies, changefreq: "daily", priority: 0.8 },
+  { loc: MARKETPLACE_ROUTES.products, changefreq: "daily", priority: 0.9, dizin: "urunler" },
+  { loc: MARKETPLACE_ROUTES.demands, changefreq: "hourly", priority: 0.9, dizin: "talepler" },
+  { loc: MARKETPLACE_ROUTES.companies, changefreq: "daily", priority: 0.8, dizin: "firmalar" },
   { loc: "/nasil-calisir", changefreq: "monthly", priority: 0.6 },
   // SSS: üretken motorların en çok alıntıladığı sayfa tipi.
   { loc: "/sss", changefreq: "monthly", priority: 0.6 },
@@ -154,11 +160,13 @@ function localesOf(row: { locales?: string[] }): Locale[] {
 
 export async function buildPart(part: PartName): Promise<SitemapUrl[]> {
   switch (part.kind) {
-    case "pages":
+    case "pages": {
+      const bos = await Promise.all(STATIC_PAGES.map((p) => (p.dizin ? dizinBos(p.dizin) : false)));
       return [
-        ...STATIC_PAGES.flatMap(({ loc, ...rest }) => located(loc, rest)),
+        ...STATIC_PAGES.filter((_, i) => !bos[i]).flatMap(({ loc, dizin: _dizin, ...rest }) => located(loc, rest)),
         ...LEGAL_PAGES.flatMap(({ loc, ...rest }) => located(loc, rest, LEGAL_DOC_LOCALES)),
       ];
+    }
     case "categories": {
       const s = await fetchSitemapSummary();
       return s.categories

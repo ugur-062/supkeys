@@ -2615,7 +2615,6 @@
         "ulkesiniCikar": "Убрать {countryName}",
         "ulkeEkle": "Добавить страну",
         "ulkeEkle2": "+ Добавить страну",
-        "enAzBirUlkeSecin": "Выберите хотя бы одну страну, иначе запрос никто не увидит.",
         "teslimSekli": "Условия поставки",
         "secin": "— Выберите —",
         "adreseYurticiTeslim": "Доставка по адресу / внутри страны",
@@ -2669,7 +2668,8 @@
             "label": "Мой выбор",
             "hint": "Видят только приглашённые Вами компании."
           }
-        }
+        },
+        "sonUlkeCikarilamaz": "Последнюю страну нельзя удалить: сначала добавьте другую страну или выберите «Все страны»."
       },
       "ihalelerView": {
         "tedarikSurecleriniziYonetinAcinDavet": "Управляйте процессами закупок — открывайте, приглашайте, присуждайте.",
@@ -3256,6 +3256,7 @@
         "buSatinAlmaTalebindeTum": "В этой заявке на закупку необходимо подать предложение по всем позициям.",
         "gecerliBirTutarGirin": "Введите корректную сумму.",
         "kalemiIcinZorunluSoruCevaplanmadi": "На обязательный вопрос по позиции «{name}» не дан ответ.",
+        "muadilMarkaVeyaParcaNoGirin": "Вы предлагаете аналог для позиции «{name}» — укажите бренд или номер детали.",
         "kalemiBirimFiyati": "Цена за единицу позиции «{name}»: {e}.",
         "teslimSuresiZorunluSureGirmediginiz": "Срок поставки обязателен (для позиций без отдельного срока).",
         "gecerlilikSuresiZorunlu": "Срок действия обязателен.",
@@ -3797,7 +3798,9 @@
         },
         "kalemSorulari": "Вопросы по позиции {n}",
         "cevapTuruDeger": "Тип ответа: {label}",
-        "soruN": "Вопрос {n}"
+        "soruN": "Вопрос {n}",
+        "soruTavani": "К позиции можно добавить не более {max} вопросов.",
+        "soruTavaniEklenmedi": "Не добавлено вопросов: {dropped}. К позиции можно добавить не более {max} вопросов."
       },
       "aiFlagsBanner": {
         "taslakGuncellendiAlanlariKontrolEdin": "Черновик обновлён — проверьте поля",
@@ -5049,6 +5052,7 @@
       },
       "bidImportDialog": {
         "belgeIslenemedi": "Не удалось обработать документ",
+        "dosyaCokBuyukIcinSinir": "Файл слишком большой ({mb} МБ) — лимит для {kind}: {cap} МБ",
         "dosyaOkunamadi": "Не удалось прочитать файл",
         "belgedenFiyatlaAi": "Цены из документа (ИИ)",
         "excelSablonuIleFiyatla": "Цены по шаблону Excel",
@@ -7067,7 +7071,8 @@
       "home": "Главная",
       "close": "Закрыть",
       "remove": "Удалить",
-      "selectPlaceholder": "— выберите —"
+      "selectPlaceholder": "— выберите —",
+      "missing": "Не заполнено"
     },
     "phoneInput": {
       "label": "Телефон",

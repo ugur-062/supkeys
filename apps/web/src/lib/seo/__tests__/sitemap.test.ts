@@ -24,6 +24,11 @@ const summary = vi.hoisted(() => ({
     { country: "xx", count: 1, lastmod: "2026-09-22T00:00:00.000Z" },
   ],
 }));
+/* Boş dizin korumasının sonucu — test başına ayarlanır (varsayılan: dolu). */
+const bosDizinler = vi.hoisted(() => new Set<string>());
+vi.mock("@/lib/seo/empty-index-guard", () => ({
+  dizinBos: async (tur: string) => bosDizinler.has(tur),
+}));
 vi.mock("@/lib/public/marketplace-api", async (orig) => ({
   ...(await orig<Record<string, unknown>>()),
   fetchSitemapSummary: async () => summary,
@@ -201,6 +206,24 @@ describe("sabit sayfalar parçası — sözleşme metinleri (2026-09-27)", () =>
     expect(locs.some((l) => l.includes("/legal/") || l.includes("/dokumenty/"))).toBe(false);
     expect(locs).toContain(`${S}/en/how-it-works`);
     expect(locs).toContain(`${S}/ru/faq`);
+  });
+
+  it("boş dizin (noindex) sitemap'e girmez; dolu dizin üç dilde listelenir", async () => {
+    bosDizinler.clear();
+    const hepsi = (await buildPart({ kind: "pages", page: 0 })).map((u) => u.loc);
+    expect(hepsi).toContain(`${S}/urunler`);
+    bosDizinler.add("urunler");
+    bosDizinler.add("talepler");
+    try {
+      const locs = (await buildPart({ kind: "pages", page: 0 })).map((u) => u.loc);
+      expect(locs).not.toContain(`${S}/urunler`);
+      expect(locs).not.toContain(`${S}/alim-talepleri`);
+      expect(locs).toContain(`${S}/firmalar`);
+      // İki dizin × üç dil düştü; başka hiçbir şey değişmedi.
+      expect(hepsi.length - locs.length).toBe(6);
+    } finally {
+      bosDizinler.clear();
+    }
   });
 });
 

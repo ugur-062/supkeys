@@ -2615,7 +2615,6 @@
         "ulkesiniCikar": "Remove {countryName}",
         "ulkeEkle": "Add country",
         "ulkeEkle2": "+ Add country",
-        "enAzBirUlkeSecin": "Select at least one country; otherwise no one will see the request.",
         "teslimSekli": "Delivery term",
         "secin": "— Select —",
         "adreseYurticiTeslim": "Delivered to address / domestic",
@@ -2669,7 +2668,8 @@
             "label": "My selection",
             "hint": "Only companies you invite can see it."
           }
-        }
+        },
+        "sonUlkeCikarilamaz": "The last country can’t be removed: add another country first or choose “All countries”."
       },
       "ihalelerView": {
         "tedarikSurecleriniziYonetinAcinDavet": "Manage your procurement processes — open, invite, award.",
@@ -3256,6 +3256,7 @@
         "buSatinAlmaTalebindeTum": "You must quote on all line items in this buying request.",
         "gecerliBirTutarGirin": "Enter a valid amount.",
         "kalemiIcinZorunluSoruCevaplanmadi": "The required question for line item \"{name}\" has not been answered.",
+        "muadilMarkaVeyaParcaNoGirin": "You are offering an alternative for \"{name}\" — enter the brand or part number.",
         "kalemiBirimFiyati": "Unit price of line item \"{name}\": {e}.",
         "teslimSuresiZorunluSureGirmediginiz": "Delivery time is required (for line items without their own time).",
         "gecerlilikSuresiZorunlu": "Validity period is required.",
@@ -3797,7 +3798,9 @@
         },
         "kalemSorulari": "Line item {n} questions",
         "cevapTuruDeger": "Answer type: {label}",
-        "soruN": "Question {n}"
+        "soruN": "Question {n}",
+        "soruTavani": "You can add up to {max} questions per item.",
+        "soruTavaniEklenmedi": "{dropped} question(s) not added: you can add up to {max} questions per item."
       },
       "aiFlagsBanner": {
         "taslakGuncellendiAlanlariKontrolEdin": "Draft updated — review the fields",
@@ -5049,6 +5052,7 @@
       },
       "bidImportDialog": {
         "belgeIslenemedi": "Could not process document",
+        "dosyaCokBuyukIcinSinir": "File is too large ({mb} MB) — the limit for {kind} is {cap} MB",
         "dosyaOkunamadi": "Could not read file",
         "belgedenFiyatlaAi": "Price from document (AI)",
         "excelSablonuIleFiyatla": "Price with Excel template",
@@ -7067,7 +7071,8 @@
       "home": "Home",
       "close": "Close",
       "remove": "Remove",
-      "selectPlaceholder": "— select —"
+      "selectPlaceholder": "— select —",
+      "missing": "Missing"
     },
     "phoneInput": {
       "label": "Phone",

@@ -15,10 +15,12 @@ import {
   useDownloadBidTemplate,
   useParseBidTemplate,
 } from "@/hooks/use-bid-import";
-import { useBidDeliveryTimeLabel, useFormatNumber } from "@/i18n/domain";
+import { useBidDeliveryTimeLabel, useFormatNumber, useQuantityLabel } from "@/i18n/domain";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { cn } from "@/lib/utils";
 import {
+  BID_IMPORT_MAX_CSV_BYTES,
+  IMPORT_MAX_FILE_BYTES,
   type BidImportConfidence,
   type BidImportMatch,
   type BidImportResult,
@@ -221,6 +223,25 @@ export function BidImportDialog({
               disabled={busy}
               onFiles={(fs) => {
                 if (fs.length === 0) return;
+                if (!isAi) {
+                  // Şablon base64 JSON gövdesiyle gider (5 MB gövde sınırı,
+                  // base64 4/3 şişirir): kalem içe aktarmadaki istemci kapısının
+                  // aynısı — büyük dosya açıklamasız 413 almadan, doğru sınırla
+                  // reddedilir (derin denetim 2026-09-29).
+                  const f = fs[0]!;
+                  const isCsv = /\.csv$/i.test(f.name);
+                  const cap = isCsv ? BID_IMPORT_MAX_CSV_BYTES : IMPORT_MAX_FILE_BYTES;
+                  if (f.size > cap) {
+                    toast.error(
+                      t("dosyaCokBuyukIcinSinir", {
+                        mb: (f.size / 1024 / 1024).toFixed(1),
+                        kind: isCsv ? "CSV" : "Excel",
+                        cap: String(Math.round((cap / 1024 / 1024) * 10) / 10),
+                      }),
+                    );
+                    return;
+                  }
+                }
                 void run(isAi ? fs.slice(0, 20) : [fs[0]!]);
               }}
               label={isAi ? t("pdfFotografVeyaExcelSec") : t("doldurulmusSablonuSec")}
@@ -298,6 +319,7 @@ function Preview({
 }) {
   const t = useTranslations("web.panel.trade.bidImportDialog");
   const bidDeliveryTimeLabel = useBidDeliveryTimeLabel();
+  const qtyLabel = useQuantityLabel();
   const fmtNum = useFormatNumber();
   const fmt = (n: number) => fmtNum(n, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
   const priced = effective.filter((e) => e.unitPrice != null && e.errors.length === 0).length;
@@ -382,7 +404,7 @@ function Preview({
                       <span className="text-zinc-400">#{e.m.lineNo}</span> {e.m.itemName}
                     </div>
                     <div className="text-xs text-zinc-500">
-                      {e.m.itemQuantity} {e.m.itemUnit}
+                      {qtyLabel(e.m.itemQuantity, e.m.itemUnit)}
                     </div>
                     {bad ? <div className="text-xs text-red-700">{e.errors.join(" · ")}</div> : null}
                     {e.warnings.length > 0 && !bad ? (

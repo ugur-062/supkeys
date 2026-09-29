@@ -1,7 +1,7 @@
 import { format, formatDistanceToNowStrict } from "date-fns";
 import { enUS, ru, tr } from "date-fns/locale";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
-import { appZoneLabel, toAppWallClock } from "@/lib/time-zone";
+import { appZoneLabel, toAppCalendarDate, wallClock } from "@/lib/time-zone";
 
 /**
  * P1 (frontend denetimi §8.2) — TEK tarih formatlayıcı. Varyantlar:
@@ -40,14 +40,18 @@ export function formatDate(
   if (!value) return "—";
   const raw = typeof value === "string" ? new Date(value) : value;
   if (!Number.isFinite(raw.getTime())) return "—";
-  const d = variant === "relative" ? raw : toAppWallClock(raw);
+  if (variant === "relative") return formatDistanceToNowStrict(raw, { addSuffix: true, locale: loc });
+  // Gün metni yerel öğle Date'inden, saat duvar saati parçalarından —
+  // tarayıcının yaz saati boşluğu saati kaydıramaz (`toAppCalendarDate`).
+  const d = toAppCalendarDate(raw);
   switch (variant) {
     case "long":
       return format(d, "d MMMM yyyy", { locale: loc });
-    case "datetime":
-      return `${format(d, "d MMM yyyy HH:mm", { locale: loc })}${zoneSuffix(locale, raw)}`;
-    case "relative":
-      return formatDistanceToNowStrict(d, { addSuffix: true, locale: loc });
+    case "datetime": {
+      const w = wallClock(raw);
+      const hhmm = `${String(w.hour).padStart(2, "0")}:${String(w.minute).padStart(2, "0")}`;
+      return `${format(d, "d MMM yyyy", { locale: loc })} ${hhmm}${zoneSuffix(locale, raw)}`;
+    }
     default:
       return format(d, "d MMM yyyy", { locale: loc });
   }
