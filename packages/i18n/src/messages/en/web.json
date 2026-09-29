@@ -1812,7 +1812,7 @@
         "f2": "Posting buying requests — quote collection (RFQ) & negotiation/reverse auction",
         "f3": "Awarding, approval flows, reports & templates",
         "f4": "AI — request draft from documents, chat assistant, supplier discovery",
-        "f5": "“Gold Member” badge — a trust mark on your profile and quotes",
+        "f5": "“Gold Member” badge — a trust mark on your profile, in the company directory and on your products",
         "f6": "6 seats (buying and sales)"
       }
     }
@@ -2049,7 +2049,10 @@
       "finish": "Finish",
       "legalFormLocal": "Legal form (local name)",
       "legalFormLocalPlaceholder": "e.g. GmbH, LLC, S.A., cooperative",
-      "legalFormLocalRequired": "Enter your legal form"
+      "legalFormLocalRequired": "Enter your legal form",
+      "ownerOnlyTitle": "Company details must be completed by the Founder",
+      "ownerOnlyBody": "Only your company's Founder can complete the company details. Once the Founder finishes this step, you can log in to the dashboard.",
+      "ownerOnlyLogout": "Log out"
     }
   },
   "panel": {
@@ -2883,7 +2886,8 @@
           "OWN_RANK": "Own rank only",
           "BEST_AND_OWN_RANK": "Best quote + own rank",
           "ALL": "All quotes and ranking"
-        }
+        },
+        "gorunurlukUlkesi": "Country visibility"
       },
       "roundHistoryDialog": {
         "turGecmisi": "Round history",
@@ -4175,7 +4179,8 @@
         "memberAlsoWeb": "Also found on the web",
         "memberInvitedToast": "{n, plural, one {# Rothern member} other {# Rothern members}} invited to the request",
         "memberDailyLimit": "Daily invitation limit reached — {n, plural, one {# company} other {# companies}} can be invited tomorrow",
-        "bandMembers": "(Rothern members: {n, number})"
+        "bandMembers": "(Rothern members: {n, number})",
+        "externalNotSent": "{n, plural, one {The invitation email could not be sent to # address} other {The invitation email could not be sent to # addresses}} (daily limit, opted out or invalid address)"
       },
       "share": {
         "title": "Share your request",
@@ -4267,7 +4272,8 @@
         "kategorinizeUygunTalepYayinlandigindaBurada": "Requests matching your categories will appear here once published.",
         "filtreleriTemizle": "Clear filters",
         "satisKategorileriniDuzenle": "Edit sales categories",
-        "listesi": "{noun} list"
+        "listesi": "{noun} list",
+        "bilinmeyenAlici": "Buyer"
       },
       "approvalsGate": {
         "onaylarYetkiGerektirir": "Approvals require permission",
@@ -4780,7 +4786,9 @@
         "kaydet": "Save",
         "n128Karakter": "{length} / 128 characters",
         "oneri": "Suggestion:",
-        "belgeBasligi": "Document {n} title"
+        "belgeBasligi": "Document {n} title",
+        "anahtarKelimeCokUzun": "A keyword can be at most {max, plural, one {# character} other {# characters}} long; shorten it or split it with commas.",
+        "vitrindenCekilemedi": "Could not remove from showcase"
       },
       "productsView": {
         "urunAcilamadi": "Product could not be opened",

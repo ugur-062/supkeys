@@ -77,8 +77,11 @@ export function TcmbRatesChip() {
       minimumFractionDigits: 2,
       maximumFractionDigits: 2,
     }).format(val);
+  // `rateDate` takvim günü (YYYY-MM-DD). Ofsetsiz yazılırsa tarayıcı saatiyle
+  // okunur; UTC+4 ve doğusunda İstanbul'a çevrilince bir gün geri kayıyordu
+  // (derin denetim LU-31) → İstanbul öğlesine sabitlenir.
   const dateLabel = data.rateDate
-    ? formatDate(`${data.rateDate}T00:00:00`, "long", locale)
+    ? formatDate(`${data.rateDate}T12:00:00+03:00`, "long", locale)
     : null;
   const label = dateLabel ? t("tcmbGunlukGostergeKuruTarih", { date: dateLabel }) : t("tcmbGunlukGostergeKuru");
 
@@ -161,7 +164,7 @@ export function TcmbRatesWidget() {
             {data?.rateDate ? (
               <>
                 {" · "}
-                {formatDate(`${data.rateDate}T00:00:00`, "long", locale)}
+                {formatDate(`${data.rateDate}T12:00:00+03:00`, "long", locale)}
               </>
             ) : dataUpdatedAt > 0 ? (
               <>

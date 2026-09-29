@@ -51,6 +51,7 @@ beforeEach(() => {
   });
   h.dismiss.mockReset();
   h.toast.success.mockReset();
+  h.toast.warning.mockReset();
   h.exhausted = false;
 });
 
@@ -109,6 +110,28 @@ describe("ListingSuggestions", () => {
     fireEvent.click(screen.getByLabelText("Viti Srl seç"));
     fireEvent.click(screen.getByRole("button", { name: "1 firmaya davet gönder" }));
     await waitFor(() => expect(h.invite).toHaveBeenCalledWith(["a"]));
+  });
+
+  // Derin denetim LU-31: reddedilen dış davetler sessiz kalıyor, seçim yine
+  // sıfırlanıyordu.
+  it("reddedilen dış davetler uyarı verir ve seçili kalır; kabul edilen seçimden düşer", async () => {
+    h.invite.mockResolvedValue({
+      results: [
+        { email: "a@x.com", status: "QUEUED" },
+        { email: "b@x.com", status: "DAILY_LIMIT" },
+      ],
+      memberResults: [],
+    });
+    h.data = done([cand("a", "Cıvata AŞ"), cand("b", "Viti Srl")]);
+    render(<ListingSuggestions listingId="l1" itemNames={[]} buyerCountry="TR" variant="band" defaultOpen />);
+    fireEvent.click(screen.getByRole("button", { name: "2 firmaya davet gönder" }));
+    await waitFor(() =>
+      expect(h.toast.warning).toHaveBeenCalledWith(
+        "1 adrese davet e-postası gönderilemedi (günlük sınır, e-posta almak istemiyor ya da geçersiz adres)",
+      ),
+    );
+    expect(screen.getByLabelText("Viti Srl seç")).toBeChecked();
+    expect(screen.getByLabelText("Cıvata AŞ seç")).not.toBeChecked();
   });
 
   it("Gizle bandı kapatır; kapatılmış tur çizilmez", () => {

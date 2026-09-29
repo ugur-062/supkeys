@@ -164,7 +164,8 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
               {visibilityLabel(l.visibility)}
             </span>
           </Fact>
-          <Fact label={t("gorunurluk")}>
+          {/* Ayrı etiket (derin denetim LU-31): iki satır da "Görünürlük" diyordu. */}
+          <Fact label={t("gorunurlukUlkesi")}>
             {scopeLabel(l.targetCountries ?? [])}
           </Fact>
           <Fact label={t("format")}>

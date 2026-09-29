@@ -33,7 +33,13 @@ export function ImageUploader({
   onChange,
 }: {
   images: string[];
-  onChange: (next: string[]) => void;
+  /**
+   * Fonksiyonel güncelleme de alır (üst bileşen `setImages` verir). Yükleme
+   * sonucu HER ZAMAN güncel listeye eklenir — derin denetim LU-31: açılıştaki
+   * `images` kopyasıyla yazmak, yükleme sürerken silinen/sıralanan görseli
+   * geri getiriyordu.
+   */
+  onChange: (next: string[] | ((prev: string[]) => string[])) => void;
 }) {
   const t = useTranslations("web.panel.trade.imageUploader");
   // Görsel işleme (EXIF temizliği) hatası metni — `lib/image-resize.ts` React dışı.
@@ -103,7 +109,11 @@ export function ImageUploader({
     }
     setNotices(next);
     setBusy(false);
-    if (added.length) onChange([...images, ...added]);
+    if (added.length) {
+      onChange((prev) =>
+        [...prev, ...added.filter((u) => !prev.includes(u))].slice(0, MAX_IMAGES),
+      );
+    }
     if (inputRef.current) inputRef.current.value = "";
   };
 
@@ -137,6 +147,9 @@ export function ImageUploader({
           if (!e.dataTransfer.files?.length) return;
           e.preventDefault();
           setDragOver(false);
+          // Ekle düğmesi gibi: yükleme sürerken ikinci parti başlamaz (tavan
+          // iki kez geçilip 8'i aşıyordu).
+          if (busy) return;
           void handleFiles(e.dataTransfer.files);
         }}
         data-dragover={dragOver || undefined}

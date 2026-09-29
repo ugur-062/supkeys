@@ -1159,6 +1159,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.companyAddresses.buAdresYoneticiKapattigiIlandaKullaniliyor": {
+    "hash": "455d9c0f5c",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.companyAddresses.silinemez": {
     "hash": "585dc6c0d2",
     "status": "reviewed",
@@ -8603,6 +8608,21 @@
     "hash": "4770c40006",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.auth.onboarding.ownerOnlyBody": {
+    "hash": "fa21a2eeb7",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.auth.onboarding.ownerOnlyLogout": {
+    "hash": "1b468eb84c",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
+  "web.auth.onboarding.ownerOnlyTitle": {
+    "hash": "dfdd566dcc",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.auth.onboarding.pickerHint": {
     "hash": "63d59a39e0",
@@ -20519,6 +20539,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.aiSuppliers.externalNotSent": {
+    "hash": "4037e6ca08",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.requests.aiSuppliers.failed": {
     "hash": "4fe25894e0",
     "status": "reviewed",
@@ -21988,6 +22013,11 @@
     "hash": "988687aa76",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.generalInfoTab.gorunurlukUlkesi": {
+    "hash": "960ddefdff",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.requests.generalInfoTab.hukumVeKosullar": {
     "hash": "b52140701e",
@@ -35344,6 +35374,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.productShowcaseForm.anahtarKelimeCokUzun": {
+    "hash": "61b39a0d9f",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.trade.productShowcaseForm.anahtarKelimeler": {
     "hash": "51b368d7ec",
     "status": "reviewed",
@@ -35658,6 +35693,11 @@
     "hash": "b6b21ab547",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.productShowcaseForm.vitrindenCekilemedi": {
+    "hash": "dc13b23383",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.trade.productShowcaseForm.youtubeVeyaVimeoBaglantisiUrun": {
     "hash": "f9d7adc224",
@@ -36158,6 +36198,11 @@
     "hash": "0a87008f99",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.trade.sellerTendersView.bilinmeyenAlici": {
+    "hash": "850f092d67",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.trade.sellerTendersView.birHataOlustuTekrarDeneyin": {
     "hash": "e9213c1fa3",
@@ -37390,9 +37435,9 @@
     "at": "2026-09-23"
   },
   "web.pricing.plans.gold.f5": {
-    "hash": "fcbff24562",
+    "hash": "81a2721654",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-09-29"
   },
   "web.pricing.plans.gold.f6": {
     "hash": "8e5e96ef15",

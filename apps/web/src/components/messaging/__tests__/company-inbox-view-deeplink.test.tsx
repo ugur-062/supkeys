@@ -5,7 +5,7 @@
 // "Bir kişi seç"e düşüyor, mobilde geri butonu da kayboluyordu. Ayrıca
 // portalsız e-posta linki iki izinli kullanıcıda ters yöndeki boş konuşmayı
 // açıyordu.
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 type Portal = "satinalma" | "satis";
@@ -266,6 +266,24 @@ describe("CompanyInboxView — ?with= derin linki", () => {
         "satis|buyerA|Alıcı A",
       );
     });
+  });
+
+  // Derin denetim LU-31: ad, arama süzgecinden geçmiş satırlardan
+  // çözülüyordu; konuşması olmayan seçili bağlantıyı dışlayan bir arama
+  // sohbet panelini unmount edip yazılmış taslağı siliyordu.
+  it("yeni sohbet seçiliyken arama onu dışlasa da sohbet paneli yerinde kalır", () => {
+    h.connections = [{ company: { id: "connX", name: "Xfirma" } }];
+    // Ad sohbet ucundan kurtarılamasın (yükleniyor) — yalnız bağlantıdan.
+    h.threadRes = () => ({ isLoading: true, isError: false });
+    render(<CompanyInboxView />);
+    fireEvent.click(screen.getByRole("button", { name: /Xfirma/ }));
+    expect(screen.getByTestId("thread")).toHaveTextContent(
+      "satinalma|connX|Xfirma",
+    );
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "abc" } });
+    expect(screen.getByTestId("thread")).toHaveTextContent(
+      "satinalma|connX|Xfirma",
+    );
   });
 
   it("portalsız link, konuşmalar yüklenirken yön seçilmez (iskelet)", () => {

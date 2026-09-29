@@ -115,7 +115,30 @@ export function ListingSuggestions({
       if (ok > 0) toast.success(t("invitedToast", { n: ok }));
       const limited = memberResults.filter((r) => r.status === "DAILY_LIMIT").length;
       if (limited > 0) toast.warning(t("memberDailyLimit", { n: limited }));
-      setSelected(new Set());
+      // Derin denetim LU-31: reddedilen dış davetler (günlük sınır, çıkış,
+      // geçersiz adres…) sessiz kalıyordu ve seçim yine sıfırlanıyordu.
+      const failedEmails = new Set(
+        results
+          .filter((r) => !isInviteAccepted(r.status) && r.status !== "ALREADY_INVITED")
+          .map((r) => r.email.toLowerCase()),
+      );
+      if (failedEmails.size > 0) toast.warning(t("externalNotSent", { n: failedEmails.size }));
+      const failedMembers = new Set(
+        memberResults
+          .filter((r) => r.status !== "INVITED" && r.status !== "ALREADY_INVITED")
+          .map((r) => r.companyId),
+      );
+      // Seçim yalnız davet edilenlerden temizlenir; gönderilemeyenler seçili kalır.
+      const keep = new Set(
+        open_
+          .filter((r) =>
+            r.memberCompanyId
+              ? failedMembers.has(r.memberCompanyId)
+              : !!r.email && failedEmails.has(r.email.toLowerCase()),
+          )
+          .map((r) => r.key),
+      );
+      setSelected((s) => new Set([...s].filter((k) => keep.has(k))));
     } catch (err) {
       toast.error(extractErrorMessage(err, t("inviteFailed")));
     }

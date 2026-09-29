@@ -13,6 +13,7 @@ import { CompanyActivityPicker } from "@/components/categories/company-activity-
 import { CompanyCategoryPicker } from "@/components/categories/company-category-picker";
 import { useRoots } from "@/hooks/use-categories";
 import {
+  useCompanyLogout,
   useCompanyMe,
   useCompleteOnboarding,
   useViesCheck,
@@ -271,6 +272,14 @@ export function OnboardingClient() {
   }
 
   const user = me.data?.user;
+
+  // Derin denetim LU-31: şirket bilgilerini YALNIZ Kurucu tamamlar (API 403).
+  // Kurucu bitirmeden eklenen üye (ör. destek ekibinin admin panelinden
+  // eklediği) formu baştan sona doldurup gönderimde 403 alıyor, panele hiç
+  // giremiyordu → formu değil bilgi ekranını görür.
+  if (user?.isOwner === false && !me.data?.company.onboardingCompletedAt) {
+    return <OwnerMustCompleteNotice />;
+  }
 
   return (
     <div className="mx-auto max-w-2xl px-4 py-10">
@@ -721,6 +730,23 @@ function Summary({ label, value }: { label: string; value?: string | null }) {
     <div>
       <dt className="text-xs text-zinc-500">{label}</dt>
       <dd className="font-medium text-zinc-900">{value || "—"}</dd>
+    </div>
+  );
+}
+
+/** Kurucu olmayan üye: şirket bilgileri Kurucu tarafından tamamlanmalı. */
+function OwnerMustCompleteNotice() {
+  const t = useTranslations("web.auth.onboarding");
+  const logout = useCompanyLogout();
+  return (
+    <div className="mx-auto max-w-lg px-4 py-16 text-center">
+      <h1 className="text-xl font-bold text-zinc-900">{t("ownerOnlyTitle")}</h1>
+      <p className="mt-2 text-sm text-zinc-600">{t("ownerOnlyBody")}</p>
+      <div className="mt-6 flex justify-center">
+        <Button plain onClick={() => void logout()}>
+          {t("ownerOnlyLogout")}
+        </Button>
+      </div>
     </div>
   );
 }

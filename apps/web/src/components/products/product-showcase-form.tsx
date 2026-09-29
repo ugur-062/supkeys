@@ -48,6 +48,8 @@ import { toast } from "sonner";
 import { extractErrorMessage } from "@/lib/tenders/error";
 
 const MAX_KEYWORDS = 15;
+/** API `ShowcaseDto.keywords` `@MaxLength(50, { each: true })` ile aynı. */
+const MAX_KEYWORD_LENGTH = 50;
 /** Katalog/teknik föy — Europages ürün kartındaki gibi az sayıda, seçilmiş. */
 const MAX_DOCUMENTS = 3;
 
@@ -299,7 +301,7 @@ export function ProductShowcaseForm({
     const out: string[] = [];
     const push = (s: string) => {
       const k = s.toLowerCase().trim();
-      if (k.length >= 3 && !keywords.includes(k) && !out.includes(k)) out.push(k);
+      if (k.length >= 3 && k.length <= MAX_KEYWORD_LENGTH && !keywords.includes(k) && !out.includes(k)) out.push(k);
     };
     if (categoryName) push(categoryName);
     for (const w of name.split(/[\s,/()-]+/)) if (w.length >= 4 && !/^\d+$/.test(w)) push(w);
@@ -321,14 +323,26 @@ export function ProductShowcaseForm({
 
   const addKeyword = (raw = keywordDraft) => {
     // Virgülle çoklu giriş: "boru, dikişsiz, st37" tek seferde.
-    const parts = raw.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean);
-    if (!parts.length) return;
-    setKeywords((prev) => {
-      const next = [...prev];
-      for (const k of parts) if (!next.includes(k) && next.length < MAX_KEYWORDS) next.push(k);
-      return next;
-    });
-    setKeywordDraft("");
+    const all = raw.split(",").map((k) => k.trim().toLowerCase()).filter(Boolean);
+    if (!all.length) return;
+    // Derin denetim LU-31: API her etiketi 50 karakterle sınırlıyor; uzun
+    // parça çip olunca ürünün HER kaydı (taslak dahil) 400 alıyordu. Uzun
+    // parça eklenmez, düzeltilsin diye kutuda kalır.
+    const parts = all.filter((k) => k.length <= MAX_KEYWORD_LENGTH);
+    const tooLong = all.filter((k) => k.length > MAX_KEYWORD_LENGTH);
+    if (parts.length) {
+      setKeywords((prev) => {
+        const next = [...prev];
+        for (const k of parts) if (!next.includes(k) && next.length < MAX_KEYWORDS) next.push(k);
+        return next;
+      });
+    }
+    if (tooLong.length) {
+      toast.error(t("anahtarKelimeCokUzun", { max: MAX_KEYWORD_LENGTH }));
+      setKeywordDraft(tooLong.join(", "));
+    } else {
+      setKeywordDraft("");
+    }
   };
 
   const status = productStatusKey(product);
@@ -407,8 +421,16 @@ export function ProductShowcaseForm({
   };
   const unpublish = async () => {
     if (!window.confirm(t("urunVitrindenCekilecekVeTaslaga"))) return;
-    await publish.mutateAsync({ id: product.id, publish: false });
-    toast.success(t("urunVitrindenCekildi"));
+    // Derin denetim LU-31: hata yakalanmıyordu (işlenmemiş ret, toast yok);
+    // başarıda da `product` güncellenmediği için form "Yayında" gösteriyordu.
+    try {
+      const saved = await publish.mutateAsync({ id: product.id, publish: false });
+      toast.success(t("urunVitrindenCekildi"));
+      if (onSaved) onSaved(saved);
+      else onClose();
+    } catch (err) {
+      toast.error(extractErrorMessage(err, t("vitrindenCekilemedi")));
+    }
   };
 
   /* DÜZEN (2026-09-19, kullanıcı kararı): üstte yapışkan eylem çubuğu; solda

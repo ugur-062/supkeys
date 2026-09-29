@@ -33,6 +33,52 @@ const SORT_OPTIONS = [
 ] as const;
 const DEFAULT_SORT = "createdAt:desc";
 
+const DATE_FIELDS = new Set<keyof TenderListItem>([
+  "createdAt",
+  "bidsCloseAt",
+  "publishedAt",
+]);
+
+/**
+ * Liste sıralaması (saf; test edilir). "Yakın Biten" (`bidsCloseAt:asc`):
+ * kapanışı GELECEKTE olanlar önce ve artan; kapanışı geçmiş olanlar sonra
+ * (en son kapanan önce) — derin denetim LU-31: düz artan sıra aylar önce
+ * kapanmış talepleri yarın kapanacakların önüne koyuyordu.
+ */
+export function sortTenderRows(
+  rows: TenderListItem[],
+  sort: string,
+  now: number,
+): TenderListItem[] {
+  const [field, dir] = sort.split(":") as [keyof TenderListItem, string];
+  const closingSoon = field === "bidsCloseAt" && dir === "asc";
+  return [...rows].sort((a, b) => {
+    const ra = a[field];
+    const rb = b[field];
+    // Boş/null değerler yöne bakılmaksızın her zaman sona (ör. "Yakın Biten"
+    // sıralamasında bidsCloseAt'i olmayan taslaklar en üste çıkmasın).
+    const aEmpty = ra == null || ra === "";
+    const bEmpty = rb == null || rb === "";
+    if (aEmpty && bEmpty) return 0;
+    if (aEmpty) return 1;
+    if (bEmpty) return -1;
+    if (DATE_FIELDS.has(field)) {
+      const at = new Date(ra as string).getTime();
+      const bt = new Date(rb as string).getTime();
+      if (closingSoon) {
+        const aPast = at < now;
+        const bPast = bt < now;
+        if (aPast !== bPast) return aPast ? 1 : -1;
+        if (aPast) return bt - at;
+      }
+      return dir === "asc" ? at - bt : bt - at;
+    }
+    const av = String(ra);
+    const bv = String(rb);
+    return dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
+  });
+}
+
 type RangeKey = "7d" | "30d" | "3m" | "6m" | "12m" | "all";
 const RANGE_OPTIONS: { value: RangeKey; key: string }[] = [
   { value: "7d", key: "range.d7" },
@@ -173,32 +219,7 @@ export function IhalelerView() {
         return false;
       return true;
     });
-    const [field, dir] = sort.split(":") as [keyof TenderListItem, string];
-    const DATE_FIELDS = new Set<keyof TenderListItem>([
-      "createdAt",
-      "bidsCloseAt",
-      "publishedAt",
-    ]);
-    const sorted = [...rows].sort((a, b) => {
-      const ra = a[field];
-      const rb = b[field];
-      // Boş/null değerler yöne bakılmaksızın her zaman sona (ör. "Yakın Biten"
-      // sıralamasında bidsCloseAt'i olmayan taslaklar en üste çıkmasın).
-      const aEmpty = ra == null || ra === "";
-      const bEmpty = rb == null || rb === "";
-      if (aEmpty && bEmpty) return 0;
-      if (aEmpty) return 1;
-      if (bEmpty) return -1;
-      if (DATE_FIELDS.has(field)) {
-        const at = new Date(ra as string).getTime();
-        const bt = new Date(rb as string).getTime();
-        return dir === "asc" ? at - bt : bt - at;
-      }
-      const av = String(ra);
-      const bv = String(rb);
-      return dir === "asc" ? av.localeCompare(bv) : bv.localeCompare(av);
-    });
-    return sorted;
+    return sortTenderRows(rows, sort, Date.now());
   }, [all, statuses, createdById, scope, range, search, sort]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));

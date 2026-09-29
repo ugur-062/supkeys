@@ -178,6 +178,11 @@ export function CompanyInboxView() {
     rows.find((r) => r.id === selected?.id)?.name ??
     (threads.data ?? []).find((th) => th.otherPartyId === selected?.id)
       ?.otherPartyName ??
+    // Derin denetim LU-31: `rows` arama süzgecinden geçmiş liste; henüz
+    // konuşması olmayan seçili bağlantı süzgeçle düşünce ad kayboluyor,
+    // sohbet paneli unmount olup taslak siliniyordu.
+    (connections.data ?? []).find((c) => c.company.id === selected?.id)
+      ?.company.name ??
     null;
   // Derin denetim Y-18: ad yalnız konuşmalar + AKTİF bağlantılardan
   // çözülüyordu; bağlantısız teklif veren / sipariş karşı tarafıyla ilk

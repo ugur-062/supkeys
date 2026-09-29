@@ -28,6 +28,7 @@ vi.mock("next/navigation", () => ({
 }));
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() } }));
 
+import { toast } from "sonner";
 import { ProductShowcaseForm } from "../product-showcase-form";
 import type { ProductShowcase } from "@/hooks/use-company-items";
 
@@ -78,6 +79,7 @@ beforeEach(() => {
   h.post.mockReset();
   h.patch.mockReset();
   h.get.mockResolvedValue({ data: [] });
+  vi.mocked(toast.error).mockReset();
 });
 
 describe("ProductShowcaseForm — yeni ürün 'Onaya gönder'", () => {
@@ -109,3 +111,62 @@ describe("ProductShowcaseForm — yeni ürün 'Onaya gönder'", () => {
     expect(h.post.mock.calls.some(([u]) => String(u).includes("publish"))).toBe(false);
   });
 });
+
+// Derin denetim LU-31
+describe("ProductShowcaseForm — anahtar kelime uzunluğu", () => {
+  it("50 karakterden uzun parça çip olmaz, uyarı verir ve kutuda kalır; kısa parça eklenir", async () => {
+    const user = userEvent.setup();
+    renderForm();
+    const long = "paslanmaz celik dikissiz endustriyel boru yuksek basinc";
+    const input = document.getElementById("urun-anahtar-kelime") as HTMLInputElement;
+    await user.type(input, `boru, ${long}{Enter}`);
+    expect(toast.error).toHaveBeenCalledWith(
+      "Etiket en fazla 50 karakter olabilir; uzun ifadeyi kısaltın ya da virgülle bölün.",
+    );
+    expect(screen.getByRole("button", { name: /boru etiketini kaldır/i })).toBeInTheDocument();
+    expect(input.value).toBe(long);
+  });
+});
+
+describe("ProductShowcaseForm — vitrinden çek", () => {
+  const PUBLISHED: ProductShowcase = {
+    ...EMPTY,
+    id: "p1",
+    name: "Pano",
+    isPublic: true,
+    reviewStatus: "APPROVED",
+  };
+  function renderPublished(onSaved = vi.fn()) {
+    const qc = new QueryClient({ defaultOptions: { queries: { retry: false, gcTime: 0 } } });
+    render(
+      <QueryClientProvider client={qc}>
+        <ProductShowcaseForm product={PUBLISHED} unit="adet" onClose={vi.fn()} onSaved={onSaved} />
+      </QueryClientProvider>,
+    );
+    return onSaved;
+  }
+
+  it("başarıda sunucu hâli üst bileşene iletilir (form 'Yayında' kalmaz)", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    const draft = { ...PUBLISHED, isPublic: false, reviewStatus: "DRAFT" as const };
+    h.post.mockResolvedValue({ data: draft });
+    const user = userEvent.setup();
+    const onSaved = renderPublished();
+    await user.click(screen.getByRole("button", { name: "Diğer işlemler" }));
+    await user.click(await screen.findByRole("menuitem", { name: /Vitrinden çek/ }));
+    await waitFor(() => expect(onSaved).toHaveBeenCalledWith(draft));
+    expect(h.post).toHaveBeenCalledWith("/company/items/p1/unpublish");
+  });
+
+  it("hatada toast gösterir (işlenmemiş ret yok)", async () => {
+    vi.spyOn(window, "confirm").mockReturnValue(true);
+    h.post.mockRejectedValue(new Error("network"));
+    const user = userEvent.setup();
+    const onSaved = renderPublished();
+    await user.click(screen.getByRole("button", { name: "Diğer işlemler" }));
+    await user.click(await screen.findByRole("menuitem", { name: /Vitrinden çek/ }));
+    await waitFor(() => expect(toast.error).toHaveBeenCalled());
+    expect(onSaved).not.toHaveBeenCalled();
+  });
+});
+

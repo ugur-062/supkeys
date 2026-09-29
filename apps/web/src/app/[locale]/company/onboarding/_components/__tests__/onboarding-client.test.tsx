@@ -20,6 +20,7 @@ const h = vi.hoisted(() => ({
     refetch: vi.fn(),
   },
   toast: { success: vi.fn(), info: vi.fn(), error: vi.fn() },
+  logout: vi.fn(),
 }));
 
 vi.mock("sonner", () => ({ toast: h.toast }));
@@ -43,6 +44,7 @@ vi.mock("@/hooks/use-company-auth", () => ({
     isPending: false,
   }),
   useViesCheck: () => ({ mutateAsync: h.viesAsync, isPending: false }),
+  useCompanyLogout: () => h.logout,
 }));
 
 vi.mock("@/lib/public/geo-client", () => ({ searchGeoCities: vi.fn(async () => []) }));
@@ -80,6 +82,32 @@ async function pickCountry(user: ReturnType<typeof userEvent.setup>, query: stri
   await user.type(box, query);
   await user.click(await screen.findByRole("option", { name: new RegExp(name) }));
 }
+
+// Derin denetim LU-31: şirket bilgilerini yalnız Kurucu tamamlar (API 403);
+// Kurucu bitirmeden eklenen üye formu doldurup çıkmaza düşüyordu.
+describe("OnboardingClient — Kurucu olmayan üye", () => {
+  it("form yerine 'Kurucu tamamlamalı' bilgi ekranı + çıkış", async () => {
+    h.meData = {
+      user: { firstName: "Can", lastName: "Demir", isOwner: false },
+      company: { onboardingCompletedAt: null },
+    };
+    const user = userEvent.setup();
+    render(<OnboardingClient />);
+    expect(screen.getByText("Şirket bilgileri Kurucu tarafından tamamlanmalı")).toBeInTheDocument();
+    expect(screen.queryByLabelText("Firma Unvanı *")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Oturumu kapat" }));
+    expect(h.logout).toHaveBeenCalled();
+  });
+
+  it("Kurucu formu görür", () => {
+    h.meData = {
+      user: { firstName: "Ada", lastName: "Yılmaz", isOwner: true },
+      company: { onboardingCompletedAt: null },
+    };
+    render(<OnboardingClient />);
+    expect(screen.getByLabelText("Firma Unvanı *")).toBeInTheDocument();
+  });
+});
 
 describe("OnboardingClient — adım 1 (şirket)", () => {
   it("DAVETLE GELEN FİRMA (Faz 3): AI keşfinin bulduğu ad, site ve ülke formu başlatır", async () => {

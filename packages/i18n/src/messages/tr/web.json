@@ -1812,7 +1812,7 @@
         "f2": "Satın Alma Talebi açma — teklif toplama (RFQ) & pazarlık/eksiltme",
         "f3": "Kazandırma, onay akışları, raporlar & şablonlar",
         "f4": "Yapay zekâ — belgeden talep taslağı, sohbet asistanı, tedarikçi keşfi",
-        "f5": "“Gold Üye” rozeti — profil ve tekliflerde güven işareti",
+        "f5": "“Gold Üye” rozeti — profilde, firma dizininde ve ürünlerde güven işareti",
         "f6": "6 koltuk (satınalma ve satış)"
       }
     }
@@ -2049,7 +2049,10 @@
       "finish": "Tamamla",
       "legalFormLocal": "Hukuki yapı (yerel adıyla)",
       "legalFormLocalPlaceholder": "ör. GmbH, LLC, S.A., kooperatif",
-      "legalFormLocalRequired": "Hukuki yapınızı yazın"
+      "legalFormLocalRequired": "Hukuki yapınızı yazın",
+      "ownerOnlyTitle": "Şirket bilgileri Kurucu tarafından tamamlanmalı",
+      "ownerOnlyBody": "Firmanızın şirket bilgilerini yalnız hesabın Kurucusu tamamlayabilir. Kurucu bu adımı bitirdiğinde panele giriş yapabilirsiniz.",
+      "ownerOnlyLogout": "Oturumu kapat"
     }
   },
   "panel": {
@@ -2883,7 +2886,8 @@
           "OWN_RANK": "Sadece kendi sıralaması",
           "BEST_AND_OWN_RANK": "En iyi teklif + kendi sıralaması",
           "ALL": "Tüm teklifler ve sıralama"
-        }
+        },
+        "gorunurlukUlkesi": "Görünürlük ülkesi"
       },
       "roundHistoryDialog": {
         "turGecmisi": "Tur Geçmişi",
@@ -4175,7 +4179,8 @@
         "memberAlsoWeb": "Web'de de bulundu",
         "memberInvitedToast": "{n, plural, other {# Rothern üyesi}} talebe davet edildi",
         "memberDailyLimit": "Günlük davet sınırı doldu — {n, plural, other {# firma}} yarın davet edilebilir",
-        "bandMembers": "(Rothern üyesi: {n, number})"
+        "bandMembers": "(Rothern üyesi: {n, number})",
+        "externalNotSent": "{n, number} adrese davet e-postası gönderilemedi (günlük sınır, e-posta almak istemiyor ya da geçersiz adres)"
       },
       "share": {
         "title": "Talebinizi paylaşın",
@@ -4267,7 +4272,8 @@
         "kategorinizeUygunTalepYayinlandigindaBurada": "Kategorinize uygun talep yayınlandığında burada görünür.",
         "filtreleriTemizle": "Filtreleri temizle",
         "satisKategorileriniDuzenle": "Satış kategorilerini düzenle",
-        "listesi": "{noun} listesi"
+        "listesi": "{noun} listesi",
+        "bilinmeyenAlici": "Alıcı"
       },
       "approvalsGate": {
         "onaylarYetkiGerektirir": "Onaylar yetki gerektirir",
@@ -4780,7 +4786,9 @@
         "kaydet": "Kaydet",
         "n128Karakter": "{length} / 128 karakter",
         "oneri": "Öneri:",
-        "belgeBasligi": "Belge {n} başlığı"
+        "belgeBasligi": "Belge {n} başlığı",
+        "anahtarKelimeCokUzun": "Etiket en fazla {max, number} karakter olabilir; uzun ifadeyi kısaltın ya da virgülle bölün.",
+        "vitrindenCekilemedi": "Vitrinden çekilemedi"
       },
       "productsView": {
         "urunAcilamadi": "Ürün açılamadı",
