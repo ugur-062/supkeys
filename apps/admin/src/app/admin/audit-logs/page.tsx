@@ -17,95 +17,10 @@ import {
   SearchInput,
 } from "@/components/list";
 import { useAuditLogs, type AuditLogItem } from "@/hooks/use-audit-logs";
+import { ACTION_FILTERS, ACTION_LABELS } from "@/lib/audit-actions";
 import { safeFormat } from "@/lib/date";
 import { ENTITY_TYPE_LABEL } from "@/lib/terms";
 import { useState } from "react";
-
-/**
- * Satırda gösterilen eylem etiketi (tam ad). Bilinmeyen eylem ham adıyla
- * görünür. Eski `supplier.*` / `tenant.*` etiketleri geçmiş satırlar için
- * duruyor; bugünkü yazım noktaları `company.*` ve `admin.*` kullanır.
- */
-const ACTION_LABELS: Record<string, string> = {
-  "auth.login": "Giriş",
-  "auth.login_failed": "Başarısız giriş",
-  "company.signup": "Firma kaydı",
-  "company.profile.updated": "Firma profili güncellendi",
-  "company.user.invited": "Kullanıcı davet edildi",
-  "company.user.removed": "Kullanıcı çıkarıldı",
-  "company.user.roles_changed": "Kullanıcı rolleri değişti",
-  "company.ownership.transferred": "Firma sahipliği devredildi",
-  "company.listing.published": "İlan yayınlandı",
-  "company.listing.awarded": "İlan kazandırıldı",
-  "company.listing.cancelled": "İlan iptal edildi",
-  "company.bid.submitted": "Teklif verildi",
-  "company.order.accepted": "Sipariş kabul edildi",
-  "company.order.completed": "Sipariş tamamlandı",
-  "company.order.cancelled": "Sipariş iptal edildi",
-  "admin.company.suspended": "Admin: firma askıya alındı",
-  "admin.company.unsuspended": "Admin: firma askısı kaldırıldı",
-  "admin.company.tier_set": "Admin: paket değişti",
-  "admin.company.verification_set": "Admin: doğrulama değişti",
-  "admin.product.approved": "Admin: ürün onaylandı",
-  "admin.product.rejected": "Admin: ürün reddedildi",
-  "admin.user.deactivated": "Admin: kullanıcı pasifleştirildi",
-  "admin.user.activated": "Admin: kullanıcı aktifleştirildi",
-  "admin.user.password_reset_sent": "Admin: şifre sıfırlama bağlantısı gönderildi",
-  "admin.staff.created": "Admin: personel eklendi",
-  "admin.staff.role_set": "Admin: personel rolü değişti",
-  "admin.staff.deactivated": "Admin: personel pasifleştirildi",
-  "admin.staff.activated": "Admin: personel aktifleştirildi",
-  "admin.staff.password_reset": "Admin: personel şifresi sıfırlandı",
-  "admin.announcement.sent": "Admin: duyuru gönderildi",
-  "admin.complaint.resolved": "Admin: şikayet sonuçlandırıldı",
-  "auth.password_changed": "Şifre değiştirildi",
-  "email.resent": "E-posta yeniden gönderildi",
-  "supplier.updated": "Tedarikçi güncellendi",
-  "supplier.blocked": "Tedarikçi engellendi",
-  "supplier.unblocked": "Tedarikçi engeli kaldırıldı",
-  "supplier.membership_changed": "Tedarikçi üyeliği değişti",
-  "supplier.user_activated": "Tedarikçi kullanıcı aktif",
-  "supplier.user_deactivated": "Tedarikçi kullanıcı pasif",
-  "supplier.user_email_verified": "Tedarikçi e-posta doğrulandı",
-  "supplier.user_2fa_reset": "Tedarikçi 2FA sıfırlandı",
-  "supplier.user_email_changed": "Tedarikçi e-posta değişti",
-  "tenant.user_updated": "Alıcı kullanıcı güncellendi",
-  "tenant.user_email_verified": "Alıcı e-posta doğrulandı",
-  "tenant.user_2fa_reset": "Alıcı 2FA sıfırlandı",
-  "tenant.user_email_changed": "Alıcı e-posta değişti",
-  "tenant.user_password_reset": "Alıcı şifre sıfırlama",
-  "demo.invite_sent": "Demo davet gönderildi",
-  "demo.invite_revoked": "Demo davet iptal",
-};
-
-/**
- * Eylem süzgeci — ÖNEK grupları (API `action` alanını `startsWith` ile
- * süzer). Eskiden tam eylem adları listeleniyordu ve hepsi artık yazılmayan
- * `supplier.*` / `tenant.*` adlarıydı: her seçim 0 kayıt dönüyordu.
- */
-const ACTION_FILTERS: { value: string; label: string }[] = [
-  { value: "auth.", label: "Giriş olayları" },
-  { value: "company.user.", label: "Firma: kullanıcı ve rol" },
-  { value: "company.profile", label: "Firma: profil" },
-  { value: "company.listing", label: "Firma: ilanlar" },
-  { value: "company.bid", label: "Firma: teklifler" },
-  { value: "company.order.", label: "Firma: siparişler" },
-  { value: "company.product.", label: "Firma: ürünler" },
-  { value: "company.connection.", label: "Firma: bağlantılar" },
-  { value: "company.approval", label: "Firma: onay akışları" },
-  { value: "company.docs.", label: "Firma: belgeler" },
-  { value: "company.bank_account.", label: "Firma: banka hesapları" },
-  { value: "admin.company.", label: "Admin: firma işlemleri" },
-  { value: "admin.user.", label: "Admin: kullanıcı işlemleri" },
-  { value: "admin.staff.", label: "Admin: personel" },
-  { value: "admin.product.", label: "Admin: ürün onayı" },
-  { value: "admin.listing.", label: "Admin: ilanlar" },
-  { value: "admin.order.", label: "Admin: siparişler" },
-  { value: "admin.system.", label: "Admin: sistem" },
-  { value: "admin.announcement.", label: "Admin: duyurular" },
-  { value: "admin.complaint.", label: "Admin: şikayetler" },
-  { value: "email.resent", label: "E-posta yeniden gönderimi" },
-];
 
 const ACTOR_META: Record<
   string,
