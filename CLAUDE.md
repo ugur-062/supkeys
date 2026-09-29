@@ -2649,8 +2649,11 @@ matrisi + runbook). Bir daha bozulmasın diye:
   DAILY_USD`, `AI_DISCOVERY_DAILY_USD` (0 = durdur; tanımsız = varsayılan).
 - **Mobil:** `flex` satırında `shrink-0` uzun metin 375 px'te sayfayı genişletir
   (hızlı talep 502 px'e çıkmıştı); `role="table"` yalnız gerçek tabloda.
-- **Pazarlama rızası (`marketingConsent`) HİÇBİR gönderimde okunmuyor** —
-  karar bekliyor (denetim H-2); teşvik e-postası eklerken bunu hatırla.
+- **Pazarlama rızası (`marketingConsent`) gönderimde OKUNMAZ — bilinçli**
+  (kullanıcı kararı 2026-09-29, denetim H-2): karşılama/teşvik e-postaları
+  hizmet iletisi; İYS avukat görüşü (H-3) aksi derse teşvik adımları ona bağlanır.
+- **Tedarikçiye giden bildirim/e-posta "alım talebi"** (kullanıcı kararı
+  2026-09-29, B6-4); alıcıya giden (kendi talebi) "satın alma talebi" kalır.
 
 ## Bekleyen / Yapılacaklar
 

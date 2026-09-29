@@ -26,7 +26,7 @@
 | 6 | Çekirdek akışlar uçtan uca | ✅ bitti |
 | 7 | Zamanlanmış işler ve e-posta | ✅ bitti |
 | 8 | AI katmanı | ✅ bitti |
-| 9 | Çok dillilik | ✅ bitti (1 ürün dili kararı bekliyor: B6-4) |
+| 9 | Çok dillilik | ✅ bitti (B6-4 kararı uygulandı) |
 | 10 | SEO/GEO | ✅ bitti |
 | 11 | Performans ve kapasite | ✅ bitti |
 | 12 | Arayüz ve erişilebilirlik | ✅ bitti |
@@ -544,7 +544,7 @@ EN/RU sayfa taraması (Playwright; 101 sayfa: herkese açık + arayüzden giriş
 | B9-5 | ORTA | **Başka firmanın sektörü çevrilmiyordu:** EN/RU ürün sayfasının satıcı kartı "Makine ve proses ekipmanı" basıyordu — firmanın EN çevirisi DONE iken. Aynı açık panel ürün detayı, bağlantı listesi, bağlantı önerileri ve sipariş karşı taraf profilinde (CLAUDE.md: çapraz-firma okuma = `localize*`) | ✅ `localizeIndustry` beş uca (1554a535; `cross-company-industry-locale.spec`, kırmızı/yeşil sınandı) |
 | B9-6 (Bölüm 13) | hukuk | KVKK onay satırı yurt dışı işleyen olarak yalnız "Supabase/Vercel/Resend" sayıyor — Google (AI/Vertex), Cloudflare (R2 depolama, CDN), Sentry, Render da kişisel veri işliyor (B8-2 ile birlikte) | Bölüm 13 |
 | bilinçli sınır | bilgi | Uygulama içi bildirim oluşturulduğu anda ALICININ o anki dilinde METİN olarak saklanır (`notifications.title/body`); kullanıcı dilini değiştirince eski bildirimler eski dilde kalır, yenileri yeni dilde gelir. Yeniden çizim için anahtar+parametre saklamak şema değişikliği ister — değer düşük | kayıt |
-| B6-4 | **karar** | Tedarikçiye giden bildirim/e-postalarda "satın alma talebi" (TR ~60 dize; EN "buying request", RU "заявка на закупку" zaten tutarlı). CLAUDE.md kuralı ("satış tarafına satın alma talebi demek TERSTİR") satış PORTALI etiketleri için yazılmış; bildirimde alıcının talebini anlatmak doğal Türkçe. Seçenekler: (a) olduğu gibi bırak · (b) tedarikçiye giden metinlerde ziyaretçi çerçevesi "alım talebi" · (c) düz "talep" | **kullanıcı kararı** — yalnız katalog, sonradan ucuz |
+| B6-4 | ✅ **karar uygulandı** (07e7824a) | Tedarikçiye giden bildirim/e-postalarda "satın alma talebi" (TR ~60 dize; EN "buying request", RU "заявка на закупку" zaten tutarlı). CLAUDE.md kuralı ("satış tarafına satın alma talebi demek TERSTİR") satış PORTALI etiketleri için yazılmış; bildirimde alıcının talebini anlatmak doğal Türkçe. Seçenekler: (a) olduğu gibi bırak · (b) tedarikçiye giden metinlerde ziyaretçi çerçevesi "alım talebi" · (c) düz "talep" | **kullanıcı kararı 2026-09-29: (b) "alım talebi"** — 56 tedarikçiye giden TR dizesi değişti; alıcıya giden ve API hata metinleri aynen |
 
 ---
 
@@ -662,7 +662,7 @@ kırmızı, `color-contrast` K-2 kararıyla UYARI), yatay taşma
 | # | Konu | Durum / öneri |
 |---|---|---|
 | H-1 | Değişen hukuki metinlerin gözden geçirilmesi (aydınlatma metni amaç açıklamaları + çerez, kayıt onay satırı, e-posta alt bilgisi aydınlatma cümlesi) | olgusal düzeltme yapıldı; avukat onayı |
-| H-2 | **Pazarlama rızası hiç okunmuyor:** kayıttaki "Pazarlama ve analitik / ticari ileti (opsiyonel)" (`marketingConsent`) hiçbir gönderimde denetlenmiyor; karşılama serisi Silver teşvik e-postaları (gün 24 "Silver'ı incele", haftalık özet Silver sürümü, pazar adımının kilitli sürümü) rızası HAYIR olana da gidiyor. 6563 s. Kanun'da tacire önceden onay şartı olmasa da kullanıcının açık seçimine aykırı → şikâyet riski | **öneri:** teşvik içerikli karşılama adımları `marketingConsent`e bağlansın (hizmet kullanımı ipuçları — profil, ürün, doğrulama — kalsın). Karar gelince tek koşul |
+| H-2 | **Pazarlama rızası hiç okunmuyor:** kayıttaki "Pazarlama ve analitik / ticari ileti (opsiyonel)" (`marketingConsent`) hiçbir gönderimde denetlenmiyor; karşılama serisi Silver teşvik e-postaları (gün 24 "Silver'ı incele", haftalık özet Silver sürümü, pazar adımının kilitli sürümü) rızası HAYIR olana da gidiyor. 6563 s. Kanun'da tacire önceden onay şartı olmasa da kullanıcının açık seçimine aykırı → şikâyet riski | **kullanıcı kararı 2026-09-29: hizmet iletisi sayılır, herkese gider** (bugünkü davranış). H-3 (İYS) avukat görüşüyle teyit edilir; görüş aksi çıkarsa teşvik adımları `marketingConsent`e bağlanır (tek koşul) |
 | H-3 | İYS (İleti Yönetim Sistemi) kaydı: karşılama/özet e-postaları ve TR adreslere soğuk davet "ticari elektronik ileti" sayılır mı, İYS kaydı ve ret yönetimi gerekir mi | avukat |
 | H-4 | AB/EEA alıcılarına AI'ın bulduğu adrese soğuk davet: GDPR meşru menfaat değerlendirmesi + m. 14 bilgilendirme; DE/CA önceden onay listesi (B5-12 teknik kısmı kapandı) | avukat |
 | H-5 | Aydınlatma metni yalnız TÜRKÇE — EN/RU alıcı (yabancı tedarikçi) Türkçe metne yönleniyor; GDPR "anlaşılır dil" | avukat: çevrilmiş özet/sürüm gerekir mi |
@@ -783,4 +783,10 @@ etkisi yok denecek kadar az.
 madde operatör: **O-1 Render askısı** (1 Ekim). Bekleyen kullanıcı kararları
 (B6-4 ürün dili, H-2 pazarlama rızası) ve hukuk maddeleri (H-1…H-9) yayını
 engellemez; runbook Bölüm 15.
+
+### Kararlar (2026-09-29, kullanıcı)
+
+- **B6-4:** tedarikçiye giden metinlerde "alım talebi" → uygulandı (07e7824a).
+- **H-2:** pazarlama rızası aranmaz; karşılama/teşvik e-postaları hizmet iletisi → değişiklik yok (H-3 avukat teyidi).
+- **Push:** Render askısı kalkınca (1 Ekim) — o güne dek commit'ler YEREL; push + staging doğrulaması runbook 15.2'nin 1. adımından itibaren birlikte.
 
