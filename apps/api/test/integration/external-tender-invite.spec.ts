@@ -221,6 +221,27 @@ describe("inviteExternalForListing — kuyruğa alma", () => {
     expect(manual.results[0]!.status).toBe("QUEUED");
   });
 
+  it("kayda kapalı ülke (ABD, İran…): HİÇBİR kaynaktan davet gitmez — elle yazılan dahil (X24)", async () => {
+    const service = makeService();
+    const owner = await makeCompanyWithUser(prisma);
+    const listing = await openListing(owner.company.id, owner.user.id);
+    const ai = await service.inviteExternalForListing(
+      owner.auth,
+      listing.id,
+      [{ email: "sales@uspipe.com", country: "US" }, { email: "info@tehransteel.ir" }, { email: "info@tubi.it", country: "IT" }],
+      "AI_AUTO",
+    );
+    expect(ai.results.map((r) => [r.email, r.status])).toEqual([
+      ["sales@uspipe.com", "COUNTRY_BLOCKED"],
+      ["info@tehransteel.ir", "COUNTRY_BLOCKED"],
+      ["info@tubi.it", "QUEUED"],
+    ]);
+    const manual = await service.inviteExternalForListing(owner.auth, listing.id, [{ email: "ventas@tubos.cu" }]);
+    expect(manual.results[0]!.status).toBe("COUNTRY_BLOCKED");
+    const rows = await prisma.externalListingInvite.findMany({ where: { listingId: listing.id }, select: { email: true } });
+    expect(rows.map((r) => r.email)).toEqual(["info@tubi.it"]);
+  });
+
   it("başka firmanın talebi 404; kapalı talep 400", async () => {
     const service = makeService();
     const owner = await makeCompanyWithUser(prisma);

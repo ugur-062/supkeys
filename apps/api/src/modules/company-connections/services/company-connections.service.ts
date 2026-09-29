@@ -63,6 +63,7 @@ import { isLocale, recipientLocale, type Locale } from "@rothern/i18n";
 import {
   COMPANY_DAILY_INVITE_CAP,
   coldInviteBlockedByCountry,
+  registrationBlockedCountry,
   utcDayStart,
   type InviteSourceKind,
 } from "../../../common/company/external-invite-policy";
@@ -99,6 +100,7 @@ export type ExternalInviteStatus =
   | "OPTED_OUT"
   | "DAILY_LIMIT"
   | "CONSENT_REQUIRED"
+  | "COUNTRY_BLOCKED"
   | "INVALID";
 
 /** Davetle gelen firmanın kayıt/onboarding formuna önceden doldurma. */
@@ -592,6 +594,17 @@ export class CompanyConnectionsService {
         continue;
       }
       const country = r.country?.trim().toUpperCase() || countryFromEmailDomain(email);
+      // Kayda kapalı ülke (ABD + toprakları, yaptırım ülkeleri) — HİÇBİR
+      // kaynaktan davet gitmez (elle yazılan dahil): davetli kayıt olamaz ve
+      // e-posta altyapısının koşulları bu gönderimi kapsar (derin denetim X24).
+      if (registrationBlockedCountry(r.country, countryFromEmailDomain(email))) {
+        results.push({
+          email,
+          status: "COUNTRY_BLOCKED",
+          reason: tApi("api.companyConnections.kayitKapaliUlke"),
+        });
+        continue;
+      }
       if (coldInviteBlockedByCountry(source, r.country, countryFromEmailDomain(email))) {
         results.push({
           email,
