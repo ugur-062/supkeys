@@ -573,13 +573,12 @@ export class PublicInquiryService {
    * aynı kutuya gelen 6 haneli kod girildi. Doğrulanmamış e-postayla login
    * zaten engelli, yani bu sayfaya ulaşan herkes adresini kanıtlamıştır.
    */
-  async listClaimed(companyId: string, email: string, page = 1) {
+  async listClaimed(companyId: string, email: string, page = 1, pageSize = 20) {
     await this.claimForCompany(companyId, email);
     // SAYFALI (listForCompany ile aynı desen): eskiden `take: 50` ile sessizce
     // kırpılıyordu — 50'den fazla talep gönderen alıcı en eskilerini ve
     // onlara gelen yanıtları hiç göremiyordu. `openCount` = yanıt bekleyen
     // TOPLAM (web süzgeç sayacı sayfadan bağımsız).
-    const pageSize = 20;
     const current = Math.max(1, page);
     const where = { claimedCompanyId: companyId };
     const [total, openCount, rows] = await Promise.all([

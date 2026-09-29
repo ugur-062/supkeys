@@ -792,6 +792,18 @@ describe("hesaba bağlama — TEMBEL ve idempotent", () => {
     // Yanit bekleyen TOPLAM 54 — yanitli kayit son sayfada olsa da.
     expect(pages[0].openCount).toBe(54);
     expect(pages[2].openCount).toBe(54);
+
+    // Uc: sayfasiz cagri (dagitim sonrasi acik kalan eski web sekmesi) eski
+    // bicimi alir — duz dizi, en yeni 50; `?page=` sayfali nesneyi.
+    const { CompanyInquiryController } = await import("../../src/modules/public-inquiry/company-inquiry.controller");
+    const ctrl = new CompanyInquiryController(svc);
+    const user = { companyId: b.company.id, email: b.user.email } as never;
+    const legacy = await ctrl.sent(user);
+    expect(Array.isArray(legacy)).toBe(true);
+    expect(legacy).toHaveLength(50);
+    const paged = (await ctrl.sent(user, "3")) as { items: unknown[]; total: number };
+    expect(paged.items).toHaveLength(15);
+    expect(paged.total).toBe(55);
   });
 });
 

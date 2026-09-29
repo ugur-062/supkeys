@@ -73,11 +73,17 @@ export class CompanyInquiryController {
    */
   @Get("sent")
   @RequireCompanyPermission("buy:view")
-  sent(
+  async sent(
     @CurrentCompanyUser() user: AuthenticatedCompanyUser,
     @Query("page") page?: string,
   ) {
-    const n = Number.parseInt(page ?? "1", 10);
+    // Sayfasız çağrı = ESKİ istemci (dağıtım sonrası açık kalan sekme; web
+    // sapma koruması 12 saat): eskisi gibi düz dizi, en yeni 50. Yeni web her
+    // zaman `?page=` yollar ve sayfalı nesneyi alır.
+    if (page === undefined) {
+      return (await this.service.listClaimed(user.companyId, user.email, 1, 50)).items;
+    }
+    const n = Number.parseInt(page, 10);
     return this.service.listClaimed(user.companyId, user.email, Number.isFinite(n) ? n : 1);
   }
 
