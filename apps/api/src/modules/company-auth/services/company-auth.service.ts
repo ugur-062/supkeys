@@ -13,6 +13,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  HttpException,
+  HttpStatus,
   Injectable,
   Logger,
   ServiceUnavailableException,
@@ -87,6 +89,32 @@ const EMAIL_CODE_MAX_ATTEMPTS = 5;
 // başına en fazla 5 kod → toplam tahmin bütçesi ≈25/saat (10^6'ya karşı
 // brute-force pratik olarak kapanır); e-posta flood'u da sınırlanır.
 const EMAIL_CODE_MAX_PER_HOUR = 5;
+
+// Hesap bazlı 2FA deneme freni (derin denetim 2026-09-29 MU-16): TOTP ve
+// kurtarma kodunda IP throttle tek frendi; dağıtık IP'lerle 10^6 uzayda tahmin
+// serbestti. Pencere başına en fazla 5 deneme → ~480/gün (pratikte kapalı).
+const TWO_FACTOR_MAX_ATTEMPTS = 5;
+const TWO_FACTOR_WINDOW_MIN = 15;
+
+/** `companies_taxNumber_key` ihlali mi (P2002, hedef taxNumber)? */
+function isTaxNumberConflict(e: unknown): boolean {
+  if (!(e instanceof Prisma.PrismaClientKnownRequestError) || e.code !== "P2002") return false;
+  const target = e.meta?.target;
+  return (Array.isArray(target) ? target.join(",") : String(target ?? "")).includes("taxNumber");
+}
+
+function twoFactorLockedError(): HttpException {
+  return new HttpException(
+    i18nMessage("api.companyAuth.cokFazlaHatali2faDenemesi", { dakika: TWO_FACTOR_WINDOW_MIN }, "TWO_FACTOR_LOCKED"),
+    HttpStatus.TOO_MANY_REQUESTS,
+  );
+}
+
+function taxNumberTakenError(): ConflictException {
+  return new ConflictException(
+    i18nMessage("api.companyAuth.buVergiNumarasiIleKayitliFirmaVar", undefined, "TAX_NUMBER_TAKEN"),
+  );
+}
 
 @Injectable()
 export class CompanyAuthService {
@@ -523,6 +551,12 @@ export class CompanyAuthService {
         ),
       );
     }
+    // Vergi no platform genelinde TEKİL (`companies_taxNumber_key`). Aynı
+    // firmadan ikinci kişinin ayrı kayıt olması B2B'de olağan — eskiden unique
+    // ihlali 500 olarak düşüyor, kullanıcı onboarding'de takılı kalıyordu
+    // (derin denetim 2026-09-29 MU-16). Ön kontrol bypass'ta (başka tenant'ın
+    // satırı); yarış için aşağıda P2002 de aynı 409'a çevrilir.
+    await this.assertTaxNumberFree(taxNumber, companyId);
     if (country === "TR") {
       if (!dto.authorizedTckn || !isValidTckn(dto.authorizedTckn)) {
         throw new BadRequestException(i18nMessage("api.companyAuth.yetkiliTCKimlikNoGecersiz"));
@@ -680,6 +714,10 @@ export class CompanyAuthService {
           isDefault: true,
         },
       });
+    }).catch((e: unknown) => {
+      // Yarış: ön kontrolü geçen eşzamanlı kayıt → aynı yönlendirici 409.
+      if (isTaxNumberConflict(e)) throw taxNumberTakenError();
+      throw e;
     });
 
     // AB firması: kaydedilen vergi no arka planda VIES'e sorulur (audit izi).
@@ -696,6 +734,15 @@ export class CompanyAuthService {
     );
 
     return { ok: true as const };
+  }
+
+  /** Vergi no başka bir firmada kayıtlıysa yönlendirici 409 (onboarding). */
+  private async assertTaxNumberFree(taxNumber: string, companyId: string): Promise<void> {
+    const taken = await this.bypass.company.findFirst({
+      where: { taxNumber, id: { not: companyId } },
+      select: { id: true },
+    });
+    if (taken) throw taxNumberTakenError();
   }
 
   /**
@@ -809,6 +856,13 @@ export class CompanyAuthService {
       where: {
         OR: [{ email: email.toLowerCase() }, ...(referralIds.length ? [{ referralInviteId: { in: referralIds } }] : [])],
         listing: { status: { in: ["DRAFT", "OPEN"] } },
+        // İPTAL EDİLMİŞ DAVET BAĞLANMAZ (derin denetim 2026-09-29 MU-16): alıcı
+        // referral'ı iptal ettiyse ya da paketi düştüyse (ikisi de referral'ı
+        // CANCELLED yapar) o adres kendi kaydolduğunda talebi GÖRMEMELİ. Referral
+        // koşulu iptalden önce SENT olmuş satırları da kapsar; satır koşulu
+        // ikinci emniyet.
+        referralInvite: { status: { not: "CANCELLED" } },
+        NOT: { state: "CANCELLED", cancelReason: { in: ["REFERRAL_CANCELLED", "INVITER_DOWNGRADED"] } },
       },
       select: {
         listingId: true,
@@ -929,13 +983,36 @@ export class CompanyAuthService {
     if (user.twoFactorEnabled) {
       if (!dto.code) {
         if (user.twoFactorMethod === "EMAIL") {
-          const { sent } = await this.issueEmailCode(
+          const { sent, capped } = await this.issueEmailCode(
             user.id,
             user.email,
             user.firstName,
             "login",
             localeOf(user.locale),
           );
+          // Saatlik kod tavanı dolduysa yeni kod ÜRETİLMEZ ama son gönderilen
+          // kod hâlâ geçerli olabilir — gönderim hatası DEĞİL (derin denetim
+          // 2026-09-29 MU-16: eskiden 503 dönüyor, kod alanı hiç açılmıyor,
+          // gelen kutusundaki geçerli kod girilemiyordu). Geçerli kod varsa kod
+          // ekranına geç; yoksa 503 yerine dürüst 429.
+          if (!sent && capped) {
+            const active = await this.bypass.emailVerificationCode.findFirst({
+              where: {
+                companyUserId: user.id,
+                usedAt: null,
+                expiresAt: { gt: new Date() },
+                attempts: { lt: EMAIL_CODE_MAX_ATTEMPTS },
+              },
+              select: { id: true },
+            });
+            if (active) {
+              return { twoFactorRequired: true as const, method: "email" as const };
+            }
+            throw new HttpException(
+              i18nMessage("api.companyAuth.cokFazlaKodIstendi", undefined, "EMAIL_CODE_CAPPED"),
+              HttpStatus.TOO_MANY_REQUESTS,
+            );
+          }
           // failure-aware (1b): kod gitmezse kullanıcı ilerleyemez → sessizce
           // "kodu gir" deme, açık hata ver. Parola zaten doğrulandı (post-auth)
           // → enumeration sızıntısı DEĞİL. (Sentry alarmı send() içinde.)
@@ -951,10 +1028,14 @@ export class CompanyAuthService {
           method: "authenticator" as const,
         };
       }
-      const { ok, usedRecovery } = await this.verifyTwoFactorCode(
+      const { ok, usedRecovery, locked } = await this.verifyTwoFactorCode(
         user.id,
         dto.code,
       );
+      if (locked) {
+        auditFail("2fa_locked");
+        throw twoFactorLockedError();
+      }
       if (!ok) {
         auditFail("bad_2fa");
         throw new UnauthorizedException(i18nMessage("api.companyAuth.dogrulamaKoduHatali"));
@@ -1192,35 +1273,124 @@ export class CompanyAuthService {
 
   /**
    * TOTP kodu VEYA kurtarma kodu doğrula. Kurtarma kodu eşleşirse TÜKETİLİR
-   * (tek kullanımlık). Dönen değer: geçerli mi + kurtarma kodu mu kullanıldı.
+   * (tek kullanımlık). Dönen değer: geçerli mi + kurtarma kodu mu kullanıldı +
+   * hesap bazlı deneme freni dolu mu (`locked` → kod HİÇ denenmedi).
+   *
+   * DENEME FRENİ (derin denetim 2026-09-29 MU-16): deneme doğrulamadan ÖNCE
+   * koşullu artışla ayrılır (eşzamanlı burst pencere tavanını aşamaz), başarıda
+   * sayaç sıfırlanır. Tavanı dolduran hatalı deneme sahibine e-posta atar.
    */
   private async verifyTwoFactorCode(
     userId: string,
     code: string,
-  ): Promise<{ ok: boolean; usedRecovery: boolean }> {
+  ): Promise<{ ok: boolean; usedRecovery: boolean; locked?: boolean }> {
     const user = await this.bypass.companyUser.findUnique({
       where: { id: userId },
       select: {
+        email: true,
+        locale: true,
         twoFactorMethod: true,
         twoFactorSecret: true,
         twoFactorRecoveryCodes: true,
       },
     });
     if (!user) return { ok: false, usedRecovery: false };
-    const trimmed = code.trim();
+    const attempt = await this.reserveTwoFactorAttempt(userId);
+    if (!attempt.allowed) return { ok: false, usedRecovery: false, locked: true };
+    const result = await this.checkTwoFactorCode(userId, user, code.trim());
+    if (result.ok) {
+      await this.bypass.companyUser.updateMany({
+        where: { id: userId },
+        data: { twoFactorFailedAttempts: 0, twoFactorWindowStartedAt: null },
+      });
+    } else if (attempt.last) {
+      this.logger.warn(`2FA attempt limit reached, code entry paused (user=${userId})`);
+      this.sendNotificationEmail(
+        { email: user.email },
+        localeOf(user.locale),
+        {
+          subjectKey: "api.notifications.companyAuth.ikiAdimliKilitBaslik",
+          paragraphKeys: ["api.notifications.companyAuth.ikiAdimliKilitGovde"],
+          ctaLabelKey: "api.notifications.companyAuth.hesapAyarlari",
+          ctaPath: "/company/ayarlar",
+          params: { dakika: TWO_FACTOR_WINDOW_MIN },
+        },
+        "two_factor_locked",
+        userId,
+      );
+    }
+    return result;
+  }
+
+  /**
+   * Hesap bazlı 2FA deneme hakkı ayır. Pencere yoksa/süresi dolduysa önce
+   * yenisi açılır (koşullu — eşzamanlı açılışlar birbirini sıfırlamaz), sonra
+   * sayaç `< MAX` koşuluyla artırılır. `last`: bu deneme pencerenin son hakkı.
+   */
+  private async reserveTwoFactorAttempt(
+    userId: string,
+  ): Promise<{ allowed: boolean; last: boolean }> {
+    const now = new Date();
+    const windowFloor = new Date(now.getTime() - TWO_FACTOR_WINDOW_MIN * 60_000);
+    await this.bypass.companyUser.updateMany({
+      where: {
+        id: userId,
+        OR: [
+          { twoFactorWindowStartedAt: null },
+          { twoFactorWindowStartedAt: { lt: windowFloor } },
+        ],
+      },
+      data: { twoFactorFailedAttempts: 0, twoFactorWindowStartedAt: now },
+    });
+    try {
+      const row = await this.bypass.companyUser.update({
+        where: { id: userId, twoFactorFailedAttempts: { lt: TWO_FACTOR_MAX_ATTEMPTS } },
+        data: { twoFactorFailedAttempts: { increment: 1 } },
+        select: { twoFactorFailedAttempts: true },
+      });
+      return { allowed: true, last: row.twoFactorFailedAttempts >= TWO_FACTOR_MAX_ATTEMPTS };
+    } catch (e) {
+      if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2025") {
+        return { allowed: false, last: false };
+      }
+      throw e;
+    }
+  }
+
+  private async checkTwoFactorCode(
+    userId: string,
+    user: {
+      twoFactorMethod: CompanyUser["twoFactorMethod"];
+      twoFactorSecret: string | null;
+      twoFactorRecoveryCodes: string[];
+    },
+    trimmed: string,
+  ): Promise<{ ok: boolean; usedRecovery: boolean }> {
     // Ana yöntem: EMAIL → e-postaya giden kod; AUTHENTICATOR → TOTP.
     if (user.twoFactorMethod === "EMAIL") {
       if (await this.consumeEmailCode(userId, trimmed)) {
         return { ok: true, usedRecovery: false };
       }
-    } else if (
-      user.twoFactorSecret &&
-      authenticator.verify({
-        token: trimmed,
-        secret: this.decryptSecret(user.twoFactorSecret),
-      })
-    ) {
-      return { ok: true, usedRecovery: false };
+    } else if (user.twoFactorSecret) {
+      // Adım hesabı ile doğrulama AYNI ana sabitlenir (adım sınırında kayma olmasın).
+      const totp = authenticator.clone({ epoch: Date.now() });
+      const delta = totp.checkDelta(trimmed, this.decryptSecret(user.twoFactorSecret));
+      if (delta !== null) {
+        // TEKRAR KULLANIM ENGELİ: kabul edilen adım saklanır; aynı (ya da daha
+        // eski) adımın kodu ikinci kez geçmez. Koşullu yazım → eşzamanlı iki
+        // istekte yalnız biri geçer.
+        const { epoch, step: period } = totp.allOptions();
+        const step = Math.floor(epoch / 1000 / period) + delta;
+        const { count } = await this.bypass.companyUser.updateMany({
+          where: {
+            id: userId,
+            OR: [{ twoFactorLastTotpStep: null }, { twoFactorLastTotpStep: { lt: step } }],
+          },
+          data: { twoFactorLastTotpStep: step },
+        });
+        if (count === 1) return { ok: true, usedRecovery: false };
+        return { ok: false, usedRecovery: false };
+      }
     }
     // Kurtarma kodu — her iki yöntemde de geçerli; hash eşleşirse listeden düş.
     // ATOMİK tüketim (denetim 2026-08-23): `where: has(hash)` koşullu updateMany —
@@ -1462,7 +1632,8 @@ export class CompanyAuthService {
       throw new BadRequestException(i18nMessage("api.companyAuth.ikiAdimliDogrulamaZatenKapali"));
     }
     // Kod: authenticator TOTP / e-posta kodu / kurtarma kodu (yönteme göre).
-    const { ok } = await this.verifyTwoFactorCode(userId, code);
+    const { ok, locked } = await this.verifyTwoFactorCode(userId, code);
+    if (locked) throw twoFactorLockedError();
     if (!ok) {
       throw new BadRequestException(i18nMessage("api.companyAuth.dogrulamaKoduHatali"));
     }
@@ -1474,6 +1645,9 @@ export class CompanyAuthService {
         twoFactorMethod: "AUTHENTICATOR", // varsayılana dön
         twoFactorSecret: null,
         twoFactorRecoveryCodes: [],
+        twoFactorLastTotpStep: null,
+        twoFactorFailedAttempts: 0,
+        twoFactorWindowStartedAt: null,
       },
     });
     void this.audit.log({

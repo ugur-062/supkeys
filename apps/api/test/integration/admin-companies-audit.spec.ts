@@ -134,6 +134,18 @@ describe("updateProfile — kimlik düzeltme (Faz 2)", () => {
       service.updateProfile(co.company.id, { name: "  " }, "admin-1"),
     ).rejects.toThrow("Firma adı boş olamaz");
   });
+
+  it("başka firmadaki vergi numarasına düzeltme 500 değil 409 (derin denetim MU-16)", async () => {
+    const { service } = rig();
+    const a = await makeCompanyWithUser(prisma, {});
+    const b = await makeCompanyWithUser(prisma, {});
+    await prisma.company.update({ where: { id: a.company.id }, data: { taxNumber: "1234567890" } });
+    const err = await service
+      .updateProfile(b.company.id, { taxNumber: "1234567890" }, "admin-1")
+      .catch((e: unknown) => e);
+    expect((err as { getStatus: () => number }).getStatus()).toBe(409);
+    expect((err as Error).message).toBe("Bu vergi numarası başka bir firmada kayıtlı");
+  });
 });
 
 describe("üyelik yönetimi — event kayıtları + ek-süreli uzatma (Faz 3)", () => {

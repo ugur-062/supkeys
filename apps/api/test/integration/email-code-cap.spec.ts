@@ -4,7 +4,7 @@
  */
 import "reflect-metadata";
 import { prisma, truncateAll } from "./test-db";
-import { makeAuthService } from "./make-auth-service";
+import { extractCode, makeAuthService } from "./make-auth-service";
 
 afterAll(async () => {
   await truncateAll();
@@ -67,5 +67,45 @@ describe("e-posta kodu üretim tavanı", () => {
     });
     expect(rec.attempts).toBeLessThanOrEqual(5);
     expect(rec.attempts).toBeGreaterThanOrEqual(1);
+  });
+});
+
+describe("e-posta 2FA girişinde kod tavanı (derin denetim MU-16)", () => {
+  async function emailTwoFactorUser() {
+    const rig = await signupUser();
+    await rig.service.verifyEmail(rig.mail, extractCode(rig.email));
+    await prisma.companyUser.update({
+      where: { id: rig.user.id },
+      data: { twoFactorEnabled: true, twoFactorMethod: "EMAIL" },
+    });
+    const login = (code?: string) =>
+      rig.service.login({ email: rig.mail, password: "Guclu!Parola9", ...(code ? { code } : {}) } as never);
+    return { ...rig, login };
+  }
+
+  it("tavan dolunca 503 DEĞİL: geçerli son kod varsa kod ekranına geçilir, o kodla giriş yapılır", async () => {
+    const { email, login } = await emailTwoFactorUser();
+    // signup kodu (1) + 4 giriş = saatte 5 kod → tavan doldu.
+    for (let i = 0; i < 4; i++) await login();
+    const lastCode = extractCode(email);
+    const sentBefore = email.send.mock.calls.length;
+
+    await expect(login()).resolves.toEqual({ twoFactorRequired: true, method: "email" });
+    expect(email.send.mock.calls.length).toBe(sentBefore); // yeni kod YOK
+
+    const ok = (await login(lastCode)) as { token?: string };
+    expect(ok.token).toBeTruthy();
+  });
+
+  it("tavan dolu VE geçerli kod yoksa 429 (gönderim hatası 503'ü değil)", async () => {
+    const { user, login } = await emailTwoFactorUser();
+    for (let i = 0; i < 4; i++) await login();
+    await prisma.emailVerificationCode.updateMany({
+      where: { companyUserId: user.id, usedAt: null },
+      data: { expiresAt: new Date(Date.now() - 1000) },
+    });
+    const err = await login().catch((e: unknown) => e);
+    expect((err as { getStatus: () => number }).getStatus()).toBe(429);
+    expect((err as Error).message).toMatch(/çok fazla doğrulama kodu/i);
   });
 });

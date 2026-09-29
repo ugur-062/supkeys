@@ -2435,6 +2435,13 @@ model CompanyUser {
   // Kurtarma kodları (SHA-256 hash) — enable'da üretilir, BİR KEZ gösterilir;
   // her kod tek kullanımlık (girişte/kapatmada tüketilir).
   twoFactorRecoveryCodes String[]        @default([])
+  // Hesap bazlı 2FA deneme freni (derin denetim 2026-09-29 MU-16): pencere
+  // (15 dk) içinde en fazla 5 deneme; deneme doğrulamadan ÖNCE koşullu artışla
+  // ayrılır (eşzamanlı burst tavanı aşamaz), başarıda sıfırlanır.
+  twoFactorFailedAttempts Int            @default(0)
+  twoFactorWindowStartedAt DateTime?
+  // Son kabul edilen TOTP adımı (unix/30) — aynı kodun tekrar kullanımı reddedilir.
+  twoFactorLastTotpStep  Int?
   // Oturum sürümü — parola değişince artar; eski JWT'ler geçersizleşir
   // (strategy her istekte DB'den doğrular).
   tokenVersion           Int             @default(0)

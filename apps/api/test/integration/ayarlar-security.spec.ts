@@ -505,3 +505,72 @@ describe("Denetim 2026-08-23 — kurtarma kodu sertleştirme (pepper + atomik t�
   });
 });
 
+
+describe("2FA hesap bazlı deneme freni + TOTP tekrar kullanım engeli (derin denetim MU-16)", () => {
+  async function totpUser() {
+    const rig = await signupVerified();
+    const { secret } = await rig.service.setupTwoFactor(rig.user.id);
+    await rig.service.enableTwoFactor(rig.user.id, authenticator.generate(secret));
+    const login = (code: string) =>
+      rig.service.login({ email: rig.dto.email, password: rig.dto.password, code } as never);
+    return { ...rig, secret, login };
+  }
+  const wrong = (secret: string) => (authenticator.generate(secret) === "000000" ? "111111" : "000000");
+
+  it("5 hatalı denemeden sonra doğru kod bile 429 alır, sahibine TEK e-posta gider; pencere bitince açılır", async () => {
+    const { service, secret, login, email, user } = await totpUser();
+    const mailsBefore = email.send.mock.calls.length;
+    for (let i = 0; i < 5; i++) {
+      await expect(login(wrong(secret))).rejects.toThrow(/kodu hatalı/i);
+    }
+    const locked = await login(authenticator.generate(secret)).catch((e: unknown) => e);
+    expect((locked as { getStatus: () => number }).getStatus()).toBe(429);
+    // Kilit bildirimi yalnız pencereyi dolduran denemede (fire-and-forget).
+    await new Promise((r) => setImmediate(r));
+    const lockMails = email.send.mock.calls
+      .slice(mailsBefore)
+      .filter((c) => (c[0] as { context?: { type?: string } }).context?.type === "two_factor_locked");
+    expect(lockMails).toHaveLength(1);
+    // Kapatma yolu da aynı freni kullanır.
+    await expect(service.disableTwoFactor(user.id, authenticator.generate(secret))).rejects.toThrow(
+      /çok fazla hatalı/i,
+    );
+
+    // Pencere (15 dk) geçti → yeniden denenebilir.
+    await prisma.companyUser.update({
+      where: { id: user.id },
+      data: { twoFactorWindowStartedAt: new Date(Date.now() - 16 * 60_000) },
+    });
+    const ok = (await login(authenticator.generate(secret))) as { token?: string };
+    expect(ok.token).toBeTruthy();
+    const db = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: user.id },
+      select: { twoFactorFailedAttempts: true },
+    });
+    expect(db.twoFactorFailedAttempts).toBe(0); // başarı sayacı sıfırlar
+  });
+
+  it("eşzamanlı burst pencere tavanını AŞAMAZ (deneme doğrulamadan önce ayrılır)", async () => {
+    const { secret, login, user } = await totpUser();
+    const results = await Promise.all(
+      Array.from({ length: 12 }, () => login(wrong(secret)).catch((e: unknown) => e)),
+    );
+    const lockedCount = results.filter(
+      (e) => (e as { getStatus?: () => number }).getStatus?.() === 429,
+    ).length;
+    expect(lockedCount).toBeGreaterThanOrEqual(7);
+    const db = await prisma.companyUser.findUniqueOrThrow({
+      where: { id: user.id },
+      select: { twoFactorFailedAttempts: true },
+    });
+    expect(db.twoFactorFailedAttempts).toBe(5);
+  });
+
+  it("aynı TOTP kodu ikinci kez kabul edilmez (son adım saklanır)", async () => {
+    const { secret, login } = await totpUser();
+    const code = authenticator.generate(secret);
+    const ok = (await login(code)) as { token?: string };
+    expect(ok.token).toBeTruthy();
+    await expect(login(code)).rejects.toThrow(/kodu hatalı/i);
+  });
+});

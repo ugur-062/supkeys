@@ -226,4 +226,47 @@ describe("davet kabul e-postası onboarding'de, gerçek firma adıyla", () => {
     const invited = await prisma.listingInvitation.findMany({ where: { invitedCompanyId: c.id }, select: { listingId: true } });
     expect(invited.map((i) => i.listingId).sort()).toEqual([a1.id, a2.id, b1.id].sort());
   });
+
+  it("İPTAL EDİLMİŞ talep daveti kayıtta bağlanmaz — kuyrukta iptal, iptal öncesi SENT ve paket düşümü (derin denetim MU-16)", async () => {
+    const service = svc();
+    const a = await makeCompany(prisma, { tier: "GOLD" });
+    const aUser = await makeUser(prisma, a.id, ["SAHIP"] as never);
+    const b = await makeCompany(prisma, { tier: "GOLD" });
+    const bUser = await makeUser(prisma, b.id, ["SAHIP"] as never);
+    const d = await makeCompany(prisma, { tier: "GOLD" });
+    const dUser = await makeUser(prisma, d.id, ["SAHIP"] as never);
+    const c = await makeCompany(prisma, { tier: "GOLD" }); // yeni kaydolan
+    const EMAIL = "rakip@firma.com";
+    // A referral'ı iptal etti (kuyruktaki satır CANCELLED/REFERRAL_CANCELLED,
+    // daha önce gitmiş satır SENT kaldı); B'nin paketi düştü; D'nin daveti geçerli.
+    const ra = await prisma.companyReferralInvite.create({
+      data: { inviterCompanyId: a.id, email: EMAIL, invitedById: aUser.id, token: "tok-a", status: "CANCELLED" },
+    });
+    const rb = await prisma.companyReferralInvite.create({
+      data: { inviterCompanyId: b.id, email: EMAIL, invitedById: bUser.id, token: "tok-b", status: "CANCELLED" },
+    });
+    const rd = await referral(d.id, dUser.id, EMAIL, "tok-d");
+    const mk = (companyId: string, userId: string) =>
+      prisma.listing.create({ data: { companyId, createdById: userId, type: "ALIM", title: "t", status: "OPEN", visibility: "PRIVATE" } });
+    const aQueued = await mk(a.id, aUser.id);
+    const aSent = await mk(a.id, aUser.id);
+    const bQueued = await mk(b.id, bUser.id);
+    const dOk = await mk(d.id, dUser.id);
+    const rows = [
+      [aQueued, ra, "CANCELLED", "REFERRAL_CANCELLED"],
+      [aSent, ra, "SENT", null],
+      [bQueued, rb, "CANCELLED", "INVITER_DOWNGRADED"],
+      [dOk, rd, "SENT", null],
+    ] as const;
+    for (const [l, r, state, cancelReason] of rows) {
+      await prisma.externalListingInvite.create({
+        data: { listingId: l.id, inviterCompanyId: l.companyId, referralInviteId: r.id, email: EMAIL, locale: "tr", state, cancelReason },
+      });
+    }
+
+    await consume(service, EMAIL, c.id, undefined);
+
+    const invited = await prisma.listingInvitation.findMany({ where: { invitedCompanyId: c.id }, select: { listingId: true } });
+    expect(invited.map((i) => i.listingId)).toEqual([dOk.id]);
+  });
 });

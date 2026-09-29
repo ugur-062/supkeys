@@ -113,6 +113,9 @@
     "tuzelKisiIcin10HaneliVergiNo": "Enter a valid 10-digit tax number for a legal entity",
     "gecerliBirVergiSicilNumarasiGiriniz": "Enter a valid tax/registration number",
     "yerelHukukiYapiZorunlu": "When \"Other\" is selected, enter your company's legal form (e.g. GmbH, LLC)",
+    "buVergiNumarasiIleKayitliFirmaVar": "A company with this tax number is already registered. If your company already has a Rothern account, ask its administrator to invite you as a user; if you think this is a mistake, contact support.",
+    "cokFazlaKodIstendi": "Too many verification codes were requested in the last hour. Please try again later.",
+    "cokFazlaHatali2faDenemesi": "Too many incorrect verification codes were entered. For your security, code entry has been paused for up to {dakika} minutes; please try again later.",
     "defaults": {
       "founderTitle": "Founder",
       "headOfficeTitle": "Head office",
@@ -163,6 +166,7 @@
     "yalnizBekleyenReferansDavetiIptalEdilebilir": "Only a PENDING referral invitation can be canceled",
     "firmaAdiBosOlamaz": "Company name cannot be empty",
     "gecersizUlkeKodu": "Invalid country code",
+    "buVergiNumarasiBaskaFirmada": "This tax number is already registered to another company",
     "gecerliBirIbanGerekliTr24": "A valid IBAN is required (TR + 24 digits).",
     "dogrulamaIcinEksikKimlikBilgisiFirma": "Identity information required for verification is missing: {join}. The company cannot be approved until these fields are filled in.",
     "eksikBelgeVarKararVerilemez": "Documents are missing; no decision can be made ({k})",
@@ -1648,6 +1652,8 @@
       "ikiAdimliAcildiGovde": "Two-step verification (2FA) has been enabled on your account. If you did not do this, change your password immediately and contact support.",
       "ikiAdimliKapatildiBaslik": "Two-step verification turned off",
       "ikiAdimliKapatildiGovde": "Two-step verification (2FA) has been disabled on your account. If you did not do this, change your password immediately and contact support.",
+      "ikiAdimliKilitBaslik": "Incorrect verification code attempts on your account",
+      "ikiAdimliKilitGovde": "Someone repeatedly tried to log in to your account with the correct password but incorrect two-step verification codes. For your security, code entry has been paused for {dakika} minutes. If this was not you, your password may be known to someone else: change it immediately and contact support.",
       "parolaDegistiBaslik": "Your password has been changed",
       "parolaDegistiGovde": "The password for your account has been changed. If you did not do this, reset your password immediately and contact support.",
       "hesapAyarlari": "Account settings"

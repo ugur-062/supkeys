@@ -2,6 +2,7 @@
  * Faz 2 — Firma Doğrulama sihirbazı (completeOnboarding). Kurumsal kimlik +
  * TR vergi/TCKN doğrulama + kategori + adres + rol + onboardingCompletedAt.
  */
+import { ConflictException } from "@nestjs/common";
 import { ensureOwnerBuySeat } from "../../src/common/company/owner-buy-seat";
 import { CompanyRole, Prisma } from "@rothern/db";
 import { prisma, truncateAll } from "./test-db";
@@ -524,6 +525,46 @@ describe("completeOnboarding", () => {
         dto(cat.id) as never,
       ),
     ).rejects.toThrow(/zaten tamamlan/i);
+  });
+});
+
+describe("completeOnboarding — kayıtlı vergi numarası (derin denetim MU-16)", () => {
+  it("başka firmada kayıtlı vergi no → 500 değil yönlendirici 409; firma onboarding'de kalır", async () => {
+    const { service } = makeAuthService();
+    const first = await makeCompanyWithUser(prisma, { country: "TR" });
+    const second = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    await service.completeOnboarding(first.user.id, first.company.id, dto(cat.id) as never);
+
+    const err = await service
+      .completeOnboarding(second.user.id, second.company.id, dto(cat.id) as never)
+      .catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ConflictException);
+    expect((err as ConflictException).getStatus()).toBe(409);
+    expect((err as ConflictException).getResponse()).toMatchObject({ code: "TAX_NUMBER_TAKEN" });
+    expect((err as Error).message).toMatch(/vergi numarası/i);
+
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: second.company.id } });
+    expect(c.onboardingCompletedAt).toBeNull();
+    expect(c.taxNumber).not.toBe(TCKN);
+  });
+
+  it("yarış: ön kontrolü geçen eşzamanlı kayıtta unique ihlali (P2002) de aynı 409'a çevrilir", async () => {
+    const { service } = makeAuthService();
+    const first = await makeCompanyWithUser(prisma, { country: "TR" });
+    const second = await makeCompanyWithUser(prisma, { country: "TR" });
+    const cat = await makeCategory();
+    await service.completeOnboarding(first.user.id, first.company.id, dto(cat.id) as never);
+    // Ön kontrolün "boş" gördüğü an (diğer istek henüz yazmamış) canlandırılır.
+    jest
+      .spyOn(service as unknown as { assertTaxNumberFree: () => Promise<void> }, "assertTaxNumberFree")
+      .mockResolvedValue(undefined);
+
+    await expect(
+      service.completeOnboarding(second.user.id, second.company.id, dto(cat.id) as never),
+    ).rejects.toBeInstanceOf(ConflictException);
+    const c = await prisma.company.findUniqueOrThrow({ where: { id: second.company.id } });
+    expect(c.onboardingCompletedAt).toBeNull();
   });
 });
 

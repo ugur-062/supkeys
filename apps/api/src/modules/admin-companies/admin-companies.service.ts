@@ -34,6 +34,7 @@ import {
   CompanyVerificationStatus,
   ComplaintStatus,
   KycDocStatus,
+  Prisma,
   type ListingStatus,
 } from "@rothern/db";
 import { StorageService } from "../storage/storage.service";
@@ -1012,7 +1013,21 @@ export class AdminCompaniesService {
         "city" in data ? (data.city as string | null) : before.city,
       );
     }
-    await this.prisma.company.update({ where: { id }, data: writeData });
+    // Vergi no platform genelinde tekil (`companies_taxNumber_key`): başka
+    // firmadaki numaraya düzeltme 500 yerine anlaşılır 409 döner (derin denetim
+    // 2026-09-29 MU-16).
+    try {
+      await this.prisma.company.update({ where: { id }, data: writeData });
+    } catch (e) {
+      if (
+        e instanceof Prisma.PrismaClientKnownRequestError &&
+        e.code === "P2002" &&
+        String(Array.isArray(e.meta?.target) ? e.meta.target.join(",") : e.meta?.target ?? "").includes("taxNumber")
+      ) {
+        throw new ConflictException(i18nMessage("api.adminCompanies.buVergiNumarasiBaskaFirmada"));
+      }
+      throw e;
+    }
     // Dalga B: ülke değişimi ZORUNLU BELGE SETİNİ değiştirir (TR 6 / yabancı 3).
     // DE→TR çevrilen VERIFIED bir firmada imza sirküleri/faaliyet belgesi/kimlik
     // arkası hiç yüklenmemiş olabilir; eski davranışta durum VERIFIED kalıyor ve

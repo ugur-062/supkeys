@@ -113,6 +113,9 @@
     "tuzelKisiIcin10HaneliVergiNo": "Tüzel kişi için 10 haneli geçerli vergi numarası giriniz",
     "gecerliBirVergiSicilNumarasiGiriniz": "Geçerli bir vergi/sicil numarası giriniz",
     "yerelHukukiYapiZorunlu": "\"Diğer\" seçildiğinde firmanızın hukuki yapısını yazın (ör. GmbH, LLC)",
+    "buVergiNumarasiIleKayitliFirmaVar": "Bu vergi numarasıyla kayıtlı bir firma zaten var. Firmanızın Rothern hesabı varsa yöneticisinden sizi kullanıcı olarak davet etmesini isteyin; bir hata olduğunu düşünüyorsanız destek ekibiyle iletişime geçin.",
+    "cokFazlaKodIstendi": "Son bir saatte çok fazla doğrulama kodu istendi. Lütfen bir süre sonra tekrar deneyin.",
+    "cokFazlaHatali2faDenemesi": "Çok fazla hatalı doğrulama kodu denendi. Güvenliğiniz için kod girişi en fazla {dakika} dakika durduruldu; lütfen daha sonra tekrar deneyin.",
     "defaults": {
       "founderTitle": "Kurucu",
       "headOfficeTitle": "Merkez",
@@ -163,6 +166,7 @@
     "yalnizBekleyenReferansDavetiIptalEdilebilir": "Yalnız BEKLEYEN referans daveti iptal edilebilir",
     "firmaAdiBosOlamaz": "Firma adı boş olamaz",
     "gecersizUlkeKodu": "Geçersiz ülke kodu",
+    "buVergiNumarasiBaskaFirmada": "Bu vergi numarası başka bir firmada kayıtlı",
     "gecerliBirIbanGerekliTr24": "Geçerli bir IBAN gerekli (TR + 24 rakam).",
     "dogrulamaIcinEksikKimlikBilgisiFirma": "Doğrulama için eksik kimlik bilgisi: {join}. Firma bu alanları doldurmadan onaylanamaz.",
     "eksikBelgeVarKararVerilemez": "Eksik belge var; karar verilemez ({k})",
@@ -1648,6 +1652,8 @@
       "ikiAdimliAcildiGovde": "Hesabınızda iki adımlı doğrulama (2FA) etkinleştirildi. Bu işlemi siz yapmadıysanız derhal şifrenizi değiştirin ve destekle iletişime geçin.",
       "ikiAdimliKapatildiBaslik": "İki adımlı doğrulama kapatıldı",
       "ikiAdimliKapatildiGovde": "Hesabınızda iki adımlı doğrulama (2FA) kapatıldı. Bu işlemi siz yapmadıysanız derhal şifrenizi değiştirin ve destekle iletişime geçin.",
+      "ikiAdimliKilitBaslik": "Hesabınızda hatalı doğrulama kodu denemeleri",
+      "ikiAdimliKilitGovde": "Hesabınıza doğru şifreyle ancak hatalı iki adımlı doğrulama kodlarıyla art arda giriş denendi. Güvenliğiniz için kod girişi {dakika} dakika durduruldu. Bu denemeleri siz yapmadıysanız şifreniz başkasının elinde olabilir: derhal şifrenizi değiştirin ve destekle iletişime geçin.",
       "parolaDegistiBaslik": "Şifreniz değiştirildi",
       "parolaDegistiGovde": "Hesabınızın şifresi değiştirildi. Bu işlemi siz yapmadıysanız derhal şifrenizi sıfırlayın ve destekle iletişime geçin.",
       "hesapAyarlari": "Hesap Ayarları"
