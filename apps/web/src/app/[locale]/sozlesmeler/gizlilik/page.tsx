@@ -26,7 +26,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
     <LegalDoc
       path="/sozlesmeler/gizlilik"
       title="Gizlilik Politikası"
-      updatedAt="2026-09-22"
+      updatedAt="2026-09-29"
       sections={[
         {
           paragraphs: [
@@ -48,8 +48,8 @@ export default async function Page({ params }: { params: LocaleParams }) {
         {
           heading: "3. Herkese Açık Görünen Bilgiler",
           paragraphs: [
-            "Bir satın alma talebinin görünürlüğünü \"herkese açık\" seçtiğinizde o talep, giriş gerektirmeyen pazar yeri sayfalarında yayımlanabilir ve arama motorlarınca dizinlenebilir: talep numarası, başlık, açıklama, kategori, kalemler, miktar/birim, teslimat ve ödeme koşulları, son teklif tarihi ile firmanızın şehri, ülkesi, sektörü ve faaliyet tipi. Firma adınız ve profiliniz yalnız giriş yapmış üyelere görünür.",
-            "Teklifler bu kapsamın dışındadır ve kapalı zarf esası aynen geçerlidir (madde 2). Yayımı talep bazında (görünürlük değiştirme veya arama motoru dizinlemesini kapatma) ya da firma ayarlarından toptan durdurabilirsiniz.",
+            "Bir satın alma talebinin görünürlüğünü \"herkese açık\" seçtiğinizde o talep, giriş gerektirmeyen pazar yeri sayfalarında yayımlanabilir ve arama motorlarınca dizinlenebilir: talep numarası, başlık, açıklama, kategori, kalemler, miktar/birim, teslimat ve ödeme koşulları, son teklif tarihi ile firmanızın şehri, ülkesi, sektörü ve faaliyet tipi. Bu talep sayfalarında firma adınız gösterilmez. Teklifler bu kapsamın dışındadır ve kapalı zarf esası aynen geçerlidir (madde 2). Yayımı talep bazında (görünürlük değiştirme veya arama motoru dizinlemesini kapatma) ya da firma ayarlarından toptan durdurabilirsiniz.",
+            "Firma profiliniz (firma adı, logo, tanıtım metni, web sitesi gibi profilinizde yer verdiğiniz bilgiler ve yayımladığınız ürünler) ise kayıt tamamlandığında giriş gerektirmeyen firma profili sayfasında herkese açık yayımlanır, firma vitrininde listelenebilir ve arama motorlarınca dizinlenebilir. Profilin yayınını panelde Profilim sayfasındaki \"Herkese açık profil\" anahtarıyla dilediğiniz zaman kapatabilirsiniz.",
           ],
         },
         {
