@@ -1,5 +1,6 @@
 import { tApi } from "../../src/common/i18n/i18n.service";
 import { BadRequestException } from "@nestjs/common";
+import { PRODUCT_LIMITS } from "@rothern/shared";
 import { AdminProductsService } from "../../src/modules/admin-companies/admin-products.service";
 
 /**
@@ -18,7 +19,10 @@ function rig(row: Record<string, unknown>) {
     },
     category: { findMany: jest.fn().mockResolvedValue([{ id: "39000000", nameTr: "Elektrik" }]) },
     categoryAttribute: { findMany: jest.fn().mockResolvedValue([]) },
+    $executeRaw: jest.fn().mockResolvedValue(1),
+    $transaction: jest.fn(),
   };
+  prisma.$transaction.mockImplementation((fn: (tx: unknown) => unknown) => fn(prisma));
   const audit = { log: jest.fn().mockResolvedValue(undefined) };
   const companies = { notifyCompany: jest.fn().mockResolvedValue(undefined) };
   const seo = { productChanged: jest.fn() };
@@ -103,6 +107,50 @@ describe("AdminProductsService", () => {
     const draftRejected = b.companies.notifyCompany.mock.calls[0][1];
     expect(tApi(draftRejected.cta.labelKey)).toBe("Düzelt ve yeniden gönder");
     expect(draftRejected.cta.path).toBe("/company/satis/urunlerim?sekme=rejected");
+  });
+
+  describe("paket ürün tavanı (derin denetim MU-13)", () => {
+    const STD = { ...BASE, company: { ...BASE.company, tier: "STANDART", membershipEndAt: null } };
+
+    it("efektif STANDART firmada tavan doluyken vitrinde olmayan ürün onaylanmaz, PENDING kalır", async () => {
+      const { svc, prisma, audit } = rig(STD);
+      prisma.companyItem.count.mockResolvedValue(PRODUCT_LIMITS.STANDART);
+      await expect(svc.approve("i1", "admin1")).rejects.toThrow(/tavanı dolu/);
+      expect(prisma.companyItem.updateMany).not.toHaveBeenCalled();
+      expect(audit.log).not.toHaveBeenCalled();
+      // Sayım ve yazma publish ile aynı firma kilidinde; kendisi hariç yalnız vitrindekiler sayılır.
+      expect(prisma.$executeRaw).toHaveBeenCalled();
+      expect(prisma.companyItem.count.mock.calls[0][0].where).toEqual({
+        companyId: "c1",
+        isActive: true,
+        isPublic: true,
+        id: { not: "i1" },
+      });
+    });
+
+    it("süresi DOLMUŞ Silver (cron henüz koşmadı) efektif STANDART sayılır", async () => {
+      const expired = { ...BASE, company: { ...BASE.company, tier: "SILVER", membershipEndAt: new Date(Date.now() - 60_000) } };
+      const { svc, prisma } = rig(expired);
+      prisma.companyItem.count.mockResolvedValue(PRODUCT_LIMITS.STANDART);
+      await expect(svc.approve("i1", "admin1")).rejects.toThrow(BadRequestException);
+      expect(prisma.companyItem.updateMany).not.toHaveBeenCalled();
+    });
+
+    it("tavan altındaysa onaylanır; paketli kademede ve vitrindeki ürünün güncellemesinde sayım yapılmaz", async () => {
+      const a = rig(STD);
+      a.prisma.companyItem.count.mockResolvedValue(PRODUCT_LIMITS.STANDART! - 1);
+      await a.svc.approve("i1", "admin1");
+      expect(a.prisma.companyItem.updateMany.mock.calls[0][0].data).toMatchObject({ isPublic: true });
+
+      const b = rig(BASE); // SILVER, süresiz
+      await b.svc.approve("i1", "admin1");
+      expect(b.prisma.companyItem.count).not.toHaveBeenCalled();
+
+      const c = rig({ ...STD, isPublic: true, publishedAt: new Date("2026-09-01T00:00:00Z") });
+      c.prisma.companyItem.count.mockResolvedValue(999);
+      await c.svc.approve("i1", "admin1");
+      expect(c.prisma.companyItem.updateMany).toHaveBeenCalledTimes(1);
+    });
   });
 
   it("yalnız PENDING karar alır; yarışta (count=0) 400", async () => {
@@ -194,6 +242,23 @@ describe("AdminProductsService", () => {
       await expect(r.svc.approveMany([], "adm1")).rejects.toThrow(BadRequestException);
       const cok = Array.from({ length: 101 }, (_, i) => `x${i}`);
       await expect(r.svc.approveMany(cok, "adm1")).rejects.toThrow(/en fazla 100/);
+    });
+
+    it("paket tavanı dolu (efektif STANDART) ürün ATLANIR, yığın düşmez (derin denetim MU-13)", async () => {
+      const std = { ...BASE.company, tier: "STANDART" };
+      const r = coklu([
+        { ...BASE, id: "a", company: std },
+        { ...BASE, id: "b", isPublic: true, company: std },
+      ]);
+      r.prisma.companyItem.count.mockResolvedValue(PRODUCT_LIMITS.STANDART);
+      const out = await r.svc.approveMany(["a", "b"], "adm1");
+      // "a" vitrinde değil → tavan dolu, atlanır; "b" zaten vitrinde → güncelleme onayı tavana dokunmaz.
+      expect(out.approved).toBe(1);
+      expect(out.skipped).toEqual([
+        { id: "a", reason: expect.stringMatching(new RegExp(`tavanı dolu \\(${PRODUCT_LIMITS.STANDART}\\)`)) },
+      ]);
+      expect(r.prisma.companyItem.updateMany).toHaveBeenCalledTimes(1);
+      expect(r.prisma.companyItem.updateMany.mock.calls[0][0].where).toEqual({ id: "b", reviewStatus: "PENDING" });
     });
 
     it("yinelenen id tavanı ve sayımı şişirmez", async () => {

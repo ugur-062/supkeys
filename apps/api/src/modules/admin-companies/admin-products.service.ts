@@ -1,9 +1,11 @@
 import { i18nMessage } from "../../common/i18n/http-i18n";
+import { tApi } from "../../common/i18n/i18n.service";
 import { BadRequestException, Injectable, NotFoundException, Optional } from "@nestjs/common";
 import { Prisma, type ProductReviewStatus } from "@rothern/db";
-import { productPath } from "@rothern/shared";
+import { PRODUCT_LIMITS, productPath } from "@rothern/shared";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { resolveCategoryAttributes } from "../../common/company/category-attributes";
+import { effectiveTier } from "../../common/company/effective-tier";
 import { AuditService } from "../audit/audit.service";
 import { SeoIndexService } from "../seo-index/seo-index.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
@@ -67,6 +69,7 @@ const PRODUCT_SELECT = {
       city: true,
       country: true,
       tier: true,
+      membershipEndAt: true,
       companyVerificationStatus: true,
       isBlocked: true,
     },
@@ -249,17 +252,10 @@ export class AdminProductsService {
     if (r.reviewStatus !== "PENDING") throw new BadRequestException(i18nMessage("api.adminCompanies.yalnizOnayBekleyenUrunOnaylanabilir"));
     if (!r.slug) throw new BadRequestException(i18nMessage("api.adminCompanies.urununUrlParcasiSlugYokFirma"));
     const now = new Date();
-    const done = await this.prisma.companyItem.updateMany({
-      where: { id, reviewStatus: "PENDING" },
-      data: {
-        reviewStatus: "APPROVED",
-        isPublic: true,
-        publishedAt: r.publishedAt ?? now,
-        reviewedAt: now,
-        reviewedByAdminId: adminId,
-        rejectReason: null,
-      },
-    });
+    const done = await this.markApproved(r, adminId, now);
+    if (done.limit != null) {
+      throw new BadRequestException(i18nMessage("api.adminCompanies.firmaninUrunTavaniDolu", { limit: done.limit }));
+    }
     if (done.count !== 1) throw new BadRequestException(i18nMessage("api.adminCompanies.urunDurumuDegistiSayfayiYenileyin"));
     await this.audit.log({
       action: "admin.product.approved",
@@ -288,6 +284,53 @@ export class AdminProductsService {
       cta: { labelKey: "api.notifications.adminProducts.urunuGor", path },
     });
     return { ok: true };
+  }
+
+  /**
+   * Onay yazımı + PAKET ÜRÜN TAVANI (derin denetim MU-13).
+   *
+   * Firma tarafı tavanı yalnız kuyruğa GİRİŞTE uygular (`publish`). Paketi
+   * düşen firmada (lazy efektif kademe — 03:00 cron'u beklenmez) kuyrukta
+   * kalmış ürün onaylanınca ücretsiz tavan aşılıyordu. Vitrinde OLMAYAN ürün
+   * yayına alınırken firmanın efektif kademesine göre yayındaki ürün sayısı
+   * sayılır; tavan doluysa yazılmaz, ürün PENDING kalır (cron / `setTier`
+   * `enforceProductLimit` ile taslağa çeker; firma paket alırsa onaylanır).
+   * Sayım ve yazma `publish` ile AYNI firma kilidi altında (advisory xact
+   * lock) — eşzamanlı onay ile "onaya gönder" tavanı birlikte aşamaz.
+   * Zaten vitrindeki ürünün güncelleme onayı tavana dokunmaz.
+   */
+  private async markApproved(
+    r: Row,
+    adminId: string,
+    now: Date,
+  ): Promise<{ count: number; limit: number | null }> {
+    const write = (db: Pick<Prisma.TransactionClient, "companyItem">) =>
+      db.companyItem.updateMany({
+        where: { id: r.id, reviewStatus: "PENDING" },
+        data: {
+          reviewStatus: "APPROVED",
+          isPublic: true,
+          publishedAt: r.publishedAt ?? now,
+          reviewedAt: now,
+          reviewedByAdminId: adminId,
+          rejectReason: null,
+        },
+      });
+    const limit =
+      PRODUCT_LIMITS[effectiveTier(r.company.tier, r.company.membershipEndAt)] ?? null;
+    if (limit == null || r.isPublic || !r.isActive) {
+      const done = await write(this.prisma);
+      return { count: done.count, limit: null };
+    }
+    return this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${r.company.id}))`;
+      const published = await tx.companyItem.count({
+        where: { companyId: r.company.id, isActive: true, isPublic: true, id: { not: r.id } },
+      });
+      if (published >= limit) return { count: 0, limit };
+      const done = await write(tx);
+      return { count: done.count, limit: null };
+    });
   }
 
   /**
@@ -333,17 +376,11 @@ export class AdminProductsService {
         atlanan.push({ id, reason: "URL parçası (slug) yok" });
         continue;
       }
-      const done = await this.prisma.companyItem.updateMany({
-        where: { id, reviewStatus: "PENDING" },
-        data: {
-          reviewStatus: "APPROVED",
-          isPublic: true,
-          publishedAt: r.publishedAt ?? now,
-          reviewedAt: now,
-          reviewedByAdminId: adminId,
-          rejectReason: null,
-        },
-      });
+      const done = await this.markApproved(r, adminId, now);
+      if (done.limit != null) {
+        atlanan.push({ id, reason: tApi("api.adminCompanies.firmaninUrunTavaniDolu", { limit: done.limit }) });
+        continue;
+      }
       if (done.count !== 1) {
         atlanan.push({ id, reason: "Durum az önce değişti" });
         continue;

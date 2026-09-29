@@ -231,4 +231,50 @@ describe("ücretsiz vitrin — tavan atlatma ve kademe düşüşü (denetim 2026
     expect(dropped).toHaveLength(2);
     expect(dropped.every((d) => !d.isPublic && d.isActive && d.slug)).toBe(true);
   });
+
+  it("enforceProductLimit: ONAY BEKLEYEN ürünler de tavana sayılır; tavan dışındaki bekleyen inceleme TASLAĞA düşer (derin denetim MU-13)", async () => {
+    const co = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    const tavan = PRODUCT_LIMITS.STANDART!;
+    const yayinda = tavan - 2;
+    const publicIds: string[] = [];
+    for (let i = 0; i < yayinda; i += 1) {
+      const d = await draftProduct(co.company.id, co.user.id, {
+        isPublic: true,
+        reviewStatus: "APPROVED",
+        publishedAt: new Date(Date.now() - i * 1000),
+        slug: `pub-${i}`,
+        completionScore: 10,
+      });
+      publicIds.push(d.id);
+    }
+    // Vitrindeki bir ürünün güncellemesi incelemede ("yayında·incelemede").
+    await prisma.companyItem.update({ where: { id: publicIds[0] }, data: { reviewStatus: "PENDING", submittedAt: new Date() } });
+    // Kuyrukta 5 ürün (vitrinde değil) — skoru yüksek olsa da yayındakiler önce tutulur.
+    const pendingIds: string[] = [];
+    for (let i = 0; i < 5; i += 1) {
+      const d = await draftProduct(co.company.id, co.user.id, {
+        reviewStatus: "PENDING",
+        submittedAt: new Date(),
+        slug: `pend-${i}`,
+        completionScore: 100 - i,
+      });
+      pendingIds.push(d.id);
+    }
+    const r = await enforceProductLimit(prisma, co.company.id, "STANDART");
+    expect(r).toMatchObject({ unpublished: 3, kept: tavan, limit: tavan });
+    // Yayındakilerin hepsi kaldı, kuyruktan en iyi 2 ürün kaldı.
+    const pub = await prisma.companyItem.count({ where: { id: { in: publicIds }, isPublic: true } });
+    expect(pub).toBe(yayinda);
+    const kept = await prisma.companyItem.findMany({ where: { id: { in: pendingIds }, reviewStatus: "PENDING" }, select: { id: true } });
+    expect(kept.map((x) => x.id).sort()).toEqual(pendingIds.slice(0, 2).sort());
+    const dropped = await prisma.companyItem.findMany({
+      where: { id: { in: pendingIds.slice(2) } },
+      select: { isPublic: true, reviewStatus: true, submittedAt: true, slug: true },
+    });
+    expect(dropped.every((d) => !d.isPublic && d.reviewStatus === "DRAFT" && d.submittedAt === null && d.slug)).toBe(true);
+    const occupied = await prisma.companyItem.count({
+      where: { companyId: co.company.id, isActive: true, OR: [{ isPublic: true }, { reviewStatus: "PENDING" }] },
+    });
+    expect(occupied).toBe(tavan);
+  });
 });
