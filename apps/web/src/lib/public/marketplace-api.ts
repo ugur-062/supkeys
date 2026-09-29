@@ -218,7 +218,11 @@ function unavailable(path: string, detail: string, err?: unknown): void {
   if (!isBuildPhase()) throw new PublicApiUnavailableError(path, detail);
 }
 
-/** API 2xx dışı yanıt — `loadPublicJson` içinden atılır (veri önbelleğine girmesin). */
+/**
+ * API 2xx dışı yanıt. 404 dışındakiler `fetchPublicJson` içinden atılır (veri
+ * önbelleğine girmesin); 404 önbellekten `NOT_FOUND` işareti olarak çıkınca
+ * `loadPublicJson` bunu atar — çağıranlar tek yoldan karar verir.
+ */
 class UpstreamHttpError extends Error {
   constructor(readonly status: number) {
     super(`HTTP ${status}`);
@@ -226,9 +230,22 @@ class UpstreamHttpError extends Error {
   }
 }
 
-/** Tek API okuması (her zaman no-store): 2xx dışı → `UpstreamHttpError`, ağ hatası aynen. */
-async function fetchPublicJson<T>(url: string, headers: Record<string, string>): Promise<T> {
+/**
+ * 404'ün önbelleğe yazılan DEĞER karşılığı (JSON'a dönüşür; API gövdesinde bu
+ * anahtar yok). Neden atılmıyor: bkz. `loadPublicJson`.
+ */
+const NOT_FOUND_KEY = "__rothernPublicNotFound";
+type NotFoundMark = { [NOT_FOUND_KEY]: true };
+const isNotFoundMark = (v: unknown): v is NotFoundMark =>
+  typeof v === "object" && v !== null && (v as Record<string, unknown>)[NOT_FOUND_KEY] === true;
+
+/**
+ * Tek API okuması (her zaman no-store): 404 → `NotFoundMark` (değer), diğer 2xx
+ * dışı → `UpstreamHttpError`, ağ hatası aynen.
+ */
+async function fetchPublicJson<T>(url: string, headers: Record<string, string>): Promise<T | NotFoundMark> {
   const res = await fetch(url, { cache: "no-store", headers });
+  if (res.status === 404) return { [NOT_FOUND_KEY]: true };
   if (!res.ok) throw new UpstreamHttpError(res.status);
   return (await res.json()) as T;
 }
@@ -244,9 +261,21 @@ async function fetchPublicJson<T>(url: string, headers: Record<string, string>):
  * (URL, dil) anahtarında tutulur, aynı `revalidate`/`tags` ile: `revalidateTag`,
  * `revalidatePath` (örtük yol etiketleri) ve ISR sayfasına etiket/süre aktarımı
  * `fetch` ile aynı. İçerideki çağrı no-store; ziyaretçi IP'si yalnız GERÇEK
- * ıskalamada API'ye gider ve anahtara hiç girmez. 2xx dışı yanıt ATILIR →
- * önbelleğe girmez (`fetch` önbelleği de yalnız 200 yazıyordu); yedek/hata kararı
- * çağırana kalır. `fresh` (sahibin önizlemesi) önbelleği tamamen atlar.
+ * ıskalamada API'ye gider ve anahtara hiç girmez. `fresh` (sahibin önizlemesi)
+ * önbelleği tamamen atlar. Yedek/hata kararı çağırana kalır.
+ *
+ * 404 ÖNBELLEĞE DEĞER OLARAK YAZILIR, KESİNTİ ATILIR (RM-12 gözden geçirme).
+ * Next `unstable_cache`, girdi bayatken ISR yenilemesinde (`isRevalidate`) geri
+ * çağrıyı bekler ama geri çağrı ATARSA hatayı yutup BAYAT gövdeyi döner. Eski
+ * `fetch` yolu ise gerçek 404'ü geçiriyordu. 404 atılsaydı gizlenen/silinen
+ * ilan ya da ürün (ya da yayını kapanan firma, `MarketplaceLiveGuard`)
+ * SEO etiket kancası (API `SeoIndexService`, en iyi çaba) kaçtığında her
+ * yenilemede eski veriyle çizilir, `notFound()` hiç olmazdı. Bu yüzden 404
+ * `NOT_FOUND` işareti olarak aynı etiket/süreyle yazılır ve burada
+ * `UpstreamHttpError(404)`e çevrilir. 5xx/429/ağ hatası atılmaya devam eder →
+ * bayat girdi (son iyi kopya) kalır (B1-1). Bedel: var olmayan slug'lar da
+ * (URL, dil) başına küçük bir negatif girdi yazar. Keyfi `q` içeren liste
+ * çağrıları zaten sınırsız anahtar üretiyordu, yeni bir sınıf açılmaz.
  */
 async function loadPublicJson<T>(
   path: string,
@@ -254,11 +283,14 @@ async function loadPublicJson<T>(
 ): Promise<T> {
   const url = `${resolveApiBaseUrl()}${path}`;
   const headers = await publicHeaders(opts.locale);
-  if (opts.fresh) return fetchPublicJson<T>(url, headers);
-  return unstable_cache(() => fetchPublicJson<T>(url, headers), ["pazar-yeri", url, headers["accept-language"]], {
-    revalidate: opts.revalidate,
-    tags: opts.tags,
-  })();
+  const value = opts.fresh
+    ? await fetchPublicJson<T>(url, headers)
+    : await unstable_cache(() => fetchPublicJson<T>(url, headers), ["pazar-yeri", url, headers["accept-language"]], {
+        revalidate: opts.revalidate,
+        tags: opts.tags,
+      })();
+  if (isNotFoundMark(value)) throw new UpstreamHttpError(404);
+  return value;
 }
 
 async function getJson<T>(

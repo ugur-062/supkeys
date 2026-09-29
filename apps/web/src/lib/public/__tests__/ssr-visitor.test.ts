@@ -116,12 +116,18 @@ describe("ssr-visitor", () => {
     }
   });
 
-  it("detay çağrısı: etiketler unstable_cache'e, 404 önbelleğe YAZILMAZ (içeride atılır)", async () => {
-    const { fetchListing } = await visit("203.0.113.7");
+  it("detay çağrısı: etiketler unstable_cache'e; 404 değer olarak yazılır, 503 atılır", async () => {
+    const { fetchListing, PublicApiUnavailableError } = await visit("203.0.113.7");
     fetchMock.mockResolvedValue({ ok: false, status: 404, json: async () => ({}) });
     expect(await fetchListing("rot-000001")).toBeNull();
     expect(cacheCalls[0].opts).toEqual({ revalidate: 120, tags: ["listing:rot-000001", "seo:listings"] });
-    expect(await cacheCalls[0].outcome).toBe("thrown");
+    // ISR yenilemesinde atılan hata bayat gövdeyle yutulur → 404 değer olmalı
+    // (bkz. stale-regeneration.test.ts).
+    expect(await cacheCalls[0].outcome).toBe("ok");
+    vi.spyOn(console, "error").mockImplementation(() => {});
+    fetchMock.mockResolvedValue({ ok: false, status: 503, json: async () => ({}) });
+    await expect(fetchListing("rot-000002")).rejects.toBeInstanceOf(PublicApiUnavailableError);
+    expect(await cacheCalls[1].outcome).toBe("thrown");
   });
 
   it("fresh (önizleme): önbellek tamamen atlanır, IP gider", async () => {
