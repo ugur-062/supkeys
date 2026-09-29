@@ -14,13 +14,13 @@ import {
 import { Type } from "class-transformer";
 import { FOREIGN_CURRENCY_CODES } from "@rothern/shared";
 import {
-  IsEmail,
   IsIn,
   IsNumber,
   IsOptional,
   IsPositive,
   IsString,
   Max,
+  Matches,
   MaxLength,
   Min,
 } from "class-validator";
@@ -59,8 +59,12 @@ class ManualRateDto {
 }
 
 class ClearSuppressionDto {
-  @IsEmail()
-  @MaxLength(200)
+  // Derin denetim LU-04: IsEmail DEĞİL — liste EmailLog.toEmail'deki ham adresi
+  // gösterir; doğrulanmadan yazılmış eski bir adres (billingEmail) de
+  // aklanabilmeli. Boş/boşluk-only reddedilir.
+  @IsString()
+  @MaxLength(320)
+  @Matches(/\S/)
   email!: string;
 }
 
@@ -233,19 +237,10 @@ export class AdminSystemController {
     @Body() dto: ClearSuppressionDto,
     @CurrentAdmin() admin: AuthenticatedAdmin,
   ) {
-    const email = dto.email.trim().toLowerCase();
-    await this.prisma.emailLog.create({
-      data: {
-        template: "suppression_clear",
-        toEmail: email,
-        subject: "suppression clear (admin)",
-        provider: "internal",
-        status: "SENT",
-        sentAt: new Date(),
-        contextType: "suppression_clear",
-        contextId: admin.id,
-      },
-    });
+    // Derin denetim LU-04: marker kayıtlardaki her büyük/küçük harf yazımı
+    // için yazılır (eşleşme birebir) — tek kaynak EmailSuppressionService.
+    const email = dto.email.trim();
+    await this.suppression.clear(email, admin.id);
     await this.audit.log({
       action: "admin.system.suppression_cleared",
       actorType: "admin",

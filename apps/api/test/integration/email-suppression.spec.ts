@@ -108,6 +108,26 @@ describe("EmailSuppressionService.getSuppressionStatus", () => {
   });
 });
 
+describe("EmailSuppressionService.clear (derin denetim LU-04)", () => {
+  it("büyük harfli kayıtlı adres: küçük harfle girilse de aklanır (marker her yazıma)", async () => {
+    await bounce("Info@Firma.com", { at: D.t1 });
+    expect((await svc.getSuppressionStatus(["Info@Firma.com"])).size).toBe(1);
+
+    const targets = await svc.clear("  info@firma.com ", "admin-1");
+    expect(targets).toEqual(expect.arrayContaining(["info@firma.com", "Info@Firma.com"]));
+    expect((await svc.getSuppressionStatus(["Info@Firma.com"])).size).toBe(0);
+    expect(await svc.listSuppressed()).toHaveLength(0);
+  });
+
+  it("listede görünen ham adresle aklama da çalışır; başka adrese dokunmaz", async () => {
+    await bounce("Info@Firma.com", { at: D.t1 });
+    await bounce("other@firma.com", { at: D.t1 });
+    await svc.clear("Info@Firma.com", "admin-1");
+    const left = await svc.listSuppressed();
+    expect(left.map((r) => r.email)).toEqual(["other@firma.com"]);
+  });
+});
+
 describe("admin firma detayı — suppressions rozeti", () => {
   function adminService() {
     const storage = {

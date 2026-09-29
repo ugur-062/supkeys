@@ -61,4 +61,30 @@ describe("AdminGrowthService.inviteReport", () => {
     // Kişisel veri yok.
     expect(JSON.stringify(r)).not.toMatch(/@x\./);
   });
+
+  it("aynı adrese iki alıcıdan davet: teklif veren firma başına sayılır (quoted ≤ signedUp)", async () => {
+    const supplier = await makeCompanyWithUser(prisma);
+    for (let i = 0; i < 2; i++) {
+      const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+      const listing = await makeListing(prisma, { companyId: buyer.company.id, createdById: buyer.user.id, status: "OPEN" });
+      const ref = await prisma.companyReferralInvite.create({
+        data: {
+          inviterCompanyId: buyer.company.id,
+          email: "same@x.it",
+          invitedById: buyer.user.id,
+          status: "ACCEPTED",
+          acceptedAt: new Date(),
+          acceptedCompanyId: supplier.company.id,
+        },
+      });
+      await prisma.externalListingInvite.create({
+        data: { listingId: listing.id, inviterCompanyId: buyer.company.id, referralInviteId: ref.id, email: "same@x.it", locale: "tr", source: "MANUAL", state: "SENT" },
+      });
+      await makeBid(prisma, { listingId: listing.id, bidderCompanyId: supplier.company.id, createdById: supplier.user.id, amount: 10, status: "SUBMITTED" });
+    }
+    const svc = new AdminGrowthService(prisma as never, { capStatus: async () => ({ cap: 150, braked: null, sentToday: 0 }) } as never);
+    const r = await svc.inviteReport(30);
+    expect(r.funnel.signedUp).toBe(1);
+    expect(r.funnel.quoted).toBe(1);
+  });
 });

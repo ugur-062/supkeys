@@ -95,21 +95,30 @@ export class AdminGrowthService {
     ]);
 
     // Teklif veren: davetle kayıt olmuş firmanın, davet edildiği taleplerden
-    // birine gönderilmiş (taslak olmayan) teklifi.
-    const acceptedCompanies = accepted.filter((a) => a.acceptedCompanyId);
+    // birine gönderilmiş (taslak olmayan) teklifi. FİRMA başına sayılır (derin
+    // denetim LU-04): aynı adrese birden çok alıcı davet gönderdiyse kabulde
+    // hepsi aynı firmaya bağlanır — davet başına sayım `quoted > signedUp`
+    // üretiyordu. Firmanın tüm davet talepleri birleştirilip tek sorgu atılır.
+    const listingsByCompany = new Map<string, Set<string>>();
+    for (const a of accepted) {
+      if (!a.acceptedCompanyId) continue;
+      const set = listingsByCompany.get(a.acceptedCompanyId) ?? new Set<string>();
+      for (const l of a.listingInvites) set.add(l.listingId);
+      listingsByCompany.set(a.acceptedCompanyId, set);
+    }
     const quotedFlags = await Promise.all(
-      acceptedCompanies.map(async (a) => {
+      [...listingsByCompany].map(async ([companyId, listingIds]) => {
         const n = await this.prisma.listingBid.count({
           where: {
-            bidderCompanyId: a.acceptedCompanyId!,
-            listingId: { in: a.listingInvites.map((l) => l.listingId) },
+            bidderCompanyId: companyId,
+            listingId: { in: [...listingIds] },
             status: { not: "DRAFT" },
           },
         });
         return n > 0;
       }),
     );
-    const signedUp = new Set(acceptedCompanies.map((a) => a.acceptedCompanyId)).size;
+    const signedUp = listingsByCompany.size;
     const quoted = quotedFlags.filter(Boolean).length;
     const rate = (n: number, d: number) => (d > 0 ? Math.round((n / d) * 10_000) / 100 : 0);
 
