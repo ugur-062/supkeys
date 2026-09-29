@@ -7,6 +7,11 @@ export interface AuthAdmin {
   lastName: string;
   role: AdminRole;
   twoFactorEnabled?: boolean;
+  /**
+   * Rol 2FA zorunlu (API `ADMIN_2FA_REQUIRED_ROLES`) ve 2FA henüz kurulmamış.
+   * true iken API yalnız /me + 2FA kurulum uçlarını açar; panel Ayarlar'a kilitlenir.
+   */
+  twoFactorSetupRequired?: boolean;
 }
 
 export interface AdminAuthResponse {

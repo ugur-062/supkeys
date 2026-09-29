@@ -68,6 +68,19 @@ describe("AdminLoginForm", () => {
     expect(h.push).toHaveBeenCalledWith("/admin/dashboard");
   });
 
+  it("2FA zorunlu ama kurulmamış (MU-01) → doğrudan /admin/settings'e yönlenir", async () => {
+    const user = userEvent.setup();
+    h.mutate.mockImplementation((_values, opts) =>
+      opts.onSuccess({
+        admin: { firstName: "Ada", twoFactorSetupRequired: true },
+      }),
+    );
+    render(<AdminLoginForm />);
+    await submit(user);
+
+    expect(h.push).toHaveBeenCalledWith("/admin/settings");
+  });
+
   it("axios hatası → sunucu mesajıyla toast.error, yönlendirme yok", async () => {
     const user = userEvent.setup();
     h.mutate.mockImplementation((_values, opts) =>

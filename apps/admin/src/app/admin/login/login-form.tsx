@@ -49,7 +49,12 @@ export function AdminLoginForm() {
       {
       onSuccess: (data) => {
         toast.success(`Hoş geldiniz, ${data.admin.firstName}`);
-        router.push("/admin/dashboard");
+        // 2FA zorunlu ama kurulmamış (MU-01) → doğrudan kurulum ekranı.
+        router.push(
+          data.admin.twoFactorSetupRequired
+            ? "/admin/settings"
+            : "/admin/dashboard",
+        );
       },
       onError: (err) => {
         if (axios.isAxiosError(err)) {
