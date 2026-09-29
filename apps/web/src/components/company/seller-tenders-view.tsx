@@ -248,11 +248,14 @@ function RequestList({
               />
             ) : (
               <>
-                <div className="space-y-2" role="table" aria-label={tr("listesi", { noun: t.searchNoun })}>
+                {/* `role="table"` KALDIRILDI (yayın denetimi 2026-09-28 Bölüm 12 —
+                    IhaleListView'deki 2026-09-12 düzeltmesinin eşi): satırlar kart,
+                    ARIA tablosu `row` çocuk ister → axe KRİTİK ihlal. */}
+                <section className="space-y-2" aria-label={tr("listesi", { noun: t.searchNoun })}>
                   {pageRows.map((row) => (
                     <BrowseTenderRow key={row.id} t={row} />
                   ))}
-                </div>
+                </section>
                 {totalPages > 1 ? (
                   <Pagination
                     page={safePage}

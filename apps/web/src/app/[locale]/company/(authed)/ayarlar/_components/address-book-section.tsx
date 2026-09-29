@@ -91,7 +91,9 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
           {t("henuzKayitliAdresYokFatura")}
         </Text>
       ) : (
-        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+        // grid-cols-1 = minmax(0,1fr): örtük sütun en geniş içeriğe göre
+        // büyüyüp 375 px'te kartları taşırıyordu (yayın denetimi Bölüm 12).
+        <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-2">
           {/* Sıra: tip (Fatura → Teslimat → İletişim), tip içinde varsayılan önce. */}
           {[...addresses]
             .sort(
@@ -102,7 +104,7 @@ export function AddressBookSection({ canManage }: { canManage: boolean }) {
             .map((a) => (
             <div
               key={a.id}
-              className="rounded-lg border border-zinc-200 p-4"
+              className="min-w-0 rounded-lg border border-zinc-200 p-4"
             >
               {/* C35: başlık kendi satırında (uzun ad rozet/aksiyonla
                   yarışıp 3 satıra kırılıyordu); rozetler ikinci satırda.

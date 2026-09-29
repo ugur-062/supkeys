@@ -68,14 +68,16 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
 
 function Item({ href, label, count }: { href: string; label: string; count: number }) {
   return (
-    <li>
+    <li className="max-w-full">
       <Link
         href={href}
-        className="inline-flex items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-sm text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-950"
+        className="inline-flex max-w-full items-center gap-1.5 rounded-lg border border-zinc-200 bg-white px-2.5 py-1.5 text-sm text-zinc-700 transition hover:border-zinc-400 hover:text-zinc-950"
       >
         {/* Tam genişlikte akan şeritte daha uzun ada yer var; yine de
-            tavan kalır — tek bir uzun ad satırı tek başına yemesin. */}
-        <span className="max-w-[22rem] truncate">{label}</span>
+            tavan kalır — tek bir uzun ad satırı tek başına yemesin. Dar
+            ekranda kapsayıcıyı AŞMAZ (375 px'te 22rem + sayaç taşıyordu —
+            yayın denetimi 2026-09-28 Bölüm 12). */}
+        <span className="min-w-0 max-w-[22rem] truncate">{label}</span>
         <span className="tnum text-xs text-zinc-500">{count}</span>
       </Link>
     </li>

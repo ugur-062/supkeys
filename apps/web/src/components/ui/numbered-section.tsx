@@ -26,7 +26,9 @@ export function NumberedSection({
 }) {
   return (
     <section id={id} aria-labelledby={id ? `${id}-baslik` : undefined} className={cn("scroll-mt-28", className)}>
-      <div className="mb-3 flex items-start justify-between gap-3">
+      {/* Dar ekranda durum rozeti başlığın altına iner (uzun özet 375 px'te
+          sayfayı 502 px'e genişletiyordu — yayın denetimi 2026-09-28 Bölüm 12). */}
+      <div className="mb-3 flex flex-wrap items-start justify-between gap-3">
         <div className="flex items-start gap-3">
           <span
             aria-hidden
@@ -44,7 +46,7 @@ export function NumberedSection({
             {lead ? <p className="mt-0.5 text-xs/5 text-zinc-500">{lead}</p> : null}
           </div>
         </div>
-        {status ? <div className="shrink-0 text-xs text-zinc-500">{status}</div> : null}
+        {status ? <div className="min-w-0 max-w-full text-xs text-zinc-500">{status}</div> : null}
       </div>
       <div className="rounded-2xl bg-white p-5 shadow-sm ring-1 ring-zinc-950/5 sm:p-6">{children}</div>
     </section>

@@ -639,15 +639,17 @@ export function QuickRequest({
                 </p>
               ) : null}
               {/* AI-1 — belgeden doldurma girişi (sihirbaz sayfasındaki kartın aynısı) */}
-              <div className="flex items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
+              {/* Dar ekranda düğme alta, tam genişlik (375 px'te metin ~50 px'lik
+                  sütuna sıkışıyordu — yayın denetimi Bölüm 12). */}
+              <div className="flex flex-wrap items-center gap-3 rounded-2xl border border-zinc-200 bg-white p-4 shadow-sm">
                 <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
                   <Sparkles className="h-5 w-5" />
                 </div>
-                <div className="min-w-0 flex-1">
+                <div className="min-w-[12rem] flex-1">
                   <p className="text-sm font-semibold text-zinc-900">{tr("belgedenOtomatikDoldur")}</p>
                   <p className="text-xs text-zinc-500">{tr("sartnameTeklifTalebiVeyaFotograf")}</p>
                 </div>
-                <Button variant="primary" onClick={() => setDocOpen(true)}>
+                <Button variant="primary" className="w-full sm:w-auto" onClick={() => setDocOpen(true)}>
                   <Sparkles className="h-4 w-4" />
                   {tr("belgedenDoldur")}
                 </Button>
@@ -1135,8 +1137,8 @@ export function QuickRequest({
 
 function Done({ children }: { children: React.ReactNode }) {
   return (
-    <span className="inline-flex items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 ring-1 ring-emerald-600/20">
-      <CheckIcon aria-hidden className="size-3" /> {children}
+    <span className="inline-flex max-w-full items-center gap-1 rounded-full bg-emerald-50 px-2 py-0.5 text-[11px] font-medium text-emerald-800 ring-1 ring-emerald-600/20">
+      <CheckIcon aria-hidden className="size-3 shrink-0" /> <span className="truncate">{children}</span>
     </span>
   );
 }

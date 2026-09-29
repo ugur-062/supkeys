@@ -351,7 +351,8 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
   it("satırda seçim kutusu YOK (kaldırıldı, 2026-08-03) — kutular yalnız kenar süzgecinde", () => {
     h.rows = [row()];
     render(<SellerTendersView />);
-    expect(within(screen.getByRole("table")).queryByRole("checkbox")).toBeNull();
+    // Liste artık adlandırılmış <section> (role="table" axe KRİTİK ihlaldi — yayın denetimi Bölüm 12).
+    expect(within(screen.getByRole("region", { name: /listesi/i })).queryByRole("checkbox")).toBeNull();
     expect(screen.queryByText("Tümünü seç")).not.toBeInTheDocument();
   });
 
