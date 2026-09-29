@@ -23104,6 +23104,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.page.desteklenmeyenDosyaTuru": {
+    "hash": "5c8531072d",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.requests.page.dogrulanmamisFirma": {
     "hash": "5a6a1416b2",
     "status": "reviewed",
@@ -23168,6 +23173,11 @@
     "hash": "049cfda6a8",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.page.elenmisTeklifBelgeKaldirmakIcinTaslak": {
+    "hash": "b70d7c10f3",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.elensinMiYenidenTeklifVerebilir": {
     "hash": "9b5b558e91",
@@ -23928,6 +23938,11 @@
     "hash": "c3afa88f18",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.page.pazarliktaGonderilmisTeklifinBelgeleriDegismez": {
+    "hash": "45e9b60629",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.pazarliktaOncedenFiyatladiginizKalemBirakila": {
     "hash": "438d198112",

@@ -76,6 +76,22 @@ import {
   unitStep,
 } from "@/lib/tenders/distribute";
 
+/**
+ * Teklif belgesi türleri — API `company-bid-documents.service.ts`
+ * `ALLOWED_MIME` ile birebir (yükleme URL'si isteği bu listeyle süzülür).
+ * `accept` dosya seçiciyi daraltır; sürükle-bırak onu atladığı için
+ * `addFiles` ayrıca MIME'a bakar (derin denetim Y-15).
+ */
+const BID_DOC_MIME_TYPES = new Set([
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+]);
+const BID_DOC_ACCEPT = ".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls";
+
 /** Kalem başına form durumu. null fiyat = "bu kaleme teklif verme". */
 interface ItemState {
   price: string | null;
@@ -214,6 +230,17 @@ export default function TeklifVerPage() {
   >([]);
   // Sürükle-bırak alanı görsel geri bildirimi.
   const [dragActive, setDragActive] = useState(false);
+  // Gönderim akışının evresi (derin denetim Y-15). Durum ekranı YALNIZ
+  // "Teklif Gönder" akışına bağlı: eskiden `placeBid.isSuccess`e bakılıyordu;
+  // dosyalı ilk teklifte önce kaydedilen TASLAK bayrağı true yapıyor, ardından
+  // dosya yüklemesi düşünce ekran "gönderildi"de takılıyor, teklif DRAFT
+  // kalıyordu. "sending" → taslak/yükleme/gönderim sürüyor; "sent" → son
+  // gönderim başarılı (yönlendirme bekleniyor). Hata → "idle", form geri gelir.
+  const [submitPhase, setSubmitPhase] = useState<"idle" | "sending" | "sent">(
+    "idle",
+  );
+  // "Taslak kaydet" akışı (kayıt + dosya yükleme) sürerken düğmeler kilitli.
+  const [savingDraft, setSavingDraft] = useState(false);
 
   // WS: canlı eksiltme — rakip teklifi anında yansısın.
   useEffect(() => subscribeRealtime("listing", id), [id]);
@@ -281,7 +308,18 @@ export default function TeklifVerPage() {
 
   // Dosya ekleme — dropzone ve dosya seçici ortak kullanır. Yeni dosyalar
   // varsayılan "Teklif Mektubu" kategorisiyle gelir; kullanıcı satırdan değiştirir.
-  const addFiles = (files: File[]) => {
+  const addFiles = (incoming: File[]) => {
+    // Tür süzgeci: sürükle-bırak `accept`i atlar; sunucunun kabul etmediği tür
+    // (.docx, .heic…) gönderimde 400 alıp teklifi yarıda bırakıyordu.
+    const badType = incoming.filter((f) => !BID_DOC_MIME_TYPES.has(f.type));
+    if (badType.length) {
+      toast.error(
+        tr("desteklenmeyenDosyaTuru", {
+          join: badType.map((f) => f.name).join(", "),
+        }),
+      );
+    }
+    const files = incoming.filter((f) => BID_DOC_MIME_TYPES.has(f.type));
     const MAX = 50 * 1024 * 1024;
     const tooBig = files.filter((f) => f.size > MAX);
     if (tooBig.length) {
@@ -518,11 +556,13 @@ export default function TeklifVerPage() {
   // yazımı isSuccess bayrağından ÖNCE ulaşır — aşağıdaki kapılar (zaten
   // verildi / tur hakkı doldu) router.push tamamlanmadan devreye girip
   // "Satın Alma Talebi Detayına Dön" ekranı flaşlıyordu. Pending dahil tek durum
-  // ekranı göster; dönüş otomatik.
-  if (placeBid.isPending || placeBid.isSuccess) {
+  // ekranı göster; dönüş otomatik. Ekran mutasyon bayrağına DEĞİL gönderim
+  // akışının evresine bağlı (Y-15): taslak adımı başarılı olup yükleme
+  // düşerse akış "idle"a döner ve form (bekleyen dosyalarla) yeniden görünür.
+  if (submitPhase !== "idle") {
     return (
       <div className="mx-auto max-w-xl px-4 py-16 text-center text-sm text-zinc-500">
-        {placeBid.isSuccess
+        {submitPhase === "sent"
           ? tr("teklifinGonderildiSatinAlmaTalebi")
           : tr("teklifinGonderiliyor")}
       </div>
@@ -933,6 +973,7 @@ export default function TeklifVerPage() {
   });
 
   const saveDraft = async () => {
+    setSavingDraft(true);
     try {
       await placeBid.mutateAsync(buildPayload(true));
       const up = await uploadStaged();
@@ -946,6 +987,8 @@ export default function TeklifVerPage() {
       }
     } catch (err) {
       toast.error(extractErrorMessage(err, tr("taslakKaydedilemedi")));
+    } finally {
+      setSavingDraft(false);
     }
   };
 
@@ -956,24 +999,34 @@ export default function TeklifVerPage() {
    */
   const submit = async () => {
     setConfirmOpen(false);
+    setSubmitPhase("sending");
     try {
       if (stagedFiles.length > 0) {
-        // Taslak adımı yalnız hiç teklif kaydı yokken (dosyaların bağlanacağı
-        // satır oluşsun diye). Mevcut kayıt varsa atlanır — özellikle açık
-        // eksiltmede gönderilmiş teklifi DRAFT'a düşürmek yarıştan düşürürdü.
-        if (!l.myBid) {
+        // Taslak adımı hiç teklif kaydı yokken (dosyaların bağlanacağı satır
+        // oluşsun diye) ve ELENMİŞ (LOST) teklifte: sunucu belgeyi yalnız
+        // DRAFT teklife ekletir, LOST→DRAFT serbest (X22). DRAFT kayıtta
+        // gerek yok; açık eksiltmede gönderilmiş teklif DRAFT'a düşürülmez
+        // (yarıştan düşürürdü) — orada dosya alanı zaten kapalı.
+        if (!l.myBid || l.myBid.status === "LOST") {
           await placeBid.mutateAsync(buildPayload(true));
         }
         const up = await uploadStaged();
-        if (!up.ok) return; // staged korunur; kullanıcı tekrar dener
+        if (!up.ok) {
+          // Staged korunur; form geri gelir, kullanıcı tekrar dener.
+          setSubmitPhase("idle");
+          return;
+        }
       }
       await placeBid.mutateAsync(buildPayload(false));
+      setSubmitPhase("sent");
       toast.success(tr("teklifinizGonderildi"));
       router.push(detailHref);
     } catch (err) {
+      setSubmitPhase("idle");
       toast.error(extractErrorMessage(err, tr("teklifGonderilemedi")));
     }
   };
+  const busy = placeBid.isPending || savingDraft || submitPhase !== "idle";
 
   const problems = submitProblems();
   const filledRatio = hasItems
@@ -989,7 +1042,7 @@ export default function TeklifVerPage() {
       className="space-y-5"
       onSubmit={(e) => {
         e.preventDefault();
-        if (problems.length === 0 && !placeBid.isPending) {
+        if (problems.length === 0 && !busy) {
           setConfirmOpen(true);
         }
       }}
@@ -1440,45 +1493,58 @@ export default function TeklifVerPage() {
                 </p>
               ) : null}
 
-              {/* Sürükle-bırak alanı */}
-              <label
-                onDragOver={(e) => {
-                  e.preventDefault();
-                  setDragActive(true);
-                }}
-                onDragLeave={() => setDragActive(false)}
-                onDrop={(e) => {
-                  e.preventDefault();
-                  setDragActive(false);
-                  addFiles(Array.from(e.dataTransfer.files));
-                }}
-                className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${
-                  dragActive
-                    ? "border-blue-400 bg-blue-50"
-                    : "border-zinc-200 bg-zinc-50/60 hover:border-zinc-300"
-                }`}
-              >
-                <UploadCloud className="h-6 w-6 text-zinc-400" aria-hidden="true" />
-                <p className="text-sm font-medium text-zinc-700">
-                  {tr.rich("dosyalariSurukleyinYaDaSecmekIcinTiklayin", {
-                    em: (c) => <span className="text-blue-600">{c}</span>,
-                  })}
+              {/* Sürükle-bırak alanı. Pazarlıkta gönderilmiş teklifin belgeleri
+                  değiştirilemez (sunucu yalnız DRAFT teklife belge ekletir,
+                  gönderilmiş teklif de taslağa çekilemez) — alan yerine not. */}
+              {isAuctionRebid ? (
+                <p className="rounded-lg bg-zinc-50 px-3 py-2 text-xs text-zinc-600">
+                  {tr("pazarliktaGonderilmisTeklifinBelgeleriDegismez")}
                 </p>
-                <p className="text-xs text-zinc-400">
-                  {tr("pdfGorselVeyaExcelDosya")}
-                </p>
-                <input
-                  type="file"
-                  className="hidden"
-                  multiple
-                  accept=".pdf,.png,.jpg,.jpeg,.webp,.xlsx,.xls"
-                  aria-label={tr("teklifDosyasiSec")}
-                  onChange={(e) => {
-                    addFiles(Array.from(e.target.files ?? []));
-                    e.target.value = "";
+              ) : (
+                <label
+                  onDragOver={(e) => {
+                    e.preventDefault();
+                    setDragActive(true);
                   }}
-                />
-              </label>
+                  onDragLeave={() => setDragActive(false)}
+                  onDrop={(e) => {
+                    e.preventDefault();
+                    setDragActive(false);
+                    addFiles(Array.from(e.dataTransfer.files));
+                  }}
+                  className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${
+                    dragActive
+                      ? "border-blue-400 bg-blue-50"
+                      : "border-zinc-200 bg-zinc-50/60 hover:border-zinc-300"
+                  }`}
+                >
+                  <UploadCloud className="h-6 w-6 text-zinc-400" aria-hidden="true" />
+                  <p className="text-sm font-medium text-zinc-700">
+                    {tr.rich("dosyalariSurukleyinYaDaSecmekIcinTiklayin", {
+                      em: (c) => <span className="text-blue-600">{c}</span>,
+                    })}
+                  </p>
+                  <p className="text-xs text-zinc-400">
+                    {tr("pdfGorselVeyaExcelDosya")}
+                  </p>
+                  <input
+                    type="file"
+                    className="hidden"
+                    multiple
+                    accept={BID_DOC_ACCEPT}
+                    aria-label={tr("teklifDosyasiSec")}
+                    onChange={(e) => {
+                      addFiles(Array.from(e.target.files ?? []));
+                      e.target.value = "";
+                    }}
+                  />
+                </label>
+              )}
+              {isRebidAfterLoss && myDocs.length > 0 ? (
+                <p className="text-xs text-zinc-500">
+                  {tr("elenmisTeklifBelgeKaldirmakIcinTaslak")}
+                </p>
+              ) : null}
 
               {/* Dosya listesi — yüklü belgeler + gönderimde yüklenecek dosyalar */}
               {myDocs.length === 0 && stagedFiles.length === 0 ? (
@@ -1507,33 +1573,37 @@ export default function TeklifVerPage() {
                       <span className="shrink-0 text-xs font-medium text-emerald-600">
                         {tr("yuklendi")}
                       </span>
-                      <button
-                        type="button"
-                        aria-label={tr("belgesiniSil", { fileName: d.fileName })}
-                        disabled={deleteDoc.isPending}
-                        onClick={async () => {
-                          if (
-                            !(await confirm({
-                              title: tr("belgeSilinsinMi"),
-                              description: tr("kaliciOlarakSilinecek", { fileName: d.fileName }),
-                              confirmLabel: tr("sil"),
-                              destructive: true,
-                            }))
-                          )
-                            return;
-                          try {
-                            await deleteDoc.mutateAsync(d.id);
-                            toast.success(tr("belgeSilindi"));
-                          } catch (err) {
-                            toast.error(
-                              extractErrorMessage(err, tr("belgeSilinemedi")),
-                            );
-                          }
-                        }}
-                        className="shrink-0 text-zinc-400 hover:text-red-600 disabled:opacity-50"
-                      >
-                        <Trash2 className="h-4 w-4" />
-                      </button>
+                      {/* Sunucu belgeyi yalnız DRAFT teklifte siler; LOST /
+                          SUBMITTED teklifte düğme her tıkta 400 alıyordu. */}
+                      {l.myBid?.status === "DRAFT" ? (
+                        <button
+                          type="button"
+                          aria-label={tr("belgesiniSil", { fileName: d.fileName })}
+                          disabled={deleteDoc.isPending}
+                          onClick={async () => {
+                            if (
+                              !(await confirm({
+                                title: tr("belgeSilinsinMi"),
+                                description: tr("kaliciOlarakSilinecek", { fileName: d.fileName }),
+                                confirmLabel: tr("sil"),
+                                destructive: true,
+                              }))
+                            )
+                              return;
+                            try {
+                              await deleteDoc.mutateAsync(d.id);
+                              toast.success(tr("belgeSilindi"));
+                            } catch (err) {
+                              toast.error(
+                                extractErrorMessage(err, tr("belgeSilinemedi")),
+                              );
+                            }
+                          }}
+                          className="shrink-0 text-zinc-400 hover:text-red-600 disabled:opacity-50"
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </button>
+                      ) : null}
                     </li>
                   ))}
                   {stagedFiles.map((sf, i) => (
@@ -1636,7 +1706,7 @@ export default function TeklifVerPage() {
             <Button
               color="emerald"
               className="w-full"
-              disabled={problems.length > 0 || placeBid.isPending}
+              disabled={problems.length > 0 || busy}
               onClick={() => setConfirmOpen(true)}
             >
               {tr("teklifGonder")}
@@ -1647,7 +1717,7 @@ export default function TeklifVerPage() {
               <Button
                 outline
                 className="w-full"
-                disabled={placeBid.isPending}
+                disabled={busy}
                 onClick={saveDraft}
               >
                 {tr("taslakOlarakKaydet")}
@@ -1722,7 +1792,7 @@ export default function TeklifVerPage() {
         </div>
         <Button
           color="emerald"
-          disabled={problems.length > 0 || placeBid.isPending}
+          disabled={problems.length > 0 || busy}
           onClick={() => setConfirmOpen(true)}
         >
           {tr("teklifGonder")}
@@ -1773,8 +1843,8 @@ export default function TeklifVerPage() {
           <Button plain onClick={() => setConfirmOpen(false)}>
             {tr("vazgec")}
           </Button>
-          <Button color="emerald" onClick={submit} disabled={placeBid.isPending}>
-            {placeBid.isPending ? tr("gonderiliyor") : tr("teklifiGonder")}
+          <Button color="emerald" onClick={submit} disabled={busy}>
+            {busy ? tr("gonderiliyor") : tr("teklifiGonder")}
           </Button>
         </DialogActions>
       </Dialog>

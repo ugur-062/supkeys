@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { ListingDetail } from "@/hooks/use-company-listings";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -10,6 +10,10 @@ const h = vi.hoisted(() => ({
   error: null as unknown,
   isLoading: false,
   mutateAsync: vi.fn(),
+  /** Belge yükleme (useUploadBidDoc.mutateAsync). */
+  uploadAsync: vi.fn(),
+  /** useBidDocuments verisi (mevcut belgeler). */
+  docs: [] as unknown[],
   push: vi.fn(),
   toast: { success: vi.fn(), error: vi.fn() },
 }));
@@ -25,15 +29,34 @@ vi.mock("@/components/providers/confirm-dialog", () => ({
 }));
 vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
   const mod = await importOriginal<Record<string, unknown>>();
+  const React = await import("react");
   return {
     ...mod,
     useListingDetail: () => ({ data: h.detail, isLoading: h.isLoading, error: h.error }),
-    usePlaceBid: () => ({ mutateAsync: h.mutateAsync, isPending: false }),
+    // Gerçek useMutation gibi durumlu: mutateAsync başarıyla dönünce
+    // isSuccess true KALIR (reset yok) — Y-15 takılma senaryosu için şart.
+    usePlaceBid: function usePlaceBidMock() {
+      const [st, setSt] = React.useState({ isPending: false, isSuccess: false });
+      return {
+        ...st,
+        mutateAsync: async (v: unknown) => {
+          setSt({ isPending: true, isSuccess: false });
+          try {
+            const r = await h.mutateAsync(v);
+            setSt({ isPending: false, isSuccess: true });
+            return r;
+          } catch (e) {
+            setSt({ isPending: false, isSuccess: false });
+            throw e;
+          }
+        },
+      };
+    },
   };
 });
 vi.mock("@/hooks/use-bid-documents", () => ({
-  useBidDocuments: () => ({ data: [] }),
-  useUploadBidDoc: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useBidDocuments: () => ({ data: h.docs }),
+  useUploadBidDoc: () => ({ mutateAsync: h.uploadAsync, isPending: false }),
   useDeleteBidDoc: () => ({ mutate: vi.fn(), isPending: false }),
   BID_DOC_KINDS: [
     "TEKLIF_MEKTUBU",
@@ -104,6 +127,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.detail = baseDetail();
   h.isLoading = false;
+  h.docs = [];
 });
 
 describe("TeklifVerPage — kapılar", () => {
@@ -288,5 +312,173 @@ describe("TeklifVerPage — form", () => {
     // MoneyInput text-tabanlı (madde 21) — değer string olarak okunur.
     expect(screen.getByLabelText("Birim Fiyat")).toHaveValue("100");
     expect(screen.getByLabelText(/Menşei ülke/)).toHaveValue("Türkiye");
+  });
+});
+
+describe("TeklifVerPage — dosyalı gönderim (derin denetim Y-15, X22)", () => {
+  const pdf = () =>
+    new File(["%PDF-1.4"], "teklif.pdf", { type: "application/pdf" });
+
+  /** Formu gönderilebilir doldurur + dosya ekler + onaylayıp gönderir. */
+  async function fillAttachAndSubmit(user: ReturnType<typeof userEvent.setup>) {
+    await user.type(screen.getByLabelText("Birim Fiyat"), "150");
+    await user.type(screen.getByLabelText(/Menşei ülke/), "Türkiye");
+    await user.selectOptions(
+      screen.getByLabelText("Çelik Boru teslim süresi"),
+      "W3_4",
+    );
+    await user.upload(screen.getByLabelText("Teklif dosyası seç"), pdf());
+    expect(screen.getByText("teklif.pdf")).toBeInTheDocument();
+    await user.click(
+      screen.getAllByRole("button", { name: "Teklif Gönder" })[0]!,
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Teklifi Gönder" }),
+    );
+  }
+
+  it("ilk teklif: taslak kaydedilip yükleme düşerse ekran 'gönderildi'de takılmaz, form + bekleyen dosya geri gelir", async () => {
+    const user = userEvent.setup();
+    h.mutateAsync.mockResolvedValue({ status: "DRAFT" });
+    h.uploadAsync.mockRejectedValue(new Error("Sadece PDF, görsel veya Excel"));
+    render(<TeklifVerPage />);
+
+    await fillAttachAndSubmit(user);
+
+    // Yalnız taslak adımı çalıştı; son gönderim yapılmadı.
+    await waitFor(() => expect(h.toast.error).toHaveBeenCalled());
+    expect(h.mutateAsync).toHaveBeenCalledTimes(1);
+    expect(h.mutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ asDraft: true }),
+    );
+    expect(h.push).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Teklifin gönderildi/)).toBeNull();
+    // Form ve "listede kaldı" denen dosya görünür → tekrar denenebilir.
+    expect(screen.getByText("teklif.pdf")).toBeInTheDocument();
+    expect(
+      screen.getAllByRole("button", { name: "Teklif Gönder" })[0],
+    ).toBeEnabled();
+  });
+
+  it("taslak kaydet: yükleme düşerse ekran 'gönderildi' göstermez, form kalır", async () => {
+    const user = userEvent.setup();
+    h.mutateAsync.mockResolvedValue({ status: "DRAFT" });
+    h.uploadAsync.mockRejectedValue(new Error("ağ hatası"));
+    render(<TeklifVerPage />);
+
+    await user.type(screen.getByLabelText("Birim Fiyat"), "90");
+    await user.upload(screen.getByLabelText("Teklif dosyası seç"), pdf());
+    await user.click(
+      screen.getByRole("button", { name: "Taslak Olarak Kaydet" }),
+    );
+
+    await waitFor(() => expect(h.toast.error).toHaveBeenCalled());
+    expect(screen.queryByText(/Teklifin gönderildi/)).toBeNull();
+    expect(screen.getByText("teklif.pdf")).toBeInTheDocument();
+    expect(h.push).not.toHaveBeenCalled();
+  });
+
+  it("başarılı dosyalı ilk teklif: taslak → yükleme → gönderim, sonra 'gönderildi' + yönlendirme", async () => {
+    const user = userEvent.setup();
+    h.mutateAsync.mockResolvedValue({ status: "SUBMITTED" });
+    h.uploadAsync.mockResolvedValue({});
+    render(<TeklifVerPage />);
+
+    await fillAttachAndSubmit(user);
+
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/company/ilan/l1"));
+    expect(h.mutateAsync.mock.calls.map((c) => c[0].asDraft)).toEqual([
+      true,
+      false,
+    ]);
+    expect(h.uploadAsync).toHaveBeenCalledTimes(1);
+    expect(
+      screen.getByText(/Teklifin gönderildi/),
+    ).toBeInTheDocument();
+  });
+
+  it("elenmiş (LOST) teklife dosyalı yeniden teklif: önce taslağa çekilir, sonra yüklenir ve gönderilir", async () => {
+    const user = userEvent.setup();
+    h.detail = baseDetail({
+      myBid: {
+        amount: "1000",
+        status: "LOST",
+        version: 1,
+        note: null,
+        items: [{ itemId: "i1", unitPrice: "100" }],
+        answers: [{ questionId: "q1", value: "Türkiye" }],
+      },
+    });
+    h.mutateAsync.mockResolvedValue({ status: "SUBMITTED" });
+    h.uploadAsync.mockResolvedValue({});
+    render(<TeklifVerPage />);
+
+    await user.selectOptions(
+      screen.getByLabelText("Çelik Boru teslim süresi"),
+      "W3_4",
+    );
+    await user.upload(screen.getByLabelText("Teklif dosyası seç"), pdf());
+    await user.click(
+      screen.getAllByRole("button", { name: "Teklif Gönder" })[0]!,
+    );
+    await user.click(
+      await screen.findByRole("button", { name: "Teklifi Gönder" }),
+    );
+
+    await waitFor(() => expect(h.push).toHaveBeenCalled());
+    const drafts = h.mutateAsync.mock.calls.map((c) => c[0].asDraft);
+    expect(drafts).toEqual([true, false]);
+    // Taslak adımı yüklemeden ÖNCE çalıştı.
+    expect(h.mutateAsync.mock.invocationCallOrder[0]!).toBeLessThan(
+      h.uploadAsync.mock.invocationCallOrder[0]!,
+    );
+  });
+
+  it("sürükle-bırak desteklenmeyen türü (.docx) listeye almaz, uyarır", () => {
+    render(<TeklifVerPage />);
+    const docx = new File(["x"], "mektup.docx", {
+      type: "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+    });
+    const zone = screen.getByLabelText("Teklif dosyası seç").closest("label")!;
+    fireEvent.drop(zone, { dataTransfer: { files: [docx, pdf()] } });
+    expect(h.toast.error).toHaveBeenCalledWith(
+      expect.stringContaining("mektup.docx"),
+    );
+    expect(screen.queryByText("mektup.docx")).toBeNull();
+    expect(screen.getByText("teklif.pdf")).toBeInTheDocument();
+  });
+
+  it("pazarlık yeni tur (SUBMITTED): dosya alanı yerine not; mevcut belgede sil düğmesi yok", () => {
+    h.detail = baseDetail({
+      myBid: {
+        amount: "1000",
+        status: "SUBMITTED",
+        version: 1,
+        note: null,
+        items: [{ itemId: "i1", unitPrice: "100" }],
+      },
+      english: { isEnglishAuction: true },
+    } as Partial<ListingDetail>);
+    h.docs = [
+      { id: "d1", fileName: "eski.pdf", kind: "TEKLIF_MEKTUBU", url: "#", mine: true },
+    ];
+    render(<TeklifVerPage />);
+    expect(screen.queryByLabelText("Teklif dosyası seç")).toBeNull();
+    expect(
+      screen.getByText(/Pazarlıkta gönderilmiş teklifin belgeleri değiştirilemez/),
+    ).toBeInTheDocument();
+    expect(screen.getByText("eski.pdf")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /eski\.pdf.*sil/i })).toBeNull();
+  });
+
+  it("taslak teklifte mevcut belge silinebilir", () => {
+    h.detail = baseDetail({
+      myBid: { amount: "1000", status: "DRAFT", version: 1, note: null },
+    });
+    h.docs = [
+      { id: "d1", fileName: "eski.pdf", kind: "TEKLIF_MEKTUBU", url: "#", mine: true },
+    ];
+    render(<TeklifVerPage />);
+    expect(screen.getByRole("button", { name: /eski\.pdf/ })).toBeInTheDocument();
   });
 });
