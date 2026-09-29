@@ -77,7 +77,7 @@ export class CronLockService implements OnModuleDestroy {
    */
   async runExclusive(name: string, fn: () => Promise<void>): Promise<boolean> {
     if (this.running.has(name)) {
-      this.logger.warn(`cron atlandı (önceki koşu hâlâ sürüyor): ${name}`);
+      this.logger.warn(`cron skipped (previous run still in progress): ${name}`);
       return false;
     }
     this.running.add(name);

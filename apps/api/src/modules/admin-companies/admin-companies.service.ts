@@ -2286,7 +2286,7 @@ export class AdminCompaniesService {
     for (const r of results) counts[r]++;
     if (counts.failed > 0) {
       this.logger.warn(
-        `Duyuru e-postaları: ${counts.sent} gönderildi, ${counts.failed} başarısız, ${counts.skipped} atlandı`,
+        `Announcement emails: ${counts.sent} sent, ${counts.failed} failed, ${counts.skipped} skipped`,
       );
     }
     try {
@@ -2300,7 +2300,7 @@ export class AdminCompaniesService {
       });
     } catch (err) {
       this.logger.warn(
-        `Duyuru e-posta sonucu audit'e yazılamadı: ${
+        `Announcement email result could not be written to audit: ${
           err instanceof Error ? err.message : String(err)
         }`,
       );

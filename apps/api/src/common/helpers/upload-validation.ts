@@ -23,9 +23,9 @@ async function deleteRejectedObject(
     await storage.deleteObject(bucket, key);
   } catch (err) {
     logger.warn(
-      `Reddedilen yükleme silinemedi (${bucket}, ${reason}): ${key} — ${
+      `Rejected upload could not be deleted (${bucket}, ${reason}): ${key} — ${
         (err as Error)?.message ?? String(err)
-      }. Elle temizlenmeli.`,
+      }. Manual cleanup required.`,
     );
   }
 }
@@ -108,7 +108,7 @@ export async function assertUploadedObjectValid(
   }
   if (head.size != null && head.size > maxBytes) {
     // Yetim (limit aşan) nesneyi temizle ki bucket şişmesin.
-    await deleteRejectedObject(storage, bucket, key, "boyut");
+    await deleteRejectedObject(storage, bucket, key, "size");
     throw new BadRequestException(
       i18nMessage("api.helpers.dosyaBoyutuMbSiniriniAsiyor", { round: Math.round(maxBytes / 1024 / 1024) }),
     );
@@ -116,7 +116,7 @@ export async function assertUploadedObjectValid(
   if (allowedContentTypes && allowedContentTypes.length > 0) {
     const actual = (head.contentType ?? "").split(";")[0]!.trim().toLowerCase();
     if (!allowedContentTypes.includes(actual)) {
-      await deleteRejectedObject(storage, bucket, key, `tip=${actual}`);
+      await deleteRejectedObject(storage, bucket, key, `type=${actual}`);
       throw new BadRequestException(
         i18nMessage("api.helpers.yuklenenDosyaninTuruKabulEdilmiyorDosyayi"),
       );

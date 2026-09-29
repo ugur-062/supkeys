@@ -104,19 +104,19 @@ describe("inspectZip / assertZipWithinLimits", () => {
     const zip = buildZip(Array.from({ length: 40 }, (_, i) => ({ name: `xl/worksheets/sheet${i}.xml`, data: big })));
     expect(zip.length).toBeLessThan(200 * 1024);
     expect(() => assertZipWithinLimits(zip)).toThrow(ZipInspectError);
-    expect(() => assertZipWithinLimits(zip)).toThrow(/Açılmış boyut/);
+    expect(() => assertZipWithinLimits(zip)).toThrow(/Uncompressed size/);
     expect(() => assertXlsxSafe(zip)).toThrow(/çok büyük/);
   });
 
   it("tek giriş tavanı ve giriş sayısı tavanı ayrı ayrı yakalanır; ZIP64 / bozuk dizin reddedilir", () => {
     const small = Buffer.from("x");
     const hugeOne = buildZip([{ name: "a.xml", data: small, fakeUncompressed: 50 * 1024 * 1024 }]);
-    expect(() => assertZipWithinLimits(hugeOne)).toThrow(/Tek giriş/);
+    expect(() => assertZipWithinLimits(hugeOne)).toThrow(/Single entry/);
     const many = buildZip(Array.from({ length: 250 }, (_, i) => ({ name: `f${i}`, data: small })));
-    expect(() => assertZipWithinLimits(many)).toThrow(/giriş sayısı/);
+    expect(() => assertZipWithinLimits(many)).toThrow(/entry count/);
     const zip64 = buildZip([{ name: "a", data: small, fakeUncompressed: 0xffffffff }]);
     expect(() => inspectZip(zip64)).toThrow(/ZIP64/);
-    expect(() => inspectZip(Buffer.from("PK\x03\x04 bozuk"))).toThrow(/bulunamadı|bozuk/);
+    expect(() => inspectZip(Buffer.from("PK\x03\x04 bozuk"))).toThrow(/not found|corrupt/);
   });
 });
 
@@ -141,7 +141,7 @@ describe("beyana güvenilmez — gerçek açılım (derin denetim 2026-09-29 Y-0
     expect(bomb.length).toBeLessThan(200 * 1024);
     // Beyan tavanın altında görünür — eski kapı buna güveniyordu.
     expect(inspectZip(bomb).uncompressedBytes).toBe(1024);
-    expect(() => assertZipWithinLimits(bomb)).toThrow(/Tek giriş.*gerçek açılım/);
+    expect(() => assertZipWithinLimits(bomb)).toThrow(/Single entry.*actual inflation/);
     expect(() => assertXlsxSafe(bomb)).toThrow(/çok büyük/);
   });
 
@@ -165,7 +165,7 @@ describe("beyana güvenilmez — gerçek açılım (derin denetim 2026-09-29 Y-0
 
   it("beyan ≠ gerçek boyut (tavan altında da olsa) → bozuk sayılır", () => {
     const zip = buildZip([{ name: "a.xml", data: Buffer.from("x".repeat(500)), fakeUncompressed: 100 }]);
-    expect(() => assertZipWithinLimits(zip)).toThrow(/beyan edilen boyutla uyuşmuyor/);
+    expect(() => assertZipWithinLimits(zip)).toThrow(/does not match its declared size/);
     expect(() => assertXlsxSafe(zip)).toThrow(/okunamadı/);
   });
 
@@ -175,16 +175,16 @@ describe("beyana güvenilmez — gerçek açılım (derin denetim 2026-09-29 Y-0
       { entries: 0 },
     );
     expect(() => inspectZip(zip)).toThrow(ZipInspectError);
-    expect(() => inspectZip(zip)).toThrow(/tutarsız/);
+    expect(() => inspectZip(zip)).toThrow(/inconsistent/);
   });
 
   it("CEN EOCD'nin hemen önünde bitmiyor (kaydırılmış ofset / başa eklenmiş bayt) → bozuk", () => {
     const zip = buildZip([{ name: "a.xml", data: Buffer.from("merhaba") }]);
     const eocd = zip.length - 22;
     const cenOffset = zip.readUInt32LE(eocd + 16);
-    expect(() => inspectZip(patchEocd(zip, { cenOffset: cenOffset - 1 }))).toThrow(/bozuk/);
+    expect(() => inspectZip(patchEocd(zip, { cenOffset: cenOffset - 1 }))).toThrow(/corrupt/);
     const prefixed = Buffer.concat([Buffer.alloc(16, 0x20), zip]);
-    expect(() => inspectZip(prefixed)).toThrow(/bozuk/);
+    expect(() => inspectZip(prefixed)).toThrow(/corrupt/);
   });
 
   it("gerçek xlsx gerçek açılımla da geçer; dönen boyutlar GERÇEK boyutlardır", async () => {
@@ -218,9 +218,9 @@ describe("gözden geçirme A1 — EOCD disk alanları ve ExcelJS hücre açılı
 
   it("çok diskli / bu diskteki kayıt sayısı tutarsız EOCD → bozuk", () => {
     const zip = buildZip([{ name: "a.xml", data: Buffer.from("merhaba") }]);
-    expect(() => inspectZip(patchEocdField(zip, 4, 1))).toThrow(/bozuk/);
-    expect(() => inspectZip(patchEocdField(zip, 6, 1))).toThrow(/bozuk/);
-    expect(() => inspectZip(patchEocdField(zip, 8, 2))).toThrow(/bozuk/);
+    expect(() => inspectZip(patchEocdField(zip, 4, 1))).toThrow(/corrupt/);
+    expect(() => inspectZip(patchEocdField(zip, 6, 1))).toThrow(/corrupt/);
+    expect(() => inspectZip(patchEocdField(zip, 8, 2))).toThrow(/corrupt/);
   });
 
   const sheet = (inner: string) =>

@@ -3,7 +3,6 @@
   "apps/api/src/common/config/prod-config-sanity.ts": 7,
   "apps/api/src/common/config/web-url.ts": 3,
   "apps/api/src/common/cron/cron-lock.service.ts": 5,
-  "apps/api/src/common/files/zip-inspect.ts": 6,
   "apps/api/src/common/i18n/ai-language.ts": 6,
   "apps/api/src/common/prisma/rls-extension.ts": 1,
   "apps/api/src/main.ts": 6,

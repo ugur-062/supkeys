@@ -239,7 +239,7 @@ export class EmailService implements OnModuleInit {
         }
         const delay = retryDelayMs(attempt);
         this.logger.warn(
-          `Email ${logId} geçici hata (deneme ${attempt}/${EMAIL_SEND_MAX_ATTEMPTS}), ${delay} ms sonra yeniden: ${
+          `Email ${logId} transient error (attempt ${attempt}/${EMAIL_SEND_MAX_ATTEMPTS}), retrying in ${delay} ms: ${
             err instanceof Error ? err.message : String(err)
           }`,
         );

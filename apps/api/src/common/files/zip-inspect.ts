@@ -112,7 +112,7 @@ interface ParsedZip extends ZipInspection {
 }
 
 function parseCentralDirectory(buf: Buffer): ParsedZip {
-  if (buf.length < EOCD_MIN) throw new ZipInspectError("ZIP merkezi dizini bulunamadı", "corrupt");
+  if (buf.length < EOCD_MIN) throw new ZipInspectError("ZIP central directory not found", "corrupt");
   // EOCD: dosya sonundan geriye doğru ara (yorum alanı ≤ 64K).
   const minStart = Math.max(0, buf.length - EOCD_MIN - 0xffff);
   let eocd = -1;
@@ -122,7 +122,7 @@ function parseCentralDirectory(buf: Buffer): ParsedZip {
       break;
     }
   }
-  if (eocd < 0) throw new ZipInspectError("ZIP merkezi dizini bulunamadı", "corrupt");
+  if (eocd < 0) throw new ZipInspectError("ZIP central directory not found", "corrupt");
   const diskNumber = buf.readUInt16LE(eocd + 4);
   const cenDisk = buf.readUInt16LE(eocd + 6);
   const entriesOnDisk = buf.readUInt16LE(eocd + 8);
@@ -140,15 +140,15 @@ function parseCentralDirectory(buf: Buffer): ParsedZip {
     cenSize === 0xffffffff ||
     cenOffset === 0xffffffff
   ) {
-    throw new ZipInspectError("ZIP64 dosyalar desteklenmiyor", "zip64");
+    throw new ZipInspectError("ZIP64 files are not supported", "zip64");
   }
   // Tek diskli arşiv: çok diskli/tutarsız sayılı EOCD'yi iki okuyucu farklı yorumlar.
   if (diskNumber !== 0 || cenDisk !== 0 || entriesOnDisk !== entries) {
-    throw new ZipInspectError("ZIP merkezi dizini bozuk (çok diskli ya da tutarsız EOCD)", "corrupt");
+    throw new ZipInspectError("ZIP central directory corrupt (multi-disk or inconsistent EOCD)", "corrupt");
   }
   // CEN tam olarak EOCD'nin önünde bitmeli: aksi halde JSZip "başa eklenmiş
   // bayt" varsayıp okuma noktasını kaydırır ve bizim görmediğimiz kayıtları okur.
-  if (cenOffset + cenSize !== eocd) throw new ZipInspectError("ZIP merkezi dizini bozuk", "corrupt");
+  if (cenOffset + cenSize !== eocd) throw new ZipInspectError("ZIP central directory corrupt", "corrupt");
 
   const cenEnd = cenOffset + cenSize;
   const cen: CenEntry[] = [];
@@ -158,7 +158,7 @@ function parseCentralDirectory(buf: Buffer): ParsedZip {
   // EOCD sayısıyla DEĞİL aralıkla sınırlı gez (JSZip de sayıya bakmıyor).
   while (p < cenEnd) {
     if (p + 46 > cenEnd || buf.readUInt32LE(p) !== CEN_SIG) {
-      throw new ZipInspectError("ZIP merkezi dizin kaydı bozuk", "corrupt");
+      throw new ZipInspectError("ZIP central directory record corrupt", "corrupt");
     }
     const flags = buf.readUInt16LE(p + 8);
     const method = buf.readUInt16LE(p + 10);
@@ -166,7 +166,7 @@ function parseCentralDirectory(buf: Buffer): ParsedZip {
     const uncompressed = buf.readUInt32LE(p + 24);
     const localOffset = buf.readUInt32LE(p + 42);
     if (uncompressed === 0xffffffff || compressedSize === 0xffffffff || localOffset === 0xffffffff) {
-      throw new ZipInspectError("ZIP64 girişi desteklenmiyor", "zip64");
+      throw new ZipInspectError("ZIP64 entry is not supported", "zip64");
     }
     const nameLen = buf.readUInt16LE(p + 28);
     const extraLen = buf.readUInt16LE(p + 30);
@@ -177,7 +177,7 @@ function parseCentralDirectory(buf: Buffer): ParsedZip {
     p += 46 + nameLen + extraLen + commentLen;
   }
   if (p !== cenEnd || cen.length !== entries) {
-    throw new ZipInspectError("ZIP merkezi dizin kayıt sayısı tutarsız", "corrupt");
+    throw new ZipInspectError("ZIP central directory entry count inconsistent", "corrupt");
   }
   return { entries, uncompressedBytes, maxEntryBytes, cen };
 }
@@ -196,16 +196,16 @@ export function inspectZip(buf: Buffer): ZipInspection {
 export function assertZipWithinLimits(buf: Buffer, limits: ZipLimits = XLSX_LIMITS): ZipInspection {
   const info = parseCentralDirectory(buf);
   if (info.entries > limits.maxEntries) {
-    throw new ZipInspectError(`ZIP giriş sayısı tavanı aşıldı (${info.entries} > ${limits.maxEntries})`, "entries");
+    throw new ZipInspectError(`ZIP entry count limit exceeded (${info.entries} > ${limits.maxEntries})`, "entries");
   }
   if (info.uncompressedBytes > limits.maxUncompressedBytes) {
     throw new ZipInspectError(
-      `Açılmış boyut tavanı aşıldı (${Math.round(info.uncompressedBytes / 1024 / 1024)} MB)`,
+      `Uncompressed size limit exceeded (${Math.round(info.uncompressedBytes / 1024 / 1024)} MB)`,
       "size",
     );
   }
   if (info.maxEntryBytes > limits.maxEntryBytes) {
-    throw new ZipInspectError(`Tek giriş açılmış boyut tavanı aşıldı`, "entry-size");
+    throw new ZipInspectError(`Single entry uncompressed size limit exceeded`, "entry-size");
   }
 
   // Beyan geçti — şimdi gerçekten aç ve say.
@@ -213,14 +213,14 @@ export function assertZipWithinLimits(buf: Buffer, limits: ZipLimits = XLSX_LIMI
   let realMax = 0;
   const expansion = limits.spreadsheet ? { cells: 0, merges: 0 } : null;
   for (const e of info.cen) {
-    if (e.flags & 0x1) throw new ZipInspectError("Şifreli ZIP girişi desteklenmiyor", "corrupt");
+    if (e.flags & 0x1) throw new ZipInspectError("Encrypted ZIP entry is not supported", "corrupt");
     const lp = e.localOffset;
     if (lp + 30 > buf.length || buf.readUInt32LE(lp) !== LOC_SIG) {
-      throw new ZipInspectError("ZIP yerel başlığı bozuk", "corrupt");
+      throw new ZipInspectError("ZIP local header corrupt", "corrupt");
     }
     const dataStart = lp + 30 + buf.readUInt16LE(lp + 26) + buf.readUInt16LE(lp + 28);
     const dataEnd = dataStart + e.compressedSize;
-    if (dataEnd > buf.length) throw new ZipInspectError("ZIP girişi dosya sonunu aşıyor", "corrupt");
+    if (dataEnd > buf.length) throw new ZipInspectError("ZIP entry extends past end of file", "corrupt");
     const remaining = limits.maxUncompressedBytes - realTotal;
     let content: Buffer;
     if (e.method === METHOD_STORE) {
@@ -232,22 +232,22 @@ export function assertZipWithinLimits(buf: Buffer, limits: ZipLimits = XLSX_LIMI
       } catch (err) {
         if ((err as { code?: string }).code === "ERR_BUFFER_TOO_LARGE") {
           throw cap < limits.maxEntryBytes
-            ? new ZipInspectError("Açılmış boyut tavanı aşıldı (gerçek açılım)", "size")
-            : new ZipInspectError("Tek giriş açılmış boyut tavanı aşıldı (gerçek açılım)", "entry-size");
+            ? new ZipInspectError("Uncompressed size limit exceeded (actual inflation)", "size")
+            : new ZipInspectError("Single entry uncompressed size limit exceeded (actual inflation)", "entry-size");
         }
-        throw new ZipInspectError("ZIP girişi açılamadı", "corrupt");
+        throw new ZipInspectError("ZIP entry could not be inflated", "corrupt");
       }
     } else {
-      throw new ZipInspectError(`Desteklenmeyen ZIP sıkıştırma yöntemi (${e.method})`, "corrupt");
+      throw new ZipInspectError(`Unsupported ZIP compression method (${e.method})`, "corrupt");
     }
     const real = content.length;
     if (real > limits.maxEntryBytes) {
-      throw new ZipInspectError("Tek giriş açılmış boyut tavanı aşıldı (gerçek açılım)", "entry-size");
+      throw new ZipInspectError("Single entry uncompressed size limit exceeded (actual inflation)", "entry-size");
     }
-    if (real > remaining) throw new ZipInspectError("Açılmış boyut tavanı aşıldı (gerçek açılım)", "size");
+    if (real > remaining) throw new ZipInspectError("Uncompressed size limit exceeded (actual inflation)", "size");
     // Beyan ≠ gerçek → sahte başlık; JSZip de sonunda reddederdi ama ancak açtıktan sonra.
     if (real !== e.uncompressedSize) {
-      throw new ZipInspectError("ZIP girişi beyan edilen boyutla uyuşmuyor", "corrupt");
+      throw new ZipInspectError("ZIP entry does not match its declared size", "corrupt");
     }
     realTotal += real;
     if (real > realMax) realMax = real;
@@ -293,13 +293,13 @@ function decodeAddress(value: string): { col: number; row: number } {
       break;
     }
   }
-  if (hasCol && col > 16384) throw new RangeError("sütun sınır dışı");
+  if (hasCol && col > 16384) throw new RangeError("column out of range");
   // Tanımsız sütun/satır ExcelJS'te undefined → Math.min/max NaN → döngü dönmez.
   return { col: hasCol ? col : NaN, row: hasRow ? row : NaN };
 }
 
 function checkN2l(n: number): void {
-  if (n < 1 || n > 16384) throw new RangeError("sütun sınır dışı");
+  if (n < 1 || n > 16384) throw new RangeError("column out of range");
 }
 
 interface Rect {
@@ -500,7 +500,7 @@ function scanSpreadsheetXml(
   lim: SpreadsheetExpansionLimits,
 ): void {
   const tooMany = () =>
-    new ZipInspectError("Çalışma kitabı çok fazla hücre açıyor (birleşme/tanımlı ad)", "size");
+    new ZipInspectError("Workbook expands too many cells (merges/defined names)", "size");
   // definedName metni: açılıştan İLK kapanan etikete dek (DefinedNameXform
   // parseClose adsızdır — ilk closetag modeli bitirir).
   let nameText: string[] | null = null;
@@ -535,7 +535,7 @@ function scanSpreadsheetXml(
     } else if (xml.startsWith("<!", lt)) {
       // DOCTYPE/ENTITY: OOXML'de yok; iç alt küme sınırını saxes'le birebir
       // eşlemek yerine reddedilir (yanlış sınır = görülmeyen etiket).
-      throw new ZipInspectError("XML belge tipi bildirimi desteklenmiyor", "corrupt");
+      throw new ZipInspectError("XML document type declaration is not supported", "corrupt");
     } else if (xml.startsWith("</", lt)) {
       end = xml.indexOf(">", lt + 2);
       if (end < 0) return;
@@ -548,7 +548,7 @@ function scanSpreadsheetXml(
       if (tag.name === "mergeCell") {
         acc.merges++;
         if (acc.merges > lim.maxMergeCells) {
-          throw new ZipInspectError("Çalışma kitabında çok fazla birleştirilmiş hücre var", "size");
+          throw new ZipInspectError("Workbook has too many merged cells", "size");
         }
         const ref = tag.attrs.get("ref");
         if (ref !== undefined) {
@@ -560,7 +560,7 @@ function scanSpreadsheetXml(
         const min = Number.parseInt(tag.attrs.get("min") || "0", 10);
         const max = Number.parseInt(tag.attrs.get("max") || "0", 10);
         if (min > lim.maxColumn || max > lim.maxColumn) {
-          throw new ZipInspectError("Sütun tanımı Excel sınırını aşıyor", "size");
+          throw new ZipInspectError("Column definition exceeds the Excel limit", "size");
         }
       } else if (tag.name === "definedName") {
         // İç içe definedName metni sıfırlar (parseOpen yeniden başlatır).
