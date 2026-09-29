@@ -29,7 +29,7 @@
 | 9 | Çok dillilik | ✅ bitti (1 ürün dili kararı bekliyor: B6-4) |
 | 10 | SEO/GEO | ✅ bitti |
 | 11 | Performans ve kapasite | ✅ bitti |
-| 12 | Arayüz ve erişilebilirlik | ⏳ |
+| 12 | Arayüz ve erişilebilirlik | ✅ bitti |
 | 13 | Hukuk ve uyum | ⏳ |
 | 14 | Altyapı ve operasyon | ⏳ |
 | 15 | Yayın günü ve geri dönüş | ⏳ |
@@ -603,4 +603,31 @@ göreli.
 | B11-5 (Bölüm 14) | operatör | Render **starter 512 MB**: yerelde açılış 341 MB, sürekli ~405 MB (kullanılan yığın 117 MB). Konteynerde Node yığını sınıra göre boyutlandırır, sığmalı ama pay dar | ilk günlerde Render bellek grafiği izlenir; yeniden başlatma görülürse Standard (2 GB) — maliyet kararı |
 | B5-14 (kalan) | ORTA | Soğuk davet ısınması yalnız takvimle ikiye katlanıyordu (az gönderen platformda bile tavan binlere çıkıyor) | ✅ tavan = min(takvim, max(taban, 2 × son 7 günün en yoğun günü)) (828b5026) |
 | B5-15 → Bölüm 13 | DÜŞÜK | E-posta adres normalizasyonu harfi harfine (çıkış/fren adres bazlı) | çıkış hakkına saygı konusu — Bölüm 13'te karar |
+
+---
+
+## Bölüm 12 — Arayüz ve erişilebilirlik (✅ 2026-09-29)
+
+Yöntem: yerel üretim derlemesinde Playwright taraması, **375 px mobil**
+(dokunmatik, 2× DPR), 44 sayfa: 20 herkese açık (TR/EN/RU) + 24 panel
+(arayüzden giriş). Her sayfada axe (WCAG 2.0/2.1 A+AA; critical+serious
+kırmızı, `color-contrast` K-2 kararıyla UYARI), yatay taşma
+(`scrollWidth > clientWidth`), konsol hataları, 4xx/5xx istekler. Betik
+`~/rothern-audit-2026-09-28/ui/ui-sweep.mjs`.
+
+| Kontrol | Sonuç |
+|---|---|
+| Herkese açık 20 sayfa | ✅ axe ciddi ihlal 0 · taşma 0 · konsol hatası 0 · başarısız istek 0 |
+| Panel 24 sayfa (ilk tarama) | 3 sayfada yatay taşma + 1 KRİTİK axe ihlali → düzeltildi, yeniden derlemede 4 sayfa yeniden tarandı: taşma 0, ciddi ihlal 0 |
+| Kontrast (uyarı) | tasarım kararı (K-2: 600 tonları 3:1 arayüz eşiği, küçük metin AA değil). En yoğun: Adresler 317 düğüm = "Teslimat" rozeti `#168146` / `#def7ea` **4,36:1** (3:1 ✓, 4,5 ✗) — karar kapsamında |
+| Koyu mod | ✅ her zaman açık tema (değişmedi) |
+
+### Bölüm 12 bulguları
+
+| # | Önem | Bulgu | Durum |
+|---|---|---|---|
+| B12-1 | ORTA | Açık Talepler listesi `role="table"` (çocuklar kart: a/dt/dd/button) → axe KRİTİK `aria-required-children` — 2026-09-12'de `IhaleListView`de düzeltilen hatanın eşi | ✅ adlandırılmış `<section>` (131f8d37) |
+| B12-2 | ORTA | Hızlı talep 375 px'te sayfayı **502 px**'e genişletiyordu: bölüm başlığı durum rozeti (adres · gün · ödeme özeti) `shrink-0`; üst çubuk sağdan kesiliyordu. Aynı sayfada "Belgeden otomatik doldur" kartında açıklama ~50 px'lik sütuna sıkışıyordu | ✅ başlık satırı sarılır, rozet kısalır; kartta düğme dar ekranda alta, tam genişlik (131f8d37) |
+| B12-3 | DÜŞÜK | Panel ürün keşfi alt şeridi: `max-w-[22rem]` kategori çipi + sayaç 375 px'i aşıyordu | ✅ çip kapsayıcıya sığar (131f8d37) |
+| B12-4 | DÜŞÜK | Adres defteri: örtük grid sütunu içeriğe göre büyüyüp kartları 6 px taşırıyordu | ✅ `grid-cols-1` + `min-w-0` (131f8d37) |
 
