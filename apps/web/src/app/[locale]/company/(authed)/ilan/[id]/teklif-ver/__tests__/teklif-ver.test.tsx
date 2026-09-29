@@ -15,7 +15,7 @@ const h = vi.hoisted(() => ({
   /** useBidDocuments verisi (mevcut belgeler). */
   docs: [] as unknown[],
   push: vi.fn(),
-  toast: { success: vi.fn(), error: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -373,6 +373,17 @@ describe("TeklifVerPage — dosyalı gönderim (derin denetim Y-15, X22)", () =>
     );
 
     await waitFor(() => expect(h.toast.error).toHaveBeenCalled());
+    // Üretim dalı: taslak kaydedildi, dosyalar bekliyor → info mesajı; catch'e
+    // düşüp "Taslak kaydedilemedi" basılmamalı, success de çıkmamalı.
+    await waitFor(() =>
+      expect(h.toast.info).toHaveBeenCalledWith(
+        expect.stringContaining("yüklenemeyen dosyalar listede"),
+      ),
+    );
+    expect(h.toast.error).not.toHaveBeenCalledWith(
+      expect.stringContaining("Taslak kaydedilemedi"),
+    );
+    expect(h.toast.success).not.toHaveBeenCalled();
     expect(screen.queryByText(/Teklifin gönderildi/)).toBeNull();
     expect(screen.getByText("teklif.pdf")).toBeInTheDocument();
     expect(h.push).not.toHaveBeenCalled();
