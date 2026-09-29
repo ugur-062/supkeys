@@ -15,6 +15,7 @@ import { Description, ErrorMessage, Field, Label } from "@/components/catalyst/f
 import { Input } from "@/components/catalyst/input";
 import { Select } from "@/components/catalyst/select";
 import { PermissionTable } from "@/components/company/permission-table";
+import { defaultInvitePermissions } from "@/components/company/permission-presets";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
 import {
   useInviteUser,
@@ -23,12 +24,12 @@ import {
 } from "@/hooks/use-company-users";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useInviteDeliveryToast } from "./use-invite-delivery-toast";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 /**
  * Token'lı davet — e-posta + YETKİ TABLOSU (Faz 4): davetli hangi tiklerle
- * katılacaksa burada işaretlenir; hazır set çipleri (Satın Almacı varsayılan)
+ * katılacaksa burada işaretlenir; hazır set çipleri (varsayılan pakete göre)
  * tabloyu doldurur. Davetli, e-postadaki linkten adını/şifresini KENDİSİ
  * belirleyip sözleşmeleri onaylayarak katılır.
  *
@@ -66,11 +67,20 @@ export function InviteUserDialog({
   const [perms, setPerms] = useState<string[]>([]);
   const uiLocale = pickLocale(useLocale()) ?? DEFAULT_LOCALE;
   const [inviteLocale, setInviteLocale] = useState<Locale>(uiLocale);
-  // Katalog gelince varsayılan hazır set: Satın Almacı.
+  // Varsayılan hazır set PAKETE ve KOLTUĞA göre (derin denetim MU-13):
+  // Gold'da Satın Almacı, değilse Satışçı, koltuk doluysa Görüntüleyici.
+  // Koşulsuz Satın Almacı, ücretsiz/Silver firmanın "yalnız e-postayı yaz,
+  // gönder" davetini satınalma paket kapısında 400'e düşürüyordu. Koltuk
+  // bilgisi gelmeden varsayılan uygulanmaz (paket bilinmeden seçilemez).
+  const defaultPerms = () =>
+    catalog && seats ? defaultInvitePermissions(catalog, { canGrantBuy, freeSeats }) : [];
+  const defaulted = useRef(false);
   useEffect(() => {
-    if (catalog && perms.length === 0) setPerms(catalog.presets.SATIN_ALMACI);
+    if (defaulted.current || !catalog || !seats) return;
+    defaulted.current = true;
+    if (perms.length === 0) setPerms(defaultPerms());
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [catalog]);
+  }, [catalog, seats]);
 
   const canSave = emailValid && perms.length > 0;
 
@@ -89,7 +99,7 @@ export function InviteUserDialog({
         successMessage: t("davetEPostasiGonderildi7"),
       });
       setEmail("");
-      setPerms(catalog?.presets.SATIN_ALMACI ?? []);
+      setPerms(defaultPerms());
       setInviteLocale(uiLocale);
       onClose();
     } catch (err) {

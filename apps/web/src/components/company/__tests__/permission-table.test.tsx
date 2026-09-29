@@ -11,7 +11,7 @@
  * Koltuk kilidinden AYRI tutulur: "koltuk dolu" sayı sorunudur, "Gold pakette"
  * paket sorunu. İkisi aynı kutuyu kilitler ama farklı şey söyler.
  */
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { PermissionTable } from "../permission-table";
 import type { PermissionCatalog } from "@/hooks/use-company-users";
@@ -84,5 +84,48 @@ describe("PermissionTable — satınalma paket kapısı", () => {
     // hâle getirmemeli (kaldırmak için ayrı bir akış var: seat-selection).
     ciz(false, ["buy:listing:manage", "buy:view"]);
     expect(kilitli("Talep açma ve yönetme")).toBe(false);
+  });
+});
+
+describe("PermissionTable — hazır set çipi paket/koltuk kapısından geçer (derin denetim MU-13)", () => {
+  function cizOnChange(props: { canGrantBuy: boolean; freeSeats?: number | null; value?: string[] }) {
+    const onChange = vi.fn();
+    render(
+      <PermissionTable
+        catalog={catalog}
+        value={props.value ?? []}
+        onChange={onChange}
+        viewerIsOwner
+        canGrantBuy={props.canGrantBuy}
+        freeSeats={props.freeSeats ?? null}
+      />,
+    );
+    return onChange;
+  }
+
+  it("Gold değilse Satın Almacı çipi seçilemez (paket vermiyor)", () => {
+    const onChange = cizOnChange({ canGrantBuy: false });
+    const chip = screen.getByRole("button", { name: "Satın Almacı" });
+    expect(chip).toBeDisabled();
+    fireEvent.click(chip);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it("koltuk doluyken Satışçı çipi koltuk isteyen tiki işaretlemez", () => {
+    const onChange = cizOnChange({ canGrantBuy: true, freeSeats: 0 });
+    fireEvent.click(screen.getByRole("button", { name: "Satışçı" }));
+    expect(onChange).toHaveBeenCalledWith([]);
+  });
+
+  it("koltuk varsa Satışçı çipi seti uygular (işlem tiki + görüntüleme)", () => {
+    const onChange = cizOnChange({ canGrantBuy: false, freeSeats: 1 });
+    fireEvent.click(screen.getByRole("button", { name: "Satışçı" }));
+    expect(onChange).toHaveBeenCalledWith(["sell:view", "sell:bid:submit"]);
+  });
+
+  it("işaretli ama paketin vermediği satınalma tiki sebebini yazar ve kaldırılabilir", () => {
+    cizOnChange({ canGrantBuy: false, value: ["buy:view", "buy:listing:manage"] });
+    expect(kilitli("Talep açma ve yönetme")).toBe(false);
+    expect(screen.getByText("Gold pakette")).toBeInTheDocument();
   });
 });

@@ -238,7 +238,16 @@ export function useUpdateUser() {
       const { data } = await companyApi.patch(`/company/users/${id}`, payload);
       return data;
     },
-    onSuccess: () => invalidateUserCaches(qc),
+    onSuccess: (_data, vars) => {
+      invalidateUserCaches(qc);
+      // Kuruculuk devri EYLEMİ YAPANIN yetkisini de düşürür (isOwner,
+      // billing:manage, users:manage); sunucu `permissions_changed`i yalnız
+      // yeni Kurucuya yollar → eski Kurucunun /me'si burada tazelenir, menü ve
+      // kapılar sayfa yenilenmeden yeni rolüyle çizilir (derin denetim MU-13).
+      if (vars.roles?.includes("SAHIP" as CompanyRole)) {
+        qc.invalidateQueries({ queryKey: ["company-auth", "me"] });
+      }
+    },
   });
 }
 

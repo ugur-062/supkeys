@@ -744,9 +744,15 @@ function EditUserModal({
                   ariaLabel={t("devirSonrasiRolunuz")}
                   options={[
                     { value: "YONETICI", label: t("yoneticiYonetimIslemYok") },
-                    { value: "SATIN_ALMACI", label: t("satinAlmaciYalnizAlis") },
+                    // Satınalma yetkisi yalnız Gold'da — backend eski Kurucunun
+                    // yeni rolünü de koltuk/paket kapısından geçirir (MU-13).
+                    ...(canGrantBuy
+                      ? [{ value: "SATIN_ALMACI", label: t("satinAlmaciYalnizAlis") }]
+                      : []),
                     { value: "SATISCI", label: t("satisciYalnizSatis") },
-                    { value: "BOTH", label: t("satinAlmaciSatisci") },
+                    ...(canGrantBuy
+                      ? [{ value: "BOTH", label: t("satinAlmaciSatisci") }]
+                      : []),
                   ]}
                 />
                 <div className="flex flex-wrap gap-2 pt-1">

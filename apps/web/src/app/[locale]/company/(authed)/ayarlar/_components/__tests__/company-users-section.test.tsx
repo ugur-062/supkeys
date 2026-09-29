@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -12,7 +12,9 @@ const h = vi.hoisted(() => ({
   removeUser: vi.fn(),
   cancel: vi.fn(),
   resend: vi.fn(),
-  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn() },
+  update: vi.fn(),
+  seats: undefined as unknown,
+  toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
 }));
 
 vi.mock("next/navigation", () => ({
@@ -27,7 +29,7 @@ vi.mock("@/hooks/use-company-users", () => ({
   useResendInvitation: () => ({ mutateAsync: h.resend, isPending: false }),
   useSetUserActive: () => ({ mutateAsync: h.setActive, isPending: false }),
   useRemoveUser: () => ({ mutateAsync: h.removeUser, isPending: false }),
-  useUpdateUser: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useUpdateUser: () => ({ mutateAsync: h.update, isPending: false }),
   useUpdateUserPermissions: () => ({ mutateAsync: vi.fn(), isPending: false }),
   useSetUserPermissions: () => ({ mutateAsync: vi.fn(), isPending: false }),
   // Yetki tablosu (Faz 4): davet dialogu kataloğun hazır setiyle dolar.
@@ -52,7 +54,7 @@ vi.mock("@/hooks/use-company-users", () => ({
       roleDefaults: {},
     },
   }),
-  useSeats: () => ({ data: undefined }),
+  useSeats: () => ({ data: h.seats }),
   useSeatSelection: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));
 
@@ -83,7 +85,14 @@ beforeEach(() => {
     user(),
   ];
   h.invitations = [];
+  h.seats = undefined;
 });
+
+/** Koltuk özeti — `tier` paket kapısını (satınalma yalnız GOLD) sürer. */
+function seats(tier: "STANDART" | "SILVER" | "GOLD", used = 1) {
+  const limit = { STANDART: 2, SILVER: 4, GOLD: 6 }[tier];
+  return { limit, used, usedBuy: 0, usedSell: used, pendingSeatInvites: 0, pendingBuy: 0, pendingSell: 0, overflow: 0, tier };
+}
 
 describe("CompanyUsersSection", () => {
   it("kullanıcı listesi: isim, e-posta, rol rozeti ve sahip etiketi", () => {
@@ -118,6 +127,7 @@ describe("CompanyUsersSection", () => {
 
   it("davet dialogu: e-posta girip gönderince useInviteUser çağrılır", async () => {
     const user2 = userEvent.setup();
+    h.seats = seats("GOLD");
     h.invite.mockResolvedValue({});
     render(<CompanyUsersSection canManage meId="owner" />);
     await user2.click(screen.getByRole("button", { name: "Üye Davet Et" }));
@@ -131,6 +141,46 @@ describe("CompanyUsersSection", () => {
       locale: "tr",
       permissions: expect.arrayContaining(["buy:listing:manage"]),
     });
+  });
+
+  it("davet dialogu Gold DEĞİLSE satınalma yetkisi seçmez: varsayılan Satışçı, davet paket kapısına takılmaz (derin denetim MU-13)", async () => {
+    const user2 = userEvent.setup();
+    h.seats = seats("STANDART");
+    h.invite.mockResolvedValue({});
+    render(<CompanyUsersSection canManage meId="owner" />);
+    await user2.click(screen.getByRole("button", { name: "Üye Davet Et" }));
+    await user2.type(await screen.findByPlaceholderText("kisi@firma.com"), "yeni@firma.com");
+    await user2.click(screen.getByRole("button", { name: /Davet Gönder/ }));
+    expect(h.invite).toHaveBeenCalledTimes(1);
+    const sent = h.invite.mock.calls[0][0].permissions as string[];
+    expect(sent).toEqual(["sell:view", "sell:bid:submit"]);
+    expect(sent).not.toContain("buy:listing:manage");
+  });
+
+  it("kuruculuk devri: Gold değilse eski Kurucuya satınalma rolü SUNULMAZ (derin denetim MU-13)", async () => {
+    const u = userEvent.setup();
+    h.seats = seats("STANDART");
+    h.update.mockResolvedValue({ ok: true });
+    render(<CompanyUsersSection canManage meId="owner" />);
+    const menus = screen.getAllByRole("button", { name: "Aksiyonlar" });
+    await u.click(menus[1]);
+    await u.click(await screen.findByText("Düzenle"));
+    await u.click(await screen.findByRole("button", { name: "Kuruculuğu bu kullanıcıya devret" }));
+    await u.click(screen.getByRole("button", { name: "Devir sonrası rolünüz" }));
+    const options = within(await screen.findByRole("listbox")).getAllByRole("option").map((o) => o.textContent);
+    expect(options).toEqual(["Yönetici (yönetim; işlem yok)", "Satışçı (yalnız satış)"]);
+  });
+
+  it("kuruculuk devri: Gold'da dört seçenek de sunulur", async () => {
+    const u = userEvent.setup();
+    h.seats = seats("GOLD");
+    render(<CompanyUsersSection canManage meId="owner" />);
+    const menus = screen.getAllByRole("button", { name: "Aksiyonlar" });
+    await u.click(menus[1]);
+    await u.click(await screen.findByText("Düzenle"));
+    await u.click(await screen.findByRole("button", { name: "Kuruculuğu bu kullanıcıya devret" }));
+    await u.click(screen.getByRole("button", { name: "Devir sonrası rolünüz" }));
+    expect(within(await screen.findByRole("listbox")).getAllByRole("option")).toHaveLength(4);
   });
 
   it("canManage=false: davet butonu ve aksiyon menüsü gizli", () => {

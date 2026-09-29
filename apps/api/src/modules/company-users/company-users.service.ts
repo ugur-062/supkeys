@@ -733,18 +733,17 @@ export class CompanyUsersService {
     void target;
     const transferring =
       roles.includes(CompanyRole.SAHIP) && company?.ownerUserId !== targetId;
+    // Roller ETİKET: yazılan doğruluk kaynağı hazır setlerin birleşimi —
+    // devirde hedefin mevcut işlem izinleri de korunur (derin denetim MU-13).
+    const next = transferring
+      ? this.transferTargetGrant(target, roles)
+      : { roles, permissions: permissionsForRoles(roles) };
+    roles = next.roles;
     await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
-      // Faz K: koltuksuz kişiye SA/ST eklenirken kapı (tx + FOR UPDATE altında;
-      // SA/ST çıkarma koltuk boşaltır, kontrol gerekmez).
-      await this.assertSeatAvailable(tx, actor.companyId, {
-        groups: this.newSeatGroups(
-          seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
-          seatGroupsOf({ permissions: permissionsForRoles(roles) }),
-        ),
-        context: "assign",
-      });
-      // Sahiplik önce çözülür (sahip-bırakma net "devret" hatası versin), sonra
-      // son-yönetici garantisi.
+      // Sahiplik önce çözülür (sahip-bırakma net "devret" hatası versin; devirde
+      // eski Kurucunun yeni koltukları kapıdan geçer), sonra hedefin koltuk
+      // kapısı ve son-yönetici garantisi. Hedef kapısı eski Kurucunun yazımından
+      // SONRA koşar: ikisinin yeni koltukları toplamda limiti aşamasın.
       await this.resolveOwnership(
         tx,
         actor.companyId,
@@ -752,11 +751,19 @@ export class CompanyUsersService {
         targetId,
         roles,
       );
+      // Faz K: koltuksuz kişiye SA/ST eklenirken kapı (tx + FOR UPDATE altında;
+      // SA/ST çıkarma koltuk boşaltır, kontrol gerekmez).
+      await this.assertSeatAvailable(tx, actor.companyId, {
+        groups: this.newSeatGroups(
+          seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
+          seatGroupsOf({ permissions: next.permissions }),
+        ),
+        context: "assign",
+      });
       await this.assertNotLastAdmin(tx, actor.companyId, targetId, roles);
-      // Roller ETİKET: yazılan doğruluk kaynağı hazır setlerin birleşimi.
       await tx.companyUser.update({
         where: { id: targetId },
-        data: { roles, permissions: permissionsForRoles(roles) },
+        data: { roles, permissions: next.permissions },
       });
     });
     // INV-AUDIT-1: yetki geçişi (rol değişimi) — commit SONRASI, before/after.
@@ -845,36 +852,46 @@ export class CompanyUsersService {
       );
     }
     void target;
+    const transferring =
+      !!roles &&
+      roles.includes(CompanyRole.SAHIP) &&
+      company?.ownerUserId !== targetId;
+    // Devirde hedefin mevcut işlem izinleri korunur — bkz. updateRoles.
+    const grant = roles
+      ? transferring
+        ? this.transferTargetGrant(target, roles)
+        : { roles, permissions: permissionsForRoles(roles) }
+      : null;
     const data = {
       ...(dto.firstName !== undefined
         ? { firstName: dto.firstName.trim() }
         : {}),
       ...(dto.lastName !== undefined ? { lastName: dto.lastName.trim() } : {}),
       ...(dto.phone !== undefined ? { phone: dto.phone.trim() || null } : {}),
-      ...(roles ? { roles, permissions: permissionsForRoles(roles) } : {}),
+      ...(grant ? { roles: grant.roles, permissions: grant.permissions } : {}),
     };
     // Rol değişimi yönetici sayısını + sahipliği etkileyebilir → atomik kilit.
-    if (roles) {
-      const transferring =
-        roles.includes(CompanyRole.SAHIP) && company?.ownerUserId !== targetId;
-      await this.lockedAdminTxAudited(actor, targetId, roles, async (tx) => {
-        // Faz K: updateRoles ile aynı koltuk kapısı.
-        await this.assertSeatAvailable(tx, actor.companyId, {
-          groups: this.newSeatGroups(
-            seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
-            seatGroupsOf({ permissions: permissionsForRoles(roles) }),
-          ),
-          context: "assign",
-        });
+    if (grant) {
+      await this.lockedAdminTxAudited(actor, targetId, grant.roles, async (tx) => {
+        // Sıra updateRoles ile aynı: önce sahiplik (eski Kurucunun koltuk
+        // kapısı dahil), sonra hedefin koltuk kapısı.
         await this.resolveOwnership(
           tx,
           actor.companyId,
           company?.ownerUserId ?? null,
           targetId,
-          roles,
+          grant.roles,
           dto.previousOwnerRoles as CompanyRole[] | undefined,
         );
-        await this.assertNotLastAdmin(tx, actor.companyId, targetId, roles);
+        // Faz K: updateRoles ile aynı koltuk kapısı.
+        await this.assertSeatAvailable(tx, actor.companyId, {
+          groups: this.newSeatGroups(
+            seatGroupsOf({ permissions: target.permissions, roles: target.roles }),
+            seatGroupsOf({ permissions: grant.permissions }),
+          ),
+          context: "assign",
+        });
+        await this.assertNotLastAdmin(tx, actor.companyId, targetId, grant.roles);
         await tx.companyUser.update({ where: { id: targetId }, data });
       });
       // INV-AUDIT-1: yalnız rol değişince yetki izi (profil-alanı düzenlemesi
@@ -888,7 +905,7 @@ export class CompanyUsersService {
         entityType: "company_user",
         entityId: targetId,
         critical: true,
-        metadata: { before: target.roles, after: roles },
+        metadata: { before: target.roles, after: grant.roles },
       });
       if (transferring) {
         await this.auditOwnershipTransfer(
@@ -1448,6 +1465,33 @@ export class CompanyUsersService {
   }
 
   /**
+   * DEVİRDE yeni Kurucunun yazılacak izinleri (derin denetim MU-13): hazır set
+   * (SAHIP = yönetim seti) + hedefin ZATEN tuttuğu işlem (koltuk) izinleri.
+   * Faz R'den beri Kurucu işlem iznini örtük taşımaz; yalnız hazır set
+   * yazılınca devralan Satın Almacı'nın açık talepleri/siparişleri üzerindeki
+   * işlem izinleri sessizce siliniyordu. Korunan izin YENİ koltuk açmaz (kişi
+   * o grubu zaten tutuyor); roller izinlerden türetilir (SAHIP + işlem rolleri).
+   */
+  private transferTargetGrant(
+    target: { permissions: string[]; roles: CompanyRole[] | string[] },
+    roles: CompanyRole[],
+  ): { roles: CompanyRole[]; permissions: string[] } {
+    const heldSeat = effectivePermissions({
+      isOwner: false,
+      permissions: target.permissions,
+      roles: target.roles,
+    }).filter((k) => ALL_SEAT_PERMISSIONS.includes(k));
+    const permissions = normalizePermissions([
+      ...permissionsForRoles(roles),
+      ...heldSeat,
+    ]);
+    return {
+      roles: rolesFromPermissions(permissions, true) as CompanyRole[],
+      permissions,
+    };
+  }
+
+  /**
    * Sahiplik (SAHIP) değişimini uygular. Firmada TEK sahip olur:
    * - Hedef sahip olacaksa (devir) → eski sahip Yönetici'ye düşer (op-rolleri
    *   korunur), ownerUserId hedefe geçer.
@@ -1496,9 +1540,29 @@ export class CompanyUsersService {
         );
       }
       if (currentOwnerId) {
+        const demotedPermissions = permissionsForRoles(demoted);
+        // Eski Kurucunun YENİ işlem rolü de koltuk ve paket kapısından geçer
+        // (derin denetim MU-13): eskiden yalnız devrin hedefi denetleniyordu;
+        // koltuksuz birine devir + previousOwnerRoles=[SATIN_ALMACI, SATISCI]
+        // ücretsiz pakette satınalma yetkisi ve limit üstü koltuk açıyordu.
+        const previousOwner = await tx.companyUser.findUnique({
+          where: { id: currentOwnerId },
+          select: { roles: true, permissions: true },
+        });
+        await this.assertSeatAvailable(tx, companyId, {
+          groups: this.newSeatGroups(
+            seatGroupsOf({
+              isOwner: true,
+              permissions: previousOwner?.permissions ?? [],
+              roles: previousOwner?.roles ?? [],
+            }),
+            seatGroupsOf({ permissions: demotedPermissions }),
+          ),
+          context: "assign",
+        });
         await tx.companyUser.update({
           where: { id: currentOwnerId },
-          data: { roles: demoted, permissions: permissionsForRoles(demoted) },
+          data: { roles: demoted, permissions: demotedPermissions },
         });
       }
       await tx.company.update({

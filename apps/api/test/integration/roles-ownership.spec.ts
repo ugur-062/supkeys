@@ -112,7 +112,12 @@ describe("Sahiplik devri (updateRoles)", () => {
     const newOwner = await prisma.companyUser.findUniqueOrThrow({
       where: { id: member.id },
     });
-    expect(newOwner.roles).toEqual([CompanyRole.SAHIP]); // tek başına
+    // Faz R'den beri Kurucu işlem iznini ÖRTÜK taşımaz: devralanın mevcut
+    // satış işlem izinleri korunur, etiket SAHIP + işlem rolü (derin denetim MU-13).
+    expect(newOwner.roles).toEqual([CompanyRole.SAHIP, CompanyRole.SATISCI]);
+    expect(newOwner.permissions).toEqual(
+      expect.arrayContaining(["sell:bid:submit", "sell:order:manage", "users:manage"]),
+    );
 
     const oldOwner = await prisma.companyUser.findUniqueOrThrow({
       where: { id: owner.user.id },
@@ -213,6 +218,62 @@ describe("Sahiplik devri (updateRoles)", () => {
     expect(kept?.roles).toEqual(
       expect.arrayContaining(["SAHIP", "SATIN_ALMACI"]),
     );
+  });
+});
+
+describe("Derin denetim MU-13 — devirde koltuk/paket kapısı ve işlem izni korunması", () => {
+  it("devralan Satın Almacı'nın işlem izinleri SİLİNMEZ (açık talebi/siparişi yönetmeye devam eder)", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma); // GOLD
+    const buyer = await makeUser(prisma, owner.company.id, [CompanyRole.SATIN_ALMACI]);
+    await svc.updateUser(owner.auth, buyer.id, {
+      roles: [CompanyRole.SAHIP],
+      previousOwnerRoles: [CompanyRole.YONETICI],
+    } as never);
+    const u = await prisma.companyUser.findUniqueOrThrow({ where: { id: buyer.id } });
+    expect(u.roles).toEqual([CompanyRole.SAHIP, CompanyRole.SATIN_ALMACI]);
+    for (const p of ["buy:listing:manage", "buy:award", "buy:order:manage"]) {
+      expect(hasCompanyPermission({ isOwner: true, permissions: u.permissions, roles: u.roles }, p)).toBe(true);
+    }
+  });
+
+  it("ücretsiz pakette eski Kurucu kendine SATINALMA rolü seçemez; devir hiç olmamış gibi geri alınır", async () => {
+    const svc = makeUsersService();
+    const owner = await makeCompanyWithUser(prisma, { tier: "STANDART", roles: [CompanyRole.SAHIP, CompanyRole.SATISCI] });
+    const approver = await makeUser(prisma, owner.company.id, [CompanyRole.ONAYLAYICI]);
+    await expect(
+      svc.updateUser(owner.auth, approver.id, {
+        roles: [CompanyRole.SAHIP],
+        previousOwnerRoles: [CompanyRole.SATIN_ALMACI, CompanyRole.SATISCI],
+      } as never),
+    ).rejects.toThrow(/Gold/i);
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(company.ownerUserId).toBe(owner.user.id);
+    const oldOwner = await prisma.companyUser.findUniqueOrThrow({ where: { id: owner.user.id } });
+    expect(oldOwner.roles).toContain(CompanyRole.SAHIP);
+  });
+
+  it("koltuk doluyken eski Kurucunun YENİ işlem rolü reddedilir (zincirle limit üstü koltuk açılamaz)", async () => {
+    const svc = makeUsersService();
+    // STANDART: 2 koltuk. Kurucu işlem izinsiz; iki satışçı koltukları dolduruyor.
+    const owner = await makeCompanyWithUser(prisma, { tier: "STANDART", roles: [CompanyRole.SAHIP] });
+    await makeUser(prisma, owner.company.id, [CompanyRole.SATISCI]);
+    await makeUser(prisma, owner.company.id, [CompanyRole.SATISCI]);
+    const approver = await makeUser(prisma, owner.company.id, [CompanyRole.ONAYLAYICI]);
+    await expect(
+      svc.updateRoles(owner.auth, approver.id, { roles: [CompanyRole.SAHIP] } as never).then(() => undefined),
+    ).resolves.toBeUndefined(); // koltuksuz devir (varsayılan Yönetici) serbest
+    const back = await prisma.companyUser.findUniqueOrThrow({ where: { id: approver.id } });
+    expect(back.roles).toContain(CompanyRole.SAHIP);
+    const newOwnerAuth = { ...owner.auth, userId: approver.id, email: approver.email, roles: back.roles, isOwner: true };
+    await expect(
+      svc.updateUser(newOwnerAuth as never, owner.user.id, {
+        roles: [CompanyRole.SAHIP],
+        previousOwnerRoles: [CompanyRole.SATISCI],
+      } as never),
+    ).rejects.toThrow(/[Kk]oltuk/);
+    const company = await prisma.company.findUniqueOrThrow({ where: { id: owner.company.id } });
+    expect(company.ownerUserId).toBe(approver.id);
   });
 });
 

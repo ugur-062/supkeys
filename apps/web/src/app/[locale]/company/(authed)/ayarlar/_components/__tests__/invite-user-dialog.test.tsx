@@ -9,21 +9,38 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 const h = vi.hoisted(() => ({
   invite: vi.fn(),
   resend: vi.fn(),
-  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn() },
+  toast: { success: vi.fn(), error: vi.fn(), warning: vi.fn(), info: vi.fn() },
+  // Referans KARARLI (react-query gibi) — her çizimde yeni nesne efekt döngüsü sınar değil.
+  seats: { limit: 6, used: 1, pendingSeatInvites: 0, usedBuy: 1, usedSell: 0, tier: "GOLD" } as Record<string, unknown>,
+  catalog: {
+    catalog: [
+      { key: "buy:view", label: "", group: "buy", seat: false },
+      { key: "buy:listing:manage", label: "", group: "buy", seat: true },
+      { key: "sell:view", label: "", group: "sell", seat: false },
+      { key: "sell:bid:submit", label: "", group: "sell", seat: true },
+    ],
+    groups: {},
+    presets: {
+      SATIN_ALMACI: ["buy:view", "buy:listing:manage"],
+      SATISCI: ["sell:view", "sell:bid:submit"],
+      GORUNTULEYICI: ["buy:view", "sell:view"],
+    },
+  },
 }));
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/hooks/use-company-auth", () => ({ useCompanyAuth: () => ({ user: { id: "u1", isOwner: true } }) }));
 vi.mock("@/hooks/use-company-users", () => ({
   useInviteUser: () => ({ mutateAsync: h.invite, isPending: false }),
   useResendInvitation: () => ({ mutateAsync: h.resend, isPending: false }),
-  usePermissionCatalog: () => ({ data: { catalog: [], groups: {}, presets: { SATIN_ALMACI: ["buy:view", "buy:listing:manage"] } } }),
-  useSeats: () => ({ data: { limit: 4, used: 1, pendingSeatInvites: 0, usedBuy: 1, usedSell: 0 } }),
+  usePermissionCatalog: () => ({ data: h.catalog }),
+  useSeats: () => ({ data: h.seats }),
 }));
 vi.mock("@/components/company/permission-table", () => ({ PermissionTable: () => <div data-testid="perm-table" /> }));
 
 import { InviteUserDialog } from "../invite-user-dialog";
 
 beforeEach(() => {
+  h.seats = { limit: 6, used: 1, pendingSeatInvites: 0, usedBuy: 1, usedSell: 0, tier: "GOLD" };
   h.invite.mockReset().mockResolvedValue({ id: "inv1", email: "ali@firma.com", emailSent: true });
   h.resend.mockReset().mockResolvedValue({ ok: true, emailSent: true });
   Object.values(h.toast).forEach((f) => f.mockReset());
@@ -83,6 +100,18 @@ describe("InviteUserDialog", () => {
     fireEvent.click(screen.getByRole("button", { name: "Davet Gönder" }));
     await waitFor(() => expect(h.invite).toHaveBeenCalledTimes(1));
     expect(h.invite.mock.calls[0][0]).toMatchObject({ email: "john@firma.com", locale: "en" });
+  });
+
+  it("Gold DEĞİLSE varsayılan set satınalma yetkisi taşımaz — Satışçı (derin denetim MU-13)", async () => {
+    h.seats = { limit: 2, used: 1, pendingSeatInvites: 0, usedBuy: 0, usedSell: 1, tier: "STANDART" };
+    await submitValid();
+    expect(h.invite.mock.calls[0][0].permissions).toEqual(["sell:view", "sell:bid:submit"]);
+  });
+
+  it("koltuk doluysa varsayılan set koltuk tüketmez — Görüntüleyici", async () => {
+    h.seats = { limit: 4, used: 4, pendingSeatInvites: 0, usedBuy: 0, usedSell: 4, tier: "SILVER" };
+    await submitValid();
+    expect(h.invite.mock.calls[0][0].permissions).toEqual(["buy:view", "sell:view"]);
   });
 
   it("suppress edilmiş adres: uyarı, yeniden gönder eylemi YOK (aynı adrese yine gitmez)", async () => {

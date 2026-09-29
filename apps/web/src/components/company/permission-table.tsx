@@ -8,6 +8,7 @@ import type {
 } from "@/hooks/use-company-users";
 import { useRoleLabel } from "@/i18n/domain";
 import { cn } from "@/lib/utils";
+import { gatePreset } from "./permission-presets";
 import {
   ClipboardCheck,
   Eye,
@@ -126,7 +127,14 @@ export function PermissionTable({
     set(next);
   };
   const applyPreset = (p: PresetKey) => {
-    const preset = catalog.presets[p] ?? [];
+    // Paket ve koltuk kapısı hazır sete de uygulanır (derin denetim MU-13):
+    // kilit yalnız işaretsiz tiki kilitlediği için çipin işaretlediği
+    // satınalma/koltuk tikleri kilitsiz kalıp kayıtta 400 alıyordu.
+    const preset = gatePreset(catalog, catalog.presets[p] ?? [], {
+      canGrantBuy,
+      freeSeats,
+      hadGroups,
+    });
     const next = new Set(preset);
     // Kurucu olmayan bir düzenleyici "kullanıcı ve yetki"yi veremez —
     // hazır set onu içerse de tik düşer (sunucu da reddeder).
@@ -160,12 +168,17 @@ export function PermissionTable({
             {PRESETS.map((p) => {
               const Icon = p.icon;
               const on = activePreset === p.key;
+              // Satın Almacı seti satınalma işlem yetkisidir; paket vermiyorsa
+              // (ve kişi zaten tutmuyorsa) çip seçilemez, sebebi ipucunda.
+              const tierLocked =
+                p.key === "SATIN_ALMACI" && !canGrantBuy && !hadGroups.buy;
+              const chipDisabled = disabled || tierLocked;
               return (
                 <button
                   key={p.key}
                   type="button"
-                  disabled={disabled}
-                  title={t(`presetHint.${p.key}`)}
+                  disabled={chipDisabled}
+                  title={tierLocked ? t("goldPakette") : t(`presetHint.${p.key}`)}
                   aria-pressed={on}
                   onClick={() => applyPreset(p.key)}
                   className={cn(
@@ -173,7 +186,7 @@ export function PermissionTable({
                     on
                       ? "border-zinc-900 bg-zinc-900 text-white"
                       : "border-zinc-200 text-zinc-600 hover:border-zinc-400",
-                    disabled && "cursor-not-allowed opacity-50",
+                    chipDisabled && "cursor-not-allowed opacity-50",
                   )}
                 >
                   <Icon className="h-3.5 w-3.5" aria-hidden />
@@ -222,6 +235,14 @@ export function PermissionTable({
                   // yetkinin o pakette karşılığı olmaması.
                   const tierBlock =
                     c.group === "buy" && !canGrantBuy && !has(c.key);
+                  // İşaretli satınalma işlem tiki Gold dışı pakette kaldırılabilir
+                  // kalır ama sebebi yine yazılır (kişi yeni koltuk açamaz).
+                  const tierNote =
+                    c.group === "buy" &&
+                    c.seat &&
+                    !canGrantBuy &&
+                    has(c.key) &&
+                    !hadGroups.buy;
                   const viewImplied =
                     !c.seat &&
                     VIEW_OF[c.group] === c.key &&
@@ -238,7 +259,7 @@ export function PermissionTable({
                     ? t("kurucudaOrtuk")
                     : ownerOnly
                       ? t("yalnizKurucuVerir")
-                      : tierBlock
+                      : tierBlock || tierNote
                         ? t("goldPakette")
                         : seatBlock
                           ? t("koltukDolu")
