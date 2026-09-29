@@ -82,12 +82,13 @@ export class SupabaseAuthService {
   private readonly admin: SupabaseClient;
   private readonly publicClient: SupabaseClient;
   /**
-   * Parola doğrulama istemcisi (Y-11). `SUPABASE_SECRET_KEY` varsa o anahtarla
-   * kurulur ve her isteğe istemci IP'sini `Sb-Forwarded-For` ile ekler; yoksa
+   * Parola doğrulama istemcisi (Y-11). `SUPABASE_SECRET_KEY` geçerli bir secret
+   * anahtarsa (`sb_secret_…`, R-3) o anahtarla kurulur ve her isteğe istemci
+   * IP'sini `Sb-Forwarded-For` ile ekler; yoksa (eksik ya da tanınmayan anahtar)
    * `publicClient`'ın kendisidir (eski davranış, IP iletilmez).
    */
   private readonly passwordClient: SupabaseClient;
-  /** true → `Sb-Forwarded-For` iletiliyor (secret anahtar yapılandırılmış). */
+  /** true → `Sb-Forwarded-For` iletiliyor (geçerli `sb_secret_` anahtarı yapılandırılmış). */
   private readonly forwardsClientIp: boolean;
   /** Çağrı bazında iletilecek istemci IP'si (fetch sarmalayıcısı okur). */
   private readonly forwardedFor = new AsyncLocalStorage<string>();
@@ -123,12 +124,25 @@ export class SupabaseAuthService {
       global: { fetch: timeoutFetch },
     });
 
-    if (secretKey) {
-      if (!secretKey.startsWith("sb_secret_")) {
-        this.logger.warn(
-          "SUPABASE_SECRET_KEY does not start with 'sb_secret_' — Supabase honours Sb-Forwarded-For only with a secret API key.",
-        );
-      }
+    // R-3: Supabase `Sb-Forwarded-For`'u YALNIZ secret API anahtarıyla
+    // (`sb_secret_…`) dikkate alır. Başka bir değer (ör. yanlışlıkla girilmiş
+    // service_role JWT'si) ile başlık sessizce yok sayılır ve kota yine sunucu
+    // IP'sinde paylaşılır; bu durumda IP iletimi VARSAYILIRSA paylaşılan kota
+    // 429'u "istemci kotası" (warning) sayılır ve platform çapındaki giriş
+    // kilidi `auth_rate_limited` error alarmı üretmeden gizlenir. Bu yüzden
+    // tanınmayan anahtar hiç kullanılmaz: eski davranışa (anon istemci, IP
+    // iletimi yok) düşülür ve yanlış yapılandırma görünür kılınır.
+    const validSecretKey = secretKey?.startsWith("sb_secret_") ? secretKey : undefined;
+    if (secretKey && !validSecretKey) {
+      this.logger.error(
+        "SUPABASE_SECRET_KEY does not start with 'sb_secret_'; Supabase honours Sb-Forwarded-For only with a secret API key. Ignoring it: sign-ins use the anon key without client IP forwarding (audit Y-11/R-3).",
+      );
+      reportToSentry("SUPABASE_SECRET_KEY is not a secret API key (sb_secret_); client IP forwarding disabled", "warning", {
+        tags: { supabase: "auth_secret_key_invalid", supabase_ip_forwarding: "false" },
+      });
+    }
+
+    if (validSecretKey) {
       const forwardingFetch: typeof fetch = (input, init) => {
         const ip = this.forwardedFor.getStore();
         if (!ip) return timeoutFetch(input, init);
@@ -136,7 +150,7 @@ export class SupabaseAuthService {
         headers.set(SB_FORWARDED_FOR_HEADER, ip);
         return timeoutFetch(input, { ...init, headers });
       };
-      this.passwordClient = createClient(url, secretKey, {
+      this.passwordClient = createClient(url, validSecretKey, {
         auth: { autoRefreshToken: false, persistSession: false },
         global: { fetch: forwardingFetch },
       });
@@ -144,7 +158,7 @@ export class SupabaseAuthService {
     } else {
       this.passwordClient = this.publicClient;
       this.forwardsClientIp = false;
-      if (this.config.get<string>("NODE_ENV") === "production") {
+      if (!secretKey && this.config.get<string>("NODE_ENV") === "production") {
         this.logger.warn(
           "SUPABASE_SECRET_KEY is not set — every sign-in reaches Supabase from the server IP; the per-IP sign-in quota can lock out all users (audit Y-11).",
         );

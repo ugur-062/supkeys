@@ -199,6 +199,44 @@ describe("Y-11 verifyPassword — 429 ayrı alarm etiketiyle raporlanır", () =>
   });
 });
 
+describe("R-3 — sb_secret_ olmayan SUPABASE_SECRET_KEY ile IP iletimi varsayılmaz", () => {
+  // Operatör yanlışlıkla service_role JWT'sini (eyJ…) girmiş: Supabase bu
+  // anahtarla Sb-Forwarded-For'u yok sayar, kota sunucu IP'sinde paylaşılır.
+  const JWT_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.service-role.sig";
+  const rateLimit = () =>
+    json(429, { code: 429, error_code: "over_request_rate_limit", msg: "Request rate limit reached" });
+
+  it("tanınmayan anahtar kullanılmaz: anon anahtar, başlık YOK + Sentry warning auth_secret_key_invalid", async () => {
+    const svc = makeService({ SUPABASE_SECRET_KEY: JWT_KEY });
+    expect(reportToSentry).toHaveBeenCalledTimes(1);
+    const [, level, ctx] = (reportToSentry as jest.Mock).mock.calls[0];
+    expect(level).toBe("warning");
+    expect(ctx.tags).toMatchObject({ supabase: "auth_secret_key_invalid", supabase_ip_forwarding: "false" });
+
+    await svc.verifyPassword("e@x.com", "p", "203.0.113.7");
+    const c = tokenCall();
+    expect(c.headers.get("sb-forwarded-for")).toBeNull();
+    expect(c.headers.get("apikey")).toBe(ANON);
+  });
+
+  it("429 paylaşılan kotadır → 503 + Sentry error supabase=auth_rate_limited (istemci kotası sayılmaz)", async () => {
+    const svc = makeService({ SUPABASE_SECRET_KEY: JWT_KEY });
+    (reportToSentry as jest.Mock).mockClear();
+    nextResponse = rateLimit;
+    const err = await svc.verifyPassword("e@x.com", "p", "203.0.113.7").catch((e: unknown) => e);
+    expect(err).toBeInstanceOf(ServiceUnavailableException);
+    expect(reportToSentry).toHaveBeenCalledTimes(1);
+    const [, level, ctx] = (reportToSentry as jest.Mock).mock.calls[0];
+    expect(level).toBe("error");
+    expect(ctx.tags).toMatchObject({ supabase: "auth_rate_limited", supabase_ip_forwarding: "false" });
+  });
+
+  it("geçerli sb_secret_ anahtarında Sentry'e yapılandırma uyarısı gitmez", () => {
+    makeService({ SUPABASE_SECRET_KEY: SECRET });
+    expect(reportToSentry).not.toHaveBeenCalled();
+  });
+});
+
 describe("B3 gözden geçirme — geçersiz API anahtarı kimlik hatası sayılmaz", () => {
   it("secret anahtar geçersiz/iptal (ağ geçidi 401 'Invalid API key') → 503 + Sentry supabase=auth_misconfigured", async () => {
     const svc = makeService({ SUPABASE_SECRET_KEY: SECRET });
