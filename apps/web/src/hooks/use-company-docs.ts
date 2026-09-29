@@ -130,6 +130,12 @@ export function useSubmitDocs() {
       const { data } = await companyApi.post("/company/docs/submit", kyc);
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-docs"] }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["company-docs"] });
+      // Ayarlar hub rozeti + Firma Bilgileri durumu store'daki
+      // company.companyVerificationStatus'u okur; o yalnız /me yenilenince
+      // güncellenir (refetchOnWindowFocus kapalı) — derin denetim LU-24.
+      qc.invalidateQueries({ queryKey: ["company-auth", "me"] });
+    },
   });
 }

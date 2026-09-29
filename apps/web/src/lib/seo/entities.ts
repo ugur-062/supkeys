@@ -606,7 +606,11 @@ export function listingSeo(l: ListingSeoInput, opts: SeoOptions): {
   );
 
   const demandId = entityId.demand(path);
-  const title = joinParts([l.title, l.number], " — ");
+  // Numara korunur, talep başlığı 75 tavanına (` · Rothern` soneki + ` — <no>`
+  // düşülerek) kırpılır; DTO başlığa 200 karaktere kadar izin veriyor
+  // (derin denetim LU-24).
+  const titleMax = 75 - TITLE_SUFFIX.length - (l.number ? l.number.length + 3 : 0);
+  const title = joinParts([clampTitle(l.title, null, titleMax), l.number], " — ");
   const demandNode = compact({
     "@type": "Demand",
     "@id": demandId,

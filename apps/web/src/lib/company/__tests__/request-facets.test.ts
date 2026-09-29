@@ -195,6 +195,16 @@ describe("şehir ve alıcı ülkesi (2026-09-27)", () => {
   });
 });
 
+describe("seçili ama listede olmayan alıcı (derin denetim LU-24)", () => {
+  it("etiket çağıranın katalog metninden gelir, sabit Türkçe değil", () => {
+    const rows = [row()];
+    const fx = requestFacets(rows, F({ buyers: ["gone"] }), NAMES, NOW, { unknownBuyer: "Buyer" });
+    expect(fx.buyers.find((b) => b.key === "gone")).toEqual({ key: "gone", label: "Buyer", count: 0 });
+    const bare = requestFacets(rows, F({ buyers: ["gone"] }), NAMES, NOW);
+    expect(bare.buyers.find((b) => b.key === "gone")?.label).toBe("—");
+  });
+});
+
 describe("sortRequests", () => {
   it("merdiven seçimin üstünde: davetli › bağlantılı › kategori › gerisi; kademe içinde seçim", () => {
     const rows = [

@@ -15,9 +15,11 @@ import type { SearchSurface } from "@/components/marketplace/public-search-tabs"
  * döndürse de sayaç doğru. İstekler ISR önbelleğine düşer (`getJson`
  * revalidate), yani aynı sorgu için tekrar tekrar gidilmez.
  *
- * Hata dayanıklılığı çağıranda değil BURADA: `getJson` zaten boş yedeğe
- * düşüyor, dolayısıyla bir uç 500 dönse sekme sayısız çizilir — sayfa
- * çökmez, yalnız rozet kaybolur.
+ * Hata dayanıklılığı çağıranda değil BURADA: `fetchProducts`/`fetchListings`
+ * ana veri çağrısıdır ve kesintide (5xx/429/ağ) `PublicApiUnavailableError`
+ * atar (B1-1). Sayaç ikincildir → her çağrı ayrı ayrı yutulur; karşı yüzeyin
+ * ucu 500 dönse sekme sayısız çizilir — sayfa çökmez, yalnız rozet kaybolur
+ * (derin denetim LU-24).
  */
 export async function crossCounts(
   q: string | undefined,
@@ -28,8 +30,8 @@ export async function crossCounts(
   // görünmesin, başta az firma olacağı için kötü intiba bırakır") — dizin
   // artık üyeliğe yönlendiren vitrin; sekmede firma rozeti yok.
   const [products, listings] = await Promise.all([
-    self === "products" ? null : fetchProducts({ q }),
-    self === "listings" ? null : fetchListings({ q }),
+    self === "products" ? null : fetchProducts({ q }).catch(() => null),
+    self === "listings" ? null : fetchListings({ q }).catch(() => null),
   ]);
   return {
     ...(products ? { products: products.total } : {}),

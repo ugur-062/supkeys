@@ -57,7 +57,7 @@ export function fetchCategoryMenu(locale?: string): Promise<CategoryMenuNode[]> 
   const cacheKey = locale ?? "";
   const hit = menuCache.get(cacheKey);
   if (hit) return hit;
-  const pending = (async () => {
+  const pending: Promise<CategoryMenuNode[]> = (async () => {
     const base = resolveApiBaseUrl();
     if (!base) return [];
     try {
@@ -67,7 +67,18 @@ export function fetchCategoryMenu(locale?: string): Promise<CategoryMenuNode[]> 
     } catch {
       return [];
     }
-  })().catch(() => [] as CategoryMenuNode[]);
+  })()
+    .catch(() => [] as CategoryMenuNode[])
+    .then((nodes) => {
+      // Yalnız dolu başarılı yanıt kalıcı: hata/boş yanıtta (soğuk başlangıç,
+      // deploy anı) önbellek düşer, bir sonraki açılış yeniden dener — yoksa
+      // menü tam yenilemeye kadar ölü kalıyordu (derin denetim LU-24).
+      if (!Array.isArray(nodes) || nodes.length === 0) {
+        if (menuCache.get(cacheKey) === pending) menuCache.delete(cacheKey);
+        return [];
+      }
+      return nodes;
+    });
   menuCache.set(cacheKey, pending);
   return pending;
 }

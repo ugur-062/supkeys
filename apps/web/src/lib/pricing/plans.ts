@@ -81,7 +81,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
       "Satın Alma Talebi açma — teklif toplama (RFQ) & pazarlık/eksiltme",
       "Kazandırma, onay akışları, raporlar & şablonlar",
       "Yapay zekâ — belgeden talep taslağı, sohbet asistanı, tedarikçi keşfi",
-      "“Gold Üye” rozeti — profil ve tekliflerde güven işareti",
+      "“Gold Üye” rozeti — profilde, firma dizininde ve ürünlerde güven işareti",
       "6 koltuk (satınalma ve satış)",
     ],
     cta: "Gold'a Başla",

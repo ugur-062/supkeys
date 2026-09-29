@@ -221,6 +221,11 @@ export interface RequestFacetLabels {
   country?: (code: string) => string;
   /** Eşlenmemiş/ham şehir metni → gösterim (Türk il adı çevirisi; varsayılan: olduğu gibi). */
   city?: (raw: string) => string;
+  /**
+   * Listede artık bulunmayan seçili alıcının (eski `?alici=` bağlantısı)
+   * etiketi — çağıran katalogdan verir (varsayılan: tire).
+   */
+  unknownBuyer?: string;
 }
 
 function tally(
@@ -260,7 +265,8 @@ export function requestFacets(
   const cl = rowsFor("closing");
   const fm = rowsFor("format");
   const pd = rowsFor("period");
-  const buyerName = (id: string) => all.find((r) => r.owner?.id === id)?.owner?.name ?? "Alıcı";
+  const buyerName = (id: string) =>
+    all.find((r) => r.owner?.id === id)?.owner?.name ?? labels.unknownBuyer ?? "—";
   const countryName = labels.country ?? ((c: string) => c);
   const rawCity = labels.city ?? ((c: string) => c);
   // Şehir adı: API'nin okuyucu dilindeki adı (dünya şehir dizini), yoksa ham metin.

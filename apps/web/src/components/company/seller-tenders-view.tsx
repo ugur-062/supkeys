@@ -71,11 +71,13 @@ export function SellerTendersView({ banner }: { banner?: ReactNode } = {}) {
   // (dünya şehir dizini), eşlenmemiş Türk il adı `useCityLabel` ile.
   const locale = useLocale() as Locale;
   const cityLabel = useCityLabel();
+  const tv = useTranslations("web.panel.trade.sellerTendersView");
   const facets = useMemo(
     () =>
       requestFacets(all, state, segmentNames, now, {
         country: (c) => countryDisplayName(c, locale),
         city: (raw) => cityLabel(raw),
+        unknownBuyer: tv("bilinmeyenAlici"),
       }),
     [all, key, segmentNames, now, locale], // eslint-disable-line react-hooks/exhaustive-deps
   );

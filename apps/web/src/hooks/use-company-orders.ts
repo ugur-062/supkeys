@@ -1,7 +1,12 @@
 "use client";
 
 import { companyApi } from "@/lib/company-auth/api";
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useMutation,
+  useQuery,
+  useQueryClient,
+} from "@tanstack/react-query";
 
 export type CompanyOrderStatus =
   | "PENDING"
@@ -203,6 +208,20 @@ export function useOrder(id: string) {
   });
 }
 
+/**
+ * Sipariş durumunu/ödemesini değiştiren her mutasyon: sipariş önbelleği (liste +
+ * detay önek) VE pano/aksiyon merkezi (PENDING/IN_DELIVERY/DELIVERED sayar,
+ * staleTime 60 sn) birlikte tazelenir — derin denetim LU-24.
+ */
+function invalidateOrderCaches(qc: QueryClient) {
+  // Promise döner: onSuccess onu beklediği için mutateAsync, sipariş
+  // önbelleği tazelenmeden çözülmez (eski tek-satır davranışı korunur).
+  return Promise.all([
+    qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    qc.invalidateQueries({ queryKey: ["company-dashboard"] }),
+  ]);
+}
+
 /** Satıcı: siparişi gönder (fatura no zorunlu + gönderim notu). */
 export function useShipOrder(id: string) {
   const qc = useQueryClient();
@@ -211,7 +230,7 @@ export function useShipOrder(id: string) {
       const { data } = await companyApi.post(`/company/orders/${id}/ship`, input);
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -226,7 +245,7 @@ export function useReceiveOrder(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -241,7 +260,7 @@ export function useCompleteOrder(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -256,7 +275,7 @@ export function useAcceptOrder(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -270,7 +289,7 @@ export function useRejectOrder(id: string) {
       });
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -284,7 +303,7 @@ export function useCancelOrder(id: string) {
       });
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -299,7 +318,7 @@ export function useRequestCancel(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -314,7 +333,7 @@ export function useWithdrawCancelRequest(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -332,7 +351,7 @@ export function useCancelRequestDecision(
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -347,7 +366,7 @@ export function useRaiseDefectNotice(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -362,7 +381,7 @@ export function useWithdrawDefectNotice(id: string) {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -377,7 +396,7 @@ export function useLcStep(id: string, action: "opened" | "accept" | "paid") {
       );
       return data;
     },
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["company-orders"] }),
+    onSuccess: () => invalidateOrderCaches(qc),
   });
 }
 
@@ -437,8 +456,7 @@ export function useRecordPayment(id: string) {
       // Denetim 2026-08-26 Parça 10: yalnız DETAY tazeleniyordu; liste
       // `paymentSettled`/`paymentDueDate` ile rozet ve KPI basıyor → önek
       // invalidasyonu (dosyadaki diğer sipariş mutasyonlarının deseni).
-      qc.invalidateQueries({ queryKey: ["company-orders"] });
-      qc.invalidateQueries({ queryKey: ["company-dashboard"] });
+      invalidateOrderCaches(qc);
     },
   });
 }
@@ -462,8 +480,7 @@ export function usePaymentDecision(id: string) {
       // Denetim 2026-08-26 Parça 10: yalnız DETAY tazeleniyordu; liste
       // `paymentSettled`/`paymentDueDate` ile rozet ve KPI basıyor → önek
       // invalidasyonu (dosyadaki diğer sipariş mutasyonlarının deseni).
-      qc.invalidateQueries({ queryKey: ["company-orders"] });
-      qc.invalidateQueries({ queryKey: ["company-dashboard"] });
+      invalidateOrderCaches(qc);
     },
   });
 }

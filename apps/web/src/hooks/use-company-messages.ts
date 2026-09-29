@@ -105,7 +105,10 @@ export function useSendMessage(portal: MessagePortal, otherPartyId: string) {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: MESSAGE_KEYS.thread(portal, otherPartyId) });
-      qc.invalidateQueries({ queryKey: MESSAGE_KEYS.threads(portal) });
+      // Önek: portal listesi + birleşik kutu ("all") birlikte tazelenir; yalnız
+      // portal anahtarı gelen kutusunun ['…','all'] listesini ıskalıyordu
+      // (derin denetim LU-24).
+      qc.invalidateQueries({ queryKey: [MESSAGE_KEYS.threads(portal)[0]] });
       qc.invalidateQueries({ queryKey: MESSAGE_KEYS.unread });
     },
   });

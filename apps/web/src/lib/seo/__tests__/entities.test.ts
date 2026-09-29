@@ -187,6 +187,16 @@ describe("listingSeo — sahip ANONİM kalır", () => {
     expect(raw).toContain("312000");
   });
 
+  it("uzun talep başlığı numara korunarak 75 tavanına kırpılır (derin denetim LU-24)", () => {
+    const long = listingSeo(listingSeoInput({ ...listing, title: `${"Paslanmaz çelik boru ve flanş ".repeat(4)}alımı` }));
+    const title = String(long.metadata.title);
+    expect(title.endsWith(" — ROT-000159")).toBe(true);
+    expect(title).toContain("…");
+    expect(`${title} · Rothern`.length).toBeLessThanOrEqual(75);
+    // Kısa başlık olduğu gibi kalır.
+    expect(String(seo.metadata.title)).toBe(`${listing.title} — ROT-000159`);
+  });
+
   it("kapanmış talep şemada da kapalı görünür", () => {
     const closed = listingSeo(listingSeoInput({ ...listing, status: "CLOSED", indexable: false }));
     expect(JSON.stringify(closed.jsonLd)).toContain("Discontinued");
