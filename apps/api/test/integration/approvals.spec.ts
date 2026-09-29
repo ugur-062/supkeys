@@ -405,6 +405,77 @@ describe("Kazandırma onayı — uçtan uca", () => {
     expect(pending).toBe(0);
   });
 
+  it("fallback (derin denetim MU-15): Yönetici etiketi kalsa da approval:act izni alınan onaycının adımı devredilir", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // initiator
+    const y = await addUser(owner.company.id, "TR", ["YONETICI"]);
+    const a2 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(owner.auth, flowInput([y.user.id]) as never);
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    await startAward(approvals, owner.auth, owner.company.id, owner.user.id);
+
+    // Kurucu Y'nin "Onaylama" tikini kaldırdı: users:manage kalır → etiket
+    // YONETICI olarak durur, ama karar uçları (approval:act) 403 verir.
+    await prisma.companyUser.update({
+      where: { id: y.user.id },
+      data: { permissions: ["company:manage", "users:manage"], roles: ["YONETICI"] },
+    });
+    const n = await approvals.fallbackInactiveApprovers();
+    expect(n).toBe(1);
+    const step = await prisma.approvalRequestStep.findFirstOrThrow({
+      where: { status: "PENDING" },
+    });
+    expect(step.approverUserId).toBe(a2.user.id);
+  });
+
+  it("fallback (derin denetim MU-15): Kurucu'nun onay izni örtük — saklı listesinde approval:act olmasa da ikame havuzunda", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" });
+    const buyer = await addUser(owner.company.id, "TR", ["SATIN_ALMACI"]); // initiator
+    const a1 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(owner.auth, flowInput([a1.user.id]) as never);
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    const { res } = await startAward(approvals, buyer.auth, owner.company.id, buyer.user.id);
+    const requestId = (res as { requestId?: string }).requestId!;
+
+    // Kurucu kendi satırını kaydetmiş: yalnız koltuk izinleri saklanır.
+    await prisma.companyUser.update({
+      where: { id: owner.user.id },
+      data: { permissions: ["sell:view", "sell:bid:submit"] },
+    });
+    await prisma.companyUser.update({
+      where: { id: a1.user.id },
+      data: { isActive: false },
+    });
+    const n = await approvals.fallbackInactiveApprovers();
+    expect(n).toBe(1);
+    const req = await prisma.approvalRequest.findUniqueOrThrow({ where: { id: requestId } });
+    expect(req.status).toBe("PENDING"); // eskiden: uygun onaycı yok → REJECTED
+    const step = await prisma.approvalRequestStep.findFirstOrThrow({
+      where: { requestId, status: "PENDING" },
+    });
+    expect(step.approverUserId).toBe(owner.user.id);
+  });
+
+  it("requestApproval (derin denetim MU-15): akış adımı onaycısının approval:act izni sonradan alındıysa oluştururken ikame edilir", async () => {
+    const { approvals } = makeApprovalRig();
+    const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // initiator
+    const y = await addUser(owner.company.id, "TR", ["YONETICI"]);
+    const a2 = await addUser(owner.company.id, "TR", ["ONAYLAYICI"]);
+    const flow = await approvals.createFlow(owner.auth, flowInput([y.user.id]) as never);
+    await approvals.setStatus(owner.auth, flow.id, { status: "ACTIVE" } as never);
+    await prisma.companyUser.update({
+      where: { id: y.user.id },
+      data: { permissions: ["users:manage"], roles: ["YONETICI"] },
+    });
+    const { res } = await startAward(approvals, owner.auth, owner.company.id, owner.user.id);
+    expect((res as { approved: boolean }).approved).toBe(false);
+    const step = await prisma.approvalRequestStep.findFirstOrThrow({
+      where: { status: "PENDING" },
+    });
+    expect(step.approverUserId).toBe(a2.user.id);
+  });
+
   it("requestApproval: ilk adım approver'ı == initiator + başka admin var → ANINDA ikame", async () => {
     const { approvals } = makeApprovalRig();
     const owner = await makeCompanyWithUser(prisma, { country: "TR" }); // initiator + approver

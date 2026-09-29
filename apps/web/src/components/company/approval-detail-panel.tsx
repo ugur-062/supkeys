@@ -93,7 +93,7 @@ export function ApprovalDetailPanel({ id }: { id: string }) {
           <div className="mt-1.5 space-y-2">
             <ul className="flex flex-wrap gap-2">
               {d.award.winners.map((w) => (
-                <li key={w.bidId} className="rounded-lg border border-zinc-950/10 px-2.5 py-1.5">
+                <li key={`${w.bidId}-${w.currency}`} className="rounded-lg border border-zinc-950/10 px-2.5 py-1.5">
                   <span className="font-medium text-zinc-950">{w.companyName}</span>{" "}
                   {w.verified ? (
                     <Badge color="blue">{t("dogrulanmis")}</Badge>

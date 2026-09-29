@@ -217,6 +217,105 @@ describe("approvals.getDetail — karar bağlamı", () => {
     expect(d.competition.winnerRank).toBeNull(); // kalem bazlıda sıra yok
   });
 
+  it("rekabet özeti (derin denetim MU-15): alıcının elediği ve önceki turda kalan LOST teklifler sayılmaz; kazandırmayla kaybeden sayılır", async () => {
+    const svc = approvalsService();
+    const sc = await scenario();
+    // En ucuz teklif (b2, 1850) şartnameye uymadığı için ELENDİ.
+    await prisma.listingBid.update({
+      where: { id: sc.b2.id },
+      data: { status: "LOST", eliminatedAt: new Date(), eliminationReason: "Şartname dışı" },
+    });
+    // Önceki turdan bayat teklif: tur 1'de kalmış, ilan artık 2. turda.
+    const s5 = await makeCompanyWithUser(prisma, { country: "TR", name: "Eski Tur Ltd" });
+    const stale = await bid(sc.listing.id, s5, [
+      { itemId: sc.i1.id, unitPrice: 1, quantity: 100 },
+      { itemId: sc.i2.id, unitPrice: 1, quantity: 50 },
+    ]); // 150
+    await prisma.listingBid.update({ where: { id: stale.id }, data: { status: "LOST", round: 1 } });
+    await prisma.listing.update({ where: { id: sc.listing.id }, data: { currentRound: 2 } });
+    await prisma.listingBid.updateMany({
+      where: { id: { in: [sc.b1.id, sc.b2.id, sc.b3.id] } },
+      data: { round: 2 },
+    });
+    // b3 kazandırmayla kaybetmiş gibi (LOST, eleme damgası yok, güncel tur).
+    await prisma.listingBid.update({ where: { id: sc.b3.id }, data: { status: "LOST" } });
+    const req = await prisma.approvalRequest.create({
+      data: {
+        companyId: sc.co.company.id,
+        listingId: sc.listing.id,
+        type: "LISTING_AWARD",
+        status: "PENDING",
+        amount: 2000,
+        currency: "TRY",
+        payload: { kind: "full", bidId: sc.b1.id },
+        createdById: sc.co.user.id,
+        steps: { create: [{ approverUserId: sc.approver.id, order: 1, status: "PENDING" }] },
+      },
+    });
+    const d = await svc.getDetail(sc.approverAuth, req.id);
+    expect(d.competition).toEqual({
+      validBidCount: 2,
+      currency: "TRY",
+      currencyMixed: false,
+      lowestTotal: 2000,
+      secondLowestTotal: 3000,
+      winnerRank: 1,
+    });
+  });
+
+  it("kalem-bazlı (derin denetim MU-15): aynı teklifin farklı para birimli kalemleri tek toplamda birleşmez", async () => {
+    const svc = approvalsService();
+    const sc = await scenario();
+    const s6 = await makeCompanyWithUser(prisma, { country: "TR", name: "Karma Birim Ltd" });
+    const mixed = await prisma.listingBid.create({
+      data: {
+        listingId: sc.listing.id,
+        bidderCompanyId: s6.company.id,
+        createdById: s6.user.id,
+        amount: 1000,
+        currency: "TRY",
+        status: "SUBMITTED",
+        submittedAt: new Date(),
+        items: {
+          create: [
+            { itemId: sc.i1.id, unitPrice: 10, currency: "TRY" }, // 100 × 10 = 1.000 TRY
+            { itemId: sc.i2.id, unitPrice: 2, currency: "USD" }, // 50 × 2 = 100 USD
+          ],
+        },
+      },
+    });
+    const req = await prisma.approvalRequest.create({
+      data: {
+        companyId: sc.co.company.id,
+        listingId: sc.listing.id,
+        type: "LISTING_AWARD",
+        status: "PENDING",
+        amount: 1000,
+        currency: "TRY",
+        payload: {
+          kind: "by-item",
+          itemAwards: [
+            { itemId: sc.i1.id, bidId: mixed.id },
+            { itemId: sc.i2.id, bidId: mixed.id },
+          ],
+        },
+        createdById: sc.co.user.id,
+        steps: { create: [{ approverUserId: sc.approver.id, order: 1, status: "PENDING" }] },
+      },
+    });
+    const d = await svc.getDetail(sc.approverAuth, req.id);
+    if (d.award.kind !== "by-item") throw new Error("kind");
+    expect(d.award.winners).toHaveLength(2);
+    expect(d.award.winners).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ bidId: mixed.id, total: 1000, currency: "TRY", lineCount: 1 }),
+        expect.objectContaining({ bidId: mixed.id, total: 100, currency: "USD", lineCount: 1 }),
+      ]),
+    );
+    // Birden fazla birim → tek kazanan birimi yok, sıralama yapılmaz.
+    expect(d.competition.currency).toBeNull();
+  });
+
   it("erişim: adımda olmayan üye 404; başlatan ve akış yöneticisi görür", async () => {
     const svc = approvalsService();
     const sc = await scenario();

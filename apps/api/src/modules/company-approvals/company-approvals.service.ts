@@ -43,6 +43,23 @@ function eventBase(type: ApprovalType): string {
   return type === "LISTING_PUBLISH" ? "listing.publish" : "listing.award";
 }
 
+/**
+ * INV-APPR-1 — onaycı uygunluğunun TEK kuralı: karar uçlarının
+ * `@RequireCompanyPermission("approval:act")` kapısıyla aynı (efektif izin,
+ * Kurucu'nun örtük izni dahil). Rol ETİKETİNE bakılmaz: users:manage taşıyan
+ * kişi approval:act olmadan da YONETICI etiketi alır (derin denetim MU-15).
+ * Aktiflik/silinmişlik çağıranın sorgusunda süzülür.
+ */
+function canActOnApprovals(
+  u: { id: string; roles: readonly string[]; permissions: readonly string[] },
+  ownerUserId: string | null,
+): boolean {
+  return hasCompanyPermission(
+    { isOwner: ownerUserId === u.id, permissions: u.permissions, roles: u.roles },
+    "approval:act",
+  );
+}
+
 @Injectable()
 export class CompanyApprovalsService {
   private readonly logger = new Logger(CompanyApprovalsService.name);
@@ -728,9 +745,15 @@ export class CompanyApprovalsService {
     // ANINDA reddet: doomed PENDING oluşmasın, kullanıcı ~1dk fallback-cron'unu
     // beklemeden net hata alsın (tek-admin firma senaryosu). Sonraki adımların
     // (ilerideki adım == initiator) ikamesi fallback cron'undadır.
-    if (drafts[firstActive]!.approverUserId === user.userId) {
+    // Derin denetim MU-15: akış kaydedildikten sonra onaycı pasifleşmiş ya da
+    // "Onaylama" izni alınmışsa da aynı ikame — istek 403 alacak kişiye düşmesin.
+    const firstApproverId = drafts[firstActive]!.approverUserId;
+    if (
+      firstApproverId === user.userId ||
+      !(await this.isEligibleApprover(user.companyId, firstApproverId))
+    ) {
       const substitute = await this.findEligibleApprover(user.companyId, [
-        user.userId,
+        ...new Set([user.userId, firstApproverId]),
       ]);
       if (!substitute) {
         throw new ForbiddenException(
@@ -1296,12 +1319,13 @@ export class CompanyApprovalsService {
     //     yani tıkanma KALICI. Artık imleçle TÜM bekleyen adımlar taranıyor
     //     (üst sınır bir kaçak-döngü emniyeti, işlevsel tavan değil).
     //
-    // (2) ROL KAYBI: uygunluk yalnız `isActive`/`deletedAt`'e bakıyordu. Oysa
-    //     `findEligibleApprover` havuzu ROL de istiyor. Onaylayıcının ONAYLAYICI
-    //     rolü sonradan alınırsa kullanıcı aktif kalır → fallback tetiklenmez,
-    //     ama decide() da rolü olmadığı için onaylayamaz → zincir SESSİZCE
-    //     tıkanır. Uygunluk artık iki taraf için de AYNI kural.
-    const APPROVER_ROLES = ["SAHIP", "YONETICI", "ONAYLAYICI"];
+    // (2) YETKİ KAYBI: uygunluk yalnız `isActive`/`deletedAt`'e bakıyordu.
+    //     Onaylayıcının "Onaylama" izni sonradan alınırsa kullanıcı aktif kalır
+    //     → fallback tetiklenmez, ama karar uçları approval:act istediği için
+    //     onaylayamaz → zincir SESSİZCE tıkanır. Derin denetim MU-15: rol
+    //     ETİKETİ de yetmez (users:manage taşıyan approval:act'siz kişi YONETICI
+    //     etiketi alır) — uygunluk artık `canActOnApprovals` (izin + Kurucu
+    //     örtük izni), `findEligibleApprover` ile AYNI kural.
     const MAX_SCAN = 5000; // kaçak-döngü emniyeti
     type Step = {
       id: string;
@@ -1346,18 +1370,30 @@ export class CompanyApprovalsService {
       const approverIds = [...new Set(batch.map((s) => s.approverUserId))];
       const approvers = await this.bypass.companyUser.findMany({
         where: { id: { in: approverIds } },
-        select: { id: true, isActive: true, deletedAt: true, roles: true },
+        select: {
+          id: true,
+          companyId: true,
+          isActive: true,
+          deletedAt: true,
+          roles: true,
+          permissions: true,
+        },
       });
+      const owners = await this.bypass.company.findMany({
+        where: { id: { in: [...new Set(approvers.map((a) => a.companyId))] } },
+        select: { id: true, ownerUserId: true },
+      });
+      const ownerByCompany = new Map(owners.map((c) => [c.id, c.ownerUserId]));
       const ineligible = new Map(
         approvers.map((a) => [
           a.id,
           !a.isActive ||
             a.deletedAt != null ||
-            !a.roles.some((r) => APPROVER_ROLES.includes(r)),
+            !canActOnApprovals(a, ownerByCompany.get(a.companyId) ?? null),
         ]),
       );
       // INV-APPR-1: GEÇERSİZ approver = uygunluğunu yitirmiş (pasif/silinmiş/
-      // rolsüz) VEYA initiator (görev ayrılığı — self-onay decide'da da
+      // approval:act izni yok) VEYA initiator (görev ayrılığı — self-onay decide'da da
       // reddedilir; burada zinciri açar). Kullanıcı kaydı hiç bulunamazsa da
       // geçersiz sayılır (fail-closed: aksi hâlde adım sonsuza dek PENDING).
       for (const st of batch) {
@@ -1374,12 +1410,14 @@ export class CompanyApprovalsService {
 
     let reassigned = 0;
     for (const step of toFix) {
-      // Havuz: aktif SAHIP/YONETICI/ONAYLAYICI ∖ {eski approver, initiator}
-      // ("approver-uygun = fallback-uygun" tutarsızlığı kapatıldı; ONAYLAYICI dahil).
-      const fallback = await this.findEligibleApprover(step.request.companyId, [
-        step.approverUserId,
-        step.request.createdById,
-      ]);
+      // Havuz: aktif + approval:act (Kurucu dahil) ∖ {eski approver, initiator}
+      // ("approver-uygun = fallback-uygun"; tek kural `canActOnApprovals`).
+      // BYPASS: cron'da tenant bağlamı yok (RLS açıkken ana client 0 satır).
+      const fallback = await this.findEligibleApprover(
+        step.request.companyId,
+        [step.approverUserId, step.request.createdById],
+        this.bypass,
+      );
       if (!fallback) {
         // Uygun onaylayıcı YOK → SESSİZ PENDING DEĞİL (eski deadlock): tanımlı
         // reddet + initiator'ı bilgilendir (tek-admin senaryosu buraya düşer).
@@ -1401,37 +1439,60 @@ export class CompanyApprovalsService {
   }
 
   /**
-   * INV-APPR-1: bir adım için UYGUN onaylayıcı — aktif SAHIP/YONETICI/ONAYLAYICI
-   * (onaycı-uygun rolleriyle AYNI küme; eski fallback'in yalnız SAHIP/YONETICI
-   * araması tutarsızdı), `excludeIds` dışında (eski/geçersiz approver + initiator).
-   * Uygun kimse yoksa null.
+   * INV-APPR-1: bir adım için UYGUN onaylayıcı — aktif ve "Onaylama"
+   * (approval:act) izni EFEKTİF olarak taşıyan (Kurucu'nun örtük izni dahil;
+   * `assertApproversValid`, `listApproverCandidates` ve karar uçlarının
+   * `@RequireCompanyPermission("approval:act")` kapısıyla AYNI kural),
+   * `excludeIds` dışında (eski/geçersiz approver + initiator). En eski üye
+   * önce. Uygun kimse yoksa null.
+   *
+   * Derin denetim MU-15: eskiden havuz yalnız SAKLANAN listede approval:act
+   * arıyordu; Kurucu'nun izni örtük olduğundan (kendi satırını kaydedince
+   * listeden düşer) Kurucu hiç seçilmiyor, istek gereksiz reddediliyordu.
    */
   private async findEligibleApprover(
     companyId: string,
     excludeIds: string[],
     client: Prisma.TransactionClient = this.prisma,
   ): Promise<string | null> {
-    // Onaylayabilen = "Onaylama" (approval:act) izni taşıyan. İzin kolonu boş
-    // eski satırlarda etiket sayılır (geçiş emniyeti; effectivePermissions ile
-    // aynı kural).
-    const u = await client.companyUser.findFirst({
-      where: {
-        companyId,
-        isActive: true,
-        deletedAt: null,
-        OR: [
-          { permissions: { has: "approval:act" } },
-          {
-            permissions: { isEmpty: true },
-            roles: { hasSome: ["SAHIP", "YONETICI", "ONAYLAYICI"] },
-          },
-        ],
-        id: { notIn: excludeIds },
-      },
-      orderBy: { createdAt: "asc" },
-      select: { id: true },
-    });
+    const [rows, company] = await Promise.all([
+      client.companyUser.findMany({
+        where: {
+          companyId,
+          isActive: true,
+          deletedAt: null,
+          id: { notIn: excludeIds },
+        },
+        orderBy: { createdAt: "asc" },
+        select: { id: true, roles: true, permissions: true },
+      }),
+      client.company.findUnique({
+        where: { id: companyId },
+        select: { ownerUserId: true },
+      }),
+    ]);
+    const u = rows.find((r) =>
+      canActOnApprovals(r, company?.ownerUserId ?? null),
+    );
     return u?.id ?? null;
+  }
+
+  /** Verilen üye bu firmada şu an onaylayabilir mi (aktif + approval:act). */
+  private async isEligibleApprover(
+    companyId: string,
+    userId: string,
+  ): Promise<boolean> {
+    const [u, company] = await Promise.all([
+      this.prisma.companyUser.findFirst({
+        where: { id: userId, companyId, isActive: true, deletedAt: null },
+        select: { id: true, roles: true, permissions: true },
+      }),
+      this.prisma.company.findUnique({
+        where: { id: companyId },
+        select: { ownerUserId: true },
+      }),
+    ]);
+    return !!u && canActOnApprovals(u, company?.ownerUserId ?? null);
   }
 
   /**
@@ -1696,6 +1757,7 @@ export class CompanyApprovalsService {
             type: true,
             categoryIds: true,
             closesAt: true,
+            currentRound: true,
             items: {
               orderBy: { lineNo: "asc" },
               select: {
@@ -1733,6 +1795,8 @@ export class CompanyApprovalsService {
           amount: true,
           currency: true,
           status: true,
+          round: true,
+          eliminatedAt: true,
           deliveryTime: true,
           deliveryDate: true,
           bidderCompany: {
@@ -1814,9 +1878,18 @@ export class CompanyApprovalsService {
       winnerBidIds = [payload.bidId];
       winnerCurrency = w?.currency ?? null;
     } else if (payload?.kind === "by-item") {
+      // Anahtar teklif + PARA BİRİMİ (derin denetim MU-15): çok-birimli
+      // teklifte kalemler kendi biriminde fiyatlanır; yalnız teklife göre
+      // toplamak 1.000 TRY + 100 USD'yi "1.100 TRY" gösteriyordu. Siparişlerin
+      // bölündüğü `buildItemGroups` ile aynı gruplama: birim başına ayrı satır.
       const perBid = new Map<
         string,
-        { total: Prisma.Decimal; currency: string; lineCount: number }
+        {
+          bidId: string;
+          total: Prisma.Decimal;
+          currency: string;
+          lineCount: number;
+        }
       >();
       const lines = payload.itemAwards.map((a) => {
         const item = itemById.get(a.itemId);
@@ -1826,14 +1899,16 @@ export class CompanyApprovalsService {
         const currency = bi?.currency ?? b?.currency ?? r.currency;
         const total = bi ? roundMoney(lineTotal(bi.unitPrice, qty)) : null;
         if (b && total) {
-          const cur = perBid.get(b.id) ?? {
+          const key = `${b.id}::${currency}`;
+          const cur = perBid.get(key) ?? {
+            bidId: b.id,
             total: new Prisma.Decimal(0),
             currency,
             lineCount: 0,
           };
           cur.total = cur.total.plus(total);
           cur.lineCount += 1;
-          perBid.set(b.id, cur);
+          perBid.set(key, cur);
         }
         return {
           lineNo: item?.lineNo ?? null,
@@ -1847,10 +1922,10 @@ export class CompanyApprovalsService {
           currency,
         };
       });
-      const winners = [...perBid.entries()].map(([bidId, v]) => {
-        const b = bidById.get(bidId)!;
+      const winners = [...perBid.values()].map((v) => {
+        const b = bidById.get(v.bidId)!;
         return {
-          bidId,
+          bidId: v.bidId,
           companyName: b.bidderCompany.name,
           verified: b.bidderCompany.companyVerificationStatus === "VERIFIED",
           total: Number(v.total),
@@ -1859,17 +1934,27 @@ export class CompanyApprovalsService {
         };
       });
       award = { kind: "by-item", lines, winners };
-      winnerBidIds = [...perBid.keys()];
+      winnerBidIds = [...new Set(winners.map((w) => w.bidId))];
       const curs = new Set(winners.map((w) => w.currency));
       winnerCurrency = curs.size === 1 ? [...curs][0]! : null;
     }
 
-    // Rekabet özeti — yalnız kazananla AYNI para birimindeki teklifler sıralanır
-    // (kur çevirisi yapılmaz; karışıksa dürüstçe işaretlenir).
+    // Rekabet özeti — yalnız GEÇERLİ teklifler: güncel turda verilmiş ve alıcının
+    // ELEMEDİĞİ (eliminatedAt yok). Derin denetim MU-15: LOST de sahibe görünür
+    // statüdür; onay anında LOST = alıcının elediği ya da önceki turda kalmış
+    // bayat teklif ve bunlar "Geçerli teklif", en düşük ve kazanan sırasına
+    // giriyordu. Kazandırma sonrası kaybeden teklifler (LOST, eleme damgasız,
+    // aynı tur) sayılmaya devam eder → sonuçlanmış isteğin özeti değişmez.
+    const validBids = bids.filter(
+      (b) => b.eliminatedAt == null && b.round === r.listing.currentRound,
+    );
+    // Kazananla AYNI para birimindeki teklifler sıralanır (kur çevirisi
+    // yapılmaz; karışıksa dürüstçe işaretlenir).
     const currencyMixed =
-      winnerCurrency != null && bids.some((b) => b.currency !== winnerCurrency);
+      winnerCurrency != null &&
+      validBids.some((b) => b.currency !== winnerCurrency);
     const comparable = winnerCurrency
-      ? bids
+      ? validBids
           .filter((b) => b.currency === winnerCurrency)
           .sort((a, b) => Number(a.amount) - Number(b.amount))
       : [];
@@ -1919,7 +2004,7 @@ export class CompanyApprovalsService {
       },
       award,
       competition: {
-        validBidCount: bids.length,
+        validBidCount: validBids.length,
         currency: winnerCurrency,
         currencyMixed,
         lowestTotal: comparable[0] ? Number(comparable[0].amount) : null,
