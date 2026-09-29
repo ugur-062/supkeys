@@ -15,25 +15,7 @@ const h = vi.hoisted(() => ({
   update: vi.fn(),
   seats: undefined as unknown,
   toast: { success: vi.fn(), error: vi.fn(), info: vi.fn(), warning: vi.fn() },
-}));
-
-vi.mock("next/navigation", () => ({
-  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
-}));
-vi.mock("sonner", () => ({ toast: h.toast }));
-vi.mock("@/hooks/use-company-users", () => ({
-  useCompanyUsers: () => ({ data: h.users, isLoading: h.usersLoading }),
-  useCompanyInvitations: () => ({ data: h.invitations }),
-  useInviteUser: () => ({ mutateAsync: h.invite, isPending: false }),
-  useCancelInvitation: () => ({ mutateAsync: h.cancel, isPending: false }),
-  useResendInvitation: () => ({ mutateAsync: h.resend, isPending: false }),
-  useSetUserActive: () => ({ mutateAsync: h.setActive, isPending: false }),
-  useRemoveUser: () => ({ mutateAsync: h.removeUser, isPending: false }),
-  useUpdateUser: () => ({ mutateAsync: h.update, isPending: false }),
-  useUpdateUserPermissions: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  useSetUserPermissions: () => ({ mutateAsync: vi.fn(), isPending: false }),
-  // Yetki tablosu (Faz 4): davet dialogu kataloğun hazır setiyle dolar.
-  usePermissionCatalog: () => ({
+  permissionCatalog: {
     data: {
       catalog: [
         { key: "buy:view", label: "Satınalma görüntüleme", group: "buy", seat: false },
@@ -53,7 +35,28 @@ vi.mock("@/hooks/use-company-users", () => ({
       },
       roleDefaults: {},
     },
-  }),
+  },
+}));
+
+vi.mock("next/navigation", () => ({
+  useRouter: () => ({ push: vi.fn(), replace: vi.fn(), prefetch: vi.fn() }),
+}));
+vi.mock("sonner", () => ({ toast: h.toast }));
+vi.mock("@/hooks/use-company-users", () => ({
+  useCompanyUsers: () => ({ data: h.users, isLoading: h.usersLoading }),
+  useCompanyInvitations: () => ({ data: h.invitations }),
+  useInviteUser: () => ({ mutateAsync: h.invite, isPending: false }),
+  useCancelInvitation: () => ({ mutateAsync: h.cancel, isPending: false }),
+  useResendInvitation: () => ({ mutateAsync: h.resend, isPending: false }),
+  useSetUserActive: () => ({ mutateAsync: h.setActive, isPending: false }),
+  useRemoveUser: () => ({ mutateAsync: h.removeUser, isPending: false }),
+  useUpdateUser: () => ({ mutateAsync: h.update, isPending: false }),
+  useUpdateUserPermissions: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSetUserPermissions: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  // Yetki tablosu (Faz 4): davet dialogu kataloğun hazır setiyle dolar.
+  // Referans SABİT (react-query verisi gibi): her render'da yeni nesne,
+  // gerçekte olmayan bir kimlik değişimi üretir.
+  usePermissionCatalog: () => h.permissionCatalog,
   useSeats: () => ({ data: h.seats }),
   useSeatSelection: () => ({ mutateAsync: vi.fn(), isPending: false }),
 }));

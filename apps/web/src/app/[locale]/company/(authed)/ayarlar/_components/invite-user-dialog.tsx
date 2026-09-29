@@ -82,7 +82,12 @@ export function InviteUserDialog({
   const userEdited = useRef(false);
   useEffect(() => {
     if (!open || userEdited.current || !catalog || !seats) return;
-    setPerms(defaultPerms());
+    // Aynı set yeniden yazılmaz: yeni dizi referansı yeniden render tetikler;
+    // referansı her render'da değişen bir katalog/koltuk kaynağıyla bu efekt
+    // sonsuz render döngüsüne girerdi (ORTA regresyon). İçerik aynıysa
+    // önceki referans döner → React güncellemeyi atlar.
+    const next = defaultPerms();
+    setPerms((prev) => (sameSet(prev, next) ? prev : next));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, catalog, seats]);
   const handlePermsChange = (next: string[]) => {
@@ -189,4 +194,10 @@ export function InviteUserDialog({
       </DialogActions>
     </Dialog>
   );
+}
+
+function sameSet(a: string[], b: string[]): boolean {
+  if (a.length !== b.length) return false;
+  const bs = new Set(b);
+  return a.every((k) => bs.has(k));
 }
