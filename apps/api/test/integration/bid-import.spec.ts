@@ -185,7 +185,7 @@ describe("teklif şablonu — doldur → parse (YAZMAZ)", () => {
     expect(by[i1.id]).toMatchObject({
       confidence: "exact",
       unitPrice: 185.5,
-      currency: null, // TRY = ana birim → null
+      currency: "TRY", // ana birim de açık kod döner (null = satırda birim yok)
       deliveryTime: "W1_2",
       note: "Dikişsiz, ST37",
       errors: [],
@@ -286,7 +286,7 @@ describe("Belgeden Fiyatla (AI)", () => {
     expect(res.mode).toBe("ai");
     expect(res.route).toBe("text");
     const by = Object.fromEntries(res.matches.map((m) => [m.itemId, m]));
-    expect(by[i1.id]).toMatchObject({ confidence: "exact", unitPrice: 185, currency: null, deliveryTime: "STOKTAN" });
+    expect(by[i1.id]).toMatchObject({ confidence: "exact", unitPrice: 185, currency: "TRY", deliveryTime: "STOKTAN" });
     expect(by[i2.id]!.confidence).toBe("high");
     expect(by[i2.id]!.unitPrice).toBe(42.5);
     expect(by[i3.id]!.confidence).toBe("none");

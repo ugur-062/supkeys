@@ -256,7 +256,13 @@ export function isCrossLanguage(
 export function matchDocRows(
   items: MatchItem[],
   rows: DocRow[],
-  opts: { allowedCurrencies: string[]; primaryCurrency: string | null; crossLanguage?: boolean | null },
+  opts: {
+    allowedCurrencies: string[];
+    primaryCurrency: string | null;
+    /** Belgenin baskın birimi — birimsiz satırlara uygulanır (izinliyse). */
+    docCurrency?: string | null;
+    crossLanguage?: boolean | null;
+  },
 ): { matches: BidImportMatch[]; unmatched: BidImportDocRow[] } {
   type Cand = { itemIdx: number; rowIdx: number; score: number; exact: boolean; hinted: boolean };
   const cands: Cand[] = [];
@@ -372,19 +378,25 @@ function docRowPrice(r: DocRow, warnings: string[]): number | null {
 }
 
 /**
- * Belge satırı para birimi: izinli listede değilse null + uyarı; ana birimle
- * aynıysa null (= teklifin ana birimi).
+ * Belge satırı para birimi: izinli kod AÇIKÇA döner (talebin ana birimi
+ * dahil); null YALNIZ satırda birim yoksa / kabul edilmiyorsa (+ uyarı) ve
+ * istemci bunu teklif birimi sayar. Eskiden ana birim null'a çevriliyordu;
+ * tedarikçi teklif birimini ana birimden farklı seçince "185 TRY" satırı
+ * 185 USD olarak forma yazılıyordu (derin denetim MU-23 gözden geçirme).
+ * Satırda birim yoksa belgenin baskın birimi (izinliyse) kullanılır.
  */
 function docRowCurrency(
   r: DocRow,
-  opts: { allowedCurrencies: string[]; primaryCurrency: string | null },
+  opts: { allowedCurrencies: string[]; docCurrency?: string | null },
   warnings: string[],
 ): string | null {
+  const allowed = (c: string) => opts.allowedCurrencies.length === 0 || opts.allowedCurrencies.includes(c);
   const cur = normalizeCurrency(r.currency);
-  if (!cur) return null;
-  if (opts.allowedCurrencies.length === 0 || opts.allowedCurrencies.includes(cur)) {
-    return cur === opts.primaryCurrency ? null : cur;
+  if (!cur) {
+    const docCur = normalizeCurrency(opts.docCurrency ?? null);
+    return docCur && allowed(docCur) ? docCur : null;
   }
+  if (allowed(cur)) return cur;
   warnings.push(tApi("api.companyListings.bidImport.satirParaBirimiKabulEdilmiyor", { currency: cur }));
   return null;
 }
@@ -394,7 +406,7 @@ export function applyDocRowValues(
   m: BidImportMatch,
   r: DocRow,
   it: MatchItem,
-  opts: { allowedCurrencies: string[]; primaryCurrency: string | null },
+  opts: { allowedCurrencies: string[]; docCurrency?: string | null },
 ): void {
   m.unitPrice = docRowPrice(r, m.warnings);
   if (r.quantity != null && Number.isFinite(r.quantity)) {

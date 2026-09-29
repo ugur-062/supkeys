@@ -339,7 +339,9 @@ export class BidImportService {
             }),
           );
         } else {
-          m.currency = cur === l.primaryCurrency ? null : cur;
+          // Kod açıkça döner (ana birim dahil) — istemci teklif birimiyle
+          // karşılaştırır; null yalnız "satırda birim yok" demektir.
+          m.currency = cur;
         }
       }
       const delRaw = get("deliveryTime");
@@ -403,6 +405,7 @@ export class BidImportService {
     const { matches, unmatched } = matchDocRows(l.items, rows, {
       allowedCurrencies: l.allowedCurrencies,
       primaryCurrency: l.primaryCurrency,
+      docCurrency: docMeta.docCurrency,
       crossLanguage: docMeta.crossLanguage,
     });
     const notices: string[] = [];

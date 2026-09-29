@@ -57,7 +57,11 @@ export function BidImportDialog({
   onClose: () => void;
   variant: BidImportVariant;
   listingId: string;
-  /** Teklifin ana para birimi (null currency satırlarında gösterilir). */
+  /**
+   * Teklifin para birimi (sayfadaki effectiveCurrency). Sunucu satır birimini
+   * açık kodla döner (talebin ana birimi dahil); null = satırda birim yok →
+   * bu birim sayılır.
+   */
   currencyLabel: string;
   /**
    * Kalem bazlı para birimi yazılabilir mi (teklif sayfasındaki
@@ -127,23 +131,26 @@ export function BidImportDialog({
         errors: m.errors,
       };
     });
-    // Kalem bazlı birim kapalıyken (tek birimli / açık eksiltme) ana birimden
-    // farklı birimli fiyat uygulanamaz: form birimi yazmaz, fiyat ana birim
-    // sayılırdı. Satır hata olarak işaretlenir, kullanıcı elle çevirir.
-    return rows.map((e) =>
-      e.unitPrice != null &&
-      e.currency &&
-      e.currency !== currencyLabel &&
-      !itemCurrencyAllowed
+    // Satır birimi teklif birimine göre normalize edilir: teklif birimiyle
+    // aynıysa null (= kalem teklif biriminde), farklıysa kod. Böylece talebin
+    // ana birimi (TRY) teklif biriminden (USD) farklıyken "185 TRY" satırı
+    // 185 USD sayılmaz (derin denetim MU-23 gözden geçirme).
+    // Kalem bazlı birim kapalıyken (tek birimli / açık eksiltme) teklif
+    // biriminden farklı birimli fiyat uygulanamaz: form birimi yazmaz, fiyat
+    // teklif birimi sayılırdı. Satır hata olarak işaretlenir, kullanıcı elle çevirir.
+    return rows.map((e) => {
+      const currency = e.currency && e.currency !== currencyLabel ? e.currency : null;
+      const row = { ...e, currency };
+      return e.unitPrice != null && currency && !itemCurrencyAllowed
         ? {
-            ...e,
+            ...row,
             errors: [
               ...e.errors,
-              t("kalemBirimiKullanilamaz", { currency: e.currency, main: currencyLabel }),
+              t("kalemBirimiKullanilamaz", { currency, main: currencyLabel }),
             ],
           }
-        : e,
-    );
+        : row;
+    });
   }, [result, overrides, currencyLabel, itemCurrencyAllowed, t]);
 
   const applicable = effective.filter(

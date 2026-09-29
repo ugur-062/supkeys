@@ -179,6 +179,54 @@ describe("BidImportDialog — Belgeden Fiyatla (AI)", () => {
     expect(rows.find((r) => r.itemId === "i3")).toMatchObject({ unitPrice: 90, currency: null });
   });
 
+  it("teklif birimi talebin ana biriminden farklı: ana birimli (TRY) satır teklif birimi (USD) sayılmaz (derin denetim MU-23 gözden geçirme)", async () => {
+    h.ai.mockResolvedValue({
+      ...AI_RESULT,
+      matches: [
+        base({ itemId: "i1", lineNo: 1, itemName: "Çelik boru", unitPrice: 185, currency: "TRY", confidence: "exact", source: "Boru 185 TRY" }),
+        base({ itemId: "i2", lineNo: 2, itemName: "Dirsek", unitPrice: 40, currency: "USD", confidence: "exact", source: "Dirsek 40 USD" }),
+        base({ itemId: "i3", lineNo: 3, itemName: "Flanş", unitPrice: 9, confidence: "exact", source: "Flanş 9" }),
+      ],
+      unmatchedDocRows: [],
+    });
+    const onApply = vi.fn();
+    render(
+      <BidImportDialog open variant="ai" listingId="L1" currencyLabel="USD" itemCurrencyAllowed={false} onClose={() => {}} onApply={onApply} />,
+    );
+    pickFiles(["fiyat-listesi.pdf"]);
+    // TRY satır kilitli; USD (= teklif birimi) ve birimsiz satır uygulanır.
+    expect(await screen.findByText(/TRY; bu teklifte kalem bazında farklı para birimi kullanılamaz \(USD\)/)).toBeInTheDocument();
+    expect(screen.getByText("185,00 TRY")).toBeInTheDocument();
+    expect(screen.getByLabelText("Çelik boru uygula")).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "2 kalemin fiyatını uygula" }));
+    const rows = onApply.mock.calls[0]![0] as { itemId: string; unitPrice: number; currency: string | null }[];
+    expect(rows).toEqual([
+      { itemId: "i2", unitPrice: 40, currency: null, deliveryTime: null },
+      { itemId: "i3", unitPrice: 9, currency: null, deliveryTime: null },
+    ]);
+  });
+
+  it("kalem bazlı birim açık + teklif birimi USD: ana birimli (TRY) satır TRY kalem birimiyle uygulanır", async () => {
+    h.ai.mockResolvedValue({
+      ...AI_RESULT,
+      matches: [
+        base({ itemId: "i1", lineNo: 1, itemName: "Çelik boru", unitPrice: 185, currency: "TRY", confidence: "exact", source: "Boru 185 TRY" }),
+        base({ itemId: "i2", lineNo: 2, itemName: "Dirsek", unitPrice: 40, currency: "USD", confidence: "exact", source: "Dirsek 40 USD" }),
+        base({ itemId: "i3", lineNo: 3, itemName: "Flanş" }),
+      ],
+      unmatchedDocRows: [],
+    });
+    const onApply = vi.fn();
+    render(<BidImportDialog open variant="ai" listingId="L1" currencyLabel="USD" itemCurrencyAllowed onClose={() => {}} onApply={onApply} />);
+    pickFiles(["fiyat-listesi.pdf"]);
+    fireEvent.click(await screen.findByRole("button", { name: "2 kalemin fiyatını uygula" }));
+    const rows = onApply.mock.calls[0]![0] as { itemId: string; currency: string | null }[];
+    expect(rows.map((r) => [r.itemId, r.currency])).toEqual([
+      ["i1", "TRY"],
+      ["i2", null],
+    ]);
+  });
+
   it("kalem bazlı birim açıkken farklı birimli elle seçim uygulanır (birimiyle)", async () => {
     h.ai.mockResolvedValue({
       ...AI_RESULT,

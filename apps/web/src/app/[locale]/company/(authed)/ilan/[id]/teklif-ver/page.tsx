@@ -643,7 +643,11 @@ export default function TeklifVerPage() {
           // yalnız `multiCurrency` bakılıyordu; pazarlık taleplerinde forma
           // birim yazılıp gönderim backend kapısına takılıyordu
           // (denetim 2026-08-24 Parça 6).
-          currency: canItemCurrency && r.currency ? r.currency : prev.currency,
+          // Diyalog birimi teklif birimine göre normalize eder: null = satır
+          // teklif biriminde → kalem ana birime ("") döner; önceki kalem
+          // birimi (ör. EUR) kalsa fiyat sessizce o birim sayılırdı
+          // (derin denetim MU-23 gözden geçirme).
+          currency: canItemCurrency ? (r.currency ?? "") : prev.currency,
           deliveryTime: r.deliveryTime ?? prev.deliveryTime,
         };
       }

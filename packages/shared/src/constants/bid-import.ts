@@ -110,7 +110,10 @@ export interface BidImportMatch {
   /** Belgede/şablonda bulunan kaynak satır metni (AI: "Çelik boru 2\" — 185,00 TRY"). */
   source: string | null;
   unitPrice: number | null;
-  /** Teklif para birimi kodu (TRY/USD/…); null = teklifin ana birimi. */
+  /**
+   * Satırın para birimi kodu (TRY/USD/…) — talebin ana birimi de AÇIKÇA
+   * döner; null = satırda (ve belgede) birim yok → istemci teklif birimi sayar.
+   */
   currency: string | null;
   /** BidDeliveryTime kodu veya null. */
   deliveryTime: string | null;
@@ -128,7 +131,7 @@ export interface BidImportDocRow {
   text: string;
   /** Otomatik eşleşmeyle AYNI kurallardan geçmiş fiyat (yuvarlanmış + sınır içinde). */
   unitPrice: number | null;
-  /** İzinli birim süzgecinden geçmiş kod; null = teklifin ana birimi / kabul edilmeyen. */
+  /** İzinli birim süzgecinden geçmiş kod (ana birim dahil); null = birim yok / kabul edilmeyen → teklif birimi. */
   currency: string | null;
   deliveryTime: string | null;
   /** Satırın sağlık uyarıları (kabul edilmeyen birim, toplamdan türetildi…). */

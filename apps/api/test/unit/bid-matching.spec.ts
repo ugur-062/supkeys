@@ -143,7 +143,7 @@ describe("matchDocRows — sağlık kontrolleri", () => {
     expect(m.warnings.join(" | ")).toMatch(/miktar \(10\)/);
   });
 
-  it("para birimi: ana birimle aynı → null; izinli farklı → kod; izinsiz → uyarı + null; teslim metni merdivene yuvarlanır", () => {
+  it("para birimi: ana birim dahil izinli kod açıkça döner; izinsiz → uyarı + null; teslim metni merdivene yuvarlanır", () => {
     const rows = [
       row({ text: 'Çelik boru 2" DN50', unitPrice: 1, currency: "₺", deliveryText: "stoktan" }),
       row({ text: "Flanş DN50 PN16", unitPrice: 2, currency: "usd", deliveryText: "3 hafta" }),
@@ -151,7 +151,7 @@ describe("matchDocRows — sağlık kontrolleri", () => {
     ];
     const { matches } = matchDocRows(items, rows, OPTS);
     const by = Object.fromEntries(matches.map((m) => [m.itemId, m]));
-    expect(by.i1).toMatchObject({ currency: null, deliveryTime: "STOKTAN" });
+    expect(by.i1).toMatchObject({ currency: "TRY", deliveryTime: "STOKTAN" });
     expect(by.i3).toMatchObject({ currency: "USD", deliveryTime: "W3_4" });
     expect(by.i2!.currency).toBeNull();
     expect(by.i2!.warnings.join()).toMatch(/EUR.*kabul edilmiyor/);
@@ -172,7 +172,7 @@ describe("matchDocRows — sağlık kontrolleri", () => {
 });
 
 describe("matchDocRows — eşleşmeyen satırlar da aynı kurallardan geçer (derin denetim MU-23)", () => {
-  it("izinsiz birim null + uyarı; ana birim null; izinli farklı kod; fiyat yuvarlanır; geçersiz fiyat düşer", () => {
+  it("izinsiz birim null + uyarı; ana birim açık kod; izinli farklı kod; fiyat yuvarlanır; geçersiz fiyat düşer", () => {
     const rows = [
       row({ text: "Kırtasiye A", unitPrice: 185, currency: "GBP" }),
       row({ text: "Kırtasiye B", unitPrice: 12.345, currency: "TRY" }),
@@ -184,7 +184,7 @@ describe("matchDocRows — eşleşmeyen satırlar da aynı kurallardan geçer (d
     const by = Object.fromEntries(unmatched.map((u) => [u.text, u]));
     expect(by["Kırtasiye A"]).toMatchObject({ unitPrice: 185, currency: null });
     expect(by["Kırtasiye A"]!.warnings!.join()).toMatch(/GBP.*kabul edilmiyor/);
-    expect(by["Kırtasiye B"]).toMatchObject({ unitPrice: 12.35, currency: null, warnings: [] });
+    expect(by["Kırtasiye B"]).toMatchObject({ unitPrice: 12.35, currency: "TRY", warnings: [] });
     expect(by["Kırtasiye C"]).toMatchObject({ unitPrice: 7, currency: "USD", warnings: [] });
     expect(by["Kırtasiye D"]!.unitPrice).toBeNull();
     expect(by["Kırtasiye D"]!.warnings!.join()).toMatch(/0,01/);
@@ -197,6 +197,31 @@ describe("matchDocRows — eşleşmeyen satırlar da aynı kurallardan geçer (d
     const { unmatched } = matchDocRows(items, rows, { allowedCurrencies: ["TRY"], primaryCurrency: "TRY" });
     expect(unmatched[0]!.currency).toBeNull();
     expect(unmatched[0]!.warnings!.join()).toMatch(/USD.*kabul edilmiyor/);
+  });
+});
+
+describe("matchDocRows — birim belirsizliği (derin denetim MU-23 gözden geçirme)", () => {
+  // Ana birim null'a çevrilince istemci "birim yok" ile "ana birim" ayırt
+  // edemiyordu: teklif birimi USD seçilmiş TRY-ana talepte "185 TRY" satırı
+  // 185 USD olarak forma yazılıyordu.
+  it("ana birim satırı açık kod taşır; birimsiz satır null (teklif birimi)", () => {
+    const rows = [
+      row({ text: 'Çelik boru 2" DN50', unitPrice: 185, currency: "TRY" }),
+      row({ text: "Flanş DN50 PN16", unitPrice: 90 }),
+    ];
+    const { matches } = matchDocRows(items, rows, OPTS);
+    const by = Object.fromEntries(matches.map((m) => [m.itemId, m]));
+    expect(by.i1!.currency).toBe("TRY");
+    expect(by.i3!.currency).toBeNull();
+  });
+
+  it("birimsiz satır belgenin baskın birimini alır (izinliyse); izinsiz baskın birim uygulanmaz", () => {
+    const rows = [row({ text: "Flanş DN50 PN16", unitPrice: 90 }), row({ text: "Kırtasiye Z", unitPrice: 5 })];
+    const withDoc = matchDocRows(items, rows, { ...OPTS, docCurrency: "₺" });
+    expect(withDoc.matches.find((m) => m.itemId === "i3")!.currency).toBe("TRY");
+    expect(withDoc.unmatched[0]!.currency).toBe("TRY");
+    const bad = matchDocRows(items, rows, { ...OPTS, docCurrency: "EUR" });
+    expect(bad.matches.find((m) => m.itemId === "i3")).toMatchObject({ currency: null, warnings: [] });
   });
 });
 
