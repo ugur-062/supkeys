@@ -164,7 +164,7 @@ const DEFAULT_REVALIDATE = 60;
  * next-intl'den; istek bağlamı yoksa (sitemap/OG rota işleyicileri) Türkçe.
  * Dil veri önbelleği anahtarında (`loadPublicJson`) → diller birbirine karışmaz.
  */
-async function publicHeaders(explicit?: string): Promise<Record<string, string>> {
+export async function publicHeaders(explicit?: string): Promise<Record<string, string>> {
   let locale = explicit ?? "tr";
   if (!explicit) {
     try {
@@ -399,6 +399,14 @@ function toQuery(params: ListParams): string {
 
 export function fetchListings(params: ListParams = {}): Promise<PublicListPage> {
   return getJson(`/public/listings${toQuery(params)}`, EMPTY_PAGE, undefined, undefined, false, undefined, /* critical */ true);
+}
+
+/**
+ * İKİNCİL blok ("benzer talepler", talep detayı): kesintide boş yedekle kalır,
+ * sayfayı düşürmez (B1-1 — ana veri `fetchListings`, derin denetim LU-23).
+ */
+export function fetchSimilarListings(params: ListParams = {}): Promise<PublicListPage> {
+  return getJson(`/public/listings${toQuery(params)}`, EMPTY_PAGE);
 }
 
 /**

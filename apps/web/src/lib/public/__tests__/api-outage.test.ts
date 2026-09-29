@@ -13,6 +13,7 @@ import {
   fetchListings,
   fetchProduct,
   fetchProductSitemap,
+  fetchSimilarListings,
 } from "../marketplace-api";
 
 const fetchMock = vi.fn();
@@ -65,6 +66,14 @@ describe("liste ve sitemap — ana veri", () => {
     respond(500);
     const facets = await fetchFacets({});
     expect(facets.categories).toEqual([]);
+  });
+  it("ikincil blok (benzer talepler) 503/429/ağ hatasında boş kalır — talep sayfası düşmez", async () => {
+    respond(503);
+    expect((await fetchSimilarListings({ type: "ALIM", category: "43000000" })).items).toEqual([]);
+    respond(429);
+    expect((await fetchSimilarListings({ type: "ALIM" })).items).toEqual([]);
+    fetchMock.mockRejectedValue(new TypeError("fetch failed"));
+    expect((await fetchSimilarListings({ type: "ALIM" })).items).toEqual([]);
   });
 });
 

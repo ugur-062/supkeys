@@ -4,6 +4,8 @@ import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import { PublicLayout } from "@/components/marketplace/public-layout";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import { resolveApiBaseUrl } from "@/lib/resolve-api-url";
+import { publicHeaders } from "@/lib/public/marketplace-api";
+import { attributeSsrToVisitor } from "@/lib/public/ssr-visitor";
 import {
   CheckCircleIcon,
   ExclamationTriangleIcon,
@@ -52,13 +54,23 @@ interface VerifyMessages {
   failed: string;
 }
 
-async function verify(token: string, msg: VerifyMessages): Promise<VerifyResult | { error: string }> {
+async function verify(
+  token: string,
+  locale: string,
+  msg: VerifyMessages,
+): Promise<VerifyResult | { error: string }> {
   const base = resolveApiBaseUrl();
   if (!base) return { error: msg.serviceDown };
   try {
+    // Sayfa dili `accept-language` ile: API hata metnini (`i18nMessage`) bu
+    // dilde üretir — başlıksız çağrıda Türkçeye düşüp EN/RU sayfada Türkçe
+    // cümle çıkıyordu. SSR sırrı + ziyaretçi IP'si: hız sınırı ortak Vercel
+    // çıkış IP'sine değil ziyaretçi başına SSR kovasına sayılır (jeton 256 bit,
+    // tahmin edilemez; derin denetim LU-23).
+    await attributeSsrToVisitor();
     const res = await fetch(
       `${base}/public/inquiries/verify?t=${encodeURIComponent(token)}`,
-      { cache: "no-store" },
+      { cache: "no-store", headers: await publicHeaders(locale) },
     );
     if (!res.ok) {
       const body = (await res.json().catch(() => null)) as
@@ -79,12 +91,13 @@ export default async function Page({
   params: LocaleParams;
   searchParams: Promise<{ t?: string }>;
 }) {
-  setRequestLocale(await localeFromParams(params));
+  const locale = await localeFromParams(params);
+  setRequestLocale(locale);
   if (!MARKETPLACE_LIVE) notFound();
   const t = await getTranslations("web.marketing.inquiryVerify");
   const { t: token } = await searchParams;
   const result = token
-    ? await verify(token, { serviceDown: t("serviceDown"), invalidLink: t("invalidLink"), failed: t("failed") })
+    ? await verify(token, locale, { serviceDown: t("serviceDown"), invalidLink: t("invalidLink"), failed: t("failed") })
     : { error: t("missingLink") };
   const ok = "ok" in result;
 

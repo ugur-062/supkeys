@@ -246,6 +246,10 @@
       "iade": {
         "metaTitle": "Teslimat, İptal ve İade Koşulları",
         "metaDesc": "Rothern üyelik paketlerinde teslimat, iptal ve iade koşulları; cayma hakkı ve geri ödeme süreci."
+      },
+      "mesafeli": {
+        "metaTitle": "Mesafeli Satış Sözleşmesi",
+        "metaDesc": "Rothern üyelik paketlerinin mesafeli satış koşulları: ücret, ödeme, yenileme, cayma ve iptal."
       }
     },
     "inquiryVerify": {

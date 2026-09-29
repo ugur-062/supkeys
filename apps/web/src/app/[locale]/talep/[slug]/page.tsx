@@ -5,7 +5,7 @@ import { ListingDetail } from "@/components/marketplace/listing-detail";
 import { ButtonAccentProvider } from "@/components/ui/button-accent";
 import { resolveListingPage } from "@/components/marketplace/listing-page";
 import { parseListingNumber } from "@/lib/public/marketplace";
-import { fetchListing, fetchListings } from "@/lib/public/marketplace-api";
+import { fetchListing, fetchSimilarListings } from "@/lib/public/marketplace-api";
 import { listingSeo, listingSeoInput } from "@/lib/seo/entities";
 import { MARKETPLACE_LIVE } from "@/lib/public/marketplace-live";
 import type { Metadata } from "next";
@@ -44,10 +44,11 @@ export default async function Page({
   const res = await resolveListingPage(slug, "ALIM");
   if (res.kind === "notFound") notFound();
   if (res.kind === "redirect") permanentRedirect({ href: res.to, locale });
-  // Benzer açık talepler: aynı L1 segment, kendisi hariç.
+  // Benzer açık talepler: aynı L1 segment, kendisi hariç. İkincil blok —
+  // kesintide boş kalır, talep sayfasını düşürmez (B1-1).
   const seg = res.listing.categoryIds.find((c) => /^\d{8}$/.test(c));
   const similar = seg
-    ? (await fetchListings({ type: "ALIM", category: `${seg.slice(0, 2)}000000`, page: 1 })).items.filter(
+    ? (await fetchSimilarListings({ type: "ALIM", category: `${seg.slice(0, 2)}000000`, page: 1 })).items.filter(
         (l) => l.number !== res.listing.number,
       )
     : [];

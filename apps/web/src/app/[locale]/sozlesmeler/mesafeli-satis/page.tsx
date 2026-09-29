@@ -1,4 +1,4 @@
-import { setRequestLocale } from "next-intl/server";
+import { getTranslations, setRequestLocale } from "next-intl/server";
 import { localeFromParams, type LocaleParams } from "@/i18n/params";
 import type { Metadata } from "next";
 import { LegalDoc } from "@/components/marketing/legal-doc";
@@ -9,15 +9,15 @@ import { OPERATOR } from "@/lib/company-info";
    eklenince "… — Rothern · Rothern" çıkıyordu (SEO Parça 7). */
 export async function generateMetadata({ params }: { params: LocaleParams }): Promise<Metadata> {
   const locale = await localeFromParams(params);
+  const t = await getTranslations({ locale, namespace: "web.marketing.legal.mesafeli" });
   return buildMetadata({
     locale,
     // Hukuki metin yalnız Türkçe: EN/RU sayfanın kanoniği Türkçe adres.
     locales: LEGAL_DOC_LOCALES,
-  title: "Mesafeli Satış Sözleşmesi",
-  description:
-    "Rothern üyelik paketlerinin mesafeli satış koşulları: ücret, ödeme, yenileme, cayma ve iptal.",
-  path: "/sozlesmeler/mesafeli-satis",
-});
+    title: t("metaTitle"),
+    description: t("metaDesc"),
+    path: "/sozlesmeler/mesafeli-satis",
+  });
 }
 
 export default async function Page({ params }: { params: LocaleParams }) {
@@ -26,7 +26,7 @@ export default async function Page({ params }: { params: LocaleParams }) {
     <LegalDoc
       path="/sozlesmeler/mesafeli-satis"
       title="Mesafeli Satış Sözleşmesi ve Ön Bilgilendirme"
-      updatedAt="26 Temmuz 2026"
+      updatedAt="2026-07-26"
       sections={[
         {
           heading: "1. Satıcı Bilgileri",
