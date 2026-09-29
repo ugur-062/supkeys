@@ -31,6 +31,23 @@ export interface AuditEntry {
 }
 
 /**
+ * Firma aktivite logu modul filtresi -> action onekleri (derin denetim S017).
+ * Eskiden tek onek `company.<modul>.` idi; alt-tur eylemleri
+ * (`company.approval_flow.*`, `company.listing_document.*`,
+ * `company.bid_document.*`, `company.ownership.*`, `company.signup`,
+ * `company.profile_enriched`) "Tumu"nde gorunup modul filtresinde kayboluyordu.
+ * Listede olmayan modul varsayilan `company.<modul>.` onekini kullanir.
+ */
+const TENANT_ACTIVITY_MODULE_PREFIXES: Record<string, string[]> = {
+  listing: ["company.listing.", "company.listing_document."],
+  bid: ["company.bid.", "company.bid_document."],
+  approval: ["company.approval.", "company.approval_flow."],
+  user: ["company.user.", "company.ownership."],
+  profile: ["company.profile.", "company.profile_enriched"],
+  signup: ["company.signup"],
+};
+
+/**
  * V2-7+ — Güvenlik denetim izi (OWASP A09). Append-only.
  * `log()` ASLA throw etmez — denetim yazımı başarısız olsa bile ana iş akışı
  * (login, kazandırma vb.) bozulmaz; sadece sunucu loguna hata düşer.
@@ -127,11 +144,12 @@ export class AuditService {
   ) {
     const page = Math.max(1, params.page ?? 1);
     const pageSize = Math.min(100, Math.max(1, params.pageSize ?? 50));
+    const prefixes = params.module
+      ? (TENANT_ACTIVITY_MODULE_PREFIXES[params.module] ?? [`company.${params.module}.`])
+      : ["company."];
     const where = {
       tenantId,
-      action: {
-        startsWith: params.module ? `company.${params.module}.` : "company.",
-      },
+      OR: prefixes.map((p) => ({ action: { startsWith: p } })),
     };
     const [total, rows] = await Promise.all([
       this.prisma.auditLog.count({ where }),

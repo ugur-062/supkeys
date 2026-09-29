@@ -6,7 +6,7 @@
 import { SupplierDiscoveryService } from "../../src/modules/ai/supplier-discovery/supplier-discovery.service";
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
-import { invite, makeCompanyWithUser, makeListing } from "./factories";
+import { invite, makeCompany, makeCompanyWithUser, makeListing } from "./factories";
 import { foldSearchText } from "@rothern/shared";
 
 const svc = () => new SupplierDiscoveryService(prisma as unknown as PrismaService);
@@ -163,6 +163,24 @@ describe("SupplierDiscoveryService.discoverRegistered", () => {
     expect(res.candidates.map((c) => c.name)).toEqual(["Cıvata AŞ"]);
     expect(res.candidates[0]!.matchedItems).toEqual([2]);
     expect(res.candidates[0]!.strongMatch).toBe(true);
+  });
+
+  it("segmentte 60+ daha yeni firma olsa da ESKİ güçlü eşleşme (alt kategori) puanlamaya girer ve başa gelir (derin denetim S015)", async () => {
+    const buyer = await makeCompanyWithUser(prisma);
+    await makeCompany(prisma, {
+      name: "Eski Güçlü AŞ",
+      tier: "SILVER",
+      sellerCategoryIds: ["30000000"],
+      sellerSubCategoryIds: ["30991500"],
+      createdAt: new Date(Date.now() - 365 * 24 * 3600 * 1000),
+    });
+    for (let i = 0; i < 61; i++) {
+      await makeCompany(prisma, { name: `Segment ${i}`, tier: "SILVER", sellerCategoryIds: ["30000000"] });
+    }
+    const res = await svc().discoverRegistered(buyer.auth, { type: "ALIM", categoryIds: ["30991500"] });
+    expect(res.candidates[0]!.name).toBe("Eski Güçlü AŞ");
+    expect(res.candidates[0]!.strongMatch).toBe(true);
+    expect(res.candidates).toHaveLength(12);
   });
 
   it("talep belirli ülkelere açıksa o ülkelerin dışındaki firma önerilmez", async () => {

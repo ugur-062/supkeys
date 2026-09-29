@@ -120,6 +120,29 @@ describe("Faz O — aktivite logu", () => {
     expect(paged.pagination.total).toBe(3);
   });
 
+  it("modül filtresi alt-tür eylemlerini de kapsar (approval_flow, listing_document, bid_document, signup) — benzer adlı modül sızmaz (derin denetim S017)", async () => {
+    const svc = service();
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await seedLog(co.company.id, "company.approval.approved");
+    await seedLog(co.company.id, "company.approval_flow.deleted");
+    await seedLog(co.company.id, "company.listing.published");
+    await seedLog(co.company.id, "company.listing_document.added");
+    await seedLog(co.company.id, "company.bid_document.removed");
+    await seedLog(co.company.id, "company.signup");
+    await seedLog(co.company.id, "company.signup_email_changed");
+    await seedLog(co.company.id, "company.ownership.transferred");
+
+    const actions = async (module: string) =>
+      (await svc.list(co.auth, { module })).items.map((i) => (i as { action: string }).action).sort();
+    expect(await actions("approval")).toEqual(["company.approval.approved", "company.approval_flow.deleted"]);
+    expect(await actions("listing")).toEqual(["company.listing.published", "company.listing_document.added"]);
+    expect(await actions("bid")).toEqual(["company.bid_document.removed"]);
+    expect(await actions("signup")).toEqual(["company.signup", "company.signup_email_changed"]);
+    expect(await actions("user")).toEqual(["company.ownership.transferred"]);
+    const all = await svc.list(co.auth, { module: "approval" });
+    expect(all.pagination.total).toBe(2);
+  });
+
   it("tier kapısı: controller CompanyPaidTierGuard (Silver+) taşır", async () => {
     const { CompanyActivityController } = await import(
       "../../src/modules/company-activity/company-activity.controller"

@@ -25,6 +25,7 @@ export const ACTION_LABELS: Record<string, string> = {
   "company.vies_checked": "VIES vergi no sorgusu",
   "company.profile.updated": "Firma profili güncellendi",
   "company.profile_enrich_attempt": "Profil zenginleştirme denemesi",
+  "company.profile_enrich_settled": "Profil zenginleştirme denemesi sonuçlandı",
   "company.profile_enriched": "Profil zenginleştirildi",
   "company.request_defaults.updated": "Talep varsayılanları güncellendi",
   "company.address.created": "Adres eklendi",

@@ -70,7 +70,14 @@ export class SeoEnrichService {
     // SANİTİZER: uzunluk tavanı, madde/emoji temizliği, anahtar kelime birleşimi.
     const cleanDesc = stripBullets(parsed.description);
     const description = clampSentences(cleanDesc, descMax(cleanDesc));
-    const keywords = normalizeKeywords([...(clean.keywords ?? []), ...(parsed.keywords ?? [])]).slice(0, KEYWORD_MAX);
+    // Tavan kullanicinin MEVCUT etiket sayisindan kucuk olamaz (derin denetim
+    // S015): urun 15 etikete izin verir, web "Uygula" listeyi oldugu gibi yazar
+    // -> eskiden 10'a kirpma kullanicinin 11.-15. etiketlerini sessizce siliyordu.
+    const existingKeywords = clean.keywords ?? [];
+    const keywords = normalizeKeywords([...existingKeywords, ...(parsed.keywords ?? [])]).slice(
+      0,
+      Math.max(KEYWORD_MAX, existingKeywords.length),
+    );
     const title = typeof parsed.titleSuggestion === "string" ? parsed.titleSuggestion.replace(/\s+/g, " ").trim() : "";
     const titleMin = isMostlyCjk(title) ? 4 : 10;
     const titleSuggestion =

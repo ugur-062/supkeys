@@ -1,4 +1,4 @@
-import { ForbiddenException, ServiceUnavailableException } from "@nestjs/common";
+import { ConflictException, ForbiddenException, ServiceUnavailableException } from "@nestjs/common";
 import { AiBudgetExceededException } from "../../src/modules/ai/ai-budget.service";
 import { ProfileEnrichService } from "../../src/modules/ai/profile-enrich/profile-enrich.service";
 import type { AuthenticatedCompanyUser } from "../../src/modules/company-auth/strategies/company-jwt.strategy";
@@ -15,7 +15,7 @@ import type { AuthenticatedCompanyUser } from "../../src/modules/company-auth/st
  * Bu dosya para harcayan bir kapıyı tutuyor: sayaç bozulursa ücretsiz firma
  * sınırsız AI çağırır ve maliyeti biz öderiz.
  */
-function rig(tier: string, oncekiBasari: number, ucretliCagri = 0) {
+function rig(tier: string, oncekiBasari: number, ucretliCagri = 0, surenDeneme = 0) {
   // Firma kilidi alınan tx: ömürlük hak (BAŞARILI dönüş = `company.profile_enriched`)
   // ve günlük deneme sayacı BURADA. Kapının geçildiğini deneme kaydının
   // yazılmaya çalışılmasından görüyoruz — sınanan şey kapı, sayaç değil.
@@ -25,6 +25,8 @@ function rig(tier: string, oncekiBasari: number, ucretliCagri = 0) {
       count: jest.fn(async (args: { where: { action: string } }) =>
         args.where.action === "company.profile_enriched" ? oncekiBasari : 0,
       ),
+      // Pencere icindeki denemeler; bitis kaydi (settled) sayimi 0 -> hepsi suruyor (X23).
+      findMany: jest.fn(async () => Array.from({ length: surenDeneme }, (_, i) => ({ id: `d${i}` }))),
       create: jest.fn().mockRejectedValue(new Error("buraya kadar")),
     },
     // Ömürlük ÜCRETLİ çağrı tavanı (MU-06 gözden geçirme): costUsd > 0 satırlar.
@@ -62,6 +64,9 @@ function rig(tier: string, oncekiBasari: number, ucretliCagri = 0) {
   return { svc, prisma, tx, ai, audit, user };
 }
 
+/** Ömürlük hakkı yakan başarı izi (bitiş kaydı `company.profile_enrich_settled` ayrı). */
+const BASARI_IZI = expect.objectContaining({ action: "company.profile_enriched" });
+
 const BASARILI_SAYIM = {
   where: { tenantId: "c1", action: "company.profile_enriched" },
 };
@@ -92,6 +97,27 @@ describe("ProfileEnrichService — paket kapısı", () => {
     });
     expect(r.ai.callAi).not.toHaveBeenCalled();
     expect(r.tx.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("aynı anda gelen ikinci ücretsiz istek REDDEDİLİR — süren deneme varken AI çağrısı ve deneme kaydı yok (derin denetim X23)", async () => {
+    const r = rig("STANDART", 0, 0, 1);
+    await expect(r.svc.enrich(r.user, {})).rejects.toThrow(ConflictException);
+    expect(r.tx.auditLog.findMany).toHaveBeenCalledWith({
+      where: expect.objectContaining({ tenantId: "c1", action: "company.profile_enrich_attempt" }),
+      select: { id: true },
+    });
+    // Bitmiş sayılması için denemeye bağlı bitiş kaydı aranır.
+    expect(r.tx.auditLog.count).toHaveBeenCalledWith({
+      where: { action: "company.profile_enrich_settled", entityId: { in: ["d0"] } },
+    });
+    expect(r.ai.callAi).not.toHaveBeenCalled();
+    expect(r.tx.auditLog.create).not.toHaveBeenCalled();
+  });
+
+  it("süren deneme varken SILVER etkilenmez (kilit yalnız ücretsize)", async () => {
+    const silver = rig("SILVER", 0, 0, 1);
+    await expect(silver.svc.enrich(silver.user, {})).rejects.toThrow("buraya kadar");
+    expect(silver.tx.auditLog.findMany).not.toHaveBeenCalled();
   });
 
   it("ücretli çağrı tavanının altında (5) GEÇER", async () => {
@@ -136,7 +162,7 @@ describe("ProfileEnrichService — paket kapısı", () => {
 describe("ProfileEnrichService — AI çağrısı ve başarı izi", () => {
   function akis(tier = "STANDART") {
     const r = rig(tier, 0);
-    r.tx.auditLog.create.mockResolvedValue({});
+    r.tx.auditLog.create.mockResolvedValue({ id: "att1" });
     // Site okunamadı → grounded yol (JS ile çizilen site / bot engeli).
     jest.spyOn(r.svc as never, "fetchSite" as never).mockResolvedValue(null as never);
     return r;
@@ -147,11 +173,47 @@ describe("ProfileEnrichService — AI çağrısı ve başarı izi", () => {
     const red = new AiBudgetExceededException("budget");
     r.ai.callAi.mockRejectedValue(red);
     await expect(r.svc.enrich(r.user, {})).rejects.toBe(red);
-    expect(r.audit.log).not.toHaveBeenCalled();
+    expect(r.audit.log).not.toHaveBeenCalledWith(BASARI_IZI);
   });
 
   it("beklenmeyen (HTTP olmayan) hata hâlâ 503", async () => {
     const r = akis();
+    r.ai.callAi.mockRejectedValue(new Error("boom"));
+    await expect(r.svc.enrich(r.user, {})).rejects.toThrow(ServiceUnavailableException);
+    expect(r.audit.log).not.toHaveBeenCalledWith(BASARI_IZI);
+  });
+
+  it("akış bitince (hata dahil) ücretsiz denemeye bağlı BİTİŞ kaydı eklenir — deneme satırı güncellenmez, audit append-only (derin denetim X23)", async () => {
+    const r = akis();
+    r.ai.callAi.mockRejectedValue(new Error("boom"));
+    await expect(r.svc.enrich(r.user, {})).rejects.toThrow(ServiceUnavailableException);
+    expect(r.audit.log).toHaveBeenCalledTimes(1);
+    expect(r.audit.log).toHaveBeenCalledWith(
+      expect.objectContaining({
+        action: "company.profile_enrich_settled",
+        tenantId: "c1",
+        entityType: "audit_log",
+        entityId: "att1",
+      }),
+    );
+  });
+
+  it("başarıda bitiş kaydı, başarı izi YAZILDIKTAN SONRA eklenir (arada ikinci istek hak görmez)", async () => {
+    const r = akis();
+    r.ai.callAi
+      .mockResolvedValueOnce({ text: "serbest metin" })
+      .mockResolvedValueOnce({
+        text: JSON.stringify({ aboutText: "Acme endustriyel vana uretir.", services: ["Vana"] }),
+      });
+    await r.svc.enrich(r.user, {});
+    expect(r.audit.log.mock.calls.map((c) => (c[0] as { action: string }).action)).toEqual([
+      "company.profile_enriched",
+      "company.profile_enrich_settled",
+    ]);
+  });
+
+  it("SILVER denemesinde bitiş kaydı yazılmaz", async () => {
+    const r = akis("SILVER");
     r.ai.callAi.mockRejectedValue(new Error("boom"));
     await expect(r.svc.enrich(r.user, {})).rejects.toThrow(ServiceUnavailableException);
     expect(r.audit.log).not.toHaveBeenCalled();
@@ -163,7 +225,7 @@ describe("ProfileEnrichService — AI çağrısı ve başarı izi", () => {
       .mockResolvedValueOnce({ text: "serbest metin" })
       .mockResolvedValueOnce({ text: JSON.stringify({ aboutText: "", services: [] }) });
     await expect(r.svc.enrich(r.user, {})).rejects.toThrow();
-    expect(r.audit.log).not.toHaveBeenCalled();
+    expect(r.audit.log).not.toHaveBeenCalledWith(BASARI_IZI);
   });
 
   it("başarılı taslakta ömürlük hakkın izi (company.profile_enriched) AWAIT'li ve kritik yazılır", async () => {

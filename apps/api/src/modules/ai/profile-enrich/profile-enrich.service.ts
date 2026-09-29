@@ -1,6 +1,7 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   HttpException,
   Inject,
@@ -108,6 +109,24 @@ const FREE_TIER_ENRICH_LIMIT = 1;
  * akis; en kotu toplam ~0,33 USD < STANDART havuzu.
  */
 const FREE_TIER_PAID_CALL_LIMIT = 6;
+/** Deneme kaydinin action'i (gunluk sayac + ucretsiz pakette suren-istek isareti). */
+const PROFILE_ENRICH_ATTEMPT_ACTION = "company.profile_enrich_attempt";
+/**
+ * Ucretsiz denemenin bittigini (basari/hata) bildiren kayit — audit log
+ * append-only oldugu icin deneme satiri guncellenmez; bu satir denemeye
+ * `entityId` ile baglanir.
+ */
+const PROFILE_ENRICH_SETTLED_ACTION = "company.profile_enrich_settled";
+/**
+ * Ucretsiz pakette SUREN istek penceresi (derin denetim X23): basari izi AI
+ * cagrisi bittikten SONRA yazildigi icin kilit altindaki omurluk sayim ayni
+ * anda gelen istekleri ayiramiyordu (cift tik / script -> 3 taslak, 3-6 ucretli
+ * cagri). Ucretsiz denemenin bitisi ayri bir kayitla isaretlenir; kilit
+ * altinda bitmemis bir deneme varsa ikinci istek reddedilir. Pencere yalniz
+ * surec cokup bitis kaydi yazilamazsa kalici kilitlenmeyi onler (iki AI
+ * cagrisi + site cekimi bunun cok altinda).
+ */
+const FREE_TIER_IN_FLIGHT_WINDOW_MS = 10 * 60_000;
 /** Grounded yoldaki ikinci (semaya cevirme) cagrisinin girdi metni tavani. */
 const STRUCTURE_INPUT_MAX_CHARS = 10_000;
 
@@ -160,7 +179,7 @@ export class ProfileEnrichService {
     // ÖNCE yazılır (başarısız deneme de sayılır).
     const dayStart = new Date();
     dayStart.setUTCHours(0, 0, 0, 0);
-    await runTenantTx(this.prisma, async (tx) => {
+    const attempt = await runTenantTx(this.prisma, async (tx) => {
       await tx.$queryRaw`SELECT id FROM companies WHERE id = ${user.companyId} FOR UPDATE`;
       // ÖMÜRLÜK HAK (ücretsiz) — BAŞARILI dönüşler sayılır (derin denetim
       // S014): eskiden `aiUsage` satırları durum filtresiz sayılıyordu; FAILED
@@ -188,11 +207,36 @@ export class ProfileEnrichService {
             i18nMessage("api.ai.ucretsizPaketteProfilAiIleBir"),
           );
         }
+        // Suren deneme (X23): basari izi henuz yazilmamis olabilir. Pencere
+        // icindeki denemeler (gunluk sinir geregi en fazla birkac satir) ve
+        // bunlara bagli bitis kayitlari karsilastirilir.
+        const sonDenemeler = await tx.auditLog.findMany({
+          where: {
+            tenantId: user.companyId,
+            action: PROFILE_ENRICH_ATTEMPT_ACTION,
+            createdAt: { gte: new Date(Date.now() - FREE_TIER_IN_FLIGHT_WINDOW_MS) },
+          },
+          select: { id: true },
+        });
+        const biten =
+          sonDenemeler.length === 0
+            ? 0
+            : await tx.auditLog.count({
+                where: {
+                  action: PROFILE_ENRICH_SETTLED_ACTION,
+                  entityId: { in: sonDenemeler.map((d) => d.id) },
+                },
+              });
+        if (sonDenemeler.length > biten) {
+          throw new ConflictException(
+            i18nMessage("api.ai.profilAiTaslagiHazirlaniyor"),
+          );
+        }
       }
       const attempts = await tx.auditLog.count({
         where: {
           tenantId: user.companyId,
-          action: "company.profile_enrich_attempt",
+          action: PROFILE_ENRICH_ATTEMPT_ACTION,
           createdAt: { gte: dayStart },
         },
       });
@@ -201,17 +245,45 @@ export class ProfileEnrichService {
           i18nMessage("api.ai.gunlukAiProfilOlusturmaLimitineUlasildi", { DAILYLIMIT: DAILY_LIMIT }),
         );
       }
-      await tx.auditLog.create({
+      return tx.auditLog.create({
         data: {
-          action: "company.profile_enrich_attempt",
+          action: PROFILE_ENRICH_ATTEMPT_ACTION,
           actorType: "company",
           actorId: user.userId,
           actorEmail: user.email,
           tenantId: user.companyId,
           metadata: { website } as never,
         },
+        select: { id: true },
       });
     });
+
+    try {
+      return await this.generate(user, company, website);
+    } finally {
+      // Basari izi (varsa) generate icinde await'li yazildi -> bitis kaydi
+      // dustukten sonra gelen istek omurluk sayimda reddedilir; arada bosluk
+      // yok. `log` hic firlatmaz; yazilamazsa pencere dolunca kilit kalkar.
+      if (ucretsiz && attempt?.id) {
+        await this.audit.log({
+          action: PROFILE_ENRICH_SETTLED_ACTION,
+          actorType: "company",
+          actorId: user.userId,
+          actorEmail: user.email,
+          tenantId: user.companyId,
+          entityType: "audit_log",
+          entityId: attempt.id,
+        });
+      }
+    }
+  }
+
+  /** Site cekimi + AI cagrilari + taslak; kapilar `enrich` icinde gecildi. */
+  private async generate(
+    user: AuthenticatedCompanyUser,
+    company: { name: string; country: string | null } | null,
+    website: string,
+  ): Promise<ProfileDraft> {
 
     // Siteyi çek; başarısızsa Google Search grounding'e düş.
     const fetched = await this.fetchSite(website);

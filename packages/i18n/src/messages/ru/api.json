@@ -762,6 +762,7 @@
     "aiOzelligiSuAndaKullanilamiyor": "Функция ИИ сейчас недоступна.",
     "onceFirmaWebSiteniziEkleyinProfilim": "Сначала добавьте сайт компании («Мой профиль» → «Редактировать»).",
     "gunlukAiProfilOlusturmaLimitineUlasildi": "Достигнут дневной лимит создания профиля с помощью ИИ ({DAILYLIMIT}) — повторите попытку завтра.",
+    "profilAiTaslagiHazirlaniyor": "Черновик профиля с помощью ИИ уже готовится — повторите попытку через несколько минут.",
     "aiSuAnYanitVeremediBirkac": "ИИ сейчас не отвечает — повторите попытку через несколько секунд.",
     "aiCiktisiIslenemediLutfenTekrarDeneyin": "Не удалось обработать ответ ИИ — пожалуйста, повторите попытку.",
     "sitedenYeterliBilgiCikarilamadiProfiliElle": "Не удалось извлечь с сайта достаточно информации — Вы можете заполнить профиль вручную.",

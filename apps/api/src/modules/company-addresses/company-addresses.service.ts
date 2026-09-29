@@ -123,19 +123,32 @@ export class CompanyAddressesService {
       "taxNumber",
     ] as const;
     const norm = (v: string | null | undefined) => (v?.trim() ? v.trim() : null);
+    // Karşılaştırma YAZILACAK şehirle yapılır (derin denetim S021): geçerli bir
+    // `cityId` metni ezer (`storedCityName`); eskiden eski şehir metni + başka
+    // şehrin id'si gönderilince kilit atlanıp adres fiilen taşınıyordu.
+    const city = cityFields(dto);
     const incoming: Record<(typeof LOCKED_FIELDS)[number], string | null> = {
       country: normalizeAddressCountry(dto.country),
       stateRegion: norm(dto.stateRegion),
-      city: norm(dto.city),
+      city: norm(city.city),
       district: norm(dto.district),
       addressLine: dto.addressLine.trim(),
       postalCode: norm(dto.postalCode),
       taxOffice: norm(dto.taxOffice),
       taxNumber: norm(dto.taxNumber),
     };
-    const locationChanged = LOCKED_FIELDS.some(
-      (k) => (before[k] ?? null) !== incoming[k],
-    );
+    // Şehir: iki taraf da listeden eşlendiyse id'ler, değilse metin (büyük/
+    // küçük harf duyarsız — kanonik yazıma geçiş kilide takılmasın).
+    const cityChanged =
+      before.cityId != null && city.cityId != null
+        ? before.cityId !== city.cityId
+        : (norm(before.city)?.toLocaleLowerCase("tr") ?? null) !==
+          (incoming.city?.toLocaleLowerCase("tr") ?? null);
+    const locationChanged =
+      cityChanged ||
+      LOCKED_FIELDS.some(
+        (k) => k !== "city" && (before[k] ?? null) !== incoming[k],
+      );
     if (locationChanged) {
       await this.assertNotInActiveUse(
         user.companyId,
@@ -155,7 +168,7 @@ export class CompanyAddressesService {
           country: normalizeAddressCountry(dto.country),
           stateRegion: dto.stateRegion?.trim() || null,
           // Dünya şehir listesi kaydı (2026-09-27); eşlendiyse tek biçimli ad (`storedCityName`).
-          ...cityFields(dto),
+          ...city,
           district: dto.district?.trim() || null,
           addressLine: dto.addressLine.trim(),
           postalCode: dto.postalCode?.trim() || null,
@@ -260,8 +273,11 @@ export class CompanyAddressesService {
     const activeUse = await this.prisma.listing.count({
       where: {
         companyId,
+        // CLOSED = yalnız admin moderasyon kapatması; admin yeniden açınca
+        // SUBMITTED teklifleriyle OPEN'a döner → adres kilitli kalır (derin
+        // denetim S021; eskiden arada silinip ilan adressiz yeniden açılıyordu).
         status: {
-          in: ["DRAFT", "IN_APPROVAL", "OPEN", "IN_AWARD", "IN_AWARD_APPROVAL"],
+          in: ["DRAFT", "IN_APPROVAL", "OPEN", "CLOSED", "IN_AWARD", "IN_AWARD_APPROVAL"],
         },
         OR: [{ deliveryAddressId: id }, { billingAddressId: id }],
       },

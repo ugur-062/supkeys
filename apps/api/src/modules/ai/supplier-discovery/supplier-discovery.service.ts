@@ -25,8 +25,11 @@ import { hasMailExchanger, type MxChecker } from "../../../common/net/mx-check";
 import { countryFromEmailDomain, countryFromHost } from "../../../common/time/country-time-zone";
 import { countryName, EMAIL_MAX_LENGTH, isRegistrationOpen, isValidCountryCode, REGISTRATION_BLOCKED } from "@rothern/shared";
 import type { Locale } from "@rothern/i18n";
+import type { Prisma } from "@rothern/db";
 
 const MAX_CANDIDATES = 12;
+/** Puanlamaya giren platform firmasi havuzu (katmanli doldurulur; bkz. discoverRegistered). */
+const CANDIDATE_POOL = 60;
 /** Tek arama geçişinde en fazla aday (yurt içi ve yurt dışı ayrı geçiş). */
 const MAX_EXTERNAL = 10;
 /** Birleşik sonuçta en fazla aday. */
@@ -717,41 +720,63 @@ export class SupplierDiscoveryService {
       }),
     );
 
-    const catOr = [
-      ...(segmentIds.length ? [{ sellerCategoryIds: { hasSome: segmentIds } }] : []),
-      ...(subCandidates.length ? [{ sellerSubCategoryIds: { hasSome: subCandidates } }] : []),
+    // Eşleşme katmanları GÜÇLÜDEN zayıfa (derin denetim S015): eskiden tek
+    // `OR` sorgusu en yeni 60 firmaya kırpılıyordu; segment eşleşmesi geniş
+    // (ilk iki hane) olduğundan segmentte 60+ firma varken kalemi vitrininde
+    // SATAN daha eski firma puanlamaya hiç girmiyordu. Her katman havuzun
+    // kalanını doldurur; önceki katmanda bulunan firma tekrar çekilmez.
+    const tiers: Prisma.CompanyWhereInput[] = [
       ...(productHits.size ? [{ id: { in: [...productHits.keys()] } }] : []),
+      ...(subCandidates.length ? [{ sellerSubCategoryIds: { hasSome: subCandidates } }] : []),
+      ...(segmentIds.length ? [{ sellerCategoryIds: { hasSome: segmentIds } }] : []),
     ];
-    if (catOr.length === 0) return { candidates: [] };
+    if (tiers.length === 0) return { candidates: [] };
 
-    const rows = await this.reader.company.findMany({
-      where: {
-        id: { notIn: [...excluded] },
-        // YALNIZ efektif SILVER+ ∧ doğrulanmış (2026-09-28, kullanıcı: "ücretsizi
-        // bedavaya davet edip talebe sokmak saçma, doğrulanmamış firma").
-        // Eskiden profilini yayınlamış ücretsiz firma da adaydı (2026-09-06).
-        // Bağlantılar zaten dışlı (yukarıda) — onlar talebi bağlantı yoluyla görür.
-        AND:
-          input.pool === "hidden"
-            ? [{ isActive: true, isBlocked: false }, { NOT: aiRecommendableWhere() }]
-            : [aiRecommendableWhere()],
-        ...(targetCountries.length > 0 ? { country: { in: targetCountries } } : {}),
-        OR: catOr,
-      },
-      select: {
-        id: true,
-        name: true,
-        city: true,
-        country: true,
-        rothernId: true,
-        sellerCategoryIds: true,
-        sellerSubCategoryIds: true,
-      },
-      // Dalga B: `orderBy` yoktu — `take: 60` ile hangi 60 satırın döneceği
-      // Postgres'in fiziksel sırasına kalıyordu (aynı sorgu farklı sonuç).
-      orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-      take: 60,
-    });
+    // YALNIZ efektif SILVER+ ∧ doğrulanmış (2026-09-28, kullanıcı: "ücretsizi
+    // bedavaya davet edip talebe sokmak saçma, doğrulanmamış firma").
+    // Eskiden profilini yayınlamış ücretsiz firma da adaydı (2026-09-06).
+    // Bağlantılar zaten dışlı (yukarıda) — onlar talebi bağlantı yoluyla görür.
+    const poolWhere: Prisma.CompanyWhereInput[] =
+      input.pool === "hidden"
+        ? [{ isActive: true, isBlocked: false }, { NOT: aiRecommendableWhere() }]
+        : [aiRecommendableWhere()];
+    const taken = new Set<string>(excluded);
+    const rows: Array<{
+      id: string;
+      name: string;
+      city: string | null;
+      country: string | null;
+      rothernId: string | null;
+      sellerCategoryIds: string[];
+      sellerSubCategoryIds: string[];
+    }> = [];
+    for (const tier of tiers) {
+      if (rows.length >= CANDIDATE_POOL) break;
+      const got = await this.reader.company.findMany({
+        where: {
+          id: { notIn: [...taken] },
+          AND: [...poolWhere, tier],
+          ...(targetCountries.length > 0 ? { country: { in: targetCountries } } : {}),
+        },
+        select: {
+          id: true,
+          name: true,
+          city: true,
+          country: true,
+          rothernId: true,
+          sellerCategoryIds: true,
+          sellerSubCategoryIds: true,
+        },
+        // Dalga B: `orderBy` yoktu — `take` ile hangi satırların döneceği
+        // Postgres'in fiziksel sırasına kalıyordu (aynı sorgu farklı sonuç).
+        orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+        take: CANDIDATE_POOL - rows.length,
+      });
+      for (const r of got) {
+        taken.add(r.id);
+        rows.push(r);
+      }
+    }
 
     const subSet = new Set(subCandidates);
     const segSet = new Set(segmentIds);

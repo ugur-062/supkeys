@@ -310,4 +310,37 @@ describe("DiscoveryRunsService", () => {
     // Tekrar tetiklenmez.
     expect((await runs.tick(new Date())).secondRounds).toBe(0);
   });
+
+  it("ikinci tur taraması uygun olmayanları SORGUDA eler ve deterministik sıralar — pencere işlenmiş taleplerle dolmaz (derin denetim X21)", async () => {
+    const ai = fakeAi([[], []]);
+    const { runs } = makeRuns({ ai });
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const past = { publishedAt: new Date(Date.now() - 6 * DAY) };
+    // Kapanışı en yakın: ikinci turunu çoktan almış.
+    const done = await openListing(owner.company.id, owner.user.id, { ...past, closesAt: new Date(Date.now() + 2 * DAY) });
+    // Yayın turu yok (duyuru telafisi yazar) — ikinci tur adayı değil.
+    const noPublish = await openListing(owner.company.id, owner.user.id, { ...past, closesAt: new Date(Date.now() + 3 * DAY) });
+    const eligible = await openListing(owner.company.id, owner.user.id, { ...past, closesAt: new Date(Date.now() + 4 * DAY) });
+    const base = { companyId: owner.company.id, state: "DONE" as const, finishedAt: new Date() };
+    await prisma.supplierDiscoveryRun.createMany({
+      data: [
+        { ...base, listingId: done.id, trigger: "PUBLISH" },
+        { ...base, listingId: done.id, trigger: "SECOND_ROUND" },
+        { ...base, listingId: eligible.id, trigger: "PUBLISH" },
+      ],
+    });
+    const spy = jest.spyOn(prisma.listing, "findMany");
+    try {
+      const r = await runs.tick(new Date());
+      expect(r.secondRounds).toBe(1);
+      const call = spy.mock.calls.findIndex((c) => (c[0] as { take?: number } | undefined)?.take === 200);
+      expect(call).toBeGreaterThanOrEqual(0);
+      expect((spy.mock.calls[call]![0] as { orderBy?: unknown }).orderBy).toEqual([{ closesAt: "asc" }, { id: "asc" }]);
+      const rows = (await spy.mock.results[call]!.value) as Array<{ id: string }>;
+      expect(rows.map((x) => x.id)).toEqual([eligible.id]);
+      expect(rows.map((x) => x.id)).not.toContain(noPublish.id);
+    } finally {
+      spy.mockRestore();
+    }
+  });
 });

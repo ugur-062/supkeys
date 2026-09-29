@@ -336,6 +336,19 @@ export class DiscoveryRunsService {
         aiDiscovery: true,
         publishedAt: { not: null },
         closesAt: { gt: new Date(now.getTime() + 24 * HOUR_MS) },
+        // Uygunluk elemeleri SORGUDA (derin denetim X21/S015): eskiden sirasiz
+        // `take: 200` penceresi ikinci turunu almis / yayin turu olmayan /
+        // turu suren taleplerle dolup kalanlari hic degerlendirmiyordu.
+        AND: [
+          { discoveryRuns: { some: { trigger: "PUBLISH" } } },
+          {
+            discoveryRuns: {
+              none: {
+                OR: [{ trigger: "SECOND_ROUND" }, { state: { in: ["PENDING", "RUNNING"] } }],
+              },
+            },
+          },
+        ],
       },
       select: {
         id: true,
@@ -344,6 +357,8 @@ export class DiscoveryRunsService {
         _count: { select: { bids: { where: { status: "SUBMITTED" } } } },
         discoveryRuns: { select: { trigger: true, state: true } },
       },
+      // Deterministik: kapanisi en yakin (yari suresi once dolan) once.
+      orderBy: [{ closesAt: "asc" }, { id: "asc" }],
       take: 200,
     });
     let n = 0;

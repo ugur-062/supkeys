@@ -40,6 +40,18 @@ describe("SeoEnrichService", () => {
     expect(prompt).toContain("Malzeme: AISI 316");
   });
 
+  it("kullanıcının mevcut anahtar kelimeleri (15) 10'a KIRPILMAZ; tavan altında model önerisi eklenir (derin denetim S015)", async () => {
+    const mevcut = Array.from({ length: 15 }, (_, i) => `etiket ${i + 1}`);
+    const ai = makeAi([JSON.stringify({ description: LONG, keywords: ["yeni öneri"] })]);
+    const r = await new SeoEnrichService(ai as never).enrich(user, { kind: "product", name: "Dirsek", keywords: mevcut });
+    expect(r.keywords).toEqual(mevcut);
+
+    const az = makeAi([JSON.stringify({ description: LONG, keywords: ["yeni öneri", "a1", "a2", "a3", "a4", "a5", "a6", "a7", "a8", "a9"] })]);
+    const r2 = await new SeoEnrichService(az as never).enrich(user, { kind: "product", name: "Dirsek", keywords: ["paslanmaz"] });
+    expect(r2.keywords).toHaveLength(10);
+    expect(r2.keywords.slice(0, 2)).toEqual(["paslanmaz", "yeni öneri"]);
+  });
+
   it("kısa/boş yanıtta premium retry; yine boşsa 503", async () => {
     const ai = makeAi(["{}", JSON.stringify({ description: LONG, keywords: [] })]);
     const svc = new SeoEnrichService(ai as never);

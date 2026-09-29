@@ -762,6 +762,7 @@
     "aiOzelligiSuAndaKullanilamiyor": "The AI feature is currently unavailable.",
     "onceFirmaWebSiteniziEkleyinProfilim": "Add your company website first (My Profile → Edit).",
     "gunlukAiProfilOlusturmaLimitineUlasildi": "The daily AI profile generation limit has been reached ({DAILYLIMIT}) — try again tomorrow.",
+    "profilAiTaslagiHazirlaniyor": "Your AI profile draft is already being prepared — try again in a few minutes.",
     "aiSuAnYanitVeremediBirkac": "The AI could not respond right now — try again in a few seconds.",
     "aiCiktisiIslenemediLutfenTekrarDeneyin": "The AI output could not be processed — please try again.",
     "sitedenYeterliBilgiCikarilamadiProfiliElle": "Not enough information could be extracted from the website — you can fill in the profile manually.",
