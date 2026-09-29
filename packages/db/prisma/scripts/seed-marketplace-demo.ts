@@ -44,6 +44,12 @@ const genCode = () => {
   return `${p()}-${p()}`;
 };
 const days = (n: number) => new Date(Date.now() + n * 86400_000);
+// Kayıt akışı üç zorunlu onayı birden yazar; demo hesaplar da onaylı doğar,
+// yoksa panel onay penceresi açılır (derin denetim MU-04).
+const ACCEPTED = () => {
+  const now = new Date();
+  return { termsAcceptedAt: now, mediationAcceptedAt: now, kvkkAcceptedAt: now };
+};
 /**
  * DEMO GÖRSELİ = KÜRATÖRLÜ CC0 KATEGORİ FOTOĞRAFI (2026-09-07).
  *
@@ -395,7 +401,7 @@ async function main() {
       slug = existingUser.company.slug ?? generateSlug(d.name);
       while ((await prisma.company.count({ where: { slug, id: { not: existingUser.companyId } } })) > 0) slug = `${slug}-${Math.floor(Math.random() * 90 + 10)}`;
       await prisma.company.update({ where: { id: existingUser.companyId }, data: { ...data, slug } });
-      await prisma.companyUser.update({ where: { id: existingUser.id }, data: { authId, roles: ["SAHIP"], permissions: permissionsForRoles(["SAHIP"]), isActive: true, deletedAt: null, emailVerifiedAt: new Date() } });
+      await prisma.companyUser.update({ where: { id: existingUser.id }, data: { authId, roles: ["SAHIP"], permissions: permissionsForRoles(["SAHIP"]), isActive: true, deletedAt: null, emailVerifiedAt: new Date(), ...ACCEPTED() } });
       companyId = existingUser.companyId; ownerId = existingUser.id;
     } else {
       let code = genCode();
@@ -405,7 +411,7 @@ async function main() {
       const company = await prisma.company.create({ data: { ...data, rothernId: code, slug } });
       const firstName = d.name.split(" ")[0] ?? d.name;
       const user = await prisma.companyUser.create({
-        data: { email, authId, firstName, lastName: "Yetkili", roles: ["SAHIP"], permissions: permissionsForRoles(["SAHIP"]), companyId: company.id, emailVerifiedAt: new Date() },
+        data: { email, authId, firstName, lastName: "Yetkili", roles: ["SAHIP"], permissions: permissionsForRoles(["SAHIP"]), companyId: company.id, emailVerifiedAt: new Date(), ...ACCEPTED() },
       });
       await prisma.company.update({ where: { id: company.id }, data: { ownerUserId: user.id } });
       companyId = company.id; ownerId = user.id;

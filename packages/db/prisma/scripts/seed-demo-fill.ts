@@ -38,6 +38,12 @@ const genCode = () => {
   return `${p()}-${p()}`;
 };
 const days = (n: number) => new Date(Date.now() + n * 86400_000);
+// Kayıt akışı üç zorunlu onayı birden yazar; demo hesaplar da onaylı doğar,
+// yoksa panel onay penceresi açılır (derin denetim MU-04).
+const ACCEPTED = () => {
+  const now = new Date();
+  return { termsAcceptedAt: now, mediationAcceptedAt: now, kvkkAcceptedAt: now };
+};
 
 async function findAuthUser(email: string): Promise<string | null> {
   for (let page = 1; page <= 20; page++) {
@@ -183,7 +189,7 @@ async function main() {
     });
     const firstName = d.name.split(" ")[0] ?? d.name;
     const user = await prisma.companyUser.create({
-      data: { email, authId, firstName, lastName: "Yetkili", roles: OWNER_ROLES, permissions: permissionsForRoles(OWNER_ROLES), companyId: company.id, emailVerifiedAt: new Date() },
+      data: { email, authId, firstName, lastName: "Yetkili", roles: OWNER_ROLES, permissions: permissionsForRoles(OWNER_ROLES), companyId: company.id, emailVerifiedAt: new Date(), ...ACCEPTED() },
     });
     await prisma.company.update({ where: { id: company.id }, data: { ownerUserId: user.id } });
     id[d.key] = { companyId: company.id, ownerId: user.id };
@@ -209,10 +215,10 @@ async function main() {
       const authId = await ensureAuthUser(email);
       await prisma.companyUser.upsert({
         where: { email },
-        update: { authId, roles: t.roles, companyId: id[key]!.companyId, isActive: true, deletedAt: null },
+        update: { authId, roles: t.roles, companyId: id[key]!.companyId, isActive: true, deletedAt: null, ...ACCEPTED() },
         create: {
           email, authId, firstName: t.label, lastName: COMPANIES.find((c) => c.key === key)!.name,
-          roles: t.roles, companyId: id[key]!.companyId, emailVerifiedAt: new Date(),
+          roles: t.roles, companyId: id[key]!.companyId, emailVerifiedAt: new Date(), ...ACCEPTED(),
         },
       });
       teamCount++;

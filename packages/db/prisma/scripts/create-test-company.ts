@@ -92,6 +92,18 @@ async function main() {
     include: { company: true },
   });
   if (existingUser) {
+    // Sözleşme/KVKK onayı eksikse backfill et (yoksa panel onay penceresi açılır).
+    if (
+      !existingUser.termsAcceptedAt ||
+      !existingUser.mediationAcceptedAt ||
+      !existingUser.kvkkAcceptedAt
+    ) {
+      const now = new Date();
+      await prisma.companyUser.update({
+        where: { id: existingUser.id },
+        data: { termsAcceptedAt: now, mediationAcceptedAt: now, kvkkAcceptedAt: now },
+      });
+    }
     // rothernId yoksa backfill et (bağlantı daveti için gerekli).
     const co = existingUser.company;
     if (!co.rothernId) {
@@ -127,6 +139,10 @@ async function main() {
         ]),
         companyId: company.id,
         emailVerifiedAt: new Date(),
+        // Kayıt akışı üç onayı birden yazar; test hesabı da onaylı doğar.
+        termsAcceptedAt: new Date(),
+        mediationAcceptedAt: new Date(),
+        kvkkAcceptedAt: new Date(),
       },
     });
     await prisma.company.update({

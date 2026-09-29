@@ -13,8 +13,9 @@ import { effectiveTier } from "./effective-tier";
 /**
  * KOLTUK KAPISI — bağımsız yardımcı (derin denetim 2026-09-29 MU-04).
  *
- * Firma paneli (`CompanyUsersService.assertSeatAvailable`) ile BİREBİR aynı
- * kurallar: SATINALMA grubu yalnız GOLD'da verilebilir (2026-09-14 kararı;
+ * TEK KAYNAK: firma paneli (`CompanyUsersService.seatUsage` /
+ * `assertSeatAvailable`) de buraya delege eder — kural yalnız burada değişir.
+ * Kurallar: SATINALMA grubu yalnız GOLD'da verilebilir (2026-09-14 kararı;
  * paket kapısı koltuk sayımından ÖNCE), sonra (kişi, grup) bazında koltuk
  * sayımı (+ istenirse bekleyen koltuk davetleri). Admin panelinin doğrudan
  * üye ekleme ve "Aktifleştir" yolları bu kapıyı atlıyordu (5/4 koltuk,
@@ -41,6 +42,7 @@ export async function readSeatUsage(
   });
   if (!company) throw new NotFoundException(i18nMessage("api.companyUsers.firmaBulunamadi"));
   const tier = effectiveTier(company.tier, company.membershipEndAt);
+  const limit = SEAT_LIMITS[tier];
   const [users, invites] = await Promise.all([
     db.companyUser.findMany({
       where: { companyId, deletedAt: null, isActive: true },
@@ -62,10 +64,16 @@ export async function readSeatUsage(
     invites.map((i) => ({ permissions: i.permissions, roles: i.roles })),
   );
   return {
-    limit: SEAT_LIMITS[tier],
+    limit,
+    /** Efektif kademe — koltuk kapısı buy grubunu buna göre reddeder. */
     tier,
     used: active.total,
+    usedBuy: active.buy,
+    usedSell: active.sell,
     pendingSeatInvites: pending.total,
+    pendingBuy: pending.buy,
+    pendingSell: pending.sell,
+    overflow: limit == null ? 0 : Math.max(0, active.total - limit),
   };
 }
 

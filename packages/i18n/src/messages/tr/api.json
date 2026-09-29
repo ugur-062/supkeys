@@ -138,7 +138,6 @@
     "yeniEPostaMevcutlaAyni": "Yeni e-posta mevcutla aynı",
     "buEPostaBaskaBirKullanicida": "Bu e-posta başka bir kullanıcıda kayıtlı",
     "gecersizRol": "Geçersiz rol",
-    "koltukDoluBuRolIcinFirmanin": "Koltuk dolu ({used}/{limit}) — bu rol için firmanın paketi yükseltilmeli",
     "buEPostaIleZatenBir": "Bu e-posta ile zaten bir kullanıcı var",
     "kullaniciBuFirmadaBulunamadi": "Kullanıcı bu firmada bulunamadı",
     "yalnizOnayBekleyenUrunOnaylanabilir": "Yalnız onay bekleyen ürün onaylanabilir",

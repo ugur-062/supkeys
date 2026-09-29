@@ -165,6 +165,29 @@ describe("ilan müdahaleleri", () => {
     expect(listings.notifyListingParticipants).toHaveBeenCalledTimes(3);
   });
 
+  it("realtime ping düşse de müdahale başarılı döner ve bildirimler gider (derin denetim MU-04)", async () => {
+    const { service, listings, companies, realtime } = rig();
+    realtime.pingListing.mockImplementation(() => {
+      throw new Error("realtime down");
+    });
+    const co = await makeCompanyWithUser(prisma, {});
+    const l = await makeListing(prisma, {
+      companyId: co.company.id,
+      createdById: co.user.id,
+      closesAt: FUTURE,
+    });
+
+    await expect(
+      service.closeListing(l.id, "moderasyon", "admin-1"),
+    ).resolves.toEqual({ ok: true });
+    const after = await prisma.listing.findUniqueOrThrow({
+      where: { id: l.id },
+    });
+    expect(after.status).toBe("CLOSED");
+    expect(listings.notifyListingParticipants).toHaveBeenCalledTimes(1);
+    expect(companies.notifyCompany).toHaveBeenCalledTimes(1);
+  });
+
   it("reopen: CLOSED+kazandırılmamış → OPEN; kazandırılmış reddedilir", async () => {
     const { service } = rig();
     const co = await makeCompanyWithUser(prisma, {});

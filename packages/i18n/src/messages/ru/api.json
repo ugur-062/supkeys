@@ -138,7 +138,6 @@
     "yeniEPostaMevcutlaAyni": "Новая эл. почта совпадает с текущей",
     "buEPostaBaskaBirKullanicida": "Эта эл. почта зарегистрирована за другим пользователем",
     "gecersizRol": "Недопустимая роль",
-    "koltukDoluBuRolIcinFirmanin": "Места заняты ({used}/{limit}) — для этой роли нужно повысить тариф компании",
     "buEPostaIleZatenBir": "Пользователь с этой эл. почтой уже существует",
     "kullaniciBuFirmadaBulunamadi": "Пользователь не найден в этой компании",
     "yalnizOnayBekleyenUrunOnaylanabilir": "Одобрить можно только товар, ожидающий одобрения",

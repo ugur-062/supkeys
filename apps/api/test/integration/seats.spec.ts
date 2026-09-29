@@ -9,6 +9,7 @@
 import { CompanyRole } from "@rothern/db";
 import { CompanyUsersService } from "../../src/modules/company-users/company-users.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
+import { readSeatUsage } from "../../src/common/company/seat-gate";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser, makeUser } from "./factories";
 
@@ -100,6 +101,23 @@ describe("Faz 5 — koltuk sayımı (kişi, grup)", () => {
     await expect(
       svc.invite(solo.auth, { email: "s2@x.com", roles: ["SATISCI"] } as never),
     ).resolves.toBeDefined();
+  });
+});
+
+describe("Koltuk kapısı tek kaynak (derin denetim MU-04)", () => {
+  it("firma paneli sayımı admin kapısının okuduğu sayımla birebir aynı", async () => {
+    const { svc } = makeUsersService();
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await makeUser(prisma, co.company.id, [CompanyRole.SATISCI]);
+    await seedInvitation(
+      co.company.id,
+      co.user.id,
+      [CompanyRole.SATIN_ALMACI],
+      "tek-kaynak@example.com",
+    );
+    const panel = await svc.seatUsage(co.company.id);
+    expect(panel).toEqual(await readSeatUsage(prisma as never, co.company.id));
+    expect(panel).toMatchObject({ usedSell: 2, pendingBuy: 1, overflow: 0 });
   });
 });
 

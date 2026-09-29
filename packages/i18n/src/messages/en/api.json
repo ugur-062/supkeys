@@ -138,7 +138,6 @@
     "yeniEPostaMevcutlaAyni": "The new email is the same as the current one",
     "buEPostaBaskaBirKullanicida": "This email is registered to another user",
     "gecersizRol": "Invalid role",
-    "koltukDoluBuRolIcinFirmanin": "Seats are full ({used}/{limit}) — the company plan must be upgraded for this role",
     "buEPostaIleZatenBir": "A user with this email already exists",
     "kullaniciBuFirmadaBulunamadi": "The user was not found in this company",
     "yalnizOnayBekleyenUrunOnaylanabilir": "Only a product awaiting approval can be approved",

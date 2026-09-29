@@ -22,12 +22,9 @@ import {
   ALL_SEAT_PERMISSIONS,
   BUY_SEAT_PERMISSIONS,
   SELL_SEAT_PERMISSIONS,
-  SEAT_LIMITS,
-  countSeats,
   seatGroupsOf,
   type SeatGroup,
 } from "@rothern/shared";
-import { effectiveTier } from "../../common/company/effective-tier";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { runTenantTx } from "../../common/prisma/tenant-tx";
 import { AuditService } from "../audit/audit.service";
@@ -41,12 +38,16 @@ import {
   permissionsForRoles,
   rolesFromPermissions,
 } from "../company-auth/permissions/company-permissions.constants";
-import { BUYING_TIER, LEGACY_PERMISSION_MAP, tierAtLeast } from "@rothern/shared";
+import { LEGACY_PERMISSION_MAP } from "@rothern/shared";
 import { EmailService } from "../email/email.service";
 import { NotificationService } from "../notifications/notification.service";
 import { SupabaseAuthService } from "../supabase-auth/supabase-auth.service";
 import { resolveWebUrl } from "../../common/config/web-url";
 import { deliverInvite } from "../../common/company/invite-delivery";
+import {
+  assertSeatAvailable as assertSeatGate,
+  readSeatUsage,
+} from "../../common/company/seat-gate";
 import {
   AcceptCompanyInvitationDto,
   InviteCompanyUserDto,
@@ -1604,45 +1605,8 @@ export class CompanyUsersService {
     companyId: string,
     db: Prisma.TransactionClient = this.prisma,
   ) {
-    const company = await db.company.findUnique({
-      where: { id: companyId },
-      select: { tier: true, membershipEndAt: true, ownerUserId: true },
-    });
-    if (!company) throw new NotFoundException(i18nMessage("api.companyUsers.firmaBulunamadi"));
-    const limit =
-      SEAT_LIMITS[effectiveTier(company.tier, company.membershipEndAt)];
-    const [users, invites] = await Promise.all([
-      db.companyUser.findMany({
-        where: { companyId, deletedAt: null, isActive: true },
-        select: { id: true, roles: true, permissions: true },
-      }),
-      db.companyUserInvitation.findMany({
-        where: { companyId, status: "PENDING", expiresAt: { gt: new Date() } },
-        select: { roles: true, permissions: true },
-      }),
-    ]);
-    const active = countSeats(
-      users.map((u) => ({
-        isOwner: company.ownerUserId === u.id,
-        permissions: u.permissions,
-        roles: u.roles,
-      })),
-    );
-    const pending = countSeats(
-      invites.map((i) => ({ permissions: i.permissions, roles: i.roles })),
-    );
-    return {
-      limit,
-      /** Efektif kademe — koltuk kapısı buy grubunu buna göre reddeder. */
-      tier: effectiveTier(company.tier, company.membershipEndAt),
-      used: active.total,
-      usedBuy: active.buy,
-      usedSell: active.sell,
-      pendingSeatInvites: pending.total,
-      pendingBuy: pending.buy,
-      pendingSell: pending.sell,
-      overflow: limit == null ? 0 : Math.max(0, active.total - limit),
-    };
+    // Tek kaynak: admin paneliyle aynı sayım (derin denetim MU-04).
+    return readSeatUsage(db, companyId);
   }
 
   /**
@@ -1670,41 +1634,10 @@ export class CompanyUsersService {
       context: "invite" | "accept" | "assign";
     },
   ) {
-    const need = opts.groups.size;
-    if (need <= 0) return;
-    const { limit, used, pendingSeatInvites, tier } = await this.seatUsage(
-      companyId,
-      db,
-    );
-    // SATINALMA YETKİSİ YALNIZ GOLD'DA VERİLEBİLİR (2026-09-14, kullanıcı
-    // kararı). SILVER DE YETMEZ — o satış paketidir; talep açma/kazandırma
-    // zaten `BUYING_TIER` (GOLD) kapısının arkasında. Yetkiyi yine de vermek
-    // kullanıcıya çalışmayan bir düğme gösteriyor ve koltuk yakıyordu.
-    // Kapı koltuk sayımından ÖNCE: "koltuk dolu" demek yanıltıcı olurdu,
-    // sorun sayı değil paket.
-    if (opts.groups.has("buy") && !tierAtLeast(tier, BUYING_TIER)) {
-      throw new BadRequestException(
-        i18nMessage("api.companyUsers.satinalmaYetkisiYalnizGoldPaketteVerilebilir"),
-      );
-    }
-    if (limit == null) return; // limitsiz kademe (bugün yok)
-    const occupied = used + (opts.includePending ? pendingSeatInvites : 0);
-    if (occupied + need > limit) {
-      if (opts.context === "accept") {
-        throw new ConflictException(
-          i18nMessage("api.companyUsers.koltukDoluDavetSuAnKabul"),
-        );
-      }
-      throw new BadRequestException(
-        opts.includePending && pendingSeatInvites > 0
-          ? i18nMessage("api.companyUsers.koltukDoluBekleyenDahil", {
-              used,
-              pending: pendingSeatInvites,
-              limit,
-            })
-          : i18nMessage("api.companyUsers.koltukDoluIslemYetkisi", { used, limit }),
-      );
-    }
+    // Kurallar (GOLD-dışı satınalma kapısı koltuk sayımından ÖNCE, (kişi, grup)
+    // sayımı, bekleyen davetler) `common/company/seat-gate.ts`'te — admin
+    // paneli de aynı kapıdan geçer, iki kopya ayrışamaz (derin denetim MU-04).
+    await assertSeatGate(db, companyId, opts);
   }
 
   /**

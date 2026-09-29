@@ -55,24 +55,37 @@ export class AdminInspectionService {
     );
   }
 
-  /** Talep odası + sahip + davetli/teklifçi firma odalarına realtime ping. */
+  /**
+   * Talep odası + sahip + davetli/teklifçi firma odalarına realtime ping.
+   * Best-effort: durum değişikliği ve audit zaten yazıldı; katılımcı okuması
+   * ya da ping düşerse müdahale 500 dönmez ve ardından gelen bildirimler
+   * yine çalışır — hata yalnız loglanır.
+   */
   private async pingListingParties(listingId: string, ownerCompanyId: string) {
     if (!this.realtime) return;
-    const [invs, bids] = await Promise.all([
-      this.prisma.listingInvitation.findMany({
-        where: { listingId },
-        select: { invitedCompanyId: true },
-      }),
-      this.prisma.listingBid.findMany({
-        where: { listingId },
-        select: { bidderCompanyId: true },
-      }),
-    ]);
-    this.realtime.pingListing(listingId, [
-      ownerCompanyId,
-      ...invs.map((i) => i.invitedCompanyId),
-      ...bids.map((b) => b.bidderCompanyId),
-    ]);
+    try {
+      const [invs, bids] = await Promise.all([
+        this.prisma.listingInvitation.findMany({
+          where: { listingId },
+          select: { invitedCompanyId: true },
+        }),
+        this.prisma.listingBid.findMany({
+          where: { listingId },
+          select: { bidderCompanyId: true },
+        }),
+      ]);
+      this.realtime.pingListing(listingId, [
+        ownerCompanyId,
+        ...invs.map((i) => i.invitedCompanyId),
+        ...bids.map((b) => b.bidderCompanyId),
+      ]);
+    } catch (err) {
+      this.logger.warn(
+        `admin intervention realtime ping failed (${listingId}): ${
+          err instanceof Error ? err.message : String(err)
+        }`,
+      );
+    }
   }
 
   // ── İLANLAR ────────────────────────────────────────────────
