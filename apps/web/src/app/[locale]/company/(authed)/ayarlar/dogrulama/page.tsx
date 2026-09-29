@@ -55,15 +55,28 @@ export default function DogrulamaPage() {
   const [ibanHolder, setIbanHolder] = useState("");
   const [swift, setSwift] = useState("");
   const [bankName, setBankName] = useState("");
+  // Derin denetim S056: effect eskiden `[data]`ya bağlıydı. Belge yüklemesi
+  // ["company-docs"]ı tazeler ve yanıt her seferinde yeni presigned URL
+  // taşıdığından `data` referansı değişir → kullanıcının henüz GÖNDERMEDİĞİ
+  // MERSİS/sicil/IBAN/SWIFT alanları sunucudaki (ilk gönderimde boş) değerle
+  // eziliyordu. Ön-doldurma artık yalnız bu alanların SUNUCU değeri
+  // değişince çalışır (ilk yükleme, gönderim sonrası, başka sekmeden kayıt).
+  const loaded = !!data;
+  const srvMersisNo = data?.mersisNo ?? "";
+  const srvTradeRegistryNo = data?.tradeRegistryNo ?? "";
+  const srvIban = data?.iban ?? "";
+  const srvIbanHolder = data?.ibanHolder ?? "";
+  const srvSwift = data?.bankSwiftBic ?? "";
+  const srvBankName = data?.bankName ?? "";
   useEffect(() => {
-    if (!data) return;
-    setMersisNo(data.mersisNo ?? "");
-    setTradeRegistryNo(data.tradeRegistryNo ?? "");
-    setIban(data.iban ?? "");
-    setIbanHolder(data.ibanHolder ?? "");
-    setSwift(data.bankSwiftBic ?? "");
-    setBankName(data.bankName ?? "");
-  }, [data]);
+    if (!loaded) return;
+    setMersisNo(srvMersisNo);
+    setTradeRegistryNo(srvTradeRegistryNo);
+    setIban(srvIban);
+    setIbanHolder(srvIbanHolder);
+    setSwift(srvSwift);
+    setBankName(srvBankName);
+  }, [loaded, srvMersisNo, srvTradeRegistryNo, srvIban, srvIbanHolder, srvSwift, srvBankName]);
 
   // Gönderildikten sonra (PENDING) veya onaylandıktan sonra (VERIFIED) kilitli;
   // yalnız REJECTED/UNVERIFIED'de (kimlik alanları) düzenlenebilir.

@@ -3060,6 +3060,7 @@
         "iptalEdilemedi": "Could not be canceled",
         "satinAlmaTalebiniYayinla": "Publish buying request",
         "satinAlmaTalebiYayinlansinMi": "Publish the buying request? Once published, suppliers can see it.",
+        "bekleyenDavetlerYayindaGonderilecek": "{n, plural, one {# pending invitation} other {# pending invitations}} saved with the draft will be sent when you publish.",
         "yayinla": "Publish",
         "satinAlmaTalebiYayinlandi": "Buying request published",
         "yayinlanamadi": "Could not be published",
@@ -6776,7 +6777,8 @@
         "bildirimTercihlerineGit": "Go to notification preferences",
         "tumu": "All",
         "satinalma": "Buying",
-        "satis": "Sales"
+        "satis": "Sales",
+        "dahaFazlaYukle": "Load more"
       },
       "mesajlarLayout": {
         "mesajlarYetkiGerektirir": "Messages require permission",

@@ -93,6 +93,8 @@ import { Link } from "@/i18n/navigation";
 import { useParams, useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useScrolledPast } from "@/hooks/use-scrolled-past";
+import { usePendingListingInvites } from "@/hooks/use-pending-listing-invites";
+import { isBidExpired } from "@/lib/tenders/bid-expiry";
 import { ListingSuggestions } from "@/components/tenders/ai-suppliers/listing-suggestions";
 import { ShareListing } from "@/components/tenders/share-listing";
 import { toast } from "sonner";
@@ -260,6 +262,7 @@ export default function ListingDetailPage() {
   const awardByItem = useAwardByItem(id);
   const awardByItemPreview = useAwardByItemPreview(id);
   const publish = usePublishListing(id);
+  const pendingInvites = usePendingListingInvites(id);
   const cancelApproval = useCancelApproval();
   const categories = useCategoriesByIds(l?.categoryIds ?? []);
   const bidDocs = useBidDocuments(id);
@@ -429,11 +432,18 @@ export default function ListingDetailPage() {
 
   const handlePublish = async () => {
     // Yayın onayı kaldırıldı — taslak doğrudan yayınlanır.
+    // Derin denetim X22: hızlı talep taslağında bekletilen davetler (AI'ın
+    // bulduğu adresler/üyeler) yayından SONRA buradan da gönderilir; eskiden
+    // yalnız düzenleme kartı gönderiyordu, detaydan yayında sessizce düşüyordu.
+    const pending = pendingInvites.read();
+    const pendingCount = pending.external.length + pending.members.length;
     if (
       !(await confirm({
         title: t("satinAlmaTalebiniYayinla"),
         description:
-          t("satinAlmaTalebiYayinlansinMi"),
+          pendingCount > 0
+            ? `${t("satinAlmaTalebiYayinlansinMi")} ${t("bekleyenDavetlerYayindaGonderilecek", { n: pendingCount })}`
+            : t("satinAlmaTalebiYayinlansinMi"),
         confirmLabel: t("yayinla"),
       }))
     )
@@ -443,7 +453,9 @@ export default function ListingDetailPage() {
       toast.success(t("satinAlmaTalebiYayinlandi"));
     } catch (err) {
       toast.error(extractErrorMessage(err, t("yayinlanamadi")));
+      return;
     }
+    if (pendingCount > 0) await pendingInvites.flush();
   };
 
   // Kalem-bazlı: bir kalem için fiyat veren teklifler (TRY normalize; artan —
@@ -1419,11 +1431,7 @@ export default function ListingDetailPage() {
             .map((b) => {
             // Geçerliliği dolmuş teklif kazandırılamaz (sunucu da reddeder);
             // rozetle aynı hesap. Pazarlıkta validityDays null → süresiz.
-            const bidExpired =
-              b.status === "SUBMITTED" &&
-              !!b.submittedAt &&
-              !!b.validityDays &&
-              new Date(b.submittedAt).getTime() + b.validityDays * 86_400_000 < Date.now();
+            const bidExpired = isBidExpired(b);
             return (
             // SATIR DÜZENİ (2026-09-19, kullanıcı: "daha nizami"): solda
             // her satırda AYNI yerde durum pili → firma adı → küçük meta
@@ -1801,6 +1809,30 @@ export default function ListingDetailPage() {
 
   // ───────────── SAHİP: sekmeli talep detayı ─────────────
   if (l.isOwner) {
+    // Birincil yönetim eylemleri (Yayınla / Onayı iptal et). Derin denetim
+    // S059: yalnız yapışkan şeritteydi ve şerit başlık görünürken `invisible`
+    // — taslağı açan sahip ilk ekranda "Yayınla"yı hiç görmüyordu (kısa
+    // sayfada/yüksek ekranda kaydırma olmadığı için HİÇ). Teklifçi dalındaki
+    // 2026-09-10 düzeltmesiyle aynı: başlık kartı taşır, şerit kaydırınca devralır.
+    const ownerPrimaryActions =
+      canManage && (l.pendingApprovalId || l.canPublish) ? (
+        <div className="flex items-center gap-2">
+          {l.pendingApprovalId ? (
+            <Button
+              outline
+              onClick={handleCancelApproval}
+              disabled={cancelApproval.isPending}
+            >
+              {t("onayiIptalEt")}
+            </Button>
+          ) : null}
+          {l.canPublish ? (
+            <Button onClick={handlePublish} disabled={publish.isPending}>
+              {t("yayinla")}
+            </Button>
+          ) : null}
+        </div>
+      ) : null;
     return (
       <div className="space-y-5">
         {breadcrumb}
@@ -1826,22 +1858,7 @@ export default function ListingDetailPage() {
                 </span>
               ) : null}
             </div>
-            <div className="flex items-center gap-2">
-              {canManage && l.pendingApprovalId ? (
-                <Button
-                  outline
-                  onClick={handleCancelApproval}
-                  disabled={cancelApproval.isPending}
-                >
-                  {t("onayiIptalEt")}
-                </Button>
-              ) : null}
-              {canManage && l.canPublish ? (
-                <Button onClick={handlePublish} disabled={publish.isPending}>
-                  {t("yayinla")}
-                </Button>
-              ) : null}
-            </div>
+            {ownerPrimaryActions}
           </div>
         </div>
 
@@ -1861,6 +1878,11 @@ export default function ListingDetailPage() {
 
         <div className="card p-5">
           <div className="min-w-0" ref={setHeaderEl}>{header}</div>
+          {ownerPrimaryActions ? (
+            <div className="mt-4 flex justify-end border-t border-zinc-950/5 pt-4">
+              {ownerPrimaryActions}
+            </div>
+          ) : null}
           {/* İşlemler — görünür buton çubuğu (kutu içinde). F7: 10 aksiyonun
               tamamı backend'de assertListingManageRole ister → menü yalnız
               canManage'e görünür; etiket-only gözetim sayfayı yine görür. */}

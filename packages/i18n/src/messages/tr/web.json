@@ -3060,6 +3060,7 @@
         "iptalEdilemedi": "İptal edilemedi",
         "satinAlmaTalebiniYayinla": "Satın Alma Talebini yayınla",
         "satinAlmaTalebiYayinlansinMi": "Satın Alma Talebi yayınlansın mı? Yayınlandıktan sonra tedarikçiler görebilir.",
+        "bekleyenDavetlerYayindaGonderilecek": "Taslakta bekleyen {n, plural, other {# davet}} yayınla birlikte gönderilecek.",
         "yayinla": "Yayınla",
         "satinAlmaTalebiYayinlandi": "Satın Alma Talebi yayınlandı",
         "yayinlanamadi": "Yayınlanamadı",
@@ -6776,7 +6777,8 @@
         "bildirimTercihlerineGit": "Bildirim Tercihlerine Git",
         "tumu": "Tümü",
         "satinalma": "Satınalma",
-        "satis": "Satış"
+        "satis": "Satış",
+        "dahaFazlaYukle": "Daha fazla yükle"
       },
       "mesajlarLayout": {
         "mesajlarYetkiGerektirir": "Mesajlar yetki gerektirir",

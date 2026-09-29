@@ -83,6 +83,24 @@ describe("DogrulamaPage", () => {
     expect(await screen.findByText(/kontrol hanesi tutmuyor/)).toBeInTheDocument();
   });
 
+  // Derin denetim S056: belge yüklemesi company-docs'u tazeler; yeni yanıt
+  // (yeni presigned URL) gönderilmemiş KYC alanlarını sıfırlamamalı.
+  it("belge yükleme sonrası refetch gönderilmemiş KYC alanlarını ezmez", async () => {
+    const user = userEvent.setup();
+    const { rerender } = render(<DogrulamaPage />);
+    await user.type(screen.getByLabelText("MERSİS No *"), "1234567890123456");
+    await user.type(screen.getByLabelText("Hesap Sahibi *"), "Acme");
+    // Yükleme sonrası yeni referanslı yanıt: belge durumu değişti, KYC aynı (null).
+    h.data = docs({ docs: { ...docs().docs, taxPlate: "https://s3/new-url" } });
+    rerender(<DogrulamaPage />);
+    expect(screen.getByLabelText("MERSİS No *")).toHaveValue("1234567890123456");
+    expect(screen.getByLabelText("Hesap Sahibi *")).toHaveValue("Acme");
+    // Sunucu değeri GERÇEKTEN değişirse (gönderim sonrası) alan onu alır.
+    h.data = docs({ mersisNo: "6543210987654321" });
+    rerender(<DogrulamaPage />);
+    expect(screen.getByLabelText("MERSİS No *")).toHaveValue("6543210987654321");
+  });
+
   it("SWIFT: boşluklu yapıştırma kesilmez, boşluk atılır ve büyük harfe çevrilir", async () => {
     const user = userEvent.setup();
     render(<DogrulamaPage />);

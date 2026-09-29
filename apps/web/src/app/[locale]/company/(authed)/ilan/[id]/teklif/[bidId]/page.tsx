@@ -24,9 +24,11 @@ import {
 } from "@/hooks/use-bid-documents";
 import {
   useAwardListing,
+  useAwardPreview,
   useEliminateBid,
   useListingDetail,
 } from "@/hooks/use-company-listings";
+import { isBidExpired } from "@/lib/tenders/bid-expiry";
 import { formatDateTime } from "@/lib/tenders/date";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useFormatMoney } from "@/components/ui/money";
@@ -55,9 +57,12 @@ export default function BidDetailPage() {
   const { data: l, isLoading, isError, refetch } = useListingDetail(id);
   const confirm = useConfirm();
   const award = useAwardListing(id);
+  const awardPreview = useAwardPreview(id);
   const eliminate = useEliminateBid(id);
   const bidDocs = useBidDocuments(id);
   const [eliminateOpen, setEliminateOpen] = useState(false);
+  // Onaya takılan kazandırma — onaycılara not dialogu (talep detayıyla aynı).
+  const [approvalNoteOpen, setApprovalNoteOpen] = useState(false);
   // B4: ihale detayındaki kapının AYNISI (backend assertListingManageRole
   // aynası) — hook'lar koşulsuz çağrılmalı, bu yüzden erken dönüşlerden ÖNCE.
   const { user } = useCompanyAuth();
@@ -109,25 +114,59 @@ export default function BidDetailPage() {
   const priceFor = (itemId: string) =>
     bid.items?.find((x) => x.itemId === itemId)?.unitPrice;
 
-  const handleAward = async () => {
-    if (
-      !(await confirm({
-        title: t("kazandir"),
-        description: t("kazandirilsinMiSiparisOlusacak", { bidderName: bid.bidderName }),
-        confirmLabel: t("kazandir"),
-      }))
-    )
-      return;
+  // Geçerliliği dolmuş teklif kazandırılamaz (CLAUDE.md §6) — talep
+  // detayındaki satırla AYNI hesap; düğme pasif + ipucu.
+  const bidExpired = isBidExpired(bid);
+
+  const runAward = async (approvalNote?: string) => {
     try {
-      const res = await award.mutateAsync({ bidId: bid.id });
+      const res = await award.mutateAsync({ bidId: bid.id, approvalNote });
       toast.success(
         res.pendingApproval
           ? t("kazandirmaOnayaGonderildi")
           : t("kazandirildiSiparisOlustu", { number: res.number ?? "" }),
       );
+      return true;
     } catch (err) {
       toast.error(extractErrorMessage(err, t("kazandirilamadi")));
+      return false;
     }
+  };
+
+  // Derin denetim S060: bu sayfa talep detayındaki korumaları atlıyordu —
+  // ön kontrol yoktu (onaya takılan kazandırmada not girilemiyordu), onay
+  // metni geri alınamazlığı söylemiyordu. Akış artık talep detayıyla aynı:
+  // önce "onaya takılır mı?" (fail-closed), takılıyorsa not dialogu, değilse
+  // "GERİ ALINAMAZ" uyarılı yıkıcı onay.
+  const handleAward = async () => {
+    if (bidExpired) return;
+    let requiresApproval: boolean;
+    try {
+      ({ requiresApproval } = await awardPreview.mutateAsync({ bidId: bid.id }));
+    } catch (err) {
+      toast.error(
+        extractErrorMessage(err, t("onayDurumuDogrulanamadiTekrarDeneyin")),
+      );
+      return;
+    }
+    if (requiresApproval) {
+      setApprovalNoteOpen(true);
+      return;
+    }
+    if (
+      !(await confirm({
+        title: t("kazandir"),
+        description: t("kazandirilsinMiBuIslemGeri", { bidderName: bid.bidderName }),
+        confirmLabel: t("evetKazandir"),
+        destructive: true,
+      }))
+    )
+      return;
+    await runAward();
+  };
+
+  const submitApprovalNote = async (note: string) => {
+    if (await runAward(note.trim() || undefined)) setApprovalNoteOpen(false);
   };
 
   const submitEliminate = async (reason: string) => {
@@ -168,6 +207,7 @@ export default function BidDetailPage() {
                 <Badge color="blue">{t("degerlendirmede")}</Badge>
               )}
               {bid.round ? <Badge color="zinc">{t("tur", { round: bid.round })}</Badge> : null}
+              {bidExpired ? <Badge color="amber">{t("gecerlilikDoldu")}</Badge> : null}
             </div>
             <Heading>{bid.bidderName}</Heading>
             <Text className="text-sm text-zinc-500">
@@ -197,17 +237,32 @@ export default function BidDetailPage() {
         </div>
 
         {canDecide && bid.status === "SUBMITTED" ? (
-          <div className="mt-4 flex justify-end gap-2 border-t border-zinc-100 pt-4">
-            <Button
-              plain
-              onClick={() => setEliminateOpen(true)}
-              disabled={eliminate.isPending}
-            >
-              {t("ele")}
-            </Button>
-            <Button onClick={handleAward} disabled={award.isPending}>
-              {t("kazandir")}
-            </Button>
+          <div className="mt-4 space-y-2 border-t border-zinc-100 pt-4">
+            <div className="flex justify-end gap-2">
+              <Button
+                plain
+                onClick={() => setEliminateOpen(true)}
+                disabled={eliminate.isPending}
+              >
+                {t("ele")}
+              </Button>
+              <Button
+                onClick={handleAward}
+                disabled={award.isPending || awardPreview.isPending || bidExpired}
+                title={
+                  bidExpired
+                    ? t("teklifinGecerlilikSuresiDolmusTedarikciden")
+                    : undefined
+                }
+              >
+                {t("kazandir")}
+              </Button>
+            </div>
+            {bidExpired ? (
+              <Text className="text-right text-xs text-amber-700">
+                {t("teklifinGecerlilikSuresiDolmusTedarikciden")}
+              </Text>
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -366,6 +421,17 @@ export default function BidDetailPage() {
         confirmLabel={t("ele")}
         destructive
         pending={eliminate.isPending}
+      />
+
+      {/* Onay akışı devrede — başlatıcı notu (onaycılara iletilir, opsiyonel) */}
+      <ReasonDialog
+        open={approvalNoteOpen}
+        onClose={() => setApprovalNoteOpen(false)}
+        onSubmit={submitApprovalNote}
+        title={t("kazandirmayiOnayaGonder")}
+        description={t("icinKazandirmaOnayaGonderilecekSiparis", { bidderName: bid.bidderName })}
+        confirmLabel={t("onayaGonder")}
+        pending={award.isPending}
       />
     </div>
   );

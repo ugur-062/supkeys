@@ -266,6 +266,10 @@ export function LiveToasts() {
 
     const onNotification = async () => {
       const items = await fetchNotifications();
+      // Bildirimler sayfası imleçli ayrı sorgu kullanır (derin denetim S057):
+      // açıksa o da tazelensin, zil rozeti sayısı da.
+      void qc.invalidateQueries({ queryKey: [...NOTIFICATION_KEY, "feed"] });
+      void qc.invalidateQueries({ queryKey: [...NOTIFICATION_KEY, "unread"] });
       const fresh = items.filter((n) => !n.readAt && !seen.notifIds.has(n.id));
       for (const n of items) seen.notifIds.add(n.id);
       if (!seen.seeded) return; // tohumlanmadan sinyal geldi — sessiz geç

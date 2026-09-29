@@ -5,7 +5,8 @@ import { formatDate } from "@/lib/format-date";
 import {
   useMarkAllNotificationsRead,
   useMarkNotificationsRead,
-  useNotifications,
+  useNotificationFeed,
+  useUnreadCount,
   type AppNotification,
   type NotificationPortal,
 } from "@/hooks/use-notifications";
@@ -15,7 +16,7 @@ import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { notificationHref } from "@/i18n/href";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 
 /** Panel rozeti — birleşik listede bildirim hangi şapkayla ilgili? Etiket katalog anahtarı (`web.panel.inbox.bildirimlerPage.*`). */
 const PORTAL_CHIP: Record<NotificationPortal, { label: "satinalma" | "satis"; cls: string }> = {
@@ -38,7 +39,15 @@ export default function BildirimlerPage() {
   // TEK kutu (kullanıcı isteği): iki panelin bildirimleri birlikte gelir;
   // filtre yalnız görünümü daraltır (portal'sız + null-portallı ortaklar
   // her filtrede görünür).
-  const { data: allItems = [], isLoading } = useNotifications();
+  // Derin denetim S057: tüm geçmiş imleçle sayfa sayfa ("Daha fazla yükle");
+  // eskiden yalnız son 30 satır görünüyordu, öncesine ulaşılamıyordu.
+  const feed = useNotificationFeed();
+  const { isLoading, hasNextPage, fetchNextPage, isFetchingNextPage } = feed;
+  const allItems = useMemo(
+    () => feed.data?.pages.flat() ?? [],
+    [feed.data],
+  );
+  const { data: unreadCount } = useUnreadCount();
   // C60: filtre URL'de (?tab=) — yenileme/paylaşımda korunur.
   const searchParams = useSearchParams();
   const urlTab = searchParams.get("tab");
@@ -59,7 +68,10 @@ export default function BildirimlerPage() {
   const markRead = useMarkNotificationsRead();
   const markAll = useMarkAllNotificationsRead();
   const router = useRouter();
-  const hasUnread = allItems.some((n) => !n.readAt);
+  // "Tümünü okundu" yüklü sayfaya değil SUNUCU sayısına bakar: en yeni satırlar
+  // okunmuşken daha eskide okunmamış kalabilir (zil rozetiyle aynı kaynak).
+  const hasUnread =
+    (unreadCount ?? 0) > 0 || allItems.some((n) => !n.readAt);
 
   const open = (n: AppNotification) => {
     if (!n.readAt) markRead.mutate([n.id]);
@@ -112,7 +124,7 @@ export default function BildirimlerPage() {
         <div className="overflow-hidden card">
           <ListSkeleton rows={6} />
         </div>
-      ) : items.length === 0 ? (
+      ) : items.length === 0 && !hasNextPage ? (
         <div className="card">
           <EmptyState
             icon={Bell}
@@ -128,7 +140,7 @@ export default function BildirimlerPage() {
             }
           />
         </div>
-      ) : (
+      ) : items.length === 0 ? null : (
         <ul className="overflow-hidden card">
           {items.map((n) => (
             <li key={n.id} className="border-b border-zinc-50 last:border-0">
@@ -176,6 +188,19 @@ export default function BildirimlerPage() {
           ))}
         </ul>
       )}
+
+      {!isLoading && hasNextPage ? (
+        <div className="mt-4 flex justify-center">
+          <button
+            type="button"
+            onClick={() => void fetchNextPage()}
+            disabled={isFetchingNextPage}
+            className="rounded-lg border border-zinc-200 px-4 py-2 text-sm font-medium text-zinc-700 hover:border-zinc-300 disabled:opacity-50"
+          >
+            {t("dahaFazlaYukle")}
+          </button>
+        </div>
+      ) : null}
     </div>
   );
 }

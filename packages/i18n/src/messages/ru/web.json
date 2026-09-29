@@ -3060,6 +3060,7 @@
         "iptalEdilemedi": "Не удалось отменить",
         "satinAlmaTalebiniYayinla": "Опубликовать заявку на закупку",
         "satinAlmaTalebiYayinlansinMi": "Опубликовать заявку на закупку? После публикации её смогут видеть поставщики.",
+        "bekleyenDavetlerYayindaGonderilecek": "{n, plural, one {# приглашение, сохранённое в черновике, будет отправлено} few {# приглашения, сохранённые в черновике, будут отправлены} many {# приглашений, сохранённых в черновике, будут отправлены} other {# приглашения, сохранённого в черновике, будут отправлены}} при публикации.",
         "yayinla": "Опубликовать",
         "satinAlmaTalebiYayinlandi": "Заявка на закупку опубликована",
         "yayinlanamadi": "Не удалось опубликовать",
@@ -6776,7 +6777,8 @@
         "bildirimTercihlerineGit": "Перейти к настройкам уведомлений",
         "tumu": "Все",
         "satinalma": "Закупки",
-        "satis": "Продажи"
+        "satis": "Продажи",
+        "dahaFazlaYukle": "Показать ещё"
       },
       "mesajlarLayout": {
         "mesajlarYetkiGerektirir": "Для сообщений нужны права",

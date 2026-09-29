@@ -18199,6 +18199,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.inbox.bildirimlerPage.dahaFazlaYukle": {
+    "hash": "776858bd10",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.inbox.bildirimlerPage.henuzBildiriminizYok": {
     "hash": "66fbae2163",
     "status": "reviewed",
@@ -22943,6 +22948,11 @@
     "hash": "cad0a79419",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.page.bekleyenDavetlerYayindaGonderilecek": {
+    "hash": "c71df9e0eb",
+    "status": "reviewed",
+    "at": "2026-09-29"
   },
   "web.panel.requests.page.belgedenFiyatlaAi": {
     "hash": "d37ec71ea0",

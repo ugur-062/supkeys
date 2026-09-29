@@ -34,6 +34,7 @@ vi.mock("@/hooks/use-company-listings", async (importOriginal) => {
       refetch: vi.fn(),
     }),
     useAwardListing: () => ({ mutateAsync: vi.fn(), isPending: false }),
+    useAwardPreview: () => ({ mutateAsync: vi.fn(), isPending: false }),
     useEliminateBid: () => ({ mutateAsync: vi.fn(), isPending: false }),
   };
 });
