@@ -64,6 +64,7 @@ import {
   type Locale,
 } from "@rothern/i18n";
 import { resolveWebUrl } from "../../common/config/web-url";
+import { cancelOutgoingReferralInvites } from "../../common/company/downgrade-invites";
 
 /**
  * Tek duyuruda ulaşılacak azami firma (Dalga B). Aşılırsa gönderim yapılır ama
@@ -1592,9 +1593,7 @@ export class AdminCompaniesService {
         this.prisma.companyConnection.deleteMany({
           where: { inviterCompanyId: id, status: "PENDING" },
         }),
-        this.prisma.companyReferralInvite.deleteMany({
-          where: { inviterCompanyId: id, status: "PENDING" },
-        }),
+        ...cancelOutgoingReferralInvites(this.prisma, [id]),
       ]);
       // Ücretsiz paket ürün tavanı (2026-09-06): tavanı aşan yayında ürünler
       // taslağa çekilir (silinmez) — üyelik cron'uyla aynı kural.

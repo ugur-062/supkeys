@@ -13,6 +13,7 @@ import { localeOf } from "../../notifications/notification.service";
 import { resolveWebUrl } from "../../../common/config/web-url";
 import { appRoutes } from "../../../common/company/app-routes";
 import { enforceProductLimit } from "../../../common/company/product-limit";
+import { cancelOutgoingReferralInvites } from "../../../common/company/downgrade-invites";
 
 @Injectable()
 export class MembershipScheduler implements OnModuleInit {
@@ -136,9 +137,7 @@ export class MembershipScheduler implements OnModuleInit {
       this.prisma.companyConnection.deleteMany({
         where: { inviterCompanyId: { in: ids }, status: "PENDING" },
       }),
-      this.prisma.companyReferralInvite.deleteMany({
-        where: { inviterCompanyId: { in: ids }, status: "PENDING" },
-      }),
+      ...cancelOutgoingReferralInvites(this.prisma, ids),
     ]);
     this.logger.log(
       `${ids.length} firmanın premium süresi doldu → STANDARD; giden bekleyen davetler iptal edildi`,

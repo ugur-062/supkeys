@@ -5,7 +5,7 @@
  */
 import { MembershipScheduler } from "../../src/modules/company-auth/schedulers/membership.scheduler";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser } from "./factories";
+import { makeCompanyWithUser, makeListing } from "./factories";
 
 afterAll(async () => {
   await truncateAll();
@@ -71,6 +71,19 @@ describe("MembershipScheduler.downgradeExpired", () => {
       },
     });
 
+    const extListing = await makeListing(prisma, { companyId: a.company.id, createdById: a.user.id, status: "OPEN" });
+    const queuedExt = await prisma.externalListingInvite.create({
+      data: {
+        listingId: extListing.id,
+        referralInviteId: referral.id,
+        inviterCompanyId: a.company.id,
+        email: "yeni@firma.com",
+        locale: "tr",
+        state: "QUEUED",
+        source: "MANUAL",
+      },
+    });
+
     await scheduler.downgradeExpired();
 
     // Tier: A düştü, D korundu.
@@ -93,12 +106,14 @@ describe("MembershipScheduler.downgradeExpired", () => {
     expect(
       await prisma.companyConnection.findUnique({ where: { id: incoming.id } }),
     ).not.toBeNull();
-    // A'nın referral daveti silindi.
-    expect(
-      await prisma.companyReferralInvite.findUnique({
-        where: { id: referral.id },
-      }),
-    ).toBeNull();
+    // A'nın referral daveti SİLİNMEZ, iptal edilir (yayın denetimi Bölüm 13):
+    // silinince talep davetleri cascade ile gidiyor, adres freni/geçmişi
+    // sıfırlanıyordu. Kuyrukta bekleyen talep daveti de iptal.
+    const refAfter = await prisma.companyReferralInvite.findUniqueOrThrow({ where: { id: referral.id } });
+    expect(refAfter.status).toBe("CANCELLED");
+    const extAfter = await prisma.externalListingInvite.findUniqueOrThrow({ where: { id: queuedExt.id } });
+    expect(extAfter.state).toBe("CANCELLED");
+    expect(extAfter.cancelReason).toBe("INVITER_DOWNGRADED");
   });
 
   it("düşecek firma yoksa hiçbir şeye dokunmaz", async () => {
