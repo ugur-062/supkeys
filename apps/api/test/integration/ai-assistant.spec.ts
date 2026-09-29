@@ -339,7 +339,11 @@ describe("Faz AI-2 — injection + nötr hata + oturum", () => {
 
     const call = provider.calls[1]!;
     // Sistem prompt sabit (enjeksiyon değiştiremez). İstek dili tr → tr varyantı.
-    expect(call.system).toBe(assistantSystemPrompt("tr"));
+    // MU-07: sabit istemin ardina yalniz sunucunun urettigi saat baglami eklenir.
+    expect(call.system.startsWith(assistantSystemPrompt("tr"))).toBe(true);
+    expect(call.system.slice(assistantSystemPrompt("tr").length)).toMatch(
+      /^\n\nCURRENT DATE\/TIME: \d{4}-\d{2}-\d{2} \d{2}:\d{2} \(\w+\), time zone Europe\/Istanbul/,
+    );
     // Enjekte metin YALNIZ functionResponse (VERİ) içinde — talimat konumunda değil.
     const responses = toolResponses(call);
     const asString = JSON.stringify(responses);

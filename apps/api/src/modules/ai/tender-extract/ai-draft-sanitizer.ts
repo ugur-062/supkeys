@@ -11,6 +11,7 @@ import {
   type AiTenderDraft,
   type AiTenderDraftItem,
 } from "@rothern/shared";
+import { DEFAULT_TIME_ZONE, zonedTimeToUtc } from "../../../common/time/country-time-zone";
 import type { AiExtractRoute } from "./ai-extract-router";
 
 /**
@@ -65,6 +66,52 @@ export interface SanitizedDraft {
   draft: AiTenderDraft;
   flags: AiFieldFlag[];
   missingRequired: AiMissingField[];
+}
+
+const DATE_ONLY_RE = /^(\d{4})-(\d{2})-(\d{2})$/;
+const NAIVE_DATETIME_RE = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2})(?:\.\d+)?)?$/;
+
+/** Saat verilmeyen kapanis gunu: urun saat diliminde gun sonu (23:59). */
+export const DATE_ONLY_CLOSE_HOUR = 23;
+export const DATE_ONLY_CLOSE_MINUTE = 59;
+
+/**
+ * Kapanis ani — urun saat dilimi (Europe/Istanbul) duvar saatiyle okunur
+ * (derin denetim MU-07). Eskiden `new Date(v)` kullaniliyordu: istemin
+ * istedigi "YYYY-MM-DD" UTC gece yarisina (TR 03:00) donusup talep soylenen
+ * gunun basinda kapaniyordu; ofsetsiz "2026-10-05T14:00" de sunucunun (UTC)
+ * saatiyle okunup 3 saat kayiyordu. Kural:
+ *  - yalniz gun → o gunun 23:59'u (Istanbul),
+ *  - ofsetsiz tarih-saat → Istanbul duvar saati,
+ *  - ofsetli / `Z` ISO → oldugu gibi.
+ * Gecersizse `null`.
+ */
+export function parseClosingInstant(raw: string): Date | null {
+  const v = raw.trim();
+  const dateOnly = DATE_ONLY_RE.exec(v);
+  const naive = dateOnly ? null : NAIVE_DATETIME_RE.exec(v);
+  const m = dateOnly ?? naive;
+  if (m) {
+    const [y, mo, d] = [Number(m[1]), Number(m[2]), Number(m[3])];
+    const h = dateOnly ? DATE_ONLY_CLOSE_HOUR : Number(m[4]);
+    const mi = dateOnly ? DATE_ONLY_CLOSE_MINUTE : Number(m[5]);
+    const s = dateOnly ? 0 : Number(m[6] ?? 0);
+    // Takvim disi deger (2026-02-31, 25:00) Date.UTC'de sessizce tasar — reddet.
+    const probe = new Date(Date.UTC(y, mo - 1, d, h, mi, s));
+    if (
+      probe.getUTCFullYear() !== y ||
+      probe.getUTCMonth() !== mo - 1 ||
+      probe.getUTCDate() !== d ||
+      probe.getUTCHours() !== h ||
+      probe.getUTCMinutes() !== mi
+    ) {
+      return null;
+    }
+    const out = zonedTimeToUtc(y, mo, d, h, mi, DEFAULT_TIME_ZONE);
+    return new Date(out.getTime() + s * 1000);
+  }
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 const round = (n: number, decimals: number) => {
@@ -131,11 +178,11 @@ export function sanitizeAiDraft(
   const isoDate = (
     v: unknown,
     path: string,
-    opts: { future?: boolean; maxHorizonMs?: number },
+    opts: { future?: boolean; maxHorizonMs?: number; appWallClock?: boolean },
   ): string | null => {
     if (typeof v !== "string" || v.trim() === "") return null;
-    const d = new Date(v.trim());
-    if (Number.isNaN(d.getTime())) {
+    const d = opts.appWallClock ? parseClosingInstant(v) : new Date(v.trim());
+    if (!d || Number.isNaN(d.getTime())) {
       flag(path, "validation_failed");
       return null;
     }
@@ -185,6 +232,7 @@ export function sanitizeAiDraft(
     advancePercent: num(r.advancePercent, "advancePercent", { min: 1, max: 100, decimals: 0, int: true }),
     bidsCloseAt: isoDate(r.bidsCloseAt, "bidsCloseAt", {
       future: true,
+      appWallClock: true,
       maxHorizonMs: MAX_LISTING_HORIZON_MS,
     }),
     keywords: (Array.isArray(r.keywords) ? r.keywords : [])

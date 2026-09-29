@@ -809,6 +809,7 @@
         "items": "Kalemler: {list} ({count} kalem)",
         "category": "Kategori: {list}",
         "closing": "Kapanış: {closesAt} · Para birimi: {currency} · Görünürlük: Davetli (kapalı)",
+        "deliveryAddress": "Teslimat adresi: {address}",
         "payment": "Ödeme: {plan} · Teslim: {delivery}",
         "description": "Açıklama: {text}",
         "terms": "Şartname: {text}",

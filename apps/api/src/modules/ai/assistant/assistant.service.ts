@@ -33,6 +33,7 @@ import {
   type AiToolCall,
 } from "../providers/ai-provider.interface";
 import {
+  assistantClockContext,
   assistantSystemPrompt,
   summarySystemPrompt,
   buildDraftContext,
@@ -150,7 +151,8 @@ export class AssistantService {
     // i18n Faz 3: asistan İSTEK DİLİNDE yanıtlar (Accept-Language → ALS;
     // başlık yoksa JWT'deki kullanıcı dili). Dil adı prompt'a açıkça yazılır.
     const locale = currentLocale();
-    const basePrompt = assistantSystemPrompt(locale);
+    // MU-07: bugunun tarihi + saat dilimi her turda (goreli/yilsiz kapanis tarihi).
+    const basePrompt = `${assistantSystemPrompt(locale)}\n\n${assistantClockContext()}`;
     // AI-3: taslak varsa modele context ver (system prompt'a eklenir).
     const systemPrompt = draft
       ? `${basePrompt}\n\n${buildDraftContext(

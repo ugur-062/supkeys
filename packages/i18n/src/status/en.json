@@ -614,6 +614,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.ai.assistant.publish.deliveryAddress": {
+    "hash": "db96fc7296",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "api.ai.assistant.publish.description": {
     "hash": "b80cf1ee9d",
     "status": "reviewed",

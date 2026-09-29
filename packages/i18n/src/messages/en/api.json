@@ -809,6 +809,7 @@
         "items": "Line items: {list} ({count, plural, one {# line item} other {# line items}})",
         "category": "Category: {list}",
         "closing": "Closing: {closesAt} · Currency: {currency} · Visibility: Invited (private)",
+        "deliveryAddress": "Delivery address: {address}",
         "payment": "Payment: {plan} · Delivery: {delivery}",
         "description": "Description: {text}",
         "terms": "Specification: {text}",

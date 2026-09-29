@@ -11,6 +11,7 @@
 import { LOCALE_LABELS, type Locale } from "@rothern/i18n";
 import type { AiMissingField } from "@rothern/shared";
 import { aiContentLanguageRule } from "../../../common/i18n/ai-language";
+import { DEFAULT_TIME_ZONE, zonedParts } from "../../../common/time/country-time-zone";
 
 export const ASSISTANT_SYSTEM_PROMPT = `Sen Rothern'in (B2B e-satın alma talebi/e-tedarik platformu) firma-içi asistanısın. Kullanıcının firmasıyla ilgili sorularını, sana verilen ARAÇLARLA sistemden veri çekerek yanıtlarsın.
 
@@ -62,6 +63,28 @@ export function assistantSystemPrompt(locale: Locale): string {
     locale,
     "propose_tender_draft — title, description, items.name, items.description, keywords, termsAndConditions",
   )}\n\n${replyLanguageRule(locale)}`;
+}
+
+const WEEKDAY_EN = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
+const offsetFmt = new Intl.DateTimeFormat("en-US", {
+  timeZone: DEFAULT_TIME_ZONE,
+  timeZoneName: "longOffset",
+});
+const pad2 = (n: number) => String(n).padStart(2, "0");
+
+/**
+ * SAAT BAGLAMI (derin denetim MU-07) — her turda sistem istemine eklenir.
+ * Model bugunun tarihini bilmedigi icin "10 gun sonra" / "15 Ekim" gibi
+ * ifadeleri egitim yilina gore cozuyordu; gecmis tarih sanitizer'da dusup
+ * kapanis tarihi tekrar tekrar soruluyordu. Kapanis yalniz gun ya da Istanbul
+ * duvar saatiyle istenir; sunucu (`parseClosingInstant`) ayni kuralla okur.
+ */
+export function assistantClockContext(now: Date = new Date()): string {
+  const p = zonedParts(now, DEFAULT_TIME_ZONE);
+  const offset =
+    offsetFmt.formatToParts(now).find((x) => x.type === "timeZoneName")?.value ?? "GMT+03:00";
+  return `CURRENT DATE/TIME: ${p.year}-${pad2(p.month)}-${pad2(p.day)} ${pad2(p.hour)}:${pad2(p.minute)} (${WEEKDAY_EN[p.weekday]}), time zone ${DEFAULT_TIME_ZONE} (${offset.replace("GMT", "UTC")}).
+Resolve relative or year-less dates the user gives ("in 10 days", "next Friday", "15 October") against this date. bidsCloseAt must be in the FUTURE: send "YYYY-MM-DD" when the user named only a day (the platform closes at 23:59 ${DEFAULT_TIME_ZONE} time that day), or "YYYY-MM-DDTHH:mm" in ${DEFAULT_TIME_ZONE} wall-clock time when the user named an hour. Never convert to UTC yourself.`;
 }
 
 const SUMMARY_SYSTEM_BASE = `Bir sohbetin en eski kısmını özetliyorsun. Amaç: sonraki turlarda bağlam korunsun ama token tasarrufu olsun. Kullanıcının sorduğu konuları, verilen önemli bilgileri ve devam eden işleri 3-5 madde halinde ÖZETLE. Talimat çıkarma, yorum katma — yalnız konuşmanın özü.`;

@@ -11,6 +11,8 @@ import { Prisma } from "@rothern/db";
 import { AssistantActionsService } from "../../src/modules/ai/assistant/assistant-actions.service";
 import type { PrismaService } from "../../src/common/prisma/prisma.service";
 import { AuditService } from "../../src/modules/audit/audit.service";
+import { CompanyRequestDefaultsService } from "../../src/modules/company-request-defaults/company-request-defaults.service";
+import { DEFAULT_TIME_ZONE } from "../../src/common/time/country-time-zone";
 import { CompanyOrdersService } from "../../src/modules/company-orders/services/company-orders.service";
 import { NotificationService } from "../../src/modules/notifications/notification.service";
 import { prisma, truncateAll } from "./test-db";
@@ -48,6 +50,7 @@ function makeActions() {
     listings,
     makeOrdersService(),
     auditStub as unknown as AuditService,
+    new CompanyRequestDefaultsService(prisma as never, auditStub as unknown as AuditService),
   );
 }
 
@@ -359,6 +362,120 @@ describe("proposePublishTender", () => {
     expect(text).not.toContain("Kişisel koruyucu donanım");
   });
 
+  it("MU-07: kapanis kartta Istanbul saatiyle ve okuyucunun dilinde (ham UTC ISO yok); yalniz gun → 23:59", async () => {
+    const actions = makeActions();
+    await seedCategory();
+    const owner = await makeCompanyWithUser(prisma);
+    await prisma.companyAddress.create({
+      data: { companyId: owner.company.id, type: "TESLIMAT", title: "Depo", addressLine: "Test Mah. 1", city: "Ankara" },
+    });
+    const { code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
+    // Model yalniz gun verdi (istem "YYYY-MM-DD" istiyor) — 10 gun sonrasi.
+    const day = new Intl.DateTimeFormat("en-CA", { timeZone: DEFAULT_TIME_ZONE }).format(
+      new Date(Date.now() + 10 * 86_400_000),
+    );
+    const session = await makeSession(owner.user.id, owner.company.id, fullDraft({ bidsCloseAt: day }));
+    const out = await actions.proposePublishTender(owner.auth, session.id, { type: "ALIM", rothernIds: [code] });
+    expect(out.ok).toBe(true);
+    const text = out.pending!.summary.join(" ");
+    expect(text).not.toMatch(/\d{4}-\d{2}-\d{2}T/);
+    expect(text).toContain("23:59");
+    const closingLine = out.pending!.summary.find((l) => l.startsWith("Kapan"))!;
+    expect(closingLine).not.toContain("GMT");
+
+    const en = await runWithLocale("en", () =>
+      actions.proposePublishTender(owner.auth, session.id, { type: "ALIM", rothernIds: [code] }),
+    );
+    expect(en.pending!.summary.join(" ")).toMatch(/11:59\sPM \(GMT\+3\)/);
+
+    const res = await actions.confirm(owner.auth, session.id, en.pending!.id);
+    expect(res.status).toBe("executed");
+    const listing = await prisma.listing.findFirst({ where: { companyId: owner.company.id } });
+    // Istanbul 23:59 = 20:59Z (sabit +03).
+    expect(listing!.closesAt!.toISOString()).toBe(`${day}T20:59:00.000Z`);
+  });
+
+  it("MU-07: teslimat adresi — varsayilan TESLIMAT eski ILETISIM adresinin onune gecer ve kartta gorunur", async () => {
+    const actions = makeActions();
+    await seedCategory();
+    const owner = await makeCompanyWithUser(prisma);
+    await prisma.companyAddress.create({
+      data: {
+        companyId: owner.company.id,
+        type: "ILETISIM",
+        title: "Merkez",
+        addressLine: "Test Mah. 1",
+        city: "Ankara",
+        createdAt: new Date(Date.now() - 86_400_000),
+      },
+    });
+    await prisma.companyAddress.create({
+      data: { companyId: owner.company.id, type: "TESLIMAT", title: "Depo 1", addressLine: "Test Mah. 2", city: "Bursa" },
+    });
+    const depo = await prisma.companyAddress.create({
+      data: {
+        companyId: owner.company.id,
+        type: "TESLIMAT",
+        title: "Ana Depo",
+        addressLine: "Test Mah. 3",
+        district: "Gebze",
+        city: "Kocaeli",
+        isDefault: true,
+      },
+    });
+    const { code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
+    const session = await makeSession(owner.user.id, owner.company.id, fullDraft());
+    const out = await actions.proposePublishTender(owner.auth, session.id, { type: "ALIM", rothernIds: [code] });
+    expect(out.ok).toBe(true);
+    expect(out.pending!.summary).toContain("Teslimat adresi: Ana Depo, Gebze, Kocaeli");
+    await actions.confirm(owner.auth, session.id, out.pending!.id);
+    const listing = await prisma.listing.findFirst({ where: { companyId: owner.company.id } });
+    expect(listing?.deliveryAddressId).toBe(depo.id);
+  });
+
+  it("MU-07: teslimat adresi — talep sartlari profilindeki adres once gelir (web hizli talep sirasi)", async () => {
+    const actions = makeActions();
+    await seedCategory();
+    const owner = await makeCompanyWithUser(prisma);
+    await prisma.companyAddress.create({
+      data: { companyId: owner.company.id, type: "TESLIMAT", title: "Ana Depo", addressLine: "Test Mah. 3", city: "Kocaeli", isDefault: true },
+    });
+    const santiye = await prisma.companyAddress.create({
+      data: { companyId: owner.company.id, type: "TESLIMAT", title: "Santiye", addressLine: "Test Mah. 4", city: "Izmir" },
+    });
+    await prisma.company.update({
+      where: { id: owner.company.id },
+      data: {
+        requestDefaults: {
+          targetCountries: [],
+          visibility: "PUBLIC",
+          deliveryTerm: null,
+          paymentCategory: "OPEN_ACCOUNT",
+          paymentDays: null,
+          advancePercent: null,
+          lcType: null,
+          primaryCurrency: "TRY",
+          allowedCurrencies: ["TRY"],
+          isSealedBid: false,
+          bidVisibility: "OWN_ONLY",
+          requireAllItems: false,
+          requireBidDocument: false,
+          closeDays: 7,
+          deliveryAddressId: santiye.id,
+          billingSameAsDelivery: true,
+        },
+      },
+    });
+    const { code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
+    const session = await makeSession(owner.user.id, owner.company.id, fullDraft());
+    const out = await actions.proposePublishTender(owner.auth, session.id, { type: "ALIM", rothernIds: [code] });
+    expect(out.ok).toBe(true);
+    expect(out.pending!.summary).toContain("Teslimat adresi: Santiye, Izmir");
+    const stored = await prisma.aiChatSession.findUnique({ where: { id: session.id } });
+    const dto = (stored!.pendingAction as { params: { dto: { deliveryAddressId: string } } }).params.dto;
+    expect(dto.deliveryAddressId).toBe(santiye.id);
+  });
+
   it("reject: hiçbir şey yürütülmez, pendingAction temizlenir", async () => {
     const actions = makeActions();
     await seedCategory();
@@ -529,6 +646,77 @@ describe("Faz 3 — teklif verme + teslim alma", () => {
     });
     expect(bid?.status).toBe("SUBMITTED");
     expect(bid?.amount.toString()).toBe("500");
+  });
+
+  it("MU-07 place_bid: kesirli miktarli kalemde confirm dogrulamada dusmez (amount DTO'ya yazilmaz)", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const bidder = await makeCompanyWithUser(prisma);
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      format: "RFQ",
+      visibility: "PUBLIC",
+      primaryCurrency: "TRY",
+      allowedCurrencies: ["TRY"],
+    });
+    const item = await makeItem(prisma, listing.id, {
+      quantity: new Prisma.Decimal("12.5"),
+      unit: "kg",
+      name: "Bakir tel",
+    });
+    const session = await makeSession(bidder.user.id, bidder.company.id);
+    const out = await actions.proposePlaceBid(bidder.auth, session.id, {
+      listingId: listing.id,
+      items: [{ itemId: item.id, unitPrice: 3.33 }],
+      deliveryTime: "W1_2",
+      validityDays: 15,
+    });
+    expect(out.ok).toBe(true);
+    const stored = await prisma.aiChatSession.findUnique({ where: { id: session.id } });
+    const dto = (stored!.pendingAction as { params: { dto: Record<string, unknown> } }).params.dto;
+    expect(dto.amount).toBeUndefined();
+    const res = await actions.confirm(bidder.auth, session.id, out.pending!.id);
+    expect(res.status).toBe("executed");
+    const bid = await prisma.listingBid.findFirst({
+      where: { listingId: listing.id, bidderCompanyId: bidder.company.id },
+    });
+    expect(bid?.status).toBe("SUBMITTED");
+  });
+
+  it("MU-07 place_bid: 2'den fazla ondalikli birim fiyat propose'da reddedilir (kart cikmaz)", async () => {
+    const actions = makeActions();
+    const owner = await makeCompanyWithUser(prisma);
+    const bidder = await makeCompanyWithUser(prisma);
+    const listing = await makeListing(prisma, {
+      companyId: owner.company.id,
+      createdById: owner.user.id,
+      type: "ALIM",
+      status: "OPEN",
+      format: "RFQ",
+      visibility: "PUBLIC",
+    });
+    const item = await makeItem(prisma, listing.id, { name: "Somun" });
+    const session = await makeSession(bidder.user.id, bidder.company.id);
+    const out = await actions.proposePlaceBid(bidder.auth, session.id, {
+      listingId: listing.id,
+      items: [{ itemId: item.id, unitPrice: 1.335 }],
+      deliveryTime: "W1_2",
+    });
+    expect(out.ok).toBe(false);
+    expect(out.problem).toContain("Somun");
+    const stored = await prisma.aiChatSession.findUnique({ where: { id: session.id } });
+    expect(stored?.pendingAction).toBeNull();
+    // Gecerlilik de propose'da istenir (placeBid gonderimde zorunlu tutuyor).
+    const noValidity = await actions.proposePlaceBid(bidder.auth, session.id, {
+      listingId: listing.id,
+      items: [{ itemId: item.id, unitPrice: 1.5 }],
+      deliveryTime: "W1_2",
+    });
+    expect(noValidity.ok).toBe(false);
+    expect(noValidity.problem).toContain("validityDays");
   });
 
   it("place_bid: eksik kalem fiyatı → ok:false, kalem adı söylenir", async () => {

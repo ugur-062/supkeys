@@ -34,6 +34,7 @@ import { AssistantService } from "./assistant/assistant.service";
 import { CompanyListingsModule } from "../company-listings/company-listings.module";
 import { CompanyOrdersModule } from "../company-orders/company-orders.module";
 import { CompanyConnectionsModule } from "../company-connections/company-connections.module";
+import { CompanyRequestDefaultsModule } from "../company-request-defaults/company-request-defaults.module";
 
 /**
  * Faz AI-0 — AI altyapısı: sağlayıcı adapteri + maliyet ölçümü + firma bütçesi
@@ -52,6 +53,8 @@ import { CompanyConnectionsModule } from "../company-connections/company-connect
     CompanyListingsModule,
     CompanyOrdersModule,
     CompanyConnectionsModule,
+    // Asistan yayınında teslimat adresi (talep şartları profili).
+    CompanyRequestDefaultsModule,
     // Yayın sonrası AI tedarikçi önerisi e-postası (DiscoveryRunsService).
     EmailModule,
   ],

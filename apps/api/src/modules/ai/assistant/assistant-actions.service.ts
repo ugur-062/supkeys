@@ -1,6 +1,7 @@
 import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { tApi } from "../../../common/i18n/i18n.service";
-import { formatMoney } from "../../../common/notifications/notification-params";
+import { formatMoney, formatNotificationDate } from "../../../common/notifications/notification-params";
+import { localizeDefaultAddressTitle } from "../../../common/company/default-address-title";
 import { quantityDisplay } from "../../../common/i18n/unit-label";
 import { currentLocale } from "../../../common/i18n/locale-context";
 import {
@@ -26,6 +27,8 @@ import type { AuthenticatedCompanyUser } from "../../company-auth/strategies/com
 import { CreateListingDto } from "../../company-listings/dto/create-listing.dto";
 import { PlaceBidDto } from "../../company-listings/dto/place-bid.dto";
 import { CompanyListingsService } from "../../company-listings/services/company-listings.service";
+import { CompanyRequestDefaultsService } from "../../company-request-defaults/company-request-defaults.service";
+import { MAX_MONEY } from "../../../common/constants/money";
 import { CompanyOrdersService } from "../../company-orders/services/company-orders.service";
 import { sanitizeAiDraft } from "../tender-extract/ai-draft-sanitizer";
 import { missingFieldsForPrompt } from "./assistant.prompts";
@@ -65,6 +68,21 @@ interface StoredPendingAction {
 }
 
 /** Propose çıktısı — hem modele (tool response) hem UI kartına gider. */
+/** Yayin onay kartinda gosterilen teslimat adresi. */
+interface PickedAddress {
+  id: string;
+  title: string;
+  city: string | null;
+  district: string | null;
+}
+
+/** class-validator `maxDecimalPlaces: 2` ile ayni olcu (ondalik basamak sayisi). */
+function hasAtMostTwoDecimals(n: number): boolean {
+  const s = String(n);
+  if (/e/i.test(s)) return false;
+  return (s.split(".")[1]?.length ?? 0) <= 2;
+}
+
 export interface ProposeOutcome {
   ok: boolean;
   pending?: AiPendingAction;
@@ -81,6 +99,7 @@ export class AssistantActionsService {
     private readonly listings: CompanyListingsService,
     private readonly orders: CompanyOrdersService,
     private readonly audit: AuditService,
+    private readonly requestDefaults: CompanyRequestDefaultsService,
   ) {}
 
   // ── PROPOSE ────────────────────────────────────────────────────────────
@@ -177,8 +196,9 @@ export class AssistantActionsService {
     if (s.draft.suggestedCategoryIds.length === 0) {
       return { ok: false, problem: "Kategori önerisi yok — kalemleri netleştirin, kategori otomatik önerilsin." };
     }
-    const dto = await this.draftToCreateDto(user, type, s.draft);
-    if (typeof dto === "string") return { ok: false, problem: dto };
+    const built = await this.draftToCreateDto(user, type, s.draft);
+    if (typeof built === "string") return { ok: false, problem: built };
+    const { dto, address } = built;
     dto.invitations = invitees.map((c) => c.rothernId!);
 
     // Kategori adı onay kartında okuyucunun dilinde (eskiden `nameTr` ham —
@@ -220,9 +240,20 @@ export class AssistantActionsService {
         tApi("api.ai.assistant.card.invitees", {
           list: invitees.map((c) => c.name).join(", "),
         }),
+        // Kapanis okuyucunun dilinde, Istanbul duvar saatiyle (+ en/ru dilim
+        // etiketi) — ham UTC ISO basiliyordu (derin denetim MU-07).
         tApi("api.ai.assistant.publish.closing", {
-          closesAt: dto.closesAt ?? "-",
+          closesAt: dto.closesAt
+            ? formatNotificationDate(new Date(dto.closesAt), currentLocale(), "dateTime")
+            : "-",
           currency: dto.primaryCurrency ?? "-",
+        }),
+        // Teslimat adresi de BAGLAYICI alan — kartta gorunmeli (MU-07).
+        tApi("api.ai.assistant.publish.deliveryAddress", {
+          address: [localizeDefaultAddressTitle(address.title), address.district, address.city]
+            .map((x) => x?.trim())
+            .filter(Boolean)
+            .join(", "),
         }),
         tApi("api.ai.assistant.publish.payment", {
           plan: summarizePaymentPlan(dto),
@@ -370,10 +401,24 @@ export class AssistantActionsService {
       ? (args.items as Array<{ itemId?: unknown; unitPrice?: unknown }>)
       : [];
     const priceById = new Map<string, number>();
+    const badPrice: string[] = [];
     for (const it of argItems) {
       const id = String(it.itemId ?? "");
       const p = Number(it.unitPrice);
-      if (id && Number.isFinite(p) && p > 0) priceById.set(id, p);
+      if (!id || !Number.isFinite(p) || p <= 0) continue;
+      // PlaceBidItemDto kurali (en fazla 2 ondalik, MAX_MONEY) propose'da —
+      // onayda dusup karti harcamasin (derin denetim MU-07).
+      if (!hasAtMostTwoDecimals(p) || p > MAX_MONEY) {
+        badPrice.push(items.find((i) => i.id === id)?.name ?? id);
+        continue;
+      }
+      priceById.set(id, p);
+    }
+    if (badPrice.length > 0) {
+      return {
+        ok: false,
+        problem: `Unit price must be a positive amount with at most 2 decimal places (max ${MAX_MONEY}) for: ${badPrice.join(", ")}. Ask the user for a corrected unit price.`,
+      };
     }
     const missing = items.filter((i) => !priceById.has(i.id));
     if (missing.length > 0) {
@@ -419,8 +464,19 @@ export class AssistantActionsService {
       };
     }
 
+    // Kalemli teklifte `amount` GONDERILMEZ (web ile ayni sozlesme): servis
+    // tutari kalemlerden hesaplar; kesirli miktarda Σ 2 ondaligi asip
+    // PlaceBidDto.amount kuralina takiliyor, onaylanan kart 400 ile dusuyordu.
+    // Gecerlilik gonderimde zorunlu (placeBid kurali; acik eksiltme haric) —
+    // propose'da sorulur, onayda dusup karti harcamasin (MU-07).
+    if (!validityDays && detail.format !== "ENGLISH_AUCTION") {
+      return {
+        ok: false,
+        problem: "Offer validity in days (validityDays, 1-365) is required to submit a bid. Ask the user.",
+      };
+    }
+
     const dto: PlaceBidDto = {
-      amount: Number(amount.toString()),
       currency: currency as PlaceBidDto["currency"],
       items: items.map((i) => ({ itemId: i.id, unitPrice: priceById.get(i.id)! })),
       deliveryTime: deliveryTime as BidDeliveryTime,
@@ -574,13 +630,10 @@ export class AssistantActionsService {
     user: AuthenticatedCompanyUser,
     type: "ALIM",
     d: ReturnType<typeof sanitizeAiDraft>["draft"],
-  ): Promise<CreateListingDto | string> {
-    // Varsayılan teslimat adresi — ilan formunun zorunlu tuttuğu alan.
-    const addr = await this.prisma.companyAddress.findFirst({
-      where: { companyId: user.companyId, type: { in: ["TESLIMAT", "ILETISIM"] } },
-      orderBy: { createdAt: "asc" },
-      select: { id: true },
-    });
+  ): Promise<{ dto: CreateListingDto; address: PickedAddress } | string> {
+    // Teslimat adresi — ilan formunun zorunlu tuttugu alan; secim web hizli
+    // talep formuyla ayni sirada (MU-07).
+    const addr = await this.pickDeliveryAddress(user.companyId);
     if (!addr) {
       return "Firmanızda kayıtlı teslimat adresi yok — Ayarlar → Adresler'den ekleyin, sonra tekrar deneyin.";
     }
@@ -620,7 +673,38 @@ export class AssistantActionsService {
           targetUnitPrice: i.targetUnitPrice ?? undefined,
         })) as CreateListingDto["items"],
     };
-    return dto;
+    return { dto, address: addr };
+  }
+
+  /**
+   * Yayin adresi — web hizli talep formunun sirasi (quick-request.tsx):
+   * talep sartlari profilindeki adres (kaydedilmis ya da son talepteki),
+   * sonra varsayilan TESLIMAT, sonra herhangi bir TESLIMAT, en son ILETISIM.
+   * Eskiden TESLIMAT/ILETISIM arasindan en eski olusturulan aliniyordu: eski
+   * bir iletisim adresi yeni varsayilan teslimat adresinin onune geciyordu
+   * (derin denetim MU-07).
+   */
+  private async pickDeliveryAddress(companyId: string): Promise<PickedAddress | null> {
+    const select = { id: true, title: true, city: true, district: true } as const;
+    const profile = await this.requestDefaults.get(companyId).catch(() => null);
+    const preferredId = profile?.defaults?.deliveryAddressId ?? null;
+    if (preferredId) {
+      const preferred = await this.prisma.companyAddress.findFirst({
+        where: { id: preferredId, companyId },
+        select,
+      });
+      if (preferred) return preferred;
+    }
+    const rows = await this.prisma.companyAddress.findMany({
+      where: { companyId, type: { in: ["TESLIMAT", "ILETISIM"] } },
+      orderBy: { createdAt: "asc" },
+      select: { ...select, type: true, isDefault: true },
+    });
+    const pick =
+      rows.find((a) => a.type === "TESLIMAT" && a.isDefault) ??
+      rows.find((a) => a.type === "TESLIMAT") ??
+      rows[0];
+    return pick ? { id: pick.id, title: pick.title, city: pick.city, district: pick.district } : null;
   }
 
   // ── CONFIRM / REJECT ───────────────────────────────────────────────────

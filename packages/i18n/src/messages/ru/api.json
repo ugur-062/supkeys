@@ -809,6 +809,7 @@
         "items": "Позиции: {list} ({count, plural, one {# позиция} few {# позиции} many {# позиций} other {# позиции}})",
         "category": "Категория: {list}",
         "closing": "Закрытие: {closesAt} · Валюта: {currency} · Видимость: по приглашению (закрытая)",
+        "deliveryAddress": "Адрес доставки: {address}",
         "payment": "Оплата: {plan} · Поставка: {delivery}",
         "description": "Описание: {text}",
         "terms": "Спецификация: {text}",

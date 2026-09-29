@@ -87,7 +87,11 @@ const TENDER_DRAFT_PARAMS = {
     paymentCategory: { type: "string", enum: PAYMENT_ENUM, description: "Ödeme şekli" },
     paymentDays: { type: "number", description: "Vade günü (1-365) — vadeli/çek/senet/usance" },
     advancePercent: { type: "number", description: "Peşin yüzdesi (1-100) — yalnız ADVANCE" },
-    bidsCloseAt: { type: "string", description: "Teklif kapanış tarihi (ISO, gelecekte)" },
+    bidsCloseAt: {
+      type: "string",
+      description:
+        "Teklif kapanış tarihi (gelecekte): yalnız gün YYYY-MM-DD (o günün 23:59'u, Europe/Istanbul) ya da Europe/Istanbul duvar saatiyle YYYY-MM-DDTHH:mm",
+    },
     isInternational: { type: "boolean" },
     termsAndConditions: { type: "string" },
     keywords: { type: "array", items: { type: "string" } },
@@ -247,7 +251,7 @@ export function toolDefsForUser(portals: Set<Portal>): AiToolDef[] {
               "Taahhüt edilen teslim SÜRESİ — ZORUNLU, kullanıcıya sor. STOKTAN=stoktan hemen, W1_2=1-2 hafta, W3_4=3-4 hafta, W5_8=5-8 hafta, M2_3=2-3 ay, M3_PLUS=3+ ay",
           },
           note: { type: "string" },
-          validityDays: { type: "number", description: "Teklif geçerlilik günü (ops.)" },
+          validityDays: { type: "number", description: "Teklif geçerlilik günü (1-365) — gönderimde zorunlu, kullanıcıya sor" },
         },
         required: ["listingId", "items", "deliveryTime"],
       },
