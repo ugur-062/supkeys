@@ -670,7 +670,9 @@ export class AssistantActionsService {
           unit: i.unit ?? "adet",
           materialCode: i.materialCode ?? undefined,
           requiredByDate: i.requiredByDate ?? undefined,
-          targetUnitPrice: i.targetUnitPrice ?? undefined,
+          // ListingItemDto alanı `targetPrice` (derin denetim LU-04): eski
+          // `targetUnitPrice` confirm'deki whitelist ile sessizce düşüyordu.
+          targetPrice: i.targetUnitPrice ?? undefined,
         })) as CreateListingDto["items"],
     };
     return { dto, address: addr };

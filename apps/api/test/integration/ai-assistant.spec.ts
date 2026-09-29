@@ -7,7 +7,7 @@
  */
 import "reflect-metadata";
 import { CompanyRole, Prisma } from "@rothern/db";
-import { ForbiddenException, NotFoundException } from "@nestjs/common";
+import { ForbiddenException, NotFoundException, ServiceUnavailableException } from "@nestjs/common";
 import { AiBudgetService, AiBudgetExceededException } from "../../src/modules/ai/ai-budget.service";
 import { AiService } from "../../src/modules/ai/ai.service";
 import type { AiConfig } from "../../src/modules/ai/ai.config";
@@ -224,6 +224,65 @@ describe("Faz AI-2 — erişim (AI-0 kapısı)", () => {
       AiBudgetExceededException,
     );
     expect(provider.calls).toHaveLength(0);
+    // Derin denetim LU-04: ilk mesajda açılan oturum hata yolunda silinir
+    // (listede boş "hayalet" oturum kalmaz).
+    expect(await prisma.aiChatSession.count({ where: { companyId: co.company.id } })).toBe(0);
+  });
+});
+
+describe("hayalet oturum (derin denetim LU-04)", () => {
+  it("sağlayıcı hatası: YENİ oturum silinir; MEVCUT oturum ve mesajları korunur", async () => {
+    const provider = new FakeProvider();
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const ok = await svc.message(co.auth, { message: "merhaba" });
+
+    provider.complete = async () => {
+      throw new Error('{"code": 503, "message": "overloaded"}');
+    };
+    await expect(svc.message(co.auth, { message: "yeni sohbet" })).rejects.toThrow(
+      ServiceUnavailableException,
+    );
+    await expect(
+      svc.message(co.auth, { sessionId: ok.sessionId, message: "devam" }),
+    ).rejects.toThrow(ServiceUnavailableException);
+
+    const sessions = await prisma.aiChatSession.findMany({ where: { companyId: co.company.id } });
+    expect(sessions.map((x) => x.id)).toEqual([ok.sessionId]);
+    expect(await prisma.aiChatMessage.count({ where: { sessionId: ok.sessionId } })).toBe(2);
+  });
+
+  it("rezervasyon tahmini: 4 araç + kapanış = 5 çağrının çıktısı ve taslak bağlamı dahil", async () => {
+    const provider = new FakeProvider();
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const spy = jest.spyOn(AiBudgetService.prototype, "reserve");
+    try {
+      await svc.message(co.auth, { message: "merhaba" });
+      const plain = Number(spy.mock.calls[0]![0].candidates[0]!.estimatedCostUsd);
+      // Çıktı tavanı 5 × 4096 token × 2,5 USD/M.
+      expect(plain).toBeGreaterThanOrEqual((5 * 4096 * 2.5) / 1_000_000);
+
+      const session = await prisma.aiChatSession.create({
+        data: {
+          companyId: co.company.id,
+          userId: co.user.id,
+          title: "t",
+          tenderDraft: {
+            title: "Büyük taslak",
+            description: "x".repeat(4000),
+            items: [{ name: "Baret", quantity: 5, unit: "adet" }],
+            keywords: [],
+            suggestedCategoryIds: [],
+          } as Prisma.InputJsonValue,
+        },
+      });
+      await svc.message(co.auth, { sessionId: session.id, message: "merhaba" });
+      const withDraft = Number(spy.mock.calls[1]![0].candidates[0]!.estimatedCostUsd);
+      expect(withDraft).toBeGreaterThan(plain);
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 

@@ -15,6 +15,15 @@ describe("asistan istemi", () => {
     expect(p.indexOf("ÇIKTI DİLİ (propose_tender_draft")).toBeLessThan(p.indexOf("YANIT DİLİ:"));
     expect(p.trimEnd().endsWith("Yanıt dili: English (en)")).toBe(true);
   });
+
+  it("araç listesiyle çelişmez: teklif/kazandırma/teslim alma için 'aracın yok' demez (derin denetim LU-04)", () => {
+    const p = assistantSystemPrompt("tr");
+    for (const tool of ["request_place_bid", "request_award_tender", "request_mark_order_received"]) {
+      expect(p).toContain(tool);
+    }
+    expect(p).not.toContain("(teklif verme, kazandırma, sipariş aksiyonu) için ilgili sayfaya YÖNLENDİR");
+    expect(p).toContain("Teklif verme, toplu kazandırma ve teslim alma için araç VAR");
+  });
 });
 
 describe("AI arama istemi", () => {

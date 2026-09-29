@@ -250,6 +250,24 @@ describe("Faz AI-0 — bütçe tavanları (çağrıdan ÖNCE reddedilir)", () =>
     expect(provider.calls).toHaveLength(0);
   });
 
+  it("ret mesajı SON adayın sebebinden: premium request_cap + Flash havuz → 'havuz doldu' (derin denetim LU-04)", async () => {
+    const budget = new AiBudgetService(prisma as never, makeCfg());
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    await seedSpend(co.company.id, co.user.id, 24.999, { createdAt: monthStartSeedDate() });
+    const reserve = budget.reserve({
+      companyId: co.company.id,
+      userId: co.user.id,
+      feature: "test",
+      candidates: [
+        // Havuz 25 → istek tavanı 1,25; premium tahmini 2 → request_cap.
+        { model: PRO, estimatedCostUsd: new Prisma.Decimal(2), isPremium: true },
+        // Flash sığardı ama aylık havuz dolu → pool.
+        { model: FLASH, estimatedCostUsd: new Prisma.Decimal(0.01), isPremium: false },
+      ],
+    });
+    await expect(reserve).rejects.toThrow(/aylık AI bütçesi doldu/);
+  });
+
   it("paket bazında istek tavanı: STANDART'ta grounded profil çağrısı sığar, diğer paketler %5'te kalır (derin denetim S013/X21)", async () => {
     // Gerçek sayılar: STANDART havuzu 0,5 USD, çıktı tavanı 8192 token.
     // Grounded tahmin = 0,035 (istek ücreti) + 8192×2,5/1M ≈ 0,056 USD;

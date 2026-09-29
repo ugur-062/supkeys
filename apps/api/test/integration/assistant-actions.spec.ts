@@ -316,7 +316,12 @@ describe("proposePublishTender", () => {
       },
     });
     const { invitee, code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
-    const session = await makeSession(owner.user.id, owner.company.id, fullDraft());
+    // Derin denetim LU-04: sohbette verilen hedef birim fiyat yayındaki kaleme yazılır.
+    const session = await makeSession(
+      owner.user.id,
+      owner.company.id,
+      fullDraft({ items: [{ name: "Baret", quantity: 500, unit: "adet", targetUnitPrice: 250 }] }),
+    );
 
     const out = await actions.proposePublishTender(owner.auth, session.id, {
       type: "ALIM",
@@ -334,6 +339,8 @@ describe("proposePublishTender", () => {
     });
     expect(listing?.status).toBe("OPEN");
     expect(listing?.categoryIds).toEqual(["30991900"]);
+    const items = await prisma.listingItem.findMany({ where: { listingId: listing!.id } });
+    expect(items.map((i) => Number(i.targetPrice))).toEqual([250]);
     const invRows = await prisma.listingInvitation.count({
       where: { listingId: listing!.id, invitedCompanyId: invitee.company.id },
     });

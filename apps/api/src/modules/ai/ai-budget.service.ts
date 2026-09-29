@@ -200,7 +200,7 @@ export class AiBudgetService {
         this.sumCost(tx, { ...scopeMonth, model: premiumModel }),
       ]);
 
-      let firstDenial: BudgetDenial | null = null;
+      let lastDenial: BudgetDenial | null = null;
       for (let i = 0; i < args.candidates.length; i++) {
         const cand = args.candidates[i]!;
         const est = cand.estimatedCostUsd;
@@ -237,12 +237,14 @@ export class AiBudgetService {
           });
           return { id: row.id, model: cand.model, downgraded: i > 0 };
         }
-        firstDenial ??= denial;
+        lastDenial = denial;
       }
 
-      // Tüm adaylar düştü. premium_cap tek başına buraya gelmez (fallback
-      // denendi) — mesaj son/genel sebepten üretilir.
-      const reason = firstDenial === "premium_cap" ? "pool" : (firstDenial ?? "pool");
+      // Tüm adaylar düştü. Mesaj SON adayın (ucuz fallback) sebebinden üretilir
+      // (derin denetim LU-04): premium request_cap ile, Flash havuz/gün/kullanıcı
+      // tavanıyla düşünce kullanıcı "belgeyi bölün" görüp boşuna küçültüyordu.
+      // premium_cap yalnız tek adaylı premium çağrıda son sebep olabilir.
+      const reason = lastDenial === "premium_cap" ? "pool" : (lastDenial ?? "pool");
       throw new AiBudgetExceededException(
         i18nMessage(DENIAL_KEYS[reason as Exclude<BudgetDenial, "premium_cap">], undefined, "AI_BUDGET_EXCEEDED"),
       );

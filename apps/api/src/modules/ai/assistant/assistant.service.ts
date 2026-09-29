@@ -9,7 +9,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from "@nestjs/common";
-import { Prisma } from "@rothern/db";
+import { Prisma, type AiChatSession } from "@rothern/db";
 import type {
   AiAssistantReply,
   AiChatSessionDetailDto,
@@ -96,7 +96,6 @@ export class AssistantService {
     dto: { sessionId?: string; message: string; fileKeys?: string[] },
   ): Promise<AiAssistantReply> {
     this.ai.assertAiAccess(user); // AI-0 kapısı: SA/ST + Silver+
-    const provider = this.provider!;
     const text = (dto.message ?? "").trim().slice(0, MAX_TURN_MESSAGE_LEN);
     if (!text && !(dto.fileKeys && dto.fileKeys.length > 0)) {
       throw new ForbiddenException(i18nMessage("api.ai.mesajBosOlamaz"));
@@ -117,6 +116,7 @@ export class AssistantService {
       }
     }
 
+    const createdSession = !dto.sessionId;
     const session = dto.sessionId
       ? await this.loadOwnSession(user, dto.sessionId)
       : await this.prisma.aiChatSession.create({
@@ -128,6 +128,31 @@ export class AssistantService {
           },
         });
 
+    try {
+      return await this.runTurn(user, dto, session, text, hasFiles);
+    } catch (err) {
+      // Derin denetim LU-04: ilk mesajda açılan oturum, tur mesajları yazılmadan
+      // düşerse (portal/belge/bütçe/sağlayıcı hatası) silinir — istemci hata
+      // yanıtında sessionId almadığı için her yeniden deneme listede boş bir
+      // "hayalet" oturum bırakıyordu. turnCount=0 koşulu: mesajları yazılmış
+      // (tur tamamlanmış) oturuma asla dokunulmaz.
+      if (createdSession) {
+        await this.prisma.aiChatSession
+          .deleteMany({ where: { id: session.id, turnCount: 0 } })
+          .catch(() => undefined);
+      }
+      throw err;
+    }
+  }
+
+  private async runTurn(
+    user: AuthenticatedCompanyUser,
+    dto: { sessionId?: string; message: string; fileKeys?: string[] },
+    session: AiChatSession,
+    text: string,
+    hasFiles: boolean,
+  ): Promise<AiAssistantReply> {
+    const provider = this.provider!;
     // AI-3: oturumda biriken taslak (belge + konuşma birleşiminin kaynağı).
     let draft: AiTenderExtractResult | null = this.reviveDraft(session.tenderDraft);
     let draftTouched = false;
@@ -163,16 +188,25 @@ export class AssistantService {
 
     // Bütçe rezervasyonu ÇAĞRIDAN ÖNCE (fail-closed worst-case tahmin: araç
     // döngüsü + çıktı). Gerçek maliyet settle'da düzeltilir.
-    const estInputChars =
-      basePrompt.length +
+    // Derin denetim LU-04: tur en fazla MAX_TOOL_ITERATIONS araç çağrısı + bir
+    // araçsız kapanış çağrısı yapar ve HER çağrı sistem istemini (taslak
+    // bağlamı dahil — basePrompt değil systemPrompt), araç tanımlarını ve
+    // geçmişi yeniden gönderir; k. çağrı önceki k araç sonucunu da taşır.
+    // Eski tahmin girdiyi tek çağrı sayıyor, taslağı hiç saymıyordu → settle
+    // tavanları (istek/gün/kullanıcı) tahminin birkaç katı aşabiliyordu.
+    const MAX_CALLS = MAX_TOOL_ITERATIONS + 1;
+    const estInputCharsPerCall =
+      systemPrompt.length +
       JSON.stringify(toolDefs).length +
       plan.history.reduce((n, t) => n + JSON.stringify(t).length, 0) +
       text.length;
+    const toolResultTokens = MAX_TOOL_RESULT_CHARS / 4;
     const estUsage: AiTokenUsage = {
       inputTokens:
-        Math.ceil(estInputChars / 4) +
-        MAX_TOOL_ITERATIONS * (MAX_TOOL_RESULT_CHARS / 4),
-      outputTokens: MAX_OUTPUT_TOKENS * MAX_TOOL_ITERATIONS,
+        MAX_CALLS * Math.ceil(estInputCharsPerCall / 4) +
+        // Birikimli araç sonuçları: 0 + 1 + … + MAX_TOOL_ITERATIONS.
+        toolResultTokens * ((MAX_TOOL_ITERATIONS * (MAX_TOOL_ITERATIONS + 1)) / 2),
+      outputTokens: MAX_OUTPUT_TOKENS * MAX_CALLS,
       cacheReadTokens: 0,
       cacheWriteTokens: 0,
     };
