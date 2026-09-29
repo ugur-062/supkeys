@@ -28,7 +28,7 @@
 | 8 | AI katmanı | ✅ bitti |
 | 9 | Çok dillilik | ✅ bitti (1 ürün dili kararı bekliyor: B6-4) |
 | 10 | SEO/GEO | ✅ bitti |
-| 11 | Performans ve kapasite | ⏳ |
+| 11 | Performans ve kapasite | ✅ bitti |
 | 12 | Arayüz ve erişilebilirlik | ⏳ |
 | 13 | Hukuk ve uyum | ⏳ |
 | 14 | Altyapı ve operasyon | ⏳ |
@@ -409,7 +409,7 @@ kırmızı/yeşil duyarlılığı eski koda karşı sınandı.
 | ~~B5-11~~ ✅ Bölüm 8 (f4bf2577) | AI keşfi üye eşleşmesi üyenin DÜZENLENEBİLİR `website`ına bakıyor: Silver+ doğrulanmış bir üye sitesini rakibin alan adına çevirirse AI'ın bulduğu rakip adayı "Rothern'de kayıtlı: <saldırgan>" olur ve davet saldırgana gider (tek doğrulayıcı onayı) | alıcı adı görüyor; kalıcı çözüm alan adı sahipliği doğrulaması — Bölüm 8'de karar |
 | ~~B5-12~~ ✅ Bölüm 8 (a5d08561; hukuk görüşü Bölüm 13'te) | DE/CA önceden onay kapısı modelin `country` etiketine dayanıyor (etiket yoksa geçiyor) | hukuk görüşü bekleniyor; e-posta uzantısı yedeği Bölüm 13 ile |
 | ~~B5-13~~ ✅ Bölüm 8 (4cc511ec) | Çeviri istemi içerik için "veri, talimat değil" çerçevesi taşımıyor; model kaynak dili yanlış bildirirse TR sayfada moderasyondan geçmemiş çeviri görünebilir | moderatör gözden kaçırması gerekir; istem sürümü artırılmadan Bölüm 8'de ele alınacak |
-| B5-14 (USD kısmı ✅ Bölüm 8, 0338ae56) | Keşif günlük USD tavanı başarısız/süren turları saymıyor; soğuk davet ısınması takvim haftasıyla ikiye katlanıyor (gönderilen hacimle değil) | tavan zaten 15 USD; hacim Bölüm 7 ölçümünde |
+| ~~B5-14~~ ✅ (USD: Bölüm 8 0338ae56 · ısınma: Bölüm 11 828b5026) | Keşif günlük USD tavanı başarısız/süren turları saymıyor; soğuk davet ısınması takvim haftasıyla ikiye katlanıyor (gönderilen hacimle değil) | tavan zaten 15 USD; hacim Bölüm 7 ölçümünde |
 | B5-15 | E-posta adres normalizasyonu harfi harfine (`+etiket`, Gmail noktası) — çıkış/fren adres bazlı | alıcı kendi eşdeğer adresine yeniden çıkış verebilir; Bölüm 7 |
 | B5-16 (Bölüm 14) | `EMAIL_FROM_ADDRESS_INVITE` boşsa soğuk davet işlem göndereninden gider; çıkış jetonu anahtarı `JWT_SECRET`ten türer (döndürülürse gönderilmiş çıkış bağlantıları kırılır) | operatör env matrisi |
 | B5-17 (Bölüm 13) | Soğuk davet/bastırma günlük satırları üçüncü kişi adresini yazıyor | KVKK saklama kararıyla birlikte |
@@ -572,4 +572,35 @@ kontrolü; B1-1 için API gerçekten kapatılarak.
 | B10-1 | DÜŞÜK | Akış başladıktan sonra atılan hata (loading.tsx altındaki dizinde kesinti) 200 ile hata sayfası basar — indekslenebilirdi | ✅ segment hata sınırı + global-error `robots noindex` (da2d1d8b) |
 | B10-2 (Bölüm 14) | operatör | Arama kanalı env'leri: `INDEXNOW_KEY` + `SEO_REVALIDATE_SECRET` Render VE Vercel'de AYNI değer, Render `WEB_URL=https://www.rothern.com`; yoksa yayın anı bildirimi KAPALI (yalnız yavaş). Site doğrulama `NEXT_PUBLIC_{GOOGLE,BING,YANDEX}_SITE_VERIFICATION` + GSC/Bing'e sitemap gönderimi — kullanıcı kararıyla EN SON | env matrisi / yayın günü (Bölüm 15) |
 | B9-5 canlı | bilgi | Yeniden derlenen API ile EN ürün sayfası satıcı sektörü "Machinery and process equipment" — doğrulandı | kayıt |
+
+---
+
+## Bölüm 11 — Performans ve kapasite (✅ 2026-09-29)
+
+Ölçüm ortamı: yerel üretim derlemesi (web `next start`, API `node dist`, RLS
+açık, staging kopyası DB). Lab ölçümleri 412 px mobil, **4× CPU yavaşlatma +
+1,6 Mbps / 150 ms** (Lighthouse mobil varsayılanına yakın); saha değeri değil,
+göreli.
+
+| Kontrol | Sonuç |
+|---|---|
+| Paylaşılan JS | ✅ 103 kB (CLAUDE.md hedefi; tarayıcı Sentry SDK'sı yok) |
+| Herkese açık rota ilk yükleme | sözleşmeler 131 kB · SSS/iletişim 227 kB · talep detayı 254 kB · firma 257 kB · ürün dizini/kategori/şehir 270 kB · talep dizini 279 kB · ürün detayı 297 kB · anasayfa 316 kB. `/dev/ui` derlemede ama üretimde 404 (NODE_ENV kapısı) |
+| Lab LCP | ✅ 1,45–1,82 sn (anasayfa, EN, ürün dizini, ürün, talep, talep dizini, EN kategori); firma profili 3,0 sn → düzeltildi (B11-2) |
+| Lab CLS | ✅ 0,000 her sayfada |
+| Lab TBT (INP vekili) | talep detayı 234 · firma 254 · ürün 348 · anasayfa 369 · talep dizini 428 ms; **ürün dizini 954 ms, EN kategori 793 ms** (B11-3) |
+| API gecikmesi (60 istek, 6 eşzamanlı) | ✅ herkese açık uçlar p95 29–78 ms (ürün arama 60, firma dizini 78, ilişkili ürünler 65, sitemap 75); panel p95 29–117 ms (Taleplerim 107, Açık Talepler 117). Canlı DB açılışta boş — patolojik sorgu yok |
+| API bellek | açılış RSS 341 MB · sürekli 405 MB · yük sonrası tepe 588 MB (V8 büyük makinede yığını geri vermiyor); **kullanılan yığın 117 MB**, yerel (Prisma motoru, kod) ~150 MB. Render `plan: starter` = 512 MB (B11-5) |
+
+### Bölüm 11 bulguları
+
+| # | Önem | Bulgu | Durum |
+|---|---|---|---|
+| B11-1 | YÜKSEK | **SSR çağrıları IP başına hız sınırına takılıyordu:** herkese açık sayfaların sunucu çizimi API'yi Vercel'in birkaç çıkış IP'sinden çağırır, varsayılan tavan IP başına 100/dk (tüm uçlar). Dağıtım sonrası ISR önbelleği boşken tarayıcılar + açılış trafiği tavanı doldurur → 429 → (B1-1 sonrası) çizilmemiş sayfa 500 (öncesinde 404/boş önbelleğe giriyordu) | ✅ web sunucusu `SEO_REVALIDATE_SECRET`i (Render+Vercel'de zaten aynı) `x-rothern-ssr` başlığında gönderir; API yalnız **GET ∧ /api/public/*** için zaman-sabit karşılaştırıp sınırı atlar; sır yoksa davranış aynı (4f71f93d) |
+| B11-2 | ORTA | Firma profilinin LCP öğesi kapak görseli `opacity-0` başlayıp hidrasyon sonrası açılıyordu → LCP JavaScript'i bekliyordu (3,0 sn) | ✅ ilk kareden görünür + `fetchpriority=high`; kırık görselde ikon yerine boş alt → logo yedeği (34a28bbc) |
+| B11-3 | ORTA (backlog) | Ürün dizini / kategori sayfasında TBT 800–950 ms (lab). Etkenler: ~1.800 DOM düğümü, 40 JS dosyası (1,15 MB açılmış), her ürün kartı istemci bileşeni, sayfa HTML'i ~430 kB (RSC yükü + satır içi istemci çeviri kataloğu: tr/en 79 kB, ru 127 kB) | yayın sonrası: kartları sunucu bileşenine indirme, çeviri kataloğunu rotaya göre bölme, mega menü/typeahead'i tembel yükleme; saha INP'si GSC Core Web Vitals raporundan izlenir |
+| B11-4 | DÜŞÜK | Varsayılan kapak (kategori fotoğrafı) 1200 px / 137 kB ham `<img>` — mobilde gereğinden büyük | backlog (srcset ya da `next/image`) |
+| B11-5 (Bölüm 14) | operatör | Render **starter 512 MB**: yerelde açılış 341 MB, sürekli ~405 MB (kullanılan yığın 117 MB). Konteynerde Node yığını sınıra göre boyutlandırır, sığmalı ama pay dar | ilk günlerde Render bellek grafiği izlenir; yeniden başlatma görülürse Standard (2 GB) — maliyet kararı |
+| B5-14 (kalan) | ORTA | Soğuk davet ısınması yalnız takvimle ikiye katlanıyordu (az gönderen platformda bile tavan binlere çıkıyor) | ✅ tavan = min(takvim, max(taban, 2 × son 7 günün en yoğun günü)) (828b5026) |
+| B5-15 → Bölüm 13 | DÜŞÜK | E-posta adres normalizasyonu harfi harfine (çıkış/fren adres bazlı) | çıkış hakkına saygı konusu — Bölüm 13'te karar |
 
