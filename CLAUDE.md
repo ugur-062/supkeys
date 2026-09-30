@@ -69,7 +69,8 @@ e2e testleri `seed-staging-roles`a dayanır, bu betiğe DEĞİL.
 `&` taşıyor, kabuk satırı arka plan komutu sanıyor, değişken kurulmuyor ve
 betikler sessizce kök `.env`e (STAGING) düşüyor (2026-09-15'te "canlı" diye
 koşulan kuru çalışma staging'i listeledi). Betiğe `ENV_FILE=../../.env.prod.local`
-ver; `wipe-companies.ts` silme kipinde ayrıca `HEDEF=<supabase-proje-ref>` ister. Staging adresleri: `staging.supkeys.com`,
+ver (2026-09-30'dan beri katalog betikleri dahil BÜTÜN veri betikleri okur; ilk satırdaki
+'hedef veritabanı' host/ref'ini doğrula); `wipe-companies.ts` silme kipinde ayrıca `HEDEF=<supabase-proje-ref>` ister. Staging adresleri: `staging.supkeys.com`,
 `admin.staging.supkeys.com`, `api.staging.supkeys.com`, `cdn.staging.supkeys.com`.
 Git: `main` → staging (otomatik), `production` → canlı (PR ile).
 
@@ -305,7 +306,19 @@ slug'ı — `/urunler/sehir/bursa` DEĞİŞMEZ; GeoNames'in ilçe ölçekli TR
   ile okur** (yeni betik `new PrismaClient({ datasourceUrl: prepareScriptDatabase("<ad>") })`;
   `process.env.DIRECT_URL || DATABASE_URL` YAZILMAZ — Y-21'de geo betikleri canlı
   yerine staging'e yazıyordu). İlk satır `[<betik>] hedef veritabanı: <host> (proje
-  <ref>)` — çalıştırınca önce buna bak. Sözleşme: `script-env.spec`,
+  <ref>)` — çalıştırınca önce buna bak. **Kural BÜTÜN `packages/db/prisma/scripts/*.ts`
+  için geçerli** (derin denetim 2026-09-30 boşluk taraması GA1: seed-category-attributes, seed-categories, apply-category-*,
+  backfill-* dahil 20 betik argümansız `new PrismaClient()` ya da ham `process.env` ile açılıp
+  ENV_FILE'ı yok sayıyordu). Argümansız `new PrismaClient()` ve `datasourceUrl: process.env…`
+  YASAK. Betiğe özel adres kapısı gerekiyorsa `const url = prepareScriptDatabase("<ad>")`
+  yazılır, kapı bu adres üzerinde kurulur ve `{ datasourceUrl: url }` verilir. DIRECT_URL,
+  DATABASE_URL'den önce gelir. ENV_FILE yokken kök `.env` yalnız eksik anahtarları doldurur;
+  DATABASE_URL/DIRECT_URL TEK ÇİFTTİR: kabukta biri tanımlıysa ikisi de dosyadan alınmaz
+  (`loadScriptEnv` `DB_URL_KEYS`; `DATABASE_URL=…localhost… pnpm <betik>` provası staging
+  DIRECT_URL'ine kaymaz). Yeni bir DB adres anahtarı `DB_URL_KEYS`e eklenir.
+  `apps/api/test/unit/script-env.spec.ts` dizini tarar; istisna yalnız oradaki gerekçeli
+  `ALLOW` listesiyle yapılır (wipe-companies, wipe-residue, rewrite-image-host,
+  seed-staging-demo). Sözleşme: `script-env.spec`,
   `geo-city-reload.spec`, `geo-index.spec`, `product-facets.spec`,
   `public-product-index.spec`, `seo-index.spec`, i18n `pathnames.test`.
 
@@ -1796,6 +1809,16 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   `List-Unsubscribe-Post` başlığı ve alt bilgide çıkış/tercih bağlantısı taşır
   (düz metin dahil); kod/şifre/sipariş TAŞIMAZ. Jeton AES-256-GCM (adres +
   kapsam + dil; anahtar `JWT_SECRET`ten türetilmiş, DB satırı yok, süresiz).
+  **KVKK aydınlatma satırı** (HTML Layout ve `renderEmail` düz metni aynı kural)
+  `showsPrivacyNotice(env)` = `EmailEnv.privacyNotice || unsubscribeUrl`; EmailService
+  bayrağı `privacyNoticeFor(context.type)` ile açar: işlem dışı her akış + ÜYE OLMAYAN
+  adrese giden işlem e-postaları (`email-streams.ts` `PRIVACY_NOTICE_TRANSACTIONAL_CONTEXT_TYPES`:
+  `company_user_invitation`, `public_inquiry_verify` — güvenli taraf, avukat teyidi
+  bekliyor, derin denetim kararı 73). Kayıtsız adrese yeni bir işlem e-postası eklenirse
+  bu kümeye girer. Dış davet/özet DÜZ METNİ HTML alt notunun etiketsiz karşılığını
+  (`email.tenderExternalInvite.textFootnote`, `email.tenderInviteDigest.textFootnote`) ve
+  `email.layout.textSignature` imzasını taşır (derin denetim 2026-09-30 boşluk taraması GA2). Sözleşmeler:
+  `tender-external-invite-email.spec`, `email-streams.spec`, `email-unsubscribe.spec`.
   Uçlar: API `GET/POST public/email/unsubscribe` (GET yalnız okur), web
   `/api/email/unsubscribe` (başlıktaki adres; POST'u iletir, GET onay sayfasına
   yönlendirir), sayfa `/e-posta-tercihleri` (EN `/email-preferences`, RU
@@ -1952,7 +1975,14 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     liste + tek tık davet (`AI_AUTO`, kuyruk); "Gizle" kapatır. Alıcı 10 dk içinde
     işlem yapmadıysa talebi AÇANA bildirim + e-posta (`ai_supplier_suggestions`,
     tercih `aiSuggestions`; bağlantı `?ai-davet=1` listeyi açık getirir, gönderim
-    uygulama içinde). Süre yarılandı + teklif < 3 → İKİNCİ TUR (önceki adaylar
+    uygulama içinde). **Davet durumunun tek kaynağı aday `status`'u DEĞİL**
+    (derin denetim 2026-09-30 boşluk taraması GA3): pencereden firma kimliğiyle davet (`inviteMembers`) ve formdan adresle
+    davet aday satırını güncellemez → davetli mi sorusu her zaman `listing_invitations`
+    (memberCompanyId) ve `external_listing_invites` (email) tablolarından. Ekran
+    (`forListing`) ve hazır bildirimi (`notifyReady` → `stillOpenCandidates`) aynı süzgeç;
+    hepsi davetliyse bildirim GİTMEZ. Metin "AI buldu" ya da koşulsuz "yurt içi ve yurt
+    dışı" demez (tur AI kapalıyken de platform üyeleriyle sonuç üretir; yurt dışı sayısı
+    koşullu; karar 74). Süre yarılandı + teklif < 3 → İKİNCİ TUR (önceki adaylar
     hariç; talep başına en fazla 2 otomatik tur). Eylem merkezi satırı `aiSuggestions`.
     PUBLISH turu `announceListingOpen` claim'ine bağlı KALMAZ (derin denetim 2026-09-29
     MU-09): düzenlemede sonradan açılan keşif (`enqueueDiscoveryAfterEdit`) ve
@@ -1981,7 +2011,9 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
     fazlası `INVITATION` özeti).
   - **Karşılama serisi** (LIFECYCLE akışı, `lifecycle_<adım>`, tercih
     `lifecycle` — `prefKeyForType` `lifecycle_*` önekini eşler): profil (gün 1)
-    → ilk ürün (3) → doğrulama (7) → pazar (14, kategorisinde talep varsa)
+    → ilk ürün (3) → doğrulama (7) → pazar (14, kategorisinde talep varsa;
+    ücretsiz firmada gövde `bodyLocked` + düğme `lifecycle.market.ctaLocked` "Silver'a
+    geç" → /company/premium, derin denetim 2026-09-30 boşluk taraması GA2, `lifecycle-market-cta.spec`)
     → ikinci doğrulama hatırlatması (21, hâlâ doğrulanmamışa; "AI önerilerine
     yalnız doğrulanmış Silver/Gold girer, teklifte 'Doğrulanmamış firma'")
     → Silver (24, YALNIZ doğrulanmış ücretsize — paket alımı doğrulama ister;
@@ -2833,9 +2865,10 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
 
 ## Test & Kalite
 
-- API **283 dosya / 3.117 test** (2 LIVE spec atlanır) · web **245 / 1.419** · admin
-  **41 / 198** · i18n **8 / 39** — toplam 577 dosya / 4.773 test (derin denetim
-  2026-09-30 DÜŞÜK turu tam regresyonu, HEAD 4f921485; API 10'luk `--runInBand` partiler).
+- API **284 dosya / 3.170 test** (2 LIVE spec atlanır) · web **247 / 1.430** · admin
+  **43 / 202** · i18n **9 / 44** — toplam 583 dosya / 4.846 test (derin denetim
+  2026-09-30 boşluk taraması son kapısı, HEAD 53c572fc; API 10'luk `--runInBand` partiler,
+  29 parti). Playwright `--list` 26 dosya / 112 test.
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
   1 sn) — dosyayı tek başına yeniden koş, gerileme sayılmaz. `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
   kırmızı (servisin `end = new Date()` ↔ `createdAt @default(now())` yarışı) —
@@ -2882,6 +2915,18 @@ değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). G
   KULLANILIYOR, koşum başına ~1 bildirim). `staging-email-content.spec`
   kota hatasını ortam sınırı sayar ve ayrı raporlar; diğer teslimat hataları
   kırmızı kalır.
+  **ADMIN 2FA (derin denetim 2026-09-30 boşluk taraması GB3):** admin girişi yapan yardımcılar (`e2e/staging-helpers.ts`
+  `adminApiSession`/`adminUiLogin`) 2FA'sı kurulu hesapta `E2E_ADMIN_TOTP_SECRET`ten
+  (base32) TOTP üretir (`e2e/totp.ts`, RFC 6238; web'e otplib EKLENMEZ). Kurulum zorunlu
+  ama yapılmamışsa ya da kod isteniyor ama gizli değer yoksa AÇIK hata verir. Staging/canlı
+  SUPER_ADMIN'e 2FA kurulunca gizli değer `.env.staging` / `.env.prod.local` / CI secret
+  `STAGING_ADMIN_TOTP_SECRET`e eklenir (O-49, O-50). **`waitForURL`'de düzenli ifadeyi tam
+  adrese UYGULAMA:** admin alan adı `admin.*` olduğu için `/\/admin…/` kalıbı şemadaki
+  `//admin.` ile eşleşir (2FA adımı atlanmış sayılıyordu) → `(u: URL) => u.pathname…`
+  yüklemi (örnek `adminPanelde`). Spec'ler API yanıtındaki alan adına güvenmeden önce
+  servisin dönüşünü kontrol eder (ör. `approvals/pending` `listingId` değil `listing.id`
+  döner) ve bulamayınca `rows[0]`a düşmek yerine hata verir. Rol spec'leri izlenen
+  `docs/qa-role-*.md`'nin üzerine yazar → koşumdan sonra `git status` temiz olmalı.
   **429 metni Türkçe (2026-09-19):** `ThrottlerModule` `errorMessage` →
   `common/http/throttle-message.ts` (giriş formu API mesajını olduğu gibi
   basıyor; kütüphane varsayılanı "ThrottlerException: Too Many Requests" idi).
@@ -3004,8 +3049,12 @@ istekte `twoFactorEnabled` (etkin ∧ sır) döner; `AdminRolesGuard` zorunlu ro
 admini yalnız `@AllowWithoutAdmin2fa` uçlarına bırakır (YALNIZ me, 2fa/setup, 2fa/enable —
 başka uca EKLENMEZ, `admin-2fa-enforcement.spec` kaynak ağacını tarar), gerisi 403
 `ADMIN_2FA_SETUP_REQUIRED`. Login kilitlemez; login ve /me `twoFactorSetupRequired` döner,
-panelde `RequireAdminAuth` yalnız `/admin/settings`i açar. Staging `NODE_ENV=production` →
-staging'de de zorunlu. Personel servisinde kendine yıkıcı işlem (rol düşürme, pasifleştirme,
+panelde `RequireAdminAuth` yalnız `/admin/settings`i açar. Paneldeki uyarı
+(`TwoFactorSetupNotice`) Ayarlar sayfasında 2FA bölümünün üstünde AKIŞ İÇİ karttır;
+ekrana sabitlenmez (fixed/sticky YOK — sabit alt katman 1366×768 ve mobilde kurulum
+düğmelerini örtüp paneli kilitli bırakıyordu, derin denetim 2026-09-30 boşluk taraması GB1). Layout'taki /me tazelemesi
+`AdminMeRefresher`'dadır, hiçbir şey çizmez. Staging `NODE_ENV=production` →
+staging'de de zorunlu; e2e bunun için `E2E_ADMIN_TOTP_SECRET` kullanır (Test & Kalite). Personel servisinde kendine yıkıcı işlem (rol düşürme, pasifleştirme,
 şifre sıfırlama) actorId ile reddedilir (MU-21).
 
 **FİRMA 2FA FRENİ + E-POSTA KODU (MU-16).** `CompanyUser.twoFactorFailedAttempts/
@@ -3203,8 +3252,11 @@ matrisi + runbook); derin denetim ve düzeltme durumu
 - **Şifre politikası tek:** kayıt, davet kabulü, değiştirme, sıfırlama = 10
   karakter + küçük/büyük harf + rakam + özel (`password-policy-parity.spec`;
   web `usePasswordRules` / `PASSWORD_MIN_LENGTH`).
-- **E-posta:** işlem dışı her e-postada alıcının dilinde KVKK aydınlatma
-  bağlantısı (`privacyNoticeUrl`); günlükte adres maskeli (`maskEmail`).
+- **E-posta:** işlem dışı her e-postada + üye olmayan adrese giden işlem e-postalarında
+  (`PRIVACY_NOTICE_TRANSACTIONAL_CONTEXT_TYPES`: company_user_invitation,
+  public_inquiry_verify — güvenli taraf, avukat teyidi bekliyor; yeni üye dışı işlem akışı
+  bu kümeye eklenir; derin denetim 2026-09-30 boşluk taraması GA2) alıcının dilinde KVKK aydınlatma bağlantısı
+  (`privacyNoticeUrl`, `EmailEnv.privacyNotice`); günlükte adres maskeli (`maskEmail`).
 - **Kayıtsız adrese davet SİLİNMEZ**, iptal edilir (kullanıcı iptali ve paket
   düşüşü — `cancelOutgoingReferralInvites`): silmek talep davetlerini cascade ile
   ve adres freni geçmişini götürür.
@@ -3222,6 +3274,17 @@ matrisi + runbook); derin denetim ve düzeltme durumu
   hizmet iletisi; İYS avukat görüşü (H-3) aksi derse teşvik adımları ona bağlanır.
 - **Tedarikçiye giden bildirim/e-posta "alım talebi"** (kullanıcı kararı
   2026-09-29, B6-4); alıcıya giden (kendi talebi) "satın alma talebi" kalır.
+  Tedarikçi tarafındaki bidImport hata/şablon metinleri, teklif içe aktarma diyaloğu ve
+  davet kapatma sayfası da "alım talebi" der (derin denetim 2026-09-30 boşluk taraması GA2). Tedarikçiye özel katalog alt
+  ağaçları `packages/i18n/src/__tests__/supplier-terms.test.ts` `SUPPLIER_ONLY` listesinde
+  ("satın alma talep/talebi" yasak); yeni tedarikçi ekranı/e-postası eklenince alt ağacı
+  listeye ekle.
+- **`poweredByHeader: false`** web ve admin `next.config.ts`'te kalır (`x-powered-by`
+  çerçeve bilgisi sızdırıyordu; `src/lib/__tests__/next-config.test.ts`, derin denetim 2026-09-30 boşluk taraması GB2). Kök
+  alan adı HSTS includeSubDomains operatörde (O-48).
+- **Talep detayı `MetaItem`** değeri varsayılan `truncate`; değer kendi satırlarını blok
+  span'larla taşıyorsa (tarih + saat) `multiline` verilir — yoksa nowrap blok çocuklara
+  miras kalır ve metin ellipsis'siz kırpılır (Kapanış "28 Ağu 202", derin denetim 2026-09-30 boşluk taraması GB2).
 - **KVKK sil/anonimleştir (derin denetim 2026-09-29 MU-03/MU-02):** Company'ye Cascade ile
   bağlı ve karşı tarafın kaydını taşıyan her yeni ilişki sert silme kapısının
   `retentionCounts` listesine eklenir (şu an: sipariş, teklif, ilan, gönderilen mesaj,
