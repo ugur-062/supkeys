@@ -5,6 +5,7 @@ import {
   countryIbanMode,
   ibanLengthForPrefix,
   ibanPlaceholder,
+  isMistypedIban,
   isValidIbanAny,
   isValidSwiftBic,
   parsePhone,
@@ -58,6 +59,25 @@ describe("banka bilgisi kuralı", () => {
     expect(bankDetailsErrors({ country: "BR", iban: "BR1800360305000010009795493C1" }, { requireSwift: true })).toEqual([
       "swiftRequired",
     ]);
+  });
+
+  it("IBAN'sız/kısmi IBAN ülkesinde geçersiz IBAN hesap no'ya düşmez (derin denetim LU-10)", () => {
+    // Doğrudan API çağrısı: IBAN alanı dolu ama geçersiz — hesap no yanında olsa da reddedilir.
+    expect(
+      bankDetailsErrors({ country: "JP", iban: "HELLO", accountNumber: "1234567", swiftBic: "MHCBJPJT", bankName: "Mizuho" }),
+    ).toEqual(["ibanInvalid"]);
+    // Tek hanesi yanlış Brezilya IBAN'ı hesap no alanında: sessizce hesap no sayılmaz.
+    const typo = "BR1800360305000010009795494C1";
+    expect(isValidIbanAny(typo)).toBe(false);
+    expect(isMistypedIban(typo)).toBe(true);
+    expect(classifyBankAccountInput("BR", typo)).toEqual({ iban: null, accountNumber: typo });
+    expect(bankDetailsErrors({ country: "BR", accountNumber: typo, swiftBic: "BRASBRRJ", bankName: "Banco do Brasil" })).toEqual([
+      "ibanInvalid",
+    ]);
+    // Gerçek yerel hesap numaraları etkilenmez.
+    expect(isMistypedIban("0001 12345-6")).toBe(false);
+    expect(isMistypedIban("50100123456789")).toBe(false);
+    expect(isMistypedIban("BR1800360305000010009795493C1")).toBe(false); // geçerli IBAN
   });
 
   it("IBAN uzunluğu ülke önekinin kayıtlı uzunluğuyla denetlenir (TR katı)", () => {
@@ -149,6 +169,26 @@ describe("telefon ayrıştırıcı", () => {
     expect(parsePhone("+90 3921234567").code).toBe("XN");
     expect(parsePhone("+90 5321234567").code).toBe("TR");
   });
+  it("çok alan kodlu NANP ülkeleri (DO, JM, PR) alan kodundan tanınır (derin denetim LU-10)", () => {
+    // DO seçiliyken 829 numarası: "+1 829…" üretilir, geçerli ve DO kalır.
+    expect(composePhone("DO", "8291234567")).toBe("+1 8291234567");
+    expect(parsePhone("+1 8291234567", "DO")).toEqual({ code: "DO", national: "8291234567" });
+    expect(isValidPhoneNumber("+1 8291234567", "DO")).toBe(true);
+    // Tam numara yapıştırılınca Kanada'ya düşmez (onboarding ülkesi de buradan).
+    expect(parsePhone("+1 849 123 4567").code).toBe("DO");
+    expect(parsePhone("+1 829 123 4567", "CA").code).toBe("DO");
+    expect(parseInternationalInput("+1 658 123 4567", "TR")).toEqual({ code: "JM", national: "6581234567" });
+    expect(parsePhone("+1 939 123 4567").code).toBe("PR");
+    // Eski biçimde saklanmış DO numarası aynı numara olarak okunur.
+    expect(parsePhone("+1809 1234567")).toEqual({ code: "DO", national: "8091234567" });
+    expect(isValidPhoneNumber("+1809 1234567")).toBe(true);
+    // Alan kodu olmadan 7 hane artık başka bir (809) numara olarak geçmez.
+    expect(isValidPhoneNumber(composePhone("DO", "1234567"), "DO")).toBe(false);
+    expect(phoneNationalLength("DO")).toEqual({ min: 10, max: 10 });
+    // Kanada numarası etkilenmez.
+    expect(parsePhone("+1 4165551234").code).toBe("CA");
+  });
+
   it("NANP ada kodları ve yeni ülkeler tanınır", () => {
     expect(parsePhone("+1268 4601234").code).toBe("AG");
     expect(parsePhone("+94 771234567").code).toBe("LK");

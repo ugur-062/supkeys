@@ -13,9 +13,13 @@
  * ICU) ile tarayıcı farklı ad basıp hidrasyon uyuşmazlığı üretebilirdi. EN/RU
  * adları gösterimde `Intl` ile gelir (`countryDisplayName`); Türkçe ad buradan.
  *
- * Telefon kodu: NANP ada ülkeleri kendi alan koduyla (1268, 1787…) — "+1" tek
- * başına ABD/Kanada; ortak kodlarda ayrıştırıcı birincil ülkeyi seçer
- * (`phone-codes.ts`). Sıra: TR başta, sonra Türkçe alfabe.
+ * Telefon kodu: tek alan kodlu NANP ada ülkeleri kendi alan koduyla (1268,
+ * 1876…) — "+1" tek başına ABD/Kanada; ortak kodlarda ayrıştırıcı birincil
+ * ülkeyi seçer (`phone-codes.ts`). BİRDEN ÇOK alan kodlu NANP ülkeleri (DO
+ * 809/829/849, JM 876/658, PR 787/939) "1" taşır, ülke alan kodundan bulunur
+ * (`NATIONAL_PREFIX_COUNTRY`) — eskiden DO yalnız "1809"du, 829/849 numarası
+ * DO bayrağıyla girilemiyordu (derin denetim LU-10). Sıra: TR başta, sonra
+ * Türkçe alfabe.
  *
  * Kayıt kapısı BURADA DEĞİL (`country-profiles.ts` `REGISTRATION_BLOCKED`):
  * bu liste adres, talep hedefi ve mevcut kayıtların gösterimi için TAMDIR.
@@ -81,7 +85,7 @@ export const COUNTRY_TABLE: readonly (readonly [string, string, string])[] = [
   ["CN", "Çin", "86"],
   ["DK", "Danimarka", "45"],
   ["TL", "Doğu Timor", "670"],
-  ["DO", "Dominik Cumhuriyeti", "1809"],
+  ["DO", "Dominik Cumhuriyeti", "1"],
   ["DM", "Dominika", "1767"],
   ["EC", "Ekvador", "593"],
   ["GQ", "Ekvator Ginesi", "240"],
@@ -134,7 +138,7 @@ export const COUNTRY_TABLE: readonly (readonly [string, string, string])[] = [
   ["CH", "İsviçre", "41"],
   ["IT", "İtalya", "39"],
   ["IS", "İzlanda", "354"],
-  ["JM", "Jamaika", "1876"],
+  ["JM", "Jamaika", "1"],
   ["JP", "Japonya", "81"],
   ["JE", "Jersey", "44"],
   ["KH", "Kamboçya", "855"],
@@ -212,7 +216,7 @@ export const COUNTRY_TABLE: readonly (readonly [string, string, string])[] = [
   ["PN", "Pitcairn Adaları", "64"],
   ["PL", "Polonya", "48"],
   ["PT", "Portekiz", "351"],
-  ["PR", "Porto Riko", "1787"],
+  ["PR", "Porto Riko", "1"],
   ["RO", "Romanya", "40"],
   ["RW", "Ruanda", "250"],
   ["RU", "Rusya", "7"],

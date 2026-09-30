@@ -1,4 +1,4 @@
-import { encodeSystemText, parseSystemText, paymentMethodCode } from "@rothern/shared";
+import { encodeSystemText, parseSystemText, parseVerificationReason, paymentMethodCode } from "@rothern/shared";
 
 /**
  * Sistemin yazdığı gerekçe/ödeme metinleri KOD olarak saklanır (2026-09-27,
@@ -30,6 +30,13 @@ describe("sistem metni — kodla sakla, dilde çiz", () => {
     expect(parseSystemText("belge eksik")).toEqual({ code: null, text: "belge eksik" });
     expect(parseSystemText("[[BILINMEYEN]] x")).toEqual({ code: null, text: "[[BILINMEYEN]] x" });
     expect(parseSystemText(null)).toEqual({ code: null, text: "" });
+  });
+
+  it("prototip anahtarı adındaki serbest metin kod sanılmaz (derin denetim LU-10)", () => {
+    for (const word of ["constructor", "toString", "valueOf", "hasOwnProperty", "__proto__"]) {
+      expect(parseSystemText(word)).toEqual({ code: null, text: word });
+      expect(parseVerificationReason(word)).toEqual({ code: null, note: word });
+    }
   });
 
   it("ödeme yöntemi: yeni kod ve eski 'Akreditif' aynı; çek tanınır; serbest metin null", () => {

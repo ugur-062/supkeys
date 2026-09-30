@@ -130,6 +130,22 @@ function blockedCountryErrors(iban: string, input: BankDetailsInput): BankDetail
   return errors;
 }
 
+/** IBAN biçiminde mi (mod-97'den bağımsız): kayıtlı önek + 2 rakam + önekin kayıtlı uzunluğu. */
+function looksLikeIban(value: string): boolean {
+  if (!/^[A-Z]{2}\d{2}[A-Z0-9]+$/.test(value)) return false;
+  return ibanLengthForPrefix(value.slice(0, 2)) === value.length;
+}
+
+/**
+ * Hesap no alanına yazılmış YANLIŞ IBAN mı: IBAN biçiminde (kayıtlı önek +
+ * kontrol haneleri + kayıtlı uzunluk) ama geçerli değil. Serbest hesap no
+ * kuralı (`isValidAccountNumber`) bunu kabul ettiği için ayrıca sorulur.
+ */
+export function isMistypedIban(value: string | null | undefined): boolean {
+  const v = normalizeIban(value ?? "");
+  return looksLikeIban(v) && !isValidIbanAny(v);
+}
+
 /** Banka bilgisinin eksik/hatalı alanları (boş dizi = geçerli). */
 export function bankDetailsErrors(
   input: BankDetailsInput,
@@ -149,8 +165,16 @@ export function bankDetailsErrors(
   }
   // IBAN zorunlu olmayan ülke: geçerli IBAN verildiyse yeter — hesap no
   // alanına yazılmış olsa bile (doğrulama/admin formlarında alan tektir).
-  const ibanLike = iban || normalizeIban(input.accountNumber ?? "");
-  if (ibanLike && isValidIbanAny(ibanLike)) return swiftErrors();
+  // IBAN alanı DOLUYSA geçerli olmalı: eskiden geçersiz IBAN yok sayılıp hesap
+  // no denetleniyordu, API ise kaydı IBAN olarak yazıp hesap no'yu siliyordu
+  // (doğrudan çağrıyla "HELLO" tahsilat IBAN'ı — derin denetim LU-10).
+  if (iban) return isValidIbanAny(iban) ? swiftErrors() : ["ibanInvalid", ...swiftErrors()];
+  const acctIban = normalizeIban(input.accountNumber ?? "");
+  if (acctIban && isValidIbanAny(acctIban)) return swiftErrors();
+  // Hesap no alanındaki değer IBAN BİÇİMİNDE (ülke öneki + 2 kontrol hanesi,
+  // önekin kayıtlı uzunluğu) ama mod-97 tutmuyorsa yanlış yazılmış IBAN'dır —
+  // hesap no sayılıp sessizce kaydedilmez (derin denetim LU-10).
+  if (isMistypedIban(acctIban)) return ["ibanInvalid", ...swiftErrors()];
   const errors: BankDetailsError[] = [];
   const acct = (input.accountNumber ?? "").trim();
   if (!acct) errors.push("accountNumberRequired");

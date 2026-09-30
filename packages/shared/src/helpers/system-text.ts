@@ -50,8 +50,10 @@ export function parseSystemText(raw: string | null | undefined): { code: SystemT
   if (m && (SYSTEM_TEXT_CODES as readonly string[]).includes(m[1]!)) {
     return { code: m[1] as SystemTextCode, text: m[2]!.trim() };
   }
-  const exact = LEGACY_SYSTEM_TEXT_EXACT[value.trim()];
-  if (exact) return { code: exact, text: "" };
+  // Own-key lookup only: a plain object literal would return prototype members
+  // for free text like "constructor" / "toString" (derin denetim LU-10).
+  const key = value.trim();
+  if (Object.hasOwn(LEGACY_SYSTEM_TEXT_EXACT, key)) return { code: LEGACY_SYSTEM_TEXT_EXACT[key]!, text: "" };
   for (const [prefix, code] of LEGACY_SYSTEM_TEXT_PREFIXES) {
     if (value.startsWith(prefix)) return { code, text: value.slice(prefix.length).trim() };
   }

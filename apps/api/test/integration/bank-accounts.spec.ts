@@ -168,6 +168,34 @@ describe("banka hesabı defteri — CRUD", () => {
     expect(await prisma.companyBankAccount.count({ where: { companyId: c.company.id } })).toBe(0);
   });
 
+  it("IBAN'sız ülkede geçersiz IBAN hesap no yanında gönderilse de kaydedilmez; yanlış yazılmış IBAN hesap no sayılmaz (derin denetim LU-10)", async () => {
+    const svc = makeBankService();
+    const c = await makeCompanyWithUser(prisma, { country: "TR" });
+    const invalid = { status: 400, response: expect.objectContaining({ code: "BANK_DETAILS_INVALID" }) };
+    await expect(
+      svc.create(c.auth, {
+        title: "JPY",
+        accountHolder: "Firma A.Ş.",
+        bankCountry: "JP",
+        iban: "HELLO",
+        accountNumber: "1234567",
+        swiftBic: "MHCBJPJT",
+        bankName: "Mizuho",
+      }),
+    ).rejects.toMatchObject(invalid);
+    await expect(
+      svc.create(c.auth, {
+        title: "BRL",
+        accountHolder: "Firma A.Ş.",
+        bankCountry: "BR",
+        accountNumber: "BR18 0036 0305 0000 1000 9795 494C 1",
+        swiftBic: "BRASBRRJ",
+        bankName: "Banco do Brasil",
+      }),
+    ).rejects.toMatchObject(invalid);
+    expect(await prisma.companyBankAccount.count({ where: { companyId: c.company.id } })).toBe(0);
+  });
+
   it("geçersiz TR IBAN reddedilir; başka firmanın hesabı 404 (IDOR)", async () => {
     const svc = makeBankService();
     const a = await makeCompanyWithUser(prisma, { country: "TR" });

@@ -63,8 +63,10 @@ export function parseVerificationReason(
   const text = raw?.trim() ?? "";
   if (!text) return { code: null, note: null };
   // Kodlu biçimden ÖNCEKİ hazır cümleler (veri: `data/legacy-verification-reasons.ts`).
-  const legacy = LEGACY_REASON_CODES[text] as VerificationReasonCode | undefined;
-  if (legacy) return { code: legacy, note: null };
+  // Own-key lookup only ("constructor", "toString" are free text, not codes).
+  if (Object.hasOwn(LEGACY_REASON_CODES, text)) {
+    return { code: LEGACY_REASON_CODES[text] as VerificationReasonCode, note: null };
+  }
   const m = /^\[([A-Z_]+)\]\s*([\s\S]*)$/.exec(text);
   if (m && isVerificationReasonCode(m[1])) {
     return { code: m[1], note: m[2]!.trim() || null };

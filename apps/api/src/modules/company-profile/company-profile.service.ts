@@ -16,6 +16,7 @@ import {
   generateSlug,
   countryUsesIban,
   isValidAccountNumber,
+  isMistypedIban,
   isValidIbanAny,
   isValidSwiftBic,
   normalizeSwift,
@@ -424,6 +425,11 @@ export class CompanyProfileService {
           }
           data.iban = iban;
         } else {
+          // IBAN biçiminde ama mod-97'si tutmayan değer hesap no sayılmaz
+          // (yanlış yazılmış IBAN — derin denetim LU-10).
+          if (isMistypedIban(raw)) {
+            throw new BadRequestException(i18nMessage("api.bankDetails.ibanInvalid"));
+          }
           if (!isValidAccountNumber(raw)) {
             throw new BadRequestException(i18nMessage("api.bankDetails.accountNumberInvalid"));
           }

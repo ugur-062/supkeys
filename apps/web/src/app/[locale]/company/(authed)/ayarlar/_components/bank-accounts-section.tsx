@@ -210,8 +210,14 @@ function BankAccountModal({
         ? t("gecerliBirTrIbanGirin")
         : t("gecerliBirIbanGirinKontrol")
       : null);
+  // IBAN biçiminde ama mod-97'si tutmayan değer hesap no sayılmaz (derin denetim LU-10).
   const accountError =
-    refBlocked ?? (!usesIban && ref.accountNumber && errors.includes("accountNumberInvalid") ? t("accountNumberInvalid") : null);
+    refBlocked ??
+    (!usesIban && ref.accountNumber && errors.includes("ibanInvalid")
+      ? t("gecerliBirIbanGirinKontrol")
+      : !usesIban && ref.accountNumber && errors.includes("accountNumberInvalid")
+        ? t("accountNumberInvalid")
+        : null);
   const swiftError = !swift.trim()
     ? null
     : errors.includes("swiftCountryBlocked")

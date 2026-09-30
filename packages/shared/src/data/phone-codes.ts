@@ -58,6 +58,11 @@ const PRIMARY_FOR_DIAL: Record<string, string> = {
 const NATIONAL_PREFIX_COUNTRY: { dial: string; prefixes: string[]; code: string }[] = [
   { dial: "7", prefixes: ["6", "7"], code: "KZ" },
   { dial: "90", prefixes: ["392"], code: "XN" },
+  // Birden çok alan kodlu NANP ülkeleri: dial code "1", ulusal numara 10 hane
+  // (alan kodu dahil) — ülke alan kodundan (derin denetim LU-10).
+  { dial: "1", prefixes: ["809", "829", "849"], code: "DO" },
+  { dial: "1", prefixes: ["876", "658"], code: "JM" },
+  { dial: "1", prefixes: ["787", "939"], code: "PR" },
 ];
 
 /** ISO alpha-2 kodundan bayrak emojisi (bölgesel gösterge sembolleri). */
@@ -150,7 +155,8 @@ export function composePhone(code: string, national: string): string {
  * Rus kullanıcının bayrağı değiştirmeden yazdığı "+90 8916…") geçiyordu.
  *
  * Listede olmayan ülke: 6 hane – (15 − ülke kodu uzunluğu) (E.164 toplam ≤15).
- * NANP ada ülkeleri (+1 268 …) alan kodu dial code'da → 7 hane; +1 → 10.
+ * NANP ada ülkeleri (+1 268 …) alan kodu dial code'da → 7 hane; +1 → 10
+ * (birden çok alan kodlu DO/JM/PR dahil — alan kodu ulusal numarada).
  */
 const NATIONAL_LENGTHS: Readonly<Record<string, readonly [number, number]>> = {
   // Türkiye ve komşular

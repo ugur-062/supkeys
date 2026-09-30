@@ -368,6 +368,8 @@ describe("OnboardingClient — başlangıç ülkesi ve ülkeye özgü alanlar", 
     expect(initialOnboardingCountry("+49 301234567", "ru")).toBe("DE");
     // Kayda kapalı ülkenin telefonu (ABD) ülkeyi belirlemez.
     expect(initialOnboardingCountry("+1 2025550123", "en")).toBe("CA");
+    // Çok alan kodlu NANP ülkesi alan kodundan (derin denetim LU-10).
+    expect(initialOnboardingCountry("+1 8291234567", "en")).toBe("DO");
     expect(initialOnboardingCountry(null, "ru")).toBe("RU");
     expect(initialOnboardingCountry(null, "tr")).toBe("TR");
     expect(initialOnboardingCountry("", "en")).toBe("");

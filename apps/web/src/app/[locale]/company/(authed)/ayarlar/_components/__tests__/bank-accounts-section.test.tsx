@@ -113,6 +113,17 @@ describe("BankAccountsSection", () => {
     );
   });
 
+  it("kısmi IBAN ülkesinde yanlış yazılmış IBAN hesap no sayılmaz: satır içi IBAN hatası, Kaydet pasif (derin denetim LU-10)", async () => {
+    useCompanyAuthStore.setState({ company: { country: "BR" } } as never);
+    const user = await openNew();
+    await user.type(screen.getByLabelText("IBAN ya da hesap numarası *"), "BR18 0036 0305 0000 1000 9795 494C 1");
+    await user.type(screen.getByLabelText("SWIFT / BIC kodu *"), "BRASBRRJ");
+    await user.type(screen.getByLabelText("Banka adı *"), "Banco do Brasil");
+    expect(await screen.findByText(/kontrol hanesi tutmuyor/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Kaydet" })).toBeDisabled();
+    expect(h.save).not.toHaveBeenCalled();
+  });
+
   it("yaptırım ülkesi: IR IBAN'ı ve İran SWIFT'i satır içi hata, Kaydet pasif (derin denetim MU-17)", async () => {
     const user = await openNew();
     // Banka ülkesi TR iken mod-97'si tutan İran IBAN'ı.

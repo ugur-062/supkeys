@@ -13,6 +13,15 @@ describe("slugifyText / generateSlug — çeviriyazı", () => {
     expect(generateSlug("Demo Şirket Ltd. Şti.")).toBe("demo-sirket");
   });
 
+  it("uzun resmi unvan sonekleri de kırpılır (derin denetim LU-10)", () => {
+    expect(generateSlug("Demir Makina Sanayi ve Ticaret Anonim Şirketi")).toBe("demir-makina-sanayi-ve-ticaret");
+    expect(generateSlug("DEMİR MAKİNA ANONİM ŞİRKETİ")).toBe("demir-makina");
+    expect(generateSlug("Kaya Gıda Limited Şirketi")).toBe("kaya-gida");
+    expect(generateSlug("Ali Yılmaz Şahıs")).toBe("ali-yilmaz");
+    // Sonek adın ortasındaysa dokunulmaz.
+    expect(generateSlug("Anonim Şirketi Danışmanlık")).toBe("anonim-sirketi-danismanlik");
+  });
+
   it("Kiril (Rusça, Ukraynaca, Kazakça)", () => {
     expect(generateSlug("ООО Ромашка")).toBe("ooo-romashka");
     expect(slugifyText("Щука Жёлтый")).toBe("shchuka-zheltyy");

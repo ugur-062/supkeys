@@ -42,8 +42,23 @@ const EXTRA_CHAR_MAP: Record<string, string> = {
 };
 
 /**
+ * Sonek karşılaştırması için ortak biçim: küçült, Türkçe harfleri latinize et,
+ * "İ".toLowerCase()'in bıraktığı birleşik noktayı (U+0307) at. Girdi ve sonek
+ * listesi AYNI fonksiyondan geçer — eskiden yalnız girdi latinize ediliyordu,
+ * "anonim şirketi" / "limited şirketi" / "şahıs" sonekleri hiç eşleşmiyordu
+ * (derin denetim LU-10).
+ */
+function foldForSuffix(value: string): string {
+  return Array.from(value.toLowerCase().trim())
+    .map((ch) => TR_CHAR_MAP[ch] ?? ch)
+    .join("")
+    .replace(/\u0307/g, "");
+}
+
+/**
  * Türk şirket suffix'leri — slug'da kaldırılır.
  * Sırayla denenir; en uzun olan önce gelir ki "Ltd. Şti." kısmen kalmasın.
+ * Karşılaştırma `foldForSuffix` biçiminde (`COMPANY_SUFFIXES_FOLDED`).
  */
 const COMPANY_SUFFIXES = [
   "limited şirketi",
@@ -63,6 +78,7 @@ const COMPANY_SUFFIXES = [
   "a.s",
   "şahıs",
 ];
+const COMPANY_SUFFIXES_FOLDED = [...new Set(COMPANY_SUFFIXES.map(foldForSuffix))];
 
 /**
  * Herhangi bir metinden URL parçası üretir — ŞİRKET KURALI YOK.
@@ -106,16 +122,12 @@ export function slugifyText(input: string): string {
 export function generateSlug(input: string): string {
   if (!input) return "";
 
-  let s = input.toLowerCase().trim();
-
   // Türkçe karakter latinize — sonek karşılaştırması latinize metin üzerinden
   // yapıldığı için bu adım slugifyText'ten ÖNCE burada da gerekli.
-  s = Array.from(s)
-    .map((ch) => TR_CHAR_MAP[ch] ?? ch)
-    .join("");
+  let s = foldForSuffix(input);
 
   // Şirket türü suffix'lerini kaldır
-  for (const suffix of COMPANY_SUFFIXES) {
+  for (const suffix of COMPANY_SUFFIXES_FOLDED) {
     if (s.endsWith(` ${suffix}`)) {
       s = s.slice(0, s.length - suffix.length - 1);
     }
