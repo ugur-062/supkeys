@@ -2,6 +2,7 @@
 
 > **Güncel durum (kod HEAD 53c572fc):** ENGEL 0 · YÜKSEK 21/21 düzeltildi (Y-11'in koruması operatör adımıyla açılır, O-17…O-19) · ORTA 131/131 düzeltildi (167 ham kaydın 165'i düzeltildi, 2'si zaten düzelmişti; kısmi kalan yok, MU-12'nin ISR rastgele yol kalıntısı Vercel Firewall'da, O-31) · DÜŞÜK 248 + 8 gözden geçirme notu, 33 birimde (LU-01…LU-33): 278 ham kaydın **259'u düzeltildi / 15'i zaten düzelmiş / 4'ü hata değil** (S085 ürün kuralı: talepte fotoğraf yok, karar 72); tur sonrası iki artık da kapandı (8b646170 `?q=` taslağı, ff86fd64 panel ürün listesinde engel).
 > **Boşluk taraması (2026-09-30):** 7 alan tarandı (eski dallar, yeni çeviriler, canlı DNS/TLS/başlıklar, test kalitesi, e-posta çizimi, staging yedeğiyle migration provası, yerel tam yığın e2e). 6 düzeltme biriminin (GA1…GB3) hepsi ✅. Yeni operatör maddeleri O-46…O-55 ve kararlar 73, 74 (§ Boşluk taraması).
+> **Canlı AI doğrulaması (2026-09-30):** gerçek Gemini ile 2 mevcut LIVE spec + genişletilmiş smoke 7/7 PASS (toplam 0,1027 USD); asistan onay kartında 5 bulgu düzeltildi + 1 onarım (b2ccae74, d9595dda, 60b84cca), canlı kart testi TR/EN geçti (§ Canlı AI doğrulaması).
 > **Son tam regresyon (HEAD 53c572fc, 2026-09-30):** paket derlemeleri, typecheck 7/7, lint 0 hata, i18n en/ru %100 (7.714 anahtar), API jest 284 dosya / 3.170 test, web 247 / 1.430, admin 43 / 202, i18n 9 / 44, Playwright `--list` 26 dosya / 112 test, api/web/admin derlemeleri yeşil, git temiz. **583 test dosyası / 4.846 test (4.844 geçti, 2 LIVE atlandı, 0 kırmızı).**
 > **Push yapılmadı.** Operatör adımları `docs/qa-launch-audit-2026-09-28.md` §14.2 O-17…O-55; kullanıcı kararı bekleyenler 1…74.
 
@@ -335,6 +336,29 @@ Ayrıntı `docs/qa-launch-audit-2026-09-28.md` §14.2'de.
 - **İlk hafta:** O-48 (kök HSTS includeSubDomains, security.txt, x-powered-by teyidi), O-50 (O-27'den sonra prod-admin TOTP gizli değeri), O-55 (R2 `dev/` ve `staging/` öneklerine yaşam döngüsü kuralı).
 - **Kod backlog'u (ilk hafta, yayını engellemez):** `anon`/`authenticated` rollerinin public şemadaki yetkilerini REVOKE eden bir migration (H1: yeni 6 tablo default ACL'den tam yetki alıyor; Data API kapalı olduğu sürece zararsız). Admin duyurusunda alıcı dili süzgeci ya da dil başına ayrı metin (G5). Davet e-postalarındaki çift çıkış bağlantısı (G5, isteğe bağlı). Rol matrisi spec'leri izlenen `docs/qa-role-*.md` dosyalarının üzerine yazıyor; `qa-role-matrix.md`'de `approver-candidates` satırı eksik (G4/H2). e2e giriş yardımcısında 429 dayanıklılığı (H2). DMARC `p=quarantine` geçişi O-15'te duruyor.
 - **Temizlik (kullanıcı onayıyla, aciliyeti yok):** `worktree-ui-tekrar-temizligi` ve `worktree-panel-urun-detay` dalları ile çalışma ağaçları, `origin/fix/email-logo-dark-mode` dalı, `stash@{0}` ve bayat yerel `production` dalı (G1).
+
+## Canlı AI doğrulaması (2026-09-30)
+
+Önceki turlar AI yollarını yalnız sahte istemciyle sınıyordu. Bu turda gerçek Gemini (`gemini-flash-latest`, kök `.env` anahtarı, anahtar çıktıya basılmadı) yerel ve geçici veritabanlarında çağrıldı. Hiçbir işlem onaylanmadı ya da yürütülmedi, geçici spec'ler ve veritabanları silindi, `git status` temiz. Push yapılmadı.
+
+- **Mevcut iki LIVE spec:** geçti (0,004 USD).
+- **Genişletilmiş canlı smoke: 7/7 PASS.** Belgeden Fiyatla (EN sayı biçimi doğru okunuyor + izinsiz birim hatası), AI ile ara (TR/EN), başlık + kategori önerisi, asistanda göreli tarih, içerik çevirisi (kodları koruyor), web tedarikçi keşfi (10 aday), görsel yolu. Maliyet **0,1027 USD** (aiUsage 0,0834 + content_translations 0,0194).
+- **Canlı onay kartı testi (düzeltmelerden sonra): TR ve EN geçti, 0,0096 USD.** Tek mesajda `propose_tender_draft` → `request_publish_tender`, kart aynı turda çıktı. Ödeme/teslim etiketleri okuyucunun dilinde (ham enum yok), başlık "Satın alma talebi YAYINLANACAK", kaynak uyarısı "sohbetten derlendi", kapanış İstanbul saatiyle doğru. `@google/genai` "non-text parts" uyarısı iki turda da çıkmadı.
+
+| # | Bulgu | Durum | Commit | Not |
+|---|---|---|---|---|
+| 1 | Onay kartında ham enum kodları (OPEN_ACCOUNT, DOMESTIC_DELIVERED) | ✅ | d9595dda | `common/i18n/listing-terms-label.ts` + `api.domain.deliveryTerm/paymentCategory` (tr/en/ru, web ile aynı metin). `summarizePaymentPlan` ve publish.payment teslim etiketli. |
+| 2a | TR başlıkta "Alım satın alma talebi YAYINLANACAK" tekrarı | ✅ | d9595dda | "Satın alma talebi YAYINLANACAK: {title}". EN/RU zaten doğruydu. |
+| 2b | Belge uyarısı belge yokken de çıkıyor | ✅ | d9595dda · 60b84cca | Sohbet taslağında yeni `sourceWarningChat`. Onarım: kaynak artık `pageSummaries` doluluğundan değil backend'in koyduğu `AiTenderDraft.fromDocument` işaretinden (model özet atlarsa ya da argümana özet koyarsa etiket yanlış çıkıyordu; uyarı her iki durumda gösterildiği için güvenlik açığı yoktu). |
+| 3 | Aynı turda hazırla + yayınla "taslak yok" diyor (bayat taslak riski de vardı) | ✅ | d9595dda | `turnDraft` parametresi + turda önceden kategori önerisi. AI çerçevesi korunuyor: sanitize, oturum sahipliği, yalnız `pendingAction`, yürütme confirm'de. |
+| 4 | `@google/genai` functionCall yanıtında "non-text parts" uyarı gürültüsü | ✅ | b2ccae74 | `textFromParts(respParts)`: yalnız text parçaları, `thought=true` hariç. Birim test text getter'ının çağrılmadığını ve `thoughtSignature`'ın korunduğunu kilitliyor. |
+
+**Notlar (düzeltme gerektirmeyen):**
+- Kategori önerisinde `thinkingLevel` yok; sınıf aşaması ~9 sn / 2,2k çıktı jetonu sürüyor. İleride optimizasyon adayı.
+- İçerik çevirisi maliyeti `aiUsage`'a değil `content_translations`'a yazılıyor; AI harcaması izlenirken ikisi birlikte toplanmalı.
+- Asistan kayıtlı Talep Şartları'ndan yalnız teslimat adresini alıyor, teslim ve ödeme şeklini kullanıcıya sorduruyor (mevcut tasarım). "Varsayılan şartlar kullanılır" beklentisi varsa ürün kararı.
+- Modelin kendi sohbet cevabında (kart dışında) küçük kusurlar: ham kod "(DOMESTIC_DELIVERED)", EN cevapta sözlükte yasaklı "tender", EN istekte Türkçe taslak başlığı ("M6 Civata Alımı"). Onay kartı backend özeti olduğu için etkilenmiyor; istem iyileştirme adayı.
+- "next Friday" EN'de 9 Ekim, TR'de ("önümüzdeki cuma") 2 Ekim yorumlandı; belirsiz ifade, kart modelin verdiği tarihi doğru gösteriyor.
 
 ## Kapılar (hepsi yerel, 2026-09-29)
 

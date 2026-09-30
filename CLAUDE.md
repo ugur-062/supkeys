@@ -3442,6 +3442,18 @@ tavanı yuva alındıktan sonra da denetlenir. Web asistan paneli: geç gelen ya
 sonucu sohbet değiştiyse (convRef) yazılmaz; confirm hatası "İptal edildi" değil `failed`
 ("sonucu doğrulanamadı"); oturum detayı önbelleklenmez (staleTime/gcTime 0).
 
+**Asistan onay kartı ve kaynak işareti (derin denetim 2026-09-30 canlı AI):**
+`AiTenderDraft.fromDocument` backend'in koyduğu kaynak işaretidir: belge çıkarımında
+(text/pdf_vision/image_vision) `sanitizeAiDraft` true yapar; sohbet (`propose_tender_draft`) ve
+refine akışları onu önceki taslaktan taşır (`mergeDrafts` OR), model argümanından ASLA almaz.
+Yayın onay kartındaki "belgeden geldi" / "sohbetten derlendi" uyarısı yalnız bu işarete bakar,
+`pageSummaries`'e bakmaz. Kartta enum etiketi (teslim/ödeme şekli) `common/i18n/listing-terms-label.ts`
+ile okuyucunun dilinde basılır, ham kod basılmaz. Gemini yanıt metni `textFromParts` ile yalnız text
+parçalarından okunur (`thought=true` hariç; `.text` getter'ı functionCall'da uyarı basar).
+Kataloğa TR kaynağı değişen ya da yeni API anahtarı eklendiğinde `pnpm i18n:check` en/ru için
+bayat/durumsuz hatası verir: `{locale:{key:çeviri}}` JSON'u hazırlanıp **repo kökünden**
+`pnpm i18n:sync --apply <dosya>` çalıştırılır (paket dizininden çalışmaz).
+
 ---
 
 ## Claude Code Çalışma Kuralları
