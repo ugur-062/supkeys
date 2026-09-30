@@ -200,13 +200,21 @@ export async function adminContext(browser: import("@playwright/test").Browser) 
 }
 
 /**
+ * Giriş sonrası panelde mi: yalnız YOL (pathname) üzerinden bakılır. Tam adrese
+ * uygulanan `/\/admin(?!\/login)/` şemadaki `//admin.` alt alan adıyla eşleşir
+ * (https://admin.rothern.com/admin/login → true) ve waitForURL giriş sayfasında
+ * hemen dönerdi; 2FA kod alanı hiç doldurulmazdı.
+ */
+export const adminPanelde = (u: URL) => u.pathname.startsWith("/admin") && !u.pathname.startsWith("/admin/login");
+
+/**
  * Giriş formu 2FA isterse (API "2FA_REQUIRED" → "Doğrulama kodu (2FA)" alanı
  * açılır) kodu doldurup yeniden gönderir. Gizli değer yoksa ya da hesap
  * `ADMIN_EMAIL` değilse dokunmaz; alan açılırsa sebebi açıkça yazan hata verir.
  */
 async function completeAdmin2fa(page: Page, email: string) {
   const codeInput = page.locator("input#code");
-  const navigated = page.waitForURL(/\/admin(?!\/login)/, { timeout: 30_000 }).then(() => "nav" as const);
+  const navigated = page.waitForURL(adminPanelde, { timeout: 30_000 }).then(() => "nav" as const);
   const asked = codeInput.waitFor({ state: "visible", timeout: 30_000 }).then(() => "code" as const);
   // Yarışı kaybeden bekleme sonradan reddedilince işlenmemiş hata olmasın.
   navigated.catch(() => {});
@@ -227,10 +235,11 @@ export async function adminUiLogin(page: Page, email = ADMIN_EMAIL, password = A
     await page.locator('input[type="password"]').fill(password);
     await page.getByRole("button", { name: "Giriş Yap" }).click();
     await completeAdmin2fa(page, email);
-    await page.waitForURL(/\/admin(?!\/login)/, { timeout: 30_000 });
+    // Zaman aşımı düşürmesin: aşağıdaki me() kontrolü başarısız sayar, döngü bir kez daha dener.
+    await page.waitForURL(adminPanelde, { timeout: 30_000 }).catch(() => {});
     // Başarılı giriş panoya gider; Ayarlar'a yönlenmesi "2FA zorunlu ama kurulu
     // değil" demek (MU-01) — sonraki ekranlar kilitli, sebep burada yazsın.
-    if (/\/admin\/settings/.test(page.url())) {
+    if (new URL(page.url()).pathname.startsWith("/admin/settings")) {
       throw new Error(`adminUiLogin: ${email} için 2FA kurulumu zorunlu (panel Ayarlar'a kilitli) — ${ADMIN_2FA_HINT}`);
     }
     await page.waitForLoadState("networkidle").catch(() => {});
