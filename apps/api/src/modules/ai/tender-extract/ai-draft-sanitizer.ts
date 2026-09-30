@@ -260,6 +260,10 @@ export function sanitizeAiDraft(
       .filter((c): c is string => typeof c === "string" && c.trim() !== "")
       .map((c) => c.trim().slice(0, 64))
       .slice(0, 10),
+    // Kaynak işareti: belge yolları her zaman belgeden; "refine" (oturumdan
+    // revive, istemci/model taslağı) gelen değeri korur — model argümanındaki
+    // değeri çağıran önceki taslakla ezer (assistant propose_tender_draft).
+    fromDocument: route === "refine" ? r.fromDocument === true : true,
   };
 
   // Model güven bildirimi (beyaz-liste süzgeçli).

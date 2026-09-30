@@ -71,6 +71,14 @@ export interface AiTenderDraft {
    * Formda ön-seçim olarak gelir, son karar kullanıcının.
    */
   suggestedCategoryIds: string[];
+  /**
+   * Taslak belge çıkarımından mı geldi — modelden İSTENMEZ; sanitizer belge
+   * yollarında (text/pdf_vision/image_vision) işaretler, sohbet/refine
+   * güncellemelerinde önceki taslaktan taşınır. Yayın onay kartındaki kaynak
+   * uyarısını seçer ("belgeden geldi" / "sohbetten derlendi"); sayfa özetleri
+   * şemada zorunlu olmadığından kaynak onların varlığından çıkarılmaz.
+   */
+  fromDocument?: boolean;
 }
 
 /**

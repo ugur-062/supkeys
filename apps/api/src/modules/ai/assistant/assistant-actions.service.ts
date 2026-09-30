@@ -275,9 +275,10 @@ export class AssistantActionsService {
         tApi("api.ai.assistant.publish.terms", { text: previewText(dto.terms) }),
         tApi("api.ai.assistant.publish.note"),
         // "Belgeden geldi" yalnız taslak gerçekten belge çıkarımından geldiyse
-        // (sayfa özetleri yalnız belge çıkarımında üretilir); aksi halde
-        // metinler sohbetten derlendi — uyarı yine gösterilir.
-        s.draft.pageSummaries.length > 0
+        // (açık kaynak işareti — sayfa özetleri şemada zorunlu değil, model
+        // atlayabilir); aksi halde metinler sohbetten derlendi — uyarı yine
+        // gösterilir.
+        s.draft.fromDocument
           ? tApi("api.ai.assistant.publish.sourceWarning")
           : tApi("api.ai.assistant.publish.sourceWarningChat"),
       ],

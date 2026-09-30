@@ -630,6 +630,40 @@ describe("Faz AI-3 — konuşarak ihale taslağı (BAĞLAYICI DEĞİL)", () => {
     expect(reply.tenderDraft!.draft.pageSummaries).toEqual(["Sayfa 1: şartname"]);
   });
 
+  it("canli AI: belge kaynak isareti sohbet guncellemesinde korunur; modelin argumani yok sayilir", async () => {
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });
+    const auth = authFor(co.user, co.company.id, [CompanyRole.SATIN_ALMACI]);
+    const run = async (tenderDraft: Record<string, unknown>, args: Record<string, unknown>) => {
+      const provider = new FakeProvider();
+      provider.steps = [
+        { toolCalls: [{ name: "propose_tender_draft", args }] },
+        { text: "güncelledim" },
+      ];
+      const { svc } = build(makeCfg(), provider);
+      const session = await prisma.aiChatSession.create({
+        data: {
+          userId: co.user.id,
+          companyId: co.company.id,
+          title: "t",
+          tenderDraft: tenderDraft as Prisma.InputJsonValue,
+        },
+      });
+      const reply = await svc.message(auth, { sessionId: session.id, message: "güncelle" });
+      const stored = await prisma.aiChatSession.findUniqueOrThrow({ where: { id: session.id } });
+      return { reply, stored: stored.tenderDraft as { fromDocument?: boolean } };
+    };
+
+    // Belge taslağı (sayfa özeti YOK) → sohbet güncellemesinden sonra da belgeden.
+    const doc = await run({ title: "Baret alımı", fromDocument: true }, { title: "Baret alımı (güncel)" });
+    expect(doc.reply.tenderDraft!.draft.fromDocument).toBe(true);
+    expect(doc.stored.fromDocument).toBe(true);
+
+    // Sohbet taslağı: model argümanla "belgeden" diyemez.
+    const chat = await run({ title: "Baret alımı" }, { title: "Baret", fromDocument: true });
+    expect(chat.reply.tenderDraft!.draft.fromDocument).toBe(false);
+    expect(chat.stored.fromDocument).toBe(false);
+  });
+
   it("propose_tender_draft yalnız SA/ST portallı kullanıcıya sunulur", () => {
     const withSeat = toolDefsForUser(allowedPortals({ isOwner: false, roles: [CompanyRole.SATIN_ALMACI] })).map((d) => d.name);
     expect(withSeat).toContain("propose_tender_draft");

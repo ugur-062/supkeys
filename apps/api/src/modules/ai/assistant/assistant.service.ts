@@ -300,6 +300,8 @@ export class AssistantService {
             if (s.draft.pageSummaries.length === 0 && draft?.draft.pageSummaries.length) {
               s.draft.pageSummaries = draft.draft.pageSummaries;
             }
+            // Kaynak işareti modelden alınmaz — önceki taslaktan taşınır.
+            s.draft.fromDocument = draft?.draft.fromDocument === true;
             draft = {
               ...s,
               route: "text",
@@ -544,6 +546,7 @@ export class AssistantService {
         n.suggestedCategoryIds.length > 0
           ? n.suggestedCategoryIds
           : b.suggestedCategoryIds,
+      fromDocument: b.fromDocument === true || n.fromDocument === true,
     };
     // missingRequired'ı birleşik taslaktan yeniden hesapla (sanitize üzerinden).
     const re = sanitizeAiDraft(merged, "refine");

@@ -270,6 +270,8 @@ export class TenderExtractService {
 
     const parsed = this.tryParse(result.text);
     let sanitized = sanitizeAiDraft(parsed ?? incoming.draft, "refine");
+    // Kaynak işareti modelden alınmaz — gelen taslaktan taşınır.
+    sanitized.draft.fromDocument = incoming.draft.fromDocument === true;
     // Refine modeli suggestedCategoryIds üretmez — gelen taslaktaki öneri
     // korunur; hiç yoksa (eski taslak) kalemlerden yeniden önerilir.
     if (

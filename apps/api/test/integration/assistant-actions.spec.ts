@@ -526,16 +526,23 @@ describe("proposePublishTender", () => {
     expect(text).not.toContain("belgeden geldi");
     expect(text).toContain("sohbetten derlendi");
 
-    const doc = await makeSession(
-      owner.user.id,
-      owner.company.id,
-      fullDraft({ pageSummaries: ["Sayfa 1: baret teknik şartnamesi"] }),
-    );
+    // Belge taslağı sayfa özeti OLMADAN da (şemada zorunlu değil) belgeden sayılır.
+    const doc = await makeSession(owner.user.id, owner.company.id, fullDraft({ fromDocument: true }));
     const docOut = await actions.proposePublishTender(owner.auth, doc.id, { type: "ALIM", rothernIds: [code] });
     expect(docOut.ok).toBe(true);
     const docText = docOut.pending!.summary.join("\n");
     expect(docText).toContain("belgeden geldi");
     expect(docText).not.toContain("sohbetten derlendi");
+
+    // Kaynak işareti yoksa özet bulunsa bile belge sayılmaz (işaret tek kaynak).
+    const noFlag = await makeSession(
+      owner.user.id,
+      owner.company.id,
+      fullDraft({ pageSummaries: ["Sayfa 1: baret teknik şartnamesi"] }),
+    );
+    const noFlagOut = await actions.proposePublishTender(owner.auth, noFlag.id, { type: "ALIM", rothernIds: [code] });
+    expect(noFlagOut.ok).toBe(true);
+    expect(noFlagOut.pending!.summary.join("\n")).toContain("sohbetten derlendi");
   });
 
   it("canli AI: ayni turdaki (henuz yazilmamis) taslak verilirse DB taslagi yerine o kullanilir", async () => {

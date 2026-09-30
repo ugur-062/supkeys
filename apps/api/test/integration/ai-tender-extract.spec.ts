@@ -204,6 +204,7 @@ describe("Faz AI-1 — girdi yönlendirici", () => {
     expect(provider.calls[0]!.prompt).toContain("<belge>");
     expect(provider.calls[0]!.prompt).toContain("sartnamesidir");
     expect(result.draft.title).toBe("500 adet çelik boru alımı");
+    expect(result.draft.fromDocument).toBe(true);
 
     // Seçilen yol AiUsage metadata'sına loglanır (ölçüm/kalibrasyon).
     const row = await prisma.aiUsage.findFirstOrThrow({
@@ -577,5 +578,28 @@ describe("Faz AI-1 — sanitize + işaretleme + injection", () => {
     expect(provider.calls[0]!.prompt).toContain("<taslak>");
     expect(provider.calls[0]!.prompt).toContain("vade 90 gün olsun");
     expect(result.route).toBe("text");
+    // Model çıktısında kaynak işareti yok — gelen taslaktan taşınır.
+    expect(result.draft.fromDocument).toBe(false);
+    const fromDoc = await svc.refine(co.auth, {
+      draft: { ...draft, fromDocument: true },
+      message: "vade 90 gün olsun",
+    });
+    expect(fromDoc.draft.fromDocument).toBe(true);
+  });
+
+  it("canli AI: model sayfa ozeti uretmese de belge taslagi 'belgeden' isaretlenir", async () => {
+    const provider = new FakeProvider();
+    const noSummaries = JSON.parse(GOOD_RESPONSE()) as Record<string, unknown>;
+    delete noSummaries.pageSummaries;
+    provider.responses = [JSON.stringify(noSummaries)];
+    const storage = new FakeStorage();
+    const svc = makeService(makeCfg(), provider, storage);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const key = keyFor(co.company.id, "doc.pdf");
+    storage.files.set(key, makeSimplePdf([LONG_TEXT]));
+
+    const result = await svc.extract(co.auth, { fileKeys: [key], listingType: "ALIM" });
+    expect(result.draft.pageSummaries).toEqual([]);
+    expect(result.draft.fromDocument).toBe(true);
   });
 });
