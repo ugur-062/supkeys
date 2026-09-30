@@ -68,6 +68,38 @@ const METAL_MALZEME = [
 
 const STANDART = ["EN", "DIN", "ASTM", "TSE", "ISO", "JIS", "GOST"];
 
+/** Metal ailelerinin (11 segmenti) zorunlu malzeme/form ekseni. */
+const METAL_MALZEME_ALANI: AttrDef = {
+  key: "malzeme",
+  nameTr: "Malzeme",
+  type: "MULTI_SELECT",
+  options: METAL_MALZEME,
+  required: true,
+};
+const METAL_FORM_ALANI: AttrDef = {
+  key: "form",
+  nameTr: "Form",
+  type: "SINGLE_SELECT",
+  options: ["Levha", "Rulo", "Bar / Çubuk", "Boru", "Profil", "Tel", "Toz", "Külçe", "Hurda"],
+  required: true,
+};
+
+/** Tekstil hammaddesi/giyim malzemesi (11 lif/kumaş aileleri + 53 giyim). */
+const KUMAS_SECENEKLERI = ["Pamuk", "Polyester", "Yün", "Keten", "Viskon", "Denim", "Deri", "Karışım"];
+const KUMAS_ALANI: AttrDef = {
+  key: "kumas",
+  nameTr: "Kumaş / malzeme",
+  type: "MULTI_SELECT",
+  options: KUMAS_SECENEKLERI,
+  required: true,
+};
+const TEKSTIL_FORM_ALANI: AttrDef = {
+  key: "form",
+  nameTr: "Form",
+  type: "SINGLE_SELECT",
+  options: ["Top / rulo", "Bobin", "Çile", "Balya", "Metre (kesim)", "Tabaka (deri)"],
+};
+
 /**
  * `DURUM` zorunlu; hizmet ve lisans gibi "sıfır/ikinci el" sorusunun anlamsız
  * olduğu yerlerde bu opsiyonel varyant kullanılır. Zorunlu bir alanı anlamsız
@@ -110,18 +142,32 @@ const YUZEY = [
 
 export const CATEGORY_ATTRIBUTES: Record<string, AttrDef[]> = {
   // ── 11 · Metaller, Mineraller, Tekstil ve Doğal Malzemeler ──
+  // Segment metal DIŞI aileleri de kapsıyor (toprak/taş, lif/iplik, kumaş/
+  // deri, atık…): metal malzeme/formu burada ZORUNLU olursa kumaş satan
+  // tedarikçiye "Malzeme *: Çelik/Alüminyum" sorulur (derin denetim LU-09).
+  // Segment tabanı opsiyonel; zorunluluk metal ailelerinde (aşağıda).
   "11000000": [
-    { key: "malzeme", nameTr: "Malzeme", type: "MULTI_SELECT", options: METAL_MALZEME, required: true },
-    {
-      key: "form",
-      nameTr: "Form",
-      type: "SINGLE_SELECT",
-      options: ["Levha", "Rulo", "Bar / Çubuk", "Boru", "Profil", "Tel", "Toz", "Külçe", "Hurda"],
-      required: true,
-    },
+    { ...METAL_MALZEME_ALANI, required: false },
+    { ...METAL_FORM_ALANI, required: false },
     { key: "kalinlik", nameTr: "Kalınlık", type: "NUMBER", unit: "mm" },
     { key: "standart", nameTr: "Standart", type: "MULTI_SELECT", options: STANDART },
     { key: "yuzey", nameTr: "Yüzey işlemi", type: "MULTI_SELECT", options: YUZEY },
+  ],
+  // Metal aileleri: mineraller/cevherler/metaller, alaşımlar, metal oksit,
+  // metal atık/hurda — malzeme ve form burada zorunlu.
+  "11100000": [METAL_MALZEME_ALANI, METAL_FORM_ALANI],
+  "11170000": [METAL_MALZEME_ALANI, METAL_FORM_ALANI],
+  "11180000": [METAL_MALZEME_ALANI, METAL_FORM_ALANI],
+  "11190000": [METAL_MALZEME_ALANI, METAL_FORM_ALANI],
+  // Lif/iplik ve kumaş/deri aileleri: metal malzeme/formun yerine tekstil
+  // karşılıkları (aynı anahtar → segmentteki metal alanı ezer).
+  "11150000": [
+    { ...KUMAS_ALANI, key: "malzeme", nameTr: "Malzeme" },
+    TEKSTIL_FORM_ALANI,
+  ],
+  "11160000": [
+    { ...KUMAS_ALANI, key: "malzeme", nameTr: "Malzeme" },
+    TEKSTIL_FORM_ALANI,
   ],
 
   // ── 12 · Kimyasal Maddeler ──
@@ -351,14 +397,11 @@ export const CATEGORY_ATTRIBUTES: Record<string, AttrDef[]> = {
   ],
 
   // ── 53 · Giyim, Çanta-Bavul ve Kişisel Bakım ──
+  // Segment kişisel bakımı da kapsıyor (53130000: şampuan, sabun) — kumaş
+  // orada anlamsız, segmentte opsiyonel; zorunluluk giyim/ayakkabı/çanta
+  // ailelerinde (derin denetim LU-09).
   "53000000": [
-    {
-      key: "kumas",
-      nameTr: "Kumaş / malzeme",
-      type: "MULTI_SELECT",
-      options: ["Pamuk", "Polyester", "Yün", "Keten", "Viskon", "Denim", "Deri", "Karışım"],
-      required: true,
-    },
+    { ...KUMAS_ALANI, required: false },
     {
       key: "uretim_tipi",
       nameTr: "Üretim tipi",
@@ -374,6 +417,9 @@ export const CATEGORY_ATTRIBUTES: Record<string, AttrDef[]> = {
       options: ["OEKO-TEX", "GOTS", "BCI", "GRS"],
     },
   ],
+  "53100000": [KUMAS_ALANI],
+  "53110000": [KUMAS_ALANI],
+  "53120000": [KUMAS_ALANI],
 
   // ── 72 · Bina ve Tesis İnşaat ve Bakım Hizmetleri ──
   "72000000": [

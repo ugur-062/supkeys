@@ -86,6 +86,36 @@ describe("kalem bazlı para birimi — placeBid", () => {
     expect(tryRow.fxToBase).toBeNull();
   });
 
+  it("zayıf birim → güçlü ana birim: damga 12 ondalıkla saklanır, toplam 6 ondalık yuvarlamasıyla sapmaz (derin denetim LU-09)", async () => {
+    const { service, mocks, bidder, listing, item1, item2 } = await setup({
+      primaryCurrency: "EUR",
+      allowedCurrencies: ["EUR", "KRW"],
+    });
+    // KRW→EUR çaprazı = 0,036207 / 48,5 = 0,000746536082…
+    mocks.exchangeRates.getFreshRate.mockImplementation(
+      async (c: string) => (c === "EUR" ? 48.5 : c === "KRW" ? 0.036207 : 34),
+    );
+
+    await service.placeBid(bidder.auth, listing.id, {
+      ...bidBase,
+      currency: "EUR",
+      items: [
+        { itemId: item1.id, unitPrice: 100 }, // 100×2 = 200 EUR
+        { itemId: item2.id, unitPrice: 1_000_000, currency: "KRW" }, // 3.000.000 KRW
+      ],
+    } as never);
+
+    const bid = await prisma.listingBid.findFirstOrThrow({
+      where: { listingId: listing.id, bidderCompanyId: bidder.company.id },
+      include: { items: true },
+    });
+    expect(bid.currency).toBe("EUR");
+    const krwRow = bid.items.find((i) => i.itemId === item2.id)!;
+    expect(krwRow.fxToBase?.toString()).toBe("0.000746536082");
+    // 3.000.000 × 0,000746536082 = 2239,61 (6 ondalıklı 0,000747 damgası 2241,00 verirdi).
+    expect(bid.amount.toString()).toBe("2439.61");
+  });
+
   it("kur alınamazsa FAIL-CLOSED reddedilir; açık eksiltmede kalem birimi yasak", async () => {
     const { service, mocks, bidder, listing, item1, item2 } = await setup();
     mocks.exchangeRates.getFreshRate.mockRejectedValue(new Error("TCMB down"));

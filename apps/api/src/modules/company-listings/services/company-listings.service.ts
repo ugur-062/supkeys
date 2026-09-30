@@ -4651,11 +4651,14 @@ export class CompanyListingsService {
         const baseRate = await rateTry(currency);
         for (const c of [...new Set(provided.map(itemCurrencyOf))]) {
           if (fxByCurrency.has(c)) continue;
+          // 12 ondalık = kolon ölçeği (Decimal(24,12)). 6 ondalıkta KRW→EUR
+          // gibi küçük damgalar (~0,0006) göreli %0,1-0,2 sapıyordu
+          // (derin denetim LU-09); saklanan ve hesaplanan damga aynı kalmalı.
           fxByCurrency.set(
             c,
             (await rateTry(c))
               .div(baseRate)
-              .toDecimalPlaces(6, Prisma.Decimal.ROUND_HALF_UP),
+              .toDecimalPlaces(12, Prisma.Decimal.ROUND_HALF_UP),
           );
         }
       }

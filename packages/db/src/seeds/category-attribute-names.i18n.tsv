@@ -9,6 +9,18 @@
 11000000	malzeme	Material	Материал	Steel|Stainless steel|Aluminum|Copper|Brass|Cast iron|Zinc|Titanium	Сталь|Нержавеющая сталь|Алюминий|Медь|Латунь|Чугун|Цинк|Титан
 11000000	standart	Standard	Стандарт	EN|DIN|ASTM|TSE|ISO|JIS|GOST	EN|DIN|ASTM|TSE|ISO|JIS|GOST
 11000000	yuzey	Surface Treatment	Обработка поверхности	Raw|Galvanized|Painted|Polished|Anodized|Coated|Electrostatic powder coating	Сырой|Оцинкованный|Окрашенный|Полированный|Анодированный|Покрытый|Электростатическая порошковая окраска
+11100000	form	Form	Форма	Sheet|Coil|Bar / Rod|Pipe|Profile|Wire|Powder|Ingot|Scrap	Лист|Рулон|Пруток / стержень|Труба|Профиль|Проволока|Порошок|Слиток|Лом
+11100000	malzeme	Material	Материал	Steel|Stainless steel|Aluminum|Copper|Brass|Cast iron|Zinc|Titanium	Сталь|Нержавеющая сталь|Алюминий|Медь|Латунь|Чугун|Цинк|Титан
+11150000	form	Form	Форма	Roll / bolt|Bobbin / cone|Hank / skein|Bale|Cut length (per metre)|Hide / skin	Рулон|Бобина|Моток|Кипа|Отрез (на метры)|Шкура
+11150000	malzeme	Material	Материал	Cotton|Polyester|Wool|Linen|Viscose|Denim|Leather|Blend	Хлопок|Полиэстер|Шерсть|Лен|Вискоза|Джинсовая ткань|Кожа|Смесь
+11160000	form	Form	Форма	Roll / bolt|Bobbin / cone|Hank / skein|Bale|Cut length (per metre)|Hide / skin	Рулон|Бобина|Моток|Кипа|Отрез (на метры)|Шкура
+11160000	malzeme	Material	Материал	Cotton|Polyester|Wool|Linen|Viscose|Denim|Leather|Blend	Хлопок|Полиэстер|Шерсть|Лен|Вискоза|Джинсовая ткань|Кожа|Смесь
+11170000	form	Form	Форма	Sheet|Coil|Bar / Rod|Pipe|Profile|Wire|Powder|Ingot|Scrap	Лист|Рулон|Пруток / стержень|Труба|Профиль|Проволока|Порошок|Слиток|Лом
+11170000	malzeme	Material	Материал	Steel|Stainless steel|Aluminum|Copper|Brass|Cast iron|Zinc|Titanium	Сталь|Нержавеющая сталь|Алюминий|Медь|Латунь|Чугун|Цинк|Титан
+11180000	form	Form	Форма	Sheet|Coil|Bar / Rod|Pipe|Profile|Wire|Powder|Ingot|Scrap	Лист|Рулон|Пруток / стержень|Труба|Профиль|Проволока|Порошок|Слиток|Лом
+11180000	malzeme	Material	Материал	Steel|Stainless steel|Aluminum|Copper|Brass|Cast iron|Zinc|Titanium	Сталь|Нержавеющая сталь|Алюминий|Медь|Латунь|Чугун|Цинк|Титан
+11190000	form	Form	Форма	Sheet|Coil|Bar / Rod|Pipe|Profile|Wire|Powder|Ingot|Scrap	Лист|Рулон|Пруток / стержень|Труба|Профиль|Проволока|Порошок|Слиток|Лом
+11190000	malzeme	Material	Материал	Steel|Stainless steel|Aluminum|Copper|Brass|Cast iron|Zinc|Titanium	Сталь|Нержавеющая сталь|Алюминий|Медь|Латунь|Чугун|Цинк|Титан
 12000000	ambalaj	Packaging	Упаковка	Canister|Barrel|IBC tank|Bag|Big bag|Bulk|Cylinder	Канистра|Бочка|IBC контейнер|Мешок|Биг-бэг|Навалом|Баллон
 12000000	fiziksel_hal	Physical State	Физическое состояние	Solid|Liquid|Gas|Powder|Granule|Paste	Твердое вещество|Жидкость|Газ|Порошок|Гранулы|Паста
 12000000	saflik	Purity	Чистота		
@@ -145,6 +157,9 @@
 53000000	kumas	Fabric / material	Ткань / материал	Cotton|Polyester|Wool|Linen|Viscose|Denim|Leather|Blend	Хлопок|Полиэстер|Шерсть|Лен|Вискоза|Джинсовая ткань|Кожа|Смесь
 53000000	sertifika	Certificate	Сертификат	OEKO-TEX|GOTS|BCI|GRS	OEKO-TEX|GOTS|BCI|GRS
 53000000	uretim_tipi	Production type	Тип производства	Contract manufacturing|Own brand|Private label|Overstock	Контрактное производство|Собственный бренд|Частная марка (private label)|Излишки склада
+53100000	kumas	Fabric / material	Ткань / материал	Cotton|Polyester|Wool|Linen|Viscose|Denim|Leather|Blend	Хлопок|Полиэстер|Шерсть|Лен|Вискоза|Джинсовая ткань|Кожа|Смесь
+53110000	kumas	Fabric / material	Ткань / материал	Cotton|Polyester|Wool|Linen|Viscose|Denim|Leather|Blend	Хлопок|Полиэстер|Шерсть|Лен|Вискоза|Джинсовая ткань|Кожа|Смесь
+53120000	kumas	Fabric / material	Ткань / материал	Cotton|Polyester|Wool|Linen|Viscose|Denim|Leather|Blend	Хлопок|Полиэстер|Шерсть|Лен|Вискоза|Джинсовая ткань|Кожа|Смесь
 54000000	ayar	Purity	Проба	8k|14k|18k|22k|24k|925 silver	8 карат|14 карат|18 карат|22 карата|24 карата|Серебро 925 пробы
 54000000	malzeme	Material	Материал	Gold|Silver|Platinum|Steel|Brass|Plating|Natural stone	Золото|Серебро|Платина|Сталь|Латунь|Покрытие|Натуральный камень
 54000000	sertifika	Document	Документ	Hallmark|Kimberley process|Responsible sourcing	Пробирное клеймо|Кимберлийский процесс|Ответственные поставки
