@@ -159,9 +159,9 @@ test("ücretsiz paket ürün tavanı: aynı anda gönderilen istekler tavanı A�
   ]);
   expect(okCount(race), `tavan yarışı: ${JSON.stringify(race.map((r) => r.status))}`).toBe(1);
 
-  const after = (await apiGet(free, "/company/items?limit=100")).body as { items?: Array<{ isPublic: boolean; reviewStatus: string }> } | Array<{ isPublic: boolean; reviewStatus: string }>;
-  const afterRows = Array.isArray(after) ? after : (after.items ?? []);
-  const occupied = afterRows.filter((x) => x.isPublic || x.reviewStatus === "PENDING").length;
+  // Uç `limit` tanımaz (take/skip, varsayılan 50): tek sayfa en fazla 50 satır
+  // döndüğü için iddia hiç kırılamıyordu. Sayfalı okuma tüm ürünleri sayar.
+  const occupied = (await listele()).filter((x) => x.isPublic || x.reviewStatus === "PENDING").length;
   expect(occupied, "yayında + onayda toplam tavanı aşmamalı").toBeLessThanOrEqual(LIMIT);
 
   // Bu turun ürünlerini temizle: bir sonraki koşum temiz başlasın.

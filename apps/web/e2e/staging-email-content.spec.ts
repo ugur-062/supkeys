@@ -14,6 +14,15 @@ import { closeDb, db } from "./db-helpers";
 test.afterAll(async () => closeDb());
 
 const PLACEHOLDER = /\{\{|\$\{|\bundefined\b|\bnull\b|\[object Object\]/;
+/**
+ * POLİTİKA GEREĞİ ATLANAN gönderimler hata değil (LU-18): status=FAILED,
+ * payload'sız, errorMessage bu öneklerle. apps/api email.service.ts
+ * `EMAIL_SKIPPED_SUPPRESSED_PREFIX` / `EMAIL_SKIPPED_OPTED_OUT_PREFIX` ile
+ * AYNI değerler (e2e Nest modülünü import etmesin diye kopya).
+ */
+const ATLANAN_ONEKLER = ["suppressed:", "opted_out:"] as const;
+/** Admin suppression aklaması payload'sız bir SENT işaret satırı yazar (e-posta değil). */
+const ISARET_SABLONLARI = new Set(["suppression_clear"]);
 
 test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", async () => {
   test.setTimeout(300_000);
@@ -53,10 +62,21 @@ test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", asyn
   const host = new URL(WEB).host; // staging.supkeys.com
   const sorunlar: string[] = [];
   const kotaDolu: string[] = [];
+  const atlanan: string[] = [];
+  const isaret: string[] = [];
 
   for (const r of rows) {
     const p = (r.payload ?? {}) as Record<string, unknown>;
     const etiket = `${r.template} → ${r.toEmail.replace(/@.*/, "@…")} "${r.subject ?? ""}"`;
+
+    if (ISARET_SABLONLARI.has(r.template)) {
+      isaret.push(etiket);
+      continue;
+    }
+    if (r.status === "FAILED" && ATLANAN_ONEKLER.some((o) => (r.errorMessage ?? "").startsWith(o))) {
+      atlanan.push(`${etiket}: ${r.errorMessage}`);
+      continue;
+    }
 
     if (r.status === "FAILED") {
       /**
@@ -109,6 +129,10 @@ test("son e-postalar: bağlantılar DOĞRU ortama gider, içerik eksiksiz", asyn
     if (paragraflar.some((x) => typeof x !== "string" || x.trim() === "")) sorunlar.push(`boş paragraf: ${etiket}`);
   }
 
+  if (atlanan.length > 0) {
+    console.log(`   ⓘ ${atlanan.length} gönderim politika gereği atlandı (bastırılmış/abonelikten çıkmış adres, ürün hatası değil).`);
+  }
+  if (isaret.length > 0) console.log(`   ⓘ ${isaret.length} suppression aklama işareti tarama dışı.`);
   if (kotaDolu.length > 0) {
     console.log(`   ⚠ ${kotaDolu.length} e-posta sağlayıcı KOTASI nedeniyle gitmedi (ortam sınırı, ürün hatası değil).`);
   }

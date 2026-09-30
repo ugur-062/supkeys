@@ -1,4 +1,5 @@
 import { expect, request, type APIRequestContext, type Page } from "@playwright/test";
+import { freshTotp } from "./totp";
 
 /**
  * Staging QA yardımcıları (2026-09-11). Hesaplar `seed-staging-roles`
@@ -146,6 +147,18 @@ export const daysFromNow = (n: number) => new Date(Date.now() + n * 86_400_000).
 export const ADMIN = process.env.PLAYWRIGHT_ADMIN_URL ?? "https://admin.staging.supkeys.com";
 export const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL ?? "uguray156@gmail.com";
 export const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD ?? "";
+/**
+ * ADMIN 2FA (MU-01): API production modunda (staging dahil) SUPER_ADMIN için
+ * 2FA zorunlu. Hesapta 2FA kuruluysa giriş TOTP kodu ister; kurulu değilse
+ * giriş 200 döner ama her admin ucu 403 ADMIN_2FA_SETUP_REQUIRED verir.
+ * `E2E_ADMIN_TOTP_SECRET` = `ADMIN_EMAIL` hesabının authenticator kurulumundaki
+ * base32 anahtar (staging: .env.staging + CI secret; canlı: .env.prod.local).
+ * Tanımsızsa eski davranış: kod gönderilmez (ADMIN_2FA_REQUIRED_ROLES=none).
+ * Kod YALNIZ `ADMIN_EMAIL` hesabı için üretilir (SUPPORT hesabı 2FA'sız).
+ */
+export const ADMIN_TOTP_SECRET = process.env.E2E_ADMIN_TOTP_SECRET?.trim() ?? "";
+const ADMIN_2FA_HINT =
+  "admin 2FA: E2E_ADMIN_TOTP_SECRET (hesabın authenticator base32 anahtarı) verin ya da ortamda ADMIN_2FA_REQUIRED_ROLES=none olsun";
 
 /** Admin API oturumu: admin oturum + admin CSRF çerezi (aynı `X-CSRF-Token` başlığı). */
 export async function adminApiSession(): Promise<{ ctx: APIRequestContext; csrf: string }> {
@@ -154,8 +167,21 @@ export async function adminApiSession(): Promise<{ ctx: APIRequestContext; csrf:
     baseURL: API.replace(/\/?$/, "/"),
     extraHTTPHeaders: { Origin: ADMIN, "Content-Type": "application/json" },
   });
-  const res = await ctx.post("admin/auth/login", { data: { email: ADMIN_EMAIL, password: ADMIN_PASSWORD } });
-  expect(res.status(), `admin login: ${await res.text()}`).toBe(200);
+  const data: Record<string, string> = { email: ADMIN_EMAIL, password: ADMIN_PASSWORD };
+  if (ADMIN_TOTP_SECRET) data.code = await freshTotp(ADMIN_TOTP_SECRET);
+  const res = await ctx.post("admin/auth/login", { data });
+  const text = await res.text();
+  expect(res.status(), `admin login: ${text}${/2FA_REQUIRED/.test(text) ? ` — ${ADMIN_2FA_HINT}` : ""}`).toBe(200);
+  // Giriş verildi ama 2FA zorunlu ve kurulu değil → her admin ucu 403 olur;
+  // testler ürün hatası gibi kırılmasın, sebep burada açıkça yazsın.
+  let setupRequired = false;
+  try {
+    setupRequired = !!(JSON.parse(text) as { admin?: { twoFactorSetupRequired?: boolean } }).admin
+      ?.twoFactorSetupRequired;
+  } catch {
+    /* gövde JSON değil — aşağıdaki çerez iddiası yakalar */
+  }
+  expect(setupRequired, `admin hesabında 2FA zorunlu ama kurulu değil (403 ADMIN_2FA_SETUP_REQUIRED) — ${ADMIN_2FA_HINT}`).toBe(false);
   const cookies = (await ctx.storageState()).cookies;
   const csrf = cookies.find((c) => c.name === COOKIE.adminCsrf)?.value ?? "";
   expect(csrf, `${COOKIE.adminCsrf} çerezi`).not.toBe("");
@@ -173,6 +199,26 @@ export async function adminContext(browser: import("@playwright/test").Browser) 
   });
 }
 
+/**
+ * Giriş formu 2FA isterse (API "2FA_REQUIRED" → "Doğrulama kodu (2FA)" alanı
+ * açılır) kodu doldurup yeniden gönderir. Gizli değer yoksa ya da hesap
+ * `ADMIN_EMAIL` değilse dokunmaz; alan açılırsa sebebi açıkça yazan hata verir.
+ */
+async function completeAdmin2fa(page: Page, email: string) {
+  const codeInput = page.locator("input#code");
+  const navigated = page.waitForURL(/\/admin(?!\/login)/, { timeout: 30_000 }).then(() => "nav" as const);
+  const asked = codeInput.waitFor({ state: "visible", timeout: 30_000 }).then(() => "code" as const);
+  // Yarışı kaybeden bekleme sonradan reddedilince işlenmemiş hata olmasın.
+  navigated.catch(() => {});
+  asked.catch(() => {});
+  if ((await Promise.race([navigated, asked])) !== "code") return;
+  if (!ADMIN_TOTP_SECRET || email !== ADMIN_EMAIL) {
+    throw new Error(`adminUiLogin: ${email} için 2FA kodu isteniyor — ${ADMIN_2FA_HINT}`);
+  }
+  await codeInput.fill(await freshTotp(ADMIN_TOTP_SECRET));
+  await page.getByRole("button", { name: "Giriş Yap" }).click();
+}
+
 export async function adminUiLogin(page: Page, email = ADMIN_EMAIL, password = ADMIN_PASSWORD) {
   for (let attempt = 0; attempt < 2; attempt++) {
     await gotoRetry(page, "/admin/login");
@@ -180,7 +226,13 @@ export async function adminUiLogin(page: Page, email = ADMIN_EMAIL, password = A
     await page.locator('input[type="email"]').fill(email);
     await page.locator('input[type="password"]').fill(password);
     await page.getByRole("button", { name: "Giriş Yap" }).click();
+    await completeAdmin2fa(page, email);
     await page.waitForURL(/\/admin(?!\/login)/, { timeout: 30_000 });
+    // Başarılı giriş panoya gider; Ayarlar'a yönlenmesi "2FA zorunlu ama kurulu
+    // değil" demek (MU-01) — sonraki ekranlar kilitli, sebep burada yazsın.
+    if (/\/admin\/settings/.test(page.url())) {
+      throw new Error(`adminUiLogin: ${email} için 2FA kurulumu zorunlu (panel Ayarlar'a kilitli) — ${ADMIN_2FA_HINT}`);
+    }
     await page.waitForLoadState("networkidle").catch(() => {});
     const me = await page.request.get(`${API.replace(/\/?$/, "/")}admin/auth/me`);
     if (me.ok()) return;
