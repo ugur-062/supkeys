@@ -440,7 +440,7 @@ describe("TeklifVerPage — dosyalı gönderim (derin denetim Y-15, X22)", () =>
       expect.objectContaining({ asDraft: true }),
     );
     expect(h.push).not.toHaveBeenCalled();
-    expect(screen.queryByText(/Teklifin gönderildi/)).toBeNull();
+    expect(screen.queryByText(/Teklifiniz gönderildi — alım talebi/)).toBeNull();
     // Form ve "listede kaldı" denen dosya görünür → tekrar denenebilir.
     expect(screen.getByText("teklif.pdf")).toBeInTheDocument();
     expect(
@@ -472,7 +472,7 @@ describe("TeklifVerPage — dosyalı gönderim (derin denetim Y-15, X22)", () =>
       expect.stringContaining("Taslak kaydedilemedi"),
     );
     expect(h.toast.success).not.toHaveBeenCalled();
-    expect(screen.queryByText(/Teklifin gönderildi/)).toBeNull();
+    expect(screen.queryByText(/Teklifiniz gönderildi — alım talebi/)).toBeNull();
     expect(screen.getByText("teklif.pdf")).toBeInTheDocument();
     expect(h.push).not.toHaveBeenCalled();
   });
@@ -492,7 +492,7 @@ describe("TeklifVerPage — dosyalı gönderim (derin denetim Y-15, X22)", () =>
     ]);
     expect(h.uploadAsync).toHaveBeenCalledTimes(1);
     expect(
-      screen.getByText(/Teklifin gönderildi/),
+      screen.getByText(/Teklifiniz gönderildi — alım talebi/),
     ).toBeInTheDocument();
   });
 

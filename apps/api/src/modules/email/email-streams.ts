@@ -62,3 +62,24 @@ export function unsubscribeScopeFor(type: string | undefined | null): Unsubscrib
   if (stream === "NOTIFICATION") return prefKeyForType(type);
   return null;
 }
+
+/**
+ * ÜYE OLMAYAN adrese giden İŞLEM e-postaları (derin denetim boşluk taraması
+ * GA2): ekip daveti adresi davet eden firmadan gelir, misafir bilgi talebi
+ * doğrulaması kayıtsız ziyaretçiye gider. Çıkış bağlantısı taşımazlar ama ilk
+ * temas bunlardır → KVKK aydınlatma bağlantısı basılır (KVKK m. 10; güvenli
+ * taraf — avukat teyidi bekliyor).
+ */
+export const PRIVACY_NOTICE_TRANSACTIONAL_CONTEXT_TYPES: ReadonlySet<string> = new Set([
+  "company_user_invitation",
+  "public_inquiry_verify",
+]);
+
+/**
+ * Alt bilgide KVKK aydınlatma bağlantısı olmalı mı? İşlem dışı her akış
+ * (çıkış bağlantısıyla birlikte) + üye olmayan adrese giden işlem e-postaları.
+ */
+export function privacyNoticeFor(type: string | undefined | null): boolean {
+  if (streamForContext(type) !== "TRANSACTIONAL") return true;
+  return !!type && PRIVACY_NOTICE_TRANSACTIONAL_CONTEXT_TYPES.has(type);
+}

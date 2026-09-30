@@ -2,6 +2,7 @@
 
 import { useLocale, useTranslations } from "next-intl";
 import { intlLocale } from "@/i18n/format";
+import { useFormatNumber } from "@/i18n/domain";
 import type { Locale } from "@rothern/i18n";
 import { Button } from "@/components/catalyst/button";
 import {
@@ -53,6 +54,11 @@ export function ExcelImportDialog({
 }) {
   const t = useTranslations("web.panel.requests.excelImportDialog");
   const locale = useLocale() as Locale;
+  // MB değerleri alıcının dilinde (TR/RU "2,5", EN "2.5"); sınır 3,5 MB
+  // yuvarlanıp "4 MB" basılmaz (derin denetim boşluk taraması GA2).
+  const fmtNum = useFormatNumber();
+  const fmtMb = (bytes: number, min = 0) =>
+    fmtNum(bytes / 1024 / 1024, { minimumFractionDigits: min, maximumFractionDigits: 1 });
   const [file, setFile] = useState<File | null>(null);
   const [result, setResult] = useState<ItemImportResult | null>(null);
   const [mode, setMode] = useState<ExcelImportMode>("append");
@@ -136,8 +142,8 @@ export function ExcelImportDialog({
             <div className="rounded-lg border border-zinc-950/10 px-3 py-2.5 text-sm text-zinc-700">
               {t.rich("adim2DoldurdugunuzDosyayiYukleyin", {
                 strong: (c) => <strong>{c}</strong>,
-                xlsxMb: Math.round(IMPORT_MAX_FILE_BYTES / 1024 / 1024),
-                csvMb: Math.round(ITEM_IMPORT_MAX_CSV_BYTES / 1024 / 1024),
+                xlsxMb: fmtMb(IMPORT_MAX_FILE_BYTES),
+                csvMb: fmtMb(ITEM_IMPORT_MAX_CSV_BYTES),
               })}
             </div>
             <Dropzone
@@ -156,9 +162,9 @@ export function ExcelImportDialog({
                 if (f.size > cap) {
                   toast.error(
                     t("dosyaCokBuyukIcinSinir", {
-                      mb: (f.size / 1024 / 1024).toFixed(1),
+                      mb: fmtMb(f.size, 1),
                       kind: isCsv ? "CSV" : "Excel",
-                      cap: Math.round(cap / 1024 / 1024),
+                      cap: fmtMb(cap),
                     }),
                   );
                   return;

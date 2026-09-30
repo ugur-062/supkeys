@@ -1812,7 +1812,7 @@
         "f2": "Posting buying requests — quote collection (RFQ) & negotiation/reverse auction",
         "f3": "Awarding, approval flows, reports & templates",
         "f4": "AI — request draft from documents, chat assistant, supplier discovery",
-        "f5": "“Gold Member” badge — a trust mark on your profile, in the company directory and on your products",
+        "f5": "“Gold member” badge — a trust mark on your profile, in the company directory and on your products",
         "f6": "6 seats (buying and sales)"
       }
     }
@@ -3249,14 +3249,14 @@
         "teklifEttiginizParcaNo": "Part number you are offering",
         "teklifEdilenParcaNo": "Offered part number for {name}",
         "muadilRozet": "Substitute",
-        "muadilRozetAciklama": "The supplier offered an equivalent (substitute) product instead of the requested one for this item",
+        "muadilRozetAciklama": "The supplier offered an equivalent (substitute) product instead of the requested one for this line item",
         "muadilTeklifEdilen": "Offered: {value}",
         "muadilMarkaBelirtilmedi": "Offered brand / part number not specified",
-        "muadilKalemSayisi": "{count, plural, one {# substitute item} other {# substitute items}}",
+        "muadilKalemSayisi": "{count, plural, one {# line item with a substitute} other {# line items with substitutes}}",
         "buSatinAlmaTalebindeTum": "You must quote on all line items in this buying request.",
         "gecerliBirTutarGirin": "Enter a valid amount.",
         "kalemiIcinZorunluSoruCevaplanmadi": "The required question for line item \"{name}\" has not been answered.",
-        "muadilMarkaVeyaParcaNoGirin": "You are offering an alternative for \"{name}\" — enter the brand or part number.",
+        "muadilMarkaVeyaParcaNoGirin": "If you are offering a substitute for \"{name}\", enter the brand or part number.",
         "kalemiBirimFiyati": "Unit price of line item \"{name}\": {e}.",
         "teslimSuresiZorunluSureGirmediginiz": "Delivery time is required (for line items without their own time).",
         "gecerlilikSuresiZorunlu": "Validity period is required.",
@@ -3799,8 +3799,8 @@
         "kalemSorulari": "Line item {n} questions",
         "cevapTuruDeger": "Answer type: {label}",
         "soruN": "Question {n}",
-        "soruTavani": "You can add up to {max} questions per item.",
-        "soruTavaniEklenmedi": "{dropped} question(s) not added: you can add up to {max} questions per item."
+        "soruTavani": "You can add up to {max} questions per line item.",
+        "soruTavaniEklenmedi": "{dropped, plural, one {# question was} other {# questions were}} not added: you can add up to {max} questions per line item."
       },
       "aiFlagsBanner": {
         "taslakGuncellendiAlanlariKontrolEdin": "Draft updated — review the fields",
@@ -3991,11 +3991,11 @@
         "birimFiyat": "Unit price",
         "teslim": "Delivery",
         "satirToplami": "Line total",
-        "toplamAnaBirimeCevrildi": "Line prices were converted to the quote's base currency ({currency}) and summed.",
+        "toplamAnaBirimeCevrildi": "Line item prices were converted to the quote's base currency ({currency}) and summed.",
         "genelNot": "General note",
         "satislarimiGoruntule": "View my sales",
         "buSatinAlmaTalebineTeklif": "You have not submitted a quote for this buying request.",
-        "satinAlmaTalebiIlanSahibi": "The buying request was canceled by its owner.",
+        "satinAlmaTalebiIlanSahibi": "The buying request was canceled by the buyer.",
         "gerekce": "Reason: {cancelReason}",
         "siparisOlusturulduOnayinBekleniyor": "Order created — awaiting your confirmation.",
         "odemeyiSiparisSayfasindanIzle": "Track the payment on the order page.",
@@ -4043,7 +4043,7 @@
         "sen": "(You)",
         "tedarikci": "Supplier",
         "kapandi": "Closed",
-        "teklifAlimiKapandi": "Bidding closed",
+        "teklifAlimiKapandi": "Quote submission closed",
         "gunSaatGeriSayim": "{d}d {time}",
         "rakipBilgisiKapaliYalnizcaKendi": "Competitor information is hidden — you only see your own quote",
         "enIyiTeklifHerkeseGorunur": "The best quote is visible to everyone",
@@ -4425,9 +4425,9 @@
         "alicilar": "Buyers",
         "tedarikciler": "Suppliers",
         "henuzSatisSiparisinizYokBir": "You have no sales orders yet. When a quote you submitted to an open request wins, it appears here.",
-        "henuzAlisSiparisinizYokBir": "You have no purchase orders yet. When you award one of your buying requests or make a purchase, it appears here.",
+        "henuzAlisSiparisinizYokBir": "You have no purchase orders yet. When you award one of your buying requests, it appears here.",
         "satislarinizKazandiginizAcikTaleplerdenVe": "Your sales — from open requests you won. Confirm, ship and track payment.",
-        "alisSiparislerinizKazandirdiginizSatinAlma": "Your purchase orders — from the buying requests you awarded and from your purchases. Receive the goods, report your payment and complete the order.",
+        "alisSiparislerinizKazandirdiginizSatinAlma": "Your purchase orders — from the buying requests you awarded. Receive the goods, report your payment and complete the order.",
         "siparisNoIlanVeyaKarsi": "Order no., request or counterparty…",
         "siralama": "Sort",
         "tumu": "All ({length})",
@@ -5094,7 +5094,7 @@
         "eslesmedi": "Not matched",
         "sablonuIndirinAdim": "<strong>1.</strong> Download the quote template for this request (line items are prefilled; you fill in price/delivery)",
         "uygulaAria": "Apply {itemName}",
-        "kalemBirimiKullanilamaz": "The row is priced in {currency}; this bid cannot use a different currency per item ({main}). Convert the price to {main} and enter it manually."
+        "kalemBirimiKullanilamaz": "The row is priced in {currency}; this quote cannot use a different currency per line item ({main}). Convert the price to {main} and enter it manually."
       },
       "siparisIdPage": {
         "siparisBulunamadi": "Order not found.",

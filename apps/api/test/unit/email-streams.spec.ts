@@ -1,4 +1,4 @@
-import { streamForContext, unsubscribeScopeFor } from "../../src/modules/email/email-streams";
+import { privacyNoticeFor, streamForContext, unsubscribeScopeFor } from "../../src/modules/email/email-streams";
 import {
   isUnsubscribeScope,
   signUnsubscribeToken,
@@ -36,6 +36,18 @@ describe("email-streams", () => {
   it("lifecycle_* LIFECYCLE akışında", () => {
     expect(streamForContext("lifecycle_welcome")).toBe("LIFECYCLE");
     expect(unsubscribeScopeFor("lifecycle_digest")).toBe("lifecycle");
+  });
+
+  it("KVKK aydınlatma: işlem dışı her akış + üye olmayan adrese işlem e-postası (derin denetim boşluk taraması GA2)", () => {
+    for (const t of ["tender_external_invite", "referral_invite", "lifecycle_welcome", "listing_category_match"]) {
+      expect(privacyNoticeFor(t)).toBe(true);
+    }
+    // Çıkış bağlantısı yok ama ilk temas: ekip daveti, misafir bilgi talebi doğrulaması.
+    expect(privacyNoticeFor("company_user_invitation")).toBe(true);
+    expect(privacyNoticeFor("public_inquiry_verify")).toBe(true);
+    for (const t of ["email_verify", "password_reset", "login_2fa", "order_status_changed", undefined]) {
+      expect(privacyNoticeFor(t)).toBe(false);
+    }
   });
 });
 

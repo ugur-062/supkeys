@@ -77,6 +77,21 @@ describe("EmailService — çıkış başlıkları", () => {
     expect((renderEmail as jest.Mock).mock.calls[0][2].unsubscribeUrl).toBeUndefined();
   });
 
+  it("üye olmayan adrese işlem e-postası: çıkış yok ama KVKK aydınlatma bayrağı açık (derin denetim boşluk taraması GA2)", async () => {
+    const { svc, send } = makeEmail();
+    await svc.send(mail("yeni@firma.com", "company_user_invitation"));
+    await svc.send(mail("misafir@firma.com", "public_inquiry_verify"));
+    await svc.send(mail("u@firma.com", "email_verify"));
+    await svc.send(mail("tedarik@firma.com", "listing_category_match"));
+    const envs = (renderEmail as jest.Mock).mock.calls.map((c) => c[2]);
+    expect(envs[0]).toEqual(expect.objectContaining({ privacyNotice: true }));
+    expect(envs[0].unsubscribeUrl).toBeUndefined();
+    expect(send.mock.calls[0][0].headers).toBeUndefined();
+    expect(envs[1].privacyNotice).toBe(true);
+    expect(envs[2].privacyNotice).toBe(false);
+    expect(envs[3].privacyNotice).toBe(true);
+  });
+
   it("davet akışında tercih bağlantısı yok (kayıtsız adres)", async () => {
     const { svc } = makeEmail();
     await svc.send(mail("dis@firma.com", "tender_external_invite"));

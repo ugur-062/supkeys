@@ -670,9 +670,9 @@
     "at": "2026-09-27"
   },
   "api.ai.assistant.result.bidPlaced": {
-    "hash": "f26c795a1d",
+    "hash": "6aaaeb5fe0",
     "status": "reviewed",
-    "at": "2026-09-25"
+    "at": "2026-09-30"
   },
   "api.ai.assistant.result.invitesSent": {
     "hash": "f8767153fd",
@@ -2205,19 +2205,19 @@
     "at": "2026-09-24"
   },
   "api.companyListings.bidImport.baglanamayanSatir": {
-    "hash": "68fefbe31d",
+    "hash": "08d3eae933",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "api.companyListings.bidImport.belgeParaBirimiKabulEdilmiyor": {
-    "hash": "27eb843b26",
+    "hash": "4968f1d672",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "api.companyListings.bidImport.birimFarkli": {
-    "hash": "7f04a001e1",
+    "hash": "292770badf",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "api.companyListings.bidImport.birimFiyatAraligi": {
     "hash": "f4655ba14c",
@@ -2235,9 +2235,9 @@
     "at": "2026-09-24"
   },
   "api.companyListings.bidImport.fiyatEslenemedi": {
-    "hash": "959464f1f7",
+    "hash": "9f91baf03d",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "api.companyListings.bidImport.fiyatGirilmisKalemYok": {
     "hash": "71ba6d130d",
@@ -2250,14 +2250,14 @@
     "at": "2026-09-24"
   },
   "api.companyListings.bidImport.miktarFarkli": {
-    "hash": "45057d7623",
+    "hash": "f66b20a538",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "api.companyListings.bidImport.paraBirimiKabulEdilmiyor": {
-    "hash": "e086780295",
+    "hash": "ff31e98cf9",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "api.companyListings.bidImport.paraBirimiTaninmadi": {
     "hash": "c9251d241c",
@@ -2270,14 +2270,14 @@
     "at": "2026-09-24"
   },
   "api.companyListings.bidImport.satirParaBirimiKabulEdilmiyor": {
-    "hash": "e9eb16b050",
+    "hash": "4f66bbaf73",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "api.companyListings.bidImport.template.currencyError": {
-    "hash": "d1a0454707",
+    "hash": "c2abb81e19",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "api.companyListings.bidImport.template.currencyTitle": {
     "hash": "d8d810201b",
@@ -2295,9 +2295,9 @@
     "at": "2026-09-24"
   },
   "api.companyListings.bidImport.template.fileNameFallback": {
-    "hash": "6232d55b28",
+    "hash": "d6ce3a4298",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "api.companyListings.bidImport.template.fileNamePrefix": {
     "hash": "2376275bc0",
@@ -2312,17 +2312,17 @@
   "api.companyListings.bidImport.template.helpFill": {
     "hash": "33e2253df4",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "api.companyListings.bidImport.template.helpSheet": {
-    "hash": "cd6441f0a4",
+    "hash": "b462143582",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "api.companyListings.bidImport.template.helpSkip": {
-    "hash": "6849993e1a",
+    "hash": "24ac9adbd8",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "api.companyListings.bidImport.template.helpTitle": {
     "hash": "c35c264029",
@@ -2952,7 +2952,7 @@
   "api.companyListings.muadilTeklifteMarkaVeyaParcaNoZorunlu": {
     "hash": "bfc39fbedb",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "api.companyListings.oncedenFiyatladiginizKalemlerinToplami": {
     "hash": "0ff84fab40",
@@ -5447,12 +5447,12 @@
   "api.notifications.companyAuth.ikiAdimliKilitBaslik": {
     "hash": "25a0ef5018",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "api.notifications.companyAuth.ikiAdimliKilitGovde": {
     "hash": "c3226ab746",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "api.notifications.companyAuth.kodGecerlilik": {
     "hash": "32de1fd547",
@@ -5754,6 +5754,11 @@
     "status": "reviewed",
     "at": "2026-09-28"
   },
+  "api.notifications.lifecycle.market.ctaLocked": {
+    "hash": "fe624b99cd",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
   "api.notifications.lifecycle.market.subject": {
     "hash": "2a9da1f3d4",
     "status": "reviewed",
@@ -5862,7 +5867,7 @@
   "api.notifications.listings.adminClosed.body": {
     "hash": "0a823bd820",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "api.notifications.listings.adminClosed.subject": {
     "hash": "84f6321cf7",
@@ -8034,6 +8039,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "email.tenderExternalInvite.textFootnote": {
+    "hash": "d08483a012",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
   "email.tenderExternalInvite.textIntro": {
     "hash": "a8818d2c19",
     "status": "reviewed",
@@ -8093,6 +8103,11 @@
     "hash": "17b7324284",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "email.tenderInviteDigest.textFootnote": {
+    "hash": "6743948887",
+    "status": "reviewed",
+    "at": "2026-09-30"
   },
   "email.tenderInviteDigest.textIntro": {
     "hash": "0b556e96da",
@@ -13695,9 +13710,9 @@
     "at": "2026-09-29"
   },
   "web.marketing.optOut.question": {
-    "hash": "a7225ad51d",
+    "hash": "d356450f5c",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "web.marketing.optOut.title": {
     "hash": "355ef89dd1",
@@ -17767,7 +17782,7 @@
   "web.panel.company.firmaIdPage.baglantiIcinSilver": {
     "hash": "5c4df70620",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "web.panel.company.firmaIdPage.baglantiIstegiGonder": {
     "hash": "296b991930",
@@ -19835,9 +19850,9 @@
     "at": "2026-09-27"
   },
   "web.panel.reports.reportsSummaryCharts.son12AydaActiginizSatin": {
-    "hash": "e6af2e082b",
+    "hash": "4a84b73772",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "web.panel.reports.reportsSummaryCharts.son12AydaSonuclananSatin": {
     "hash": "bcc99ac589",
@@ -19845,9 +19860,9 @@
     "at": "2026-09-27"
   },
   "web.panel.reports.reportsSummaryCharts.son12AydaTeklifVerdiginiz": {
-    "hash": "ffad044500",
+    "hash": "88c8532d16",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "web.panel.reports.reportsSummaryCharts.tutar": {
     "hash": "01117c1e3e",
@@ -22747,7 +22762,7 @@
   "web.panel.requests.itemQuestionModal.soruTavaniEklenmedi": {
     "hash": "151eef6423",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "web.panel.requests.itemQuestionModal.soruyuKaldir": {
     "hash": "bc3268cec6",
@@ -23067,7 +23082,7 @@
   "web.panel.requests.myBidStatusPanel.satinAlmaTalebiIlanSahibi": {
     "hash": "f798591f86",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "web.panel.requests.myBidStatusPanel.satinAlmaTalebiKapandiTaslak": {
     "hash": "fdbfe034dc",
@@ -23757,7 +23772,7 @@
   "web.panel.requests.page.herkeseAcikSatinAlmaTaleplerine": {
     "hash": "3490d5825a",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "web.panel.requests.page.herkeseAcikSatinAlmaTaleplerini": {
     "hash": "832b62aaa6",
@@ -24207,17 +24222,17 @@
   "web.panel.requests.page.muadilKalemSayisi": {
     "hash": "4079f87eb3",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "web.panel.requests.page.muadilMarkaBelirtilmedi": {
     "hash": "690f254df2",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "web.panel.requests.page.muadilMarkaVeyaParcaNoGirin": {
     "hash": "7847c799b5",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "web.panel.requests.page.muadilRozet": {
     "hash": "785d28e73b",
@@ -24720,14 +24735,14 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.page.teklifinGonderildiSatinAlmaTalebi": {
-    "hash": "389531813c",
+    "hash": "79e9579177",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "web.panel.requests.page.teklifinGonderiliyor": {
-    "hash": "c42a70dd2c",
+    "hash": "2349131f97",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "web.panel.requests.page.teklifinizGonderildi": {
     "hash": "427e1b1640",
@@ -25821,11 +25836,6 @@
   },
   "web.panel.requests.requestDefaultsForm.buTeslimSeklindeFiyatTedarikcinin": {
     "hash": "3537d80f20",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.requests.requestDefaultsForm.enAzBirUlkeSecin": {
-    "hash": "e1ebb8defd",
     "status": "reviewed",
     "at": "2026-09-24"
   },
@@ -31425,9 +31435,9 @@
     "at": "2026-09-24"
   },
   "web.panel.shell.satinalmaIhaleTab.donemdeAcilanSatinAlmaTaleplerin": {
-    "hash": "ebb84778ef",
+    "hash": "705ed253ba",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "web.panel.shell.satinalmaIhaleTab.donemHarcamasi": {
     "hash": "b1acad6abb",
@@ -34445,9 +34455,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.ordersList.alisSiparislerinizKazandirdiginizSatinAlma": {
-    "hash": "3e471ab313",
+    "hash": "59d97be7db",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "web.panel.trade.ordersList.arama": {
     "hash": "d1d75c288c",
@@ -34485,9 +34495,9 @@
     "at": "2026-09-24"
   },
   "web.panel.trade.ordersList.henuzAlisSiparisinizYokBir": {
-    "hash": "e9fd28216e",
+    "hash": "17d8dea76e",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "web.panel.trade.ordersList.henuzSatisSiparisinizYokBir": {
     "hash": "caab6bd7fd",
@@ -36952,7 +36962,7 @@
   "web.panel.trade.templatesView.baglantisiKopanUyelerCikarildi": {
     "hash": "cfe752daf3",
     "status": "reviewed",
-    "at": "2026-09-29"
+    "at": "2026-09-30"
   },
   "web.panel.trade.templatesView.birlikteDavetEttiginizFirmalariGruplayin": {
     "hash": "688a4f909c",

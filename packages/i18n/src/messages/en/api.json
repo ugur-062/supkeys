@@ -299,7 +299,7 @@
     "ilanBuSiradaGuncellendiDurumTur": "The request was updated in the meantime (status or round changed) — refresh the page and submit your quote again",
     "ilanKalemleriBuSiradaDegistiSayfayi": "The request line items changed in the meantime — refresh the page and submit your quote again",
     "teklifinizBuSiradaDegistiSayfayi": "Your quote changed in the meantime (another tab or a concurrent submission) — refresh the page and submit your quote again",
-    "muadilTeklifteMarkaVeyaParcaNoZorunlu": "Enter the offered brand or part number for \"{name}\", where you are offering an alternative product",
+    "muadilTeklifteMarkaVeyaParcaNoZorunlu": "Enter the offered brand or part number for \"{name}\" if you are offering a substitute product",
     "sadeceIlanSahibiKazandirabilir": "Only the request owner can award",
     "ilanZatenKazandirilmisVeyaIptal": "The request has already been awarded or canceled",
     "kazandirmaIcinYetkinizYok": "You do not have permission to award",
@@ -307,7 +307,7 @@
     "buSatinAlmaTalebiTeklifBelgesi": "This buying request requires a quote document; the winning quote has none",
     "ilanDurumuDegistiKazandirmayiTekrarDeneyin": "The request status changed; try the award again",
     "teklifinGecerlilikSuresiDolmusTedarikcidenSure": "The validity period of the quote has expired; ask the supplier for an extension or open a new round",
-    "teklifVerenFirmaAskidaKazandirilamaz": "The bidding company's account is suspended or inactive; this quote cannot be awarded",
+    "teklifVerenFirmaAskidaKazandirilamaz": "The quoting company's account is suspended or inactive; this quote cannot be awarded",
     "teklifArtikGecerliDegilGeriCekilmis": "The quote is no longer valid (withdrawn or eliminated) — it cannot be awarded",
     "siparisTutariTutarsizligiKazandirmaGuvenlikNeden": "Order amount mismatch — the award was stopped for safety reasons (please contact the support team)",
     "ilanZatenKazandirilmis": "The request has already been awarded",
@@ -436,7 +436,7 @@
         "deliveryError": "Select from the list",
         "helpTitle": "Quote template — {title}",
         "helpSheet": "The gray columns on the \"{sheet}\" sheet are the buying request’s line items — DO NOT CHANGE THEM (do not add or delete rows).",
-        "helpFill": "Fill in the white columns: \"Birim Fiyat\" (unit price, EXCLUDING VAT, required), \"Para Birimi\" (currency, from the list; if left blank, your bid currency is used), \"Teslim Süresi\" (delivery time, from the list), \"Not\" (note).",
+        "helpFill": "Fill in the white columns: \"Birim Fiyat\" (unit price, EXCLUDING VAT, required), \"Para Birimi\" (currency, from the list; if left blank, your quote currency is used), \"Teslim Süresi\" (delivery time, from the list), \"Not\" (note).",
         "helpSkip": "Leave the \"Birim Fiyat\" (unit price) cell EMPTY for any line item you do not want to quote on (if the buying request requires all line items, the app will warn you).",
         "helpDecimal": "The decimal separator can be a comma or a period (185,50 or 185.50).",
         "helpUpload": "Save the file and upload it with “Price with Excel template” on the quote page — you will see a preview first; it does not submit the quote.",
@@ -1548,14 +1548,14 @@
         "body": "The buying request \"{title}\" ({number}) was closed without selecting a winner.{hasReason, select, yes { Reason: {reason}} other {}}"
       },
       "adminClosed": {
-        "subject": "Buying request closed to offers by the platform team",
-        "title": "Buying request closed to offers",
-        "body": "The buying request \"{title}\" ({number}) has been closed to offers by the platform team. You will be notified separately if it is reopened after review."
+        "subject": "Buying request closed to quotes by the platform team",
+        "title": "Buying request closed to quotes",
+        "body": "The buying request \"{title}\" ({number}) has been closed to quotes by the platform team. You will be notified separately if it is reopened after review."
       },
       "adminReopened": {
-        "subject": "Buying request reopened for offers",
-        "title": "Buying request reopened for offers",
-        "body": "The buying request \"{title}\" ({number}) has been reopened for offers by the platform team. New closing time: {closesAt}."
+        "subject": "Buying request reopened for quotes",
+        "title": "Buying request reopened for quotes",
+        "body": "The buying request \"{title}\" ({number}) has been reopened for quotes by the platform team. New closing time: {closesAt}."
       },
       "closingChanged": {
         "subject": "Buying request closing time changed",
@@ -1734,7 +1734,8 @@
         "subject": "{n, plural, one {# request was} other {# requests were}} opened in your categories in the last 2 weeks",
         "body": "You can quote on buying requests in your categories from Open Requests.",
         "bodyLocked": "Upgrade to Silver to view these requests and quote on them. On the free plan you can still quote on requests from buyers you're connected with or who invite you.",
-        "cta": "View open requests"
+        "cta": "View open requests",
+        "ctaLocked": "Upgrade to Silver"
       },
       "weekly": {
         "subject": "Your company was viewed {n, plural, one {# time} other {# times}} this week",

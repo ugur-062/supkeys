@@ -371,7 +371,11 @@ export class EmailProgramsService {
       silver: { cta: "/company/premium" },
     }[step];
     const base = `api.notifications.lifecycle.${step}` as const;
-    const bodyKey = (step === "market" && p.free ? `${base}.bodyLocked` : `${base}.body`) as ApiMessageKey;
+    const locked = step === "market" && p.free;
+    const bodyKey = (locked ? `${base}.bodyLocked` : `${base}.body`) as ApiMessageKey;
+    // Kilitli pazar e-postası paket sayfasına gider: düğme de "Silver'a geç"
+    // der, "Açık talepleri gör" değil (derin denetim boşluk taraması GA2).
+    const ctaKey = (locked ? `${base}.ctaLocked` : `${base}.cta`) as ApiMessageKey;
     const subject = t(`${base}.subject` as ApiMessageKey, { n: p.matches });
     try {
       const res = await this.email.send({
@@ -384,7 +388,7 @@ export class EmailProgramsService {
             subject,
             heading: subject,
             paragraphs: [t(GREETING), t(bodyKey, { n: p.matches })],
-            ctaLabel: t(`${base}.cta` as ApiMessageKey),
+            ctaLabel: t(ctaKey),
             ctaUrl: `${this.web}${localizeAppPath(K.cta, locale)}`,
           },
         },

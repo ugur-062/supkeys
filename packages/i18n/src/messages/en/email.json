@@ -59,11 +59,12 @@
     "intro": "<b>{inviterName}</b> would like a quote from you for the buying request they opened on the Rothern B2B procurement platform:",
     "categoryLine": "{count, plural, one {Category} other {Categories}}: {categories}",
     "closesAtLine": "Quote deadline: {closesAt}",
-    "howTo": "To submit a quote, all you need is a free company account — once registration is complete, you are automatically invited to this request and connected with {inviterName}.",
+    "howTo": "To submit a quote, all you need is a free company account — once registration is complete, you are automatically invited to this request and connected with {inviterName} right away.",
     "cta": "Sign up and submit a quote",
     "footnote": "This email is a one-time buying request invitation sent by {inviterName} through Rothern; you have not been added to a marketing list. If you don’t want to receive such invitations, you can <optout>turn them off here with one click</optout>.",
     "textIntro": "{inviterName} invited you to quote on the buying request \"{tenderTitle}\" on Rothern.",
     "textCta": "Sign up and submit a quote: {url}",
+    "textFootnote": "This email is a one-time buying request invitation sent by {inviterName} through Rothern; you have not been added to a marketing list.",
     "textOptOut": "To turn off such invitations: {url}",
     "numberLine": "Request no.: {number}",
     "itemsTitle": "{count, plural, one {# line item} other {# line items}} requested:",
@@ -136,6 +137,7 @@
     "footnote": "This email bundles buying request invitations sent through Rothern by the companies above; you have not been added to a marketing list. If you don't want to receive such invitations, you can <optout>turn them off here with one click</optout>.",
     "textIntro": "{count, plural, one {# buying request is} other {# buying requests are}} waiting for your quote on Rothern:",
     "textItem": "{inviterName} — {tenderTitle}: {url}",
+    "textFootnote": "This email bundles buying request invitations sent through Rothern; you have not been added to a marketing list.",
     "textOptOut": "To turn off such invitations: {url}"
   }
 }

@@ -177,6 +177,10 @@ export function renderTenderInviteDigestText(data: TenderInviteDigestData, local
     t("email.tenderExternalInvite.sealedBid"),
     t("email.tenderExternalInvite.freeToQuote"),
     "",
+    // HTML alt notuyla aynı bilgi + imza (derin denetim boşluk taraması GA2).
+    t("email.tenderInviteDigest.textFootnote"),
     t("email.tenderInviteDigest.textOptOut", { url: data.optOutUrl }),
+    "",
+    t("email.layout.textSignature"),
   ].join("\n");
 }

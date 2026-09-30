@@ -310,6 +310,11 @@ export function renderTenderExternalInviteText(
         ? [t("email.tenderExternalInvite.textPublicLink", { url: props.publicUrl })]
         : []),
     "",
+    // HTML alt notuyla aynı bilgi: kim, neden gönderdi (İYS/ETK, teslim
+    // edilebilirlik) + imza (derin denetim boşluk taraması GA2).
+    t("email.tenderExternalInvite.textFootnote", { inviterName: props.inviterName }),
     t("email.tenderExternalInvite.textOptOut", { url: props.optOutUrl }),
+    "",
+    t("email.layout.textSignature"),
   ].join("\n");
 }

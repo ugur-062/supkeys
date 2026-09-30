@@ -26,7 +26,12 @@ import {
   NotificationEmail,
   renderNotificationText,
 } from "./templates/notification";
-import { EmailEnvContext, privacyNoticeUrl, type EmailEnv } from "./templates/_components/email-env";
+import {
+  EmailEnvContext,
+  privacyNoticeUrl,
+  showsPrivacyNotice,
+  type EmailEnv,
+} from "./templates/_components/email-env";
 import type { EmailTemplateData, RenderedEmail } from "./types";
 
 /** Şablonu gönderim ortamı bağlamıyla sarar (alt bilgi alan adı + yıl). */
@@ -47,14 +52,18 @@ export async function renderEmail(
   env: EmailEnv = {},
 ): Promise<RenderedEmail> {
   const rendered = await renderTemplate(spec, locale, env);
-  // Düz metin sürümü de çıkış bağlantısını taşır (HTML alt bilgisiyle aynı
-  // kural: yalnız işlem dışı e-postada, bağlam kurulduysa).
-  if (!env.unsubscribeUrl) return rendered;
+  // Düz metin sürümü de çıkış ve aydınlatma bağlantısını taşır (HTML alt
+  // bilgisiyle aynı kural: çıkış yalnız işlem dışı e-postada; aydınlatma
+  // çıkışla birlikte ya da `privacyNotice` bayrağıyla).
+  const privacy = showsPrivacyNotice(env);
+  if (!env.unsubscribeUrl && !privacy) return rendered;
   const t = emailT(locale);
   const lines = [
-    t("email.layout.textUnsubscribe", { url: env.unsubscribeUrl }),
-    ...(env.preferencesUrl ? [t("email.layout.textPreferences", { url: env.preferencesUrl })] : []),
-    t("email.layout.textPrivacy", { url: privacyNoticeUrl(env.siteUrl, locale) }),
+    ...(env.unsubscribeUrl ? [t("email.layout.textUnsubscribe", { url: env.unsubscribeUrl })] : []),
+    ...(env.unsubscribeUrl && env.preferencesUrl
+      ? [t("email.layout.textPreferences", { url: env.preferencesUrl })]
+      : []),
+    ...(privacy ? [t("email.layout.textPrivacy", { url: privacyNoticeUrl(env.siteUrl, locale) })] : []),
   ];
   return { ...rendered, text: `${rendered.text}\n\n${lines.join("\n")}` };
 }

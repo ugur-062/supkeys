@@ -22,6 +22,19 @@ export interface EmailEnv {
   unsubscribeUrl?: string;
   /** Kayıtlı kullanıcının bildirim ayarları sayfası (varsa alt bilgide). */
   preferencesUrl?: string;
+  /**
+   * KVKK aydınlatma bağlantısını çıkış bağlantısından BAĞIMSIZ açar (derin
+   * denetim boşluk taraması GA2). İşlem dışı akışta çıkış bağlantısı zaten
+   * aydınlatmayı getirir; bu bayrak ÜYE OLMAYAN adrese giden İŞLEM e-postaları
+   * içindir (ekip daveti, misafir bilgi talebi doğrulaması): adres veri
+   * ilgilisinden toplanmamış olabilir ve ilk temas bu e-postadır.
+   */
+  privacyNotice?: boolean;
+}
+
+/** Alt bilgi aydınlatma satırını basar mı? Çıkış bağlantısı varsa her zaman. */
+export function showsPrivacyNotice(env: EmailEnv): boolean {
+  return env.privacyNotice === true || !!env.unsubscribeUrl;
 }
 
 export const EmailEnvContext = React.createContext<EmailEnv>({});

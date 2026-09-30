@@ -64,6 +64,7 @@
     "footnote": "Bu e-posta, {inviterName} firmasının Rothern üzerinden gönderdiği tek seferlik bir alım talebi davetidir; bir pazarlama listesine eklenmediniz. Bu tür davetleri almak istemiyorsanız <optout>buradan tek tıkla kapatabilirsiniz</optout>.",
     "textIntro": "{inviterName} sizi Rothern'de \"{tenderTitle}\" alım talebine davet etti.",
     "textCta": "Kaydol ve teklif ver: {url}",
+    "textFootnote": "Bu e-posta, {inviterName} firmasının Rothern üzerinden gönderdiği tek seferlik bir alım talebi davetidir; bir pazarlama listesine eklenmediniz.",
     "textOptOut": "Bu tür davetleri kapatmak için: {url}",
     "numberLine": "Talep no: {number}",
     "itemsTitle": "Talep edilen {count, plural, other {# kalem}}:",
@@ -136,6 +137,7 @@
     "footnote": "Bu e-posta, yukarıdaki firmaların Rothern üzerinden gönderdiği alım talebi davetlerini bir araya getirir; bir pazarlama listesine eklenmediniz. Bu tür davetleri almak istemiyorsanız <optout>buradan tek tıkla kapatabilirsiniz</optout>.",
     "textIntro": "Rothern'de sizden teklif bekleyen {count, plural, other {# alım talebi}} var:",
     "textItem": "{inviterName} — {tenderTitle}: {url}",
+    "textFootnote": "Bu e-posta, Rothern üzerinden gönderilen alım talebi davetlerini bir araya getirir; bir pazarlama listesine eklenmediniz.",
     "textOptOut": "Bu tür davetleri kapatmak için: {url}"
   }
 }

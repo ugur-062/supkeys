@@ -239,3 +239,57 @@ describe("hatırlatma + özet e-postası + gönderen adı (2026-09-27, Faz 0b)",
     );
   });
 });
+
+describe("düz metin sürümü HTML ile aynı bilgiyi taşır + aydınlatma bayrağı (derin denetim boşluk taraması GA2)", () => {
+  it("dış davet düz metni: 'kim, neden gönderdi' açıklaması çıkış satırından önce, sonda imza (üç dil)", async () => {
+    const en = (await render("en")).text;
+    expect(en).toContain(
+      "This email is a one-time buying request invitation sent by Acme Makina A.Ş. through Rothern; you have not been added to a marketing list.\nTo turn off such invitations: https://staging.supkeys.com/en/decline-invites?token=tok",
+    );
+    expect(en.trimEnd().endsWith("— Rothern")).toBe(true);
+    const tr = (await render("tr")).text;
+    expect(tr).toContain("Acme Makina A.Ş. firmasının Rothern üzerinden gönderdiği tek seferlik bir alım talebi davetidir");
+    expect(tr.trimEnd().endsWith("— Rothern")).toBe(true);
+    expect((await render("ru")).text).toContain("Вас не добавили в маркетинговую рассылку.");
+  });
+
+  it("İngilizce davet: noktayla biten firma adından sonra çift nokta basılmaz", async () => {
+    const out = await render("en");
+    expect(visible(out.html)).not.toMatch(/A\.Ş\.\./);
+    expect(visible(out.html)).toContain("connected with Acme Makina A.Ş. right away.");
+  });
+
+  it("özet düz metni: açıklama + imza", async () => {
+    const out = await renderEmail(
+      {
+        template: "tender_invite_digest",
+        data: {
+          invites: [{ inviterName: "ABC", tenderTitle: "R1", tenderNumber: "ROT-1", closesAt: "x", items: [], itemCount: 0, ctaUrl: "https://x/1" }],
+          optOutUrl: "https://x/opt",
+        },
+      },
+      "en",
+    );
+    expect(out.text).toContain(
+      "This email bundles buying request invitations sent through Rothern; you have not been added to a marketing list.\nTo turn off such invitations: https://x/opt",
+    );
+    expect(out.text.trimEnd().endsWith("— Rothern")).toBe(true);
+  });
+
+  const notification = {
+    template: "notification" as const,
+    data: { subject: "S", heading: "H", paragraphs: ["P"], ctaLabel: "C", ctaUrl: "https://x/c" },
+  };
+  it("privacyNotice: çıkış bağlantısı OLMADAN aydınlatma satırı HTML ve düz metinde (çıkış satırı yok)", async () => {
+    const out = await renderEmail(notification, "en", { siteUrl: "https://www.rothern.com", privacyNotice: true });
+    expect(out.html).toContain("https://www.rothern.com/en/legal/personal-data");
+    expect(out.text).toContain("Privacy notice: https://www.rothern.com/en/legal/personal-data");
+    expect(out.html).not.toContain("Unsubscribe");
+    expect(out.text).not.toContain("Unsubscribe");
+  });
+  it("bayrak yoksa işlem e-postası aydınlatma basmaz", async () => {
+    const out = await renderEmail(notification, "en", { siteUrl: "https://www.rothern.com" });
+    expect(out.html).not.toContain("/legal/personal-data");
+    expect(out.text).not.toContain("/legal/personal-data");
+  });
+});

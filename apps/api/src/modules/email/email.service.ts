@@ -17,6 +17,7 @@ import { localizeAppPath } from "../../common/company/app-routes";
 import { isCriticalEmailContext } from "./critical-contexts";
 import {
   STREAM_SENDER_ENV,
+  privacyNoticeFor,
   streamForContext,
   unsubscribeScopeFor,
   type EmailStream,
@@ -393,6 +394,8 @@ export class EmailService implements OnModuleInit {
       // Alt bilgideki alan adı gönderen ortamın web adresinden (staging kendi alanını basar).
       rendered = await renderEmail(input.templateData, input.locale, {
         siteUrl: resolveWebUrl(this.config),
+        // KVKK aydınlatma: çıkıştan bağımsız (üye olmayan adrese işlem e-postası).
+        privacyNotice: privacyNoticeFor(input.context?.type),
         ...(unsubscribe?.env ?? {}),
       });
     } catch (err) {
