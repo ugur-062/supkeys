@@ -43,6 +43,21 @@ function historyToContents(history: AiHistoryTurn[]): Content[] {
 }
 
 /**
+ * Yanıt metni = ilk adayın `text` parçaları (düşünce parçaları hariç) —
+ * SDK'nin `resp.text` getter'ıyla aynı sonuç, ama functionCall parçası olan
+ * her turda "there are non-text parts functionCall…" uyarısını basmaz
+ * (canlı günlük gürültüsü, derin denetim canlı AI). functionCall/imza
+ * eşleştirmesi ayrı yapılır; bu yalnız metni okur.
+ */
+function textFromParts(parts: ReadonlyArray<{ text?: string; thought?: boolean }>): string {
+  let text = "";
+  for (const p of parts) {
+    if (typeof p.text === "string" && p.thought !== true) text += p.text;
+  }
+  return text;
+}
+
+/**
  * Faz AI-0 — Gemini adapter'ı (@google/genai). Usage normalizasyonu:
  * - `promptTokenCount` cache'lenmiş içeriği DE içerir (SDK dokümantasyonu) →
  *   cache'siz girdi = prompt − cached; ayrı sayılmazsa cache'li token tam
@@ -284,7 +299,7 @@ export class GeminiProvider extends BaseAiProvider {
       }
       const finishReason = resp.candidates?.[0]?.finishReason;
       return {
-        text: resp.text ?? "",
+        text: textFromParts(respParts),
         usage,
         ...(toolCalls && toolCalls.length > 0 ? { toolCalls } : {}),
         ...(finishReason ? { finishReason: String(finishReason) } : {}),
