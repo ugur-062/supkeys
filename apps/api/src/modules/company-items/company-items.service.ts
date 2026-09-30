@@ -601,7 +601,7 @@ export class CompanyItemsService {
     const size = Math.min(Math.max(q.pageSize ?? PRODUCT_PAGE_SIZE, 1), 48);
     // Fiyat süzgecinin para birimi: seçilmediyse FİRMANIN ülkesinden.
     q = { ...q, currency: resolveCompanyCurrency(q.currency, user.country) };
-    const where = productIndexWhere(q, [{ companyId: { not: user.companyId } }], {
+    const where = productIndexWhere(q, [{ companyId: { notIn: await this.hiddenCompanyIds(user.companyId) } }], {
       employeeValues: await employeeValuesQuery(this.prisma, q.employees),
     });
     const orderBy = productIndexOrderBy(q.sort);
@@ -684,7 +684,7 @@ export class CompanyItemsService {
     const raw = await this.crossTenant.companyItem.findMany({
       where: {
         ...publicProductWhere(),
-        companyId: { not: user.companyId },
+        companyId: { notIn: await this.hiddenCompanyIds(user.companyId) },
         ...(q.q ? { AND: productSearchClauses(q.q) } : {}),
       },
       select: {
@@ -916,7 +916,7 @@ export class CompanyItemsService {
     const rows = await this.crossTenant.companyItem.findMany({
       where: {
         ...publicProductWhere(),
-        companyId: { not: user.companyId },
+        companyId: { notIn: await this.hiddenCompanyIds(user.companyId) },
         ...(opts.category && isCategoryCode(opts.category)
           ? { categoryId: { startsWith: categoryPrefix(opts.category) as string } }
           : {}),
@@ -978,6 +978,24 @@ export class CompanyItemsService {
         },
       };
     });
+  }
+
+  /**
+   * Panel ürün listelerinde gösterilmeyecek firmalar: kendisi + herhangi yönde
+   * engel ilişkisi olanlar (derin denetim LU-08 artığı). Engel karşılıklı
+   * görünmezliktir — ürün sayfası (`discoverProduct`) zaten 404 veriyordu,
+   * ama arama, facet sayaçları ve keşif şeridi engelli firmanın ürünlerini
+   * listelemeye devam ediyordu. Kural `CompanyBlocksService.blockedCompanyIds`
+   * ile aynı; çapraz-firma okuma olduğu için `crossTenant`.
+   */
+  private async hiddenCompanyIds(companyId: string): Promise<string[]> {
+    const rows = await this.crossTenant.companyBlock.findMany({
+      where: { OR: [{ blockerCompanyId: companyId }, { blockedCompanyId: companyId }] },
+      select: { blockerCompanyId: true, blockedCompanyId: true },
+    });
+    const ids = new Set<string>([companyId]);
+    for (const r of rows) ids.add(r.blockerCompanyId === companyId ? r.blockedCompanyId : r.blockerCompanyId);
+    return [...ids];
   }
 
   /** i18n Faz 1e: başka firmanın ürün kartları okuyucunun dilinde (ad, özet, özellik satırları). */

@@ -182,6 +182,30 @@ describe("panel pazar katmanı — parite", () => {
     expect(subCategoryCounts(rows, "39121501")).toEqual([]);
   });
 
+  it("engel ilişkisindeki firmanın ürünleri panel aramasında, facet'te ve keşif şeridinde YOK (LU-08 artığı)", async () => {
+    const open = await seedSeller();
+    const blockedByBuyer = await seedSeller();
+    const blockedBuyer = await seedSeller();
+    const buyer = await makeCompanyWithUser(prisma);
+    await prisma.companyBlock.create({
+      data: { blockerCompanyId: buyer.company.id, blockedCompanyId: blockedByBuyer.id },
+    });
+    await prisma.companyBlock.create({
+      data: { blockerCompanyId: blockedBuyer.id, blockedCompanyId: buyer.company.id },
+    });
+    const user = { companyId: buyer.company.id, userId: buyer.user.id } as never;
+
+    const search = await items().discoverSearch(user, { sort: "newest" });
+    expect(search.total).toBe(1);
+    expect(search.items.map((p) => p.company.slug)).toEqual([open.slug]);
+
+    const facets = await items().discoverFacets(user, {});
+    expect(facets.countries).toEqual([{ country: "TR", count: 1 }]);
+
+    const strip = await items().discoverProducts(user, {});
+    expect(strip.map((p) => p.company.slug)).toEqual([open.slug]);
+  });
+
   it("kart 3 maddelik özellik satırı taşır; niteliği olmayan üründe alan HİÇ gelmez", async () => {
     await prisma.categoryAttribute.create({
       data: {
