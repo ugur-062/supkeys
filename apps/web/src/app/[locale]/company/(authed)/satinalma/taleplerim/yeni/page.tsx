@@ -10,6 +10,7 @@ import { AI_TENDER_DRAFT_KEY } from "@/lib/company/ai-search";
 import { DEFAULT_FORM_VALUES, type TenderFormData } from "@/lib/tenders/form-schema";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { mapDetailToForm } from "@/lib/tenders/map-detail-to-form";
+import { appendTermToQuickDraft } from "@/lib/tenders/quick-draft";
 import { PRODUCT_SEED_KEY, mapProductToForm, mapSearchTermToForm, type ProductSeed } from "@/lib/tenders/map-product-to-form";
 import type { AiTenderExtractResult } from "@rothern/shared";
 import { useSearchParams } from "next/navigation";
@@ -86,10 +87,24 @@ export default function YeniTalepPage() {
     return mapDetailToForm(source.data, { forCopy: true });
   }, [fromId, source.data]);
 
-  const termSeed = useMemo(() => mapSearchTermToForm(searchTerm), [searchTerm]);
+  // `?q=` terimi: yarım taslak varsa SİLİNMEZ — terim taslağa kalem olarak
+  // eklenir ve kart taslağı geri getirir (LU-30 gözden geçirme). sessionStorage
+  // yalnız istemcide okunur → karar efektte, o zamana dek çizim beklenir.
+  const termOnly = !!searchTerm && !fromId && !templateId && !fromAi && !fromProduct;
+  const [termSeed, setTermSeed] = useState<TenderFormData | null | undefined>(termOnly ? undefined : null);
+  useEffect(() => {
+    if (!termOnly) {
+      setTermSeed(null);
+      return;
+    }
+    setTermSeed(appendTermToQuickDraft(searchTerm, DEFAULT_FORM_VALUES.items[0]!) ? null : mapSearchTermToForm(searchTerm));
+  }, [termOnly, searchTerm]);
 
   const waiting =
-    (fromId && source.isLoading) || (templateId && templates.isLoading) || sessionSeed === undefined;
+    (fromId && source.isLoading) ||
+    (templateId && templates.isLoading) ||
+    sessionSeed === undefined ||
+    termSeed === undefined;
   if (waiting) return null;
 
   const seed = copySeed ?? templateSeed ?? sessionSeed ?? termSeed ?? undefined;

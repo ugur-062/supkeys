@@ -53,7 +53,10 @@ export function mapProductToForm(seed: ProductSeed): TenderFormData {
  * ARAMA TERİMİ → TALEP TOHUMU. Ürün sayfası/dizini "Talep aç" CTA'ları
  * `?q=` ile gelir (ürün adı ya da arama terimi); serbest metin kutusu
  * kalktığından (2026-09-10) okunmuyordu ve form boş açılıyordu (derin
- * denetim S078). Terim ilk kalemin adı ve başlık olur; miktar/birim alıcının.
+ * denetim S078). Terim ilk kalemin adıdır; miktar/birim alıcının. Başlık
+ * TOHUMLANMAZ (LU-30 gözden geçirme): kısa terim ("M6") başlığı doldurup
+ * 3 karakter kuralına takılıyor ve kalemlerden türetmeyi engelliyordu —
+ * boş başlığı hızlı kart yayında kalemlerden türetir.
  */
 export function mapSearchTermToForm(term: string): TenderFormData | null {
   const name = term.trim();
@@ -61,7 +64,6 @@ export function mapSearchTermToForm(term: string): TenderFormData | null {
   const base = DEFAULT_FORM_VALUES;
   return {
     ...base,
-    title: name.slice(0, 120),
     items: [{ ...base.items[0]!, name: name.slice(0, 200) }],
   };
 }

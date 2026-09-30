@@ -46,6 +46,32 @@ export type QuickDraft = Pick<TenderFormData, "title" | "description" | "items" 
   memberInvites?: MemberInviteTarget[];
 };
 
+/**
+ * "Talep aç" `?q=` terimini YARIM TASLAĞA kalem olarak ekler (derin denetim
+ * LU-30 gözden geçirme). Tohumlu açılış taslağı okumadığı ve otomatik saklama
+ * hemen üzerine yazdığı için alıcının yarım bıraktığı talep sessizce
+ * kayboluyordu. Taslak yoksa `false` (çağıran terimle tohumlar); varsa terim
+ * boş ilk kaleme ya da sona eklenir (aynı adlı kalem varsa eklenmez), taslak
+ * yazılır ve `true` döner — kart taslağı "geri getirildi" bandıyla açar.
+ */
+export function appendTermToQuickDraft(term: string, blankItem: TenderFormData["items"][number]): boolean {
+  const name = term.trim().slice(0, 200);
+  if (!name) return false;
+  const draft = readSession<QuickDraft>(QUICK_DRAFT_KEY);
+  if (!draft) return false;
+  const items = Array.isArray(draft.items) ? draft.items : [];
+  const same = (s: unknown) => typeof s === "string" && s.trim().toLowerCase() === name.toLowerCase();
+  if (!items.some((it) => same(it?.name))) {
+    const emptyIdx = items.findIndex((it) => !(typeof it?.name === "string" && it.name.trim()));
+    const next =
+      emptyIdx >= 0
+        ? items.map((it, i) => (i === emptyIdx ? { ...it, name } : it))
+        : [...items, { ...blankItem, name }];
+    writeSession(QUICK_DRAFT_KEY, { ...draft, items: next });
+  }
+  return true;
+}
+
 /** Saklanmış üye davetlerini okur; bozuk girdi atlanır. */
 export function normalizeMemberInvites(raw: unknown): MemberInviteTarget[] {
   if (!Array.isArray(raw)) return [];
