@@ -139,6 +139,7 @@ function MetaItem({
   value,
   className,
   title,
+  multiline = false,
 }: {
   icon: typeof Layers;
   label: string;
@@ -147,6 +148,10 @@ function MetaItem({
   /** Değer truncate ile kırpılabilir — uzun listelerde (ör. çoklu para
    *  birimi) hover'da tamamı görünsün diye native tooltip. */
   title?: string;
+  /** Değer kendi satırlarını taşıyor (ör. Kapanış: tarih + saat blokları).
+   *  truncate'in nowrap'i blok çocuklara miras kalır, ellipsis de çıkmaz →
+   *  dar masaüstünde tarih uyarısız kırpılıyordu ("28 Ağu 202"). */
+  multiline?: boolean;
 }) {
   return (
     <div
@@ -160,7 +165,10 @@ function MetaItem({
           {label}
         </p>
         <p
-          className="truncate text-sm font-semibold text-zinc-900"
+          className={cn(
+            "text-sm font-semibold text-zinc-900",
+            multiline ? "min-w-0" : "truncate",
+          )}
           title={title}
         >
           {value}
@@ -1995,6 +2003,7 @@ export default function ListingDetailPage() {
             <MetaItem
               icon={CalendarClock}
               label={t("kapanis2")}
+              multiline
               value={
                 l.closesAt ? (
                   <>

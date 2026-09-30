@@ -19,6 +19,8 @@ const securityHeaders = [
 ];
 
 const nextConfig: NextConfig = {
+  // `x-powered-by: Next.js` çerçeve bilgisini sızdırıyordu (G3) — kapalı.
+  poweredByHeader: false,
   // Docker/Coolify: kendine-yeterli minimal sunucu çıktısı (node_modules izlenip
   // .next/standalone'a kopyalanır → ~150MB imaj, `next start` yerine `node
   // server.js`). Monorepo'da workspace bağımlılıkları (@rothern/shared) repo
