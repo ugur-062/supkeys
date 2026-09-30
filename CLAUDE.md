@@ -2385,6 +2385,9 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   (teklifsiz OPEN) düzenlemede "Değişiklikleri kaydet" = PATCH + bekleyen davetler
   hemen, `publish` ÇAĞRILMAZ; DRAFT kaydı `asDraft: true`; düzenlemede
   `QUICK_DRAFT_KEY` yazılmaz. Sözleşme `request-defaults.test`, `quick-request.test`.
+- **`?q=` tohumu yarım taslağı silmez (derin denetim 2026-09-30 LU-30):** oturumda
+  `QUICK_DRAFT_KEY` varsa terim `appendTermToQuickDraft` ile taslağa kalem olarak eklenir ve
+  kart taslağı geri getirir; `mapSearchTermToForm` başlığı tohumlamaz (kalemlerden türer).
 - **Hızlı talep kilitleri (derin denetim 2026-09-30 LU-32):** yayın/taslak akışı mutation'lar
   arasında da sürer (belge yükleme düz async) → düğme kilidi `submitting` state'i + ortak
   `submitLock`, yalnız `isPending`'e bakılmaz. "Tümünü düzenle" şartlar paneli yalnız talebe
@@ -2621,7 +2624,8 @@ anonimleştirilir) ve **PUBLIC** (beacon → `POST public/views`, 60/dk/IP,
 (KVKK). Tekilleştirme `dedupeKey` + unique; 180 gün sonra cron siler.
 Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 **Engel = karşılıklı görünmezlik (derin denetim 2026-09-30 LU-08/17):** panel profil ve ürün
-sayfası 404, `recordPanelView` engelde yazmaz; engel ilişkisindeki firmanın ziyaretleri
+sayfası 404; panel ürün araması, facet sayaçları ve keşif şeridi `hiddenCompanyIds` ile engelli
+firmaları süzer (ff86fd64), `recordPanelView` engelde yazmaz; engel ilişkisindeki firmanın ziyaretleri
 (engelden öncekiler dahil) `visitors()` ve `insights()`'ta kimliksiz sayılır — toplam
 değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). Gün anahtarı `appDayKey`;
 İş Analizi ortanca yanıt süresi dizin cron'uyla aynı `REPLY_WINDOW_DAYS` penceresi.
@@ -3309,10 +3313,9 @@ matrisi + runbook); derin denetim ve düzeltme durumu
   `listing-item-import.service.ts` xlsx yükleme/ayrıştırma yolunun KENDİ kopyasını
   taşıyor — güvenlik düzeltmesi İKİ dosyaya da uygulanmalı (ya da o yol tek kaynağa
   taşınmalı).
-- **Derin denetim DÜŞÜK turu artıkları:** panel ürün listesi (discoverProducts/discoverFacets)
-  engelli firmaları süzmüyor (LU-08); hızlı talep `?q=` tohumu yarım oturum taslağını siliyor
-  (`initialValues` doluyken `QUICK_DRAFT_KEY` okunmuyor — LU-30 2. gözden geçirme). Kararlar
-  63…72 ve ayrıntı `docs/qa-launch-audit-2026-09-29-derin.md` "DÜŞÜK düzeltme durumu".
+- **Derin denetim DÜŞÜK turu:** artık kalmadı (panel ürün listesinde engel süzgeci ff86fd64,
+  `?q=` taslağı 8b646170). Kararlar 63…72 ve ayrıntı `docs/qa-launch-audit-2026-09-29-derin.md`
+  "DÜŞÜK düzeltme durumu".
 - `Supplier.sectors` deprecated kolon kaldırılmalı (migration).
 - `@rothern/email` build'i CI'da otomatikleşmeli.
 - Ürün dizini sırası ham `tier` okur (cron'a dek 1 gün sapma); publish tavanı
