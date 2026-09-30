@@ -205,6 +205,9 @@ yalnız sekiz ülke açıktı (`docs/plan-country-registration.md` tarihsel).
   bakan her kapı (admin `assertKycIdentityComplete` dahil) bu iki kodu açıkça işler;
   admin onayı banka eksiğini elle değil `bankDetailsErrors(requireSwift)` ile ölçer
   (`*Required` eksik, `*Invalid` kilitlemez — MU-02).
+  IBAN zorunlu olmayan ülkede dolu `iban` alanı geçerli olmalı; hesap no alanındaki IBAN
+  biçimli ama mod-97'si tutmayan değer (`isMistypedIban`) `ibanInvalid` verir, hesap no
+  sayılmaz (derin denetim 2026-09-30 LU-10).
 - **Kapalı ülke keşifte aranmaz, davet almaz (MU-09):** tek kaynak
   `external-invite-policy.ts` `registrationBlockedCountry(etiket, e-posta uzantısı,
   site uzantısı)` (herhangi bir ipucu yeter; uzantı tanınsın diye ülke
@@ -220,6 +223,10 @@ yalnız sekiz ülke açıktı (`docs/plan-country-registration.md` tarihsel).
 - **Aranabilir ülke seçici** `components/ui/country-combobox.tsx` (kayıt,
   adres, hızlı talep adresi, banka ülkesi). Telefon: tam liste, ortak kodda
   birincil ülke (+7 → RU, 7xx → KZ; +1 → US), numarasız seçilen ülke kaybolmaz.
+  Çok alan kodlu NANP ülkeleri (DO 809/829/849, JM 876/658, PR 787/939) `COUNTRY_TABLE`'da
+  "1" kodunu taşır, ülke `phone-codes.ts` `NATIONAL_PREFIX_COUNTRY` ile alan kodundan
+  bulunur, ulusal numara alan kodu dahil 10 hane; tek alan kodlu ada ülkeleri 4 haneli kod
+  ("1268") + 7 hane (LU-10).
 - **Türkiye'ye özgü kalanlar (bilinçli):** MERSİS, vergi dairesi, KEP
   yalnız TR (şehir sayfaları ve "Yakınımda" aynı gün dünya geneline açıldı —
   aşağıda "DÜNYA ŞEHİRLERİ"). Para birimi listesi 2026-09-27'de 21'e çıktı
@@ -948,6 +955,12 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   düşünce çıplak RU slug'ı (`rot-000007`) üretiyordu — staging'de ölçüldü.
   Ürün/firma slug'ı zaten donuk sütun. Sözleşme: `listing-page.test`,
   `marketplace.test` "listingHref".
+- **Sistemin DB'ye yazdığı ad sonekleri** (akış çoğaltmada "— Kopya") istek dilinde
+  üretilir, ayıklarken tüm `LOCALES` sonekleri tanınır (derin denetim 2026-09-30 LU-06).
+  YES_NO kalem cevabı DB'de dilden bağımsız sabit (`YES_NO_ANSWER_VALUES`), her yüzeyde
+  okuyucunun diline çevrilir (LU-21). Sözleşme sayfaları (`[locale]/sozlesmeler/*`) ISO
+  `updatedAt` + katalog meta (`web.marketing.legal.<doc>.metaTitle/metaDesc`) taşır,
+  bekçi `legal-pages.test` (LU-23).
 
 ---
 
@@ -956,7 +969,8 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   mesajları Türkçe. `<Field error hint>` sarmalama.
 - Button: primary | secondary | ghost · sm | md | lg. Toast: sonner top-right, richColors.
 - `<RequireAuth>` / `<RequireAdminAuth>` boundary; component yolu `@/components/*`.
-- API çağrıları `useQuery`/`useMutation` + axios instance.
+- API çağrıları `useQuery`/`useMutation` + axios instance. Sipariş durumu/ödemesi değiştiren
+  her mutasyon `invalidateOrderCaches(qc)` (orders + dashboard; derin denetim 2026-09-30 LU-24).
 - **Auth = httpOnly cookie oturum** (token JS'ten OKUNMAZ). Zustand persist
   YALNIZ UI snapshot'ı (`user`/`company`) tutar, token DEĞİL. Kimlik `/me` ile.
   Mutating isteklerde CSRF double-submit (`rk_csrf` → `X-CSRF-Token`).
@@ -972,6 +986,8 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   başarısız" veriyordu. Önce `rks_` ön ekiyle yamandı, alan adı taşınınca yama
   SÖKÜLDÜ. **Staging'i yeniden `rothern.com` altına ALMA.**
   **Kayan oturum:** `AuthCookieInterceptor` ömrün yarısı geçince taze token basar.
+  Doğrulanmamış kayıtta e-posta düzeltme `POST /company-auth/signup/change-email` (eski
+  adres + şifre, yalnız `emailVerifiedAt=null`); yeni kayıt açılmaz (LU-22).
 - **KOYU MOD (2026-09-11, kullanıcı kararı):** ürün arayüzü her zaman AÇIK —
   `dark` variant'ı class tabanlı (`.dark` hiç eklenmez) ve `:root` `color-scheme:
   light` (web + admin) → OS koyu temasında native kontrol/scrollbar da açık kalır.
@@ -997,6 +1013,34 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
   **critical + serious** ihlalde kırmızı. Tuzaklar: `role="row"` tablo bağlamı
   olmadan KRİTİK ihlaldir; `<dl>` altında yalnız `dt`/`dd`/`div` olabilir
   (ikon ya da ipucu sarmalayıcısı `<dd>` İÇİNE alınmalı).
+- **Sorgu ve DTO (derin denetim 2026-09-30):** skip/take ile sayfalanan her `orderBy` benzersiz
+  son anahtarla (`id`) biter (LU-01). Controller `@Body()`/`@Query()` her zaman DTO sınıfı —
+  satır içi tip literali ValidationPipe'ı devre dışı bırakır; admin tarih sorgusu
+  `Matches YYYY-MM-DD` + `IsISO8601({strict:true})` (LU-03/14/17). Nullable alanda `notIn`
+  NULL satırları da eler → `OR: [{x: null}, {x: {notIn}}]` (LU-18). PATCH'te alanı temizlemek
+  için `null` gönderilir, `undefined` JSON'dan düşer (LU-27).
+- **Invariant ve yarış (LU-02/06/15):** "başka satırları sayıp kendi satırını yazan" kural (son
+  SUPER_ADMIN, son yetkili) READ COMMITTED'da write-skew'e açık → saymadan önce ilgili
+  satırları `SELECT … FOR UPDATE` ile kilitle. Deneme hakkı (e-posta kodu `claimCodeAttempt`)
+  hash karşılaştırmasından ÖNCE koşullu `updateMany` ile ayrılır. Pasifleştirme her realm'de
+  `tokenVersion`'ı artırır.
+- **Audit log append-only (LU-05/20):** akış durumu için mevcut satır UPDATE edilmez; bitiş ayrı
+  eylemle, `entityId` ile ilk satıra bağlanır (profil AI `company.profile_enrich_attempt` +
+  `company.profile_enrich_settled`). Firma aktivite logu modül süzgeci `audit.service`
+  `TENANT_ACTIVITY_MODULE_PREFIXES` (yeni `company.<modül>_xxx.*` ailesi listeye); Detay
+  sütununda metadata kodları (`kind`, `reason`) ham basılmaz, katalog etiketi kullanılır.
+- **Web para ve sayı (LU-22/25/28):** tutar elle `toLocaleString`/`${n} ${sym}` ile basılmaz —
+  `formatMoney` ya da `affixCurrency(formatNumber(n, locale), code, locale)`, 2 ondalık
+  `MONEY_FRACTION`; satır tutarı `lineAmount(qty, price)` (kuruşa ROUND_HALF_UP). i18n
+  mesajındaki sayısal parametre `formatNumber`/`useFormatNumber` ile geçer (`toFixed`/`String`
+  değil; TR/RU ondalık virgül). Kullanıcı kontrollü dış URL her render noktasında `safeExternalUrl`.
+- **Web liste durumları (LU-26/27/29/25):** boş durum yalnız başarılı ve boş yanıtta; yükleme ve
+  hata (`ErrorState` + refetch) ayrı dal. KPI drill-down `?status=` hedef listede
+  `useSearchParams` ile başlangıç süzgecine okunur (virgüllü çoklu; KPI birden çok statüyü
+  kapsıyorsa ayrıştırıcı da o kümeyi seçer — Kazanılan = WON + AWARDED_PARTIAL). Talep
+  detayında Kalemler varsayılan sekme (tab eklenmez), Dosyalar `tab=1`. Absolute popover
+  kapalı başlar, Escape ve dış tıklamayla kapanır. `CategorySelectorModal` reddi onaydan
+  önce `validate` prop'uyla (sonra reddetmek taslağı kaybettirir).
 
 ## Tek Kaynaklar — dokunmadan önce buraya bak
 
@@ -1027,7 +1071,7 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 | Faz O dar-bağlam | `common/company/full-read-context.ts` |
 | Web derin bağlantıları (CTA) | `common/company/app-routes.ts` |
 | Public görsel yükleme · metin kalitesi | `common/company/{public-image-upload,public-text-quality}.ts` |
-| Yüklenen tablo dosyası okuma · CSV seçenekleri · ZIP/xlsx açılım kapısı | `common/files/spreadsheet-reader.ts` (`csvReadOptions`, `detectCsvDelimiter`) · `common/files/zip-inspect.ts` (`assertZipWithinLimits`, `XLSX_LOAD_OPTIONS`) |
+| Yüklenen tablo dosyası okuma · CSV seçenekleri · ZIP/xlsx açılım kapısı | `common/files/spreadsheet-reader.ts` (`readCsvInto` = kodlama + `csvReadOptions`; `detectCsvDelimiter`) · `common/files/zip-inspect.ts` (`assertZipWithinLimits`, `XLSX_LOAD_OPTIONS`) |
 | Şahıs firması vergi no (TCKN) görünürlüğü | `common/company/visible-tax-number.ts` (`visibleTaxNumber`) |
 | Kalem fiyatının TRY karşılığı (çok-birimli teklif) | API `common/company/report-currency.ts` `itemUnitPriceTry` ⇔ web `lib/tenders/bid-item-price.ts` |
 | E-posta gönderim kısıcısı | `modules/email/email-send-throttle.ts` |
@@ -1043,8 +1087,23 @@ Plan ve fazlar: **`docs/plan-i18n.md`**. Dil seti TR (kaynak) + EN + RU;
 | Web hazır set / davet varsayılanı | `components/company/permission-presets.ts` (`gatePreset`, `defaultInvitePermissions`) — MU-13 |
 | Şikayet gövdesi (reason/detail bölmesi) · rapor gün aralığı (web) | `lib/company/complaint-payload.ts` · `lib/time-zone.ts` `appDayRangeIso` — MU-11/25 |
 | Admin hata toast'ı | admin `lib/api.ts` `toastApiError` — MU-21 |
+| API takvim sınırı / gün anahtarı (Europe/Istanbul; sunucu UTC) | `common/time/app-calendar.ts` (`appMonth`, `appQuarterStart`, `appYearStart`, `appDayStart`, `appNextDayStart`, `appDay`, `appDayKey`) — derin denetim 2026-09-30 LU-07/17 |
+| Çok tarihli kur çevrimi | `ExchangeRateService.getRatesOnDates` (döngüde `getRateOnDate` yazılmaz) — LU-07 |
+| Tarayıcıya açılan yanıt başlıkları · WS origin kapısı | `common/cors-origin.ts` `CORS_EXPOSED_HEADERS` · `realtime.gateway.ts` `isWsOriginAllowed` — LU-14/19 |
+| Presigned GET `Content-Disposition` · IndexNow talep kapısı | `storage.service.ts` `contentDisposition()` · `seo-index.service.ts` `isListingIndexable` (⇔ `marketplaceIndexableWhere`) — LU-19 |
+| Firma slug rezervleri | `common/company/company-slug.ts` `RESERVED_COMPANY_SLUGS` (public/companies'e statik rota eklenirse buraya da) — LU-01 |
+| E-posta "gönderim denendi" süzgeci · suppression aklama | `email.service.ts` `EMAIL_LOG_HANDLED_WHERE` · `EmailSuppressionService.clear` — LU-18/04 |
+| Satıcıya sayılan bilgi talebi engel süzgeci | `public-inquiry.service.ts` `inquiryNotFromBlockedWhere` — LU-18 |
+| Talep kalemi görsel sahipliği | `company-listings.service.ts` `assertListingItemImagesOwned` — LU-15 |
+| İçerik çevirisi model maliyeti | `content-translation.service.ts` `pricingFor(model)` — LU-17 |
+| Admin denetim eylem sözlüğü · buton kapısı matrisi · tarih girdisi | admin `lib/audit-actions.ts` · `lib/admin-permissions.ts` ⇔ `admin-action-roles-drift.spec` · `lib/date.ts` (`toDateInput`, `toDateTimeLocal`, `nextDateTimeLocal`) — LU-11/12/13 |
+| Web kalem satır tutarı · 2 ondalık · sipariş önbellek tazeleme | `lib/line-amount.ts` (`lineAmount`, `MONEY_FRACTION`) · `hooks/use-company-orders.ts` `invalidateOrderCaches` — LU-22/24 |
+| Sunucudan `/public/*` çağrısı · ikincil blok | `lib/public/marketplace-api.ts` `publicHeaders(locale)` · `fetchSimilarListings` / `fetchRelatedProducts` — LU-23 |
+| ISR'da "şimdi"ye bağlı metin · ürün arama gizli alanları | `hooks/use-hydrated.ts` · `lib/public/product-filter-params.ts` `productSearchCarry` — LU-30 |
+| Evet/Hayır kalem cevabı | `@rothern/shared` `data/yes-no-answer.ts` `YES_NO_ANSWER_VALUES` (web `lib/tenders/yes-no-answer.ts`, API `tApi(cevapEvet/cevapHayir)`) — LU-21 |
+| Telefon NANP alan kodu → ülke | `@rothern/shared` `data/phone-codes.ts` `NATIONAL_PREFIX_COUNTRY` — LU-10 |
 | İçe aktarma sütun/limit (talep kalemi · teklif) | `@rothern/shared` `item-import.ts` / `bid-import.ts` |
-| IBAN (TR + yabancı mod-97) | `@rothern/shared` `ibanChecksumOk` / `isValidIbanTr` |
+| IBAN (TR + yabancı mod-97) · hesap no'daki yanlış yazılmış IBAN | `@rothern/shared` `ibanChecksumOk` / `isValidIbanTr` · `isMistypedIban` — LU-10 |
 | Ölçü birimi · faaliyet tipi · kayıt ülkesi | `@rothern/shared` `constants/{units,company-activities}.ts`, `data/country-profiles.ts` |
 | Görünürlük katmanı (public) | `lib/public/visibility.ts` (`VISIBILITY`, `canSee`, `loginHref`) |
 | Pazar yeri sözcükleri/rotaları · yayın anahtarı | `lib/public/{marketplace,marketplace-live}.ts` |
@@ -1205,6 +1264,11 @@ pnpm --filter @rothern/db seed-category-attributes    # seed-categories'ten SONR
 ```
 Sözlük önceliği: üretilen dosya ÖNCE, elle yazılan SONRA → insan kararı kazanır.
 `import-ariba-csv` fail-loud (L1/L2/L3 ayrışması, öksüz düğüm → durur).
+**Nitelik zorunluluğu (derin denetim 2026-09-30 LU-09):** segment (L1) düzeyinde yalnız TÜM
+ailelere uyan alan zorunlu olabilir; aileye özgü zorunluluk L2 bindirmesiyle verilir ve her
+yeni (kategori, anahtar) için `category-attribute-names.i18n.tsv`'ye EN/RU satırı eklenir.
+`CATEGORY_ATTRIBUTES`'ta seçenek ya da zorunluluk değişince `seed-marketplace-demo.ts`
+PRODUCTS attrs'ı da güncellenir (`assertAttrs` fail-loud, tüm demo seed'i durdurur).
 
 > ⚠️ `cleanup-categories` bu akışın **PARÇASI DEĞİL** (segment gizler, ad
 > değiştirir → birebir garantisini bozar). `gen-category-leaves` **SİLİNDİ**.
@@ -1505,6 +1569,15 @@ açıkça yazılır. Geçiş emniyeti: liste boş + roller dolu → rol hazır s
   yalnız id/ad/rol; `company/users` OKUNMAZ) aynı kural. Detayın rekabet özeti yalnız
   eliminatedAt boş ve KAZANAN teklifin `round`undaki teklifleri sayar (sonuçlanmış
   istekte ilanın currentRound'u güvenilmez); kalem kazanan toplamı teklif + birim başına.
+- **Web kapıları API'nin birebir aynası (derin denetim 2026-09-30 LU-20/21/28/31):** teklif
+  tarafı eylemler `SATISCI` etiketiyle değil izinle (`userHasPermission(user, "sell:bid:submit")`;
+  etiket yalnız ürün izni olan üyede de var). Kazandır/Kalem bazlı kazandır `buy:award`, Ele
+  `buy:listing:manage`. Mutasyon yapan her kontrol ucun iznini ayrıca denetler — sayfayı açan
+  izin (`insights:view`) eylemin izni (`company:manage`) olmayabilir. Kurucu'nun yetki
+  tablosunu yalnız Kurucu düzenler. Silver+ eylemler (bağlantı daveti) her yüzeyde
+  `tierAtLeast`, ücretsizde `PRICING_HREF`'e kilitli CTA; onay akışında YENİ akış ve kopya Gold,
+  mevcut akışı yönetmek kademesiz. Kurucu olmayan üye onboarding'de "Kurucu tamamlamalı"
+  ekranını görür (`user.isOwner === false`).
 - Yetki tablosu ekranı: `components/company/permission-table.tsx` (hazır set
   çipleri + 4 grup tik tablosu); yazma `PUT company/users/:id/permissions`.
 
@@ -1577,6 +1650,10 @@ sitede DURUR (gelen bağlantı kırılmasın) ama `noindex` alır.
 `OR`/`AND` süzgecini kapının yanına spread ile YAZMAZ (anahtarı ezer, embargo
 sessizce düşer — derin denetim 2026-09-29 Y-10, `?country=`); `AND: [kapı,
 ...süzgeçler]`. Sözleşme `public-marketplace.spec` "embargo süzgeçlerle EZİLMEZ".
+Aynı kural `publicProductWhere()`/`PUBLIC_PROFILE_WHERE` için: `company` anahtarının yanına
+spread ile ikinci `company` yazılmaz, `AND: [...]` (ilişkili ürün ucu firma kapısını eziyordu —
+derin denetim 2026-09-30 LU-01). Firma dizininde Rothern ID eşleşmesi yalnız panelde
+(`DirectoryScope.matchRothernId`); public dizin ve facet bu dalı kurmaz.
 
 ### İLAN SAHİBİ ANONİM
 Herkese açık talep sayfasında firma adı/logosu/profil bağlantısı GÖSTERİLMEZ;
@@ -1693,6 +1770,10 @@ eksikse "otomatik" değildir:
   özgü) → font `readFile` + `outputFileTracingIncludes`; route-handler-only
   segmentler (`/api`, `/sitemaps`) public-routes render değişmezinden muaf;
   web sitemap fetch'leri `SEO_TAGS.sitemap` etiketi taşımalı.
+- **Derin denetim 2026-09-30 (LU-25/30):** sitemap'teki statik dizin girdileri (`/urunler`,
+  `/alim-talepleri`, `/firmalar`) sayfanın noindex kararındaki `dizinBos` ile süzülür.
+  `ListingCard variant="row"` çağıranları her fact'e dilden bağımsız `icon` verir (etiketten
+  tahmin yalnız yedek); ürün arama formunun gizli alanları elle yazılmaz, `productSearchCarry`.
 
 ---
 
@@ -1731,6 +1812,14 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   locale + `{contextType, contextId}`i geri geçirir, `sent:false` başarı sayılmaz. Yeni
   gönderim yolu locale ve context'i MUTLAKA geçirir (yoksa TRANSACTIONAL sayılır, çıkış
   başlığı düşer).
+- **Suppression ve tekillik (derin denetim 2026-09-30 LU-04/14/18):** suppression eşleşmesi
+  (türetme + gönderim kapısı) `toEmail` üzerinde BİREBİR ve indeksli; aklama yalnız
+  `EmailSuppressionService.clear` (kayıtlardaki tüm harf yazımlarına marker). Gönderim yoluna
+  `mode: insensitive` EKLENMEZ (ILIKE indeks kullanmaz). Günde/haftada bir tekillik sorguları
+  `status: { not: "FAILED" }` değil `...EMAIL_LOG_HANDLED_WHERE` ile — politika gereği atlanan
+  gönderim de FAILED yazılır (`EMAIL_SKIPPED_SUPPRESSED_PREFIX`/`_OPTED_OUT_PREFIX`), yoksa
+  zamanlayıcı her turda yeni satır yazar. `EmailService` `context.id`'ye e-posta adresi yazılmaz
+  (Sentry `extra.contextId`'e düşer); günlükte adres her zaman `maskEmail`.
 - **DAVET KUYRUĞU** (`external_listing_invites`, talep × adres): eskiden davet
   `CompanyReferralInvite`in kendisiydi ve (davet eden × adres) BENZERSİZ olduğu
   için alıcı aynı tedarikçiyi yalnız İLK talebine davet edebiliyordu. Artık
@@ -1753,6 +1842,10 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   bulduğu adrese davet GİTMEZ (`CONSENT_REQUIRED`), elle yazılan gider. Kayıt olunca adrese gelmiş TÜM açık talep davetleri
   (başka alıcılarınki dahil) `ListingInvitation` olur (`attachExternalListingInvites`).
   Web QUEUED'u başarı sayar (`isInviteAccepted`).
+  Dış talep daveti BUYING_TIER (GOLD) ister; admin GOLD→SILVER'da kuyruktaki satırlar
+  `cancelQueuedListingInvites` ile iptal edilir. Talep daveti e-postası `ExternalListingInvite`
+  id'siyle loglanır → referral 7 gün freni talep davetini satırın `sentAt`/`reminderSentAt`'inden
+  okur (derin denetim 2026-09-30 LU-07).
 - **AI TEDARİKÇİ KEŞFİ (Faz 1, 2026-09-27; kullanıcı: "kalemler kısmında AI ile
   tedarikçi bul'u çok daha iyi yap; talep açıldıktan sonra da bulunanlara tek
   tıkla davet; uluslararası ise yurt dışı dahil; adaylar seçili gelsin; davetli
@@ -1914,9 +2007,11 @@ Faz 2 günlük e-posta programı → Faz 3 organik büyüme → Faz 4 ölçüm.
   - **Akşam özeti adres × tür başına alıcının yerel gününde TEK (derin denetim
     2026-09-29 MU-14):** `digestDue` son özetin EmailLog zamanını (`lastDigestAt`) alır;
     18:00 sonrası kalem ertesi 18:00'i bekler, sabah gönderimi yalnız o günün özeti
-    kaçtıysa. Özet/kuyruk gönderimi tercihi GÖNDERİM anında da okur (kullanıcı yok/pasif/
+    kaçtıysa. Günde tek kuralı yalnız yerel 18:00 ve sonrasında giden özeti sayar; sabah
+    telafisi ya da 24 saat tavanıyla giden özet o akşamın özetini engellemez (LU-33). Özet/kuyruk gönderimi tercihi GÖNDERİM anında da okur (kullanıcı yok/pasif/
     silinmiş ya da tercih kapalı → kalemler düşer). Dış davet dağıtıcısı satırı göndermeden
-    sahiplenir (`updateMany state=QUEUED ∧ sendAfter<=now` + 10 dk kira); hatırlatma yalnız
+    sahiplenir (tek ifade `UPDATE … WHERE id = ANY($ids) AND state='QUEUED' AND sendAfter<=now
+    RETURNING id` + 10 dk kira; adres grubu yalnız dönen satırlardan — LU-33); hatırlatma yalnız
     `referralInvite.status=PENDING`; kayıtta iptal edilmiş referral ve REFERRAL_CANCELLED/
     INVITER_DOWNGRADED satırı bağlanmaz (MU-16).
   - Migration `20260927235000_email_digest_items` (eklemeli). Sözleşmeler:
@@ -2290,6 +2385,13 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   (teklifsiz OPEN) düzenlemede "Değişiklikleri kaydet" = PATCH + bekleyen davetler
   hemen, `publish` ÇAĞRILMAZ; DRAFT kaydı `asDraft: true`; düzenlemede
   `QUICK_DRAFT_KEY` yazılmaz. Sözleşme `request-defaults.test`, `quick-request.test`.
+- **Hızlı talep kilitleri (derin denetim 2026-09-30 LU-32):** yayın/taslak akışı mutation'lar
+  arasında da sürer (belge yükleme düz async) → düğme kilidi `submitting` state'i + ortak
+  `submitLock`, yalnız `isPending`'e bakılmaz. "Tümünü düzenle" şartlar paneli yalnız talebe
+  uygulanan bölümleri çizer (görünürlük, kapanış, adres talebin kendi bölümünde). "Seçili
+  ülkeler" kipinde son ülke çıkarılamaz (boş liste = tüm ülkeler). Kalem soru tavanı
+  `MAX_ITEM_QUESTIONS`=20 (`@ArrayMaxSize(20)`). Kalem görselinden talep kapağı türetmek alıcı
+  anonimliği kararını bekliyor (görsel URL'i tenant önekini taşır).
 - **Talep yaşam döngüsü (derin denetim 2026-09-29 MU-20):** `updateListing` davetleri
   FARK olarak uygular — formda kalan satır yeniden yazılmaz (origin/aiReason korunur),
   formda olmayan (AI dahil) silinir, bağlantı şartı yalnız yeni davetliye; duyurusu
@@ -2300,6 +2402,22 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   ya da Kurucu'ya devreder. Askıdaki/pasif firma: `sellerVisibleWhere` süzer, `getOne`
   (teklifsiz)/`placeBid` 404, kazandırma 400; satıcıda davet sayan her yüzey (pano sayacı,
   Aksiyon Merkezi) aynı süzgeci uygular.
+- **Talep/teklif yarış ve kapıları (derin denetim 2026-09-30 LU-14/15/16):** kalem görseli yalnız
+  firmanın kendi public deposundan ya da kendi katalog görselinden (`assertListingItemImagesOwned`;
+  kalem yazan her yol). `placeBid` teklif satırını ilan kilidi altında `FOR UPDATE` ile yeniden
+  okur (tx dışı `existingBid`'e dayanan yeni kural karşılaştırılan alanlara eklenir); kazandırma
+  guard'ları teklif `version`'ına koşullu → teklif içeriğini değiştiren her yazım `version`'ı
+  artırır. Claim'ler (`closeExpired`, `announceListingOpen`, üyelik düşürme) `findMany`
+  koşulunu claim'in `where`'inde tekrarlar. DRAFT teklif canlandırma placeBid zaman kapılarına
+  tabi (web `canExtend` aynası). Pazarlık kıyası kayıtlı tutarla aynı yuvarlamada (API
+  `roundMoney` ⇔ web `distribute.roundMoney`). Sahip ETag'i istek dilini içerir; talep
+  `decimalPlaces` tavanı `MONEY_DECIMALS`.
+- **Katılımcı bildirimi ve sipariş geçişi (LU-16):** `notifyListingParticipants`/
+  `notifyListingClosed` embargoda yalnız teklif sahiplerine; talebe davet ekleyen her yol
+  `assertInviteWindowOpen`'dan geçer (İngiliz usulü, 2 dk). Sipariş geçişine bağlı çapraz-firma
+  yan yazma `transition(..., { inTx })` ile aynı transaction'da (ret + kazandırma geri alma).
+  Damga telafisi gereken cron bildirimi `notifyOrderPartyUnsafe`; damgayla süzülen batch
+  taraması cursor+skip değil keyset (`id > son id`).
 
 **TALEP DETAYI DÜZENİ (2026-09-17, kullanıcı kararı):** `/company/ilan/[id]`
 iki görünümde de sekme sayısı İKİ — `Kalemler` (kalemler + Genel Bilgi
@@ -2442,6 +2560,11 @@ Panel `/company/satis/urunlerim`, public `/firma/<slug>/urun/<slug>`.
 - **Skor ≠ yayın kapısı:** skor (0-100) yönlendirir; `productPublishBlockers`
   engeller (ad, kategori, ≥100 karakter açıklama, ≥1 görsel, ≥1 anahtar kelime).
   Fiyat ve nitelik kapıda YOK.
+- **Vitrin sayaçları ve arama (derin denetim 2026-09-30 LU-08/31):** Ürünlerim sayaçları liste
+  süzgeciyle AYNI where'den (`SHOWCASE_STATUS_WHERE`); `enforceProductLimit`'in kırptığı ürün
+  APPROVED + isPublic=false = "taslak". `CompanyItem.searchText` her yazma yolunda (create,
+  update, import, updateShowcase) `foldSearchText(ad+marka+mpn+etiketler)`. FIXED/TIERED fiyat 0
+  olamaz (`MIN_MONEY`), fiyat vermeyen ON_REQUEST seçer. Ürün etiketi istemcide de ≤50 karakter.
 - **⛔ TOPLU ÜRÜN EKLEME KALDIRILDI (2026-09-15, kullanıcı kararı).** Excel/CSV
   şablonu (`company/items/import/{template,parse,commit}`) ve katalog PDF/foto
   AI çıkarımı (`ai/product-extract`) web, API ve `@rothern/shared`
@@ -2474,6 +2597,9 @@ talep ANONİMLEŞTİRİLİR (mesaj/adet/ürün/şehir kalır), yanıt Silver+.
 yeni 50 düz dizi). Kayıtlı alıcının bilgi talebi iki yönlü `CompanyBlock`a uyar (404).
 Satıcı e-postası sell:view izinli üyelere (Kurucu örtük), en eski önce, en fazla 5. Anonim
 `fetch` ile atılan herkese açık istek `Accept-Language: useLocale()` koyar (misafir dili).
+Satıcı tarafında talep sayan her sorgu (gelen kutusu, Aksiyon Merkezi) engel süzgecini
+`inquiryNotFromBlockedWhere`'den alır: engelde iki yönde gizli, yanıt 404, misafir satırları
+muaf (derin denetim 2026-09-30 LU-18).
 
 **Ürün → talep köprüsü:** "Bu ürünü satın alma talebime ekle" ürünü sihirbaza
 İLK KALEM olarak taşır; miktar ve fiyat TAŞINMAZ (MOQ satıcının tabanı, vitrin
@@ -2494,6 +2620,11 @@ anonimleştirilir) ve **PUBLIC** (beacon → `POST public/views`, 60/dk/IP,
 3 sn okuma + görünür sekme, çerezsiz, bot süzülür). **IP'den firma tahmini YOK**
 (KVKK). Tekilleştirme `dedupeKey` + unique; 180 gün sonra cron siler.
 Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
+**Engel = karşılıklı görünmezlik (derin denetim 2026-09-30 LU-08/17):** panel profil ve ürün
+sayfası 404, `recordPanelView` engelde yazmaz; engel ilişkisindeki firmanın ziyaretleri
+(engelden öncekiler dahil) `visitors()` ve `insights()`'ta kimliksiz sayılır — toplam
+değişmez, kimlikli sayı ve şehir kırılımı süzülür (`blockedIds()`). Gün anahtarı `appDayKey`;
+İş Analizi ortanca yanıt süresi dizin cron'uyla aynı `REPLY_WINDOW_DAYS` penceresi.
 
 ---
 
@@ -2508,11 +2639,15 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 > `ALLOW_REMOTE_MIGRATION=1 pnpm --filter @rothern/db migrate:deploy`
 > (`assert-migration-target.ts` uzak host'u onaysız reddeder).
 
-- **Son üç migration derin denetim ORTA turundan (2026-09-29), staging VE canlıda
-  BEKLİYOR (O-32):** `20260929230000_rfq_active_bid_round_backfill` (salt DML, idempotent —
+- **Son migration derin denetim DÜŞÜK turundan (2026-09-30), staging VE canlıda BEKLİYOR
+  (O-40):** `20260930120000_notification_cron_indexes_fx_precision` — notifications'a 2 index +
+  `listing_bid_items.fxToBase` DECIMAL(24,12) (ölçek genişlemesi tabloyu yeniden yazar,
+  snapshot). Damga her yerde 12 ondalıkla üretilir (saklanan = hesaplanan). Ardından
+  `seed-category-attributes` yeniden (O-41). Bekleyen toplam 14.
+- Öncesi üçü derin denetim ORTA turundan (2026-09-29, O-32): `20260929230000_rfq_active_bid_round_backfill` (salt DML, idempotent —
   MU-20), `20260929160000_company_user_2fa_attempts` (NOT NULL DEFAULT 0 + iki nullable,
   metadata-only; yeni API'nin firma 2FA girişi bunsuz ÇALIŞMAZ — MU-16),
-  `20260929150000_email_log_locale` (nullable TEXT — MU-05). Bekleyen toplam 13.
+  `20260929150000_email_log_locale` (nullable TEXT — MU-05).
 - Öncesi `20260928170000_referral_invite_cancelled` (enum `ADD VALUE`; referral
   davet iptali satırı silmez, CANCELLED — yayın denetimi Bölüm 5). Öncesi
   `20260928090000_ai_member_invites` (+
@@ -2543,6 +2678,10 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   → eski API yeni parametreye 400 döner).
 - NOT: yerel dev artık STAGING DB'ye bağlı (2026-09-11); canlı migration için
   `.env.prod.local` değerleriyle `ALLOW_REMOTE_MIGRATION=1 migrate:deploy`.
+- **Migration nöbetçisi** `assert-migration-target.ts` DATABASE_URL ile DIRECT_URL'in İKİSİNİ de
+  denetler (Prisma migrate directUrl'e yazar); biri uzaksa `ALLOW_REMOTE_MIGRATION=1`,
+  çözümlenemeyen host fail-closed. `wipe-residue` KORUNAN listesi başvuru tablolarını (GeoCity
+  dahil) içerir; yeni başvuru/katalog tablosu buraya da eklenir (derin denetim 2026-09-30 LU-09).
 - **ŞEMA BEKLEYEN (migration onayı yok):** ürün öne çıkan özellikler / paket içi
   adet / teslim süresi-bölgesi; firma teslimat bölgesi; "Toptancı" faaliyet
   tipi; ilan görüntülenme sayacı.
@@ -2573,6 +2712,15 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   kilitlenmez; `open` + sorgu verisine bağlı efektle, kullanıcı elle düzenlemediyse yeniden
   hesaplanır — ve içerik değişmedikçe state yeniden YAZILMAZ (9aee3158: davet diyaloğu
   sonsuz render döngüsü).
+- **TanStack Query v5 `mutate(x, { onSuccess })` callback'i yalnız SON çağrıda çalışır:**
+  paylaşılan mutation'da çağrıya özgü sonuç işi `mutateAsync(x).then(...).catch(() => {})`
+  ile (derin denetim 2026-09-30 LU-26).
+- **Durumunu kendi state'inde tutan kancalar** (ör. `useGeoCityName`) girdi değiştikten bir
+  render SONRA güncellenir: "değişim kullanıcıdan mı" ref'ini ilk efekt atlamasında sıfırlama,
+  karşı durum gelene dek tut (LU-30). Asenkron işten sonra listeye yazan bileşen fonksiyonel
+  güncelleme (`prev => …`) kullanır, açılıştaki props kopyasını değil (`ImageUploader`, LU-31).
+- **SSR'lı `<img onError>` yedeği** mount sonrası `img.complete && naturalWidth === 0`
+  denetimini de yapar — hata hidrasyondan önce olmuş olabilir (`CompanyLogo`, LU-26).
 - **Yol adına göre RENDER DALLANMASI yapma.** `usePathname()` statik/ISR
   üretimde "/" DÖNMÜYOR → hydration #418. "Şu an neredeyim" bilgisini istemci
   efektinden al. (Teşhis: JS'siz DOM ile hydration sonrası DOM'u ÖZNİTELİK
@@ -2616,6 +2764,12 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   gece 00:00–03:00 ölçüldü). Kural: gösterim tarihi için `new Date()` +
   yerel `getHours/getDate`/`differenceInCalendarDays` KULLANMA; testte
   tarihi `+03:00` ofsetli ISO ile kur (`date.test`, `seller-state.test`).
+  İstanbul duvar saati yerel `new Date(y,m,d,h,mi)` ile KURULMAZ (DST'li tarayıcıda ileri alma
+  boşluğunda saat kayar): gün `toAppCalendarDate` (yerel öğle), saat `wallClock` (LU-25).
+  Takvim günü (YYYY-MM-DD) `formatDate`'e `T12:00:00+03:00` ile verilir (LU-31). API karşılığı
+  `common/time/app-calendar.ts`: `new Date(y, m, 1)`/`getMonth()`/`toISOString().slice(0,10)`
+  ile sınır ya da gün anahtarı kurulmaz (LU-07/17). ISR'lı herkese açık sayfada "şimdi"ye bağlı
+  metin (kalan gün, "Yeni") `useHydrated` sonrası, yer tutucuyla çizilir (LU-30).
 - **`useHeroGone`:** panel kabuğu sayfadan ÖNCE mount olur → sentinel'i
   4 sn `MutationObserver` ile bekler; `usePathname` YALNIZ efekt bağımlılığı.
 - **`Badge` tabanı `shrink-0` taşır** — daralması gereken rozete `shrink` ver.
@@ -2662,6 +2816,9 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
   ("Cannot POST /company-auth/login"). Doğrulama: canlı JS chunk'larında adresi ara.
   Vercel CLI yerelde yetkili (`--scope rothern`, `supkeys-web`/`supkeys-admin`).
 - **`@rothern/email` değişince** `pnpm --filter @rothern/email build` şart.
+- **Web Docker imajı @rothern/i18n'e bağlı** (`next.config.ts` import eder): Dockerfile'lar tüm
+  workspace manifestlerini kopyalar, derleme sırası `vercel.json` ile aynı: shared → i18n → web
+  (derin denetim 2026-09-30 LU-24).
 - **Görseller `cdn.rothern.com`'dan servis edilir**, `pub-*.r2.dev` DEĞİL
   (o bucket'ın Public Development URL ayarı kapalı — coğrafi engel değil).
   Taşıma scripti `scripts/migrate-public-images.ts` (2026-09-05'te koşuldu,
@@ -2671,9 +2828,9 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 
 ## Test & Kalite
 
-- API **267 dosya / 2.924 test** (2 LIVE spec atlanır) · web **216 / 1.265** · admin
-  **27 / 135** · i18n **8 / 39** — toplam 518 dosya / 4.363 test (derin denetim
-  2026-09-29 son onarım turu tam regresyonu, HEAD e4c674e2; API 10'luk `--runInBand` partiler).
+- API **283 dosya / 3.117 test** (2 LIVE spec atlanır) · web **245 / 1.419** · admin
+  **41 / 198** · i18n **8 / 39** — toplam 577 dosya / 4.773 test (derin denetim
+  2026-09-30 DÜŞÜK turu tam regresyonu, HEAD 4f921485; API 10'luk `--runInBand` partiler).
   Web vitest tam koşuda 6 GB WSL'de yük kaynaklı zaman aşımı verebilir (15 sn / findBy
   1 sn) — dosyayı tek başına yeniden koş, gerileme sayılmaz. `dashboard-analytics.spec` "dolu senaryo" ARA SIRA
   kırmızı (servisin `end = new Date()` ↔ `createdAt @default(now())` yarışı) —
@@ -2689,6 +2846,12 @@ Sayılar herkese, kimlikli LİSTE Silver+; İş Analizi Silver+.
 - **Web vitest `sonner` sahtesi bileşenin kullandığı TÜM toast yöntemlerini
   (success/error/info/warning) içermeli** — eksik yöntem TypeError atıp catch
   dalına düşürür, test yanlış dalı sınayıp yine yeşil kalır (derin denetim Y-15).
+- **Yarış testi ayrı istemci ister (derin denetim 2026-09-30 LU-02):** `test-db.ts` istemcisi
+  `connection_limit=1` ile transaction'ları zaten seri koşturur → eşzamanlılık testi ayrı, çok
+  bağlantılı bir PrismaClient ve bariyer kullanır (örnek `admin-staff.spec.ts`); kilitsiz
+  sürümde kırmızı olduğu görülür.
+- **Web ve admin vitest `@rothern/shared`'i dist'ten okur** (API jest src'yi okur): shared
+  değişince vitest'ten önce `pnpm --filter @rothern/shared build` (LU-10).
 - **Staging e2e (2026-09-11/12):** `pnpm --filter @rothern/web e2e:staging` — 87 test
   (`e2e/staging-*.spec.ts`: satın alma zinciri, satış zinciri + admin ürün onayı,
   rol kapıları, firma doğrulama + Destek rolü, mobil 400 px, **izin matrisi**,
@@ -2792,6 +2955,14 @@ push yalnız acil durumda. **Birleştirmeden sonra hemen
 `git checkout main`** — 2026-09-12'de `production`da kalınıp oraya commit
 atıldı, `checkout -B` ile dal sıfırlanınca commit düştü (reflog'dan kurtarıldı).
 
+**Zorunlu kontrol tek iş (derin denetim 2026-09-30 LU-01):** `Test (api + typecheck)`
+kontrolünü YALNIZ `test.yml`'deki test işi raporlar; aynı adlı ikinci iş (eski
+`test-docs-only.yml` gibi) EKLENMEZ — aynı adlı iki kontrolden biri zorunlu kapıyı gerçek
+testler bitmeden karşılar. Yalnız belge içeren PR'da atlama `changes` işi + `if: !cancelled()
+&& needs.changes.outputs.code != 'false'` ile (şüphede testler koşar). `health-prod` push
+koşumu `EXPECTED_SHA` verir, `prod-health.mjs` `/health` sürümü o SHA'ya eşitlenene dek yoklar
+— sabit bekleme sürümün indiğini kanıtlamaz (O-37, O-38).
+
 ### CSRF duruşu (üretim) — KAPANDI, guard açık (2026-09-12 doğrulandı)
 
 Bu bölüm önceden "üretimde `SameSite=none`, double-submit baypas, `lax`
@@ -2835,8 +3006,9 @@ staging'de de zorunlu. Personel servisinde kendine yıkıcı işlem (rol düşü
 **FİRMA 2FA FRENİ + E-POSTA KODU (MU-16).** `CompanyUser.twoFactorFailedAttempts/
 twoFactorWindowStartedAt`: 15 dk'da 5 deneme (TOTP, kurtarma, e-posta; doğrulamadan ÖNCE
 koşullu ayrılır, başarıda sıfırlanır), kilitte 429 `TWO_FACTOR_LOCKED` + sahibine tek
-e-posta; `twoFactorLastTotpStep` aynı kodun tekrarını reddeder (`enableTwoFactor` adımı
-kaydetmez; migration `20260929160000_company_user_2fa_attempts`). Doğrulanan
+e-posta; `twoFactorLastTotpStep` aynı kodun tekrarını reddeder (kurulum da kapsanır: `enableTwoFactor`
+kurulum kodunun adımını yazar; kurulumdan hemen sonra girişi sınayan testler adımı bir geri
+çeker — `ageTotpStep`, derin denetim 2026-09-30 LU-33; migration `20260929160000_company_user_2fa_attempts`). Doğrulanan
 `EmailVerificationCode` SİLİNİR (koşullu, count === 1); `usedAt` yalnız "yeni kod üretilince
 kapatıldı"; saatlik tavan (`EMAIL_CODE_MAX_PER_HOUR`) yalnız doğrulanmamış kodu sayar; tavan
 dolu + geçerli kod → `twoFactorRequired`, yoksa 429 `EMAIL_CODE_CAPPED` (503 yalnız gönderim
@@ -2890,6 +3062,15 @@ değil: web 5xx'i genel toast'a çevirir, Sentry filtresi 5xx'i raporlar). 25 MP
 512 MB konteynerde OOM'a karşı KESİN güvence değil (Render bellek izlemesi operatör O-8; kalıcı çözüm
 `resourceLimits`li worker). Yeni türetilmiş öğe türü (ör. `tmap`) →
 `HEIF_DERIVED_CANVAS_TYPES`. Bozuk görsel/çözünürlük hataları 400.
+
+**REALTIME, İNDİRME, İSTEMCİ HATA UCU (derin denetim 2026-09-30 LU-13/14/19).** WS origin kısıtı
+`cors` ile DEĞİL engine.io `allowRequest` ile uygulanır (cors paketi izinsiz origin'i
+reddetmez); `isWsOriginAllowed` REST allowlist'iyle aynı kalır (prod `CORS_ORIGINS`, O-44).
+`handleConnection`'ın doğrulama sözü `client.data.ready`'de; yeni `@SubscribeMessage` işleyicisi
+`client.data`'ya güvenmeden önce onu await eder. İstemcinin okuması gereken yeni yanıt başlığı
+`CORS_EXPOSED_HEADERS`'a eklenir; presigned GET `Content-Disposition` her zaman
+`contentDisposition()`. Web ve admin `/api/client-error` aynı kural: `x-real-ip`, toplam tavan,
+sunucu tarafı `scrubUrl`.
 
 **SUPABASE VERİ API'Sİ KAPALI (2026-09-16, ölçülerek bulundu).** Staging'de
 anonim anahtarla (tarayıcıya giden AÇIK değer) `password_reset_tokens`,
@@ -2985,6 +3166,10 @@ matrisi + runbook); derin denetim ve düzeltme durumu
   çağrıları (`getJson(..., critical=true)`, `getDetail`) ağ hatası/5xx/429'da
   çalışma anında `PublicApiUnavailableError` atar (ISR son iyi sürümü korur);
   404/4xx = gerçek yok; `next build`de atılmaz. İkincil bloklar yedekle kalır.
+  Sunucudan `/public/*` çağıran sayfa düz `fetch` değil `publicHeaders(locale)` kullanır (dil,
+  SSR sırrı, ziyaretçi IP'si; dinamik sayfada önce `attributeSsrToVisitor()`); ikincil bloklar
+  kritik olmayan yardımcıyla (`fetchSimilarListings`/`fetchRelatedProducts`), `crossCounts`
+  gibi ikincil blok ana fetch'in hatasını kendisi yutar (derin denetim 2026-09-30 LU-23/24).
   Hata sınırları `robots noindex` taşır.
 - **SSR kovaları (derin denetim 2026-09-29 MU-12; eski "muafiyet" KALKTI):** web
   sunucusu `SEO_REVALIDATE_SECRET`i `x-rothern-ssr`de yollar; API yalnız GET ∧
@@ -3056,6 +3241,22 @@ matrisi + runbook); derin denetim ve düzeltme durumu
   `minLength`/`maxLength` = DTO; rol-kapılı yeni admin GET yüzeyi `admin-permissions`
   matrisine ve `admin-action-roles-drift.spec`e birlikte girer; logout hook'ları isteği
   (3 sn tavan) bekleyip yönlendirir.
+- **Admin paneli ve admin uçları (derin denetim 2026-09-30 LU-01/03/11/12/13/17):** rol kısıtlı
+  uç çağıran sorgu `canAdminDo` ile kapılanır (react-query `enabled`); tüm rollere açık okuma
+  yüzeylerinde (ilan/sipariş/ürün inceleme, Sistem) her yazma düğmesi de. Tek aksiyon birden
+  çok uca karşılık geliyorsa drift spec her ucu `aksiyon:uç` satırıyla denetler. Admin ilan
+  müdahalesi sahip tarafının kapanış kurallarını aynen uygular (`MAX_LISTING_HORIZON_MS`,
+  `closesAt > bidsOpenAt`, koşullu `updateMany(status)`, `seo.listingChanged`); admin
+  `updateProfile` vergi no'yu `normalizeTaxId` + `isValidTaxIdForCountry`'den geçirir;
+  inceleme listeleri sessiz kesmez, `{ items, truncated }`; gerekçesiz askıda parametresiz
+  `askiyaAlindiGerekcesiz` anahtarı (`blockedReason` iç kayıt). Denetim kaydında firma aktörü
+  `company`, eylem süzgeci önek grupları (API `startsWith`); API'ye yeni audit eylemi
+  (ücretli toplu işler dahil, `X_ACTION = "admin.…"` sabiti) eklenince
+  `apps/admin/src/lib/audit-actions.ts`'e etiket (+ gerekirse önek) — `audit-actions.test` API
+  kaynağını tarar. datetime-local değeri `lib/date.ts` `toDateTimeLocal` (backend kesin `>`
+  istiyorsa `nextDateTimeLocal`), gün `toDateInput`; `toISOString().slice(…)` YASAK. Stats
+  `countryBreakdown` ilk 10, ülke seçimleri `countryOptions`. `status-labels` ve
+  `EMAIL_TEMPLATE_LABELS` drift testleriyle şemaya ve `packages/email`'e bağlı.
 - **Herkese açık arama girdisi (MU-11):** q 80-120 karaktere kırpılır; `tokenizeQuery` ile
   AND listesi kuran sorgu token'ları katlanmış biçimle tekilleştirip sayıca sınırlar
   (kategori `CATEGORY_SEARCH_MAX_LENGTH`=120, `CATEGORY_SEARCH_MAX_TOKENS`=8).
@@ -3108,11 +3309,10 @@ matrisi + runbook); derin denetim ve düzeltme durumu
   `listing-item-import.service.ts` xlsx yükleme/ayrıştırma yolunun KENDİ kopyasını
   taşıyor — güvenlik düzeltmesi İKİ dosyaya da uygulanmalı (ya da o yol tek kaynağa
   taşınmalı).
-- **Derin denetim ORTA turu artıkları:** `docs/invariants.md` INV-AZ-1 bayat (MU-20);
-  akış sorgusunda `all.map` içinde `connectedIds.includes(l.companyId)` ilan × bağlantı
-  (RM-26 kapsamı dışı);
-  kurulumda girilen TOTP adımı kaydedilmiyor (MU-16). Ayrıntı ve karar listesi
-  `docs/qa-launch-audit-2026-09-29-derin.md` "ORTA düzeltme durumu".
+- **Derin denetim DÜŞÜK turu artıkları:** panel ürün listesi (discoverProducts/discoverFacets)
+  engelli firmaları süzmüyor (LU-08); hızlı talep `?q=` tohumu yarım oturum taslağını siliyor
+  (`initialValues` doluyken `QUICK_DRAFT_KEY` okunmuyor — LU-30 2. gözden geçirme). Kararlar
+  63…72 ve ayrıntı `docs/qa-launch-audit-2026-09-29-derin.md` "DÜŞÜK düzeltme durumu".
 - `Supplier.sectors` deprecated kolon kaldırılmalı (migration).
 - `@rothern/email` build'i CI'da otomatikleşmeli.
 - Ürün dizini sırası ham `tier` okur (cron'a dek 1 gün sapma); publish tavanı
@@ -3164,6 +3364,16 @@ Yapılandırılmış çıktı şemasında okuma üstbilgisi (docLanguage/docCurr
 `resolveAiUploadMime` ile kanonikleştirir (Windows .csv = application/vnd.ms-excel, codec'siz
 HEIC = ""); DTO'lar servisin kırptığı sınırları doğrulama kuralı yapmaz (SeoEnrichDto).
 Asistan kalemli teklifte amount göndermez, PlaceBidDto kuralları propose aşamasında denetlenir.
+
+**AI bütçe ve asistan (derin denetim 2026-09-30 LU-04/17/26):** bütçe reddinin mesajı son adayın
+(fallback) sebebinden üretilir. Asistan rezervasyon tahmini = systemPrompt (taslak dahil) ×
+(MAX_TOOL_ITERATIONS+1) çağrı + birikimli araç sonuçları + (MAX_TOOL_ITERATIONS+1) ×
+MAX_OUTPUT_TOKENS; döngüye çağrı eklenirse tahmin de güncellenir. İlk mesajda açılan oturum tur
+yazılmadan hata alırsa silinir (turnCount=0). İçerik çevirisi maliyeti her zaman
+`pricingFor(model)` (fiyatsız model premium; `cfg.pricing[model] ?? 0` yazılmaz), platform USD
+tavanı yuva alındıktan sonra da denetlenir. Web asistan paneli: geç gelen yanıt ya da onay
+sonucu sohbet değiştiyse (convRef) yazılmaz; confirm hatası "İptal edildi" değil `failed`
+("sonucu doğrulanamadı"); oturum detayı önbelleklenmez (staleTime/gcTime 0).
 
 ---
 
