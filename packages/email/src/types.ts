@@ -91,6 +91,15 @@ export interface TenderExternalInviteData {
 /** Özet e-postasında bir talep daveti (içerik kuralları tekli davetle aynı). */
 export interface TenderInviteDigestEntry {
   inviterName: string;
+  /**
+   * Davet edeni tekilleştirme anahtarı (opak; gösterilmez). Adını gizleyen
+   * her alıcının görünen adı aynı nötr metin olduğundan konu satırı ada göre
+   * sayınca farklı anonim alıcılar tek firma sanılıyordu (derin denetim
+   * LU-09). Yoksa `inviterName`e düşülür.
+   */
+  inviterKey?: string;
+  /** Alıcı adını gizledi (görünen ad nötr metin) — konuda ilk ad olarak seçilmez. */
+  inviterAnonymous?: boolean;
   tenderTitle: string;
   tenderNumber?: string | null;
   closesAt: string | null;

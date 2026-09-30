@@ -460,6 +460,11 @@ export class ExternalInviteDispatcher {
         const c = await builder.content(inv.listing, locale);
         entries.push({
           inviterName: c.inviterName,
+          // Konu satırı davet edenleri FİRMAYA göre sayar; adı gizli talepler
+          // ayrı anahtar alır ki aynı firmanın adlı talebiyle birleşip
+          // anonimliği ele vermesin (derin denetim LU-09).
+          inviterKey: c.showName ? inv.listing.companyId : `anon:${inv.listing.companyId}`,
+          inviterAnonymous: !c.showName,
           tenderTitle: c.tenderTitle,
           tenderNumber: c.tenderNumber,
           closesAt: c.closesAt,

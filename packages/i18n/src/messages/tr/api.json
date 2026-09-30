@@ -1648,7 +1648,7 @@
     "adminInspection": {
       "ilanKapatildiBaslik": "Talebiniz yönetici tarafından kapatıldı",
       "ilanKapatildiGovde": "\"{baslik}\" talebiniz platform yöneticisi tarafından teklife kapatıldı. Gerekçe: {gerekce}",
-      "ilanUzatildiBaslik": "İlan kapanış süresi uzatıldı",
+      "ilanUzatildiBaslik": "Talebinizin kapanış süresi uzatıldı",
       "ilanUzatildiGovde": "\"{baslik}\" talebinizin kapanış tarihi destek talebiniz üzerine {tarih} olarak güncellendi.",
       "ilanYenidenAcildiBaslik": "Talebiniz yeniden açıldı",
       "ilanYenidenAcildiGovde": "\"{baslik}\" talebiniz destek talebiniz üzerine yeniden teklife açıldı. Yeni kapanış: {tarih}.",

@@ -54,8 +54,21 @@ const footnote = {
 /** Özette kalem önizlemesi — kart kısa kalsın. */
 export const DIGEST_ITEM_PREVIEW = 3;
 
+/**
+ * Farklı davet edenlerin görünen adları; adı görünenler önce (konuda "ilk ad"
+ * olarak nötr "Bir alıcı firma" yerine gerçek ad tercih edilsin). Anahtar
+ * yoksa ada göre tekilleşir (geriye dönük).
+ */
 function distinctInviters(invites: TenderInviteDigestEntry[]): string[] {
-  return [...new Set(invites.map((i) => i.inviterName))];
+  const byKey = new Map<string, TenderInviteDigestEntry>();
+  for (const i of invites) {
+    const key = i.inviterKey ?? `name:${i.inviterName}`;
+    if (!byKey.has(key)) byKey.set(key, i);
+  }
+  const all = [...byKey.values()];
+  return [...all.filter((i) => !i.inviterAnonymous), ...all.filter((i) => i.inviterAnonymous)].map(
+    (i) => i.inviterName,
+  );
 }
 
 export function makeTenderInviteDigestSubject(

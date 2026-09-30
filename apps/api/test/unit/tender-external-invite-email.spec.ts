@@ -212,4 +212,30 @@ describe("hatırlatma + özet e-postası + gönderen adı (2026-09-27, Faz 0b)",
     expect((await renderEmail({ template: "tender_invite_digest", data }, "tr")).subject).toBe("ABC 2 talep için sizden teklif istiyor");
     expect((await renderEmail({ template: "tender_invite_digest", data }, "ru")).subject).toBe("ABC ждёт Ваших предложений по 2 заявкам");
   });
+
+  it("özet: adını gizleyen farklı alıcılar firma anahtarıyla sayılır, ilk ad görünen alıcı (derin denetim LU-09)", async () => {
+    const anon = (key: string, n: string) => ({
+      ...entry("An anonymous buyer", n),
+      inviterKey: `anon:${key}`,
+      inviterAnonymous: true,
+    });
+    // İki farklı anonim firma → tek firma sanılmaz.
+    const twoAnon = { invites: [anon("c1", "1"), anon("c2", "2")], optOutUrl: "https://x/opt" };
+    expect((await renderEmail({ template: "tender_invite_digest", data: twoAnon }, "en")).subject).toBe(
+      "An anonymous buyer and 1 other buyer want your quote",
+    );
+    // Aynı anonim firmanın iki talebi → tek alıcı.
+    const sameAnon = { invites: [anon("c1", "1"), anon("c1", "2")], optOutUrl: "https://x/opt" };
+    expect((await renderEmail({ template: "tender_invite_digest", data: sameAnon }, "en")).subject).toBe(
+      "An anonymous buyer wants your quote on 2 requests",
+    );
+    // Adı görünen + iki anonim → ilk ad görünen alıcı, "2 other buyers".
+    const mixed = {
+      invites: [anon("c1", "1"), { ...entry("ABC", "2"), inviterKey: "c3" }, anon("c2", "3")],
+      optOutUrl: "https://x/opt",
+    };
+    expect((await renderEmail({ template: "tender_invite_digest", data: mixed }, "en")).subject).toBe(
+      "ABC and 2 other buyers want your quote",
+    );
+  });
 });
