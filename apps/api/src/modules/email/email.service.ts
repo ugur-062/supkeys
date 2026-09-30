@@ -9,6 +9,7 @@ import {
   type EmailTemplateData,
 } from "@rothern/email";
 import type { Locale } from "@rothern/i18n";
+import type { Prisma } from "@rothern/db";
 import { reportToSentry } from "../../instrument";
 import { PrismaService } from "../../common/prisma/prisma.service";
 import { resolveWebUrl } from "../../common/config/web-url";
@@ -33,6 +34,28 @@ import {
 // Geriye-dönük uyumluluk: mevcut import'lar (testler dahil) bu sembolü
 // email.service'ten çeker. Tek kaynak critical-contexts.ts; burada re-export.
 export { isCriticalEmailContext, CRITICAL_EMAIL_CONTEXTS } from "./critical-contexts";
+
+/**
+ * Politika gereği ATLANAN gönderimin EmailLog `errorMessage` önekleri
+ * (suppress edilmiş adres / tek tık çıkış). Satır FAILED yazılır ama bu bir
+ * teslim hatası değildir: yeniden denemek aynı sonucu verir.
+ */
+export const EMAIL_SKIPPED_SUPPRESSED_PREFIX = "suppressed:";
+export const EMAIL_SKIPPED_OPTED_OUT_PREFIX = "opted_out:";
+
+/**
+ * Tekillik sorguları için "bu bağlam için gönderim denendi" süzgeci: FAILED
+ * olmayan satırlar + politika gereği atlanan FAILED satırlar. Yalnız
+ * `status: { not: "FAILED" }` ile süzmek, suppress/çıkış yapmış adrese her
+ * zamanlayıcı turunda yeni bir FAILED satırı yazdırıyordu (derin denetim LU-18).
+ */
+export const EMAIL_LOG_HANDLED_WHERE = {
+  OR: [
+    { status: { not: "FAILED" } },
+    { errorMessage: { startsWith: EMAIL_SKIPPED_SUPPRESSED_PREFIX } },
+    { errorMessage: { startsWith: EMAIL_SKIPPED_OPTED_OUT_PREFIX } },
+  ],
+} satisfies Prisma.EmailLogWhereInput;
 
 export interface SendEmailInput {
   to: EmailRecipient;
@@ -287,7 +310,7 @@ export class EmailService implements OnModuleInit {
           subject: input.subject ?? input.templateData.template,
           provider: this.providerName,
           status: "FAILED",
-          errorMessage: `suppressed: adres daha önce ${suppressed.status}`,
+          errorMessage: `${EMAIL_SKIPPED_SUPPRESSED_PREFIX} adres daha önce ${suppressed.status}`,
           failedAt: new Date(),
           contextType: input.context?.type,
           contextId: input.context?.id,
@@ -326,7 +349,7 @@ export class EmailService implements OnModuleInit {
           subject: input.subject ?? input.templateData.template,
           provider: this.providerName,
           status: "FAILED",
-          errorMessage: `opted_out: ${scope}`,
+          errorMessage: `${EMAIL_SKIPPED_OPTED_OUT_PREFIX} ${scope}`,
           failedAt: new Date(),
           contextType: input.context?.type,
           contextId: input.context?.id,

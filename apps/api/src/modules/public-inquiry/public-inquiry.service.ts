@@ -7,6 +7,7 @@ import {
   ServiceUnavailableException,
 } from "@nestjs/common";
 import { createHash, randomBytes } from "node:crypto";
+import type { Prisma } from "@rothern/db";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { appRoutes, localizeAppPath } from "../../common/company/app-routes";
 import { hasPublicProfile } from "../../common/company/public-profile-gate";
@@ -258,11 +259,23 @@ export class PublicInquiryService {
 
     // Misafir yolundaki İLETİM adımının aynısı — tek fark, doğrulamayı
     // beklemeden burada olması.
-    void this.notifySeller(product.companyId, product.name, inquiry.name, {
+    this.notifySellerInBackground(product.companyId, product.name, inquiry.name, {
       quantity: input.quantity?.trim() || null,
     });
 
     return { id: inquiry.id };
+  }
+
+  /**
+   * `companyId` ile herhangi yönde engel ilişkisi olan firmalar
+   * (`CompanyBlocksService.blockedCompanyIds` ile aynı kural; bypass istemcisi).
+   */
+  private async blockedIdsOf(companyId: string): Promise<string[]> {
+    const rows = await this.prisma.companyBlock.findMany({
+      where: { OR: [{ blockerCompanyId: companyId }, { blockedCompanyId: companyId }] },
+      select: { blockerCompanyId: true, blockedCompanyId: true },
+    });
+    return [...new Set(rows.map((r) => (r.blockerCompanyId === companyId ? r.blockedCompanyId : r.blockerCompanyId)))];
   }
 
   private async isBlockedBetween(a: string, b: string): Promise<boolean> {
@@ -340,7 +353,18 @@ export class PublicInquiryService {
   ) {
     const viewerPaid = opts.viewerPaid ?? true;
     const pageSize = 20;
-    const where = { companyId, verifiedAt: { not: null } } as const;
+    // Engel ilişkisindeki KAYITLI alıcının talepleri gelen kutusunda görünmez
+    // (mesaj kutusuyla aynı karşılıklı görünmezlik; derin denetim LU-18).
+    // Misafir talepleri (`claimedCompanyId` null) etkilenmez — `notIn` NULL'ı
+    // da eleyeceği için açık OR.
+    const blocked = await this.blockedIdsOf(companyId);
+    const where: Prisma.PublicInquiryWhereInput = {
+      companyId,
+      verifiedAt: { not: null },
+      ...(blocked.length
+        ? { OR: [{ claimedCompanyId: null }, { claimedCompanyId: { notIn: blocked } }] }
+        : {}),
+    };
     // `openCount` = yanıt bekleyen TOPLAM (sayfadan bağımsız): web süzgeç
     // sayacı eskiden yalnız yüklü 20 satırdan hesaplanıyordu.
     const [total, openCount, rows] = await Promise.all([
@@ -441,6 +465,11 @@ export class PublicInquiryService {
       },
     });
     if (!inquiry) throw new NotFoundException(i18nMessage("api.publicInquiry.talepBulunamadi"));
+    // Engel (iki yönlü): engellenen/engelleyen kayıtlı alıcıya yanıt ve yanıt
+    // e-postası gitmez; engel varlığı sızmasın diye 404 (derin denetim LU-18).
+    if (inquiry.claimedCompanyId && (await this.isBlockedBetween(companyId, inquiry.claimedCompanyId))) {
+      throw new NotFoundException(i18nMessage("api.publicInquiry.talepBulunamadi"));
+    }
 
     const reply = await this.prisma.publicInquiryReply.create({
       data: { inquiryId, authorId, body: body.trim() },
@@ -604,7 +633,12 @@ export class PublicInquiryService {
     // onlara gelen yanıtları hiç göremiyordu. `openCount` = yanıt bekleyen
     // TOPLAM (web süzgeç sayacı sayfadan bağımsız).
     const current = Math.max(1, page);
-    const where = { claimedCompanyId: companyId };
+    // Engel ilişkisindeki satıcıya gönderilmiş talepler de gizlenir (LU-18).
+    const blocked = await this.blockedIdsOf(companyId);
+    const where: Prisma.PublicInquiryWhereInput = {
+      claimedCompanyId: companyId,
+      ...(blocked.length ? { companyId: { notIn: blocked } } : {}),
+    };
     const [total, openCount, rows] = await Promise.all([
       this.prisma.publicInquiry.count({ where }),
       this.prisma.publicInquiry.count({ where: { ...where, replies: { none: {} } } }),
@@ -690,14 +724,18 @@ export class PublicInquiryService {
       );
     }
 
-    await this.prisma.publicInquiry.update({
-      where: { id: row.id },
+    // Koşullu damga (derin denetim LU-18): eşzamanlı iki tıklama (ön-yükleyen
+    // e-posta tarayıcısı + kullanıcı) ikisi de `verifiedAt=null` görse bile
+    // yalnız biri count=1 alır; satıcıya TEK bildirim gider.
+    const claimed = await this.prisma.publicInquiry.updateMany({
+      where: { id: row.id, verifiedAt: null },
       data: { verifiedAt: new Date() },
     });
+    if (claimed.count === 0) return this.verifiedPayload(row);
 
     // Satıcıya bildirim. Ziyaretçinin E-POSTASI/TELEFONU GEÇMEZ — iletişim
     // platform üzerinden yürüsün (model notu).
-    void this.notifySeller(row.company.id, row.product.name, row.name);
+    this.notifySellerInBackground(row.company.id, row.product.name, row.name);
 
     return this.verifiedPayload(row);
   }
@@ -717,6 +755,19 @@ export class PublicInquiryService {
        */
       email: row.email,
     };
+  }
+
+  /**
+   * Fire-and-forget satıcı bildirimi: talep zaten yazıldı, bildirim hatası
+   * (DB havuzu, geçici kesinti) isteği düşürmez ve bağlamsız
+   * `unhandledRejection` yerine burada kayda geçer (derin denetim LU-18).
+   */
+  private notifySellerInBackground(...args: Parameters<PublicInquiryService["notifySeller"]>): void {
+    this.notifySeller(...args).catch((err: unknown) => {
+      this.logger.warn(
+        `seller notification failed (company=${args[0]}): ${err instanceof Error ? err.message : String(err)}`,
+      );
+    });
   }
 
   /** Satıcının firma kullanıcılarına "yeni bilgi talebi" bildirimi. */

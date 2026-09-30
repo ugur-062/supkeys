@@ -255,6 +255,84 @@ describe("karşılama serisi — tavansız tarama (derin denetim MU-14)", () => 
   });
 });
 
+describe("suppress/çıkış nedeniyle atlanan gönderim yeniden denenmez (derin denetim LU-18)", () => {
+  /** EmailService'in suppress/çıkış yolunu taklit eder: FAILED satırı yazar, `sent:false`. */
+  function skippingEmail(errorMessage: string, clock: { now: Date }) {
+    return {
+      send: jest.fn(async (a: { to: { email: string }; context: { type: string; id: string } }) => {
+        await prisma.emailLog.create({
+          data: {
+            template: "notification",
+            toEmail: a.to.email,
+            subject: "s",
+            provider: "test",
+            status: "FAILED",
+            errorMessage,
+            contextType: a.context.type,
+            contextId: a.context.id,
+            queuedAt: clock.now,
+          },
+        });
+        return { emailLogId: "t", sent: false };
+      }),
+    };
+  }
+
+  it("karşılama serisi: suppress edilmiş kurucuya pencerenin sonraki turlarında yeni deneme yok", async () => {
+    const tenAm = new Date("2026-10-07T07:00:00Z"); // İstanbul 10:00
+    const clock = { now: tenAm };
+    const email = skippingEmail("suppressed: adres daha önce BOUNCED", clock);
+    const svc = new EmailProgramsService(prisma as never, email as never, { get: () => "http://localhost:3000" } as never);
+    const c = await makeCompanyWithUser(prisma, { country: "TR" });
+    await prisma.company.update({
+      where: { id: c.company.id },
+      data: { onboardingCompletedAt: new Date("2026-10-05T07:00:00Z"), ownerUserId: c.user.id, aboutText: null },
+    });
+    await prisma.companyUser.update({ where: { id: c.user.id }, data: { lastLoginAt: new Date("2026-10-06T07:00:00Z") } });
+    for (const min of [0, 15, 30, 45]) {
+      clock.now = new Date(tenAm.getTime() + min * 60_000);
+      expect(await svc.sendLifecycle(clock.now)).toBe(0);
+    }
+    expect(email.send).toHaveBeenCalledTimes(1);
+    expect(await prisma.emailLog.count({ where: { contextId: c.company.id } })).toBe(1);
+  });
+
+  it("gerçek teslim hatası (FAILED, önek yok) sonraki turda yeniden denenir", async () => {
+    const tenAm = new Date("2026-10-07T07:00:00Z");
+    const clock = { now: tenAm };
+    const email = skippingEmail("resend 500", clock);
+    const svc = new EmailProgramsService(prisma as never, email as never, { get: () => "http://localhost:3000" } as never);
+    const c = await makeCompanyWithUser(prisma, { country: "TR" });
+    await prisma.company.update({
+      where: { id: c.company.id },
+      data: { onboardingCompletedAt: new Date("2026-10-05T07:00:00Z"), ownerUserId: c.user.id, aboutText: null },
+    });
+    await prisma.companyUser.update({ where: { id: c.user.id }, data: { lastLoginAt: new Date("2026-10-06T07:00:00Z") } });
+    await svc.sendLifecycle(tenAm);
+    clock.now = new Date(tenAm.getTime() + 15 * 60_000);
+    await svc.sendLifecycle(clock.now);
+    expect(email.send).toHaveBeenCalledTimes(2);
+  });
+
+  it("haftalık özet: çıkış yapmış adrese aynı pazartesi ikinci deneme yok", async () => {
+    const monday = new Date("2026-10-05T07:00:00Z"); // Pazartesi İstanbul 10:00
+    const clock = { now: monday };
+    const email = skippingEmail("opted_out: lifecycle", clock);
+    const svc = new EmailProgramsService(prisma as never, email as never, { get: () => "http://localhost:3000" } as never);
+    const c = await makeCompanyWithUser(prisma, { country: "TR" });
+    await prisma.company.update({ where: { id: c.company.id }, data: { ownerUserId: c.user.id } });
+    await prisma.companyUser.update({ where: { id: c.user.id }, data: { lastLoginAt: new Date(monday.getTime() - 2 * DAY) } });
+    await prisma.companyView.create({
+      data: { targetCompanyId: c.company.id, surface: "PUBLIC", dedupeKey: "k", viewedAt: new Date(monday.getTime() - DAY) },
+    });
+    for (const min of [0, 15, 30, 45]) {
+      clock.now = new Date(monday.getTime() + min * 60_000);
+      expect(await svc.sendWeeklySummaries(clock.now)).toBe(0);
+    }
+    expect(email.send).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe("haftalık görünürlük özeti", () => {
   it("pazartesi yerel 10:00, görüntülenme varsa, haftada bir; 200 gün giriş yoksa gitmez", async () => {
     const monday = new Date("2026-10-05T07:10:00Z"); // Pazartesi İstanbul 10:10

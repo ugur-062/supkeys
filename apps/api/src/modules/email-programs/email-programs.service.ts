@@ -22,7 +22,7 @@ import {
   weeklySummaryAllowed,
   type LifecycleStep,
 } from "../../common/email/email-program-policy";
-import { EmailService } from "../email/email.service";
+import { EMAIL_LOG_HANDLED_WHERE, EmailService } from "../email/email.service";
 import { ContentTranslationService } from "../content-translation/content-translation.service";
 import { NotificationService } from "../notifications/notification.service";
 
@@ -317,7 +317,9 @@ export class EmailProgramsService {
       const owner = await this.ownerOf(c.ownerUserId);
       if (!owner || !this.lifecycleOn(owner) || !lifecycleAllowed(owner.lastLoginAt, owner.createdAt, now)) continue;
       const history = await this.prisma.emailLog.findMany({
-        where: { contextId: c.id, contextType: { startsWith: "lifecycle_" }, status: { not: "FAILED" } },
+        // Suppress/çıkış nedeniyle atlanan adım da "denendi" sayılır; yoksa
+        // pencerenin her 15 dk'lık turunda yeni FAILED satırı (LU-18).
+        where: { contextId: c.id, contextType: { startsWith: "lifecycle_" }, ...EMAIL_LOG_HANDLED_WHERE },
         select: { contextType: true, queuedAt: true },
       });
       // Firma başına günde bir ipucu.
@@ -426,7 +428,7 @@ export class EmailProgramsService {
         where: {
           contextType: LIFECYCLE_WEEKLY_CONTEXT,
           contextId: c.id,
-          status: { not: "FAILED" },
+          ...EMAIL_LOG_HANDLED_WHERE,
           queuedAt: { gte: new Date(now.getTime() - 6 * DAY_MS) },
         },
         select: { id: true },

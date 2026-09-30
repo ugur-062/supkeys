@@ -66,6 +66,11 @@ const multi = (v?: string) => (v ?? "").split(",").map((x) => x.trim()).filter(B
  * tek bir yardımcı yazıp facet'i `unnest` ile hesaplamak.
  */
 const FACET_SCAN_CAP = 5000;
+/**
+ * `/public/stats` son 24 saat teklif sayısını ancak vitrinde en az bu kadar
+ * açık talep varken verir; altında sayı tek tek taleplere indirgenebilir.
+ */
+export const PUBLIC_BIDS_METRIC_MIN_OPEN_DEMANDS = 10;
 /** Nitelik facet'inde bir anahtar için gösterilecek en fazla değer. */
 /** Sayılabilir nitelik tipleri — serbest metin ve sayı facet OLMAZ. */
 
@@ -662,7 +667,11 @@ export class PublicMarketplaceService {
       .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, "tr"));
   }
 
-  /** Anasayfa sayı şeridi — gerçek sayımlar; eşiği web uygular. */
+  /**
+   * Anasayfa sayı şeridi — gerçek sayımlar; envanter eşiğini web uygular.
+   * Teklif sayısının eşiği (`PUBLIC_BIDS_METRIC_MIN_OPEN_DEMANDS`) burada:
+   * yanıt anonim ve herkese açık, çizimdeki eşik veriyi gizlemez.
+   */
   async stats() {
     const now = new Date();
     const weekAgo = new Date(now.getTime() - 7 * 86_400_000);
@@ -702,7 +711,11 @@ export class PublicMarketplaceService {
       categories,
       openDemands,
       productsThisWeek,
-      bidsLast24h,
+      // Anonim uca ham teklif sayısı yalnız yeterince açık talep varken
+      // (derin denetim LU-18): vitrinde tek/az talep varken sayı o talebin
+      // kapalı zarftaki teklif sayısını ele verir. Eşik altında 0 — web şeridi
+      // sıfır satırı zaten basmaz.
+      bidsLast24h: openDemands >= PUBLIC_BIDS_METRIC_MIN_OPEN_DEMANDS ? bidsLast24h : 0,
       verifiedCompanies,
       popularCategories: top
         .map(([id, count]) => ({ id, name: names.get(id)?.name ?? null, count }))

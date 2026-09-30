@@ -127,6 +127,40 @@ describe("misafir talebi — DOĞRULANMADAN SATICIYA GİTMEZ", () => {
     expect(r2.ok).toBe(true);
   });
 
+  it("eşzamanlı iki doğrulama satıcıya TEK bildirim gönderir (LU-18)", async () => {
+    const email = makeEmail();
+    const svc = new PublicInquiryService(prisma as unknown as PrismaBypassService, email as never);
+    const { company, product, sellerEmail } = await seedProduct();
+    await svc.create({ companySlug: company.slug as string, productSlug: product.slug as string, ...VALID });
+    const token = /t=([a-f0-9]{64})/.exec(email.sent[0].body)?.[1] as string;
+    const [a, b] = await Promise.all([svc.verify(token), svc.verify(token)]);
+    expect(a.ok && b.ok).toBe(true);
+    await new Promise((r) => setTimeout(r, 50));
+    expect(email.sent.filter((e) => e.to === sellerEmail)).toHaveLength(1);
+  });
+
+  it("satıcı bildirimi DB hatasında sessizce kaybolmaz ama doğrulamayı da düşürmez (LU-18)", async () => {
+    const email = makeEmail();
+    const svc = new PublicInquiryService(prisma as unknown as PrismaBypassService, email as never);
+    const { company, product } = await seedProduct();
+    await svc.create({ companySlug: company.slug as string, productSlug: product.slug as string, ...VALID });
+    const token = /t=([a-f0-9]{64})/.exec(email.sent[0].body)?.[1] as string;
+    const warn = jest.spyOn((svc as unknown as { logger: { warn: (m: string) => void } }).logger, "warn").mockImplementation(() => undefined);
+    const spy = jest.spyOn(prisma.companyUser, "findMany").mockRejectedValueOnce(new Error("pool timeout"));
+    const unhandled = jest.fn();
+    process.on("unhandledRejection", unhandled);
+    try {
+      await expect(svc.verify(token)).resolves.toHaveProperty("ok", true);
+      await new Promise((r) => setTimeout(r, 50));
+      expect(unhandled).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledWith(expect.stringContaining("pool timeout"));
+    } finally {
+      process.off("unhandledRejection", unhandled);
+      spy.mockRestore();
+      warn.mockRestore();
+    }
+  });
+
   it("geçersiz jeton 404, süresi dolmuş jeton 400", async () => {
     const email = makeEmail();
     const svc = new PublicInquiryService(
@@ -694,6 +728,44 @@ describe("KAYITLI alıcı talebi — doğrulama adımı YOK", () => {
 
     const note = mail.sent.find((m) => m.type === "public_inquiry_reply");
     expect(note!.body).toContain("/company/kayit");
+  });
+
+  it("engel sonradan kurulursa: yanıt 404 ve e-posta yok; iki tarafın listesinde de gizli, misafir talebi kalır (LU-18)", async () => {
+    const { svc, mail } = svcWith();
+    const { company, product } = await seedProduct();
+    const seller = await prisma.companyUser.findFirst({ where: { companyId: company.id }, select: { id: true } });
+    const b = await buyer();
+    const inq = await svc.createAsCompany({
+      companyId: b.company.id,
+      email: b.user.email,
+      fullName: "Ayşe Demir",
+      companySlug: company.slug as string,
+      productSlug: product.slug as string,
+      message: "Fiyat ve teslim süresi bilgisi rica ederim.",
+    });
+    // Misafir talebi de olsun — engel onu etkilememeli.
+    await svc.create({ companySlug: company.slug as string, productSlug: product.slug as string, ...VALID });
+    const token = /t=([a-f0-9]{64})/.exec(mail.sent.find((m) => m.type === "public_inquiry_verify")!.body)?.[1] as string;
+    await svc.verify(token);
+    await new Promise((r) => setTimeout(r, 30));
+
+    await prisma.companyBlock.create({ data: { blockerCompanyId: b.company.id, blockedCompanyId: company.id } });
+    mail.sent.length = 0;
+    await expect(svc.reply(company.id, seller!.id, inq.id, "Stokta var.")).rejects.toThrow(NotFoundException);
+    await new Promise((r) => setTimeout(r, 30));
+    expect(mail.sent).toHaveLength(0);
+    expect(await prisma.publicInquiryReply.count()).toBe(0);
+
+    const received = await svc.listForCompany(company.id);
+    expect(received.items.map((i) => i.id)).not.toContain(inq.id);
+    expect(received.total).toBe(1);
+    const sent = await svc.listClaimed(b.company.id, b.user.email);
+    expect(sent.total).toBe(0);
+
+    // Engel kalkınca her şey geri gelir.
+    await prisma.companyBlock.deleteMany({});
+    expect((await svc.listForCompany(company.id)).total).toBe(2);
+    await expect(svc.reply(company.id, seller!.id, inq.id, "Stokta var.")).resolves.toHaveProperty("id");
   });
 
   it("yayımda olmayan ürüne talep gönderilemez (misafirle AYNI kapı)", async () => {
