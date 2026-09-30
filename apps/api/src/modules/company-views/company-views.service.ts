@@ -84,6 +84,10 @@ export class CompanyViewsService {
   ): Promise<void> {
     if (!viewer.companyId || viewer.companyId === target.companyId) return;
     try {
+      // Engel KARŞILIKLI GÖRÜNMEZLİKTİR (derin denetim LU-08): iki yönden
+      // birinde engel varsa ziyaret hiç yazılmaz — yoksa engelleyenin kimliği
+      // ve baktığı ürün engellenenin Ziyaret Edenler listesine düşerdi.
+      if (await this.blockedPair(viewer.companyId, target.companyId)) return;
       const v = await this.prisma.company.findUnique({
         where: { id: viewer.companyId },
         select: { visitsVisible: true },
@@ -107,6 +111,29 @@ export class CompanyViewsService {
     } catch (err) {
       this.logger.warn(`Görüntülenme kaydı atlandı: ${err instanceof Error ? err.message : String(err)}`);
     }
+  }
+
+  /** İki firma arasında (herhangi yönde) engel var mı. Bypass: RLS altında karşı yönün satırı gizlenmesin. */
+  private async blockedPair(a: string, b: string): Promise<boolean> {
+    const row = await (this.bypass ?? this.prisma).companyBlock.findFirst({
+      where: {
+        OR: [
+          { blockerCompanyId: a, blockedCompanyId: b },
+          { blockerCompanyId: b, blockedCompanyId: a },
+        ],
+      },
+      select: { id: true },
+    });
+    return !!row;
+  }
+
+  /** `companyId` ile herhangi yönde engel ilişkisi olan firmalar (`CompanyBlocksService.blockedCompanyIds` ile aynı kural). */
+  private async blockedIds(companyId: string): Promise<Set<string>> {
+    const rows = await (this.bypass ?? this.prisma).companyBlock.findMany({
+      where: { OR: [{ blockerCompanyId: companyId }, { blockedCompanyId: companyId }] },
+      select: { blockerCompanyId: true, blockedCompanyId: true },
+    });
+    return new Set(rows.map((r) => (r.blockerCompanyId === companyId ? r.blockedCompanyId : r.blockerCompanyId)));
   }
 
   /** Herkese açık sayfa beacon'ı — anonim, günlük tekil (ip + ua + gün). */
@@ -158,7 +185,7 @@ export class CompanyViewsService {
     const page = Math.max(1, opts.page ?? 1);
     const since = daysAgo(days);
     const prevSince = daysAgo(days * 2);
-    const [rows, prevRows] = await Promise.all([
+    const [rows, prevRows, blocked] = await Promise.all([
       this.prisma.companyView.findMany({
         where: { targetCompanyId: user.companyId, viewedAt: { gte: since } },
         select: { viewerCompanyId: true, productId: true, viewedAt: true },
@@ -170,10 +197,16 @@ export class CompanyViewsService {
         select: { viewerCompanyId: true },
         take: SCAN_CAP,
       }),
+      this.blockedIds(user.companyId),
     ]);
+    // Engel ilişkisindeki firmanın ziyaretleri (engelden ÖNCE yazılmış
+    // olanlar dahil) KİMLİKSİZ sayılır (derin denetim LU-08): toplam doğru
+    // kalır, ad/logo/baktığı ürün görünmez.
+    const viewerOf = (r: { viewerCompanyId: string | null }) =>
+      r.viewerCompanyId && !blocked.has(r.viewerCompanyId) ? r.viewerCompanyId : null;
     const previous = {
       total: prevRows.length,
-      identified: new Set(prevRows.map((r) => r.viewerCompanyId).filter(Boolean)).size,
+      identified: new Set(prevRows.map(viewerOf).filter(Boolean)).size,
     };
     const daily = dailySeries(rows.map((r) => r.viewedAt), days);
     const total = rows.length;
@@ -181,16 +214,17 @@ export class CompanyViewsService {
     type G = { visits: number; last: Date; profileViews: number; productIds: Set<string> };
     const groups = new Map<string, G>();
     for (const r of rows) {
-      if (!r.viewerCompanyId) continue;
-      const g = groups.get(r.viewerCompanyId) ?? { visits: 0, last: r.viewedAt, profileViews: 0, productIds: new Set<string>() };
+      const viewer = viewerOf(r);
+      if (!viewer) continue;
+      const g = groups.get(viewer) ?? { visits: 0, last: r.viewedAt, profileViews: 0, productIds: new Set<string>() };
       g.visits += 1;
       if (r.viewedAt > g.last) g.last = r.viewedAt;
       if (r.productId) g.productIds.add(r.productId);
       else g.profileViews += 1;
-      groups.set(r.viewerCompanyId, g);
+      groups.set(viewer, g);
     }
     const identified = groups.size;
-    const anonymous = rows.filter((r) => !r.viewerCompanyId).length;
+    const anonymous = rows.filter((r) => !viewerOf(r)).length;
     const locked = !tierAtLeast(user.tier, "SILVER");
     const base = { days, total, profileViews, productViews: total - profileViews, identified, anonymous, previous, daily, locked, page, pageSize: VISITORS_PAGE_SIZE };
     if (locked || identified === 0) return { ...base, totalItems: identified, items: [] as VisitorItem[] };
