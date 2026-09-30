@@ -33479,6 +33479,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.trade.insightsView.ortancaSonGun": {
+    "hash": "23c5dd4eca",
+    "status": "reviewed",
+    "at": "2026-09-29"
+  },
   "web.panel.trade.insightsView.profilGoruntulenmesi": {
     "hash": "aecd151674",
     "status": "reviewed",

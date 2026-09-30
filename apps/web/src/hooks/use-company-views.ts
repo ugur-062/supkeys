@@ -54,7 +54,13 @@ export interface InsightsResponse {
   };
   topProducts: { id: string; name: string; slug: string | null; views: number }[];
   viewerCities: { city: string; count: number }[];
-  inquiries: { received: number; replied: number; medianFirstReplyHours: number | null };
+  inquiries: {
+    received: number;
+    replied: number;
+    /** Ortanca ilk yanıt süresi — seçili dönemden bağımsız, `replyWindowDays` penceresinde ("Hızlı yanıt veren" ile aynı ölçü). */
+    medianFirstReplyHours: number | null;
+    replyWindowDays?: number;
+  };
   connections: { invitesReceived: number; accepted: number };
   listingInvitations: number;
   bids: { submitted: number; won: number };

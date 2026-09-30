@@ -4536,6 +4536,7 @@
         "bilgiTalebi": "Запросы информации",
         "saat": "{n} ч",
         "ortanca": "медиана",
+        "ortancaSonGun": "медиана · за последние {days, plural, one {# день} few {# дня} many {# дней} other {# дня}}",
         "kabulEdildi": "{n} принято",
         "goruntulenmeSayisi": "{n, plural, one {<b>#</b> просмотр} few {<b>#</b> просмотра} many {<b>#</b> просмотров} other {<b>#</b> просмотра}}",
         "firmaSayisi": "{n, plural, one {<b>#</b> компания} few {<b>#</b> компании} many {<b>#</b> компаний} other {<b>#</b> компании}}"

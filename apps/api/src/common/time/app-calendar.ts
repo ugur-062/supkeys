@@ -73,3 +73,12 @@ export function appDay(date: Date): { day: number; labelDate: Date } {
   const p = zonedParts(date, TZ);
   return { day: p.day, labelDate: new Date(Date.UTC(p.year, p.month - 1, p.day, 12)) };
 }
+
+/**
+ * "YYYY-MM-DD" — anın İstanbul takvim günü. `toISOString().slice(0, 10)` UTC
+ * günü verir; TR 00:00-03:00 arası önceki güne düşerdi (derin denetim LU-17).
+ */
+export function appDayKey(date: Date): string {
+  const p = zonedParts(date, TZ);
+  return `${p.year}-${String(p.month).padStart(2, "0")}-${String(p.day).padStart(2, "0")}`;
+}

@@ -135,7 +135,7 @@ describe("Ziyaret Edenler — liste ve İş Analizi", () => {
     expect(r.viewerCities).toEqual([{ city: "Ankara", count: 1 }]);
     expect(r.connections.invitesReceived).toBe(1);
     expect(r.bids).toEqual({ submitted: 0, won: 0 });
-    expect(r.inquiries).toEqual({ received: 0, replied: 0, medianFirstReplyHours: null });
+    expect(r.inquiries).toEqual({ received: 0, replied: 0, medianFirstReplyHours: null, replyWindowDays: 90 });
   });
 
   it("temizlik: 180 günden eski satırlar silinir", async () => {

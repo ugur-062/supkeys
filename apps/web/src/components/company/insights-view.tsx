@@ -100,7 +100,7 @@ export function InsightsView() {
             <SectionHead id="alici-baglantilari" title={t("aliciBaglantilari")} lead={t("alicilarSizeNasilUlasiyorNe")} />
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
               <KpiCard label={t("gelenBilgiTalebi")} value={d.inquiries.received} accent="emerald" href="/company/satis/bilgi-talepleri" hint={d.inquiries.received > 0 ? t("yanitlandi", { replied: d.inquiries.replied }) : t("urunSayfalarindanGelenSorular")} />
-              <KpiCard label={t("ilkYanitSuresi")} value={d.inquiries.medianFirstReplyHours != null ? t("saat", { n: formatNumber(d.inquiries.medianFirstReplyHours, locale, { maximumFractionDigits: 1 }) }) : "—"} accent="emerald" hint={t("ortanca")} href="/company/satis/bilgi-talepleri" />
+              <KpiCard label={t("ilkYanitSuresi")} value={d.inquiries.medianFirstReplyHours != null ? t("saat", { n: formatNumber(d.inquiries.medianFirstReplyHours, locale, { maximumFractionDigits: 1 }) }) : "—"} accent="emerald" hint={d.inquiries.replyWindowDays ? t("ortancaSonGun", { days: d.inquiries.replyWindowDays }) : t("ortanca")} href="/company/satis/bilgi-talepleri" />
               <KpiCard label={t("gelenBaglantiDaveti")} value={d.connections.invitesReceived} accent="emerald" href="/company/satis/musterilerim" hint={d.connections.invitesReceived > 0 ? t("kabulEdildi", { n: d.connections.accepted }) : t("baglantiAginiziBuyutun")} />
               <KpiCard label={t("talepDaveti")} value={d.listingInvitations} accent="emerald" href="/company/satis#acik-talepler" hint={t("alicilarSiziTeklifeCagirdi")} />
             </div>

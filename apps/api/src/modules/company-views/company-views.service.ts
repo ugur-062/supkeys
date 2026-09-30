@@ -10,6 +10,7 @@ import {
   roundReplyHours,
   type InquiryReplyPair,
 } from "../../common/company/reply-time";
+import { appDayKey } from "../../common/time/app-calendar";
 
 /**
  * ZİYARET EDENLER + İŞ ANALİZİ (2026-09-05, Europages "Your Visitors" /
@@ -33,7 +34,10 @@ export const VIEW_RETENTION_DAYS = 180;
 const VISITORS_PAGE_SIZE = 20;
 const SCAN_CAP = 5000;
 
-const dayKey = (d: Date) => d.toISOString().slice(0, 10);
+// Gün anahtarı (tekilleştirme + günlük grafik) İstanbul takvim günüdür
+// (CLAUDE.md "SAAT DİLİMİ"; derin denetim LU-17 — UTC günü TR 00:00-03:00
+// görüntülemelerini önceki güne yazıyordu).
+const dayKey = appDayKey;
 const hash = (s: string) =>
   createHash("sha256")
     .update(`${process.env.VIEW_HASH_SALT ?? process.env.JWT_SECRET ?? "rothern"}|${s}`)
@@ -318,9 +322,15 @@ export class CompanyViewsService {
     const cityCounts = new Map<string, number>();
     for (const c of viewerCompanies) if (c.city) cityCounts.set(c.city, (cityCounts.get(c.city) ?? 0) + 1);
     // TEK KAYNAK (`common/company/reply-time.ts`): "Hızlı yanıt veren"
-    // süzgecinin gece cron'u AYNI fonksiyonu kullanır — panelde görülen sayı
-    // ile dizinde süzülen ölçü ayrışmasın.
-    const median = medianFirstReplyHours(inquiries);
+    // süzgecinin gece cron'u AYNI fonksiyonu AYNI pencereyle (REPLY_WINDOW_DAYS,
+    // süzgeçsiz — `recomputeReplyTimes`) kullanır; seçili dönemden (7/30/90)
+    // hesaplanınca panel "6 saat" derken dizin firmayı hızlı saymayabiliyordu
+    // (derin denetim LU-17). Dönem bazlı sayılar (gelen/yanıtlanan) ayrı kalır.
+    const replyRows = await this.prisma.publicInquiry.findMany({
+      where: { companyId: me, createdAt: { gte: daysAgo(REPLY_WINDOW_DAYS) } },
+      select: { createdAt: true, replies: { select: { createdAt: true }, orderBy: { createdAt: "asc" }, take: 1 } },
+    });
+    const median = medianFirstReplyHours(replyRows);
     return {
       days,
       generatedAt: now.toISOString(),
@@ -342,6 +352,8 @@ export class CompanyViewsService {
         received: inquiries.length,
         replied: inquiries.filter((i) => i.replies.length > 0).length,
         medianFirstReplyHours: roundReplyHours(median),
+        /** Ortanca yanıt süresinin penceresi (gün) — seçili dönemden bağımsız. */
+        replyWindowDays: REPLY_WINDOW_DAYS,
       },
       connections: {
         invitesReceived: conns.length,
@@ -407,16 +419,17 @@ export class CompanyViewsService {
   }
 }
 
-/** Gün başına sayım — dönemdeki HER gün için satır (boş günler 0), eskiden yeniye. */
+/** Gün başına sayım (İstanbul takvim günü) — dönemdeki HER gün için satır (boş günler 0), eskiden yeniye. */
 export function dailySeries(dates: Date[], days: number): { date: string; views: number }[] {
   const out: { date: string; views: number }[] = [];
   const counts = new Map<string, number>();
   for (const d of dates) {
-    const k = d.toISOString().slice(0, 10);
+    const k = dayKey(d);
     counts.set(k, (counts.get(k) ?? 0) + 1);
   }
+  // İstanbul'da yaz saati yok (sabit +03) → 24 saatlik adım her gün bir gün geri gider.
   for (let i = days - 1; i >= 0; i--) {
-    const k = new Date(Date.now() - i * 86_400_000).toISOString().slice(0, 10);
+    const k = dayKey(new Date(Date.now() - i * 86_400_000));
     out.push({ date: k, views: counts.get(k) ?? 0 });
   }
   return out;

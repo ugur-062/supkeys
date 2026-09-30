@@ -4536,6 +4536,7 @@
         "bilgiTalebi": "Bilgi talebi",
         "saat": "{n} sa",
         "ortanca": "ortanca",
+        "ortancaSonGun": "ortanca · son {days, number} gün",
         "kabulEdildi": "{n} kabul edildi",
         "goruntulenmeSayisi": "<b>{n, number}</b> görüntülenme",
         "firmaSayisi": "<b>{n, number}</b> firma"

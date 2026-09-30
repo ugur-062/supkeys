@@ -4536,6 +4536,7 @@
         "bilgiTalebi": "Inquiries",
         "saat": "{n} h",
         "ortanca": "median",
+        "ortancaSonGun": "median · last {days, plural, one {# day} other {# days}}",
         "kabulEdildi": "{n} accepted",
         "goruntulenmeSayisi": "{n, plural, one {<b>#</b> view} other {<b>#</b> views}}",
         "firmaSayisi": "{n, plural, one {<b>#</b> company} other {<b>#</b> companies}}"
