@@ -144,7 +144,9 @@ describe("SeoIndexService", () => {
         status: "OPEN",
         visibility: "PUBLIC",
         publicIndexable: true,
-        company: { publicListingsEnabled: true, city: "Ankara" },
+        publishedAt: new Date("2026-09-01T00:00:00Z"),
+        bidsOpenAt: null,
+        company: { publicListingsEnabled: true, isActive: true, isBlocked: false, city: "Ankara" },
       })
       .mockResolvedValueOnce({
         number: "ROT-000043",
@@ -152,7 +154,9 @@ describe("SeoIndexService", () => {
         status: "OPEN",
         visibility: "CONNECTIONS",
         publicIndexable: true,
-        company: { publicListingsEnabled: true, city: null },
+        publishedAt: new Date("2026-09-01T00:00:00Z"),
+        bidsOpenAt: null,
+        company: { publicListingsEnabled: true, isActive: true, isBlocked: false, city: null },
       });
     const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
     svc.listingChanged("l1");
@@ -168,6 +172,56 @@ describe("SeoIndexService", () => {
     ]);
     const body = JSON.parse(fetchMock.mock.calls[0][1].body);
     expect(body.tags).toEqual(expect.arrayContaining([SEO_TAGS.listing("ROT-000042"), SEO_TAGS.listing("ROT-000043")]));
+  });
+
+  it("embargolu / indekse kapalı / kapanmış / yayımlanmamış talep IndexNow'a GİTMEZ, web yine tazelenir (derin denetim LU-19)", async () => {
+    const base = {
+      number: "ROT-000050",
+      title: "Gizli Başlık",
+      status: "OPEN",
+      visibility: "PUBLIC",
+      publicIndexable: true,
+      publishedAt: new Date("2026-09-01T00:00:00Z"),
+      bidsOpenAt: null as Date | null,
+      company: { publicListingsEnabled: true, isActive: true, isBlocked: false, city: null },
+    };
+    const variants = [
+      { ...base, bidsOpenAt: new Date(Date.now() + 86_400_000) },
+      { ...base, publicIndexable: false },
+      { ...base, status: "CLOSED" },
+      { ...base, publishedAt: null },
+      { ...base, company: { ...base.company, isBlocked: true } },
+    ];
+    for (const v of variants) {
+      fetchMock.mockClear();
+      const prisma = makePrisma();
+      (prisma.listing.findUnique as jest.Mock).mockResolvedValue(v);
+      const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
+      svc.listingChanged("lx");
+      await flushSoon(svc);
+      // Yalnız revalidate isteği; IndexNow çağrısı yok.
+      expect(fetchMock).toHaveBeenCalledTimes(1);
+      const body = JSON.parse(fetchMock.mock.calls[0][1].body);
+      expect(body.tags).toEqual(expect.arrayContaining([SEO_TAGS.listing("ROT-000050")]));
+    }
+  });
+
+  it("embargosu GEÇMİŞ talep IndexNow'a gider", async () => {
+    const prisma = makePrisma();
+    (prisma.listing.findUnique as jest.Mock).mockResolvedValue({
+      number: "ROT-000051",
+      title: "Acik",
+      status: "OPEN",
+      visibility: "PUBLIC",
+      publicIndexable: true,
+      publishedAt: new Date("2026-09-01T00:00:00Z"),
+      bidsOpenAt: new Date(Date.now() - 60_000),
+      company: { publicListingsEnabled: true, isActive: true, isBlocked: false, city: null },
+    });
+    const svc = new SeoIndexService(prisma as never, makeConfig(ENV));
+    svc.listingChanged("ly");
+    await flushSoon(svc);
+    expect(fetchMock).toHaveBeenCalledTimes(2);
   });
 
   it("yayındaki firma: profil + şehir + ülke sayfası IndexNow'a (üç dilde)", async () => {

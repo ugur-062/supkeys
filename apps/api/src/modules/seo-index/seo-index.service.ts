@@ -108,6 +108,34 @@ export function localizedIndexNowUrls(base: string, paths: string[]): string[] {
   return [...new Set(paths.flatMap((p) => LOCALES.map((l) => `${base}${localizeAppPath(p, l)}`)))];
 }
 
+/**
+ * `marketplaceIndexableWhere` (common/company/listing-visibility.ts) kuralının
+ * bellek içi karşılığı — ikisi birlikte değişmeli: vitrin (PUBLIC, yayımlanmış,
+ * embargo geçmiş, firma vitrini açık ve aktif) ∧ status OPEN ∧ publicIndexable.
+ */
+export function isListingIndexable(
+  row: {
+    status: string;
+    visibility: string;
+    publicIndexable: boolean;
+    publishedAt: Date | null;
+    bidsOpenAt: Date | null;
+    company: { publicListingsEnabled: boolean; isActive: boolean; isBlocked: boolean };
+  },
+  now: Date,
+): boolean {
+  return (
+    row.visibility === "PUBLIC" &&
+    row.status === "OPEN" &&
+    row.publicIndexable &&
+    row.publishedAt != null &&
+    (row.bidsOpenAt == null || row.bidsOpenAt.getTime() <= now.getTime()) &&
+    row.company.publicListingsEnabled &&
+    row.company.isActive &&
+    !row.company.isBlocked
+  );
+}
+
 @Injectable()
 export class SeoIndexService {
   private readonly logger = new Logger(SeoIndexService.name);
@@ -216,15 +244,21 @@ export class SeoIndexService {
           status: true,
           visibility: true,
           publicIndexable: true,
-          company: { select: { publicListingsEnabled: true, city: true } },
+          publishedAt: true,
+          bidsOpenAt: true,
+          company: {
+            select: { publicListingsEnabled: true, isActive: true, isBlocked: true, city: true },
+          },
         },
       });
       if (!row?.number) return;
       const path = listingPath(row.number, row.title);
-      // Vitrin kapısı `listing-visibility.ts` ile aynı ruh: PUBLIC ∧ firma
-      // izinli. Statü/embargo ayrıntısı sayfada çözülür; burada yalnız
-      // "adres herkese açık mı" sorusu var.
-      const visible = row.visibility === "PUBLIC" && row.company.publicListingsEnabled;
+      // IndexNow kapısı = `marketplaceIndexableWhere` (sitemap ile aynı kural).
+      // Derin denetim LU-19: yalnız PUBLIC ∧ firma izinli bakılıyordu →
+      // embargolu (bidsOpenAt gelecekte), indekse kapatılmış (publicIndexable
+      // =false) ya da kapanmış talebin başlık slug'lı adresi motorlara gidiyor,
+      // başlık açılıştan önce üçüncü tarafa sızıyordu. Tazeleme koşulsuz kalır.
+      const visible = isListingIndexable(row, new Date());
       this.enqueue({
         paths: [path, PUBLIC_PATHS.demands, "/", SITEMAP_PATHS.index, SITEMAP_PATHS.listings],
         tags: [SEO_TAGS.listing(row.number), SEO_TAGS.listings, SEO_TAGS.facets, SEO_TAGS.sitemap],

@@ -7,9 +7,13 @@
  */
 import { JwtService } from "@nestjs/jwt";
 import type { Socket } from "socket.io";
-import { RealtimeGateway } from "../../src/modules/realtime/realtime.gateway";
+import {
+  RealtimeGateway,
+  isWsOriginAllowed,
+  wsAllowRequest,
+} from "../../src/modules/realtime/realtime.gateway";
 import { prisma, truncateAll } from "./test-db";
-import { makeCompanyWithUser } from "./factories";
+import { makeCompanyWithUser, makeListing } from "./factories";
 
 const SECRET = "test-jwt-secret-realtime";
 const jwt = new JwtService({});
@@ -274,5 +278,70 @@ describe("F-WS-3 — unsubscribe validation (subscribe ile simetri)", () => {
       id: "abc",
     } as never);
     expect(client.leave).toHaveBeenCalledWith("listing:abc");
+  });
+});
+
+describe("LU-19 — handshake origin kapısı (allowRequest, CSWSH)", () => {
+  const prev = { o: process.env.CORS_ORIGINS, v: process.env.CORS_ALLOW_VERCEL };
+  beforeEach(() => {
+    process.env.CORS_ORIGINS = "https://www.rothern.com,https://rothern.com";
+    delete process.env.CORS_ALLOW_VERCEL;
+  });
+  afterAll(() => {
+    if (prev.o === undefined) delete process.env.CORS_ORIGINS;
+    else process.env.CORS_ORIGINS = prev.o;
+    if (prev.v === undefined) delete process.env.CORS_ALLOW_VERCEL;
+    else process.env.CORS_ALLOW_VERCEL = prev.v;
+  });
+
+  it("allowlist'teki origin kabul, same-site ama listede olmayan alt alan adı RED", () => {
+    expect(isWsOriginAllowed("https://www.rothern.com")).toBe(true);
+    expect(isWsOriginAllowed("https://cdn.rothern.com")).toBe(false);
+    expect(isWsOriginAllowed("https://x.vercel.app")).toBe(false);
+    expect(isWsOriginAllowed(undefined)).toBe(true); // native istemci (REST ile aynı)
+  });
+
+  it("wsAllowRequest izinsiz origin'de success=false döner (engine.io 403)", () => {
+    const cb = jest.fn();
+    wsAllowRequest({ headers: { origin: "https://cdn.rothern.com" } }, cb);
+    expect(cb).toHaveBeenCalledWith(expect.any(String), false);
+    const ok = jest.fn();
+    wsAllowRequest({ headers: { origin: "https://www.rothern.com" } }, ok);
+    expect(ok).toHaveBeenCalledWith(null, true);
+  });
+
+  it("gateway metadata'sında allowRequest bağlı", () => {
+    const meta = Reflect.getMetadata(
+      "websockets:gateway_options",
+      RealtimeGateway,
+    ) as { allowRequest?: unknown };
+    expect(meta.allowRequest).toBe(wsAllowRequest);
+  });
+});
+
+describe("LU-19 — handshake bitmeden gelen subscribe düşmez", () => {
+  it("handleConnection beklenmeden gelen subscribe doğrulama sonrası odaya katar", async () => {
+    const { company, user } = await makeCompanyWithUser(prisma, {});
+    const listing = await makeListing(prisma, {
+      companyId: company.id,
+      createdById: user.id,
+    });
+    const gw = gateway();
+    const client = fakeSocket(await sign(user.id, company.id));
+    // Nest'in yaptığı gibi: handleConnection'ı BEKLEMEDEN mesaj işle.
+    const conn = gw.handleConnection(client as unknown as Socket);
+    expect(client.data.companyId).toBeUndefined();
+    await gw.onSubscribe(client as never, { kind: "listing", id: listing.id });
+    await conn;
+    expect(client.join).toHaveBeenCalledWith(`listing:${listing.id}`);
+  });
+
+  it("doğrulama başarısızsa bekleyen subscribe odaya katmaz", async () => {
+    const client = fakeSocket("bozuk.token.xyz");
+    const gw = gateway();
+    const conn = gw.handleConnection(client as unknown as Socket);
+    await gw.onSubscribe(client as never, { kind: "listing", id: "x" });
+    expect(await conn).toBe(false);
+    expect(client.join).not.toHaveBeenCalled();
   });
 });

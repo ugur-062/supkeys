@@ -27,6 +27,25 @@ const PUT_TTL_SECONDS = 15 * 60;
 const GET_TTL_SECONDS = 15 * 60;
 
 /**
+ * RFC 6266 Content-Disposition — derin denetim LU-19: ad eskiden yalnız
+ * `filename="<yüzde-kodlu>"` olarak gidiyordu; düz `filename` parametresi
+ * yüzde-çözülmez, Firefox/Safari "Teknik%20%C5%9Eartname.pdf" diye kaydediyordu.
+ * Şimdi ASCII yedek `filename` (ASCII dışı / tırnak / ters bölü / kontrol
+ * karakteri → `_`) + UTF-8 `filename*` (RFC 5987) birlikte yazılır.
+ */
+export function contentDisposition(
+  type: "attachment" | "inline",
+  name: string,
+): string {
+  const ascii = name.replace(/[^\x20-\x7e]|["\\]/g, "_") || "file";
+  const encoded = encodeURIComponent(name).replace(
+    /['()*]/g,
+    (c) => `%${c.charCodeAt(0).toString(16).toUpperCase()}`,
+  );
+  return `${type}; filename="${ascii}"; filename*=UTF-8''${encoded}`;
+}
+
+/**
  * İki-bucket ayrımı (R2). Public erişim R2'da BUCKET seviyesindedir → hassas
  * belgeler (KYC/teklif/ihale/sipariş) public bucket'ta OLAMAZ, aksi halde key'i
  * bilen herkes imzasız çeker (presigned baypas). Bkz. docs/invariants.md
@@ -297,9 +316,10 @@ export class StorageService implements OnModuleInit {
     const command = new GetObjectCommand({
       Bucket: this.bucketName(bucket),
       Key: key,
-      ResponseContentDisposition: `attachment; filename="${encodeURIComponent(
+      ResponseContentDisposition: contentDisposition(
+        "attachment",
         originalFilename ?? key.split("/").pop() ?? "dosya",
-      )}"`,
+      ),
       ResponseContentType: "application/octet-stream",
     });
     return getSignedUrl(this.client, command, { expiresIn: GET_TTL_SECONDS });
@@ -345,9 +365,10 @@ export class StorageService implements OnModuleInit {
     const command = new GetObjectCommand({
       Bucket: this.bucketName(bucket),
       Key: key,
-      ResponseContentDisposition: `inline; filename="${encodeURIComponent(
+      ResponseContentDisposition: contentDisposition(
+        "inline",
         originalFilename ?? key.split("/").pop() ?? "belge",
-      )}"`,
+      ),
       ResponseContentType: contentType,
     });
     return getSignedUrl(this.client, command, { expiresIn: GET_TTL_SECONDS });

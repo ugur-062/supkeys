@@ -89,8 +89,24 @@ export class ResendEventService {
       return { status: "skipped", reason: "duplicate_event", eventId };
     }
 
-    // 2) EmailLog lookup
-    const providerMessageId = event.data.email_id;
+    // 2) Event type → enum — EmailLog aramasından ÖNCE (derin denetim LU-19):
+    // webhook "All events" ile kurulursa contact.* / domain.* olayları gelir;
+    // bunlarda data.email_id yoktur ve `findUnique({ providerMessageId:
+    // undefined })` Prisma ValidationError → 500 → svix sonsuz yeniden deneme.
+    const eventType = this.mapEventType(event.type);
+    if (!eventType) {
+      this.logger.warn(`Unknown event type: ${event.type}`);
+      return { status: "skipped", reason: "unknown_type", eventId };
+    }
+
+    // 3) EmailLog lookup
+    const providerMessageId = event.data?.email_id;
+    if (typeof providerMessageId !== "string" || !providerMessageId) {
+      this.logger.warn(
+        `Event ${eventId} (${event.type}) has no email_id, skipped`,
+      );
+      return { status: "skipped", reason: "email_log_not_found", eventId };
+    }
     const emailLog = await this.prisma.emailLog.findUnique({
       where: { providerMessageId },
     });
@@ -103,13 +119,6 @@ export class ResendEventService {
         reason: "email_log_not_found",
         eventId,
       };
-    }
-
-    // 3) Event type → enum
-    const eventType = this.mapEventType(event.type);
-    if (!eventType) {
-      this.logger.warn(`Bilinmeyen event type: ${event.type}`);
-      return { status: "skipped", reason: "unknown_type", eventId };
     }
 
     const bounceType = normalizeBounceType(event.data.bounce?.type);
@@ -217,7 +226,7 @@ export class ResendEventService {
       "email.clicked": "CLICKED",
       "email.failed": "FAILED",
     };
-    return map[resendType] ?? null;
+    return Object.hasOwn(map, resendType) ? map[resendType] : null;
   }
 
   /**

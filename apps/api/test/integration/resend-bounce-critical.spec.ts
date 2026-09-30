@@ -187,3 +187,54 @@ describe("webhook — bounceType normalize yazılır (gönderim bastırma/fren t
     expect(mockSentry).not.toHaveBeenCalled();
   });
 });
+
+describe("webhook — email_id taşımayan olaylar (derin denetim LU-19)", () => {
+  it("domain.updated (email_id yok) → 500 değil, unknown_type skipped", async () => {
+    const res = await svc.handleEvent(
+      {
+        type: "domain.updated",
+        created_at: "2026-07-19T10:00:00.000Z",
+        data: { id: "dom_1", name: "rothern.com" },
+      } as unknown as ResendWebhookEvent,
+      "evt-domain",
+    );
+    expect(res).toEqual({ status: "skipped", reason: "unknown_type", eventId: "evt-domain" });
+    expect(await prisma.emailEvent.count()).toBe(0);
+  });
+
+  it("contact.created → unknown_type skipped", async () => {
+    const res = await svc.handleEvent(
+      {
+        type: "contact.created",
+        created_at: "2026-07-19T10:00:00.000Z",
+        data: { id: "c_1", email: "a@b.com" },
+      } as unknown as ResendWebhookEvent,
+      "evt-contact",
+    );
+    expect(res.status).toBe("skipped");
+  });
+
+  it("tanınan tip ama email_id eksik → Prisma hatası değil, skipped", async () => {
+    const res = await svc.handleEvent(
+      {
+        type: "email.delivered",
+        created_at: "2026-07-19T10:00:00.000Z",
+        data: {},
+      } as unknown as ResendWebhookEvent,
+      "evt-noid",
+    );
+    expect(res).toEqual({ status: "skipped", reason: "email_log_not_found", eventId: "evt-noid" });
+  });
+
+  it("prototip anahtarı tip olarak gelirse (constructor) → unknown_type", async () => {
+    const res = await svc.handleEvent(
+      {
+        type: "constructor",
+        created_at: "2026-07-19T10:00:00.000Z",
+        data: { email_id: "x" },
+      } as unknown as ResendWebhookEvent,
+      "evt-proto",
+    );
+    expect(res.status).toBe("skipped");
+  });
+});
