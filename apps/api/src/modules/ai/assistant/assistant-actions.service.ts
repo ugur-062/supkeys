@@ -3,6 +3,7 @@ import { tApi } from "../../../common/i18n/i18n.service";
 import { formatMoney, formatNotificationDate } from "../../../common/notifications/notification-params";
 import { localizeDefaultAddressTitle } from "../../../common/company/default-address-title";
 import { quantityDisplay } from "../../../common/i18n/unit-label";
+import { deliveryTermLabel, paymentCategoryLabel } from "../../../common/i18n/listing-terms-label";
 import { currentLocale } from "../../../common/i18n/locale-context";
 import {
   BadRequestException,
@@ -152,11 +153,18 @@ export class AssistantActionsService {
     });
   }
 
-  /** Oturumdaki taslaktan ihale YAYINLAMA önerisi (kritik). */
+  /**
+   * Oturumdaki taslaktan ihale YAYINLAMA önerisi (kritik). `turnDraft`: aynı
+   * sohbet turunda toplanan (henüz oturuma yazılmamış) taslak — taslak tur
+   * SONUNDA kalıcılaşır; "hazırla ve yayınla" tek mesajında DB'deki taslak
+   * yok ya da bayat olurdu (derin denetim canlı AI). Taslak yine sanitize
+   * edilir; kart + pendingAction üretilir, yürütme yalnız confirm'de.
+   */
   async proposePublishTender(
     user: AuthenticatedCompanyUser,
     sessionId: string,
     args: Record<string, unknown>,
+    turnDraft?: unknown,
   ): Promise<ProposeOutcome> {
     const type = "ALIM" as const;
     // Davetli (kapalı) yayın en az 1 davetli firma ister (iş kuralı) —
@@ -183,10 +191,11 @@ export class AssistantActionsService {
       where: { id: sessionId, userId: user.userId, companyId: user.companyId },
       select: { tenderDraft: true },
     });
-    if (!session?.tenderDraft) {
+    const rawDraft = turnDraft ?? session?.tenderDraft;
+    if (!session || !rawDraft) {
       return { ok: false, problem: "Bu sohbette biriken bir satın alma talebi taslağı yok — önce taslağı birlikte hazırlayın." };
     }
-    const s = sanitizeAiDraft(session.tenderDraft, "refine");
+    const s = sanitizeAiDraft(rawDraft, "refine");
     if (s.missingRequired.length > 0) {
       return {
         ok: false,
@@ -255,16 +264,22 @@ export class AssistantActionsService {
             .filter(Boolean)
             .join(", "),
         }),
+        // Teslim/ödeme şekli okuyucunun dilinde etiket (ham enum kodu değil).
         tApi("api.ai.assistant.publish.payment", {
           plan: summarizePaymentPlan(dto),
-          delivery: dto.deliveryTerm ?? "-",
+          delivery: deliveryTermLabel(dto.deliveryTerm) ?? "-",
         }),
         tApi("api.ai.assistant.publish.description", {
           text: previewText(dto.description),
         }),
         tApi("api.ai.assistant.publish.terms", { text: previewText(dto.terms) }),
         tApi("api.ai.assistant.publish.note"),
-        tApi("api.ai.assistant.publish.sourceWarning"),
+        // "Belgeden geldi" yalnız taslak gerçekten belge çıkarımından geldiyse
+        // (sayfa özetleri yalnız belge çıkarımında üretilir); aksi halde
+        // metinler sohbetten derlendi — uyarı yine gösterilir.
+        s.draft.pageSummaries.length > 0
+          ? tApi("api.ai.assistant.publish.sourceWarning")
+          : tApi("api.ai.assistant.publish.sourceWarningChat"),
       ],
     });
   }
@@ -900,7 +915,7 @@ function summarizePaymentPlan(dto: {
   advancePercent?: number | null;
   paymentDays?: number | null;
 }): string {
-  const cat = dto.paymentCategory ? String(dto.paymentCategory) : null;
+  const cat = paymentCategoryLabel(dto.paymentCategory ? String(dto.paymentCategory) : null);
   if (!cat) return tApi("api.ai.assistant.payment.unspecified");
   const parts = [cat];
   // Yüzde (1-100) ve vade günü (1-365) SAYI geçilir: üç haneyi aşmadıkları

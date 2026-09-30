@@ -829,7 +829,8 @@
         "description": "Description: {text}",
         "terms": "Specification: {text}",
         "note": "Once published, it opens for quotes; the closing date and line items cannot be changed after quotes arrive.",
-        "sourceWarning": "The description/specification texts came from the document — read them before confirming."
+        "sourceWarning": "The description/specification texts came from the document — read them before confirming.",
+        "sourceWarningChat": "The description/specification texts were compiled from the chat — read them before confirming."
       },
       "eliminate": {
         "bid": "Quote to be eliminated: {supplier} — {amount}",
@@ -1877,5 +1878,35 @@
   },
   "emailUnsubscribe": {
     "invalidLink": "This unsubscribe link is invalid."
+  },
+  "domain": {
+    "deliveryTerm": {
+      "DOMESTIC_DELIVERED": "Delivered to address, unloaded — freight and unloading by the seller",
+      "DOMESTIC_PICKUP": "Factory / warehouse pickup — the buyer collects",
+      "DOMESTIC_CARRIER_COLLECT": "Delivered to carrier / depot — freight paid by the buyer (collect)",
+      "DOMESTIC_ON_VEHICLE": "Delivered to address, on vehicle — freight by the seller, unloading by the buyer",
+      "EXW": "EXW (Ex Works) — at the supplier's premises",
+      "FCA": "FCA (Free Carrier) — handed to the carrier",
+      "CPT": "CPT (Carriage Paid To) — carriage paid",
+      "CIP": "CIP (Carriage and Insurance Paid To) — carriage and insurance paid",
+      "DAP": "DAP (Delivered at Place) — delivered to the named place",
+      "DPU": "DPU (Delivered at Place Unloaded) — delivered and unloaded",
+      "DDP": "DDP (Delivered Duty Paid) — duty paid",
+      "FAS": "FAS (Free Alongside Ship) — alongside the vessel",
+      "FOB": "FOB (Free On Board) — loaded on board",
+      "CFR": "CFR (Cost and Freight) — goods + freight",
+      "CIF": "CIF (Cost, Insurance and Freight) — goods + freight + insurance"
+    },
+    "paymentCategory": {
+      "ADVANCE": "Advance payment",
+      "DEFERRED": "Deferred",
+      "OPEN_ACCOUNT": "Open account",
+      "MAL_MUKABILI": "Cash against goods",
+      "CHEQUE": "Cheque",
+      "SENET": "Promissory note",
+      "LETTER_OF_CREDIT": "Letter of credit",
+      "CASH_AGAINST_DOCS": "Cash against documents",
+      "CUSTOM": "Custom"
+    }
   }
 }

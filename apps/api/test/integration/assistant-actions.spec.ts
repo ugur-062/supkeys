@@ -483,6 +483,103 @@ describe("proposePublishTender", () => {
     expect(dto.deliveryAddressId).toBe(santiye.id);
   });
 
+  /** Adresli sahip + bağlantılı davetli + kategori — kart testleri için. */
+  async function publishSetup() {
+    await seedCategory();
+    const owner = await makeCompanyWithUser(prisma);
+    await prisma.companyAddress.create({
+      data: { companyId: owner.company.id, type: "TESLIMAT", title: "Depo", addressLine: "Test Mah. 1", city: "İstanbul" },
+    });
+    const { code } = await makeConnectedInvitee(owner.company.id, owner.user.id);
+    return { owner, code };
+  }
+
+  it("canli AI: kartta teslim/odeme sekli okuyucunun dilinde etiket (ham enum kodu yok)", async () => {
+    const actions = makeActions();
+    const { owner, code } = await publishSetup();
+    const session = await makeSession(owner.user.id, owner.company.id, fullDraft({ paymentDays: 30 }));
+    const expected = {
+      tr: ["Açık Hesap · 30 gün vade", "Adrese teslim, indirilmiş — nakliye ve indirme satıcıya ait"],
+      en: ["Open account · 30 days payment term", "Delivered to address, unloaded — freight and unloading by the seller"],
+      ru: ["Открытый счёт · отсрочка 30 дней", "Доставка до адреса с разгрузкой — перевозка и разгрузка за продавцом"],
+    } as const;
+    for (const locale of ["tr", "en", "ru"] as const) {
+      const out = await runWithLocale(locale, () =>
+        actions.proposePublishTender(owner.auth, session.id, { type: "ALIM", rothernIds: [code] }),
+      );
+      expect(out.ok).toBe(true);
+      const text = out.pending!.summary.join("\n");
+      expect(text).not.toContain("OPEN_ACCOUNT");
+      expect(text).not.toContain("DOMESTIC_DELIVERED");
+      for (const part of expected[locale]) expect(text).toContain(part);
+    }
+  });
+
+  it("canli AI: baslik tekrarsiz; 'belgeden geldi' uyarisi yalniz belge taslaginda", async () => {
+    const actions = makeActions();
+    const { owner, code } = await publishSetup();
+    const chat = await makeSession(owner.user.id, owner.company.id, fullDraft());
+    const out = await actions.proposePublishTender(owner.auth, chat.id, { type: "ALIM", rothernIds: [code] });
+    expect(out.ok).toBe(true);
+    expect(out.pending!.summary[0]).toBe("Satın alma talebi YAYINLANACAK: 500 adet baret alımı");
+    const text = out.pending!.summary.join("\n");
+    expect(text).not.toContain("belgeden geldi");
+    expect(text).toContain("sohbetten derlendi");
+
+    const doc = await makeSession(
+      owner.user.id,
+      owner.company.id,
+      fullDraft({ pageSummaries: ["Sayfa 1: baret teknik şartnamesi"] }),
+    );
+    const docOut = await actions.proposePublishTender(owner.auth, doc.id, { type: "ALIM", rothernIds: [code] });
+    expect(docOut.ok).toBe(true);
+    const docText = docOut.pending!.summary.join("\n");
+    expect(docText).toContain("belgeden geldi");
+    expect(docText).not.toContain("sohbetten derlendi");
+  });
+
+  it("canli AI: ayni turdaki (henuz yazilmamis) taslak verilirse DB taslagi yerine o kullanilir", async () => {
+    const actions = makeActions();
+    const { owner, code } = await publishSetup();
+    // Oturumda taslak YOK — taslak bu turda toplandı, tur sonunda yazılacak.
+    const empty = await makeSession(owner.user.id, owner.company.id);
+    const out = await actions.proposePublishTender(
+      owner.auth,
+      empty.id,
+      { type: "ALIM", rothernIds: [code] },
+      fullDraft({ title: "Tek mesajda hazırlanan talep" }),
+    );
+    expect(out.ok).toBe(true);
+    expect(out.pending!.summary.join(" ")).toContain("Tek mesajda hazırlanan talep");
+
+    // Bayat DB taslağı yerine turdaki güncel taslak kartta ve pendingAction'da.
+    const stale = await makeSession(owner.user.id, owner.company.id, fullDraft({ title: "Eski başlık" }));
+    const fresh = await actions.proposePublishTender(
+      owner.auth,
+      stale.id,
+      { type: "ALIM", rothernIds: [code] },
+      fullDraft({ title: "Yeni başlık" }),
+    );
+    expect(fresh.ok).toBe(true);
+    const stored = await prisma.aiChatSession.findUnique({ where: { id: stale.id } });
+    expect((stored!.pendingAction as { params: { dto: { title: string } } }).params.dto.title).toBe("Yeni başlık");
+    // Başka kullanıcının oturumuna turdaki taslakla da kart yazılamaz.
+    const other = await makeCompanyWithUser(prisma);
+    const { code: otherCode } = await makeConnectedInvitee(other.company.id, other.user.id, "Diğer AŞ");
+    const foreign = await actions.proposePublishTender(
+      other.auth,
+      empty.id,
+      { type: "ALIM", rothernIds: [otherCode] },
+      fullDraft(),
+    );
+    expect(foreign.ok).toBe(false);
+    expect(foreign.problem).toMatch(/taslağı yok/);
+    const emptyAfter = await prisma.aiChatSession.findUnique({ where: { id: empty.id } });
+    expect((emptyAfter!.pendingAction as { params: { dto: { title: string } } }).params.dto.title).toBe(
+      "Tek mesajda hazırlanan talep",
+    );
+  });
+
   it("reject: hiçbir şey yürütülmez, pendingAction temizlenir", async () => {
     const actions = makeActions();
     await seedCategory();

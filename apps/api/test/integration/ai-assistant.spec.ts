@@ -79,7 +79,11 @@ class FakeConnections {
   list = jest.fn(async () => [] as unknown[]);
 }
 
-function build(cfg: AiConfig, provider: FakeProvider) {
+function build(
+  cfg: AiConfig,
+  provider: FakeProvider,
+  over: { actions?: object; suggest?: () => Promise<string[]> } = {},
+) {
   const listings = makeService().service;
   const orders = new FakeOrders();
   const connections = new FakeConnections();
@@ -88,7 +92,7 @@ function build(cfg: AiConfig, provider: FakeProvider) {
   // Belge (fileKeys) senaryosu bu suite'te yok — storage stub yeterli.
   // Kategori önerisi stub: öneri yok (senaryolar deterministik kalır).
   const categorySuggest = {
-    suggest: async () => [] as string[],
+    suggest: over.suggest ?? (async () => [] as string[]),
   } as unknown as CategorySuggestService;
   const tenderExtract = new TenderExtractService(
     ai,
@@ -108,10 +112,10 @@ function build(cfg: AiConfig, provider: FakeProvider) {
     tenderExtract,
     categorySuggest,
     // AI-4 aksiyon servisi — bu spec'ler propose akışını KULLANMAZ; stub yeterli.
-    {
+    (over.actions ?? {
       proposeSendInvites: async () => ({ ok: false, problem: "stub" }),
       proposePublishTender: async () => ({ ok: false, problem: "stub" }),
-    } as never,
+    }) as never,
   );
   return { svc, listings, orders, connections };
 }
@@ -543,6 +547,87 @@ describe("Faz AI-3 — konuşarak ihale taslağı (BAĞLAYICI DEĞİL)", () => {
     expect(reply.tenderDraft!.draft.primaryCurrency).toBeNull();
     expect(reply.tenderDraft!.draft.items[0]!.quantity).toBeNull();
     expect(reply.tenderDraft!.flags.some((f) => f.reason === "validation_failed")).toBe(true);
+  });
+
+  it("canli AI: tek mesajda 'hazirla ve yayinla' — yayin onerisine turdaki taslak (kategori onerili) gider", async () => {
+    const provider = new FakeProvider();
+    const closesAt = new Date(Date.now() + 7 * 86_400_000).toISOString();
+    provider.steps = [
+      {
+        toolCalls: [
+          {
+            name: "propose_tender_draft",
+            args: {
+              title: "500 adet baret alımı",
+              primaryCurrency: "TRY",
+              deliveryTerm: "DOMESTIC_DELIVERED",
+              paymentCategory: "OPEN_ACCOUNT",
+              bidsCloseAt: closesAt,
+              items: [{ name: "Baret", quantity: 500, unit: "adet" }],
+            },
+          },
+          { name: "request_publish_tender", args: { rothernIds: ["TEST-0001"] } },
+        ],
+      },
+      { text: "Onay kartını gösterdim." },
+    ];
+    const seen: unknown[] = [];
+    const pending = {
+      id: "act-1",
+      type: "publish_tender",
+      severity: "critical",
+      summary: ["kart"],
+      expiresAt: new Date(Date.now() + 60_000).toISOString(),
+    };
+    const actions = {
+      proposeSendInvites: async () => ({ ok: false, problem: "stub" }),
+      proposePublishTender: async (_u: unknown, _s: string, _a: unknown, turnDraft?: unknown) => {
+        seen.push(turnDraft);
+        return turnDraft ? { ok: true, pending } : { ok: false, problem: "taslak yok" };
+      },
+    };
+    const suggest = jest.fn(async () => ["30991900"]);
+    const { svc } = build(makeCfg(), provider, { actions, suggest });
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });
+    const reply = await svc.message(authFor(co.user, co.company.id, [CompanyRole.SATIN_ALMACI]), {
+      message: "500 adet baret için talep hazırla ve yayınla, TEST-0001 davet et",
+    });
+
+    expect(seen).toHaveLength(1);
+    const d = seen[0] as { title: string; suggestedCategoryIds: string[] };
+    expect(d.title).toBe("500 adet baret alımı");
+    expect(d.suggestedCategoryIds).toEqual(["30991900"]);
+    // Kategori önerisi tur sonunda TEKRAR çağrılmaz (zaten var).
+    expect(suggest).toHaveBeenCalledTimes(1);
+    expect(reply.pendingAction?.id).toBe("act-1");
+    // Model yazamaz: ilan açılmadı; taslak tur sonunda oturuma yazıldı.
+    expect(await prisma.listing.count()).toBe(0);
+    const s = await prisma.aiChatSession.findFirstOrThrow();
+    expect((s.tenderDraft as { suggestedCategoryIds?: string[] }).suggestedCategoryIds).toEqual(["30991900"]);
+  });
+
+  it("canli AI: propose_tender_draft onceki belge taslaginin sayfa ozetlerini korur", async () => {
+    const provider = new FakeProvider();
+    provider.steps = [
+      { toolCalls: [{ name: "propose_tender_draft", args: { title: "Baret alımı (güncel)" } }] },
+      { text: "güncelledim" },
+    ];
+    const { svc } = build(makeCfg(), provider);
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD", roles: [CompanyRole.SATIN_ALMACI] });
+    const session = await prisma.aiChatSession.create({
+      data: {
+        userId: co.user.id,
+        companyId: co.company.id,
+        title: "t",
+        tenderDraft: { title: "Baret alımı", pageSummaries: ["Sayfa 1: şartname"] } as Prisma.InputJsonValue,
+      },
+    });
+    const reply = await svc.message(authFor(co.user, co.company.id, [CompanyRole.SATIN_ALMACI]), {
+      sessionId: session.id,
+      message: "başlığı güncelle",
+    });
+    expect(reply.tenderDraft!.draft.title).toBe("Baret alımı (güncel)");
+    expect(reply.tenderDraft!.draft.pageSummaries).toEqual(["Sayfa 1: şartname"]);
   });
 
   it("propose_tender_draft yalnız SA/ST portallı kullanıcıya sunulur", () => {

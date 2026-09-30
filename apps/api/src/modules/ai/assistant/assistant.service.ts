@@ -294,6 +294,12 @@ export class AssistantService {
           // taslağa dönüşür (BAĞLAYICI DEĞİL; ihale açılmaz).
           if (call.name === TOOL_NAMES.proposeTenderDraft) {
             const s = sanitizeAiDraft(call.args, "refine");
+            // Belge sayfa özetleri modelden istenmez (araç şemasında yok) —
+            // önceki taslaktan taşınır: refine bağlamı ve onay kartındaki
+            // "belgeden geldi" uyarısının kaynağı kaybolmasın.
+            if (s.draft.pageSummaries.length === 0 && draft?.draft.pageSummaries.length) {
+              s.draft.pageSummaries = draft.draft.pageSummaries;
+            }
             draft = {
               ...s,
               route: "text",
@@ -314,7 +320,17 @@ export class AssistantService {
           // .bind patlaması olmasın — test stub'ları kısmi olabilir).
           const proposeFn = this.resolveProposeFn(call.name);
           if (proposeFn) {
-            const outcome = await proposeFn(user, session.id, call.args).catch(
+            // Bu turda toplanan taslak henüz oturuma yazılmadı (tur sonunda
+            // yazılır) — yayın önerisine bellekteki güncel taslak verilir,
+            // kategori önerisi de önden üretilir; yoksa "hazırla ve yayınla"
+            // tek mesajı "taslak yok"/bayat taslakla takılırdı (derin denetim
+            // canlı AI). Öneri yine YÜRÜTMEZ: yalnız onay kartı.
+            let turnDraft: AiTenderExtractResult["draft"] | undefined;
+            if (call.name === TOOL_NAMES.requestPublishTender && draftTouched && draft) {
+              draft = await this.withSuggestedCategories(user, draft);
+              turnDraft = draft.draft;
+            }
+            const outcome = await proposeFn(user, session.id, call.args, turnDraft).catch(
               () => ({ ok: false as const, problem: "İşlem önerisi hazırlanamadı." }),
             );
             if (outcome.ok && outcome.pending) pendingAction = outcome.pending;
@@ -380,22 +396,8 @@ export class AssistantService {
     // Konuşmayla toplanan taslakta kalem var ama kategori önerisi yoksa üret
     // (belge yolu extract() içinde zaten önerir). suggest() hata yutar — turu
     // asla düşürmez.
-    if (
-      draftTouched &&
-      draft &&
-      draft.draft.suggestedCategoryIds.length === 0 &&
-      draft.draft.items.some((i) => i.name)
-    ) {
-      const ids = await this.categorySuggest.suggest(user, draft.draft.items);
-      if (ids.length > 0) {
-        draft = {
-          ...draft,
-          draft: { ...draft.draft, suggestedCategoryIds: ids },
-          missingRequired: draft.missingRequired.filter(
-            (m) => m !== "category",
-          ),
-        };
-      }
+    if (draftTouched && draft) {
+      draft = await this.withSuggestedCategories(user, draft);
     }
 
     const settled = await this.budget.settle(reservation.id, totalUsage);
@@ -457,6 +459,26 @@ export class AssistantService {
     };
   }
 
+  /**
+   * Taslakta kalem var ama kategori önerisi yoksa üret (belge yolu extract()
+   * içinde zaten önerir). suggest() hata yutar — turu asla düşürmez.
+   */
+  private async withSuggestedCategories(
+    user: AuthenticatedCompanyUser,
+    draft: AiTenderExtractResult,
+  ): Promise<AiTenderExtractResult> {
+    if (draft.draft.suggestedCategoryIds.length > 0 || !draft.draft.items.some((i) => i.name)) {
+      return draft;
+    }
+    const ids = await this.categorySuggest.suggest(user, draft.draft.items);
+    if (ids.length === 0) return draft;
+    return {
+      ...draft,
+      draft: { ...draft.draft, suggestedCategoryIds: ids },
+      missingRequired: draft.missingRequired.filter((m) => m !== "category"),
+    };
+  }
+
   /** AI-4: araç adı → aksiyon önerici (yoksa null → normal araç akışı). */
   private resolveProposeFn(
     name: string,
@@ -465,13 +487,14 @@ export class AssistantService {
         u: AuthenticatedCompanyUser,
         sessionId: string,
         args: Record<string, unknown>,
+        turnDraft?: AiTenderExtractResult["draft"],
       ) => ReturnType<AssistantActionsService["proposeSendInvites"]>)
     | null {
     switch (name) {
       case TOOL_NAMES.requestSendInvites:
         return (u, s, a) => this.actions.proposeSendInvites(u, s, a);
       case TOOL_NAMES.requestPublishTender:
-        return (u, s, a) => this.actions.proposePublishTender(u, s, a);
+        return (u, s, a, d) => this.actions.proposePublishTender(u, s, a, d);
       case TOOL_NAMES.requestEliminateBid:
         return (u, s, a) => this.actions.proposeEliminateBid(u, s, a);
       case TOOL_NAMES.requestAwardTender:

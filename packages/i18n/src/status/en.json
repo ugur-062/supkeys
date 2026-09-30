@@ -625,9 +625,9 @@
     "at": "2026-09-24"
   },
   "api.ai.assistant.publish.headingAlim": {
-    "hash": "0a6d85b49b",
+    "hash": "3f428f891c",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-09-30"
   },
   "api.ai.assistant.publish.items": {
     "hash": "c8f026bb8c",
@@ -648,6 +648,11 @@
     "hash": "bb9953a318",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.ai.assistant.publish.sourceWarningChat": {
+    "hash": "34dfb7bad1",
+    "status": "reviewed",
+    "at": "2026-09-30"
   },
   "api.ai.assistant.publish.terms": {
     "hash": "02ba20649f",
@@ -4278,6 +4283,126 @@
     "hash": "8256132a42",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.domain.deliveryTerm.CFR": {
+    "hash": "3803961c4c",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.CIF": {
+    "hash": "d30871a397",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.CIP": {
+    "hash": "6914aa136f",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.CPT": {
+    "hash": "0b58be4534",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.DAP": {
+    "hash": "65e40e0bba",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.DDP": {
+    "hash": "0ab045db32",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.DOMESTIC_CARRIER_COLLECT": {
+    "hash": "5c3ad740c2",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.DOMESTIC_DELIVERED": {
+    "hash": "c1ea88c4e0",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.DOMESTIC_ON_VEHICLE": {
+    "hash": "cd93fd5e50",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.DOMESTIC_PICKUP": {
+    "hash": "24fc6d4f72",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.DPU": {
+    "hash": "523f33a5d9",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.EXW": {
+    "hash": "77875ee75d",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.FAS": {
+    "hash": "03c88399d5",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.FCA": {
+    "hash": "fa319964fe",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.deliveryTerm.FOB": {
+    "hash": "c5b3ad1db7",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.paymentCategory.ADVANCE": {
+    "hash": "af57122cbb",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.paymentCategory.CASH_AGAINST_DOCS": {
+    "hash": "a767fbafcf",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.paymentCategory.CHEQUE": {
+    "hash": "321aca51af",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.paymentCategory.CUSTOM": {
+    "hash": "4aaa9f3d32",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.paymentCategory.DEFERRED": {
+    "hash": "5d7c1a168e",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.paymentCategory.LETTER_OF_CREDIT": {
+    "hash": "f70208590d",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.paymentCategory.MAL_MUKABILI": {
+    "hash": "27f6fe43c6",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.paymentCategory.OPEN_ACCOUNT": {
+    "hash": "8e4bc6a2fd",
+    "status": "reviewed",
+    "at": "2026-09-30"
+  },
+  "api.domain.paymentCategory.SENET": {
+    "hash": "fd3a530a83",
+    "status": "reviewed",
+    "at": "2026-09-30"
   },
   "api.dto.account.altiHaneliKodGirin": {
     "hash": "59f0b4d45f",
