@@ -11,10 +11,11 @@
  */
 
 import { CompanyRole, PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { createClient } from "@supabase/supabase-js";
 import { generateShortCode, permissionsForRoles } from "@rothern/shared";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("create-test-company") });
 
 async function uniqueRothernId(): Promise<string> {
   for (let i = 0; i < 10; i++) {

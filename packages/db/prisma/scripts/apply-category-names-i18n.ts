@@ -10,11 +10,12 @@
  * ikisi birlikte yazılır (i18n arama, 2026-09-24).
  */
 import { Prisma, PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { categorySearchText } from "@rothern/shared";
 import * as path from "path";
 import { readI18nNames } from "./lib/category-keywords";
 
-const prisma = new PrismaClient({ datasourceUrl: process.env.DIRECT_URL || process.env.DATABASE_URL });
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("apply-category-names-i18n") });
 const CHUNK = 500;
 
 async function main() {

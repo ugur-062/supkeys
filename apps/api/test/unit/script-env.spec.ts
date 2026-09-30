@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { mkdtempSync, readdirSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import {
@@ -85,7 +85,7 @@ describe("script-env: ENV_FILE yükleyicisi", () => {
 
 describe("script-env: kurulum betikleri bağlı", () => {
   const scripts = resolve(__dirname, "../../../../packages/db/prisma/scripts");
-  it.each(["seed-geo-cities", "backfill-city-ids", "backfill-price-base"])(
+  it.each(["seed-geo-cities", "backfill-city-ids", "backfill-price-base", "seed-category-attributes", "seed-categories"])(
     "%s PrismaClient'ı prepareScriptDatabase adresiyle kurar (ham process.env değil)",
     (name) => {
       const src = readFileSync(join(scripts, `${name}.ts`), "utf8");
@@ -93,4 +93,54 @@ describe("script-env: kurulum betikleri bağlı", () => {
       expect(src).not.toMatch(/datasourceUrl:\s*process\.env/);
     },
   );
+});
+
+/**
+ * KAYNAK TARAMASI (boşluk taraması GA1): `seed-category-attributes` ve katalog
+ * betiklerinin çoğu `new PrismaClient()` ile açılıyordu → `ENV_FILE` hiç
+ * okunmuyor, Prisma şema env yolundaki kök `.env`e (STAGING) yazıp başarı
+ * basıyordu; hedef satırı da yoktu. Kural: scripts dizinindeki HER
+ * `new PrismaClient(` adresini `prepareScriptDatabase("<dosya-adı>")`dan alır.
+ * Yeni betik bu kalıbı atlarsa burası kırmızı.
+ */
+describe("script-env: scripts dizininde ham PrismaClient kalmaz", () => {
+  const scripts = resolve(__dirname, "../../../../packages/db/prisma/scripts");
+  /**
+   * Bilinçli istisnalar — gerekçeli:
+   *  · wipe-companies / wipe-residue / rewrite-image-host: kendi ENV_FILE
+   *    yükleyicileri dosya değerleriyle EZER (Y-21 öncesi kalıp) ve bilerek
+   *    havuzlu DATABASE_URL'e `pgbouncer=true` ekler; HEDEF=<ref> onayı ayrıca var.
+   *  · seed-staging-demo: yalnız staging; adres staging proje ref'ini
+   *    içermiyorsa DURUR (canlıya yazamaz), havuzlu adrese pgbouncer ekler.
+   */
+  const ALLOW: Record<string, RegExp> = {
+    "wipe-companies": /override \|\| !process\.env\[k\]/,
+    "wipe-residue": /override \|\| !process\.env\[k\]/,
+    "rewrite-image-host": /override \|\| !process\.env\[k\]/,
+    "seed-staging-demo": /if \(!rawUrl\.includes\(STAGING_REF\)\)/,
+  };
+  const files = readdirSync(scripts).filter((f) => f.endsWith(".ts"));
+
+  it("tarama boş değil (dizin yolu doğru)", () => {
+    expect(files).toContain("seed-category-attributes.ts");
+  });
+
+  it.each(files)("%s: her new PrismaClient( adresi prepareScriptDatabase'den", (file) => {
+    const name = file.replace(/\.ts$/, "");
+    const src = readFileSync(join(scripts, file), "utf8");
+    const calls = [...src.matchAll(/new PrismaClient\([\s\S]*?\);/g)].map((m) => m[0].replace(/\s+/g, " ").replace(/;$/, ""));
+    if (ALLOW[name]) {
+      expect(src).toMatch(ALLOW[name]!);
+      return;
+    }
+    // Yakalanmayan (noktalı virgülsüz vb.) çağrı taramadan kaçmasın.
+    expect(calls).toHaveLength((src.match(/new PrismaClient\(/g) ?? []).length);
+    for (const call of calls) {
+      const direct = call === `new PrismaClient({ datasourceUrl: prepareScriptDatabase("${name}") })`;
+      const viaVar = /^new PrismaClient\(\{ datasourceUrl: ([A-Za-z_]\w*) \}\)$/.exec(call)?.[1];
+      const varOk = !!viaVar && src.includes(`const ${viaVar} = prepareScriptDatabase("${name}")`);
+      expect({ call, ok: direct || varOk }).toEqual({ call, ok: true });
+    }
+    expect(src).not.toMatch(/datasourceUrl:\s*process\.env/);
+  });
 });

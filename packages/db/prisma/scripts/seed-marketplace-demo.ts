@@ -15,23 +15,16 @@
  *
  * Çalıştır:  cd packages/db && npx tsx prisma/scripts/seed-marketplace-demo.ts
  */
-import { existsSync, readFileSync } from "node:fs";
+import { existsSync } from "node:fs";
 import { resolve } from "node:path";
 
-for (const line of readFileSync(resolve(__dirname, "../../.env"), "utf8").split("\n")) {
-  const i = line.indexOf("=");
-  if (i > 0 && !line.trimStart().startsWith("#")) {
-    const k = line.slice(0, i).trim();
-    if (!process.env[k]) process.env[k] = line.slice(i + 1).trim().replace(/^"|"$/g, "");
-  }
-}
-
 import { PrismaClient, type CompanyActivity, type CompanyTier, type Prisma } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { createClient } from "@supabase/supabase-js";
 import { categoryAncestors, foldSearchText, generateSlug, permissionsForRoles, productCompletion } from "@rothern/shared";
 import { CATEGORY_ATTRIBUTES } from "../../src/seeds/category-attributes";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("seed-marketplace-demo") });
 const supabase = createClient(process.env.SUPABASE_URL!, process.env.SUPABASE_SERVICE_ROLE_KEY!, {
   auth: { autoRefreshToken: false, persistSession: false },
 });

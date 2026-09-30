@@ -19,11 +19,12 @@
  * Idempotent; TSV'de olmayan kategorilere dokunmaz, DEĞİŞMEYEN satırı yazmaz.
  */
 import { PrismaClient, Prisma } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { categorySearchText } from "@rothern/shared";
 import * as path from "path";
 import { buildKeywordsByCode } from "./lib/category-keywords";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("apply-category-keywords") });
 
 /**
  * Toplu yazım grubu. Eskiden her satır için ayrı findUnique+update atılıyordu;

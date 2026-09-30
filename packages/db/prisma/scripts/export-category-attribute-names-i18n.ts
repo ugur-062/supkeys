@@ -4,10 +4,11 @@
  *   pnpm --filter @rothern/db export-category-attribute-names-i18n
  */
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import * as fs from "fs";
 import * as path from "path";
 
-const prisma = new PrismaClient({ datasourceUrl: process.env.DIRECT_URL || process.env.DATABASE_URL });
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("export-category-attribute-names-i18n") });
 const clean = (v: string | null | undefined) => (v ?? "").replace(/[\t\r\n|]+/g, " ").trim();
 
 async function main() {

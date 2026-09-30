@@ -10,13 +10,19 @@
  * kimsenin fark etmediği bir duruma yol açardı.
  *
  *   npx tsx prisma/scripts/seed-category-attributes.ts
+ *   ENV_FILE=../../.env.prod.local pnpm --filter @rothern/db seed-category-attributes   # canlı
+ *
+ * Hedef: `prepareScriptDatabase` ENV_FILE'ı BETİK içinde okur ve ilk satırda
+ * hedef host/proje ref'ini basar (boşluk taraması GA1: eskiden `new
+ * PrismaClient()` ENV_FILE'ı yok sayıp kök `.env`e = STAGING yazıyordu).
  */
 import { PrismaClient, type CategoryAttributeType } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { readAttributeI18n } from "./lib/category-keywords";
 import * as path from "path";
 import { CATEGORY_ATTRIBUTES } from "../../src/seeds/category-attributes";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("seed-category-attributes") });
 
 async function main() {
   const codes = Object.keys(CATEGORY_ATTRIBUTES);

@@ -6,23 +6,12 @@
  * Çalıştır:  cd packages/db && npx tsx prisma/scripts/seed-demo-fill.ts
  * Idempotent: her koşuda @demofill.local firmaları silinip yeniden kurulur.
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-
-// .env'i manuel yükle (tsx otomatik yüklemez).
-for (const line of readFileSync(resolve(__dirname, "../../.env"), "utf8").split("\n")) {
-  const i = line.indexOf("=");
-  if (i > 0 && !line.trimStart().startsWith("#")) {
-    const k = line.slice(0, i).trim();
-    if (!process.env[k]) process.env[k] = line.slice(i + 1).trim().replace(/^"|"$/g, "");
-  }
-}
-
 import { PrismaClient, type CompanyRole, type CompanyTier } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { createClient } from "@supabase/supabase-js";
 import { permissionsForRoles } from "@rothern/shared";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("seed-demo-fill") });
 const supabase = createClient(
   process.env.SUPABASE_URL!,
   process.env.SUPABASE_SERVICE_ROLE_KEY!,

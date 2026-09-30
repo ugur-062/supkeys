@@ -4,17 +4,9 @@
  * ilanları silinir, profilleri vitrinden çekilir (publicEnabled=false,
  * publicListingsEnabled=false).
  */
-import { readFileSync } from "node:fs";
-import { resolve } from "node:path";
-for (const line of readFileSync(resolve(__dirname, "../../.env"), "utf8").split("\n")) {
-  const i = line.indexOf("=");
-  if (i > 0 && !line.trimStart().startsWith("#")) {
-    const k = line.slice(0, i).trim();
-    if (!process.env[k]) process.env[k] = line.slice(i + 1).trim().replace(/^"|"$/g, "");
-  }
-}
 import { PrismaClient } from "@prisma/client";
-const prisma = new PrismaClient();
+import { prepareScriptDatabase } from "./lib/script-env";
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("cleanup-marketplace-demo") });
 async function main() {
   const prev = await prisma.companyUser.findMany({ where: { email: { endsWith: "@demofill.local" } }, select: { companyId: true } });
   const ids = [...new Set(prev.map((u) => u.companyId))];

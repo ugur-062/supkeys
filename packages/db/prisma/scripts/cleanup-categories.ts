@@ -32,8 +32,9 @@
  *   UNSPSC standardı kalır (referans uyumluluğu).
  */
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("cleanup-categories") });
 
 /**
  * KOBİ inşaat / elektrik pano / iskele / metal-elektromekanik imalat

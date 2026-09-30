@@ -6,10 +6,11 @@
  *   pnpm --filter @rothern/db export-category-names-i18n
  */
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import * as fs from "fs";
 import * as path from "path";
 
-const prisma = new PrismaClient({ datasourceUrl: process.env.DIRECT_URL || process.env.DATABASE_URL });
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("export-category-names-i18n") });
 
 async function main() {
   const rows = await prisma.category.findMany({

@@ -8,8 +8,9 @@
  * Çalıştırma: `pnpm --filter @rothern/db backfill-rothern-ids`
  */
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 
-const prisma = new PrismaClient();
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("backfill-rothern-ids") });
 
 // @rothern/shared SHORT_CODE alfabesi (seed.ts ile aynı — karışık karakter yok).
 const CODE_ALPHABET = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";

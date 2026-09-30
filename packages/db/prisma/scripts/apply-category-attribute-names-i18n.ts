@@ -4,10 +4,11 @@
  *   pnpm --filter @rothern/db apply-category-attribute-names-i18n [-- --dry]
  */
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import * as path from "path";
 import { readAttributeI18n } from "./lib/category-keywords";
 
-const prisma = new PrismaClient({ datasourceUrl: process.env.DIRECT_URL || process.env.DATABASE_URL });
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("apply-category-attribute-names-i18n") });
 
 async function main() {
   const dry = process.argv.includes("--dry");

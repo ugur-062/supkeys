@@ -14,13 +14,12 @@
  *   --dry   yalnız ne değişeceğini yazar, DB'ye dokunmaz
  */
 import { PrismaClient, Prisma } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { categorySearchText } from "@rothern/shared";
 import * as path from "path";
 import { buildKeywordsByCode, readTranslations } from "./lib/category-keywords";
 
-const prisma = new PrismaClient({
-  datasourceUrl: process.env.DIRECT_URL || process.env.DATABASE_URL,
-});
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("apply-category-translations") });
 
 const CHUNK = 500;
 

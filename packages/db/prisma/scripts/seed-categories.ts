@@ -31,6 +31,7 @@
  * Çalıştırma: `pnpm --filter @rothern/db seed-categories`
  */
 import { PrismaClient } from "@prisma/client";
+import { prepareScriptDatabase } from "./lib/script-env";
 import { categorySearchText } from "@rothern/shared";
 import * as fs from "fs";
 import * as path from "path";
@@ -44,9 +45,7 @@ import { buildKeywordsByCode, readI18nNames, readTranslations } from "./lib/cate
  * sunucu bağlantısını dakikalarca tutar; havuz baskısı altında işlem
  * ortasında kopabilir. Session modunda böyle bir yarış yok.
  */
-const prisma = new PrismaClient({
-  datasourceUrl: process.env.DIRECT_URL || process.env.DATABASE_URL,
-});
+const prisma = new PrismaClient({ datasourceUrl: prepareScriptDatabase("seed-categories") });
 
 interface Cat {
   code: string;
