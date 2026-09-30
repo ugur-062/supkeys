@@ -292,7 +292,7 @@ export class CompanyViewsService {
     const prevSince = daysAgo(days * 2);
     const me = user.companyId;
     const cnt = (where: object) => this.prisma.companyView.count({ where });
-    const [profileCur, profilePrev, productCur, productPrev, identCur, identPrev, topRaw, inquiries, conns, invites, bids] =
+    const [profileCur, profilePrev, productCur, productPrev, identCurRaw, identPrevRaw, topRaw, inquiries, conns, invites, bids, blocked] =
       await Promise.all([
         cnt({ targetCompanyId: me, productId: null, viewedAt: { gte: since } }),
         cnt({ targetCompanyId: me, productId: null, viewedAt: { gte: prevSince, lt: since } }),
@@ -328,7 +328,14 @@ export class CompanyViewsService {
           where: { bidderCompanyId: me, submittedAt: { gte: since } },
           select: { status: true },
         }),
+        this.blockedIds(me),
       ]);
+    // Ziyaret Edenler (`visitors`) ile AYNI kural: engel ilişkisindeki firma
+    // kimliksiz sayılır — kimlikli ziyaretçi sayısı ve şehir kırılımı iki
+    // ekranda ayrışmasın (derin denetim LU-08).
+    const unblocked = (r: { viewerCompanyId: string | null }) => !!r.viewerCompanyId && !blocked.has(r.viewerCompanyId);
+    const identCur = identCurRaw.filter(unblocked);
+    const identPrev = identPrevRaw.filter(unblocked);
     const periodRows = await this.prisma.companyView.findMany({
       where: { targetCompanyId: me, viewedAt: { gte: since } },
       select: { productId: true, viewedAt: true },

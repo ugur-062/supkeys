@@ -122,4 +122,24 @@ describe("LU-08 — engel ve Ziyaret Edenler", () => {
     expect(res.anonymous).toBe(1);
     expect(res.items.map((i) => i.company.id)).toEqual([other.company.id]);
   });
+
+  it("İş Analizi kimlikli ziyaretçi ve şehir kırılımı Ziyaret Edenler ile aynı kuralı izler (gözden geçirme)", async () => {
+    const seller = await publicSeller("e");
+    const a = await makeCompanyWithUser(prisma);
+    const other = await makeCompanyWithUser(prisma);
+    await prisma.company.update({ where: { id: a.company.id }, data: { city: "Ankara" } });
+    await prisma.company.update({ where: { id: other.company.id }, data: { city: "İzmir" } });
+    const v = views();
+    await v.recordPanelView({ companyId: a.company.id, id: a.user.id }, { companyId: seller.company.id });
+    await v.recordPanelView({ companyId: other.company.id, id: other.user.id }, { companyId: seller.company.id });
+    // Ters yön de sayılır: satıcı engelleyen taraf.
+    await prisma.companyBlock.create({
+      data: { blockerCompanyId: seller.company.id, blockedCompanyId: a.company.id },
+    });
+    const [ins, vis] = await Promise.all([v.insights(seller.auth), v.visitors(seller.auth)]);
+    expect(ins.views.identifiedVisitors.current).toBe(1);
+    expect(ins.views.identifiedVisitors.current).toBe(vis.identified);
+    expect(ins.views.profile.current).toBe(2);
+    expect(ins.viewerCities).toEqual([{ city: "İzmir", count: 1 }]);
+  });
 });
