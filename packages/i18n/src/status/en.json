@@ -5690,39 +5690,39 @@
     "at": "2026-09-27"
   },
   "api.notifications.discovery.body": {
-    "hash": "0fffef0fb7",
+    "hash": "801d1c1ab0",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-30"
   },
   "api.notifications.discovery.cta": {
     "hash": "966838a7d9",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-30"
   },
   "api.notifications.discovery.emailBody": {
-    "hash": "e98162b2d9",
+    "hash": "134a88091c",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-30"
   },
   "api.notifications.discovery.emailFooter": {
-    "hash": "617407bf1e",
+    "hash": "79c096b1f3",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-30"
   },
   "api.notifications.discovery.emailHeading": {
     "hash": "9d6a450b9a",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-30"
   },
   "api.notifications.discovery.emailSubject": {
     "hash": "3c0e6eb866",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-30"
   },
   "api.notifications.discovery.title": {
-    "hash": "ef0c9e39ac",
+    "hash": "38c5f9b4ca",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-09-30"
   },
   "api.notifications.lifecycle.first_product.body": {
     "hash": "7f009aa7d3",

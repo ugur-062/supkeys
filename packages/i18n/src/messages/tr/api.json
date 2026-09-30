@@ -1694,13 +1694,13 @@
       "kullanimiGor": "Kullanımı Gör"
     },
     "discovery": {
-      "title": "AI tedarikçi buldu",
-      "body": "\"{title}\" talebiniz için AI {n, plural, other {# tedarikçi}} buldu{abroad, plural, =0 {} other { (yurt dışından: #)}}. Tek tıkla davet edebilirsiniz.",
+      "title": "Uygun tedarikçiler bulundu",
+      "body": "\"{title}\" talebiniz için {n, plural, other {# uygun tedarikçi}} bulundu{abroad, plural, =0 {} other { (yurt dışından: #)}}. Tek tıkla davet edebilirsiniz.",
       "cta": "Tedarikçileri gör ve davet et",
       "emailSubject": "Talebiniz için {n, plural, other {# tedarikçi}} bulundu",
       "emailHeading": "Talebinize uygun tedarikçiler bulundu",
-      "emailBody": "AI, \"{title}\" ({number}) talebiniz için yurt içinde ve yurt dışında {n, plural, other {# tedarikçi}} buldu{abroad, plural, =0 {} other { (yurt dışından: #)}}. Listeyi açın; istemediklerinizi çıkarıp kalanları tek tıkla davet edin. Davetler her tedarikçinin kendi dilinde ve kendi ülkesinde mesai saatinde gönderilir.",
-      "emailFooter": "Teklif sayısı az kalırsa süre yarılandığında AI bir kez daha arar."
+      "emailBody": "\"{title}\" ({number}) talebiniz için {n, plural, other {# uygun tedarikçi}} bulundu{abroad, plural, =0 {} other { (yurt dışından: #)}}. Listeyi açın; istemediklerinizi çıkarıp kalanları tek tıkla davet edin. Davetler her tedarikçinin kendi dilinde ve kendi ülkesinde mesai saatinde gönderilir.",
+      "emailFooter": "Teklif sayısı az kalırsa süre yarılandığında bir kez daha arama yapılır."
     },
     "digest": {
       "subject": "Bugün kategorinizde {n, plural, other {# talep}} daha açıldı",

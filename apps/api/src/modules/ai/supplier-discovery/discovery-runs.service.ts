@@ -390,7 +390,7 @@ export class DiscoveryRunsService {
         id: true,
         listingId: true,
         listing: { select: { title: true, number: true, createdById: true } },
-        candidates: { select: { status: true, scope: true } },
+        candidates: { select: { status: true, scope: true, email: true, memberCompanyId: true } },
       },
       take: 50,
     });
@@ -403,8 +403,9 @@ export class DiscoveryRunsService {
         data: { notifiedAt: now },
       });
       if (claimed.count !== 1) continue;
-      const open = run.candidates.filter((c) => c.status === "SUGGESTED" || c.status === "MEMBER");
-      if (!run.listing || !run.listingId || open.length === 0) continue;
+      if (!run.listing || !run.listingId) continue;
+      const open = await this.stillOpenCandidates(run.listingId, run.candidates);
+      if (open.length === 0) continue;
       const abroad = open.filter((c) => c.scope === "ABROAD").length;
       await this.notifyCreator(run.listingId, run.listing, open.length, abroad).catch((err) =>
         this.logger.warn(`discovery notify failed (${run.id}): ${err instanceof Error ? err.message : String(err)}`),
@@ -412,6 +413,40 @@ export class DiscoveryRunsService {
       n++;
     }
     return n;
+  }
+
+  /**
+   * Hâlâ davet edilebilir adaylar: ham durum SUGGESTED/MEMBER VE talebe henüz
+   * davetli değil. Pencereden firma kimliğiyle (`inviteMembers`) ya da formdan
+   * adresle yapılan davet aday satırını güncellemez; ekran (`forListing`) durumu
+   * davetlerden hesaplar, bildirim de aynı kaynağa bakar — hepsi davet edilmişse
+   * "kalanları davet edin" e-postası gitmez (derin denetim boşluk taraması GA3).
+   */
+  private async stillOpenCandidates<T extends { status: string; email: string | null; memberCompanyId: string | null }>(
+    listingId: string,
+    candidates: T[],
+  ): Promise<T[]> {
+    const open = candidates.filter((c) => c.status === "SUGGESTED" || c.status === "MEMBER");
+    const emails = open.filter((c) => c.status === "SUGGESTED" && c.email).map((c) => c.email!);
+    const memberIds = open.filter((c) => c.status === "MEMBER" && c.memberCompanyId).map((c) => c.memberCompanyId!);
+    const [invitedEmails, invitedMembers] = await Promise.all([
+      emails.length
+        ? this.bypass.externalListingInvite.findMany({ where: { listingId, email: { in: emails } }, select: { email: true } })
+        : [],
+      memberIds.length
+        ? this.bypass.listingInvitation.findMany({
+            where: { listingId, invitedCompanyId: { in: memberIds } },
+            select: { invitedCompanyId: true },
+          })
+        : [],
+    ]);
+    const invited = new Set(invitedEmails.map((i) => i.email));
+    const invitedMember = new Set(invitedMembers.map((i) => i.invitedCompanyId));
+    return open.filter((c) =>
+      c.status === "MEMBER"
+        ? !(c.memberCompanyId && invitedMember.has(c.memberCompanyId))
+        : !(c.email && invited.has(c.email)),
+    );
   }
 
   private async notifyCreator(

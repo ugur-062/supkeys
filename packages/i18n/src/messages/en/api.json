@@ -1694,13 +1694,13 @@
       "kullanimiGor": "View usage"
     },
     "discovery": {
-      "title": "AI found suppliers",
-      "body": "AI found {n, plural, one {# supplier} other {# suppliers}} for your request \"{title}\"{abroad, plural, =0 {} other { (# abroad)}}. You can invite them with one click.",
+      "title": "Matching suppliers found",
+      "body": "{n, plural, one {# matching supplier was} other {# matching suppliers were}} found for your request \"{title}\"{abroad, plural, =0 {} other { (# abroad)}}. You can invite them with one click.",
       "cta": "View and invite suppliers",
       "emailSubject": "{n, plural, one {# supplier} other {# suppliers}} found for your request",
       "emailHeading": "Suppliers found for your request",
-      "emailBody": "AI found {n, plural, one {# supplier} other {# suppliers}} at home and abroad for your request \"{title}\" ({number}){abroad, plural, =0 {} other { — # of them abroad}}. Open the list, remove the ones you don't want and invite the rest with one click. Invitations are sent in each supplier's own language, during business hours in their country.",
-      "emailFooter": "If you still have few quotes when half of the time has passed, AI will search once more."
+      "emailBody": "{n, plural, one {# matching supplier was} other {# matching suppliers were}} found for your request \"{title}\" ({number}){abroad, plural, =0 {} other { — # of them abroad}}. Open the list, remove the ones you don't want and invite the rest with one click. Invitations are sent in each supplier's own language, during business hours in their country.",
+      "emailFooter": "If you still have few quotes when half of the time has passed, we will search once more."
     },
     "digest": {
       "subject": "{n, plural, one {# more request} other {# more requests}} opened in your categories today",

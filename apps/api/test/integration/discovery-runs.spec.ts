@@ -285,6 +285,68 @@ describe("DiscoveryRunsService", () => {
     expect(r2.notifications.pushToUser).not.toHaveBeenCalled();
   });
 
+  it("pencereden/formdan zaten davet edilmiş adaylar bildirimde sayılmaz; hepsi davetliyse bildirim + e-posta gitmez (GA3)", async () => {
+    const { runs, email, notifications } = makeRuns({ ai: fakeAi([]) });
+    const owner = await makeCompanyWithUser(prisma, { tier: "GOLD", country: "TR" });
+    const m1 = await makeCompanyWithUser(prisma, { tier: "SILVER", country: "TR" });
+    const m2 = await makeCompanyWithUser(prisma, { tier: "SILVER", country: "TR" });
+    const ref = await prisma.companyReferralInvite.create({
+      data: { inviterCompanyId: owner.company.id, email: "ref@x.com", invitedById: owner.user.id },
+    });
+    const seed = async (withExternal: boolean) => {
+      const l = await openListing(owner.company.id, owner.user.id);
+      await prisma.supplierDiscoveryRun.create({
+        data: {
+          listingId: l.id,
+          companyId: owner.company.id,
+          trigger: "PUBLISH",
+          state: "DONE",
+          finishedAt: new Date(Date.now() - 11 * 60_000),
+          candidates: {
+            create: [
+              { name: "Üye 1", status: "MEMBER", memberCompanyId: m1.company.id, scope: "LOCAL", source: "PLATFORM" },
+              { name: "Üye 2", status: "MEMBER", memberCompanyId: m2.company.id, scope: "LOCAL", source: "PLATFORM" },
+              { name: "Viti Srl", status: "SUGGESTED", email: "info@viti.it", scope: "ABROAD", source: "WEB" },
+            ],
+          },
+        },
+      });
+      // Pencere yolu (`inviteMembers`) aday satırını güncellemez; davet yalnız
+      // listing_invitations / external_listing_invites tablosunda.
+      await prisma.listingInvitation.createMany({
+        data: [m1.company.id, m2.company.id].map((id) => ({ listingId: l.id, invitedCompanyId: id, invitedById: owner.user.id })),
+      });
+      if (withExternal) {
+        await prisma.externalListingInvite.create({
+          data: {
+            listingId: l.id,
+            inviterCompanyId: owner.company.id,
+            referralInviteId: ref.id,
+            email: "info@viti.it",
+            locale: "it",
+          },
+        });
+      }
+      return l;
+    };
+
+    // Üçü de davetli → bildirim yok, tur yine de bildirildi sayılır (tekrar denenmez).
+    const all = await seed(true);
+    await runs.tick(new Date());
+    expect(notifications.pushToUser).not.toHaveBeenCalled();
+    expect(email.send).not.toHaveBeenCalled();
+    expect((await prisma.supplierDiscoveryRun.findFirstOrThrow({ where: { listingId: all.id } })).notifiedAt).not.toBeNull();
+
+    // Yalnız dış aday kaldı → sayı 1, yurt dışı 1.
+    const partial = await seed(false);
+    await runs.tick(new Date());
+    expect(notifications.pushToUser).toHaveBeenCalledTimes(1);
+    expect(notifications.pushToUser).toHaveBeenCalledWith(
+      owner.user.id,
+      expect.objectContaining({ listingId: partial.id, params: expect.objectContaining({ n: 1, abroad: 1 }) }),
+    );
+  });
+
   it("süre yarılandı + teklif az → İKİNCİ TUR bir kez; önceki adaylar yeniden önerilmez", async () => {
     const ai = fakeAi([
       [{ name: "Viti Srl", email: "info@viti.it", country: "IT", reason: "r" }],
