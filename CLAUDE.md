@@ -2393,8 +2393,9 @@ Geri dönüş noktası: git etiketi `talep-v1-oncesi-2026-09-09`.
   `submitLock`, yalnız `isPending`'e bakılmaz. "Tümünü düzenle" şartlar paneli yalnız talebe
   uygulanan bölümleri çizer (görünürlük, kapanış, adres talebin kendi bölümünde). "Seçili
   ülkeler" kipinde son ülke çıkarılamaz (boş liste = tüm ülkeler). Kalem soru tavanı
-  `MAX_ITEM_QUESTIONS`=20 (`@ArrayMaxSize(20)`). Kalem görselinden talep kapağı türetmek alıcı
-  anonimliği kararını bekliyor (görsel URL'i tenant önekini taşır).
+  `MAX_ITEM_QUESTIONS`=20 (`@ArrayMaxSize(20)`). **Satın alma talebi FOTOĞRAF TAŞIMAZ** (kullanıcı kararı 2026-09-30, S085):
+  "Katalogdan Ekle" kalemin görselini forma almaz, bu bilinçli; alıcı anonimliği de korunur
+  (görsel URL'i tenant önekini taşır). API'deki `items[].images`/`coverImageUrl`/`deriveCover` ölü yol.
 - **Talep yaşam döngüsü (derin denetim 2026-09-29 MU-20):** `updateListing` davetleri
   FARK olarak uygular — formda kalan satır yeniden yazılmaz (origin/aiReason korunur),
   formda olmayan (AI dahil) silinir, bağlantı şartı yalnız yeni davetliye; duyurusu
