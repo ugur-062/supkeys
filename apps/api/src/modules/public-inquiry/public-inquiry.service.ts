@@ -29,6 +29,23 @@ type NotificationData = Extract<
 >["data"];
 
 /**
+ * Satıcı tarafı talep süzgeci: engel ilişkisindeki KAYITLI alıcının
+ * (`claimedCompanyId`) talepleri satıcıya görünmez; misafir talepleri
+ * (`claimedCompanyId` null) etkilenmez — `notIn` NULL'ı da eleyeceği için
+ * açık OR. Gelen kutusu (`listForCompany`) ve Aksiyon Merkezi'nin
+ * `unansweredInquiries` satırı AYNI kuralı kullanır: kutuda görünmeyen ve
+ * yanıtı 404 dönen talep panoda "yanıt bekliyor" diye asılı kalmasın
+ * (derin denetim LU-18).
+ */
+export function inquiryNotFromBlockedWhere(
+  blocked: string[],
+): Prisma.PublicInquiryWhereInput {
+  return blocked.length
+    ? { OR: [{ claimedCompanyId: null }, { claimedCompanyId: { notIn: blocked } }] }
+    : {};
+}
+
+/**
  * MİSAFİR BİLGİ TALEBİ — hesabı OLMAYAN ziyaretçinin ürün sayfasından
  * gönderdiği talep (Faz 1).
  *
@@ -355,15 +372,11 @@ export class PublicInquiryService {
     const pageSize = 20;
     // Engel ilişkisindeki KAYITLI alıcının talepleri gelen kutusunda görünmez
     // (mesaj kutusuyla aynı karşılıklı görünmezlik; derin denetim LU-18).
-    // Misafir talepleri (`claimedCompanyId` null) etkilenmez — `notIn` NULL'ı
-    // da eleyeceği için açık OR.
     const blocked = await this.blockedIdsOf(companyId);
     const where: Prisma.PublicInquiryWhereInput = {
       companyId,
       verifiedAt: { not: null },
-      ...(blocked.length
-        ? { OR: [{ claimedCompanyId: null }, { claimedCompanyId: { notIn: blocked } }] }
-        : {}),
+      ...inquiryNotFromBlockedWhere(blocked),
     };
     // `openCount` = yanıt bekleyen TOPLAM (sayfadan bağımsız): web süzgeç
     // sayacı eskiden yalnız yüklü 20 satırdan hesaplanıyordu.

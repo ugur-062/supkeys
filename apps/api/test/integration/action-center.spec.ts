@@ -145,6 +145,48 @@ describe("ActionCenterService (DB)", () => {
     expect(after.rows.find((r) => r.key === "unansweredInquiries")?.count).toBe(1);
   });
 
+  it("satış: engel ilişkisindeki kayıtlı alıcının talebi unansweredInquiries'e girmez; misafir talebi girer (LU-18)", async () => {
+    // Gelen kutusu engelli alıcının talebini gizliyor, yanıtı 404 dönüyor —
+    // pano aynı talebi "yanıt bekliyor" diye sonsuza dek göstermemeli.
+    const seller = await makeCompanyWithUser(prisma, {});
+    const buyer = await makeCompanyWithUser(prisma, {});
+    const product = await prisma.companyItem.create({
+      data: {
+        companyId: seller.company.id,
+        createdById: seller.user.id,
+        name: "Pano",
+        unit: "adet",
+        slug: "pano-engel",
+      },
+    });
+    const mk = (tokenHash: string, claimedCompanyId: string | null) =>
+      prisma.publicInquiry.create({
+        data: {
+          companyId: seller.company.id,
+          productId: product.id,
+          claimedCompanyId,
+          name: "Ayşe",
+          email: `a-${tokenHash}@example.com`,
+          message: "Fiyat?",
+          tokenHash,
+          expiresAt: new Date(),
+          verifiedAt: new Date(Date.now() - 2 * DAY_MS),
+        },
+      });
+    await mk("b1", buyer.company.id);
+    await mk("g1", null);
+
+    const before = await service.satis(seller.company.id);
+    expect(before.rows.find((r) => r.key === "unansweredInquiries")?.count).toBe(2);
+
+    // Alıcı satıcıyı engelliyor (yön fark etmez).
+    await prisma.companyBlock.create({
+      data: { blockerCompanyId: buyer.company.id, blockedCompanyId: seller.company.id },
+    });
+    const after = await service.satis(seller.company.id);
+    expect(after.rows.find((r) => r.key === "unansweredInquiries")?.count).toBe(1);
+  });
+
   it("satış: geçerliliği 3 gün içinde dolan SUBMITTED teklif expiringBids üretir", async () => {
     const buyer = await makeCompanyWithUser(prisma, {});
     const seller = await makeCompanyWithUser(prisma, {});

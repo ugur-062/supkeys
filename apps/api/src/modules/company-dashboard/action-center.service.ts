@@ -1,5 +1,6 @@
 import { Injectable } from "@nestjs/common";
 import { PrismaService } from "../../common/prisma/prisma.service";
+import { inquiryNotFromBlockedWhere } from "../public-inquiry/public-inquiry.service";
 
 /**
  * Aksiyon Merkezi — "bugün ne yapmalıyım" tek uyarı sistemi (pano refactor
@@ -318,11 +319,21 @@ export class ActionCenterService {
       }),
       // Yanıtsız bilgi talepleri: ürünlerime gelen, DOĞRULANMIŞ (satıcıya
       // iletilmiş) ve henüz hiç yanıtlanmamış sorular. Doğrulanmamış satır
-      // satıcı için var değildir (public-inquiry spam kapısı).
-      this.prisma.publicInquiry.findMany({
-        where: { companyId, verifiedAt: { not: null }, replies: { none: {} } },
-        select: { verifiedAt: true },
-      }),
+      // satıcı için var değildir (public-inquiry spam kapısı). Engel
+      // ilişkisindeki kayıtlı alıcının talebi gelen kutusunda görünmez ve
+      // yanıtı 404 döner → burada da sayılmaz, yoksa satır hiç kapanamaz
+      // (derin denetim LU-18). RLS `company_blocks` iki yönü de gösterir.
+      this.blockedIdsOf(companyId).then((blocked) =>
+        this.prisma.publicInquiry.findMany({
+          where: {
+            companyId,
+            verifiedAt: { not: null },
+            replies: { none: {} },
+            ...inquiryNotFromBlockedWhere(blocked),
+          },
+          select: { verifiedAt: true },
+        }),
+      ),
     ]);
 
     const bidListingIds = new Set(myBids.map((b) => b.listingId));
@@ -376,5 +387,14 @@ export class ActionCenterService {
     ].filter((r): r is ActionCenterRow => r !== null);
 
     return { rows: sortRows(rows) };
+  }
+
+  /** `companyId` ile herhangi yönde engel ilişkisi olan firmalar (`CompanyBlocksService.blockedCompanyIds` ile aynı kural). */
+  private async blockedIdsOf(companyId: string): Promise<string[]> {
+    const rows = await this.prisma.companyBlock.findMany({
+      where: { OR: [{ blockerCompanyId: companyId }, { blockedCompanyId: companyId }] },
+      select: { blockerCompanyId: true, blockedCompanyId: true },
+    });
+    return [...new Set(rows.map((r) => (r.blockerCompanyId === companyId ? r.blockedCompanyId : r.blockerCompanyId)))];
   }
 }
