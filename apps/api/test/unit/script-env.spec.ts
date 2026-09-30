@@ -28,7 +28,7 @@ writeFileSync(
 );
 writeFileSync(
   stagingFile,
-  "DATABASE_URL=postgresql://postgres.stagingref:s@aws-0-eu-central-1.pooler.supabase.com:6543/postgres\nDIRECT_URL=postgresql://postgres.stagingref:s@aws-0-eu-central-1.pooler.supabase.com:5432/postgres\n",
+  "DATABASE_URL=postgresql://postgres.stagingref:s@aws-0-eu-central-1.pooler.supabase.com:6543/postgres\nDIRECT_URL=postgresql://postgres.stagingref:s@aws-0-eu-central-1.pooler.supabase.com:5432/postgres\nGEMINI_API_KEY=dosyadan\n",
 );
 
 describe("script-env: ENV_FILE yükleyicisi", () => {
@@ -46,10 +46,28 @@ describe("script-env: ENV_FILE yükleyicisi", () => {
   });
 
   it("ENV_FILE yokken varsayılan dosya yalnız EKSİK anahtarı doldurur", () => {
-    const env: NodeJS.ProcessEnv = { DIRECT_URL: "postgresql://u:p@localhost:5432/x" };
+    const env: NodeJS.ProcessEnv = { GEMINI_API_KEY: "kabuktan" };
     loadScriptEnv({ env, cwd: dir, defaultFile: stagingFile });
-    expect(env.DIRECT_URL).toBe("postgresql://u:p@localhost:5432/x");
+    expect(env.GEMINI_API_KEY).toBe("kabuktan");
     expect(env.DATABASE_URL).toContain("stagingref");
+    expect(env.DIRECT_URL).toContain("stagingref");
+  });
+
+  /**
+   * GA1 inceleme: H1 prova kalıbı `DATABASE_URL=...localhost:5440/... pnpm
+   * seed-category-attributes` — dosya eksik DIRECT_URL'i (staging) doldurup
+   * `scriptDatabaseUrl` onu öne alınca betik staging'e yazıyordu.
+   */
+  it.each([
+    ["DATABASE_URL", "postgresql://u:p@localhost:5440/test"],
+    ["DIRECT_URL", "postgresql://u:p@localhost:5440/test"],
+  ])("kabukta yalnız %s varsa dosyadan DB çiftinin hiçbiri alınmaz (staging'e kaymaz)", (key, url) => {
+    const env: NodeJS.ProcessEnv = { [key]: url };
+    loadScriptEnv({ env, cwd: dir, defaultFile: stagingFile });
+    expect(scriptDatabaseUrl(env)).toBe(url);
+    expect(env.DATABASE_URL ?? "").not.toContain("stagingref");
+    expect(env.DIRECT_URL ?? "").not.toContain("stagingref");
+    expect(env.GEMINI_API_KEY).toBe("dosyadan"); // DB dışı eksik anahtar yine dolar
   });
 
   it("varsayılan dosya yoksa atlanır (konteyner); açıkça verilen ENV_FILE yoksa DÜŞER", () => {

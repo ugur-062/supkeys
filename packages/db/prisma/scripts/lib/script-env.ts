@@ -4,7 +4,8 @@
  *
  * `ENV_FILE` verilirse O dosya okunur ve değerleri EZER (kabukta kalan eski
  * `DATABASE_URL` canlı koşumu staging'e çeviremesin). Verilmezse kök `.env`
- * yalnız EKSİK anahtarları doldurur; dosya yoksa (API konteyneri/Render
+ * yalnız EKSİK anahtarları doldurur (kabukta `DATABASE_URL` ya da `DIRECT_URL`
+ * varsa ikisi de dosyadan ALINMAZ — çift birlikte kabuktan gelir); dosya yoksa (API konteyneri/Render
  * kabuğu: yalnız ortam değişkenleri) atlanır. Açıkça verilen `ENV_FILE`
  * yoksa düşer — sessizce varsayılana dönmek tam da kapatılan hata sınıfı.
  *
@@ -36,6 +37,8 @@ export interface ScriptEnvResult {
   override: boolean;
 }
 
+const DB_URL_KEYS = new Set(["DATABASE_URL", "DIRECT_URL"]);
+
 export function loadScriptEnv(opts: ScriptEnvOptions = {}): ScriptEnvResult {
   const env = opts.env ?? process.env;
   const override = !!env.ENV_FILE;
@@ -43,10 +46,16 @@ export function loadScriptEnv(opts: ScriptEnvOptions = {}): ScriptEnvResult {
     ? resolve(opts.cwd ?? process.cwd(), env.ENV_FILE)
     : (opts.defaultFile ?? resolve(__dirname, "../../../.env"));
   if (!override && !existsSync(file)) return { file: null, override };
+  // DATABASE_URL + DIRECT_URL TEK ÇİFT (boşluk taraması GA1 inceleme): kabuk
+  // yalnız `DATABASE_URL=...localhost...` verdiğinde dosya eksik `DIRECT_URL`i
+  // (kök `.env` = STAGING) doldurursa `scriptDatabaseUrl` onu öne alır ve betik
+  // staging'e yazar. Kabukta çiftin biri varsa dosyadan ikisi de alınmaz.
+  const shellHasDb = !override && !!(env.DATABASE_URL || env.DIRECT_URL);
   for (const line of readFileSync(file, "utf8").split("\n")) {
     const i = line.indexOf("=");
     if (i > 0 && !line.trimStart().startsWith("#")) {
       const k = line.slice(0, i).trim();
+      if (shellHasDb && DB_URL_KEYS.has(k)) continue;
       if (override || !env[k]) env[k] = line.slice(i + 1).trim().replace(/^"|"$/g, "");
     }
   }
