@@ -39,7 +39,7 @@ export function AuthHydrationBoundary({
  * Ayarlar (2FA kurulumu) açılır, diğer sayfalar oraya yönlendirilir. Sunucu
  * zaten 403 döner; bu kapı boş/kırık sayfa yerine kurulum ekranını gösterir.
  * Bayrak login yanıtından ve /me'den (admin layout'undaki
- * TwoFactorSetupNotice tazeler) gelir.
+ * AdminMeRefresher tazeler) gelir.
  */
 export function RequireAdminAuth({
   children,

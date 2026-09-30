@@ -12,7 +12,7 @@ vi.mock("next/navigation", () => ({
 }));
 // /me tazeleyici (QueryClient ister) — layout testinde yalnız yeri önemli.
 vi.mock("@/components/layout/two-factor-setup-notice", () => ({
-  TwoFactorSetupNotice: () => <div>2fa-notice</div>,
+  AdminMeRefresher: () => <div>me-refresher</div>,
 }));
 vi.mock("@/lib/auth/store", () => ({
   useAdminAuthStore: Object.assign(
@@ -45,7 +45,7 @@ describe("AdminLayout guard", () => {
     );
     expect(screen.getByText("login-içerik")).toBeInTheDocument();
     // Login sayfasında /me tazeleyici çalışmaz.
-    expect(screen.queryByText("2fa-notice")).not.toBeInTheDocument();
+    expect(screen.queryByText("me-refresher")).not.toBeInTheDocument();
     // Guard atlandı → yönlendirme yok.
     expect(window.location.href).toBe("");
   });
@@ -71,7 +71,7 @@ describe("AdminLayout guard", () => {
       </AdminLayout>,
     );
     expect(screen.getByText("korumalı-içerik")).toBeInTheDocument();
-    // MU-01: korumalı her sayfada 2FA bildirimi / me tazeleyici bağlı.
-    expect(screen.getByText("2fa-notice")).toBeInTheDocument();
+    // MU-01: korumalı her sayfada /me tazeleyici bağlı.
+    expect(screen.getByText("me-refresher")).toBeInTheDocument();
   });
 });

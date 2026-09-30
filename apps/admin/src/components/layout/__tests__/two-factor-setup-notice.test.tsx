@@ -15,19 +15,26 @@ vi.mock("@/hooks/use-admin-auth", () => ({
   useAdminAuth: () => ({ admin: h.admin }),
 }));
 
-import { TwoFactorSetupNotice } from "../two-factor-setup-notice";
+import {
+  AdminMeRefresher,
+  TwoFactorSetupNotice,
+} from "../two-factor-setup-notice";
 
 beforeEach(() => {
   h.admin = null;
   h.meCalls = 0;
 });
 
-describe("TwoFactorSetupNotice (derin denetim MU-01)", () => {
+describe("AdminMeRefresher (derin denetim MU-01)", () => {
   it("/me'yi her durumda tazeler (eski snapshot kilidi kaçırmasın)", () => {
     h.admin = { id: "a1", twoFactorSetupRequired: false };
-    render(<TwoFactorSetupNotice />);
+    const { container } = render(<AdminMeRefresher />);
     expect(h.meCalls).toBeGreaterThan(0);
+    expect(container).toBeEmptyDOMElement();
   });
+});
+
+describe("TwoFactorSetupNotice (derin denetim MU-01)", () => {
 
   it("kurulum zorunlu değilse hiçbir şey çizmez", () => {
     h.admin = { id: "a1", twoFactorSetupRequired: false };
@@ -40,6 +47,14 @@ describe("TwoFactorSetupNotice (derin denetim MU-01)", () => {
     render(<TwoFactorSetupNotice />);
     expect(screen.getByRole("alert")).toHaveTextContent(
       "İki adımlı doğrulama (2FA) zorunlu",
+    );
+  });
+
+  it("ekrana sabitlenmez — 2FA düğmelerini örtmesin (boşluk taraması GB1)", () => {
+    h.admin = { id: "a1", twoFactorSetupRequired: true };
+    render(<TwoFactorSetupNotice />);
+    expect(screen.getByRole("alert").className).not.toMatch(
+      /(^|\s)(fixed|sticky|absolute)(\s|$)/,
     );
   });
 });

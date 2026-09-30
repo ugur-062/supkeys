@@ -3,6 +3,7 @@
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/catalyst/badge";
 import { AdminShell } from "@/components/layout/admin-shell";
+import { TwoFactorSetupNotice } from "@/components/layout/two-factor-setup-notice";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { useAdminMe } from "@/hooks/use-admin-auth";
@@ -255,6 +256,9 @@ export default function AdminSettingsPage() {
           title="Ayarlar"
           description="Hesap güvenliği — şifre ve iki adımlı doğrulama."
         />
+        {/* 2FA zorunluysa neden kilitli olduğunu anlatır; akışta, düğmeleri
+            örtmez (GB1). */}
+        <TwoFactorSetupNotice />
         <PasswordSection />
         <TwoFactorSection />
       </div>

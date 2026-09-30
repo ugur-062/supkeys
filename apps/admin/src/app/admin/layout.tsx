@@ -1,6 +1,6 @@
 "use client";
 
-import { TwoFactorSetupNotice } from "@/components/layout/two-factor-setup-notice";
+import { AdminMeRefresher } from "@/components/layout/two-factor-setup-notice";
 import { RequireAdminAuth } from "@/components/providers/auth-hydration";
 import { usePathname } from "next/navigation";
 
@@ -10,8 +10,9 @@ import { usePathname } from "next/navigation";
  * unutma riski yok (önceden her sayfa manuel <RequireAdminAuth> sarıyordu;
  * biri unutulursa korumasız render olurdu).
  *
- * TwoFactorSetupNotice her korumalı sayfada /me'yi tazeler: 2FA zorunlu ama
- * kurulmamış admin (MU-01) eski snapshot'la da Ayarlar'a kilitlenir.
+ * AdminMeRefresher her korumalı sayfada /me'yi tazeler: 2FA zorunlu ama
+ * kurulmamış admin (MU-01) eski snapshot'la da Ayarlar'a kilitlenir. Nedenini
+ * anlatan uyarı kartı Ayarlar sayfasının içinde (akışta) çizilir — GB1.
  */
 export default function AdminLayout({
   children,
@@ -23,7 +24,7 @@ export default function AdminLayout({
   return (
     <RequireAdminAuth>
       {children}
-      <TwoFactorSetupNotice />
+      <AdminMeRefresher />
     </RequireAdminAuth>
   );
 }
