@@ -2,7 +2,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
-import { toDateTimeLocal } from "@/lib/date";
+import { nextDateTimeLocal } from "@/lib/date";
 
 /**
  * Derin denetim LU-12: (a) kapat/uzat/yeniden aç düğmeleri SUPPORT'a da
@@ -81,11 +81,11 @@ describe("/admin/ilanlar/[id] — müdahale düğmeleri", () => {
     expect(screen.queryByRole("button", { name: "Yeniden Aç" })).not.toBeInTheDocument();
   });
 
-  it("Süre Uzat alt sınırı kapanışın YEREL saatidir (UTC kesilmez)", async () => {
+  it("Süre Uzat alt sınırı kapanıştan sonraki YEREL dakikadır (UTC kesilmez)", async () => {
     const user = userEvent.setup();
     render(<AdminListingPage />);
     await user.click(screen.getByRole("button", { name: "Süre Uzat" }));
     const input = await screen.findByLabelText(/Yeni kapanış/);
-    expect(input).toHaveAttribute("min", toDateTimeLocal(CLOSES_AT));
+    expect(input).toHaveAttribute("min", nextDateTimeLocal(CLOSES_AT));
   });
 });
