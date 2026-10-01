@@ -78,4 +78,11 @@ describe("AiKullanimPage", () => {
     render(<AiKullanimPage />);
     expect(screen.getByRole("alert")).toHaveTextContent(/AI kullanım hakkınız doldu/);
   });
+
+  it("firma görünümü, havuz %52 ama yöneticinin kişisel tavanı doldu: kişisel uyarı satırı, havuz rozeti yok (D-172)", () => {
+    h.data = company({ percentUsed: 52, myExhausted: true });
+    render(<AiKullanimPage />);
+    expect(screen.getByRole("alert")).toHaveTextContent(/AI kullanım hakkınız doldu/);
+    expect(screen.queryByText("Bütçe doldu — AI kapalı")).toBeNull();
+  });
 });

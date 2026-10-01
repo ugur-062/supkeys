@@ -374,6 +374,9 @@ export class AiService {
         premiumPercentUsed: snapshot.premiumPercentUsed,
         warning: snapshot.warned,
         exhausted: snapshot.poolExhausted,
+        // `reserve` kişisel tavanı (havuzun userShare'i) yönetime de uygular:
+        // havuz dolmasa da bu kullanıcının AI'ı kapalı olabilir (D-172).
+        myExhausted: snapshot.userCapExhausted,
         byUser: snapshot.byUser,
         byFeature: snapshot.byFeature,
       };

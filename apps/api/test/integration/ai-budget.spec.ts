@@ -607,6 +607,21 @@ describe("Faz AI-0 — kullanım ekranı görünürlüğü", () => {
     expect(mgmt).toMatchObject({ warning: true, exhausted: true });
   });
 
+  it("kurucu kişisel tavanını (havuzun yarısı) doldurdu, havuz %100 altında → firma görünümünde myExhausted (arayüz testi D-172)", async () => {
+    const ai = makeAi(makeCfg({ budgets: { GOLD: 10 } }), new FakeProvider());
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+
+    // Kurucu %40: havuz da kişisel tavan da açık.
+    await seedSpend(co.company.id, co.user.id, 4, { createdAt: monthStartSeedDate() });
+    let mgmt = (await ai.usageView(co.auth)) as { warning: boolean; exhausted: boolean; myExhausted: boolean };
+    expect(mgmt).toMatchObject({ warning: false, exhausted: false, myExhausted: false });
+
+    // Kurucu 5,2 (tavan 10×0.5=5) → havuz %52 ama kurucu için AI kapalı.
+    await seedSpend(co.company.id, co.user.id, 1.2, { createdAt: monthStartSeedDate() });
+    mgmt = (await ai.usageView(co.auth)) as { warning: boolean; exhausted: boolean; myExhausted: boolean };
+    expect(mgmt).toMatchObject({ warning: false, exhausted: false, myExhausted: true });
+  });
+
   it("tier kapısı: controller CompanyPaidTierGuard (Silver+) taşır", async () => {
     const { AiUsageController } = await import(
       "../../src/modules/ai/ai-usage.controller"

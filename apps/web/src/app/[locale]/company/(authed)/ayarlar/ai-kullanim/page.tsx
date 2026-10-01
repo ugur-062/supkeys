@@ -98,6 +98,11 @@ export default function AiKullanimPage() {
               <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
                 {data.view === "company" ? t("firmaButcesiDolduAiKapali") : t("kisiselTavanDolduAiKapali")}
               </p>
+            ) : data.view === "company" && data.myExhausted ? (
+              // Havuz açık ama bakan yöneticinin kişisel tavanı doldu (D-172).
+              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                {t("kisiselTavanDolduAiKapali")}
+              </p>
             ) : null}
 
             <section>

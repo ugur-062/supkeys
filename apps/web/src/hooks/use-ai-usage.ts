@@ -29,6 +29,11 @@ export interface AiUsageResponse {
   warning: boolean;
   /** Havuz (firma görünümü) ya da kişisel tavan doldu → AI fiilen kapalı (D-172). Eski API'de yok. */
   exhausted?: boolean;
+  /**
+   * Yalnız firma görünümü: bakan yöneticinin kişisel tavanı doldu (havuz dolmasa
+   * da onun için AI kapalı — `reserve` tavanı yönetime de uygular). Eski API'de yok.
+   */
+  myExhausted?: boolean;
   premiumPercentUsed?: number;
   byUser?: AiUsageByUser[];
   byFeature?: AiUsageByFeature[];
