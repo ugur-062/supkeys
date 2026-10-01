@@ -152,6 +152,18 @@ export function sniffDocumentType(head: Uint8Array): string | null {
   return null;
 }
 
+/**
+ * S3/R2 "416 Range Not Satisfiable" (InvalidRange): nesne boş. Diğer hatalar
+ * (ağ, yetki) geçici olabilir — geçerli bir yüklemeyi silmemek için yeniden
+ * fırlatılır.
+ */
+function isInvalidRangeError(err: unknown): boolean {
+  const e = err as { name?: string; Code?: string; $metadata?: { httpStatusCode?: number } } | null;
+  return (
+    e?.$metadata?.httpStatusCode === 416 || e?.name === "InvalidRange" || e?.Code === "InvalidRange"
+  );
+}
+
 /** İmza denetimi için okunan bayt sayısı (en uzun imza: WEBP, 12 bayt). */
 const SIGNATURE_BYTES = 16;
 
@@ -169,10 +181,18 @@ export async function assertUploadedSignature(
   key: string,
   allowedContentTypes: readonly string[],
 ): Promise<void> {
-  const [head, prefix] = await Promise.all([
-    storage.checkExists(bucket, key),
-    storage.readObjectPrefix(bucket, key, SIGNATURE_BYTES),
-  ]);
+  const head = await storage.checkExists(bucket, key);
+  // Boş (0 bayt) nesnede Range okuması S3/R2'de 416 InvalidRange döner ve
+  // yakalanmazsa istek 400 yerine 500 ile biterdi; nesne de silinmezdi.
+  // Boş içerik imzasız sayılır → aşağıdaki red yolu (sil + 400).
+  let prefix: Uint8Array = new Uint8Array();
+  if (head.size !== 0) {
+    try {
+      prefix = await storage.readObjectPrefix(bucket, key, SIGNATURE_BYTES);
+    } catch (err) {
+      if (!isInvalidRangeError(err)) throw err;
+    }
+  }
   const declared = (head.contentType ?? "").split(";")[0]!.trim().toLowerCase();
   const actual = sniffDocumentType(prefix);
   if (!actual || !allowedContentTypes.includes(actual) || actual !== declared) {

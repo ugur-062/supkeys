@@ -166,6 +166,54 @@ describe("D-014 — KYC belgesi içerik imzasıyla denetlenir", () => {
     await expect(ok.commit(co.company.id, "taxPlate", key)).resolves.toEqual({ ok: true });
   });
 
+  it("boş (0 bayt) nesne: Range okunmaz, nesne silinir, 400 döner", async () => {
+    const co = await kycCompany("UNVERIFIED");
+    const storage = storageMock();
+    storage.checkExists.mockResolvedValue({
+      exists: true,
+      size: 0,
+      contentType: "application/pdf",
+    });
+    const docs = new CompanyDocsService(
+      prisma as never,
+      storage as never,
+      new AuditService(prisma as never),
+    );
+    const key = `company-docs/${co.company.id}/taxPlate-empty.pdf`;
+    await expect(docs.commit(co.company.id, "taxPlate", key)).rejects.toMatchObject({
+      status: 400,
+    });
+    expect(storage.readObjectPrefix).not.toHaveBeenCalled();
+    expect(storage.deleteObject).toHaveBeenCalledWith("private", key);
+  });
+
+  it("Range okuması 416 InvalidRange verirse 400 + silme; başka depolama hatası nesneyi silmez", async () => {
+    const co = await kycCompany("UNVERIFIED");
+    const key = `company-docs/${co.company.id}/taxPlate-r.pdf`;
+    const invalidRange = storageMock();
+    invalidRange.readObjectPrefix.mockRejectedValue(
+      Object.assign(new Error("The requested range is not satisfiable"), {
+        name: "InvalidRange",
+        $metadata: { httpStatusCode: 416 },
+      }),
+    );
+    await expect(
+      new CompanyDocsService(prisma as never, invalidRange as never, new AuditService(prisma as never))
+        .commit(co.company.id, "taxPlate", key),
+    ).rejects.toMatchObject({ status: 400 });
+    expect(invalidRange.deleteObject).toHaveBeenCalledWith("private", key);
+
+    const transient = storageMock();
+    transient.readObjectPrefix.mockRejectedValue(
+      Object.assign(new Error("socket hang up"), { name: "TimeoutError" }),
+    );
+    await expect(
+      new CompanyDocsService(prisma as never, transient as never, new AuditService(prisma as never))
+        .commit(co.company.id, "taxPlate", key),
+    ).rejects.toThrow("socket hang up");
+    expect(transient.deleteObject).not.toHaveBeenCalled();
+  });
+
   it("VERIFIED firmanın revizyon yüklemesi de imzayla denetlenir", async () => {
     const co = await kycCompany("VERIFIED");
     await prisma.company.update({
