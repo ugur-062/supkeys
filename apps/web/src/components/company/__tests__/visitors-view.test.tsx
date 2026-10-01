@@ -76,8 +76,25 @@ describe("VisitorsView", () => {
 
   it("boş dönem: tek eylem Profili tamamla", () => {
     h.data = base({ total: 0, profileViews: 0, productViews: 0, identified: 0, anonymous: 0, totalItems: 0, items: [] });
-    render(<VisitorsView />);
-    expect(screen.getByText("Bu dönemde kimliği bilinen ziyaretçi yok.")).toBeInTheDocument();
-    expect(screen.getByRole("link", { name: "Profili tamamla" })).toHaveAttribute("href", "/company/sirketim/profil");
+    useCompanyAuthStore.setState({ user: { permissions: ["company:manage", "insights:view"] } } as never);
+    try {
+      render(<VisitorsView />);
+      expect(screen.getByText("Bu dönemde kimliği bilinen ziyaretçi yok.")).toBeInTheDocument();
+      expect(screen.getByRole("link", { name: "Profili tamamla" })).toHaveAttribute("href", "/company/sirketim/profil");
+    } finally {
+      useCompanyAuthStore.setState({ user: null } as never);
+    }
+  });
+
+  it("boş dönem, yalnız insights:view: profil kapısına götüren eylem yok (O-062)", () => {
+    h.data = base({ total: 0, profileViews: 0, productViews: 0, identified: 0, anonymous: 0, totalItems: 0, items: [] });
+    useCompanyAuthStore.setState({ user: { permissions: ["insights:view"] } } as never);
+    try {
+      render(<VisitorsView />);
+      expect(screen.getByText("Bu dönemde kimliği bilinen ziyaretçi yok.")).toBeInTheDocument();
+      expect(screen.queryByRole("link", { name: "Profili tamamla" })).toBeNull();
+    } finally {
+      useCompanyAuthStore.setState({ user: null } as never);
+    }
   });
 });

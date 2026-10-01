@@ -25,6 +25,7 @@ import {
   UserGroupIcon,
 } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useState } from "react";
 
 /**
@@ -41,6 +42,7 @@ export function VisitorsView() {
   const [days, setDays] = useState<ViewDays>(30);
   const [page, setPage] = useState(1);
   const q = useVisitors(days, page);
+  const canEditProfile = useHasCompanyPermission("company:manage");
   const d = q.data;
   const totalPages = d ? Math.max(1, Math.ceil(d.totalItems / d.pageSize)) : 1;
   const deltaLabel = t("oncekiGuneGore", { days: days });
@@ -105,9 +107,13 @@ export function VisitorsView() {
               description={t("profiliniziTamamlayipUrunEkledikceDaha")}
               variant="no-data"
               action={
-                <Link href="/company/sirketim/profil" className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
-                  {t("profiliTamamla")}
-                </Link>
+                // Profili yalnız düzenleme yetkisi olan tamamlar; yalnız
+                // "Ziyaret edenler" tikli kişiyi profil kapısına götürme (O-062).
+                canEditProfile ? (
+                  <Link href="/company/sirketim/profil" className="inline-flex items-center rounded-lg border border-zinc-300 px-4 py-2.5 text-sm font-semibold text-zinc-700 transition hover:bg-zinc-50">
+                    {t("profiliTamamla")}
+                  </Link>
+                ) : undefined
               }
             />
           ) : (

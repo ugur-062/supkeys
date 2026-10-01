@@ -32,6 +32,38 @@ export interface PortalNavItem {
   minTier?: "SILVER" | "GOLD";
   /** Yetki tablosu Faz 3: bu izin(ler)den biri yoksa satır menüde HİÇ çizilmez. */
   permission?: string | readonly string[];
+  /**
+   * Kilit kademesi kişinin İZNİNE göre (rol kontrolü paket kontrolünün
+   * İÇİNDE — arayüz testi O-043): satır birden çok izinle açılıyorsa, kişinin
+   * sahip olduğu izinlerin en düşük kademesi geçerli. Varsa `minTier`'ı ezer.
+   */
+  tierByPermission?: Readonly<Record<string, "SILVER" | "GOLD">>;
+}
+
+/**
+ * Satırın bu kullanıcı için kilit kademesi (`tierByPermission` varsa izne
+ * göre, yoksa sabit `minTier`). Sol menü kilidi buradan okur.
+ */
+export function navItemMinTier(
+  item: PortalNavItem,
+  user: PermissionSubject | null | undefined,
+): "SILVER" | "GOLD" | undefined {
+  if (!item.tierByPermission) return item.minTier;
+  const tiers = Object.entries(item.tierByPermission)
+    .filter(([perm]) => userHasPermission(user, perm))
+    .map(([, tier]) => tier);
+  if (tiers.length === 0) return item.minTier;
+  return tiers.includes("SILVER") ? "SILVER" : "GOLD";
+}
+
+/** Satır bu kullanıcı + kademe için kilitli mi (teaser kilidi). */
+export function isNavItemLocked(
+  item: PortalNavItem,
+  user: PermissionSubject | null | undefined,
+  tier: string,
+): boolean {
+  const min = navItemMinTier(item, user);
+  return !!min && !tierAtLeast(tier, min);
 }
 
 export interface PortalDef {
@@ -78,6 +110,26 @@ export const profilePath = (_portal: PortalKey) => `${COMPANY_AREA_BASE}/profil`
  */
 export const COMPANY_AREA_BASE = "/company/sirketim";
 
+/**
+ * Herkese açık profil sayfasının (Şirketim › Profil) izinleri — API
+ * `GET company/profile` aynası. Menü satırı, Ayarlar "Firma Profili" kartı
+ * ve sayfa kapısı bu TEK sabitten okur (arayüz testi O-101/O-108).
+ */
+export const COMPANY_PROFILE_PERMISSIONS = ["company:manage", "buy:view", "sell:view"] as const;
+
+/**
+ * Şirketim ALANI kapısı: alandaki sayfalardan en az birini açan her izin
+ * (Genel Bakış yönetim/portal izinleriyle, Ziyaret Edenler `insights:view`,
+ * Raporlar `insights:view` / `buy:reports:view`). Alt sayfalar kendi
+ * kapılarını ayrıca taşır (2026-09-17 sayfa bazında kapı; arayüz testi O-062).
+ */
+export const COMPANY_AREA_PERMISSIONS = [
+  "users:manage",
+  ...COMPANY_PROFILE_PERMISSIONS,
+  "insights:view",
+  "buy:reports:view",
+] as const;
+
 export interface CompanyAreaDef {
   label: string;
   basePath: string;
@@ -90,17 +142,28 @@ export const COMPANY_AREA: CompanyAreaDef = {
   label: "sirketim.title",
   basePath: COMPANY_AREA_BASE,
   nav: [
-    { icon: BuildingOffice2Icon, label: "sirketim.overview", href: COMPANY_AREA_BASE },
+    { icon: BuildingOffice2Icon, label: "sirketim.overview", href: COMPANY_AREA_BASE, permission: COMPANY_AREA_PERMISSIONS },
     // Herkese açık profil HER pakete açık (2026-09-06: ücretsiz firma da
     // yayınlar; paketin karşılığı dizinde öncelik + "Doğrulanmış" rozeti).
-    { icon: IdentificationIcon, label: "sirketim.profile", href: `${COMPANY_AREA_BASE}/profil` },
+    // İzin API profil ucuyla aynı (yalnız "Kullanıcı ve yetki" tikli kişi 403
+    // alıyordu — arayüz testi O-101).
+    { icon: IdentificationIcon, label: "sirketim.profile", href: `${COMPANY_AREA_BASE}/profil`, permission: COMPANY_PROFILE_PERMISSIONS },
     // Sayılar herkese açık, kimlikli liste Silver+ (sayfa içinde kilit); menüde
     // "Ziyaret edenler ve iş analizi" tiki (Satışçı/Yönetici/Kurucu setinde).
     { icon: EyeIcon, label: "sirketim.visitors", href: `${COMPANY_AREA_BASE}/ziyaretciler`, permission: "insights:view" },
     // Raporlar iki tarafın da girişi (2026-09-17): satınalma raporları
     // (Gold + buy:reports:view) VE İş Analizi (Silver + insights:view). Satır
-    // ikisinden biri varsa çizilir; hub içeride yalnız yetkili kartı gösterir.
-    { icon: ChartBarIcon, label: "sirketim.reports", href: `${COMPANY_AREA_BASE}/raporlar`, minTier: "SILVER", permission: ["buy:reports:view", "insights:view"] },
+    // ikisinden biri varsa çizilir; hub içeride yetkili kartı (paketi
+    // yetmiyorsa kilitli) gösterir. Kilit kademesi kişinin iznine göre: yalnız
+    // satınalma raporu izni olana Gold (arayüz testi O-043).
+    {
+      icon: ChartBarIcon,
+      label: "sirketim.reports",
+      href: `${COMPANY_AREA_BASE}/raporlar`,
+      minTier: "SILVER",
+      permission: ["buy:reports:view", "insights:view"],
+      tierByPermission: { "insights:view": "SILVER", "buy:reports:view": "GOLD" },
+    },
   ],
   secondaryNav: [],
 };
@@ -249,6 +312,24 @@ export const PORTALS: Record<PortalKey, PortalDef> = {
 };
 
 export const PORTAL_ORDER: PortalKey[] = ["satinalma", "satis"];
+
+/**
+ * Gold altındaki firmada (paket düştü ya da süresi bitti) Satınalma'nın AÇIK
+ * kalan sayfaları (2026-10-01 kullanıcı kararı T-06, arayüz testi O-008):
+ * mevcut talepleri ve siparişleri görüp sonuçlandırmak için listeler. Yeni iş
+ * (talep açma, şablon, pano) Gold kapısında kalır; liste sayfaları üstte
+ * paket bandı taşır. Tam eşleşme — `/taleplerim/yeni` gibi alt yollar DEĞİL.
+ */
+export const BUYING_WIND_DOWN_PATHS: readonly string[] = [
+  "/company/satinalma/taleplerim",
+  "/company/satinalma/siparisler",
+];
+
+/**
+ * Paket/rol kapısından BAĞIMSIZ geçen eski adresler: yalnız yönlendirici
+ * (birleşik gelen kutusu kendi kapısını uygular — arayüz testi D-264).
+ */
+export const PORTAL_PASSTHROUGH_PATHS: readonly string[] = ["/company/satinalma/mesajlar"];
 
 /**
  * "Kategorileri düzenle" hedefi — açık talep/ilan eşleşmesi firmanın

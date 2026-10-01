@@ -38,6 +38,7 @@ import { Lock, UserRound } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { useSubmitLock } from "@/hooks/use-submit-lock";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { toast } from "sonner";
 
 /**
@@ -135,6 +136,9 @@ export function CompanyProfileSection() {
   const tierLabel = useTierLabel();
   const verificationMeta = useVerificationMeta();
   const { data: profile, isLoading, isError, refetch } = useCompanyProfile();
+  // Banka Hesapları sahibe özel (`billing:manage`): yetkisi olmayana bağlantı
+  // değil düz metin — tıklayınca "yalnız Kurucuya açık" kapısına düşüyordu (D-300).
+  const canBilling = useHasCompanyPermission("billing:manage");
   const update = useUpdateCompanyProfile();
 
   const initial = useMemo(() => (profile ? toForm(profile) : null), [profile]);
@@ -323,14 +327,17 @@ export function CompanyProfileSection() {
                 {c}
               </Link>
             ),
-            banka: (c) => (
-              <Link
-                href="/company/ayarlar/banka-hesaplari"
-                className="font-semibold text-zinc-700 underline hover:text-zinc-900"
-              >
-                {c}
-              </Link>
-            ),
+            banka: (c) =>
+              canBilling ? (
+                <Link
+                  href="/company/ayarlar/banka-hesaplari"
+                  className="font-semibold text-zinc-700 underline hover:text-zinc-900"
+                >
+                  {c}
+                </Link>
+              ) : (
+                <span className="font-semibold text-zinc-700">{c}</span>
+              ),
           })}
         </p>
       </section>

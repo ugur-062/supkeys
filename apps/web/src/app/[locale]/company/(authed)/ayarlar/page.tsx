@@ -10,6 +10,7 @@ import { StatusBadge, type StatusTone } from "@/components/ui/status-badge";
 import { useVerificationMeta } from "@/lib/company/verification-status";
 import { useSettingsPages, type SettingsPageMeta } from "@/lib/company/settings-pages";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { COMPANY_PROFILE_PERMISSIONS } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
 import { Activity, BadgeCheck, Bell, Building2, ChevronRight, IdCard, Landmark, Lock, MapPin, Shield, Sparkles, Store, UserPlus2, type LucideIcon } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -46,7 +47,10 @@ export default function AyarlarPage() {
       title: t("firmaAyarlari"),
       subtitle: t("firmaniziEkipUyeleriniVeSurecleriYonetin"),
       items: [
-        { ...pages.profil, icon: Store },
+        // Profil sayfasının kapısıyla AYNI sabit (API `GET company/profile`
+        // aynası) — yalnız onaylama izinli kişi kartı görüp yetki duvarına
+        // düşüyordu (arayüz testi O-108).
+        { ...pages.profil, icon: Store, permission: COMPANY_PROFILE_PERMISSIONS },
         { ...pages.firma, icon: Building2, permission: "company:manage" },
         // B5: uç `addresses:manage` ister ve bu izin Faz Y'de BİLİNÇLİ olarak
         // SA/ST'ye de verildi ("operasyon kullanıcısı teslimat adresi

@@ -2218,7 +2218,11 @@
         "onaylarAGit": "Onaylar''a Git",
         "panelineDon": "{label} paneline dön",
         "erisimYok": "{label} paneline erişim yetkiniz yok",
-        "rolGerekli": "Bu panele girmek için <strong>{role}</strong> (veya Yönetici / Kurucu) rolüne sahip olmalısınız. Yetki için firma yöneticinizle görüşün."
+        "rolGerekli": "Bu panele girmek için <strong>{role}</strong> (veya Yönetici / Kurucu) rolüne sahip olmalısınız. Yetki için firma yöneticinizle görüşün.",
+        "windDownBaslik": "Satınalma paneli Gold pakette",
+        "windDownAciklama": "Mevcut satın alma taleplerinizi ve siparişlerinizi görüntüleyip sonuçlandırabilirsiniz (kazandırma, kapatma, iptal). Yeni talep açmak, tedarikçi davet etmek, süre uzatmak ve talebi düzenlemek Gold paket gerektirir.",
+        "paketleriGor": "Paketleri gör",
+        "mevcutIslerAcik": "Mevcut satın alma talepleriniz ve siparişleriniz açık kalır:"
       },
       "portalSwitch": {
         "panelDegistirSuAn": "Panel değiştir — şu an {label}",
@@ -2469,7 +2473,7 @@
         "acikTalepler": "Açık talepler",
         "alicilar": "Alıcılar",
         "sektorler": "Sektörler",
-        "satinAlmaTalepleri": "Satın alma talepleri",
+        "satinAlmaTalepleri": "Açık talepler",
         "hangiTalebeTeklifVereceksiniz": "Hangi talebe teklif vereceksiniz?",
         "kategorinizeUygunAcikTaleplerKapali": "Kategorinize uygun açık talepler — kapalı zarf, birbirini görmeyen teklifler; kazandırma tek tabloda.",
         "talepTalepNumarasiVeyaFirma": "Talep, talep numarası veya firma arayın",
@@ -2925,7 +2929,7 @@
         "teslimatAdresi": "Teslimat Adresi",
         "faturaAdresi": "Fatura Adresi",
         "vkn": "· VKN: {taxNumber}",
-        "satinAlmaTalebiKurallari": "Satın Alma Talebi Kuralları",
+        "satinAlmaTalebiKurallari": "Talep Kuralları",
         "kapaliZarfTedarikcilerArasiGizlilik": "Kapalı zarf (tedarikçiler arası gizlilik)",
         "tumKalemlereTeklifZorunlu": "Tüm kalemlere teklif zorunlu",
         "teklifDosyasiEkiZorunlu": "Teklif dosyası eki zorunlu",
@@ -2938,7 +2942,7 @@
         "sonDkIcindeTeklifDk": "Son {autoExtendThresholdMin} dk içinde teklif → {autoExtendByMinutes} dk uzar",
         "kapali": "Kapalı",
         "hukumVeKosullar": "Hüküm ve Koşullar",
-        "satinAlmaTalebiNotlari": "Satın Alma Talebi Notları",
+        "satinAlmaTalebiNotlari": "Talep Notları",
         "sirketIci": "Şirket içi",
         "ana": "ana",
         "visibility": {
@@ -3105,7 +3109,8 @@
         "ilkSatinAlmaTalebiniziBirkac": "İlk satın alma talebinizi birkaç dakikada oluşturabilirsiniz — davetlileri seçin, kalemleri girin, yayınlayın.",
         "satinAlmaTalebiAcmaIslem": "Satın alma talebi açma işlem rolü (Satın Almacı) gerektirir.",
         "satinAlmaTalebiListesi": "Satın Alma Talebi listesi",
-        "satinAlmaTalebiAc": "Satın Alma Talebi Aç"
+        "satinAlmaTalebiAc": "Satın Alma Talebi Aç",
+        "yeniTalepGoldGerektirir": "Yeni satın alma talebi açmak Gold paket gerektirir."
       },
       "ihalelistrow": {
         "favorilerdenCikar": "Favorilerden çıkar",
@@ -3174,7 +3179,7 @@
         "kalemBazliKazandirilsinMi": "Kalem-bazlı kazandırılsın mı?",
         "buHerkeseAcikTalepSilver": "Bu herkese açık talep Silver paketiyle açılır",
         "herkeseAcikSatinAlmaTaleplerini": "Herkese açık alım taleplerini görmek ve teklif vermek Silver ile gelir. Bağlantı davetiyle gelen taleplere ücretsiz teklif verirsiniz.",
-        "satinAlmaTalebineUlasilamiyor": "Satın Alma Talebine ulaşılamıyor.",
+        "satinAlmaTalebineUlasilamiyor": "Talebe ulaşılamıyor.",
         "ilanKaldirilmisAdresHataliYa": "Talep kaldırılmış, adres hatalı ya da erişim koşullarınız değişmiş olabilir (ör. firma bağlantısı veya paket durumu). Sorun olduğunu düşünüyorsanız talep sahibiyle iletişime geçin.",
         "paneleDon": "Panele Dön",
         "ilanYuklenemedi": "Talep yüklenemedi.",
@@ -3277,7 +3282,7 @@
         "tekliflerKapanisTarihindenSonraAlici": "Teklifler, kapanış tarihinden sonra alıcı firma tarafından açılır.",
         "nasilCalisir": "Nasıl çalışır?",
         "teklifim": "Teklifim",
-        "satinAlmaTalebiBolumleri": "Satın Alma Talebi bölümleri",
+        "satinAlmaTalebiBolumleri": "Talep bölümleri",
         "talepSartlariKaydedildiYeniTalepler": "Talep şartları kaydedildi — yeni talepler bunlarla başlar",
         "yukleniyor": "Yükleniyor…",
         "neredeKullanilir": "Nerede kullanılır",
@@ -3462,7 +3467,7 @@
         "gonderdiktenSonraBuTurdaDegistiremezsin": "Gönderdikten sonra bu turda değiştiremezsiniz — yeni fiyat ancak alıcı yeni tur açarsa verilebilir.",
         "kaydedilemedi": "Kaydedilemedi",
         "henuzKaydedilmisSartYok": "Henüz kaydedilmiş şart yok — aşağıdakiler <strong>son yayımladığınız talepten</strong> türetildi. Kontrol edip kaydedin.",
-        "herkeseAcikSatinAlmaTaleplerini2": "Herkese açık satın alma taleplerini görmek ve teklif vermek Silver ile gelir. Talebin kalemleri, alıcı firma ve dosyalar paketle birlikte açılır.",
+        "herkeseAcikSatinAlmaTaleplerini2": "Herkese açık alım taleplerini görmek ve teklif vermek Silver ile gelir. Talebin kalemleri, alıcı firma ve dosyalar paketle birlikte açılır.",
         "tur3": "Tur {currentRound}",
         "teslimSekliOdemeKosuluPara2": "Teslim şekli, ödeme koşulu, para birimi, görünürlük ve süreyi bir kez belirleyin; her yeni satın alma talebi bunlarla başlasın.",
         "silverPaketi": "Silver paketi",
@@ -3498,7 +3503,13 @@
         "redGerekcesi": "Gerekçe: {reason}",
         "tedariksizKalemler": "Tedariksiz kalan kalemler: {items}",
         "buKalemlerleYeniTalepOlustur": "Bu kalemlerle yeni talep oluştur",
-        "tedarikci": "Tedarikçi"
+        "tedarikci": "Tedarikçi",
+        "kendiFirmaTalebiYetkiNotu": "Talep kendi firmanıza aitse, görüntülemek için satınalma görüntüleme yetkisi gerekir — firma yöneticinizden isteyin.",
+        "teklifeUlasilamiyor": "Teklife ulaşılamıyor.",
+        "teklifErisimAciklama": "Teklif kaldırılmış, bağlantı hatalı ya da bu talebin tekliflerini görme yetkiniz olmayabilir.",
+        "kaybetti": "Kaybetti",
+        "kapandiTeklif": "Kapandı",
+        "markaParcaNo": "Marka / Parça no: {value}"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "Henüz bağlantınız yok. “Herkese açık” seçin ya da yayından sonra tedarikçi önerisinden davet edin.",
@@ -4109,9 +4120,9 @@
         "buSatinAlmaTalebineTeklif": "Bu alım talebine teklif vermediniz.",
         "satinAlmaTalebiIlanSahibi": "Alım talebi, alıcı tarafından iptal edildi.",
         "gerekce": "Gerekçe: {cancelReason}",
-        "siparisOlusturulduOnayinBekleniyor": "Sipariş oluşturuldu — onayın bekleniyor.",
-        "odemeyiSiparisSayfasindanIzle": "Ödemeyi sipariş sayfasından izle.",
-        "tebriklerTeklifinKazandi": "Tebrikler — teklifin kazandı!",
+        "siparisOlusturulduOnayinBekleniyor": "Sipariş oluşturuldu — onayınız bekleniyor.",
+        "odemeyiSiparisSayfasindanIzle": "Ödemeyi sipariş sayfasından izleyin.",
+        "tebriklerTeklifinKazandi": "Tebrikler — teklifiniz kazandı!",
         "tebriklerBaziKalemleriKazandiniz": "Tebrikler — bazı kalemleri kazandınız!",
         "teklifinizBuTurdaElendi": "Teklifiniz bu turda elendi",
         "teklifinizElendi": "Teklifiniz elendi",
@@ -4138,7 +4149,15 @@
         "tarihineKadar": "{date} tarihine kadar",
         "sectiginizSureMevcutBitisTarihine": "Seçtiğiniz süre mevcut bitiş tarihine eklenir; fiyatınız değişmez.",
         "yeniBitis": "Yeni bitiş: <strong>{date}</strong>",
-        "onaylaTeslimEtVeFatura": "Onayla, teslim et ve fatura no ile tamamla."
+        "onaylaTeslimEtVeFatura": "Onaylayın, teslim edin ve fatura no ile tamamlayın.",
+        "elendi": "Elendi",
+        "kapandi": "Kapandı",
+        "iptalEdildi": "İptal edildi",
+        "genelTeslim": "Genel teslim süresi",
+        "evet": "Evet",
+        "hayir": "Hayır",
+        "siparisDurumu": "Sipariş durumu: {status}",
+        "alimTalebiKazananSecilmedenKapandi": "Alım talebi kazanan seçilmeden kapandı."
       },
       "auctionLiveCard": {
         "pazarlikAcikEksiltmeTur": "Pazarlık (Açık Eksiltme) · Tur {currentRound}",
@@ -4156,14 +4175,15 @@
         "tedarikci": "Tedarikçi",
         "kapandi": "Kapandı",
         "teklifAlimiKapandi": "Teklif alımı kapandı",
-        "gunSaatGeriSayim": "{d}g {time}",
         "rakipBilgisiKapaliYalnizcaKendi": "Rakip bilgisi kapalı — yalnızca kendi teklifinizi görürsünüz",
         "enIyiTeklifHerkeseGorunur": "En iyi teklif herkese görünür",
         "yalnizcaKendiSiraniziGorursunuz": "Yalnızca kendi sıranızı görürsünüz",
         "enIyiTeklifKendiSiranGorunur": "En iyi teklif + kendi sıranız görünür",
         "tumTekliflerAnonimGorunur": "Tüm teklifler (anonim) görünür",
         "birTeklif": "1 teklif",
-        "otoUzatmaNotu": "· Son {threshold} dk içinde gelen teklif kapanışı {by} dk uzatır"
+        "otoUzatmaNotu": "· Son {threshold} dk içinde gelen teklif kapanışı {by} dk uzatır",
+        "kalanGunSaat": "Kalan: {d} g {h} sa {m} dk",
+        "kalanSaat": "Kalan: {h} sa {m} dk {s} sn"
       },
       "statusBadge": {
         "teklifToplama": "Teklif Toplama",
@@ -4611,7 +4631,8 @@
       },
       "permissionGate": {
         "yetkiIcinFirmaYoneticinizeBasvurun": "{description} Yetki için firma yöneticinize başvurun.",
-        "buSayfaYetkiGerektirir": "Bu sayfa yetki gerektirir"
+        "buSayfaYetkiGerektirir": "Bu sayfa yetki gerektirir",
+        "kurucuyaBasvurun": "{description} Bu yetki başka kullanıcıya verilemez; bu iş için firma kurucusuna başvurun."
       },
       "insightsView": {
         "oncekiGuneGore": "Önceki {days} güne göre",
@@ -5979,7 +6000,8 @@
       },
       "ayarlarBankaHesaplariLayout": {
         "bankaHesaplariYalnizKurucuyaAcik": "Banka Hesapları yalnız Kurucuya açık",
-        "bankaHesaplariniYalnizFirmaKurucusu": "Banka hesaplarını yalnız firma kurucusu yönetir."
+        "bankaHesaplariniYalnizFirmaKurucusu": "Banka hesaplarını yalnız firma kurucusu yönetir.",
+        "ayarlaraDon": "Ayarlar''a dön"
       },
       "ayarlarDogrulamaLayout": {
         "dogrulamaBelgeleriYetkiGerektirir": "Doğrulama Belgeleri yetki gerektirir",
@@ -6248,7 +6270,7 @@
       },
       "sirketimLayout": {
         "sirketimAlaniYetkiGerektirir": "Şirketim alanı yetki gerektirir",
-        "sirketimAlaniniYonetimYetkisiYa": "Şirketim alanını yönetim yetkisi ya da en az bir portalı görüntüleme izni olanlar görür."
+        "sirketimAlaniniYonetimYetkisiYa": "Şirketim alanını yönetim yetkisi, en az bir portalı görüntüleme izni ya da “Ziyaret edenler ve iş analizi” / “Satınalma raporları” tiki olanlar görür."
       },
       "sirketimZiyaretcilerLayout": {
         "ziyaretEdenlerYetkiGerektirir": "Ziyaret Edenler yetki gerektirir",
@@ -6507,6 +6529,10 @@
         "enFazlaCip": "En fazla {max, number} hizmet eklenebilir.",
         "buCipZatenEkli": "Bu hizmet zaten ekli: {v}",
         "cipSayaci": "{n, number}/{max, number}"
+      },
+      "sirketimProfilPage": {
+        "profilYetkiGerektirir": "Profil yetki gerektirir",
+        "buSayfaIcinGerekenIzinler": "Bu sayfa “Firma profili ve ayarlar”, “Satınalma görüntüleme” ya da “Satış görüntüleme” tikini ister."
       }
     },
     "market": {
@@ -6596,7 +6622,13 @@
         "tasarrufRaporu": "Tasarruf Raporu",
         "rekabetinSizeKazandirdiginiGorunHedef": "Rekabetin size kazandırdığını görün — hedef fiyata göre kalem bazlı detayla.",
         "teklifKarsilastirmaRaporu": "Teklif Karşılaştırma Raporu",
-        "birSatinAlmaTalebineGelen": "Bir satın alma talebine gelen teklifleri kalem bazında yan yana karşılaştırın."
+        "birSatinAlmaTalebineGelen": "Bir satın alma talebine gelen teklifleri kalem bazında yan yana karşılaştırın.",
+        "silverIleAcilir": "Silver ile açılır",
+        "goldIleAcilir": "Gold ile açılır",
+        "satinalmaRaporlari": "Satınalma raporları",
+        "satinalmaRaporlariKilitliAciklama": "Genel satın alma talebi, tasarruf ve teklif karşılaştırma raporları Gold pakette.",
+        "sizeAcikRaporYok": "Size açık rapor yok",
+        "raporlarYetkiyleAcilir": "Raporlar “Ziyaret edenler ve iş analizi” ya da “Satınalma raporları” tikiyle açılır. Yetki için firma yöneticinize başvurun."
       },
       "bidComparisonView": {
         "raporOlusturulamadi": "Rapor oluşturulamadı",

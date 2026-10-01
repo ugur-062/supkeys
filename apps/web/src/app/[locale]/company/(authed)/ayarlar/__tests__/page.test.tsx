@@ -43,4 +43,11 @@ describe("AyarlarPage", () => {
     expect(screen.getByText("Aktivite Logu")).toBeInTheDocument();
     expect(screen.queryByText("Banka Hesapları")).toBeNull(); // billing:manage yok
   });
+
+  it("yalnız onaylama izni: Firma Profili kartı çizilmez (sayfa kapısıyla aynı izin, O-108)", () => {
+    h.user = { ...h.user, permissions: ["approval:act"] };
+    render(<AyarlarPage />);
+    expect(screen.queryByText("Firma Profili")).toBeNull();
+    expect(screen.getByText("Hesap Bilgileri")).toBeInTheDocument();
+  });
 });

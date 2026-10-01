@@ -9,6 +9,8 @@ export default function AyarlarBankaHesaplariLayout({ children }: { children: Re
       permission={"billing:manage"}
       title={t("bankaHesaplariYalnizKurucuyaAcik")}
       description={t("bankaHesaplariniYalnizFirmaKurucusu")}
+      backHref="/company/ayarlar"
+      backLabel={t("ayarlaraDon")}
     >
       {children}
     </PermissionGate>

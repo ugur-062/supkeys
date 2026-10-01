@@ -19400,14 +19400,24 @@
     "at": "2026-09-24"
   },
   "web.panel.company.sirketimLayout.sirketimAlaniniYonetimYetkisiYa": {
-    "hash": "0d7de195fd",
+    "hash": "005c0807cb",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.company.sirketimLayout.sirketimAlaniYetkiGerektirir": {
     "hash": "9b892bc2c9",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.company.sirketimProfilPage.buSayfaIcinGerekenIzinler": {
+    "hash": "ef16ed633b",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.company.sirketimProfilPage.profilYetkiGerektirir": {
+    "hash": "796eb5fb6e",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.company.sirketimZiyaretcilerLayout.buSayfaZiyaretEdenlerVe": {
     "hash": "f87d4f5fdf",
@@ -21074,6 +21084,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.reports.sirketimRaporlarPage.goldIleAcilir": {
+    "hash": "b6e138fc51",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.reports.sirketimRaporlarPage.isAnalizi": {
     "hash": "8fbc0c81d1",
     "status": "reviewed",
@@ -21094,10 +21109,35 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.reports.sirketimRaporlarPage.raporlarYetkiyleAcilir": {
+    "hash": "b06714c8d9",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.reports.sirketimRaporlarPage.rekabetinSizeKazandirdiginiGorunHedef": {
     "hash": "4a80759b8f",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.reports.sirketimRaporlarPage.satinalmaRaporlari": {
+    "hash": "067b982fbf",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.reports.sirketimRaporlarPage.satinalmaRaporlariKilitliAciklama": {
+    "hash": "14066c8263",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.reports.sirketimRaporlarPage.silverIleAcilir": {
+    "hash": "dfa67a189a",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.reports.sirketimRaporlarPage.sizeAcikRaporYok": {
+    "hash": "4fd3169df8",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.reports.sirketimRaporlarPage.tasarrufRaporu": {
     "hash": "2a14630c6c",
@@ -22046,11 +22086,6 @@
   },
   "web.panel.requests.auctionLiveCard.gizli": {
     "hash": "7db89ca4b8",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.requests.auctionLiveCard.gunSaatGeriSayim": {
-    "hash": "e65eae191e",
     "status": "reviewed",
     "at": "2026-09-24"
   },
@@ -23573,6 +23608,11 @@
     "hash": "26ca338722",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.ihalelistview.yeniTalepGoldGerektirir": {
+    "hash": "c206d02663",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.itemDetailModal.aciklamaSpesifikasyon": {
     "hash": "d8701cdf7a",
@@ -29424,6 +29464,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.settings.ayarlarBankaHesaplariLayout.ayarlaraDon": {
+    "hash": "7d8f623592",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.settings.ayarlarBankaHesaplariLayout.bankaHesaplariniYalnizFirmaKurucusu": {
     "hash": "333428cc3f",
     "status": "reviewed",
@@ -32554,10 +32599,20 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.shell.portalGuard.mevcutIslerAcik": {
+    "hash": "42e1836741",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.shell.portalGuard.onaylarAGit": {
     "hash": "cbf82fe0fb",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.shell.portalGuard.paketleriGor": {
+    "hash": "36474a4f25",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.shell.portalGuard.panelineDon": {
     "hash": "c7b4c8a27d",
@@ -32568,6 +32623,16 @@
     "hash": "2aa2218377",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.shell.portalGuard.windDownAciklama": {
+    "hash": "81e1a53979",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.shell.portalGuard.windDownBaslik": {
+    "hash": "af4cdee9a4",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.shell.portalGuard.yukleniyor": {
     "hash": "3a5e96d474",
@@ -36288,6 +36353,11 @@
     "hash": "81bfcaabc5",
     "status": "reviewed",
     "at": "2026-09-25"
+  },
+  "web.panel.trade.permissionGate.kurucuyaBasvurun": {
+    "hash": "6a16551e23",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.trade.permissionGate.yetkiIcinFirmaYoneticinizeBasvurun": {
     "hash": "67534beb87",

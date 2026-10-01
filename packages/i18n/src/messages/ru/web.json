@@ -2218,7 +2218,11 @@
         "onaylarAGit": "Перейти к согласованиям",
         "panelineDon": "Вернуться в панель «{label}»",
         "erisimYok": "У Вас нет доступа к панели «{label}»",
-        "rolGerekli": "Для входа в эту панель необходима роль <strong>{role}</strong> (либо Руководитель / Основатель). Для получения доступа обратитесь к руководителю Вашей компании."
+        "rolGerekli": "Для входа в эту панель необходима роль <strong>{role}</strong> (либо Руководитель / Основатель). Для получения доступа обратитесь к руководителю Вашей компании.",
+        "windDownBaslik": "Панель закупок входит в пакет Gold",
+        "windDownAciklama": "Вы по-прежнему можете просматривать и завершать текущие заявки на закупку и заказы (выбор победителя, закрытие, отмена). Для новой заявки, приглашения поставщиков, продления срока и редактирования заявки нужен пакет Gold.",
+        "paketleriGor": "Смотреть пакеты",
+        "mevcutIslerAcik": "Ваши текущие заявки на закупку и заказы остаются доступны:"
       },
       "portalSwitch": {
         "panelDegistirSuAn": "Сменить панель — сейчас: {label}",
@@ -2469,7 +2473,7 @@
         "acikTalepler": "Открытые запросы",
         "alicilar": "Покупатели",
         "sektorler": "Отрасли",
-        "satinAlmaTalepleri": "Заявки на закупку",
+        "satinAlmaTalepleri": "Открытые запросы",
         "hangiTalebeTeklifVereceksiniz": "На какой запрос Вы отправите предложение?",
         "kategorinizeUygunAcikTaleplerKapali": "Открытые запросы по Вашим категориям — закрытые предложения, не видимые друг другу; присуждение в одной таблице.",
         "talepTalepNumarasiVeyaFirma": "Поиск по запросу, номеру запроса или компании",
@@ -2925,7 +2929,7 @@
         "teslimatAdresi": "Адрес доставки",
         "faturaAdresi": "Адрес для счёта",
         "vkn": "· Налоговый номер: {taxNumber}",
-        "satinAlmaTalebiKurallari": "Правила заявки на закупку",
+        "satinAlmaTalebiKurallari": "Правила запроса",
         "kapaliZarfTedarikcilerArasiGizlilik": "Закрытые предложения (конфиденциальность между поставщиками)",
         "tumKalemlereTeklifZorunlu": "Предложение обязательно по всем позициям",
         "teklifDosyasiEkiZorunlu": "Обязательно приложить файл предложения",
@@ -2938,7 +2942,7 @@
         "sonDkIcindeTeklifDk": "Предложение в последние {autoExtendThresholdMin} мин → продление на {autoExtendByMinutes} мин",
         "kapali": "Выключено",
         "hukumVeKosullar": "Условия и положения",
-        "satinAlmaTalebiNotlari": "Заметки к заявке на закупку",
+        "satinAlmaTalebiNotlari": "Примечания к запросу",
         "sirketIci": "Внутренние",
         "ana": "основная",
         "visibility": {
@@ -3105,7 +3109,8 @@
         "ilkSatinAlmaTalebiniziBirkac": "Первую заявку на закупку можно создать за несколько минут — выберите приглашённых, введите позиции, опубликуйте.",
         "satinAlmaTalebiAcmaIslem": "Для создания заявки на закупку требуется операционная роль (Закупщик).",
         "satinAlmaTalebiListesi": "Список заявок на закупку",
-        "satinAlmaTalebiAc": "Создать заявку на закупку"
+        "satinAlmaTalebiAc": "Создать заявку на закупку",
+        "yeniTalepGoldGerektirir": "Для новой заявки на закупку нужен пакет Gold."
       },
       "ihalelistrow": {
         "favorilerdenCikar": "Удалить из избранного",
@@ -3174,7 +3179,7 @@
         "kalemBazliKazandirilsinMi": "Присудить по позициям?",
         "buHerkeseAcikTalepSilver": "Этот открытый запрос доступен с тарифом Silver",
         "herkeseAcikSatinAlmaTaleplerini": "Просмотр открытых заявок на закупку и отправка предложений доступны с тарифом Silver. На запросы, полученные по приглашению от контакта, Вы отправляете предложения бесплатно.",
-        "satinAlmaTalebineUlasilamiyor": "Заявка на закупку недоступна.",
+        "satinAlmaTalebineUlasilamiyor": "Запрос недоступен.",
         "ilanKaldirilmisAdresHataliYa": "Возможно, запрос был удалён, адрес указан неверно или изменились условия Вашего доступа (напр. контакт с компанией или Ваш тариф). Если Вы считаете, что это ошибка, свяжитесь с владельцем запроса.",
         "paneleDon": "Вернуться в панель",
         "ilanYuklenemedi": "Не удалось загрузить запрос.",
@@ -3277,7 +3282,7 @@
         "tekliflerKapanisTarihindenSonraAlici": "Предложения вскрываются компанией-покупателем после даты закрытия.",
         "nasilCalisir": "Как это работает?",
         "teklifim": "Моё предложение",
-        "satinAlmaTalebiBolumleri": "Разделы заявки на закупку",
+        "satinAlmaTalebiBolumleri": "Разделы запроса",
         "talepSartlariKaydedildiYeniTalepler": "Условия запроса сохранены — новые запросы будут начинаться с них",
         "yukleniyor": "Загрузка…",
         "neredeKullanilir": "Где используется",
@@ -3498,7 +3503,13 @@
         "redGerekcesi": "Причина: {reason}",
         "tedariksizKalemler": "Позиции без поставщика: {items}",
         "buKalemlerleYeniTalepOlustur": "Создать новый запрос с этими позициями",
-        "tedarikci": "Поставщик"
+        "tedarikci": "Поставщик",
+        "kendiFirmaTalebiYetkiNotu": "Если запрос принадлежит Вашей компании, для его просмотра нужны права на просмотр закупок — обратитесь к администратору компании.",
+        "teklifeUlasilamiyor": "Предложение недоступно.",
+        "teklifErisimAciklama": "Возможно, предложение удалено, ссылка неверна или у Вас нет прав на просмотр предложений по этому запросу.",
+        "kaybetti": "Не выиграло",
+        "kapandiTeklif": "Закрыто",
+        "markaParcaNo": "Марка / Артикул: {value}"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "У Вас пока нет контактов. Выберите «Открыта для всех» или пригласите поставщиков из рекомендаций после публикации.",
@@ -4138,7 +4149,15 @@
         "tarihineKadar": "До {date}",
         "sectiginizSureMevcutBitisTarihine": "Выбранный срок добавляется к текущей дате окончания; Ваша цена не меняется.",
         "yeniBitis": "Новое окончание: <strong>{date}</strong>",
-        "onaylaTeslimEtVeFatura": "Подтвердите, выполните поставку и завершите, указав номер счёта."
+        "onaylaTeslimEtVeFatura": "Подтвердите, выполните поставку и завершите, указав номер счёта.",
+        "elendi": "Исключено",
+        "kapandi": "Закрыто",
+        "iptalEdildi": "Отменено",
+        "genelTeslim": "Общий срок поставки",
+        "evet": "Да",
+        "hayir": "Нет",
+        "siparisDurumu": "Статус заказа: {status}",
+        "alimTalebiKazananSecilmedenKapandi": "Заявка на закупку закрыта без выбора победителя."
       },
       "auctionLiveCard": {
         "pazarlikAcikEksiltmeTur": "Переговоры (аукцион на понижение) · Раунд {currentRound}",
@@ -4156,14 +4175,15 @@
         "tedarikci": "Поставщик",
         "kapandi": "Закрыто",
         "teklifAlimiKapandi": "Приём предложений закрыт",
-        "gunSaatGeriSayim": "{d}д {time}",
         "rakipBilgisiKapaliYalnizcaKendi": "Информация о конкурентах скрыта — Вы видите только своё предложение",
         "enIyiTeklifHerkeseGorunur": "Лучшее предложение видно всем",
         "yalnizcaKendiSiraniziGorursunuz": "Вы видите только своё место в рейтинге",
         "enIyiTeklifKendiSiranGorunur": "Видны лучшее предложение и Ваше место",
         "tumTekliflerAnonimGorunur": "Видны все предложения (анонимно)",
         "birTeklif": "1 предложение",
-        "otoUzatmaNotu": "· Предложение, поступившее в последние {threshold} мин, продлевает закрытие на {by} мин"
+        "otoUzatmaNotu": "· Предложение, поступившее в последние {threshold} мин, продлевает закрытие на {by} мин",
+        "kalanGunSaat": "Осталось: {d} д {h} ч {m} мин",
+        "kalanSaat": "Осталось: {h} ч {m} мин {s} с"
       },
       "statusBadge": {
         "teklifToplama": "Приём предложений",
@@ -4611,7 +4631,8 @@
       },
       "permissionGate": {
         "yetkiIcinFirmaYoneticinizeBasvurun": "{description} Для получения прав обратитесь к администратору Вашей компании.",
-        "buSayfaYetkiGerektirir": "Для этой страницы требуются права доступа"
+        "buSayfaYetkiGerektirir": "Для этой страницы требуются права доступа",
+        "kurucuyaBasvurun": "{description} Это право нельзя передать другим пользователям; обратитесь к основателю компании."
       },
       "insightsView": {
         "oncekiGuneGore": "По сравнению с {days, plural, one {предыдущим # днём} few {предыдущими # днями} many {предыдущими # днями} other {предыдущими # днями}}",
@@ -5979,7 +6000,8 @@
       },
       "ayarlarBankaHesaplariLayout": {
         "bankaHesaplariYalnizKurucuyaAcik": "Банковские счета доступны только Основателю",
-        "bankaHesaplariniYalnizFirmaKurucusu": "Банковскими счетами управляет только основатель компании."
+        "bankaHesaplariniYalnizFirmaKurucusu": "Банковскими счетами управляет только основатель компании.",
+        "ayarlaraDon": "Вернуться в настройки"
       },
       "ayarlarDogrulamaLayout": {
         "dogrulamaBelgeleriYetkiGerektirir": "Для документов проверки требуется право доступа",
@@ -6248,7 +6270,7 @@
       },
       "sirketimLayout": {
         "sirketimAlaniYetkiGerektirir": "Раздел «Моя компания» требует прав доступа",
-        "sirketimAlaniniYonetimYetkisiYa": "Раздел «Моя компания» доступен тем, у кого есть право управления или доступ на просмотр хотя бы одного портала."
+        "sirketimAlaniniYonetimYetkisiYa": "Раздел «Моя компания» доступен тем, у кого есть право управления, доступ на просмотр хотя бы одного портала или отметка «Посетители и бизнес-аналитика» / «Отчёты по закупкам»."
       },
       "sirketimZiyaretcilerLayout": {
         "ziyaretEdenlerYetkiGerektirir": "Раздел «Посетители» требует прав доступа",
@@ -6507,6 +6529,10 @@
         "enFazlaCip": "Можно добавить не более {max, plural, one {# услуги} few {# услуг} many {# услуг} other {# услуги}}.",
         "buCipZatenEkli": "Эта услуга уже добавлена: {v}",
         "cipSayaci": "{n, number}/{max, number}"
+      },
+      "sirketimProfilPage": {
+        "profilYetkiGerektirir": "Для профиля требуются права доступа",
+        "buSayfaIcinGerekenIzinler": "Для этой страницы требуется отметка «Профиль компании и настройки», «Просмотр закупок» или «Просмотр продаж»."
       }
     },
     "market": {
@@ -6596,7 +6622,13 @@
         "tasarrufRaporu": "Отчёт об экономии",
         "rekabetinSizeKazandirdiginiGorunHedef": "Посмотрите, что принесла Вам конкуренция, — с детализацией по позициям относительно целевой цены.",
         "teklifKarsilastirmaRaporu": "Отчёт по сравнению предложений",
-        "birSatinAlmaTalebineGelen": "Сравните предложения, полученные по заявке на закупку, позиция за позицией."
+        "birSatinAlmaTalebineGelen": "Сравните предложения, полученные по заявке на закупку, позиция за позицией.",
+        "silverIleAcilir": "Доступно с Silver",
+        "goldIleAcilir": "Доступно с Gold",
+        "satinalmaRaporlari": "Отчёты по закупкам",
+        "satinalmaRaporlariKilitliAciklama": "Общий отчёт по заявкам на закупку, отчёт об экономии и сравнение предложений входят в пакет Gold.",
+        "sizeAcikRaporYok": "Нет доступных Вам отчётов",
+        "raporlarYetkiyleAcilir": "Отчёты открываются с отметкой «Посетители и бизнес-аналитика» или «Отчёты по закупкам». Для получения прав обратитесь к администратору Вашей компании."
       },
       "bidComparisonView": {
         "raporOlusturulamadi": "Не удалось сформировать отчёт",

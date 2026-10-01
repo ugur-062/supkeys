@@ -3,7 +3,8 @@
 import { useTranslations } from "next-intl";
 import { EmptyState } from "@/components/list";
 import type { TenderListItem } from "@/hooks/use-company-tenders";
-import { useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { BUYING_TIER, tierAtLeast } from "@rothern/shared";
 import { cn } from "@/lib/utils";
 import { ClipboardList, Plus } from "lucide-react";
 import { Link } from "@/i18n/navigation";
@@ -36,7 +37,12 @@ export function IhaleListView({
   const ctaLabel = emptyCtaLabel ?? tr("satinAlmaTalebiAc");
   const accent = useButtonAccent();
   const [favorites, setFavorites] = useState<Set<string>>(new Set());
-  const canCreate = useHasCompanyPermission("buy:listing:manage");
+  // Rol kontrolü paket kontrolünün İÇİNDE: Gold altına düşen firma listeyi
+  // görür (mevcut işini bitirir) ama yeni talep açamaz (T-06, O-008).
+  const hasCreatePermission = useHasCompanyPermission("buy:listing:manage");
+  const { company } = useCompanyAuth();
+  const tierAllowsCreate = tierAtLeast(company?.tier ?? "STANDART", BUYING_TIER);
+  const canCreate = hasCreatePermission && tierAllowsCreate;
 
   useEffect(() => {
     try {
@@ -106,7 +112,9 @@ export function IhaleListView({
         description={
           canCreate
             ? tr("ilkSatinAlmaTalebiniziBirkac")
-            : tr("satinAlmaTalebiAcmaIslem")
+            : hasCreatePermission
+              ? tr("yeniTalepGoldGerektirir")
+              : tr("satinAlmaTalebiAcmaIslem")
         }
         variant="no-data"
         action={

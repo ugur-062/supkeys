@@ -11,15 +11,21 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   canManage: true,
+  sellView: true,
   mutateAsync: vi.fn(),
+  profileEnabled: [] as boolean[],
 }));
 
 vi.mock("sonner", () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 vi.mock("@/hooks/use-company-auth", () => ({
-  useHasCompanyPermission: (p: string) => (p === "company:manage" ? h.canManage : false),
+  useHasCompanyPermission: (p: string) =>
+    p === "company:manage" ? h.canManage : p === "sell:view" ? h.sellView : false,
 }));
 vi.mock("@/hooks/use-company-profile", () => ({
-  useCompanyProfile: () => ({ data: { visitsVisible: true }, isLoading: false }),
+  useCompanyProfile: (enabled = true) => {
+    h.profileEnabled.push(enabled);
+    return { data: enabled ? { visitsVisible: true } : undefined, isLoading: false };
+  },
   useUpdateCompanyProfile: () => ({ mutateAsync: h.mutateAsync, isPending: false }),
 }));
 
@@ -28,6 +34,8 @@ import { VisitsVisibilityCard } from "../visits-visibility-card";
 beforeEach(() => {
   vi.clearAllMocks();
   h.canManage = true;
+  h.sellView = true;
+  h.profileEnabled = [];
   h.mutateAsync.mockResolvedValue({});
 });
 
@@ -52,5 +60,13 @@ describe("VisitsVisibilityCard", () => {
     expect(screen.getByText(/yalnız şirket profilini yönetme yetkisi/)).toBeInTheDocument();
     await user.click(sw);
     expect(h.mutateAsync).not.toHaveBeenCalled();
+  });
+
+  it("profil ucunu okuyamayan (yalnız insights:view) kişide istek atılmaz, kart çizilmez (O-062)", () => {
+    h.canManage = false;
+    h.sellView = false;
+    const { container } = render(<VisitsVisibilityCard />);
+    expect(container).toBeEmptyDOMElement();
+    expect(h.profileEnabled.every((e) => e === false)).toBe(true);
   });
 });

@@ -43,6 +43,8 @@ export default function DogrulamaPage() {
   // Backend upload/submit uçları company:manage ister — diğer roller
   // yalnızca durumu görür (efektif izin: rol + sahip + override).
   const canManage = useHasCompanyPermission("company:manage");
+  // Banka Hesapları sahibe özel — yetkisizde düz metin (arayüz testi D-300).
+  const canBilling = useHasCompanyPermission("billing:manage");
   const { data, isLoading } = useCompanyDocs();
   const upload = useUploadDoc();
   const submit = useSubmitDocs();
@@ -311,11 +313,14 @@ export default function DogrulamaPage() {
                 ) : (
                   <Text className="mt-1 text-xs text-zinc-500">
                     {t.rich("dogrulamaIcindirSiparisTahsilat", {
-                      banka: (c) => (
-                        <Link href="/company/ayarlar/banka-hesaplari" className="font-semibold underline">
-                          {c}
-                        </Link>
-                      ),
+                      banka: (c) =>
+                        canBilling ? (
+                          <Link href="/company/ayarlar/banka-hesaplari" className="font-semibold underline">
+                            {c}
+                          </Link>
+                        ) : (
+                          <span className="font-semibold">{c}</span>
+                        ),
                     })}
                   </Text>
                 )}

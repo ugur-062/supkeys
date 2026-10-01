@@ -131,9 +131,14 @@ export function useUploadProfileImage() {
   });
 }
 
-export function useCompanyProfile() {
+/**
+ * `enabled=false`: profil ucunu okuma izni olmayan kişide (`GET company/profile`
+ * = company:manage | buy:view | sell:view) istek atılmaz — 403 tostu çıkmasın.
+ */
+export function useCompanyProfile(enabled = true) {
   return useQuery({
     queryKey: ["company-profile"],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<CompanyProfile>("/company/profile");
       return data;

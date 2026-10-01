@@ -2218,7 +2218,11 @@
         "onaylarAGit": "Go to Approvals",
         "panelineDon": "Back to the {label} panel",
         "erisimYok": "You do not have access to the {label} panel",
-        "rolGerekli": "To enter this panel you need the <strong>{role}</strong> role (or Manager / Founder). Contact your company manager for access."
+        "rolGerekli": "To enter this panel you need the <strong>{role}</strong> role (or Manager / Founder). Contact your company manager for access.",
+        "windDownBaslik": "The purchasing panel is part of the Gold package",
+        "windDownAciklama": "You can still view and complete your existing purchase requests and orders (award, close, cancel). Opening a new request, inviting suppliers, extending the deadline and editing a request require the Gold package.",
+        "paketleriGor": "View packages",
+        "mevcutIslerAcik": "Your existing purchase requests and orders stay available:"
       },
       "portalSwitch": {
         "panelDegistirSuAn": "Switch panel — currently {label}",
@@ -2469,7 +2473,7 @@
         "acikTalepler": "Open requests",
         "alicilar": "Buyers",
         "sektorler": "Industries",
-        "satinAlmaTalepleri": "Buying requests",
+        "satinAlmaTalepleri": "Open requests",
         "hangiTalebeTeklifVereceksiniz": "Which request will you quote on?",
         "kategorinizeUygunAcikTaleplerKapali": "Open requests matching your categories — sealed bids, quotes hidden from one another; the award is decided in a single table.",
         "talepTalepNumarasiVeyaFirma": "Search by request, request number or company",
@@ -2925,7 +2929,7 @@
         "teslimatAdresi": "Delivery address",
         "faturaAdresi": "Billing address",
         "vkn": "· Tax ID: {taxNumber}",
-        "satinAlmaTalebiKurallari": "Buying request rules",
+        "satinAlmaTalebiKurallari": "Request rules",
         "kapaliZarfTedarikcilerArasiGizlilik": "Sealed bid (confidential between suppliers)",
         "tumKalemlereTeklifZorunlu": "Quote required for all line items",
         "teklifDosyasiEkiZorunlu": "Quote file attachment required",
@@ -2938,7 +2942,7 @@
         "sonDkIcindeTeklifDk": "Quote in the last {autoExtendThresholdMin} min → extends by {autoExtendByMinutes} min",
         "kapali": "Off",
         "hukumVeKosullar": "Terms and conditions",
-        "satinAlmaTalebiNotlari": "Buying request notes",
+        "satinAlmaTalebiNotlari": "Request notes",
         "sirketIci": "Internal",
         "ana": "main",
         "visibility": {
@@ -3105,7 +3109,8 @@
         "ilkSatinAlmaTalebiniziBirkac": "You can create your first buying request in a few minutes — choose who to invite, enter the line items, publish.",
         "satinAlmaTalebiAcmaIslem": "Opening a buying request requires an action role (Purchaser).",
         "satinAlmaTalebiListesi": "Buying request list",
-        "satinAlmaTalebiAc": "Create buying request"
+        "satinAlmaTalebiAc": "Create buying request",
+        "yeniTalepGoldGerektirir": "Opening a new purchase request requires the Gold package."
       },
       "ihalelistrow": {
         "favorilerdenCikar": "Remove from favorites",
@@ -3174,7 +3179,7 @@
         "kalemBazliKazandirilsinMi": "Award by line item?",
         "buHerkeseAcikTalepSilver": "This public request is available with the Silver plan",
         "herkeseAcikSatinAlmaTaleplerini": "Viewing public buying requests and submitting quotes comes with Silver. You submit quotes for free on requests that reach you through a connection invitation.",
-        "satinAlmaTalebineUlasilamiyor": "The buying request cannot be accessed.",
+        "satinAlmaTalebineUlasilamiyor": "The request cannot be accessed.",
         "ilanKaldirilmisAdresHataliYa": "The request may have been removed, the address may be incorrect, or your access conditions may have changed (e.g. company connection or plan status). If you think something is wrong, contact the request owner.",
         "paneleDon": "Back to panel",
         "ilanYuklenemedi": "The request could not be loaded.",
@@ -3277,7 +3282,7 @@
         "tekliflerKapanisTarihindenSonraAlici": "Quotes are opened by the buyer company after the closing date.",
         "nasilCalisir": "How does it work?",
         "teklifim": "My quote",
-        "satinAlmaTalebiBolumleri": "Buying request sections",
+        "satinAlmaTalebiBolumleri": "Request sections",
         "talepSartlariKaydedildiYeniTalepler": "Request terms saved — new requests will start with them",
         "yukleniyor": "Loading…",
         "neredeKullanilir": "Where it is used",
@@ -3498,7 +3503,13 @@
         "redGerekcesi": "Reason: {reason}",
         "tedariksizKalemler": "Line items without a supplier: {items}",
         "buKalemlerleYeniTalepOlustur": "Create a new request with these line items",
-        "tedarikci": "Supplier"
+        "tedarikci": "Supplier",
+        "kendiFirmaTalebiYetkiNotu": "If the request belongs to your own company, viewing it requires buying view permission — ask your company admin.",
+        "teklifeUlasilamiyor": "The quote cannot be accessed.",
+        "teklifErisimAciklama": "The quote may have been removed, the link may be incorrect, or you may not have permission to view this request's quotes.",
+        "kaybetti": "Lost",
+        "kapandiTeklif": "Closed",
+        "markaParcaNo": "Brand / Part no.: {value}"
       },
       "supplierPicker": {
         "henuzBaglantinizYokHerkeseAcik": "You have no connections yet. Choose “Public” or invite suppliers from the suggestions after publishing.",
@@ -4138,7 +4149,15 @@
         "tarihineKadar": "Until {date}",
         "sectiginizSureMevcutBitisTarihine": "The period you choose is added to the current expiry date; your price does not change.",
         "yeniBitis": "New expiry: <strong>{date}</strong>",
-        "onaylaTeslimEtVeFatura": "Confirm, deliver and complete with the invoice number."
+        "onaylaTeslimEtVeFatura": "Confirm, deliver and complete with the invoice number.",
+        "elendi": "Eliminated",
+        "kapandi": "Closed",
+        "iptalEdildi": "Canceled",
+        "genelTeslim": "General delivery time",
+        "evet": "Yes",
+        "hayir": "No",
+        "siparisDurumu": "Order status: {status}",
+        "alimTalebiKazananSecilmedenKapandi": "The buying request was closed without a winner."
       },
       "auctionLiveCard": {
         "pazarlikAcikEksiltmeTur": "Negotiation (open reverse auction) · Round {currentRound}",
@@ -4156,14 +4175,15 @@
         "tedarikci": "Supplier",
         "kapandi": "Closed",
         "teklifAlimiKapandi": "Quote submission closed",
-        "gunSaatGeriSayim": "{d}d {time}",
         "rakipBilgisiKapaliYalnizcaKendi": "Competitor information is hidden — you only see your own quote",
         "enIyiTeklifHerkeseGorunur": "The best quote is visible to everyone",
         "yalnizcaKendiSiraniziGorursunuz": "You only see your own rank",
         "enIyiTeklifKendiSiranGorunur": "Best quote + your own rank visible",
         "tumTekliflerAnonimGorunur": "All quotes visible (anonymized)",
         "birTeklif": "1 quote",
-        "otoUzatmaNotu": "· A quote received in the last {threshold} min extends the close by {by} min"
+        "otoUzatmaNotu": "· A quote received in the last {threshold} min extends the close by {by} min",
+        "kalanGunSaat": "Time left: {d}d {h}h {m}m",
+        "kalanSaat": "Time left: {h}h {m}m {s}s"
       },
       "statusBadge": {
         "teklifToplama": "Collecting quotes",
@@ -4611,7 +4631,8 @@
       },
       "permissionGate": {
         "yetkiIcinFirmaYoneticinizeBasvurun": "{description} Contact your company administrator to request access.",
-        "buSayfaYetkiGerektirir": "This page requires permission"
+        "buSayfaYetkiGerektirir": "This page requires permission",
+        "kurucuyaBasvurun": "{description} This permission cannot be granted to other users; contact the company founder."
       },
       "insightsView": {
         "oncekiGuneGore": "Compared with the previous {days, plural, one {# day} other {# days}}",
@@ -5979,7 +6000,8 @@
       },
       "ayarlarBankaHesaplariLayout": {
         "bankaHesaplariYalnizKurucuyaAcik": "Bank accounts are available only to the Founder",
-        "bankaHesaplariniYalnizFirmaKurucusu": "Only the company founder manages bank accounts."
+        "bankaHesaplariniYalnizFirmaKurucusu": "Only the company founder manages bank accounts.",
+        "ayarlaraDon": "Back to Settings"
       },
       "ayarlarDogrulamaLayout": {
         "dogrulamaBelgeleriYetkiGerektirir": "Verification documents require permission",
@@ -6248,7 +6270,7 @@
       },
       "sirketimLayout": {
         "sirketimAlaniYetkiGerektirir": "The My Company area requires permission",
-        "sirketimAlaniniYonetimYetkisiYa": "The My Company area is visible to users with management permission or view access to at least one portal."
+        "sirketimAlaniniYonetimYetkisiYa": "The My Company area is visible to users with management permission, view access to at least one portal, or the “Visitors and business insights” / “Purchasing reports” permission."
       },
       "sirketimZiyaretcilerLayout": {
         "ziyaretEdenlerYetkiGerektirir": "The Visitors page requires permission",
@@ -6507,6 +6529,10 @@
         "enFazlaCip": "You can add up to {max, plural, one {# service} other {# services}}.",
         "buCipZatenEkli": "This service is already added: {v}",
         "cipSayaci": "{n, number}/{max, number}"
+      },
+      "sirketimProfilPage": {
+        "profilYetkiGerektirir": "The profile requires permission",
+        "buSayfaIcinGerekenIzinler": "This page requires the “Company profile and settings”, “View purchasing” or “View sales” permission."
       }
     },
     "market": {
@@ -6596,7 +6622,13 @@
         "tasarrufRaporu": "Savings report",
         "rekabetinSizeKazandirdiginiGorunHedef": "See what competition has saved you — with line item detail against the target price.",
         "teklifKarsilastirmaRaporu": "Quote comparison report",
-        "birSatinAlmaTalebineGelen": "Compare the quotes received for a buying request side by side, line item by line item."
+        "birSatinAlmaTalebineGelen": "Compare the quotes received for a buying request side by side, line item by line item.",
+        "silverIleAcilir": "Unlocks with Silver",
+        "goldIleAcilir": "Unlocks with Gold",
+        "satinalmaRaporlari": "Purchasing reports",
+        "satinalmaRaporlariKilitliAciklama": "The general purchase request, savings and bid comparison reports are part of the Gold package.",
+        "sizeAcikRaporYok": "No reports available to you",
+        "raporlarYetkiyleAcilir": "Reports open with the “Visitors and business insights” or “Purchasing reports” permission. Contact your company administrator to request access."
       },
       "bidComparisonView": {
         "raporOlusturulamadi": "Could not generate the report",

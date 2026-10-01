@@ -3,7 +3,6 @@
 import { useNavLabel } from "@/i18n/domain";
 import { upperForText } from "@/i18n/format";
 import { useTranslations } from "next-intl";
-import { tierAtLeast } from "@rothern/shared";
 import {
   useCompanyAuth,
   useHasCompanyPermission,
@@ -18,6 +17,7 @@ import {
   accessiblePortals,
   activePortalFromPath,
   isCompanyAreaPath,
+  isNavItemLocked,
   isPortalItemActive,
   type PortalKey,
 } from "@/lib/company/portals";
@@ -254,7 +254,7 @@ export function CompanySidebarContent({
               }
               accent={inCompanyArea ? "zinc" : portal.accent}
               expanded={expanded}
-              locked={!!item.minTier && !tierAtLeast(tier, item.minTier)}
+              locked={isNavItemLocked(item, user, tier)}
               onClick={onNavigate}
             />
           ))}

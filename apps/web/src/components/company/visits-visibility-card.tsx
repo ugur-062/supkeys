@@ -17,14 +17,22 @@ import { toast } from "sonner";
  */
 export function VisitsVisibilityCard({ className }: { className?: string }) {
   const t = useTranslations("web.panel.trade.visitsVisibilityCard");
-  const profile = useCompanyProfile();
+  // Ayar profil ucundan okunur; o ucu okuyamayan (yalnız "Ziyaret edenler"
+  // tikli) kişide istek atılmaz, kart çizilmez — 403 tostu yerine sessiz
+  // (arayüz testi O-062).
+  // (`GET company/profile` = company:manage | buy:view | sell:view.)
+  const canManage = useHasCompanyPermission("company:manage");
+  const canBuyView = useHasCompanyPermission("buy:view");
+  const canSellView = useHasCompanyPermission("sell:view");
+  const canRead = canManage || canBuyView || canSellView;
+  const profile = useCompanyProfile(canRead);
   const update = useUpdateCompanyProfile();
   const on = profile.data?.visitsVisible ?? true;
   const busy = profile.isLoading || update.isPending;
   // Sayfa `insights:view` ile açılır (SATISCI dahil) ama ayar PATCH
   // /company/profile'a gider (`company:manage`) — yetkisi olmayana anahtar
-  // salt-okunur gösterilir, 403'e tıklatılmaz (derin denetim LU-28).
-  const canManage = useHasCompanyPermission("company:manage");
+  // salt-okunur gösterilir, 403'e tıklatılmaz (derin denetim LU-28) —
+  // `canManage` yukarıda.
 
   const toggle = async () => {
     try {
@@ -34,6 +42,8 @@ export function VisitsVisibilityCard({ className }: { className?: string }) {
       toast.error(extractErrorMessage(err, t("ayarKaydedilemedi")));
     }
   };
+
+  if (!canRead) return null;
 
   return (
     <div className={cn("flex flex-wrap items-center gap-4 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-zinc-950/5", className)}>

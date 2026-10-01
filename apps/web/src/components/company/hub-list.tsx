@@ -3,14 +3,20 @@
 import { PageContainer } from "@/components/list/page-container";
 import { Heading } from "@/components/catalyst/heading";
 import { Text } from "@/components/catalyst/text";
-import { ChevronRight, type LucideIcon } from "lucide-react";
+import { ChevronRight, Lock, type LucideIcon } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import type { ReactNode } from "react";
 
 export interface HubItem {
   href: string;
   label: string;
   description: string;
   icon: LucideIcon;
+  /**
+   * Paket kilidi rozeti (ör. "Gold ile açılır"): kişinin izni var ama paketi
+   * yetmiyor — kart görünür, tıklayınca hedef sayfanın paket kapısı açılır.
+   */
+  lockedLabel?: string;
 }
 
 /**
@@ -21,10 +27,13 @@ export function HubList({
   title,
   description,
   items,
+  empty,
 }: {
   title: string;
   description: string;
   items: HubItem[];
+  /** Liste boşken çizilecek boş durum (boş sayfa kalmasın). */
+  empty?: ReactNode;
 }) {
   return (
     // B13: hub sayfaları da veri sayfaları gibi TAM genişlik — Raporlar'da
@@ -34,6 +43,7 @@ export function HubList({
         <Heading>{title}</Heading>
         <Text className="mt-1 text-sm text-zinc-500">{description}</Text>
       </div>
+      {items.length === 0 && empty ? empty : null}
       <ul className="space-y-3">
         {items.map((it) => (
           <li key={it.href}>
@@ -45,7 +55,15 @@ export function HubList({
                 <it.icon className="h-5 w-5 text-zinc-700 transition-colors group-hover:text-white" />
               </div>
               <div className="min-w-0 flex-1">
-                <p className="font-semibold text-zinc-900">{it.label}</p>
+                <p className="flex flex-wrap items-center gap-2 font-semibold text-zinc-900">
+                  {it.label}
+                  {it.lockedLabel ? (
+                    <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-semibold text-amber-800 ring-1 ring-amber-200">
+                      <Lock className="size-3" aria-hidden />
+                      {it.lockedLabel}
+                    </span>
+                  ) : null}
+                </p>
                 <p className="mt-0.5 text-xs text-zinc-500">{it.description}</p>
               </div>
               <ChevronRight
