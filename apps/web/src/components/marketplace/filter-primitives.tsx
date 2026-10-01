@@ -11,7 +11,7 @@ import { useEffect, useId, useState, type ReactNode } from "react";
 /**
  * SÜZGEÇ YAPI TAŞLARI — ürün süzgeci (`product-filters.tsx`) ve açık talep
  * süzgeci (`company/request-filters.tsx`) AYNI parçaları kullanır:
- *  · `Group`   — <fieldset><legend>, seçili sayısı + bölüm temizle, daraltılır
+ *  · `Group`   — <fieldset> (adı başlıktan, aria-labelledby), seçili sayısı + bölüm temizle, daraltılır
  *                (durum localStorage `rothern.filters.<key>`)
  *  · `Check`   — checkbox/radio satırı; sayısı 0 olan seçenek soluk + devre dışı
  *                (seçili değilse)
@@ -76,11 +76,15 @@ export function Group({
   const t = useTranslations("web.marketplace.filters");
   const [open, setOpen] = useOpenState(storageKey, defaultOpen);
   const id = useId();
+  const titleId = `${id}-title`;
   return (
     /* HER FACET AYRI YÜZEY (brif §4.3): tek uzun sütun yerine aralarında
        boşluk olan kartlar. Ayırıcı çizgili tek blokta gruplar birbirine
-       karışıyor ve rayın nerede bittiği okunmuyordu. */
-    <fieldset className="rounded-lg border border-zinc-200 bg-white px-3 py-3">
+       karışıyor ve rayın nerede bittiği okunmuyordu.
+       Grubun ADI `aria-labelledby` ile (arayüz testi D-326): başlık daraltma
+       düğmesinin içinde; düğmenin içindeki <legend> fieldset'in ilk çocuğu
+       olmadığı için tarayıcı onu ad saymıyor, grup adsız okunuyordu. */
+    <fieldset aria-labelledby={titleId} className="rounded-lg border border-zinc-200 bg-white px-3 py-3">
       <div className="flex items-center justify-between gap-2">
         <button
           type="button"
@@ -89,15 +93,13 @@ export function Group({
           onClick={() => setOpen(!open)}
           className="flex flex-1 items-center gap-1 text-left text-xs font-semibold tracking-wide text-zinc-600 uppercase hover:text-zinc-950"
         >
-          <legend className="contents">
-            {icon ? (
-              <span aria-hidden className="mr-1 inline-flex text-zinc-400">
-                {icon}
-              </span>
-            ) : null}
-            {title}
-            {count > 0 ? <span className="ml-1 normal-case text-zinc-950">({count})</span> : null}
-          </legend>
+          {icon ? (
+            <span aria-hidden className="mr-1 inline-flex text-zinc-400">
+              {icon}
+            </span>
+          ) : null}
+          <span id={titleId}>{title}</span>
+          {count > 0 ? <span className="ml-1 normal-case text-zinc-950">({count})</span> : null}
           <ChevronDownIcon aria-hidden className={`ml-auto size-4 transition ${open ? "" : "-rotate-90"}`} />
         </button>
         {count > 0 ? (
@@ -187,21 +189,38 @@ export interface FacetOption {
   icon?: ReactNode;
 }
 
+/**
+ * SEÇİLİ AMA FACET'TE OLMAYAN seçenekler (arayüz testi D-336): bağlamsal
+ * sayaçta sonucu 0 kalan seçenek facet yanıtından düşüyor; seçili şehir
+ * listeden kayboluyor, grup "Seçenek yok" deyip başlıkta (1) gösteriyordu ve
+ * kutucuktan kaldırılamıyordu. `labelFor` verilen grupta bu anahtarlar 0
+ * sayıyla listeye eklenir (seçili olduğu için devre dışı kalmaz).
+ */
+export function withSelected(items: FacetOption[], selected: string[], labelFor?: (key: string) => string): FacetOption[] {
+  if (!labelFor) return items;
+  const missing = selected.filter((k) => !items.some((i) => i.key === k));
+  return missing.length ? [...items, ...missing.map((k) => ({ key: k, label: labelFor(k), count: 0 }))] : items;
+}
+
 export function ShowMore({
-  items,
+  items: facetItems,
   selected,
   idPrefix,
   onToggle,
   emptyText,
+  labelFor,
 }: {
   items: FacetOption[];
   selected: string[];
   idPrefix: string;
   onToggle: (key: string, on: boolean) => void;
   emptyText?: string;
+  /** Facet'te olmayan SEÇİLİ anahtarın etiketi — verilirse o anahtar 0 sayıyla listelenir (D-336). */
+  labelFor?: (key: string) => string;
 }) {
   const t = useTranslations("web.marketplace.filters");
   const [all, setAll] = useState(false);
+  const items = withSelected(facetItems, selected, labelFor);
   // Seçili olanlar her zaman görünür (kısıtlı listede kaybolmasın).
   const visible = all ? items : items.filter((i, idx) => idx < SHOW || selected.includes(i.key));
   if (items.length === 0) return <p className="px-2 text-xs text-zinc-500">{emptyText ?? t("noOptions")}</p>;
@@ -228,20 +247,24 @@ export function ShowMore({
 }
 
 export function ShowMoreRadio({
-  items,
+  items: facetItems,
   selected,
   idPrefix,
   onSelect,
   emptyText,
+  labelFor,
 }: {
   items: FacetOption[];
   selected?: string;
   idPrefix: string;
   onSelect: (key: string) => void;
   emptyText?: string;
+  /** Bkz. `ShowMore.labelFor`. */
+  labelFor?: (key: string) => string;
 }) {
   const t = useTranslations("web.marketplace.filters");
   const [all, setAll] = useState(false);
+  const items = withSelected(facetItems, selected ? [selected] : [], labelFor);
   const visible = all ? items : items.filter((i, idx) => idx < SHOW || i.key === selected);
   if (items.length === 0) return <p className="px-2 text-xs text-zinc-500">{emptyText ?? t("noOptions")}</p>;
   return (

@@ -445,7 +445,10 @@ export function fetchFacets(
   if (params.country) sp.set("country", params.country);
   if (params.closesWithin) sp.set("closesWithin", params.closesWithin);
   const qs = sp.toString();
-  return getJson(`/public/listings/facets${qs ? `?${qs}` : ""}`, EMPTY_FACETS, 300);
+  // Liste (`fetchListings`) ile AYNI süre ve etiket (arayüz testi D-075):
+  // facet 300 sn, liste 60 sn önbellekteydi; süresi dolan/kapanan talepte
+  // (olay yok, etiket vurulmuyor) "9 talep" yanında facette "13" kalıyordu.
+  return getJson(`/public/listings/facets${qs ? `?${qs}` : ""}`, EMPTY_FACETS);
 }
 
 export function fetchListingSitemap(page = 0): Promise<PublicSitemapRow[]> {

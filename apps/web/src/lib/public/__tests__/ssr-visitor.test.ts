@@ -116,6 +116,14 @@ describe("ssr-visitor", () => {
     }
   });
 
+  it("talep facet'i listeyle AYNI süre ve etiketle önbelleğe girer (arayüz testi D-075)", async () => {
+    const api = await visit(null);
+    await api.fetchListings({});
+    await api.fetchFacets({});
+    expect(cacheCalls).toHaveLength(2);
+    expect(cacheCalls[1].opts).toEqual(cacheCalls[0].opts);
+  });
+
   it("detay çağrısı: etiketler unstable_cache'e; 404 değer olarak yazılır, 503 atılır", async () => {
     const { fetchListing, PublicApiUnavailableError } = await visit("203.0.113.7");
     fetchMock.mockResolvedValue({ ok: false, status: 404, json: async () => ({}) });

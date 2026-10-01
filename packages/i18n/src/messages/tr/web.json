@@ -902,7 +902,7 @@
       "certSearch": "Sertifika ara",
       "noCert": "Eşleşen sertifika yok",
       "minOrder": "Min. sipariş",
-      "any": "Farketmez",
+      "any": "Fark etmez",
       "category": "Kategori",
       "categorySearch": "Kategori ara",
       "clearSearch": "Aramayı temizle",
@@ -961,7 +961,7 @@
       "companyCountry": "Firma ülkesi"
     },
     "index": {
-      "breadcrumb": "Konum",
+      "breadcrumb": "Yol",
       "openRequestCta": "Talep aç — tedarikçiler teklif versin",
       "productResults": "Ürün sonuçları",
       "inquire": "Bilgi iste",

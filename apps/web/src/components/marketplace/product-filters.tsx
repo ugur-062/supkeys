@@ -57,7 +57,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 /**
  * ÜRÜN SÜZGEÇLERİ — istemci, checkbox tabanlı, ÇOKLU seçim (süzgeç v3).
  *
- * · Her grup <fieldset><legend>; başlık yanında seçili sayısı + bölüm temizle;
+ * · Her grup <fieldset> (adı başlıktan, aria-labelledby); başlık yanında seçili sayısı + bölüm temizle;
  *   daraltılabilir (<details>, durum localStorage).
  * · Uzun listeler ilk 6, "Tümünü göster (12)"; kategoride arama kutusu.
  * · Sayıları 0 olan seçenekler soluk + devre dışı (seçili değilse).
@@ -266,6 +266,7 @@ function LocationGroup({
         idPrefix={`${idPrefix}-city`}
         onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
         emptyText={t("noCity")}
+        labelFor={cityLabel}
       />
       <NearbyControls state={state} update={update} idPrefix={idPrefix} />
     </Group>
@@ -442,6 +443,7 @@ function CountryGroup({
         idPrefix={`${idPrefix}-country`}
         onToggle={(k, on) => update((s) => ({ ...s, countries: on ? [...s.countries, k] : s.countries.filter((x) => x !== k) }))}
         emptyText={t("noCountry")}
+        labelFor={(k) => countryDisplayName(k, locale)}
       />
     </Group>
   );
@@ -493,6 +495,7 @@ function CertificationGroup({
         idPrefix={`${idPrefix}-cert`}
         onToggle={(k, on) => update((s) => ({ ...s, certs: on ? [...s.certs, k] : s.certs.filter((x) => x !== k) }))}
         emptyText={t("noCert")}
+        labelFor={(k) => k}
       />
     </Group>
   );

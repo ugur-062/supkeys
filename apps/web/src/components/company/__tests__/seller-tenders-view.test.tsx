@@ -96,8 +96,8 @@ function rowTitles(): (string | null)[] {
 }
 /** Masaüstü kenar süzgeci (mobil çekmece kapalıyken DOM'da yok). */
 const sidebar = () => within(screen.getByRole("complementary", { name: "Süzgeçler" }));
-// Grup başlığı <legend> daraltma düğmesinin İÇİNDE (display: contents) —
-// fieldset'in erişilebilir adı legend'dan türemez; düğmeden fieldset'e çık.
+// Grup başlığı daraltma düğmesinin İÇİNDE; düğmeden fieldset'e çıkılır
+// (fieldset ayrıca aria-labelledby ile başlıktan adlanır — D-326).
 const group = (name: string) =>
   within(
     sidebar()

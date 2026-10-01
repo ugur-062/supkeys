@@ -111,6 +111,7 @@ export function CompanyFilters({
           selected={state.cities}
           idPrefix={`${idPrefix}-city`}
           onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
+          labelFor={cityLabel}
         />
       </Group>
       {(facets.countries?.length ?? 0) > 1 || state.countries.length ? (
@@ -123,6 +124,7 @@ export function CompanyFilters({
             selected={state.countries}
             idPrefix={`${idPrefix}-country`}
             onToggle={(k, on) => update((s) => ({ ...s, countries: on ? [...s.countries, k] : s.countries.filter((x) => x !== k) }))}
+            labelFor={(k) => countryDisplayName(k, dirLocale)}
           />
         </Group>
       ) : null}

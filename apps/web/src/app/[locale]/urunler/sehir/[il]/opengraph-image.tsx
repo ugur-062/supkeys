@@ -1,5 +1,5 @@
 import { localeFromParams } from "@/i18n/params";
-import { cityFromSlug } from "@/lib/public/city";
+import { cityFromSlug, decodeCityParam } from "@/lib/public/city";
 import { fetchGeoCity, fetchProducts } from "@/lib/public/marketplace-api";
 import { brandOgContent, cityOgContent } from "@/lib/seo/og/content";
 import { OG_ALT, OG_CONTENT_TYPE, OG_SIZE, renderOgCard } from "@/lib/seo/og/card";
@@ -11,7 +11,7 @@ export const size = OG_SIZE;
 export const contentType = OG_CONTENT_TYPE;
 
 export default async function Image({ params }: { params: Promise<{ locale: string;  il: string }> }) {
-  const { il } = await params;
+  const il = decodeCityParam((await params).il);
   const locale = await localeFromParams(params);
   // Dünya şehir listesi (2026-09-27); API eskiyse Türk illeri yerel listeden.
   const geo = await fetchGeoCity(il);

@@ -44,6 +44,7 @@ export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idP
           idPrefix={`${idPrefix}-cat`}
           onSelect={(k) => update({ category: state.category === k ? undefined : k })}
           emptyText={t("noCategory")}
+          labelFor={(k) => (facets.selectedCategory?.id === k ? facets.selectedCategory.name : k)}
         />
       </Group>
       <Group
@@ -57,6 +58,7 @@ export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idP
           selected={state.cities}
           idPrefix={`${idPrefix}-city`}
           onToggle={(k, on) => update((s) => ({ ...s, cities: on ? [...s.cities, k] : s.cities.filter((x) => x !== k) }))}
+          labelFor={cityLabel}
         />
       </Group>
       <Group

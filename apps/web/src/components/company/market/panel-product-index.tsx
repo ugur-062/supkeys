@@ -46,6 +46,23 @@ function companiesHref(state: ProductFilterState): string {
   return `${PANEL_MARKET.companies}${qs ? `?${qs}` : ""}`;
 }
 
+/**
+ * Sayfaya özel bandın gördüğü bağlam. Sekme rozetleri ve sekme adresleri
+ * standart bantla AYNI kaynaktan (arayüz testi D-236): kategori sayfasında
+ * "Firmalar" sekmesi sayısızdı, etkin sekmenin adresi süzgeçleri düşürüyordu.
+ */
+export interface PanelBandContext {
+  total: number;
+  loaded: boolean;
+  facets?: ProductFacets;
+  /** Aynı arama/kategorideki tedarikçi sayısı (yüklenene dek `undefined`). */
+  companyCount?: number;
+  /** Etkin süzgeçlerle firma dizini adresi (`q` + `kategori`). */
+  companiesHref: string;
+  /** Geçerli süzgeç durumu — etkin sekmenin adresi süzgeçleri korusun. */
+  state: ProductFilterState;
+}
+
 /** Varsayılan sayfa boyutu — `adet` ile 24/48/96 arasında değişir. */
 const DEFAULT_PER_PAGE: PerPage = 24;
 
@@ -79,7 +96,7 @@ export function PanelProductIndex({
    * istekten okusun (ikinci bir `useDiscoverProductFacets` çağrısı farklı
    * anahtar üretip aynı veriyi iki kez indirirdi).
    */
-  band?: (ctx: { total: number; loaded: boolean; facets?: ProductFacets }) => ReactNode;
+  band?: (ctx: PanelBandContext) => ReactNode;
   footer?: boolean;
 }) {
   const sp = useSearchParams();
@@ -126,7 +143,7 @@ function Inner({
   state: ProductFilterState;
   result: ReturnType<typeof useDiscoverSearch>;
   banner?: ReactNode;
-  band?: (ctx: { total: number; loaded: boolean; facets?: ProductFacets }) => ReactNode;
+  band?: (ctx: PanelBandContext) => ReactNode;
   footer: boolean;
 }) {
   const t = useTranslations("web.panel.market.panelProductIndex");
@@ -154,7 +171,14 @@ function Inner({
   return (
     <div className="space-y-8">
       {band ? (
-        band({ total, loaded: !!data, facets: facets.data })
+        band({
+          total,
+          loaded: !!data,
+          facets: facets.data,
+          companyCount: companies.data?.total,
+          companiesHref: companiesHref(state),
+          state,
+        })
       ) : (
         <MarketHeader
           breadcrumb={[{ label: tn("portal.satinalma"), href: PANEL_MARKET.home }, { label: tn("satinalma.urunler") }]}

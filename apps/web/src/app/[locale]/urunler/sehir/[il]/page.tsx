@@ -5,7 +5,7 @@ import { countryProductPath, provinceDisplayName } from "@rothern/shared";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { CityLinks } from "@/components/marketplace/city-links";
 import { ProductIndex, type ProductSearchParams } from "@/components/marketplace/product-index";
-import { cityFromSlug, cityProductPath, citySlug } from "@/lib/public/city";
+import { cityFromSlug, cityProductPath, citySlug, decodeCityParam } from "@/lib/public/city";
 import { attributeSsrToVisitor } from "@/lib/public/ssr-visitor";
 import { fetchGeoCity, fetchProductFacets, fetchProducts } from "@/lib/public/marketplace-api";
 import { countryDisplayName } from "@/i18n/domain";
@@ -98,7 +98,8 @@ export async function generateMetadata({
   params: Params;
   searchParams: Promise<ProductSearchParams>;
 }): Promise<Metadata> {
-  const { il } = await params;
+  // Yüzde kodlu parça bir kez çözülür (arayüz testi D-323, bkz. `decodeCityParam`).
+  const il = decodeCityParam((await params).il);
   const locale = await localeFromParams(params);
   const city = await resolveCity(il, locale);
   const t = await getTranslations({ locale, namespace: "web.marketplace.pages" });
@@ -133,7 +134,8 @@ export default async function Page({
 }) {
   setRequestLocale(await localeFromParams(params));
   if (!MARKETPLACE_LIVE) notFound();
-  const { il } = await params;
+  // Yüzde kodlu parça bir kez çözülür (arayüz testi D-323, bkz. `decodeCityParam`).
+  const il = decodeCityParam((await params).il);
   const locale = await localeFromParams(params);
   const sp = await searchParams;
   const city = await cityOr404(il, locale, queryStringOf(sp));

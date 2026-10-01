@@ -88,6 +88,8 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
             ulke: state.country,
             sure: state.within,
             sirala: state.sort,
+            // Arşiv görünümü (`durum=hepsi`) yeni aramada korunur (arayüz testi D-060).
+            durum: state.state,
           },
           placeholder: t("listingPlaceholder"),
         }}

@@ -409,6 +409,23 @@ function MobileDrawer({
   // Mavi olmayan yüzeyde portal bağlamı (public tedarikçi yüzü yeşil; 2026-09-18).
   const ctxFill = useAccentFill();
   const { total, clear, isPending, accent } = useFilters();
+  // KIRILIMI GEÇİNCE KAPAN (arayüz testi D-322): panel `lg:hidden`/`xl:hidden`
+  // ile gizleniyor ama Dialog açık kalıyordu — pencere genişletilince
+  // karartma ve kaydırma kilidi duruyor, sayfa tıklanamıyordu. Eşik
+  // Tailwind'in varsayılan `lg` (64rem) / `xl` (80rem) kırılımıyla aynı.
+  useEffect(() => {
+    if (!open || typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia(`(min-width: ${hideAt === "xl" ? "80rem" : "64rem"})`);
+    if (mq.matches) {
+      onClose();
+      return;
+    }
+    const onChange = (e: MediaQueryListEvent) => {
+      if (e.matches) onClose();
+    };
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, [open, hideAt, onClose]);
   // Sözlük primitive'i (PROMPT 3): alt çekmece, başlıkta "Temizle", altlıkta canlı sayaç.
   return (
     <Sheet

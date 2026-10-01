@@ -8,6 +8,7 @@ import { MarketHeader, MarketTabs } from "@/components/company/market/market-ban
 import { categoryPhotoSrc, segmentPhotoSrc } from "@/lib/public/category-photos";
 import Image from "next/image";
 import { PANEL_MARKET, panelCategoryPath, parsePanelCategoryCode } from "@/lib/company/panel-market";
+import { buildProductFilterQuery } from "@/lib/public/product-filter-params";
 import { notFound, useParams } from "next/navigation";
 
 /**
@@ -37,7 +38,12 @@ function CategoryView({ code }: { code: string }) {
   return (
     <PanelProductIndex
       fixedCategory={code}
-      band={({ total, loaded, facets }) => {
+      band={({ total, loaded, facets, companyCount, companiesHref, state }) => {
+        // VAR OLMAYAN KOD → 404 (arayüz testi D-237): sunucu seçili kategoriyi
+        // her zaman çözer; `null` = böyle bir kategori yok. Eskiden başlık
+        // kalıcı iskelette, kırıntıda ham kod kalıyordu. (`undefined` = alanı
+        // taşımayan eski yanıt — o durumda 404 VERİLMEZ.)
+        if (facets && facets.selectedCategory === null) notFound();
         // KOYU BANT KALDIRILDI (2026-09-07, kullanıcı kararı): kategoriye
         // tıklayan kullanıcı zaten ne aradığını biliyor; başlık + açıklama +
         // arama + sekmeler + alt dal çipleri ürün ızgarasını ekranın altına
@@ -81,9 +87,10 @@ function CategoryView({ code }: { code: string }) {
             tabs={
               <MarketTabs
                 active="products"
-                productsHref={panelCategoryPath(code, name ?? "")}
-                companiesHref={`${PANEL_MARKET.companies}?kategori=${code}`}
+                productsHref={`${panelCategoryPath(code, name ?? "")}${buildProductFilterQuery({ ...state, category: undefined, page: 1 })}`}
+                companiesHref={companiesHref}
                 productCount={loaded ? total : undefined}
+                companyCount={companyCount}
               />
             }
             title={

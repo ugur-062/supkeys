@@ -49,7 +49,10 @@ export function PublicSearchTabs({
       <ul className="-mb-px flex flex-wrap gap-x-6">
         {tabs.map((t) => {
           const on = t.key === active;
-          const n = counts?.[t.key];
+          // Kural bileşende uygulanır (arayüz testi D-327): çağıranlar etkin
+          // sekmenin toplamını her zaman geçiyordu; aramasız `/urunler`de yalnız
+          // "Ürünler 190" rozeti çıkıyor, öteki sekmeler sayısız kalıyordu.
+          const n = q ? counts?.[t.key] : undefined;
           return (
             <li key={t.key}>
               <Link

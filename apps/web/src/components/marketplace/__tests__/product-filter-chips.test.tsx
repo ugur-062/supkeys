@@ -97,9 +97,9 @@ describe("ProductFilters — Konum ve Kategori grupları", () => {
         <ProductFilters facets={railFacets} />
       </FilterShell>,
     );
-    const legend = screen.getByText("Konum").closest("legend")!;
-    expect(legend.textContent).toContain("(1)");
-    const group = legend.closest("fieldset")!;
+    // Grup başlığıyla adlanır (arayüz testi D-326); sayaç başlık düğmesinde.
+    const group = screen.getByRole("group", { name: "Konum" });
+    expect(group.querySelector("button[aria-expanded]")!.textContent).toContain("(1)");
     fireEvent.click(Array.from(group.querySelectorAll("button")).find((b) => b.textContent === "Temizle")!);
     expect(nav.replace.mock.calls.at(-1)![0]).toBe("/urunler");
   });
