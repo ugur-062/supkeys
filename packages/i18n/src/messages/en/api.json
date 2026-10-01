@@ -53,7 +53,7 @@
     "buAdimZatenSonuclandirildi": "This step has already been resolved",
     "buIstekArtikBeklemedeDegil": "This request is no longer pending",
     "kazandirmaUygulanamadiTeklifDurumuDegismisOlabil": "The award could not be applied — the quote status may have changed. Please try again.",
-    "firmaDogrulamasiGecerliDegilOnayUygulanamaz": "Your company’s verification (KYC) is not currently valid, so this approval cannot be applied and no order was created. You can approve once verification is completed again, or reject the request.",
+    "firmaDogrulamasiGecerliDegilOnayUygulanamaz": "Your company’s verification (KYC) is not currently valid, so this approval cannot be applied and nothing was changed. You can approve once verification is completed again, or reject the request.",
     "buIstegiYalnizcaBaslatanVeyaYonetici": "Only the person who started this request or a Manager can cancel it",
     "yalnizcaBekleyenIstekIptalEdilebilir": "Only a pending request can be canceled",
     "gecersizVeyaPasifOnayciKullanici": "Invalid or inactive approver user",

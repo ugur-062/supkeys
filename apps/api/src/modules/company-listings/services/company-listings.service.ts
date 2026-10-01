@@ -208,6 +208,8 @@ const LISTING_ACTION_KEYS = {
   publishWork: "api.companyListings.actionPublishWork",
   newRound: "api.companyListings.actionNewRound",
   inviteSupplier: "api.companyListings.actionInviteSupplier",
+  editListing: "api.companyListings.actionEditListing",
+  extendClosing: "api.companyListings.actionExtendClosing",
 } as const;
 
 /** Bildirim e-postasının içeriği — metin ALICININ dilinde üretilir (`notify`). */
@@ -215,8 +217,6 @@ interface ListingNotifyData {
   subjectKey: ApiMessageKey;
   headingKey: ApiMessageKey;
   bodyKey: ApiMessageKey;
-  editListing: "api.companyListings.actionEditListing",
-  extendClosing: "api.companyListings.actionExtendClosing",
   /**
    * Üç anahtarın ORTAK ICU parametre sözlüğü — tarih/tutar/talep başlığı
    * TİPLİ (`notification-params.ts`), alıcının dilinde biçimlenir.
@@ -1870,6 +1870,11 @@ export class CompanyListingsService {
     if (!existing || existing.companyId !== user.companyId) {
       throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
+    // Arayüz testi O-010 (kullanıcı kararı T-06): talebi düzenlemek (kalemler,
+    // şartlar, yeni davetliler) GOLD ister — paketi düşen/süresi biten firma
+    // açık talebini yalnız sonuçlandırır (kazandır/ele/kapat/iptal). Paket
+    // kapısı rol kapısının DIŞINDA (önce paket, sonra rol).
+    this.assertPaidForNewListingWork(user, "editListing");
     this.assertListingManageRole(user, existing);
     // Düzenlenebilirlik kilidi — eski sistem birebir. DRAFT her zaman serbest;
     // OPEN ise yalnızca henüz SUBMITTED teklif yokken.
@@ -1877,11 +1882,6 @@ export class CompanyListingsService {
       throw new BadRequestException(
         i18nMessage("api.companyListings.sadeceTaslakVeyaHenuzTeklifGelmemis"),
       );
-    // Arayüz testi O-010 (kullanıcı kararı T-06): talebi düzenlemek (kalemler,
-    // şartlar, yeni davetliler) GOLD ister — paketi düşen/süresi biten firma
-    // açık talebini yalnız sonuçlandırır (kazandır/ele/kapat/iptal). Paket
-    // kapısı rol kapısının DIŞINDA (önce paket, sonra rol).
-    this.assertPaidForNewListingWork(user, "editListing");
     }
     if (existing.status === "OPEN") {
       // HERHANGİ bir teklif kaydı (elenen/geri çekilen/taslak dahil) düzenlemeyi
@@ -3203,6 +3203,13 @@ export class CompanyListingsService {
             _max: { updatedAt: true },
           })
         : Promise.resolve({ _max: { updatedAt: null } }),
+      // Sahip yanıtındaki sipariş şeridi (`myOrder`/`orders`, arayüz testi
+      // D-043): sipariş doğunca ve durumu değişince ekran tazelenmeli.
+      this.prisma.companyOrder.aggregate({
+        where: { listingId },
+        _count: { _all: true },
+        _max: { updatedAt: true },
+      }),
     ]);
     const parts = [
       listing.updatedAt.getTime(),
@@ -3214,6 +3221,8 @@ export class CompanyListingsService {
       approval._count._all,
       approval._max.updatedAt?.getTime() ?? 0,
       addrs._max.updatedAt?.getTime() ?? 0,
+      orders._count._all,
+      orders._max.updatedAt?.getTime() ?? 0,
       // Payload okuyucunun DİLİNE bağlı alan taşır (varsayılan adres başlığı
       // `localizeDefaultAddressTitle`); dil değişince aynı veri farklı yanıt
       // demektir → 304 eski dildeki başlığı bırakmasın (derin denetim LU-15).
@@ -3337,13 +3346,6 @@ export class CompanyListingsService {
         : Promise.resolve([] as Awaited<
             ReturnType<typeof this.prisma.companyAddress.findMany>
           >),
-      // Sahip yanıtındaki sipariş şeridi (`myOrder`/`orders`, arayüz testi
-      // D-043): sipariş doğunca ve durumu değişince ekran tazelenmeli.
-      this.prisma.companyOrder.aggregate({
-        where: { listingId },
-        _count: { _all: true },
-        _max: { updatedAt: true },
-      }),
       // BYPASS (RLS): teklifçi bağlamında yalnız kendi teklifi görünürdü.
       // Teklifçiye dönen en iyi fiyat/sayı `auctionView`dan (görünürlük
       // kapılı) ezilir — sızıntı yüzeyi yok.
@@ -3355,8 +3357,6 @@ export class CompanyListingsService {
               id: true,
               submittedAt: true,
               amount: true,
-      orders._count._all,
-      orders._max.updatedAt?.getTime() ?? 0,
               currency: true,
               exchangeRateSnapshot: true,
               // Kapsam kontrolü: fiyatlanmış kalem sayısı (aşağıda tam
@@ -3461,8 +3461,9 @@ export class CompanyListingsService {
       hsCode: it.hsCode,
       // CC-1: hedef/istenen fiyat non-owner'a YALNIZCA sahip opt-in ettiyse
       // gösterilir (varsayılan gizli — çıpalama riski). Sahip dalı bu maskeli
-      // listeyi KULLANMAZ: aşağıda `ownerItemsOut` hedef fiyatı her zaman taşır
-      // (arayüz testi Y-02 — düzenle-kaydet döngüsü onu siliyordu).
+      // listeyi olduğu gibi döndürmez: sahip yanıtında `itemsOut.map(...)`
+      // `targetPrice`ı maskesiz değerle ezer (arayüz testi Y-02 — düzenle-kaydet
+      // döngüsü onu siliyordu).
       targetPrice: listing.showTargetToSuppliers
         ? (it.targetPrice?.toString() ?? null)
         : null,
@@ -3550,6 +3551,15 @@ export class CompanyListingsService {
         // canEdit için TÜM teklif kayıtları sayılır (WITHDRAWN/DRAFT dahil) —
         // updateListing kilidiyle birebir aynı kural.
         this.prisma.listingBid.count({ where: { listingId: id } }),
+        // Bu talepten doğan siparişler (arayüz testi D-043): sahip de "Siparişe
+        // git" şeridini görsün. Kalem bazlı kazandırmada birden fazla sipariş
+        // olabilir → hepsi `orders`ta, en yenisi `myOrder`da (teklifçi dalıyla
+        // aynı alan adı, web şeridi tek kaynaktan çizer).
+        this.prisma.companyOrder.findMany({
+          where: { listingId: id, buyerCompanyId: user.companyId },
+          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
+          select: { id: true, number: true, status: true },
+        }),
       ]);
       // A2 fix: sahip-detay teklif sıralaması TEK KAYNAK — yetkili karşılaştırıcı
       // (rankAuctionBids: Decimal + TRY-normalize). Eski ham `Number(a.amount)-
@@ -3699,15 +3709,6 @@ export class CompanyListingsService {
           },
         },
         include: { items: true, answers: true },
-        // Bu talepten doğan siparişler (arayüz testi D-043): sahip de "Siparişe
-        // git" şeridini görsün. Kalem bazlı kazandırmada birden fazla sipariş
-        // olabilir → hepsi `orders`ta, en yenisi `myOrder`da (teklifçi dalıyla
-        // aynı alan adı, web şeridi tek kaynaktan çizer).
-        this.prisma.companyOrder.findMany({
-          where: { listingId: id, buyerCompanyId: user.companyId },
-          orderBy: [{ createdAt: "desc" }, { id: "desc" }],
-          select: { id: true, number: true, status: true },
-        }),
       }),
       // Açık eksiltme görünürlüğü (bidVisibility) — kapalı zarf korunur, sadece
       // ayara göre en iyi fiyat / kendi sıra / tüm sıralar açılır.
@@ -6579,6 +6580,19 @@ export class CompanyListingsService {
         }
       | null;
     if (!p) return;
+    // INV-KYC-1 uygulama anında da (arayüz testi O-013): kazandırma isteği
+    // açıldıktan sonra alıcının doğrulaması geri alındıysa sipariş doğmaz.
+    // Onay servisi son adımda aynı kontrolü açık mesajla yapar; bu ikinci hat
+    // (fail-closed: throw → onay geri alınır).
+    const owner = await this.bypass.listing.findUnique({
+      where: { id: payload.listingId },
+      select: { company: { select: { companyVerificationStatus: true } } },
+    });
+    if (owner?.company.companyVerificationStatus !== "VERIFIED") {
+      throw new ForbiddenException(
+        i18nMessage("api.companyApprovals.firmaDogrulamasiGecerliDegilOnayUygulanamaz", undefined, "COMPANY_NOT_VERIFIED"),
+      );
+    }
     // Onay-yolu: actorId = kazandırmayı BAŞLATAN (initiator), approverUserId =
     // son adımı onaylayan. E-posta event'te taşınmaz (opsiyonel).
     const actor: AwardActor = {
@@ -6706,10 +6720,17 @@ export class CompanyListingsService {
       include: { bidderCompany: { select: { name: true } } },
     });
     const bidderCompanyIds = [...new Set(bids.map((b) => b.bidderCompanyId))];
+    // Arayüz testi O-026: alıcının ELEDİĞİ teklif (eliminatedAt dolu — eleme
+    // ya da satıcının reddettiği sipariş) yeni tura TAŞINMAZ; eski turda LOST
+    // ve gerekçesiyle kalır, tedarikçi isterse yeni turda yeniden teklif verir.
+    // Taşınan küme yalnız SUBMITTED + kazansız kapanışta LOST'a çekilmiş
+    // (eliminatedAt boş) teklifler.
+    const carryable = bids.filter((b) => b.eliminatedAt == null);
     const priorWhere = {
       listingId,
       round: listing.currentRound,
       status: { in: ["SUBMITTED", "LOST"] as ListingBidStatus[] },
+      eliminatedAt: null,
     };
     // Madde 13 (2026-08-02): teklifler HER ZAMAN otomatik ve CANLI taşınır;
     // PAZARLIĞA geçildikten sonra geçerlilik SÜRESİZ olur (validityDays=null
@@ -6729,19 +6750,6 @@ export class CompanyListingsService {
     await runTenantTx(this.prisma, async (tx) => {
       const newRound = listing.currentRound + 1;
       // GUARD-FIRST (award/closeNoAward simetrisi): durum geçişini koşullu
-    // INV-KYC-1 uygulama anında da (arayüz testi O-013): kazandırma isteği
-    // açıldıktan sonra alıcının doğrulaması geri alındıysa sipariş doğmaz.
-    // Onay servisi son adımda aynı kontrolü açık mesajla yapar; bu ikinci hat
-    // (fail-closed: throw → onay geri alınır).
-    const owner = await this.bypass.listing.findUnique({
-      where: { id: payload.listingId },
-      select: { company: { select: { companyVerificationStatus: true } } },
-    });
-    if (owner?.company.companyVerificationStatus !== "VERIFIED") {
-      throw new ForbiddenException(
-        i18nMessage("api.companyApprovals.firmaDogrulamasiGecerliDegilOnayUygulanamaz", undefined, "COMPANY_NOT_VERIFIED"),
-      );
-    }
       // atomik yaz — yalnız kaynak durum HÂLÂ geçerli VE tur değişmemişken.
       // Eşzamanlı award (AWARDED/IN_AWARD_APPROVAL sette YOK) veya çift-tur
       // (currentRound eşitliği) count=0 alır → rollback: ne çift sipariş ne
@@ -6834,6 +6842,12 @@ export class CompanyListingsService {
             },
           });
         }
+        if (carriedExpired.length > 0) {
+          await tx.listingBid.updateMany({
+            where: { id: { in: carriedExpired.map((b) => b.id) } },
+            data: { status: "DRAFT", round: newRound },
+          });
+        }
       } else if (dto.carryBids === "LAZY") {
         await tx.listingBid.updateMany({
           where: priorWhere,
@@ -6862,17 +6876,10 @@ export class CompanyListingsService {
       tenantId: user.companyId,
       entityType: "listing",
       entityId: listingId,
-    // Arayüz testi O-026: alıcının ELEDİĞİ teklif (eliminatedAt dolu — eleme
-    // ya da satıcının reddettiği sipariş) yeni tura TAŞINMAZ; eski turda LOST
-    // ve gerekçesiyle kalır, tedarikçi isterse yeni turda yeniden teklif verir.
-    // Taşınan küme yalnız SUBMITTED + kazansız kapanışta LOST'a çekilmiş
-    // (eliminatedAt boş) teklifler.
-    const carryable = bids.filter((b) => b.eliminatedAt == null);
       critical: true,
       metadata: {
         listingType: listing.type,
         fromRound: listing.currentRound,
-      eliminatedAt: null,
         toRound: listing.currentRound + 1,
         newFormat: dto.type,
         carryBids: dto.carryBids,
@@ -6978,12 +6985,6 @@ export class CompanyListingsService {
         titleKey: "api.notifications.listings.nextRoundCarried.inAppTitle",
         bodyKey: "api.notifications.listings.nextRoundCarried.body",
         ctaLabelKey: "api.notifications.listings.cta.viewRequest",
-        if (carriedExpired.length > 0) {
-          await tx.listingBid.updateMany({
-            where: { id: { in: carriedExpired.map((b) => b.id) } },
-            data: { status: "DRAFT", round: newRound },
-          });
-        }
         params: p,
         ctaPath: url,
         listingId,
@@ -8316,6 +8317,10 @@ export class CompanyListingsService {
     // ki yeni pencere için tekrar gönderilebilsin (placeBid auto-extend de böyle yapar).
     const isExtension =
       extra?.closesAt != null && date.getTime() > extra.closesAt.getTime();
+    // Arayüz testi O-010 (kullanıcı kararı T-06): kapanışı UZATMAK talebe yeni
+    // süre (= yeni teklif penceresi) açar → GOLD ister. Öne çekmek teklif
+    // alımını kısaltan sonuçlandırma adımıdır, paketsiz de serbest.
+    if (isExtension) this.assertPaidForNewListingWork(user, "extendClosing");
     // F2 (INV-SM-1 kardeş simetrisi): ownerOpenListing OPEN okur ama yazım
     // koşulsuzdu → eşzamanlı cron auto-close / startEvaluation / award ilanı
     // OPEN'dan çıkarırsa closesAt artık-OPEN-olmayan ilana yazılıyordu. Bugün
@@ -8457,10 +8462,6 @@ export class CompanyListingsService {
         reason: reason?.trim() ?? "",
       },
       type: "listing_closed",
-    // Arayüz testi O-010 (kullanıcı kararı T-06): kapanışı UZATMAK talebe yeni
-    // süre (= yeni teklif penceresi) açar → GOLD ister. Öne çekmek teklif
-    // alımını kısaltan sonuçlandırma adımıdır, paketsiz de serbest.
-    if (isExtension) this.assertPaidForNewListingWork(user, "extendClosing");
     }).catch((err) =>
       this.logger.error(
         `Kapatma bildirimi gönderilemedi (${listingId}): ${

@@ -53,7 +53,7 @@
     "buAdimZatenSonuclandirildi": "Bu adım zaten sonuçlandırıldı",
     "buIstekArtikBeklemedeDegil": "Bu istek artık beklemede değil",
     "kazandirmaUygulanamadiTeklifDurumuDegismisOlabil": "Kazandırma uygulanamadı — teklif durumu değişmiş olabilir. Lütfen tekrar deneyin.",
-    "firmaDogrulamasiGecerliDegilOnayUygulanamaz": "Firmanızın doğrulaması (KYC) şu anda geçerli değil; bu onay uygulanamaz ve sipariş oluşturulmadı. Doğrulama yeniden tamamlanınca onaylayabilir ya da isteği reddedebilirsiniz.",
+    "firmaDogrulamasiGecerliDegilOnayUygulanamaz": "Firmanızın doğrulaması (KYC) şu anda geçerli değil; bu onay uygulanamaz ve işlem yapılmadı. Doğrulama yeniden tamamlanınca onaylayabilir ya da isteği reddedebilirsiniz.",
     "buIstegiYalnizcaBaslatanVeyaYonetici": "Bu isteği yalnızca başlatan veya Yönetici iptal edebilir",
     "yalnizcaBekleyenIstekIptalEdilebilir": "Yalnızca bekleyen istek iptal edilebilir",
     "gecersizVeyaPasifOnayciKullanici": "Geçersiz veya pasif onaycı kullanıcı",
