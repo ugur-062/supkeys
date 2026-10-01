@@ -39,6 +39,9 @@ const PACKAGES_HREF = "/company/premium";
  * KAPILAR (sayfa doğrudan adresle açılabilir, kart tıklamasına güvenilmez):
  *  · geçersiz `paket` / ücretsiz paket → Paketler'e döner
  *  · doğrulanmamış → doğrulama sayfasına yönlenir
+ *  · incelemede (PENDING) → yönlendirme yok; "inceleniyor, onaylanınca buradan
+ *    satın alabilirsiniz" (arayüz testi O-068 — eskiden "önce doğrulayın"
+ *    toast'ıyla "değişiklik yapılamaz" sayfasına atıyordu)
  *  · paket zaten sizde ya da kurucu değilsiniz → açıklama + geri dönüş
  * Asıl güvenlik sınırı sunucuda (`upgradeToPremium`: kurucu + VERIFIED).
  */
@@ -57,6 +60,7 @@ export function CheckoutView() {
   const company = me.data?.company;
   const loaded = !!me.data;
   const verified = company?.companyVerificationStatus === "VERIFIED";
+  const pending = company?.companyVerificationStatus === "PENDING";
   const redirected = useRef(false);
 
   useEffect(() => {
@@ -66,12 +70,29 @@ export function CheckoutView() {
       router.replace(PACKAGES_HREF);
       return;
     }
-    if (loaded && !verified) {
+    if (loaded && !verified && !pending) {
       redirected.current = true;
       toast.info(t("paketSatinAlmadanOnceFirmanizi"));
       router.replace(VERIFICATION_HREF);
     }
-  }, [invalid, loaded, verified, router, t]);
+  }, [invalid, loaded, verified, pending, router, t]);
+
+  if (plan && !invalid && loaded && pending) {
+    return (
+      <div className="mx-auto max-w-md px-4 py-16 text-center">
+        <h1 className="text-lg font-semibold text-zinc-950">{t("dogrulamaIncelemedeBaslik")}</h1>
+        <p className="mt-2 text-sm text-zinc-600">{t("dogrulamaIncelemedeMetin")}</p>
+        <div className="mt-6 flex flex-wrap items-center justify-center gap-3">
+          <Button href={PACKAGES_HREF} outline>
+            {t("paketlereDon")}
+          </Button>
+          <Link href={VERIFICATION_HREF} className="text-sm font-medium text-zinc-700 underline underline-offset-2">
+            {t("dogrulamaDurumu")}
+          </Link>
+        </div>
+      </div>
+    );
+  }
 
   if (!plan || invalid || !loaded || !verified) {
     return (

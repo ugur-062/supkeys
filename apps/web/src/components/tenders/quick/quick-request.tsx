@@ -690,6 +690,8 @@ export function QuickRequest({
   // Kurulum kartı yalnız boş kartta — düzenleme/kopya/şablon kendi şartlarını taşır.
   const showSetup = seedKind === "blank" && defaultsQ.data?.source === "none" && !setupDone;
   const verified = company?.companyVerificationStatus === "VERIFIED";
+  // İncelemedeki firmaya "belgeleri yükleyin" denmez (arayüz testi O-068).
+  const verificationPending = company?.companyVerificationStatus === "PENDING";
   const visibility = watched.visibility;
   const invited = watched.invitedSupplierIds ?? [];
   // Form değeri ürün saat diliminin duvar saati → önce ana çevrilir.
@@ -1248,7 +1250,7 @@ export function QuickRequest({
               <p className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
                 <ExclamationTriangleIcon aria-hidden className="mt-0.5 size-4 shrink-0" />
                 <span>
-                  {tr.rich("yayinIcinFirmaDogrulamasiGerekir", {
+                  {tr.rich(verificationPending ? "yayinIcinDogrulamaIncelemede" : "yayinIcinFirmaDogrulamasiGerekir", {
                     link: (c) => (
                       <Link href="/company/ayarlar/dogrulama" className="font-semibold underline">
                         {c}

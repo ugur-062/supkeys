@@ -41,6 +41,20 @@ describe("CompanyPaidTierGuard", () => {
     expect(guard.canActivate(ctx({ tier: "GOLD" }, "GOLD"))).toBe(true);
   });
 
+  it("paket reddi TIER_REQUIRED kodu + minTier taşır (web kilit kartı toast basmasın — arayüz testi O-044)", () => {
+    const body = (min: "SILVER" | "GOLD") => {
+      try {
+        guard.canActivate(ctx({ tier: "STANDART" }, min));
+      } catch (e) {
+        return (e as ForbiddenException).getResponse() as Record<string, unknown>;
+      }
+      throw new Error("beklenen 403 gelmedi");
+    };
+    expect(body("SILVER")).toMatchObject({ code: "TIER_REQUIRED", minTier: "SILVER", statusCode: 403 });
+    expect(body("GOLD")).toMatchObject({ code: "TIER_REQUIRED", minTier: "GOLD", statusCode: 403 });
+    expect(String(body("SILVER").message)).toMatch(/Silver veya üzeri/i);
+  });
+
   it("kimlik yok → Forbidden", () => {
     expect(() => guard.canActivate(ctx(undefined))).toThrow(ForbiddenException);
   });

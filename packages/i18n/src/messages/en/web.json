@@ -3796,7 +3796,8 @@
         "uyeDavetiniKaldir": "Remove invitation for {name}",
         "belirliTarihSaat": "or a specific date and time:",
         "kapanisGunu": "Closing date",
-        "kapanisSaati": "Closing time"
+        "kapanisSaati": "Closing time",
+        "yayinIcinDogrulamaIncelemede": "Your verification is under review; you can publish the request once it is approved. You can save a draft for now. <link>View status</link>"
       },
       "publishedPanel": {
         "talebinizYayinda": "Your request is live",
@@ -5853,7 +5854,10 @@
         "sehir": "City",
         "eyaletBolge": "State / region",
         "kimlikBilgilerindeHataVarsaYabanci": "If there is an error in your identity details, contact support to have it changed. The registration number and bank account details are managed on the <dogrulama>Verification Documents</dogrulama> page; order collection accounts are managed on the <banka>Bank Accounts</banka> page.",
-        "postaKodu5Hane": "In Türkiye the postal code must be 5 digits"
+        "postaKodu5Hane": "In Türkiye the postal code must be 5 digits",
+        "uyelikBitis": "until {date}",
+        "uyelikSuresiDoldu": "Plan expired on {date}",
+        "uyelikYenile": "Renew"
       },
       "companyUsersSection": {
         "pasifYapildi": "Deactivated",
@@ -6062,7 +6066,10 @@
         "diger": "Other",
         "yuzde": "{n}%",
         "aylikFirmaAiButcesiKullanildi": "{percent}% of your monthly company AI budget has been used. A warning is shown at the {warnAtPercent}% threshold; at 100% AI is switched off.",
-        "kisiselTavanKullanildi": "{percent}% of your personal cap (half of the company pool) has been used."
+        "kisiselTavanKullanildi": "{percent}% of your personal cap (half of the company pool) has been used.",
+        "butceDoldu": "Budget used up — AI off",
+        "firmaButcesiDolduAiKapali": "This month's company AI budget is used up; AI features are unavailable until the end of the month. The budget renews at the start of each month.",
+        "kisiselTavanDolduAiKapali": "Your AI allowance for this month is used up; AI features are unavailable until the end of the month. The allowance renews at the start of each month."
       },
       "ayarlarAktiviteLayout": {
         "aktiviteLoguYetkiGerektirir": "Activity log requires permission",
@@ -7207,7 +7214,10 @@
         "ay": "/mo",
         "kdv": "VAT",
         "carpi12": "{amount} × 12",
-        "faturaUnvaniVeVergiKimligi": "The billing name and tax ID are taken from Company information."
+        "faturaUnvaniVeVergiKimligi": "The billing name and tax ID are taken from Company information.",
+        "dogrulamaIncelemedeBaslik": "Your verification is under review",
+        "dogrulamaIncelemedeMetin": "Our team is reviewing your documents. Once your company is approved you can buy the plan here; there is no need to upload your documents again.",
+        "dogrulamaDurumu": "Verification status"
       },
       "packagesView": {
         "paketSatinAlmadanOnceFirmanizi": "Verify your company before purchasing a plan. Verification is free.",
@@ -7224,7 +7234,11 @@
         "kullaniyorsunuz": "In use",
         "paketinizeDahil": "Included in your plan",
         "paketi": "{name} plan",
-        "ay": "/mo"
+        "ay": "/mo",
+        "dogrulamaIncelemede": "Your verification is under review — you can buy once it is approved",
+        "durumuGor": "View status",
+        "bitis": "Ends on {date}",
+        "uyelikSuresiDoldu": "Your paid plan expired on {date} and your company moved to the Standard plan. Buy a plan again to restore its features."
       }
     },
     "inbox": {

@@ -57,6 +57,19 @@ describe("CheckoutView", () => {
     expect(screen.queryByRole("heading", { name: /satın al/ })).toBeNull();
   });
 
+  it("PENDING (incelemede) firma doğrulamaya atılmaz, 'inceleniyor' der (O-068)", () => {
+    setMe({ status: "PENDING" });
+    render(<CheckoutView />);
+    expect(h.replace).not.toHaveBeenCalled();
+    expect(h.toast.info).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "Doğrulamanız inceleniyor" })).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Doğrulama durumu" })).toHaveAttribute(
+      "href",
+      "/company/ayarlar/dogrulama",
+    );
+    expect(screen.queryByText(/bize yazın/)).toBeNull();
+  });
+
   it("geçersiz ya da ücretsiz paket → Paketler", () => {
     setMe();
     h.paket = "standart";

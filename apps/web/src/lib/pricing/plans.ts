@@ -59,13 +59,13 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
     monthlyUsd: 160,
     tagline: "Tedarikçi paketi: görün, davet al, teklif ver, ürünlerini sergile.",
     features: [
-      "“Doğrulanmış” rozeti ve dizinde öncelikli sıra",
+      "Firma dizininde öncelikli sıra",
       "Sınırsız ürün, ürün belgesi (PDF) ve video",
       "Herkese açık satın alma taleplerine sınırsız teklif",
       "Alıcıların AI tedarikçi önerilerinde çıkma ve doğrudan talebe davet",
       "Bağlantı daveti gönderme ve bilgi taleplerinde alıcı kimliği",
       "Ziyaret Edenler ve İş Analizi",
-      "Yapay zekâ: belgeden fiyatlama, AI ile talep arama",
+      "Yapay zekâ: belgeden fiyatlama, AI ile talep arama, sohbet asistanı",
       "4 satış koltuğu",
     ],
     cta: "Silver'a Başla",
@@ -80,7 +80,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
       "Silver'ın tamamı",
       "Satın Alma Talebi açma — teklif toplama (RFQ) & pazarlık/eksiltme",
       "Kazandırma, onay akışları, raporlar & şablonlar",
-      "Yapay zekâ — belgeden talep taslağı, sohbet asistanı, tedarikçi keşfi",
+      "Yapay zekâ — belgeden talep taslağı, asistana belge ekleme, tedarikçi keşfi",
       "“Gold Üye” rozeti — profilde, firma dizininde ve ürünlerde güven işareti",
       "6 koltuk (satınalma ve satış)",
     ],
@@ -89,7 +89,7 @@ export const PRICING_PLANS: readonly PricingPlan[] = [
 ];
 
 export const PRICING_NOTE =
-  "Fiyatlar USD cinsindendir ve KDV hariçtir. Ödeme 6 aylık veya yıllık dönem için peşin alınır; aylık faturalama yoktur. 6 aylık dönemde aylık tutar farklıdır.";
+  "Fiyatlar USD cinsindendir ve KDV hariçtir. Ödeme yıllık dönem için peşin alınır; aylık faturalama yoktur.";
 
 export function planBySlug(slug: string | null | undefined): PricingPlan | null {
   return PRICING_PLANS.find((p) => p.slug === slug?.toLowerCase()) ?? null;

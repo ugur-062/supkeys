@@ -364,6 +364,10 @@ export class AiBudgetService {
       premiumPercentUsed: pctOf(premiumSpend, pool * caps.premiumShare),
       myPercentOfCap: pctOf(userSpend, pool * caps.userShare),
       warned: monthSpend.gte(new Prisma.Decimal(pool).mul(caps.warnShare)),
+      // Havuz / kişisel tavan doldu → `reserve` her yeni isteği reddeder
+      // (AI fiilen kapalı). Ekran %80 uyarısından AYRI söylesin (arayüz testi D-172).
+      poolExhausted: monthSpend.gte(new Prisma.Decimal(pool)),
+      userCapExhausted: userSpend.gte(new Prisma.Decimal(pool).mul(caps.userShare)),
       byUser: byUser.map((r) => ({
         userId: r.userId,
         userEmail: r.userEmail,

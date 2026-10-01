@@ -1675,8 +1675,20 @@ export class CompanyListingsService {
    */
   private assertVerified(user: AuthenticatedCompanyUser, action: ListingActionKey) {
     if (user.companyVerificationStatus !== "VERIFIED") {
+      // PENDING (belgeler yüklü, inceleniyor) firmaya "belgeleri yükleyip
+      // onaya gönderin" denmez — ayrı mesaj ve kod (arayüz testi O-068).
+      const pending = user.companyVerificationStatus === "PENDING";
       throw new ForbiddenException(
-        i18nMessage("api.companyListings.firmaDogrulamanizTamamlanmadanBelgeleriniziAyarl", { action: tApi(LISTING_ACTION_KEYS[action]) }),
+        pending
+          ? i18nMessage(
+              "api.companyListings.firmaDogrulamanizIncelemede",
+              { action: tApi(LISTING_ACTION_KEYS[action]) },
+              "COMPANY_VERIFICATION_PENDING",
+            )
+          : i18nMessage(
+              "api.companyListings.firmaDogrulamanizTamamlanmadanBelgeleriniziAyarl",
+              { action: tApi(LISTING_ACTION_KEYS[action]) },
+            ),
       );
     }
   }

@@ -373,6 +373,7 @@ export class AiService {
         percentUsed: snapshot.percentUsed,
         premiumPercentUsed: snapshot.premiumPercentUsed,
         warning: snapshot.warned,
+        exhausted: snapshot.poolExhausted,
         byUser: snapshot.byUser,
         byFeature: snapshot.byFeature,
       };
@@ -383,6 +384,8 @@ export class AiService {
       warnAtPercent,
       percentUsed: snapshot.myPercentOfCap,
       warning: snapshot.myPercentOfCap >= warnAtPercent,
+      // Kişisel tavan ya da firma havuzu doldu → bu kullanıcı için AI kapalı.
+      exhausted: snapshot.userCapExhausted || snapshot.poolExhausted,
     };
   }
 

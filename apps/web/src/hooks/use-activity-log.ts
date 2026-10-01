@@ -19,9 +19,14 @@ export interface ActivityLogResponse {
   pagination: { page: number; pageSize: number; total: number; totalPages: number };
 }
 
-export function useActivityLog(page: number, module?: string) {
+/**
+ * `enabled=false`: paket kilitli (STANDART) firmada istek atılmaz — sayfa
+ * kilit kartını çizer, 403 konsol hatası/toast üretilmez (arayüz testi O-044).
+ */
+export function useActivityLog(page: number, module?: string, enabled = true) {
   return useQuery({
     queryKey: ["company-activity-log", page, module ?? ""],
+    enabled,
     queryFn: async () => {
       const { data } = await companyApi.get<ActivityLogResponse>(
         "/company/activity-log",

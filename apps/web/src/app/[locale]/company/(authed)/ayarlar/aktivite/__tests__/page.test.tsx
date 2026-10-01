@@ -4,10 +4,10 @@ import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
-const h = vi.hoisted(() => ({ items: [] as unknown[] }));
+const h = vi.hoisted(() => ({ items: [] as unknown[], enabled: undefined as boolean | undefined }));
 
 vi.mock("@/hooks/use-activity-log", () => ({
-  useActivityLog: () => ({
+  useActivityLog: (_page: number, _module?: string, enabled?: boolean) => (h.enabled = enabled, {
     data: {
       items: h.items,
       pagination: { page: 1, pageSize: 25, total: h.items.length, totalPages: 1 },
@@ -40,7 +40,19 @@ function row(action: string, metadata: Record<string, unknown>) {
 }
 
 beforeEach(() => {
-  useCompanyAuthStore.setState({ company: { country: "TR" } } as never);
+  useCompanyAuthStore.setState({ company: { country: "TR", tier: "SILVER" } } as never);
+});
+
+describe("AktivitePage — paket kilidi (arayüz testi O-044)", () => {
+  it("STANDART firmada log isteği atılmaz (kilit kartı yeter, 403/toast yok); Silver'da atılır", () => {
+    useCompanyAuthStore.setState({ company: { country: "TR", tier: "STANDART" } } as never);
+    const { unmount } = render(<AktivitePage />);
+    expect(h.enabled).toBe(false);
+    unmount();
+    useCompanyAuthStore.setState({ company: { country: "TR", tier: "SILVER" } } as never);
+    render(<AktivitePage />);
+    expect(h.enabled).toBe(true);
+  });
 });
 
 describe("AktivitePage — Detay sütunu (derin denetim LU-20)", () => {

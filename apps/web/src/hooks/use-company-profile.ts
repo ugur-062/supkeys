@@ -59,6 +59,12 @@ export interface CompanyProfile {
   tier: "STANDART" | "SILVER" | "GOLD";
   companyVerificationStatus: string;
   onboardingCompletedAt: string | null;
+  /**
+   * Üyelik süresi (arayüz testi D-029): `endsAt` ücretli paketin bitişi
+   * (süresizde null); `expiredAt` paket son 30 gün içinde süresi dolup
+   * düştüyse bitiş tarihi. Eski API yanıtında alan yok.
+   */
+  membership?: { endsAt: string | null; expiredAt: string | null };
 }
 
 export type CompanyProfileUpdate = Partial<

@@ -81,7 +81,7 @@
   "apps/web/src/components/providers/confirm-dialog.tsx": 1,
   "apps/web/src/lib/company-info.ts": 7,
   "apps/web/src/lib/company/request-facets.ts": 1,
-  "apps/web/src/lib/pricing/plans.ts": 25,
+  "apps/web/src/lib/pricing/plans.ts": 26,
   "apps/web/src/lib/public/marketplace-api.ts": 3,
   "apps/web/src/lib/resolve-api-url.ts": 1,
   "apps/web/src/lib/seo/jsonld.ts": 1,

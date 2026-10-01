@@ -24,6 +24,7 @@ import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 import { formatDate } from "@/lib/format-date";
 import { useAuditActionLabel, useRoleLabel } from "@/i18n/domain";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { tierAtLeast } from "@rothern/shared";
 import { useDocLabels, type DocKind } from "@/hooks/use-company-docs";
 
 /** `company.docs.*` kayıtlarındaki `kind` — bilinen belge anahtarları (API DOC_META). */
@@ -62,7 +63,9 @@ export default function AktivitePage() {
   const { company } = useCompanyAuth();
   const [page, setPage] = useState(1);
   const [module, setModule] = useState("");
-  const { data, isLoading, isError, error, refetch } = useActivityLog(page, module || undefined);
+  // Paket kilitliyse (PremiumOnly kilit kartı çizer) istek hiç atılmaz (O-044).
+  const tierOk = !!company && tierAtLeast(company.tier, "SILVER");
+  const { data, isLoading, isError, error, refetch } = useActivityLog(page, module || undefined, tierOk);
   const forbidden = axios.isAxiosError(error) && error.response?.status === 403;
   const totalPages = data?.pagination.totalPages ?? 1;
 

@@ -25,12 +25,13 @@ const h = vi.hoisted(() => ({
   upload: vi.fn(),
   denied: [] as string[],
   existingDocs: [] as unknown[],
+  verification: "VERIFIED",
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/hooks/use-company-auth", () => ({
   useHasCompanyPermission: (p: string) => !h.denied.includes(p),
-  useCompanyAuth: () => ({ user: null, company: { tier: "GOLD", companyVerificationStatus: "VERIFIED", name: "Acme", slug: "acme" } }),
+  useCompanyAuth: () => ({ user: null, company: { tier: "GOLD", companyVerificationStatus: h.verification, name: "Acme", slug: "acme" } }),
 }));
 vi.mock("@/hooks/use-request-defaults", () => ({
   useRequestDefaults: () => h.defaults,
@@ -142,6 +143,7 @@ beforeEach(() => {
   h.defaults = { data: { defaults: SAVED, source: "saved" }, isLoading: false };
   h.denied = [];
   h.existingDocs = [];
+  h.verification = "VERIFIED";
 });
 
 describe("QuickRequest", () => {
@@ -441,6 +443,18 @@ describe("QuickRequest", () => {
     // Kalem girilince düğme açılır.
     fireEvent.change(screen.getAllByPlaceholderText("Örn. A4 fotokopi kağıdı")[0], { target: { value: "Perçin M6" } });
     await waitFor(() => expect(ai).toBeEnabled());
+  });
+
+  it("O-068: incelemedeki (PENDING) firmaya 'belgeleri yükleyin' denmez; doğrulanmamışa denir", async () => {
+    h.verification = "PENDING";
+    const { unmount } = wrap(<QuickRequest />);
+    expect(await screen.findByText(/Doğrulamanız inceleniyor; onaylanınca talebi yayınlayabilirsiniz/)).toBeInTheDocument();
+    expect(screen.queryByText(/belgeleri yükleyin/)).toBeNull();
+    unmount();
+
+    h.verification = "UNVERIFIED";
+    wrap(<QuickRequest />);
+    expect(await screen.findByText(/belgeleri yükleyin/)).toBeInTheDocument();
   });
 
   it("boş kartta 'son taleplerden başla' çipi görünür", async () => {

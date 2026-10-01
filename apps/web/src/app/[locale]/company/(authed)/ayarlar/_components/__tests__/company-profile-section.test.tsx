@@ -94,6 +94,24 @@ describe("CompanyProfileSection", () => {
     expect(screen.queryByText("Bekliyor")).not.toBeInTheDocument();
   });
 
+  it("üyelik: ücretli pakette bitiş tarihi, süresi dolmuşta 'doldu' + Yenile (arayüz testi D-029)", () => {
+    h.profile = baseProfile({
+      tier: "GOLD",
+      membership: { endsAt: "2026-12-31T09:00:00.000Z", expiredAt: null },
+    });
+    const { unmount } = render(<CompanyProfileSection />);
+    expect(screen.getByText("31 Aralık 2026 tarihine kadar")).toBeInTheDocument();
+    unmount();
+
+    h.profile = baseProfile({
+      tier: "STANDART",
+      membership: { endsAt: null, expiredAt: "2026-09-30T09:00:00.000Z" },
+    });
+    render(<CompanyProfileSection />);
+    expect(screen.getByText("Paket süresi 30 Eylül 2026 tarihinde doldu")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Yenile" })).toHaveAttribute("href", "/company/premium");
+  });
+
   it("şahıs firmasında vergi no = TCKN → maskeli", () => {
     h.profile = baseProfile({ companyType: "SOLE_PROPRIETOR", taxNumber: "98765432109" });
     render(<CompanyProfileSection />);

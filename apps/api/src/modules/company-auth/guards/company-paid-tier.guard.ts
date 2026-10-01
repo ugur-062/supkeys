@@ -38,13 +38,20 @@ export class CompanyPaidTierGuard implements CanActivate {
         context.getClass(),
       ]) ?? PAID_TIER;
     if (!tierAtLeast(user.tier, min)) {
-      throw new ForbiddenException(
-        min === "GOLD"
-          ? i18nMessage("api.companyAuth.buOzellikGoldPaketGerektirir")
-          : i18nMessage("api.companyAuth.buOzellikPaketVeyaUzeriGerektirir", {
-              tier: TIER_LABEL[min],
-            }),
-      );
+      // `TIER_REQUIRED` kodu (arayüz testi O-044): web yakalayıcısı bu kodla
+      // toast basmaz — paket kilitli sayfa zaten kilit kartını çiziyor; kodsuz
+      // 403 kartın üstüne gereksiz kırmızı hata toast'ı düşürüyordu.
+      throw new ForbiddenException({
+        ...(min === "GOLD"
+          ? i18nMessage("api.companyAuth.buOzellikGoldPaketGerektirir", undefined, "TIER_REQUIRED")
+          : i18nMessage(
+              "api.companyAuth.buOzellikPaketVeyaUzeriGerektirir",
+              { tier: TIER_LABEL[min] },
+              "TIER_REQUIRED",
+            )),
+        statusCode: 403,
+        minTier: min,
+      });
     }
     return true;
   }

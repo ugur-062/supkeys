@@ -3796,7 +3796,8 @@
         "uyeDavetiniKaldir": "{name} davetini kaldır",
         "belirliTarihSaat": "ya da belirli tarih ve saat:",
         "kapanisGunu": "Kapanış günü",
-        "kapanisSaati": "Kapanış saati"
+        "kapanisSaati": "Kapanış saati",
+        "yayinIcinDogrulamaIncelemede": "Doğrulamanız inceleniyor; onaylanınca talebi yayınlayabilirsiniz. Şimdilik taslak kaydedebilirsiniz. <link>Durumu gör</link>"
       },
       "publishedPanel": {
         "talebinizYayinda": "Talebiniz yayında",
@@ -5853,7 +5854,10 @@
         "sehir": "Şehir",
         "eyaletBolge": "Eyalet / bölge",
         "kimlikBilgilerindeHataVarsaYabanci": "Kimlik bilgilerinde hata varsa değişiklik için destek ile iletişime geçin. Sicil/kayıt numarası ve banka hesabı bilgileri <dogrulama>Doğrulama Belgeleri</dogrulama> sayfasından; sipariş tahsilat hesapları <banka>Banka Hesapları</banka> sayfasından yönetilir.",
-        "postaKodu5Hane": "Türkiye'de posta kodu 5 haneli olmalıdır"
+        "postaKodu5Hane": "Türkiye'de posta kodu 5 haneli olmalıdır",
+        "uyelikBitis": "{date} tarihine kadar",
+        "uyelikSuresiDoldu": "Paket süresi {date} tarihinde doldu",
+        "uyelikYenile": "Yenile"
       },
       "companyUsersSection": {
         "pasifYapildi": "Pasif yapıldı",
@@ -6062,7 +6066,10 @@
         "diger": "Diğer",
         "yuzde": "%{n}",
         "aylikFirmaAiButcesiKullanildi": "Aylık firma AI bütçenizin %{percent} kadarı kullanıldı. %{warnAtPercent} eşiğinde uyarı verilir; %100''de AI kapanır.",
-        "kisiselTavanKullanildi": "Kişisel tavanınızın (firma havuzunun yarısı) %{percent} kadarı kullanıldı."
+        "kisiselTavanKullanildi": "Kişisel tavanınızın (firma havuzunun yarısı) %{percent} kadarı kullanıldı.",
+        "butceDoldu": "Bütçe doldu — AI kapalı",
+        "firmaButcesiDolduAiKapali": "Bu ayın firma AI bütçesi doldu; AI özellikleri ay sonuna kadar kullanılamaz. Bütçe her ayın başında yenilenir.",
+        "kisiselTavanDolduAiKapali": "Bu ayki AI kullanım hakkınız doldu; AI özellikleri ay sonuna kadar kullanılamaz. Hak her ayın başında yenilenir."
       },
       "ayarlarAktiviteLayout": {
         "aktiviteLoguYetkiGerektirir": "Aktivite Logu yetki gerektirir",
@@ -7207,7 +7214,10 @@
         "ay": "/ay",
         "kdv": "KDV",
         "carpi12": "{amount} × 12",
-        "faturaUnvaniVeVergiKimligi": "Fatura unvanı ve vergi kimliği Firma Bilgileri’nden alınır."
+        "faturaUnvaniVeVergiKimligi": "Fatura unvanı ve vergi kimliği Firma Bilgileri’nden alınır.",
+        "dogrulamaIncelemedeBaslik": "Doğrulamanız inceleniyor",
+        "dogrulamaIncelemedeMetin": "Belgeleriniz ekibimizce inceleniyor. Firmanız onaylanınca paketi buradan satın alabilirsiniz; belgeleri yeniden yüklemeniz gerekmez.",
+        "dogrulamaDurumu": "Doğrulama durumu"
       },
       "packagesView": {
         "paketSatinAlmadanOnceFirmanizi": "Paket satın almadan önce firmanızı doğrulayın. Doğrulama ücretsizdir.",
@@ -7224,7 +7234,11 @@
         "kullaniyorsunuz": "Kullanıyorsunuz",
         "paketinizeDahil": "Paketinize dahil",
         "paketi": "{name} paketi",
-        "ay": "/ay"
+        "ay": "/ay",
+        "dogrulamaIncelemede": "Doğrulamanız inceleniyor — onaylanınca satın alabilirsiniz",
+        "durumuGor": "Durumu gör",
+        "bitis": "Bitiş: {date}",
+        "uyelikSuresiDoldu": "Paket üyeliğinizin süresi {date} tarihinde doldu; firmanız Standart pakete geçti. Paketi yeniden satın alarak özelliklerini geri açabilirsiniz."
       }
     },
     "inbox": {

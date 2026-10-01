@@ -42,6 +42,9 @@ import { UpdateCompanyProfileDto } from "./dto/update-company-profile.dto";
 
 const IMAGE_MIME = ["image/jpeg", "image/png", "image/webp"];
 
+/** Süresi dolan paketin panelde "süre doldu / yenile" olarak gösterildiği gün sayısı (D-029). */
+const MEMBERSHIP_EXPIRED_NOTICE_DAYS = 30;
+
 const SELECT = {
   id: true,
   name: true,
@@ -139,7 +142,12 @@ export class CompanyProfileService {
     // penceresinde /me ile ıraksardı). membershipEndAt yalnız hesap içindi,
     // yanıttan çıkarılır.
     const { membershipEndAt, ...rest } = c;
-    const base = { ...rest, tier: effectiveTier(c.tier, membershipEndAt) };
+    const tier = effectiveTier(c.tier, membershipEndAt);
+    const base = {
+      ...rest,
+      tier,
+      membership: await this.membershipStatus(companyId, c.tier, tier, membershipEndAt),
+    };
     // KVKK veri-minimizasyonu: yetkili TCKN + IBAN + fatura telefonu kişisel/
     // finansal veridir — yalnız company:manage yetkisi olan kullanıcıya döner.
     if (!canSeeSensitive) {
@@ -157,6 +165,41 @@ export class CompanyProfileService {
       };
     }
     return base;
+  }
+
+  /**
+   * ÜYELİK SÜRESİ (arayüz testi D-029): panel paketin ne zaman biteceğini ve
+   * süresi dolduysa ne zaman dolduğunu gösterebilsin diye.
+   *  · endsAt   — efektif paket hâlâ ücretliyse bitiş tarihi (süresizde null).
+   *  · expiredAt — paket DÜŞTÜYSE (efektif STANDART) son 30 gün içindeki bitiş:
+   *    cron öncesi tembel pencerede ham `membershipEndAt`; cron sonrası
+   *    (`membershipEndAt` temizlenir) en son üyelik olayı EXPIRE ise onun
+   *    `endBefore`'u. Sonradan GRANT/EXTEND/REVOKE geldiyse bant gösterilmez.
+   */
+  private async membershipStatus(
+    companyId: string,
+    rawTier: string,
+    tier: string,
+    membershipEndAt: Date | null,
+  ): Promise<{ endsAt: Date | null; expiredAt: Date | null }> {
+    if (tier !== "STANDART") return { endsAt: membershipEndAt, expiredAt: null };
+    const windowStart = Date.now() - MEMBERSHIP_EXPIRED_NOTICE_DAYS * 86_400_000;
+    if (rawTier !== "STANDART" && membershipEndAt) {
+      return {
+        endsAt: null,
+        expiredAt: membershipEndAt.getTime() >= windowStart ? membershipEndAt : null,
+      };
+    }
+    const last = await this.prisma.companyMembershipEvent.findFirst({
+      where: { companyId },
+      orderBy: { createdAt: "desc" },
+      select: { action: true, endBefore: true },
+    });
+    const expiredAt =
+      last?.action === "EXPIRE" && last.endBefore && last.endBefore.getTime() >= windowStart
+        ? last.endBefore
+        : null;
+    return { endsAt: null, expiredAt };
   }
 
   /**

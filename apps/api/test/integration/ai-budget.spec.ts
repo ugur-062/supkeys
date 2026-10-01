@@ -587,6 +587,26 @@ describe("Faz AI-0 — kullanım ekranı görünürlüğü", () => {
     ).rejects.toThrow(/görüntüleyebilir/);
   });
 
+  it("havuz %100 → exhausted (AI kapalı, %80 uyarısından ayrı); kişisel tavan dolan SA da exhausted (arayüz testi D-172)", async () => {
+    const ai = makeAi(makeCfg({ budgets: { GOLD: 10 } }), new FakeProvider());
+    const co = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    const sa = await makeUser(prisma, co.company.id, [CompanyRole.SATIN_ALMACI]);
+    const saAuth = authFor(sa, co.company.id, [CompanyRole.SATIN_ALMACI]);
+
+    // %85: uyarı var, AI açık.
+    await seedSpend(co.company.id, co.user.id, 3.5, { createdAt: monthStartSeedDate() });
+    await seedSpend(co.company.id, sa.id, 5, { createdAt: monthStartSeedDate() });
+    let mgmt = (await ai.usageView(co.auth)) as { warning: boolean; exhausted: boolean };
+    expect(mgmt).toMatchObject({ warning: true, exhausted: false });
+    // SA kendi tavanını (10×0.5=5) doldurdu → onun için AI kapalı.
+    expect(((await ai.usageView(saAuth)) as { exhausted: boolean }).exhausted).toBe(true);
+
+    // Havuz %101,7 → firma görünümünde de kapalı.
+    await seedSpend(co.company.id, co.user.id, 1.67, { createdAt: monthStartSeedDate() });
+    mgmt = (await ai.usageView(co.auth)) as { warning: boolean; exhausted: boolean };
+    expect(mgmt).toMatchObject({ warning: true, exhausted: true });
+  });
+
   it("tier kapısı: controller CompanyPaidTierGuard (Silver+) taşır", async () => {
     const { AiUsageController } = await import(
       "../../src/modules/ai/ai-usage.controller"

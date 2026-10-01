@@ -14,14 +14,19 @@ import {
 } from "@/components/catalyst/table";
 import { PremiumOnly } from "@/components/company-shell/premium-only";
 import { useAiUsage } from "@/hooks/use-ai-usage";
+import { useCompanyAuth } from "@/hooks/use-company-auth";
+import { tierAtLeast } from "@rothern/shared";
 import { cn } from "@/lib/utils";
 import { SettingsShell } from "../_components/settings-shell";
 import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
 
 
 
-/** Yüzde çubuğu — monokrom; uyarı eşiğinden sonra vurgulu. */
-function PercentBar({ percent, warn }: { percent: number; warn: boolean }) {
+/**
+ * Yüzde çubuğu — monokrom; uyarı eşiğinden sonra vurgulu. `exhausted`: bütçe
+ * doldu, AI kapalı — %80 rozeti yerine ayrı rozet (arayüz testi D-172).
+ */
+function PercentBar({ percent, warn, exhausted = false }: { percent: number; warn: boolean; exhausted?: boolean }) {
   const t = useTranslations("web.panel.settings.ayarlarAiKullanimPage");
   const locale = useLocale() as Locale;
   return (
@@ -30,7 +35,11 @@ function PercentBar({ percent, warn }: { percent: number; warn: boolean }) {
         <span className="text-2xl font-semibold text-zinc-950">
           {t("yuzde", { n: formatNumber(percent, locale) })}
         </span>
-        {warn ? (
+        {exhausted ? (
+          <span className="rounded-full bg-red-600 px-2.5 py-0.5 text-xs font-medium text-white">
+            {t("butceDoldu")}
+          </span>
+        ) : warn ? (
           <span className="rounded-full bg-zinc-950 px-2.5 py-0.5 text-xs font-medium text-white">
             {t("uyariEsigiAsildi")}
           </span>
@@ -40,7 +49,7 @@ function PercentBar({ percent, warn }: { percent: number; warn: boolean }) {
         <div
           className={cn(
             "h-full rounded-full transition-all",
-            warn ? "bg-zinc-950" : "bg-zinc-600",
+            exhausted ? "bg-red-600" : warn ? "bg-zinc-950" : "bg-zinc-600",
           )}
           style={{ width: `${Math.min(100, percent)}%` }}
         />
@@ -54,7 +63,10 @@ export default function AiKullanimPage() {
   // AI özellik adı `web.domain.aiFeature` sözlüğünden; sözlükte yoksa "Diğer".
   const tf = useTranslations("web.domain.aiFeature");
   const locale = useLocale() as Locale;
-  const { data, isLoading, isError, error, refetch } = useAiUsage();
+  // Paket kilitliyse (PremiumOnly kilit kartı çizer) istek hiç atılmaz (O-044).
+  const { company } = useCompanyAuth();
+  const tierOk = !!company && tierAtLeast(company.tier, "SILVER");
+  const { data, isLoading, isError, error, refetch } = useAiUsage(tierOk);
   const forbidden = axios.isAxiosError(error) && error.response?.status === 403;
 
   return (
@@ -82,6 +94,10 @@ export default function AiKullanimPage() {
               <p className="rounded-xl border border-zinc-200 bg-zinc-100 px-4 py-3 text-sm text-zinc-700">
                 {t("aiOzellikleriSuAndaKapali")}
               </p>
+            ) : data.exhausted ? (
+              <p role="alert" className="rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-800">
+                {data.view === "company" ? t("firmaButcesiDolduAiKapali") : t("kisiselTavanDolduAiKapali")}
+              </p>
             ) : null}
 
             <section>
@@ -90,7 +106,7 @@ export default function AiKullanimPage() {
                   ? t("firmaHavuzuBuAy")
                   : t("kisiselKullaniminizBuAy")}
               </h2>
-              <PercentBar percent={data.percentUsed} warn={data.warning} />
+              <PercentBar percent={data.percentUsed} warn={data.warning} exhausted={data.exhausted === true} />
               <p className="mt-1.5 text-xs text-zinc-500">
                 {data.view === "company"
                   ? t("aylikFirmaAiButcesiKullanildi", { percent: formatNumber(data.percentUsed, locale), warnAtPercent: data.warnAtPercent })
