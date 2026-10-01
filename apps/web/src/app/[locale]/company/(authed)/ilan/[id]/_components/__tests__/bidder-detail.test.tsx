@@ -70,10 +70,10 @@ describe("AuctionLiveCard", () => {
     expect(screen.getByText("1.000 ₺")).toBeInTheDocument();
     expect(screen.getByText("900 ₺")).toBeInTheDocument();
     expect(screen.getByText("2 / 5")).toBeInTheDocument();
-    expect(screen.getByText("Tur Hakkın")).toBeInTheDocument();
+    expect(screen.getByText("Tur Hakkınız")).toBeInTheDocument();
     expect(screen.getByText("1 teklif")).toBeInTheDocument();
     expect(
-      screen.getByText("En iyi teklif + kendi sıran görünür"),
+      screen.getByText("En iyi teklif + kendi sıranız görünür"),
     ).toBeInTheDocument();
   });
 
@@ -151,7 +151,7 @@ describe("AuctionLiveCard", () => {
       />,
     );
     expect(screen.getByText("Tüm teklifler (anonim)")).toBeInTheDocument();
-    expect(screen.getByText("#2 (Sen)")).toBeInTheDocument();
+    expect(screen.getByText("#2 (Siz)")).toBeInTheDocument();
     expect(screen.getByText("#1 Tedarikçi")).toBeInTheDocument();
   });
 

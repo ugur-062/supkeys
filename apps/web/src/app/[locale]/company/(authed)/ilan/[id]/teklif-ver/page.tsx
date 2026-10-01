@@ -36,7 +36,8 @@ import {
   type ListingItemRow,
 } from "@/hooks/use-company-listings";
 import { extractErrorMessage } from "@/lib/tenders/error";
-import { formatDateTime, todayLocalISO } from "@/lib/tenders/date";
+import { formatDate, formatDateTime, todayLocalISO } from "@/lib/tenders/date";
+import { MONEY_FRACTION } from "@/lib/line-amount";
 import { YES_NO_STORED } from "@/lib/tenders/yes-no-answer";
 import { BID_DELIVERY_TIMES, MONEY_DECIMALS } from "@rothern/shared";
 import { subscribeRealtime } from "@/lib/realtime";
@@ -62,7 +63,7 @@ import { tierAtLeast } from "@rothern/shared";
 import { Link } from "@/i18n/navigation";
 import { useParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { AuctionLiveCard } from "../_components/auction-live-card";
@@ -108,9 +109,27 @@ interface ItemState {
   offeredMpn: string;
 }
 
-/** Tutar — arayüz dilinin sayı biçimiyle (`intl` = BCP-47), sembol tek kaynaktan. */
+/** Tutar — arayüz dilinin sayı biçimiyle (`intl` = BCP-47), sembol tek kaynaktan; 2 ondalık (D-048). */
 function moneyIn(intl: string, v: number, currency: string): string {
-  return affixCurrency(v.toLocaleString(intl, { maximumFractionDigits: 2 }), currency, intl);
+  return affixCurrency(v.toLocaleString(intl, MONEY_FRACTION), currency, intl);
+}
+
+/**
+ * Kaleme özel alanın görsel etiketi (arayüz testi O-096). Headless `Label`
+ * kontrole her zaman `aria-labelledby` yazar ve `aria-label`ı ezer → bütün
+ * fiyat alanları "Birim Fiyat" adını alıyordu. Bu etiket yalnız görseldir;
+ * erişilebilir ad kontrolün kalem adını içeren `aria-label`ından gelir.
+ */
+function VisualLabel({ children }: { children: ReactNode }) {
+  return (
+    <span
+      data-slot="label"
+      aria-hidden="true"
+      className="text-base/6 text-zinc-950 select-none sm:text-sm/6"
+    >
+      {children}
+    </span>
+  );
 }
 
 function formatBytes(n: number): string {
@@ -119,7 +138,19 @@ function formatBytes(n: number): string {
   return `${(n / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-function Blocked({ title, detailHref }: { title: string; detailHref: string }) {
+function Blocked({
+  title,
+  detailHref,
+  backLabel,
+  messageHref,
+}: {
+  title: string;
+  detailHref: string;
+  /** Düğme etiketi — hedef talep detayı değilse ayrı etiket (D-122). */
+  backLabel?: string;
+  /** Alıcıya mesaj yolu (D-280) — metin "alıcıyla iletişime geçin" diyorsa. */
+  messageHref?: string;
+}) {
   const t = useTranslations("web.panel.requests.page");
   return (
     <div className="mx-auto max-w-xl px-4 py-16 text-center">
@@ -128,9 +159,14 @@ function Blocked({ title, detailHref }: { title: string; detailHref: string }) {
         aria-hidden="true"
       />
       <Heading className="mt-3">{title}</Heading>
-      <Button href={detailHref} className="mt-5" outline>
-        {t("satinAlmaTalebiDetayinaDon")}
-      </Button>
+      <div className="mt-5 flex flex-wrap items-center justify-center gap-3">
+        {messageHref ? (
+          <Button href={messageHref}>{t("aliciyaMesajGonder")}</Button>
+        ) : null}
+        <Button href={detailHref} outline>
+          {backLabel ?? t("satinAlmaTalebiDetayinaDon")}
+        </Button>
+      </div>
     </div>
   );
 }
@@ -384,7 +420,12 @@ export default function TeklifVerPage() {
     }
     return m;
   }, [hasItems, pricedItems, itemState, effectiveCurrency]);
-  const mixedCurrency = totalsByCurrency.size > 1;
+  // Ana birime çevrim gereken teklif: birden çok birim VEYA tek birim ama ana
+  // birimden farklı (arayüz testi Y-09 — fiyatlı kalemlerin hepsi EUR iken
+  // toplam ham sayıyı "₺" ile yazıyordu: 3.400 € → "3.400 ₺").
+  const mixedCurrency =
+    totalsByCurrency.size > 1 ||
+    (totalsByCurrency.size === 1 && !totalsByCurrency.has(effectiveCurrency));
   const totalLabel = mixedCurrency
     ? [...totalsByCurrency.entries()]
         .map(([c, v]) => money(v, c))
@@ -413,7 +454,12 @@ export default function TeklifVerPage() {
   // Kalem id → formdaki fiyat (çalışma masası prop'u; null = kapsam dışı).
   const priceMap = useMemo(() => {
     const m: Record<string, string | null> = {};
-    for (const it of items) m[it.id] = itemState[it.id]?.price ?? "";
+    // `null` (kapsam dışı) KORUNUR — `?? ""` onu boş fiyata çeviriyordu; X
+    // yalnız fiyatı siliyor, "Hariç" ve geri ekleme çalışmıyordu (D-273).
+    for (const it of items) {
+      const st = itemState[it.id];
+      m[it.id] = st ? st.price : "";
+    }
     return m;
   }, [items, itemState]);
 
@@ -526,8 +572,14 @@ export default function TeklifVerPage() {
         </div>
       );
     }
-    // Talep yüklenemedi — nötr hedef.
-    return <Blocked title={tr("alimTalebiBulunamadi")} detailHref="/company" />;
+    // Talep yüklenemedi — nötr hedef (açık talepler), etiketi de ona göre (D-122).
+    return (
+      <Blocked
+        title={tr("alimTalebiBulunamadi")}
+        detailHref="/company/satis"
+        backLabel={tr("acikTaleplereDon")}
+      />
+    );
   }
 
   // ── Kapılar ──
@@ -597,6 +649,11 @@ export default function TeklifVerPage() {
       <Blocked
         title={tr("teklifZatenVerildiDegisiklikIcin")}
         detailHref={detailHref}
+        messageHref={
+          l.ownerCompanyId
+            ? `/company/mesajlar?with=${l.ownerCompanyId}&portal=satis`
+            : undefined
+        }
       />
     );
   }
@@ -724,6 +781,24 @@ export default function TeklifVerPage() {
   // Çalışma masası satır durumu: fiyatlanmış kalemde CEVAPSIZ zorunlu soru
   // (amber rozet + satır açık gelir) + girilmiş kalem teslim tarihi özeti —
   // ikisi de chevron arkasında gizli kalıp gözden kaçmasın.
+  // Alıcının kalem şartları (arayüz testi O-037): marka · parça no, muadil
+  // izni ve istenen teslim tarihi teklif formunda da görünür — eskiden marka
+  // yalnız muadil bloğunun içindeydi, istenen tarih hiç yoktu.
+  const itemFacts = (it: ListingItemRow): string[] => {
+    const facts: string[] = [];
+    const brandMpn = [it.brand, it.mpn].filter(Boolean).join(" · ");
+    if (brandMpn) facts.push(brandMpn);
+    if (it.alternativeAllowed === false) facts.push(tr("muadilKabulEdilmez"));
+    if (it.requiredByDate) {
+      facts.push(
+        tr("istenenTeslim", {
+          date: formatDate(`${it.requiredByDate.slice(0, 10)}T12:00:00+03:00`, locale),
+        }),
+      );
+    }
+    return facts;
+  };
+
   const workbenchRowMeta = (it: ListingItemRow) => {
     const st = itemState[it.id];
     const priced = st?.price != null && st.price !== "" && Number(st.price) > 0;
@@ -732,9 +807,11 @@ export default function TeklifVerPage() {
       (it.questions ?? []).some(
         (q) => q.required && !(st?.answers[q.id] ?? "").trim(),
       );
-    const note = st?.deliveryTime
-      ? tr("teslim", { value: deliveryTimeLabel(st.deliveryTime) ?? st.deliveryTime })
-      : null;
+    const parts = itemFacts(it);
+    if (st?.deliveryTime) {
+      parts.push(tr("teslim", { value: deliveryTimeLabel(st.deliveryTime) ?? st.deliveryTime }));
+    }
+    const note = parts.length > 0 ? parts.join(" · ") : null;
     return { requiredMissing, note };
   };
 
@@ -744,7 +821,7 @@ export default function TeklifVerPage() {
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
         {isAuctionRebid ? null : (
         <Field>
-          <Label>{tr("kalemTeslimSuresiOpsiyonel")}</Label>
+          <VisualLabel>{tr("kalemTeslimSuresiOpsiyonel")}</VisualLabel>
           <Select
             aria-label={tr("teslimSuresi", { name: it.name })}
             value={st?.deliveryTime ?? ""}
@@ -761,7 +838,7 @@ export default function TeklifVerPage() {
         )}
         {canItemCurrency ? (
           <Field>
-            <Label>{tr("kalemParaBirimi")}</Label>
+            <VisualLabel>{tr("kalemParaBirimi")}</VisualLabel>
             <Select
               aria-label={tr("paraBirimiAria", { name: it.name })}
               value={st?.currency ?? ""}
@@ -809,7 +886,7 @@ export default function TeklifVerPage() {
         {it.alternativeAllowed !== false && st?.isAlternative ? (
           <>
             <Field>
-              <Label>{tr("teklifEttiginizMarka")}</Label>
+              <VisualLabel>{tr("teklifEttiginizMarka")}</VisualLabel>
               <Input
                 aria-label={tr("teklifEdilenMarkaAria", { name: it.name })}
                 value={st?.offeredBrand ?? ""}
@@ -819,7 +896,7 @@ export default function TeklifVerPage() {
               />
             </Field>
             <Field>
-              <Label>{tr("teklifEttiginizParcaNo")}</Label>
+              <VisualLabel>{tr("teklifEttiginizParcaNo")}</VisualLabel>
               <Input
                 aria-label={tr("teklifEdilenParcaNo", { name: it.name })}
                 value={st?.offeredMpn ?? ""}
@@ -902,8 +979,16 @@ export default function TeklifVerPage() {
         tr("teslimSuresiZorunluSureGirmediginiz"),
       );
     // Madde 15: pazarlıkta geçerlilik sorulmaz — teklif süresizdir.
-    if (!isAuction && (!validityDays || Number(validityDays) < 1))
-      problems.push(tr("gecerlilikSuresiZorunlu"));
+    // 1–365 tam gün (place-bid DTO ile aynı; arayüz testi D-010 — 400 gün
+    // gönderilip alan adsız sunucu hatası dönüyordu).
+    if (!isAuction) {
+      if (!validityDays) problems.push(tr("gecerlilikSuresiZorunlu"));
+      else if (!/^\d+$/.test(validityDays) || Number(validityDays) < 1 || Number(validityDays) > 365)
+        problems.push(tr("gecerlilikSuresiAralik"));
+    }
+    // KYC (arayüz testi D-028): davetsiz ∧ bağlantısız ∧ doğrulanmamış teklifçi
+    // gönderemez (sunucu 403) — yalnız taslak.
+    if (l.bidRequiresVerification) problems.push(tr("gonderimIcinDogrulamaGerekir"));
     if (l.requireBidDocument && myDocs.length + stagedFiles.length === 0)
       problems.push(tr("buSatinAlmaTalebindeTeklif"));
     // İngiliz usulü yeniden teklif: monotonluk ön-kontrolü AYNI KALEMLER
@@ -1112,7 +1197,7 @@ export default function TeklifVerPage() {
 
       {/* Doğrulama teşviki (2026-09-28): belgesiz firma teklif verirken alıcının
           onu "Doğrulanmamış firma" olarak göreceğini öğrenir. */}
-      <VerifyNudge />
+      <VerifyNudge required={!!l.bidRequiresVerification} />
 
       {isRebidAfterLoss && l.myBid?.eliminationReason ? (
         <div className="flex items-start gap-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-800">
@@ -1139,7 +1224,12 @@ export default function TeklifVerPage() {
         <div className="space-y-5 lg:col-span-2">
           {/* Talep özeti */}
           <section className="card p-5">
-            <dl className="grid grid-cols-2 gap-3 text-sm sm:grid-cols-4">
+            <dl
+              className={cn(
+                "grid grid-cols-2 gap-3 text-sm",
+                hasItems ? "sm:grid-cols-4" : "sm:grid-cols-3",
+              )}
+            >
               <div>
                 <dt className="text-xs text-zinc-500">{tr("alici")}</dt>
                 <dd className="truncate font-medium text-zinc-900">
@@ -1152,10 +1242,13 @@ export default function TeklifVerPage() {
                   {l.closesAt ? formatDateTime(l.closesAt, locale) : "—"}
                 </dd>
               </div>
-              <div>
-                <dt className="text-xs text-zinc-500">{tr("kalem")}</dt>
-                <dd className="font-medium text-zinc-900">{items.length}</dd>
-              </div>
+              {/* Kalemsiz talepte "Kalem 0" anlamsız (D-274). */}
+              {hasItems ? (
+                <div>
+                  <dt className="text-xs text-zinc-500">{tr("kalem")}</dt>
+                  <dd className="font-medium text-zinc-900">{items.length}</dd>
+                </div>
+              ) : null}
               <div>
                 <dt className="text-xs text-zinc-500">{tr("paraBirimi")}</dt>
                 <dd className="font-medium text-zinc-900">
@@ -1246,9 +1339,11 @@ export default function TeklifVerPage() {
                           : "border-zinc-950/10",
                       )}
                     >
-                      <div className="flex flex-wrap items-start justify-between gap-3">
+                      {/* Mobilde ad üstte, fiyat altta (D-151): yan yana dizilimde
+                          ad 51 px'lik sütunda kelime kelime kırılıyordu. */}
+                      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
                         <div className="min-w-0 flex-1">
-                          <div className="flex items-center gap-2">
+                          <div className="flex flex-wrap items-center gap-2">
                             <span className="flex h-5 w-5 shrink-0 items-center justify-center rounded bg-zinc-100 text-xs font-semibold text-zinc-600">
                               {idx + 1}
                             </span>
@@ -1276,6 +1371,11 @@ export default function TeklifVerPage() {
                               ? tr("hedef", { money: money(Number(it.targetPrice), effectiveCurrency) })
                               : ""}
                           </p>
+                          {itemFacts(it).length > 0 ? (
+                            <p className="mt-1 text-xs text-zinc-600">
+                              {itemFacts(it).join(" · ")}
+                            </p>
+                          ) : null}
                         </div>
 
                         {optedOut ? (
@@ -1288,9 +1388,9 @@ export default function TeklifVerPage() {
                           </button>
                         ) : (
                           <div className="flex items-start gap-2">
-                            <div className="w-36">
+                            <div className="w-full sm:w-36">
                               <Field>
-                                <Label>{tr("birimFiyat")}</Label>
+                                <VisualLabel>{tr("birimFiyat")}</VisualLabel>
                                 <MoneyInput
                                   aria-label={tr("birimFiyatAria", { name: it.name })}
                                   value={st?.price ?? ""}
@@ -1316,7 +1416,9 @@ export default function TeklifVerPage() {
                                 className="mt-7 inline-flex shrink-0 items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium text-zinc-500 transition hover:bg-red-50 hover:text-red-600"
                               >
                                 <X className="h-3.5 w-3.5" aria-hidden="true" />
-                                <span className="hidden sm:inline">
+                                {/* Mobilde metin görsel olarak gizli ama
+                                    erişilebilir adı korunur (D-277). */}
+                                <span className="sr-only sm:not-sr-only">
                                   {tr("buKalemeTeklifVermiyorum")}
                                 </span>
                               </button>
@@ -1350,7 +1452,7 @@ export default function TeklifVerPage() {
               <p className="text-xs text-zinc-400">{td("kdvHaricNote")}</p>
               <div className="rounded-xl border border-zinc-950/10 bg-white p-4">
                 <Field>
-                  <Label>{tr("tutar", { effectiveCurrency: effectiveCurrency })}</Label>
+                  <Label>{tr("tutarBirimli", { effectiveCurrency })}</Label>
                   <MoneyInput value={singleAmount} onChange={setSingleAmount} />
                 </Field>
                 {isAuction && effectiveTarget ? (
@@ -1427,6 +1529,7 @@ export default function TeklifVerPage() {
                     type="number"
                     min={1}
                     max={365}
+                    step={1}
                     value={validityDays}
                     onChange={(e) => setValidityDays(e.target.value)}
                   />
@@ -1457,9 +1560,6 @@ export default function TeklifVerPage() {
                 </Field>
               ) : null}
             </div>
-            <Text className="text-xs text-zinc-400">
-              {tr("kalemOzelTeslimTarihiGirilmeyen")}
-            </Text>
           </section>
 
           {/* Not */}
@@ -1510,7 +1610,7 @@ export default function TeklifVerPage() {
                     setDragActive(false);
                     addFiles(Array.from(e.dataTransfer.files));
                   }}
-                  className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition ${
+                  className={`flex cursor-pointer flex-col items-center justify-center gap-2 rounded-xl border-2 border-dashed px-4 py-6 text-center transition focus-within:ring-2 focus-within:ring-blue-500 focus-within:ring-offset-2 ${
                     dragActive
                       ? "border-blue-400 bg-blue-50"
                       : "border-zinc-200 bg-zinc-50/60 hover:border-zinc-300"
@@ -1525,9 +1625,11 @@ export default function TeklifVerPage() {
                   <p className="text-xs text-zinc-400">
                     {tr("pdfGorselVeyaExcelDosya")}
                   </p>
+                  {/* sr-only (display:none değil): Tab ile odaklanır, Enter/Boşluk
+                      dosya seçiciyi açar (D-277). */}
                   <input
                     type="file"
-                    className="hidden"
+                    className="sr-only"
                     multiple
                     accept={BID_DOC_ACCEPT}
                     aria-label={tr("teklifDosyasiSec")}
@@ -1701,11 +1803,13 @@ export default function TeklifVerPage() {
               ) : null}
             </div>
 
+            {/* type="submit": Enter, doğrulama temizse onay penceresini açar
+                (formun onSubmit'i; D-271). */}
             <Button
+              type="submit"
               color="emerald"
               className="w-full"
               disabled={problems.length > 0 || busy}
-              onClick={() => setConfirmOpen(true)}
             >
               {tr("teklifGonder")}
             </Button>
@@ -1789,9 +1893,9 @@ export default function TeklifVerPage() {
           ) : null}
         </div>
         <Button
+          type="submit"
           color="emerald"
           disabled={problems.length > 0 || busy}
-          onClick={() => setConfirmOpen(true)}
         >
           {tr("teklifGonder")}
         </Button>

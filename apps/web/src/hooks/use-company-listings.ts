@@ -396,6 +396,10 @@ export interface ListingDetail {
   /** Rol kapısı: teklif SATISCI rolü ister. */
   roleAllowsBid?: boolean;
   invited?: boolean;
+  /** Teklif GÖNDERİMİ firma doğrulaması ister (davetsiz ∧ bağlantısız ∧ doğrulanmamış; placeBid INV-KYC-1 aynası). */
+  bidRequiresVerification?: boolean;
+  /** Alıcı firmanın id'si (teklifçi dalı) — mesaj bağlantısı için. */
+  ownerCompanyId?: string;
   myBid?: {
     amount: string;
     note: string | null;

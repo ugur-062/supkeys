@@ -294,3 +294,33 @@ describe("BidImportDialog — Belgeden Fiyatla (AI)", () => {
     expect(rows.find((r) => r.itemId === "i3")).toMatchObject({ currency: "USD" });
   });
 });
+
+// Arayüz testi D-279: sürükle-bırak `accept`i atlar — Excel alanına bırakılan
+// PDF sunucuya gidip 400 dönüyordu. Uzantı istemcide reddedilir.
+describe("BidImportDialog — desteklenmeyen dosya türü", () => {
+  beforeEach(() => {
+    vi.clearAllMocks();
+    h.parse.mockResolvedValue(TEMPLATE_RESULT);
+  });
+
+  it("Excel alanına bırakılan PDF sunucuya gönderilmez, türü söyleyen uyarı çıkar", () => {
+    render(
+      <BidImportDialog open variant="excel" listingId="L1" currencyLabel="TRY" itemCurrencyAllowed onClose={() => {}} onApply={() => {}} />,
+    );
+    pickFiles(["teklif.pdf"]);
+    expect(h.parse).not.toHaveBeenCalled();
+    expect(toast.error).toHaveBeenLastCalledWith(
+      "teklif.pdf desteklenmiyor — yalnız şu türleri yükleyebilirsiniz: .xlsx, .csv",
+    );
+  });
+
+  it("AI alanında desteklenmeyen dosya ayıklanır, kalanlar işlenir", async () => {
+    h.ai.mockResolvedValue(AI_RESULT);
+    render(
+      <BidImportDialog open variant="ai" listingId="L1" currencyLabel="TRY" itemCurrencyAllowed onClose={() => {}} onApply={() => {}} />,
+    );
+    pickFiles(["mektup.docx", "katalog.PDF"]);
+    expect(toast.error).toHaveBeenCalledWith(expect.stringContaining("mektup.docx"));
+    await waitFor(() => expect(h.ai).toHaveBeenCalledTimes(1));
+  });
+});

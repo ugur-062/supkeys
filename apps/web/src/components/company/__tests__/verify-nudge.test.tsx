@@ -30,4 +30,22 @@ describe("VerifyNudge", () => {
     const { container } = render(<VerifyNudge />);
     expect(container).toBeEmptyDOMElement();
   });
+
+  // Arayüz testi D-028: gönderim doğrulama İSTİYORSA (davetsiz ∧ bağlantısız
+  // PUBLIC talep) yumuşak teşvik değil engelleyici kart — incelemedekine de.
+  it("required + UNVERIFIED → engelleyici kart, doğrulama bağlantısı", () => {
+    h.company = { companyVerificationStatus: "UNVERIFIED" };
+    render(<VerifyNudge required />);
+    expect(
+      screen.getByRole("alert", { name: "Teklif göndermek için firma doğrulaması gerekir" }),
+    ).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Ücretsiz doğrulan" })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+  });
+
+  it("required + PENDING → inceleme metni, durum bağlantısı", () => {
+    h.company = { companyVerificationStatus: "PENDING" };
+    render(<VerifyNudge required />);
+    expect(screen.getByText(/belgeleriniz inceleniyor/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Doğrulama durumu" })).toBeInTheDocument();
+  });
 });

@@ -219,11 +219,27 @@ export function BidImportDialog({
                 : t("doldurdugunuzSablonuYukleyinXlsx")}
             </div>
             <Dropzone
-              accept={isAi ? ".pdf,.jpg,.jpeg,.png,.webp,.heic,.xlsx,.csv" : ".xlsx,.csv"}
+              accept={isAi ? AI_ACCEPT : EXCEL_ACCEPT}
               multiple={isAi}
               disabled={busy}
-              onFiles={(fs) => {
+              onFiles={(picked) => {
+                let fs = picked;
                 if (fs.length === 0) return;
+                // Uzantı kapısı İSTEMCİDE (arayüz testi D-279): sürükle-bırak
+                // `accept`i atlar; Excel alanına bırakılan PDF önce sunucuya
+                // gidip 400 dönüyordu.
+                const accept = isAi ? AI_ACCEPT : EXCEL_ACCEPT;
+                const rejected = fs.filter((f) => !matchesAccept(f.name, accept));
+                if (rejected.length > 0) {
+                  toast.error(
+                    t("desteklenmeyenDosyaTuru", {
+                      names: rejected.map((f) => f.name).join(", "),
+                      allowed: accept.split(",").join(", "),
+                    }),
+                  );
+                  fs = fs.filter((f) => matchesAccept(f.name, accept));
+                  if (fs.length === 0) return;
+                }
                 if (!isAi) {
                   // Şablon base64 JSON gövdesiyle gider (5 MB gövde sınırı,
                   // base64 4/3 şişirir): kalem içe aktarmadaki istemci kapısının
@@ -281,6 +297,19 @@ export function BidImportDialog({
       </DialogActions>
     </Dialog>
   );
+}
+
+/** Seçici/bırakma alanının kabul ettiği uzantılar (sunucu ayrıştırıcısıyla aynı küme). */
+const AI_ACCEPT = ".pdf,.jpg,.jpeg,.png,.webp,.heic,.xlsx,.csv";
+const EXCEL_ACCEPT = ".xlsx,.csv";
+
+/** Dosya adı `accept` listesindeki uzantılardan biriyle mi bitiyor (büyük/küçük harf duyarsız). */
+export function matchesAccept(fileName: string, accept: string): boolean {
+  const name = fileName.toLowerCase();
+  return accept
+    .split(",")
+    .map((x) => x.trim().toLowerCase())
+    .some((ext) => ext.startsWith(".") && name.endsWith(ext));
 }
 
 type EffectiveRow = {

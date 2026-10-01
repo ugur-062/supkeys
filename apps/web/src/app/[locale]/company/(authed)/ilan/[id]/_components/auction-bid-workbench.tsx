@@ -8,6 +8,8 @@ import { affixCurrency } from "@/lib/tenders/labels";
 import { Badge } from "@/components/catalyst/badge";
 import { Button } from "@/components/catalyst/button";
 import { Input } from "@/components/catalyst/input";
+import { MoneyInput, parseMoneyDisplay } from "@/components/ui/money-input";
+import { MONEY_FRACTION } from "@/lib/line-amount";
 import type { ListingItemRow } from "@/hooks/use-company-listings";
 import {
   applyPercentToItems,
@@ -27,9 +29,9 @@ import {
 import { useMemo, useState, type ReactNode } from "react";
 import { toast } from "sonner";
 
-/** Tutar — arayüz dilinin sayı biçimiyle (`intl` = BCP-47), sembol tek kaynaktan. */
+/** Tutar — arayüz dilinin sayı biçimiyle (`intl` = BCP-47), sembol tek kaynaktan; 2 ondalık (D-048). */
 function money(v: number | string, currency: string, intl: string): string {
-  return affixCurrency(Number(v).toLocaleString(intl, { maximumFractionDigits: 2 }), currency, intl);
+  return affixCurrency(Number(v).toLocaleString(intl, MONEY_FRACTION), currency, intl);
 }
 
 /** Sayfanın hesapladığı hedef durumu — çubuk ve araçlar bunu tüketir.
@@ -187,8 +189,11 @@ export function AuctionBidWorkbench({
   const allSelected =
     distItems.length > 0 && distItems.every((d) => !d.locked);
 
+  // Yüzde arayüz dilinin ayracıyla okunur ("2,5" = 2.5; arayüz testi Y-10 —
+  // `type=number` virgülü silip %25 uyguluyordu).
+  const percentValue = parseMoneyDisplay(percent, locale);
   const applyPercent = () => {
-    const p = Number(percent);
+    const p = Number(percentValue);
     if (!Number.isFinite(p) || p <= 0 || p >= 100) {
       toast.error(t("gecerliBirYuzdeGirin0"));
       return;
@@ -198,7 +203,7 @@ export function AuctionBidWorkbench({
       return;
     }
     applyPrices(
-      applyPercentToItems({ items: distItems, percent, decimals }),
+      applyPercentToItems({ items: distItems, percent: percentValue, decimals }),
     );
     toast.success(
       allSelected
@@ -298,13 +303,18 @@ export function AuctionBidWorkbench({
             {/* step=1: ok tuşları 5→6→7 gitsin (0.01 adımla 5.01 oluyordu);
                 ondalık yüzde ("2,5") elle yazılabilir. */}
             <Input
-              type="number"
-              min={0}
-              max={99.99}
-              step="1"
+              type="text"
+              inputMode="decimal"
               value={percent}
               aria-label={t("yuzde")}
-              onChange={(e) => setPercent(e.target.value)}
+              onChange={(e) => setPercent(e.target.value.replace(/[^0-9.,]/g, ""))}
+              onKeyDown={(e) => {
+                // Enter yüzdeyi uygular; formu gönderip onay penceresini açmaz.
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  applyPercent();
+                }
+              }}
             />
           </div>
           <Button outline onClick={applyPercent}>
@@ -334,6 +344,10 @@ export function AuctionBidWorkbench({
             type="search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => {
+              // Aramada Enter formu gönderip onay penceresini açmasın (D-271).
+              if (e.key === "Enter") e.preventDefault();
+            }}
             placeholder={t("kalemAra")}
             aria-label={t("kalemAra2")}
             className="w-56 rounded-lg border border-zinc-300 bg-white py-1.5 pr-2 pl-8 text-sm shadow-sm focus:ring-2 focus:ring-zinc-900/10 focus:outline-none"
@@ -341,7 +355,9 @@ export function AuctionBidWorkbench({
         </div>
         {filterChip("ALL", t("tumu"))}
         {filterChip("CHANGED", t("degisen"), changedIds.size)}
-        {filterChip("LOCKED", t("haric"), lockedIds.size)}
+        {/* "Hariç" kapsam dışı (X) kalem demekti; bu süzgeç % aracının
+            seçimi dışındaki kalemleri gösterir (arayüz testi D-273). */}
+        {filterChip("LOCKED", t("secimDisi"), lockedIds.size)}
       </div>
 
       {/* ── Kompakt kalem tablosu ── */}
@@ -396,6 +412,9 @@ export function AuctionBidWorkbench({
                       <td className="max-w-64 px-3 py-2">
                         <p className="flex items-center gap-2 truncate font-medium text-zinc-900">
                           <span className="truncate">{it.name}</span>
+                          {optedOut ? (
+                            <Badge color="zinc">{t("haric")}</Badge>
+                          ) : null}
                           {meta?.requiredMissing ? (
                             <Badge color="amber">{t("zorunluSoru")}</Badge>
                           ) : null}
@@ -437,13 +456,12 @@ export function AuctionBidWorkbench({
                           </button>
                         ) : (
                           <div className="ml-auto flex w-32 items-center justify-end gap-1">
-                            <Input
-                              type="number"
-                              min={0}
-                              step={String(Math.pow(10, -decimals))}
+                            {/* Yerel biçimli para girişi (arayüz testi Y-10): yerel
+                                `type=number` TR "1.500"ü 1,5, "15,5"i 155 okuyordu. */}
+                            <MoneyInput
                               value={price ?? ""}
                               aria-label={t("birimFiyatAria", { name: it.name })}
-                              onChange={(e) => setPrice(it.id, e.target.value)}
+                              onChange={(raw) => setPrice(it.id, raw)}
                               className={cn(changed && "font-semibold")}
                             />
                             {!requireAllItems && !mandatoryIds?.has(it.id) ? (

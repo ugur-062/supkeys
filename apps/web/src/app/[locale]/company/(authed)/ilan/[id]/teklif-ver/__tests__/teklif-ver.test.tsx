@@ -219,7 +219,7 @@ describe("TeklifVerPage — form", () => {
     const user = userEvent.setup();
     render(<TeklifVerPage />);
 
-    await user.type(screen.getByLabelText("Birim Fiyat"), "150");
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
     // 150 × 10 adet = 1.500
     expect(screen.getAllByText(/1\.500/).length).toBeGreaterThanOrEqual(1);
     expect(screen.getByText("Fiyatlandırılan kalem 1/1")).toBeInTheDocument();
@@ -254,7 +254,7 @@ describe("TeklifVerPage — form", () => {
     expect(screen.getByText("Fiyatlandırılan kalem 0/1")).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Kalemi geri ekle" }));
-    expect(screen.getByLabelText("Birim Fiyat")).toBeInTheDocument();
+    expect(screen.getByLabelText("Çelik Boru birim fiyat")).toBeInTheDocument();
   });
 
   it("gönderim onay dialog'u → payload kalem teslim süresi + cevap içerir", async () => {
@@ -262,7 +262,7 @@ describe("TeklifVerPage — form", () => {
     h.mutateAsync.mockResolvedValue({ status: "SUBMITTED" });
     render(<TeklifVerPage />);
 
-    await user.type(screen.getByLabelText("Birim Fiyat"), "150");
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
     await user.type(screen.getByLabelText(/Menşei ülke/), "Türkiye");
     await user.selectOptions(
       screen.getByLabelText("Çelik Boru teslim süresi"),
@@ -318,7 +318,7 @@ describe("TeklifVerPage — form", () => {
       screen.getByLabelText("Çelik Boru teklif edilen parça no"),
       "6204-C",
     );
-    await user.type(screen.getByLabelText("Birim Fiyat"), "90");
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "90");
     await user.click(
       screen.getByRole("button", { name: "Taslak Olarak Kaydet" }),
     );
@@ -339,7 +339,7 @@ describe("TeklifVerPage — form", () => {
   it("muadil işaretli ama marka ve parça no boş → gönderim engellenir (derin denetim LU-15)", async () => {
     const user = userEvent.setup();
     render(<TeklifVerPage />);
-    await user.type(screen.getByLabelText("Birim Fiyat"), "90");
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "90");
     await user.click(
       screen.getByRole("checkbox", {
         name: /Muadil \(eşdeğer\) ürün teklif ediyorum/,
@@ -371,7 +371,7 @@ describe("TeklifVerPage — form", () => {
     h.mutateAsync.mockResolvedValue({ status: "DRAFT" });
     render(<TeklifVerPage />);
 
-    await user.type(screen.getByLabelText("Birim Fiyat"), "90");
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "90");
     await user.click(
       screen.getByRole("button", { name: "Taslak Olarak Kaydet" }),
     );
@@ -398,7 +398,7 @@ describe("TeklifVerPage — form", () => {
     expect(screen.getByText(/Fiyat yüksek/)).toBeInTheDocument();
     // Önceki fiyat + cevap tohumlanmış.
     // MoneyInput text-tabanlı (madde 21) — değer string olarak okunur.
-    expect(screen.getByLabelText("Birim Fiyat")).toHaveValue("100");
+    expect(screen.getByLabelText("Çelik Boru birim fiyat")).toHaveValue("100");
     expect(screen.getByLabelText(/Menşei ülke/)).toHaveValue("Türkiye");
   });
 });
@@ -409,7 +409,7 @@ describe("TeklifVerPage — dosyalı gönderim (derin denetim Y-15, X22)", () =>
 
   /** Formu gönderilebilir doldurur + dosya ekler + onaylayıp gönderir. */
   async function fillAttachAndSubmit(user: ReturnType<typeof userEvent.setup>) {
-    await user.type(screen.getByLabelText("Birim Fiyat"), "150");
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
     await user.type(screen.getByLabelText(/Menşei ülke/), "Türkiye");
     await user.selectOptions(
       screen.getByLabelText("Çelik Boru teslim süresi"),
@@ -454,7 +454,7 @@ describe("TeklifVerPage — dosyalı gönderim (derin denetim Y-15, X22)", () =>
     h.uploadAsync.mockRejectedValue(new Error("ağ hatası"));
     render(<TeklifVerPage />);
 
-    await user.type(screen.getByLabelText("Birim Fiyat"), "90");
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "90");
     await user.upload(screen.getByLabelText("Teklif dosyası seç"), pdf());
     await user.click(
       screen.getByRole("button", { name: "Taslak Olarak Kaydet" }),
@@ -579,5 +579,142 @@ describe("TeklifVerPage — dosyalı gönderim (derin denetim Y-15, X22)", () =>
     ];
     render(<TeklifVerPage />);
     expect(screen.getByRole("button", { name: /eski\.pdf/ })).toBeInTheDocument();
+  });
+});
+
+describe("TeklifVerPage — arayüz testi webC-01", () => {
+  it("Y-09: fiyatlı kalemlerin hepsi tek yabancı birimdeyse toplam o birimde, çevrim notu onayda görünür", async () => {
+    const user = userEvent.setup();
+    h.detail = baseDetail({ allowedCurrencies: ["TRY", "EUR"] });
+    render(<TeklifVerPage />);
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "850");
+    await user.selectOptions(screen.getByLabelText("Çelik Boru para birimi"), "EUR");
+    // 850 € × 10 = 8.500,00 € — ana birim simgesiyle "8.500 ₺" DEĞİL.
+    expect(screen.getAllByText("8.500,00 €").length).toBeGreaterThanOrEqual(2);
+    expect(screen.queryByText(/8\.500(,00)? ₺/)).toBeNull();
+    await user.type(screen.getByLabelText(/Menşei ülke/), "Türkiye");
+    await user.selectOptions(screen.getByLabelText("Genel teslim süresi"), "W1_2");
+    await user.click(screen.getAllByRole("button", { name: "Teklif Gönder" })[0]!);
+    expect(
+      await screen.findByText(/karşılaştırma toplamı ana birime \(TRY\)/),
+    ).toBeInTheDocument();
+  });
+
+  it("D-048: para toplamı iki ondalıkla (12.345,60 ₺)", async () => {
+    const user = userEvent.setup();
+    render(<TeklifVerPage />);
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "1234,56");
+    expect(screen.getAllByText(/12\.345,60 ₺/).length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("O-037: marka · parça no, muadil yasağı ve istenen teslim tarihi kalem satırında", () => {
+    const base = baseDetail();
+    h.detail = {
+      ...base,
+      items: base.items!.map((it) => ({
+        ...it,
+        brand: "SKF",
+        mpn: "6205-2RS",
+        alternativeAllowed: false,
+        requiredByDate: "2026-11-15T00:00:00.000Z",
+      })),
+    };
+    render(<TeklifVerPage />);
+    expect(
+      screen.getByText(/SKF · 6205-2RS · Muadil kabul edilmez · İstenen teslim: 15 Kas 2026/),
+    ).toBeInTheDocument();
+  });
+
+  it("D-271: Enter, doğrulama temizse onay penceresini açar", async () => {
+    const user = userEvent.setup();
+    render(<TeklifVerPage />);
+    await user.type(screen.getByLabelText(/Menşei ülke/), "Türkiye");
+    await user.selectOptions(screen.getByLabelText("Genel teslim süresi"), "W1_2");
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150{Enter}");
+    expect(await screen.findByRole("button", { name: "Teklifi Gönder" })).toBeInTheDocument();
+  });
+
+  it("D-010: 365 günden uzun geçerlilik istemcide engellenir", async () => {
+    const user = userEvent.setup();
+    render(<TeklifVerPage />);
+    const validity = screen.getByDisplayValue("30");
+    await user.clear(validity);
+    await user.type(validity, "400");
+    expect(
+      screen.getByText(/Geçerlilik süresi 1–365 gün arasında tam sayı olmalı\./),
+    ).toBeInTheDocument();
+  });
+
+  it("D-028: doğrulama gereken teklifçide engelleyici kart; gönderim kapalı, taslak açık", async () => {
+    const user = userEvent.setup();
+    h.detail = baseDetail({ bidRequiresVerification: true });
+    render(<TeklifVerPage />);
+    expect(
+      screen.getByRole("alert", { name: "Teklif göndermek için firma doğrulaması gerekir" }),
+    ).toBeInTheDocument();
+    await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
+    await user.type(screen.getByLabelText(/Menşei ülke/), "Türkiye");
+    await user.selectOptions(screen.getByLabelText("Genel teslim süresi"), "W1_2");
+    expect(screen.getAllByRole("button", { name: "Teklif Gönder" })[0]).toBeDisabled();
+    expect(screen.getByText(/firma doğrulaması gerekir — şimdilik taslak/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Taslak Olarak Kaydet" })).toBeEnabled();
+  });
+
+  it("D-274: kalemsiz talepte tutar etiketi birimli, 'Kalem 0' yok", () => {
+    h.detail = baseDetail({ items: [] });
+    render(<TeklifVerPage />);
+    expect(screen.getByText("Tutar (TRY)")).toBeInTheDocument();
+    expect(screen.queryByText("Kalem")).toBeNull();
+  });
+
+  it("D-122: bulunamayan talepte düğme açık taleplere gider ve öyle adlanır", () => {
+    h.detail = undefined;
+    render(<TeklifVerPage />);
+    expect(screen.getByRole("link", { name: "Açık taleplere dön" })).toHaveAttribute(
+      "href",
+      "/company/satis",
+    );
+  });
+
+  it("D-280: gönderilmiş teklif ekranında alıcıya mesaj yolu var", () => {
+    h.detail = baseDetail({
+      ownerCompanyId: "c-buyer",
+      myBid: { amount: "1000", status: "SUBMITTED", version: 2, note: null },
+    });
+    render(<TeklifVerPage />);
+    expect(screen.getByRole("link", { name: "Alıcıya mesaj gönder" })).toHaveAttribute(
+      "href",
+      "/company/mesajlar?with=c-buyer&portal=satis",
+    );
+  });
+
+  describe("pazarlık çalışma masası", () => {
+    const auction = () =>
+      baseDetail({
+        english: { isEnglishAuction: true, currentBest: null, bidCount: 0, currentRound: 1 },
+      } as Partial<ListingDetail>);
+
+    it("Y-10: birim fiyat Türkçe biçimle okunur ('1.500' = bin beş yüz)", async () => {
+      const user = userEvent.setup();
+      h.detail = auction();
+      render(<TeklifVerPage />);
+      await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "1.500");
+      // 1.500 × 10 = 15.000,00 ₺ (eskiden 1,5 okunup 15 ₺ oluyordu).
+      expect(screen.getAllByText(/15\.000,00 ₺/).length).toBeGreaterThanOrEqual(1);
+    });
+
+    it("D-273: X kalemi kapsam dışı bırakır (Hariç), 'Teklif ver' geri ekler", async () => {
+      const user = userEvent.setup();
+      h.detail = auction();
+      render(<TeklifVerPage />);
+      await user.type(screen.getByLabelText("Çelik Boru birim fiyat"), "150");
+      await user.click(screen.getByRole("button", { name: "Bu kaleme teklif verme" }));
+      expect(screen.queryByLabelText("Çelik Boru birim fiyat")).toBeNull();
+      expect(screen.getByText("Hariç")).toBeInTheDocument();
+      await user.click(screen.getByRole("button", { name: "Teklif ver" }));
+      expect(screen.getByLabelText("Çelik Boru birim fiyat")).toBeInTheDocument();
+      // Seçim süzgeci "Hariç" değil "Seçim dışı".
+      expect(screen.getByRole("button", { name: "Seçim dışı" })).toBeInTheDocument();
+    });
   });
 });
