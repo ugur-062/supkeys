@@ -3,7 +3,7 @@
 import { useNavLabel } from "@/i18n/domain";
 import { upperForText } from "@/i18n/format";
 import { useTranslations } from "next-intl";
-import { isManagementUser, userHasPermission } from "@/lib/company/permissions";
+import { userHasPermission } from "@/lib/company/permissions";
 import { RoleBadge } from "@/components/ui/role-badge";
 import { RothernLogo } from "@/components/brand/logo";
 import { PortalSwitch } from "./portal-switch";
@@ -20,6 +20,7 @@ import { useCompanyAuth, useCompanyLogout } from "@/hooks/use-company-auth";
 import {
   COMPANY_AREA,
   COMPANY_AREA_BASE,
+  COMPANY_AREA_PERMISSIONS,
   PORTAL_ORDER,
   accessiblePortals,
   canUseMessaging,
@@ -66,11 +67,10 @@ export function CompanyTopbar({
     canUseMessaging(user, "satis");
   const pathname = usePathname();
   const inCompanyArea = isCompanyAreaPath(pathname);
-  // Şirketim: yönetim ya da en az bir portalı görüntüleyen görür; onaylayıcı-
-  // only kabukta yalnız çan + hesap kalır (yetki tablosu Faz 2).
-  const showCompanyArea =
-    isManagementUser(user) ||
-    userHasPermission(user, ["buy:view", "sell:view"]);
+  // Şirketim: alan kapısıyla AYNI sabit (`COMPANY_AREA_PERMISSIONS`) — tek
+  // "Ziyaret edenler" ya da "Satınalma raporları" tikli kişi de girişi görür
+  // (arayüz testi O-062); onaylayıcı-only kabukta yalnız çan + hesap kalır.
+  const showCompanyArea = userHasPermission(user, COMPANY_AREA_PERMISSIONS);
   /**
    * Portal tuşunun verisi — HESAP SOL MENÜDEKİYLE BİREBİR (`sidebar.tsx`):
    * `visiblePortals` görüntüleme izni, `available` paket kapısı. İki yerde
