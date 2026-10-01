@@ -184,7 +184,8 @@ export function Check({
 export interface FacetOption {
   key: string;
   label: string;
-  count: number;
+  /** Verilmezse sayı çizilmez (bkz. `withSelected` `missingCount`). */
+  count?: number;
   /** Satır ikonu — verilmezse çizilmez (çoğu facet metin listesidir). */
   icon?: ReactNode;
 }
@@ -195,11 +196,20 @@ export interface FacetOption {
  * listeden kayboluyor, grup "Seçenek yok" deyip başlıkta (1) gösteriyordu ve
  * kutucuktan kaldırılamıyordu. `labelFor` verilen grupta bu anahtarlar 0
  * sayıyla listeye eklenir (seçili olduğu için devre dışı kalmaz).
+ *
+ * `missingCount` eksik anahtarın sayısını verir; `undefined` dönerse sayı
+ * ÇİZİLMEZ. Facet'in hiç saymadığı anahtar (talep kategorisi facet'i yalnız
+ * segment sayar, seçili yaprak "Vidalar 0" görünüyordu) için.
  */
-export function withSelected(items: FacetOption[], selected: string[], labelFor?: (key: string) => string): FacetOption[] {
+export function withSelected(
+  items: FacetOption[],
+  selected: string[],
+  labelFor?: (key: string) => string,
+  missingCount: (key: string) => number | undefined = () => 0,
+): FacetOption[] {
   if (!labelFor) return items;
   const missing = selected.filter((k) => !items.some((i) => i.key === k));
-  return missing.length ? [...items, ...missing.map((k) => ({ key: k, label: labelFor(k), count: 0 }))] : items;
+  return missing.length ? [...items, ...missing.map((k) => ({ key: k, label: labelFor(k), count: missingCount(k) }))] : items;
 }
 
 export function ShowMore({
@@ -253,6 +263,7 @@ export function ShowMoreRadio({
   onSelect,
   emptyText,
   labelFor,
+  missingCount,
 }: {
   items: FacetOption[];
   selected?: string;
@@ -261,10 +272,12 @@ export function ShowMoreRadio({
   emptyText?: string;
   /** Bkz. `ShowMore.labelFor`. */
   labelFor?: (key: string) => string;
+  /** Facet'te olmayan seçili anahtarın sayısı; `undefined` → sayı çizilmez (varsayılan 0). */
+  missingCount?: (key: string) => number | undefined;
 }) {
   const t = useTranslations("web.marketplace.filters");
   const [all, setAll] = useState(false);
-  const items = withSelected(facetItems, selected ? [selected] : [], labelFor);
+  const items = withSelected(facetItems, selected ? [selected] : [], labelFor, missingCount);
   const visible = all ? items : items.filter((i, idx) => idx < SHOW || i.key === selected);
   if (items.length === 0) return <p className="px-2 text-xs text-zinc-500">{emptyText ?? t("noOptions")}</p>;
   return (

@@ -1,6 +1,6 @@
 "use client";
 
-import { countryDisplayName, useActivityLabel, useCityLabel } from "@/i18n/domain";
+import { countryDisplayName, useActivityLabel, useCityKeyLabel } from "@/i18n/domain";
 import type { Locale } from "@rothern/i18n";
 import { citySlug, foldSearchText } from "@rothern/shared";
 import { searchGeoCities, type GeoCity } from "@/lib/public/geo-client";
@@ -239,7 +239,7 @@ function LocationGroup({
 }) {
   const t = useTranslations("web.marketplace.filters");
   const [q, setQ] = useState("");
-  const cityLabel = useCityLabel();
+  const cityLabel = useCityKeyLabel();
   const fold = foldSearchText;
   // Dünya şehir listesi (2026-09-27): değer kalıcı adres, ad API'den okuyucunun
   // dilinde (`name`); eski API yanıtında ad yoksa Türk il adı çevrilir.
@@ -475,8 +475,10 @@ function CertificationGroup({
   const items = all
     .filter((c) => !q || fold(c.cert).includes(fold(q)) || state.certs.includes(c.cert))
     .map((c) => ({ key: c.cert, label: c.cert, count: c.count }));
-  // Hiç sertifika beyanı yoksa grup ÇİZİLMEZ — boş kutu basmayız.
-  if (all.length === 0) return null;
+  // Hiç sertifika beyanı yoksa grup ÇİZİLMEZ — boş kutu basmayız. Seçili
+  // sertifika varken çizilir (gözden geçirme, D-336): sonuçsuz aramada facet
+  // boş gelir, seçili sertifika süzgeç rayından kayboluyordu.
+  if (all.length === 0 && state.certs.length === 0) return null;
   return (
     <Group
       title={t("certifications")}

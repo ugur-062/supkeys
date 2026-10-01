@@ -4,11 +4,11 @@ import { activeFilterCount, buildProductFilterQuery, clearProductFilters, parseP
 describe("ürün süzgeç URL şeması", () => {
   it("Türkçe sorguyu ayrıştırır: çoklu şehir/faaliyet, aralık, sıralama", () => {
     const f = parseProductFilters({ q: " pano ", kategori: "39000000", sehir: "İstanbul,İzmir", faaliyet: "MANUFACTURER,hacker", dogrulanmis: "1", fiyat: "var", fiyatMin: "100", fiyatMax: "abc", moqMax: "50", sirala: "fiyat-azalan", nitelik: ["malzeme:Çelik", "bozuk"], sayfa: "3" });
-    expect(f).toMatchObject({ q: "pano", category: "39000000", cities: ["İstanbul", "İzmir"], activities: ["MANUFACTURER"], verified: true, price: "var", priceMin: 100, priceMax: undefined, moqMax: 50, sort: "fiyat-azalan", attrs: ["malzeme:Çelik"], page: 3 });
-    expect(toProductListParams(f)).toMatchObject({ city: "İstanbul,İzmir", activity: "MANUFACTURER", verified: true, price: "has", sort: "price_desc", page: 3 });
+    expect(f).toMatchObject({ q: "pano", category: "39000000", cities: ["istanbul", "izmir"], activities: ["MANUFACTURER"], verified: true, price: "var", priceMin: 100, priceMax: undefined, moqMax: 50, sort: "fiyat-azalan", attrs: ["malzeme:Çelik"], page: 3 });
+    expect(toProductListParams(f)).toMatchObject({ city: "istanbul,izmir", activity: "MANUFACTURER", verified: true, price: "has", sort: "price_desc", page: 3 });
   });
   it("yoldan gelen kategori sorgudakini ezer; eski `il` parametresi okunur", () => {
-    expect(parseProductFilters({ kategori: "11000000", il: "Bursa" }, "39000000")).toMatchObject({ category: "39000000", cities: ["Bursa"] });
+    expect(parseProductFilters({ kategori: "11000000", il: "Bursa" }, "39000000")).toMatchObject({ category: "39000000", cities: ["bursa"] });
   });
   it("arama formu tüm süzgeçleri taşır, arama terimini ve sayfayı taşımaz", () => {
     const f = parseProductFilters({ q: "pano", sehir: "Bursa", para: "EUR", fiyatMin: "500", fiyatMax: "2000", fiyatsizDahil: "1", moqMax: "10", sertifika: "ISO 9001", calisan: "11-50", hizli: "1", yakin: "bursa", mesafe: "100", adet: "48", nitelik: ["a:b", "c:d"], sayfa: "3" });

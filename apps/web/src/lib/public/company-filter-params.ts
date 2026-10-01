@@ -1,4 +1,4 @@
-import { getParam as get, listParam as list, pageParam, type SearchParamsLike } from "./filter-param-utils";
+import { cityListParam, getParam as get, listParam as list, pageParam, type SearchParamsLike } from "./filter-param-utils";
 import type { PublicDirectoryParams } from "./marketplace-api";
 import { isCompanyActivity } from "@rothern/shared";
 
@@ -46,7 +46,7 @@ export function parseCompanyFilters(sp: SearchParamsLike): CompanyFilterState {
   const conn = get(sp, "baglanti");
   return {
     q: get(sp, "q")?.trim() || undefined,
-    cities: list(get(sp, "sehir") ?? get(sp, "il")),
+    cities: cityListParam(get(sp, "sehir") ?? get(sp, "il")),
     countries: list(get(sp, "ulke")).map((c) => c.toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c)),
     activities: list(get(sp, "faaliyet")).filter(isCompanyActivity),
     categories: list(get(sp, "kategori")).filter((c) => /^\d{8}$/.test(c)),

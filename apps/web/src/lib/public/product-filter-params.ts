@@ -1,6 +1,7 @@
 import { isCompanyActivity, isCurrencyCode, isEmployeeBucketKey, isRadiusOption } from "@rothern/shared";
 import type { ProductFacetParams, ProductListParams } from "./marketplace-api";
 import {
+  cityListParam,
   getAllParams as getAll,
   getParam as get,
   listParam as list,
@@ -119,7 +120,7 @@ export function parseProductFilters(
   return {
     q: get(sp, "q")?.trim().slice(0, SEARCH_MAX_LENGTH).trim() || undefined,
     category: cat && /^\d{8}$/.test(cat) ? cat : undefined,
-    cities: list(get(sp, "sehir") ?? get(sp, "il")),
+    cities: cityListParam(get(sp, "sehir") ?? get(sp, "il")),
     countries: list(get(sp, "ulke")).map((c) => c.toUpperCase()).filter((c) => /^[A-Z]{2}$/.test(c)),
     activities: list(get(sp, "faaliyet")).filter(isCompanyActivity),
     verified: get(sp, "dogrulanmis") === "1",

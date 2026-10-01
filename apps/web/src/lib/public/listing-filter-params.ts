@@ -1,4 +1,4 @@
-import { getParam as get, listParam as list, pageParam, type SearchParamsLike } from "./filter-param-utils";
+import { cityListParam, getParam as get, pageParam, type SearchParamsLike } from "./filter-param-utils";
 import type { ListParams } from "./marketplace-api";
 
 /**
@@ -33,7 +33,7 @@ export function parseListingFilters(sp: SearchParamsLike): ListingFilterState {
   return {
     q: get(sp, "q")?.trim() || undefined,
     category: cat && /^\d{8}$/.test(cat) ? cat : undefined,
-    cities: list(get(sp, "sehir") ?? get(sp, "il")),
+    cities: cityListParam(get(sp, "sehir") ?? get(sp, "il")),
     country: country && /^[A-Z]{2}$/.test(country) ? country : undefined,
     within: within === "3" || within === "7" || within === "30" ? within : undefined,
     sort: sort === "yeni" || sort === "kapanis" ? sort : undefined,

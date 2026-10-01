@@ -1,6 +1,6 @@
 "use client";
 
-import { countryDisplayName, useActivityLabel, useCityLabel } from "@/i18n/domain";
+import { countryDisplayName, useActivityLabel, useCityKeyLabel } from "@/i18n/domain";
 import type { Locale } from "@rothern/i18n";
 
 import { useLocale, useTranslations } from "next-intl";
@@ -45,7 +45,7 @@ export function CompanyFilters({
 }) {
   const t = useTranslations("web.marketplace.filters");
   const dirLocale = useLocale() as Locale;
-  const cityLabel = useCityLabel();
+  const cityLabel = useCityKeyLabel();
   const activityLabel = useActivityLabel();
   const { state, update } = useFilters<CompanyFilterState>();
   const profileCount = (state.verified ? 1 : 0) + (state.hasProducts ? 1 : 0) + (state.gold ? 1 : 0);
@@ -148,7 +148,7 @@ export function CompanyFilters({
 export function CompanyActiveChips({ facets }: { facets: PublicDirectoryFacets }) {
   const t = useTranslations("web.marketplace.filters");
   const chipLocale = useLocale() as Locale;
-  const cityLabel = useCityLabel();
+  const cityLabel = useCityKeyLabel();
   const activityLabel = useActivityLabel();
   const { state, update, clear } = useFilters<CompanyFilterState>();
   const categoryName = useCategoryNames(state.categories, facets);

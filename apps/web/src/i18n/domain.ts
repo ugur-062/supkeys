@@ -1,5 +1,5 @@
 import { closingUrgency as closingUrgencyClass, daysUntil } from "@/lib/tenders/seller-state";
-import { COUNTRY_NAMES_I18N, companyActivityLabel, countryName as countryNameTr, parseSystemText, paymentMethodCode, provinceDisplayName } from "@rothern/shared";
+import { COUNTRY_NAMES_I18N, companyActivityLabel, countryName as countryNameTr, parseSystemText, knownCityName, paymentMethodCode, provinceDisplayName } from "@rothern/shared";
 import { DEFAULT_LOCALE, type Locale } from "@rothern/i18n";
 import { useLocale, useTranslations } from "next-intl";
 import { formatDate, type DateVariant } from "@/lib/format-date";
@@ -41,6 +41,21 @@ export function cityDisplayName(city: string | null | undefined, locale: Locale)
 export function useCityLabel(): (city: string | null | undefined) => string {
   const locale = useLocale() as Locale;
   return (city) => cityDisplayName(city, locale);
+}
+
+/**
+ * Süzgeç ANAHTARI → şehir adı: anahtar Türk ilinin kalıcı adresi ("izmir")
+ * olabilir; Türkçede de il adına ("İzmir") çevrilir (`cityDisplayName`
+ * Türkçede ham metni döndürür). Tanınmayan anahtar `cityDisplayName`e düşer.
+ * Facet'te olmayan seçili şehir satırı ve süzgeç çipi için.
+ */
+export function cityKeyDisplayName(key: string, locale: Locale): string {
+  return cityDisplayName(knownCityName(key) ?? key, locale);
+}
+
+export function useCityKeyLabel(): (key: string) => string {
+  const locale = useLocale() as Locale;
+  return (key) => cityKeyDisplayName(key, locale);
 }
 
 /**

@@ -1,6 +1,6 @@
 "use client";
 
-import { countryDisplayName, useCityLabel } from "@/i18n/domain";
+import { countryDisplayName, useCityKeyLabel } from "@/i18n/domain";
 
 import { useLocale, useTranslations } from "next-intl";
 
@@ -18,6 +18,9 @@ const SUPPLIER_COUNTRY_CODES = registrationCountries().map((c) => c.code);
 
 const WITHIN_KEYS = ["3", "7", "30"] as const;
 
+/** UNSPSC segment kodu (L1: "31000000"). */
+const isSegmentCode = (code: string) => /^\d{2}0{6}$/.test(code);
+
 /**
  * ALIM TALEBİ SÜZGEÇLERİ (PROMPT 4) — ürün süzgeciyle aynı yapı taşları:
  * Kategori (tek seçim, segment), Şehir (çoklu), Kalan süre (radyo), Kapsam
@@ -25,7 +28,7 @@ const WITHIN_KEYS = ["3", "7", "30"] as const;
  */
 export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idPrefix: string }) {
   const { state, update } = useFilters<ListingFilterState>();
-  const cityLabel = useCityLabel();
+  const cityLabel = useCityKeyLabel();
   const t = useTranslations("web.marketplace.filters");
   const locale = useLocale();
   const WITHIN = WITHIN_KEYS.map((key) => ({ key, label: t("withinDays", { n: Number(key) }) }));
@@ -45,6 +48,9 @@ export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idP
           onSelect={(k) => update({ category: state.category === k ? undefined : k })}
           emptyText={t("noCategory")}
           labelFor={(k) => (facets.selectedCategory?.id === k ? facets.selectedCategory.name : k)}
+          // Facet yalnız SEGMENT sayar; talep detayındaki çip yaprağa gider
+          // (`?kategori=31161500`) — yaprağın sayısı bilinmez, "0" yazılmaz.
+          missingCount={(k) => (isSegmentCode(k) ? 0 : undefined)}
         />
       </Group>
       <Group
@@ -119,7 +125,7 @@ export function ListingFilters({ facets, idPrefix }: { facets: PublicFacets; idP
 
 export function ListingActiveChips({ facets }: { facets: PublicFacets }) {
   const t = useTranslations("web.marketplace.filters");
-  const cityLabel = useCityLabel();
+  const cityLabel = useCityKeyLabel();
   const locale = useLocale();
   const { state, update, clear } = useFilters<ListingFilterState>();
   const chips: FilterChip[] = [];

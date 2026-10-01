@@ -1,4 +1,6 @@
 import { describe, expect, it } from "vitest";
+import { cityListParam } from "./filter-param-utils";
+import { parseProductFilters } from "./product-filter-params";
 import {
   activeCompanyFilterCount,
   buildCompanyFilterQuery,
@@ -15,28 +17,37 @@ import {
 describe("alım talebi süzgeç URL şeması", () => {
   it("Türkçe sorguyu ayrıştırır; eski `il` okunur; sıralama/ülke/süre çevrilir", () => {
     const f = parseListingFilters(new URLSearchParams("q=boru&kategori=39000000&il=İzmir&ulke=de&sure=7&sirala=kapanis&sayfa=3"));
-    expect(f).toMatchObject({ q: "boru", category: "39000000", cities: ["İzmir"], country: "DE", within: "7", sort: "kapanis", page: 3 });
-    expect(toListingListParams(f)).toMatchObject({ type: "ALIM", city: "İzmir", country: "DE", closesWithin: "7", sort: "closing", page: 3 });
+    expect(f).toMatchObject({ q: "boru", category: "39000000", cities: ["izmir"], country: "DE", within: "7", sort: "kapanis", page: 3 });
+    expect(toListingListParams(f)).toMatchObject({ type: "ALIM", city: "izmir", country: "DE", closesWithin: "7", sort: "closing", page: 3 });
     expect(activeListingFilterCount(f)).toBe(4);
   });
   it("gidiş-dönüş kararlı; geçersiz değerler düşer", () => {
     const f = parseListingFilters({ sehir: "İstanbul,Bursa", sure: "9", ulke: "xyz", sirala: "z", sayfa: "0" });
-    expect(f).toEqual({ q: undefined, category: undefined, cities: ["İstanbul", "Bursa"], country: undefined, within: undefined, sort: undefined, state: undefined, page: 1 });
+    expect(f).toEqual({ q: undefined, category: undefined, cities: ["istanbul", "bursa"], country: undefined, within: undefined, sort: undefined, state: undefined, page: 1 });
     const q = buildListingFilterQuery(f);
-    expect(q).toBe("?sehir=%C4%B0stanbul%2CBursa");
+    expect(q).toBe("?sehir=istanbul%2Cbursa");
     expect(parseListingFilters(new URLSearchParams(q))).toEqual(f);
+  });
+});
+
+describe("şehir değeri kalıcı adrese çevrilir (D-336, gözden geçirme)", () => {
+  it("ham/katlanmış il adı facet anahtarıyla aynı kalıcı adrese iner; tekrar düşer; yabancı adres korunur", () => {
+    expect(cityListParam("İstanbul,istanbul,ISTANBUL,Şanlıurfa,de-munich")).toEqual(["istanbul", "sanliurfa", "de-munich"]);
+    expect(parseListingFilters({ sehir: "İzmir" }).cities).toEqual(["izmir"]);
+    expect(parseCompanyFilters({ sehir: "İzmir" }).cities).toEqual(["izmir"]);
+    expect(parseProductFilters({ sehir: "İzmir" }).cities).toEqual(["izmir"]);
   });
 });
 
 describe("firma dizini süzgeç URL şeması", () => {
   it("çoklu şehir/faaliyet/kategori, bayraklar ve sıralama", () => {
     const f = parseCompanyFilters(new URLSearchParams("sehir=Ankara,İzmir&faaliyet=MANUFACTURER,BOGUS&kategori=39000000,abc&dogrulanmis=1&gold=1&sirala=urun&sayfa=2"));
-    expect(f).toMatchObject({ cities: ["Ankara", "İzmir"], activities: ["MANUFACTURER"], categories: ["39000000"], verified: true, hasProducts: false, gold: true, sort: "urun", page: 2 });
-    expect(toDirectoryParams(f)).toMatchObject({ city: "Ankara,İzmir", activity: "MANUFACTURER", category: "39000000", verified: true, gold: true, sort: "products", page: 2 });
+    expect(f).toMatchObject({ cities: ["ankara", "izmir"], activities: ["MANUFACTURER"], categories: ["39000000"], verified: true, hasProducts: false, gold: true, sort: "urun", page: 2 });
+    expect(toDirectoryParams(f)).toMatchObject({ city: "ankara,izmir", activity: "MANUFACTURER", category: "39000000", verified: true, gold: true, sort: "products", page: 2 });
     expect(activeCompanyFilterCount(f)).toBe(6);
     expect(parseCompanyFilters(new URLSearchParams(buildCompanyFilterQuery(f)))).toEqual(f);
   });
   it("eski `il` parametresi okunur", () => {
-    expect(parseCompanyFilters({ il: "Bursa" }).cities).toEqual(["Bursa"]);
+    expect(parseCompanyFilters({ il: "Bursa" }).cities).toEqual(["bursa"]);
   });
 });

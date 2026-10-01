@@ -2,22 +2,35 @@
 /**
  * SÜZGEÇ YAPI TAŞLARI ve ARAMA SEKMELERİ — arayüz testi webA-12:
  *  · D-326 grup (fieldset) başlığıyla ADLANDIRILIR
- *  · D-336 facet'ten düşen SEÇİLİ seçenek 0 sayıyla listede kalır
+ *  · D-336 facet'ten düşen SEÇİLİ seçenek 0 sayıyla listede kalır (facet'in
+ *    saymadığı yaprak kategori sayısız; boş sertifika facet'inde seçili
+ *    sertifika görünür; eski bağlantıdaki ham il adı facet satırını işaretler)
  *  · D-322 çekmece açıkken kırılım geçilince çekmece kapanır (karartma kalmaz)
  *  · D-327 arama yokken sekmelerde sayaç yok
  */
-import { act, fireEvent, render, screen } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
+const nav = vi.hoisted(() => ({ search: "" }));
 vi.mock("next/navigation", () => ({
   useRouter: () => ({ push: vi.fn(), replace: vi.fn() }),
-  useSearchParams: () => new URLSearchParams(),
+  useSearchParams: () => new URLSearchParams(nav.search),
   usePathname: () => "/urunler",
 }));
 
 import { Group, ShowMore } from "../filter-primitives";
-import { FilterShellCore, MobileFilterButton } from "../filter-shell";
+import { FilterShell, FilterShellCore, MobileFilterButton } from "../filter-shell";
+import { CompanyFilters } from "../company-filters";
+import { CompanyFilterShell, ListingFilterShell } from "../list-filter-shells";
+import { ListingFilters } from "../listing-filters";
+import { ProductFilters } from "../product-filters";
 import { PublicSearchTabs } from "../public-search-tabs";
+import type { PublicFacets, ProductFacets } from "@/lib/public/marketplace-api";
+
+afterEach(() => {
+  nav.search = "";
+});
 
 type S = { page: number };
 function Shell({ children, drawer }: { children?: React.ReactNode; drawer?: React.ReactNode }) {
@@ -64,6 +77,111 @@ describe("ShowMore — facet'te olmayan seçili seçenek (D-336)", () => {
       </Shell>,
     );
     expect(screen.getByText("Seçenek yok")).toBeInTheDocument();
+  });
+});
+
+const listingFacets: PublicFacets = {
+  categories: [{ id: "31000000", name: "Üretim bileşenleri", level: 1, count: 3 }],
+  cities: [{ city: "izmir", name: "İzmir", country: "TR", count: 12 }],
+  types: [],
+  openToAll: 0,
+  countries: [],
+  selectedCategory: { id: "31161500", name: "Vidalar", level: 3 },
+  truncated: false,
+};
+
+describe("ListingFilters — facet'in saymadığı seçili kategori (D-336, gözden geçirme)", () => {
+  it("segment olmayan seçili kategori sayısız listelenir ('Vidalar 0' yazılmaz)", () => {
+    nav.search = "kategori=31161500";
+    render(
+      <ListingFilterShell total={3} drawer={null}>
+        <ListingFilters facets={listingFacets} idPrefix="t" />
+      </ListingFilterShell>,
+    );
+    // Tek seçimli liste görsel olarak kutucuk (ShowMoreRadio → Check).
+    const box = screen.getByRole("checkbox", { name: "Vidalar" }) as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    expect(box.closest("label")!.textContent).toBe("Vidalar");
+  });
+
+  it("sonuçsuz kalan seçili SEGMENT 0 sayıyla kalır", () => {
+    nav.search = "kategori=42000000";
+    render(
+      <ListingFilterShell total={0} drawer={null}>
+        <ListingFilters facets={{ ...listingFacets, selectedCategory: { id: "42000000", name: "Tıbbi ekipman", level: 1 } }} idPrefix="t" />
+      </ListingFilterShell>,
+    );
+    expect(screen.getByRole("checkbox", { name: /Tıbbi ekipman/ }).closest("label")!.textContent).toBe("Tıbbi ekipman0");
+  });
+});
+
+describe("Şehir süzgeci — eski bağlantıdaki ham il adı (D-336, gözden geçirme)", () => {
+  it("?il=İzmir facet'teki 'İzmir 12' satırını işaretler, '0' kopyası eklenmez", () => {
+    nav.search = "il=%C4%B0zmir";
+    render(
+      <ListingFilterShell total={12} drawer={null}>
+        <ListingFilters facets={listingFacets} idPrefix="t" />
+      </ListingFilterShell>,
+    );
+    const boxes = screen.getAllByRole("checkbox", { name: /İzmir/ }) as HTMLInputElement[];
+    expect(boxes).toHaveLength(1);
+    expect(boxes[0]!.checked).toBe(true);
+    expect(boxes[0]!.closest("label")!.textContent).toBe("İzmir12");
+  });
+
+  it("firma dizininde de ?sehir=İzmir tek satır ve işaretli", () => {
+    nav.search = "sehir=%C4%B0zmir";
+    render(
+      <QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false, enabled: false } } })}>
+        <CompanyFilterShell total={12} drawer={null}>
+          <CompanyFilters
+            facets={{ total: 12, verified: 0, withProducts: 0, activities: [], cities: [{ city: "izmir", name: "İzmir", country: "TR", count: 12 }] }}
+            idPrefix="t"
+          />
+        </CompanyFilterShell>
+      </QueryClientProvider>,
+    );
+    const boxes = screen.getAllByRole("checkbox", { name: /İzmir/ }) as HTMLInputElement[];
+    expect(boxes).toHaveLength(1);
+    expect(boxes[0]!.checked).toBe(true);
+  });
+});
+
+describe("Sertifika süzgeci — boş facet'te seçili sertifika (D-336, gözden geçirme)", () => {
+  const productFacets: ProductFacets = {
+    categories: [],
+    cities: [],
+    activities: [],
+    verified: 0,
+    price: { has: 0, request: 0 },
+    attributes: [],
+    certifications: [],
+    truncated: false,
+  };
+
+  it("sonuçsuz aramada grup çizilir, seçili sertifika işaretli ve kaldırılabilir", () => {
+    nav.search = "q=zzzzqqq&sertifika=ISO%209001";
+    render(
+      <FilterShell basePath="/urunler" total={0}>
+        <ProductFilters facets={productFacets} idPrefix="t" />
+      </FilterShell>,
+    );
+    const group = screen.getByRole("group", { name: "Sertifikalar" });
+    // Grup varsayılan kapalı — başlıktan açılır.
+    fireEvent.click(within(group).getAllByRole("button")[0]!);
+    const box = within(group).getByRole("checkbox", { name: /ISO 9001/ }) as HTMLInputElement;
+    expect(box.checked).toBe(true);
+    expect(box.disabled).toBe(false);
+  });
+
+  it("seçim de facet de yoksa grup çizilmez", () => {
+    nav.search = "q=zzzzqqq";
+    render(
+      <FilterShell basePath="/urunler" total={0}>
+        <ProductFilters facets={productFacets} idPrefix="t" />
+      </FilterShell>,
+    );
+    expect(screen.queryByRole("group", { name: "Sertifikalar" })).toBeNull();
   });
 });
 
