@@ -10,7 +10,7 @@ import { GatedField } from "@/components/marketplace/gated-field";
 import { MARKET_GROUND, PublicLayout } from "@/components/marketplace/public-layout";
 import { JsonLd } from "@/components/seo/json-ld";
 import { companySeo } from "@/lib/seo/entities";
-import { contentLangOf } from "@/lib/seo/meta";
+import { publicProfileViewData } from "@/lib/public/public-profile-view";
 import { PANEL_TARGET, loginHref } from "@/lib/public/visibility";
 import { Link } from "@/i18n/navigation";
 import type { Metadata } from "next";
@@ -130,30 +130,9 @@ export default async function PublicCompanyProfile({
             (`gate.aside`); diğer kapılar satır içi bağlantı. */}
         <ViewBeacon type="profile" companySlug={slug} />
         <CompanyProfileView
-          profile={{
-            name: p.name,
-            goldMember: p.goldMember,
-            verified: p.verified,
-            industry: p.industry,
-            activities: p.activities,
-            categories: p.categories,
-            city: p.city,
-            country: p.country,
-            logoUrl: p.logoUrl,
-            coverImageUrl: p.coverImageUrl,
-            aboutText: p.aboutText,
-            // Tanıtım bu dilde hazır değilse (çeviri bekliyor / yabancı kaynak) bloklar kaynağın `lang`ını taşır.
-            contentLang: contentLangOf(p, locale),
-            services: p.services ?? [],
-            certifications: p.certifications ?? [],
-            certificateImages: p.certificateImages ?? [],
-            foundedYear: p.foundedYear,
-            employeeCount: p.employeeCount,
-            ratingAvg: p.ratingAvg,
-            // Kapılı alanlar (Rothern ID, web/sosyal, puan dağılımı, sipariş
-            // sayıları) BURAYA YAZILMAZ — null bile değil; anahtar adı RSC
-            // yüküne düşerdi.
-          }}
+          // Alan alan beyaz liste (kapılı alanlar yazılmaz) + otomatik çeviri
+          // notu için `translatedFrom` — tek kaynak (arayüz testi O-018).
+          profile={publicProfileViewData(p, locale)}
           actions={
             // Dil farkında Link: ham <a> dil önekini eklemiyor, EN/RU ziyaretçi
             // Türkçe giriş sayfasına düşüyordu (derin denetim LU-22).

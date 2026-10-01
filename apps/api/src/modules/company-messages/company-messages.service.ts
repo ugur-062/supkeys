@@ -65,6 +65,13 @@ export class CompanyMessagesService {
       );
       const to = recipients.get(companyId);
       if (!to) return;
+      // Gönderen FİRMA adı da konuda/gövdede (arayüz testi D-114): yalnız kişi
+      // adı ("Ayşe Yılmaz size mesaj gönderdi") alıcıya kimin yazdığını söylemiyordu.
+      const senderCompany = await this.prisma.company.findUnique({
+        where: { id: senderCompanyId },
+        select: { name: true },
+      });
+      const company = senderCompany?.name?.trim() || senderName;
       const email = to.email;
       const name = to.name;
       const baseUrl =
@@ -76,6 +83,7 @@ export class CompanyMessagesService {
         tApi(key, values, locale);
       const subject = t("api.notifications.companyMessages.newMessage.subject", {
         sender: senderName,
+        company,
       });
       await this.email.send({
         to: { email, name },
@@ -90,6 +98,7 @@ export class CompanyMessagesService {
               t("api.notifications.companyMessages.newMessage.greeting"),
               t("api.notifications.companyMessages.newMessage.body", {
                 sender: senderName,
+                company,
               }),
             ],
             ctaLabel: t("api.notifications.companyMessages.newMessage.cta"),

@@ -148,7 +148,10 @@ export function CompanyMessageThread({
               value={content}
               onChange={(e) => setContent(e.target.value)}
               onKeyDown={onKey}
-              placeholder={t("mesajYazEnterGonderShift")}
+              // Kısa yer tutucu (D-008): uzun "Enter/Shift+Enter" metni 390 px'te
+              // iki satıra bölünüp kesiliyordu; klavye ipucu yalnız geniş ekranda alt satırda.
+              placeholder={t("mesajYaz")}
+              aria-describedby="company-message-enter-hint"
               rows={1}
               className="max-h-32 w-full resize-none rounded-lg border border-surface-border bg-white px-3.5 py-2 text-sm shadow-sm focus:outline-none focus:ring-2 focus:ring-zinc-900/10"
             />
@@ -167,6 +170,9 @@ export function CompanyMessageThread({
             )}
           </button>
         </div>
+        <p id="company-message-enter-hint" className="mt-1 hidden px-0.5 text-xs text-zinc-500 sm:block">
+          {t("enterIpucu")}
+        </p>
       </div>
       )}
     </div>

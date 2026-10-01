@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import type { ReactNode } from "react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
+import { markNavEntry, noteNavigation, resetNavHistoryForTest } from "@/lib/nav-history";
 
 const h = vi.hoisted(() => ({
   profile: null as unknown,
@@ -113,6 +114,8 @@ beforeEach(() => {
   vi.clearAllMocks();
   h.portal = "satinalma";
   h.profile = profile();
+  resetNavHistoryForTest();
+  window.history.replaceState(null, "", "/company/firma/RTH-OTHER");
 });
 
 describe("Panel firma profili (derin denetim LU-20)", () => {
@@ -152,5 +155,79 @@ describe("Panel firma profili (derin denetim LU-20)", () => {
     h.profile = profile();
     render(<CompanyProfilePage />);
     expect(screen.getByText("Teklif ver")).toBeInTheDocument();
+  });
+});
+
+describe("Panel firma profili (arayüz testi webA-04)", () => {
+  it("'Size istek gönderdi — Yanıtla' bulunulan portalın Gelen istekler görünümüne gider (D-328, D-069)", () => {
+    login("GOLD");
+    h.profile = profile({ connectionStatus: "incoming" });
+    const { unmount } = render(<CompanyProfilePage />);
+    expect(screen.getByRole("link", { name: /Yanıtla/ })).toHaveAttribute(
+      "href",
+      "/company/satinalma/tedarikcilerim?view=incoming",
+    );
+    unmount();
+    h.portal = "satis";
+    render(<CompanyProfilePage />);
+    expect(screen.getByRole("link", { name: /Yanıtla/ })).toHaveAttribute(
+      "href",
+      "/company/satis/musterilerim?view=incoming",
+    );
+  });
+
+  it("engelleme sonrası yönlendirme erişilebilir portaldan (satış-yalnız kullanıcı satınalma ret ekranına düşmez — D-069)", async () => {
+    login("SILVER");
+    h.portal = "satis";
+    h.block.mockResolvedValue({});
+    const user = userEvent.setup();
+    render(<CompanyProfilePage />);
+    await user.click(screen.getByRole("button", { name: "Engelle" }));
+    await user.click(screen.getByRole("button", { name: "dialog:Engelle" }));
+    await vi.waitFor(() => expect(h.replace).toHaveBeenCalledWith("/company/satis/musterilerim"));
+  });
+
+  it("menü öğeleri cümle düzeninde (D-269)", () => {
+    login("SILVER");
+    h.profile = profile({ connectionStatus: "active", connectionId: "k1", connected: true });
+    render(<CompanyProfilePage />);
+    expect(screen.getByRole("button", { name: "Bağlantıyı kaldır" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Şikayet et" })).toBeInTheDocument();
+  });
+
+  it("STANDART izleyen: gizlenen herkese açık talepler için gerçek sayılı kilit kartı; 'açık talep yok' ve 'Bağlanırsanız…' yazmaz (D-329)", () => {
+    login("STANDART");
+    h.portal = "satis";
+    h.profile = profile({ listings: [], lockedListingCount: 3 });
+    render(<CompanyProfilePage />);
+    expect(screen.queryByText("Şu an açık satın alma talebi yok.")).not.toBeInTheDocument();
+    expect(screen.queryByText(/Bağlanırsanız/)).not.toBeInTheDocument();
+    expect(screen.getByText("Bu firmanın açık alım talepleri var")).toBeInTheDocument();
+    expect(screen.getByText("3 açık alım talebi")).toBeInTheDocument();
+  });
+
+  it("Silver izleyen bağsız: 'Bağlanırsanız…' ipucu kalır, kilit kartı yok", () => {
+    login("SILVER");
+    render(<CompanyProfilePage />);
+    expect(screen.getByText(/Bağlanırsanız/)).toBeInTheDocument();
+    expect(screen.queryByText("Bu firmanın açık alım talepleri var")).not.toBeInTheDocument();
+  });
+
+  it("geri bağlantısı: doğrudan açılışta 'Bağlantılar', uygulama içinden gelince 'Geri' (D-156)", async () => {
+    login("SILVER");
+    const { unmount } = render(<CompanyProfilePage />);
+    expect(await screen.findByRole("link", { name: "Bağlantılar" })).toHaveAttribute(
+      "href",
+      "/company/satinalma/tedarikcilerim",
+    );
+    unmount();
+    // Sekme Firmalar'da açıldı, firmaya istemci tarafında gidildi (referrer değişmez).
+    resetNavHistoryForTest();
+    window.history.replaceState(null, "", "/company/satinalma/firmalar");
+    markNavEntry();
+    window.history.pushState(null, "", "/company/firma/RTH-OTHER");
+    noteNavigation();
+    render(<CompanyProfilePage />);
+    expect(await screen.findByRole("button", { name: "Geri" })).toBeInTheDocument();
   });
 });

@@ -27,6 +27,7 @@ import { Text } from "@/components/catalyst/text";
 import { AvatarInitials } from "@/components/ui/avatar-initials";
 import { Thumb } from "@/components/ui/thumb";
 import {
+  useBlocks,
   useCancelReferralInvite,
   useConnections,
   useConnectionSelf,
@@ -38,6 +39,7 @@ import {
   useReferralInvites,
   useBlockCompany,
   useRespondInvite,
+  useUnblockCompany,
   type ConnectionCompany,
 } from "@/hooks/use-company-connections";
 import {
@@ -56,6 +58,7 @@ import { marketCompaniesPath } from "@/lib/company/panel-market";
 import { useCityLabel } from "@/i18n/domain";
 import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
 import type { PortalKey } from "@/lib/company/portals";
+import { PRICING_HREF } from "@/components/company/silver-lock-card";
 import {
   BadgeCheck,
   Ban,
@@ -65,6 +68,7 @@ import {
   Copy,
   Flag,
   Inbox,
+  Lock,
   MailPlus,
   MessageSquare,
   MoreVertical,
@@ -73,7 +77,8 @@ import {
   Users,
 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
-import { useMemo, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import { useEffect, useMemo, useState } from "react";
 import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
@@ -93,6 +98,13 @@ import { toast } from "sonner";
  *    eylem: Mesaj+menü / Kabul-Reddet / Geri çek / İptal et. 50'şer çizim.
  *    Ray denemesi (ikinci-üçüncü tur) kaldırıldı.
  * İzinsiz üye (connections:manage yok) her şeyi salt-okunur görür.
+ *
+ * Arayüz testi düzeltmeleri (webA-04): dördüncü görünüm "Engellenenler" +
+ * onaylı "Engeli kaldır" (Y-05; birleşik arayüz yeniden yazımında kaybolmuştu);
+ * başlangıç görünümü `?view=` parametresinden (D-328 — firma sayfasındaki
+ * "Yanıtla" ve bağlantı isteği e-postası gelen istekleri açar); Reddet / Geri
+ * çek / davet İptal et de onay ister (D-265); ücretsiz pakette "Davet et"
+ * gizlenmez, Paketler'e giden kilitli düğme olur (O-097).
  */
 export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }) {
   const t = useTranslations("web.panel.company.connectionsView");
@@ -104,6 +116,8 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
   const respond = useRespondInvite();
   const cancelReferral = useCancelReferralInvite();
   const disconnectOutgoing = useDisconnect();
+  const blocks = useBlocks();
+  const confirmDialog = useConfirm();
 
   // STANDART davet GÖNDEREMEZ (gelen daveti kabul eder) — kilit yalnız
   // "Davet et" düğmesinde; listeler herkese açık.
@@ -119,12 +133,20 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
   // göster (veri zaten inmiş; kesim yalnız çizimde). Arama değişince sıfırlanır.
   const PAGE = 50;
   const [shown, setShown] = useState(PAGE);
-  const [view, setView] = useState<View>("mine");
+  // Başlangıç görünümü adresten (`?view=incoming` …); adres sonradan değişirse
+  // (bildirim/e-posta bağlantısı sayfa açıkken) görünüm de izler.
+  const searchParams = useSearchParams();
+  const viewParam = parseView(searchParams?.get("view"));
+  const [view, setView] = useState<View>(viewParam ?? "mine");
+  useEffect(() => {
+    if (viewParam) setView(viewParam);
+  }, [viewParam]);
 
   const rothernId = self.data?.rothernId ?? null;
   const incomingRows = incoming.data ?? [];
   const outgoingRows = outgoing.data ?? [];
   const referralRows = referralInvites.data ?? [];
+  const blockedRows = blocks.data ?? [];
   const connCount = connections.data?.length ?? 0;
   const pendingCount = outgoingRows.length + referralRows.length;
 
@@ -152,6 +174,16 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
   };
 
   const handleRespond = async (connectionId: string, action: "accept" | "reject") => {
+    if (action === "reject") {
+      const name = incomingRows.find((r) => r.connectionId === connectionId)?.company.name ?? "";
+      const ok = await confirmDialog({
+        title: t("istekReddedilsinMi"),
+        description: t("istekReddedilsinAciklama", { name }),
+        confirmLabel: t("reddet"),
+        destructive: true,
+      });
+      if (!ok) return;
+    }
     try {
       await respond.mutateAsync({ connectionId, action });
       toast.success(action === "accept" ? t("baglantiKuruldu") : t("istekReddedildi"));
@@ -166,6 +198,9 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
     if (view === "incoming") {
       return incomingRows.map((inv) => ({ kind: "incoming" as const, id: inv.connectionId, company: inv.company }));
     }
+    if (view === "blocked") {
+      return blockedRows.map((b) => ({ kind: "blocked" as const, id: b.company.id, company: b.company }));
+    }
     if (view === "pending") {
       return [
         ...outgoingRows.map((inv) => ({ kind: "outgoing" as const, id: inv.connectionId, company: inv.company })),
@@ -173,14 +208,21 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
       ];
     }
     return filteredConnections.map((c) => ({ kind: "mine" as const, id: c.connectionId, company: c.company }));
-  }, [view, incomingRows, outgoingRows, referralRows, filteredConnections]);
+  }, [view, incomingRows, outgoingRows, referralRows, blockedRows, filteredConnections]);
   const loading =
-    view === "incoming" ? incoming.isLoading : view === "pending" ? outgoing.isLoading : connections.isLoading;
+    view === "incoming"
+      ? incoming.isLoading
+      : view === "pending"
+        ? outgoing.isLoading
+        : view === "blocked"
+          ? blocks.isLoading
+          : connections.isLoading;
 
   const VIEWS: { key: View; label: string; count: number; attention?: boolean; icon: typeof Users }[] = [
     { key: "mine", label: t("baglantilarim"), count: connCount, icon: Users },
     { key: "incoming", label: t("gelenIstekler"), count: incomingRows.length, attention: true, icon: Inbox },
     { key: "pending", label: t("bekleyenler"), count: pendingCount, icon: Clock },
+    { key: "blocked", label: t("engellenenler"), count: blockedRows.length, icon: Ban },
   ];
   /* PORTAL RENGİ (2026-09-18, kullanıcı: "hangi paneldeyse o renge uyumlu"):
      başlık ikonu, seçili görünüm çipi ve "Bağlı" pili portal tonunda —
@@ -234,11 +276,19 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
             <Search data-slot="icon" />
             {t("firmaBul")}
           </Button>
-          {isPaid && canManageConn ? (
-            <Button onClick={() => setInviteOpen(true)}>
-              <MailPlus data-slot="icon" />
-              {t("davetEt")}
-            </Button>
+          {canManageConn ? (
+            isPaid ? (
+              <Button onClick={() => setInviteOpen(true)}>
+                <MailPlus data-slot="icon" />
+                {t("davetEt")}
+              </Button>
+            ) : (
+              // Silver+ eylem ücretsizde KİLİTLİ görünür (CLAUDE.md kuralı; O-097).
+              <Button outline href={PRICING_HREF}>
+                <Lock data-slot="icon" />
+                {t("silverIleDavetEt")}
+              </Button>
+            )
           ) : null}
         </div>
       </div>
@@ -304,7 +354,8 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
           view === "mine" && connCount === 0 ? (
             <EmptyBox
               title={t("henuzBaglantinizYok")}
-              desc={t("anasayfadanFirmaBulupBaglantiIstegi")}
+              // Ücretsiz pakette istek/davet gönderilemez — yapılamayan eylemi önermez (O-097).
+              desc={isPaid ? t("anasayfadanFirmaBulupBaglantiIstegi") : t("gelenIstekleriKabulEdebilirsiniz")}
               action={
                 <Button outline href={marketCompaniesPath(portal)}>
                   {t("firmaBul")}
@@ -315,6 +366,8 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
             <EmptyBox title={t("eslesenBaglantiYok")} desc={t("ileEslesenBaglantinizBulunamadi", { connQ: connQ })} />
           ) : view === "incoming" ? (
             <EmptyBox title={t("bekleyenIstekYok")} desc={t("sizeGonderilenBaglantiIstekleriBurada")} />
+          ) : view === "blocked" ? (
+            <EmptyBox title={t("engelliFirmaYok")} desc={t("engellediginizFirmalarBurada")} />
           ) : (
             <EmptyBox title={t("bekleyenIsteginizYok")} desc={t("gonderdiginizIstekVeDavetlerYanitlanana")} />
           )
@@ -363,13 +416,25 @@ export function ConnectionsView({ portal = "satinalma" }: { portal?: PortalKey }
   );
 }
 
-type View = "mine" | "incoming" | "pending";
+const VIEW_KEYS = ["mine", "incoming", "pending", "blocked"] as const;
+type View = (typeof VIEW_KEYS)[number];
+/** `?view=` değeri → görünüm (bilinmeyen değer yok sayılır). */
+function parseView(raw: string | null | undefined): View | null {
+  return (VIEW_KEYS as readonly string[]).includes(raw ?? "") ? (raw as View) : null;
+}
 /** Tablo başlığı — küçük büyük harf, sessiz (mockup 2026-09-18). */
 const TH = "text-xs font-semibold uppercase tracking-wide text-zinc-500";
+/**
+ * Firma sütunu kalan genişliği alır ve İÇİNDE kısalır (`max-w-0 w-full`):
+ * tablo `whitespace-nowrap` olduğu için uzun ad/alt satır dar ekranda eylem
+ * sütununu ekran dışına itiyordu (arayüz testi D-008).
+ */
+const FIRM_CELL = "w-full max-w-0";
 type TableRowData =
   | { kind: "mine"; id: string; company: ConnectionCompany }
   | { kind: "incoming"; id: string; company: ConnectionCompany }
   | { kind: "outgoing"; id: string; company: ConnectionCompany }
+  | { kind: "blocked"; id: string; company: ConnectionCompany }
   | { kind: "referral"; id: string; email: string };
 
 /** Logo/baş harf + ad + Doğrulanmış + alt satır (sektör · şehir · ID). */
@@ -377,11 +442,14 @@ function CompanyLine({
   company: c,
   hint,
   compact = false,
+  linked = true,
 }: {
   company: ConnectionCompany;
   hint?: string;
   /** Ray kartlarında küçük avatar. */
   compact?: boolean;
+  /** Engellenen firmanın profili 404 döner → bağlantı çizilmez. */
+  linked?: boolean;
 }) {
   const t = useTranslations("web.panel.company.connectionsView");
   const cityLabel = useCityLabel();
@@ -413,7 +481,7 @@ function CompanyLine({
       </div>
     </>
   );
-  if (!c.rothernId) return <div className="flex min-w-0 items-center gap-3">{inner}</div>;
+  if (!c.rothernId || !linked) return <div className="flex min-w-0 items-center gap-3">{inner}</div>;
   return (
     <Link href={`/company/firma/${c.rothernId}`} className="flex min-w-0 items-center gap-3 hover:opacity-90">
       {inner}
@@ -443,6 +511,7 @@ function ConnectionTableRow({
   const block = useBlockCompany();
   const complaint = useFileComplaint();
   const cancelReferral = useCancelReferralInvite();
+  const unblock = useUnblockCompany();
   const confirmDialog = useConfirm();
   const [complaintOpen, setComplaintOpen] = useState(false);
   const cityLabel = useCityLabel();
@@ -450,7 +519,7 @@ function ConnectionTableRow({
   if (row.kind === "referral") {
     return (
       <TableRow>
-        <TableCell>
+        <TableCell className={FIRM_CELL}>
           <div className="flex min-w-0 items-center gap-3">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-full bg-zinc-100 text-zinc-500">
               <MailPlus className="size-4" />
@@ -471,6 +540,13 @@ function ConnectionTableRow({
               plain
               disabled={cancelReferral.isPending && cancelReferral.variables === row.id}
               onClick={async () => {
+                const ok = await confirmDialog({
+                  title: t("davetIptalEdilsinMi"),
+                  description: t("davetIptalAciklama", { email: row.email }),
+                  confirmLabel: t("iptalEt"),
+                  destructive: true,
+                });
+                if (!ok) return;
                 try {
                   await cancelReferral.mutateAsync(row.id);
                   toast.success(t("davetIptalEdildi"));
@@ -523,6 +599,21 @@ function ConnectionTableRow({
     }
   };
 
+  const handleUnblock = async () => {
+    const ok = await confirmDialog({
+      title: t("engelKaldirilsinMi"),
+      description: t("engelKaldirAciklama", { name: c.name }),
+      confirmLabel: t("engeliKaldir"),
+    });
+    if (!ok) return;
+    try {
+      await unblock.mutateAsync(row.id);
+      toast.success(t("engelKaldirildi"));
+    } catch (err) {
+      toast.error(extractErrorMessage(err, t("engelKaldirilamadi")));
+    }
+  };
+
   const submitComplaint = async (reason: string) => {
     if (!c.rothernId || reason.trim().length < 3) return;
     try {
@@ -536,8 +627,8 @@ function ConnectionTableRow({
 
   return (
     <TableRow>
-      <TableCell>
-        <CompanyLine company={c} compact />
+      <TableCell className={FIRM_CELL}>
+        <CompanyLine company={c} compact linked={row.kind !== "blocked"} />
       </TableCell>
       <TableCell className="hidden text-sm text-zinc-600 md:table-cell">{meta || "—"}</TableCell>
       <TableCell className="hidden sm:table-cell">
@@ -548,6 +639,8 @@ function ConnectionTableRow({
           </span>
         ) : row.kind === "incoming" ? (
           <Badge color="amber">{t("istekGeldi")}</Badge>
+        ) : row.kind === "blocked" ? (
+          <Badge color="red">{t("engellendiRozet")}</Badge>
         ) : (
           <Badge color="zinc">{t("istekGonderildi")}</Badge>
         )}
@@ -565,12 +658,25 @@ function ConnectionTableRow({
                 </Button>
               </>
             ) : null
+          ) : row.kind === "blocked" ? (
+            canManage ? (
+              <Button plain disabled={unblock.isPending && unblock.variables === row.id} onClick={handleUnblock}>
+                {t("engeliKaldir")}
+              </Button>
+            ) : null
           ) : row.kind === "outgoing" ? (
             canManage ? (
               <Button
                 plain
                 disabled={disconnect.isPending && disconnect.variables === row.id}
                 onClick={async () => {
+                  const ok = await confirmDialog({
+                    title: t("istekGeriCekilsinMi"),
+                    description: t("istekGeriCekilsinAciklama", { name: c.name }),
+                    confirmLabel: t("geriCek"),
+                    destructive: true,
+                  });
+                  if (!ok) return;
                   try {
                     await disconnect.mutateAsync(row.id);
                     toast.success(t("istekGeriCekildi"));
@@ -584,9 +690,11 @@ function ConnectionTableRow({
             ) : null
           ) : (
             <>
+              {/* Dar ekranda yalnız simge (D-008): metinli düğme + ⋮ 390 px'te
+                  satırı ekrandan taşırıyordu; erişilebilir ad korunur. */}
               <Button outline href={`/company/mesajlar?with=${c.id}&portal=${portal}`}>
                 <MessageSquare data-slot="icon" />
-                {t("mesaj")}
+                <span className="max-sm:sr-only">{t("mesaj")}</span>
               </Button>
               {canManage ? (
                 <Dropdown>

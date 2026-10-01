@@ -461,7 +461,8 @@
       "text": "Ürününüzle eşleşiyor: {product}"
     },
     "talepBaskaUlkelereAcik": "Bu talep yalnız belirli ülkelerdeki tedarikçilere açık; firmanızın ülkesi bu listede değil.",
-    "teklifGecerliligiAzOnceUzatildi": "Teklifin geçerlilik süresi az önce güncellendi; sayfayı yenileyip kontrol edin"
+    "teklifGecerliligiAzOnceUzatildi": "Teklifin geçerlilik süresi az önce güncellendi; sayfayı yenileyip kontrol edin",
+    "kazandirilacakMiktarKalemMiktariniAsamaz": "“{name}” kalemi için kazandırılacak miktar talep miktarını aşamaz"
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "Talep bulunamadı",
@@ -1437,7 +1438,8 @@
       "request": {
         "title": "Yeni bağlantı isteği",
         "body": "{company} sizinle bağlantı kurmak istiyor. Bağlantılar sayfasındaki Gelen İstekler'den yanıtlayabilirsiniz.",
-        "emailBody": "{company} sizinle bağlantı kurmak istiyor. Rothern'de Bağlantılar → Gelen İstekler'den yanıtlayabilirsiniz."
+        "emailBody": "{company} sizinle bağlantı kurmak istiyor. Rothern'de Bağlantılar → Gelen İstekler'den yanıtlayabilirsiniz.",
+        "emailCta": "Gelen istekleri gör"
       },
       "accepted": {
         "title": "Bağlantı isteğiniz kabul edildi",
@@ -1446,10 +1448,10 @@
     },
     "companyMessages": {
       "newMessage": {
-        "subject": "{sender} size mesaj gönderdi",
+        "subject": "{sender} ({company}) size mesaj gönderdi",
         "heading": "Yeni mesajınız var",
         "greeting": "Merhaba,",
-        "body": "{sender} size Rothern üzerinden bir mesaj gönderdi. Görüntülemek ve yanıtlamak için giriş yapın.",
+        "body": "{company} firmasından {sender} size Rothern üzerinden bir mesaj gönderdi. Görüntülemek ve yanıtlamak için giriş yapın.",
         "cta": "Mesajları Gör"
       }
     },

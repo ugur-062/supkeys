@@ -34,8 +34,10 @@ export function DropdownMenu({
         className,
         // Anchor positioning
         '[--anchor-gap:--spacing(2)] [--anchor-padding:--spacing(1)] data-[anchor~=end]:[--anchor-offset:6px] data-[anchor~=start]:[--anchor-offset:-6px] sm:data-[anchor~=end]:[--anchor-offset:4px] sm:data-[anchor~=start]:[--anchor-offset:-4px]',
-        // Base styles
-        'isolate w-max rounded-xl p-1',
+        // Base styles — `z-50`: menü <body> sonuna portal olarak çizilir; z-index
+        // vermezsek `relative z-10` başlık satırları ve kabuğun `fixed z-30` kenar
+        // çubuğu menünün ÜSTÜNE çıkıp tıklamayı yutuyordu (arayüz testi Y-06, O-066).
+        'isolate z-50 w-max rounded-xl p-1',
         // Invisible border that is only visible in `forced-colors` mode for accessibility purposes
         'outline outline-transparent focus:outline-hidden',
         // Handle scrolling when menu won't fit in viewport

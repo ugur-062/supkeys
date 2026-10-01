@@ -165,6 +165,12 @@ export interface CompanyProfile {
   /** Herkese açık profildeki ızgarayla aynı kapı ve sıra; üye fiyatı görür. */
   products: ProductIndexCard[];
   productCount: number;
+  /**
+   * Ücretsiz (STANDART) bağsız izleyenden paket kuralıyla gizlenen açık
+   * herkese açık talep sayısı (arayüz testi D-329); diğer izleyenlerde 0.
+   * Eski API'de yok.
+   */
+  lockedListingCount?: number;
 }
 
 export function useCompanyProfile(rothernId: string) {

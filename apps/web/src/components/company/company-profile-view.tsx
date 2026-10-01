@@ -220,7 +220,7 @@ export function CompanyProfileView({
           galeri ve değerlendirmeler ÜRÜNLERİN ALTINDAKİ "hakkında" bölümüne
           indi: üstte durduklarında ilk ekranı tümüyle yiyor ve ziyaretçi
           firmanın NE SATTIĞINI görmeden kaydırmak zorunda kalıyordu. */}
-      <section className="overflow-hidden card">
+      <section className="isolate overflow-hidden card">
         {/* Kapak: görsel varsa şerit, yoksa ince renk bandı. Yükseklik
             bilinçli olarak kısaldı — üst blok ürünleri ekrandan itmesin. */}
         <div

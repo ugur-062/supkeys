@@ -5,8 +5,8 @@ import { ScopeChip } from "@/components/tenders/scope-chip";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { tierAtLeast } from "@rothern/shared";
 import { buyingGate, memberProductHref } from "@/lib/public/member-gate";
-import { PRICING_HREF } from "@/components/company/silver-lock-card";
-import { usePortalStore } from "@/lib/company/portal-store";
+import { PRICING_HREF, SilverLockCard } from "@/components/company/silver-lock-card";
+import { cameFromInApp } from "@/lib/nav-history";
 import { useRouter } from "@/i18n/navigation";
 import { formatDate } from "@/lib/format-date";
 import { formatNumber } from "@/i18n/format";
@@ -26,6 +26,7 @@ import { ListingCard, type ListingCardData } from "@/components/marketplace/list
 import { publicState } from "@/lib/public/marketplace";
 import { daysUntil } from "@/lib/tenders/seller-state";
 import { useActivePortal } from "@/hooks/use-active-portal";
+import type { PortalKey } from "@/lib/company/portals";
 import { cn } from "@/lib/utils";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { ReasonDialog } from "@/components/tenders/reason-dialog";
@@ -64,7 +65,6 @@ export default function CompanyProfilePage() {
   const activePortal = useActivePortal();
   const [blockOpen, setBlockOpen] = useState(false);
   const [complaintOpen, setComplaintOpen] = useState(false);
-  const lastPortal = usePortalStore((st) => st.lastPortal);
   // Bağlantı/engelleme/şikayet = "Bağlantılar" yetkisi (API aynası; Bağlantılar sayfasıyla aynı kural).
   const canManageConn = useHasCompanyPermission("connections:manage");
   // Bağlantı daveti Silver+ (API invite aynası; connections-view `isPaid` ile
@@ -99,6 +99,13 @@ export default function CompanyProfilePage() {
 
   const { profile: p, connectionStatus, connectionId, connected, listings, products, productCount } =
     data;
+  // Ücretsiz izleyen bağsız firmanın herkese açık taleplerini görmez (paket
+  // kuralı, kasıtlı) — kaç tane gizlendiğini API söyler (arayüz testi D-329).
+  const lockedListingCount = data.lockedListingCount ?? 0;
+  // "Bağlanırsanız…" ipucu ve "Sadece herkese açık" etiketi yalnız herkese açık
+  // talepleri GÖREN (Silver+) bağsız izleyene doğru; ücretsiz izleyen bağlantı
+  // isteği de gönderemez.
+  const showPublicOnlyHint = !connected && isPaid;
 
   const handleConnect = async () => {
     if (!p.rothernId) return;
@@ -122,7 +129,7 @@ export default function CompanyProfilePage() {
       // Engellenen firmanın profili artık 404 döner; react-query hata alan
       // yeniden çekimde eski veriyi koruduğu için sayfa profil + eylemlerle
       // kalıyordu → Bağlantılar'a çık.
-      router.replace(connectionsPathFor(lastPortal));
+      router.replace(connectionsPathFor(activePortal));
     } catch (err) {
       toast.error(extractErrorMessage(err, t("engellenemedi")));
     }
@@ -166,7 +173,8 @@ export default function CompanyProfilePage() {
       ) : connectionStatus === "pending" ? (
         <Badge color="amber">{t("istekGonderildi")}</Badge>
       ) : connectionStatus === "incoming" ? (
-        <Button href={connectionsPathFor(lastPortal)} outline>
+        // Gelen istekler görünümü doğrudan açılır (arayüz testi D-328).
+        <Button href={`${connectionsPathFor(activePortal)}?view=incoming`} outline>
           {t("sizeIstekGonderdiYanitla")}
         </Button>
       ) : connectionStatus === "none" && canManageConn ? (
@@ -256,21 +264,21 @@ export default function CompanyProfilePage() {
     <section className="card p-6">
       <div className="flex items-center justify-between gap-3">
         <h2 className="text-base font-semibold text-zinc-900">{t("acikSatinAlmaTalepleri")}</h2>
-        {!connected ? (
-          <span className="inline-flex items-center gap-2 text-xs text-zinc-400">
+        {showPublicOnlyHint ? (
+          <span className="inline-flex items-center gap-2 text-xs text-zinc-500">
             <Lock className="h-3.5 w-3.5" />
             {t("sadeceHerkeseAcik")}
           </span>
         ) : null}
       </div>
 
-      {!connected ? (
+      {showPublicOnlyHint ? (
         <Text className="mt-1 text-xs text-zinc-500">
           {t("baglanirsanizBuFirmaninDavetliSatin")}
         </Text>
       ) : null}
 
-      {listings.length === 0 ? (
+      {listings.length === 0 && lockedListingCount > 0 ? null : listings.length === 0 ? (
         <div className="mt-4 rounded-xl border border-dashed border-zinc-300 bg-zinc-50/50 p-8 text-center text-sm text-zinc-500">
           {t("suAnAcikSatinAlma")}
         </div>
@@ -373,6 +381,14 @@ export default function CompanyProfilePage() {
           })}
         </div>
       )}
+      {lockedListingCount > 0 ? (
+        <SilverLockCard
+          className="mt-4"
+          title={t("kilitliTaleplerBaslik")}
+          meta={t("kilitliTaleplerSayi", { n: lockedListingCount })}
+          description={t("kilitliTaleplerAciklama")}
+        />
+      ) : null}
     </section>
   );
 
@@ -421,8 +437,13 @@ export default function CompanyProfilePage() {
   );
 }
 
-/** Bulunulan portalın Bağlantılar sayfası (satış koltuklu kullanıcı satınalmaya düşmesin). */
-function connectionsPathFor(portal: "satinalma" | "satis" | null): string {
+/**
+ * Bulunulan portalın Bağlantılar sayfası. Portal `useActivePortal`dan gelir
+ * (adres → son portal YALNIZ erişilebilirse → erişilebilir ilk portal): satış
+ * koltuklu kullanıcının son portal bilgisi boşken satınalma ret ekranına
+ * düşüyordu (arayüz testi D-069).
+ */
+function connectionsPathFor(portal: PortalKey): string {
   return portal === "satis" ? "/company/satis/musterilerim" : "/company/satinalma/tedarikcilerim";
 }
 
@@ -436,13 +457,14 @@ function connectionsPathFor(portal: "satinalma" | "satis" | null): string {
 function BackLink() {
   const t = useTranslations("web.panel.company.firmaIdPage");
   const router = useRouter();
-  const lastPortal = usePortalStore((st) => st.lastPortal);
-  const fallback = connectionsPathFor(lastPortal);
+  const fallback = connectionsPathFor(useActivePortal());
   const [canGoBack, setCanGoBack] = useState(false);
   useEffect(() => {
     try {
       const sameOrigin = document.referrer ? new URL(document.referrer).origin === window.location.origin : false;
-      setCanGoBack(window.history.length > 1 && sameOrigin);
+      // Referrer istemci tarafı gezinmede değişmez → uygulama içi iz de
+      // sayılır (arayüz testi D-156).
+      setCanGoBack(window.history.length > 1 && (sameOrigin || cameFromInApp()));
     } catch {
       setCanGoBack(false);
     }

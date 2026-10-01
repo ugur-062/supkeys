@@ -461,7 +461,8 @@
       "text": "Matches your product: {product}"
     },
     "talepBaskaUlkelereAcik": "This request is open only to suppliers based in specific countries, and your company's country is not one of them.",
-    "teklifGecerliligiAzOnceUzatildi": "The quote's validity period was just updated; refresh the page to check"
+    "teklifGecerliligiAzOnceUzatildi": "The quote's validity period was just updated; refresh the page to check",
+    "kazandirilacakMiktarKalemMiktariniAsamaz": "The award quantity for “{name}” cannot exceed the requested quantity"
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "Request not found",
@@ -1437,7 +1438,8 @@
       "request": {
         "title": "New connection request",
         "body": "{company} wants to connect with you. You can respond under Incoming requests on the Connections page.",
-        "emailBody": "{company} wants to connect with you. You can respond in Rothern under Connections → Incoming requests."
+        "emailBody": "{company} wants to connect with you. You can respond in Rothern under Connections → Incoming requests.",
+        "emailCta": "View incoming requests"
       },
       "accepted": {
         "title": "Your connection request was accepted",
@@ -1446,10 +1448,10 @@
     },
     "companyMessages": {
       "newMessage": {
-        "subject": "{sender} sent you a message",
+        "subject": "{sender} ({company}) sent you a message",
         "heading": "You have a new message",
         "greeting": "Hello,",
-        "body": "{sender} sent you a message on Rothern. Log in to view and reply.",
+        "body": "{sender} from {company} sent you a message on Rothern. Log in to view and reply.",
         "cta": "View messages"
       }
     },

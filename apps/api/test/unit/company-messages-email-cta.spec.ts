@@ -16,8 +16,11 @@ const BASE = "https://www.rothern.com";
 
 function makeService() {
   const send = jest.fn().mockResolvedValue(undefined);
+  const prisma = {
+    company: { findUnique: jest.fn().mockResolvedValue({ name: "Gönderen Makina AŞ" }) },
+  };
   const svc = new CompanyMessagesService(
-    {} as never,
+    prisma as never,
     {} as never,
     { send } as never,
     { get: (k: string) => (k === "WEB_URL" ? BASE : undefined) } as never,
@@ -70,6 +73,42 @@ describe("CompanyMessagesService — yeni mesaj e-postası CTA yönü", () => {
     expect(ctaOf(send)).toBe(
       `${BASE}/company/mesajlar?with=sender1&portal=satinalma`,
     );
+  });
+});
+
+describe("CompanyMessagesService — yeni mesaj e-postasında gönderen FİRMA (arayüz testi D-114)", () => {
+  beforeEach(() => {
+    (pickCompanyRecipients as jest.Mock).mockResolvedValue(
+      new Map([["rcv", { email: "r@x.com", name: "R", locale: "tr" }]]),
+    );
+  });
+
+  it("konu ve gövde kişi adının yanında gönderen firmanın adını taşır", async () => {
+    const { svc, send } = makeService();
+    await (svc as unknown as { emailNewMessage: EmailFn }).emailNewMessage(
+      "rcv",
+      "sender1",
+      "Ayşe Yılmaz",
+      "sell",
+    );
+    const arg = send.mock.calls[0]![0] as {
+      subject: string;
+      templateData: { data: { paragraphs: string[] } };
+    };
+    expect(arg.subject).toBe("Ayşe Yılmaz (Gönderen Makina AŞ) size mesaj gönderdi");
+    expect(arg.templateData.data.paragraphs.join(" ")).toContain("Gönderen Makina AŞ firmasından Ayşe Yılmaz");
+  });
+});
+
+describe("appRoutes.connections — Bağlantılar derin bağlantısı (arayüz testi D-114)", () => {
+  it("portala göre sayfa, `view=incoming` gelen istekleri açar; yol dile çevrilir", () => {
+    expect(appRoutes.connections(BASE, "satis", "tr", "incoming")).toBe(
+      `${BASE}/company/satis/musterilerim?view=incoming`,
+    );
+    expect(appRoutes.connections(BASE, "satinalma", "en", "incoming")).toBe(
+      `${BASE}/en/company/purchasing/my-suppliers?view=incoming`,
+    );
+    expect(appRoutes.connections(BASE, "satinalma")).toBe(`${BASE}/company/satinalma/tedarikcilerim`);
   });
 });
 

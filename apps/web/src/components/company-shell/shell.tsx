@@ -16,7 +16,8 @@ import { cn } from "@/lib/utils";
 import * as Headless from "@headlessui/react";
 import { X } from "lucide-react";
 import { usePathname } from "@/i18n/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { noteNavigation } from "@/lib/nav-history";
 import { AssistantLauncher } from "./assistant/assistant-launcher";
 import { CompanySidebarContent } from "./sidebar";
 import { CompanyTopbar } from "./topbar";
@@ -46,6 +47,12 @@ export function CompanyShell({ children }: { children: React.ReactNode }) {
     "satis";
 
   const expanded = pinned || hovered;
+
+  // "Geri" bağlantıları için uygulama içi gezinme izi (D-156): referrer SPA
+  // gezinmede değişmez, adres değişimini burada kaydederiz.
+  useEffect(() => {
+    noteNavigation();
+  }, [pathname]);
 
   return (
     /* Birincil düğme rengi aktif portaldan (satınalma mavi, satış emerald);

@@ -159,6 +159,21 @@ const COMPANY_CARD_SELECT = {
   },
 } as const;
 
+/**
+ * Bekleyen istek kartı (gelen/giden) — kimlik + karar için gereken nitelikler.
+ * İletişim, vergi no ve kategori beyanı TAŞINMAZ: bağlantı kurulmadı (D-266).
+ */
+const PENDING_CARD_SELECT = {
+  id: true,
+  name: true,
+  rothernId: true,
+  city: true,
+  country: true,
+  industry: true,
+  logoUrl: true,
+  companyVerificationStatus: true,
+} as const;
+
 @Injectable()
 export class CompanyConnectionsService {
   private readonly logger = new Logger(CompanyConnectionsService.name);
@@ -1113,6 +1128,8 @@ export class CompanyConnectionsService {
       { company: this.companyNameOr(me?.name) },
       "connection_request",
       conn.id,
+      // Düğme genel panele değil Bağlantılar › Gelen istekler'e (arayüz testi D-114).
+      { labelKey: "api.notifications.companyConnections.request.emailCta", view: "incoming" },
     );
     return { id: conn.id, status: conn.status, targetName: target.name };
   }
@@ -1135,6 +1152,8 @@ export class CompanyConnectionsService {
     params: Record<string, string | number>,
     type: string,
     contextId: string,
+    /** CTA: Bağlantılar sayfası (isteğe bağlı görünümle) — varsayılan etiket "Rothern'e Git". */
+    cta: { labelKey?: ApiMessageKey; view?: "incoming" } = {},
   ) {
     try {
       const c = await this.prisma.company.findUnique({
@@ -1142,6 +1161,8 @@ export class CompanyConnectionsService {
         select: {
           name: true,
           billingEmail: true,
+          tier: true,
+          membershipEndAt: true,
           users: {
             where: { isActive: true, deletedAt: null },
             select: {
@@ -1177,11 +1198,18 @@ export class CompanyConnectionsService {
             heading: subject,
             paragraphs: paragraphKeys.map((k) => tApi(k, params, locale)),
             ctaLabel: tApi(
-              "api.notifications.companyConnections.emailCta",
+              cta.labelKey ?? "api.notifications.companyConnections.emailCta",
               undefined,
               locale,
             ),
-            ctaUrl: appRoutes.home(baseUrl, locale),
+            // Bağlantılar her iki portalda; satınalma portalı yalnız Gold'da
+            // açık → alıcının EFEKTİF paketine göre (ret ekranına düşmesin).
+            ctaUrl: appRoutes.connections(
+              baseUrl,
+              tierAtLeast(effectiveTier(c.tier, c.membershipEndAt), BUYING_TIER) ? "satinalma" : "satis",
+              locale,
+              cta.view,
+            ),
           },
         },
         context: { type, id: contextId },
@@ -1200,16 +1228,42 @@ export class CompanyConnectionsService {
   async listOutgoing(companyId: string) {
     const rows = await this.prisma.companyConnection.findMany({
       where: { inviterCompanyId: companyId, status: "PENDING" },
-      include: {
-        invitee: { select: { id: true, name: true, rothernId: true } },
-      },
+      include: { invitee: { select: PENDING_CARD_SELECT } },
       orderBy: { createdAt: "desc" },
     });
-    return rows.map((r) => ({
+    return this.pendingRows(rows.map((r) => ({ id: r.id, createdAt: r.createdAt, company: r.invitee })));
+  }
+
+  /**
+   * Bekleyen istek satırları — kart alanları (şehir, sektör, logo, Doğrulanmış)
+   * bağlantı listesiyle AYNI biçimde; sektör okuyucunun dilinde. Eskiden yalnız
+   * ad + Rothern ID dönüyordu, gelen istekte karar için gereken şehir/sektör "—"
+   * görünüyordu (arayüz testi D-266).
+   */
+  private async pendingRows(
+    rows: { id: string; createdAt: Date; company: Prisma.CompanyGetPayload<{ select: typeof PENDING_CARD_SELECT }> }[],
+  ) {
+    const mapped = rows.map((r) => ({
       connectionId: r.id,
-      company: r.invitee,
+      company: {
+        id: r.company.id,
+        name: r.company.name,
+        rothernId: r.company.rothernId,
+        city: r.company.city,
+        country: r.company.country,
+        industry: r.company.industry,
+        logoUrl: r.company.logoUrl,
+        verified: r.company.companyVerificationStatus === "VERIFIED",
+      },
       createdAt: r.createdAt,
     }));
+    if (!this.translations || mapped.length === 0) return mapped;
+    const companies = await this.translations.localizeIndustry(
+      mapped.map((m) => m.company),
+      mapped.map((m) => m.company.id),
+      currentLocale(),
+    );
+    return mapped.map((m, n) => ({ ...m, company: companies[n]! }));
   }
 
   /**
@@ -1236,16 +1290,10 @@ export class CompanyConnectionsService {
   async listIncoming(companyId: string) {
     const rows = await this.prisma.companyConnection.findMany({
       where: { inviteeCompanyId: companyId, status: "PENDING" },
-      include: {
-        inviter: { select: { id: true, name: true, rothernId: true } },
-      },
+      include: { inviter: { select: PENDING_CARD_SELECT } },
       orderBy: { createdAt: "desc" },
     });
-    return rows.map((r) => ({
-      connectionId: r.id,
-      company: r.inviter,
-      createdAt: r.createdAt,
-    }));
+    return this.pendingRows(rows.map((r) => ({ id: r.id, createdAt: r.createdAt, company: r.inviter })));
   }
 
   /**
@@ -1761,7 +1809,50 @@ export class CompanyConnectionsService {
       throw new NotFoundException(i18nMessage("api.companyConnections.firmaProfiliBulunamadi"));
     }
 
-    const [listings, reviewRows, products, productCount, catRows] = await Promise.all([
+    // Embargo + görünürlük ülkesi — izleyen başka firmaysa (getOne/sellerTenders ile aynı).
+    const viewerListingGates: Prisma.ListingWhereInput[] =
+      c.id === user.companyId
+        ? []
+        : [
+            {
+              OR: [
+                { bidsOpenAt: null },
+                { bidsOpenAt: { lte: new Date() } },
+                { bids: { some: { bidderCompanyId: user.companyId } } },
+              ],
+            },
+            {
+              OR: [
+                // Görünürlük ülkesi (2026-09-21): boş = herkes; dolu = izleyen listede.
+                { targetCountries: { isEmpty: true } },
+                { targetCountries: { has: user.country } },
+                { invitations: { some: { invitedCompanyId: user.companyId } } },
+              ],
+            },
+          ];
+    const viewerPaid = tierAtLeast(user.tier, PAID_TIER);
+    // Ücretsiz bağsız izleyenden paket kuralıyla gizlenen açık PUBLIC talepler
+    // (arayüz testi D-329): gizleme kasıtlı, ama sayfa "açık talep yok" demek
+    // yerine kilit kartında GERÇEK sayıyı gösterir (`locked-summary` ile aynı ilke).
+    // Yalnız sayı — başlık/kalem sızmaz. Davetli olduğu ya da teklif verdiği
+    // talepler zaten listede, sayıya girmez.
+    const lockedListingCountQuery =
+      !isSelf && !connectedForListings && !viewerPaid
+        ? this.prisma.listing.count({
+            where: {
+              companyId: c.id,
+              status: "OPEN",
+              visibility: "PUBLIC",
+              AND: [
+                ...viewerListingGates,
+                { NOT: { invitations: { some: { invitedCompanyId: user.companyId } } } },
+                { NOT: { bids: { some: { bidderCompanyId: user.companyId } } } },
+              ],
+            },
+          })
+        : Promise.resolve(0);
+
+    const [listings, reviewRows, products, productCount, catRows, lockedListingCount] = await Promise.all([
       this.prisma.listing.findMany({
         where: {
           companyId: c.id,
@@ -1774,26 +1865,8 @@ export class CompanyConnectionsService {
           // (getOne/sellerTenders ile aynı). Kendi profili hariç.
           AND: [
             // Ücretsiz izleyen (2026-09-06): bağlı değilse PUBLIC talepler profilde de yok.
-            visibleOwnerListingWhere(user.companyId, connectedForListings, tierAtLeast(user.tier, PAID_TIER)),
-            ...(c.id === user.companyId
-              ? []
-              : [
-                  {
-                    OR: [
-                      { bidsOpenAt: null },
-                      { bidsOpenAt: { lte: new Date() } },
-                      { bids: { some: { bidderCompanyId: user.companyId } } },
-                    ],
-                  },
-                  {
-                    OR: [
-                      // Görünürlük ülkesi (2026-09-21): boş = herkes; dolu = izleyen listede.
-                      { targetCountries: { isEmpty: true } },
-                      { targetCountries: { has: user.country } },
-                      { invitations: { some: { invitedCompanyId: user.companyId } } },
-                    ],
-                  },
-                ]),
+            visibleOwnerListingWhere(user.companyId, connectedForListings, viewerPaid),
+            ...viewerListingGates,
           ],
         },
         select: {
@@ -1841,6 +1914,7 @@ export class CompanyConnectionsService {
         where: { id: { in: [...c.sellerCategoryIds, ...c.buyerCategoryIds].filter(isCategoryCode).slice(0, 12) } },
         select: { id: true, ...CATEGORY_NAME_SELECT },
       }),
+      lockedListingCountQuery,
     ]);
     const reviewSummary = buildReviewSummary(reviewRows, { revealNames: true });
     const catName = new Map(catRows.map((r) => [r.id, categoryName(r)]));
@@ -1912,6 +1986,7 @@ export class CompanyConnectionsService {
       listings: localizedListings,
       products: localizedProducts,
       productCount,
+      lockedListingCount,
     };
   }
 

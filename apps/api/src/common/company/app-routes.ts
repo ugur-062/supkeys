@@ -56,6 +56,20 @@ export const appRoutes = {
     portal: "satinalma" | "satis",
     locale: Locale = DEFAULT_LOCALE,
   ) => `${base}${localize(`/company/${portal}/siparisler`, locale)}`,
+  /**
+   * Portalın Bağlantılar sayfası (`?view=incoming` gelen istekleri açar —
+   * web `ConnectionsView` başlangıç görünümünü parametreden okur).
+   */
+  connections: (
+    base: string,
+    portal: "satinalma" | "satis",
+    locale: Locale = DEFAULT_LOCALE,
+    view?: "incoming",
+  ) =>
+    `${base}${localize(
+      `${portal === "satinalma" ? "/company/satinalma/tedarikcilerim" : "/company/satis/musterilerim"}${view ? `?view=${view}` : ""}`,
+      locale,
+    )}`,
   approvals: (base: string, locale: Locale = DEFAULT_LOCALE) =>
     `${base}${localize("/company/onaylar", locale)}`,
   premium: (base: string, locale: Locale = DEFAULT_LOCALE) =>
