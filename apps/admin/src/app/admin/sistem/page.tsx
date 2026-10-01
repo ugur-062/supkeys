@@ -341,9 +341,10 @@ function SistemView() {
           </div>
         ) : null}
         <p className="text-admin-text-muted mt-3 text-xs">
-          Kur bayatken (7+ gün) döviz cinsinden satın alma talebi yayınlanamaz,
-          dövizli teklifler reddedilir — TCMB arızasında kurları yenilemek ya da
-          manuel kur girmek kilidi açar.
+          Kur bayatken (7+ gün) dövizli açık eksiltme açılamaz, kalem bazında
+          farklı para birimli teklifler reddedilir ve dövizli tekliflerin TL
+          karşılığı boş kalır — TCMB arızasında kurları yenilemek ya da manuel
+          kur girmek bunu düzeltir.
         </p>
         {/* B2 (denetim 2026-08-26 Parça 10): bu üç bölüm SUPER_ADMIN'e kilitli
             uçlara yazıyor (backend fail-closed) ama UI'da hiç kapı yoktu →
