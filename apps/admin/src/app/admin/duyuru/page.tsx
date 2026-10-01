@@ -66,6 +66,10 @@ function DuyuruView() {
   const set = (k: string, v: string | boolean) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
+  // Gönderilebilirlik tek kaynak: hem "Duyuruyu Gönder" hem "Evet, Gönder".
+  const canSubmit =
+    form.subject.trim().length >= 3 && form.message.trim().length >= 10;
+
   // "Evet, Gönder" tek uçuşta: async işleyici → admin Button kilitler; ikinci
   // çağrı ayrıca burada yutulur (arayüz testi FX-00 O-007; sunucu da aynı
   // duyuruyu kısa pencerede ikinci kez göndermez).
@@ -112,6 +116,9 @@ function DuyuruView() {
         description="Tüm firmalara veya segmente toplu bildirim — dikkatli kullanın."
       />
 
+      {/* Onay kutusu açıkken form KİLİTLİ (arayüz testi D-220): önizleme ve
+          kesin hedef sayısı onaylanan içerikle aynı kalsın; değiştirmek için
+          "Vazgeç". */}
       <section className="admin-card space-y-4 px-5 py-4">
         <label className="flex flex-col gap-1">
           <span className="text-admin-text-muted text-xs font-medium">
@@ -119,6 +126,7 @@ function DuyuruView() {
           </span>
           <Input
             value={form.subject}
+            disabled={confirming}
             onChange={(e) => set("subject", e.target.value)}
             placeholder="Örn. Planlı bakım bildirimi"
           />
@@ -129,6 +137,7 @@ function DuyuruView() {
           </span>
           <Textarea
             value={form.message}
+            disabled={confirming}
             onChange={(e) => set("message", e.target.value)}
             rows={5}
             placeholder="Duyuru metni..."
@@ -141,6 +150,7 @@ function DuyuruView() {
             </span>
             <Select
               value={form.tier}
+              disabled={confirming}
               onChange={(e) => set("tier", e.target.value)}
             >
               <option value="">Tüm üyelikler</option>
@@ -155,6 +165,7 @@ function DuyuruView() {
             </span>
             <Select
               value={form.country}
+              disabled={confirming}
               onChange={(e) => set("country", e.target.value)}
             >
               <option value="">Tüm ülkeler</option>
@@ -174,6 +185,7 @@ function DuyuruView() {
           <input
             type="checkbox"
             checked={form.sendEmail}
+            disabled={confirming}
             onChange={(e) => set("sendEmail", e.target.checked)}
             className="h-4 w-4 rounded border-zinc-300"
           />
@@ -209,6 +221,7 @@ function DuyuruView() {
                 variant="danger"
                 size="sm"
                 loading={announce.isPending || sendLock.locked}
+                disabled={!canSubmit}
                 onClick={send}
               >
                 Evet, Gönder
@@ -225,9 +238,7 @@ function DuyuruView() {
         ) : (
           <div className="flex justify-end">
             <Button
-              disabled={
-                form.subject.trim().length < 3 || form.message.trim().length < 10
-              }
+              disabled={!canSubmit}
               onClick={() => {
                 setConfirming(true);
                 // Kesin hedef sayısını sunucudan sor (göndermez).
@@ -237,7 +248,7 @@ function DuyuruView() {
                     message: form.message.trim(),
                     tier: (form.tier || undefined) as
                       | "STANDART"
-                                  | "SILVER"
+                      | "SILVER"
                       | "GOLD"
                       | undefined,
                     country: form.country || undefined,

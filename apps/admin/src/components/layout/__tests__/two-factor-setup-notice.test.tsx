@@ -17,6 +17,7 @@ vi.mock("@/hooks/use-admin-auth", () => ({
 
 import {
   AdminMeRefresher,
+  PasswordChangeRequiredNotice,
   TwoFactorSetupNotice,
 } from "../two-factor-setup-notice";
 
@@ -56,5 +57,28 @@ describe("TwoFactorSetupNotice (derin denetim MU-01)", () => {
     expect(screen.getByRole("alert").className).not.toMatch(
       /(^|\s)(fixed|sticky|absolute)(\s|$)/,
     );
+  });
+});
+
+describe("PasswordChangeRequiredNotice (arayüz testi D-025)", () => {
+  it("geçici parola yoksa hiçbir şey çizmez", () => {
+    h.admin = { id: "a1", mustChangePassword: false };
+    const { container } = render(<PasswordChangeRequiredNotice />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it("geçici parolayla girildiyse kilidi anlatır; akış içi (sabit değil)", () => {
+    h.admin = { id: "a1", mustChangePassword: true };
+    render(<PasswordChangeRequiredNotice />);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Kendi şifrenizi belirleyin");
+    expect(alert).not.toHaveTextContent("Önce iki adımlı doğrulamayı");
+    expect(alert.className).not.toMatch(/(^|\s)(fixed|sticky|absolute)(\s|$)/);
+  });
+
+  it("2FA da zorunluysa sırayı söyler (önce 2FA)", () => {
+    h.admin = { id: "a1", mustChangePassword: true, twoFactorSetupRequired: true };
+    render(<PasswordChangeRequiredNotice />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Önce iki adımlı doğrulamayı");
   });
 });

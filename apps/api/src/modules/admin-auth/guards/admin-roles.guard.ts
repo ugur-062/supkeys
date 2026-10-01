@@ -14,6 +14,10 @@ import {
 } from "../../../common/config/admin-2fa";
 import { ADMIN_ANY_ROLE_KEY } from "../decorators/allow-any-admin-role.decorator";
 import { ADMIN_ALLOW_WITHOUT_2FA_KEY } from "../decorators/allow-without-admin-2fa.decorator";
+import {
+  ADMIN_ALLOW_WITHOUT_PASSWORD_CHANGE_KEY,
+  ADMIN_PASSWORD_CHANGE_REQUIRED_CODE,
+} from "../decorators/allow-without-admin-password-change.decorator";
 import { ADMIN_ROLES_KEY } from "../decorators/require-admin-role.decorator";
 
 /**
@@ -45,7 +49,27 @@ export class AdminRolesGuard implements CanActivate {
   canActivate(context: ExecutionContext): boolean {
     this.assertRoleAuthorized(context);
     this.assertTwoFactorEnrolled(context);
+    this.assertPasswordChanged(context);
     return true;
+  }
+
+  private assertPasswordChanged(context: ExecutionContext): void {
+    const user = context.switchToHttp().getRequest().user as
+      | { mustChangePassword?: boolean }
+      | undefined;
+    if (user?.mustChangePassword !== true) return;
+    const exempt = this.reflector.getAllAndOverride<boolean | undefined>(
+      ADMIN_ALLOW_WITHOUT_PASSWORD_CHANGE_KEY,
+      [context.getHandler(), context.getClass()],
+    );
+    if (exempt) return;
+    throw new ForbiddenException(
+      i18nMessage(
+        "api.adminAuth.geciciSifreDegisimiZorunlu",
+        undefined,
+        ADMIN_PASSWORD_CHANGE_REQUIRED_CODE,
+      ),
+    );
   }
 
   private assertTwoFactorEnrolled(context: ExecutionContext): void {

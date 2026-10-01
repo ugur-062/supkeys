@@ -113,6 +113,16 @@
     -webkit-font-smoothing: antialiased;
     font-feature-settings: "cv02", "cv03", "cv04", "cv11";
   }
+
+  /* Kod/geçici şifre/kimlik: Inter'in bağlamsal alternatifi (calt) rakamlar
+     arasındaki "x"i "×" çiziyordu ("8x6" → "8×6") — kopyalanacak değer yanlış
+     okunur (arayüz testi D-180). Yalnız calt kapanır; cv** seçimleri kalır. */
+  code,
+  kbd,
+  samp,
+  .font-mono {
+    font-variant-ligatures: no-contextual;
+  }
 }
 
 @layer components {

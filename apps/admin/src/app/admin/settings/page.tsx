@@ -3,7 +3,10 @@
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/catalyst/badge";
 import { AdminShell } from "@/components/layout/admin-shell";
-import { TwoFactorSetupNotice } from "@/components/layout/two-factor-setup-notice";
+import {
+  PasswordChangeRequiredNotice,
+  TwoFactorSetupNotice,
+} from "@/components/layout/two-factor-setup-notice";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
 import { useAdminMe } from "@/hooks/use-admin-auth";
@@ -192,18 +195,22 @@ function TwoFactorSection() {
           <p className="text-admin-text text-sm">
             2. Uygulamanın ürettiği 6 haneli kodu girin:
           </p>
-          <div className="flex items-center gap-2">
-            <Input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="123456"
-              aria-label="2FA doğrulama kodu"
-              className="w-32"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Catalyst Input'un kendi w-full'u className genişliğini ezer →
+                sabit genişlik sarmalayıcıda; düğmeler daralıp metni kırmaz (D-169). */}
+            <div className="w-32 shrink-0">
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="123456"
+                aria-label="2FA doğrulama kodu"
+              />
+            </div>
             <Button
               size="sm"
+              className="shrink-0 whitespace-nowrap"
               loading={enable.isPending}
               disabled={code.trim().length !== 6}
               onClick={() =>
@@ -219,6 +226,7 @@ function TwoFactorSection() {
             <Button
               variant="ghost"
               size="sm"
+              className="shrink-0 whitespace-nowrap"
               onClick={() => {
                 setPending(null);
                 setCode("");
@@ -235,19 +243,23 @@ function TwoFactorSection() {
           <p className="text-admin-text-muted text-sm">
             Kapatmak için authenticator kodunuzu girin:
           </p>
-          <div className="flex items-center gap-2">
-            <Input
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              inputMode="numeric"
-              maxLength={6}
-              placeholder="123456"
-              aria-label="2FA kapatma kodu"
-              className="w-32"
-            />
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Catalyst Input'un kendi w-full'u className genişliğini ezer →
+                sabit genişlik sarmalayıcıda; düğmeler daralıp metni kırmaz (D-169). */}
+            <div className="w-32 shrink-0">
+              <Input
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                inputMode="numeric"
+                maxLength={6}
+                placeholder="123456"
+                aria-label="2FA kapatma kodu"
+              />
+            </div>
             <Button
               variant="danger"
               size="sm"
+              className="shrink-0 whitespace-nowrap"
               loading={disable.isPending}
               disabled={code.trim().length !== 6}
               onClick={() =>
@@ -277,6 +289,8 @@ export default function AdminSettingsPage() {
         {/* 2FA zorunluysa neden kilitli olduğunu anlatır; akışta, düğmeleri
             örtmez (GB1). */}
         <TwoFactorSetupNotice />
+        {/* Geçici parolayla girildiyse (D-025) panel şifre değişene dek kilitli. */}
+        <PasswordChangeRequiredNotice />
         <PasswordSection />
         <TwoFactorSection />
       </div>

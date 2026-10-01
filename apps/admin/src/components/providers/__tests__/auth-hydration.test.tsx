@@ -32,6 +32,31 @@ beforeEach(() => {
 });
 
 describe("RequireAdminAuth", () => {
+  it("geçici parola (D-025) + başka sayfa → içerik yok, Ayarlar'a yönlendirir; Ayarlar açık", () => {
+    h.state = {
+      admin: { id: "a1", mustChangePassword: true },
+      isHydrated: true,
+    };
+    const { unmount } = render(
+      <RequireAdminAuth>
+        <div>gizli</div>
+      </RequireAdminAuth>,
+    );
+    expect(screen.queryByText("gizli")).not.toBeInTheDocument();
+    expect(window.location.href).toBe("/admin/settings");
+    unmount();
+
+    window.location.href = "";
+    h.pathname = "/admin/settings";
+    render(
+      <RequireAdminAuth>
+        <div>ayarlar</div>
+      </RequireAdminAuth>,
+    );
+    expect(screen.getByText("ayarlar")).toBeInTheDocument();
+    expect(window.location.href).toBe("");
+  });
+
   it("admin null + hydrated → içerik yok, /admin/login'e yönlendirir", () => {
     h.state = { admin: null, isHydrated: true };
     render(

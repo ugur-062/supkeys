@@ -128,6 +128,8 @@ export class AdminAuthService {
         role: admin.role,
         twoFactorEnabled: admin.twoFactorEnabled,
         twoFactorSetupRequired,
+        // Geçici parolayla girildi → panel Ayarlar'a kilitlenir (D-025).
+        mustChangePassword: admin.mustChangePassword,
       },
     };
   }
@@ -160,6 +162,7 @@ export class AdminAuthService {
       role: admin.role,
       twoFactorEnabled: admin.twoFactorEnabled,
       twoFactorSetupRequired: this.twoFactorSetupRequired(admin),
+      mustChangePassword: admin.mustChangePassword,
     };
   }
 
@@ -170,6 +173,10 @@ export class AdminAuthService {
     const admin = await this.requireAdmin(adminId);
     if (next.length < 12) {
       throw new BadRequestException(i18nMessage("api.adminAuth.yeniSifreEnAz12Karakter"));
+    }
+    // Geçici parolayı "yeni" diye yeniden koymak zorunlu değişimi boşa çıkarırdı (D-025).
+    if (next === current) {
+      throw new BadRequestException(i18nMessage("api.adminAuth.yeniSifreMevcutSifreyleAyniOlamaz"));
     }
     try {
       await this.supabaseAuth.verifyPassword(admin.email, current, clientIp);
@@ -182,8 +189,9 @@ export class AdminAuthService {
     }
     await this.supabaseAuth.updatePassword(admin.authId, next);
     // Oturum iptali: diğer cihazlardaki admin oturumları düşer; bu oturum için
-    // taze token döner (AuthCookieInterceptor cookie'yi yeniler).
-    const token = await this.rotateSession(admin.id);
+    // taze token döner (AuthCookieInterceptor cookie'yi yeniler). Geçici
+    // parola kilidi de burada kalkar (D-025).
+    const token = await this.rotateSession(admin.id, { mustChangePassword: false });
     await this.audit.log({
       action: "admin.self.password_changed",
       actorType: "admin",
@@ -194,10 +202,13 @@ export class AdminAuthService {
   }
 
   /** tokenVersion++ ve bu oturum için taze JWT (denetim 2026-08-23 #3). */
-  private async rotateSession(adminId: string): Promise<string> {
+  private async rotateSession(
+    adminId: string,
+    extra?: { mustChangePassword?: boolean },
+  ): Promise<string> {
     const updated = await this.prisma.platformAdmin.update({
       where: { id: adminId },
-      data: { tokenVersion: { increment: 1 } },
+      data: { ...extra, tokenVersion: { increment: 1 } },
       select: { id: true, email: true, role: true, tokenVersion: true },
     });
     const payload: AdminJwtPayload = {

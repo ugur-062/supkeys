@@ -61,6 +61,8 @@ export class AdminJwtStrategy extends PassportStrategy(Strategy, "admin-jwt") {
       // AdminRolesGuard 2FA zorunluluğu için (MU-01) — her istekte DB'den taze.
       // Login'in kod istediği koşulla AYNI (etkin + sır var).
       twoFactorEnabled: admin.twoFactorEnabled && !!admin.twoFactorSecret,
+      // Geçici parola kapısı (arayüz testi D-025) — AdminRolesGuard okur.
+      mustChangePassword: admin.mustChangePassword,
     };
   }
 }

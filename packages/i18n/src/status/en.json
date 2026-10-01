@@ -29,6 +29,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.adminAuth.geciciSifreDegisimiZorunlu": {
+    "hash": "1fa29189f4",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.adminAuth.hesapSupabaseKoprusuneBagliDegil": {
     "hash": "8bb0790cbc",
     "status": "reviewed",
@@ -88,6 +93,11 @@
     "hash": "971a4ecada",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.adminAuth.yeniSifreMevcutSifreyleAyniOlamaz": {
+    "hash": "2b54c8e8cf",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.adminAuth.yoneticiBulunamadi": {
     "hash": "3e8cff479a",

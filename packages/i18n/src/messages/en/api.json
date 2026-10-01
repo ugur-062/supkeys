@@ -530,7 +530,9 @@
     "n2faEtkinDegil": "2FA is not enabled",
     "n2faKurulumuZorunlu": "Two-factor authentication (2FA) is required for this account. Set up 2FA on the Settings page to continue.",
     "buIslemIcinYetkinizYok": "You do not have permission for this action",
-    "ePostaVeyaSifreHatali": "Email or password is incorrect"
+    "ePostaVeyaSifreHatali": "Email or password is incorrect",
+    "geciciSifreDegisimiZorunlu": "You signed in with a temporary password. Set your own password on the Settings page to continue.",
+    "yeniSifreMevcutSifreyleAyniOlamaz": "The new password must be different from the current password"
   },
   "companyComplaints": {
     "gecersizFirmaKodu": "Invalid company code",

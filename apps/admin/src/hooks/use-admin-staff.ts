@@ -69,10 +69,14 @@ export function useStaffAction() {
 // ── Hesap güvenliği (self) ───────────────────────────────────
 
 export function useChangePassword() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: async (input: { current: string; next: string }) => {
       await api.post("/admin/auth/change-password", input);
     },
+    // Geçici parola kilidi (D-025) kalktı → /me tazelenir, store bayrağı düşer,
+    // RequireAdminAuth paneli açar.
+    onSuccess: () => qc.invalidateQueries({ queryKey: ["admin", "auth", "me"] }),
   });
 }
 

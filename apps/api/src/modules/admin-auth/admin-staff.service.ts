@@ -53,7 +53,8 @@ export class AdminStaffService {
   /**
    * Personel ekle — Supabase hesabı geçici parolayla açılır; parola YALNIZ
    * bu yanıtın içinde bir kez görünür (loglanmaz), personel ilk girişte
-   * "şifre değiştir" ile kendisininkini koyar.
+   * "şifre değiştir" ile kendisininkini koyar — `mustChangePassword` bunu
+   * zorunlu kılar (AdminRolesGuard, arayüz testi D-025).
    */
   async create(
     input: {
@@ -83,6 +84,8 @@ export class AdminStaffService {
         firstName: input.firstName.trim(),
         lastName: input.lastName.trim(),
         role: input.role,
+        // Geçici parola → ilk girişte kendi şifresini koymaya zorlanır (D-025).
+        mustChangePassword: true,
       },
       select: { id: true, email: true, role: true },
     });
@@ -179,7 +182,13 @@ export class AdminStaffService {
     await this.prisma.platformAdmin.update({
       where: { id },
       // Oturum iptali: reset sonrası eski oturumlar düşer (denetim 2026-08-23 #3).
-      data: { twoFactorEnabled: false, twoFactorSecret: null, tokenVersion: { increment: 1 } },
+      // Yeni geçici parola → bir sonraki girişte zorunlu değişim (D-025).
+      data: {
+        twoFactorEnabled: false,
+        twoFactorSecret: null,
+        tokenVersion: { increment: 1 },
+        mustChangePassword: true,
+      },
     });
     await this.audit.log({
       action: "admin.staff.password_reset",

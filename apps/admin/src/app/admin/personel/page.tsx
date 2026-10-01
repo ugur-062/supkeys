@@ -78,8 +78,8 @@ function TempPasswordBanner({
         </Button>
       </div>
       <p className="mt-1 text-xs text-emerald-800">
-        Personel ilk girişte Ayarlar → Şifre Değiştir ile kendi şifresini
-        koymalı.
+        Personel ilk girişte bu geçici şifreyle girer; panel, kendi şifresini
+        belirleyene kadar onu Ayarlar → Şifre Değiştir&apos;e yönlendirir.
       </p>
     </div>
   );
@@ -210,6 +210,12 @@ function PersonelView() {
   } | null>(null);
   // Şifre sıfırlama da geri alınamaz (parola + 2FA + oturumlar düşer) → onay.
   const [resetPrompt, setResetPrompt] = useState<{
+    id: string;
+    email: string;
+  } | null>(null);
+  // Pasifleştirme personeli anında panelden atar (oturumları düşer) → onay
+  // (arayüz testi D-222). Aktifleştirme zararsız, tek tık kalır.
+  const [deactivatePrompt, setDeactivatePrompt] = useState<{
     id: string;
     email: string;
   } | null>(null);
@@ -350,9 +356,7 @@ function PersonelView() {
                             size="sm"
                             disabled={act.isPending}
                             onClick={() =>
-                              act
-                                .mutateAsync({ id: s.id, action: "active", active: false })
-                                .then(() => toast.success("Pasifleştirildi"), err)
+                              setDeactivatePrompt({ id: s.id, email: s.email })
                             }
                           >
                             Pasifleştir
@@ -466,6 +470,49 @@ function PersonelView() {
               }
             >
               Sıfırla
+            </Button>
+          </DialogActions>
+        </Dialog>
+      ) : null}
+
+      {deactivatePrompt ? (
+        <Dialog
+          open
+          onClose={() => setDeactivatePrompt(null)}
+          size="sm"
+          aria-label="Pasifleştirme onayı"
+        >
+          <DialogTitle>Personeli Pasifleştir</DialogTitle>
+          <DialogBody>
+            <p className="text-admin-text text-sm">
+              <strong>{deactivatePrompt.email}</strong> pasifleştirilecek. Açık
+              oturumları hemen kapanır ve yeniden aktifleştirilene kadar panele
+              giriş yapamaz.
+            </p>
+          </DialogBody>
+          <DialogActions>
+            <Button variant="ghost" onClick={() => setDeactivatePrompt(null)}>
+              Vazgeç
+            </Button>
+            <Button
+              variant="danger"
+              loading={act.isPending}
+              onClick={() =>
+                act
+                  .mutateAsync({ id: deactivatePrompt.id, action: "active", active: false })
+                  .then(
+                    () => {
+                      toast.success("Pasifleştirildi");
+                      setDeactivatePrompt(null);
+                    },
+                    (e: unknown) => {
+                      err(e);
+                      setDeactivatePrompt(null);
+                    },
+                  )
+              }
+            >
+              Pasifleştir
             </Button>
           </DialogActions>
         </Dialog>

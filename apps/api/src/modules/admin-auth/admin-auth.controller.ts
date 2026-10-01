@@ -22,6 +22,7 @@ import { clearAuthCookies } from "../../common/auth/cookie";
 import { AdminAuthService } from "./admin-auth.service";
 import { AllowAnyAdminRole } from "./decorators/allow-any-admin-role.decorator";
 import { AllowWithoutAdmin2fa } from "./decorators/allow-without-admin-2fa.decorator";
+import { AllowWithoutAdminPasswordChange } from "./decorators/allow-without-admin-password-change.decorator";
 import { AdminLoginDto } from "./dto/admin-login.dto";
 import { AdminJwtAuthGuard } from "./guards/admin-jwt-auth.guard";
 import { AdminRolesGuard } from "./guards/admin-roles.guard";
@@ -82,6 +83,7 @@ export class AdminAuthController {
   @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
   @AllowAnyAdminRole()
   @AllowWithoutAdmin2fa() // panel kurulum zorunluluğunu buradan öğrenir
+  @AllowWithoutAdminPasswordChange() // geçici parola kilidini de (D-025)
   me(@CurrentAdmin() admin: AuthenticatedAdmin) {
     // 2FA durumu gibi taze alanlar için DB'den oku (JWT payload'ı bayat olabilir).
     return this.adminAuthService.getMe(admin.id);
@@ -95,6 +97,7 @@ export class AdminAuthController {
   @Throttle({ auth: { limit: 5, ttl: 60_000 } })
   @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
   @AllowAnyAdminRole()
+  @AllowWithoutAdminPasswordChange() // geçici parolayı değiştirme akışının kendisi (D-025)
   @HttpCode(HttpStatus.OK)
   changePassword(
     @CurrentAdmin() admin: AuthenticatedAdmin,
@@ -109,6 +112,7 @@ export class AdminAuthController {
   @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
   @AllowAnyAdminRole()
   @AllowWithoutAdmin2fa() // zorunlu kurulum akışı (MU-01)
+  @AllowWithoutAdminPasswordChange() // 2FA önce kurulur, sonra şifre (D-025)
   @HttpCode(HttpStatus.OK)
   setup2fa(@CurrentAdmin() admin: AuthenticatedAdmin) {
     return this.adminAuthService.setupTwoFactor(admin.id);
@@ -119,6 +123,7 @@ export class AdminAuthController {
   @UseGuards(AdminJwtAuthGuard, AdminRolesGuard)
   @AllowAnyAdminRole()
   @AllowWithoutAdmin2fa() // zorunlu kurulum akışı (MU-01)
+  @AllowWithoutAdminPasswordChange() // 2FA önce kurulur, sonra şifre (D-025)
   @HttpCode(HttpStatus.OK)
   enable2fa(
     @CurrentAdmin() admin: AuthenticatedAdmin,

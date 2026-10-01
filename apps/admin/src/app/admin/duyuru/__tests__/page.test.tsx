@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
@@ -43,5 +44,27 @@ describe("Duyuru — rol kapısı (arayüz testi D-017)", () => {
   it("SUPER_ADMIN formu görür", () => {
     render(<AdminDuyuruPage />);
     expect(screen.getByRole("button", { name: /Duyuruyu Gönder/ })).toBeInTheDocument();
+  });
+});
+
+describe("Duyuru — onay kutusu açıkken form kilitli (arayüz testi D-220)", () => {
+  it("onayda alanlar düzenlenemez; Vazgeç kilidi açar", async () => {
+    const user = userEvent.setup();
+    render(<AdminDuyuruPage />);
+    const subject = screen.getByPlaceholderText("Örn. Planlı bakım bildirimi");
+    const message = screen.getByPlaceholderText("Duyuru metni...");
+    await user.type(subject, "Bakim duyurusu");
+    await user.type(message, "Yarin 02:00-03:00 arasi bakim var.");
+    await user.click(screen.getByRole("button", { name: /Duyuruyu Gönder/ }));
+
+    expect(screen.getByRole("button", { name: "Evet, Gönder" })).toBeEnabled();
+    expect(subject).toBeDisabled();
+    expect(message).toBeDisabled();
+    for (const select of screen.getAllByRole("combobox")) expect(select).toBeDisabled();
+    expect(screen.getByRole("checkbox")).toBeDisabled();
+
+    await user.click(screen.getByRole("button", { name: "Vazgeç" }));
+    expect(subject).toBeEnabled();
+    expect(message).toBeEnabled();
   });
 });

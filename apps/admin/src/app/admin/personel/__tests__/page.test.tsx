@@ -109,3 +109,42 @@ describe("Şifre Sıfırla (derin denetim MU-21 — Süper Admin kendini kilitle
     );
   });
 });
+
+describe("Pasifleştir onayı (arayüz testi D-222)", () => {
+  const row = (id: string, email: string) => ({
+    id,
+    email,
+    firstName: "Ad",
+    lastName: "Soyad",
+    role: "SALES",
+    isActive: true,
+    twoFactorEnabled: false,
+    lastLoginAt: null,
+    createdAt: "2026-09-01T00:00:00Z",
+  });
+
+  it("tek tık mutasyon yok; Vazgeç iptal eder, onay pasifleştirir", async () => {
+    const user = userEvent.setup();
+    h.admin = { role: "SUPER_ADMIN", id: "me" };
+    h.staff = {
+      data: [row("other", "diger@rothern.com")],
+      isLoading: false,
+      isError: false,
+    };
+    render(<AdminPersonelPage />);
+    const otherRow = screen.getByText("diger@rothern.com").closest("tr")!;
+
+    await user.click(within(otherRow).getByRole("button", { name: "Pasifleştir" }));
+    expect(h.actMutate).not.toHaveBeenCalled();
+    const dialog = screen.getByRole("dialog");
+    expect(dialog).toHaveTextContent("oturumları hemen kapanır");
+    await user.click(within(dialog).getByRole("button", { name: "Vazgeç" }));
+    expect(h.actMutate).not.toHaveBeenCalled();
+
+    await user.click(within(otherRow).getByRole("button", { name: "Pasifleştir" }));
+    await user.click(
+      within(screen.getByRole("dialog")).getByRole("button", { name: "Pasifleştir" }),
+    );
+    expect(h.actMutate).toHaveBeenCalledWith({ id: "other", action: "active", active: false });
+  });
+});

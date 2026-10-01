@@ -74,3 +74,29 @@ describe("AdminSettingsPage — 2FA zorunlu uyarısı (boşluk taraması GB1)", 
     expect(screen.getByRole("button", { name: "2FA Kur" })).toBeInTheDocument();
   });
 });
+
+describe("AdminSettingsPage — 2FA kapatma satırı (arayüz testi D-169)", () => {
+  it("'2FA'yı Kapat' daralıp kırılmaz; kod alanı sabit genişlikte", () => {
+    h.admin = { id: "a1", twoFactorEnabled: true, twoFactorSetupRequired: false };
+    render(<AdminSettingsPage />);
+    const button = screen.getByRole("button", { name: "2FA'yı Kapat" });
+    expect(button.className).toMatch(/(^|\s)whitespace-nowrap(\s|$)/);
+    expect(button.className).toMatch(/(^|\s)shrink-0(\s|$)/);
+    // Catalyst Input'un kendi w-full'u className'i ezer → genişlik sarmalayıcıda.
+    const input = screen.getByLabelText("2FA kapatma kodu");
+    expect(input.closest(".w-32")?.className).toMatch(/(^|\s)shrink-0(\s|$)/);
+  });
+});
+
+describe("AdminSettingsPage — geçici parola (arayüz testi D-025)", () => {
+  it("geçici parolayla girildiyse şifre bölümünün üstünde kilit uyarısı", () => {
+    h.admin = { id: "a1", twoFactorEnabled: false, mustChangePassword: true };
+    render(<AdminSettingsPage />);
+    const alert = screen.getByRole("alert");
+    expect(alert).toHaveTextContent("Kendi şifrenizi belirleyin");
+    expect(
+      alert.compareDocumentPosition(screen.getByRole("button", { name: "Değiştir" })) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+  });
+});

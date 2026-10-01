@@ -39,7 +39,8 @@ export function AuthHydrationBoundary({
  * Ayarlar (2FA kurulumu) açılır, diğer sayfalar oraya yönlendirilir. Sunucu
  * zaten 403 döner; bu kapı boş/kırık sayfa yerine kurulum ekranını gösterir.
  * Bayrak login yanıtından ve /me'den (admin layout'undaki
- * AdminMeRefresher tazeler) gelir.
+ * AdminMeRefresher tazeler) gelir. `mustChangePassword` (geçici parola, arayüz
+ * testi D-025) aynı kilidi açar: kendi şifresi konana dek yalnız Ayarlar.
  */
 export function RequireAdminAuth({
   children,
@@ -49,8 +50,10 @@ export function RequireAdminAuth({
   // Oturum httpOnly cookie'de; istemci sinyali `admin` (persist snapshot).
   const { admin, isHydrated } = useAdminAuthStore();
   const pathname = usePathname();
+  // Geçici parola (D-025) da aynı kilidi kullanır: şifre Ayarlar'da değişir.
   const setupLocked =
-    !!admin?.twoFactorSetupRequired && pathname !== TWO_FACTOR_SETUP_PATH;
+    (!!admin?.twoFactorSetupRequired || !!admin?.mustChangePassword) &&
+    pathname !== TWO_FACTOR_SETUP_PATH;
 
   useEffect(() => {
     if (isHydrated && !admin) {

@@ -12,6 +12,12 @@ export interface AuthAdmin {
    * true iken API yalnız /me + 2FA kurulum uçlarını açar; panel Ayarlar'a kilitlenir.
    */
   twoFactorSetupRequired?: boolean;
+  /**
+   * Geçici parolayla (personel ekle / şifre sıfırla) giriş yapıldı, kendi şifresi
+   * henüz konmadı (arayüz testi D-025). true iken API yalnız /me + şifre
+   * değiştirme + 2FA kurulum uçlarını açar; panel Ayarlar'a kilitlenir.
+   */
+  mustChangePassword?: boolean;
 }
 
 export interface AdminAuthResponse {

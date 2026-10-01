@@ -95,6 +95,8 @@ describe("personel yönetimi", () => {
       where: { id: res.id },
     });
     expect(created?.role).toBe("SUPPORT");
+    // Arayüz testi D-025: geçici parola → ilk girişte zorunlu değişim.
+    expect(created?.mustChangePassword).toBe(true);
     // Parola audit metadata'sına YAZILMAZ.
     const log = await prisma.auditLog.findFirst({
       where: { action: "admin.staff.created", entityId: res.id },
@@ -142,6 +144,8 @@ describe("personel yönetimi", () => {
     });
     expect(after?.twoFactorEnabled).toBe(false);
     expect(after?.twoFactorSecret).toBeNull();
+    // Arayüz testi D-025: yeni geçici parola da zorunlu değişim ister.
+    expect(after?.mustChangePassword).toBe(true);
   });
 
   it("resetPassword: kendi hesabını sıfırlama reddedilir (derin denetim MU-21 — tek SUPER_ADMIN kilitlenmesin)", async () => {

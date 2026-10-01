@@ -81,6 +81,32 @@ describe("AdminLoginForm", () => {
     expect(h.push).toHaveBeenCalledWith("/admin/settings");
   });
 
+  it("geçici parolayla giriş (D-025) → doğrudan /admin/settings'e yönlenir", async () => {
+    const user = userEvent.setup();
+    h.mutate.mockImplementation((_values, opts) =>
+      opts.onSuccess({
+        admin: { firstName: "Ada", mustChangePassword: true },
+      }),
+    );
+    render(<AdminLoginForm />);
+    await submit(user);
+
+    expect(h.push).toHaveBeenCalledWith("/admin/settings");
+  });
+
+  it("şifre göster/gizle düğmesine klavyeyle ulaşılır (D-197)", async () => {
+    const user = userEvent.setup();
+    render(<AdminLoginForm />);
+    const pw = screen.getByLabelText("Şifre", { exact: false, selector: "input" });
+    pw.focus();
+    await user.tab();
+    const toggle = screen.getByRole("button", { name: "Şifreyi göster" });
+    expect(toggle).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(pw).toHaveAttribute("type", "text");
+    expect(screen.getByRole("button", { name: "Şifreyi gizle" })).toBeInTheDocument();
+  });
+
   it("axios hatası → sunucu mesajıyla toast.error, yönlendirme yok", async () => {
     const user = userEvent.setup();
     h.mutate.mockImplementation((_values, opts) =>

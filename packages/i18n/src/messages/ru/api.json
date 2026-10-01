@@ -530,7 +530,9 @@
     "n2faEtkinDegil": "2FA не включена",
     "n2faKurulumuZorunlu": "Для этой учётной записи обязательна двухфакторная аутентификация (2FA). Чтобы продолжить, настройте 2FA на странице «Настройки».",
     "buIslemIcinYetkinizYok": "У Вас нет прав для этого действия",
-    "ePostaVeyaSifreHatali": "Неверная эл. почта или пароль"
+    "ePostaVeyaSifreHatali": "Неверная эл. почта или пароль",
+    "geciciSifreDegisimiZorunlu": "Вы вошли с временным паролем. Чтобы продолжить, задайте собственный пароль на странице «Настройки».",
+    "yeniSifreMevcutSifreyleAyniOlamaz": "Новый пароль должен отличаться от текущего"
   },
   "companyComplaints": {
     "gecersizFirmaKodu": "Недопустимый код компании",

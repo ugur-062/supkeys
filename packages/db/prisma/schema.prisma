@@ -64,6 +64,10 @@ model PlatformAdmin {
   // Oturum iptali (denetim 2026-08-23 #3): parola değişimi/reset/2FA değişimi
   // artırır; JWT `tv` claim'i eşleşmezse 401 (company ile parite).
   tokenVersion     Int       @default(0)
+  // Geçici parola (personel ekle / şifre sıfırla) ile açılan hesap: kendi
+  // şifresini koyana dek AdminRolesGuard yalnız me + change-password + 2FA
+  // kurulum uçlarını açar (arayüz testi D-025). change-password false yapar.
+  mustChangePassword Boolean @default(false)
   lastLoginAt      DateTime?
   createdAt        DateTime  @default(now())
   updatedAt        DateTime  @updatedAt
