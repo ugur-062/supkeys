@@ -228,15 +228,17 @@ export function DocsTab({
   };
 
   // Kaydet: firma VERIFIED ve en az bir red varsa önce onay penceresi.
+  // Doğrulama tek sefer yapılır — hata toast'ı iki kez basılmaz.
   const requestSave = () => {
+    if (!validate()) return;
     const willUnverify =
       data.companyVerificationStatus === "VERIFIED" &&
       required.some((k) => decisions[k]?.status === "REJECTED");
-    if (willUnverify && validate()) {
+    if (willUnverify) {
       setConfirmUnverify(true);
       return;
     }
-    return save();
+    return persist();
   };
 
   /** İstemci kontrolleri — hata varsa toast basıp false döner. */
@@ -262,8 +264,8 @@ export function DocsTab({
     return true;
   };
 
-  const save = () => {
-    if (!validate()) return;
+  /** Doğrulanmış kararları gönderir — çağıran önce `validate()` yapmış olmalı. */
+  const persist = () => {
     const payload: Partial<Record<DocKind, DocDecision>> = {};
     for (const k of required) {
       const dec = decisions[k]!;
@@ -468,7 +470,7 @@ export function DocsTab({
         title="Doğrulama geri alınacak"
         confirmLabel="Reddet ve Kaydet"
         danger
-        onConfirm={() => save()}
+        onConfirm={() => persist()}
         onClose={() => setConfirmUnverify(false)}
       >
         <p>

@@ -339,6 +339,29 @@ describe("DocsTab — KYC belge inceleme", () => {
     expect(h.reviewMutate).toHaveBeenCalledTimes(1);
   });
 
+  it("doğrulanmış firmada gerekçesiz red → hata toast'ı tek sefer, pencere açılmaz", async () => {
+    const user = userEvent.setup();
+    render(
+      <DocsTab
+        companyId="c1"
+        data={detail({
+          companyVerificationStatus: "VERIFIED",
+          docTaxPlateStatus: "APPROVED",
+          docTradeRegistryStatus: "APPROVED",
+          docSignatureCircularStatus: "APPROVED",
+          docActivityCertStatus: "APPROVED",
+          docIdFrontStatus: "APPROVED",
+          docIdBackStatus: "APPROVED",
+        })}
+      />,
+    );
+    await user.click(screen.getAllByRole("button", { name: "Reddet" })[0]!);
+    await user.click(screen.getByRole("button", { name: "Kararı Kaydet" }));
+    expect(h.toast.error).toHaveBeenCalledTimes(1);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(h.reviewMutate).not.toHaveBeenCalled();
+  });
+
   it("kuyruktan gelindiyse karar sonrası aynı kuyruk sayfasına döner (D-198)", async () => {
     h.search = "from=queue&qp=3";
     const user = userEvent.setup();
