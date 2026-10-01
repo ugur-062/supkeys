@@ -67,7 +67,7 @@
       "showcaseTitle": "Is your product in the showcase?",
       "showcaseLead": "Publish your products with price and minimum order details so buyers can find you and send inquiries. The showcase is open on the free plan too.",
       "addProduct": "Add product",
-      "seoParagraph": "Rothern is a B2B marketplace that lists products from manufacturers, distributors and service providers with price and minimum order details, and matches buying requests with sealed-bid quotes. Product and company profiles are public; a free account is needed to quote, request information and see buyer details.",
+      "seoParagraph": "Rothern is a B2B marketplace that lists products from manufacturers, distributors and service providers with price and minimum order details, and matches buying requests with sealed-bid quotes. Product and company profiles are public; a free account is needed to quote and see buyer details, and the Gold plan is needed to request information from suppliers.",
       "metaTitle": "B2B marketplace: products, suppliers and buying requests",
       "metaDescription": "Browse verified suppliers' products with price and MOQ, talk to companies, and send sealed-bid quotes on buying requests. Buyer and seller in one account. Signing up is free.",
       "metaAbsoluteTitle": "Rothern — B2B marketplace: products, suppliers and buying requests",
@@ -960,7 +960,7 @@
       "openRequest": "Post a request",
       "companyLead": "A selection of buyer and supplier companies on Rothern. The full directory, filters and contacting companies open with a free account.",
       "membersOnlyTitle": "The full directory is for members",
-      "membersOnlyBody": "See every company, filter by activity type, city and category, and request information directly. Membership is free; buyer and supplier in one account.",
+      "membersOnlyBody": "See every company, filter by activity type, city and category, and browse their profiles and products. Membership is free; buyer and supplier in one account. Requesting information from suppliers requires the Gold plan.",
       "joinFree": "Join free",
       "login": "Log in",
       "listingPlaceholder": "Search request titles, items or categories",
@@ -968,7 +968,9 @@
       "results": "Results",
       "productsEmptyTitle": "No products match these criteria.",
       "listingEmptyTitle": "No open requests found.",
-      "listingEmptyFilteredTitle": "No open requests match these criteria."
+      "listingEmptyFilteredTitle": "No open requests match these criteria.",
+      "viewCompany": "View company",
+      "goToDirectory": "Go to the company directory"
     },
     "companyCard": {
       "products": "{n, plural, one {# product} other {# products}}",
@@ -1073,7 +1075,12 @@
       "goldMember": "Gold member",
       "similarOthers": "Similar products — from other suppliers",
       "newIn": "New in {category}",
-      "newInCategory": "New in this category"
+      "newInCategory": "New in this category",
+      "tabVideo": "Video",
+      "videoTitle": "{product} — product video",
+      "docsLocked": "Log in to download documents",
+      "docsLockedNote": "Document names are public; downloads are for members.",
+      "inquiryGoldNote": "Information requests are sent from the Gold plan's purchasing panel; signing up and browsing products are free."
     },
     "listing": {
       "number": "Request number",
@@ -1224,6 +1231,24 @@
       "buyerCtaLabel": "Post a request",
       "supplierCtaTail": "and let buyers find you.",
       "buyerCtaTail": "and let verified suppliers send you quotes."
+    },
+    "memberGate": {
+      "inquiryTitle": "Requesting information requires the Gold plan",
+      "listingTitle": "Opening buying requests requires the Gold plan",
+      "body": "You can browse products and companies on every plan. Requesting information from suppliers and opening buying requests are part of the Gold plan's purchasing panel.",
+      "verifyNote": "The only requirement for upgrading is free company verification.",
+      "verifyCta": "Get verified for free first",
+      "upgradeCta": "Upgrade to Gold",
+      "noPermissionInquiry": "Requesting information requires the Purchaser role.",
+      "noPermissionListing": "Opening requests requires permission to manage requests.",
+      "lockedLabel": "{label} · Gold",
+      "ownProduct": "This product belongs to your company; you can't request information about your own product.",
+      "noBuyView": "Viewing product details in the panel requires purchasing view permission.",
+      "publicProductPage": "Public product page",
+      "loading": "Loading…",
+      "notFound": "Product not found",
+      "backToPanel": "Back to panel",
+      "directoryRedirect": "Redirecting to the company directory…"
     }
   },
   "domain": {

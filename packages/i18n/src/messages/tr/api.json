@@ -1234,7 +1234,9 @@
     },
     "companyItems": {
       "gecersizOlcuBirimi": "Geçersiz ölçü birimi",
-      "fiyatSifirdanBuyukOlmali": "Fiyat 0''dan büyük olmalı"
+      "fiyatSifirdanBuyukOlmali": "Fiyat 0''dan büyük olmalı",
+      "gecersizVideoBaglantisi": "Video bağlantısı https ile başlayan bir YouTube ya da Vimeo adresi olmalı.",
+      "gecersizDisBaglanti": "Dış bağlantı https:// ile başlayan geçerli bir adres olmalı."
     },
     "adminCompanies": {
       "redGerekcesiEnAz3KarakterOlmali": "Red için bir gerekçe seçin ya da en az 3 karakterlik not yazın"

@@ -67,7 +67,7 @@
       "showcaseTitle": "Ürününüz vitrinde mi?",
       "showcaseLead": "Ürünlerinizi fiyat ve minimum sipariş bilgisiyle yayımlayın; alıcılar bulsun, bilgi talebi göndersin. Vitrin ücretsiz pakette de açık.",
       "addProduct": "Ürün ekle",
-      "seoParagraph": "Rothern; üretici, distribütör ve hizmet sağlayıcı firmaların ürünlerini fiyat ve minimum sipariş bilgisiyle listeleyen, alım taleplerini kapalı zarf teklifle buluşturan B2B pazar yeridir. Ürün ve firma profilleri herkese açıktır; teklif vermek, bilgi istemek ve alıcı bilgilerini görmek için ücretsiz hesap gerekir.",
+      "seoParagraph": "Rothern; üretici, distribütör ve hizmet sağlayıcı firmaların ürünlerini fiyat ve minimum sipariş bilgisiyle listeleyen, alım taleplerini kapalı zarf teklifle buluşturan B2B pazar yeridir. Ürün ve firma profilleri herkese açıktır; teklif vermek ve alıcı bilgilerini görmek için ücretsiz hesap, tedarikçiye bilgi talebi göndermek için Gold paketi gerekir.",
       "metaTitle": "B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
       "metaDescription": "Doğrulanmış tedarikçilerin ürünlerini fiyat ve MOQ ile inceleyin, firmalarla konuşun, alım taleplerine kapalı zarf teklif verin. Alıcı ve satıcı tek hesapta. Kaydolmak ücretsiz.",
       "metaAbsoluteTitle": "Rothern — B2B pazar yeri: ürünler, tedarikçiler ve alım talepleri",
@@ -960,7 +960,7 @@
       "openRequest": "Talep aç",
       "companyLead": "Rothern'deki alıcı ve tedarikçi firmalardan bir kesit. Dizinin tamamı, süzgeçler ve firmalarla iletişim ücretsiz üyelikle açılır.",
       "membersOnlyTitle": "Dizinin tamamı üyelere açık",
-      "membersOnlyBody": "Tüm firmaları görün, faaliyet tipi, şehir ve kategoriye göre süzün, doğrudan bilgi isteyin. Üyelik ücretsizdir; alıcı ve tedarikçi tek hesapta.",
+      "membersOnlyBody": "Tüm firmaları görün; faaliyet tipi, şehir ve kategoriye göre süzün, profillerini ve ürünlerini inceleyin. Üyelik ücretsizdir; alıcı ve tedarikçi tek hesapta. Tedarikçiye bilgi talebi göndermek Gold paketiyle açılır.",
       "joinFree": "Ücretsiz üye ol",
       "login": "Giriş yap",
       "listingPlaceholder": "Talep başlığı, kalem veya kategori arayın",
@@ -968,7 +968,9 @@
       "results": "Sonuçlar",
       "productsEmptyTitle": "Bu kriterlerle ürün bulunamadı.",
       "listingEmptyTitle": "Açık talep bulunamadı.",
-      "listingEmptyFilteredTitle": "Bu kriterlerle açık talep bulunamadı."
+      "listingEmptyFilteredTitle": "Bu kriterlerle açık talep bulunamadı.",
+      "viewCompany": "Firmayı incele",
+      "goToDirectory": "Firma dizinine git"
     },
     "companyCard": {
       "products": "{n} ürün",
@@ -1073,7 +1075,12 @@
       "goldMember": "Gold Üye",
       "similarOthers": "Benzer ürünler — diğer tedarikçilerden",
       "newIn": "{category} içinde yeni",
-      "newInCategory": "Kategoride yeni"
+      "newInCategory": "Kategoride yeni",
+      "tabVideo": "Video",
+      "videoTitle": "{product} — ürün videosu",
+      "docsLocked": "Belgeyi indirmek için giriş yapın",
+      "docsLockedNote": "Belge adları herkese açık; indirme üyelere açıktır.",
+      "inquiryGoldNote": "Bilgi talebi Gold paketinin satın alma panelinden gönderilir; kayıt ve ürün inceleme ücretsizdir."
     },
     "listing": {
       "number": "İlan numarası",
@@ -1224,6 +1231,24 @@
       "buyerCtaLabel": "Talep aç",
       "supplierCtaTail": "alıcılar seni bulsun.",
       "buyerCtaTail": "doğrulanmış tedarikçiler teklif versin."
+    },
+    "memberGate": {
+      "inquiryTitle": "Bilgi talebi Gold paketiyle gönderilir",
+      "listingTitle": "Talep açmak Gold paketiyle açılır",
+      "body": "Ürünleri ve firmaları her pakette inceleyebilirsiniz. Tedarikçiye bilgi talebi göndermek ve satın alma talebi açmak Gold paketinin satın alma panelindedir.",
+      "verifyNote": "Paketlere geçmenin tek şartı ücretsiz firma doğrulamasıdır.",
+      "verifyCta": "Önce ücretsiz doğrulan",
+      "upgradeCta": "Gold paketine geç",
+      "noPermissionInquiry": "Bilgi istemek için Satın Almacı yetkisi gerekir.",
+      "noPermissionListing": "Talep açmak için talep yönetme yetkisi gerekir.",
+      "lockedLabel": "{label} · Gold",
+      "ownProduct": "Bu ürün sizin firmanıza ait; kendi ürününüz için bilgi talebi gönderilmez.",
+      "noBuyView": "Ürün ayrıntılarını panelde görmek için satınalma görüntüleme yetkisi gerekir.",
+      "publicProductPage": "Ürünün herkese açık sayfası",
+      "loading": "Yükleniyor…",
+      "notFound": "Ürün bulunamadı",
+      "backToPanel": "Panele dön",
+      "directoryRedirect": "Firma dizinine yönlendiriliyor…"
     }
   },
   "domain": {

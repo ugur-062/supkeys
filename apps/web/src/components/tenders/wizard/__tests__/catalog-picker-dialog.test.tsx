@@ -67,4 +67,21 @@ describe("CatalogPickerDialog", () => {
     expect(picked.find((p) => p.catalogId === "v2")?.quantity).toBe(25);
     expect(h.markUsed).toHaveBeenCalledWith(expect.arrayContaining(["v1", "v2", "s1"]));
   });
+
+  it("D-242: miktar alanı boşaltılınca kalem 0 ile eklenmez — alandan çıkınca ve eklerken 1 olur", () => {
+    const onPick = vi.fn();
+    render(<CatalogPickerDialog open onClose={() => undefined} onPick={onPick} />);
+    fireEvent.change(screen.getByRole("textbox", { name: "Katalogda ara" }), { target: { value: "vida" } });
+    fireEvent.click(screen.getByRole("checkbox", { name: "Vida M6 seç" }));
+    fireEvent.click(screen.getByRole("checkbox", { name: "Vida M8 seç" }));
+    const q6 = screen.getByRole("spinbutton", { name: "Vida M6 miktarı" });
+    fireEvent.change(q6, { target: { value: "" } });
+    fireEvent.blur(q6);
+    expect(q6).toHaveValue(1);
+    // Alandan çıkmadan doğrudan "Ekle" de 0 göndermez.
+    fireEvent.change(screen.getByRole("spinbutton", { name: "Vida M8 miktarı" }), { target: { value: "0" } });
+    fireEvent.click(screen.getByRole("button", { name: "2 kalemi ekle" }));
+    const picked = onPick.mock.calls[0][0] as { catalogId: string; quantity: number }[];
+    expect(picked.every((p) => p.quantity === 1)).toBe(true);
+  });
 });

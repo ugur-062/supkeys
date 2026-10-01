@@ -1234,7 +1234,9 @@
     },
     "companyItems": {
       "gecersizOlcuBirimi": "Недопустимая единица измерения",
-      "fiyatSifirdanBuyukOlmali": "Цена должна быть больше 0"
+      "fiyatSifirdanBuyukOlmali": "Цена должна быть больше 0",
+      "gecersizVideoBaglantisi": "Ссылка на видео должна быть адресом YouTube или Vimeo, начинающимся с https.",
+      "gecersizDisBaglanti": "Внешняя ссылка должна быть действительным адресом, начинающимся с https://."
     },
     "adminCompanies": {
       "redGerekcesiEnAz3KarakterOlmali": "Выберите причину отклонения или напишите комментарий не короче 3 символов"

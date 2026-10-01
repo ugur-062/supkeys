@@ -1,3 +1,4 @@
+import { getUnit, normalizeUnit } from "@rothern/shared";
 import { DEFAULT_FORM_VALUES, type TenderFormData } from "./form-schema";
 
 /**
@@ -23,6 +24,8 @@ import { DEFAULT_FORM_VALUES, type TenderFormData } from "./form-schema";
 export interface ProductSeed {
   productName: string;
   unit: string;
+  /** Kanonik birim kodu (ürün kaydında varsa); yoksa `unit` metninden türetilir. */
+  unitCode?: string | null;
   categoryId: string | null;
   keywords: string[];
   /** Ürün sayfasına dönüş için — kullanıcı hangi üründen geldiğini görsün. */
@@ -31,6 +34,12 @@ export interface ProductSeed {
 
 export function mapProductToForm(seed: ProductSeed): TenderFormData {
   const base = DEFAULT_FORM_VALUES;
+  // Birim adı ve KODU birlikte taşınır (arayüz testi O-085): yalnız ad
+  // değişip varsayılan `unitCode: 'PCE'` kalınca seçici kodu önceliklendirip
+  // "metre"yi "adet" gösteriyor, kayıt {unit:'metre', unitCode:'PCE'} gibi
+  // çelişkili yazılıyordu. Tanınmayan birim "listede yok" (kod null) olur.
+  const rawUnit = seed.unit?.trim() || "adet";
+  const known = getUnit(seed.unitCode) ?? getUnit(normalizeUnit(rawUnit));
   return {
     ...base,
     title: seed.productName.slice(0, 120),
@@ -43,7 +52,8 @@ export function mapProductToForm(seed: ProductSeed): TenderFormData {
       {
         ...base.items[0]!,
         name: seed.productName.slice(0, 200),
-        unit: seed.unit || "adet",
+        unit: known?.nameTr ?? rawUnit.slice(0, 20),
+        unitCode: known?.code ?? null,
       },
     ],
   };

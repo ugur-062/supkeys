@@ -91,7 +91,8 @@ export function CatalogPickerDialog({
       unit: it.unit,
       unitCode: it.unitCode,
       materialCode: it.code,
-      quantity: qty,
+      // Boşaltılan/0 miktar kalemi 0 ile eklemez (arayüz testi D-242): 1'e döner.
+      quantity: Number.isFinite(qty) && qty > 0 ? qty : 1,
       targetPrice: it.targetPrice == null ? null : Number(it.targetPrice),
       images: it.thumbnailUrl ? [it.thumbnailUrl] : [],
     }));
@@ -172,6 +173,13 @@ export function CatalogPickerDialog({
                             ...prev,
                             [it.id]: { item: it, qty: Number(e.target.value) || 0 },
                           }))
+                        }
+                        onBlur={() =>
+                          setSelected((prev) => {
+                            const cur = prev[it.id];
+                            if (!cur || cur.qty > 0) return prev;
+                            return { ...prev, [it.id]: { ...cur, qty: 1 } };
+                          })
                         }
                       />
                     ) : null}

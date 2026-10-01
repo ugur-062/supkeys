@@ -24,6 +24,7 @@ import { cn } from "@/lib/utils";
 import { ChevronDown, HelpCircle, Info, LayoutTemplate, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
+import { useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { Controller, useFieldArray, useFormContext } from "react-hook-form";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { toast } from "sonner";
@@ -53,6 +54,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
     keyName: "_rfkey",
   });
   const saveTpl = useSaveQuestionTemplate();
+  const canSaveTemplate = useHasCompanyPermission("templates:manage");
 
   // Açılışta soru dizisinin anlık görüntüsü — "Vazgeç" buna geri döner.
   const snapshot = useRef<TenderFormData["items"][number]["questions"]>([]);
@@ -348,14 +350,18 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
       </DialogBody>
 
       <DialogActions>
-        <Button
-          plain
-          onClick={openSaveDialog}
-          disabled={saveTpl.isPending}
-        >
-          <Save data-slot="icon" />
-          {tr("sablonOlarakKaydet")}
-        </Button>
+        {/* Soru seti kaydı API'de `templates:manage` ister — izinsiz kullanıcıya
+            düğme gösterilip 403 yedirilmez (arayüz testi D-042). */}
+        {canSaveTemplate ? (
+          <Button
+            plain
+            onClick={openSaveDialog}
+            disabled={saveTpl.isPending}
+          >
+            <Save data-slot="icon" />
+            {tr("sablonOlarakKaydet")}
+          </Button>
+        ) : null}
         <Button plain onClick={handleCancel}>
           {tr("vazgec")}
         </Button>

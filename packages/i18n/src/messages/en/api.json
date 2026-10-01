@@ -1234,7 +1234,9 @@
     },
     "companyItems": {
       "gecersizOlcuBirimi": "Invalid unit of measure",
-      "fiyatSifirdanBuyukOlmali": "Price must be greater than 0"
+      "fiyatSifirdanBuyukOlmali": "Price must be greater than 0",
+      "gecersizVideoBaglantisi": "The video link must be a YouTube or Vimeo address starting with https.",
+      "gecersizDisBaglanti": "The external link must be a valid address starting with https://."
     },
     "adminCompanies": {
       "redGerekcesiEnAz3KarakterOlmali": "Select a rejection reason or write a note of at least 3 characters"

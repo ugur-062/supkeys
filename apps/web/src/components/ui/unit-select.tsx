@@ -45,6 +45,7 @@ export function UnitSelect({
   id,
   hasError,
   disabled,
+  showHint = true,
 }: {
   /** Serbest metin birim (kaydedilen alan). */
   value: string;
@@ -55,6 +56,12 @@ export function UnitSelect({
   id?: string;
   hasError?: boolean;
   disabled?: boolean;
+  /**
+   * "Katalogda yok" notu seçicinin altında mı çizilsin? Dar sütunda (kalem
+   * satırı) not 6 satıra kırılıyordu (arayüz testi D-096) — çağıran
+   * `false` verip notu tam genişlik satırda `UnitNotInCatalogHint` ile basar.
+   */
+  showHint?: boolean;
 }) {
   const t = useTranslations("web.shared.unitSelect");
   // Boyut başlığı katalogdan (`web.domain.unitDimension.<KOD>`); yeni bir boyut
@@ -160,13 +167,22 @@ export function UnitSelect({
               emit({ unit: u.nameTr, unitCode: u.code });
             }}
           />
-          <p className={cn("text-xs", "text-amber-700")}>
-            {t("buBirimKatalogdaYok")}
-          </p>
+          {showHint ? <UnitNotInCatalogHint /> : null}
         </>
       ) : null}
     </div>
   );
+}
+
+/** "Bu birim katalogda yok" notu — seçici dışında tam genişlik çizmek için. */
+export function UnitNotInCatalogHint({ className }: { className?: string }) {
+  const t = useTranslations("web.shared.unitSelect");
+  return <p className={cn("text-xs text-amber-700", className)}>{t("buBirimKatalogdaYok")}</p>;
+}
+
+/** Kalem satırı notu için: seçici "listede yok" modunda mı (kod yok, metin tanınmıyor)? */
+export function isUnitNotInCatalog(unit: string | null | undefined, unitCode: string | null | undefined): boolean {
+  return !(unitCode ?? normalizeUnit(unit ?? ""));
 }
 
 /** Gösterim yardımcısı — tablo/özet satırlarında `unitCode ?? unit`. */

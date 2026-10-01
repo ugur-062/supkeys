@@ -8,7 +8,9 @@ import { NumberedSection } from "@/components/ui/numbered-section";
 import { AddressInline } from "./address-inline";
 import { RecentRequests } from "./recent-requests";
 import { StagedDocuments, type StagedListingDoc } from "@/components/tenders/wizard/staged-documents";
-import { uploadListingDocument } from "@/hooks/use-listing-documents";
+import { uploadListingDocument, useListingDocuments } from "@/hooks/use-listing-documents";
+import { FilesTab } from "@/components/tenders/files-tab";
+import { DateTimeInput } from "@/components/ui/date-time-input";
 import { useConnections } from "@/hooks/use-company-connections";
 import { useCompanySearch } from "@/hooks/use-company-directory";
 import { useAiSeoEnrich } from "@/hooks/use-ai-seo-enrich";
@@ -38,7 +40,7 @@ import { formatDate } from "@/lib/format-date";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { DEFAULT_FORM_VALUES, makeTenderFormSchema, type TenderFormData } from "@/lib/tenders/form-schema";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
-import { parseAppWallClockInput } from "@/lib/time-zone";
+import { parseAppWallClockInput, toAppWallClockInput } from "@/lib/time-zone";
 import { mapAiDraftToForm } from "@/lib/tenders/map-ai-draft-to-form";
 import { mapToInput } from "@/lib/tenders/map-to-input";
 import { applyConnectionsScope } from "@/lib/tenders/connections-scope";
@@ -151,6 +153,10 @@ export function QuickRequest({
   const router = useRouter();
   const { company } = useCompanyAuth();
   const canManage = useHasCompanyPermission("buy:listing:manage");
+  // Adres ekleme ve şablon kaydı API'de ayrı izin ister — izinsiz kullanıcıya
+  // kontrol gösterilip 403 yedirilmez (arayüz testi D-042).
+  const canManageAddresses = useHasCompanyPermission("addresses:manage");
+  const canManageTemplates = useHasCompanyPermission("templates:manage");
   const defaultsQ = useRequestDefaults();
   // Kayıtlı şart yoksa platform varsayılanı firmanın ülkesine göre (para
   // birimi: yabancı alıcı TRY ile başlamasın — 2026-09-27).
@@ -195,6 +201,13 @@ export function QuickRequest({
   const [restoredDraft, setRestoredDraft] = useState(false);
   const connections = useConnections();
   const seoEnrich = useAiSeoEnrich();
+  // Düzenlemede talebin MEVCUT belgeleri (O-087) — 4. bölüm `FilesTab` ile
+  // listeler/yükler/siler; sayaç aynı sorgudan (tek istek).
+  const existingDocs = useListingDocuments(listingId ?? "", isEdit);
+  // Taslak kaydedilip sayfadan çıkılırken otomatik saklama durur (O-084):
+  // `finally`'deki durum güncellemesi yeniden çizim tetikleyip silinen oturum
+  // taslağını geri yazıyor, yeni form aynı içerikle açılıyordu.
+  const leavingRef = useRef(false);
 
   const form = useForm<TenderFormData>({
     resolver: zodResolver(schema),
@@ -306,7 +319,7 @@ export function QuickRequest({
      formuna sızıyordu (bekleyen davetler düzenlemede kendi anahtarında). */
   const watched = watch();
   useEffect(() => {
-    if (isEdit || !appliedRef.current || published) return;
+    if (isEdit || !appliedRef.current || published || leavingRef.current) return;
     const { title, description, items, categoryIds, keywords, deliveryAddressId, visibility, invitedSupplierIds, bidsCloseAt } = watched;
     if (!title && items.every((i) => !i.name)) return;
     writeSession(QUICK_DRAFT_KEY, { title, description, items, categoryIds, keywords, deliveryAddressId, visibility, invitedSupplierIds, bidsCloseAt, externalInvites, memberInvites } satisfies QuickDraft);
@@ -493,8 +506,10 @@ export function QuickRequest({
     if (submitLock.current) return;
     ensureTitle();
     const values = getValues();
-    if (values.title.trim().length < 3) {
-      toast.error(tr("taslakIcinEnAzBir"));
+    const titleLen = values.title.trim().length;
+    if (titleLen < 3) {
+      // Boş başlık ile kısa başlık ayrı söylenir (D-094): "ab" yazana "başlık gerekli" yanlıştı.
+      toast.error(titleLen === 0 ? tr("taslakIcinEnAzBir") : tReq("formSchema.titleMin"));
       return;
     }
     submitLock.current = true;
@@ -520,6 +535,7 @@ export function QuickRequest({
       await uploadStaged(listing.id);
       if (externalInvites.length) writeSession(pendingInvitesKey(listing.id), externalInvites);
       if (memberInvites.length) writeSession(pendingMemberInvitesKey(listing.id), memberInvites);
+      leavingRef.current = true;
       clearSession(QUICK_DRAFT_KEY);
       clearFormSupplierPanel();
       toast.success(tr("taslakKaydedildi"));
@@ -605,13 +621,48 @@ export function QuickRequest({
       toast.error(extractErrorMessage(err, tr("sablonKaydedilemedi")));
     }
   };
-  const persistDefaults = async (next: RequestDefaults) => {
+  /** Profil şartlarını kaydeder; başarıyı döner (kurulum kartı yalnız başarıda kapanır — D-243). */
+  const persistDefaults = async (next: RequestDefaults): Promise<boolean> => {
     try {
       await saveDefaults.mutateAsync(next);
       toast.success(tr("talepSartlariKaydedildiSonrakiTaleplerde"));
+      return true;
     } catch (err) {
       toast.error(extractErrorMessage(err, tr("sartlarKaydedilemedi")));
+      return false;
     }
+  };
+
+  /**
+   * BOŞ YENİ TALEP (arayüz testi O-083): yayın sonrası "Yeni talep aç" ve taslak
+   * bandındaki "Temizle, sıfırdan başla" AYNI yoldan geçer — profil şartları,
+   * varsayılan teslimat adresi, bağlantısız firmada görünürlük geri düşüşü ve
+   * "Bağlantılarım"da tüm bağlantıların işaretlenmesi yeniden kurulur. Eskiden
+   * "Temizle" yalnız formu sıfırlıyor, adres boşalıyor ve talep kimseye
+   * gösterilmeden (PRIVATE) kaydediliyordu. Otomatik doldurma efektleri tek
+   * seferlik olduğundan değerler burada DOĞRUDAN hesaplanır.
+   */
+  const resetToBlank = () => {
+    const d = defaultsQ.data?.defaults ?? requestDefaultsFallbackFor(companyCountry);
+    const base = initialRequestFormValues("blank", undefined, d);
+    const pick = base.deliveryAddressId ? null : pickDeliveryAddress(addresses.data ?? []);
+    let visibility = base.visibility;
+    if (connections.data && defaultsQ.data?.source === "none") {
+      visibility = fallbackVisibilityFor(visibility, connections.data.length) as TenderFormData["visibility"];
+    }
+    zeroConnChecked.current = !!connections.data;
+    autoFilled.current = visibility === "CONNECTIONS" && connectionIds.length > 0;
+    setTerms(visibility === d.visibility ? d : { ...d, visibility });
+    setExternalInvites([]);
+    setMemberInvites([]);
+    setStagedDocs([]);
+    setRestoredDraft(false);
+    reset({
+      ...base,
+      visibility,
+      invitedSupplierIds: visibility === "CONNECTIONS" ? connectionIds : base.invitedSupplierIds,
+      deliveryAddressId: pick ? pick.id : base.deliveryAddressId,
+    });
   };
 
   if (published) {
@@ -627,17 +678,7 @@ export function QuickRequest({
           // Yeni boş talep: profil şartları + varsayılan adres yeniden uygulanır
           // (derin denetim S083 — eskiden çıplak varsayılanlarla açılıyor, şartsız
           // yayın hatası veriyor ve taslak saklama duruyordu).
-          const d = defaultsQ.data?.defaults ?? requestDefaultsFallbackFor(companyCountry);
-          const base = initialRequestFormValues("blank", undefined, d);
-          const pick = base.deliveryAddressId ? null : pickDeliveryAddress(addresses.data ?? []);
-          setTerms(d);
-          setExternalInvites([]);
-          setMemberInvites([]);
-          setStagedDocs([]);
-          setRestoredDraft(false);
-          autoFilled.current = false;
-          zeroConnChecked.current = false;
-          reset(pick ? { ...base, deliveryAddressId: pick.id } : base);
+          resetToBlank();
           setPublished(null);
         }}
       />
@@ -683,6 +724,7 @@ export function QuickRequest({
       ? [pickerAudience, tr("aiDavetleriYayindaGider", { n: aiInviteCount })].filter(Boolean).join(" ")
       : pickerAudience;
   const inviteCount = (visibility !== "PUBLIC" ? invited.length : 0) + aiInviteCount;
+  const docCount = isEdit ? (existingDocs.data?.length ?? 0) : stagedDocs.length;
 
   const paymentLabel =
     formatPaymentPlan({
@@ -710,8 +752,10 @@ export function QuickRequest({
               onChange={updateTerms}
               saving={saveDefaults.isPending}
               onDone={() => {
-                setSetupDone(true);
-                void persistDefaults(terms);
+                // Kart yalnız kayıt BAŞARILIYSA kapanır (D-243); hata toast'ta, kart açık kalır.
+                void persistDefaults(terms).then((ok) => {
+                  if (ok) setSetupDone(true);
+                });
               }}
             />
           ) : null}
@@ -734,10 +778,7 @@ export function QuickRequest({
                     onClick={() => {
                       clearSession(QUICK_DRAFT_KEY);
                       clearFormSupplierPanel();
-                      setExternalInvites([]);
-                      setMemberInvites([]);
-                      setRestoredDraft(false);
-                      reset(applyRequestDefaults({ ...DEFAULT_FORM_VALUES }, terms));
+                      resetToBlank();
                     }}
                     className="font-semibold underline-offset-2 hover:underline"
                   >
@@ -911,9 +952,9 @@ export function QuickRequest({
                 {addresses.isLoading ? (
                   <p className="text-sm text-zinc-500">{tr("adreslerYukleniyor")}</p>
                 ) : (
-                  <AddressPicker addresses={addresses.data ?? []} value={watched.deliveryAddressId ?? ""} onChange={(id) => setValue("deliveryAddressId", id, { shouldDirty: true })} onAdd={() => setAddingAddress(true)} />
+                  <AddressPicker addresses={addresses.data ?? []} value={watched.deliveryAddressId ?? ""} onChange={(id) => setValue("deliveryAddressId", id, { shouldDirty: true })} onAdd={() => setAddingAddress(true)} canAdd={canManageAddresses} />
                 )}
-                {addingAddress ? (
+                {addingAddress && canManageAddresses ? (
                   <AddressInline
                     onCreated={(id) => {
                       setAddingAddress(false);
@@ -939,6 +980,21 @@ export function QuickRequest({
                     <input type="number" min={1} max={60} value={currentCloseDays} onChange={(e) => setCloseDays(Math.min(60, Math.max(1, Number(e.target.value) || 1)))} aria-label={tr("ozelGun")} className="w-16 rounded-lg border border-zinc-300 px-2 py-1.5 text-sm" />
                     {tr("gun4")}
                   </label>
+                </div>
+                {/* Belirli gün + saat (D-095, DN-10): çipler "şimdi + N gün" verir
+                    (o anki dakika); kapanışı belli bir saate koymak isteyen
+                    buradan seçer. Değer formun duvar saati biçimiyle aynı. */}
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="text-xs text-zinc-600">{tr("belirliTarihSaat")}</span>
+                  <DateTimeInput
+                    idPrefix="talep-kapanis"
+                    value={watched.bidsCloseAt ?? ""}
+                    min={toAppWallClockInput(new Date())}
+                    onChange={(v) => setValue("bidsCloseAt", v, { shouldDirty: true, shouldValidate: true })}
+                    hasError={!!form.formState.errors.bidsCloseAt}
+                    dateAriaLabel={tr("kapanisGunu")}
+                    timeAriaLabel={tr("kapanisSaati")}
+                  />
                 </div>
                 <p className="mt-2 text-xs text-zinc-600">
                   {closeLabel ? (
@@ -1144,9 +1200,11 @@ export function QuickRequest({
             accent="blue"
             title={tr("belgeler")}
             lead={tr("sartnameTeknikResimSozlesmeTaslagi")}
-            status={stagedDocs.length ? <Done>{tr("dosyaSayisi", { n: stagedDocs.length })}</Done> : <span>{tr("istegeBagli")}</span>}
+            status={docCount ? <Done>{tr("dosyaSayisi", { n: docCount })}</Done> : <span>{tr("istegeBagli")}</span>}
           >
-            <StagedDocuments docs={stagedDocs} onChange={setStagedDocs} />
+            {/* Düzenlemede mevcut belgeler listelenir, kaldırılır; yeni dosya hemen
+                yüklenir (O-087). Yeni talepte dosyalar kayıtta yüklenir. */}
+            {isEdit && listingId ? <FilesTab listingId={listingId} isOwner canEdit /> : <StagedDocuments docs={stagedDocs} onChange={setStagedDocs} />}
           </NumberedSection>
         </div>
 
@@ -1184,7 +1242,7 @@ export function QuickRequest({
               <Row k={tr("neZamana")} v={summary.when} />
               <Row k={tr("odeme")} v={paymentLabel} />
               <Row k={tr("kime")} v={summary.who} />
-              <Row k={tr("belge")} v={stagedDocs.length ? tr("dosyaSayisi", { n: stagedDocs.length }) : null} />
+              <Row k={tr("belge")} v={docCount ? tr("dosyaSayisi", { n: docCount }) : null} />
             </dl>
             {!verified ? (
               <p className="mt-4 flex items-start gap-2 rounded-lg bg-amber-50 px-3 py-2 text-xs/5 text-amber-900 ring-1 ring-amber-600/20">
@@ -1211,9 +1269,11 @@ export function QuickRequest({
                     {isEdit ? tr("taslagiKaydet") : tr("taslakKaydet")}
                   </button>
                 )}
-                <button type="button" onClick={() => setTemplateOpen(true)} className="w-full rounded-full px-4 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900">
-                  {tr("sablonOlarakKaydet")}
-                </button>
+                {canManageTemplates ? (
+                  <button type="button" onClick={() => setTemplateOpen(true)} className="w-full rounded-full px-4 py-1.5 text-xs font-medium text-zinc-600 hover:text-zinc-900">
+                    {tr("sablonOlarakKaydet")}
+                  </button>
+                ) : null}
               </div>
             ) : (
               <p className="mt-4 rounded-lg bg-zinc-50 px-3 py-2 text-sm text-zinc-500">{tr("talepAcmakIcinTalepYonetimi")}</p>

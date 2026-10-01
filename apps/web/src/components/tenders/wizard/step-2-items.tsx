@@ -29,7 +29,7 @@ import {
 } from "react-hook-form";
 import { ItemDetailModal } from "./item-detail-modal";
 import { ItemQuestionModal } from "./item-question-modal";
-import { UnitSelect } from "@/components/ui/unit-select";
+import { UnitNotInCatalogHint, UnitSelect, isUnitNotInCatalog } from "@/components/ui/unit-select";
 import {
   CatalogPickerDialog,
   type PickedCatalogItem,
@@ -120,6 +120,9 @@ export function Step2Items() {
     );
   };
 
+  // Yeni satıra odak VERİLMEZ (arayüz testi D-245): ad alanı odak alıp ikinci
+  // tıkta bulanıklaşınca "kalem adı gerekli" hatası çıkıyor, düğme aşağı
+  // kayıyor ve art arda ikinci "Yeni Kalem Ekle" tıkı boşa gidiyordu.
   const handleAdd = () => {
     if (fields.length >= MAX_LISTING_ITEMS) return;
     append({
@@ -135,7 +138,7 @@ export function Step2Items() {
       alternativeAllowed: true,
       customQuestion: "",
       questions: [],
-    });
+    }, { shouldFocus: false });
   };
 
   return (
@@ -330,6 +333,7 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
               value={unitValue ?? ""}
               unitCode={unitCodeValue ?? null}
               hasError={!!itemErrors?.unit}
+              showHint={false}
               onChange={(next) => {
                 setValue(`items.${index}.unit`, next.unit, {
                   shouldDirty: true,
@@ -368,6 +372,9 @@ function ItemRow({ index, canRemove, onRemove }: ItemRowProps) {
           <Trash2 className="w-4 h-4" />
         </button>
       </div>
+      {/* "Katalogda yok" notu dar birim sütununda değil, satırın altında tam
+          genişlikte (arayüz testi D-096). */}
+      {isUnitNotInCatalog(unitValue, unitCodeValue) ? <UnitNotInCatalogHint className="mt-2 ml-11" /> : null}
 
       {/* Faz 3 — kalem detayları. Panel satırın ALTINDA tam genişlikte
           açılır (v2 7a): eskiden flex satırının içindeydi ve açılınca Kalem

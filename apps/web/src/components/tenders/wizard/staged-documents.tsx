@@ -14,6 +14,21 @@ import { FileText, Paperclip, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+/**
+ * API'nin kabul ettiği belge türleri (`company-listing-documents.service`
+ * ALLOWED_MIME ile birebir). Seçicideki "Tüm dosyalar" ile gelen başka tür
+ * listeye EKLENMEZ — eskiden kabul ediliyor, hata ancak kayıtta "1 dosya
+ * yüklenemedi" olarak çıkıyordu (arayüz testi D-093).
+ */
+export const LISTING_DOC_MIME_TYPES: readonly string[] = [
+  "application/pdf",
+  "image/png",
+  "image/jpeg",
+  "image/webp",
+  "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+  "application/vnd.ms-excel",
+];
+
 /** Wizard'da ilan oluşmadan önce seçilen dosya — yayınla/taslakta yüklenir. */
 export interface StagedListingDoc {
   file: File;
@@ -43,6 +58,10 @@ export function StagedDocuments({
     e.target.value = "";
     const next = [...docs];
     for (const file of files) {
+      if (!LISTING_DOC_MIME_TYPES.includes(file.type)) {
+        toast.error(t("dosyaTuruDesteklenmiyor", { name: file.name }));
+        continue;
+      }
       // 50MB ön-kontrolü — R2 PUT'ta patlamadan anlaşılır mesaj (FilesTab paritesi).
       if (file.size > 50 * 1024 * 1024) {
         toast.error(t("n50mbSiniriniAsiyor", { name: file.name }));
@@ -130,7 +149,10 @@ export function StagedDocuments({
                     </span>
                     <div className="flex shrink-0 items-center gap-3">
                       <span className="text-xs text-zinc-400">
-                        {t("mb", { toFixed: (d.file.size / 1024 / 1024).toFixed(1) })}
+                        {/* 1 MB altı KB ile — küçük dosya "0.0 MB" görünüyordu (D-093). */}
+                        {d.file.size < 1024 * 1024
+                          ? t("kb", { n: Math.max(1, Math.round(d.file.size / 1024)) })
+                          : t("mb", { toFixed: (d.file.size / 1024 / 1024).toFixed(1) })}
                       </span>
                       <button
                         type="button"

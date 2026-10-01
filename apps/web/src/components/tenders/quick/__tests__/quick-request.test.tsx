@@ -23,11 +23,13 @@ const h = vi.hoisted(() => ({
   publish: vi.fn(),
   addresses: undefined as unknown,
   upload: vi.fn(),
+  denied: [] as string[],
+  existingDocs: [] as unknown[],
 }));
 
 vi.mock("next/navigation", () => ({ useRouter: () => ({ push: h.push, replace: vi.fn() }), useSearchParams: () => new URLSearchParams() }));
 vi.mock("@/hooks/use-company-auth", () => ({
-  useHasCompanyPermission: () => true,
+  useHasCompanyPermission: (p: string) => !h.denied.includes(p),
   useCompanyAuth: () => ({ user: null, company: { tier: "GOLD", companyVerificationStatus: "VERIFIED", name: "Acme", slug: "acme" } }),
 }));
 vi.mock("@/hooks/use-request-defaults", () => ({
@@ -77,7 +79,14 @@ vi.mock("@/components/tenders/wizard/staged-documents", () => ({
     </div>
   ),
 }));
-vi.mock("@/hooks/use-listing-documents", () => ({ uploadListingDocument: h.upload }));
+vi.mock("@/hooks/use-listing-documents", () => ({
+  uploadListingDocument: h.upload,
+  useListingDocuments: (_id: string, enabled: boolean) => ({ data: enabled ? h.existingDocs : undefined }),
+}));
+// Düzenlemede 4. bölüm mevcut belgeleri FilesTab ile yönetir (O-087).
+vi.mock("@/components/tenders/files-tab", () => ({
+  FilesTab: ({ listingId, canEdit }: { listingId: string; canEdit?: boolean }) => <div data-testid="files-tab" data-listing={listingId} data-can-edit={String(!!canEdit)} />,
+}));
 vi.mock("@/hooks/use-company-tenders", () => ({ useTenders: () => ({ data: [{ id: "t9", title: "Geçen ayki kablo alımı", status: "AWARDED" }] }) }));
 vi.mock("@/hooks/use-company-directory", () => ({ useCompanySearch: () => ({ data: { items: [], total: 12 } }) }));
 vi.mock("@/hooks/use-ai-seo-enrich", () => ({ useAiSeoEnrich: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
@@ -131,6 +140,8 @@ beforeEach(() => {
   h.addresses = [{ id: "addr1", type: "TESLIMAT", title: "Depo", city: "İzmir", isDefault: true }];
   sessionStorage.clear();
   h.defaults = { data: { defaults: SAVED, source: "saved" }, isLoading: false };
+  h.denied = [];
+  h.existingDocs = [];
 });
 
 describe("QuickRequest", () => {
@@ -496,6 +507,89 @@ describe("QuickRequest", () => {
     expect(within(panel).queryByText("Kimler görsün")).toBeNull();
   }, 30_000);
 
+  it("O-083: taslak bandındaki 'Temizle, sıfırdan başla' varsayılan teslimat adresini seçer ve tüm bağlantıları işaretler", async () => {
+    h.defaults = { data: { defaults: null, source: "none" }, isLoading: false };
+    h.addresses = [{ id: "depo", type: "TESLIMAT", title: "Depo", city: "İzmir", isDefault: true }];
+    h.connections = [
+      { connectionId: "c1", origin: "SENT", decidedAt: null, company: { id: "1", name: "Beta Kimya", rothernId: "BETA-0001", city: "Kocaeli", industry: "Kimya" } },
+      { connectionId: "c2", origin: "SENT", decidedAt: null, company: { id: "2", name: "Ege Makina", rothernId: "EGEM-0001", city: "Manisa", industry: "Makine" } },
+    ];
+    // Geri getirilen taslakta adres boş, bağlantılar çıkarılmış.
+    sessionStorage.setItem(
+      "quick-request-draft",
+      JSON.stringify({ title: "Eski taslak", description: "", items: [{ ...DEFAULT_FORM_VALUES.items[0]!, name: "eski kalem" }], categoryIds: [], keywords: [], deliveryAddressId: "", visibility: "CONNECTIONS", invitedSupplierIds: [], bidsCloseAt: "" }),
+    );
+    try {
+      wrap(<QuickRequest />);
+      fireEvent.click(await screen.findByRole("button", { name: "Temizle, sıfırdan başla" }));
+      await waitFor(() => expect(screen.getByRole("button", { name: /^Depo/ })).toHaveAttribute("aria-pressed", "true"));
+      expect(screen.getByText(/2 bağlantınızın tamamı görecek/)).toBeInTheDocument();
+      expect(screen.queryByText("Kaldığınız taslak geri yüklendi.")).toBeNull();
+      expect(screen.getAllByLabelText(/^Kalem Adı/)[0]).toHaveValue("");
+    } finally {
+      h.connections = [];
+    }
+  }, 30_000);
+
+  it("O-084: taslak kaydedilince oturum taslağı silinir ve geri yazılmaz", async () => {
+    h.create.mockResolvedValue({ id: "l30", number: "ROT-000070" });
+    wrap(<QuickRequest />);
+    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+    await waitFor(() => expect(sessionStorage.getItem("quick-request-draft") ?? "").toContain("çelik boru"));
+    fireEvent.click(screen.getByRole("button", { name: "Taslak kaydet" }));
+    await waitFor(() => expect(h.push).toHaveBeenCalledWith("/company/ilan/l30"));
+    // `finally`'deki yeniden çizimden SONRA da boş kalır.
+    await waitFor(() => expect(screen.getByRole("button", { name: "Taslak kaydet" })).toBeEnabled());
+    expect(sessionStorage.getItem("quick-request-draft")).toBeNull();
+  }, 30_000);
+
+  it("D-243: kurulum kartı kayıt başarısızsa kapanmaz", async () => {
+    h.defaults = { data: { defaults: null, source: "none" }, isLoading: false };
+    h.saveDefaults.mockRejectedValue(new Error("500"));
+    wrap(<QuickRequest />);
+    await screen.findByText("İlk talebiniz — üç kısa soru");
+    fireEvent.click(screen.getByRole("button", { name: "Kaydet ve devam et" }));
+    await waitFor(() => expect(h.saveDefaults).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(screen.getByRole("button", { name: "Kaydet ve devam et" })).toBeEnabled());
+    expect(screen.getByText("İlk talebiniz — üç kısa soru")).toBeInTheDocument();
+  });
+
+  it("D-095: kapanış belirli gün ve saate ayarlanabilir; yayın o anı gönderir", async () => {
+    h.create.mockResolvedValue({ id: "l31", number: "ROT-000071" });
+    wrap(<QuickRequest />);
+    fireEvent.change(await screen.findByLabelText(/^Kalem Adı/), { target: { value: "çelik boru" } });
+    const day = closesAtFromDays(10).slice(0, 10);
+    fireEvent.change(screen.getByLabelText("Kapanış günü"), { target: { value: day } });
+    fireEvent.change(screen.getByLabelText("Kapanış saati"), { target: { value: "17:00" } });
+    fireEvent.click(await screen.findByRole("button", { name: "+ Çelik borular" }));
+    fireEvent.click(screen.getAllByRole("button", { name: /Talebi yayınla/ })[0]);
+    await waitFor(() => expect(h.create).toHaveBeenCalledTimes(1));
+    expect(h.create.mock.calls[0][0].closesAt).toBe(parseAppWallClockInput(`${day}T17:00`)?.toISOString());
+  }, 30_000);
+
+  it("D-042: adres/şablon yönetme izni yoksa '+ Yeni adres' ve 'Şablon olarak kaydet' çizilmez", async () => {
+    h.denied = ["addresses:manage", "templates:manage"];
+    wrap(<QuickRequest />);
+    await screen.findByLabelText(/^Kalem Adı/);
+    expect(screen.queryByRole("button", { name: "+ Yeni adres" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Şablon olarak kaydet" })).toBeNull();
+    // Talep izni olduğu için yayın/taslak düğmeleri durur.
+    expect(screen.getByRole("button", { name: "Taslak kaydet" })).toBeInTheDocument();
+  });
+
+  it("D-150: çok adresli firmada seçili + ilk kartlar görünür; 'Tüm adresler' aranabilir liste açar", async () => {
+    h.addresses = Array.from({ length: 30 }, (_, i) => ({ id: `a${i}`, type: "TESLIMAT", title: `Şube ${i}`, city: "İzmir", isDefault: i === 0 }));
+    wrap(<QuickRequest />);
+    await screen.findByLabelText(/^Kalem Adı/);
+    expect(screen.getAllByRole("button", { name: /^Şube \d+/ })).toHaveLength(4);
+    fireEvent.click(screen.getByRole("button", { name: "Tüm adresler (30)" }));
+    fireEvent.change(screen.getByRole("searchbox", { name: "Adres ara…" }), { target: { value: "Şube 27" } });
+    fireEvent.click(screen.getByRole("button", { name: /^Şube 27/ }));
+    // Seçim sonrası liste kapanır; seçili adres kapalı görünümde kalır.
+    expect(screen.getByRole("button", { name: /^Şube 27/ })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getAllByRole("button", { name: /^Şube \d+/ })).toHaveLength(4);
+  }, 30_000);
+
   describe("düzenleme (derin denetim Y-19 / Y-20)", () => {
     // Talebin kendi şartları firma varsayılanından (SAVED: bağlantılarım, TRY,
     // vadeli 45 gün, 7 gün) FARKLI: özel, USD, akreditif, kapanış 20 gün sonra.
@@ -584,6 +678,16 @@ describe("QuickRequest", () => {
       } finally {
         h.connections = [];
       }
+    }, 30_000);
+
+    it("O-087: düzenlemede 4. bölüm talebin mevcut belgelerini (FilesTab) gösterir, sayaç onlardan", async () => {
+      h.existingDocs = [{ id: "d1" }, { id: "d2" }];
+      wrap(<QuickRequest mode="edit" listingId="e1" listingStatus="DRAFT" initialValues={listing()} />);
+      const tab = await screen.findByTestId("files-tab");
+      expect(tab).toHaveAttribute("data-listing", "e1");
+      expect(tab).toHaveAttribute("data-can-edit", "true");
+      expect(screen.queryByTestId("staged-docs")).toBeNull();
+      expect(screen.getAllByText("2 dosya").length).toBeGreaterThan(0);
     }, 30_000);
 
     it("taslak düzenlemede 'Talebi yayınla' önce günceller sonra yayınlar", async () => {

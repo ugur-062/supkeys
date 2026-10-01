@@ -152,7 +152,7 @@ export function makeTenderItemSchema(t: RequestsTranslate) {
     // F3: backend create-listing.dto ile birebir (@Min 0.001, @Max 1e9, 3 ondalık).
     quantity: z
       .number({ invalid_type_error: t("formSchema.quantityRequired") })
-      .min(MIN_QUANTITY, t("formSchema.quantityMin"))
+      .min(MIN_QUANTITY, t("formSchema.quantityMin", { min: MIN_QUANTITY }))
       .max(MAX_QUANTITY, t("formSchema.quantityTooLarge"))
       .refine((n) => maxDecimals(n, QUANTITY_DECIMALS), t("formSchema.maxThreeDecimals")),
     unit: z.string().min(1, t("formSchema.unitRequired")).max(20, maxChars(20)),

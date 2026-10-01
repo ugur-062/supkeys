@@ -2430,9 +2430,9 @@
     "at": "2026-09-24"
   },
   "api.companyListings.buIlaniYonetmeYetkinizYok": {
-    "hash": "b36bbd2457",
+    "hash": "2ceffe24c0",
     "status": "reviewed",
-    "at": "2026-09-27"
+    "at": "2026-10-01"
   },
   "api.companyListings.buIlanKapatilamaz": {
     "hash": "b89f6e2b6a",
@@ -4634,10 +4634,20 @@
     "status": "reviewed",
     "at": "2026-09-29"
   },
+  "api.dto.companyItems.gecersizDisBaglanti": {
+    "hash": "46f8dea22d",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.dto.companyItems.gecersizOlcuBirimi": {
     "hash": "f574e3e7e3",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "api.dto.companyItems.gecersizVideoBaglantisi": {
+    "hash": "83d26f1e93",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.dto.companyLogin.gecerliBirEpostaAdresiGiriniz": {
     "hash": "05052f9132",
@@ -12575,9 +12585,9 @@
     "at": "2026-09-23"
   },
   "web.marketing.home.seoParagraph": {
-    "hash": "8c82478ad6",
+    "hash": "2f45b3de2f",
     "status": "reviewed",
-    "at": "2026-09-26"
+    "at": "2026-10-01"
   },
   "web.marketing.home.showcaseLead": {
     "hash": "8f176b6ab0",
@@ -15614,6 +15624,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketplace.index.goToDirectory": {
+    "hash": "ddc7313a34",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.marketplace.index.inquire": {
     "hash": "ba5b09c6bc",
     "status": "reviewed",
@@ -15650,9 +15665,9 @@
     "at": "2026-09-23"
   },
   "web.marketplace.index.membersOnlyBody": {
-    "hash": "249727fe1e",
+    "hash": "cb6a206b1b",
     "status": "reviewed",
-    "at": "2026-09-23"
+    "at": "2026-10-01"
   },
   "web.marketplace.index.membersOnlyTitle": {
     "hash": "e037d59fec",
@@ -15683,6 +15698,11 @@
     "hash": "fa33ecc4db",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.marketplace.index.viewCompany": {
+    "hash": "c4f377cb1f",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.marketplace.inquiry.checkEmail": {
     "hash": "ec0de2bafd",
@@ -16054,6 +16074,86 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketplace.memberGate.backToPanel": {
+    "hash": "7e9dc920bc",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.body": {
+    "hash": "d8d6acfbef",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.directoryRedirect": {
+    "hash": "bc6b07f939",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.inquiryTitle": {
+    "hash": "11f4e2ad5a",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.listingTitle": {
+    "hash": "6ca615e682",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.loading": {
+    "hash": "3a5e96d474",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.lockedLabel": {
+    "hash": "5c51e21157",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.noBuyView": {
+    "hash": "1d7283b96e",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.noPermissionInquiry": {
+    "hash": "41c2e0d997",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.noPermissionListing": {
+    "hash": "b9a57e1001",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.notFound": {
+    "hash": "196f2e08ee",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.ownProduct": {
+    "hash": "5b1f505e41",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.publicProductPage": {
+    "hash": "1ef9d76a72",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.upgradeCta": {
+    "hash": "5c64fbaaa6",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.verifyCta": {
+    "hash": "d2acf441bb",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.memberGate.verifyNote": {
+    "hash": "bfaf18d546",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.marketplace.pages.backHome": {
     "hash": "6ed1e42c0d",
     "status": "reviewed",
@@ -16369,6 +16469,16 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketplace.product.docsLocked": {
+    "hash": "b8de0e1d94",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.marketplace.product.docsLockedNote": {
+    "hash": "cfe3e3ae44",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.marketplace.product.employees": {
     "hash": "376f53699a",
     "status": "reviewed",
@@ -16398,6 +16508,11 @@
     "hash": "ba5b09c6bc",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.marketplace.product.inquiryGoldNote": {
+    "hash": "b4bee5034e",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.marketplace.product.minOrder": {
     "hash": "0f4928ea32",
@@ -16479,6 +16594,11 @@
     "status": "reviewed",
     "at": "2026-09-23"
   },
+  "web.marketplace.product.tabVideo": {
+    "hash": "bc17c1f017",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.marketplace.product.twoMinutes": {
     "hash": "631a552a79",
     "status": "reviewed",
@@ -16498,6 +16618,11 @@
     "hash": "9718175c8d",
     "status": "reviewed",
     "at": "2026-09-23"
+  },
+  "web.marketplace.product.videoTitle": {
+    "hash": "ffb260b04c",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.marketplace.product.viewAll": {
     "hash": "ba09153870",
@@ -20854,6 +20979,26 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.addressPicker.adresAra": {
+    "hash": "71f20a715b",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.requests.addressPicker.dahaAzGoster": {
+    "hash": "d469f63f7d",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.requests.addressPicker.eslesenAdresYok": {
+    "hash": "960d929f85",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.requests.addressPicker.tumAdresler": {
+    "hash": "4ba8f9752e",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.addressPicker.varsayilan": {
     "hash": "de54dae360",
     "status": "reviewed",
@@ -22620,9 +22765,9 @@
     "at": "2026-09-24"
   },
   "web.panel.requests.formSchema.quantityMin": {
-    "hash": "a0912ff97f",
+    "hash": "3d5b33d492",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.panel.requests.formSchema.quantityRequired": {
     "hash": "04ac86b555",
@@ -24214,6 +24359,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.page.duzenlemeYetkinizYok": {
+    "hash": "d75d9dda0f",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.page.duzenlenemez": {
     "hash": "c444ae9deb",
     "status": "reviewed",
@@ -25224,6 +25374,16 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.page.talebiDuzenle": {
+    "hash": "74d6a78d38",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.requests.page.talepBulunamadiAciklama": {
+    "hash": "4c45553762",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.page.talepKazandirildiSiparisOlusturulduSiparisle": {
     "hash": "ab24c0d0e2",
     "status": "reviewed",
@@ -25584,6 +25744,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.page.yalnizTalebiAcanDuzenleyebilir": {
+    "hash": "915f5ecae3",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.page.yayindaYeniTekliflerGeldikce": {
     "hash": "925ecbbdb0",
     "status": "reviewed",
@@ -25899,6 +26064,11 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.quickRequest.belirliTarihSaat": {
+    "hash": "2095de3659",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.quickRequest.bosBirakirsanizKalemlerdenTuretilir": {
     "hash": "51000f7507",
     "status": "reviewed",
@@ -26088,6 +26258,16 @@
     "hash": "ede3a816e1",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.requests.quickRequest.kapanisGunu": {
+    "hash": "6c72976545",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.requests.quickRequest.kapanisSaati": {
+    "hash": "8cdff4a9f0",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.quickRequest.kapanisTarihiSecin": {
     "hash": "9dcc8c3181",
@@ -26904,10 +27084,20 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.stagedDocuments.dosyaTuruDesteklenmiyor": {
+    "hash": "817a3e75d2",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.stagedDocuments.kaldir": {
     "hash": "d38bc7b3dd",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.stagedDocuments.kb": {
+    "hash": "45944c48ca",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.stagedDocuments.mb": {
     "hash": "079f3de1f8",
@@ -39305,9 +39495,9 @@
     "at": "2026-09-24"
   },
   "web.shared.unitSelect.listedeYok": {
-    "hash": "c105e67409",
+    "hash": "fc303fe083",
     "status": "reviewed",
-    "at": "2026-09-24"
+    "at": "2026-10-01"
   },
   "web.shared.unitSelect.ornBobin": {
     "hash": "2e4ad3e67c",
