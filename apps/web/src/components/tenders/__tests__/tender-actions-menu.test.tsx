@@ -92,7 +92,28 @@ describe("TenderActionsMenu — paket kilidi (T-06)", () => {
     render(<TenderActionsMenu {...base} status="OPEN" buyLock="verify" />);
     const link = within(screen.getByRole("note")).getByRole("link", { name: "Önce ücretsiz doğrulan" });
     expect(link).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+    // Doğrulanmamış firmada kazandırma da kapalı (API assertVerified):
+    // not "kazandırma açık kalır" demez, doğrulama gerektiğini söyler.
+    const note = screen.getByRole("note");
+    expect(note).toHaveTextContent(/kazandırma ise firma doğrulaması gerektirir/);
+    expect(note).not.toHaveTextContent(/kazandırma, kapatma/);
   });
+
+  it.each(["AWARDED", "CANCELLED"])(
+    "%s (bitmiş) talepte kilitli eylem yok, kilit notu çıkmaz",
+    (status) => {
+      render(<TenderActionsMenu {...base} status={status} buyLock="upgrade" />);
+      expect(screen.queryByRole("note")).toBeNull();
+    },
+  );
+
+  it.each(["DRAFT", "IN_AWARD", "CLOSED_NO_AWARD"])(
+    "%s talepte kilit notu çıkar",
+    (status) => {
+      render(<TenderActionsMenu {...base} status={status} buyLock="upgrade" />);
+      expect(screen.getByRole("note")).toHaveTextContent(/Gold paket gerektirir/);
+    },
+  );
 
   it("Gold'da eylemler açık, kilit notu yok", () => {
     render(<TenderActionsMenu {...base} status="OPEN" canEdit />);

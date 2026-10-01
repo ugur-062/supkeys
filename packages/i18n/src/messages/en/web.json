@@ -2789,6 +2789,7 @@
         "yeniTurOlustur": "Create new round",
         "satinAlmaTalebiniIptalEt": "Cancel buying request",
         "paketKilidiNotu": "Your company is not on the Gold plan: publishing, editing, inviting new suppliers, opening a new round and extending the closing time of this request require Gold. Viewing, evaluation, awarding, closing and cancelling remain available.",
+        "paketKilidiNotuDogrulama": "Your company is not on the Gold plan and is not verified yet: publishing, editing, inviting new suppliers, opening a new round and extending the closing time of this request require Gold, and awarding requires company verification. Viewing, evaluation, closing and cancelling remain available.",
         "onceUcretsizDogrulan": "Get verified for free first",
         "goldaGec": "Upgrade to Gold",
         "taslagiSil2": "Delete draft",

@@ -27484,11 +27484,6 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
-  "web.panel.requests.supplierDiscoveryModal.talepIcinAciklama": {
-    "hash": "900737f3cd",
-    "status": "reviewed",
-    "at": "2026-10-01"
-  },
   "web.panel.requests.supplierDiscoveryModal.sec": {
     "hash": "425a4a9afd",
     "status": "reviewed",
@@ -27519,10 +27514,20 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
+  "web.panel.requests.supplierDiscoveryModal.talebeOzelDisDavetNotu": {
+    "hash": "95fa0bafb8",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.supplierDiscoveryModal.talepHenuzYayinlanmadigiIcinBaglanti": {
     "hash": "9cd7caf0cb",
     "status": "reviewed",
     "at": "2026-09-27"
+  },
+  "web.panel.requests.supplierDiscoveryModal.talepIcinAciklama": {
+    "hash": "900737f3cd",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.supplierDiscoveryModal.tedarikciKaynagi": {
     "hash": "e23723874c",
@@ -27533,11 +27538,6 @@
     "hash": "535e64c089",
     "status": "reviewed",
     "at": "2026-09-27"
-  },
-  "web.panel.requests.supplierDiscoveryModal.talebeOzelDisDavetNotu": {
-    "hash": "95fa0bafb8",
-    "status": "reviewed",
-    "at": "2026-10-01"
   },
   "web.panel.requests.supplierDiscoveryModal.webAramasiBasarisizTekrarDeneyin": {
     "hash": "ffb57cce33",
@@ -27749,16 +27749,6 @@
     "status": "reviewed",
     "at": "2026-09-27"
   },
-  "web.panel.requests.tenderActionsMenu.eslesenFirmaYok": {
-    "hash": "a7a3157842",
-    "status": "reviewed",
-    "at": "2026-10-01"
-  },
-  "web.panel.requests.tenderActionsMenu.davetli": {
-    "hash": "8d457f1255",
-    "status": "reviewed",
-    "at": "2026-10-01"
-  },
   "web.panel.requests.tenderActionsMenu.buModdaKatilimcilarTumTeklif": {
     "hash": "65a4a07dc0",
     "status": "reviewed",
@@ -27783,6 +27773,11 @@
     "hash": "0824fbaf3a",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.tenderActionsMenu.davetli": {
+    "hash": "8d457f1255",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.tenderActionsMenu.degerlendirmeyeAl": {
     "hash": "ea70bb4a5f",
@@ -27809,6 +27804,11 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.tenderActionsMenu.eslesenFirmaYok": {
+    "hash": "a7a3157842",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.tenderActionsMenu.firmaAdlariHicbirSekildeGosterilmez": {
     "hash": "750da034c3",
     "status": "reviewed",
@@ -27828,6 +27828,11 @@
     "hash": "b22b5ca3e6",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.tenderActionsMenu.goldaGec": {
+    "hash": "37afcb60e5",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.tenderActionsMenu.gorunurluk": {
     "hash": "4cf8eb0086",
@@ -27869,16 +27874,6 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
-  "web.panel.requests.tenderActionsMenu.kapanisZamaniBeklenmedenTeklifAlimi": {
-    "hash": "661d1cd18a",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
-  "web.panel.requests.tenderActionsMenu.kapanisZamaniGuncellendi": {
-    "hash": "bd34dbf120",
-    "status": "reviewed",
-    "at": "2026-09-24"
-  },
   "web.panel.requests.tenderActionsMenu.kapanisUzatmaGoldGerektirir": {
     "hash": "e40cb8f54e",
     "status": "reviewed",
@@ -27888,6 +27883,16 @@
     "hash": "6f5ad77944",
     "status": "reviewed",
     "at": "2026-10-01"
+  },
+  "web.panel.requests.tenderActionsMenu.kapanisZamaniBeklenmedenTeklifAlimi": {
+    "hash": "661d1cd18a",
+    "status": "reviewed",
+    "at": "2026-09-24"
+  },
+  "web.panel.requests.tenderActionsMenu.kapanisZamaniGuncellendi": {
+    "hash": "bd34dbf120",
+    "status": "reviewed",
+    "at": "2026-09-24"
   },
   "web.panel.requests.tenderActionsMenu.kapanisZamaniniDegistir": {
     "hash": "eef2dd1426",
@@ -27939,10 +27944,25 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "web.panel.requests.tenderActionsMenu.onceUcretsizDogrulan": {
+    "hash": "d2acf441bb",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.panel.requests.tenderActionsMenu.otomatikTasinir": {
     "hash": "dfcd681b2f",
     "status": "reviewed",
     "at": "2026-09-24"
+  },
+  "web.panel.requests.tenderActionsMenu.paketKilidiNotu": {
+    "hash": "577718410d",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "web.panel.requests.tenderActionsMenu.paketKilidiNotuDogrulama": {
+    "hash": "00697698dd",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.panel.requests.tenderActionsMenu.pazarligaGec": {
     "hash": "69885a69e0",
@@ -28038,21 +28058,6 @@
     "hash": "f829ab44b1",
     "status": "reviewed",
     "at": "2026-09-24"
-  },
-  "web.panel.requests.tenderActionsMenu.paketKilidiNotu": {
-    "hash": "577718410d",
-    "status": "reviewed",
-    "at": "2026-10-01"
-  },
-  "web.panel.requests.tenderActionsMenu.onceUcretsizDogrulan": {
-    "hash": "d2acf441bb",
-    "status": "reviewed",
-    "at": "2026-10-01"
-  },
-  "web.panel.requests.tenderActionsMenu.goldaGec": {
-    "hash": "37afcb60e5",
-    "status": "reviewed",
-    "at": "2026-10-01"
   },
   "web.panel.requests.tenderActionsMenu.satinAlmaTalebiniKopyala": {
     "hash": "26ee671b9d",

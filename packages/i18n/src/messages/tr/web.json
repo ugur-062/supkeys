@@ -2789,6 +2789,7 @@
         "yeniTurOlustur": "Yeni Tur Oluştur",
         "satinAlmaTalebiniIptalEt": "Satın Alma Talebini İptal Et",
         "paketKilidiNotu": "Firmanız Gold pakette değil: bu talebi yayınlamak, düzenlemek, yeni tedarikçi davet etmek, yeni tur açmak ve kapanışı uzatmak Gold paket gerektirir. Görüntüleme, değerlendirme, kazandırma, kapatma ve iptal açık kalır.",
+        "paketKilidiNotuDogrulama": "Firmanız Gold pakette değil ve henüz doğrulanmadı: bu talebi yayınlamak, düzenlemek, yeni tedarikçi davet etmek, yeni tur açmak ve kapanışı uzatmak Gold paket; kazandırma ise firma doğrulaması gerektirir. Görüntüleme, değerlendirme, kapatma ve iptal açık kalır.",
         "onceUcretsizDogrulan": "Önce ücretsiz doğrulan",
         "goldaGec": "Gold'a geç",
         "taslagiSil2": "Taslağı Sil",

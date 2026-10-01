@@ -133,6 +133,16 @@ export function TenderActionsMenu({
   // ENGLISH_AUCTION). Zaten pazarlıktaysa Yeni Tur devam turlarını yönetir.
   const canStartNegotiation =
     !locked && !isAuction && (status === "OPEN" || canNewRound);
+  // Kilit notu yalnız kilitli bir eylemin gerçekten var olduğu durumlarda
+  // (taslak: yayın/düzenleme; yayında: davet/uzatma/pazarlık; değerlendirme ve
+  // sonuçsuz kapanış: yeni tur). Kazandırılmış/iptal talepte gereksiz uyarı
+  // olurdu (arayüz testi webB-04 gözden geçirme).
+  const lockRelevant =
+    locked &&
+    (isDraft ||
+      status === "OPEN" ||
+      isInEvaluation ||
+      status === "CLOSED_NO_AWARD");
 
   const handleDeleteDraft = async () => {
     if (
@@ -475,13 +485,19 @@ export function TenderActionsMenu({
           </DropdownMenu>
         </Dropdown>
       </div>
-      {buyLock ? (
+      {buyLock && lockRelevant ? (
         <div
           role="note"
           className="mt-3 flex flex-wrap items-start gap-x-3 gap-y-2 rounded-xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900"
         >
           <Lock aria-hidden className="mt-0.5 size-4 shrink-0" />
-          <p className="min-w-0 flex-1">{t("paketKilidiNotu")}</p>
+          {/* Doğrulanmamış firmada kazandırma da kapalı (API assertVerified) —
+              ortak metin "kazandırma açık kalır" demesin. */}
+          <p className="min-w-0 flex-1">
+            {buyLock === "verify"
+              ? t("paketKilidiNotuDogrulama")
+              : t("paketKilidiNotu")}
+          </p>
           <Link
             href={gateHref(buyLock)!}
             className="shrink-0 font-semibold text-amber-900 underline underline-offset-2 hover:text-amber-950"
