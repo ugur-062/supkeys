@@ -261,6 +261,7 @@ describe("yayımlama akışı", () => {
     const { company, user, auth } = await makeCompanyWithUser(prisma);
     const item = await makeProduct(company.id, user.id, {
       description: "x".repeat(120), images: ["a.webp"], keywords: ["pano"],
+      brand: "Schneider", mpn: "NSX400F", specification: "IEC 61439-2",
     });
     const sent = await service().publish(auth, item.id);
     expect(sent.reviewStatus).toBe("PENDING");
@@ -275,6 +276,9 @@ describe("yayımlama akışı", () => {
     const preview = await service().getShowcase(auth, item.id);
     expect(preview.id).toBe(item.id);
     expect(preview.reviewStatus).toBe("PENDING");
+    // Kimlik alanları vitrin yanıtında: `?urun=` derin bağlantısıyla açılan
+    // önizleme bunları buradan çizer (arayüz testi webC-16, gözden geçirme).
+    expect(preview).toMatchObject({ brand: "Schneider", mpn: "NSX400F", specification: "IEC 61439-2" });
     const row = await prisma.companyItem.findUniqueOrThrow({ where: { id: item.id } });
     expect(row.description).toBe("x".repeat(120));
     expect(row.name).toBe("Dağıtım panosu 400A");

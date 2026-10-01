@@ -6,7 +6,7 @@ import { Badge } from "@/components/catalyst/badge";
 import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
 import { useCompanyProfile } from "@/hooks/use-company-profile";
 import { useCategoriesByIds } from "@/hooks/use-categories";
-import { usePublishProduct, type CatalogItem, type ProductShowcase } from "@/hooks/use-company-items";
+import { usePublishProduct, type ProductShowcase } from "@/hooks/use-company-items";
 import { productStatusKey } from "@/lib/company/product-status";
 import { useProductStatusMeta } from "./product-status-label";
 import { formatDate } from "@/lib/format-date";
@@ -28,7 +28,6 @@ import { useConfirm } from "@/components/providers/confirm-dialog";
  */
 export function useShowcaseView(
   product: ProductShowcase,
-  item: Pick<CatalogItem, "brand" | "mpn" | "specification">,
 ): { view: PublicProduct; company: PublicProductCompany; companySlug: string | null } {
   const { company: auth } = useCompanyAuth();
   const profile = useCompanyProfile();
@@ -62,9 +61,12 @@ export function useShowcaseView(
       priceCurrency: product.priceCurrency,
       moq: product.moq,
       description: product.description,
-      specification: item.specification ?? null,
-      brand: item.brand ?? null,
-      mpn: item.mpn ?? null,
+      // Kimlik alanları vitrin yanıtından — liste kaleminden okunuyordu;
+      // `?urun=` derin bağlantısında kalem yapaydı, marka/MPN/şartname
+      // kayboluyordu (arayüz testi webC-16, gözden geçirme).
+      specification: product.specification ?? null,
+      brand: product.brand ?? null,
+      mpn: product.mpn ?? null,
       unitCode: product.unitCode,
       videoUrl: product.videoUrl,
       externalUrl: product.externalUrl,
@@ -76,7 +78,7 @@ export function useShowcaseView(
       publishedAt: product.publishedAt,
       updatedAt: new Date().toISOString(),
     };
-  }, [product, item, cats.data]);
+  }, [product, cats.data]);
 
   const company: PublicProductCompany = {
     name: profile.data?.name ?? auth?.name ?? "",
@@ -106,13 +108,11 @@ export function useShowcaseView(
  */
 export function ProductPreview({
   product,
-  item,
   onClose,
   variant = "review",
   onEdit,
 }: {
   product: ProductShowcase;
-  item: Pick<CatalogItem, "brand" | "mpn" | "specification">;
   onClose: () => void;
   /**
    * `review` = inceleme kilidi (amber bant, düzenleme yok).
@@ -130,7 +130,7 @@ export function ProductPreview({
   const accent = useButtonAccent();
   const status = useProductStatusMeta()(productStatusKey(product));
 
-  const { view, company, companySlug } = useShowcaseView(product, item);
+  const { view, company, companySlug } = useShowcaseView(product);
   const publicHref = product.isPublic && companySlug && product.slug ? productPath(companySlug, product.slug) : null;
 
   // Uygulama içi çevrili onay (arayüz testi D-126; tarayıcının OK/Cancel'ı değil).

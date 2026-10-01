@@ -84,6 +84,9 @@ const EMPTY_PRODUCT: ProductShowcase = {
   moq: null,
   unit: "adet",
   unitCode: "PCE",
+  brand: null,
+  mpn: null,
+  specification: null,
   completion: { score: 0, missing: [] },
   publishBlockers: [],
   attributeDefs: [],
@@ -332,12 +335,11 @@ export function ProductsView() {
         ) : null}
         <div className={inReview ? "mt-8" : "mt-2"}>
           {inReview ? (
-            <ProductPreview product={editing.showcase} item={editing.item} onClose={closeProduct} />
+            <ProductPreview product={editing.showcase} onClose={closeProduct} />
           ) : publishedPreview ? (
             <ProductPreview
               variant="published"
               product={editing.showcase}
-              item={editing.item}
               onClose={closeProduct}
               onEdit={() => setEditorOpen(true)}
             />

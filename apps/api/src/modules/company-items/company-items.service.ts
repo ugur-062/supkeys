@@ -129,6 +129,15 @@ export interface ProductShowcase {
   moq: string | null;
   unit: string;
   unitCode: string | null;
+  /**
+   * Kalemin kimlik alanları — vitrin önizlemesi (`ProductPreview`) bunları
+   * herkese açık sayfadaki gibi basar. Yanıtta yoktu: `?urun=` derin
+   * bağlantısıyla açılan ürünün önizlemesi marka/MPN/şartnameyi kaybediyordu
+   * (arayüz testi webC-16, gözden geçirme).
+   */
+  brand: string | null;
+  mpn: string | null;
+  specification: string | null;
   completion: { score: number; missing: { key: string; label: string; points: number }[] };
   publishBlockers: string[];
   attributeDefs: {
@@ -1642,6 +1651,9 @@ export class CompanyItemsService {
     priceCurrency: string;
     unit: string;
     unitCode: string | null;
+    brand: string | null;
+    mpn: string | null;
+    specification: string | null;
   }): Promise<ProductShowcase> {
     const like = this.toProductLike(r);
     const defs = await this.resolveAttributes(r.categoryId);
@@ -1677,6 +1689,9 @@ export class CompanyItemsService {
       moq: r.moq?.toString() ?? null,
       unit: r.unit,
       unitCode: r.unitCode,
+      brand: r.brand,
+      mpn: r.mpn,
+      specification: r.specification,
       completion,
       publishBlockers: this.publishBlockerTexts(productPublishBlockerCodes(like)),
       attributeDefs: defs,

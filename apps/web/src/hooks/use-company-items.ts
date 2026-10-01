@@ -214,6 +214,13 @@ export interface ProductShowcase {
   /** Satış birimi — vitrin formundan düzenlenir. */
   unit: string;
   unitCode: string | null;
+  /**
+   * Kalemin kimlik alanları (API `serializeShowcase`). Önizleme bunları
+   * buradan okur: `?urun=` derin bağlantısında elde liste kalemi olmayabilir.
+   */
+  brand: string | null;
+  mpn: string | null;
+  specification: string | null;
   /** 0-100 + eksik maddeler. Sunucunun son kayıttaki hesabı; form canlı hesaplar. */
   completion: {
     score: number;
