@@ -8,6 +8,7 @@
  *   · ürün kartı FİRMA ADINI taşır — ilan kartının tam tersi.
  */
 import { PublicMarketplaceService } from "../../src/modules/public-marketplace/public-marketplace.service";
+import { PublicProfileService } from "../../src/modules/public-profile/public-profile.service";
 import type { PrismaBypassService } from "../../src/common/prisma/prisma.service";
 import { prisma, truncateAll } from "./test-db";
 import { makeCompanyWithUser } from "./factories";
@@ -372,6 +373,26 @@ describe("v2 — seçki / ilişkili / öneri / sayılar", () => {
     expect(rel.popular.map((c) => c.company.slug)).not.toContain(company.slug);
     expect(rel.popular.map((c) => c.name)).toContain("Benzer");
     await expect(service().relatedProducts("yok", "yok")).rejects.toThrow(/bulunamadı/);
+  });
+
+  it("ilişkili (panel, arayüz testi D-231): görüntüleyenin kendi ürünü ve engel ilişkili firmalar 'diğer tedarikçiler'de yok", async () => {
+    const { company, product } = await seedProduct({}, { categoryId: "39121000", slug: "base-d231" });
+    const viewer = await seedProduct({}, { categoryId: "39121500", name: "Kendi urunum" });
+    const blockedCo = await seedProduct({}, { categoryId: "39121500", name: "Engelli urun" });
+    await seedProduct({}, { categoryId: "39121500", name: "Baska tedarikci" });
+    await prisma.companyBlock.create({ data: { blockerCompanyId: blockedCo.company.id, blockedCompanyId: viewer.company.id } });
+    const panel = new PublicProfileService(prisma as never);
+    // Herkese açık uç görüntüleyeni bilmez — üçü de listelenir.
+    const anon = await panel.related(company.slug as string, product.slug as string);
+    expect(anon.similar.map((c) => c.name).sort()).toEqual(["Baska tedarikci", "Engelli urun", "Kendi urunum"]);
+    const rel = await panel.relatedForViewer(viewer.company.id, company.slug as string, product.slug as string);
+    expect(rel.similar.map((c) => c.name)).toEqual(["Baska tedarikci"]);
+    expect(rel.popular.map((c) => c.name)).not.toContain("Kendi urunum");
+    expect(rel.popular.map((c) => c.name)).not.toContain("Engelli urun");
+    // Ürünün kendi firması engel ilişkiliyse 404 (panel ürün sayfasıyla aynı).
+    await expect(
+      panel.relatedForViewer(viewer.company.id, blockedCo.company.slug as string, blockedCo.product.slug as string),
+    ).rejects.toThrow(/bulunamadı/);
   });
 
   it("ilişkili: engelli firmanın ürünü 404 (firma slug'ı profil kapısını ezmez)", async () => {

@@ -19,7 +19,6 @@ import {
   PANEL_MARKET,
   SELLER_MARKET,
   marketCompaniesPath,
-  panelCategoryPath,
   panelCompanyPath,
   panelProductPath,
 } from "@/lib/company/panel-market";
@@ -190,10 +189,13 @@ function Inner({
       <MarketDiscoveryFooter
         cities={facets.data?.cities ?? []}
         categories={facets.data?.categories ?? []}
+        kind="companies"
         cityHref={(city) => `${base}?sehir=${encodeURIComponent(city)}`}
-        /* Kategori: satınalmada kategori SAYFASI kanonik; satışta o sayfa
-           yok → aynı dizin kategori süzgeciyle. */
-        categoryHref={(c) => (isSatis ? `${base}?kategori=${c.id}` : panelCategoryPath(c.id, c.name))}
+        /* Kategori İKİ PORTALDA da aynı dizin kategori süzgeciyle (arayüz
+           testi D-155): çip FİRMA sayısını gösteriyor; satınalmada ürün
+           kategori sayfasına gidince sayı çelişiyor, sayfa "Ürün bulunamadı"
+           diyebiliyordu. */
+        categoryHref={(c) => `${base}?kategori=${c.id}`}
       />
     </div>
   );
@@ -224,6 +226,9 @@ export function PanelCompanyCard({
       /* Satış portalında eylemler YEŞİL (2026-09-19, kullanıcı). */
       accent={portal === "satis" ? "emerald" : "blue"}
       href={panelCompanyPath(company.rothernId ?? company.slug)}
+      /* Ürün şeridi mini kartı: satınalmada panel ürün sayfası; satışta o
+         rota yok → herkese açık ürün sayfası (kartın varsayılanı). */
+      productHref={portal === "satis" ? undefined : (p) => panelProductPath(company.slug, p)}
       /* Birincil eylem firmanın PANEL sayfası: bağlantı isteği ve mesaj
          orada yaşıyor — kartta ayrı bir "iletişim" akışı yok. */
       cta={{ label: t("iletisimeGecin"), href: panelCompanyPath(company.rothernId ?? company.slug) }}

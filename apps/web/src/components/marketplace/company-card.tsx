@@ -4,7 +4,7 @@ import { Avatar } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { Thumb } from "@/components/ui/thumb";
 import type { PublicDirectoryCard } from "@/lib/public/marketplace-api";
-import { ArrowRightIcon, CalendarDaysIcon, ChatBubbleLeftRightIcon, ChevronRightIcon, CubeIcon, MapPinIcon, ShieldCheckIcon, UsersIcon } from "@heroicons/react/20/solid";
+import { ArrowRightIcon, CalendarDaysIcon, ChatBubbleLeftRightIcon, CubeIcon, MapPinIcon, ShieldCheckIcon, UsersIcon } from "@heroicons/react/20/solid";
 import { ActivityIcon } from "./activity-icons";
 import { affixCurrency } from "@/lib/tenders/labels";
 import { Link } from "@/i18n/navigation";
@@ -42,6 +42,7 @@ export function CompanyCard({
   variant = "tile",
   cta,
   accent = "blue",
+  productHref,
 }: {
   company: PublicDirectoryCard;
   /** `tile` ızgara kartı (varsayılan) · `wide` dizin satırı. */
@@ -52,6 +53,11 @@ export function CompanyCard({
   accent?: "blue" | "emerald";
   /** Panel: `/company/firma/<id>`; public: `/firma/<slug>` (varsayılan). */
   href?: string;
+  /**
+   * `wide`: ürün şeridindeki mini kartın hedefi (ürün slug'ından). Panel
+   * kendi ürün rotasını verir; varsayılan herkese açık `/firma/<slug>/urun/<slug>`.
+   */
+  productHref?: (productSlug: string) => string;
   /** Panel: bağlantı durumu rozeti. */
   badge?: React.ReactNode;
   /**
@@ -153,7 +159,12 @@ export function CompanyCard({
             </div>
           </div>
 
-          <div className="relative z-10 flex shrink-0 flex-wrap items-center gap-2">
+          {/* `min-w-0 max-w-full`, `shrink-0` DEĞİL (arayüz testi O-034): üst
+              satır sarınca eylem kutusu kendi satırına iner ama `shrink-0`
+              onu içerik genişliğinde tutuyordu — 390 px'te iki düğme kartı ve
+              sayfayı yatay taşırıyordu, içteki `flex-wrap` hiç devreye
+              girmiyordu. */}
+          <div className="relative z-10 flex min-w-0 max-w-full flex-wrap items-center gap-2">
             {c.productCount > 0 ? (
               <Link
                 href={`${href ?? `/firma/${c.slug}`}#urunler`}
@@ -185,13 +196,15 @@ export function CompanyCard({
                   {t("mainCategories")}
                 </p>
                 <ul className="mt-0.5 divide-y divide-zinc-950/5">
+                  {/* Satır BAĞLANTI DEĞİL — ok işareti de yok (arayüz testi
+                      D-072): ok "kategoriye git" vaat ediyordu ama tıklama
+                      kartı kaplayan firma bağlantısına düşüyordu. Sayı firmanın
+                      o kategorideki ürünü; genel kategori sayfası bu sayıyla
+                      çelişirdi. */}
                   {(c.topCategories ?? []).map((t) => (
                     <li key={t.id} className="flex items-center justify-between gap-2 py-1.5 text-sm text-zinc-800">
                       <span className="line-clamp-1">{t.name}</span>
-                      <span className="flex shrink-0 items-center gap-1 text-zinc-500">
-                        <span className="tnum text-xs">({t.count})</span>
-                        <ChevronRightIcon aria-hidden className="size-4 text-zinc-400" />
-                      </span>
+                      <span className="tnum shrink-0 text-xs text-zinc-500">({t.count})</span>
                     </li>
                   ))}
                 </ul>
@@ -205,10 +218,24 @@ export function CompanyCard({
             {c.about ? <p className="line-clamp-2 text-sm/6 text-zinc-600">{c.about}</p> : null}
             {preview.length > 0 ? (
               <ul className="mt-3 grid grid-cols-2 gap-2.5 lg:grid-cols-4">
+                {/* Mini kart KENDİ ÜRÜNÜNE gider (arayüz testi D-072): eskiden
+                    düz `li` idi, tıklama kartı kaplayan firma bağlantısına
+                    düşüyordu. `relative z-10` o örtünün üstüne çıkarır; ürün
+                    kart ailesinin kuralıyla YENİ SEKMEDE açılır. */}
                 {preview.map((pv) => (
-                  <li key={pv.slug} className="min-w-0 rounded-lg bg-white p-2 ring-1 ring-zinc-200">
+                  <li key={pv.slug} className="relative z-10 min-w-0 rounded-lg bg-white p-2 ring-1 ring-zinc-200 transition hover:ring-zinc-400 focus-within:ring-2 focus-within:ring-blue-500">
                     <Thumb src={pv.image ?? undefined} alt="" size="lg" className="aspect-[16/10] w-full rounded-md" />
-                    <p className="mt-1.5 line-clamp-2 text-xs/5 font-medium text-zinc-900">{pv.name}</p>
+                    <p className="mt-1.5 line-clamp-2 text-xs/5 font-medium text-zinc-900">
+                      <Link
+                        href={productHref ? productHref(pv.slug) : `/firma/${c.slug}/urun/${pv.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="after:absolute after:inset-0 after:content-[''] hover:text-blue-700 focus:outline-none"
+                      >
+                        {pv.name}
+                        <span className="sr-only"> {t("newTab")}</span>
+                      </Link>
+                    </p>
                     {pv.moq ? (
                       <p className="tnum text-[11px] text-zinc-500">
                         {t("moq", { qty: quantity(pv.moq, pv.unit) })}

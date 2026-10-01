@@ -108,6 +108,18 @@ describe("arama formları dil önekini korur (Y-17)", () => {
     expect(form?.getAttribute("method")).toBe("get");
   });
 
+  it("D-330: aralık dışı ürün sayfasında bölüm kaybolmaz — arama kutusu ve son sayfa bağlantısı kalır", async () => {
+    const el = await CompanyProducts({ companySlug: "acme", page: { items: [], total: 39, page: 99, pageSize: 24 } });
+    expect(el).not.toBeNull();
+    const { container } = render(el!);
+    expect(container.querySelector("form")).not.toBeNull();
+    expect(screen.getByText("Son sayfaya gidin").closest("a")?.getAttribute("href")).toContain("urunSayfa=2");
+  });
+
+  it("D-330: aramasız BOŞ portföy (toplam 0) hâlâ hiç basılmaz", async () => {
+    expect(await CompanyProducts({ companySlug: "acme", page: EMPTY })).toBeNull();
+  });
+
   it("PanelHeroSearch: hidrasyon öncesi form hedefi DIŞ yol, router'a İÇ yol gider", () => {
     h.locale = "en";
     render(<PanelHeroSearch title="t" lead="l" placeholder="p" action="/urunler" />);

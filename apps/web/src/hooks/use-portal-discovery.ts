@@ -213,14 +213,18 @@ export function useDiscoverProductFacets(params: ProductFacetParams = {}) {
   });
 }
 
-/** İlişkili bloklar — firma altı public uç (anahtara tabi değil), panel de okur. */
+/**
+ * İlişkili bloklar — PANEL ucu (arayüz testi D-231): herkese açık uçla aynı
+ * fonksiyon, ama "diğer tedarikçiler" blokları görüntüleyenin kendi firmasını
+ * ve engel ilişkili firmaları dışlar (herkese açık uç görüntüleyeni bilmez).
+ */
 export function useRelatedProducts(companySlug: string, productSlug: string) {
   return useQuery<RelatedProducts>({
-    queryKey: ["public-product", "related", companySlug, productSlug],
+    queryKey: ["panel-product", "related", companySlug, productSlug],
     enabled: !!companySlug && !!productSlug,
     queryFn: async () => {
       const { data } = await companyApi.get<RelatedProducts>(
-        `/public/companies/${encodeURIComponent(companySlug)}/products/${encodeURIComponent(productSlug)}/related`,
+        `/company/market/related/${encodeURIComponent(companySlug)}/${encodeURIComponent(productSlug)}`,
       );
       return data;
     },

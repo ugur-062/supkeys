@@ -11,11 +11,19 @@ import { Link } from "@/i18n/navigation";
  * gerekçeyle "N tedarikçi inceledi" de basılmıyor).
  */
 export function MarketDiscoveryFooter({
+  kind = "products",
   cities,
   categories,
   cityHref,
   categoryHref,
 }: {
+  /**
+   * Hangi dizinin altlığı: şehir bloğunun başlığı ona göre (arayüz testi
+   * D-049). Firma dizini iki portalda da HERKESİ listeler — satış
+   * portalında "Şehre göre tedarikçiler" alıcı arayan satıcıya yanlış
+   * şeyi söylüyordu; firma dizininde başlık "Şehre göre firmalar".
+   */
+  kind?: "products" | "companies";
   cities: { city: string; name?: string; count: number }[];
   categories: { id: string; name: string; count: number }[];
   cityHref: (city: string) => string;
@@ -46,7 +54,7 @@ export function MarketDiscoveryFooter({
           </Block>
         ) : null}
         {topCities.length > 0 ? (
-          <Block title={t("sehreGoreTedarikciler")}>
+          <Block title={kind === "companies" ? t("sehreGoreFirmalar") : t("sehreGoreTedarikciler")}>
             {topCities.map((c) => (
               <Item key={c.city} href={cityHref(c.city)} label={c.name ?? c.city} count={c.count} />
             ))}

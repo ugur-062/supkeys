@@ -246,25 +246,39 @@ export async function buildDirectory(
     moq: string | null;
     unit: string;
   };
+  /* FİRMA BAŞINA AYRI `take` (arayüz testi O-060): eskiden sayfadaki bütün
+     firmalar için TEK sorgu `take: firma × 4` satırı genel puan sırasıyla
+     çekiyordu — birkaç çok ürünlü firma bütçeyi tüketiyor, 39 ürünlü bir
+     firmanın kartında "Portföyü görüntüle (39)" yazarken şerit boş
+     kalıyordu. Sayfa en çok `DIRECTORY_PAGE_SIZE` firma; firma başına
+     4 satırlık küçük sorgular paralel koşar, çeviri yine tek çağrı. */
   const previewByCompany = new Map<string, PreviewItem[]>();
   if (slice.length > 0) {
-    const previewRows = await prisma.companyItem.findMany({
-      where: { ...publicProductWhere(), companyId: { in: slice.map((r) => r.id) } },
-      select: {
-        id: true,
-        companyId: true,
-        slug: true,
-        name: true,
-        images: true,
-        priceMode: true,
-        priceAmount: true,
-        priceCurrency: true,
-        moq: true,
-        unit: true,
-      },
-      orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
-      take: slice.length * 4,
-    });
+    const previewRows = (
+      await Promise.all(
+        slice.map((r) =>
+          r._count.items === 0
+            ? Promise.resolve([])
+            : prisma.companyItem.findMany({
+                where: { ...publicProductWhere(), companyId: r.id },
+                select: {
+                  id: true,
+                  companyId: true,
+                  slug: true,
+                  name: true,
+                  images: true,
+                  priceMode: true,
+                  priceAmount: true,
+                  priceCurrency: true,
+                  moq: true,
+                  unit: true,
+                },
+                orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
+                take: 4,
+              }),
+        ),
+      )
+    ).flat();
     const previewLocalized = opts.localizeProducts ? await opts.localizeProducts(previewRows, previewRows.map((r) => r.id)) : previewRows;
     for (const i of previewLocalized) {
       const list = previewByCompany.get(i.companyId) ?? [];
@@ -285,12 +299,21 @@ export async function buildDirectory(
   const matchedByCompany = new Map<string, { slug: string; name: string; image: string | null }[]>();
   const searchClauses = productSearchClauses(q.q, { includeCompanyName: false });
   if (searchClauses.length > 0 && slice.length > 0) {
-    const hits = await prisma.companyItem.findMany({
-      where: { ...publicProductWhere(), companyId: { in: slice.map((r) => r.id) }, AND: searchClauses },
-      select: { id: true, companyId: true, slug: true, name: true, images: true },
-      orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
-      take: slice.length * 4,
-    });
+    // Önizlemeyle aynı kıtlık (O-060): firma başına ayrı `take`.
+    const hits = (
+      await Promise.all(
+        slice.map((r) =>
+          r._count.items === 0
+            ? Promise.resolve([])
+            : prisma.companyItem.findMany({
+                where: { ...publicProductWhere(), companyId: r.id, AND: searchClauses },
+                select: { id: true, companyId: true, slug: true, name: true, images: true },
+                orderBy: [{ completionScore: "desc" as const }, { publishedAt: "desc" as const }],
+                take: 3,
+              }),
+        ),
+      )
+    ).flat();
     const hitsLocalized = opts.localizeProducts ? await opts.localizeProducts(hits, hits.map((r) => r.id)) : hits;
     for (const h of hitsLocalized) {
       const list = matchedByCompany.get(h.companyId) ?? [];

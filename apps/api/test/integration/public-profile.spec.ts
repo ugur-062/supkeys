@@ -4,7 +4,7 @@
  * membershipEndAt iç hesap alanı yanıtta sızmamalı.
  */
 import { prisma, truncateAll } from "./test-db";
-import { makeCompany } from "./factories";
+import { makeCompany, makeCompanyWithUser } from "./factories";
 import { PublicProfileService } from "../../src/modules/public-profile/public-profile.service";
 import { buildDirectory } from "../../src/common/company/company-directory";
 
@@ -173,6 +173,51 @@ describe("PublicProfile publicDirectory — listelenme koşulu", () => {
     expect((await svc.publicDirectory({ q: "Kimlik" })).total).toBe(1);
     const panel = await buildDirectory(prisma as never, { q: "QZX-4821" }, { matchRothernId: true });
     expect(panel.items.map((i) => i.name)).toEqual(["Kimlik Firma"]);
+  });
+});
+
+describe("Firma dizini ürün önizlemesi — firma başına (arayüz testi O-060)", () => {
+  async function companyWithProducts(name: string, n: number, score: number) {
+    const { company, user } = await makeCompanyWithUser(prisma, { name });
+    await prisma.company.update({
+      where: { id: company.id },
+      data: { slug: `onizleme-${Math.floor(Math.random() * 1e9)}`, publicEnabled: true },
+    });
+    for (let i = 0; i < n; i++) {
+      await prisma.companyItem.create({
+        data: {
+          companyId: company.id,
+          createdById: user.id,
+          name: `${name} urun ${i}`,
+          unit: "adet",
+          slug: `${name.toLowerCase().replace(/\s+/g, "-")}-${i}`,
+          isPublic: true,
+          publishedAt: new Date(),
+          images: ["x.webp"],
+          searchText: `${name.toLowerCase()} urun`,
+          completionScore: score,
+        },
+      });
+    }
+  }
+
+  it("çok ürünlü firma önizleme bütçesini tüketmez: her firma kendi ilk 4 ürününü alır", async () => {
+    await companyWithProducts("Buyuk Firma", 9, 90);
+    await companyWithProducts("Kucuk Firma", 2, 10);
+    const res = await svc.publicDirectory({});
+    const byName = new Map(res.items.map((i) => [i.name, i]));
+    expect(byName.get("Buyuk Firma")?.productPreview).toHaveLength(4);
+    // Eski tek sorgu `take: 2 × 4 = 8` satırın hepsini Büyük Firma'dan alıyordu.
+    expect(byName.get("Kucuk Firma")?.productPreview).toHaveLength(2);
+  });
+
+  it("'aramanıza uyan' şeridi de firma başına", async () => {
+    await companyWithProducts("Buyuk Firma", 9, 90);
+    await companyWithProducts("Kucuk Firma", 2, 10);
+    const res = await buildDirectory(prisma as never, { q: "urun" });
+    const byName = new Map(res.items.map((i) => [i.name, i]));
+    expect(byName.get("Buyuk Firma")?.matchedProducts).toHaveLength(3);
+    expect(byName.get("Kucuk Firma")?.matchedProducts).toHaveLength(2);
   });
 });
 

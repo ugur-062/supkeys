@@ -114,7 +114,10 @@ export function CompanyFilters({
         />
       </Group>
       {(facets.countries?.length ?? 0) > 1 || state.countries.length ? (
-        <Group title={t("sellerCountry")} count={state.countries.length} onClear={() => update({ countries: [] })} storageKey="dir-country">
+        /* "Firma ülkesi", "Satıcı ülkesi" DEĞİL (arayüz testi D-049): firma
+           dizini iki portalda da herkesi listeler; satış portalında alıcı
+           arayan kullanıcıya "satıcı" demek yanlış. */
+        <Group title={t("companyCountry")} count={state.countries.length} onClear={() => update({ countries: [] })} storageKey="dir-country">
           <ShowMore
             items={(facets.countries ?? []).map((c) => ({ key: c.country, label: countryDisplayName(c.country, dirLocale), count: c.count }))}
             selected={state.countries}

@@ -471,7 +471,7 @@
         "title": "Ekip Arkadaşı Davet Et",
         "subtitle": "Ekibinizi büyütün, birlikte daha fazlasını başarın.",
         "name": "Ad ve Soyad",
-        "nameValue": "Demo Çelik A.Ş.",
+        "nameValue": "Ayşe Yılmaz",
         "email": "E-posta",
         "emailValue": "ornek@sirketiniz.com",
         "role": "Rol Seçin",
@@ -861,7 +861,7 @@
       "foundCompany": "{total, number} firma bulundu",
       "foundBuyingRequest": "{total, number} alım talebi bulundu",
       "foundOpenRequest": "{total, number} açık talep bulundu",
-      "filterButton": "Filtrele",
+      "filterButton": "Süzgeçler",
       "filtersTitle": "Süzgeçler",
       "clear": "Temizle",
       "showResults": "Sonuçları göster ({total})",
@@ -953,7 +953,8 @@
       "notFoundRequest": "Talep bulunamadı",
       "foundOpenRequestAtLeast": "{total, number}+ açık talep bulundu",
       "foundPastRequestAtLeast": "{total, number}+ geçmiş talep bulundu",
-      "foundRequestAtLeast": "{total, number}+ talep bulundu"
+      "foundRequestAtLeast": "{total, number}+ talep bulundu",
+      "companyCountry": "Firma ülkesi"
     },
     "index": {
       "breadcrumb": "Konum",
@@ -987,7 +988,8 @@
       "moq": "MOQ: {qty}",
       "moreProducts": "+{n} ürün",
       "verifiedCompany": "Doğrulanmış firma",
-      "viewProfile": "Profili gör →"
+      "viewProfile": "Profili gör →",
+      "newTab": "(yeni sekmede açılır)"
     },
     "gallery": {
       "zoom": "Görseli büyüt",
@@ -1003,7 +1005,9 @@
       "searchSubmit": "Ürünlerde ara",
       "resultsFor": "“{q}” için {n, number} sonuç ·",
       "removeSearch": "aramayı kaldır",
-      "noneFor": "Bu firmanın ürünlerinde “{q}” bulunamadı."
+      "noneFor": "Bu firmanın ürünlerinde “{q}” bulunamadı.",
+      "pageEmpty": "Bu sayfada ürün yok.",
+      "lastPage": "Son sayfaya gidin"
     },
     "pages": {
       "productsMetaTitle": "{label} — firmaların ürün vitrini",
@@ -1071,7 +1075,7 @@
       "tabCerts": "Sertifikalar",
       "moreFrom": "{company} ile keşfedilecek daha fazla ürün",
       "viewAll": "Tüm ürünleri görüntüle",
-      "viewAllCount": "Tüm ürünleri görüntüle ({n})",
+      "viewAllCount": "Diğer ürünleri görüntüle ({n})",
       "founded": "Kuruluş {year}",
       "employees": "{n} çalışan",
       "verifiedCompany": "Doğrulanmış firma",
@@ -1408,17 +1412,17 @@
       "senetDays": "Senet — {days} gün vadeli",
       "senet": "Senet",
       "cashAgainstDocs": "Vesaik Mukabili (belge karşılığı)",
-      "lcUsanceDays": "Usance {days} gün",
-      "lcUsance": "Usance",
-      "lcSight": "Sight",
-      "lcConfirmed": "Teyitli",
+      "lcUsanceDays": "{days} gün vadeli",
+      "lcUsance": "vadeli",
+      "lcSight": "görüldüğünde ödemeli",
+      "lcConfirmed": "teyitli",
       "letterOfCredit": "Akreditif ({parts})",
       "custom": "Özel ödeme koşulu"
     },
     "kdvHaricNote": "Tüm fiyatlar KDV hariçtir. Platform fatura kesmez; KDV'yi taraflar kendi faturalarında uygular.",
     "lcType": {
-      "SIGHT": "Sight — görüldüğünde ödemeli",
-      "USANCE": "Usance — vadeli"
+      "SIGHT": "Görüldüğünde ödemeli (sight)",
+      "USANCE": "Vadeli (usance)"
     },
     "transportMode": {
       "ROAD": "Karayolu",
@@ -5205,7 +5209,8 @@
         },
         "odemeVadesi": "Ödeme vadesi: <strong>{date}</strong>",
         "odemeAkreditifKapsaminda": "Ödeme akreditif kapsamında <strong>banka kanalından</strong> yapılır — satıcı ödemeyi aldığında Akreditif bölümünden işaretler.",
-        "cekNo": "Çek No: {chequeNo}"
+        "cekNo": "Çek No: {chequeNo}",
+        "iadeTaraflarArasinda": "Sipariş sonlandı. Onaylı ödemelerin iadesi taraflar arasında yapılır."
       },
       "bidImportDialog": {
         "belgeIslenemedi": "Belge işlenemedi",
@@ -5364,11 +5369,21 @@
           "tutar": "Tutar",
           "kalemYok": "Kalem yok",
           "toplam": "Toplam",
-          "genel": "(genel)"
+          "genel": "(genel)",
+          "muadil": "Muadil",
+          "teklifEdilen": "Teklif edilen",
+          "istenen": "İstenen",
+          "belirtilmedi": "belirtilmedi"
         },
         "hesapNo": "Hesap numarası",
         "swiftBic": "SWIFT / BIC",
-        "bankaAdi": "Banka"
+        "bankaAdi": "Banka",
+        "pesinOdemeyiYapipBildirin": "Bu siparişte peşin ödeme şartı var ({advance}). Ödemeyi yaptıktan sonra Ödeme bölümünden \"Ödemeyi Yaptım\" ile bildirin; satıcı onaylayınca gönderim açılır.",
+        "akreditifiActirinIsaretleyin": "Akreditifi bankanızdan açtırın ve Akreditif bölümünden \"Akreditif Açıldı\" olarak işaretleyin.",
+        "saticininAkreditifiKabulEtmesiBekleniyor": "Satıcının akreditifi kabul etmesi bekleniyor.",
+        "siparisIptalEdildiAdimYok": "Sipariş iptal edildi — başka adım yok.",
+        "siparisReddedildiAdimYok": "Satıcı siparişi reddetti — başka adım yok.",
+        "onayBekleyenOdeme": "Onay bekleyen"
       },
       "siparisIdLayout": {
         "siparisDetayiYetkiGerektirir": "Sipariş detayı yetki gerektirir",
@@ -5427,7 +5442,10 @@
         "gerekce": "Gerekçe *",
         "enAzKarakter": "En az {minLength} karakter",
         "notunuzOpsiyonel": "Notunuz (opsiyonel)",
-        "odemeAlabilmekIcinKayitliBankaHesabi": "Ödeme alabilmek için kayıtlı bir banka hesabı gerekli. <link>Ayarlar → Banka Hesapları</link>''ndan ekleyin (yalnız Kurucu ekleyebilir). Hesap eklenmeden sipariş onaylanamaz."
+        "odemeAlabilmekIcinKayitliBankaHesabi": "Ödeme alabilmek için kayıtlı bir banka hesabı gerekli. <link>Ayarlar → Banka Hesapları</link>''ndan ekleyin (yalnız Kurucu ekleyebilir). Hesap eklenmeden sipariş onaylanamaz.",
+        "hesapEklenmesin": "— Hesap eklenmesin —",
+        "akreditifOdemeBankaKanalindan": "Akreditifte ödeme banka kanalından (akreditif şartlarına göre) yapılır; siparişe banka hesabı işlenmez.",
+        "vesaikHesapOpsiyonel": "Vesaik mukabilinde ödeme banka kanalından yapılır; isterseniz alıcının göreceği bir hesap seçebilirsiniz."
       },
       "orderReviewCard": {
         "lutfen15ArasiPuan": "Lütfen 1-5 arası puan verin",
@@ -5459,8 +5477,16 @@
         "akreditifOdemesiAlindiOlarakIsaretlendi": "Akreditif ödemesi alındı olarak işaretlendi",
         "odemeAkreditifKapsamindaBankaKanalindan": "Ödeme akreditif kapsamında banka kanalından yapılır — satıcı ödemeyi aldığında işaretleyecek.",
         "akreditifOdemesiAlindi": "Akreditif ödemesi alındı.",
-        "akreditif": "Akreditif — {plan}",
-        "akreditifKabulEdildi": "Akreditif kabul edildi"
+        "akreditifKabulEdildi": "Akreditif kabul edildi",
+        "acildiOnayBaslik": "Akreditif açıldı mı?",
+        "acildiOnayAciklama": "Akreditifin bankanızca açıldığını ve küşat mektubunun satıcıya banka kanalından iletildiğini beyan ediyorsunuz. Satıcı bilgilendirilir.",
+        "acildiOnayDugme": "Evet, açıldı",
+        "kabulOnayBaslik": "Akreditifi kabul ediyor musunuz?",
+        "kabulOnayAciklama": "Küşat mektubunu inceleyip şartlarını kabul ettiğinizi beyan ediyorsunuz. Kabulden sonra siparişi gönderebilirsiniz.",
+        "kabulOnayDugme": "Evet, kabul ediyorum",
+        "odemeOnayBaslik": "Ödeme bankadan alındı mı?",
+        "odemeOnayAciklama": "Akreditif ödemesinin ({amount}) hesabınıza geçtiğini beyan ediyorsunuz. Sistem tam tutarlı onaylı ödeme kaydı oluşturur. Bu işlem GERİ ALINAMAZ.",
+        "odemeOnayDugme": "Evet, tahsil ettim"
       },
       "orderCancelRequestPanel": {
         "islemBasarisiz": "İşlem başarısız",
@@ -6574,7 +6600,8 @@
       "marketDiscoveryFooter": {
         "kesfetmeyeDevamEdin": "Keşfetmeye devam edin",
         "sektoreGore": "Sektöre göre",
-        "sehreGoreTedarikciler": "Şehre göre tedarikçiler"
+        "sehreGoreTedarikciler": "Şehre göre tedarikçiler",
+        "sehreGoreFirmalar": "Şehre göre firmalar"
       },
       "marketListLayout": {
         "suzgecler": "Süzgeçler",

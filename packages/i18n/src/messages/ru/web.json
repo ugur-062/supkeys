@@ -471,7 +471,7 @@
         "title": "Пригласить коллегу",
         "subtitle": "Расширяйте команду и достигайте большего вместе.",
         "name": "Имя и фамилия",
-        "nameValue": "ООО «Демо Сталь»",
+        "nameValue": "Анна Иванова",
         "email": "Эл. почта",
         "emailValue": "primer@vashakompaniya.com",
         "role": "Выберите роль",
@@ -953,7 +953,8 @@
       "notFoundRequest": "Запросы не найдены",
       "foundOpenRequestAtLeast": "Найдено: {total, number}+ открытых запросов",
       "foundPastRequestAtLeast": "Найдено: {total, number}+ прошедших запросов",
-      "foundRequestAtLeast": "Найдено: {total, number}+ запросов"
+      "foundRequestAtLeast": "Найдено: {total, number}+ запросов",
+      "companyCountry": "Страна компании"
     },
     "index": {
       "breadcrumb": "Навигация",
@@ -987,7 +988,8 @@
       "moq": "Мин. заказ: {qty}",
       "moreProducts": "+{n} ещё",
       "verifiedCompany": "Проверенная компания",
-      "viewProfile": "Смотреть профиль →"
+      "viewProfile": "Смотреть профиль →",
+      "newTab": "(откроется в новой вкладке)"
     },
     "gallery": {
       "zoom": "Увеличить изображение",
@@ -1003,7 +1005,9 @@
       "searchSubmit": "Искать среди товаров",
       "resultsFor": "{n, plural, one {# результат} few {# результата} many {# результатов} other {# результата}} по запросу «{q}» ·",
       "removeSearch": "сбросить поиск",
-      "noneFor": "В товарах компании по запросу «{q}» ничего не найдено."
+      "noneFor": "В товарах компании по запросу «{q}» ничего не найдено.",
+      "pageEmpty": "На этой странице нет товаров.",
+      "lastPage": "Перейти на последнюю страницу"
     },
     "pages": {
       "productsMetaTitle": "{label} — витрина товаров компаний",
@@ -1071,7 +1075,7 @@
       "tabCerts": "Сертификаты",
       "moreFrom": "Другие товары компании {company}",
       "viewAll": "Смотреть все товары",
-      "viewAllCount": "Смотреть все товары ({n})",
+      "viewAllCount": "Смотреть другие товары ({n})",
       "founded": "Основана в {year}",
       "employees": "Сотрудников: {n}",
       "verifiedCompany": "Проверенная компания",
@@ -5205,7 +5209,8 @@
         },
         "odemeVadesi": "Срок оплаты: <strong>{date}</strong>",
         "odemeAkreditifKapsaminda": "Оплата по аккредитиву проходит <strong>через банк</strong> — получив платёж, продавец отмечает это в разделе «Аккредитив».",
-        "cekNo": "Номер чека: {chequeNo}"
+        "cekNo": "Номер чека: {chequeNo}",
+        "iadeTaraflarArasinda": "Заказ завершён. Возврат подтверждённых платежей производится напрямую между сторонами."
       },
       "bidImportDialog": {
         "belgeIslenemedi": "Не удалось обработать документ",
@@ -5364,11 +5369,21 @@
           "tutar": "Сумма",
           "kalemYok": "Нет позиций",
           "toplam": "Итого",
-          "genel": "(общее)"
+          "genel": "(общее)",
+          "muadil": "Аналог",
+          "teklifEdilen": "Предложено",
+          "istenen": "Запрошено",
+          "belirtilmedi": "не указано"
         },
         "hesapNo": "Номер счёта",
         "swiftBic": "SWIFT / BIC",
-        "bankaAdi": "Банк"
+        "bankaAdi": "Банк",
+        "pesinOdemeyiYapipBildirin": "По этому заказу предусмотрена предоплата ({advance}). После оплаты сообщите о ней кнопкой «Я оплатил» в разделе «Оплата»; отгрузка станет доступна после подтверждения продавцом.",
+        "akreditifiActirinIsaretleyin": "Откройте аккредитив в Вашем банке и отметьте шаг «Аккредитив открыт» в разделе «Аккредитив».",
+        "saticininAkreditifiKabulEtmesiBekleniyor": "Ожидается принятие аккредитива продавцом.",
+        "siparisIptalEdildiAdimYok": "Заказ отменён — дальнейших шагов нет.",
+        "siparisReddedildiAdimYok": "Продавец отклонил заказ — дальнейших шагов нет.",
+        "onayBekleyenOdeme": "Ожидает подтверждения"
       },
       "siparisIdLayout": {
         "siparisDetayiYetkiGerektirir": "Для просмотра заказа требуется разрешение",
@@ -5427,7 +5442,10 @@
         "gerekce": "Причина *",
         "enAzKarakter": "Не менее {minLength, plural, one {# символа} few {# символов} many {# символов} other {# символа}}",
         "notunuzOpsiyonel": "Ваше примечание (необязательно)",
-        "odemeAlabilmekIcinKayitliBankaHesabi": "Для получения оплаты нужен зарегистрированный банковский счёт. Добавьте его в разделе <link>Настройки → Банковские счета</link> (это может сделать только Основатель). Пока счёт не добавлен, заказ нельзя подтвердить."
+        "odemeAlabilmekIcinKayitliBankaHesabi": "Для получения оплаты нужен зарегистрированный банковский счёт. Добавьте его в разделе <link>Настройки → Банковские счета</link> (это может сделать только Основатель). Пока счёт не добавлен, заказ нельзя подтвердить.",
+        "hesapEklenmesin": "— Не указывать счёт —",
+        "akreditifOdemeBankaKanalindan": "При аккредитиве оплата производится через банк (по условиям аккредитива); банковский счёт в заказе не указывается.",
+        "vesaikHesapOpsiyonel": "При оплате против документов платёж проходит через банк; при желании можно выбрать счёт, который увидит покупатель."
       },
       "orderReviewCard": {
         "lutfen15ArasiPuan": "Пожалуйста, поставьте оценку от 1 до 5",
@@ -5459,8 +5477,16 @@
         "akreditifOdemesiAlindiOlarakIsaretlendi": "Отмечено: платёж по аккредитиву получен",
         "odemeAkreditifKapsamindaBankaKanalindan": "Оплата производится по аккредитиву через банк — продавец отметит получение платежа.",
         "akreditifOdemesiAlindi": "Платёж по аккредитиву получен.",
-        "akreditif": "Аккредитив — {plan}",
-        "akreditifKabulEdildi": "Аккредитив принят"
+        "akreditifKabulEdildi": "Аккредитив принят",
+        "acildiOnayBaslik": "Аккредитив открыт?",
+        "acildiOnayAciklama": "Вы подтверждаете, что Ваш банк открыл аккредитив и авизо об открытии направлено продавцу по банковским каналам. Продавец получит уведомление.",
+        "acildiOnayDugme": "Да, открыт",
+        "kabulOnayBaslik": "Вы принимаете аккредитив?",
+        "kabulOnayAciklama": "Вы подтверждаете, что проверили авизо об открытии и принимаете его условия. После принятия можно отгрузить заказ.",
+        "kabulOnayDugme": "Да, принимаю",
+        "odemeOnayBaslik": "Платёж от банка получен?",
+        "odemeOnayAciklama": "Вы подтверждаете, что платёж по аккредитиву ({amount}) поступил на Ваш счёт. Система создаст подтверждённую запись об оплате на полную сумму. Это действие НЕЛЬЗЯ ОТМЕНИТЬ.",
+        "odemeOnayDugme": "Да, получил"
       },
       "orderCancelRequestPanel": {
         "islemBasarisiz": "Операция не выполнена",
@@ -6574,7 +6600,8 @@
       "marketDiscoveryFooter": {
         "kesfetmeyeDevamEdin": "Продолжайте поиск",
         "sektoreGore": "По отраслям",
-        "sehreGoreTedarikciler": "Поставщики по городам"
+        "sehreGoreTedarikciler": "Поставщики по городам",
+        "sehreGoreFirmalar": "Компании по городам"
       },
       "marketListLayout": {
         "suzgecler": "Фильтры",

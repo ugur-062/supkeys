@@ -471,7 +471,7 @@
         "title": "Invite a teammate",
         "subtitle": "Grow your team, achieve more together.",
         "name": "Full name",
-        "nameValue": "Demo Steel Inc.",
+        "nameValue": "Jane Smith",
         "email": "Email",
         "emailValue": "example@yourcompany.com",
         "role": "Select a role",
@@ -861,7 +861,7 @@
       "foundCompany": "{total, plural, one {# company found} other {# companies found}}",
       "foundBuyingRequest": "{total, plural, one {# buying request found} other {# buying requests found}}",
       "foundOpenRequest": "{total, plural, one {# open request found} other {# open requests found}}",
-      "filterButton": "Filter",
+      "filterButton": "Filters",
       "filtersTitle": "Filters",
       "clear": "Clear",
       "showResults": "Show results ({total})",
@@ -953,7 +953,8 @@
       "notFoundRequest": "No requests found",
       "foundOpenRequestAtLeast": "{total, number}+ open requests found",
       "foundPastRequestAtLeast": "{total, number}+ past requests found",
-      "foundRequestAtLeast": "{total, number}+ requests found"
+      "foundRequestAtLeast": "{total, number}+ requests found",
+      "companyCountry": "Company country"
     },
     "index": {
       "breadcrumb": "Breadcrumb",
@@ -987,7 +988,8 @@
       "moq": "MOQ: {qty}",
       "moreProducts": "+{n} more",
       "verifiedCompany": "Verified company",
-      "viewProfile": "View profile →"
+      "viewProfile": "View profile →",
+      "newTab": "(opens in a new tab)"
     },
     "gallery": {
       "zoom": "Zoom image",
@@ -1003,7 +1005,9 @@
       "searchSubmit": "Search products",
       "resultsFor": "{n, plural, one {# result} other {# results}} for “{q}” ·",
       "removeSearch": "clear search",
-      "noneFor": "Nothing matching “{q}” in this company's products."
+      "noneFor": "Nothing matching “{q}” in this company's products.",
+      "pageEmpty": "There are no products on this page.",
+      "lastPage": "Go to the last page"
     },
     "pages": {
       "productsMetaTitle": "{label} — company product showcase",
@@ -1071,7 +1075,7 @@
       "tabCerts": "Certifications",
       "moreFrom": "More products to discover from {company}",
       "viewAll": "View all products",
-      "viewAllCount": "View all products ({n})",
+      "viewAllCount": "View other products ({n})",
       "founded": "Founded {year}",
       "employees": "Employees: {n}",
       "verifiedCompany": "Verified company",
@@ -1408,10 +1412,10 @@
       "senetDays": "Promissory note — {days, plural, one {# day} other {# days}} deferred",
       "senet": "Promissory note",
       "cashAgainstDocs": "Cash against documents (documentary collection)",
-      "lcUsanceDays": "Usance {days, plural, one {# day} other {# days}}",
-      "lcUsance": "Usance",
-      "lcSight": "Sight",
-      "lcConfirmed": "Confirmed",
+      "lcUsanceDays": "usance, {days, plural, one {# day} other {# days}}",
+      "lcUsance": "usance",
+      "lcSight": "at sight",
+      "lcConfirmed": "confirmed",
       "letterOfCredit": "Letter of credit ({parts})",
       "custom": "Custom payment term"
     },
@@ -5205,7 +5209,8 @@
         },
         "odemeVadesi": "Payment due: <strong>{date}</strong>",
         "odemeAkreditifKapsaminda": "Payment is made <strong>through the bank</strong> under the letter of credit — once received, the seller marks it in the Letter of Credit section.",
-        "cekNo": "Cheque number: {chequeNo}"
+        "cekNo": "Cheque number: {chequeNo}",
+        "iadeTaraflarArasinda": "The order has ended. Confirmed payments are refunded directly between the parties."
       },
       "bidImportDialog": {
         "belgeIslenemedi": "Could not process document",
@@ -5364,11 +5369,21 @@
           "tutar": "Amount",
           "kalemYok": "No line items",
           "toplam": "Total",
-          "genel": "(general)"
+          "genel": "(general)",
+          "muadil": "Substitute",
+          "teklifEdilen": "Offered",
+          "istenen": "Requested",
+          "belirtilmedi": "not specified"
         },
         "hesapNo": "Account number",
         "swiftBic": "SWIFT / BIC",
-        "bankaAdi": "Bank"
+        "bankaAdi": "Bank",
+        "pesinOdemeyiYapipBildirin": "This order requires an advance payment ({advance}). Once you have paid, report it with \"I have paid\" in the Payment section; shipping opens once the seller confirms it.",
+        "akreditifiActirinIsaretleyin": "Have your bank open the letter of credit, then mark it as \"Letter of credit opened\" in the Letter of Credit section.",
+        "saticininAkreditifiKabulEtmesiBekleniyor": "Waiting for the seller to accept the letter of credit.",
+        "siparisIptalEdildiAdimYok": "The order was canceled — no further steps.",
+        "siparisReddedildiAdimYok": "The seller rejected the order — no further steps.",
+        "onayBekleyenOdeme": "Awaiting confirmation"
       },
       "siparisIdLayout": {
         "siparisDetayiYetkiGerektirir": "Order details require permission",
@@ -5427,7 +5442,10 @@
         "gerekce": "Reason *",
         "enAzKarakter": "At least {minLength, plural, one {# character} other {# characters}}",
         "notunuzOpsiyonel": "Your note (optional)",
-        "odemeAlabilmekIcinKayitliBankaHesabi": "A registered bank account is required to receive payments. Add one under <link>Settings → Bank Accounts</link> (only the Founder can add it). The order cannot be confirmed until an account is added."
+        "odemeAlabilmekIcinKayitliBankaHesabi": "A registered bank account is required to receive payments. Add one under <link>Settings → Bank Accounts</link> (only the Founder can add it). The order cannot be confirmed until an account is added.",
+        "hesapEklenmesin": "— Don't add an account —",
+        "akreditifOdemeBankaKanalindan": "With a letter of credit, payment is made through the bank (per the LC terms); no bank account is recorded on the order.",
+        "vesaikHesapOpsiyonel": "With cash against documents, payment is made through the bank; you can optionally select an account for the buyer to see."
       },
       "orderReviewCard": {
         "lutfen15ArasiPuan": "Please give a rating from 1 to 5",
@@ -5459,8 +5477,16 @@
         "akreditifOdemesiAlindiOlarakIsaretlendi": "Marked as letter of credit payment received",
         "odemeAkreditifKapsamindaBankaKanalindan": "Payment is made through the bank under the letter of credit — the seller will mark it once the payment is received.",
         "akreditifOdemesiAlindi": "Letter of credit payment received.",
-        "akreditif": "Letter of credit — {plan}",
-        "akreditifKabulEdildi": "Letter of credit accepted"
+        "akreditifKabulEdildi": "Letter of credit accepted",
+        "acildiOnayBaslik": "Has the letter of credit been opened?",
+        "acildiOnayAciklama": "You confirm that your bank has opened the letter of credit and that the LC advice has been sent to the seller through the bank. The seller will be notified.",
+        "acildiOnayDugme": "Yes, it's open",
+        "kabulOnayBaslik": "Do you accept the letter of credit?",
+        "kabulOnayAciklama": "You confirm that you have reviewed the LC advice and accept its terms. After accepting, you can ship the order.",
+        "kabulOnayDugme": "Yes, I accept",
+        "odemeOnayBaslik": "Has the payment been received from the bank?",
+        "odemeOnayAciklama": "You confirm that the letter of credit payment ({amount}) has reached your account. The system creates a confirmed payment record for the full amount. This action CANNOT BE UNDONE.",
+        "odemeOnayDugme": "Yes, I received it"
       },
       "orderCancelRequestPanel": {
         "islemBasarisiz": "Operation failed",
@@ -6574,7 +6600,8 @@
       "marketDiscoveryFooter": {
         "kesfetmeyeDevamEdin": "Keep exploring",
         "sektoreGore": "By industry",
-        "sehreGoreTedarikciler": "Suppliers by city"
+        "sehreGoreTedarikciler": "Suppliers by city",
+        "sehreGoreFirmalar": "Companies by city"
       },
       "marketListLayout": {
         "suzgecler": "Filters",

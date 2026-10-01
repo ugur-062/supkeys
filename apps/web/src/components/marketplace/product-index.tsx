@@ -127,8 +127,11 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
   const hasFilter = buildProductFilterQuery({ ...state, q: undefined, sort: undefined, page: 1 }) !== "";
   // "Talep aç" (boş durum + yüzen düğme) `OpenRequestLink`: misafir kaydı
   // DÖNÜŞ ADRESİ TAŞIMAZ (Y-03), oturumlu üyeye Gold kapısını önceden söyler.
+  // Telefonda KÜÇÜK ve köşeye yakın (arayüz testi D-071): 390 px'te tam boy
+  // hap kart görselini ve "Bilgi iste"yi örtüyordu. Listenin sonuna düğme
+  // boyu kadar boşluk konur (aşağıda) — son satır hiçbir zaman altında kalmaz.
   const floatCls =
-    "fixed right-5 bottom-5 z-30 inline-flex items-center gap-1 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-700";
+    "fixed right-3 bottom-3 z-30 inline-flex items-center gap-1 rounded-full bg-blue-600 px-3.5 py-2 text-xs font-semibold text-white shadow-lg transition hover:bg-blue-700 sm:right-5 sm:bottom-5 sm:px-5 sm:py-3 sm:text-sm";
 
   /* ITEMLIST (2026-09-09, Parça 2): liste sayfası onsuz motorlar için
      "bir sürü bağlantı"dır — ne listelediğini söylemez. Sıra numarası
@@ -265,7 +268,10 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
           // `?sayfa=` düşürüyordu (2. sayfa 1. sayfayı açıyordu).
           hrefBuilder={(p) => `${landingPath}${landingQuery(p)}`}
         />
-        {/* Yüzen "Talep aç" — listeyi gezen alıcı için; hero'lu sayfa değil. */}
+        {/* Yüzen "Talep aç" — listeyi gezen alıcı için; hero'lu sayfa değil.
+            Öndeki boşluk düğmenin yüksekliği kadar: listenin son kartı ve
+            sayfalama kaydırınca düğmenin altından çıkar (D-071). */}
+        <div aria-hidden className="h-14 sm:h-20" />
         <OpenRequestLink label={t("openRequest")} prefill={state.q} className={floatCls} />
       </PublicListPage>
     </FilterShell>

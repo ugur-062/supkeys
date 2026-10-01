@@ -30,7 +30,7 @@ import {
 } from "../../common/company/category-attributes";
 import { looksLikeProse } from "../../common/company/public-text-quality";
 import { buildDirectory, directoryFacets, type DirectoryParams } from "../../common/company/company-directory";
-import { relatedProducts } from "../../common/company/related-products";
+import { relatedProducts, type RelatedViewerScope } from "../../common/company/related-products";
 import {
   REVIEW_SUMMARY_SELECT,
   REVIEW_SUMMARY_TAKE,
@@ -196,9 +196,24 @@ export class PublicProfileService {
     return directoryFacets(this.prisma, {}, q);
   }
 
+  /**
+   * PANEL görüntüleyicisi için ilişkili bloklar (arayüz testi D-231): aynı
+   * fonksiyon, ama "diğer tedarikçiler" blokları görüntüleyenin kendi
+   * firmasını ve engel ilişkili firmaları dışlar. Kural
+   * `CompanyBlocksService.blockedCompanyIds` ile aynı (her iki yön).
+   */
+  async relatedForViewer(viewerCompanyId: string, companySlug: string, productSlug: string) {
+    const rows = await this.prisma.companyBlock.findMany({
+      where: { OR: [{ blockerCompanyId: viewerCompanyId }, { blockedCompanyId: viewerCompanyId }] },
+      select: { blockerCompanyId: true, blockedCompanyId: true },
+    });
+    const blockedCompanyIds = rows.map((r) => (r.blockerCompanyId === viewerCompanyId ? r.blockedCompanyId : r.blockerCompanyId));
+    return this.related(companySlug, productSlug, { viewerCompanyId, blockedCompanyIds });
+  }
+
   /** Ürün sayfası ilişkili bloklar — panel ve public aynı fonksiyon. */
-  async related(companySlug: string, productSlug: string) {
-    const { ids, ...rest } = await relatedProducts(this.prisma, companySlug, productSlug);
+  async related(companySlug: string, productSlug: string, viewer: RelatedViewerScope = {}) {
+    const { ids, ...rest } = await relatedProducts(this.prisma, companySlug, productSlug, viewer);
     if (!this.translations) return rest;
     const locale = currentLocale();
     const t = this.translations;

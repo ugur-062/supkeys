@@ -38,7 +38,18 @@ export async function CompanyProducts({
   const page = given ?? (await fetchCompanyProducts(companySlug, { q: query }));
   // Arama VARKEN boş sonuç da çizilir: kutuyu yazan kullanıcı "sonuç yok"
   // görmeli. Aramasız boş portföy hâlâ hiç basılmaz (yarım profil hissi).
-  if (page.items.length === 0 && !query) return null;
+  // Karar TOPLAMA bakar, sayfadaki satıra değil (arayüz testi D-330):
+  // `?urunSayfa=99` gibi aralık dışı sayfada satır yok ama portföy var —
+  // bölüm, arama ve sayfalama birlikte kayboluyordu.
+  if (page.total === 0 && !query) return null;
+  const lastPage = Math.max(1, Math.ceil(page.total / page.pageSize));
+  const pageHref = (n: number) => {
+    const sp = new URLSearchParams();
+    if (query) sp.set("urun", query);
+    if (n > 1) sp.set("urunSayfa", String(n));
+    const qs = sp.toString();
+    return `/firma/${companySlug}${qs ? `?${qs}` : ""}#urunler`;
+  };
 
   return (
     <section id="urunler" className="scroll-mt-24">
@@ -86,7 +97,14 @@ export async function CompanyProducts({
         </p>
       ) : null}
 
-      {page.items.length === 0 ? (
+      {page.items.length === 0 && page.total > 0 ? (
+        <p className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center text-sm text-zinc-600">
+          {t("pageEmpty")}{" "}
+          <Link href={pageHref(lastPage)} className="font-medium text-zinc-900 underline underline-offset-2">
+            {t("lastPage")}
+          </Link>
+        </p>
+      ) : page.items.length === 0 ? (
         <p className="mt-6 rounded-xl border border-dashed border-zinc-300 bg-white px-6 py-10 text-center text-sm text-zinc-600">
           {t("noneFor", { q: query ?? "" })}
         </p>
@@ -108,13 +126,7 @@ export async function CompanyProducts({
             page={page.page}
             total={page.total}
             pageSize={page.pageSize}
-            hrefBuilder={(n) => {
-              const sp = new URLSearchParams();
-              if (query) sp.set("urun", query);
-              if (n > 1) sp.set("urunSayfa", String(n));
-              const qs = sp.toString();
-              return `/firma/${companySlug}${qs ? `?${qs}` : ""}#urunler`;
-            }}
+            hrefBuilder={pageHref}
           />
         </>
       )}

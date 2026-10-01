@@ -21,7 +21,8 @@ test("ziyaretçi: anasayfa, ürünler (süzgeç çekmecesi), firmalar, alım tal
 
   await page.goto("/urunler");
   await expectNoHorizontalOverflow(page, "/urunler");
-  await page.getByRole("button", { name: /^Filtrele/ }).first().click();
+  // Düğme ve çekmece başlığı aynı terim (arayüz testi D-076): "Süzgeçler".
+  await page.getByRole("button", { name: /^Süzgeçler/ }).first().click();
   await expect(page.getByRole("dialog").getByText("Süzgeçler", { exact: true }).first()).toBeVisible();
   await page.keyboard.press("Escape");
   await expect(page.getByRole("dialog")).toHaveCount(0);

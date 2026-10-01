@@ -152,4 +152,42 @@ describe("CompanyCard", () => {
     expect(screen.getByText("3 ürün")).toBeTruthy();
     expect(screen.queryByText("Gold Üye")).toBeNull();
   });
+
+  describe("wide (dizin satırı)", () => {
+    const wide = {
+      ...base,
+      productCount: 39,
+      productPreview: [
+        { slug: "vida-m8", name: "Vida M8", image: null, priceMode: "ON_REQUEST", priceAmount: null, priceCurrency: "TRY", moq: null, unit: "adet" },
+      ],
+      topCategories: [{ id: "31160000", name: "Vidalar", count: 10 }],
+    };
+
+    it("O-034: eylem kutusu daralabilir — `shrink-0` yok, `max-w-full` + `flex-wrap` var", () => {
+      render(<CompanyCard company={wide} variant="wide" cta={{ label: "İletişime geçin", href: "/x" }} />);
+      const actions = screen.getByText("İletişime geçin").closest("a")?.parentElement;
+      expect(actions?.className).not.toContain("shrink-0");
+      expect(actions?.className).toContain("min-w-0");
+      expect(actions?.className).toContain("max-w-full");
+      expect(actions?.className).toContain("flex-wrap");
+    });
+
+    it("D-072: ürün mini kartı KENDİ ürününe gider (firma örtüsünün üstünde), kategori satırında ok yok", () => {
+      const { container } = render(<CompanyCard company={wide} variant="wide" />);
+      const link = screen.getByText("Vida M8").closest("a");
+      expect(link?.getAttribute("href")).toContain("/firma/demir-metal/urun/vida-m8");
+      expect(link?.getAttribute("target")).toBe("_blank");
+      expect(link?.closest("li")?.className).toContain("z-10");
+      // Kategori satırı bağlantı değil; "git" vaat eden ok da çizilmez.
+      const row = screen.getByText("Vidalar").closest("li");
+      expect(row?.querySelector("a")).toBeNull();
+      expect(row?.querySelector("svg")).toBeNull();
+      expect(container.querySelectorAll("article a[href$='#urunler']").length).toBeGreaterThan(0);
+    });
+
+    it("D-072: panel ürün hedefini kendisi verir", () => {
+      render(<CompanyCard company={wide} variant="wide" productHref={(p) => `/company/satinalma/urunler/demir-metal/${p}`} />);
+      expect(screen.getByText("Vida M8").closest("a")?.getAttribute("href")).toContain("/company/satinalma/urunler/demir-metal/vida-m8");
+    });
+  });
 });

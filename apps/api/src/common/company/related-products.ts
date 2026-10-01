@@ -24,7 +24,22 @@ type Db = Pick<PrismaClient, "companyItem">;
  * ürününü basıyordu — alıcı karşılaştıracak başka tedarikçi göremiyordu ve
  * pazar yeri hissi tam orada kırılıyordu (kullanıcı bulgusu).
  */
-export async function relatedProducts(prisma: Db, companySlug: string, productSlug: string) {
+export interface RelatedViewerScope {
+  /**
+   * Panel görüntüleyicisi (arayüz testi D-231): "Benzer ürünler — diğer
+   * tedarikçilerden" ve "Kategoride yeni" görüntüleyenin KENDİ firmasını
+   * listelememeli — üye kendi ürününü "başka tedarikçi" diye görüyordu.
+   */
+  viewerCompanyId?: string;
+  /**
+   * Görüntüleyiciyle herhangi yönde engel ilişkisi olan firmalar: hiçbir
+   * blokta listelenmez; ürünün kendi firması bu kümedeyse 404 (panel ürün
+   * sayfası `discoverProduct` ile aynı karşılıklı görünmezlik).
+   */
+  blockedCompanyIds?: string[];
+}
+
+export async function relatedProducts(prisma: Db, companySlug: string, productSlug: string, viewer: RelatedViewerScope = {}) {
   const base = await prisma.companyItem.findFirst({
     // Firma slug'ı AND ile eklenir: `company` anahtarını düz yazmak
     // `publicProductWhere()`in profil kapısını (publicEnabled/aktif/bloksuz)
@@ -33,6 +48,12 @@ export async function relatedProducts(prisma: Db, companySlug: string, productSl
     select: { id: true, companyId: true, categoryId: true },
   });
   if (!base) throw new NotFoundException(i18nMessage("api.company.urunBulunamadi"));
+  const blocked = viewer.blockedCompanyIds ?? [];
+  if (blocked.includes(base.companyId)) throw new NotFoundException(i18nMessage("api.company.urunBulunamadi"));
+  // "Diğer tedarikçiler" blokları: ürünün firması + görüntüleyen + engelliler.
+  const otherCompanies = {
+    notIn: [...new Set([base.companyId, ...(viewer.viewerCompanyId ? [viewer.viewerCompanyId] : []), ...blocked])],
+  };
   const [fromCompany, fromTotal] = await Promise.all([
     prisma.companyItem.findMany({
       where: { ...publicProductWhere(), companyId: base.companyId, id: { not: base.id } },
@@ -49,7 +70,7 @@ export async function relatedProducts(prisma: Db, companySlug: string, productSl
   if (code && /^\d{8}$/.test(code)) {
     for (const level of [`${code.slice(0, 6)}00`, `${code.slice(0, 4)}0000`, `${code.slice(0, 2)}000000`]) {
       similar = await prisma.companyItem.findMany({
-        where: { ...publicProductWhere(), ...productCategoryWhere(level), companyId: { not: base.companyId } },
+        where: { ...publicProductWhere(), ...productCategoryWhere(level), companyId: otherCompanies },
         select: PRODUCT_INDEX_SELECT,
         orderBy: [{ completionScore: "desc" }, { publishedAt: "desc" }],
         take: 8,
@@ -63,7 +84,7 @@ export async function relatedProducts(prisma: Db, companySlug: string, productSl
           ...publicProductWhere(),
           ...productCategoryWhere(`${code.slice(0, 2)}000000`),
           id: { not: base.id },
-          companyId: { not: base.companyId },
+          companyId: otherCompanies,
         },
         select: PRODUCT_INDEX_SELECT,
         orderBy: [{ publishedAt: "desc" }],
