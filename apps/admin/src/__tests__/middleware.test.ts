@@ -29,12 +29,13 @@ describe("admin CSP frame-src", () => {
     expect(DOC_PREVIEW_FRAME_ORIGIN).toBe("https://*.r2.cloudflarestorage.com");
   });
 
-  it("özel R2_ENDPOINT kökenini ekler (yalnız https)", () => {
+  it("özel R2_ENDPOINT kökenini ve kova alt alanlarını ekler (yalnız https)", () => {
     vi.stubEnv("R2_ENDPOINT", "https://files.example.com/some/path");
     expect(frameSrc()).toEqual([
       "'self'",
       DOC_PREVIEW_FRAME_ORIGIN,
       "https://files.example.com",
+      "https://*.files.example.com",
     ]);
     vi.stubEnv("R2_ENDPOINT", "http://insecure.example.com");
     expect(frameSrc()).toEqual(["'self'", DOC_PREVIEW_FRAME_ORIGIN]);

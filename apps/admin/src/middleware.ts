@@ -20,7 +20,7 @@ import { NextRequest, NextResponse } from "next/server";
  * R2 presigned URL'ini iframe'de açar. frame-src yokken `default-src 'self'`
  * devreye giriyor, çerçeve hep boş kalıyordu (arayüz testi O-076). Yalnız R2
  * S3 uç noktası (hesap ya da kova alt alan adı); özel bir uç nokta
- * kullanılıyorsa kökeni `R2_ENDPOINT`ten eklenir. Yanıt tipini sunucu sabitler
+ * kullanılıyorsa `R2_ENDPOINT` kökeni ve kova alt alanları (`*.host`) eklenir. Yanıt tipini sunucu sabitler
  * (`presignInlinePreview`: pdf/png/jpg/webp beyaz listesi) — çerçevede script
  * çalışmaz.
  */
@@ -31,8 +31,15 @@ function frameSrc(): string {
   const endpoint = process.env.R2_ENDPOINT;
   if (endpoint) {
     try {
-      const { protocol, origin } = new URL(endpoint);
-      if (protocol === "https:" && !sources.includes(origin)) sources.push(origin);
+      const { protocol, origin, host } = new URL(endpoint);
+      // StorageService S3 istemcisi forcePathStyle:false → presigned URL host'u
+      // `<bucket>.<endpoint host>` (sanal barındırma). Kova alt alanı için
+      // joker, DNS'e uymayan kova adında SDK'nın düştüğü path-style için kök.
+      if (protocol === "https:") {
+        for (const src of [origin, `https://*.${host}`]) {
+          if (!sources.includes(src)) sources.push(src);
+        }
+      }
     } catch {
       // Bozuk değer — yalnız varsayılan R2 kökeni.
     }
