@@ -50,11 +50,6 @@ export class CompanyReviewsService {
     if (!order || (!isBuyer && !isSeller)) {
       throw new NotFoundException(i18nMessage("api.companyReviews.siparisBulunamadi"));
     }
-    if (order.status !== "COMPLETED") {
-      throw new BadRequestException(
-        i18nMessage("api.companyReviews.yalnizcaTamamlanmisSiparislerDegerlendirilebilir"),
-      );
-    }
     // Rol kapısı (salt-okunur garanti #5) — assertOrderRole deseni: firma
     // adına KALICI itibar beyanını siparişin tarafı olan işlem rolü yazar
     // (alıcı yanı Satın Almacı, satıcı yanı Satışçı). Etiket-only/rolsüz
@@ -69,6 +64,13 @@ export class CompanyReviewsService {
               : "api.permission.sell_order_manage",
           ),
         }),
+      );
+    }
+    // İş ön koşulu rol kapısından SONRA (arayüz testi D-161): yetkisiz üye
+    // sipariş durumunu 400 metninden öğrenmesin, doğrudan 403 alsın.
+    if (order.status !== "COMPLETED") {
+      throw new BadRequestException(
+        i18nMessage("api.companyReviews.yalnizcaTamamlanmisSiparislerDegerlendirilebilir"),
       );
     }
     const targetCompanyId = isBuyer

@@ -523,6 +523,9 @@ export class CompanyOrdersService {
    *  ödemeyi onaylamalı ya da reddetmeli (alıcı tamamlama kapısının simetriği). */
   async ship(user: AuthenticatedCompanyUser, id: string, input: ShipOrderDto) {
     const order = await this.loadParticipant(user, id);
+    // Kontrol sırası authz → iş doğrulaması (arayüz testi D-161): alıcı
+    // tarafı peşin eşiği / onaylı ödeme bilgisini 400 metninde görmesin.
+    this.assertOrderSide(user, order, "seller");
     // TTK 23: ayıp ihbarı DISPUTED'ında satıcı SEVK EDEMEZ (mal zaten teslim,
     // ihtilaf muayene/ayıp meselesi). A1 (satıcı iptal talebi) DISPUTED'ında
     // sevk açık kalır — ayrımı defectNotifiedAt yapar. (ship from-list DISPUTED
@@ -635,6 +638,8 @@ export class CompanyOrdersService {
    */
   async receive(user: AuthenticatedCompanyUser, id: string, input: OrderNoteDto) {
     const order = await this.loadParticipant(user, id);
+    // authz → iş doğrulaması (arayüz testi D-161).
+    this.assertOrderSide(user, order, "buyer");
     if (
       order.paymentTiming === "BEFORE_DELIVERY" &&
       order.paymentCategory === "CASH_AGAINST_DOCS"
@@ -1193,15 +1198,11 @@ export class CompanyOrdersService {
     user: AuthenticatedCompanyUser,
     side: "seller" | "buyer",
   ) {
+    // authz → iş doğrulaması (arayüz testi D-161).
+    this.assertOrderSide(user, order, side);
     if (!isLetterOfCredit(order.paymentCategory as PaymentCategory)) {
       throw new BadRequestException(i18nMessage("api.companyOrders.buSiparisAkreditifliDegil"));
     }
-    const own =
-      side === "seller"
-        ? order.sellerCompanyId === user.companyId
-        : order.buyerCompanyId === user.companyId;
-    if (!own) throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
-    this.assertOrderRole(user, side);
   }
 
   /** Alıcı: "Akreditif Açıldı" — beyan (belge yüklemesi yok); ACCEPTED evresi. */
@@ -1699,6 +1700,25 @@ export class CompanyOrdersService {
     // Onay bağı istisnası kalktı (yetki tablosu Faz 2): onaylayıcı-only üye
     // sipariş detayını görmez; karar bağlamı onay projeksiyonunda.
     throw new NotFoundException(i18nMessage("api.companyOrders.siparisBulunamadi"));
+  }
+
+  /**
+   * Taraf + rol kapısı — iş ön koşullarından ÖNCE çağrılır (arayüz testi
+   * D-161): siparişin karşı tarafı 400 yerine 403 alır, ön koşul metni
+   * (peşin tutarı, onaylı ödeme) yanlış tarafa sızmaz. `transition` aynı
+   * kontrolü atomik geçişte yineler.
+   */
+  private assertOrderSide(
+    user: AuthenticatedCompanyUser,
+    order: { sellerCompanyId: string; buyerCompanyId: string },
+    side: "seller" | "buyer",
+  ): void {
+    const own =
+      side === "seller"
+        ? order.sellerCompanyId === user.companyId
+        : order.buyerCompanyId === user.companyId;
+    if (!own) throw new ForbiddenException(i18nMessage("api.companyOrders.buIslemiYapamazsiniz"));
+    this.assertOrderRole(user, side);
   }
 
   private assertOrderRole(

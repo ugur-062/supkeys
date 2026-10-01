@@ -348,6 +348,34 @@ describe("BidSummaryCard", () => {
     expect(screen.getByRole("button", { name: "Geçerliliği Uzat" })).toBeInTheDocument();
   });
 
+  it("'Geçerliliği Uzat': TASLAK canlandırma teklif hakkı ve KYC kuralına uyar (arayüz testi O-071/O-072)", () => {
+    useCompanyAuthStore.setState({
+      user: { isOwner: false, roles: ["SATISCI"], permissions: ["sell:view", "sell:bid:submit"] },
+    } as never);
+    const draftBid = { ...submittedBid, status: "DRAFT" as const };
+    // Bağlantısı düşen ücretsiz üye: teklif hakkı yok → canlandıramaz.
+    const noRight = render(
+      <BidSummaryCard l={detail({ status: "OPEN", canBid: false, myBid: draftBid })} />,
+    );
+    expect(screen.queryByRole("button", { name: "Geçerliliği Uzat" })).not.toBeInTheDocument();
+    noRight.unmount();
+    // Davetsiz/bağlantısız ve doğrulanmamış: gönderim KYC ister → çizilmez.
+    const kyc = render(
+      <BidSummaryCard
+        l={detail({ status: "OPEN", canBid: true, bidRequiresVerification: true, myBid: draftBid })}
+      />,
+    );
+    expect(screen.queryByRole("button", { name: "Geçerliliği Uzat" })).not.toBeInTheDocument();
+    kyc.unmount();
+    // Bağlantılı doğrulanmamış (KYC muaf): canlandırabilir.
+    render(
+      <BidSummaryCard
+        l={detail({ status: "OPEN", canBid: true, bidRequiresVerification: false, myBid: draftBid })}
+      />,
+    );
+    expect(screen.getByRole("button", { name: "Geçerliliği Uzat" })).toBeInTheDocument();
+  });
+
   it("statü/versiyon/toplam + kalem satırı + not", () => {
     render(
       <BidSummaryCard

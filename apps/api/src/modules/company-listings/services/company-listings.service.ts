@@ -856,6 +856,10 @@ export class CompanyListingsService {
       lockedInAppBody: "api.notifications.listings.categoryMatch.buy.lockedInAppBody",
       lockedBodyUnverified: "api.notifications.listings.categoryMatch.buy.lockedBodyUnverified",
       lockedInAppBodyUnverified: "api.notifications.listings.categoryMatch.buy.lockedInAppBodyUnverified",
+      openBodyUnverified: "api.notifications.listings.categoryMatch.buy.openBodyUnverified",
+      openInAppBodyUnverified: "api.notifications.listings.categoryMatch.buy.openInAppBodyUnverified",
+      openBodyPending: "api.notifications.listings.categoryMatch.buy.openBodyPending",
+      openInAppBodyPending: "api.notifications.listings.categoryMatch.buy.openInAppBodyPending",
       openCta: "api.notifications.listings.cta.viewRequest",
     } as const;
     const VERIFY_CTA = "api.notifications.listings.cta.verifyFree" as const;
@@ -890,6 +894,24 @@ export class CompanyListingsService {
             c.companyVerificationStatus !== "PENDING",
         )
         .map((c) => c.id),
+    );
+    // ÜCRETLİ ama doğrulanmamış / incelemedeki firma (arayüz testi D-163):
+    // talebi görür ama bağlantısız teklif INV-KYC-1 ile 403 alır
+    // (`assertBidVerified`) → "hemen teklif verin" yerine doğrulama çağrısı
+    // (incelemedeyse "onaylanınca teklif verebilirsiniz"). Bağlantılı firma
+    // KYC'den muaf → açık metin kalır.
+    const paidKyc = new Map(
+      candidates
+        .filter(
+          (c) =>
+            !isFree.get(c.id) &&
+            !ownerConnected.has(c.id) &&
+            c.companyVerificationStatus !== "VERIFIED",
+        )
+        .map(
+          (c) =>
+            [c.id, c.companyVerificationStatus === "PENDING" ? "pending" : "unverified"] as const,
+        ),
     );
     // Talep önizlemesi alıcının dilinde — ücretsiz firma kilitli talebin NE
     // olduğunu görsün (Silver'a geçiş için somut gerekçe), ücretli firma
@@ -965,16 +987,28 @@ export class CompanyListingsService {
               footerNoteKey: FOOTER,
               infoRowsFor: (l) => preview.get(l),
             }
-          : {
-              subjectKey: K.openSubject,
-              headingKey: K.heading,
-              bodyKey: K.openBody,
-              params: p,
-              ctaLabelKey: K.openCta,
-              ctaUrl: (l) => appRoutes.listing(this.webUrl(), listing.id, l),
-              footerNoteKey: FOOTER,
-              infoRowsFor: (l) => preview.get(l),
-            },
+          : paidKyc.get(c.id) === "unverified"
+            ? {
+                subjectKey: K.openSubject,
+                headingKey: K.heading,
+                bodyKey: K.openBodyUnverified,
+                params: p,
+                ctaLabelKey: VERIFY_CTA,
+                ctaUrl: (l) => localizeAppPath(verifyUrl, l),
+                footerNoteKey: FOOTER,
+                infoRowsFor: (l) => preview.get(l),
+              }
+            : {
+                subjectKey: K.openSubject,
+                headingKey: K.heading,
+                bodyKey:
+                  paidKyc.get(c.id) === "pending" ? K.openBodyPending : K.openBody,
+                params: p,
+                ctaLabelKey: K.openCta,
+                ctaUrl: (l) => appRoutes.listing(this.webUrl(), listing.id, l),
+                footerNoteKey: FOOTER,
+                infoRowsFor: (l) => preview.get(l),
+              },
         { type: "listing_category_match", id: listingId },
       );
       sent++;
@@ -983,7 +1017,15 @@ export class CompanyListingsService {
     // portalındaki (ALIM→satış, SATIS→satınalma) aktif kullanıcılarına. Portal
     // verilmezse bildirim iki panelde de görünürdü (ör. satın almacıya "sattığınız
     // kategoriye uygun ihale" düşerdi) — matchPortal ile doğru panele sınırlanır.
-    const paidIds = sirali.map((c) => c.id).filter((id) => !isFree.get(id));
+    const paidIds = sirali
+      .map((c) => c.id)
+      .filter((id) => !isFree.get(id) && !paidKyc.has(id));
+    const paidUnverifiedIds = sirali
+      .map((c) => c.id)
+      .filter((id) => paidKyc.get(id) === "unverified");
+    const paidPendingIds = sirali
+      .map((c) => c.id)
+      .filter((id) => paidKyc.get(id) === "pending");
     const freeIds = sirali.map((c) => c.id).filter((id) => isFree.get(id) && !needsVerify.has(id));
     const verifyIds = sirali.map((c) => c.id).filter((id) => needsVerify.has(id));
     if (paidIds.length > 0) {
@@ -1008,6 +1050,30 @@ export class CompanyListingsService {
         ctaLabelKey: PLANS_CTA,
         params: p,
         ctaPath: pricingUrl,
+        portal: matchPortal,
+      });
+    }
+    if (paidUnverifiedIds.length > 0) {
+      await this.notifications.pushToCompanies(paidUnverifiedIds, {
+        type: "listing_category_match",
+        titleKey: K.heading,
+        bodyKey: K.openInAppBodyUnverified,
+        ctaLabelKey: VERIFY_CTA,
+        params: p,
+        ctaPath: verifyUrl,
+        listingId: listing.id,
+        portal: matchPortal,
+      });
+    }
+    if (paidPendingIds.length > 0) {
+      await this.notifications.pushToCompanies(paidPendingIds, {
+        type: "listing_category_match",
+        titleKey: K.heading,
+        bodyKey: K.openInAppBodyPending,
+        ctaLabelKey: K.openCta,
+        params: p,
+        ctaPath: url,
+        listingId: listing.id,
         portal: matchPortal,
       });
     }
@@ -3093,6 +3159,11 @@ export class CompanyListingsService {
 
     // Bağlantılar bir kez Set'e: ilan × bağlantı karesel taraması yok.
     const connectedSet = new Set(connectedIds);
+    // Rol kapısı paket kapısının İÇİNDE (arayüz testi O-038): detay ucu
+    // `roleAllowsBid`'i ayrı döndürüyor; liste satırında tek bayrak var, o
+    // yüzden `canBid` rolü de içerir — görüntüleyici kartta "Teklif ver" görüp
+    // rol ekranına düşmesin. placeBid ile aynı izin (`bidderPermission`).
+    const roleAllowsBid = hasCompanyPermission(user, bidderPermission(type));
     const rows = all.map((l) => {
       const connected = connectedSet.has(l.companyId);
       const invited = invitedSet.has(l.id);
@@ -3103,11 +3174,12 @@ export class CompanyListingsService {
       );
       // Gizli satır (PUBLIC ∧ ücretsiz ∧ bağsız/davetsiz) sorguya HİÇ girmez
       // (`sellerVisibleWhere` viewerPaid) — burada yalnız teklif hakkı hesaplanır.
-      const { canBid } = listingBidEligibility(l.visibility, {
+      const { canBid: tierAllowsBid } = listingBidEligibility(l.visibility, {
         isInvited: invited,
         connectedToOwner: connected,
         viewerTier: user.tier,
       });
+      const canBid = tierAllowsBid && roleAllowsBid;
       return {
         _open: l.status === "OPEN",
         id: l.id,
@@ -4446,84 +4518,36 @@ export class CompanyListingsService {
     return out;
   }
 
-  async placeBid(user: AuthenticatedCompanyUser, id: string, dto: PlaceBidDto) {
-    const listing = await this.prisma.listing.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        companyId: true,
-        type: true,
-        title: true,
-        number: true,
-        format: true,
-        visibility: true,
-        bidVisibility: true,
-        status: true,
-        requireAllItems: true,
-        requireBidDocument: true,
-        currentRound: true,
-        primaryCurrency: true,
-        allowedCurrencies: true,
-        deliveryTerm: true,
-        closesAt: true,
-        bidsOpenAt: true,
-        isInternational: true,
-        targetCountries: true,
-        auctionRateSnapshot: true,
-        autoExtendOnLateBid: true,
-        autoExtendThresholdMin: true,
-        autoExtendByMinutes: true,
-        company: { select: { country: true, isActive: true, isBlocked: true } },
-      },
-    });
-    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
-    if (listing.companyId === user.companyId) {
-      throw new BadRequestException(i18nMessage("api.companyListings.kendiIlaninizaTeklifVeremezsiniz"));
-    }
+  /**
+   * Teklif ERİŞİM kapıları — tek kaynak (arayüz testi O-071): placeBid ve
+   * taslak canlandırma (`extendBidValidity`, fiilen yeniden gönderim) aynı
+   * sırayla çalıştırır. Sıra: sahibin askısı → engel → görünürlük → ülke
+   * (404, varlık sızdırılmaz) → paket/bağlantı/davet (403). Rol kapısı
+   * çağıranda (mesajı akışa göre farklı).
+   */
+  private async assertBidAccess(
+    user: AuthenticatedCompanyUser,
+    listing: {
+      id: string;
+      companyId: string;
+      visibility: ListingVisibility;
+      isInternational: boolean;
+      targetCountries: string[];
+      company: { country: string; isActive: boolean; isBlocked: boolean };
+    },
+  ): Promise<{ isInvited: boolean; connected: boolean }> {
     // Askıdaki / pasif firmanın talebi teklif almaz (akıştan da düşer —
     // `sellerVisibleWhere`; derin denetim MU-20). 404: varlık sızdırılmaz.
     if (!listing.company.isActive || listing.company.isBlocked) {
       throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
-    // ── ERİŞİM kontrolleri ÖNCE (404/403) — durum/para birimi 400'leri gizli
-    // ilanın varlığını/ayarlarını sızdırmasın (info-leak: davetsiz PRIVATE
-    // prober geçersiz para birimiyle "geçersiz para birimi" alamamalı).
-    const [blockedIds, connectedIds, invitedCount, existingBid] =
-      await Promise.all([
-        this.blocks.blockedCompanyIds(listing.companyId),
-        this.connectedCompanyIds(user.companyId),
-        this.prisma.listingInvitation.count({
-          where: { listingId: id, invitedCompanyId: user.companyId },
-        }),
-        this.prisma.listingBid.findUnique({
-          where: {
-            listingId_bidderCompanyId: {
-              listingId: id,
-              bidderCompanyId: user.companyId,
-            },
-          },
-          select: {
-            status: true,
-            amount: true,
-            currency: true,
-            round: true,
-            activeBidRound: true,
-            // Tx içindeki yeniden okuma kıyası (eşzamanlı gönderim yarışı).
-            version: true,
-            // Pazarlık rebid'inde teslim bilgisi taşınan tekliften KORUNUR
-            // (madde 14) — yeniden sorulmaz, gönderilmezse eski değer kalır.
-            deliveryTime: true,
-            deliveryDate: true,
-            validityDays: true,
-            // Monotonluk kıyası AYNI KALEMLER bazında — önceki teklifte
-            // fiyatlanmış kalemler (kapsam genişletme serbest, bırakma yasak).
-            items: {
-              where: { ...PRICED_ITEM_WHERE },
-              select: { itemId: true, deliveryTime: true, deliveryDate: true },
-            },
-          },
-        }),
-      ]);
+    const [blockedIds, connectedIds, invitedCount] = await Promise.all([
+      this.blocks.blockedCompanyIds(listing.companyId),
+      this.connectedCompanyIds(user.companyId),
+      this.prisma.listingInvitation.count({
+        where: { listingId: listing.id, invitedCompanyId: user.companyId },
+      }),
+    ]);
     if (blockedIds.includes(user.companyId)) {
       throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
     }
@@ -4560,6 +4584,94 @@ export class CompanyListingsService {
           : i18nMessage("api.companyListings.tekliIcinPremiumUyelikGerekir"),
       );
     }
+    return { isInvited, connected };
+  }
+
+  /**
+   * INV-KYC-1 teklif gönderim kuralı — tek kaynak (arayüz testi O-072):
+   * davetli ∨ bağlantılı teklifçi muaf, yabancı (platformun tanıştırdığı)
+   * teklifçi VERIFIED olmalı. placeBid ve taslak canlandırma aynı kuralı
+   * okur; getOne'ın `bidRequiresVerification` bayrağı bunun aynası.
+   */
+  private assertBidVerified(
+    user: AuthenticatedCompanyUser,
+    reach: { isInvited: boolean; connected: boolean },
+  ) {
+    if (reach.isInvited || reach.connected) return;
+    this.assertVerified(user, "bid");
+  }
+
+  async placeBid(user: AuthenticatedCompanyUser, id: string, dto: PlaceBidDto) {
+    const listing = await this.prisma.listing.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        companyId: true,
+        type: true,
+        title: true,
+        number: true,
+        format: true,
+        visibility: true,
+        bidVisibility: true,
+        status: true,
+        requireAllItems: true,
+        requireBidDocument: true,
+        currentRound: true,
+        primaryCurrency: true,
+        allowedCurrencies: true,
+        deliveryTerm: true,
+        closesAt: true,
+        bidsOpenAt: true,
+        isInternational: true,
+        targetCountries: true,
+        auctionRateSnapshot: true,
+        autoExtendOnLateBid: true,
+        autoExtendThresholdMin: true,
+        autoExtendByMinutes: true,
+        company: { select: { country: true, isActive: true, isBlocked: true } },
+      },
+    });
+    if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
+    if (listing.companyId === user.companyId) {
+      throw new BadRequestException(i18nMessage("api.companyListings.kendiIlaninizaTeklifVeremezsiniz"));
+    }
+    // ── ERİŞİM kontrolleri ÖNCE (404/403) — durum/para birimi 400'leri gizli
+    // ilanın varlığını/ayarlarını sızdırmasın (info-leak: davetsiz PRIVATE
+    // prober geçersiz para birimiyle "geçersiz para birimi" alamamalı).
+    // Erişim bloğu `assertBidAccess`'te — taslak canlandırma da aynısını
+    // çalıştırır (arayüz testi O-071).
+    const [{ isInvited, connected }, existingBid] =
+      await Promise.all([
+        this.assertBidAccess(user, listing),
+        this.prisma.listingBid.findUnique({
+          where: {
+            listingId_bidderCompanyId: {
+              listingId: id,
+              bidderCompanyId: user.companyId,
+            },
+          },
+          select: {
+            status: true,
+            amount: true,
+            currency: true,
+            round: true,
+            activeBidRound: true,
+            // Tx içindeki yeniden okuma kıyası (eşzamanlı gönderim yarışı).
+            version: true,
+            // Pazarlık rebid'inde teslim bilgisi taşınan tekliften KORUNUR
+            // (madde 14) — yeniden sorulmaz, gönderilmezse eski değer kalır.
+            deliveryTime: true,
+            deliveryDate: true,
+            validityDays: true,
+            // Monotonluk kıyası AYNI KALEMLER bazında — önceki teklifte
+            // fiyatlanmış kalemler (kapsam genişletme serbest, bırakma yasak).
+            items: {
+              where: { ...PRICED_ITEM_WHERE },
+              select: { itemId: true, deliveryTime: true, deliveryDate: true },
+            },
+          },
+        }),
+      ]);
 
     // Rol (işleme göre): ALIM ilanı → teklifçi SATAR → Satışçı; SATIS → ALIR → Satın Almacı.
     // Faz R: SAHIP muafiyeti yok — Kurucu teklif için op-rol taşımalı.
@@ -4632,10 +4744,7 @@ export class CompanyListingsService {
     // istiyor, yani doğrulama zincirle de uygulanıyor. Buradaki açık kontrol
     // savunma derinliği: admin `setTier` ile elle paket verebiliyor ve o yol
     // doğrulamayı atlıyor.
-    const reachedViaRelationship = isInvited || connected;
-    if (!isDraft && !reachedViaRelationship) {
-      this.assertVerified(user, "bid");
-    }
+    if (!isDraft) this.assertBidVerified(user, { isInvited, connected });
     // Auction'da gönderilmiş teklif TASLAĞA çekilemez: agregattan düşürür
     // ("yumuşak geri çekme" ile fiyat manipülasyonu) ve sonraki gönderimde
     // monotonluk referanssız kalırdı.
@@ -5838,10 +5947,21 @@ export class CompanyListingsService {
         .join(", ");
       // Tekil/çoğul ("sipariş" ↔ "siparişler") ICU plural ile katalogda —
       // dile göre kural değişir, kodda `length > 1` ile kurulamaz.
-      const awardParams = {
+      // Hangi talep kazanıldı (arayüz testi D-106): başlık + numara metinde.
+      const awardParams: NotificationParams = {
+        title: listingTitleParam(listingId, listing.title),
+        number: listing.number ?? "—",
         orderNumbers: orderNumbersLabel,
         count: orders.length,
       };
+      // Birden çok sipariş (çok-birimli teklif) → CTA sipariş LİSTESİNE;
+      // tek sipariş → doğrudan sipariş detayı (D-106: bağlantı yalnız
+      // sonuncuya gidiyordu).
+      const multiOrder = orders.length > 1;
+      const awardCta = (l?: Locale) =>
+        multiOrder
+          ? appRoutes.orders(this.webUrl(), wonPortal, l)
+          : appRoutes.order(this.webUrl(), order.id, l);
       if (recipient) {
         this.notify(
           recipient,
@@ -5850,8 +5970,10 @@ export class CompanyListingsService {
             headingKey: "api.notifications.listings.awarded.title",
             bodyKey: "api.notifications.listings.awarded.body",
             params: awardParams,
-            ctaLabelKey: "api.notifications.listings.cta.viewOrder",
-            ctaUrl: (l) => appRoutes.order(this.webUrl(), order.id, l),
+            ctaLabelKey: multiOrder
+              ? "api.notifications.listings.cta.viewOrders"
+              : "api.notifications.listings.cta.viewOrder",
+            ctaUrl: (l) => awardCta(l),
           },
           { type: "bid_awarded", id: order.id },
         );
@@ -5861,9 +5983,11 @@ export class CompanyListingsService {
         portal: wonPortal,
         titleKey: "api.notifications.listings.awarded.title",
         bodyKey: "api.notifications.listings.awarded.bodyShort",
-        ctaLabelKey: "api.notifications.listings.cta.viewOrder",
+        ctaLabelKey: multiOrder
+          ? "api.notifications.listings.cta.viewOrders"
+          : "api.notifications.listings.cta.viewOrder",
         params: awardParams,
-        ctaPath: appRoutes.order(this.webUrl(), order.id),
+        ctaPath: awardCta(),
       });
       // Kaybeden teklif sahiplerine "satın alma talebi sonuçlandı" bildirimi (teklifçi
       // portalı, bidElimination tercihine bağlı — eleme bildirimini kapatan
@@ -6610,6 +6734,13 @@ export class CompanyListingsService {
     try {
       // Kazanan her firmaya (teklifçi) bildirim — tek seferde topla (N+1 yerine).
       const itemWonPortal = this.bidderPortal(listing.type);
+      // Hangi talep kazanıldı (arayüz testi D-106) — toplu kazandırmayla aynı.
+      const itemAwardParams = (orderNumber: string | null): NotificationParams => ({
+        title: listingTitleParam(listingId, listing.title),
+        number: listing.number ?? "—",
+        orderNumbers: orderNumber ?? "",
+        count: 1,
+      });
       const recipients = await this.companyRecipients(
         [...new Set(groupArr.map((g) => g.bidderCompanyId))],
         itemWonPortal,
@@ -6628,7 +6759,7 @@ export class CompanyListingsService {
               // kısa gövde (toplu kazandırmadaki "detayları takip edin"
               // cümlesi burada hiç yoktu, biçim korunur).
               bodyKey: "api.notifications.listings.awarded.bodyShort",
-              params: { orderNumbers: o.number ?? "", count: 1 },
+              params: itemAwardParams(o.number),
               ctaLabelKey: "api.notifications.listings.cta.viewOrder",
               ctaUrl: (l) => appRoutes.order(this.webUrl(), o.id, l),
             },
@@ -6643,7 +6774,7 @@ export class CompanyListingsService {
             titleKey: "api.notifications.listings.awarded.title",
             bodyKey: "api.notifications.listings.awarded.bodyShort",
             ctaLabelKey: "api.notifications.listings.cta.viewOrder",
-            params: { orderNumbers: o.number ?? "", count: 1 },
+            params: itemAwardParams(o.number),
             ctaPath: appRoutes.order(this.webUrl(), o.id),
           });
         }
@@ -7051,6 +7182,7 @@ export class CompanyListingsService {
       void this.notifyNextRoundCarry(
         listingId,
         carriedLive.map((b) => ({
+          bidId: b.id,
           companyId: b.bidderCompanyId,
           amount: b.amount.toString(),
           currency: b.currency,
@@ -7079,7 +7211,7 @@ export class CompanyListingsService {
    */
   private async notifyNextRoundCarry(
     listingId: string,
-    carried: { companyId: string; amount: string; currency: string }[],
+    carried: { bidId: string; companyId: string; amount: string; currency: string }[],
     expiredCompanyIds: string[],
     opensAt: Date | null,
   ) {
@@ -7088,6 +7220,28 @@ export class CompanyListingsService {
       select: { id: true, title: true, number: true, type: true, format: true },
     });
     if (!listing) return;
+    // Çok dövizli teklif (kalem bazlı farklı birim — madde 9): `amount` teklifin
+    // ana birimindeki KARŞILIĞIDIR; tedarikçiye "X ₺ teklifiniz" demek verdiği
+    // fiyatı yanlış anlatır (arayüz testi D-006) → ayrı metin, "yaklaşık …
+    // karşılığı". Ayrı anahtar (ICU select değil): eski satırların parametresi
+    // yok, render kırılmasın.
+    const mixedBidIds = new Set<string>();
+    if (carried.length > 0) {
+      const currencyOf = new Map(carried.map((c) => [c.bidId, c.currency]));
+      const foreignItems = await this.prisma.listingBidItem.findMany({
+        where: {
+          bidId: { in: carried.map((c) => c.bidId) },
+          currency: { not: null },
+          ...PRICED_ITEM_WHERE,
+        },
+        select: { bidId: true, currency: true },
+      });
+      for (const it of foreignItems) {
+        if (it.currency && it.currency !== currencyOf.get(it.bidId)) {
+          mixedBidIds.add(it.bidId);
+        }
+      }
+    }
     const portal = this.bidderPortal(listing.type);
     const url = appRoutes.listing(this.webUrl(), listingId);
     // Tur adı ("açık eksiltme turu" ↔ "yeni tur") ve "Açılışa (…) kadar" ↔
@@ -7116,13 +7270,16 @@ export class CompanyListingsService {
         ...base,
         amount: moneyParam(c.amount, c.currency),
       };
+      const bodyKey = mixedBidIds.has(c.bidId)
+        ? "api.notifications.listings.nextRoundCarried.bodyMixed"
+        : "api.notifications.listings.nextRoundCarried.body";
       if (recipient) {
         this.notify(
           recipient,
           {
             subjectKey: "api.notifications.listings.nextRoundCarried.subject",
             headingKey: "api.notifications.listings.nextRoundCarried.heading",
-            bodyKey: "api.notifications.listings.nextRoundCarried.body",
+            bodyKey,
             params: p,
             ctaLabelKey: "api.notifications.listings.cta.viewRequest",
             ctaUrl: (l) => appRoutes.listing(this.webUrl(), listingId, l),
@@ -7134,7 +7291,7 @@ export class CompanyListingsService {
         type: "listing_new_round",
         portal,
         titleKey: "api.notifications.listings.nextRoundCarried.inAppTitle",
-        bodyKey: "api.notifications.listings.nextRoundCarried.body",
+        bodyKey,
         ctaLabelKey: "api.notifications.listings.cta.viewRequest",
         params: p,
         ctaPath: url,
@@ -7187,12 +7344,18 @@ export class CompanyListingsService {
       where: { id: listingId },
       select: {
         id: true,
+        companyId: true,
         type: true,
         number: true,
         status: true,
         closesAt: true,
         bidsOpenAt: true,
         currentRound: true,
+        // Canlandırma erişim kapıları (`assertBidAccess`, arayüz testi O-071).
+        visibility: true,
+        isInternational: true,
+        targetCountries: true,
+        company: { select: { country: true, isActive: true, isBlocked: true } },
       },
     });
     if (!listing) throw new NotFoundException(i18nMessage("api.companyListings.ilanBulunamadi"));
@@ -7286,11 +7449,17 @@ export class CompanyListingsService {
         );
       }
     }
-    // Denetim 2026-08-23 P2 #2: canlandırma = yeniden GÖNDERİM; en azından KYC
-    // kapısı placeBid ile aynı (içerik kapıları: placeBid taslak güncellemesi
-    // artık submittedAt'ı sıfırlar → yalnız taşınan, içeriği değişmemiş taslak
-    // buraya gelebilir).
-    if (revived) this.assertVerified(user, "bid");
+    // Denetim 2026-08-23 P2 #2: canlandırma = yeniden GÖNDERİM → placeBid'in
+    // ERİŞİM kapıları (engel, görünürlük, ülke, paket/bağlantı/davet — arayüz
+    // testi O-071: bağlantısı düşen STANDART ya da engellenen tedarikçi
+    // taslağını canlandıramaz) ve AYNI KYC kuralı (O-072: davetli/bağlantılı
+    // muaf, yabancı VERIFIED). İçerik kapıları: placeBid taslak güncellemesi
+    // submittedAt'ı sıfırlar → yalnız taşınan, içeriği değişmemiş taslak
+    // buraya gelebilir.
+    if (revived) {
+      const reach = await this.assertBidAccess(user, listing);
+      this.assertBidVerified(user, reach);
+    }
     // KOŞULLU yazım (arayüz testi FX-00 D-272): okunan süre ve durum hâlâ
     // aynıysa uzatılır. Eşzamanlı ikinci "Geçerliliği Uzat" isteği eskiden
     // süreyi ikinci kez ekliyordu; artık 409 alır, süre bir kez uzar.

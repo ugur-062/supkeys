@@ -88,8 +88,9 @@ describe("Çoklu birim — monotonluk kendi biriminde", () => {
     const err = await service
       .placeBid(bidder.auth, listing.id, submit(150, "EUR"))
       .catch((e: Error) => e);
-    // Teklifçinin birimi, dilin sembol yerleşimiyle (tr: "100 €").
-    expect(String((err as Error).message)).toMatch(/\(100 €\)/);
+    // Teklifçinin birimi, dilin sembol yerleşimiyle (tr: "100,00 €"; kuruş
+    // her zaman iki hane — arayüz testi D-006).
+    expect(String((err as Error).message)).toMatch(/\(100,00 €\)/);
     expect(String((err as Error).message)).not.toMatch(/₺|500/);
   });
 });

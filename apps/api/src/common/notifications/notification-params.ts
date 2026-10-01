@@ -13,7 +13,7 @@ import { APP_TIME_ZONE } from "../company/invite-delivery";
  * tipli bir nesneyle verir, biçim alıcı başına burada seçilir:
  *
  *   `{ $date: d, style: "dateTime" }`  → İstanbul duvar saati; en/ru'da " (GMT+3)"
- *   `{ $money: 1234.5, currency: "TRY" }` → "1.234,5 ₺" · "₺1,234.5" · "1 234,5 ₺"
+ *   `{ $money: 1234.5, currency: "TRY" }` → "1.234,50 ₺" · "₺1,234.50" · "1 234,50 ₺"
  *   `{ $number: 12.5 }`                → alıcının sayı biçimi
  *   `{ $listingTitle: id, fallback }`  → talep başlığı alıcının dilinde
  *                                        (içerik çevirisi; yoksa kaynak başlık)
@@ -124,11 +124,15 @@ export function formatAmount(
   n: number | string,
   locale: Locale,
   maxFractionDigits = 2,
+  minFractionDigits = 0,
 ): string {
-  const key = `${locale}:${maxFractionDigits}`;
+  const key = `${locale}:${minFractionDigits}:${maxFractionDigits}`;
   let f = numberFormatters.get(key);
   if (!f) {
-    f = new Intl.NumberFormat(locale, { maximumFractionDigits: maxFractionDigits });
+    f = new Intl.NumberFormat(locale, {
+      minimumFractionDigits: minFractionDigits,
+      maximumFractionDigits: maxFractionDigits,
+    });
     numberFormatters.set(key, f);
   }
   const v = typeof n === "number" ? n : Number(n);
@@ -141,16 +145,18 @@ export function currencyMark(currency: string | null | undefined): string {
 }
 
 /**
- * Tutar + sembol, dilin yazımıyla (`affixCurrency`: İngilizcede önde "₺1,234.5",
- * Türkçe/Rusçada sonda "1.234,5 ₺"). Mesajlar tek `{amount}` alır; sembolü
- * ayrı `{currency}` yer tutucusuyla sona yapıştırmak İngilizcede yanlıştı.
+ * Tutar + sembol, dilin yazımıyla (`affixCurrency`: İngilizcede önde
+ * "₺1,234.50", Türkçe/Rusçada sonda "1.234,50 ₺"). Mesajlar tek `{amount}`
+ * alır; sembolü ayrı `{currency}` yer tutucusuyla sona yapıştırmak
+ * İngilizcede yanlıştı. Kuruş HER ZAMAN iki hane (arayüz testi D-006: "1.000,5 ₺"
+ * / "46.500 ₺" yerine "1.000,50 ₺" / "46.500,00 ₺" — web `MONEY_FRACTION` aynası).
  */
 export function formatMoney(
   amount: number | string,
   currency: string | null | undefined,
   locale: Locale,
 ): string {
-  return affixCurrency(formatAmount(amount, locale), currency || "TRY", locale);
+  return affixCurrency(formatAmount(amount, locale, 2, 2), currency || "TRY", locale);
 }
 
 /* ---------------------------------------------------------------- */

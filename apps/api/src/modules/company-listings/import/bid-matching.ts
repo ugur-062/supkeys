@@ -9,6 +9,7 @@ import {
   type BidImportConfidence,
   type BidImportDocRow,
   type BidImportMatch,
+  normalizeUnit,
 } from "@rothern/shared";
 
 /**
@@ -404,6 +405,18 @@ function docRowCurrency(
   return null;
 }
 
+/**
+ * Birim eşdeğerliği (arayüz testi D-119): ikisi de birim kataloğunda tanınıyorsa
+ * KOD kıyaslanır ("pcs" = "adet", "L" = "litre", "шт" = "adet"); tanınmayan
+ * birimde katlanmış metin kıyası (eski davranış).
+ */
+export function sameUnit(a: string, b: string): boolean {
+  const ca = normalizeUnit(a);
+  const cb = normalizeUnit(b);
+  if (ca && cb) return ca === cb;
+  return foldText(a) === foldText(b);
+}
+
 /** Belge satırının değerlerini eşleşen kaleme yazar + sağlık uyarıları. */
 export function applyDocRowValues(
   m: BidImportMatch,
@@ -423,7 +436,7 @@ export function applyDocRowValues(
       );
     }
   }
-  if (r.unit && foldText(r.unit) !== foldText(it.unit)) {
+  if (r.unit && !sameUnit(r.unit, it.unit)) {
     m.warnings.push(
       tApi("api.companyListings.bidImport.birimFarkli", { docUnit: r.unit, itemUnit: it.unit }),
     );

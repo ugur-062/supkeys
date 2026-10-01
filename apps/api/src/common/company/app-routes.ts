@@ -50,6 +50,12 @@ export const appRoutes = {
     `${base}${localize(`/company/ilan/${listingId}`, locale)}`,
   order: (base: string, orderId: string, locale: Locale = DEFAULT_LOCALE) =>
     `${base}${localize(`/company/siparis/${orderId}`, locale)}`,
+  /** Portalın sipariş LİSTESİ — tek olaydan birden çok sipariş doğduğunda CTA. */
+  orders: (
+    base: string,
+    portal: "satinalma" | "satis",
+    locale: Locale = DEFAULT_LOCALE,
+  ) => `${base}${localize(`/company/${portal}/siparisler`, locale)}`,
   approvals: (base: string, locale: Locale = DEFAULT_LOCALE) =>
     `${base}${localize("/company/onaylar", locale)}`,
   premium: (base: string, locale: Locale = DEFAULT_LOCALE) =>

@@ -499,7 +499,10 @@ export class EmailProgramsService {
       this.prisma.listing.findMany({
         where: {
           status: "OPEN",
-          publishedAt: { not: null },
+          // En az 24 saat yayında (arayüz testi D-154): kapanışı 3 gün sonraki
+          // talep yayınlandıktan dakikalar sonra "henüz teklif almadı"
+          // hatırlatması alıyordu — tedarikçilere fırsat tanınmadan.
+          publishedAt: { not: null, lte: new Date(now.getTime() - 24 * HOUR_MS) },
           closesAt: { gt: new Date(now.getTime() + 12 * HOUR_MS), lte: new Date(now.getTime() + 72 * HOUR_MS) },
           bids: { none: { status: { not: "DRAFT" } } },
         },
@@ -524,6 +527,9 @@ export class EmailProgramsService {
         await this.notifications
           ?.pushToUser(user.id, {
             type: ZERO_BID_CONTEXT,
+            // Talep sahibinin (alıcı) hatırlatması → Satınalma süzgeci + rozet
+            // (arayüz testi D-115; portalsız satır Satış süzgecinde de çıkıyordu).
+            portal: "satinalma",
             titleKey: "api.notifications.zeroBid.heading",
             bodyKey: "api.notifications.zeroBid.inAppBody",
             ctaLabelKey: "api.notifications.zeroBid.cta",

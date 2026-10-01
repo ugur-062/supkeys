@@ -4,6 +4,7 @@ import {
   matchDocRows,
   normalizeCurrency,
   normalizeDeliveryTime,
+  sameUnit,
   similarity,
   type DocRow,
   type MatchItem,
@@ -126,12 +127,29 @@ describe("matchDocRows — diller arası (2026-09-27)", () => {
 
 describe("matchDocRows — sağlık kontrolleri", () => {
   it("yalnız toplam+miktar varsa birim fiyat türetilir ve uyarılır; miktar/birim farkı uyarılır", () => {
-    const rows = [row({ text: 'Çelik boru 2" DN50', totalPrice: 22_200, quantity: 120, unit: "metre" })];
+    const rows = [row({ text: 'Çelik boru 2" DN50', totalPrice: 22_200, quantity: 120, unit: "kg" })];
     const { matches } = matchDocRows(items, rows, OPTS);
     const m = matches.find((x) => x.itemId === "i1")!;
     expect(m.unitPrice).toBe(185);
     expect(m.warnings).toEqual(expect.arrayContaining([expect.stringMatching(/toplam ÷ miktardan türetildi/)]));
-    expect(m.warnings).toEqual(expect.arrayContaining([expect.stringMatching(/birim \(metre\)/)]));
+    expect(m.warnings).toEqual(expect.arrayContaining([expect.stringMatching(/birim \(kg\)/)]));
+  });
+
+  it("eşdeğer birimler (pcs = adet, metre = m, шт = adet) farklı birim sayılmaz (arayüz testi D-119)", () => {
+    const rows = [
+      row({ text: 'Çelik boru 2" DN50', unitPrice: 185, unit: "metre" }),
+      row({ text: "Flanş DN50 PN16", unitPrice: 90, unit: "pcs" }),
+      row({ text: "Dirsek 90° 2\"", unitPrice: 30, unit: "шт" }),
+    ];
+    const { matches } = matchDocRows(items, rows, OPTS);
+    for (const id of ["i1", "i2", "i3"]) {
+      const m = matches.find((x) => x.itemId === id)!;
+      expect(m.warnings.join(" | ")).not.toMatch(/birim \(/);
+    }
+    expect(sameUnit("L", "litre")).toBe(true);
+    expect(sameUnit("pcs", "kg")).toBe(false);
+    // Katalogda olmayan birim: katlanmış metin kıyası.
+    expect(sameUnit("Zorbo", "ZORBO")).toBe(true);
   });
 
   it("birim×miktar ≠ toplam uyarısı; belge miktarı ihaleden farklıysa uyarı", () => {

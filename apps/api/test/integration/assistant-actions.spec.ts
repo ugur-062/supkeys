@@ -728,9 +728,9 @@ describe("Faz 3 — teklif verme + teslim alma", () => {
     });
     expect(out.ok).toBe(true);
     expect(out.pending!.severity).toBe("critical");
-    expect(out.pending!.summary.join(" ")).toContain("TOPLAM: 500 ₺");
+    expect(out.pending!.summary.join(" ")).toContain("TOPLAM: 500,00 ₺");
     // Kalem satırı da okuyucunun dilinde: birim etiketi + sembollü tutar.
-    expect(out.pending!.summary.join(" ")).toContain("10 adet × 50 ₺ = 500 ₺");
+    expect(out.pending!.summary.join(" ")).toContain("10 adet × 50,00 ₺ = 500,00 ₺");
     expect(out.pending!.summary.join(" ")).toContain("Teslim: 1-2 hafta");
     expect(out.pending!.summary.join(" ")).toMatch(/GERİ ÇEKİLEMEZ/);
     // Teslim süresi kartta okuyucunun dilinde (Türkçe sözlük sabit değil) —
@@ -747,8 +747,8 @@ describe("Faz 3 — teklif verme + teslim alma", () => {
     expect(en.pending!.summary.join(" ")).toContain("Delivery: 1–2 weeks");
     expect(en.pending!.summary.join(" ")).not.toContain("hafta");
     // İngilizcede birim etiketi çevrilir, sembol önde.
-    expect(en.pending!.summary.join(" ")).toContain("10 pieces × ₺50 = ₺500");
-    expect(en.pending!.summary.join(" ")).toContain("TOTAL: ₺500");
+    expect(en.pending!.summary.join(" ")).toContain("10 pieces × ₺50.00 = ₺500.00");
+    expect(en.pending!.summary.join(" ")).toContain("TOTAL: ₺500.00");
 
     const res = await actions.confirm(bidder.auth, session.id, out.pending!.id);
     expect(res.status).toBe("executed");

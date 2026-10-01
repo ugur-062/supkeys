@@ -44,10 +44,11 @@ describe("formatNotificationParams — alıcının dilinde", () => {
 
   it("tutar alıcının sayı biçiminde; sembol tek kaynaktan, YERİ dilden", () => {
     const p = { a: moneyParam(1234.5, "TRY"), b: moneyParam("99.999", "USD"), c: moneyParam(10, "CHF") };
-    expect(formatNotificationParams(p, "tr")).toEqual({ a: "1.234,5 ₺", b: "100 $", c: "10 CHF" });
+    // Kuruş her zaman iki hane (arayüz testi D-006).
+    expect(formatNotificationParams(p, "tr")).toEqual({ a: "1.234,50 ₺", b: "100,00 $", c: "10,00 CHF" });
     // İngilizcede sembol önde; harfli kodda boşluklu.
-    expect(formatNotificationParams(p, "en")).toEqual({ a: "₺1,234.5", b: "$100", c: "CHF 10" });
-    expect(formatNotificationParams(p, "ru")!.a).toBe(`1${NBSP}234,5 ₺`);
+    expect(formatNotificationParams(p, "en")).toEqual({ a: "₺1,234.50", b: "$100.00", c: "CHF 10.00" });
+    expect(formatNotificationParams(p, "ru")!.a).toBe(`1${NBSP}234,50 ₺`);
   });
 
   it("sayı alıcının biçiminde (en fazla 2 ondalık)", () => {

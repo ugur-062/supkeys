@@ -431,6 +431,26 @@ describe("teklifsiz talep hatırlatması", () => {
     expect(notifications.pushToUser).toHaveBeenCalledTimes(1);
     expect(await svc.sendZeroBidReminders(new Date())).toBe(0);
     expect(notifications.pushToUser).toHaveBeenCalledTimes(1);
+    // Alıcı hatırlatması Satınalma portalına yazılır (arayüz testi D-115).
+    expect(notifications.pushToUser.mock.calls[0][1]).toMatchObject({ portal: "satinalma" });
     void far;
+  });
+
+  it("yayından 24 saat geçmeden hatırlatma GİTMEZ (arayüz testi D-154)", async () => {
+    const email = loggingEmail();
+    const notifications = { pushToUser: jest.fn(async () => 1) };
+    const svc = new EmailProgramsService(prisma as never, email as never, { get: () => "http://localhost:3000" } as never, undefined, notifications as never);
+    const buyer = await makeCompanyWithUser(prisma, { tier: "GOLD" });
+    // Kapanışı penceredeki (12-72 saat) ama 4 dakika önce yayınlanmış talep.
+    await makeListing(prisma, {
+      companyId: buyer.company.id,
+      createdById: buyer.user.id,
+      status: "OPEN",
+      publishedAt: new Date(Date.now() - 4 * 60_000),
+      closesAt: new Date(Date.now() + 60 * HOUR),
+    });
+    expect(await svc.sendZeroBidReminders(new Date())).toBe(0);
+    expect(email.send).not.toHaveBeenCalled();
+    expect(notifications.pushToUser).not.toHaveBeenCalled();
   });
 });

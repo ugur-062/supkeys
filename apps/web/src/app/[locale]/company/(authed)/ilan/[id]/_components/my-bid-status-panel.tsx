@@ -131,11 +131,14 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
     l.status === "OPEN" &&
     (!l.closesAt || new Date(l.closesAt).getTime() > Date.now()) &&
     (!l.bidsOpenAt || new Date(l.bidsOpenAt).getTime() <= Date.now());
+  // Canlandırma placeBid'in erişim + KYC kapılarından geçer (arayüz testi
+  // O-071/O-072): teklif hakkı kalmamışsa (bağlantısı düşen ücretsiz üye) ya
+  // da davetsiz/bağlantısız teklif doğrulama istiyorsa düğme çizilmez.
   const canExtend =
     userHasPermission(user, "sell:bid:submit") &&
     validUntil != null &&
     (bid.status === "DRAFT"
-      ? biddingOpen
+      ? biddingOpen && l.canBid !== false && !l.bidRequiresVerification
       : bid.status === "SUBMITTED" &&
         (l.status === "OPEN"
           ? !l.closesAt || new Date(l.closesAt).getTime() > Date.now()
