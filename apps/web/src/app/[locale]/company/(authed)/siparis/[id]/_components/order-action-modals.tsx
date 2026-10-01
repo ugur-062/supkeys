@@ -16,8 +16,13 @@ import { useBankAccounts } from "@/hooks/use-company-bank-accounts";
 import { Link } from "@/i18n/navigation";
 import { Textarea } from "@/components/catalyst/textarea";
 import { useState } from "react";
+import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 
-/** Ortak modal kabuğu yok — her biri kendi alanlarını yönetir (eski sistemle birebir). */
+/**
+ * Ortak modal kabuğu yok — her biri kendi alanlarını yönetir (eski sistemle birebir).
+ * `onSubmit` iş bitince çözülen promise döner; onay düğmesi o süre ve modal
+ * kapanırken senkron kilitlidir (çift tık ikinci istek atmaz — arayüz testi FX-00).
+ */
 
 export function AcceptOrderModal({
   open,
@@ -31,7 +36,7 @@ export function AcceptOrderModal({
   onSubmit: (input: {
     acceptedNote?: string;
     bankAccountId?: string;
-  }) => void;
+  }) => unknown;
   pending: boolean;
   /** S1: LC/vesaik mukabilinde ödeme banka kanalından gider → banka hesabı opsiyonel. */
   bankOptional?: boolean;
@@ -47,13 +52,16 @@ export function AcceptOrderModal({
 
   const hasAccounts = !!accounts.data && accounts.data.length > 0;
   const bankReady = bankOptional || !!effectiveAccountId;
+  const lock = useDialogSubmitLock(open);
 
   const submit = () => {
     if (!bankReady) return;
-    onSubmit({
-      acceptedNote: note.trim() || undefined,
-      bankAccountId: effectiveAccountId || undefined,
-    });
+    void lock.run(() =>
+      onSubmit({
+        acceptedNote: note.trim() || undefined,
+        bankAccountId: effectiveAccountId || undefined,
+      }),
+    ).catch(() => {});
   };
 
   return (
@@ -129,7 +137,7 @@ export function AcceptOrderModal({
         <Button plain onClick={onClose}>
           {t("vazgec")}
         </Button>
-        <Button type="submit" disabled={pending || !bankReady}>
+        <Button type="submit" disabled={pending || !bankReady || lock.locked}>
           {t("onayla")}
         </Button>
       </DialogActions>
@@ -148,20 +156,23 @@ export function ShipOrderModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onSubmit: (input: { invoiceNumber: string; deliveryNote?: string }) => void;
+  onSubmit: (input: { invoiceNumber: string; deliveryNote?: string }) => unknown;
   pending: boolean;
   sellerShips?: boolean;
 }) {
   const t = useTranslations("web.panel.trade.orderActionModals");
   const [invoice, setInvoice] = useState("");
   const [note, setNote] = useState("");
+  const lock = useDialogSubmitLock(open);
 
   const submit = () => {
     if (!invoice.trim()) return;
-    onSubmit({
-      invoiceNumber: invoice.trim(),
-      deliveryNote: note.trim() || undefined,
-    });
+    void lock.run(() =>
+      onSubmit({
+        invoiceNumber: invoice.trim(),
+        deliveryNote: note.trim() || undefined,
+      }),
+    ).catch(() => {});
   };
 
   // Madde 17: satıcının tek adımı "Siparişi Tamamla" (fatura no ister);
@@ -212,7 +223,7 @@ export function ShipOrderModal({
         <Button plain onClick={onClose}>
           {t("vazgec")}
         </Button>
-        <Button type="submit" disabled={pending || !invoice.trim()}>
+        <Button type="submit" disabled={pending || !invoice.trim() || lock.locked}>
           {title}
         </Button>
       </DialogActions>
@@ -233,7 +244,7 @@ export function ReasonModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onSubmit: (reason: string) => void;
+  onSubmit: (reason: string) => unknown;
   pending: boolean;
   title: string;
   description: string;
@@ -243,6 +254,7 @@ export function ReasonModal({
   const t = useTranslations("web.panel.trade.orderActionModals");
   const [reason, setReason] = useState("");
   const tooShort = reason.trim().length < minLength;
+  const lock = useDialogSubmitLock(open);
 
   return (
     <Dialog open={open} onClose={onClose}>
@@ -266,8 +278,8 @@ export function ReasonModal({
         </Button>
         <Button
           color="red"
-          onClick={() => onSubmit(reason.trim())}
-          disabled={pending || tooShort}
+          onClick={() => void lock.run(() => onSubmit(reason.trim())).catch(() => {})}
+          disabled={pending || tooShort || lock.locked}
         >
           {confirmLabel}
         </Button>
@@ -287,7 +299,7 @@ export function NoteModal({
 }: {
   open: boolean;
   onClose: () => void;
-  onSubmit: (note?: string) => void;
+  onSubmit: (note?: string) => unknown;
   pending: boolean;
   title: string;
   description: string;
@@ -295,6 +307,7 @@ export function NoteModal({
 }) {
   const t = useTranslations("web.panel.trade.orderActionModals");
   const [note, setNote] = useState("");
+  const lock = useDialogSubmitLock(open);
 
   return (
     <Dialog open={open} onClose={onClose}>
@@ -315,7 +328,10 @@ export function NoteModal({
         <Button plain onClick={onClose}>
           {t("vazgec")}
         </Button>
-        <Button onClick={() => onSubmit(note.trim() || undefined)} disabled={pending}>
+        <Button
+          onClick={() => void lock.run(() => onSubmit(note.trim() || undefined)).catch(() => {})}
+          disabled={pending || lock.locked}
+        >
           {confirmLabel}
         </Button>
       </DialogActions>

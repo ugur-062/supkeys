@@ -20,6 +20,7 @@ import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useMemo, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 
 /**
  * Token'lı ekip daveti kabulü — davetli adını/parolasını KENDİSİ belirler,
@@ -71,9 +72,15 @@ export function AcceptInviteClient({ token }: { token: string }) {
     consents.mediation &&
     consents.kvkk;
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  // Çift tık ikinci kabul isteği atıp panelde hata göstermesin (arayüz testi
+  // FX-00 D-003). Başarıda panele yönlendirilir → kilit bırakılmaz.
+  const lock = useSubmitLock();
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!formValid) return;
+    lock.run(doAccept, { keepOnSuccess: true }).catch(() => {});
+  };
+  const doAccept = async () => {
     setError(null);
     try {
       const res = await accept.mutateAsync({
@@ -91,6 +98,7 @@ export function AcceptInviteClient({ token }: { token: string }) {
       router.replace("/company");
     } catch (err) {
       setError(extractErrorMessage(err, t("failed")));
+      throw err;
     }
   };
 
@@ -216,8 +224,8 @@ export function AcceptInviteClient({ token }: { token: string }) {
           </div>
         ) : null}
 
-        <Button type="submit" className="w-full" disabled={!formValid || accept.isPending}>
-          {accept.isPending ? t("joining") : t("submit")}
+        <Button type="submit" className="w-full" disabled={!formValid || accept.isPending || lock.locked}>
+          {accept.isPending || lock.locked ? t("joining") : t("submit")}
         </Button>
       </form>
     </AuthShell>

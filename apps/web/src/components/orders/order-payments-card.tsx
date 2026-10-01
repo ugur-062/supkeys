@@ -28,6 +28,7 @@ import { affixCurrency, currencySymbol } from "@/lib/tenders/labels";
 import { useFormatPaymentPlan, useMoneyInputError, usePaymentMethodLabel, useSystemText } from "@/i18n/domain";
 import { Check, Plus, X } from "lucide-react";
 import { useState } from "react";
+import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { useConfirm } from "@/components/providers/confirm-dialog";
 import { accentFillClass, useButtonAccent } from "@/components/ui/button-accent";
 import { toast } from "sonner";
@@ -91,6 +92,8 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
   const [open, setOpen] = useState(false);
   const [amount, setAmount] = useState("");
   const [note, setNote] = useState("");
+  // Çift tık / Enter tekrarı ikinci ödeme kaydı açmasın (arayüz testi FX-00 O-002).
+  const payLock = useDialogSubmitLock(open && isBuyer);
 
   const t = order.paymentTotals;
 
@@ -265,7 +268,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
         <form
           onSubmit={(e) => {
             e.preventDefault();
-            void submit();
+            void payLock.run(submit);
           }}
         >
         <DialogBody className="space-y-4">
@@ -301,7 +304,7 @@ export function OrderPaymentsCard({ order }: { order: CompanyOrderDetail }) {
           <Button plain onClick={resetForm}>
             {tr("vazgec")}
           </Button>
-          <Button type="submit" disabled={record.isPending || !amount}>
+          <Button type="submit" disabled={record.isPending || !amount || payLock.locked}>
             {tr("bildir")}
           </Button>
         </DialogActions>

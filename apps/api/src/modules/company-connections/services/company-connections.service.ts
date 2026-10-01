@@ -162,6 +162,8 @@ const COMPANY_CARD_SELECT = {
 @Injectable()
 export class CompanyConnectionsService {
   private readonly logger = new Logger(CompanyConnectionsService.name);
+  /** Süreç içi referral gönderim hakları — `claimReferralSend` (FX-00 O-093). */
+  private readonly referralSendsInFlight = new Set<string>();
 
   constructor(
     private readonly prisma: PrismaService,
@@ -222,14 +224,41 @@ export class CompanyConnectionsService {
    * "gitti" diyordu.
    */
   async inviteByEmail(user: AuthenticatedCompanyUser, emailRaw: string, locale?: string | null) {
-    const prepared = await this.prepareReferralInvite(user, emailRaw, locale);
-    if (prepared.kind === "request") return prepared;
-    const res = await this.sendReferralInvite(prepared);
-    return {
-      kind: "invited" as const,
-      email: prepared.email,
-      delivery: res.delivery,
-      emailSent: res.delivery === "SENT",
+    const release = this.claimReferralSend(user.companyId, emailRaw);
+    try {
+      const prepared = await this.prepareReferralInvite(user, emailRaw, locale);
+      if (prepared.kind === "request") return prepared;
+      const res = await this.sendReferralInvite(prepared);
+      return {
+        kind: "invited" as const,
+        email: prepared.email,
+        delivery: res.delivery,
+        emailSent: res.delivery === "SENT",
+      };
+    } finally {
+      release();
+    }
+  }
+
+  /**
+   * (Davet eden × adres) için SÜREÇ İÇİ gönderim hakkı (arayüz testi FX-00
+   * O-093): 7 günlük fren e-posta kaydını okur, kayıt gönderimden SONRA
+   * yazılır → eşzamanlı iki "Davet gönder" ikisi de freni boş görüp kayıtsız
+   * adrese 1 ms arayla iki e-posta atıyordu. Hak senkron alınır (ilk await'ten
+   * önce) ve gönderim bitince bırakılır; başarısız gönderim freni tetiklemez
+   * (bırakılan hakla hemen yeniden denenebilir). Tek API örneğinde tam
+   * koruma; çok örnekte örnek başına.
+   */
+  private claimReferralSend(companyId: string, emailRaw: string): () => void {
+    const key = `${companyId}:${emailRaw.trim().toLowerCase()}`;
+    if (this.referralSendsInFlight.has(key)) {
+      throw new ConflictException(
+        i18nMessage("api.companyConnections.buAdreseDahaOnceDavetGonderilmis", undefined, "ALREADY_INVITED"),
+      );
+    }
+    this.referralSendsInFlight.add(key);
+    return () => {
+      this.referralSendsInFlight.delete(key);
     };
   }
 
@@ -647,12 +676,28 @@ export class CompanyConnectionsService {
       });
       // Bağlantı jetonu (davet eden × adres) — varsa korunur; talep bağlamı
       // eski okuyucular için İLK talepte yazılır.
-      const referral = await this.prisma.companyReferralInvite.upsert({
-        where: { inviterCompanyId_email: { inviterCompanyId: user.companyId, email } },
-        create: { inviterCompanyId: user.companyId, email, invitedById: user.userId, listingId: listing.id, locale },
-        update: {},
-        select: { id: true, status: true },
-      });
+      // Eşzamanlı ikinci istek aynı (davet eden × adres) satırını önce yazdıysa
+      // upsert'ün oluşturma dalı P2002 atar → mevcut satır okunur (arayüz testi
+      // FX-00 O-082: eskiden ham 500 "Unique constraint failed" dönüyordu).
+      const referralWhere = {
+        inviterCompanyId_email: { inviterCompanyId: user.companyId, email },
+      };
+      const referral = await this.prisma.companyReferralInvite
+        .upsert({
+          where: referralWhere,
+          create: { inviterCompanyId: user.companyId, email, invitedById: user.userId, listingId: listing.id, locale },
+          update: {},
+          select: { id: true, status: true },
+        })
+        .catch(async (e: unknown) => {
+          if (e instanceof Prisma.PrismaClientKnownRequestError && e.code === "P2002") {
+            return this.prisma.companyReferralInvite.findUniqueOrThrow({
+              where: referralWhere,
+              select: { id: true, status: true },
+            });
+          }
+          throw e;
+        });
       // Daha önce iptal edilmiş bağlantı jetonu yeni davetle canlanır (kayıtta
       // eşleşme yalnız PENDING okur).
       if (referral.status === "CANCELLED") {
@@ -888,41 +933,48 @@ export class CompanyConnectionsService {
     const results: BatchRow[] = new Array(unique.length);
     const sends: Array<{ index: number; p: Parameters<CompanyConnectionsService["sendReferralInvite"]>[0] }> = [];
 
-    // 1) Kapılar + kayıtlar SIRAYLA (tavan sayımı doğru kalsın).
-    for (const [index, email] of unique.entries()) {
-      try {
-        const prep = await this.prepareReferralInvite(user, email, localeFor.get(email), sends.length);
-        if (prep.kind === "request") {
-          results[index] = { email, status: "request", code: "REQUEST", targetName: prep.targetName };
-        } else {
-          sends.push({ index, p: prep });
+    // Gönderim hakları (FX-00 O-093) parti bitene dek tutulur.
+    const releases: Array<() => void> = [];
+    try {
+      // 1) Kapılar + kayıtlar SIRAYLA (tavan sayımı doğru kalsın).
+      for (const [index, email] of unique.entries()) {
+        try {
+          releases.push(this.claimReferralSend(user.companyId, email));
+          const prep = await this.prepareReferralInvite(user, email, localeFor.get(email), sends.length);
+          if (prep.kind === "request") {
+            results[index] = { email, status: "request", code: "REQUEST", targetName: prep.targetName };
+          } else {
+            sends.push({ index, p: prep });
+          }
+        } catch (e) {
+          results[index] = { email, status: "skipped", ...this.batchSkipReason(e) };
         }
-      } catch (e) {
-        results[index] = { email, status: "skipped", ...this.batchSkipReason(e) };
       }
-    }
 
-    // 2) E-postalar sınırlı eşzamanlılıkla BEKLENİR (50 adres × tek tek
-    //    beklemek isteği yarım dakikaya uzatırdı); sonuç adres başına gerçek.
-    const CONCURRENCY = 5;
-    for (let i = 0; i < sends.length; i += CONCURRENCY) {
-      const chunk = sends.slice(i, i + CONCURRENCY);
-      const outs = await Promise.all(chunk.map((s) => this.sendReferralInvite(s.p)));
-      chunk.forEach((s, k) => {
-        const out = outs[k]!;
-        results[s.index] =
-          out.delivery === "SENT"
-            ? { email: s.p.email, status: "invited", code: "SENT" }
-            : {
-                email: s.p.email,
-                status: "failed",
-                code: out.delivery,
-                reason:
-                  out.delivery === "SUPPRESSED"
-                    ? tApi("api.companyConnections.buAdresEPostaAlamiyor")
-                    : tApi("api.companyConnections.gonderilemedi"),
-              };
-      });
+      // 2) E-postalar sınırlı eşzamanlılıkla BEKLENİR (50 adres × tek tek
+      //    beklemek isteği yarım dakikaya uzatırdı); sonuç adres başına gerçek.
+      const CONCURRENCY = 5;
+      for (let i = 0; i < sends.length; i += CONCURRENCY) {
+        const chunk = sends.slice(i, i + CONCURRENCY);
+        const outs = await Promise.all(chunk.map((s) => this.sendReferralInvite(s.p)));
+        chunk.forEach((s, k) => {
+          const out = outs[k]!;
+          results[s.index] =
+            out.delivery === "SENT"
+              ? { email: s.p.email, status: "invited", code: "SENT" }
+              : {
+                  email: s.p.email,
+                  status: "failed",
+                  code: out.delivery,
+                  reason:
+                    out.delivery === "SUPPRESSED"
+                      ? tApi("api.companyConnections.buAdresEPostaAlamiyor")
+                      : tApi("api.companyConnections.gonderilemedi"),
+                };
+        });
+      }
+    } finally {
+      for (const release of releases) release();
     }
 
     return {

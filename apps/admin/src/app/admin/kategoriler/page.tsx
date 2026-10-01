@@ -9,6 +9,7 @@ import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronRight, FolderTree, SearchX } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 interface SearchMiss {
@@ -62,7 +63,31 @@ function CurationQueue() {
     onError: (e: unknown) => toastApiError(e, "İşaretlenemedi"),
   });
 
+  // Tek uçuş: çift tık iki işaretleme isteği atmaz (arayüz testi FX-00 D-225).
+  const resolveLock = useSubmitLock();
+
   const rows = misses.data ?? [];
+  // Hata durumunda kart KAYBOLMAZ (eskiden boş liste gibi gizleniyordu).
+  if (misses.isError) {
+    return (
+      <div role="alert" className="admin-card px-5 py-4 text-sm">
+        <div className="flex items-center gap-2">
+          <SearchX className="h-4 w-4 text-amber-600" aria-hidden="true" />
+          <p className="text-admin-text font-bold">Bulunamayan aramalar</p>
+        </div>
+        <p className="text-admin-text-muted mt-1 text-xs">
+          Liste yüklenemedi —{" "}
+          <button
+            type="button"
+            onClick={() => void misses.refetch()}
+            className="font-semibold text-blue-600 hover:underline"
+          >
+            tekrar dene
+          </button>
+        </p>
+      </div>
+    );
+  }
   if (misses.isLoading || rows.length === 0) return null;
 
   return (
@@ -79,6 +104,12 @@ function CurationQueue() {
         kategori eksik. Ele aldıktan sonra ne yaptığınızı yazıp işaretleyin —
         terim yeniden aranırsa kuyruğa geri döner.
       </p>
+      {!canResolve ? (
+        <p className="mt-2 rounded-md bg-zinc-100 px-2.5 py-1.5 text-xs text-zinc-600">
+          İşaretleme yalnız Süper Admin ve Satış rollerine açık; Destek rolü
+          listeyi yalnız görüntüler.
+        </p>
+      ) : null}
       <ul className="mt-3 divide-y divide-zinc-950/5">
         {rows.map((m) => (
           <li key={m.id} className="flex flex-wrap items-center gap-2 py-2">
@@ -92,15 +123,31 @@ function CurationQueue() {
                 setNote((n) => ({ ...n, [m.id]: e.target.value }))
               }
               placeholder="Ne yapıldı? (ör. eşanlamlı eklendi)"
-              className="ml-auto w-64 rounded-md border border-zinc-950/10 px-2 py-1 text-sm"
+              // Backend ResolveCategoryMissDto @MaxLength(200) ile birebir.
+              maxLength={200}
+              disabled={!canResolve}
+              className="ml-auto w-64 rounded-md border border-zinc-950/10 px-2 py-1 text-sm disabled:bg-zinc-50"
             />
             <button
               type="button"
               disabled={
-                !canResolve || !note[m.id]?.trim() || resolve.isPending
+                !canResolve ||
+                !note[m.id]?.trim() ||
+                resolve.isPending ||
+                resolveLock.locked
+              }
+              title={
+                canResolve
+                  ? undefined
+                  : "Yalnız Süper Admin ve Satış işaretleyebilir"
               }
               onClick={() =>
-                resolve.mutate({ id: m.id, text: note[m.id]!.trim() })
+                void resolveLock.run(() =>
+                  resolve
+                    .mutateAsync({ id: m.id, text: note[m.id]!.trim() })
+                    // Hata toast'ı hook'un onError'unda; burada yalnız yutulur.
+                    .catch(() => {}),
+                )
               }
               className="inline-flex items-center gap-1 rounded-md bg-zinc-900 px-2.5 py-1 text-xs font-medium text-white disabled:opacity-40"
             >

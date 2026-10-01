@@ -14,8 +14,8 @@ vi.mock("next/navigation", () => ({
   useSearchParams: () => new URLSearchParams(),
 }));
 vi.mock("@/hooks/use-admin-companies", () => ({
-  useReviewDocuments: () => ({ mutate: h.reviewMutate, isPending: false }),
-  useReviewDocRevision: () => ({ mutate: vi.fn(), isPending: false }),
+  useReviewDocuments: () => ({ mutate: h.reviewMutate, mutateAsync: (...a: unknown[]) => { (h.reviewMutate as (...x: unknown[]) => unknown)(...a); return Promise.resolve({ status: "VERIFIED" }); }, isPending: false }),
+  useReviewDocRevision: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(() => Promise.resolve()), isPending: false }),
 }));
 
 import { DocsTab } from "../docs-tab";
@@ -96,8 +96,7 @@ describe("DocsTab — KYC belge inceleme", () => {
           idFront: { status: "APPROVED" },
           idBack: { status: "APPROVED" },
         },
-      },
-      expect.anything(),
+      }
     );
   });
 
@@ -118,8 +117,7 @@ describe("DocsTab — KYC belge inceleme", () => {
           taxPlate: { status: "REJECTED", reason: "belge okunmuyor" },
           tradeRegistry: { status: "APPROVED" },
         }),
-      }),
-      expect.anything(),
+      })
     );
   });
 
@@ -184,8 +182,7 @@ describe("DocsTab — KYC belge inceleme", () => {
         decisions: expect.objectContaining({
           taxPlate: { status: "REJECTED", reasonCode: "UNREADABLE" },
         }),
-      }),
-      expect.anything(),
+      })
     );
   });
 
@@ -202,8 +199,7 @@ describe("DocsTab — KYC belge inceleme", () => {
         decisions: expect.objectContaining({
           taxPlate: { status: "REJECTED", reasonCode: "OUTDATED", reason: "2024 tarihli" },
         }),
-      }),
-      expect.anything(),
+      })
     );
   });
 

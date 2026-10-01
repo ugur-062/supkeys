@@ -100,6 +100,7 @@ import { ListingSuggestions } from "@/components/tenders/ai-suppliers/listing-su
 import { ShareListing } from "@/components/tenders/share-listing";
 import { toast } from "sonner";
 import { useImportListingToCatalog } from "@/hooks/use-company-items";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 
 const TRIGGER_CLASSES = cn(
   "group inline-flex items-center gap-2 px-4 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors whitespace-nowrap",
@@ -247,6 +248,8 @@ export default function ListingDetailPage() {
   // Faz 2: hook koşulsuz çağrılmalı — erken dönüşlerin ARDINDA çağırmak
   // rules-of-hooks ihlali (render'lar arası hook sırası değişir).
   const saveToCatalog = useImportListingToCatalog();
+  // Çift tık kalemleri kataloğa iki kez yazmasın (arayüz testi FX-00 O-061).
+  const catalogLock = useSubmitLock();
   const { data: l, isLoading, isFetching, isError, error, refetch } =
     useListingDetail(id);
   // 404 = erişim kalktı (kapalı-zarf gereği sebep söylenmez): bağlantı
@@ -785,10 +788,11 @@ export default function ListingDetailPage() {
             {canManage ? (
               <Button
                 outline
-                disabled={saveToCatalog.isPending}
+                disabled={saveToCatalog.isPending || catalogLock.locked}
                 onClick={() => {
-                  saveToCatalog.mutate(l.id, {
-                    onSuccess: (r) => {
+                  void catalogLock.run(() =>
+                    saveToCatalog.mutateAsync(l.id).then(
+                    (r) => {
                       if (r.added === 0) {
                         toast.info(
                           r.skipped > 0
@@ -803,11 +807,12 @@ export default function ListingDetailPage() {
                         );
                       }
                     },
-                    onError: (err) =>
+                    (err) =>
                       toast.error(
                         extractErrorMessage(err, t("katalogaKaydedilemedi")),
                       ),
-                  });
+                    ),
+                  );
                 }}
               >
                 <PackagePlus className="h-4 w-4" />

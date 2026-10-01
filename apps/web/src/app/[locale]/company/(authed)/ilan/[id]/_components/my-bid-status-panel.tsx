@@ -34,6 +34,7 @@ import { cn } from "@/lib/utils";
 import { Trophy } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useState } from "react";
+import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { affixCurrency } from "@/lib/tenders/labels";
 import { lineAmount, MONEY_FRACTION } from "@/lib/line-amount";
@@ -75,6 +76,9 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
   const extend = useExtendBidValidity(l.id);
   const [extendOpen, setExtendOpen] = useState(false);
   const [extendDays, setExtendDays] = useState("30");
+  // Çift tık süreyi iki kez uzatmasın (arayüz testi FX-00 D-272; sunucu da
+  // aynı uzatmayı kısa pencerede tekrar uygulamaz).
+  const extendLock = useDialogSubmitLock(extendOpen);
   const { user } = useCompanyAuth();
   const unitLabel = useUnitLabel();
   const quantity = useQuantityLabel();
@@ -152,7 +156,8 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
   const extendTooShort =
     newValidUntil != null && newValidUntil.getTime() <= Date.now();
 
-  const handleExtend = async () => {
+  const handleExtend = () => void extendLock.run(doExtend);
+  const doExtend = async () => {
     try {
       const res = await extend.mutateAsync(extendDaysNum);
       toast.success(
@@ -300,7 +305,7 @@ export function BidSummaryCard({ l }: { l: ListingDetail }) {
             {t("vazgec")}
           </Button>
           <Button
-            disabled={extend.isPending || !extendDaysValid || extendTooShort}
+            disabled={extend.isPending || extendLock.locked || !extendDaysValid || extendTooShort}
             onClick={handleExtend}
           >
             {t("gecerliligiUzat")}

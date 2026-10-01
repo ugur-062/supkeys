@@ -34,6 +34,7 @@ import { CountryCombobox } from "@/components/ui/country-combobox";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 /**
@@ -171,6 +172,8 @@ function BankAccountModal({
 }) {
   const t = useTranslations("web.panel.settings.bankAccountsSection");
   const save = useSaveBankAccount();
+  // Çift tık iki hesap açmasın (arayüz testi FX-00 O-001).
+  const lock = useSubmitLock();
   const [title, setTitle] = useState(account?.title ?? "");
   const [holder, setHolder] = useState(account?.accountHolder ?? "");
   const companyCountry = useCompanyAuthStore((st) => st.company?.country) ?? "TR";
@@ -346,8 +349,8 @@ function BankAccountModal({
         <Button plain onClick={onClose}>
           {t("vazgec")}
         </Button>
-        <Button onClick={submit} disabled={save.isPending || !valid}>
-          {save.isPending ? t("kaydediliyor") : t("kaydet")}
+        <Button onClick={() => void lock.run(submit)} disabled={save.isPending || !valid || lock.locked}>
+          {save.isPending || lock.locked ? t("kaydediliyor") : t("kaydet")}
         </Button>
       </DialogActions>
     </Dialog>

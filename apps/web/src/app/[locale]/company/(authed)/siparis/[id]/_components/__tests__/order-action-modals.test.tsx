@@ -1,6 +1,6 @@
 // @vitest-environment jsdom
 import type { CompanyBankAccount } from "@/hooks/use-company-bank-accounts";
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -227,5 +227,56 @@ describe("NoteModal (teslim al/tamamla)", () => {
     expect(
       screen.getByRole("button", { name: "Teslim Aldım" }),
     ).toBeDisabled();
+  });
+});
+
+describe("çift gönderim kilidi (arayüz testi FX-00 D-020)", () => {
+  it("ReasonModal: hızlı çift tık tek istek; iş bitene dek düğme kilitli", async () => {
+    let resolve!: () => void;
+    const onSubmit = vi.fn(
+      () =>
+        new Promise<void>((r) => {
+          resolve = r;
+        }),
+    );
+    render(
+      <ReasonModal
+        open
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+        pending={false}
+        title="Siparişi reddet"
+        description="Gerekçe"
+        confirmLabel="Reddet"
+      />,
+    );
+    fireEvent.change(screen.getByRole("textbox"), { target: { value: "Stokta kalmadı, üzgünüz." } });
+    const btn = screen.getByRole("button", { name: "Reddet" });
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(btn).toBeDisabled();
+    await act(async () => {
+      resolve();
+    });
+  });
+
+  it("NoteModal: hızlı çift tık tek istek", () => {
+    const onSubmit = vi.fn(() => new Promise<void>(() => undefined));
+    render(
+      <NoteModal
+        open
+        onClose={vi.fn()}
+        onSubmit={onSubmit}
+        pending={false}
+        title="Teslim aldım"
+        description="Not"
+        confirmLabel="Onayla"
+      />,
+    );
+    const btn = screen.getByRole("button", { name: "Onayla" });
+    fireEvent.click(btn);
+    fireEvent.click(btn);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
   });
 });

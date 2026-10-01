@@ -27,6 +27,7 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { isValidPhone } from "@/lib/company/phone";
 import { PASSWORD_MIN_LENGTH, usePasswordRules } from "@/lib/company-auth/password-rules";
@@ -64,7 +65,10 @@ export function AccountInfoSection() {
     setEditing(false);
   };
 
-  const save = async () => {
+  // Çift tık iki istek / iki toast üretmesin (arayüz testi FX-00 D-132).
+  const saveLock = useSubmitLock();
+  const save = () => saveLock.run(doSave);
+  const doSave = async () => {
     const next: typeof errors = {};
     if (!info.firstName.trim()) next.firstName = t("adBosOlamaz");
     if (!info.lastName.trim()) next.lastName = t("soyadBosOlamaz");
@@ -194,8 +198,8 @@ export function AccountInfoSection() {
               <Button plain onClick={cancel}>
                 {t("vazgec")}
               </Button>
-              <Button onClick={save} disabled={updateMe.isPending || !dirty}>
-                {updateMe.isPending ? t("kaydediliyor") : t("kaydet")}
+              <Button onClick={() => void save()} disabled={updateMe.isPending || !dirty || saveLock.locked}>
+                {updateMe.isPending || saveLock.locked ? t("kaydediliyor") : t("kaydet")}
               </Button>
             </div>
           </div>
@@ -261,7 +265,9 @@ export function PasswordSection() {
   // Alan hataları SATIR İÇİ (gereksinim listesi zaten görünür; toast tekrar etmez).
   const [errors, setErrors] = useState<{ current?: string; next?: string; confirm?: string }>({});
 
-  const save = async () => {
+  const saveLock = useSubmitLock();
+  const save = () => saveLock.run(doSave);
+  const doSave = async () => {
     const next: typeof errors = {};
     if (!pw.current) next.current = t("mevcutSifreniziGirin");
     if (!allMet) next.next = t("yeniSifreAsagidakiGereksinimlerinTumunuKarsilamali");
@@ -366,9 +372,9 @@ export function PasswordSection() {
           {t("sifrenizSifrelenmisOlarakSaklanirEkibimiz")}
         </p>
         <Button
-          onClick={save}
+          onClick={() => void save()}
           disabled={
-            changePassword.isPending || !pw.current || !pw.next || !pw.confirm
+            changePassword.isPending || saveLock.locked || !pw.current || !pw.next || !pw.confirm
           }
         >
           {t("sifreyiDegistir")}
@@ -408,7 +414,9 @@ export function NotificationPrefsSection() {
     setPrefs(next);
   };
 
-  const save = async () => {
+  const saveLock = useSubmitLock();
+  const save = () => saveLock.run(doSave);
+  const doSave = async () => {
     try {
       await updatePrefs.mutateAsync(prefs);
       toast.success(t("bildirimTercihleriKaydedildi"));
@@ -506,7 +514,7 @@ export function NotificationPrefsSection() {
       </div>
 
       <div className="mt-4 flex justify-end">
-        <Button onClick={save} disabled={updatePrefs.isPending}>
+        <Button onClick={() => void save()} disabled={updatePrefs.isPending || saveLock.locked}>
           {t("tercihleriKaydet")}
         </Button>
       </div>

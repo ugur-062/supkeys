@@ -1,5 +1,6 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
+import { useState } from "react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -210,5 +211,37 @@ describe("PromptDialog minLength (derin denetim MU-21)", () => {
     );
     await user.click(screen.getByRole("button", { name: "Uzat" }));
     expect(onConfirm).toHaveBeenCalledWith("2026-10-02T09:30");
+  });
+
+  it("onaya çift tık / kapanış animasyonundaki tık ikinci kez onConfirm çağırmaz (arayüz testi FX-00 O-045)", async () => {
+    const confirm = vi.fn();
+    function Harness() {
+      const [open, setOpen] = useState(true);
+      return (
+        <>
+          <PromptDialog
+            open={open}
+            title="Siparişi iptal et"
+            label="Gerekçe"
+            defaultValue="Taraflar anlaşamadı"
+            onConfirm={(v) => {
+              confirm(v);
+              setOpen(false);
+            }}
+            onClose={() => setOpen(false)}
+          />
+          <button type="button" onClick={() => setOpen(true)}>
+            yeniden aç
+          </button>
+        </>
+      );
+    }
+    render(<Harness />);
+    const btn = screen.getByRole("button", { name: "Onayla" });
+    await act(async () => {
+      fireEvent.click(btn);
+      fireEvent.click(btn);
+    });
+    expect(confirm).toHaveBeenCalledTimes(1);
   });
 });

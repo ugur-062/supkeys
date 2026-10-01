@@ -2363,6 +2363,9 @@ model ListingInvitation {
   origin           String?
   /// AI önerisinin gerekçesi (davet e-postasına yazılır): { productName? , category?, web? }
   aiReason         Json?
+  /// Davet bildirimi (e-posta + zil) gönderildi damgası — açılış duyurusu ve
+  /// elle davet koşullu damgalar, tek gönderim (arayüz testi FX-00 D-177).
+  notifiedAt       DateTime?
   createdAt        DateTime @default(now())
 
   @@unique([listingId, invitedCompanyId])

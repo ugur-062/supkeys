@@ -11,6 +11,7 @@ import { useAnnounce } from "@/hooks/use-admin-support";
 import { countryFlag, countryName } from "@/lib/country";
 import { Megaphone } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/api";
 
@@ -64,21 +65,26 @@ function DuyuruView() {
   const set = (k: string, v: string | boolean) =>
     setForm((prev) => ({ ...prev, [k]: v }));
 
-  const send = () => {
-    announce.mutate(
-      {
-        subject: form.subject.trim(),
-        message: form.message.trim(),
-        tier: (form.tier || undefined) as
-          | "STANDART"
-          | "SILVER"
-          | "GOLD"
-          | undefined,
-        country: form.country || undefined,
-        sendEmail: form.sendEmail,
-      },
-      {
-        onSuccess: (r) => {
+  // "Evet, Gönder" tek uçuşta: async işleyici → admin Button kilitler; ikinci
+  // çağrı ayrıca burada yutulur (arayüz testi FX-00 O-007; sunucu da aynı
+  // duyuruyu kısa pencerede ikinci kez göndermez).
+  const sendLock = useSubmitLock();
+  const send = () =>
+    sendLock.run(() =>
+      announce.mutateAsync(
+        {
+          subject: form.subject.trim(),
+          message: form.message.trim(),
+          tier: (form.tier || undefined) as
+            | "STANDART"
+            | "SILVER"
+            | "GOLD"
+            | undefined,
+          country: form.country || undefined,
+          sendEmail: form.sendEmail,
+        },
+      ).then(
+        (r) => {
           toast.success(
             `Duyuru gönderildi — ${r.delivered}/${r.targets} firma`,
           );
@@ -91,13 +97,12 @@ function DuyuruView() {
           });
           setConfirming(false);
         },
-        onError: (e: unknown) => {
+        (e: unknown) => {
           toastApiError(e);
           setConfirming(false);
         },
-      },
+      ),
     );
-  };
 
   return (
     <div className="max-w-[720px] space-y-6">
@@ -202,7 +207,7 @@ function DuyuruView() {
               <Button
                 variant="danger"
                 size="sm"
-                loading={announce.isPending}
+                loading={announce.isPending || sendLock.locked}
                 onClick={send}
               >
                 Evet, Gönder

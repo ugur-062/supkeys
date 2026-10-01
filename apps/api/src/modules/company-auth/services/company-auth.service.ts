@@ -471,17 +471,29 @@ export class CompanyAuthService {
       throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
     }
     // Doğrulanan kod satırı SİLİNİR: üretim tavanına sayılmaz (consumeEmailCode
-    // ile aynı kural, derin denetim MU-16 gözden geçirme).
-    const [, updatedUser] = await this.bypass.$transaction([
-      this.bypass.emailVerificationCode.deleteMany({
-        where: { id: record.id },
-      }),
-      this.bypass.companyUser.update({
-        where: { id: user.id },
+    // ile aynı kural, derin denetim MU-16 gözden geçirme). Tüketim ATOMİK
+    // (arayüz testi FX-00 D-064): koşullu silme + koşullu doğrulama damgası;
+    // aynı kodla eşzamanlı ikinci istek satırı bulamaz ve oturum AÇMAZ
+    // (eskiden iki istek de 200 + iki oturum alıyordu).
+    const updatedUser = await this.bypass.$transaction(async (tx) => {
+      const consumed = await tx.emailVerificationCode.deleteMany({
+        where: { id: record.id, usedAt: null },
+      });
+      if (consumed.count !== 1) {
+        throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
+      }
+      const stamped = await tx.companyUser.updateMany({
+        where: { id: user.id, emailVerifiedAt: null },
         data: { emailVerifiedAt: new Date() },
+      });
+      if (stamped.count !== 1) {
+        throw new BadRequestException(i18nMessage("api.companyAuth.kodGecersizVeyaSuresiDolmus"));
+      }
+      return tx.companyUser.findUniqueOrThrow({
+        where: { id: user.id },
         include: { company: true },
-      }),
-    ]);
+      });
+    });
     return this.buildLoginResponse(updatedUser, updatedUser.company);
   }
 
@@ -1641,8 +1653,17 @@ export class CompanyAuthService {
       throw new BadRequestException(i18nMessage("api.companyAuth.dogrulamaKoduHatali"));
     }
     const recoveryCodes = this.generateRecoveryCodes();
-    await this.prisma.companyUser.update({
-      where: { id: userId },
+    // KOŞULLU yazım (arayüz testi FX-00 Y-12): "2FA kapalı ve kurulum sırrı
+    // aynı" iken yazılır. Eskiden eşzamanlı iki "Doğrula & Aç" isteği de
+    // geçiyor, ikincisi kurtarma kodlarını ezip kullanıcıya gösterilen ilk seti
+    // geçersiz bırakıyordu. Etkilenen satır 0 → zaten açık; e-posta/bildirim
+    // yalnız başarılı yazımdan sonra.
+    const { count } = await this.prisma.companyUser.updateMany({
+      where: {
+        id: userId,
+        twoFactorEnabled: false,
+        twoFactorSecret: user.twoFactorSecret,
+      },
       data: {
         twoFactorEnabled: true,
         twoFactorEnabledAt: new Date(),
@@ -1653,6 +1674,9 @@ export class CompanyAuthService {
         ),
       },
     });
+    if (count !== 1) {
+      throw new BadRequestException(i18nMessage("api.companyAuth.ikiAdimliDogrulamaZatenAcik"));
+    }
     this.notify2faEnabled(userId, user.email, localeOf(user.locale));
     return { ok: true, recoveryCodes };
   }
@@ -1713,8 +1737,9 @@ export class CompanyAuthService {
       throw new BadRequestException(i18nMessage("api.companyAuth.dogrulamaKoduHataliVeyaSuresiDolmus"));
     }
     const recoveryCodes = this.generateRecoveryCodes();
-    await this.prisma.companyUser.update({
-      where: { id: userId },
+    // Koşullu yazım (FX-00 Y-12): eşzamanlı ikinci istek kodları ezmez.
+    const { count } = await this.prisma.companyUser.updateMany({
+      where: { id: userId, twoFactorEnabled: false },
       data: {
         twoFactorEnabled: true,
         twoFactorEnabledAt: new Date(),
@@ -1725,6 +1750,9 @@ export class CompanyAuthService {
         ),
       },
     });
+    if (count !== 1) {
+      throw new BadRequestException(i18nMessage("api.companyAuth.ikiAdimliDogrulamaZatenAcik"));
+    }
     this.notify2faEnabled(userId, user.email, localeOf(user.locale));
     return { ok: true, recoveryCodes };
   }

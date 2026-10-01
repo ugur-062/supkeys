@@ -13,6 +13,7 @@ import { cn } from "@/lib/utils";
 import { Loader2, Send, Sparkles } from "lucide-react";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { CandidateList, isSelectable, type CandidateRow } from "./candidate-list";
 
@@ -63,6 +64,8 @@ export function ListingSuggestions({
   const t = useTranslations("web.panel.requests.aiSuppliers");
   const q = useListingDiscovery(listingId);
   const invite = useInviteDiscoveryCandidates(listingId);
+  // Çift tık ikinci davet isteği atmasın (arayüz testi FX-00 O-082).
+  const sendLock = useSubmitLock();
   const dismiss = useDismissListingDiscovery(listingId);
   const [open, setOpen] = useState(variant === "panel" || defaultOpen);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -224,9 +227,9 @@ export function ListingSuggestions({
           <div className="sticky bottom-2 flex justify-end">
             <Button
               type="button"
-              onClick={() => void send()}
-              disabled={chosen.length === 0 || invite.isPending}
-              iconLeft={invite.isPending ? <Loader2 className="animate-spin" /> : <Send />}
+              onClick={() => void sendLock.run(send)}
+              disabled={chosen.length === 0 || invite.isPending || sendLock.locked}
+              iconLeft={invite.isPending || sendLock.locked ? <Loader2 className="animate-spin" /> : <Send />}
             >
               {t("inviteButton", { n: chosen.length })}
             </Button>

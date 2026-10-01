@@ -32,6 +32,7 @@ import { useTranslations } from "next-intl";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 export function CompanySignupClient() {
@@ -144,7 +145,12 @@ export function CompanySignupClient() {
     confirmOk &&
     allConsents;
 
-  const submitForm = async () => {
+  // Kayıt / kod doğrulama / yeniden gönder / e-posta düzeltme tek uçuşta: çift
+  // tık ikinci istek atıp başarının yanına "zaten hesap var" hatası koymaz
+  // (arayüz testi FX-00 O-116).
+  const lock = useSubmitLock();
+  const submitForm = () => lock.run(doSubmitForm);
+  const doSubmitForm = async () => {
     setError(null);
     try {
       const res = await signup.mutateAsync({
@@ -161,6 +167,7 @@ export function CompanySignupClient() {
         referralToken,
       });
       setStep("verify");
+      setError(null);
       // Hesap oluştu; kod adımına geçilir. Ama backend kod e-postasının GİDİP
       // gitmediğini bildiriyor (emailSent). Gitmediyse "gönderildi" yalanı yerine
       // hata göster ve cooldown'ı atla → kullanıcı hemen "Tekrar Gönder"sin.
@@ -176,7 +183,8 @@ export function CompanySignupClient() {
     }
   };
 
-  const submitCode = async () => {
+  const submitCode = () => lock.run(doSubmitCode);
+  const doSubmitCode = async () => {
     setError(null);
     try {
       const res = await verify.mutateAsync({ email: form.email.trim(), code });
@@ -194,7 +202,8 @@ export function CompanySignupClient() {
     }
   };
 
-  const handleResend = async () => {
+  const handleResend = () => lock.run(doResend);
+  const doResend = async () => {
     if (cooldown > 0 || resend.isPending) return;
     setError(null);
     try {
@@ -206,7 +215,8 @@ export function CompanySignupClient() {
     }
   };
 
-  const submitNewEmail = async () => {
+  const submitNewEmail = () => lock.run(doSubmitNewEmail);
+  const doSubmitNewEmail = async () => {
     if (newEmail == null || changeEmail.isPending) return;
     setError(null);
     try {
@@ -259,6 +269,7 @@ export function CompanySignupClient() {
             className="w-full"
             disabled={
               changeEmail.isPending ||
+              lock.locked ||
               !/\S+@\S+\.\S+/.test(newEmail) ||
               newEmail.trim().toLowerCase() === form.email.trim().toLowerCase()
             }
@@ -306,15 +317,15 @@ export function CompanySignupClient() {
           ) : null}
           <Button
             className="w-full"
-            disabled={code.length !== 6 || verify.isPending}
-            onClick={submitCode}
+            disabled={code.length !== 6 || verify.isPending || lock.locked}
+            onClick={() => void submitCode()}
           >
             {verify.isPending ? tc("verifying") : tc("verifyAndLogin")}
           </Button>
           <button
             type="button"
-            disabled={resend.isPending || cooldown > 0}
-            onClick={handleResend}
+            disabled={resend.isPending || cooldown > 0 || lock.locked}
+            onClick={() => void handleResend()}
             className="w-full text-center text-sm text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
           >
             {cooldown > 0
@@ -420,8 +431,8 @@ export function CompanySignupClient() {
           </div>
         ) : null}
 
-        <Button type="submit" className="w-full" disabled={!formValid || signup.isPending}>
-          {signup.isPending ? t("creating") : t("submit")}
+        <Button type="submit" className="w-full" disabled={!formValid || signup.isPending || lock.locked}>
+          {signup.isPending || lock.locked ? t("creating") : t("submit")}
         </Button>
       </form>
     </AuthShell>

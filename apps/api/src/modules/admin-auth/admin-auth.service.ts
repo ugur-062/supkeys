@@ -7,6 +7,7 @@ import {
 import { ConfigService } from "@nestjs/config";
 import { JwtService } from "@nestjs/jwt";
 import { authenticator } from "otplib";
+import * as QRCode from "qrcode";
 import { PrismaBypassService } from "../../common/prisma/prisma.service";
 import { AuditService } from "../audit/audit.service";
 import {
@@ -222,7 +223,11 @@ export class AdminAuthService {
     return decryptTotpSecret(stored, this.encKey());
   }
 
-  /** 2FA kurulum — secret + otpauth URI döner (enable'da kodla doğrulanır). */
+  /**
+   * 2FA kurulum — secret + otpauth URI + QR görseli döner (enable'da kodla
+   * doğrulanır). QR, firma 2FA kurulumuyla aynı kütüphaneden (arayüz testi
+   * FX-00 D-223: admin yalnız elle anahtar girebiliyordu).
+   */
   async setupTwoFactor(adminId: string) {
     const admin = await this.requireAdmin(adminId);
     if (admin.twoFactorEnabled) {
@@ -230,7 +235,8 @@ export class AdminAuthService {
     }
     const secret = authenticator.generateSecret();
     const otpauthUrl = authenticator.keyuri(admin.email, "Rothern Admin", secret);
-    return { secret, otpauthUrl };
+    const qrDataUrl = await QRCode.toDataURL(otpauthUrl);
+    return { secret, otpauthUrl, qrDataUrl };
   }
 
   /** 2FA etkinleştir — setup'taki secret + authenticator kodu doğrulanır. */

@@ -65,6 +65,7 @@ import {
   Users2,
 } from "lucide-react";
 import { useMemo, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { isValidPhone } from "@/lib/company/phone";
 import { InviteUserDialog } from "./invite-user-dialog";
@@ -603,7 +604,11 @@ function EditUserModal({
     SATISCI: ["SATISCI"],
     BOTH: ["SATIN_ALMACI", "SATISCI"],
   };
-  const confirmTransfer = async () => {
+  // Kaydet / Devret tek uçuşta: çift tık iki istek ve iki toast üretmez
+  // (arayüz testi FX-00 D-132).
+  const saveLock = useSubmitLock();
+  const confirmTransfer = () => saveLock.run(doConfirmTransfer);
+  const doConfirmTransfer = async () => {
     try {
       await update.mutateAsync({
         id: user.id,
@@ -617,7 +622,8 @@ function EditUserModal({
     }
   };
 
-  const save = async () => {
+  const save = () => saveLock.run(doSave);
+  const doSave = async () => {
     setTouched(true);
     if (hasError || !dirty) return;
     try {
@@ -639,7 +645,7 @@ function EditUserModal({
     }
   };
 
-  const busy = update.isPending || setPermissions.isPending;
+  const busy = update.isPending || setPermissions.isPending || saveLock.locked;
 
   return (
     <Dialog open onClose={onClose} size="3xl">
@@ -765,7 +771,7 @@ function EditUserModal({
                   ]}
                 />
                 <div className="flex flex-wrap gap-2 pt-1">
-                  <Button color="amber" onClick={confirmTransfer} disabled={update.isPending}>
+                  <Button color="amber" onClick={() => void confirmTransfer()} disabled={update.isPending || saveLock.locked}>
                     <Crown data-slot="icon" />
                     {update.isPending ? t("devrediliyor") : t("devret")}
                   </Button>
@@ -787,7 +793,7 @@ function EditUserModal({
         <Button plain onClick={onClose}>
           {t("vazgec")}
         </Button>
-        <Button onClick={save} disabled={busy || !dirty}>
+        <Button onClick={() => void save()} disabled={busy || !dirty}>
           {busy ? t("kaydediliyor") : t("kaydet")}
         </Button>
       </DialogActions>

@@ -45,6 +45,7 @@ import {
   UserPlus,
 } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { toastApiError } from "@/lib/api";
 
@@ -75,7 +76,7 @@ function AddUserDialog({
     firstName: string;
     lastName: string;
     role: string;
-  }) => void;
+  }) => unknown;
   onClose: () => void;
   pending: boolean;
   /** Firma efektif GOLD mu — değilse Satın Almacı rolü verilemez (API kapısıyla aynı). */
@@ -173,7 +174,8 @@ function AddUserDialog({
                 toast.error("Ad ve soyad gerekli");
                 return;
               }
-              onConfirm({
+              // Promise döner → admin Button iş bitene dek kilitli (FX-00 O-045).
+              return onConfirm({
                 email: form.email.trim(),
                 firstName: form.firstName.trim(),
                 lastName: form.lastName.trim(),
@@ -211,14 +213,17 @@ export function UsersTab({
   const err = (e: unknown) => toastApiError(e);
   const users = query.data ?? [];
 
+  // Kurtarma eylemleri tek uçuşta: çift tık iki kod/şifre e-postası atmaz
+  // (arayüz testi FX-00 D-178).
+  const recoveryLock = useSubmitLock();
+  const recoveryBusy = recovery.isPending || recoveryLock.locked;
   const runRecovery = (
     userId: string,
     action: "password-reset" | "resend-verification" | "drop-sessions",
     msg: string,
   ) =>
-    recovery.mutate(
-      { userId, action },
-      { onSuccess: () => toast.success(msg), onError: err },
+    void recoveryLock.run(() =>
+      recovery.mutateAsync({ userId, action }).then(() => toast.success(msg), err),
     );
 
   return (
@@ -300,7 +305,7 @@ export function UsersTab({
                           variant="ghost"
                           size="sm"
                           title="Şifre sıfırlama e-postası gönder"
-                          disabled={recovery.isPending}
+                          disabled={recoveryBusy}
                           onClick={() =>
                             runRecovery(
                               u.id,
@@ -322,6 +327,7 @@ export function UsersTab({
                           <DropdownMenu anchor="bottom end">
                             {!u.emailVerifiedAt ? (
                               <DropdownItem
+                                disabled={recoveryBusy}
                                 onClick={() =>
                                   runRecovery(
                                     u.id,
@@ -337,6 +343,7 @@ export function UsersTab({
                               </DropdownItem>
                             ) : null}
                             <DropdownItem
+                              disabled={recoveryBusy}
                               onClick={() =>
                                 runRecovery(
                                   u.id,
@@ -414,15 +421,12 @@ export function UsersTab({
           pending={addUser.isPending}
           canGrantBuy={canGrantBuy}
           onConfirm={(v) =>
-            addUser.mutate(v, {
-              onSuccess: () => {
-                toast.success(
-                  "Kullanıcı eklendi — şifre kurma e-postası gönderildi",
-                );
-                setDialog(null);
-              },
-              onError: err,
-            })
+            addUser.mutateAsync(v).then(() => {
+              toast.success(
+                "Kullanıcı eklendi — şifre kurma e-postası gönderildi",
+              );
+              setDialog(null);
+            }, err)
           }
           onClose={() => setDialog(null)}
         />

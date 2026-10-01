@@ -244,8 +244,6 @@ export class PublicInquiryService {
       throw new NotFoundException(i18nMessage("api.publicInquiry.urunBulunamadi"));
     }
 
-    await this.assertCompanyWithinLimits(input.companyId, product.id);
-
     // Alıcı firma adı OTURUMDAN değil VERİTABANINDAN: JWT'de yok ve olsaydı
     // bile bayatlardı — satıcının gördüğü ad her zaman güncel olmalı.
     const buyer = await this.prisma.company.findUnique({
@@ -253,25 +251,33 @@ export class PublicInquiryService {
       select: { name: true },
     });
 
-    const inquiry = await this.prisma.publicInquiry.create({
-      data: {
-        companyId: product.companyId,
-        productId: product.id,
-        name: input.fullName,
-        email: input.email.trim().toLowerCase(),
-        companyName: buyer?.name ?? null,
-        message: input.message.trim(),
-        quantity: input.quantity?.trim() || null,
-        // Jeton hiç kullanılmaz — satır doğrulanmış doğuyor.
-        tokenHash: hashToken(randomBytes(32).toString("hex")),
-        expiresAt: new Date(),
-        verifiedAt: new Date(),
-        claimedCompanyId: input.companyId,
-        claimedAt: new Date(),
-        // Yedek dil: yanıt bildirimi önce alıcının KAYITLI dilini okur.
-        locale: currentLocale(),
-      },
-      select: { id: true, name: true },
+    // Tavan sayımı ve yazma alıcı firma bazlı danışma kilidi altında (arayüz
+    // testi FX-00 O-031): "aynı ürüne 24 saatte tek talep" kuralı say-sonra-yaz
+    // olduğu için eşzamanlı çift gönderimde iki talep ve satıcıya iki e-posta
+    // çıkıyordu.
+    const inquiry = await this.prisma.$transaction(async (tx) => {
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${`inquiry:${input.companyId}`}))`;
+      await this.assertCompanyWithinLimits(input.companyId, product.id, tx);
+      return tx.publicInquiry.create({
+        data: {
+          companyId: product.companyId,
+          productId: product.id,
+          name: input.fullName,
+          email: input.email.trim().toLowerCase(),
+          companyName: buyer?.name ?? null,
+          message: input.message.trim(),
+          quantity: input.quantity?.trim() || null,
+          // Jeton hiç kullanılmaz — satır doğrulanmış doğuyor.
+          tokenHash: hashToken(randomBytes(32).toString("hex")),
+          expiresAt: new Date(),
+          verifiedAt: new Date(),
+          claimedCompanyId: input.companyId,
+          claimedAt: new Date(),
+          // Yedek dil: yanıt bildirimi önce alıcının KAYITLI dilini okur.
+          locale: currentLocale(),
+        },
+        select: { id: true, name: true },
+      });
     });
 
     // Misafir yolundaki İLETİM adımının aynısı — tek fark, doğrulamayı
@@ -318,13 +324,17 @@ export class PublicInquiryService {
    *    gönderir; doğru yol mevcut talebe bakmak),
    *  · firma başına günlük tavan — hesap ele geçirilirse zarar sınırlı kalsın.
    */
-  private async assertCompanyWithinLimits(companyId: string, productId: string) {
+  private async assertCompanyWithinLimits(
+    companyId: string,
+    productId: string,
+    db: Prisma.TransactionClient = this.prisma,
+  ) {
     const dayAgo = new Date(Date.now() - 24 * 60 * 60 * 1000);
     const [sameProduct, dayTotal] = await Promise.all([
-      this.prisma.publicInquiry.count({
+      db.publicInquiry.count({
         where: { claimedCompanyId: companyId, productId, createdAt: { gte: dayAgo } },
       }),
-      this.prisma.publicInquiry.count({
+      db.publicInquiry.count({
         where: { claimedCompanyId: companyId, createdAt: { gte: dayAgo } },
       }),
     ]);

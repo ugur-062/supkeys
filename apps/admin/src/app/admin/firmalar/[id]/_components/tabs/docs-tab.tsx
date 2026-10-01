@@ -209,19 +209,18 @@ export function DocsTab({
           ? { status: "REJECTED", ...rejectPayload(dec), key }
           : { status: "APPROVED", key };
     }
-    review.mutate(
-      { id: companyId, decisions: payload },
-      {
-        onSuccess: (res) => {
-          toast.success(
-            res.status === "VERIFIED"
-              ? "Firma doğrulandı"
-              : "Karar kaydedildi — bazı belgeler reddedildi",
-          );
-          if (fromQueue) router.push("/admin/basvurular");
-        },
-        onError: (e: unknown) => toastApiError(e),
+    // Promise döner → admin Button iş bitene dek kilitli; çift tık ikinci
+    // isteği 409'a düşürmez (arayüz testi FX-00 D-199).
+    return review.mutateAsync({ id: companyId, decisions: payload }).then(
+      (res) => {
+        toast.success(
+          res.status === "VERIFIED"
+            ? "Firma doğrulandı"
+            : "Karar kaydedildi — bazı belgeler reddedildi",
+        );
+        if (fromQueue) router.push("/admin/basvurular");
       },
+      (e: unknown) => toastApiError(e),
     );
   };
 
@@ -398,7 +397,7 @@ function RevisionRow({
       toast.error("Red gerekçesi seçin ya da not yazın");
       return;
     }
-    decide.mutate(
+    return decide.mutateAsync(
       {
         id: companyId,
         revId: rev.id,
@@ -410,15 +409,14 @@ function RevisionRow({
             }
           : {}),
       },
-      {
-        onSuccess: () =>
-          toast.success(
-            status === "APPROVED"
-              ? `${label} güncellemesi onaylandı — yeni belge geçerli`
-              : `${label} güncellemesi reddedildi — eski belge geçerli`,
-          ),
-        onError: (e: unknown) => toastApiError(e),
-      },
+    ).then(
+      () =>
+        toast.success(
+          status === "APPROVED"
+            ? `${label} güncellemesi onaylandı — yeni belge geçerli`
+            : `${label} güncellemesi reddedildi — eski belge geçerli`,
+        ),
+      (e: unknown) => toastApiError(e),
     );
   };
 

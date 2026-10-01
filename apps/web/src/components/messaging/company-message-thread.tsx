@@ -22,6 +22,7 @@ import {
   useState,
 } from "react";
 import { toast } from "sonner";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 
 /**
  * Mesaj zamanı — bugün "HH:mm", dün "Dün HH:mm", eskisi tarih + saat okuyucunun
@@ -72,16 +73,20 @@ export function CompanyMessageThread({
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages.length]);
 
-  const handleSend = async () => {
-    const trimmed = content.trim();
-    if (!trimmed) return;
-    try {
-      await sendMutation.mutateAsync(trimmed);
-      setContent("");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, t("mesajGonderilemedi")));
-    }
-  };
+  // Enter'a art arda basmak / çift tık aynı mesajı iki kez göndermesin
+  // (arayüz testi FX-00 D-067, O-031).
+  const sendLock = useSubmitLock();
+  const handleSend = () =>
+    sendLock.run(async () => {
+      const trimmed = content.trim();
+      if (!trimmed) return;
+      try {
+        await sendMutation.mutateAsync(trimmed);
+        setContent("");
+      } catch (err) {
+        toast.error(extractErrorMessage(err, t("mesajGonderilemedi")));
+      }
+    });
 
   const onKey = (e: KeyboardEvent<HTMLTextAreaElement>) => {
     if (e.key === "Enter" && !e.shiftKey) {
@@ -151,11 +156,11 @@ export function CompanyMessageThread({
           <button
             type="button"
             onClick={() => void handleSend()}
-            disabled={sendMutation.isPending || !content.trim()}
+            disabled={sendMutation.isPending || sendLock.locked || !content.trim()}
             className="inline-flex h-9 items-center justify-center rounded-lg bg-zinc-900 px-4 text-white transition-colors hover:bg-zinc-800 disabled:opacity-50"
             aria-label={t("gonder")}
           >
-            {sendMutation.isPending ? (
+            {sendMutation.isPending || sendLock.locked ? (
               <Loader2 className="h-4 w-4 animate-spin" />
             ) : (
               <Send className="h-4 w-4" />

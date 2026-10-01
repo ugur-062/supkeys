@@ -1210,7 +1210,7 @@ export function QuickRequest({
       <SaveTemplateDialog
         open={templateOpen}
         onClose={() => setTemplateOpen(false)}
-        onSave={(name) => void handleSaveTemplate(name)}
+        onSave={handleSaveTemplate}
         isSaving={saveTemplate.isPending}
         defaultName={watched.title || undefined}
       />

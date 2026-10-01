@@ -44,6 +44,7 @@ import {
   type ProductLike,
 } from "@rothern/shared";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { extractErrorMessage } from "@/lib/tenders/error";
 
@@ -350,7 +351,11 @@ export function ProductShowcaseForm({
   // API de 409 döner. Burada yalnız taslak / düzeltme istendi / yayında.
   const publishLocked = !!publishLimitReached && !product.isPublic;
 
-  const handleSave = async (thenSubmit: boolean) => {
+  // Kaydet / Onaya gönder tek uçuşta: çift tık aynı ürünü iki kez oluşturmaz
+  // (arayüz testi FX-00 O-006).
+  const saveLock = useSubmitLock();
+  const handleSave = (thenSubmit: boolean) => saveLock.run(() => doSave(thenSubmit));
+  const doSave = async (thenSubmit: boolean) => {
     if (!patch.name) {
       toast.error(t("urunAdiZorunlu"));
       return;
@@ -403,7 +408,7 @@ export function ProductShowcaseForm({
     }
   };
 
-  const busy = save.isPending || publish.isPending || create.isPending;
+  const busy = save.isPending || publish.isPending || create.isPending || saveLock.locked;
 
   /* Birincil düğme metni duruma göre — kullanıcı ne olacağını okusun. */
   const primaryLabel =

@@ -16,6 +16,7 @@ import { PRODUCT_REVIEW_STATUS } from "@/lib/status-labels";
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { Suspense, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { useAdminAuth } from "@/hooks/use-admin-auth";
 import { canAdminDo } from "@/lib/admin-permissions";
 import { toastApiError } from "@/lib/api";
@@ -73,7 +74,11 @@ function UrunlerView() {
   const hepsiSecili = secilebilir.length > 0 && seciliGecerli.length === secilebilir.length;
   const sifirla = () => setSecili([]);
 
-  const topluOnayla = async () => {
+  // Çift tık iki toplu onay isteği atıp yanlış "atlandı" uyarısı üretmesin
+  // (arayüz testi FX-00 D-034).
+  const topluLock = useSubmitLock();
+  const topluOnayla = () => topluLock.run(doTopluOnayla);
+  const doTopluOnayla = async () => {
     if (seciliGecerli.length === 0) return;
     let r: Awaited<ReturnType<typeof toplu.mutateAsync>>;
     try {
@@ -152,11 +157,11 @@ function UrunlerView() {
           <span className="font-semibold tabular-nums">{seciliGecerli.length} ürün seçildi</span>
           <button
             type="button"
-            disabled={toplu.isPending}
+            disabled={toplu.isPending || topluLock.locked}
             onClick={() => void topluOnayla()}
             className="rounded-lg bg-white px-3 py-1.5 text-xs font-semibold text-zinc-900 transition hover:bg-zinc-100 disabled:opacity-50"
           >
-            {toplu.isPending ? "Onaylanıyor…" : "Seçilenleri onayla"}
+            {toplu.isPending || topluLock.locked ? "Onaylanıyor…" : "Seçilenleri onayla"}
           </button>
           <button type="button" onClick={sifirla} className="text-xs font-medium text-zinc-300 underline underline-offset-2">
             seçimi temizle

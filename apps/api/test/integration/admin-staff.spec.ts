@@ -296,6 +296,8 @@ describe("admin 2FA + login", () => {
     const admin = await makeAdmin("SALES");
     const setup = await service.setupTwoFactor(admin.id);
     expect(setup.otpauthUrl).toContain("Rothern");
+    // Arayüz testi FX-00 D-223: kurulum QR görselini de döner.
+    expect(setup.qrDataUrl).toMatch(/^data:image\/png;base64,/);
     await expect(
       service.enableTwoFactor(admin.id, setup.secret, "000000"),
     ).rejects.toThrow(/kodu hatalı/);

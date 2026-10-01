@@ -15,10 +15,10 @@ const h = vi.hoisted(() => ({
 vi.mock("sonner", () => ({ toast: h.toast }));
 vi.mock("@/hooks/use-admin-company-users", () => ({
   useAdminCompanyUsers: () => h.users,
-  useUserRecoveryAction: () => ({ mutate: h.recoveryMutate, isPending: false }),
+  useUserRecoveryAction: () => ({ mutate: h.recoveryMutate, mutateAsync: (...a: unknown[]) => { (h.recoveryMutate as (...x: unknown[]) => unknown)(...a); return Promise.resolve(undefined); }, isPending: false }),
   useSetUserActive: () => ({ mutate: h.setActiveMutate, isPending: false }),
   useChangeUserEmail: () => ({ mutate: h.changeEmailMutate, isPending: false }),
-  useAddCompanyUser: () => ({ mutate: h.addUserMutate, isPending: false }),
+  useAddCompanyUser: () => ({ mutate: h.addUserMutate, mutateAsync: (...a: unknown[]) => { (h.addUserMutate as (...x: unknown[]) => unknown)(...a); return Promise.resolve(undefined); }, isPending: false }),
 }));
 
 import { UsersTab } from "../users-tab";
@@ -53,8 +53,7 @@ describe("UsersTab — kullanıcı kurtarma", () => {
     render(<UsersTab companyId="c1" />);
     await uev.click(screen.getByRole("button", { name: /Şifre/ }));
     expect(h.recoveryMutate).toHaveBeenCalledWith(
-      { userId: "u1", action: "password-reset" },
-      expect.anything(),
+      { userId: "u1", action: "password-reset" }
     );
   });
 
@@ -73,8 +72,7 @@ describe("UsersTab — kullanıcı kurtarma", () => {
       await screen.findByRole("menuitem", { name: /Doğrulama Kodunu Gönder/ }),
     );
     expect(h.recoveryMutate).toHaveBeenCalledWith(
-      { userId: "u1", action: "resend-verification" },
-      expect.anything(),
+      { userId: "u1", action: "resend-verification" }
     );
   });
 
@@ -128,8 +126,7 @@ describe("UsersTab — kullanıcı kurtarma", () => {
         firstName: "Yeni",
         lastName: "Üye",
         role: "SATIN_ALMACI",
-      },
-      expect.anything(),
+      }
     );
   });
 

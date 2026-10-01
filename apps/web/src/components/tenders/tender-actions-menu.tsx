@@ -45,6 +45,7 @@ import { toLocalInput } from "@/lib/tenders/map-detail-to-form";
 import { parseAppWallClockInput } from "@/lib/time-zone";
 import { useRouter } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 interface Props {
@@ -185,6 +186,12 @@ export function TenderActionsMenu({
   }, [connections.data, inviteSearch]);
 
   const isOpen = status === "OPEN";
+  // Diyalog onay düğmeleri: çift tık / kapanış animasyonundaki tık ikinci
+  // istek atmaz (arayüz testi FX-00 D-004).
+  const nextRoundLock = useDialogSubmitLock(nextRoundOpen);
+  const closingLock = useDialogSubmitLock(closingOpen);
+  const notesLock = useDialogSubmitLock(notesOpen);
+  const inviteLock = useDialogSubmitLock(inviteOpen);
 
   const handleNextRound = async () => {
     // F2: kapanış gelecekte + en fazla 2 yıl (backend birebir) — sessiz-400 yerine.
@@ -460,7 +467,10 @@ export function TenderActionsMenu({
           <Button plain onClick={() => setClosingOpen(false)}>
             {t("vazgec")}
           </Button>
-          <Button onClick={handleChangeClosing} disabled={changeClosing.isPending}>
+          <Button
+            onClick={() => void closingLock.run(handleChangeClosing)}
+            disabled={changeClosing.isPending || closingLock.locked}
+          >
             {t("kaydet")}
           </Button>
         </DialogActions>
@@ -485,7 +495,10 @@ export function TenderActionsMenu({
           <Button plain onClick={() => setNotesOpen(false)}>
             {t("vazgec")}
           </Button>
-          <Button onClick={handleSaveNotes} disabled={updateNotes.isPending}>
+          <Button
+            onClick={() => void notesLock.run(handleSaveNotes)}
+            disabled={updateNotes.isPending || notesLock.locked}
+          >
             {t("kaydet")}
           </Button>
         </DialogActions>
@@ -613,7 +626,10 @@ export function TenderActionsMenu({
           <Button plain onClick={() => setNextRoundOpen(false)}>
             {t("vazgec")}
           </Button>
-          <Button onClick={handleNextRound} disabled={nextRound.isPending}>
+          <Button
+            onClick={() => void nextRoundLock.run(handleNextRound)}
+            disabled={nextRound.isPending || nextRoundLock.locked}
+          >
             {nextRoundMode === "auction"
               ? t("pazarligiBaslat")
               : t("yeniTurOlustur")}
@@ -706,8 +722,8 @@ export function TenderActionsMenu({
             {t("vazgec")}
           </Button>
           <Button
-            onClick={handleAddInvitations}
-            disabled={addInvitations.isPending || inviteSel.size === 0}
+            onClick={() => void inviteLock.run(handleAddInvitations)}
+            disabled={addInvitations.isPending || inviteSel.size === 0 || inviteLock.locked}
           >
             {t("davetEt", { size: inviteSel.size })}
           </Button>

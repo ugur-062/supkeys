@@ -25,6 +25,7 @@ import {
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useInviteDeliveryToast } from "./use-invite-delivery-toast";
 import { useEffect, useRef, useState } from "react";
+import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 /**
@@ -47,6 +48,8 @@ export function InviteUserDialog({
   const t = useTranslations("web.panel.settings.inviteUserDialog");
   const invite = useInviteUser();
   const reportDelivery = useInviteDeliveryToast();
+  // Çift tık aynı adrese iki davet açmasın (arayüz testi FX-00 O-001).
+  const lock = useDialogSubmitLock(open);
   const { user: viewer } = useCompanyAuth();
   const { data: catalog } = usePermissionCatalog();
   // Faz K: koltuk doluysa işlem tikleri kilitli (UX — asıl kapı backend).
@@ -188,8 +191,8 @@ export function InviteUserDialog({
         <Button plain onClick={onClose} disabled={invite.isPending}>
           {t("vazgec")}
         </Button>
-        <Button onClick={handleSave} disabled={!canSave || invite.isPending}>
-          {invite.isPending ? t("gonderiliyor") : t("davetGonder")}
+        <Button onClick={() => void lock.run(handleSave)} disabled={!canSave || invite.isPending || lock.locked}>
+          {invite.isPending || lock.locked ? t("gonderiliyor") : t("davetGonder")}
         </Button>
       </DialogActions>
     </Dialog>

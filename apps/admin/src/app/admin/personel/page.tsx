@@ -95,7 +95,7 @@ function AddStaffDialog({
     firstName: string;
     lastName: string;
     role: AdminRole;
-  }) => void;
+  }) => unknown;
   onClose: () => void;
   pending: boolean;
 }) {
@@ -177,7 +177,9 @@ function AddStaffDialog({
                 toast.error("Ad ve soyad gerekli");
                 return;
               }
-              onConfirm({
+              // Promise döner → admin Button iş bitene dek kilitli; çift tık
+              // ikinci personeli/409'u üretmez (arayüz testi FX-00 D-015).
+              return onConfirm({
                 email: form.email.trim(),
                 firstName: form.firstName.trim(),
                 lastName: form.lastName.trim(),
@@ -349,14 +351,9 @@ function PersonelView() {
                             size="sm"
                             disabled={act.isPending}
                             onClick={() =>
-                              act.mutate(
-                                { id: s.id, action: "active", active: false },
-                                {
-                                  onSuccess: () =>
-                                    toast.success("Pasifleştirildi"),
-                                  onError: err,
-                                },
-                              )
+                              act
+                                .mutateAsync({ id: s.id, action: "active", active: false })
+                                .then(() => toast.success("Pasifleştirildi"), err)
                             }
                           >
                             Pasifleştir
@@ -367,14 +364,9 @@ function PersonelView() {
                             size="sm"
                             disabled={act.isPending}
                             onClick={() =>
-                              act.mutate(
-                                { id: s.id, action: "active", active: true },
-                                {
-                                  onSuccess: () =>
-                                    toast.success("Aktifleştirildi"),
-                                  onError: err,
-                                },
-                              )
+                              act
+                                .mutateAsync({ id: s.id, action: "active", active: true })
+                                .then(() => toast.success("Aktifleştirildi"), err)
                             }
                           >
                             Aktifleştir
@@ -421,17 +413,14 @@ function PersonelView() {
             <Button
               loading={act.isPending}
               onClick={() =>
-                act.mutate(
-                  { id: rolePrompt.id, action: "role", role: rolePrompt.to },
-                  {
-                    onSuccess: () => {
-                      toast.success("Rol güncellendi");
-                      setRolePrompt(null);
-                    },
-                    onError: (e: unknown) => {
-                      err(e);
-                      setRolePrompt(null);
-                    },
+                act.mutateAsync({ id: rolePrompt.id, action: "role", role: rolePrompt.to }).then(
+                  () => {
+                    toast.success("Rol güncellendi");
+                    setRolePrompt(null);
+                  },
+                  (e: unknown) => {
+                    err(e);
+                    setRolePrompt(null);
                   },
                 )
               }
@@ -464,18 +453,15 @@ function PersonelView() {
             <Button
               loading={act.isPending}
               onClick={() =>
-                act.mutate(
-                  { id: resetPrompt.id, action: "reset-password" },
-                  {
-                    onSuccess: (r) => {
-                      if (r.tempPassword) setTempPw(r.tempPassword);
-                      toast.success("Şifre sıfırlandı");
-                      setResetPrompt(null);
-                    },
-                    onError: (e: unknown) => {
-                      err(e);
-                      setResetPrompt(null);
-                    },
+                act.mutateAsync({ id: resetPrompt.id, action: "reset-password" }).then(
+                  (r) => {
+                    if (r.tempPassword) setTempPw(r.tempPassword);
+                    toast.success("Şifre sıfırlandı");
+                    setResetPrompt(null);
+                  },
+                  (e: unknown) => {
+                    err(e);
+                    setResetPrompt(null);
                   },
                 )
               }
@@ -490,14 +476,13 @@ function PersonelView() {
         <AddStaffDialog
           pending={create.isPending}
           onConfirm={(v) =>
-            create.mutate(v, {
-              onSuccess: (r) => {
-                setTempPw(r.tempPassword);
-                setAdding(false);
-                toast.success("Personel eklendi");
-              },
-              onError: err,
-            })
+            // mutateAsync: geçici şifreyi gösteren başarı dalı BU çağrıya bağlı
+            // (mutate'in onSuccess'i yalnız son çağrıda çalışır).
+            create.mutateAsync(v).then((r) => {
+              setTempPw(r.tempPassword);
+              setAdding(false);
+              toast.success("Personel eklendi");
+            }, err)
           }
           onClose={() => setAdding(false)}
         />

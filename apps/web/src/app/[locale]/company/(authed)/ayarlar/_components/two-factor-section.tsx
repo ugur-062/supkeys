@@ -16,6 +16,7 @@ import {
 } from "@/hooks/use-company-account";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 export function TwoFactorSection() {
@@ -34,6 +35,10 @@ export function TwoFactorSection() {
   const [disableMode, setDisableMode] = useState(false);
   // E-posta 2FA kurulumu sürüyor (kod gönderildi, giriş bekleniyor).
   const [emailMode, setEmailMode] = useState(false);
+  // Kur / Doğrula & Aç / Kapat / kod gönder tek uçuşta: çift tık ikinci isteği
+  // atmaz — ikinci "Doğrula & Aç" ekrandaki kurtarma kodlarını geçersiz kılıyordu
+  // (arayüz testi FX-00 Y-12; sunucu da koşullu yazar).
+  const lock = useSubmitLock();
 
   const startEmailSetup = async () => {
     try {
@@ -140,13 +145,13 @@ export function TwoFactorSection() {
       {/* Kapalı + kurulum başlatılmadı → yöntem seçimi */}
       {!enabled && !qr && !emailMode ? (
         <div className="mt-4 flex flex-wrap gap-2">
-          <Button onClick={startSetup} disabled={setup.isPending}>
+          <Button onClick={() => void lock.run(startSetup)} disabled={setup.isPending || lock.locked}>
             {t("authenticatorIleKur")}
           </Button>
           <Button
             outline
-            onClick={startEmailSetup}
-            disabled={sendEmailCode.isPending}
+            onClick={() => void lock.run(startEmailSetup)}
+            disabled={sendEmailCode.isPending || lock.locked}
           >
             {sendEmailCode.isPending ? t("gonderiliyor") : t("ePostaIleKur")}
           </Button>
@@ -175,13 +180,13 @@ export function TwoFactorSection() {
             />
           </Field>
           <div className="flex flex-wrap gap-2">
-            <Button onClick={confirmEnableEmail} disabled={enableEmail.isPending || code.length !== 6}>
+            <Button onClick={() => void lock.run(confirmEnableEmail)} disabled={enableEmail.isPending || lock.locked || code.length !== 6}>
               {t("dogrulaAc")}
             </Button>
             <Button
               plain
-              onClick={startEmailSetup}
-              disabled={sendEmailCode.isPending}
+              onClick={() => void lock.run(startEmailSetup)}
+              disabled={sendEmailCode.isPending || lock.locked}
             >
               {t("koduYenidenGonder")}
             </Button>
@@ -245,7 +250,7 @@ export function TwoFactorSection() {
             />
           </Field>
           <div className="flex gap-2">
-            <Button onClick={confirmEnable} disabled={enable.isPending || code.length !== 6}>
+            <Button onClick={() => void lock.run(confirmEnable)} disabled={enable.isPending || lock.locked || code.length !== 6}>
               {t("dogrulaAc")}
             </Button>
             <Button
@@ -319,13 +324,13 @@ export function TwoFactorSection() {
                 {t("authenticatorKullaniyorsanizUygulamadakiKodu")}
               </Text>
               <div className="flex flex-wrap gap-2">
-                <Button onClick={confirmDisable} disabled={disable.isPending || !code.trim()}>
+                <Button onClick={() => void lock.run(confirmDisable)} disabled={disable.isPending || lock.locked || !code.trim()}>
                   {t("kapat")}
                 </Button>
                 <Button
                   plain
-                  onClick={sendDisableEmailCode}
-                  disabled={sendEmailCode.isPending}
+                  onClick={() => void lock.run(sendDisableEmailCode)}
+                  disabled={sendEmailCode.isPending || lock.locked}
                 >
                   {t("ePostayaKodGonder")}
                 </Button>

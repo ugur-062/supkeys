@@ -19,6 +19,7 @@ import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useTranslations } from "next-intl";
 import { useEffect, useMemo, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { useForm } from "react-hook-form";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -71,7 +72,11 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
     formState: { errors },
   } = useForm<FormData>({ resolver: zodResolver(schema) });
 
-  const onSubmit = handleSubmit(async (data) => {
+  // Giriş / kod doğrulama / yeniden gönder tek uçuşta: çift tık ikinci istek
+  // atmaz (arayüz testi FX-00 D-064; tek kullanımlık kod sunucuda da atomik).
+  const lock = useSubmitLock();
+  const onSubmit = handleSubmit((data) => lock.run(() => doLogin(data)));
+  const doLogin = async (data: FormData) => {
     setFormError(null);
     // 2FA açıkken kod zorunlu: 6 haneli TOTP veya kurtarma kodu (XXXX-XXXX).
     if (twoFactor && code.trim().length < 6) {
@@ -119,9 +124,10 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
       }
       setFormError(extractErrorMessage(err, t("failed")));
     }
-  });
+  };
 
-  const submitVerify = async () => {
+  const submitVerify = () => lock.run(doSubmitVerify);
+  const doSubmitVerify = async () => {
     setFormError(null);
     try {
       // "Oturumumu açık bırak" tercihi doğrulama yolunda da API'ye gider —
@@ -146,7 +152,8 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
     }
   };
 
-  const handleResend = async () => {
+  const handleResend = () => lock.run(doResend);
+  const doResend = async () => {
     if (cooldown > 0 || resend.isPending) return;
     setFormError(null);
     try {
@@ -182,15 +189,15 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         ) : null}
         <Button
           className="w-full"
-          disabled={verifyCode.length !== 6 || verify.isPending}
-          onClick={submitVerify}
+          disabled={verifyCode.length !== 6 || verify.isPending || lock.locked}
+          onClick={() => void submitVerify()}
         >
           {verify.isPending ? tc("verifying") : tc("verifyAndLogin")}
         </Button>
         <button
           type="button"
-          disabled={resend.isPending || cooldown > 0}
-          onClick={handleResend}
+          disabled={resend.isPending || cooldown > 0 || lock.locked}
+          onClick={() => void handleResend()}
           className="w-full text-center text-sm text-zinc-500 hover:text-zinc-800 disabled:opacity-50"
         >
           {cooldown > 0
@@ -259,8 +266,8 @@ export function CompanyLoginForm({ nextPath }: { nextPath: string }) {
         </div>
       ) : null}
 
-      <Button type="submit" className="w-full" disabled={login.isPending}>
-        {login.isPending ? t("submitting") : t("submit")}
+      <Button type="submit" className="w-full" disabled={login.isPending || lock.locked}>
+        {login.isPending || lock.locked ? t("submitting") : t("submit")}
       </Button>
 
       <div className="flex items-center justify-center gap-3 pt-1 text-xs text-zinc-500">

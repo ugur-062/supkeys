@@ -20,8 +20,8 @@ vi.mock("@/hooks/use-admin-auth", () => ({
 }));
 vi.mock("@/hooks/use-admin-staff", () => ({
   useStaff: () => h.staff,
-  useCreateStaff: () => ({ mutate: vi.fn(), isPending: false }),
-  useStaffAction: () => ({ mutate: h.actMutate, isPending: false }),
+  useCreateStaff: () => ({ mutate: vi.fn(), mutateAsync: vi.fn(() => Promise.resolve({ ok: true, id: "n", tempPassword: "x" })), isPending: false }),
+  useStaffAction: () => ({ mutate: h.actMutate, mutateAsync: (...a: unknown[]) => { (h.actMutate as (...x: unknown[]) => unknown)(...a); return Promise.resolve({}); }, isPending: false }),
 }));
 
 import AdminPersonelPage from "../page";
@@ -93,8 +93,7 @@ describe("Şifre Sıfırla (derin denetim MU-21 — Süper Admin kendini kilitle
     expect(h.actMutate).not.toHaveBeenCalled();
     await user.click(screen.getByRole("button", { name: "Sıfırla" }));
     expect(h.actMutate).toHaveBeenCalledWith(
-      { id: "other", action: "reset-password" },
-      expect.anything(),
+      { id: "other", action: "reset-password" }
     );
   });
 });

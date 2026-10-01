@@ -1,16 +1,20 @@
 // @vitest-environment jsdom
 // F7: mesaj composer'ı portal-yönlü işlem rolü ister (backend send() birebir);
 // rolsüz/etiket-only konuşmayı OKUR (regresyon) ama gönderemez.
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const h = vi.hoisted(() => ({
   roles: [] as string[],
+  send: null as null | ((content: string) => Promise<unknown>),
 }));
 
 vi.mock("@/hooks/use-company-messages", () => ({
   useThreadMessages: () => ({ data: { messages: [] }, isLoading: false }),
-  useSendMessage: () => ({ mutateAsync: vi.fn(), isPending: false }),
+  useSendMessage: () => ({
+    mutateAsync: (content: string) => (h.send ? h.send(content) : Promise.resolve()),
+    isPending: false,
+  }),
 }));
 vi.mock("@/hooks/use-company-auth", () => ({
   useCompanyAuth: () => ({ user: { roles: h.roles } }),
@@ -20,6 +24,7 @@ import { CompanyMessageThread } from "../company-message-thread";
 
 beforeEach(() => {
   h.roles = [];
+  h.send = null;
   // jsdom scrollIntoView yok — thread mount'ta çağırıyor.
   window.HTMLElement.prototype.scrollIntoView = vi.fn();
 });
@@ -61,5 +66,29 @@ describe("CompanyMessageThread composer gating", () => {
       />,
     );
     expect(screen.getByRole("button", { name: "Gönder" })).toBeInTheDocument();
+  });
+
+  it("Enter'a art arda basmak aynı mesajı bir kez gönderir (arayüz testi FX-00 D-067)", async () => {
+    h.roles = ["SATIN_ALMACI"];
+    let resolve!: () => void;
+    const send = vi.fn(
+      () =>
+        new Promise<void>((r) => {
+          resolve = r;
+        }),
+    );
+    h.send = send;
+    render(
+      <CompanyMessageThread portal="satinalma" otherPartyId="c2" otherPartyName="Karşı Firma" />,
+    );
+    const box = screen.getByRole("textbox");
+    fireEvent.change(box, { target: { value: "Merhaba" } });
+    fireEvent.keyDown(box, { key: "Enter" });
+    fireEvent.keyDown(box, { key: "Enter" });
+    fireEvent.click(screen.getByRole("button", { name: "Gönder" }));
+    expect(send).toHaveBeenCalledTimes(1);
+    await act(async () => {
+      resolve();
+    });
   });
 });

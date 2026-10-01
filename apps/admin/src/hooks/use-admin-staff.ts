@@ -82,9 +82,12 @@ export function useTwoFactor() {
     qc.invalidateQueries({ queryKey: ["admin", "auth", "me"] });
   const setup = useMutation({
     mutationFn: async () => {
-      const { data } = await api.post<{ secret: string; otpauthUrl: string }>(
-        "/admin/auth/2fa/setup",
-      );
+      const { data } = await api.post<{
+        secret: string;
+        otpauthUrl: string;
+        /** QR görseli (data: URL) — eski API'de yok, elle anahtar yedeği kalır. */
+        qrDataUrl?: string;
+      }>("/admin/auth/2fa/setup");
       return data;
     },
   });

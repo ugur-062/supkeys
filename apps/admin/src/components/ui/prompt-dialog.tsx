@@ -11,6 +11,7 @@ import { Field } from "@/components/ui/field";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { useEffect, useState } from "react";
+import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 
 interface PromptDialogProps {
   open: boolean;
@@ -47,7 +48,12 @@ interface PromptDialogProps {
     placeholder?: string;
     maxLength?: number;
   };
-  onConfirm: (value: string, secondaryValue?: string) => void;
+  /**
+   * Onay — tek seferlik: dönüş promise ise o çözülene, diyalog kapandıysa
+   * yeniden açılana dek ikinci onay yutulur (çift tık / kapanış
+   * animasyonundaki tık ikinci istek atmaz — arayüz testi FX-00 O-045).
+   */
+  onConfirm: (value: string, secondaryValue?: string) => unknown;
   onClose: () => void;
 }
 
@@ -100,11 +106,13 @@ export function PromptDialog({
     trimmed !== "" &&
     trimmed < minDateTime;
   const invalid = (required && trimmed === "") || tooShort || beforeMin;
+  const lock = useDialogSubmitLock(open);
 
   const submit = () => {
     if (invalid) return;
-    if (secondary) onConfirm(trimmed, secondaryValue.trim());
-    else onConfirm(trimmed);
+    void lock
+      .run(() => (secondary ? onConfirm(trimmed, secondaryValue.trim()) : onConfirm(trimmed)))
+      .catch(() => {});
   };
 
   return (
@@ -161,7 +169,7 @@ export function PromptDialog({
         <Button type="button" variant="ghost" onClick={onClose}>
           Vazgeç
         </Button>
-        <Button type="button" onClick={submit} disabled={invalid}>
+        <Button type="button" onClick={submit} disabled={invalid || lock.locked}>
           {confirmLabel}
         </Button>
       </DialogActions>

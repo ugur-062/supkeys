@@ -12,6 +12,7 @@ import { CheckCircleIcon, XMarkIcon } from "@heroicons/react/20/solid";
 import { Link } from "@/i18n/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useEffect, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 
 /**
  * KAYITLI ALICININ bilgi talebi kutusu.
@@ -57,6 +58,8 @@ export function PanelInquiryDialog({
   const router = useRouter();
   const [sent, setSent] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  // Çift tık / Enter tekrarı ikinci bilgi talebi açmasın (arayüz testi FX-00 O-031).
+  const lock = useSubmitLock();
 
   useEffect(() => {
     if (open) {
@@ -141,7 +144,13 @@ export function PanelInquiryDialog({
               </div>
             </div>
           ) : (
-            <form onSubmit={(e) => void submit(e)} className="mt-5 space-y-4">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                void lock.run(() => submit(e));
+              }}
+              className="mt-5 space-y-4"
+            >
               <p className="text-sm/6 text-zinc-500">
                 {t.rich("hakkindaFirmasinaSoruGonderin", {
                   product: productName,
@@ -198,10 +207,10 @@ export function PanelInquiryDialog({
 
               <button
                 type="submit"
-                disabled={send.isPending}
+                disabled={send.isPending || lock.locked}
                 className="w-full rounded-full bg-blue-600 px-4 py-2.5 text-sm font-semibold text-white transition hover:bg-blue-700 disabled:opacity-50"
               >
-                {send.isPending ? t("gonderiliyor") : t("talebiGonder")}
+                {send.isPending || lock.locked ? t("gonderiliyor") : t("talebiGonder")}
               </button>
 
               <div className="border-t border-zinc-950/5 pt-4">

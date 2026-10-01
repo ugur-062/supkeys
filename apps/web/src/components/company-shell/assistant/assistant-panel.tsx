@@ -43,6 +43,7 @@ import {
 } from "lucide-react";
 import { useRouter } from "@/i18n/navigation";
 import { useCallback, useEffect, useRef, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { AssistantMarkdown } from "./assistant-markdown";
 
 interface LocalMsg {
@@ -343,7 +344,15 @@ export function AssistantPanel({
 
   // AI-4: onay kartı kararı — yürütme YALNIZ bu kullanıcı jestiyle olur.
   const action = useAssistantAction();
-  const decideAction = async (
+  // Çift tık ikinci onay isteği atıp "zaten kullanılmış" balonu üretmesin
+  // (arayüz testi FX-00 D-358).
+  const actionLock = useSubmitLock();
+  const decideAction = (
+    msgId: string,
+    pending: AiPendingAction,
+    decision: "confirm" | "reject",
+  ) => actionLock.run(() => doDecideAction(msgId, pending, decision));
+  const doDecideAction = async (
     msgId: string,
     pending: AiPendingAction,
     decision: "confirm" | "reject",
@@ -815,8 +824,8 @@ export function AssistantPanel({
                     <div className="mt-3 flex gap-2">
                       <button
                         type="button"
-                        disabled={action.isPending}
-                        onClick={() => decideAction(m.id, m.pending!, "confirm")}
+                        disabled={action.isPending || actionLock.locked}
+                        onClick={() => void decideAction(m.id, m.pending!, "confirm")}
                         className={cn(
                           "flex flex-1 items-center justify-center gap-2 rounded-lg px-3 py-2 text-xs font-semibold text-white transition-colors disabled:opacity-60",
                           m.pending.severity === "critical"
@@ -824,12 +833,12 @@ export function AssistantPanel({
                             : t.fill,
                         )}
                       >
-                        {action.isPending ? tr("yurutuluyor") : tr("onayla")}
+                        {action.isPending || actionLock.locked ? tr("yurutuluyor") : tr("onayla")}
                       </button>
                       <button
                         type="button"
-                        disabled={action.isPending}
-                        onClick={() => decideAction(m.id, m.pending!, "reject")}
+                        disabled={action.isPending || actionLock.locked}
+                        onClick={() => void decideAction(m.id, m.pending!, "reject")}
                         className="flex-1 rounded-lg px-3 py-2 text-xs font-semibold text-zinc-600 ring-1 ring-inset ring-zinc-300 transition-colors hover:bg-zinc-50 disabled:opacity-60"
                       >
                         {tr("vazgec")}

@@ -194,7 +194,8 @@
     "buSikayetZatenSonuclanmis": "This complaint has already been resolved",
     "gecersizRedGerekcesiKodu": "Invalid rejection reason code",
     "buUlkeKaydaKapali": "Registration is closed for this country; the company cannot be moved to it",
-    "yerelHukukiYapiZorunlu": "The local legal form is required when the legal structure is \"Other\" (e.g. GmbH, LLC)"
+    "yerelHukukiYapiZorunlu": "The local legal form is required when the legal structure is \"Other\" (e.g. GmbH, LLC)",
+    "ayniDuyuruAzOnceGonderildi": "This announcement was just sent; wait a few minutes before sending it again"
   },
   "categories": {
     "gecersizKategoriId": "Invalid category ID: {join}",
@@ -454,7 +455,8 @@
       "category": "Your product is in this category: {product}",
       "text": "Matches your product: {product}"
     },
-    "talepBaskaUlkelereAcik": "This request is open only to suppliers based in specific countries, and your company's country is not one of them."
+    "talepBaskaUlkelereAcik": "This request is open only to suppliers based in specific countries, and your company's country is not one of them.",
+    "teklifGecerliligiAzOnceUzatildi": "The quote's validity period was just updated; refresh the page to check"
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "Request not found",
@@ -946,7 +948,8 @@
     "buOdemeZatenSonuclanmis": "This payment has already been resolved",
     "buIslemIcinYetkiGerekirYoneticinizdenIsteyin": "This action requires the “{permission}” permission — ask your company administrator",
     "akreditifliSiparisteManuelOdemeGirilmez": "In an order with a letter of credit, payment is made through the bank — no manual payment record can be entered",
-    "siparisOdemeKaydinaUygunDegil": "This order is not eligible for a payment record right now"
+    "siparisOdemeKaydinaUygunDegil": "This order is not eligible for a payment record right now",
+    "ayniOdemeAzOnceBildirildi": "This payment was just reported and is awaiting the seller's confirmation"
   },
   "companyItems": {
     "ucretsizPaketteEnFazlaUrunYayinda": "On the free plan at most {limit, plural, one {# product} other {# products}} can be published or awaiting review. To restore this product, first remove a product from the showcase or switch to the Silver plan.",
@@ -968,7 +971,8 @@
       "keywords": "At least 1 keyword must be added",
       "price": "Fill in the fields of the selected price mode"
     },
-    "nitelikDegeriGecersiz": "Invalid attribute value: only text, a number or a list is allowed; text can be up to {max, plural, one {# character} other {# characters}} and a list up to {items, plural, one {# item} other {# items}}."
+    "nitelikDegeriGecersiz": "Invalid attribute value: only text, a number or a list is allowed; text can be up to {max, plural, one {# character} other {# characters}} and a list up to {items, plural, one {# item} other {# items}}.",
+    "ayniUrunAzOnceOlusturuldu": "A product with the same name was just created; continue from My products"
   },
   "guards": {
     "yetkisiz": "Unauthorized",

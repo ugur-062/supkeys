@@ -37,6 +37,7 @@ import {
 import { Lock, UserRound } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 /**
@@ -182,7 +183,10 @@ export function CompanyProfileSection() {
       : null;
   const hasError = Boolean(nameError || kepError);
 
-  const handleSave = async () => {
+  // Çift tık iki istek / iki toast / iki denetim kaydı üretmesin (arayüz testi FX-00 D-132).
+  const saveLock = useSubmitLock();
+  const handleSave = () => saveLock.run(doSave);
+  const doSave = async () => {
     if (hasError || !dirty) return;
     try {
       await update.mutateAsync(changed as CompanyProfileUpdate);
@@ -539,10 +543,10 @@ export function CompanyProfileSection() {
         ) : null}
         <Button
           type="button"
-          onClick={handleSave}
-          disabled={!dirty || hasError || update.isPending}
+          onClick={() => void handleSave()}
+          disabled={!dirty || hasError || update.isPending || saveLock.locked}
         >
-          {update.isPending ? t("kaydediliyor") : t("kaydet")}
+          {update.isPending || saveLock.locked ? t("kaydediliyor") : t("kaydet")}
         </Button>
       </div>
 

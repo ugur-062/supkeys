@@ -23,6 +23,7 @@ import { ANSWER_TYPE_VALUES, MAX_ITEM_QUESTIONS, type TenderFormData } from "@/l
 import { cn } from "@/lib/utils";
 import { ChevronDown, HelpCircle, Info, LayoutTemplate, Plus, Save, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { Controller, useFieldArray, useFormContext } from "react-hook-form";
 import { extractErrorMessage } from "@/lib/tenders/error";
 import { toast } from "sonner";
@@ -91,7 +92,10 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
     setNameOpen(true);
   };
 
-  const saveAsTemplate = async () => {
+  // Çift tık / Enter basılı tutmak kopya soru şablonu açmasın (arayüz testi FX-00 D-041).
+  const tplLock = useDialogSubmitLock(nameOpen);
+  const saveAsTemplate = () => void tplLock.run(doSaveAsTemplate);
+  const doSaveAsTemplate = async () => {
     const name = tplName.trim();
     if (!name) return;
     const qs = getValues(`items.${index}.questions`) ?? [];
@@ -369,7 +373,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
             value={tplName}
             onChange={(e) => setTplName(e.target.value)}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && tplName.trim()) saveAsTemplate();
+              if (e.key === "Enter" && tplName.trim() && !saveTpl.isPending) saveAsTemplate();
             }}
           />
         </DialogBody>
@@ -379,7 +383,7 @@ export function ItemQuestionModal({ open, onClose, index }: Props) {
           </Button>
           <Button
             onClick={saveAsTemplate}
-            disabled={!tplName.trim() || saveTpl.isPending}
+            disabled={!tplName.trim() || saveTpl.isPending || tplLock.locked}
           >
             {tr("kaydet")}
           </Button>

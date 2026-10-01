@@ -831,16 +831,20 @@ export class CompanyApprovalsService {
           const target = Array.isArray(e.meta?.target)
             ? e.meta.target.join(",")
             : String(e.meta?.target ?? "");
+          // (companyId,requestNo) çakışması → yeni no ile son denemeye dek tekrar.
+          if (target.includes("requestNo")) {
+            if (attempt < 2) continue;
+            throw e;
+          }
           // X-CF-3: kısmi unique index (listingId,type WHERE PENDING) → eşzamanlı
           // mükerrer istek. findFirst ön-kontrolü yarışı kaçırdıysa DB yakalar;
           // yeniden deneme dup'ı çözmez → hemen çakışma döndür (aynı mesaj).
-          if (target.includes("pending") || target.includes("listingId")) {
-            throw new ConflictException(
-              i18nMessage("api.companyApprovals.buIlanIcinZatenBekleyenBir"),
-            );
-          }
-          // (companyId,requestNo) çakışması → yeni no ile son denemeye dek tekrar.
-          if (attempt < 2) continue;
+          // requestNo DIŞINDAKİ her P2002 bu sayılır (arayüz testi FX-00 D-004):
+          // Prisma kısmi indekste hedefi alan listesi olarak vermeyebiliyor,
+          // eşleşmeyen ad ham 500'e düşüyordu.
+          throw new ConflictException(
+            i18nMessage("api.companyApprovals.buIlanIcinZatenBekleyenBir"),
+          );
         }
         throw e;
       }

@@ -15,11 +15,13 @@ import { Field, Label } from "@/components/catalyst/fieldset";
 import { Input } from "@/components/catalyst/input";
 import { BookmarkPlus } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 
 interface Props {
   open: boolean;
   onClose: () => void;
-  onSave: (name: string) => void;
+  /** İş bitince çözülen promise döner; o süre ve kapanışta düğme kilitlidir. */
+  onSave: (name: string) => unknown;
   isSaving: boolean;
   defaultName?: string;
 }
@@ -51,12 +53,19 @@ export function SaveTemplateDialog({
   }, [open, initialName]);
   const trimmed = name.trim();
   const canSave = trimmed.length >= 2;
+  // Çift tık / Enter basılı tutmak kopya şablon açmasın (arayüz testi FX-00 D-041).
+  const lock = useDialogSubmitLock(open);
+  const busy = isSaving || lock.locked;
+  const save = () => {
+    if (!canSave) return;
+    void lock.run(() => onSave(trimmed)).catch(() => {});
+  };
 
   return (
     <Dialog
       open={open}
       onClose={() => {
-        if (!isSaving) onClose();
+        if (!busy) onClose();
       }}
       size="md"
     >
@@ -82,7 +91,7 @@ export function SaveTemplateDialog({
             maxLength={TEMPLATE_NAME_MAX}
             placeholder={t("orAylikOfisMalzemesi")}
             onKeyDown={(e) => {
-              if (e.key === "Enter" && canSave && !isSaving) onSave(trimmed);
+              if (e.key === "Enter" && !busy) save();
             }}
           />
         </Field>
@@ -92,10 +101,10 @@ export function SaveTemplateDialog({
       </DialogBody>
 
       <DialogActions>
-        <Button plain onClick={onClose} disabled={isSaving}>
+        <Button plain onClick={onClose} disabled={busy}>
           {t("vazgec")}
         </Button>
-        <Button onClick={() => onSave(trimmed)} disabled={!canSave || isSaving}>
+        <Button onClick={save} disabled={!canSave || busy}>
           <BookmarkPlus data-slot="icon" />
           {t("kaydet")}
         </Button>

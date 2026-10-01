@@ -29,6 +29,7 @@ import {
 import { Check, FileText, Lock, Upload } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useEffect, useRef, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { SettingsShell } from "../_components/settings-shell";
 import { SETTINGS_PAGES } from "@/lib/company/settings-pages";
@@ -123,7 +124,10 @@ export default function DogrulamaPage() {
     }
   };
 
-  const handleSubmit = async () => {
+  // Çift tık ikinci gönderimi "zaten incelemede" hatasına düşürmesin (arayüz testi FX-00 D-132).
+  const submitLock = useSubmitLock();
+  const handleSubmit = () => submitLock.run(doSubmit);
+  const doSubmit = async () => {
     try {
       await submit.mutateAsync({
         mersisNo: mersisNo.trim(),
@@ -489,10 +493,10 @@ export default function DogrulamaPage() {
                 )}
               </div>
               <Button
-                onClick={handleSubmit}
-                disabled={!canSubmit || submit.isPending}
+                onClick={() => void handleSubmit()}
+                disabled={!canSubmit || submit.isPending || submitLock.locked}
               >
-                {submit.isPending ? t("gonderiliyor") : t("dogrulamayaGonder")}
+                {submit.isPending || submitLock.locked ? t("gonderiliyor") : t("dogrulamayaGonder")}
               </Button>
             </div>
           ) : null}

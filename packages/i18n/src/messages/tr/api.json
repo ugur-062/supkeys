@@ -194,7 +194,8 @@
     "buSikayetZatenSonuclanmis": "Bu şikayet zaten sonuçlanmış",
     "gecersizRedGerekcesiKodu": "Geçersiz red gerekçesi kodu",
     "buUlkeKaydaKapali": "Bu ülke kayda kapalı; firma bu ülkeye taşınamaz",
-    "yerelHukukiYapiZorunlu": "Hukuki yapı \"Diğer\" iken yerel adı zorunlu (ör. GmbH, LLC)"
+    "yerelHukukiYapiZorunlu": "Hukuki yapı \"Diğer\" iken yerel adı zorunlu (ör. GmbH, LLC)",
+    "ayniDuyuruAzOnceGonderildi": "Bu duyuru az önce gönderildi; tekrar göndermek için birkaç dakika bekleyin"
   },
   "categories": {
     "gecersizKategoriId": "Geçersiz kategori ID: {join}",
@@ -454,7 +455,8 @@
       "category": "Ürününüz bu kategoride: {product}",
       "text": "Ürününüzle eşleşiyor: {product}"
     },
-    "talepBaskaUlkelereAcik": "Bu talep yalnız belirli ülkelerdeki tedarikçilere açık; firmanızın ülkesi bu listede değil."
+    "talepBaskaUlkelereAcik": "Bu talep yalnız belirli ülkelerdeki tedarikçilere açık; firmanızın ülkesi bu listede değil.",
+    "teklifGecerliligiAzOnceUzatildi": "Teklifin geçerlilik süresi az önce güncellendi; sayfayı yenileyip kontrol edin"
   },
   "companyListingDocuments": {
     "ilanBulunamadi": "İlan bulunamadı",
@@ -946,7 +948,8 @@
     "buOdemeZatenSonuclanmis": "Bu ödeme zaten sonuçlanmış",
     "buIslemIcinYetkiGerekirYoneticinizdenIsteyin": "Bu işlem için ''{permission}'' yetkisi gerekir — firma yöneticinizden isteyin",
     "akreditifliSiparisteManuelOdemeGirilmez": "Akreditifli siparişte ödeme banka kanalından yapılır — manuel ödeme kaydı girilmez",
-    "siparisOdemeKaydinaUygunDegil": "Bu sipariş şu an ödeme kaydına uygun değil"
+    "siparisOdemeKaydinaUygunDegil": "Bu sipariş şu an ödeme kaydına uygun değil",
+    "ayniOdemeAzOnceBildirildi": "Bu ödeme az önce bildirildi ve satıcının onayını bekliyor"
   },
   "companyItems": {
     "ucretsizPaketteEnFazlaUrunYayinda": "Ücretsiz pakette en fazla {limit} ürün yayında/onayda olabilir. Bu ürünü geri almak için önce bir ürünü vitrinden çekin ya da Silver paketine geçin.",
@@ -968,7 +971,8 @@
       "keywords": "En az 1 anahtar kelime eklenmeli",
       "price": "Seçilen fiyat modunun alanları doldurulmalı"
     },
-    "nitelikDegeriGecersiz": "Nitelik değeri geçersiz: yalnız metin, sayı ya da liste olabilir; metin en fazla {max, number} karakter, liste en fazla {items, number} öğe."
+    "nitelikDegeriGecersiz": "Nitelik değeri geçersiz: yalnız metin, sayı ya da liste olabilir; metin en fazla {max, number} karakter, liste en fazla {items, number} öğe.",
+    "ayniUrunAzOnceOlusturuldu": "Aynı adla bir ürün az önce oluşturuldu; Ürünlerim listesinden devam edin"
   },
   "guards": {
     "yetkisiz": "Yetkisiz",

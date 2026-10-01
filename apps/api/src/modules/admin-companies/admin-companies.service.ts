@@ -1,4 +1,5 @@
 import { i18nMessage } from "../../common/i18n/http-i18n";
+import { createHash } from "crypto";
 import { ALL_SEAT_PERMISSIONS } from "@rothern/shared";
 import { resolveCityId } from "../../common/geo/geo-index";
 import {
@@ -76,6 +77,12 @@ import { cancelOutgoingReferralInvites, cancelQueuedListingInvites } from "../..
  * üretiyordu.
  */
 const ANNOUNCE_MAX_TARGETS = 5000;
+
+/**
+ * Aynı yöneticinin aynı içerik + segmentle duyurusu bu pencerede ikinci kez
+ * gönderilmez (onayda çift tık / ağ tekrarı — arayüz testi FX-00 O-007).
+ */
+const ANNOUNCE_DEDUPE_MS = 120_000;
 
 /** CTA etiketi verilmeyen bildirimlerin varsayılan düğmesi. */
 const DEFAULT_CTA_KEY = "api.notifications.common.gitRothern" as ApiMessageKey;
@@ -176,6 +183,8 @@ function composeRejectReason(
 @Injectable()
 export class AdminCompaniesService {
   private readonly logger = new Logger(AdminCompaniesService.name);
+  /** Süreç içi duyuru gönderim hakları (anahtar → başlangıç ms; FX-00 O-007). */
+  private readonly announceClaims = new Map<string, number>();
 
   constructor(
     private readonly prisma: PrismaBypassService,
@@ -2241,6 +2250,53 @@ export class AdminCompaniesService {
         delivered: 0,
         truncated: exact > ANNOUNCE_MAX_TARGETS,
       };
+    }
+    // MÜKERRER KORUMA (arayüz testi FX-00 O-007): "Evet, Gönder"e çift tık iki
+    // istek de başarılı olup segmentteki her firmaya iki e-posta + iki bildirim
+    // gidiyordu. Hak SENKRON alınır (ilk await'ten önce — aynı süreçteki
+    // eşzamanlı istek göremeden geçemez); ayrıca son pencerede aynı konulu
+    // gönderim denetim kaydında varsa (başka örnek / sıralı tekrar) reddedilir.
+    const claimKey = createHash("sha256")
+      .update(
+        JSON.stringify([
+          adminId,
+          input.subject.trim(),
+          input.message.trim(),
+          input.tier ?? null,
+          input.country?.trim().toUpperCase() ?? null,
+          !!input.sendEmail,
+        ]),
+      )
+      .digest("hex");
+    const claimNow = Date.now();
+    for (const [k, t] of this.announceClaims) {
+      if (claimNow - t >= ANNOUNCE_DEDUPE_MS) this.announceClaims.delete(k);
+    }
+    if (this.announceClaims.has(claimKey)) {
+      throw new ConflictException(
+        i18nMessage("api.adminCompanies.ayniDuyuruAzOnceGonderildi", undefined, "ANNOUNCEMENT_DUPLICATE"),
+      );
+    }
+    this.announceClaims.set(claimKey, claimNow);
+    try {
+      const recentSame = await this.prisma.auditLog.findFirst({
+        where: {
+          action: "admin.announcement.sent",
+          actorId: adminId,
+          createdAt: { gte: new Date(claimNow - ANNOUNCE_DEDUPE_MS) },
+          metadata: { path: ["subject"], equals: input.subject },
+        },
+        select: { id: true },
+      });
+      if (recentSame) {
+        throw new ConflictException(
+          i18nMessage("api.adminCompanies.ayniDuyuruAzOnceGonderildi", undefined, "ANNOUNCEMENT_DUPLICATE"),
+        );
+      }
+    } catch (e) {
+      // Hak yalnız gönderim başladıysa tutulur; ret/okuma hatasında bırakılır.
+      this.announceClaims.delete(claimKey);
+      throw e;
     }
     // Perf (1000 firma): e-posta hedef alanları TEK sorguda çekilir (eski per-
     // firma notifyCompany.findUnique N+1'i kalktı); gönderim SERİ değil, sınırlı

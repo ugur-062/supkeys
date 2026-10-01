@@ -1257,6 +1257,12 @@ export class CompanyListingsService {
       const bidderSet = new Set(bidders.map((b) => b.bidderCompanyId));
       targets = targets.filter((id) => !bidderSet.has(id));
     }
+    // Açılış davetinde davet başına tek bildirim (arayüz testi FX-00 D-177):
+    // aynı anda elle eklenen davetli iki yoldan da e-posta alıyordu. Yalnız
+    // damgayı alanlar bildirilir; hatırlatma ve yeni tur damgaya bakmaz.
+    if (mode === "invitation") {
+      targets = await this.claimInvitationNotices(listingId, targets);
+    }
     const url = appRoutes.listing(this.webUrl(), listingId);
     // Davetliler BAŞKA firmadır → başlık onların dilinde (içerik çevirisi).
     const p = {
@@ -7048,13 +7054,21 @@ export class CompanyListingsService {
     // artık submittedAt'ı sıfırlar → yalnız taşınan, içeriği değişmemiş taslak
     // buraya gelebilir).
     if (revived) this.assertVerified(user, "bid");
-    await this.prisma.listingBid.update({
-      where: { id: bid.id },
+    // KOŞULLU yazım (arayüz testi FX-00 D-272): okunan süre ve durum hâlâ
+    // aynıysa uzatılır. Eşzamanlı ikinci "Geçerliliği Uzat" isteği eskiden
+    // süreyi ikinci kez ekliyordu; artık 409 alır, süre bir kez uzar.
+    const { count } = await this.prisma.listingBid.updateMany({
+      where: { id: bid.id, validityDays: bid.validityDays, status: bid.status },
       data: {
         validityDays: newValidityDays,
         ...(revived ? { status: "SUBMITTED" } : {}),
       },
     });
+    if (count !== 1) {
+      throw new ConflictException(
+        i18nMessage("api.companyListings.teklifGecerliligiAzOnceUzatildi", undefined, "BID_VALIDITY_CHANGED"),
+      );
+    }
     // INV-AUDIT-1: bağlayıcı teklifin ömrünü uzatan ticari işlem iz bırakır;
     // canlandırma SUBMITTED durum geçişidir → critical.
     await this.audit.log({
@@ -7186,6 +7200,27 @@ export class CompanyListingsService {
   }
 
   /**
+   * Davet bildirimi HAKKI — `notifiedAt` koşullu damgalanır, yalnız damgayı
+   * alan davetlilerin firma kimlikleri döner (arayüz testi FX-00 D-177). Açılış
+   * duyurusu, sonradan eklenen davetli bildirimi ve AI üye daveti aynı hakkı
+   * paylaşır → eşzamanlı yollar aynı firmaya iki davet e-postası atmaz.
+   * BYPASS: açılış cron'dan da gelir (tenant bağlamı yok).
+   */
+  private async claimInvitationNotices(listingId: string, companyIds: string[]): Promise<string[]> {
+    if (companyIds.length === 0) return [];
+    const rows = await this.bypass.$queryRaw<{ invitedCompanyId: string }[]>`
+      UPDATE listing_invitations
+         SET "notifiedAt" = now()
+       WHERE "listingId" = ${listingId}
+         AND "invitedCompanyId" = ANY(${companyIds}::text[])
+         AND "notifiedAt" IS NULL
+      RETURNING "invitedCompanyId"`;
+    const claimed = new Set(rows.map((r) => r.invitedCompanyId));
+    // Girdi sırası korunur (bildirim sırası deterministik kalsın).
+    return companyIds.filter((id) => claimed.has(id));
+  }
+
+  /**
    * Yayındaki (OPEN, embargosuz) talebe SONRADAN eklenen davetlilere davet
    * e-postası + zil. Tek kaynak: `addInvitations` ve `updateListing` (düzenleme
    * ekranında eklenen davetli — açılış duyurusu çoktan yapıldığı için
@@ -7195,6 +7230,10 @@ export class CompanyListingsService {
     listing: { id: string; title: string; number: string | null; type: ListingType },
     companyIds: string[],
   ): Promise<void> {
+    // Davet başına tek bildirim (arayüz testi FX-00 D-177): açılış duyurusu
+    // ile yarışan elle davet aynı firmaya iki e-posta atıyordu — yalnız
+    // damgayı alan davetliler bildirilir.
+    companyIds = await this.claimInvitationNotices(listing.id, companyIds);
     if (companyIds.length === 0) return;
     const listingId = listing.id;
     const url = appRoutes.listing(this.webUrl(), listingId);
@@ -7413,6 +7452,10 @@ export class CompanyListingsService {
     reasonOf: (id: string) => { productName?: string; category?: boolean },
     countryOf: Map<string, string | null>,
   ): Promise<void> {
+    // Davet başına tek bildirim (FX-00 D-177): açılış duyurusu bu davetliyi
+    // zaten duyurduysa ikinci kez gönderilmez.
+    companyIds = await this.claimInvitationNotices(listing.id, companyIds);
+    if (companyIds.length === 0) return;
     const portal = this.bidderPortal(listing.type);
     const recipients = await this.companyRecipients(companyIds, portal);
     const emails = [...recipients.values()].map((r) => r.email);

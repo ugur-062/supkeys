@@ -16,6 +16,7 @@ import {
 import { AdminShell } from "@/components/layout/admin-shell";
 import { PageHeader } from "@/components/list";
 import { Button } from "@/components/ui/button";
+import { ErrorState } from "@/components/ui/error-state";
 import {
   useAdminSystem,
   useClearSuppression,
@@ -400,16 +401,18 @@ export default function AdminSistemPage() {
 
 /** Zaman Tasarrufu parametreleri — paneldeki "kazanılan saat" hesabının
  *  birim süreleri (dk). Kaydet SUPER_ADMIN ister (BE guard); audit'e düşer. */
-const TS_FIELDS: { key: keyof TimeSavingsConfigRow; label: string; step?: string }[] = [
-  { key: "rfqMailPrepMin", label: "RFQ maili (dk × davet)" },
-  { key: "followupMin", label: "Hatırlatma (dk — v1'de hesaba katılmaz)" },
-  { key: "bidToExcelMin", label: "Teklif→Excel (dk × teklif)" },
-  { key: "bidItemFactor", label: "Kalem katsayısı", step: "0.05" },
-  { key: "comparisonTableMin", label: "Karşılaştırma tablosu (dk × satın alma talebi)" },
-  { key: "revisionRoundMin", label: "Revizyon turu (dk × tur)" },
-  { key: "approvalLoopMin", label: "Onay döngüsü (dk × onay)" },
-  { key: "poPrepMin", label: "PO hazırlama (dk × sipariş)" },
-  { key: "hourlyLaborCost", label: "Saatlik maliyet (₺, boş = TL gizli)" },
+// `max` API TimeSavingsConfigDto @Max ile birebir — aşan değer sunucunun alan
+// adı taşımayan 400'üne düşmeden alan adıyla reddedilir (arayüz testi FX-00 D-037).
+const TS_FIELDS: { key: keyof TimeSavingsConfigRow; label: string; step?: string; max: number }[] = [
+  { key: "rfqMailPrepMin", label: "RFQ maili (dk × davet)", max: 999 },
+  { key: "followupMin", label: "Hatırlatma (dk — v1'de hesaba katılmaz)", max: 999 },
+  { key: "bidToExcelMin", label: "Teklif→Excel (dk × teklif)", max: 999 },
+  { key: "bidItemFactor", label: "Kalem katsayısı", step: "0.05", max: 9 },
+  { key: "comparisonTableMin", label: "Karşılaştırma tablosu (dk × satın alma talebi)", max: 999 },
+  { key: "revisionRoundMin", label: "Revizyon turu (dk × tur)", max: 999 },
+  { key: "approvalLoopMin", label: "Onay döngüsü (dk × onay)", max: 999 },
+  { key: "poPrepMin", label: "PO hazırlama (dk × sipariş)", max: 999 },
+  { key: "hourlyLaborCost", label: "Saatlik maliyet (₺, boş = TL gizli)", max: 1_000_000 },
 ];
 
 const TS_DEFAULTS: TimeSavingsConfigRow = {
@@ -428,7 +431,12 @@ function TimeSavingsConfigSection() {
   const cfg = useTimeSavingsConfig();
   const update = useUpdateTimeSavingsConfig();
   const [form, setForm] = useState<Record<string, string>>({});
+  // Yapılandırma yüklenmeden form varsayılanlarla DOLDURULMAZ ve Kaydet kapalı
+  // kalır — yükleme hatasında varsayılanları kaydetmek gerçek ayarları ezerdi
+  // (arayüz testi FX-00 D-037).
+  const loaded = cfg.isSuccess;
   useEffect(() => {
+    if (!cfg.isSuccess) return;
     const src = cfg.data ?? TS_DEFAULTS;
     setForm(
       Object.fromEntries(
@@ -438,7 +446,7 @@ function TimeSavingsConfigSection() {
         ]),
       ),
     );
-  }, [cfg.data]);
+  }, [cfg.isSuccess, cfg.data]);
 
   return (
     <section className="border-admin-border bg-admin-surface rounded-xl border p-5">
@@ -449,6 +457,15 @@ function TimeSavingsConfigSection() {
         Firma panellerindeki &ldquo;~X saat kazandın&rdquo; hesabının birim
         süreleri. Boş bırakılan saatlik maliyet TL gösterimini kapatır.
       </p>
+      {cfg.isError ? (
+        <ErrorState
+          className="mt-4"
+          title="Parametreler yüklenemedi"
+          message="Kayıtlı değerler okunamadı; varsayılanlarla kaydetmek ayarları ezeceği için form kapalı."
+          onRetry={() => cfg.refetch()}
+        />
+      ) : null}
+      {loaded ? (
       <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
         {TS_FIELDS.map((f) => (
           <label key={f.key} className="flex flex-col gap-1">
@@ -458,6 +475,7 @@ function TimeSavingsConfigSection() {
             <Input
               type="number"
               min="0"
+              max={f.max}
               step={f.step ?? "0.5"}
               value={form[f.key] ?? ""}
               onChange={(e) =>
@@ -467,10 +485,12 @@ function TimeSavingsConfigSection() {
           </label>
         ))}
       </div>
+      ) : null}
       <div className="mt-4">
         <Button
           size="sm"
           loading={update.isPending}
+          disabled={!loaded}
           onClick={() => {
             const payload: Partial<TimeSavingsConfigRow> = {};
             for (const f of TS_FIELDS) {
@@ -484,12 +504,18 @@ function TimeSavingsConfigSection() {
                 toast.error(`Geçersiz değer: ${f.label}`);
                 return;
               }
+              if (n > f.max) {
+                toast.error(`${f.label}: en fazla ${f.max.toLocaleString("tr-TR")}`);
+                return;
+              }
               (payload as Record<string, number | null>)[f.key] = n;
             }
-            update.mutate(payload, {
-              onSuccess: () => toast.success("Parametreler kaydedildi"),
-              onError: (e: unknown) => toastApiError(e, "Kaydedilemedi"),
-            });
+            // Promise döner → admin Button iş bitene dek kilitli (çift tık
+            // ikinci istek atmaz).
+            return update.mutateAsync(payload).then(
+              () => toast.success("Parametreler kaydedildi"),
+              (e: unknown) => toastApiError(e, "Kaydedilemedi"),
+            );
           }}
         >
           Kaydet

@@ -53,6 +53,7 @@ import {
 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useEffect, useMemo, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 /** Cevap türü seçenekleri — etiket `answerType.<KOD>` anahtarından. */
@@ -144,8 +145,11 @@ function GroupTemplateDialog({
       return next;
     });
 
-  const pending = create.isPending || update.isPending;
-  const submit = async () => {
+  // Çift tık aynı grubu iki kez oluşturmasın (arayüz testi FX-00 O-031).
+  const lock = useSubmitLock();
+  const pending = create.isPending || update.isPending || lock.locked;
+  const submit = () => lock.run(doSubmit);
+  const doSubmit = async () => {
     if (name.trim().length < 2) {
       toast.error(t("grupAdiEnAz2"));
       return;
@@ -244,7 +248,7 @@ function GroupTemplateDialog({
         <Button plain onClick={onClose}>
           {t("vazgec")}
         </Button>
-        <Button onClick={submit} disabled={pending}>
+        <Button onClick={() => void submit()} disabled={pending}>
           {editId ? t("kaydet") : t("grubuOlustur")}
         </Button>
       </DialogActions>
@@ -291,7 +295,10 @@ function QuestionTemplateDialog({
   const setRow = (i: number, patch: Partial<QuestionRow>) =>
     setRows((s) => s.map((r, idx) => (idx === i ? { ...r, ...patch } : r)));
 
-  const submit = async () => {
+  // Çift tık kopya soru seti açmasın (arayüz testi FX-00 D-041).
+  const lock = useSubmitLock();
+  const submit = () => lock.run(doSubmit);
+  const doSubmit = async () => {
     if (name.trim().length < 2) {
       toast.error(t("setAdiEnAz2"));
       return;
@@ -420,8 +427,8 @@ function QuestionTemplateDialog({
           {t("vazgec")}
         </Button>
         <Button
-          onClick={submit}
-          disabled={save.isPending || update.isPending || existing.isLoading}
+          onClick={() => void submit()}
+          disabled={save.isPending || update.isPending || existing.isLoading || lock.locked}
         >
           {t("kaydet")}
         </Button>

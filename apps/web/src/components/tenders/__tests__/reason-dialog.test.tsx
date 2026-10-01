@@ -1,5 +1,5 @@
 // @vitest-environment jsdom
-import { render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { ReasonDialog } from "../reason-dialog";
@@ -118,5 +118,26 @@ describe("ReasonDialog", () => {
     unmount();
     setup({ maxLength: 500 });
     expect(screen.getByRole("textbox")).toHaveAttribute("maxLength", "500");
+  });
+
+  it("hızlı çift tık tek gönderim üretir; iş bitene dek onay kilitli (arayüz testi FX-00)", async () => {
+    let resolve!: () => void;
+    const onSubmit = vi.fn(
+      () =>
+        new Promise<void>((r) => {
+          resolve = r;
+        }),
+    );
+    setup({ onSubmit, confirmLabel: "Ele" });
+    const confirm = screen.getByRole("button", { name: "Ele" });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+    expect(onSubmit).toHaveBeenCalledTimes(1);
+    expect(confirm).toBeDisabled();
+    await act(async () => {
+      resolve();
+    });
+    // Diyalog açık kaldı (çağıran kapatmadı) → yeniden denenebilir.
+    expect(confirm).not.toBeDisabled();
   });
 });

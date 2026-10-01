@@ -38,6 +38,7 @@ import { CityCombobox } from "@/components/ui/city-combobox";
 import { Check } from "lucide-react";
 import { useLocale, useTranslations } from "next-intl";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 const COMPANY_TYPE_VALUES = ["LIMITED", "JOINT_STOCK", "SOLE_PROPRIETOR", "OTHER"] as const;
@@ -77,6 +78,9 @@ export function OnboardingClient() {
   const me = useCompanyMe(!!authUser);
   const complete = useCompleteOnboarding();
   const vies = useViesCheck();
+  // Çift tık iki VIES isteği / iki denetim kaydı üretmesin (arayüz testi FX-00 D-350).
+  const viesLock = useSubmitLock();
+  const finishLock = useSubmitLock();
   const roots = useRoots();
 
   const STEPS = [t("step1"), t("step2"), t("step3")];
@@ -197,7 +201,8 @@ export function OnboardingClient() {
     f.mainCategoryIds.length <= MAX_COMPANY_MAIN_CATEGORIES;
 
   const isEuVat = EU_VAT_COUNTRIES.has(f.country);
-  const checkVies = async () => {
+  const checkVies = () => viesLock.run(doCheckVies);
+  const doCheckVies = async () => {
     try {
       const r = await vies.mutateAsync({
         countryCode: f.country,
@@ -394,8 +399,8 @@ export function OnboardingClient() {
                 {isEuVat ? (
                   <button
                     type="button"
-                    disabled={f.taxNumber.trim().length < 4 || vies.isPending}
-                    onClick={checkVies}
+                    disabled={f.taxNumber.trim().length < 4 || vies.isPending || viesLock.locked}
+                    onClick={() => void checkVies()}
                     className="mt-1 text-xs font-semibold text-blue-600 hover:underline disabled:opacity-50"
                   >
                     {vies.isPending ? t("viesChecking") : t("viesCheck")}
@@ -715,8 +720,8 @@ export function OnboardingClient() {
               {t("next")}
             </Button>
           ) : (
-            <Button disabled={!f.declarationAccepted || complete.isPending} onClick={submit}>
-              {complete.isPending ? t("saving") : t("finish")}
+            <Button disabled={!f.declarationAccepted || complete.isPending || finishLock.locked} onClick={() => void finishLock.run(submit)}>
+              {complete.isPending || finishLock.locked ? t("saving") : t("finish")}
             </Button>
           )}
         </div>

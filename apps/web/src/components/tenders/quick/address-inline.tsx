@@ -5,6 +5,7 @@ import { useSaveAddress } from "@/hooks/use-company-addresses";
 import { useCityLabel } from "@/i18n/domain";
 import { TR_PROVINCES } from "@rothern/shared";
 import { useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { CountryCombobox } from "@/components/ui/country-combobox";
 import { CityCombobox } from "@/components/ui/city-combobox";
@@ -30,8 +31,11 @@ export function AddressInline({ onCreated, onCancel }: { onCreated: (id: string)
   const [city, setCity] = useState("");
   const [cityId, setCityId] = useState<number | null>(null);
   const [line, setLine] = useState("");
+  // Çift tık iki aynı adres açmasın (arayüz testi FX-00 D-040).
+  const lock = useSubmitLock();
 
-  const submit = async () => {
+  const submit = () => lock.run(doSubmit);
+  const doSubmit = async () => {
     if (!title.trim() || !line.trim()) {
       toast.error(t("baslikVeAdresZorunlu"));
       return;
@@ -80,7 +84,7 @@ export function AddressInline({ onCreated, onCancel }: { onCreated: (id: string)
       )}
       <input value={line} onChange={(e) => setLine(e.target.value)} placeholder={t("acikAdres")} aria-label={t("acikAdres")} className={INPUT} />
       <div className="flex gap-2">
-        <button type="button" onClick={() => void submit()} disabled={save.isPending} className="rounded-full bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
+        <button type="button" onClick={() => void submit()} disabled={save.isPending || lock.locked} className="rounded-full bg-blue-600 px-3 py-1.5 text-sm font-semibold text-white hover:bg-blue-700 disabled:opacity-50">
           {t("adresiKaydet")}
         </button>
         <button type="button" onClick={onCancel} className="rounded-full px-3 py-1.5 text-sm font-medium text-zinc-600 hover:text-zinc-900">

@@ -232,13 +232,6 @@ export class CompanyUsersService {
     // rol atama yalnız yönetim (users:manage) — guard zaten kapıda.
     this.assertCanGrantPermissions(actor, permissions, []);
     this.assertCanGrantRoles(actor, roles);
-    // Faz K/5: koltuk daveti kapıdan geçer (grup başına 1) — bekleyen koltuk
-    // davetleri de sayılır.
-    await this.assertSeatAvailable(this.prisma, actor.companyId, {
-      groups: seatGroupsOf({ permissions }),
-      includePending: true,
-      context: "invite",
-    });
     const email = dto.email.toLowerCase().trim();
 
     const existing = await this.prisma.companyUser.findUnique({
@@ -248,36 +241,50 @@ export class CompanyUsersService {
     if (existing && !existing.deletedAt) {
       throw new ConflictException(i18nMessage("api.companyUsers.buEPostaZatenKayitli"));
     }
-    const pending = await this.prisma.companyUserInvitation.findFirst({
-      where: {
-        companyId: actor.companyId,
-        email,
-        status: "PENDING",
-        expiresAt: { gt: new Date() },
-      },
-      select: { id: true },
-    });
-    if (pending) {
-      throw new ConflictException(
-        i18nMessage("api.companyUsers.buEPostayaBekleyenBirDavet"),
-      );
-    }
     await this.assertInvitationMailBudget(actor.companyId);
 
-    const inv = await this.prisma.companyUserInvitation.create({
-      data: {
-        companyId: actor.companyId,
-        email,
-        roles,
-        permissions,
-        token: crypto.randomBytes(32).toString("hex"),
-        expiresAt: new Date(
-          Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000,
-        ),
-        invitedById: actor.userId,
-        // Davet dili (diyalogdaki seçim); yoksa gönderimde davet edenin dili.
-        locale: isLocale(dto.locale) ? dto.locale : null,
-      },
+    // Koltuk kapısı + "bekleyen davet var mı" + oluşturma TEK kilitte (firma
+    // satırı FOR UPDATE — arayüz testi FX-00 O-001): eşzamanlı iki davet
+    // eskiden ikisi de "bekleyen yok" görüp aynı adrese iki davet ve iki
+    // e-posta üretiyor, bekleyen koltuk sayısı paket sınırını aşabiliyordu.
+    // E-posta işlem bittikten SONRA gönderilir.
+    const inv = await this.lockedAdminTx(actor.companyId, async (tx) => {
+      // Faz K/5: koltuk daveti kapıdan geçer (grup başına 1) — bekleyen koltuk
+      // davetleri de sayılır.
+      await this.assertSeatAvailable(tx, actor.companyId, {
+        groups: seatGroupsOf({ permissions }),
+        includePending: true,
+        context: "invite",
+      });
+      const pending = await tx.companyUserInvitation.findFirst({
+        where: {
+          companyId: actor.companyId,
+          email,
+          status: "PENDING",
+          expiresAt: { gt: new Date() },
+        },
+        select: { id: true },
+      });
+      if (pending) {
+        throw new ConflictException(
+          i18nMessage("api.companyUsers.buEPostayaBekleyenBirDavet"),
+        );
+      }
+      return tx.companyUserInvitation.create({
+        data: {
+          companyId: actor.companyId,
+          email,
+          roles,
+          permissions,
+          token: crypto.randomBytes(32).toString("hex"),
+          expiresAt: new Date(
+            Date.now() + INVITATION_TTL_DAYS * 24 * 60 * 60 * 1000,
+          ),
+          invitedById: actor.userId,
+          // Davet dili (diyalogdaki seçim); yoksa gönderimde davet edenin dili.
+          locale: isLocale(dto.locale) ? dto.locale : null,
+        },
+      });
     });
     // INV-AUDIT-1: ilk yetki verilişi (davet) iz bırakır — e-posta (PII)
     // metadata'ya YAZILMAZ, davet id + verilen izinler.

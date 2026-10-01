@@ -18,6 +18,7 @@ import { Link } from "@/i18n/navigation";
 import { useSearchParams } from "next/navigation";
 import { useRouter } from "@/i18n/navigation";
 import { useEffect, useRef } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 import { VERIFICATION_HREF } from "./packages-view";
 
@@ -131,15 +132,25 @@ function Checkout({
     t("mailKonu", { name: plan.name, company: companyName }),
   )}&body=${encodeURIComponent(t("mailGovde", { name: plan.name, company: companyName }))}`;
 
-  const payNow = async () => {
-    try {
-      await upgrade.mutateAsync();
-      toast.success(t("paketiAcildi", { name: plan.name }));
-      router.push("/company/satinalma");
-    } catch (err) {
-      toast.error(extractErrorMessage(err, t("paketAcilamadi")));
-    }
-  };
+  // Çift tık iki yükseltme isteği / iki toast üretmesin (arayüz testi FX-00
+  // D-171). Başarıda panele gidilir → kilit bırakılmaz.
+  const payLock = useSubmitLock();
+  const payNow = () =>
+    payLock
+      .run(
+        async () => {
+          try {
+            await upgrade.mutateAsync();
+          } catch (err) {
+            toast.error(extractErrorMessage(err, t("paketAcilamadi")));
+            throw err;
+          }
+          toast.success(t("paketiAcildi", { name: plan.name }));
+          router.push("/company/satinalma");
+        },
+        { keepOnSuccess: true },
+      )
+      .catch(() => {});
 
   return (
     <div className="mx-auto w-full max-w-5xl px-4 py-8 sm:px-6 lg:py-12">
@@ -243,11 +254,11 @@ function Checkout({
             <Button
               color="blue"
               className="mt-6 w-full"
-              disabled={upgrade.isPending}
-              onClick={payNow}
+              disabled={upgrade.isPending || payLock.locked}
+              onClick={() => void payNow()}
             >
               <CreditCardIcon data-slot="icon" />
-              {upgrade.isPending ? t("isleniyor") : t("satinAl")}
+              {upgrade.isPending || payLock.locked ? t("isleniyor") : t("satinAl")}
             </Button>
           ) : (
             // Ödeme altyapısı gelene dek TEK eylem talep. "Ödeme yakında"

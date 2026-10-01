@@ -74,6 +74,7 @@ import {
 } from "lucide-react";
 import { Link } from "@/i18n/navigation";
 import { useMemo, useState } from "react";
+import { useDialogSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 /**
@@ -683,9 +684,12 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
     return { valid, invalid };
   }, [raw]);
   const overLimit = parsed.valid.length > 50;
-  const pending = single.isPending || batch.isPending;
+  // Çift tık aynı adrese iki davet e-postası atmasın (arayüz testi FX-00 O-093).
+  const lock = useDialogSubmitLock(open);
+  const pending = single.isPending || batch.isPending || lock.locked;
 
-  const submit = async () => {
+  const submit = () => lock.run(doSubmit);
+  const doSubmit = async () => {
     if (parsed.valid.length === 0 || overLimit) return;
     try {
       if (parsed.valid.length === 1) {
@@ -816,7 +820,7 @@ function InviteDialog({ open, onClose }: { open: boolean; onClose: () => void })
           {result ? t("kapat") : t("vazgec")}
         </Button>
         {!result ? (
-          <Button onClick={submit} disabled={pending || parsed.valid.length === 0 || overLimit}>
+          <Button onClick={() => void submit()} disabled={pending || parsed.valid.length === 0 || overLimit}>
             {pending
               ? t("gonderiliyor")
               : parsed.valid.length > 1

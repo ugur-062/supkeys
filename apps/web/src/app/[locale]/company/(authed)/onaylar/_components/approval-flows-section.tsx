@@ -53,6 +53,7 @@ import {
   Users2,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 // Rol adları `useRoleLabel` (web.domain.role); kapsam etiketi katalogda
@@ -478,7 +479,10 @@ function FlowWizard({
   );
   const [editingStep, setEditingStep] = useState<number | "new" | null>(null);
 
-  const busy = create.isPending || update.isPending || setStatus.isPending;
+  // Taslak Kaydet / Kaydet ve Aktifleştir tek uçuşta: çift tık aynı akışı iki
+  // kez oluşturmaz (arayüz testi FX-00 D-068).
+  const saveLock = useSubmitLock();
+  const busy = create.isPending || update.isPending || setStatus.isPending || saveLock.locked;
 
   const nameById = useMemo(
     () => new Map(approvers.map((a) => [a.id, a.name])),
@@ -515,7 +519,8 @@ function FlowWizard({
     })),
   });
 
-  const save = async (activate: boolean) => {
+  const save = (activate: boolean) => saveLock.run(() => doSave(activate));
+  const doSave = async (activate: boolean) => {
     try {
       let id = flow?.id;
       if (flow) {

@@ -2,6 +2,7 @@ import { i18nMessage } from "../../../common/i18n/http-i18n";
 import { localizeDefaultAddressTitle } from "../../../common/company/default-address-title";
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   Logger,
@@ -75,6 +76,13 @@ const ORDERS_LIST_CAP = 1000;
 // TTK 23 muayene/ayıp ihbarı penceresi — teslimden itibaren gün. Tek pencere
 // (2/8 açık/gizli ayrımı hukuki nitelendirme, buton değil): en geniş süreyi ver.
 const DEFECT_NOTICE_WINDOW_DAYS = 8;
+
+/**
+ * Aynı kişinin aynı tutar + notla tekrar bildirimi bu pencere içinde mükerrer
+ * sayılır (çift tık / ağ tekrarı — arayüz testi FX-00 O-002). Bilinçli iki
+ * ayrı aynı tutarlı havale bu süreden sonra ya da farklı notla kaydedilir.
+ */
+const PAYMENT_DUPLICATE_WINDOW_MS = 60_000;
 
 @Injectable()
 export class CompanyOrdersService {
@@ -1877,6 +1885,27 @@ export class CompanyOrdersService {
           i18nMessage("api.companyOrders.kalanOdemeBuTutariAsanOdeme", {
             toLocaleString: formatMoney(remaining.toNumber(), cur, currentLocale()),
           }),
+        );
+      }
+      // Mükerrer bildirim (arayüz testi FX-00 O-002): aynı kişinin aynı tutar
+      // ve notla az önce açtığı, onay bekleyen kayıt varsa ikincisi açılmaz —
+      // çift tık iki "onay bekliyor" kaydı ve satıcıya iki e-posta üretiyordu;
+      // satıcı ikisini de onaylarsa peşin eşiği yanlışlıkla dolabilirdi. Sipariş
+      // satırı kilitli olduğundan eşzamanlı ikinci istek ilkini görür.
+      const duplicate = await tx.companyOrderPayment.findFirst({
+        where: {
+          orderId: id,
+          status: "AWAITING_CONFIRMATION",
+          recordedByUserId: user.userId,
+          amount: inputDec,
+          note: input.note?.trim() || null,
+          createdAt: { gte: new Date(Date.now() - PAYMENT_DUPLICATE_WINDOW_MS) },
+        },
+        select: { id: true },
+      });
+      if (duplicate) {
+        throw new ConflictException(
+          i18nMessage("api.companyOrders.ayniOdemeAzOnceBildirildi", undefined, "DUPLICATE_PAYMENT"),
         );
       }
       const p = await tx.companyOrderPayment.create({

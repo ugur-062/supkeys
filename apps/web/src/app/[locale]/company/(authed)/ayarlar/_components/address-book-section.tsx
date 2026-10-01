@@ -33,6 +33,7 @@ import { CityCombobox } from "@/components/ui/city-combobox";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { useSubmitLock } from "@/hooks/use-submit-lock";
 import { toast } from "sonner";
 
 const TYPE_ORDER: CompanyAddressType[] = ["FATURA", "TESLIMAT", "ILETISIM"];
@@ -186,6 +187,8 @@ function AddressDialog({
 }) {
   const t = useTranslations("web.panel.settings.addressBookSection");
   const save = useSaveAddress();
+  // Çift tık iki adres açmasın (arayüz testi FX-00 O-001).
+  const lock = useSubmitLock();
   // Yeni adresin ülkesi varsayılan olarak firmanın ülkesi (eskiden her zaman TR).
   const companyCountry = useCompanyAuthStore((st) => st.company?.country) ?? "TR";
   const [f, setF] = useState({
@@ -365,8 +368,8 @@ function AddressDialog({
         <Button plain onClick={onClose}>
           {t("vazgec")}
         </Button>
-        <Button onClick={submit} disabled={save.isPending}>
-          {save.isPending ? t("kaydediliyor") : address ? t("kaydet") : t("ekle")}
+        <Button onClick={() => void lock.run(submit)} disabled={save.isPending || lock.locked}>
+          {save.isPending || lock.locked ? t("kaydediliyor") : address ? t("kaydet") : t("ekle")}
         </Button>
       </DialogActions>
     </Dialog>
