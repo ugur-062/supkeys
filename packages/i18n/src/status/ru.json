@@ -4309,6 +4309,36 @@
     "status": "reviewed",
     "at": "2026-09-24"
   },
+  "api.domain.bidStatus.AWARDED_PARTIAL": {
+    "hash": "ca57863f0f",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.bidStatus.DRAFT": {
+    "hash": "25f1fe1f49",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.bidStatus.LOST": {
+    "hash": "0698e7c49f",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.bidStatus.SUBMITTED": {
+    "hash": "34b46bd982",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.bidStatus.WITHDRAWN": {
+    "hash": "6d31ceb41e",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.bidStatus.WON": {
+    "hash": "3110638bd4",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "api.domain.deliveryTerm.CFR": {
     "hash": "3803961c4c",
     "status": "reviewed",
@@ -4383,6 +4413,101 @@
     "hash": "c5b3ad1db7",
     "status": "reviewed",
     "at": "2026-09-30"
+  },
+  "api.domain.listingStatus.AWARDED": {
+    "hash": "0dbadb331f",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.listingStatus.CANCELLED": {
+    "hash": "cd4f5794ef",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.listingStatus.CLOSED": {
+    "hash": "2c2eb27401",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.listingStatus.CLOSED_NO_AWARD": {
+    "hash": "5c623a1e39",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.listingStatus.DRAFT": {
+    "hash": "25f1fe1f49",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.listingStatus.IN_APPROVAL": {
+    "hash": "f06fe21ab4",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.listingStatus.IN_AWARD": {
+    "hash": "34b46bd982",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.listingStatus.IN_AWARD_APPROVAL": {
+    "hash": "742efdc18a",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.listingStatus.OPEN": {
+    "hash": "02a0704a83",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.orderStatus.ACCEPTED": {
+    "hash": "0c4fdda107",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.orderStatus.CANCELLED": {
+    "hash": "2d6d91a71e",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.orderStatus.COMPLETED": {
+    "hash": "0dbadb331f",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.orderStatus.CREATED": {
+    "hash": "c58a8561e6",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.orderStatus.DELIVERED": {
+    "hash": "559b504675",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.orderStatus.DISPUTED": {
+    "hash": "40ff6a6e08",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.orderStatus.IN_DELIVERY": {
+    "hash": "98791819cc",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.orderStatus.IN_DELIVERY_PICKUP": {
+    "hash": "da44a1aab2",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.orderStatus.PENDING": {
+    "hash": "f06fe21ab4",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
+  "api.domain.orderStatus.REJECTED": {
+    "hash": "db011d4879",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "api.domain.paymentCategory.ADVANCE": {
     "hash": "af57122cbb",

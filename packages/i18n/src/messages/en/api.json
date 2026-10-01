@@ -1931,6 +1931,37 @@
       "LETTER_OF_CREDIT": "Letter of credit",
       "CASH_AGAINST_DOCS": "Cash against documents",
       "CUSTOM": "Custom"
+    },
+    "listingStatus": {
+      "DRAFT": "Draft",
+      "IN_APPROVAL": "Awaiting approval",
+      "OPEN": "Published",
+      "CLOSED": "Closed to quotes",
+      "IN_AWARD": "Under evaluation",
+      "IN_AWARD_APPROVAL": "Award approval",
+      "AWARDED": "Completed",
+      "CLOSED_NO_AWARD": "Closed without award",
+      "CANCELLED": "Canceled/Closed"
+    },
+    "orderStatus": {
+      "PENDING": "Pending approval",
+      "ACCEPTED": "Approved",
+      "CREATED": "New",
+      "IN_DELIVERY": "Shipped",
+      "IN_DELIVERY_PICKUP": "Ready for pickup",
+      "DELIVERED": "Received",
+      "COMPLETED": "Completed",
+      "REJECTED": "Rejected",
+      "CANCELLED": "Canceled",
+      "DISPUTED": "Disputed"
+    },
+    "bidStatus": {
+      "DRAFT": "Draft",
+      "SUBMITTED": "Under review",
+      "WON": "Won",
+      "AWARDED_PARTIAL": "Partially won",
+      "LOST": "Not selected",
+      "WITHDRAWN": "Withdrawn"
     }
   }
 }

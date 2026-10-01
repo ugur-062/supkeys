@@ -1931,6 +1931,37 @@
       "LETTER_OF_CREDIT": "Аккредитив",
       "CASH_AGAINST_DOCS": "Оплата против документов",
       "CUSTOM": "Особые условия"
+    },
+    "listingStatus": {
+      "DRAFT": "Черновик",
+      "IN_APPROVAL": "На согласовании",
+      "OPEN": "Опубликовано",
+      "CLOSED": "Закрыто для предложений",
+      "IN_AWARD": "На оценке",
+      "IN_AWARD_APPROVAL": "Согласование присуждения",
+      "AWARDED": "Завершено",
+      "CLOSED_NO_AWARD": "Закрыто без присуждения",
+      "CANCELLED": "Отменено/Закрыто"
+    },
+    "orderStatus": {
+      "PENDING": "Ожидает подтверждения",
+      "ACCEPTED": "Подтверждён",
+      "CREATED": "Новый",
+      "IN_DELIVERY": "Отправлен",
+      "IN_DELIVERY_PICKUP": "Готов к получению",
+      "DELIVERED": "Получен",
+      "COMPLETED": "Завершён",
+      "REJECTED": "Отклонён",
+      "CANCELLED": "Отменён",
+      "DISPUTED": "Спорный"
+    },
+    "bidStatus": {
+      "DRAFT": "Черновик",
+      "SUBMITTED": "На рассмотрении",
+      "WON": "Выиграно",
+      "AWARDED_PARTIAL": "Выиграно частично",
+      "LOST": "Не выбрано",
+      "WITHDRAWN": "Отозвано"
     }
   }
 }

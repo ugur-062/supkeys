@@ -47,8 +47,10 @@ import {
   canListMyBids,
   canListMyTenders,
   canSearchOpen,
+  localizeToolCodes,
   toolDefsForUser,
   trimList,
+  type ToolStatusKind,
   type Portal,
 } from "./assistant-tools";
 import { sanitizeAiDraft } from "../tender-extract/ai-draft-sanitizer";
@@ -579,34 +581,39 @@ export class AssistantService {
     portals: Set<Portal>,
     call: AiToolCall,
   ): Promise<Record<string, unknown>> {
+    // D-357: durum/teslim/ödeme kodları istek dilinde etikete çevrilir —
+    // model ham kodu ("OPEN") görüp kendi çevirisini uydurmasın.
+    const locale = currentLocale();
+    const labeled = <T>(rows: T, kind: ToolStatusKind) =>
+      localizeToolCodes(rows, kind, locale) as T;
     try {
       switch (call.name) {
         case TOOL_NAMES.listMyTenders: {
           const type = "ALIM" as const;
           if (!canListMyTenders(portals, type)) return { ...NEUTRAL_ERROR };
-          return trimList(await this.listings.listTenders(user.companyId, type));
+          return trimList(labeled(await this.listings.listTenders(user.companyId, type), "listing"));
         }
         case TOOL_NAMES.searchOpenTenders: {
           const type = "ALIM" as const;
           if (!canSearchOpen(portals, type)) return { ...NEUTRAL_ERROR };
           const res = (await this.listings.sellerTenders(user, type)) as unknown;
-          return this.capObject(res);
+          return this.capObject(labeled(res, "listing"));
         }
         case TOOL_NAMES.listMyBids: {
           if (!canListMyBids(portals)) return { ...NEUTRAL_ERROR };
-          return trimList(await this.listings.listMyBids(user.companyId));
+          return trimList(labeled(await this.listings.listMyBids(user.companyId), "bid"));
         }
         case TOOL_NAMES.getTenderDetail: {
           const id = String(call.args.id ?? "");
           if (!id) return { ...NEUTRAL_ERROR };
-          return this.capObject(await this.listings.getOne(user, id));
+          return this.capObject(labeled(await this.listings.getOne(user, id), "listing"));
         }
         case TOOL_NAMES.listMyOrders:
-          return trimList(await this.orders.list(user));
+          return trimList(labeled(await this.orders.list(user), "order"));
         case TOOL_NAMES.getOrderDetail: {
           const id = String(call.args.id ?? "");
           if (!id) return { ...NEUTRAL_ERROR };
-          return this.capObject(await this.orders.getOne(user, id));
+          return this.capObject(labeled(await this.orders.getOne(user, id), "order"));
         }
         case TOOL_NAMES.listMyConnections:
           return trimList(await this.connections.list(user.companyId));

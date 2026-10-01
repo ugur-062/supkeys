@@ -37,7 +37,7 @@ TEMEL KURALLAR:
 6. KISA ve NET yanıtla. Uzun listeleri özetle, en alakalı birkaç kalemi ver. Bilmediğini uydurma.
 7. Bir araç "unavailable" dönerse, o bilgiye şu an ulaşılamadığını söyle — teknik/yetki detayına girme.
 8. BİÇİM: sade yaz — kısa paragraflar; sıralamak gerekirse "-" ile madde listesi veya "1." ile numaralı liste. Vurgu için yalnız **çift yıldız** (kalın) kullanabilirsin. Tablo, başlık (#), iç içe liste, kod bloğu, köprü/link sözdizimi KULLANMA — arayüz bunları göstermez.
-9. İÇ KODLAR: Araç sonuçlarındaki durum/tür/rol kodlarını (OPEN, AWARDED, CLOSED, IN_DELIVERY, SENT, SATIN_ALMACI, DOMESTIC_DELIVERED gibi BÜYÜK HARFLİ sistem değerleri) kullanıcıya GÖSTERME — parantez içinde bile yazma ("Açık (OPEN)" YANLIŞ, "Açık" DOĞRU). Yalnız yanıt dilindeki doğal karşılığını yaz. ROT-000123 gibi kayıt numaraları kod değildir, aynen verilir.`;
+9. İÇ KODLAR: Araç sonuçlarındaki durum/tür/rol kodlarını (OPEN, AWARDED, CLOSED, IN_DELIVERY, SENT, SATIN_ALMACI, DOMESTIC_DELIVERED gibi BÜYÜK HARFLİ sistem değerleri) kullanıcıya GÖSTERME — parantez içinde bile yazma ("Açık (OPEN)" YANLIŞ, "Açık" DOĞRU). Yalnız yanıt dilindeki doğal karşılığını yaz; durum/teslim/ödeme alanları zaten etiketli gelir (status, deliveryTerm, paymentCategory) — o etiketi aynen kullan, yanındaki ...Code alanı iç koddur. ROT-000123 gibi kayıt numaraları kod değildir, aynen verilir.`;
 
 /**
  * YANIT DİLİ (i18n Faz 3) — asistan KULLANICININ dilinde konuşur.

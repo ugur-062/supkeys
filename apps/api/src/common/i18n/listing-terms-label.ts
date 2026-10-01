@@ -1,5 +1,12 @@
-import { ListingDeliveryTerm, ListingPaymentCategory } from "@rothern/db";
+import {
+  CompanyOrderStatus,
+  ListingBidStatus,
+  ListingDeliveryTerm,
+  ListingPaymentCategory,
+  ListingStatus,
+} from "@rothern/db";
 import type { Locale } from "@rothern/i18n";
+import { sellerShipsGoods } from "@rothern/shared";
 import { tApi } from "./i18n.service";
 
 /**
@@ -22,4 +29,43 @@ export function paymentCategoryLabel(code: string | null | undefined, locale?: L
   if (!code) return null;
   if (!PAYMENT_CATEGORY_CODES.has(code)) return code;
   return tApi(`api.domain.paymentCategory.${code}` as never, undefined, locale);
+}
+
+/**
+ * Durum etiketleri — okuyucunun dilinde (arayüz testi D-357). Katalog
+ * `api.domain.{listingStatus,orderStatus,bidStatus}.<KOD>` web
+ * `web.domain.listingStatus` / `web.domain.orderStatus` /
+ * `web.panel.trade.myBidsList.status` ile AYNI metinler: asistan modeli ham
+ * kodu ("OPEN") görüp kendi çevirisini uyduruyordu ("Açık (OPEN)"), arayüz
+ * "Yayında" diyordu. Bilinmeyen kod → null (çağıran ham değeri korur).
+ */
+const LISTING_STATUS_CODES = new Set<string>(Object.values(ListingStatus));
+const ORDER_STATUS_CODES = new Set<string>(Object.values(CompanyOrderStatus));
+const BID_STATUS_CODES = new Set<string>(Object.values(ListingBidStatus));
+
+export function listingStatusLabel(code: string, locale?: Locale): string | null {
+  if (!LISTING_STATUS_CODES.has(code)) return null;
+  return tApi(`api.domain.listingStatus.${code}` as never, undefined, locale);
+}
+
+/**
+ * Sipariş durumu — IN_DELIVERY teslim şekline duyarlı (web
+ * `orderStatusMeta` ile aynı): satıcı taşımıyorsa "Teslime Hazır".
+ */
+export function orderStatusLabel(
+  code: string,
+  deliveryTerm: string | null | undefined,
+  locale?: Locale,
+): string | null {
+  if (!ORDER_STATUS_CODES.has(code)) return null;
+  const key =
+    code === "IN_DELIVERY" && deliveryTerm && !sellerShipsGoods(deliveryTerm)
+      ? "IN_DELIVERY_PICKUP"
+      : code;
+  return tApi(`api.domain.orderStatus.${key}` as never, undefined, locale);
+}
+
+export function bidStatusLabel(code: string, locale?: Locale): string | null {
+  if (!BID_STATUS_CODES.has(code)) return null;
+  return tApi(`api.domain.bidStatus.${code}` as never, undefined, locale);
 }

@@ -5,6 +5,14 @@ import {
   SELL_SEAT_PERMISSIONS,
   tierAtLeast,
 } from "@rothern/shared";
+import type { Locale } from "@rothern/i18n";
+import {
+  bidStatusLabel,
+  deliveryTermLabel,
+  listingStatusLabel,
+  orderStatusLabel,
+  paymentCategoryLabel,
+} from "../../../common/i18n/listing-terms-label";
 import { hasCompanyPermission } from "../../company-auth/permissions/company-permissions.constants";
 import type { AiToolDef } from "../providers/ai-provider.interface";
 
@@ -336,4 +344,74 @@ export function trimList<T>(rows: T[], max = 30): { items: T[]; total: number; t
     total: rows.length,
     truncated: rows.length > max,
   };
+}
+
+/** Araç sonucundaki bir `status` alanının hangi varlığa ait olduğu. */
+export type ToolStatusKind = "listing" | "bid" | "order";
+
+/**
+ * Alt alan adı → içindeki `status`'un varlığı. Listede olmayan alt nesnelerin
+ * durumu ETİKETLENMEZ (ör. ödeme/revizyon durumu): PENDING/CANCELLED gibi
+ * kodlar varlıklar arasında ortak, bağlamsız eşleme yanlış etiket üretirdi.
+ */
+const STATUS_KIND_BY_KEY: Record<string, ToolStatusKind> = {
+  listing: "listing",
+  bids: "bid",
+  myBid: "bid",
+  orders: "order",
+  myOrder: "order",
+};
+
+function isPlainObject(v: unknown): v is Record<string, unknown> {
+  if (v === null || typeof v !== "object") return false;
+  const proto = Object.getPrototypeOf(v);
+  return proto === Object.prototype || proto === null;
+}
+
+/**
+ * Arayüz testi D-357 (kök düzeltme): araç sonuçlarındaki durum / teslim /
+ * ödeme KODLARINI modele vermeden önce istek dilinde etikete çevirir —
+ * `status: "Yayında"` + `statusCode: "OPEN"`. Model eskiden ham kodu görüp
+ * kendi çevirisini uyduruyordu ("Açık (OPEN)"; arayüz "Yayında" der). Etiket
+ * arayüzle aynı katalogdan gelir; kod ayrı alanda kalır (model akıl yürütsün,
+ * ama yazacağı alan etikettir). Bilinmeyen kod olduğu gibi kalır.
+ * `kind`: kök kayıtların varlığı (alt nesneler `STATUS_KIND_BY_KEY`'den).
+ */
+export function localizeToolCodes(
+  value: unknown,
+  kind: ToolStatusKind | null,
+  locale: Locale,
+): unknown {
+  if (Array.isArray(value)) {
+    return value.map((v) => localizeToolCodes(v, kind, locale));
+  }
+  if (!isPlainObject(value)) return value;
+  const out: Record<string, unknown> = {};
+  for (const [key, v] of Object.entries(value)) {
+    if (typeof v === "string") {
+      let label: string | null = null;
+      if (key === "status" && kind === "listing") label = listingStatusLabel(v, locale);
+      else if (key === "status" && kind === "bid") label = bidStatusLabel(v, locale);
+      else if (key === "status" && kind === "order") {
+        const term = typeof value.deliveryTerm === "string" ? value.deliveryTerm : null;
+        label = orderStatusLabel(v, term, locale);
+      } else if (key === "myBidStatus") label = bidStatusLabel(v, locale);
+      else if (key === "deliveryTerm") {
+        const l = deliveryTermLabel(v, locale);
+        label = l !== v ? l : null;
+      } else if (key === "paymentCategory") {
+        const l = paymentCategoryLabel(v, locale);
+        label = l !== v ? l : null;
+      }
+      if (label) {
+        out[key] = label;
+        out[`${key}Code`] = v;
+        continue;
+      }
+      out[key] = v;
+      continue;
+    }
+    out[key] = localizeToolCodes(v, STATUS_KIND_BY_KEY[key] ?? null, locale);
+  }
+  return out;
 }

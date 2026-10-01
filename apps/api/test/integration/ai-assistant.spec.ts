@@ -385,6 +385,10 @@ describe("Faz AI-2 — cross-tenant + portal (yetki bedava)", () => {
     const listResult = responses.find((r) => "total" in r);
     expect(listResult).toBeDefined();
     expect((listResult as { total: number }).total).toBe(1);
+    // D-357: model ham kodu değil arayüzdeki etiketi görür; kod ayrı alanda.
+    const row = (listResult as { items: Record<string, unknown>[] }).items[0]!;
+    expect(row.status).toBe("Yayında");
+    expect(row.statusCode).toBe("OPEN");
   });
 });
 
