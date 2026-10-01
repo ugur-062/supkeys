@@ -22,11 +22,7 @@ import {
   Min,
   MinLength,
   ArrayMaxSize,
-  Validate,
-  ValidateIf,
   ValidateNested,
-  ValidatorConstraint,
-  type ValidatorConstraintInterface,
 } from "class-validator";
 import { Type } from "class-transformer";
 import {
@@ -35,8 +31,6 @@ import {
   MIN_MONEY,
   UNITS,
   PRODUCT_MEDIA_TIER,
-  isHttpsUrl,
-  productVideoEmbedUrl,
 } from "@rothern/shared";
 import { Currency } from "@rothern/db";
 import { Trim } from "../../common/decorators/trim.decorator";
@@ -80,26 +74,6 @@ class PriceTierDto {
   @Max(MAX_MONEY) unitPrice!: number;
 }
 
-/**
- * Video adresi İZİNLİ LİSTEDE olmalı (YouTube/Vimeo, https) — web yalnız
- * bunları gömer; eskiden yalnız uzunluk denetleniyordu, `javascript:` bile
- * kaydediliyordu (arayüz testi Y-11). Tek kaynak `productVideoEmbedUrl`.
- */
-@ValidatorConstraint({ name: "productVideoUrl" })
-class ProductVideoUrlConstraint implements ValidatorConstraintInterface {
-  validate(value: unknown): boolean {
-    return typeof value === "string" && productVideoEmbedUrl(value) !== null;
-  }
-}
-
-/** Dış bağlantı yalnız https (Y-11). */
-@ValidatorConstraint({ name: "httpsUrl" })
-class HttpsUrlConstraint implements ValidatorConstraintInterface {
-  validate(value: unknown): boolean {
-    return typeof value === "string" && isHttpsUrl(value);
-  }
-}
-
 class ProductDocDto {
   @Trim() @IsString() @MaxLength(500) url!: string;
   @Trim() @IsString() @MaxLength(200) title!: string;
@@ -134,13 +108,15 @@ class ShowcaseDto {
   @IsString({ each: true }) @MaxLength(500, { each: true })
   images?: string[];
 
-  // Boş metin = alanı temizle (null gibi); dolu değer izinli listeden geçmeli.
-  @IsOptional() @ValidateIf((_, v) => v !== "") @Trim() @IsString() @MaxLength(500)
-  @Validate(ProductVideoUrlConstraint, { message: () => tApi("api.dto.companyItems.gecersizVideoBaglantisi") })
-  videoUrl?: string;
-  @IsOptional() @ValidateIf((_, v) => v !== "") @Trim() @IsString() @MaxLength(500)
-  @Validate(HttpsUrlConstraint, { message: () => tApi("api.dto.companyItems.gecersizDisBaglanti") })
-  externalUrl?: string;
+  /**
+   * Video İZİNLİ LİSTESİ (YouTube/Vimeo) ve dış bağlantının https kuralı
+   * SERVİSTE, yalnız DEĞİŞEN değerde (`assertShowcaseLinks`, Y-11 gözden
+   * geçirme): DTO'da kalsaydı kural öncesinden kalmış eski değer (http://,
+   * şemasız, Dailymotion) her kaydı 400'e düşürürdü — paketi düşmüş satıcı
+   * gizli video alanını düzeltemediği için ürününü hiç kaydedemezdi.
+   */
+  @IsOptional() @Trim() @IsString() @MaxLength(500) videoUrl?: string;
+  @IsOptional() @Trim() @IsString() @MaxLength(500) externalUrl?: string;
 
   @IsOptional() @IsArray() @ArrayMaxSize(5)
   @ValidateNested({ each: true }) @Type(() => ProductDocDto)

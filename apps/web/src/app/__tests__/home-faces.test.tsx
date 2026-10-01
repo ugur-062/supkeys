@@ -16,6 +16,7 @@ import { AudienceProvider } from "@/components/marketplace/audience-switch";
 import { HomeHero } from "@/components/marketplace/home-hero";
 import { HomeBuyer } from "@/components/marketplace/home-buyer";
 import { HomeSupplier } from "@/components/marketplace/home-supplier";
+import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 const product = (i: number) => ({
   slug: `urun-${i}`,
@@ -119,6 +120,29 @@ describe("Anasayfa — panel ekranlarının anonim hâli", () => {
       "href",
       "/company/kayit?intent=talep",
     );
+  });
+
+  it("oturumlu üyede alıcı 'Talep aç' notu paketine göre (T-02): Silver kilitli, Gold sihirbaz", async () => {
+    const user = userEvent.setup();
+    useCompanyAuthStore.setState({
+      isHydrated: true,
+      user: { id: "u", permissions: ["buy:view", "buy:listing:manage"], roles: [] } as never,
+      company: { tier: "SILVER", companyVerificationStatus: "VERIFIED" } as never,
+    });
+    try {
+      const { unmount } = hero();
+      await user.click(screen.getByRole("radio", { name: "Alıcıyım" }));
+      expect(screen.getByRole("link", { name: /Talep aç · Gold/ })).toHaveAttribute("href", "/company/premium");
+      unmount();
+      useCompanyAuthStore.setState({ company: { tier: "GOLD", companyVerificationStatus: "VERIFIED" } as never });
+      hero();
+      expect(screen.getByRole("link", { name: /^Talep aç/ })).toHaveAttribute(
+        "href",
+        "/company/satinalma/taleplerim/yeni",
+      );
+    } finally {
+      useCompanyAuthStore.setState({ user: null, company: null });
+    }
   });
 
   it("ALICI gövdesi: 'size uygun' ve 'öne çıkan' YOK — hero'dan sonra DOĞRUDAN kategoriler (2026-09-22)", () => {

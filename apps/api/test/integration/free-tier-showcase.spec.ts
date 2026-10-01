@@ -6,7 +6,7 @@
  *  - Paketin karşılığı: dizin/ürün sıralamasında öncelik, sınırsız ürün
  *    (`PRODUCT_LIMITS`), belge/video (`PRODUCT_MEDIA_TIER`).
  */
-import { ConflictException, ForbiddenException } from "@nestjs/common";
+import { BadRequestException, ConflictException, ForbiddenException } from "@nestjs/common";
 import { PRODUCT_LIMITS } from "@rothern/shared";
 import { buildDirectory } from "../../src/common/company/company-directory";
 import { enforceProductLimit } from "../../src/common/company/product-limit";
@@ -116,7 +116,7 @@ describe("ücretsiz vitrin — ürün tavanı ve medya", () => {
       documents: [{ url: "https://cdn.rothern.com/eski.pdf", title: "Eski katalog" }],
     });
     const saved = await svc.updateShowcase(std.auth, p.id, {
-      videoUrl: "https://www.youtube.com/watch?v=abc",
+      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
       documents: [{ url: "https://cdn.rothern.com/yeni.pdf", title: "Yeni" }],
     });
     expect(saved.videoUrl).toBeNull();
@@ -125,11 +125,60 @@ describe("ücretsiz vitrin — ürün tavanı ve medya", () => {
     const silver = await makeCompanyWithUser(prisma, { tier: "SILVER" });
     const q = await draftProduct(silver.company.id, silver.user.id);
     const ok = await svc.updateShowcase(silver.auth, q.id, {
-      videoUrl: "https://www.youtube.com/watch?v=abc",
+      videoUrl: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
       documents: [{ url: "https://cdn.rothern.com/yeni.pdf", title: "Yeni" }],
     });
-    expect(ok.videoUrl).toBe("https://www.youtube.com/watch?v=abc");
+    expect(ok.videoUrl).toBe("https://www.youtube.com/watch?v=dQw4w9WgXcQ");
     expect(ok.documents).toEqual([{ url: "https://cdn.rothern.com/yeni.pdf", title: "Yeni" }]);
+  });
+
+  it("video izinli listesi ve https kuralı YALNIZ DEĞİŞEN değerde (Y-11 gözden geçirme): eski değer kaydı düşürmez", async () => {
+    const svc = items();
+    const read = (id: string) => prisma.companyItem.findUniqueOrThrow({ where: { id } });
+    const silver = await makeCompanyWithUser(prisma, { tier: "SILVER" });
+    // Kural öncesinden kalmış değerler (izinli liste dışı video, http bağlantı).
+    const p = await draftProduct(silver.company.id, silver.user.id, {
+      videoUrl: "https://www.dailymotion.com/video/x8abc",
+      externalUrl: "http://firma.com/urun",
+    });
+    // Form iki alanı da AYNEN geri gönderir; başka alan değişir → kayıt geçer.
+    await svc.updateShowcase(silver.auth, p.id, {
+      videoUrl: "https://www.dailymotion.com/video/x8abc",
+      externalUrl: "http://firma.com/urun",
+      description: "z".repeat(120),
+    });
+    expect(await read(p.id)).toMatchObject({
+      description: "z".repeat(120),
+      videoUrl: "https://www.dailymotion.com/video/x8abc",
+      externalUrl: "http://firma.com/urun",
+    });
+    // YENİ geçersiz değer reddedilir.
+    for (const patch of [
+      { videoUrl: "https://example.com/video.mp4" },
+      { videoUrl: "javascript:alert(1)" },
+      { externalUrl: "javascript:alert(1)" },
+      { externalUrl: "ftp://firma.com" },
+    ]) {
+      await expect(svc.updateShowcase(silver.auth, p.id, patch)).rejects.toBeInstanceOf(BadRequestException);
+    }
+    // Geçerli yeni değer yazılır, boş metin temizler.
+    await svc.updateShowcase(silver.auth, p.id, { videoUrl: "https://vimeo.com/76979871", externalUrl: "" });
+    expect(await read(p.id)).toMatchObject({ videoUrl: "https://vimeo.com/76979871", externalUrl: null });
+
+    // Paketi Silver altına düşmüş satıcı: video alanı formda gizli ve yazılmaz —
+    // gizli eski değer de gönderilen değer de denetlenmez, kayıt geçer.
+    const std = await makeCompanyWithUser(prisma, { tier: "STANDART" });
+    const q = await draftProduct(std.company.id, std.user.id, { videoUrl: "www.youtube.com/watch?v=dQw4w9WgXcQ" });
+    await svc.updateShowcase(std.auth, q.id, { videoUrl: "javascript:alert(1)", description: "w".repeat(120) });
+    expect(await read(q.id)).toMatchObject({
+      description: "w".repeat(120),
+      videoUrl: "www.youtube.com/watch?v=dQw4w9WgXcQ",
+    });
+    // Yeni ürün de aynı kuraldan geçer — kayıt AÇILMADAN (yetim taslak yok).
+    await expect(
+      svc.createProduct(silver.auth, { name: "Videolu", videoUrl: "https://example.com/v.mp4" }),
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(await prisma.companyItem.count({ where: { companyId: silver.company.id, name: "Videolu" } })).toBe(0);
   });
 
   it("belge yükleme uçları paket kapılı (CompanyPaidTierGuard metadata'sı)", () => {

@@ -1,7 +1,8 @@
 // @vitest-environment jsdom
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it } from "vitest";
-import { MemberCta, SessionSwap } from "../member-cta";
+import { MemberCta, OpenRequestLink, SessionSwap } from "../member-cta";
+import { PublicEmptyState } from "../public-empty-state";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 
 /**
@@ -78,5 +79,52 @@ describe("SessionSwap", () => {
     signIn("STANDART");
     render(<SessionSwap member={<span>üye</span>}>{<span>misafir</span>}</SessionSwap>);
     expect(screen.getByText("üye")).toBeInTheDocument();
+  });
+});
+
+/**
+ * Gözden geçirme (webA-03): dar "Talep aç" girişleri (hero şeridi, boş durum,
+ * akış adımı, yüzen düğme) çıplak `signupHref("talep")` basıyordu — oturumlu
+ * üye kayıt sayfasından sessizce `/company`ye atılıyordu.
+ */
+describe("OpenRequestLink", () => {
+  const listingPerms = ["buy:view", "buy:listing:manage"];
+
+  it("misafir: kayıt (dönüş adresi yok)", () => {
+    render(<OpenRequestLink label="Talep aç" prefill="pano" />);
+    const href = screen.getByRole("link", { name: "Talep aç" }).getAttribute("href") ?? "";
+    expect(href).toContain("/company/kayit?intent=talep");
+    expect(href).not.toContain("redirect");
+  });
+
+  it("Gold ∧ talep yetkisi: doğrudan sihirbaz, arama terimi ön-dolu", () => {
+    signIn("GOLD", "VERIFIED", listingPerms);
+    render(<OpenRequestLink label="Talep aç" prefill="pano kutusu" />);
+    expect(screen.getByRole("link", { name: "Talep aç" })).toHaveAttribute(
+      "href",
+      "/company/satinalma/taleplerim/yeni?q=pano%20kutusu",
+    );
+  });
+
+  it("Silver: kilitli 'Talep aç · Gold' paket sayfasına; doğrulanmamış ücretsiz: doğrulamaya", () => {
+    signIn("SILVER", "VERIFIED", listingPerms);
+    const { unmount } = render(<OpenRequestLink label="Talep aç" />);
+    expect(screen.getByRole("link", { name: /Talep aç · Gold/ })).toHaveAttribute("href", "/company/premium");
+    unmount();
+    signIn("STANDART", "UNVERIFIED", listingPerms);
+    render(<OpenRequestLink label="Talep aç" />);
+    expect(screen.getByRole("link", { name: /Talep aç · Gold/ })).toHaveAttribute("href", "/company/ayarlar/dogrulama");
+  });
+
+  it("Gold ama talep yetkisi yok: bağlantı çizilmez", () => {
+    signIn("GOLD", "VERIFIED", ["buy:view"]);
+    render(<OpenRequestLink label="Talep aç" />);
+    expect(screen.queryByRole("link")).toBeNull();
+  });
+
+  it("boş durumun 'Talep aç' eylemi de üyenin paketine göre", () => {
+    signIn("SILVER", "VERIFIED", listingPerms);
+    render(<PublicEmptyState title="Talep bulunamadı." openRequest={{ label: "Talep aç" }} />);
+    expect(screen.getByRole("link", { name: /Talep aç · Gold/ })).toHaveAttribute("href", "/company/premium");
   });
 });

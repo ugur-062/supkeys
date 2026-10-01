@@ -24,7 +24,9 @@ import {
   tokenizeQuery, categoryPrefix, type TierName,
   defaultCurrencyForCountry,
   isCurrencyCode,
-  productPriceBase } from "@rothern/shared";
+  productPriceBase,
+  isHttpsUrl,
+  productVideoEmbedUrl } from "@rothern/shared";
 import { fxRate, resolveCompanyCurrency } from "../../common/currency/fx-rates";
 import {
   ATTRIBUTE_LIST_MAX_ITEMS,
@@ -1141,6 +1143,7 @@ export class CompanyItemsService {
     // eskiden yalnız açıklama gönderen istek görsel/anahtar/nitelik/fiyatı
     // siliyordu. Tek kaynak `showcase-merge.ts`.
     const merged = mergeShowcaseInput(before, input);
+    this.assertShowcaseLinks(before, merged, mediaAllowed);
     const patch = await this.normalizeShowcase(
       before,
       mediaAllowed
@@ -1216,6 +1219,10 @@ export class CompanyItemsService {
   async createProduct(user: AuthenticatedCompanyUser, input: ShowcaseInput & { unit?: string; unitCode?: string }) {
     const name = input.name?.trim();
     if (!name) throw new BadRequestException(i18nMessage("api.companyItems.urunAdiZorunlu"));
+    // Bağlantı kuralları kayıt AÇILMADAN (`updateShowcase` aynı denetimi yapar,
+    // ama orada atılan 400 yetim taslak bırakır, yeniden deneme mükerrer
+    // korumasına — DUPLICATE_PRODUCT — takılırdı).
+    this.assertShowcaseLinks({ videoUrl: null, externalUrl: null }, input, tierAtLeast(user.tier, PRODUCT_MEDIA_TIER));
     const base = this.normalize({
       name,
       unit: input.unit ?? "adet",
@@ -1393,6 +1400,35 @@ export class CompanyItemsService {
       });
       return rows.map((r) => r.slug).filter((s): s is string => !!s);
     });
+  }
+
+  /**
+   * BAĞLANTI KURALLARI (arayüz testi Y-11, gözden geçirme): video İZİNLİ
+   * LİSTEDE (YouTube/Vimeo — web yalnız bunları gömer, `productVideoEmbedUrl`),
+   * dış bağlantı yalnız https (`isHttpsUrl`). Denetim YALNIZ DEĞİŞEN değerde:
+   * kural öncesinden kalmış eski değer (http://, şemasız adres, Dailymotion)
+   * dokunulmadıkça kaydı düşürmez — form her kayıtta iki alanı da geri
+   * gönderiyor; DTO'daki eski denetim satıcıyı ürününü (fiyat, açıklama…)
+   * hiç kaydedemez hâle getiriyordu. Video paketin altındaysa (Silver altı)
+   * alan zaten yazılmaz (`before.videoUrl` korunur) — denetlenmez.
+   */
+  private assertShowcaseLinks(
+    before: { videoUrl: string | null; externalUrl: string | null },
+    next: { videoUrl?: string | null; externalUrl?: string | null },
+    mediaAllowed: boolean,
+  ) {
+    const changed = (a: string | null | undefined, b: string | null | undefined) => {
+      const v = a?.trim() || null;
+      return v !== null && v !== (b?.trim() || null) ? v : null;
+    };
+    const video = mediaAllowed ? changed(next.videoUrl, before.videoUrl) : null;
+    if (video && productVideoEmbedUrl(video) === null) {
+      throw new BadRequestException(i18nMessage("api.dto.companyItems.gecersizVideoBaglantisi"));
+    }
+    const external = changed(next.externalUrl, before.externalUrl);
+    if (external && !isHttpsUrl(external)) {
+      throw new BadRequestException(i18nMessage("api.dto.companyItems.gecersizDisBaglanti"));
+    }
   }
 
   private async normalizeShowcase(

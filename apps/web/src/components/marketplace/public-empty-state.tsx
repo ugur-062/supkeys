@@ -1,6 +1,7 @@
 import { useTranslations } from "next-intl";
 import { Link } from "@/i18n/navigation";
 import { AccentLink } from "@/components/ui/accent-fill";
+import { OpenRequestLink } from "./member-cta";
 
 /**
  * TEK BOŞ DURUM — bütün herkese açık listeler (2026-09-04).
@@ -15,6 +16,7 @@ export function PublicEmptyState({
   title,
   clearHref,
   extra,
+  openRequest,
 }: {
   /** Tam cümle: "Bu kriterlerle ürün bulunamadı." */
   title: string;
@@ -22,6 +24,11 @@ export function PublicEmptyState({
   clearHref?: string;
   /** Ek eylem — ürün dizininde "Bu ürün için talep aç" (arama terimi ön-dolu). */
   extra?: { label: string; href: string };
+  /**
+   * "Talep aç" eylemi — üyenin paketine göre hedef seçen `OpenRequestLink`
+   * (misafire kayıt, Gold alıcıya sihirbaz, diğer üyeye "… · Gold"; T-02).
+   */
+  openRequest?: { label: string; prefill?: string };
 }) {
   const t = useTranslations("web.marketplace.empty");
   // BEYAZ yüzey: katalog sayfalarının zemini artık tonlu (`MARKET_GROUND`);
@@ -37,6 +44,14 @@ export function PublicEmptyState({
           >
             {extra.label}
           </AccentLink>
+        ) : null}
+        {openRequest ? (
+          <OpenRequestLink
+            label={openRequest.label}
+            prefill={openRequest.prefill}
+            accent
+            className="rounded-full px-4 py-2 font-semibold text-white transition"
+          />
         ) : null}
         {clearHref ? (
           <Link

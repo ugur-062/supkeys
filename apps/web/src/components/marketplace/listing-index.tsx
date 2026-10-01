@@ -21,7 +21,6 @@ import { canonicalListingListPage } from "@/lib/seo/landing";
 import { pageQuery } from "@/lib/seo/meta";
 import { MARKETPLACE_ROUTES, listingHref, type PublicListingType } from "@/lib/public/marketplace";
 import { fetchFacets, fetchListings } from "@/lib/public/marketplace-api";
-import { signupHref } from "@/lib/public/visibility";
 import type { SearchParamsLike } from "@/lib/public/filter-param-utils";
 
 /**
@@ -116,7 +115,7 @@ export async function ListingIndex({ title, lead, searchParams }: Props) {
             <PublicEmptyState
               title={hasFilter ? t("listingEmptyFilteredTitle") : t("listingEmptyTitle")}
               clearHref={hasFilter ? basePath : undefined}
-              extra={{ label: t("openRequest"), href: signupHref("talep") }}
+              openRequest={{ label: t("openRequest") }}
             />
           ) : (
             <ResultGrid count={page.items.length} heading={t("listingResults")} layout="list">

@@ -1,9 +1,9 @@
 import { useTranslations } from "next-intl";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
-import { signupHref } from "@/lib/public/visibility";
 import { ArrowRightIcon } from "@heroicons/react/20/solid";
 import { LockKeyhole, Search, Send } from "lucide-react";
 import { Link } from "@/i18n/navigation";
+import { OpenRequestLink } from "./member-cta";
 
 /**
  * ALICI AKIŞI — üç adım, yatay (B3, 2026-09-04). "Talep aç" bannerının
@@ -14,13 +14,14 @@ import { Link } from "@/i18n/navigation";
  * aşağıdaki `TrustBand`da — iki bölüm iki tarafı anlatır, kopya değil.
  */
 const STEP_ICONS = [Search, Send, LockKeyhole] as const;
+const STEP_LINK_CLS = "mt-2 inline-flex items-center gap-1 text-sm font-semibold text-zinc-950 hover:text-zinc-600";
 
 export function HowItWorksFlow() {
   const t = useTranslations("web.marketing.flow");
   const STEPS = [
-    { icon: STEP_ICONS[0], title: t("step1Title"), body: t("step1Body"), link: { label: t("step1Link"), href: MARKETPLACE_ROUTES.products } },
-    { icon: STEP_ICONS[1], title: t("step2Title"), body: t("step2Body"), link: { label: t("step2Link"), href: signupHref("talep") } },
-    { icon: STEP_ICONS[2], title: t("step3Title"), body: t("step3Body"), link: { label: t("step3Link"), href: "/nasil-calisir" } },
+    { icon: STEP_ICONS[0], title: t("step1Title"), body: t("step1Body"), link: { label: t("step1Link"), href: MARKETPLACE_ROUTES.products, openRequest: false } },
+    { icon: STEP_ICONS[1], title: t("step2Title"), body: t("step2Body"), link: { label: t("step2Link"), openRequest: true } },
+    { icon: STEP_ICONS[2], title: t("step3Title"), body: t("step3Body"), link: { label: t("step3Link"), href: "/nasil-calisir", openRequest: false } },
   ];
   return (
     <section aria-labelledby="alici-akisi" className="mx-auto max-w-7xl px-6 py-12 lg:px-8">
@@ -49,13 +50,19 @@ export function HowItWorksFlow() {
                 {s.title}
               </p>
               <p className="mt-1 text-sm/6 text-zinc-600">{s.body}</p>
-              <Link
-                href={s.link.href}
-                className="mt-2 inline-flex items-center gap-1 text-sm font-semibold text-zinc-950 hover:text-zinc-600"
-              >
-                {s.link.label}
-                <ArrowRightIcon aria-hidden className="size-4" />
-              </Link>
+              {/* "Teklif iste" adımı = "Talep aç": üyenin paketine göre hedef (T-02). */}
+              {s.link.openRequest ? (
+                <OpenRequestLink
+                  label={s.link.label}
+                  className={STEP_LINK_CLS}
+                  trailing={<ArrowRightIcon aria-hidden className="size-4" />}
+                />
+              ) : (
+                <Link href={s.link.href ?? "/"} className={STEP_LINK_CLS}>
+                  {s.link.label}
+                  <ArrowRightIcon aria-hidden className="size-4" />
+                </Link>
+              )}
             </div>
           </li>
         ))}

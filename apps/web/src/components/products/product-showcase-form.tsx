@@ -203,12 +203,14 @@ export function ProductShowcaseForm({
       priceCurrency,
       moq: moq ? Number(moq) : null,
       externalUrl: externalUrl.trim() || null,
-      videoUrl: videoUrl.trim() || null,
-      documents,
+      // Video ve belge PAKETLİ (`PRODUCT_MEDIA_TIER`): paketin altında alanlar
+      // çizilmez ve GÖNDERİLMEZ — API zaten yok sayıyor; görünmeyen eski bir
+      // değer kaydı etkilemesin (Y-11 gözden geçirme).
+      ...(mediaAllowed ? { videoUrl: videoUrl.trim() || null, documents } : {}),
       unitCode,
       unit: unitName,
     }),
-    [name, description, categoryId, images, keywords, attributes, priceMode, priceAmount, priceTiers, priceCurrency, moq, externalUrl, videoUrl, documents, unitCode, unitName],
+    [name, description, categoryId, images, keywords, attributes, priceMode, priceAmount, priceTiers, priceCurrency, moq, externalUrl, videoUrl, documents, unitCode, unitName, mediaAllowed],
   );
 
   /**

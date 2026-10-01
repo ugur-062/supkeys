@@ -7,6 +7,8 @@ import { HeroDecor, PanelHeroSearch } from "@/components/dashboard/panel-hero-se
 import { BUYER_OBJECTS, BUYER_WIDGETS, SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
 import { MARKETPLACE_ROUTES } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
+import { gateHref } from "@/lib/public/member-gate";
+import { NEW_REQUEST_PATH, useBuyingGate } from "./member-cta";
 import { Suspense } from "react";
 
 /**
@@ -43,6 +45,22 @@ export function HomeHero() {
   const { audience } = useAudience();
   const t = useTranslations("web.marketing.home");
   const supplier = audience === "supplier";
+  const tGate = useTranslations("web.marketplace.memberGate");
+  /* ALICI "TALEP AÇ" NOTU üyenin paketine göre (arayüz testi webA-03 gözden
+     geçirme, T-02): eskiden herkese `signupHref("talep")` — oturumlu üye kayıt
+     sayfasından sessizce `/company`ye atılıyordu. Misafir → kayıt; Gold ∧
+     yetki → sihirbaz; Gold değil → "Talep aç · Gold" (doğrulama/paket); yetki
+     yok → not çizilmez. Kapı hidrasyondan önce "guest" (sunucu HTML'i aynı). */
+  const gate = useBuyingGate("listing");
+  const lockedHref = gateHref(gate);
+  const buyerCtaNote =
+    gate === "noPermission"
+      ? undefined
+      : {
+          text: t("buyerCtaText"),
+          label: lockedHref ? tGate("lockedLabel", { label: t("buyerCtaLabel") }) : t("buyerCtaLabel"),
+          href: lockedHref ?? (gate === "ok" ? NEW_REQUEST_PATH : signupHref("talep")),
+        };
 
   return (
     /* HERO KAPSAYICISI — fotoğraf header'ın ALT ÇİZGİSİNDEN başlar (2026-09-09,
@@ -117,11 +135,7 @@ export function HomeHero() {
           backdrop
           widgets={BUYER_WIDGETS}
           objects={BUYER_OBJECTS}
-          ctaNote={{
-            text: t("buyerCtaText"),
-            label: t("buyerCtaLabel"),
-            href: signupHref("talep"),
-          }}
+          ctaNote={buyerCtaNote}
         />
       )}
       </Suspense>

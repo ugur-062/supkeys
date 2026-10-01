@@ -5,8 +5,10 @@ import { LockClosedIcon } from "@heroicons/react/20/solid";
 import type { ReactNode } from "react";
 import { Link } from "@/i18n/navigation";
 import { useHydrated } from "@/hooks/use-hydrated";
+import { useAccentFill } from "@/components/ui/accent-fill";
 import { useCompanyAuthStore } from "@/lib/company-auth/store";
 import { buyingGate, gateHref, type BuyingAction, type BuyingGate } from "@/lib/public/member-gate";
+import { signupHref } from "@/lib/public/visibility";
 import { cn } from "@/lib/utils";
 
 /**
@@ -63,6 +65,63 @@ export function MemberCta({
     );
   }
   return <BuyingGateNotice gate={gate} action={action} />;
+}
+
+/** Satınalma talep sihirbazı — Gold ∧ `buy:listing:manage` üyenin "Talep aç" hedefi. */
+export const NEW_REQUEST_PATH = "/company/satinalma/taleplerim/yeni";
+
+/** Gold ∧ yetkili üyenin "Talep aç" hedefi (arama terimi ön-dolu). */
+export function newRequestHref(prefill?: string): string {
+  return `${NEW_REQUEST_PATH}${prefill ? `?q=${encodeURIComponent(prefill)}` : ""}`;
+}
+
+/**
+ * HERKESE AÇIK "TALEP AÇ" BAĞLANTISI — dar yerler (hero şeridi, boş durum,
+ * akış adımı, yüzen düğme) için TEK bileşen (arayüz testi webA-03 gözden
+ * geçirme, T-02). Eskiden bu yerler çıplak `signupHref("talep")` basıyordu:
+ * oturumlu üye kayıt sayfasına gidip oradan sessizce `/company`ye atılıyordu
+ * — Gold olmayana önceden uyarı yoktu, Gold alıcı da sihirbaza ulaşmıyordu.
+ *
+ * misafir → kayıt (dönüş adresi TAŞIMAZ, Y-03) · Gold ∧ yetki → sihirbaz ·
+ * Gold değil → kilitli "Talep aç · Gold" (doğrulama/paket) · yetki yok → hiç.
+ */
+export function OpenRequestLink({
+  label,
+  prefill,
+  className,
+  accent = false,
+  trailing,
+}: {
+  label: string;
+  /** Sihirbaza taşınan arama terimi. */
+  prefill?: string;
+  className?: string;
+  /** Portal dolgu rengi (`AccentLink` ile aynı) — kilitli hâl de aynı rengi alır. */
+  accent?: boolean;
+  /** Etiketten sonra çizilen ikon (ör. ok). */
+  trailing?: ReactNode;
+}) {
+  const fill = useAccentFill();
+  const cls = accent ? cn(className, fill) : className;
+  return (
+    <MemberCta
+      action="listing"
+      compact
+      compactClassName={cls}
+      compactLabel={label}
+      member={
+        <Link href={newRequestHref(prefill)} className={cls}>
+          {label}
+          {trailing}
+        </Link>
+      }
+    >
+      <Link href={signupHref("talep")} className={cls}>
+        {label}
+        {trailing}
+      </Link>
+    </MemberCta>
+  );
 }
 
 function LockedGateLink({

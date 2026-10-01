@@ -5,6 +5,7 @@ import { useTranslations } from "next-intl";
 import { AudienceSwitch, useAudience } from "./audience-switch";
 import { SearchTypeahead } from "./search-typeahead";
 import { TrustStrip } from "./trust-strip";
+import { OpenRequestLink } from "./member-cta";
 import { Heading } from "@/components/catalyst/heading";
 import { categoryHref } from "@/lib/public/marketplace";
 import { signupHref } from "@/lib/public/visibility";
@@ -80,13 +81,22 @@ export function MarketplaceHero({
           {/* Şerit — alıcıda RFQ ("Post your request"), tedarikçide vitrin. */}
           <p className="mx-auto mt-6 inline-flex max-w-full flex-wrap items-center justify-center gap-x-2 gap-y-1 rounded-full bg-zinc-50 px-4 py-2 text-sm text-zinc-600 ring-1 ring-zinc-950/5">
             <span>{supplier ? t("supplierCtaLead") : t("buyerCtaLead")}</span>
-            <Link
-              href={signupHref(supplier ? "vitrin" : "talep")}
-              className="inline-flex items-center gap-1 font-semibold text-zinc-950 hover:text-zinc-600"
-            >
-              {supplier ? t("supplierCtaLabel") : t("buyerCtaLabel")}
-              <ArrowRightIcon aria-hidden className="size-4" />
-            </Link>
+            {/* Alıcı "Talep aç" üyenin paketine göre (T-02): Gold olmayana kilitli. */}
+            {supplier ? (
+              <Link
+                href={signupHref("vitrin")}
+                className="inline-flex items-center gap-1 font-semibold text-zinc-950 hover:text-zinc-600"
+              >
+                {t("supplierCtaLabel")}
+                <ArrowRightIcon aria-hidden className="size-4" />
+              </Link>
+            ) : (
+              <OpenRequestLink
+                label={t("buyerCtaLabel")}
+                className="inline-flex items-center gap-1 font-semibold text-zinc-950 hover:text-zinc-600"
+                trailing={<ArrowRightIcon aria-hidden className="size-4" />}
+              />
+            )}
             <span>{supplier ? t("supplierCtaTail") : t("buyerCtaTail")}</span>
           </p>
         </div>

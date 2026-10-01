@@ -2,7 +2,7 @@ import { getLocale, getTranslations } from "next-intl/server";
 import { FilterResults, FilterShell, MobileFilterButton, ResultCount } from "./filter-shell";
 import { Pagination } from "@/components/ui/pagination";
 import { ProductCard } from "./product-card";
-import { MemberCta } from "./member-cta";
+import { OpenRequestLink } from "./member-cta";
 import { ActiveFilterChips, ProductFilters, SortControl, ViewToggle } from "./product-filters";
 import { PublicEmptyState } from "./public-empty-state";
 import { PublicListPage, ResultGrid } from "./public-list-page";
@@ -26,7 +26,6 @@ import {
   toProductListParams,
   type SearchParamsLike,
 } from "@/lib/public/product-filter-params";
-import { signupHref } from "@/lib/public/visibility";
 import { Link } from "@/i18n/navigation";
 import type { ReactNode } from "react";
 
@@ -136,10 +135,8 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
     });
   const crumbs = category ? [{ name: category.name, path: landingPath }] : (trail ?? []);
   const hasFilter = buildProductFilterQuery({ ...state, q: undefined, sort: undefined, page: 1 }) !== "";
-  // Misafir kaydı DÖNÜŞ ADRESİ TAŞIMAZ (Y-03): yeni firma STANDART doğar,
-  // satınalma sihirbazı Gold ister. Oturumlu üyeye kapıyı `MemberCta` söyler.
-  const talepHref = signupHref("talep");
-  const panelTalepHref = `/company/satinalma/taleplerim/yeni${state.q ? `?q=${encodeURIComponent(state.q)}` : ""}`;
+  // "Talep aç" (boş durum + yüzen düğme) `OpenRequestLink`: misafir kaydı
+  // DÖNÜŞ ADRESİ TAŞIMAZ (Y-03), oturumlu üyeye Gold kapısını önceden söyler.
   const floatCls =
     "fixed right-5 bottom-5 z-30 inline-flex items-center gap-1 rounded-full bg-blue-600 px-5 py-3 text-sm font-semibold text-white shadow-lg transition hover:bg-blue-700";
 
@@ -239,7 +236,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
             <PublicEmptyState
               title={t("productsEmptyTitle")}
               clearHref={hasFilter || category ? basePath : undefined}
-              extra={{ label: t("openRequestCta"), href: talepHref }}
+              openRequest={{ label: t("openRequestCta"), prefill: state.q }}
             />
           ) : (
             <ResultGrid
@@ -275,21 +272,7 @@ export async function ProductIndex({ title, lead, searchParams, category, image,
           hrefBuilder={(p) => `${landingPath}${landingQuery(p)}`}
         />
         {/* Yüzen "Talep aç" — listeyi gezen alıcı için; hero'lu sayfa değil. */}
-        <MemberCta
-          action="listing"
-          compact
-          compactClassName={floatCls}
-          compactLabel={t("openRequest")}
-          member={
-            <Link href={panelTalepHref} className={floatCls}>
-              {t("openRequest")}
-            </Link>
-          }
-        >
-          <Link href={talepHref} className={floatCls}>
-            {t("openRequest")}
-          </Link>
-        </MemberCta>
+        <OpenRequestLink label={t("openRequest")} prefill={state.q} className={floatCls} />
       </PublicListPage>
     </FilterShell>
     {/* Şehir şeridi VARSAYILAN (2026-09-09, Parça 3): şehir sayfalarına iç

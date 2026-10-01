@@ -17,11 +17,12 @@ const h = vi.hoisted(() => ({
   patch: vi.fn(),
   confirm: vi.fn(),
   canManage: true,
+  company: null as { tier: string } | null,
 }));
 
 vi.mock("@/hooks/use-company-auth", () => ({
   useHasCompanyPermission: () => h.canManage,
-  useCompanyAuth: () => ({ user: null, company: null }),
+  useCompanyAuth: () => ({ user: null, company: h.company }),
 }));
 // Uygulama içi onay diyaloğu (arayüz testi D-126) — tarayıcının window.confirm'ü değil.
 vi.mock("@/components/providers/confirm-dialog", () => ({ useConfirm: () => h.confirm }));
@@ -89,6 +90,7 @@ beforeEach(() => {
   h.confirm.mockReset();
   h.confirm.mockResolvedValue(true);
   h.canManage = true;
+  h.company = null;
   h.get.mockResolvedValue({ data: [] });
   vi.mocked(toast.error).mockReset();
   vi.mocked(toast.success).mockReset();
@@ -121,6 +123,35 @@ describe("ProductShowcaseForm — yeni ürün 'Onaya gönder'", () => {
     await waitFor(() => expect(onCreated).toHaveBeenCalledWith(saved));
     expect(onClose).not.toHaveBeenCalled();
     expect(h.post.mock.calls.some(([u]) => String(u).includes("publish"))).toBe(false);
+  });
+});
+
+// Arayüz testi Y-11 (gözden geçirme): video/belge paketin altında gizli —
+// gönderilmez de; görünmeyen eski bir değer kaydı etkilemesin.
+describe("ProductShowcaseForm — paketli medya alanları", () => {
+  const submitBody = async () => {
+    h.post.mockResolvedValue({ data: { ...EMPTY, id: "p9", name: "Pano", publishBlockers: ["En az bir görsel"] } });
+    const user = userEvent.setup();
+    renderForm();
+    await user.type(screen.getByLabelText(/Ürün adı/), "Pano");
+    await user.click(screen.getAllByRole("button", { name: "Onaya gönder" })[0]!);
+    await waitFor(() => expect(h.post).toHaveBeenCalled());
+    return h.post.mock.calls[0]![1] as Record<string, unknown>;
+  };
+
+  it("Silver altı: videoUrl ve documents gövdede YOK", async () => {
+    h.company = { tier: "STANDART" };
+    const body = await submitBody();
+    expect(body).not.toHaveProperty("videoUrl");
+    expect(body).not.toHaveProperty("documents");
+    expect(body).toHaveProperty("externalUrl");
+  });
+
+  it("Silver: videoUrl ve documents gönderilir", async () => {
+    h.company = { tier: "SILVER" };
+    const body = await submitBody();
+    expect(body).toHaveProperty("videoUrl");
+    expect(body).toHaveProperty("documents");
   });
 });
 
