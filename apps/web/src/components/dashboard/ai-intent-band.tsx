@@ -45,9 +45,12 @@ export function useRelaxedNote(): (r: AiSearchIntentResult) => string | null {
 export function AiIntentBand({
   intent,
   onDismiss,
+  categoryLabel,
 }: {
   intent: AiSearchIntentResult;
   onDismiss: () => void;
+  /** Kategori çipinin adı — satışta uygulanan SEGMENT'in adı (arayüz testi D-276). */
+  categoryLabel?: (code: string) => string | undefined;
 }) {
   const relaxedNote = useRelaxedNote();
   const t = useTranslations("web.panel.shell.aiIntentBand");
@@ -66,6 +69,7 @@ export function AiIntentBand({
     quantity: (n, u) => quantity(n, u),
     cityLabel: (c) => cityLabel(c),
     countryLabel: (cc) => countryDisplayName(cc, locale),
+    categoryLabel,
   });
 
   const remove = (param: string) => {

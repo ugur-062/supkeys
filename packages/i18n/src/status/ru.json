@@ -16604,6 +16604,11 @@
     "status": "reviewed",
     "at": "2026-09-25"
   },
+  "web.marketplace.panelHome.panelHeroSearch.aiEnAz3Karakter": {
+    "hash": "15a0b54d09",
+    "status": "reviewed",
+    "at": "2026-10-01"
+  },
   "web.marketplace.panelHome.panelHeroSearch.aiIleAra": {
     "hash": "267cc3ad2b",
     "status": "reviewed",
@@ -16613,6 +16618,11 @@
     "hash": "37fdda18d8",
     "status": "reviewed",
     "at": "2026-09-25"
+  },
+  "web.marketplace.panelHome.panelHeroSearch.aiRolKilidi": {
+    "hash": "a6dfde8e20",
+    "status": "reviewed",
+    "at": "2026-10-01"
   },
   "web.marketplace.panelHome.panelHeroSearch.ara": {
     "hash": "b07bcee1b9",

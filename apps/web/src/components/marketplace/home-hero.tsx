@@ -110,6 +110,9 @@ export function HomeHero() {
           lead={t("supplierLead")}
           placeholder={t("supplierPlaceholder")}
           action={MARKETPLACE_ROUTES.demands}
+          /* Talep aramaları SATIŞ son aramalarına yazılır (arayüz testi
+             D-312) — bu yüzde AI yok, portal kutudan çıkarılamıyordu. */
+          portal="satis"
           /* İKİ YÜZ BİREBİR HİZALI (2026-09-18, kullanıcı: "geçişte yazılar
              yer değiştirmesin, sadece panel değişsin"): alıcı yüzüyle aynı
              yapı — başlık · iki satır alt cümle · arama · not. */

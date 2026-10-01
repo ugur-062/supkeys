@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { AiSearchIntentResult } from "@rothern/shared";
 import { messagesFor, WEB_NAMESPACES } from "@rothern/i18n/messages";
 import { createTranslator } from "use-intl/core";
-import { intentChips, intentToProductQuery, intentToRequestQuery, type IntentChipFormat, type IntentChipT } from "../ai-search";
+import { aiSearchAccess, intentChips, intentToProductQuery, intentToRequestQuery, type IntentChipFormat, type IntentChipT } from "../ai-search";
 
 // `intentChips` React DIŞI: çevirmeni ÇAĞIRAN verir. Testte TR katalogdan
 // kurulur — beklenen Türkçe metin tek kaynaktan gelir.
@@ -94,5 +94,30 @@ describe("ai-search — yorum → URL süzgeci", () => {
     expect(label("moqMax")).toBe("Min. sipariş ≤ 50 pieces");
     // Sunucu şehir adı vermediyse (eski oturum) yerel biçimleyici.
     expect(intentChips({ ...base, cityName: null }, sp, fmt()).find((c) => c.param === "sehir")?.label).toBe("Şehir: city:istanbul");
+  });
+
+  it("kategori çipi verilen adı yazar — satışta uygulanan SEGMENT (arayüz testi D-276)", () => {
+    const r = { ...base, portal: "satis" as const, category: { id: "31162800", name: "Kollar veya tokmaklar" } };
+    const sp = new URLSearchParams(intentToRequestQuery(r));
+    const seg = (code: string) => (code.startsWith("31") ? "Üretim Bileşenleri" : undefined);
+    expect(intentChips(r, sp, { ...fmt(), categoryLabel: seg }).find((c) => c.param === "kategori")?.label).toBe("Kategori: Üretim Bileşenleri");
+    // Ad bulunamazsa (segmentler yüklenmedi) sunucunun adı.
+    expect(intentChips(r, sp, { ...fmt(), categoryLabel: () => undefined }).find((c) => c.param === "kategori")?.label).toBe("Kategori: Kollar veya tokmaklar");
+  });
+});
+
+describe("aiSearchAccess — hero AI kapısı ve kilit nedeni (arayüz testi O-050)", () => {
+  const buyer = { permissions: ["buy:listing:manage"] };
+  const admin = { permissions: ["company:manage"] };
+  it("Silver altı → paket kilidi (rol ne olursa olsun)", () => {
+    expect(aiSearchAccess({ tier: "STANDART" }, buyer)).toEqual({ enabled: false, lockedBy: "tier" });
+    expect(aiSearchAccess({ tier: "STANDART" }, admin)).toEqual({ enabled: false, lockedBy: "tier" });
+    expect(aiSearchAccess(null, buyer)).toEqual({ enabled: false, lockedBy: "tier" });
+  });
+  it("paket yeterli, koltuk izni yok → rol kilidi (paket bağlantısı gösterilmez)", () => {
+    expect(aiSearchAccess({ tier: "GOLD" }, admin)).toEqual({ enabled: false, lockedBy: "role" });
+  });
+  it("Silver+ ∧ koltuk izni → açık", () => {
+    expect(aiSearchAccess({ tier: "SILVER" }, buyer)).toEqual({ enabled: true });
   });
 });

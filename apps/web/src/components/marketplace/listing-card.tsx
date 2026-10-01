@@ -377,9 +377,12 @@ function PanelRow({
                     </span>
                     <span className="min-w-0">{f.label}</span>
                   </dt>
-                  <dd className={cn("-mt-2 min-w-0 pl-9 text-[13px] font-semibold leading-tight text-slate-800", value)}>{f.value}</dd>
+                  {/* Dar ekranda girinti YOK (arayüz testi D-316): iki sütunlu
+                      ızgarada 36 px girinti "3 kalem · 11.200 adet" değerini
+                      kırıyordu; değer etiketin altından başlar. */}
+                  <dd className={cn("mt-1 min-w-0 text-[13px] font-semibold leading-tight text-slate-800 sm:-mt-2 sm:pl-9", value)}>{f.value}</dd>
                   {noteUnderClosing && i === closingIdx ? (
-                    <dd className="mt-1 ml-9 inline-flex items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700">
+                    <dd className="mt-1 inline-flex items-center gap-1 rounded-full bg-rose-50 px-1.5 py-0.5 text-[10px] font-medium text-rose-700 sm:ml-9">
                       <ClockIcon aria-hidden className="size-3" />
                       {d.timeNote}
                     </dd>
@@ -403,7 +406,9 @@ function PanelRow({
                   }}
                   aria-expanded={expanded}
                   aria-controls={d.expandable.id}
-                  aria-label={expanded ? t("hideItems") : t("showItems")}
+                  /* Erişilebilir ad GÖRÜNEN metin (arayüz testi D-278): ayrı
+                     `aria-label` "Kalemleri göster" diyordu, düğmede "Detayları
+                     göster" yazıyor — sesli komutla eşleşmiyordu. */
                   className={cn("inline-flex items-center gap-1.5 rounded-md px-1 py-0.5 text-[12px] text-slate-600 hover:bg-slate-100 hover:text-slate-900", ROW_FOCUS)}
                 >
                   <ChevronDownIcon aria-hidden strokeWidth={2.25} className={cn("size-5 transition-transform", expanded && "rotate-180")} />

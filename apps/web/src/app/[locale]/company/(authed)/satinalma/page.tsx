@@ -1,11 +1,11 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { hasAnySeatPermission, userHasPermission } from "@/lib/company/permissions";
+import { userHasPermission } from "@/lib/company/permissions";
 import { BUYER_OBJECTS, BUYER_WIDGETS } from "@/lib/company/hero-decor";
 import { useCompanyAuth } from "@/hooks/use-company-auth";
-import { intentToProductQuery, stashAiIntent } from "@/lib/company/ai-search";
-import { foldSearchText, tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
+import { aiSearchAccess, intentToProductQuery, stashAiIntent } from "@/lib/company/ai-search";
+import { foldSearchText, type AiSearchIntentResult } from "@rothern/shared";
 import { useRouter } from "@/i18n/navigation";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
 import { CategoryShowcaseRows, toShowcaseRows } from "@/components/dashboard/category-showcase-rows";
@@ -68,10 +68,9 @@ export default function SatinalmaDashboardPage() {
   const router = useRouter();
 
   // AI ile ara: yorum → ürün süzgeci (URL) + bant. Silver+ ∧ koltuk rolü
-  // (asistanla aynı kapı; API `assertAiAccess` aynasıdır).
-  const aiEnabled =
-    !!company && tierAtLeast(company.tier, "SILVER") &&
-    hasAnySeatPermission(user);
+  // (asistanla aynı kapı; API `assertAiAccess` aynasıdır). Kilit nedeni
+  // paket mi rol mü ayrı taşınır (arayüz testi O-050).
+  const aiAccess = aiSearchAccess(company, user);
   const onAiResult = (r: AiSearchIntentResult) => {
     // Yorum ("AI şöyle anladı") URL'ye sığmaz; köprüyle taşınır ve ürün
     // dizini bir kez okur. Süzgeçler URL'de — çipler oradan çizilir.
@@ -183,7 +182,7 @@ export default function SatinalmaDashboardPage() {
         objects={BUYER_OBJECTS}
         suggestions={suggestions}
         onQueryChange={setTerm}
-        ai={{ portal: "satinalma", enabled: aiEnabled, onResult: onAiResult }}
+        ai={{ portal: "satinalma", ...aiAccess, onResult: onAiResult }}
       />
 
       {scope === "suppliers" ? (

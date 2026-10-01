@@ -131,7 +131,7 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     expect(screen.getByText("Verildi · v2")).toBeInTheDocument();
     expect(screen.getAllByText("Canlı Hayvanlar").length).toBeGreaterThanOrEqual(1);
     expect(screen.getAllByText("Profilinizle eşleşti")).toHaveLength(1);
-    await user.click(screen.getByRole("button", { name: /^Kalemleri (göster|gizle)$/ }));
+    await user.click(screen.getByRole("button", { name: /^Detayları (göster|gizle)$/ }));
     expect(screen.getAllByText("Profilinizle eşleşti").length).toBeGreaterThanOrEqual(2);
     // Sıralama çipleri: varsayılan "Size uygun" basılı.
     expect(screen.getByRole("button", { name: "Size uygun" })).toHaveAttribute("aria-pressed", "true");
@@ -345,13 +345,13 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     const user = userEvent.setup();
     h.rows = [row({ invited: false, connected: true })];
     const { unmount } = render(<SellerTendersView />);
-    await user.click(screen.getByRole("button", { name: /^Kalemleri (göster|gizle)$/ }));
+    await user.click(screen.getByRole("button", { name: /^Detayları (göster|gizle)$/ }));
     expect(screen.getAllByText("Bağlantılı")[0]).toBeInTheDocument();
     unmount();
 
     h.rows = [row({ invited: true, connected: true })];
     render(<SellerTendersView />);
-    await user.click(screen.getByRole("button", { name: /^Kalemleri (göster|gizle)$/ }));
+    await user.click(screen.getByRole("button", { name: /^Detayları (göster|gizle)$/ }));
     expect(screen.getByText("Davetlisiniz")).toBeInTheDocument();
     expect(screen.queryByText("Bağlantılı")).not.toBeInTheDocument();
   });
@@ -368,7 +368,7 @@ describe("SellerTendersView (anasayfaya gömülü, kenar süzgeçli liste)", () 
     h.rows = [row()];
     render(<SellerTendersView />);
     expect(h.get).not.toHaveBeenCalled();
-    const toggle = screen.getByRole("button", { name: /^Kalemleri (göster|gizle)$/ });
+    const toggle = screen.getByRole("button", { name: /^Detayları (göster|gizle)$/ });
     await user.click(toggle);
     expect(await screen.findByText("Çelik Boru")).toBeInTheDocument();
     expect(h.get).toHaveBeenCalledWith("/company/listings/l1", expect.objectContaining({ signal: expect.anything() }));

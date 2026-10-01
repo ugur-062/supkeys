@@ -1,15 +1,16 @@
 "use client";
 
 import { useTranslations } from "next-intl";
-import { hasAnySeatPermission } from "@/lib/company/permissions";
+import { userHasPermission } from "@/lib/company/permissions";
 import { PanelHeroSearch, type PanelSuggestGroup } from "@/components/dashboard/panel-hero-search";
 import { CtaBand } from "@/components/dashboard/cta-band";
 import { useCategorySegments } from "@/hooks/use-portal-discovery";
 import { useSellerTenders } from "@/hooks/use-seller-tenders";
 import { SellerTendersView } from "@/components/company/seller-tenders-view";
 import { AiIntentBand } from "@/components/dashboard/ai-intent-band";
-import { intentToRequestQuery } from "@/lib/company/ai-search";
-import { foldSearchText, tierAtLeast, type AiSearchIntentResult } from "@rothern/shared";
+import { aiSearchAccess, intentToRequestQuery } from "@/lib/company/ai-search";
+import { segmentOf } from "@/lib/company/request-filter-params";
+import { foldSearchText, type AiSearchIntentResult } from "@rothern/shared";
 import { useRouter } from "@/i18n/navigation";
 import { PackagePlus } from "lucide-react";
 import { SELLER_OBJECTS, SELLER_WIDGETS } from "@/lib/company/hero-decor";
@@ -39,14 +40,12 @@ export function SatisDashboardView() {
   const router = useRouter();
 
   // AI ile ara: "ne sattığınızı anlatın" → açık talep süzgeci (URL) + bant.
+  // Kapı ve kilit nedeni (paket / rol) tek yardımcıdan (arayüz testi O-050).
   const [intent, setIntent] = useState<AiSearchIntentResult | null>(null);
-  const aiEnabled =
-    !!company && tierAtLeast(company.tier, "SILVER") &&
-    hasAnySeatPermission(user);
-  const onAiResult = (r: AiSearchIntentResult) => {
-    setIntent(r);
-    router.push(`/company/satis${intentToRequestQuery(r)}#acik-talepler`);
-  };
+  const aiAccess = aiSearchAccess(company, user);
+  // "Ürün ekle" şeridi yalnız ürün yönetme izniyle (arayüz testi O-099):
+  // görüntüleyici `?yeni=1` formuna gönderiliyordu.
+  const canManageProducts = userHasPermission(user, "sell:product:manage");
 
   // Öneri için sektör sayaçları: listenin KENDİSİNDEN (aynı görünürlük, ek
   // uç yok). Sektör çipleri ve fotoğraflı sektör kartları KALDIRILDI
@@ -78,9 +77,18 @@ export function SatisDashboardView() {
     setScopeState(s);
     writeHeroScope("satis", s);
   };
+  const onAiResult = (r: AiSearchIntentResult) => {
+    setIntent(r);
+    // Sonuç AÇIK TALEPLERDE görünür: "Firma" kapsamı açık kaldıysa firma
+    // listesi bandı ve süzülmüş talepleri örtüyordu (arayüz testi O-095).
+    setScope("products");
+    router.push(`/company/satis${intentToRequestQuery(r)}#acik-talepler`);
+  };
   const q = term.trim();
   const suggestions: PanelSuggestGroup[] = useMemo(() => {
-    if (q.length < 2) return [];
+    // "Firma" kapsamında talep/alıcı önerisi YOK (arayüz testi O-095): kutu
+    // firma dizinine gider, talep önerisi yanlış yere çağırıyordu.
+    if (q.length < 2 || scope === "suppliers") return [];
     // Katlanmış sorgu — samanlık (`searchHaystack`) da katlı; `tr-TR` küçültme
     // "Çelik"i "çelik" bırakıp katlı "celik"te bulamıyordu.
     const lower = foldSearchText(q);
@@ -121,7 +129,7 @@ export function SatisDashboardView() {
       { label: t("alicilar"), rows: buyers },
       { label: t("sektorler"), rows: secs },
     ];
-  }, [q, tenders.data, sectorCounts]);
+  }, [q, scope, tenders.data, sectorCounts]);
 
   return (
     <div className="space-y-10">
@@ -159,7 +167,7 @@ export function SatisDashboardView() {
         objects={SELLER_OBJECTS}
         suggestions={suggestions}
         onQueryChange={setTerm}
-        ai={{ portal: "satis", enabled: aiEnabled, onResult: onAiResult }}
+        ai={{ portal: "satis", ...aiAccess, onResult: onAiResult }}
       />
 
       {scope === "suppliers" ? (
@@ -168,17 +176,28 @@ export function SatisDashboardView() {
         <HomeCompanyList portal="satis" />
       ) : (
         <SellerTendersView
-          banner={intent ? <AiIntentBand intent={intent} onDismiss={() => setIntent(null)} /> : null}
+          banner={
+            intent ? (
+              <AiIntentBand
+                intent={intent}
+                onDismiss={() => setIntent(null)}
+                /* Süzgeç SEGMENT'e iner — çip de segment adını yazar (D-276). */
+                categoryLabel={(code) => segments.data?.find((sg) => sg.id === segmentOf(code))?.nameTr}
+              />
+            ) : null
+          }
         />
       )}
 
-      <CtaBand
-        icon={<PackagePlus aria-hidden className="size-5" strokeWidth={1.75} />}
-        title={t("urununuzVitrindeMi")}
-        body={t("urunleriniziFiyatVeMinimumSiparis")}
-        cta={{ label: t("urunEkle"), href: "/company/satis/urunlerim?yeni=1" }}
-        tone="primary"
-      />
+      {canManageProducts ? (
+        <CtaBand
+          icon={<PackagePlus aria-hidden className="size-5" strokeWidth={1.75} />}
+          title={t("urununuzVitrindeMi")}
+          body={t("urunleriniziFiyatVeMinimumSiparis")}
+          cta={{ label: t("urunEkle"), href: "/company/satis/urunlerim?yeni=1" }}
+          tone="primary"
+        />
+      ) : null}
 
       {/* Profil/Ürünler sağlık kartları KALDIRILDI (kullanıcı kararı 2026-09-09):
           profil yüzdesi Profilim'de, ürün sayaçları Ürünlerim'de zaten var. */}

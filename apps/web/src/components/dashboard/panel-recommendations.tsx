@@ -177,6 +177,8 @@ function CardRail({ children }: { children: ReactNode }) {
 
 /**
  * Kenardan 12 px içeride yuvarlak düğme (kaynak: `arrows-inset-12`).
+ * Şeridin ucunda PASİF ama görünür (`opacity-40`, arayüz testi D-239):
+ * `opacity-0` düğmeyi tümden siliyor, şeridin bittiği anlaşılmıyordu.
  *
  * Dikey hizası kartın ORTASI değil GÖRSEL alanı: kart 309 px yüksek,
  * ortaya konunca düğme ilk kartın BAŞLIĞINI örtüyordu. Görsel 4:3 ve kart
@@ -199,7 +201,7 @@ function RailButton({
       onClick={onClick}
       disabled={disabled}
       aria-label={side === "left" ? t("geriKaydir") : t("ileriKaydir")}
-      className={`absolute top-[5.5rem] z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-zinc-700 shadow-md ring-1 ring-zinc-950/10 transition hover:bg-zinc-50 disabled:pointer-events-none disabled:opacity-0 sm:flex ${
+      className={`absolute top-[5.5rem] z-10 hidden size-10 -translate-y-1/2 items-center justify-center rounded-full bg-white text-zinc-700 shadow-md ring-1 ring-zinc-950/10 transition hover:bg-zinc-50 disabled:pointer-events-none disabled:opacity-40 disabled:shadow-none sm:flex ${
         side === "left" ? "left-3" : "right-3"
       }`}
     >

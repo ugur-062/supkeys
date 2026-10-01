@@ -1,5 +1,6 @@
-import { affixCurrency } from "@rothern/shared";
+import { affixCurrency, tierAtLeast } from "@rothern/shared";
 import type { AiSearchIntentResult } from "@rothern/shared";
+import { hasAnySeatPermission, type PermissionSubject } from "@/lib/company/permissions";
 import { formatNumber } from "@/i18n/format";
 import { buildProductFilterQuery, EMPTY_FILTERS } from "@/lib/public/product-filter-params";
 import { buildRequestFilterQuery, EMPTY_REQUEST_FILTERS, segmentOf } from "@/lib/company/request-filter-params";
@@ -10,6 +11,22 @@ import { buildRequestFilterQuery, EMPTY_REQUEST_FILTERS, segmentOf } from "@/lib
  * kaldırılır (çipler URL'den okunur — kaldırılan gerçekten kalkmış olur).
  */
 export const AI_TENDER_DRAFT_KEY = "ai-tender-draft";
+
+/**
+ * Hero "AI ile ara" kapısı — API `assertAiAccess` aynası (Silver+ ∧ herhangi
+ * bir koltuk izni). Kilidin NEDENİNİ de verir (arayüz testi O-050): rol
+ * kontrolü paket kontrolünün İÇİNDE — paket yetmiyorsa neden "tier" (Paketler
+ * bağlantısı), paket yetip koltuk izni yoksa "role" (paket bağlantısı YOK;
+ * Gold firmanın Yönetici'sine "Silver ile açılır" deniyordu).
+ */
+export function aiSearchAccess(
+  company: { tier: string } | null | undefined,
+  user: PermissionSubject | null | undefined,
+): { enabled: boolean; lockedBy?: "tier" | "role" } {
+  if (!company || !tierAtLeast(company.tier, "SILVER")) return { enabled: false, lockedBy: "tier" };
+  if (!hasAnySeatPermission(user)) return { enabled: false, lockedBy: "role" };
+  return { enabled: true };
+}
 
 /**
  * AI YORUMU KÖPRÜSÜ — arama kutusu anasayfada, sonuç listesi ayrı sayfada.
@@ -101,6 +118,13 @@ export interface IntentChipFormat {
   quantity: (qty: number, unit: string) => string;
   cityLabel: (city: string) => string;
   countryLabel: (code: string) => string;
+  /**
+   * Kategori çipinin adı — verilirse sunucunun yaprak adı yerine bu basılır.
+   * Satışta süzgeç SEGMENT'e iner (`intentToRequestQuery`); çip yaprak adını
+   * ("Kollar veya tokmaklar") yazarken uygulanan süzgeç bütün segmentti
+   * (arayüz testi D-276). Bant segment adını listeyle aynı kaynaktan verir.
+   */
+  categoryLabel?: (code: string) => string | undefined;
 }
 
 /** Yorumun parçalarından URL'de HÂLÂ duranlar — çip olarak. */
@@ -109,7 +133,11 @@ export function intentChips(r: AiSearchIntentResult, sp: URLSearchParams, f: Int
   const out: IntentChip[] = [];
   const has = (k: string) => sp.has(k) && sp.get(k) !== "";
   if (r.query && has("q")) out.push({ param: "q", label: t("chipArama", { query: r.query }) });
-  if (r.category && has("kategori")) out.push({ param: "kategori", label: t("chipKategori", { name: r.category.name }) });
+  if (r.category && has("kategori"))
+    out.push({
+      param: "kategori",
+      label: t("chipKategori", { name: f.categoryLabel?.(r.category.id) ?? r.category.name }),
+    });
   if (r.city && has("sehir"))
     out.push({ param: "sehir", label: t("chipSehir", { city: r.cityName ?? f.cityLabel(r.city) }) });
   // Ülke: ürün dizininde satıcının, açık taleplerde alıcının ülkesi.
