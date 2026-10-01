@@ -128,6 +128,17 @@ function toRow(c: ExternalCandidate): CandidateRow {
   };
 }
 
+/**
+ * Tek kalemli aramanın (`itemNames: [name]`) eşleşmesini formdaki sıraya
+ * çevirir (O-057): API kalemi işaretlediyse (`matchedItems` ∋ 1) formdaki
+ * sıra no; işaretlemediyse BOŞ kalır — boş liste eşleşmeye dönüşmez.
+ */
+export function remapSingleItemMatch(r: CandidateRow, name: string, formItemNames: string[]): CandidateRow {
+  const formNo = formItemNames.findIndex((n) => n === name) + 1;
+  const matched = (r.matchedItems ?? []).includes(1) && formNo > 0;
+  return { ...r, matchedItems: matched ? [formNo] : [] };
+}
+
 function mergeRows(prev: CandidateRow[], next: CandidateRow[]): CandidateRow[] {
   const seen = new Set(prev.map((r) => r.key));
   const out = [...prev];
@@ -260,17 +271,14 @@ export function FormSupplierPanel({
     try {
       const res = await external.mutateAsync({ ...base, itemNames: names });
       // Kalem başına aramada sıra no o tek kalemin — formdaki sıraya çevir.
-      const found = res
-        .map(toRow)
-        .map((r) =>
-          names.length === 1
-            ? { ...r, matchedItems: [itemNames.findIndex((n) => n === names[0]) + 1].filter((n) => n > 0) }
-            : r,
-        );
+      // YALNIZ API o kalemi işaretlediyse (O-057): boş eşleşme eşleşmeye
+      // çevrilmez; yoksa ilgisiz firma "kalemi karşılıyor" sayılıp seçili gelirdi.
+      const found = res.map(toRow).map((r) => (names.length === 1 ? remapSingleItemMatch(r, names[0]!, itemNames) : r));
       const next = opts.merge ? mergeRows(rows, found) : found;
       setRows(next);
       setSearchKey(currentKey);
-      preselect(found);
+      // "Daha fazla bul": yalnız o kalemle eşleşen yeni adaylar seçili gelir.
+      preselect(opts.merge ? found.filter((r) => (r.matchedItems ?? []).length > 0) : found);
     } catch (err) {
       setFailed(true);
       toast.error(extractErrorMessage(err, t("failed")));
@@ -345,7 +353,9 @@ export function FormSupplierPanel({
         <div className="flex size-10 shrink-0 items-center justify-center rounded-xl bg-blue-600 text-white">
           <Sparkles className="h-5 w-5" aria-hidden />
         </div>
-        <div className="min-w-0 flex-1">
+        {/* Taban genişlik (O-088): dar ekranda düğme alt satıra geçer; yoksa
+            metin sütunu sıfıra iner ve başlık düğmenin altında kalırdı. */}
+        <div className="min-w-[12rem] flex-1">
           <p className="text-sm font-semibold text-zinc-900">{t("panelTitle")}</p>
           <p className="mt-0.5 text-xs text-zinc-600">
             {t("panelLead")}{" "}

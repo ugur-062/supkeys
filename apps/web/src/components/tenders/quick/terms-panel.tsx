@@ -66,10 +66,9 @@ export function TermsPanel({
       lcConfirmed: false,
     }) || paymentCategoryLabel(value.paymentCategory);
   const currency = `${value.primaryCurrency}${value.allowedCurrencies.length > 1 ? ` +${value.allowedCurrencies.filter((c) => c !== value.primaryCurrency).join(", ")}` : ""}`;
-  const bidRule = [
-    value.isSealedBid ? t("kapaliZarfKurali") : t("acikTeklifKurali"),
-    value.bidVisibility === "OWN_RANK" ? t("tedarikciSirasiniGorur") : value.bidVisibility === "OWN_ONLY" ? t("yalnizKendiTeklifiniGorur") : t("enIyiTeklifAcik"),
-  ].join(" · ");
+  // RFQ teklif toplama HER ZAMAN kapalı zarf (T-16, 2026-10-01) — anahtar yok.
+  // "Tedarikçi ne görür" beş seçeneğin her biri kendi özetiyle (D-240).
+  const bidRule = [t("kapaliZarfKurali"), bidVisibilitySummary(value.bidVisibility, t)].join(" · ");
   const expectations = [value.requireAllItems ? t("tumKalemlereTeklif") : null, value.requireBidDocument ? t("belgeZorunlu") : null].filter(Boolean).join(" · ");
   const scope = scopeLabel(value.targetCountries ?? [], ownerCountry);
 
@@ -82,7 +81,7 @@ export function TermsPanel({
     { key: "rules", icon: ClipboardDocumentCheckIcon, label: t("tekliftenBeklenti"), text: expectations || t("ekSartYok") },
   ];
   const missing = rows.filter((r) => r.missing).length;
-  const summaryLine = [scope, delivery ?? t("teslimSekliSecilmedi"), payment, value.primaryCurrency, value.isSealedBid ? t("kapaliZarf") : t("acik")].join(" · ");
+  const summaryLine = [scope, delivery ?? t("teslimSekliSecilmedi"), payment, value.primaryCurrency, t("kapaliZarf")].join(" · ");
 
   return (
     <section aria-labelledby="sartlar-baslik" className={cn("overflow-hidden rounded-2xl bg-white shadow-sm ring-1", missing ? "ring-red-500/40" : "ring-zinc-950/5")}>
@@ -178,4 +177,18 @@ export function TermsPanel({
       </div>
     </section>
   );
+}
+
+/** Teklif görünürlüğü → şartlar özeti (beş kod açıkça; bilinmeyen kod en kısıtlı okumaya düşer). */
+const BID_VISIBILITY_SUMMARY_KEY = {
+  OWN_ONLY: "yalnizKendiTeklifiniGorur",
+  BEST_PRICE: "enIyiTeklifAcik",
+  OWN_RANK: "tedarikciSirasiniGorur",
+  BEST_AND_OWN_RANK: "enIyiTeklifVeKendiSirasi",
+  ALL: "tumTekliflerVeSiralamaAcik",
+} as const;
+
+export function bidVisibilitySummary(code: string, t: (key: (typeof BID_VISIBILITY_SUMMARY_KEY)[keyof typeof BID_VISIBILITY_SUMMARY_KEY]) => string): string {
+  const key = BID_VISIBILITY_SUMMARY_KEY[code as keyof typeof BID_VISIBILITY_SUMMARY_KEY] ?? BID_VISIBILITY_SUMMARY_KEY.OWN_ONLY;
+  return t(key);
 }

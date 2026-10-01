@@ -50,6 +50,11 @@ vi.mock("@/hooks/use-company-listings", () => ({
   // Yayın paneli paylaş düğmesi için talep detayını okur (vitrindeyse).
   useListingDetail: () => ({ data: undefined }),
 }));
+// Tedarikçi grupları (T-19) — seçicinin "Gruptan ekle" listesi; bu dosyada grup yok.
+vi.mock("@/hooks/use-supplier-templates", () => ({
+  useSupplierTemplates: () => ({ data: [] }),
+  fetchSupplierTemplate: vi.fn(),
+}));
 vi.mock("@/hooks/use-listing-templates", () => ({ useSaveTemplate: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock("@/hooks/use-ai-search-intent", () => ({ useAiSearchIntent: () => ({ mutateAsync: vi.fn(), isPending: false }) }));
 vi.mock("@/components/tenders/supplier-discovery-modal", () => ({ SupplierDiscoveryModal: () => null }));
@@ -178,8 +183,9 @@ describe("QuickRequest", () => {
       deliveryAddressId: "addr1",
       billingAddressId: "addr1",
       categoryIds: ["39121600"],
-      isSealedBid: true,
     });
+    // Kapalı zarf anahtarı yok (T-16): alan gönderilmez, API varsayılanı true.
+    expect(body.isSealedBid).toBeUndefined();
     expect(body.items).toHaveLength(2);
     expect(body.items[0]).toMatchObject({ name: "çelik boru", quantity: 1200, unitCode: "M" });
     expect(body.asDraft).toBeUndefined();
@@ -335,8 +341,9 @@ describe("QuickRequest", () => {
     expect(screen.getByLabelText("Davetli Ltd seç")).toBeDisabled();
     expect(screen.getByText("Zaten davetli")).toBeInTheDocument();
     expect(screen.getByText(/Yayında 2 firmaya davet gidecek/)).toBeInTheDocument();
-    // Tek kalemle aranınca her aday o kalemi sağlar (arama o kalem içindi).
-    expect(screen.getAllByText("Sağlayabileceği kalemler: M6 cıvata").length).toBe(3);
+    // Yalnız API'nin kalemle eşleştirdiği adaylar "sağlayabilir" (O-057):
+    // eşleşmesi boş dönen (Davetli Ltd) o kalemi karşılamış sayılmaz.
+    expect(screen.getAllByText("Sağlayabileceği kalemler: M6 cıvata").length).toBe(2);
     // Alıcı yerli firmayı çıkarır.
     fireEvent.click(screen.getByLabelText("Cıvata AŞ seç"));
     expect(screen.getByText(/Yayında 1 firmaya davet gidecek/)).toBeInTheDocument();
@@ -382,6 +389,14 @@ describe("QuickRequest", () => {
     expect(screen.getByText("Web'de de bulundu")).toBeInTheDocument();
     expect(screen.getByText("Kategori eşleşmesi: Cıvatalar")).toBeInTheDocument();
     await waitFor(() => expect(screen.getByText(/Yayında 3 firmaya davet gidecek/)).toBeInTheDocument());
+    // D-092: "Kime" özeti ve rozet AI davetlerini de sayar; bağlantısızken "kimse görmez" demez.
+    expect(screen.getByText("Yayında ayrıca AI ile bulunan 3 firmaya davet gider.")).toBeInTheDocument();
+    expect(screen.queryByText(/Bağlantınız olmadığı için bu talebi kimse görmez/)).toBeNull();
+    expect(screen.getAllByText("Bağlantılarım · 3 davet").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("button", { name: /^Seçtiklerim/ }));
+    expect(screen.getByText("Yalnız davet ettiğiniz 3 firma görecek.")).toBeInTheDocument();
+    expect(screen.queryByText(/Henüz kimse davet edilmedi/)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /^Bağlantılarım/ }));
     // Alıcı bir üyeyi çıkarır.
     fireEvent.click(screen.getByLabelText("Somun Ltd seç"));
     expect(screen.getByText(/Talebe doğrudan davet edilecek Rothern üyeleri \(1\)/)).toBeInTheDocument();
@@ -420,6 +435,19 @@ describe("QuickRequest", () => {
   it("boş kartta 'son taleplerden başla' çipi görünür", async () => {
     wrap(<QuickRequest />);
     expect(await screen.findByRole("button", { name: "Geçen ayki kablo alımı" })).toBeInTheDocument();
+  });
+
+  it("D-246: profil yoksa ve hiç bağlantı yoksa varsayılan görünürlük 'Herkese açık'; kayıtlı şart ezilmez", async () => {
+    h.defaults = { data: { defaults: null, source: "none" }, isLoading: false };
+    const first = wrap(<QuickRequest />);
+    await waitFor(() => expect(screen.getByRole("button", { name: /^Herkese açık/ })).toHaveAttribute("aria-pressed", "true"));
+    expect(screen.queryByText(/Bağlantınız olmadığı için bu talebi kimse görmez/)).toBeNull();
+    first.unmount();
+    sessionStorage.clear();
+    // Kayıtlı şart "Bağlantılarım" ise bağlantı olmasa da DEĞİŞMEZ (kullanıcının seçimi).
+    h.defaults = { data: { defaults: SAVED, source: "saved" }, isLoading: false };
+    wrap(<QuickRequest />);
+    expect(await screen.findByRole("button", { name: /^Bağlantılarım/ })).toHaveAttribute("aria-pressed", "true");
   });
 
   it("profil yoksa kurulum kartı; kaydedince profile yazılır", async () => {
@@ -484,7 +512,6 @@ describe("QuickRequest", () => {
       paymentDays: undefined,
       primaryCurrency: "USD",
       allowedCurrencies: ["USD"],
-      isSealedBid: false,
       bidVisibility: "OWN_ONLY",
       bidsCloseAt: closesAt,
       deliveryAddressId: "addr1",
@@ -506,9 +533,9 @@ describe("QuickRequest", () => {
         lcType: "SIGHT",
         primaryCurrency: "USD",
         allowedCurrencies: ["USD"],
-        isSealedBid: false,
         asDraft: true,
       });
+      expect(body.isSealedBid).toBeUndefined();
       expect(body.closesAt).toBe(parseAppWallClockInput(closesAt)?.toISOString());
       expect(h.publish).not.toHaveBeenCalled();
       // Düzenlenen talep yeni talep taslağı anahtarına YAZILMAZ.

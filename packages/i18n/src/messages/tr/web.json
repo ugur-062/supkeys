@@ -1891,7 +1891,8 @@
       "submitting": "Giriş yapılıyor…",
       "submit": "Giriş Yap",
       "ssl": "SSL korumalı",
-      "twoFa": "2FA destekli"
+      "twoFa": "2FA destekli",
+      "useAnotherEmail": "← Başka bir e-postayla giriş yap"
     },
     "forgot": {
       "metaTitle": "Şifremi Unuttum",
@@ -1925,7 +1926,8 @@
       "newEmail": "Yeni e-posta adresi",
       "sendToNewEmail": "Kodu yeni adrese gönder",
       "cancelChangeEmail": "Vazgeç",
-      "changeEmailFailed": "E-posta adresi değiştirilemedi"
+      "changeEmailFailed": "E-posta adresi değiştirilemedi",
+      "accountExistsLogin": "Giriş yapın; e-postanız doğrulanmadıysa yeni kod gönderilir."
     },
     "consents": {
       "termsAria": "Kullanıcı sözleşmesini kabul ediyorum",
@@ -2651,7 +2653,6 @@
         "ozelGunSayisi": "Özel gün sayısı",
         "teklifKurallari": "Teklif kuralları",
         "kapaliZarfTedarikcilerBirbirininTeklifini": "Kapalı zarf: tedarikçiler birbirinin teklifini görmez.",
-        "kapaliZarf": "Kapalı zarf",
         "tedarikciNeGorur": "Tedarikçi ne görür",
         "teslimatAdresi": "Teslimat adresi",
         "varsayilanAdresHerTalepteDegistirilebilir": "Varsayılan adres; her talepte değiştirilebilir.",
@@ -3455,7 +3456,13 @@
         "davetiniKaldir": "{name} davetini kaldır",
         "davetEdilecekFirmalar": "Davet edilecek firmalar",
         "secili": "{selected} / {total} seçili",
-        "firmaAraligi": "{range} / {total} firma"
+        "firmaAraligi": "{range} / {total} firma",
+        "gruptanEkle": "Gruptan ekle",
+        "grupSecenegi": "{name} ({n} firma)",
+        "grupEklendi": "“{name}” grubundan {added} firma eklendi.",
+        "grupEklendiAtlanan": "“{name}” grubundan {added} firma eklendi; {skipped} firma bağlantılarınız arasında olmadığı için eklenmedi.",
+        "grupZatenSecili": "“{name}” grubundaki firmalar zaten seçili.",
+        "grupYuklenemedi": "Grup yüklenemedi, tekrar deneyin."
       },
       "termsPanel": {
         "tumKalemlereTeklif": "tüm kalemlere teklif",
@@ -3466,7 +3473,6 @@
         "teklifKurali": "Teklif kuralı",
         "tekliftenBeklenti": "Tekliften beklenti",
         "kapaliZarf": "kapalı zarf",
-        "acik": "açık",
         "ticariSartlar": "Ticari şartlar",
         "buTalebeUygulanirTedarikciTeklifini": "Bu talebe uygulanır — tedarikçi teklifini bunlara göre verir.",
         "kapat": "Kapat",
@@ -3485,10 +3491,11 @@
         "varsayilanYap": "Varsayılan yap",
         "sartlariKaydet": "Şartları kaydet",
         "kapaliZarfKurali": "Kapalı zarf",
-        "acikTeklifKurali": "Açık teklif",
         "tedarikciSirasiniGorur": "tedarikçi sırasını görür",
         "yalnizKendiTeklifiniGorur": "yalnız kendi teklifini görür",
         "enIyiTeklifAcik": "en iyi teklif açık",
+        "enIyiTeklifVeKendiSirasi": "en iyi teklif ve kendi sırası açık",
+        "tumTekliflerVeSiralamaAcik": "tüm teklif tutarları ve sıralama açık, firma adları gizli",
         "belgeZorunlu": "belge zorunlu",
         "ekSartYok": "Ek şart yok",
         "teslimSekliSecilmedi": "teslim şekli seçilmedi",
@@ -3607,6 +3614,7 @@
         "kalemSayisi": "{n} kalem",
         "dosyaSayisi": "{n} dosya",
         "davetSayisi": "{n} davet",
+        "aiDavetleriYayindaGider": "Yayında ayrıca AI ile bulunan {n} firmaya davet gider.",
         "visibility": {
           "PUBLIC": {
             "label": "Herkese açık",

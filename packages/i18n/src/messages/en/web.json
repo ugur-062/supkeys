@@ -1891,7 +1891,8 @@
       "submitting": "Logging in…",
       "submit": "Log in",
       "ssl": "SSL protected",
-      "twoFa": "2FA supported"
+      "twoFa": "2FA supported",
+      "useAnotherEmail": "← Log in with a different email"
     },
     "forgot": {
       "metaTitle": "Forgot password",
@@ -1925,7 +1926,8 @@
       "newEmail": "New email address",
       "sendToNewEmail": "Send code to new address",
       "cancelChangeEmail": "Cancel",
-      "changeEmailFailed": "Couldn't change the email address"
+      "changeEmailFailed": "Couldn't change the email address",
+      "accountExistsLogin": "Log in; if your email isn't verified yet, we'll send a new code."
     },
     "consents": {
       "termsAria": "I accept the user agreement",
@@ -2651,7 +2653,6 @@
         "ozelGunSayisi": "Custom number of days",
         "teklifKurallari": "Quote rules",
         "kapaliZarfTedarikcilerBirbirininTeklifini": "Sealed bid: suppliers cannot see each other''s quotes.",
-        "kapaliZarf": "Sealed bid",
         "tedarikciNeGorur": "What the supplier sees",
         "teslimatAdresi": "Delivery address",
         "varsayilanAdresHerTalepteDegistirilebilir": "Default address; can be changed on each request.",
@@ -3455,7 +3456,13 @@
         "davetiniKaldir": "Remove invitation for {name}",
         "davetEdilecekFirmalar": "Companies to invite",
         "secili": "{selected} / {total} selected",
-        "firmaAraligi": "{range} / {total, plural, one {# company} other {# companies}}"
+        "firmaAraligi": "{range} / {total, plural, one {# company} other {# companies}}",
+        "gruptanEkle": "Add from group",
+        "grupSecenegi": "{name} ({n, plural, one {# company} other {# companies}})",
+        "grupEklendi": "Added {added, plural, one {# company} other {# companies}} from the “{name}” group.",
+        "grupEklendiAtlanan": "Added {added, plural, one {# company} other {# companies}} from the “{name}” group; {skipped, plural, one {# company was} other {# companies were}} skipped because they are not among your connections.",
+        "grupZatenSecili": "Companies in the “{name}” group are already selected.",
+        "grupYuklenemedi": "Could not load the group, please try again."
       },
       "termsPanel": {
         "tumKalemlereTeklif": "quote on all line items",
@@ -3466,7 +3473,6 @@
         "teklifKurali": "Quote rule",
         "tekliftenBeklenti": "Quote requirement",
         "kapaliZarf": "sealed bid",
-        "acik": "open",
         "ticariSartlar": "Commercial terms",
         "buTalebeUygulanirTedarikciTeklifini": "Applies to this request — suppliers quote according to these terms.",
         "kapat": "Close",
@@ -3485,10 +3491,11 @@
         "varsayilanYap": "Set as default",
         "sartlariKaydet": "Save terms",
         "kapaliZarfKurali": "Sealed bid",
-        "acikTeklifKurali": "Open bidding",
         "tedarikciSirasiniGorur": "supplier sees its rank",
         "yalnizKendiTeklifiniGorur": "supplier sees only its own quote",
         "enIyiTeklifAcik": "best quote visible",
+        "enIyiTeklifVeKendiSirasi": "best quote and own rank visible",
+        "tumTekliflerVeSiralamaAcik": "all quote amounts and ranking visible, company names hidden",
         "belgeZorunlu": "document required",
         "ekSartYok": "No additional terms",
         "teslimSekliSecilmedi": "delivery term not selected",
@@ -3607,6 +3614,7 @@
         "kalemSayisi": "{n, plural, one {# line item} other {# line items}}",
         "dosyaSayisi": "{n, plural, one {# file} other {# files}}",
         "davetSayisi": "{n, plural, one {# invitation} other {# invitations}}",
+        "aiDavetleriYayindaGider": "On publishing, invitations also go to {n, plural, one {# company} other {# companies}} found with AI.",
         "visibility": {
           "PUBLIC": {
             "label": "Public",

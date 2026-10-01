@@ -318,7 +318,6 @@ export function RequestDefaultsForm({
       {show("bids") ? (
         <Block title={tr("teklifKurallari")} hint={tr("kapaliZarfTedarikcilerBirbirininTeklifini")}>
           <div className="space-y-3">
-            <Toggle label={tr("kapaliZarf")} checked={value.isSealedBid} onChange={(v) => set({ isSealedBid: v })} />
             <Field>
               <Label htmlFor="tsart-gorunur">{tr("tedarikciNeGorur")}</Label>
               <select id="tsart-gorunur" value={value.bidVisibility} onChange={(e) => set({ bidVisibility: e.target.value })} className={INPUT}>

@@ -231,7 +231,8 @@ function makeBaseTenderSchema(t: RequestsTranslate) {
     visibility: z.enum(VISIBILITY_VALUES),
     isLogistics: z.boolean(),
     logistics: makeLogisticsSchema(t).optional(),
-    isSealedBid: z.boolean(),
+    // Kapalı zarf alanı YOK (2026-10-01, T-16): RFQ teklif toplama her zaman
+    // kapalı zarftır; DB kolonu kalır, form okumaz/yazmaz (API varsayılanı true).
     requireAllItems: z.boolean(),
     requireBidDocument: z.boolean(),
     // CC-1: kalem hedef/istenen fiyatını karşı tarafa göster (opt-in, varsayılan false).
@@ -429,7 +430,6 @@ export const STEP_FIELDS: Record<1 | 2 | 3 | 4, (keyof TenderFormData)[]> = {
     "keywords",
     "isLogistics",
     "logistics",
-    "isSealedBid",
     "requireAllItems",
     "requireBidDocument",
     "primaryCurrency",
@@ -503,7 +503,6 @@ export const DEFAULT_FORM_VALUES: TenderFormData = {
     stackable: false,
     notes: "",
   },
-  isSealedBid: true,
   requireAllItems: false,
   requireBidDocument: false,
   showTargetToSuppliers: false,

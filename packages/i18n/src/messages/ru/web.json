@@ -1891,7 +1891,8 @@
       "submitting": "Вход…",
       "submit": "Войти",
       "ssl": "Защищено SSL",
-      "twoFa": "Поддержка 2FA"
+      "twoFa": "Поддержка 2FA",
+      "useAnotherEmail": "← Войти с другой эл. почтой"
     },
     "forgot": {
       "metaTitle": "Забыли пароль",
@@ -1925,7 +1926,8 @@
       "newEmail": "Новый адрес электронной почты",
       "sendToNewEmail": "Отправить код на новый адрес",
       "cancelChangeEmail": "Отмена",
-      "changeEmailFailed": "Не удалось изменить адрес электронной почты"
+      "changeEmailFailed": "Не удалось изменить адрес электронной почты",
+      "accountExistsLogin": "Войдите; если почта ещё не подтверждена, мы отправим новый код."
     },
     "consents": {
       "termsAria": "Принимаю пользовательское соглашение",
@@ -2651,7 +2653,6 @@
         "ozelGunSayisi": "Своё число дней",
         "teklifKurallari": "Правила подачи предложений",
         "kapaliZarfTedarikcilerBirbirininTeklifini": "Закрытые предложения: поставщики не видят предложения друг друга.",
-        "kapaliZarf": "Закрытые предложения",
         "tedarikciNeGorur": "Что видит поставщик",
         "teslimatAdresi": "Адрес доставки",
         "varsayilanAdresHerTalepteDegistirilebilir": "Адрес по умолчанию; его можно изменить в каждом запросе.",
@@ -3455,7 +3456,13 @@
         "davetiniKaldir": "Убрать приглашение для {name}",
         "davetEdilecekFirmalar": "Компании для приглашения",
         "secili": "Выбрано {selected} / {total}",
-        "firmaAraligi": "{range} / {total, plural, one {# компания} few {# компании} many {# компаний} other {# компании}}"
+        "firmaAraligi": "{range} / {total, plural, one {# компания} few {# компании} many {# компаний} other {# компании}}",
+        "gruptanEkle": "Добавить из группы",
+        "grupSecenegi": "{name} ({n, plural, one {# компания} few {# компании} many {# компаний} other {# компании}})",
+        "grupEklendi": "Из группы «{name}» добавлено компаний: {added}.",
+        "grupEklendiAtlanan": "Из группы «{name}» добавлено компаний: {added}; не добавлено, так как их нет среди Ваших контактов: {skipped}.",
+        "grupZatenSecili": "Компании из группы «{name}» уже выбраны.",
+        "grupYuklenemedi": "Не удалось загрузить группу, попробуйте ещё раз."
       },
       "termsPanel": {
         "tumKalemlereTeklif": "предложение по всем позициям",
@@ -3466,7 +3473,6 @@
         "teklifKurali": "Правило подачи предложений",
         "tekliftenBeklenti": "Требование к предложению",
         "kapaliZarf": "закрытые предложения",
-        "acik": "открытые предложения",
         "ticariSartlar": "Коммерческие условия",
         "buTalebeUygulanirTedarikciTeklifini": "Применяются к этому запросу — поставщик формирует предложение по этим условиям.",
         "kapat": "Закрыть",
@@ -3485,10 +3491,11 @@
         "varsayilanYap": "Сделать по умолчанию",
         "sartlariKaydet": "Сохранить условия",
         "kapaliZarfKurali": "Закрытые предложения",
-        "acikTeklifKurali": "Открытые предложения",
         "tedarikciSirasiniGorur": "поставщик видит своё место в рейтинге",
         "yalnizKendiTeklifiniGorur": "поставщик видит только своё предложение",
         "enIyiTeklifAcik": "лучшее предложение видно всем",
+        "enIyiTeklifVeKendiSirasi": "видны лучшее предложение и своё место в рейтинге",
+        "tumTekliflerVeSiralamaAcik": "видны все суммы предложений и рейтинг, названия компаний скрыты",
         "belgeZorunlu": "документ обязателен",
         "ekSartYok": "Дополнительных условий нет",
         "teslimSekliSecilmedi": "условия поставки не выбраны",
@@ -3607,6 +3614,7 @@
         "kalemSayisi": "{n, plural, one {# позиция} few {# позиции} many {# позиций} other {# позиции}}",
         "dosyaSayisi": "{n, plural, one {# файл} few {# файла} many {# файлов} other {# файла}}",
         "davetSayisi": "{n, plural, one {# приглашение} few {# приглашения} many {# приглашений} other {# приглашения}}",
+        "aiDavetleriYayindaGider": "При публикации приглашения также будут отправлены компаниям, найденным с помощью ИИ: {n}.",
         "visibility": {
           "PUBLIC": {
             "label": "Открыта для всех",

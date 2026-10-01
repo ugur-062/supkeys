@@ -65,7 +65,7 @@ import {
 import { isInviteAccepted } from "@/lib/tenders/external-invite-status";
 import { InviteLocaleSelect } from "@/components/company/invite-locale-select";
 import { titleFromItems, type TitleTranslate } from "@/lib/tenders/quick-parse";
-import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, initialRequestFormValues, type QuickSeedKind } from "@/lib/tenders/request-defaults";
+import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, fallbackVisibilityFor, initialRequestFormValues, type QuickSeedKind } from "@/lib/tenders/request-defaults";
 import { cn } from "@/lib/utils";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { REQUEST_CLOSE_DAY_OPTIONS, REQUEST_DEFAULTS_FALLBACK, listingSeoReadiness, requestDefaultsFallbackFor, type AiTenderExtractResult, type RequestDefaults } from "@rothern/shared";
@@ -250,6 +250,22 @@ export function QuickRequest({
     );
     if (pendingMembers.length) setMemberInvites(pendingMembers.slice(0, MAX_PENDING_EXTERNAL_INVITES));
   }, [defaultsQ.data, initialValues, reset, isEdit, listingId, companyCountry, locale, seedKind]);
+
+  /* Bağlantısız firma (D-246): platform varsayılanı "Bağlantılarım" talebi
+     kimseye göstermez → bağlantılar yüklenince bir kez "Herkese açık"a çekilir.
+     Kayıtlı şart / son talep / düzenleme / kopya / geri getirilen taslak
+     DOKUNULMAZ (kullanıcının seçimi). */
+  const zeroConnChecked = useRef(false);
+  useEffect(() => {
+    if (zeroConnChecked.current || !terms || !connections.data) return;
+    zeroConnChecked.current = true;
+    if (seedKind !== "blank" || defaultsQ.data?.source !== "none" || restoredDraft) return;
+    const cur = getValues("visibility");
+    const next = fallbackVisibilityFor(cur, connections.data.length) as TenderFormData["visibility"];
+    if (next === cur) return;
+    setValue("visibility", next, { shouldDirty: false });
+    setTerms((t) => (t ? { ...t, visibility: next } : t));
+  }, [terms, connections.data, seedKind, defaultsQ.data, restoredDraft, getValues, setValue]);
 
   /* Varsayılan teslimat adresi — şartlar uygulandıktan SONRA ve adresler
      yüklenince, formda adres YOKSA bir kez (düzenlenen talebin adresi ezilmez).
@@ -620,6 +636,7 @@ export function QuickRequest({
           setStagedDocs([]);
           setRestoredDraft(false);
           autoFilled.current = false;
+          zeroConnChecked.current = false;
           reset(pick ? { ...base, deliveryAddressId: pick.id } : base);
           setPublished(null);
         }}
@@ -638,7 +655,10 @@ export function QuickRequest({
   const closeLabel = watched.bidsCloseAt ? formatDate(parseAppWallClockInput(watched.bidsCloseAt), "datetime", locale) : null;
   const ready = hasItems && (watched.categoryIds?.length ?? 0) > 0 && (watched.title?.trim().length ?? 0) >= 3;
 
-  const audience =
+  // AI panelinden seçilen üye + dış davetler de YAYINDA gider (D-092) —
+  // "Kime" özeti ve rozet onları da sayar.
+  const aiInviteCount = memberInvites.length + externalInvites.length;
+  const pickerAudience =
     visibility === "PUBLIC"
       ? publicCount.data
         ? catRows[0]
@@ -649,14 +669,20 @@ export function QuickRequest({
         ? (() => {
             const total = connectionIds.length;
             const on = invited.filter((id) => connectionIds.includes(id)).length;
-            if (total === 0) return tr("baglantinizOlmadigiIcinBuTalebi");
+            // AI davetleri varken "kimse görmez" yanlış — yalnız davet cümlesi kalır.
+            if (total === 0) return aiInviteCount > 0 ? null : tr("baglantinizOlmadigiIcinBuTalebi");
             return on === total
               ? tr("baglantinizinTamamiGorecekVeDavet", { total: total })
               : tr("baglantinizdanFirmaGorecekCikardiginiz", { total, on, off: total - on });
           })()
-        : invited.length
-          ? tr("yalnizDavetEttiginizFirmaGorecek", { length: invited.length })
+        : invited.length + aiInviteCount
+          ? tr("yalnizDavetEttiginizFirmaGorecek", { length: invited.length + aiInviteCount })
           : tr("henuzKimseDavetEdilmediEn");
+  const audience =
+    visibility !== "PRIVATE" && aiInviteCount > 0
+      ? [pickerAudience, tr("aiDavetleriYayindaGider", { n: aiInviteCount })].filter(Boolean).join(" ")
+      : pickerAudience;
+  const inviteCount = (visibility !== "PUBLIC" ? invited.length : 0) + aiInviteCount;
 
   const paymentLabel =
     formatPaymentPlan({
@@ -671,7 +697,7 @@ export function QuickRequest({
     what: hasItems ? [tr("kalemSayisi", { n: namedItems.length }), catRows[0]?.nameTr].filter(Boolean).join(" · ") : null,
     where: selectedAddress ? [selectedAddress.title, selectedAddress.city ? cityLabel(selectedAddress.city) : null].filter(Boolean).join(", ") : null,
     when: closeLabel ? tr("gun", { currentCloseDays: currentCloseDays, closeLabel: closeLabel }) : null,
-    who: [visibilityLabels[visibility].label, visibility !== "PUBLIC" && invited.length ? tr("davetSayisi", { n: invited.length }) : null].filter(Boolean).join(" · "),
+    who: [visibilityLabels[visibility].label, inviteCount ? tr("davetSayisi", { n: inviteCount }) : null].filter(Boolean).join(" · "),
   };
 
   return (

@@ -43,7 +43,6 @@ export function applyRequestDefaults(base: TenderFormData, d: RequestDefaults | 
     lcType: (r.lcType ?? undefined) as TenderFormData["lcType"],
     primaryCurrency: r.primaryCurrency as TenderFormData["primaryCurrency"],
     allowedCurrencies: r.allowedCurrencies as TenderFormData["allowedCurrencies"],
-    isSealedBid: r.isSealedBid,
     bidVisibility: r.bidVisibility as TenderFormData["bidVisibility"],
     requireAllItems: r.requireAllItems,
     requireBidDocument: r.requireBidDocument,
@@ -90,6 +89,15 @@ export function initialRequestFormValues(
   return out;
 }
 
+/**
+ * Bağlantısız firmada PLATFORM varsayılanı (D-246, 2026-10-01): "Bağlantılarım"
+ * talebi kimseye göstermez → "Herkese açık". Yalnız platform varsayılanına
+ * (kayıtlı şart / son talep YOK) uygulanır; kayıtlı şart değiştirilmez.
+ */
+export function fallbackVisibilityFor(visibility: string, connectionCount: number): string {
+  return visibility === "CONNECTIONS" && connectionCount === 0 ? "PUBLIC" : visibility;
+}
+
 export function defaultsFromForm(f: TenderFormData, closeDays: number): RequestDefaults {
   return {
     targetCountries: f.targetCountries ?? [],
@@ -101,7 +109,8 @@ export function defaultsFromForm(f: TenderFormData, closeDays: number): RequestD
     lcType: f.lcType ?? null,
     primaryCurrency: f.primaryCurrency,
     allowedCurrencies: f.allowedCurrencies,
-    isSealedBid: f.isSealedBid,
+    // RFQ her zaman kapalı zarf (T-16) — profil sözleşmesi alanı taşır, form değil.
+    isSealedBid: true,
     bidVisibility: f.bidVisibility,
     requireAllItems: f.requireAllItems,
     requireBidDocument: f.requireBidDocument,

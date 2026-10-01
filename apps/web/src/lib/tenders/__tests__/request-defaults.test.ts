@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { REQUEST_DEFAULTS_FALLBACK, type RequestDefaults } from "@rothern/shared";
 import { DEFAULT_FORM_VALUES } from "../form-schema";
-import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, deliveryTermsFor, initialRequestFormValues, paymentCategoriesFor } from "../request-defaults";
+import { applyRequestDefaults, closesAtFromDays, defaultsFromForm, deliveryTermsFor, fallbackVisibilityFor, initialRequestFormValues, paymentCategoriesFor } from "../request-defaults";
 
 const SAVED: RequestDefaults = {
   targetCountries: ["DE", "NL"],
@@ -38,6 +38,19 @@ describe("talep şartları ↔ form", () => {
     expect(form.primaryCurrency).toBe("TRY");
     expect(form.bidsCloseAt).toBe("2026-09-16T10:00");
     expect(defaultsFromForm(form, 7)).toEqual({ ...REQUEST_DEFAULTS_FALLBACK, deliveryAddressId: null });
+  });
+
+  it("kapalı zarf formda yok (T-16): eski profilde false olsa da form okumaz, profile her zaman true yazılır", () => {
+    const form = applyRequestDefaults(DEFAULT_FORM_VALUES, { ...SAVED, isSealedBid: false }, new Date("2026-09-09T10:00:00+03:00"));
+    expect("isSealedBid" in form).toBe(false);
+    expect(defaultsFromForm(form, 14).isSealedBid).toBe(true);
+  });
+
+  it("D-246: bağlantısız firmada platform varsayılanı Bağlantılarım → Herkese açık; diğerleri değişmez", () => {
+    expect(fallbackVisibilityFor("CONNECTIONS", 0)).toBe("PUBLIC");
+    expect(fallbackVisibilityFor("CONNECTIONS", 2)).toBe("CONNECTIONS");
+    expect(fallbackVisibilityFor("PRIVATE", 0)).toBe("PRIVATE");
+    expect(fallbackVisibilityFor("PUBLIC", 0)).toBe("PUBLIC");
   });
 
   it("teslim şekli ve ödeme listeleri ülkeye göre SÜZÜLMEZ (2026-09-21)", () => {
@@ -83,7 +96,6 @@ describe("hızlı kart açılış değerleri (initialRequestFormValues)", () => 
     paymentDays: undefined,
     primaryCurrency: "USD" as const,
     allowedCurrencies: ["USD" as const],
-    isSealedBid: true,
     bidVisibility: "OWN_ONLY" as const,
     requireAllItems: true,
     bidsCloseAt: "2026-10-15T17:00",
@@ -100,7 +112,6 @@ describe("hızlı kart açılış değerleri (initialRequestFormValues)", () => 
       lcType: "SIGHT",
       primaryCurrency: "USD",
       allowedCurrencies: ["USD"],
-      isSealedBid: true,
       bidVisibility: "OWN_ONLY",
       requireAllItems: true,
       bidsCloseAt: "2026-10-15T17:00",

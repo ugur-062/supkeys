@@ -97,7 +97,6 @@ export function mapDetailToForm(
       ...DEFAULT_FORM_VALUES.logistics,
       ...((l.logistics as Record<string, unknown> | null) ?? {}),
     },
-    isSealedBid: l.isSealedBid ?? true,
     requireAllItems: l.requireAllItems ?? false,
     requireBidDocument: l.requireBidDocument ?? false,
     showTargetToSuppliers: l.showTargetToSuppliers ?? false,

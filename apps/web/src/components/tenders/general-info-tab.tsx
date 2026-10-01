@@ -222,7 +222,9 @@ export function GeneralInfoTab({ l }: { l: ListingDetail }) {
       <Section title={t("satinAlmaTalebiKurallari")} icon={ShieldCheck}>
         <div className="flex flex-wrap gap-2">
           <RuleChip
-            active={!!l.isSealedBid}
+            // RFQ teklif toplama her zaman kapalı zarf (T-16): kayıtlı bayrak
+            // eski turlarda yanlış (false) olabilir — formata göre çizilir.
+            active={l.format === "RFQ" || !!l.isSealedBid}
             label={t("kapaliZarfTedarikcilerArasiGizlilik")}
           />
           <RuleChip

@@ -2,8 +2,10 @@
 
 import { useTranslations } from "next-intl";
 import { useConnections, type Connection } from "@/hooks/use-company-connections";
+import { useCompanyAuth, useHasCompanyPermission } from "@/hooks/use-company-auth";
+import { fetchSupplierTemplate, useSupplierTemplates } from "@/hooks/use-supplier-templates";
 import { cn } from "@/lib/utils";
-import { companyActivityLabel, foldSearchText, stemPrefix, tokenizeQuery } from "@rothern/shared";
+import { BUYING_TIER, companyActivityLabel, foldSearchText, stemPrefix, tierAtLeast, tokenizeQuery } from "@rothern/shared";
 import { useActivityLabel, useCityLabel } from "@/i18n/domain";
 import { upperForText } from "@/i18n/format";
 import {
@@ -42,6 +44,13 @@ import { useMemo, useState } from "react";
  * firmanın sektör/ad/faaliyet metninde geçiyor mu. Puanlı olanlar ÖNE,
  * "Kalemlere uygun" çipiyle; eşitlikte ada göre. Süzgeç/arama sırayı
  * bozmaz, yalnız daraltır. Değer sihirbazla AYNI: Rothern ID listesi.
+ *
+ * GRUPTAN EKLE (2026-10-01, T-19): Şablonlar › Tedarikçi Grupları'ndaki bir
+ * grubun üyeleri tek tıkla seçime eklenir. Yalnız BU listede olan (geçerli
+ * bağlantı — engellenen/kopan/paketi düşen bağlantı listede yoktur) üyeler
+ * eklenir; zaten seçili olanlar tekrarlanmaz, mevcut seçim korunur. Gruplar
+ * GOLD özelliği (API `CompanyPaidTierGuard`) + `buy:view` — ikisi de yoksa
+ * denetim çizilmez.
  */
 const PAGE = 7;
 
@@ -73,6 +82,13 @@ export function SupplierPicker({
   const [city, setCity] = useState("");
   const [shown, setShown] = useState(PAGE);
   const scoped = mode === "connections";
+  // Paket kapısı İÇİNDE rol kapısı: gruplar GOLD + `buy:view`.
+  const { company } = useCompanyAuth();
+  const canViewGroups = useHasCompanyPermission("buy:view");
+  const groupsEnabled = !!company && tierAtLeast(company.tier, BUYING_TIER) && canViewGroups;
+  const groups = useSupplierTemplates({ enabled: groupsEnabled });
+  const [groupBusy, setGroupBusy] = useState(false);
+  const [groupNote, setGroupNote] = useState<string | null>(null);
 
   const term = foldSearchText(q);
   const scored = useMemo(() => {
@@ -111,6 +127,28 @@ export function SupplierPicker({
   const allVisibleOn = visibleIds.length > 0 && visibleIds.every((id) => value.includes(id));
   const toggleAll = () =>
     onChange(allVisibleOn ? value.filter((id) => !visibleIds.includes(id)) : [...new Set([...value, ...visibleIds])]);
+  const groupRows = groupsEnabled ? (groups.data ?? []).filter((g) => g.memberCount > 0) : [];
+  const addGroup = async (groupId: string) => {
+    if (!groupId || groupBusy) return;
+    setGroupBusy(true);
+    setGroupNote(null);
+    try {
+      const tpl = await fetchSupplierTemplate(groupId);
+      const r = mergeGroupMembers(value, tpl.members.map((m) => m.rothernId), allIds);
+      if (r.added.length > 0) onChange(r.next);
+      setGroupNote(
+        r.added.length === 0 && r.skipped === 0
+          ? t("grupZatenSecili", { name: tpl.name })
+          : r.skipped > 0
+            ? t("grupEklendiAtlanan", { name: tpl.name, added: r.added.length, skipped: r.skipped })
+            : t("grupEklendi", { name: tpl.name, added: r.added.length }),
+      );
+    } catch {
+      setGroupNote(t("grupYuklenemedi"));
+    } finally {
+      setGroupBusy(false);
+    }
+  };
 
   if (isLoading) {
     return (
@@ -181,7 +219,28 @@ export function SupplierPicker({
               {t("tumunuSec")}
             </label>
           )}
+          {groupRows.length > 0 ? (
+            <select
+              value=""
+              disabled={groupBusy}
+              onChange={(e) => void addGroup(e.target.value)}
+              aria-label={t("gruptanEkle")}
+              className="min-w-[8.5rem] rounded-xl border border-blue-300 bg-white py-2 pr-8 pl-3 text-sm font-medium text-blue-700 shadow-sm outline-none focus:border-blue-600 focus:ring-2 focus:ring-blue-600/15 disabled:opacity-50"
+            >
+              <option value="">{t("gruptanEkle")}</option>
+              {groupRows.map((g) => (
+                <option key={g.id} value={g.id}>
+                  {t("grupSecenegi", { name: g.name, n: g.memberCount })}
+                </option>
+              ))}
+            </select>
+          ) : null}
         </div>
+        {groupNote ? (
+          <p role="status" className="mt-2 text-xs text-zinc-600">
+            {groupNote}
+          </p>
+        ) : null}
 
         <div className="mt-3 overflow-hidden rounded-xl ring-1 ring-zinc-950/5">
           <table className="w-full text-sm">
@@ -398,6 +457,33 @@ function FilterSelect({ label, value, onChange, options }: { label: string; valu
       ))}
     </select>
   );
+}
+
+/**
+ * Grup üyelerini seçime katar (T-19): yalnız seçicide olan (`available` —
+ * geçerli bağlantı) Rothern ID'leri; zaten seçili olan tekrarlanmaz, mevcut
+ * seçim ve sırası korunur. `skipped`: listede olmayan (bağlantı değil /
+ * engelli / Rothern ID'siz) üye sayısı.
+ */
+export function mergeGroupMembers(
+  current: string[],
+  memberRothernIds: (string | null | undefined)[],
+  available: string[],
+): { next: string[]; added: string[]; skipped: number } {
+  const avail = new Set(available);
+  const have = new Set(current);
+  const added: string[] = [];
+  let skipped = 0;
+  for (const id of new Set(memberRothernIds)) {
+    if (!id || !avail.has(id)) {
+      skipped += 1;
+      continue;
+    }
+    if (have.has(id)) continue;
+    have.add(id);
+    added.push(id);
+  }
+  return { next: [...current, ...added], added, skipped };
 }
 
 /** Kalem adlarından anlamlı kökler (≥3 harf, kök-önek). */

@@ -127,7 +127,7 @@ export interface CreateListingInput {
   requireAllItems?: boolean;
   requireBidDocument?: boolean;
   showTargetToSuppliers?: boolean;
-  isSealedBid?: boolean;
+  // isSealedBid gönderilmez (T-16): API varsayılanı true — RFQ her zaman kapalı zarf.
   primaryCurrency?: CurrencyCode;
   allowedCurrencies?: CurrencyCode[];
   // Teslim / ödeme — zamanlama GÖNDERİLMEZ, backend plandan türetir (Faz 2).

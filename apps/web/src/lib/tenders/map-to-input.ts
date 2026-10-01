@@ -78,7 +78,6 @@ export function mapToInput(d: TenderFormData): CreateListingInput {
     requireAllItems: d.requireAllItems,
     requireBidDocument: d.requireBidDocument,
     showTargetToSuppliers: d.showTargetToSuppliers,
-    isSealedBid: d.isSealedBid,
     primaryCurrency: d.primaryCurrency as CurrencyCode,
     allowedCurrencies: d.allowedCurrencies as CurrencyCode[],
     deliveryTerm: d.deliveryTerm,
